@@ -93,14 +93,24 @@ void KX_TimeCategoryLogger::NextMeasurement(double now)
 	}
 }
 
-double KX_TimeCategoryLogger::GetAverage(KX_TimeLogger::Category tc)
+double KX_TimeCategoryLogger::GetAverage(KX_TimeLogger::Category tc) const
 {
 	return m_lastAverages[tc];
 }
 
-double KX_TimeCategoryLogger::GetAverage()
+double KX_TimeCategoryLogger::GetAverage() const
 {
 	return m_lastTotalAverage;
+}
+
+double KX_TimeCategoryLogger::GetAverageFrameRate() const
+{
+	double tottime = m_lastTotalAverage;
+	if (m_lastTotalAverage < 1e-6) {
+		// Equivalent to 1.0 / 1e-6.
+		return 1e6f;
+	}
+	return 1.0 / m_lastTotalAverage;
 }
 
 std::map<std::string, double> KX_TimeCategoryLogger::GetProfileDict()

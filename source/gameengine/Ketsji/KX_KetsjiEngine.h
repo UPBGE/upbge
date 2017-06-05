@@ -224,9 +224,6 @@ private:
 	std::vector<RAS_Query> m_renderQueries;
 	static const std::string m_renderQueriesLabels[QUERY_MAX];
 
-	/// Last estimated framerate
-	double m_average_framerate;
-
 	/// Enable debug draw of culling bounding boxes.
 	KX_DebugOption m_showBoundingBox;
 	/// Enable debug draw armatures.

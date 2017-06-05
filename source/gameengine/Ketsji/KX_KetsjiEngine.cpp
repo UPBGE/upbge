@@ -159,7 +159,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_exitstring(""),
 	m_cameraZoom(1.0f),
 	m_overrideCamZoom(1.0f),
-	m_average_framerate(0.0),
 	m_showBoundingBox(KX_DebugOption::DISABLE),
 	m_showArmature(KX_DebugOption::DISABLE),
 	m_showCameraFrustum(KX_DebugOption::DISABLE),
@@ -263,13 +262,6 @@ void KX_KetsjiEngine::EndFrame()
 	if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES | SHOW_RENDER_QUERIES)) {
 		RenderDebugProperties();
 	}
-
-	double tottime = m_logger.GetAverage();
-	if (tottime < 1e-6) {
-		tottime = 1e-6;
-	}
-
-	m_average_framerate = 1.0 / tottime;
 
 	// Go to next profiling measurement, time spent after this call is shown in the next frame.
 	m_logger.NextMeasurement(m_kxsystem->GetTimeInSeconds());
@@ -1516,7 +1508,7 @@ void KX_KetsjiEngine::SetAnimFrameRate(double framerate)
 
 double KX_KetsjiEngine::GetAverageFrameRate()
 {
-	return m_average_framerate;
+	return m_logger.GetAverageFrameRate();
 }
 
 void KX_KetsjiEngine::SetExitKey(short key)

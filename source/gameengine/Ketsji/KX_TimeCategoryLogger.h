@@ -91,12 +91,15 @@ public:
 	 * Returns average of all but the current measurement time.
 	 * \return The average of all but the current measurement.
 	 */
-	double GetAverage(KX_TimeLogger::Category tc);
+	double GetAverage(KX_TimeLogger::Category tc) const;
 
 	/**
 	 * Returns average for grand total.
 	 */
-	double GetAverage();
+	double GetAverage() const;
+
+	/// Return inverse average frame time.
+	double GetAverageFrameRate() const;
 
 	/// Return dictionary name : last frame times.
 	std::map<std::string, double> GetProfileDict();
