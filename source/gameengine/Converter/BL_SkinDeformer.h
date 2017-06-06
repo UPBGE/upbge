@@ -77,7 +77,7 @@ public:
 	virtual ~BL_SkinDeformer();
 	bool Update();
 	bool UpdateInternal(bool shape_applied);
-	bool Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat);
+	bool Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
 	bool UpdateBuckets()
 	{
 		// update the deformer and all the mesh slots; Apply() does it well, so just call it.

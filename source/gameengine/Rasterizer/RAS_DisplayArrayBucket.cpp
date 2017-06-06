@@ -189,13 +189,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 	bool arrayModified = false;
 
 	if (m_deformer) {
-		RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
-		m_deformer->Apply(material, m_meshMaterial);
-
-		// Test if deformer is dynamic.
-		if (m_deformer->IsDynamic()) {
-			arrayModified = true;
-		}
+		m_deformer->Apply(m_meshMaterial, m_displayArray);
 	}
 
 	if (m_displayArray) {

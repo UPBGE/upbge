@@ -79,7 +79,7 @@ void KX_SoftBodyDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 	}
 }
 
-bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat)
+bool KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
 {
 	CcdPhysicsController *ctrl = (CcdPhysicsController *)m_gameobj->GetPhysicsController();
 	if (!ctrl)
@@ -92,16 +92,9 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *me
 	// update the vertex in m_transverts
 	Update();
 
-	RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
-	if (!slot) {
-		return false;
-	}
-
-	RAS_IDisplayArray *array = slot->GetDisplayArray();
 	RAS_IDisplayArray *origarray = meshmat->m_baseslot->GetDisplayArray();
 
 	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
-
 
 	if (m_needUpdateAabb) {
 		m_boundingBox->SetAabb(MT_Vector3(0.0f, 0.0f, 0.0f), MT_Vector3(0.0f, 0.0f, 0.0f));
@@ -165,6 +158,8 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *me
 					  RAS_IDisplayArray::COLORS_MODIFIED));
 
 	m_boundingBox->ExtendAabb(aabbMin, aabbMax);
+
+	array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
 
 	return true;
 }

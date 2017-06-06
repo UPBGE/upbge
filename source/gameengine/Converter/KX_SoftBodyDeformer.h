@@ -41,7 +41,6 @@
 #include <vector>
 
 class RAS_MeshObject;
-class RAS_IPolyMaterial;
 
 class KX_SoftBodyDeformer : public RAS_Deformer
 {
@@ -56,7 +55,7 @@ public:
 	virtual ~KX_SoftBodyDeformer();
 
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
-	virtual bool Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat);
+	virtual bool Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
 	virtual bool Update()
 	{
 		m_bDynamic = true;
