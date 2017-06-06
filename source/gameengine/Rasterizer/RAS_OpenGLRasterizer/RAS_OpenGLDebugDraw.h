@@ -33,9 +33,17 @@ class RAS_DebugDraw;
 
 class RAS_OpenGLDebugDraw
 {
+
+private:
+
+	unsigned int m_genericProg;
+	unsigned int m_aabbvbo;
+	unsigned int m_aabbibo;
+
 public:
-	RAS_OpenGLDebugDraw() = default;
-	~RAS_OpenGLDebugDraw() = default;
+
+	RAS_OpenGLDebugDraw();
+	~RAS_OpenGLDebugDraw();
 
 	void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
 };

@@ -29,6 +29,15 @@
 
 #include "MT_Frustum.h"
 
+RAS_DebugDraw::RAS_DebugDraw()
+{
+	m_impl = new RAS_OpenGLDebugDraw();
+}
+RAS_DebugDraw::~RAS_DebugDraw()
+{
+	delete m_impl;
+}
+
 RAS_DebugDraw::Shape::Shape(const MT_Vector4& color)
 	:m_color(color)
 {
@@ -85,9 +94,6 @@ RAS_DebugDraw::Box2D::Box2D(const MT_Vector2& pos, const MT_Vector2& size, const
 	m_size(size)
 {
 }
-
-RAS_DebugDraw::RAS_DebugDraw() = default;
-RAS_DebugDraw::~RAS_DebugDraw() = default;
 
 void RAS_DebugDraw::DrawLine(const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
 {

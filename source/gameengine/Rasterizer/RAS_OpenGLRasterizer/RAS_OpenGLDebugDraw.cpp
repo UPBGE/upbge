@@ -31,10 +31,89 @@
 
 #include "GPU_material.h"
 #include "GPU_glew.h"
+#include "KX_Globals.h"
+#include "KX_Scene.h"
+#include "KX_Camera.h"
 
 extern "C" {
 #  include "GPU_immediate.h"
 #  include "BLF_api.h"
+}
+
+RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw():
+	m_genericProg(-1),
+	m_aabbvbo(-1),
+	m_aabbibo(-1)
+{
+	/* program */
+	const char *v =
+		"#version 330\n"
+		"uniform mat4 ModelViewProjectionMatrix;\n"
+		"in vec4 pos;\n"
+		"void main()\n"
+		"{\n"
+		"	gl_Position = ModelViewProjectionMatrix * pos;\n"
+		"}\n";
+
+	const char *f =
+		"#version 330\n"
+		"uniform vec4 color;\n"
+		"out vec4 fragColor;\n"
+		"void main()\n"
+		"{\n"
+		"	fragColor = color;\n"
+		"}\n";
+
+	m_genericProg = glCreateProgram();
+
+	unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+
+	glShaderSource(vertexShader, 1, &v, NULL);
+	glShaderSource(fragmentShader, 1, &f, NULL);
+
+	glCompileShader(vertexShader);
+	glCompileShader(fragmentShader);
+
+	glAttachShader(m_genericProg, vertexShader);
+	glAttachShader(m_genericProg, fragmentShader);
+
+	glBindAttribLocation(m_genericProg, 0, "pos");
+
+	glLinkProgram(m_genericProg);
+
+	glDeleteShader(vertexShader);
+	glDeleteShader(fragmentShader);
+
+	/* check link */
+	{
+		GLint stat;
+		glGetProgramiv(m_genericProg, GL_LINK_STATUS, &stat);
+		if (!stat) {
+			GLchar log[1000];
+			GLsizei len;
+			glGetProgramInfoLog(m_genericProg, 1000, &len, log);
+			fprintf(stderr, "Shader link error:\n%s\n", log);
+		}
+	}
+
+	/* vbos/ibos */
+
+	/* aabb */
+	glGenBuffers(1, &m_aabbvbo);
+	glGenBuffers(1, &m_aabbibo);
+
+	GLushort indexes[24] = { 0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7 };
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_aabbibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * 24, indexes, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+RAS_OpenGLDebugDraw::~RAS_OpenGLDebugDraw()
+{
+	glDeleteBuffers(1, &m_aabbvbo);
+	glDeleteBuffers(1, &m_aabbibo);
 }
 
 void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw)
@@ -66,10 +145,8 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 	}
 	immUnbindProgram();
 
-	glEnableClientState(GL_VERTEX_ARRAY);
 	// Draw aabbs
 	for (const RAS_DebugDraw::Aabb& aabb : debugDraw->m_aabbs) {
-		glColor4fv(aabb.m_color.getValue());
 
 		const MT_Matrix3x3& rot = aabb.m_rot;
 		const MT_Vector3& pos = aabb.m_pos;
@@ -79,13 +156,11 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 			rot[0][2], rot[1][2], rot[2][2], 0.0,
 			pos[0], pos[1], pos[2], 1.0
 		};
-		rasty->PushMatrix();
-		rasty->MultMatrix(mat);
 
 		const MT_Vector3& min = aabb.m_min;
 		const MT_Vector3& max = aabb.m_max;
 
-		float vertexes[24] = {
+		GLfloat vertexes[24] = {
 			(float)min[0], (float)min[1], (float)min[2],
 			(float)max[0], (float)min[1], (float)min[2],
 			(float)max[0], (float)max[1], (float)min[2],
@@ -96,17 +171,41 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 			(float)min[0], (float)max[1], (float)max[2]
 		};
 
-		static unsigned short indexes[24] = {
-			0, 1, 1, 2,
-			2, 3, 3, 0,
-			4, 5, 5, 6,
-			6, 7, 7, 4,
-			0, 4, 1, 5,
-			2, 6, 3, 7
-		};
+		rasty->PushMatrix();
+		rasty->MultMatrix(mat);
 
-		glVertexPointer(3, GL_FLOAT, 0, vertexes);
-		glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_SHORT, indexes);
+		/* Bind buffers and updata aabbvbo */
+		glUseProgram(m_genericProg);
+		float c[4];
+		aabb.m_color.getValue(c);
+		
+		KX_Camera *cam = KX_GetActiveScene()->GetActiveCamera();
+		float mvp[16];
+		MT_Matrix4x4 obmat(mat);
+		MT_Matrix4x4 m(cam->GetProjectionMatrix() * cam->GetModelviewMatrix() * obmat);
+		m.getValue(mvp);
+
+		glUniform4f(glGetUniformLocation(m_genericProg, "color"), c[0], c[1], c[2], c[3]);
+		glUniformMatrix4fv(glGetUniformLocation(m_genericProg, "ModelViewProjectionMatrix"), 1, false, mvp);
+
+		glBindBuffer(GL_ARRAY_BUFFER, m_aabbvbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 24, vertexes, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, m_aabbvbo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_aabbibo);
+
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+		glDrawElements(GL_LINES, 24, GL_UNSIGNED_SHORT, 0);
+
+		glDisableVertexAttribArray(0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+		glUseProgram(0);
 
 		rasty->PopMatrix();
 	}
