@@ -40,7 +40,6 @@ private:
 
 	unsigned int m_genericProg;
 	unsigned int m_vbo;
-	unsigned int m_aabbibo;
 	unsigned int m_wireibo;
 	unsigned int m_solidibo;
 	MT_Matrix4x4 m_cameraMatrix;

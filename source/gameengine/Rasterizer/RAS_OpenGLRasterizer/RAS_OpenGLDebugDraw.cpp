@@ -43,7 +43,6 @@ extern "C" {
 RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw():
 	m_genericProg(-1),
 	m_vbo(-1),
-	m_aabbibo(-1),
 	m_wireibo(-1),
 	m_solidibo(-1)
 {
@@ -99,21 +98,25 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw():
 
 	/* vbos/ibos */
 	glGenBuffers(1, &m_vbo);
-	glGenBuffers(1, &m_aabbibo);
 	glGenBuffers(1, &m_wireibo);
 	glGenBuffers(1, &m_solidibo);
 
-	GLubyte indexes[24] = { 0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7 };
+	GLubyte wireIndices[24] = { 0, 1, 1, 2, 2, 3, 3, 0, 0, 4, 4, 5, 5, 6, 6, 7, 7, 4, 1, 5, 2, 6, 3, 7 };
 
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_aabbibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 24, indexes, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_wireibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 24, wireIndices, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	const GLubyte solidIndices[24] = { 0, 1, 2, 3, 7, 6, 5, 4, 4, 5, 1, 0, 3, 2, 6, 7, 3, 7, 4, 0, 1, 5, 6, 2 };
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_solidibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 24, solidIndices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 RAS_OpenGLDebugDraw::~RAS_OpenGLDebugDraw()
 {
 	glDeleteBuffers(1, &m_vbo);
-	glDeleteBuffers(1, &m_aabbibo);
 	glDeleteBuffers(1, &m_wireibo);
 	glDeleteBuffers(1, &m_solidibo);
 }
@@ -215,36 +218,44 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 		MT_Matrix4x4 m(m_cameraMatrix * obmat);
 		m.getValue(mvp);
 
-		BindVBO(mvp, c, vertexes, m_aabbibo);
+		BindVBO(mvp, c, vertexes, m_wireibo);
 		glDrawElements(GL_LINES, 24, GL_UNSIGNED_BYTE, 0);
 		UnbindVBO();
 
 		rasty->PopMatrix();
 	}
 
-	// Draw boxes.
-	const GLubyte wireIndices[24] = { 0, 1, 1, 2, 2, 3, 3, 0, 0, 4, 4, 5, 5, 6, 6, 7, 7, 4, 1, 5, 2, 6, 3, 7 };
-	for (const RAS_DebugDraw::Box& box : debugDraw->m_boxes) {
-		glVertexPointer(3, GL_FLOAT, sizeof(MT_Vector3), box.m_vertices.data());
-		glColor4fv(box.m_color.getValue());
-		glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_BYTE, wireIndices);
-	}
-
-	static const GLubyte solidIndices[24] = {0, 1, 2, 3, 7, 6, 5, 4, 4, 5, 1, 0, 3, 2, 6, 7, 3, 7, 4, 0, 1, 5, 6, 2};
+	// Draw boxes.	
 	for (const RAS_DebugDraw::SolidBox& box : debugDraw->m_solidBoxes) {
-		glVertexPointer(3, GL_FLOAT, sizeof(MT_Vector3), box.m_vertices.data());
-		glColor4fv(box.m_color.getValue());
-		glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_BYTE, wireIndices);
+		GLfloat vertexes[24];
+		int k = 0;
+		for (int i = 0; i < 8; i++){
+			for (int j = 0; j < 3; j++) {
+				vertexes[k] = box.m_vertices[i][j];
+				k++;
+			}
+		}
+		float c[4];
+		box.m_color.getValue(c);
+		float mvp[16];
+		m_cameraMatrix.getValue(mvp);
+		
+		BindVBO(mvp, c, vertexes, m_wireibo);
+		glDrawElements(GL_LINES, 24, GL_UNSIGNED_BYTE, 0);
+		UnbindVBO();
 
 		rasty->SetFrontFace(false);
-		glColor4fv(box.m_insideColor.getValue());
-		glDrawRangeElements(GL_QUADS, 0, 7, 24, GL_UNSIGNED_BYTE, solidIndices);
+		box.m_insideColor.getValue(c);
+		BindVBO(mvp, c, vertexes, m_solidibo);
+		glDrawElements(GL_QUADS, 24, GL_UNSIGNED_BYTE, 0);
+		UnbindVBO();
 
 		rasty->SetFrontFace(true);
-		glColor4fv(box.m_outsideColor.getValue());
-		glDrawRangeElements(GL_QUADS, 0, 7, 24, GL_UNSIGNED_BYTE, solidIndices);
+		box.m_outsideColor.getValue(c);
+		BindVBO(mvp, c, vertexes, m_solidibo);
+		glDrawElements(GL_QUADS, 24, GL_UNSIGNED_BYTE, 0);
+		UnbindVBO();
 	}
-	glDisableClientState(GL_VERTEX_ARRAY);
 
 	// draw circles
 	for (const RAS_DebugDraw::Circle& circle : debugDraw->m_circles) {
