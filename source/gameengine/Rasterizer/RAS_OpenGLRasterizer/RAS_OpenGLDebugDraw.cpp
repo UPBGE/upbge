@@ -107,10 +107,10 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw():
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 24, wireIndices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-	const GLubyte solidIndices[24] = { 0, 1, 2, 3, 7, 6, 5, 4, 4, 5, 1, 0, 3, 2, 6, 7, 3, 7, 4, 0, 1, 5, 6, 2 };
+	const GLubyte solidIndices[36] = { 0, 1, 2, 2, 3, 0, 1, 5, 6, 6, 2, 1, 7, 6, 5, 5, 4, 7, 4, 0, 3, 3, 7, 4, 4, 5, 1, 1, 0, 4, 3, 2, 6, 6, 7, 3 };
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_solidibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 24, solidIndices, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 36, solidIndices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
@@ -225,6 +225,8 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 		rasty->PopMatrix();
 	}
 
+	float mvp[16];
+	m_cameraMatrix.getValue(mvp);
 	// Draw boxes.	
 	for (const RAS_DebugDraw::SolidBox& box : debugDraw->m_solidBoxes) {
 		GLfloat vertexes[24];
@@ -236,10 +238,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 			}
 		}
 		float c[4];
-		box.m_color.getValue(c);
-		float mvp[16];
-		m_cameraMatrix.getValue(mvp);
-		
+		box.m_color.getValue(c);		
 		BindVBO(mvp, c, vertexes, m_wireibo);
 		glDrawElements(GL_LINES, 24, GL_UNSIGNED_BYTE, 0);
 		UnbindVBO();
@@ -247,13 +246,13 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 		rasty->SetFrontFace(false);
 		box.m_insideColor.getValue(c);
 		BindVBO(mvp, c, vertexes, m_solidibo);
-		glDrawElements(GL_QUADS, 24, GL_UNSIGNED_BYTE, 0);
+		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, 0);
 		UnbindVBO();
 
 		rasty->SetFrontFace(true);
 		box.m_outsideColor.getValue(c);
 		BindVBO(mvp, c, vertexes, m_solidibo);
-		glDrawElements(GL_QUADS, 24, GL_UNSIGNED_BYTE, 0);
+		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, 0);
 		UnbindVBO();
 	}
 
