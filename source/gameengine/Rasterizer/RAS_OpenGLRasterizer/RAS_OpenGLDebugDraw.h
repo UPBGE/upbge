@@ -27,6 +27,8 @@
 #ifndef __RAS_OPEN_GL_DEBUG_DRAW_H__
 #define __RAS_OPEN_GL_DEBUG_DRAW_H__
 
+#include "MT_Matrix4x4.h"
+
 class RAS_Rasterizer;
 class RAS_ICanvas;
 class RAS_DebugDraw;
@@ -37,13 +39,19 @@ class RAS_OpenGLDebugDraw
 private:
 
 	unsigned int m_genericProg;
-	unsigned int m_aabbvbo;
+	unsigned int m_vbo;
 	unsigned int m_aabbibo;
+	unsigned int m_wireibo;
+	unsigned int m_solidibo;
+	MT_Matrix4x4 m_cameraMatrix;
 
 public:
 
 	RAS_OpenGLDebugDraw();
 	~RAS_OpenGLDebugDraw();
+
+	void BindVBO(float *mvp, float color[4], float *vertexes, unsigned int ibo);
+	void UnbindVBO();
 
 	void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
 };
