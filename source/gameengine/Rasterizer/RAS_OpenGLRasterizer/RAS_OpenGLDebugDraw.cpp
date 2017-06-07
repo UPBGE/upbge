@@ -31,6 +31,8 @@
 
 #include "GPU_material.h"
 #include "GPU_glew.h"
+#include "GPU_matrix.h"
+
 #include "KX_Globals.h"
 #include "KX_Scene.h"
 #include "KX_Camera.h"
@@ -256,35 +258,37 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 		UnbindVBO();
 	}
 
-	// draw circles
-	for (const RAS_DebugDraw::Circle& circle : debugDraw->m_circles) {
-		glBegin(GL_LINE_LOOP);
-		glColor4fv(circle.m_color.getValue());
+	// What is the purpose of the following code? I comment for now.
 
-		static const MT_Vector3 worldUp(0.0f, 0.0f, 1.0f);
-		const MT_Vector3& norm = circle.m_normal;
-		MT_Matrix3x3 tr;
-		if (norm.fuzzyZero() || norm == worldUp) {
-			tr.setIdentity();
-		}
-		else {
-			const MT_Vector3 xaxis = MT_cross(norm, worldUp);
-			const MT_Vector3 yaxis = MT_cross(xaxis, norm);
-			tr.setValue(xaxis.x(), xaxis.y(), xaxis.z(),
-						yaxis.x(), yaxis.y(), yaxis.z(),
-						norm.x(), norm.y(), norm.z());
-		}
-		const MT_Scalar rad = circle.m_radius;
-		const int n = circle.m_sector;
-		for (int j = 0; j < n; ++j) {
-			const MT_Scalar theta = j * MT_2_PI / n;
-			MT_Vector3 pos(cosf(theta) * rad, sinf(theta) * rad, 0.0f);
-			pos = pos * tr;
-			pos += circle.m_center;
-			glVertex3fv(pos.getValue());
-		}
-		glEnd();
-	}
+	//// draw circles
+	//for (const RAS_DebugDraw::Circle& circle : debugDraw->m_circles) {
+	//	glBegin(GL_LINE_LOOP);
+	//	glColor4fv(circle.m_color.getValue());
+
+	//	static const MT_Vector3 worldUp(0.0f, 0.0f, 1.0f);
+	//	const MT_Vector3& norm = circle.m_normal;
+	//	MT_Matrix3x3 tr;
+	//	if (norm.fuzzyZero() || norm == worldUp) {
+	//		tr.setIdentity();
+	//	}
+	//	else {
+	//		const MT_Vector3 xaxis = MT_cross(norm, worldUp);
+	//		const MT_Vector3 yaxis = MT_cross(xaxis, norm);
+	//		tr.setValue(xaxis.x(), xaxis.y(), xaxis.z(),
+	//					yaxis.x(), yaxis.y(), yaxis.z(),
+	//					norm.x(), norm.y(), norm.z());
+	//	}
+	//	const MT_Scalar rad = circle.m_radius;
+	//	const int n = circle.m_sector;
+	//	for (int j = 0; j < n; ++j) {
+	//		const MT_Scalar theta = j * MT_2_PI / n;
+	//		MT_Vector3 pos(cosf(theta) * rad, sinf(theta) * rad, 0.0f);
+	//		pos = pos * tr;
+	//		pos += circle.m_center;
+	//		glVertex3fv(pos.getValue());
+	//	}
+	//	glEnd();
+	//}
 
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	rasty->DisableForText();
@@ -298,22 +302,22 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 
 	const unsigned int width = canvas->GetWidth();
 	const unsigned int height = canvas->GetHeight();
-	glOrtho(0, width, 0, height, -100, 100);
+	gpuOrtho(0, width, 0, height, -100, 100);
 
-	glBegin(GL_QUADS);
+	format = immVertexFormat();
+	pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 2, KEEP_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 	for (const RAS_DebugDraw::Box2D& box2d : debugDraw->m_boxes2D) {
 		const float xco = box2d.m_pos.x();
 		const float yco = height - box2d.m_pos.y();
 		const float xsize = box2d.m_size.x();
 		const float ysize = box2d.m_size.y();
 
-		glColor4fv(box2d.m_color.getValue());
-		glVertex2f(xco + 1 + xsize, yco + ysize);
-		glVertex2f(xco, yco + ysize);
-		glVertex2f(xco, yco);
-		glVertex2f(xco + 1 + xsize, yco);
+		immUniformColor4fv(box2d.m_color.getValue());
+		immRectf(pos, xco + 1 + xsize, yco + ysize, xco, yco);
 	}
-	glEnd();
+	immUnbindProgram();
 
 	BLF_size(blf_mono_font, 11, 72);
 
