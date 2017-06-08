@@ -147,12 +147,12 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 	glVertexAttribPointer(normalattribloc, 3, GL_FLOAT, GL_FALSE, m_stride, m_normal_offset);
 
 	// Colors
-	if (!wireframe) {
+	/*if (!wireframe) {
 		glEnableClientState(GL_COLOR_ARRAY);
 		glColorPointer(4, GL_UNSIGNED_BYTE, m_stride, m_color_offset);
-	}
+	}*/
 
-	for (unsigned short unit = 0, size = storageAttribs->texcos.size(); unit < size; ++unit) {
+	/*for (unsigned short unit = 0, size = storageAttribs->texcos.size(); unit < size; ++unit) {
 		switch (storageAttribs->texcos[unit]) {
 			case RAS_Rasterizer::RAS_TEXCO_ORCO:
 			case RAS_Rasterizer::RAS_TEXCO_GLOB:
@@ -225,7 +225,7 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 			default:
 				break;
 		}
-	}
+	}*/
 
 	/* VAO don't track the VBO state and the attributes don't need a bound VBO to be used in a render.
 	 * So we unbind the VBO here because they will not be unbound in VBO::Unbind. */
@@ -241,11 +241,11 @@ void VBO::Unbind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer:
 		return;
 	}
 
-	bool wireframe = (drawingmode == RAS_Rasterizer::RAS_WIREFRAME);
+	//bool wireframe = (drawingmode == RAS_Rasterizer::RAS_WIREFRAME);
 
 	glDisableVertexAttribArray(vertattribloc);
 	glDisableVertexAttribArray(normalattribloc);
-	if (!wireframe) {
+	/*if (!wireframe) {
 		glDisableClientState(GL_COLOR_ARRAY);
 	}
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -262,7 +262,7 @@ void VBO::Unbind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer:
 		if (storageAttribs->attribs[unit] != RAS_Rasterizer::RAS_TEXCO_DISABLE) {
 			glDisableVertexAttribArray(unit);
 		}
-	}
+	}*/
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
