@@ -1607,6 +1607,9 @@ PHY_IPhysicsController *CcdPhysicsController::GetReplicaForSensors()
 
 			default:
 			{
+				if (cinfo.m_collisionShape) {
+					delete cinfo.m_collisionShape;
+				}
 				return nullptr;
 			}
 		}
