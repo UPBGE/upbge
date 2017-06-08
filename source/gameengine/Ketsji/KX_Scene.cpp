@@ -1305,7 +1305,7 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 	m_boundingBoxManager->Update(false);
 
 	// Update the object bounding volume box if the object had a deformer.
-	for (KX_GameObject *gameobj : *m_objectlist) {
+	for (KX_GameObject *gameobj : m_objectlist) {
 		if (gameobj->GetDeformer()) {
 			/** Update all the deformer, not only per material.
 			 * One of the side effect is to clear some flags about AABB calculation.
@@ -1334,7 +1334,7 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 		 * since DBVT culling will only set it to false.
 		 * This is similar to what RAS_BucketManager does for RAS_MeshSlot culling.
 		 */
-		for (KX_GameObject *gameobj : *m_objectlist) {
+		for (KX_GameObject *gameobj : m_objectlist) {
 			gameobj->SetCulled(true);
 		}
 
@@ -1357,7 +1357,7 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 	}
 	if (!dbvt_culling) {
 		KX_CullingHandler handler(nodes, cam->GetFrustum());
-		for (KX_GameObject *gameobj : *m_objectlist) {
+		for (KX_GameObject *gameobj : m_objectlist) {
 			if (gameobj->UseCulling() && gameobj->GetVisible() && (layer == 0 || gameobj->GetLayer() & layer)) {
 				handler.Process(gameobj->GetCullingNode());
 			}
@@ -1369,7 +1369,7 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nod
 {
 	const KX_DebugOption showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
 	if (showBoundingBox != KX_DebugOption::DISABLE) {
-		for (KX_GameObject *gameobj : *m_objectlist) {
+		for (KX_GameObject *gameobj : m_objectlist) {
 			const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
 			const MT_Vector3& position = gameobj->NodeGetWorldPosition();
 			const MT_Matrix3x3& orientation = gameobj->NodeGetWorldOrientation();
@@ -1571,7 +1571,7 @@ void KX_Scene::LogicUpdateFrame(double curtime)
 	 */
 
 	std::vector<KX_GameObject *> objects;
-	for (KX_GameObject *gameobj : *m_objectlist) {
+	for (KX_GameObject *gameobj : m_objectlist) {
 		objects.push_back(gameobj);
 	}
 
