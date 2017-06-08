@@ -123,6 +123,21 @@ std::map<std::string, double> KX_TimeCategoryLogger::GetProfileDict()
 	return dict;
 }
 
+
+static std::string getTimeString(double time)
+{
+	static const std::string units[] = {"s", "ms", "us", "ns"};
+	static const float values[] = {1.0f, 1.0e-3f, 1.0e-6f, 1.0e-9f};
+
+	for (unsigned short i = 0; i < 4; ++i) {
+		if (time > values[i]) {
+			return (boost::format("%06.2f") % (time / values[i])).str() + units[i];
+		}
+	}
+
+	return "000.00ns";
+}
+
 void KX_TimeCategoryLogger::RenderFrameRate(RAS_DebugDraw& debugDraw, int xindent, int ysize,
 											 int& xcoord, int& ycoord, int profileIndent)
 {
@@ -147,7 +162,7 @@ void KX_TimeCategoryLogger::RenderCategories(RAS_DebugDraw& debugDraw, int xinde
 
 		const double time = m_lastAverages[tc];
 
-		const std::string debugtxt = (boost::format("%5.2fms | %d%%") % (time*1000.f) % (int)(time/tottime * 100.f)).str();
+		const std::string debugtxt = getTimeString(time) + " | " + std::to_string((int)(time/tottime * 100.f)) + "%";
 		debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + xindent + profileIndent, ycoord), mt::one4);
 
 		const mt::vec2 boxSize(50 * (time / tottime), 10);

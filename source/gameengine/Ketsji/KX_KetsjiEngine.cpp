@@ -1111,7 +1111,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	int xcoord = 12;    // mmmm, these constants were taken from blender source
 	int ycoord = 17;    // to 'mimic' behavior
 
-	int profile_indent = 72;
+	int profile_indent = 78;
 
 	static const mt::vec4 white(1.0f, 1.0f, 1.0f, 1.0f);
 
