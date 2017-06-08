@@ -497,6 +497,12 @@ public:
 		return MT_Vector3(vec[0], vec[1], vec[2]);
 	}
 
+	virtual float GetFallSpeed() const;
+	virtual void SetFallSpeed(float fallSpeed);
+
+	virtual float GetJumpSpeed() const;
+	virtual void SetJumpSpeed(float jumpSpeed);
+
 	virtual void SetVelocity(const MT_Vector3& vel, float time, bool local);
 };
 

@@ -115,6 +115,26 @@ const btVector3& BlenderBulletCharacterController::getWalkDirection()
 	return m_walkDirection;
 }
 
+float BlenderBulletCharacterController::GetFallSpeed() const
+{
+	return m_fallSpeed;
+}
+
+void BlenderBulletCharacterController::SetFallSpeed(float fallSpeed)
+{
+	setFallSpeed(fallSpeed);
+}
+
+float BlenderBulletCharacterController::GetJumpSpeed() const
+{
+	return m_jumpSpeed;
+}
+
+void BlenderBulletCharacterController::SetJumpSpeed(float jumpSpeed)
+{
+	setJumpSpeed(jumpSpeed);
+}
+
 void BlenderBulletCharacterController::SetVelocity(btVector3 vel, float time, bool local)
 {
 	if (local) {

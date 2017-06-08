@@ -21,6 +21,12 @@ base class --- :class:`PyObjectPlus`
 
       :type: float
 
+   .. attribute:: fallSpeed
+
+      The character falling speed.
+
+      :type: float
+
    .. attribute:: maxJumps
 
       The maximum number of jumps a character can perform before having to touch the ground. By default this is set to 1. 2 allows for a double jump, etc.
@@ -32,6 +38,12 @@ base class --- :class:`PyObjectPlus`
       The current jump count. This can be used to have different logic for a single jump versus a double jump. For example, a different animation for the second jump.
 
       :type: int
+
+   .. attribute:: jumpSpeed
+
+      The character jumping speed.
+
+      :type: float
 
    .. attribute:: walkDirection
 
