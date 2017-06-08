@@ -142,14 +142,14 @@ protected:
 	/// Manager used to update all the mesh bounding box.
 	RAS_BoundingBoxManager *m_boundingBoxManager;
 
-	CListValue<KX_GameObject> *m_tempObjectList;
+	std::vector<KX_GameObject *> m_tempObjectList;
 
 	/**
 	 * The list of objects which have been removed during the
 	 * course of one frame. They are actually destroyed in 
 	 * LogicEndFrame() via a call to RemoveObject().
 	 */
-	CListValue<KX_GameObject> *m_euthanasyobjects;
+	std::vector<KX_GameObject *> m_euthanasyobjects;
 
 	CListValue<KX_GameObject> *m_objectlist;
 	CListValue<KX_GameObject> *m_parentlist; // all 'root' parents
@@ -367,7 +367,6 @@ public:
 	LogicEndFrame(
 	);
 
-	CListValue<KX_GameObject> *GetTempObjectList() const;
 	CListValue<KX_GameObject> *GetObjectList() const;
 	CListValue<KX_GameObject> *GetInactiveList() const;
 	CListValue<KX_GameObject> *GetRootParentList() const;

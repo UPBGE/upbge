@@ -162,12 +162,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_dbvt_occlusion_res = 0;
 	m_activity_culling = false;
 	m_suspend = false;
-	m_tempObjectList = new CListValue<KX_GameObject>();
 	m_objectlist = new CListValue<KX_GameObject>();
 	m_parentlist = new CListValue<KX_GameObject>();
 	m_lightlist = new CListValue<KX_LightObject>();
 	m_inactivelist = new CListValue<KX_GameObject>();
-	m_euthanasyobjects = new CListValue<KX_GameObject>();
 	m_cameralist = new CListValue<KX_Camera>();
 	m_fontlist = new CListValue<KX_FontObject>();
 
@@ -255,12 +253,6 @@ KX_Scene::~KX_Scene()
 
 	if (m_lightlist)
 		m_lightlist->Release();
-	
-	if (m_tempObjectList)
-		m_tempObjectList->Release();
-
-	if (m_euthanasyobjects)
-		m_euthanasyobjects->Release();
 
 	if (m_cameralist) {
 		m_cameralist->Release();
@@ -334,11 +326,6 @@ KX_TextureRendererManager *KX_Scene::GetTextureRendererManager() const
 RAS_BoundingBoxManager *KX_Scene::GetBoundingBoxManager() const
 {
 	return m_boundingBoxManager;
-}
-
-CListValue<KX_GameObject> *KX_Scene::GetTempObjectList() const
-{
-	return m_tempObjectList;
 }
 
 CListValue<KX_GameObject> *KX_Scene::GetObjectList() const
@@ -879,7 +866,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 	if (lifespan > 0.0f)
 	{
 		// for now, convert between so called frames and realtime
-		m_tempObjectList->Add(CM_AddRef(replica));
+		m_tempObjectList.push_back(replica);
 		// this convert the life from frames to sort-of seconds, hard coded 0.02 that assumes we have 50 frames per second
 		// if you change this value, make sure you change it in KX_GameObject::pyattr_get_life property too
 		CValue *fval = new CFloatValue(lifespan*0.02f);
@@ -991,8 +978,9 @@ void KX_Scene::RemoveDupliGroup(KX_GameObject *gameobj)
 void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 {
 	RemoveDupliGroup(gameobj);
-	if (!m_euthanasyobjects->SearchValue(gameobj)) {
-		m_euthanasyobjects->Add(CM_AddRef(gameobj));
+
+	if (std::find(m_euthanasyobjects.begin(), m_euthanasyobjects.end(), gameobj) != m_euthanasyobjects.end()) {
+		m_euthanasyobjects.push_back(gameobj);
 	}
 }
 
@@ -1080,13 +1068,9 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 		ret = (gameobj->Release() != nullptr);
 	if (m_objectlist->RemoveValue(gameobj))
 		ret = (gameobj->Release() != nullptr);
-	if (m_tempObjectList->RemoveValue(gameobj))
-		ret = (gameobj->Release() != nullptr);
 	if (m_parentlist->RemoveValue(gameobj))
 		ret = (gameobj->Release() != nullptr);
 	if (m_inactivelist->RemoveValue(gameobj))
-		ret = (gameobj->Release() != nullptr);
-	if (m_euthanasyobjects->RemoveValue(gameobj))
 		ret = (gameobj->Release() != nullptr);
 	if (m_fontlist->RemoveValue(static_cast<KX_FontObject *>(gameobj))) {
 		ret = (gameobj->Release() != nullptr);
@@ -1472,7 +1456,7 @@ void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int 
 void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 {
 	// have a look at temp objects ...
-	for (KX_GameObject *gameobj : *m_tempObjectList) {
+	for (KX_GameObject *gameobj : m_tempObjectList) {
 		CFloatValue* propval = (CFloatValue *)gameobj->GetProperty("::timebomb");
 		
 		if (propval)
@@ -1601,18 +1585,11 @@ void KX_Scene::LogicUpdateFrame(double curtime)
 void KX_Scene::LogicEndFrame()
 {
 	m_logicmgr->EndFrame();
-	int numobj;
 
-	KX_GameObject* obj;
-
-	while ((numobj = m_euthanasyobjects->GetCount()) > 0)
-	{
-		// remove the object from this list to make sure we will not hit it again
-		obj = m_euthanasyobjects->GetValue(numobj-1);
-		m_euthanasyobjects->Remove(numobj-1);
-		obj->Release();
-		RemoveObject(obj);
+	for (KX_GameObject *gameobj : m_euthanasyobjects) {
+		RemoveObject(gameobj);
 	}
+	m_euthanasyobjects.clear();
 
 	//prepare obstacle simulation for new frame
 	if (m_obstacleSimulation)
@@ -1932,9 +1909,6 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		}
 	}
 
-
-	GetTempObjectList()->MergeList(other->GetTempObjectList());
-	other->GetTempObjectList()->ReleaseAndRemoveAll();
 
 	GetObjectList()->MergeList(other->GetObjectList());
 	other->GetObjectList()->ReleaseAndRemoveAll();
