@@ -283,6 +283,30 @@ static void rna_def_lighting(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Environment Color", "Defines where the color of the environment light comes from");
 	RNA_def_property_update(prop, 0, "rna_World_draw_update");
 
+	prop = RNA_def_property(srna, "environment_lodbias", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "ao_lodbias");
+	RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 3);
+	RNA_def_property_ui_text(prop, "Environment Texture LodBias", "Defines the Environment light blur effect");
+	RNA_def_property_update(prop, 0, "rna_World_draw_update");
+
+	prop = RNA_def_property(srna, "environment_refr_ratio", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "ao_refrratio");
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 3);
+	RNA_def_property_ui_text(prop, "Environment Texture Refraction Ratio", "Defines the Environment reflection/refraction ratio");
+	RNA_def_property_update(prop, 0, "rna_World_draw_update");
+
+	prop = RNA_def_property(srna, "environment_ior", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "ao_ior");
+	RNA_def_property_ui_range(prop, 1.0, 50.0, 1, 3);
+	RNA_def_property_ui_text(prop, "Environment Texture Indice of refraction", "Defines the Environment indice of refraction");
+	RNA_def_property_update(prop, 0, "rna_World_draw_update");
+
+	prop = RNA_def_property(srna, "environment_fresnel", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "ao_fresnel");
+	RNA_def_property_ui_range(prop, FLT_MIN, FLT_MAX, 1, 3);
+	RNA_def_property_ui_text(prop, "Environment Texture Fresnel", "Defines the Environment Fresnel");
+	RNA_def_property_update(prop, 0, "rna_World_draw_update");
+
 	/* indirect lighting */
 	prop = RNA_def_property(srna, "use_indirect_light", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", WO_INDIRECT_LIGHT);

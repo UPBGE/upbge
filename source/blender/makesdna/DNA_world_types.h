@@ -104,10 +104,11 @@ typedef struct World {
 	
 	/* ambient occlusion */
 	float aodist, aodistfac, aoenergy, aobias;
+	float ao_refrratio, ao_ior, ao_fresnel, ao_pad2;
 	short aomode, aosamp, aomix, aocolor;
 	float ao_adapt_thresh, ao_adapt_speed_fac;
 	float ao_approx_error, ao_approx_correction;
-	float ao_indirect_energy, ao_env_energy, ao_pad2;
+	float ao_indirect_energy, ao_env_energy, ao_lodbias;
 	short ao_indirect_bounces, ao_pad;
 	short ao_samp_method, ao_gather_method, ao_approx_passes;
 	
