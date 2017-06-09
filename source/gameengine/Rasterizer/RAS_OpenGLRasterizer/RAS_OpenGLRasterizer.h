@@ -61,6 +61,7 @@ private:
 	ScreenPlane m_screenPlane;
 
 	RAS_Rasterizer *m_rasterizer;
+	RAS_Rasterizer::MatrixMode m_currentMode;
 
 public:
 	RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer);

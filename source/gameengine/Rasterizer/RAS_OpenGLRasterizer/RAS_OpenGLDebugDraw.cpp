@@ -327,21 +327,16 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 	BLF_shadow(blf_mono_font, 1, black);
 	BLF_shadow_offset(blf_mono_font, 1, 1);
 
-	float xofs = 0;
-	float yofs = 0;
 	for (const RAS_DebugDraw::Text2D& text2d : debugDraw->m_texts2D) {
 		std::string text = text2d.m_text;
-		const float xco = text2d.m_pos.x() - xofs;
-		const float yco = height - text2d.m_pos.y() - yofs;
+		const float xco = text2d.m_pos.x();
+		const float yco = height - text2d.m_pos.y();
 		float col[4];
 		text2d.m_color.getValue(col);
 
 		BLF_color4fv(blf_mono_font, col);
 		BLF_position(blf_mono_font, xco, yco, 0.0f);
 		BLF_draw(blf_mono_font, text.c_str(), text.size());
-
-		xofs += xco;
-		yofs += yco;
 	}
 	BLF_disable(blf_mono_font, BLF_SHADOW);
 
