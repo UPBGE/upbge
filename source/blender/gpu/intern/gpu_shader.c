@@ -491,6 +491,9 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		glBindAttribLocation(shader->program, 0, "position");
 		glBindAttribLocation(shader->program, 1, "normal");
 	}
+#else
+	glBindAttribLocation(shader->program, 0, "pos"); // make the attrib location correspond to default NVIDIA locations 
+	glBindAttribLocation(shader->program, 8, "uvs"); // 0 for ex gl_Vertex and 8 for ex gl_MultiTexCoord0
 #endif
 
 	glLinkProgram(shader->program);

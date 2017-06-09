@@ -1,3 +1,6 @@
+in vec4 texcovar;
+out vec4 fragColor;
+
 #if defined(ANAGLYPH) || defined(STIPPLE)
 uniform sampler2D lefteyetex;
 uniform sampler2D righteyetex;
@@ -17,30 +20,30 @@ uniform int stippleid;
 
 void main()
 {
-	vec2 co = gl_TexCoord[0].xy;
+	vec2 co = texcovar.xy;
 #ifdef STIPPLE
 	if (stippleid == STIPPLE_ROW) {
 		int result = int(mod(gl_FragCoord.y, 2));
 		if (result != 0) {
-			gl_FragColor = texture2D(lefteyetex, co);
+			fragColor = texture2D(lefteyetex, co);
 		}
 		else {
-			gl_FragColor = texture2D(righteyetex, co);
+			fragColor = texture2D(righteyetex, co);
 		}
 	}
 	else if (stippleid == STIPPLE_COLUMN) {
 		int result = int(mod(gl_FragCoord.x, 2));
 		if (result == 0) {
-			gl_FragColor = texture2D(lefteyetex, co);
+			fragColor = texture2D(lefteyetex, co);
 		}
 		else {
-			gl_FragColor = texture2D(righteyetex, co);
+			fragColor = texture2D(righteyetex, co);
 		}
 	}
 #elif defined(ANAGLYPH)
-	gl_FragColor = vec4(texture2D(lefteyetex, co).r, texture2D(righteyetex, co).gb, 1.0);
+	fragColor = vec4(texture2D(lefteyetex, co).r, texture2D(righteyetex, co).gb, 1.0);
 #else
-	gl_FragColor = texture2D(colortex, co);
+	fragColor = texture2D(colortex, co);
 #  ifdef DEPTH
 	gl_FragDepth = texture2D(depthtex, co).x;
 #  endif

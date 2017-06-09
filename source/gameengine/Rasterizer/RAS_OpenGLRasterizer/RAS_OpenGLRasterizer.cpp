@@ -151,20 +151,18 @@ inline void RAS_OpenGLRasterizer::ScreenPlane::Render()
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo);
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
 
-	// Enable vertex/uv pointer.
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
 	// Bind vertex/uv pointer with VBO offset. (position = 0, uv = 3*float, stride = 5*float).
-	glVertexPointer(3, GL_FLOAT, sizeof(float) * 5, 0);
-	glTexCoordPointer(2, GL_FLOAT, sizeof(float) * 5, ((char *)nullptr) + sizeof(float) * 3);
+	glEnableVertexAttribArray(0); // 0 corresponds to "pos" attribute location (look at gpu_shader.c and gpu_shader_frame_buffer_vert/frag.glsl)
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, 0);
+	glEnableVertexAttribArray(8); // 8 corresponds to "uvs" attribute location
+	glVertexAttribPointer(8, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, ((char *)nullptr) + sizeof(float) * 3);
 
 	// Draw in traignel fan mode to reduce IBO size.
 	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_BYTE, 0);
 
 	// Disable vertex/uv pointer.
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableVertexAttribArray(0);
+	glDisableVertexAttribArray(8);
 
 	// Unbind screen plane VBO/IBO.
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
