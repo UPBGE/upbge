@@ -97,7 +97,9 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw():
 		glGetProgramInfoLog(m_genericProg, 1000, &len, log);
 		fprintf(stderr, "Shader link error:\n%s\n", log);
 	}
-
+	/* VAO */
+	glGenVertexArrays(1, &m_vao);
+	glBindVertexArray(m_vao);
 	/* vbos/ibos */
 	glGenBuffers(1, &m_vbo);
 	glGenBuffers(1, &m_wireibo);
@@ -114,6 +116,9 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw():
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_solidibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 36, solidIndices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 }
 
 RAS_OpenGLDebugDraw::~RAS_OpenGLDebugDraw()
@@ -121,6 +126,7 @@ RAS_OpenGLDebugDraw::~RAS_OpenGLDebugDraw()
 	glDeleteBuffers(1, &m_vbo);
 	glDeleteBuffers(1, &m_wireibo);
 	glDeleteBuffers(1, &m_solidibo);
+	glDeleteVertexArrays(1, &m_vao);
 }
 
 void RAS_OpenGLDebugDraw::BindVBO(float *mvp, float color[4], float *vertexes, unsigned int ibo)
@@ -143,6 +149,7 @@ void RAS_OpenGLDebugDraw::BindVBO(float *mvp, float color[4], float *vertexes, u
 
 void RAS_OpenGLDebugDraw::UnbindVBO()
 {
+	glBindVertexArray(0);
 	glDisableVertexAttribArray(0);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
