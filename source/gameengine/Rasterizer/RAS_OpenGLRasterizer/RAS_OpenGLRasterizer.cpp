@@ -483,7 +483,7 @@ void RAS_OpenGLRasterizer::RenderText3D(
 	SetFrontFace(true);
 
 	/* the actual drawing */
-	glColor4fv(color);
+	BLF_color4fv(fontid, color);
 
 	/* multiply the text matrix by the object matrix */
 	BLF_enable(fontid, BLF_MATRIX | BLF_ASPECT);
