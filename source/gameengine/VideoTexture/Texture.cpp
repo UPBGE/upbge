@@ -191,7 +191,7 @@ void loadTexture(unsigned int texId, unsigned int *texture, short *size,
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexImage2D( GL_TEXTURE_2D, 0, internalFormat, size[0], size[1], 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
 	}
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
 
 
