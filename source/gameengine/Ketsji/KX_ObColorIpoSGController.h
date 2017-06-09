@@ -35,11 +35,12 @@
 #include "SG_Controller.h"
 #include "SG_Node.h"
 #include "KX_IInterpolator.h"
+#include "mathfu.h"
 
-class KX_ObColorIpoSGController : public SG_Controller
+class KX_ObColorIpoSGController : public SG_Controller, public mt::SimdClassAllocator
 {
 public:
-	MT_Vector4			m_rgba;
+	mt::vec4			m_rgba;
 	
 
 private:

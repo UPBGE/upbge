@@ -19,8 +19,6 @@
 #include "CcdPhysicsEnvironment.h"
 #include "CcdGraphicController.h"
 #include "btBulletDynamicsCommon.h"
-#include "MT_Vector3.h"
-
 
 CcdGraphicController::CcdGraphicController(CcdPhysicsEnvironment *phyEnv, PHY_IMotionState *motionState)
 	:m_localAabbMin(0.0f, 0.0f, 0.0f),
@@ -48,7 +46,7 @@ void CcdGraphicController::SetLocalAabb(const btVector3& aabbMin, const btVector
 	SetGraphicTransform();
 }
 
-void CcdGraphicController::SetLocalAabb(const MT_Vector3& aabbMin, const MT_Vector3& aabbMax)
+void CcdGraphicController::SetLocalAabb(const mt::vec3& aabbMin, const mt::vec3& aabbMax)
 {
 	m_localAabbMin = ToBullet(aabbMin);
 	m_localAabbMax = ToBullet(aabbMax);

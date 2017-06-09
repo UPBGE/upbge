@@ -81,7 +81,7 @@ PyObject *KX_VehicleWrapper::PyAddWheel(PyObject *args)
 
 		if (gameOb->GetSGNode())
 		{
-			MT_Vector3 attachPos,attachDir,attachAxle;
+			mt::vec3 attachPos,attachDir,attachAxle;
 			if (!PyVecTo(pylistPos,attachPos)) {
 				PyErr_SetString(PyExc_AttributeError,
 				                "addWheel(...) Unable to add wheel. attachPos must be a vector with 3 elements.");
@@ -151,8 +151,8 @@ PyObject *KX_VehicleWrapper::PyGetWheelOrientationQuaternion(PyObject *args)
 	{
 		WHEEL_INDEX_CHECK_OR_RETURN(wheelIndex, "getWheelOrientationQuaternion");
 
-		const MT_Quaternion quat = m_vehicle->GetWheelOrientationQuaternion(wheelIndex);
-		const MT_Matrix3x3 ornmat(quat);
+		const mt::quat quat = m_vehicle->GetWheelOrientationQuaternion(wheelIndex);
+		const mt::mat3 ornmat = quat.ToMatrix();
 		return PyObjectFrom(ornmat);
 	}
 	return nullptr;

@@ -41,34 +41,34 @@ KX_MotionState::~KX_MotionState()
 {
 }
 
-MT_Vector3 KX_MotionState::GetWorldPosition() const
+mt::vec3 KX_MotionState::GetWorldPosition() const
 {
 	return m_node->GetWorldPosition();
 }
 
-MT_Vector3 KX_MotionState::GetWorldScaling() const
+mt::vec3 KX_MotionState::GetWorldScaling() const
 {
 	return m_node->GetWorldScaling();
 }
 
-MT_Matrix3x3 KX_MotionState::GetWorldOrientation() const
+mt::mat3 KX_MotionState::GetWorldOrientation() const
 {
 	return m_node->GetWorldOrientation();
 }
 
-void KX_MotionState::SetWorldOrientation(const MT_Matrix3x3& ori)
+void KX_MotionState::SetWorldOrientation(const mt::mat3& ori)
 {
 	m_node->SetLocalOrientation(ori);
 }
 
-void KX_MotionState::SetWorldPosition(const MT_Vector3& pos)
+void KX_MotionState::SetWorldPosition(const mt::vec3& pos)
 {
 	m_node->SetLocalPosition(pos);
 }
 
-void KX_MotionState::SetWorldOrientation(const MT_Quaternion& quat)
+void KX_MotionState::SetWorldOrientation(const mt::quat& quat)
 {
-	m_node->SetLocalOrientation(MT_Matrix3x3(quat));
+	m_node->SetLocalOrientation(quat.ToMatrix());
 }
 
 void KX_MotionState::CalculateWorldTransformations()

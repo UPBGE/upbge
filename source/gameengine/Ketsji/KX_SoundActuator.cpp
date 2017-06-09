@@ -258,20 +258,20 @@ bool KX_SoundActuator::Update(double curtime)
 			if (cam)
 			{
 				KX_GameObject* obj = (KX_GameObject*)this->GetParent();
-				MT_Vector3 p;
-				MT_Matrix3x3 Mo;
+				mt::vec3 p;
+				mt::mat3 Mo;
 				float data[4];
 
-				Mo = cam->NodeGetWorldOrientation().inverse();
+				Mo = cam->NodeGetWorldOrientation().Inverse();
 				p = (obj->NodeGetWorldPosition() - cam->NodeGetWorldPosition());
 				p = Mo * p;
-				p.getValue(data);
+				p.Pack(data);
 				AUD_Handle_setLocation(m_handle, data);
 				p = (obj->GetLinearVelocity() - cam->GetLinearVelocity());
 				p = Mo * p;
-				p.getValue(data);
+				p.Pack(data);
 				AUD_Handle_setVelocity(m_handle, data);
-				(Mo * obj->NodeGetWorldOrientation()).getRotation().getValue(data);
+				mt::quat::FromMatrix(Mo * obj->NodeGetWorldOrientation()).Pack(data);
 				AUD_Handle_setOrientation(m_handle, data);
 			}
 		}

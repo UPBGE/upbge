@@ -11,21 +11,22 @@
 #include "SG_Controller.h"
 #include "SG_Node.h"
 #include "KX_IInterpolator.h"
+#include "mathfu.h"
 
 class RAS_IPolyMaterial;
 
-class KX_MaterialIpoController : public SG_Controller
+class KX_MaterialIpoController : public SG_Controller, public mt::SimdClassAllocator
 {
 public:
-	MT_Vector4			m_rgba;
-	MT_Vector3			m_specrgb;
-	MT_Scalar			m_hard;
-	MT_Scalar			m_spec;
-	MT_Scalar			m_ref;
-	MT_Scalar			m_emit;
-	MT_Scalar			m_ambient;
-	MT_Scalar			m_alpha;
-	MT_Scalar			m_specAlpha;
+	mt::vec4			m_rgba;
+	mt::vec3			m_specrgb;
+	float			m_hard;
+	float			m_spec;
+	float			m_ref;
+	float			m_emit;
+	float			m_ambient;
+	float			m_alpha;
+	float			m_specAlpha;
 
 private:
 	T_InterpolatorList	m_interpolators;
@@ -33,6 +34,7 @@ private:
 
 	double		        m_ipotime;
 	RAS_IPolyMaterial *m_material;
+
 public:
 	KX_MaterialIpoController(RAS_IPolyMaterial *polymat) : 
 				m_modified(true),

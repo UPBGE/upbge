@@ -26,7 +26,7 @@
 #ifdef WITH_PYTHON
 
 #include "EXP_Value.h"
-#include "MT_Vector3.h"
+#include "mathfu.h"
 
 class KX_GameObject;
 
@@ -60,17 +60,17 @@ public:
 	bool IsValidOwner();
 
 	/// Return AABB max.
-	const MT_Vector3& GetMax() const;
+	const mt::vec3& GetMax() const;
 	/// Return AABB min.
-	const MT_Vector3& GetMin() const;
+	const mt::vec3& GetMin() const;
 	/// Return AABB center.
-	const MT_Vector3 GetCenter() const;
+	const mt::vec3 GetCenter() const;
 	/// Return AABB radius.
 	float GetRadius() const;
 	/// Set AABB max, return false if the max is lesser than min.
-	bool SetMax(MT_Vector3 max);
+	bool SetMax(const mt::vec3 &max);
 	/// Set AABB min, return true if the max is greater than max.
-	bool SetMin(MT_Vector3 min);
+	bool SetMin(const mt::vec3 &min);
 
 	static PyObject *pyattr_get_min(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_min(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);

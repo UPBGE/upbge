@@ -36,7 +36,6 @@
 #  pragma warning(disable:4786)
 #endif
 
-#include "MT_Vector3.h"
 #include "RAS_FramingManager.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
@@ -93,10 +92,10 @@ void KX_MouseFocusSensor::Init()
 	m_hitObject_Last = nullptr;
 	m_reset = true;
 	
-	m_hitPosition.setValue(0,0,0);
-	m_prevTargetPoint.setValue(0,0,0);
-	m_prevSourcePoint.setValue(0,0,0);
-	m_hitNormal.setValue(0,0,1);
+	m_hitPosition = mt::zero3;
+	m_prevTargetPoint = mt::zero3;
+	m_prevSourcePoint = mt::zero3;
+	m_hitNormal = mt::zero3;
 }
 
 bool KX_MouseFocusSensor::Evaluate()
@@ -302,9 +301,6 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 	float x_lb = float(viewport.GetLeft());
 	float y_lb = float(viewport.GetBottom());
 
-	MT_Vector4 frompoint;
-	MT_Vector4 topoint;
-	
 	/* m_y_inv - inverting for a bounds check is only part of it, now make relative to view bounds */
 	m_y_inv = (viewport.GetTop() - m_y_inv) + viewport.GetBottom();
 	
@@ -319,23 +315,15 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 	 *	The actual z coordinates used don't have to be exact just infront and 
 	 *	behind of the near and far clip planes.
 	 */ 
-	frompoint.setValue(	(2 * (m_x-x_lb) / maxx) - 1.0f,
-						1.0f - (2 * (m_y_inv - y_lb) / maxy),
-						-1.0f,
-						1.0f );
-	
-	topoint.setValue(	(2 * (m_x-x_lb) / maxx) - 1.0f,
-						1.0f - (2 * (m_y_inv-y_lb) / maxy),
-						1.0f,
-						1.0f );
+	mt::vec3 frompoint((2 * (m_x-x_lb) / maxx) - 1.0f, 1.0f - (2 * (m_y_inv - y_lb) / maxy), -1.0f);
+	mt::vec3 topoint((2 * (m_x-x_lb) / maxx) - 1.0f, 1.0f - (2 * (m_y_inv-y_lb) / maxy), 1.0f);
 	
 	/* camera to world  */
-	MT_Matrix4x4 camcs_wcs_matrix = MT_Matrix4x4(cam->GetCameraToWorld());
+	mt::mat4 camcs_wcs_matrix = mt::mat4::FromAffineTransform(cam->GetCameraToWorld());
 
 	/* badly defined, the first time round.... I wonder why... I might
 	 * want to guard against floating point errors here.*/
-	MT_Matrix4x4 clip_camcs_matrix = MT_Matrix4x4(cam->GetProjectionMatrix());
-	clip_camcs_matrix.invert();
+	mt::mat4 clip_camcs_matrix = cam->GetProjectionMatrix().Inverse();
 
 	/* shoot-points: clip to cam to wcs . win to clip was already done.*/
 	frompoint = clip_camcs_matrix * frompoint;
@@ -346,13 +334,8 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 	topoint   = camcs_wcs_matrix * topoint;
 	
 	/* from hom wcs to 3d wcs: */
-	m_prevSourcePoint.setValue(	frompoint[0]/frompoint[3],
-								frompoint[1]/frompoint[3],
-								frompoint[2]/frompoint[3]); 
-	
-	m_prevTargetPoint.setValue(	topoint[0]/topoint[3],
-								topoint[1]/topoint[3],
-								topoint[2]/topoint[3]); 
+	m_prevSourcePoint = frompoint;
+	m_prevTargetPoint = topoint;
 	
 	/* 2. Get the object from PhysicsEnvironment */
 	/* Shoot! Beware that the first argument here is an
@@ -374,8 +357,8 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 bool KX_MouseFocusSensor::ParentObjectHasFocus()
 {
 	m_hitObject = 0;
-	m_hitPosition.setValue(0,0,0);
-	m_hitNormal.setValue(1,0,0);
+	m_hitPosition = mt::zero3;
+	m_hitNormal = mt::axisZ3;
 	
 	KX_Camera *activecam = m_kxscene->GetActiveCamera();
 	
@@ -392,27 +375,27 @@ bool KX_MouseFocusSensor::ParentObjectHasFocus()
 	return false;
 }
 
-const MT_Vector3& KX_MouseFocusSensor::RaySource() const
+const mt::vec3& KX_MouseFocusSensor::RaySource() const
 {
 	return m_prevSourcePoint;
 }
 
-const MT_Vector3& KX_MouseFocusSensor::RayTarget() const
+const mt::vec3& KX_MouseFocusSensor::RayTarget() const
 {
 	return m_prevTargetPoint;
 }
 
-const MT_Vector3& KX_MouseFocusSensor::HitPosition() const
+const mt::vec3& KX_MouseFocusSensor::HitPosition() const
 {
 	return m_hitPosition;
 }
 
-const MT_Vector3& KX_MouseFocusSensor::HitNormal() const
+const mt::vec3& KX_MouseFocusSensor::HitNormal() const
 {
 	return m_hitNormal;
 }
 
-const MT_Vector2& KX_MouseFocusSensor::HitUV() const
+const mt::vec2& KX_MouseFocusSensor::HitUV() const
 {
 	return m_hitUV;
 }
@@ -482,9 +465,9 @@ PyObject *KX_MouseFocusSensor::pyattr_get_ray_target(EXP_PyObjectPlus *self_v, c
 PyObject *KX_MouseFocusSensor::pyattr_get_ray_direction(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MouseFocusSensor* self = static_cast<KX_MouseFocusSensor*>(self_v);
-	MT_Vector3 dir = self->RayTarget() - self->RaySource();
-	if (MT_fuzzyZero(dir))	dir.setValue(0,0,0);
-	else					dir.normalize();
+	mt::vec3 dir = self->RayTarget() - self->RaySource();
+	if (mt::FuzzyZero(dir))	dir = mt::zero3;
+	else					dir.Normalize();
 	return PyObjectFrom(dir);
 }
 

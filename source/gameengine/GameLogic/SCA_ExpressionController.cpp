@@ -38,7 +38,7 @@
 #include "SCA_LogicManager.h"
 #include "EXP_BoolValue.h"
 #include "EXP_InputParser.h"
-#include "MT_Transform.h" // for fuzzyZero
+#include "mathfu.h" // for FuzzyZero
 
 #include "CM_Message.h"
 
@@ -110,7 +110,7 @@ void SCA_ExpressionController::Trigger(SCA_LogicManager* logicmgr)
 			} else
 			{
 				float num = (float)value->GetNumber();
-				expressionresult = !MT_fuzzyZero(num);
+				expressionresult = !mt::FuzzyZero(num);
 			}
 			value->Release();
 

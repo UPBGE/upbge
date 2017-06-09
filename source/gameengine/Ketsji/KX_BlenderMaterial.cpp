@@ -31,8 +31,6 @@
 
 #include "EXP_ListWrapper.h"
 
-#include "MT_Matrix4x4.h"
-
 #include "RAS_BucketManager.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_MeshUser.h"
@@ -348,7 +346,7 @@ bool KX_BlenderMaterial::UsesLighting() const
 		return true;
 }
 
-void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const MT_Transform& camtrans)
+void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans)
 {
 	if (m_shader && m_shader->Ok()) {
 		m_shader->Update(rasty, ms);
@@ -384,15 +382,15 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 }
 
 void KX_BlenderMaterial::UpdateIPO(
-    MT_Vector4 rgba,
-    MT_Vector3 specrgb,
-    MT_Scalar hard,
-    MT_Scalar spec,
-    MT_Scalar ref,
-    MT_Scalar emit,
-	MT_Scalar ambient,
-    MT_Scalar alpha,
-	MT_Scalar specalpha)
+    const mt::vec4 &rgba,
+    const mt::vec3 &specrgb,
+    float hard,
+    float spec,
+    float ref,
+    float emit,
+	float ambient,
+    float alpha,
+	float specalpha)
 {
 	// only works one deep now
 
@@ -731,14 +729,14 @@ PyObject *KX_BlenderMaterial::pyattr_get_specular_color(EXP_PyObjectPlus *self_v
 #else
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
 	Material *mat = self->GetBlenderMaterial();
-	return PyColorFromVector(MT_Vector3(mat->specr, mat->specg, mat->specb));
+	return PyColorFromVector(mt::vec3(mat->specr, mat->specg, mat->specb));
 #endif
 }
 
 int KX_BlenderMaterial::pyattr_set_specular_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	MT_Vector3 color;
+	mt::vec3 color;
 	if (!PyVecTo(value, color))
 		return PY_SET_ATTR_FAIL;
 
@@ -778,14 +776,14 @@ PyObject *KX_BlenderMaterial::pyattr_get_diffuse_color(EXP_PyObjectPlus *self_v,
 #else
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
 	Material *mat = self->GetBlenderMaterial();
-	return PyColorFromVector(MT_Vector3(mat->r, mat->g, mat->b));
+	return PyColorFromVector(mt::vec3(mat->r, mat->g, mat->b));
 #endif
 }
 
 int KX_BlenderMaterial::pyattr_set_diffuse_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	MT_Vector3 color;
+	mt::vec3 color;
 	if (!PyVecTo(value, color))
 		return PY_SET_ATTR_FAIL;
 

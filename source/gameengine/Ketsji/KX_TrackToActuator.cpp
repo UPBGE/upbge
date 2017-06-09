@@ -35,7 +35,6 @@
  * m_upflag for the up direction
  * normal situation is +y for forward, +z for up */
 
-#include "MT_Scalar.h"
 #include "SCA_IActuator.h"
 #include "KX_TrackToActuator.h"
 #include "SCA_IScene.h"
@@ -87,9 +86,9 @@ KX_TrackToActuator::KX_TrackToActuator(SCA_IObject *gameobj,
 
 
 /* old function from Blender */
-static MT_Matrix3x3 EulToMat3(float eul[3])
+static mt::mat3 EulToMat3(float eul[3])
 {
-	MT_Matrix3x3 mat;
+	mt::mat3 mat;
 	float ci, cj, ch, si, sj, sh, cc, cs, sc, ss;
 	
 	ci = cosf(eul[0]);
@@ -103,15 +102,15 @@ static MT_Matrix3x3 EulToMat3(float eul[3])
 	sc = si*ch; 
 	ss = si*sh;
 
-	mat[0][0] = cj*ch; 
-	mat[1][0] = sj*sc-cs; 
-	mat[2][0] = sj*cc+ss;
-	mat[0][1] = cj*sh; 
-	mat[1][1] = sj*ss+cc; 
-	mat[2][1] = sj*cs-sc;
-	mat[0][2] = -sj;	 
-	mat[1][2] = cj*si;    
-	mat[2][2] = cj*ci;
+	mat(0, 0) = cj*ch; 
+	mat(0, 1) = sj*sc-cs; 
+	mat(0, 2) = sj*cc+ss;
+	mat(1, 0) = cj*sh; 
+	mat(1, 1) = sj*ss+cc; 
+	mat(1, 2) = sj*cs-sc;
+	mat(2, 0) = -sj;	 
+	mat(2, 1) = cj*si;    
+	mat(2, 2) = cj*ci;
 
 	return mat;
 }
@@ -119,18 +118,18 @@ static MT_Matrix3x3 EulToMat3(float eul[3])
 
 
 /* old function from Blender */
-static void Mat3ToEulOld(MT_Matrix3x3 mat, float eul[3])
+static void Mat3ToEulOld(const mt::mat3 &mat, float eul[3])
 {
-	const float cy = sqrtf(mat[0][0] * mat[0][0] + mat[0][1] * mat[0][1]);
+	const float cy = sqrtf(mat(0, 0) * mat(0, 0) + mat(1, 0) * mat(1, 0));
 
 	if (cy > (float)(16.0f * FLT_EPSILON)) {
-		eul[0] = atan2f( mat[1][2], mat[2][2]);
-		eul[1] = atan2f(-mat[0][2], cy);
-		eul[2] = atan2f( mat[0][1], mat[0][0]);
+		eul[0] = atan2f( mat(2, 1), mat(2, 2));
+		eul[1] = atan2f(-mat(2, 0), cy);
+		eul[2] = atan2f( mat(1, 0), mat(0, 0));
 	}
 	else {
-		eul[0] = atan2f(-mat[2][1], mat[1][1]);
-		eul[1] = atan2f(-mat[0][2], cy);
+		eul[0] = atan2f(-mat(1, 2), mat(1, 1));
+		eul[1] = atan2f(-mat(2, 0), cy);
 		eul[2] = 0.0f;
 	}
 }
@@ -148,20 +147,20 @@ static void compatible_eulFast(float *eul, float *oldrot)
 	dy = eul[1] - oldrot[1];
 	dz = eul[2] - oldrot[2];
 
-	if (fabsf(dx) > (float)MT_PI) {
-		if (dx > 0.0f) eul[0] -= (float)MT_2_PI; else eul[0] += (float)MT_2_PI;
+	if (fabsf(dx) > (float)M_PI) {
+		if (dx > 0.0f) eul[0] -= (float)(M_PI * 2.0f); else eul[0] += (float)(M_PI * 2.0f);
 	}
-	if (fabsf(dy) > (float)MT_PI) {
-		if (dy > 0.0f) eul[1] -= (float)MT_2_PI; else eul[1] += (float)MT_2_PI;
+	if (fabsf(dy) > (float)M_PI) {
+		if (dy > 0.0f) eul[1] -= (float)(M_PI * 2.0f); else eul[1] += (float)(M_PI * 2.0f);
 	}
-	if (fabsf(dz) > (float)MT_PI) {
-		if (dz > 0.0f) eul[2] -= (float)MT_2_PI; else eul[2] += (float)MT_2_PI;
+	if (fabsf(dz) > (float)M_PI) {
+		if (dz > 0.0f) eul[2] -= (float)(M_PI * 2.0f); else eul[2] += (float)(M_PI * 2.0f);
 	}
 }
 
 
 
-static MT_Matrix3x3 matrix3x3_interpol(MT_Matrix3x3 oldmat, MT_Matrix3x3 mat, int m_time)
+static mt::mat3 matrix3x3_interpol(const mt::mat3 &oldmat, const mt::mat3 &mat, int m_time)
 {
 	float eul[3], oldeul[3];
 
@@ -193,23 +192,21 @@ static float basis_cross(int n, int m)
 }
 
 /* vectomat function obtained from constrain.c and modified to work with MOTO library */
-static MT_Matrix3x3 vectomat(MT_Vector3 vec, short axis, short upflag, short threedimup)
+static mt::mat3 vectomat(const mt::vec3 &dir, short axis, short upflag, short threedimup)
 {
-	MT_Matrix3x3 mat;
-	MT_Vector3 y(MT_Scalar(0.0f), MT_Scalar(1.0f), MT_Scalar(0.0f));
-	MT_Vector3 z(MT_Scalar(0.0f), MT_Scalar(0.0f), MT_Scalar(1.0f)); /* world Z axis is the global up axis */
-	MT_Vector3 proj;
-	MT_Vector3 right;
-	MT_Scalar mul;
+	mt::mat3 mat;
+	mt::vec3 proj;
+	mt::vec3 right;
+	float mul;
 	int right_index;
 
 	/* Normalized Vec vector*/
-	vec = vec.safe_normalized_vec(z);
+	mt::vec3 vec = dir.SafeNormalized(mt::axisZ3);
 
 	/* if 2D doesn't move the up vector */
 	if (!threedimup) {
-		vec.setValue(MT_Scalar(vec[0]), MT_Scalar(vec[1]), MT_Scalar(0.0f));
-		vec = (vec - z.dot(vec)*z).safe_normalized_vec(z);
+		vec.z = 0.0f;
+		vec = (vec - mt::dot(mt::axisZ3, vec) * mt::axisZ3).SafeNormalized(mt::axisZ3);
 	}
 
 	if (axis > 2)
@@ -219,30 +216,30 @@ static MT_Matrix3x3 vectomat(MT_Vector3 vec, short axis, short upflag, short thr
 
 	/* project the up vector onto the plane specified by vec */
 	/* first z onto vec... */
-	mul = z.dot(vec) / vec.dot(vec);
+	mul = mt::dot(mt::axisZ3, vec) / mt::dot(vec, vec);
 	proj = vec * mul;
 	/* then onto the plane */
-	proj = z - proj;
+	proj = mt::axisZ3 - proj;
 	/* proj specifies the transformation of the up axis */
-	proj = proj.safe_normalized_vec(y);
+	proj = proj.SafeNormalized(mt::axisY3);
 
 	/* Normalized cross product of vec and proj specifies transformation of the right axis */
-	right = proj.cross(vec);
-	right.normalize();
+	right = mt::cross(proj, vec);
+	right.Normalize();
 
 	if (axis != upflag) {
 		right_index = 3 - axis - upflag;
 
 		/* account for up direction, track direction */
 		right = right * basis_cross(axis, upflag);
-		mat.setRow(right_index, right);
-		mat.setRow(upflag, proj);
-		mat.setRow(axis, vec);
-		mat = mat.inverse();
+
+		mat.GetColumn(right_index) = right;
+		mat.GetColumn(upflag) = proj;
+		mat.GetColumn(axis) = vec;
 	}
 	/* identity matrix - don't do anything if the two axes are the same */
 	else {
-		mat.setIdentity();
+		mat = mt::mat3::Identity();
 	}
 
 	return mat;
@@ -316,9 +313,9 @@ bool KX_TrackToActuator::Update(double curtime)
 	else if (m_object)
 	{
 		KX_GameObject* curobj = (KX_GameObject*) GetParent();
-		MT_Vector3 dir = curobj->NodeGetWorldPosition() - ((KX_GameObject*)m_object)->NodeGetWorldPosition();
-		MT_Matrix3x3 mat;
-		MT_Matrix3x3 oldmat;
+		mt::vec3 dir = curobj->NodeGetWorldPosition() - ((KX_GameObject*)m_object)->NodeGetWorldPosition();
+		mt::mat3 mat;
+		mt::mat3 oldmat;
 
 		mat = vectomat(dir, m_trackflag, m_upflag, m_allow3D);
 		oldmat = curobj->NodeGetWorldOrientation();
@@ -329,11 +326,11 @@ bool KX_TrackToActuator::Update(double curtime)
 		/* check if the model is parented and calculate the child transform */
 		if (m_parentobj) {
 				
-			MT_Vector3 localpos;
+			mt::vec3 localpos;
 			localpos = curobj->GetSGNode()->GetLocalPosition();
 			// Get the inverse of the parent matrix
-			MT_Matrix3x3 parentmatinv;
-			parentmatinv = m_parentobj->NodeGetWorldOrientation().inverse();
+			mt::mat3 parentmatinv;
+			parentmatinv = m_parentobj->NodeGetWorldOrientation().Inverse();
 			// transform the local coordinate system into the parents system
 			mat = parentmatinv * mat;
 			// append the initial parent local rotation matrix

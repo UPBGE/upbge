@@ -45,25 +45,25 @@
 #include <algorithm>
 /* sorting */
 
-RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlot *ms, const MT_Vector3& pnorm)
+RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlot *ms, const mt::vec3& pnorm)
 	:m_ms(ms)
 {
 	// would be good to use the actual bounding box center instead
 	float *matrix = m_ms->m_meshUser->GetMatrix();
-	const MT_Vector3 pos(matrix[12], matrix[13], matrix[14]);
+	const mt::vec3 pos(matrix[12], matrix[13], matrix[14]);
 
-	m_z = MT_dot(pnorm, pos);
+	m_z = mt::dot(pnorm, pos);
 }
 
-RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlotUpwardNode *node, const MT_Vector3& pnorm)
+RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlotUpwardNode *node, const mt::vec3& pnorm)
 	:m_node(node)
 {
 	RAS_MeshSlot *ms = m_node->GetOwner();
 	// would be good to use the actual bounding box center instead
 	float *matrix = ms->m_meshUser->GetMatrix();
-	const MT_Vector3 pos(matrix[12], matrix[13], matrix[14]);
+	const mt::vec3 pos(matrix[12], matrix[13], matrix[14]);
 
-	m_z = MT_dot(pnorm, pos);
+	m_z = mt::dot(pnorm, pos);
 }
 
 bool RAS_BucketManager::backtofront::operator()(const SortedMeshSlot &a, const SortedMeshSlot &b)
@@ -112,7 +112,8 @@ void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketMan
 	if (!leafs.empty()) {
 		/* Camera's near plane equation: pnorm.dot(point) + pval,
 		 * but we leave out pval since it's constant anyway */
-		const MT_Vector3 pnorm(m_nodeData.m_trans.getBasis()[2]);
+		const mt::mat3x4& trans = m_nodeData.m_trans;
+		const mt::vec3 pnorm(trans[2], trans[5], trans[8]);
 		std::vector<SortedMeshSlot> sortedSlots(leafs.size());
 		// Generate all SortedMeshSlot corresponding to all the leafs nodes.
 		std::transform(leafs.begin(), leafs.end(), sortedSlots.begin(),
@@ -141,7 +142,7 @@ void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketMana
 	}
 }
 
-void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, const MT_Transform& cameratrans, RAS_Rasterizer *rasty,
+void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, const mt::mat3x4& cameratrans, RAS_Rasterizer *rasty,
 		RAS_OffScreen *offScreen)
 {
 	m_nodeData.m_rasty = rasty;

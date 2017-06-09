@@ -96,7 +96,7 @@ void RAS_InstancingBuffer::Update(RAS_Rasterizer *rasty, int drawingmode, RAS_Me
 		data.position[1] = mat[13];
 		data.position[2] = mat[14];
 
-		const MT_Vector4& color = ms->m_meshUser->GetColor();
+		const mt::vec4& color = ms->m_meshUser->GetColor();
 		data.color[0] = color[0] * 255.0f;
 		data.color[1] = color[1] * 255.0f;
 		data.color[2] = color[2] * 255.0f;

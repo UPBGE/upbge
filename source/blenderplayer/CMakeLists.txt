@@ -144,6 +144,7 @@ endif()
 		bf_intern_itasc
 		bf_intern_iksolver
 		bf_intern_smoke
+		bf_intern_mathfu
 		bf_intern_moto
 		bf_intern_guardedalloc
 		bf_intern_memutil

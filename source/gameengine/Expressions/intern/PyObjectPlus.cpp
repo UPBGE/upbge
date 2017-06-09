@@ -46,8 +46,6 @@
  * ----------------------------- */
 
 #include "EXP_PyObjectPlus.h"
-#include <string>
-#include "MT_Vector3.h"
 #include "MEM_guardedalloc.h"
 
 #include "CM_Message.h"
@@ -470,11 +468,9 @@ PyObject *EXP_PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeD
 			}
 			case EXP_PYATTRIBUTE_TYPE_VECTOR:
 			{
-				MT_Vector3 *val = reinterpret_cast<MT_Vector3 *>(ptr);
+				mt::vec3 *val = reinterpret_cast<mt::vec3 *>(ptr);
 #ifdef USE_MATHUTILS
-				float fval[3];
-				val->getValue(fval);
-				return Vector_CreatePyObject(fval, 3, nullptr);
+				return Vector_CreatePyObject(val->Data(), 3, nullptr);
 #else
 				PyObject *resultlist = PyList_New(3);
 				for (unsigned int i = 0; i < 3; i++)
@@ -785,7 +781,7 @@ UNDO_AND_ERROR:
 				}
 				case EXP_PYATTRIBUTE_TYPE_VECTOR:
 				{
-					bufferSize = sizeof(MT_Vector3);
+					bufferSize = sizeof(mt::vec3);
 					break;
 				}
 				default:
@@ -983,7 +979,7 @@ UNDO_AND_ERROR:
 					PyErr_Format(PyExc_TypeError, "expected a sequence of 3 floats for attribute \"%s\"", attrdef->m_name.c_str());
 					goto FREE_AND_ERROR;
 				}
-				MT_Vector3 *var = reinterpret_cast<MT_Vector3 *>(ptr);
+				mt::vec3 *var = reinterpret_cast<mt::vec3 *>(ptr);
 				for (int i = 0; i < 3; i++)
 				{
 					item = PySequence_GetItem(value, i); // new ref
@@ -1006,7 +1002,7 @@ UNDO_AND_ERROR:
 						PyErr_Format(PyExc_ValueError, "value out of range for attribute \"%s\"", attrdef->m_name.c_str());
 						goto RESTORE_AND_ERROR;
 					}
-					(*var)[i] = (MT_Scalar)val;
+					(*var)[i] = (float)val;
 				}
 				break;
 			}

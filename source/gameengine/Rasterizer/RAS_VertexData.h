@@ -1,7 +1,7 @@
 #ifndef __RAS_VERTEX_DATA_H__
 #define __RAS_VERTEX_DATA_H__
 
-#include "MT_Vector4.h"
+#include "mathfu.h"
 
 #include "BLI_math_vector.h"
 
@@ -13,11 +13,11 @@ struct RAS_VertexDataBasic
 
 	inline RAS_VertexDataBasic() = default;
 
-	inline RAS_VertexDataBasic(const MT_Vector3& _position, const MT_Vector3& _normal, const MT_Vector4& _tangent)
+	inline RAS_VertexDataBasic(const mt::vec3& _position, const mt::vec3& _normal, const mt::vec4& _tangent)
 	{
-		_position.getValue(position);
-		_normal.getValue(normal);
-		_tangent.getValue(tangent);
+		_position.Pack(position);
+		_normal.Pack(normal);
+		_tangent.Pack(tangent);
 	}
 
 	inline RAS_VertexDataBasic(const float _position[3], const float _normal[3], const float _tangent[4])
@@ -36,10 +36,10 @@ struct RAS_VertexDataExtra
 
 	inline RAS_VertexDataExtra() = default;
 
-	inline RAS_VertexDataExtra(const MT_Vector2 _uvs[uvSize], const unsigned int _colors[colorSize])
+	inline RAS_VertexDataExtra(const mt::vec2 _uvs[uvSize], const unsigned int _colors[colorSize])
 	{
 		for (unsigned short i = 0; i < uvSize; ++i) {
-			_uvs[i].getValue(uvs[i]);
+			_uvs[i].Pack(uvs[i]);
 		}
 
 		for (unsigned short i = 0; i < colorSize; ++i) {
@@ -63,7 +63,7 @@ struct RAS_IVertexData : RAS_VertexDataBasic
 {
 	inline RAS_IVertexData() = default;
 
-	inline RAS_IVertexData(const MT_Vector3& _position, const MT_Vector3& _normal, const MT_Vector4& _tangent)
+	inline RAS_IVertexData(const mt::vec3& _position, const mt::vec3& _normal, const mt::vec4& _tangent)
 		:RAS_VertexDataBasic(_position, _normal, _tangent)
 	{
 	}
@@ -96,11 +96,11 @@ struct RAS_VertexData : RAS_IVertexData, RAS_VertexDataExtra<uvSize, colorSize>
 
 	inline RAS_VertexData() = default;
 
-	inline RAS_VertexData(const MT_Vector3& _position,
-						  const MT_Vector2 _uvs[uvSize],
-						  const MT_Vector4& _tangent,
+	inline RAS_VertexData(const mt::vec3& _position,
+						  const mt::vec2 _uvs[uvSize],
+						  const mt::vec4& _tangent,
 						  const unsigned int _colors[colorSize],
-						  const MT_Vector3& _normal)
+						  const mt::vec3& _normal)
 		:RAS_IVertexData(_position, _normal, _tangent),
 		RAS_VertexDataExtra<uvSize, colorSize>(_uvs, _colors)
 	{

@@ -60,7 +60,7 @@ int Ccd_FindClosestNode(btSoftBody *sb, const btVector3& worldPoint);
  * It stores rigidbodies,constraints, materials etc.
  * A derived class may be able to 'construct' entities by loading and/or converting
  */
-class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment
+class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment, public mt::SimdClassAllocator
 {
 	friend class CcdOverlapFilterCallBack;
 	btVector3 m_gravity;
@@ -163,7 +163,7 @@ public:
 	virtual int GetDebugMode() const;
 
 	virtual void SetGravity(float x, float y, float z);
-	virtual void GetGravity(MT_Vector3& grav);
+	virtual void GetGravity(mt::vec3& grav);
 
 
 	virtual PHY_IConstraint *CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
@@ -187,8 +187,8 @@ public:
 	btTypedConstraint *GetConstraintById(int constraintId);
 
 	virtual PHY_IPhysicsController *RayTest(PHY_IRayCastFilterCallback &filterCallback, float fromX, float fromY, float fromZ, float toX, float toY, float toZ);
-	virtual bool CullingTest(PHY_CullingCallback callback, void *userData, const std::array<MT_Vector4, 6>& planes,
-							 int occlusionRes, const int *viewport, const MT_Matrix4x4& matrix);
+	virtual bool CullingTest(PHY_CullingCallback callback, void *userData, const std::array<mt::vec4, 6>& planes,
+							 int occlusionRes, const int *viewport, const mt::mat4& matrix);
 
 
 	//Methods for gamelogic collision/physics callbacks
@@ -199,7 +199,7 @@ public:
 	virtual bool RemoveCollisionCallback(PHY_IPhysicsController *ctrl);
 	virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1);
 	//These two methods are used *solely* to create controllers for Near/Radar sensor! Don't use for anything else
-	virtual PHY_IPhysicsController *CreateSphereController(float radius, const MT_Vector3& position);
+	virtual PHY_IPhysicsController *CreateSphereController(float radius, const mt::vec3& position);
 	virtual PHY_IPhysicsController *CreateConeController(float coneradius, float coneheight);
 
 	virtual int GetNumContactPoints();
@@ -304,10 +304,10 @@ public:
 	virtual ~CcdCollData();
 
 	virtual unsigned int GetNumContacts() const;
-	virtual MT_Vector3 GetLocalPointA(unsigned int index, bool first) const;
-	virtual MT_Vector3 GetLocalPointB(unsigned int index, bool first) const;
-	virtual MT_Vector3 GetWorldPoint(unsigned int index, bool first) const;
-	virtual MT_Vector3 GetNormal(unsigned int index, bool first) const;
+	virtual mt::vec3 GetLocalPointA(unsigned int index, bool first) const;
+	virtual mt::vec3 GetLocalPointB(unsigned int index, bool first) const;
+	virtual mt::vec3 GetWorldPoint(unsigned int index, bool first) const;
+	virtual mt::vec3 GetNormal(unsigned int index, bool first) const;
 	virtual float GetCombinedFriction(unsigned int index, bool first) const;
 	virtual float GetCombinedRollingFriction(unsigned int index, bool first) const;
 	virtual float GetCombinedRestitution(unsigned int index, bool first) const;

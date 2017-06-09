@@ -259,8 +259,8 @@ void	KX_AddObjectActuator::InstantAddObject()
 		// Add an identical object, with properties inherited from the original object
 		// Now it needs to be added to the current scene.
 		KX_GameObject *replica = m_scene->AddReplicaObject(m_OriginalObject, static_cast<KX_GameObject *>(GetParent()), m_timeProp);
-		replica->setLinearVelocity(MT_Vector3(m_linear_velocity), m_localLinvFlag);
-		replica->setAngularVelocity(MT_Vector3(m_angular_velocity),m_localAngvFlag);
+		replica->setLinearVelocity(mt::vec3(m_linear_velocity), m_localLinvFlag);
+		replica->setAngularVelocity(mt::vec3(m_angular_velocity),m_localAngvFlag);
 
 		// keep a copy of the last object, to allow python scripters to change it
 		if (m_lastCreatedObject)

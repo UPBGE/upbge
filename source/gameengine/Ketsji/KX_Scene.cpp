@@ -756,16 +756,16 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		// the group reference point is 0,0,0
 
 		// get the rootnode's scale
-		MT_Vector3 newscale = groupobj->NodeGetWorldScaling();
+		mt::vec3 newscale = groupobj->NodeGetWorldScaling();
 		// set the replica's relative scale with the rootnode's scale
 		replica->NodeSetRelativeScale(newscale);
 
-		MT_Vector3 offset(group->dupli_ofs);
-		MT_Vector3 newpos = groupobj->NodeGetWorldPosition() + 
+		mt::vec3 offset(group->dupli_ofs);
+		mt::vec3 newpos = groupobj->NodeGetWorldPosition() + 
 			newscale*(groupobj->NodeGetWorldOrientation() * (gameobj->NodeGetWorldPosition()-offset));
 		replica->NodeSetLocalPosition(newpos);
 		// set the orientation after position for softbody!
-		MT_Matrix3x3 newori = groupobj->NodeGetWorldOrientation() * gameobj->NodeGetWorldOrientation();
+		mt::mat3 newori = groupobj->NodeGetWorldOrientation() * gameobj->NodeGetWorldOrientation();
 		replica->NodeSetLocalOrientation(newori);
 		// update scenegraph for entire tree of children
 		replica->GetSGNode()->UpdateWorldData(0);
@@ -867,14 +867,14 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 	if (referenceobj) {
 		// At this stage all the objects in the hierarchy have been duplicated,
 		// we can update the scenegraph, we need it for the duplication of logic
-		MT_Vector3 newpos = referenceobj->NodeGetWorldPosition();
+		mt::vec3 newpos = referenceobj->NodeGetWorldPosition();
 		replica->NodeSetLocalPosition(newpos);
 
-		MT_Matrix3x3 newori = referenceobj->NodeGetWorldOrientation();
+		mt::mat3 newori = referenceobj->NodeGetWorldOrientation();
 		replica->NodeSetLocalOrientation(newori);
 
 		// get the rootnode's scale
-		MT_Vector3 newscale = referenceobj->GetSGNode()->GetRootSGParent()->GetLocalScale();
+		mt::vec3 newscale = referenceobj->GetSGNode()->GetRootSGParent()->GetLocalScale();
 		// set the replica's relative scale with the rootnode's scale
 		replica->NodeSetRelativeScale(newscale);
 	}
@@ -1155,8 +1155,8 @@ void KX_Scene::CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, con
 
 		// test culling through Bullet
 		// get the clip planes
-		const std::array<MT_Vector4, 6>& planes = frustum.GetPlanes();
-		const MT_Matrix4x4& matrix = frustum.GetMatrix();
+		const std::array<mt::vec4, 6>& planes = frustum.GetPlanes();
+		const mt::mat4& matrix = frustum.GetMatrix();
 		const int *viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
 		CullingInfo info(layer, objects);
 
@@ -1189,25 +1189,25 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObje
 	const KX_DebugOption showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
 	if (showBoundingBox != KX_DebugOption::DISABLE) {
 		for (KX_GameObject *gameobj : m_objectlist) {
-			const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
-			const MT_Vector3& position = gameobj->NodeGetWorldPosition();
-			const MT_Matrix3x3& orientation = gameobj->NodeGetWorldOrientation();
+			const mt::vec3& scale = gameobj->NodeGetWorldScaling();
+			const mt::vec3& position = gameobj->NodeGetWorldPosition();
+			const mt::mat3& orientation = gameobj->NodeGetWorldOrientation();
 			const SG_BBox& box = gameobj->GetCullingNode()->GetAabb();
-			const MT_Vector3& center = box.GetCenter();
+			const mt::vec3& center = box.GetCenter();
 
 			debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
-				MT_Vector4(1.0f, 0.0f, 1.0f, 1.0f));
+				mt::vec4(1.0f, 0.0f, 1.0f, 1.0f));
 
 			// Render center in red, green and blue.
 			debugDraw.DrawLine(orientation * center * scale + position,
-				orientation * (center + MT_Vector3(1.0f, 0.0f, 0.0f)) * scale + position,
-				MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
+				orientation * (center + mt::axisX3) * scale + position,
+				mt::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 			debugDraw.DrawLine(orientation * center * scale + position,
-				orientation * (center + MT_Vector3(0.0f, 1.0f, 0.0f)) * scale  + position,
-				MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
+				orientation * (center + mt::axisY3) * scale  + position,
+				mt::vec4(0.0f, 1.0f, 0.0f, 1.0f));
 			debugDraw.DrawLine(orientation * center * scale + position,
-				orientation * (center + MT_Vector3(0.0f, 0.0f, 1.0f)) * scale  + position,
-				MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f));
+				orientation * (center + mt::axisZ3) * scale  + position,
+				mt::vec4(0.0f, 0.0f, 1.0f, 1.0f));
 		}
 	}
 
@@ -1227,7 +1227,7 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObje
 
 void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax)
 {
-	static const MT_Vector4 white(1.0f, 1.0f, 1.0f, 1.0f);
+	static const mt::vec4 white(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// The 'normal' debug props.
 	const std::vector<SCA_DebugProp>& debugproplist = GetDebugProperties();
@@ -1256,7 +1256,7 @@ void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int 
 					first = false;
 				}
 			}
-			debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + xindent, ycoord), white);
+			debugDraw.RenderText2D(debugtxt, mt::vec2(xcoord + xindent, ycoord), white);
 			ycoord += ysize;
 		}
 		else {
@@ -1264,7 +1264,7 @@ void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int 
 			if (propval) {
 				const std::string text = propval->GetText();
 				const std::string debugtxt = objname + ": '" + propname + "' = " + text;
-				debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + xindent, ycoord), white);
+				debugDraw.RenderText2D(debugtxt, mt::vec2(xcoord + xindent, ycoord), white);
 				ycoord += ysize;
 			}
 		}
@@ -1450,7 +1450,7 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 
 
 
-void KX_Scene::RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Rasterizer::DrawType drawingMode, const MT_Transform& cameratransform,
+void KX_Scene::RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Rasterizer::DrawType drawingMode, const mt::mat3x4& cameratransform,
 		RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
 {
 	for (KX_GameObject *gameobj : objects) {
@@ -1471,7 +1471,7 @@ void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategor
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam, const std::vector<KX_GameObject *>& objects)
 {
-	const MT_Vector3& cam_pos = cam->NodeGetWorldPosition();
+	const mt::vec3& cam_pos = cam->NodeGetWorldPosition();
 	const float lodfactor = cam->GetLodDistanceFactor();
 
 	for (KX_GameObject *gameobj : objects) {
@@ -1505,7 +1505,7 @@ void KX_Scene::UpdateObjectActivity()
 		return;
 	}
 
-	std::vector<MT_Vector3> camPositions;
+	std::vector<mt::vec3, mt::simd_allocator<mt::vec3> > camPositions;
 
 	for (KX_Camera *cam : m_cameralist) {
 		if (cam->GetActivityCulling()) {
@@ -1525,11 +1525,11 @@ void KX_Scene::UpdateObjectActivity()
 		}
 
 		// For each camera compute the distance to objects and keep the minimum distance.
-		const MT_Vector3& obpos = gameobj->NodeGetWorldPosition();
+		const mt::vec3& obpos = gameobj->NodeGetWorldPosition();
 		float dist = FLT_MAX;
-		for (const MT_Vector3& campos : camPositions) {
+		for (const mt::vec3& campos : camPositions) {
 			// Keep the minimum distance.
-			dist = std::min(obpos.distance2(campos), dist);
+			dist = std::min((obpos - campos).LengthSquared(), dist);
 		}
 		gameobj->UpdateActivity(dist);
 	}
@@ -1545,14 +1545,14 @@ void KX_Scene::SetNetworkMessageScene(KX_NetworkMessageScene *newScene)
 	m_networkScene = newScene;
 }
 
-void	KX_Scene::SetGravity(const MT_Vector3& gravity)
+void	KX_Scene::SetGravity(const mt::vec3& gravity)
 {
 	GetPhysicsEnvironment()->SetGravity(gravity[0],gravity[1],gravity[2]);
 }
 
-MT_Vector3 KX_Scene::GetGravity()
+mt::vec3 KX_Scene::GetGravity()
 {
-	MT_Vector3 gravity;
+	mt::vec3 gravity;
 
 	GetPhysicsEnvironment()->GetGravity(gravity);
 
@@ -2106,7 +2106,7 @@ int KX_Scene::pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE
 {
 	KX_Scene* self = static_cast<KX_Scene*>(self_v);
 
-	MT_Vector3 vec;
+	mt::vec3 vec;
 	if (!PyVecTo(value, vec))
 		return PY_SET_ATTR_FAIL;
 

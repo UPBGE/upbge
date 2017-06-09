@@ -45,6 +45,7 @@ class SG_Node;
 class SG_Controller
 {
 public:
+
 	SG_Controller()
 		:m_node(nullptr)
 	{

@@ -28,7 +28,6 @@
 #define __RAS_BATCH_GROUP_H__
 
 #include "RAS_DisplayArrayBucket.h"
-#include "MT_Matrix4x4.h"
 
 class RAS_IPolyMaterial;
 class RAS_IBatchDisplayArray;
@@ -64,7 +63,7 @@ private:
 	 * \param mat The transform matrix to apply to vertices during merging.
 	 * \return false on failure.
 	 */
-	bool MergeMeshSlot(Batch& batch, RAS_MeshSlot *slot, const MT_Matrix4x4& mat);
+	bool MergeMeshSlot(Batch& batch, RAS_MeshSlot *slot, const mt::mat4& mat);
 
 	/** Split the part representing the display array containing in the passed mesh slot.
 	 * \param slot The mesh slot using the display array to split.
@@ -87,7 +86,7 @@ public:
 	 * the mesh user because this one can be not updated.
 	 * \return false on failure.
 	 */
-	bool MergeMeshUser(RAS_MeshUser *meshUser, const MT_Matrix4x4& mat);
+	bool MergeMeshUser(RAS_MeshUser *meshUser, const mt::mat4& mat);
 
 	/** Split the display array of the mesh slots contained in the mesh user.
 	 * \param meshUser THe mesh user to merge mesh slots from.

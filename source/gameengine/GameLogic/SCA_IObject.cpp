@@ -36,7 +36,6 @@
 #include "SCA_ISensor.h"
 #include "SCA_IController.h"
 #include "SCA_IActuator.h"
-#include "MT_Vector3.h"
 #include "EXP_ListValue.h"
 
 SG_QList SCA_IObject::m_activeBookmarkedControllers;

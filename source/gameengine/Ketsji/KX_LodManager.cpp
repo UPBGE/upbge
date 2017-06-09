@@ -59,7 +59,7 @@ inline float KX_LodManager::LodLevelIterator::GetHysteresis(unsigned short level
 		hysteresis = m_scene->GetLodHysteresisValue() / 100.0f;
 	}
 	
-	return MT_abs(prelod->GetDistance() - lod->GetDistance()) * hysteresis;
+	return std::abs(prelod->GetDistance() - lod->GetDistance()) * hysteresis;
 }
 
 inline int KX_LodManager::LodLevelIterator::operator++()

@@ -44,13 +44,13 @@ public:
 	KX_MotionState(SG_Node *spatial);
 	virtual ~KX_MotionState();
 
-	virtual MT_Vector3 GetWorldPosition() const;
-	virtual MT_Vector3 GetWorldScaling() const;
-	virtual MT_Matrix3x3 GetWorldOrientation() const;
+	virtual mt::vec3 GetWorldPosition() const;
+	virtual mt::vec3 GetWorldScaling() const;
+	virtual mt::mat3 GetWorldOrientation() const;
 
-	virtual void SetWorldPosition(const MT_Vector3& pos);
-	virtual void SetWorldOrientation(const MT_Matrix3x3& ori);
-	virtual void SetWorldOrientation(const MT_Quaternion& quat);
+	virtual void SetWorldPosition(const mt::vec3& pos);
+	virtual void SetWorldOrientation(const mt::mat3& ori);
+	virtual void SetWorldOrientation(const mt::quat& quat);
 
 	virtual void CalculateWorldTransformations();
 };

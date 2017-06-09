@@ -66,13 +66,13 @@ KX_MovementSensor::~KX_MovementSensor()
 {
 }
 
-MT_Vector3 KX_MovementSensor::GetOwnerPosition(bool local)
+mt::vec3 KX_MovementSensor::GetOwnerPosition(bool local)
 {
 	KX_GameObject *owner = (KX_GameObject *)GetParent();
 	if (!local) {
 		return owner->NodeGetWorldPosition();
 	}
-	return owner->NodeGetLocalOrientation().inverse() * owner->NodeGetLocalPosition();
+	return owner->NodeGetLocalOrientation().Inverse() * owner->NodeGetLocalPosition();
 }
 
 EXP_Value *KX_MovementSensor::GetReplica()
@@ -97,7 +97,7 @@ bool KX_MovementSensor::IsPositiveTrigger()
 
 bool KX_MovementSensor::Evaluate()
 {
-	MT_Vector3 currentposition;
+	mt::vec3 currentposition;
 
 	bool result = false;
 	bool reset = m_reset && m_level;
@@ -110,39 +110,39 @@ bool KX_MovementSensor::Evaluate()
 	{
 		case SENS_MOVEMENT_X_AXIS: // X
 		{
-			m_positionHasChanged = ((currentposition.x() - m_previousPosition.x()) > m_threshold);
+			m_positionHasChanged = ((currentposition.x - m_previousPosition.x) > m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_Y_AXIS: // Y
 		{
-			m_positionHasChanged = ((currentposition.y() - m_previousPosition.y()) > m_threshold);
+			m_positionHasChanged = ((currentposition.y - m_previousPosition.y) > m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_Z_AXIS: // Z
 		{
-			m_positionHasChanged = ((currentposition.z() - m_previousPosition.z()) > m_threshold);
+			m_positionHasChanged = ((currentposition.z - m_previousPosition.z) > m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_NEG_X_AXIS: // -X
 		{
-			m_positionHasChanged = ((currentposition.x() - m_previousPosition.x()) < -m_threshold);
+			m_positionHasChanged = ((currentposition.x - m_previousPosition.x) < -m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_NEG_Y_AXIS: // -Y
 		{
-			m_positionHasChanged = ((currentposition.y() - m_previousPosition.y()) < -m_threshold);
+			m_positionHasChanged = ((currentposition.y - m_previousPosition.y) < -m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_NEG_Z_AXIS: // -Z
 		{
-			m_positionHasChanged = ((currentposition.z() - m_previousPosition.z()) < -m_threshold);
+			m_positionHasChanged = ((currentposition.z - m_previousPosition.z) < -m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_ALL_AXIS: // ALL
 		{
-			if ((fabs(currentposition.x() - m_previousPosition.x()) > m_threshold) ||
-				(fabs(currentposition.y() - m_previousPosition.y()) > m_threshold) ||
-				(fabs(currentposition.z() - m_previousPosition.z()) > m_threshold))
+			if ((fabs(currentposition.x - m_previousPosition.x) > m_threshold) ||
+				(fabs(currentposition.y - m_previousPosition.y) > m_threshold) ||
+				(fabs(currentposition.z - m_previousPosition.z) > m_threshold))
 			{
 				m_positionHasChanged = true;
 			}

@@ -33,7 +33,7 @@
 
 RAS_MeshUser::RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox)
 	:m_frontFace(true),
-	m_color(MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f)),
+	m_color(mt::zero4),
 	m_boundingBox(boundingBox),
 	m_clientObject(clientobj),
 	m_batchGroup(nullptr)
@@ -67,7 +67,7 @@ bool RAS_MeshUser::GetFrontFace() const
 	return m_frontFace;
 }
 
-const MT_Vector4& RAS_MeshUser::GetColor() const
+const mt::vec4& RAS_MeshUser::GetColor() const
 {
 	return m_color;
 }
@@ -102,7 +102,7 @@ void RAS_MeshUser::SetFrontFace(bool frontFace)
 	m_frontFace = frontFace;
 }
 
-void RAS_MeshUser::SetColor(const MT_Vector4& color)
+void RAS_MeshUser::SetColor(const mt::vec4& color)
 {
 	m_color = color;
 }

@@ -42,9 +42,9 @@ struct RAS_CameraData;
 class KX_CameraIpoSGController : public SG_Controller
 {
 public:
-	MT_Scalar           m_lens;
-	MT_Scalar           m_clipstart;
-	MT_Scalar           m_clipend;
+	float           m_lens;
+	float           m_clipstart;
+	float           m_clipend;
 
 private:
 	T_InterpolatorList	m_interpolators;

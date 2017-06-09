@@ -55,7 +55,7 @@ void KX_TextMaterial::DesactivateInstancing()
 {
 }
 
-void KX_TextMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const MT_Transform& camtrans)
+void KX_TextMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const mt::mat3x4& camtrans)
 {
 }
 
@@ -88,8 +88,8 @@ void KX_TextMaterial::ReloadMaterial()
 {
 }
 
-void KX_TextMaterial::UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
-			   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha)
+void KX_TextMaterial::UpdateIPO(const mt::vec4 &rgba, const mt::vec3 &specrgb, float hard, float spec, float ref,
+			   float emit, float ambient, float alpha, float specalpha)
 {
 }
 

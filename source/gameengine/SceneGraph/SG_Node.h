@@ -35,7 +35,7 @@
 #include "SG_QList.h"
 #include "SG_ParentRelation.h"
 
-#include "MT_Transform.h"
+#include "mathfu.h"
 
 #include "CM_Thread.h"
 
@@ -105,9 +105,10 @@ typedef std::vector<SG_Node *> NodeList;
 /**
  * Scenegraph node.
  */
-class SG_Node : public SG_QList
+class SG_Node : public SG_QList, public mt::SimdClassAllocator
 {
 public:
+
 	enum DirtyFlag {
 		DIRTY_NONE = 0,
 		DIRTY_ALL = 0xFF,
@@ -316,28 +317,26 @@ public:
 	 * you must provide a pointer to the parent of this object if it
 	 * exists otherwise if there is no parent set it to nullptr
 	 */
-	void RelativeTranslate(const MT_Vector3& trans, const SG_Node *parent, bool local);
-	void SetLocalPosition(const MT_Vector3& trans);
-	void SetWorldPosition(const MT_Vector3& trans);
-	void RelativeRotate(const MT_Matrix3x3& rot, bool local);
-	void SetLocalOrientation(const MT_Matrix3x3& rot);
-	// rot is arrange like openGL matrix
-	void SetLocalOrientation(const float *rot);
-	void SetWorldOrientation(const MT_Matrix3x3& rot);
-	void RelativeScale(const MT_Vector3& scale);
-	void SetLocalScale(const MT_Vector3& scale);
-	void SetWorldScale(const MT_Vector3& scale);
+	void RelativeTranslate(const mt::vec3& trans, const SG_Node *parent, bool local);
+	void SetLocalPosition(const mt::vec3& trans);
+	void SetWorldPosition(const mt::vec3& trans);
+	void RelativeRotate(const mt::mat3& rot, bool local);
+	void SetLocalOrientation(const mt::mat3& rot);
+	void SetWorldOrientation(const mt::mat3& rot);
+	void RelativeScale(const mt::vec3& scale);
+	void SetLocalScale(const mt::vec3& scale);
+	void SetWorldScale(const mt::vec3& scale);
 
-	const MT_Vector3& GetLocalPosition() const;
-	const MT_Matrix3x3& GetLocalOrientation() const;
-	const MT_Vector3& GetLocalScale() const;
-	const MT_Vector3& GetWorldPosition() const;
-	const MT_Matrix3x3& GetWorldOrientation() const;
-	const MT_Vector3& GetWorldScaling() const;
+	const mt::vec3& GetLocalPosition() const;
+	const mt::mat3& GetLocalOrientation() const;
+	const mt::vec3& GetLocalScale() const;
+	const mt::vec3& GetWorldPosition() const;
+	const mt::mat3& GetWorldOrientation() const;
+	const mt::vec3& GetWorldScaling() const;
 
 	void SetWorldFromLocalTransform();
-	MT_Transform GetWorldTransform() const;
-	MT_Transform GetLocalTransform() const;
+	mt::mat3x4 GetWorldTransform() const;
+	mt::mat3x4 GetLocalTransform() const;
 
 	bool ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated);
 
@@ -386,13 +385,13 @@ private:
 	 */
 	SG_Node *m_SGparent;
 
-	MT_Vector3 m_localPosition;
-	MT_Matrix3x3 m_localRotation;
-	MT_Vector3 m_localScaling;
+	mt::vec3 m_localPosition;
+	mt::mat3 m_localRotation;
+	mt::vec3 m_localScaling;
 
-	MT_Vector3 m_worldPosition;
-	MT_Matrix3x3 m_worldRotation;
-	MT_Vector3 m_worldScaling;
+	mt::vec3 m_worldPosition;
+	mt::mat3 m_worldRotation;
+	mt::vec3 m_worldScaling;
 
 	std::unique_ptr<SG_ParentRelation> m_parent_relation;
 

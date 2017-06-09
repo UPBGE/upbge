@@ -34,13 +34,13 @@
 
 
 #include <math.h>
+#include <float.h>
 
 #include "EXP_BoolValue.h"
 #include "EXP_IntValue.h"
 #include "EXP_FloatValue.h"
 #include "SCA_IActuator.h"
 #include "SCA_RandomActuator.h"
-#include "MT_Transform.h"
 
 #include "CM_Message.h"
 

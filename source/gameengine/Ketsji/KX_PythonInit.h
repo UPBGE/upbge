@@ -34,7 +34,6 @@
 
 #include "EXP_Python.h"
 #include <string>
-#include "MT_Vector3.h"
 
 #include "DEV_JoystickDefines.h" // For JOYINDEX_MAX
 

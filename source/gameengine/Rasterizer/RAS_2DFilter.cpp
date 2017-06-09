@@ -134,7 +134,7 @@ RAS_OffScreen *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, R
 	BindTextures(depthofs, colorofs);
 	BindUniforms(canvas);
 
-	Update(rasty, MT_Matrix4x4::Identity());
+	Update(rasty, mt::mat4::Identity());
 
 	ApplyShader();
 

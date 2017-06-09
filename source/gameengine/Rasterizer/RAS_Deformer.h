@@ -36,13 +36,11 @@
 #  pragma warning (disable:4786)  /* get rid of stupid stl-visual compiler debug warning */
 #endif
 
-#include <stdlib.h>
-#include <map>
-#include "MT_Vector3.h"
-
 #include "RAS_BoundingBox.h"
 #include "RAS_IDisplayArray.h" // For RAS_IDisplayArrayList.
 #include "RAS_DisplayArrayBucket.h" // For RAS_DisplayArrayBucketList.
+
+#include <map>
 
 struct DerivedMesh;
 class RAS_MeshObject;

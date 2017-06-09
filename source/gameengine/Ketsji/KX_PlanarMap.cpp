@@ -34,7 +34,7 @@
 
 KX_PlanarMap::KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint)
 	:KX_TextureRenderer(env, viewpoint),
-	m_normal(0.0f, 0.0f, 1.0f)
+	m_normal(mt::axisZ3)
 {
 	m_faces.emplace_back(RAS_Texture::GetTexture2DType());
 
@@ -61,16 +61,16 @@ std::string KX_PlanarMap::GetName()
 	return "KX_PlanarMap";
 }
 
-void KX_PlanarMap::ComputeClipPlane(const MT_Vector3& mirrorObjWorldPos, const MT_Matrix3x3& mirrorObjWorldOri)
+void KX_PlanarMap::ComputeClipPlane(const mt::vec3& mirrorObjWorldPos, const mt::mat3& mirrorObjWorldOri)
 {
-	const MT_Vector3 normal = mirrorObjWorldOri * m_normal;
+	const mt::vec3 normal = mirrorObjWorldOri * m_normal;
 
-	m_clipPlane.x() = normal.x();
-	m_clipPlane.y() = normal.y();
-	m_clipPlane.z() = normal.z();
-	m_clipPlane.w() = -(m_clipPlane.x() * mirrorObjWorldPos.x() +
-					    m_clipPlane.y() * mirrorObjWorldPos.y() +
-					    m_clipPlane.z() * mirrorObjWorldPos.z());
+	m_clipPlane.x = normal.x;
+	m_clipPlane.y = normal.y;
+	m_clipPlane.z = normal.z;
+	m_clipPlane.w = -(m_clipPlane.x * mirrorObjWorldPos.x +
+					    m_clipPlane.y * mirrorObjWorldPos.y +
+					    m_clipPlane.z * mirrorObjWorldPos.z);
 }
 
 void KX_PlanarMap::InvalidateProjectionMatrix()
@@ -78,15 +78,15 @@ void KX_PlanarMap::InvalidateProjectionMatrix()
 	m_projections.clear();
 }
 
-const MT_Matrix4x4& KX_PlanarMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+const mt::mat4& KX_PlanarMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
 													  const RAS_Rect& viewport, const RAS_Rect& area)
 {
-	std::unordered_map<KX_Camera *, MT_Matrix4x4>::const_iterator projectionit = m_projections.find(sceneCamera);
+	std::unordered_map<KX_Camera *, mt::mat4>::const_iterator projectionit = m_projections.find(sceneCamera);
 	if (projectionit != m_projections.end()) {
 		return projectionit->second;
 	}
 
-	MT_Matrix4x4& projection = m_projections[sceneCamera];
+	mt::mat4& projection = m_projections[sceneCamera];
 
 	RAS_FrameFrustum frustum;
 	const bool orthographic = !sceneCamera->GetCameraData()->m_perspective;
@@ -164,14 +164,14 @@ void KX_PlanarMap::EndRenderFace(RAS_Rasterizer *rasty)
 	KX_TextureRenderer::EndRenderFace(rasty);
 }
 
-const MT_Vector3& KX_PlanarMap::GetNormal() const
+const mt::vec3& KX_PlanarMap::GetNormal() const
 {
 	return m_normal;
 }
 
-void KX_PlanarMap::SetNormal(const MT_Vector3& normal)
+void KX_PlanarMap::SetNormal(const mt::vec3& normal)
 {
-	m_normal = normal.normalized();
+	m_normal = normal.Normalized();
 }
 
 bool KX_PlanarMap::SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera)
@@ -179,28 +179,28 @@ bool KX_PlanarMap::SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera)
 	KX_GameObject *mirror = GetViewpointObject();
 
 	// Compute camera position and orientation.
-	const MT_Matrix3x3& mirrorObjWorldOri = mirror->NodeGetWorldOrientation();
-	const MT_Vector3& mirrorObjWorldPos = mirror->NodeGetWorldPosition();
+	const mt::mat3& mirrorObjWorldOri = mirror->NodeGetWorldOrientation();
+	const mt::vec3& mirrorObjWorldPos = mirror->NodeGetWorldPosition();
 
-	MT_Vector3 cameraWorldPos = sceneCamera->NodeGetWorldPosition();
+	mt::vec3 cameraWorldPos = sceneCamera->NodeGetWorldPosition();
 
 	// Update clip plane to possible new normal or viewpoint object.
 	ComputeClipPlane(mirrorObjWorldPos, mirrorObjWorldOri);
 
-	const float d = m_clipPlane.x() * cameraWorldPos.x() +
-			  m_clipPlane.y() * cameraWorldPos.y() +
-			  m_clipPlane.z() * cameraWorldPos.z() +
-			  m_clipPlane.w();
+	const float d = m_clipPlane.x * cameraWorldPos.x +
+			  m_clipPlane.y * cameraWorldPos.y +
+			  m_clipPlane.z * cameraWorldPos.z +
+			  m_clipPlane.w;
 
 	// Check if the scene camera is in the right plane side.
 	if (d < 0.0) {
 		return false;
 	}
 
-	const MT_Matrix3x3 mirrorObjWorldOriInverse = mirrorObjWorldOri.inverse();
-	MT_Matrix3x3 cameraWorldOri = sceneCamera->NodeGetWorldOrientation();
+	const mt::mat3 mirrorObjWorldOriInverse = mirrorObjWorldOri.Inverse();
+	mt::mat3 cameraWorldOri = sceneCamera->NodeGetWorldOrientation();
 
-	static const MT_Matrix3x3 unmir(1.0f, 0.0f, 0.0f,
+	static const mt::mat3 unmir(1.0f, 0.0f, 0.0f,
 									0.0f, 1.0f, 0.0f,
 									0.0f, 0.0f, -1.0f);
 
@@ -209,9 +209,8 @@ bool KX_PlanarMap::SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera)
 		cameraWorldPos = (cameraWorldPos - mirrorObjWorldPos) * mirrorObjWorldOri;
 
 		cameraWorldPos = mirrorObjWorldPos + cameraWorldPos * unmir * mirrorObjWorldOriInverse;
-		cameraWorldOri.transpose();
-		cameraWorldOri = cameraWorldOri * mirrorObjWorldOri * unmir * mirrorObjWorldOriInverse;
-		cameraWorldOri.transpose();
+		cameraWorldOri = cameraWorldOri.Transpose() * mirrorObjWorldOri * unmir * mirrorObjWorldOriInverse;
+		cameraWorldOri = cameraWorldOri.Transpose();
 	}
 
 	// Set render camera position and orientation.
@@ -269,7 +268,7 @@ int KX_PlanarMap::pyattr_set_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIB
 {
 	KX_PlanarMap *self = static_cast<KX_PlanarMap *>(self_v);
 
-	MT_Vector3 normal;
+	mt::vec3 normal;
 	if (!PyVecTo(value, normal)) {
 		return PY_SET_ATTR_FAIL;
 	}

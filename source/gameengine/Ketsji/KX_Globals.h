@@ -27,8 +27,7 @@
 #ifndef __KX_GLOBALS_H__
 #define __KX_GLOBALS_H__
 
-#include "MT_Vector3.h"
-#include "MT_Vector4.h"
+#include "mathfu.h"
 #include <string>
 
 class KX_KetsjiEngine;
@@ -44,8 +43,8 @@ KX_Scene *KX_GetActiveScene();
 const std::string& KX_GetMainPath();
 const std::string& KX_GetOrigPath();
 
-void KX_RasterizerDrawDebugLine(const MT_Vector3 &from,const MT_Vector3 &to,const MT_Vector4 &color);
-void KX_RasterizerDrawDebugCircle(const MT_Vector3 &center, const MT_Scalar radius, const MT_Vector4 &color,
-                                  const MT_Vector3 &normal, int nsector);
+void KX_RasterizerDrawDebugLine(const mt::vec3 &from,const mt::vec3 &to,const mt::vec4 &color);
+void KX_RasterizerDrawDebugCircle(const mt::vec3 &center, const float radius, const mt::vec4 &color,
+                                  const mt::vec3 &normal, int nsector);
 
 #endif // __KX_GLOBALS_H__

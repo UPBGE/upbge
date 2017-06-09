@@ -74,7 +74,7 @@ public:
 	 * \param mat The matrix applied on all the vertices.
 	 * \return The index of the part just added.
 	 */
-	virtual unsigned int Merge(RAS_IDisplayArray *iarray, const MT_Matrix4x4& mat) = 0;
+	virtual unsigned int Merge(RAS_IDisplayArray *iarray, const mt::mat4& mat) = 0;
 
 	/** Split a part.
 	 * \param partIndex The index of the part to remove.

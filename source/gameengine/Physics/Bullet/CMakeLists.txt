@@ -45,7 +45,7 @@ set(INC
 )
 
 set(INC_SYS
-	../../../../intern/moto/include
+	../../../../intern/mathfu
 	${PYTHON_INCLUDE_DIRS}
 	${BOOST_INCLUDE_DIR}
 )

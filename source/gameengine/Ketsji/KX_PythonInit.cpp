@@ -104,8 +104,6 @@ extern "C" {
 #include "RAS_ICanvas.h"
 #include "RAS_BucketManager.h"
 #include "RAS_2DFilterManager.h"
-#include "MT_Vector3.h"
-#include "MT_Vector4.h"
 #include "EXP_ListValue.h"
 #include "EXP_InputParser.h"
 #include "KX_Scene.h"
@@ -192,12 +190,12 @@ PyDoc_STRVAR(gPyGetRandomFloat_doc,
 );
 static PyObject *gPyGetRandomFloat(PyObject *)
 {
-	return PyFloat_FromDouble(MT_random());
+	return PyFloat_FromDouble(mt::Random<float>());
 }
 
 static PyObject *gPySetGravity(PyObject *, PyObject *value)
 {
-	MT_Vector3 vec;
+	mt::vec3 vec;
 	if (!PyVecTo(value, vec))
 		return nullptr;
 
@@ -857,7 +855,7 @@ static PyObject *gPyGetWindowWidth(PyObject *, PyObject *args)
 
 static PyObject *gPySetBackgroundColor(PyObject *, PyObject *value)
 {
-	MT_Vector4 vec;
+	mt::vec4 vec;
 	if (!PyVecTo(value, vec))
 		return nullptr;
 	
@@ -1178,10 +1176,10 @@ static PyObject *gPyDrawLine(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"OOO:drawLine",&ob_from,&ob_to,&ob_color))
 		return nullptr;
 
-	MT_Vector3 from;
-	MT_Vector3 to;
-	MT_Vector3 color3;
-	MT_Vector4 color4;
+	mt::vec3 from;
+	mt::vec3 to;
+	mt::vec3 color3;
+	mt::vec4 color4;
 
 	if (!PyVecTo(ob_from, from))
 		return nullptr;
@@ -1190,7 +1188,7 @@ static PyObject *gPyDrawLine(PyObject *, PyObject *args)
 
 	// Allow conversion from vector 3d.
 	if (PyVecTo(ob_color, color3)) {
-		KX_RasterizerDrawDebugLine(from, to, MT_Vector4(color3.x(), color3.y(), color3.z(), 1.0f));
+		KX_RasterizerDrawDebugLine(from, to, mt::vec4(color3.x, color3.y, color3.z, 1.0f));
 		Py_RETURN_NONE;
 	}
 	else {

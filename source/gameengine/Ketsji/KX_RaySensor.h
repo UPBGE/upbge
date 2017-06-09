@@ -34,7 +34,6 @@
 #define __KX_RAYSENSOR_H__
 
 #include "SCA_ISensor.h"
-#include "MT_Vector3.h"
 #include "SCA_IScene.h" /* only for scene replace */
 #include "KX_Scene.h" /* only for scene replace */
 

@@ -28,20 +28,19 @@
 #define __RAS_BOUNDING_BOX_H__
 
 #include "RAS_IDisplayArray.h"
-#include "MT_Vector3.h"
 
 class RAS_BoundingBoxManager;
 
-class RAS_BoundingBox
+class RAS_BoundingBox : public mt::SimdClassAllocator
 {
 protected:
 	/// True when the bounding box is modified.
 	bool m_modified;
 
 	/// The AABB minimum.
-	MT_Vector3 m_aabbMin;
+	mt::vec3 m_aabbMin;
 	/// The AABB maximum.
-	MT_Vector3 m_aabbMax;
+	mt::vec3 m_aabbMax;
 
 	/// The number of mesh user using this bounding box.
 	int m_users;
@@ -70,10 +69,10 @@ public:
 	/// Set the bounding box unmodified.
 	void ClearModified();
 
-	void GetAabb(MT_Vector3& aabbMin, MT_Vector3& aabbMax) const;
-	void SetAabb(const MT_Vector3& aabbMin, const MT_Vector3& aabbMax);
+	void GetAabb(mt::vec3& aabbMin, mt::vec3& aabbMax) const;
+	void SetAabb(const mt::vec3& aabbMin, const mt::vec3& aabbMax);
 	/// Compute the AABB of the bounding box AABB mixed with the passed AABB.
-	void ExtendAabb(const MT_Vector3& aabbMin, const MT_Vector3& aabbMax);
+	void ExtendAabb(const mt::vec3& aabbMin, const mt::vec3& aabbMax);
 
 	void CopyAabb(RAS_BoundingBox *other);
 
@@ -87,7 +86,7 @@ private:
 	RAS_IDisplayArrayList m_displayArrayList;
 
 public:
-	RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const RAS_IDisplayArrayList displayArrayList);
+	RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const RAS_IDisplayArrayList& displayArrayList);
 	virtual ~RAS_MeshBoundingBox();
 
 	virtual RAS_BoundingBox *GetReplica();

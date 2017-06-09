@@ -41,7 +41,6 @@ struct Bone;
 struct bPose;
 struct bConstraint;
 struct Object;
-class MT_Matrix4x4;
 class BL_BlenderSceneConverter;
 class RAS_DebugDraw;
 
@@ -115,7 +114,7 @@ public:
 
 	/// Retrieve the pose matrix for the specified bone.
 	/// Returns true on success.
-	bool GetBoneMatrix(Bone *bone, MT_Matrix4x4& matrix);
+	bool GetBoneMatrix(Bone *bone, mt::mat3x4& trans);
 
 	/// Returns the bone length.  The end of the bone is in the local y direction.
 	float GetBoneLength(Bone *bone) const;

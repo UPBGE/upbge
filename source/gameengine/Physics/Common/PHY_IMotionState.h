@@ -32,9 +32,7 @@
 #ifndef __PHY_IMOTIONSTATE_H__
 #define __PHY_IMOTIONSTATE_H__
 
-#include "MT_Vector3.h"
-#include "MT_Quaternion.h"
-#include "MT_Matrix3x3.h"
+#include "mathfu.h"
 
 /**
  * PHY_IMotionState is the Interface to explicitly synchronize the world transformation.
@@ -47,13 +45,13 @@ public:
 	{
 	}
 
-	virtual MT_Vector3 GetWorldPosition() const = 0;
-	virtual MT_Vector3 GetWorldScaling() const = 0;
-	virtual MT_Matrix3x3 GetWorldOrientation() const = 0;
+	virtual mt::vec3 GetWorldPosition() const = 0;
+	virtual mt::vec3 GetWorldScaling() const = 0;
+	virtual mt::mat3 GetWorldOrientation() const = 0;
 
-	virtual void SetWorldPosition(const MT_Vector3& pos) = 0;
-	virtual void SetWorldOrientation(const MT_Matrix3x3& ori) = 0;
-	virtual void SetWorldOrientation(const MT_Quaternion& quat) = 0;
+	virtual void SetWorldPosition(const mt::vec3& pos) = 0;
+	virtual void SetWorldOrientation(const mt::mat3& ori) = 0;
+	virtual void SetWorldOrientation(const mt::quat& quat) = 0;
 
 	virtual void CalculateWorldTransformations() = 0;
 };

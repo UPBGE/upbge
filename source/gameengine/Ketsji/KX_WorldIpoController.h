@@ -36,15 +36,15 @@
 #include "SG_Node.h"
 #include "KX_IInterpolator.h"
 
-class KX_WorldIpoController : public SG_Controller
+class KX_WorldIpoController : public SG_Controller, public mt::SimdClassAllocator
 {
 public:
-	MT_Scalar           m_mist_start;
-	MT_Scalar           m_mist_dist;
-	MT_Scalar           m_mist_intensity;
-	MT_Vector3 m_hori_rgb;
-	MT_Vector3 m_zeni_rgb;
-	MT_Vector3 m_ambi_rgb;
+	float           m_mist_start;
+	float           m_mist_dist;
+	float           m_mist_intensity;
+	mt::vec3 m_hori_rgb;
+	mt::vec3 m_zeni_rgb;
+	mt::vec3 m_ambi_rgb;
 
 private:
 	T_InterpolatorList	m_interpolators;

@@ -31,17 +31,17 @@
 
 #include <unordered_map>
 
-class KX_PlanarMap : public KX_TextureRenderer
+class KX_PlanarMap : public KX_TextureRenderer, public mt::SimdClassAllocator
 {
 	Py_Header
 
 private:
 	/// Mirror normal vector.
-	MT_Vector3 m_normal;
+	mt::vec3 m_normal;
 	/// Clip plane equation values.
-	MT_Vector4 m_clipPlane;
+	mt::vec4 m_clipPlane;
 
-	std::unordered_map<KX_Camera *, MT_Matrix4x4> m_projections;
+	std::unordered_map<KX_Camera *, mt::mat4> m_projections;
 
 	enum Type {
 		REFLECTION,
@@ -54,17 +54,17 @@ public:
 
 	virtual std::string GetName();
 
-	void ComputeClipPlane(const MT_Vector3& mirrorObjWorldPos, const MT_Matrix3x3& mirrorObjWorldOri);
+	void ComputeClipPlane(const mt::vec3& mirrorObjWorldPos, const mt::mat3& mirrorObjWorldOri);
 
 	virtual void InvalidateProjectionMatrix();
-	virtual const MT_Matrix4x4& GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+	virtual const mt::mat4& GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
 													const RAS_Rect& viewport, const RAS_Rect& area);
 
 	virtual void BeginRenderFace(RAS_Rasterizer *rasty) override;
 	virtual void EndRenderFace(RAS_Rasterizer *rasty) override;
 
-	const MT_Vector3& GetNormal() const;
-	void SetNormal(const MT_Vector3& normal);
+	const mt::vec3& GetNormal() const;
+	void SetNormal(const mt::vec3& normal);
 
 	virtual bool SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera);
 	virtual bool SetupCameraFace(KX_Camera *camera, unsigned short index);

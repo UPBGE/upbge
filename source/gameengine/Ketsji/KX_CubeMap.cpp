@@ -30,37 +30,37 @@
 #include "RAS_Rasterizer.h"
 #include "RAS_Texture.h"
 
-static const MT_Matrix3x3 topFaceViewMat(
+static const mt::mat3 topFaceViewMat(
 	1.0f, 0.0f, 0.0f,
 	0.0f, -1.0f, 0.0f,
 	0.0f, 0.0f, -1.0f);
 
-static const MT_Matrix3x3 bottomFaceViewMat(
+static const mt::mat3 bottomFaceViewMat(
 	-1.0f, 0.0f, 0.0f,
 	0.0f, -1.0f, 0.0f,
 	0.0f, 0.0f, 1.0f);
 
-static const MT_Matrix3x3 frontFaceViewMat(
+static const mt::mat3 frontFaceViewMat(
 	0.0f, 0.0f, -1.0f,
 	0.0f, -1.0f, 0.0f,
 	-1.0f, 0.0f, 0.0f);
 
-static const MT_Matrix3x3 backFaceViewMat(
+static const mt::mat3 backFaceViewMat(
 	0.0f, 0.0f, 1.0f,
 	0.0f, -1.0f, 0.0f,
 	1.0f, 0.0f, 0.0f);
 
-static const MT_Matrix3x3 rightFaceViewMat(
-	1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, -1.0f,
-	0.0f, 1.0f, 0.0f);
-
-static const MT_Matrix3x3 leftFaceViewMat(
+static const mt::mat3 rightFaceViewMat(
 	1.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 1.0f,
 	0.0f, -1.0f, 0.0f);
 
-const MT_Matrix3x3 KX_CubeMap::faceViewMatrices3x3[KX_CubeMap::NUM_FACES] = {
+static const mt::mat3 leftFaceViewMat(
+	1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, -1.0f,
+	0.0f, 1.0f, 0.0f);
+
+const mt::mat3 KX_CubeMap::faceViewMatrices3x3[KX_CubeMap::NUM_FACES] = {
 	topFaceViewMat,
 	bottomFaceViewMat,
 	frontFaceViewMat,
@@ -92,7 +92,7 @@ void KX_CubeMap::InvalidateProjectionMatrix()
 	m_invalidProjection = true;
 }
 
-const MT_Matrix4x4& KX_CubeMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *UNUSED(scene), KX_Camera *UNUSED(sceneCamera),
+const mt::mat4& KX_CubeMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *UNUSED(scene), KX_Camera *UNUSED(sceneCamera),
 													const RAS_Rect& UNUSED(viewport), const RAS_Rect& UNUSED(area))
 {
 	if (m_invalidProjection) {
@@ -106,7 +106,7 @@ const MT_Matrix4x4& KX_CubeMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Sc
 bool KX_CubeMap::SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera)
 {
 	KX_GameObject *viewpoint = GetViewpointObject();
-	const MT_Vector3& position = viewpoint->NodeGetWorldPosition();
+	const mt::vec3& position = viewpoint->NodeGetWorldPosition();
 
 	camera->NodeSetWorldPosition(position);
 

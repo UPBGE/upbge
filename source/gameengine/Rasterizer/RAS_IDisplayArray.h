@@ -73,7 +73,7 @@ protected:
 	/** Polygon centers cache used to sort polygons depending on depth.
 	 * This list is stored here because we store per array not per entire mesh.
 	 */
-	std::vector<MT_Vector3> m_polygonCenters;
+	std::vector<mt::vec3, mt::simd_allocator<mt::vec3> > m_polygonCenters;
 
 	/// The OpenGL data storage used for rendering.
 	RAS_DisplayArrayStorage m_storage;
@@ -169,15 +169,15 @@ public:
 		return m_maxOrigIndex;
 	}
 
-	void SortPolygons(const MT_Transform &transform, unsigned int *indexmap);
+	void SortPolygons(const mt::mat3x4& transform, unsigned int *indexmap);
 	void InvalidatePolygonCenters();
 
 	virtual RAS_Vertex CreateVertex(
-				const MT_Vector3& xyz,
-				const MT_Vector2 * const uvs,
-				const MT_Vector4& tangent,
+				const mt::vec3& xyz,
+				const mt::vec2 * const uvs,
+				const mt::vec4& tangent,
 				const unsigned int *rgba,
-				const MT_Vector3& normal) = 0;
+				const mt::vec3& normal) = 0;
 
 	virtual RAS_Vertex CreateVertex(
 				const float xyz[3],

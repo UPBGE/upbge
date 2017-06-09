@@ -42,7 +42,6 @@
 #include <string>
 
 #include "RAS_MeshMaterial.h"
-#include "MT_Transform.h"
 
 class RAS_MaterialBucket;
 class RAS_MeshUser;

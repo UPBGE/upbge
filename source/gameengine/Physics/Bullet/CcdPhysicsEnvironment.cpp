@@ -70,7 +70,6 @@ extern "C" {
 static btRaycastVehicle::btVehicleTuning gTuning;
 
 #include "LinearMath/btAabbUtil2.h"
-#include "MT_MinMax.h"
 
 #ifdef WIN32
 void DrawRasterizerLine(const float *from, const float *to, int color);
@@ -101,10 +100,10 @@ class VehicleClosestRayResultCallback : public btCollisionWorld::ClosestRayResul
 {
 private:
 	const btCollisionShape *m_hitTriangleShape;
-	short m_mask;
+	unsigned short m_mask;
 
 public:
-	VehicleClosestRayResultCallback(const btVector3& rayFrom, const btVector3& rayTo, short mask)
+	VehicleClosestRayResultCallback(const btVector3& rayFrom, const btVector3& rayTo, unsigned short mask)
 		:btCollisionWorld::ClosestRayResultCallback(rayFrom, rayTo),
 		m_mask(mask)
 	{
@@ -135,7 +134,7 @@ class BlenderVehicleRaycaster : public btDefaultVehicleRaycaster
 {
 private:
 	btDynamicsWorld *m_dynamicsWorld;
-	short m_mask;
+	unsigned short m_mask;
 
 public:
 	BlenderVehicleRaycaster(btDynamicsWorld *world)
@@ -170,12 +169,12 @@ public:
 		return nullptr;
 	}
 
-	short GetRayCastMask() const
+	unsigned short GetRayCastMask() const
 	{
 		return m_mask;
 	}
 
-	void SetRayCastMask(short mask)
+	void SetRayCastMask(unsigned short mask)
 	{
 		m_mask = mask;
 	}
@@ -219,15 +218,15 @@ public:
 
 	virtual void AddWheel(
 	    PHY_IMotionState *motionState,
-	    MT_Vector3 connectionPoint,
-	    MT_Vector3 downDirection,
-	    MT_Vector3 axleDirection,
+	    const mt::vec3 &connectionPoint,
+	    const mt::vec3 &downDirection,
+	    const mt::vec3 &axleDirection,
 	    float suspensionRestLength,
 	    float wheelRadius,
 	    bool hasSteering)
 	{
-		btWheelInfo& info = m_vehicle->addWheel(ToBullet(connectionPoint), ToBullet(downDirection.normalized()),
-				ToBullet(axleDirection.normalized()), suspensionRestLength, wheelRadius, gTuning, hasSteering);
+		btWheelInfo& info = m_vehicle->addWheel(ToBullet(connectionPoint), ToBullet(downDirection.Normalized()),
+				ToBullet(axleDirection.Normalized()), suspensionRestLength, wheelRadius, gTuning, hasSteering);
 		info.m_clientInfo = motionState;
 	}
 
@@ -240,7 +239,7 @@ public:
 			PHY_IMotionState *motionState = (PHY_IMotionState *)info.m_clientInfo;
 			m_vehicle->updateWheelTransform(i, false);
 			const btTransform trans = m_vehicle->getWheelInfo(i).m_worldTransform;
-			motionState->SetWorldOrientation(ToMoto(trans.getRotation()));
+			motionState->SetWorldOrientation(ToMoto(trans.getBasis()));
 			motionState->SetWorldPosition(ToMoto(trans.getOrigin()));
 		}
 	}
@@ -250,22 +249,22 @@ public:
 		return m_vehicle->getNumWheels();
 	}
 
-	virtual MT_Vector3 GetWheelPosition(int wheelIndex) const
+	virtual mt::vec3 GetWheelPosition(int wheelIndex) const
 	{
 		if ((wheelIndex >= 0) && (wheelIndex < m_vehicle->getNumWheels())) {
 			const btVector3 origin = m_vehicle->getWheelTransformWS(wheelIndex).getOrigin();
 			return ToMoto(origin);
 		}
-		return MT_Vector3(0.0f, 0.0f, 0.0f);
+		return mt::zero3;
 	}
 
-	virtual MT_Quaternion GetWheelOrientationQuaternion(int wheelIndex) const
+	virtual mt::quat GetWheelOrientationQuaternion(int wheelIndex) const
 	{
 		if ((wheelIndex >= 0) && (wheelIndex < m_vehicle->getNumWheels())) {
 			const btQuaternion quat = m_vehicle->getWheelTransformWS(wheelIndex).getRotation();
 			return ToMoto(quat);
 		}
-		return MT_Quaternion(0.0f, 0.0f, 0.0f, 0.0f);
+		return mt::quat(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
 	virtual float GetWheelRotation(int wheelIndex) const
@@ -845,7 +844,7 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 					if (distance >= hitObjShapeProps.m_fh_distance)
 						continue;
 
-					//btVector3 ray_dir = cl_object->getCenterOfMassTransform().getBasis()* rayDirLocal.normalized();
+					//btVector3 ray_dir = cl_object->getCenterOfMassTransform().getBasis()* rayDirLocal.Normalized();
 					btVector3 ray_dir = rayDirLocal.normalized();
 					btVector3 normal = resultCallback.m_hitNormalWorld;
 					normal.normalize();
@@ -1030,7 +1029,7 @@ void CcdPhysicsEnvironment::SetSolverType(PHY_SolverType solverType)
 	m_solverType = solverType;
 }
 
-void CcdPhysicsEnvironment::GetGravity(MT_Vector3& grav)
+void CcdPhysicsEnvironment::GetGravity(mt::vec3& grav)
 {
 	const btVector3& gravity = m_dynamicsWorld->getGravity();
 	grav[0] = gravity.getX();
@@ -1860,9 +1859,9 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 			// means we are doing occlusion culling. Check if this object is an occluders
 			KX_GameObject *gameobj = KX_GameObject::GetClientObject(info);
 			if (gameobj && gameobj->GetOccluder()) {
-				const MT_Transform trans = gameobj->NodeGetWorldTransform();
 				float fl[16];
-				trans.getValue(fl);
+				gameobj->NodeGetWorldTransform().PackFromAffineTransform(fl);
+				
 				// this will create the occlusion buffer if not already done
 				// and compute the transformation from model local space to clip space
 				m_ocb->SetModelMatrix(fl);
@@ -1890,8 +1889,8 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 };
 
 static OcclusionBuffer gOcb;
-bool CcdPhysicsEnvironment::CullingTest(PHY_CullingCallback callback, void *userData, const std::array<MT_Vector4, 6>& planes,
-										int occlusionRes, const int *viewport, const MT_Matrix4x4& matrix)
+bool CcdPhysicsEnvironment::CullingTest(PHY_CullingCallback callback, void *userData, const std::array<mt::vec4, 6>& planes,
+										int occlusionRes, const int *viewport, const mt::mat4& matrix)
 {
 	if (!m_cullingTree)
 		return false;
@@ -1904,9 +1903,7 @@ bool CcdPhysicsEnvironment::CullingTest(PHY_CullingCallback callback, void *user
 	}
 	// if occlusionRes != 0 => occlusion culling
 	if (occlusionRes) {
-		float mat[16];
-		matrix.getValue(mat);
-		gOcb.setup(occlusionRes, viewport, mat);
+		gOcb.setup(occlusionRes, viewport, (float *)matrix.Data());
 		dispatcher.m_ocb = &gOcb;
 		// occlusion culling, the direction of the view is taken from the first plan which MUST be the near plane
 		btDbvt::collideOCL(m_cullingTree->m_sets[1].m_root, planes_n, planes_o, planes_n[0], 6, dispatcher);
@@ -2204,7 +2201,7 @@ PHY_ICharacter *CcdPhysicsEnvironment::GetCharacterController(KX_GameObject *ob)
 }
 
 
-PHY_IPhysicsController *CcdPhysicsEnvironment::CreateSphereController(float radius, const MT_Vector3& position)
+PHY_IPhysicsController *CcdPhysicsEnvironment::CreateSphereController(float radius, const mt::vec3& position)
 {
 	CcdConstructionInfo cinfo;
 	cinfo.m_collisionShape = new btSphereShape(radius); // memory leak! The shape is not deleted by Bullet and we cannot add it to the KX_Scene.m_shapes list
@@ -2635,7 +2632,7 @@ struct BlenderDebugDraw : public btIDebugDraw
 	virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
 	{
 		if (m_debugMode > 0) {
-			KX_RasterizerDrawDebugLine(ToMoto(from), ToMoto(to), MT_Vector4(color.x(), color.y(), color.z(), 1.0f));
+			KX_RasterizerDrawDebugLine(ToMoto(from), ToMoto(to), mt::vec4(color.x(), color.y(), color.z(), 1.0f));
 		}
 	}
 
@@ -2918,7 +2915,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 		}
 		case OB_BOUND_CYLINDER:
 		{
-			float radius = MT_max(bounds_extends[0], bounds_extends[1]);
+			float radius = std::max(bounds_extends[0], bounds_extends[1]);
 			shapeInfo->m_halfExtend.setValue(
 			    radius,
 			    radius,
@@ -2931,7 +2928,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 
 		case OB_BOUND_CONE:
 		{
-			shapeInfo->m_radius = MT_max(bounds_extends[0], bounds_extends[1]);
+			shapeInfo->m_radius = std::max(bounds_extends[0], bounds_extends[1]);
 			shapeInfo->m_height = 2.0f * bounds_extends[2];
 			shapeInfo->m_shapeType = PHY_SHAPE_CONE;
 			bm = shapeInfo->CreateBulletShape(ci.m_margin);
@@ -2957,7 +2954,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 		}
 		case OB_BOUND_CAPSULE:
 		{
-			shapeInfo->m_radius = MT_max(bounds_extends[0], bounds_extends[1]);
+			shapeInfo->m_radius = std::max(bounds_extends[0], bounds_extends[1]);
 			shapeInfo->m_height = 2.0f * bounds_extends[2];
 			if (shapeInfo->m_height < 0.0f)
 				shapeInfo->m_height = 0.0f;
@@ -3025,14 +3022,14 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 			SG_Node *gameNode = gameobj->GetSGNode();
 			SG_Node *parentNode = compoundParent->GetSGNode();
 			// relative transform
-			MT_Vector3 parentScale = parentNode->GetWorldScaling();
-			parentScale[0] = MT_Scalar(1.0f) / parentScale[0];
-			parentScale[1] = MT_Scalar(1.0f) / parentScale[1];
-			parentScale[2] = MT_Scalar(1.0f) / parentScale[2];
-			MT_Vector3 relativeScale = gameNode->GetWorldScaling() * parentScale;
-			MT_Matrix3x3 parentInvRot = parentNode->GetWorldOrientation().transposed();
-			MT_Vector3 relativePos = parentInvRot * ((gameNode->GetWorldPosition() - parentNode->GetWorldPosition()) * parentScale);
-			MT_Matrix3x3 relativeRot = parentInvRot * gameNode->GetWorldOrientation();
+			mt::vec3 parentScale = parentNode->GetWorldScaling();
+			parentScale[0] = 1.0f / parentScale[0];
+			parentScale[1] = 1.0f / parentScale[1];
+			parentScale[2] = 1.0f / parentScale[2];
+			mt::vec3 relativeScale = gameNode->GetWorldScaling() * parentScale;
+			mt::mat3 parentInvRot = parentNode->GetWorldOrientation().Transpose();
+			mt::vec3 relativePos = parentInvRot * ((gameNode->GetWorldPosition() - parentNode->GetWorldPosition()) * parentScale);
+			mt::mat3 relativeRot = parentInvRot * gameNode->GetWorldOrientation();
 
 			shapeInfo->m_childScale = ToBullet(relativeScale);
 			bm->setLocalScaling(shapeInfo->m_childScale);
@@ -3134,7 +3131,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 	ci.m_bSensor = isbulletsensor;
 	ci.m_bCharacter = isbulletchar;
 	ci.m_bGimpact = useGimpact;
-	MT_Vector3 scaling = gameobj->NodeGetWorldScaling();
+	mt::vec3 scaling = gameobj->NodeGetWorldScaling();
 	ci.m_scaling.setValue(scaling[0], scaling[1], scaling[2]);
 	CcdPhysicsController *physicscontroller = new CcdPhysicsController(ci);
 	// shapeInfo is reference counted, decrement now as we don't use it anymore
@@ -3182,21 +3179,21 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src, KX_Ga
 	PHY_IPhysicsEnvironment *phys_env = obj_src->GetScene()->GetPhysicsEnvironment();
 
 	/* We need to pass a full constraint frame, not just axis. */
-	MT_Matrix3x3 localCFrame(MT_Vector3(dat->axX, dat->axY, dat->axZ));
-	MT_Vector3 axis0 = localCFrame.getColumn(0);
-	MT_Vector3 axis1 = localCFrame.getColumn(1);
-	MT_Vector3 axis2 = localCFrame.getColumn(2);
-	MT_Vector3 scale = obj_src->NodeGetWorldScaling();
+	mt::mat3 localCFrame(mt::vec3(dat->axX, dat->axY, dat->axZ));
+	mt::vec3 axis0 = localCFrame.GetColumn(0);
+	mt::vec3 axis1 = localCFrame.GetColumn(1);
+	mt::vec3 axis2 = localCFrame.GetColumn(2);
+	mt::vec3 scale = obj_src->NodeGetWorldScaling();
 
 	/* Apply not only the pivot and axis values, but also take scale into count
 	 * this is not working well, if only one or two axis are scaled, but works ok on
 	 * homogeneous scaling. */
 	PHY_IConstraint *constraint = phys_env->CreateConstraint(
 	    phy_src, phy_dest, (PHY_ConstraintType)dat->type,
-	    (float)(dat->pivX * scale.x()), (float)(dat->pivY * scale.y()), (float)(dat->pivZ * scale.z()),
-	    (float)(axis0.x() * scale.x()), (float)(axis0.y() * scale.y()), (float)(axis0.z() * scale.z()),
-	    (float)(axis1.x() * scale.x()), (float)(axis1.y() * scale.y()), (float)(axis1.z() * scale.z()),
-	    (float)(axis2.x() * scale.x()), (float)(axis2.y() * scale.y()), (float)(axis2.z() * scale.z()),
+	    (float)(dat->pivX * scale.x), (float)(dat->pivY * scale.y), (float)(dat->pivZ * scale.z),
+	    (float)(axis0.x * scale.x), (float)(axis0.y * scale.y), (float)(axis0.z * scale.z),
+	    (float)(axis1.x * scale.x), (float)(axis1.y * scale.y), (float)(axis1.z * scale.z),
+	    (float)(axis2.x * scale.x), (float)(axis2.y * scale.y), (float)(axis2.z * scale.z),
 	    dat->flag);
 
 	/* PHY_POINT2POINT_CONSTRAINT = 1,
@@ -3266,28 +3263,28 @@ unsigned int CcdCollData::GetNumContacts() const
 	return m_manifoldPoint->getNumContacts();
 }
 
-MT_Vector3 CcdCollData::GetLocalPointA(unsigned int index, bool first) const
+mt::vec3 CcdCollData::GetLocalPointA(unsigned int index, bool first) const
 {
 	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
-	return MT_Vector3(first ? point.m_localPointA.m_floats : point.m_localPointB.m_floats);
+	return mt::vec3(first ? point.m_localPointA.m_floats : point.m_localPointB.m_floats);
 }
 
-MT_Vector3 CcdCollData::GetLocalPointB(unsigned int index, bool first) const
+mt::vec3 CcdCollData::GetLocalPointB(unsigned int index, bool first) const
 {
 	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
-	return MT_Vector3(first ? point.m_localPointB.m_floats : point.m_localPointA.m_floats);
+	return mt::vec3(first ? point.m_localPointB.m_floats : point.m_localPointA.m_floats);
 }
 
-MT_Vector3 CcdCollData::GetWorldPoint(unsigned int index, bool first) const
+mt::vec3 CcdCollData::GetWorldPoint(unsigned int index, bool first) const
 {
 	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
-	return MT_Vector3(point.m_positionWorldOnB.m_floats);
+	return mt::vec3(point.m_positionWorldOnB.m_floats);
 }
 
-MT_Vector3 CcdCollData::GetNormal(unsigned int index, bool first) const
+mt::vec3 CcdCollData::GetNormal(unsigned int index, bool first) const
 {
 	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
-	return MT_Vector3(first ? (-point.m_normalWorldOnB).m_floats : point.m_normalWorldOnB.m_floats);
+	return mt::vec3(first ? (-point.m_normalWorldOnB).m_floats : point.m_normalWorldOnB.m_floats);
 }
 
 float CcdCollData::GetCombinedFriction(unsigned int index, bool first) const

@@ -34,6 +34,7 @@
 
 #include "PHY_IController.h"
 
+class PHY_IMotionState;
 
 /**
  * PHY_IPhysicsController is the abstract simplified Interface to a physical object.
@@ -47,9 +48,9 @@ public:
 	 */
 	virtual bool SetGraphicTransform() = 0;
 	virtual void Activate(bool active = true) = 0;
-	virtual void SetLocalAabb(const class MT_Vector3& aabbMin, const class MT_Vector3& aabbMax) = 0;
+	virtual void SetLocalAabb(const mt::vec3& aabbMin, const mt::vec3& aabbMax) = 0;
 
-	virtual PHY_IGraphicController *GetReplica(class PHY_IMotionState *motionstate)
+	virtual PHY_IGraphicController *GetReplica(PHY_IMotionState *motionstate)
 	{
 		return nullptr;
 	}

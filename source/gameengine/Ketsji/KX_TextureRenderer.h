@@ -30,8 +30,6 @@
 #include "EXP_Value.h"
 #include "RAS_TextureRenderer.h"
 
-#include "MT_Matrix4x4.h"
-
 class KX_GameObject;
 class KX_Camera;
 class KX_Scene;
@@ -83,7 +81,7 @@ public:
 	float GetLodDistanceFactor() const;
 	void SetLodDistanceFactor(float lodfactor);
 
-	virtual const MT_Matrix4x4& GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+	virtual const mt::mat4& GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
 													const RAS_Rect& viewport, const RAS_Rect& area) = 0;
 
 	bool GetEnabled() const;

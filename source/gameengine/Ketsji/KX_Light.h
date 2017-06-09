@@ -41,7 +41,6 @@ class KX_Scene;
 class KX_Camera;
 class RAS_Rasterizer;
 class RAS_ILightObject;
-class MT_Transform;
 
 class KX_LightObject : public KX_GameObject
 {

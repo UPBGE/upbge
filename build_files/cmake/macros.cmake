@@ -644,6 +644,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_intern_dualcon
 		bf_intern_cycles
 		bf_intern_elbeem
+		bf_intern_mathfu
 		bf_intern_memutil
 		bf_intern_guardedalloc
 		bf_intern_ctr

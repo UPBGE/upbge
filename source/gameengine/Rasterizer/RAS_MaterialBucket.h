@@ -33,7 +33,6 @@
 #define __RAS_MATERIAL_BUCKET_H__
 
 #include "RAS_DisplayArrayBucket.h"
-#include "MT_Transform.h"
 
 class RAS_IPolyMaterial;
 class RAS_Rasterizer;

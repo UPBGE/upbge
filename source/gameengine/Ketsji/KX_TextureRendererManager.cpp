@@ -136,7 +136,7 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 	 * or if the projection matrix is not computed yet,
 	 * we have to compute projection matrix.
 	 */
-	const MT_Matrix4x4& projmat = renderer->GetProjectionMatrix(rasty, m_scene, sceneCamera, viewport, area);
+	const mt::mat4& projmat = renderer->GetProjectionMatrix(rasty, m_scene, sceneCamera, viewport, area);
 	m_camera->SetProjectionMatrix(projmat);
 	rasty->SetProjectionMatrix(projmat);
 
@@ -153,10 +153,10 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 
 		renderer->BindFace(i);
 
-		const MT_Transform camtrans(m_camera->GetWorldToCamera());
-		const MT_Matrix4x4 viewmat(camtrans);
+		const mt::mat3x4 camtrans(m_camera->GetWorldToCamera());
+		const mt::mat4 viewmat = mt::mat4::FromAffineTransform(camtrans);
 
-		rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldPosition(), MT_Vector3(1.0f, 1.0f, 1.0f));
+		rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldPosition(), mt::one3);
 		m_camera->SetModelviewMatrix(viewmat);
 
 		std::vector<KX_GameObject *> objects;

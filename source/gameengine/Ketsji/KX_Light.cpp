@@ -265,7 +265,7 @@ PyObject *KX_LightObject::pyattr_get_shadow_matrix(EXP_PyObjectPlus *self_v, con
 PyObject *KX_LightObject::pyattr_get_shadow_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LightObject *self = static_cast<KX_LightObject *>(self_v);
-	return PyColorFromVector(MT_Vector3(self->m_lightobj->m_shadowcolor));
+	return PyColorFromVector(mt::vec3(self->m_lightobj->m_shadowcolor));
 }
 
 PyObject *KX_LightObject::pyattr_get_shadow_active(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
@@ -302,16 +302,16 @@ int KX_LightObject::pyattr_set_distance(EXP_PyObjectPlus *self_v, const EXP_PYAT
 PyObject *KX_LightObject::pyattr_get_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LightObject *self = static_cast<KX_LightObject *>(self_v);
-	return PyColorFromVector(MT_Vector3(self->m_lightobj->m_color));
+	return PyColorFromVector(mt::vec3(self->m_lightobj->m_color));
 }
 
 int KX_LightObject::pyattr_set_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_LightObject *self = static_cast<KX_LightObject *>(self_v);
 
-	MT_Vector3 color;
+	mt::vec3 color;
 	if (PyVecTo(value, color)) {
-		color.getValue(self->m_lightobj->m_color);
+		color.Pack(self->m_lightobj->m_color);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;

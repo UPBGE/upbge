@@ -56,7 +56,7 @@ public:
 	virtual int GetDebugMode() const;
 
 	virtual void SetGravity(float x, float y, float z);
-	virtual void GetGravity(class MT_Vector3& grav);
+	virtual void GetGravity(mt::vec3& grav);
 
 	virtual PHY_IConstraint *CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
 								 float pivotX, float pivotY, float pivotZ,
@@ -80,8 +80,8 @@ public:
 	}
 
 	virtual PHY_IPhysicsController *RayTest(PHY_IRayCastFilterCallback &filterCallback, float fromX, float fromY, float fromZ, float toX, float toY, float toZ);
-	virtual bool CullingTest(PHY_CullingCallback callback, void *userData, const std::array<MT_Vector4, 6>& planes,
-							 int occlusionRes, const int *viewport, const MT_Matrix4x4& matrix)
+	virtual bool CullingTest(PHY_CullingCallback callback, void *userData, const std::array<mt::vec4, 6>& planes,
+							 int occlusionRes, const int *viewport, const mt::mat4& matrix)
 	{
 		return false;
 	}
@@ -108,7 +108,7 @@ public:
 	{
 		return {false, false, nullptr};
 	}
-	virtual PHY_IPhysicsController *CreateSphereController(float radius, const class MT_Vector3& position)
+	virtual PHY_IPhysicsController *CreateSphereController(float radius, const mt::vec3& position)
 	{
 		return nullptr;
 	}

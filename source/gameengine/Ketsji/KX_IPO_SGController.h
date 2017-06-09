@@ -40,7 +40,7 @@
 
 #define KX_MAX_IPO_CHANNELS 19	//note- [0] is not used
 
-class KX_IpoSGController : public SG_Controller
+class KX_IpoSGController : public SG_Controller, public mt::SimdClassAllocator
 {
 	KX_IPOTransform m_ipo_xform;
 	T_InterpolatorList m_interpolators;
@@ -64,19 +64,19 @@ class KX_IpoSGController : public SG_Controller
 	double m_ipotime;
 
 	/** Location of the object when the IPO is first fired (for local transformations) */
-	MT_Vector3 m_ipo_start_point;
+	mt::vec3 m_ipo_start_point;
 
 	/** Orientation of the object when the IPO is first fired (for local transformations) */
-	MT_Matrix3x3 m_ipo_start_orient;
+	mt::mat3 m_ipo_start_orient;
 
 	/** Scale of the object when the IPO is first fired (for local transformations) */
-	MT_Vector3 m_ipo_start_scale;
+	mt::vec3 m_ipo_start_scale;
 
 	/** if IPO initial position has been set for local normal IPO */
 	bool m_ipo_start_initialized;
 
 	/** Euler angles at the start of the game, needed for incomplete ROT Ipo curves */
-	MT_Vector3 m_ipo_start_euler;
+	mt::vec3 m_ipo_start_euler;
 
 	/** true is m_ipo_start_euler has been initialized */
 	bool m_ipo_euler_initialized;
@@ -86,7 +86,6 @@ class KX_IpoSGController : public SG_Controller
 
 public:
 	KX_IpoSGController();
-
 	virtual ~KX_IpoSGController();
 
 	virtual SG_Controller *GetReplica(class SG_Node *destnode);

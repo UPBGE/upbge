@@ -194,8 +194,10 @@ RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextRenderOffScreen(RAS_Rasterizer
 
 RAS_Rasterizer::RAS_Rasterizer()
 	:m_time(0.0f),
-	m_ambient(0.0f, 0.0f, 0.0f),
-	m_campos(0.0f, 0.0f, 0.0f),
+	m_ambient(mt::zero3),
+	m_viewmatrix(mt::mat4::Identity()),
+	m_viewinvmatrix(mt::mat4::Identity()),
+	m_campos(mt::zero3),
 	m_camortho(false),
 	m_camnegscale(false),
 	m_stereomode(RAS_STEREO_NOSTEREO),
@@ -214,9 +216,6 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_last_frontface(true),
 	m_overrideShader(RAS_OVERRIDE_SHADER_NONE)
 {
-	m_viewmatrix.setIdentity();
-	m_viewinvmatrix.setIdentity();
-
 	m_impl.reset(new RAS_OpenGLRasterizer(this));
 
 	m_numgllights = m_impl->GetNumLights();
@@ -248,7 +247,7 @@ void RAS_Rasterizer::SetBlendFunc(BlendFunc src, BlendFunc dst)
 	m_impl->SetBlendFunc(src, dst);
 }
 
-void RAS_Rasterizer::SetAmbientColor(const MT_Vector3& color)
+void RAS_Rasterizer::SetAmbientColor(const mt::vec3& color)
 {
 	m_ambient = color;
 }
@@ -258,7 +257,7 @@ void RAS_Rasterizer::SetAmbient(float factor)
 	m_impl->SetAmbient(m_ambient, factor);
 }
 
-void RAS_Rasterizer::SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color)
+void RAS_Rasterizer::SetFog(short type, float start, float dist, float intensity, const mt::vec3& color)
 {
 	m_impl->SetFog(type, start, dist, intensity, color);
 }
@@ -672,12 +671,12 @@ RAS_ISync *RAS_Rasterizer::CreateSync(int type)
 	return sync;
 }
 
-const MT_Matrix4x4& RAS_Rasterizer::GetViewMatrix() const
+const mt::mat4& RAS_Rasterizer::GetViewMatrix() const
 {
 	return m_viewmatrix;
 }
 
-const MT_Matrix4x4& RAS_Rasterizer::GetViewInvMatrix() const
+const mt::mat4& RAS_Rasterizer::GetViewInvMatrix() const
 {
 	return m_viewinvmatrix;
 }
@@ -689,8 +688,8 @@ void RAS_Rasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 	float mat[16];
 	memcpy(mat, textUser->GetMatrix(), sizeof(float) * 16);
 
-	const MT_Vector3& spacing = textUser->GetSpacing();
-	const MT_Vector3& offset = textUser->GetOffset();
+	const mt::vec3& spacing = textUser->GetSpacing();
+	const mt::vec3& offset = textUser->GetOffset();
 
 	mat[12] += offset[0];
 	mat[13] += offset[1];
@@ -703,22 +702,19 @@ void RAS_Rasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 			mat[14] -= spacing[2];
 		}
 		RenderText3D(textUser->GetFontId(), textUser->GetTexts()[i], textUser->GetSize(), textUser->GetDpi(),
-					 textUser->GetColor().getValue(), mat, textUser->GetAspect());
+					 textUser->GetColor().Data(), mat, textUser->GetAspect());
 	}
 }
 
-void RAS_Rasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
+void RAS_Rasterizer::SetProjectionMatrix(const mt::mat4 & mat)
 {
 	SetMatrixMode(RAS_PROJECTION);
-	float matrix[16];
-	/* Get into argument. Looks a bit dodgy, but it's ok. */
-	mat.getValue(matrix);
-	LoadMatrix(matrix);
+	LoadMatrix((float *)mat.Data());
 
-	m_camortho = (mat[3][3] != 0.0f);
+	m_camortho = (mat(3, 3) != 0.0f);
 }
 
-MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(StereoMode stereoMode, StereoEye eye, float focallength,
+mt::mat4 RAS_Rasterizer::GetFrustumMatrix(StereoMode stereoMode, StereoEye eye, float focallength,
 		float left, float right, float bottom, float top, float frustnear, float frustfar)
 {
 	// correction for stereo
@@ -758,15 +754,12 @@ MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(StereoMode stereoMode, StereoEye e
 	return GetFrustumMatrix(left, right, bottom, top, frustnear, frustfar);
 }
 
-MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(float left, float right, float bottom, float top, float frustnear, float frustfar)
+mt::mat4 RAS_Rasterizer::GetFrustumMatrix(float left, float right, float bottom, float top, float frustnear, float frustfar)
 {
-	float mat[4][4];
-	perspective_m4(mat, left, right, bottom, top, frustnear, frustfar);
-
-	return MT_Matrix4x4(&mat[0][0]);
+	return mt::mat4::Perspective(left, right, bottom, top, frustnear, frustfar);
 }
 
-MT_Matrix4x4 RAS_Rasterizer::GetOrthoMatrix(
+mt::mat4 RAS_Rasterizer::GetOrthoMatrix(
     float left,
     float right,
     float bottom,
@@ -774,56 +767,51 @@ MT_Matrix4x4 RAS_Rasterizer::GetOrthoMatrix(
     float frustnear,
     float frustfar)
 {
-	float mat[4][4];
-	orthographic_m4(mat, left, right, bottom, top, frustnear, frustfar);
-
-	return MT_Matrix4x4(&mat[0][0]);
+	return mt::mat4::Ortho(left, right, bottom, top, frustnear, frustfar);
 }
 
 // next arguments probably contain redundant info, for later...
-MT_Matrix4x4 RAS_Rasterizer::GetViewMatrix(StereoMode stereoMode, StereoEye eye, const MT_Transform &camtrans, bool perspective)
+mt::mat4 RAS_Rasterizer::GetViewMatrix(StereoMode stereoMode, StereoEye eye, const mt::mat3x4 &camtrans, bool perspective)
 {
 	// correction for stereo
 	if ((stereoMode != RAS_STEREO_NOSTEREO) && perspective) {
-		static const MT_Vector3 unitViewDir(0.0f, -1.0f, 0.0f);  // minus y direction, Blender convention
-		static const MT_Vector3 unitViewupVec(0.0f, 0.0f, 1.0f);
+		static const mt::vec3 unitViewDir = -mt::axisY3;  // minus y direction, Blender convention
+		static const mt::vec3 unitViewupVec = mt::axisZ3;
 
-		const MT_Matrix3x3& camOrientMat3x3 = camtrans.getBasis().transposed();
+		const mt::mat3& camOrientMat3x3 = camtrans.RotationMatrix().Transpose();
 		// actual viewDir
-		const MT_Vector3 viewDir = camOrientMat3x3 * unitViewDir;  // this is the moto convention, vector on right hand side
+		const mt::vec3 viewDir = camOrientMat3x3 * unitViewDir;  // this is the moto convention, vector on right hand side
 		// actual viewup vec
-		const MT_Vector3 viewupVec = camOrientMat3x3 * unitViewupVec;
+		const mt::vec3 viewupVec = camOrientMat3x3 * unitViewupVec;
 
 		// vector between eyes
-		const MT_Vector3 eyeline = viewDir.cross(viewupVec);
+		const mt::vec3 eyeline = mt::cross(viewDir, viewupVec);
 
-		MT_Transform trans = camtrans;
+		mt::mat3x4 trans = camtrans;
 		switch (eye) {
 			case RAS_STEREO_LEFTEYE:
 			{
 				// translate to left by half the eye distance
-				MT_Transform transform = MT_Transform::Identity();
-				transform.translate(-(eyeline * m_eyeseparation / 2.0f));
+				const mt::mat3x4 transform(mt::mat3::Identity(), -eyeline * m_eyeseparation / 2.0f);
 				trans *= transform;
 				break;
 			}
 			case RAS_STEREO_RIGHTEYE:
 			{
 				// translate to right by half the eye distance
-				MT_Transform transform = MT_Transform::Identity();
-				transform.translate(eyeline * m_eyeseparation / 2.0f);
+				const mt::mat3x4 transform(mt::mat3::Identity(), eyeline * m_eyeseparation / 2.0f);
 				trans *= transform;
 				break;
 			}
 		}
 
-		return trans.toMatrix();
+		return mt::mat4::FromAffineTransform(trans);
 	}
 
-	return camtrans.toMatrix();
+	return mt::mat4::FromAffineTransform(camtrans);
 }
 
-void RAS_Rasterizer::SetViewMatrix(const MT_Matrix4x4& viewmat, const MT_Vector3& pos, const MT_Vector3& scale)
+void RAS_Rasterizer::SetViewMatrix(const mt::mat4& viewmat, const mt::vec3& pos, const mt::vec3& scale)
 {
 	m_viewmatrix = viewmat;
 
@@ -832,22 +820,19 @@ void RAS_Rasterizer::SetViewMatrix(const MT_Matrix4x4& viewmat, const MT_Vector3
 		const bool negX = (scale[0] < 0.0f);
 		const bool negY = (scale[1] < 0.0f);
 		const bool negZ = (scale[2] < 0.0f);
-		m_viewmatrix.tscale((negX) ? -1.0f : 1.0f, (negY) ? -1.0f : 1.0f, (negZ) ? -1.0f : 1.0f, 1.0f);
+// 		m_viewmatrix.tscale((negX) ? -1.0f : 1.0f, (negY) ? -1.0f : 1.0f, (negZ) ? -1.0f : 1.0f, 1.0f);
+		// TODO
 		m_camnegscale = negX ^ negY ^ negZ;
 	}
 	else {
 		m_camnegscale = false;
 	}
 
-	m_viewinvmatrix = m_viewmatrix.inverse();
+	m_viewinvmatrix = m_viewmatrix.Inverse();
 	m_campos = pos;
 
-	// note: getValue gives back column major as needed by OpenGL
-	float glviewmat[16];
-	m_viewmatrix.getValue(glviewmat);
-
 	SetMatrixMode(RAS_MODELVIEW);
-	LoadMatrix(glviewmat);
+	LoadMatrix((float *)m_viewmatrix.Data());
 }
 
 void RAS_Rasterizer::SetViewport(int x, int y, int width, int height)
@@ -865,7 +850,7 @@ void RAS_Rasterizer::SetScissor(int x, int y, int width, int height)
 	m_impl->SetScissor(x, y, width, height);
 }
 
-const MT_Vector3& RAS_Rasterizer::GetCameraPosition()
+const mt::vec3& RAS_Rasterizer::GetCameraPosition()
 {
 	return m_campos;
 }
@@ -885,7 +870,7 @@ void RAS_Rasterizer::SetCullFace(bool enable)
 	}
 }
 
-void RAS_Rasterizer::EnableClipPlane(unsigned short index, const MT_Vector4& plane)
+void RAS_Rasterizer::EnableClipPlane(unsigned short index, const mt::vec4& plane)
 {
 	m_impl->EnableClipPlane(index, plane);
 }
@@ -1152,7 +1137,7 @@ void RAS_Rasterizer::ActivateOverrideShaderInstancing(void *matrixoffset, void *
  * has a maximum of 8 lights (simultaneous), so 20 * 8 lights are possible in
  * a scene. */
 
-void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat)
+void RAS_Rasterizer::ProcessLighting(bool uselights, const mt::mat3x4& viewmat)
 {
 	bool enable = false;
 	int layer = -1;
@@ -1185,7 +1170,7 @@ void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat
 			m_impl->DisableLight(count);
 		}
 
-		viewmat.getValue(glviewmat);
+		viewmat.PackFromAffineTransform(glviewmat);
 
 		PushMatrix();
 		LoadMatrix(glviewmat);
@@ -1264,12 +1249,12 @@ bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *resu
 
 		float *origmat = raytransform->origmat;
 		float *mat = raytransform->mat;
-		const MT_Vector3& scale = raytransform->scale;
-		const MT_Vector3& point = result->m_hitPoint;
-		MT_Vector3 resultnormal(result->m_hitNormal);
-		MT_Vector3 left(&origmat[0]);
-		MT_Vector3 dir = -(left.cross(resultnormal)).safe_normalized();
-		left = (dir.cross(resultnormal)).safe_normalized();
+		const mt::vec3& scale = raytransform->scale;
+		const mt::vec3& point = result->m_hitPoint;
+		mt::vec3 resultnormal(result->m_hitNormal);
+		mt::vec3 left(&origmat[0]);
+		mt::vec3 dir = -(mt::cross(left, resultnormal)).SafeNormalized(mt::axisX3);
+		left = (mt::cross(dir, resultnormal)).SafeNormalized(mt::axisX3);
 		// for the up vector, we take the 'resultnormal' returned by the physics
 
 		// we found the "ground", but the cast matrix doesn't take
@@ -1313,29 +1298,29 @@ void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[
 		// when new parenting for objects is done, this rotation
 		// will be moved into the object
 
-		MT_Vector3 left;
+		mt::vec3 left;
 		if (m_camortho) {
-			left = m_viewmatrix[2].to3d().safe_normalized();
+			left = m_viewmatrix.GetColumn(2).xyz().SafeNormalized(mt::axisX3);
 		}
 		else {
-			const MT_Vector3 objpos(&origmat[12]);
-			const MT_Vector3& campos = GetCameraPosition();
-			left = (campos - objpos).safe_normalized();
+			const mt::vec3 objpos(&origmat[12]);
+			const mt::vec3& campos = GetCameraPosition();
+			left = (campos - objpos).SafeNormalized(mt::axisX3);
 		}
 
-		MT_Vector3 up = MT_Vector3(&origmat[8]).safe_normalized();
+		mt::vec3 up = mt::vec3(&origmat[8]).SafeNormalized(mt::axisX3);
 
 		// get scaling of halo object
-		const MT_Vector3& scale = MT_Vector3(len_v3(&origmat[0]), len_v3(&origmat[4]), len_v3(&origmat[8]));
+		const mt::vec3& scale = mt::vec3(len_v3(&origmat[0]), len_v3(&origmat[4]), len_v3(&origmat[8]));
 
 		if (objectdrawmode & RAS_IPolyMaterial::RAS_HALO) {
-			up = (up - up.dot(left) * left).safe_normalized();
+			up = (up - mt::dot(up, left) * left).SafeNormalized(mt::axisX3);
 		}
 		else {
-			left = (left - up.dot(left) * up).safe_normalized();
+			left = (left - mt::dot(up, left) * up).SafeNormalized(mt::axisX3);
 		}
 
-		MT_Vector3 dir = (up.cross(left)).normalized();
+		mt::vec3 dir = (mt::cross(up, left)).Normalized();
 
 		// we have calculated the row vectors, now we keep
 		// local scaling into account:
@@ -1354,14 +1339,14 @@ void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[
 	}
 	else {
 		// shadow must be cast to the ground, physics system needed here!
-		const MT_Vector3 frompoint(&origmat[12]);
+		const mt::vec3 frompoint(&origmat[12]);
 		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject);
-		MT_Vector3 direction = MT_Vector3(0.0f, 0.0f, -1.0f);
+		mt::vec3 direction = -mt::axisZ3;
 
-		direction.normalize();
+		direction.Normalize();
 		direction *= 100000.0f;
 
-		const MT_Vector3 topoint = frompoint + direction;
+		const mt::vec3 topoint = frompoint + direction;
 
 		KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
 		PHY_IPhysicsEnvironment *physics_environment = kxscene->GetPhysicsEnvironment();

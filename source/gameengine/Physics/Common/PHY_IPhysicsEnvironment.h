@@ -33,10 +33,6 @@
 #define __PHY_IPHYSICSENVIRONMENT_H__
 
 #include "PHY_DynamicTypes.h"
-#include "MT_Matrix4x4.h"
-#include "MT_Vector2.h"
-#include "MT_Vector3.h"
-#include "MT_Vector4.h"
 
 #include <array>
 
@@ -59,21 +55,21 @@ struct bRigidBodyJointConstraint;
  */
 struct PHY_RayCastResult {
 	PHY_IPhysicsController *m_controller;
-	MT_Vector3 m_hitPoint;
-	MT_Vector3 m_hitNormal;
+	mt::vec3 m_hitPoint;
+	mt::vec3 m_hitNormal;
 	RAS_MeshObject *m_meshObject; // !=nullptr for mesh object (only for Bullet controllers)
 	int m_polygon; // index of the polygon hit by the ray, only if m_meshObject != nullptr
 	int m_hitUVOK; // !=0 if UV coordinate in m_hitUV is valid
-	MT_Vector2 m_hitUV; // UV coordinates of hit point
+	mt::vec2 m_hitUV; // UV coordinates of hit point
 
 	PHY_RayCastResult()
 		:m_controller(nullptr),
-		m_hitPoint(0.0f, 0.0f, 0.0f),
-		m_hitNormal(0.0f, 0.0f, 0.0f),
+		m_hitPoint(mt::zero3),
+		m_hitNormal(mt::zero3),
 		m_meshObject(nullptr),
 		m_polygon(0),
 		m_hitUVOK(0),
-		m_hitUV(0.0f, 0.0f)
+		m_hitUV(mt::zero2)
 	{
 	}
 };
@@ -194,7 +190,7 @@ public:
 	}
 
 	virtual void SetGravity(float x, float y, float z) = 0;
-	virtual void GetGravity(MT_Vector3& grav) = 0;
+	virtual void GetGravity(mt::vec3& grav) = 0;
 
 	virtual PHY_IConstraint *CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
 								 float pivotX, float pivotY, float pivotZ,
@@ -218,8 +214,8 @@ public:
 	// culling based on physical broad phase
 	// the plane number must be set as follow: near, far, left, right, top, botton
 	// the near plane must be the first one and must always be present, it is used to get the direction of the view
-	virtual bool CullingTest(PHY_CullingCallback callback, void *userData, const std::array<MT_Vector4, 6>& planes,
-							 int occlusionRes, const int *viewport, const MT_Matrix4x4& matrix) = 0;
+	virtual bool CullingTest(PHY_CullingCallback callback, void *userData, const std::array<mt::vec4, 6>& planes,
+							 int occlusionRes, const int *viewport, const mt::mat4& matrix) = 0;
 
 	// Methods for gamelogic collision/physics callbacks
 	virtual void AddSensor(PHY_IPhysicsController *ctrl) = 0;
@@ -229,7 +225,7 @@ public:
 	virtual bool RemoveCollisionCallback(PHY_IPhysicsController *ctrl) = 0;
 	virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1) = 0;
 	//These two methods are *solely* used to create controllers for sensor! Don't use for anything else
-	virtual PHY_IPhysicsController *CreateSphereController(float radius, const MT_Vector3& position) = 0;
+	virtual PHY_IPhysicsController *CreateSphereController(float radius, const mt::vec3& position) = 0;
 	virtual PHY_IPhysicsController *CreateConeController(float coneradius, float coneheight) = 0;
 
 	virtual void ExportFile(const std::string& filename)

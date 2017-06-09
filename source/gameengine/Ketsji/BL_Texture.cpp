@@ -697,12 +697,12 @@ PyObject *BL_Texture::pyattr_get_uv_offset(EXP_PyObjectPlus *self_v, const EXP_P
 int BL_Texture::pyattr_set_uv_offset(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
-	MT_Vector3 offset;
+	mt::vec3 offset;
 	if (!PyVecTo(value, offset)) {
 		return PY_SET_ATTR_FAIL;
 	}
 
-	offset.getValue(self->GetMTex()->ofs);
+	offset.Pack(self->GetMTex()->ofs);
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -721,12 +721,12 @@ PyObject *BL_Texture::pyattr_get_uv_size(EXP_PyObjectPlus *self_v, const EXP_PYA
 int BL_Texture::pyattr_set_uv_size(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
-	MT_Vector3 size;
+	mt::vec3 size;
 	if (!PyVecTo(value, size)) {
 		return PY_SET_ATTR_FAIL;
 	}
 
-	size.getValue(self->GetMTex()->size);
+	size.Pack(self->GetMTex()->size);
 
 	return PY_SET_ATTR_SUCCESS;
 }
