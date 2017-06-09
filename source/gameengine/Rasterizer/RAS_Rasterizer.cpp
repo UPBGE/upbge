@@ -357,7 +357,7 @@ void RAS_Rasterizer::BeginFrame(double time)
 	m_lastauxinfo = nullptr;
 	m_lastlighting = true; /* force disable in DisableLights() */
 
-	DisableLights();
+	//DisableLights();
 }
 
 void RAS_Rasterizer::EndFrame()
@@ -1223,87 +1223,87 @@ void RAS_Rasterizer::DesactivateOverrideShaderInstancing()
  * has a maximum of 8 lights (simultaneous), so 20 * 8 lights are possible in
  * a scene. */
 
-void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat)
-{
-	bool enable = false;
-	int layer = -1;
-
-	/* find the layer */
-	if (uselights) {
-		if (m_clientobject) {
-			layer = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject)->GetLayer();
-		}
-	}
-
-	/* avoid state switching */
-	if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo) {
-		return;
-	}
-
-	m_lastlightlayer = layer;
-	m_lastauxinfo = m_auxilaryClientInfo;
-
-	/* enable/disable lights as needed */
-	if (layer >= 0) {
-		//enable = ApplyLights(layer, viewmat);
-		// taken from blender source, incompatibility between Blender Object / GameObject
-		KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
-		float glviewmat[16];
-		unsigned int count;
-		std::vector<RAS_OpenGLLight *>::iterator lit = m_lights.begin();
-
-		for (count = 0; count < m_numgllights; count++) {
-			m_impl->DisableLight(count);
-		}
-
-		viewmat.getValue(glviewmat);
-
-		PushMatrix();
-		LoadMatrix(glviewmat);
-		for (lit = m_lights.begin(), count = 0; !(lit == m_lights.end()) && count < m_numgllights; ++lit) {
-			RAS_OpenGLLight *light = (*lit);
-
-			if (light->ApplyFixedFunctionLighting(kxscene, layer, count)) {
-				count++;
-			}
-		}
-		PopMatrix();
-
-		enable = count > 0;
-	}
-
-	if (enable) {
-		EnableLights();
-	}
-	else {
-		DisableLights();
-	}
-}
-
-void RAS_Rasterizer::EnableLights()
-{
-	if (m_lastlighting == true) {
-		return;
-	}
-
-	Enable(RAS_Rasterizer::RAS_LIGHTING);
-	Enable(RAS_Rasterizer::RAS_COLOR_MATERIAL);
-
-	m_impl->EnableLights();
-
-	m_lastlighting = true;
-}
-
-void RAS_Rasterizer::DisableLights()
-{
-	if (m_lastlighting == false)
-		return;
-
-	Disable(RAS_Rasterizer::RAS_LIGHTING);
-	Disable(RAS_Rasterizer::RAS_COLOR_MATERIAL);
-
-	m_lastlighting = false;
-}
+//void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat)
+//{
+//	bool enable = false;
+//	int layer = -1;
+//
+//	/* find the layer */
+//	if (uselights) {
+//		if (m_clientobject) {
+//			layer = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject)->GetLayer();
+//		}
+//	}
+//
+//	/* avoid state switching */
+//	if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo) {
+//		return;
+//	}
+//
+//	m_lastlightlayer = layer;
+//	m_lastauxinfo = m_auxilaryClientInfo;
+//
+//	/* enable/disable lights as needed */
+//	if (layer >= 0) {
+//		//enable = ApplyLights(layer, viewmat);
+//		// taken from blender source, incompatibility between Blender Object / GameObject
+//		KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
+//		float glviewmat[16];
+//		unsigned int count;
+//		std::vector<RAS_OpenGLLight *>::iterator lit = m_lights.begin();
+//
+//		for (count = 0; count < m_numgllights; count++) {
+//			m_impl->DisableLight(count);
+//		}
+//
+//		viewmat.getValue(glviewmat);
+//
+//		PushMatrix();
+//		LoadMatrix(glviewmat);
+//		for (lit = m_lights.begin(), count = 0; !(lit == m_lights.end()) && count < m_numgllights; ++lit) {
+//			RAS_OpenGLLight *light = (*lit);
+//
+//			if (light->ApplyFixedFunctionLighting(kxscene, layer, count)) {
+//				count++;
+//			}
+//		}
+//		PopMatrix();
+//
+//		enable = count > 0;
+//	}
+//
+//	if (enable) {
+//		EnableLights();
+//	}
+//	else {
+//		DisableLights();
+//	}
+//}
+//
+//void RAS_Rasterizer::EnableLights()
+//{
+//	if (m_lastlighting == true) {
+//		return;
+//	}
+//
+//	Enable(RAS_Rasterizer::RAS_LIGHTING);
+//	Enable(RAS_Rasterizer::RAS_COLOR_MATERIAL);
+//
+//	m_impl->EnableLights();
+//
+//	m_lastlighting = true;
+//}
+//
+//void RAS_Rasterizer::DisableLights()
+//{
+//	if (m_lastlighting == false)
+//		return;
+//
+//	Disable(RAS_Rasterizer::RAS_LIGHTING);
+//	Disable(RAS_Rasterizer::RAS_COLOR_MATERIAL);
+//
+//	m_lastlighting = false;
+//}
 
 RAS_ILightObject *RAS_Rasterizer::CreateLight()
 {
@@ -1471,7 +1471,7 @@ void RAS_Rasterizer::DisableForText()
 
 	Enable(RAS_CULL_FACE);
 
-	DisableLights();
+	//DisableLights();
 
 	m_impl->DisableForText();
 }

@@ -362,7 +362,7 @@ void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rast
 
 void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 {
-	if (m_shader || !m_blenderShader) {
+	/*if (m_shader || !m_blenderShader) {
 		rasty->SetSpecularity(m_material->specr * m_material->spec, m_material->specg * m_material->spec,
 							  m_material->specb * m_material->spec, m_material->spec);
 		rasty->SetShinyness(((float)m_material->har) / 4.0f);
@@ -371,7 +371,7 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 		rasty->SetEmissive(m_material->r * m_material->emit, m_material->g * m_material->emit,
 						   m_material->b * m_material->emit, 1.0f);
 		rasty->SetAmbient(m_material->amb);
-	}
+	}*/
 
 	rasty->SetPolygonOffset(-m_material->zoffs, 0.0f);
 }

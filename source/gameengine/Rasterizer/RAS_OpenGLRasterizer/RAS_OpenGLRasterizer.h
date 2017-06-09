@@ -70,8 +70,8 @@ public:
 
 	void Enable(RAS_Rasterizer::EnableBit bit);
 	void Disable(RAS_Rasterizer::EnableBit bit);
-	void EnableLight(unsigned short count);
-	void DisableLight(unsigned short count);
+	/*void EnableLight(unsigned short count);
+	void DisableLight(unsigned short count);*/
 
 	void SetDepthFunc(RAS_Rasterizer::DepthFunc func);
 	void SetDepthMask(RAS_Rasterizer::DepthMask depthmask);
@@ -119,9 +119,9 @@ public:
 	/**
 	 * Render Tools
 	 */
-	void EnableLights();
+	/*void EnableLights();
 	void DisableLights();
-	void ProcessLighting(bool uselights, const MT_Transform &viewmat);
+	void ProcessLighting(bool uselights, const MT_Transform &viewmat);*/
 
 	void DisableForText();
 	void RenderText3D(int fontid, const std::string& text, int size, int dpi,

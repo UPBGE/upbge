@@ -186,7 +186,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 
 
 	if (!managerData->m_shaderOverride) {
-		rasty->ProcessLighting(materialData->m_useLighting, managerData->m_trans);
+		//rasty->ProcessLighting(materialData->m_useLighting, managerData->m_trans);
 		materialData->m_material->ActivateMeshSlot(this, rasty);
 	}
 

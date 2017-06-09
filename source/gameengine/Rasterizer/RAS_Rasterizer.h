@@ -350,8 +350,8 @@ private:
 	/// Return GPUShader coresponding to the override shader enumeration.
 	GPUShader *GetOverrideGPUShader(OverrideShaderType type);
 
-	void EnableLights();
-	void DisableLights();
+	/*void EnableLights();
+	void DisableLights();*/
 
 public:
 	RAS_Rasterizer();
@@ -740,7 +740,7 @@ public:
 	        int fontid, const std::string& text, int size, int dpi,
 	        const float color[4], const float mat[16], float aspect);
 
-	void ProcessLighting(bool uselights, const MT_Transform &trans);
+	//void ProcessLighting(bool uselights, const MT_Transform &trans);
 
 	void PushMatrix();
 	void PopMatrix();

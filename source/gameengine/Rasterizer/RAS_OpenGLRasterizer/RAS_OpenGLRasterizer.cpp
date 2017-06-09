@@ -199,15 +199,15 @@ void RAS_OpenGLRasterizer::Disable(RAS_Rasterizer::EnableBit bit)
 	glDisable(openGLEnableBitEnums[bit]);
 }
 
-void RAS_OpenGLRasterizer::EnableLight(unsigned short count)
-{
-	//glDisable((GLenum)(GL_LIGHT0 + count));
-}
-
-void RAS_OpenGLRasterizer::DisableLight(unsigned short count)
-{
-	//glDisable((GLenum)(GL_LIGHT0 + count));
-}
+//void RAS_OpenGLRasterizer::EnableLight(unsigned short count)
+//{
+//	glDisable((GLenum)(GL_LIGHT0 + count));
+//}
+//
+//void RAS_OpenGLRasterizer::DisableLight(unsigned short count)
+//{
+//	glDisable((GLenum)(GL_LIGHT0 + count));
+//}
 
 void RAS_OpenGLRasterizer::SetDepthFunc(RAS_Rasterizer::DepthFunc func)
 {
@@ -363,9 +363,9 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::Dra
 	// DM draw can mess up blending mode, restore at the end
 	int current_blend_mode = GPU_get_material_alpha_blend();
 
-	if (wireframe) {
+	/*if (wireframe) {
 		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-	}
+	}*/
 	ms->m_pDerivedMesh->drawFacesGLSL(ms->m_pDerivedMesh, CheckMaterialDM);
 	GPU_set_material_alpha_blend(current_blend_mode);
 
@@ -404,26 +404,26 @@ void RAS_OpenGLRasterizer::SetSpecularity(float specX,
                                           float specZ,
                                           float specval)
 {
-	GLfloat mat_specular[] = {specX, specY, specZ, specval};
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
+	/*GLfloat mat_specular[] = {specX, specY, specZ, specval};
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);*/
 }
 
 void RAS_OpenGLRasterizer::SetShinyness(float shiny)
 {
-	GLfloat mat_shininess[] = { shiny };
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, mat_shininess);
+	/*GLfloat mat_shininess[] = { shiny };
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, mat_shininess);*/
 }
 
 void RAS_OpenGLRasterizer::SetDiffuse(float difX, float difY, float difZ, float diffuse)
 {
-	GLfloat mat_diffuse[] = {difX, difY, difZ, diffuse};
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
+	/*GLfloat mat_diffuse[] = {difX, difY, difZ, diffuse};
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);*/
 }
 
 void RAS_OpenGLRasterizer::SetEmissive(float eX, float eY, float eZ, float e)
 {
-	GLfloat mat_emit[] = {eX, eY, eZ, e};
-	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_emit);
+	/*GLfloat mat_emit[] = {eX, eY, eZ, e};
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_emit);*/
 }
 
 void RAS_OpenGLRasterizer::SetPolygonOffset(float mult, float add)
@@ -453,12 +453,12 @@ void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)
 	}
 }
 
-void RAS_OpenGLRasterizer::EnableLights()
-{
-	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
-	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, (m_rasterizer->GetCameraOrtho()) ? GL_FALSE : GL_TRUE);
-}
+//void RAS_OpenGLRasterizer::EnableLights()
+//{
+//	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+//	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+//	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, (m_rasterizer->GetCameraOrtho()) ? GL_FALSE : GL_TRUE);
+//}
 
 void RAS_OpenGLRasterizer::DisableForText()
 {
