@@ -315,7 +315,7 @@ bool ImageRender::Render()
 
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
-	m_rasterizer->DisplayFog();
+	//m_rasterizer->DisplayFog();
 	// matrix calculation, don't apply any of the stereo mode
 	m_rasterizer->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
 

@@ -261,7 +261,7 @@ void KX_KetsjiEngine::BeginFrame()
 
 void KX_KetsjiEngine::EndFrame()
 {
-	m_rasterizer->MotionBlur();
+	//m_rasterizer->MotionBlur();
 
 	// Show profiling info
 	m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
@@ -1006,7 +1006,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 
 	// see KX_BlenderMaterial::Activate
 	//m_rasterizer->SetAmbient();
-	m_rasterizer->DisplayFog();
+	//m_rasterizer->DisplayFog();
 
 	m_rasterizer->SetProjectionMatrix(rendercam->GetProjectionMatrix());
 	m_rasterizer->SetViewMatrix(rendercam->GetModelviewMatrix(), rendercam->NodeGetWorldPosition(), rendercam->NodeGetLocalScaling());

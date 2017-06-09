@@ -219,36 +219,36 @@ void RAS_OpenGLRasterizer::SetBlendFunc(RAS_Rasterizer::BlendFunc src, RAS_Raste
 	glBlendFunc(openGLBlendFuncEnums[src], openGLBlendFuncEnums[dst]);
 }
 
-void RAS_OpenGLRasterizer::Init()
-{
-	glShadeModel(GL_SMOOTH);
-}
-
-void RAS_OpenGLRasterizer::SetAmbient(const MT_Vector3& amb, float factor)
-{
-	float ambient[] = {amb.x() * factor, amb.y() * factor, amb.z() * factor, 1.0f};
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
-}
-
-void RAS_OpenGLRasterizer::SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color)
-{
-	/*float params[4] = {color[0], color[1], color[2], 1.0f};
-	glFogi(GL_FOG_MODE, GL_LINEAR);
-	glFogf(GL_FOG_DENSITY, intensity / 10.0f);
-	glFogf(GL_FOG_START, start);
-	glFogf(GL_FOG_END, start + dist);
-	glFogfv(GL_FOG_COLOR, params);*/
-}
-
-void RAS_OpenGLRasterizer::Exit()
-{
-	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
-		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
-}
-
+//void RAS_OpenGLRasterizer::Init()
+//{
+//	glShadeModel(GL_SMOOTH);
+//}
+//
+//void RAS_OpenGLRasterizer::SetAmbient(const MT_Vector3& amb, float factor)
+//{
+//	float ambient[] = {amb.x() * factor, amb.y() * factor, amb.z() * factor, 1.0f};
+//	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
+//}
+//
+//void RAS_OpenGLRasterizer::SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color)
+//{
+//	float params[4] = {color[0], color[1], color[2], 1.0f};
+//	glFogi(GL_FOG_MODE, GL_LINEAR);
+//	glFogf(GL_FOG_DENSITY, intensity / 10.0f);
+//	glFogf(GL_FOG_START, start);
+//	glFogf(GL_FOG_END, start + dist);
+//	glFogfv(GL_FOG_COLOR, params);
+//}
+//
+//void RAS_OpenGLRasterizer::Exit()
+//{
+//	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
+//		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
+//}
+//
 void RAS_OpenGLRasterizer::BeginFrame()
 {
-	glShadeModel(GL_SMOOTH);
+	//glShadeModel(GL_SMOOTH);
 }
 
 void RAS_OpenGLRasterizer::SetDepthMask(RAS_Rasterizer::DepthMask depthmask)
@@ -399,49 +399,49 @@ void RAS_OpenGLRasterizer::SetLines(bool enable)
 	}
 }
 
-void RAS_OpenGLRasterizer::SetSpecularity(float specX,
-                                          float specY,
-                                          float specZ,
-                                          float specval)
-{
-	/*GLfloat mat_specular[] = {specX, specY, specZ, specval};
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);*/
-}
-
-void RAS_OpenGLRasterizer::SetShinyness(float shiny)
-{
-	/*GLfloat mat_shininess[] = { shiny };
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, mat_shininess);*/
-}
-
-void RAS_OpenGLRasterizer::SetDiffuse(float difX, float difY, float difZ, float diffuse)
-{
-	/*GLfloat mat_diffuse[] = {difX, difY, difZ, diffuse};
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);*/
-}
-
-void RAS_OpenGLRasterizer::SetEmissive(float eX, float eY, float eZ, float e)
-{
-	/*GLfloat mat_emit[] = {eX, eY, eZ, e};
-	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_emit);*/
-}
+//void RAS_OpenGLRasterizer::SetSpecularity(float specX,
+//                                          float specY,
+//                                          float specZ,
+//                                          float specval)
+//{
+//	GLfloat mat_specular[] = {specX, specY, specZ, specval};
+//	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
+//}
+//
+//void RAS_OpenGLRasterizer::SetShinyness(float shiny)
+//{
+//	GLfloat mat_shininess[] = { shiny };
+//	glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, mat_shininess);
+//}
+//
+//void RAS_OpenGLRasterizer::SetDiffuse(float difX, float difY, float difZ, float diffuse)
+//{
+//	GLfloat mat_diffuse[] = {difX, difY, difZ, diffuse};
+//	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
+//}
+//
+//void RAS_OpenGLRasterizer::SetEmissive(float eX, float eY, float eZ, float e)
+//{
+//	GLfloat mat_emit[] = {eX, eY, eZ, e};
+//	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_emit);
+//}
 
 void RAS_OpenGLRasterizer::SetPolygonOffset(float mult, float add)
 {
 	glPolygonOffset(mult, add);
 }
 
-void RAS_OpenGLRasterizer::EnableClipPlane(unsigned short index, const MT_Vector4& plane)
-{
-	double planev[4] = {plane.x(), plane.y(), plane.z(), plane.w()};
-	glClipPlane(GL_CLIP_PLANE0 + index, planev);
-	glEnable(GL_CLIP_PLANE0 + index);
-}
-
-void RAS_OpenGLRasterizer::DisableClipPlane(unsigned short index)
-{
-	glDisable(GL_CLIP_PLANE0 + index);
-}
+//void RAS_OpenGLRasterizer::EnableClipPlane(unsigned short index, const MT_Vector4& plane)
+//{
+//	double planev[4] = {plane.x(), plane.y(), plane.z(), plane.w()};
+//	glClipPlane(GL_CLIP_PLANE0 + index, planev);
+//	glEnable(GL_CLIP_PLANE0 + index);
+//}
+//
+//void RAS_OpenGLRasterizer::DisableClipPlane(unsigned short index)
+//{
+//	glDisable(GL_CLIP_PLANE0 + index);
+//}
 
 void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)
 {
@@ -533,22 +533,22 @@ void RAS_OpenGLRasterizer::LoadIdentity()
 	gpuLoadIdentity();
 }
 
-void RAS_OpenGLRasterizer::MotionBlur(unsigned short state, float value)
-{
-	if (state) {
-		if (state == 1) {
-			// bugfix:load color buffer into accum buffer for the first time(state=1)
-			glAccum(GL_LOAD, 1.0f);
-			m_rasterizer->SetMotionBlur(2);
-		}
-		else if (value >= 0.0f && value <= 1.0f) {
-			glAccum(GL_MULT, value);
-			glAccum(GL_ACCUM, 1.0f - value);
-			glAccum(GL_RETURN, 1.0f);
-			glFlush();
-		}
-	}
-}
+//void RAS_OpenGLRasterizer::MotionBlur(unsigned short state, float value)
+//{
+//	if (state) {
+//		if (state == 1) {
+//			// bugfix:load color buffer into accum buffer for the first time(state=1)
+//			glAccum(GL_LOAD, 1.0f);
+//			m_rasterizer->SetMotionBlur(2);
+//		}
+//		else if (value >= 0.0f && value <= 1.0f) {
+//			glAccum(GL_MULT, value);
+//			glAccum(GL_ACCUM, 1.0f - value);
+//			glAccum(GL_RETURN, 1.0f);
+//			glFlush();
+//		}
+//	}
+//}
 
 void RAS_OpenGLRasterizer::PrintHardwareInfo()
 {

@@ -579,9 +579,9 @@ public:
 	/**
 	 * Fog
 	 */
-	void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
+	/*void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
 	void DisplayFog();
-	void EnableFog(bool enable);
+	void EnableFog(bool enable);*/
 	
 	/**
 	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW or RAS_TEXTURED.
@@ -605,9 +605,9 @@ public:
 	void SetCullFace(bool enable);
 
 	/// Set and enable clip plane.
-	void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
+	//void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
 	/// Disable clip plane
-	void DisableClipPlane(unsigned short index);
+	//void DisableClipPlane(unsigned short index);
 
 	/**
 	 * Sets wireframe mode.
@@ -648,28 +648,28 @@ public:
 	        float left, float right, float bottom, float top,
 	        float frustnear, float frustfar);
 
-	/**
-	 * Sets the specular color component of the lighting equation.
-	 */
-	void SetSpecularity(float specX, float specY, float specZ, float specval);
-	
-	/**
-	 * Sets the specular exponent component of the lighting equation.
-	 */
-	void SetShinyness(float shiny);
+	///**
+	// * Sets the specular color component of the lighting equation.
+	// */
+	//void SetSpecularity(float specX, float specY, float specZ, float specval);
+	//
+	///**
+	// * Sets the specular exponent component of the lighting equation.
+	// */
+	//void SetShinyness(float shiny);
 
-	/**
-	 * Sets the diffuse color component of the lighting equation.
-	 */
-	void SetDiffuse(float difX,float difY, float difZ, float diffuse);
+	///**
+	// * Sets the diffuse color component of the lighting equation.
+	// */
+	//void SetDiffuse(float difX,float difY, float difZ, float diffuse);
 
-	/**
-	 * Sets the emissive color component of the lighting equation.
-	 */ 
-	void SetEmissive(float eX, float eY, float eZ, float e);
-	
+	///**
+	// * Sets the emissive color component of the lighting equation.
+	// */ 
+	//void SetEmissive(float eX, float eY, float eZ, float e);
+	//
 	void SetAmbientColor(const MT_Vector3& color);
-	void SetAmbient(float factor);
+	//void SetAmbient(float factor);
 
 	/**
 	 * Sets a polygon offset.  z depth will be: z1 = mult*z0 + add
@@ -695,9 +695,9 @@ public:
 	const MT_Matrix4x4 &GetViewMatrix() const;
 	const MT_Matrix4x4 &GetViewInvMatrix() const;
 
-	void EnableMotionBlur(float motionblurvalue);
+	/*void EnableMotionBlur(float motionblurvalue);
 	void DisableMotionBlur();
-	void SetMotionBlur(unsigned short state);
+	void SetMotionBlur(unsigned short state);*/
 
 	void SetAlphaBlend(int alphablend);
 	void SetFrontFace(bool ccw);
@@ -762,7 +762,7 @@ public:
 	/// Set the global depth texture to an empty texture.
 	void ResetGlobalDepthTexture();
 
-	void MotionBlur();
+	//void MotionBlur();
 
 	void SetClientObject(void *obj);
 

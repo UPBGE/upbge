@@ -150,10 +150,10 @@ void KX_PlanarMap::BeginRenderFace(RAS_Rasterizer *rasty)
 
 	if (m_type == REFLECTION) {
 		rasty->SetInvertFrontFace(true);
-		rasty->EnableClipPlane(0, m_clipPlane);
+		//rasty->EnableClipPlane(0, m_clipPlane);
 	}
 	else {
-		rasty->EnableClipPlane(0, -m_clipPlane);
+		//rasty->EnableClipPlane(0, -m_clipPlane);
 	}
 }
 
@@ -162,7 +162,7 @@ void KX_PlanarMap::EndRenderFace(RAS_Rasterizer *rasty)
 	if (m_type == REFLECTION) {
 		rasty->SetInvertFrontFace(false);
 	}
-	rasty->DisableClipPlane(0);
+	//rasty->DisableClipPlane(0);
 
 	KX_TextureRenderer::EndRenderFace(rasty);
 }

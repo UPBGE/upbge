@@ -254,31 +254,31 @@ void RAS_Rasterizer::SetAmbientColor(const MT_Vector3& color)
 {
 	m_ambient = color;
 }
+//
+//void RAS_Rasterizer::SetAmbient(float factor)
+//{
+//	m_impl->SetAmbient(m_ambient, factor);
+//}
 
-void RAS_Rasterizer::SetAmbient(float factor)
-{
-	m_impl->SetAmbient(m_ambient, factor);
-}
-
-void RAS_Rasterizer::SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color)
-{
-	m_impl->SetFog(type, start, dist, intensity, color);
-}
-
-void RAS_Rasterizer::EnableFog(bool enable)
-{
-	m_fogenabled = enable;
-}
-
-void RAS_Rasterizer::DisplayFog()
-{
-	if ((m_drawingmode >= RAS_SOLID) && m_fogenabled) {
-		Enable(RAS_FOG);
-	}
-	else {
-		Disable(RAS_FOG);
-	}
-}
+//void RAS_Rasterizer::SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color)
+//{
+//	m_impl->SetFog(type, start, dist, intensity, color);
+//}
+//
+//void RAS_Rasterizer::EnableFog(bool enable)
+//{
+//	m_fogenabled = enable;
+//}
+//
+//void RAS_Rasterizer::DisplayFog()
+//{
+//	if ((m_drawingmode >= RAS_SOLID) && m_fogenabled) {
+//		Enable(RAS_FOG);
+//	}
+//	else {
+//		Disable(RAS_FOG);
+//	}
+//}
 
 void RAS_Rasterizer::Init()
 {
@@ -293,7 +293,7 @@ void RAS_Rasterizer::Init()
 
 	SetColorMask(true, true, true, true);
 
-	m_impl->Init();
+	//m_impl->Init();
 }
 
 void RAS_Rasterizer::Exit()
@@ -314,7 +314,7 @@ void RAS_Rasterizer::Exit()
 	Disable(RAS_POLYGON_STIPPLE);
 
 	Disable(RAS_LIGHTING);
-	m_impl->Exit();
+	//m_impl->Exit();
 
 	ResetGlobalDepthTexture();
 
@@ -366,7 +366,7 @@ void RAS_Rasterizer::EndFrame()
 
 	Disable(RAS_MULTISAMPLE);
 
-	Disable(RAS_FOG);
+	//Disable(RAS_FOG);
 }
 
 void RAS_Rasterizer::SetDrawingMode(RAS_Rasterizer::DrawType drawingmode)
@@ -999,43 +999,43 @@ void RAS_Rasterizer::SetCullFace(bool enable)
 	}
 }
 
-void RAS_Rasterizer::EnableClipPlane(unsigned short index, const MT_Vector4& plane)
-{
-	m_impl->EnableClipPlane(index, plane);
-}
-
-void RAS_Rasterizer::DisableClipPlane(unsigned short index)
-{
-	m_impl->DisableClipPlane(index);
-}
-
+//void RAS_Rasterizer::EnableClipPlane(unsigned short index, const MT_Vector4& plane)
+//{
+//	m_impl->EnableClipPlane(index, plane);
+//}
+//
+//void RAS_Rasterizer::DisableClipPlane(unsigned short index)
+//{
+//	m_impl->DisableClipPlane(index);
+//}
+//
 void RAS_Rasterizer::SetLines(bool enable)
 {
 	m_impl->SetLines(enable);
 }
-
-void RAS_Rasterizer::SetSpecularity(float specX,
-                                          float specY,
-                                          float specZ,
-                                          float specval)
-{
-	m_impl->SetSpecularity(specX, specY, specZ, specval);
-}
-
-void RAS_Rasterizer::SetShinyness(float shiny)
-{
-	m_impl->SetShinyness(shiny);
-}
-
-void RAS_Rasterizer::SetDiffuse(float difX, float difY, float difZ, float diffuse)
-{
-	m_impl->SetDiffuse(difX, difY, difZ, diffuse);
-}
-
-void RAS_Rasterizer::SetEmissive(float eX, float eY, float eZ, float e)
-{
-	m_impl->SetEmissive(eX, eY, eZ, e);
-}
+//
+//void RAS_Rasterizer::SetSpecularity(float specX,
+//                                          float specY,
+//                                          float specZ,
+//                                          float specval)
+//{
+//	m_impl->SetSpecularity(specX, specY, specZ, specval);
+//}
+//
+//void RAS_Rasterizer::SetShinyness(float shiny)
+//{
+//	m_impl->SetShinyness(shiny);
+//}
+//
+//void RAS_Rasterizer::SetDiffuse(float difX, float difY, float difZ, float diffuse)
+//{
+//	m_impl->SetDiffuse(difX, difY, difZ, diffuse);
+//}
+//
+//void RAS_Rasterizer::SetEmissive(float eX, float eY, float eZ, float e)
+//{
+//	m_impl->SetEmissive(eX, eY, eZ, e);
+//}
 
 double RAS_Rasterizer::GetTime()
 {
@@ -1057,26 +1057,26 @@ void RAS_Rasterizer::SetPolygonOffset(float mult, float add)
 	}
 }
 
-void RAS_Rasterizer::EnableMotionBlur(float motionblurvalue)
-{
-	/* don't just set m_motionblur to 1, but check if it is 0 so
-	 * we don't reset a motion blur that is already enabled */
-	if (m_motionblur == 0) {
-		m_motionblur = 1;
-	}
-	m_motionblurvalue = motionblurvalue;
-}
-
-void RAS_Rasterizer::DisableMotionBlur()
-{
-	m_motionblur = 0;
-	m_motionblurvalue = -1.0f;
-}
-
-void RAS_Rasterizer::SetMotionBlur(unsigned short state)
-{
-	m_motionblur = state;
-}
+//void RAS_Rasterizer::EnableMotionBlur(float motionblurvalue)
+//{
+//	/* don't just set m_motionblur to 1, but check if it is 0 so
+//	 * we don't reset a motion blur that is already enabled */
+//	if (m_motionblur == 0) {
+//		m_motionblur = 1;
+//	}
+//	m_motionblurvalue = motionblurvalue;
+//}
+//
+//void RAS_Rasterizer::DisableMotionBlur()
+//{
+//	m_motionblur = 0;
+//	m_motionblurvalue = -1.0f;
+//}
+//
+//void RAS_Rasterizer::SetMotionBlur(unsigned short state)
+//{
+//	m_motionblur = state;
+//}
 
 void RAS_Rasterizer::SetAlphaBlend(int alphablend)
 {
@@ -1534,10 +1534,10 @@ void RAS_Rasterizer::ResetGlobalDepthTexture()
 	GPU_texture_set_global_depth(nullptr);
 }
 
-void RAS_Rasterizer::MotionBlur()
-{
-	m_impl->MotionBlur(m_motionblur, m_motionblurvalue);
-}
+//void RAS_Rasterizer::MotionBlur()
+//{
+//	m_impl->MotionBlur(m_motionblur, m_motionblurvalue);
+//}
 
 void RAS_Rasterizer::SetClientObject(void *obj)
 {

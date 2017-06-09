@@ -96,23 +96,23 @@ public:
 	void GetViewport(int *rect);
 	void SetScissor(int x, int y, int width, int height);
 
-	void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
+	/*void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
 	void EnableFog(bool enable);
-	void DisplayFog();
+	void DisplayFog();*/
 
 	void SetLines(bool enable);
 
-	void SetSpecularity(float specX, float specY, float specZ, float specval);
+	/*void SetSpecularity(float specX, float specY, float specZ, float specval);
 	void SetShinyness(float shiny);
 	void SetDiffuse(float difX, float difY, float difZ, float diffuse);
-	void SetEmissive(float eX, float eY, float eZ, float e);
+	void SetEmissive(float eX, float eY, float eZ, float e);*/
 
 	void SetAmbient(const MT_Vector3& amb, float factor);
 
 	void SetPolygonOffset(float mult, float add);
 
-	void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
-	void DisableClipPlane(unsigned short index);
+	/*void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
+	void DisableClipPlane(unsigned short index);*/
 
 	void SetFrontFace(bool ccw);
 
@@ -134,7 +134,7 @@ public:
 	void LoadMatrix(const float mat[16]);
 	void LoadIdentity();
 
-	void MotionBlur(unsigned short state, float value);
+	//void MotionBlur(unsigned short state, float value);
 
 	/**
 	 * Prints information about what the hardware supports.

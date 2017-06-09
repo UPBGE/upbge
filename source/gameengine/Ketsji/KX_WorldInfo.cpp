@@ -191,14 +191,14 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_Rasterizer *rasty)
 		GPU_update_envlight_energy(m_envLightEnergy);
 
 		if (m_hasmist) {
-			rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor);
+			/*rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor);
 			GPU_mist_update_values(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_mistcolor.getValue());
 			rasty->EnableFog(true);
-			GPU_mist_update_enable(true);
+			GPU_mist_update_enable(true);*/
 		}
 		else {
-			rasty->EnableFog(false);
-			GPU_mist_update_enable(false);
+			/*rasty->EnableFog(false);
+			GPU_mist_update_enable(false);*/
 		}
 	}
 }

@@ -102,12 +102,12 @@ bool SCA_2DFilterActuator::Update()
 		}
 		case RAS_2DFilterManager::FILTER_MOTIONBLUR:
 		{
-			if (m_disableMotionBlur) {
+			/*if (m_disableMotionBlur) {
 				m_rasterizer->DisableMotionBlur();
 			}
 			else {
 				m_rasterizer->EnableMotionBlur(m_float_arg);
-			}
+			}*/
 			break;
 		}
 		default:
