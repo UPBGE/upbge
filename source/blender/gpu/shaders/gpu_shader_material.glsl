@@ -1496,7 +1496,7 @@ void mtex_image(vec3 texco, sampler2D ima, float lodbias, out float value, out v
 
 void mtex_image_refl(vec3 I, vec4 camerafac, sampler2D ima, float lodbias, mat4 objectmatrix, mat4 viewmatrix, vec3 vp, vec3 vn, out float value, out vec4 color)
 {
-	vec4 projvec = gl_ProjectionMatrix * vec4(I, 1.0);
+	vec4 projvec = ProjectionMatrix * vec4(I, 1.0);
 	vec3 window = vec3(mtex_2d_mapping(projvec.xyz / projvec.w).xy * camerafac.xy + camerafac.zw, 0.0);
 
 	vec3 Z  = normalize(vec3(viewmatrix * objectmatrix * vec4( 0.0, 0.0, 1.0, 0.0)));
@@ -1927,7 +1927,7 @@ void shade_alpha_depth(vec3 vp, sampler2D ima, float alpha, float factor, out fl
 {
 	float depth = texelFetch(ima, ivec2(gl_FragCoord.xy), 0).x;
 
-	vec4 depthvp = gl_ProjectionMatrix * vec4(vp.xy, vp.z - factor, 1.0);
+	vec4 depthvp = ProjectionMatrix * vec4(vp.xy, vp.z - factor, 1.0);
 
 	float startfade = gl_FragCoord.z;
 	float endfade = (1.0 + depthvp.z / depthvp.w) * 0.5;
@@ -2426,12 +2426,12 @@ vec4 shadow_proj_coord(vec3 rco, vec3 vn, mat4 shadowpersmat, float bias, float 
 
 float test_shadow_simple(sampler2DShadow shadowmap, vec4 co)
 {
-	return shadow2DProj(shadowmap, co).x;
+	return textureProj(shadowmap, co);
 }
 
 float texture_shadow_offset(sampler2DShadow shadowmap, vec4 co, vec2 offset)
 {
-	return shadow2DProj(shadowmap, vec4(co.xy + offset, co.z, co.w)).x;
+	return textureProj(shadowmap, vec4(co.xy + offset, co.z, co.w));
 }
 
 float test_shadow_pcf_early_bail(sampler2DShadow shadowmap, vec4 co, float samples, float samplesize)
