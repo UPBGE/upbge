@@ -58,13 +58,13 @@ static const int openGLEnableBitEnums[] = {
 	GL_ALPHA_TEST, // RAS_ALPHA_TEST
 	GL_SCISSOR_TEST, // RAS_SCISSOR_TEST
 	GL_TEXTURE_2D, // RAS_TEXTURE_2D
-	GL_TEXTURE_CUBE_MAP_ARB, // RAS_TEXTURE_CUBE_MAP
+	GL_TEXTURE_CUBE_MAP, // RAS_TEXTURE_CUBE_MAP
 	GL_BLEND, // RAS_BLEND
 	GL_COLOR_MATERIAL, // RAS_COLOR_MATERIAL
 	GL_CULL_FACE, // RAS_CULL_FACE
 	GL_FOG, // RAS_FOG
 	GL_LIGHTING, // RAS_LIGHTING
-	GL_MULTISAMPLE_ARB, // RAS_MULTISAMPLE
+	GL_MULTISAMPLE, // RAS_MULTISAMPLE
 	GL_POLYGON_STIPPLE, // RAS_POLYGON_STIPPLE
 	GL_POLYGON_OFFSET_FILL, // RAS_POLYGON_OFFSET_FILL
 	GL_POLYGON_OFFSET_LINE, // RAS_POLYGON_OFFSET_LINE
@@ -113,8 +113,8 @@ RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 	glGenVertexArrays(1, &m_vao);
 	glBindVertexArray(m_vao);
 	// Generate the VBO and IBO for screen overlay plane.
-	glGenBuffersARB(1, &m_vbo);
-	glGenBuffersARB(1, &m_ibo);
+	glGenBuffers(1, &m_vbo);
+	glGenBuffers(1, &m_ibo);
 
 	// Vertexes for screen plane, it contains the vertex position (3 floats) and the vertex uv after (2 floats, total size = 5 floats).
 	static const float vertices[] = {
@@ -128,11 +128,11 @@ RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 	static const GLubyte indices[] = {3, 2, 1, 0};
 
 	// Send indices in the sreen plane IBO.
-	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
 	// Send vertexes in the screen plane VBO.
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 	// VAO -> vertices
@@ -465,7 +465,7 @@ void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)
 void RAS_OpenGLRasterizer::DisableForText()
 {
 	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
-		glActiveTextureARB(GL_TEXTURE0_ARB + i);
+		glActiveTexture(GL_TEXTURE0 + i);
 
 		if (GLEW_ARB_texture_cube_map) {
 			Disable(RAS_Rasterizer::RAS_TEXTURE_CUBE_MAP);
@@ -473,7 +473,7 @@ void RAS_OpenGLRasterizer::DisableForText()
 		Disable(RAS_Rasterizer::RAS_TEXTURE_2D);
 	}
 
-	glActiveTextureARB(GL_TEXTURE0_ARB);
+	glActiveTexture(GL_TEXTURE0);
 }
 
 void RAS_OpenGLRasterizer::RenderText3D(
