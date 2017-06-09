@@ -201,12 +201,12 @@ void RAS_OpenGLRasterizer::Disable(RAS_Rasterizer::EnableBit bit)
 
 void RAS_OpenGLRasterizer::EnableLight(unsigned short count)
 {
-	glDisable((GLenum)(GL_LIGHT0 + count));
+	//glDisable((GLenum)(GL_LIGHT0 + count));
 }
 
 void RAS_OpenGLRasterizer::DisableLight(unsigned short count)
 {
-	glDisable((GLenum)(GL_LIGHT0 + count));
+	//glDisable((GLenum)(GL_LIGHT0 + count));
 }
 
 void RAS_OpenGLRasterizer::SetDepthFunc(RAS_Rasterizer::DepthFunc func)
@@ -232,12 +232,12 @@ void RAS_OpenGLRasterizer::SetAmbient(const MT_Vector3& amb, float factor)
 
 void RAS_OpenGLRasterizer::SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color)
 {
-	float params[4] = {color[0], color[1], color[2], 1.0f};
+	/*float params[4] = {color[0], color[1], color[2], 1.0f};
 	glFogi(GL_FOG_MODE, GL_LINEAR);
 	glFogf(GL_FOG_DENSITY, intensity / 10.0f);
 	glFogf(GL_FOG_START, start);
 	glFogf(GL_FOG_END, start + dist);
-	glFogfv(GL_FOG_COLOR, params);
+	glFogfv(GL_FOG_COLOR, params);*/
 }
 
 void RAS_OpenGLRasterizer::Exit()
