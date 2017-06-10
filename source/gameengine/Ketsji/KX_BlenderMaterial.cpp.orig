@@ -370,7 +370,56 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 		rasty->SetEmissive(m_material->r * m_material->emit, m_material->g * m_material->emit,
 						   m_material->b * m_material->emit, 1.0f);
 		rasty->SetAmbient(m_material->amb);
+<<<<<<< HEAD
 	}*/
+
+	rasty->SetPolygonOffset(-m_material->zoffs, 0.0f);
+}
+
+
+void KX_BlenderMaterial::ActivateTexGen(RAS_Rasterizer *ras) const
+{
+	if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {
+		RAS_Rasterizer::TexCoGenList attribs(2);
+		attribs[0] = RAS_Rasterizer::RAS_TEXCO_DISABLE;
+		attribs[1] = RAS_Rasterizer::RAS_TEXTANGENT;
+
+		ras->SetAttribs(attribs);
+	}
+
+	RAS_Rasterizer::TexCoGenList texcos(RAS_Texture::MaxUnits);
+	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
+		RAS_Texture *texture = m_textures[i];
+		/* Here textures can return false to Ok() because we're looking only at
+		 * texture attributs and not texture bind id like for the binding and
+		 * unbinding of textures. A nullptr BL_Texture means that the cooresponding
+		 * mtex is nullptr too (see InitTextures).*/
+		if (texture) {
+			MTex *mtex = texture->GetMTex();
+			if (mtex->texco & (TEXCO_OBJECT | TEXCO_REFL)) {
+				texcos[i] = RAS_Rasterizer::RAS_TEXCO_GEN;
+			}
+			else if (mtex->texco & (TEXCO_ORCO | TEXCO_GLOB)) {
+				texcos[i] = RAS_Rasterizer::RAS_TEXCO_ORCO;
+			}
+			else if (mtex->texco & TEXCO_UV) {
+				texcos[i] = RAS_Rasterizer::RAS_TEXCO_UV;
+			}
+			else if (mtex->texco & TEXCO_NORM) {
+				texcos[i] = RAS_Rasterizer::RAS_TEXCO_NORM;
+			}
+			else if (mtex->texco & TEXCO_TANGENT) {
+				texcos[i] = RAS_Rasterizer::RAS_TEXTANGENT;
+			}
+		}
+		else {
+			texcos[i] = RAS_Rasterizer::RAS_TEXCO_DISABLE;
+		}
+	}
+	ras->SetTexCoords(texcos);
+=======
+	}
+>>>>>>> master
 }
 
 void KX_BlenderMaterial::UpdateIPO(

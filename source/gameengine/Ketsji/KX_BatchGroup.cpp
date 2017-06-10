@@ -33,7 +33,7 @@
 
 KX_BatchGroup::KX_BatchGroup()
 {
-	m_objects = new CListValue();
+	m_objects = new CListValue<KX_GameObject>();
 	// The objects are not owned by the batching group, so not released on list releasing.
 	m_objects->SetReleaseOnDestruct(false);
 }
@@ -48,7 +48,7 @@ std::string KX_BatchGroup::GetName()
 	return "KX_BatchGroup";
 }
 
-CListValue *KX_BatchGroup::GetObjects() const
+CListValue<KX_GameObject> *KX_BatchGroup::GetObjects() const
 {
 	return m_objects;
 }

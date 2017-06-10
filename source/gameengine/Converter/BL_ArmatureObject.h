@@ -50,10 +50,10 @@ class BL_ArmatureObject : public KX_GameObject
 	Py_Header
 
 protected:
-	/* list element: BL_ArmatureConstraint. Use SG_DListHead to have automatic list replication */
-	CListValue *m_controlledConstraints;
-	/* list element: BL_ArmatureChannel. Use SG_DList to avoid list replication */
-	CListValue *m_poseChannels;
+	/// List element: BL_ArmatureConstraint.
+	CListValue<BL_ArmatureConstraint> *m_controlledConstraints;
+	/// List element: BL_ArmatureChannel.
+	CListValue<BL_ArmatureChannel> *m_poseChannels;
 	Object *m_objArma;
 	Object *m_origObjArma;
 	bPose *m_pose;

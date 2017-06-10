@@ -250,7 +250,7 @@ KX_GameObject* KX_GameObject::GetDupliGroupObject()
 	return m_pDupliGroupObject;
 }
 
-CListValue* KX_GameObject::GetInstanceObjects()
+CListValue<KX_GameObject> *KX_GameObject::GetInstanceObjects()
 { 
 	return m_pInstanceObjects;
 }
@@ -258,7 +258,7 @@ CListValue* KX_GameObject::GetInstanceObjects()
 void KX_GameObject::AddInstanceObjects(KX_GameObject* obj)
 {
 	if (!m_pInstanceObjects)
-		m_pInstanceObjects = new CListValue();
+		m_pInstanceObjects = new CListValue<KX_GameObject>();
 
 	obj->AddRef();
 	m_pInstanceObjects->Add(obj);
@@ -362,7 +362,7 @@ void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost
 		NodeSetLocalOrientation(invori*NodeGetWorldOrientation());
 		NodeUpdateGS(0.f);
 		// object will now be a child, it must be removed from the parent list
-		CListValue* rootlist = scene->GetRootParentList();
+		CListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
 		if (rootlist->RemoveValue(this))
 			// the object was in parent list, decrement ref count as it's now removed
 			Release();
@@ -402,10 +402,10 @@ void KX_GameObject::RemoveParent()
 
 		KX_Scene *scene = GetScene();
 		// the object is now a root object, add it to the parentlist
-		CListValue* rootlist = scene->GetRootParentList();
+		CListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
 		if (!rootlist->SearchValue(this))
 			// object was not in root list, add it now and increment ref count
-			rootlist->Add(AddRef());
+			rootlist->Add(CM_AddRef(this));
 		if (m_pPhysicsController)
 		{
 			// in case this controller was added as a child shape to the parent
@@ -533,9 +533,8 @@ void KX_GameObject::ProcessReplica()
 		m_attr_dict= PyDict_Copy(m_attr_dict);
 
 	if (m_components) {
-		m_components = (CListValue *)m_components->GetReplica();
-		for (CListValue::iterator<KX_PythonComponent> it = m_components->GetBegin(), end = m_components->GetEnd(); it != end; ++it) {
-			KX_PythonComponent *component = *it;
+		m_components = (CListValue<KX_PythonComponent> *)m_components->GetReplica();
+		for (KX_PythonComponent *component : m_components) {
 			component->SetGameObject(this);
 		}
 	}
@@ -1573,7 +1572,7 @@ void KX_GameObject::Suspend()
 	}
 }
 
-static void walk_children(SG_Node* node, CListValue* list, bool recursive)
+static void walk_children(SG_Node* node, CListValue<KX_GameObject> *list, bool recursive)
 {
 	if (!node)
 		return;
@@ -1582,7 +1581,7 @@ static void walk_children(SG_Node* node, CListValue* list, bool recursive)
 	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit)
 	{
 		SG_Node* childnode = (*childit);
-		CValue* childobj = (CValue*)childnode->GetSGClientObject();
+		KX_GameObject *childobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
 		if (childobj != nullptr) // This is a GameObject
 		{
 			// add to the list, no AddRef because the list doesn't own its items.
@@ -1597,9 +1596,9 @@ static void walk_children(SG_Node* node, CListValue* list, bool recursive)
 	}
 }
 
-CListValue* KX_GameObject::GetChildren()
+CListValue<KX_GameObject> *KX_GameObject::GetChildren()
 {
-	CListValue* list = new CListValue();
+	CListValue<KX_GameObject> *list = new CListValue<KX_GameObject>();
 	/* The list must not own any data because is temporary and we can't
 	 * ensure that it will freed before item's in it (e.g python owner). */
 	list->SetReleaseOnDestruct(false);
@@ -1607,9 +1606,9 @@ CListValue* KX_GameObject::GetChildren()
 	return list;
 }
 
-CListValue* KX_GameObject::GetChildrenRecursive()
+CListValue<KX_GameObject> *KX_GameObject::GetChildrenRecursive()
 {
-	CListValue* list = new CListValue();
+	CListValue<KX_GameObject> *list = new CListValue<KX_GameObject>();
 	/* The list must not own any data because is temporary and we can't
 	 * ensure that it will freed before item's in it (e.g python owner). */
 	list->SetReleaseOnDestruct(false);
@@ -1617,12 +1616,12 @@ CListValue* KX_GameObject::GetChildrenRecursive()
 	return list;
 }
 
-CListValue *KX_GameObject::GetComponents() const
+CListValue<KX_PythonComponent> *KX_GameObject::GetComponents() const
 {
 	return m_components;
 }
 
-void KX_GameObject::SetComponents(CListValue *components)
+void KX_GameObject::SetComponents(CListValue<KX_PythonComponent> *components)
 {
 	m_components = components;
 }
@@ -1634,8 +1633,7 @@ void KX_GameObject::UpdateComponents()
 		return;
 	}
 
-	for (CListValue::iterator<KX_PythonComponent> it = m_components->GetBegin(), end = m_components->GetEnd(); it != end; ++it) {
-		KX_PythonComponent *comp = *it;
+	for (KX_PythonComponent *comp : m_components) {
 		comp->Update();
 	}
 
@@ -1911,7 +1909,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"getReactionForce", (PyCFunction) KX_GameObject::sPyGetReactionForce, METH_NOARGS},
 	{"alignAxisToVect",(PyCFunction) KX_GameObject::sPyAlignAxisToVect, METH_VARARGS},
 	{"getAxisVect",(PyCFunction) KX_GameObject::sPyGetAxisVect, METH_O},
-	{"suspendPhysics", (PyCFunction)KX_GameObject::sPySuspendPhysics, METH_NOARGS},
+	{"suspendPhysics", (PyCFunction)KX_GameObject::sPySuspendPhysics, METH_VARARGS},
 	{"restorePhysics", (PyCFunction)KX_GameObject::sPyRestorePhysics,METH_NOARGS},
 	{"suspendDynamics", (PyCFunction)KX_GameObject::sPySuspendDynamics, METH_VARARGS},
 	{"restoreDynamics", (PyCFunction)KX_GameObject::sPyRestoreDynamics,METH_NOARGS},
@@ -2321,7 +2319,7 @@ PyObject *KX_GameObject::pyattr_get_parent(PyObjectPlus *self_v, const KX_PYATTR
 PyObject *KX_GameObject::pyattr_get_group_members(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-	CListValue* instances = self->GetInstanceObjects();
+	CListValue<KX_GameObject> *instances = self->GetInstanceObjects();
 	if (instances) {
 		return instances->GetProxy();
 	}
@@ -3126,8 +3124,8 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v, const KX_PYATTRIBUTE
 PyObject* KX_GameObject::pyattr_get_components(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	CListValue *components = self->GetComponents();
-	return components ? components->GetProxy() : (new CListValue())->NewProxy(true);
+	CListValue<KX_PythonComponent> *components = self->GetComponents();
+	return components ? components->GetProxy() : (new CListValue<KX_PythonComponent>())->NewProxy(true);
 }
 
 static int kx_game_object_get_sensors_size_cb(void *self_v)
@@ -3561,10 +3559,16 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
 	return nullptr;
 }
 
-PyObject *KX_GameObject::PySuspendPhysics()
+PyObject *KX_GameObject::PySuspendPhysics(PyObject *args)
 {
+	int freeConstraints = false;
+
+	if (!PyArg_ParseTuple(args, "|i:suspendPhysics", &freeConstraints)) {
+		return nullptr;
+	}
+
 	if (GetPhysicsController()) {
-		GetPhysicsController()->SuspendPhysics();
+		GetPhysicsController()->SuspendPhysics((bool)freeConstraints);
 	}
 	Py_RETURN_NONE;
 }

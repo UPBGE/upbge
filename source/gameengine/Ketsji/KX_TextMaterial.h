@@ -54,8 +54,6 @@ public:
 
 	virtual const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
-	virtual void Replace_IScene(SCA_IScene *val);
-
 	virtual void OnConstruction();
 };
 

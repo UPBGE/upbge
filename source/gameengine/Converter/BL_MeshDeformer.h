@@ -61,7 +61,7 @@ public:
 	virtual void SetSimulatedTime(double time)
 	{
 	}
-	virtual bool Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat);
+	virtual bool Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
 	virtual bool Update()
 	{
 		return false;

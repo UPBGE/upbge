@@ -138,9 +138,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_rasterizer(nullptr),
 	m_kxsystem(system),
 	m_converter(nullptr),
-#ifdef WITH_PYTHON
-	m_pythondictionary(nullptr),
-#endif
 	m_inputDevice(nullptr),
 	m_bInitialized(false),
 	m_flags(AUTO_ADD_DEBUG_PROPERTIES),
@@ -177,7 +174,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
 
-	m_scenes = new CListValue();
+	m_scenes = new CListValue<KX_Scene>();
 }
 
 /**
@@ -219,16 +216,6 @@ void KX_KetsjiEngine::SetNetworkMessageManager(KX_NetworkMessageManager *manager
 }
 
 #ifdef WITH_PYTHON
-/*
- * At the moment the bge.logic module is imported into 'pythondictionary' after this function is called.
- * if this function ever changes to assign a copy, make sure the game logic module is imported into this dictionary before hand.
- */
-void KX_KetsjiEngine::SetPyNamespace(PyObject *pythondictionary)
-{
-	BLI_assert(pythondictionary);
-	m_pythondictionary = pythondictionary;
-}
-
 PyObject *KX_KetsjiEngine::GetPyProfileDict()
 {
 	Py_INCREF(m_pyprofiledict);
@@ -393,9 +380,7 @@ bool KX_KetsjiEngine::NextFrame()
 #endif  // WITH_SDL
 
 		// for each scene, call the proceed functions
-		for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
-			KX_Scene *scene = *sceit;
-
+		for (KX_Scene *scene : m_scenes) {
 			/* Suspension holds the physics and logic processing for an
 			 * entire scene. Objects can be suspended individually, and
 			 * the settings for that precede the logic and physics
@@ -475,8 +460,7 @@ bool KX_KetsjiEngine::NextFrame()
 
 void KX_KetsjiEngine::UpdateSuspendedScenes(double framestep)
 {
-	for (CListValue::iterator<KX_Scene> sceneit = m_scenes->GetBegin(), sceneend = m_scenes->GetEnd(); sceneit != sceneend; ++sceneit) {
-		KX_Scene *scene = *sceneit;
+	for (KX_Scene *scene : m_scenes) {
 		if (scene->IsSuspended()) {
 			scene->SetSuspendedDelta(scene->GetSuspendedDelta() + framestep);
 		}
@@ -557,8 +541,7 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 	}
 
 	// Prepare override culling camera of each scenes, we don't manage stereo currently.
-	for (CListValue::iterator<KX_Scene> it = m_scenes->GetBegin(), end = m_scenes->GetEnd(); it != end; ++it) {
-		KX_Scene *scene = *it;
+	for (KX_Scene *scene : m_scenes) {
 		KX_Camera *overrideCullingCam = scene->GetOverrideCullingCamera();
 
 		if (overrideCullingCam) {
@@ -594,17 +577,13 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 			eyes = {RAS_Rasterizer::RAS_STEREO_LEFTEYE};
 		}
 
-		for (CListValue::iterator<KX_Scene> it = m_scenes->GetBegin(), end = m_scenes->GetEnd(); it != end; ++it) {
-			KX_Scene *scene = *it;
-
+		for (KX_Scene *scene : m_scenes) {
 			frameData.m_sceneDataList.emplace_back(scene);
 			SceneRenderData& sceneFrameData = frameData.m_sceneDataList.back();
 
-			CListValue *cameras = scene->GetCameraList();
 			KX_Camera *activecam = scene->GetActiveCamera();
 			KX_Camera *overrideCullingCam = scene->GetOverrideCullingCamera();
-			for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-				KX_Camera *cam = *it;
+			for (KX_Camera *cam : scene->GetCameraList()) {
 				if (cam != activecam && !cam->GetViewport()) {
 					continue;
 				}
@@ -625,8 +604,7 @@ void KX_KetsjiEngine::Render()
 
 	BeginFrame();
 
-	for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
-		KX_Scene *scene = *sceit;
+	for (KX_Scene *scene : m_scenes) {
 		// shadow buffers
 		RenderShadowBuffers(scene);
 		// Render only independent texture renderers here.
@@ -646,7 +624,7 @@ void KX_KetsjiEngine::Render()
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 
-	KX_Scene *firstscene = static_cast<KX_Scene *>(m_scenes->GetFront());
+	KX_Scene *firstscene = m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 	// Use the framing bar color set in the Blender scenes
 	m_rasterizer->SetClearColor(framesettings.BarRed(), framesettings.BarGreen(), framesettings.BarBlue(), 1.0f);
@@ -838,8 +816,9 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 			// Sanity/debug print to make sure we're actually going at the fps we want (should be close to anim_timestep)
 			// CM_Debug("Anim fps: " << 1.0/(m_frameTime - m_previousAnimTime));
 			m_previousAnimTime = m_frameTime;
-			for (CListValue::iterator<KX_Scene> sceneit = m_scenes->GetBegin(), sceneend = m_scenes->GetEnd(); sceneit != sceneend; ++sceneit)
-				(*sceneit)->UpdateAnimations(m_frameTime);
+			for (KX_Scene *scene : m_scenes) {
+				scene->UpdateAnimations(m_frameTime);
+			}
 		}
 	}
 	else
@@ -848,12 +827,11 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
-	CListValue *lightlist = scene->GetLightList();
+	CListValue<KX_LightObject> *lightlist = scene->GetLightList();
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
 
-	for (CListValue::iterator<KX_LightObject> it = lightlist->GetBegin(), end = lightlist->GetEnd(); it != end; ++it) {
-		KX_LightObject *light = *it;
+	for (KX_LightObject *light : lightlist) {
 		RAS_ILightObject *raslight = light->GetLightData();
 
 		raslight->Update();
@@ -1092,7 +1070,7 @@ void KX_KetsjiEngine::StopEngine()
 		m_converter->FinalizeAsyncLoads();
 
 		while (m_scenes->GetCount() > 0) {
-			KX_Scene *scene = (KX_Scene *)m_scenes->GetFront();
+			KX_Scene *scene = m_scenes->GetFront();
 			m_converter->RemoveScene(scene);
 			// WARNING: here the scene is a dangling pointer.
 			m_scenes->Remove(0);
@@ -1107,7 +1085,7 @@ void KX_KetsjiEngine::StopEngine()
 // and have several scenes running in parallel
 void KX_KetsjiEngine::AddScene(KX_Scene *scene)
 {
-	m_scenes->Add(scene->AddRef());
+	m_scenes->Add(CM_AddRef(scene));
 	PostProcessScene(scene);
 }
 
@@ -1140,10 +1118,10 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 			activecam->NodeUpdateGS(0.0f);
 		}
 
-		scene->GetCameraList()->Add(activecam->AddRef());
+		scene->GetCameraList()->Add(CM_AddRef(activecam));
 		scene->SetActiveCamera(activecam);
-		scene->GetObjectList()->Add(activecam->AddRef());
-		scene->GetRootParentList()->Add(activecam->AddRef());
+		scene->GetObjectList()->Add(CM_AddRef(activecam));
+		scene->GetRootParentList()->Add(CM_AddRef(activecam));
 		// done with activecam
 		activecam->Release();
 	}
@@ -1229,47 +1207,10 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		ycoord += title_y_bottom_margin;
 
 		/* Calculate amount of properties that can displayed. */
-		unsigned propsAct = 0;
-		unsigned propsMax = (m_canvas->GetHeight() - ycoord) / const_ysize;
+		const unsigned short propsMax = (m_canvas->GetHeight() - ycoord) / const_ysize;
 
-		for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
-			KX_Scene *scene = *sceit;
-			/* the 'normal' debug props */
-			const std::vector<SCA_DebugProp>& debugproplist = scene->GetDebugProperties();
-
-			for (unsigned i = 0; i < debugproplist.size() && propsAct < propsMax; i++) {
-				CValue *propobj = debugproplist[i].m_obj;
-				std::string objname = propobj->GetName();
-				std::string propname = debugproplist[i].m_name;
-				propsAct++;
-				if (propname == "__state__") {
-					// reserve name for object state
-					KX_GameObject *gameobj = static_cast<KX_GameObject *>(propobj);
-					unsigned int state = gameobj->GetState();
-					debugtxt = objname + "." + propname + " = ";
-					bool first = true;
-					for (int statenum = 1; state; state >>= 1, statenum++) {
-						if (state & 1) {
-							if (!first) {
-								debugtxt += ",";
-							}
-							debugtxt += std::to_string(statenum);
-							first = false;
-						}
-					}
-					debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + const_xindent, ycoord), white);
-					ycoord += const_ysize;
-				}
-				else {
-					CValue *propval = propobj->GetProperty(propname);
-					if (propval) {
-						std::string text = propval->GetText();
-						debugtxt = objname + ": '" + propname + "' = " + text;
-						debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + const_xindent, ycoord), white);
-						ycoord += const_ysize;
-					}
-				}
-			}
+		for (KX_Scene *scene : m_scenes) {
+			scene->RenderDebugProperties(debugDraw, const_xindent, const_ysize, xcoord, ycoord, propsMax);
 		}
 	}
 
@@ -1282,9 +1223,7 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 		return;
 	}
 
-	CListValue *cameras = scene->GetCameraList();
-	for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-		KX_Camera *cam = *it;
+	for (KX_Camera *cam : scene->GetCameraList()) {
 		if (cam != cameraFrameData.m_renderCamera && (m_showCameraFrustum == KX_DebugOption::FORCE || cam->GetShowCameraFrustum())) {
 			const MT_Matrix4x4 viewmat = m_rasterizer->GetViewMatrix(cameraFrameData.m_eye, cam->GetWorldToCamera(), cam->GetCameraData()->m_perspective);
 			const MT_Matrix4x4 projmat = GetCameraProjectionMatrix(scene, cam, cameraFrameData.m_eye, cameraFrameData.m_viewport, cameraFrameData.m_area);
@@ -1299,9 +1238,7 @@ void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 		return;
 	}
 
-	CListValue *lightList = scene->GetLightList();
-	for (CListValue::iterator<KX_LightObject> it = lightList->GetBegin(), end = lightList->GetEnd(); it != end; ++it) {
-		KX_LightObject *light = *it;
+	for (KX_LightObject *light : scene->GetLightList()) {
 		RAS_ILightObject *raslight = light->GetLightData();
 		if (m_showShadowFrustum == KX_DebugOption::FORCE || light->GetShowShadowFrustum()) {
 			const MT_Matrix4x4 projmat(raslight->GetWinMat());
@@ -1312,14 +1249,14 @@ void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 	}
 }
 
-CListValue *KX_KetsjiEngine::CurrentScenes()
+CListValue<KX_Scene> *KX_KetsjiEngine::CurrentScenes()
 {
 	return m_scenes;
 }
 
 KX_Scene *KX_KetsjiEngine::FindScene(const std::string& scenename)
 {
-	return (KX_Scene *)m_scenes->FindValue(scenename);
+	return m_scenes->FindValue(scenename);
 }
 
 void KX_KetsjiEngine::ConvertAndAddScene(const std::string& scenename, bool overlay)
@@ -1399,7 +1336,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 			std::string scenename = *scenenameit;
 			KX_Scene *tmpscene = CreateScene(scenename);
 			if (tmpscene) {
-				m_scenes->Add(tmpscene->AddRef());
+				m_scenes->Add(CM_AddRef(tmpscene));
 				PostProcessScene(tmpscene);
 				tmpscene->Release();
 			}
@@ -1418,7 +1355,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 			std::string scenename = *scenenameit;
 			KX_Scene *tmpscene = CreateScene(scenename);
 			if (tmpscene) {
-				m_scenes->Insert(0, tmpscene->AddRef());
+				m_scenes->Insert(0, CM_AddRef(tmpscene));
 				PostProcessScene(tmpscene);
 				tmpscene->Release();
 			}
@@ -1463,7 +1400,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 			std::string newscenename = (*scenenameit).second;
 			/* Scenes are not supposed to be included twice... I think */
 			for (unsigned int sce_idx = 0; sce_idx < m_scenes->GetCount(); ++sce_idx) {
-				KX_Scene *scene = (KX_Scene *)m_scenes->GetValue(sce_idx);
+				KX_Scene *scene = m_scenes->GetValue(sce_idx);
 				if (scene->GetName() == oldscenename) {
 					// avoid crash if the new scene doesn't exist, just do nothing
 					Scene *blScene = m_converter->GetBlenderSceneForName(newscenename);
@@ -1471,7 +1408,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 						m_converter->RemoveScene(scene);
 
 						KX_Scene *tmpscene = CreateScene(blScene, false);
-						m_scenes->SetValue(sce_idx, tmpscene->AddRef());
+						m_scenes->SetValue(sce_idx, CM_AddRef(tmpscene));
 						PostProcessScene(tmpscene);
 						tmpscene->Release();
 					}
@@ -1668,15 +1605,12 @@ KX_DebugOption KX_KetsjiEngine::GetShowShadowFrustum() const
 
 void KX_KetsjiEngine::Resize()
 {
-	KX_SceneList::iterator sceneit;
-
 	/* extended mode needs to recalculate camera frusta when */
-	KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
+	KX_Scene *firstscene = m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 
 	if (framesettings.FrameType() == RAS_FrameSettings::e_frame_extend) {
-		for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
-			KX_Scene *scene = *sceit;
+		for (KX_Scene *scene : m_scenes) {
 			KX_Camera *cam = scene->GetActiveCamera();
 			cam->InvalidateProjectionMatrix();
 		}

@@ -107,10 +107,6 @@ const RAS_Rasterizer::AttribLayerList KX_TextMaterial::GetAttribLayers(const RAS
 	return attribLayers;
 }
 
-void KX_TextMaterial::Replace_IScene(SCA_IScene *val)
-{
-}
-
 void KX_TextMaterial::OnConstruction()
 {
 }

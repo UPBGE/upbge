@@ -44,7 +44,6 @@
 
 struct Material;
 struct Scene;
-class SCA_IScene;
 struct GameSettings;
 
 enum MaterialProps
@@ -75,6 +74,7 @@ protected:
 	std::string m_name; // also needed for collisionsensor
 	int m_drawingmode;
 	int m_alphablend;
+	float m_zoffset;
 	int m_rasMode;
 	unsigned int m_flag;
 
@@ -109,6 +109,7 @@ public:
 	bool IsCullFace() const;
 	int GetDrawingMode() const;
 	int GetAlphaBlend() const;
+	float GetZOffset() const;
 	virtual std::string GetName();
 	unsigned int GetFlag() const;
 	bool IsAlphaShadow() const;
@@ -129,9 +130,6 @@ public:
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha) = 0;
 
 	virtual const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const = 0;
-
-	/// Overridden by KX_BlenderMaterial
-	virtual void Replace_IScene(SCA_IScene *val) = 0;
 
 	/**
 	 * \return the equivalent drawing mode for the material settings (equivalent to old TexFace tface->mode).

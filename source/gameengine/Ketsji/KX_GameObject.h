@@ -56,6 +56,7 @@ struct KX_ClientObjectInfo;
 class KX_RayCast;
 class KX_LodManager;
 class KX_CullingNode;
+class KX_PythonComponent;
 class RAS_MeshObject;
 class RAS_MeshUser;
 class PHY_IGraphicController;
@@ -117,11 +118,11 @@ protected:
 
 	MT_CmMatrix4x4						m_OpenGL_4x4Matrix;
 
-	CListValue							*m_components;
+	CListValue<KX_PythonComponent> *m_components;
 
 	std::vector<bRigidBodyJointConstraint*>	m_constraints;
 
-	CListValue*							m_pInstanceObjects;
+	CListValue<KX_GameObject> *m_pInstanceObjects;
 	KX_GameObject*						m_pDupliGroupObject;
 
 	// The action manager is used to play/stop/update actions
@@ -237,7 +238,7 @@ public:
 	GetDupliGroupObject(
 	);
 
-		CListValue*
+		CListValue<KX_GameObject>*
 	GetInstanceObjects(
 	);
 
@@ -908,13 +909,13 @@ public:
 
 	KX_ClientObjectInfo* getClientInfo() { return m_pClient_info; }
 	
-	CListValue* GetChildren();
-	CListValue* GetChildrenRecursive();
+	CListValue<KX_GameObject> *GetChildren();
+	CListValue<KX_GameObject> *GetChildrenRecursive();
 
 	/// Returns the component list.
-	CListValue *GetComponents() const;
+	CListValue<KX_PythonComponent> *GetComponents() const;
 	/// Add a components.
-	void SetComponents(CListValue *components);
+	void SetComponents(CListValue<KX_PythonComponent> *components);
 
 	/// Updates the components.
 	void UpdateComponents();
@@ -952,7 +953,7 @@ public:
 	KX_PYMETHOD_O(KX_GameObject,SetState);
 	KX_PYMETHOD_VARARGS(KX_GameObject,AlignAxisToVect);
 	KX_PYMETHOD_O(KX_GameObject,GetAxisVect);
-	KX_PYMETHOD_NOARGS(KX_GameObject,SuspendPhysics);
+	KX_PYMETHOD_VARARGS(KX_GameObject,SuspendPhysics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestorePhysics);
 	KX_PYMETHOD_VARARGS(KX_GameObject,SuspendDynamics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestoreDynamics);

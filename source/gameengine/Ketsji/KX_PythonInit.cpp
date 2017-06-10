@@ -118,7 +118,7 @@ extern "C" {
 
 #include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 
-#include "RAS_Shader.h"
+#include "BL_Shader.h"
 #include "BL_Action.h"
 
 #include "KX_PyMath.h"
@@ -595,7 +595,7 @@ PyDoc_STRVAR(gPyGetInactiveSceneNames_doc,
 );
 static PyObject *gPyGetInactiveSceneNames(PyObject *self)
 {
-	CListValue *list = KX_GetActiveEngine()->GetConverter()->GetInactiveSceneNames();
+	CListValue<CStringValue> *list = KX_GetActiveEngine()->GetConverter()->GetInactiveSceneNames();
 
 	return list->NewProxy(true);
 }
@@ -621,7 +621,8 @@ static PyObject *pyPrintExt(PyObject *,PyObject *,PyObject *)
 
 static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 {
-	KX_Scene *kx_scene= KX_GetActiveScene();
+	KX_Scene *kx_scene = nullptr;
+	PyObject *pyscene = Py_None;
 	char *path;
 	char *group;
 	Py_buffer py_buffer;
@@ -632,11 +633,18 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 	short options=0;
 	int load_actions=0, verbose=0, load_scripts=1, async=0;
 
-	static const char *kwlist[] = {"path", "group", "buffer", "load_actions", "verbose", "load_scripts", "async", nullptr};
+	static const char *kwlist[] = {"path", "group", "buffer", "load_actions", "verbose", "load_scripts", "async", "scene", nullptr};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|y*iiIi:LibLoad", const_cast<char**>(kwlist),
-									&path, &group, &py_buffer, &load_actions, &verbose, &load_scripts, &async))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|y*iiIiO:LibLoad", const_cast<char**>(kwlist),
+									&path, &group, &py_buffer, &load_actions, &verbose, &load_scripts, &async, &pyscene))
 		return nullptr;
+
+	if (!ConvertPythonToScene(pyscene, &kx_scene, true, "invalid scene")) {
+		return nullptr;
+	}
+	if (!kx_scene) {
+		kx_scene = KX_GetActiveScene();
+	}
 
 	/* setup options */
 	if (load_actions != 0)
@@ -1085,10 +1093,9 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
 	if (sceneflag != gs->glslflag) {
 		GPU_materials_free();
 		if (KX_GetActiveEngine()) {
-			CListValue *scenes = KX_GetActiveEngine()->CurrentScenes();
+			CListValue<KX_Scene> *scenes = KX_GetActiveEngine()->CurrentScenes();
 
-			for (CListValue::iterator<KX_Scene> it = scenes->GetBegin(), end = scenes->GetEnd(); it != end; ++it) {
-				KX_Scene *scene = *it;
+			for (KX_Scene *scene : scenes) {
 				// temporarily store the glsl settings in the scene for the GLSL materials
 				scene->GetBlenderScene()->gm.flag = gs->glslflag;
 				if (scene->GetBucketManager()) {
@@ -1549,7 +1556,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 
 
 	/* 8. UniformTypes */
-	KX_MACRO_addTypesToDict(d, SHD_TANGENT, RAS_Shader::SHD_TANGENT);
+	KX_MACRO_addTypesToDict(d, SHD_TANGENT, BL_Shader::SHD_TANGENT);
 	KX_MACRO_addTypesToDict(d, MODELVIEWMATRIX, RAS_Shader::MODELVIEWMATRIX);
 	KX_MACRO_addTypesToDict(d, MODELVIEWMATRIX_TRANSPOSE, RAS_Shader::MODELVIEWMATRIX_TRANSPOSE);
 	KX_MACRO_addTypesToDict(d, MODELVIEWMATRIX_INVERSE, RAS_Shader::MODELVIEWMATRIX_INVERSE);
@@ -1988,7 +1995,7 @@ static struct _inittab bge_internal_modules[] = {
  * Python is not initialized.
  * see bpy_interface.c's BPY_python_start() which shares the same functionality in blender.
  */
-PyObject *initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
+void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 {
 	/* Yet another gotcha in the py api
 	 * Cant run PySys_SetArgv more than once because this adds the
@@ -2065,8 +2072,6 @@ PyObject *initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 	first_time = false;
 	
 	PyObjectPlus::ClearDeprecationWarning();
-
-	return PyC_DefaultNameSpace(nullptr);
 }
 
 void exitGamePlayerPythonScripting()
@@ -2098,7 +2103,7 @@ void exitGamePlayerPythonScripting()
 /**
  * Python is already initialized.
  */
-PyObject *initGamePythonScripting(Main *maggie)
+void initGamePythonScripting(Main *maggie)
 {
 	/* no need to Py_SetProgramName, it was already taken care of in BPY_python_start */
 
@@ -2117,8 +2122,6 @@ PyObject *initGamePythonScripting(Main *maggie)
 	PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
 
 	PyObjectPlus::NullDeprecationWarning();
-
-	return PyC_DefaultNameSpace(nullptr);
 }
 
 void exitGamePythonScripting()
@@ -2147,14 +2150,12 @@ void exitGamePythonScripting()
 void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
                      PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char** argv)
 {
-	PyObject *modules, *dictionaryobject;
+	PyObject *modules;
 
 	if (argv) /* player only */
-		dictionaryobject= initGamePlayerPythonScripting(blenderdata, argc, argv);
+		initGamePlayerPythonScripting(blenderdata, argc, argv);
 	else
-		dictionaryobject= initGamePythonScripting(blenderdata);
-
-	ketsjiengine->SetPyNamespace(dictionaryobject);
+		initGamePythonScripting(blenderdata);
 
 	modules = PyImport_GetModuleDict();
 

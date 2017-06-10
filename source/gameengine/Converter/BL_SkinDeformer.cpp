@@ -142,19 +142,13 @@ void BL_SkinDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 	BL_MeshDeformer::Relink(map);
 }
 
-bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat)
+bool BL_SkinDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
 {
 	// if we don't use a vertex array we does nothing.
-	if (!UseVertexArray() || !polymat || !meshmat) {
+	if (!UseVertexArray() || !meshmat || !array) {
 		return false;
 	}
 
-	RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
-	if (!slot) {
-		return false;
-	}
-
-	RAS_IDisplayArray *array = slot->GetDisplayArray();
 	RAS_IDisplayArray *origarray = meshmat->m_baseslot->GetDisplayArray();
 
 	const short modifiedFlag = origarray->GetModifiedFlag();
@@ -363,9 +357,12 @@ void BL_SkinDeformer::UpdateTransverts()
 					aabbMax.z() = std::max(aabbMax.z(), vertpos.z());
 				}
 			}
+
+			array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
 		}
 
 		m_boundingBox->SetAabb(aabbMin, aabbMax);
+
 
 		if (m_copyNormals)
 			m_copyNormals = false;

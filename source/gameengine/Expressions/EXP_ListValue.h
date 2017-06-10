@@ -19,41 +19,24 @@
 #ifndef __EXP_LISTVALUE_H__
 #define __EXP_LISTVALUE_H__
 
-#include "EXP_Value.h"
+#include "EXP_BaseListValue.h"
+#include "EXP_BoolValue.h"
 
 #include <functional>
 
-class CListValue : public CPropValue
+#include <algorithm>
+
+template <class ItemType>
+class CListValue : public CBaseListValue
 {
-	Py_Header
-
 public:
-	typedef std::vector<CValue *> VectorType;
-	typedef VectorType::const_iterator VectorTypeIterator;
-
-private:
-	VectorType m_pValueArray;
-	bool m_bReleaseContents;
-
-public:
-	CListValue();
-	virtual ~CListValue();
-
-	void Add(CValue *value);
-	void Insert(unsigned int i, CValue *value);
-
-	virtual int GetValueType();
-	virtual CValue *GetReplica();
-
-	template <class T>
-	class iterator
+	class const_iterator
 	{
-private:
-		VectorTypeIterator m_it;
+	public:
+		VectorTypeConstIterator m_it;
 
-public:
-		iterator(VectorTypeIterator it)
-			:m_it(it)
+		const_iterator(VectorTypeConstIterator it)
+		: m_it(it)
 		{
 		}
 
@@ -62,69 +45,129 @@ public:
 			++m_it;
 		}
 
-		inline T *operator*() const
+		inline ItemType *operator*() const
 		{
-			return static_cast<T *>(*m_it);
+			return static_cast<ItemType *>(*m_it);
 		}
-
-		template <class U>
-		friend inline bool operator!=(const iterator<U>& it1, const iterator<U>& it2);
 	};
 
-	void MergeList(CListValue *otherlist);
-	bool CheckEqual(CValue *first, CValue *second);
-	bool RemoveValue(CValue *val);
-	void SetReleaseOnDestruct(bool bReleaseContents);
-	bool SearchValue(CValue *val);
+	CListValue()
+	{
+	}
+	virtual ~CListValue()
+	{
+	}
 
-	CValue *FindValue(const std::string& name);
+	virtual CListValue<ItemType> *GetReplica()
+	{
+		CListValue<ItemType> *replica = new CListValue<ItemType>(*this);
 
-	template <class ItemType>
+		replica->ProcessReplica();
+
+		replica->m_bReleaseContents = true; // For copy, complete array is copied for now...
+		// Copy all values.
+		const int numelements = m_pValueArray.size();
+		replica->m_pValueArray.resize(numelements);
+		for (unsigned int i = 0; i < numelements; i++) {
+			replica->m_pValueArray[i] = m_pValueArray[i]->GetReplica();
+		}
+
+		return replica;
+	}
+
+	void Add(ItemType *value)
+	{
+		CBaseListValue::Add(value);
+	}
+
+	void Insert(unsigned int i, ItemType *value)
+	{
+		CBaseListValue::Insert(i, value);
+	}
+
 	ItemType *FindIf(std::function<bool (ItemType *)> function)
 	{
 		for (CValue *val : m_pValueArray) {
-			if (function(static_cast<ItemType *>(val))) {
-				return static_cast<ItemType *>(val);
+			ItemType *item = static_cast<ItemType *>(val);
+			if (function(item)) {
+				return item;
 			}
 		}
 		return nullptr;
 	}
 
-	void ReleaseAndRemoveAll();
-	void Remove(int i);
-	void Resize(int num);
-	void SetValue(int i, CValue *val);
-	CValue *GetValue(int i);
-	CValue *GetFront();
-	CValue *GetBack();
-	int GetCount();
-	VectorTypeIterator GetBegin() const;
-	VectorTypeIterator GetEnd() const;
-	virtual const std::string GetText();
-
-#ifdef WITH_PYTHON
-	virtual PyObject *py_repr()
+	void MergeList(CListValue<ItemType> *otherlist)
 	{
-		PyObject *py_proxy = this->GetProxy();
-		PyObject *py_list = PySequence_List(py_proxy);
-		PyObject *py_string = PyObject_Repr(py_list);
-		Py_DECREF(py_list);
-		Py_DECREF(py_proxy);
-		return py_string;
+		const unsigned int numelements = GetCount();
+		const unsigned int numotherelements = otherlist->GetCount();
+
+		Resize(numelements + numotherelements);
+
+		for (int i = 0; i < numotherelements; i++) {
+			SetValue(i + numelements, CM_AddRef(otherlist->GetValue(i)));
+		}
+	}
+	bool CheckEqual(ItemType *first, ItemType *second)
+	{
+		return CBaseListValue::CheckEqual(first, second);
 	}
 
-	KX_PYMETHOD_O(CListValue, append);
-	KX_PYMETHOD_NOARGS(CListValue, reverse);
-	KX_PYMETHOD_O(CListValue, index);
-	KX_PYMETHOD_O(CListValue, count);
-	KX_PYMETHOD_VARARGS(CListValue, get);
-	KX_PYMETHOD_VARARGS(CListValue, filter);
-	KX_PYMETHOD_O(CListValue, from_id);
-#endif
+	bool SearchValue(ItemType *val) const
+	{
+		return CBaseListValue::SearchValue(val);
+	}
+	ItemType *FindValue(const std::string& name) const
+	{
+		return static_cast<ItemType *>(CBaseListValue::FindValue(name));
+	}
+
+	bool RemoveValue(ItemType *val)
+	{
+		return CBaseListValue::RemoveValue(val);
+	}
+
+	void SetValue(int i, ItemType *val)
+	{
+		CBaseListValue::SetValue(i, val);
+	}
+	ItemType *GetValue(int i)
+	{
+		return static_cast<ItemType *>(CBaseListValue::GetValue(i));
+	}
+
+	ItemType *GetFront()
+	{
+		return static_cast<ItemType *>(m_pValueArray.front());
+	}
+	ItemType *GetBack()
+	{
+		return static_cast<ItemType *>(m_pValueArray.back());
+	}
+
+	const_iterator begin()
+	{
+		return const_iterator(m_pValueArray.begin());
+	}
+	const_iterator end()
+	{
+		return const_iterator(m_pValueArray.end());
+	}
 };
 
-template <class T>
-inline bool operator!=(const CListValue::iterator<T>& it1, const CListValue::iterator<T>& it2)
+template<class ItemType>
+typename CListValue<ItemType>::const_iterator begin(CListValue<ItemType> *list)
+{
+	return list->begin();
+}
+
+template<class ItemType>
+typename CListValue<ItemType>::const_iterator end(CListValue<ItemType> *list)
+{
+	return list->end();
+}
+
+template <class Iterator, typename = decltype(std::declval<Iterator>().m_it) >
+bool operator!=(const Iterator& it1, const Iterator& it2)
 {
 	return it1.m_it != it2.m_it;
 }

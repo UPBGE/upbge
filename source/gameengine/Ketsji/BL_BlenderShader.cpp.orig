@@ -129,6 +129,7 @@ bool BL_BlenderShader::Ok() const
 
 void BL_BlenderShader::ReloadMaterial()
 {
+<<<<<<< HEAD
 	/* Create shaders library */
 	char *fraglib;
 	DynStr *ds_frag = BLI_dynstr_new();
@@ -148,7 +149,10 @@ void BL_BlenderShader::ReloadMaterial()
 		"#define MAX_SHADOW_CASCADE 8\n"
 		"#define MAX_CASCADE_NUM 4\n",
 		UseInstancing()) : nullptr;
+=======
+	m_gpuMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, false, UseInstancing()) : nullptr;
 	ParseAttribs();
+>>>>>>> master
 }
 
 void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)

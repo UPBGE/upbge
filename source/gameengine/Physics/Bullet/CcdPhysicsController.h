@@ -515,6 +515,17 @@ public:
 /// CcdPhysicsController is a physics object that supports continuous collision detection and time of impact based physics resolution.
 class CcdPhysicsController : public PHY_IPhysicsController
 {
+public:
+	/// Constraint user data.
+	struct CcdConstraint
+	{
+		CcdConstraint(bool m_disableCollision);
+		/// Disable collision between constrained objects?
+		bool m_disableCollision;
+		/// The constraint is added in dynamic world?
+		bool m_active;
+	};
+
 protected:
 	btCollisionObject *m_object;
 	BlenderBulletCharacterController *m_characterController;
@@ -683,7 +694,7 @@ public:
 
 	virtual void ResolveCombinedVelocities(float linvelX, float linvelY, float linvelZ, float angVelX, float angVelY, float angVelZ);
 	virtual void RefreshCollisions();
-	virtual void SuspendPhysics();
+	virtual void SuspendPhysics(bool freeConstraints);
 	virtual void RestorePhysics();
 	virtual void SuspendDynamics(bool ghost);
 	virtual void RestoreDynamics();

@@ -132,7 +132,7 @@ public:
 		RAS_TEXCO_DISABLE,  /* < Disable this texture unit (cached) */
 	};
 
-	typedef std::vector<TexCoGen> TexCoGenList;
+	typedef std::vector<std::pair<int, TexCoGen> > TexCoGenList;
 	typedef std::map<unsigned short, unsigned short> AttribLayerList;
 
 	/**

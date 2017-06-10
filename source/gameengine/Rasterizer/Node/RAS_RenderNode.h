@@ -65,6 +65,7 @@ struct RAS_MaterialNodeData
 	bool m_cullFace;
 	bool m_zsort;
 	bool m_text;
+	float m_zoffset;
 };
 
 struct RAS_DisplayArrayNodeData

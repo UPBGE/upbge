@@ -310,11 +310,18 @@ bool RAS_Shader::LinkProgram()
 		return false;
 	}
 
+<<<<<<< HEAD
+	vert = m_progs[VERTEX_PROGRAM].c_str();
+	frag = m_progs[FRAGMENT_PROGRAM].c_str();
+	geom = (m_progs[GEOMETRY_PROGRAM].empty()) ? nullptr : m_progs[GEOMETRY_PROGRAM].c_str();
+	m_shader = GPU_shader_create_ex(vert, frag, geom, nullptr, nullptr, GPU_SHADER_FLAGS_SPECIAL_RESET_LINE);
+=======
 	vert = GetParsedProgram(VERTEX_PROGRAM);
 	frag = GetParsedProgram(FRAGMENT_PROGRAM);
 	geom = GetParsedProgram(GEOMETRY_PROGRAM);
 	m_shader = GPU_shader_create(vert.c_str(), frag.c_str(), geom.empty() ? nullptr : geom.c_str(),
-									nullptr, nullptr);
+									nullptr, nullptr, 0, 0, 0);
+>>>>>>> master
 	if (!m_shader) {
 		goto program_error;
 	}

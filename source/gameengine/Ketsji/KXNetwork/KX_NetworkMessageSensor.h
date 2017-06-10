@@ -35,6 +35,9 @@
 #include "SCA_ISensor.h"
 
 class KX_NetworkMessageScene;
+class CStringValue;
+template <class ItemType>
+class CListValue;
 
 class KX_NetworkMessageSensor : public SCA_ISensor
 {
@@ -50,8 +53,8 @@ class KX_NetworkMessageSensor : public SCA_ISensor
 
 	bool m_IsUp;
 
-	class CListValue *m_BodyList;
-	class CListValue *m_SubjectList;
+	CListValue<CStringValue> *m_BodyList;
+	CListValue<CStringValue> *m_SubjectList;
 
 public:
 	KX_NetworkMessageSensor(

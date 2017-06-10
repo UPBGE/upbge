@@ -213,6 +213,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 		rasty->IndexPrimitivesDerivedMesh(this);
 	}
 	else {
+<<<<<<< HEAD
 		/* For blender shaders (not custom), we need
 		* to bind shader to update uniforms.
 		* In shadow pass for now, we don't update
@@ -234,7 +235,10 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			GPUShader *shader = GPU_pass_shader(pass);
 			GPU_shader_bind(shader);
 		}
+		rasty->IndexPrimitives(tuple.m_displayArrayData->m_storageInfo);
+=======
 		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
+>>>>>>> master
 	}
 
 	rasty->PopMatrix();

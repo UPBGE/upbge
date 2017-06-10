@@ -49,7 +49,7 @@
 #include <string>
 #include "BLI_math.h"
 
-bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *UNUSED(polymat), RAS_MeshMaterial *UNUSED(meshmat))
+bool BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray *UNUSED(array))
 {
 	// only apply once per frame if the mesh is actually modified
 	if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
@@ -74,6 +74,8 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *UNUSED(polymat), RAS_MeshMaterial
 				const RAS_TexVertInfo& vinfo = array->GetVertexInfo(i);
 				v->SetXYZ(m_bmesh->mvert[vinfo.getOrigIndex()].co);
 			}
+
+			array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED);
 		}
 
 		m_lastDeformUpdate = m_gameobj->GetLastFrame();

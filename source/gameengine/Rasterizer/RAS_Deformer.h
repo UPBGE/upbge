@@ -63,7 +63,7 @@ public:
 	}
 
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map) = 0;
-	virtual bool Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat) = 0;
+	virtual bool Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array) = 0;
 	virtual bool Update(void)=0;
 	virtual bool UpdateBuckets(void)=0;
 	virtual RAS_Deformer *GetReplica()=0;

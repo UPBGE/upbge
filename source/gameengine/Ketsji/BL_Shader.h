@@ -8,11 +8,13 @@
 
 #include "EXP_PyObjectPlus.h"
 #include "RAS_Shader.h"
+#include "RAS_Texture.h" // For RAS_Texture::MaxUnits.
 
 class RAS_MeshSlot;
 
 class BL_Shader : public PyObjectPlus, public virtual RAS_Shader
 {
+	Py_Header
 public:
 	enum CallbacksType {
 		CALLBACKS_BIND = 0,
@@ -20,9 +22,11 @@ public:
 		CALLBACKS_MAX
 	};
 
-private:
-	Py_Header
+	enum AttribTypes {
+		SHD_TANGENT = 1
+	};
 
+private:
 #ifdef WITH_PYTHON
 	PyObject *m_callbacks[CALLBACKS_MAX];
 #endif  // WITH_PYTHON
@@ -31,12 +35,17 @@ public:
 	BL_Shader();
 	virtual ~BL_Shader();
 
+	/// Initialize textures coordinates attributes using a list of textures.
+	void InitTexCo(RAS_Texture *textures[RAS_Texture::MaxUnits]);
+
 #ifdef WITH_PYTHON
 	PyObject *GetCallbacks(CallbacksType type);
 	void SetCallbacks(CallbacksType type, PyObject *callbacks);
 #endif // WITH_PYTHON
 
 	virtual void SetProg(bool enable);
+
+	void SetAttribs(RAS_Rasterizer *rasty);
 
 	/** Update the uniform shader for the current rendered mesh slot.
 	 * The python callbacks are executed in this function and at the end

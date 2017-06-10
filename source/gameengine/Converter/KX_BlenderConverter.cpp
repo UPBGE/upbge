@@ -37,7 +37,6 @@
 #include "KX_GameObject.h"
 #include "KX_WorldInfo.h"
 #include "RAS_MeshObject.h"
-#include "RAS_IPolygonMaterial.h"
 #include "RAS_BucketManager.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_KetsjiEngine.h"
@@ -48,6 +47,7 @@
 #include "KX_BlenderSceneConverter.h"
 #include "BL_BlenderDataConversion.h"
 #include "BL_ActionActuator.h"
+#include "KX_BlenderMaterial.h"
 
 #include "LA_SystemCommandLine.h"
 
@@ -101,9 +101,9 @@ void KX_BlenderConverter::SceneSlot::Merge(KX_BlenderConverter::SceneSlot& other
 	m_interpolators.insert(m_interpolators.begin(),
 						   std::make_move_iterator(other.m_interpolators.begin()),
 						   std::make_move_iterator(other.m_interpolators.end()));
-	m_polymaterials.insert(m_polymaterials.begin(),
-						   std::make_move_iterator(other.m_polymaterials.begin()),
-						   std::make_move_iterator(other.m_polymaterials.end()));
+	m_materials.insert(m_materials.begin(),
+						   std::make_move_iterator(other.m_materials.begin()),
+						   std::make_move_iterator(other.m_materials.end()));
 	m_meshobjects.insert(m_meshobjects.begin(),
 						 std::make_move_iterator(other.m_meshobjects.begin()),
 						 std::make_move_iterator(other.m_meshobjects.end()));
@@ -112,8 +112,8 @@ void KX_BlenderConverter::SceneSlot::Merge(KX_BlenderConverter::SceneSlot& other
 
 void KX_BlenderConverter::SceneSlot::Merge(const KX_BlenderSceneConverter& converter)
 {
-	for (RAS_IPolyMaterial *polymat : converter.m_polymaterials) {
-		m_polymaterials.emplace_back(polymat);
+	for (KX_BlenderMaterial *mat : converter.m_materials) {
+		m_materials.emplace_back(mat);
 	}
 	for (RAS_MeshObject *meshobj : converter.m_meshobjects) {
 		m_meshobjects.emplace_back(meshobj);
@@ -163,9 +163,9 @@ Scene *KX_BlenderConverter::GetBlenderSceneForName(const std::string &name)
 	return nullptr;
 }
 
-CListValue *KX_BlenderConverter::GetInactiveSceneNames()
+CListValue<CStringValue> *KX_BlenderConverter::GetInactiveSceneNames()
 {
-	CListValue *list = new CListValue();
+	CListValue<CStringValue> *list = new CListValue<CStringValue>();
 
 	for (Scene *sce = (Scene *)m_maggie->scene.first; sce; sce = (Scene *)sce->id.next) {
 		const char *name = sce->id.name + 2;
@@ -582,11 +582,11 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 	}
 
 	// free all tagged objects
-	CListValue *scenes = m_ketsjiEngine->CurrentScenes();
+	CListValue<KX_Scene> *scenes = m_ketsjiEngine->CurrentScenes();
 	int numScenes = scenes->GetCount();
 
 	for (unsigned int sce_idx = 0; sce_idx < numScenes; ++sce_idx) {
-		KX_Scene *scene = (KX_Scene *)scenes->GetValue(sce_idx);
+		KX_Scene *scene = scenes->GetValue(sce_idx);
 		if (IS_TAGGED(scene->GetBlenderScene())) {
 			m_ketsjiEngine->RemoveScene(scene->GetName());
 			m_sceneSlots.erase(scene);
@@ -619,13 +619,13 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 			}
 
 			// removed tagged objects and meshes
-			CListValue *obj_lists[] = {scene->GetObjectList(), scene->GetInactiveList(), nullptr};
+			CListValue<KX_GameObject> *obj_lists[] = {scene->GetObjectList(), scene->GetInactiveList(), nullptr};
 
 			for (int ob_ls_idx = 0; obj_lists[ob_ls_idx]; ob_ls_idx++) {
-				CListValue *obs = obj_lists[ob_ls_idx];
+				CListValue<KX_GameObject> *obs = obj_lists[ob_ls_idx];
 
 				for (int ob_idx = 0; ob_idx < obs->GetCount(); ob_idx++) {
-					KX_GameObject *gameobj = (KX_GameObject *)obs->GetValue(ob_idx);
+					KX_GameObject *gameobj = obs->GetValue(ob_idx);
 					if (IS_TAGGED(gameobj->GetBlenderObject())) {
 						int size_before = obs->GetCount();
 
@@ -681,12 +681,12 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 		KX_Scene *scene = sit->first;
 		SceneSlot& sceneSlot = sit->second;
 
-		for (UniquePtrList<RAS_IPolyMaterial>::iterator it = sceneSlot.m_polymaterials.begin(); it != sceneSlot.m_polymaterials.end(); ) {
-			RAS_IPolyMaterial *polymat = (*it).get();
-			Material *bmat = polymat->GetBlenderMaterial();
+		for (UniquePtrList<KX_BlenderMaterial>::iterator it = sceneSlot.m_materials.begin(); it != sceneSlot.m_materials.end(); ) {
+			KX_BlenderMaterial *mat = (*it).get();
+			Material *bmat = mat->GetBlenderMaterial();
 			if (IS_TAGGED(bmat)) {
-				scene->GetBucketManager()->RemoveMaterial(polymat);
-				it = sceneSlot.m_polymaterials.erase(it);
+				scene->GetBucketManager()->RemoveMaterial(mat);
+				it = sceneSlot.m_materials.erase(it);
 			}
 			else {
 				++it;
@@ -742,8 +742,8 @@ void KX_BlenderConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 {
 	SceneSlot& sceneSlotFrom = m_sceneSlots[from];
 
-	for (std::unique_ptr<RAS_IPolyMaterial>& polymat : sceneSlotFrom.m_polymaterials) {
-		polymat->Replace_IScene(to);
+	for (std::unique_ptr<KX_BlenderMaterial>& mat : sceneSlotFrom.m_materials) {
+		mat->ReplaceScene(to);
 	}
 	for (std::unique_ptr<RAS_MeshObject>& meshobj : sceneSlotFrom.m_meshobjects) {
 		// Generate mesh to material attribute's layers since the materials are constructed now.
@@ -856,12 +856,12 @@ void KX_BlenderConverter::PrintStats()
 		KX_Scene *scene = pair.first;
 		const SceneSlot& sceneSlot = pair.second;
 
-		nummat += sceneSlot.m_polymaterials.size();
+		nummat += sceneSlot.m_materials.size();
 		nummesh += sceneSlot.m_meshobjects.size();
 		numinter += sceneSlot.m_interpolators.size();
 
 		CM_Message("\tscene: " << scene->GetName())
-		CM_Message("\t\t materials: " << sceneSlot.m_polymaterials.size());
+		CM_Message("\t\t materials: " << sceneSlot.m_materials.size());
 		CM_Message("\t\t meshes: " << sceneSlot.m_meshobjects.size());
 		CM_Message("\t\t interpolators: " << sceneSlot.m_interpolators.size());
 	}

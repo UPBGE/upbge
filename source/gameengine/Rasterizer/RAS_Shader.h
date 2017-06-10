@@ -6,10 +6,12 @@
 #ifndef __RAS_SHADER_H__
 #define __RAS_SHADER_H__
 
+#include "RAS_Texture.h" // For RAS_Texture::MaxUnits.
+#include "RAS_Rasterizer.h" // For RAS_Rasterizer::TexCoGenList.
+
 #include "MT_Matrix4x4.h"
 
 #include <string>
-
 #include <vector>
 
 #define SORT_UNIFORMS 1
@@ -90,40 +92,6 @@ public:
 		MAX_PROGRAM
 	};
 
-protected:
-	typedef std::vector<RAS_Uniform *> RAS_UniformVec;
-	typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
-
-	GPUShader *m_shader;
-	bool m_use;
-	int m_attr; // Tangent attribute
-	std::string m_progs[MAX_PROGRAM];
-	bool m_error;
-	bool m_dirty;
-
-	// Stored uniform variables
-	RAS_UniformVec m_uniforms;
-	RAS_UniformVecDef m_preDef;
-
-	// Compiles and links the shader
-	virtual bool LinkProgram();
-	void ValidateProgram();
-
-	// search by location
-	RAS_Uniform *FindUniform(const int location);
-
-	// clears uniform data
-	void ClearUniforms();
-
-public:
-	RAS_Shader();
-	virtual ~RAS_Shader();
-
-	// Unused for now tangent is set as tex coords
-	enum AttribTypes {
-		SHD_TANGENT = 1
-	};
-
 	enum GenType {
 		MODELVIEWMATRIX,
 		MODELVIEWMATRIX_TRANSPOSE,
@@ -142,15 +110,55 @@ public:
 		EYE
 	};
 
-	bool GetError();
+protected:
+	typedef std::vector<RAS_Uniform *> RAS_UniformVec;
+	typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
 
-	void SetSampler(int loc, int unit);
+	GPUShader *m_shader;
+	bool m_use;
+	std::string m_progs[MAX_PROGRAM];
+	bool m_error;
+	bool m_dirty;
+
+	// Stored uniform variables
+	RAS_UniformVec m_uniforms;
+	RAS_UniformVecDef m_preDef;
+
+	RAS_Rasterizer::TexCoGenList m_texcos;
+	RAS_Rasterizer::TexCoGenList m_attribs;
+
+	/** Parse shader program to prevent redundant macro directives.
+	 * \param type The program type to parse.
+	 * \return The parsed program.
+	 */
+	std::string GetParsedProgram(ProgramType type) const;
+
+	// Compiles and links the shader
+	virtual bool LinkProgram();
+	void ValidateProgram();
+
+	// search by location
+	RAS_Uniform *FindUniform(const int location);
+
+	// clears uniform data
+	void ClearUniforms();
+
+public:
+	RAS_Shader();
+	virtual ~RAS_Shader();
+
+	bool GetError();
 	bool Ok() const;
 	GPUShader *GetGPUShader();
+
+	unsigned int GetProg();
 	virtual void SetProg(bool enable);
+
+	const RAS_Rasterizer::TexCoGenList& GetTexCoords() const;
+	const RAS_Rasterizer::TexCoGenList& GetAttribs() const;
+
 	void SetEnabled(bool enabled);
 	bool GetEnabled() const;
-	int GetAttribute();
 
 	// Apply methods : sets colected uniforms
 	void ApplyShader();
@@ -159,6 +167,8 @@ public:
 
 	// Update predefined uniforms each render call
 	void Update(RAS_Rasterizer *rasty, MT_Matrix4x4 model);
+
+	void SetSampler(int loc, int unit);
 
 	void SetUniformfv(int location, int type, float *param, int size, unsigned int count, bool transpose = false);
 	void SetUniformiv(int location, int type, int *param, int size, unsigned int count, bool transpose = false);

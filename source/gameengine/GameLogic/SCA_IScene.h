@@ -37,6 +37,8 @@
 
 class SCA_IObject;
 
+class SCA_IObject;
+
 struct SCA_DebugProp
 {
 	SCA_IObject *m_obj;

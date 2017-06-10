@@ -275,7 +275,9 @@ void LA_Launcher::InitEngine()
 
 #ifdef WITH_PYTHON
 	KX_SetMainPath(std::string(m_maggie->name));
-#endif
+	// Some python things.
+	setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv);
+#endif  // WITH_PYTHON
 
 	// Create a scene converter, create and convert the stratingscene.
 	m_converter = new KX_BlenderConverter(m_maggie, m_depsgraph, m_ketsjiEngine);
@@ -289,10 +291,6 @@ void LA_Launcher::InitEngine()
 
 	KX_SetActiveScene(m_kxStartScene);
 
-#ifdef WITH_PYTHON
-	// Some python things.
-	setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv);
-#endif  // WITH_PYTHON
 
 #ifdef WITH_AUDASPACE
 	// Initialize 3D Audio Settings.

@@ -86,7 +86,7 @@ public:
 	}
 
 	bool Update();
-	virtual bool Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat);
+	virtual bool Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
 	void ForceUpdate()
 	{
 		m_lastModifierUpdate = -1.0;

@@ -38,10 +38,13 @@
 #include "SCA_IActuator.h"
 #include "EXP_PyObjectPlus.h"
 
-#ifdef WITH_PYTHON
-#include "compile.h"
-#include "eval.h"
-#endif // WITH_PYTHON
+extern "C" {
+#  ifdef WITH_PYTHON
+#    include "compile.h"
+#    include "eval.h"
+#    include "py_capi_utils.h"
+#  endif  // WITH_PYTHON
+}
 
 #include "CM_Message.h"
 
@@ -129,26 +132,6 @@ void SCA_PythonController::SetScriptName(const std::string& name)
 {
 	m_scriptName = name;
 }
-
-
-#ifdef WITH_PYTHON
-void SCA_PythonController::SetNamespace(PyObject*	pythondictionary)
-{
-	if (m_pythondictionary)
-	{
-		PyDict_Clear(m_pythondictionary);
-		Py_DECREF(m_pythondictionary);
-	}
-	m_pythondictionary = PyDict_Copy(pythondictionary); /* new reference */
-	
-	/* Without __file__ set the sys.argv[0] is used for the filename
-	 * which ends up with lines from the blender binary being printed in the console */
-	PyObject *value = PyUnicode_FromStdString(m_scriptName);
-	PyDict_SetItemString(m_pythondictionary, "__file__", value);
-	Py_DECREF(value);
-	
-}
-#endif
 
 bool SCA_PythonController::IsTriggered(class SCA_ISensor* sensor)
 {
@@ -269,7 +252,7 @@ bool SCA_PythonController::Compile()
 		Py_DECREF(m_bytecode);
 		m_bytecode=nullptr;
 	}
-	
+
 	// recompile the scripttext into bytecode
 	m_bytecode = Py_CompileString(m_scriptText.c_str(), m_scriptName.c_str(), Py_file_input);
 	
@@ -390,6 +373,16 @@ void SCA_PythonController::Trigger(SCA_LogicManager* logicmgr)
 			 * break it by hand, then DECREF (which in this case
 			 * should always ensure excdict is cleared).
 			 */
+
+			if (!m_pythondictionary) {
+				m_pythondictionary = PyDict_Copy(PyC_DefaultNameSpace(nullptr)); /* new reference */
+
+				/* Without __file__ set the sys.argv[0] is used for the filename
+				 * which ends up with lines from the blender binary being printed in the console */
+				PyObject *value = PyUnicode_FromStdString(m_scriptName);
+				PyDict_SetItemString(m_pythondictionary, "__file__", value);
+				Py_DECREF(value);
+			}
 
 			excdict= PyDict_Copy(m_pythondictionary);
 

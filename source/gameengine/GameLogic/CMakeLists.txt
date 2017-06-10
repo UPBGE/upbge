@@ -31,6 +31,7 @@ set(INC
 	../Rasterizer
 	../SceneGraph
 	../../blender/blenlib
+	../../blender/python/generic
 	../../../intern/termcolor
 	../../../intern/ghost
 )

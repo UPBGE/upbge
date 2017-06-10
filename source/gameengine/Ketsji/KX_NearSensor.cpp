@@ -229,7 +229,7 @@ bool	KX_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollDat
 		gameobj /* done in BroadPhaseFilterCollision() && (gameobj != parent)*/)
 	{
 		if (!m_colliders->SearchValue(gameobj))
-			m_colliders->Add(gameobj->AddRef());
+			m_colliders->Add(CM_AddRef(gameobj));
 		// only take valid colliders
 		// These checks are done already in BroadPhaseFilterCollision()
 		//if (client_info->m_type == KX_ClientObjectInfo::ACTOR)

@@ -36,7 +36,7 @@
 #include <vector>
 
 #ifdef _MSC_VER // MSVC doesn't support incomplete type in std::unique_ptr.
-#  include "RAS_IPolygonMaterial.h"
+#  include "KX_BlenderMaterial.h"
 #  include "RAS_MeshObject.h"
 
 #  include "KX_BlenderScalarInterpolator.h"
@@ -44,9 +44,11 @@
 
 #include "CM_Thread.h"
 
+class CStringValue;
 class KX_BlenderSceneConverter;
 class KX_KetsjiEngine;
 class KX_LibLoadStatus;
+class KX_BlenderMaterial;
 class BL_InterpolatorList;
 class SCA_IActuator;
 class SCA_IController;
@@ -72,7 +74,7 @@ private:
 	class SceneSlot
 	{
 	public:
-		UniquePtrList<RAS_IPolyMaterial> m_polymaterials;
+		UniquePtrList<KX_BlenderMaterial> m_materials;
 		UniquePtrList<RAS_MeshObject> m_meshobjects;
 		UniquePtrList<BL_InterpolatorList> m_interpolators;
 
@@ -121,7 +123,7 @@ public:
 	BL_InterpolatorList *FindInterpolatorList(KX_Scene *scene, bAction *for_act);
 
 	Scene *GetBlenderSceneForName(const std::string& name);
-	CListValue *GetInactiveSceneNames();
+	CListValue<CStringValue> *GetInactiveSceneNames();
 
 	Main *CreateMainDynamic(const std::string& path);
 	Main *GetMainDynamicPath(const std::string& path) const;

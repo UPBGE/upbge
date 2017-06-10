@@ -39,6 +39,7 @@ RAS_IPolyMaterial::RAS_IPolyMaterial(
 	GameSettings *game)
 	:m_name(name),
 	m_alphablend(0),
+	m_zoffset(0.0f),
 	m_rasMode(0),
 	m_flag(0)
 {
@@ -124,6 +125,11 @@ int RAS_IPolyMaterial::GetDrawingMode() const
 int RAS_IPolyMaterial::GetAlphaBlend() const
 {
 	return m_alphablend;
+}
+
+float RAS_IPolyMaterial::GetZOffset() const
+{
+	return m_zoffset;
 }
 
 std::string RAS_IPolyMaterial::GetName()
