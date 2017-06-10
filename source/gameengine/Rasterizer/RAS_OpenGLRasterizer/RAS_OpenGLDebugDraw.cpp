@@ -99,7 +99,7 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw():
 	}
 	/* VAO */
 	glGenVertexArrays(1, &m_vao);
-	glBindVertexArray(m_vao);
+
 	/* vbos/ibos */
 	glGenBuffers(1, &m_vbo);
 	glGenBuffers(1, &m_wireibo);
@@ -116,9 +116,6 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw():
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_solidibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 36, solidIndices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 }
 
 RAS_OpenGLDebugDraw::~RAS_OpenGLDebugDraw()
@@ -136,15 +133,15 @@ void RAS_OpenGLDebugDraw::BindVBO(float *mvp, float color[4], float *vertexes, u
 	glUniform4f(glGetUniformLocation(m_genericProg, "color"), color[0], color[1], color[2], color[3]);
 	glUniformMatrix4fv(glGetUniformLocation(m_genericProg, "ModelViewProjectionMatrix"), 1, false, mvp);
 
-	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 24, vertexes, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(m_vao);
 
-	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 
+	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 24, vertexes, GL_STATIC_DRAW);
+
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 3, 0);
 }
 
 void RAS_OpenGLDebugDraw::UnbindVBO()
