@@ -144,6 +144,9 @@ void BlenderBulletCharacterController::SetVelocity(btVector3 vel, float time, bo
 		vel = xform.getBasis() * vel;
 	}
 
+	// Avoid changing velocity and keeping previous time interval.
+	m_velocityTimeInterval = 0.0f;
+
 	setVelocityForTimeInterval(vel, time);
 }
 
