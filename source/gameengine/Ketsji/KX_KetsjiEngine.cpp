@@ -77,11 +77,6 @@
 
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 
-#ifdef FREE_WINDOWS /* XXX mingw64 (gcc 4.7.0) defines a macro for DrawText that translates to DrawTextA. Not good */
-#  ifdef DrawText
-#    undef DrawText
-#  endif
-#endif
 
 KX_KetsjiEngine::CameraRenderData::CameraRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area, const RAS_Rect& viewport,
 															  RAS_Rasterizer::StereoEye eye)

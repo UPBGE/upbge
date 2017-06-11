@@ -34,15 +34,16 @@
 #include <cstring>  /* required for memset */
 #include <queue>
 
-extern "C" {
 #include "BLI_utildefines.h"
+#include "BLI_task.h"
+#include "BLI_listbase.h"
 
+extern "C" {
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_task.h"
 
 #include "BKE_idcode.h"
 #include "BKE_library.h"
@@ -52,9 +53,9 @@ extern "C" {
 #define new new_
 #include "BKE_screen.h"
 #undef new
+} /* extern "C" */
 
 #include "DEG_depsgraph.h"
-} /* extern "C" */
 
 #include "intern/builder/deg_builder.h"
 #include "intern/eval/deg_eval_flush.h"
@@ -336,7 +337,7 @@ void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 				{
 					id_node->tag_update(graph);
 					DEG::ComponentDepsNode *anim_comp =
-					        id_node->find_component(DEG::DEPSNODE_TYPE_ANIMATION);
+					        id_node->find_component(DEG::DEG_NODE_TYPE_ANIMATION);
 					if (anim_comp != NULL && object->recalc & OB_RECALC_TIME) {
 						anim_comp->tag_update(graph);
 					}
