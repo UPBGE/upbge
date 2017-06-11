@@ -360,26 +360,15 @@ RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deforme
 		RAS_MeshSlot *ms = meshmat->m_bucket->CopyMesh(meshmat->m_baseslot);
 		ms->SetMeshUser(meshUser);
 		ms->SetDeformer(deformer);
-		meshmat->m_slots[clientobj] = ms;
 		meshUser->AddMeshSlot(ms);
 	}
 	return meshUser;
 }
 
-void RAS_MeshObject::RemoveFromBuckets(void *clientobj)
+void RAS_MeshObject::RemoveFromBuckets(RAS_MeshUser *meshUser)
 {
-	for (std::vector<RAS_MeshMaterial *>::iterator it = m_materials.begin(); it != m_materials.end(); ++it) {
-		RAS_MeshMaterial *meshmat = *it;
-		std::map<void *, RAS_MeshSlot *>::iterator msit = meshmat->m_slots.find(clientobj);
-
-		if (msit == meshmat->m_slots.end()) {
-			continue;
-		}
-
-		RAS_MeshSlot *ms = msit->second;
-
-		meshmat->m_bucket->RemoveMesh(ms);
-		meshmat->m_slots.erase(clientobj);
+	for (RAS_MeshSlot *ms : meshUser->GetMeshSlots()) {
+		ms->m_bucket->RemoveMesh(ms);
 	}
 }
 

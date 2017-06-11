@@ -42,6 +42,7 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
+#include "RAS_MeshUser.h"
 #include "RAS_BoundingBox.h"
 
 //#include "BL_ArmatureController.h"
@@ -306,9 +307,6 @@ void BL_SkinDeformer::UpdateTransverts()
 		return;
 	}
 
-	RAS_MeshMaterial *mmat;
-	RAS_MeshSlot *slot;
-	size_t nmat, imat;
 	bool first = true;
 	if (m_transverts) {
 		// AABB Box : min/max.
@@ -318,14 +316,8 @@ void BL_SkinDeformer::UpdateTransverts()
 		// the vertex cache is unique to this deformer, no need to update it
 		// if it wasn't updated! We must update all the materials at once
 		// because we will not get here again for the other material
-		nmat = m_mesh->NumMaterials();
-		for (imat = 0; imat < nmat; imat++) {
-			mmat = m_mesh->GetMeshMaterial(imat);
-			slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
-			if (!slot) {
-				continue;
-			}
-
+		RAS_MeshUser *meshUser = m_gameobj->GetMeshUser();
+		for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
 			RAS_IDisplayArray *array = slot->GetDisplayArray();
 
 			// for each vertex

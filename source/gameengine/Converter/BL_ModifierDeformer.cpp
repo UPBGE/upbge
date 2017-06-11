@@ -38,8 +38,8 @@
 #include <string>
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MeshObject.h"
+#include "RAS_MeshUser.h"
 #include "RAS_BoundingBox.h"
-#include "PHY_IGraphicController.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_action_types.h"
@@ -208,13 +208,8 @@ bool BL_ModifierDeformer::Update(void)
 		m_lastModifierUpdate = m_gameobj->GetLastFrame();
 		bShapeUpdate = true;
 
-		int nmat = m_mesh->NumMaterials();
-		for (int imat = 0; imat < nmat; imat++) {
-			RAS_MeshMaterial *mmat = m_mesh->GetMeshMaterial(imat);
-			RAS_MeshSlot *slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
-			if (!slot) {
-				continue;
-			}
+		RAS_MeshUser *meshUser = m_gameobj->GetMeshUser();
+		for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
 			slot->m_pDerivedMesh = m_dm;
 		}
 	}

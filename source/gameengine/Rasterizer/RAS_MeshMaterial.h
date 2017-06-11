@@ -46,9 +46,6 @@ public:
 	RAS_MaterialBucket *m_bucket;
 	/// The blender material index position in the mesh.
 	unsigned int m_index;
-
-	/// the KX_GameObject is used as a key here
-	std::map<void *, RAS_MeshSlot *> m_slots;
 };
 
 #endif  // __RAS_MESH_MATERIAL_H__
