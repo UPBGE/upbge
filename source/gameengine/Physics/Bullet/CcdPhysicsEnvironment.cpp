@@ -3443,6 +3443,12 @@ float CcdCollData::GetCombinedFriction(unsigned int index, bool first) const
 	return point.m_combinedFriction;
 }
 
+float CcdCollData::GetCombinedRollingFriction(unsigned int index, bool first) const
+{
+	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
+	return point.m_combinedRollingFriction;
+}
+
 float CcdCollData::GetCombinedRestitution(unsigned int index, bool first) const
 {
 	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
