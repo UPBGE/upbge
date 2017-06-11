@@ -173,7 +173,7 @@ inline void RAS_OpenGLRasterizer::ScreenPlane::Render()
 
 RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer)
 	:m_rasterizer(rasterizer),
-	m_currentMode(RAS_Rasterizer::RAS_MODELVIEW)
+	m_currentMatrixMode(RAS_Rasterizer::RAS_MODELVIEW)
 {
 }
 
@@ -508,27 +508,27 @@ void RAS_OpenGLRasterizer::RenderText3D(
 
 void RAS_OpenGLRasterizer::PushMatrix()
 {
-	if (m_currentMode == RAS_Rasterizer::RAS_MODELVIEW) {
+	if (m_currentMatrixMode == RAS_Rasterizer::RAS_MODELVIEW) {
 		gpuPushMatrix();
 	}
-	else if (m_currentMode == RAS_Rasterizer::RAS_PROJECTION) {
+	else if (m_currentMatrixMode == RAS_Rasterizer::RAS_PROJECTION) {
 		gpuPushProjectionMatrix();
 	}
 }
 
 void RAS_OpenGLRasterizer::PopMatrix()
 {
-	if (m_currentMode == RAS_Rasterizer::RAS_MODELVIEW) {
+	if (m_currentMatrixMode == RAS_Rasterizer::RAS_MODELVIEW) {
 		gpuPopMatrix();
 	}
-	else if (m_currentMode == RAS_Rasterizer::RAS_PROJECTION) {
+	else if (m_currentMatrixMode == RAS_Rasterizer::RAS_PROJECTION) {
 		gpuPopProjectionMatrix();
 	}
 }
 
 void RAS_OpenGLRasterizer::SetMatrixMode(RAS_Rasterizer::MatrixMode mode)
 {
-	m_currentMode = mode;
+	m_currentMatrixMode = mode;
 }
 
 void RAS_OpenGLRasterizer::MultMatrix(const float mat[16])
@@ -538,20 +538,20 @@ void RAS_OpenGLRasterizer::MultMatrix(const float mat[16])
 
 void RAS_OpenGLRasterizer::LoadMatrix(const float mat[16])
 {
-	if (m_currentMode == RAS_Rasterizer::RAS_MODELVIEW) {
+	if (m_currentMatrixMode == RAS_Rasterizer::RAS_MODELVIEW) {
 		gpuLoadMatrix(mat);
 	}
-	else if (m_currentMode == RAS_Rasterizer::RAS_PROJECTION) {
+	else if (m_currentMatrixMode == RAS_Rasterizer::RAS_PROJECTION) {
 		gpuLoadProjectionMatrix(mat);
 	}
 }
 
 void RAS_OpenGLRasterizer::LoadIdentity()
 {
-	if (m_currentMode == RAS_Rasterizer::RAS_MODELVIEW) {
+	if (m_currentMatrixMode == RAS_Rasterizer::RAS_MODELVIEW) {
 		gpuLoadIdentity();
 	}
-	else if (m_currentMode == RAS_Rasterizer::RAS_PROJECTION) {
+	else if (m_currentMatrixMode == RAS_Rasterizer::RAS_PROJECTION) {
 		gpuLoadIdentityProjectionMatrix();
 	}
 }

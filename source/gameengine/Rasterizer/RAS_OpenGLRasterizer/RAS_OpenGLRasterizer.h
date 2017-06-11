@@ -62,7 +62,9 @@ private:
 	ScreenPlane m_screenPlane;
 
 	RAS_Rasterizer *m_rasterizer;
-	RAS_Rasterizer::MatrixMode m_currentMode;
+	
+	/// To replace deprecated setMatrixMode
+	RAS_Rasterizer::MatrixMode m_currentMatrixMode;
 
 public:
 	RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer);
