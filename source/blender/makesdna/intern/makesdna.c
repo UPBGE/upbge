@@ -56,6 +56,9 @@
 
 #include "../blenlib/BLI_sys_types.h" // for intptr_t support
 
+/* Allow includinsg DNA files for specially guarded namespaces */
+#define DNA_NAMESPACE
+
 #define SDNA_MAX_FILENAME_LENGTH 255
 
 
@@ -133,6 +136,9 @@ static const char *includefiles[] = {
 	"DNA_python_component_types.h",
 	"DNA_cachefile_types.h",
 	"DNA_layer_types.h",
+	"DNA_workspace_types.h",
+	"DNA_probe_types.h",
+
 	/* see comment above before editing! */
 
 	/* empty string to indicate end of includefiles */
@@ -506,6 +512,17 @@ static int preprocess_include(char *maindata, int len)
 			/* single values are skipped already, so decrement 1 less */
 			a -= 13;
 			cp += 13;
+		}
+		else if (strncmp("DNA_PRIVATE_WORKSPACE", cp, 21) == 0) {
+			/* Check for DNA_PRIVATE_WORKSPACE_READ_WRITE */
+			if (strncmp("_READ_WRITE", cp + 21, 11) == 0) {
+				a -= 31;
+				cp += 31;
+			}
+			else {
+				a -= 20;
+				cp += 20;
+			}
 		}
 		else {
 			md[0] = cp[0];
@@ -1348,4 +1365,7 @@ int main(int argc, char **argv)
 #include "DNA_python_component_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_layer_types.h"
+#include "DNA_workspace_types.h"
+#include "DNA_probe_types.h"
+
 /* end of list */

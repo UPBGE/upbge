@@ -1,10 +1,11 @@
 /* Mainly From https://eheitzresearch.wordpress.com/415-2/ */
 
 #define USE_LTC
-#define LTC_LUT_SIZE 64
 
-uniform sampler2D ltcMat;
-uniform sampler2D brdfLut;
+#ifndef UTIL_TEX
+#define UTIL_TEX
+uniform sampler2DArray utilTex;
+#endif /* UTIL_TEX */
 
 /* from Real-Time Area Lighting: a Journey from Research to Production
  * Stephen Hill and Eric Heitz */
@@ -146,23 +147,13 @@ int clip_quad_to_horizon(inout vec3 L[5])
 	return n;
 }
 
-vec2 ltc_coords(float cosTheta, float roughness)
-{
-	float theta = acos(cosTheta);
-	vec2 coords = vec2(roughness, theta/(0.5*3.14159));
-
-	/* scale and bias coordinates, for correct filtered lookup */
-	return coords * (LTC_LUT_SIZE - 1.0) / LTC_LUT_SIZE + 0.5 / LTC_LUT_SIZE;
-}
-
-mat3 ltc_matrix(vec2 coord)
+mat3 ltc_matrix(vec4 lut)
 {
 	/* load inverse matrix */
-	vec4 t = texture(ltcMat, coord);
 	mat3 Minv = mat3(
-		vec3(  1,   0, t.y),
-		vec3(  0, t.z,   0),
-		vec3(t.w,   0, t.x)
+		vec3(  1,   0, lut.y),
+		vec3(  0, lut.z,   0),
+		vec3(lut.w,   0, lut.x)
 	);
 
 	return Minv;

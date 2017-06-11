@@ -24,6 +24,7 @@ set(INC
 	../../blenkernel
 	../../blenlib
 	../../blentranslation
+	../../depsgraph
 	../../imbuf
 	../../gpu
 	../../makesdna
@@ -47,6 +48,7 @@ set(SRC
 	node_draw.c
 	node_edit.c
 	node_group.c
+	node_manipulators.c
 	node_ops.c
 	node_relationships.c
 	node_select.c

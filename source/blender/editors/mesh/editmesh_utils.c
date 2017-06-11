@@ -44,13 +44,14 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
-#include "BKE_depsgraph.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
 #include "BKE_editmesh_bvh.h"
+
+#include "DEG_depsgraph.h"
 
 #include "BKE_object.h"  /* XXX. only for EDBM_mesh_ensure_valid_dm_hack() which will be removed */
 
@@ -116,7 +117,7 @@ void EDBM_mesh_ensure_valid_dm_hack(Scene *scene, BMEditMesh *em)
 	{
 		/* since we may not have done selection flushing */
 		if ((em->ob->recalc & OB_RECALC_DATA) == 0) {
-			DAG_id_tag_update(&em->ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&em->ob->id, OB_RECALC_DATA);
 		}
 		BKE_object_handle_update(G.main->eval_ctx, scene, em->ob);
 	}
@@ -520,7 +521,6 @@ UvVertMap *BM_uv_vert_map_create(
 	/* vars from original func */
 	UvVertMap *vmap;
 	UvMapVert *buf;
-	/* MTexPoly *tf; */ /* UNUSED */
 	MLoopUV *luv;
 	unsigned int a;
 	int totverts, i, totuv, totfaces;
@@ -602,7 +602,6 @@ UvVertMap *BM_uv_vert_map_create(
 			newvlist = v;
 
 			efa = BM_face_at_index(bm, v->f);
-			/* tf = CustomData_bmesh_get(&bm->pdata, efa->head.data, CD_MTEXPOLY); */ /* UNUSED */
 			
 			l = BM_iter_at_index(bm, BM_LOOPS_OF_FACE, efa, v->tfindex);
 			luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
@@ -614,7 +613,6 @@ UvVertMap *BM_uv_vert_map_create(
 			while (iterv) {
 				next = iterv->next;
 				efa = BM_face_at_index(bm, iterv->f);
-				/* tf = CustomData_bmesh_get(&bm->pdata, efa->head.data, CD_MTEXPOLY); */ /* UNUSED */
 				
 				l = BM_iter_at_index(bm, BM_LOOPS_OF_FACE, efa, iterv->tfindex);
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
@@ -929,29 +927,27 @@ UvElement *BM_uv_element_get(UvElementMap *map, BMFace *efa, BMLoop *l)
 
 /* last_sel, use em->act_face otherwise get the last selected face in the editselections
  * at the moment, last_sel is mainly useful for making sure the space image dosnt flicker */
-MTexPoly *EDBM_mtexpoly_active_get(BMEditMesh *em, BMFace **r_act_efa, const bool sloppy, const bool selected)
+BMFace *EDBM_uv_active_face_get(BMEditMesh *em, const bool sloppy, const bool selected)
 {
 	BMFace *efa = NULL;
 	
-	if (!EDBM_mtexpoly_check(em))
+	if (!EDBM_uv_check(em))
 		return NULL;
 	
 	efa = BM_mesh_active_face_get(em->bm, sloppy, selected);
 
 	if (efa) {
-		if (r_act_efa) *r_act_efa = efa;
-		return CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
+		return efa;
 	}
 
-	if (r_act_efa) *r_act_efa = NULL;
 	return NULL;
 }
 
 /* can we edit UV's for this mesh?*/
-bool EDBM_mtexpoly_check(BMEditMesh *em)
+bool EDBM_uv_check(BMEditMesh *em)
 {
 	/* some of these checks could be a touch overkill */
-	return em && em->bm->totface && CustomData_has_layer(&em->bm->pdata, CD_MTEXPOLY) &&
+	return em && em->bm->totface &&
 	       CustomData_has_layer(&em->bm->ldata, CD_MLOOPUV);
 }
 
@@ -1281,7 +1277,7 @@ void EDBM_update_generic(BMEditMesh *em, const bool do_tessface, const bool is_d
 {
 	Object *ob = em->ob;
 	/* order of calling isn't important */
-	DAG_id_tag_update(ob->data, OB_RECALC_DATA);
+	DEG_id_tag_update(ob->data, OB_RECALC_DATA);
 	WM_main_add_notifier(NC_GEOM | ND_DATA, ob->data);
 
 	if (do_tessface) {

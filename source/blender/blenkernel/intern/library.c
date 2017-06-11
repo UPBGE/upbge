@@ -62,6 +62,7 @@
 #include "DNA_mask_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
+#include "DNA_probe_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_speaker_types.h"
@@ -70,6 +71,7 @@
 #include "DNA_vfont_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -116,6 +118,7 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_packedFile.h"
+#include "BKE_probe.h"
 #include "BKE_sound.h"
 #include "BKE_speaker.h"
 #include "BKE_scene.h"
@@ -418,6 +421,9 @@ bool id_make_local(Main *bmain, ID *id, const bool test, const bool lib_local)
 		case ID_SPK:
 			if (!test) BKE_speaker_make_local(bmain, (Speaker *)id, lib_local);
 			return true;
+		case ID_PRB:
+			if (!test) BKE_probe_make_local(bmain, (Probe *)id, lib_local);
+			return true;
 		case ID_WO:
 			if (!test) BKE_world_make_local(bmain, (World *)id, lib_local);
 			return true;
@@ -471,7 +477,11 @@ bool id_make_local(Main *bmain, ID *id, const bool test, const bool lib_local)
 		case ID_CF:
 			if (!test) BKE_cachefile_make_local(bmain, (CacheFile *)id, lib_local);
 			return true;
+		case ID_WS:
 		case ID_SCR:
+			/* A bit special: can be appended but not linked. Return false
+			 * since supporting make-local doesn't make much sense. */
+			return false;
 		case ID_LI:
 		case ID_KE:
 		case ID_WM:
@@ -527,6 +537,9 @@ bool id_copy(Main *bmain, ID *id, ID **newid, bool test)
 		case ID_SPK:
 			if (!test) *newid = (ID *)BKE_speaker_copy(bmain, (Speaker *)id);
 			return true;
+		case ID_PRB:
+			if (!test) *newid = (ID *)BKE_probe_copy(bmain, (Probe *)id);
+			return true;
 		case ID_CA:
 			if (!test) *newid = (ID *)BKE_camera_copy(bmain, (Camera *)id);
 			return true;
@@ -578,6 +591,7 @@ bool id_copy(Main *bmain, ID *id, ID **newid, bool test)
 		case ID_CF:
 			if (!test) *newid = (ID *)BKE_cachefile_copy(bmain, (CacheFile *)id);
 			return true;
+		case ID_WS:
 		case ID_SCE:
 		case ID_LI:
 		case ID_SCR:
@@ -663,6 +677,8 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->text);
 		case ID_SPK:
 			return &(mainlib->speaker);
+		case ID_PRB:
+			return &(mainlib->probe);
 		case ID_SO:
 			return &(mainlib->sound);
 		case ID_GR:
@@ -693,6 +709,8 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->paintcurves);
 		case ID_CF:
 			return &(mainlib->cachefiles);
+		case ID_WS:
+			return &(mainlib->workspaces);
 	}
 	return NULL;
 }
@@ -831,6 +849,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[INDEX_ID_BR]  = &(main->brush);
 	lb[INDEX_ID_PA]  = &(main->particle);
 	lb[INDEX_ID_SPK] = &(main->speaker);
+	lb[INDEX_ID_PRB] = &(main->probe);
 
 	lb[INDEX_ID_WO]  = &(main->world);
 	lb[INDEX_ID_MC]  = &(main->movieclip);
@@ -838,6 +857,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[INDEX_ID_OB]  = &(main->object);
 	lb[INDEX_ID_LS]  = &(main->linestyle); /* referenced by scenes */
 	lb[INDEX_ID_SCE] = &(main->scene);
+	lb[INDEX_ID_WS]  = &(main->workspaces); /* before wm, so it's freed after it! */
 	lb[INDEX_ID_WM]  = &(main->wm);
 	lb[INDEX_ID_MSK] = &(main->mask);
 	
@@ -922,6 +942,9 @@ void *BKE_libblock_alloc_notest(short type)
 		case ID_SPK:
 			id = MEM_callocN(sizeof(Speaker), "speaker");
 			break;
+		case ID_PRB:
+			id = MEM_callocN(sizeof(Probe), "probe");
+			break;
 		case ID_SO:
 			id = MEM_callocN(sizeof(bSound), "sound");
 			break;
@@ -966,6 +989,9 @@ void *BKE_libblock_alloc_notest(short type)
 			break;
 		case ID_CF:
 			id = MEM_callocN(sizeof(CacheFile), "Cache File");
+			break;
+		case ID_WS:
+			id = MEM_callocN(sizeof(WorkSpace), "Workspace");
 			break;
 	}
 	return id;
@@ -1044,6 +1070,9 @@ void BKE_libblock_init_empty(ID *id)
 			break;
 		case ID_SPK:
 			BKE_speaker_init((Speaker *)id);
+			break;
+		case ID_PRB:
+			BKE_probe_init((Probe *)id);
 			break;
 		case ID_CA:
 			BKE_camera_init((Camera *)id);

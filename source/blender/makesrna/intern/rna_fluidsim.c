@@ -46,13 +46,14 @@
 #include "DNA_scene_types.h"
 #include "DNA_particle_types.h"
 
-#include "BKE_depsgraph.h"
 #include "BKE_fluidsim.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
+
+#include "DEG_depsgraph.h"
 
 static StructRNA *rna_FluidSettings_refine(struct PointerRNA *ptr)
 {
@@ -82,7 +83,7 @@ static void rna_fluid_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerR
 {
 	Object *ob = ptr->id.data;
 
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
 }
 
@@ -185,12 +186,16 @@ static void rna_DomainFluidSettings_memory_estimate_get(PointerRNA *ptr, char *v
 #endif
 }
 
-static int rna_DomainFluidSettings_memory_estimate_length(PointerRNA *UNUSED(ptr))
+static int rna_DomainFluidSettings_memory_estimate_length(PointerRNA *ptr)
 {
 #ifndef WITH_MOD_FLUID
+	UNUSED_VARS(ptr);
 	return 0;
 #else
-	return 31;
+	char value[32];
+
+	rna_DomainFluidSettings_memory_estimate_get(ptr, value);
+	return strlen(value);
 #endif
 }
 

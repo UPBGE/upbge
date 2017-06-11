@@ -713,7 +713,7 @@ typedef enum eFileSel_Params_Flag {
 	FILE_LINK           = (1 << 2),
 	FILE_HIDE_DOT       = (1 << 3),
 	FILE_AUTOSELECT     = (1 << 4),
-	FILE_ACTIVELAY      = (1 << 5),
+	FILE_ACTIVE_COLLECTION = (1 << 5),
 /*  FILE_ATCURSOR       = (1 << 6), */ /* deprecated */
 	FILE_DIRSEL_ONLY    = (1 << 7),
 	FILE_FILTER         = (1 << 8),
@@ -942,7 +942,7 @@ typedef enum eSpaceImage_Sticky {
 /* SpaceImage->flag */
 typedef enum eSpaceImage_Flag {
 /*	SI_BE_SQUARE          = (1 << 0), */  /* deprecated */
-	SI_EDITTILE           = (1 << 1),     /* XXX - not used but should be? */
+/*	SI_EDITTILE           = (1 << 1), */  /* deprecated */
 	SI_CLIP_UV            = (1 << 2),
 /*	SI_DRAWTOOL           = (1 << 3), */  /* deprecated */
 	SI_NO_DRAWFACES       = (1 << 4),

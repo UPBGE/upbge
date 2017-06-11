@@ -30,9 +30,6 @@
 
 #include "intern/builder/deg_builder.h"
 
-// TODO(sergey): Use own wrapper over STD.
-#include <stack>
-
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_ID.h"
@@ -43,12 +40,6 @@
 #include "intern/depsgraph.h"
 #include "intern/depsgraph_types.h"
 #include "intern/nodes/deg_node.h"
-#include "intern/nodes/deg_node_component.h"
-#include "intern/nodes/deg_node_operation.h"
-
-#include "util/deg_util_foreach.h"
-
-#include <cstdio>
 
 namespace DEG {
 

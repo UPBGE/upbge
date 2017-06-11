@@ -34,12 +34,6 @@
 
 // #define DEBUG_TIME
 
-extern "C" {
-#include "DNA_cachefile_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_object_force.h"
-
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 
@@ -48,16 +42,21 @@ extern "C" {
 #  include "PIL_time_utildefines.h"
 #endif
 
+extern "C" {
+#include "DNA_cachefile_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_object_force.h"
+
 #include "BKE_main.h"
 #include "BKE_collision.h"
 #include "BKE_effect.h"
 #include "BKE_modifier.h"
+} /* extern "C" */
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_debug.h"
 #include "DEG_depsgraph_build.h"
-
-} /* extern "C" */
 
 #include "builder/deg_builder.h"
 #include "builder/deg_builder_cycle.h"
@@ -81,29 +80,29 @@ static DEG::eDepsNode_Type deg_build_scene_component_type(
         eDepsSceneComponentType component)
 {
 	switch (component) {
-		case DEG_SCENE_COMP_PARAMETERS:     return DEG::DEPSNODE_TYPE_PARAMETERS;
-		case DEG_SCENE_COMP_ANIMATION:      return DEG::DEPSNODE_TYPE_ANIMATION;
-		case DEG_SCENE_COMP_SEQUENCER:      return DEG::DEPSNODE_TYPE_SEQUENCER;
+		case DEG_SCENE_COMP_PARAMETERS:     return DEG::DEG_NODE_TYPE_PARAMETERS;
+		case DEG_SCENE_COMP_ANIMATION:      return DEG::DEG_NODE_TYPE_ANIMATION;
+		case DEG_SCENE_COMP_SEQUENCER:      return DEG::DEG_NODE_TYPE_SEQUENCER;
 	}
-	return DEG::DEPSNODE_TYPE_UNDEFINED;
+	return DEG::DEG_NODE_TYPE_UNDEFINED;
 }
 
 static DEG::eDepsNode_Type deg_build_object_component_type(
         eDepsObjectComponentType component)
 {
 	switch (component) {
-		case DEG_OB_COMP_PARAMETERS:        return DEG::DEPSNODE_TYPE_PARAMETERS;
-		case DEG_OB_COMP_PROXY:             return DEG::DEPSNODE_TYPE_PROXY;
-		case DEG_OB_COMP_ANIMATION:         return DEG::DEPSNODE_TYPE_ANIMATION;
-		case DEG_OB_COMP_TRANSFORM:         return DEG::DEPSNODE_TYPE_TRANSFORM;
-		case DEG_OB_COMP_GEOMETRY:          return DEG::DEPSNODE_TYPE_GEOMETRY;
-		case DEG_OB_COMP_EVAL_POSE:         return DEG::DEPSNODE_TYPE_EVAL_POSE;
-		case DEG_OB_COMP_BONE:              return DEG::DEPSNODE_TYPE_BONE;
-		case DEG_OB_COMP_EVAL_PARTICLES:    return DEG::DEPSNODE_TYPE_EVAL_PARTICLES;
-		case DEG_OB_COMP_SHADING:           return DEG::DEPSNODE_TYPE_SHADING;
-		case DEG_OB_COMP_CACHE:             return DEG::DEPSNODE_TYPE_CACHE;
+		case DEG_OB_COMP_PARAMETERS:        return DEG::DEG_NODE_TYPE_PARAMETERS;
+		case DEG_OB_COMP_PROXY:             return DEG::DEG_NODE_TYPE_PROXY;
+		case DEG_OB_COMP_ANIMATION:         return DEG::DEG_NODE_TYPE_ANIMATION;
+		case DEG_OB_COMP_TRANSFORM:         return DEG::DEG_NODE_TYPE_TRANSFORM;
+		case DEG_OB_COMP_GEOMETRY:          return DEG::DEG_NODE_TYPE_GEOMETRY;
+		case DEG_OB_COMP_EVAL_POSE:         return DEG::DEG_NODE_TYPE_EVAL_POSE;
+		case DEG_OB_COMP_BONE:              return DEG::DEG_NODE_TYPE_BONE;
+		case DEG_OB_COMP_EVAL_PARTICLES:    return DEG::DEG_NODE_TYPE_EVAL_PARTICLES;
+		case DEG_OB_COMP_SHADING:           return DEG::DEG_NODE_TYPE_SHADING;
+		case DEG_OB_COMP_CACHE:             return DEG::DEG_NODE_TYPE_CACHE;
 	}
-	return DEG::DEPSNODE_TYPE_UNDEFINED;
+	return DEG::DEG_NODE_TYPE_UNDEFINED;
 }
 
 static DEG::DepsNodeHandle *get_handle(DepsNodeHandle *handle)
@@ -121,7 +120,6 @@ void DEG_add_scene_relation(DepsNodeHandle *handle,
 	DEG::DepsNodeHandle *deg_handle = get_handle(handle);
 	deg_handle->builder->add_node_handle_relation(comp_key,
 	                                              deg_handle,
-	                                              DEG::DEPSREL_TYPE_GEOMETRY_EVAL,
 	                                              description);
 }
 
@@ -135,7 +133,6 @@ void DEG_add_object_relation(DepsNodeHandle *handle,
 	DEG::DepsNodeHandle *deg_handle = get_handle(handle);
 	deg_handle->builder->add_node_handle_relation(comp_key,
 	                                              deg_handle,
-	                                              DEG::DEPSREL_TYPE_GEOMETRY_EVAL,
 	                                              description);
 }
 
@@ -149,7 +146,6 @@ void DEG_add_object_cache_relation(DepsNodeHandle *handle,
 	DEG::DepsNodeHandle *deg_handle = get_handle(handle);
 	deg_handle->builder->add_node_handle_relation(comp_key,
 	                                              deg_handle,
-	                                              DEG::DEPSREL_TYPE_CACHE,
 	                                              description);
 }
 
@@ -167,7 +163,6 @@ void DEG_add_bone_relation(DepsNodeHandle *handle,
 	 */
 	deg_handle->builder->add_node_handle_relation(comp_key,
 	                                              deg_handle,
-	                                              DEG::DEPSREL_TYPE_GEOMETRY_EVAL,
 	                                              description);
 }
 
@@ -223,12 +218,6 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	 * scene is to be connected.
 	 */
 	relation_builder.begin_build(bmain);
-#if 0
-	relation_builder.add_relation(RootKey(),
-	                              IDKey(scene),
-	                              DEPSREL_TYPE_ROOT_TO_ACTIVE,
-	                              "Root to Active Scene");
-#endif
 	relation_builder.build_scene(bmain, scene);
 
 	/* Detect and solve cycles. */

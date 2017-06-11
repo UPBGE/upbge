@@ -207,10 +207,6 @@ void KX_BlenderMaterial::OnExit()
 		m_blenderShader = nullptr;
 	}
 
-	/* used to call with 'm_material->tface' but this can be a freed array,
-	 * see: [#30493], so just call with nullptr, this is best since it clears
-	 * the 'lastface' pointer in GPU too - campbell */
-	GPU_set_tpage(nullptr, 1, m_alphablend);
 }
 
 

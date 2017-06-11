@@ -46,6 +46,7 @@
 
 #include "BKE_camera.h"
 #include "BKE_library_query.h"
+#include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_DerivedMesh.h"
 
@@ -59,7 +60,7 @@ static void initData(ModifierData *md)
 {
 	UVProjectModifierData *umd = (UVProjectModifierData *) md;
 
-	umd->flags = 0;
+
 	umd->num_projectors = 1;
 	umd->aspectx = umd->aspecty = 1.0f;
 	umd->scalex = umd->scaley = 1.0f;
@@ -79,7 +80,7 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *UNUSED(
 	CustomDataMask dataMask = 0;
 
 	/* ask for UV coordinates */
-	dataMask |= CD_MLOOPUV | CD_MTEXPOLY;
+	dataMask |= CD_MLOOPUV;
 
 	return dataMask;
 }
@@ -131,12 +132,10 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 {
 	float (*coords)[3], (*co)[3];
 	MLoopUV *mloop_uv;
-	MTexPoly *mtexpoly, *mt = NULL;
 	int i, numVerts, numPolys, numLoops;
 	Image *image = umd->image;
 	MPoly *mpoly, *mp;
 	MLoop *mloop;
-	const bool override_image = (umd->flags & MOD_UVPROJECT_OVERRIDEIMAGE) != 0;
 	Projector projectors[MOD_UVPROJECT_MAXPROJECTORS];
 	int num_projectors = 0;
 	char uvname[MAX_CUSTOMDATA_LAYER_NAME];
@@ -221,10 +220,6 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 	mloop_uv = CustomData_duplicate_referenced_layer_named(&dm->loopData,
 	                                                       CD_MLOOPUV, uvname, numLoops);
 
-	/* can be NULL */
-	mt = mtexpoly = CustomData_duplicate_referenced_layer_named(&dm->polyData,
-	                                                            CD_MTEXPOLY, uvname, numPolys);
-
 	numVerts = dm->getNumVerts(dm);
 
 	coords = MEM_mallocN(sizeof(*coords) * numVerts,
@@ -243,9 +238,14 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 	mpoly = dm->getPolyArray(dm);
 	mloop = dm->getLoopArray(dm);
 
+	Image **ob_image_array = NULL;
+	if (image) {
+		ob_image_array = BKE_object_material_edit_image_get_array(ob);
+	}
+
 	/* apply coords as UVs, and apply image if tfaces are new */
-	for (i = 0, mp = mpoly; i < numPolys; ++i, ++mp, ++mt) {
-		if (override_image || !image || (mtexpoly == NULL || mt->tpage == image)) {
+	for (i = 0, mp = mpoly; i < numPolys; ++i, ++mp) {
+		if (!image || (mp->mat_nr < ob->totcol ? ob_image_array[mp->mat_nr] : NULL) == image) {
 			if (num_projectors == 1) {
 				if (projectors[0].uci) {
 					unsigned int fidx = mp->totloop - 1;
@@ -308,13 +308,13 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 				}
 			}
 		}
-
-		if (override_image && mtexpoly) {
-			mt->tpage = image;
-		}
 	}
 
 	MEM_freeN(coords);
+
+	if (ob_image_array) {
+		MEM_freeN(ob_image_array);
+	}
 	
 	if (free_uci) {
 		int j;

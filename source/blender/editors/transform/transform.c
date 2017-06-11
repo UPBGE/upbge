@@ -63,6 +63,7 @@
 #include "BKE_unit.h"
 #include "BKE_mask.h"
 #include "BKE_report.h"
+#include "BKE_workspace.h"
 
 #include "BIF_glutil.h"
 
@@ -2013,6 +2014,8 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 				View3D *v3d = t->view;
 
 				v3d->twmode = t->current_orientation;
+				BLI_assert(BKE_workspace_transform_orientation_get_index(CTX_wm_workspace(C), t->custom_orientation)
+				           == v3d->custom_orientation_index);
 			}
 		}
 	}
@@ -2032,15 +2035,20 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 	}
 
 	if ((prop = RNA_struct_find_property(op->ptr, "constraint_axis"))) {
-		/* constraint orientation can be global, event if user selects something else
-		 * so use the orientation in the constraint if set
-		 * */
-		if (t->con.mode & CON_APPLY) {
-			RNA_enum_set(op->ptr, "constraint_orientation", t->con.orientation);
+		/* constraint orientation can be global, even if user selects something else
+		 * so use the orientation in the constraint if set */
+		short orientation = (t->con.mode & CON_APPLY) ? t->con.orientation : t->current_orientation;
+
+		if (orientation == V3D_MANIP_CUSTOM) {
+			WorkSpace *workspace = CTX_wm_workspace(C);
+			const int custom_orientation_index = BKE_workspace_transform_orientation_get_index(
+			                                       workspace, t->custom_orientation);
+
+			/* Maybe we need a t->con.custom_orientation? Seems like it would always match t->custom_orientation. */
+			orientation = V3D_MANIP_CUSTOM + custom_orientation_index;
+			BLI_assert(orientation >= V3D_MANIP_CUSTOM);
 		}
-		else {
-			RNA_enum_set(op->ptr, "constraint_orientation", t->current_orientation);
-		}
+		RNA_enum_set(op->ptr, "constraint_orientation", orientation);
 
 		if (t->con.mode & CON_APPLY) {
 			if (t->con.mode & CON_AXIS0) {
@@ -3080,19 +3088,13 @@ static void Bend(TransInfo *t, const int UNUSED(mval[2]))
 /** \name Transform Shear
  * \{ */
 
-static void postInputShear(TransInfo *UNUSED(t), float values[3])
-{
-	mul_v3_fl(values, 0.05f);
-}
-
 static void initShear(TransInfo *t)
 {
 	t->mode = TFM_SHEAR;
 	t->transform = applyShear;
 	t->handleEvent = handleEventShear;
-	
-	setInputPostFct(&t->mouse, postInputShear);
-	initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_ABSOLUTE);
+
+	initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_RATIO);
 	
 	t->idx_max = 0;
 	t->num.idx_max = 0;
@@ -3114,24 +3116,24 @@ static eRedrawFlag handleEventShear(TransInfo *t, const wmEvent *event)
 	if (event->type == MIDDLEMOUSE && event->val == KM_PRESS) {
 		/* Use custom.mode.data pointer to signal Shear direction */
 		if (t->custom.mode.data == NULL) {
-			initMouseInputMode(t, &t->mouse, INPUT_VERTICAL_ABSOLUTE);
+			initMouseInputMode(t, &t->mouse, INPUT_VERTICAL_RATIO);
 			t->custom.mode.data = (void *)1;
 		}
 		else {
-			initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_ABSOLUTE);
+			initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_RATIO);
 			t->custom.mode.data = NULL;
 		}
 
 		status = TREDRAW_HARD;
 	}
 	else if (event->type == XKEY && event->val == KM_PRESS) {
-		initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_ABSOLUTE);
+		initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_RATIO);
 		t->custom.mode.data = NULL;
 		
 		status = TREDRAW_HARD;
 	}
 	else if (event->type == YKEY && event->val == KM_PRESS) {
-		initMouseInputMode(t, &t->mouse, INPUT_VERTICAL_ABSOLUTE);
+		initMouseInputMode(t, &t->mouse, INPUT_VERTICAL_RATIO);
 		t->custom.mode.data = (void *)1;
 		
 		status = TREDRAW_HARD;
@@ -4299,7 +4301,7 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
 		bUnit_AsString(distvec, sizeof(distvec), dist * t->scene->unit.scale_length, 4, t->scene->unit.system,
 		               B_UNIT_LENGTH, do_split, false);
 	}
-	else if (dist > 1e10f || dist < -1e10f)  {
+	else if (dist > 1e10f || dist < -1e10f) {
 		/* prevent string buffer overflow */
 		BLI_snprintf(distvec, NUM_STR_REP_LEN, "%.4e", dist);
 	}

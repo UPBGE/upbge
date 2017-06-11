@@ -68,11 +68,6 @@ typedef struct EDIT_MESH_FramebufferList {
 	struct GPUFrameBuffer *occlude_wire_fb;
 } EDIT_MESH_FramebufferList;
 
-typedef struct EDIT_MESH_TextureList {
-	struct GPUTexture *occlude_wire_depth_tx;
-	struct GPUTexture *occlude_wire_color_tx;
-} EDIT_MESH_TextureList;
-
 typedef struct EDIT_MESH_StorageList {
 	struct EDIT_MESH_PrivateData *g_data;
 } EDIT_MESH_StorageList;
@@ -80,7 +75,7 @@ typedef struct EDIT_MESH_StorageList {
 typedef struct EDIT_MESH_Data {
 	void *engine_type;
 	EDIT_MESH_FramebufferList *fbl;
-	EDIT_MESH_TextureList *txl;
+	DRWViewportEmptyList *txl;
 	EDIT_MESH_PassList *psl;
 	EDIT_MESH_StorageList *stl;
 } EDIT_MESH_Data;
@@ -101,8 +96,12 @@ static struct {
 	GPUShader *overlay_mix_sh;
 	GPUShader *overlay_facefill_sh;
 	GPUShader *normals_face_sh;
+	GPUShader *normals_loop_sh;
 	GPUShader *normals_sh;
 	GPUShader *depth_sh;
+	/* temp buffer texture */
+	struct GPUTexture *occlude_wire_depth_tx;
+	struct GPUTexture *occlude_wire_color_tx;
 } e_data = {NULL}; /* Engine data */
 
 typedef struct EDIT_MESH_PrivateData {
@@ -131,17 +130,16 @@ typedef struct EDIT_MESH_PrivateData {
 
 static void EDIT_MESH_engine_init(void *vedata)
 {
-	EDIT_MESH_TextureList *txl = ((EDIT_MESH_Data *)vedata)->txl;
 	EDIT_MESH_FramebufferList *fbl = ((EDIT_MESH_Data *)vedata)->fbl;
 
 	const float *viewport_size = DRW_viewport_size_get();
 
 	DRWFboTexture tex[2] = {{
-	    &txl->occlude_wire_depth_tx, DRW_BUF_DEPTH_24, 0},
-	    {&txl->occlude_wire_color_tx, DRW_BUF_RGBA_8, DRW_TEX_FILTER}
+	    &e_data.occlude_wire_depth_tx, DRW_TEX_DEPTH_24, DRW_TEX_TEMP},
+	    {&e_data.occlude_wire_color_tx, DRW_TEX_RGBA_8, DRW_TEX_FILTER | DRW_TEX_TEMP}
 	};
 	DRW_framebuffer_init(
-	        &fbl->occlude_wire_fb,
+	        &fbl->occlude_wire_fb, &draw_engine_edit_mesh_type,
 	        (int)viewport_size[0], (int)viewport_size[1],
 	        tex, ARRAY_SIZE(tex));
 
@@ -224,6 +222,13 @@ static void EDIT_MESH_engine_init(void *vedata)
 		        datatoc_gpu_shader_uniform_color_frag_glsl,
 		        "#define FACE_NORMALS\n");
 	}
+	if (!e_data.normals_loop_sh) {
+		e_data.normals_loop_sh = DRW_shader_create(
+		        datatoc_edit_normals_vert_glsl,
+		        datatoc_edit_normals_geom_glsl,
+		        datatoc_gpu_shader_uniform_color_frag_glsl,
+		        "#define LOOP_NORMALS\n");
+	}
 	if (!e_data.normals_sh) {
 		e_data.normals_sh = DRW_shader_create(
 		        datatoc_edit_normals_vert_glsl,
@@ -273,15 +278,18 @@ static DRWPass *edit_mesh_create_overlay_pass(
 	DRW_shgroup_uniform_float(*r_face_shgrp, "faceAlphaMod", faceAlpha, 1);
 
 	*r_ledges_shgrp = DRW_shgroup_create(ledge_sh, pass);
+	DRW_shgroup_uniform_block(*r_ledges_shgrp, "globalsBlock", globals_ubo);
 	DRW_shgroup_uniform_vec2(*r_ledges_shgrp, "viewportSize", DRW_viewport_size_get(), 1);
 
 	if ((tsettings->selectmode & (SCE_SELECT_VERTEX)) != 0) {
 		*r_lverts_shgrp = DRW_shgroup_create(e_data.overlay_vert_sh, pass);
+		DRW_shgroup_uniform_block(*r_lverts_shgrp, "globalsBlock", globals_ubo);
 		DRW_shgroup_uniform_vec2(*r_lverts_shgrp, "viewportSize", DRW_viewport_size_get(), 1);
 	}
 
 	if ((tsettings->selectmode & (SCE_SELECT_FACE)) != 0) {
 		*r_facedot_shgrp = DRW_shgroup_create(e_data.overlay_facedot_sh, pass);
+		DRW_shgroup_uniform_block(*r_facedot_shgrp, "globalsBlock", globals_ubo);
 	}
 
 	return pass;
@@ -293,7 +301,6 @@ static float size_normal;
 
 static void EDIT_MESH_cache_init(void *vedata)
 {
-	EDIT_MESH_TextureList *txl = ((EDIT_MESH_Data *)vedata)->txl;
 	EDIT_MESH_PassList *psl = ((EDIT_MESH_Data *)vedata)->psl;
 	EDIT_MESH_StorageList *stl = ((EDIT_MESH_Data *)vedata)->stl;
 	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
@@ -347,7 +354,7 @@ static void EDIT_MESH_cache_init(void *vedata)
 		DRW_shgroup_uniform_float(stl->g_data->vnormals_shgrp, "normalSize", &size_normal, 1);
 		DRW_shgroup_uniform_vec4(stl->g_data->vnormals_shgrp, "color", ts.colorVNormal, 1);
 
-		stl->g_data->lnormals_shgrp = DRW_shgroup_create(e_data.normals_sh, psl->normals);
+		stl->g_data->lnormals_shgrp = DRW_shgroup_create(e_data.normals_loop_sh, psl->normals);
 		DRW_shgroup_uniform_float(stl->g_data->lnormals_shgrp, "normalSize", &size_normal, 1);
 		DRW_shgroup_uniform_vec4(stl->g_data->lnormals_shgrp, "color", ts.colorLNormal, 1);
 	}
@@ -382,8 +389,8 @@ static void EDIT_MESH_cache_init(void *vedata)
 		DRWShadingGroup *mix_shgrp = DRW_shgroup_create(e_data.overlay_mix_sh, psl->mix_occlude);
 		DRW_shgroup_call_add(mix_shgrp, quad, NULL);
 		DRW_shgroup_uniform_float(mix_shgrp, "alpha", &backwire_opacity, 1);
-		DRW_shgroup_uniform_buffer(mix_shgrp, "wireColor", &txl->occlude_wire_color_tx);
-		DRW_shgroup_uniform_buffer(mix_shgrp, "wireDepth", &txl->occlude_wire_depth_tx);
+		DRW_shgroup_uniform_buffer(mix_shgrp, "wireColor", &e_data.occlude_wire_color_tx);
+		DRW_shgroup_uniform_buffer(mix_shgrp, "wireDepth", &e_data.occlude_wire_depth_tx);
 		DRW_shgroup_uniform_buffer(mix_shgrp, "sceneDepth", &dtxl->depth);
 	}
 }
@@ -454,14 +461,19 @@ static void EDIT_MESH_cache_populate(void *vedata, Object *ob)
 				DRW_shgroup_call_add(stl->g_data->fnormals_shgrp, geom, ob->obmat);
 			}
 
-			if (vnormals_do) {
-				geom = DRW_cache_mesh_verts_get(ob);
-				DRW_shgroup_call_add(stl->g_data->vnormals_shgrp, geom, ob->obmat);
-			}
+			if (vnormals_do || lnormals_do) {
+				struct Batch *geo_ovl_tris, *geo_ovl_ledges, *geo_ovl_lverts;
+				DRW_cache_mesh_normals_overlay_get(ob, &geo_ovl_tris, &geo_ovl_ledges, &geo_ovl_lverts);
 
-			if (lnormals_do) {
-				geom = DRW_cache_mesh_surface_verts_get(ob);
-				DRW_shgroup_call_add(stl->g_data->lnormals_shgrp, geom, ob->obmat);
+				if (vnormals_do) {
+					DRW_shgroup_call_add(stl->g_data->vnormals_shgrp, geo_ovl_tris, ob->obmat);
+					DRW_shgroup_call_add(stl->g_data->vnormals_shgrp, geo_ovl_ledges, ob->obmat);
+					DRW_shgroup_call_add(stl->g_data->vnormals_shgrp, geo_ovl_lverts, ob->obmat);
+				}
+
+				if (lnormals_do) {
+					DRW_shgroup_call_add(stl->g_data->lnormals_shgrp, geo_ovl_tris, ob->obmat);
+				}
 			}
 
 			if ((v3d->flag & V3D_ZBUF_SELECT) == 0) {
@@ -494,6 +506,10 @@ static void EDIT_MESH_draw_scene(void *vedata)
 		float clearcol[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 		/* render facefill */
 		DRW_draw_pass(psl->facefill_occlude);
+
+		/* attach temp textures */
+		DRW_framebuffer_texture_attach(fbl->occlude_wire_fb, e_data.occlude_wire_depth_tx, 0, 0);
+		DRW_framebuffer_texture_attach(fbl->occlude_wire_fb, e_data.occlude_wire_color_tx, 0, 0);
 		
 		/* Render wires on a separate framebuffer */
 		DRW_framebuffer_bind(fbl->occlude_wire_fb);
@@ -507,6 +523,10 @@ static void EDIT_MESH_draw_scene(void *vedata)
 		/* Combine with scene buffer */
 		DRW_framebuffer_bind(dfbl->default_fb);
 		DRW_draw_pass(psl->mix_occlude);
+
+		/* detach temp textures */
+		DRW_framebuffer_texture_detach(e_data.occlude_wire_depth_tx);
+		DRW_framebuffer_texture_detach(e_data.occlude_wire_color_tx);
 
 		/* reattach */
 		DRW_framebuffer_texture_attach(dfbl->default_fb, dtxl->depth, 0, 0);
@@ -543,6 +563,7 @@ static void EDIT_MESH_engine_free(void)
 	DRW_SHADER_FREE_SAFE(e_data.overlay_facedot_sh);
 	DRW_SHADER_FREE_SAFE(e_data.overlay_mix_sh);
 	DRW_SHADER_FREE_SAFE(e_data.overlay_facefill_sh);
+	DRW_SHADER_FREE_SAFE(e_data.normals_loop_sh);
 	DRW_SHADER_FREE_SAFE(e_data.normals_face_sh);
 	DRW_SHADER_FREE_SAFE(e_data.normals_sh);
 }

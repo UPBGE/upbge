@@ -650,7 +650,7 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 	Image *ima = ob->data;
 
 	const float ob_alpha = ob->col[3];
-	float width, height;
+	float ima_x, ima_y;
 
 	int bindcode = 0;
 
@@ -671,20 +671,49 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 
 		int w, h;
 		BKE_image_get_size(ima, &iuser, &w, &h);
-		width = w;
-		height = h;
+		ima_x = w;
+		ima_y = h;
 	}
 	else {
 		/* if no image, make it a 1x1 empty square, honor scale & offset */
-		width = height = 1.0f;
+		ima_x = ima_y = 1.0f;
 	}
 
-	const float aspect = height / width;
+	/* Get the image aspect even if the buffer is invalid */
+	float sca_x = 1.0f, sca_y = 1.0f;
+	if (ima) {
+		if (ima->aspx > ima->aspy) {
+			sca_y = ima->aspy / ima->aspx;
+		}
+		else if (ima->aspx < ima->aspy) {
+			sca_x = ima->aspx / ima->aspy;
+		}
+	}
 
-	float left = ob->ima_ofs[0];
-	float right = ob->ima_ofs[0] + ob->empty_drawsize;
-	float top = ob->ima_ofs[1] + ob->empty_drawsize * aspect;
-	float bottom = ob->ima_ofs[1];
+	float scale_x;
+	float scale_y;
+	{
+		const float scale_x_inv = ima_x * sca_x;
+		const float scale_y_inv = ima_y * sca_y;
+		if (scale_x_inv > scale_y_inv) {
+			scale_x = ob->empty_drawsize;
+			scale_y = ob->empty_drawsize * (scale_y_inv / scale_x_inv);
+		}
+		else {
+			scale_x = ob->empty_drawsize * (scale_x_inv / scale_y_inv);
+			scale_y = ob->empty_drawsize;
+		}
+	}
+
+	const float ofs_x = ob->ima_ofs[0] * scale_x;
+	const float ofs_y = ob->ima_ofs[1] * scale_y;
+
+	const rctf rect = {
+		.xmin = ofs_x,
+		.xmax = ofs_x + scale_x,
+		.ymin = ofs_y,
+		.ymax = ofs_y + scale_y,
+	};
 
 	bool use_blend = false;
 
@@ -705,16 +734,16 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 
 		immBegin(PRIM_TRIANGLE_FAN, 4);
 		immAttrib2f(texCoord, 0.0f, 0.0f);
-		immVertex2f(pos, left, bottom);
+		immVertex2f(pos, rect.xmin, rect.ymin);
 
 		immAttrib2f(texCoord, 1.0f, 0.0f);
-		immVertex2f(pos, right, bottom);
+		immVertex2f(pos, rect.xmax, rect.ymin);
 
 		immAttrib2f(texCoord, 1.0f, 1.0f);
-		immVertex2f(pos, right, top);
+		immVertex2f(pos, rect.xmax, rect.ymax);
 
 		immAttrib2f(texCoord, 0.0f, 1.0f);
-		immVertex2f(pos, left, top);
+		immVertex2f(pos, rect.xmin, rect.ymax);
 		immEnd();
 
 		immUnbindProgram();
@@ -734,7 +763,7 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 			glDisable(GL_BLEND);
 		}
 
-		imm_draw_line_box(pos, left, bottom, right, top);
+		imm_draw_line_box(pos, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 	}
 	else {
 		immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
@@ -746,7 +775,7 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
 
-		imm_draw_line_box(pos, left, bottom, right, top);
+		imm_draw_line_box(pos, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 
 		glDisable(GL_LINE_SMOOTH);
 		glDisable(GL_BLEND);
@@ -1733,7 +1762,7 @@ static void draw_viewport_object_reconstruction(
 			continue;
 
 		if (dflag & DRAW_PICKING)
-			GPU_select_load_id(base->selcol + (tracknr << 16));
+			GPU_select_load_id(base->object->select_color + (tracknr << 16));
 
 		gpuPushMatrix();
 		gpuTranslate3fv(track->bundle_pos);
@@ -1895,7 +1924,7 @@ static void draw_viewport_reconstruction(
 	GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
 
 	if (dflag & DRAW_PICKING)
-		GPU_select_load_id(base->selcol);
+		GPU_select_load_id(base->object->select_color);
 }
 
 /* camera frame */
@@ -5021,7 +5050,7 @@ static void draw_mesh_fancy_new(Scene *scene, SceneLayer *sl, ARegion *ar, View3
 	dm->release(dm);
 }
 
-static bool draw_mesh_object_new(Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, RegionView3D *rv3d, BaseLegacy *base,
+static bool UNUSED_FUNCTION(draw_mesh_object_new)(Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, RegionView3D *rv3d, BaseLegacy *base,
                                  const char dt, const unsigned char ob_wire_col[4], const short dflag)
 {
 	Object *ob = base->object;
@@ -8737,22 +8766,15 @@ void draw_object(Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, Base *b
 		}
 
 		/* TODO Viewport: draw only for selection */
-		if (!IS_VIEWPORT_LEGACY(v3d)) {
-			if ((dflag & DRAW_PICKING) == 0) {
-				if ((dt == OB_BOUNDBOX) || ELEM(ob->type, OB_EMPTY, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
-					goto afterdraw;
+		if ((dflag & DRAW_PICKING) == 0) {
+			if ((dt == OB_BOUNDBOX) || ELEM(ob->type, OB_EMPTY, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
+				goto afterdraw;
 				}
-			}
 		}
 
 		switch (ob->type) {
 			case OB_MESH:
-				if (IS_VIEWPORT_LEGACY(v3d)) {
-					empty_object = draw_mesh_object(scene, sl, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
-				}
-				else {
-					empty_object = draw_mesh_object_new(scene, sl, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
-				}
+				empty_object = draw_mesh_object(scene, sl, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
 					/* mesh draws wire itself */
 					dtx &= ~OB_DRAWWIRE;
@@ -9366,7 +9388,7 @@ static void bbs_obmode_mesh_verts__mapFunc(void *userData, int index, const floa
 	if (!(mv->flag & ME_HIDE)) {
 		int selcol;
 		GPU_select_index_get(data->offset + index, &selcol);
-		immAttrib3ubv(data->col, (unsigned char *)&selcol);
+		immAttrib1u(data->col, selcol);
 		immVertex3fv(data->pos, co);
 	}
 }
@@ -9385,9 +9407,9 @@ static void bbs_obmode_mesh_verts(Object *ob, DerivedMesh *dm, int offset)
 
 	VertexFormat *format = immVertexFormat();
 	data.pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 3, KEEP_FLOAT);
-	data.col = VertexFormat_add_attrib(format, "color", COMP_U8, 3, NORMALIZE_INT_TO_FLOAT);
+	data.col = VertexFormat_add_attrib(format, "color", COMP_U32, 1, KEEP_INT);
 
-	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR_U32);
 
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
 
@@ -9407,7 +9429,7 @@ static void bbs_mesh_verts__mapFunc(void *userData, int index, const float co[3]
 	if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 		int selcol;
 		GPU_select_index_get(data->offset + index, &selcol);
-		immAttrib3ubv(data->col, (unsigned char *)&selcol);
+		immAttrib1u(data->col, selcol);
 		immVertex3fv(data->pos, co);
 	}
 }
@@ -9418,9 +9440,9 @@ static void bbs_mesh_verts(BMEditMesh *em, DerivedMesh *dm, int offset)
 	data.offset = offset;
 	VertexFormat *format = immVertexFormat();
 	data.pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 3, KEEP_FLOAT);
-	data.col = VertexFormat_add_attrib(format, "color", COMP_U8, 3, NORMALIZE_INT_TO_FLOAT);
+	data.col = VertexFormat_add_attrib(format, "color", COMP_U32, 1, KEEP_INT);
 
-	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR_U32);
 
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
 
@@ -9431,21 +9453,6 @@ static void bbs_mesh_verts(BMEditMesh *em, DerivedMesh *dm, int offset)
 	immUnbindProgram();
 }
 
-#if defined(WITH_LEGACY_OPENGL)
-static DMDrawOption bbs_mesh_wire__setDrawOptions(void *userData, int index)
-{
-	drawBMOffset_userData *data = userData;
-	BMEdge *eed = BM_edge_at_index(data->bm, index);
-
-	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-		GPU_select_index_set(data->offset + index);
-		return DM_DRAW_OPTION_NORMAL;
-	}
-	else {
-		return DM_DRAW_OPTION_SKIP;
-	}
-}
-#else
 static void bbs_mesh_wire__mapFunc(void *userData, int index, const float v0co[3], const float v1co[3])
 {
 	drawBMOffset_userData *data = userData;
@@ -9454,21 +9461,18 @@ static void bbs_mesh_wire__mapFunc(void *userData, int index, const float v0co[3
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
 		int selcol;
 		GPU_select_index_get(data->offset + index, &selcol);
-		immAttrib3ubv(data->col, (unsigned char *)&selcol);
+		immAttrib1u(data->col, selcol);
 		immVertex3fv(data->pos, v0co);
 		immVertex3fv(data->pos, v1co);
 	}
 }
-#endif
+
 static void bbs_mesh_wire(BMEditMesh *em, DerivedMesh *dm, int offset)
 {
 	drawBMOffset_userData data;
 	data.bm = em->bm;
 	data.offset = offset;
 
-#if defined(WITH_LEGACY_OPENGL)
-	dm->drawMappedEdges(dm, bbs_mesh_wire__setDrawOptions, &data);
-#else
 	VertexFormat *format = immVertexFormat();
 
 	const int imm_len = dm->getNumEdges(dm) * 2;
@@ -9476,9 +9480,9 @@ static void bbs_mesh_wire(BMEditMesh *em, DerivedMesh *dm, int offset)
 	if (imm_len == 0) return;
 
 	data.pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 3, KEEP_FLOAT);
-	data.col = VertexFormat_add_attrib(format, "color", COMP_U8, 3, NORMALIZE_INT_TO_FLOAT);
+	data.col = VertexFormat_add_attrib(format, "color", COMP_U32, 1, KEEP_INT);
 
-	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR_U32);
 
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
 
@@ -9487,53 +9491,10 @@ static void bbs_mesh_wire(BMEditMesh *em, DerivedMesh *dm, int offset)
 	immEnd();
 
 	immUnbindProgram();
-#endif
 }
-
-#if defined(WITH_LEGACY_OPENGL)
-/**
- * dont set #GPU_framebuffer_index_set. just use to mask other
- */
-static DMDrawOption bbs_mesh_mask__setSolidDrawOptions(void *userData, int index)
-{
-	BMFace *efa = BM_face_at_index(userData, index);
-	
-	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-		return DM_DRAW_OPTION_NORMAL;
-	}
-	else {
-		return DM_DRAW_OPTION_SKIP;
-	}
-}
-
-static DMDrawOption bbs_mesh_solid__setSolidDrawOptions(void *userData, int index)
-{
-	BMFace *efa = BM_face_at_index(userData, index);
-
-	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-		GPU_select_index_set(index + 1);
-		return DM_DRAW_OPTION_NORMAL;
-	}
-	else {
-		return DM_DRAW_OPTION_SKIP;
-	}
-}
-#endif
 
 static void bbs_mesh_face(BMEditMesh *em, DerivedMesh *dm, const bool use_select)
 {
-#if defined(WITH_LEGACY_OPENGL)
-	if (use_select) {
-		dm->drawMappedFaces(
-		        dm, bbs_mesh_solid__setSolidDrawOptions, NULL, NULL, em->bm,
-		        DM_DRAW_SKIP_HIDDEN | DM_DRAW_SELECT_USE_EDITMODE);
-	}
-	else {
-		dm->drawMappedFaces(
-		        dm, bbs_mesh_mask__setSolidDrawOptions, NULL, NULL, em->bm,
-		        DM_DRAW_SKIP_HIDDEN | DM_DRAW_SELECT_USE_EDITMODE | DM_DRAW_SKIP_SELECT);
-	}
-#else
 	UNUSED_VARS(dm);
 
 	drawBMOffset_userData data;
@@ -9541,22 +9502,22 @@ static void bbs_mesh_face(BMEditMesh *em, DerivedMesh *dm, const bool use_select
 
 	const int tri_len = em->tottri;
 	const int imm_len = tri_len * 3;
-	const char hflag_skip = use_select ? BM_ELEM_SELECT : (BM_ELEM_HIDDEN | BM_ELEM_SELECT);
+	const char hflag_skip = use_select ? BM_ELEM_HIDDEN : (BM_ELEM_HIDDEN | BM_ELEM_SELECT);
 
 	if (imm_len == 0) return;
 
 	VertexFormat *format = immVertexFormat();
 	data.pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 3, KEEP_FLOAT);
-	data.col = VertexFormat_add_attrib(format, "color", COMP_U8, 3, NORMALIZE_INT_TO_FLOAT);
+	data.col = VertexFormat_add_attrib(format, "color", COMP_U32, 1, KEEP_INT);
 
-	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR_U32);
 
 	immBeginAtMost(PRIM_TRIANGLES, imm_len);
 
 	if (use_select == false) {
 		int selcol;
 		GPU_select_index_get(0, &selcol);
-		immAttrib3ubv(data.col, (unsigned char *)&selcol);
+		immAttrib1u(data.col, selcol);
 	}
 
 	int index = 0;
@@ -9567,7 +9528,7 @@ static void bbs_mesh_face(BMEditMesh *em, DerivedMesh *dm, const bool use_select
 			if (use_select) {
 				int selcol;
 				GPU_select_index_get(BM_elem_index_get(f) + 1, &selcol);
-				immAttrib3ubv(data.col, (unsigned char *)&selcol);
+				immAttrib1u(data.col, selcol);
 			}
 			for (int t = 0; t < ntris; t++) {
 				immVertex3fv(data.pos, em->looptris[index][0]->v->co);
@@ -9583,7 +9544,6 @@ static void bbs_mesh_face(BMEditMesh *em, DerivedMesh *dm, const bool use_select
 	immEnd();
 
 	immUnbindProgram();
-#endif
 }
 
 static void bbs_mesh_solid__drawCenter(void *userData, int index, const float cent[3], const float UNUSED(no[3]))
@@ -9594,7 +9554,7 @@ static void bbs_mesh_solid__drawCenter(void *userData, int index, const float ce
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		int selcol;
 		GPU_select_index_get(index + 1, &selcol);
-		immAttrib3ubv(data->col, (unsigned char *)&selcol);
+		immAttrib1u(data->col, selcol);
 		immVertex3fv(data->pos, cent);
 	}
 }
@@ -9605,9 +9565,9 @@ static void bbs_mesh_face_dot(BMEditMesh *em, DerivedMesh *dm)
 	data.bm = em->bm;
 	VertexFormat *format = immVertexFormat();
 	data.pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 3, KEEP_FLOAT);
-	data.col = VertexFormat_add_attrib(format, "color", COMP_U8, 3, NORMALIZE_INT_TO_FLOAT);
+	data.col = VertexFormat_add_attrib(format, "color", COMP_U32, 1, KEEP_INT);
 
-	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR_U32);
 
 	glPointSize(UI_GetThemeValuef(TH_FACEDOT_SIZE));
 
@@ -9684,18 +9644,6 @@ static void bbs_mesh_solid_verts(Scene *scene, Object *ob)
 static void bbs_mesh_solid_faces(Scene *scene, Object *ob)
 {
 	Mesh *me = ob->data;
-#if defined(WITH_LEGACY_OPENGL)
-	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
-	
-	DM_update_materials(dm, ob);
-
-	if ((me->editflag & ME_EDIT_PAINT_FACE_SEL))
-		dm->drawMappedFaces(dm, bbs_mesh_solid_hide__setDrawOpts, NULL, NULL, me, DM_DRAW_SKIP_HIDDEN);
-	else
-		dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, NULL, NULL, me, 0);
-
-	dm->release(dm);
-#else
 	UNUSED_VARS(scene, bbs_mesh_solid_hide__setDrawOpts, bbs_mesh_solid__setDrawOpts);
 	Batch *batch;
 	if ((me->editflag & ME_EDIT_PAINT_FACE_SEL)) {
@@ -9706,7 +9654,6 @@ static void bbs_mesh_solid_faces(Scene *scene, Object *ob)
 	}
 	Batch_set_builtin_program(batch, GPU_SHADER_3D_FLAT_COLOR_U32);
 	Batch_draw(batch);
-#endif
 }
 
 void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob)
@@ -9850,3 +9797,125 @@ void draw_object_instance(Scene *scene, SceneLayer *sl, View3D *v3d, RegionView3
 			break;
 	}
 }
+
+void ED_draw_object_facemap(Scene *scene, Object *ob, const float col[4], const int facemap)
+{
+	DerivedMesh *dm = NULL;
+
+	/* happens on undo */
+	if (ob->type != OB_MESH || !ob->data)
+		return;
+
+	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+	if (!dm || !CustomData_has_layer(&dm->polyData, CD_FACEMAP))
+		return;
+
+
+	glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
+	
+#if 0
+	DM_update_materials(dm, ob);
+
+	/* add polygon offset so we draw above the original surface */
+	glPolygonOffset(1.0, 1.0);
+
+	GPU_facemap_setup(dm);
+
+	glColor4fv(col);
+
+	gpuPushAttrib(GL_ENABLE_BIT);
+	glEnable(GL_BLEND);
+	glDisable(GL_LIGHTING);
+
+	/* always draw using backface culling */
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+
+	if (dm->drawObject->facemapindices) {
+		glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap] * 3, GL_UNSIGNED_INT,
+		               (int *)NULL + dm->drawObject->facemap_start[facemap] * 3);
+	}
+	gpuPopAttrib();
+
+	GPU_buffers_unbind();
+
+	glPolygonOffset(0.0, 0.0);
+
+#else
+
+	/* Just to create the data to pass to immediate mode, grr! */
+	Mesh *me = ob->data;
+	const int *facemap_data = CustomData_get_layer(&me->pdata, CD_FACEMAP);
+	if (facemap_data) {
+		VertexFormat *format = immVertexFormat();
+		unsigned int pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 3, KEEP_FLOAT);
+
+		immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+		immUniformColor4fv(col);
+
+		/* XXX, alpha isn't working yet, not sure why. */
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_BLEND);
+
+		MVert *mvert;
+
+		MPoly *mpoly;
+		int    mpoly_len;
+
+		MLoop *mloop;
+		int    mloop_len;
+
+		if (dm && CustomData_has_layer(&dm->polyData, CD_FACEMAP)) {
+			mvert = dm->getVertArray(dm);
+			mpoly = dm->getPolyArray(dm);
+			mloop = dm->getLoopArray(dm);
+
+			mpoly_len = dm->getNumPolys(dm);
+			mloop_len = dm->getNumLoops(dm);
+
+			facemap_data = CustomData_get_layer(&dm->polyData, CD_FACEMAP);
+		}
+		else {
+			mvert = me->mvert;
+			mpoly = me->mpoly;
+			mloop = me->mloop;
+
+			mpoly_len = me->totpoly;
+			mloop_len = me->totloop;
+
+			facemap_data = CustomData_get_layer(&me->pdata, CD_FACEMAP);
+		}
+
+		/* use gawain immediate mode fore now */
+		const int looptris_len = poly_to_tri_count(mpoly_len, mloop_len);
+		immBeginAtMost(PRIM_TRIANGLES, looptris_len * 3);
+
+		MPoly *mp;
+		int i;
+		for (mp = mpoly, i = 0; i < mpoly_len; i++, mp++) {
+			if (facemap_data[i] == facemap) {
+				/* Weak, fan-fill, use until we have derived-mesh replaced. */
+				const MLoop *ml_start = &mloop[mp->loopstart];
+				const MLoop *ml_a = ml_start + 1;
+				const MLoop *ml_b = ml_start + 2;
+				for (int j = 2; j < mp->totloop; j++) {
+					immVertex3fv(pos, mvert[ml_start->v].co);
+					immVertex3fv(pos, mvert[ml_a->v].co);
+					immVertex3fv(pos, mvert[ml_b->v].co);
+
+					ml_a++;
+					ml_b++;
+				}
+			}
+		}
+		immEnd();
+
+		immUnbindProgram();
+
+		glDisable(GL_BLEND);
+	}
+#endif
+
+	dm->release(dm);
+}
+

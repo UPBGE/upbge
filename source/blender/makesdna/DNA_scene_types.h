@@ -1283,17 +1283,6 @@ typedef enum eGP_Interpolate_Type {
 	GP_IPO_SINE = 12,
 } eGP_Interpolate_Type;
 
-
-/* *************************************************************** */
-/* Transform Orientations */
-
-typedef struct TransformOrientation {
-	struct TransformOrientation *next, *prev;
-	char name[64];	/* MAX_NAME */
-	float mat[3][3];
-	int pad;
-} TransformOrientation;
-
 /* *************************************************************** */
 /* Unified Paint Settings
  */
@@ -1675,17 +1664,17 @@ typedef struct Scene {
 	struct Editing *ed;								/* sequence editor data is allocated here */
 	
 	struct ToolSettings *toolsettings;		/* default allocated now */
-	struct SceneStats *stats;				/* default allocated now */
+	void *pad2;
 	struct DisplaySafeAreas safe_areas;
 
 	/* migrate or replace? depends on some internal things... */
 	/* no, is on the right place (ton) */
 	struct RenderData r;
 	struct AudioData audio;
-	
+
 	ListBase markers;
-	ListBase transform_spaces;
-	
+	ListBase transform_spaces DNA_DEPRECATED;
+
 	void *sound_scene;
 	void *playback_handle;
 	void *sound_scrub_handle;

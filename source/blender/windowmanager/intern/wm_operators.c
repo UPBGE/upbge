@@ -158,25 +158,23 @@ void WM_operatortype_iter(GHashIterator *ghi)
 	BLI_ghashIterator_init(ghi, global_ops_hash);
 }
 
-/* all ops in 1 list (for time being... needs evaluation later) */
-void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
+/** \name Operator Type Append
+ * \{ */
+
+static wmOperatorType *wm_operatortype_append__begin(void)
 {
-	wmOperatorType *ot;
-	
-	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
+	wmOperatorType *ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
 	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
 	RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 	ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
-	opfunc(ot);
-
+	return ot;
+}
+static void wm_operatortype_append__end(wmOperatorType *ot)
+{
 	if (ot->name == NULL) {
 		fprintf(stderr, "ERROR: Operator %s has no name property!\n", ot->idname);
 		ot->name = N_("Dummy Name");
-	}
-
-	if (ot->mgrouptype) {
-		ot->mgrouptype->flag |= WM_MANIPULATORGROUPTYPE_OP;
 	}
 
 	/* XXX All ops should have a description but for now allow them not to. */
@@ -186,21 +184,22 @@ void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
 	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
 }
 
+/* all ops in 1 list (for time being... needs evaluation later) */
+void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
+{
+	wmOperatorType *ot = wm_operatortype_append__begin();
+	opfunc(ot);
+	wm_operatortype_append__end(ot);
+}
+
 void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *, void *), void *userdata)
 {
-	wmOperatorType *ot;
-
-	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
-	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
-	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
-	RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
-	ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
+	wmOperatorType *ot = wm_operatortype_append__begin();
 	opfunc(ot, userdata);
-	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-	RNA_def_struct_identifier(ot->srna, ot->idname);
-
-	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
+	wm_operatortype_append__end(ot);
 }
+
+/** \} */
 
 /* ********************* macro operator ******************** */
 
@@ -495,9 +494,6 @@ void WM_operatortype_remove_ptr(wmOperatorType *ot)
 	BLI_ghash_remove(global_ops_hash, ot->idname, NULL, NULL);
 
 	WM_keyconfig_update_operatortype();
-	if (ot->mgrouptype) {
-		WM_manipulatorgrouptype_unregister(NULL, G.main, ot->mgrouptype);
-	}
 
 	MEM_freeN(ot);
 }
@@ -2101,8 +2097,11 @@ static void WM_OT_call_menu_pie(wmOperatorType *ot)
 static int wm_operator_winactive_normal(bContext *C)
 {
 	wmWindow *win = CTX_wm_window(C);
+	bScreen *screen;
 
-	if (win == NULL || win->screen == NULL || win->screen->state != SCREENNORMAL)
+	if (win == NULL)
+		return 0;
+	if (!((screen = WM_window_get_active_screen(win)) && (screen->state == SCREENNORMAL)))
 		return 0;
 
 	return 1;
@@ -3830,11 +3829,12 @@ static void redraw_timer_step(
 		CTX_wm_window_set(C, win);  /* XXX context manipulation warning! */
 	}
 	else if (type == eRTDrawWindow) {
+		bScreen *screen = WM_window_get_active_screen(win);
 		ScrArea *sa_iter;
 
 		CTX_wm_menu_set(C, NULL);
 
-		for (sa_iter = win->screen->areabase.first; sa_iter; sa_iter = sa_iter->next) {
+		for (sa_iter = screen->areabase.first; sa_iter; sa_iter = sa_iter->next) {
 			ARegion *ar_iter;
 			CTX_wm_area_set(C, sa_iter);
 
@@ -4209,6 +4209,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_read_factory_settings);
 	WM_operatortype_append(WM_OT_save_homefile);
 	WM_operatortype_append(WM_OT_save_userpref);
+	WM_operatortype_append(WM_OT_save_workspace_file);
 	WM_operatortype_append(WM_OT_userpref_autoexec_path_add);
 	WM_operatortype_append(WM_OT_userpref_autoexec_path_remove);
 	WM_operatortype_append(WM_OT_window_fullscreen_toggle);

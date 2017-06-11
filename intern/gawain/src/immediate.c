@@ -14,6 +14,7 @@
 #include "attrib_binding.h"
 #include "attrib_binding_private.h"
 #include "vertex_format_private.h"
+#include "primitive_private.h"
 #include <string.h>
 
 // necessary functions from matrix API
@@ -68,11 +69,6 @@ void immInit(void)
 	imm.vbo_id = buffer_id_alloc();
 	glBindBuffer(GL_ARRAY_BUFFER, imm.vbo_id);
 	glBufferData(GL_ARRAY_BUFFER, IMM_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
-
-#if APPLE_LEGACY
-	glBufferParameteriAPPLE(GL_ARRAY_BUFFER, GL_BUFFER_SERIALIZED_MODIFY_APPLE, GL_FALSE);
-	glBufferParameteriAPPLE(GL_ARRAY_BUFFER, GL_BUFFER_FLUSHING_UNMAP_APPLE, GL_FALSE);
-#endif
 
 	imm.prim_type = PRIM_NONE;
 	imm.strict_vertex_ct = true;
@@ -208,7 +204,7 @@ void immBegin(PrimitiveType prim_type, unsigned vertex_ct)
 	else
 		{
 		// orphan this buffer & start with a fresh one
-#if 1 || APPLE_LEGACY
+#if 1
 		// this method works on all platforms, old & new
 		glBufferData(GL_ARRAY_BUFFER, IMM_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
 #else
@@ -235,12 +231,8 @@ void immBegin(PrimitiveType prim_type, unsigned vertex_ct)
 
 //	printf("mapping %u to %u\n", imm.buffer_offset, imm.buffer_offset + bytes_needed - 1);
 
-#if APPLE_LEGACY
-	imm.buffer_data = (GLubyte*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY) + imm.buffer_offset;
-#else
 	imm.buffer_data = glMapBufferRange(GL_ARRAY_BUFFER, imm.buffer_offset, bytes_needed,
 	                                   GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT | (imm.strict_vertex_ct ? 0 : GL_MAP_FLUSH_EXPLICIT_BIT));
-#endif
 
 #if TRUST_NO_ONE
 	assert(imm.buffer_data != NULL);
@@ -390,11 +382,10 @@ void immEnd(void)
 			// unused buffer bytes are available to the next immBegin
 			// printf(" %u of %u bytes\n", buffer_bytes_used, imm.buffer_bytes_mapped);
 			}
-#if !APPLE_LEGACY
+
 		// tell OpenGL what range was modified so it doesn't copy the whole mapped range
 		// printf("flushing %u to %u\n", imm.buffer_offset, imm.buffer_offset + buffer_bytes_used - 1);
 		glFlushMappedBufferRange(GL_ARRAY_BUFFER, 0, buffer_bytes_used);
-#endif
 		}
 
 #if IMM_BATCH_COMBO
@@ -412,11 +403,6 @@ void immEnd(void)
 	else
 #endif
 		{
-#if APPLE_LEGACY
-		// tell OpenGL what range was modified so it doesn't copy the whole buffer
-		// printf("flushing %u to %u\n", imm.buffer_offset, imm.buffer_offset + buffer_bytes_used - 1);
-		glFlushMappedBufferRangeAPPLE(GL_ARRAY_BUFFER, imm.buffer_offset, buffer_bytes_used);
-#endif
 		glUnmapBuffer(GL_ARRAY_BUFFER);
 
 		if (imm.vertex_ct > 0)
@@ -764,12 +750,10 @@ void immVertex2iv(unsigned attrib_id, const int data[2])
     #define GET_UNIFORM const ShaderInput* uniform = ShaderInterface_uniform(imm.shader_interface, name);
   #endif
 #else
-/* NOTE: It is possible to have uniform fully optimized out from the shader.
- * In this case we can't assert failure or allow NULL-pointer dereference.
- *
- * TODO(sergey): How can we detect existing-but-optimized-out uniform but still
- * catch typos in uniform names passed to immUniform*() functions?
- */
+	// NOTE: It is possible to have uniform fully optimized out from the shader.
+	//       In this case we can't assert failure or allow NULL-pointer dereference.
+	// TODO(sergey): How can we detect existing-but-optimized-out uniform but still
+	//               catch typos in uniform names passed to immUniform*() functions?
   #define GET_UNIFORM const ShaderInput* uniform = ShaderInterface_uniform(imm.shader_interface, name); if (uniform == NULL) return;
 #endif
 
@@ -780,16 +764,16 @@ void immUniform1f(const char* name, float x)
 	}
 
 void immUniform2f(const char* name, float x, float y)
-{
+	{
 	GET_UNIFORM
 	glUniform2f(uniform->location, x, y);
-}
+	}
 
 void immUniform2fv(const char* name, const float data[2])
-{
+	{
 	GET_UNIFORM
 	glUniform2fv(uniform->location, 1, data);
-}
+	}
 
 void immUniform3f(const char* name, float x, float y, float z)
 	{

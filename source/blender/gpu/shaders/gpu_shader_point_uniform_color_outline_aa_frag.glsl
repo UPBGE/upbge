@@ -2,13 +2,8 @@
 uniform vec4 color;
 uniform vec4 outlineColor;
 
-#if __VERSION__ == 120
-  varying vec4 radii;
-  #define fragColor gl_FragColor
-#else
-  in vec4 radii;
-  out vec4 fragColor;
-#endif
+in vec4 radii;
+out vec4 fragColor;
 
 void main() {
 	float dist = length(gl_PointCoord - vec2(0.5));
@@ -31,6 +26,11 @@ void main() {
 		fragColor.rgb = outlineColor.rgb;
 		fragColor.a = mix(outlineColor.a, 0.0, smoothstep(radii[1], radii[0], dist));
 	}
-	else
+	else {
 		fragColor = mix(color, outlineColor, smoothstep(radii[3], radii[2], dist));
+	}
+
+	if (fragColor.a == 0.0) {
+		discard;
+	}
 }

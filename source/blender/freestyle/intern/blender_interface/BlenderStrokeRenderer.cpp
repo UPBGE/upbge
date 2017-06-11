@@ -43,6 +43,7 @@ extern "C" {
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_collection.h"
 #include "BKE_customdata.h"
 #include "BKE_global.h"
 #include "BKE_library.h" /* free_libblock */
@@ -168,7 +169,7 @@ BlenderStrokeRenderer::~BlenderStrokeRenderer()
 	// compositor has finished.
 
 	// release objects and data blocks
-	for (BaseLegacy *b = (BaseLegacy *)freestyle_scene->base.first; b; b = b->next) {
+	for (Base *b = (Base *)((SceneLayer *)(freestyle_scene->render_layers.first))->object_bases.first; b; b = b->next) {
 		Object *ob = b->object;
 		void *data = ob->data;
 		char *name = ob->id.name;
@@ -191,7 +192,6 @@ BlenderStrokeRenderer::~BlenderStrokeRenderer()
 			cerr << "Warning: unexpected object in the scene: " << name[0] << name[1] << ":" << (name + 2) << endl;
 		}
 	}
-	BLI_freelistN(&freestyle_scene->base);
 
 	// release materials
 	Link *lnk = (Link *)freestyle_bmain->mat.first;
@@ -526,7 +526,7 @@ void BlenderStrokeRenderer::RenderStrokeRepBasic(StrokeRep *iStrokeRep) const
 
 				// We'll generate both with tips and without tips
 				// coordinates, on two different UV layers.
-				if (ma->mtex[a]->texflag & MTEX_TIPS)  {
+				if (ma->mtex[a]->texflag & MTEX_TIPS) {
 					BLI_strncpy(ma->mtex[a]->uvname, uvNames[1], sizeof(ma->mtex[a]->uvname));
 				}
 				else {
@@ -677,7 +677,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
 {
 #if 0
 	Object *object_mesh = BKE_object_add(freestyle_bmain, freestyle_scene, (SceneLayer *)freestyle_scene->render_layers.first, OB_MESH);
-	DAG_relations_tag_update(freestyle_bmain);
+	DEG_relations_tag_update(freestyle_bmain);
 #else
 	Object *object_mesh = NewMesh();
 #endif
@@ -702,17 +702,13 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
 
 	if (hasTex) {
 		// First UV layer
-		CustomData_add_layer_named(&mesh->pdata, CD_MTEXPOLY, CD_CALLOC, NULL, mesh->totpoly, uvNames[0]);
 		CustomData_add_layer_named(&mesh->ldata, CD_MLOOPUV, CD_CALLOC, NULL, mesh->totloop, uvNames[0]);
-		CustomData_set_layer_active(&mesh->pdata, CD_MTEXPOLY, 0);
 		CustomData_set_layer_active(&mesh->ldata, CD_MLOOPUV, 0);
 		BKE_mesh_update_customdata_pointers(mesh, true);
 		loopsuv[0] = mesh->mloopuv;
 
 		// Second UV layer
-		CustomData_add_layer_named(&mesh->pdata, CD_MTEXPOLY, CD_CALLOC, NULL, mesh->totpoly, uvNames[1]);
 		CustomData_add_layer_named(&mesh->ldata, CD_MLOOPUV, CD_CALLOC, NULL, mesh->totloop, uvNames[1]);
-		CustomData_set_layer_active(&mesh->pdata, CD_MTEXPOLY, 1);
 		CustomData_set_layer_active(&mesh->ldata, CD_MLOOPUV, 1);
 		BKE_mesh_update_customdata_pointers(mesh, true);
 		loopsuv[1] = mesh->mloopuv;
@@ -924,7 +920,6 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
 Object *BlenderStrokeRenderer::NewMesh() const
 {
 	Object *ob;
-	BaseLegacy *base;
 	char name[MAX_ID_NAME];
 	unsigned int mesh_id = get_stroke_mesh_id();
 
@@ -934,14 +929,11 @@ Object *BlenderStrokeRenderer::NewMesh() const
 	ob->data = BKE_mesh_add(freestyle_bmain, name);
 	ob->lay = 1;
 
-	base = BKE_scene_base_add(freestyle_scene, ob);
+	SceneCollection *sc_master = BKE_collection_master(freestyle_scene);
+	BKE_collection_object_add(freestyle_scene, sc_master, ob);
+
+	BKE_scene_base_add(freestyle_scene, ob);
 	DEG_relations_tag_update(freestyle_bmain);
-#if 0
-	BKE_scene_base_deselect_all(scene);
-	BKE_scene_base_select(scene, base);
-#else
-	(void)base;
-#endif
 
 	DEG_id_tag_update_ex(freestyle_bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 
@@ -960,6 +952,8 @@ Render *BlenderStrokeRenderer::RenderScene(Render * /*re*/, bool render)
 #endif
 
 	Render *freestyle_render = RE_NewRender(freestyle_scene->id.name);
+	DEG_scene_relations_update(freestyle_bmain, freestyle_scene);
+	freestyle_render->depsgraph = freestyle_scene->depsgraph;
 
 	RE_RenderFreestyleStrokes(freestyle_render, freestyle_bmain, freestyle_scene,
 	                          render && get_stroke_count() > 0);

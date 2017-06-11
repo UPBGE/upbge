@@ -28,7 +28,10 @@
 
 struct Object;
 
+extern struct DrawEngineType draw_engine_eevee_type;
+
 /* Minimum UBO is 16384 bytes */
+#define MAX_PROBE 128 /* TODO : find size by dividing UBO max size by probe data size */
 #define MAX_LIGHT 128 /* TODO : find size by dividing UBO max size by light data size */
 #define MAX_SHADOW_CUBE 42 /* TODO : Make this depends on GL_MAX_ARRAY_TEXTURE_LAYERS */
 #define MAX_SHADOW_MAP 64
@@ -40,10 +43,12 @@ typedef struct EEVEE_PassList {
 	/* Shadows */
 	struct DRWPass *shadow_pass;
 	struct DRWPass *shadow_cube_pass;
+	struct DRWPass *shadow_cube_store_pass;
 	struct DRWPass *shadow_cascade_pass;
 
 	/* Probes */
 	struct DRWPass *probe_background;
+	struct DRWPass *probe_meshes;
 	struct DRWPass *probe_prefilter;
 	struct DRWPass *probe_sh_compute;
 
@@ -61,19 +66,12 @@ typedef struct EEVEE_PassList {
 	struct DRWPass *depth_pass;
 	struct DRWPass *depth_pass_cull;
 	struct DRWPass *default_pass;
+	struct DRWPass *default_flat_pass;
 	struct DRWPass *material_pass;
 	struct DRWPass *background_pass;
 } EEVEE_PassList;
 
 typedef struct EEVEE_FramebufferList {
-	/* Shadows */
-	struct GPUFrameBuffer *shadow_cube_fb;
-	struct GPUFrameBuffer *shadow_map_fb;
-	struct GPUFrameBuffer *shadow_cascade_fb;
-	/* Probes */
-	struct GPUFrameBuffer *probe_fb;
-	struct GPUFrameBuffer *probe_filter_fb;
-	struct GPUFrameBuffer *probe_sh_fb;
 	/* Effects */
 	struct GPUFrameBuffer *effect_fb; /* HDR */
 	struct GPUFrameBuffer *bloom_blit_fb; /* HDR */
@@ -87,15 +85,6 @@ typedef struct EEVEE_FramebufferList {
 } EEVEE_FramebufferList;
 
 typedef struct EEVEE_TextureList {
-	/* Shadows */
-	struct GPUTexture *shadow_depth_cube_pool;
-	struct GPUTexture *shadow_depth_map_pool;
-	struct GPUTexture *shadow_depth_cascade_pool;
-	/* Probes */
-	struct GPUTexture *probe_rt; /* R16_G16_B16 */
-	struct GPUTexture *probe_depth_rt;
-	struct GPUTexture *probe_pool; /* R11_G11_B10 */
-	struct GPUTexture *probe_sh; /* R16_G16_B16 */
 	/* Effects */
 	struct GPUTexture *color_post; /* R16_G16_B16 */
 	struct GPUTexture *dof_down_near; /* R16_G16_B16_A16 */
@@ -111,17 +100,6 @@ typedef struct EEVEE_TextureList {
 } EEVEE_TextureList;
 
 typedef struct EEVEE_StorageList {
-	/* Lamps */
-	/* XXX this should be per-scenelayer and not per_viewport */
-	struct EEVEE_LampsInfo *lamps;
-	struct GPUUniformBuffer *light_ubo;
-	struct GPUUniformBuffer *shadow_ubo;
-	struct GPUUniformBuffer *shadow_render_ubo;
-
-	/* Probes */
-	struct EEVEE_ProbesInfo *probes;
-	struct GPUUniformBuffer *probe_ubo;
-
 	/* Effects */
 	struct EEVEE_EffectsInfo *effects;
 
@@ -139,7 +117,7 @@ typedef struct EEVEE_Light {
 } EEVEE_Light;
 
 typedef struct EEVEE_ShadowCube {
-	float near, far, bias, pad;
+	float near, far, bias, exp;
 } EEVEE_ShadowCube;
 
 typedef struct EEVEE_ShadowMap {
@@ -155,7 +133,10 @@ typedef struct EEVEE_ShadowCascade {
 
 typedef struct EEVEE_ShadowRender {
 	float shadowmat[6][4][4]; /* World->Lamp->NDC : used to render the shadow map. 6 frustrum for cubemap shadow */
+	float position[3];
+	float pad;
 	int layer;
+	float exponent;
 } EEVEE_ShadowRender;
 
 /* ************ LIGHT DATA ************* */
@@ -164,7 +145,9 @@ typedef struct EEVEE_LampsInfo {
 	int num_cube, cache_num_cube;
 	int num_map, cache_num_map;
 	int num_cascade, cache_num_cascade;
+	int update_flag;
 	/* List of lights in the scene. */
+	/* XXX This is fragile, can get out of sync quickly. */
 	struct Object *light_ref[MAX_LIGHT];
 	struct Object *shadow_cube_ref[MAX_SHADOW_CUBE];
 	struct Object *shadow_map_ref[MAX_SHADOW_MAP];
@@ -177,11 +160,33 @@ typedef struct EEVEE_LampsInfo {
 	struct EEVEE_ShadowCascade shadow_cascade_data[MAX_SHADOW_CASCADE];
 } EEVEE_LampsInfo;
 
+/* EEVEE_LampsInfo->update_flag */
+enum {
+	LIGHT_UPDATE_SHADOW_CUBE = (1 << 0),
+};
+
+/* ************ PROBE UBO ************* */
+typedef struct EEVEE_Probe {
+	float position[3], parallax_type;
+	float shcoefs[9][3], pad2;
+	float attenuation_fac;
+	float attenuation_type;
+	float pad3[2];
+	float attenuationmat[4][4];
+	float parallaxmat[4][4];
+} EEVEE_Probe;
+
 /* ************ PROBE DATA ************* */
 typedef struct EEVEE_ProbesInfo {
+	int num_cube, cache_num_cube;
+	int update_flag;
+	/* Actual number of probes that have datas. */
+	int num_render_probe;
 	/* For rendering probes */
 	float probemat[6][4][4];
 	int layer;
+	float texel_size;
+	float padding_size;
 	float samples_ct;
 	float invsamples_ct;
 	float roughness;
@@ -189,9 +194,18 @@ typedef struct EEVEE_ProbesInfo {
 	float lodmax;
 	int shres;
 	int shnbr;
-	float shcoefs[9][3]; /* Temp */
 	struct GPUTexture *backgroundtex;
+	/* List of probes in the scene. */
+	/* XXX This is fragile, can get out of sync quickly. */
+	struct Object *probes_ref[MAX_PROBE];
+	/* UBO Storage : data used by UBO */
+	struct EEVEE_Probe probe_data[MAX_PROBE];
 } EEVEE_ProbesInfo;
+
+/* EEVEE_ProbesInfo->update_flag */
+enum {
+	PROBE_UPDATE_CUBE = (1 << 0),
+};
 
 /* ************ EFFECTS DATA ************* */
 typedef struct EEVEE_EffectsInfo {
@@ -233,6 +247,62 @@ enum {
 	EFFECT_DOF                 = (1 << 2),
 };
 
+/* ************** SCENE LAYER DATA ************** */
+typedef struct EEVEE_SceneLayerData {
+	/* Lamps */
+	struct EEVEE_LampsInfo *lamps;
+
+	struct GPUUniformBuffer *light_ubo;
+	struct GPUUniformBuffer *shadow_ubo;
+	struct GPUUniformBuffer *shadow_render_ubo;
+
+	struct GPUFrameBuffer *shadow_cube_target_fb;
+	struct GPUFrameBuffer *shadow_cube_fb;
+	struct GPUFrameBuffer *shadow_map_fb;
+	struct GPUFrameBuffer *shadow_cascade_fb;
+
+	struct GPUTexture *shadow_depth_cube_target;
+	struct GPUTexture *shadow_color_cube_target;
+	struct GPUTexture *shadow_depth_cube_pool;
+	struct GPUTexture *shadow_depth_map_pool;
+	struct GPUTexture *shadow_depth_cascade_pool;
+
+	struct ListBase shadow_casters; /* Shadow casters gathered during cache iteration */
+
+	/* Probes */
+	struct EEVEE_ProbesInfo *probes;
+
+	struct GPUUniformBuffer *probe_ubo;
+
+	struct GPUFrameBuffer *probe_fb;
+	struct GPUFrameBuffer *probe_filter_fb;
+	struct GPUFrameBuffer *probe_sh_fb;
+
+	struct GPUTexture *probe_rt;
+	struct GPUTexture *probe_depth_rt;
+	struct GPUTexture *probe_pool;
+	struct GPUTexture *probe_sh;
+
+	struct ListBase probe_queue; /* List of probes to update */
+} EEVEE_SceneLayerData;
+
+/* ************ OBJECT DATA ************ */
+typedef struct EEVEE_LampEngineData {
+	bool need_update;
+	struct ListBase shadow_caster_list;
+	void *storage; /* either EEVEE_LightData, EEVEE_ShadowCubeData, EEVEE_ShadowCascadeData */
+} EEVEE_LampEngineData;
+
+typedef struct EEVEE_ProbeEngineData {
+	bool need_update;
+	bool ready_to_shade;
+	struct ListBase captured_object_list;
+} EEVEE_ProbeEngineData;
+
+typedef struct EEVEE_ObjectEngineData {
+	bool need_update;
+} EEVEE_ObjectEngineData;
+
 /* *********************************** */
 
 typedef struct EEVEE_Data {
@@ -243,36 +313,48 @@ typedef struct EEVEE_Data {
 	EEVEE_StorageList *stl;
 } EEVEE_Data;
 
-/* Keep it sync with MAX_LAMP_DATA */
-typedef struct EEVEE_LampEngineData {
-	void *sto;
-	void *pad;
-} EEVEE_LampEngineData;
-
 typedef struct EEVEE_PrivateData {
-	struct DRWShadingGroup *default_lit_grp;
 	struct DRWShadingGroup *shadow_shgrp;
 	struct DRWShadingGroup *depth_shgrp;
 	struct DRWShadingGroup *depth_shgrp_cull;
-
-	struct ListBase lamps; /* Lamps gathered during cache iteration */
+	struct GHash *material_hash;
 } EEVEE_PrivateData; /* Transient data */
 
+/* eevee_data.c */
+EEVEE_SceneLayerData *EEVEE_scene_layer_data_get(void);
+EEVEE_ObjectEngineData *EEVEE_object_data_get(Object *ob);
+EEVEE_ProbeEngineData *EEVEE_probe_data_get(Object *ob);
+EEVEE_LampEngineData *EEVEE_lamp_data_get(Object *ob);
+
+
+/* eevee_materials.c */
+void EEVEE_materials_init(void);
+void EEVEE_materials_cache_init(EEVEE_Data *vedata);
+void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_SceneLayerData *sldata, Object *ob, struct Batch *geom);
+void EEVEE_materials_cache_finish(EEVEE_Data *vedata);
+struct GPUMaterial *EEVEE_material_world_probe_get(struct Scene *scene, struct World *wo);
+struct GPUMaterial *EEVEE_material_world_background_get(struct Scene *scene, struct World *wo);
+struct GPUMaterial *EEVEE_material_mesh_probe_get(struct Scene *scene, Material *ma);
+struct GPUMaterial *EEVEE_material_mesh_get(struct Scene *scene, Material *ma);
+void EEVEE_materials_free(void);
+
 /* eevee_lights.c */
-void EEVEE_lights_init(EEVEE_StorageList *stl);
-void EEVEE_lights_cache_init(EEVEE_StorageList *stl);
-void EEVEE_lights_cache_add(EEVEE_StorageList *stl, struct Object *ob);
-void EEVEE_lights_cache_finish(EEVEE_StorageList *stl, EEVEE_TextureList *txl, EEVEE_FramebufferList *fbl);
-void EEVEE_lights_update(EEVEE_StorageList *stl);
-void EEVEE_draw_shadows(EEVEE_Data *vedata);
+void EEVEE_lights_init(EEVEE_SceneLayerData *sldata);
+void EEVEE_lights_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl);
+void EEVEE_lights_cache_add(EEVEE_SceneLayerData *sldata, struct Object *ob);
+void EEVEE_lights_cache_shcaster_add(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl, struct Batch *geom, float (*obmat)[4]);
+void EEVEE_lights_cache_finish(EEVEE_SceneLayerData *sldata);
+void EEVEE_lights_update(EEVEE_SceneLayerData *sldata);
+void EEVEE_draw_shadows(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl);
+void EEVEE_lights_free(void);
 
 /* eevee_probes.c */
-void EEVEE_probes_init(EEVEE_Data *vedata);
-void EEVEE_probes_cache_init(EEVEE_Data *vedata);
-void EEVEE_probes_cache_add(EEVEE_Data *vedata, Object *ob);
-void EEVEE_probes_cache_finish(EEVEE_Data *vedata);
-void EEVEE_probes_update(EEVEE_Data *vedata);
-void EEVEE_refresh_probe(EEVEE_Data *vedata);
+void EEVEE_probes_init(EEVEE_SceneLayerData *sldata);
+void EEVEE_probes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl);
+void EEVEE_probes_cache_add(EEVEE_SceneLayerData *sldata, Object *ob);
+void EEVEE_probes_cache_finish(EEVEE_SceneLayerData *sldata);
+void EEVEE_probes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl);
+void EEVEE_probes_free(void);
 
 /* eevee_effects.c */
 void EEVEE_effects_init(EEVEE_Data *vedata);
@@ -302,13 +384,13 @@ static const float cubefacemat[6][4][4] = {
 	 {0.0, 0.0, 0.0, 1.0}},
 	/* Pos Y */
 	{{1.0, 0.0, 0.0, 0.0},
-	 {0.0, 0.0, 1.0, 0.0},
-	 {0.0, -1.0, 0.0, 0.0},
+	 {0.0, 0.0, -1.0, 0.0},
+	 {0.0, 1.0, 0.0, 0.0},
 	 {0.0, 0.0, 0.0, 1.0}},
 	/* Neg Y */
 	{{1.0, 0.0, 0.0, 0.0},
-	 {0.0, 0.0, -1.0, 0.0},
-	 {0.0, 1.0, 0.0, 0.0},
+	 {0.0, 0.0, 1.0, 0.0},
+	 {0.0, -1.0, 0.0, 0.0},
 	 {0.0, 0.0, 0.0, 1.0}},
 	/* Pos Z */
 	{{1.0, 0.0, 0.0, 0.0},

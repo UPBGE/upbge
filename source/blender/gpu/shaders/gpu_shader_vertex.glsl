@@ -12,30 +12,25 @@ out block {
 } outpt;
 #endif
 
+out vec3 varposition;
+out vec3 varnormal;
+
 #ifdef USE_INSTANCING
 in mat3 ininstmatrix;
 in vec3 ininstposition;
 in vec4 ininstcolor;
 
-varying vec4 varinstcolor;
-varying mat4 varinstmat;
-varying mat4 varinstinvmat;
-varying mat4 varinstlocaltoviewmat;
-varying mat4 varinstinvlocaltoviewmat;
+out vec4 varinstcolor;
+out mat4 varinstmat;
+out mat4 varinstinvmat;
+out mat4 varinstlocaltoviewmat;
+out mat4 varinstinvlocaltoviewmat;
 
 uniform mat4 unfviewmat;
 #endif
 
-#if __VERSION__ == 120
-  varying vec3 varposition;
-  varying vec3 varnormal;
-#else
-  out vec3 varposition;
-  out vec3 varnormal;
-#endif
-
 #ifdef CLIP_WORKAROUND
-varying float gl_ClipDistance[6];
+out float gl_ClipDistance[6];
 #endif
 
 

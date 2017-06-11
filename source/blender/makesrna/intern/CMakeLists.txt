@@ -72,8 +72,9 @@ set(DEFSRC
 	rna_palette.c
 	rna_particle.c
 	rna_pose.c
-	rna_python_component.c
+	rna_probe.c
 	rna_property.c
+	rna_python_component.c
 	rna_render.c
 	rna_rigidbody.c
 	rna_rna.c
@@ -95,6 +96,7 @@ set(DEFSRC
 	rna_userdef.c
 	rna_vfont.c
 	rna_wm.c
+	rna_workspace.c
 	rna_world.c
 )
 

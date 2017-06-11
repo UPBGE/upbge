@@ -39,15 +39,18 @@ extern "C" {
 struct BlendThumbnail;
 struct bScreen;
 struct LinkNode;
+struct ListBase;
 struct Main;
 struct MemFile;
 struct ReportList;
 struct Scene;
+struct SceneLayer;
 struct UserDef;
 struct View3D;
 struct bContext;
 struct BHead;
 struct FileData;
+struct wmWindowManager;
 
 typedef struct BlendHandle BlendHandle;
 
@@ -64,12 +67,19 @@ typedef struct BlendFileData {
 	int fileflags;
 	int globalf;
 	char filename[1024];    /* 1024 = FILE_MAX */
-	
-	struct bScreen *curscreen;
+
+	struct bScreen *curscreen; /* TODO think this isn't needed anymore? */
 	struct Scene *curscene;
-	
+	struct SceneLayer *cur_render_layer; /* layer to activate in workspaces when reading without UI */
+
 	BlenFileType type;
 } BlendFileData;
+
+typedef struct WorkspaceConfigFileData {
+	struct Main *main; /* has to be freed when done reading file data */
+
+	struct ListBase workspaces;
+} WorkspaceConfigFileData;
 
 
 /* skip reading some data-block types (may want to skip screen data too). */
@@ -99,6 +109,7 @@ BlendHandle *BLO_blendhandle_from_memory(const void *mem, int memsize);
 struct LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh, int ofblocktype, int *tot_names);
 struct LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *tot_prev);
 struct LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh);
+struct LinkNode *BLO_blendhandle_get_appendable_groups(BlendHandle *bh);
 
 void BLO_blendhandle_close(BlendHandle *bh);
 
@@ -114,9 +125,9 @@ struct ID *BLO_library_link_named_part(struct Main *mainl, BlendHandle **bh, con
 struct ID *BLO_library_link_named_part_ex(
         struct Main *mainl, BlendHandle **bh,
         const short idcode, const char *name, const short flag,
-        struct Scene *scene, struct View3D *v3d,
+        struct Scene *scene, struct SceneLayer *sl,
         const bool use_placeholders, const bool force_indirect);
-void BLO_library_link_end(struct Main *mainl, BlendHandle **bh, short flag, struct Scene *scene, struct View3D *v3d);
+void BLO_library_link_end(struct Main *mainl, BlendHandle **bh, short flag, struct Scene *scene, struct SceneLayer *sl);
 
 void BLO_library_link_copypaste(struct Main *mainl, BlendHandle *bh);
 
@@ -125,7 +136,9 @@ void *BLO_library_read_struct(struct FileData *fd, struct BHead *bh, const char 
 BlendFileData *blo_read_blendafterruntime(int file, const char *name, int actualsize, struct ReportList *reports);
 
 /* internal function but we need to expose it */
-void blo_lib_link_screen_restore(struct Main *newmain, struct bScreen *curscreen, struct Scene *curscene);
+void blo_lib_link_restore(
+        struct Main *newmain, struct wmWindowManager *curwm,
+        struct Scene *curscene, struct SceneLayer *cur_render_layer);
 
 typedef void (*BLOExpandDoitCallback) (void *fdhandle, struct Main *mainvar, void *idv);
 

@@ -12,8 +12,14 @@ in vec3 nor;
 
 out vec3 worldPosition;
 out vec3 viewPosition;
+
+#ifdef USE_FLAT_NORMAL
+flat out vec3 worldNormal;
+flat out vec3 viewNormal;
+#else
 out vec3 worldNormal;
 out vec3 viewNormal;
+#endif
 
 void main() {
 	gl_Position = ModelViewProjectionMatrix * vec4(pos, 1.0);
@@ -23,6 +29,6 @@ void main() {
 	worldNormal = normalize(WorldNormalMatrix * nor);
 
 #ifdef ATTRIB
-	pass_attrib();
+	pass_attrib(pos);
 #endif
 }

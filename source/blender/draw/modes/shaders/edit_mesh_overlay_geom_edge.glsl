@@ -23,7 +23,7 @@ flat out ivec3 flag;
 flat out vec4 faceColor;
 flat out int clipCase;
 #ifdef VERTEX_SELECTION
-smooth out vec3 vertexColor;
+out vec3 vertexColor;
 #endif
 
 /* See fragment shader */
@@ -104,7 +104,7 @@ void main()
 	/* perpendicular to dir */
 	dirs1.zw = vec2(-dirs1.y, dirs1.x);
 
-	/* Make it view independant */
+	/* Make it view independent */
 	dirs1 *= sizeEdgeFix / viewportSize.xyxy;
 
 	dirs2 = dirs1;

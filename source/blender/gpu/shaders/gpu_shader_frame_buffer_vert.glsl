@@ -1,10 +1,10 @@
-in vec4 pos;
-in vec2 uvs;
+in vec4 bgeOfsPos;
+in vec2 bgeOfsUvs;
 
 out vec4 texcovar;
 
 void main()
 {
-	gl_Position = pos;
-	texcovar = vec4(uvs, 0.0, 0.0);
+	gl_Position = bgeOfsPos;
+	texcovar = vec4(bgeOfsUvs, 0.0, 0.0);
 }

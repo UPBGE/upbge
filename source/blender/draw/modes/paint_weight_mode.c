@@ -89,10 +89,10 @@ static void PAINT_WEIGHT_engine_init(void *UNUSED(vedata))
 {
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 
-	if (e_data.actdef != draw_ctx->sl->basact->object->actdef) {
-		e_data.actdef = draw_ctx->sl->basact->object->actdef;
+	if (e_data.actdef != draw_ctx->obact->actdef) {
+		e_data.actdef = draw_ctx->obact->actdef;
 
-		BKE_mesh_batch_cache_dirty(draw_ctx->sl->basact->object->data, BKE_MESH_BATCH_DIRTY_PAINT);
+		BKE_mesh_batch_cache_dirty(draw_ctx->obact->data, BKE_MESH_BATCH_DIRTY_PAINT);
 	}
 
 	if (!e_data.weight_face_shader) {
@@ -132,7 +132,9 @@ static void PAINT_WEIGHT_cache_init(void *vedata)
 
 	{
 		/* Create a pass */
-		psl->weight_faces = DRW_pass_create("Weight Pass", DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
+		psl->weight_faces = DRW_pass_create(
+		        "Weight Pass",
+		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
 
 		stl->g_data->fweights_shgrp = DRW_shgroup_create(e_data.weight_face_shader, psl->weight_faces);
 
@@ -144,13 +146,17 @@ static void PAINT_WEIGHT_cache_init(void *vedata)
 	}
 
 	{
-		psl->wire_overlay = DRW_pass_create("Wire Pass", DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
+		psl->wire_overlay = DRW_pass_create(
+		        "Wire Pass",
+		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
 
 		stl->g_data->lwire_shgrp = DRW_shgroup_create(e_data.wire_overlay_shader, psl->wire_overlay);
 	}
 
 	{
-		psl->face_overlay = DRW_pass_create("Face Mask Pass", DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS | DRW_STATE_BLEND);
+		psl->face_overlay = DRW_pass_create(
+		        "Face Mask Pass",
+		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS | DRW_STATE_BLEND);
 
 		stl->g_data->face_shgrp = DRW_shgroup_create(e_data.face_overlay_shader, psl->face_overlay);
 
@@ -159,7 +165,9 @@ static void PAINT_WEIGHT_cache_init(void *vedata)
 	}
 
 	{
-		psl->vert_overlay = DRW_pass_create("Vert Mask Pass", DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
+		psl->vert_overlay = DRW_pass_create(
+		        "Vert Mask Pass",
+		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
 
 		stl->g_data->vert_shgrp = DRW_shgroup_create(e_data.vert_overlay_shader, psl->vert_overlay);
 	}
@@ -169,12 +177,13 @@ static void PAINT_WEIGHT_cache_populate(void *vedata, Object *ob)
 {
 	PAINT_WEIGHT_StorageList *stl = ((PAINT_WEIGHT_Data *)vedata)->stl;
 	const DRWContextState *draw_ctx = DRW_context_state_get();
-	SceneLayer *sl = draw_ctx->sl;
 
-	if (ob->type == OB_MESH && ob == sl->basact->object) {
+	if ((ob->type == OB_MESH) && (ob == draw_ctx->obact)) {
 		IDProperty *ces_mode_pw = BKE_layer_collection_engine_evaluated_get(ob, COLLECTION_MODE_PAINT_WEIGHT, "");
 		bool use_wire = BKE_collection_engine_property_value_get_bool(ces_mode_pw, "use_wire");
-		char flag = ((Mesh *)ob->data)->editflag;
+		const Mesh *me = ob->data;
+		const bool use_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
+		const bool use_vert_sel = (me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
 		struct Batch *geom;
 
 		world_light = BKE_collection_engine_property_value_get_bool(ces_mode_pw, "use_shading") ? 0.5f : 1.0f;
@@ -182,17 +191,17 @@ static void PAINT_WEIGHT_cache_populate(void *vedata, Object *ob)
 		geom = DRW_cache_mesh_surface_weights_get(ob);
 		DRW_shgroup_call_add(stl->g_data->fweights_shgrp, geom, ob->obmat);
 
-		if (flag & ME_EDIT_PAINT_FACE_SEL || use_wire) {
-			geom = DRW_cache_mesh_edges_paint_overlay_get(ob, use_wire, flag & ME_EDIT_PAINT_FACE_SEL);
+		if (use_face_sel || use_wire) {
+			geom = DRW_cache_mesh_edges_paint_overlay_get(ob, use_wire, use_face_sel);
 			DRW_shgroup_call_add(stl->g_data->lwire_shgrp, geom, ob->obmat);
 		}
 
-		if (flag & ME_EDIT_PAINT_FACE_SEL) {
+		if (use_face_sel) {
 			geom = DRW_cache_mesh_faces_weight_overlay_get(ob);
 			DRW_shgroup_call_add(stl->g_data->face_shgrp, geom, ob->obmat);
 		}
 
-		if (flag & ME_EDIT_PAINT_VERT_SEL) {
+		if (use_vert_sel) {
 			geom = DRW_cache_mesh_verts_weight_overlay_get(ob);
 			DRW_shgroup_call_add(stl->g_data->vert_shgrp, geom, ob->obmat);
 		}

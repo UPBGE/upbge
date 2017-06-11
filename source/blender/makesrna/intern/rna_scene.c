@@ -83,8 +83,6 @@
 
 #include "BLI_threads.h"
 
-#define NO_ENGINE "NO_ENGINE"
-
 #ifdef WITH_OPENEXR
 EnumPropertyItem rna_enum_exr_codec_items[] = {
 	{R_IMF_EXR_CODEC_NONE, "NONE", 0, "None", ""},
@@ -473,7 +471,6 @@ EnumPropertyItem rna_enum_layer_collection_mode_settings_type_items[] = {
 #include "BKE_node.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
-#include "BKE_depsgraph.h"
 #include "BKE_idprop.h"
 #include "BKE_mesh.h"
 #include "BKE_sound.h"
@@ -483,12 +480,16 @@ EnumPropertyItem rna_enum_layer_collection_mode_settings_type_items[] = {
 #include "BKE_freestyle.h"
 #include "BKE_gpencil.h"
 
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
+
 #include "ED_info.h"
 #include "ED_node.h"
 #include "ED_view3d.h"
 #include "ED_mesh.h"
 #include "ED_keyframing.h"
 #include "ED_image.h"
+#include "ED_scene.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -671,11 +672,11 @@ static BaseLegacy *rna_Scene_object_link(Scene *scene, bContext *C, ReportList *
 		ob->lay = base->lay;
 
 	/* TODO(sergey): Only update relations for the current scene. */
-	DAG_relations_tag_update(CTX_data_main(C));
-	DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+	DEG_relations_tag_update(CTX_data_main(C));
+	DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 
 	/* slows down importers too much, run scene.update() */
-	/* DAG_srelations_tag_update(G.main); */
+	/* DEG_srelations_tag_update(G.main); */
 
 	WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
 
@@ -703,7 +704,7 @@ static void rna_Scene_object_unlink(Scene *scene, ReportList *reports, Object *o
 	id_us_min(&ob->id);
 
 	/* needed otherwise the depgraph will contain freed objects which can crash, see [#20958] */
-	DAG_relations_tag_update(G.main);
+	DEG_relations_tag_update(G.main);
 
 	WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
 }
@@ -766,19 +767,21 @@ static int rna_Scene_active_layer_get(PointerRNA *ptr)
 
 static void rna_Scene_view3d_update(Main *bmain, Scene *UNUSED(scene_unused), PointerRNA *ptr)
 {
+	wmWindowManager *wm = bmain->wm.first;
 	Scene *scene = (Scene *)ptr->data;
 
-	BKE_screen_view3d_main_sync(&bmain->screen, scene);
+	WM_windows_scene_data_sync(&wm->windows, scene);
 }
 
-static void rna_Scene_layer_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Scene_layer_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
-	rna_Scene_view3d_update(bmain, scene, ptr);
 	/* XXX We would need do_time=true here, else we can have update issues like [#36289]...
 	 *     However, this has too much drawbacks (like slower layer switch, undesired updates...).
 	 *     That's TODO for future DAG updates.
 	 */
-	DAG_on_visible_update(bmain, false);
+	DEG_on_visible_update(bmain, false);
+
+	/* No need to sync scene data here (WM_windows_scene_data_sync), handled through notifier. */
 }
 
 static void rna_Scene_fps_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
@@ -1475,7 +1478,7 @@ static SceneRenderLayer *rna_RenderLayer_new(ID *id, RenderData *UNUSED(rd), con
 	Scene *scene = (Scene *)id;
 	SceneRenderLayer *srl = BKE_scene_add_render_layer(scene, name);
 
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 	WM_main_add_notifier(NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	return srl;
@@ -1495,7 +1498,7 @@ static void rna_RenderLayer_remove(
 
 	RNA_POINTER_INVALIDATE(srl_ptr);
 
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 	WM_main_add_notifier(NC_SCENE | ND_RENDER_OPTIONS, NULL);
 }
 
@@ -1615,14 +1618,14 @@ static void rna_Scene_glsl_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Poi
 {
 	Scene *scene = (Scene *)ptr->id.data;
 
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 }
 
 static void rna_Scene_freestyle_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Scene *scene = (Scene *)ptr->id.data;
 
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 }
 
 static void rna_Scene_use_view_map_cache_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
@@ -1826,7 +1829,7 @@ static void object_simplify_update(Object *ob)
 
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (ELEM(md->type, eModifierType_Subsurf, eModifierType_Multires, eModifierType_ParticleSystem)) {
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		}
 	}
 
@@ -1852,7 +1855,7 @@ static void rna_Scene_use_simplify_update(Main *bmain, Scene *scene, PointerRNA 
 		object_simplify_update(base->object);
 	
 	WM_main_add_notifier(NC_GEOM | ND_DATA, NULL);
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 }
 
 static void rna_Scene_simplify_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
@@ -2024,7 +2027,7 @@ static StructRNA *rna_LayerCollectionSettings_refine(PointerRNA *ptr)
 			}
 #endif
 			if (STREQ(props->name, RE_engine_id_BLENDER_EEVEE)) {
-				printf("Mode not fully implemented\n");
+				/* printf("Mode not fully implemented\n"); */
 				return &RNA_LayerCollectionSettings;
 			}
 			break;
@@ -2160,7 +2163,7 @@ static void rna_EditMesh_update(Main *UNUSED(bmain), bContext *C, Scene *UNUSED(
 	}
 
 	if (me) {
-		DAG_id_tag_update(&me->id, OB_RECALC_DATA);
+		DEG_id_tag_update(&me->id, OB_RECALC_DATA);
 		WM_main_add_notifier(NC_GEOM | ND_DATA, me);
 	}
 }
@@ -2181,7 +2184,7 @@ static void rna_Scene_update_active_object_data(bContext *C, PointerRNA *UNUSED(
 	Object *ob = OBACT_NEW;
 
 	if (ob) {
-		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
 	}
 }
@@ -2192,7 +2195,7 @@ static void rna_SceneCamera_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Po
 	Object *camera = scene->camera;
 
 	if (camera)
-		DAG_id_tag_update(&camera->id, 0);
+		DEG_id_tag_update(&camera->id, 0);
 }
 
 static void rna_SceneSequencer_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
@@ -2229,7 +2232,7 @@ static FreestyleLineSet *rna_FreestyleSettings_lineset_add(
 	Scene *scene = (Scene *)id;
 	FreestyleLineSet *lineset = BKE_freestyle_lineset_add(bmain, (FreestyleConfig *)config, name);
 
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 	WM_main_add_notifier(NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	return lineset;
@@ -2248,7 +2251,7 @@ static void rna_FreestyleSettings_lineset_remove(
 
 	RNA_POINTER_INVALIDATE(lineset_ptr);
 
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 	WM_main_add_notifier(NC_SCENE | ND_RENDER_OPTIONS, NULL);
 }
 
@@ -2285,7 +2288,7 @@ static FreestyleModuleConfig *rna_FreestyleSettings_module_add(ID *id, Freestyle
 	Scene *scene = (Scene *)id;
 	FreestyleModuleConfig *module = BKE_freestyle_module_add((FreestyleConfig *)config);
 
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 	WM_main_add_notifier(NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	return module;
@@ -2307,7 +2310,7 @@ static void rna_FreestyleSettings_module_remove(
 
 	RNA_POINTER_INVALIDATE(module_ptr);
 
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 	WM_main_add_notifier(NC_SCENE | ND_RENDER_OPTIONS, NULL);
 }
 
@@ -2368,7 +2371,7 @@ static void rna_Stereo3dFormat_update(Main *UNUSED(bmain), Scene *UNUSED(scene),
 
 static int rna_gpu_is_hq_supported_get(PointerRNA *UNUSED(ptr))
 {
-	return GPU_instanced_drawing_support() && GPU_geometry_shader_support();
+	return true;
 }
 
 static void rna_SceneCollection_name_set(PointerRNA *ptr, const char *value)
@@ -2404,7 +2407,7 @@ static int rna_SceneCollection_move_above(ID *id, SceneCollection *sc_src, Main 
 		return 0;
 	}
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 
 	return 1;
@@ -2418,7 +2421,7 @@ static int rna_SceneCollection_move_below(ID *id, SceneCollection *sc_src, Main 
 		return 0;
 	}
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 
 	return 1;
@@ -2432,7 +2435,7 @@ static int rna_SceneCollection_move_into(ID *id, SceneCollection *sc_src, Main *
 		return 0;
 	}
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 
 	return 1;
@@ -2444,7 +2447,7 @@ static SceneCollection *rna_SceneCollection_new(
 	Scene *scene = (Scene *)id;
 	SceneCollection *sc = BKE_collection_add(scene, sc_parent, name);
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 
 	return sc;
@@ -2471,7 +2474,7 @@ static void rna_SceneCollection_remove(
 
 	RNA_POINTER_INVALIDATE(sc_ptr);
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 }
 
@@ -2508,12 +2511,12 @@ void rna_SceneCollection_object_link(
 	BKE_collection_object_add(scene, sc, ob);
 
 	/* TODO(sergey): Only update relations for the current scene. */
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 
 	/* TODO(sergey): Use proper flag for tagging here. */
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 
-	DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+	DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 
 	WM_main_add_notifier(NC_SCENE | ND_LAYER | ND_OB_ACTIVE, scene);
 }
@@ -2531,7 +2534,7 @@ static void rna_SceneCollection_object_unlink(
 	BKE_collection_object_remove(bmain, scene, sc, ob, false);
 
 	/* needed otherwise the depgraph will contain freed objects which can crash, see [#20958] */
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 
 	WM_main_add_notifier(NC_SCENE | ND_LAYER | ND_OB_ACTIVE, scene);
 }
@@ -2629,13 +2632,7 @@ RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(ssao_factor_cavity)
 RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(ssao_factor_edge)
 RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(ssao_distance)
 RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(ssao_attenuation)
-RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(world_intensity)
-RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(diffuse_intensity)
-RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(specular_intensity)
-RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(specular_hardness)
-RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(color_randomicity)
-RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT_ARRAY(hair_diffuse_color, 4)
-RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT_ARRAY(hair_specular_color, 4)
+RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(hair_brightness_randomness)
 #endif /* WITH_CLAY_ENGINE */
 
 /* eevee engine */
@@ -2679,14 +2676,14 @@ static void rna_SceneLayerEngineSettings_update(bContext *C, PointerRNA *UNUSED(
 {
 	Scene *scene = CTX_data_scene(C);
 	/* TODO(sergey): Use proper flag for tagging here. */
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 }
 
 static void rna_LayerCollectionEngineSettings_update(bContext *C, PointerRNA *UNUSED(ptr))
 {
 	Scene *scene = CTX_data_scene(C);
 	/* TODO(sergey): Use proper flag for tagging here. */
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 }
 
 static void rna_LayerCollectionEngineSettings_wire_update(bContext *C, PointerRNA *UNUSED(ptr))
@@ -2700,7 +2697,7 @@ static void rna_LayerCollectionEngineSettings_wire_update(bContext *C, PointerRN
 	}
 
 	/* TODO(sergey): Use proper flag for tagging here. */
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 }
 
 /***********************************/
@@ -2766,7 +2763,7 @@ static void rna_SceneLayerSettings_use(ID *id, IDProperty *props, const char *id
 	engine_settings_use(props, scene_props, &scene_props_ptr, identifier);
 
 	/* TODO(sergey): Use proper flag for tagging here. */
-	DAG_id_tag_update(id, 0);
+	DEG_id_tag_update(id, 0);
 }
 
 static void rna_SceneLayerSettings_unuse(ID *id, IDProperty *props, const char *identifier)
@@ -2775,7 +2772,7 @@ static void rna_SceneLayerSettings_unuse(ID *id, IDProperty *props, const char *
 	IDP_FreeFromGroup(props, prop_to_remove);
 
 	/* TODO(sergey): Use proper flag for tagging here. */
-	DAG_id_tag_update(id, 0);
+	DEG_id_tag_update(id, 0);
 }
 
 static void rna_LayerCollectionSettings_name_get(PointerRNA *ptr, char *value)
@@ -2801,7 +2798,7 @@ static void rna_LayerCollectionSettings_use(ID *id, IDProperty *props, const cha
 	engine_settings_use(props, scene_props, &scene_props_ptr, identifier);
 
 	/* TODO(sergey): Use proper flag for tagging here. */
-	DAG_id_tag_update(id, 0);
+	DEG_id_tag_update(id, 0);
 }
 
 static void rna_LayerCollectionSettings_unuse(ID *id, IDProperty *props, const char *identifier)
@@ -2810,7 +2807,7 @@ static void rna_LayerCollectionSettings_unuse(ID *id, IDProperty *props, const c
 	IDP_FreeFromGroup(props, prop_to_remove);
 
 	/* TODO(sergey): Use proper flag for tagging here. */
-	DAG_id_tag_update(id, 0);
+	DEG_id_tag_update(id, 0);
 }
 
 static void rna_LayerCollection_name_get(PointerRNA *ptr, char *value)
@@ -2847,7 +2844,7 @@ static int rna_LayerCollection_move_above(ID *id, LayerCollection *lc_src, Main 
 		return 0;
 	}
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 
 	return 1;
@@ -2861,7 +2858,7 @@ static int rna_LayerCollection_move_below(ID *id, LayerCollection *lc_src, Main 
 		return 0;
 	}
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 
 	return 1;
@@ -2875,7 +2872,7 @@ static int rna_LayerCollection_move_into(ID *id, LayerCollection *lc_src, Main *
 		return 0;
 	}
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 
 	return 1;
@@ -2885,7 +2882,7 @@ static void rna_LayerCollection_flag_update(bContext *C, PointerRNA *UNUSED(ptr)
 {
 	Scene *scene = CTX_data_scene(C);
 	/* TODO(sergey): Use proper flag for tagging here. */
-	DAG_id_tag_update(&scene->id, 0);
+	DEG_id_tag_update(&scene->id, 0);
 	WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 }
 
@@ -2913,7 +2910,7 @@ static void rna_LayerCollections_active_collection_index_range(
 static PointerRNA rna_LayerCollections_active_collection_get(PointerRNA *ptr)
 {
 	SceneLayer *sl = (SceneLayer *)ptr->data;
-	LayerCollection *lc = BKE_layer_collection_active(sl);
+	LayerCollection *lc = BKE_layer_collection_get_active(sl);
 	return rna_pointer_inherit_refine(ptr, &RNA_LayerCollection, lc);
 }
 
@@ -2931,9 +2928,9 @@ LayerCollection * rna_SceneLayer_collection_link(
 	Scene *scene = (Scene *)id;
 	LayerCollection *lc = BKE_collection_link(sl, sc);
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	/* TODO(sergey): Use proper flag for tagging here. */
-	DAG_id_tag_update(id, 0);
+	DEG_id_tag_update(id, 0);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, scene);
 
 	return lc;
@@ -2951,9 +2948,9 @@ static void rna_SceneLayer_collection_unlink(
 
 	BKE_collection_unlink(sl, lc);
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	/* TODO(sergey): Use proper flag for tagging here. */
-	DAG_id_tag_update(id, 0);
+	DEG_id_tag_update(id, 0);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER | ND_OB_ACTIVE, scene);
 }
 
@@ -3079,7 +3076,7 @@ static int rna_SceneLayer_multiple_engines_get(PointerRNA *UNUSED(ptr))
 static void rna_SceneLayer_update_tagged(SceneLayer *UNUSED(sl), bContext *C)
 {
 	Depsgraph *graph = CTX_data_depsgraph(C);
-	DEG_OBJECT_ITER(graph, ob)
+	DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL)
 	{
 		/* Don't do anything, we just need to run the iterator to flush
 		 * the base info to the objects. */
@@ -3132,8 +3129,8 @@ static SceneLayer *rna_SceneLayer_new(
 	Scene *scene = (Scene *)id;
 	SceneLayer *sl = BKE_scene_layer_add(scene, name);
 
-	DAG_id_tag_update(&scene->id, 0);
-	DAG_relations_tag_update(bmain);
+	DEG_id_tag_update(&scene->id, 0);
+	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 
 	return sl;
@@ -3145,17 +3142,9 @@ static void rna_SceneLayer_remove(
 	Scene *scene = (Scene *)id;
 	SceneLayer *sl = sl_ptr->data;
 
-	if (!BKE_scene_layer_remove(bmain, scene, sl)) {
-		BKE_reportf(reports, RPT_ERROR, "Render layer '%s' could not be removed from scene '%s'",
-		            sl->name, scene->id.name + 2);
-		return;
+	if (ED_scene_render_layer_delete(bmain, scene, sl, reports)) {
+		RNA_POINTER_INVALIDATE(sl_ptr);
 	}
-
-	RNA_POINTER_INVALIDATE(sl_ptr);
-
-	DAG_id_tag_update(&scene->id, 0);
-	DAG_relations_tag_update(bmain);
-	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 }
 
 static void rna_ObjectBase_select_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
@@ -3430,24 +3419,6 @@ static void rna_def_gpencil_brushes(BlenderRNA *brna, PropertyRNA *cprop)
 		"rna_GPencilBrushes_index_set",
 		"rna_GPencilBrushes_index_range");
 	RNA_def_property_ui_text(prop, "Active Brush Index", "Index of active brush");
-}
-
-static void rna_def_transform_orientation(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-	
-	srna = RNA_def_struct(brna, "TransformOrientation", NULL);
-	
-	prop = RNA_def_property(srna, "matrix", PROP_FLOAT, PROP_MATRIX);
-	RNA_def_property_float_sdna(prop, NULL, "mat");
-	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_3x3);
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
-	
-	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
-	RNA_def_struct_name_property(srna, prop);
-	RNA_def_property_ui_text(prop, "Name", "Name of the custom transform orientation");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 }
 
 static void rna_def_tool_settings(BlenderRNA  *brna)
@@ -5965,7 +5936,7 @@ static void rna_def_gpu_dof_fx(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "ratio", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Ratio", "Distortion to simulate anamorphic lens bokeh");
 	RNA_def_property_range(prop, 0.0000001f, FLT_MAX);
-	RNA_def_property_ui_range(prop, 0.25f, 4.0f, 0.1, 3);
+	RNA_def_property_ui_range(prop, 1.0f, 2.0f, 0.1, 3);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "use_high_quality", PROP_BOOLEAN, PROP_NONE);
@@ -5973,6 +5944,7 @@ static void rna_def_gpu_dof_fx(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "High Quality", "Use high quality depth of field");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
+	/* NOTE: high quality is always supported */
 	prop = RNA_def_property(srna, "is_hq_supported", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_gpu_is_hq_supported_get", NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -6233,7 +6205,7 @@ static void rna_def_scene_layer_engine_settings_eevee(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "dof_enable", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_LayerEngineSettings_Eevee_dof_enable_get",
 	                               "rna_LayerEngineSettings_Eevee_dof_enable_set");
-	RNA_def_property_ui_text(prop, "Enable Depth of Field", "Enable depth of field using the values from the active camera");
+	RNA_def_property_ui_text(prop, "Depth of Field", "Enable depth of field using the values from the active camera");
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_SceneLayerEngineSettings_update");
 
@@ -6259,7 +6231,7 @@ static void rna_def_scene_layer_engine_settings_eevee(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "bloom_enable", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_LayerEngineSettings_Eevee_bloom_enable_get",
 	                               "rna_LayerEngineSettings_Eevee_bloom_enable_set");
-	RNA_def_property_ui_text(prop, "Enable Bloom", "High brighness pixels generate a glowing effect");
+	RNA_def_property_ui_text(prop, "Bloom", "High brighness pixels generate a glowing effect");
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_SceneLayerEngineSettings_update");
 
@@ -6302,7 +6274,7 @@ static void rna_def_scene_layer_engine_settings_eevee(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "motion_blur_enable", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_LayerEngineSettings_Eevee_motion_blur_enable_get",
 	                               "rna_LayerEngineSettings_Eevee_motion_blur_enable_set");
-	RNA_def_property_ui_text(prop, "Enable Motion Blur", "Enable motion blur effect (only in camera view)");
+	RNA_def_property_ui_text(prop, "Motion Blur", "Enable motion blur effect (only in camera view)");
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_SceneLayerEngineSettings_update");
 
@@ -6382,7 +6354,7 @@ static void rna_def_layer_collection_engine_settings_clay(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "matcap_hue", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_funcs(prop, "rna_LayerEngineSettings_Clay_matcap_hue_get", "rna_LayerEngineSettings_Clay_matcap_hue_set", NULL);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Matcap Hue shift", "Hue correction of the matcap");
+	RNA_def_property_ui_text(prop, "Matcap Hue Shift", "Hue correction of the matcap");
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_LayerCollectionEngineSettings_update");
 
@@ -6430,54 +6402,10 @@ static void rna_def_layer_collection_engine_settings_clay(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_LayerCollectionEngineSettings_update");
 
-	prop = RNA_def_property(srna, "world_intensity", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_funcs(prop, "rna_LayerEngineSettings_Clay_world_intensity_get", "rna_LayerEngineSettings_Clay_world_intensity_set", NULL);
-	RNA_def_property_ui_text(prop, "Hair World Light", "World lighting intensity for hair");
+	prop = RNA_def_property(srna, "hair_brightness_randomness", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_funcs(prop, "rna_LayerEngineSettings_Clay_hair_brightness_randomness_get", "rna_LayerEngineSettings_Clay_hair_brightness_randomness_set", NULL);
+	RNA_def_property_ui_text(prop, "Hair Brightness Randomness", "Brightness randomness for hair");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_LayerCollectionEngineSettings_update");
-
-	prop = RNA_def_property(srna, "diffuse_intensity", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_funcs(prop, "rna_LayerEngineSettings_Clay_diffuse_intensity_get", "rna_LayerEngineSettings_Clay_diffuse_intensity_set", NULL);
-	RNA_def_property_ui_text(prop, "Hair Diffuse", "Diffuse lighting intensity for hair");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_LayerCollectionEngineSettings_update");
-
-	prop = RNA_def_property(srna, "specular_intensity", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_funcs(prop, "rna_LayerEngineSettings_Clay_specular_intensity_get", "rna_LayerEngineSettings_Clay_specular_intensity_set", NULL);
-	RNA_def_property_ui_text(prop, "Hair Specular", "Specular lighting intensity for hair");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_LayerCollectionEngineSettings_update");
-
-	prop = RNA_def_property(srna, "specular_hardness", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_funcs(prop, "rna_LayerEngineSettings_Clay_specular_hardness_get", "rna_LayerEngineSettings_Clay_specular_hardness_set", NULL);
-	RNA_def_property_ui_text(prop, "Hair Specular Hardness", "Specular hardness for hair");
-	RNA_def_property_range(prop, 0.0f, 1000.0f);
-	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_LayerCollectionEngineSettings_update");
-
-	prop = RNA_def_property(srna, "color_randomicity", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_funcs(prop, "rna_LayerEngineSettings_Clay_color_randomicity_get", "rna_LayerEngineSettings_Clay_color_randomicity_set", NULL);
-	RNA_def_property_ui_text(prop, "Hair Color Randomicity", "Color randomicity for hair");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_LayerCollectionEngineSettings_update");
-
-	prop = RNA_def_property(srna, "hair_diffuse_color", PROP_FLOAT, PROP_COLOR);
-	RNA_def_property_array(prop, 4);
-	RNA_def_property_float_funcs(prop, "rna_LayerEngineSettings_Clay_hair_diffuse_color_get",
-	                             "rna_LayerEngineSettings_Clay_hair_diffuse_color_set", NULL);
-	RNA_def_property_ui_text(prop, "Hair Diffuse Color", "Diffuse component of hair shading color");
-	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_LayerCollectionEngineSettings_update");
-
-	prop = RNA_def_property(srna, "hair_specular_color", PROP_FLOAT, PROP_COLOR);
-	RNA_def_property_array(prop, 4);
-	RNA_def_property_float_funcs(prop, "rna_LayerEngineSettings_Clay_hair_specular_color_get",
-	                             "rna_LayerEngineSettings_Clay_hair_specular_color_set", NULL);
-	RNA_def_property_ui_text(prop, "Hair Specular Color", "Specular component of hair shading color");
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_LayerCollectionEngineSettings_update");
 
@@ -9326,6 +9254,8 @@ void RNA_def_scene(BlenderRNA *brna)
 
 	/* Statistics */
 	func = RNA_def_function(srna, "statistics", "ED_info_stats_string");
+	parm = RNA_def_pointer(func, "scene_layer", "SceneLayer", "", "Active layer");
+	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 	parm = RNA_def_string(func, "statistics", NULL, 0, "Statistics", "");
 	RNA_def_function_return(func, parm);
 	
@@ -9336,12 +9266,6 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
 	RNA_def_property_ui_text(prop, "Grease Pencil Data", "Grease Pencil data-block");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
-	
-	/* Transform Orientations */
-	prop = RNA_def_property(srna, "orientations", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_sdna(prop, NULL, "transform_spaces", NULL);
-	RNA_def_property_struct_type(prop, "TransformOrientation");
-	RNA_def_property_ui_text(prop, "Transform Orientations", "");
 
 	/* active MovieClip */
 	prop = RNA_def_property(srna, "active_clip", PROP_POINTER, PROP_NONE);
@@ -9397,7 +9321,6 @@ void RNA_def_scene(BlenderRNA *brna)
 	rna_def_unit_settings(brna);
 	rna_def_scene_image_format_data(brna);
 	rna_def_scene_game_data(brna);
-	rna_def_transform_orientation(brna);
 	rna_def_selected_uv_element(brna);
 	rna_def_display_safe_areas(brna);
 	rna_def_scene_collection(brna);
@@ -9419,5 +9342,3 @@ void RNA_def_scene(BlenderRNA *brna)
 }
 
 #endif
-
-#undef NO_ENGINE

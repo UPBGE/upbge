@@ -66,6 +66,8 @@
 #include "ED_render.h"
 #include "ED_view3d.h"
 
+#include "WM_api.h"
+
 #include "render_intern.h"  // own include
 
 extern Material defmaterial;
@@ -104,7 +106,7 @@ void ED_render_scene_update(Main *bmain, Scene *scene, int updated)
 	wm = bmain->wm.first;
 	
 	for (win = wm->windows.first; win; win = win->next) {
-		bScreen *sc = win->screen;
+		bScreen *sc = WM_window_get_active_screen(win);
 		ScrArea *sa;
 		ARegion *ar;
 		
@@ -491,6 +493,9 @@ static void world_changed(Main *bmain, World *wo)
 
 	/* icons */
 	BKE_icon_changed(BKE_icon_id_ensure(&wo->id));
+
+	/* XXX temporary flag waiting for depsgraph proper tagging */
+	wo->update_flag = 1;
 	
 	/* glsl */
 	for (ma = bmain->mat.first; ma; ma = ma->id.next) {

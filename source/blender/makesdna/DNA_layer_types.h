@@ -39,10 +39,8 @@ typedef struct Base {
 	short refcount;
 	short sx, sy;
 	struct Object *object;
-	unsigned int selcol;
 	unsigned int lay;
 	int flag_legacy;
-	int pad;
 	struct IDProperty *collection_properties; /* used by depsgraph, flushed from collection-tree */
 } Base;
 
@@ -51,6 +49,13 @@ typedef struct CollectionOverride {
 	char name[64]; /* MAX_NAME */
 	/* TODO proper data */
 } CollectionOverride;
+
+typedef struct SceneLayerEngineData {
+	struct SceneLayerEngineData *next, *prev;
+	struct DrawEngineType *engine_type;
+	void *storage;
+	void (*free)(void *storage);
+} SceneLayerEngineData;
 
 typedef struct LayerCollection {
 	struct LayerCollection *next, *prev;
@@ -74,10 +79,14 @@ typedef struct SceneLayer {
 	short flag;
 	short pad[2];
 	ListBase object_bases;      /* ObjectBase */
+	struct SceneStats *stats;   /* default allocated now */
 	struct Base *basact;
 	ListBase layer_collections; /* LayerCollection */
 	struct IDProperty *properties;  /* overrides */
 	struct IDProperty *properties_evaluated;
+
+	/* Runtime data */
+	ListBase drawdata;    /* SceneLayerEngineData */
 } SceneLayer;
 
 typedef struct SceneCollection {

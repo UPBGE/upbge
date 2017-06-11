@@ -99,7 +99,6 @@ set(SRC
 	intern/customdata_file.c
 	intern/data_transfer.c
 	intern/deform.c
-	intern/depsgraph.c
 	intern/displist.c
 	intern/dynamicpaint.c
 	intern/editderivedmesh.c
@@ -138,6 +137,7 @@ set(SRC
 	intern/mesh_evaluate.c
 	intern/mesh_mapping.c
 	intern/mesh_remap.c
+	intern/mesh_tangent.c
 	intern/mesh_validate.c
 	intern/modifier.c
 	intern/modifiers_bmesh.c
@@ -146,6 +146,7 @@ set(SRC
 	intern/nla.c
 	intern/node.c
 	intern/object.c
+	intern/object_facemap.c
 	intern/object_deform.c
 	intern/object_dupli.c
 	intern/object_update.c
@@ -160,6 +161,7 @@ set(SRC
 	intern/pbvh.c
 	intern/pbvh_bmesh.c
 	intern/pointcache.c
+	intern/probe.c
 	intern/property.c
 	intern/python_component.c
 	intern/layer.c
@@ -191,6 +193,7 @@ set(SRC
 	intern/tracking_stabilize.c
 	intern/tracking_util.c
 	intern/unit.c
+	intern/workspace.c
 	intern/world.c
 	intern/writeavi.c
 	intern/writeframeserver.c
@@ -231,7 +234,6 @@ set(SRC
 	BKE_customdata_file.h
 	BKE_data_transfer.h
 	BKE_deform.h
-	BKE_depsgraph.h
 	BKE_displist.h
 	BKE_dynamicpaint.h
 	BKE_editmesh.h
@@ -266,12 +268,14 @@ set(SRC
 	BKE_mesh.h
 	BKE_mesh_mapping.h
 	BKE_mesh_remap.h
+	BKE_mesh_tangent.h
 	BKE_modifier.h
 	BKE_movieclip.h
 	BKE_multires.h
 	BKE_nla.h
 	BKE_node.h
 	BKE_object.h
+	BKE_object_facemap.h
 	BKE_object_deform.h
 	BKE_ocean.h
 	BKE_outliner_treehash.h
@@ -280,6 +284,7 @@ set(SRC
 	BKE_particle.h
 	BKE_pbvh.h
 	BKE_pointcache.h
+	BKE_probe.h
 	BKE_property.h
 	BKE_python_component.h
 	BKE_layer.h
@@ -302,6 +307,7 @@ set(SRC
 	BKE_tracking.h
 	BKE_unit.h
 	BKE_utildefines.h
+	BKE_workspace.h
 	BKE_world.h
 	BKE_writeavi.h
 	BKE_writeframeserver.h

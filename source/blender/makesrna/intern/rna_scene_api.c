@@ -60,7 +60,6 @@ EnumPropertyItem rna_enum_abc_compression_items[] = {
 #ifdef RNA_RUNTIME
 
 #include "BKE_animsys.h"
-#include "BKE_depsgraph.h"
 #include "BKE_editmesh.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
@@ -111,7 +110,7 @@ static void rna_Scene_uvedit_aspect(Scene *scene, Object *ob, float *aspect)
 	if ((ob->type == OB_MESH) && (ob->mode == OB_MODE_EDIT)) {
 		BMEditMesh *em;
 		em = BKE_editmesh_from_object(ob);
-		if (EDBM_mtexpoly_check(em)) {
+		if (EDBM_uv_check(em)) {
 			ED_uvedit_get_aspect(scene, ob, em->bm, aspect, aspect + 1);
 			return;
 		}
@@ -226,8 +225,8 @@ static void rna_Scene_alembic_export(
 	    .frame_start = frame_start,
 	    .frame_end = frame_end,
 
-	    .frame_step_xform = 1.0 / (double)xform_samples,
-	    .frame_step_shape = 1.0 / (double)geom_samples,
+	    .frame_samples_xform = xform_samples,
+	    .frame_samples_shape = geom_samples,
 
 	    .shutter_open = shutter_open,
 	    .shutter_close = shutter_close,
@@ -280,7 +279,6 @@ static void rna_Scene_collada_export(
         int include_shapekeys,
         int deform_bones_only,
         int active_uv_only,
-        int include_uv_textures,
         int include_material_textures,
         int use_texture_copies,
         int triangulate,
@@ -306,7 +304,6 @@ static void rna_Scene_collada_export(
 		deform_bones_only,
 
 		active_uv_only,
-		include_uv_textures,
 		include_material_textures,
 		use_texture_copies,
 
@@ -405,9 +402,6 @@ void RNA_api_scene(StructRNA *srna)
 	                "Deform Bones only", "Only export deforming bones with armatures");
 
 	RNA_def_boolean(func, "active_uv_only", false, "Only Selected UV Map", "Export only the selected UV Map");
-
-	RNA_def_boolean(func, "include_uv_textures", false,
-	                "Include UV Textures", "Export textures assigned to the object UV Maps");
 
 	RNA_def_boolean(func, "include_material_textures", false,
 	                "Include Material Textures", "Export textures assigned to the object Materials");

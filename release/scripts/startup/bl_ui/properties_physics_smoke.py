@@ -52,7 +52,7 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
         md = context.smoke
         ob = context.object
 
-        layout.prop(md, "smoke_type", expand=True)
+        layout.row().prop(md, "smoke_type", expand=True)
 
         if md.smoke_type == 'DOMAIN':
             domain = md.domain_settings
@@ -158,7 +158,7 @@ class PHYSICS_PT_smoke_flow_advanced(PhysicButtonsPanel, Panel):
         sub.label(text="Mapping:")
         sub.prop(flow, "texture_map_type", expand=False, text="")
         if flow.texture_map_type == 'UV':
-            sub.prop_search(flow, "uv_layer", ob.data, "uv_textures", text="")
+            sub.prop_search(flow, "uv_layer", ob.data, "uv_layers", text="")
         if flow.texture_map_type == 'AUTO':
             sub.prop(flow, "texture_size")
         sub.prop(flow, "texture_offset")
@@ -322,14 +322,14 @@ class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
 
         if cache_file_format == 'POINTCACHE':
             layout.label(text="Compression:")
-            layout.prop(domain, "point_cache_compress_type", expand=True)
+            layout.row().prop(domain, "point_cache_compress_type", expand=True)
         elif cache_file_format == 'OPENVDB':
             if not bpy.app.build_options.openvdb:
                 layout.label("Built without OpenVDB support")
                 return
 
             layout.label(text="Compression:")
-            layout.prop(domain, "openvdb_cache_compress_type", expand=True)
+            layout.row().prop(domain, "openvdb_cache_compress_type", expand=True)
             row = layout.row()
             row.label("Data Depth:")
             row.prop(domain, "data_depth", expand=True, text="Data Depth")

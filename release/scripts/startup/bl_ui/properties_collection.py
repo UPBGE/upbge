@@ -68,16 +68,7 @@ class COLLECTION_PT_clay_settings(CollectionButtonsPanel, Panel):
         col.template_override_property(collection_props, scene_props, "ssao_factor_edge")
         col.template_override_property(collection_props, scene_props, "ssao_distance")
         col.template_override_property(collection_props, scene_props, "ssao_attenuation")
-        col.template_override_property(collection_props, scene_props, "world_intensity")
-
-        col.separator()
-        col.label("Hair Settings:")
-        col.template_override_property(collection_props, scene_props, "diffuse_intensity")
-        col.template_override_property(collection_props, scene_props, "specular_intensity")
-        col.template_override_property(collection_props, scene_props, "specular_hardness")
-        col.template_override_property(collection_props, scene_props, "color_randomicity")
-        col.template_override_property(collection_props, scene_props, "hair_diffuse_color")
-        col.template_override_property(collection_props, scene_props, "hair_specular_color")
+        col.template_override_property(collection_props, scene_props, "hair_brightness_randomness")
 
 
 class COLLECTION_PT_object_mode_settings(CollectionButtonsPanel, Panel):
@@ -120,6 +111,7 @@ class COLLECTION_PT_edit_mode_settings(CollectionButtonsPanel, Panel):
         col.template_override_property(collection_props, scene_props, "vert_normals_show")
         col.template_override_property(collection_props, scene_props, "loop_normals_show")
         col.template_override_property(collection_props, scene_props, "normals_length")
+        col.template_override_property(collection_props, scene_props, "show_weight")
 
 
 class COLLECTION_PT_paint_weight_mode_settings(CollectionButtonsPanel, Panel):

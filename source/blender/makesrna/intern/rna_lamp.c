@@ -45,9 +45,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_main.h"
 #include "BKE_texture.h"
+
+#include "DEG_depsgraph.h"
 
 #include "ED_node.h"
 #include "WM_api.h"
@@ -134,7 +135,7 @@ static void rna_Lamp_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRN
 {
 	Lamp *la = ptr->id.data;
 
-	DAG_id_tag_update(&la->id, 0);
+	DEG_id_tag_update(&la->id, 0);
 	WM_main_add_notifier(NC_LAMP | ND_LIGHTING, la);
 }
 
@@ -142,7 +143,7 @@ static void rna_Lamp_draw_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Poin
 {
 	Lamp *la = ptr->id.data;
 
-	DAG_id_tag_update(&la->id, 0);
+	DEG_id_tag_update(&la->id, 0);
 	WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
 }
 
@@ -150,7 +151,7 @@ static void rna_Lamp_sky_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Point
 {
 	Lamp *la = ptr->id.data;
 
-	DAG_id_tag_update(&la->id, 0);
+	DEG_id_tag_update(&la->id, 0);
 	WM_main_add_notifier(NC_LAMP | ND_SKY, la);
 }
 
@@ -605,7 +606,7 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 	prop = RNA_def_property(srna, "shadow_buffer_bias", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "bias");
 	RNA_def_property_range(prop, 0.001f, 5.0f);
-	RNA_def_property_ui_text(prop, "Shadow Buffer Bias", "Shadow buffer sampling bias");
+	RNA_def_property_ui_text(prop, "Shadow Buffer Bias", "Bias for reducing self shadowing");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
 	prop = RNA_def_property(srna, "shadow_buffer_slope_bias", PROP_FLOAT, PROP_NONE);
@@ -618,6 +619,12 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 	RNA_def_property_float_sdna(prop, NULL, "bleedbias");
 	RNA_def_property_range(prop, 0.f, 1.f);
 	RNA_def_property_ui_text(prop, "Shadow Buffer Bleed Bias", "Bias for reducing light-bleed on variance shadow maps");
+	RNA_def_property_update(prop, 0, "rna_Lamp_update");
+
+	prop = RNA_def_property(srna, "shadow_buffer_exp", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "bleedexp");
+	RNA_def_property_range(prop, 1.0f, 9999.0f);
+	RNA_def_property_ui_text(prop, "Shadow Buffer Exponent", "Bias for reducing light-bleed on exponential shadow maps");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
 	prop = RNA_def_property(srna, "shadow_buffer_soft", PROP_FLOAT, PROP_NONE);
@@ -763,6 +770,7 @@ static void rna_def_area_lamp(BlenderRNA *brna)
 	RNA_def_struct_ui_icon(srna, ICON_LAMP_AREA);
 
 	rna_def_lamp_shadow(srna, 0, 1);
+	rna_def_lamp_falloff(srna);
 
 	prop = RNA_def_property(srna, "use_umbra", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "ray_samp_type", LA_SAMP_UMBRA);

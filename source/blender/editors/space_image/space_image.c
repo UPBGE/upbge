@@ -44,11 +44,13 @@
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
+#include "BKE_editmesh.h"
 #include "BKE_image.h"
 #include "BKE_layer.h"
 #include "BKE_library.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
+#include "BKE_material.h"
 
 #include "DEG_depsgraph.h"
 
@@ -426,18 +428,14 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 		}
 		else {
 			/* old shading system, we set texface */
-			MTexPoly *tf;
-			
-			if (em && EDBM_mtexpoly_check(em)) {
-				tf = EDBM_mtexpoly_active_get(em, NULL, sloppy, selected);
+			if (em && EDBM_uv_check(em)) {
+				BMFace *efa = BM_mesh_active_face_get(em->bm, sloppy, selected);
 
-				if (tf) {
+				if (efa) {
 					/* don't need to check for pin here, see above */
-					sima->image = tf->tpage;
-					
-					if ((sima->flag & SI_EDITTILE) == 0) {
-						sima->curtile = tf->tile;
-					}
+					Image *image = BKE_object_material_edit_image_get(obedit, efa->mat_nr);
+
+					sima->image = image;
 				}
 			}
 		}
@@ -446,7 +444,6 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 
 static void image_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn, const Scene *scene)
 {
-	SceneLayer *sl = BKE_scene_layer_context_active(scene);
 	SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
 	
 	/* context changes */
@@ -539,6 +536,7 @@ static void image_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn, co
 				case ND_TRANSFORM:
 				case ND_MODIFIER:
 				{
+					SceneLayer *sl = BKE_scene_layer_context_active(scene);
 					Object *ob = OBACT_NEW;
 					if (ob && (ob == wmn->reference) && (ob->mode & OB_MODE_EDIT)) {
 						if (sima->lock && (sima->flag & SI_DRAWSHADOW)) {
@@ -829,6 +827,11 @@ static void image_main_region_listener(
 
 				if (sima->iuser.scene && (sima->iuser.scene->toolsettings->uv_flag & UV_SHOW_SAME_IMAGE))
 					ED_region_tag_redraw(ar);
+			}
+			break;
+		case NC_SCREEN:
+			if (ELEM(wmn->data, ND_LAYER)) {
+				ED_region_tag_redraw(ar);
 			}
 			break;
 	}

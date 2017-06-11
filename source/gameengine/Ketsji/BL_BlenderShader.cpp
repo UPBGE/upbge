@@ -141,7 +141,9 @@ void BL_BlenderShader::ReloadMaterial()
 
 	/* Get the material from eevee */
 	m_gpuMat = (m_mat) ? GPU_material_from_eevee(m_blenderScene, m_mat, datatoc_lit_surface_vert_glsl, NULL, fraglib,
+		"#define EEVEE_ENGINE\n"
 		"#define PROBE_CAPTURE\n"
+		"#define MAX_PROBE 128\n"
 		"#define MAX_LIGHT 128\n"
 		"#define MAX_SHADOW_CUBE 42\n"
 		"#define MAX_SHADOW_MAP 64\n"
@@ -233,7 +235,7 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 
 bool BL_BlenderShader::UseInstancing() const
 {
-	return (GPU_instanced_drawing_support() && (m_mat->shade_flag & MA_INSTANCING));
+	return m_mat->shade_flag & MA_INSTANCING;
 }
 
 void BL_BlenderShader::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)

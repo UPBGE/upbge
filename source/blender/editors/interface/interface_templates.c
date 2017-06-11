@@ -55,7 +55,6 @@
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_idcode.h"
 #include "BKE_idprop.h"
@@ -72,6 +71,9 @@
 #include "BKE_sca.h"
 #include "BKE_screen.h"
 #include "BKE_texture.h"
+
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 #include "ED_screen.h"
 #include "ED_object.h"
@@ -398,13 +400,13 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 					Scene *scene = CTX_data_scene(C);
 					ED_object_single_user(bmain, scene, (struct Object *)id);
 					WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
-					DAG_relations_tag_update(bmain);
+					DEG_relations_tag_update(bmain);
 				}
 				else {
 					if (id) {
 						Main *bmain = CTX_data_main(C);
 						id_single_user(C, id, &template->ptr, template->prop);
-						DAG_relations_tag_update(bmain);
+						DEG_relations_tag_update(bmain);
 					}
 				}
 			}
@@ -448,6 +450,8 @@ static const char *template_id_browse_tip(const StructRNA *type)
 			case ID_PAL: return N_("Browse Palette Data to be linked");
 			case ID_PC:  return N_("Browse Paint Curve Data to be linked");
 			case ID_CF:  return N_("Browse Cache Files to be linked");
+			case ID_WS:  return N_("Browse Workspace to be linked");
+			case ID_PRB: return N_("Browse Probe to be linked");
 		}
 	}
 	return N_("Browse ID data to be linked");
@@ -551,7 +555,7 @@ static void template_ID(
 	
 		if (user_alert) UI_but_flag_enable(but, UI_BUT_REDALERT);
 		
-		if (id->lib == NULL && !(ELEM(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB))) {
+		if (id->lib == NULL && !(ELEM(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB, ID_WS))) {
 			uiDefButR(block, UI_BTYPE_TOGGLE, 0, "F", 0, 0, UI_UNIT_X, UI_UNIT_Y, &idptr, "use_fake_user", -1, 0, 0, -1, -1, NULL);
 		}
 	}
@@ -585,6 +589,8 @@ static void template_ID(
 		                                 BLT_I18NCONTEXT_ID_PARTICLESETTINGS,
 		                                 BLT_I18NCONTEXT_ID_GPENCIL,
 		                                 BLT_I18NCONTEXT_ID_FREESTYLELINESTYLE,
+		                                 BLT_I18NCONTEXT_ID_WORKSPACE,
+		                                 BLT_I18NCONTEXT_ID_PROBE,
 		);
 		
 		if (newop) {
@@ -1043,7 +1049,7 @@ static void modifiers_convertToReal(bContext *C, void *ob_v, void *md_v)
 	ob->partype = PAROBJECT;
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	ED_undo_push(C, "Modifier convert to real");
 }
@@ -1324,7 +1330,7 @@ static void do_constraint_panels(bContext *C, void *ob_pt, int event)
 			Main *bmain = CTX_data_main(C);
 			if (ob->pose)
 				BKE_pose_tag_recalc(bmain, ob->pose); /* checks & sorts pose channels */
-			DAG_relations_tag_update(bmain);
+			DEG_relations_tag_update(bmain);
 			break;
 		}
 #endif
@@ -1338,8 +1344,8 @@ static void do_constraint_panels(bContext *C, void *ob_pt, int event)
 	 * object_test_constraints(ob);
 	 * if (ob->pose) BKE_pose_update_constraint_flags(ob->pose); */
 	
-	if (ob->type == OB_ARMATURE) DAG_id_tag_update(&ob->id, OB_RECALC_DATA | OB_RECALC_OB);
-	else DAG_id_tag_update(&ob->id, OB_RECALC_OB);
+	if (ob->type == OB_ARMATURE) DEG_id_tag_update(&ob->id, OB_RECALC_DATA | OB_RECALC_OB);
+	else DEG_id_tag_update(&ob->id, OB_RECALC_OB);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 }

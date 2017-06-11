@@ -55,12 +55,14 @@
 #include "BKE_subsurf.h"
 #include "BKE_context.h"
 #include "BKE_customdata.h"
-#include "BKE_depsgraph.h"
 #include "BKE_image.h"
 #include "BKE_main.h"
+#include "BKE_material.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_editmesh.h"
+
+#include "DEG_depsgraph.h"
 
 #include "PIL_time.h"
 
@@ -116,7 +118,7 @@ static bool ED_uvedit_ensure_uvs(bContext *C, Scene *scene, Object *obedit)
 	if (ED_uvedit_test(obedit))
 		return 1;
 
-	if (em && em->bm->totface && !CustomData_has_layer(&em->bm->pdata, CD_MTEXPOLY))
+	if (em && em->bm->totface && !CustomData_has_layer(&em->bm->ldata, CD_MLOOPUV))
 		ED_mesh_uv_texture_add(obedit->data, NULL, true);
 
 	if (!ED_uvedit_test(obedit))
@@ -214,8 +216,7 @@ void ED_uvedit_get_aspect(Scene *scene, Object *ob, BMesh *bm, float *aspx, floa
 			ED_object_get_active_image(ob, efa->mat_nr + 1, &ima, NULL, NULL, NULL);
 		}
 		else {
-			MTexPoly *tf = CustomData_bmesh_get(&bm->pdata, efa->head.data, CD_MTEXPOLY);
-			ima = tf->tpage;
+			ima = BKE_object_material_edit_image_get(ob, efa->mat_nr);
 		}
 
 		ED_image_get_uv_aspect(ima, NULL, aspx, aspy);
@@ -570,7 +571,7 @@ static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interac
 
 		ms->lasttime = PIL_check_seconds_timer();
 
-		DAG_id_tag_update(ms->obedit->data, 0);
+		DEG_id_tag_update(ms->obedit->data, 0);
 		WM_event_add_notifier(C, NC_GEOM | ND_DATA, ms->obedit->data);
 	}
 }
@@ -593,7 +594,7 @@ static void minimize_stretch_exit(bContext *C, wmOperator *op, bool cancel)
 	param_stretch_end(ms->handle);
 	param_delete(ms->handle);
 
-	DAG_id_tag_update(ms->obedit->data, 0);
+	DEG_id_tag_update(ms->obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, ms->obedit->data);
 
 	MEM_freeN(ms);
@@ -741,7 +742,7 @@ static int pack_islands_exec(bContext *C, wmOperator *op)
 
 	ED_uvedit_pack_islands(scene, obedit, em->bm, true, true, do_rotate);
 	
-	DAG_id_tag_update(obedit->data, 0);
+	DEG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -784,7 +785,7 @@ static int average_islands_scale_exec(bContext *C, wmOperator *UNUSED(op))
 	param_flush(handle);
 	param_delete(handle);
 	
-	DAG_id_tag_update(obedit->data, 0);
+	DEG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -1227,7 +1228,7 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 	/* execute unwrap */
 	ED_unwrap_lscm(scene, obedit, true);
 
-	DAG_id_tag_update(obedit->data, 0);
+	DEG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -1354,7 +1355,7 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
 
 	uv_map_clip_correct(scene, obedit, em, op);
 
-	DAG_id_tag_update(obedit->data, 0);
+	DEG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -1407,7 +1408,7 @@ static int reset_exec(bContext *C, wmOperator *UNUSED(op))
 
 	ED_mesh_uv_loop_reset(C, me);
 
-	DAG_id_tag_update(obedit->data, 0);
+	DEG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 	
 	return OPERATOR_FINISHED;
@@ -1443,7 +1444,7 @@ static void uv_sphere_project(float target[2], float source[3], float center[3],
 		target[0] -= 1.0f;  
 }
 
-static void uv_map_mirror(BMEditMesh *em, BMFace *efa, MTexPoly *UNUSED(tf))
+static void uv_map_mirror(BMEditMesh *em, BMFace *efa)
 {
 	BMLoop *l;
 	BMIter liter;
@@ -1480,7 +1481,6 @@ static int sphere_project_exec(bContext *C, wmOperator *op)
 	BMFace *efa;
 	BMLoop *l;
 	BMIter iter, liter;
-	MTexPoly *tf;
 	MLoopUV *luv;
 	float center[3], rotmat[4][4];
 
@@ -1505,13 +1505,12 @@ static int sphere_project_exec(bContext *C, wmOperator *op)
 			uv_sphere_project(luv->uv, l->v->co, center, rotmat);
 		}
 
-		tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
-		uv_map_mirror(em, efa, tf);
+		uv_map_mirror(em, efa);
 	}
 
 	uv_map_clip_correct(scene, obedit, em, op);
 
-	DAG_id_tag_update(obedit->data, 0);
+	DEG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -1559,7 +1558,6 @@ static int cylinder_project_exec(bContext *C, wmOperator *op)
 	BMFace *efa;
 	BMLoop *l;
 	BMIter iter, liter;
-	MTexPoly *tf;
 	MLoopUV *luv;
 	float center[3], rotmat[4][4];
 
@@ -1584,13 +1582,12 @@ static int cylinder_project_exec(bContext *C, wmOperator *op)
 			uv_cylinder_project(luv->uv, l->v->co, center, rotmat);
 		}
 
-		tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
-		uv_map_mirror(em, efa, tf);
+		uv_map_mirror(em, efa);
 	}
 
 	uv_map_clip_correct(scene, obedit, em, op);
 
-	DAG_id_tag_update(obedit->data, 0);
+	DEG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -1621,7 +1618,6 @@ void ED_uvedit_unwrap_cube_project(Object *ob, BMesh *bm, float cube_size, bool 
 	BMFace *efa;
 	BMLoop *l;
 	BMIter iter, liter;
-	/* MTexPoly *tf; */ /* UNUSED */
 	MLoopUV *luv;
 	float *loc, dx, dy;
 	int cox, coy;
@@ -1637,8 +1633,6 @@ void ED_uvedit_unwrap_cube_project(Object *ob, BMesh *bm, float cube_size, bool 
 
 	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 		int first = 1;
-
-		/* tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY); */ /* UNUSED */
 		if (use_select && !BM_elem_flag_test(efa, BM_ELEM_SELECT))
 			continue;
 
@@ -1680,7 +1674,7 @@ static int cube_project_exec(bContext *C, wmOperator *op)
 	ED_uvedit_unwrap_cube_project(obedit, em->bm, cube_size, true);
 	uv_map_clip_correct(scene, obedit, em, op);
 
-	DAG_id_tag_update(obedit->data, 0);
+	DEG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;

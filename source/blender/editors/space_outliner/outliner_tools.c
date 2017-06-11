@@ -53,7 +53,6 @@
 #include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_constraint.h"
-#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_group.h"
 #include "BKE_layer.h"
@@ -65,8 +64,12 @@
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
+
 #include "ED_armature.h"
 #include "ED_object.h"
+#include "ED_scene.h"
 #include "ED_screen.h"
 #include "ED_sequencer.h"
 #include "ED_util.h"
@@ -310,7 +313,7 @@ static bool scene_cb(bContext *C, eOutliner_PropSceneOps event, TreeElement *UNU
 	Scene *scene = (Scene *)tselem->id;
 
 	if (event == OL_SCENE_OP_DELETE) {
-		if (ED_screen_delete_scene(C, scene)) {
+		if (ED_scene_delete(C, CTX_data_main(C), CTX_wm_window(C), scene)) {
 			WM_event_add_notifier(C, NC_SCENE | NA_REMOVED, scene);
 		}
 		else {
@@ -399,8 +402,8 @@ static void object_deselect_cb(
 }
 
 static void object_delete_cb(
-        bContext *C, ReportList *reports, Scene *scene, TreeElement *UNUSED(te),
-        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
+        bContext *C, ReportList *reports, Scene *scene, TreeElement *te,
+        TreeStoreElem *tsep, TreeStoreElem *tselem, void *user_data)
 {
 	Object *ob = (Object *)tselem->id;
 	if (ob) {
@@ -428,6 +431,13 @@ static void object_delete_cb(
 		te->directdata = NULL;
 		tselem->id = NULL;
 #endif
+	}
+	else {
+		/* No base, means object is no more instantiated in any scene.
+		 * Should not happen ideally, but does happens, see T51625.
+		 * Rather than twisting in all kind of ways to address all possible cases leading to that situation, simpler
+		 * to allow deleting such object as a mere generic data-block. */
+		id_delete_cb(C, reports, scene, te, tsep, tselem, user_data);
 	}
 }
 
@@ -564,7 +574,7 @@ void outliner_do_object_operation_ex(
 				// when objects selected in other scenes... dunno if that should be allowed
 				Scene *scene_owner = (Scene *)outliner_search_back(soops, te, ID_SCE);
 				if (scene_owner && scene_act != scene_owner) {
-					ED_screen_set_scene(C, CTX_wm_screen(C), scene_owner);
+					WM_window_change_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene_owner);
 				}
 				/* important to use 'scene_owner' not scene_act else deleting objects can crash.
 				 * only use 'scene_act' when 'scene_owner' is NULL, which can happen when the
@@ -794,12 +804,12 @@ static void modifier_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem
 
 	if (event == OL_MODIFIER_OP_TOGVIS) {
 		md->mode ^= eModifierMode_Realtime;
-		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 	}
 	else if (event == OL_MODIFIER_OP_TOGREN) {
 		md->mode ^= eModifierMode_Render;
-		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 	}
 	else if (event == OL_MODIFIER_OP_DELETE) {
@@ -850,13 +860,13 @@ static void collection_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tsel
 		}
 		else {
 			BKE_collection_unlink(sl, lc);
-			DAG_relations_tag_update(CTX_data_main(C));
+			DEG_relations_tag_update(CTX_data_main(C));
 			WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 		}
 	}
 	else if (event == OL_COLLECTION_OP_COLLECTION_DEL) {
 		if (BKE_collection_remove(scene, sc)) {
-			DAG_relations_tag_update(CTX_data_main(C));
+			DEG_relations_tag_update(CTX_data_main(C));
 			WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 		}
 		else {
@@ -987,6 +997,7 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
+	wmWindow *win = CTX_wm_window(C);
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	int event;
 	const char *str = NULL;
@@ -1001,7 +1012,7 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 		Scene *sce = scene;  // to be able to delete, scenes are set...
 		outliner_do_object_operation(C, op->reports, scene, soops, &soops->tree, object_select_cb);
 		if (scene != sce) {
-			ED_screen_set_scene(C, CTX_wm_screen(C), sce);
+			WM_window_change_active_scene(bmain, C, win, sce);
 		}
 		
 		str = "Select Objects";
@@ -1011,8 +1022,8 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 		Scene *sce = scene;  // to be able to delete, scenes are set...
 		outliner_do_object_operation_ex(C, op->reports, scene, soops, &soops->tree, object_select_hierarchy_cb, false);
 		if (scene != sce) {
-			ED_screen_set_scene(C, CTX_wm_screen(C), sce);
-		}	
+			WM_window_change_active_scene(bmain, C, win, sce);
+		}
 		str = "Select Object Hierarchy";
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 	}
@@ -1031,7 +1042,7 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 		 *      cleanup tree here to prevent such cases. */
 		outliner_cleanup_tree(soops);
 
-		DAG_relations_tag_update(bmain);
+		DEG_relations_tag_update(bmain);
 		str = "Delete Objects";
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
 	}
@@ -1041,7 +1052,7 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 		/* XXX: See OL_OP_DELETE comment above. */
 		outliner_cleanup_tree(soops);
 
-		DAG_relations_tag_update(bmain);
+		DEG_relations_tag_update(bmain);
 		str = "Delete Object Hierarchy";
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
 	}
@@ -1104,7 +1115,7 @@ static EnumPropertyItem prop_group_op_types[] = {
 	{OL_GROUPOP_UNLINK, "UNLINK",     0, "Unlink Group", ""},
 	{OL_GROUPOP_LOCAL, "LOCAL",       0, "Make Local Group", ""},
 	{OL_GROUPOP_LINK, "LINK",         0, "Link Group Objects to Scene", ""},
-	{OL_GROUPOP_DELETE, "DELETE",     0, "Delete Group", "WARNING: no undo"},
+	{OL_GROUPOP_DELETE, "DELETE",     0, "Delete Group", ""},
 	{OL_GROUPOP_REMAP, "REMAP",       0, "Remap Users",
 	 "Make all users of selected data-blocks to use instead current (clicked) one"},
 	{OL_GROUPOP_INSTANCE, "INSTANCE", 0, "Instance Groups in Scene", ""},
@@ -1140,10 +1151,10 @@ static int outliner_group_operation_exec(bContext *C, wmOperator *op)
 		case OL_GROUPOP_INSTANCE:
 			outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, group_instance_cb, NULL);
 			/* works without this except if you try render right after, see: 22027 */
-			DAG_relations_tag_update(CTX_data_main(C));
+			DEG_relations_tag_update(CTX_data_main(C));
 			break;
 		case OL_GROUPOP_DELETE:
-			WM_operator_name_call(C, "OUTLINER_OT_id_delete", WM_OP_INVOKE_REGION_WIN, NULL);
+			outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, id_delete_cb, NULL);
 			break;
 		case OL_GROUPOP_REMAP:
 			outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, id_remap_cb, NULL);
@@ -1669,7 +1680,7 @@ static int outliner_animdata_operation_exec(bContext *C, wmOperator *op)
 	/* update dependencies */
 	if (updateDeps) {
 		/* rebuild depsgraph for the new deps */
-		DAG_relations_tag_update(CTX_data_main(C));
+		DEG_relations_tag_update(CTX_data_main(C));
 	}
 	
 	return OPERATOR_FINISHED;

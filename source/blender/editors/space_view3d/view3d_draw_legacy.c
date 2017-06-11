@@ -914,7 +914,7 @@ static void view3d_draw_xray_select(Scene *scene, SceneLayer *sl, ARegion *ar, V
 
 	v3d->xray = true;
 	while ((v3da = BLI_pophead(&v3d->afterdraw_xray))) {
-		if (GPU_select_load_id(v3da->base->selcol)) {
+		if (GPU_select_load_id(v3da->base->object->select_color)) {
 			draw_object_select(scene, sl, ar, v3d, v3da->base, v3da->dflag);
 		}
 		MEM_freeN(v3da);
@@ -1301,10 +1301,10 @@ void ED_view3d_draw_select_loop(
 				if (((base->flag & BASE_SELECTABLED) == 0) ||
 				    (use_obedit_skip && (scene->obedit->data == base->object->data)))
 				{
-					base->selcol = 0;
+					base->object->select_color = 0;
 				}
 				else {
-					base->selcol = code;
+					base->object->select_color = code;
 
 					if (use_nearest && (base->object->dtx & OB_DRAWXRAY)) {
 						ED_view3d_after_add(&v3d->afterdraw_xray, base, dflag);
@@ -1456,7 +1456,7 @@ CustomDataMask ED_view3d_datamask(const Scene *scene, const View3D *v3d)
 	if (ELEM(drawtype, OB_TEXTURE, OB_MATERIAL) ||
 	    ((drawtype == OB_SOLID) && (v3d->flag2 & V3D_SOLID_TEX)))
 	{
-		mask |= CD_MASK_MTEXPOLY | CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL;
+		mask |= CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL;
 
 		if (BKE_scene_use_new_shading_nodes(scene)) {
 			if (drawtype == OB_MATERIAL)
@@ -1473,9 +1473,8 @@ CustomDataMask ED_view3d_datamask(const Scene *scene, const View3D *v3d)
 }
 
 /* goes over all modes and view3d settings */
-CustomDataMask ED_view3d_screen_datamask(const bScreen *screen)
+CustomDataMask ED_view3d_screen_datamask(const Scene *scene, const bScreen *screen)
 {
-	const Scene *scene = screen->scene;
 	CustomDataMask mask = CD_MASK_BAREMESH;
 	
 	/* check if we need tfaces & mcols due to view mode */
@@ -1767,14 +1766,14 @@ void ED_scene_draw_fps(Scene *scene, const rcti *rect)
 #endif
 }
 
-static bool view3d_main_region_do_render_draw(Scene *scene)
+static bool view3d_main_region_do_render_draw(const Scene *scene)
 {
 	RenderEngineType *type = RE_engines_find(scene->r.engine);
 
 	return (type && type->view_update && type->render_to_view);
 }
 
-bool ED_view3d_calc_render_border(Scene *scene, View3D *v3d, ARegion *ar, rcti *rect)
+bool ED_view3d_calc_render_border(const Scene *scene, View3D *v3d, ARegion *ar, rcti *rect)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	bool use_border;

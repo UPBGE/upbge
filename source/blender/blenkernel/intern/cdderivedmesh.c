@@ -58,12 +58,9 @@
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_glew.h"
+#include "GPU_immediate.h"
 #include "GPU_shader.h"
 #include "GPU_basic_shader.h"
-
-#ifdef WITH_GL_PROFILE_CORE
-#  include "GPU_immediate.h"
-#endif
 
 #include <string.h>
 #include <limits.h>
@@ -376,7 +373,7 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 	GPU_buffers_unbind();
 }
 
-static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdges)
+static void cdDM_drawEdges(DerivedMesh *dm, bool UNUSED(drawLooseEdges), bool UNUSED(drawAllEdges))
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 
@@ -387,28 +384,6 @@ static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdg
 
 		return;
 	}
-
-#ifndef WITH_GL_PROFILE_CORE
-	GPUDrawObject *gdo;
-
-	GPU_edge_setup(dm);
-	gdo = dm->drawObject;
-	if (gdo->edges && gdo->points) {
-		if (drawAllEdges && drawLooseEdges) {
-			GPU_buffer_draw_elements(gdo->edges, GL_LINES, 0, gdo->totedge * 2);
-		}
-		else if (drawAllEdges) {
-			GPU_buffer_draw_elements(gdo->edges, GL_LINES, 0, gdo->loose_edge_offset * 2);
-		}
-		else {
-			GPU_buffer_draw_elements(gdo->edges, GL_LINES, 0, gdo->tot_edge_drawn * 2);
-			GPU_buffer_draw_elements(gdo->edges, GL_LINES, gdo->loose_edge_offset * 2, dm->drawObject->tot_loose_edge_drawn * 2);
-		}
-	}
-	GPU_buffers_unbind();
-#else
-	(void) drawLooseEdges;
-	(void) drawAllEdges;
 
 	MVert *vert = cddm->mvert;
 	MEdge *edge = cddm->medge;
@@ -440,7 +415,6 @@ static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdg
 	}
 
 	immUnbindProgram();
-#endif
 }
 
 static void cdDM_drawLooseEdges(DerivedMesh *dm)
@@ -463,8 +437,9 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 static void cdDM_drawFacesSolid(
         DerivedMesh *dm,
         float (*partial_redraw_planes)[4],
-        bool UNUSED(fast), DMSetMaterial setMaterial)
+        bool fast, DMSetMaterial setMaterial)
 {
+	UNUSED_VARS(partial_redraw_planes, fast, setMaterial);
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	int a;
 
@@ -477,21 +452,6 @@ static void cdDM_drawFacesSolid(
 			return;
 		}
 	}
-
-#ifndef WITH_GL_PROFILE_CORE
-	GPU_vertex_setup(dm);
-	GPU_normal_setup(dm);
-	GPU_triangle_setup(dm);
-	for (a = 0; a < dm->drawObject->totmaterial; a++) {
-		if (!setMaterial || setMaterial(dm->drawObject->materials[a].mat_nr + 1, NULL)) {
-			GPU_buffer_draw_elements(
-			            dm->drawObject->triangles, GL_TRIANGLES,
-			            dm->drawObject->materials[a].start, dm->drawObject->materials[a].totelements);
-		}
-	}
-#else
-	(void) partial_redraw_planes;
-	(void) setMaterial;
 
 	const MVert *mvert = cddm->mvert;
 	const MLoop *mloop = cddm->mloop;
@@ -565,166 +525,6 @@ static void cdDM_drawFacesSolid(
 	}
 
 	immUnbindProgram();
-#endif
-}
-
-static void cdDM_drawFacesTex_common(
-        DerivedMesh *dm,
-        DMSetDrawOptionsTex drawParams,
-        DMSetDrawOptionsMappedTex drawParamsMapped,
-        DMCompareDrawOptions compareDrawOptions,
-        void *userData, DMDrawFlag flag)
-{
-	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
-	const MPoly *mpoly = cddm->mpoly;
-	MTexPoly *mtexpoly = DM_get_poly_data_layer(dm, CD_MTEXPOLY);
-	const  MLoopCol *mloopcol = NULL;
-	int i;
-	int colType, start_element, tot_drawn;
-	const bool use_hide = (flag & DM_DRAW_SKIP_HIDDEN) != 0;
-	const bool use_tface = (flag & DM_DRAW_USE_ACTIVE_UV) != 0;
-	const bool use_colors = (flag & DM_DRAW_USE_COLORS) != 0;
-	int totpoly;
-	int next_actualFace;
-	int mat_index;
-	int tot_element;
-
-	/* double lookup */
-	const int *index_mp_to_orig  = dm->getPolyDataArray(dm, CD_ORIGINDEX);
-
-	/* TODO: not entirely correct, but currently dynamic topology will
-	 *       destroy UVs anyway, so textured display wouldn't work anyway
-	 *
-	 *       this will do more like solid view with lights set up for
-	 *       textured view, but object itself will be displayed gray
-	 *       (the same as it'll display without UV maps in textured view)
-	 */
-	if (cddm->pbvh) {
-		if (cddm->pbvh_draw &&
-		    BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH &&
-		    BKE_pbvh_has_faces(cddm->pbvh))
-		{
-			GPU_set_tpage(NULL, false, false);
-			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false, false);
-			return;
-		}
-		else {
-			cdDM_update_normals_from_pbvh(dm);
-		}
-	}
-
-	if (use_colors) {
-		colType = CD_TEXTURE_MLOOPCOL;
-		mloopcol = dm->getLoopDataArray(dm, colType);
-		if (!mloopcol) {
-			colType = CD_PREVIEW_MLOOPCOL;
-			mloopcol = dm->getLoopDataArray(dm, colType);
-		}
-		if (!mloopcol) {
-			colType = CD_MLOOPCOL;
-			mloopcol = dm->getLoopDataArray(dm, colType);
-		}
-	}
-
-	GPU_vertex_setup(dm);
-	GPU_normal_setup(dm);
-	GPU_triangle_setup(dm);
-	if (flag & DM_DRAW_USE_TEXPAINT_UV)
-		GPU_texpaint_uv_setup(dm);
-	else
-		GPU_uv_setup(dm);
-	if (mloopcol) {
-		GPU_color_setup(dm, colType);
-	}
-
-	/* lastFlag = 0; */ /* UNUSED */
-	for (mat_index = 0; mat_index < dm->drawObject->totmaterial; mat_index++) {
-		GPUBufferMaterial *bufmat = dm->drawObject->materials + mat_index;
-		next_actualFace = bufmat->polys[0];
-		totpoly = bufmat->totpolys;
-
-		tot_element = 0;
-		tot_drawn = 0;
-		start_element = 0;
-
-		for (i = 0; i < totpoly; i++) {
-			int actualFace = bufmat->polys[i];
-			DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
-			int flush = 0;
-			int tot_tri_verts;
-
-			if (i != totpoly - 1)
-				next_actualFace = bufmat->polys[i + 1];
-
-			if (use_hide && (mpoly[actualFace].flag & ME_HIDE)) {
-				draw_option = DM_DRAW_OPTION_SKIP;
-			}
-			else if (drawParams) {
-				MTexPoly *tp = use_tface && mtexpoly ? &mtexpoly[actualFace] : NULL;
-				draw_option = drawParams(tp, (mloopcol != NULL), mpoly[actualFace].mat_nr);
-			}
-			else {
-				if (index_mp_to_orig) {
-					const int orig = index_mp_to_orig[actualFace];
-					if (orig == ORIGINDEX_NONE) {
-						/* XXX, this is not really correct
-						 * it will draw the previous faces context for this one when we don't know its settings.
-						 * but better then skipping it altogether. - campbell */
-						draw_option = DM_DRAW_OPTION_NORMAL;
-					}
-					else if (drawParamsMapped) {
-						draw_option = drawParamsMapped(userData, orig, mpoly[actualFace].mat_nr);
-					}
-				}
-				else if (drawParamsMapped) {
-					draw_option = drawParamsMapped(userData, actualFace, mpoly[actualFace].mat_nr);
-				}
-			}
-
-			/* flush buffer if current triangle isn't drawable or it's last triangle */
-			flush = (draw_option == DM_DRAW_OPTION_SKIP) || (i == totpoly - 1);
-
-			if (!flush && compareDrawOptions) {
-				/* also compare draw options and flush buffer if they're different
-				 * need for face selection highlight in edit mode */
-				flush |= compareDrawOptions(userData, actualFace, next_actualFace) == 0;
-			}
-
-			tot_tri_verts = ME_POLY_TRI_TOT(&mpoly[actualFace]) * 3;
-			tot_element += tot_tri_verts;
-
-			if (flush) {
-				if (draw_option != DM_DRAW_OPTION_SKIP)
-					tot_drawn += tot_tri_verts;
-
-				if (tot_drawn) {
-					if (mloopcol && draw_option != DM_DRAW_OPTION_NO_MCOL)
-						GPU_color_switch(1);
-					else
-						GPU_color_switch(0);
-
-					GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, bufmat->start + start_element, tot_drawn);
-					tot_drawn = 0;
-				}
-				start_element = tot_element;
-			}
-			else {
-				tot_drawn += tot_tri_verts;
-			}
-		}
-	}
-
-	GPU_buffers_unbind();
-	
-}
-
-static void cdDM_drawFacesTex(
-        DerivedMesh *dm,
-        DMSetDrawOptionsTex setDrawOptions,
-        DMCompareDrawOptions compareDrawOptions,
-        void *userData, DMDrawFlag flag)
-{
-	cdDM_drawFacesTex_common(dm, setDrawOptions, NULL, compareDrawOptions, userData, flag);
 }
 
 static void cdDM_drawMappedFaces(
@@ -929,15 +729,6 @@ static void cdDM_drawMappedFaces(
 	if (findex_buffer)
 		GPU_buffer_free(findex_buffer);
 
-}
-
-static void cdDM_drawMappedFacesTex(
-        DerivedMesh *dm,
-        DMSetDrawOptionsMappedTex setDrawOptions,
-        DMCompareDrawOptions compareDrawOptions,
-        void *userData, DMDrawFlag flag)
-{
-	cdDM_drawFacesTex_common(dm, NULL, setDrawOptions, compareDrawOptions, userData, flag);
 }
 
 static void cddm_draw_attrib_vertex(
@@ -1993,7 +1784,7 @@ void CDDM_recalc_tessellation_ex(DerivedMesh *dm, const bool do_face_nor_cpy)
 
 	/* Tessellation recreated faceData, and the active layer indices need to get re-propagated
 	 * from loops and polys to faces */
-	CustomData_bmesh_update_active_layers(&dm->faceData, &dm->polyData, &dm->loopData);
+	CustomData_bmesh_update_active_layers(&dm->faceData, &dm->loopData);
 }
 
 void CDDM_recalc_tessellation(DerivedMesh *dm)
@@ -2102,10 +1893,8 @@ static CDDerivedMesh *cdDM_create(const char *desc)
 	dm->drawMappedEdges = cdDM_drawMappedEdges;
 
 	dm->drawFacesSolid = cdDM_drawFacesSolid;
-	dm->drawFacesTex = cdDM_drawFacesTex;
 	dm->drawFacesGLSL = cdDM_drawFacesGLSL;
 	dm->drawMappedFaces = cdDM_drawMappedFaces;
-	dm->drawMappedFacesTex = cdDM_drawMappedFacesTex;
 	dm->drawMappedFacesGLSL = cdDM_drawMappedFacesGLSL;
 	dm->drawMappedFacesMat = cdDM_drawMappedFacesMat;
 
@@ -2242,7 +2031,6 @@ DerivedMesh *CDDM_from_curve_displist(Object *ob, ListBase *dispbase)
 
 	if (alluv) {
 		const char *uvname = "Orco";
-		CustomData_add_layer_named(&cddm->dm.polyData, CD_MTEXPOLY, CD_DEFAULT, NULL, totpoly, uvname);
 		CustomData_add_layer_named(&cddm->dm.loopData, CD_MLOOPUV, CD_ASSIGN, alluv, totloop, uvname);
 	}
 
@@ -2257,22 +2045,18 @@ DerivedMesh *CDDM_from_curve_displist(Object *ob, ListBase *dispbase)
 static void loops_to_customdata_corners(
         BMesh *bm, CustomData *facedata,
         int cdindex, const BMLoop *l3[3],
-        int numCol, int numTex)
+        int numCol, int numUV)
 {
 	const BMLoop *l;
-	BMFace *f = l3[0]->f;
+//	BMFace *f = l3[0]->f;
 	MTFace *texface;
-	MTexPoly *texpoly;
 	MCol *mcol;
 	MLoopCol *mloopcol;
 	MLoopUV *mloopuv;
 	int i, j, hasPCol = CustomData_has_layer(&bm->ldata, CD_PREVIEW_MLOOPCOL);
 
-	for (i = 0; i < numTex; i++) {
+	for (i = 0; i < numUV; i++) {
 		texface = CustomData_get_n(facedata, CD_MTFACE, cdindex, i);
-		texpoly = CustomData_bmesh_get_n(&bm->pdata, f->head.data, CD_MTEXPOLY, i);
-		
-		ME_MTEXFACE_CPY(texface, texpoly);
 	
 		for (j = 0; j < 3; j++) {
 			l = l3[j];
@@ -2326,7 +2110,7 @@ static DerivedMesh *cddm_from_bmesh_ex(
 	MLoop *mloop = cddm->mloop;
 	MPoly *mpoly = cddm->mpoly;
 	int numCol = CustomData_number_of_layers(&bm->ldata, CD_MLOOPCOL);
-	int numTex = CustomData_number_of_layers(&bm->pdata, CD_MTEXPOLY);
+	int numUV  = CustomData_number_of_layers(&bm->ldata, CD_MLOOPUV);
 	int *index, add_orig;
 	CustomDataMask mask;
 	unsigned int i, j;
@@ -2356,7 +2140,7 @@ static DerivedMesh *cddm_from_bmesh_ex(
 
 	/* add tessellation mface layers */
 	if (use_tessface) {
-		CustomData_from_bmeshpoly(&dm->faceData, &dm->polyData, &dm->loopData, em_tottri);
+		CustomData_from_bmeshpoly(&dm->faceData, &dm->loopData, em_tottri);
 	}
 
 	index = dm->getVertDataArray(dm, CD_ORIGINDEX);
@@ -2428,7 +2212,7 @@ static DerivedMesh *cddm_from_bmesh_ex(
 			/* map mfaces to polygons in the same cddm intentionally */
 			*index++ = BM_elem_index_get(efa);
 
-			loops_to_customdata_corners(bm, &dm->faceData, i, l, numCol, numTex);
+			loops_to_customdata_corners(bm, &dm->faceData, i, l, numCol, numUV);
 			test_index_face(mf, &dm->faceData, i, 3);
 		}
 	}
@@ -3080,9 +2864,12 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 	STACK_DECLARE(mvert);
 	STACK_DECLARE(oldv);
 
-	MEdge *med, *medge = MEM_mallocN(sizeof(*medge) * totedge, __func__);
-	int *olde          = MEM_mallocN(sizeof(*olde)  * totedge, __func__);
-	int *newe          = MEM_mallocN(sizeof(*newe)  * totedge, __func__);
+	/* Note: create (totedge + totloop) elements because partially invalid polys due to merge may require
+	 * generating new edges, and while in 99% cases we'll still end with less final edges than totedge,
+	 * cases can be forged that would end requiring more... */
+	MEdge *med, *medge = MEM_mallocN(sizeof(*medge) * (totedge + totloop), __func__);
+	int *olde          = MEM_mallocN(sizeof(*olde)  * (totedge + totloop), __func__);
+	int *newe          = MEM_mallocN(sizeof(*newe)  * (totedge + totloop), __func__);
 	STACK_DECLARE(medge);
 	STACK_DECLARE(olde);
 
@@ -3116,7 +2903,7 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 	STACK_INIT(mloop, totloop);
 	STACK_INIT(mpoly, totpoly);
 
-	/* fill newl with destination vertex indices */
+	/* fill newv with destination vertex indices */
 	mv = cddm->mvert;
 	c = 0;
 	for (i = 0; i < totvert; i++, mv++) {
@@ -3205,83 +2992,80 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 
 
 	mp = cddm->mpoly;
+	mv = cddm->mvert;
 	for (i = 0; i < totpoly; i++, mp++) {
 		MPoly *mp_new;
 		
 		ml = cddm->mloop + mp->loopstart;
 
 		/* check faces with all vertices merged */
-		{
-			bool all_vertices_merged = true;
+		bool all_vertices_merged = true;
 
-			for (j = 0; j < mp->totloop; j++, ml++) {
-				if (vtargetmap[ml->v] == -1) {
-					all_vertices_merged = false;
-					break;
-				}
+		for (j = 0; j < mp->totloop; j++, ml++) {
+			if (vtargetmap[ml->v] == -1) {
+				all_vertices_merged = false;
+				/* This will be used to check for poly using several time the same vert. */
+				mv[ml->v].flag &= ~ME_VERT_TMP_TAG;
 			}
+			else {
+				/* This will be used to check for poly using several time the same vert. */
+				mv[vtargetmap[ml->v]].flag &= ~ME_VERT_TMP_TAG;
+			}
+		}
 
-			if (UNLIKELY(all_vertices_merged)) {
-				if (merge_mode == CDDM_MERGE_VERTS_DUMP_IF_MAPPED) {
-					/* In this mode, all vertices merged is enough to dump face */
-					continue;
+		if (UNLIKELY(all_vertices_merged)) {
+			if (merge_mode == CDDM_MERGE_VERTS_DUMP_IF_MAPPED) {
+				/* In this mode, all vertices merged is enough to dump face */
+				continue;
+			}
+			else if (merge_mode == CDDM_MERGE_VERTS_DUMP_IF_EQUAL) {
+				/* Additional condition for face dump:  target vertices must make up an identical face */
+				/* The test has 2 steps:  (1) first step is fast ghash lookup, but not failproof       */
+				/*                        (2) second step is thorough but more costly poly compare     */
+				int i_poly, v_target;
+				bool found = false;
+				PolyKey pkey;
+
+				/* Use poly_gset for fast (although not 100% certain) identification of same poly */
+				/* First, make up a poly_summary structure */
+				ml = cddm->mloop + mp->loopstart;
+				pkey.hash_sum = pkey.hash_xor = 0;
+				pkey.totloops = 0;
+				for (j = 0; j < mp->totloop; j++, ml++) {
+					v_target = vtargetmap[ml->v];   /* Cannot be -1, they are all mapped */
+					pkey.hash_sum += v_target;
+					pkey.hash_xor ^= v_target;
+					pkey.totloops++;
 				}
-				else if (merge_mode == CDDM_MERGE_VERTS_DUMP_IF_EQUAL) {
-					/* Additional condition for face dump:  target vertices must make up an identical face */
-					/* The test has 2 steps:  (1) first step is fast ghash lookup, but not failproof       */
-					/*                        (2) second step is thorough but more costly poly compare     */
-					int i_poly, v_target, v_prev;
-					bool found = false;
-					PolyKey pkey;
+				if (BLI_gset_haskey(poly_gset, &pkey)) {
 
-					/* Use poly_gset for fast (although not 100% certain) identification of same poly */
-					/* First, make up a poly_summary structure */
+					/* There might be a poly that matches this one.
+					 * We could just leave it there and say there is, and do a "continue".
+					 * ... but we are checking whether there is an exact poly match.
+					 * It's not so costly in terms of CPU since it's very rare, just a lot of complex code.
+					 */
+
+					/* Consider current loop again */
 					ml = cddm->mloop + mp->loopstart;
-					pkey.hash_sum = pkey.hash_xor = 0;
-					pkey.totloops = 0;
-					v_prev = vtargetmap[(ml + mp->totloop -1)->v];  /* since it loops around, the prev of first is the last */
-					for (j = 0; j < mp->totloop; j++, ml++) {
-						v_target = vtargetmap[ml->v];   /* Cannot be -1, they are all mapped */
-						if (v_target == v_prev) {
-							/* consecutive vertices in loop map to the same target:  discard */
-							/* but what about last to first ? */
-							continue;
+					/* Consider the target of the loop's first vert */
+					v_target = vtargetmap[ml->v];
+					/* Now see if v_target belongs to a poly that shares all vertices with source poly,
+					 * in same order, or reverse order */
+
+					for (i_poly = 0; i_poly < cddm->pmap[v_target].count; i_poly++) {
+						MPoly *target_poly = cddm->mpoly + *(cddm->pmap[v_target].indices + i_poly);
+
+						if (cddm_poly_compare(cddm->mloop, mp, target_poly, vtargetmap, +1) ||
+							cddm_poly_compare(cddm->mloop, mp, target_poly, vtargetmap, -1))
+						{
+							found = true;
+							break;
 						}
-						pkey.hash_sum += v_target;
-						pkey.hash_xor ^= v_target;
-						pkey.totloops++;
-						v_prev = v_target;
 					}
-					if (BLI_gset_haskey(poly_gset, &pkey)) {
-
-						/* There might be a poly that matches this one.
-						 * We could just leave it there and say there is, and do a "continue".
-						 * ... but we are checking whether there is an exact poly match.
-						 * It's not so costly in terms of CPU since it's very rare, just a lot of complex code.
-						 */
-
-						/* Consider current loop again */
-						ml = cddm->mloop + mp->loopstart;
-						/* Consider the target of the loop's first vert */
-						v_target = vtargetmap[ml->v];
-						/* Now see if v_target belongs to a poly that shares all vertices with source poly,
-						 * in same order, or reverse order */
-
-						for (i_poly = 0; i_poly < cddm->pmap[v_target].count; i_poly++) {
-							MPoly *target_poly = cddm->mpoly + *(cddm->pmap[v_target].indices + i_poly);
-
-							if (cddm_poly_compare(cddm->mloop, mp, target_poly, vtargetmap, +1) ||
-							    cddm_poly_compare(cddm->mloop, mp, target_poly, vtargetmap, -1))
-							{
-								found = true;
-								break;
-							}
-						}
-						if (found) {
-							/* Current poly's vertices are mapped to a poly that is strictly identical */
-							/* Current poly is dumped */
-							continue;
-						}
+					if (found) {
+						/* Current poly's vertices are mapped to a poly that is strictly identical */
+						/* Current poly is dumped */
+						continue;
 					}
 				}
 			}
@@ -3295,31 +3079,120 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 		ml = cddm->mloop + mp->loopstart;
 
 		c = 0;
+		MLoop *last_valid_ml = NULL;
+		MLoop *first_valid_ml = NULL;
+		bool need_edge_from_last_valid_ml = false;
+		bool need_edge_to_first_valid_ml = false;
+		int created_edges = 0;
 		for (j = 0; j < mp->totloop; j++, ml++) {
-			unsigned int v1, v2;
+			const uint mlv = (vtargetmap[ml->v] != -1) ? vtargetmap[ml->v] : ml->v;
+#ifndef NDEBUG
+			{
+				MLoop *next_ml = cddm->mloop + mp->loopstart + ((j + 1) % mp->totloop);
+				uint next_mlv = (vtargetmap[next_ml->v] != -1) ? vtargetmap[next_ml->v] : next_ml->v;
+				med = cddm->medge + ml->e;
+				uint v1 = (vtargetmap[med->v1] != -1) ? vtargetmap[med->v1] : med->v1;
+				uint v2 = (vtargetmap[med->v2] != -1) ? vtargetmap[med->v2] : med->v2;
+				BLI_assert((mlv == v1 && next_mlv == v2) || (mlv == v2 && next_mlv == v1));
+			}
+#endif
+			/* A loop is only valid if its matching edge is, and it's not reusing a vertex already used by this poly. */
+			if (LIKELY((newe[ml->e] != -1) && ((mv[mlv].flag & ME_VERT_TMP_TAG) == 0))) {
+				mv[mlv].flag |= ME_VERT_TMP_TAG;
 
-			med = cddm->medge + ml->e;
-			v1 = (vtargetmap[med->v1] != -1) ? vtargetmap[med->v1] : med->v1;
-			v2 = (vtargetmap[med->v2] != -1) ? vtargetmap[med->v2] : med->v2;
-			if (LIKELY(v1 != v2)) {
+				if (UNLIKELY(last_valid_ml != NULL && need_edge_from_last_valid_ml)) {
+					/* We need to create a new edge between last valid loop and this one! */
+					void **val_p;
+
+					uint v1 = (vtargetmap[last_valid_ml->v] != -1) ? vtargetmap[last_valid_ml->v] : last_valid_ml->v;
+					uint v2 = mlv;
+					BLI_assert(v1 != v2);
+					if (BLI_edgehash_ensure_p(ehash, v1, v2, &val_p)) {
+						last_valid_ml->e = GET_INT_FROM_POINTER(*val_p);
+					}
+					else {
+						const int new_eidx = STACK_SIZE(medge);
+						STACK_PUSH(olde, olde[last_valid_ml->e]);
+						STACK_PUSH(medge, cddm->medge[last_valid_ml->e]);
+						medge[new_eidx].v1 = last_valid_ml->v;
+						medge[new_eidx].v2 = ml->v;
+						/* DO NOT change newe mapping, could break actual values due to some deleted original edges. */
+						*val_p = SET_INT_IN_POINTER(new_eidx);
+						created_edges++;
+
+						last_valid_ml->e = new_eidx;
+					}
+					need_edge_from_last_valid_ml = false;
+				}
+
 #ifdef USE_LOOPS
 				newl[j + mp->loopstart] = STACK_SIZE(mloop);
 #endif
 				STACK_PUSH(oldl, j + mp->loopstart);
-				STACK_PUSH(mloop, *ml);
+				last_valid_ml = STACK_PUSH_RET_PTR(mloop);
+				*last_valid_ml = *ml;
+				if (first_valid_ml == NULL) {
+					first_valid_ml = last_valid_ml;
+				}
 				c++;
+
+				/* We absolutely HAVE to handle edge index remapping here, otherwise potential newly created edges
+				 * in that part of code make remapping later totally unreliable. */
+				BLI_assert(newe[ml->e] != -1);
+				last_valid_ml->e = newe[ml->e];
 			}
+			else {
+				if (last_valid_ml != NULL) {
+					need_edge_from_last_valid_ml = true;
+				}
+				else {
+					need_edge_to_first_valid_ml = true;
+				}
+			}
+		}
+		if (UNLIKELY(last_valid_ml != NULL && !ELEM(first_valid_ml, NULL, last_valid_ml) &&
+		             (need_edge_to_first_valid_ml || need_edge_from_last_valid_ml)))
+		{
+			/* We need to create a new edge between last valid loop and first valid one! */
+			void **val_p;
+
+			uint v1 = (vtargetmap[last_valid_ml->v] != -1) ? vtargetmap[last_valid_ml->v] : last_valid_ml->v;
+			uint v2 = (vtargetmap[first_valid_ml->v] != -1) ? vtargetmap[first_valid_ml->v] : first_valid_ml->v;
+			BLI_assert(v1 != v2);
+			if (BLI_edgehash_ensure_p(ehash, v1, v2, &val_p)) {
+				last_valid_ml->e = GET_INT_FROM_POINTER(*val_p);
+			}
+			else {
+				const int new_eidx = STACK_SIZE(medge);
+				STACK_PUSH(olde, olde[last_valid_ml->e]);
+				STACK_PUSH(medge, cddm->medge[last_valid_ml->e]);
+				medge[new_eidx].v1 = last_valid_ml->v;
+				medge[new_eidx].v2 = first_valid_ml->v;
+				/* DO NOT change newe mapping, could break actual values due to some deleted original edges. */
+				*val_p = SET_INT_IN_POINTER(new_eidx);
+				created_edges++;
+
+				last_valid_ml->e = new_eidx;
+			}
+			need_edge_to_first_valid_ml = need_edge_from_last_valid_ml = false;
 		}
 
 		if (UNLIKELY(c == 0)) {
+			BLI_assert(created_edges == 0);
 			continue;
 		}
 		else if (UNLIKELY(c < 3)) {
 			STACK_DISCARD(oldl, c);
 			STACK_DISCARD(mloop, c);
+			if (created_edges > 0) {
+				for (j = STACK_SIZE(medge) - created_edges; j < STACK_SIZE(medge); j++) {
+					BLI_edgehash_remove(ehash, medge[j].v1, medge[j].v2, NULL);
+				}
+				STACK_DISCARD(olde, created_edges);
+				STACK_DISCARD(medge, created_edges);
+			}
 			continue;
 		}
-
 
 		mp_new = STACK_PUSH_RET_PTR(mpoly);
 		*mp_new = *mp;
@@ -3345,10 +3218,10 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 	/*update edge indices and copy customdata*/
 	med = medge;
 	for (i = 0; i < cddm2->dm.numEdgeData; i++, med++) {
-		if (newv[med->v1] != -1)
-			med->v1 = newv[med->v1];
-		if (newv[med->v2] != -1)
-			med->v2 = newv[med->v2];
+		BLI_assert(newv[med->v1] != -1);
+		med->v1 = newv[med->v1];
+		BLI_assert(newv[med->v2] != -1);
+		med->v2 = newv[med->v2];
 
 		/* Can happen in case vtargetmap contains some double chains, we do not support that. */
 		BLI_assert(med->v1 != med->v2);
@@ -3359,11 +3232,10 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 	/*update loop indices and copy customdata*/
 	ml = mloop;
 	for (i = 0; i < cddm2->dm.numLoopData; i++, ml++) {
-		if (newe[ml->e] != -1)
-			ml->e = newe[ml->e];
-		if (newv[ml->v] != -1)
-			ml->v = newv[ml->v];
-			
+		/* Edge remapping has already be done in main loop handling part above. */
+		BLI_assert(newv[ml->v] != -1);
+		ml->v = newv[ml->v];
+
 		CustomData_copy_data(&dm->loopData, &cddm2->dm.loopData, oldl[i], i, 1);
 	}
 	

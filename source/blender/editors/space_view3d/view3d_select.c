@@ -63,7 +63,6 @@
 #include "BKE_armature.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_layer.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"
@@ -73,6 +72,8 @@
 #include "BKE_scene.h"
 #include "BKE_tracking.h"
 #include "BKE_utildefines.h"
+
+#include "DEG_depsgraph.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -369,7 +370,7 @@ static void do_lasso_select_pose(ViewContext *vc, Object *ob, const int mcords[]
 		bArmature *arm = ob->data;
 		if (arm->flag & ARM_HAS_VIZ_DEPS) {
 			/* mask modifier ('armature' mode), etc. */
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		}
 	}
 }
@@ -905,7 +906,7 @@ static unsigned int samplerect(unsigned int *buf, int size, unsigned int dontdo)
 	
 	base = LASTBASE;
 	if (base == 0) return 0;
-	maxob = base->selcol;
+	maxob = base->object->select_color;
 
 	len = (size - 1) / 2;
 	rc = 0;
@@ -1067,7 +1068,7 @@ static Base *object_mouse_select_menu(
 	bool ok;
 	LinkNode *linklist = NULL;
 
-	/* handle base->selcol */
+	/* handle base->object->select_color */
 	CTX_DATA_BEGIN (C, Base *, base, selectable_bases)
 	{
 		ok = false;
@@ -1076,7 +1077,7 @@ static Base *object_mouse_select_menu(
 		if (buffer) {
 			for (int a = 0; a < hits; a++) {
 				/* index was converted */
-				if (base->selcol == (buffer[(4 * a) + 3] & ~0xFFFF0000)) {
+				if (base->object->select_color == (buffer[(4 * a) + 3] & ~0xFFFF0000)) {
 					ok = true;
 					break;
 				}
@@ -1285,7 +1286,9 @@ static Base *mouse_select_eval_buffer(ViewContext *vc, unsigned int *buffer, int
 		}
 		else {
 			/* only exclude active object when it is selected... */
-			if (BASACT_NEW && (BASACT_NEW->flag & BASE_SELECTED) && hits > 1) notcol = BASACT_NEW->selcol;
+			if (BASACT_NEW && (BASACT_NEW->flag & BASE_SELECTED) && hits > 1) {
+				notcol = BASACT_NEW->object->select_color;
+			}
 			
 			for (a = 0; a < hits; a++) {
 				if (min > buffer[4 * a + 1] && notcol != (buffer[4 * a + 3] & 0xFFFF)) {
@@ -1298,7 +1301,7 @@ static Base *mouse_select_eval_buffer(ViewContext *vc, unsigned int *buffer, int
 		base = FIRSTBASE_NEW;
 		while (base) {
 			if (BASE_SELECTABLE_NEW(base)) {
-				if (base->selcol == selcol) break;
+				if (base->object->select_color == selcol) break;
 			}
 			base = base->next;
 		}
@@ -1321,12 +1324,12 @@ static Base *mouse_select_eval_buffer(ViewContext *vc, unsigned int *buffer, int
 					if (has_bones) {
 						/* skip non-bone objects */
 						if ((buffer[4 * a + 3] & 0xFFFF0000)) {
-							if (base->selcol == (buffer[(4 * a) + 3] & 0xFFFF))
+							if (base->object->select_color == (buffer[(4 * a) + 3] & 0xFFFF))
 								basact = base;
 						}
 					}
 					else {
-						if (base->selcol == (buffer[(4 * a) + 3] & 0xFFFF))
+						if (base->object->select_color == (buffer[(4 * a) + 3] & 0xFFFF))
 							basact = base;
 					}
 				}
@@ -1480,7 +1483,7 @@ static bool ed_object_select_pick(
 
 							/* if there's bundles in buffer select bundles first,
 							 * so non-camera elements should be ignored in buffer */
-							if (basact->selcol != (hitresult & 0xFFFF)) {
+							if (basact->object->select_color != (hitresult & 0xFFFF)) {
 								continue;
 							}
 
@@ -1993,6 +1996,27 @@ static int do_armature_box_select(ViewContext *vc, rcti *rect, bool select, bool
 	return hits > 0 ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
+/**
+ * Compare result of 'GPU_select': 'uint[4]',
+ * needed for when we need to align with object draw-order.
+ */
+static int opengl_select_buffer_cmp(const void *sel_a_p, const void *sel_b_p)
+{
+	/* 4th element is select id */
+	const uint sel_a = ((uint *)sel_a_p)[3];
+	const uint sel_b = ((uint *)sel_b_p)[3];
+
+	if (sel_a < sel_b) {
+		return -1;
+	}
+	else if (sel_a > sel_b) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
 static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, bool select, bool extend)
 {
 	Bone *bone;
@@ -2034,18 +2058,22 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, b
 	 * is the same as the object, we have a hit and can move to the next color
 	 * and object pair, if not, just move to the next object,
 	 * keeping the same color until we have a hit.
-	 * 
-	 * The buffer order is defined by OGL standard, hopefully no stupid GFX card
-	 * does it incorrectly.
 	 */
 
 	if (hits > 0) { /* no need to loop if there's no hit */
 		Base *base;
 		col = vbuffer + 3;
-		
+
+		/* The draw order doesn't always match the order we populate the engine, see: T51695. */
+		qsort(vbuffer, hits, sizeof(uint[4]), opengl_select_buffer_cmp);
+
+		/*
+		 * Even though 'DRW_draw_select_loop' uses 'DEG_OBJECT_ITER',
+		 * we can be sure the order remains the same between both.
+		 */
 		for (base = vc->scene_layer->object_bases.first; base && hits; base = base->next) {
 			if (BASE_SELECTABLE_NEW(base)) {
-				while (base->selcol == (*col & 0xFFFF)) {   /* we got an object */
+				while (base->object->select_color == (*col & 0xFFFF)) {   /* we got an object */
 					if (*col & 0xFFFF0000) {                    /* we got a bone */
 						bone = get_indexed_bone(base->object, *col & ~(BONESEL_ANY));
 						if (bone) {
@@ -2081,7 +2109,7 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, b
 					
 					if (arm && (arm->flag & ARM_HAS_VIZ_DEPS)) {
 						/* mask modifier ('armature' mode), etc. */
-						DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+						DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 					}
 				}
 			}
@@ -2639,7 +2667,7 @@ static void pose_circle_select(ViewContext *vc, const bool select, const int mva
 
 		if (arm->flag & ARM_HAS_VIZ_DEPS) {
 			/* mask modifier ('armature' mode), etc. */
-			DAG_id_tag_update(&vc->obact->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&vc->obact->id, OB_RECALC_DATA);
 		}
 	}
 }

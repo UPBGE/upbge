@@ -64,7 +64,6 @@
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_colortools.h"
-#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_idprop.h"
 #include "BKE_brush.h"
@@ -79,6 +78,8 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_texture.h"
+
+#include "DEG_depsgraph.h"
 
 #include "UI_interface.h"
 
@@ -3487,7 +3488,7 @@ static void proj_paint_layer_clone_init(
 
 	/* use clone mtface? */
 	if (ps->do_layer_clone) {
-		const int layer_num = CustomData_get_clone_layer(&((Mesh *)ps->ob->data)->pdata, CD_MTEXPOLY);
+		const int layer_num = CustomData_get_clone_layer(&((Mesh *)ps->ob->data)->ldata, CD_MLOOPUV);
 
 		ps->dm_mloopuv_clone = MEM_mallocN(ps->dm_totpoly * sizeof(MLoopUV *), "proj_paint_mtfaces");
 
@@ -3846,7 +3847,7 @@ static void project_paint_begin(
 
 	if (ps->do_layer_stencil || ps->do_stencil_brush) {
 		//int layer_num = CustomData_get_stencil_layer(&ps->dm->loopData, CD_MLOOPUV);
-		int layer_num = CustomData_get_stencil_layer(&((Mesh *)ps->ob->data)->pdata, CD_MTEXPOLY);
+		int layer_num = CustomData_get_stencil_layer(&((Mesh *)ps->ob->data)->ldata, CD_MLOOPUV);
 		if (layer_num != -1)
 			ps->dm_mloopuv_stencil = CustomData_get_layer_n(&ps->dm->loopData, CD_MLOOPUV, layer_num);
 
@@ -3934,7 +3935,7 @@ static void project_paint_end(ProjPaintState *ps)
 		ProjPaintImage *projIma;
 		for (a = 0, projIma = ps->projImages; a < ps->image_tot; a++, projIma++) {
 			BKE_image_release_ibuf(projIma->ima, projIma->ibuf, NULL);
-			DAG_id_tag_update(&projIma->ima->id, 0);
+			DEG_id_tag_update(&projIma->ima->id, 0);
 		}
 	}
 
@@ -5590,7 +5591,7 @@ bool BKE_paint_proj_mesh_data_check(Scene *scene, Object *ob, bool *uvs, bool *m
 	}
 	
 	me = BKE_mesh_from_object(ob);
-	layernum = CustomData_number_of_layers(&me->pdata, CD_MTEXPOLY);
+	layernum = CustomData_number_of_layers(&me->ldata, CD_MLOOPUV);
 
 	if (layernum == 0) {
 		hasuvs = false;
@@ -5739,7 +5740,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 			BKE_texpaint_slot_refresh_cache(scene, ma);
 			BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
 			WM_event_add_notifier(C, NC_IMAGE | NA_ADDED, ima);
-			DAG_id_tag_update(&ma->id, 0);
+			DEG_id_tag_update(&ma->id, 0);
 			ED_area_tag_redraw(CTX_wm_area(C));
 			
 			BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
@@ -5855,7 +5856,7 @@ static int texture_paint_delete_texture_paint_slot_exec(bContext *C, wmOperator 
 	ma->mtex[slot->index] = NULL;
 	
 	BKE_texpaint_slot_refresh_cache(scene, ma);
-	DAG_id_tag_update(&ma->id, 0);
+	DEG_id_tag_update(&ma->id, 0);
 	WM_event_add_notifier(C, NC_MATERIAL, ma);
 	/* we need a notifier for data change since we change the displayed modifier uvs */
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
@@ -5913,7 +5914,7 @@ static int add_simple_uvs_exec(bContext *C, wmOperator *UNUSED(op))
 
 	BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
 	
-	DAG_id_tag_update(ob->data, 0);
+	DEG_id_tag_update(ob->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 	WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, scene);
 	return OPERATOR_FINISHED;

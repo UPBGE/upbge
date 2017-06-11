@@ -55,6 +55,7 @@
 #include "ED_paint.h"
 #include "ED_physics.h"
 #include "ED_render.h"
+#include "ED_scene.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
 #include "ED_space_api.h"
@@ -65,6 +66,7 @@
 #include "ED_clip.h"
 #include "ED_mask.h"
 #include "ED_sequencer.h"
+#include "ED_manipulator_library.h"
 
 #include "io_ops.h"
 
@@ -99,6 +101,8 @@ void ED_spacetypes_init(void)
 //	...
 	
 	/* register operator types for screen and all spaces */
+	ED_operatortypes_workspace();
+	ED_operatortypes_scene();
 	ED_operatortypes_screen();
 	ED_operatortypes_anim();
 	ED_operatortypes_animchannels();
@@ -121,6 +125,13 @@ void ED_spacetypes_init(void)
 	
 	ED_operatortypes_view2d();
 	ED_operatortypes_ui();
+
+	/* manipulator types */
+	ED_manipulatortypes_dial_3d();
+	ED_manipulatortypes_arrow_2d();
+	ED_manipulatortypes_arrow_3d();
+	ED_manipulatortypes_primitive_3d();
+	ED_manipulatortypes_cage_2d();
 
 	/* register types for operators and manipulators */
 	spacetypes = BKE_spacetypes_list();

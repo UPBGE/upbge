@@ -65,6 +65,10 @@ void DRW_engine_viewport_data_size_get(
 
 void DRW_draw_view(const struct bContext *C);
 
+void DRW_draw_render_loop_ex(
+        struct Depsgraph *graph,
+        struct ARegion *ar, struct View3D *v3d,
+        const struct bContext *evil_C);
 void DRW_draw_render_loop(
         struct Depsgraph *graph,
         struct ARegion *ar, struct View3D *v3d);
@@ -79,8 +83,6 @@ void DRW_draw_select_loop(
 void DRW_draw_depth_loop(
         struct Depsgraph *graph,
         struct ARegion *ar, struct View3D *v3d);
-
-void DRW_object_engine_data_free(struct Object *ob);
 
 /* This is here because GPUViewport needs it */
 void DRW_pass_free(struct DRWPass *pass);

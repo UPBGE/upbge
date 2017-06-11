@@ -14,16 +14,9 @@
 #include "common.h"
 
 #define MAX_VERTEX_ATTRIBS 16
+#define MAX_ATTRIB_NAMES 3
 #define AVG_VERTEX_ATTRIB_NAME_LEN 11
 #define VERTEX_ATTRIB_NAMES_BUFFER_LEN ((AVG_VERTEX_ATTRIB_NAME_LEN + 1) * MAX_VERTEX_ATTRIBS)
-
-#if defined(WITH_GL_PROFILE_CORE) || defined(_WIN32)
-  // (GLEW_VERSION_3_3 || GLEW_ARB_vertex_type_2_10_10_10_rev)
-  //   ^-- this is only guaranteed on Windows right now, will be true on all platforms soon
-  #define USE_10_10_10 1
-#else
-  #define USE_10_10_10 0
-#endif
 
 typedef enum {
 	COMP_I8,
@@ -35,9 +28,7 @@ typedef enum {
 
 	COMP_F32,
 
-#if USE_10_10_10
 	COMP_I10
-#endif
 } VertexCompType;
 
 typedef enum {
@@ -54,11 +45,13 @@ typedef struct {
 	unsigned sz; // size in bytes, 1 to 16
 	unsigned offset; // from beginning of vertex, in bytes
 	VertexFetchMode fetch_mode;
-	const char* name;
+	const char* name[MAX_ATTRIB_NAMES];
+	unsigned name_ct;
 } Attrib;
 
 typedef struct {
 	unsigned attrib_ct; // 0 to 16 (MAX_VERTEX_ATTRIBS)
+	unsigned name_ct; // total count of active vertex attrib
 	unsigned stride; // stride in bytes, 1 to 256
 	bool packed;
 	Attrib attribs[MAX_VERTEX_ATTRIBS]; // TODO: variable-size attribs array
@@ -70,14 +63,9 @@ void VertexFormat_clear(VertexFormat*);
 void VertexFormat_copy(VertexFormat* dest, const VertexFormat* src);
 
 unsigned VertexFormat_add_attrib(VertexFormat*, const char* name, VertexCompType, unsigned comp_ct, VertexFetchMode);
-
-// Memory Management
-
-unsigned VertexBuffer_get_memory_usage(void);
+void VertexFormat_add_alias(VertexFormat*, const char* alias);
 
 // format conversion
-
-#if USE_10_10_10
 
 typedef struct {
 	int x : 10;
@@ -87,5 +75,4 @@ typedef struct {
 } PackedNormal;
 
 PackedNormal convert_i10_v3(const float data[3]);
-
-#endif // USE_10_10_10
+PackedNormal convert_i10_s3(const short data[3]);

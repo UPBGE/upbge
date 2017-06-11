@@ -56,7 +56,6 @@
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_icons.h"
 #include "BKE_image.h"
@@ -69,6 +68,8 @@
 #include "BKE_screen.h"
 #include "BKE_sound.h"
 #include "BKE_scene.h"
+
+#include "DEG_depsgraph.h"
 
 #include "GPU_draw.h"
 #include "GPU_buffers.h"
@@ -2338,7 +2339,7 @@ static int image_reload_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	// XXX other users?
 	BKE_image_signal(ima, (sima) ? &sima->iuser : NULL, IMA_SIGNAL_RELOAD);
-	DAG_id_tag_update(&ima->id, 0);
+	DEG_id_tag_update(&ima->id, 0);
 
 	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
 	
@@ -2381,7 +2382,7 @@ static int image_resize_cube_map_exec(bContext *C, wmOperator *UNUSED(op))
 			tex->ima->gen_y = previous;
 			tex->ima->gen_x = previous * 3 / 2;
 
-			DAG_id_tag_update(&tex->id, 0);
+			DEG_id_tag_update(&tex->id, 0);
 			WM_main_add_notifier(NC_TEXTURE, tex);
 			WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, NULL);
 		}
@@ -2392,7 +2393,7 @@ static int image_resize_cube_map_exec(bContext *C, wmOperator *UNUSED(op))
 
 	// XXX other users?
 	BKE_image_signal(ima, (sima) ? &sima->iuser : NULL, IMA_SIGNAL_RELOAD);
-	DAG_id_tag_update(&ima->id, 0);
+	DEG_id_tag_update(&ima->id, 0);
 
 	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
 
@@ -2526,7 +2527,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 				id_us_min(&tex->ima->id);
 			tex->ima = ima;
 			ED_area_tag_redraw(CTX_wm_area(C));
-			DAG_id_tag_update(&tex->id, 0);
+			DEG_id_tag_update(&tex->id, 0);
 			WM_main_add_notifier(NC_TEXTURE, tex);
 			WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, NULL);
 		}

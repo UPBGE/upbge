@@ -45,6 +45,7 @@ extern GlobalsUboStorage ts;
 typedef struct POSE_PassList {
 	struct DRWPass *bone_solid;
 	struct DRWPass *bone_wire;
+	struct DRWPass *bone_envelope;
 	struct DRWPass *relationship;
 } POSE_PassList;
 
@@ -93,6 +94,12 @@ static void POSE_cache_init(void *vedata)
 	}
 
 	{
+		/* distance outline around envelope bones */
+		DRWState state = DRW_STATE_ADDITIVE | DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS | DRW_STATE_BLEND;
+		psl->bone_envelope = DRW_pass_create("Bone Envelope Outline Pass", state);
+	}
+
+	{
 		/* Non Meshes Pass (Camera, empties, lamps ...) */
 		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS | DRW_STATE_BLEND | DRW_STATE_WIRE;
 		psl->relationship = DRW_pass_create("Bone Relationship Pass", state);
@@ -109,16 +116,15 @@ static void POSE_cache_populate(void *vedata, Object *ob)
 	POSE_PassList *psl = ((POSE_Data *)vedata)->psl;
 	POSE_StorageList *stl = ((POSE_Data *)vedata)->stl;
 	const DRWContextState *draw_ctx = DRW_context_state_get();
-	SceneLayer *sl = draw_ctx->sl;
 
 	/* In the future this will allow us to implement face manipulators,
 	 * and similar functionalities. For now we handle only pose bones. */
 
 	if (ob->type == OB_ARMATURE) {
-		if (DRW_pose_mode_armature(ob, OBACT_NEW)) {
+		if (DRW_pose_mode_armature(ob, draw_ctx->obact)) {
 			DRW_shgroup_armature_pose(
-						ob, psl->bone_solid, psl->bone_wire,
-						stl->g_data->relationship_lines);
+			        ob, psl->bone_solid, psl->bone_wire, psl->bone_envelope,
+			        stl->g_data->relationship_lines);
 		}
 	}
 }
@@ -148,6 +154,7 @@ static void POSE_draw_scene(void *vedata)
 {
 	POSE_PassList *psl = ((POSE_Data *)vedata)->psl;
 
+	DRW_draw_pass(psl->bone_envelope);
 	DRW_draw_pass(psl->bone_wire);
 	DRW_draw_pass(psl->bone_solid);
 	DRW_draw_pass(psl->relationship);

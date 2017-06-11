@@ -5,7 +5,36 @@
 #define M_1_2PI     0.159154943091895335768  /* 1/(2*pi) */
 #define M_1_PI2     0.101321183642337771443  /* 1/(pi^2) */
 
+#define LUT_SIZE 64
+
 /* ------- Structures -------- */
+
+struct ProbeData {
+	vec4 position_type;
+	vec4 shcoefs[7];
+	vec4 attenuation_fac_type;
+	mat4 influencemat;
+	mat4 parallaxmat;
+};
+
+#define PROBE_PARALLAX_BOX    1.0
+#define PROBE_ATTENUATION_BOX 1.0
+
+#define p_position      position_type.xyz
+#define p_parallax_type position_type.w
+#define p_atten_fac     attenuation_fac_type.x
+#define p_atten_type    attenuation_fac_type.y
+
+/* TODO remove sh once we have irradiance grid */
+#define shcoef0        shcoefs[0].rgb
+#define shcoef1        vec3(shcoefs[0].a, shcoefs[1].rg)
+#define shcoef2        vec3(shcoefs[1].ba, shcoefs[2].r)
+#define shcoef3        shcoefs[2].gba
+#define shcoef4        shcoefs[3].rgb
+#define shcoef5        vec3(shcoefs[3].a, shcoefs[4].rg)
+#define shcoef6        vec3(shcoefs[4].ba, shcoefs[5].r)
+#define shcoef7        shcoefs[5].gba
+#define shcoef8        shcoefs[6].rgb
 
 struct LightData {
 	vec4 position_influence;      /* w : InfluenceRadius */
@@ -34,13 +63,14 @@ struct LightData {
 
 
 struct ShadowCubeData {
-	vec4 near_far_bias;
+	vec4 near_far_bias_exp;
 };
 
 /* convenience aliases */
-#define sh_cube_near   near_far_bias.x
-#define sh_cube_far    near_far_bias.y
-#define sh_cube_bias   near_far_bias.z
+#define sh_cube_near   near_far_bias_exp.x
+#define sh_cube_far    near_far_bias_exp.y
+#define sh_cube_bias   near_far_bias_exp.z
+#define sh_cube_exp    near_far_bias_exp.w
 
 
 struct ShadowMapData {
@@ -64,21 +94,11 @@ struct ShadowCascadeData {
 	vec4 bias;
 };
 
-struct AreaData {
-	vec3 corner[4];
-	float solid_angle;
-};
-
 struct ShadingData {
 	vec3 V; /* View vector */
 	vec3 N; /* World Normal of the fragment */
 	vec3 W; /* World Position of the fragment */
-	vec3 R; /* Reflection vector */
-	vec3 L; /* Current Light vector (normalized) */
-	vec3 spec_dominant_dir; /* dominant direction of the specular rays */
 	vec3 l_vector; /* Current Light vector */
-	float l_distance; /* distance(l_position, W) */
-	AreaData area_data; /* If current light is an area light */
 };
 
 /* ------- Convenience functions --------- */
@@ -86,10 +106,12 @@ struct ShadingData {
 vec3 mul(mat3 m, vec3 v) { return m * v; }
 mat3 mul(mat3 m1, mat3 m2) { return m1 * m2; }
 
+float min_v3(vec3 v) { return min(v.x, min(v.y, v.z)); }
+
 float saturate(float a) { return clamp(a, 0.0, 1.0); }
-vec2 saturate(vec2 a) { return vec2(saturate(a.x), saturate(a.y)); }
-vec3 saturate(vec3 a) { return vec3(saturate(a.x), saturate(a.y), saturate(a.z)); }
-vec4 saturate(vec4 a) { return vec4(saturate(a.x), saturate(a.y), saturate(a.z), saturate(a.w)); }
+vec2 saturate(vec2 a) { return clamp(a, 0.0, 1.0); }
+vec3 saturate(vec3 a) { return clamp(a, 0.0, 1.0); }
+vec4 saturate(vec4 a) { return clamp(a, 0.0, 1.0); }
 
 float distance_squared(vec2 a, vec2 b) { a -= b; return dot(a, a); }
 float distance_squared(vec3 a, vec3 b) { a -= b; return dot(a, a); }
@@ -125,6 +147,41 @@ vec3 line_aligned_plane_intersect(vec3 lineorigin, vec3 linedirection, vec3 plan
 		dist = 1e16;
 	}
 	return lineorigin + linedirection * dist;
+}
+
+float line_unit_sphere_intersect_dist(vec3 lineorigin, vec3 linedirection)
+{
+	float a = dot(linedirection, linedirection);
+	float b = dot(linedirection, lineorigin);
+	float c = dot(lineorigin, lineorigin) - 1;
+
+	float dist = 1e15;
+	float determinant = b * b - a * c;
+	if (determinant >= 0)
+		dist = (sqrt(determinant) - b) / a;
+
+	return dist;
+}
+
+float line_unit_box_intersect_dist(vec3 lineorigin, vec3 linedirection)
+{
+	/* https://seblagarde.wordpress.com/2012/09/29/image-based-lighting-approaches-and-parallax-corrected-cubemap/ */
+	vec3 firstplane  = (vec3( 1.0) - lineorigin) / linedirection;
+	vec3 secondplane = (vec3(-1.0) - lineorigin) / linedirection;
+	vec3 furthestplane = max(firstplane, secondplane);
+
+	return min_v3(furthestplane);
+}
+
+
+/* Return texture coordinates to sample Surface LUT */
+vec2 lut_coords(float cosTheta, float roughness)
+{
+	float theta = acos(cosTheta);
+	vec2 coords = vec2(roughness, theta / M_PI_2);
+
+	/* scale and bias coordinates, for correct filtered lookup */
+	return coords * (LUT_SIZE - 1.0) / LUT_SIZE + 0.5 / LUT_SIZE;
 }
 
 /* -- Tangent Space conversion -- */
@@ -169,51 +226,36 @@ float buffer_depth(bool is_persp, float z, float zf, float zn)
 #define spherical_harmonics spherical_harmonics_L2
 
 /* http://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/ */
-vec3 spherical_harmonics_L1(vec3 N, vec3 shcoefs[9])
+vec3 spherical_harmonics_L1(vec3 N, vec4 shcoefs[3])
 {
 	vec3 sh = vec3(0.0);
 
-	sh += 0.282095 * shcoefs[0];
+	sh += 0.282095 * shcoef0;
 
-	sh += -0.488603 * N.z * shcoefs[1];
-	sh += 0.488603 * N.y * shcoefs[2];
-	sh += -0.488603 * N.x * shcoefs[3];
+	sh += -0.488603 * N.z * shcoef1;
+	sh += 0.488603 * N.y * shcoef2;
+	sh += -0.488603 * N.x * shcoef3;
 
 	return sh;
 }
 
-vec3 spherical_harmonics_L2(vec3 N, vec3 shcoefs[9])
+vec3 spherical_harmonics_L2(vec3 N, vec4 shcoefs[7])
 {
 	vec3 sh = vec3(0.0);
 
-	sh += 0.282095 * shcoefs[0];
+	sh += 0.282095 * shcoef0;
 
-	sh += -0.488603 * N.z * shcoefs[1];
-	sh += 0.488603 * N.y * shcoefs[2];
-	sh += -0.488603 * N.x * shcoefs[3];
+	sh += -0.488603 * N.z * shcoef1;
+	sh += 0.488603 * N.y * shcoef2;
+	sh += -0.488603 * N.x * shcoef3;
 
-	sh += 1.092548 * N.x * N.z * shcoefs[4];
-	sh += -1.092548 * N.z * N.y * shcoefs[5];
-	sh += 0.315392 * (3.0 * N.y * N.y - 1.0) * shcoefs[6];
-	sh += -1.092548 * N.x * N.y * shcoefs[7];
-	sh += 0.546274 * (N.x * N.x - N.z * N.z) * shcoefs[8];
+	sh += 1.092548 * N.x * N.z * shcoef4;
+	sh += -1.092548 * N.z * N.y * shcoef5;
+	sh += 0.315392 * (3.0 * N.y * N.y - 1.0) * shcoef6;
+	sh += -1.092548 * N.x * N.y * shcoef7;
+	sh += 0.546274 * (N.x * N.x - N.z * N.z) * shcoef8;
 
 	return sh;
-}
-
-float rectangle_solid_angle(AreaData ad)
-{
-	vec3 n0 = normalize(cross(ad.corner[0], ad.corner[1]));
-	vec3 n1 = normalize(cross(ad.corner[1], ad.corner[2]));
-	vec3 n2 = normalize(cross(ad.corner[2], ad.corner[3]));
-	vec3 n3 = normalize(cross(ad.corner[3], ad.corner[0]));
-
-	float g0 = acos(dot(-n0, n1));
-	float g1 = acos(dot(-n1, n2));
-	float g2 = acos(dot(-n2, n3));
-	float g3 = acos(dot(-n3, n0));
-
-	return max(0.0, (g0 + g1 + g2 + g3 - 2.0 * M_PI));
 }
 
 vec3 get_specular_dominant_dir(vec3 N, vec3 R, float roughness)
@@ -223,57 +265,32 @@ vec3 get_specular_dominant_dir(vec3 N, vec3 R, float roughness)
 	return normalize(mix(N, R, fac));
 }
 
-/* From UE4 paper */
-vec3 mrp_sphere(LightData ld, ShadingData sd, vec3 dir, inout float roughness, out float energy_conservation)
-{
-	roughness = max(3e-3, roughness); /* Artifacts appear with roughness below this threshold */
-
-	/* energy preservation */
-	float sphere_angle = saturate(ld.l_radius / sd.l_distance);
-	energy_conservation = pow(roughness / saturate(roughness + 0.5 * sphere_angle), 2.0);
-
-	/* sphere light */
-	float inter_dist = dot(sd.l_vector, dir);
-	vec3 closest_point_on_ray = inter_dist * dir;
-	vec3 center_to_ray = closest_point_on_ray - sd.l_vector;
-
-	/* closest point on sphere */
-	vec3 closest_point_on_sphere = sd.l_vector + center_to_ray * saturate(ld.l_radius * inverse_distance(center_to_ray));
-
-	return normalize(closest_point_on_sphere);
-}
-
-vec3 mrp_area(LightData ld, ShadingData sd, vec3 dir, inout float roughness, out float energy_conservation)
-{
-	roughness = max(3e-3, roughness); /* Artifacts appear with roughness below this threshold */
-
-	/* FIXME : This needs to be fixed */
-	energy_conservation = pow(roughness / saturate(roughness + 0.5 * sd.area_data.solid_angle), 2.0);
-
-	vec3 refproj = line_plane_intersect(sd.W, dir, ld.l_position, ld.l_forward);
-
-	/* Project the point onto the light plane */
-	vec3 refdir = refproj - ld.l_position;
-	vec2 mrp = vec2(dot(refdir, ld.l_right), dot(refdir, ld.l_up));
-
-	/* clamp to light shape bounds */
-	vec2 area_half_size = vec2(ld.l_sizex, ld.l_sizey);
-	mrp = clamp(mrp, -area_half_size, area_half_size);
-
-	/* go back in world space */
-	vec3 closest_point_on_rectangle = sd.l_vector + mrp.x * ld.l_right + mrp.y * ld.l_up;
-
-	float len = length(closest_point_on_rectangle);
-	energy_conservation /= len * len;
-
-	return closest_point_on_rectangle / len;
-}
-
 /* Fresnel */
 vec3 F_schlick(vec3 f0, float cos_theta)
 {
 	float fac = pow(1.0 - cos_theta, 5);
-	return f0 + (1.0 - f0) * fac;
+
+	/* Unreal specular matching : if specular color is below 2% intensity,
+	 * (using green channel for intensity) treat as shadowning */
+	return saturate(50.0 * f0.g) * fac + (1.0 - fac) * f0;
+}
+
+/* Fresnel approximation for LTC area lights (not MRP) */
+vec3 F_area(vec3 f0, vec2 lut)
+{
+	vec2 fac = normalize(lut.xy);
+
+	/* Unreal specular matching : if specular color is below 2% intensity,
+	 * (using green channel for intensity) treat as shadowning */
+	return saturate(50.0 * f0.g) * fac.y + fac.x * f0;
+}
+
+/* Fresnel approximation for LTC area lights (not MRP) */
+vec3 F_ibl(vec3 f0, vec2 lut)
+{
+	/* Unreal specular matching : if specular color is below 2% intensity,
+	 * (using green channel for intensity) treat as shadowning */
+	return saturate(50.0 * f0.g) * lut.y + lut.x * f0;
 }
 
 /* GGX */

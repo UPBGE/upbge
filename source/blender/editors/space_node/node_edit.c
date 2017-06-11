@@ -41,7 +41,6 @@
 #include "BLI_blenlib.h"
 
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
@@ -49,6 +48,8 @@
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
+
+#include "DEG_depsgraph.h"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -123,7 +124,7 @@ static int compo_get_recalc_flags(const bContext *C)
 	int recalc_flags = 0;
 
 	for (win = wm->windows.first; win; win = win->next) {
-		bScreen *sc = win->screen;
+		const bScreen *sc = WM_window_get_active_screen(win);
 		ScrArea *sa;
 
 		for (sa = sc->areabase.first; sa; sa = sa->next) {
@@ -328,11 +329,11 @@ void snode_dag_update(bContext *C, SpaceNode *snode)
 	if (snode->edittree != snode->nodetree) {
 		FOREACH_NODETREE(bmain, tntree, id) {
 			if (ntreeHasTree(tntree, snode->edittree))
-				DAG_id_tag_update(id, 0);
+				DEG_id_tag_update(id, 0);
 		} FOREACH_NODETREE_END
 	}
 
-	DAG_id_tag_update(snode->id, 0);
+	DEG_id_tag_update(snode->id, 0);
 }
 
 void snode_notify(bContext *C, SpaceNode *snode)

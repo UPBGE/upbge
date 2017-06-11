@@ -53,6 +53,8 @@ struct Batch *DRW_cache_empty_sphere_get(void);
 struct Batch *DRW_cache_empty_cone_get(void);
 struct Batch *DRW_cache_arrows_get(void);
 struct Batch *DRW_cache_axis_names_get(void);
+struct Batch *DRW_cache_image_plane_get(void);
+struct Batch *DRW_cache_image_plane_wire_get(void);
 
 /* Force Field */
 struct Batch *DRW_cache_field_wind_get(void);
@@ -76,12 +78,19 @@ struct Batch *DRW_cache_camera_tria_get(void);
 /* Speaker */
 struct Batch *DRW_cache_speaker_get(void);
 
+/* Probe */
+struct Batch *DRW_cache_probe_get(void);
+
 /* Bones */
 struct Batch *DRW_cache_bone_octahedral_get(void);
 struct Batch *DRW_cache_bone_octahedral_wire_outline_get(void);
 struct Batch *DRW_cache_bone_box_get(void);
 struct Batch *DRW_cache_bone_box_wire_outline_get(void);
 struct Batch *DRW_cache_bone_wire_wire_outline_get(void);
+struct Batch *DRW_cache_bone_envelope_solid_get(void);
+struct Batch *DRW_cache_bone_envelope_distance_outline_get(void);
+struct Batch *DRW_cache_bone_envelope_wire_outline_get(void);
+struct Batch *DRW_cache_bone_envelope_head_wire_outline_get(void);
 struct Batch *DRW_cache_bone_point_get(void);
 struct Batch *DRW_cache_bone_point_wire_outline_get(void);
 struct Batch *DRW_cache_bone_arrows_get(void);
@@ -89,6 +98,9 @@ struct Batch *DRW_cache_bone_arrows_get(void);
 /* Meshes */
 struct Batch *DRW_cache_mesh_surface_overlay_get(struct Object *ob);
 void DRW_cache_mesh_wire_overlay_get(
+        struct Object *ob,
+        struct Batch **r_tris, struct Batch **r_ledges, struct Batch **r_lverts);
+void DRW_cache_mesh_normals_overlay_get(
         struct Object *ob,
         struct Batch **r_tris, struct Batch **r_ledges, struct Batch **r_lverts);
 struct Batch *DRW_cache_face_centers_get(struct Object *ob);
@@ -103,6 +115,8 @@ struct Batch *DRW_cache_mesh_edges_paint_overlay_get(struct Object *ob, bool use
 struct Batch *DRW_cache_mesh_faces_weight_overlay_get(struct Object *ob);
 struct Batch *DRW_cache_mesh_verts_weight_overlay_get(struct Object *ob);
 struct Batch **DRW_cache_mesh_surface_shaded_get(struct Object *ob);
+struct Batch **DRW_cache_mesh_surface_texpaint_get(struct Object *ob);
+struct Batch *DRW_cache_mesh_surface_texpaint_single_get(struct Object *ob);
 
 /* Curve */
 struct Batch *DRW_cache_curve_surface_get(struct Object *ob);
@@ -130,5 +144,7 @@ struct Batch *DRW_cache_lattice_vert_overlay_get(struct Object *ob);
 
 /* Particles */
 struct Batch *DRW_cache_particles_get_hair(struct ParticleSystem *psys);
+struct Batch *DRW_cache_particles_get_dots(struct ParticleSystem *psys);
+struct Batch *DRW_cache_particles_get_prim(int type);
 
 #endif /* __DRAW_CACHE_H__ */

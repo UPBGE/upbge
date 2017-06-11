@@ -51,7 +51,6 @@
 #include "DNA_object_types.h"
 
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_brush.h"
 #include "BKE_image.h"
@@ -60,6 +59,8 @@
 #include "BKE_node.h"
 #include "BKE_paint.h"
 #include "BKE_texture.h"
+
+#include "DEG_depsgraph.h"
 
 #include "UI_interface.h"
 #include "UI_view2d.h"
@@ -372,7 +373,7 @@ void ED_image_undo_restore(bContext *C, ListBase *lb)
 			ibuf->userflags |= IB_MIPMAP_INVALID;  /* force mipmap recreatiom */
 		ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
 
-		DAG_id_tag_update(&ima->id, 0);
+		DEG_id_tag_update(&ima->id, 0);
 
 		BKE_image_release_ibuf(ima, ibuf, NULL);
 	}
@@ -1056,16 +1057,20 @@ static void toggle_paint_cursor(bContext *C, int enable)
 void ED_space_image_paint_update(wmWindowManager *wm, Scene *scene)
 {
 	ToolSettings *settings = scene->toolsettings;
-	wmWindow *win;
-	ScrArea *sa;
 	ImagePaintSettings *imapaint = &settings->imapaint;
 	bool enabled = false;
 
-	for (win = wm->windows.first; win; win = win->next)
-		for (sa = win->screen->areabase.first; sa; sa = sa->next)
-			if (sa->spacetype == SPACE_IMAGE)
-				if (((SpaceImage *)sa->spacedata.first)->mode == SI_MODE_PAINT)
+	for (wmWindow *win = wm->windows.first; win; win = win->next) {
+		bScreen *screen = WM_window_get_active_screen(win);
+
+		for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+			if (sa->spacetype == SPACE_IMAGE) {
+				if (((SpaceImage *)sa->spacedata.first)->mode == SI_MODE_PAINT) {
 					enabled = true;
+				}
+			}
+		}
+	}
 
 	if (enabled) {
 		BKE_paint_init(scene, ePaintTexture2D, PAINT_CURSOR_TEXTURE_PAINT);
@@ -1516,7 +1521,7 @@ void ED_imapaint_bucket_fill(struct bContext *C, float color[3], wmOperator *op)
 
 	ED_undo_paint_push_end(UNDO_PAINT_IMAGE);
 
-	DAG_id_tag_update(&ima->id, 0);
+	DEG_id_tag_update(&ima->id, 0);
 }
 
 

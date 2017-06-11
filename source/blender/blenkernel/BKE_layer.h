@@ -60,10 +60,9 @@ struct SceneLayer;
 void BKE_layer_exit(void);
 
 struct SceneLayer *BKE_scene_layer_render_active(const struct Scene *scene);
+struct SceneLayer *BKE_scene_layer_context_active_ex(const struct Main *bmain, const struct Scene *scene);
 struct SceneLayer *BKE_scene_layer_context_active(const struct Scene *scene);
 struct SceneLayer *BKE_scene_layer_add(struct Scene *scene, const char *name);
-
-bool BKE_scene_layer_remove(struct Main *bmain, struct Scene *scene, struct SceneLayer *sl);
 
 void BKE_scene_layer_free(struct SceneLayer *sl);
 
@@ -78,7 +77,8 @@ void BKE_scene_layer_base_select(struct SceneLayer *sl, struct Base *selbase);
 
 void BKE_layer_collection_free(struct SceneLayer *sl, struct LayerCollection *lc);
 
-struct LayerCollection *BKE_layer_collection_active(struct SceneLayer *sl);
+struct LayerCollection *BKE_layer_collection_get_active(struct SceneLayer *sl);
+struct LayerCollection *BKE_layer_collection_get_active_ensure(struct Scene *scene, struct SceneLayer *sl);
 
 int BKE_layer_collection_count(struct SceneLayer *sl);
 
@@ -156,21 +156,21 @@ void BKE_layer_eval_layer_collection_post(struct EvaluationContext *eval_ctx,
 
 /* iterators */
 
-void BKE_selected_objects_iterator_begin(Iterator *iter, void *data_in);
-void BKE_selected_objects_iterator_next(Iterator *iter);
-void BKE_selected_objects_iterator_end(Iterator *iter);
+void BKE_selected_objects_iterator_begin(BLI_Iterator *iter, void *data_in);
+void BKE_selected_objects_iterator_next(BLI_Iterator *iter);
+void BKE_selected_objects_iterator_end(BLI_Iterator *iter);
 
-void BKE_visible_objects_iterator_begin(Iterator *iter, void *data_in);
-void BKE_visible_objects_iterator_next(Iterator *iter);
-void BKE_visible_objects_iterator_end(Iterator *iter);
+void BKE_visible_objects_iterator_begin(BLI_Iterator *iter, void *data_in);
+void BKE_visible_objects_iterator_next(BLI_Iterator *iter);
+void BKE_visible_objects_iterator_end(BLI_Iterator *iter);
 
-void BKE_selected_bases_iterator_begin(Iterator *iter, void *data_in);
-void BKE_selected_bases_iterator_next(Iterator *iter);
-void BKE_selected_bases_iterator_end(Iterator *iter);
+void BKE_selected_bases_iterator_begin(BLI_Iterator *iter, void *data_in);
+void BKE_selected_bases_iterator_next(BLI_Iterator *iter);
+void BKE_selected_bases_iterator_end(BLI_Iterator *iter);
 
-void BKE_visible_bases_iterator_begin(Iterator *iter, void *data_in);
-void BKE_visible_bases_iterator_next(Iterator *iter);
-void BKE_visible_bases_iterator_end(Iterator *iter);
+void BKE_visible_bases_iterator_begin(BLI_Iterator *iter, void *data_in);
+void BKE_visible_bases_iterator_next(BLI_Iterator *iter);
+void BKE_visible_bases_iterator_end(BLI_Iterator *iter);
 
 #define FOREACH_SELECTED_OBJECT(sl, _instance)                                \
 	ITER_BEGIN(BKE_selected_objects_iterator_begin,                           \

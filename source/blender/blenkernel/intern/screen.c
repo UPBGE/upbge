@@ -53,6 +53,7 @@
 #include "BKE_icons.h"
 #include "BKE_idprop.h"
 #include "BKE_screen.h"
+#include "BKE_workspace.h"
 
 /* ************ Spacetype/regiontype handling ************** */
 
@@ -596,7 +597,7 @@ void BKE_screen_view3d_sync(View3D *v3d, struct Scene *scene)
 	}
 }
 
-void BKE_screen_view3d_scene_sync(bScreen *sc)
+void BKE_screen_view3d_scene_sync(bScreen *sc, Scene *scene)
 {
 	/* are there cameras in the views that are not in the scene? */
 	ScrArea *sa;
@@ -605,55 +606,26 @@ void BKE_screen_view3d_scene_sync(bScreen *sc)
 		for (sl = sa->spacedata.first; sl; sl = sl->next) {
 			if (sl->spacetype == SPACE_VIEW3D) {
 				View3D *v3d = (View3D *) sl;
-				BKE_screen_view3d_sync(v3d, sc->scene);
+				BKE_screen_view3d_sync(v3d, scene);
 			}
 		}
 	}
 }
 
-void BKE_screen_view3d_main_sync(ListBase *screen_lb, Scene *scene)
+void BKE_screen_transform_orientation_remove(
+        const bScreen *screen, const WorkSpace *workspace, const TransformOrientation *orientation)
 {
-	bScreen *sc;
-	ScrArea *sa;
-	SpaceLink *sl;
+	const int orientation_index = BKE_workspace_transform_orientation_get_index(workspace, orientation);
 
-	/* from scene copy to the other views */
-	for (sc = screen_lb->first; sc; sc = sc->id.next) {
-		if (sc->scene != scene)
-			continue;
+	for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+		for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
+			if (sl->spacetype == SPACE_VIEW3D) {
+				View3D *v3d = (View3D *)sl;
 
-		for (sa = sc->areabase.first; sa; sa = sa->next)
-			for (sl = sa->spacedata.first; sl; sl = sl->next)
-				if (sl->spacetype == SPACE_VIEW3D)
-					BKE_screen_view3d_sync((View3D *)sl, scene);
-	}
-}
-
-void BKE_screen_view3d_twmode_remove(View3D *v3d, const int i)
-{
-	const int selected_index = (v3d->twmode - V3D_MANIP_CUSTOM);
-	if (selected_index == i) {
-		v3d->twmode = V3D_MANIP_GLOBAL; /* fallback to global	*/
-	}
-	else if (selected_index > i) {
-		v3d->twmode--;
-	}
-}
-
-void BKE_screen_view3d_main_twmode_remove(ListBase *screen_lb, Scene *scene, const int i)
-{
-	bScreen *sc;
-
-	for (sc = screen_lb->first; sc; sc = sc->id.next) {
-		if (sc->scene == scene) {
-			ScrArea *sa;
-			for (sa = sc->areabase.first; sa; sa = sa->next) {
-				SpaceLink *sl;
-				for (sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_VIEW3D) {
-						View3D *v3d = (View3D *)sl;
-						BKE_screen_view3d_twmode_remove(v3d, i);
-					}
+				if (v3d->custom_orientation_index == orientation_index) {
+					/* could also use orientation_index-- */
+					v3d->twmode = V3D_MANIP_GLOBAL;
+					v3d->custom_orientation_index = -1;
 				}
 			}
 		}
@@ -699,4 +671,14 @@ void BKE_screen_gpu_fx_validate(GPUFXSettings *fx_settings)
 
 		GPU_fx_compositor_init_ssao_settings(fx_ssao);
 	}
+}
+
+bool BKE_screen_is_fullscreen_area(const bScreen *screen)
+{
+	return ELEM(screen->state, SCREENMAXIMIZED, SCREENFULL);
+}
+
+bool BKE_screen_is_used(const bScreen *screen)
+{
+	return (screen->winid != 0);
 }

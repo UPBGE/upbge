@@ -70,7 +70,6 @@ static struct GPUGlobal {
 	GLint maxtextures;
 	GLint maxubosize;
 	GLint maxubobinds;
-	bool extdisabled;
 	int colordepth;
 	int samples_color_texture_max;
 	GPUDeviceType device;
@@ -91,11 +90,6 @@ bool GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver)
 }
 
 /* GPU Extensions */
-
-void GPU_extensions_disable(void)
-{
-	GG.extdisabled = true;
-}
 
 int GPU_max_texture_size(void)
 {
@@ -143,17 +137,7 @@ void gpu_extensions_init(void)
 	 * final 2.8 release will be unified on OpenGL 3.3 core profile, no required extensions
 	 * see developer.blender.org/T49012 for details
 	 */
-#if defined(WITH_GL_PROFILE_CORE) || defined(_WIN32)
 	BLI_assert(GLEW_VERSION_3_3);
-#elif defined(__APPLE__)
-	BLI_assert(GLEW_VERSION_2_1 && GLEW_EXT_gpu_shader4
-	                            && GLEW_ARB_framebuffer_object
-	                            && GLEW_ARB_draw_elements_base_vertex
-	                            && GLEW_APPLE_flush_buffer_range);
-#else
-	BLI_assert(GLEW_VERSION_3_3 || (GLEW_VERSION_3_0 && GLEW_ARB_draw_elements_base_vertex));
-	/*           vendor driver  ||  Mesa compatibility profile */
-#endif
 
 	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &GG.maxtextures);
 
@@ -168,16 +152,19 @@ void gpu_extensions_init(void)
 	glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, &GG.maxubobinds);
 	glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &GG.maxubosize);
 
-#ifdef WITH_LEGACY_OPENGL
-	GLint r, g, b;
-	glGetIntegerv(GL_RED_BITS, &r);
-	glGetIntegerv(GL_GREEN_BITS, &g);
-	glGetIntegerv(GL_BLUE_BITS, &b);
-	GG.colordepth = r + g + b; /* assumes same depth for RGB */
-#else
-	GG.colordepth = 24; /* cheat. */
-	/* TODO: get this value another way */
+#ifndef NDEBUG
+	GLint ret;
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_FRONT_LEFT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &ret);
+	/* We expect FRONT_LEFT to be the default buffer. */
+	BLI_assert(ret == GL_FRAMEBUFFER_DEFAULT);
 #endif
+
+	GLint r, g, b;
+	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_FRONT_LEFT, GL_FRAMEBUFFER_ATTACHMENT_RED_SIZE, &r);
+	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_FRONT_LEFT, GL_FRAMEBUFFER_ATTACHMENT_GREEN_SIZE, &g);
+	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_FRONT_LEFT, GL_FRAMEBUFFER_ATTACHMENT_BLUE_SIZE, &b);
+	GG.colordepth = r + g + b; /* Assumes same depth for RGB. */
 
 	if (GLEW_VERSION_3_2 || GLEW_ARB_texture_multisample) {
 		glGetIntegerv(GL_MAX_COLOR_TEXTURE_SAMPLES, &GG.samples_color_texture_max);
@@ -276,49 +263,6 @@ void gpu_extensions_exit(void)
 	GPU_invalid_tex_free();
 }
 
-bool GPU_legacy_support(void)
-{
-#ifdef WITH_LEGACY_OPENGL 
-	/* return whether or not current GL context is compatible with legacy OpenGL */
-	/* (will be removed after switching to core profile) */
-
-	static bool checked = false;
-	static bool support = true;
-
-	if (!checked) {
-		if (GLEW_VERSION_3_2) {
-			GLint profile;
-			glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &profile);
-
-			if (G.debug & G_DEBUG_GPU) {
-				printf("GL_CONTEXT_PROFILE_MASK = %#x (%s profile)\n", (unsigned int)profile,
-				       (profile & GL_CONTEXT_COMPATIBILITY_PROFILE_BIT) ? "compatibility" :
-				       (profile & GL_CONTEXT_CORE_PROFILE_BIT) ? "core" : "unknown");
-			}
-
-			if (profile == 0) {
-				/* workaround for nVidia's Linux driver */
-				support = GLEW_ARB_compatibility;
-			}
-			else {
-				support = profile & GL_CONTEXT_COMPATIBILITY_PROFILE_BIT;
-			}
-		}
-		else if (GLEW_VERSION_3_1) {
-			support = GLEW_ARB_compatibility;
-		}
-
-		/* any OpenGL version <= 3.0 is legacy, so support remains true */
-
-		checked = true;
-	}
-
-	return support;
-#else
-	return false;
-#endif
-}
-
 bool GPU_full_non_power_of_two_support(void)
 {
 	/* always supported on full GL but still relevant for OpenGL ES 2.0 where
@@ -326,38 +270,9 @@ bool GPU_full_non_power_of_two_support(void)
 	return true;
 }
 
-bool GPU_display_list_support(void)
-{
-#ifdef WITH_LEGACY_OPENGL
-	/* deprecated in GL 3
-	 * supported on older GL and compatibility profile
-	 * still queried by game engine
-	 */
-	return true;
-#else
-	return false;
-#endif
-}
-
 bool GPU_bicubic_bump_support(void)
 {
 	return GLEW_VERSION_4_0 || (GLEW_ARB_texture_query_lod && GLEW_VERSION_3_0);
-}
-
-bool GPU_geometry_shader_support(void)
-{
-	/* starting with GL 3.2 geometry shaders are fully supported */
-#ifdef WITH_LEGACY_OPENGL
-	/* core profile clashes with our other shaders so accept compatibility only */
-	return GLEW_VERSION_3_2 && GPU_legacy_support();
-#else
-	return GLEW_VERSION_3_2;
-#endif
-}
-
-bool GPU_instanced_drawing_support(void)
-{
-	return GLEW_VERSION_3_1 || GLEW_ARB_draw_instanced;
 }
 
 int GPU_color_depth(void)

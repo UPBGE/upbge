@@ -71,6 +71,7 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_outliner_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_packedFile_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_particle_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_probe_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_property_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_rigidbody_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_scene_types.h
@@ -90,6 +91,7 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_view2d_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_view3d_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_windowmanager_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_workspace_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_world_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_movieclip_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_tracking_types.h

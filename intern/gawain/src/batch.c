@@ -11,6 +11,7 @@
 
 #include "batch.h"
 #include "buffer_id.h"
+#include "primitive_private.h"
 #include <stdlib.h>
 
 // necessary functions from matrix API
@@ -127,23 +128,26 @@ static void Batch_update_program_bindings(Batch* batch)
 
 			const GLvoid* pointer = (const GLubyte*)0 + a->offset;
 
-			const ShaderInput* input = ShaderInterface_attrib(batch->interface, a->name);
-
-			if (input == NULL) continue;
-
-			glEnableVertexAttribArray(input->location);
-
-			switch (a->fetch_mode)
+			for (unsigned n_idx = 0; n_idx < a->name_ct; ++n_idx)
 				{
-				case KEEP_FLOAT:
-				case CONVERT_INT_TO_FLOAT:
-					glVertexAttribPointer(input->location, a->comp_ct, a->gl_comp_type, GL_FALSE, stride, pointer);
-					break;
-				case NORMALIZE_INT_TO_FLOAT:
-					glVertexAttribPointer(input->location, a->comp_ct, a->gl_comp_type, GL_TRUE, stride, pointer);
-					break;
-				case KEEP_INT:
-					glVertexAttribIPointer(input->location, a->comp_ct, a->gl_comp_type, stride, pointer);
+				const ShaderInput* input = ShaderInterface_attrib(batch->interface, a->name[n_idx]);
+
+				if (input == NULL) continue;
+
+				glEnableVertexAttribArray(input->location);
+
+				switch (a->fetch_mode)
+					{
+					case KEEP_FLOAT:
+					case CONVERT_INT_TO_FLOAT:
+						glVertexAttribPointer(input->location, a->comp_ct, a->gl_comp_type, GL_FALSE, stride, pointer);
+						break;
+					case NORMALIZE_INT_TO_FLOAT:
+						glVertexAttribPointer(input->location, a->comp_ct, a->gl_comp_type, GL_TRUE, stride, pointer);
+						break;
+					case KEEP_INT:
+						glVertexAttribIPointer(input->location, a->comp_ct, a->gl_comp_type, stride, pointer);
+					}
 				}
 			}
 		}
@@ -270,9 +274,9 @@ void Batch_draw(Batch* batch)
 
 #if TRACK_INDEX_RANGE
 		if (el->base_index)
-			glDrawRangeElementsBaseVertex(batch->gl_prim_type, el->min_index, el->max_index, el->index_ct, el->index_type, 0, el->base_index);
+			glDrawRangeElementsBaseVertex(batch->gl_prim_type, el->min_index, el->max_index, el->index_ct, el->gl_index_type, 0, el->base_index);
 		else
-			glDrawRangeElements(batch->gl_prim_type, el->min_index, el->max_index, el->index_ct, el->index_type, 0);
+			glDrawRangeElements(batch->gl_prim_type, el->min_index, el->max_index, el->index_ct, el->gl_index_type, 0);
 #else
 		glDrawElements(batch->gl_prim_type, el->index_ct, GL_UNSIGNED_INT, 0);
 #endif
@@ -288,7 +292,7 @@ void Batch_draw(Batch* batch)
 
 // clement : temp stuff
 void Batch_draw_stupid(Batch* batch)
-{
+	{
 	if (batch->vao_id)
 		glBindVertexArray(batch->vao_id);
 	else
@@ -307,9 +311,9 @@ void Batch_draw_stupid(Batch* batch)
 
 #if TRACK_INDEX_RANGE
 		if (el->base_index)
-			glDrawRangeElementsBaseVertex(batch->gl_prim_type, el->min_index, el->max_index, el->index_ct, el->index_type, 0, el->base_index);
+			glDrawRangeElementsBaseVertex(batch->gl_prim_type, el->min_index, el->max_index, el->index_ct, el->gl_index_type, 0, el->base_index);
 		else
-			glDrawRangeElements(batch->gl_prim_type, el->min_index, el->max_index, el->index_ct, el->index_type, 0);
+			glDrawRangeElements(batch->gl_prim_type, el->min_index, el->max_index, el->index_ct, el->gl_index_type, 0);
 #else
 		glDrawElements(batch->gl_prim_type, el->index_ct, GL_UNSIGNED_INT, 0);
 #endif
@@ -319,12 +323,12 @@ void Batch_draw_stupid(Batch* batch)
 
 	// Batch_done_using_program(batch);
 	glBindVertexArray(0);
-}
+	}
 
 // clement : temp stuff
 void Batch_draw_stupid_instanced(Batch* batch, unsigned int instance_vbo, int instance_count,
                                  int attrib_nbr, int attrib_stride, int attrib_size[16], int attrib_loc[16])
-{
+	{
 	if (batch->vao_id)
 		glBindVertexArray(batch->vao_id);
 	else
@@ -335,12 +339,14 @@ void Batch_draw_stupid_instanced(Batch* batch, unsigned int instance_vbo, int in
 
 	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
 	int ptr_ofs = 0;
-	for (int i = 0; i < attrib_nbr; ++i) {
+	for (int i = 0; i < attrib_nbr; ++i)
+		{
 		int size = attrib_size[i];
 		int loc = attrib_loc[i];
 		int atr_ofs = 0;
 
-		while (size > 0) {
+		while (size > 0)
+			{
 			glEnableVertexAttribArray(loc + atr_ofs);
 			glVertexAttribPointer(loc + atr_ofs, (size > 4) ? 4 : size, GL_FLOAT, GL_FALSE,
 			                      sizeof(float) * attrib_stride, (GLvoid*)(sizeof(float) * ptr_ofs));
@@ -348,8 +354,8 @@ void Batch_draw_stupid_instanced(Batch* batch, unsigned int instance_vbo, int in
 			atr_ofs++;
 			ptr_ofs += (size > 4) ? 4 : size;
 			size -= 4;
+			}
 		}
-	}
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	// Batch_use_program(batch);
@@ -367,5 +373,70 @@ void Batch_draw_stupid_instanced(Batch* batch, unsigned int instance_vbo, int in
 
 	// Batch_done_using_program(batch);
 	glBindVertexArray(0);
-}
+	}
 
+void Batch_draw_stupid_instanced_with_batch(Batch* batch_instanced, Batch* batch_instancing)
+	{
+	if (batch_instanced->vao_id)
+		glBindVertexArray(batch_instanced->vao_id);
+	else
+		Batch_prime(batch_instanced);
+
+	if (batch_instanced->program_dirty)
+		Batch_update_program_bindings(batch_instanced);
+
+	VertexBuffer* verts = batch_instancing->verts[0];
+
+	const VertexFormat* format = &verts->format;
+
+	const unsigned attrib_ct = format->attrib_ct;
+	const unsigned stride = format->stride;
+
+	VertexBuffer_use(verts);
+
+	for (unsigned a_idx = 0; a_idx < attrib_ct; ++a_idx)
+		{
+		const Attrib* a = format->attribs + a_idx;
+
+		const GLvoid* pointer = (const GLubyte*)0 + a->offset;
+
+		for (unsigned n_idx = 0; n_idx < a->name_ct; ++n_idx)
+			{
+			const ShaderInput* input = ShaderInterface_attrib(batch_instanced->interface, a->name[n_idx]);
+
+			if (input == NULL) continue;
+
+			glEnableVertexAttribArray(input->location);
+			glVertexAttribDivisor(input->location, 1);
+
+			switch (a->fetch_mode)
+				{
+				case KEEP_FLOAT:
+				case CONVERT_INT_TO_FLOAT:
+					glVertexAttribPointer(input->location, a->comp_ct, a->gl_comp_type, GL_FALSE, stride, pointer);
+					break;
+				case NORMALIZE_INT_TO_FLOAT:
+					glVertexAttribPointer(input->location, a->comp_ct, a->gl_comp_type, GL_TRUE, stride, pointer);
+					break;
+				case KEEP_INT:
+					glVertexAttribIPointer(input->location, a->comp_ct, a->gl_comp_type, stride, pointer);
+				}
+			}
+		}
+
+	// Batch_use_program(batch);
+
+	//gpuBindMatrices(batch->program);
+
+	if (batch_instanced->elem)
+		{
+		const ElementList* el = batch_instanced->elem;
+
+		glDrawElementsInstanced(batch_instanced->gl_prim_type, el->index_ct, GL_UNSIGNED_INT, 0, verts->vertex_ct);
+		}
+	else
+		glDrawArraysInstanced(batch_instanced->gl_prim_type, 0, batch_instanced->verts[0]->vertex_ct, verts->vertex_ct);
+
+	// Batch_done_using_program(batch);
+	glBindVertexArray(0);
+	}

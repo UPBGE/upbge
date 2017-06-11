@@ -46,6 +46,7 @@
 extern "C" {
 #  include "BLF_api.h"
 #  include "BKE_DerivedMesh.h"
+	#include "DNA_material_types.h"
 }
 
 #include "MEM_guardedalloc.h"

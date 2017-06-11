@@ -102,8 +102,9 @@ EnumPropertyItem rna_enum_symmetrize_direction_items[] = {
 #include "BKE_DerivedMesh.h"
 #include "BKE_pointcache.h"
 #include "BKE_particle.h"
-#include "BKE_depsgraph.h"
 #include "BKE_pbvh.h"
+
+#include "DEG_depsgraph.h"
 
 #include "GPU_buffers.h"
 
@@ -166,7 +167,7 @@ static void rna_ParticleEdit_update(Main *UNUSED(bmain), Scene *UNUSED(scene), b
 	SceneLayer *sl = CTX_data_scene_layer(C);
 	Object *ob = OBACT_NEW;
 
-	if (ob) DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	if (ob) DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 }
 
 static void rna_ParticleEdit_tool_set(PointerRNA *ptr, int value)
@@ -177,7 +178,7 @@ static void rna_ParticleEdit_tool_set(PointerRNA *ptr, int value)
 	if ((pset->brushtype == PE_BRUSH_WEIGHT || value == PE_BRUSH_WEIGHT) && pset->scene_layer) {
 		Object *ob = (pset->scene_layer->basact) ? pset->scene_layer->basact->object : NULL;
 		if (ob) {
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 			WM_main_add_notifier(NC_OBJECT | ND_PARTICLE | NA_EDITED, NULL);
 		}
 	}
@@ -258,13 +259,14 @@ static int rna_Brush_mode_poll(PointerRNA *ptr, PointerRNA value)
 	return brush->ob_mode & mode;
 }
 
-static void rna_Sculpt_update(Main *UNUSED(bmain), bContext *C, Scene *scene, PointerRNA *UNUSED(ptr))
+static void rna_Sculpt_update(bContext *C, PointerRNA *UNUSED(ptr))
 {
+	Scene *scene = CTX_data_scene(C);
 	SceneLayer *sl = CTX_data_scene_layer(C);
 	Object *ob = OBACT_NEW;
 
 	if (ob) {
-		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
 
 		if (ob->sculpt) {
@@ -274,7 +276,7 @@ static void rna_Sculpt_update(Main *UNUSED(bmain), bContext *C, Scene *scene, Po
 	}
 }
 
-static void rna_Sculpt_ShowDiffuseColor_update(Main *UNUSED(bmain), bContext *C, Scene *scene, PointerRNA *UNUSED(ptr))
+static void rna_Sculpt_ShowDiffuseColor_update(bContext *C, Scene *scene, PointerRNA *UNUSED(ptr))
 {
 	SceneLayer *sl = CTX_data_scene_layer(C);
 	Object *ob = OBACT_NEW;

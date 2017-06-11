@@ -275,24 +275,6 @@ GLuint linkProgram(const char *version, const char *define)
 	glBindAttribLocation(program, 0, "position");
 	glBindAttribLocation(program, 1, "normal");
 
-
-	if (!GLEW_VERSION_3_2) {
-		/* provide input/output layout info */
-		glProgramParameteriEXT(program,
-		                       GL_GEOMETRY_INPUT_TYPE_EXT,
-		                       GL_LINES_ADJACENCY_EXT);
-
-		bool wireframe = strstr(define, "WIREFRAME") != NULL;
-
-		glProgramParameteriEXT(program,
-		                       GL_GEOMETRY_OUTPUT_TYPE_EXT,
-		                       wireframe ? GL_LINE_STRIP : GL_TRIANGLE_STRIP);
-
-		glProgramParameteriEXT(program,
-		                       GL_GEOMETRY_VERTICES_OUT_EXT,
-		                       8);
-	}
-
 	glLinkProgram(program);
 
 	glDeleteShader(vertexShader);
@@ -314,17 +296,26 @@ GLuint linkProgram(const char *version, const char *define)
 	                      glGetUniformBlockIndex(program, "Lighting"),
 	                      0);
 
-	glProgramUniform1i(program,
-	                   glGetUniformLocation(program, "texture_buffer"),
-	                   0);  /* GL_TEXTURE0 */
+	if (GLEW_VERSION_4_1) {
+		glProgramUniform1i(program,
+		                   glGetUniformLocation(program, "texture_buffer"),
+		                   0);  /* GL_TEXTURE0 */
 
-	glProgramUniform1i(program,
-	                   glGetUniformLocation(program, "FVarDataOffsetBuffer"),
-	                   30);  /* GL_TEXTURE30 */
+		glProgramUniform1i(program,
+		                   glGetUniformLocation(program, "FVarDataOffsetBuffer"),
+		                   30);  /* GL_TEXTURE30 */
 
-	glProgramUniform1i(program,
-	                   glGetUniformLocation(program, "FVarDataBuffer"),
-	                   31);  /* GL_TEXTURE31 */
+		glProgramUniform1i(program,
+		                   glGetUniformLocation(program, "FVarDataBuffer"),
+		                   31);  /* GL_TEXTURE31 */
+	}
+	else {
+		glUseProgram(program);
+		glUniform1i(glGetUniformLocation(program, "texture_buffer"), 0);  /* GL_TEXTURE0 */
+		glUniform1i(glGetUniformLocation(program, "FVarDataOffsetBuffer"), 30);  /* GL_TEXTURE30 */
+		glUniform1i(glGetUniformLocation(program, "FVarDataBuffer"), 31);  /* GL_TEXTURE31 */
+		glUseProgram(0);
+	}
 
 	return program;
 }
@@ -353,28 +344,8 @@ void bindProgram(OpenSubdiv_GLMesh *gl_mesh, int program)
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, g_lighting_ub);
 
 	/* Color */
-#ifdef WITH_LEGACY_OPENGL
-	GLboolean use_lighting;
-	glGetBooleanv(GL_LIGHTING, &use_lighting);
-
-	if (use_lighting) {
-		float color[4];
-		glGetMaterialfv(GL_FRONT, GL_DIFFUSE, color);
-		glUniform4fv(glGetUniformLocation(program, "diffuse"), 1, color);
-
-		glGetMaterialfv(GL_FRONT, GL_SPECULAR, color);
-		glUniform4fv(glGetUniformLocation(program, "specular"), 1, color);
-
-		glGetMaterialfv(GL_FRONT, GL_SHININESS, color);
-		glUniform1f(glGetUniformLocation(program, "shininess"), color[0]);
-	}
-	else {
-		float color[4];
-		glGetFloatv(GL_CURRENT_COLOR, color);
-		glUniform4fv(glGetUniformLocation(program, "diffuse"), 1, color);
-	}
-#else
 	{
+		/* TODO: stop using glGetMaterial */
 		float color[4];
 		glGetMaterialfv(GL_FRONT, GL_DIFFUSE, color);
 		glUniform4fv(glGetUniformLocation(program, "diffuse"), 1, color);
@@ -385,7 +356,6 @@ void bindProgram(OpenSubdiv_GLMesh *gl_mesh, int program)
 		glGetMaterialfv(GL_FRONT, GL_SHININESS, color);
 		glUniform1f(glGetUniformLocation(program, "shininess"), color[0]);
 	}
-#endif
 
 	/* Face-vertex data */
 	if (gl_mesh->fvar_data != NULL) {
@@ -423,11 +393,10 @@ bool openSubdiv_osdGLDisplayInit(void)
 {
 	static bool need_init = true;
 	static bool init_success = false;
-	if (need_init) {
 
-		if (!openSubdiv_supportGPUDisplay()) {
-			return false;
-		}
+	if (need_init) {
+		/* TODO: update OSD drawing to OpenGL 3.3 core, then remove following line */
+		return false;
 
 		const char *version = "";
 		if (GLEW_VERSION_3_2) {
@@ -552,6 +521,7 @@ void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl,
 			g_lighting_data.num_enabled++;
 		}
 
+		/* TODO: stop using glGetLight */
 		glGetLightfv(GL_LIGHT0 + i,
 		             GL_POSITION,
 		             g_lighting_data.lights[i].position);
@@ -650,33 +620,6 @@ static GLuint prepare_patchDraw(OpenSubdiv_GLMesh *gl_mesh,
 		glGetIntegerv(GL_SHADE_MODEL, &model);
 		glGetBooleanv(GL_TEXTURE_2D, &use_texture_2d);
 
-#ifdef WITH_LEGACY_OPENGL
-		glGetBooleanv(GL_LIGHTING, &use_lighting);
-		if (model == GL_FLAT) {
-			if (use_texture_2d) {
-				program = use_lighting
-				                  ? g_flat_fill_texture2d_program
-				                  : g_flat_fill_texture2d_shadeless_program;
-			}
-			else {
-				program = use_lighting
-				                  ? g_flat_fill_solid_program
-				                  : g_flat_fill_solid_shadeless_program;
-			}
-		}
-		else {
-			if (use_texture_2d) {
-				program = use_lighting
-				                  ? g_smooth_fill_texture2d_program
-				                  : g_smooth_fill_texture2d_shadeless_program;
-			}
-			else {
-				program = use_lighting
-				                  ? g_smooth_fill_solid_program
-				                  : g_smooth_fill_solid_shadeless_program;
-			}
-		}
-#else
 		if (model == GL_FLAT) {
 			if (use_texture_2d) {
 				program = g_flat_fill_texture2d_program;
@@ -693,7 +636,6 @@ static GLuint prepare_patchDraw(OpenSubdiv_GLMesh *gl_mesh,
 				program = g_smooth_fill_solid_program;
 			}
 		}
-#endif
 
 	}
 	else {

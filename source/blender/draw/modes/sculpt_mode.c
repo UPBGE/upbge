@@ -121,8 +121,8 @@ static void SCULPT_engine_init(void *vedata)
 
 	/* Init Framebuffers like this: order is attachment order (for color texs) */
 	/*
-	 * DRWFboTexture tex[2] = {{&txl->depth, DRW_BUF_DEPTH_24, 0},
-	 *                         {&txl->color, DRW_BUF_RGBA_8, DRW_TEX_FILTER}};
+	 * DRWFboTexture tex[2] = {{&txl->depth, DRW_TEX_DEPTH_24, 0},
+	 *                         {&txl->color, DRW_TEX_RGBA_8, DRW_TEX_FILTER}};
 	 */
 
 	/* DRW_framebuffer_init takes care of checking if
@@ -191,9 +191,19 @@ static void SCULPT_cache_populate(void *vedata, Object *ob)
 
 	if (ob->type == OB_MESH) {
 		const DRWContextState *draw_ctx = DRW_context_state_get();
-		SceneLayer *sl = draw_ctx->sl;
 
-		if (ob->sculpt && ob == OBACT_NEW) {
+		if (ob->sculpt && (ob == draw_ctx->obact)) {
+
+			/* XXX, needed for dyntopo-undo (which clears).
+			 * probably depsgraph should handlle? in 2.7x getting derived-mesh does this (mesh_build_data) */
+			if (ob->sculpt->pbvh == NULL) {
+				/* create PBVH immediately (would be created on the fly too,
+				 * but this avoids waiting on first stroke) */
+				Scene *scene = draw_ctx->scene;
+
+				BKE_sculpt_update_mesh_elements(scene, scene->toolsettings->sculpt, ob, false, false);
+			}
+
 			PBVH *pbvh = ob->sculpt->pbvh;
 			if (pbvh && pbvh_has_mask(pbvh)) {
 				/* Get geometry cache */

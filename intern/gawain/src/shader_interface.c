@@ -49,6 +49,24 @@ static bool match(const char* a, const char* b)
 	return strcmp(a, b) == 0;
 	}
 
+static unsigned hash_string(const char *str)
+	{
+	unsigned i = 0, c;
+
+	while ((c = *str++))
+		{
+		i = i * 37 + c;
+		}
+
+	return i;
+	}
+
+static void set_input_name(ShaderInput* input, const char* name)
+	{
+	input->name = name;
+	input->name_hash = hash_string(name);
+	}
+
 // keep these in sync with BuiltinUniform order
 #define FIRST_MAT4_UNIFORM UNIFORM_MODELVIEW
 #define LAST_MAT4_UNIFORM UNIFORM_PROJECTION_INV
@@ -67,7 +85,7 @@ static bool setup_builtin_uniform(ShaderInput* input, const char* name)
 				const char* builtin_name = BuiltinUniform_name(u);
 				if (match(name, builtin_name))
 					{
-					input->name = builtin_name;
+					set_input_name(input, builtin_name);
 					input->builtin_type = u;
 					return true;
 					}
@@ -78,7 +96,7 @@ static bool setup_builtin_uniform(ShaderInput* input, const char* name)
 			const char* builtin_name = BuiltinUniform_name(UNIFORM_NORMAL);
 			if (match(name, builtin_name))
 				{
-				input->name = builtin_name;
+				set_input_name(input, builtin_name);
 				input->builtin_type = UNIFORM_NORMAL;
 				return true;
 				}
@@ -89,7 +107,7 @@ static bool setup_builtin_uniform(ShaderInput* input, const char* name)
 			const char* builtin_name = BuiltinUniform_name(UNIFORM_COLOR);
 			if (match(name, builtin_name))
 				{
-				input->name = builtin_name;
+				set_input_name(input, builtin_name);
 				input->builtin_type = UNIFORM_COLOR;
 				return true;
 				}
@@ -149,7 +167,7 @@ ShaderInterface* ShaderInterface_create(GLint program)
 				; // reclaim space from name buffer (don't advance offset)
 			else
 				{
-				input->name = name;
+				set_input_name(input, name);
 				name_buffer_offset += name_len + 1; // include NULL terminator
 				}
 #if SUPPORT_LEGACY_GLSL
@@ -181,7 +199,7 @@ ShaderInterface* ShaderInterface_create(GLint program)
 			assert(input->location != -1);
 #endif
 
-			input->name = name;
+			set_input_name(input, name);
 			name_buffer_offset += name_len + 1; // include NULL terminator
 #if SUPPORT_LEGACY_GLSL
 			}
@@ -233,23 +251,7 @@ void ShaderInterface_discard(ShaderInterface* shaderface)
 
 const ShaderInput* ShaderInterface_uniform(const ShaderInterface* shaderface, const char* name)
 	{
-	// search through custom uniforms first
-	for (uint32_t i = 0; i < shaderface->uniform_ct; ++i)
-		{
-		const ShaderInput* uniform = shaderface->inputs + i;
-
-		if (uniform->builtin_type == UNIFORM_CUSTOM)
-			{
-#if SUPPORT_LEGACY_GLSL
-			if (uniform->name == NULL) continue;
-#endif
-
-			if (match(uniform->name, name))
-				return uniform;
-			}
-		}
-
-	// search through builtin uniforms next
+	const unsigned name_hash = hash_string(name);
 	for (uint32_t i = 0; i < shaderface->uniform_ct; ++i)
 		{
 		const ShaderInput* uniform = shaderface->inputs + i;
@@ -257,9 +259,11 @@ const ShaderInput* ShaderInterface_uniform(const ShaderInterface* shaderface, co
 #if SUPPORT_LEGACY_GLSL
 		if (uniform->name == NULL) continue;
 #endif
-		if (uniform->builtin_type != UNIFORM_CUSTOM)
-			if (match(uniform->name, name))
-				return uniform;
+
+		if (uniform->name_hash != name_hash) continue;
+
+		if (match(uniform->name, name))
+			return uniform;
 
 		// TODO: warn if we find a matching builtin, since these can be looked up much quicker --v
 		}
@@ -269,6 +273,11 @@ const ShaderInput* ShaderInterface_uniform(const ShaderInterface* shaderface, co
 
 const ShaderInput* ShaderInterface_builtin_uniform(const ShaderInterface* shaderface, BuiltinUniform builtin)
 	{
+#if TRUST_NO_ONE
+	assert(builtin != UNIFORM_NONE);
+	assert(builtin != UNIFORM_CUSTOM);
+#endif
+
 	// look up by enum, not name
 	for (uint32_t i = 0; i < shaderface->uniform_ct; ++i)
 		{
@@ -284,6 +293,7 @@ const ShaderInput* ShaderInterface_attrib(const ShaderInterface* shaderface, con
 	{
 	// attribs are stored after uniforms
 	const uint32_t input_ct = shaderface->uniform_ct + shaderface->attrib_ct;
+	const unsigned name_hash = hash_string(name);
 	for (uint32_t i = shaderface->uniform_ct; i < input_ct; ++i)
 		{
 		const ShaderInput* attrib = shaderface->inputs + i;
@@ -291,6 +301,8 @@ const ShaderInput* ShaderInterface_attrib(const ShaderInterface* shaderface, con
 #if SUPPORT_LEGACY_GLSL
 		if (attrib->name == NULL) continue;
 #endif
+
+		if (attrib->name_hash != name_hash) continue;
 
 		if (match(attrib->name, name))
 			return attrib;

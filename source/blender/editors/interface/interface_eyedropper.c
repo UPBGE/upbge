@@ -43,9 +43,11 @@
 #include "BKE_screen.h"
 #include "BKE_report.h"
 #include "BKE_animsys.h"
-#include "BKE_depsgraph.h"
 #include "BKE_idcode.h"
 #include "BKE_unit.h"
+
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -169,8 +171,8 @@ static void eyedropper_draw_cursor_text(const struct bContext *C, ARegion *ar, c
  */
 static uiBut *eyedropper_get_property_button_under_mouse(bContext *C, const wmEvent *event)
 {
-	wmWindow *win = CTX_wm_window(C);
-	ScrArea *sa = BKE_screen_find_area_xy(win->screen, SPACE_TYPE_ANY, event->x, event->y);
+	bScreen *screen = CTX_wm_screen(C);
+	ScrArea *sa = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->x, event->y);
 	ARegion *ar = BKE_area_find_region_xy(sa, RGN_TYPE_ANY, event->x, event->y);
 	
 	uiBut *but = ui_but_find_mouse_over(ar, event);
@@ -262,10 +264,9 @@ static void eyedropper_exit(bContext *C, wmOperator *op)
  */
 static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int mx, int my, float r_col[3])
 {
-
 	/* we could use some clever */
-	wmWindow *win = CTX_wm_window(C);
-	ScrArea *sa = BKE_screen_find_area_xy(win->screen, SPACE_TYPE_ANY, mx, my);
+	bScreen *screen = CTX_wm_screen(C);
+	ScrArea *sa = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, mx, my);
 	const char *display_device = CTX_data_scene(C)->display_settings.display_device;
 	struct ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
 
@@ -586,8 +587,8 @@ static void datadropper_exit(bContext *C, wmOperator *op)
 static void datadropper_id_sample_pt(bContext *C, DataDropper *ddr, int mx, int my, ID **r_id)
 {
 	/* we could use some clever */
-	wmWindow *win = CTX_wm_window(C);
-	ScrArea *sa = BKE_screen_find_area_xy(win->screen, -1, mx, my);
+	bScreen *screen = CTX_wm_screen(C);
+	ScrArea *sa = BKE_screen_find_area_xy(screen, -1, mx, my);
 
 	ScrArea *area_prev = CTX_wm_area(C);
 	ARegion *ar_prev = CTX_wm_region(C);
@@ -887,9 +888,9 @@ static void depthdropper_exit(bContext *C, wmOperator *op)
 static void depthdropper_depth_sample_pt(bContext *C, DepthDropper *ddr, int mx, int my, float *r_depth)
 {
 	/* we could use some clever */
-	wmWindow *win = CTX_wm_window(C);
-	ScrArea *sa = BKE_screen_find_area_xy(win->screen, SPACE_TYPE_ANY, mx, my);
-	Scene *scene = win->screen->scene;
+	bScreen *screen = CTX_wm_screen(C);
+	ScrArea *sa = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, mx, my);
+	Scene *scene = CTX_data_scene(C);
 	UnitSettings *unit = &scene->unit;
 	const bool do_split = (unit->flag & USER_UNIT_OPT_SPLIT) != 0;
 
@@ -1206,8 +1207,8 @@ static void driverdropper_sample(bContext *C, wmOperator *op, const wmEvent *eve
 			if (success) {
 				/* send updates */
 				UI_context_update_anim_flag(C);
-				DAG_relations_tag_update(CTX_data_main(C));
-				DAG_id_tag_update(ddr->ptr.id.data, OB_RECALC_OB | OB_RECALC_DATA);
+				DEG_relations_tag_update(CTX_data_main(C));
+				DEG_id_tag_update(ddr->ptr.id.data, OB_RECALC_OB | OB_RECALC_DATA);
 				WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, NULL);  // XXX
 			}
 		}

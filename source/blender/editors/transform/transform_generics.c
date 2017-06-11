@@ -71,7 +71,6 @@
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
@@ -83,6 +82,9 @@
 #include "BKE_tracking.h"
 #include "BKE_mask.h"
 #include "BKE_utildefines.h"
+#include "BKE_workspace.h"
+
+#include "DEG_depsgraph.h"
 
 #include "ED_anim_api.h"
 #include "ED_armature.h"
@@ -639,7 +641,7 @@ static void recalcData_mask_common(TransInfo *t)
 
 	flushTransMasking(t);
 
-	DAG_id_tag_update(&mask->id, 0);
+	DEG_id_tag_update(&mask->id, 0);
 }
 
 /* helper for recalcData() - for Image Editor transforms */
@@ -658,7 +660,7 @@ static void recalcData_image(TransInfo *t)
 		if (sima->flag & SI_LIVE_UNWRAP)
 			ED_uvedit_live_unwrap_re_solve();
 		
-		DAG_id_tag_update(t->obedit->data, 0);
+		DEG_id_tag_update(t->obedit->data, 0);
 	}
 }
 
@@ -701,7 +703,7 @@ static void recalcData_spaceclip(TransInfo *t)
 			track = track->next;
 		}
 
-		DAG_id_tag_update(&clip->id, 0);
+		DEG_id_tag_update(&clip->id, 0);
 	}
 	else if (t->options & CTX_MASK) {
 		recalcData_mask_common(t);
@@ -724,7 +726,7 @@ static void recalcData_objects(TransInfo *t)
 				applyProject(t);
 			}
 			
-			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
+			DEG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 				
 			if (t->state == TRANS_CANCEL) {
 				while (nu) {
@@ -748,7 +750,7 @@ static void recalcData_objects(TransInfo *t)
 				applyProject(t);
 			}
 			
-			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
+			DEG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 			
 			if (la->editlatt->latt->flag & LT_OUTSIDE) outside_lattice(la->editlatt->latt);
 		}
@@ -770,7 +772,7 @@ static void recalcData_objects(TransInfo *t)
 				projectVertSlideData(t, false);
 			}
 
-			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
+			DEG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 			
 			EDBM_mesh_normals_update(em);
 			BKE_editmesh_tessface_calc(em);
@@ -868,7 +870,7 @@ static void recalcData_objects(TransInfo *t)
 			if (t->state != TRANS_CANCEL) {
 				applyProject(t);
 			}
-			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
+			DEG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 		}
 	}
 	else if ((t->flag & T_POSE) && t->poseobj) {
@@ -891,7 +893,7 @@ static void recalcData_objects(TransInfo *t)
 		
 		/* old optimize trick... this enforces to bypass the depgraph */
 		if (!(arm->flag & ARM_DELAYDEFORM)) {
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);  /* sets recalc flags */
+			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);  /* sets recalc flags */
 			/* transformation of pose may affect IK tree, make sure it is rebuilt */
 			BIK_clear_data(ob->pose);
 		}
@@ -934,10 +936,10 @@ static void recalcData_objects(TransInfo *t)
 			/* sets recalc flags fully, instead of flushing existing ones 
 			 * otherwise proxies don't function correctly
 			 */
-			DAG_id_tag_update(&ob->id, OB_RECALC_OB);
+			DEG_id_tag_update(&ob->id, OB_RECALC_OB);
 
 			if (t->flag & T_TEXTURE)
-				DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+				DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		}
 	}
 }
@@ -1242,6 +1244,8 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		}
 
 		t->current_orientation = v3d->twmode;
+		t->custom_orientation = BKE_workspace_transform_orientation_find(
+		                            CTX_wm_workspace(C), v3d->custom_orientation_index);
 
 		/* exceptional case */
 		if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
@@ -1332,13 +1336,24 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	if (op && ((prop = RNA_struct_find_property(op->ptr, "constraint_orientation")) &&
 	           RNA_property_is_set(op->ptr, prop)))
 	{
-		t->current_orientation = RNA_property_enum_get(op->ptr, prop);
+		short orientation = RNA_property_enum_get(op->ptr, prop);
+		TransformOrientation *custom_orientation = NULL;
 
-		if (t->current_orientation >= V3D_MANIP_CUSTOM + BIF_countTransformOrientation(C)) {
-			t->current_orientation = V3D_MANIP_GLOBAL;
+		if (orientation >= V3D_MANIP_CUSTOM) {
+			if (orientation >= V3D_MANIP_CUSTOM + BIF_countTransformOrientation(C)) {
+				orientation = V3D_MANIP_GLOBAL;
+			}
+			else {
+				custom_orientation = BKE_workspace_transform_orientation_find(
+				                         CTX_wm_workspace(C), orientation - V3D_MANIP_CUSTOM);
+				orientation = V3D_MANIP_CUSTOM;
+			}
 		}
+
+		t->current_orientation = orientation;
+		t->custom_orientation = custom_orientation;
 	}
-	
+
 	if (op && ((prop = RNA_struct_find_property(op->ptr, "release_confirm")) &&
 	           RNA_property_is_set(op->ptr, prop)))
 	{

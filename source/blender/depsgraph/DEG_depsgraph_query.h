@@ -33,10 +33,16 @@
 #ifndef __DEG_DEPSGRAPH_QUERY_H__
 #define __DEG_DEPSGRAPH_QUERY_H__
 
+#include "DEG_depsgraph.h"
+
 struct ID;
 
+struct Base;
+struct BLI_Iterator;
 struct Depsgraph;
-struct Iterator;
+struct DupliObject;
+struct ListBase;
+struct Scene;
 struct SceneLayer;
 
 #ifdef __cplusplus
@@ -50,29 +56,70 @@ bool DEG_id_type_tagged(struct Main *bmain, short idtype);
 short DEG_get_eval_flags_for_id(struct Depsgraph *graph, struct ID *id);
 
 /* Get scene the despgraph is created for. */
-struct Scene *DAG_get_scene(struct Depsgraph *graph);
+struct Scene *DEG_get_scene(struct Depsgraph *graph);
 
 /* Get scene layer the despgraph is created for. */
-struct SceneLayer *DAG_get_scene_layer(struct Depsgraph *graph);
+struct SceneLayer *DEG_get_scene_layer(struct Depsgraph *graph);
 
 /* Get the object as properly evaluated by depsgraph. */
-struct Object *DAG_get_object(struct Depsgraph *depsgraph, struct Object *ob);
+struct Object *DEG_get_object(struct Depsgraph *depsgraph, struct Object *ob);
 
 /* ************************ DAG iterators ********************* */
 
-void DAG_objects_iterator_begin(struct Iterator *iter, void *data_in);
-void DAG_objects_iterator_next(struct Iterator *iter);
-void DAG_objects_iterator_end(struct Iterator *iter);
+enum {
+	DEG_OBJECT_ITER_FLAG_SET = (1 << 0),
+	DEG_OBJECT_ITER_FLAG_DUPLI = (1 << 1),
+};
 
-/* Temporary hacky solution waiting for cow depsgrpah implementation. */
-#define DEG_OBJECT_ITER(graph_, instance_)                                    \
-	ITER_BEGIN(DAG_objects_iterator_begin,                                    \
-	           DAG_objects_iterator_next,                                     \
-	           DAG_objects_iterator_end,                                      \
-	           graph_, Object *, instance_)
+#define DEG_OBJECT_ITER_FLAG_ALL (DEG_OBJECT_ITER_FLAG_SET | DEG_OBJECT_ITER_FLAG_DUPLI)
 
-#define DEG_OBJECT_ITER_END                                                   \
-	ITER_END
+typedef struct DEGObjectsIteratorData {
+	struct Depsgraph *graph;
+	struct Scene *scene;
+	struct EvaluationContext eval_ctx;
+
+	/* TODO(sergey): Base should never be a thing coming FROM depsgraph. */
+	struct Base *base;
+	int base_flag;
+	int flag;
+
+	/* **** Iteration over dupli-list. *** */
+
+	/* Object which created the dupli-list. */
+	struct Object *dupli_parent;
+	/* List of duplicated objects. */
+	struct ListBase *dupli_list;
+	/* Next duplicated object to step into. */
+	struct DupliObject *dupli_object_next;
+	/* Corresponds to current object: current iterator object is evaluated from
+	 * this duplicated object.
+	 */
+	struct DupliObject *dupli_object_current;
+	/* Temporary storage to report fully populated DNA to the render engine or
+	 * other users of the iterator.
+	 */
+	struct Object temp_dupli_object;
+} DEGObjectsIteratorData;
+
+void DEG_objects_iterator_begin(struct BLI_Iterator *iter, DEGObjectsIteratorData *data);
+void DEG_objects_iterator_next(struct BLI_Iterator *iter);
+void DEG_objects_iterator_end(struct BLI_Iterator *iter);
+
+/* Temporary hacky solution waiting for cow depsgraph implementation. */
+#define DEG_OBJECT_ITER(graph_, instance_, flag_)                                 \
+	{                                                                             \
+		DEGObjectsIteratorData data_;                                             \
+		data_.graph = (graph_);                                                   \
+		data_.flag = (flag_);                                                     \
+                                                                                  \
+		ITER_BEGIN(DEG_objects_iterator_begin,                                    \
+		           DEG_objects_iterator_next,                                     \
+		           DEG_objects_iterator_end,                                      \
+		           &data_, Object *, instance_)
+
+#define DEG_OBJECT_ITER_END                                                       \
+		ITER_END                                                                  \
+	}
 
 #ifdef __cplusplus
 } /* extern "C" */

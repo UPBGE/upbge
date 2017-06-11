@@ -46,6 +46,7 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_probe_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
@@ -61,7 +62,6 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_main.h"
 #include "BKE_layer.h"
@@ -70,6 +70,8 @@
 #include "BKE_sequencer.h"
 #include "BKE_idcode.h"
 #include "BKE_outliner_treehash.h"
+
+#include "DEG_depsgraph_build.h"
 
 #include "ED_armature.h"
 #include "ED_screen.h"
@@ -729,6 +731,14 @@ static void outliner_add_id_contents(SpaceOops *soops, TreeElement *te, TreeStor
 				outliner_add_element(soops, &te->subtree, spk, te, TSE_ANIM_DATA, 0);
 			break;
 		}
+		case ID_PRB:
+		{
+			Probe *prb = (Probe *)id;
+
+			if (outliner_animdata_test(prb->adt))
+				outliner_add_element(soops, &te->subtree, prb, te, TSE_ANIM_DATA, 0);
+			break;
+		}
 		case ID_WO:
 		{
 			World *wrld = (World *)id;
@@ -1353,7 +1363,7 @@ static void outliner_layer_collections_reorder(
 		BLI_assert(0);
 	}
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 }
 static bool outliner_layer_collections_reorder_poll(
         const Scene *UNUSED(scene), const TreeElement *UNUSED(insert_element),
@@ -1409,7 +1419,7 @@ static void outliner_scene_collections_reorder(
 		BLI_assert(0);
 	}
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 }
 static bool outliner_scene_collections_reorder_poll(
         const Scene *scene, const TreeElement *UNUSED(insert_element),

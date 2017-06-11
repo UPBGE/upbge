@@ -52,14 +52,16 @@
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_main.h"
+#include "BKE_material.h"
 #include "BKE_multires.h"
 #include "BKE_report.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_modifier.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_depsgraph.h"
 #include "BKE_mesh.h"
 #include "BKE_scene.h"
+
+#include "DEG_depsgraph.h"
 
 #include "RE_pipeline.h"
 #include "RE_shader_ext.h"
@@ -86,6 +88,11 @@
  * needed to make job totally thread-safe */
 typedef struct MultiresBakerJobData {
 	struct MultiresBakerJobData *next, *prev;
+	/* material aligned image array (for per-face bake image) */
+	struct {
+		Image **array;
+		int     len;
+	} ob_image;
 	DerivedMesh *lores_dm, *hires_dm;
 	bool simple;
 	int lvl, tot_lvl;
@@ -152,7 +159,7 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
 			break;
 		}
 
-		if (!me->mtpoly) {
+		if (!me->mloopuv) {
 			BKE_report(op->reports, RPT_ERROR, "Mesh should be unwrapped before multires data baking");
 
 			ok = false;
@@ -160,7 +167,7 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
 		else {
 			a = me->totpoly;
 			while (ok && a--) {
-				Image *ima = me->mtpoly[a].tpage;
+				Image *ima = BKE_object_material_edit_image_get(ob, me->mpoly[a].mat_nr);
 
 				if (!ima) {
 					BKE_report(op->reports, RPT_ERROR, "You should have active texture to use multires baker");
@@ -283,20 +290,27 @@ static void clear_single_image(Image *image, ClearFlag flag)
 	}
 }
 
-static void clear_images_poly(MTexPoly *mtpoly, int totpoly, ClearFlag flag)
+static void clear_images_poly(Image **ob_image_array, int ob_image_array_len, ClearFlag flag)
 {
-	int a;
-
-	for (a = 0; a < totpoly; a++) {
-		mtpoly[a].tpage->id.tag &= ~LIB_TAG_DOIT;
+	for (int i = 0; i < ob_image_array_len; i++) {
+		Image *image = ob_image_array[i];
+		if (image) {
+			image->id.tag &= ~LIB_TAG_DOIT;
+		}
 	}
 
-	for (a = 0; a < totpoly; a++) {
-		clear_single_image(mtpoly[a].tpage, flag);
+	for (int i = 0; i < ob_image_array_len; i++) {
+		Image *image = ob_image_array[i];
+		if (image) {
+			clear_single_image(image, flag);
+		}
 	}
 
-	for (a = 0; a < totpoly; a++) {
-		mtpoly[a].tpage->id.tag &= ~LIB_TAG_DOIT;
+	for (int i = 0; i < ob_image_array_len; i++) {
+		Image *image = ob_image_array[i];
+		if (image) {
+			image->id.tag &= ~LIB_TAG_DOIT;
+		}
 	}
 }
 
@@ -312,11 +326,10 @@ static int multiresbake_image_exec_locked(bContext *C, wmOperator *op)
 	if (scene->r.bake_flag & R_BAKE_CLEAR) {  /* clear images */
 		CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
 		{
-			Mesh *me;
 			ClearFlag clear_flag = 0;
 
 			ob = base->object;
-			me = (Mesh *)ob->data;
+			// me = (Mesh *)ob->data;
 
 			if (scene->r.bake_mode == RE_BAKE_NORMALS) {
 				clear_flag = CLEAR_TANGENT_NORMAL;
@@ -325,7 +338,11 @@ static int multiresbake_image_exec_locked(bContext *C, wmOperator *op)
 				clear_flag = CLEAR_DISPLACEMENT;
 			}
 
-			clear_images_poly(me->mtpoly, me->totpoly, clear_flag);
+			{
+				Image **ob_image_array = BKE_object_material_edit_image_get_array(ob);
+				clear_images_poly(ob_image_array, ob->totcol, clear_flag);
+				MEM_freeN(ob_image_array);
+			}
 		}
 		CTX_DATA_END;
 	}
@@ -351,10 +368,15 @@ static int multiresbake_image_exec_locked(bContext *C, wmOperator *op)
 		//bkr.reports= op->reports;
 
 		/* create low-resolution DM (to bake to) and hi-resolution DM (to bake from) */
+		bkr.ob_image.array = BKE_object_material_edit_image_get_array(ob);
+		bkr.ob_image.len = ob->totcol;
+
 		bkr.hires_dm = multiresbake_create_hiresdm(scene, ob, &bkr.tot_lvl, &bkr.simple);
 		bkr.lores_dm = multiresbake_create_loresdm(scene, ob, &bkr.lvl);
 
 		RE_multires_bake_images(&bkr);
+
+		MEM_freeN(bkr.ob_image.array);
 
 		BLI_freelistN(&bkr.image);
 
@@ -401,6 +423,9 @@ static void init_multiresbake_job(bContext *C, MultiresBakeJob *bkj)
 
 		data = MEM_callocN(sizeof(MultiresBakerJobData), "multiresBaker derivedMesh_data");
 
+		data->ob_image.array = BKE_object_material_edit_image_get_array(ob);
+		data->ob_image.len = ob->totcol;
+
 		/* create low-resolution DM (to bake to) and hi-resolution DM (to bake from) */
 		data->hires_dm = multiresbake_create_hiresdm(scene, ob, &data->tot_lvl, &data->simple);
 		data->lores_dm = multiresbake_create_loresdm(scene, ob, &lvl);
@@ -421,8 +446,6 @@ static void multiresbake_startjob(void *bkv, short *stop, short *do_update, floa
 
 	if (bkj->bake_clear) {  /* clear images */
 		for (data = bkj->data.first; data; data = data->next) {
-			DerivedMesh *dm = data->lores_dm;
-			MTexPoly *mtexpoly = CustomData_get_layer(&dm->polyData, CD_MTEXPOLY);
 			ClearFlag clear_flag = 0;
 
 			if (bkj->mode == RE_BAKE_NORMALS) {
@@ -432,7 +455,7 @@ static void multiresbake_startjob(void *bkv, short *stop, short *do_update, floa
 				clear_flag = CLEAR_DISPLACEMENT;
 			}
 
-			clear_images_poly(mtexpoly, dm->getNumPolys(dm), clear_flag);
+			clear_images_poly(data->ob_image.array, data->ob_image.len, clear_flag);
 		}
 	}
 
@@ -445,6 +468,8 @@ static void multiresbake_startjob(void *bkv, short *stop, short *do_update, floa
 		bkr.use_lores_mesh = bkj->use_lores_mesh;
 		bkr.user_scale = bkj->user_scale;
 		//bkr.reports = bkj->reports;
+		bkr.ob_image.array = data->ob_image.array;
+		bkr.ob_image.len   = data->ob_image.len;
 
 		/* create low-resolution DM (to bake to) and hi-resolution DM (to bake from) */
 		bkr.lores_dm = data->lores_dm;
@@ -492,6 +517,8 @@ static void multiresbake_freejob(void *bkv)
 			Image *ima = (Image *)link->data;
 			GPU_free_image(ima);
 		}
+
+		MEM_freeN(data->ob_image.array);
 
 		BLI_freelistN(&data->images);
 
@@ -662,7 +689,7 @@ static void finish_bake_internal(BakeRender *bkr)
 			}
 
 			BKE_image_release_ibuf(ima, ibuf, NULL);
-			DAG_id_tag_update(&ima->id, 0);			
+			DEG_id_tag_update(&ima->id, 0);			
 		}
 	}
 
@@ -672,7 +699,7 @@ static void finish_bake_internal(BakeRender *bkr)
 		BLI_assert(BLI_thread_is_main());
 		for (me = G.main->mesh.first; me; me = me->id.next) {
 			if (me->id.tag & LIB_TAG_DOIT) {
-				DAG_id_tag_update(&me->id, OB_RECALC_DATA);
+				DEG_id_tag_update(&me->id, OB_RECALC_DATA);
 				BKE_mesh_tessface_clear(me);
 			}
 		}

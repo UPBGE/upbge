@@ -33,6 +33,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "MEM_guardedalloc.h"
+
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -177,20 +179,18 @@ static void draw_uvs_shadow(Object *obedit)
 	immUnbindProgram();
 }
 
-static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTexPoly *activetf)
+static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, const BMFace *efa_act)
 {
 	BMesh *bm = em->bm;
 	BMFace *efa;
 	BMLoop *l;
 	BMIter iter, liter;
-	MTexPoly *tf;
 	MLoopUV *luv;
 	Image *ima = sima->image;
 	float aspx, aspy, col[4];
 	int i;
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
-	const int cd_poly_tex_offset = CustomData_get_offset(&bm->pdata, CD_MTEXPOLY);
 
 	BLI_buffer_declare_static(vec2f, tf_uv_buf, BLI_BUFFER_NOP, BM_DEFAULT_NGON_STACK_SIZE);
 	BLI_buffer_declare_static(vec2f, tf_uvorig_buf, BLI_BUFFER_NOP, BM_DEFAULT_NGON_STACK_SIZE);
@@ -206,7 +206,6 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 				const int efa_len = efa->len;
 				float (*tf_uv)[2]     = (float (*)[2])BLI_buffer_reinit_data(&tf_uv_buf,     vec2f, efa_len);
 				float (*tf_uvorig)[2] = (float (*)[2])BLI_buffer_reinit_data(&tf_uvorig_buf, vec2f, efa_len);
-				tf = BM_ELEM_CD_GET_VOID_P(efa, cd_poly_tex_offset);
 
 				BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
 					luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
@@ -218,12 +217,13 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 				totarea += BM_face_calc_area(efa);
 				totuvarea += area_poly_v2((const float (*)[2])tf_uv, efa->len);
 				
-				if (uvedit_face_visible_test(scene, ima, efa, tf)) {
+				if (uvedit_face_visible_test(scene, ima, efa)) {
 					BM_elem_flag_enable(efa, BM_ELEM_TAG);
 				}
 				else {
-					if (tf == activetf)
-						activetf = NULL;
+					if (efa == efa_act) {
+						efa_act = NULL;
+					}
 					BM_elem_flag_disable(efa, BM_ELEM_TAG);
 				}
 			}
@@ -314,9 +314,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 			immBindBuiltinProgram(GPU_SHADER_2D_SMOOTH_COLOR);
 
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-				tf = BM_ELEM_CD_GET_VOID_P(efa, cd_poly_tex_offset);
-				
-				if (uvedit_face_visible_test(scene, ima, efa, tf)) {
+				if (uvedit_face_visible_test(scene, ima, efa)) {
 					const int efa_len = efa->len;
 					float (*tf_uv)[2]     = (float (*)[2])BLI_buffer_reinit_data(&tf_uv_buf,     vec2f, efa_len);
 					float (*tf_uvorig)[2] = (float (*)[2])BLI_buffer_reinit_data(&tf_uvorig_buf, vec2f, efa_len);
@@ -365,8 +363,8 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 					immEnd();
 				}
 				else {
-					if (tf == activetf)
-						activetf = NULL;
+					if (efa == efa_act)
+						efa_act = NULL;
 					BM_elem_flag_disable(efa, BM_ELEM_TAG);
 				}
 			}
@@ -421,24 +419,36 @@ static void draw_uvs_other_mesh_texface(Object *ob, const Image *curimage, const
 {
 	Mesh *me = ob->data;
 	MPoly *mpoly = me->mpoly;
-	MTexPoly *mtpoly = me->mtpoly;
 	int a;
 
 	if (me->mloopuv == NULL) {
 		return;
 	}
 
-	for (a = me->totpoly; a != 0; a--, mpoly++, mtpoly++) {
+	Image **image_array = NULL;
+
+	if (other_uv_filter == SI_FILTER_SAME_IMAGE) {
+		image_array = BKE_object_material_edit_image_get_array(ob);
+	}
+
+	for (a = me->totpoly; a != 0; a--, mpoly++) {
 		if (other_uv_filter == SI_FILTER_ALL) {
 			/* Nothing to compare, all UV faces are visible. */
 		}
 		else if (other_uv_filter == SI_FILTER_SAME_IMAGE) {
-			if (mtpoly->tpage != curimage) {
+			if (mpoly[a].mat_nr >= ob->totcol) {
+				continue;
+			}
+			if (image_array[mpoly[a].mat_nr] != curimage) {
 				continue;
 			}
 		}
 
 		draw_uvs_lineloop_mpoly(me, mpoly, pos);
+	}
+
+	if (image_array) {
+		MEM_freeN(image_array);
 	}
 }
 static void draw_uvs_other_mesh_new_shading(Object *ob, const Image *curimage, const int other_uv_filter, unsigned int pos)
@@ -604,7 +614,6 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, SceneLayer *sl, Object *obe
 	BMFace *efa, *efa_act;
 	BMLoop *l;
 	BMIter iter, liter;
-	MTexPoly *tf, *activetf = NULL;
 	MLoopUV *luv;
 	unsigned char col1[4], col2[4];
 	float pointsize;
@@ -612,11 +621,10 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, SceneLayer *sl, Object *obe
 	Image *ima = sima->image;
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
-	const int cd_poly_tex_offset = CustomData_get_offset(&bm->pdata, CD_MTEXPOLY);
 
 	unsigned int pos;
 
-	activetf = EDBM_mtexpoly_active_get(em, &efa_act, false, false); /* will be set to NULL if hidden */
+	efa_act = EDBM_uv_active_face_get(em, false, false); /* will be set to NULL if hidden */
 	ts = scene->toolsettings;
 
 	drawfaces = draw_uvs_face_check(scene);
@@ -638,7 +646,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, SceneLayer *sl, Object *obe
 			}
 		}
 		else {
-			curimage = (activetf) ? activetf->tpage : ima;
+			curimage = (efa_act) ? BKE_object_material_edit_image_get(obedit, efa_act->mat_nr) : ima;
 		}
 
 		draw_uvs_other(sl, obedit, curimage, new_shading_nodes, sima->other_uv_filter);
@@ -647,7 +655,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, SceneLayer *sl, Object *obe
 	/* 1. draw shadow mesh */
 	
 	if (sima->flag & SI_DRAWSHADOW) {
-		Object *ob_cage = DAG_get_object(depsgraph, obedit);
+		Object *ob_cage = DEG_get_object(depsgraph, obedit);
 		/* XXX TODO: Need to check if shadow mesh is different than original mesh. */
 		bool is_cage_like_final_meshes = (ob_cage == obedit);
 
@@ -661,7 +669,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, SceneLayer *sl, Object *obe
 	/* 2. draw colored faces */
 	
 	if (sima->flag & SI_DRAW_STRETCH) {
-		draw_uvs_stretch(sima, scene, em, activetf);
+		draw_uvs_stretch(sima, scene, em, efa_act);
 	}
 	else if (!(sima->flag & SI_NO_DRAWFACES)) {
 		/* draw transparent faces */
@@ -676,12 +684,11 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, SceneLayer *sl, Object *obe
 
 		for (unsigned int i = 0; i < em->tottri; i++) {
 			efa = em->looptris[i][0]->f;
-			tf = BM_ELEM_CD_GET_VOID_P(efa, cd_poly_tex_offset);
-			if (uvedit_face_visible_test(scene, ima, efa, tf)) {
+			if (uvedit_face_visible_test(scene, ima, efa)) {
 				const bool is_select = uvedit_face_select_test(scene, efa, cd_loop_uv_offset);
 				BM_elem_flag_enable(efa, BM_ELEM_TAG);
 
-				if (tf == activetf) {
+				if (efa == efa_act) {
 					/* only once */
 					immUniformThemeColor(TH_EDITMESH_ACTIVE);
 				}
@@ -706,14 +713,12 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, SceneLayer *sl, Object *obe
 		/* would be nice to do this within a draw loop but most below are optional, so it would involve too many checks */
 		
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-			tf = BM_ELEM_CD_GET_VOID_P(efa, cd_poly_tex_offset);
-
-			if (uvedit_face_visible_test(scene, ima, efa, tf)) {
+			if (uvedit_face_visible_test(scene, ima, efa)) {
 				BM_elem_flag_enable(efa, BM_ELEM_TAG);
 			}
 			else {
-				if (tf == activetf)
-					activetf = NULL;
+				if (efa == efa_act)
+					efa_act = NULL;
 				BM_elem_flag_disable(efa, BM_ELEM_TAG);
 			}
 		}
@@ -751,11 +756,8 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, SceneLayer *sl, Object *obe
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 				if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 					continue;
-				tf = BM_ELEM_CD_GET_VOID_P(efa, cd_poly_tex_offset);
 
-				if (tf) {
-					draw_uvs_lineloop_bmface(efa, cd_loop_uv_offset, shdr_pos);
-				}
+				draw_uvs_lineloop_bmface(efa, cd_loop_uv_offset, shdr_pos);
 			}
 
 			immUnbindProgram();
@@ -1037,7 +1039,7 @@ static void draw_uv_shadows_get(SpaceImage *sima, Object *ob, Object *obedit, bo
 	if ((sima->mode == SI_MODE_PAINT) && obedit && obedit->type == OB_MESH) {
 		struct BMEditMesh *em = BKE_editmesh_from_object(obedit);
 		
-		*show_shadow = EDBM_mtexpoly_check(em);
+		*show_shadow = EDBM_uv_check(em);
 	}
 	
 	*show_texpaint = (ob && ob->type == OB_MESH && ob->mode == OB_MODE_TEXTURE_PAINT);

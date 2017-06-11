@@ -151,6 +151,7 @@ MINLINE void negate_v3_short(short r[3]);
 MINLINE void negate_v3_db(double r[3]);
 
 MINLINE void invert_v2(float r[2]);
+MINLINE void invert_v3(float r[3]);
 
 MINLINE void abs_v2(float r[2]);
 MINLINE void abs_v2_v2(float r[2], const float a[2]);
@@ -321,6 +322,7 @@ void print_vn(const char *str, const float v[], const int n);
 #define print_v4_id(v) print_v4(STRINGIFY(v), v)
 #define print_vn_id(v, n) print_vn(STRINGIFY(v), v, n)
 
+MINLINE void normal_float_to_short_v2(short r[2], const float n[2]);
 MINLINE void normal_short_to_float_v3(float r[3], const short n[3]);
 MINLINE void normal_float_to_short_v3(short r[3], const float n[3]);
 

@@ -14,13 +14,16 @@ uniform vec4 viewvecs[3];
 uniform vec4 ssao_params;
 
 uniform sampler2D ssao_jitter;
-uniform sampler1D ssao_samples;
 
 /* Material Parameters packed in an UBO */
 struct Material {
 	vec4 ssao_params_var;
 	vec4 matcap_hsv_id;
 	vec4 matcap_rot; /* vec4 to ensure 16 bytes alignement (don't trust compiler) */
+};
+
+layout(std140) uniform samples_block {
+	vec4 ssao_samples[500];
 };
 
 layout(std140) uniform material_block {
@@ -38,7 +41,12 @@ uniform int mat_id;
 #define matcap_index		matcaps_param[mat_id].matcap_hsv_id.w
 #define matcap_rotation		matcaps_param[mat_id].matcap_rot.xy
 
+#ifdef USE_FLAT_NORMAL
+flat in vec3 normal;
+#else
 in vec3 normal;
+#endif
+
 out vec4 fragColor;
 
 /* TODO Move this to SSAO modules */

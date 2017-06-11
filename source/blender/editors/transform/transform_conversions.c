@@ -68,7 +68,6 @@
 #include "BKE_context.h"
 #include "BKE_crazyspace.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
@@ -119,6 +118,7 @@
 #include "RNA_access.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 #include "transform.h"
 #include "bmesh.h"
@@ -858,7 +858,7 @@ static void pose_grab_with_ik_clear(Object *ob)
 	}
 
 	/* TODO(sergey): Consider doing partial update only. */
-	DAG_relations_tag_update(G.main);
+	DEG_relations_tag_update(G.main);
 }
 
 /* adds the IK to pchan - returns if added */
@@ -1012,7 +1012,7 @@ static short pose_grab_with_ik(Object *ob)
 	if (tot_ik) {
 		BIK_clear_data(ob->pose);
 		/* TODO(sergey): Consuder doing partial update only. */
-		DAG_relations_tag_update(G.main);
+		DEG_relations_tag_update(G.main);
 	}
 
 	return (tot_ik) ? 1 : 0;
@@ -2266,7 +2266,7 @@ static struct TransIslandData *editmesh_islands_info_calc(
 		}
 
 		if (group_tot_single != 0) {
-			trans_islands = MEM_reallocN(trans_islands, group_tot + group_tot_single);
+			trans_islands = MEM_reallocN(trans_islands, sizeof(*trans_islands) * (group_tot + group_tot_single));
 
 			BM_ITER_MESH_INDEX (v, &viter, bm, BM_VERTS_OF_MESH, i) {
 				if (BM_elem_flag_test(v, BM_ELEM_SELECT) && (vert_map[i] == -1)) {
@@ -2388,7 +2388,8 @@ static void createTransEditVerts(TransInfo *t)
 	int island_info_tot;
 	int *island_vert_map = NULL;
 
-	const bool is_island_center = (t->around == V3D_AROUND_LOCAL_ORIGINS) && (t->mode != TFM_TRANSLATION);
+	/* Even for translation this is needed because of island-orientation, see: T51651. */
+	const bool is_island_center = (t->around == V3D_AROUND_LOCAL_ORIGINS);
 	/* Original index of our connected vertex when connected distances are calculated.
 	 * Optional, allocate if needed. */
 	int *dists_index = NULL;
@@ -2454,11 +2455,6 @@ static void createTransEditVerts(TransInfo *t)
 		editmesh_set_connectivity_distance(em->bm, mtx, dists, dists_index);
 	}
 
-	/* Only in case of rotation and resize, we want the elements of the edited
-	 * object to behave as groups whose pivot are the individual origins
-	 *
-	 * TODO: use island_info to detect the closest point when the "Snap Target"
-	 * in Blender UI is "Closest" */
 	if (is_island_center) {
 		/* In this specific case, near-by vertices will need to know the island of the nearest connected vertex. */
 		const bool calc_single_islands = (
@@ -2857,7 +2853,6 @@ static void createTransUVs(bContext *C, TransInfo *t)
 	const bool is_prop_connected = (t->flag & T_PROP_CONNECTED) != 0;
 	const bool is_island_center = (t->around == V3D_AROUND_LOCAL_ORIGINS);
 	const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
-	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
 
 	if (!ED_space_image_show_uvedit(sima, t->obedit))
 		return;
@@ -2881,10 +2876,9 @@ static void createTransUVs(bContext *C, TransInfo *t)
 	}
 
 	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-		MTexPoly *tf = BM_ELEM_CD_GET_VOID_P(efa, cd_poly_tex_offset);
 		BMLoop *l;
 
-		if (!uvedit_face_visible_test(scene, ima, efa, tf)) {
+		if (!uvedit_face_visible_test(scene, ima, efa)) {
 			BM_elem_flag_disable(efa, BM_ELEM_TAG);
 			continue;
 		}
@@ -5454,7 +5448,7 @@ static void set_trans_object_base_flags(TransInfo *t)
 	BKE_scene_base_flag_to_objects(t->scene_layer);
 
 	/* Make sure depsgraph is here. */
-	DAG_scene_relations_update(G.main, t->scene);
+	DEG_scene_relations_update(G.main, t->scene);
 
 	/* handle pending update events, otherwise they got copied below */
 	for (base = sl->object_bases.first; base; base = base->next) {
@@ -5496,7 +5490,7 @@ static void set_trans_object_base_flags(TransInfo *t)
 					base->flag_legacy |= BA_WAS_SEL;
 				}
 			}
-			DAG_id_tag_update(&ob->id, OB_RECALC_OB);
+			DEG_id_tag_update(&ob->id, OB_RECALC_OB);
 		}
 	}
 
@@ -5569,7 +5563,7 @@ static int count_proportional_objects(TransInfo *t)
 		    (BASE_EDITABLE_BGMODE_NEW(base)))
 		{
 
-			DAG_id_tag_update(&ob->id, OB_RECALC_OB);
+			DEG_id_tag_update(&ob->id, OB_RECALC_OB);
 
 			total += 1;
 		}
@@ -5577,7 +5571,7 @@ static int count_proportional_objects(TransInfo *t)
 	
 
 	/* all recalc flags get flushed to all layers, so a layer flip later on works fine */
-	DAG_scene_relations_update(G.main, t->scene);
+	DEG_scene_relations_update(G.main, t->scene);
 
 	/* and we store them temporal in base (only used for transform code) */
 	/* this because after doing updates, the object->recalc is cleared */
@@ -6162,9 +6156,9 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			// fixme... some of this stuff is not good
 			if (ob) {
 				if (ob->pose || BKE_key_from_object(ob))
-					DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+					DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 				else
-					DAG_id_tag_update(&ob->id, OB_RECALC_OB);
+					DEG_id_tag_update(&ob->id, OB_RECALC_OB);
 			}
 			
 			/* 3 cases here for curve cleanups:
@@ -6374,15 +6368,15 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 		/* automatic inserting of keys and unkeyed tagging - only if transform wasn't canceled (or TFM_DUMMY) */
 		if (!canceled && (t->mode != TFM_DUMMY)) {
 			autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik);
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		}
 		else if (arm->flag & ARM_DELAYDEFORM) {
 			/* old optimize trick... this enforces to bypass the depgraph */
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 			ob->recalc = 0;  // is set on OK position already by recalcData()
 		}
 		else
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	}
 	else if (t->options & CTX_PAINT_CURVE) {
@@ -6422,13 +6416,13 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 
 			/* pointcache refresh */
 			if (BKE_ptcache_object_reset(t->scene, ob, PTCACHE_RESET_OUTDATED))
-				DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+				DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 			/* Needed for proper updating of "quick cached" dynamics. */
 			/* Creates troubles for moving animated objects without */
 			/* autokey though, probably needed is an anim sys override? */
 			/* Please remove if some other solution is found. -jahka */
-			DAG_id_tag_update(&ob->id, OB_RECALC_OB);
+			DEG_id_tag_update(&ob->id, OB_RECALC_OB);
 
 			/* Set autokey if necessary */
 			if (!canceled) {

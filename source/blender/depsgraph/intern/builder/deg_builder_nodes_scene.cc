@@ -37,11 +37,11 @@
 
 #include "MEM_guardedalloc.h"
 
-extern "C" {
+#include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
+extern "C" {
 #include "DNA_node_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
@@ -50,10 +50,10 @@ extern "C" {
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+} /* extern "C" */
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
-} /* extern "C" */
 
 #include "intern/builder/deg_builder.h"
 #include "intern/nodes/deg_node.h"
@@ -71,7 +71,7 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 	add_id_node(&scene->id);
 
 	/* timesource */
-	add_time_source(NULL);
+	add_time_source();
 
 	/* build subgraph for set, and link this in... */
 	// XXX: depending on how this goes, that scene itself could probably store its
@@ -81,12 +81,12 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 	}
 
 	/* scene objects */
-	int selection_color = 1;
+	int select_color = 1;
 	for (SceneLayer *sl = (SceneLayer *)scene->render_layers.first; sl; sl = sl->next) {
 		for (Base *base = (Base *)sl->object_bases.first; base; base = base->next) {
 			/* object itself */
 			build_object(scene, base->object);
-			base->selcol = selection_color++;
+			base->object->select_color = select_color++;
 		}
 	}
 

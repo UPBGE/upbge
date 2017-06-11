@@ -1663,9 +1663,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		for (Mesh *me = main->mesh.first; me; me = me->id.next) {
 			CustomData_set_layer_name(&me->vdata, CD_MDEFORMVERT, 0, "");
 		}
-	}
 
-	{
 		if (!DNA_struct_elem_find(fd->filesdna, "View3DDebug", "char", "background")) {
 			bScreen *screen;
 

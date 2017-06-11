@@ -123,6 +123,7 @@ const char *BKE_mesh_cmp(struct Mesh *me1, struct Mesh *me2, float thresh);
 
 struct BoundBox *BKE_mesh_boundbox_get(struct Object *ob);
 void BKE_mesh_texspace_get(struct Mesh *me, float r_loc[3], float r_rot[3], float r_size[3]);
+void BKE_mesh_texspace_get_reference(struct Mesh *me, short **r_texflag,  float **r_loc, float **r_rot, float **r_size);
 void BKE_mesh_texspace_copy_from_object(struct Mesh *me, struct Object *ob);
 
 bool BKE_mesh_uv_cdlayer_rename_index(struct Mesh *me, const int poly_index, const int loop_index, const int face_index,
@@ -186,13 +187,6 @@ void BKE_mesh_calc_normals_looptri(
         const struct MLoop *mloop,
         const struct MLoopTri *looptri, int looptri_num,
         float (*r_tri_nors)[3]);
-void BKE_mesh_loop_tangents_ex(
-        const struct MVert *mverts, const int numVerts, const struct MLoop *mloops,
-        float (*r_looptangent)[4], float (*loopnors)[3], const struct MLoopUV *loopuv,
-        const int numLoops, const struct MPoly *mpolys, const int numPolys,
-        struct ReportList *reports);
-void BKE_mesh_loop_tangents(
-        struct Mesh *mesh, const char *uvmap, float (*r_looptangents)[4], struct ReportList *reports);
 
 /**
  * References a contiguous loop-fan with normal offset vars.
@@ -294,7 +288,7 @@ void BKE_mesh_loops_to_mface_corners(
         const int numTex, const int numCol,
         const bool hasPCol, const bool hasOrigSpace, const bool hasLNor);
 void BKE_mesh_loops_to_tessdata(
-        struct CustomData *fdata, struct CustomData *ldata, struct CustomData *pdata, struct MFace *mface,
+        struct CustomData *fdata, struct CustomData *ldata, struct MFace *mface,
         int *polyindices, unsigned int (*loopindices)[4], const int num_faces);
 void BKE_mesh_tangent_loops_to_tessdata(
         struct CustomData *fdata, struct CustomData *ldata, struct MFace *mface,
@@ -372,7 +366,6 @@ void BKE_mesh_calc_relative_deform(
 /* *** mesh_validate.c *** */
 
 int BKE_mesh_validate(struct Mesh *me, const int do_verbose, const int cddata_check_mask);
-void BKE_mesh_cd_validate(struct Mesh *me);
 int BKE_mesh_validate_material_indices(struct Mesh *me);
 
 bool BKE_mesh_validate_arrays(

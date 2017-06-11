@@ -1,19 +1,24 @@
 
 uniform int light_count;
-uniform vec3 cameraPos;
-uniform vec3 eye;
+uniform int probe_count;
 uniform mat4 ProjectionMatrix;
+uniform mat4 ViewMatrixInverse;
 
-uniform samplerCube probeFiltered;
+uniform sampler2DArray probeCubes;
 uniform float lodMax;
 uniform vec3 shCoefs[9];
 
-#ifndef USE_LTC
-uniform sampler2D brdfLut;
-#endif
-uniform sampler2DArrayShadow shadowCubes;
-uniform sampler2DArrayShadow shadowMaps;
+#ifndef UTIL_TEX
+#define UTIL_TEX
+uniform sampler2DArray utilTex;
+#endif /* UTIL_TEX */
+
+uniform sampler2DArray shadowCubes;
 uniform sampler2DArrayShadow shadowCascades;
+
+layout(std140) uniform probe_block {
+	ProbeData probes_data[MAX_PROBE];
+};
 
 layout(std140) uniform light_block {
 	LightData lights_data[MAX_LIGHT];
@@ -27,8 +32,17 @@ layout(std140) uniform shadow_block {
 
 in vec3 worldPosition;
 in vec3 viewPosition;
+
+#ifdef USE_FLAT_NORMAL
+flat in vec3 worldNormal;
+flat in vec3 viewNormal;
+#else
 in vec3 worldNormal;
 in vec3 viewNormal;
+#endif
+
+#define cameraForward   normalize(ViewMatrixInverse[2].xyz)
+#define cameraPos       ViewMatrixInverse[3].xyz
 
 /* type */
 #define POINT    0.0
@@ -37,36 +51,77 @@ in vec3 viewNormal;
 #define HEMI     3.0
 #define AREA     4.0
 
-vec3 light_diffuse(LightData ld, ShadingData sd, vec3 albedo)
+vec2 mapping_octahedron(vec3 cubevec, vec2 texel_size)
 {
-	if (ld.l_type == SUN) {
-		return direct_diffuse_sun(ld, sd) * albedo;
+	/* projection onto octahedron */
+	cubevec /= dot( vec3(1), abs(cubevec) );
+
+	/* out-folding of the downward faces */
+	if ( cubevec.z < 0.0 ) {
+		cubevec.xy = (1.0 - abs(cubevec.yx)) * sign(cubevec.xy);
 	}
-	else if (ld.l_type == AREA) {
-		return direct_diffuse_rectangle(ld, sd) * albedo;
-	}
-	else {
-		return direct_diffuse_sphere(ld, sd) * albedo;
-	}
+
+	/* mapping to [0;1]ˆ2 texture space */
+	vec2 uvs = cubevec.xy * (0.5) + 0.5;
+
+	/* edge filtering fix */
+	uvs *= 1.0 - 2.0 * texel_size;
+	uvs += texel_size;
+
+	return uvs;
 }
 
-vec3 light_specular(LightData ld, ShadingData sd, float roughness, vec3 f0)
+vec4 textureLod_octahedron(sampler2DArray tex, vec4 cubevec, float lod)
 {
-	if (ld.l_type == SUN) {
-		return direct_ggx_point(sd, roughness, f0);
-	}
-	else if (ld.l_type == AREA) {
-		return direct_ggx_rectangle(ld, sd, roughness, f0);
-	}
-	else {
-		// return direct_ggx_point(sd, roughness, f0);
-		return direct_ggx_sphere(ld, sd, roughness, f0);
-	}
+	vec2 texelSize = 1.0 / vec2(textureSize(tex, int(lodMax)));
+
+	vec2 uvs = mapping_octahedron(cubevec.xyz, texelSize);
+
+	return textureLod(tex, vec3(uvs, cubevec.w), lod);
 }
 
-float light_visibility(LightData ld, ShadingData sd)
+vec4 texture_octahedron(sampler2DArray tex, vec4 cubevec)
 {
-	float vis = 1.0;
+	vec2 texelSize = 1.0 / vec2(textureSize(tex, 0));
+
+	vec2 uvs = mapping_octahedron(cubevec.xyz, texelSize);
+
+	return texture(tex, vec3(uvs, cubevec.w));
+}
+
+void light_shade(
+        LightData ld, ShadingData sd, vec3 albedo, float roughness, vec3 f0,
+        out vec3 diffuse, out vec3 specular)
+{
+#ifdef USE_LTC
+	if (ld.l_type == SUN) {
+		/* TODO disk area light */
+		diffuse = direct_diffuse_sun(ld, sd) * albedo;
+		specular = direct_ggx_sun(ld, sd, roughness, f0);
+	}
+	else if (ld.l_type == AREA) {
+		diffuse =  direct_diffuse_rectangle(ld, sd) * albedo;
+		specular =  direct_ggx_rectangle(ld, sd, roughness, f0);
+	}
+	else {
+		diffuse =  direct_diffuse_sphere(ld, sd) * albedo;
+		specular =  direct_ggx_sphere(ld, sd, roughness, f0);
+	}
+#else
+	if (ld.l_type == SUN) {
+		diffuse = direct_diffuse_sun(ld, sd) * albedo;
+		specular = direct_ggx_sun(ld, sd, roughness, f0);
+	}
+	else {
+		diffuse = direct_diffuse_point(ld, sd) * albedo;
+		specular = direct_ggx_point(sd, roughness, f0);
+	}
+#endif
+}
+
+void light_visibility(LightData ld, ShadingData sd, out float vis)
+{
+	vis = 1.0;
 
 	if (ld.l_type == SPOT) {
 		float z = dot(ld.l_forward, sd.l_vector);
@@ -79,10 +134,10 @@ float light_visibility(LightData ld, ShadingData sd)
 		float spotmask = smoothstep(0.0, 1.0, (ellipse - ld.l_spot_size) / ld.l_spot_blend);
 
 		vis *= spotmask;
-		vis *= step(0.0, -dot(sd.L, ld.l_forward));
+		vis *= step(0.0, -dot(sd.l_vector, ld.l_forward));
 	}
 	else if (ld.l_type == AREA) {
-		vis *= step(0.0, -dot(sd.L, ld.l_forward));
+		vis *= step(0.0, -dot(sd.l_vector, ld.l_forward));
 	}
 
 	/* shadowing */
@@ -92,7 +147,7 @@ float light_visibility(LightData ld, ShadingData sd)
 		ShadowCascadeData smd = shadows_cascade_data[int(shid)];
 
 		/* Finding Cascade index */
-		vec4 z = vec4(-dot(cameraPos - worldPosition, normalize(eye)));
+		vec4 z = vec4(-dot(cameraPos - worldPosition, cameraForward));
 		vec4 comp = step(z, smd.split_distances);
 		float cascade = dot(comp, comp);
 		mat4 shadowmat;
@@ -124,152 +179,139 @@ float light_visibility(LightData ld, ShadingData sd)
 
 		vis *= texture(shadowCascades, vec4(shpos.xy, shid * float(MAX_CASCADE_NUM) + cascade, shpos.z));
 	}
-	else if (ld.l_shadowid >= MAX_SHADOW_CUBE) {
-		/* Shadow Map */
-		float shid = ld.l_shadowid - MAX_SHADOW_CUBE;
-		ShadowMapData smd = shadows_map_data[int(shid)];
-		vec4 shpos = smd.shadowmat * vec4(sd.W, 1.0);
-		shpos.z -= smd.sh_map_bias * shpos.w;
-		shpos.xyz /= shpos.w;
-
-		if (shpos.w > 0.0 && min(shpos.x, shpos.y) > 0.0 && max(shpos.x, shpos.y) < 1.0) {
-			vis *= texture(shadowMaps, vec4(shpos.xy, shid, shpos.z));
-		}
-	}
-	else {
+	else if (ld.l_shadowid >= 0.0) {
 		/* Shadow Cube */
 		float shid = ld.l_shadowid;
 		ShadowCubeData scd = shadows_cube_data[int(shid)];
 
-		float face;
-		vec2 uvs;
-		vec3 Linv = sd.L;
-		vec3 Labs = abs(Linv);
-		vec3 maj_axis;
+		vec3 cubevec = sd.W - ld.l_position;
+		float dist = length(cubevec) - scd.sh_cube_bias;
 
-		if (max(Labs.y, Labs.z) < Labs.x) {
-			if (Linv.x > 0.0) {
-				face = 1.0;
-				uvs = vec2(1.0, -1.0) * Linv.zy / -Linv.x;
-				maj_axis = vec3(1.0, 0.0, 0.0);
-			}
-			else {
-				face = 0.0;
-				uvs = -Linv.zy / Linv.x;
-				maj_axis = vec3(-1.0, 0.0, 0.0);
-			}
-		}
-		else if (max(Labs.x, Labs.z) < Labs.y) {
-			if (Linv.y > 0.0) {
-				face = 2.0;
-				uvs = vec2(-1.0, 1.0) * Linv.xz / Linv.y;
-				maj_axis = vec3(0.0, 1.0, 0.0);
-			}
-			else {
-				face = 3.0;
-				uvs = -Linv.xz / -Linv.y;
-				maj_axis = vec3(0.0, -1.0, 0.0);
-			}
-		}
-		else {
-			if (Linv.z > 0.0) {
-				face = 5.0;
-				uvs = Linv.xy / Linv.z;
-				maj_axis = vec3(0.0, 0.0, 1.0);
-			}
-			else {
-				face = 4.0;
-				uvs = vec2(-1.0, 1.0) * Linv.xy / -Linv.z;
-				maj_axis = vec3(0.0, 0.0, -1.0);
-			}
-		}
+		float z = texture_octahedron(shadowCubes, vec4(cubevec, shid)).r;
 
-		uvs = uvs * 0.5 + 0.5;
+		float esm_test = saturate(exp(scd.sh_cube_exp * (z - dist)));
+		float sh_test = step(0, z - dist);
 
-		/* Depth in lightspace to compare against shadow map */
-		float w = dot(maj_axis, sd.l_vector);
-		w -= scd.sh_map_bias * w;
-		bool is_persp = (ProjectionMatrix[3][3] == 0.0);
-		float shdepth = buffer_depth(is_persp, w, scd.sh_cube_far, scd.sh_cube_near);
-
-		vis *= texture(shadowCubes, vec4(uvs, shid * 6.0 + face, shdepth));
+		vis *= esm_test;
 	}
-
-	return vis;
 }
 
-vec3 light_fresnel(LightData ld, ShadingData sd, vec3 f0)
+vec3 probe_parallax_correction(vec3 W, vec3 spec_dir, ProbeData pd, inout float roughness)
 {
-	vec3 H = normalize(sd.L + sd.V);
-	float NH = max(dot(sd.N, H), 1e-8);
+	vec3 localpos = (pd.parallaxmat * vec4(W, 1.0)).xyz;
+	vec3 localray = (pd.parallaxmat * vec4(spec_dir, 0.0)).xyz;
 
-	return F_schlick(f0, NH);
-}
-
-/* Calculation common to all bsdfs */
-float light_common(inout LightData ld, inout ShadingData sd)
-{
-	float vis = 1.0;
-
-	if (ld.l_type == SUN) {
-		sd.L = -ld.l_forward;
+	float dist;
+	if (pd.p_parallax_type == PROBE_PARALLAX_BOX) {
+		dist = line_unit_box_intersect_dist(localpos, localray);
 	}
 	else {
-		sd.L = sd.l_vector / sd.l_distance;
+		dist = line_unit_sphere_intersect_dist(localpos, localray);
 	}
 
-	if (ld.l_type == AREA) {
-		sd.area_data.corner[0] = sd.l_vector + ld.l_right * -ld.l_sizex + ld.l_up *  ld.l_sizey;
-		sd.area_data.corner[1] = sd.l_vector + ld.l_right * -ld.l_sizex + ld.l_up * -ld.l_sizey;
-		sd.area_data.corner[2] = sd.l_vector + ld.l_right *  ld.l_sizex + ld.l_up * -ld.l_sizey;
-		sd.area_data.corner[3] = sd.l_vector + ld.l_right *  ld.l_sizex + ld.l_up *  ld.l_sizey;
-#ifndef USE_LTC
-		sd.area_data.solid_angle = rectangle_solid_angle(sd.area_data);
-#endif
+	/* Use Distance in WS directly to recover intersection */
+	vec3 intersection = W + spec_dir * dist - pd.p_position;
+
+	/* From Frostbite PBR Course
+	 * Distance based roughness
+	 * http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_moving_frostbite_to_pbr.pdf */
+	float original_roughness = roughness;
+	float linear_roughness = sqrt(roughness);
+	float distance_roughness = saturate(dist * linear_roughness / length(intersection));
+	linear_roughness = mix(distance_roughness, linear_roughness, linear_roughness);
+	roughness = linear_roughness * linear_roughness;
+
+	float fac = saturate(original_roughness * 2.0 - 1.0);
+	return mix(intersection, spec_dir, fac * fac);
+}
+
+float probe_attenuation(vec3 W, ProbeData pd)
+{
+	vec3 localpos = (pd.influencemat * vec4(W, 1.0)).xyz;
+
+	float fac;
+	if (pd.p_atten_type == PROBE_ATTENUATION_BOX) {
+		vec3 axes_fac = saturate(pd.p_atten_fac - pd.p_atten_fac * abs(localpos));
+		fac = min_v3(axes_fac);
+	}
+	else {
+		fac = saturate(pd.p_atten_fac - pd.p_atten_fac * length(localpos));
 	}
 
-	return vis;
+	return fac;
 }
 
 vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness, float ao)
 {
+	roughness = clamp(roughness, 1e-8, 0.9999);
 	float roughnessSquared = roughness * roughness;
 
 	ShadingData sd;
 	sd.N = normalize(world_normal);
 	sd.V = (ProjectionMatrix[3][3] == 0.0) /* if perspective */
 	            ? normalize(cameraPos - worldPosition)
-	            : normalize(eye);
+	            : cameraForward;
 	sd.W = worldPosition;
-	sd.R = reflect(-sd.V, sd.N);
-	sd.spec_dominant_dir = get_specular_dominant_dir(sd.N, sd.R, roughnessSquared);
 
 	vec3 radiance = vec3(0.0);
-	vec3 indirect_radiance = vec3(0.0);
-
 	/* Analitic Lights */
 	for (int i = 0; i < MAX_LIGHT && i < light_count; ++i) {
 		LightData ld = lights_data[i];
+		vec3 diff, spec;
+		float vis;
 
 		sd.l_vector = ld.l_position - worldPosition;
-		sd.l_distance = length(sd.l_vector);
 
-		light_common(ld, sd);
-
-		float vis = light_visibility(ld, sd);
-		vec3 spec = light_specular(ld, sd, roughnessSquared, f0);
-		vec3 diff = light_diffuse(ld, sd, albedo);
+		light_visibility(ld, sd, vis);
+		light_shade(ld, sd, albedo, roughnessSquared, f0, diff, spec);
 
 		radiance += vis * (diff + spec) * ld.l_color;
 	}
 
-	/* Envmaps */
-	vec2 uv = ltc_coords(dot(sd.N, sd.V), sqrt(roughness));
-	vec2 brdf_lut = texture(brdfLut, uv).rg;
-	vec3 Li = textureLod(probeFiltered, sd.spec_dominant_dir, roughness * lodMax).rgb;
-	indirect_radiance += Li * brdf_lut.y + f0 * Li * brdf_lut.x;
 
-	indirect_radiance += spherical_harmonics(sd.N, shCoefs) * albedo;
+	/* Envmaps */
+	vec3 R = reflect(-sd.V, sd.N);
+	vec3 spec_dir = get_specular_dominant_dir(sd.N, R, roughnessSquared);
+	vec2 uv = lut_coords(dot(sd.N, sd.V), roughness);
+	vec2 brdf_lut = texture(utilTex, vec3(uv, 1.0)).rg;
+
+	vec4 spec_accum = vec4(0.0);
+	vec4 diff_accum = vec4(0.0);
+
+	/* Specular probes */
+	/* Start at 1 because 0 is world probe */
+	for (int i = 1; i < MAX_PROBE && i < probe_count; ++i) {
+		ProbeData pd = probes_data[i];
+
+		float dist_attenuation = probe_attenuation(sd.W, pd);
+
+		if (dist_attenuation > 0.0) {
+			float roughness_copy = roughness;
+
+			vec3 sample_vec = probe_parallax_correction(sd.W, spec_dir, pd, roughness_copy);
+			vec4 sample = textureLod_octahedron(probeCubes, vec4(sample_vec, i), roughness_copy * lodMax).rgba;
+
+			float influ_spec = min(dist_attenuation, (1.0 - spec_accum.a));
+
+			spec_accum.rgb += sample.rgb * influ_spec;
+			spec_accum.a += influ_spec;
+		}
+	}
+
+	/* World probe */
+	if (spec_accum.a < 1.0 || diff_accum.a < 1.0) {
+		ProbeData pd = probes_data[0];
+
+		vec3 spec = textureLod_octahedron(probeCubes, vec4(spec_dir, 0), roughness * lodMax).rgb;
+		vec3 diff = spherical_harmonics(sd.N, pd.shcoefs);
+
+		diff_accum.rgb += diff * (1.0 - diff_accum.a);
+		spec_accum.rgb += spec * (1.0 - spec_accum.a);
+	}
+
+	vec3 indirect_radiance =
+	        spec_accum.rgb * F_ibl(f0, brdf_lut) +
+	        diff_accum.rgb * albedo;
 
 	return radiance + indirect_radiance * ao;
 }

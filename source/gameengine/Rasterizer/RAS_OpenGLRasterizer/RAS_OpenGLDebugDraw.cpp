@@ -52,10 +52,10 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw():
 	const char *v =
 		"#version 330\n"
 		"uniform mat4 ModelViewProjectionMatrix;\n"
-		"in vec4 pos;\n"
+		"in vec4 bgeDebugPos;\n"
 		"void main()\n"
 		"{\n"
-		"	gl_Position = ModelViewProjectionMatrix * pos;\n"
+		"	gl_Position = ModelViewProjectionMatrix * bgeDebugPos;\n"
 		"}\n";
 
 	const char *f =
@@ -81,7 +81,7 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw():
 	glAttachShader(m_genericProg, vertexShader);
 	glAttachShader(m_genericProg, fragmentShader);
 
-	glBindAttribLocation(m_genericProg, 0, "pos");
+	glBindAttribLocation(m_genericProg, 0, "bgeDebugPos");
 
 	glLinkProgram(m_genericProg);
 

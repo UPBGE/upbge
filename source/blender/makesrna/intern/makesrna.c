@@ -3321,7 +3321,6 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_context.c", NULL, RNA_def_context},
 	{"rna_controller.c", "rna_controller_api.c", RNA_def_controller},
 	{"rna_curve.c", "rna_curve_api.c", RNA_def_curve},
-	{"rna_depsgraph.c", NULL, RNA_def_depsgraph},
 	{"rna_dynamicpaint.c", NULL, RNA_def_dynamic_paint},
 	{"rna_fcurve.c", "rna_fcurve_api.c", RNA_def_fcurve},
 	{"rna_fluidsim.c", NULL, RNA_def_fluidsim},
@@ -3341,12 +3340,14 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_nodetree.c", NULL, RNA_def_nodetree},
 	{"rna_object.c", "rna_object_api.c", RNA_def_object},
 	{"rna_object_force.c", NULL, RNA_def_object_force},
+	{"rna_depsgraph.c", NULL, RNA_def_depsgraph},
 	{"rna_packedfile.c", NULL, RNA_def_packedfile},
 	{"rna_palette.c", NULL, RNA_def_palette},
 	{"rna_particle.c", NULL, RNA_def_particle},
 	{"rna_pose.c", "rna_pose_api.c", RNA_def_pose},
-	{"rna_python_component.c", NULL, RNA_def_py_component},
+	{"rna_probe.c", NULL, RNA_def_probe},
 	{"rna_property.c", NULL, RNA_def_gameproperty},
+	{"rna_python_component.c", NULL, RNA_def_py_component},
 	{"rna_render.c", NULL, RNA_def_render},
 	{"rna_rigidbody.c", NULL, RNA_def_rigidbody},
 	{"rna_scene.c", "rna_scene_api.c", RNA_def_scene},
@@ -3365,6 +3366,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_userdef.c", NULL, RNA_def_userdef},
 	{"rna_vfont.c", "rna_vfont_api.c", RNA_def_vfont},
 	{"rna_wm.c", "rna_wm_api.c", RNA_def_wm},
+	{"rna_workspace.c", NULL, RNA_def_workspace},
 	{"rna_world.c", NULL, RNA_def_world},
 	{"rna_movieclip.c", NULL, RNA_def_movieclip},
 	{"rna_tracking.c", NULL, RNA_def_tracking},
@@ -3747,7 +3749,7 @@ static const char *cpp_classes = ""
 "template<typename T, TBeginFunc Tbegin, TNextFunc Tnext, TEndFunc Tend>\n"
 "class CollectionIterator {\n"
 "public:\n"
-"	CollectionIterator() : t(iter.ptr), init(false) { iter.valid = false; }\n"
+"	CollectionIterator() : iter(), t(iter.ptr), init(false) { iter.valid = false; }\n"
 "	~CollectionIterator(void) { if (init) Tend(&iter); };\n"
 "\n"
 "	operator bool(void)\n"

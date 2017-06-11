@@ -1,4 +1,4 @@
-in vec4 pos;
+in vec4 bgeOfsPos;
 uniform mat4 ProjectionMatrix;
 uniform mat4 ModelViewMatrix;
 
@@ -15,8 +15,8 @@ void main()
 						vec4(ininstmatrix[2], ininstposition.z),
 						vec4(0.0, 0.0, 0.0, 1.0));
 
-	gl_Position = ProjectionMatrix * ModelViewMatrix * (pos * instmat);
+	gl_Position = ProjectionMatrix * ModelViewMatrix * (bgeOfsPos * instmat);
 #else
-	gl_Position = ProjectionMatrix * ModelViewMatrix * pos;
+	gl_Position = ProjectionMatrix * ModelViewMatrix * bgeOfsPos;
 #endif
 }

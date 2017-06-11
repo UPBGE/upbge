@@ -363,21 +363,6 @@ static unsigned int KX_Mcol2uint_new(MCol col)
 	return out_color.integer;
 }
 
-static void SetDefaultLightMode(Depsgraph *depsgraph)
-{
-	default_light_mode = false;
-
-	DEG_OBJECT_ITER(depsgraph, blenderobject)
-	{
-		if (blenderobject->type == OB_LAMP)
-		{
-			default_light_mode = true;
-			return;
-		}
-	}
-	DEG_OBJECT_ITER_END
-}
-
 static void GetRGB(
         MFace* mface,
 		const RAS_MeshObject::LayerList& layers,
@@ -1531,15 +1516,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
 	}
 
-	SetDefaultLightMode(depsgraph);
-
 	blenderSceneSetBackground(blenderscene);
 
 	// Let's support scene set.
 	// Beware of name conflict in linked data, it will not crash but will create confusion
 	// in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
 	// no conflicting name for Object, Object data and Action.
-	DEG_OBJECT_ITER(depsgraph, blenderobject)
+	DEG_OBJECT_ITER(depsgraph, blenderobject, DEG_OBJECT_ITER_FLAG_ALL)
 	{
 		allblobj.insert(blenderobject);
 

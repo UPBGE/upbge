@@ -27,7 +27,7 @@
 
 #include <algorithm>
 
-#if !defined(WIN32) || defined(FREE_WINDOWS)
+#if !defined(WIN32)
 #include <iostream>
 #endif
 
@@ -472,11 +472,9 @@ void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *me)
 				COLLADAFW::MeshVertexData::InputInfos *info = collada_mesh->getUVCoords().getInputInfosArray()[i];
 				COLLADAFW::String &uvname = info->mName;
 				// Allocate space for UV_data
-				CustomData_add_layer_named(&me->pdata, CD_MTEXPOLY, CD_DEFAULT, NULL, me->totpoly, uvname.c_str());
 				CustomData_add_layer_named(&me->ldata, CD_MLOOPUV, CD_DEFAULT, NULL, me->totloop, uvname.c_str());
 			}
 			// activate the first uv map
-			me->mtpoly  = (MTexPoly *)CustomData_get_layer_n(&me->pdata, CD_MTEXPOLY, 0);
 			me->mloopuv = (MLoopUV *) CustomData_get_layer_n(&me->ldata, CD_MLOOPUV, 0);
 		}
 
@@ -1051,11 +1049,11 @@ void MeshImporter::optimize_material_assignements()
  * which materials shall be moved to the created geometries. Also see
  * optimize_material_assignements() above.
  */
-MTFace *MeshImporter::assign_material_to_geom(COLLADAFW::MaterialBinding cmaterial,
-                                              std::map<COLLADAFW::UniqueId, Material *>& uid_material_map,
-                                              Object *ob, const COLLADAFW::UniqueId *geom_uid,
-                                              char *layername, MTFace *texture_face,
-                                              std::map<Material *, TexIndexTextureArrayMap>& material_texture_mapping_map, short mat_index)
+void MeshImporter::assign_material_to_geom(
+        COLLADAFW::MaterialBinding cmaterial,
+        std::map<COLLADAFW::UniqueId, Material *>& uid_material_map,
+        Object *ob, const COLLADAFW::UniqueId *geom_uid,
+        std::map<Material *, TexIndexTextureArrayMap>& material_texture_mapping_map, short mat_index)
 {
 	MTex *color_texture = NULL;
 	Mesh *me = (Mesh *)ob->data;
@@ -1065,7 +1063,7 @@ MTFace *MeshImporter::assign_material_to_geom(COLLADAFW::MaterialBinding cmateri
 	if (uid_material_map.find(ma_uid) == uid_material_map.end()) {
 		
 		fprintf(stderr, "Cannot find material by UID.\n");
-		return NULL;
+		return;
 	}
 
 	// first time we get geom_uid, ma_uid pair. Save for later check.
@@ -1089,15 +1087,6 @@ MTFace *MeshImporter::assign_material_to_geom(COLLADAFW::MaterialBinding cmateri
 		                                            color_texture);
 	}
 	
-	// set texture face
-	if (color_texture &&
-	    strlen((color_texture)->uvname) &&
-	    !STREQ(layername, color_texture->uvname)) {
-		texture_face = (MTFace *)CustomData_get_layer_named(&me->fdata, CD_MTFACE,
-		                                                    color_texture->uvname);
-		strcpy(layername, color_texture->uvname);
-	}
-	
 	MaterialIdPrimitiveArrayMap& mat_prim_map = geom_uid_mat_mapping_map[*geom_uid];
 	COLLADAFW::MaterialId mat_id = cmaterial.getMaterialId();
 	
@@ -1114,15 +1103,9 @@ MTFace *MeshImporter::assign_material_to_geom(COLLADAFW::MaterialBinding cmateri
 
 			for (i = 0; i < prim.totpoly; i++, mpoly++) {
 				mpoly->mat_nr = mat_index;
-				// bind texture images to faces
-				if (texture_face && color_texture) {
-					texture_face->tpage = (Image *)color_texture->tex->ima;
-					texture_face++;
-				}
 			}
 		}
 	}	
-	return texture_face;
 }
 
 Object *MeshImporter::create_mesh_object(COLLADAFW::Node *node, COLLADAFW::InstanceGeometry *geom,
@@ -1175,10 +1158,6 @@ Object *MeshImporter::create_mesh_object(COLLADAFW::Node *node, COLLADAFW::Insta
 
 	if (old_mesh->id.us == 0) BKE_libblock_free(G.main, old_mesh);
 	
-	char layername[100];
-	layername[0] = '\0';
-	MTFace *texture_face = NULL;
-	
 	COLLADAFW::MaterialBindingArray& mat_array =
 	    geom->getMaterialBindings();
 	
@@ -1186,9 +1165,9 @@ Object *MeshImporter::create_mesh_object(COLLADAFW::Node *node, COLLADAFW::Insta
 	for (unsigned int i = 0; i < mat_array.getCount(); i++) {
 		
 		if (mat_array[i].getReferencedMaterial().isValid()) {
-			texture_face = assign_material_to_geom(mat_array[i], uid_material_map, ob, geom_uid,
-			                                       layername, texture_face,
-			                                       material_texture_mapping_map, i);
+			assign_material_to_geom(
+			        mat_array[i], uid_material_map, ob, geom_uid,
+			        material_texture_mapping_map, i);
 		}
 		else {
 			fprintf(stderr, "invalid referenced material for %s\n", mat_array[i].getName().c_str());
