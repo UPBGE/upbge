@@ -69,3 +69,7 @@ base class --- :class:`PyObjectPlus`
          * False: you get the "global" velocity ie: relative to world orientation.
          * True: you get the "local" velocity ie: relative to object orientation.
       :type local: boolean
+
+   .. method:: reset()
+
+      Resets the character velocity and walk direction.

@@ -36,6 +36,8 @@ public:
 	virtual void SetJumpSpeed(float jumpSpeed) = 0;
 
 	virtual void SetVelocity(const MT_Vector3& vel, float time, bool local) = 0;
+
+	virtual void Reset() = 0;
 };
 
 #endif //__PHY_ICHARACTER_H__

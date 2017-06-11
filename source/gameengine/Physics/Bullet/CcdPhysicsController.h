@@ -42,6 +42,7 @@ extern float gLinearSleepingTreshold;
 extern float gAngularSleepingTreshold;
 extern bool gDisableDeactivation;
 class CcdPhysicsEnvironment;
+class CcdPhysicsController;
 class btMotionState;
 class RAS_MeshObject;
 struct DerivedMesh;
@@ -433,12 +434,13 @@ class btPairCachingGhostObject;
 class BlenderBulletCharacterController : public btKinematicCharacterController, public PHY_ICharacter
 {
 private:
+	CcdPhysicsController *m_ctrl;
 	btMotionState *m_motionState;
 	unsigned char m_jumps;
 	unsigned char m_maxJumps;
 
 public:
-	BlenderBulletCharacterController(btMotionState *motionState, btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight);
+	BlenderBulletCharacterController(CcdPhysicsController *ctrl, btMotionState *motionState, btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight);
 
 	virtual void updateAction(btCollisionWorld *collisionWorld, btScalar dt);
 
@@ -504,6 +506,8 @@ public:
 	virtual void SetJumpSpeed(float jumpSpeed);
 
 	virtual void SetVelocity(const MT_Vector3& vel, float time, bool local);
+
+	virtual void Reset();
 };
 
 class CleanPairCallback : public btOverlapCallback

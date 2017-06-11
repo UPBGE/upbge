@@ -199,6 +199,7 @@ int KX_CharacterWrapper::pyattr_set_walk_dir(PyObjectPlus *self_v, const KX_PYAT
 PyMethodDef KX_CharacterWrapper::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(KX_CharacterWrapper, jump),
 	KX_PYMETHODTABLE(KX_CharacterWrapper, setVelocity),
+	KX_PYMETHODTABLE_NOARGS(KX_CharacterWrapper, reset),
 	{nullptr,nullptr} //Sentinel
 };
 
@@ -212,8 +213,8 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_CharacterWrapper, jump,
 }
 
 KX_PYMETHODDEF_DOC(KX_CharacterWrapper, setVelocity,
-	"jump()\n"
-	"makes the character jump.\n")
+	"setVelocity(velocity, time, local=False)\n"
+	"set the character velocity for time period.\n")
 {
 	PyObject *pyvect;
 	float time;
@@ -229,6 +230,15 @@ KX_PYMETHODDEF_DOC(KX_CharacterWrapper, setVelocity,
 	}
 
 	m_character->SetVelocity(velocity, time, local);
+
+	Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC_NOARGS(KX_CharacterWrapper, reset,
+	"reset()\n"
+	"reset the character velocity and walk direction.\n")
+{
+	m_character->Reset();
 
 	Py_RETURN_NONE;
 }

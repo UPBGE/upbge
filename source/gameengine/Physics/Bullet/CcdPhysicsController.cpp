@@ -63,8 +63,10 @@ extern bool gDisableDeactivation;
 float gLinearSleepingTreshold;
 float gAngularSleepingTreshold;
 
-BlenderBulletCharacterController::BlenderBulletCharacterController(btMotionState *motionState, btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight)
+BlenderBulletCharacterController::BlenderBulletCharacterController(CcdPhysicsController *ctrl, btMotionState *motionState,
+																   btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight)
 	:btKinematicCharacterController(ghost, shape, stepHeight, 2),
+	m_ctrl(ctrl),
 	m_motionState(motionState),
 	m_jumps(0),
 	m_maxJumps(1)
@@ -149,6 +151,12 @@ void BlenderBulletCharacterController::SetVelocity(const MT_Vector3& vel, float 
 {
 	btVector3 vec = btVector3(vel[0], vel[1], vel[2]);
 	SetVelocity(vec, time, local);
+}
+
+void BlenderBulletCharacterController::Reset()
+{
+	btCollisionWorld *world = m_ctrl->GetPhysicsEnvironment()->GetDynamicsWorld();
+	reset(world);
 }
 
 bool CleanPairCallback::processOverlap(btBroadphasePair &pair)
@@ -550,7 +558,8 @@ bool CcdPhysicsController::CreateCharacterController()
 	m_bulletMotionState->getWorldTransform(trans);
 	m_object->setWorldTransform(trans);
 
-	m_characterController = new BlenderBulletCharacterController(m_bulletMotionState, (btPairCachingGhostObject *)m_object, (btConvexShape *)m_collisionShape, m_cci.m_stepHeight);
+	m_characterController = new BlenderBulletCharacterController(this, m_bulletMotionState, (btPairCachingGhostObject *)m_object,
+																 (btConvexShape *)m_collisionShape, m_cci.m_stepHeight);
 
 	m_characterController->setJumpSpeed(m_cci.m_jumpSpeed);
 	m_characterController->setFallSpeed(m_cci.m_fallSpeed);
