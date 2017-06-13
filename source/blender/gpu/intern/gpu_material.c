@@ -2461,16 +2461,23 @@ GPUMaterial *GPU_material_from_eevee(Scene *scene, Material *ma,
 
 	if (ma->nodetree && ma->use_nodes) {
 		/* create nodes */
-		ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_NEW_SHADING);
+		GPU_nodes_get_vertex_attributes(&mat->nodes, &mat->attribs);
+		ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_NEWER_SHADING);
+		/* Let Draw manager finish the construction. */
+		if (mat->outlink) {
+			outlink = mat->outlink;
+			mat->pass = GPU_generate_pass_new(&mat->nodes, outlink, vert_code, geom_code, frag_lib, defines);
+		}
 	}
-	
-	/* create blender material first */
-	outlink = GPU_blender_material(mat, ma);
-	/* Replace material pass */
-	GPU_nodes_get_vertex_attributes(&mat->nodes, &mat->attribs);
-	mat->pass = GPU_generate_pass_new(&mat->nodes, outlink, vert_code, geom_code, frag_lib, defines);	
+	else {
+		/* create blender material first */
+		outlink = GPU_blender_material(mat, ma);
+		/* Replace material pass */
+		GPU_nodes_get_vertex_attributes(&mat->nodes, &mat->attribs);
+		mat->pass = GPU_generate_pass_new(&mat->nodes, outlink, vert_code, geom_code, frag_lib, defines);
 
-	GPU_material_output_link(mat, outlink);
+		GPU_material_output_link(mat, outlink);
+	}
 
 	link = MEM_callocN(sizeof(LinkData), "GPUMaterialLink");
 	link->data = mat;
