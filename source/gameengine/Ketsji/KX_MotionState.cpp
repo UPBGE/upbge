@@ -35,66 +35,40 @@
 KX_MotionState::KX_MotionState(SG_Node *node)
 	:m_node(node)
 {
-
 }
 
 KX_MotionState::~KX_MotionState()
 {
 }
 
-void KX_MotionState::GetWorldPosition(float& posX, float& posY, float& posZ)
+MT_Vector3 KX_MotionState::GetWorldPosition() const
 {
-	const MT_Vector3& pos = m_node->GetWorldPosition();
-	posX = pos[0];
-	posY = pos[1];
-	posZ = pos[2];
+	return m_node->GetWorldPosition();
 }
 
-void KX_MotionState::GetWorldScaling(float& scaleX, float& scaleY, float& scaleZ)
+MT_Vector3 KX_MotionState::GetWorldScaling() const
 {
-	const MT_Vector3& scale = m_node->GetWorldScaling();
-	scaleX = scale[0];
-	scaleY = scale[1];
-	scaleZ = scale[2];
+	return m_node->GetWorldScaling();
 }
 
-void KX_MotionState::GetWorldOrientation(float& quatIma0, float& quatIma1, float& quatIma2, float& quatReal)
+MT_Matrix3x3 KX_MotionState::GetWorldOrientation() const
 {
-	MT_Quaternion orn = m_node->GetWorldOrientation().getRotation();
-	quatIma0 = orn[0];
-	quatIma1 = orn[1];
-	quatIma2 = orn[2];
-	quatReal = orn[3];
+	return m_node->GetWorldOrientation();
 }
 
-void KX_MotionState::GetWorldOrientation(float *ori)
-{
-	const MT_Matrix3x3& mat = m_node->GetWorldOrientation();
-	mat.getValue(ori);
-}
-
-void KX_MotionState::SetWorldOrientation(const float *ori)
+void KX_MotionState::SetWorldOrientation(const MT_Matrix3x3& ori)
 {
 	m_node->SetLocalOrientation(ori);
 }
 
-void KX_MotionState::SetWorldPosition(float posX, float posY, float posZ)
+void KX_MotionState::SetWorldPosition(const MT_Vector3& pos)
 {
-	m_node->SetLocalPosition(MT_Vector3(posX, posY, posZ));
-	//m_node->SetWorldPosition(MT_Vector3(posX,posY,posZ));
+	m_node->SetLocalPosition(pos);
 }
 
-void KX_MotionState::SetWorldOrientation(float quatIma0, float quatIma1, float quatIma2, float quatReal)
+void KX_MotionState::SetWorldOrientation(const MT_Quaternion& quat)
 {
-	MT_Quaternion orn;
-	orn[0] = quatIma0;
-	orn[1] = quatIma1;
-	orn[2] = quatIma2;
-	orn[3] = quatReal;
-
-	m_node->SetLocalOrientation(MT_Matrix3x3(orn));
-	//m_node->SetWorldOrientation(orn);
-
+	m_node->SetLocalOrientation(MT_Matrix3x3(quat));
 }
 
 void KX_MotionState::CalculateWorldTransformations()

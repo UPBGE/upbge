@@ -55,6 +55,7 @@ set(SRC
 	CcdPhysicsController.cpp
 	CcdGraphicController.cpp
 
+	CcdMathUtils.h
 	CcdGraphicController.h
 	CcdPhysicsController.h
 	CcdPhysicsEnvironment.h

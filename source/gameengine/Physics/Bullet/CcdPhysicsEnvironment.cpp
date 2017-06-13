@@ -19,6 +19,7 @@
 #include "CcdPhysicsEnvironment.h"
 #include "CcdPhysicsController.h"
 #include "CcdGraphicController.h"
+#include "CcdMathUtils.h"
 
 #include <algorithm>
 #include "btBulletDynamicsCommon.h"
@@ -65,8 +66,6 @@ static btRaycastVehicle::btVehicleTuning gTuning;
 
 #endif //NEW_BULLET_VEHICLE_SUPPORT
 #include "LinearMath/btAabbUtil2.h"
-#include "MT_Matrix4x4.h"
-#include "MT_Vector3.h"
 #include "MT_MinMax.h"
 
 #ifdef WIN32
@@ -225,11 +224,7 @@ public:
 	    float wheelRadius,
 	    bool hasSteering)
 	{
-		btVector3 connectionPointCS0(connectionPoint[0], connectionPoint[1], connectionPoint[2]);
-		btVector3 wheelDirectionCS0(downDirection[0], downDirection[1], downDirection[2]);
-		btVector3 wheelAxle(axleDirection[0], axleDirection[1], axleDirection[2]);
-
-		btWheelInfo& info = m_vehicle->addWheel(connectionPointCS0, wheelDirectionCS0, wheelAxle,
+		btWheelInfo& info = m_vehicle->addWheel(ToBullet(connectionPoint), ToBullet(downDirection), ToBullet(axleDirection),
 		                                        suspensionRestLength, wheelRadius, gTuning, hasSteering);
 		info.m_clientInfo = motionState;
 	}
@@ -241,13 +236,10 @@ public:
 		for (i = 0; i < numWheels; i++) {
 			btWheelInfo& info = m_vehicle->getWheelInfo(i);
 			PHY_IMotionState *motionState = (PHY_IMotionState *)info.m_clientInfo;
-			//		m_vehicle->updateWheelTransformsWS(info,false);
 			m_vehicle->updateWheelTransform(i, false);
-			btTransform trans = m_vehicle->getWheelInfo(i).m_worldTransform;
-			btQuaternion orn = trans.getRotation();
-			const btVector3& pos = trans.getOrigin();
-			motionState->SetWorldOrientation(orn.x(), orn.y(), orn.z(), orn[3]);
-			motionState->SetWorldPosition(pos.x(), pos.y(), pos.z());
+			const btTransform trans = m_vehicle->getWheelInfo(i).m_worldTransform;
+			motionState->SetWorldOrientation(ToMoto(trans.getRotation()));
+			motionState->SetWorldPosition(ToMoto(trans.getOrigin()));
 		}
 	}
 
@@ -256,27 +248,22 @@ public:
 		return m_vehicle->getNumWheels();
 	}
 
-	virtual void GetWheelPosition(int wheelIndex, float& posX, float& posY, float& posZ) const
+	virtual MT_Vector3 GetWheelPosition(int wheelIndex) const
 	{
 		if ((wheelIndex >= 0) && (wheelIndex < m_vehicle->getNumWheels())) {
-			btVector3 origin = m_vehicle->getWheelTransformWS(wheelIndex).getOrigin();
-
-			posX = origin.x();
-			posY = origin.y();
-			posZ = origin.z();
+			const btVector3 origin = m_vehicle->getWheelTransformWS(wheelIndex).getOrigin();
+			return ToMoto(origin);
 		}
+		return MT_Vector3(0.0f, 0.0f, 0.0f);
 	}
 
-	virtual void GetWheelOrientationQuaternion(int wheelIndex, float& quatX, float& quatY, float& quatZ, float& quatW) const
+	virtual MT_Quaternion GetWheelOrientationQuaternion(int wheelIndex) const
 	{
 		if ((wheelIndex >= 0) && (wheelIndex < m_vehicle->getNumWheels())) {
-			btQuaternion quat = m_vehicle->getWheelTransformWS(wheelIndex).getRotation();
-
-			quatX = quat.x();
-			quatY = quat.y();
-			quatZ = quat.z();
-			quatW = quat.w();
+			const btQuaternion quat = m_vehicle->getWheelTransformWS(wheelIndex).getRotation();
+			return ToMoto(quat);
 		}
+		return MT_Quaternion(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
 	virtual float GetWheelRotation(int wheelIndex) const
@@ -403,37 +390,6 @@ void CcdPhysicsEnvironment::SetDebugDrawer(btIDebugDraw *debugDrawer)
 		m_dynamicsWorld->setDebugDrawer(debugDrawer);
 	m_debugDrawer = debugDrawer;
 }
-
-#if 0
-static void DrawAabb(btIDebugDraw *debugDrawer, const btVector3& from, const btVector3& to, const btVector3& color)
-{
-	btVector3 halfExtents = (to - from) * 0.5f;
-	btVector3 center = (to + from) * 0.5f;
-	int i, j;
-
-	btVector3 edgecoord(1.f, 1.f, 1.f), pa, pb;
-	for (i = 0; i < 4; i++)
-	{
-		for (j = 0; j < 3; j++)
-		{
-			pa = btVector3(edgecoord[0] * halfExtents[0], edgecoord[1] * halfExtents[1],
-			               edgecoord[2] * halfExtents[2]);
-			pa += center;
-
-			int othercoord = j % 3;
-			edgecoord[othercoord] *= -1.f;
-			pb = btVector3(edgecoord[0] * halfExtents[0], edgecoord[1] * halfExtents[1],
-			               edgecoord[2] * halfExtents[2]);
-			pb += center;
-
-			debugDrawer->drawLine(pa, pb, color);
-		}
-		edgecoord = btVector3(-1.f, -1.f, -1.f);
-		if (i < 3)
-			edgecoord[i] *= -1.f;
-	}
-}
-#endif
 
 CcdPhysicsEnvironment::CcdPhysicsEnvironment(bool useDbvtCulling, btDispatcher *dispatcher, btOverlappingPairCache *pairCache)
 	:m_cullingCache(nullptr),
@@ -1955,7 +1911,7 @@ bool CcdPhysicsEnvironment::CullingTest(PHY_CullingCallback callback, void *user
 	if (nplanes > 6)
 		nplanes = 6;
 	for (int i = 0; i < nplanes; i++) {
-		planes_n[i].setValue(planes[i][0], planes[i][1], planes[i][2]);
+		planes_n[i] = ToBullet(planes[i]);
 		planes_o[i] = planes[i][3];
 	}
 	// if occlusionRes != 0 => occlusion culling
@@ -2415,7 +2371,7 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::CreateSphereController(float radi
 	cinfo.m_collisionFilterGroup = CcdConstructionInfo::SensorFilter;
 	cinfo.m_bSensor = true;
 	motionState->m_worldTransform.setIdentity();
-	motionState->m_worldTransform.setOrigin(btVector3(position[0], position[1], position[2]));
+	motionState->m_worldTransform.setOrigin(ToBullet(position));
 
 	CcdPhysicsController *sphereController = new CcdPhysicsController(cinfo);
 
@@ -2855,11 +2811,7 @@ struct BlenderDebugDraw : public btIDebugDraw
 	virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
 	{
 		if (m_debugMode > 0) {
-			MT_Vector3 kxfrom(from[0], from[1], from[2]);
-			MT_Vector3 kxto(to[0], to[1], to[2]);
-			MT_Vector4 kxcolor(color[0], color[1], color[2], 1.0f);
-
-			KX_RasterizerDrawDebugLine(kxfrom, kxto, kxcolor);
+			KX_RasterizerDrawDebugLine(ToMoto(from), ToMoto(to), MT_Vector4(color.x(), color.y(), color.z(), 1.0f));
 		}
 	}
 
@@ -3085,18 +3037,7 @@ void CcdPhysicsEnvironment::ConvertObject(KX_BlenderSceneConverter& converter, K
 	{
 		case OB_BOUND_SPHERE:
 		{
-			//float radius = objprop->m_radius;
-			//btVector3 inertiaHalfExtents (
-			//	radius,
-			//	radius,
-			//	radius);
-
-			//blender doesn't support multisphere, but for testing:
-
-			//bm = new MultiSphereShape(inertiaHalfExtents,,&trans.getOrigin(),&radius,1);
 			shapeInfo->m_shapeType = PHY_SHAPE_SPHERE;
-			// XXX We calculated the radius but didn't use it?
-			// objprop.m_boundobject.c.m_radius = MT_max(bb.m_extends[0], MT_max(bb.m_extends[1], bb.m_extends[2]));
 			bm = shapeInfo->CreateBulletShape(ci.m_margin);
 			break;
 		}
@@ -3211,12 +3152,10 @@ void CcdPhysicsEnvironment::ConvertObject(KX_BlenderSceneConverter& converter, K
 			MT_Vector3 relativePos = parentInvRot * ((gameNode->GetWorldPosition() - parentNode->GetWorldPosition()) * parentScale);
 			MT_Matrix3x3 relativeRot = parentInvRot * gameNode->GetWorldOrientation();
 
-			shapeInfo->m_childScale.setValue(relativeScale[0], relativeScale[1], relativeScale[2]);
+			shapeInfo->m_childScale = ToBullet(relativeScale);
 			bm->setLocalScaling(shapeInfo->m_childScale);
-			shapeInfo->m_childTrans.getOrigin().setValue(relativePos[0], relativePos[1], relativePos[2]);
-			float rot[12];
-			relativeRot.getValue(rot);
-			shapeInfo->m_childTrans.getBasis().setFromOpenGLSubMatrix(rot);
+			shapeInfo->m_childTrans.setOrigin(ToBullet(relativePos));
+			shapeInfo->m_childTrans.setBasis(ToBullet(relativeRot));
 
 			parentShapeInfo->AddShape(shapeInfo);
 			compoundShape->addChildShape(shapeInfo->m_childTrans, bm);
@@ -3285,7 +3224,7 @@ void CcdPhysicsEnvironment::ConvertObject(KX_BlenderSceneConverter& converter, K
 	ci.m_inertiaFactor = shapeprops->m_inertia / 0.4f;//defaults to 0.4, don't want to change behavior
 
 	ci.m_do_anisotropic = shapeprops->m_do_anisotropic;
-	ci.m_anisotropicFriction.setValue(shapeprops->m_friction_scaling[0], shapeprops->m_friction_scaling[1], shapeprops->m_friction_scaling[2]);
+	ci.m_anisotropicFriction = ToBullet(shapeprops->m_friction_scaling);
 
 	//do Fh, do Rot Fh
 	ci.m_do_fh = shapeprops->m_do_fh;

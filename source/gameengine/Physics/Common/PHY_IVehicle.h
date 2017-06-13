@@ -8,8 +8,11 @@
 
 //PHY_IVehicle provides a generic interface for (raycast based) vehicles. Mostly targetting 4 wheel cars and 2 wheel motorbikes.
 
-class PHY_IMotionState;
 #include "PHY_DynamicTypes.h"
+
+#include "MT_Quaternion.h"
+
+class PHY_IMotionState;
 
 class PHY_IVehicle
 {
@@ -29,8 +32,8 @@ public:
 
 	virtual int GetNumWheels() const = 0;
 
-	virtual void GetWheelPosition(int wheelIndex, float& posX, float& posY, float& posZ) const = 0;
-	virtual void GetWheelOrientationQuaternion(int wheelIndex, float& quatX, float& quatY, float& quatZ, float& quatW) const = 0;
+	virtual MT_Vector3 GetWheelPosition(int wheelIndex) const = 0;
+	virtual MT_Quaternion GetWheelOrientationQuaternion(int wheelIndex) const = 0;
 	virtual float GetWheelRotation(int wheelIndex) const = 0;
 
 	virtual int GetUserConstraintId() const = 0;

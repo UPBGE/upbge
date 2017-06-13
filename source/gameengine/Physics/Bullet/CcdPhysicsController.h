@@ -28,6 +28,8 @@
 
 #include "PHY_IPhysicsController.h"
 
+#include "CcdMathUtils.h"
+
 ///	PHY_IPhysicsController is the abstract simplified Interface to a physical object.
 ///	It contains the IMotionState and IDeformableMesh Interfaces.
 #include "btBulletDynamicsCommon.h"
@@ -489,14 +491,12 @@ public:
 	}
 	virtual void SetWalkDirection(const MT_Vector3& dir)
 	{
-		btVector3 vec = btVector3(dir[0], dir[1], dir[2]);
-		setWalkDirection(vec);
+		setWalkDirection(ToBullet(dir));
 	}
 
 	virtual MT_Vector3 GetWalkDirection()
 	{
-		btVector3 vec = getWalkDirection();
-		return MT_Vector3(vec[0], vec[1], vec[2]);
+		return ToMoto(getWalkDirection());
 	}
 
 	virtual float GetFallSpeed() const;
@@ -806,7 +806,7 @@ public:
 
 	void SetCenterOfMassTransform(btTransform& xform);
 
-	static btTransform& GetTransformFromMotionState(PHY_IMotionState *motionState);
+	static btTransform GetTransformFromMotionState(PHY_IMotionState *motionState);
 
 	void setAabb(const btVector3& aabbMin, const btVector3& aabbMax);
 
@@ -872,14 +872,13 @@ public:
 
 	virtual ~DefaultMotionState();
 
-	virtual void GetWorldPosition(float& posX, float& posY, float& posZ);
-	virtual void GetWorldScaling(float& scaleX, float& scaleY, float& scaleZ);
-	virtual void GetWorldOrientation(float& quatIma0, float& quatIma1, float& quatIma2, float& quatReal);
+	virtual MT_Vector3 GetWorldPosition() const;
+	virtual MT_Vector3 GetWorldScaling() const;
+	virtual MT_Matrix3x3 GetWorldOrientation() const;
 
-	virtual void SetWorldPosition(float posX, float posY, float posZ);
-	virtual void SetWorldOrientation(float quatIma0, float quatIma1, float quatIma2, float quatReal);
-	virtual void GetWorldOrientation(float *ori);
-	virtual void SetWorldOrientation(const float *ori);
+	virtual void SetWorldPosition(const MT_Vector3& pos);
+	virtual void SetWorldOrientation(const MT_Matrix3x3& ori);
+	virtual void SetWorldOrientation(const MT_Quaternion& quat);
 
 	virtual void CalculateWorldTransformations();
 

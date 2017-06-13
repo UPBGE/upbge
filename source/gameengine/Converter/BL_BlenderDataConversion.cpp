@@ -764,9 +764,7 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 	shapeProps->m_lin_drag = 1.0f - blenderobject->damping;
 	shapeProps->m_ang_drag = 1.0f - blenderobject->rdamping;
 	
-	shapeProps->m_friction_scaling[0] = blenderobject->anisotropicFriction[0]; 
-	shapeProps->m_friction_scaling[1] = blenderobject->anisotropicFriction[1];
-	shapeProps->m_friction_scaling[2] = blenderobject->anisotropicFriction[2];
+	shapeProps->m_friction_scaling = MT_Vector3(blenderobject->anisotropicFriction);
 	shapeProps->m_do_anisotropic = ((blenderobject->gameflag & OB_ANISOTROPIC_FRICTION) != 0);
 	
 	shapeProps->m_do_fh     = (blenderobject->gameflag & OB_DO_FH) != 0; 

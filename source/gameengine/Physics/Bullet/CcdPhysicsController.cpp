@@ -152,8 +152,7 @@ void BlenderBulletCharacterController::SetVelocity(btVector3 vel, float time, bo
 
 void BlenderBulletCharacterController::SetVelocity(const MT_Vector3& vel, float time, bool local)
 {
-	btVector3 vec = btVector3(vel[0], vel[1], vel[2]);
-	SetVelocity(vec, time, local);
+	SetVelocity(ToBullet(vel), time, local);
 }
 
 void BlenderBulletCharacterController::Reset()
@@ -232,20 +231,12 @@ int CcdPhysicsController::getNumCcdConstraintRefs() const
 	return m_ccdConstraintRefs.size();
 }
 
-btTransform& CcdPhysicsController::GetTransformFromMotionState(PHY_IMotionState *motionState)
+btTransform CcdPhysicsController::GetTransformFromMotionState(PHY_IMotionState *motionState)
 {
-	static btTransform trans;
-	btVector3 tmp;
-	motionState->GetWorldPosition(tmp.m_floats[0], tmp.m_floats[1], tmp.m_floats[2]);
-	trans.setOrigin(tmp);
+	const MT_Vector3 pos = motionState->GetWorldPosition();
+	const MT_Matrix3x3 mat = motionState->GetWorldOrientation();
 
-	float ori[12];
-	motionState->GetWorldOrientation(ori);
-	trans.getBasis().setFromOpenGLSubMatrix(ori);
-	//btQuaternion orn;
-	//motionState->getWorldOrientation(orn[0],orn[1],orn[2],orn[3]);
-	//trans.setRotation(orn);
-	return trans;
+	return btTransform(ToBullet(mat), ToBullet(pos));
 }
 
 class BlenderBulletMotionState : public btMotionState
@@ -260,20 +251,16 @@ public:
 
 	void getWorldTransform(btTransform& worldTrans) const
 	{
-		btVector3 pos;
-		float ori[12];
-
-		m_blenderMotionState->GetWorldPosition(pos.m_floats[0], pos.m_floats[1], pos.m_floats[2]);
-		m_blenderMotionState->GetWorldOrientation(ori);
-		worldTrans.setOrigin(pos);
-		worldTrans.getBasis().setFromOpenGLSubMatrix(ori);
+		const MT_Vector3 pos = m_blenderMotionState->GetWorldPosition();
+		const MT_Matrix3x3 mat = m_blenderMotionState->GetWorldOrientation();
+		worldTrans.setOrigin(ToBullet(pos));
+		worldTrans.setBasis(ToBullet(mat));
 	}
 
 	void setWorldTransform(const btTransform& worldTrans)
 	{
-		m_blenderMotionState->SetWorldPosition(worldTrans.getOrigin().getX(), worldTrans.getOrigin().getY(), worldTrans.getOrigin().getZ());
-		btQuaternion rotQuat = worldTrans.getRotation();
-		m_blenderMotionState->SetWorldOrientation(rotQuat[0], rotQuat[1], rotQuat[2], rotQuat[3]);
+		m_blenderMotionState->SetWorldPosition(ToMoto(worldTrans.getOrigin()));
+		m_blenderMotionState->SetWorldOrientation(ToMoto(worldTrans.getRotation()));
 		m_blenderMotionState->CalculateWorldTransformations();
 	}
 };
@@ -516,7 +503,7 @@ bool CcdPhysicsController::CreateSoftbody()
 					vertexInfo.setSoftBodyIndex(0);
 					btScalar maxDistSqr = 1e30;
 					btSoftBody::tNodeArray& nodes(psb->m_nodes);
-					btVector3 xyz = btVector3(vertex->getXYZ()[0], vertex->getXYZ()[1], vertex->getXYZ()[2]);
+					btVector3 xyz = ToBullet(vertex->xyz());
 					for (int n = 0; n < nodes.size(); n++) {
 						btScalar distSqr = (nodes[n].m_x - xyz).length2();
 						if (distSqr < maxDistSqr) {
@@ -534,8 +521,8 @@ bool CcdPhysicsController::CreateSoftbody()
 	btTransform startTrans;
 	rbci.m_motionState->getWorldTransform(startTrans);
 
-	m_MotionState->SetWorldPosition(startTrans.getOrigin().getX(), startTrans.getOrigin().getY(), startTrans.getOrigin().getZ());
-	m_MotionState->SetWorldOrientation(0.0f, 0.0f, 0.0f, 1.0f);
+	m_MotionState->SetWorldPosition(ToMoto(startTrans.getOrigin()));
+	m_MotionState->SetWorldOrientation(MT_Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
 
 	if (!m_prototypeTransformInitialized) {
 		m_prototypeTransformInitialized = true;
@@ -765,14 +752,14 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
 			btQuaternion worldquat;
 			btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
 			trs.getRotation(worldquat);
-			m_MotionState->SetWorldPosition(worldPos[0], worldPos[1], worldPos[2]);
-			m_MotionState->SetWorldOrientation(worldquat[0], worldquat[1], worldquat[2], worldquat[3]);
+			m_MotionState->SetWorldPosition(ToMoto(worldPos));
+			m_MotionState->SetWorldOrientation(ToMoto(worldquat));
 		}
 		else {
 			btVector3 aabbMin, aabbMax;
 			sb->getAabb(aabbMin, aabbMax);
 			btVector3 worldPos  = (aabbMax + aabbMin) * 0.5f;
-			m_MotionState->SetWorldPosition(worldPos[0], worldPos[1], worldPos[2]);
+			m_MotionState->SetWorldPosition(ToMoto(worldPos));
 		}
 		m_MotionState->CalculateWorldTransformations();
 		return true;
@@ -784,36 +771,14 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
 		const btTransform& xform = body->getCenterOfMassTransform();
 		const btMatrix3x3& worldOri = xform.getBasis();
 		const btVector3& worldPos = xform.getOrigin();
-		float ori[12];
-		worldOri.getOpenGLSubMatrix(ori);
-		m_MotionState->SetWorldOrientation(ori);
-		m_MotionState->SetWorldPosition(worldPos[0], worldPos[1], worldPos[2]);
+		m_MotionState->SetWorldOrientation(ToMoto(worldOri));
+		m_MotionState->SetWorldPosition(ToMoto(worldPos));
 		m_MotionState->CalculateWorldTransformations();
-
-		float scale[3];
-		m_MotionState->GetWorldScaling(scale[0], scale[1], scale[2]);
-		btVector3 scaling(scale[0], scale[1], scale[2]);
-		GetCollisionShape()->setLocalScaling(scaling);
 	}
-	else {
-		btVector3 worldPos;
-		btQuaternion worldquat;
 
-/*		m_MotionState->getWorldPosition(worldPos[0],worldPos[1],worldPos[2]);
-        m_MotionState->getWorldOrientation(worldquat[0],worldquat[1],worldquat[2],worldquat[3]);
-        btTransform oldTrans = m_body->getCenterOfMassTransform();
-        btTransform newTrans(worldquat,worldPos);
+	const MT_Vector3& scale = m_MotionState->GetWorldScaling();
+	GetCollisionShape()->setLocalScaling(ToBullet(scale));
 
-        SetCenterOfMassTransform(newTrans);
-        //need to keep track of previous position for friction effects...
-
-        m_MotionState->calculateWorldTransformations();
- */
-		float scale[3];
-		m_MotionState->GetWorldScaling(scale[0], scale[1], scale[2]);
-		btVector3 scaling(scale[0], scale[1], scale[2]);
-		GetCollisionShape()->setLocalScaling(scaling);
-	}
 	return true;
 }
 
@@ -823,7 +788,7 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
 
 void CcdPhysicsController::WriteMotionStateToDynamics(bool nondynaonly)
 {
-	btTransform& xform = CcdPhysicsController::GetTransformFromMotionState(m_MotionState);
+	btTransform xform = CcdPhysicsController::GetTransformFromMotionState(m_MotionState);
 	SetCenterOfMassTransform(xform);
 }
 
@@ -935,7 +900,7 @@ void CcdPhysicsController::RelativeTranslate(const MT_Vector3& dlocin, bool loca
 			return;
 		}
 
-		btVector3 dloc(dlocin.x(), dlocin.y(), dlocin.z());
+		btVector3 dloc = ToBullet(dlocin);
 		btTransform xform = m_object->getWorldTransform();
 
 		if (local)
@@ -957,10 +922,7 @@ void CcdPhysicsController::RelativeRotate(const MT_Matrix3x3& rotval, bool local
 			return;
 		}
 
-		btMatrix3x3 drotmat(rotval[0].x(), rotval[0].y(), rotval[0].z(),
-		                    rotval[1].x(), rotval[1].y(), rotval[1].z(),
-		                    rotval[2].x(), rotval[2].y(), rotval[2].z());
-
+		btMatrix3x3 drotmat = ToBullet(rotval);
 		btMatrix3x3 currentOrn;
 		GetWorldOrientation(currentOrn);
 
@@ -975,21 +937,19 @@ void CcdPhysicsController::RelativeRotate(const MT_Matrix3x3& rotval, bool local
 
 void CcdPhysicsController::GetWorldOrientation(btMatrix3x3& mat)
 {
-	float ori[12];
-	m_MotionState->GetWorldOrientation(ori);
-	mat.setFromOpenGLSubMatrix(ori);
+	const MT_Matrix3x3 ori = m_MotionState->GetWorldOrientation();
+	mat = ToBullet(ori);
 }
 
 MT_Matrix3x3 CcdPhysicsController::GetOrientation()
 {
-	btMatrix3x3 orn = m_object->getWorldTransform().getBasis();
-	return MT_Matrix3x3(orn[0][0], orn[0][1], orn[0][2], orn[1][0], orn[1][1], orn[1][2], orn[2][0], orn[2][1], orn[2][2]);
+	const btMatrix3x3 orn = m_object->getWorldTransform().getBasis();
+	return ToMoto(orn);
 }
 
 void CcdPhysicsController::SetOrientation(const MT_Matrix3x3& orn)
 {
-	btMatrix3x3 btmat(orn[0][0], orn[0][1], orn[0][2], orn[1][0], orn[1][1], orn[1][2], orn[2][0], orn[2][1], orn[2][2]);
-	SetWorldOrientation(btmat);
+	SetWorldOrientation(ToBullet(orn));
 }
 
 void CcdPhysicsController::SetWorldOrientation(const btMatrix3x3& orn)
@@ -999,13 +959,10 @@ void CcdPhysicsController::SetWorldOrientation(const btMatrix3x3& orn)
 		if (m_object->isStaticObject() && !m_cci.m_bSensor) {
 			m_object->setCollisionFlags(m_object->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
 		}
-		// not required
-		//m_MotionState->setWorldOrientation(quatImag0,quatImag1,quatImag2,quatReal);
 		btTransform xform  = m_object->getWorldTransform();
 		xform.setBasis(orn);
 		SetCenterOfMassTransform(xform);
-		// not required
-		//m_bulletMotionState->setWorldTransform(xform);
+
 		//only once!
 		if (!m_softBodyTransformInitialized && GetSoftBody()) {
 			m_softbodyStartTrans.setBasis(orn);
@@ -1029,7 +986,7 @@ void CcdPhysicsController::SetPosition(const MT_Vector3& pos)
 		// not required, this function is only used to update the physic controller
 		//m_MotionState->setWorldPosition(posX,posY,posZ);
 		btTransform xform  = m_object->getWorldTransform();
-		xform.setOrigin(btVector3(pos.x(), pos.y(), pos.z()));
+		xform.setOrigin(ToBullet(pos));
 		SetCenterOfMassTransform(xform);
 		if (!m_softBodyTransformInitialized)
 			m_softbodyStartTrans.setOrigin(xform.getOrigin());
@@ -1118,12 +1075,10 @@ void CcdPhysicsController::RestoreDynamics()
 	}
 }
 
-void CcdPhysicsController::GetPosition(MT_Vector3&   pos) const
+void CcdPhysicsController::GetPosition(MT_Vector3& pos) const
 {
 	const btTransform& xform = m_object->getWorldTransform();
-	pos[0] = xform.getOrigin().x();
-	pos[1] = xform.getOrigin().y();
-	pos[2] = xform.getOrigin().z();
+	pos = ToMoto(xform.getOrigin());
 }
 
 void CcdPhysicsController::SetScaling(const MT_Vector3& scale)
@@ -1132,7 +1087,7 @@ void CcdPhysicsController::SetScaling(const MT_Vector3& scale)
 	    !btFuzzyZero(m_cci.m_scaling.y() - scale.y()) ||
 	    !btFuzzyZero(m_cci.m_scaling.z() - scale.z()))
 	{
-		m_cci.m_scaling = btVector3(scale.x(), scale.y(), scale.z());
+		m_cci.m_scaling = ToBullet(scale);
 
 		if (m_object && m_object->getCollisionShape()) {
 			m_object->activate(true); // without this, sleeping objects scale wont be applied in bullet if python changes the scale - Campbell.
@@ -1149,16 +1104,9 @@ void CcdPhysicsController::SetScaling(const MT_Vector3& scale)
 
 void CcdPhysicsController::SetTransform()
 {
-	btVector3 pos;
-	btVector3 scale;
-	float ori[12];
-	m_MotionState->GetWorldPosition(pos.m_floats[0], pos.m_floats[1], pos.m_floats[2]);
-	m_MotionState->GetWorldScaling(scale.m_floats[0], scale.m_floats[1], scale.m_floats[2]);
-	m_MotionState->GetWorldOrientation(ori);
-	btMatrix3x3 rot(ori[0], ori[4], ori[8],
-	                ori[1], ori[5], ori[9],
-	                ori[2], ori[6], ori[10]);
-	ForceWorldTransform(rot, pos);
+	const MT_Vector3 pos = m_MotionState->GetWorldPosition();
+	const MT_Matrix3x3 rot = m_MotionState->GetWorldOrientation();
+	ForceWorldTransform(ToBullet(rot), ToBullet(pos));
 
 	if (!IsDynamic() && !GetConstructionInfo().m_bSensor && !GetCharacterController()) {
 		btCollisionObject *object = GetRigidBody();
@@ -1196,7 +1144,7 @@ void CcdPhysicsController::SetMass(MT_Scalar newmass)
 // physics methods
 void CcdPhysicsController::ApplyTorque(const MT_Vector3&  torquein, bool local)
 {
-	btVector3 torque(torquein.x(), torquein.y(), torquein.z());
+	btVector3 torque = ToBullet(torquein);
 	btTransform xform = m_object->getWorldTransform();
 
 
@@ -1230,7 +1178,7 @@ void CcdPhysicsController::ApplyTorque(const MT_Vector3&  torquein, bool local)
 
 void CcdPhysicsController::ApplyForce(const MT_Vector3& forcein, bool local)
 {
-	btVector3 force(forcein.x(), forcein.y(), forcein.z());
+	btVector3 force = ToBullet(forcein);
 
 	if (m_object && force.length2() > (SIMD_EPSILON * SIMD_EPSILON)) {
 		m_object->activate();
@@ -1258,7 +1206,7 @@ void CcdPhysicsController::ApplyForce(const MT_Vector3& forcein, bool local)
 }
 void CcdPhysicsController::SetAngularVelocity(const MT_Vector3& ang_vel, bool local)
 {
-	btVector3 angvel(ang_vel.x(), ang_vel.y(), ang_vel.z());
+	btVector3 angvel = ToBullet(ang_vel);
 
 	/* Refuse tiny tiny velocities, as they might cause instabilities. */
 	float vel_squared = angvel.length2();
@@ -1283,7 +1231,7 @@ void CcdPhysicsController::SetAngularVelocity(const MT_Vector3& ang_vel, bool lo
 }
 void CcdPhysicsController::SetLinearVelocity(const MT_Vector3& lin_vel, bool local)
 {
-	btVector3 linVel(lin_vel.x(), lin_vel.y(), lin_vel.z());
+	btVector3 linVel = ToBullet(lin_vel);
 
 	/* Refuse tiny tiny velocities, as they might cause instabilities. */
 	float vel_squared = linVel.length2();
@@ -1319,7 +1267,7 @@ void CcdPhysicsController::SetLinearVelocity(const MT_Vector3& lin_vel, bool loc
 void CcdPhysicsController::ApplyImpulse(const MT_Vector3& attach, const MT_Vector3& impulsein, bool local)
 {
 	btVector3 pos;
-	btVector3 impulse(impulsein.x(), impulsein.y(), impulsein.z());
+	btVector3 impulse = ToBullet(impulsein);
 
 	if (m_object && impulse.length2() > (SIMD_EPSILON * SIMD_EPSILON)) {
 		m_object->activate();
@@ -1332,13 +1280,13 @@ void CcdPhysicsController::ApplyImpulse(const MT_Vector3& attach, const MT_Vecto
 		btTransform xform = m_object->getWorldTransform();
 
 		if (local) {
-			pos = btVector3(attach.x(), attach.y(), attach.z());
+			pos = ToBullet(attach);
 			impulse = xform.getBasis() * impulse;
 		}
 		else {
 			/* If the point of impulse application is not equal to the object position
 			 * then an angular momentum is generated in the object*/
-			pos = btVector3(attach.x() - xform.getOrigin().x(), attach.y() - xform.getOrigin().y(), attach.z() - xform.getOrigin().z());
+			pos = ToBullet(attach) - xform.getOrigin();
 		}
 
 		btRigidBody *body = GetRigidBody();
@@ -1399,7 +1347,7 @@ MT_Vector3 CcdPhysicsController::GetLinearVelocity()
 	btRigidBody *body = GetRigidBody();
 	if (body) {
 		const btVector3& linvel = body->getLinearVelocity();
-		return MT_Vector3(linvel.x(), linvel.y(), linvel.z());
+		return ToMoto(linvel);
 	}
 
 	return MT_Vector3(0.0f, 0.0f, 0.0f);
@@ -1410,7 +1358,7 @@ MT_Vector3 CcdPhysicsController::GetAngularVelocity()
 	btRigidBody *body = GetRigidBody();
 	if (body) {
 		const btVector3& angvel = body->getAngularVelocity();
-		return MT_Vector3(angvel.x(), angvel.y(), angvel.z());
+		return ToMoto(angvel);
 	}
 
 	return MT_Vector3(0.0f, 0.0f, 0.0f);
@@ -1418,11 +1366,10 @@ MT_Vector3 CcdPhysicsController::GetAngularVelocity()
 
 MT_Vector3 CcdPhysicsController::GetVelocity(const MT_Vector3 &posin)
 {
-	btVector3 pos(posin.x(), posin.y(), posin.z());
 	btRigidBody *body = GetRigidBody();
 	if (body) {
-		btVector3 linvel = body->getVelocityInLocalPoint(pos);
-		return MT_Vector3(linvel.x(), linvel.y(), linvel.z());
+		btVector3 linvel = body->getVelocityInLocalPoint(ToBullet(posin));
+		return ToMoto(linvel);
 	}
 
 	return MT_Vector3(0.0f, 0.0f, 0.0f);
@@ -1538,7 +1485,7 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 	// store the transformation to this object shapeinfo
 	proxyShapeInfo->m_childTrans.setOrigin(relativePos);
 	proxyShapeInfo->m_childTrans.setBasis(relativeRot);
-	proxyShapeInfo->m_childScale.setValue(relativeScale[0], relativeScale[1], relativeScale[2]);
+	proxyShapeInfo->m_childScale = relativeScale;
 	// we will need this to make sure that we remove the right proxy later when unparenting
 	proxyShapeInfo->m_userData = childCtrl;
 	proxyShapeInfo->SetProxy(childCtrl->GetShapeInfo()->AddRef());
@@ -1758,48 +1705,33 @@ DefaultMotionState::~DefaultMotionState()
 {
 }
 
-void DefaultMotionState::GetWorldPosition(float& posX, float& posY, float& posZ)
+MT_Vector3 DefaultMotionState::GetWorldPosition() const
 {
-	posX = m_worldTransform.getOrigin().x();
-	posY = m_worldTransform.getOrigin().y();
-	posZ = m_worldTransform.getOrigin().z();
+	return ToMoto(m_worldTransform.getOrigin());
 }
 
-void DefaultMotionState::GetWorldScaling(float& scaleX, float& scaleY, float& scaleZ)
+MT_Vector3 DefaultMotionState::GetWorldScaling() const
 {
-	scaleX = m_localScaling.getX();
-	scaleY = m_localScaling.getY();
-	scaleZ = m_localScaling.getZ();
+	return ToMoto(m_localScaling);
 }
 
-void DefaultMotionState::GetWorldOrientation(float& quatIma0, float& quatIma1, float& quatIma2, float& quatReal)
+MT_Matrix3x3 DefaultMotionState::GetWorldOrientation() const
 {
-	btQuaternion quat = m_worldTransform.getRotation();
-	quatIma0 = quat.x();
-	quatIma1 = quat.y();
-	quatIma2 = quat.z();
-	quatReal = quat[3];
+	return ToMoto(m_worldTransform.getBasis());
 }
 
-void DefaultMotionState::GetWorldOrientation(float *ori)
+void DefaultMotionState::SetWorldOrientation(const MT_Matrix3x3& ori)
 {
-	m_worldTransform.getBasis().getOpenGLSubMatrix(ori);
+	m_worldTransform.setBasis(ToBullet(ori));
+}
+void DefaultMotionState::SetWorldPosition(const MT_Vector3& pos)
+{
+	m_worldTransform.setOrigin(ToBullet(pos));
 }
 
-void DefaultMotionState::SetWorldOrientation(const float *ori)
+void DefaultMotionState::SetWorldOrientation(const MT_Quaternion& quat)
 {
-	m_worldTransform.getBasis().setFromOpenGLSubMatrix(ori);
-}
-void DefaultMotionState::SetWorldPosition(float posX, float posY, float posZ)
-{
-	btVector3 pos(posX, posY, posZ);
-	m_worldTransform.setOrigin(pos);
-}
-
-void DefaultMotionState::SetWorldOrientation(float quatIma0, float quatIma1, float quatIma2, float quatReal)
-{
-	btQuaternion orn(quatIma0, quatIma1, quatIma2, quatReal);
-	m_worldTransform.setRotation(orn);
+	m_worldTransform.setRotation(ToBullet(quat));
 }
 
 void DefaultMotionState::CalculateWorldTransformations()
