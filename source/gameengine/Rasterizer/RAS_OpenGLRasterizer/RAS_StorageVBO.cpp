@@ -187,7 +187,7 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 			default:
 				break;
 		}
-	}
+	} */
 	glClientActiveTexture(GL_TEXTURE0);
 
 	for (const std::pair<int, RAS_Rasterizer::TexCoGen> pair : storageAttribs->attribs) {
@@ -227,7 +227,7 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 			default:
 				break;
 		}
-	}*/
+	}
 
 	/* VAO don't track the VBO state and the attributes don't need a bound VBO to be used in a render.
 	 * So we unbind the VBO here because they will not be unbound in VBO::Unbind. */
