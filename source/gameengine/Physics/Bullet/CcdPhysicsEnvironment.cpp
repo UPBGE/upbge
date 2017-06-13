@@ -2512,12 +2512,8 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 	if (!rb0)
 		return 0;
 
-	// If either of the controllers is missing, we can't do anything.
-	if (!c0 || !c1) {
-		return 0;
-	}
-
 	btTypedConstraint *con = nullptr;
+	btRaycastVehicle *vehicle = nullptr;
 
 	btVector3 pivotInB = rb1 ? rb1->getCenterOfMassTransform().inverse()(rb0->getCenterOfMassTransform()(pivotInA)) :
 	                     rb0->getCenterOfMassTransform() * pivotInA;
@@ -2530,6 +2526,11 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 	{
 		case PHY_POINT2POINT_CONSTRAINT:
 		{
+			// If either of the controllers is missing, we can't do anything.
+			if (!c0 || !c1) {
+				return 0;
+			}
+
 			btPoint2PointConstraint *p2p = nullptr;
 
 			if (rb1) {
@@ -2546,6 +2547,11 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 
 		case PHY_GENERIC_6DOF_CONSTRAINT:
 		{
+			// If either of the controllers is missing, we can't do anything.
+			if (!c0 || !c1) {
+				return 0;
+			}
+
 			btGeneric6DofConstraint *genericConstraint = nullptr;
 
 			if (rb1) {
@@ -2603,6 +2609,11 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 		}
 		case PHY_CONE_TWIST_CONSTRAINT:
 		{
+			// If either of the controllers is missing, we can't do anything.
+			if (!c0 || !c1) {
+				return 0;
+			}
+
 			btConeTwistConstraint *coneTwistContraint = nullptr;
 
 			if (rb1) {
@@ -2660,6 +2671,11 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 
 		case PHY_LINEHINGE_CONSTRAINT:
 		{
+			// If either of the controllers is missing, we can't do anything.
+			if (!c0 || !c1) {
+				return 0;
+			}
+
 			btHingeConstraint *hinge = nullptr;
 
 			if (rb1) {
@@ -2721,10 +2737,9 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 			const btRaycastVehicle::btVehicleTuning tuning = btRaycastVehicle::btVehicleTuning();
 			btRigidBody *chassis = rb0;
 			BlenderVehicleRaycaster *raycaster = new BlenderVehicleRaycaster(m_dynamicsWorld);
-			btRaycastVehicle *vehicle = new btRaycastVehicle(tuning, chassis, raycaster);
+			vehicle = new btRaycastVehicle(tuning, chassis, raycaster);
 			WrapperVehicle *wrapperVehicle = new WrapperVehicle(vehicle, raycaster, ctrl0);
 			m_wrapperVehicles.push_back(wrapperVehicle);
-			m_dynamicsWorld->addVehicle(vehicle);
 
 			break;
 		};
@@ -2744,6 +2759,16 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 		con->setUserConstraintPtr(userData);
 		userData->m_active = true;
 		m_dynamicsWorld->addConstraint(con, disableCollisionBetweenLinkedBodies);
+
+		return con->getUserConstraintId();
+	}
+	else if (vehicle) {
+		m_dynamicsWorld->addVehicle(vehicle);
+
+		vehicle->setUserConstraintId(gConstraintUid++);
+		vehicle->setUserConstraintType(type);
+
+		return vehicle->getUserConstraintId();
 	}
 
 	return 0;
