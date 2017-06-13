@@ -2467,7 +2467,8 @@ GPUMaterial *GPU_material_from_eevee(Scene *scene, Material *ma,
 	/* create blender material first */
 	outlink = GPU_blender_material(mat, ma);
 	/* Replace material pass */
-	mat->pass = GPU_generate_pass_new(&mat->nodes, outlink, vert_code, geom_code, frag_lib, defines);
+	GPU_nodes_get_vertex_attributes(&mat->nodes, &mat->attribs);
+	mat->pass = GPU_generate_pass_new(&mat->nodes, outlink, vert_code, geom_code, frag_lib, defines);	
 
 	GPU_material_output_link(mat, outlink);
 
