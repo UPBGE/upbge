@@ -78,6 +78,8 @@ void *GPU_fx_shader_get_interface(GPUShader *shader);
 void GPU_fx_shader_set_interface(GPUShader *shader, void *interface);
 
 int GPU_shader_get_uniform(GPUShader *shader, const char *name);
+// GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2 bgl_TextureCoordinateOffset[9];
+int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name);
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name);
 void GPU_shader_uniform_vector(GPUShader *shader, int location, int length,
 	int arraysize, const float *value);

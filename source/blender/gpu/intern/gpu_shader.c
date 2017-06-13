@@ -530,6 +530,13 @@ int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 	return uniform ? uniform->location : -1;
 }
 
+int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
+{
+	BLI_assert(shader && shader->program);
+	int loc = glGetUniformLocation(shader->program, name);
+	return loc;
+}
+
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name)
 {
 	BLI_assert(shader && shader->program);
