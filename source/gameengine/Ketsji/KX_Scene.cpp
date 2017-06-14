@@ -979,7 +979,7 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 {
 	RemoveDupliGroup(gameobj);
 
-	if (std::find(m_euthanasyobjects.begin(), m_euthanasyobjects.end(), gameobj) != m_euthanasyobjects.end()) {
+	if (std::find(m_euthanasyobjects.begin(), m_euthanasyobjects.end(), gameobj) == m_euthanasyobjects.end()) {
 		m_euthanasyobjects.push_back(gameobj);
 	}
 }
