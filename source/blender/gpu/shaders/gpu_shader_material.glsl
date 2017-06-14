@@ -2461,7 +2461,7 @@ float test_shadow_pcf(sampler2DShadow shadowmap, vec4 co, float samples, float s
 float test_shadow_vsm(sampler2D shadowmap, vec4 co, float bias, float bleedbias)
 {
 	vec2 moments = texture2DProj(shadowmap, co).rg;
-	float dist = co.z;
+	float dist = co.z / co.w;
 	float p = 0.0;
 
 	if (dist <= moments.x)
