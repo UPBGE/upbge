@@ -458,7 +458,7 @@ public:
 
 	const btVector3& getWalkDirection();
 
-	void SetVelocity(btVector3 vel, float time, bool local);
+	void SetVelocity(const btVector3& vel, float time, bool local);
 
 	// PHY_ICharacter interface
 	virtual void Jump()

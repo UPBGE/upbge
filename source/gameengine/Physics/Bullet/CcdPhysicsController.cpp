@@ -137,17 +137,18 @@ void BlenderBulletCharacterController::SetJumpSpeed(float jumpSpeed)
 	setJumpSpeed(jumpSpeed);
 }
 
-void BlenderBulletCharacterController::SetVelocity(btVector3 vel, float time, bool local)
+void BlenderBulletCharacterController::SetVelocity(const btVector3& vel, float time, bool local)
 {
+	btVector3 v = vel;
 	if (local) {
 		const btTransform xform = getGhostObject()->getWorldTransform();
-		vel = xform.getBasis() * vel;
+		v = xform.getBasis() * v;
 	}
 
 	// Avoid changing velocity and keeping previous time interval.
 	m_velocityTimeInterval = 0.0f;
 
-	setVelocityForTimeInterval(vel, time);
+	setVelocityForTimeInterval(v, time);
 }
 
 void BlenderBulletCharacterController::SetVelocity(const MT_Vector3& vel, float time, bool local)
