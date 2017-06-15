@@ -1456,7 +1456,8 @@ void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int 
 void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 {
 	// have a look at temp objects ...
-	for (KX_GameObject *gameobj : m_tempObjectList) {
+	for (std::vector<KX_GameObject *>::iterator it = m_tempObjectList.begin(); it != m_tempObjectList.end();) {
+		KX_GameObject *gameobj = *it;
 		CFloatValue* propval = (CFloatValue *)gameobj->GetProperty("::timebomb");
 		
 		if (propval)
@@ -1466,16 +1467,19 @@ void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 			if (timeleft > 0)
 			{
 				propval->SetFloat(timeleft);
+				++it;
 			}
 			else
 			{
-				DelayedRemoveObject(gameobj);
 				// remove obj
+				DelayedRemoveObject(gameobj);
+				it = m_tempObjectList.erase(it);
 			}
 		}
 		else
 		{
 			// all object is the tempObjectList should have a clock
+			BLI_assert(false);
 		}
 	}
 	m_logicmgr->BeginFrame(curtime, framestep);
