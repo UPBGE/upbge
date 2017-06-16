@@ -45,23 +45,11 @@ extern "C" {
 }
 
 extern "C" {
-	extern char datatoc_default_frag_glsl[];
-	extern char datatoc_default_world_frag_glsl[];
 	extern char datatoc_ltc_lib_glsl[];
-	extern char datatoc_bsdf_lut_frag_glsl[];
 	extern char datatoc_bsdf_common_lib_glsl[];
 	extern char datatoc_bsdf_direct_lib_glsl[];
-	extern char datatoc_bsdf_sampling_lib_glsl[];
 	extern char datatoc_lit_surface_frag_glsl[];
 	extern char datatoc_lit_surface_vert_glsl[];
-	extern char datatoc_shadow_frag_glsl[];
-	extern char datatoc_shadow_geom_glsl[];
-	extern char datatoc_shadow_vert_glsl[];
-	extern char datatoc_probe_filter_frag_glsl[];
-	extern char datatoc_probe_sh_frag_glsl[];
-	extern char datatoc_probe_geom_glsl[];
-	extern char datatoc_probe_vert_glsl[];
-	extern char datatoc_background_vert_glsl[];
 }
 
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
@@ -130,7 +118,7 @@ bool BL_BlenderShader::Ok() const
 void BL_BlenderShader::ReloadMaterial()
 {
 	/* Create shaders library */
-	char *fraglib;
+	static char *fraglib;
 	DynStr *ds_frag = BLI_dynstr_new();
 	BLI_dynstr_append(ds_frag, datatoc_bsdf_common_lib_glsl);
 	BLI_dynstr_append(ds_frag, datatoc_ltc_lib_glsl);
@@ -140,9 +128,8 @@ void BL_BlenderShader::ReloadMaterial()
 	BLI_dynstr_free(ds_frag);
 
 	/* Get the material from eevee */
-	m_gpuMat = (m_mat) ? GPU_material_from_eevee(m_blenderScene, m_mat, datatoc_lit_surface_vert_glsl, NULL, fraglib,
+	m_gpuMat = (m_mat) ? GPU_material_from_eevee(m_blenderScene, m_mat, datatoc_lit_surface_vert_glsl, fraglib,
 		"#define EEVEE_ENGINE\n"
-		"#define PROBE_CAPTURE\n"
 		"#define MAX_PROBE 128\n"
 		"#define MAX_LIGHT 128\n"
 		"#define MAX_SHADOW_CUBE 42\n"

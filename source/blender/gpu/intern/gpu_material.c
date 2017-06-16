@@ -2429,59 +2429,44 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 	return mat;
 }
 
-GPUMaterial *GPU_material_from_eevee(Scene *scene, Material *ma,
-	const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines, bool is_instancing)
+GPUMaterial *GPU_material_from_eevee(Scene *scene, Material *ma, const char *vert_code, const char *frag_lib, const char *defines, bool is_instancing)
 {
 	GPUMaterial *mat;
 	GPUNodeLink *outlink;
 	LinkData *link;
 	ListBase *gpumaterials;
 
-	if (is_instancing) {
-		gpumaterials = &ma->gpumaterialinstancing;
+	if (ma->use_nodes && ma->nodetree) {
+		return NULL;
 	}
 	else {
-		gpumaterials = &ma->gpumaterial;
-	}
-
-	/* allocate material */
-	mat = GPU_material_construct_begin(ma);
-	mat->scene = scene;
-	mat->type = GPU_MATERIAL_TYPE_MESH;
-	mat->use_instancing = is_instancing;
-	mat->is_opensubdiv = false;
-	mat->har = ma->har;
-
-	/* render pipeline option */
-	bool new_shading_nodes = true;
-	if (!new_shading_nodes && (ma->mode & MA_TRANSP))
-		GPU_material_enable_alpha(mat);
-	else if (new_shading_nodes && ma->alpha < 1.0f)
-		GPU_material_enable_alpha(mat);
-
-	if (ma->nodetree && ma->use_nodes) {
-		/* create nodes */
-		GPU_nodes_get_vertex_attributes(&mat->nodes, &mat->attribs);
-		ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_NEWER_SHADING);
-		/* Let Draw manager finish the construction. */
-		if (mat->outlink) {
-			outlink = mat->outlink;
-			mat->pass = GPU_generate_pass_new(&mat->nodes, outlink, vert_code, geom_code, frag_lib, defines);
+		if (is_instancing) {
+			gpumaterials = &ma->gpumaterialinstancing;
 		}
-	}
-	else {
+		else {
+			gpumaterials = &ma->gpumaterial;
+		}
+
+		/* allocate material */
+		mat = GPU_material_construct_begin(ma);
+		mat->scene = scene;
+		mat->type = GPU_MATERIAL_TYPE_MESH;
+		mat->use_instancing = is_instancing;
+		mat->is_opensubdiv = false;
+		mat->har = ma->har;
+
 		/* create blender material first */
 		outlink = GPU_blender_material(mat, ma);
 		/* Replace material pass */
 		GPU_nodes_get_vertex_attributes(&mat->nodes, &mat->attribs);
-		mat->pass = GPU_generate_pass_new(&mat->nodes, outlink, vert_code, geom_code, frag_lib, defines);
+		mat->pass = GPU_generate_pass_new(&mat->nodes, outlink, vert_code, NULL, frag_lib, defines);
 
 		GPU_material_output_link(mat, outlink);
-	}
 
-	link = MEM_callocN(sizeof(LinkData), "GPUMaterialLink");
-	link->data = mat;
-	BLI_addtail(gpumaterials, link);
+		link = MEM_callocN(sizeof(LinkData), "GPUMaterialLink");
+		link->data = mat;
+		BLI_addtail(gpumaterials, link);
+	}
 
 	return mat;
 }
