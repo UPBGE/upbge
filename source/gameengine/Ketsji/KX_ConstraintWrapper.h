@@ -33,18 +33,17 @@
 #define __KX_CONSTRAINTWRAPPER_H__
 
 #include "EXP_Value.h"
-#include "PHY_DynamicTypes.h"
+
+class PHY_IConstraint;
 
 class	KX_ConstraintWrapper : public CValue
 {
 	Py_Header
 public:
-	KX_ConstraintWrapper(PHY_ConstraintType ctype,int constraintId,class PHY_IPhysicsEnvironment* physenv);
+	KX_ConstraintWrapper(PHY_IConstraint *constraint);
 	virtual ~KX_ConstraintWrapper ();
 
 	virtual std::string GetName();
-
-	int			getConstraintId() { return m_constraintId; }
 	
 #ifdef WITH_PYTHON
 	KX_PYMETHOD_NOARGS(KX_ConstraintWrapper,GetConstraintId);
@@ -56,9 +55,7 @@ public:
 #endif
 
 private:
-	int					m_constraintId;
-	PHY_ConstraintType	m_constraintType;
-	PHY_IPhysicsEnvironment* m_physenv;
+	PHY_IConstraint *m_constraint;
 };
 
 #endif  /* __KX_CONSTRAINTWRAPPER_H__ */

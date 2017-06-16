@@ -23,53 +23,25 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-# since this includes bullet we get errors from the headers too
-remove_strict_flags()
-
 set(INC
 	.
-	../Common
-	../../Common
-	../../Converter
-	../../Expressions
-	../../GameLogic
-	../../Ketsji
-	../../Rasterizer
-	../../Rasterizer/Node
-	../../SceneGraph
-	../../../blender/blenkernel
-	../../../blender/blenlib
-	../../../blender/gpu
-	../../../blender/makesdna
-	../../../../intern/guardedalloc
 )
 
 set(INC_SYS
 	../../../../intern/moto/include
-	${PYTHON_INCLUDE_DIRS}
-	${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
-	CcdConstraint.cpp
-	CcdPhysicsEnvironment.cpp
-	CcdPhysicsController.cpp
-	CcdGraphicController.cpp
-
-	CcdConstraint.h
-	CcdMathUtils.h
-	CcdGraphicController.h
-	CcdPhysicsController.h
-	CcdPhysicsEnvironment.h
+	PHY_IConstraint.h
+	PHY_DynamicTypes.h
+	PHY_ICharacter.h
+	PHY_IController.h
+	PHY_IGraphicController.h
+	PHY_IMotionState.h
+	PHY_IPhysicsController.h
+	PHY_IPhysicsEnvironment.h
+	PHY_IVehicle.h
+	PHY_Pro.h
 )
 
-if(WITH_BULLET)
-	list(APPEND INC_SYS
-		${BULLET_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_BULLET)
-endif()
-
-add_definitions(${GL_DEFINITIONS})
-
-blender_add_lib(ge_phys_bullet "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_phys_dummy "${SRC}" "${INC}" "${INC_SYS}")

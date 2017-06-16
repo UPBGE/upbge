@@ -241,18 +241,6 @@ set(SRC
 	KX_WorldInfo.h
 	KX_WorldIpoController.h
 	KX_CollisionContactPoints.h
-
-	# orphan headers (not apart of a library)
-	../Physics/Common/PHY_DynamicTypes.h
-	../Physics/Common/PHY_ICharacter.h
-	../Physics/Common/PHY_IController.h
-	../Physics/Common/PHY_IGraphicController.h
-	../Physics/Common/PHY_IMotionState.h
-	../Physics/Common/PHY_IPhysicsController.h
-	../Physics/Common/PHY_IPhysicsEnvironment.h
-	../Physics/Common/PHY_IVehicle.h
-	../Physics/Common/PHY_Pro.h
-
 )
 
 add_definitions(${GL_DEFINITIONS})

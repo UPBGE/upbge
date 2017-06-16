@@ -37,6 +37,7 @@
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
 
+class PHY_IConstraint;
 class PHY_IVehicle;
 class PHY_ICharacter;
 class RAS_MeshObject;
@@ -186,11 +187,12 @@ public:
 	virtual void SetGravity(float x, float y, float z) = 0;
 	virtual void GetGravity(MT_Vector3& grav) = 0;
 
-	virtual int CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
+	virtual PHY_IConstraint *CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
 								 float pivotX, float pivotY, float pivotZ,
 								 float axis0X, float axis0Y, float axis0Z,
 								 float axis1X = 0, float axis1Y = 0, float axis1Z = 0,
 								 float axis2X = 0, float axis2Y = 0, float axis2Z = 0, int flag = 0) = 0;
+	virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl) = 0;
 	virtual void RemoveConstraintById(int constraintid, bool free) = 0;
 	virtual float GetAppliedImpulse(int constraintid)
 	{
@@ -199,7 +201,6 @@ public:
 
 	// complex constraint for vehicles
 	virtual PHY_IVehicle *GetVehicleConstraint(int constraintId) = 0;
-
 	// Character physics wrapper
 	virtual PHY_ICharacter *GetCharacterController(class KX_GameObject *ob) = 0;
 
@@ -219,9 +220,6 @@ public:
 	//These two methods are *solely* used to create controllers for sensor! Don't use for anything else
 	virtual PHY_IPhysicsController *CreateSphereController(float radius, const MT_Vector3& position) = 0;
 	virtual PHY_IPhysicsController *CreateConeController(float coneradius, float coneheight) = 0;
-
-	virtual void SetConstraintParam(int constraintId, int param, float value, float value1) = 0;
-	virtual float GetConstraintParam(int constraintId, int param) = 0;
 
 	virtual void ExportFile(const std::string& filename)
 	{
