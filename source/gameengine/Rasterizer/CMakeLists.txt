@@ -61,6 +61,7 @@ set(SRC
 	RAS_BoundingBoxManager.cpp
 	RAS_BucketManager.cpp
 	RAS_DebugDraw.cpp
+	RAS_Deformer.cpp
 	RAS_DisplayArrayBucket.cpp
 	RAS_FramingManager.cpp
 	RAS_ICanvas.cpp
@@ -71,6 +72,7 @@ set(SRC
 	RAS_Rasterizer.cpp
 	RAS_ITexVert.cpp
 	RAS_MaterialBucket.cpp
+	RAS_MeshMaterial.cpp
 	RAS_MeshObject.cpp
 	RAS_MeshSlot.cpp
 	RAS_MeshUser.cpp

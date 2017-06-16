@@ -31,12 +31,9 @@
 
 #include "RAS_MeshSlot.h"
 #include "RAS_MeshUser.h"
-#include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_TexVert.h"
 #include "RAS_MeshObject.h"
-#include "RAS_Deformer.h"
-#include "RAS_DisplayArray.h"
 #include "RAS_IStorageInfo.h"
 
 #ifdef _MSC_VER
@@ -50,106 +47,23 @@
 static RAS_DummyNodeData dummyNodeData;
 
 // mesh slot
-RAS_MeshSlot::RAS_MeshSlot()
-	:m_displayArray(nullptr),
-	m_node(this, &dummyNodeData, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
-	m_bucket(nullptr),
-	m_displayArrayBucket(nullptr),
-	m_mesh(nullptr),
-	m_meshMaterial(nullptr),
-	m_pDeformer(nullptr),
+RAS_MeshSlot::RAS_MeshSlot(RAS_MeshObject *mesh, RAS_MeshUser *meshUser, RAS_DisplayArrayBucket *arrayBucket)
+	:m_node(this, &dummyNodeData, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
+	m_displayArrayBucket(arrayBucket),
+	m_mesh(mesh),
 	m_pDerivedMesh(nullptr),
-	m_meshUser(nullptr),
+	m_meshUser(meshUser),
 	m_batchPartIndex(-1)
 {
 }
 
 RAS_MeshSlot::~RAS_MeshSlot()
 {
-	if (m_displayArrayBucket) {
-		m_displayArrayBucket->Release();
-	}
-}
-
-RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
-	:m_displayArray(slot.m_displayArray),
-	m_node(this, &dummyNodeData, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
-	m_bucket(slot.m_bucket),
-	m_displayArrayBucket(slot.m_displayArrayBucket),
-	m_mesh(slot.m_mesh),
-	m_meshMaterial(slot.m_meshMaterial),
-	m_pDeformer(nullptr),
-	m_pDerivedMesh(nullptr),
-	m_meshUser(nullptr),
-	m_batchPartIndex(-1)
-{
-	if (m_displayArrayBucket) {
-		m_displayArrayBucket->AddRef();
-	}
-}
-
-void RAS_MeshSlot::init(RAS_MaterialBucket *bucket, RAS_MeshObject *mesh,
-						RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format)
-{
-	m_bucket = bucket;
-	m_mesh = mesh;
-	m_meshMaterial = meshmat;
-
-	// Test if the mesh slot is not owned by a font object, no mesh.
-	if (mesh && meshmat) {
-		RAS_IDisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_IDisplayArray::LINES : RAS_IDisplayArray::TRIANGLES;
-		m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
-	}
-
-	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, m_mesh, meshmat, m_pDeformer);
-}
-
-RAS_IDisplayArray *RAS_MeshSlot::GetDisplayArray()
-{
-	return m_displayArray;
-}
-
-void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
-{
-	if (deformer && m_pDeformer != deformer) {
-		// no sharing
-		// we create local copy of RAS_DisplayArray when we have a deformer:
-		// this way we can avoid conflict between the vertex cache of duplicates
-		if (deformer->UseVertexArray()) {
-			// the deformer makes use of vertex array, make sure we have our local copy
-			if (m_displayArrayBucket->GetRefCount() > 1) {
-				// only need to copy if there are other users
-				// note that this is the usual case as vertex arrays are held by the material base slot
-				m_displayArrayBucket->Release();
-				m_displayArrayBucket = m_displayArrayBucket->GetReplica();
-			}
-			m_displayArrayBucket->SetDeformer(deformer);
-		}
-		else {
-			// the deformer is not using vertex array (Modifier), release them
-			m_displayArrayBucket->Release();
-			m_displayArrayBucket = new RAS_DisplayArrayBucket(m_bucket, nullptr, m_mesh, m_meshMaterial, deformer);
-		}
-
-		// Update m_displayArray to the display array bucket.
-		m_displayArray = m_displayArrayBucket->GetDisplayArray();
-	}
-	m_pDeformer = deformer;
-}
-
-void RAS_MeshSlot::SetMeshUser(RAS_MeshUser *user)
-{
-	m_meshUser = user;
 }
 
 void RAS_MeshSlot::SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket)
 {
-	if (m_displayArrayBucket) {
-		m_displayArrayBucket->Release();
-	}
-
 	m_displayArrayBucket = arrayBucket;
-	m_displayArray = m_displayArrayBucket->GetDisplayArray();
 }
 
 void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs)
@@ -174,7 +88,8 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 
 		RAS_IStorageInfo *storage = displayArrayData->m_storageInfo;
 		if (materialData->m_zsort && storage) {
-			m_mesh->SortPolygons(this, managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()), storage->GetIndexMap());
+			m_mesh->SortPolygons(displayArrayData->m_array, managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()),
+								 storage->GetIndexMap());
 			storage->FlushIndexMap();
 		}
 	}

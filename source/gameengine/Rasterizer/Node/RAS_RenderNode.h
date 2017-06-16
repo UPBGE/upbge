@@ -71,6 +71,7 @@ struct RAS_MaterialNodeData
 struct RAS_DisplayArrayNodeData
 {
 	RAS_IStorageInfo *m_storageInfo;
+	RAS_IDisplayArray *m_array;
 	bool m_applyMatrix;
 };
 

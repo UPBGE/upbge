@@ -57,7 +57,4 @@ public:
 	virtual void OnConstruction();
 };
 
-/// Global text material instance pointer used to create or find a material bucket in the bucket manager.
-KX_TextMaterial *GetTextMaterial();
-
 #endif  // __KX_TEXTMATERIAL_H__

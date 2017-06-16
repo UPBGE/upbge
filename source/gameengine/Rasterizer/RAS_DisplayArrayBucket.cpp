@@ -74,6 +74,9 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 		m_downwardNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNodeNoArray), nullptr);
 		m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, nullptr, nullptr);
 	}
+
+	// Initialize node arguments.
+	m_nodeData.m_array = array;
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
@@ -83,10 +86,6 @@ RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 
 	if (m_instancingBuffer) {
 		delete m_instancingBuffer;
-	}
-
-	if (m_displayArray) {
-		delete m_displayArray;
 	}
 }
 
@@ -102,31 +101,9 @@ void RAS_DisplayArrayBucket::UnbindPrimitives(RAS_Rasterizer *rasty)
 	rasty->UnbindPrimitives(m_storageInfo);
 }
 
-RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::GetReplica()
+RAS_MaterialBucket *RAS_DisplayArrayBucket::GetBucket() const
 {
-	RAS_DisplayArrayBucket *replica = new RAS_DisplayArrayBucket(*this);
-	replica->ProcessReplica();
-	return replica;
-}
-
-void RAS_DisplayArrayBucket::ProcessReplica()
-{
-	BLI_assert(m_displayArray);
-
-	m_activeMeshSlots.clear();
-	m_displayArray = m_displayArray->GetReplica();
-
-	m_deformer = nullptr;
-	// Request to recreate storage info.
-	m_storageInfo = nullptr;
-
-	m_downwardNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr);
-	m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode),
-											  std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode));
-	m_instancingNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunInstancingNode), nullptr);
-	m_batchingNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunBatchingNode), nullptr);
-
-	m_bucket->AddDisplayArrayBucket(this);
+	return m_bucket;
 }
 
 RAS_IDisplayArray *RAS_DisplayArrayBucket::GetDisplayArray() const
@@ -154,19 +131,9 @@ void RAS_DisplayArrayBucket::ActivateMesh(RAS_MeshSlot *slot)
 	m_activeMeshSlots.push_back(slot);
 }
 
-RAS_MeshSlotList& RAS_DisplayArrayBucket::GetActiveMeshSlots()
-{
-	return m_activeMeshSlots;
-}
-
 void RAS_DisplayArrayBucket::RemoveActiveMeshSlots()
 {
 	m_activeMeshSlots.clear();
-}
-
-unsigned int RAS_DisplayArrayBucket::GetNumActiveMeshSlots() const
-{
-	return m_activeMeshSlots.size();
 }
 
 void RAS_DisplayArrayBucket::SetDeformer(RAS_Deformer *deformer)

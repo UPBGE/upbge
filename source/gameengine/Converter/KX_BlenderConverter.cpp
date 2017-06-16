@@ -646,7 +646,7 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 								// also free the mesh if it's using a tagged material
 								int mat_index = mesh->NumMaterials();
 								while (mat_index--) {
-									if (IS_TAGGED(mesh->GetMeshMaterial(mat_index)->m_bucket->GetPolyMaterial()->GetBlenderMaterial())) {
+									if (IS_TAGGED(mesh->GetMeshMaterial(mat_index)->GetBucket()->GetPolyMaterial()->GetBlenderMaterial())) {
 										gameobj->RemoveMeshes(); // XXX - slack, same as above
 										break;
 									}
@@ -700,9 +700,6 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 		for (UniquePtrList<RAS_MeshObject>::iterator it =  sceneSlot.m_meshobjects.begin(); it !=  sceneSlot.m_meshobjects.end(); ) {
 			RAS_MeshObject *mesh = (*it).get();
 			if (IS_TAGGED(mesh->GetMesh())) {
-				for (RAS_MaterialBucket *bucket : scene->GetBucketManager()->GetBuckets()) {
-					bucket->RemoveMeshObject(mesh);
-				}
 				it = sceneSlot.m_meshobjects.erase(it);
 			}
 			else {

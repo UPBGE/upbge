@@ -739,10 +739,6 @@ void KX_GameObject::RemoveMeshes()
 {
 	// Remove all mesh slots.
 	if (m_meshUser) {
-		for (RAS_MeshObject *mesh : m_meshes) {
-			mesh->RemoveFromBuckets(m_meshUser);
-		}
-
 		delete m_meshUser;
 		m_meshUser = nullptr;
 	}

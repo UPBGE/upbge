@@ -103,7 +103,7 @@ private:
 	RAS_BoundingBox *m_boundingBox;
 
 protected:
-	std::vector<RAS_MeshMaterial *> m_materials;
+	RAS_MeshMaterialList m_materials;
 	Mesh *m_mesh;
 
 public:
@@ -118,9 +118,6 @@ public:
 
 	RAS_MeshMaterial *GetMeshMaterial(unsigned int matid) const;
 	RAS_MeshMaterial *GetMeshMaterialBlenderIndex(unsigned int index);
-
-	std::vector<RAS_MeshMaterial *>::iterator GetFirstMaterial();
-	std::vector<RAS_MeshMaterial *>::iterator GetLastMaterial();
 
 	// name
 	std::string& GetName();
@@ -158,7 +155,6 @@ public:
 	// buckets
 	RAS_MeshUser *AddMeshUser(void *clientobj, RAS_Deformer *deformer);
 
-	void RemoveFromBuckets(RAS_MeshUser *meshUser);
 	void EndConversion(RAS_BoundingBoxManager *boundingBoxManager);
 
 	/// Return the list of blender's layers.
@@ -170,7 +166,7 @@ public:
 	void GenerateAttribLayers();
 
 	// polygon sorting by Z for alpha
-	void SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transform, unsigned int *indexmap);
+	void SortPolygons(RAS_IDisplayArray *array, const MT_Transform &transform, unsigned int *indexmap);
 
 	bool HasColliderPolygon();
 

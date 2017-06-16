@@ -49,7 +49,7 @@ class RAS_Deformer;
 class RAS_IStorageInfo;
 class RAS_InstancingBuffer;
 
-class RAS_DisplayArrayBucket : public CM_RefCount<RAS_DisplayArrayBucket>
+class RAS_DisplayArrayBucket
 {
 private:
 	/// The parent bucket.
@@ -96,11 +96,8 @@ public:
 						   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer);
 	~RAS_DisplayArrayBucket();
 
-	/// \section Replication
-	RAS_DisplayArrayBucket *GetReplica();
-	void ProcessReplica();
-
 	/// \section Accesor
+	RAS_MaterialBucket *GetBucket() const;
 	RAS_IDisplayArray *GetDisplayArray() const;
 	RAS_MeshObject *GetMesh() const;
 	RAS_MeshMaterial *GetMeshMaterial() const;
@@ -108,8 +105,6 @@ public:
 
 	/// \section Active Mesh Slots Management.
 	void ActivateMesh(RAS_MeshSlot *slot);
-	RAS_MeshSlotList& GetActiveMeshSlots();
-	unsigned int GetNumActiveMeshSlots() const;
 	/// Remove all mesh slots from the list.
 	void RemoveActiveMeshSlots();
 

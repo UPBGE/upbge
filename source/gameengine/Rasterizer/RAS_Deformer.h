@@ -41,6 +41,8 @@
 #include "MT_Vector3.h"
 
 #include "RAS_BoundingBox.h"
+#include "RAS_IDisplayArray.h" // For RAS_IDisplayArrayList.
+#include "RAS_DisplayArrayBucket.h" // For RAS_DisplayArrayBucketList.
 
 struct DerivedMesh;
 class RAS_MeshObject;
@@ -58,9 +60,7 @@ public:
 	{
 	}
 
-	virtual ~RAS_Deformer()
-	{
-	}
+	virtual ~RAS_Deformer();
 
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map) = 0;
 	virtual bool Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array) = 0;
@@ -103,9 +103,14 @@ public:
 		return m_boundingBox;
 	}
 
+	void AddDisplayArray(RAS_IDisplayArray *array, RAS_DisplayArrayBucket *arrayBucket);
+
 protected:
 	RAS_MeshObject *m_mesh;
-	bool  m_bDynamic;
+	bool m_bDynamic;
+
+	RAS_IDisplayArrayList m_displayArrayList;
+	RAS_DisplayArrayBucketList m_displayArrayBucketList;
 
 	/// Deformer bounding box.
 	RAS_BoundingBox *m_boundingBox;

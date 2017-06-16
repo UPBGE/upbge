@@ -54,10 +54,8 @@ bool BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray
 {
 	// only apply once per frame if the mesh is actually modified
 	if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
-		// For each mesh slot
-		RAS_MeshUser *meshUser = m_gameobj->GetMeshUser();
-		for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
-			RAS_IDisplayArray *array = slot->GetDisplayArray();
+		// For each display array
+		for (RAS_IDisplayArray *array: m_displayArrayList) {
 			if (array->GetModifiedFlag() == RAS_IDisplayArray::NONE_MODIFIED) {
 				continue;
 			}
@@ -134,7 +132,6 @@ void BL_MeshDeformer::RecalcNormals()
 	 * gives area-weight normals which often look better anyway, and use
 	 * GL_NORMALIZE so we don't have to do per vertex normalization either
 	 * since the GPU can do it faster */
-	std::vector<RAS_MeshMaterial *>::iterator mit;
 
 	/* set vertex normals to zero */
 	memset(m_transnors, 0, sizeof(float) * 3 * m_bmesh->totvert);
@@ -187,10 +184,7 @@ void BL_MeshDeformer::RecalcNormals()
 	}
 
 	// Assign smooth vertex normals.
-	RAS_MeshUser *meshUser = m_gameobj->GetMeshUser();
-	for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
-		RAS_IDisplayArray *array = slot->GetDisplayArray();
-
+	for (RAS_IDisplayArray *array: m_displayArrayList) {
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 			RAS_ITexVert *v = array->GetVertex(i);
 			const RAS_TexVertInfo& vinfo = array->GetVertexInfo(i);

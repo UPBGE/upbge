@@ -31,22 +31,25 @@
 #include "RAS_BoundingBox.h"
 #include "RAS_BatchGroup.h"
 
-RAS_MeshUser::RAS_MeshUser(void *clientobj)
+RAS_MeshUser::RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox)
 	:m_frontFace(true),
 	m_color(MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f)),
-	m_boundingBox(nullptr),
+	m_boundingBox(boundingBox),
 	m_clientObject(clientobj),
 	m_batchGroup(nullptr)
 {
+	BLI_assert(m_boundingBox);
+	m_boundingBox->AddUser();
 }
 
 RAS_MeshUser::~RAS_MeshUser()
 {
+	for (RAS_MeshSlot *ms : m_meshSlots) {
+		delete ms;
+	}
 	m_meshSlots.clear();
 
-	if (m_boundingBox) {
-		m_boundingBox->RemoveUser();
-	}
+	m_boundingBox->RemoveUser();
 
 	if (m_batchGroup) {
 		// Has the side effect to deference the batch group.
@@ -102,19 +105,6 @@ void RAS_MeshUser::SetFrontFace(bool frontFace)
 void RAS_MeshUser::SetColor(const MT_Vector4& color)
 {
 	m_color = color;
-}
-
-void RAS_MeshUser::SetBoundingBox(RAS_BoundingBox *boundingBox)
-{
-	if (m_boundingBox) {
-		m_boundingBox->RemoveUser();
-	}
-
-	m_boundingBox = boundingBox;
-
-	if (m_boundingBox) {
-		m_boundingBox->AddUser();
-	}
 }
 
 void RAS_MeshUser::SetBatchGroup(RAS_BatchGroup *batchGroup)

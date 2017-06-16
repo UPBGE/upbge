@@ -61,9 +61,6 @@ RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
 
 RAS_MaterialBucket::~RAS_MaterialBucket()
 {
-	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
-		delete (*it);
-	}
 }
 
 RAS_IPolyMaterial *RAS_MaterialBucket::GetPolyMaterial() const
@@ -100,52 +97,6 @@ void RAS_MaterialBucket::UpdateShader()
 	m_nodeData.m_useLighting = m_material->UsesLighting();
 }
 
-RAS_MeshSlot *RAS_MaterialBucket::NewMesh(RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format)
-{
-	RAS_MeshSlot *ms = new RAS_MeshSlot();
-	ms->init(this, mesh, meshmat, format);
-
-	m_meshSlots.push_back(ms);
-
-	return ms;
-}
-
-void RAS_MaterialBucket::AddMesh(RAS_MeshSlot *ms)
-{
-	m_meshSlots.push_back(ms);
-}
-
-RAS_MeshSlot *RAS_MaterialBucket::CopyMesh(RAS_MeshSlot *ms)
-{
-	RAS_MeshSlot *newMeshSlot = new RAS_MeshSlot(*ms);
-	m_meshSlots.push_back(newMeshSlot);
-
-	return newMeshSlot;
-}
-
-void RAS_MaterialBucket::RemoveMesh(RAS_MeshSlot *ms)
-{
-	RAS_MeshSlotList::iterator it = std::find(m_meshSlots.begin(), m_meshSlots.end(), ms);
-	if (it != m_meshSlots.end()) {
-		m_meshSlots.erase(it);
-		delete ms;
-	}
-}
-
-void RAS_MaterialBucket::RemoveMeshObject(RAS_MeshObject *mesh)
-{
-	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(); it != m_meshSlots.end();) {
-		RAS_MeshSlot *ms = *it;
-		if (ms->m_mesh == mesh) {
-			delete ms;
-			it = m_meshSlots.erase(it);
-		}
-		else {
-			++it;
-		}
-	}
-}
-
 void RAS_MaterialBucket::RemoveActiveMeshSlots()
 {
 	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
@@ -153,29 +104,6 @@ void RAS_MaterialBucket::RemoveActiveMeshSlots()
 	{
 		(*it)->RemoveActiveMeshSlots();
 	}
-}
-
-unsigned int RAS_MaterialBucket::GetNumActiveMeshSlots()
-{
-	unsigned int count = 0;
-	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
-		it != end; ++it)
-	{
-		RAS_DisplayArrayBucket *displayArrayBucket = *it;
-		count += displayArrayBucket->GetNumActiveMeshSlots();
-	}
-
-	return count;
-}
-
-RAS_MeshSlotList::iterator RAS_MaterialBucket::msBegin()
-{
-	return m_meshSlots.begin();
-}
-
-RAS_MeshSlotList::iterator RAS_MaterialBucket::msEnd()
-{
-	return m_meshSlots.end();
 }
 
 void RAS_MaterialBucket::ActivateMaterial(RAS_Rasterizer *rasty)
@@ -256,18 +184,6 @@ void RAS_MaterialBucket::MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_M
 		if (displayArrayBucket->GetMeshMaterial() != meshmat) {
 			++dit;
 			continue;
-		}
-
-		for (RAS_MeshSlotList::iterator mit = m_meshSlots.begin(); mit != m_meshSlots.end();) {
-			RAS_MeshSlot *ms = *mit;
-			if (ms->m_displayArrayBucket == displayArrayBucket) {
-				ms->m_bucket = bucket;
-				bucket->AddMesh(ms);
-				mit = m_meshSlots.erase(mit);
-			}
-			else {
-				++mit;
-			}
 		}
 
 		displayArrayBucket->ChangeMaterialBucket(bucket);
