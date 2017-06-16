@@ -42,6 +42,7 @@
 #include "BL_MeshDeformer.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_MeshObject.h"
+#include "RAS_MeshUser.h"
 #include "RAS_Polygon.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -53,16 +54,9 @@ bool BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray
 {
 	// only apply once per frame if the mesh is actually modified
 	if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
-		// For each material
-		for (std::vector<RAS_MeshMaterial *>::iterator mit = m_mesh->GetFirstMaterial();
-		     mit != m_mesh->GetLastMaterial(); ++mit)
-		{
-			RAS_MeshMaterial *meshmat = *mit;
-			RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
-			if (!slot) {
-				continue;
-			}
-
+		// For each mesh slot
+		RAS_MeshUser *meshUser = m_gameobj->GetMeshUser();
+		for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
 			RAS_IDisplayArray *array = slot->GetDisplayArray();
 			if (array->GetModifiedFlag() == RAS_IDisplayArray::NONE_MODIFIED) {
 				continue;
@@ -192,14 +186,9 @@ void BL_MeshDeformer::RecalcNormals()
 		}
 	}
 
-	/* assign smooth vertex normals */
-	for (mit = m_mesh->GetFirstMaterial(); mit != m_mesh->GetLastMaterial(); ++mit) {
-		RAS_MeshMaterial *meshmat = *mit;
-		RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
-		if (!slot) {
-			continue;
-		}
-
+	// Assign smooth vertex normals.
+	RAS_MeshUser *meshUser = m_gameobj->GetMeshUser();
+	for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
 		RAS_IDisplayArray *array = slot->GetDisplayArray();
 
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {

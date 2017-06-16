@@ -334,6 +334,7 @@ public:
 	virtual MT_Vector3 GetWorldPoint(unsigned int index, bool first) const;
 	virtual MT_Vector3 GetNormal(unsigned int index, bool first) const;
 	virtual float GetCombinedFriction(unsigned int index, bool first) const;
+	virtual float GetCombinedRollingFriction(unsigned int index, bool first) const;
 	virtual float GetCombinedRestitution(unsigned int index, bool first) const;
 	virtual float GetAppliedImpulse(unsigned int index, bool first) const;
 };

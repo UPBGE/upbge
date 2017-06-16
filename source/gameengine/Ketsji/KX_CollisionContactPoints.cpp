@@ -78,6 +78,7 @@ PyAttributeDef KX_CollisionContactPoint::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("worldPoint", KX_CollisionContactPoint, pyattr_get_world_point),
 	KX_PYATTRIBUTE_RO_FUNCTION("normal", KX_CollisionContactPoint, pyattr_get_normal),
 	KX_PYATTRIBUTE_RO_FUNCTION("combinedFriction", KX_CollisionContactPoint, pyattr_get_combined_friction),
+	KX_PYATTRIBUTE_RO_FUNCTION("combinedRollingFriction", KX_CollisionContactPoint, pyattr_get_combined_rolling_friction),
 	KX_PYATTRIBUTE_RO_FUNCTION("combinedRestitution", KX_CollisionContactPoint, pyattr_get_combined_restitution),
 	KX_PYATTRIBUTE_RO_FUNCTION("appliedImpulse", KX_CollisionContactPoint, pyattr_get_applied_impulse),
 	KX_PYATTRIBUTE_NULL //Sentinel
@@ -111,6 +112,12 @@ PyObject *KX_CollisionContactPoint::pyattr_get_combined_friction(PyObjectPlus *s
 {
 	KX_CollisionContactPoint *self = static_cast<KX_CollisionContactPoint *>(self_v);
 	return PyFloat_FromDouble(self->m_collData->GetCombinedFriction(self->m_index, self->m_firstObject));
+}
+
+PyObject *KX_CollisionContactPoint::pyattr_get_combined_rolling_friction(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_CollisionContactPoint *self = static_cast<KX_CollisionContactPoint *>(self_v);
+	return PyFloat_FromDouble(self->m_collData->GetCombinedRollingFriction(self->m_index, self->m_firstObject));
 }
 
 PyObject *KX_CollisionContactPoint::pyattr_get_combined_restitution(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

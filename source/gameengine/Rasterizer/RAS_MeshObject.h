@@ -158,7 +158,7 @@ public:
 	// buckets
 	RAS_MeshUser *AddMeshUser(void *clientobj, RAS_Deformer *deformer);
 
-	void RemoveFromBuckets(void *clientobj);
+	void RemoveFromBuckets(RAS_MeshUser *meshUser);
 	void EndConversion(RAS_BoundingBoxManager *boundingBoxManager);
 
 	/// Return the list of blender's layers.

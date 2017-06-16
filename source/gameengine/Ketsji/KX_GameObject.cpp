@@ -771,10 +771,12 @@ void KX_GameObject::UpdateBuckets()
 
 void KX_GameObject::RemoveMeshes()
 {
-	for (size_t i=0;i<m_meshes.size();i++)
-		m_meshes[i]->RemoveFromBuckets(m_pClient_info);
 	// Remove all mesh slots.
 	if (m_meshUser) {
+		for (RAS_MeshObject *mesh : m_meshes) {
+			mesh->RemoveFromBuckets(m_meshUser);
+		}
+
 		delete m_meshUser;
 		m_meshUser = nullptr;
 	}
