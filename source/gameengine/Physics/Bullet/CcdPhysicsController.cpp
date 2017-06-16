@@ -266,13 +266,6 @@ public:
 	}
 };
 
-CcdPhysicsController::CcdConstraint::CcdConstraint(bool disableCollision)
-	:m_disableCollision(disableCollision),
-	m_active(false)
-{
-}
-
-
 btRigidBody *CcdPhysicsController::GetRigidBody()
 {
 	return btRigidBody::upcast(m_object);

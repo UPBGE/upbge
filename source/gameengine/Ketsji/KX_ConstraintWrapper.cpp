@@ -30,17 +30,11 @@
  */
 
 
-#include "EXP_PyObjectPlus.h"
 #include "KX_ConstraintWrapper.h"
-#include "PHY_IPhysicsEnvironment.h"
+#include "PHY_IConstraint.h"
 
-KX_ConstraintWrapper::KX_ConstraintWrapper(
-						PHY_ConstraintType ctype,
-						int constraintId,
-						PHY_IPhysicsEnvironment* physenv) :
-		m_constraintId(constraintId),
-		m_constraintType(ctype),
-		m_physenv(physenv)
+KX_ConstraintWrapper::KX_ConstraintWrapper(PHY_IConstraint *constraint)
+	:m_constraint(constraint)
 {
 }
 KX_ConstraintWrapper::~KX_ConstraintWrapper()
@@ -56,7 +50,7 @@ std::string KX_ConstraintWrapper::GetName()
 
 PyObject *KX_ConstraintWrapper::PyGetConstraintId()
 {
-	return PyLong_FromLong(m_constraintId);
+	return PyLong_FromLong(m_constraint->GetIdentifier());
 }
 
 
@@ -68,7 +62,7 @@ PyObject *KX_ConstraintWrapper::PyGetParam(PyObject *args, PyObject *kwds)
 	if (!PyArg_ParseTuple(args,"i:getParam",&dof))
 		return nullptr;
 	
-	value = m_physenv->GetConstraintParam(m_constraintId,dof);
+	value = m_constraint->GetParam(dof);
 	return PyFloat_FromDouble(value);
 	
 }
@@ -81,7 +75,7 @@ PyObject *KX_ConstraintWrapper::PySetParam(PyObject *args, PyObject *kwds)
 	if (!PyArg_ParseTuple(args,"iff:setParam",&dof,&minLimit,&maxLimit))
 		return nullptr;
 	
-	m_physenv->SetConstraintParam(m_constraintId,dof,minLimit,maxLimit);
+	m_constraint->SetParam(dof,minLimit,maxLimit);
 	Py_RETURN_NONE;
 }
 
@@ -125,13 +119,13 @@ PyAttributeDef KX_ConstraintWrapper::Attributes[] = {
 PyObject *KX_ConstraintWrapper::pyattr_get_constraintId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ConstraintWrapper* self = static_cast<KX_ConstraintWrapper*>(self_v);
-	return self->PyGetConstraintId();
+	return PyLong_FromLong(self->m_constraint->GetIdentifier());
 }
 
 PyObject *KX_ConstraintWrapper::pyattr_get_constraintType(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ConstraintWrapper* self = static_cast<KX_ConstraintWrapper*>(self_v);
-	return PyLong_FromLong(self->m_constraintType);
+	return PyLong_FromLong(self->m_constraint->GetType());
 }
 
 #endif // WITH_PYTHON

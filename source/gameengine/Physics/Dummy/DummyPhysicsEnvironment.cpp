@@ -88,13 +88,17 @@ void DummyPhysicsEnvironment::GetGravity(class MT_Vector3& grav)
 {
 }
 
-int DummyPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
+PHY_IConstraint *DummyPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
 											  float pivotX, float pivotY, float pivotZ, float axisX, float axisY, float axisZ,
 											  float axis1X, float axis1Y, float axis1Z,
 											  float axis2X, float axis2Y, float axis2Z, int flag)
 {
-	int constraintid = 0;
-	return constraintid;
+	return nullptr;
+}
+
+PHY_IVehicle *DummyPhysicsEnvironment::CreateVehicle(PHY_IPhysicsController *ctrl)
+{
+	return nullptr;
 }
 
 void DummyPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)

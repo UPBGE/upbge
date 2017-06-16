@@ -22,10 +22,7 @@
  *  \ingroup ketsji
  */
 
-#include "EXP_PyObjectPlus.h"
-
 #include "KX_VehicleWrapper.h"
-#include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IVehicle.h"
 #include "KX_PyMath.h"
 #include "KX_GameObject.h"
@@ -34,23 +31,13 @@
 
 #include "DNA_object_types.h" // for OB_MAX_COL_MASKS
 
-KX_VehicleWrapper::KX_VehicleWrapper(
-						PHY_IVehicle* vehicle,
-						PHY_IPhysicsEnvironment* physenv) :
-		m_vehicle(vehicle),
-		m_physenv(physenv)
+KX_VehicleWrapper::KX_VehicleWrapper(PHY_IVehicle *vehicle)
+	:m_vehicle(vehicle)
 {
 }
 
 KX_VehicleWrapper::~KX_VehicleWrapper()
 {
-	int numMotion = m_motionStates.size();
-	for (int i=0;i<numMotion;i++)
-	{
-		PHY_IMotionState* motionState = m_motionStates[i];
-		delete motionState;
-	}
-	m_motionStates.clear();
 }
 
 std::string KX_VehicleWrapper::GetName()
@@ -376,8 +363,22 @@ PyMethodDef KX_VehicleWrapper::Methods[] = {
 
 PyAttributeDef KX_VehicleWrapper::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("rayMask", KX_VehicleWrapper, pyattr_get_ray_mask, pyattr_set_ray_mask),
+	KX_PYATTRIBUTE_RO_FUNCTION("constraint_id", KX_VehicleWrapper, pyattr_get_constraintId),
+	KX_PYATTRIBUTE_RO_FUNCTION("constraint_type", KX_VehicleWrapper, pyattr_get_constraintType),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
+
+PyObject *KX_VehicleWrapper::pyattr_get_constraintId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_VehicleWrapper* self = static_cast<KX_VehicleWrapper*>(self_v);
+	return PyLong_FromLong(self->m_vehicle->GetUserConstraintId());
+}
+
+PyObject *KX_VehicleWrapper::pyattr_get_constraintType(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_VehicleWrapper* self = static_cast<KX_VehicleWrapper*>(self_v);
+	return PyLong_FromLong(PHY_VEHICLE_CONSTRAINT);
+}
 
 PyObject *KX_VehicleWrapper::pyattr_get_ray_mask(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {

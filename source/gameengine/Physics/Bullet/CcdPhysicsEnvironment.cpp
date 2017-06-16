@@ -19,6 +19,7 @@
 #include "CcdPhysicsEnvironment.h"
 #include "CcdPhysicsController.h"
 #include "CcdGraphicController.h"
+#include "CcdConstraint.h"
 #include "CcdMathUtils.h"
 
 #include <algorithm>
@@ -57,14 +58,12 @@ extern "C" {
 
 #define CCD_CONSTRAINT_DISABLE_LINKED_COLLISION 0x80
 
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
 #include "BulletDynamics/Vehicle/btRaycastVehicle.h"
 #include "BulletDynamics/Vehicle/btVehicleRaycaster.h"
 #include "BulletDynamics/Vehicle/btWheelInfo.h"
 #include "PHY_IVehicle.h"
 static btRaycastVehicle::btVehicleTuning gTuning;
 
-#endif //NEW_BULLET_VEHICLE_SUPPORT
 #include "LinearMath/btAabbUtil2.h"
 #include "MT_MinMax.h"
 
@@ -91,8 +90,6 @@ void DrawRasterizerLine(const float *from, const float *to, int color);
 
 #endif //_MSC_VER
 #endif //WIN32
-
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
 
 class VehicleClosestRayResultCallback : public btCollisionWorld::ClosestRayResultCallback
 {
@@ -365,8 +362,6 @@ public:
 	}
 };
 
-#endif //NEW_BULLET_VEHICLE_SUPPORT
-
 class CcdOverlapFilterCallBack : public btOverlapFilterCallback
 {
 private:
@@ -503,8 +498,8 @@ void CcdPhysicsEnvironment::AddCcdPhysicsController(CcdPhysicsController *ctrl)
 
 void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con, bool free)
 {
-	CcdPhysicsController::CcdConstraint *userData = (CcdPhysicsController::CcdConstraint *)con->getUserConstraintPtr();
-	if (!userData->m_active) {
+	CcdConstraint *userData = (CcdConstraint *)con->getUserConstraintPtr();
+	if (!userData->GetEnabled()) {
 		return;
 	}
 
@@ -513,7 +508,7 @@ void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con, bool free)
 	rbA.activate();
 	rbB.activate();
 
-	userData->m_active = false;
+	userData->SetEnabled(false);
 	m_dynamicsWorld->removeConstraint(con);
 
 	if (free) {
@@ -532,10 +527,19 @@ void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con, bool free)
 	}
 }
 
+void CcdPhysicsEnvironment::RemoveVehicle(WrapperVehicle *vehicle, bool free)
+{
+	m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
+	if (free) {
+		m_wrapperVehicles.erase(std::remove(m_wrapperVehicles.begin(), m_wrapperVehicles.end(), vehicle));
+		delete vehicle;
+	}
+}
+
 void CcdPhysicsEnvironment::RestoreConstraint(CcdPhysicsController *ctrl, btTypedConstraint *con)
 {
-	CcdPhysicsController::CcdConstraint *userData = (CcdPhysicsController::CcdConstraint *)con->getUserConstraintPtr();
-	if (userData->m_active) {
+	CcdConstraint *userData = (CcdConstraint *)con->getUserConstraintPtr();
+	if (userData->GetEnabled()) {
 		return;
 	}
 
@@ -554,8 +558,8 @@ void CcdPhysicsEnvironment::RestoreConstraint(CcdPhysicsController *ctrl, btType
 
 	// Avoid add constraint if one of the objects are not available.
 	if (IsActiveCcdPhysicsController(other)) {
-		userData->m_active = true;
-		m_dynamicsWorld->addConstraint(con, userData->m_disableCollision);
+		userData->SetEnabled(true);
+		m_dynamicsWorld->addConstraint(con, userData->GetDisableCollision());
 	}
 }
 
@@ -583,16 +587,11 @@ bool CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController *ctr
 		m_dynamicsWorld->removeRigidBody(ctrl->GetRigidBody());
 
 		// Handle potential vehicle constraints
-		int numVehicles = m_wrapperVehicles.size();
-		int vehicle_constraint = 0;
-		for (int i = 0; i < numVehicles; i++) {
-			WrapperVehicle *wrapperVehicle = m_wrapperVehicles[i];
-			if (wrapperVehicle->GetChassis() == ctrl)
-				vehicle_constraint = wrapperVehicle->GetVehicle()->getUserConstraintId();
+		for (WrapperVehicle *vehicle : m_wrapperVehicles) {
+			if (vehicle->GetChassis() == ctrl) {
+				RemoveVehicle(vehicle, freeConstraints);
+			}
 		}
-
-		if (vehicle_constraint > 0)
-			RemoveConstraintById(vehicle_constraint, freeConstraints);
 	}
 	else {
 		//if a softbody
@@ -1049,14 +1048,9 @@ void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId, bool free)
 		}
 	}
 
-	WrapperVehicle *vehicle;
-	if ((vehicle = (WrapperVehicle *)GetVehicleConstraint(constraintId)))
-	{
-		m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
-		if (free) {
-			m_wrapperVehicles.erase(std::remove(m_wrapperVehicles.begin(), m_wrapperVehicles.end(), vehicle));
-			delete vehicle;
-		}
+	WrapperVehicle *vehicle = static_cast<WrapperVehicle *>(GetVehicleConstraint(constraintId));
+	if (vehicle) {
+		RemoveVehicle(vehicle, free);
 	}
 }
 
@@ -1971,9 +1965,7 @@ void CcdPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env)
 
 CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
 {
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
 	m_wrapperVehicles.clear();
-#endif //NEW_BULLET_VEHICLE_SUPPORT
 
 	//m_broadphase->DestroyScene();
 	//delete broadphase ? release reference on broadphase ?
@@ -2011,158 +2003,6 @@ CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
 
 	if (nullptr != m_cullingCache)
 		delete m_cullingCache;
-}
-
-float CcdPhysicsEnvironment::GetConstraintParam(int constraintId, int param)
-{
-	btTypedConstraint *typedConstraint = GetConstraintById(constraintId);
-	if (!typedConstraint)
-		return 0.0f;
-
-	switch (typedConstraint->getUserConstraintType())
-	{
-		case PHY_GENERIC_6DOF_CONSTRAINT:
-		{
-			switch (param)
-			{
-				case 0: case 1: case 2:
-				{
-					//param = 0..2 are linear constraint values
-					btGeneric6DofConstraint *genCons = (btGeneric6DofConstraint *)typedConstraint;
-					genCons->calculateTransforms();
-					return genCons->getRelativePivotPosition(param);
-					break;
-				}
-				case 3: case 4: case 5:
-				{
-					//param = 3..5 are relative constraint (Euler) angles
-					btGeneric6DofConstraint *genCons = (btGeneric6DofConstraint *)typedConstraint;
-					genCons->calculateTransforms();
-					return genCons->getAngle(param - 3);
-					break;
-				}
-				default:
-				{
-				}
-			}
-			break;
-		};
-		default:
-		{
-		};
-	};
-	return 0.0f;
-}
-
-void CcdPhysicsEnvironment::SetConstraintParam(int constraintId, int param, float value0, float value1)
-{
-	btTypedConstraint *typedConstraint = GetConstraintById(constraintId);
-	if (!typedConstraint)
-		return;
-
-	switch (typedConstraint->getUserConstraintType())
-	{
-		case PHY_GENERIC_6DOF_CONSTRAINT:
-		{
-			switch (param)
-			{
-				case 0: case 1: case 2: case 3: case 4: case 5:
-				{
-					//param = 0..5 are constraint limits, with low/high limit value
-					btGeneric6DofConstraint *genCons = (btGeneric6DofConstraint *)typedConstraint;
-					genCons->setLimit(param, value0, value1);
-					break;
-				}
-				case 6: case 7: case 8:
-				{
-					//param = 6,7,8 are translational motors, with value0=target velocity, value1 = max motor force
-					btGeneric6DofConstraint *genCons = (btGeneric6DofConstraint *)typedConstraint;
-					int transMotorIndex = param - 6;
-					btTranslationalLimitMotor *transMotor = genCons->getTranslationalLimitMotor();
-					transMotor->m_targetVelocity[transMotorIndex] = value0;
-					transMotor->m_maxMotorForce[transMotorIndex] = value1;
-					transMotor->m_enableMotor[transMotorIndex] = (value1 > 0.0f);
-					break;
-				}
-				case 9: case 10: case 11:
-				{
-					//param = 9,10,11 are rotational motors, with value0=target velocity, value1 = max motor force
-					btGeneric6DofConstraint *genCons = (btGeneric6DofConstraint *)typedConstraint;
-					int angMotorIndex = param - 9;
-					btRotationalLimitMotor *rotMotor = genCons->getRotationalLimitMotor(angMotorIndex);
-					rotMotor->m_enableMotor = (value1 > 0.0f);
-					rotMotor->m_targetVelocity = value0;
-					rotMotor->m_maxMotorForce = value1;
-					break;
-				}
-
-				case 12: case 13: case 14: case 15: case 16: case 17:
-				{
-					//param 12-17 are for motorized springs on each of the degrees of freedom
-					btGeneric6DofSpringConstraint *genCons = (btGeneric6DofSpringConstraint *)typedConstraint;
-					int springIndex = param - 12;
-					if (value0 != 0.0f) {
-						bool springEnabled = true;
-						genCons->setStiffness(springIndex, value0);
-						genCons->setDamping(springIndex, value1);
-						genCons->enableSpring(springIndex, springEnabled);
-						genCons->setEquilibriumPoint(springIndex);
-					}
-					else {
-						bool springEnabled = false;
-						genCons->enableSpring(springIndex, springEnabled);
-					}
-					break;
-				}
-
-				default:
-				{
-				}
-			};
-			break;
-		};
-		case PHY_CONE_TWIST_CONSTRAINT:
-		{
-			switch (param)
-			{
-				case 3: case 4: case 5:
-				{
-					//param = 3,4,5 are constraint limits, high limit values
-					btConeTwistConstraint *coneTwist = (btConeTwistConstraint *)typedConstraint;
-					if (value1 < 0.0f)
-						coneTwist->setLimit(param, btScalar(BT_LARGE_FLOAT));
-					else
-						coneTwist->setLimit(param, value1);
-					break;
-				}
-				default:
-				{
-				}
-			};
-			break;
-		};
-		case PHY_ANGULAR_CONSTRAINT:
-		case PHY_LINEHINGE_CONSTRAINT:
-		{
-			switch (param)
-			{
-				case 3:
-				{
-					//param = 3 is a constraint limit, with low/high limit value
-					btHingeConstraint *hingeCons = (btHingeConstraint *)typedConstraint;
-					hingeCons->setLimit(value0, value1);
-					break;
-				}
-				default:
-				{
-				}
-			}
-			break;
-		};
-		default:
-		{
-		};
-	};
 }
 
 btTypedConstraint *CcdPhysicsEnvironment::GetConstraintById(int constraintId)
@@ -2329,8 +2169,6 @@ bool CcdOverlapFilterCallBack::needBroadphaseCollision(btBroadphaseProxy *proxy0
 	return true;
 }
 
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
-
 //complex constraint for vehicles
 PHY_IVehicle *CcdPhysicsEnvironment::GetVehicleConstraint(int constraintId)
 {
@@ -2345,8 +2183,6 @@ PHY_IVehicle *CcdPhysicsEnvironment::GetVehicleConstraint(int constraintId)
 
 	return nullptr;
 }
-
-#endif //NEW_BULLET_VEHICLE_SUPPORT
 
 PHY_ICharacter *CcdPhysicsEnvironment::GetCharacterController(KX_GameObject *ob)
 {
@@ -2399,7 +2235,7 @@ int findClosestNode(btSoftBody *sb, const btVector3& worldPoint)
 	return node;
 }
 
-int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0, class PHY_IPhysicsController *ctrl1, PHY_ConstraintType type,
+PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0, class PHY_IPhysicsController *ctrl1, PHY_ConstraintType type,
 											float pivotX, float pivotY, float pivotZ,
 											float axisX, float axisY, float axisZ,
 											float axis1X, float axis1Y, float axis1Z,
@@ -2418,7 +2254,7 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 
 	btCollisionObject *colObj0 = c0->GetCollisionObject();
 	if (!colObj0) {
-		return 0;
+		return nullptr;
 	}
 
 	btVector3 pivotInA(pivotX, pivotY, pivotZ);
@@ -2429,7 +2265,7 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 	if (sb0 && sb1)
 	{
 		//not between two soft bodies?
-		return 0;
+		return nullptr;
 	}
 
 	if (sb0) {
@@ -2445,7 +2281,7 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 				sb0->setMass(node, 0.0f);
 			}
 		}
-		return 0;//can't remove soft body anchors yet
+		return nullptr;//can't remove soft body anchors yet
 	}
 
 	if (sb1) {
@@ -2459,19 +2295,23 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 				sb1->setMass(node, 0.0f);
 			}
 		}
-		return 0;//can't remove soft body anchors yet
+		return nullptr;//can't remove soft body anchors yet
 	}
 
 	if (rb0static && rb1static) {
-		return 0;
+		return nullptr;
 	}
 
 
 	if (!rb0)
-		return 0;
+		return nullptr;
+
+	// If either of the controllers is missing, we can't do anything.
+	if (!c0 || !c1) {
+		return nullptr;
+	}
 
 	btTypedConstraint *con = nullptr;
-	btRaycastVehicle *vehicle = nullptr;
 
 	btVector3 pivotInB = rb1 ? rb1->getCenterOfMassTransform().inverse()(rb0->getCenterOfMassTransform()(pivotInA)) :
 	                     rb0->getCenterOfMassTransform() * pivotInA;
@@ -2484,11 +2324,6 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 	{
 		case PHY_POINT2POINT_CONSTRAINT:
 		{
-			// If either of the controllers is missing, we can't do anything.
-			if (!c0 || !c1) {
-				return 0;
-			}
-
 			btPoint2PointConstraint *p2p = nullptr;
 
 			if (rb1) {
@@ -2505,11 +2340,6 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 
 		case PHY_GENERIC_6DOF_CONSTRAINT:
 		{
-			// If either of the controllers is missing, we can't do anything.
-			if (!c0 || !c1) {
-				return 0;
-			}
-
 			btGeneric6DofConstraint *genericConstraint = nullptr;
 
 			if (rb1) {
@@ -2567,11 +2397,6 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 		}
 		case PHY_CONE_TWIST_CONSTRAINT:
 		{
-			// If either of the controllers is missing, we can't do anything.
-			if (!c0 || !c1) {
-				return 0;
-			}
-
 			btConeTwistConstraint *coneTwistContraint = nullptr;
 
 			if (rb1) {
@@ -2629,11 +2454,6 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 
 		case PHY_LINEHINGE_CONSTRAINT:
 		{
-			// If either of the controllers is missing, we can't do anything.
-			if (!c0 || !c1) {
-				return 0;
-			}
-
 			btHingeConstraint *hinge = nullptr;
 
 			if (rb1) {
@@ -2688,48 +2508,40 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 
 			break;
 		}
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
-
-		case PHY_VEHICLE_CONSTRAINT:
-		{
-			const btRaycastVehicle::btVehicleTuning tuning = btRaycastVehicle::btVehicleTuning();
-			btRigidBody *chassis = rb0;
-			BlenderVehicleRaycaster *raycaster = new BlenderVehicleRaycaster(m_dynamicsWorld);
-			vehicle = new btRaycastVehicle(tuning, chassis, raycaster);
-			WrapperVehicle *wrapperVehicle = new WrapperVehicle(vehicle, raycaster, ctrl0);
-			m_wrapperVehicles.push_back(wrapperVehicle);
-
-			break;
-		};
-#endif //NEW_BULLET_VEHICLE_SUPPORT
-
 		default:
 		{
 		}
 	};
 
-	if (con) {
-		c0->addCcdConstraintRef(con);
-		c1->addCcdConstraintRef(con);
-		con->setUserConstraintId(gConstraintUid++);
-		con->setUserConstraintType(type);
-		CcdPhysicsController::CcdConstraint *userData = new CcdPhysicsController::CcdConstraint(disableCollisionBetweenLinkedBodies);
-		con->setUserConstraintPtr(userData);
-		userData->m_active = true;
-		m_dynamicsWorld->addConstraint(con, disableCollisionBetweenLinkedBodies);
-
-		return con->getUserConstraintId();
-	}
-	else if (vehicle) {
-		m_dynamicsWorld->addVehicle(vehicle);
-
-		vehicle->setUserConstraintId(gConstraintUid++);
-		vehicle->setUserConstraintType(type);
-
-		return vehicle->getUserConstraintId();
+	if (!con) {
+		return nullptr;
 	}
 
-	return 0;
+	c0->addCcdConstraintRef(con);
+	c1->addCcdConstraintRef(con);
+	con->setUserConstraintId(gConstraintUid++);
+	con->setUserConstraintType(type);
+	CcdConstraint *constraintData = new CcdConstraint(con, disableCollisionBetweenLinkedBodies);
+	con->setUserConstraintPtr(constraintData);
+	m_dynamicsWorld->addConstraint(con, disableCollisionBetweenLinkedBodies);
+
+	return constraintData;
+}
+
+PHY_IVehicle *CcdPhysicsEnvironment::CreateVehicle(PHY_IPhysicsController *ctrl)
+{
+	const btRaycastVehicle::btVehicleTuning tuning = btRaycastVehicle::btVehicleTuning();
+	BlenderVehicleRaycaster *raycaster = new BlenderVehicleRaycaster(m_dynamicsWorld);
+	btRaycastVehicle *vehicle = new btRaycastVehicle(tuning, ((CcdPhysicsController *)ctrl)->GetRigidBody(), raycaster);
+	WrapperVehicle *wrapperVehicle = new WrapperVehicle(vehicle, raycaster, ctrl);
+	m_wrapperVehicles.push_back(wrapperVehicle);
+
+	m_dynamicsWorld->addVehicle(vehicle);
+
+	vehicle->setUserConstraintId(gConstraintUid++);
+	vehicle->setUserConstraintType(PHY_VEHICLE_CONSTRAINT);
+
+	return wrapperVehicle;
 }
 
 PHY_IPhysicsController *CcdPhysicsEnvironment::CreateConeController(float coneradius, float coneheight)
@@ -3308,7 +3120,7 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src, KX_Ga
 	/* Apply not only the pivot and axis values, but also take scale into count
 	 * this is not working well, if only one or two axis are scaled, but works ok on
 	 * homogeneous scaling. */
-	int constraintId = phys_env->CreateConstraint(
+	PHY_IConstraint *constraint = phys_env->CreateConstraint(
 	    phy_src, phy_dest, (PHY_ConstraintType)dat->type,
 	    (float)(dat->pivX * scale.x()), (float)(dat->pivY * scale.y()), (float)(dat->pivZ * scale.z()),
 	    (float)(axis0.x() * scale.x()), (float)(axis0.y() * scale.y()), (float)(axis0.z() * scale.z()),
@@ -3323,7 +3135,7 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src, KX_Ga
 	 * PHY_VEHICLE_CONSTRAINT = 11,
 	 * PHY_GENERIC_6DOF_CONSTRAINT = 12 */
 
-	if (!constraintId)
+	if (!constraint)
 		return;
 
 	int dof = 0;
@@ -3355,11 +3167,11 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src, KX_Ga
 
 	for (; dof < dof_max; dof++) {
 		if (dat->flag & dofbit) {
-			phys_env->SetConstraintParam(constraintId, dof, dat->minLimit[dof], dat->maxLimit[dof]);
+			constraint->SetParam(dof, dat->minLimit[dof], dat->maxLimit[dof]);
 		}
 		else {
 			/* minLimit > maxLimit means free (no limit) for this degree of freedom. */
-			phys_env->SetConstraintParam(constraintId, dof, 1.0f, -1.0f);
+			constraint->SetParam(dof, 1.0f, -1.0f);
 		}
 		dofbit <<= 1;
 	}

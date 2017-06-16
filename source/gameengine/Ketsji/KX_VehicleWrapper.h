@@ -8,25 +8,18 @@
 
 #include "EXP_Value.h"
 class PHY_IVehicle;
-class PHY_IMotionState;
-
-#include <vector>
 
 ///Python interface to physics vehicles (primarily 4-wheel cars and 2wheel bikes)
 class	KX_VehicleWrapper : public CValue
 {
 	Py_Header
 
-	std::vector<PHY_IMotionState*> m_motionStates;
-
 public:
-	KX_VehicleWrapper(PHY_IVehicle* vehicle,class PHY_IPhysicsEnvironment* physenv);
+	KX_VehicleWrapper(PHY_IVehicle* vehicle);
 	virtual ~KX_VehicleWrapper ();
 
 	virtual std::string GetName();
 
-	int			getConstraintId();
-	
 #ifdef WITH_PYTHON
 	
 	KX_PYMETHOD_VARARGS(KX_VehicleWrapper,AddWheel);
@@ -57,12 +50,13 @@ public:
 
 	static PyObject *pyattr_get_ray_mask(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_ray_mask(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_constraintId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_constraintType(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif  /* WITH_PYTHON */
 
 private:
 	PHY_IVehicle*			 m_vehicle;
-	PHY_IPhysicsEnvironment* m_physenv;
 };
 
 #endif  /* __KX_VEHICLEWRAPPER_H__ */

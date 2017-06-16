@@ -38,10 +38,6 @@ class btTypedConstraint;
 class btSimulationIslandManager;
 class btCollisionDispatcher;
 class btDispatcher;
-//#include "btBroadphaseInterface.h"
-
-//switch on/off new vehicle support
-#define NEW_BULLET_VEHICLE_SUPPORT 1
 
 #include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
 
@@ -68,6 +64,8 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment
 
 	/// Removes the constraint and his references from the owner and the target.
 	void RemoveConstraint(btTypedConstraint *con, bool free);
+	/// Remove a vehicle wrapper.
+	void RemoveVehicle(WrapperVehicle *vehicle, bool free);
 	/// Restore the constraint if the owner and target are presents.
 	void RestoreConstraint(CcdPhysicsController *ctrl, btTypedConstraint *con);
 
@@ -168,15 +166,12 @@ public:
 	virtual void GetGravity(MT_Vector3& grav);
 
 
-	virtual int CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
+	virtual PHY_IConstraint *CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
 								 float pivotX, float pivotY, float pivotZ,
 								 float axisX, float axisY, float axisZ,
 								 float axis1X = 0, float axis1Y = 0, float axis1Z = 0,
 								 float axis2X = 0, float axis2Y = 0, float axis2Z = 0, int flag = 0);
-
-	virtual void SetConstraintParam(int constraintId, int param, float value, float value1);
-
-	virtual float GetConstraintParam(int constraintId, int param);
+	virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl);
 
 	virtual void RemoveConstraintById(int constraintid, bool free);
 
@@ -184,15 +179,8 @@ public:
 
 	virtual void CallbackTriggers();
 
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
 	//complex constraint for vehicles
 	virtual PHY_IVehicle *GetVehicleConstraint(int constraintId);
-#else
-	virtual class PHY_IVehicle *GetVehicleConstraint(int constraintId)
-	{
-		return nullptr;
-	}
-#endif  /* NEW_BULLET_VEHICLE_SUPPORT */
 	    // Character physics wrapper
 	virtual PHY_ICharacter *GetCharacterController(class KX_GameObject *ob);
 
