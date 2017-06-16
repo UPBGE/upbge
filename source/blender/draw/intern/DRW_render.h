@@ -201,7 +201,7 @@ void DRW_framebuffer_texture_attach(struct GPUFrameBuffer *fb, struct GPUTexture
 void DRW_framebuffer_cubeface_attach(struct GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int face, int mip);
 void DRW_framebuffer_texture_detach(struct GPUTexture *tex);
 void DRW_framebuffer_blit(struct GPUFrameBuffer *fb_read, struct GPUFrameBuffer *fb_write, bool depth);
-void DRW_framebuffer_viewport_size(struct GPUFrameBuffer *UNUSED(fb_read), int w, int h);
+void DRW_framebuffer_viewport_size(struct GPUFrameBuffer *fb_read, int x, int y, int w, int h);
 void DRW_framebuffer_free(struct GPUFrameBuffer *fb);
 #define DRW_FRAMEBUFFER_FREE_SAFE(fb) do { \
 	if (fb != NULL) { \
@@ -290,7 +290,6 @@ void DRW_shgroup_call_dynamic_add_array(DRWShadingGroup *shgroup, const void *at
 void DRW_shgroup_set_instance_count(DRWShadingGroup *shgroup, int count);
 
 void DRW_shgroup_state_enable(DRWShadingGroup *shgroup, DRWState state);
-void DRW_shgroup_attrib_int(DRWShadingGroup *shgroup, const char *name, int size);
 void DRW_shgroup_attrib_float(DRWShadingGroup *shgroup, const char *name, int size);
 
 void DRW_shgroup_uniform_texture(DRWShadingGroup *shgroup, const char *name, const struct GPUTexture *tex);

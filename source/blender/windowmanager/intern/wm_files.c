@@ -69,6 +69,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BKE_appdir.h"
 #include "BKE_utildefines.h"
@@ -1100,7 +1101,7 @@ static int wm_file_write(bContext *C, const char *filepath, int fileflags, Repor
 		BKE_reportf(reports, RPT_ERROR, "Cannot save blend file, path '%s' is not writable", filepath);
 		return ret;
 	}
- 
+
 	/* note: used to replace the file extension (to ensure '.blend'),
 	 * no need to now because the operator ensures,
 	 * its handy for scripts to save to a predefined name without blender editing it */

@@ -1205,15 +1205,15 @@ class INFO_MT_lamp_add(Menu):
         layout.operator_enum("object.lamp_add", "type")
 
 
-class INFO_MT_probe_add(Menu):
-    bl_idname = "INFO_MT_probe_add"
-    bl_label = "Probe"
+class INFO_MT_lightprobe_add(Menu):
+    bl_idname = "INFO_MT_lightprobe_add"
+    bl_label = "Light Probe"
 
     def draw(self, context):
         layout = self.layout
 
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator_enum("object.probe_add", "type")
+        layout.operator_enum("object.lightprobe_add", "type")
 
 
 class INFO_MT_camera_add(Menu):
@@ -1263,17 +1263,17 @@ class INFO_MT_add(Menu):
             INFO_MT_camera_add.draw(self, context)
 
         layout.menu("INFO_MT_lamp_add", icon='OUTLINER_OB_LAMP')
-        layout.menu("INFO_MT_probe_add")
+        layout.menu("INFO_MT_lightprobe_add")
         layout.separator()
 
-        layout.operator_menu_enum("object.effector_add", "type", text="Force Field", icon='OUTLINER_OB_EMPTY')
+        layout.operator_menu_enum("object.effector_add", "type", text="Force Field", icon='OUTLINER_OB_FORCE_FIELD')
         layout.separator()
 
         if len(bpy.data.groups) > 10:
             layout.operator_context = 'INVOKE_REGION_WIN'
-            layout.operator("object.group_instance_add", text="Group Instance...", icon='OUTLINER_OB_EMPTY')
+            layout.operator("object.group_instance_add", text="Group Instance...", icon='OUTLINER_OB_GROUP_INSTANCE')
         else:
-            layout.operator_menu_enum("object.group_instance_add", "group", text="Group Instance", icon='OUTLINER_OB_EMPTY')
+            layout.operator_menu_enum("object.group_instance_add", "group", text="Group Instance", icon='OUTLINER_OB_GROUP_INSTANCE')
 
 
 # ********** Object menu **********
@@ -1654,7 +1654,7 @@ class VIEW3D_MT_make_links(Menu):
             layout.operator("object.make_links_scene", text="Objects to Scene...", icon='OUTLINER_OB_EMPTY')
         else:
             layout.operator_context = 'EXEC_REGION_WIN'
-            layout.operator_menu_enum("object.make_links_scene", "scene", text="Objects to Scene...")
+            layout.operator_menu_enum("object.make_links_scene", "scene", text="Objects to Scene")
         layout.operator_context = operator_context_default
 
         layout.operator_enum("object.make_links_data", "type")  # inline
@@ -3788,7 +3788,7 @@ classes = (
     INFO_MT_edit_armature_add,
     INFO_MT_armature_add,
     INFO_MT_lamp_add,
-    INFO_MT_probe_add,
+    INFO_MT_lightprobe_add,
     INFO_MT_camera_add,
     INFO_MT_add,
     VIEW3D_MT_object,

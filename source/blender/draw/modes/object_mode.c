@@ -32,7 +32,7 @@
 #include "DNA_curve_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_force.h"
-#include "DNA_probe_types.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
@@ -908,7 +908,7 @@ static void OBJECT_cache_init(void *vedata)
 
 		/* Probe */
 		static float probeSize = 10.0f;
-		geom = DRW_cache_probe_get();
+		geom = DRW_cache_lightprobe_get();
 		stl->g_data->probe = shgroup_instance_screenspace(psl->non_meshes, geom, &probeSize);
 
 		/* Camera */
@@ -1408,32 +1408,41 @@ static void DRW_shgroup_speaker(OBJECT_StorageList *stl, Object *ob, SceneLayer 
 	DRW_shgroup_call_dynamic_add(stl->g_data->speaker, color, &one, ob->obmat);
 }
 
-static void DRW_shgroup_probe(OBJECT_StorageList *stl, Object *ob, SceneLayer *sl)
+static void DRW_shgroup_lightprobe(OBJECT_StorageList *stl, Object *ob, SceneLayer *sl)
 {
 	float *color;
-	Probe *prb = (Probe *)ob->data;
+	LightProbe *prb = (LightProbe *)ob->data;
 	DRW_object_wire_theme_get(ob, sl, &color);
 
-	prb->distfalloff = (1.0f - prb->falloff) * prb->distinf;
 
 	DRW_shgroup_call_dynamic_add(stl->g_data->probe, ob->obmat[3], color);
 
-	if ((prb->flag & PRB_SHOW_INFLUENCE) != 0) {
-		if (prb->attenuation_type == PROBE_BOX) {
-			DRW_shgroup_call_dynamic_add(stl->g_data->cube, color, &prb->distinf, ob->obmat);
+	if ((prb->flag & LIGHTPROBE_FLAG_SHOW_INFLUENCE) != 0) {
+
+		prb->distfalloff = (1.0f - prb->falloff) * prb->distinf;
+		prb->distgridinf = prb->distinf;
+
+		if (prb->type == LIGHTPROBE_TYPE_GRID) {
+			prb->distfalloff += 1.0f;
+			prb->distgridinf += 1.0f;
+		}
+
+		if (prb->type == LIGHTPROBE_TYPE_GRID ||
+			prb->attenuation_type == LIGHTPROBE_SHAPE_BOX)
+		{
+			DRW_shgroup_call_dynamic_add(stl->g_data->cube, color, &prb->distgridinf, ob->obmat);
 			DRW_shgroup_call_dynamic_add(stl->g_data->cube, color, &prb->distfalloff, ob->obmat);
 		}
 		else {
-			DRW_shgroup_call_dynamic_add(stl->g_data->sphere, color, &prb->distinf, ob->obmat);
+			DRW_shgroup_call_dynamic_add(stl->g_data->sphere, color, &prb->distgridinf, ob->obmat);
 			DRW_shgroup_call_dynamic_add(stl->g_data->sphere, color, &prb->distfalloff, ob->obmat);
 		}
 	}
 
-	if ((prb->flag & PRB_SHOW_PARALLAX) != 0) {
+	if ((prb->flag & LIGHTPROBE_FLAG_SHOW_PARALLAX) != 0) {
 		float (*obmat)[4], *dist;
 
-
-		if ((prb->flag & PRB_CUSTOM_PARALLAX) != 0) {
+		if ((prb->flag & LIGHTPROBE_FLAG_CUSTOM_PARALLAX) != 0) {
 			dist = &prb->distpar;
 			/* TODO object parallax */
 			obmat = ob->obmat;
@@ -1443,7 +1452,7 @@ static void DRW_shgroup_probe(OBJECT_StorageList *stl, Object *ob, SceneLayer *s
 			obmat = ob->obmat;
 		}
 
-		if (prb->parallax_type == PROBE_BOX) {
+		if (prb->parallax_type == LIGHTPROBE_SHAPE_BOX) {
 			DRW_shgroup_call_dynamic_add(stl->g_data->cube, color, &dist, obmat);
 		}
 		else {
@@ -1451,7 +1460,7 @@ static void DRW_shgroup_probe(OBJECT_StorageList *stl, Object *ob, SceneLayer *s
 		}
 	}
 
-	if ((prb->flag & PRB_SHOW_CLIP_DIST) != 0) {
+	if ((prb->flag & LIGHTPROBE_FLAG_SHOW_CLIP_DIST) != 0) {
 		static const float cubefacemat[6][4][4] = {
 			{{0.0, 0.0, -1.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {-1.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
 			{{0.0, 0.0, 1.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
@@ -1461,13 +1470,22 @@ static void DRW_shgroup_probe(OBJECT_StorageList *stl, Object *ob, SceneLayer *s
 			{{-1.0, 0.0, 0.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {0.0, 0.0, 1.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
 		};
 
-		for (int i = 0; i < 6; ++i) {
-			normalize_m4_m4(prb->clipmat[i], ob->obmat);
-			// invert_m4(prb->clipmat[i]);
-			mul_m4_m4m4(prb->clipmat[i], prb->clipmat[i], cubefacemat[i]);
+		float **prb_mats = (float **)DRW_object_engine_data_get(ob, &draw_engine_object_type, NULL);
+		if (*prb_mats == NULL) {
+			/* we need 2 matrices */
+			*prb_mats = MEM_mallocN(sizeof(float) * 16 * 6, "Probe Clip distances Matrices");
+		}
 
-			DRW_shgroup_call_dynamic_add(stl->g_data->lamp_buflimit, color, &prb->clipsta, &prb->clipend, prb->clipmat[i]);
-			DRW_shgroup_call_dynamic_add(stl->g_data->lamp_buflimit_points, color, &prb->clipsta, &prb->clipend, prb->clipmat[i]);
+		for (int i = 0; i < 6; ++i) {
+			float (*clipmat)[4];
+			clipmat = (float (*)[4])(*prb_mats + 16 * i);
+
+			normalize_m4_m4(clipmat, ob->obmat);
+			// invert_m4(clipmat);
+			mul_m4_m4m4(clipmat, clipmat, cubefacemat[i]);
+
+			DRW_shgroup_call_dynamic_add(stl->g_data->lamp_buflimit, color, &prb->clipsta, &prb->clipend, clipmat);
+			DRW_shgroup_call_dynamic_add(stl->g_data->lamp_buflimit_points, color, &prb->clipsta, &prb->clipend, clipmat);
 		}
 	}
 	DRW_shgroup_call_dynamic_add(stl->g_data->lamp_center_group, ob->obmat[3]);
@@ -1674,8 +1692,8 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 		case OB_SPEAKER:
 			DRW_shgroup_speaker(stl, ob, sl);
 			break;
-		case OB_PROBE:
-			DRW_shgroup_probe(stl, ob, sl);
+		case OB_LIGHTPROBE:
+			DRW_shgroup_lightprobe(stl, ob, sl);
 			break;
 		case OB_ARMATURE:
 		{

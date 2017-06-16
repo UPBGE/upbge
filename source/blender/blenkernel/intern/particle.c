@@ -592,7 +592,7 @@ void psys_free(Object *ob, ParticleSystem *psys)
 
 		BLI_bvhtree_free(psys->bvhtree);
 		BLI_kdtree_free(psys->tree);
- 
+
 		if (psys->fluid_springs)
 			MEM_freeN(psys->fluid_springs);
 
@@ -3331,7 +3331,7 @@ void BKE_particlesettings_rough_curve_init(ParticleSettings *part)
 	part->roughcurve = cumap;
 }
 
-ParticleSettings *BKE_particlesettings_copy(Main *bmain, ParticleSettings *part)
+ParticleSettings *BKE_particlesettings_copy(Main *bmain, const ParticleSettings *part)
 {
 	ParticleSettings *partn;
 	int a;

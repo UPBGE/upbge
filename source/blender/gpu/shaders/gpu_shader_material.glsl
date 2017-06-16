@@ -1480,7 +1480,7 @@ void mtex_cube_map_refl_refr(
 
 void mtex_image(vec3 texco, sampler2D ima, float lodbias, out float value, out vec4 color)
 {
-	color = texture2D(ima, texco.xy, lodbias);
+	color = texture(ima, texco.xy, lodbias);
 	value = 1.0;
 }
 
@@ -1496,7 +1496,7 @@ void mtex_image_refl(vec3 I, vec4 camerafac, sampler2D ima, float lodbias, mat4 
 	// 0.25 is an artistic constant, normal map distortion needs to be scaled down to give proper results
 	vec2 uv = window.xy + vec2(reflecteddirection.x, reflecteddirection.y) * 0.25;
 
-	color = texture2D(ima, uv, lodbias);
+	color = texture(ima, uv, lodbias);
 	value = 1.0;
 }
 
@@ -2476,7 +2476,7 @@ float test_shadow_pcf(sampler2DShadow shadowmap, vec4 co, float samples, float s
 
 float test_shadow_vsm(sampler2D shadowmap, vec4 co, float bias, float bleedbias)
 {
-	vec2 moments = texture2DProj(shadowmap, co).rg;
+	vec2 moments = textureProj(shadowmap, co).rg;
 	float dist = co.z / co.w;
 	float p = 0.0;
 

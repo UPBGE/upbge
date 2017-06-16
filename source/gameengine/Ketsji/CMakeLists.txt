@@ -258,9 +258,11 @@ set(SRC
 
 data_to_c_simple(../../blender/draw/engines/eevee/shaders/lit_surface_frag.glsl SRC)
 data_to_c_simple(../../blender/draw/engines/eevee/shaders/lit_surface_vert.glsl SRC)
-data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_direct_lib.glsl SRC)
-data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_common_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/octahedron_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/irradiance_lib.glsl SRC)
 data_to_c_simple(../../blender/draw/engines/eevee/shaders/ltc_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_common_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_direct_lib.glsl SRC)
 
 add_definitions(${GL_DEFINITIONS})
 

@@ -62,7 +62,6 @@ namespace DEG {
 
 struct Depsgraph;
 struct DepsNode;
-struct RootDepsNode;
 struct IDDepsNode;
 struct TimeSourceDepsNode;
 struct ComponentDepsNode;
@@ -74,7 +73,6 @@ struct DepsgraphNodeBuilder {
 
 	void begin_build(Main *bmain);
 
-	RootDepsNode *add_root_node();
 	IDDepsNode *add_id_node(ID *id);
 	TimeSourceDepsNode *add_time_source();
 
@@ -83,20 +81,20 @@ struct DepsgraphNodeBuilder {
 	                                      const char *comp_name = "");
 
 	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node,
-	                                      DepsEvalOperationCb op,
+	                                      const DepsEvalOperationCb& op,
 	                                      eDepsOperation_Code opcode,
 	                                      const char *name = "",
 	                                      int name_tag = -1);
 	OperationDepsNode *add_operation_node(ID *id,
 	                                      eDepsNode_Type comp_type,
 	                                      const char *comp_name,
-	                                      DepsEvalOperationCb op,
+	                                      const DepsEvalOperationCb& op,
 	                                      eDepsOperation_Code opcode,
 	                                      const char *name = "",
 	                                      int name_tag = -1);
 	OperationDepsNode *add_operation_node(ID *id,
 	                                      eDepsNode_Type comp_type,
-	                                      DepsEvalOperationCb op,
+	                                      const DepsEvalOperationCb& op,
 	                                      eDepsOperation_Code opcode,
 	                                      const char *name = "",
 	                                      int name_tag = -1);
@@ -157,7 +155,7 @@ struct DepsgraphNodeBuilder {
 	void build_cachefile(CacheFile *cache_file);
 	void build_mask(Mask *mask);
 	void build_movieclip(MovieClip *clip);
-	void build_probe(Object *object);
+	void build_lightprobe(Object *object);
 
 	struct LayerCollectionState {
 		int index;

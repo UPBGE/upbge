@@ -11,7 +11,6 @@
 
 struct ProbeData {
 	vec4 position_type;
-	vec4 shcoefs[7];
 	vec4 attenuation_fac_type;
 	mat4 influencemat;
 	mat4 parallaxmat;
@@ -25,16 +24,23 @@ struct ProbeData {
 #define p_atten_fac     attenuation_fac_type.x
 #define p_atten_type    attenuation_fac_type.y
 
-/* TODO remove sh once we have irradiance grid */
-#define shcoef0        shcoefs[0].rgb
-#define shcoef1        vec3(shcoefs[0].a, shcoefs[1].rg)
-#define shcoef2        vec3(shcoefs[1].ba, shcoefs[2].r)
-#define shcoef3        shcoefs[2].gba
-#define shcoef4        shcoefs[3].rgb
-#define shcoef5        vec3(shcoefs[3].a, shcoefs[4].rg)
-#define shcoef6        vec3(shcoefs[4].ba, shcoefs[5].r)
-#define shcoef7        shcoefs[5].gba
-#define shcoef8        shcoefs[6].rgb
+struct GridData {
+	mat4 localmat;
+	ivec4 resolution_offset;
+	vec4 ws_corner_atten_scale; /* world space corner position */
+	vec4 ws_increment_x_atten_bias; /* world space vector between 2 opposite cells */
+	vec4 ws_increment_y;
+	vec4 ws_increment_z;
+};
+
+#define g_corner        ws_corner_atten_scale.xyz
+#define g_atten_scale   ws_corner_atten_scale.w
+#define g_atten_bias    ws_increment_x_atten_bias.w
+#define g_increment_x   ws_increment_x_atten_bias.xyz
+#define g_increment_y   ws_increment_y.xyz
+#define g_increment_z   ws_increment_z.xyz
+#define g_resolution    resolution_offset.xyz
+#define g_offset        resolution_offset.w
 
 struct LightData {
 	vec4 position_influence;      /* w : InfluenceRadius */
@@ -221,41 +227,6 @@ float buffer_depth(bool is_persp, float z, float zf, float zn)
 	else {
 		return (z / (zf * 2.0)) + 0.5;
 	}
-}
-
-#define spherical_harmonics spherical_harmonics_L2
-
-/* http://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/ */
-vec3 spherical_harmonics_L1(vec3 N, vec4 shcoefs[3])
-{
-	vec3 sh = vec3(0.0);
-
-	sh += 0.282095 * shcoef0;
-
-	sh += -0.488603 * N.z * shcoef1;
-	sh += 0.488603 * N.y * shcoef2;
-	sh += -0.488603 * N.x * shcoef3;
-
-	return sh;
-}
-
-vec3 spherical_harmonics_L2(vec3 N, vec4 shcoefs[7])
-{
-	vec3 sh = vec3(0.0);
-
-	sh += 0.282095 * shcoef0;
-
-	sh += -0.488603 * N.z * shcoef1;
-	sh += 0.488603 * N.y * shcoef2;
-	sh += -0.488603 * N.x * shcoef3;
-
-	sh += 1.092548 * N.x * N.z * shcoef4;
-	sh += -1.092548 * N.z * N.y * shcoef5;
-	sh += 0.315392 * (3.0 * N.y * N.y - 1.0) * shcoef6;
-	sh += -1.092548 * N.x * N.y * shcoef7;
-	sh += 0.546274 * (N.x * N.x - N.z * N.z) * shcoef8;
-
-	return sh;
 }
 
 vec3 get_specular_dominant_dir(vec3 N, vec3 R, float roughness)

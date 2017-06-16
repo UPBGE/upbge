@@ -45,7 +45,7 @@
 #include "DNA_object_fluidsim.h"
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
-#include "DNA_probe_types.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_actuator_types.h"
@@ -152,11 +152,12 @@ static EnumPropertyItem field_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-/* copy from rna_probe.c */
-static EnumPropertyItem probe_type_items[] = {
-	{PROBE_CUBE, "CUBE", ICON_MESH_UVSPHERE, "Sphere", ""},
-	// {PROBE_PLANAR, "PLANAR", ICON_MESH_PLANE, "Planar", ""},
-	// {PROBE_IMAGE, "IMAGE", ICON_NONE, "Image", ""},
+static EnumPropertyItem lightprobe_type_items[] = {
+	{0, "SPHERE", ICON_MESH_UVSPHERE, "Sphere", "Reflection probe with sphere attenuation"},
+	{1, "CUBE", ICON_MESH_CUBE, "Cube", "Reflection probe with cube attenuation"},
+	// {LIGHTPROBE_TYPE_PLANAR, "PLANAR", ICON_MESH_PLANE, "Planar", ""},
+	// {LIGHTPROBE_TYPE_IMAGE, "IMAGE", ICON_NONE, "Image", ""},
+	{2, "GRID", ICON_MESH_GRID, "Grid", "Irradiance probe to capture diffuse indirect lighting"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -512,10 +513,10 @@ void OBJECT_OT_add(wmOperatorType *ot)
 /********************** Add Probe Operator **********************/
 
 /* for object add operator */
-static int probe_add_exec(bContext *C, wmOperator *op)
+static int lightprobe_add_exec(bContext *C, wmOperator *op)
 {
 	Object *ob;
-	Probe *probe;
+	LightProbe *probe;
 	int type;
 	bool enter_editmode;
 	unsigned int layer;
@@ -529,34 +530,43 @@ static int probe_add_exec(bContext *C, wmOperator *op)
 	type = RNA_enum_get(op->ptr, "type");
 	dia = RNA_float_get(op->ptr, "radius");
 
-	const char *name = CTX_DATA_(BLT_I18NCONTEXT_ID_OBJECT, "Probe");
-	ob = ED_object_add_type(C, OB_PROBE, name, loc, rot, false, layer);
+	const char *name = CTX_DATA_(BLT_I18NCONTEXT_ID_OBJECT, "LightProbe");
+	ob = ED_object_add_type(C, OB_LIGHTPROBE, name, loc, rot, false, layer);
 	BKE_object_obdata_size_init(ob, dia);
 
-	probe = (Probe *)ob->data;
-	probe->type = type;
+	probe = (LightProbe *)ob->data;
+
+	if (type == 2) {
+		probe->type = LIGHTPROBE_TYPE_GRID;
+		probe->distinf = 0.3f;
+		probe->falloff = 1.0f;
+	}
+	else {
+		probe->type = LIGHTPROBE_TYPE_CUBE;
+		probe->attenuation_type = (type == 1) ? LIGHTPROBE_SHAPE_BOX : LIGHTPROBE_SHAPE_ELIPSOID;
+	}
 
 	DEG_relations_tag_update(CTX_data_main(C));
 
 	return OPERATOR_FINISHED;
 }
 
-void OBJECT_OT_probe_add(wmOperatorType *ot)
+void OBJECT_OT_lightprobe_add(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Add Probe";
-	ot->description = "Add a probe object";
-	ot->idname = "OBJECT_OT_probe_add";
+	ot->name = "Add Light Probe";
+	ot->description = "Add a light probe object";
+	ot->idname = "OBJECT_OT_lightprobe_add";
 
 	/* api callbacks */
-	ot->exec = probe_add_exec;
+	ot->exec = lightprobe_add_exec;
 	ot->poll = ED_operator_objectmode;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	ot->prop = RNA_def_enum(ot->srna, "type", probe_type_items, 0, "Type", "");
+	ot->prop = RNA_def_enum(ot->srna, "type", lightprobe_type_items, 0, "Type", "");
 
 	ED_object_add_unit_props(ot);
 	ED_object_add_generic_props(ot, true);
@@ -1691,7 +1701,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 	MetaBall *mb;
 	Mesh *me;
 	const short target = RNA_enum_get(op->ptr, "target");
-	const bool keep_original = RNA_boolean_get(op->ptr, "keep_original");
+	bool keep_original = RNA_boolean_get(op->ptr, "keep_original");
 	int a, mballConverted = 0;
 
 	/* don't forget multiple users! */
@@ -1728,7 +1738,20 @@ static int convert_exec(bContext *C, wmOperator *op)
 	 * on other objects data masks too, see: T50950. */
 	{
 		for (CollectionPointerLink *link = selected_editable_bases.first; link; link = link->next) {
-			Base *base = link->ptr.data;
+			BaseLegacy *base = link->ptr.data;
+			ob = base->object;
+
+			/* The way object type conversion works currently (enforcing conversion of *all* objetcs using converted
+			 * obdata, even some un-selected/hidden/inother scene ones, sounds totally bad to me.
+			 * However, changing this is more design than bugfix, not to mention convoluted code below,
+			 * so that will be for later.
+			 * But at the very least, do not do that with linked IDs! */
+			if ((ID_IS_LINKED_DATABLOCK(ob) || ID_IS_LINKED_DATABLOCK(ob->data)) && !keep_original) {
+				keep_original = true;
+				BKE_reportf(op->reports, RPT_INFO,
+				            "Converting some linked object/object data, enforcing 'Keep Original' option to True");
+			}
+
 			DEG_id_tag_update(&base->object->id, OB_RECALC_DATA);
 		}
 
@@ -1739,7 +1762,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 	}
 
 	for (CollectionPointerLink *link = selected_editable_bases.first; link; link = link->next) {
-		Base *base = link->ptr.data;
+		BaseLegacy *base = link->ptr.data;
 		ob = base->object;
 
 		if (ob->flag & OB_DONE || !IS_TAGGED(ob->data)) {

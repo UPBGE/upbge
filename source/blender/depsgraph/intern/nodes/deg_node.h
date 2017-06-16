@@ -127,22 +127,6 @@ struct TimeSourceDepsNode : public DepsNode {
 	DEG_DEPSNODE_DECLARE;
 };
 
-/* Root Node. */
-struct RootDepsNode : public DepsNode {
-	RootDepsNode();
-	~RootDepsNode();
-
-	TimeSourceDepsNode *add_time_source(const char *name = "");
-
-	/* scene that this corresponds to */
-	Scene *scene;
-
-	/* Entrypoint node for time-changed. */
-	TimeSourceDepsNode *time_source;
-
-	DEG_DEPSNODE_DECLARE;
-};
-
 /* ID-Block Reference */
 struct IDDepsNode : public DepsNode {
 	struct ComponentIDKey {
@@ -160,8 +144,6 @@ struct IDDepsNode : public DepsNode {
 	                                  const char *name = "") const;
 	ComponentDepsNode *add_component(eDepsNode_Type type,
 	                                 const char *name = "");
-	void remove_component(eDepsNode_Type type, const char *name = "");
-	void clear_components();
 
 	void tag_update(Depsgraph *graph);
 

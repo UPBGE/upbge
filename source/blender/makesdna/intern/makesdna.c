@@ -80,7 +80,6 @@ static const char *includefiles[] = {
 	"DNA_image_types.h",
 	"DNA_texture_types.h",
 	"DNA_lamp_types.h",
-	"DNA_manipulator_types.h",
 	"DNA_material_types.h",
 	"DNA_vfont_types.h",
 	"DNA_meta_types.h",
@@ -137,7 +136,7 @@ static const char *includefiles[] = {
 	"DNA_cachefile_types.h",
 	"DNA_layer_types.h",
 	"DNA_workspace_types.h",
-	"DNA_probe_types.h",
+	"DNA_lightprobe_types.h",
 
 	/* see comment above before editing! */
 
@@ -1309,7 +1308,6 @@ int main(int argc, char **argv)
 #include "DNA_image_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_lamp_types.h"
-#include "DNA_manipulator_types.h"
 #include "DNA_material_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_meta_types.h"
@@ -1366,6 +1364,6 @@ int main(int argc, char **argv)
 #include "DNA_cachefile_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_workspace_types.h"
-#include "DNA_probe_types.h"
+#include "DNA_lightprobe_types.h"
 
 /* end of list */

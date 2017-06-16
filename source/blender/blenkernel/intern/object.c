@@ -58,7 +58,7 @@
 #include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
 #include "DNA_object_types.h"
-#include "DNA_probe_types.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_property_types.h"
 #include "DNA_rigidbody_types.h"
 
@@ -108,7 +108,7 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_probe.h"
+#include "BKE_lightprobe.h"
 #include "BKE_property.h"
 #include "BKE_rigidbody.h"
 #include "BKE_sca.h"
@@ -606,7 +606,7 @@ void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
 		case OB_LATTICE:   return BKE_lattice_add(bmain, name);
 		case OB_ARMATURE:  return BKE_armature_add(bmain, name);
 		case OB_SPEAKER:   return BKE_speaker_add(bmain, name);
-		case OB_PROBE:     return BKE_probe_add(bmain, name);
+		case OB_LIGHTPROBE:return BKE_lightprobe_add(bmain, name);
 		case OB_EMPTY:     return NULL;
 		default:
 			printf("%s: Internal error, bad type: %d\n", __func__, type);
@@ -914,7 +914,7 @@ SoftBody *copy_softbody(const SoftBody *sb, bool copy_caches)
 	return sbn;
 }
 
-BulletSoftBody *copy_bulletsoftbody(BulletSoftBody *bsb)
+BulletSoftBody *copy_bulletsoftbody(const BulletSoftBody *bsb)
 {
 	BulletSoftBody *bsbn;
 
@@ -1047,7 +1047,7 @@ void BKE_object_copy_softbody(Object *ob_dst, const Object *ob_src)
 	}
 }
 
-static void copy_object_pose(Object *obn, Object *ob)
+static void copy_object_pose(Object *obn, const Object *ob)
 {
 	bPoseChannel *chan;
 	
@@ -1080,7 +1080,7 @@ static void copy_object_pose(Object *obn, Object *ob)
 	}
 }
 
-static void copy_object_lod(Object *obn, Object *ob)
+static void copy_object_lod(Object *obn, const Object *ob)
 {
 	BLI_duplicatelist(&obn->lodlevels, &ob->lodlevels);
 
@@ -1131,7 +1131,7 @@ void BKE_object_transform_copy(Object *ob_tar, const Object *ob_src)
 	copy_v3_v3(ob_tar->size, ob_src->size);
 }
 
-Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
+Object *BKE_object_copy_ex(Main *bmain, const Object *ob, bool copy_caches)
 {
 	Object *obn;
 	ModifierData *md;
@@ -1223,7 +1223,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 }
 
 /* copy objects, will re-initialize cached simulation data */
-Object *BKE_object_copy(Main *bmain, Object *ob)
+Object *BKE_object_copy(Main *bmain, const Object *ob)
 {
 	return BKE_object_copy_ex(bmain, ob, false);
 }

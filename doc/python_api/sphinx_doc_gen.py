@@ -1717,8 +1717,6 @@ def write_rst_contents(basepath):
         "bpy.utils.previews",
         "bpy.path",
         "bpy.app",
-        "bpy.app.handlers",
-        "bpy.app.translations",
 
         # C modules
         "bpy.props",
@@ -1733,19 +1731,9 @@ def write_rst_contents(basepath):
     fw("   :maxdepth: 1\n\n")
 
     standalone_modules = (
-        # mathutils
-        "mathutils",
-        "mathutils.geometry",
-        "mathutils.bvhtree", "mathutils.kdtree",
-        "mathutils.interpolate",
-        "mathutils.noise",
-        # misc
-        "freestyle", "bgl", "blf",
-        "gpu", "gpu.offscreen",
-        "aud", "bpy_extras",
-        "idprop.types",
-        # bmesh, submodules are in own page
-        "bmesh",
+        # submodules are added in parent page
+        "mathutils", "freestyle", "bgl", "blf", "gpu",
+        "aud", "bpy_extras", "idprop.types", "bmesh",
     )
 
     for mod in standalone_modules:

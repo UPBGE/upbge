@@ -61,7 +61,7 @@ extern "C" {
 #include "DNA_movieclip_types.h"
 #include "DNA_node_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_probe_types.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
@@ -199,13 +199,6 @@ DepsgraphRelationBuilder::DepsgraphRelationBuilder(Depsgraph *graph) :
 {
 }
 
-RootDepsNode *DepsgraphRelationBuilder::find_node(const RootKey &key) const
-{
-	(void)key;
-	BLI_assert(!"Doesn't seem to be correct");
-	return m_graph->root_node;
-}
-
 TimeSourceDepsNode *DepsgraphRelationBuilder::find_node(
         const TimeSourceKey &key) const
 {
@@ -214,7 +207,7 @@ TimeSourceDepsNode *DepsgraphRelationBuilder::find_node(
 		return NULL;
 	}
 	else {
-		return m_graph->root_node->time_source;
+		return m_graph->time_source;
 	}
 }
 
@@ -370,6 +363,11 @@ void DepsgraphRelationBuilder::add_forcefield_relations(const OperationKey &key,
 	}
 
 	pdEndEffectors(&effectors);
+}
+
+Depsgraph *DepsgraphRelationBuilder::getGraph()
+{
+	return m_graph;
 }
 
 /* **** Functions to build relations between entities  **** */
@@ -535,8 +533,8 @@ void DepsgraphRelationBuilder::build_object(Main *bmain, Scene *scene, Object *o
 				build_camera(ob);
 				break;
 
-			case OB_PROBE:
-				build_probe(ob);
+			case OB_LIGHTPROBE:
+				build_lightprobe(ob);
 				break;
 		}
 
@@ -1741,9 +1739,9 @@ void DepsgraphRelationBuilder::build_movieclip(MovieClip *clip)
 	build_animdata(&clip->id);
 }
 
-void DepsgraphRelationBuilder::build_probe(Object *object)
+void DepsgraphRelationBuilder::build_lightprobe(Object *object)
 {
-	Probe *probe = (Probe *)object->data;
+	LightProbe *probe = (LightProbe *)object->data;
 	ID *probe_id = &probe->id;
 	if (probe_id->tag & LIB_TAG_DOIT) {
 		return;
@@ -1754,12 +1752,12 @@ void DepsgraphRelationBuilder::build_probe(Object *object)
 	OperationKey probe_key(probe_id,
 	                       DEG_NODE_TYPE_PARAMETERS,
 	                       DEG_OPCODE_PLACEHOLDER,
-	                       "Probe Eval");
+	                       "LightProbe Eval");
 	OperationKey object_key(&object->id,
 	                        DEG_NODE_TYPE_PARAMETERS,
 	                        DEG_OPCODE_PLACEHOLDER,
-	                        "Probe Eval");
-	add_relation(probe_key, object_key, "Probe Update");
+	                        "LightProbe Eval");
+	add_relation(probe_key, object_key, "LightProbe Update");
 }
 
 }  // namespace DEG

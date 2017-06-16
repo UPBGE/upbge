@@ -32,12 +32,18 @@ extern struct DrawEngineType draw_engine_eevee_type;
 
 /* Minimum UBO is 16384 bytes */
 #define MAX_PROBE 128 /* TODO : find size by dividing UBO max size by probe data size */
+#define MAX_GRID 64 /* TODO : find size by dividing UBO max size by grid data size */
 #define MAX_LIGHT 128 /* TODO : find size by dividing UBO max size by light data size */
 #define MAX_SHADOW_CUBE 42 /* TODO : Make this depends on GL_MAX_ARRAY_TEXTURE_LAYERS */
 #define MAX_SHADOW_MAP 64
 #define MAX_SHADOW_CASCADE 8
 #define MAX_CASCADE_NUM 4
 #define MAX_BLOOM_STEP 16
+
+/* Only define one of these. */
+// #define IRRADIANCE_SH_L2
+// #define IRRADIANCE_CUBEMAP
+#define IRRADIANCE_HL2
 
 typedef struct EEVEE_PassList {
 	/* Shadows */
@@ -48,9 +54,9 @@ typedef struct EEVEE_PassList {
 
 	/* Probes */
 	struct DRWPass *probe_background;
-	struct DRWPass *probe_meshes;
-	struct DRWPass *probe_prefilter;
-	struct DRWPass *probe_sh_compute;
+	struct DRWPass *probe_glossy_compute;
+	struct DRWPass *probe_diffuse_compute;
+	struct DRWPass *probe_display;
 
 	/* Effects */
 	struct DRWPass *motion_blur;
@@ -67,6 +73,7 @@ typedef struct EEVEE_PassList {
 	struct DRWPass *depth_pass_cull;
 	struct DRWPass *default_pass;
 	struct DRWPass *default_flat_pass;
+	struct DRWPass *default_hair_pass;
 	struct DRWPass *material_pass;
 	struct DRWPass *background_pass;
 } EEVEE_PassList;
@@ -166,22 +173,33 @@ enum {
 };
 
 /* ************ PROBE UBO ************* */
-typedef struct EEVEE_Probe {
+typedef struct EEVEE_LightProbe {
 	float position[3], parallax_type;
-	float shcoefs[9][3], pad2;
 	float attenuation_fac;
 	float attenuation_type;
 	float pad3[2];
 	float attenuationmat[4][4];
 	float parallaxmat[4][4];
-} EEVEE_Probe;
+} EEVEE_LightProbe;
+
+typedef struct EEVEE_LightGrid {
+	float mat[4][4];
+	int resolution[3], offset;
+	float corner[3], attenuation_scale;
+	float increment_x[3], attenuation_bias; /* world space vector between 2 opposite cells */
+	float increment_y[3], pad3;
+	float increment_z[3], pad4;
+} EEVEE_LightGrid;
 
 /* ************ PROBE DATA ************* */
-typedef struct EEVEE_ProbesInfo {
+typedef struct EEVEE_LightProbesInfo {
 	int num_cube, cache_num_cube;
+	int num_grid, cache_num_grid;
 	int update_flag;
+	int updated_bounce;
 	/* Actual number of probes that have datas. */
-	int num_render_probe;
+	int num_render_cube;
+	int num_render_grid;
 	/* For rendering probes */
 	float probemat[6][4][4];
 	int layer;
@@ -194,15 +212,17 @@ typedef struct EEVEE_ProbesInfo {
 	float lodmax;
 	int shres;
 	int shnbr;
-	struct GPUTexture *backgroundtex;
+	bool specular_toggle;
 	/* List of probes in the scene. */
 	/* XXX This is fragile, can get out of sync quickly. */
-	struct Object *probes_ref[MAX_PROBE];
+	struct Object *probes_cube_ref[MAX_PROBE];
+	struct Object *probes_grid_ref[MAX_GRID];
 	/* UBO Storage : data used by UBO */
-	struct EEVEE_Probe probe_data[MAX_PROBE];
-} EEVEE_ProbesInfo;
+	struct EEVEE_LightProbe probe_data[MAX_PROBE];
+	struct EEVEE_LightGrid grid_data[MAX_GRID];
+} EEVEE_LightProbesInfo;
 
-/* EEVEE_ProbesInfo->update_flag */
+/* EEVEE_LightProbesInfo->update_flag */
 enum {
 	PROBE_UPDATE_CUBE = (1 << 0),
 };
@@ -270,18 +290,19 @@ typedef struct EEVEE_SceneLayerData {
 	struct ListBase shadow_casters; /* Shadow casters gathered during cache iteration */
 
 	/* Probes */
-	struct EEVEE_ProbesInfo *probes;
+	struct EEVEE_LightProbesInfo *probes;
 
 	struct GPUUniformBuffer *probe_ubo;
+	struct GPUUniformBuffer *grid_ubo;
 
 	struct GPUFrameBuffer *probe_fb;
 	struct GPUFrameBuffer *probe_filter_fb;
-	struct GPUFrameBuffer *probe_sh_fb;
 
 	struct GPUTexture *probe_rt;
 	struct GPUTexture *probe_depth_rt;
 	struct GPUTexture *probe_pool;
-	struct GPUTexture *probe_sh;
+	struct GPUTexture *irradiance_pool;
+	struct GPUTexture *irradiance_rt;
 
 	struct ListBase probe_queue; /* List of probes to update */
 } EEVEE_SceneLayerData;
@@ -293,11 +314,14 @@ typedef struct EEVEE_LampEngineData {
 	void *storage; /* either EEVEE_LightData, EEVEE_ShadowCubeData, EEVEE_ShadowCascadeData */
 } EEVEE_LampEngineData;
 
-typedef struct EEVEE_ProbeEngineData {
+typedef struct EEVEE_LightProbeEngineData {
 	bool need_update;
 	bool ready_to_shade;
+	int updated_cells;
+	int num_cell;
+	int probe_id; /* Only used for display data */
 	struct ListBase captured_object_list;
-} EEVEE_ProbeEngineData;
+} EEVEE_LightProbeEngineData;
 
 typedef struct EEVEE_ObjectEngineData {
 	bool need_update;
@@ -317,13 +341,15 @@ typedef struct EEVEE_PrivateData {
 	struct DRWShadingGroup *shadow_shgrp;
 	struct DRWShadingGroup *depth_shgrp;
 	struct DRWShadingGroup *depth_shgrp_cull;
+	struct DRWShadingGroup *cube_display_shgrp;
 	struct GHash *material_hash;
+	struct GHash *hair_material_hash;
 } EEVEE_PrivateData; /* Transient data */
 
 /* eevee_data.c */
 EEVEE_SceneLayerData *EEVEE_scene_layer_data_get(void);
 EEVEE_ObjectEngineData *EEVEE_object_data_get(Object *ob);
-EEVEE_ProbeEngineData *EEVEE_probe_data_get(Object *ob);
+EEVEE_LightProbeEngineData *EEVEE_lightprobe_data_get(Object *ob);
 EEVEE_LampEngineData *EEVEE_lamp_data_get(Object *ob);
 
 
@@ -332,10 +358,11 @@ void EEVEE_materials_init(void);
 void EEVEE_materials_cache_init(EEVEE_Data *vedata);
 void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_SceneLayerData *sldata, Object *ob, struct Batch *geom);
 void EEVEE_materials_cache_finish(EEVEE_Data *vedata);
-struct GPUMaterial *EEVEE_material_world_probe_get(struct Scene *scene, struct World *wo);
+struct GPUMaterial *EEVEE_material_world_lightprobe_get(struct Scene *scene, struct World *wo);
 struct GPUMaterial *EEVEE_material_world_background_get(struct Scene *scene, struct World *wo);
-struct GPUMaterial *EEVEE_material_mesh_probe_get(struct Scene *scene, Material *ma);
+struct GPUMaterial *EEVEE_material_mesh_lightprobe_get(struct Scene *scene, Material *ma);
 struct GPUMaterial *EEVEE_material_mesh_get(struct Scene *scene, Material *ma);
+struct GPUMaterial *EEVEE_material_hair_get(struct Scene *scene, Material *ma);
 void EEVEE_materials_free(void);
 
 /* eevee_lights.c */
@@ -348,13 +375,13 @@ void EEVEE_lights_update(EEVEE_SceneLayerData *sldata);
 void EEVEE_draw_shadows(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl);
 void EEVEE_lights_free(void);
 
-/* eevee_probes.c */
-void EEVEE_probes_init(EEVEE_SceneLayerData *sldata);
-void EEVEE_probes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl);
-void EEVEE_probes_cache_add(EEVEE_SceneLayerData *sldata, Object *ob);
-void EEVEE_probes_cache_finish(EEVEE_SceneLayerData *sldata);
-void EEVEE_probes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl);
-void EEVEE_probes_free(void);
+/* eevee_lightprobes.c */
+void EEVEE_lightprobes_init(EEVEE_SceneLayerData *sldata);
+void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl, EEVEE_StorageList *stl);
+void EEVEE_lightprobes_cache_add(EEVEE_SceneLayerData *sldata, Object *ob);
+void EEVEE_lightprobes_cache_finish(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_lightprobes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl);
+void EEVEE_lightprobes_free(void);
 
 /* eevee_effects.c */
 void EEVEE_effects_init(EEVEE_Data *vedata);

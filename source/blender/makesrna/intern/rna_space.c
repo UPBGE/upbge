@@ -45,6 +45,7 @@
 #include "DNA_sequence_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_workspace_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -3919,7 +3920,7 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 		               "Particles Settings", "Show/hide Particle Settings data-blocks"},
 		{FILTER_ID_PAL, "PALETTE", ICON_COLOR, "Palettes", "Show/hide Palette data-blocks"},
 		{FILTER_ID_PC, "PAINT_CURVE", ICON_CURVE_BEZCURVE, "Paint Curves", "Show/hide Paint Curve data-blocks"},
-		{FILTER_ID_PRB, "PROBE", ICON_RADIO, "Probes", "Show/hide Probe data-blocks"},
+		{FILTER_ID_LP, "LIGHT_PROBE", ICON_RADIO, "Light Probes", "Show/hide Light Probe data-blocks"},
 		{FILTER_ID_SCE, "SCENE", ICON_SCENE_DATA, "Scenes", "Show/hide Scene data-blocks"},
 		{FILTER_ID_SPK, "SPEAKER", ICON_SPEAKER, "Speakers", "Show/hide Speaker data-blocks"},
 		{FILTER_ID_SO, "SOUND", ICON_SOUND, "Sounds", "Show/hide Sound data-blocks"},

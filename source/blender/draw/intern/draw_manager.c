@@ -211,8 +211,8 @@ typedef struct DRWCall {
 	float obmat[4][4];
 	Batch *geometry;
 
-	Mesh *mesh; /* Optional. */
-	Object *ob; /* Optionnal */
+	Object *ob; /* Optional */
+	ID *ob_data; /* Optional. */
 } DRWCall;
 
 typedef struct DRWCallGenerate {
@@ -307,7 +307,7 @@ static struct DRWGlobalState {
 static struct DRWMatrixOveride {
 	float mat[6][4][4];
 	bool override[6];
-} viewport_matrix_override = {0};
+} viewport_matrix_override = {{{{0}}}};
 
 ListBase DRW_engines = {NULL, NULL};
 
@@ -878,7 +878,7 @@ void DRW_shgroup_call_object_add(DRWShadingGroup *shgroup, Batch *geom, Object *
 
 	copy_m4_m4(call->obmat, ob->obmat);
 	call->geometry = geom;
-	call->mesh = ob->data;
+	call->ob_data = ob->data;
 
 	BLI_addtail(&shgroup->calls, call);
 }
@@ -1649,13 +1649,19 @@ static void draw_geometry_execute(DRWShadingGroup *shgroup, Batch *geom)
 	}
 }
 
-static void draw_geometry(DRWShadingGroup *shgroup, Batch *geom, const float (*obmat)[4], Mesh *me)
+static void draw_geometry(DRWShadingGroup *shgroup, Batch *geom, const float (*obmat)[4], ID *ob_data)
 {
 	float *texcoloc = NULL;
 	float *texcosize = NULL;
 
-	if (me != NULL) {
-		BKE_mesh_texspace_get_reference(me, NULL, &texcoloc, NULL, &texcosize);
+	if (ob_data != NULL) {
+		switch (GS(ob_data->name)) {
+			case OB_MESH:
+				BKE_mesh_texspace_get_reference((Mesh *)ob_data, NULL, &texcoloc, NULL, &texcosize);
+				/* TODO, curve, metaball? */
+			default:
+				break;
+		}
 	}
 
 	draw_geometry_prepare(shgroup, obmat, texcoloc, texcosize);
@@ -1782,7 +1788,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 	}
 	else {
 		for (DRWCall *call = shgroup->calls.first; call; call = call->head.next) {
-			bool neg_scale = call->obmat && is_negative_m4(call->obmat);
+			bool neg_scale = is_negative_m4(call->obmat);
 
 			/* Negative scale objects */
 			if (neg_scale) {
@@ -1792,7 +1798,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 			GPU_SELECT_LOAD_IF_PICKSEL(call);
 
 			if (call->head.type == DRW_CALL_SINGLE) {
-				draw_geometry(shgroup, call->geometry, call->obmat, call->mesh);
+				draw_geometry(shgroup, call->geometry, call->obmat, call->ob_data);
 			}
 			else {
 				BLI_assert(call->head.type == DRW_CALL_GENERATE);
@@ -2097,9 +2103,9 @@ void DRW_framebuffer_blit(struct GPUFrameBuffer *fb_read, struct GPUFrameBuffer 
 	GPU_framebuffer_blit(fb_read, 0, fb_write, 0, depth);
 }
 
-void DRW_framebuffer_viewport_size(struct GPUFrameBuffer *UNUSED(fb_read), int w, int h)
+void DRW_framebuffer_viewport_size(struct GPUFrameBuffer *UNUSED(fb_read), int x, int y, int w, int h)
 {
-	glViewport(0, 0, w, h);
+	glViewport(x, y, w, h);
 }
 
 /* Use color management profile to draw texture to framebuffer */

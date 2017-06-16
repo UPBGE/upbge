@@ -72,7 +72,7 @@ set(DEFSRC
 	rna_palette.c
 	rna_particle.c
 	rna_pose.c
-	rna_probe.c
+	rna_lightprobe.c
 	rna_property.c
 	rna_python_component.c
 	rna_render.c

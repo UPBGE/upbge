@@ -1,12 +1,13 @@
 
 uniform int light_count;
 uniform int probe_count;
+uniform int grid_count;
 uniform mat4 ProjectionMatrix;
 uniform mat4 ViewMatrixInverse;
 
 uniform sampler2DArray probeCubes;
 uniform float lodMax;
-uniform vec3 shCoefs[9];
+uniform bool specToggle;
 
 #ifndef UTIL_TEX
 #define UTIL_TEX
@@ -18,6 +19,10 @@ uniform sampler2DArrayShadow shadowCascades;
 
 layout(std140) uniform probe_block {
 	ProbeData probes_data[MAX_PROBE];
+};
+
+layout(std140) uniform grid_block {
+	GridData grids_data[MAX_GRID];
 };
 
 layout(std140) uniform light_block {
@@ -51,44 +56,70 @@ in vec3 viewNormal;
 #define HEMI     3.0
 #define AREA     4.0
 
-vec2 mapping_octahedron(vec3 cubevec, vec2 texel_size)
+#ifdef HAIR_SHADER
+vec3 light_diffuse(LightData ld, ShadingData sd, vec3 albedo)
 {
-	/* projection onto octahedron */
-	cubevec /= dot( vec3(1), abs(cubevec) );
-
-	/* out-folding of the downward faces */
-	if ( cubevec.z < 0.0 ) {
-		cubevec.xy = (1.0 - abs(cubevec.yx)) * sign(cubevec.xy);
-	}
-
-	/* mapping to [0;1]ˆ2 texture space */
-	vec2 uvs = cubevec.xy * (0.5) + 0.5;
-
-	/* edge filtering fix */
-	uvs *= 1.0 - 2.0 * texel_size;
-	uvs += texel_size;
-
-	return uvs;
+       if (ld.l_type == SUN) {
+               return direct_diffuse_sun(ld, sd) * albedo;
+       }
+       else if (ld.l_type == AREA) {
+               return direct_diffuse_rectangle(ld, sd) * albedo;
+       }
+       else {
+               return direct_diffuse_sphere(ld, sd) * albedo;
+       }
 }
 
-vec4 textureLod_octahedron(sampler2DArray tex, vec4 cubevec, float lod)
+vec3 light_specular(LightData ld, ShadingData sd, float roughness, vec3 f0)
 {
-	vec2 texelSize = 1.0 / vec2(textureSize(tex, int(lodMax)));
-
-	vec2 uvs = mapping_octahedron(cubevec.xyz, texelSize);
-
-	return textureLod(tex, vec3(uvs, cubevec.w), lod);
+       if (ld.l_type == SUN) {
+               return direct_ggx_sun(ld, sd, roughness, f0);
+       }
+       else if (ld.l_type == AREA) {
+               return direct_ggx_rectangle(ld, sd, roughness, f0);
+       }
+       else {
+               return direct_ggx_sphere(ld, sd, roughness, f0);
+       }
 }
 
-vec4 texture_octahedron(sampler2DArray tex, vec4 cubevec)
+void light_shade(
+        LightData ld, ShadingData sd, vec3 albedo, float roughness, vec3 f0,
+        out vec3 diffuse, out vec3 specular)
 {
-	vec2 texelSize = 1.0 / vec2(textureSize(tex, 0));
+       const float transmission = 0.3; /* Uniform internal scattering factor */
+       ShadingData sd_new = sd;
 
-	vec2 uvs = mapping_octahedron(cubevec.xyz, texelSize);
+       vec3 lamp_vec;
 
-	return texture(tex, vec3(uvs, cubevec.w));
+      if (ld.l_type == SUN || ld.l_type == AREA) {
+               lamp_vec = ld.l_forward;
+       }
+       else {
+               lamp_vec = -sd.l_vector;
+       }
+
+       vec3 norm_view = cross(sd.V, sd.N);
+       norm_view = normalize(cross(norm_view, sd.N)); /* Normal facing view */
+
+       vec3 norm_lamp = cross(lamp_vec, sd.N);
+       norm_lamp = normalize(cross(sd.N, norm_lamp)); /* Normal facing lamp */
+
+       /* Rotate view vector onto the cross(tangent, light) plane */
+       vec3 view_vec = normalize(norm_lamp * dot(norm_view, sd.V) + sd.N * dot(sd.N, sd.V));
+
+       float occlusion = (dot(norm_view, norm_lamp) * 0.5 + 0.5);
+       float occltrans = transmission + (occlusion * (1.0 - transmission)); /* Includes transmission component */
+
+       sd_new.N = -norm_lamp;
+
+       diffuse = light_diffuse(ld, sd_new, albedo) * occltrans;
+
+       sd_new.V = view_vec;
+
+       specular = light_specular(ld, sd_new, roughness, f0) * occlusion;
 }
-
+#else
 void light_shade(
         LightData ld, ShadingData sd, vec3 albedo, float roughness, vec3 f0,
         out vec3 diffuse, out vec3 specular)
@@ -117,7 +148,10 @@ void light_shade(
 		specular = direct_ggx_point(sd, roughness, f0);
 	}
 #endif
+
+	specular *= float(specToggle);
 }
+#endif
 
 void light_visibility(LightData ld, ShadingData sd, out float vis)
 {
@@ -254,20 +288,33 @@ vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness,
 	sd.W = worldPosition;
 
 	vec3 radiance = vec3(0.0);
-	/* Analitic Lights */
+
+#ifdef HAIR_SHADER
+       /* View facing normal */
+       vec3 norm_view = cross(sd.V, sd.N);
+       norm_view = normalize(cross(norm_view, sd.N)); /* Normal facing view */
+#endif
+
+
+	/* Analytic Lights */
 	for (int i = 0; i < MAX_LIGHT && i < light_count; ++i) {
 		LightData ld = lights_data[i];
 		vec3 diff, spec;
-		float vis;
+		float vis = 1.0;
 
 		sd.l_vector = ld.l_position - worldPosition;
 
+#ifndef HAIR_SHADER
 		light_visibility(ld, sd, vis);
+#endif
 		light_shade(ld, sd, albedo, roughnessSquared, f0, diff, spec);
 
 		radiance += vis * (diff + spec) * ld.l_color;
 	}
 
+#ifdef HAIR_SHADER
+	sd.N = -norm_view;
+#endif
 
 	/* Envmaps */
 	vec3 R = reflect(-sd.V, sd.N);
@@ -280,7 +327,7 @@ vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness,
 
 	/* Specular probes */
 	/* Start at 1 because 0 is world probe */
-	for (int i = 1; i < MAX_PROBE && i < probe_count; ++i) {
+	for (int i = 1; i < MAX_PROBE && i < probe_count && spec_accum.a < 0.999; ++i) {
 		ProbeData pd = probes_data[i];
 
 		float dist_attenuation = probe_attenuation(sd.W, pd);
@@ -289,7 +336,7 @@ vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness,
 			float roughness_copy = roughness;
 
 			vec3 sample_vec = probe_parallax_correction(sd.W, spec_dir, pd, roughness_copy);
-			vec4 sample = textureLod_octahedron(probeCubes, vec4(sample_vec, i), roughness_copy * lodMax).rgba;
+			vec4 sample = textureLod_octahedron(probeCubes, vec4(sample_vec, i), roughness_copy * lodMax, lodMax).rgba;
 
 			float influ_spec = min(dist_attenuation, (1.0 - spec_accum.a));
 
@@ -298,19 +345,83 @@ vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness,
 		}
 	}
 
+	/* Start at 1 because 0 is world irradiance */
+	for (int i = 1; i < MAX_GRID && i < grid_count && diff_accum.a < 0.999; ++i) {
+		GridData gd = grids_data[i];
+
+		vec3 localpos = (gd.localmat * vec4(sd.W, 1.0)).xyz;
+
+		float fade = min(1.0, min_v3(1.0 - abs(localpos)));
+		fade = saturate(fade * gd.g_atten_scale + gd.g_atten_bias);
+
+		if (fade > 0.0) {
+			localpos = localpos * 0.5 + 0.5;
+			localpos = localpos * vec3(gd.g_resolution) - 0.5;
+
+			vec3 localpos_floored = floor(localpos);
+			vec3 trilinear_weight = fract(localpos);
+
+			float weight_accum = 0.0;
+			vec3 irradiance_accum = vec3(0.0);
+
+			/* For each neighboor cells */
+			for (int i = 0; i < 8; ++i) {
+				ivec3 offset = ivec3(i, i >> 1, i >> 2) & ivec3(1);
+				vec3 cell_cos = clamp(localpos_floored + vec3(offset), vec3(0.0), vec3(gd.g_resolution) - 1.0);
+
+				/* We need this because we render probes in world space (so we need light vector in WS).
+				 * And rendering them in local probe space is too much problem. */
+				vec3 ws_cell_location = gd.g_corner +
+					(gd.g_increment_x * cell_cos.x +
+					 gd.g_increment_y * cell_cos.y +
+					 gd.g_increment_z * cell_cos.z);
+				vec3 ws_point_to_cell = ws_cell_location - sd.W;
+				vec3 ws_light = normalize(ws_point_to_cell);
+
+				vec3 trilinear = mix(1 - trilinear_weight, trilinear_weight, offset);
+				float weight = trilinear.x * trilinear.y * trilinear.z;
+
+				/* Smooth backface test */
+				// weight *= sqrt(max(0.002, dot(ws_light, sd.N)));
+
+				/* Avoid zero weight */
+				weight = max(0.00001, weight);
+
+				vec3 color = get_cell_color(ivec3(cell_cos), gd.g_resolution, gd.g_offset, sd.N);
+
+				weight_accum += weight;
+				irradiance_accum += color * weight;
+			}
+
+			vec3 indirect_diffuse = irradiance_accum / weight_accum;
+
+			float influ_diff = min(fade, (1.0 - diff_accum.a));
+
+			diff_accum.rgb += indirect_diffuse * influ_diff;
+			diff_accum.a += influ_diff;
+
+			/* For Debug purpose */
+			// return texture(irradianceGrid, sd.W.xy).rgb;
+		}
+	}
+
 	/* World probe */
-	if (spec_accum.a < 1.0 || diff_accum.a < 1.0) {
+	if (diff_accum.a < 1.0 && grid_count > 0) {
+		IrradianceData ir_data = load_irradiance_cell(0, sd.N);
+
+		vec3 diff = compute_irradiance(sd.N, ir_data);
+		diff_accum.rgb += diff * (1.0 - diff_accum.a);
+	}
+
+	if (spec_accum.a < 1.0) {
 		ProbeData pd = probes_data[0];
 
-		vec3 spec = textureLod_octahedron(probeCubes, vec4(spec_dir, 0), roughness * lodMax).rgb;
-		vec3 diff = spherical_harmonics(sd.N, pd.shcoefs);
-
-		diff_accum.rgb += diff * (1.0 - diff_accum.a);
+		vec3 spec = textureLod_octahedron(probeCubes, vec4(spec_dir, 0), roughness * lodMax, lodMax).rgb;
 		spec_accum.rgb += spec * (1.0 - spec_accum.a);
 	}
 
 	vec3 indirect_radiance =
-	        spec_accum.rgb * F_ibl(f0, brdf_lut) +
+	        spec_accum.rgb * F_ibl(f0, brdf_lut) * float(specToggle) +
 	        diff_accum.rgb * albedo;
 
 	return radiance + indirect_radiance * ao;

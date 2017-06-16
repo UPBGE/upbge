@@ -62,4 +62,3 @@ Module to access application values that remain unchanged during runtime.
    True if the BGE has been built with physics support.
 
    :type: bool
-

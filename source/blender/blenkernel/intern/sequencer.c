@@ -1777,7 +1777,7 @@ static ImBuf *seq_proxy_fetch(const SeqRenderData *context, Sequence *seq, int c
 		if (proxy->anim == NULL) {
 			return NULL;
 		}
- 
+
 		seq_open_anim_file(context->scene, seq, true);
 		sanim = seq->anims.first;
 
@@ -1785,7 +1785,7 @@ static ImBuf *seq_proxy_fetch(const SeqRenderData *context, Sequence *seq, int c
 
 		return IMB_anim_absolute(proxy->anim, frameno, IMB_TC_NONE, IMB_PROXY_NONE);
 	}
- 
+
 	if (seq_proxy_get_fname(ed, seq, cfra, render_size, name, context->view_id) == 0) {
 		return NULL;
 	}
@@ -5185,6 +5185,7 @@ Sequence *BKE_sequencer_add_sound_strip(bContext *C, ListBase *seqbasep, SeqLoad
 	sound = BKE_sound_new_file(bmain, seq_load->path); /* handles relative paths */
 
 	if (sound->playback_handle == NULL) {
+		BKE_libblock_free(bmain, sound);
 #if 0
 		if (op)
 			BKE_report(op->reports, RPT_ERROR, "Unsupported audio format");

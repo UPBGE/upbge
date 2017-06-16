@@ -332,7 +332,17 @@ static void setup_app_data(
 			}
 		}
 	}
-	BKE_scene_set_background(G.main, curscene);
+
+	if (mode == LOAD_UI_OFF && BLI_listbase_is_empty(&G.main->wm)) {
+		/* XXX prevent crash in pdInitEffectors called through DEG_scene_relations_rebuild (see T51794).
+		 * Can be removed once BKE_scene_layer_context_active_ex gets workspace passed. */
+		BLI_addhead(&G.main->wm, CTX_wm_manager(C));
+		BKE_scene_set_background(G.main, curscene);
+		BLI_listbase_clear(&G.main->wm);
+	}
+	else {
+		BKE_scene_set_background(G.main, curscene);
+	}
 
 	if (mode != LOAD_UNDO) {
 		RE_FreeAllPersistentData();
@@ -420,9 +430,9 @@ bool BKE_blendfile_read_from_memfile(
 	if (bfd) {
 		/* remove the unused screens and wm */
 		while (bfd->main->wm.first)
-			BKE_libblock_free_ex(bfd->main, bfd->main->wm.first, true, true);
+			BKE_libblock_free(bfd->main, bfd->main->wm.first);
 		while (bfd->main->screen.first)
-			BKE_libblock_free_ex(bfd->main, bfd->main->screen.first, true, true);
+			BKE_libblock_free(bfd->main, bfd->main->screen.first);
 
 		setup_app_data(C, bfd, "<memory1>", reports);
 	}

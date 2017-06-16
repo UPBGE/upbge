@@ -15,31 +15,31 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * The Original Code is Copyright (C) Blender Foundation.
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
+ *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file DNA_manipulator_types.h
- *  \ingroup DNA
+#ifndef __BKE_LIGHTPROBE_H__
+#define __BKE_LIGHTPROBE_H__
+
+/** \file BKE_lightprobe.h
+ *  \ingroup bke
+ *  \brief General operations for probes.
  */
 
-#ifndef __DNA_MANIPULATOR_TYPES_H__
-#define __DNA_MANIPULATOR_TYPES_H__
+struct Main;
+struct LightProbe;
 
-typedef struct wmManipulatorGroup {
-	struct wmManipulatorGroup *next, *prev;
+void BKE_lightprobe_init(struct LightProbe *probe);
+void *BKE_lightprobe_add(struct Main *bmain, const char *name);
+struct LightProbe *BKE_lightprobe_copy(struct Main *bmain, struct LightProbe *probe);
+void BKE_lightprobe_make_local(struct Main *bmain, struct LightProbe *probe, const bool lib_local);
+void BKE_lightprobe_free(struct LightProbe *probe);
 
-	struct wmManipulatorGroupType *type;
-	ListBase manipulators;
-
-	struct wmManipulatorMap *parent_mmap;
-
-	void *py_instance;            /* python stores the class instance here */
-	struct ReportList *reports;   /* errors and warnings storage */
-
-	void *customdata;
-	void (*customdata_free)(void *); /* for freeing customdata from above */
-	int flag; /* private */
-	int pad;
-} wmManipulatorGroup;
-
-#endif /* __DNA_MANIPULATOR_TYPES_H__ */
+#endif /* __BKE_LIGHTPROBE_H__ */
