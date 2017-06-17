@@ -90,7 +90,6 @@ protected:
 
 	int m_ccdMode;
 	int m_solverType;
-	bool m_enableSatCollisionDetection;
 
 	float m_deactivationTime;
 	float m_linearDeactivationThreshold;
@@ -250,16 +249,6 @@ public:
 	}
 
 	btDispatcher *GetDispatcher();
-
-	bool IsSatCollisionDetectionEnabled() const
-	{
-		return m_enableSatCollisionDetection;
-	}
-
-	void EnableSatCollisionDetection(bool enableSat)
-	{
-		m_enableSatCollisionDetection = enableSat;
-	}
 
 	const btPersistentManifold *GetManifold(int index) const;
 
