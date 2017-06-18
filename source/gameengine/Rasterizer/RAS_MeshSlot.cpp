@@ -40,6 +40,8 @@
 #include "RAS_IStorageInfo.h"
 #include "GPU_material.h"
 #include "GPU_shader.h"
+#include "GPU_texture.h"
+#include "DNA_scene_types.h"
 
 #include "KX_Globals.h"
 #include "KX_Scene.h"
@@ -236,10 +238,11 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			GPUPass *pass = GPU_material_get_pass(gpumat);
 			GPUShader *shader = GPU_pass_shader(pass);
 			GPU_shader_bind(shader);
-			rasty->PushMatrix();
+
 			rasty->ProcessLighting(materialData->m_useLighting, managerData->m_trans, shader);
-			rasty->PopMatrix();
-			KX_Camera *cam = KX_GetActiveScene()->GetActiveCamera();
+
+			KX_Scene *scene = KX_GetActiveScene();
+			KX_Camera *cam = scene->GetActiveCamera();
 
 			// lit surface frag uniforms
 			int projloc = GPU_shader_get_uniform(shader, "ProjectionMatrix");
@@ -289,6 +292,12 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			GPU_shader_uniform_vector(shader, modelviewloc, 16, 1, (float *)modelviewf);
 			GPU_shader_uniform_vector(shader, worldnormloc, 9, 1, (float *)worldnormf);
 			GPU_shader_uniform_vector(shader, normloc, 16, 9, (float *)normf);
+
+			GPUTexture *utiltex = scene->GetBlenderScene()->eevee_util_tex;
+			int texloc = GPU_shader_get_uniform(shader, "utilTex");
+			if (utiltex) {
+				GPU_shader_uniform_texture(shader, texloc, utiltex);
+			}
 		}
 		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
 	}

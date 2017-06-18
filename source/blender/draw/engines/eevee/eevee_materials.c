@@ -245,6 +245,7 @@ void EEVEE_materials_init(void)
 		}
 
 		e_data.util_tex = DRW_texture_create_2D_array(64, 64, layers, DRW_TEX_RGBA_16, DRW_TEX_FILTER, (float *)texels);
+
 		MEM_freeN(texels);
 	}
 }
@@ -312,6 +313,11 @@ static void add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *
 	DRW_shgroup_uniform_buffer(shgrp, "irradianceGrid", &sldata->irradiance_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "shadowCubes", &sldata->shadow_depth_cube_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "shadowCascades", &sldata->shadow_depth_cascade_pool);
+
+	const DRWContextState *draw_ctx = DRW_context_state_get();
+
+	Scene *scene = draw_ctx->scene;
+	scene->eevee_util_tex = e_data.util_tex;
 }
 
 void EEVEE_materials_cache_init(EEVEE_Data *vedata)

@@ -1730,6 +1730,8 @@ typedef struct Scene {
 	IDProperty *collection_properties;  /* settings to be overriden by layer collections */
 	IDProperty *layer_properties;  /* settings to be override by workspaces */
 
+	struct GPUTexture *eevee_util_tex;
+
 	int pad5[2];
 } Scene;
 
