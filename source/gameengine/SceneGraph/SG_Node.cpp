@@ -564,6 +564,13 @@ MT_Transform SG_Node::GetWorldTransform() const
 							m_worldScaling[0], m_worldScaling[1], m_worldScaling[2]));
 }
 
+MT_Transform SG_Node::GetLocalTransform() const
+{
+	return MT_Transform(m_localPosition,
+	                    m_localRotation.scaled(
+							m_localScaling[0], m_localScaling[1], m_localScaling[2]));
+}
+
 bool SG_Node::ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated)
 {
 	return m_parent_relation->UpdateChildCoordinates(this, parent, parentUpdated);

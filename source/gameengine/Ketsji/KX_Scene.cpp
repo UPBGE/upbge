@@ -439,18 +439,9 @@ void KX_Scene::RemoveNodeDestructObject(SG_Node* node, KX_GameObject *gameobj)
 {
 	if (NewRemoveObject(gameobj)) {
 		// object is not yet deleted because a reference is hanging somewhere.
-		// This should not happen anymore since we use proxy object for Python
-		// confident enough to put an assert?
-		//assert(false);
-		CM_Warning("zombie object! name=" << gameobj->GetName());
-		gameobj->SetSGNode(nullptr);
-		PHY_IGraphicController* ctrl = gameobj->GetGraphicController();
-		if (ctrl)
-		{
-			// a graphic controller is set, we must delete it as the node will be deleted
-			delete ctrl;
-			gameobj->SetGraphicController(nullptr);
-		}
+		// This should not happen anymore since we use proxy object for Python.
+		CM_Error("zombie object! name=" << gameobj->GetName());
+		BLI_assert(false);
 	}
 	if (node)
 		delete node;

@@ -530,10 +530,12 @@ public:
 	const MT_Matrix3x3& NodeGetWorldOrientation(  ) const;
 	const MT_Vector3& NodeGetWorldScaling(  ) const;
 	const MT_Vector3& NodeGetWorldPosition(  ) const;
+	MT_Transform NodeGetWorldTransform() const;
 
 	const MT_Matrix3x3& NodeGetLocalOrientation(  ) const;
 	const MT_Vector3& NodeGetLocalScaling(  ) const;
 	const MT_Vector3& NodeGetLocalPosition(  ) const;
+	MT_Transform NodeGetLocalTransform() const;
 
 	/**
 	 * \section scene graph node accessor functions.

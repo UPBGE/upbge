@@ -34,7 +34,6 @@
 RAS_MeshUser::RAS_MeshUser(void *clientobj)
 	:m_frontFace(true),
 	m_color(MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f)),
-	m_matrix(nullptr),
 	m_boundingBox(nullptr),
 	m_clientObject(clientobj),
 	m_batchGroup(nullptr)
@@ -70,7 +69,7 @@ const MT_Vector4& RAS_MeshUser::GetColor() const
 	return m_color;
 }
 
-float *RAS_MeshUser::GetMatrix() const
+float *RAS_MeshUser::GetMatrix()
 {
 	return m_matrix;
 }
@@ -103,11 +102,6 @@ void RAS_MeshUser::SetFrontFace(bool frontFace)
 void RAS_MeshUser::SetColor(const MT_Vector4& color)
 {
 	m_color = color;
-}
-
-void RAS_MeshUser::SetMatrix(float *matrix)
-{
-	m_matrix = matrix;
 }
 
 void RAS_MeshUser::SetBoundingBox(RAS_BoundingBox *boundingBox)

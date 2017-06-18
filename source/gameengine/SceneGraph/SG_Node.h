@@ -331,6 +331,7 @@ public:
 
 	void SetWorldFromLocalTransform();
 	MT_Transform GetWorldTransform() const;
+	MT_Transform GetLocalTransform() const;
 
 	bool ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated);
 

@@ -81,22 +81,18 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 	if (kxscene != lightscene || !(m_layer & scenelayer))
 		return false;
 
-	// lights don't get their openGL matrix updated, do it now
-	if (kxlight->GetSGNode()->IsDirty())
-		kxlight->GetOpenGLMatrix();
+	const MT_Matrix4x4 worldmatrix = kxlight->NodeGetWorldTransform().toMatrix();
 
-	MT_CmMatrix4x4& worldmatrix = *kxlight->GetOpenGLMatrixPtr();
-
-	vec[0] = worldmatrix(0, 3);
-	vec[1] = worldmatrix(1, 3);
-	vec[2] = worldmatrix(2, 3);
+	vec[0] = worldmatrix[0][3];
+	vec[1] = worldmatrix[1][3];
+	vec[2] = worldmatrix[2][3];
 	vec[3] = 1.0f;
 
 	if (m_type == RAS_ILightObject::LIGHT_SUN) {
 
-		vec[0] = worldmatrix(0, 2);
-		vec[1] = worldmatrix(1, 2);
-		vec[2] = worldmatrix(2, 2);
+		vec[0] = worldmatrix[0][2];
+		vec[1] = worldmatrix[1][2];
+		vec[2] = worldmatrix[2][2];
 		//vec[0] = base->object->obmat[2][0];
 		//vec[1] = base->object->obmat[2][1];
 		//vec[2] = base->object->obmat[2][2];
@@ -113,9 +109,9 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 		glLightf((GLenum)(GL_LIGHT0 + slot), GL_QUADRATIC_ATTENUATION, m_att2 / (m_distance * m_distance));
 
 		if (m_type == RAS_ILightObject::LIGHT_SPOT) {
-			vec[0] = -worldmatrix(0, 2);
-			vec[1] = -worldmatrix(1, 2);
-			vec[2] = -worldmatrix(2, 2);
+			vec[0] = -worldmatrix[0][2];
+			vec[1] = -worldmatrix[1][2];
+			vec[2] = -worldmatrix[2][2];
 			//vec[0] = -base->object->obmat[2][0];
 			//vec[1] = -base->object->obmat[2][1];
 			//vec[2] = -base->object->obmat[2][2];
@@ -304,14 +300,9 @@ void RAS_OpenGLLight::Update()
 
 	if ((lamp = GetGPULamp()) != nullptr && kxlight->GetSGNode()) {
 		float obmat[4][4];
-		// lights don't get their openGL matrix updated, do it now
-		if (kxlight->GetSGNode()->IsDirty())
-			kxlight->GetOpenGLMatrix();
-		float *dobmat = kxlight->GetOpenGLMatrixPtr()->getPointer();
+		const MT_Transform trans = kxlight->NodeGetWorldTransform();
+		trans.getValue(&obmat[0][0]);
 
-		for (int i = 0; i < 4; i++)
-			for (int j = 0; j < 4; j++, dobmat++)
-				obmat[i][j] = (float)*dobmat;
 		int hide = kxlight->GetVisible() ? 0 : 1;
 		GPU_lamp_update(lamp, m_layer, hide, obmat);
 		GPU_lamp_update_colors(lamp, m_color[0], m_color[1],
