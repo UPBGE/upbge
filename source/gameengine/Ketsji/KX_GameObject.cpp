@@ -725,8 +725,9 @@ void KX_GameObject::AddMeshUser()
 void KX_GameObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_pSGNode->IsDirty()) {
+	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
 		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
+		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
 	m_meshUser->SetColor(m_objectColor);

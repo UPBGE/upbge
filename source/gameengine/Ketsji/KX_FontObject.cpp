@@ -160,7 +160,7 @@ void KX_FontObject::AddMeshUser()
 void KX_FontObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_pSGNode->IsDirty()) {
+	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
 		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
 	}
 
