@@ -666,6 +666,7 @@ void EEVEE_lights_update(EEVEE_SceneLayerData *sldata)
 	Object *lamp;
 	for (i = 0; (lamp = linfo->shadow_cube_ref[i]) && (i < MAX_SHADOW_CUBE); i++) {
 		EEVEE_LampEngineData *led = EEVEE_lamp_data_get(lamp);
+		lamp->ubo = sldata->light_ubo;
 
 		if ((linfo->update_flag & LIGHT_UPDATE_SHADOW_CUBE) != 0) {
 			led->need_update = true;

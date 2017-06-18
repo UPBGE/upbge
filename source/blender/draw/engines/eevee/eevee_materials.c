@@ -269,7 +269,7 @@ struct GPUMaterial *EEVEE_material_world_background_get(struct Scene *scene, Wor
 
 struct GPUMaterial *EEVEE_material_mesh_get(struct Scene *scene, Material *ma)
 {
-	return GPU_material_from_nodetree(
+	GPUMaterial *mat = GPU_material_from_nodetree(
 	    scene, ma->nodetree, &ma->gpumaterial, &DRW_engine_viewport_eevee_type,
 	    VAR_MAT_MESH,
 	    datatoc_lit_surface_vert_glsl, NULL, e_data.frag_shader_lib,
@@ -282,6 +282,9 @@ struct GPUMaterial *EEVEE_material_mesh_get(struct Scene *scene, Material *ma)
 	    "#define IRRADIANCE_HL2\n"
 #endif
 	    "#define MESH_SHADER\n");
+
+	ma->eevee_material = mat;
+	return mat;
 }
 
 struct GPUMaterial *EEVEE_material_hair_get(struct Scene *scene, Material *ma)

@@ -46,6 +46,8 @@
 #include "GPU_lamp.h"
 #include "GPU_material.h"
 
+#include "BLI_math.h"
+
 RAS_OpenGLLight::RAS_OpenGLLight(RAS_Rasterizer *ras)
 	:m_rasterizer(ras)
 {
@@ -153,7 +155,102 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 	//glLightfv((GLenum)(GL_LIGHT0 + slot), GL_SPECULAR, vec);
 	//glEnable((GLenum)(GL_LIGHT0 + slot));
 
+	GPULamp *lamp;
+	KX_LightObject *kxlight = (KX_LightObject *)m_light;
+
+	if ((lamp = GetGPULamp()) != nullptr && kxlight->GetSGNode()) {
+		float obmat[4][4];
+		// lights don't get their openGL matrix updated, do it now
+		if (kxlight->GetSGNode()->IsDirty())
+			kxlight->GetOpenGLMatrix();
+		float *dobmat = kxlight->GetOpenGLMatrixPtr()->getPointer();
+
+		for (int i = 0; i < 4; i++)
+			for (int j = 0; j < 4; j++, dobmat++)
+				obmat[i][j] = (float)*dobmat;
+		int hide = kxlight->GetVisible() ? 0 : 1;
+		GPU_lamp_update(lamp, m_layer, hide, obmat);
+		GPU_lamp_update_colors(lamp, m_color[0], m_color[1],
+			m_color[2], m_energy);
+		GPU_lamp_update_distance(lamp, m_distance, m_att1, m_att2, m_coeff_const, m_coeff_lin, m_coeff_quad);
+		GPU_lamp_update_spot(lamp, m_spotsize, m_spotblend);
+
+		/* TODO only update if data changes */
+		Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
+		float mat[4][4], scale[3], power;
+
+		/* Position */
+		copy_v3_v3(m_lightData[slot].position, obmat[3]);
+
+		/* Color */
+		copy_v3_v3(m_lightData[slot].color, &la->r);
+
+		/* Influence Radius */
+		m_lightData[slot].dist = la->dist;
+
+		/* Vectors */
+		normalize_m4_m4_ex(mat, obmat, scale);
+		copy_v3_v3(m_lightData[slot].forwardvec, mat[2]);
+		normalize_v3(m_lightData[slot].forwardvec);
+		negate_v3(m_lightData[slot].forwardvec);
+
+		copy_v3_v3(m_lightData[slot].rightvec, mat[0]);
+		normalize_v3(m_lightData[slot].rightvec);
+
+		copy_v3_v3(m_lightData[slot].upvec, mat[1]);
+		normalize_v3(m_lightData[slot].upvec);
+
+		/* Spot size & blend */
+		if (la->type == LA_SPOT) {
+			m_lightData[slot].sizex = scale[0] / scale[2];
+			m_lightData[slot].sizey = scale[1] / scale[2];
+			m_lightData[slot].spotsize = cosf(la->spotsize * 0.5f);
+			m_lightData[slot].spotblend = (1.0f - m_lightData[slot].spotsize) * la->spotblend;
+			m_lightData[slot].radius = max_ff(0.001f, la->area_size);
+		}
+		else if (la->type == LA_AREA) {
+			m_lightData[slot].sizex = max_ff(0.0001f, la->area_size * scale[0] * 0.5f);
+			if (la->area_shape == LA_AREA_RECT) {
+				m_lightData[slot].sizey = max_ff(0.0001f, la->area_sizey * scale[1] * 0.5f);
+			}
+			else {
+				m_lightData[slot].sizey = max_ff(0.0001f, la->area_size * scale[1] * 0.5f);
+			}
+		}
+		else {
+			m_lightData[slot].radius = max_ff(0.001f, la->area_size);
+		}
+
+		/* Make illumination power constant */
+		if (la->type == LA_AREA) {
+			power = 1.0f / (m_lightData[slot].sizex * m_lightData[slot].sizey * 4.0f * M_PI) /* 1/(w*h*Pi) */
+				* 80.0f; /* XXX : Empirical, Fit cycles power */
+		}
+		else if (la->type == LA_SPOT || la->type == LA_LOCAL) {
+			power = 1.0f / (4.0f * m_lightData[slot].radius * m_lightData[slot].radius * M_PI * M_PI) /* 1/(4*r²*Pi²) */
+				* M_PI * M_PI * M_PI * 10.0; /* XXX : Empirical, Fit cycles power */
+
+			/* for point lights (a.k.a radius == 0.0) */
+			// power = M_PI * M_PI * 0.78; /* XXX : Empirical, Fit cycles power */
+		}
+		else {
+			power = 1.0f;
+		}
+		mul_v3_fl(m_lightData[slot].color, power * la->energy);
+
+		/* Lamp Type */
+		m_lightData[slot].lamptype = (float)la->type;
+
+		/* No shadow by default */
+		m_lightData[slot].shadowid = -1.0f;
+	}
+
 	return true;
+}
+
+EEVEE_Light *RAS_OpenGLLight::GetEeveeLight()
+{
+	return m_lightData;
 }
 
 GPULamp *RAS_OpenGLLight::GetGPULamp()
@@ -300,25 +397,5 @@ Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 
 void RAS_OpenGLLight::Update()
 {
-	GPULamp *lamp;
-	KX_LightObject *kxlight = (KX_LightObject *)m_light;
-
-	if ((lamp = GetGPULamp()) != nullptr && kxlight->GetSGNode()) {
-		float obmat[4][4];
-		// lights don't get their openGL matrix updated, do it now
-		if (kxlight->GetSGNode()->IsDirty())
-			kxlight->GetOpenGLMatrix();
-		float *dobmat = kxlight->GetOpenGLMatrixPtr()->getPointer();
-
-		for (int i = 0; i < 4; i++)
-			for (int j = 0; j < 4; j++, dobmat++)
-				obmat[i][j] = (float)*dobmat;
-		int hide = kxlight->GetVisible() ? 0 : 1;
-		GPU_lamp_update(lamp, m_layer, hide, obmat);
-		GPU_lamp_update_colors(lamp, m_color[0], m_color[1],
-		                       m_color[2], m_energy);
-		GPU_lamp_update_distance(lamp, m_distance, m_att1, m_att2, m_coeff_const, m_coeff_lin, m_coeff_quad);
-		GPU_lamp_update_spot(lamp, m_spotsize, m_spotblend);
-	}
 }
 

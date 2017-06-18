@@ -225,6 +225,8 @@ typedef struct Material {
 	                                    * with refresh_texpaint_image_cache */
 	ListBase gpumaterial;		/* runtime */
 	ListBase gpumaterialinstancing;		/* runtime */
+
+	struct GPUMaterial *eevee_material;
 } Material;
 
 

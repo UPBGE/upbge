@@ -335,6 +335,8 @@ typedef struct Object {
 	int deg_update_flag; /* what has been updated in this object */
 	int select_color;
 	int pad3[2];
+
+	struct GPUUniformBuffer *ubo;
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */

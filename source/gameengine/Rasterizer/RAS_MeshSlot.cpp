@@ -187,7 +187,6 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 
 
 	if (!managerData->m_shaderOverride) {
-		//rasty->ProcessLighting(materialData->m_useLighting, managerData->m_trans);
 		materialData->m_material->ActivateMeshSlot(this, rasty);
 	}
 
@@ -229,10 +228,12 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 		* P while we are in wireframe viewport shading mode.
 		*/
 		GPUMaterial *gpumat = GetGpuMat();
-		if (gpumat && !(rasty->GetDrawingMode() & RAS_Rasterizer::RAS_SHADOW) && (rasty->GetDrawingMode() != 0)) {
+		if (gpumat && ((rasty->GetDrawingMode() != RAS_Rasterizer::RAS_SHADOW) && (rasty->GetDrawingMode() != RAS_Rasterizer::RAS_WIREFRAME))) {
 			GPUPass *pass = GPU_material_get_pass(gpumat);
 			GPUShader *shader = GPU_pass_shader(pass);
 			GPU_shader_bind(shader);
+
+			rasty->ProcessLighting(materialData->m_useLighting, managerData->m_trans, shader);
 		}
 		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
 	}

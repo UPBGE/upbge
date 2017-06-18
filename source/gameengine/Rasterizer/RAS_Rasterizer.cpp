@@ -57,6 +57,7 @@
 
 extern "C" {
 #  include "BLF_api.h"
+#  include "GPU_uniformbuffer.h"
 }
 
 #include "MEM_guardedalloc.h"
@@ -1223,64 +1224,62 @@ void RAS_Rasterizer::DesactivateOverrideShaderInstancing()
  * has a maximum of 8 lights (simultaneous), so 20 * 8 lights are possible in
  * a scene. */
 
-//void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat)
-//{
-//	bool enable = false;
-//	int layer = -1;
-//
-//	/* find the layer */
-//	if (uselights) {
-//		if (m_clientobject) {
-//			layer = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject)->GetLayer();
-//		}
-//	}
-//
-//	/* avoid state switching */
-//	if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo) {
-//		return;
-//	}
-//
-//	m_lastlightlayer = layer;
-//	m_lastauxinfo = m_auxilaryClientInfo;
-//
-//	/* enable/disable lights as needed */
-//	if (layer >= 0) {
-//		//enable = ApplyLights(layer, viewmat);
-//		// taken from blender source, incompatibility between Blender Object / GameObject
-//		KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
-//		float glviewmat[16];
-//		unsigned int count;
-//		std::vector<RAS_OpenGLLight *>::iterator lit = m_lights.begin();
-//
-//		for (count = 0; count < m_numgllights; count++) {
-//			m_impl->DisableLight(count);
-//		}
-//
-//		viewmat.getValue(glviewmat);
-//
-//		PushMatrix();
-//		LoadMatrix(glviewmat);
-//		for (lit = m_lights.begin(), count = 0; !(lit == m_lights.end()) && count < m_numgllights; ++lit) {
-//			RAS_OpenGLLight *light = (*lit);
-//
-//			if (light->ApplyFixedFunctionLighting(kxscene, layer, count)) {
-//				count++;
-//			}
-//		}
-//		PopMatrix();
-//
-//		enable = count > 0;
-//	}
-//
-//	if (enable) {
-//		EnableLights();
-//	}
-//	else {
-//		DisableLights();
-//	}
-//}
-//
-//void RAS_Rasterizer::EnableLights()
+void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat, GPUShader *shader)
+{
+	bool enable = false;
+	int layer = -1;
+
+	/* find the layer */
+	if (uselights) {
+		if (m_clientobject) {
+			layer = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject)->GetLayer();
+		}
+	}
+
+	/* avoid state switching */
+	if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo) {
+		return;
+	}
+
+	m_lastlightlayer = layer;
+	m_lastauxinfo = m_auxilaryClientInfo;
+
+	/* enable/disable lights as needed */
+	if (1) { //TEEEEEEEEEEEEMP
+		//enable = ApplyLights(layer, viewmat);
+		// taken from blender source, incompatibility between Blender Object / GameObject
+		KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
+		float glviewmat[16];
+		unsigned int count;
+		std::vector<RAS_OpenGLLight *>::iterator lit = m_lights.begin();
+
+		viewmat.getValue(glviewmat);
+
+		PushMatrix();
+		LoadMatrix(glviewmat);
+		RAS_OpenGLLight *light;
+
+		for (lit = m_lights.begin(), count = 0; !(lit == m_lights.end()) && count < m_numgllights; ++lit) {
+			light = (*lit);
+
+			if (light->ApplyFixedFunctionLighting(kxscene, layer, count)) {
+				count++;
+			}
+		}
+		RAS_ILightObject *l = static_cast<RAS_ILightObject *>(light);
+		int lightcountloc = GPU_shader_get_uniform(shader, "light_count");
+		GPU_shader_uniform_int(shader, lightcountloc, count);
+
+		GPU_uniformbuffer_update(l->m_ubo, (const void *)light->GetEeveeLight());
+		GPU_uniformbuffer_bind(l->m_ubo, 0);
+
+		PopMatrix();
+
+		enable = count > 0;
+	}
+}
+
+//void RAS_Rasterizer::EnableLights()ok :)
 //{
 //	if (m_lastlighting == true) {
 //		return;

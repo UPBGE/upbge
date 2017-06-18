@@ -2437,7 +2437,7 @@ GPUMaterial *GPU_material_from_eevee(Scene *scene, Material *ma, const char *ver
 	ListBase *gpumaterials;
 
 	if (ma->use_nodes && ma->nodetree) {
-		return NULL;
+		return ma->eevee_material;
 	}
 	else {
 		if (is_instancing) {
