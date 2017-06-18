@@ -41,6 +41,10 @@
 #include "GPU_material.h"
 #include "GPU_shader.h"
 
+#include "KX_Globals.h"
+#include "KX_Scene.h"
+#include "KX_Camera.h"
+
 extern "C" {
 #  include "../gpu/intern/gpu_codegen.h"
 }
@@ -232,11 +236,61 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			GPUPass *pass = GPU_material_get_pass(gpumat);
 			GPUShader *shader = GPU_pass_shader(pass);
 			GPU_shader_bind(shader);
-
+			rasty->PushMatrix();
 			rasty->ProcessLighting(materialData->m_useLighting, managerData->m_trans, shader);
+			rasty->PopMatrix();
+			KX_Camera *cam = KX_GetActiveScene()->GetActiveCamera();
+
+			// lit surface frag uniforms
+			int projloc = GPU_shader_get_uniform(shader, "ProjectionMatrix");
+			int viewinvloc = GPU_shader_get_uniform(shader, "ViewMatrixInverse");
+			// lit surface vert uniforms
+			int modelviewprojloc = GPU_shader_get_uniform(shader, "ModelViewProjectionMatrix");
+			int modelloc = GPU_shader_get_uniform(shader, "ModelMatrix");
+			int modelviewloc = GPU_shader_get_uniform(shader, "ModelViewMatrix");
+			int worldnormloc = GPU_shader_get_uniform(shader, "WorldNormalMatrix");
+			int normloc = GPU_shader_get_uniform(shader, "NormalMatrix");
+
+			MT_Matrix4x4 proj(cam->GetProjectionMatrix());
+			MT_Matrix4x4 viewinv(rasty->GetViewInvMatrix());
+			MT_Matrix4x4 model(m_meshUser->GetMatrix());
+			MT_Matrix4x4 modelview(rasty->GetViewMatrix() * model);
+			MT_Matrix4x4 modelviewproj(proj * modelview);
+			MT_Matrix4x4 worldnorm(model.inverse());
+			MT_Matrix4x4 norm(viewinv * worldnorm);
+
+			float projf[16];
+			float viewinvf[16];
+			float modelviewprojf[16];
+			float modelf[16];
+			float modelviewf[16];
+			float worldnormf[9];
+			float normf[9];
+
+			proj.getValue(projf);
+			viewinv.getValue(viewinvf);
+			modelviewproj.getValue(modelviewprojf);
+			model.getValue(modelf);
+			modelview.getValue(modelviewf);
+
+			int k = 0;
+			for (int i = 0; i < 3; i++) {
+				for (int j = 0; j < 3; j++) {
+					worldnormf[k] = worldnorm[i][j];
+					normf[k] = norm[i][j];
+					k++;
+				}
+			}
+
+			GPU_shader_uniform_vector(shader, projloc, 16, 1, (float *)projf);
+			GPU_shader_uniform_vector(shader, viewinvloc, 16, 1, (float *)viewinvf);
+			GPU_shader_uniform_vector(shader, modelviewprojloc, 16, 1, (float *)modelviewprojf);
+			GPU_shader_uniform_vector(shader, modelloc, 16, 1, (float *)modelf);
+			GPU_shader_uniform_vector(shader, modelviewloc, 16, 1, (float *)modelviewf);
+			GPU_shader_uniform_vector(shader, worldnormloc, 9, 1, (float *)worldnormf);
+			GPU_shader_uniform_vector(shader, normloc, 16, 9, (float *)normf);
 		}
 		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
 	}
-
 	rasty->PopMatrix();
 }
