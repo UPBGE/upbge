@@ -744,8 +744,8 @@ float KX_KetsjiEngine::GetCameraZoom(KX_Camera *camera) const
 	return overrideCamera ? m_overrideCamZoom : m_cameraZoom;
 }
 
-void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const MT_CmMatrix4x4& projmat,
-		const MT_CmMatrix4x4& viewmat, const RAS_CameraData& camdata)
+void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const MT_Matrix4x4& projmat,
+		const MT_Matrix4x4& viewmat, const RAS_CameraData& camdata)
 {
 	SetFlag(CAMERA_OVERRIDE, true);
 	m_overrideSceneName = forscene;
@@ -885,7 +885,7 @@ MT_Matrix4x4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Came
 	MT_Matrix4x4 projmat;
 	if (override_camera && !m_overrideCamData.m_perspective) {
 		// needed to get frustum planes for culling
-		projmat.setValue(m_overrideCamProjMat.getPointer());
+		projmat = m_overrideCamProjMat;
 	}
 	else {
 		RAS_FrameFrustum frustum;
@@ -1101,8 +1101,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 
 		// set transformation
 		if (override_camera) {
-			const MT_CmMatrix4x4& cammatdata = m_overrideCamViewMat;
-			MT_Transform trans = MT_Transform(cammatdata.getPointer());
+			MT_Transform trans = m_overrideCamViewMat.toTransform();
 			MT_Transform camtrans;
 			camtrans.invert(trans);
 

@@ -34,8 +34,6 @@
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 
-#include "MT_CmMatrix4x4.h"
-
 #include "KX_Camera.h"
 #include "KX_Light.h"
 #include "KX_Scene.h"

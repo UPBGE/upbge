@@ -813,15 +813,6 @@ void RAS_Rasterizer::IndexPrimitivesDerivedMesh(RAS_MeshSlot *ms)
 	m_impl->DrawDerivedMesh(ms, m_drawingmode);
 }
 
-void RAS_Rasterizer::SetProjectionMatrix(MT_CmMatrix4x4 &mat)
-{
-	SetMatrixMode(RAS_PROJECTION);
-	float *matrix = &mat(0, 0);
-	LoadMatrix(matrix);
-
-	m_camortho = (mat(3, 3) != 0.0f);
-}
-
 void RAS_Rasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 {
 	SetMatrixMode(RAS_PROJECTION);

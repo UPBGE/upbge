@@ -33,7 +33,6 @@
 #ifndef __KX_KETSJIENGINE_H__
 #define __KX_KETSJIENGINE_H__
 
-#include "MT_CmMatrix4x4.h"
 #include "MT_Matrix4x4.h"
 #include <string>
 #include "KX_ISystem.h"
@@ -196,8 +195,8 @@ private:
 
 	std::string m_overrideSceneName;
 	RAS_CameraData m_overrideCamData;
-	MT_CmMatrix4x4 m_overrideCamProjMat;
-	MT_CmMatrix4x4 m_overrideCamViewMat;
+	MT_Matrix4x4 m_overrideCamProjMat;
+	MT_Matrix4x4 m_overrideCamViewMat;
 	/// Default camera zoom.
 	float m_overrideCamZoom;
 
@@ -360,7 +359,7 @@ public:
 	/// Get the camera zoom for the passed camera.
 	float GetCameraZoom(KX_Camera *camera) const;
 
-	void EnableCameraOverride(const std::string& forscene, const MT_CmMatrix4x4& projmat, const MT_CmMatrix4x4& viewmat, const RAS_CameraData& camdata);
+	void EnableCameraOverride(const std::string& forscene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat, const RAS_CameraData& camdata);
 
 	// Update animations for object in this scene
 	void UpdateAnimations(KX_Scene *scene);

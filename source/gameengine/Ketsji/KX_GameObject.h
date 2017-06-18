@@ -44,7 +44,6 @@
 #include "SCA_IObject.h"
 #include "SG_Node.h"
 #include "MT_Transform.h"
-#include "MT_CmMatrix4x4.h"
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
 #include "DNA_constraint_types.h" /* for constraint replication */
@@ -116,8 +115,6 @@ protected:
 	KX_CullingNode m_cullingNode;
 	SG_Node*							m_pSGNode;
 
-	MT_CmMatrix4x4						m_OpenGL_4x4Matrix;
-
 	CListValue<KX_PythonComponent> *m_components;
 
 	std::vector<bRigidBodyJointConstraint*>	m_constraints;
@@ -168,28 +165,6 @@ public:
 	Relink(
 		std::map<SCA_IObject *, SCA_IObject *>& map
 	);
-
-	/**
-	 * Compute an OpenGl compatible 4x4 matrix. Has the
-	 * side effect of storing the result internally. The
-	 * memory for the matrix remains the property of this class.
-	 */ 
-		float *
-	GetOpenGLMatrix(
-	);
-
-	/**
-	 * Return a pointer to a MT_CmMatrix4x4 storing the 
-	 * opengl transformation for this object. This is updated
-	 * by a call to GetOpenGLMatrix(). This class owns the 
-	 * memory for the returned matrix.
-	 */
-
-		MT_CmMatrix4x4 *
-	GetOpenGLMatrixPtr(
-	) { 
-		return &m_OpenGL_4x4Matrix;
-	};
 
 	/**
 	 * Update the blender object obmat field from the object world position

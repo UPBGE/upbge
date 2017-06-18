@@ -212,6 +212,14 @@ public:
 
 	MT_Matrix4x4 inverse() const;
 	void         invert();
+
+	MT_Transform toTransform() const
+	{
+		return MT_Transform(MT_Vector3(m_el[0][3], m_el[1][3], m_el[2][3]),
+							MT_Matrix3x3(m_el[0][0], m_el[0][1], m_el[0][2],
+										 m_el[1][0], m_el[1][1], m_el[1][2],
+										 m_el[2][0], m_el[2][1], m_el[2][2]));
+	}
   
 protected:
 	/**
