@@ -47,9 +47,6 @@
 
 #include "GHOST_IWindow.h"
 
-#include <assert.h>
-#include <iostream>
-
 extern "C" {
 #  include "WM_api.h"
 #  include "wm_cursors.h"
@@ -249,19 +246,12 @@ void KX_BlenderCanvas::SetMousePosition(int x, int y)
 
 void KX_BlenderCanvas::MakeScreenShot(const std::string& filename)
 {
-	unsigned int *pixeldata;
 	bScreen *screen = m_win->screen;
 
 	int x = m_area_rect.GetLeft();
 	int y = m_area_rect.GetBottom();
 	int width = m_area_rect.GetWidth();
 	int height = m_area_rect.GetHeight();
-
-	pixeldata = m_rasterizer->MakeScreenshot(x, y, width, height);
-	if (!pixeldata) {
-		std::cerr << "KX_BlenderCanvas: Unable to take screenshot!" << std::endl;
-		return;
-	}
 
 	/* initialize image file format data */
 	Scene *scene = (screen) ? screen->scene : nullptr;
@@ -279,6 +269,5 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string& filename)
 	BLI_strncpy(path, filename.c_str(), FILE_MAX);
 	BLI_path_abs(path, KX_GetMainPath().c_str());
 
-	/* save_screenshot() frees dumprect and im_format */
-	save_screenshot(path, width, height, pixeldata, im_format);
+	AddScreenshot(path, x, y, width, height, im_format);
 }

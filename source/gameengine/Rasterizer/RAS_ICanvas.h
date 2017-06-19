@@ -131,6 +131,8 @@ public:
 	}
 
 	virtual void MakeScreenShot(const std::string& filename) = 0;
+	/// Proceed the actual screenshot at the frame end.
+	void FlushScreenshots();
 
 	virtual void GetDisplayDimensions(int &width, int &height) = 0;
 
@@ -148,6 +150,18 @@ public:
 	}
 
 protected:
+	struct Screenshot
+	{
+		std::string path;
+		int x;
+		int y;
+		int width;
+		int height;
+		ImageFormatData *format;
+	};
+
+	std::vector<Screenshot> m_screenshots;
+
 	int m_samples;
 	RAS_Rasterizer::HdrType m_hdrType;
 
@@ -158,19 +172,16 @@ protected:
 	TaskPool *m_taskpool;
 	RAS_Rasterizer *m_rasterizer;
 
+	/** Delay the screenshot to the frame end to use a valid buffer and avoid copy from an invalid buffer
+	 * at the frame begin after the buffer swap. The screenshot are proceeded in \see FlushScreenshots.
+	 */
+	void AddScreenshot(const std::string& path, int x, int y, int width, int height, ImageFormatData *format);
+
 	/**
 	 * Saves screenshot data to a file. The actual compression and disk I/O is performed in
 	 * a separate thread.
-	 *
-	 * @param path name of the file, can contain "###" for sequential numbering. A copy of the string
-	 *                 is made, so the pointer can be freed by the caller.
-	 * @param dumpsx width in pixels.
-	 * @param dumpsy height in pixels.
-	 * @param dumprect pixel data; ownership is passed to this function, which also frees the data.
-	 * @param im_format image format for the file; ownership is passed to this function, which also frees the data.
 	 */
-	void save_screenshot(const char *path, int dumpsx, int dumpsy, unsigned int *dumprect,
-	                     ImageFormatData *im_format);
+	void SaveScreeshot(const Screenshot& screenshot);
 };
 
 #endif  // __RAS_ICANVAS_H__

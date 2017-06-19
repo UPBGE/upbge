@@ -44,8 +44,6 @@
 #include "MEM_guardedalloc.h"
 #include "DNA_space_types.h"
 
-#include "CM_Message.h"
-
 GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
 	: RAS_ICanvas(rasty),
 	m_window(window),
@@ -141,13 +139,6 @@ void GPG_Canvas::MakeScreenShot(const std::string& filename)
 	unsigned int dumpsx = GetWidth();
 	unsigned int dumpsy = GetHeight();
 
-	unsigned int *pixels = m_rasterizer->MakeScreenshot(0, 0, dumpsx, dumpsy);
-
-	if (!pixels) {
-		CM_Error("cannot allocate pixels array");
-		return;
-	}
-
 	// initialize image file format data
 	ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData), "im_format");
 	BKE_imformat_defaults(im_format);
@@ -157,8 +148,7 @@ void GPG_Canvas::MakeScreenShot(const std::string& filename)
 	BLI_strncpy(path, filename.c_str(), FILE_MAX);
 	BLI_path_abs(path, KX_GetMainPath().c_str());
 
-	/* save_screenshot() frees dumprect and im_format */
-	save_screenshot(path, dumpsx, dumpsy, pixels, im_format);
+	AddScreenshot(path, 0, 0, dumpsx, dumpsy, im_format);
 }
 
 void GPG_Canvas::Init()

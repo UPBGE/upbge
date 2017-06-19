@@ -711,10 +711,6 @@ RAS_ISync *RAS_Rasterizer::CreateSync(int type)
 	}
 	return sync;
 }
-void RAS_Rasterizer::SwapBuffers(RAS_ICanvas *canvas)
-{
-	canvas->SwapBuffers();
-}
 
 const MT_Matrix4x4& RAS_Rasterizer::GetViewMatrix() const
 {

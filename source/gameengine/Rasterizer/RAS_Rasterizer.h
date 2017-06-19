@@ -532,11 +532,6 @@ public:
 	 */
 	RAS_ISync *CreateSync(int type);
 
-	/**
-	 * SwapBuffers swaps the back buffer with the front buffer.
-	 */
-	void SwapBuffers(RAS_ICanvas *canvas);
-
 	/** Create display array storage info for drawing (mainly VBO).
 	 * \param array The display array to use vertex and index data from.
 	 * \param instancing True if the storage is used for instancing draw.

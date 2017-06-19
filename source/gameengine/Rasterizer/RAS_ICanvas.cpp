@@ -40,6 +40,8 @@ extern "C" {
 #  include "IMB_imbuf_types.h"
 }
 
+#include "CM_Message.h"
+
 #include <stdlib.h> // for free()
 
 // Task data for saving screenshots in a different thread.
@@ -104,6 +106,28 @@ RAS_Rasterizer::HdrType RAS_ICanvas::GetHdrType() const
 	return m_hdrType;
 }
 
+void RAS_ICanvas::FlushScreenshots()
+{
+	for (const Screenshot& screenshot : m_screenshots) {
+		SaveScreeshot(screenshot);
+	}
+
+	m_screenshots.clear();
+}
+
+void RAS_ICanvas::AddScreenshot(const std::string& path, int x, int y, int width, int height, ImageFormatData *format)
+{
+	Screenshot screenshot;
+	screenshot.path = path;
+	screenshot.x = x;
+	screenshot.y = y;
+	screenshot.width = width;
+	screenshot.height = height;
+	screenshot.format = format;
+
+	m_screenshots.push_back(screenshot);
+}
+
 void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskdata, int UNUSED(threadid))
 {
 	ScreenshotTaskData *task = static_cast<ScreenshotTaskData *>(taskdata);
@@ -122,21 +146,26 @@ void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskda
 }
 
 
-void RAS_ICanvas::save_screenshot(const char *path, int dumpsx, int dumpsy, unsigned int *dumprect,
-                                  ImageFormatData *im_format)
+void RAS_ICanvas::SaveScreeshot(const Screenshot& screenshot)
 {
+	unsigned int *pixels = m_rasterizer->MakeScreenshot(screenshot.x, screenshot.y, screenshot.width, screenshot.height);
+	if (!pixels) {
+		CM_Error("cannot allocate pixels array");
+		return;
+	}
+
 	/* Save the actual file in a different thread, so that the
 	 * game engine can keep running at full speed. */
 	ScreenshotTaskData *task = (ScreenshotTaskData *)MEM_mallocN(sizeof(ScreenshotTaskData), "screenshot-data");
-	task->dumprect = dumprect;
-	task->dumpsx = dumpsx;
-	task->dumpsy = dumpsy;
-	task->im_format = im_format;
+	task->dumprect = pixels;
+	task->dumpsx = screenshot.width;
+	task->dumpsy = screenshot.height;
+	task->im_format = screenshot.format;
 
-	BLI_strncpy(task->path, path, FILE_MAX);
+	BLI_strncpy(task->path, screenshot.path.c_str(), FILE_MAX);
 	BLI_path_frame(task->path, m_frame, 0);
 	m_frame++;
-	BKE_image_path_ensure_ext_from_imtype(task->path, im_format->imtype);
+	BKE_image_path_ensure_ext_from_imtype(task->path, task->im_format->imtype);
 
 	BLI_task_pool_push(m_taskpool,
 	                   save_screenshot_thread_func,
