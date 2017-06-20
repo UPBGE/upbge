@@ -20,7 +20,7 @@ This module holds key constants for the SCA_KeyboardSensor.
    sensor = co.sensors["Keyboard"]
    sensor.key = bge.events.F1KEY
 
-   code-block:: python
+.. code-block:: python
 
    # Do the all keys thing
    import bge
@@ -41,7 +41,7 @@ This module holds key constants for the SCA_KeyboardSensor.
    		if key == bge.events.DKEY:
    			# Activate Right!
 
-   code-block:: python
+.. code-block:: python
 
    # The all keys thing without a keyboard sensor (but you will
    # need an always sensor with pulse mode on)
