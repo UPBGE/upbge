@@ -336,7 +336,6 @@ typedef struct Object {
 	int select_color;
 	int pad3[2];
 
-	struct GPUUniformBuffer *ubo;
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */

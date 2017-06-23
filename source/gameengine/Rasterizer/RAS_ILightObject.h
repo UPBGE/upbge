@@ -41,7 +41,6 @@ class MT_Transform;
 class MT_Matrix4x4;
 
 struct Image;
-struct GPUUniformBuffer;
 
 class RAS_ILightObject
 {
@@ -77,8 +76,6 @@ public:
 	float	m_spotblend;
 
 	LightType	m_type;
-
-	GPUUniformBuffer *m_ubo;
 	
 	bool	m_nodiffuse;
 	bool	m_nospecular;

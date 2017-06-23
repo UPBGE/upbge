@@ -285,6 +285,7 @@ struct GPUMaterial *EEVEE_material_mesh_get(struct Scene *scene, Material *ma)
 	    "#define MESH_SHADER\n");
 
 	ma->eevee_material = mat;
+	printf("fill Material->eevee_material pointer\n");
 	return mat;
 }
 
@@ -318,6 +319,8 @@ static void add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *
 
 	Scene *scene = draw_ctx->scene;
 	scene->eevee_util_tex = e_data.util_tex;
+	scene->eevee_ubo = sldata->light_ubo;
+	printf("Fill scene->eevee_util_tex pointer and light ubo\n");
 }
 
 void EEVEE_materials_cache_init(EEVEE_Data *vedata)

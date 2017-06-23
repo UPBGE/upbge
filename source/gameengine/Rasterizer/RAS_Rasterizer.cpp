@@ -1266,12 +1266,17 @@ void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat
 				count++;
 			}
 		}
-		RAS_ILightObject *l = static_cast<RAS_ILightObject *>(light);
+		// GET EEVEE SCENE LIGHT DATA
+		EEVEE_Light *lightsData = kxscene->GetEeveeLightsData();
+		GPUUniformBuffer *lightsUbo = kxscene->GetLightsUbo();
+
+		// UPDATE/BIND EEVEE LIGHT DATA
+		GPU_uniformbuffer_update(lightsUbo , (const void *)lightsData);
+		GPU_uniformbuffer_bind(lightsUbo, 0);
+
+		// light_count EEVEE uniform
 		int lightcountloc = GPU_shader_get_uniform(shader, "light_count");
 		GPU_shader_uniform_int(shader, lightcountloc, count);
-
-		GPU_uniformbuffer_update(l->m_ubo, (const void *)light->GetEeveeLight());
-		GPU_uniformbuffer_bind(l->m_ubo, 0);
 
 		PopMatrix();
 

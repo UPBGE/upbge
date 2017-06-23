@@ -48,6 +48,9 @@
 
 #include "BLI_math.h"
 
+#include "KX_Globals.h"
+#include "KX_Scene.h"
+
 RAS_OpenGLLight::RAS_OpenGLLight(RAS_Rasterizer *ras)
 	:m_rasterizer(ras)
 {
@@ -179,55 +182,57 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 		Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
 		float mat[4][4], scale[3], power;
 
+		EEVEE_Light *lightsData = KX_GetActiveScene()->GetEeveeLightsData();
+
 		/* Position */
-		copy_v3_v3(m_lightData[slot].position, obmat[3]);
+		copy_v3_v3(lightsData[slot].position, obmat[3]);
 
 		/* Color */
-		copy_v3_v3(m_lightData[slot].color, &la->r);
+		copy_v3_v3(lightsData[slot].color, &la->r);
 
 		/* Influence Radius */
-		m_lightData[slot].dist = la->dist;
+		lightsData[slot].dist = la->dist;
 
 		/* Vectors */
 		normalize_m4_m4_ex(mat, obmat, scale);
-		copy_v3_v3(m_lightData[slot].forwardvec, mat[2]);
-		normalize_v3(m_lightData[slot].forwardvec);
-		negate_v3(m_lightData[slot].forwardvec);
+		copy_v3_v3(lightsData[slot].forwardvec, mat[2]);
+		normalize_v3(lightsData[slot].forwardvec);
+		negate_v3(lightsData[slot].forwardvec);
 
-		copy_v3_v3(m_lightData[slot].rightvec, mat[0]);
-		normalize_v3(m_lightData[slot].rightvec);
+		copy_v3_v3(lightsData[slot].rightvec, mat[0]);
+		normalize_v3(lightsData[slot].rightvec);
 
-		copy_v3_v3(m_lightData[slot].upvec, mat[1]);
-		normalize_v3(m_lightData[slot].upvec);
+		copy_v3_v3(lightsData[slot].upvec, mat[1]);
+		normalize_v3(lightsData[slot].upvec);
 
 		/* Spot size & blend */
 		if (la->type == LA_SPOT) {
-			m_lightData[slot].sizex = scale[0] / scale[2];
-			m_lightData[slot].sizey = scale[1] / scale[2];
-			m_lightData[slot].spotsize = cosf(la->spotsize * 0.5f);
-			m_lightData[slot].spotblend = (1.0f - m_lightData[slot].spotsize) * la->spotblend;
-			m_lightData[slot].radius = max_ff(0.001f, la->area_size);
+			lightsData[slot].sizex = scale[0] / scale[2];
+			lightsData[slot].sizey = scale[1] / scale[2];
+			lightsData[slot].spotsize = cosf(la->spotsize * 0.5f);
+			lightsData[slot].spotblend = (1.0f - lightsData[slot].spotsize) * la->spotblend;
+			lightsData[slot].radius = max_ff(0.001f, la->area_size);
 		}
 		else if (la->type == LA_AREA) {
-			m_lightData[slot].sizex = max_ff(0.0001f, la->area_size * scale[0] * 0.5f);
+			lightsData[slot].sizex = max_ff(0.0001f, la->area_size * scale[0] * 0.5f);
 			if (la->area_shape == LA_AREA_RECT) {
-				m_lightData[slot].sizey = max_ff(0.0001f, la->area_sizey * scale[1] * 0.5f);
+				lightsData[slot].sizey = max_ff(0.0001f, la->area_sizey * scale[1] * 0.5f);
 			}
 			else {
-				m_lightData[slot].sizey = max_ff(0.0001f, la->area_size * scale[1] * 0.5f);
+				lightsData[slot].sizey = max_ff(0.0001f, la->area_size * scale[1] * 0.5f);
 			}
 		}
 		else {
-			m_lightData[slot].radius = max_ff(0.001f, la->area_size);
+			lightsData[slot].radius = max_ff(0.001f, la->area_size);
 		}
 
 		/* Make illumination power constant */
 		if (la->type == LA_AREA) {
-			power = 1.0f / (m_lightData[slot].sizex * m_lightData[slot].sizey * 4.0f * M_PI) /* 1/(w*h*Pi) */
+			power = 1.0f / (lightsData[slot].sizex * lightsData[slot].sizey * 4.0f * M_PI) /* 1/(w*h*Pi) */
 				* 80.0f; /* XXX : Empirical, Fit cycles power */
 		}
 		else if (la->type == LA_SPOT || la->type == LA_LOCAL) {
-			power = 1.0f / (4.0f * m_lightData[slot].radius * m_lightData[slot].radius * M_PI * M_PI) /* 1/(4*r²*Pi²) */
+			power = 1.0f / (4.0f * lightsData[slot].radius * lightsData[slot].radius * M_PI * M_PI) /* 1/(4*r²*Pi²) */
 				* M_PI * M_PI * M_PI * 10.0; /* XXX : Empirical, Fit cycles power */
 
 			/* for point lights (a.k.a radius == 0.0) */
@@ -236,21 +241,16 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 		else {
 			power = 1.0f;
 		}
-		mul_v3_fl(m_lightData[slot].color, power * la->energy);
+		mul_v3_fl(lightsData[slot].color, power * la->energy);
 
 		/* Lamp Type */
-		m_lightData[slot].lamptype = (float)la->type;
+		lightsData[slot].lamptype = (float)la->type;
 
 		/* No shadow by default */
-		m_lightData[slot].shadowid = -1.0f;
+		lightsData[slot].shadowid = -1.0f;
 	}
 
 	return true;
-}
-
-EEVEE_Light *RAS_OpenGLLight::GetEeveeLight()
-{
-	return m_lightData;
 }
 
 GPULamp *RAS_OpenGLLight::GetGPULamp()

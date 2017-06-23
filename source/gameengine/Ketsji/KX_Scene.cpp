@@ -211,6 +211,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
+	//Set EEVEE DATA TEEEEEEEEEEMP
+	m_utilTex = m_blenderScene->eevee_util_tex;
+	m_lightsUbo = m_blenderScene->eevee_ubo;
+
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
 
@@ -300,6 +304,22 @@ KX_Scene::~KX_Scene()
 		Py_CLEAR(m_drawCallbacks[i]);
 	}
 #endif
+}
+
+// EEVEE DATA GET
+GPUUniformBuffer *KX_Scene::GetLightsUbo()
+{
+	return m_lightsUbo;
+}
+
+EEVEE_Light *KX_Scene::GetEeveeLightsData()
+{
+	return m_lightsData;
+}
+
+GPUTexture *KX_Scene::GetUtilTex()
+{
+	return m_utilTex;
 }
 
 std::string KX_Scene::GetName()

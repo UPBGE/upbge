@@ -293,11 +293,27 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			GPU_shader_uniform_vector(shader, worldnormloc, 9, 1, (float *)worldnormf);
 			GPU_shader_uniform_vector(shader, normloc, 16, 9, (float *)normf);
 
-			GPUTexture *utiltex = scene->GetBlenderScene()->eevee_util_tex;
+			GPUTexture *utiltex = scene->GetUtilTex();
 			int texloc = GPU_shader_get_uniform(shader, "utilTex");
-			if (utiltex) {
-				GPU_shader_uniform_texture(shader, texloc, utiltex);
-			}
+			
+			int number = GPU_texture_bound_number(utiltex);
+			int bindcode = GPU_texture_opengl_bindcode(utiltex);
+			int target = GL_TEXTURE_2D_ARRAY;
+
+			if (number != 0)
+				glActiveTexture(GL_TEXTURE0 + number);
+
+			if (bindcode != 0)
+				glBindTexture(target, bindcode);
+			else
+				GPU_invalid_tex_bind(target);
+
+			glUniform1i(texloc, number);
+
+			if (number != 0)
+				glActiveTexture(GL_TEXTURE0);
+
+			std::cout << "texloc " << texloc << " number " << number << " bindcode " << bindcode << std::endl;
 		}
 		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
 	}
