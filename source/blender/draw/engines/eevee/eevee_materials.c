@@ -282,10 +282,10 @@ struct GPUMaterial *EEVEE_material_mesh_get(struct Scene *scene, Material *ma)
 #elif defined(IRRADIANCE_HL2)
 	    "#define IRRADIANCE_HL2\n"
 #endif
-	    "#define MESH_SHADER\n");
+	    "#define MESH_SHADER\n"
+		"#define FOR_GAME\n");
 
 	ma->eevee_material = mat;
-	printf("fill Material->eevee_material pointer\n");
 	return mat;
 }
 

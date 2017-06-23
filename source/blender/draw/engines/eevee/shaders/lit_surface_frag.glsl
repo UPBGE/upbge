@@ -423,6 +423,9 @@ vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness,
 	vec3 indirect_radiance =
 	        spec_accum.rgb * F_ibl(f0, brdf_lut) * float(specToggle) +
 	        diff_accum.rgb * albedo;
-
+#ifndef FOR_GAME
 	return radiance + indirect_radiance * ao;
+#else
+	return radiance + F_ibl(f0, brdf_lut);
+#endif
 }
