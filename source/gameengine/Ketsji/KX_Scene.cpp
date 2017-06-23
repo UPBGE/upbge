@@ -77,6 +77,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_property_types.h"
 
+#include "GPU_texture.h"
+
 #include "KX_SG_NodeRelationships.h"
 
 #include "KX_NetworkMessageScene.h"
@@ -214,6 +216,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	//Set EEVEE DATA TEEEEEEEEEEMP
 	m_utilTex = m_blenderScene->eevee_util_tex;
 	m_lightsUbo = m_blenderScene->eevee_ubo;
+	GPU_texture_bind(m_utilTex, 0);
 
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
@@ -232,6 +235,8 @@ KX_Scene::~KX_Scene()
 	// It's still there but we remove all properties here otherwise some
 	// reference might be hanging and causing late release of objects
 	RemoveAllDebugProperties();
+
+	GPU_texture_unbind(m_utilTex);
 
 	while (GetRootParentList()->GetCount() > 0) 
 	{

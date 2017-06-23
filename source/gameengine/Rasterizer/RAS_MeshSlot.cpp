@@ -296,7 +296,6 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			GPUTexture *utiltex = scene->GetUtilTex();
 			int texloc = GPU_shader_get_uniform(shader, "utilTex");
 			
-			GPU_texture_bind(utiltex, 2);
 			GPU_shader_uniform_texture(shader, texloc, utiltex);
 		}
 		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
