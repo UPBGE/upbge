@@ -46,10 +46,11 @@ class RAS_ILightObject
 {
 public:
 	enum LightType {
-		LIGHT_SPOT,
-		LIGHT_SUN,
-		LIGHT_NORMAL,
-		LIGHT_HEMI
+		LIGHT_NORMAL = 0,
+		LIGHT_SUN = 1,
+		LIGHT_SPOT = 2,
+		LIGHT_HEMI = 3,
+		LIGHT_AREA = 4
 	};
 
 	bool	m_modified;

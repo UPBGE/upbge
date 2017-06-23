@@ -942,6 +942,9 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	else if (la->type == LA_HEMI) {
 		lightobj->m_type = RAS_ILightObject::LIGHT_HEMI;
 	}
+	else if (la->type == LA_AREA) {
+		lightobj->m_type = RAS_ILightObject::LIGHT_AREA;
+	}
 	else {
 		lightobj->m_type = RAS_ILightObject::LIGHT_NORMAL;
 	}

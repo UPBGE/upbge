@@ -296,24 +296,8 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			GPUTexture *utiltex = scene->GetUtilTex();
 			int texloc = GPU_shader_get_uniform(shader, "utilTex");
 			
-			int number = GPU_texture_bound_number(utiltex);
-			int bindcode = GPU_texture_opengl_bindcode(utiltex);
-			int target = GL_TEXTURE_2D_ARRAY;
-
-			if (number != 0)
-				glActiveTexture(GL_TEXTURE0 + number);
-
-			if (bindcode != 0)
-				glBindTexture(target, bindcode);
-			else
-				GPU_invalid_tex_bind(target);
-
-			glUniform1i(texloc, number);
-
-			if (number != 0)
-				glActiveTexture(GL_TEXTURE0);
-
-			std::cout << "texloc " << texloc << " number " << number << " bindcode " << bindcode << std::endl;
+			GPU_texture_bind(utiltex, 2);
+			GPU_shader_uniform_texture(shader, texloc, utiltex);
 		}
 		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
 	}
