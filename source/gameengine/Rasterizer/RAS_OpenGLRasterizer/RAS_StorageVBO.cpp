@@ -146,10 +146,20 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 	glEnableVertexAttribArray(normalattribloc);
 	glVertexAttribPointer(normalattribloc, 3, GL_FLOAT, GL_FALSE, m_stride, m_normal_offset);
 
-	char *uvattrib = "u";
+	char *uvattrib = "u"; // UV coordinates
 	int uvattribloc = glGetAttribLocation(program, uvattrib);
 	glEnableVertexAttribArray(uvattribloc);
 	glVertexAttribPointer(uvattribloc, 2, GL_FLOAT, GL_FALSE, m_stride, m_uv_offset);
+
+	char *tattrib = "t"; // Tangent coordinates
+	int tattribloc = glGetAttribLocation(program, tattrib);
+	glEnableVertexAttribArray(tattribloc);
+	glVertexAttribPointer(tattribloc, 4, GL_FLOAT, GL_FALSE, m_stride, m_tangent_offset);
+
+	char *cattrib = "c"; // Color coordinates
+	int cattribloc = glGetAttribLocation(program, cattrib);
+	glEnableVertexAttribArray(cattribloc);
+	glVertexAttribPointer(cattribloc, 4, GL_UNSIGNED_BYTE, GL_TRUE, m_stride, m_color_offset);
 
 	// Colors
 	/*if (!wireframe) {
@@ -193,7 +203,7 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 				break;
 		}
 	} */
-	glClientActiveTexture(GL_TEXTURE0);
+	/*glClientActiveTexture(GL_TEXTURE0);
 
 	for (const std::pair<int, RAS_Rasterizer::TexCoGen> pair : storageAttribs->attribs) {
 		const int unit = pair.first;
@@ -233,7 +243,7 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 				break;
 		}
 	}
-
+*/
 	/* VAO don't track the VBO state and the attributes don't need a bound VBO to be used in a render.
 	 * So we unbind the VBO here because they will not be unbound in VBO::Unbind. */
 	if (m_useVao) {
