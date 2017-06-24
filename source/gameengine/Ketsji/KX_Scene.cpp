@@ -216,7 +216,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	//Set EEVEE DATA TEEEEEEEEEEMP
 	m_utilTex = m_blenderScene->eevee_util_tex;
 	m_lightsUbo = m_blenderScene->eevee_ubo;
-	GPU_texture_bind(m_utilTex, 0);
+	GPU_texture_bind(m_utilTex, 7);
 
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;

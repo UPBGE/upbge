@@ -146,6 +146,11 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 	glEnableVertexAttribArray(normalattribloc);
 	glVertexAttribPointer(normalattribloc, 3, GL_FLOAT, GL_FALSE, m_stride, m_normal_offset);
 
+	char *uvattrib = "u";
+	int uvattribloc = glGetAttribLocation(program, uvattrib);
+	glEnableVertexAttribArray(uvattribloc);
+	glVertexAttribPointer(uvattribloc, 2, GL_FLOAT, GL_FALSE, m_stride, m_uv_offset);
+
 	// Colors
 	/*if (!wireframe) {
 		glEnableClientState(GL_COLOR_ARRAY);
