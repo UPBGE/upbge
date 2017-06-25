@@ -300,14 +300,20 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			GPU_shader_uniform_vector(shader, normloc, 16, 9, (float *)normf);
 
 			// UTIL_TEX
-			GPUTexture *utiltex = scene->GetUtilTex();
 			int texloc = GPU_shader_get_uniform(shader, "utilTex");
-			GPU_shader_uniform_texture(shader, texloc, utiltex);
+			GPU_shader_uniform_texture(shader, texloc, scene->GetUtilTex());
 
-			// Miscellaneous
+			// PROBES
 			int probcountloc = GPU_shader_get_uniform(shader, "probe_count");
-			GPU_shader_uniform_int(shader, probcountloc, 0);
+			GPU_shader_uniform_int(shader, probcountloc, scene->GetProbeCount()); // There is always the background probe so 1 at least
 
+			int lodmaxloc = GPU_shader_get_uniform(shader, "lodMax");
+			GPU_shader_uniform_float(shader, lodmaxloc, scene->GetProbeLodMax());
+
+			int probetexloc = GPU_shader_get_uniform(shader, "probeCubes");
+			GPU_shader_uniform_texture(shader, probetexloc, scene->GetProbeTex());
+
+			// MISCELLANEOUS
 			int gridcountloc = GPU_shader_get_uniform(shader, "grid_count");
 			GPU_shader_uniform_int(shader, gridcountloc, 0);
 
@@ -316,9 +322,6 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 
 			int spectoggleloc = GPU_shader_get_uniform(shader, "specToggle");
 			GPU_shader_uniform_int(shader, spectoggleloc, 1);
-
-			int lodmaxloc = GPU_shader_get_uniform(shader, "lodMax");
-			GPU_shader_uniform_float(shader, lodmaxloc, 1.0f);
 		}
 		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
 	}

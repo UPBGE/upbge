@@ -1732,6 +1732,9 @@ typedef struct Scene {
 
 	struct GPUTexture *eevee_util_tex;
 	struct GPUUniformBuffer *eevee_ubo;
+	struct GPUTexture *eevee_probe_tex;
+	float eevee_lod_max;
+	int eevee_probe_count;
 
 	int pad5[2];
 } Scene;

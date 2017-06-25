@@ -215,8 +215,13 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	//Set EEVEE DATA TEEEEEEEEEEMP
 	m_utilTex = m_blenderScene->eevee_util_tex;
-	m_lightsUbo = m_blenderScene->eevee_ubo;
 	GPU_texture_bind(m_utilTex, 7);
+	m_lightsUbo = m_blenderScene->eevee_ubo;
+	
+	m_probeTex = m_blenderScene->eevee_probe_tex;
+	GPU_texture_bind(m_probeTex, 6);
+	m_probeCount = m_blenderScene->eevee_probe_count;
+	m_probeLodMax = m_blenderScene->eevee_lod_max;
 
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
@@ -325,6 +330,21 @@ EEVEE_Light *KX_Scene::GetEeveeLightsData()
 GPUTexture *KX_Scene::GetUtilTex()
 {
 	return m_utilTex;
+}
+
+GPUTexture *KX_Scene::GetProbeTex()
+{
+	return m_probeTex;
+}
+
+int KX_Scene::GetProbeCount()
+{
+	return m_probeCount;
+}
+
+float KX_Scene::GetProbeLodMax()
+{
+	return m_probeLodMax;
 }
 
 std::string KX_Scene::GetName()

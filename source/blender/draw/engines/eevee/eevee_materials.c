@@ -227,6 +227,9 @@ static void add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *
 	Scene *scene = draw_ctx->scene;
 	scene->eevee_util_tex = e_data.util_tex;
 	scene->eevee_ubo = sldata->light_ubo;
+	scene->eevee_probe_count = sldata->probes->num_render_cube;
+	scene->eevee_probe_tex = sldata->probe_pool;
+	scene->eevee_lod_max = sldata->probes->lodmax;
 }
 
 static void create_default_shader(int options)

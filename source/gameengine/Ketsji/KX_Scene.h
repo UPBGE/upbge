@@ -158,6 +158,9 @@ protected:
 	EEVEE_Light m_lightsData[128];
 	GPUUniformBuffer *m_lightsUbo;
 	GPUTexture *m_utilTex;
+	GPUTexture *m_probeTex;
+	int m_probeCount;
+	float m_probeLodMax;
 
 
 	KX_TextureRendererManager *m_rendererManager;
@@ -342,6 +345,9 @@ public:
 	GPUTexture *GetUtilTex();
 	GPUUniformBuffer *GetLightsUbo();
 	EEVEE_Light *GetEeveeLightsData();
+	GPUTexture *GetProbeTex();
+	int GetProbeCount();
+	float GetProbeLodMax();
 
 	KX_Scene(SCA_IInputDevice *inputDevice,
 		const std::string& scenename,
