@@ -95,6 +95,7 @@
 
 #define MAX_ATTRIB_NAME 32
 #define MAX_PASS_NAME 32
+#define MAX_CLIP_PLANES 6 /* GL_MAX_CLIP_PLANES is at least 6 */
 
 /* Use draw manager to call GPU_select, see: DRW_draw_select_loop */
 #define USE_GPU_SELECT
@@ -174,15 +175,16 @@ struct DRWInterface {
 	int camtexfac;
 	int orcotexfac;
 	int eye;
+	int clipplanes;
 	/* Textures */
 	int tex_bind; /* next texture binding point */
 	/* UBO */
 	int ubo_bind; /* next ubo binding point */
 	/* Dynamic batch */
-	Batch *instance_batch; /* contains instances attributes */
+	Gwn_Batch *instance_batch; /* contains instances attributes */
 	GLuint instance_vbo; /* same as instance_batch but generated from DRWCalls */
 	int instance_count;
-	VertexFormat vbo_format;
+	Gwn_VertFormat vbo_format;
 };
 
 struct DRWPass {
@@ -209,7 +211,7 @@ typedef struct DRWCall {
 	DRWCallHeader head;
 
 	float obmat[4][4];
-	Batch *geometry;
+	Gwn_Batch *geometry;
 
 	Object *ob; /* Optional */
 	ID *ob_data; /* Optional. */
@@ -239,8 +241,8 @@ struct DRWShadingGroup {
 	DRWState state_extra;            /* State changes for this batch only (or'd with the pass's state) */
 	int type;
 
-	Batch *instance_geom;  /* Geometry to instance */
-	Batch *batch_geom;     /* Result of call batching */
+	Gwn_Batch *instance_geom;  /* Geometry to instance */
+	Gwn_Batch *batch_geom;     /* Result of call batching */
 
 #ifdef USE_GPU_SELECT
 	/* backlink to pass we're in */
@@ -290,9 +292,17 @@ static struct DRWGlobalState {
 	float screenvecs[2][3];
 	float pixsize;
 
+	GLenum backface, frontface;
+
+	/* Clip planes */
+	int num_clip_planes;
+	float clip_planes_eq[MAX_CLIP_PLANES][4];
+
 	struct {
 		unsigned int is_select : 1;
 		unsigned int is_depth : 1;
+		unsigned int is_image_render : 1;
+		unsigned int is_scene_render : 1;
 	} options;
 
 	/* Current rendering context */
@@ -380,10 +390,12 @@ static void drw_texture_get_format(DRWTextureFormat format, GPUTextureFormat *da
 static void drw_texture_set_parameters(GPUTexture *tex, DRWTextureFlag flags)
 {
 	GPU_texture_bind(tex, 0);
-	GPU_texture_filter_mode(tex, flags & DRW_TEX_FILTER);
 	if (flags & DRW_TEX_MIPMAP) {
-		GPU_texture_mipmap_mode(tex, true);
+		GPU_texture_mipmap_mode(tex, true, flags & DRW_TEX_FILTER);
 		DRW_texture_generate_mipmaps(tex);
+	}
+	else {
+		GPU_texture_filter_mode(tex, flags & DRW_TEX_FILTER);
 	}
 	GPU_texture_wrap_mode(tex, flags & DRW_TEX_WRAP);
 	GPU_texture_compare_mode(tex, flags & DRW_TEX_COMPARE);
@@ -583,6 +595,7 @@ static DRWInterface *DRW_interface_create(GPUShader *shader)
 	interface->camtexfac = GPU_shader_get_uniform(shader, "CameraTexCoFactors");
 	interface->orcotexfac = GPU_shader_get_uniform(shader, "OrcoTexCoFactors[0]");
 	interface->eye = GPU_shader_get_uniform(shader, "eye");
+	interface->clipplanes = GPU_shader_get_uniform(shader, "ClipPlanes[0]");
 	interface->instance_count = 0;
 	interface->attribs_count = 0;
 	interface->attribs_stride = 0;
@@ -591,7 +604,7 @@ static DRWInterface *DRW_interface_create(GPUShader *shader)
 	interface->tex_bind = GPU_max_textures() - 1;
 	interface->ubo_bind = GPU_max_ubo_binds() - 1;
 
-	memset(&interface->vbo_format, 0, sizeof(VertexFormat));
+	memset(&interface->vbo_format, 0, sizeof(Gwn_VertFormat));
 
 	BLI_listbase_clear(&interface->uniforms);
 	BLI_listbase_clear(&interface->attribs);
@@ -764,7 +777,7 @@ DRWShadingGroup *DRW_shgroup_material_create(struct GPUMaterial *material, DRWPa
 	return grp;
 }
 
-DRWShadingGroup *DRW_shgroup_material_instance_create(struct GPUMaterial *material, DRWPass *pass, Batch *geom)
+DRWShadingGroup *DRW_shgroup_material_instance_create(struct GPUMaterial *material, DRWPass *pass, Gwn_Batch *geom)
 {
 	DRWShadingGroup *shgroup = DRW_shgroup_material_create(material, pass);
 
@@ -776,7 +789,7 @@ DRWShadingGroup *DRW_shgroup_material_instance_create(struct GPUMaterial *materi
 	return shgroup;
 }
 
-DRWShadingGroup *DRW_shgroup_instance_create(struct GPUShader *shader, DRWPass *pass, Batch *geom)
+DRWShadingGroup *DRW_shgroup_instance_create(struct GPUShader *shader, DRWPass *pass, Gwn_Batch *geom)
 {
 	DRWShadingGroup *shgroup = DRW_shgroup_create(shader, pass);
 
@@ -837,7 +850,7 @@ void DRW_shgroup_free(struct DRWShadingGroup *shgroup)
 	BATCH_DISCARD_ALL_SAFE(shgroup->batch_geom);
 }
 
-void DRW_shgroup_instance_batch(DRWShadingGroup *shgroup, struct Batch *instances)
+void DRW_shgroup_instance_batch(DRWShadingGroup *shgroup, struct Gwn_Batch *instances)
 {
 	BLI_assert(shgroup->type == DRW_SHG_INSTANCE);
 	BLI_assert(shgroup->interface->instance_batch == NULL);
@@ -845,7 +858,7 @@ void DRW_shgroup_instance_batch(DRWShadingGroup *shgroup, struct Batch *instance
 	shgroup->interface->instance_batch = instances;
 }
 
-void DRW_shgroup_call_add(DRWShadingGroup *shgroup, Batch *geom, float (*obmat)[4])
+void DRW_shgroup_call_add(DRWShadingGroup *shgroup, Gwn_Batch *geom, float (*obmat)[4])
 {
 	BLI_assert(geom != NULL);
 
@@ -865,7 +878,7 @@ void DRW_shgroup_call_add(DRWShadingGroup *shgroup, Batch *geom, float (*obmat)[
 	BLI_addtail(&shgroup->calls, call);
 }
 
-void DRW_shgroup_call_object_add(DRWShadingGroup *shgroup, Batch *geom, Object *ob)
+void DRW_shgroup_call_object_add(DRWShadingGroup *shgroup, Gwn_Batch *geom, Object *ob)
 {
 	BLI_assert(geom != NULL);
 
@@ -909,7 +922,7 @@ void DRW_shgroup_call_generate_add(
 
 static void sculpt_draw_cb(
         DRWShadingGroup *shgroup,
-        void (*draw_fn)(DRWShadingGroup *shgroup, Batch *geom),
+        void (*draw_fn)(DRWShadingGroup *shgroup, Gwn_Batch *geom),
         void *user_data)
 {
 	Object *ob = user_data;
@@ -918,7 +931,7 @@ static void sculpt_draw_cb(
 	if (pbvh) {
 		BKE_pbvh_draw_cb(
 		        pbvh, NULL, NULL, false,
-		        (void (*)(void *, Batch *))draw_fn, shgroup);
+		        (void (*)(void *, Gwn_Batch *))draw_fn, shgroup);
 	}
 }
 
@@ -1097,8 +1110,8 @@ static void shgroup_dynamic_batch(DRWShadingGroup *shgroup)
 	DRWInterface *interface = shgroup->interface;
 	int nbr = interface->instance_count;
 
-	PrimitiveType type = (shgroup->type == DRW_SHG_POINT_BATCH) ? PRIM_POINTS :
-	                     (shgroup->type == DRW_SHG_TRIANGLE_BATCH) ? PRIM_TRIANGLES : PRIM_LINES;
+	Gwn_PrimType type = (shgroup->type == DRW_SHG_POINT_BATCH) ? GWN_PRIM_POINTS :
+	                     (shgroup->type == DRW_SHG_TRIANGLE_BATCH) ? GWN_PRIM_TRIS : GWN_PRIM_LINES;
 
 	if (nbr == 0)
 		return;
@@ -1108,12 +1121,12 @@ static void shgroup_dynamic_batch(DRWShadingGroup *shgroup)
 		for (DRWAttrib *attrib = interface->attribs.first; attrib; attrib = attrib->next) {
 			BLI_assert(attrib->size <= 4); /* matrices have no place here for now */
 			if (attrib->type == DRW_ATTRIB_FLOAT) {
-				attrib->format_id = VertexFormat_add_attrib(
-				        &interface->vbo_format, attrib->name, COMP_F32, attrib->size, KEEP_FLOAT);
+				attrib->format_id = GWN_vertformat_attr_add(
+				        &interface->vbo_format, attrib->name, GWN_COMP_F32, attrib->size, GWN_FETCH_FLOAT);
 			}
 			else if (attrib->type == DRW_ATTRIB_INT) {
-				attrib->format_id = VertexFormat_add_attrib(
-				        &interface->vbo_format, attrib->name, COMP_I8, attrib->size, KEEP_INT);
+				attrib->format_id = GWN_vertformat_attr_add(
+				        &interface->vbo_format, attrib->name, GWN_COMP_I8, attrib->size, GWN_FETCH_INT);
 			}
 			else {
 				BLI_assert(false);
@@ -1121,22 +1134,22 @@ static void shgroup_dynamic_batch(DRWShadingGroup *shgroup)
 		}
 	}
 
-	VertexBuffer *vbo = VertexBuffer_create_with_format(&interface->vbo_format);
-	VertexBuffer_allocate_data(vbo, nbr);
+	Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&interface->vbo_format);
+	GWN_vertbuf_data_alloc(vbo, nbr);
 
 	int j = 0;
 	for (DRWCallDynamic *call = shgroup->calls.first; call; call = call->head.next, j++) {
 		int i = 0;
 		for (DRWAttrib *attrib = interface->attribs.first; attrib; attrib = attrib->next, i++) {
-			VertexBuffer_set_attrib(vbo, attrib->format_id, j, call->data[i]);
+			GWN_vertbuf_attr_set(vbo, attrib->format_id, j, call->data[i]);
 		}
 	}
 
 	/* TODO make the batch dynamic instead of freeing it every times */
 	if (shgroup->batch_geom)
-		Batch_discard_all(shgroup->batch_geom);
+		GWN_batch_discard_all(shgroup->batch_geom);
 
-	shgroup->batch_geom = Batch_create(type, vbo, NULL);
+	shgroup->batch_geom = GWN_batch_create(type, vbo, NULL);
 }
 
 static void shgroup_dynamic_instance(DRWShadingGroup *shgroup)
@@ -1327,7 +1340,7 @@ static void DRW_state_set(DRWState state)
 	{
 		DRWState test;
 		if (CHANGED_ANY_STORE_VAR(
-		        DRW_STATE_DEPTH_LESS | DRW_STATE_DEPTH_EQUAL | DRW_STATE_DEPTH_GREATER,
+		        DRW_STATE_DEPTH_LESS | DRW_STATE_DEPTH_EQUAL | DRW_STATE_DEPTH_GREATER | DRW_STATE_DEPTH_ALWAYS,
 		        test))
 		{
 			if (test) {
@@ -1341,6 +1354,9 @@ static void DRW_state_set(DRWState state)
 				}
 				else if (state & DRW_STATE_DEPTH_GREATER) {
 					glDepthFunc(GL_GREATER);
+				}
+				else if (state & DRW_STATE_DEPTH_ALWAYS) {
+					glDepthFunc(GL_ALWAYS);
 				}
 				else {
 					BLI_assert(0);
@@ -1406,6 +1422,23 @@ static void DRW_state_set(DRWState state)
 			}
 			else {
 				glDisable(GL_BLEND);
+			}
+		}
+	}
+
+	/* Clip Planes */
+	{
+		int test;
+		if ((test = CHANGED_TO(DRW_STATE_CLIP_PLANES))) {
+			if (test == 1) {
+				for (int i = 0; i < DST.num_clip_planes; ++i) {
+					glEnable(GL_CLIP_DISTANCE0 + i);
+				}
+			}
+			else {
+				for (int i = 0; i < MAX_CLIP_PLANES; ++i) {
+					glDisable(GL_CLIP_DISTANCE0 + i);
+				}
 			}
 		}
 	}
@@ -1582,74 +1615,46 @@ static void draw_geometry_prepare(
 
 	/* Should be really simple */
 	/* step 1 : bind object dependent matrices */
-	if (interface->model != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->model, 16, 1, (float *)obmat);
-	}
-	if (interface->modelinverse != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->modelinverse, 16, 1, (float *)mi);
-	}
-	if (interface->modelviewprojection != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->modelviewprojection, 16, 1, (float *)mvp);
-	}
-	if (interface->viewinverse != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->viewinverse, 16, 1, (float *)viewinv);
-	}
-	if (interface->viewprojection != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->viewprojection, 16, 1, (float *)persmat);
-	}
-	if (interface->viewprojectioninverse != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->viewprojectioninverse, 16, 1, (float *)persinv);
-	}
-	if (interface->projection != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->projection, 16, 1, (float *)winmat);
-	}
-	if (interface->projectioninverse != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->projectioninverse, 16, 1, (float *)wininv);
-	}
-	if (interface->view != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->view, 16, 1, (float *)viewmat);
-	}
-	if (interface->modelview != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->modelview, 16, 1, (float *)mv);
-	}
-	if (interface->modelviewinverse != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->modelviewinverse, 16, 1, (float *)mvi);
-	}
-	if (interface->normal != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->normal, 9, 1, (float *)n);
-	}
-	if (interface->worldnormal != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->worldnormal, 9, 1, (float *)wn);
-	}
-	if (interface->camtexfac != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->camtexfac, 4, 1, (float *)rv3d->viewcamtexcofac);
-	}
-	if (interface->orcotexfac != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->orcotexfac, 3, 2, (float *)orcofacs);
-	}
-	if (interface->eye != -1) {
-		GPU_shader_uniform_vector(shgroup->shader, interface->eye, 3, 1, (float *)eye);
-	}
+	/* TODO : Some of these are not object dependant.
+	 * They should be grouped inside a UBO updated once per redraw.
+	 * The rest can also go into a UBO to reduce API calls. */
+	GPU_shader_uniform_vector(shgroup->shader, interface->model, 16, 1, (float *)obmat);
+	GPU_shader_uniform_vector(shgroup->shader, interface->modelinverse, 16, 1, (float *)mi);
+	GPU_shader_uniform_vector(shgroup->shader, interface->modelviewprojection, 16, 1, (float *)mvp);
+	GPU_shader_uniform_vector(shgroup->shader, interface->viewinverse, 16, 1, (float *)viewinv);
+	GPU_shader_uniform_vector(shgroup->shader, interface->viewprojection, 16, 1, (float *)persmat);
+	GPU_shader_uniform_vector(shgroup->shader, interface->viewprojectioninverse, 16, 1, (float *)persinv);
+	GPU_shader_uniform_vector(shgroup->shader, interface->projection, 16, 1, (float *)winmat);
+	GPU_shader_uniform_vector(shgroup->shader, interface->projectioninverse, 16, 1, (float *)wininv);
+	GPU_shader_uniform_vector(shgroup->shader, interface->view, 16, 1, (float *)viewmat);
+	GPU_shader_uniform_vector(shgroup->shader, interface->modelview, 16, 1, (float *)mv);
+	GPU_shader_uniform_vector(shgroup->shader, interface->modelviewinverse, 16, 1, (float *)mvi);
+	GPU_shader_uniform_vector(shgroup->shader, interface->normal, 9, 1, (float *)n);
+	GPU_shader_uniform_vector(shgroup->shader, interface->worldnormal, 9, 1, (float *)wn);
+	GPU_shader_uniform_vector(shgroup->shader, interface->camtexfac, 4, 1, (float *)rv3d->viewcamtexcofac);
+	GPU_shader_uniform_vector(shgroup->shader, interface->orcotexfac, 3, 2, (float *)orcofacs);
+	GPU_shader_uniform_vector(shgroup->shader, interface->eye, 3, 1, (float *)eye);
+	GPU_shader_uniform_vector(shgroup->shader, interface->clipplanes, 4, DST.num_clip_planes, (float *)DST.clip_planes_eq);
 }
 
-static void draw_geometry_execute(DRWShadingGroup *shgroup, Batch *geom)
+static void draw_geometry_execute(DRWShadingGroup *shgroup, Gwn_Batch *geom)
 {
 	DRWInterface *interface = shgroup->interface;
 	/* step 2 : bind vertex array & draw */
-	Batch_set_program(geom, GPU_shader_get_program(shgroup->shader), GPU_shader_get_interface(shgroup->shader));
+	GWN_batch_program_set(geom, GPU_shader_get_program(shgroup->shader), GPU_shader_get_interface(shgroup->shader));
 	if (interface->instance_batch) {
-		Batch_draw_stupid_instanced_with_batch(geom, interface->instance_batch);
+		GWN_batch_draw_stupid_instanced_with_batch(geom, interface->instance_batch);
 	}
 	else if (interface->instance_vbo) {
-		Batch_draw_stupid_instanced(geom, interface->instance_vbo, interface->instance_count, interface->attribs_count,
+		GWN_batch_draw_stupid_instanced(geom, interface->instance_vbo, interface->instance_count, interface->attribs_count,
 		                            interface->attribs_stride, interface->attribs_size, interface->attribs_loc);
 	}
 	else {
-		Batch_draw_stupid(geom);
+		GWN_batch_draw_stupid(geom);
 	}
 }
 
-static void draw_geometry(DRWShadingGroup *shgroup, Batch *geom, const float (*obmat)[4], ID *ob_data)
+static void draw_geometry(DRWShadingGroup *shgroup, Gwn_Batch *geom, const float (*obmat)[4], ID *ob_data)
 {
 	float *texcoloc = NULL;
 	float *texcosize = NULL;
@@ -1722,6 +1727,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 				break;
 			case DRW_UNIFORM_TEXTURE:
 				tex = (GPUTexture *)uni->value;
+				BLI_assert(tex);
 				GPU_texture_bind(tex, uni->bindloc);
 
 				bound_tex = MEM_callocN(sizeof(DRWBoundTexture), "DRWBoundTexture");
@@ -1735,6 +1741,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 					break;
 				}
 				tex = *((GPUTexture **)uni->value);
+				BLI_assert(tex);
 				GPU_texture_bind(tex, uni->bindloc);
 
 				bound_tex = MEM_callocN(sizeof(DRWBoundTexture), "DRWBoundTexture");
@@ -1792,7 +1799,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 
 			/* Negative scale objects */
 			if (neg_scale) {
-				glFrontFace(GL_CW);
+				glFrontFace(DST.backface);
 			}
 
 			GPU_SELECT_LOAD_IF_PICKSEL(call);
@@ -1809,7 +1816,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 
 			/* Reset state */
 			if (neg_scale) {
-				glFrontFace(GL_CCW);
+				glFrontFace(DST.frontface);
 			}
 		}
 	}
@@ -1901,6 +1908,28 @@ void DRW_state_reset(void)
 	DRW_state_reset_ex(DRW_STATE_DEFAULT);
 }
 
+/* NOTE : Make sure to reset after use! */
+void DRW_state_invert_facing(void)
+{
+	SWAP(GLenum, DST.backface, DST.frontface);
+	glFrontFace(DST.frontface);
+}
+
+/**
+ * This only works if DRWPasses have been tagged with DRW_STATE_CLIP_PLANES,
+ * and if the shaders have support for it (see usage of gl_ClipDistance).
+ * Be sure to call DRW_state_clip_planes_reset() after you finish drawing.
+ **/
+void DRW_state_clip_planes_add(float plane_eq[4])
+{
+	copy_v4_v4(DST.clip_planes_eq[DST.num_clip_planes++], plane_eq);
+}
+
+void DRW_state_clip_planes_reset(void)
+{
+	DST.num_clip_planes = 0;
+}
+
 /** \} */
 
 
@@ -1969,6 +1998,7 @@ static GPUTextureFormat convert_tex_format(int fbo_format, int *channels, bool *
 		case DRW_TEX_R_16:     *channels = 1; return GPU_R16F;
 		case DRW_TEX_R_32:     *channels = 1; return GPU_R32F;
 		case DRW_TEX_RG_16:    *channels = 2; return GPU_RG16F;
+		case DRW_TEX_RG_32:    *channels = 2; return GPU_RG32F;
 		case DRW_TEX_RGBA_8:   *channels = 4; return GPU_RGBA8;
 		case DRW_TEX_RGBA_16:  *channels = 4; return GPU_RGBA16F;
 		case DRW_TEX_RGBA_32:  *channels = 4; return GPU_RGBA32F;
@@ -2089,10 +2119,16 @@ void DRW_framebuffer_texture_attach(struct GPUFrameBuffer *fb, GPUTexture *tex, 
 	GPU_framebuffer_texture_attach(fb, tex, slot, mip);
 }
 
+void DRW_framebuffer_texture_layer_attach(struct GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int layer, int mip)
+{
+	GPU_framebuffer_texture_layer_attach(fb, tex, slot, layer, mip);
+}
+
 void DRW_framebuffer_cubeface_attach(struct GPUFrameBuffer *fb, GPUTexture *tex, int slot, int face, int mip)
 {
 	GPU_framebuffer_texture_cubeface_attach(fb, tex, slot, face, mip);
 }
+
 void DRW_framebuffer_texture_detach(GPUTexture *tex)
 {
 	GPU_framebuffer_texture_detach(tex);
@@ -2101,6 +2137,13 @@ void DRW_framebuffer_texture_detach(GPUTexture *tex)
 void DRW_framebuffer_blit(struct GPUFrameBuffer *fb_read, struct GPUFrameBuffer *fb_write, bool depth)
 {
 	GPU_framebuffer_blit(fb_read, 0, fb_write, 0, depth);
+}
+
+void DRW_framebuffer_recursive_downsample(
+        struct GPUFrameBuffer *fb, struct GPUTexture *tex, int num_iter,
+        void (*callback)(void *userData, int level), void *userData)
+{
+	GPU_framebuffer_recursive_downsample(fb, tex, num_iter, callback, userData);
 }
 
 void DRW_framebuffer_viewport_size(struct GPUFrameBuffer *UNUSED(fb_read), int x, int y, int w, int h)
@@ -2113,9 +2156,9 @@ void DRW_transform_to_display(GPUTexture *tex)
 {
 	DRW_state_set(DRW_STATE_WRITE_COLOR);
 
-	VertexFormat *vert_format = immVertexFormat();
-	unsigned int pos = VertexFormat_add_attrib(vert_format, "pos", COMP_F32, 2, KEEP_FLOAT);
-	unsigned int texco = VertexFormat_add_attrib(vert_format, "texCoord", COMP_F32, 2, KEEP_FLOAT);
+	Gwn_VertFormat *vert_format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(vert_format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	unsigned int texco = GWN_vertformat_attr_add(vert_format, "texCoord", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
 	const float dither = 1.0f;
 
@@ -2137,7 +2180,7 @@ void DRW_transform_to_display(GPUTexture *tex)
 	immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
 
 	/* Full screen triangle */
-	immBegin(PRIM_TRIANGLES, 3);
+	immBegin(GWN_PRIM_TRIS, 3);
 	immAttrib2f(texco, 0.0f, 0.0f);
 	immVertex2f(pos, -1.0f, -1.0f);
 
@@ -2243,6 +2286,11 @@ static void DRW_viewport_var_init(void)
 
 	/* Refresh DST.pixelsize */
 	DST.pixsize = rv3d->pixsize;
+
+	/* Reset facing */
+	DST.frontface = GL_CCW;
+	DST.backface = GL_CW;
+	glFrontFace(DST.frontface);
 }
 
 void DRW_viewport_matrix_get(float mat[4][4], DRWViewportMatrixType type)
@@ -2690,7 +2738,10 @@ static void DRW_engines_enable(const Scene *scene, SceneLayer *sl, const View3D 
 {
 	const int mode = CTX_data_mode_enum_ex(scene->obedit, OBACT_NEW);
 	DRW_engines_enable_from_engine(scene);
-	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
+
+	if ((DRW_state_is_scene_render() == false) &&
+	    (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0)
+	{
 		DRW_engines_enable_from_object_mode();
 		DRW_engines_enable_from_mode(mode);
 	}
@@ -2854,7 +2905,7 @@ static void DRW_debug_gpu_stats(void)
 
 	/* Memory Stats */
 	unsigned int tex_mem = GPU_texture_memory_usage_get();
-	unsigned int vbo_mem = VertexBuffer_get_memory_usage();
+	unsigned int vbo_mem = GWN_vertbuf_get_memory_usage();
 
 	sprintf(pass_name, "GPU Memory");
 	draw_stat(&rect, 0, v, pass_name, sizeof(pass_name));
@@ -2885,11 +2936,14 @@ void DRW_draw_view(const bContext *C)
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
 
+	/* Reset before using it. */
+	memset(&DST, 0x0, sizeof(DST));
 	DRW_draw_render_loop_ex(graph, ar, v3d, C);
 }
 
 /**
  * Used for both regular and off-screen drawing.
+ * Need to reset DST before calling this function
  */
 void DRW_draw_render_loop_ex(
         struct Depsgraph *graph,
@@ -2899,9 +2953,6 @@ void DRW_draw_render_loop_ex(
 	Scene *scene = DEG_get_scene(graph);
 	SceneLayer *sl = DEG_get_scene_layer(graph);
 	RegionView3D *rv3d = ar->regiondata;
-
-	/* Reset before using it. */
-	memset(&DST, 0x0, sizeof(DST));
 
 	DST.draw_ctx.evil_C = evil_C;
 
@@ -2993,6 +3044,8 @@ void DRW_draw_render_loop(
         struct Depsgraph *graph,
         ARegion *ar, View3D *v3d)
 {
+	/* Reset before using it. */
+	memset(&DST, 0x0, sizeof(DST));
 	DRW_draw_render_loop_ex(graph, ar, v3d, NULL);
 }
 
@@ -3009,9 +3062,10 @@ void DRW_draw_render_loop_offscreen(
 		rv3d->viewport = GPU_viewport_create_from_offscreen(ofs);
 	}
 
-	DST.draw_ctx.evil_C = NULL;
-
-	DRW_draw_render_loop(graph, ar, v3d);
+	/* Reset before using it. */
+	memset(&DST, 0x0, sizeof(DST));
+	DST.options.is_image_render = true;
+	DRW_draw_render_loop_ex(graph, ar, v3d, NULL);
 
 	/* restore */
 	{
@@ -3269,12 +3323,32 @@ bool DRW_state_is_depth(void)
 }
 
 /**
+ * Whether we are rendering for an image
+ */
+bool DRW_state_is_image_render(void)
+{
+	return DST.options.is_image_render;
+}
+
+/**
+ * Whether we are rendering only the render engine,
+ * or if we should also render the mode engines.
+ */
+bool DRW_state_is_scene_render(void)
+{
+	BLI_assert(DST.options.is_scene_render ?
+	           DST.options.is_image_render : true);
+	return DST.options.is_scene_render;
+}
+
+/**
  * Should text draw in this mode?
  */
 bool DRW_state_show_text(void)
 {
 	return (DST.options.is_select) == 0 &&
-	       (DST.options.is_depth) == 0;
+	       (DST.options.is_depth) == 0 &&
+	       (DST.options.is_scene_render) == 0;
 }
 
 /** \} */

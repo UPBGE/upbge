@@ -50,7 +50,7 @@ typedef struct ManipulatorCommonData {
 
 typedef struct ManipulatorInteraction {
 	float init_value; /* initial property value */
-	float init_origin[3];
+	float init_matrix[4][4];
 	float init_mval[2];
 	float init_offset;
 	float init_scale;
@@ -97,8 +97,8 @@ void manipulator_color_get(
 
 void wm_manipulator_geometryinfo_draw(const struct ManipulatorGeomInfo *info, const bool select, const float color[4]);
 void wm_manipulator_vec_draw(
-        const float color[4], const float (*verts)[3], unsigned int vert_count,
-        unsigned int pos, unsigned int primitive_type);
+        const float color[4], const float (*verts)[3], uint vert_count,
+        uint pos, uint primitive_type);
 
 
 #endif  /* __MANIPULATOR_LIBRARY_INTERN_H__ */

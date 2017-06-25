@@ -164,8 +164,8 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 	rasty->SetAlphaBlend(GPU_BLEND_ALPHA);
 
 	// draw lines
-	VertexFormat *format = immVertexFormat();
-	unsigned int pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 3, KEEP_FLOAT);
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
 
 	immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -174,7 +174,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 		line.m_color.getValue(col);
 		immUniformColor4fv(col);
 
-		immBeginAtMost(PRIM_LINES, 2);
+		immBeginAtMost(GWN_PRIM_LINES, 2);
 
 		float frompos[3];
 		line.m_from.getValue(frompos);
@@ -309,7 +309,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 	gpuOrtho(0, width, 0, height, -100, 100);
 
 	format = immVertexFormat();
-	pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 2, KEEP_FLOAT);
+	pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
 	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 	for (const RAS_DebugDraw::Box2D& box2d : debugDraw->m_boxes2D) {

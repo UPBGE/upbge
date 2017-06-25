@@ -109,7 +109,7 @@ void RAS_2DFilterOffScreen::MipmapTexture()
 		GPUTexture *texture = m_colorTextures[i];
 		GPU_texture_bind(texture, 0);
 		GPU_texture_filter_mode(texture, true);
-		GPU_texture_mipmap_mode(texture, true);
+		GPU_texture_mipmap_mode(texture, true, false);
 		GPU_texture_generate_mipmap(texture);
 		GPU_texture_unbind(texture);
 	}

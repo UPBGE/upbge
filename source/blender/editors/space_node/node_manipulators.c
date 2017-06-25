@@ -63,11 +63,12 @@ static void WIDGETGROUP_node_transform_setup(const bContext *UNUSED(C), wmManipu
 {
 	wmManipulatorWrapper *wwrapper = MEM_mallocN(sizeof(wmManipulatorWrapper), __func__);
 
-	wwrapper->manipulator = ED_manipulator_rect_transform_new(
-	        mgroup, "backdrop_cage",
-	        ED_MANIPULATOR_RECT_TRANSFORM_STYLE_TRANSLATE | ED_MANIPULATOR_RECT_TRANSFORM_STYLE_SCALE_UNIFORM);
-	mgroup->customdata = wwrapper;
+	wwrapper->manipulator = WM_manipulator_new("MANIPULATOR_WT_cage_2d", mgroup, "backdrop_cage", NULL);
 
+	RNA_enum_set(wwrapper->manipulator->ptr, "transform",
+	             ED_MANIPULATOR_RECT_TRANSFORM_FLAG_TRANSLATE | ED_MANIPULATOR_RECT_TRANSFORM_FLAG_SCALE_UNIFORM);
+
+	mgroup->customdata = wwrapper;
 }
 
 static void WIDGETGROUP_node_transform_refresh(const bContext *C, wmManipulatorGroup *mgroup)
@@ -82,19 +83,21 @@ static void WIDGETGROUP_node_transform_refresh(const bContext *C, wmManipulatorG
 	ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 
 	if (ibuf) {
-		const float w = (ibuf->x > 0) ? ibuf->x : 64.0f;
-		const float h = (ibuf->y > 0) ? ibuf->y : 64.0f;
+		const float dims[2] = {
+			(ibuf->x > 0) ? ibuf->x : 64.0f,
+			(ibuf->y > 0) ? ibuf->y : 64.0f,
+		};
 
-		ED_manipulator_rect_transform_set_dimensions(cage, w, h);
-		WM_manipulator_set_origin(cage, origin);
+		RNA_float_set_array(cage->ptr, "dimensions", dims);
+		WM_manipulator_set_matrix_location(cage, origin);
 		WM_manipulator_set_flag(cage, WM_MANIPULATOR_HIDDEN, false);
 
 		/* need to set property here for undo. TODO would prefer to do this in _init */
 		SpaceNode *snode = CTX_wm_space_node(C);
 		PointerRNA nodeptr;
 		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, &nodeptr);
-		WM_manipulator_property_def_rna(cage, "offset", &nodeptr, "backdrop_offset", -1);
-		WM_manipulator_property_def_rna(cage, "scale", &nodeptr, "backdrop_zoom", -1);
+		WM_manipulator_target_property_def_rna(cage, "offset", &nodeptr, "backdrop_offset", -1);
+		WM_manipulator_target_property_def_rna(cage, "scale", &nodeptr, "backdrop_zoom", -1);
 	}
 	else {
 		WM_manipulator_set_flag(cage, WM_MANIPULATOR_HIDDEN, true);

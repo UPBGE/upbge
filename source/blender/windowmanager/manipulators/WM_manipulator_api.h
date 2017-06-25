@@ -39,9 +39,11 @@
 struct ARegion;
 struct GHashIterator;
 struct Main;
+struct PropertyRNA;
 struct wmKeyConfig;
 struct wmManipulator;
 struct wmManipulatorProperty;
+struct wmManipulatorPropertyType;
 struct wmManipulatorType;
 struct wmManipulatorGroup;
 struct wmManipulatorGroupType;
@@ -55,22 +57,34 @@ struct wmManipulatorMapType_Params;
 /* wmManipulator */
 
 struct wmManipulator *WM_manipulator_new_ptr(
-        const struct wmManipulatorType *wt,
-        struct wmManipulatorGroup *mgroup, const char *name);
+        const struct wmManipulatorType *wt, struct wmManipulatorGroup *mgroup,
+        const char *name, struct PointerRNA *properties);
 struct wmManipulator *WM_manipulator_new(
-        const char *idname,
-        struct wmManipulatorGroup *mgroup, const char *name);
+        const char *idname, struct wmManipulatorGroup *mgroup,
+        const char *name, struct PointerRNA *properties);
 void WM_manipulator_free(
         ListBase *manipulatorlist, struct wmManipulatorMap *mmap, struct wmManipulator *mpr,
         struct bContext *C);
 
-struct PointerRNA *WM_manipulator_set_operator(struct wmManipulator *, const char *opname);
+struct PointerRNA *WM_manipulator_set_operator(struct wmManipulator *, struct wmOperatorType *ot);
 
 /* callbacks */
 void WM_manipulator_set_fn_custom_modal(struct wmManipulator *mpr, wmManipulatorFnModal fn);
 
-void WM_manipulator_set_origin(struct wmManipulator *mpr, const float origin[3]);
-void WM_manipulator_set_offset(struct wmManipulator *mpr, const float offset[3]);
+void WM_manipulator_set_matrix_location(
+        struct wmManipulator *mpr, const float origin[3]);
+void WM_manipulator_set_matrix_rotation_from_z_axis(
+        struct wmManipulator *mpr, const float z_axis[3]);
+void WM_manipulator_set_matrix_rotation_from_yz_axis(
+        struct wmManipulator *mpr, const float y_axis[3], const float z_axis[3]);
+
+void WM_manipulator_set_matrix_offset_location(
+        struct wmManipulator *mpr, const float origin[3]);
+void WM_manipulator_set_matrix_offset_rotation_from_z_axis(
+        struct wmManipulator *mpr, const float z_axis[3]);
+void WM_manipulator_set_matrix_offset_rotation_from_yz_axis(
+        struct wmManipulator *mpr, const float y_axis[3], const float z_axis[3]);
+
 void WM_manipulator_set_flag(struct wmManipulator *mpr, const int flag, const bool enable);
 void WM_manipulator_set_scale(struct wmManipulator *mpr, float scale);
 void WM_manipulator_set_line_width(struct wmManipulator *mpr, const float line_width);
@@ -79,6 +93,17 @@ void WM_manipulator_get_color(const struct wmManipulator *mpr, float col[4]);
 void WM_manipulator_set_color(struct wmManipulator *mpr, const float col[4]);
 void WM_manipulator_get_color_highlight(const struct wmManipulator *mpr, float col_hi[4]);
 void WM_manipulator_set_color_highlight(struct wmManipulator *mpr, const float col[4]);
+
+/* properties */
+void WM_manipulator_properties_create_ptr(struct PointerRNA *ptr, struct wmManipulatorType *wt);
+void WM_manipulator_properties_create(struct PointerRNA *ptr, const char *opstring);
+void WM_manipulator_properties_alloc(struct PointerRNA **ptr, struct IDProperty **properties, const char *wtstring);
+void WM_manipulator_properties_sanitize(struct PointerRNA *ptr, const bool no_context);
+bool WM_manipulator_properties_default(struct PointerRNA *ptr, const bool do_update);
+void WM_manipulator_properties_reset(struct wmManipulator *op);
+void WM_manipulator_properties_clear(struct PointerRNA *ptr);
+void WM_manipulator_properties_free(struct PointerRNA *ptr);
+
 
 /* wm_manipulator_type.c */
 const struct wmManipulatorType *WM_manipulatortype_find(const char *idname, bool quiet);
@@ -108,26 +133,53 @@ void WM_manipulatorconfig_update_tag_remove(struct wmManipulatorMapType *mmap_ty
 void WM_manipulatorconfig_update(struct Main *bmain);
 
 
-/* wm_maniulator_property.c */
-struct wmManipulatorProperty *WM_manipulator_property_find(
+/* wm_maniulator_target_props.c */
+struct wmManipulatorProperty *WM_manipulator_target_property_array(struct wmManipulator *mpr);
+struct wmManipulatorProperty *WM_manipulator_target_property_at_index(
+        struct wmManipulator *mpr, int index);
+struct wmManipulatorProperty *WM_manipulator_target_property_find(
         struct wmManipulator *mpr, const char *idname);
 
-void WM_manipulator_property_def_rna(
+void WM_manipulator_target_property_def_rna_ptr(
+        struct wmManipulator *mpr, const struct wmManipulatorPropertyType *mpr_prop_type,
+        struct PointerRNA *ptr, struct PropertyRNA *prop, int index);
+void WM_manipulator_target_property_def_rna(
         struct wmManipulator *mpr, const char *idname,
         struct PointerRNA *ptr, const char *propname, int index);
-void WM_manipulator_property_def_func(
+
+void WM_manipulator_target_property_def_func_ptr(
+        struct wmManipulator *mpr, const struct wmManipulatorPropertyType *mpr_prop_type,
+        const struct wmManipulatorPropertyFnParams *params);
+void WM_manipulator_target_property_def_func(
         struct wmManipulator *mpr, const char *idname,
         const struct wmManipulatorPropertyFnParams *params);
 
-bool WM_manipulator_property_is_valid(
+bool WM_manipulator_target_property_is_valid_any(struct wmManipulator *mpr);
+bool WM_manipulator_target_property_is_valid(
         const struct wmManipulatorProperty *mpr_prop);
-void  WM_manipulator_property_value_set(
-        struct bContext *C, const struct wmManipulator *mpr, struct wmManipulatorProperty *mpr_prop, const float value);
-float WM_manipulator_property_value_get(
+float WM_manipulator_target_property_value_get(
         const struct wmManipulator *mpr, struct wmManipulatorProperty *mpr_prop);
-void WM_manipulator_property_range_get(
+void  WM_manipulator_target_property_value_set(
+        struct bContext *C, const struct wmManipulator *mpr, struct wmManipulatorProperty *mpr_prop,
+        const float value);
+
+void WM_manipulator_target_property_value_get_array(
+        const struct wmManipulator *mpr, struct wmManipulatorProperty *mpr_prop,
+        float *value);
+void WM_manipulator_target_property_value_set_array(
+        struct bContext *C, const struct wmManipulator *mpr, struct wmManipulatorProperty *mpr_prop,
+        const float *value);
+
+void WM_manipulator_target_property_range_get(
         const struct wmManipulator *mpr, struct wmManipulatorProperty *mpr_prop,
         float range[2]);
+
+/* definitions */
+const struct wmManipulatorPropertyType *WM_manipulatortype_target_property_find(
+        const struct wmManipulatorType *wt, const char *idname);
+void WM_manipulatortype_target_property_def(
+        struct wmManipulatorType *wt, const char *idname, int type, int array_length);
+
 
 /* -------------------------------------------------------------------- */
 /* wmManipulatorGroup */
@@ -144,6 +196,7 @@ struct wmKeyMap *WM_manipulatorgroup_keymap_common_select(
 
 struct wmManipulatorMap *WM_manipulatormap_new_from_type(
         const struct wmManipulatorMapType_Params *mmap_params);
+const struct ListBase *WM_manipulatormap_group_list(struct wmManipulatorMap *mmap);
 void WM_manipulatormap_tag_refresh(struct wmManipulatorMap *mmap);
 void WM_manipulatormap_draw(struct wmManipulatorMap *mmap, const struct bContext *C, const int drawstep);
 void WM_manipulatormap_add_handlers(struct ARegion *ar, struct wmManipulatorMap *mmap);

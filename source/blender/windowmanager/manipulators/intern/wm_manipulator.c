@@ -44,6 +44,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.h"
+#include "RNA_define.h"
+
+#include "BKE_global.h"
+#include "BKE_main.h"
+#include "BKE_idprop.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -66,21 +71,46 @@ static void wm_manipulator_register(
  * \note Follow #wm_operator_create convention.
  */
 static wmManipulator *wm_manipulator_create(
-        const wmManipulatorType *mpt)
+        const wmManipulatorType *wt,
+        PointerRNA *properties)
 {
-	BLI_assert(mpt != NULL);
-	BLI_assert(mpt->struct_size >= sizeof(wmManipulator));
+	BLI_assert(wt != NULL);
+	BLI_assert(wt->struct_size >= sizeof(wmManipulator));
 
-	wmManipulator *mpr = MEM_callocN(mpt->struct_size, __func__);
-	mpr->type = mpt;
+	wmManipulator *mpr = MEM_callocN(
+	        wt->struct_size + (sizeof(wmManipulatorProperty) * wt->target_property_defs_len), __func__);
+	mpr->type = wt;
+
+	/* initialize properties, either copy or create */
+	mpr->ptr = MEM_callocN(sizeof(PointerRNA), "wmManipulatorPtrRNA");
+	if (properties && properties->data) {
+		mpr->properties = IDP_CopyProperty(properties->data);
+	}
+	else {
+		IDPropertyTemplate val = {0};
+		mpr->properties = IDP_New(IDP_GROUP, &val, "wmManipulatorProperties");
+	}
+	RNA_pointer_create(G.main->wm.first, wt->srna, mpr->properties, mpr->ptr);
+
+	WM_manipulator_properties_sanitize(mpr->ptr, 0);
+
+	unit_m4(mpr->matrix_basis);
+	unit_m4(mpr->matrix_offset);
+
 	return mpr;
 }
 
-wmManipulator *WM_manipulator_new_ptr(const wmManipulatorType *mpt, wmManipulatorGroup *mgroup, const char *name)
+wmManipulator *WM_manipulator_new_ptr(
+        const wmManipulatorType *wt, wmManipulatorGroup *mgroup,
+        const char *name, PointerRNA *properties)
 {
-	wmManipulator *mpr = wm_manipulator_create(mpt);
+	wmManipulator *mpr = wm_manipulator_create(wt, properties);
 
 	wm_manipulator_register(mgroup, mpr, name);
+
+	if (mpr->type->setup != NULL) {
+		mpr->type->setup(mpr);
+	}
 
 	return mpr;
 }
@@ -90,14 +120,12 @@ wmManipulator *WM_manipulator_new_ptr(const wmManipulatorType *mpt, wmManipulato
  * if you need to check it exists use #WM_manipulator_new_ptr
  * because callers of this function don't NULL check the return value.
  */
-wmManipulator *WM_manipulator_new(const char *idname, wmManipulatorGroup *mgroup, const char *name)
+wmManipulator *WM_manipulator_new(
+        const char *idname, wmManipulatorGroup *mgroup,
+        const char *name, PointerRNA *properties)
 {
 	const wmManipulatorType *wt = WM_manipulatortype_find(idname, false);
-	wmManipulator *mpr = wm_manipulator_create(wt);
-
-	wm_manipulator_register(mgroup, mpr, name);
-
-	return mpr;
+	return WM_manipulator_new_ptr(wt, mgroup, name, properties);
 }
 
 /**
@@ -121,7 +149,7 @@ static void manipulator_init(wmManipulator *mpr)
 {
 	const float color_default[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-	mpr->user_scale = 1.0f;
+	mpr->scale_basis = 1.0f;
 	mpr->line_width = 1.0f;
 
 	/* defaults */
@@ -167,10 +195,24 @@ void WM_manipulator_free(ListBase *manipulatorlist, wmManipulatorMap *mmap, wmMa
 		wm_manipulator_deselect(mmap, mpr);
 	}
 
-	if (mpr->opptr.data) {
-		WM_operator_properties_free(&mpr->opptr);
+	if (mpr->op_data.ptr.data) {
+		WM_operator_properties_free(&mpr->op_data.ptr);
 	}
-	BLI_freelistN(&mpr->properties);
+
+	if (mpr->ptr != NULL) {
+		WM_manipulator_properties_free(mpr->ptr);
+		MEM_freeN(mpr->ptr);
+	}
+
+	if (mpr->type->target_property_defs_len != 0) {
+		wmManipulatorProperty *mpr_prop_array = WM_manipulator_target_property_array(mpr);
+		for (int i = 0; i < mpr->type->target_property_defs_len; i++) {
+			wmManipulatorProperty *mpr_prop = &mpr_prop_array[i];
+			if (mpr_prop->custom_func.free_fn) {
+				mpr_prop->custom_func.free_fn(mpr, mpr_prop);
+			}
+		}
+	}
 
 	if (manipulatorlist) {
 		BLI_remlink(manipulatorlist, mpr);
@@ -190,35 +232,80 @@ void WM_manipulator_free(ListBase *manipulatorlist, wmManipulatorMap *mmap, wmMa
  * \{ */
 
 
-PointerRNA *WM_manipulator_set_operator(wmManipulator *mpr, const char *opname)
+PointerRNA *WM_manipulator_set_operator(wmManipulator *mpr, wmOperatorType *ot)
 {
-	wmOperatorType *ot = WM_operatortype_find(opname, 0);
+	mpr->op_data.type = ot;
 
-	if (ot) {
-		mpr->opname = opname;
-
-		if (mpr->opptr.data) {
-			WM_operator_properties_free(&mpr->opptr);
-		}
-		WM_operator_properties_create_ptr(&mpr->opptr, ot);
-
-		return &mpr->opptr;
+	if (mpr->op_data.ptr.data) {
+		WM_operator_properties_free(&mpr->op_data.ptr);
 	}
-	else {
-		fprintf(stderr, "Error binding operator to manipulator: operator %s not found!\n", opname);
-	}
+	WM_operator_properties_create_ptr(&mpr->op_data.ptr, ot);
 
-	return NULL;
+	return &mpr->op_data.ptr;
 }
 
-void WM_manipulator_set_origin(wmManipulator *mpr, const float origin[3])
+static void wm_manipulator_set_matrix_rotation_from_z_axis__internal(
+        float matrix[4][4], const float z_axis[3])
 {
-	copy_v3_v3(mpr->origin, origin);
+	/* old code, seems we can use simpler method */
+#if 0
+	const float z_global[3] = {0.0f, 0.0f, 1.0f};
+	float rot[3][3];
+
+	rotation_between_vecs_to_mat3(rot, z_global, z_axis);
+	copy_v3_v3(matrix[0], rot[0]);
+	copy_v3_v3(matrix[1], rot[1]);
+	copy_v3_v3(matrix[2], rot[2]);
+#else
+	normalize_v3_v3(matrix[2], z_axis);
+	ortho_basis_v3v3_v3(matrix[0], matrix[1], matrix[2]);
+#endif
+
 }
 
-void WM_manipulator_set_offset(wmManipulator *mpr, const float offset[3])
+static void wm_manipulator_set_matrix_rotation_from_yz_axis__internal(
+        float matrix[4][4], const float y_axis[3], const float z_axis[3])
 {
-	copy_v3_v3(mpr->offset, offset);
+	normalize_v3_v3(matrix[1], y_axis);
+	normalize_v3_v3(matrix[2], z_axis);
+	cross_v3_v3v3(matrix[0], matrix[1], matrix[2]);
+	normalize_v3(matrix[0]);
+}
+
+/**
+ * wmManipulator.matrix utils.
+ */
+void WM_manipulator_set_matrix_rotation_from_z_axis(
+        wmManipulator *mpr, const float z_axis[3])
+{
+	wm_manipulator_set_matrix_rotation_from_z_axis__internal(mpr->matrix_basis, z_axis);
+}
+void WM_manipulator_set_matrix_rotation_from_yz_axis(
+        wmManipulator *mpr, const float y_axis[3], const float z_axis[3])
+{
+	wm_manipulator_set_matrix_rotation_from_yz_axis__internal(mpr->matrix_basis, y_axis, z_axis);
+}
+void WM_manipulator_set_matrix_location(wmManipulator *mpr, const float origin[3])
+{
+	copy_v3_v3(mpr->matrix_basis[3], origin);
+}
+
+/**
+ * wmManipulator.matrix_offset utils.
+ */
+void WM_manipulator_set_matrix_offset_rotation_from_z_axis(
+        wmManipulator *mpr, const float z_axis[3])
+{
+	wm_manipulator_set_matrix_rotation_from_z_axis__internal(mpr->matrix_offset, z_axis);
+}
+void WM_manipulator_set_matrix_offset_rotation_from_yz_axis(
+        wmManipulator *mpr, const float y_axis[3], const float z_axis[3])
+{
+	wm_manipulator_set_matrix_rotation_from_yz_axis__internal(mpr->matrix_offset, y_axis, z_axis);
+}
+void WM_manipulator_set_matrix_offset_location(wmManipulator *mpr, const float offset[3])
+{
+	copy_v3_v3(mpr->matrix_offset[3], offset);
 }
 
 void WM_manipulator_set_flag(wmManipulator *mpr, const int flag, const bool enable)
@@ -233,7 +320,7 @@ void WM_manipulator_set_flag(wmManipulator *mpr, const int flag, const bool enab
 
 void WM_manipulator_set_scale(wmManipulator *mpr, const float scale)
 {
-	mpr->user_scale = scale;
+	mpr->scale_basis = scale;
 }
 
 void WM_manipulator_set_line_width(wmManipulator *mpr, const float line_width)
@@ -357,34 +444,38 @@ bool wm_manipulator_select(bContext *C, wmManipulatorMap *mmap, wmManipulator *m
 void wm_manipulator_calculate_scale(wmManipulator *mpr, const bContext *C)
 {
 	const RegionView3D *rv3d = CTX_wm_region_view3d(C);
-	float scale = 1.0f;
+	float scale = U.ui_scale;
 
-	if (mpr->parent_mgroup->type->flag & WM_MANIPULATORGROUPTYPE_SCALE_3D) {
-		if (rv3d /*&& (U.manipulator_flag & V3D_DRAW_MANIPULATOR) == 0*/) { /* UserPref flag might be useful for later */
-			if (mpr->type->position_get) {
-				float position[3];
+	if ((mpr->parent_mgroup->type->flag & WM_MANIPULATORGROUPTYPE_SCALE) == 0) {
+		scale *= U.manipulator_size;
+		if (rv3d) {
+			/* 'ED_view3d_pixel_size' includes 'U.pixelsize', remove it. */
+			if (mpr->type->matrix_world_get) {
+				float matrix_world[4][4];
 
-				mpr->type->position_get(mpr, position);
-				scale = ED_view3d_pixel_size(rv3d, position) * (float)U.manipulator_scale;
+				mpr->type->matrix_world_get(mpr, matrix_world);
+				scale *= ED_view3d_pixel_size(rv3d, matrix_world[3]) / U.pixelsize;
 			}
 			else {
-				scale = ED_view3d_pixel_size(rv3d, mpr->origin) * (float)U.manipulator_scale;
+				scale *= ED_view3d_pixel_size(rv3d, mpr->matrix_basis[3]) / U.pixelsize;
 			}
 		}
 		else {
-			scale = U.manipulator_scale * 0.02f;
+			scale *= 0.02f;
 		}
 	}
 
-	mpr->scale = scale * mpr->user_scale;
+	mpr->scale_final = mpr->scale_basis * scale;
 }
 
 static void manipulator_update_prop_data(wmManipulator *mpr)
 {
 	/* manipulator property might have been changed, so update manipulator */
-	if (mpr->type->property_update && !BLI_listbase_is_empty(&mpr->properties)) {
-		for (wmManipulatorProperty *mpr_prop = mpr->properties.first; mpr_prop; mpr_prop = mpr_prop->next) {
-			if (WM_manipulator_property_is_valid(mpr_prop)) {
+	if (mpr->type->property_update) {
+		wmManipulatorProperty *mpr_prop_array = WM_manipulator_target_property_array(mpr);
+		for (int i = 0; i < mpr->type->target_property_defs_len; i++) {
+			wmManipulatorProperty *mpr_prop = &mpr_prop_array[i];
+			if (WM_manipulator_target_property_is_valid(mpr_prop)) {
 				mpr->type->property_update(mpr, mpr_prop);
 			}
 		}
@@ -399,24 +490,172 @@ void wm_manipulator_update(wmManipulator *mpr, const bContext *C, const bool ref
 	wm_manipulator_calculate_scale(mpr, C);
 }
 
-bool wm_manipulator_is_visible(wmManipulator *mpr)
+int wm_manipulator_is_visible(wmManipulator *mpr)
 {
 	if (mpr->flag & WM_MANIPULATOR_HIDDEN) {
-		return false;
+		return 0;
 	}
 	if ((mpr->state & WM_MANIPULATOR_STATE_ACTIVE) &&
 	    !(mpr->flag & (WM_MANIPULATOR_DRAW_ACTIVE | WM_MANIPULATOR_DRAW_VALUE)))
 	{
 		/* don't draw while active (while dragging) */
-		return false;
+		return 0;
 	}
 	if ((mpr->flag & WM_MANIPULATOR_DRAW_HOVER) &&
 	    !(mpr->state & WM_MANIPULATOR_STATE_HIGHLIGHT) &&
 	    !(mpr->state & WM_MANIPULATOR_STATE_SELECT)) /* still draw selected manipulators */
 	{
-		/* only draw on mouse hover */
-		return false;
+		/* update but don't draw */
+		return WM_MANIPULATOR_IS_VISIBLE_UPDATE;
 	}
 
-	return true;
+	return WM_MANIPULATOR_IS_VISIBLE_UPDATE | WM_MANIPULATOR_IS_VISIBLE_DRAW;
 }
+
+
+/** \name Manipulator Propery Access
+ *
+ * Matches `WM_operator_properties` conventions.
+ *
+ * \{ */
+
+
+void WM_manipulator_properties_create_ptr(PointerRNA *ptr, wmManipulatorType *wt)
+{
+	RNA_pointer_create(NULL, wt->srna, NULL, ptr);
+}
+
+void WM_manipulator_properties_create(PointerRNA *ptr, const char *wtstring)
+{
+	const wmManipulatorType *wt = WM_manipulatortype_find(wtstring, false);
+
+	if (wt)
+		WM_manipulator_properties_create_ptr(ptr, (wmManipulatorType *)wt);
+	else
+		RNA_pointer_create(NULL, &RNA_ManipulatorProperties, NULL, ptr);
+}
+
+/* similar to the function above except its uses ID properties
+ * used for keymaps and macros */
+void WM_manipulator_properties_alloc(PointerRNA **ptr, IDProperty **properties, const char *wtstring)
+{
+	if (*properties == NULL) {
+		IDPropertyTemplate val = {0};
+		*properties = IDP_New(IDP_GROUP, &val, "wmOpItemProp");
+	}
+
+	if (*ptr == NULL) {
+		*ptr = MEM_callocN(sizeof(PointerRNA), "wmOpItemPtr");
+		WM_manipulator_properties_create(*ptr, wtstring);
+	}
+
+	(*ptr)->data = *properties;
+
+}
+
+void WM_manipulator_properties_sanitize(PointerRNA *ptr, const bool no_context)
+{
+	RNA_STRUCT_BEGIN (ptr, prop)
+	{
+		switch (RNA_property_type(prop)) {
+			case PROP_ENUM:
+				if (no_context)
+					RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
+				else
+					RNA_def_property_clear_flag(prop, PROP_ENUM_NO_CONTEXT);
+				break;
+			case PROP_POINTER:
+			{
+				StructRNA *ptype = RNA_property_pointer_type(ptr, prop);
+
+				/* recurse into manipulator properties */
+				if (RNA_struct_is_a(ptype, &RNA_ManipulatorProperties)) {
+					PointerRNA opptr = RNA_property_pointer_get(ptr, prop);
+					WM_manipulator_properties_sanitize(&opptr, no_context);
+				}
+				break;
+			}
+			default:
+				break;
+		}
+	}
+	RNA_STRUCT_END;
+}
+
+
+/** set all props to their default,
+ * \param do_update Only update un-initialized props.
+ *
+ * \note, theres nothing specific to manipulators here.
+ * this could be made a general function.
+ */
+bool WM_manipulator_properties_default(PointerRNA *ptr, const bool do_update)
+{
+	bool changed = false;
+	RNA_STRUCT_BEGIN (ptr, prop)
+	{
+		switch (RNA_property_type(prop)) {
+			case PROP_POINTER:
+			{
+				StructRNA *ptype = RNA_property_pointer_type(ptr, prop);
+				if (ptype != &RNA_Struct) {
+					PointerRNA opptr = RNA_property_pointer_get(ptr, prop);
+					changed |= WM_manipulator_properties_default(&opptr, do_update);
+				}
+				break;
+			}
+			default:
+				if ((do_update == false) || (RNA_property_is_set(ptr, prop) == false)) {
+					if (RNA_property_reset(ptr, prop, -1)) {
+						changed = true;
+					}
+				}
+				break;
+		}
+	}
+	RNA_STRUCT_END;
+
+	return changed;
+}
+
+/* remove all props without PROP_SKIP_SAVE */
+void WM_manipulator_properties_reset(wmManipulator *mpr)
+{
+	if (mpr->ptr->data) {
+		PropertyRNA *iterprop;
+		iterprop = RNA_struct_iterator_property(mpr->type->srna);
+
+		RNA_PROP_BEGIN (mpr->ptr, itemptr, iterprop)
+		{
+			PropertyRNA *prop = itemptr.data;
+
+			if ((RNA_property_flag(prop) & PROP_SKIP_SAVE) == 0) {
+				const char *identifier = RNA_property_identifier(prop);
+				RNA_struct_idprops_unset(mpr->ptr, identifier);
+			}
+		}
+		RNA_PROP_END;
+	}
+}
+
+void WM_manipulator_properties_clear(PointerRNA *ptr)
+{
+	IDProperty *properties = ptr->data;
+
+	if (properties) {
+		IDP_ClearProperty(properties);
+	}
+}
+
+void WM_manipulator_properties_free(PointerRNA *ptr)
+{
+	IDProperty *properties = ptr->data;
+
+	if (properties) {
+		IDP_FreeProperty(properties);
+		MEM_freeN(properties);
+		ptr->data = NULL; /* just in case */
+	}
+}
+
+/** \} */

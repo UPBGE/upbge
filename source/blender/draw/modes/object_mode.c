@@ -626,7 +626,7 @@ static void DRW_shgroup_empty_image(
 		image_calc_aspect(ob->data, ob->iuser, empty_image_data->image_aspect);
 
 		if (tex) {
-			struct Batch *geom = DRW_cache_image_plane_get();
+			struct Gwn_Batch *geom = DRW_cache_image_plane_get();
 			DRWShadingGroup *grp = DRW_shgroup_instance_create(
 			        e_data.object_empty_image_sh, psl->non_meshes, geom);
 			DRW_shgroup_attrib_float(grp, "objectColor", 4);
@@ -644,7 +644,7 @@ static void DRW_shgroup_empty_image(
 		}
 
 		{
-			struct Batch *geom = DRW_cache_image_plane_wire_get();
+			struct Gwn_Batch *geom = DRW_cache_image_plane_wire_get();
 			DRWShadingGroup *grp = DRW_shgroup_instance_create(
 			        e_data.object_empty_image_wire_sh, psl->non_meshes, geom);
 			DRW_shgroup_attrib_float(grp, "color", 3);
@@ -708,7 +708,7 @@ static void OBJECT_cache_init(void *vedata)
 
 	{
 		DRWState state = DRW_STATE_WRITE_COLOR;
-		struct Batch *quad = DRW_cache_fullscreen_quad_get();
+		struct Gwn_Batch *quad = DRW_cache_fullscreen_quad_get();
 		static float alphaOcclu = 0.35f;
 		static float one = 1.0f;
 		static float alpha1 = 5.0f / 6.0f;
@@ -787,7 +787,7 @@ static void OBJECT_cache_init(void *vedata)
 		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND;
 		psl->outlines_resolve = DRW_pass_create("Outlines Resolve Pass", state);
 
-		struct Batch *quad = DRW_cache_fullscreen_quad_get();
+		struct Gwn_Batch *quad = DRW_cache_fullscreen_quad_get();
 
 		DRWShadingGroup *grp = DRW_shgroup_create(e_data.outline_resolve_sh, psl->outlines_resolve);
 		DRW_shgroup_uniform_buffer(grp, "outlineBluredColor", &e_data.outlines_blur_tx);
@@ -799,7 +799,7 @@ static void OBJECT_cache_init(void *vedata)
 		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS | DRW_STATE_BLEND;
 		psl->grid = DRW_pass_create("Infinite Grid Pass", state);
 
-		struct Batch *quad = DRW_cache_fullscreen_quad_get();
+		struct Gwn_Batch *quad = DRW_cache_fullscreen_quad_get();
 		static float mat[4][4];
 		unit_m4(mat);
 
@@ -850,7 +850,7 @@ static void OBJECT_cache_init(void *vedata)
 
 	{
 		/* Non Meshes Pass (Camera, empties, lamps ...) */
-		struct Batch *geom;
+		struct Gwn_Batch *geom;
 
 		DRWState state =
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |
@@ -954,7 +954,7 @@ static void OBJECT_cache_init(void *vedata)
 		/* TODO
 		 * for now we create multiple times the same VBO with only lamp center coordinates
 		 * but ideally we would only create it once */
-		struct Batch *geom;
+		struct Gwn_Batch *geom;
 
 		/* start with buflimit because we don't want stipples */
 		geom = DRW_cache_single_line_get();
@@ -1001,7 +1001,7 @@ static void OBJECT_cache_init(void *vedata)
 	{
 		/* -------- STIPPLES ------- */
 		/* TODO port to shader stipple */
-		struct Batch *geom;
+		struct Gwn_Batch *geom;
 
 		/* Relationship Lines */
 		stl->g_data->relationship_lines = shgroup_dynlines_uniform_color(psl->non_meshes, ts.colorWire);
@@ -1411,11 +1411,33 @@ static void DRW_shgroup_speaker(OBJECT_StorageList *stl, Object *ob, SceneLayer 
 static void DRW_shgroup_lightprobe(OBJECT_StorageList *stl, Object *ob, SceneLayer *sl)
 {
 	float *color;
+	static float one = 1.0f;
 	LightProbe *prb = (LightProbe *)ob->data;
 	DRW_object_wire_theme_get(ob, sl, &color);
 
-
 	DRW_shgroup_call_dynamic_add(stl->g_data->probe, ob->obmat[3], color);
+
+	float **prb_mats = (float **)DRW_object_engine_data_get(ob, &draw_engine_object_type, NULL);
+	if (*prb_mats == NULL) {
+		/* we need 6 matrices */
+		*prb_mats = MEM_mallocN(sizeof(float) * 16 * 6, "Probe Clip distances Matrices");
+	}
+
+	if (prb->type == LIGHTPROBE_TYPE_PLANAR) {
+		float (*mat)[4];
+		mat = (float (*)[4])(*prb_mats);
+		copy_m4_m4(mat, ob->obmat);
+		normalize_m4(mat);
+
+		DRW_shgroup_call_dynamic_add(stl->g_data->single_arrow, color, &ob->empty_drawsize, mat);
+		DRW_shgroup_call_dynamic_add(stl->g_data->single_arrow_line, color, &ob->empty_drawsize, mat);
+
+		mat = (float (*)[4])(*prb_mats + 16);
+		copy_m4_m4(mat, ob->obmat);
+		zero_v3(mat[2]);
+
+		DRW_shgroup_call_dynamic_add(stl->g_data->cube, color, &one, mat);
+	}
 
 	if ((prb->flag & LIGHTPROBE_FLAG_SHOW_INFLUENCE) != 0) {
 
@@ -1433,6 +1455,22 @@ static void DRW_shgroup_lightprobe(OBJECT_StorageList *stl, Object *ob, SceneLay
 			DRW_shgroup_call_dynamic_add(stl->g_data->cube, color, &prb->distgridinf, ob->obmat);
 			DRW_shgroup_call_dynamic_add(stl->g_data->cube, color, &prb->distfalloff, ob->obmat);
 		}
+		else if (prb->type == LIGHTPROBE_TYPE_PLANAR) {
+			float (*rangemat)[4];
+			rangemat = (float (*)[4])(*prb_mats + 32);
+			copy_m4_m4(rangemat, ob->obmat);
+			normalize_v3(rangemat[2]);
+			mul_v3_fl(rangemat[2], prb->distinf);
+
+			DRW_shgroup_call_dynamic_add(stl->g_data->cube, color, &one, rangemat);
+
+			rangemat = (float (*)[4])(*prb_mats + 64);
+			copy_m4_m4(rangemat, ob->obmat);
+			normalize_v3(rangemat[2]);
+			mul_v3_fl(rangemat[2], prb->distfalloff);
+
+			DRW_shgroup_call_dynamic_add(stl->g_data->cube, color, &one, rangemat);
+		}
 		else {
 			DRW_shgroup_call_dynamic_add(stl->g_data->sphere, color, &prb->distgridinf, ob->obmat);
 			DRW_shgroup_call_dynamic_add(stl->g_data->sphere, color, &prb->distfalloff, ob->obmat);
@@ -1440,59 +1478,58 @@ static void DRW_shgroup_lightprobe(OBJECT_StorageList *stl, Object *ob, SceneLay
 	}
 
 	if ((prb->flag & LIGHTPROBE_FLAG_SHOW_PARALLAX) != 0) {
-		float (*obmat)[4], *dist;
+		if (prb->type != LIGHTPROBE_TYPE_PLANAR) {
+			float (*obmat)[4], *dist;
 
-		if ((prb->flag & LIGHTPROBE_FLAG_CUSTOM_PARALLAX) != 0) {
-			dist = &prb->distpar;
-			/* TODO object parallax */
-			obmat = ob->obmat;
-		}
-		else {
-			dist = &prb->distinf;
-			obmat = ob->obmat;
-		}
+			if ((prb->flag & LIGHTPROBE_FLAG_CUSTOM_PARALLAX) != 0) {
+				dist = &prb->distpar;
+				/* TODO object parallax */
+				obmat = ob->obmat;
+			}
+			else {
+				dist = &prb->distinf;
+				obmat = ob->obmat;
+			}
 
-		if (prb->parallax_type == LIGHTPROBE_SHAPE_BOX) {
-			DRW_shgroup_call_dynamic_add(stl->g_data->cube, color, &dist, obmat);
-		}
-		else {
-			DRW_shgroup_call_dynamic_add(stl->g_data->sphere, color, &dist, obmat);
+			if (prb->parallax_type == LIGHTPROBE_SHAPE_BOX) {
+				DRW_shgroup_call_dynamic_add(stl->g_data->cube, color, &dist, obmat);
+			}
+			else {
+				DRW_shgroup_call_dynamic_add(stl->g_data->sphere, color, &dist, obmat);
+			}
 		}
 	}
 
 	if ((prb->flag & LIGHTPROBE_FLAG_SHOW_CLIP_DIST) != 0) {
-		static const float cubefacemat[6][4][4] = {
-			{{0.0, 0.0, -1.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {-1.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
-			{{0.0, 0.0, 1.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
-			{{1.0, 0.0, 0.0, 0.0}, {0.0, 0.0, -1.0, 0.0}, {0.0, 1.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
-			{{1.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 1.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
-			{{1.0, 0.0, 0.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {0.0, 0.0, -1.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
-			{{-1.0, 0.0, 0.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {0.0, 0.0, 1.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
-		};
+		if (prb->type != LIGHTPROBE_TYPE_PLANAR) {
+			static const float cubefacemat[6][4][4] = {
+				{{0.0, 0.0, -1.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {-1.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
+				{{0.0, 0.0, 1.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
+				{{1.0, 0.0, 0.0, 0.0}, {0.0, 0.0, -1.0, 0.0}, {0.0, 1.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
+				{{1.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 1.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
+				{{1.0, 0.0, 0.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {0.0, 0.0, -1.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
+				{{-1.0, 0.0, 0.0, 0.0}, {0.0, -1.0, 0.0, 0.0}, {0.0, 0.0, 1.0, 0.0}, {0.0, 0.0, 0.0, 1.0}},
+			};
 
-		float **prb_mats = (float **)DRW_object_engine_data_get(ob, &draw_engine_object_type, NULL);
-		if (*prb_mats == NULL) {
-			/* we need 2 matrices */
-			*prb_mats = MEM_mallocN(sizeof(float) * 16 * 6, "Probe Clip distances Matrices");
-		}
+			for (int i = 0; i < 6; ++i) {
+				float (*clipmat)[4];
+				clipmat = (float (*)[4])(*prb_mats + 16 * i);
 
-		for (int i = 0; i < 6; ++i) {
-			float (*clipmat)[4];
-			clipmat = (float (*)[4])(*prb_mats + 16 * i);
+				normalize_m4_m4(clipmat, ob->obmat);
+				mul_m4_m4m4(clipmat, clipmat, cubefacemat[i]);
 
-			normalize_m4_m4(clipmat, ob->obmat);
-			// invert_m4(clipmat);
-			mul_m4_m4m4(clipmat, clipmat, cubefacemat[i]);
-
-			DRW_shgroup_call_dynamic_add(stl->g_data->lamp_buflimit, color, &prb->clipsta, &prb->clipend, clipmat);
-			DRW_shgroup_call_dynamic_add(stl->g_data->lamp_buflimit_points, color, &prb->clipsta, &prb->clipend, clipmat);
+				DRW_shgroup_call_dynamic_add(stl->g_data->lamp_buflimit, color, &prb->clipsta, &prb->clipend, clipmat);
+				DRW_shgroup_call_dynamic_add(stl->g_data->lamp_buflimit_points, color, &prb->clipsta, &prb->clipend, clipmat);
+			}
 		}
 	}
 	DRW_shgroup_call_dynamic_add(stl->g_data->lamp_center_group, ob->obmat[3]);
 
 	/* Line and point going to the ground */
-	DRW_shgroup_call_dynamic_add(stl->g_data->lamp_groundline, ob->obmat[3]);
-	DRW_shgroup_call_dynamic_add(stl->g_data->lamp_groundpoint, ob->obmat[3]);
+	if (prb->type == LIGHTPROBE_TYPE_CUBE) {
+		DRW_shgroup_call_dynamic_add(stl->g_data->lamp_groundline, ob->obmat[3]);
+		DRW_shgroup_call_dynamic_add(stl->g_data->lamp_groundpoint, ob->obmat[3]);
+	}
 }
 
 static void DRW_shgroup_relationship_lines(OBJECT_StorageList *stl, Object *ob)
@@ -1550,7 +1587,7 @@ static void OBJECT_cache_populate_particles(Object *ob,
 			unit_m4(mat);
 
 			if (draw_as != PART_DRAW_PATH) {
-				struct Batch *geom = DRW_cache_particles_get_dots(psys);
+				struct Gwn_Batch *geom = DRW_cache_particles_get_dots(psys);
 				DRWShadingGroup *shgrp = NULL;
 				static int screen_space[2] = {0, 1};
 				static float def_prim_col[3] = {0.5f, 0.5f, 0.5f};
@@ -1617,7 +1654,7 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 	if (do_outlines) {
 		Object *obedit = scene->obedit;
 		if (ob != obedit && !((ob == draw_ctx->obact) && (ob->mode & OB_MODE_ALL_PAINT))) {
-			struct Batch *geom = DRW_cache_object_surface_get(ob);
+			struct Gwn_Batch *geom = DRW_cache_object_surface_get(ob);
 			if (geom) {
 				theme_id = DRW_object_wire_theme_get(ob, sl, NULL);
 				DRWShadingGroup *shgroup = shgroup_theme_id_to_outline_or(stl, theme_id, NULL);
@@ -1635,7 +1672,7 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 			if (me->totpoly == 0) {
 				Object *obedit = scene->obedit;
 				if (ob != obedit) {
-					struct Batch *geom = DRW_cache_mesh_edges_get(ob);
+					struct Gwn_Batch *geom = DRW_cache_mesh_edges_get(ob);
 					if (geom) {
 						if (theme_id == TH_UNDEFINED) {
 							theme_id = DRW_object_wire_theme_get(ob, sl, NULL);
@@ -1656,7 +1693,7 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 		{
 			Object *obedit = scene->obedit;
 			if (ob != obedit) {
-				struct Batch *geom = DRW_cache_lattice_wire_get(ob);
+				struct Gwn_Batch *geom = DRW_cache_lattice_wire_get(ob);
 				if (theme_id == TH_UNDEFINED) {
 					theme_id = DRW_object_wire_theme_get(ob, sl, NULL);
 				}
@@ -1671,7 +1708,7 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 		{
 			Object *obedit = scene->obedit;
 			if (ob != obedit) {
-				struct Batch *geom = DRW_cache_curve_edge_wire_get(ob);
+				struct Gwn_Batch *geom = DRW_cache_curve_edge_wire_get(ob);
 				if (theme_id == TH_UNDEFINED) {
 					theme_id = DRW_object_wire_theme_get(ob, sl, NULL);
 				}

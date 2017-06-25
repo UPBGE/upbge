@@ -60,7 +60,7 @@ struct GPUMaterial;
 struct GPUTexture;
 struct GPUUniformBuffer;
 struct Object;
-struct Batch;
+struct Gwn_Batch;
 struct DefaultFramebufferList;
 struct DefaultTextureList;
 struct DRWTextStore;
@@ -198,9 +198,13 @@ void DRW_framebuffer_bind(struct GPUFrameBuffer *fb);
 void DRW_framebuffer_clear(bool color, bool depth, bool stencil, float clear_col[4], float clear_depth);
 void DRW_framebuffer_read_data(int x, int y, int w, int h, int channels, int slot, float *data);
 void DRW_framebuffer_texture_attach(struct GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int mip);
+void DRW_framebuffer_texture_layer_attach(struct GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int layer, int mip);
 void DRW_framebuffer_cubeface_attach(struct GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int face, int mip);
 void DRW_framebuffer_texture_detach(struct GPUTexture *tex);
 void DRW_framebuffer_blit(struct GPUFrameBuffer *fb_read, struct GPUFrameBuffer *fb_write, bool depth);
+void DRW_framebuffer_recursive_downsample(
+        struct GPUFrameBuffer *fb, struct GPUTexture *tex, int num_iter,
+        void (*callback)(void *userData, int level), void *userData);
 void DRW_framebuffer_viewport_size(struct GPUFrameBuffer *fb_read, int x, int y, int w, int h);
 void DRW_framebuffer_free(struct GPUFrameBuffer *fb);
 #define DRW_FRAMEBUFFER_FREE_SAFE(fb) do { \
@@ -237,17 +241,19 @@ typedef enum {
 	DRW_STATE_DEPTH_LESS    = (1 << 2),
 	DRW_STATE_DEPTH_EQUAL   = (1 << 3),
 	DRW_STATE_DEPTH_GREATER = (1 << 4),
-	DRW_STATE_CULL_BACK     = (1 << 5),
-	DRW_STATE_CULL_FRONT    = (1 << 6),
-	DRW_STATE_WIRE          = (1 << 7),
-	DRW_STATE_WIRE_LARGE    = (1 << 8),
-	DRW_STATE_POINT         = (1 << 9),
-	DRW_STATE_STIPPLE_2     = (1 << 10),
-	DRW_STATE_STIPPLE_3     = (1 << 11),
-	DRW_STATE_STIPPLE_4     = (1 << 12),
-	DRW_STATE_BLEND         = (1 << 13),
-	DRW_STATE_ADDITIVE      = (1 << 14),
-	DRW_STATE_MULTIPLY      = (1 << 15),
+	DRW_STATE_DEPTH_ALWAYS  = (1 << 5),
+	DRW_STATE_CULL_BACK     = (1 << 6),
+	DRW_STATE_CULL_FRONT    = (1 << 7),
+	DRW_STATE_WIRE          = (1 << 8),
+	DRW_STATE_WIRE_LARGE    = (1 << 9),
+	DRW_STATE_POINT         = (1 << 10),
+	DRW_STATE_STIPPLE_2     = (1 << 11),
+	DRW_STATE_STIPPLE_3     = (1 << 12),
+	DRW_STATE_STIPPLE_4     = (1 << 13),
+	DRW_STATE_BLEND         = (1 << 14),
+	DRW_STATE_ADDITIVE      = (1 << 15),
+	DRW_STATE_MULTIPLY      = (1 << 16),
+	DRW_STATE_CLIP_PLANES   = (1 << 17),
 
 	DRW_STATE_WRITE_STENCIL_SELECT = (1 << 27),
 	DRW_STATE_WRITE_STENCIL_ACTIVE = (1 << 28),
@@ -260,22 +266,22 @@ typedef enum {
 
 DRWShadingGroup *DRW_shgroup_create(struct GPUShader *shader, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_material_create(struct GPUMaterial *material, DRWPass *pass);
-DRWShadingGroup *DRW_shgroup_material_instance_create(struct GPUMaterial *material, DRWPass *pass, struct Batch *geom);
-DRWShadingGroup *DRW_shgroup_instance_create(struct GPUShader *shader, DRWPass *pass, struct Batch *geom);
+DRWShadingGroup *DRW_shgroup_material_instance_create(struct GPUMaterial *material, DRWPass *pass, struct Gwn_Batch *geom);
+DRWShadingGroup *DRW_shgroup_instance_create(struct GPUShader *shader, DRWPass *pass, struct Gwn_Batch *geom);
 DRWShadingGroup *DRW_shgroup_point_batch_create(struct GPUShader *shader, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_line_batch_create(struct GPUShader *shader, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_empty_tri_batch_create(struct GPUShader *shader, DRWPass *pass, int size);
 
 typedef void (DRWCallGenerateFn)(
         DRWShadingGroup *shgroup,
-        void (*draw_fn)(DRWShadingGroup *shgroup, struct Batch *geom),
+        void (*draw_fn)(DRWShadingGroup *shgroup, struct Gwn_Batch *geom),
         void *user_data);
 
-void DRW_shgroup_instance_batch(DRWShadingGroup *shgroup, struct Batch *instances);
+void DRW_shgroup_instance_batch(DRWShadingGroup *shgroup, struct Gwn_Batch *instances);
 
 void DRW_shgroup_free(struct DRWShadingGroup *shgroup);
-void DRW_shgroup_call_add(DRWShadingGroup *shgroup, struct Batch *geom, float (*obmat)[4]);
-void DRW_shgroup_call_object_add(DRWShadingGroup *shgroup, struct Batch *geom, struct Object *ob);
+void DRW_shgroup_call_add(DRWShadingGroup *shgroup, struct Gwn_Batch *geom, float (*obmat)[4]);
+void DRW_shgroup_call_object_add(DRWShadingGroup *shgroup, struct Gwn_Batch *geom, struct Object *ob);
 void DRW_shgroup_call_sculpt_add(DRWShadingGroup *shgroup, struct Object *ob, float (*obmat)[4]);
 void DRW_shgroup_call_generate_add(
         DRWShadingGroup *shgroup, DRWCallGenerateFn *geometry_fn, void *user_data, float (*obmat)[4]);
@@ -363,6 +369,11 @@ void DRW_draw_region_engine_info(void);
 void DRW_state_reset_ex(DRWState state);
 void DRW_state_reset(void);
 
+void DRW_state_invert_facing(void);
+
+void DRW_state_clip_planes_add(float plane_eq[4]);
+void DRW_state_clip_planes_reset(void);
+
 /* Selection */
 void DRW_select_load_id(unsigned int id);
 
@@ -371,6 +382,8 @@ void DRW_state_dfdy_factors_get(float dfdyfac[2]);
 bool DRW_state_is_fbo(void);
 bool DRW_state_is_select(void);
 bool DRW_state_is_depth(void);
+bool DRW_state_is_image_render(void);
+bool DRW_state_is_scene_render(void);
 bool DRW_state_show_text(void);
 
 struct DRWTextStore *DRW_state_text_cache_get(void);

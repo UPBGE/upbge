@@ -399,14 +399,10 @@ void ED_node_shader_default(const bContext *C, ID *id)
 			ma->nodetree = ntree;
 
 			if (BKE_scene_uses_blender_eevee(scene)) {
-				out = nodeAddStaticNode(C, ntree, SH_NODE_OUTPUT_METALLIC);
-				out->locx = 300.0f; out->locy = 300.0f;
-				nodeSetActive(ntree, out);
-				ntreeUpdateTree(CTX_data_main(C), ntree);
-				return;
+				output_type = SH_NODE_OUTPUT_EEVEE_MATERIAL;
+				shader_type = SH_NODE_EEVEE_METALLIC;
 			}
-
-			if (BKE_scene_use_new_shading_nodes(scene)) {
+			else if (BKE_scene_use_new_shading_nodes(scene)) {
 				output_type = SH_NODE_OUTPUT_MATERIAL;
 				shader_type = SH_NODE_BSDF_DIFFUSE;
 			}
@@ -2095,7 +2091,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
 	/* make sure all clipboard nodes would be valid in the target tree */
 	all_nodes_valid = true;
 	for (node = clipboard_nodes_lb->first; node; node = node->next) {
-		if (!node->typeinfo->poll_instance(node, ntree)) {
+		if (!node->typeinfo->poll_instance || !node->typeinfo->poll_instance(node, ntree)) {
 			all_nodes_valid = false;
 			BKE_reportf(op->reports, RPT_ERROR, "Cannot add node %s into node tree %s", node->name, ntree->id.name + 2);
 		}

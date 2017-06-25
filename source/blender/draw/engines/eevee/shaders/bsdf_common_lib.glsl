@@ -7,6 +7,9 @@
 
 #define LUT_SIZE 64
 
+uniform mat4 ProjectionMatrix;
+uniform vec4 viewvecs[2];
+
 /* ------- Structures -------- */
 
 struct ProbeData {
@@ -23,6 +26,25 @@ struct ProbeData {
 #define p_parallax_type position_type.w
 #define p_atten_fac     attenuation_fac_type.x
 #define p_atten_type    attenuation_fac_type.y
+
+struct PlanarData {
+	vec4 plane_equation;
+	vec4 clip_vec_x_fade_scale;
+	vec4 clip_vec_y_fade_bias;
+	vec4 clip_edges;
+	vec4 facing_scale_bias;
+	mat4 reflectionmat; /* transform world space into reflection texture space */
+};
+
+#define pl_plane_eq      plane_equation
+#define pl_normal        plane_equation.xyz
+#define pl_facing_scale  facing_scale_bias.x
+#define pl_facing_bias   facing_scale_bias.y
+#define pl_fade_scale    clip_vec_x_fade_scale.w
+#define pl_fade_bias     clip_vec_y_fade_bias.w
+#define pl_clip_pos_x    clip_vec_x_fade_scale.xyz
+#define pl_clip_pos_y    clip_vec_y_fade_bias.xyz
+#define pl_clip_edges    clip_edges
 
 struct GridData {
 	mat4 localmat;
@@ -121,12 +143,36 @@ vec4 saturate(vec4 a) { return clamp(a, 0.0, 1.0); }
 
 float distance_squared(vec2 a, vec2 b) { a -= b; return dot(a, a); }
 float distance_squared(vec3 a, vec3 b) { a -= b; return dot(a, a); }
+float len_squared(vec3 a) { return dot(a, a); }
 
 float inverse_distance(vec3 V) { return max( 1 / length(V), 1e-8); }
+
+/* ------- Fast Math ------- */
+
+/* [Drobot2014a] Low Level Optimizations for GCN */
+float fast_sqrt(float x)
+{
+	return intBitsToFloat(0x1fbd1df5 + (floatBitsToInt(x) >> 1));
+}
+
+/* [Eberly2014] GPGPU Programming for Games and Science */
+float fast_acos(float x)
+{
+	float res = -0.156583 * abs(x) + M_PI_2;
+	res *= fast_sqrt(1.0 - abs(x));
+	return (x >= 0) ? res : M_PI - res;
+}
 
 float line_plane_intersect_dist(vec3 lineorigin, vec3 linedirection, vec3 planeorigin, vec3 planenormal)
 {
 	return dot(planenormal, planeorigin - lineorigin) / dot(planenormal, linedirection);
+}
+
+float line_plane_intersect_dist(vec3 lineorigin, vec3 linedirection, vec4 plane)
+{
+	vec3 plane_co = plane.xyz * (-plane.w / len_squared(plane.xyz));
+	vec3 h = lineorigin - plane_co;
+	return -dot(plane.xyz, h) / dot(plane.xyz, linedirection);
 }
 
 vec3 line_plane_intersect(vec3 lineorigin, vec3 linedirection, vec3 planeorigin, vec3 planenormal)
@@ -229,11 +275,28 @@ float buffer_depth(bool is_persp, float z, float zf, float zn)
 	}
 }
 
+vec3 get_view_space_from_depth(vec2 uvcoords, float depth)
+{
+	if (ProjectionMatrix[3][3] == 0.0) {
+		float d = 2.0 * depth - 1.0;
+		float zview = -ProjectionMatrix[3][2] / (d + ProjectionMatrix[2][2]);
+		return (viewvecs[0].xyz + vec3(uvcoords, 0.0) * viewvecs[1].xyz) * zview;
+	}
+	else {
+		return viewvecs[0].xyz + vec3(uvcoords, depth) * viewvecs[1].xyz;
+	}
+}
+
 vec3 get_specular_dominant_dir(vec3 N, vec3 R, float roughness)
 {
 	float smoothness = 1.0 - roughness;
 	float fac = smoothness * (sqrt(smoothness) + roughness);
 	return normalize(mix(N, R, fac));
+}
+
+float specular_occlusion(float NV, float AO, float roughness)
+{
+	return saturate(pow(NV + AO, roughness) - 1.0 + AO);
 }
 
 /* Fresnel */

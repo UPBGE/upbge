@@ -344,7 +344,7 @@ static SpaceLink *view3d_new(const bContext *C)
 	v3d->near = 0.01f;
 	v3d->far = 1000.0f;
 
-	v3d->twflag |= U.manipulator_flag & V3D_USE_MANIPULATOR;
+	v3d->twflag |= U.manipulator_flag & V3D_MANIPULATOR_DRAW;
 	v3d->twtype = V3D_MANIP_TRANSLATE;
 	v3d->around = V3D_AROUND_CENTER_MEAN;
 	
@@ -878,10 +878,12 @@ static void view3d_main_region_listener(
 					}
 					ED_region_tag_redraw(ar);
 					break;
-				case ND_FRAME:
-				case ND_TRANSFORM:
 				case ND_OB_ACTIVE:
 				case ND_OB_SELECT:
+					DEG_id_tag_update((ID *)&scene->id, DEG_TAG_COPY_ON_WRITE);
+					ATTR_FALLTHROUGH;
+				case ND_FRAME:
+				case ND_TRANSFORM:
 				case ND_OB_VISIBLE:
 				case ND_RENDER_OPTIONS:
 				case ND_MARKERS:

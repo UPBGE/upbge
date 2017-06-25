@@ -46,6 +46,7 @@ static void EEVEE_engine_init(void *ved)
 	EEVEE_Data *vedata = (EEVEE_Data *)ved;
 	EEVEE_TextureList *txl = vedata->txl;
 	EEVEE_FramebufferList *fbl = vedata->fbl;
+	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 
 	DRWFboTexture tex = {&txl->color, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER};
@@ -55,9 +56,15 @@ static void EEVEE_engine_init(void *ved)
 	                    (int)viewport_size[0], (int)viewport_size[1],
 	                    &tex, 1);
 
+	if (!stl->g_data) {
+		/* Alloc transient pointers */
+		stl->g_data = MEM_mallocN(sizeof(*stl->g_data), __func__);
+	}
+	stl->g_data->background_alpha = 1.0f;
+
 	EEVEE_materials_init();
 	EEVEE_lights_init(sldata);
-	EEVEE_lightprobes_init(sldata);
+	EEVEE_lightprobes_init(sldata, vedata);
 	EEVEE_effects_init(vedata);
 }
 
@@ -66,11 +73,6 @@ static void EEVEE_cache_init(void *vedata)
 	EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
 	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
-
-	if (!stl->g_data) {
-		/* Alloc transient pointers */
-		stl->g_data = MEM_mallocN(sizeof(*stl->g_data), __func__);
-	}
 
 	EEVEE_materials_cache_init(vedata);
 	EEVEE_lights_cache_init(sldata, psl);
@@ -91,7 +93,7 @@ static void EEVEE_cache_populate(void *vedata, Object *ob)
 		}
 	}
 
-	struct Batch *geom = DRW_cache_object_surface_get(ob);
+	struct Gwn_Batch *geom = DRW_cache_object_surface_get(ob);
 	if (geom) {
 		EEVEE_materials_cache_populate(vedata, sldata, ob, geom);
 
@@ -134,7 +136,7 @@ static void EEVEE_draw_scene(void *vedata)
 	EEVEE_draw_shadows(sldata, psl);
 
 	/* Refresh Probes */
-	EEVEE_lightprobes_refresh(sldata, psl);
+	EEVEE_lightprobes_refresh(sldata, vedata);
 
 	/* Attach depth to the hdr buffer and bind it */	
 	DRW_framebuffer_texture_detach(dtxl->depth);
@@ -148,11 +150,15 @@ static void EEVEE_draw_scene(void *vedata)
 	DRW_draw_pass(psl->depth_pass);
 	DRW_draw_pass(psl->depth_pass_cull);
 
+	/* Create minmax texture */
+	EEVEE_create_minmax_buffer(vedata, dtxl->depth);
+
+	/* Restore main FB */
+	DRW_framebuffer_bind(fbl->main);
+
 	/* Shading pass */
 	DRW_draw_pass(psl->probe_display);
-	DRW_draw_pass(psl->default_pass);
-	DRW_draw_pass(psl->default_flat_pass);
-	DRW_draw_pass(psl->default_hair_pass);
+	EEVEE_draw_default_passes(psl);
 	DRW_draw_pass(psl->material_pass);
 
 	/* Post Process */
@@ -181,6 +187,12 @@ static void EEVEE_scene_layer_settings_create(RenderEngine *UNUSED(engine), IDPr
 	BLI_assert(props &&
 	           props->type == IDP_GROUP &&
 	           props->subtype == IDP_GROUP_SUB_ENGINE_RENDER);
+
+	BKE_collection_engine_property_add_bool(props, "gtao_enable", false);
+	BKE_collection_engine_property_add_bool(props, "gtao_use_bent_normals", true);
+	BKE_collection_engine_property_add_float(props, "gtao_distance", 0.2f);
+	BKE_collection_engine_property_add_float(props, "gtao_factor", 1.0f);
+	BKE_collection_engine_property_add_int(props, "gtao_samples", 2);
 
 	BKE_collection_engine_property_add_bool(props, "dof_enable", false);
 	BKE_collection_engine_property_add_float(props, "bokeh_max_size", 100.0f);

@@ -45,12 +45,14 @@ typedef struct wmKeyMap *(*wmManipulatorGroupFnSetupKeymap)(
 
 /* wmManipulator */
 /* See: wmManipulatorType for docs on each type. */
+
+typedef void    (*wmManipulatorFnSetup)(struct wmManipulator *);
 typedef void    (*wmManipulatorFnDraw)(const struct bContext *, struct wmManipulator *);
 typedef void    (*wmManipulatorFnDrawSelect)(const struct bContext *, struct wmManipulator *, int);
 typedef int     (*wmManipulatorFnTestSelect)(struct bContext *, struct wmManipulator *, const struct wmEvent *);
 typedef void    (*wmManipulatorFnModal)(struct bContext *, struct wmManipulator *, const struct wmEvent *, const int);
 typedef void    (*wmManipulatorFnPropertyUpdate)(struct wmManipulator *, struct wmManipulatorProperty *);
-typedef void    (*wmManipulatorFnPositionGet)(struct wmManipulator *, float[]);
+typedef void    (*wmManipulatorFnMatrixWorldGet)(struct wmManipulator *, float[4][4]);
 typedef void    (*wmManipulatorFnInvoke)(struct bContext *, struct wmManipulator *, const struct wmEvent *);
 typedef void    (*wmManipulatorFnExit)(struct bContext *, struct wmManipulator *, const bool);
 typedef int     (*wmManipulatorFnCursorGet)(struct wmManipulator *);
@@ -58,19 +60,22 @@ typedef void    (*wmManipulatorFnSelect)(struct bContext *, struct wmManipulator
 
 /* wmManipulatorProperty */
 typedef void (*wmManipulatorPropertyFnGet)(
-        const struct wmManipulator *, struct wmManipulatorProperty *, void *user_data,
-        float *value, uint value_len);
+        const struct wmManipulator *, struct wmManipulatorProperty *,
+        float *value);
 typedef void (*wmManipulatorPropertyFnSet)(
-        const struct wmManipulator *, struct wmManipulatorProperty *, void *user_data,
-        const float *value, uint value_len);
+        const struct wmManipulator *, struct wmManipulatorProperty *,
+        const float *value);
 typedef void (*wmManipulatorPropertyFnRangeGet)(
-        const struct wmManipulator *, struct wmManipulatorProperty *, void *user_data,
+        const struct wmManipulator *, struct wmManipulatorProperty *,
         float range[2]);
+typedef void (*wmManipulatorPropertyFnFree)(
+        const struct wmManipulator *, struct wmManipulatorProperty *);
 
 typedef struct wmManipulatorPropertyFnParams {
 	wmManipulatorPropertyFnGet value_get_fn;
 	wmManipulatorPropertyFnSet value_set_fn;
 	wmManipulatorPropertyFnRangeGet range_get_fn;
+	wmManipulatorPropertyFnFree free_fn;
 	void *user_data;
 } wmManipulatorPropertyFnParams;
 

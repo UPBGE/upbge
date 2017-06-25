@@ -3,8 +3,8 @@ uniform mat4 ModelViewMatrix;
 #ifndef EEVEE_ENGINE
 uniform mat4 ProjectionMatrix;
 uniform mat4 ViewMatrixInverse;
-#endif
 uniform mat4 ViewMatrix;
+#endif
 uniform mat4 ModelMatrix;
 uniform mat4 ModelMatrixInverse;
 uniform mat4 ModelViewMatrixInverse;
@@ -4093,9 +4093,11 @@ void node_output_material(vec4 surface, vec4 volume, float displacement, out vec
 	result = surface;
 }
 
+uniform float backgroundAlpha;
+
 void node_output_world(vec4 surface, vec4 volume, out vec4 result)
 {
-	result = vec4(surface.rgb, 1.0);
+	result = vec4(surface.rgb, backgroundAlpha);
 }
 
 void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 mat, sampler2D ima, float numsteps,
@@ -4183,7 +4185,7 @@ void world_normals_get(out vec3 N)
 	N = gl_FrontFacing ? worldNormal : -worldNormal;
 }
 
-void node_output_metallic(
+void node_eevee_metallic(
         vec4 basecol, float metallic, float specular, float roughness, vec4 emissive, float transp, vec3 normal,
         float clearcoat, float clearcoat_roughness, vec3 clearcoat_normal,
         float occlusion, out vec4 result)
@@ -4194,13 +4196,19 @@ void node_output_metallic(
 	result = vec4(eevee_surface_lit(normal, diffuse.rgb, f0.rgb, roughness, occlusion) + emissive.rgb, 1.0 - transp);
 }
 
-void node_output_specular(
+void node_eevee_specular(
         vec4 diffuse, vec4 specular, float roughness, vec4 emissive, float transp, vec3 normal,
         float clearcoat, float clearcoat_roughness, vec3 clearcoat_normal,
         float occlusion, out vec4 result)
 {
 	result = vec4(eevee_surface_lit(normal, diffuse.rgb, specular.rgb, roughness, occlusion) + emissive.rgb, 1.0 - transp);
 }
+
+void node_output_eevee_material(vec4 surface, out vec4 result)
+{
+	result = vec4(surface.rgb, length(viewPosition));
+}
+
 #endif
 
 /* ********************** matcap style render ******************** */

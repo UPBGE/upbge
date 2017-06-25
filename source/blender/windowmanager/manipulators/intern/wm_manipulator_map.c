@@ -88,7 +88,8 @@ enum eManipulatorMapUpdateFlags {
 /**
  * Creates a manipulator-map with all registered manipulators for that type
  */
-wmManipulatorMap *WM_manipulatormap_new_from_type(const struct wmManipulatorMapType_Params *mmap_params)
+wmManipulatorMap *WM_manipulatormap_new_from_type(
+        const struct wmManipulatorMapType_Params *mmap_params)
 {
 	wmManipulatorMapType *mmap_type = WM_manipulatormaptype_ensure(mmap_params);
 	wmManipulatorMap *mmap;
@@ -127,6 +128,11 @@ void wm_manipulatormap_remove(wmManipulatorMap *mmap)
 	wm_manipulatormap_selected_clear(mmap);
 
 	MEM_freeN(mmap);
+}
+
+const ListBase *WM_manipulatormap_group_list(wmManipulatorMap *mmap)
+{
+	return &mmap->groups;
 }
 
 /**
@@ -174,12 +180,18 @@ static bool manipulator_prepare_drawing(
         wmManipulatorMap *mmap, wmManipulator *mpr,
         const bContext *C, ListBase *draw_manipulators)
 {
-	if (!wm_manipulator_is_visible(mpr)) {
+	int do_draw = wm_manipulator_is_visible(mpr);
+	if (do_draw == 0) {
 		/* skip */
 	}
 	else {
-		wm_manipulator_update(mpr, C, (mmap->update_flag & MANIPULATORMAP_REFRESH) != 0);
-		BLI_addhead(draw_manipulators, BLI_genericNodeN(mpr));
+		if (do_draw & WM_MANIPULATOR_IS_VISIBLE_UPDATE) {
+			/* hover manipulators need updating, even if we don't draw them */
+			wm_manipulator_update(mpr, C, (mmap->update_flag & MANIPULATORMAP_REFRESH) != 0);
+		}
+		if (do_draw & WM_MANIPULATOR_IS_VISIBLE_DRAW) {
+			BLI_addhead(draw_manipulators, BLI_genericNodeN(mpr));
+		}
 		return true;
 	}
 
@@ -248,21 +260,47 @@ static void manipulators_draw_list(const wmManipulatorMap *mmap, const bContext 
 	const bool draw_multisample = (U.ogl_multisamples != USER_MULTISAMPLE_NONE);
 
 	/* TODO this will need it own shader probably? don't think it can be handled from that point though. */
-/*	const bool use_lighting = (U.manipulator_flag & V3D_SHADED_MANIPULATORS) != 0; */
+/*	const bool use_lighting = (U.manipulator_flag & V3D_MANIPULATOR_SHADED) != 0; */
 
 	/* enable multisampling */
 	if (draw_multisample) {
 		glEnable(GL_MULTISAMPLE);
 	}
 
+	bool is_depth_prev = false;
+
 	/* draw_manipulators contains all visible manipulators - draw them */
 	for (LinkData *link = draw_manipulators->first, *link_next; link; link = link_next) {
 		wmManipulator *mpr = link->data;
 		link_next = link->next;
 
+		bool is_depth = (mpr->parent_mgroup->type->flag & WM_MANIPULATORGROUPTYPE_DEPTH_3D) != 0;
+
+		/* Weak! since we don't 100% support depth yet (select ignores depth) always show highlighted */
+		if (is_depth && (mpr->state & WM_MANIPULATOR_STATE_HIGHLIGHT)) {
+			is_depth = false;
+		}
+
+		if (is_depth == is_depth_prev) {
+			/* pass */
+		}
+		else {
+			if (is_depth) {
+				glEnable(GL_DEPTH_TEST);
+			}
+			else {
+				glDisable(GL_DEPTH_TEST);
+			}
+			is_depth_prev = is_depth;
+		}
+
 		mpr->type->draw(C, mpr);
 		/* free/remove manipulator link after drawing */
 		BLI_freelinkN(draw_manipulators, link);
+	}
+
+	if (is_depth_prev) {
+		glDisable(GL_DEPTH_TEST);
 	}
 
 	if (draw_multisample) {
@@ -284,12 +322,36 @@ static void manipulator_find_active_3D_loop(const bContext *C, ListBase *visible
 	int selectionbase = 0;
 	wmManipulator *mpr;
 
+	/* TODO(campbell): this depends on depth buffer being written to, currently broken for the 3D view. */
+	bool is_depth_prev = false;
+
 	for (LinkData *link = visible_manipulators->first; link; link = link->next) {
 		mpr = link->data;
+		
+		bool is_depth = (mpr->parent_mgroup->type->flag & WM_MANIPULATORGROUPTYPE_DEPTH_3D) != 0;
+		if (is_depth == is_depth_prev) {
+			/* pass */
+		}
+		else {
+			if (is_depth) {
+				glEnable(GL_DEPTH_TEST);
+			}
+			else {
+				glDisable(GL_DEPTH_TEST);
+			}
+			is_depth_prev = is_depth;
+		}
+
 		/* pass the selection id shifted by 8 bits. Last 8 bits are used for selected manipulator part id */
+
 		mpr->type->draw_select(C, mpr, selectionbase << 8);
 
+
 		selectionbase++;
+	}
+
+	if (is_depth_prev) {
+		glDisable(GL_DEPTH_TEST);
 	}
 }
 
@@ -424,8 +486,8 @@ void wm_manipulatormaps_handled_modal_update(
 
 	/* regular update for running operator */
 	if (modal_running) {
-		if (mpr && mpr->opname &&
-		    STREQ(mpr->opname, handler->op->idname))
+		if (mpr && (mpr->op_data.type != NULL) &&
+		    (mpr->op_data.type == handler->op->type))
 		{
 			if (mpr->custom_modal) {
 				mpr->custom_modal(C, mpr, event, 0);
@@ -640,32 +702,23 @@ void wm_manipulatormap_active_set(
 		mpr->state |= WM_MANIPULATOR_STATE_ACTIVE;
 		mmap->mmap_context.active = mpr;
 
-		if (mpr->opname) {
-			wmOperatorType *ot = WM_operatortype_find(mpr->opname, 0);
+		if (mpr->op_data.type) {
+			/* first activate the manipulator itself */
+			if (mpr->type->invoke &&
+			    (mpr->type->modal || mpr->custom_modal))
+			{
+				mpr->type->invoke(C, mpr, event);
+			}
 
-			if (ot) {
+			WM_operator_name_call_ptr(C, mpr->op_data.type, WM_OP_INVOKE_DEFAULT, &mpr->op_data.ptr);
+
+			/* we failed to hook the manipulator to the operator handler or operator was cancelled, return */
+			if (!mmap->mmap_context.active) {
+				mpr->state &= ~WM_MANIPULATOR_STATE_ACTIVE;
 				/* first activate the manipulator itself */
-				if (mpr->type->invoke &&
-				    (mpr->type->modal || mpr->custom_modal))
-				{
-					mpr->type->invoke(C, mpr, event);
-				}
-
-				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &mpr->opptr);
-
-				/* we failed to hook the manipulator to the operator handler or operator was cancelled, return */
-				if (!mmap->mmap_context.active) {
-					mpr->state &= ~WM_MANIPULATOR_STATE_ACTIVE;
-					/* first activate the manipulator itself */
-					MEM_SAFE_FREE(mpr->interaction_data);
-				}
-				return;
+				MEM_SAFE_FREE(mpr->interaction_data);
 			}
-			else {
-				printf("Manipulator error: operator not found");
-				mmap->mmap_context.active = NULL;
-				return;
-			}
+			return;
 		}
 		else {
 			if (mpr->type->invoke &&

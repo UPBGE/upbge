@@ -53,6 +53,8 @@ void GPU_texture_bind_as_framebuffer(struct GPUTexture *tex);
 
 GPUFrameBuffer *GPU_framebuffer_create(void);
 bool GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int mip);
+bool GPU_framebuffer_texture_layer_attach(
+        GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int layer, int mip);
 bool GPU_framebuffer_texture_cubeface_attach(
         GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int face, int mip);
 int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, struct GPUTexture *tex, int target, int slot, int mip, bool forcet2d);
@@ -97,6 +99,10 @@ int GPU_renderbuffer_height(const GPURenderBuffer *rb);
 void GPU_framebuffer_blit(
         GPUFrameBuffer *fb_read, int read_slot,
         GPUFrameBuffer *fb_write, int write_slot, bool use_depth);
+
+void GPU_framebuffer_recursive_downsample(
+        GPUFrameBuffer *fb, struct GPUTexture *tex, int num_iter,
+        void (*callback)(void *userData, int level), void *userData);
 
 /* GPU OffScreen
  * - wrapper around framebuffer and texture for simple offscreen drawing

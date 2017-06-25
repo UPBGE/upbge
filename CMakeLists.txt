@@ -32,7 +32,7 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 	if(NOT DEFINED WITH_IN_SOURCE_BUILD)
 		message(FATAL_ERROR
 			"CMake generation for blender is not allowed within the source directory!"
-			"\n Remove the CMakeCache.txt file and try again from another folder, e.g.:"
+			"\n Remove \"${CMAKE_SOURCE_DIR}/CMakeCache.txt\" and try again from another folder, e.g.:"
 			"\n "
 			"\n rm CMakeCache.txt"
 			"\n cd .."
@@ -533,8 +533,8 @@ if(CMAKE_COMPILER_IS_GNUCC)
 endif()
 
 # Dependency graph
-option(WITH_LEGACY_DEPSGRAPH "Build Blender with legacy dependency graph" ON)
-mark_as_advanced(WITH_LEGACY_DEPSGRAPH)
+option(WITH_DEPSGRAPH_COPY_ON_WRITE "Build Blender with copy-on-write support for dependency graph" OFF)
+mark_as_advanced(WITH_DEPSGRAPH_COPY_ON_WRITE)
 
 if(WIN32)
 	# Use hardcoded paths or find_package to find externals

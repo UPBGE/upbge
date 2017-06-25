@@ -2,8 +2,11 @@
 uniform int light_count;
 uniform int probe_count;
 uniform int grid_count;
-uniform mat4 ProjectionMatrix;
+uniform int planar_count;
+uniform mat4 ViewMatrix;
 uniform mat4 ViewMatrixInverse;
+
+uniform sampler2DArray probePlanars;
 
 uniform sampler2DArray probeCubes;
 uniform float lodMax;
@@ -23,6 +26,10 @@ layout(std140) uniform probe_block {
 
 layout(std140) uniform grid_block {
 	GridData grids_data[MAX_GRID];
+};
+
+layout(std140) uniform planar_block {
+	PlanarData planars_data[MAX_PLANAR];
 };
 
 layout(std140) uniform light_block {
@@ -275,6 +282,49 @@ float probe_attenuation(vec3 W, ProbeData pd)
 	return fac;
 }
 
+float planar_attenuation(vec3 W, vec3 N, PlanarData pd)
+{
+	float fac;
+
+	/* Normal Facing */
+	fac = saturate(dot(pd.pl_normal, N) * pd.pl_facing_scale + pd.pl_facing_bias);
+
+	/* Distance from plane */
+	fac *= saturate(abs(dot(pd.pl_plane_eq, vec4(W, 1.0))) * pd.pl_fade_scale + pd.pl_fade_bias);
+
+	/* Fancy fast clipping calculation */
+	vec2 dist_to_clip;
+	dist_to_clip.x = dot(pd.pl_clip_pos_x, W);
+	dist_to_clip.y = dot(pd.pl_clip_pos_y, W);
+	fac *= step(2.0, dot(step(pd.pl_clip_edges, dist_to_clip.xxyy), vec2(-1.0, 1.0).xyxy)); /* compare and add all tests */
+
+	return fac;
+}
+
+float compute_occlusion(vec3 N, float micro_occlusion, vec2 randuv, out vec3 bent_normal)
+{
+#ifdef USE_AO /* Screen Space Occlusion */
+
+	float macro_occlusion;
+	vec3 vnor = mat3(ViewMatrix) * N;
+
+#ifdef USE_BENT_NORMAL
+	gtao(vnor, viewPosition, randuv, macro_occlusion, bent_normal);
+	bent_normal = mat3(ViewMatrixInverse) * bent_normal;
+#else
+	gtao(vnor, viewPosition, randuv, macro_occlusion);
+	bent_normal = N;
+#endif
+	return min(macro_occlusion, micro_occlusion);
+
+#else /* No added Occlusion. */
+
+	bent_normal = N;
+	return micro_occlusion;
+
+#endif
+}
+
 vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness, float ao)
 {
 	roughness = clamp(roughness, 1e-8, 0.9999);
@@ -316,6 +366,10 @@ vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness,
 	sd.N = -norm_view;
 #endif
 
+	vec3 bent_normal;
+	vec4 rand = textureLod(utilTex, vec3(gl_FragCoord.xy / LUT_SIZE, 2.0), 0.0).rgba;
+	float final_ao = compute_occlusion(sd.N, ao, rand.rg, bent_normal);
+
 	/* Envmaps */
 	vec3 R = reflect(-sd.V, sd.N);
 	vec3 spec_dir = get_specular_dominant_dir(sd.N, R, roughnessSquared);
@@ -324,6 +378,46 @@ vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness,
 
 	vec4 spec_accum = vec4(0.0);
 	vec4 diff_accum = vec4(0.0);
+
+	/* Planar Reflections */
+	for (int i = 0; i < MAX_PLANAR && i < planar_count && spec_accum.a < 0.999; ++i) {
+		PlanarData pd = planars_data[i];
+
+		float influence = planar_attenuation(sd.W, sd.N, pd);
+
+		if (influence > 0.0) {
+			float influ_spec = min(influence, (1.0 - spec_accum.a));
+
+			/* Sample reflection depth. */
+			vec4 refco = pd.reflectionmat * vec4(sd.W, 1.0);
+			refco.xy /= refco.w;
+			float ref_depth = textureLod(probePlanars, vec3(refco.xy, i), 0.0).a;
+
+			/* Find view vector / reflection plane intersection. (dist_to_plane is negative) */
+			float dist_to_plane = line_plane_intersect_dist(cameraPos, sd.V, pd.pl_plane_eq);
+			vec3 point_on_plane = cameraPos + sd.V * dist_to_plane;
+
+			/* How far the pixel is from the plane. */
+			ref_depth = ref_depth + dist_to_plane;
+
+			/* Compute distorded reflection vector based on the distance to the reflected object.
+			 * In other words find intersection between reflection vector and the sphere center
+			 * around point_on_plane. */
+			vec3 proj_ref = reflect(R * ref_depth, pd.pl_normal);
+
+			/* Final point in world space. */
+			vec3 ref_pos = point_on_plane + proj_ref;
+
+			/* Reproject to find texture coords. */
+			refco = pd.reflectionmat * vec4(ref_pos, 1.0);
+			refco.xy /= refco.w;
+
+			vec3 sample = textureLod(probePlanars, vec3(refco.xy, i), 0.0).rgb;
+
+			spec_accum.rgb += sample * influ_spec;
+			spec_accum.a += influ_spec;
+		}
+	}
 
 	/* Specular probes */
 	/* Start at 1 because 0 is world probe */
@@ -387,7 +481,7 @@ vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness,
 				/* Avoid zero weight */
 				weight = max(0.00001, weight);
 
-				vec3 color = get_cell_color(ivec3(cell_cos), gd.g_resolution, gd.g_offset, sd.N);
+				vec3 color = get_cell_color(ivec3(cell_cos), gd.g_resolution, gd.g_offset, bent_normal);
 
 				weight_accum += weight;
 				irradiance_accum += color * weight;
@@ -407,9 +501,9 @@ vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness,
 
 	/* World probe */
 	if (diff_accum.a < 1.0 && grid_count > 0) {
-		IrradianceData ir_data = load_irradiance_cell(0, sd.N);
+		IrradianceData ir_data = load_irradiance_cell(0, bent_normal);
 
-		vec3 diff = compute_irradiance(sd.N, ir_data);
+		vec3 diff = compute_irradiance(bent_normal, ir_data);
 		diff_accum.rgb += diff * (1.0 - diff_accum.a);
 	}
 
@@ -421,11 +515,8 @@ vec3 eevee_surface_lit(vec3 world_normal, vec3 albedo, vec3 f0, float roughness,
 	}
 
 	vec3 indirect_radiance =
-	        spec_accum.rgb * F_ibl(f0, brdf_lut) * float(specToggle) +
-	        diff_accum.rgb * albedo;
-#ifndef FOR_GAME
-	return radiance + indirect_radiance * ao;
-#else
-	return radiance + F_ibl(f0, brdf_lut);
-#endif
+	        spec_accum.rgb * F_ibl(f0, brdf_lut) * float(specToggle) * specular_occlusion(dot(sd.N, sd.V), final_ao, roughness) +
+	        diff_accum.rgb * albedo * gtao_multibounce(final_ao, albedo);
+
+	return radiance + indirect_radiance;
 }

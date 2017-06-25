@@ -78,7 +78,9 @@ static void WIDGETGROUP_lamp_setup(const bContext *UNUSED(C), wmManipulatorGroup
 
 	wmManipulatorWrapper *wwrapper = MEM_mallocN(sizeof(wmManipulatorWrapper), __func__);
 
-	wwrapper->manipulator = ED_manipulator_arrow3d_new(mgroup, propname, ED_MANIPULATOR_ARROW_STYLE_INVERTED);
+	wwrapper->manipulator = WM_manipulator_new("MANIPULATOR_WT_arrow_3d", mgroup, propname, NULL);
+	RNA_enum_set(wwrapper->manipulator->ptr, "draw_options",  ED_MANIPULATOR_ARROW_STYLE_INVERTED);
+
 	mgroup->customdata = wwrapper;
 
 	ED_manipulator_arrow3d_set_range_fac(wwrapper->manipulator, 4.0f);
@@ -95,14 +97,14 @@ static void WIDGETGROUP_lamp_refresh(const bContext *C, wmManipulatorGroup *mgro
 
 	negate_v3_v3(dir, ob->obmat[2]);
 
-	ED_manipulator_arrow3d_set_direction(wwrapper->manipulator, dir);
-	WM_manipulator_set_origin(wwrapper->manipulator, ob->obmat[3]);
+	WM_manipulator_set_matrix_rotation_from_z_axis(wwrapper->manipulator, dir);
+	WM_manipulator_set_matrix_location(wwrapper->manipulator, ob->obmat[3]);
 
 	/* need to set property here for undo. TODO would prefer to do this in _init */
 	PointerRNA lamp_ptr;
 	const char *propname = "spot_size";
 	RNA_pointer_create(&la->id, &RNA_Lamp, la, &lamp_ptr);
-	WM_manipulator_property_def_rna(wwrapper->manipulator, "offset", &lamp_ptr, propname, -1);
+	WM_manipulator_target_property_def_rna(wwrapper->manipulator, "offset", &lamp_ptr, propname, -1);
 }
 
 void VIEW3D_WGT_lamp(wmManipulatorGroupType *wgt)
@@ -112,7 +114,7 @@ void VIEW3D_WGT_lamp(wmManipulatorGroupType *wgt)
 
 	wgt->flag |= (WM_MANIPULATORGROUPTYPE_PERSISTENT |
 	              WM_MANIPULATORGROUPTYPE_3D |
-	              WM_MANIPULATORGROUPTYPE_SCALE_3D);
+	              WM_MANIPULATORGROUPTYPE_DEPTH_3D);
 
 	wgt->poll = WIDGETGROUP_lamp_poll;
 	wgt->setup = WIDGETGROUP_lamp_setup;
@@ -170,6 +172,8 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmManipulatorGroup *mgro
 	Camera *ca = ob->data;
 	float dir[3];
 
+	const wmManipulatorType *wt_arrow = WM_manipulatortype_find("MANIPULATOR_WT_arrow_3d", true);
+
 	struct CameraWidgetGroup *camgroup = MEM_callocN(sizeof(struct CameraWidgetGroup), __func__);
 	mgroup->customdata = camgroup;
 
@@ -180,7 +184,8 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmManipulatorGroup *mgro
 		const float color[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 		const float color_hi[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 
-		camgroup->dop_dist = ED_manipulator_arrow3d_new(mgroup, "dof_distance", ED_MANIPULATOR_ARROW_STYLE_CROSS);
+		camgroup->dop_dist = WM_manipulator_new_ptr(wt_arrow, mgroup, "dof_distance", NULL);
+		RNA_enum_set(camgroup->dop_dist->ptr, "draw_style",  ED_MANIPULATOR_ARROW_STYLE_CROSS);
 		WM_manipulator_set_flag(camgroup->dop_dist, WM_MANIPULATOR_DRAW_HOVER, true);
 		WM_manipulator_set_color(camgroup->dop_dist, color);
 		WM_manipulator_set_color_highlight(camgroup->dop_dist, color_hi);
@@ -192,16 +197,18 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmManipulatorGroup *mgro
 		const float color[4] = {1.0f, 1.0, 0.27f, 0.5f};
 		const float color_hi[4] = {1.0f, 1.0, 0.27f, 1.0f};
 
-		camgroup->focal_len = ED_manipulator_arrow3d_new(
-		        mgroup, "focal_len",
-		        (ED_MANIPULATOR_ARROW_STYLE_CONE | ED_MANIPULATOR_ARROW_STYLE_CONSTRAINED));
+		camgroup->focal_len = WM_manipulator_new_ptr(wt_arrow, mgroup, "focal_len", NULL);
+		RNA_enum_set(camgroup->focal_len->ptr, "draw_style",  ED_MANIPULATOR_ARROW_STYLE_CONE);
+		RNA_enum_set(camgroup->focal_len->ptr, "draw_options",  ED_MANIPULATOR_ARROW_STYLE_CONSTRAINED);
+
 		WM_manipulator_set_color(camgroup->focal_len, color);
 		WM_manipulator_set_color_highlight(camgroup->focal_len, color_hi);
 		cameragroup_property_setup(camgroup->focal_len, ob, ca, false);
 
-		camgroup->ortho_scale = ED_manipulator_arrow3d_new(
-		        mgroup, "ortho_scale",
-		        (ED_MANIPULATOR_ARROW_STYLE_CONE | ED_MANIPULATOR_ARROW_STYLE_CONSTRAINED));
+		camgroup->ortho_scale = WM_manipulator_new_ptr(wt_arrow, mgroup, "ortho_scale", NULL);
+		RNA_enum_set(camgroup->ortho_scale->ptr, "draw_style",  ED_MANIPULATOR_ARROW_STYLE_CONE);
+		RNA_enum_set(camgroup->ortho_scale->ptr, "draw_options",  ED_MANIPULATOR_ARROW_STYLE_CONSTRAINED);
+
 		WM_manipulator_set_color(camgroup->ortho_scale, color);
 		WM_manipulator_set_color_highlight(camgroup->ortho_scale, color_hi);
 		cameragroup_property_setup(camgroup->ortho_scale, ob, ca, true);
@@ -224,14 +231,13 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmManipulatorGroup *mg
 	negate_v3_v3(dir, ob->obmat[2]);
 
 	if (ca->flag & CAM_SHOWLIMITS) {
-		ED_manipulator_arrow3d_set_direction(camgroup->dop_dist, dir);
-		ED_manipulator_arrow3d_set_up_vector(camgroup->dop_dist, ob->obmat[1]);
-		WM_manipulator_set_origin(camgroup->dop_dist, ob->obmat[3]);
+		WM_manipulator_set_matrix_location(camgroup->dop_dist, ob->obmat[3]);
+		WM_manipulator_set_matrix_rotation_from_yz_axis(camgroup->dop_dist, ob->obmat[1], dir);
 		WM_manipulator_set_scale(camgroup->dop_dist, ca->drawsize);
 		WM_manipulator_set_flag(camgroup->dop_dist, WM_MANIPULATOR_HIDDEN, false);
 
 		/* need to set property here for undo. TODO would prefer to do this in _init */
-		WM_manipulator_property_def_rna(camgroup->dop_dist, "offset", &camera_ptr, "dof_distance", -1);
+		WM_manipulator_target_property_def_rna(camgroup->dop_dist, "offset", &camera_ptr, "dof_distance", -1);
 	}
 	else {
 		WM_manipulator_set_flag(camgroup->dop_dist, WM_MANIPULATOR_HIDDEN, true);
@@ -246,7 +252,7 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmManipulatorGroup *mg
 		        (0.5f * ca->ortho_scale) :
 		        (scale_fac / ((scale[0] + scale[1] + scale[2]) / 3.0f));
 		float offset[3];
-		float asp[2];
+		float aspect[2];
 
 		wmManipulator *widget = is_ortho ? camgroup->ortho_scale : camgroup->focal_len;
 		WM_manipulator_set_flag(widget, WM_MANIPULATOR_HIDDEN, false);
@@ -263,19 +269,20 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmManipulatorGroup *mg
 		const float aspx = (float)scene->r.xsch * scene->r.xasp;
 		const float aspy = (float)scene->r.ysch * scene->r.yasp;
 		const int sensor_fit = BKE_camera_sensor_fit(ca->sensor_fit, aspx, aspy);
-		asp[0] = (sensor_fit == CAMERA_SENSOR_FIT_HOR) ? 1.0 : aspx / aspy;
-		asp[1] = (sensor_fit == CAMERA_SENSOR_FIT_HOR) ? aspy / aspx : 1.0f;
+		aspect[0] = (sensor_fit == CAMERA_SENSOR_FIT_HOR) ? 1.0 : aspx / aspy;
+		aspect[1] = (sensor_fit == CAMERA_SENSOR_FIT_HOR) ? aspy / aspx : 1.0f;
 
-		ED_manipulator_arrow3d_set_up_vector(widget, ob->obmat[1]);
-		ED_manipulator_arrow3d_set_direction(widget, dir);
-		ED_manipulator_arrow3d_cone_set_aspect(widget, asp);
-		WM_manipulator_set_origin(widget, ob->obmat[3]);
-		WM_manipulator_set_offset(widget, offset);
+		WM_manipulator_set_matrix_location(widget, ob->obmat[3]);
+		WM_manipulator_set_matrix_rotation_from_yz_axis(widget, ob->obmat[1], dir);
+
+		RNA_float_set_array(widget->ptr, "aspect", aspect);
+
+		WM_manipulator_set_matrix_offset_location(widget, offset);
 		WM_manipulator_set_scale(widget, drawsize);
 
 		/* need to set property here for undo. TODO would prefer to do this in _init */
-		WM_manipulator_property_def_rna(camgroup->focal_len, "offset", &camera_ptr, "lens", -1);
-		WM_manipulator_property_def_rna(camgroup->ortho_scale, "offset", &camera_ptr, "ortho_scale", -1);
+		WM_manipulator_target_property_def_rna(camgroup->focal_len, "offset", &camera_ptr, "lens", -1);
+		WM_manipulator_target_property_def_rna(camgroup->ortho_scale, "offset", &camera_ptr, "ortho_scale", -1);
 	}
 }
 
@@ -285,7 +292,9 @@ void VIEW3D_WGT_camera(wmManipulatorGroupType *wgt)
 	wgt->idname = "VIEW3D_WGT_camera";
 
 	wgt->flag = (WM_MANIPULATORGROUPTYPE_PERSISTENT |
-	             WM_MANIPULATORGROUPTYPE_3D);
+	             WM_MANIPULATORGROUPTYPE_3D |
+	             WM_MANIPULATORGROUPTYPE_SCALE |
+	             WM_MANIPULATORGROUPTYPE_DEPTH_3D);
 
 	wgt->poll = WIDGETGROUP_camera_poll;
 	wgt->setup = WIDGETGROUP_camera_setup;
@@ -316,8 +325,8 @@ static void WIDGETGROUP_forcefield_setup(const bContext *UNUSED(C), wmManipulato
 	wmManipulatorWrapper *wwrapper = MEM_mallocN(sizeof(wmManipulatorWrapper), __func__);
 	mgroup->customdata = wwrapper;
 
-	wwrapper->manipulator = ED_manipulator_arrow3d_new(mgroup, "field_strength", ED_MANIPULATOR_ARROW_STYLE_CONSTRAINED);
-
+	wwrapper->manipulator = WM_manipulator_new("MANIPULATOR_WT_arrow_3d", mgroup, "field_strength", NULL);
+	RNA_enum_set(wwrapper->manipulator->ptr, "draw_options",  ED_MANIPULATOR_ARROW_STYLE_CONSTRAINED);
 	ED_manipulator_arrow3d_set_ui_range(wwrapper->manipulator, -200.0f, 200.0f);
 	ED_manipulator_arrow3d_set_range_fac(wwrapper->manipulator, 6.0f);
 	WM_manipulator_set_color(wwrapper->manipulator, col);
@@ -336,12 +345,11 @@ static void WIDGETGROUP_forcefield_refresh(const bContext *C, wmManipulatorGroup
 		PointerRNA field_ptr;
 
 		RNA_pointer_create(&ob->id, &RNA_FieldSettings, pd, &field_ptr);
-
-		ED_manipulator_arrow3d_set_direction(wwrapper->manipulator, ob->obmat[2]);
-		WM_manipulator_set_origin(wwrapper->manipulator, ob->obmat[3]);
-		WM_manipulator_set_offset(wwrapper->manipulator, ofs);
+		WM_manipulator_set_matrix_location(wwrapper->manipulator, ob->obmat[3]);
+		WM_manipulator_set_matrix_rotation_from_z_axis(wwrapper->manipulator, ob->obmat[2]);
+		WM_manipulator_set_matrix_offset_location(wwrapper->manipulator, ofs);
 		WM_manipulator_set_flag(wwrapper->manipulator, WM_MANIPULATOR_HIDDEN, false);
-		WM_manipulator_property_def_rna(wwrapper->manipulator, "offset", &field_ptr, "strength", -1);
+		WM_manipulator_target_property_def_rna(wwrapper->manipulator, "offset", &field_ptr, "strength", -1);
 	}
 	else {
 		WM_manipulator_set_flag(wwrapper->manipulator, WM_MANIPULATOR_HIDDEN, true);
@@ -354,7 +362,9 @@ void VIEW3D_WGT_force_field(wmManipulatorGroupType *wgt)
 	wgt->idname = "VIEW3D_WGT_force_field";
 
 	wgt->flag |= (WM_MANIPULATORGROUPTYPE_PERSISTENT |
-	              WM_MANIPULATORGROUPTYPE_3D);
+	              WM_MANIPULATORGROUPTYPE_3D |
+	              WM_MANIPULATORGROUPTYPE_SCALE |
+	              WM_MANIPULATORGROUPTYPE_DEPTH_3D);
 
 	wgt->poll = WIDGETGROUP_forcefield_poll;
 	wgt->setup = WIDGETGROUP_forcefield_setup;

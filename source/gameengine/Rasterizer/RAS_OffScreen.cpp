@@ -83,14 +83,14 @@ void RAS_OffScreen::UnbindDepthTexture()
 void RAS_OffScreen::MipmapTexture()
 {
 	GPUTexture *tex = GPU_offscreen_texture(m_offScreen);
-	GPU_texture_mipmap_mode(tex, true);
+	GPU_texture_mipmap_mode(tex, true, false);
 	GPU_texture_generate_mipmap(tex);
 }
 
 void RAS_OffScreen::UnmipmapTexture()
 {
 	GPUTexture *tex = GPU_offscreen_texture(m_offScreen);
-	GPU_texture_mipmap_mode(tex, false);
+	GPU_texture_mipmap_mode(tex, false, false);
 }
 
 int RAS_OffScreen::GetColorBindCode() const
