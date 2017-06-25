@@ -1226,43 +1226,43 @@ void RAS_Rasterizer::DesactivateOverrideShaderInstancing()
 
 void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat, GPUShader *shader)
 {
-	bool enable = false;
-	int layer = -1;
+	//bool enable = false;
+	//int layer = -1;
 
-	/* find the layer */
-	if (uselights) {
-		if (m_clientobject) {
-			layer = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject)->GetLayer();
-		}
-	}
+	///* find the layer */
+	//if (uselights) {
+	//	if (m_clientobject) {
+	//		layer = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject)->GetLayer();
+	//	}
+	//}
 
-	/* avoid state switching */
-	if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo) {
-		return;
-	}
+	///* avoid state switching */
+	//if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo) {
+	//	return;
+	//}
 
-	m_lastlightlayer = layer;
-	m_lastauxinfo = m_auxilaryClientInfo;
+	//m_lastlightlayer = layer;
+	//m_lastauxinfo = m_auxilaryClientInfo;
 
 	/* enable/disable lights as needed */
-	if (1) { //TEEEEEEEEEEEEMP
+	if (1) { //TEEEEEEEEEEEEMP layer >= 0 was replaced by 1
 		//enable = ApplyLights(layer, viewmat);
 		// taken from blender source, incompatibility between Blender Object / GameObject
 		KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
-		float glviewmat[16];
+		//float glviewmat[16];
 		unsigned int count;
 		std::vector<RAS_OpenGLLight *>::iterator lit = m_lights.begin();
 
-		viewmat.getValue(glviewmat);
+		//viewmat.getValue(glviewmat);
 
-		PushMatrix();
-		LoadMatrix(glviewmat);
+		//PushMatrix();
+		//LoadMatrix(glviewmat);
 		RAS_OpenGLLight *light;
 
 		for (lit = m_lights.begin(), count = 0; !(lit == m_lights.end()) && count < m_numgllights; ++lit) {
 			light = (*lit);
 
-			if (light->ApplyFixedFunctionLighting(kxscene, layer, count)) {
+			if (light->ApplyFixedFunctionLighting(kxscene, 1, count)) { // second arg layer was replaced with 1
 				count++;
 			}
 		}
@@ -1278,9 +1278,9 @@ void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat
 		int lightcountloc = GPU_shader_get_uniform(shader, "light_count");
 		GPU_shader_uniform_int(shader, lightcountloc, count);
 
-		PopMatrix();
+		//PopMatrix();
 
-		enable = count > 0;
+		//enable = count > 0;
 	}
 }
 
