@@ -52,6 +52,7 @@ extern "C" {
 	extern char datatoc_lit_surface_vert_glsl[];
 	extern char datatoc_irradiance_lib_glsl[];
 	extern char datatoc_octahedron_lib_glsl[];
+	extern char datatoc_ambient_occlusion_lib_glsl[];
 }
 
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
@@ -123,6 +124,7 @@ void BL_BlenderShader::ReloadMaterial()
 	static char *fraglib;
 	DynStr *ds_frag = BLI_dynstr_new();
 	BLI_dynstr_append(ds_frag, datatoc_bsdf_common_lib_glsl);
+	BLI_dynstr_append(ds_frag, datatoc_ambient_occlusion_lib_glsl);
 	BLI_dynstr_append(ds_frag, datatoc_octahedron_lib_glsl);
 	BLI_dynstr_append(ds_frag, datatoc_irradiance_lib_glsl);
 	BLI_dynstr_append(ds_frag, datatoc_ltc_lib_glsl);
@@ -135,6 +137,7 @@ void BL_BlenderShader::ReloadMaterial()
 	m_gpuMat = (m_mat) ? GPU_material_from_eevee(m_blenderScene, m_mat, datatoc_lit_surface_vert_glsl, fraglib,
 		"#define EEVEE_ENGINE\n"
 		"#define MESH_SHADER\n"
+		"#define MAX_PLANAR 16\n"
 		"#define MAX_PROBE 128\n"
 		"#define MAX_GRID 64\n"
 		"#define MAX_LIGHT 128\n"
