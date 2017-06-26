@@ -31,6 +31,7 @@
 #include "GPU_shader.h"
 #include "GPU_extensions.h"
 
+
 #include "BL_BlenderShader.h"
 
 #include "RAS_BucketManager.h"
@@ -41,7 +42,7 @@
 #include "KX_Scene.h"
 
 extern "C" {
-#include "BLI_dynstr.h"
+#  include "eevee_private.h"
 }
 
 extern "C" {
@@ -120,32 +121,7 @@ bool BL_BlenderShader::Ok() const
 
 void BL_BlenderShader::ReloadMaterial()
 {
-	/* Create shaders library */
-	static char *fraglib;
-	DynStr *ds_frag = BLI_dynstr_new();
-	BLI_dynstr_append(ds_frag, datatoc_bsdf_common_lib_glsl);
-	BLI_dynstr_append(ds_frag, datatoc_ambient_occlusion_lib_glsl);
-	BLI_dynstr_append(ds_frag, datatoc_octahedron_lib_glsl);
-	BLI_dynstr_append(ds_frag, datatoc_irradiance_lib_glsl);
-	BLI_dynstr_append(ds_frag, datatoc_ltc_lib_glsl);
-	BLI_dynstr_append(ds_frag, datatoc_bsdf_direct_lib_glsl);
-	BLI_dynstr_append(ds_frag, datatoc_lit_surface_frag_glsl);
-	fraglib = BLI_dynstr_get_cstring(ds_frag);
-	BLI_dynstr_free(ds_frag);
-
-	/* Get the material from eevee */
-	m_gpuMat = (m_mat) ? GPU_material_from_eevee(m_blenderScene, m_mat, datatoc_lit_surface_vert_glsl, fraglib,
-		"#define EEVEE_ENGINE\n"
-		"#define MESH_SHADER\n"
-		"#define MAX_PLANAR 16\n"
-		"#define MAX_PROBE 128\n"
-		"#define MAX_GRID 64\n"
-		"#define MAX_LIGHT 128\n"
-		"#define MAX_SHADOW_CUBE 42\n"
-		"#define MAX_SHADOW_MAP 64\n"
-		"#define MAX_SHADOW_CASCADE 8\n"
-		"#define MAX_CASCADE_NUM 4\n",
-		UseInstancing()) : nullptr;
+	m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false);
 	ParseAttribs();
 }
 

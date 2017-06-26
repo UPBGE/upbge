@@ -26,6 +26,9 @@
 #ifndef __EEVEE_PRIVATE_H__
 #define __EEVEE_PRIVATE_H__
 
+#include "BLI_listbase.h"
+
+struct Material;
 struct Object;
 
 extern struct DrawEngineType draw_engine_eevee_type;

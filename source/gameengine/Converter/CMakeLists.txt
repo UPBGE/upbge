@@ -46,6 +46,7 @@ set(INC
 	../../blender/blenlib
 	../../blender/blenloader
 	../../blender/depsgraph
+	../../blender/draw/engines/eevee/
 	../../blender/gpu
 	../../blender/ikplugin
 	../../blender/imbuf

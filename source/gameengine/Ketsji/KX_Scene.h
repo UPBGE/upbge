@@ -51,6 +51,10 @@
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 
+extern "C" {
+#  include "eevee_private.h"
+}
+
 /**
  * \section Forward declarations
  */
@@ -99,20 +103,6 @@ struct GPUTexture;
 
 /* for ID freeing */
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
-
-
-/* ************ LIGHT UBO ************* */
-typedef struct EEVEE_Light {
-	float position[3], dist;
-	float color[3], spec;
-	float spotsize, spotblend, radius, shadowid;
-	float rightvec[3], sizex;
-	float upvec[3], sizey;
-	float forwardvec[3], lamptype;
-} EEVEE_Light;
-
-
-
 
 /**
  * The KX_Scene holds all data for an independent scene. It relates
