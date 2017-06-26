@@ -705,7 +705,9 @@ DRWShadingGroup *DRW_shgroup_create(struct GPUShader *shader, DRWPass *pass)
 	shgroup->batch_geom = NULL;
 	shgroup->instance_geom = NULL;
 
-	BLI_addtail(&pass->shgroups, shgroup);
+	if (pass) {
+		BLI_addtail(&pass->shgroups, shgroup);
+	}
 	BLI_listbase_clear(&shgroup->calls);
 
 #ifdef USE_GPU_SELECT
@@ -1267,7 +1269,7 @@ void DRW_pass_foreach_shgroup(DRWPass *pass, void (*callback)(void *userData, DR
 /** \name Draw (DRW_draw)
  * \{ */
 
-static void DRW_state_set(DRWState state)
+void DRW_state_set(DRWState state)
 {
 	if (DST.state == state) {
 		return;
@@ -1675,7 +1677,7 @@ static void draw_geometry(DRWShadingGroup *shgroup, Gwn_Batch *geom, const float
 	draw_geometry_execute(shgroup, geom);
 }
 
-static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
+void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 {
 	BLI_assert(shgroup->shader);
 	BLI_assert(shgroup->interface);
@@ -1859,7 +1861,7 @@ void DRW_draw_pass(DRWPass *pass)
 	}
 
 	for (DRWShadingGroup *shgroup = pass->shgroups.first; shgroup; shgroup = shgroup->next) {
-		draw_shgroup(shgroup, pass->state);
+		DRW_draw_shgroup(shgroup, pass->state);
 	}
 
 	/* Clear Bound textures */
@@ -2210,7 +2212,7 @@ void DRW_transform_to_display(GPUTexture *tex)
 /** \name Viewport (DRW_viewport)
  * \{ */
 
-static void *DRW_viewport_engine_data_get(void *engine_type)
+void *DRW_viewport_engine_data_get(void *engine_type)
 {
 	void *data = GPU_viewport_engine_data_get(DST.viewport, engine_type);
 

@@ -43,6 +43,9 @@
 
 extern "C" {
 #  include "eevee_private.h"
+#  include "eevee_engine.h"
+#  include "DRW_engine.h"
+#  include "DRW_render.h"
 }
 
 extern "C" {
@@ -61,15 +64,16 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lig
 	m_mat(ma),
 	m_lightLayer(lightlayer),
 	m_alphaBlend(GPU_BLEND_SOLID),
-	m_gpuMat(nullptr)
+	m_gpuMat(nullptr),
+	m_shGroup(nullptr)
 {
 	ReloadMaterial();
 }
 
 BL_BlenderShader::~BL_BlenderShader()
 {
-	if (m_gpuMat) {
-		GPU_material_unbind(m_gpuMat);
+	if (m_shGroup) {
+		DRW_shgroup_free(m_shGroup);
 	}
 }
 
@@ -122,6 +126,13 @@ bool BL_BlenderShader::Ok() const
 void BL_BlenderShader::ReloadMaterial()
 {
 	m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false);
+
+	if (m_shGroup) {
+		DRW_shgroup_free(m_shGroup);
+	}
+	m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
+	EEVEE_shgroup_add_standard_uniforms(m_shGroup, EEVEE_scene_layer_data_get(), (EEVEE_Data *)DRW_viewport_engine_data_get(&DRW_engine_viewport_eevee_type));
+
 	ParseAttribs();
 }
 
@@ -129,7 +140,7 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
 {
 	if (Ok()) {
 		if (enable) {
-			BLI_assert(rasty != nullptr); // XXX Kinda hacky, but SetProg() should always have the rasterizer if enable is true
+			/*BLI_assert(rasty != nullptr); // XXX Kinda hacky, but SetProg() should always have the rasterizer if enable is true
 
 			float viewmat[4][4], viewinvmat[4][4];
 			const MT_Matrix4x4& view = rasty->GetViewMatrix();
@@ -137,7 +148,13 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
 			view.getValue((float *)viewmat);
 			viewinv.getValue((float *)viewinvmat);
 
-			GPU_material_bind(m_gpuMat, m_lightLayer, m_blenderScene->lay, time, 1, viewmat, viewinvmat, nullptr, false);
+			GPU_material_bind(m_gpuMat, m_lightLayer, m_blenderScene->lay, time, 1, viewmat, viewinvmat, nullptr, false);*/
+
+			DRW_draw_shgroup(m_shGroup, (DRWState)(
+				DRW_STATE_WRITE_DEPTH |
+				DRW_STATE_DEPTH_LESS |
+				DRW_STATE_CULL_BACK |
+				DRW_STATE_WRITE_COLOR));
 		}
 		else {
 			GPU_material_unbind(m_gpuMat);

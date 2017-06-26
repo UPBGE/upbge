@@ -26,6 +26,6 @@
 #ifndef __EEVEE_ENGINE_H__
 #define __EEVEE_ENGINE_H__
 
-extern RenderEngineType DRW_engine_viewport_eevee_type;
+extern struct RenderEngineType DRW_engine_viewport_eevee_type;
 
 #endif /* __EEVEE_ENGINE_H__ */

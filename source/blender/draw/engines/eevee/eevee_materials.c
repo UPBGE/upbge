@@ -197,7 +197,7 @@ static char *eevee_get_defines(int options)
 	return str;
 }
 
-static void add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
+void EEVEE_shgroup_add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 {
 	DRW_shgroup_uniform_block(shgrp, "probe_block", sldata->probe_ubo);
 	DRW_shgroup_uniform_block(shgrp, "grid_block", sldata->grid_ubo);
@@ -447,7 +447,7 @@ static struct DRWShadingGroup *EEVEE_default_shading_group_get(
 		vedata->psl->default_pass[options] = DRW_pass_create("Default Lit Pass", state);
 
 		DRWShadingGroup *shgrp = DRW_shgroup_create(e_data.default_lit[options], vedata->psl->default_pass[options]);
-		add_standard_uniforms(shgrp, sldata, vedata);
+		EEVEE_shgroup_add_standard_uniforms(shgrp, sldata, vedata);
 	}
 
 	return DRW_shgroup_create(e_data.default_lit[options], vedata->psl->default_pass[options]);
@@ -601,7 +601,7 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_SceneLayerData *sl
 
 				shgrp = DRW_shgroup_material_create(gpumat, psl->material_pass);
 				if (shgrp) {
-					add_standard_uniforms(shgrp, sldata, vedata);
+					EEVEE_shgroup_add_standard_uniforms(shgrp, sldata, vedata);
 
 					BLI_ghash_insert(material_hash, ma, shgrp);
 
@@ -675,7 +675,7 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_SceneLayerData *sl
 
 								shgrp = DRW_shgroup_material_create(gpumat, psl->material_pass);
 								if (shgrp) {
-									add_standard_uniforms(shgrp, sldata, vedata);
+									EEVEE_shgroup_add_standard_uniforms(shgrp, sldata, vedata);
 
 									BLI_ghash_insert(material_hash, ma, shgrp);
 

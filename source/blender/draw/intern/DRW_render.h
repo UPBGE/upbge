@@ -356,6 +356,7 @@ bool DRW_object_is_renderable(struct Object *ob);
 bool DRW_object_is_flat_normal(struct Object *ob);
 
 /* Draw commands */
+void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state);
 void DRW_draw_pass(DRWPass *pass);
 
 void DRW_draw_text_cache_queue(struct DRWTextStore *dt);
@@ -378,6 +379,7 @@ void DRW_state_clip_planes_reset(void);
 void DRW_select_load_id(unsigned int id);
 
 /* Draw State */
+void DRW_state_set(DRWState state);
 void DRW_state_dfdy_factors_get(float dfdyfac[2]);
 bool DRW_state_is_fbo(void);
 bool DRW_state_is_select(void);
