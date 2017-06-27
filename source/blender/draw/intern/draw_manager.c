@@ -3290,12 +3290,12 @@ void DRW_draw_depth_loop(
 	rv3d->viewport = backup_viewport;
 }
 
-void DRW_game_render_loop_begin(GPUOffScreen *ofs)
+void DRW_game_render_loop_begin(GPUViewport *viewport)
 {
 	/* Reset before using it. */
 	memset(&DST, 0x0, sizeof(DST));
 
-	DST.viewport = GPU_viewport_create_from_offscreen(ofs);
+	DST.viewport = viewport;
 
 	DRW_engines_enable_basic();
 
@@ -3330,10 +3330,6 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs)
 
 void DRW_game_render_loop_end(void)
 {
-	/* Cleanup for selection state */
-	GPU_viewport_free(DST.viewport);
-	MEM_freeN(DST.viewport);
-
 #ifdef DEBUG
 	/* Avoid accidental reuse. */
 	memset(&DST, 0xFF, sizeof(DST));

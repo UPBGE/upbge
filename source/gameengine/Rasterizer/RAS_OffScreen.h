@@ -71,6 +71,7 @@ public:
 	unsigned GetHeight() const;
 	RAS_Rasterizer::OffScreenType GetType() const;
 
+	GPUOffScreen *GetOffScreen() const;
 	GPUTexture *GetDepthTexture();
 
 	static RAS_OffScreen *GetLastOffScreen();

@@ -271,6 +271,7 @@ void LA_Launcher::InitEngine()
 	// Set the global settings (carried over if restart/load new files).
 	m_ketsjiEngine->SetGlobalSettings(m_globalSettings);
 
+	m_rasterizer->Init();
 	InitCamera();
 
 #ifdef WITH_PYTHON
@@ -306,7 +307,6 @@ void LA_Launcher::InitEngine()
 	m_ketsjiEngine->AddScene(m_kxStartScene);
 	m_kxStartScene->Release();
 
-	m_rasterizer->Init();
 	m_ketsjiEngine->StartEngine();
 
 	/* Set the animation playback rate for ipo's and actions the 

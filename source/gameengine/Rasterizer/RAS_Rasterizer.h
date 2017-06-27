@@ -63,6 +63,7 @@ struct KX_ClientObjectInfo;
 class KX_RayCast;
 
 struct GPUShader;
+struct GPUViewport;
 
 /**
  * 3D rendering device context interface. 
@@ -344,6 +345,8 @@ private:
 
 	OverrideShaderType m_overrideShader;
 
+	GPUViewport *m_viewport;
+
 	std::unique_ptr<RAS_StorageVBO> m_storage;
 	std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
 
@@ -466,6 +469,9 @@ public:
 	 * \param righteyeindex The right off screen index.
 	 */
 	void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen);
+
+	void BindViewport(RAS_ICanvas *canvas);
+	void UnbindViewport();
 
 	/**
 	 * GetRenderArea computes the render area from the 2d canvas.

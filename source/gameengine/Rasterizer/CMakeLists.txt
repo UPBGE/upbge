@@ -37,6 +37,7 @@ set(INC
 	../../blender/blenfont
 	../../blender/blenlib
 	../../blender/blenkernel
+	../../blender/draw
 	../../blender/draw/engines/eevee/
 	../../blender/gpu
 	../../blender/imbuf

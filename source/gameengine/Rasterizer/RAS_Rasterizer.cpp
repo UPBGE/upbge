@@ -54,10 +54,13 @@
 #include "GPU_texture.h"
 
 #include "BLI_math_vector.h"
+#include "BLI_rect.h"
 
 extern "C" {
 #  include "BLF_api.h"
+#  include "GPU_viewport.h"
 #  include "GPU_uniformbuffer.h"
+#  include "DRW_engine.h"
 }
 
 #include "MEM_guardedalloc.h"
@@ -216,7 +219,8 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_invertFrontFace(false),
 	m_last_frontface(true),
-	m_overrideShader(RAS_OVERRIDE_SHADER_NONE)
+	m_overrideShader(RAS_OVERRIDE_SHADER_NONE),
+	m_viewport(nullptr)
 {
 	m_viewmatrix.setIdentity();
 	m_viewinvmatrix.setIdentity();
@@ -294,6 +298,9 @@ void RAS_Rasterizer::Init()
 
 	SetColorMask(true, true, true, true);
 
+	m_viewport = GPU_viewport_create();
+	DRW_game_render_loop_begin(m_viewport);
+
 	//m_impl->Init();
 }
 
@@ -320,6 +327,8 @@ void RAS_Rasterizer::Exit()
 	ResetGlobalDepthTexture();
 
 	EndFrame();
+
+	DRW_game_render_loop_end();
 }
 
 void RAS_Rasterizer::BeginFrame(double time)
@@ -546,6 +555,21 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 
 	SetDepthFunc(RAS_LEQUAL);
 	Enable(RAS_CULL_FACE);
+}
+
+void RAS_Rasterizer::BindViewport(RAS_ICanvas *canvas)
+{
+	const int *viewport = canvas->GetViewPort();
+
+	rcti rect;
+	BLI_rcti_init(&rect, viewport[0], viewport[2] - viewport[0], viewport[1], viewport[3] - viewport[1]);
+
+	GPU_viewport_bind(m_viewport, &rect);
+}
+
+void RAS_Rasterizer::UnbindViewport()
+{
+	GPU_viewport_unbind(m_viewport);
 }
 
 RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoEye eye)

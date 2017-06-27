@@ -604,12 +604,12 @@ void KX_KetsjiEngine::Render()
 
 	BeginFrame();
 
-	for (KX_Scene *scene : m_scenes) {
+	/*for (KX_Scene *scene : m_scenes) {
 		// shadow buffers
 		RenderShadowBuffers(scene);
 		// Render only independent texture renderers here.
 		scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_INDEPENDENT, m_rasterizer, nullptr, nullptr, RAS_Rect(), RAS_Rect());
-	}
+	}*/
 
 	std::vector<FrameRenderData> frameDataList;
 	const bool renderpereye = GetFrameRenderData(frameDataList);
@@ -619,10 +619,13 @@ void KX_KetsjiEngine::Render()
 
 	const int width = m_canvas->GetWidth();
 	const int height = m_canvas->GetHeight();
+	m_canvas->SetViewPort(0, 0, width, height);
+
+	m_rasterizer->BindViewport(m_canvas);
 	// clear the entire game screen with the border color
 	// only once per frame
-	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
-	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
+// 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
+// 	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 
 	KX_Scene *firstscene = m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
@@ -634,8 +637,8 @@ void KX_KetsjiEngine::Render()
 
 	for (FrameRenderData& frameData : frameDataList) {
 		// Current bound off screen.
-		RAS_OffScreen *offScreen = m_rasterizer->GetOffScreen(frameData.m_ofsType);
-		offScreen->Bind();
+// 		RAS_OffScreen *offScreen = m_rasterizer->GetOffScreen(frameData.m_ofsType);
+// 		offScreen->Bind();
 
 		// Clear off screen only before the first scene render.
 		m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT | RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
@@ -656,9 +659,10 @@ void KX_KetsjiEngine::Render()
 			// Draw the scene once for each camera with an enabled viewport or an active camera.
 			for (const CameraRenderData& cameraFrameData : sceneFrameData.m_cameraDataList) {
 				// do the rendering
-				RenderCamera(scene, cameraFrameData, offScreen, pass++, isfirstscene);
+				RenderCamera(scene, cameraFrameData, nullptr, pass++, isfirstscene);
 			}
 
+#if 0
 			/* Choose final render off screen target. If the current off screen is using multisamples we
 			 * are sure that it will be copied to a non-multisamples off screen before render the filters.
 			 * In this case the targeted off screen is the same as the current off screen. */
@@ -682,11 +686,11 @@ void KX_KetsjiEngine::Render()
 			// Render filters and get output off screen.
 			offScreen = PostRenderScene(scene, offScreen, m_rasterizer->GetOffScreen(target));
 			frameData.m_ofsType = offScreen->GetType();
+#endif
 		}
 	}
 
-	m_canvas->SetViewPort(0, 0, width, height);
-
+#if 0
 	// Compositing per eye off screens to screen.
 	if (renderpereye) {
 		RAS_OffScreen *leftofs = m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType);
@@ -697,6 +701,9 @@ void KX_KetsjiEngine::Render()
 	else {
 		m_rasterizer->DrawOffScreen(m_canvas, m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType));
 	}
+#endif
+
+	m_rasterizer->UnbindViewport();
 
 	EndFrame();
 }
@@ -964,7 +971,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	/* Render texture probes depending of the the current viewport and area, these texture probes are commonly the planar map
 	 * which need to be recomputed by each view in case of multi-viewport or stereo.
 	 */
-	scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_DEPENDENT, m_rasterizer, offScreen, rendercam, viewport, area);
+// 	scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_DEPENDENT, m_rasterizer, offScreen, rendercam, viewport, area);
 
 	// set the viewport for this frame and scene
 	const int left = viewport.GetLeft();
@@ -1048,7 +1055,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 
-	RAS_OffScreen *offScreen = scene->Render2DFilters(m_rasterizer, m_canvas, inputofs, targetofs);
+	RAS_OffScreen *offScreen = nullptr; //scene->Render2DFilters(m_rasterizer, m_canvas, inputofs, targetofs);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());

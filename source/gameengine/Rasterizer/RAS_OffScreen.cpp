@@ -118,6 +118,11 @@ RAS_Rasterizer::OffScreenType RAS_OffScreen::GetType() const
 	return m_type;
 }
 
+GPUOffScreen * RAS_OffScreen::GetOffScreen() const
+{
+	return m_offScreen;
+}
+
 GPUTexture *RAS_OffScreen::GetDepthTexture()
 {
 	return GPU_offscreen_depth_texture(m_offScreen);
