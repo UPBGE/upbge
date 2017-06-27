@@ -84,6 +84,8 @@ void DRW_draw_select_loop(
 void DRW_draw_depth_loop(
         struct Depsgraph *graph,
         struct ARegion *ar, struct View3D *v3d);
+void DRW_game_render_loop_begin(struct GPUOffScreen *ofs);
+void DRW_game_render_loop_end(void);
 
 /* This is here because GPUViewport needs it */
 void DRW_pass_free(struct DRWPass *pass);

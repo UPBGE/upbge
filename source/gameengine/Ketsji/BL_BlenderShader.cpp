@@ -215,9 +215,11 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 	float viewmat[4][4];
 	float *obcol = (float *)ms->m_meshUser->GetColor().getValue();
 
-	rasty->GetViewMatrix().getValue((float *)viewmat);
-	float auto_bump_scale = ms->m_pDerivedMesh != 0 ? ms->m_pDerivedMesh->auto_bump_scale : 1.0f;
-	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])ms->m_meshUser->GetMatrix(), viewmat, obcol, auto_bump_scale, nullptr, nullptr);
+// 	rasty->GetViewMatrix().getValue((float *)viewmat);
+// 	float auto_bump_scale = ms->m_pDerivedMesh != 0 ? ms->m_pDerivedMesh->auto_bump_scale : 1.0f;
+// 	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])ms->m_meshUser->GetMatrix(), viewmat, obcol, auto_bump_scale, nullptr, nullptr);
+
+	DRW_draw_geometry_prepare(m_shGroup, (float(*)[4])ms->m_meshUser->GetMatrix(), nullptr, nullptr);
 
 	m_alphaBlend = GPU_material_alpha_blend(m_gpuMat, obcol);
 }

@@ -356,6 +356,7 @@ bool DRW_object_is_renderable(struct Object *ob);
 bool DRW_object_is_flat_normal(struct Object *ob);
 
 /* Draw commands */
+void DRW_draw_geometry_prepare(DRWShadingGroup *shgroup, const float (*obmat)[4], const float *texcoloc, const float *texcosize);
 void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state);
 void DRW_draw_pass(DRWPass *pass);
 
@@ -367,6 +368,7 @@ void DRW_draw_callbacks_post_scene(void);
 int DRW_draw_region_engine_info_offset(void);
 void DRW_draw_region_engine_info(void);
 
+void DRW_state_set(DRWState state);
 void DRW_state_reset_ex(DRWState state);
 void DRW_state_reset(void);
 
@@ -379,7 +381,6 @@ void DRW_state_clip_planes_reset(void);
 void DRW_select_load_id(unsigned int id);
 
 /* Draw State */
-void DRW_state_set(DRWState state);
 void DRW_state_dfdy_factors_get(float dfdyfac[2]);
 bool DRW_state_is_fbo(void);
 bool DRW_state_is_select(void);
