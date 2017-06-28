@@ -216,7 +216,7 @@ void EEVEE_shgroup_add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLaye
 	DRW_shgroup_uniform_buffer(shgrp, "irradianceGrid", &sldata->irradiance_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "shadowCubes", &sldata->shadow_depth_cube_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "shadowCascades", &sldata->shadow_depth_cascade_pool);
-	if (vedata->stl->effects->use_ao) {
+	if (vedata->stl->effects && vedata->stl->effects->use_ao) {
 		DRW_shgroup_uniform_vec4(shgrp, "viewvecs[0]", (float *)e_data.viewvecs, 2);
 		DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
 		DRW_shgroup_uniform_vec3(shgrp, "aoParameters", &vedata->stl->effects->ao_dist, 1);
@@ -225,11 +225,13 @@ void EEVEE_shgroup_add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLaye
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 
 	Scene *scene = draw_ctx->scene;
-	scene->eevee_util_tex = e_data.util_tex;
-	scene->eevee_ubo = sldata->light_ubo;
-	scene->eevee_probe_count = sldata->probes->num_render_cube;
-	scene->eevee_probe_tex = sldata->probe_pool;
-	scene->eevee_lod_max = sldata->probes->lodmax;
+	if (scene) {
+		scene->eevee_util_tex = e_data.util_tex;
+		scene->eevee_ubo = sldata->light_ubo;
+		scene->eevee_probe_count = sldata->probes->num_render_cube;
+		scene->eevee_probe_tex = sldata->probe_pool;
+		scene->eevee_lod_max = sldata->probes->lodmax;
+	}
 }
 
 static void create_default_shader(int options)

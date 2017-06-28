@@ -135,31 +135,37 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 	glBindBuffer(GL_ARRAY_BUFFER, m_vbo_id);
 
 	// Vertexes
-	char *vertattrib = "pos";
+	const char *vertattrib = "pos";
 	vertattribloc = glGetAttribLocation(program, vertattrib);
 	glEnableVertexAttribArray(vertattribloc);
 	glVertexAttribPointer(vertattribloc, 3,	GL_FLOAT, GL_FALSE,	m_stride, m_vertex_offset);
 
 	// Normals
-	char *normalattrib = "nor";
+	const char *normalattrib = "nor";
 	normalattribloc = glGetAttribLocation(program, normalattrib);
 	glEnableVertexAttribArray(normalattribloc);
 	glVertexAttribPointer(normalattribloc, 3, GL_FLOAT, GL_FALSE, m_stride, m_normal_offset);
 
-	char *uvattrib = "u"; // UV coordinates
+	const char *uvattrib = "u"; // UV coordinates
 	int uvattribloc = glGetAttribLocation(program, uvattrib);
-	glEnableVertexAttribArray(uvattribloc);
-	glVertexAttribPointer(uvattribloc, 2, GL_FLOAT, GL_FALSE, m_stride, m_uv_offset);
+	if (uvattribloc != -1) {
+		glEnableVertexAttribArray(uvattribloc);
+		glVertexAttribPointer(uvattribloc, 2, GL_FLOAT, GL_FALSE, m_stride, m_uv_offset);
+	}
 
-	char *tattrib = "t"; // Tangent coordinates
+	const char *tattrib = "t"; // Tangent coordinates
 	int tattribloc = glGetAttribLocation(program, tattrib);
-	glEnableVertexAttribArray(tattribloc);
-	glVertexAttribPointer(tattribloc, 4, GL_FLOAT, GL_FALSE, m_stride, m_tangent_offset);
+	if (tattribloc != -1) {
+		glEnableVertexAttribArray(tattribloc);
+		glVertexAttribPointer(tattribloc, 4, GL_FLOAT, GL_FALSE, m_stride, m_tangent_offset);
+	}
 
-	char *cattrib = "c"; // Color coordinates
+	const char *cattrib = "c"; // Color coordinates
 	int cattribloc = glGetAttribLocation(program, cattrib);
-	glEnableVertexAttribArray(cattribloc);
-	glVertexAttribPointer(cattribloc, 4, GL_UNSIGNED_BYTE, GL_TRUE, m_stride, m_color_offset);
+	if (cattribloc != -1) {
+		glEnableVertexAttribArray(cattribloc);
+		glVertexAttribPointer(cattribloc, 4, GL_UNSIGNED_BYTE, GL_TRUE, m_stride, m_color_offset);
+	}
 
 	// Colors
 	/*if (!wireframe) {

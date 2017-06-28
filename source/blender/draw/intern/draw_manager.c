@@ -292,6 +292,7 @@ static struct DRWGlobalState {
 	float size[2];
 	float screenvecs[2][3];
 	float pixsize;
+	bool is_persp;
 
 	GLenum backface, frontface;
 
@@ -1828,6 +1829,21 @@ void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 	DRW_state_reset();
 }
 
+void DRW_end_shgroup(void)
+{
+	/* Clear Bound textures */
+	for (DRWBoundTexture *bound_tex = DST.bound_texs.first; bound_tex; bound_tex = bound_tex->next) {
+		GPU_texture_unbind(bound_tex->tex);
+	}
+	DST.tex_bind_id = 0;
+	BLI_freelistN(&DST.bound_texs);
+
+	if (DST.shader) {
+		GPU_shader_unbind();
+		DST.shader = NULL;
+	}
+}
+
 void DRW_draw_pass(DRWPass *pass)
 {
 	/* Start fresh */
@@ -1864,17 +1880,7 @@ void DRW_draw_pass(DRWPass *pass)
 		DRW_draw_shgroup(shgroup, pass->state);
 	}
 
-	/* Clear Bound textures */
-	for (DRWBoundTexture *bound_tex = DST.bound_texs.first; bound_tex; bound_tex = bound_tex->next) {
-		GPU_texture_unbind(bound_tex->tex);
-	}
-	DST.tex_bind_id = 0;
-	BLI_freelistN(&DST.bound_texs);
-
-	if (DST.shader) {
-		GPU_shader_unbind();
-		DST.shader = NULL;
-	}
+	DRW_end_shgroup();
 
 	if (!pass->wasdrawn) {
 		glEndQuery(GL_TIME_ELAPSED);
@@ -2069,7 +2075,9 @@ void DRW_framebuffer_init(
 			}
 		}
 
-		GPU_framebuffer_bind(DST.default_framebuffer);
+		if (DRW_state_is_fbo()) {
+			GPU_framebuffer_bind(DST.default_framebuffer);
+		}
 	}
 }
 
@@ -2265,6 +2273,28 @@ static void DRW_viewport_var_init(void)
 {
 	RegionView3D *rv3d = DST.draw_ctx.rv3d;
 
+	DRW_viewport_size_init();
+
+	/* Refresh DST.screenvecs */
+	copy_v3_v3(DST.screenvecs[0], rv3d->viewinv[0]);
+	copy_v3_v3(DST.screenvecs[1], rv3d->viewinv[1]);
+	normalize_v3(DST.screenvecs[0]);
+	normalize_v3(DST.screenvecs[1]);
+
+	/* Refresh DST.pixelsize */
+	DST.pixsize = rv3d->pixsize;
+
+	/* Refresh DST.is_persp */
+	DST.is_persp = rv3d->is_persp;
+
+	/* Reset facing */
+	DST.frontface = GL_CCW;
+	DST.backface = GL_CW;
+	glFrontFace(DST.frontface);
+}
+
+void DRW_viewport_size_init(void)
+{
 	/* Refresh DST.size */
 	if (DST.viewport) {
 		int size[2];
@@ -2281,19 +2311,6 @@ static void DRW_viewport_var_init(void)
 
 		DST.default_framebuffer = NULL;
 	}
-	/* Refresh DST.screenvecs */
-	copy_v3_v3(DST.screenvecs[0], rv3d->viewinv[0]);
-	copy_v3_v3(DST.screenvecs[1], rv3d->viewinv[1]);
-	normalize_v3(DST.screenvecs[0]);
-	normalize_v3(DST.screenvecs[1]);
-
-	/* Refresh DST.pixelsize */
-	DST.pixsize = rv3d->pixsize;
-
-	/* Reset facing */
-	DST.frontface = GL_CCW;
-	DST.backface = GL_CW;
-	glFrontFace(DST.frontface);
 }
 
 void DRW_viewport_matrix_get(float mat[4][4], DRWViewportMatrixType type)
@@ -2338,8 +2355,7 @@ void DRW_viewport_matrix_override_unset(DRWViewportMatrixType type)
 
 bool DRW_viewport_is_persp_get(void)
 {
-	RegionView3D *rv3d = DST.draw_ctx.rv3d; // TODO(UPBGE) DST.is_persp
-	return rv3d->is_persp;
+	return DST.is_persp;
 }
 
 DefaultFramebufferList *DRW_viewport_framebuffer_list_get(void)
@@ -3299,13 +3315,13 @@ void DRW_game_render_loop_begin(GPUViewport *viewport)
 
 	DRW_engines_enable_basic();
 
-	int size[2];
+	/*int size[2];
 	GPU_viewport_size_get(DST.viewport, size);
 	DST.size[0] = size[0];
 	DST.size[1] = size[1];
 
 	DefaultFramebufferList *fbl = (DefaultFramebufferList *)GPU_viewport_framebuffer_list_get(DST.viewport);
-	DST.default_framebuffer = fbl->default_fb;
+	DST.default_framebuffer = fbl->default_fb;*/
 
 	/* Refresh DST.screenvecs */
 	/*copy_v3_v3(DST.screenvecs[0], rv3d->viewinv[0]);
@@ -3315,6 +3331,8 @@ void DRW_game_render_loop_begin(GPUViewport *viewport)
 
 	/* Refresh DST.pixelsize */
 	/* DST.pixsize = rv3d->pixsize; TODO(UPBGE) */
+
+	DST.is_persp = true;
 
 	/* Reset facing */
 	DST.frontface = GL_CCW;

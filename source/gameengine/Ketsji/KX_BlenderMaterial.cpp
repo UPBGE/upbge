@@ -43,6 +43,10 @@
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 
+extern "C" {
+#  include "DRW_render.h"
+}
+
 KX_BlenderMaterial::KX_BlenderMaterial(
 		KX_Scene *scene,
 		Material *mat,
@@ -160,7 +164,7 @@ SCA_IScene *KX_BlenderMaterial::GetScene() const
 void KX_BlenderMaterial::ReleaseMaterial()
 {
 	if (m_blenderShader)
-		m_blenderShader->ReloadMaterial();
+		m_blenderShader->ReloadMaterial(m_scene);
 }
 
 void KX_BlenderMaterial::InitTextures()
@@ -194,6 +198,7 @@ void KX_BlenderMaterial::EndFrame(RAS_Rasterizer *rasty)
 {
 	rasty->SetAlphaBlend(GPU_BLEND_SOLID);
 	RAS_Texture::DesactiveTextures();
+	DRW_end_shgroup();
 }
 
 void KX_BlenderMaterial::OnExit()

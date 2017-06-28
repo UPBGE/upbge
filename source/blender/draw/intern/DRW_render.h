@@ -329,6 +329,7 @@ typedef enum {
 } DRWViewportMatrixType;
 
 void DRW_viewport_init(const bContext *C);
+void DRW_viewport_size_init(void);
 void DRW_viewport_matrix_get(float mat[4][4], DRWViewportMatrixType type);
 void DRW_viewport_matrix_override_set(float mat[4][4], DRWViewportMatrixType type);
 void DRW_viewport_matrix_override_unset(DRWViewportMatrixType type);
@@ -358,6 +359,7 @@ bool DRW_object_is_flat_normal(struct Object *ob);
 /* Draw commands */
 void DRW_draw_geometry_prepare(DRWShadingGroup *shgroup, const float (*obmat)[4], const float *texcoloc, const float *texcosize);
 void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state);
+void DRW_end_shgroup(void);
 void DRW_draw_pass(DRWPass *pass);
 
 void DRW_draw_text_cache_queue(struct DRWTextStore *dt);

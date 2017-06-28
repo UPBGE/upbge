@@ -193,7 +193,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 
 
 	if (!managerData->m_shaderOverride) {
-		materialData->m_material->ActivateMeshSlot(this, rasty);
+		materialData->m_material->ActivateMeshSlot(this, rasty); // TODO sent the matrix with billboard/ray transform
 	}
 
 	if (materialData->m_zsort && managerData->m_drawingMode >= RAS_Rasterizer::RAS_SOLID && displayArrayData->m_storageInfo) {
@@ -235,7 +235,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 		*/
 		GPUMaterial *gpumat = GetGpuMat();
 		if (gpumat && ((rasty->GetDrawingMode() != RAS_Rasterizer::RAS_SHADOW) && (rasty->GetDrawingMode() != RAS_Rasterizer::RAS_WIREFRAME))) {
-			GPUPass *pass = GPU_material_get_pass(gpumat);
+			/*GPUPass *pass = GPU_material_get_pass(gpumat);
 			GPUShader *shader = GPU_pass_shader(pass);
 			GPU_shader_bind(shader);
 
@@ -321,7 +321,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			GPU_shader_uniform_int(shader, planarcountloc, 0);
 
 			int spectoggleloc = GPU_shader_get_uniform(shader, "specToggle");
-			GPU_shader_uniform_int(shader, spectoggleloc, 1);
+			GPU_shader_uniform_int(shader, spectoggleloc, 1);*/
 		}
 		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
 	}

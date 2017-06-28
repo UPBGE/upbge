@@ -549,22 +549,12 @@ public:
 	/// Render text mesh slot using BLF functions.
 	void IndexPrimitivesText(RAS_MeshSlot *ms);
  
-	void SetProjectionMatrix(MT_CmMatrix4x4 &mat);
-
-	/* This one should become our final version, methinks. */
-	/**
-	 * Set the projection matrix for the rasterizer. This projects
-	 * from camera coordinates to window coordinates.
-	 * \param mat The projection matrix.
-	 */
-	void SetProjectionMatrix(const MT_Matrix4x4 &mat);
-
 	/// Get the modelview matrix according to the stereo settings.
 	MT_Matrix4x4 GetViewMatrix(StereoEye eye, const MT_Transform &camtrans, bool perspective);
 	/**
 	 * Sets the modelview matrix.
 	 */
-	void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Vector3 &pos, const MT_Vector3 &scale);
+	void SetMatrix(const MT_Matrix4x4 &viewmat, const MT_Matrix4x4& projmat, const MT_Vector3 &pos, const MT_Vector3 &scale);
 
 	/**
 	 * Get/Set viewport area

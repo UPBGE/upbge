@@ -52,6 +52,7 @@
 #include "GPU_shader.h"
 #include "GPU_framebuffer.h"
 #include "GPU_texture.h"
+#include "GPU_matrix.h"
 
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
@@ -61,6 +62,7 @@ extern "C" {
 #  include "GPU_viewport.h"
 #  include "GPU_uniformbuffer.h"
 #  include "DRW_engine.h"
+#  include "DRW_render.h"
 }
 
 #include "MEM_guardedalloc.h"
@@ -288,6 +290,8 @@ void RAS_Rasterizer::SetAmbientColor(const MT_Vector3& color)
 void RAS_Rasterizer::Init()
 {
 	GPU_state_init();
+
+	gpuMatrixReset();
 
 	Disable(RAS_BLEND);
 	Disable(RAS_ALPHA_TEST);
@@ -562,9 +566,10 @@ void RAS_Rasterizer::BindViewport(RAS_ICanvas *canvas)
 	const int *viewport = canvas->GetViewPort();
 
 	rcti rect;
-	BLI_rcti_init(&rect, viewport[0], viewport[2] - viewport[0], viewport[1], viewport[3] - viewport[1]);
+	BLI_rcti_init(&rect, viewport[0], viewport[0] + viewport[2], viewport[1], viewport[1] + viewport[3]);
 
 	GPU_viewport_bind(m_viewport, &rect);
+	DRW_viewport_size_init();
 }
 
 void RAS_Rasterizer::UnbindViewport()
@@ -834,26 +839,6 @@ void RAS_Rasterizer::IndexPrimitivesDerivedMesh(RAS_MeshSlot *ms)
 	m_impl->DrawDerivedMesh(ms, m_drawingmode);
 }
 
-void RAS_Rasterizer::SetProjectionMatrix(MT_CmMatrix4x4 &mat)
-{
-	SetMatrixMode(RAS_PROJECTION);
-	float *matrix = &mat(0, 0);
-	LoadMatrix(matrix);
-
-	m_camortho = (mat(3, 3) != 0.0f);
-}
-
-void RAS_Rasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
-{
-	SetMatrixMode(RAS_PROJECTION);
-	float matrix[16];
-	/* Get into argument. Looks a bit dodgy, but it's ok. */
-	mat.getValue(matrix);
-	LoadMatrix(matrix);
-
-	m_camortho = (mat[3][3] != 0.0f);
-}
-
 MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(
 	StereoEye eye,
     float left,
@@ -962,7 +947,7 @@ MT_Matrix4x4 RAS_Rasterizer::GetViewMatrix(StereoEye eye, const MT_Transform &ca
 	return camtrans.toMatrix();
 }
 
-void RAS_Rasterizer::SetViewMatrix(const MT_Matrix4x4& viewmat, const MT_Vector3& pos, const MT_Vector3& scale)
+void RAS_Rasterizer::SetMatrix(const MT_Matrix4x4& viewmat, const MT_Matrix4x4& projmat, const MT_Vector3& pos, const MT_Vector3& scale)
 {
 	m_viewmatrix = viewmat;
 
@@ -981,12 +966,29 @@ void RAS_Rasterizer::SetViewMatrix(const MT_Matrix4x4& viewmat, const MT_Vector3
 	m_viewinvmatrix = m_viewmatrix.inverse();
 	m_campos = pos;
 
-	// note: getValue gives back column major as needed by OpenGL
-	float glviewmat[16];
-	m_viewmatrix.getValue(glviewmat);
+	float mat[4][4];
+	float matinv[4][4];
 
-	SetMatrixMode(RAS_MODELVIEW);
-	LoadMatrix(glviewmat);
+	m_viewmatrix.getValue(&mat[0][0]);
+	m_viewinvmatrix.getValue(&matinv[0][0]);
+
+	DRW_viewport_matrix_override_set(mat, DRW_MAT_VIEW);
+	DRW_viewport_matrix_override_set(matinv, DRW_MAT_VIEWINV);
+
+	projmat.getValue(&mat[0][0]);
+	projmat.inverse().getValue(&matinv[0][0]);
+
+	DRW_viewport_matrix_override_set(mat, DRW_MAT_WIN);
+	DRW_viewport_matrix_override_set(matinv, DRW_MAT_WININV);
+
+	const MT_Matrix4x4 persmat = projmat * viewmat;
+	persmat.getValue(&mat[0][0]);
+	persmat.inverse().getValue(&matinv[0][0]);
+
+	DRW_viewport_matrix_override_set(mat, DRW_MAT_PERS);
+	DRW_viewport_matrix_override_set(matinv, DRW_MAT_PERSINV);
+
+	m_camortho = (mat[3][3] != 0.0f);
 }
 
 void RAS_Rasterizer::SetViewport(int x, int y, int width, int height)
@@ -1514,32 +1516,32 @@ void RAS_Rasterizer::RenderText3D(
 
 void RAS_Rasterizer::PushMatrix()
 {
-	m_impl->PushMatrix();
+// 	m_impl->PushMatrix();
 }
 
 void RAS_Rasterizer::PopMatrix()
 {
-	m_impl->PopMatrix();
+// 	m_impl->PopMatrix();
 }
 
 void RAS_Rasterizer::SetMatrixMode(RAS_Rasterizer::MatrixMode mode)
 {
-	m_impl->SetMatrixMode(mode);
+// 	m_impl->SetMatrixMode(mode);
 }
 
 void RAS_Rasterizer::MultMatrix(const float mat[16])
 {
-	m_impl->MultMatrix(mat);
+// 	m_impl->MultMatrix(mat);
 }
 
 void RAS_Rasterizer::LoadMatrix(const float mat[16])
 {
-	m_impl->LoadMatrix(mat);
+// 	m_impl->LoadMatrix(mat);
 }
 
 void RAS_Rasterizer::LoadIdentity()
 {
-	m_impl->LoadIdentity();
+// 	m_impl->LoadIdentity();
 }
 
 void RAS_Rasterizer::UpdateGlobalDepthTexture(RAS_OffScreen *offScreen)

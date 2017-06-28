@@ -381,12 +381,10 @@ bool ImageRender::Render()
 		m_camera->SetProjectionMatrix(projmat);
 	}
 
-	m_rasterizer->SetProjectionMatrix(m_camera->GetProjectionMatrix());
-
 	MT_Transform camtrans(m_camera->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
 	
-	m_rasterizer->SetViewMatrix(viewmat, m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling());
+	m_rasterizer->SetMatrix(viewmat, m_camera->GetProjectionMatrix(), m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling());
 	m_camera->SetModelviewMatrix(viewmat);
 
 	// restore the stereo mode now that the matrix is computed

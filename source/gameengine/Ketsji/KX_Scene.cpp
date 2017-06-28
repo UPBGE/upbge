@@ -215,15 +215,18 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	//Set EEVEE DATA TEEEEEEEEEEMP
 	m_utilTex = m_blenderScene->eevee_util_tex;
-	GPU_texture_bind(m_utilTex, 7);
+// 	GPU_texture_bind(m_utilTex, 7);
 	m_lightsUbo = m_blenderScene->eevee_ubo;
 	
 	m_probeTex = m_blenderScene->eevee_probe_tex;
-	GPU_texture_bind(m_probeTex, 6);
+// 	GPU_texture_bind(m_probeTex, 6);
 	m_probeCount = m_blenderScene->eevee_probe_count;
 	m_probeLodMax = m_blenderScene->eevee_lod_max;
 
-	EEVEE_engine_init_scene_layer_data(EEVEE_engine_data_get(), &m_layerData);
+// 	EEVEE_engine_init_scene_layer_data(EEVEE_engine_data_get(), &m_layerData);
+	memset(&m_layerData, 0, sizeof(EEVEE_SceneLayerData));
+	EEVEE_lights_init(&m_layerData);
+	EEVEE_lightprobes_init(&m_layerData, EEVEE_engine_data_get());
 
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
