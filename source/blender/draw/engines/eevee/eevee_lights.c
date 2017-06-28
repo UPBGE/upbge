@@ -363,8 +363,8 @@ static void eevee_shadow_cube_setup(Object *ob, EEVEE_LampsInfo *linfo, EEVEE_La
 	}
 
 	evsh->bias = 0.05f * la->bias;
-	evsh->near = la->clipsta;
-	evsh->far = la->clipend;
+	evsh->nearf = la->clipsta;
+	evsh->farf = la->clipend;
 	evsh->exp = la->bleedexp;
 
 	evli->shadowid = (float)(evsmp->shadow_id);

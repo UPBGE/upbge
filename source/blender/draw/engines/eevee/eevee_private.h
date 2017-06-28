@@ -156,12 +156,12 @@ typedef struct EEVEE_Light {
 } EEVEE_Light;
 
 typedef struct EEVEE_ShadowCube {
-	float near, far, bias, exp;
+	float nearf, farf, bias, exp;
 } EEVEE_ShadowCube;
 
 typedef struct EEVEE_ShadowMap {
 	float shadowmat[4][4]; /* World->Lamp->NDC->Tex : used for sampling the shadow map. */
-	float near, far, bias, pad;
+	float nearf, farf, bias, pad;
 } EEVEE_ShadowMap;
 
 typedef struct EEVEE_ShadowCascade {

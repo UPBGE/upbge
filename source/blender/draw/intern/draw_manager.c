@@ -3299,7 +3299,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs)
 
 	DRW_engines_enable_basic();
 
-	int size[0];
+	int size[2];
 	GPU_viewport_size_get(DST.viewport, size);
 	DST.size[0] = size[0];
 	DST.size[1] = size[1];

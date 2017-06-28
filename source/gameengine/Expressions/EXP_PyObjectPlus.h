@@ -49,6 +49,8 @@ extern "C" {
 
 #define MAX_PROP_NAME 64
 
+class PyObjectPlus;
+
 // Use with ShowDeprecationWarning macro.
 typedef struct {
 	bool warn_done;
