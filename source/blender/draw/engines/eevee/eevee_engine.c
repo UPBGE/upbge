@@ -41,13 +41,23 @@ extern GlobalsUboStorage ts;
 
 /* *********** FUNCTIONS *********** */
 
+
+void EEVEE_engine_init_scene_layer_data(EEVEE_Data *vedata, EEVEE_SceneLayerData *sldata)
+{
+	EEVEE_materials_init();
+	EEVEE_lights_init(sldata);
+	EEVEE_lightprobes_init(sldata, vedata);
+	EEVEE_effects_init(vedata);
+}
+
 static void EEVEE_engine_init(void *ved)
 {
 	EEVEE_Data *vedata = (EEVEE_Data *)ved;
+	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
+
 	EEVEE_TextureList *txl = vedata->txl;
 	EEVEE_FramebufferList *fbl = vedata->fbl;
 	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
-	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 
 	DRWFboTexture tex = {&txl->color, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER};
 
@@ -62,10 +72,7 @@ static void EEVEE_engine_init(void *ved)
 	}
 	stl->g_data->background_alpha = 1.0f;
 
-	EEVEE_materials_init();
-	EEVEE_lights_init(sldata);
-	EEVEE_lightprobes_init(sldata, vedata);
-	EEVEE_effects_init(vedata);
+	EEVEE_engine_init_scene_layer_data(vedata, sldata);
 }
 
 static void EEVEE_cache_init(void *vedata)

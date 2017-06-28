@@ -26,6 +26,7 @@
  *  \ingroup draw_engine
  */
 
+#include "DRW_engine.h"
 #include "DRW_render.h"
 
 #include "eevee_private.h"
@@ -87,6 +88,12 @@ EEVEE_SceneLayerData *EEVEE_scene_layer_data_get(void)
 	}
 
 	return *sldata;
+}
+
+EEVEE_Data *EEVEE_engine_data_get(void)
+{
+	EEVEE_Data *data = (EEVEE_Data *)DRW_viewport_engine_data_get(&draw_engine_eevee_type);
+	return data;
 }
 
 EEVEE_ObjectEngineData *EEVEE_object_data_get(Object *ob)

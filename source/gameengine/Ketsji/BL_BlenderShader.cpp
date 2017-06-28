@@ -67,7 +67,7 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lig
 	m_gpuMat(nullptr),
 	m_shGroup(nullptr)
 {
-	ReloadMaterial();
+	ReloadMaterial(scene);
 }
 
 BL_BlenderShader::~BL_BlenderShader()
@@ -123,7 +123,7 @@ bool BL_BlenderShader::Ok() const
 	return (m_gpuMat != nullptr);
 }
 
-void BL_BlenderShader::ReloadMaterial()
+void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 {
 	m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false);
 
@@ -131,7 +131,7 @@ void BL_BlenderShader::ReloadMaterial()
 		DRW_shgroup_free(m_shGroup);
 	}
 	m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
-	EEVEE_shgroup_add_standard_uniforms(m_shGroup, EEVEE_scene_layer_data_get(), (EEVEE_Data *)DRW_viewport_engine_data_get(&DRW_engine_viewport_eevee_type));
+	EEVEE_shgroup_add_standard_uniforms(m_shGroup, EEVEE_scene_layer_data_get(), scene->GetSceneLayerData());
 
 	ParseAttribs();
 }

@@ -86,7 +86,7 @@ public:
 	void ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 	void DesactivateInstancing();
 
-	void ReloadMaterial();
+	void ReloadMaterial(KX_Scene *scene);
 	int GetAlphaBlend();
 };
 

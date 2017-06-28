@@ -405,6 +405,7 @@ typedef struct EEVEE_PrivateData {
 
 /* eevee_data.c */
 EEVEE_SceneLayerData *EEVEE_scene_layer_data_get(void);
+EEVEE_Data *EEVEE_engine_data_get(void);
 EEVEE_ObjectEngineData *EEVEE_object_data_get(Object *ob);
 EEVEE_LightProbeEngineData *EEVEE_lightprobe_data_get(Object *ob);
 EEVEE_LampEngineData *EEVEE_lamp_data_get(Object *ob);
@@ -447,6 +448,9 @@ void EEVEE_effects_cache_init(EEVEE_Data *vedata);
 void EEVEE_create_minmax_buffer(EEVEE_Data *vedata, struct GPUTexture *depth_src);
 void EEVEE_draw_effects(EEVEE_Data *vedata);
 void EEVEE_effects_free(void);
+
+/* eevee_engine.c */
+void EEVEE_engine_init_scene_layer_data(EEVEE_Data *vedata, EEVEE_SceneLayerData *sldata);
 
 /* Shadow Matrix */
 static const float texcomat[4][4] = { /* From NDC to TexCo */

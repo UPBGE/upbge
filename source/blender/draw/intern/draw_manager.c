@@ -2338,7 +2338,7 @@ void DRW_viewport_matrix_override_unset(DRWViewportMatrixType type)
 
 bool DRW_viewport_is_persp_get(void)
 {
-	RegionView3D *rv3d = DST.draw_ctx.rv3d;
+	RegionView3D *rv3d = DST.draw_ctx.rv3d; // TODO(UPBGE) DST.is_persp
 	return rv3d->is_persp;
 }
 

@@ -151,6 +151,7 @@ protected:
 	GPUTexture *m_probeTex;
 	int m_probeCount;
 	float m_probeLodMax;
+	EEVEE_SceneLayerData m_layerData;
 
 
 	KX_TextureRendererManager *m_rendererManager;
@@ -338,6 +339,7 @@ public:
 	GPUTexture *GetProbeTex();
 	int GetProbeCount();
 	float GetProbeLodMax();
+	EEVEE_SceneLayerData& GetSceneLayerData();
 
 	KX_Scene(SCA_IInputDevice *inputDevice,
 		const std::string& scenename,

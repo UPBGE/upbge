@@ -223,6 +223,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_probeCount = m_blenderScene->eevee_probe_count;
 	m_probeLodMax = m_blenderScene->eevee_lod_max;
 
+	EEVEE_engine_init_scene_layer_data(EEVEE_engine_data_get(), &m_layerData);
+
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
 
@@ -345,6 +347,11 @@ int KX_Scene::GetProbeCount()
 float KX_Scene::GetProbeLodMax()
 {
 	return m_probeLodMax;
+}
+
+EEVEE_SceneLayerData& KX_Scene::GetSceneLayerData()
+{
+	return m_layerData;
 }
 
 std::string KX_Scene::GetName()
