@@ -310,8 +310,8 @@ void RAS_Rasterizer::Init()
 
 void RAS_Rasterizer::Exit()
 {
-	Enable(RAS_CULL_FACE);
-	Enable(RAS_DEPTH_TEST);
+// 	Enable(RAS_CULL_FACE);
+// 	Enable(RAS_DEPTH_TEST);
 
 	SetClearDepth(1.0f);
 	SetColorMask(true, true, true, true);
@@ -319,13 +319,13 @@ void RAS_Rasterizer::Exit()
 	SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
-	SetDepthMask(RAS_DEPTHMASK_ENABLED);
-	SetDepthFunc(RAS_LEQUAL);
-	SetBlendFunc(RAS_ONE, RAS_ZERO);
+// 	SetDepthMask(RAS_DEPTHMASK_ENABLED);
+// 	SetDepthFunc(RAS_LEQUAL);
+// 	SetBlendFunc(RAS_ONE, RAS_ZERO);
 
-	Disable(RAS_POLYGON_STIPPLE);
+// 	Disable(RAS_POLYGON_STIPPLE);
 
-	Disable(RAS_LIGHTING);
+// 	Disable(RAS_LIGHTING);
 	//m_impl->Exit();
 
 	ResetGlobalDepthTexture();
@@ -340,7 +340,7 @@ void RAS_Rasterizer::BeginFrame(double time)
 	m_time = time;
 
 	// Blender camera routine destroys the settings
-	if (m_drawingmode < RAS_SOLID) {
+	/*if (m_drawingmode < RAS_SOLID) {
 		Disable(RAS_CULL_FACE);
 		Disable(RAS_DEPTH_TEST);
 	}
@@ -352,18 +352,18 @@ void RAS_Rasterizer::BeginFrame(double time)
 	Disable(RAS_BLEND);
 	Disable(RAS_ALPHA_TEST);
 	//m_last_alphablend = GPU_BLEND_SOLID;
-	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
+	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);*/
 
 	SetFrontFace(true);
 
 	m_impl->BeginFrame();
 
-	Enable(RAS_MULTISAMPLE);
+	/*Enable(RAS_MULTISAMPLE);
 
 	Enable(RAS_SCISSOR_TEST);
 
 	Enable(RAS_DEPTH_TEST);
-	SetDepthFunc(RAS_LEQUAL);
+	SetDepthFunc(RAS_LEQUAL);*/
 
 	// Render Tools
 	m_clientobject = nullptr;
@@ -462,7 +462,7 @@ RAS_OffScreen *RAS_Rasterizer::GetOffScreen(OffScreenType type)
 
 void RAS_Rasterizer::DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *dstOffScreen)
 {
-	if (srcOffScreen->GetSamples() > 0) {
+	/*if (srcOffScreen->GetSamples() > 0) {
 		srcOffScreen->Blit(dstOffScreen, true, true);
 	}
 	else {
@@ -478,12 +478,12 @@ void RAS_Rasterizer::DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *d
 		GPU_shader_unbind();
 
 		srcOffScreen->UnbindColorTexture();
-	}
+	}*/
 }
 
 void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen)
 {
-	if (offScreen->GetSamples() > 0) {
+	/*if (offScreen->GetSamples() > 0) {
 		offScreen = offScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_LEFT1), true, false);
 	}
 
@@ -498,12 +498,12 @@ void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen
 	DrawOffScreen(offScreen, nullptr);
 
 	SetDepthFunc(RAS_LEQUAL);
-	Enable(RAS_CULL_FACE);
+	Enable(RAS_CULL_FACE);*/
 }
 
 void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen)
 {
-	if (leftOffScreen->GetSamples() > 0) {
+	/*if (leftOffScreen->GetSamples() > 0) {
 		// Then leftOffScreen == RAS_OFFSCREEN_EYE_LEFT0.
 		leftOffScreen = leftOffScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_LEFT1), true, false);
 	}
@@ -558,7 +558,7 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 	}
 
 	SetDepthFunc(RAS_LEQUAL);
-	Enable(RAS_CULL_FACE);
+	Enable(RAS_CULL_FACE);*/
 }
 
 void RAS_Rasterizer::BindViewport(RAS_ICanvas *canvas)
@@ -572,8 +572,12 @@ void RAS_Rasterizer::BindViewport(RAS_ICanvas *canvas)
 	DRW_viewport_size_init();
 }
 
-void RAS_Rasterizer::UnbindViewport()
+void RAS_Rasterizer::UnbindViewport(RAS_ICanvas *canvas)
 {
+	const int *viewport = canvas->GetViewPort();
+	CM_Debug("viewport : " << MT_Vector4(viewport));
+
+	gpuOrtho(viewport[0], viewport[0] + viewport[2], viewport[1], viewport[1] + viewport[3], -100, 100);
 	GPU_viewport_unbind(m_viewport);
 }
 
@@ -977,11 +981,9 @@ void RAS_Rasterizer::SetMatrix(const MT_Matrix4x4& viewmat, const MT_Matrix4x4& 
 
 	projmat.getValue(&mat[0][0]);
 	projmat.inverse().getValue(&matinv[0][0]);
-	gpuLoadMatrix(mat);
 
 	DRW_viewport_matrix_override_set(mat, DRW_MAT_WIN);
 	DRW_viewport_matrix_override_set(matinv, DRW_MAT_WININV);
-	gpuLoadProjectionMatrix(mat);
 
 	const MT_Matrix4x4 persmat = projmat * viewmat;
 	persmat.getValue(&mat[0][0]);

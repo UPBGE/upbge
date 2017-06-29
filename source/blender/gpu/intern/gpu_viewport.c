@@ -407,6 +407,7 @@ static void draw_ofs_to_screen(GPUViewport *viewport)
 	GPU_texture_bind(color, 0);
 
 	immUniform1i("image", 0); /* default GL_TEXTURE0 unit */
+	immUniform1f("alpha", 1.0f);
 
 	immBegin(GWN_PRIM_TRI_STRIP, 4);
 

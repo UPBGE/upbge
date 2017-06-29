@@ -703,7 +703,7 @@ void KX_KetsjiEngine::Render()
 	}
 #endif
 
-	m_rasterizer->UnbindViewport();
+	m_rasterizer->UnbindViewport(m_canvas);
 
 	EndFrame();
 }
@@ -978,7 +978,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	const int bottom = viewport.GetBottom();
 	const int width = viewport.GetWidth();
 	const int height = viewport.GetHeight();
-	m_rasterizer->SetViewport(left, bottom, width + 1, height + 1);
+// 	m_rasterizer->SetViewport(left, bottom, width + 1, height + 1);
 	m_rasterizer->SetScissor(left, bottom, width + 1, height + 1);
 
 	/* Clear the depth after setting the scene viewport/scissor

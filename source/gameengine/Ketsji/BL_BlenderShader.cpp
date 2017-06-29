@@ -153,7 +153,7 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
 			DRW_draw_shgroup(m_shGroup, (DRWState)(
 				DRW_STATE_WRITE_DEPTH |
 				DRW_STATE_DEPTH_LESS |
-				DRW_STATE_CULL_BACK |
+// 				DRW_STATE_CULL_BACK |
 				DRW_STATE_WRITE_COLOR));
 		}
 		else {

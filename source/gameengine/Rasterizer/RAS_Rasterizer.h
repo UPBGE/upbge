@@ -471,7 +471,7 @@ public:
 	void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen);
 
 	void BindViewport(RAS_ICanvas *canvas);
-	void UnbindViewport();
+	void UnbindViewport(RAS_ICanvas *canvas);
 
 	/**
 	 * GetRenderArea computes the render area from the 2d canvas.
