@@ -45,6 +45,7 @@ extern "C" {
 	extern char datatoc_RAS_GrayScale2DFilter_glsl[];
 	extern char datatoc_RAS_Sepia2DFilter_glsl[];
 	extern char datatoc_RAS_Invert2DFilter_glsl[];
+	extern char datatoc_RAS_ToneMapping2DFilter_glsl[];
 }
 
 RAS_2DFilterManager::RAS_2DFilterManager()
@@ -189,6 +190,9 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 			break;
 		case RAS_2DFilterManager::FILTER_INVERT:
 			shaderSource = datatoc_RAS_Invert2DFilter_glsl;
+			break;
+		case RAS_2DFilterManager::FILTER_TONEMAP:
+			shaderSource = datatoc_RAS_ToneMapping2DFilter_glsl;
 			break;
 	}
 	if (shaderSource.empty()) {

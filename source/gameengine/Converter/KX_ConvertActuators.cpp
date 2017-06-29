@@ -958,6 +958,9 @@ void BL_ConvertActuators(const char* maggiename,
 				case ACT_2DFILTER_INVERT:
 					filtermode = RAS_2DFilterManager::FILTER_INVERT;
 					break;
+				case ACT_2DFILTER_TONEMAP:
+					filtermode = RAS_2DFilterManager::FILTER_TONEMAP;
+					break;
 				case ACT_2DFILTER_CUSTOMFILTER:
 					filtermode = RAS_2DFilterManager::FILTER_CUSTOMFILTER;
 					break;
