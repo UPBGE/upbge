@@ -131,7 +131,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 		DRW_shgroup_free(m_shGroup);
 	}
 	m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
-	EEVEE_shgroup_add_standard_uniforms(m_shGroup, &scene->GetSceneLayerData(), EEVEE_engine_data_get());
+	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData(), EEVEE_engine_data_get());
 
 	ParseAttribs();
 }

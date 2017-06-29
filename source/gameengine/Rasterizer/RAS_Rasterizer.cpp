@@ -977,9 +977,11 @@ void RAS_Rasterizer::SetMatrix(const MT_Matrix4x4& viewmat, const MT_Matrix4x4& 
 
 	projmat.getValue(&mat[0][0]);
 	projmat.inverse().getValue(&matinv[0][0]);
+	gpuLoadMatrix(mat);
 
 	DRW_viewport_matrix_override_set(mat, DRW_MAT_WIN);
 	DRW_viewport_matrix_override_set(matinv, DRW_MAT_WININV);
+	gpuLoadProjectionMatrix(mat);
 
 	const MT_Matrix4x4 persmat = projmat * viewmat;
 	persmat.getValue(&mat[0][0]);
@@ -987,6 +989,7 @@ void RAS_Rasterizer::SetMatrix(const MT_Matrix4x4& viewmat, const MT_Matrix4x4& 
 
 	DRW_viewport_matrix_override_set(mat, DRW_MAT_PERS);
 	DRW_viewport_matrix_override_set(matinv, DRW_MAT_PERSINV);
+
 
 	m_camortho = (mat[3][3] != 0.0f);
 }

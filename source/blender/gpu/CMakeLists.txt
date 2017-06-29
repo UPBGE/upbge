@@ -234,7 +234,6 @@ data_to_c_simple(shaders/gpu_shader_fx_dof_hq_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_dof_hq_geo.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_depth_resolve.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_lib.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_lib.glsl SRC)
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)

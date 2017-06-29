@@ -153,7 +153,6 @@ extern char datatoc_gpu_shader_fx_dof_hq_vert_glsl[];
 extern char datatoc_gpu_shader_fx_dof_hq_geo_glsl[];
 extern char datatoc_gpu_shader_fx_depth_resolve_glsl[];
 extern char datatoc_gpu_shader_fx_lib_glsl[];
-extern char datatoc_gpu_shader_lib_glsl[];
 
 /* cache of built-in shaders (each is created on first use) */
 static GPUShader *builtin_shaders[GPU_NUM_BUILTIN_SHADERS] = { NULL };
@@ -327,14 +326,13 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	gpu_shader_standard_extensions(standard_extensions);
 
 	if (vertexcode) {
-		const char *source[6];
+		const char *source[5];
 		/* custom limit, may be too small, beware */
 		int num_source = 0;
 
 		source[num_source++] = gpu_shader_version();
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
-		source[num_source++] = datatoc_gpu_shader_lib_glsl;
 
 		if (defines) source[num_source++] = defines;
 		source[num_source++] = vertexcode;
@@ -355,13 +353,12 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	}
 
 	if (fragcode) {
-		const char *source[8];
+		const char *source[7];
 		int num_source = 0;
 
 		source[num_source++] = gpu_shader_version();
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
-		source[num_source++] = datatoc_gpu_shader_lib_glsl;
 
 #ifdef WITH_OPENSUBDIV
 		/* TODO(sergey): Move to fragment shader source code generation. */
@@ -395,13 +392,12 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	}
 
 	if (geocode) {
-		const char *source[6];
+		const char *source[5];
 		int num_source = 0;
 
 		source[num_source++] = gpu_shader_version();
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
-		source[num_source++] = datatoc_gpu_shader_lib_glsl;
 
 		if (defines) source[num_source++] = defines;
 		source[num_source++] = geocode;
@@ -426,9 +422,6 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		glBindAttribLocation(shader->program, 0, "position");
 		glBindAttribLocation(shader->program, 1, "normal");
 	}
-#else
-	glBindAttribLocation(shader->program, 0, "bgeOfsPos"); // make the attrib location correspond to default NVIDIA locations 
-	glBindAttribLocation(shader->program, 8, "bgeOfsUvs"); // 0 for ex gl_Vertex and 8 for ex gl_MultiTexCoord0
 #endif
 
 	glLinkProgram(shader->program);
