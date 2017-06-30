@@ -3,7 +3,7 @@ in vec4 bgl_TexCoord;
 out vec4 fragColor;
 
 //source: https://learnopengl.com/#!Advanced-Lighting/HDR
-uniform float exposure = 1.0;
+const float exposure = 1.0;
 
 void main()
 {
