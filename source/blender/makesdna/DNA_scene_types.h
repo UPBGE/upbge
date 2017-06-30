@@ -979,9 +979,8 @@ enum {
 #define SCE_LOD_USE_HYST		(1 << 0)
 
 /* GameData.hdr */
-#define GAME_HDR_NONE		0
-#define GAME_HDR_HALF_FLOAT	1
-#define GAME_HDR_FULL_FLOAT	2
+#define GAME_HDR_HALF_FLOAT	0
+#define GAME_HDR_FULL_FLOAT	1
 
 /* UV Paint */
 #define UV_SCULPT_LOCK_BORDERS				1

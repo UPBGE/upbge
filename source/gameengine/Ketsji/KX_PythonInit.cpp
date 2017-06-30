@@ -2255,7 +2255,6 @@ PyMODINIT_FUNC initRasterizerPythonBinding()
 	KX_MACRO_addTypesToDict(d, RIGHT_EYE, RAS_Rasterizer::RAS_STEREO_RIGHTEYE);
 
 	// HDR
-	KX_MACRO_addTypesToDict(d, HDR_NONE, RAS_Rasterizer::RAS_HDR_NONE);
 	KX_MACRO_addTypesToDict(d, HDR_HALF_FLOAT, RAS_Rasterizer::RAS_HDR_HALF_FLOAT);
 	KX_MACRO_addTypesToDict(d, HDR_FULL_FLOAT, RAS_Rasterizer::RAS_HDR_FULL_FLOAT);
 
