@@ -5,6 +5,11 @@ out vec4 fragColor;
 //source: https://learnopengl.com/#!Advanced-Lighting/HDR
 const float exposure = 1.0;
 
+vec3 brightnessContrast(vec3 value, float brightness, float contrast)
+{
+    return (value - 0.5) * contrast + 0.5 + brightness;
+}
+
 void main()
 {
     const float gamma = 2.2;
@@ -13,7 +18,7 @@ void main()
     // Exposure tone mapping
     vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
     // Gamma correction 
-    mapped = pow(mapped, vec3(1.0 / gamma));
+    mapped = brightnessContrast(pow(mapped, vec3(1.0 / gamma)), 0.05, 1.3);
   
     fragColor = vec4(mapped, 1.0);
 }
