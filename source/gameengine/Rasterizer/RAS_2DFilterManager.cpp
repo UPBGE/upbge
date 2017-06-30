@@ -48,7 +48,8 @@ extern "C" {
 	extern char datatoc_RAS_ToneMapping2DFilter_glsl[];
 }
 
-RAS_2DFilterManager::RAS_2DFilterManager()
+RAS_2DFilterManager::RAS_2DFilterManager():
+m_toneMapAdded(false)
 {
 }
 
@@ -84,8 +85,14 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 
 RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
-	if (m_filters.size() == 0) {
+	if (m_filters.size() == 0 && !m_toneMapAdded) {
 		// No filters, discard.
+		RAS_2DFilterData toneMapData;
+		toneMapData.filterMode = RAS_2DFilterManager::FILTER_TONEMAP;
+		toneMapData.filterPassIndex = -1;
+		toneMapData.mipmap = false;
+		AddFilter(toneMapData);
+		m_toneMapAdded = true;
 		return inputofs;
 	}
 

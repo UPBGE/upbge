@@ -84,6 +84,7 @@ public:
 
 private:
 	RAS_PassTo2DFilter m_filters;
+	bool m_toneMapAdded;
 
 	/** Creates a filter matching the given filter data. Returns nullptr if no
 	 * filter can be created with such information.

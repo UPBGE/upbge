@@ -1832,7 +1832,6 @@ static void rna_def_twodfilter_actuator(BlenderRNA *brna)
 		{ACT_2DFILTER_GRAYSCALE, "GRAYSCALE", 0, "Gray Scale", ""},
 		{ACT_2DFILTER_SEPIA, "SEPIA", 0, "Sepia", ""},
 		{ACT_2DFILTER_INVERT, "INVERT", 0, "Invert", ""},
-		{ACT_2DFILTER_TONEMAP, "TONEMAP", 0, "Tone mapping", ""},
 		{ACT_2DFILTER_CUSTOMFILTER, "CUSTOMFILTER", 0, "Custom Filter", ""},
 /*		{ACT_2DFILTER_NUMBER_OF_FILTERS, "", 0, "Do not use it. Sentinel", ""}, */
 		{0, NULL, 0, NULL, NULL}
