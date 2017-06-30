@@ -225,11 +225,17 @@ static void add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 
 	Scene *scene = draw_ctx->scene;
+	// utilTex
 	scene->eevee_util_tex = e_data.util_tex;
+	// lights
 	scene->eevee_ubo = sldata->light_ubo;
+	// Probes
 	scene->eevee_probe_count = sldata->probes->num_render_cube;
 	scene->eevee_probe_tex = sldata->probe_pool;
 	scene->eevee_lod_max = sldata->probes->lodmax;
+	// irradiance grid
+	scene->eevee_irradiance_grid = sldata->irradiance_pool;
+	scene->eevee_grid_count = sldata->probes->num_render_grid;
 }
 
 static void create_default_shader(int options)

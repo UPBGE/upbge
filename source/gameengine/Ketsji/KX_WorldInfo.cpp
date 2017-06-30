@@ -229,7 +229,7 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 		}
 		else {
 			float srgbcolor[4];
-			linearrgb_to_srgb_v4(srgbcolor, m_horizoncolor.getValue());
+			copy_v4_v4(srgbcolor, m_horizoncolor.getValue());
 			rasty->SetClearColor(srgbcolor[0], srgbcolor[1], srgbcolor[2], srgbcolor[3]);
 			rasty->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
 		}
