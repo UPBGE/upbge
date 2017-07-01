@@ -97,23 +97,13 @@ endif()
 # if(UNIX)
 	# Sort libraries
 	set(BLENDER_SORTED_LIBS
-		ge_player 
-		bf_intern_string 
-		bf_intern_ghost
-		bf_rna
-		bf_blenkernel
-		bf_depsgraph
-		bf_physics
-		bf_intern_rigidbody
-		bf_blenloader
-		ge_blen_routines
-		bf_editor_datafiles
+		ge_player
 		ge_launcher
 		ge_player
-		ge_logic_ketsji 
-		ge_converter 
-		ge_logic_ketsji 
-		ge_phys_bullet 
+		ge_logic_ketsji
+		ge_converter
+		ge_logic_ketsji
+		ge_phys_bullet
 		ge_phys_dummy
 		ge_logic
 		ge_device
@@ -122,51 +112,61 @@ endif()
 		ge_logic_expressions
 		ge_common
 		ge_scenegraph
-		bf_ikplugin
-		bf_intern_itasc
-		bf_intern_iksolver
-		bf_intern_smoke
+		ge_logic_network
+		ge_videotex
+
+		bf_editor_datafiles
+
+		bf_rna
+		bf_blenloader
 		bf_modifiers
-		bf_intern_moto 
+		bf_blenkernel
+		bf_physics
+		bf_depsgraph
+		bf_ikplugin
 		bf_nodes
 		bf_gpu
 		bf_intern_gawain
 		bf_imbuf
-		bf_avi 
-		ge_logic_network 
-		extern_bullet 
-		bf_intern_guardedalloc 
-		bf_intern_memutil 
+		bf_avi
 		bf_python_ext
 		bf_python_mathutils
 		bf_python_bmesh
-		bf_intern_utfconv
 		bf_imbuf_cineon
-		bf_imbuf_openexr 
+		bf_imbuf_openexr
 		bf_imbuf_openimageio
-		extern_openjpeg
 		bf_imbuf_dds
 		bf_dna
-		ge_videotex
 		bf_blenfont
 		bf_blentranslation
-		bf_intern_audaspace
-		blenkernel_blc
 		bf_bmesh
 		bf_blenlib
+		blenkernel_blc
+
+		bf_intern_string
+		bf_intern_ghost
+		bf_intern_rigidbody
+		bf_intern_itasc
+		bf_intern_iksolver
+		bf_intern_smoke
+		bf_intern_moto
+		bf_intern_guardedalloc
+		bf_intern_memutil
 		bf_intern_utfconv
-		extern_binreloc
-		extern_minilzo
-		bf_intern_ghost # duplicate for linking
-		bf_blenkernel # duplicate for linking
 		bf_intern_mikktspace
-		extern_recastnavigation
 		bf_intern_opencolorio
 		bf_intern_glew_mx
 		bf_intern_eigen
+		bf_intern_libmv
+		bf_intern_audaspace
+
+		extern_bullet
+		extern_openjpeg
+		extern_binreloc
+		extern_minilzo
+		extern_recastnavigation
 		extern_rangetree
 		extern_wcwidth
-		bf_intern_libmv
 		extern_sdlew
 	)
 
