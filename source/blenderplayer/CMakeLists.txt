@@ -120,12 +120,13 @@ endif()
 		bf_rna
 		bf_blenloader
 		bf_modifiers
+		bf_draw
+		bf_gpu
 		bf_blenkernel
 		bf_physics
 		bf_depsgraph
 		bf_ikplugin
 		bf_nodes
-		bf_gpu
 		bf_intern_gawain
 		bf_imbuf
 		bf_avi
@@ -156,6 +157,7 @@ endif()
 		bf_intern_mikktspace
 		bf_intern_opencolorio
 		bf_intern_glew_mx
+		bf_intern_gawain
 		bf_intern_eigen
 		bf_intern_libmv
 		bf_intern_audaspace
