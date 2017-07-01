@@ -979,9 +979,8 @@ enum {
 #define SCE_LOD_USE_HYST		(1 << 0)
 
 /* GameData.hdr */
-#define GAME_HDR_NONE		0
-#define GAME_HDR_HALF_FLOAT	1
-#define GAME_HDR_FULL_FLOAT	2
+#define GAME_HDR_HALF_FLOAT	0
+#define GAME_HDR_FULL_FLOAT	1
 
 /* UV Paint */
 #define UV_SCULPT_LOCK_BORDERS				1
@@ -1730,13 +1729,20 @@ typedef struct Scene {
 	IDProperty *collection_properties;  /* settings to be overriden by layer collections */
 	IDProperty *layer_properties;  /* settings to be override by workspaces */
 
+	/////////////EEVEE////////////////////
+	// utilTex
 	struct GPUTexture *eevee_util_tex;
+	// lights
 	struct GPUUniformBuffer *eevee_ubo;
+	// probes
 	struct GPUTexture *eevee_probe_tex;
 	float eevee_lod_max;
 	int eevee_probe_count;
+	// irradiance grid
+	struct GPUTexture *eevee_irradiance_grid;
+	int eevee_grid_count;
 
-	int pad5[2];
+	int pad5[3];
 } Scene;
 
 /* **************** RENDERDATA ********************* */

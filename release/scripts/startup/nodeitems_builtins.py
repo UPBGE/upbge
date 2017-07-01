@@ -155,6 +155,13 @@ def object_eevee_shader_nodes_poll(context):
             context.scene.render.engine == 'BLENDER_EEVEE')
 
 
+def object_game_shader_nodes_poll(context):
+    return (object_shader_nodes_poll(context) and
+            context.scene.render.engine == 'BLENDER_EEVEE')
+
+def object_eevee_game_shader_nodes_poll(context):
+    return object_eevee_shader_nodes_poll(context) or object_game_shader_nodes_poll(context)
+
 # All standard node categories currently used in nodes.
 
 shader_node_categories = [
@@ -233,7 +240,7 @@ shader_node_categories = [
         ]),
     ShaderNewNodeCategory("SH_NEW_OUTPUT", "Output", items=[
         NodeItem("ShaderNodeOutputMaterial", poll=object_cycles_shader_nodes_poll),
-        NodeItem("ShaderNodeOutputEeveeMaterial", poll=object_eevee_shader_nodes_poll),
+        NodeItem("ShaderNodeOutputEeveeMaterial", poll=object_eevee_game_shader_nodes_poll),
         NodeItem("ShaderNodeOutputLamp", poll=object_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeOutputWorld", poll=world_shader_nodes_poll),
         NodeItem("ShaderNodeOutputLineStyle", poll=line_style_shader_nodes_poll),
@@ -260,8 +267,8 @@ shader_node_categories = [
         NodeItem("ShaderNodeHoldout", poll=object_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeVolumeAbsorption", poll=cycles_shader_nodes_poll),
         NodeItem("ShaderNodeVolumeScatter", poll=cycles_shader_nodes_poll),
-        NodeItem("ShaderNodeEeveeMetallic", poll=object_eevee_shader_nodes_poll),
-        NodeItem("ShaderNodeEeveeSpecular", poll=object_eevee_shader_nodes_poll),
+        NodeItem("ShaderNodeEeveeMetallic", poll=object_eevee_game_shader_nodes_poll),
+        NodeItem("ShaderNodeEeveeSpecular", poll=object_eevee_game_shader_nodes_poll),
         ]),
     ShaderNewNodeCategory("SH_NEW_TEXTURE", "Texture", items=[
         NodeItem("ShaderNodeTexImage"),

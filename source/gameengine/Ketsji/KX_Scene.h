@@ -145,12 +145,18 @@ private:
 protected:
 
 	// EEVEE DATA TEEEEEEEEEEEMP
+	// lights
 	EEVEE_Light m_lightsData[128];
 	GPUUniformBuffer *m_lightsUbo;
+	// utilTex
 	GPUTexture *m_utilTex;
+	// Probes
 	GPUTexture *m_probeTex;
 	int m_probeCount;
 	float m_probeLodMax;
+	// irradiance grid
+	GPUTexture *m_irradianceTex;
+	int m_irradianceCount;
 	EEVEE_SceneLayerData m_layerData;
 
 
@@ -333,12 +339,18 @@ protected:
 public:
 
 	//EEVEE GET DATA TEEEEEEEEEEEEEMP
+	// utilTex
 	GPUTexture *GetUtilTex();
+	// lights
 	GPUUniformBuffer *GetLightsUbo();
 	EEVEE_Light *GetEeveeLightsData();
+	// Probes
 	GPUTexture *GetProbeTex();
 	int GetProbeCount();
 	float GetProbeLodMax();
+	// irradiance grid
+	GPUTexture *GetIrradianceTex();
+	int GetIrradianceCount();
 	EEVEE_SceneLayerData& GetSceneLayerData();
 
 	KX_Scene(SCA_IInputDevice *inputDevice,

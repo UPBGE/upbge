@@ -214,14 +214,25 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
 	//Set EEVEE DATA TEEEEEEEEEEMP
+	// utilTex
 	m_utilTex = m_blenderScene->eevee_util_tex;
 // 	GPU_texture_bind(m_utilTex, 7);
+
+	// lights
 	m_lightsUbo = m_blenderScene->eevee_ubo;
 	
+	// Probes
 	m_probeTex = m_blenderScene->eevee_probe_tex;
 // 	GPU_texture_bind(m_probeTex, 6);
 	m_probeCount = m_blenderScene->eevee_probe_count;
 	m_probeLodMax = m_blenderScene->eevee_lod_max;
+
+
+	// Irradiance grid
+	m_irradianceTex = m_blenderScene->eevee_irradiance_grid;
+	GPU_texture_bind(m_irradianceTex, 5);
+	m_irradianceCount = m_blenderScene->eevee_grid_count;
+
 
 // 	EEVEE_engine_init_scene_layer_data(EEVEE_engine_data_get(), &m_layerData);
 	memset(&m_layerData, 0, sizeof(EEVEE_SceneLayerData));
@@ -322,6 +333,8 @@ KX_Scene::~KX_Scene()
 }
 
 // EEVEE DATA GET
+
+// lights
 GPUUniformBuffer *KX_Scene::GetLightsUbo()
 {
 	return m_lightsUbo;
@@ -332,17 +345,19 @@ EEVEE_Light *KX_Scene::GetEeveeLightsData()
 	return m_lightsData;
 }
 
+// utilTex
 GPUTexture *KX_Scene::GetUtilTex()
 {
 	return m_utilTex;
 }
 
+// Probes (only world Probe for now)
 GPUTexture *KX_Scene::GetProbeTex()
 {
 	return m_probeTex;
 }
 
-int KX_Scene::GetProbeCount()
+int KX_Scene::GetProbeCount() // 1 = world default probe
 {
 	return m_probeCount;
 }

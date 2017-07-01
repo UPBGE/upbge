@@ -42,7 +42,6 @@
 #include "KX_Scene.h"
 
 extern "C" {
-#  include "eevee_private.h"
 #  include "eevee_engine.h"
 #  include "DRW_engine.h"
 #  include "DRW_render.h"

@@ -55,6 +55,7 @@ public:
 		FILTER_GRAYSCALE,
 		FILTER_SEPIA,
 		FILTER_INVERT,
+		FILTER_TONEMAP,
 		FILTER_CUSTOMFILTER,
 		FILTER_NUMBER_OF_FILTERS
 	};
@@ -83,6 +84,7 @@ public:
 
 private:
 	RAS_PassTo2DFilter m_filters;
+	bool m_toneMapAdded;
 
 	/** Creates a filter matching the given filter data. Returns nullptr if no
 	 * filter can be created with such information.

@@ -5420,7 +5420,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	};
 
 	static EnumPropertyItem hdr_items[] = {
-		{GAME_HDR_NONE, "HDR_NONE", 0, "None", "8 bits per channel"},
 		{GAME_HDR_HALF_FLOAT, "HDR_HALF_FLOAT", 0, "Half", "16 bits per channel"},
 		{GAME_HDR_FULL_FLOAT, "HDR_FULL_FLOAT", 0, "Full", "32 bits per channel"},
 		{0, NULL, 0, NULL, NULL}

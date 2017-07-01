@@ -313,10 +313,14 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			int probetexloc = GPU_shader_get_uniform(shader, "probeCubes");
 			GPU_shader_uniform_texture(shader, probetexloc, scene->GetProbeTex());
 
-			// MISCELLANEOUS
-			int gridcountloc = GPU_shader_get_uniform(shader, "grid_count");
-			GPU_shader_uniform_int(shader, gridcountloc, 0);
+			// IRRADIANCE GRID
+			int gridtexloc = GPU_shader_get_uniform(shader, "irradianceGrid");
+			GPU_shader_uniform_texture(shader, gridtexloc, scene->GetIrradianceTex());
 
+			int gridcountloc = GPU_shader_get_uniform(shader, "grid_count");
+			GPU_shader_uniform_int(shader, gridcountloc, scene->GetIrradianceCount());
+
+			// MISCELLANEOUS
 			int planarcountloc = GPU_shader_get_uniform(shader, "planar_count");
 			GPU_shader_uniform_int(shader, planarcountloc, 0);
 
