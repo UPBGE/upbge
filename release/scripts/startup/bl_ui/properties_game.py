@@ -675,118 +675,6 @@ class WorldButtonsPanel:
     bl_context = "world"
 
 
-class WORLD_PT_game_context_world(WorldButtonsPanel, Panel):
-    bl_label = ""
-    bl_options = {'HIDE_HEADER'}
-    COMPAT_ENGINES = {'BLENDER_GAME'}
-
-    @classmethod
-    def poll(cls, context):
-        rd = context.scene.render
-        return (context.scene) and (rd.engine in cls.COMPAT_ENGINES)
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        world = context.world
-        space = context.space_data
-
-        split = layout.split(percentage=0.65)
-        if scene:
-            split.template_ID(scene, "world", new="world.new")
-        elif world:
-            split.template_ID(space, "pin_id")
-
-
-class WORLD_PT_game_world(WorldButtonsPanel, Panel):
-    bl_label = "World"
-    COMPAT_ENGINES = {'BLENDER_GAME'}
-
-    @classmethod
-    def poll(cls, context):
-        scene = context.scene
-        return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
-
-    def draw(self, context):
-        layout = self.layout
-
-        self.layout.template_preview(context.world)
-
-        world = context.world
-
-        row = layout.row()
-        row.prop(world, "use_sky_paper")
-        row.prop(world, "use_sky_blend")
-        row.prop(world, "use_sky_real")
-
-        row = layout.row()
-        row.column().prop(world, "horizon_color")
-        col = row.column()
-        col.prop(world, "zenith_color")
-        col.active = world.use_sky_blend
-        row.column().prop(world, "ambient_color")
-
-        row = layout.row()
-        row.prop(world, "exposure")
-        row.prop(world, "color_range")
-
-
-class WORLD_PT_game_environment_lighting(WorldButtonsPanel, Panel):
-    bl_label = "Environment Lighting"
-    COMPAT_ENGINES = {'BLENDER_GAME'}
-
-    @classmethod
-    def poll(cls, context):
-        scene = context.scene
-        return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
-
-    def draw_header(self, context):
-        light = context.world.light_settings
-        self.layout.prop(light, "use_environment_light", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        light = context.world.light_settings
-
-        layout.active = light.use_environment_light
-
-        split = layout.split()
-        split.prop(light, "environment_energy", text="Energy")
-        split.prop(light, "environment_color", text="")
-
-
-class WORLD_PT_game_mist(WorldButtonsPanel, Panel):
-    bl_label = "Mist"
-    COMPAT_ENGINES = {'BLENDER_GAME'}
-
-    @classmethod
-    def poll(cls, context):
-        scene = context.scene
-        return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
-
-    def draw_header(self, context):
-        world = context.world
-
-        self.layout.prop(world.mist_settings, "use_mist", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        world = context.world
-
-        layout.active = world.mist_settings.use_mist
-
-        layout.prop(world.mist_settings, "falloff")
-
-        row = layout.row(align=True)
-        row.prop(world.mist_settings, "start")
-        row.prop(world.mist_settings, "depth")
-
-        layout.prop(world.mist_settings, "intensity", text="Minimum Intensity")
-
-
 class DataButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -956,10 +844,6 @@ classes = (
     SCENE_PT_game_navmesh,
     SCENE_PT_game_hysteresis,
     SCENE_PT_game_console,
-    WORLD_PT_game_context_world,
-    WORLD_PT_game_world,
-    WORLD_PT_game_environment_lighting,
-    WORLD_PT_game_mist,
     DATA_PT_shadow_game,
     OBJECT_MT_lod_tools,
     OBJECT_MT_culling,
