@@ -593,6 +593,24 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_editor_mask
 		bf_editor_io
 
+		ge_blen_routines
+		ge_launcher
+		ge_blen_routines
+		ge_logic_ketsji
+		ge_converter
+		ge_phys_dummy
+		ge_phys_bullet
+		ge_logic_ketsji
+		ge_logic
+		ge_device
+		ge_rasterizer
+		ge_oglrasterizer
+		ge_common
+		ge_logic_expressions
+		ge_scenegraph
+		ge_logic_network
+		ge_videotex
+
 		bf_render
 		bf_python
 		bf_python_ext
@@ -609,52 +627,45 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_physics
 		bf_nodes
 		bf_rna
+		bf_dna
 		bf_imbuf
 		bf_blenlib
 		bf_depsgraph
-		bf_intern_ghost
-		bf_intern_string
 		bf_avi
 		bf_imbuf_cineon
 		bf_imbuf_openexr
 		bf_imbuf_openimageio
 		bf_imbuf_dds
 		bf_collada
+		bf_blenfont
+		bf_blentranslation
+
+		bf_intern_ghost
+		bf_intern_string
+		bf_intern_audaspace
+		bf_intern_mikktspace
+		bf_intern_dualcon
+		bf_intern_cycles
 		bf_intern_elbeem
 		bf_intern_memutil
 		bf_intern_guardedalloc
 		bf_intern_ctr
 		bf_intern_utfconv
-		ge_blen_routines
-		ge_launcher
-		ge_blen_routines
-		ge_logic_ketsji
-		ge_converter
-		ge_phys_dummy
-		ge_phys_bullet
 		bf_intern_smoke
+		bf_intern_moto
+		bf_intern_opencolorio
+		bf_intern_eigen
+		bf_intern_libmv
+		bf_intern_glew_mx
+
 		extern_lzma
 		extern_curve_fit_nd
-		ge_logic_ketsji
 		extern_recastnavigation
-		ge_logic
-		ge_device
-		ge_rasterizer
-		ge_oglrasterizer
-		ge_common
-		ge_logic_expressions
-		ge_scenegraph
-		ge_logic_network
-		bf_intern_moto
 		extern_openjpeg
-		ge_videotex
-		bf_dna
-		bf_blenfont
-		bf_blentranslation
-		bf_intern_audaspace
-		bf_intern_mikktspace
-		bf_intern_dualcon
-		bf_intern_cycles
+		extern_rangetree
+		extern_wcwidth
+		extern_sdlew
+
 		cycles_render
 		cycles_graph
 		cycles_bvh
@@ -662,14 +673,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		cycles_kernel
 		cycles_util
 		cycles_subd
-		bf_intern_opencolorio
-		bf_intern_eigen
-		extern_rangetree
-		extern_wcwidth
-		bf_intern_libmv
-		extern_sdlew
-
-		bf_intern_glew_mx
 	)
 
 	if(NOT WITH_SYSTEM_GLOG)
