@@ -64,6 +64,8 @@ class KX_RayCast;
 struct GPUShader;
 struct GPUViewport;
 
+struct EEVEE_SceneLayerData;
+
 /**
  * 3D rendering device context interface. 
  */
@@ -738,10 +740,9 @@ public:
 	void LoadIdentity();
 
 	RAS_ILightObject *CreateLight();
-
 	void AddLight(RAS_ILightObject *lightobject);
-
 	void RemoveLight(RAS_ILightObject *lightobject);
+	void UpdateLights(EEVEE_SceneLayerData &sldata);
 
 	/** Set the current off screen depth to the global depth texture used by materials.
 	 * In case of mutlisample off screen a blit to RAS_OFFSCREEN_BLIT_DEPTH is procceed.

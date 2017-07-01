@@ -31,6 +31,8 @@ class RAS_Rasterizer;
 struct GPULamp;
 struct Image;
 
+struct EEVEE_Light;
+
 class RAS_OpenGLLight : public RAS_ILightObject
 {
 
@@ -42,7 +44,7 @@ public:
 	RAS_OpenGLLight(RAS_Rasterizer *ras);
 	~RAS_OpenGLLight();
 
-	bool ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer, int slot);
+	bool Update(EEVEE_Light& lightData);
 
 	RAS_OpenGLLight *Clone()
 	{

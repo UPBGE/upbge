@@ -291,8 +291,6 @@ void RAS_Rasterizer::Init()
 {
 	GPU_state_init();
 
-	gpuMatrixReset();
-
 	Disable(RAS_BLEND);
 	Disable(RAS_ALPHA_TEST);
 	//m_last_alphablend = GPU_BLEND_SOLID;
@@ -584,6 +582,8 @@ void RAS_Rasterizer::UnbindViewport(RAS_ICanvas *canvas)
 	const int bottom = -viewport.GetBottom() + window.GetBottom();
 	const int top = window.GetHeight() + bottom;
 	gpuOrtho(left, right, bottom, top, -100, 100);
+
+	gpuLoadIdentity();
 
 	GPU_viewport_unbind(m_viewport);
 }
@@ -1255,6 +1255,7 @@ void RAS_Rasterizer::DesactivateOverrideShaderInstancing()
 
 void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat, GPUShader *shader)
 {
+#if 0
 	//bool enable = false;
 	//int layer = -1;
 
@@ -1311,6 +1312,7 @@ void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat
 
 		//enable = count > 0;
 	}
+#endif
 }
 
 //void RAS_Rasterizer::EnableLights()ok :)
@@ -1361,6 +1363,19 @@ void RAS_Rasterizer::RemoveLight(RAS_ILightObject *lightobject)
 	if (lit != m_lights.end()) {
 		m_lights.erase(lit);
 	}
+}
+
+void RAS_Rasterizer::UpdateLights(EEVEE_SceneLayerData& sldata)
+{
+	EEVEE_LampsInfo *linfo = sldata.lamps;
+	unsigned int i = 0;
+	for (unsigned short size = m_lights.size(); i < size;) {
+		if (m_lights[i]->Update(linfo->light_data[i])) {
+			++i;
+		}
+	}
+	linfo->num_light = i;
+	DRW_uniformbuffer_update(sldata.light_ubo, &linfo->light_data);
 }
 
 bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform)

@@ -139,7 +139,7 @@ void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketMana
 	}
 }
 
-void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
+void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata, RAS_OffScreen *offScreen)
 {
 	RAS_Rasterizer::DrawType drawingMode = rasty->GetDrawingMode();
 
@@ -251,6 +251,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 		case RAS_Rasterizer::RAS_SOLID:
 		case RAS_Rasterizer::RAS_TEXTURED:
 		{
+			rasty->UpdateLights(sldata);
 			/* Rendering solid and alpha (regular and instancing) materials
 			 * with their shaders.
 			 */

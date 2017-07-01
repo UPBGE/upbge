@@ -230,7 +230,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	// Irradiance grid
 	m_irradianceTex = m_blenderScene->eevee_irradiance_grid;
-	GPU_texture_bind(m_irradianceTex, 5);
+// 	GPU_texture_bind(m_irradianceTex, 5);
 	m_irradianceCount = m_blenderScene->eevee_grid_count;
 
 
@@ -1707,7 +1707,7 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 		node->GetObject()->UpdateBuckets();
 	}
 
-	m_bucketmanager->Renderbuckets(cameratransform, rasty, offScreen);
+	m_bucketmanager->Renderbuckets(cameratransform, rasty, m_layerData, offScreen);
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
