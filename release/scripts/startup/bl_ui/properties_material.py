@@ -192,7 +192,7 @@ class MATERIAL_PT_preview(MaterialButtonsPanel, Panel):
 class MATERIAL_PT_pipeline(MaterialButtonsPanel, Panel):
     bl_label = "Render Pipeline Options"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     @classmethod
     def poll(cls, context):
@@ -877,9 +877,7 @@ class MATERIAL_PT_game_shadow(MaterialButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        mat = context.material
-        engine = context.scene.render.engine
-        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE'}) and (engine in cls.COMPAT_ENGINES)
+        return context.material and (context.scene.render.engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -1096,17 +1094,11 @@ class MATERIAL_PT_volume_options(VolumeButtonsPanel, Panel):
         row.prop(mat, "use_light_group_exclusive", text="Exclusive")
 
 
-class MATERIAL_PT_custom_props(MaterialButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-    _context_path = "material"
-    _property_type = bpy.types.Material
-
-
 class EEVEE_MATERIAL_PT_context_material(MaterialButtonsPanel, Panel):
     bl_label = ""
     bl_context = "material"
     bl_options = {'HIDE_HEADER'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', "BLENDER_GAME"}
 
     @classmethod
     def poll(cls, context):
@@ -1178,7 +1170,7 @@ def panel_node_draw(layout, ntree, output_type):
 class EEVEE_MATERIAL_PT_surface(MaterialButtonsPanel, Panel):
     bl_label = "Surface"
     bl_context = "material"
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', "BLENDER_GAME"}
 
     @classmethod
     def poll(cls, context):
@@ -1203,6 +1195,12 @@ class EEVEE_MATERIAL_PT_surface(MaterialButtonsPanel, Panel):
             layout.prop(mat, "specular_intensity", text="Specular")
             layout.prop(raym, "gloss_factor", text="Roughness")
 
+
+
+class MATERIAL_PT_custom_props(MaterialButtonsPanel, PropertyPanel, Panel):
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    _context_path = "material"
+    _property_type = bpy.types.Material
 
 classes = (
     MATERIAL_MT_sss_presets,
@@ -1232,9 +1230,9 @@ classes = (
     MATERIAL_PT_volume_transp,
     MATERIAL_PT_volume_integration,
     MATERIAL_PT_volume_options,
-    MATERIAL_PT_custom_props,
     EEVEE_MATERIAL_PT_context_material,
     EEVEE_MATERIAL_PT_surface,
+    MATERIAL_PT_custom_props,
 )
 
 if __name__ == "__main__":  # only for live edit.
