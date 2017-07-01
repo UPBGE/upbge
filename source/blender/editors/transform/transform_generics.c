@@ -62,8 +62,8 @@
 
 #include "RNA_access.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
 
 #include "BIK_api.h"
 
@@ -71,7 +71,6 @@
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
@@ -83,6 +82,9 @@
 #include "BKE_tracking.h"
 #include "BKE_mask.h"
 #include "BKE_utildefines.h"
+#include "BKE_workspace.h"
+
+#include "DEG_depsgraph.h"
 
 #include "ED_anim_api.h"
 #include "ED_armature.h"
@@ -315,7 +317,7 @@ static bool fcu_test_selected(FCurve *fcu)
 /* helper for recalcData() - for Action Editor transforms */
 static void recalcData_actedit(TransInfo *t)
 {
-	Scene *scene = t->scene;
+	SceneLayer *sl= t->scene_layer;
 	SpaceAction *saction = (SpaceAction *)t->sa->spacedata.first;
 	
 	bAnimContext ac = {NULL};
@@ -326,7 +328,8 @@ static void recalcData_actedit(TransInfo *t)
 	/* initialize relevant anim-context 'context' data from TransInfo data */
 	/* NOTE: sync this with the code in ANIM_animdata_get_context() */
 	ac.scene = t->scene;
-	ac.obact = OBACT;
+	ac.scene_layer = t->scene_layer;
+	ac.obact = OBACT_NEW;
 	ac.sa = t->sa;
 	ac.ar = t->ar;
 	ac.sl = (t->sa) ? t->sa->spacedata.first : NULL;
@@ -363,7 +366,7 @@ static void recalcData_actedit(TransInfo *t)
 static void recalcData_graphedit(TransInfo *t)
 {
 	SpaceIpo *sipo = (SpaceIpo *)t->sa->spacedata.first;
-	Scene *scene;
+	SceneLayer *sl = t->scene_layer;
 	
 	ListBase anim_data = {NULL, NULL};
 	bAnimContext ac = {NULL};
@@ -374,8 +377,9 @@ static void recalcData_graphedit(TransInfo *t)
 
 	/* initialize relevant anim-context 'context' data from TransInfo data */
 	/* NOTE: sync this with the code in ANIM_animdata_get_context() */
-	scene = ac.scene = t->scene;
-	ac.obact = OBACT;
+	ac.scene = t->scene;
+	ac.scene_layer = t->scene_layer;
+	ac.obact = OBACT_NEW;
 	ac.sa = t->sa;
 	ac.ar = t->ar;
 	ac.sl = (t->sa) ? t->sa->spacedata.first : NULL;
@@ -637,7 +641,7 @@ static void recalcData_mask_common(TransInfo *t)
 
 	flushTransMasking(t);
 
-	DAG_id_tag_update(&mask->id, 0);
+	DEG_id_tag_update(&mask->id, 0);
 }
 
 /* helper for recalcData() - for Image Editor transforms */
@@ -656,7 +660,7 @@ static void recalcData_image(TransInfo *t)
 		if (sima->flag & SI_LIVE_UNWRAP)
 			ED_uvedit_live_unwrap_re_solve();
 		
-		DAG_id_tag_update(t->obedit->data, 0);
+		DEG_id_tag_update(t->obedit->data, 0);
 	}
 }
 
@@ -699,7 +703,7 @@ static void recalcData_spaceclip(TransInfo *t)
 			track = track->next;
 		}
 
-		DAG_id_tag_update(&clip->id, 0);
+		DEG_id_tag_update(&clip->id, 0);
 	}
 	else if (t->options & CTX_MASK) {
 		recalcData_mask_common(t);
@@ -709,7 +713,7 @@ static void recalcData_spaceclip(TransInfo *t)
 /* helper for recalcData() - for object transforms, typically in the 3D view */
 static void recalcData_objects(TransInfo *t)
 {
-	Base *base = t->scene->basact;
+	Base *base = t->scene_layer->basact;
 
 	if (t->obedit) {
 		if (ELEM(t->obedit->type, OB_CURVE, OB_SURF)) {
@@ -722,7 +726,7 @@ static void recalcData_objects(TransInfo *t)
 				applyProject(t);
 			}
 			
-			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
+			DEG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 				
 			if (t->state == TRANS_CANCEL) {
 				while (nu) {
@@ -746,7 +750,7 @@ static void recalcData_objects(TransInfo *t)
 				applyProject(t);
 			}
 			
-			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
+			DEG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 			
 			if (la->editlatt->latt->flag & LT_OUTSIDE) outside_lattice(la->editlatt->latt);
 		}
@@ -768,7 +772,7 @@ static void recalcData_objects(TransInfo *t)
 				projectVertSlideData(t, false);
 			}
 
-			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
+			DEG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 			
 			EDBM_mesh_normals_update(em);
 			BKE_editmesh_tessface_calc(em);
@@ -866,7 +870,7 @@ static void recalcData_objects(TransInfo *t)
 			if (t->state != TRANS_CANCEL) {
 				applyProject(t);
 			}
-			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
+			DEG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 		}
 	}
 	else if ((t->flag & T_POSE) && t->poseobj) {
@@ -889,14 +893,14 @@ static void recalcData_objects(TransInfo *t)
 		
 		/* old optimize trick... this enforces to bypass the depgraph */
 		if (!(arm->flag & ARM_DELAYDEFORM)) {
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);  /* sets recalc flags */
+			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);  /* sets recalc flags */
 			/* transformation of pose may affect IK tree, make sure it is rebuilt */
 			BIK_clear_data(ob->pose);
 		}
 		else
 			BKE_pose_where_is(t->scene, ob);
 	}
-	else if (base && (base->object->mode & OB_MODE_PARTICLE_EDIT) && PE_get_current(t->scene, base->object)) {
+	else if (base && (base->object->mode & OB_MODE_PARTICLE_EDIT) && PE_get_current(t->scene, t->scene_layer, base->object)) {
 		if (t->state != TRANS_CANCEL) {
 			applyProject(t);
 		}
@@ -926,16 +930,16 @@ static void recalcData_objects(TransInfo *t)
 			// TODO: autokeyframe calls need some setting to specify to add samples (FPoints) instead of keyframes?
 			if ((t->animtimer) && IS_AUTOKEY_ON(t->scene)) {
 				animrecord_check_state(t->scene, &ob->id, t->animtimer);
-				autokeyframe_ob_cb_func(t->context, t->scene, (View3D *)t->view, ob, t->mode);
+				autokeyframe_ob_cb_func(t->context, t->scene, t->scene_layer, (View3D *)t->view, ob, t->mode);
 			}
 			
 			/* sets recalc flags fully, instead of flushing existing ones 
 			 * otherwise proxies don't function correctly
 			 */
-			DAG_id_tag_update(&ob->id, OB_RECALC_OB);
+			DEG_id_tag_update(&ob->id, OB_RECALC_OB);
 
 			if (t->flag & T_TEXTURE)
-				DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+				DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		}
 	}
 }
@@ -971,7 +975,7 @@ static void recalcData_sequencer(TransInfo *t)
 
 /* force recalculation of triangles during transformation */
 static void recalcData_gpencil_strokes(TransInfo *t)
- {
+{
 	TransData *td = t->data;
 	for (int i = 0; i < t->total; i++, td++) {
 		bGPDstroke *gps = td->extra;
@@ -1032,11 +1036,10 @@ void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis
 	if (t->spacetype == SPACE_VIEW3D) {
 		View3D *v3d = t->view;
 		
-		glPushMatrix();
-		
-		//if (t->obedit) glLoadMatrixf(t->obedit->obmat);	// sets opengl viewing
-		
-		
+		gpuPushMatrix();
+
+		// if (t->obedit) gpuLoadMatrix(t->obedit->obmat); // sets opengl viewing
+
 		copy_v3_v3(v3, dir);
 		mul_v3_fl(v3, v3d->far);
 		
@@ -1050,15 +1053,20 @@ void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis
 			UI_GetThemeColor3ubv(TH_GRID, col);
 		}
 		UI_make_axis_color(col, col2, axis);
-		glColor3ubv(col2);
-		
-		setlinestyle(0);
-		glBegin(GL_LINES);
-		glVertex3fv(v1);
-		glVertex3fv(v2);
-		glEnd();
-		
-		glPopMatrix();
+
+		unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+		immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+		immUniformColor3ubv(col2);
+
+		immBegin(GWN_PRIM_LINES, 2);
+		immVertex3fv(pos, v1);
+		immVertex3fv(pos, v2);
+		immEnd();
+
+		immUnbindProgram();
+
+		gpuPopMatrix();
 	}
 }
 
@@ -1104,6 +1112,7 @@ static int initTransInfo_edit_pet_to_flag(const int proportional)
 void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *event)
 {
 	Scene *sce = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	ARegion *ar = CTX_wm_region(C);
 	ScrArea *sa = CTX_wm_area(C);
@@ -1113,6 +1122,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	PropertyRNA *prop;
 	
 	t->scene = sce;
+	t->scene_layer = sl;
 	t->sa = sa;
 	t->ar = ar;
 	t->obedit = obedit;
@@ -1220,7 +1230,6 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		t->animtimer = (animscreen) ? animscreen->animtimer : NULL;
 		
 		/* turn manipulator off during transform */
-		// FIXME: but don't do this when USING the manipulator...
 		if (t->flag & T_MODAL) {
 			t->twtype = v3d->twtype;
 			v3d->twtype = 0;
@@ -1235,6 +1244,8 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		}
 
 		t->current_orientation = v3d->twmode;
+		t->custom_orientation = BKE_workspace_transform_orientation_find(
+		                            CTX_wm_workspace(C), v3d->custom_orientation_index);
 
 		/* exceptional case */
 		if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
@@ -1325,13 +1336,24 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	if (op && ((prop = RNA_struct_find_property(op->ptr, "constraint_orientation")) &&
 	           RNA_property_is_set(op->ptr, prop)))
 	{
-		t->current_orientation = RNA_property_enum_get(op->ptr, prop);
+		short orientation = RNA_property_enum_get(op->ptr, prop);
+		TransformOrientation *custom_orientation = NULL;
 
-		if (t->current_orientation >= V3D_MANIP_CUSTOM + BIF_countTransformOrientation(C)) {
-			t->current_orientation = V3D_MANIP_GLOBAL;
+		if (orientation >= V3D_MANIP_CUSTOM) {
+			if (orientation >= V3D_MANIP_CUSTOM + BIF_countTransformOrientation(C)) {
+				orientation = V3D_MANIP_GLOBAL;
+			}
+			else {
+				custom_orientation = BKE_workspace_transform_orientation_find(
+				                         CTX_wm_workspace(C), orientation - V3D_MANIP_CUSTOM);
+				orientation = V3D_MANIP_CUSTOM;
+			}
 		}
+
+		t->current_orientation = orientation;
+		t->custom_orientation = custom_orientation;
 	}
-	
+
 	if (op && ((prop = RNA_struct_find_property(op->ptr, "release_confirm")) &&
 	           RNA_property_is_set(op->ptr, prop)))
 	{
@@ -1767,8 +1789,8 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
 		}
 	}
 	else if (t->flag & T_POSE) {
-		Scene *scene = t->scene;
-		Object *ob = OBACT;
+		SceneLayer *sl = t->scene_layer;
+		Object *ob = OBACT_NEW;
 		if (ob) {
 			bPoseChannel *pchan = BKE_pose_channel_active(ob);
 			if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
@@ -1778,7 +1800,7 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
 		}
 	}
 	else if (t->options & CTX_PAINT_CURVE) {
-		Paint *p = BKE_paint_get_active(t->scene);
+		Paint *p = BKE_paint_get_active(t->scene, t->scene_layer);
 		Brush *br = p->brush;
 		PaintCurve *pc = br->paint_curve;
 		copy_v3_v3(r_center, pc->points[pc->add_index - 1].bez.vec[1]);
@@ -1787,9 +1809,10 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
 	}
 	else {
 		/* object mode */
-		Scene *scene = t->scene;
-		Object *ob = OBACT;
-		if (ob && (!select_only || (ob->flag & SELECT))) {
+		SceneLayer *sl = t->scene_layer;
+		Object *ob = OBACT_NEW;
+		Base *base = BASACT_NEW;
+		if (ob && ((!select_only) || ((base->flag & BASE_SELECTED) != 0))) {
 			copy_v3_v3(r_center, ob->obmat[3]);
 			ok = true;
 		}

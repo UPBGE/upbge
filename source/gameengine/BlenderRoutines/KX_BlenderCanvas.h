@@ -42,6 +42,7 @@
 struct ARegion;
 struct wmWindow;
 struct wmWindowManager;
+struct rcti;
 
 /**
  * 2D Blender device context abstraction.
@@ -63,7 +64,7 @@ public:
 	 *
 	 * \param area The Blender ARegion to run the game within.
 	 */
-	KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, ARegion *ar);
+	KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, rcti *viewport, ARegion *ar);
 	virtual ~KX_BlenderCanvas();
 
 	virtual void Init();
@@ -82,19 +83,7 @@ public:
 	virtual void BeginFrame();
 	virtual void EndFrame();
 
-	virtual int GetWidth() const;
-	virtual int GetHeight() const;
-
 	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
-
-	virtual float GetMouseNormalizedX(int x);
-	virtual float GetMouseNormalizedY(int y);
-
-	virtual RAS_Rect &GetWindowArea();
-
-	virtual void SetViewPort(int x1, int y1, int x2, int y2);
-	virtual void UpdateViewPort(int x1, int y1, int x2, int y2);
-	virtual const int *GetViewPort();
 
 	virtual void SetMouseState(RAS_MouseState mousestate);
 	virtual void SetMousePosition(int x, int y);

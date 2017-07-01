@@ -46,6 +46,7 @@ extern "C" {
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 } /* extern "C" */
@@ -73,10 +74,14 @@ void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 		build_scene(bmain, scene->set);
 	}
 
+	/* XXX store scene to access from DAG_get_scene */
+	m_graph->scene = scene;
+
 	/* scene objects */
-	LINKLIST_FOREACH (Base *, base, &scene->base) {
-		Object *ob = base->object;
-		build_object(bmain, scene, ob);
+	for (SceneLayer *sl = (SceneLayer *)scene->render_layers.first; sl; sl = sl->next) {
+		for (Base *base = (Base *)sl->object_bases.first; base; base = base->next) {
+			build_object(bmain, scene, base->object);
+		}
 	}
 
 	/* rigidbody */
@@ -114,13 +119,17 @@ void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 		build_movieclip(clip);
 	}
 
+	/* Collections. */
+	build_scene_layer_collections(scene);
+
+	/* TODO(sergey): Do this flush on CoW object? */
 	for (Depsgraph::OperationNodes::const_iterator it_op = m_graph->operations.begin();
 	     it_op != m_graph->operations.end();
 	     ++it_op)
 	{
 		OperationDepsNode *node = *it_op;
 		IDDepsNode *id_node = node->owner->owner;
-		ID *id = id_node->id;
+		ID *id = id_node->id_orig;
 		if (GS(id->name) == ID_OB) {
 			Object *object = (Object *)id;
 			object->customdata_mask |= node->customdata_mask;

@@ -138,7 +138,6 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 	 */
 	const MT_Matrix4x4& projmat = renderer->GetProjectionMatrix(rasty, m_scene, sceneCamera, viewport, area);
 	m_camera->SetProjectionMatrix(projmat);
-	rasty->SetProjectionMatrix(projmat);
 
 	// Begin rendering stuff
 	renderer->BeginRender(rasty);
@@ -156,7 +155,7 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 		const MT_Transform camtrans(m_camera->GetWorldToCamera());
 		const MT_Matrix4x4 viewmat(camtrans);
 
-		rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldPosition(), MT_Vector3(1.0f, 1.0f, 1.0f));
+		rasty->SetMatrix(viewmat, projmat, m_camera->NodeGetWorldPosition(), MT_Vector3(1.0f, 1.0f, 1.0f));
 		m_camera->SetModelviewMatrix(viewmat);
 
 		KX_CullingNodeList nodes;

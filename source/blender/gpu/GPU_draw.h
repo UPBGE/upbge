@@ -39,9 +39,9 @@ extern "C" {
 struct ImBuf;
 struct Image;
 struct ImageUser;
-struct MTexPoly;
 struct Object;
 struct Scene;
+struct SceneLayer;
 struct View3D;
 struct RegionView3D;
 struct SmokeModifierData;
@@ -59,6 +59,13 @@ struct DupliObject;
 
 void GPU_state_init(void);
 
+/* Programmable point size
+ * - shaders set their own point size when enabled
+ * - use glPointSize when disabled */
+
+void GPU_enable_program_point_size(void);
+void GPU_disable_program_point_size(void);
+
 /* Material drawing
  * - first the state is initialized by a particular object and
  *   it's materials
@@ -66,8 +73,9 @@ void GPU_state_init(void);
  *   GPU_object_material_bind returns 0 if drawing should be skipped
  * - after drawing, the material must be disabled again */
 
-void GPU_begin_object_materials(struct View3D *v3d, struct RegionView3D *rv3d, 
-                                struct Scene *scene, struct Object *ob, bool glsl, bool *do_alpha_after);
+void GPU_begin_object_materials(struct View3D *v3d, struct RegionView3D *rv3d,
+                                struct Scene *scene, struct SceneLayer *sl,
+                                struct Object *ob, bool glsl, bool *do_alpha_after);
 void GPU_end_object_materials(void);
 bool GPU_object_materials_check(void);
 
@@ -84,22 +92,13 @@ bool GPU_material_use_matcaps_get(void);
 void GPU_set_material_alpha_blend(int alphablend);
 int GPU_get_material_alpha_blend(void);
 
-/* TexFace drawing
- * - this is mutually exclusive with material drawing, a mesh should
- *   be drawn using one or the other
- * - passing NULL clears the state again */
-
-int GPU_set_tpage(struct MTexPoly *mtexpoly, int mipmap, int transp);
-void GPU_clear_tpage(bool force);
-
 /* Lights
  * - returns how many lights were enabled
  * - this affects fixed functions materials and texface, not glsl */
 
 int GPU_default_lights(void);
 int GPU_scene_object_lights(
-        struct Scene *scene, struct Object *ob,
-        int lay, float viewmat[4][4], int ortho);
+        struct SceneLayer *sl, float viewmat[4][4], int ortho);
 
 /* Mipmap settings
  * - these will free textures on changes */
@@ -156,6 +155,17 @@ void	GPU_select_index_set(int index);
 void	GPU_select_index_get(int index, int *r_col);
 int		GPU_select_to_index(unsigned int col);
 void	GPU_select_to_index_array(unsigned int *col, const unsigned int size);
+
+typedef enum eGPUAttribMask {
+	GPU_DEPTH_BUFFER_BIT = (1 << 0),
+	GPU_ENABLE_BIT = (1 << 1),
+	GPU_SCISSOR_BIT = (1 << 2),
+	GPU_VIEWPORT_BIT = (1 << 3),
+	GPU_BLEND_BIT = (1 << 4),
+} eGPUAttribMask;
+
+void gpuPushAttrib(eGPUAttribMask mask);
+void gpuPopAttrib(void);
 
 #ifdef __cplusplus
 }

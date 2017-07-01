@@ -52,8 +52,6 @@
 #include "BKE_paint.h"
 #include "BKE_subsurf.h"
 
-#include "BIF_glutil.h"
-
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -323,12 +321,10 @@ static void clip_planes_from_rect(bContext *C,
 {
 	ViewContext vc;
 	BoundBox bb;
-	bglMats mats = {{0}};
 	
 	view3d_operator_needs_opengl(C);
 	view3d_set_viewcontext(C, &vc);
-	view3d_get_transformation(vc.ar, vc.rv3d, vc.obact, &mats);
-	ED_view3d_clipping_calc(&bb, clip_planes, &mats, rect);
+	ED_view3d_clipping_calc(&bb, clip_planes, vc.ar, vc.obact, rect);
 	negate_m4(clip_planes);
 }
 

@@ -67,10 +67,6 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_editmode_toggle);
 	WM_operatortype_append(OBJECT_OT_posemode_toggle);
 	WM_operatortype_append(OBJECT_OT_proxy_make);
-	WM_operatortype_append(OBJECT_OT_hide_view_clear);
-	WM_operatortype_append(OBJECT_OT_hide_view_set);
-	WM_operatortype_append(OBJECT_OT_hide_render_clear);
-	WM_operatortype_append(OBJECT_OT_hide_render_set);
 	WM_operatortype_append(OBJECT_OT_shade_smooth);
 	WM_operatortype_append(OBJECT_OT_shade_flat);
 	WM_operatortype_append(OBJECT_OT_paths_calculate);
@@ -90,13 +86,11 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_make_single_user);
 	WM_operatortype_append(OBJECT_OT_make_links_scene);
 	WM_operatortype_append(OBJECT_OT_make_links_data);
-	WM_operatortype_append(OBJECT_OT_move_to_layer);
 
 	WM_operatortype_append(OBJECT_OT_select_random);
 	WM_operatortype_append(OBJECT_OT_select_all);
 	WM_operatortype_append(OBJECT_OT_select_same_group);
 	WM_operatortype_append(OBJECT_OT_select_by_type);
-	WM_operatortype_append(OBJECT_OT_select_by_layer);
 	WM_operatortype_append(OBJECT_OT_select_linked);
 	WM_operatortype_append(OBJECT_OT_select_grouped);
 	WM_operatortype_append(OBJECT_OT_select_mirror);
@@ -113,6 +107,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_text_add);
 	WM_operatortype_append(OBJECT_OT_armature_add);
 	WM_operatortype_append(OBJECT_OT_empty_add);
+	WM_operatortype_append(OBJECT_OT_lightprobe_add);
 	WM_operatortype_append(OBJECT_OT_drop_named_image);
 	WM_operatortype_append(OBJECT_OT_lamp_add);
 	WM_operatortype_append(OBJECT_OT_camera_add);
@@ -201,6 +196,14 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_weight_set_active);
 	WM_operatortype_append(OBJECT_OT_vertex_weight_normalize_active_vertex);
 	WM_operatortype_append(OBJECT_OT_vertex_weight_copy);
+
+	WM_operatortype_append(OBJECT_OT_face_map_add);
+	WM_operatortype_append(OBJECT_OT_face_map_remove);
+	WM_operatortype_append(OBJECT_OT_face_map_assign);
+	WM_operatortype_append(OBJECT_OT_face_map_remove_from);
+	WM_operatortype_append(OBJECT_OT_face_map_select);
+	WM_operatortype_append(OBJECT_OT_face_map_deselect);
+	WM_operatortype_append(OBJECT_OT_face_map_move);
 
 	WM_operatortype_append(TRANSFORM_OT_vertex_warp);
 
@@ -382,25 +385,6 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "clear_delta", true);
 	
 	WM_keymap_verify_item(keymap, "OBJECT_OT_origin_clear", OKEY, KM_PRESS, KM_ALT, 0);
-	
-	WM_keymap_add_item(keymap, "OBJECT_OT_hide_view_clear", HKEY, KM_PRESS, KM_ALT, 0);
-	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_hide_view_set", HKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "unselected", false);
-
-	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_hide_view_set", HKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "unselected", true);
-
-	/* same as above but for rendering */
-	WM_keymap_add_item(keymap, "OBJECT_OT_hide_render_clear", HKEY, KM_PRESS, KM_ALT | KM_CTRL, 0);
-	WM_keymap_add_item(keymap, "OBJECT_OT_hide_render_set", HKEY, KM_PRESS, KM_CTRL, 0);
-
-	/* conflicts, removing */
-#if 0
-	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_hide_render_set", HKEY, KM_PRESS, KM_SHIFT | KM_CTRL, 0)
-	      RNA_boolean_set(kmi->ptr, "unselected", true);
-#endif
-
-	WM_keymap_add_item(keymap, "OBJECT_OT_move_to_layer", MKEY, KM_PRESS, 0, 0);
 	
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_delete", XKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "use_global", false);

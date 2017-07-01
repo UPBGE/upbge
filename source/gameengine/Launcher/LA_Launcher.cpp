@@ -32,6 +32,8 @@
 #include "LA_System.h"
 #include "LA_SystemCommandLine.h"
 
+#include "DEG_depsgraph.h"
+
 #include "RAS_ICanvas.h"
 
 #include "GPG_Canvas.h"
@@ -77,7 +79,7 @@ extern "C" {
 #  include AUD_DEVICE_H
 #endif
 
-LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
+LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Depsgraph *depsgraph, Scene *scene, GlobalSettings *gs,
 						 RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv)
 	:m_startSceneName(scene->id.name + 2), 
 	m_startScene(scene),
@@ -100,7 +102,8 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	m_samples(samples),
 	m_stereoMode(stereoMode),
 	m_argc(argc),
-	m_argv(argv)
+	m_argv(argv),
+	m_depsgraph(depsgraph)
 {
 	m_pythonConsole.use = false;
 }
@@ -268,6 +271,7 @@ void LA_Launcher::InitEngine()
 	// Set the global settings (carried over if restart/load new files).
 	m_ketsjiEngine->SetGlobalSettings(m_globalSettings);
 
+	m_rasterizer->Init();
 	InitCamera();
 
 #ifdef WITH_PYTHON
@@ -277,7 +281,7 @@ void LA_Launcher::InitEngine()
 #endif  // WITH_PYTHON
 
 	// Create a scene converter, create and convert the stratingscene.
-	m_converter = new KX_BlenderConverter(m_maggie, m_ketsjiEngine);
+	m_converter = new KX_BlenderConverter(m_maggie, m_depsgraph, m_ketsjiEngine);
 	m_ketsjiEngine->SetConverter(m_converter);
 
 	m_kxStartScene = new KX_Scene(m_inputDevice,
@@ -303,7 +307,6 @@ void LA_Launcher::InitEngine()
 	m_ketsjiEngine->AddScene(m_kxStartScene);
 	m_kxStartScene->Release();
 
-	m_rasterizer->Init();
 	m_ketsjiEngine->StartEngine();
 
 	/* Set the animation playback rate for ipo's and actions the 

@@ -921,7 +921,7 @@ static void node_socket_copy(bNodeSocket *dst, bNodeSocket *src)
 
 /* keep socket listorder identical, for copying links */
 /* ntree is the target tree */
-bNode *nodeCopyNode(struct bNodeTree *ntree, struct bNode *node)
+bNode *nodeCopyNode(bNodeTree *ntree, bNode *node)
 {
 	bNode *nnode = MEM_callocN(sizeof(bNode), "dupli node");
 	bNodeSocket *sock, *oldsock;
@@ -1200,7 +1200,9 @@ bNodeTree *ntreeAddTree(Main *bmain, const char *name, const char *idname)
  * copying for internal use (threads for eg), where you wont want it to modify the
  * scene data.
  */
-static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool skip_database, bool do_id_user, bool do_make_extern, bool copy_previews)
+static bNodeTree *ntreeCopyTree_internal(
+        const bNodeTree *ntree, Main *bmain,
+        bool skip_database, bool do_id_user, bool do_make_extern, bool copy_previews)
 {
 	bNodeTree *newtree;
 	bNode *node /*, *nnode */ /* UNUSED */, *last;
@@ -1299,11 +1301,11 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool ski
 	return newtree;
 }
 
-bNodeTree *ntreeCopyTree_ex(bNodeTree *ntree, Main *bmain, const bool do_id_user)
+bNodeTree *ntreeCopyTree_ex(const bNodeTree *ntree, Main *bmain, const bool do_id_user)
 {
 	return ntreeCopyTree_internal(ntree, bmain, false, do_id_user, true, true);
 }
-bNodeTree *ntreeCopyTree(Main *bmain, bNodeTree *ntree)
+bNodeTree *ntreeCopyTree(Main *bmain, const bNodeTree *ntree)
 {
 	return ntreeCopyTree_ex(ntree, bmain, true);
 }
@@ -1828,7 +1830,7 @@ void ntreeFreeTree(bNodeTree *ntree)
 		if (tntree == ntree)
 			break;
 	if (tntree == NULL) {
-		BKE_libblock_free_data(G.main, &ntree->id, true);
+		BKE_libblock_free_data(&ntree->id, true);
 	}
 }
 
@@ -3587,9 +3589,12 @@ static void registerShaderNodes(void)
 	register_node_type_sh_add_shader();
 	register_node_type_sh_uvmap();
 	register_node_type_sh_uvalongstroke();
+	register_node_type_sh_eevee_metallic();
+	register_node_type_sh_eevee_specular();
 
 	register_node_type_sh_output_lamp();
 	register_node_type_sh_output_material();
+	register_node_type_sh_output_eevee_material();
 	register_node_type_sh_output_world();
 	register_node_type_sh_output_linestyle();
 
@@ -3778,4 +3783,21 @@ bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
 	}
 
 	return true;
+}
+
+/* -------------------------------------------------------------------- */
+/* NodeTree kernel functions */
+
+void BKE_nodetree_remove_layer_n(bNodeTree *ntree, Scene *scene, const int layer_index)
+{
+	for (bNode *node = ntree->nodes.first; node; node = node->next) {
+		if (node->type == CMP_NODE_R_LAYERS && (Scene *)node->id == scene) {
+			if (node->custom1 == layer_index) {
+				node->custom1 = 0;
+			}
+			else if (node->custom1 > layer_index) {
+				node->custom1--;
+			}
+		}
+	}
 }

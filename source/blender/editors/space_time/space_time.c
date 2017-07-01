@@ -60,7 +60,6 @@
 #include "WM_types.h"
 
 #include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -68,6 +67,9 @@
 
 #include "ED_space_api.h"
 #include "ED_markers.h"
+
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
 
 #include "time_intern.h"
 
@@ -80,28 +82,42 @@ static void time_draw_sfra_efra(Scene *scene, View2D *v2d)
 	 */
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
-	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
-		
+
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+	immUniformColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+
 	if (PSFRA < PEFRA) {
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
-		glRectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
+		immRectf(pos, (float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	}
 	else {
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	}
+
 	glDisable(GL_BLEND);
 
-	UI_ThemeColorShade(TH_BACK, -60);
 	/* thin lines where the actual frames are */
-	fdrawline((float)PSFRA, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
-	fdrawline((float)PEFRA, v2d->cur.ymin, (float)PEFRA, v2d->cur.ymax);
+	immUniformThemeColorShade(TH_BACK, -60);
+
+	immBegin(GWN_PRIM_LINES, 4);
+
+	immVertex2f(pos, (float)PSFRA, v2d->cur.ymin);
+	immVertex2f(pos, (float)PSFRA, v2d->cur.ymax);
+
+	immVertex2f(pos, (float)PEFRA, v2d->cur.ymin);
+	immVertex2f(pos, (float)PEFRA, v2d->cur.ymax);
+
+	immEnd();
+	immUnbindProgram();
 }
 
 static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 {
 	PTCacheID *pid;
 	ListBase pidlist;
-	SpaceTimeCache *stc = stime->caches.first;
 	const float cache_draw_height = (4.0f * UI_DPI_FAC * U.pixelsize);
 	float yoffs = 0.f;
 	
@@ -110,12 +126,13 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 
 	BKE_ptcache_ids_from_object(&pidlist, ob, scene, 0);
 
+	unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 	/* iterate over pointcaches on the active object, 
 	 * add spacetimecache and vertex array for each */
 	for (pid = pidlist.first; pid; pid = pid->next) {
-		float col[4], *fp;
-		int i, sta = pid->cache->startframe, end = pid->cache->endframe;
-		int len = (end - sta + 1) * 4;
+		float col[4];
 
 		switch (pid->type) {
 			case PTCACHE_TYPE_SOFTBODY:
@@ -142,43 +159,9 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 		if (pid->cache->cached_frames == NULL)
 			continue;
 
-		/* make sure we have stc with correct array length */
-		if (stc == NULL || MEM_allocN_len(stc->array) != len * 2 * sizeof(float)) {
-			if (stc) {
-				MEM_freeN(stc->array);
-			}
-			else {
-				stc = MEM_callocN(sizeof(SpaceTimeCache), "spacetimecache");
-				BLI_addtail(&stime->caches, stc);
-			}
-
-			stc->array = MEM_callocN(len * 2 * sizeof(float), "SpaceTimeCache array");
-		}
-
-		/* fill the vertex array with a quad for each cached frame */
-		for (i = sta, fp = stc->array; i <= end; i++) {
-			if (pid->cache->cached_frames[i - sta]) {
-				fp[0] = (float)i - 0.5f;
-				fp[1] = 0.0;
-				fp += 2;
-				
-				fp[0] = (float)i - 0.5f;
-				fp[1] = 1.0;
-				fp += 2;
-				
-				fp[0] = (float)i + 0.5f;
-				fp[1] = 1.0;
-				fp += 2;
-				
-				fp[0] = (float)i + 0.5f;
-				fp[1] = 0.0;
-				fp += 2;
-			}
-		}
-		
-		glPushMatrix();
-		glTranslatef(0.0, (float)V2D_SCROLL_HEIGHT + yoffs, 0.0);
-		glScalef(1.0, cache_draw_height, 0.0);
+		gpuPushMatrix();
+		gpuTranslate2f(0.0, (float)V2D_SCROLL_HEIGHT + yoffs);
+		gpuScale2f(1.0, cache_draw_height);
 		
 		switch (pid->type) {
 			case PTCACHE_TYPE_SOFTBODY:
@@ -212,12 +195,15 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 				BLI_assert(0);
 				break;
 		}
-		glColor4fv(col);
-		
+
+		const int sta = pid->cache->startframe, end = pid->cache->endframe;
+		const int len = (end - sta + 1) * 6;
+
 		glEnable(GL_BLEND);
-		
-		glRectf((float)sta, 0.0, (float)end, 1.0);
-		
+
+		immUniformColor4fv(col);
+		immRectf(pos, (float)sta, 0.0, (float)end, 1.0);
+
 		col[3] = 0.4f;
 		if (pid->cache->flag & PTCACHE_BAKED) {
 			col[0] -= 0.4f; col[1] -= 0.4f; col[2] -= 0.4f;
@@ -225,52 +211,38 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 		else if (pid->cache->flag & PTCACHE_OUTDATED) {
 			col[0] += 0.4f; col[1] += 0.4f; col[2] += 0.4f;
 		}
-		glColor4fv(col);
-		
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glVertexPointer(2, GL_FLOAT, 0, stc->array);
-		glDrawArrays(GL_QUADS, 0, (fp - stc->array) / 2);
-		glDisableClientState(GL_VERTEX_ARRAY);
-		
-		glDisable(GL_BLEND);
-		
-		glPopMatrix();
-		
-		yoffs += cache_draw_height;
 
-		stc = stc->next;
+		immUniformColor4fv(col);
+
+		if (len > 0) {
+			immBeginAtMost(GWN_PRIM_TRIS, len);
+
+			/* draw a quad for each cached frame */
+			for (int i = sta; i <= end; i++) {
+				if (pid->cache->cached_frames[i - sta]) {
+					immVertex2f(pos, (float)i - 0.5f, 0.0f);
+					immVertex2f(pos, (float)i - 0.5f, 1.0f);
+					immVertex2f(pos, (float)i + 0.5f, 1.0f);
+
+					immVertex2f(pos, (float)i - 0.5f, 0.0f);
+					immVertex2f(pos, (float)i + 0.5f, 1.0f);
+					immVertex2f(pos, (float)i + 0.5f, 0.0f);
+				}
+			}
+
+			immEnd();
+		}
+
+		glDisable(GL_BLEND);
+
+		gpuPopMatrix();
+
+		yoffs += cache_draw_height;
 	}
+
+	immUnbindProgram();
 
 	BLI_freelistN(&pidlist);
-
-	/* free excessive caches */
-	while (stc) {
-		SpaceTimeCache *tmp = stc->next;
-		BLI_remlink(&stime->caches, stc);
-		MEM_freeN(stc->array);
-		MEM_freeN(stc);
-		stc = tmp;
-	}
-}
-
-static void time_cache_free(SpaceTime *stime)
-{
-	SpaceTimeCache *stc;
-	
-	for (stc = stime->caches.first; stc; stc = stc->next) {
-		if (stc->array) {
-			MEM_freeN(stc->array);
-			stc->array = NULL;
-		}
-	}
-	
-	BLI_freelistN(&stime->caches);
-}
-
-static void time_cache_refresh(SpaceTime *stime)
-{
-	/* Free previous caches to indicate full refresh */
-	time_cache_free(stime);
 }
 
 /* helper function - find actkeycolumn that occurs on cframe, or the nearest one if not found */
@@ -296,7 +268,7 @@ static ActKeyColumn *time_cfra_find_ak(ActKeyColumn *ak, float cframe)
 }
 
 /* helper for time_draw_keyframes() */
-static void time_draw_idblock_keyframes(View2D *v2d, ID *id, short onlysel)
+static void time_draw_idblock_keyframes(View2D *v2d, ID *id, short onlysel, const unsigned char color[3])
 {
 	bDopeSheet ads = {NULL};
 	DLRBT_Tree keys;
@@ -339,21 +311,42 @@ static void time_draw_idblock_keyframes(View2D *v2d, ID *id, short onlysel)
 	 *	  the first visible keyframe (last one can then be easily checked)
 	 *	- draw within a single GL block to be faster
 	 */
-	glBegin(GL_LINES);
-	for (ak = time_cfra_find_ak(keys.root, v2d->cur.xmin);
-	     (ak) && (ak->cfra <= v2d->cur.xmax);
-	     ak = ak->next)
-	{
-		glVertex2f(ak->cfra, ymin);
-		glVertex2f(ak->cfra, ymax);
+
+	ActKeyColumn *link;
+	int max_len = 0;
+
+	ak = time_cfra_find_ak(keys.root, v2d->cur.xmin);
+
+	for (link = ak; link; link = link->next) {
+		max_len++;
 	}
-	glEnd(); // GL_LINES
-		
+
+	if (max_len > 0) {
+
+		Gwn_VertFormat *format = immVertexFormat();
+		unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+		immUniformColor3ubv(color);
+
+		immBeginAtMost(GWN_PRIM_LINES, max_len * 2);
+
+		for (; (ak) && (ak->cfra <= v2d->cur.xmax);
+			ak = ak->next)
+		{
+			immVertex2f(pos, ak->cfra, ymin);
+			immVertex2f(pos, ak->cfra, ymax);
+		}
+
+		immEnd();
+		immUnbindProgram();
+	}
+
 	/* free temp stuff */
 	BLI_dlrbTree_free(&keys);
 }
 
-static void time_draw_caches_keyframes(Main *bmain, Scene *scene, View2D *v2d, bool onlysel)
+static void time_draw_caches_keyframes(Main *bmain, SceneLayer *sl, View2D *v2d, bool onlysel, const unsigned char color[3])
 {
 	CacheFile *cache_file;
 
@@ -364,7 +357,7 @@ static void time_draw_caches_keyframes(Main *bmain, Scene *scene, View2D *v2d, b
 		cache_file->draw_flag &= ~CACHEFILE_KEYFRAME_DRAWN;
 	}
 
-	for (Base *base = scene->base.first; base; base = base->next) {
+	for (Base *base = sl->object_bases.first; base; base = base->next) {
 		Object *ob = base->object;
 
 		ModifierData *md = modifiers_findByType(ob, eModifierType_MeshSequenceCache);
@@ -380,7 +373,7 @@ static void time_draw_caches_keyframes(Main *bmain, Scene *scene, View2D *v2d, b
 
 			cache_file->draw_flag |= CACHEFILE_KEYFRAME_DRAWN;
 
-			time_draw_idblock_keyframes(v2d, (ID *)cache_file, onlysel);
+			time_draw_idblock_keyframes(v2d, (ID *)cache_file, onlysel, color);
 		}
 
 		for (bConstraint *con = ob->constraints.first; con; con = con->next) {
@@ -398,7 +391,7 @@ static void time_draw_caches_keyframes(Main *bmain, Scene *scene, View2D *v2d, b
 
 			cache_file->draw_flag |= CACHEFILE_KEYFRAME_DRAWN;
 
-			time_draw_idblock_keyframes(v2d, (ID *)cache_file, onlysel);
+			time_draw_idblock_keyframes(v2d, (ID *)cache_file, onlysel, color);
 		}
 	}
 }
@@ -407,24 +400,27 @@ static void time_draw_caches_keyframes(Main *bmain, Scene *scene, View2D *v2d, b
 static void time_draw_keyframes(const bContext *C, ARegion *ar)
 {
 	Scene *scene = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	Object *ob = CTX_data_active_object(C);
 	View2D *v2d = &ar->v2d;
 	bool onlysel = ((scene->flag & SCE_KEYS_NO_SELONLY) == 0);
+	unsigned char color[3];
 	
 	/* set this for all keyframe lines once and for all */
 	glLineWidth(1.0);
 
 	/* draw cache files keyframes (if available) */
-	UI_ThemeColor(TH_TIME_KEYFRAME);
-	time_draw_caches_keyframes(CTX_data_main(C), scene, v2d, onlysel);
+	UI_GetThemeColor3ubv(TH_TIME_KEYFRAME, color);
+	time_draw_caches_keyframes(CTX_data_main(C), sl, v2d, onlysel, color);
 
 	/* draw grease pencil keyframes (if available) */	
-	UI_ThemeColor(TH_TIME_GP_KEYFRAME);
+	UI_GetThemeColor3ubv(TH_TIME_GP_KEYFRAME, color);
+
 	if (scene->gpd) {
-		time_draw_idblock_keyframes(v2d, (ID *)scene->gpd, onlysel);
+		time_draw_idblock_keyframes(v2d, (ID *)scene->gpd, onlysel, color);
 	}
 	if (ob && ob->gpd) {
-		time_draw_idblock_keyframes(v2d, (ID *)ob->gpd, onlysel);
+		time_draw_idblock_keyframes(v2d, (ID *)ob->gpd, onlysel, color);
 	}
 	
 	/* draw scene keyframes first 
@@ -433,8 +429,8 @@ static void time_draw_keyframes(const bContext *C, ARegion *ar)
 	 */
 	if (onlysel == 0) {
 		/* set draw color */
-		UI_ThemeColorShade(TH_TIME_KEYFRAME, -50);
-		time_draw_idblock_keyframes(v2d, (ID *)scene, onlysel);
+		UI_GetThemeColorShade3ubv(TH_TIME_KEYFRAME, -50, color);
+		time_draw_idblock_keyframes(v2d, (ID *)scene, onlysel, color);
 	}
 	
 	/* draw keyframes from selected objects 
@@ -442,11 +438,11 @@ static void time_draw_keyframes(const bContext *C, ARegion *ar)
 	 *    OR the onlysel flag was set, which means that only active object's keyframes should
 	 *    be considered
 	 */
-	UI_ThemeColor(TH_TIME_KEYFRAME);
-	
+	UI_GetThemeColor3ubv(TH_TIME_KEYFRAME, color);
+
 	if (ob && ((ob->mode == OB_MODE_POSE) || onlysel)) {
 		/* draw keyframes for active object only */
-		time_draw_idblock_keyframes(v2d, (ID *)ob, onlysel);
+		time_draw_idblock_keyframes(v2d, (ID *)ob, onlysel, color);
 	}
 	else {
 		bool active_done = false;
@@ -455,7 +451,7 @@ static void time_draw_keyframes(const bContext *C, ARegion *ar)
 		CTX_DATA_BEGIN (C, Object *, obsel, selected_objects)
 		{
 			/* last arg is 0, since onlysel doesn't apply here... */
-			time_draw_idblock_keyframes(v2d, (ID *)obsel, 0);
+			time_draw_idblock_keyframes(v2d, (ID *)obsel, 0, color);
 			
 			/* if this object is the active one, set flag so that we don't draw again */
 			if (obsel == ob)
@@ -465,24 +461,14 @@ static void time_draw_keyframes(const bContext *C, ARegion *ar)
 		
 		/* if active object hasn't been done yet, draw it... */
 		if (ob && (active_done == 0))
-			time_draw_idblock_keyframes(v2d, (ID *)ob, 0);
+			time_draw_idblock_keyframes(v2d, (ID *)ob, 0, color);
 	}
 }
 
 /* ---------------- */
 
-static void time_refresh(const bContext *UNUSED(C), ScrArea *sa)
-{
-	/* find the main timeline region and refresh cache display*/
-	ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-	if (ar) {
-		SpaceTime *stime = (SpaceTime *)sa->spacedata.first;
-		time_cache_refresh(stime);
-	}
-}
-
 /* editor level listener */
-static void time_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
+static void time_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 
 	/* mainly for updating cache display */
@@ -623,7 +609,9 @@ static void time_main_region_draw(const bContext *C, ARegion *ar)
 	UI_view2d_scrollers_free(scrollers);
 }
 
-static void time_main_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+static void time_main_region_listener(
+        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
+        wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -652,6 +640,11 @@ static void time_main_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), 
 			if (wmn->data == ND_DATA)
 				ED_region_tag_redraw(ar);
 			break;
+		case NC_SCREEN:
+			if (ELEM(wmn->data, ND_LAYER)) {
+				ED_region_tag_redraw(ar);
+			}
+			break;
 	}
 }
 
@@ -668,7 +661,9 @@ static void time_header_region_draw(const bContext *C, ARegion *ar)
 	ED_region_header(C, ar);
 }
 
-static void time_header_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+static void time_header_region_listener(
+        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
+        wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -752,21 +747,12 @@ static SpaceLink *time_new(const bContext *C)
 	return (SpaceLink *)stime;
 }
 
-/* not spacelink itself */
-static void time_free(SpaceLink *sl)
-{
-	SpaceTime *stime = (SpaceTime *)sl;
-	
-	time_cache_free(stime);
-}
 /* spacetype; init callback in ED_area_initialize() */
 /* init is called to (re)initialize an existing editor (file read, screen changes) */
 /* validate spacedata, add own area level handlers */
 static void time_init(wmWindowManager *UNUSED(wm), ScrArea *sa)
 {
 	SpaceTime *stime = (SpaceTime *)sa->spacedata.first;
-	
-	time_cache_free(stime);
 	
 	/* enable all cache display */
 	stime->cache_display |= TIME_CACHE_DISPLAY;
@@ -796,13 +782,11 @@ void ED_spacetype_time(void)
 	strncpy(st->name, "Timeline", BKE_ST_MAXNAME);
 	
 	st->new = time_new;
-	st->free = time_free;
 	st->init = time_init;
 	st->duplicate = time_duplicate;
 	st->operatortypes = time_operatortypes;
 	st->keymap = NULL;
 	st->listener = time_listener;
-	st->refresh = time_refresh;
 	
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype time region");

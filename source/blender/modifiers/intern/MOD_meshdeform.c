@@ -47,8 +47,6 @@
 #include "BKE_deform.h"
 #include "BKE_editmesh.h"
 
-#include "depsgraph_private.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "MOD_util.h"
@@ -83,7 +81,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	MeshDeformModifierData *mmd = (MeshDeformModifierData *) md;
 	MeshDeformModifierData *tmmd = (MeshDeformModifierData *) target;
 
-	*tmmd = *mmd;
+	modifier_copyData_generic(md, target);
 
 	if (mmd->bindinfluences) tmmd->bindinfluences = MEM_dupallocN(mmd->bindinfluences);
 	if (mmd->bindoffsets) tmmd->bindoffsets = MEM_dupallocN(mmd->bindoffsets);
@@ -91,8 +89,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 	if (mmd->dyngrid) tmmd->dyngrid = MEM_dupallocN(mmd->dyngrid);
 	if (mmd->dyninfluences) tmmd->dyninfluences = MEM_dupallocN(mmd->dyninfluences);
 	if (mmd->dynverts) tmmd->dynverts = MEM_dupallocN(mmd->dynverts);
-	if (mmd->bindweights) tmmd->dynverts = MEM_dupallocN(mmd->bindweights);  /* deprecated */
-	if (mmd->bindcos) tmmd->dynverts = MEM_dupallocN(mmd->bindcos);  /* deprecated */
+	if (mmd->bindweights) tmmd->bindweights = MEM_dupallocN(mmd->bindweights);  /* deprecated */
+	if (mmd->bindcos) tmmd->bindcos = MEM_dupallocN(mmd->bindcos);  /* deprecated */
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -120,23 +118,6 @@ static void foreachObjectLink(
 	MeshDeformModifierData *mmd = (MeshDeformModifierData *) md;
 
 	walk(userData, ob, &mmd->object, IDWALK_CB_NOP);
-}
-
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
-{
-	MeshDeformModifierData *mmd = (MeshDeformModifierData *) md;
-
-	if (mmd->object) {
-		DagNode *curNode = dag_get_node(forest, mmd->object);
-
-		dag_add_relation(forest, curNode, obNode,
-		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA | DAG_RL_DATA_OB | DAG_RL_OB_OB,
-		                 "Mesh Deform Modifier");
-	}
 }
 
 static void updateDepsgraph(ModifierData *md,
@@ -534,7 +515,6 @@ ModifierTypeInfo modifierType_MeshDeform = {
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
-	/* updateDepgraph */    updateDepgraph,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  NULL,

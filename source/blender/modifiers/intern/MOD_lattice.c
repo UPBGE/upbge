@@ -44,8 +44,6 @@
 #include "BKE_library_query.h"
 #include "BKE_modifier.h"
 
-#include "depsgraph_private.h"
-
 #include "MOD_util.h"
 
 static void initData(ModifierData *md)
@@ -89,22 +87,6 @@ static void foreachObjectLink(
 	LatticeModifierData *lmd = (LatticeModifierData *) md;
 
 	walk(userData, ob, &lmd->object, IDWALK_CB_NOP);
-}
-
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
-{
-	LatticeModifierData *lmd = (LatticeModifierData *) md;
-
-	if (lmd->object) {
-		DagNode *latNode = dag_get_node(forest, lmd->object);
-
-		dag_add_relation(forest, latNode, obNode,
-		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Lattice Modifier");
-	}
 }
 
 static void updateDepsgraph(ModifierData *md,
@@ -169,7 +151,6 @@ ModifierTypeInfo modifierType_Lattice = {
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
-	/* updateDepgraph */    updateDepgraph,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,

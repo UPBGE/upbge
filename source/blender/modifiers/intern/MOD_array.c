@@ -54,7 +54,7 @@
 
 #include "MOD_util.h"
 
-#include "depsgraph_private.h"
+#include "DEG_depsgraph.h"
 
 /* Due to cyclic dependencies it's possible that curve used for
  * deformation here is not evaluated at the time of evaluating
@@ -102,43 +102,9 @@ static void foreachObjectLink(
 	walk(userData, ob, &amd->offset_ob, IDWALK_CB_NOP);
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob), DagNode *obNode)
-{
-	ArrayModifierData *amd = (ArrayModifierData *) md;
-
-	if (amd->start_cap) {
-		DagNode *curNode = dag_get_node(forest, amd->start_cap);
-
-		dag_add_relation(forest, curNode, obNode,
-		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Array Modifier");
-	}
-	if (amd->end_cap) {
-		DagNode *curNode = dag_get_node(forest, amd->end_cap);
-
-		dag_add_relation(forest, curNode, obNode,
-		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Array Modifier");
-	}
-	if (amd->curve_ob) {
-		DagNode *curNode = dag_get_node(forest, amd->curve_ob);
-		curNode->eval_flags |= DAG_EVAL_NEED_CURVE_PATH;
-
-		dag_add_relation(forest, curNode, obNode,
-		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Array Modifier");
-	}
-	if (amd->offset_ob) {
-		DagNode *curNode = dag_get_node(forest, amd->offset_ob);
-
-		dag_add_relation(forest, curNode, obNode,
-		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Array Modifier");
-	}
-}
-
 static void updateDepsgraph(ModifierData *md,
                             struct Main *UNUSED(bmain),
-                            struct Scene *scene,
+                            struct Scene *UNUSED(scene),
                             Object *UNUSED(ob),
                             struct DepsNodeHandle *node)
 {
@@ -150,8 +116,9 @@ static void updateDepsgraph(ModifierData *md,
 		DEG_add_object_relation(node, amd->end_cap, DEG_OB_COMP_TRANSFORM, "Array Modifier End Cap");
 	}
 	if (amd->curve_ob) {
+		struct Depsgraph *depsgraph = DEG_get_graph_from_handle(node);
 		DEG_add_object_relation(node, amd->curve_ob, DEG_OB_COMP_GEOMETRY, "Array Modifier Curve");
-		DEG_add_special_eval_flag(scene->depsgraph, &amd->curve_ob->id, DAG_EVAL_NEED_CURVE_PATH);
+		DEG_add_special_eval_flag(depsgraph, &amd->curve_ob->id, DAG_EVAL_NEED_CURVE_PATH);
 	}
 	if (amd->offset_ob != NULL) {
 		DEG_add_object_relation(node, amd->offset_ob, DEG_OB_COMP_TRANSFORM, "Array Modifier Offset");
@@ -789,7 +756,6 @@ ModifierTypeInfo modifierType_Array = {
 	/* requiredDataMask */  NULL,
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
-	/* updateDepgraph */    updateDepgraph,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,

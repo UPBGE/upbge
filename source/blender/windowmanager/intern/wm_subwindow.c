@@ -47,8 +47,7 @@
 
 #include "BIF_gl.h"
 
-#include "GPU_extensions.h"
-#include "GPU_basic_shader.h"
+#include "GPU_matrix.h"
 
 #include "WM_api.h"
 #include "wm_subwindow.h"
@@ -142,15 +141,17 @@ void wm_subwindow_origin_get(wmWindow *win, int swinid, int *x, int *y)
 
 static void wm_swin_matrix_get(wmWindow *win, wmSubWindow *swin, float mat[4][4])
 {
+	const bScreen *screen = WM_window_get_active_screen(win);
+
 	/* used by UI, should find a better way to get the matrix there */
-	if (swin->swinid == win->screen->mainwin) {
+	if (swin->swinid == screen->mainwin) {
 		int width, height;
 
 		wm_swin_size_get(swin, &width, &height);
 		orthographic_m4(mat, -GLA_PIXEL_OFS, (float)width - GLA_PIXEL_OFS, -GLA_PIXEL_OFS, (float)height - GLA_PIXEL_OFS, -100, 100);
 	}
 	else {
-		glGetFloatv(GL_PROJECTION_MATRIX, (float *)mat);
+		gpuGetProjectionMatrix(mat);
 	}
 }
 void wm_subwindow_matrix_get(wmWindow *win, int swinid, float mat[4][4])
@@ -216,7 +217,7 @@ int wm_subwindow_open(wmWindow *win, const rcti *winrct, bool activate)
 		/* extra service */
 		wm_swin_size_get(swin, &width, &height);
 		wmOrtho2_pixelspace(width, height);
-		glLoadIdentity();
+		gpuLoadIdentity();
 	}
 
 	return swin->swinid;
@@ -322,7 +323,7 @@ void wmSubWindowScissorSet(wmWindow *win, int swinid, const rcti *srct, bool src
 		glScissor(_curswin->winrct.xmin, _curswin->winrct.ymin, width, height);
 	
 	wmOrtho2_pixelspace(width, height);
-	glLoadIdentity();
+	gpuLoadIdentity();
 	
 	glFlush();
 }
@@ -333,31 +334,13 @@ void wmSubWindowSet(wmWindow *win, int swinid)
 	wmSubWindowScissorSet(win, swinid, NULL, true);
 }
 
-void wmFrustum(float x1, float x2, float y1, float y2, float n, float f)
-{
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glFrustum(x1, x2, y1, y2, n, f);
-	glMatrixMode(GL_MODELVIEW);
-}
-
-void wmOrtho(float x1, float x2, float y1, float y2, float n, float f)
-{
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-
-	glOrtho(x1, x2, y1, y2, n, f);
-
-	glMatrixMode(GL_MODELVIEW);
-}
-
 void wmOrtho2(float x1, float x2, float y1, float y2)
 {
 	/* prevent opengl from generating errors */
 	if (x1 == x2) x2 += 1.0f;
 	if (y1 == y2) y2 += 1.0f;
 
-	wmOrtho(x1, x2, y1, y2, -100, 100);
+	gpuOrtho(x1, x2, y1, y2, -100, 100);
 }
 
 static void wmOrtho2_offset(const float x, const float y, const float ofs)

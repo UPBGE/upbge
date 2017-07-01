@@ -40,13 +40,14 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_group.h"
 #include "BKE_library.h"
 #include "BKE_library_remap.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_object.h"
+
+#include "DEG_depsgraph_build.h"
 
 #include "ED_screen.h"
 #include "ED_object.h"
@@ -128,7 +129,6 @@ static int objects_add_active_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
 	int single_group_index = RNA_enum_get(op->ptr, "group");
 	Group *single_group = group_object_active_find_index(ob, single_group_index);
 	Group *group;
@@ -151,7 +151,7 @@ static int objects_add_active_exec(bContext *C, wmOperator *op)
 				continue;
 
 			if (!BKE_group_object_cyclic_check(bmain, base->object, group)) {
-				BKE_group_object_add(group, base->object, scene, base);
+				BKE_group_object_add(group, base->object);
 				updated = true;
 			}
 			else {
@@ -167,7 +167,7 @@ static int objects_add_active_exec(bContext *C, wmOperator *op)
 	if (!updated)
 		return OPERATOR_CANCELLED;
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_GROUP | NA_EDITED, NULL);
 
 	return OPERATOR_FINISHED;
@@ -200,8 +200,8 @@ void GROUP_OT_objects_add_active(wmOperatorType *ot)
 static int objects_remove_active_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
-	Object *ob = OBACT;
+	SceneLayer *sl = CTX_data_scene_layer(C);
+	Object *ob = OBACT_NEW;
 	int single_group_index = RNA_enum_get(op->ptr, "group");
 	Group *single_group = group_object_active_find_index(ob, single_group_index);
 	Group *group;
@@ -221,7 +221,7 @@ static int objects_remove_active_exec(bContext *C, wmOperator *op)
 			/* Remove groups from selected objects */
 			CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
 			{
-				BKE_group_object_unlink(group, base->object, scene, base);
+				BKE_group_object_unlink(group, base->object);
 				ok = 1;
 			}
 			CTX_DATA_END;
@@ -231,7 +231,7 @@ static int objects_remove_active_exec(bContext *C, wmOperator *op)
 	if (!ok)
 		BKE_report(op->reports, RPT_ERROR, "Active object contains no groups");
 	
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_GROUP | NA_EDITED, NULL);
 	
 	return OPERATOR_FINISHED;
@@ -264,15 +264,14 @@ void GROUP_OT_objects_remove_active(wmOperatorType *ot)
 static int group_objects_remove_all_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
 
 	CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
 	{
-		BKE_object_groups_clear(scene, base, base->object);
+		BKE_object_groups_clear(base->object);
 	}
 	CTX_DATA_END;
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_GROUP | NA_EDITED, NULL);
 	
 	return OPERATOR_FINISHED;
@@ -297,7 +296,6 @@ static int group_objects_remove_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
 	int single_group_index = RNA_enum_get(op->ptr, "group");
 	Group *single_group = group_object_active_find_index(ob, single_group_index);
 	Group *group;
@@ -315,7 +313,7 @@ static int group_objects_remove_exec(bContext *C, wmOperator *op)
 		/* now remove all selected objects from the group */
 		CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
 		{
-			BKE_group_object_unlink(group, base->object, scene, base);
+			BKE_group_object_unlink(group, base->object);
 			updated = true;
 		}
 		CTX_DATA_END;
@@ -324,7 +322,7 @@ static int group_objects_remove_exec(bContext *C, wmOperator *op)
 	if (!updated)
 		return OPERATOR_CANCELLED;
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_GROUP | NA_EDITED, NULL);
 
 	return OPERATOR_FINISHED;
@@ -357,7 +355,6 @@ void GROUP_OT_objects_remove(wmOperatorType *ot)
 static int group_create_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
 	Group *group = NULL;
 	char name[MAX_ID_NAME - 2]; /* id name */
 	
@@ -367,11 +364,11 @@ static int group_create_exec(bContext *C, wmOperator *op)
 		
 	CTX_DATA_BEGIN (C, Base *, base, selected_bases)
 	{
-		BKE_group_object_add(group, base->object, scene, base);
+		BKE_group_object_add(group, base->object);
 	}
 	CTX_DATA_END;
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_GROUP | NA_EDITED, NULL);
 	
 	return OPERATOR_FINISHED;
@@ -398,7 +395,6 @@ void GROUP_OT_create(wmOperatorType *ot)
 
 static int group_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_context(C);
 	Main *bmain = CTX_data_main(C);
 	Group *group;
@@ -407,7 +403,7 @@ static int group_add_exec(bContext *C, wmOperator *UNUSED(op))
 		return OPERATOR_CANCELLED;
 
 	group = BKE_group_add(bmain, "Group");
-	BKE_group_object_add(group, ob, scene, NULL);
+	BKE_group_object_add(group, ob);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
@@ -432,7 +428,6 @@ void OBJECT_OT_group_add(wmOperatorType *ot)
 static int group_link_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_context(C);
 	Group *group = BLI_findlink(&bmain->group, RNA_enum_get(op->ptr, "group"));
 
@@ -457,7 +452,7 @@ static int group_link_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	BKE_group_object_add(group, ob, scene, NULL);
+	BKE_group_object_add(group, ob);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
@@ -490,14 +485,13 @@ void OBJECT_OT_group_link(wmOperatorType *ot)
 
 static int group_remove_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_context(C);
 	Group *group = CTX_data_pointer_get_type(C, "group", &RNA_Group).data;
 
 	if (!ob || !group)
 		return OPERATOR_CANCELLED;
 
-	BKE_group_object_unlink(group, ob, scene, NULL); /* base will be used if found */
+	BKE_group_object_unlink(group, ob);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 	
@@ -528,8 +522,7 @@ static int group_unlink_exec(bContext *C, wmOperator *UNUSED(op))
 	if (!group)
 		return OPERATOR_CANCELLED;
 
-	BKE_libblock_unlink(bmain, group, false, false);
-	BKE_libblock_free(bmain, group);
+	BKE_libblock_delete(bmain, group);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, NULL);
 
@@ -560,8 +553,10 @@ static int select_grouped_exec(bContext *C, wmOperator *UNUSED(op))  /* Select o
 
 	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
 	{
-		if (!(base->flag & SELECT) && BKE_group_object_exists(group, base->object)) {
-			ED_base_object_select(base, BA_SELECT);
+		if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLED) != 0)) {
+			if (BKE_group_object_exists(group, base->object)) {
+				ED_object_base_select(base, BA_SELECT);
+			}
 		}
 	}
 	CTX_DATA_END;

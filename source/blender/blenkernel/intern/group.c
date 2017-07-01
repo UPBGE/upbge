@@ -45,8 +45,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
 #include "BKE_icons.h"
@@ -89,7 +87,7 @@ Group *BKE_group_add(Main *bmain, const char *name)
 	return group;
 }
 
-Group *BKE_group_copy(Main *bmain, Group *group)
+Group *BKE_group_copy(Main *bmain, const Group *group)
 {
 	Group *groupn;
 
@@ -132,18 +130,11 @@ static bool group_object_add_internal(Group *group, Object *ob)
 	return true;
 }
 
-bool BKE_group_object_add(Group *group, Object *object, Scene *scene, Base *base)
+bool BKE_group_object_add(Group *group, Object *object)
 {
 	if (group_object_add_internal(group, object)) {
 		if ((object->flag & OB_FROMGROUP) == 0) {
-
-			if (scene && base == NULL)
-				base = BKE_scene_base_find(scene, object);
-
 			object->flag |= OB_FROMGROUP;
-
-			if (base)
-				base->flag |= OB_FROMGROUP;
 		}
 		return true;
 	}
@@ -210,18 +201,12 @@ bool BKE_group_object_cyclic_check(Main *bmain, Object *object, Group *group)
 	return group_object_cyclic_check_internal(object, group);
 }
 
-bool BKE_group_object_unlink(Group *group, Object *object, Scene *scene, Base *base)
+bool BKE_group_object_unlink(Group *group, Object *object)
 {
 	if (group_object_unlink_internal(group, object)) {
 		/* object can be NULL */
 		if (object && BKE_group_object_find(NULL, object) == NULL) {
-			if (scene && base == NULL)
-				base = BKE_scene_base_find(scene, object);
-
 			object->flag &= ~OB_FROMGROUP;
-
-			if (base)
-				base->flag &= ~OB_FROMGROUP;
 		}
 		return true;
 	}
@@ -329,7 +314,7 @@ static void group_replaces_nla(Object *parent, Object *target, char mode)
  * you can draw everything, leaves tags in objects to signal it needs further updating */
 
 /* note: does not work for derivedmesh and render... it recreates all again in convertblender.c */
-void BKE_group_handle_recalc_and_update(EvaluationContext *eval_ctx, Scene *scene, Object *UNUSED(parent), Group *group)
+void BKE_group_handle_recalc_and_update(struct EvaluationContext *eval_ctx, Scene *scene, Object *UNUSED(parent), Group *group)
 {
 	GroupObject *go;
 	

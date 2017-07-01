@@ -23,6 +23,8 @@
 
 # Libraries configuration for Apple.
 
+set(MACOSX_DEPLOYMENT_TARGET "10.9")
+
 macro(find_package_wrapper)
 # do nothing, just satisfy the macro
 endmacro()

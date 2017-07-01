@@ -51,9 +51,9 @@
 
 #include "BKE_animsys.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_idcode.h"
+#include "BKE_layer.h"
 #include "BKE_library.h"
 #include "BKE_library_query.h"
 #include "BKE_library_remap.h"
@@ -63,6 +63,8 @@
 #include "BKE_scene.h"
 #include "BKE_material.h"
 #include "BKE_group.h"
+
+#include "DEG_depsgraph_build.h"
 
 #include "../blenloader/BLO_readfile.h"
 
@@ -148,8 +150,46 @@ TreeElement *outliner_dropzone_find(const SpaceOops *soops, const float fmval[2]
 	return NULL;
 }
 
+
 /* ************************************************************** */
-/* Click Activated */
+
+/* Highlight --------------------------------------------------- */
+
+static int outliner_highlight_update(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
+{
+	ARegion *ar = CTX_wm_region(C);
+	SpaceOops *soops = CTX_wm_space_outliner(C);
+	const float my = UI_view2d_region_to_view_y(&ar->v2d, event->mval[1]);
+
+	TreeElement *hovered_te = outliner_find_item_at_y(soops, &soops->tree, my);
+	bool changed = false;
+
+	if (!hovered_te || !(hovered_te->store_elem->flag & TSE_HIGHLIGHTED)) {
+		changed = outliner_set_flag(&soops->tree, TSE_HIGHLIGHTED, false);
+		if (hovered_te) {
+			hovered_te->store_elem->flag |= TSE_HIGHLIGHTED;
+			changed = true;
+		}
+	}
+
+	if (changed) {
+		soops->storeflag |= SO_TREESTORE_REDRAW; /* only needs to redraw, no rebuild */
+		ED_region_tag_redraw(ar);
+	}
+
+	return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);
+}
+
+void OUTLINER_OT_highlight_update(wmOperatorType *ot)
+{
+	ot->name = "Update Highlight";
+	ot->idname = "OUTLINER_OT_highlight_update";
+	ot->description = "Update the item highlight based on the current mouse position";
+
+	ot->invoke = outliner_highlight_update;
+
+	ot->poll = ED_operator_outliner_active;
+}
 
 /* Toggle Open/Closed ------------------------------------------- */
 
@@ -216,8 +256,11 @@ void OUTLINER_OT_item_openclose(wmOperatorType *ot)
 
 /* Rename --------------------------------------------------- */
 
-static void do_item_rename(ARegion *ar, TreeElement *te, TreeStoreElem *tselem, ReportList *reports)
+static void do_item_rename(const Scene *scene, ARegion *ar, TreeElement *te, TreeStoreElem *tselem,
+                           ReportList *reports)
 {
+	bool add_textbut = false;
+
 	/* can't rename rna datablocks entries or listbases */
 	if (ELEM(tselem->type, TSE_RNA_STRUCT, TSE_RNA_PROPERTY, TSE_RNA_ARRAY_ELEM, TSE_ID_BASE)) {
 		/* do nothing */;
@@ -230,6 +273,18 @@ static void do_item_rename(ARegion *ar, TreeElement *te, TreeStoreElem *tselem, 
 	else if (ELEM(tselem->type, TSE_SEQUENCE, TSE_SEQ_STRIP, TSE_SEQUENCE_DUP)) {
 		BKE_report(reports, RPT_WARNING, "Cannot edit sequence name");
 	}
+	else if (ELEM(tselem->type, TSE_LAYER_COLLECTION, TSE_SCENE_COLLECTION)) {
+		SceneCollection *master = BKE_collection_master(scene);
+
+		if ((tselem->type == TSE_SCENE_COLLECTION && te->directdata == master) ||
+		    (((LayerCollection *)te->directdata)->scene_collection == master))
+		{
+			BKE_report(reports, RPT_WARNING, "Cannot edit name of master collection");
+		}
+		else {
+			add_textbut = true;
+		}
+	}
 	else if (ID_IS_LINKED_DATABLOCK(tselem->id)) {
 		BKE_report(reports, RPT_WARNING, "Cannot edit external libdata");
 	}
@@ -237,34 +292,39 @@ static void do_item_rename(ARegion *ar, TreeElement *te, TreeStoreElem *tselem, 
 		BKE_report(reports, RPT_WARNING, "Cannot edit the path of an indirectly linked library");
 	}
 	else {
+		add_textbut = true;
+	}
+
+	if (add_textbut) {
 		tselem->flag |= TSE_TEXTBUT;
 		ED_region_tag_redraw(ar);
 	}
 }
 
 void item_rename_cb(
-        bContext *C, ReportList *reports, Scene *UNUSED(scene), TreeElement *te,
+        bContext *C, ReportList *reports, Scene *scene, TreeElement *te,
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ARegion *ar = CTX_wm_region(C);
-	do_item_rename(ar, te, tselem, reports);
+	do_item_rename(scene, ar, te, tselem, reports);
 }
 
-static int do_outliner_item_rename(ReportList *reports, ARegion *ar, TreeElement *te, const float mval[2])
+static int do_outliner_item_rename(const Scene *scene, ReportList *reports, ARegion *ar, TreeElement *te,
+                                   const float mval[2])
 {
 	if (mval[1] > te->ys && mval[1] < te->ys + UI_UNIT_Y) {
 		TreeStoreElem *tselem = TREESTORE(te);
 		
 		/* click on name */
 		if (mval[0] > te->xs + UI_UNIT_X * 2 && mval[0] < te->xend) {
-			do_item_rename(ar, te, tselem, reports);
+			do_item_rename(scene, ar, te, tselem, reports);
 			return 1;
 		}
 		return 0;
 	}
 	
 	for (te = te->subtree.first; te; te = te->next) {
-		if (do_outliner_item_rename(reports, ar, te, mval)) return 1;
+		if (do_outliner_item_rename(scene, reports, ar, te, mval)) return 1;
 	}
 	return 0;
 }
@@ -280,7 +340,7 @@ static int outliner_item_rename(bContext *C, wmOperator *op, const wmEvent *even
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 	
 	for (te = soops->tree.first; te; te = te->next) {
-		if (do_outliner_item_rename(op->reports, ar, te, fmval)) {
+		if (do_outliner_item_rename(CTX_data_scene(C), op->reports, ar, te, fmval)) {
 			changed = true;
 			break;
 		}
@@ -433,7 +493,7 @@ static int outliner_id_remap_exec(bContext *C, wmOperator *op)
 	BKE_main_lib_objects_recalc_all(bmain);
 
 	/* recreate dependency graph to include new objects */
-	DAG_scene_relations_rebuild(bmain, scene);
+	DEG_scene_relations_rebuild(bmain, scene);
 
 	/* free gpu materials, some materials depend on existing objects, such as lamps so freeing correctly refreshes */
 	GPU_materials_free();
@@ -744,17 +804,34 @@ int outliner_has_one_flag(ListBase *lb, short flag, const int curlevel)
 	return 0;
 }
 
-void outliner_set_flag(ListBase *lb, short flag, short set)
+/**
+ * Set or unset \a flag for all outliner elements in \a lb and sub-trees.
+ * \return if any flag was modified.
+ */
+bool outliner_set_flag(ListBase *lb, short flag, short set)
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
-	
+	bool changed = false;
+	bool has_flag;
+
 	for (te = lb->first; te; te = te->next) {
 		tselem = TREESTORE(te);
-		if (set == 0) tselem->flag &= ~flag;
-		else tselem->flag |= flag;
-		outliner_set_flag(&te->subtree, flag, set);
+		has_flag = (tselem->flag & flag);
+		if (set == 0) {
+			if (has_flag) {
+				tselem->flag &= ~flag;
+				changed = true;
+			}
+		}
+		else if (!has_flag) {
+			tselem->flag |= flag;
+			changed = true;
+		}
+		changed |= outliner_set_flag(&te->subtree, flag, set);
 	}
+
+	return changed;
 }
 
 /* Restriction Columns ------------------------------- */
@@ -779,181 +856,6 @@ int common_restrict_check(bContext *C, Object *ob)
 	}
 	
 	return 1;
-}
-
-/* =============================================== */
-/* Restriction toggles */
-
-/* Toggle Visibility ---------------------------------------- */
-
-void object_toggle_visibility_cb(
-        bContext *C, ReportList *reports, Scene *scene, TreeElement *te,
-        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
-{
-	Base *base = (Base *)te->directdata;
-	Object *ob = (Object *)tselem->id;
-
-	if (ID_IS_LINKED_DATABLOCK(tselem->id)) {
-		BKE_report(reports, RPT_WARNING, "Cannot edit external libdata");
-		return;
-	}
-
-	/* add check for edit mode */
-	if (!common_restrict_check(C, ob)) return;
-	
-	if (base || (base = BKE_scene_base_find(scene, ob))) {
-		if ((base->object->restrictflag ^= OB_RESTRICT_VIEW)) {
-			ED_base_object_select(base, BA_DESELECT);
-		}
-	}
-}
-
-void group_toggle_visibility_cb(
-        bContext *UNUSED(C), ReportList *UNUSED(reports), Scene *scene, TreeElement *UNUSED(te),
-        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
-{
-	Group *group = (Group *)tselem->id;
-	restrictbutton_gr_restrict_flag(scene, group, OB_RESTRICT_VIEW);
-}
-
-static int outliner_toggle_visibility_exec(bContext *C, wmOperator *op)
-{
-	Main *bmain = CTX_data_main(C);
-	SpaceOops *soops = CTX_wm_space_outliner(C);
-	Scene *scene = CTX_data_scene(C);
-	ARegion *ar = CTX_wm_region(C);
-	
-	outliner_do_object_operation(C, op->reports, scene, soops, &soops->tree, object_toggle_visibility_cb);
-	
-	DAG_id_type_tag(bmain, ID_OB);
-	WM_event_add_notifier(C, NC_SCENE | ND_OB_VISIBLE, scene);
-	ED_region_tag_redraw(ar);
-	
-	return OPERATOR_FINISHED;
-}
-
-void OUTLINER_OT_visibility_toggle(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Toggle Visibility";
-	ot->idname = "OUTLINER_OT_visibility_toggle";
-	ot->description = "Toggle the visibility of selected items";
-	
-	/* callbacks */
-	ot->exec = outliner_toggle_visibility_exec;
-	ot->poll = ED_operator_outliner_active_no_editobject;
-	
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-/* Toggle Selectability ---------------------------------------- */
-
-void object_toggle_selectability_cb(
-        bContext *UNUSED(C), ReportList *reports, Scene *scene, TreeElement *te,
-        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
-{
-	Base *base = (Base *)te->directdata;
-
-	if (ID_IS_LINKED_DATABLOCK(tselem->id)) {
-		BKE_report(reports, RPT_WARNING, "Cannot edit external libdata");
-		return;
-	}
-
-	if (base == NULL) base = BKE_scene_base_find(scene, (Object *)tselem->id);
-	if (base) {
-		base->object->restrictflag ^= OB_RESTRICT_SELECT;
-	}
-}
-
-void group_toggle_selectability_cb(
-        bContext *UNUSED(C), ReportList *UNUSED(reports), Scene *scene, TreeElement *UNUSED(te),
-        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
-{
-	Group *group = (Group *)tselem->id;
-	restrictbutton_gr_restrict_flag(scene, group, OB_RESTRICT_SELECT);
-}
-
-static int outliner_toggle_selectability_exec(bContext *C, wmOperator *op)
-{
-	SpaceOops *soops = CTX_wm_space_outliner(C);
-	Scene *scene = CTX_data_scene(C);
-	ARegion *ar = CTX_wm_region(C);
-	
-	outliner_do_object_operation(C, op->reports, scene, soops, &soops->tree, object_toggle_selectability_cb);
-	
-	WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-	ED_region_tag_redraw(ar);
-	
-	return OPERATOR_FINISHED;
-}
-
-void OUTLINER_OT_selectability_toggle(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Toggle Selectability";
-	ot->idname = "OUTLINER_OT_selectability_toggle";
-	ot->description = "Toggle the selectability";
-	
-	/* callbacks */
-	ot->exec = outliner_toggle_selectability_exec;
-	ot->poll = ED_operator_outliner_active_no_editobject;
-	
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-/* Toggle Renderability ---------------------------------------- */
-
-void object_toggle_renderability_cb(
-        bContext *UNUSED(C), ReportList *reports, Scene *scene, TreeElement *te,
-        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
-{
-	Base *base = (Base *)te->directdata;
-
-	if (ID_IS_LINKED_DATABLOCK(tselem->id)) {
-		BKE_report(reports, RPT_WARNING, "Cannot edit external libdata");
-		return;
-	}
-
-	if (base == NULL) base = BKE_scene_base_find(scene, (Object *)tselem->id);
-	if (base) {
-		base->object->restrictflag ^= OB_RESTRICT_RENDER;
-	}
-}
-
-void group_toggle_renderability_cb(
-        bContext *UNUSED(C), ReportList *UNUSED(reports), Scene *scene, TreeElement *UNUSED(te),
-        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
-{
-	Group *group = (Group *)tselem->id;
-	restrictbutton_gr_restrict_flag(scene, group, OB_RESTRICT_RENDER);
-}
-
-static int outliner_toggle_renderability_exec(bContext *C, wmOperator *op)
-{
-	Main *bmain = CTX_data_main(C);
-	SpaceOops *soops = CTX_wm_space_outliner(C);
-	Scene *scene = CTX_data_scene(C);
-	
-	outliner_do_object_operation(C, op->reports, scene, soops, &soops->tree, object_toggle_renderability_cb);
-	
-	DAG_id_type_tag(bmain, ID_OB);
-	WM_event_add_notifier(C, NC_SCENE | ND_OB_RENDER, scene);
-	
-	return OPERATOR_FINISHED;
-}
-
-void OUTLINER_OT_renderability_toggle(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Toggle Renderability";
-	ot->idname = "OUTLINER_OT_renderability_toggle";
-	ot->description = "Toggle the renderability of selected items";
-	
-	/* callbacks */
-	ot->exec = outliner_toggle_renderability_exec;
-	ot->poll = ED_operator_outliner_active;
-	
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /* =============================================== */
@@ -1077,14 +979,14 @@ static int outliner_open_back(TreeElement *te)
 static int outliner_show_active_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SpaceOops *so = CTX_wm_space_outliner(C);
-	Scene *scene = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	ARegion *ar = CTX_wm_region(C);
 	View2D *v2d = &ar->v2d;
 	
 	TreeElement *te;
 	int xdelta, ytop;
 
-	Object *obact = OBACT;
+	Object *obact = OBACT_NEW;
 
 	if (!obact)
 		return OPERATOR_CANCELLED;
@@ -2003,7 +1905,7 @@ static int parent_drop_exec(bContext *C, wmOperator *op)
 
 	ED_object_parent_set(op->reports, bmain, scene, ob, par, partype, false, false, NULL);
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
 	WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, NULL);
 
@@ -2019,6 +1921,7 @@ static int parent_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = NULL;
 	TreeElement *te = NULL;
+	TreeStoreElem *tselem;
 	char childname[MAX_ID_NAME];
 	char parname[MAX_ID_NAME];
 	int partype = 0;
@@ -2028,8 +1931,21 @@ static int parent_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 	/* Find object hovered over */
 	te = outliner_dropzone_find(soops, fmval, true);
+	tselem = te ? TREESTORE(te) : NULL;
 
-	if (te) {
+	if (tselem && ELEM(tselem->type, TSE_LAYER_COLLECTION, TSE_SCENE_COLLECTION)) {
+		SceneCollection *sc = outliner_scene_collection_from_tree_element(te);
+
+		scene = BKE_scene_find_from_collection(bmain, sc);
+		BLI_assert(scene);
+		RNA_string_get(op->ptr, "child", childname);
+		ob = (Object *)BKE_libblock_find_name(ID_OB, childname);
+		BKE_collection_object_add(scene, sc, ob);
+
+		DEG_relations_tag_update(bmain);
+		WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
+	}
+	else if (te) {
 		RNA_string_set(op->ptr, "parent", te->name);
 		/* Identify parent and child */
 		RNA_string_get(op->ptr, "child", childname);
@@ -2062,7 +1978,7 @@ static int parent_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 		if ((par->type != OB_ARMATURE) && (par->type != OB_CURVE) && (par->type != OB_LATTICE)) {
 			if (ED_object_parent_set(op->reports, bmain, scene, ob, par, partype, false, false, NULL)) {
-				DAG_relations_tag_update(bmain);
+				DEG_relations_tag_update(bmain);
 				WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
 				WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, NULL);
 			}
@@ -2190,7 +2106,7 @@ static int parent_clear_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
 
 	ED_object_parent_clear(ob, RNA_enum_get(op->ptr, "type"));
 
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
 	WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, NULL);
 	return OPERATOR_FINISHED;
@@ -2233,8 +2149,6 @@ static int scene_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	te = outliner_dropzone_find(soops, fmval, false);
 
 	if (te) {
-		Base *base;
-
 		RNA_string_set(op->ptr, "scene", te->name);
 		scene = (Scene *)BKE_libblock_find_name(ID_SCE, te->name);
 
@@ -2245,19 +2159,29 @@ static int scene_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 			return OPERATOR_CANCELLED;
 		}
 
-		base = ED_object_scene_link(scene, ob);
-
-		if (base == NULL) {
+		if (BKE_scene_has_object(scene, ob)) {
 			return OPERATOR_CANCELLED;
 		}
 
-		if (scene == CTX_data_scene(C)) {
-			/* when linking to an inactive scene don't touch the layer */
-			ob->lay = base->lay;
-			ED_base_object_select(base, BA_SELECT);
+		SceneCollection *sc;
+		if (scene != CTX_data_scene(C)) {
+			/* when linking to an inactive scene link to the master collection */
+			sc = BKE_collection_master(scene);
+		}
+		else {
+			sc = CTX_data_scene_collection(C);
 		}
 
-		DAG_relations_tag_update(bmain);
+		BKE_collection_object_add(scene, sc, ob);
+
+		for (SceneLayer *sl = scene->render_layers.first; sl; sl = sl->next) {
+			Base *base = BKE_scene_layer_base_find(sl, ob);
+			if (base) {
+				ED_object_base_select(base, BA_SELECT);
+			}
+		}
+
+		DEG_relations_tag_update(bmain);
 
 		WM_main_add_notifier(NC_SCENE | ND_OB_SELECT, scene);
 
@@ -2349,7 +2273,6 @@ static int group_link_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	Main *bmain = CTX_data_main(C);
 	Group *group = NULL;
 	Object *ob = NULL;
-	Scene *scene = CTX_data_scene(C);
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	ARegion *ar = CTX_wm_region(C);
 	TreeElement *te = NULL;
@@ -2379,7 +2302,7 @@ static int group_link_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 			return OPERATOR_CANCELLED;
 		}
 
-		BKE_group_object_add(group, ob, scene, NULL);
+		BKE_group_object_add(group, ob);
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
 		return OPERATOR_FINISHED;

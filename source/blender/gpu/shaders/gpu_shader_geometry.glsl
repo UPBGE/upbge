@@ -1,10 +1,11 @@
+
+uniform mat4 ProjectionMatrix;
+
 uniform int PrimitiveIdBase;
 uniform int osd_active_uv_offset;
 
-#if __VERSION__ >= 150
-  layout(lines_adjacency) in;
-  layout(triangle_strip, max_vertices = 4) out;
-#endif
+layout(lines_adjacency) in;
+layout(triangle_strip, max_vertices = 4) out;
 
 in block {
 	VertexData v;
@@ -69,7 +70,7 @@ void emit_flat(int index, vec3 normal)
 
 	set_mtface_vertex_attrs(st);
 
-	gl_Position = gl_ProjectionMatrix * inpt[index].v.position;
+	gl_Position = ProjectionMatrix * inpt[index].v.position;
 	EmitVertex();
 }
 
@@ -90,7 +91,7 @@ void emit_smooth(int index)
 
 	set_mtface_vertex_attrs(st);
 
-	gl_Position = gl_ProjectionMatrix * inpt[index].v.position;
+	gl_Position = ProjectionMatrix * inpt[index].v.position;
 	EmitVertex();
 }
 

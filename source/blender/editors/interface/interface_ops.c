@@ -42,14 +42,19 @@
 #include "BLT_lang.h"
 
 #include "BKE_context.h"
+#include "BKE_idprop.h"
+#include "BKE_layer.h"
 #include "BKE_screen.h"
 #include "BKE_global.h"
 #include "BKE_node.h"
 #include "BKE_text.h" /* for UI_OT_reports_to_text */
 #include "BKE_report.h"
 
+#include "DEG_depsgraph.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_types.h"
 
 #include "UI_interface.h"
 
@@ -323,6 +328,125 @@ static void UI_OT_unset_property_button(wmOperatorType *ot)
 	/* callbacks */
 	ot->poll = ED_operator_regionactive;
 	ot->exec = unset_property_button_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_UNDO;
+}
+
+/* Use/Unuse Property Button Operator ------------------------ */
+
+static int use_property_button_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	PointerRNA ptr, scene_props_ptr;
+	PropertyRNA *prop;
+	IDProperty *props;
+
+	uiBut *but = UI_context_active_but_get(C);
+
+	prop = but->rnaprop;
+	ptr = but->rnapoin;
+	props = (IDProperty *)ptr.data;
+	/* XXX Using existing data struct to pass another RNAPointer */
+	scene_props_ptr = but->rnasearchpoin;
+
+	const char *identifier = RNA_property_identifier(prop);
+	if (IDP_GetPropertyFromGroup(props, identifier)) {
+		return OPERATOR_CANCELLED;
+	}
+
+	int array_len = RNA_property_array_length(&scene_props_ptr, prop);
+	bool is_array = array_len != 0;
+
+	switch (RNA_property_type(prop)) {
+		case PROP_FLOAT:
+		{
+			if (is_array) {
+				float values[RNA_MAX_ARRAY_LENGTH];
+				RNA_property_float_get_array(&scene_props_ptr, prop, values);
+				BKE_collection_engine_property_add_float_array(props, identifier, values, array_len);
+			}
+			else {
+				float value = RNA_property_float_get(&scene_props_ptr, prop);
+				BKE_collection_engine_property_add_float(props, identifier, value);
+			}
+			break;
+		}
+		case PROP_ENUM:
+		{
+			int value = RNA_enum_get(&scene_props_ptr, identifier);
+			BKE_collection_engine_property_add_int(props, identifier, value);
+			break;
+		}
+		case PROP_INT:
+		{
+			int value = RNA_int_get(&scene_props_ptr, identifier);
+			BKE_collection_engine_property_add_int(props, identifier, value);
+			break;
+		}
+		case PROP_BOOLEAN:
+		{
+			int value = RNA_boolean_get(&scene_props_ptr, identifier);
+			BKE_collection_engine_property_add_bool(props, identifier, value);
+			break;
+		}
+		case PROP_STRING:
+		case PROP_POINTER:
+		case PROP_COLLECTION:
+		default:
+			break;
+	}
+
+	/* TODO(sergey): Use proper flag for tagging here. */
+	DEG_id_tag_update((ID *)CTX_data_scene(C), 0);
+
+	return OPERATOR_FINISHED;
+}
+
+static void UI_OT_use_property_button(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Use property";
+	ot->idname = "UI_OT_use_property_button";
+	ot->description = "Create a property";
+
+	/* callbacks */
+	ot->poll = ED_operator_regionactive;
+	ot->exec = use_property_button_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_UNDO;
+}
+
+static int unuse_property_button_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	PointerRNA ptr;
+	PropertyRNA *prop;
+	int index;
+
+	/* try to unset the nominated property */
+	UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+	const char *identifier = RNA_property_identifier(prop);
+
+	IDProperty *props = (IDProperty *)ptr.data;
+	IDProperty *prop_to_remove = IDP_GetPropertyFromGroup(props, identifier);
+	IDP_FreeFromGroup(props, prop_to_remove);
+
+	/* TODO(sergey): Use proper flag for tagging here. */
+	DEG_id_tag_update((ID *)CTX_data_scene(C), 0);
+
+	return OPERATOR_FINISHED;
+}
+
+static void UI_OT_unuse_property_button(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Unuse property";
+	ot->idname = "UI_OT_unuse_property_button";
+	ot->description = "Remove a property";
+
+	/* callbacks */
+	ot->poll = ED_operator_regionactive;
+	ot->exec = unuse_property_button_exec;
 
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
@@ -1114,6 +1238,8 @@ void ED_operatortypes_ui(void)
 	WM_operatortype_append(UI_OT_copy_python_command_button);
 	WM_operatortype_append(UI_OT_reset_default_button);
 	WM_operatortype_append(UI_OT_unset_property_button);
+	WM_operatortype_append(UI_OT_use_property_button);
+	WM_operatortype_append(UI_OT_unuse_property_button);
 	WM_operatortype_append(UI_OT_copy_to_selected_button);
 	WM_operatortype_append(UI_OT_reports_to_textblock);  /* XXX: temp? */
 	WM_operatortype_append(UI_OT_drop_color);

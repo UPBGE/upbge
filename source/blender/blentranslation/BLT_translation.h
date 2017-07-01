@@ -140,6 +140,7 @@ bool BLT_lang_is_ime_supported(void);
 #define BLT_I18NCONTEXT_ID_PAINTCURVE           "PaintCurve"
 #define BLT_I18NCONTEXT_ID_PALETTE              "Palette"
 #define BLT_I18NCONTEXT_ID_PARTICLESETTINGS     "ParticleSettings"
+#define BLT_I18NCONTEXT_ID_LIGHTPROBE           "LightProbe"
 #define BLT_I18NCONTEXT_ID_SCENE                "Scene"
 #define BLT_I18NCONTEXT_ID_SCREEN               "Screen"
 #define BLT_I18NCONTEXT_ID_SEQUENCE             "Sequence"
@@ -149,6 +150,7 @@ bool BLT_lang_is_ime_supported(void);
 #define BLT_I18NCONTEXT_ID_TEXT                 "Text"
 #define BLT_I18NCONTEXT_ID_VFONT                "VFont"
 #define BLT_I18NCONTEXT_ID_WORLD                "World"
+#define BLT_I18NCONTEXT_ID_WORKSPACE            "WorkSpace"
 #define BLT_I18NCONTEXT_ID_WINDOWMANAGER        "WindowManager"
 #define BLT_I18NCONTEXT_ID_MOVIECLIP            "MovieClip"
 #define BLT_I18NCONTEXT_ID_MASK                 "Mask"
@@ -194,6 +196,7 @@ typedef struct {
 	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_PAINTCURVE, "id_paintcurve"),                                             \
 	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_PALETTE, "id_palette"),                                                   \
 	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_PARTICLESETTINGS, "id_particlesettings"),                                 \
+	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_LIGHTPROBE, "id_lightprobe"),                                             \
 	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_SCENE, "id_scene"),                                                       \
 	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_SCREEN, "id_screen"),                                                     \
 	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_SEQUENCE, "id_sequence"),                                                 \
@@ -203,6 +206,7 @@ typedef struct {
 	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_TEXT, "id_text"),                                                         \
 	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_VFONT, "id_vfont"),                                                       \
 	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_WORLD, "id_world"),                                                       \
+	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_WORKSPACE, "id_workspace"),                                               \
 	BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "id_windowmanager"),                                       \
 	{NULL, NULL, NULL}                                                                                                 \
 }

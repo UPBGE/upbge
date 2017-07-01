@@ -40,6 +40,7 @@
 struct Material;
 struct Scene;
 struct GPUMaterial;
+struct DRWShadingGroup;
 class KX_Scene;
 class RAS_MeshSlot;
 
@@ -55,6 +56,7 @@ private:
 	int m_lightLayer;
 	int m_alphaBlend;
 	GPUMaterial *m_gpuMat;
+	DRWShadingGroup *m_shGroup;
 
 	/// The material attributes passed to the rasterizer.
 	RAS_Rasterizer::TexCoGenList m_attribs;
@@ -84,7 +86,7 @@ public:
 	void ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 	void DesactivateInstancing();
 
-	void ReloadMaterial();
+	void ReloadMaterial(KX_Scene *scene);
 	int GetAlphaBlend();
 };
 

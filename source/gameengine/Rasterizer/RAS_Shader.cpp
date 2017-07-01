@@ -314,7 +314,7 @@ bool RAS_Shader::LinkProgram()
 	frag = GetParsedProgram(FRAGMENT_PROGRAM);
 	geom = GetParsedProgram(GEOMETRY_PROGRAM);
 	m_shader = GPU_shader_create(vert.c_str(), frag.c_str(), geom.empty() ? nullptr : geom.c_str(),
-									nullptr, nullptr, 0, 0, 0);
+									nullptr, nullptr);
 	if (!m_shader) {
 		goto program_error;
 	}
@@ -342,11 +342,6 @@ void RAS_Shader::ValidateProgram()
 bool RAS_Shader::GetError()
 {
 	return m_error;
-}
-
-unsigned int RAS_Shader::GetProg()
-{
-	return GPU_shader_program(m_shader);
 }
 
 GPUShader *RAS_Shader::GetGPUShader()
@@ -503,7 +498,7 @@ void RAS_Shader::BindAttribute(const std::string& attr, int loc)
 int RAS_Shader::GetUniformLocation(const std::string& name, bool debug)
 {
 	BLI_assert(m_shader != nullptr);
-	int location = GPU_shader_get_uniform(m_shader, name.c_str());
+	int location = GPU_shader_get_uniform_location_old(m_shader, name.c_str());
 
 	if (location == -1 && debug) {
 		CM_Error("invalid uniform value: " << name << ".");

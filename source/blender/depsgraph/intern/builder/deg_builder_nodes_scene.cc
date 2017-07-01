@@ -43,9 +43,11 @@
 
 extern "C" {
 #include "DNA_node_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 } /* extern "C" */
@@ -79,9 +81,13 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 	}
 
 	/* scene objects */
-	LINKLIST_FOREACH (Base *, base, &scene->base) {
-		Object *ob = base->object;
-		build_object(scene, base, ob);
+	int select_color = 1;
+	for (SceneLayer *sl = (SceneLayer *)scene->render_layers.first; sl; sl = sl->next) {
+		for (Base *base = (Base *)sl->object_bases.first; base; base = base->next) {
+			/* object itself */
+			build_object(scene, base->object);
+			base->object->select_color = select_color++;
+		}
 	}
 
 	/* rigidbody */
@@ -126,6 +132,16 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 	LINKLIST_FOREACH (MovieClip *, clip, &bmain->movieclip) {
 		build_movieclip(clip);
 	}
+
+	/* Collections. */
+	build_scene_layer_collections(scene);
+
+	/* Parameters evaluation for scene relations mainly. */
+	add_operation_node(&scene->id,
+	                   DEG_NODE_TYPE_PARAMETERS,
+	                   NULL,
+	                   DEG_OPCODE_PLACEHOLDER,
+	                   "Scene Eval");
 }
 
 }  // namespace DEG

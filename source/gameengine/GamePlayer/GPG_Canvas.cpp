@@ -50,8 +50,6 @@ GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
 	m_width(0),
 	m_height(0)
 {
-	m_rasterizer->GetViewport(m_viewport);
-
 	if (m_window) {
 		GHOST_Rect bnds;
 		m_window->getClientBounds(bnds);
@@ -61,21 +59,6 @@ GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
 
 GPG_Canvas::~GPG_Canvas()
 {
-}
-
-int GPG_Canvas::GetWidth() const
-{
-	return m_width;
-}
-
-int GPG_Canvas::GetHeight() const
-{
-	return m_height;
-}
-
-RAS_Rect &GPG_Canvas::GetWindowArea()
-{
-	return m_area;
 }
 
 void GPG_Canvas::BeginFrame()
@@ -96,41 +79,8 @@ void GPG_Canvas::EndDraw()
 
 void GPG_Canvas::Resize(int width, int height)
 {
-	m_width = width;
-	m_height = height;
-
-	// initialize area so that it's available for game logic on frame 1 (ImageViewport)
-	m_area.SetLeft(0);
-	m_area.SetBottom(0);
-	m_area.SetRight(width);
-	m_area.SetTop(height);
-}
-
-void GPG_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
-{
-	/*	x1 and y1 are the min pixel coordinate (e.g. 0)
-	    x2 and y2 are the max pixel coordinate
-	    the width,height is calculated including both pixels
-	    therefore: max - min + 1
-	 */
-
-	m_viewport[0] = x1;
-	m_viewport[1] = y1;
-	m_viewport[2] = x2 - x1 + 1;
-	m_viewport[3] = y2 - y1 + 1;
-}
-
-void GPG_Canvas::UpdateViewPort(int x1, int y1, int x2, int y2)
-{
-	m_viewport[0] = x1;
-	m_viewport[1] = y1;
-	m_viewport[2] = x2;
-	m_viewport[3] = y2;
-}
-
-const int *GPG_Canvas::GetViewPort()
-{
-	return m_viewport;
+	m_viewportArea = RAS_Rect(width, height);
+	m_windowArea = RAS_Rect(width, height);
 }
 
 void GPG_Canvas::MakeScreenShot(const std::string& filename)
@@ -266,14 +216,4 @@ bool GPG_Canvas::GetFullScreen()
 void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNUSED(screen))
 {
 	m_window->screenToClient(x, y, r_x, r_y);
-}
-
-float GPG_Canvas::GetMouseNormalizedX(int x)
-{
-	return float(x) / this->GetWidth();
-}
-
-float GPG_Canvas::GetMouseNormalizedY(int y)
-{
-	return float(y) / this->GetHeight();
 }

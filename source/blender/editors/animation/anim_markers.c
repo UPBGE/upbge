@@ -36,13 +36,14 @@
 #include "DNA_object_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math_base.h"
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
 #include "BKE_context.h"
 #include "BKE_fcurve.h"
+#include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -56,8 +57,10 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
+
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
@@ -348,19 +351,30 @@ static void draw_marker(
 	if (flag & DRAW_MARKERS_LINES)
 #endif
 	{
-		setlinestyle(3);
-		
-		if (marker->flag & SELECT)
-			glColor4ub(255, 255, 255, 96);
-		else
-			glColor4ub(0, 0, 0, 96);
-		
-		glBegin(GL_LINES);
-		glVertex2f(xpos + 0.5f, 12.0f);
-		glVertex2f(xpos + 0.5f, (v2d->cur.ymax + 12.0f) * yscale);
-		glEnd();
-		
-		setlinestyle(0);
+		Gwn_VertFormat *format = immVertexFormat();
+		uint pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+
+		immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_COLOR);
+
+		float viewport_size[4];
+		glGetFloatv(GL_VIEWPORT, viewport_size);
+		immUniform2f("viewport_size", viewport_size[2] / UI_DPI_FAC, viewport_size[3] / UI_DPI_FAC);
+
+		if (marker->flag & SELECT) {
+			immUniformColor4f(1.0f, 1.0f, 1.0f, 0.38f);
+		}
+		else {
+			immUniformColor4f(0.0f, 0.0f, 0.0f, 0.38f);
+		}
+		immUniform1f("dash_width", 6.0f);
+		immUniform1f("dash_factor", 0.5f);
+
+		immBegin(GWN_PRIM_LINES, 2);
+		immVertex2f(pos, xpos + 0.5f, 12.0f);
+		immVertex2f(pos, xpos + 0.5f, (v2d->cur.ymax + 12.0f) * yscale);
+		immEnd();
+
+		immUnbindProgram();
 	}
 	
 	/* 5 px to offset icon to align properly, space / pixels corrects for zoom */
@@ -380,19 +394,20 @@ static void draw_marker(
 	
 	/* and the marker name too, shifted slightly to the top-right */
 	if (marker->name[0]) {
+		unsigned char text_col[4];
 		float x, y;
 
 		/* minimal y coordinate which wouldn't be occluded by scroll */
 		int min_y = 17.0f * UI_DPI_FAC;
 		
 		if (marker->flag & SELECT) {
-			UI_ThemeColor(TH_TEXT_HI);
+			UI_GetThemeColor4ubv(TH_TEXT_HI, text_col);
 			x = xpos + 4.0f * UI_DPI_FAC;
 			y = (ypixels <= 39.0f * UI_DPI_FAC) ? (ypixels - 10.0f * UI_DPI_FAC) : 29.0f * UI_DPI_FAC;
 			y = max_ii(y, min_y);
 		}
 		else {
-			UI_ThemeColor(TH_TEXT);
+			UI_GetThemeColor4ubv(TH_TEXT, text_col);
 			if ((marker->frame <= cfra) && (marker->frame + 5 > cfra)) {
 				x = xpos + 8.0f * UI_DPI_FAC;
 				y = (ypixels <= 39.0f * UI_DPI_FAC) ? (ypixels - 10.0f * UI_DPI_FAC) : 29.0f * UI_DPI_FAC;
@@ -406,14 +421,11 @@ static void draw_marker(
 
 #ifdef DURIAN_CAMERA_SWITCH
 		if (marker->camera && (marker->camera->restrictflag & OB_RESTRICT_RENDER)) {
-			float col[4];
-			glGetFloatv(GL_CURRENT_COLOR, col);
-			col[3] = 0.4;
-			glColor4fv(col);
+			text_col[3] = 100;
 		}
 #endif
 
-		UI_fontstyle_draw_simple(fstyle, x, y, marker->name);
+		UI_fontstyle_draw_simple(fstyle, x, y, marker->name, text_col);
 	}
 }
 
@@ -440,21 +452,27 @@ void ED_markers_draw(const bContext *C, int flag)
 	v2d = UI_view2d_fromcontext(C);
 
 	if (flag & DRAW_MARKERS_MARGIN) {
+		unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 		const unsigned char shade[4] = {0, 0, 0, 16};
-		glColor4ubv(shade);
+		immUniformColor4ubv(shade);
 
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		glRectf(v2d->cur.xmin, 0, v2d->cur.xmax, UI_MARKER_MARGIN_Y);
+		immRectf(pos, v2d->cur.xmin, 0, v2d->cur.xmax, UI_MARKER_MARGIN_Y);
 
 		glDisable(GL_BLEND);
+
+		immUnbindProgram();
 	}
 
 	/* no time correction for framelen! space is drawn with old values */
 	ypixels = BLI_rcti_size_y(&v2d->mask);
 	UI_view2d_scale_get(v2d, &xscale, &yscale);
-	glScalef(1.0f / xscale, 1.0f, 1.0f);
+	gpuPushMatrix();
+	gpuScale2f(1.0f / xscale, 1.0f);
 
 	/* x-bounds with offset for text (adjust for long string, avoid checking string width) */
 	font_width_max = (10 * UI_DPI_FAC) / xscale;
@@ -477,7 +495,7 @@ void ED_markers_draw(const bContext *C, int flag)
 		}
 	}
 
-	glScalef(xscale, 1.0f, 1.0f);
+	gpuPopMatrix();
 }
 
 /* ************************ Marker Wrappers API ********************* */
@@ -841,7 +859,7 @@ static void ed_marker_move_apply(bContext *C, wmOperator *op)
 	BKE_scene_camera_switch_update(scene);
 
 	if (camera != scene->camera) {
-		BKE_screen_view3d_scene_sync(sc);
+		BKE_screen_view3d_scene_sync(sc, scene);
 		WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
 	}
 #endif
@@ -1125,6 +1143,7 @@ static int ed_marker_select(bContext *C, const wmEvent *event, bool extend, bool
 
 	if (camera) {
 		Scene *scene = CTX_data_scene(C);
+		SceneLayer *sl = CTX_data_scene_layer(C);
 		Base *base;
 		TimeMarker *marker;
 		int sel = 0;
@@ -1142,11 +1161,11 @@ static int ed_marker_select(bContext *C, const wmEvent *event, bool extend, bool
 		for (marker = markers->first; marker; marker = marker->next) {
 			if (marker->camera) {
 				if (marker->frame == cfra) {
-					base = BKE_scene_base_find(scene, marker->camera);
+					base = BKE_scene_layer_base_find(sl, marker->camera);
 					if (base) {
-						ED_base_object_select(base, sel);
+						ED_object_base_select(base, sel);
 						if (sel)
-							ED_base_object_activate(C, base);
+							ED_object_base_activate(C, base);
 					}
 				}
 			}
@@ -1531,7 +1550,7 @@ static int ed_marker_camera_bind_exec(bContext *C, wmOperator *UNUSED(op))
 
 	/* camera may have changes */
 	BKE_scene_camera_switch_update(scene);
-	BKE_screen_view3d_scene_sync(sc);
+	BKE_screen_view3d_scene_sync(sc, scene);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, NULL);
 	WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, NULL);

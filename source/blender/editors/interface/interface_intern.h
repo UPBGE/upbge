@@ -72,6 +72,7 @@ typedef enum {
 	UI_WTYPE_NUMBER,
 	UI_WTYPE_SLIDER,
 	UI_WTYPE_EXEC,
+	UI_WTYPE_TAB,
 	UI_WTYPE_TOOLTIP,
 	
 	/* strings */
@@ -258,6 +259,7 @@ struct uiBut {
 	
 	uiButSearchCreateFunc search_create_func;
 	uiButSearchFunc search_func;
+	bool free_search_arg;
 	void *search_arg;
 
 	uiButHandleRenameFunc rename_func;
@@ -277,7 +279,7 @@ struct uiBut {
 	BIFIconID icon;
 	char dt; /* drawtype: UI_EMBOSS, UI_EMBOSS_NONE ... etc, copied from the block */
 	signed char pie_dir; /* direction in a pie menu, used for collision detection (RadialDirection) */
-	char changed; /* could be made into a single flag */
+	bool changed; /* could be made into a single flag */
 	unsigned char unit_type; /* so buttons can support unit systems which are not RNA */
 	short modifier_key;
 	short iconadd;
@@ -640,6 +642,8 @@ extern void ui_draw_dropshadow(const rctf *rct, float radius, float aspect, floa
 
 void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, const float alpha);
 
+
+void ui_draw_but_TAB_outline(const rcti *rect, float rad, unsigned char highlight[3], unsigned char highlight_fade[3]);
 void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
 void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
 void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, const rcti *rect);
@@ -682,15 +686,16 @@ struct wmIMEData *ui_but_ime_data_get(uiBut *but);
 #endif
 
 /* interface_widgets.c */
-void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3);
-void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float maxy, float rad, bool use_alpha);
+void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3, const float color[4]);
+void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float maxy,
+                           float rad, bool use_alpha, const float color[4]);
 void ui_draw_menu_back(struct uiStyle *style, uiBlock *block, rcti *rect);
 void ui_draw_pie_center(uiBlock *block);
 uiWidgetColors *ui_tooltip_get_theme(void);
 void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *block, rcti *rect);
 void ui_draw_search_back(struct uiStyle *style, uiBlock *block, rcti *rect);
 bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol);
-void ui_draw_link_bezier(const rcti *rect);
+void ui_draw_link_bezier(const rcti *rect, const float color[4]);
 
 extern void ui_draw_but(const struct bContext *C, ARegion *ar, struct uiStyle *style, uiBut *but, rcti *rect);
 /* theme color init */
@@ -743,5 +748,21 @@ void UI_OT_eyedropper_color(struct wmOperatorType *ot);
 void UI_OT_eyedropper_id(struct wmOperatorType *ot);
 void UI_OT_eyedropper_depth(struct wmOperatorType *ot);
 void UI_OT_eyedropper_driver(struct wmOperatorType *ot);
+
+/* interface_util.c */
+
+/**
+ * For use with #ui_rna_collection_search_cb.
+ */
+typedef struct uiRNACollectionSearch {
+	PointerRNA target_ptr;
+	PropertyRNA *target_prop;
+
+	PointerRNA search_ptr;
+	PropertyRNA *search_prop;
+
+	bool *but_changed; /* pointer to uiBut.changed */
+} uiRNACollectionSearch;
+void ui_rna_collection_search_cb(const struct bContext *C, void *arg, const char *str, uiSearchItems *items);
 
 #endif  /* __INTERFACE_INTERN_H__ */

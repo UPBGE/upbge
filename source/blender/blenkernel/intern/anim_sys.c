@@ -60,7 +60,6 @@
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_nla.h"
 #include "BKE_global.h"
@@ -69,6 +68,8 @@
 #include "BKE_library.h"
 #include "BKE_report.h"
 #include "BKE_texture.h"
+
+#include "DEG_depsgraph.h"
 
 #include "RNA_access.h"
 
@@ -93,6 +94,7 @@ bool id_type_can_have_animdata(const short id_type)
 		case ID_MA: case ID_TE: case ID_NT:
 		case ID_LA: case ID_CA: case ID_WO:
 		case ID_LS:
+		case ID_LP:
 		case ID_SPK:
 		case ID_SCE:
 		case ID_MC:
@@ -394,73 +396,6 @@ void BKE_animdata_merge_copy(ID *dst_id, ID *src_id, eAnimData_MergeCopy_Modes a
 		}
 		
 		BLI_movelisttolist(&dst->drivers, &drivers);
-	}
-}
-
-/* Make Local -------------------------------------------- */
-
-static void make_local_strips(ListBase *strips)
-{
-	NlaStrip *strip;
-
-	for (strip = strips->first; strip; strip = strip->next) {
-		if (strip->act) BKE_action_make_local(G.main, strip->act, false);
-		if (strip->remap && strip->remap->target) BKE_action_make_local(G.main, strip->remap->target, false);
-		
-		make_local_strips(&strip->strips);
-	}
-}
-
-/* Use local copy instead of linked copy of various ID-blocks */
-void BKE_animdata_make_local(AnimData *adt)
-{
-	NlaTrack *nlt;
-	
-	/* Actions - Active and Temp */
-	if (adt->action) BKE_action_make_local(G.main, adt->action, false);
-	if (adt->tmpact) BKE_action_make_local(G.main, adt->tmpact, false);
-	/* Remaps */
-	if (adt->remap && adt->remap->target) BKE_action_make_local(G.main, adt->remap->target, false);
-	
-	/* Drivers */
-	/* TODO: need to remap the ID-targets too? */
-	
-	/* NLA Data */
-	for (nlt = adt->nla_tracks.first; nlt; nlt = nlt->next)
-		make_local_strips(&nlt->strips);
-}
-
-
-/* When duplicating data (i.e. objects), drivers referring to the original data will 
- * get updated to point to the duplicated data (if drivers belong to the new data)
- */
-void BKE_animdata_relink(AnimData *adt)
-{
-	/* sanity check */
-	if (adt == NULL)
-		return;
-	
-	/* drivers */
-	if (adt->drivers.first) {
-		FCurve *fcu;
-		
-		/* check each driver against all the base paths to see if any should go */
-		for (fcu = adt->drivers.first; fcu; fcu = fcu->next) {
-			ChannelDriver *driver = fcu->driver;
-			DriverVar *dvar;
-			
-			/* driver variables */
-			for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
-				/* only change the used targets, since the others will need fixing manually anyway */
-				DRIVER_TARGETS_USED_LOOPER(dvar)
-				{
-					if (dtar->id && dtar->id->newid) {
-						dtar->id = dtar->id->newid;
-					}
-				}
-				DRIVER_TARGETS_LOOPER_END
-			}
-		}
 	}
 }
 
@@ -1661,7 +1596,7 @@ static bool animsys_write_rna_setting(PathResolvedRNA *anim_rna, const float val
 		 * notify anyone of updates */
 		if (!(id->tag & LIB_TAG_ANIM_NO_RECALC)) {
 			BKE_id_tag_set_atomic(id, LIB_TAG_ID_RECALC);
-			DAG_id_type_tag(G.main, GS(id->name));
+			DEG_id_type_tag(G.main, GS(id->name));
 		}
 	}
 
@@ -2616,7 +2551,7 @@ static void animsys_evaluate_nla(ListBase *echannels, PointerRNA *ptr, AnimData 
 		ID *id = ptr->id.data;
 		if (!(id->tag & LIB_TAG_ANIM_NO_RECALC)) {
 			id->tag |= LIB_TAG_ID_RECALC;
-			DAG_id_type_tag(G.main, GS(id->name));
+			DEG_id_type_tag(G.main, GS(id->name));
 		}
 	}
 }

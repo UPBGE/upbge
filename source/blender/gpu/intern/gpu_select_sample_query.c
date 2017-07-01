@@ -32,6 +32,8 @@
 
 #include <stdlib.h>
 
+#include "GPU_immediate.h"
+#include "GPU_draw.h"
 #include "GPU_select.h"
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
@@ -94,7 +96,7 @@ void gpu_select_query_begin(
 	g_query_state.id = MEM_mallocN(g_query_state.num_of_queries * sizeof(*g_query_state.id), "gpu selection ids");
 	glGenQueries(g_query_state.num_of_queries, g_query_state.queries);
 
-	glPushAttrib(GL_DEPTH_BUFFER_BIT | GL_VIEWPORT_BIT);
+	gpuPushAttrib(GPU_DEPTH_BUFFER_BIT | GPU_VIEWPORT_BIT);
 	/* disable writing to the framebuffer */
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
@@ -142,13 +144,17 @@ bool gpu_select_query_load_id(unsigned int id)
 	g_query_state.active_query++;
 	g_query_state.query_issued = true;
 
-	if (g_query_state.mode == GPU_SELECT_NEAREST_SECOND_PASS && g_query_state.index < g_query_state.oldhits) {
-		if (g_query_state.buffer[g_query_state.index][3] == id) {
-			g_query_state.index++;
-			return true;
-		}
-		else {
-			return false;
+	if (g_query_state.mode == GPU_SELECT_NEAREST_SECOND_PASS) {
+		/* Second pass should never run if first pass fails, can read past 'bufsize' in this case. */
+		BLI_assert(g_query_state.oldhits != -1);
+		if (g_query_state.index < g_query_state.oldhits) {
+			if (g_query_state.buffer[g_query_state.index][3] == id) {
+				g_query_state.index++;
+				return true;
+			}
+			else {
+				return false;
+			}
 		}
 	}
 
@@ -202,7 +208,7 @@ unsigned int gpu_select_query_end(void)
 	glDeleteQueries(g_query_state.num_of_queries, g_query_state.queries);
 	MEM_freeN(g_query_state.queries);
 	MEM_freeN(g_query_state.id);
-	glPopAttrib();
+	gpuPopAttrib();
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
 	return hits;

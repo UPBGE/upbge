@@ -161,7 +161,7 @@ typedef struct ThemeUI {
 	/* Interface Elements (buttons, menus, icons) */
 	uiWidgetColors wcol_regular, wcol_tool, wcol_text;
 	uiWidgetColors wcol_radio, wcol_option, wcol_toggle;
-	uiWidgetColors wcol_num, wcol_numslider;
+	uiWidgetColors wcol_num, wcol_numslider, wcol_tab;
 	uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item, wcol_tooltip;
 	uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item, wcol_pie_menu;
 	
@@ -494,7 +494,8 @@ typedef struct UserDef {
 	short gp_settings;
 	short tb_leftmouse, tb_rightmouse;
 	struct SolidLight light[3];
-	short tw_hotspot, tw_flag, tw_handlesize, tw_size;
+	short manipulator_flag, manipulator_size;
+	int pad3;
 	short textimeout, texcollectrate;
 	short wmdrawmethod; /* removed wmpad */
 	short dragthreshold;
@@ -599,7 +600,7 @@ typedef enum eUserPref_Flag {
 /*	USER_AUTOGRABGRID		= (1 << 1),	deprecated */
 /*	USER_AUTOROTGRID		= (1 << 2),	deprecated */
 /*	USER_AUTOSIZEGRID		= (1 << 3),	deprecated */
-	USER_SCENEGLOBAL		= (1 << 4),
+/*	USER_SCENEGLOBAL         = (1 << 4), deprecated */
 	USER_TRACKBALL			= (1 << 5),
 /*	USER_DUPLILINK		= (1 << 6),	deprecated */
 /*	USER_FSCOLLUM			= (1 << 7),	deprecated */
@@ -788,13 +789,16 @@ typedef enum eText_Draw_Options {
 	USER_TEXT_DISABLE_AA	= (1 << 0),
 } eText_Draw_Options;
 
-/* tw_flag (transform widget) */
-
 /* gp_settings (Grease Pencil Settings) */
 typedef enum eGP_UserdefSettings {
 	GP_PAINT_DOSMOOTH		= (1 << 0),
 	GP_PAINT_DOSIMPLIFY		= (1 << 1),
 } eGP_UserdefSettings;
+
+enum {
+	USER_MANIPULATOR_DRAW        = (1 << 0),
+	USER_MANIPULATOR_SHADED      = (1 << 1),
+};
 
 /* color picker types */
 typedef enum eColorPicker_Types {

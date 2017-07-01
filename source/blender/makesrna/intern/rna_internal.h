@@ -166,6 +166,7 @@ void RNA_def_packedfile(struct BlenderRNA *brna);
 void RNA_def_palette(struct BlenderRNA *brna);
 void RNA_def_particle(struct BlenderRNA *brna);
 void RNA_def_pose(struct BlenderRNA *brna);
+void RNA_def_lightprobe(struct BlenderRNA *brna);
 void RNA_def_py_component(struct BlenderRNA *brna);
 void RNA_def_render(struct BlenderRNA *brna);
 void RNA_def_rigidbody(struct BlenderRNA *brna);
@@ -187,6 +188,8 @@ void RNA_def_ui(struct BlenderRNA *brna);
 void RNA_def_userdef(struct BlenderRNA *brna);
 void RNA_def_vfont(struct BlenderRNA *brna);
 void RNA_def_wm(struct BlenderRNA *brna);
+void RNA_def_wm_manipulator(struct BlenderRNA *brna);
+void RNA_def_workspace(struct BlenderRNA *brna);
 void RNA_def_world(struct BlenderRNA *brna);
 void RNA_def_movieclip(struct BlenderRNA *brna);
 void RNA_def_tracking(struct BlenderRNA *brna);
@@ -237,7 +240,7 @@ int rna_object_shapekey_index_set(struct ID *id, PointerRNA value, int current);
 /* named internal so as not to conflict with obj.update() rna func */
 void rna_Object_internal_update_data(struct Main *bmain, struct Scene *scene, struct PointerRNA *ptr);
 void rna_Mesh_update_draw(struct Main *bmain, struct Scene *scene, struct PointerRNA *ptr);
-void rna_TextureSlot_update(struct Main *bmain, struct Scene *scene, struct PointerRNA *ptr);
+void rna_TextureSlot_update(struct bContext *C, struct PointerRNA *ptr);
 
 /* basic poll functions for object types */
 int rna_Armature_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
@@ -268,6 +271,8 @@ void RNA_api_image(struct StructRNA *srna);
 void RNA_api_lattice(struct StructRNA *srna);
 void RNA_api_operator(struct StructRNA *srna);
 void RNA_api_macro(struct StructRNA *srna);
+void RNA_api_manipulator(struct StructRNA *srna);
+void RNA_api_manipulatorgroup(struct StructRNA *srna);
 void RNA_api_keyconfig(struct StructRNA *srna);
 void RNA_api_keyconfigs(struct StructRNA *srna);
 void RNA_api_keyingset(struct StructRNA *srna);
@@ -280,7 +285,7 @@ void RNA_api_material(StructRNA *srna);
 void RNA_api_mesh(struct StructRNA *srna);
 void RNA_api_meta(struct StructRNA *srna);
 void RNA_api_object(struct StructRNA *srna);
-void RNA_api_object_base(struct StructRNA *srna);
+void RNA_api_object_base_legacy(struct StructRNA *srna);
 void RNA_api_pose(struct StructRNA *srna);
 void RNA_api_pose_channel(struct StructRNA *srna);
 void RNA_api_scene(struct StructRNA *srna);
@@ -336,6 +341,8 @@ void RNA_def_main_masks(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_linestyles(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_cachefiles(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_paintcurves(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_def_main_workspaces(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_def_main_lightprobes(BlenderRNA *brna, PropertyRNA *cprop);
 
 /* ID Properties */
 

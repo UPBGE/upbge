@@ -43,9 +43,11 @@
 #include "BKE_constraint.h"
 #include "BKE_tracking.h"
 #include "BKE_global.h"
-#include "BKE_depsgraph.h"
+#include "BKE_layer.h"
 #include "BKE_object.h"
 #include "BKE_report.h"
+
+#include "DEG_depsgraph.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -69,17 +71,16 @@ static Object *get_camera_with_movieclip(Scene *scene, MovieClip *clip)
 		return camera;
 	}
 
-	for (Base *base = scene->base.first;
-	     base != NULL;
-	     base = base->next)
+	FOREACH_SCENE_OBJECT(scene, ob)
 	{
-		if (base->object->type == OB_CAMERA) {
-			if (BKE_object_movieclip_get(scene, base->object, false) == clip) {
-				camera = base->object;
+		if (ob->type == OB_CAMERA) {
+			if (BKE_object_movieclip_get(scene, ob, false) == clip) {
+				camera = ob;
 				break;
 			}
 		}
 	}
+	FOREACH_SCENE_OBJECT_END
 
 	return camera;
 }
@@ -87,6 +88,7 @@ static Object *get_camera_with_movieclip(Scene *scene, MovieClip *clip)
 static Object *get_orientation_object(bContext *C)
 {
 	Scene *scene = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking = &clip->tracking;
@@ -97,7 +99,7 @@ static Object *get_orientation_object(bContext *C)
 		object = get_camera_with_movieclip(scene, clip);
 	}
 	else {
-		object = OBACT;
+		object = OBACT_NEW;
 	}
 
 	if (object != NULL && object->parent != NULL) {
@@ -111,7 +113,7 @@ static int set_orientation_poll(bContext *C)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	if (sc != NULL) {
-		Scene *scene = CTX_data_scene(C);
+		SceneLayer *sl = CTX_data_scene_layer(C);
 		MovieClip *clip = ED_space_clip_get_clip(sc);
 		if (clip != NULL) {
 			MovieTracking *tracking = &clip->tracking;
@@ -120,7 +122,7 @@ static int set_orientation_poll(bContext *C)
 				return true;
 			}
 			else {
-				return OBACT != NULL;
+				return OBACT_NEW != NULL;
 			}
 		}
 	}
@@ -247,8 +249,8 @@ static int set_origin_exec(bContext *C, wmOperator *op)
 		copy_v3_v3(object->loc, vec);
 	}
 
-	DAG_id_tag_update(&clip->id, 0);
-	DAG_id_tag_update(&object->id, OB_RECALC_OB);
+	DEG_id_tag_update(&clip->id, 0);
+	DEG_id_tag_update(&object->id, OB_RECALC_OB);
 
 	WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
@@ -493,8 +495,8 @@ static int set_plane_exec(bContext *C, wmOperator *op)
 	BKE_object_where_is_calc(scene, object);
 	set_axis(scene, object, clip, tracking_object, axis_track, 'X');
 
-	DAG_id_tag_update(&clip->id, 0);
-	DAG_id_tag_update(&object->id, OB_RECALC_OB);
+	DEG_id_tag_update(&clip->id, 0);
+	DEG_id_tag_update(&object->id, OB_RECALC_OB);
 
 	WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
@@ -567,8 +569,8 @@ static int set_axis_exec(bContext *C, wmOperator *op)
 
 	set_axis(scene, object, clip, tracking_object, track, axis == 0 ? 'X' : 'Y');
 
-	DAG_id_tag_update(&clip->id, 0);
-	DAG_id_tag_update(&object->id, OB_RECALC_OB);
+	DEG_id_tag_update(&clip->id, 0);
+	DEG_id_tag_update(&object->id, OB_RECALC_OB);
 
 	WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
@@ -694,10 +696,10 @@ static int do_set_scale(bContext *C,
 				tracking_object->scale = scale;
 			}
 
-			DAG_id_tag_update(&clip->id, 0);
+			DEG_id_tag_update(&clip->id, 0);
 
 			if (object)
-				DAG_id_tag_update(&object->id, OB_RECALC_OB);
+				DEG_id_tag_update(&object->id, OB_RECALC_OB);
 
 			WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
 			WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);

@@ -45,6 +45,7 @@ struct SmoothView3DStore;
 struct wmTimer;
 struct Material;
 struct GPUFX;
+struct GPUViewport;
 
 /* This is needed to not let VC choke on near and far... old
  * proprietary MS extensions... */
@@ -65,6 +66,12 @@ struct GPUFX;
 
 /* The near/far thing is a Win EXCEPTION. Thus, leave near/far in the
  * code, and patch for windows. */
+
+typedef struct View3DDebug {
+	float znear, zfar;
+	char background;
+	char pad[7];
+} View3DDebug;
  
 /* Background Picture in 3D-View */
 typedef struct BGpic {
@@ -111,7 +118,7 @@ typedef struct RegionView3D {
 	struct wmTimer *smooth_timer;
 
 
-	/* transform widget matrix */
+	/* transform manipulator matrix */
 	float twmat[4][4];
 
 	float viewquat[4];			/* view rotation, must be kept normalized */
@@ -130,7 +137,7 @@ typedef struct RegionView3D {
 	char pad[3];
 	float ofs_lock[2];			/* normalized offset for locked view: (-1, -1) bottom left, (1, 1) upper right */
 
-	short twdrawflag;
+	short twdrawflag; /* XXX can easily get rid of this (Julian) */
 	short rflag;
 
 
@@ -147,6 +154,7 @@ typedef struct RegionView3D {
 	float rot_axis[3];
 
 	struct GPUFX *compositor;
+	struct GPUViewport *viewport;
 } RegionView3D;
 
 /* 3D ViewPort Struct */
@@ -202,7 +210,7 @@ typedef struct View3D {
 	short gridsubdiv;	/* Number of subdivisions in the grid between each highlighted grid line */
 	char gridflag;
 
-	/* transform widget info */
+	/* transform manipulator info */
 	char twtype, twmode, twflag;
 	
 	short flag3;
@@ -217,8 +225,9 @@ typedef struct View3D {
 
 	char multiview_eye;				/* multiview current eye - for internal use */
 
-	/* built-in shader effects (eGPUFXFlags) */
-	char pad3[4];
+	/* The active custom transform orientation of this 3D view. */
+	short custom_orientation_index;
+	char pad3[2];
 
 	/* note, 'fx_settings.dof' is currently _not_ allocated,
 	 * instead set (temporarily) from camera */
@@ -244,6 +253,7 @@ typedef struct View3D {
 	short prev_drawtype;
 	short pad1;
 	float pad2;
+	View3DDebug debug;
 } View3D;
 
 
@@ -321,6 +331,13 @@ typedef struct View3D {
 #define V3D_SHOW_WORLD			(1 << 0)
 #define V3D_SHOW_MIST			(1 << 1)
 
+/* View3d->debug.background */
+enum {
+	V3D_DEBUG_BACKGROUND_NONE     = (1 << 0),
+	V3D_DEBUG_BACKGROUND_GRADIENT = (1 << 1),
+	V3D_DEBUG_BACKGROUND_WORLD    = (1 << 2),
+};
+
 /* View3D->around */
 enum {
 	/* center of the bounding box */
@@ -362,13 +379,12 @@ enum {
 #define V3D_MANIP_NORMAL		2
 #define V3D_MANIP_VIEW			3
 #define V3D_MANIP_GIMBAL		4
-#define V3D_MANIP_CUSTOM		5 /* anything of value 5 or higher is custom */
+#define V3D_MANIP_CUSTOM		5
 
-/* View3d->twflag */
-   /* USE = user setting, DRAW = based on selection */
-#define V3D_USE_MANIPULATOR		1
-#define V3D_DRAW_MANIPULATOR	2
-/* #define V3D_CALC_MANIPULATOR	4 */ /*UNUSED*/
+/* View3d->twflag (also) */
+enum {
+	V3D_MANIPULATOR_DRAW        = (1 << 0),
+};
 
 /* BGPic->flag */
 /* may want to use 1 for select ? */

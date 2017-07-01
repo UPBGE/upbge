@@ -78,13 +78,15 @@
 #include "BKE_library.h"
 #include "BKE_library_query.h"
 #include "BKE_library_remap.h"
-#include "BKE_depsgraph.h"
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 #include "BKE_deform.h"
+
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 #include "RE_render_ext.h"
 
@@ -590,7 +592,7 @@ void psys_free(Object *ob, ParticleSystem *psys)
 
 		BLI_bvhtree_free(psys->bvhtree);
 		BLI_kdtree_free(psys->tree);
- 
+
 		if (psys->fluid_springs)
 			MEM_freeN(psys->fluid_springs);
 
@@ -600,6 +602,8 @@ void psys_free(Object *ob, ParticleSystem *psys)
 			psys_free_pdd(psys);
 			MEM_freeN(psys->pdd);
 		}
+
+		BKE_particle_batch_cache_free(psys);
 
 		MEM_freeN(psys);
 	}
@@ -3153,8 +3157,8 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, const char *n
 	psys->flag = PSYS_CURRENT;
 	psys->cfra = BKE_scene_frame_get_from_ctime(scene, CFRA + 1);
 
-	DAG_relations_tag_update(G.main);
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	DEG_relations_tag_update(G.main);
+	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	return md;
 }
@@ -3199,8 +3203,8 @@ void object_remove_particle_system(Scene *UNUSED(scene), Object *ob)
 	else
 		ob->mode &= ~OB_MODE_PARTICLE_EDIT;
 
-	DAG_relations_tag_update(G.main);
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	DEG_relations_tag_update(G.main);
+	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 }
 
 static void default_particle_settings(ParticleSettings *part)
@@ -3285,6 +3289,7 @@ static void default_particle_settings(ParticleSettings *part)
 
 	part->omat = 1;
 	part->use_modifier_stack = false;
+	part->draw_size = 0.1f;
 }
 
 
@@ -3326,7 +3331,7 @@ void BKE_particlesettings_rough_curve_init(ParticleSettings *part)
 	part->roughcurve = cumap;
 }
 
-ParticleSettings *BKE_particlesettings_copy(Main *bmain, ParticleSettings *part)
+ParticleSettings *BKE_particlesettings_copy(Main *bmain, const ParticleSettings *part)
 {
 	ParticleSettings *partn;
 	int a;
@@ -4303,5 +4308,24 @@ void psys_apply_hair_lattice(Scene *scene, Object *ob, ParticleSystem *psys)
 
 		/* protect the applied shape */
 		psys->flag |= PSYS_EDITED;
+	}
+}
+
+
+
+/* Draw Engine */
+void (*BKE_particle_batch_cache_dirty_cb)(ParticleSystem *psys, int mode) = NULL;
+void (*BKE_particle_batch_cache_free_cb)(ParticleSystem *psys) = NULL;
+
+void BKE_particle_batch_cache_dirty(ParticleSystem *psys, int mode)
+{
+	if (psys->batch_cache) {
+		BKE_particle_batch_cache_dirty_cb(psys, mode);
+	}
+}
+void BKE_particle_batch_cache_free(ParticleSystem *psys)
+{
+	if (psys->batch_cache) {
+		BKE_particle_batch_cache_free_cb(psys);
 	}
 }

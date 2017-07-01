@@ -62,6 +62,7 @@
 #include "DNA_mask_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_speaker_types.h"
@@ -70,6 +71,7 @@
 #include "DNA_vfont_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -91,7 +93,6 @@
 #include "BKE_cachefile.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
@@ -117,6 +118,7 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_packedFile.h"
+#include "BKE_lightprobe.h"
 #include "BKE_sound.h"
 #include "BKE_speaker.h"
 #include "BKE_scene.h"
@@ -307,7 +309,7 @@ void BKE_id_expand_local(Main *bmain, ID *id)
 /**
  * Ensure new (copied) ID is fully made local.
  */
-void BKE_id_copy_ensure_local(Main *bmain, ID *old_id, ID *new_id)
+void BKE_id_copy_ensure_local(Main *bmain, const ID *old_id, ID *new_id)
 {
 	if (ID_IS_LINKED_DATABLOCK(old_id)) {
 		BKE_id_expand_local(bmain, new_id);
@@ -419,6 +421,9 @@ bool id_make_local(Main *bmain, ID *id, const bool test, const bool lib_local)
 		case ID_SPK:
 			if (!test) BKE_speaker_make_local(bmain, (Speaker *)id, lib_local);
 			return true;
+		case ID_LP:
+			if (!test) BKE_lightprobe_make_local(bmain, (LightProbe *)id, lib_local);
+			return true;
 		case ID_WO:
 			if (!test) BKE_world_make_local(bmain, (World *)id, lib_local);
 			return true;
@@ -472,7 +477,11 @@ bool id_make_local(Main *bmain, ID *id, const bool test, const bool lib_local)
 		case ID_CF:
 			if (!test) BKE_cachefile_make_local(bmain, (CacheFile *)id, lib_local);
 			return true;
+		case ID_WS:
 		case ID_SCR:
+			/* A bit special: can be appended but not linked. Return false
+			 * since supporting make-local doesn't make much sense. */
+			return false;
 		case ID_LI:
 		case ID_KE:
 		case ID_WM:
@@ -488,7 +497,7 @@ bool id_make_local(Main *bmain, ID *id, const bool test, const bool lib_local)
  * Invokes the appropriate copy method for the block and returns the result in
  * newid, unless test. Returns true if the block can be copied.
  */
-bool id_copy(Main *bmain, ID *id, ID **newid, bool test)
+bool id_copy(Main *bmain, const ID *id, ID **newid, bool test)
 {
 	if (!test) {
 		*newid = NULL;
@@ -527,6 +536,9 @@ bool id_copy(Main *bmain, ID *id, ID **newid, bool test)
 			return true;
 		case ID_SPK:
 			if (!test) *newid = (ID *)BKE_speaker_copy(bmain, (Speaker *)id);
+			return true;
+		case ID_LP:
+			if (!test) *newid = (ID *)BKE_lightprobe_copy(bmain, (LightProbe *)id);
 			return true;
 		case ID_CA:
 			if (!test) *newid = (ID *)BKE_camera_copy(bmain, (Camera *)id);
@@ -579,6 +591,7 @@ bool id_copy(Main *bmain, ID *id, ID **newid, bool test)
 		case ID_CF:
 			if (!test) *newid = (ID *)BKE_cachefile_copy(bmain, (CacheFile *)id);
 			return true;
+		case ID_WS:
 		case ID_SCE:
 		case ID_LI:
 		case ID_SCR:
@@ -664,6 +677,8 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->text);
 		case ID_SPK:
 			return &(mainlib->speaker);
+		case ID_LP:
+			return &(mainlib->lightprobe);
 		case ID_SO:
 			return &(mainlib->sound);
 		case ID_GR:
@@ -694,6 +709,8 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->paintcurves);
 		case ID_CF:
 			return &(mainlib->cachefiles);
+		case ID_WS:
+			return &(mainlib->workspaces);
 	}
 	return NULL;
 }
@@ -779,11 +796,11 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
 	/* flag for full recalc */
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		if (ID_IS_LINKED_DATABLOCK(ob)) {
-			DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+			DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 		}
 	}
 
-	DAG_id_type_tag(bmain, ID_OB);
+	DEG_id_type_tag(bmain, ID_OB);
 }
 
 /**
@@ -832,6 +849,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[INDEX_ID_BR]  = &(main->brush);
 	lb[INDEX_ID_PA]  = &(main->particle);
 	lb[INDEX_ID_SPK] = &(main->speaker);
+	lb[INDEX_ID_LP]  = &(main->lightprobe);
 
 	lb[INDEX_ID_WO]  = &(main->world);
 	lb[INDEX_ID_MC]  = &(main->movieclip);
@@ -839,6 +857,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[INDEX_ID_OB]  = &(main->object);
 	lb[INDEX_ID_LS]  = &(main->linestyle); /* referenced by scenes */
 	lb[INDEX_ID_SCE] = &(main->scene);
+	lb[INDEX_ID_WS]  = &(main->workspaces); /* before wm, so it's freed after it! */
 	lb[INDEX_ID_WM]  = &(main->wm);
 	lb[INDEX_ID_MSK] = &(main->mask);
 	
@@ -858,118 +877,74 @@ int set_listbasepointers(Main *main, ListBase **lb)
  * **************************** */
 
 /**
+ * Get allocation size fo a given datablock type and optionally allocation name.
+ */
+size_t BKE_libblock_get_alloc_info(short type, const char **name)
+{
+#define CASE_RETURN(id_code, type)  \
+	case id_code:                   \
+		do {                        \
+			if (name != NULL) {     \
+				*name = #type;      \
+			}                       \
+			return sizeof(type);    \
+		} while(0)
+
+	switch ((ID_Type)type) {
+		CASE_RETURN(ID_SCE, Scene);
+		CASE_RETURN(ID_LI,  Library);
+		CASE_RETURN(ID_OB,  Object);
+		CASE_RETURN(ID_ME,  Mesh);
+		CASE_RETURN(ID_CU,  Curve);
+		CASE_RETURN(ID_MB,  MetaBall);
+		CASE_RETURN(ID_MA,  Material);
+		CASE_RETURN(ID_TE,  Tex);
+		CASE_RETURN(ID_IM,  Image);
+		CASE_RETURN(ID_LT,  Lattice);
+		CASE_RETURN(ID_LA,  Lamp);
+		CASE_RETURN(ID_CA,  Camera);
+		CASE_RETURN(ID_IP,  Ipo);
+		CASE_RETURN(ID_KE,  Key);
+		CASE_RETURN(ID_WO,  World);
+		CASE_RETURN(ID_SCR, bScreen);
+		CASE_RETURN(ID_VF,  VFont);
+		CASE_RETURN(ID_TXT, Text);
+		CASE_RETURN(ID_SPK, Speaker);
+		CASE_RETURN(ID_LP,  LightProbe);
+		CASE_RETURN(ID_SO,  bSound);
+		CASE_RETURN(ID_GR,  Group);
+		CASE_RETURN(ID_AR,  bArmature);
+		CASE_RETURN(ID_AC,  bAction);
+		CASE_RETURN(ID_NT,  bNodeTree);
+		CASE_RETURN(ID_BR,  Brush);
+		CASE_RETURN(ID_PA,  ParticleSettings);
+		CASE_RETURN(ID_WM,  wmWindowManager);
+		CASE_RETURN(ID_GD,  bGPdata);
+		CASE_RETURN(ID_MC,  MovieClip);
+		CASE_RETURN(ID_MSK, Mask);
+		CASE_RETURN(ID_LS,  FreestyleLineStyle);
+		CASE_RETURN(ID_PAL, Palette);
+		CASE_RETURN(ID_PC,  PaintCurve);
+		CASE_RETURN(ID_CF,  CacheFile);
+		CASE_RETURN(ID_WS,  WorkSpace);
+	}
+	return 0;
+#undef CASE_RETURN
+}
+
+/**
  * Allocates and returns memory of the right size for the specified block type,
  * initialized to zero.
  */
 void *BKE_libblock_alloc_notest(short type)
 {
-	ID *id = NULL;
-	
-	switch ((ID_Type)type) {
-		case ID_SCE:
-			id = MEM_callocN(sizeof(Scene), "scene");
-			break;
-		case ID_LI:
-			id = MEM_callocN(sizeof(Library), "library");
-			break;
-		case ID_OB:
-			id = MEM_callocN(sizeof(Object), "object");
-			break;
-		case ID_ME:
-			id = MEM_callocN(sizeof(Mesh), "mesh");
-			break;
-		case ID_CU:
-			id = MEM_callocN(sizeof(Curve), "curve");
-			break;
-		case ID_MB:
-			id = MEM_callocN(sizeof(MetaBall), "mball");
-			break;
-		case ID_MA:
-			id = MEM_callocN(sizeof(Material), "mat");
-			break;
-		case ID_TE:
-			id = MEM_callocN(sizeof(Tex), "tex");
-			break;
-		case ID_IM:
-			id = MEM_callocN(sizeof(Image), "image");
-			break;
-		case ID_LT:
-			id = MEM_callocN(sizeof(Lattice), "latt");
-			break;
-		case ID_LA:
-			id = MEM_callocN(sizeof(Lamp), "lamp");
-			break;
-		case ID_CA:
-			id = MEM_callocN(sizeof(Camera), "camera");
-			break;
-		case ID_IP:
-			id = MEM_callocN(sizeof(Ipo), "ipo");
-			break;
-		case ID_KE:
-			id = MEM_callocN(sizeof(Key), "key");
-			break;
-		case ID_WO:
-			id = MEM_callocN(sizeof(World), "world");
-			break;
-		case ID_SCR:
-			id = MEM_callocN(sizeof(bScreen), "screen");
-			break;
-		case ID_VF:
-			id = MEM_callocN(sizeof(VFont), "vfont");
-			break;
-		case ID_TXT:
-			id = MEM_callocN(sizeof(Text), "text");
-			break;
-		case ID_SPK:
-			id = MEM_callocN(sizeof(Speaker), "speaker");
-			break;
-		case ID_SO:
-			id = MEM_callocN(sizeof(bSound), "sound");
-			break;
-		case ID_GR:
-			id = MEM_callocN(sizeof(Group), "group");
-			break;
-		case ID_AR:
-			id = MEM_callocN(sizeof(bArmature), "armature");
-			break;
-		case ID_AC:
-			id = MEM_callocN(sizeof(bAction), "action");
-			break;
-		case ID_NT:
-			id = MEM_callocN(sizeof(bNodeTree), "nodetree");
-			break;
-		case ID_BR:
-			id = MEM_callocN(sizeof(Brush), "brush");
-			break;
-		case ID_PA:
-			id = MEM_callocN(sizeof(ParticleSettings), "ParticleSettings");
-			break;
-		case ID_WM:
-			id = MEM_callocN(sizeof(wmWindowManager), "Window manager");
-			break;
-		case ID_GD:
-			id = MEM_callocN(sizeof(bGPdata), "Grease Pencil");
-			break;
-		case ID_MC:
-			id = MEM_callocN(sizeof(MovieClip), "Movie Clip");
-			break;
-		case ID_MSK:
-			id = MEM_callocN(sizeof(Mask), "Mask");
-			break;
-		case ID_LS:
-			id = MEM_callocN(sizeof(FreestyleLineStyle), "Freestyle Line Style");
-			break;
-		case ID_PAL:
-			id = MEM_callocN(sizeof(Palette), "Palette");
-			break;
-		case ID_PC:
-			id = MEM_callocN(sizeof(PaintCurve), "Paint Curve");
-			break;
-		case ID_CF:
-			id = MEM_callocN(sizeof(CacheFile), "Cache File");
-			break;
+	const char *name;
+	size_t size = BKE_libblock_get_alloc_info(type, &name);
+	if (size != 0) {
+		return MEM_callocN(size, name);
 	}
-	return id;
+	BLI_assert(!"Request to allocate unknown data type");
+	return NULL;
 }
 
 /**
@@ -994,7 +969,7 @@ void *BKE_libblock_alloc(Main *bmain, short type, const char *name)
 		/* alphabetic insertion: is in new_id */
 		BKE_main_unlock(bmain);
 	}
-	DAG_id_type_tag(bmain, type);
+	DEG_id_type_tag(bmain, type);
 	return id;
 }
 
@@ -1045,6 +1020,9 @@ void BKE_libblock_init_empty(ID *id)
 			break;
 		case ID_SPK:
 			BKE_speaker_init((Speaker *)id);
+			break;
+		case ID_LP:
+			BKE_lightprobe_init((LightProbe *)id);
 			break;
 		case ID_CA:
 			BKE_camera_init((Camera *)id);
@@ -1138,7 +1116,7 @@ void BKE_libblock_copy_data(ID *id, const ID *id_from, const bool do_action)
 }
 
 /* used everywhere in blenkernel */
-void *BKE_libblock_copy(Main *bmain, ID *id)
+void *BKE_libblock_copy(Main *bmain, const ID *id)
 {
 	ID *idn;
 	size_t idn_len;
@@ -1160,7 +1138,7 @@ void *BKE_libblock_copy(Main *bmain, ID *id)
 	return idn;
 }
 
-void *BKE_libblock_copy_nolib(ID *id, const bool do_action)
+void *BKE_libblock_copy_nolib(const ID *id, const bool do_action)
 {
 	ID *idn;
 	size_t idn_len;
@@ -1220,41 +1198,41 @@ void BKE_main_free(Main *mainvar)
 			/* errors freeing ID's can be hard to track down,
 			 * enable this so valgrind will give the line number in its error log */
 			switch (a) {
-				case   0: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   1: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   2: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   3: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   4: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   5: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   6: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   7: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   8: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   9: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  10: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  11: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  12: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  13: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  14: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  15: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  16: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  17: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  18: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  19: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  20: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  21: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  22: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  23: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  24: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  25: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  26: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  27: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  28: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  29: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  30: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  31: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  32: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  33: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  34: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case   0: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   1: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   2: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   3: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   4: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   5: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   6: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   7: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   8: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   9: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  10: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  11: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  12: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  13: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  14: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  15: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  16: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  17: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  18: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  19: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  20: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  21: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  22: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  23: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  24: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  25: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  26: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  27: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  28: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  29: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  30: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  31: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  32: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  33: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  34: BKE_libblock_free_ex(mainvar, id, false); break;
 				default:
 					BLI_assert(0);
 					break;

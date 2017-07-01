@@ -17,6 +17,7 @@
 # <pep8 compliant>
 
 import bpy
+from bpy_extras.node_utils import find_node_input, find_output_node
 
 from bpy.types import (
         Panel,
@@ -531,17 +532,17 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         col.prop(rl, "use_pass_environment")
 
         if context.scene.cycles.feature_set == 'EXPERIMENTAL':
-           col.separator()
-           sub = col.column()
-           sub.active = crl.use_denoising
-           sub.prop(crl, "denoising_store_passes", text="Denoising")
+            col.separator()
+            sub = col.column()
+            sub.active = crl.use_denoising
+            sub.prop(crl, "denoising_store_passes", text="Denoising")
 
         if _cycles.with_cycles_debug:
-          col = layout.column()
-          col.prop(crl, "pass_debug_bvh_traversed_nodes")
-          col.prop(crl, "pass_debug_bvh_traversed_instances")
-          col.prop(crl, "pass_debug_bvh_intersections")
-          col.prop(crl, "pass_debug_ray_bounces")
+            col = layout.column()
+            col.prop(crl, "pass_debug_bvh_traversed_nodes")
+            col.prop(crl, "pass_debug_bvh_traversed_instances")
+            col.prop(crl, "pass_debug_bvh_intersections")
+            col.prop(crl, "pass_debug_ray_bounces")
 
 
 class CyclesRender_PT_views(CyclesButtonsPanel, Panel):
@@ -898,30 +899,6 @@ class CYCLES_OT_use_shading_nodes(Operator):
         return {'FINISHED'}
 
 
-def find_node(material, nodetype):
-    if material and material.node_tree:
-        ntree = material.node_tree
-
-        active_output_node = None
-        for node in ntree.nodes:
-            if getattr(node, "type", None) == nodetype:
-                if getattr(node, "is_active_output", True):
-                    return node
-                if not active_output_node:
-                    active_output_node = node
-        return active_output_node
-
-    return None
-
-
-def find_node_input(node, name):
-    for input in node.inputs:
-        if input.name == name:
-            return input
-
-    return None
-
-
 def panel_node_draw(layout, id_data, output_type, input_name):
     if not id_data.use_nodes:
         layout.operator("cycles.use_shading_nodes", icon='NODETREE')
@@ -929,7 +906,7 @@ def panel_node_draw(layout, id_data, output_type, input_name):
 
     ntree = id_data.node_tree
 
-    node = find_node(id_data, output_type)
+    node = find_output_node(ntree, output_type)
     if not node:
         layout.label(text="No output node")
     else:
@@ -1665,6 +1642,7 @@ class CyclesScene_PT_simplify(CyclesButtonsPanel, Panel):
         row.prop(rd, "simplify_subdivision", text="Viewport")
         row.prop(rd, "simplify_subdivision_render", text="Render")
 
+
         col = layout.column(align=True)
         col.label(text="Child Particles")
         row = col.row(align=True)
@@ -1710,7 +1688,7 @@ def draw_device(self, context):
 
         layout.prop(cscene, "feature_set")
 
-        split = layout.split(percentage=1/3)
+        split = layout.split(percentage=1 / 3)
         split.label("Device:")
         row = split.row()
         row.active = show_device_active(context)
@@ -1727,11 +1705,8 @@ def draw_pause(self, context):
     if scene.render.engine == "CYCLES":
         view = context.space_data
 
-        if view.viewport_shade == 'RENDERED':
-            cscene = scene.cycles
-            layername = scene.render.layers.active.name
-            layout.prop(cscene, "preview_pause", icon="PAUSE", text="")
-            layout.prop(cscene, "preview_active_layer", icon="RENDERLAYERS", text=layername)
+        cscene = scene.cycles
+        layout.prop(cscene, "preview_pause", icon="PAUSE", text="")
 
 
 def get_panels():

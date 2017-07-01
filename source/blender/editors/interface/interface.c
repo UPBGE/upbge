@@ -56,7 +56,7 @@
 #include "BKE_screen.h"
 #include "BKE_idprop.h"
 
-#include "BIF_gl.h"
+#include "GPU_matrix.h"
 
 #include "BLF_api.h"
 #include "BLT_translation.h"
@@ -499,6 +499,7 @@ static int ui_but_calc_float_precision(uiBut *but, double value)
 static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int dashInactiveLines)
 {
 	rcti rect;
+	float color[4] = {1.0f};
 
 	if (line->from == NULL || line->to == NULL) return;
 	
@@ -508,15 +509,15 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int das
 	rect.ymax = BLI_rctf_cent_y(&line->to->rect);
 	
 	if (dashInactiveLines)
-		UI_ThemeColor(TH_GRID);
+		UI_GetThemeColor4fv(TH_GRID, color);
 	else if (line->flag & UI_SELECT)
-		glColor3ub(100, 100, 100);
+		rgba_float_args_set_ch(color, 100, 100, 100, 255);
 	else if (highlightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
-		UI_ThemeColor(TH_TEXT_HI);
+		UI_GetThemeColor4fv(TH_TEXT_HI, color);
 	else
-		glColor3ub(0, 0, 0);
+		rgba_float_args_set_ch(color, 0, 0, 0, 255);
 
-	ui_draw_link_bezier(&rect);
+	ui_draw_link_bezier(&rect, color);
 }
 
 static void ui_draw_links(uiBlock *block)
@@ -1376,11 +1377,9 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 	ui_but_to_pixelrect(&rect, ar, block, NULL);
 	
 	/* pixel space for AA widgets */
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	gpuPushProjectionMatrix();
+	gpuPushMatrix();
+	gpuLoadIdentity();
 
 	wmOrtho2_region_pixelspace(ar);
 	
@@ -1405,10 +1404,8 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 	}
 	
 	/* restore matrix */
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuPopProjectionMatrix();
+	gpuPopMatrix();
 
 	if (multisample_enabled)
 		glEnable(GL_MULTISAMPLE);
@@ -1462,6 +1459,7 @@ int ui_but_is_pushed_ex(uiBut *but, double *value)
 				break;
 			case UI_BTYPE_ROW:
 			case UI_BTYPE_LISTROW:
+			case UI_BTYPE_TAB:
 				UI_GET_BUT_VALUE_INIT(but, *value);
 				/* support for rna enum buts */
 				if (but->rnaprop && (RNA_property_flag(but->rnaprop) & PROP_ENUM_FLAG)) {
@@ -2375,7 +2373,7 @@ static void ui_but_string_free_internal(uiBut *but)
 
 bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
 {
-	if (but->rnaprop && ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
+	if (but->rnaprop && but->rnapoin.data && ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
 		if (RNA_property_editable(&but->rnapoin, but->rnaprop)) {
 			PropertyType type;
 
@@ -2422,8 +2420,15 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
 	}
 	else if (but->type == UI_BTYPE_TEXT) {
 		/* string */
-		if (ui_but_is_utf8(but)) BLI_strncpy_utf8(but->poin, str, but->hardmax);
-		else BLI_strncpy(but->poin, str, but->hardmax);
+		if (!but->poin || (str[0] == '\0')) {
+			str = "";
+		}
+		else if (ui_but_is_utf8(but)) {
+			BLI_strncpy_utf8(but->poin, str, but->hardmax);
+		}
+		else {
+			BLI_strncpy(but->poin, str, but->hardmax);
+		}
 
 		return true;
 	}
@@ -2629,6 +2634,10 @@ static void ui_but_free(const bContext *C, uiBut *but)
 		MEM_freeN(but->tip_argN);
 	}
 
+	if (!but->editstr && but->free_search_arg) {
+		MEM_SAFE_FREE(but->search_arg);
+	}
+
 	if (but->active) {
 		/* XXX solve later, buttons should be free-able without context ideally,
 		 * however they may have open tooltips or popup windows, which need to
@@ -2781,11 +2790,13 @@ uiBlock *UI_block_begin(const bContext *C, ARegion *region, const char *name, sh
 		block->aspect = 2.0f / fabsf(getsizex * block->winmat[0][0]);
 	}
 	else {
+		const bScreen *screen = WM_window_get_active_screen(window);
+
 		/* no subwindow created yet, for menus for example, so we
 		 * use the main window instead, since buttons are created
 		 * there anyway */
-		wm_subwindow_matrix_get(window, window->screen->mainwin, block->winmat);
-		wm_subwindow_size_get(window, window->screen->mainwin, &getsizex, &getsizey);
+		wm_subwindow_matrix_get(window, screen->mainwin, block->winmat);
+		wm_subwindow_size_get(window, screen->mainwin, &getsizex, &getsizey);
 
 		block->aspect = 2.0f / fabsf(getsizex * block->winmat[0][0]);
 		block->auto_open = true;
@@ -3168,7 +3179,9 @@ static uiBut *ui_def_but(
 	}
 
 	if (block->flag & UI_BLOCK_RADIAL) {
-		but->drawflag |= (UI_BUT_TEXT_LEFT | UI_BUT_ICON_LEFT);
+		but->drawflag |= UI_BUT_TEXT_LEFT;
+		if (but->str && but->str[0])
+			but->drawflag |= UI_BUT_ICON_LEFT;
 	}
 	else if ((block->flag & UI_BLOCK_LOOP) ||
 	         ELEM(but->type,
@@ -3501,7 +3514,7 @@ static uiBut *ui_def_but_rna(
 	}
 
 	const char *info;
-	if (!RNA_property_editable_info(&but->rnapoin, prop, &info)) {
+	if (but->rnapoin.data && !RNA_property_editable_info(&but->rnapoin, prop, &info)) {
 		ui_def_but_rna__disable(but, info);
 	}
 
@@ -4400,7 +4413,7 @@ static void operator_enum_search_cb(const struct bContext *C, void *but, const c
 		for (item = item_array; item->identifier; item++) {
 			/* note: need to give the index rather than the identifier because the enum can be freed */
 			if (BLI_strcasestr(item->name, str)) {
-				if (false == UI_search_item_add(items, item->name, SET_INT_IN_POINTER(item->value), 0))
+				if (false == UI_search_item_add(items, item->name, SET_INT_IN_POINTER(item->value), item->icon))
 					break;
 			}
 		}
@@ -4524,7 +4537,7 @@ void UI_but_string_info_get(bContext *C, uiBut *but, ...)
 				tmp = BLI_strdup(RNA_property_identifier(but->rnaprop));
 		}
 		else if (type == BUT_GET_RNASTRUCT_IDENTIFIER) {
-			if (but->rnaprop)
+			if (but->rnaprop && but->rnapoin.data)
 				tmp = BLI_strdup(RNA_struct_identifier(but->rnapoin.type));
 			else if (but->optype)
 				tmp = BLI_strdup(but->optype->idname);
@@ -4619,7 +4632,10 @@ void UI_but_string_info_get(bContext *C, uiBut *but, ...)
 			if (ptr && prop) {
 				if (!item) {
 					int i;
-					
+
+					/* so the context is passed to itemf functions */
+					WM_operator_properties_sanitize(ptr, false);
+
 					RNA_property_enum_items_gettexted(C, ptr, prop, &items, &totitems, &free_items);
 					for (i = 0, item = items; i < totitems; i++, item++) {
 						if (item->identifier[0] && item->value == value)

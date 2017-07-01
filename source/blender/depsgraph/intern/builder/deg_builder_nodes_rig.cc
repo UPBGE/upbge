@@ -133,7 +133,7 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 
 	/* Rebuild pose if not up to date. */
 	if (ob->pose == NULL || (ob->pose->flag & POSE_RECALC)) {
-		BKE_pose_rebuild_ex(ob, arm, false);
+		BKE_pose_rebuild(ob, arm);
 		/* XXX: Without this animation gets lost in certain circumstances
 		 * after loading file. Need to investigate further since it does
 		 * not happen with simple scenes..
@@ -255,9 +255,9 @@ void DepsgraphNodeBuilder::build_proxy_rig(Object *ob)
 	}
 
 	op_node = add_operation_node(&ob->id,
-	                   DEG_NODE_TYPE_EVAL_POSE,
-	                   function_bind(BKE_pose_eval_proxy_copy, _1, ob),
-	                   DEG_OPCODE_POSE_INIT);
+	                             DEG_NODE_TYPE_EVAL_POSE,
+	                             function_bind(BKE_pose_eval_proxy_copy, _1, ob),
+	                             DEG_OPCODE_POSE_INIT);
 	op_node->set_as_entry();
 
 	LINKLIST_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {

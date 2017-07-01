@@ -48,12 +48,14 @@
 #include "BKE_context.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_icons.h"
+#include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_node.h"
 #include "BKE_paint.h"
 #include "BKE_scene.h"
 
+#include "GPU_lamp.h"
 #include "GPU_material.h"
 #include "GPU_buffers.h"
 
@@ -63,6 +65,8 @@
 #include "ED_node.h"
 #include "ED_render.h"
 #include "ED_view3d.h"
+
+#include "WM_api.h"
 
 #include "render_intern.h"  // own include
 
@@ -102,7 +106,7 @@ void ED_render_scene_update(Main *bmain, Scene *scene, int updated)
 	wm = bmain->wm.first;
 	
 	for (win = wm->windows.first; win; win = win->next) {
-		bScreen *sc = win->screen;
+		bScreen *sc = WM_window_get_active_screen(win);
 		ScrArea *sa;
 		ARegion *ar;
 		
@@ -387,6 +391,7 @@ static void texture_changed(Main *bmain, Tex *tex)
 	Lamp *la;
 	World *wo;
 	Scene *scene;
+	SceneLayer *sl;
 	Object *ob;
 	bNode *node;
 	bool texture_draw = false;
@@ -395,8 +400,11 @@ static void texture_changed(Main *bmain, Tex *tex)
 	BKE_icon_changed(BKE_icon_id_ensure(&tex->id));
 
 	/* paint overlays */
-	for (scene = bmain->scene.first; scene; scene = scene->id.next)
-		BKE_paint_invalidate_overlay_tex(scene, tex);
+	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
+		for (sl = scene->render_layers.first; sl; sl = sl->next) {
+			BKE_paint_invalidate_overlay_tex(scene, sl, tex);
+		}
+	}
 
 	/* find materials */
 	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
@@ -485,6 +493,9 @@ static void world_changed(Main *bmain, World *wo)
 
 	/* icons */
 	BKE_icon_changed(BKE_icon_id_ensure(&wo->id));
+
+	/* XXX temporary flag waiting for depsgraph proper tagging */
+	wo->update_flag = 1;
 	
 	/* glsl */
 	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
@@ -519,13 +530,13 @@ static void image_changed(Main *bmain, Image *ima)
 static void scene_changed(Main *bmain, Scene *scene)
 {
 	Object *ob;
-	Material *ma;
-	World *wo;
 
 	/* glsl */
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
+#if 0 /* This was needed by old glsl where all lighting was statically linked into the shader. */
 		if (ob->gpulamp.first)
 			GPU_lamp_free(ob);
+#endif
 		
 		if (ob->mode & OB_MODE_TEXTURE_PAINT) {
 			BKE_texpaint_slots_refresh_object(scene, ob);
@@ -534,21 +545,21 @@ static void scene_changed(Main *bmain, Scene *scene)
 		}
 	}
 
-	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
+#if 0 /* This was needed by old glsl where all lighting was statically linked into the shader. */
+	for (Material *ma = bmain->mat.first; ma; ma = ma->id.next)
 		if (ma->gpumaterial.first)
 			GPU_material_free(&ma->gpumaterial);
 		if (ma->gpumaterialinstancing.first)
 			GPU_material_free(&ma->gpumaterialinstancing);
 	}
 
-	for (wo = bmain->world.first; wo; wo = wo->id.next)
+	for (World *wo = bmain->world.first; wo; wo = wo->id.next)
 		if (wo->gpumaterial.first)
 			GPU_material_free(&wo->gpumaterial);
 	
 	if (defmaterial.gpumaterial.first)
 		GPU_material_free(&defmaterial.gpumaterial);
-	if (defmaterial.gpumaterialinstancing.first)
-		GPU_material_free(&defmaterial.gpumaterialinstancing);
+#endif
 }
 
 void ED_render_id_flush_update(Main *bmain, ID *id)
@@ -593,6 +604,6 @@ void ED_render_internal_init(void)
 	RenderEngineType *ret = RE_engines_find(RE_engine_id_BLENDER_RENDER);
 	
 	ret->view_update = render_view3d_update;
-	ret->view_draw = render_view3d_draw;
+	ret->render_to_view = render_view3d_draw;
 	
 }

@@ -47,9 +47,6 @@
 
 #include "RNA_access.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
-
 #include "BLF_api.h"
 
 #include "UI_interface.h"
@@ -58,6 +55,9 @@
 #include "interface_intern.h"
 
 #include "GPU_basic_shader.h"
+#include "GPU_immediate.h"
+#include "GPU_immediate_util.h"
+#include "GPU_matrix.h"
 
 #ifdef WITH_INPUT_IME
 #  include "WM_types.h"
@@ -186,48 +186,58 @@ static const unsigned int check_tria_face[4][3] = {
 
 /* ************************************************* */
 
-void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3)
+void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3,
+                       const float color[4])
 {
 	float tri_arr[3][2] = {{x1, y1}, {x2, y2}, {x3, y3}};
-	float color[4];
-	int j;
-	
-	glEnable(GL_BLEND);
-	glGetFloatv(GL_CURRENT_COLOR, color);
-	color[3] *= 0.125f;
-	glColor4fv(color);
+	float draw_color[4];
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(2, GL_FLOAT, 0, tri_arr);
+	copy_v4_v4(draw_color, color);
+	draw_color[3] *= 0.125f;
+
+	glEnable(GL_BLEND);
+
+	unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+	immUniformColor4fv(draw_color);
+	immBegin(GWN_PRIM_TRIS, 3 * WIDGET_AA_JITTER);
 
 	/* for each AA step */
-	for (j = 0; j < WIDGET_AA_JITTER; j++) {
-		glTranslate2fv(jit[j]);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-		glTranslatef(-jit[j][0], -jit[j][1], 0.0f);
+	for (int j = 0; j < WIDGET_AA_JITTER; j++) {
+		immVertex2f(pos, tri_arr[0][0] + jit[j][0], tri_arr[0][1] + jit[j][1]);
+		immVertex2f(pos, tri_arr[1][0] + jit[j][0], tri_arr[1][1] + jit[j][1]);
+		immVertex2f(pos, tri_arr[2][0] + jit[j][0], tri_arr[2][1] + jit[j][1]);
 	}
 
-	glDisableClientState(GL_VERTEX_ARRAY);
+	immEnd();
+
+	immUnbindProgram();
+
 	glDisable(GL_BLEND);
 }
 
-void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float maxy, float rad, bool use_alpha)
+/* belongs in interface_draw.c, but needs WIDGET_AA_JITTER from this file */
+void UI_draw_roundbox_aa(bool filled, float minx, float miny, float maxx, float maxy, float rad, const float color[4])
 {
-	float color[4];
-	int j;
-	
 	glEnable(GL_BLEND);
-	glGetFloatv(GL_CURRENT_COLOR, color);
-	if (use_alpha) {
-		color[3] = 0.5f;
+
+	if (filled) {
+		/* plain antialiased filled box */
+		const float alpha = color[3] * 0.125f;
+		
+		for (int j = 0; j < WIDGET_AA_JITTER; j++) {
+			gpuPushMatrix();
+			gpuTranslate2fv(jit[j]);
+			UI_draw_roundbox_3fvAlpha(true, minx, miny, maxx, maxy, rad, color, alpha);
+			gpuPopMatrix();
+		}
 	}
-	color[3] *= 0.125f;
-	glColor4fv(color);
-	
-	for (j = 0; j < WIDGET_AA_JITTER; j++) {
-		glTranslate2fv(jit[j]);
-		UI_draw_roundbox_gl_mode(mode, minx, miny, maxx, maxy, rad);
-		glTranslatef(-jit[j][0], -jit[j][1], 0.0f);
+	else {
+		/* plain antialiased unfilled box */
+		glEnable(GL_LINE_SMOOTH);
+		UI_draw_roundbox_4fv(false, minx, miny, maxx, maxy, rad, color);
+		glDisable(GL_LINE_SMOOTH);
 	}
 
 	glDisable(GL_BLEND);
@@ -537,12 +547,27 @@ static void widget_scroll_circle(uiWidgetTrias *tria, const rcti *rect, float tr
 	        scroll_circle_face, ARRAY_SIZE(scroll_circle_face));
 }
 
-static void widget_trias_draw(uiWidgetTrias *tria)
+static void widget_trias_draw(uiWidgetTrias *tria, unsigned int pos)
 {
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(2, GL_FLOAT, 0, tria->vec);
-	glDrawElements(GL_TRIANGLES, tria->tot * 3, GL_UNSIGNED_INT, tria->index);
-	glDisableClientState(GL_VERTEX_ARRAY);
+	immBegin(GWN_PRIM_TRIS, tria->tot * 3);
+	for (int i = 0; i < tria->tot; ++i)
+		for (int j = 0; j < 3; ++j)
+			immVertex2fv(pos, tria->vec[tria->index[i][j]]);
+	immEnd();
+}
+
+static void widget_draw_vertex_buffer(unsigned int pos, unsigned int col, int mode,
+                                      const float quads_pos[WIDGET_SIZE_MAX][2],
+                                      const unsigned char quads_col[WIDGET_SIZE_MAX][4],
+                                      unsigned int totvert)
+{
+	immBegin(mode, totvert);
+	for (int i = 0; i < totvert; ++i) {
+		if (quads_col)
+			immAttrib4ubv(col, quads_col[i]);
+		immVertex2fv(pos, quads_pos[i]);
+	}
+	immEnd();
 }
 
 static void widget_menu_trias(uiWidgetTrias *tria, const rcti *rect)
@@ -631,21 +656,18 @@ static void widget_verts_to_triangle_strip_open(uiWidgetBase *wtb, const int tot
 	}
 }
 
-static void widgetbase_outline(uiWidgetBase *wtb)
+static void widgetbase_outline(uiWidgetBase *wtb, unsigned int pos)
 {
 	float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2]; /* + 2 because the last pair is wrapped */
 	widget_verts_to_triangle_strip(wtb, wtb->totvert, triangle_strip);
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(2, GL_FLOAT, 0, triangle_strip);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->totvert * 2 + 2);
-	glDisableClientState(GL_VERTEX_ARRAY);
+	widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_STRIP, triangle_strip, NULL, wtb->totvert * 2 + 2);
 }
 
 static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 {
 	int j, a;
-	
+
 	glEnable(GL_BLEND);
 
 	/* backdrop non AA */
@@ -655,78 +677,76 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				float inner_v_half[WIDGET_SIZE_MAX][2];
 				float x_mid = 0.0f; /* used for dumb clamping of values */
 
-				/* dark checkers */
-				glColor4ub(UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, 255);
-				glEnableClientState(GL_VERTEX_ARRAY);
-				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
+				unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+				immBindBuiltinProgram(GPU_SHADER_2D_CHECKER);
 
-				/* light checkers */
-				GPU_basic_shader_bind(GPU_SHADER_STIPPLE | GPU_SHADER_USE_COLOR);
-				glColor4ub(UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, 255);
-				GPU_basic_shader_stipple(GPU_SHADER_STIPPLE_CHECKER_8PX);
+				/* checkers */
+				immUniform4f("color1", UI_ALPHA_CHECKER_DARK / 255.0f, UI_ALPHA_CHECKER_DARK / 255.0f, UI_ALPHA_CHECKER_DARK / 255.0f, 1.0f);
+				immUniform4f("color2", UI_ALPHA_CHECKER_LIGHT / 255.0f, UI_ALPHA_CHECKER_LIGHT / 255.0f, UI_ALPHA_CHECKER_LIGHT / 255.0f, 1.0f);
+				immUniform1i("size", 8);
 
-				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
+				widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_FAN, wtb->inner_v, NULL, wtb->totvert);
 
-				GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
+				immUnbindProgram();
 
 				/* alpha fill */
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+				immUniformColor4ubv((unsigned char *)wcol->inner);
 
-				glColor4ubv((unsigned char *)wcol->inner);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 				for (a = 0; a < wtb->totvert; a++) {
 					x_mid += wtb->inner_v[a][0];
 				}
 				x_mid /= wtb->totvert;
 
-				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
+				widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_FAN, wtb->inner_v, NULL, wtb->totvert);
 
 				/* 1/2 solid color */
-				glColor4ub(wcol->inner[0], wcol->inner[1], wcol->inner[2], 255);
+				immUniformColor3ubv((unsigned char *)wcol->inner);
 
 				for (a = 0; a < wtb->totvert; a++) {
 					inner_v_half[a][0] = MIN2(wtb->inner_v[a][0], x_mid);
 					inner_v_half[a][1] = wtb->inner_v[a][1];
 				}
 
-				glVertexPointer(2, GL_FLOAT, 0, inner_v_half);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-				glDisableClientState(GL_VERTEX_ARRAY);
+				widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_FAN, inner_v_half, NULL, wtb->totvert);
+
+				immUnbindProgram();
 			}
 			else {
 				/* simple fill */
-				glColor4ubv((unsigned char *)wcol->inner);
+				unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+				immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+				immUniformColor4ubv((unsigned char *)wcol->inner);
 
-				glEnableClientState(GL_VERTEX_ARRAY);
-				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-				glDisableClientState(GL_VERTEX_ARRAY);
+				widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_FAN, wtb->inner_v, NULL, wtb->totvert);
+
+				immUnbindProgram();
 			}
 		}
 		else {
 			char col1[4], col2[4];
-			unsigned char col_array[WIDGET_SIZE_MAX * 4];
-			unsigned char *col_pt = col_array;
-			
+			unsigned char col_array[WIDGET_SIZE_MAX][4];
+			unsigned char *col_pt = &col_array[0][0];
+
+			Gwn_VertFormat *format = immVertexFormat();
+			unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+			unsigned int col = GWN_vertformat_attr_add(format, "color", GWN_COMP_U8, 4, GWN_FETCH_INT_TO_FLOAT_UNIT);
+
+			immBindBuiltinProgram(GPU_SHADER_2D_SMOOTH_COLOR);
+
 			shadecolors4(col1, col2, wcol->inner, wcol->shadetop, wcol->shadedown);
 
 			for (a = 0; a < wtb->totvert; a++, col_pt += 4) {
 				round_box_shade_col4_r(col_pt, col1, col2, wtb->inner_uv[a][wtb->draw_shadedir ? 1 : 0]);
 			}
 
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glEnableClientState(GL_COLOR_ARRAY);
-			glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-			glColorPointer(4, GL_UNSIGNED_BYTE, 0, col_array);
-			glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-			glDisableClientState(GL_VERTEX_ARRAY);
-			glDisableClientState(GL_COLOR_ARRAY);
+			widget_draw_vertex_buffer(pos, col, GL_TRIANGLE_FAN, wtb->inner_v, col_array, wtb->totvert);
+			immUnbindProgram();
 		}
 	}
-	
+
 	/* for each AA step */
 	if (wtb->draw_outline) {
 		float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2]; /* + 2 because the last pair is wrapped */
@@ -745,52 +765,55 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 			UI_GetThemeColor4ubv(TH_WIDGET_EMBOSS, emboss);
 		}
 
-		glEnableClientState(GL_VERTEX_ARRAY);
+		unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 		for (j = 0; j < WIDGET_AA_JITTER; j++) {
-			glTranslate2fv(jit[j]);
+			gpuTranslate2fv(jit[j]);
 			
 			/* outline */
-			glColor4ubv(tcol);
+			immUniformColor4ubv(tcol);
 
-			glVertexPointer(2, GL_FLOAT, 0, triangle_strip);
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->totvert * 2 + 2);
+			widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_STRIP, triangle_strip, NULL, wtb->totvert * 2 + 2);
 
 			/* emboss bottom shadow */
 			if (wtb->draw_emboss) {
 				if (emboss[3]) {
-					glColor4ubv(emboss);
-					glVertexPointer(2, GL_FLOAT, 0, triangle_strip_emboss);
-					glDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->halfwayvert * 2);
+					immUniformColor4ubv(emboss);
+					widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_STRIP, triangle_strip_emboss, NULL, wtb->halfwayvert * 2);
 				}
 			}
 			
-			glTranslatef(-jit[j][0], -jit[j][1], 0.0f);
+			gpuTranslate2f(-jit[j][0], -jit[j][1]);
 		}
-
-		glDisableClientState(GL_VERTEX_ARRAY);
+		immUnbindProgram();
 	}
-	
+
 	/* decoration */
 	if (wtb->tria1.tot || wtb->tria2.tot) {
 		const unsigned char tcol[4] = {wcol->item[0],
 		                               wcol->item[1],
 		                               wcol->item[2],
 		                               (unsigned char)((float)wcol->item[3] / WIDGET_AA_JITTER)};
-		glColor4ubv(tcol);
+
+		unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+		immUniformColor4ubv(tcol);
 
 		/* for each AA step */
 		for (j = 0; j < WIDGET_AA_JITTER; j++) {
-			glTranslate2fv(jit[j]);
+			gpuTranslate2fv(jit[j]);
 
 			if (wtb->tria1.tot)
-				widget_trias_draw(&wtb->tria1);
+				widget_trias_draw(&wtb->tria1, pos);
 
 			if (wtb->tria2.tot)
-				widget_trias_draw(&wtb->tria2);
+				widget_trias_draw(&wtb->tria2, pos);
 		
-			glTranslatef(-jit[j][0], -jit[j][1], 0.0f);
+			gpuTranslate2f(-jit[j][0], -jit[j][1]);
 		}
+
+		immUnbindProgram();
 	}
 
 	glDisable(GL_BLEND);
@@ -1246,6 +1269,7 @@ static void widget_draw_text_ime_underline(
 	int ofs_x, width;
 	int rect_x = BLI_rcti_size_x(rect);
 	int sel_start = ime_data->sel_start, sel_end = ime_data->sel_end;
+	float fcol[4];
 
 	if (drawstr[0] != 0) {
 		if (but->pos >= but->ofs) {
@@ -1258,8 +1282,8 @@ static void widget_draw_text_ime_underline(
 		width = BLF_width(fstyle->uifont_id, drawstr + but->ofs,
 		                  ime_data->composite_len + but->pos - but->ofs);
 
-		glColor4ubv((unsigned char *)wcol->text);
-		UI_draw_text_underline(rect->xmin + ofs_x, rect->ymin + 6 * U.pixelsize, min_ii(width, rect_x - 2) - ofs_x, 1);
+		rgba_uchar_to_float(fcol, wcol->text);
+		UI_draw_text_underline(rect->xmin + ofs_x, rect->ymin + 6 * U.pixelsize, min_ii(width, rect_x - 2) - ofs_x, 1, fcol);
 
 		/* draw the thick line */
 		if (sel_start != -1 && sel_end != -1) {
@@ -1276,7 +1300,7 @@ static void widget_draw_text_ime_underline(
 			width = BLF_width(fstyle->uifont_id, drawstr + but->ofs,
 			                  sel_end + sel_start - but->ofs);
 
-			UI_draw_text_underline(rect->xmin + ofs_x, rect->ymin + 6 * U.pixelsize, min_ii(width, rect_x - 2) - ofs_x, 2);
+			UI_draw_text_underline(rect->xmin + ofs_x, rect->ymin + 6 * U.pixelsize, min_ii(width, rect_x - 2) - ofs_x, 2, fcol);
 		}
 	}
 }
@@ -1360,11 +1384,16 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 				selwidth_draw = BLF_width(fstyle->uifont_id, drawstr + but->ofs, but->selend - but->ofs);
 
-				glColor4ubv((unsigned char *)wcol->item);
-				glRecti(rect->xmin + selsta_draw,
-				        rect->ymin + 2,
-				        min_ii(rect->xmin + selwidth_draw, rect->xmax - 2),
-				        rect->ymax - 2);
+				unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_I32, 2, GWN_FETCH_INT_TO_FLOAT);
+				immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+				immUniformColor4ubv((unsigned char *)wcol->item);
+				immRecti(pos, rect->xmin + selsta_draw,
+				         rect->ymin + 2,
+				         min_ii(rect->xmin + selwidth_draw, rect->xmax - 2),
+				         rect->ymax - 2);
+
+				immUnbindProgram();
 			}
 		}
 
@@ -1387,13 +1416,18 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 				t = 0;
 			}
 
-			glColor3f(0.2, 0.6, 0.9);
+			unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_I32, 2, GWN_FETCH_INT_TO_FLOAT);
+			immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+			immUniformColor3f(0.2f, 0.6f, 0.9f);
 
 			tx = rect->xmin + t + 2;
 			ty = rect->ymin + 2;
 
 			/* draw cursor */
-			glRecti(rect->xmin + t, ty, tx, rect->ymax - 2);
+			immRecti(pos, rect->xmin + t, ty, tx, rect->ymax - 2);
+
+			immUnbindProgram();
 		}
 
 #ifdef WITH_INPUT_IME
@@ -1452,43 +1486,46 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	}
 #endif
 
-	glColor4ubv((unsigned char *)wcol->text);
-
 	if (!use_right_only) {
 		/* for underline drawing */
 		float font_xofs, font_yofs;
 
-		UI_fontstyle_draw_ex(fstyle, rect, drawstr + but->ofs,
-		                   drawstr_left_len - but->ofs, &font_xofs, &font_yofs);
+		int drawlen = (drawstr_left_len == INT_MAX) ? strlen(drawstr + but->ofs) : (drawstr_left_len - but->ofs);
 
-		if (but->menu_key != '\0') {
-			char fixedbuf[128];
-			const char *str;
+		if (drawlen > 0) {
+			UI_fontstyle_draw_ex(fstyle, rect, drawstr + but->ofs, (unsigned char *)wcol->text,
+			                     drawlen, &font_xofs, &font_yofs);
 
-			BLI_strncpy(fixedbuf, drawstr + but->ofs, min_ii(sizeof(fixedbuf), drawstr_left_len));
+			if (but->menu_key != '\0') {
+				char fixedbuf[128];
+				const char *str;
 
-			str = strchr(fixedbuf, but->menu_key - 32); /* upper case */
-			if (str == NULL)
-				str = strchr(fixedbuf, but->menu_key);
+				BLI_strncpy(fixedbuf, drawstr + but->ofs, min_ii(sizeof(fixedbuf), drawlen));
 
-			if (str) {
-				int ul_index = -1;
-				float ul_advance;
+				str = strchr(fixedbuf, but->menu_key - 32); /* upper case */
+				if (str == NULL)
+					str = strchr(fixedbuf, but->menu_key);
 
-				ul_index = (int)(str - fixedbuf);
+				if (str) {
+					int ul_index = -1;
+					float ul_advance;
 
-				if (fstyle->kerning == 1) {
-					BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-				}
+					ul_index = (int)(str - fixedbuf);
 
-				fixedbuf[ul_index] = '\0';
-				ul_advance = BLF_width(fstyle->uifont_id, fixedbuf, ul_index);
+					if (fstyle->kerning == 1) {
+						BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+					}
 
-				BLF_position(fstyle->uifont_id, rect->xmin + font_xofs + ul_advance, rect->ymin + font_yofs, 0.0f);
-				BLF_draw(fstyle->uifont_id, "_", 2);
+					fixedbuf[ul_index] = '\0';
+					ul_advance = BLF_width(fstyle->uifont_id, fixedbuf, ul_index);
 
-				if (fstyle->kerning == 1) {
-					BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+					BLF_position(fstyle->uifont_id, rect->xmin + font_xofs + ul_advance, rect->ymin + font_yofs, 0.0f);
+					BLF_color4ubv(fstyle->uifont_id, (unsigned char *)wcol->text);
+					BLF_draw(fstyle->uifont_id, "_", 2);
+
+					if (fstyle->kerning == 1) {
+						BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+					}
 				}
 			}
 		}
@@ -1498,7 +1535,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	if (drawstr_right) {
 		fstyle->align = UI_STYLE_TEXT_RIGHT;
 		rect->xmax -= UI_TEXT_CLIP_MARGIN;
-		UI_fontstyle_draw(fstyle, rect, drawstr_right);
+		UI_fontstyle_draw(fstyle, rect, drawstr_right, (unsigned char *)wcol->text);
 	}
 }
 
@@ -1621,6 +1658,9 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	widget_draw_text(fstyle, wcol, but, rect);
 
 	ui_but_text_password_hide(password_str, but, true);
+
+	/* if a widget uses font shadow it has to be deactivated now */
+	BLF_disable(fstyle->uifont_id, BLF_SHADOW);
 }
 
 #undef UI_TEXT_CLIP_MARGIN
@@ -1879,6 +1919,19 @@ static struct uiWidgetColors wcol_list_item = {
 	0, 0
 };
 
+struct uiWidgetColors wcol_tab = {
+	{255, 255, 255, 255},
+	{83, 83, 83, 255},
+	{114, 114, 114, 255},
+	{90, 90, 90, 255},
+
+	{0, 0, 0, 255},
+	{0, 0, 0, 255},
+
+	0,
+	0, 0
+};
+
 /* free wcol struct to play with */
 static struct uiWidgetColors wcol_tmp = {
 	{0, 0, 0, 255},
@@ -1901,6 +1954,7 @@ void ui_widget_color_init(ThemeUI *tui)
 	tui->wcol_tool = wcol_tool;
 	tui->wcol_text = wcol_text;
 	tui->wcol_radio = wcol_radio;
+	tui->wcol_tab = wcol_tab;
 	tui->wcol_option = wcol_option;
 	tui->wcol_toggle = wcol_toggle;
 	tui->wcol_num = wcol_num;
@@ -2159,23 +2213,24 @@ static void widget_softshadow(const rcti *rect, int roundboxalign, const float r
 
 	/* we draw a number of increasing size alpha quad strips */
 	alphastep = 3.0f * btheme->tui.menu_shadow_fac / radout;
-	
-	glEnableClientState(GL_VERTEX_ARRAY);
+
+	unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
 	for (step = 1; step <= (int)radout; step++) {
 		float expfac = sqrtf(step / radout);
 		
 		round_box_shadow_edges(wtb.outer_v, &rect1, radin, UI_CNR_ALL, (float)step);
 		
-		glColor4f(0.0f, 0.0f, 0.0f, alphastep * (1.0f - expfac));
+		immUniformColor4f(0.0f, 0.0f, 0.0f, alphastep * (1.0f - expfac));
 
 		widget_verts_to_triangle_strip(&wtb, totvert, triangle_strip);
 
-		glVertexPointer(2, GL_FLOAT, 0, triangle_strip);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, totvert * 2); /* add + 2 for getting a complete soft rect. Now it skips top edge to allow transparent menus */
+		widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_STRIP, triangle_strip, NULL, totvert * 2);
 	}
 
-	glDisableClientState(GL_VERTEX_ARRAY);
+	immUnbindProgram();
 }
 
 static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int direction)
@@ -2212,20 +2267,21 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
 
 static void ui_hsv_cursor(float x, float y)
 {
-	glPushMatrix();
-	glTranslatef(x, y, 0.0f);
-	
-	glColor3f(1.0f, 1.0f, 1.0f);
-	glutil_draw_filled_arc(0.0f, M_PI * 2.0, 3.0f * U.pixelsize, 8);
+	unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+	immUniformColor3f(1.0f, 1.0f, 1.0f);
+	imm_draw_circle_fill(pos, x, y, 3.0f * U.pixelsize, 8);
 	
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
-	glColor3f(0.0f, 0.0f, 0.0f);
-	glutil_draw_lined_arc(0.0f, M_PI * 2.0, 3.0f * U.pixelsize, 12);
+	immUniformColor3f(0.0f, 0.0f, 0.0f);
+	imm_draw_circle_wire(pos, x, y, 3.0f * U.pixelsize, 12);
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);
-	
-	glPopMatrix();
+
+	immUnbindProgram();
 }
 
 void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rcti *rect,
@@ -2265,18 +2321,17 @@ void ui_hsvcircle_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float 
 
 static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *rect)
 {
+	/* TODO(merwin): reimplement as shader for pixel-perfect colors */
+
 	const int tot = 64;
 	const float radstep = 2.0f * (float)M_PI / (float)tot;
 	const float centx = BLI_rcti_cent_x_fl(rect);
 	const float centy = BLI_rcti_cent_y_fl(rect);
 	float radius = (float)min_ii(BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)) / 2.0f;
 
-	/* gouraud triangle fan */
 	ColorPicker *cpicker = but->custom_data;
 	const float *hsv_ptr = cpicker->color_data;
-	float xpos, ypos, ang = 0.0f;
 	float rgb[3], hsvo[3], hsv[3], col[3], colcent[3];
-	int a;
 	bool color_profile = ui_but_is_colorpicker_display_space(but);
 		
 	/* color */
@@ -2307,11 +2362,18 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	
 	ui_color_picker_to_rgb(0.0f, 0.0f, hsv[2], colcent, colcent + 1, colcent + 2);
 
-	glBegin(GL_TRIANGLE_FAN);
-	glColor3fv(colcent);
-	glVertex2f(centx, centy);
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	unsigned int color = GWN_vertformat_attr_add(format, "color", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_2D_SMOOTH_COLOR);
+
+	immBegin(GWN_PRIM_TRI_FAN, tot + 2);
+	immAttrib3fv(color, colcent);
+	immVertex2f(pos, centx, centy);
 	
-	for (a = 0; a <= tot; a++, ang += radstep) {
+	float ang = 0.0f;
+	for (int a = 0; a <= tot; a++, ang += radstep) {
 		float si = sinf(ang);
 		float co = cosf(ang);
 		
@@ -2319,25 +2381,32 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 
 		ui_color_picker_to_rgb_v(hsv, col);
 
-		glColor3fv(col);
-		glVertex2f(centx + co * radius, centy + si * radius);
+		immAttrib3fv(color, col);
+		immVertex2f(pos, centx + co * radius, centy + si * radius);
 	}
-	glEnd();
-	
+	immEnd();
+	immUnbindProgram();
+
 	/* fully rounded outline */
-	glPushMatrix();
-	glTranslatef(centx, centy, 0.0f);
+	format = immVertexFormat();
+	pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
-	glColor3ubv((unsigned char *)wcol->outline);
-	glutil_draw_lined_arc(0.0f, M_PI * 2.0, radius, tot + 1);
+
+	immUniformColor3ubv((unsigned char *)wcol->outline);
+	imm_draw_circle_wire(pos, centx, centy, radius, tot);
+
+	immUnbindProgram();
+
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);
-	glPopMatrix();
 
 	/* cursor */
+	float xpos, ypos;
 	ui_hsvcircle_pos_from_vals(but, rect, hsvo, &xpos, &ypos);
-
 	ui_hsv_cursor(xpos, ypos);
 }
 
@@ -2347,7 +2416,8 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, const float alpha)
 {
 	/* allows for 4 steps (red->yellow) */
-	const float color_step = 1.0f / 48.0f;
+	const int steps = 48;
+	const float color_step = 1.0f / steps;
 	int a;
 	float h = hsv[0], s = hsv[1], v = hsv[2];
 	float dx, dy, sx1, sx2, sy;
@@ -2401,9 +2471,14 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 			copy_v3_v3(col1[3], col1[2]);
 			break;
 	}
-	
+
 	/* old below */
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	unsigned int col = GWN_vertformat_attr_add(format, "color", GWN_COMP_F32, 4, GWN_FETCH_FLOAT);
+	immBindBuiltinProgram(GPU_SHADER_2D_SMOOTH_COLOR);
 	
+	immBegin(GWN_PRIM_TRIS, steps * 3 * 6);
 	for (dx = 0.0f; dx < 0.999f; dx += color_step) { /* 0.999 = prevent float inaccuracy for steps */
 		const float dx_next = dx + color_step;
 
@@ -2461,22 +2536,29 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 		sy = rect->ymin;
 		dy = (float)BLI_rcti_size_y(rect) / 3.0f;
 		
-		glBegin(GL_QUADS);
 		for (a = 0; a < 3; a++, sy += dy) {
-			glColor4f(col0[a][0], col0[a][1], col0[a][2], alpha);
-			glVertex2f(sx1, sy);
+			immAttrib4f(col, col0[a][0], col0[a][1], col0[a][2], alpha);
+			immVertex2f(pos, sx1, sy);
 			
-			glColor4f(col1[a][0], col1[a][1], col1[a][2], alpha);
-			glVertex2f(sx2, sy);
+			immAttrib4f(col, col1[a][0], col1[a][1], col1[a][2], alpha);
+			immVertex2f(pos, sx2, sy);
 
-			glColor4f(col1[a + 1][0], col1[a + 1][1], col1[a + 1][2], alpha);
-			glVertex2f(sx2, sy + dy);
+			immAttrib4f(col, col1[a + 1][0], col1[a + 1][1], col1[a + 1][2], alpha);
+			immVertex2f(pos, sx2, sy + dy);
+
+			immAttrib4f(col, col0[a][0], col0[a][1], col0[a][2], alpha);
+			immVertex2f(pos, sx1, sy);
+
+			immAttrib4f(col, col1[a + 1][0], col1[a + 1][1], col1[a + 1][2], alpha);
+			immVertex2f(pos, sx2, sy + dy);
 			
-			glColor4f(col0[a + 1][0], col0[a + 1][1], col0[a + 1][2], alpha);
-			glVertex2f(sx1, sy + dy);
+			immAttrib4f(col, col0[a + 1][0], col0[a + 1][1], col0[a + 1][2], alpha);
+			immVertex2f(pos, sx1, sy + dy);
 		}
-		glEnd();
 	}
+	immEnd();
+
+	immUnbindProgram();
 }
 
 bool ui_but_is_colorpicker_display_space(uiBut *but)
@@ -2552,8 +2634,11 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
 	ui_hsv_cursor(x, y);
 	
 	/* outline */
-	glColor3ub(0,  0,  0);
-	fdrawbox((rect->xmin), (rect->ymin), (rect->xmax), (rect->ymax));
+	unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+	immUniformColor3ub(0, 0, 0);
+	imm_draw_line_box(pos, (rect->xmin), (rect->ymin), (rect->xmax), (rect->ymax));
+	immUnbindProgram();
 }
 
 /* vertical 'value' slider, using new widget code */
@@ -2621,12 +2706,22 @@ static void ui_draw_separator(const rcti *rect,  uiWidgetColors *wcol)
 		wcol->text[2],
 		30
 	};
-	
+
+	unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 	glEnable(GL_BLEND);
-	glColor4ubv(col);
+	immUniformColor4ubv(col);
 	glLineWidth(1.0f);
-	sdrawline(rect->xmin, y, rect->xmax, y);
+
+	immBegin(GWN_PRIM_LINES, 2);
+	immVertex2f(pos, rect->xmin, y);
+	immVertex2f(pos, rect->xmax, y);
+	immEnd();
+
 	glDisable(GL_BLEND);
+
+	immUnbindProgram();
 }
 
 /* ************ button callbacks, draw ***************** */
@@ -2698,11 +2793,14 @@ bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol)
 }
 
 #define LINK_RESOL  24
-void ui_draw_link_bezier(const rcti *rect)
+void ui_draw_link_bezier(const rcti *rect, const float color[4])
 {
 	float coord_array[LINK_RESOL + 1][2];
 
 	if (ui_link_bezier_points(rect, coord_array, LINK_RESOL)) {
+		unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 #if 0 /* unused */
 		/* we can reuse the dist variable here to increment the GL curve eval amount*/
 		const float dist = 1.0f / (float)LINK_RESOL;
@@ -2710,13 +2808,17 @@ void ui_draw_link_bezier(const rcti *rect)
 		glEnable(GL_BLEND);
 		glEnable(GL_LINE_SMOOTH);
 
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glVertexPointer(2, GL_FLOAT, 0, coord_array);
-		glDrawArrays(GL_LINE_STRIP, 0, LINK_RESOL + 1);
-		glDisableClientState(GL_VERTEX_ARRAY);
+		immUniformColor4fv(color);
+
+		immBegin(GWN_PRIM_LINE_STRIP, LINK_RESOL + 1);
+		for (int i = 0; i <= LINK_RESOL; ++i)
+			immVertex2fv(pos, coord_array[i]);
+		immEnd();
 
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
+
+		immUnbindProgram();
 	}
 }
 
@@ -2898,15 +3000,16 @@ static void widget_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, in
 	
 	if (but->flag & UI_SELECT) {
 		rcti rectlink;
+		float color[4];
 		
-		UI_ThemeColor(TH_TEXT_HI);
+		UI_GetThemeColor4fv(TH_TEXT_HI, color);
 		
 		rectlink.xmin = BLI_rcti_cent_x(rect);
 		rectlink.ymin = BLI_rcti_cent_y(rect);
 		rectlink.xmax = but->linkto[0];
 		rectlink.ymax = but->linkto[1];
 		
-		ui_draw_link_bezier(&rectlink);
+		ui_draw_link_bezier(&rectlink, color);
 	}
 }
 
@@ -3058,13 +3161,18 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 		float bw = rgb_to_grayscale(col);
 
 		bw += (bw < 0.5f) ? 0.5f : -0.5f;
-		
-		glColor4f(bw, bw, bw, 1.0);
-		glBegin(GL_TRIANGLES);
-		glVertex2f(rect->xmin + 0.1f * width, rect->ymin + 0.9f * height);
-		glVertex2f(rect->xmin + 0.1f * width, rect->ymin + 0.5f * height);
-		glVertex2f(rect->xmin + 0.5f * width, rect->ymin + 0.9f * height);
-		glEnd();
+
+		unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+		immUniformColor3f(bw, bw, bw);
+		immBegin(GWN_PRIM_TRIS, 3);
+		immVertex2f(pos, rect->xmin + 0.1f * width, rect->ymin + 0.9f * height);
+		immVertex2f(pos, rect->xmin + 0.1f * width, rect->ymin + 0.5f * height);
+		immVertex2f(pos, rect->xmin + 0.5f * width, rect->ymin + 0.9f * height);
+		immEnd();
+
+		immUnbindProgram();
 	}
 }
 
@@ -3360,12 +3468,50 @@ static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state),
 	widgetbase_draw(&wtb, wcol);
 }
 
+static void widget_tab(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+{
+	const uiStyle *style = UI_style_get();
+	const float rad = 0.15f * U.widget_unit;
+	const int fontid = style->widget.uifont_id;
+	const bool is_active = (but->flag & UI_SELECT);
+
+	uiWidgetBase wtb;
+	unsigned char theme_col_tab_highlight[3];
+
+	/* create outline highlight colors */
+	if (is_active) {
+		interp_v3_v3v3_uchar(theme_col_tab_highlight, (unsigned char *)wcol->inner_sel,
+		                     (unsigned char *)wcol->outline, 0.2f);
+	}
+	else {
+		interp_v3_v3v3_uchar(theme_col_tab_highlight, (unsigned char *)wcol->inner,
+		                     (unsigned char *)wcol->outline, 0.12f);
+	}
+
+	widget_init(&wtb);
+
+	/* half rounded */
+	round_box_edges(&wtb, roundboxalign, rect, rad);
+
+	/* draw inner */
+	wtb.draw_outline = 0;
+	widgetbase_draw(&wtb, wcol);
+
+	/* draw outline (3d look) */
+	ui_draw_but_TAB_outline(rect, rad, theme_col_tab_highlight, (unsigned char *)wcol->inner);
+
+	/* text shadow */
+	BLF_enable(fontid, BLF_SHADOW);
+	BLF_shadow(fontid, 3, (const float[4]){1.0f, 1.0f, 1.0f, 0.25f});
+	BLF_shadow_offset(fontid, 0, -1);
+}
+
 static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *wt, rcti *rect)
 {
 	uiWidgetBase wtb;
 	const float rad = 0.25f * U.widget_unit;
 	unsigned char col[4];
-	
+
 	/* state copy! */
 	wt->wcol = *(wt->wcol_theme);
 	
@@ -3375,12 +3521,17 @@ static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *
 		/* note: drawextra can change rect +1 or -1, to match round errors of existing previews */
 		but->block->drawextra(C, but->poin, but->block->drawextra_arg1, but->block->drawextra_arg2, rect);
 		
+		unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 		/* make mask to draw over image */
 		UI_GetThemeColor3ubv(TH_BACK, col);
-		glColor3ubv(col);
-		
+		immUniformColor3ubv(col);
+
 		round_box__edges(&wtb, UI_CNR_ALL, rect, 0.0f, rad);
-		widgetbase_outline(&wtb);
+		widgetbase_outline(&wtb, pos);
+
+		immUnbindProgram();
 	}
 	
 	/* outline */
@@ -3440,6 +3591,11 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 		case UI_WTYPE_EXEC:
 			wt.wcol_theme = &btheme->tui.wcol_tool;
 			wt.draw = widget_roundbut;
+			break;
+
+		case UI_WTYPE_TAB:
+			wt.custom = widget_tab;
+			wt.wcol_theme = &btheme->tui.wcol_tab;
 			break;
 
 		case UI_WTYPE_TOOLTIP:
@@ -3696,7 +3852,11 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				if (but->block->flag & UI_BLOCK_LOOP)
 					wt->wcol_theme = &btheme->tui.wcol_menu_back;
 				break;
-				
+
+			case UI_BTYPE_TAB:
+				wt = widget_type(UI_WTYPE_TAB);
+				break;
+
 			case UI_BTYPE_BUT_TOGGLE:
 			case UI_BTYPE_TOGGLE:
 			case UI_BTYPE_TOGGLE_N:
@@ -3889,15 +4049,21 @@ void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 		wt->draw(&wt->wcol, rect, 0, 0);
 	
 	if (block) {
+		float draw_color[4];
+		unsigned char *color = (unsigned char *)wt->wcol.text;
+
+		draw_color[0] = ((float)color[0]) / 255.0f;
+		draw_color[1] = ((float)color[1]) / 255.0f;
+		draw_color[2] = ((float)color[2]) / 255.0f;
+		draw_color[3] = 1.0f;
+
 		if (block->flag & UI_BLOCK_CLIPTOP) {
 			/* XXX no scaling for UI here yet */
-			glColor3ubv((unsigned char *)wt->wcol.text);
-			UI_draw_icon_tri(BLI_rcti_cent_x(rect), rect->ymax - 8, 't');
+			UI_draw_icon_tri(BLI_rcti_cent_x(rect), rect->ymax - 8, 't', draw_color);
 		}
 		if (block->flag & UI_BLOCK_CLIPBOTTOM) {
 			/* XXX no scaling for UI here yet */
-			glColor3ubv((unsigned char *)wt->wcol.text);
-			UI_draw_icon_tri(BLI_rcti_cent_x(rect), rect->ymin + 10, 'v');
+			UI_draw_icon_tri(BLI_rcti_cent_x(rect), rect->ymin + 10, 'v', draw_color);
 		}
 	}
 }
@@ -3915,33 +4081,21 @@ static void draw_disk_shaded(
 	float y1, y2;
 	float fac;
 	unsigned char r_col[4];
+	unsigned int pos, col;
 
-	glBegin(GL_TRIANGLE_STRIP);
-
-	s = sinf(start);
-	c = cosf(start);
-
-	y1 = s * radius_int;
-	y2 = s * radius_ext;
-
+	Gwn_VertFormat *format = immVertexFormat();
+	pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 	if (shaded) {
-		fac = (y1 + radius_ext) * radius_ext_scale;
-		round_box_shade_col4_r(r_col, col1, col2, fac);
-
-		glColor4ubv(r_col);
+		col = GWN_vertformat_attr_add(format, "color", GWN_COMP_U8, 4, GWN_FETCH_INT_TO_FLOAT_UNIT);
+		immBindBuiltinProgram(GPU_SHADER_2D_SMOOTH_COLOR);
+	}
+	else {
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+		immUniformColor4ubv((unsigned char *)col1);
 	}
 
-	glVertex2f(c * radius_int, s * radius_int);
-
-	if (shaded) {
-		fac = (y2 + radius_ext) * radius_ext_scale;
-		round_box_shade_col4_r(r_col, col1, col2, fac);
-
-		glColor4ubv(r_col);
-	}
-	glVertex2f(c * radius_ext, s * radius_ext);
-
-	for (i = 1; i < subd; i++) {
+	immBegin(GWN_PRIM_TRI_STRIP, subd * 2);
+	for (i = 0; i < subd; i++) {
 		float a;
 
 		a = start + ((i) / (float)(subd - 1)) * angle;
@@ -3953,20 +4107,20 @@ static void draw_disk_shaded(
 		if (shaded) {
 			fac = (y1 + radius_ext) * radius_ext_scale;
 			round_box_shade_col4_r(r_col, col1, col2, fac);
-
-			glColor4ubv(r_col);
+			immAttrib4ubv(col, r_col);
 		}
-		glVertex2f(c * radius_int, s * radius_int);
+		immVertex2f(pos, c * radius_int, s * radius_int);
 
 		if (shaded) {
 			fac = (y2 + radius_ext) * radius_ext_scale;
 			round_box_shade_col4_r(r_col, col1, col2, fac);
-
-			glColor4ubv(r_col);
+			immAttrib4ubv(col, r_col);
 		}
-		glVertex2f(c * radius_ext, s * radius_ext);
+		immVertex2f(pos, c * radius_ext, s * radius_ext);
 	}
-	glEnd();
+	immEnd();
+
+	immUnbindProgram();
 }
 
 void ui_draw_pie_center(uiBlock *block)
@@ -3985,8 +4139,8 @@ void ui_draw_pie_center(uiBlock *block)
 	float angle = atan2f(pie_dir[1], pie_dir[0]);
 	float range = (block->pie_data.flags & UI_PIE_DEGREES_RANGE_LARGE) ? M_PI_2 : M_PI_4;
 
-	glPushMatrix();
-	glTranslatef(cx, cy, 0.0f);
+	gpuPushMatrix();
+	gpuTranslate2f(cx, cy);
 
 	glEnable(GL_BLEND);
 	if (btheme->tui.wcol_pie_menu.shaded) {
@@ -3995,8 +4149,7 @@ void ui_draw_pie_center(uiBlock *block)
 		draw_disk_shaded(0.0f, (float)(M_PI * 2.0), pie_radius_internal, pie_radius_external, subd, col1, col2, true);
 	}
 	else {
-		glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.inner);
-		draw_disk_shaded(0.0f, (float)(M_PI * 2.0), pie_radius_internal, pie_radius_external, subd, NULL, NULL, false);
+		draw_disk_shaded(0.0f, (float)(M_PI * 2.0), pie_radius_internal, pie_radius_external, subd, btheme->tui.wcol_pie_menu.inner, NULL, false);
 	}
 
 	if (!(block->pie_data.flags & UI_PIE_INVALID_DIR)) {
@@ -4006,25 +4159,34 @@ void ui_draw_pie_center(uiBlock *block)
 			draw_disk_shaded(angle - range / 2.0f, range, pie_radius_internal, pie_radius_external, subd, col1, col2, true);
 		}
 		else {
-			glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.inner_sel);
-			draw_disk_shaded(angle - range / 2.0f, range, pie_radius_internal, pie_radius_external, subd, NULL, NULL, false);
+			draw_disk_shaded(angle - range / 2.0f, range, pie_radius_internal, pie_radius_external, subd, btheme->tui.wcol_pie_menu.inner_sel, NULL, false);
 		}
 	}
 
-	glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.outline);
-	glutil_draw_lined_arc(0.0f, (float)M_PI * 2.0f, pie_radius_internal, subd);
-	glutil_draw_lined_arc(0.0f, (float)M_PI * 2.0f, pie_radius_external, subd);
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+	immUniformColor4ubv((unsigned char *)btheme->tui.wcol_pie_menu.outline);
+
+	imm_draw_circle_wire(pos, 0.0f, 0.0f, pie_radius_internal, subd);
+	imm_draw_circle_wire(pos, 0.0f, 0.0f, pie_radius_external, subd);
+
+	immUnbindProgram();
 
 	if (U.pie_menu_confirm > 0 && !(block->pie_data.flags & (UI_PIE_INVALID_DIR | UI_PIE_CLICK_STYLE))) {
 		float pie_confirm_radius = U.pixelsize * (pie_radius_internal + U.pie_menu_confirm);
 		float pie_confirm_external = U.pixelsize * (pie_radius_internal + U.pie_menu_confirm + 7.0f);
 
-		glColor4ub(btheme->tui.wcol_pie_menu.text_sel[0], btheme->tui.wcol_pie_menu.text_sel[1], btheme->tui.wcol_pie_menu.text_sel[2], 64);
-		draw_disk_shaded(angle - range / 2.0f, range, pie_confirm_radius, pie_confirm_external, subd, NULL, NULL, false);
+		const char col[4] = {btheme->tui.wcol_pie_menu.text_sel[0],
+		                     btheme->tui.wcol_pie_menu.text_sel[1],
+		                     btheme->tui.wcol_pie_menu.text_sel[2],
+		                     64};
+
+		draw_disk_shaded(angle - range / 2.0f, range, pie_confirm_radius, pie_confirm_external, subd, col, NULL, false);
 	}
 
 	glDisable(GL_BLEND);
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 
@@ -4108,8 +4270,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 			UI_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len, '\0');
 		}
 
-		glColor4ubv((unsigned char *)wt->wcol.text);
-		UI_fontstyle_draw(fstyle, rect, drawstr);
+		UI_fontstyle_draw(fstyle, rect, drawstr, (unsigned char *)wt->wcol.text);
 	}
 
 	/* part text right aligned */
@@ -4117,7 +4278,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 		if (cpoin) {
 			fstyle->align = UI_STYLE_TEXT_RIGHT;
 			rect->xmax = _rect.xmax - 5;
-			UI_fontstyle_draw(fstyle, rect, cpoin + 1);
+			UI_fontstyle_draw(fstyle, rect, cpoin + 1, (unsigned char *)wt->wcol.text);
 			*cpoin = UI_SEP_CHAR;
 		}
 	}
@@ -4175,7 +4336,6 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 		BLI_strncpy(drawstr, name, sizeof(drawstr));
 		UI_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len, '\0');
 
-		glColor4ubv((unsigned char *)wt->wcol.text);
-		UI_fontstyle_draw(fstyle, &trect, drawstr);
+		UI_fontstyle_draw(fstyle, &trect, drawstr, (unsigned char *)wt->wcol.text);
 	}
 }

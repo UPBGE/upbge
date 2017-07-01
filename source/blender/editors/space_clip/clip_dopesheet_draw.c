@@ -42,8 +42,6 @@
 #include "ED_screen.h"
 #include "ED_clip.h"
 
-#include "BIF_gl.h"
-
 #include "WM_types.h"
 
 #include "UI_interface.h"
@@ -53,6 +51,9 @@
 #include "BLF_api.h"
 
 #include "RNA_access.h"
+
+#include "GPU_draw.h"
+#include "GPU_immediate.h"
 
 #include "clip_intern.h"  /* own include */
 
@@ -72,78 +73,25 @@ static void track_channel_color(MovieTrackingTrack *track, float default_color[3
 	}
 }
 
-static void draw_keyframe_shape(float x, float y, float xscale, float yscale, bool sel, float alpha)
+static void draw_keyframe_shape(float x, float y, bool sel, float alpha,
+                                unsigned int pos_id, unsigned int color_id)
 {
-	/* coordinates for diamond shape */
-	static const float _unit_diamond_shape[4][2] = {
-		{0.0f, 1.0f},   /* top vert */
-		{1.0f, 0.0f},   /* mid-right */
-		{0.0f, -1.0f},  /* bottom vert */
-		{-1.0f, 0.0f}   /* mid-left */
-	};
-	static GLuint displist1 = 0;
-	static GLuint displist2 = 0;
-	int hsize = STRIP_HEIGHT_HALF;
-
-	/* initialize 2 display lists for diamond shape - one empty, one filled */
-	if (displist1 == 0) {
-		displist1 = glGenLists(1);
-		glNewList(displist1, GL_COMPILE);
-
-		glBegin(GL_LINE_LOOP);
-		glVertex2fv(_unit_diamond_shape[0]);
-		glVertex2fv(_unit_diamond_shape[1]);
-		glVertex2fv(_unit_diamond_shape[2]);
-		glVertex2fv(_unit_diamond_shape[3]);
-		glEnd();
-		glEndList();
-	}
-	if (displist2 == 0) {
-		displist2 = glGenLists(1);
-		glNewList(displist2, GL_COMPILE);
-
-		glBegin(GL_QUADS);
-		glVertex2fv(_unit_diamond_shape[0]);
-		glVertex2fv(_unit_diamond_shape[1]);
-		glVertex2fv(_unit_diamond_shape[2]);
-		glVertex2fv(_unit_diamond_shape[3]);
-		glEnd();
-		glEndList();
+	float color[4] = { 0.91f, 0.91f, 0.91f, alpha };
+	if (sel) {
+		UI_GetThemeColorShadeAlpha4fv(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha), color);
 	}
 
-	glPushMatrix();
-
-	/* adjust view transform before starting */
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
-
-	/* anti-aliased lines for more consistent appearance */
-	glEnable(GL_LINE_SMOOTH);
-
-	if (sel)
-		UI_ThemeColorShadeAlpha(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha));
-	else
-		glColor4f(0.91f, 0.91f, 0.91f, alpha);
-
-	glCallList(displist2);
-
-	/* exterior - black frame */
-	glColor4f(0.0f, 0.0f, 0.0f, alpha);
-	glCallList(displist1);
-
-	glDisable(GL_LINE_SMOOTH);
-
-	/* restore view transform */
-	glPopMatrix();
+	immAttrib4fv(color_id, color);
+	immVertex2f(pos_id, x, y);
 }
 
-static void clip_draw_dopesheet_background(ARegion *ar, MovieClip *clip)
+static void clip_draw_dopesheet_background(ARegion *ar, MovieClip *clip, unsigned int pos_id)
 {
 	View2D *v2d = &ar->v2d;
 	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
 	MovieTrackingDopesheetCoverageSegment *coverage_segment;
-
+	
 	for (coverage_segment = dopesheet->coverage_segments.first;
 	     coverage_segment;
 	     coverage_segment = coverage_segment->next)
@@ -153,12 +101,13 @@ static void clip_draw_dopesheet_background(ARegion *ar, MovieClip *clip)
 			int end_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, coverage_segment->end_frame);
 
 			if (coverage_segment->coverage == TRACKING_COVERAGE_BAD) {
-				glColor4f(1.0f, 0.0f, 0.0f, 0.07f);
+				immUniformColor4f(1.0f, 0.0f, 0.0f, 0.07f);
 			}
-			else
-				glColor4f(1.0f, 1.0f, 0.0f, 0.07f);
+			else {
+				immUniformColor4f(1.0f, 1.0f, 0.0f, 0.07f);
+			}
 
-			glRectf(start_frame, v2d->cur.ymin, end_frame, v2d->cur.ymax);
+			immRectf(pos_id, start_frame, v2d->cur.ymin, end_frame, v2d->cur.ymax);
 		}
 	}
 }
@@ -175,18 +124,21 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 		MovieTracking *tracking = &clip->tracking;
 		MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
 		MovieTrackingDopesheetChannel *channel;
-		float y, xscale, yscale;
 		float strip[4], selected_strip[4];
 		float height = (dopesheet->tot_channel * CHANNEL_STEP) + (CHANNEL_HEIGHT);
+
+		unsigned int keyframe_ct = 0;
+
+		Gwn_VertFormat *format = immVertexFormat();
+		unsigned int pos_id = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
 		/* don't use totrect set, as the width stays the same
 		 * (NOTE: this is ok here, the configuration is pretty straightforward)
 		 */
 		v2d->tot.ymin = (float)(-height);
 
-		y = (float) CHANNEL_FIRST;
-
-		UI_view2d_scale_get(v2d, &xscale, &yscale);
+		float y = (float) CHANNEL_FIRST;
 
 		/* setup colors for regular and selected strips */
 		UI_GetThemeColor3fv(TH_STRIP, strip);
@@ -197,7 +149,7 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 
 		glEnable(GL_BLEND);
 
-		clip_draw_dopesheet_background(ar, clip);
+		clip_draw_dopesheet_background(ar, clip, pos_id);
 
 		for (channel = dopesheet->channels.first; channel; channel = channel->next) {
 			float yminc = (float) (y - CHANNEL_HEIGHT_HALF);
@@ -208,7 +160,6 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 			    IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
 			{
 				MovieTrackingTrack *track = channel->track;
-				float alpha;
 				int i;
 				bool sel = (track->flag & TRACK_DOPE_SEL) != 0;
 
@@ -218,32 +169,26 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 					float default_color[4] = {0.8f, 0.93f, 0.8f, 0.3f};
 
 					track_channel_color(track, default_color, color);
-					glColor4fv(color);
+					immUniformColor4fv(color);
 
-					glRectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
-					        v2d->cur.xmax + EXTRA_SCROLL_PAD, (float) y + CHANNEL_HEIGHT_HALF);
+					immRectf(pos_id, v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
+					         v2d->cur.xmax + EXTRA_SCROLL_PAD, (float) y + CHANNEL_HEIGHT_HALF);
 				}
-
-				alpha = (track->flag & TRACK_LOCKED) ? 0.5f : 1.0f;
 
 				/* tracked segments */
 				for (i = 0; i < channel->tot_segment; i++) {
 					int start_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, channel->segments[2 * i]);
 					int end_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, channel->segments[2 * i + 1]);
 
-					if (sel)
-						glColor4fv(selected_strip);
-					else
-						glColor4fv(strip);
+					immUniformColor4fv(sel ? selected_strip : strip);
 
 					if (start_frame != end_frame) {
-						glRectf(start_frame, (float) y - STRIP_HEIGHT_HALF,
-						        end_frame, (float) y + STRIP_HEIGHT_HALF);
-						draw_keyframe_shape(start_frame, y, xscale, yscale, sel, alpha);
-						draw_keyframe_shape(end_frame, y, xscale, yscale, sel, alpha);
+						immRectf(pos_id, start_frame, (float) y - STRIP_HEIGHT_HALF,
+						         end_frame, (float) y + STRIP_HEIGHT_HALF);
+						keyframe_ct += 2;
 					}
 					else {
-						draw_keyframe_shape(start_frame, y, xscale, yscale, sel, alpha);
+						keyframe_ct++;
 					}
 				}
 
@@ -253,9 +198,7 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 					MovieTrackingMarker *marker = &track->markers[i];
 
 					if ((marker->flag & (MARKER_DISABLED | MARKER_TRACKED)) == 0) {
-						int framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, marker->framenr);
-
-						draw_keyframe_shape(framenr, y, xscale, yscale, sel, alpha);
+						keyframe_ct++;
 					}
 
 					i++;
@@ -264,6 +207,76 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 
 			/* adjust y-position for next one */
 			y -= CHANNEL_STEP;
+		}
+
+		immUnbindProgram();
+
+		if (keyframe_ct > 0) {
+			/* draw keyframe markers */
+			format = immVertexFormat();
+			pos_id = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+			unsigned int size_id = GWN_vertformat_attr_add(format, "size", GWN_COMP_F32, 1, GWN_FETCH_FLOAT);
+			unsigned int color_id = GWN_vertformat_attr_add(format, "color", GWN_COMP_F32, 4, GWN_FETCH_FLOAT);
+			unsigned int outline_color_id = GWN_vertformat_attr_add(format, "outlineColor", GWN_COMP_U8, 4, GWN_FETCH_INT_TO_FLOAT_UNIT);
+
+			immBindBuiltinProgram(GPU_SHADER_KEYFRAME_DIAMOND);
+			GPU_enable_program_point_size();
+			immBegin(GWN_PRIM_POINTS, keyframe_ct);
+
+			/* all same size with black outline */
+			immAttrib1f(size_id, 2.0f * STRIP_HEIGHT_HALF);
+			immAttrib4ub(outline_color_id, 0, 0, 0, 255);
+
+			y = (float) CHANNEL_FIRST; /* start again at the top */
+			for (channel = dopesheet->channels.first; channel; channel = channel->next) {
+				float yminc = (float) (y - CHANNEL_HEIGHT_HALF);
+				float ymaxc = (float) (y + CHANNEL_HEIGHT_HALF);
+
+				/* check if visible */
+				if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
+					 IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+				{
+					MovieTrackingTrack *track = channel->track;
+					int i;
+					bool sel = (track->flag & TRACK_DOPE_SEL) != 0;
+					float alpha = (track->flag & TRACK_LOCKED) ? 0.5f : 1.0f;
+
+					/* tracked segments */
+					for (i = 0; i < channel->tot_segment; i++) {
+						int start_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, channel->segments[2 * i]);
+						int end_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, channel->segments[2 * i + 1]);
+
+						if (start_frame != end_frame) {
+							draw_keyframe_shape(start_frame, y, sel, alpha, pos_id, color_id);
+							draw_keyframe_shape(end_frame, y, sel, alpha, pos_id, color_id);
+						}
+						else {
+							draw_keyframe_shape(start_frame, y, sel, alpha, pos_id, color_id);
+						}
+					}
+
+					/* keyframes */
+					i = 0;
+					while (i < track->markersnr) {
+						MovieTrackingMarker *marker = &track->markers[i];
+
+						if ((marker->flag & (MARKER_DISABLED | MARKER_TRACKED)) == 0) {
+							int framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, marker->framenr);
+
+							draw_keyframe_shape(framenr, y, sel, alpha, pos_id, color_id);
+						}
+
+						i++;
+					}
+				}
+
+				/* adjust y-position for next one */
+				y -= CHANNEL_STEP;
+			}
+
+			immEnd();
+			GPU_disable_program_point_size();
+			immUnbindProgram();
 		}
 
 		glDisable(GL_BLEND);
@@ -279,22 +292,15 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	View2D *v2d = &ar->v2d;
 	MovieClip *clip = ED_space_clip_get_clip(sc);
-	MovieTracking *tracking;
-	MovieTrackingDopesheet *dopesheet;
-	MovieTrackingDopesheetChannel *channel;
 	uiStyle *style = UI_style_get();
-	uiBlock *block;
 	int fontid = style->widget.uifont_id;
-	int height;
-	float y;
-	PropertyRNA *chan_prop_lock;
-
+	
 	if (!clip)
 		return;
 
-	tracking = &clip->tracking;
-	dopesheet = &tracking->dopesheet;
-	height = (dopesheet->tot_channel * CHANNEL_STEP) + (CHANNEL_HEIGHT);
+	MovieTracking *tracking = &clip->tracking;
+	MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
+	int height = (dopesheet->tot_channel * CHANNEL_STEP) + (CHANNEL_HEIGHT);
 
 	if (height > BLI_rcti_size_y(&v2d->mask)) {
 		/* don't use totrect set, as the width stays the same
@@ -309,6 +315,37 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 	/* loop through channels, and set up drawing depending on their type
 	 * first pass: just the standard GL-drawing for backdrop + text
 	 */
+	float y = (float) CHANNEL_FIRST;
+
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+	MovieTrackingDopesheetChannel *channel;
+	for (channel = dopesheet->channels.first; channel; channel = channel->next) {
+		float yminc = (float) (y - CHANNEL_HEIGHT_HALF);
+		float ymaxc = (float) (y + CHANNEL_HEIGHT_HALF);
+
+		/* check if visible */
+		if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
+		    IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+		{
+			MovieTrackingTrack *track = channel->track;
+			float color[3];
+			track_channel_color(track, NULL, color);
+			immUniformColor3fv(color);
+
+			immRectf(pos, v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
+			         v2d->cur.xmax + EXTRA_SCROLL_PAD, (float) y + CHANNEL_HEIGHT_HALF);
+		}
+
+		/* adjust y-position for next one */
+		y -= CHANNEL_STEP;
+	}
+	immUnbindProgram();
+
+	/* second pass: text */
 	y = (float) CHANNEL_FIRST;
 
 	BLF_size(fontid, 11.0f * U.pixelsize, U.dpi);
@@ -322,21 +359,11 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 		    IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
 		{
 			MovieTrackingTrack *track = channel->track;
-			float font_height, color[3];
 			bool sel = (track->flag & TRACK_DOPE_SEL) != 0;
 
-			track_channel_color(track, NULL, color);
-			glColor3fv(color);
+			UI_FontThemeColor(fontid, sel ? TH_TEXT_HI : TH_TEXT);
 
-			glRectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
-			        v2d->cur.xmax + EXTRA_SCROLL_PAD, (float) y + CHANNEL_HEIGHT_HALF);
-
-			if (sel)
-				UI_ThemeColor(TH_TEXT_HI);
-			else
-				UI_ThemeColor(TH_TEXT);
-
-			font_height = BLF_height(fontid, channel->name, sizeof(channel->name));
+			float font_height = BLF_height(fontid, channel->name, sizeof(channel->name));
 			BLF_position(fontid, v2d->cur.xmin + CHANNEL_PAD,
 			             y - font_height / 2.0f, 0.0f);
 			BLF_draw(fontid, channel->name, strlen(channel->name));
@@ -346,12 +373,12 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 		y -= CHANNEL_STEP;
 	}
 
-	/* second pass: widgets */
-	block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
+	/* third pass: widgets */
+	uiBlock *block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
 	y = (float) CHANNEL_FIRST;
 
 	/* get RNA properties (once) */
-	chan_prop_lock = RNA_struct_type_find_property(&RNA_MovieTrackingTrack, "lock");
+	PropertyRNA *chan_prop_lock = RNA_struct_type_find_property(&RNA_MovieTrackingTrack, "lock");
 	BLI_assert(chan_prop_lock);
 
 	glEnable(GL_BLEND);

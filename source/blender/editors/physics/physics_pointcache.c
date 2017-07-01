@@ -42,6 +42,7 @@
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_global.h"
+#include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
@@ -99,45 +100,45 @@ static int ptcache_job_break(void *customdata)
 
 static void ptcache_job_update(void *customdata, float progress, int *cancel)
 {
-    PointCacheJob *job = customdata;
+	PointCacheJob *job = customdata;
 
-    if (ptcache_job_break(job)) {
-        *cancel = 1;
-    }
+	if (ptcache_job_break(job)) {
+		*cancel = 1;
+	}
 
-    *(job->do_update) = true;
-    *(job->progress) = progress;
+	*(job->do_update) = true;
+	*(job->progress) = progress;
 }
 
 static void ptcache_job_startjob(void *customdata, short *stop, short *do_update, float *progress)
 {
-    PointCacheJob *job = customdata;
+	PointCacheJob *job = customdata;
 
-    job->stop = stop;
-    job->do_update = do_update;
-    job->progress = progress;
+	job->stop = stop;
+	job->do_update = do_update;
+	job->progress = progress;
 
-    G.is_break = false;
+	G.is_break = false;
 
-    /* XXX annoying hack: needed to prevent data corruption when changing
-     * scene frame in separate threads
-     */
-    G.is_rendering = true;
-    BKE_spacedata_draw_locks(true);
+	/* XXX annoying hack: needed to prevent data corruption when changing
+	 * scene frame in separate threads
+	 */
+	G.is_rendering = true;
+	BKE_spacedata_draw_locks(true);
 
 	BKE_ptcache_bake(job->baker);
 
-    *do_update = true;
-    *stop = 0;
+	*do_update = true;
+	*stop = 0;
 }
 
 static void ptcache_job_endjob(void *customdata)
 {
-    PointCacheJob *job = customdata;
+	PointCacheJob *job = customdata;
 	Scene *scene = job->baker->scene;
 
-    G.is_rendering = false;
-    BKE_spacedata_draw_locks(false);
+	G.is_rendering = false;
+	BKE_spacedata_draw_locks(false);
 
 	WM_set_locked_interface(G.main->wm.first, false);
 
@@ -253,22 +254,23 @@ static void ptcache_bake_cancel(bContext *C, wmOperator *op)
 
 static int ptcache_free_bake_all_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Scene *scene= CTX_data_scene(C);
-	Base *base;
+	Scene *scene = CTX_data_scene(C);
 	PTCacheID *pid;
 	ListBase pidlist;
 
-	for (base=scene->base.first; base; base= base->next) {
-		BKE_ptcache_ids_from_object(&pidlist, base->object, scene, MAX_DUPLI_RECUR);
+	FOREACH_SCENE_OBJECT(scene, ob)
+	{
+		BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
 
-		for (pid=pidlist.first; pid; pid=pid->next) {
+		for (pid = pidlist.first; pid; pid = pid->next) {
 			ptcache_free_bake(pid->cache);
 		}
 		
 		BLI_freelistN(&pidlist);
 		
-		WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, base->object);
+		WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
 	}
+	FOREACH_SCENE_OBJECT_END
 
 	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
 

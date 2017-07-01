@@ -463,13 +463,13 @@ static void set_sca_ob(Object *ob)
 static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisflag)
 {
 	Base *base;
-	Main *bmain= CTX_data_main(C);
-	Scene *scene= CTX_data_scene(C);
-	Object *ob, *obt, *obact= CTX_data_active_object(C);
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
+	Object *ob, *obt, *obact = CTX_data_active_object(C);
 	ID **idar;
 	bSensor *sens;
 	bController *cont;
-	unsigned int lay;
 	int a, nr, do_it;
 	
 	/* we need a sorted object list */
@@ -487,19 +487,12 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
 		ob= ob->id.next;
 	}
 	
-	/* XXX here it checked 3d lay */
-	lay= scene->lay;
-	
-	base= FIRSTBASE;
-	while (base) {
-		if (base->lay & lay) {
-			if (base->flag & SELECT) {
-				if (scavisflag & BUTS_SENS_SEL) base->object->scavisflag |= OB_VIS_SENS;
-				if (scavisflag & BUTS_CONT_SEL) base->object->scavisflag |= OB_VIS_CONT;
-				if (scavisflag & BUTS_ACT_SEL) base->object->scavisflag |= OB_VIS_ACT;
-			}
+	for (base = FIRSTBASE_NEW; base; base = base->next) {
+		if ((base->flag & BASE_VISIBLED) && (base->flag & SELECT)) {
+			if (scavisflag & BUTS_SENS_SEL) base->object->scavisflag |= OB_VIS_SENS;
+			if (scavisflag & BUTS_CONT_SEL) base->object->scavisflag |= OB_VIS_CONT;
+			if (scavisflag & BUTS_ACT_SEL) base->object->scavisflag |= OB_VIS_ACT;
 		}
-		base= base->next;
 	}
 
 	if (obact) {

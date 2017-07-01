@@ -102,6 +102,10 @@
 #include "KX_SoftBodyDeformer.h"
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
+#include "BLI_iterator.h"
+
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "KX_WorldInfo.h"
 
@@ -357,22 +361,6 @@ static unsigned int KX_Mcol2uint_new(MCol col)
 	out_color.cp[3] = in_color.cp[0]; // alpha
 	
 	return out_color.integer;
-}
-
-static void SetDefaultLightMode(Scene* scene)
-{
-	default_light_mode = false;
-	Scene *sce_iter;
-	Base *base;
-
-	for (SETLOOPER(scene, sce_iter, base))
-	{
-		if (base->object->type == OB_LAMP)
-		{
-			default_light_mode = true;
-			return;
-		}
-	}
 }
 
 static void GetRGB(
@@ -954,6 +942,9 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	else if (la->type == LA_HEMI) {
 		lightobj->m_type = RAS_ILightObject::LIGHT_HEMI;
 	}
+	else if (la->type == LA_AREA) {
+		lightobj->m_type = RAS_ILightObject::LIGHT_AREA;
+	}
 	else {
 		lightobj->m_type = RAS_ILightObject::LIGHT_NORMAL;
 	}
@@ -1211,7 +1202,7 @@ static void blenderSceneSetBackground(Scene *blenderscene)
 
 	for (SETLOOPER(blenderscene, it, base)) {
 		base->object->lay = base->lay;
-		base->object->flag = base->flag;
+		BKE_scene_base_flag_sync_from_base(base);
 	}
 }
 
@@ -1412,6 +1403,7 @@ static void bl_ConvertBlenderObject_Single(
 
 // convert blender objects into ketsji gameobjects
 void BL_ConvertBlenderObjects(struct Main* maggie,
+							  struct Depsgraph *depsgraph,
 							  KX_Scene* kxscene,
 							  KX_KetsjiEngine* ketsjiEngine,
 							  e_PhysicsEngine	physics_engine,
@@ -1437,9 +1429,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 
 	Scene *blenderscene = kxscene->GetBlenderScene();
-	// for SETLOOPER
-	Scene *sce_iter;
-	Base *base;
 
 	// Get the frame settings of the canvas.
 	// Get the aspect ratio of the canvas as designed by the user.
@@ -1528,27 +1517,26 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
 	}
 
-	SetDefaultLightMode(blenderscene);
-
 	blenderSceneSetBackground(blenderscene);
 
 	// Let's support scene set.
 	// Beware of name conflict in linked data, it will not crash but will create confusion
 	// in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
 	// no conflicting name for Object, Object data and Action.
-	for (SETLOOPER(blenderscene, sce_iter, base))
+	DEG_OBJECT_ITER(depsgraph, blenderobject, DEG_OBJECT_ITER_FLAG_ALL)
 	{
-		Object* blenderobject = base->object;
 		allblobj.insert(blenderobject);
 
+		bool isInActiveLayer = (blenderobject->base_flag & BASE_VISIBLED) != 0;
+		blenderobject->lay = (blenderobject->base_flag & BASE_VISIBLED) != 0;
+
 		KX_GameObject* gameobj = gameobject_from_blenderobject(
-										base->object, 
+										blenderobject,
 										kxscene, 
 										rendertools, 
 										converter,
 										libloading);
 
-		bool isInActiveLayer = (blenderobject->lay & activeLayerBitInfo) !=0;
 		if (gameobj)
 		{
 			/* macro calls object conversion funcs */
@@ -1569,6 +1557,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			gameobj->Release();
 		}
 	}
+	DEG_OBJECT_ITER_END
 
 	if (!grouplist.empty())
 	{

@@ -53,7 +53,7 @@
 #include "ED_anim_api.h"
 #include "ED_markers.h"
 
-#include "BIF_gl.h"
+#include "GPU_immediate.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -265,43 +265,52 @@ static void graph_main_region_draw(const bContext *C, ARegion *ar)
 	
 	/* only free grid after drawing data, as we need to use it to determine sampling rate */
 	UI_view2d_grid_free(grid);
-	
-	/* horizontal component of value-cursor (value line before the current frame line) */
-	if ((sipo->flag & SIPO_NODRAWCURSOR) == 0) {
 
-		float y = sipo->cursorVal;
-		
-		/* Draw a green line to indicate the cursor value */
-		UI_ThemeColorShadeAlpha(TH_CFRAME, -10, -50);
-		glEnable(GL_BLEND);
-		glLineWidth(2.0);
+	if (((sipo->flag & SIPO_NODRAWCURSOR) == 0) || (sipo->mode == SIPO_MODE_DRIVERS)) {
+		unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
-		glBegin(GL_LINES);
-		glVertex2f(v2d->cur.xmin, y);
-		glVertex2f(v2d->cur.xmax, y);
-		glEnd();
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
-		glDisable(GL_BLEND);
+		/* horizontal component of value-cursor (value line before the current frame line) */
+		if ((sipo->flag & SIPO_NODRAWCURSOR) == 0) {
+
+			float y = sipo->cursorVal;
+
+			/* Draw a green line to indicate the cursor value */
+			immUniformThemeColorShadeAlpha(TH_CFRAME, -10, -50);
+			glEnable(GL_BLEND);
+			glLineWidth(2.0);
+
+			immBegin(GWN_PRIM_LINES, 2);
+			immVertex2f(pos, v2d->cur.xmin, y);
+			immVertex2f(pos, v2d->cur.xmax, y);
+			immEnd();
+
+			glDisable(GL_BLEND);
+		}
+
+		/* current frame or vertical component of vertical component of the cursor */
+		if (sipo->mode == SIPO_MODE_DRIVERS) {
+			/* cursor x-value */
+			float x = sipo->cursorTime;
+
+			/* to help differentiate this from the current frame, draw slightly darker like the horizontal one */
+			immUniformThemeColorShadeAlpha(TH_CFRAME, -40, -50);
+			glEnable(GL_BLEND);
+			glLineWidth(2.0);
+
+			immBegin(GWN_PRIM_LINES, 2);
+			immVertex2f(pos, x, v2d->cur.ymin);
+			immVertex2f(pos, x, v2d->cur.ymax);
+			immEnd();
+
+			glDisable(GL_BLEND);
+		}
+
+		immUnbindProgram();
 	}
-	
-	/* current frame or vertical component of vertical component of the cursor */
-	if (sipo->mode == SIPO_MODE_DRIVERS) {
-		/* cursor x-value */
-		float x = sipo->cursorTime;
-		
-		/* to help differentiate this from the current frame, draw slightly darker like the horizontal one */
-		UI_ThemeColorShadeAlpha(TH_CFRAME, -40, -50);
-		glEnable(GL_BLEND);
-		glLineWidth(2.0);
-		
-		glBegin(GL_LINES);
-		glVertex2f(x, v2d->cur.ymin);
-		glVertex2f(x, v2d->cur.ymax);
-		glEnd();
 
-		glDisable(GL_BLEND);
-	}
-	else {
+	if (sipo->mode != SIPO_MODE_DRIVERS) {
 		/* current frame */
 		if (sipo->flag & SIPO_DRAWTIME) flag |= DRAWCFRA_UNIT_SECONDS;
 		if ((sipo->flag & SIPO_NODRAWCFRANUM) == 0) flag |= DRAWCFRA_SHOW_NUMBOX;
@@ -404,7 +413,9 @@ static void graph_buttons_region_draw(const bContext *C, ARegion *ar)
 	ED_region_panels(C, ar, NULL, -1, true);
 }
 
-static void graph_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+static void graph_region_listener(
+        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
+        wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -450,6 +461,11 @@ static void graph_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), AReg
 			if (wmn->action == NA_RENAME)
 				ED_region_tag_redraw(ar);
 			break;
+		case NC_SCREEN:
+			if (ELEM(wmn->data, ND_LAYER)) {
+				ED_region_tag_redraw(ar);
+			}
+			break;
 		default:
 			if (wmn->data == ND_KEYS)
 				ED_region_tag_redraw(ar);
@@ -459,7 +475,7 @@ static void graph_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), AReg
 }
 
 /* editor level listener */
-static void graph_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
+static void graph_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	SpaceIpo *sipo = (SpaceIpo *)sa->spacedata.first;
 	

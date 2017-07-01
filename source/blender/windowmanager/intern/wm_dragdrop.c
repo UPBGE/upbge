@@ -46,6 +46,8 @@
 
 #include "BKE_context.h"
 
+#include "GPU_shader.h"
+
 #include "IMB_imbuf_types.h"
 
 #include "UI_interface.h"
@@ -268,10 +270,10 @@ void wm_drags_check_ops(bContext *C, wmEvent *event)
 static void wm_drop_operator_draw(const char *name, int x, int y)
 {
 	const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
-	const unsigned char fg[4] = {255, 255, 255, 255};
-	const unsigned char bg[4] = {0, 0, 0, 50};
+	const float col_fg[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+	const float col_bg[4] = {0.0f, 0.0f, 0.0f, 0.2f};
 
-	UI_fontstyle_draw_simple_backdrop(fstyle, x, y, name, fg, bg);
+	UI_fontstyle_draw_simple_backdrop(fstyle, x, y, name, col_fg, col_bg);
 }
 
 static const char *wm_drag_name(wmDrag *drag)
@@ -332,8 +334,10 @@ void wm_drags_draw(bContext *C, wmWindow *win, rcti *rect)
 			if (rect)
 				drag_rect_minmax(rect, x, y, x + drag->sx, y + drag->sy);
 			else {
-				glColor4f(1.0, 1.0, 1.0, 0.65); /* this blends texture */
-				glaDrawPixelsTexScaled(x, y, drag->imb->x, drag->imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, drag->imb->rect, drag->scale, drag->scale);
+				float col[4] = {1.0f, 1.0f, 1.0f, 0.65f}; /* this blends texture */
+				IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_COLOR);
+				immDrawPixelsTexScaled(&state, x, y, drag->imb->x, drag->imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST,
+				                       drag->imb->rect, drag->scale, drag->scale, 1.0f, 1.0f, col);
 			}
 		}
 		else {
@@ -361,8 +365,8 @@ void wm_drags_draw(bContext *C, wmWindow *win, rcti *rect)
 			drag_rect_minmax(rect, x, y, x + w, y + iconsize);
 		}
 		else {
-			glColor4ub(255, 255, 255, 255);
-			UI_fontstyle_draw_simple(fstyle, x, y, wm_drag_name(drag));
+			const unsigned char col[] = {255, 255, 255, 255};
+			UI_fontstyle_draw_simple(fstyle, x, y, wm_drag_name(drag), col);
 		}
 		
 		/* operator name with roundbox */

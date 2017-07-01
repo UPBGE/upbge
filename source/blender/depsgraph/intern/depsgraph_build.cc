@@ -166,6 +166,13 @@ void DEG_add_bone_relation(DepsNodeHandle *handle,
 	                                              description);
 }
 
+struct Depsgraph *DEG_get_graph_from_handle(struct DepsNodeHandle *handle)
+{
+	DEG::DepsNodeHandle *deg_handle = get_handle(handle);
+	DEG::DepsgraphRelationBuilder *relation_builder = deg_handle->builder;
+	return reinterpret_cast<Depsgraph *>(relation_builder->getGraph());
+}
+
 void DEG_add_special_eval_flag(Depsgraph *graph, ID *id, short flag)
 {
 	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(graph);
@@ -200,25 +207,18 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 
 	/* 1) Generate all the nodes in the graph first */
 	DEG::DepsgraphNodeBuilder node_builder(bmain, deg_graph);
-	/* create root node for scene first
-	 * - this way it should be the first in the graph,
-	 *   reflecting its role as the entrypoint
-	 */
 	node_builder.begin_build(bmain);
-	node_builder.add_root_node();
 	node_builder.build_scene(bmain, scene);
 
 	/* 2) Hook up relationships between operations - to determine evaluation
 	 *    order.
 	 */
 	DEG::DepsgraphRelationBuilder relation_builder(deg_graph);
-	/* Hook scene up to the root node as entrypoint to graph. */
-	/* XXX what does this relation actually mean?
-	 * it doesnt add any operations anyway and is not clear what part of the
-	 * scene is to be connected.
-	 */
 	relation_builder.begin_build(bmain);
 	relation_builder.build_scene(bmain, scene);
+#ifdef WITH_COPY_ON_WRITE
+	relation_builder.build_copy_on_write_relations();
+#endif
 
 	/* Detect and solve cycles. */
 	DEG::deg_graph_detect_cycles(deg_graph);
@@ -319,14 +319,13 @@ void DEG_add_collision_relations(DepsNodeHandle *handle,
                                  Scene *scene,
                                  Object *ob,
                                  Group *group,
-                                 int layer,
                                  unsigned int modifier_type,
                                  DEG_CollobjFilterFunction fn,
                                  bool dupli,
                                  const char *name)
 {
 	unsigned int numcollobj;
-	Object **collobjs = get_collisionobjects_ext(scene, ob, group, layer, &numcollobj, modifier_type, dupli);
+	Object **collobjs = get_collisionobjects_ext(scene, ob, group, &numcollobj, modifier_type, dupli);
 
 	for (unsigned int i = 0; i < numcollobj; i++) {
 		Object *ob1 = collobjs[i];
@@ -381,7 +380,6 @@ void DEG_add_forcefield_relations(DepsNodeHandle *handle,
 					                            scene,
 					                            ob,
 					                            NULL,
-					                            eff->ob->lay,
 					                            eModifierType_Collision,
 					                            NULL,
 					                            true,

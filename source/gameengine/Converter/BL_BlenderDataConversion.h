@@ -40,6 +40,7 @@
 class RAS_MeshObject* BL_ConvertMesh(struct Mesh* mesh,struct Object* lightobj,class KX_Scene* scene, class KX_BlenderSceneConverter& converter, bool libloading);
 
 void BL_ConvertBlenderObjects(struct Main* maggie,
+							  struct Depsgraph *depsgraph,
 							  class KX_Scene* kxscene,
 							  class KX_KetsjiEngine* ketsjiEngine,
 							  e_PhysicsEngine	physics_engine,

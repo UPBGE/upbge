@@ -64,12 +64,6 @@ typedef enum GPUBasicShaderStipple {
 	GPU_SHADER_STIPPLE_HEXAGON                         = 3,
 	GPU_SHADER_STIPPLE_DIAG_STRIPES                    = 4,
 	GPU_SHADER_STIPPLE_DIAG_STRIPES_SWAP               = 5,
-	GPU_SHADER_STIPPLE_S3D_INTERLACE_ROW               = 6,
-	GPU_SHADER_STIPPLE_S3D_INTERLACE_ROW_SWAP          = 7,
-	GPU_SHADER_STIPPLE_S3D_INTERLACE_COLUMN            = 8,
-	GPU_SHADER_STIPPLE_S3D_INTERLACE_COLUMN_SWAP       = 9,
-	GPU_SHADER_STIPPLE_S3D_INTERLACE_CHECKER           = 10,
-	GPU_SHADER_STIPPLE_S3D_INTERLACE_CHECKER_SWAP      = 11
 } GPUBasicShaderStipple;
 
 void GPU_basic_shaders_init(void);
@@ -131,9 +125,6 @@ void GPU_basic_shader_light_set_viewer(bool local);
 void GPU_basic_shader_stipple(GPUBasicShaderStipple stipple_id);
 void GPU_basic_shader_line_stipple(GLint stipple_factor, GLushort stipple_pattern);
 void GPU_basic_shader_line_width(float line_width);
-
-bool GPU_basic_shader_use_glsl_get(void);
-void GPU_basic_shader_use_glsl_set(bool enabled);
 
 #ifdef __cplusplus
 }

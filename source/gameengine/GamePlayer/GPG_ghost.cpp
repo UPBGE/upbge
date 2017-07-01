@@ -57,7 +57,6 @@ extern "C"
 
 #  include "BKE_appdir.h"
 #  include "BKE_blender.h"
-#  include "BKE_depsgraph.h"
 #  include "BKE_global.h"
 #  include "BKE_icons.h"
 #  include "BKE_image.h"
@@ -72,6 +71,9 @@ extern "C"
 
 #  include "IMB_imbuf.h"
 #  include "IMB_moviecache.h"
+
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 #  ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
@@ -729,7 +731,7 @@ int main(
 	IMB_init();
 	BKE_images_init();
 	BKE_modifier_init();
-	DAG_init();
+	DEG_register_node_types();
 
 #ifdef WITH_FFMPEG
 	IMB_ffmpeg_init();
@@ -1209,6 +1211,8 @@ int main(
 						Main *maggie = bfd->main;
 						Scene *scene = bfd->curscene;
 						G.main = maggie;
+						DEG_scene_relations_rebuild(maggie, scene);
+						Depsgraph *depsgraph = scene->depsgraph;
 
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;
@@ -1374,7 +1378,7 @@ int main(
 						}
 
 						// This argc cant be argc_py_clamped, since python uses it.
-						LA_PlayerLauncher launcher(system, window, maggie, scene, &gs, stereomode, aasamples,
+						LA_PlayerLauncher launcher(system, window, maggie, depsgraph, scene, &gs, stereomode, aasamples,
 												   argc, argv, pythonControllerFile);
 #ifdef WITH_PYTHON
 						if (!globalDict) {
@@ -1451,7 +1455,7 @@ int main(
 
 	IMB_exit();
 	BKE_images_exit();
-	DAG_exit();
+	DEG_free_node_types();
 	IMB_moviecache_destruct();
 
 	SYS_DeleteSystem(syshandle);

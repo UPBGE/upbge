@@ -28,7 +28,10 @@ class INFO_HT_header(Header):
         layout = self.layout
 
         window = context.window
+        workspace = context.workspace
+        screen = context.screen
         scene = context.scene
+        layer = context.render_layer
         rd = scene.render
 
         row = layout.row(align=True)
@@ -36,14 +39,26 @@ class INFO_HT_header(Header):
 
         INFO_MT_editor_menus.draw_collapsible(context, layout)
 
-        if window.screen.show_fullscreen:
+        layout.separator()
+
+        if screen.show_fullscreen:
             layout.operator("screen.back_to_previous", icon='SCREEN_BACK', text="Back to Previous")
             layout.separator()
         else:
-            layout.template_ID(context.window, "screen", new="screen.new", unlink="screen.delete")
-            layout.template_ID(context.screen, "scene", new="scene.new", unlink="scene.delete")
+            layout.template_ID(window, "workspace", new="workspace.workspace_add_menu", unlink="workspace.workspace_delete")
+            layout.template_search_preview(window, "screen", workspace, "screens", new="screen.new", unlink="screen.delete", rows=2, cols=6)
+
+        if hasattr(workspace, 'object_mode'):
+            act_mode_item = bpy.types.Object.bl_rna.properties['mode'].enum_items[workspace.object_mode]
+        else:
+            act_mode_item = bpy.types.Object.bl_rna.properties['mode'].enum_items[layer.objects.active.mode]
+        layout.operator_menu_enum("object.mode_set", "mode", text=act_mode_item.name, icon=act_mode_item.icon)
+
+        layout.template_search(workspace, "render_layer", scene, "render_layers")
 
         layout.separator()
+
+        layout.template_ID(window, "scene", new="scene.new", unlink="scene.delete")
 
         if rd.has_multiple_engines:
             layout.prop(rd, "engine", text="")
@@ -69,7 +84,7 @@ class INFO_HT_header(Header):
             return
 
         row.operator("wm.splash", text="", icon='BLENDER', emboss=False)
-        row.label(text=scene.statistics(), translate=False)
+        row.label(text=scene.statistics(context.render_layer), translate=False)
 
 
 class INFO_MT_editor_menus(Menu):
@@ -309,7 +324,7 @@ class INFO_MT_window(Menu):
 
         layout = self.layout
 
-        layout.operator("wm.window_duplicate")
+        layout.operator("wm.window_new")
         layout.operator("wm.window_fullscreen_toggle", icon='FULLSCREEN_ENTER')
 
         layout.separator()
@@ -358,7 +373,10 @@ class INFO_MT_help(Menu):
                 ).url = "https://developer.blender.org/maniphest/task/edit/form/1"
         layout.separator()
 
-        layout.operator("wm.url_open", text="Python API Reference", icon='URL').url = "https://pythonapi.upbge.org/"
+        layout.operator(
+                "wm.url_open", text="Python API Reference", icon='URL',
+                ).url = bpy.types.WM_OT_doc_view._prefix
+
         layout.operator("wm.operator_cheat_sheet", icon='TEXT')
         layout.operator("wm.sysinfo", icon='TEXT')
         layout.separator()

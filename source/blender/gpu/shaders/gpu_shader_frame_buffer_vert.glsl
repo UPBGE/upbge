@@ -1,5 +1,10 @@
+in vec4 bgeOfsPos;
+in vec2 bgeOfsUvs;
+
+out vec4 texcovar;
+
 void main()
 {
-	gl_Position = gl_Vertex;
-	gl_TexCoord[0] = gl_MultiTexCoord0;
+	gl_Position = bgeOfsPos;
+	texcovar = vec4(bgeOfsUvs, 0.0, 0.0);
 }

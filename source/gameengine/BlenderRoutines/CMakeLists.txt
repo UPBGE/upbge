@@ -19,6 +19,7 @@ set(INC
 	../../blender/blenkernel
 	../../blender/blenlib
 	../../blender/blenloader
+	../../blender/draw/engines/eevee/
 	../../blender/editors/include
 	../../blender/gpu
 	../../blender/imbuf

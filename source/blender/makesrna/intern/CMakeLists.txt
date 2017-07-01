@@ -72,8 +72,9 @@ set(DEFSRC
 	rna_palette.c
 	rna_particle.c
 	rna_pose.c
-	rna_python_component.c
+	rna_lightprobe.c
 	rna_property.c
+	rna_python_component.c
 	rna_render.c
 	rna_rigidbody.c
 	rna_rna.c
@@ -95,6 +96,8 @@ set(DEFSRC
 	rna_userdef.c
 	rna_vfont.c
 	rna_wm.c
+	rna_wm_manipulator.c
+	rna_workspace.c
 	rna_world.c
 )
 
@@ -188,6 +191,10 @@ endif()
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
+endif()
+
+if(WITH_CLAY_ENGINE)
+	add_definitions(-DWITH_CLAY_ENGINE)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
@@ -339,6 +346,7 @@ blender_include_dirs(
 	../../bmesh
 	../../blentranslation
 	../../depsgraph
+	../../draw
 	../../gpu
 	../../imbuf
 	../../ikplugin

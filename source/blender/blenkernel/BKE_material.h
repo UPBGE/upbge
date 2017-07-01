@@ -54,7 +54,7 @@ void BKE_material_init(struct Material *ma);
 void BKE_material_remap_object(struct Object *ob, const unsigned int *remap);
 void BKE_material_remap_object_calc(struct  Object *ob_dst, struct Object *ob_src, short *remap_src_to_dst);
 struct Material *BKE_material_add(struct Main *bmain, const char *name);
-struct Material *BKE_material_copy(struct Main *bmain, struct Material *ma);
+struct Material *BKE_material_copy(struct Main *bmain, const struct Material *ma);
 struct Material *localize_material(struct Material *ma);
 struct Material *give_node_material(struct Material *ma); /* returns node material or self */
 void BKE_material_make_local(struct Main *bmain, struct Material *ma, const bool lib_local);
@@ -86,6 +86,10 @@ short BKE_object_material_slot_find_index(struct Object *ob, struct Material *ma
 bool  BKE_object_material_slot_add(struct Object *ob);
 bool  BKE_object_material_slot_remove(struct Object *ob);
 
+struct Image  *BKE_object_material_edit_image_get(struct Object *ob, short mat_nr);
+struct Image **BKE_object_material_edit_image_get_array(struct Object *ob);
+bool           BKE_object_material_edit_image_set(struct Object *ob, short mat_nr, struct Image *image);
+
 void BKE_texpaint_slot_refresh_cache(struct Scene *scene, struct Material *ma);
 void BKE_texpaint_slots_refresh_object(struct Scene *scene, struct Object *ob);
 
@@ -113,9 +117,6 @@ void clear_matcopybuf(void);
 void free_matcopybuf(void);
 void copy_matcopybuf(struct Material *ma);
 void paste_matcopybuf(struct Material *ma);
-
-/* handle backward compatibility for tface/materials called from doversion */	
-int do_version_tface(struct Main *main);
 
 #ifdef __cplusplus
 }

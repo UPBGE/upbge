@@ -38,6 +38,18 @@
 #include "RAS_Deformer.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_IStorageInfo.h"
+#include "GPU_material.h"
+#include "GPU_shader.h"
+#include "GPU_texture.h"
+#include "DNA_scene_types.h"
+
+#include "KX_Globals.h"
+#include "KX_Scene.h"
+#include "KX_Camera.h"
+
+extern "C" {
+#  include "../gpu/intern/gpu_codegen.h"
+}
 
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)
@@ -60,7 +72,8 @@ RAS_MeshSlot::RAS_MeshSlot()
 	m_pDeformer(nullptr),
 	m_pDerivedMesh(nullptr),
 	m_meshUser(nullptr),
-	m_batchPartIndex(-1)
+	m_batchPartIndex(-1),
+	m_gpuMat(nullptr)
 {
 }
 
@@ -81,7 +94,8 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	m_pDeformer(nullptr),
 	m_pDerivedMesh(nullptr),
 	m_meshUser(nullptr),
-	m_batchPartIndex(-1)
+	m_batchPartIndex(-1),
+	m_gpuMat(nullptr)
 {
 	if (m_displayArrayBucket) {
 		m_displayArrayBucket->AddRef();
@@ -152,6 +166,16 @@ void RAS_MeshSlot::SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket)
 	m_displayArray = m_displayArrayBucket->GetDisplayArray();
 }
 
+void RAS_MeshSlot::SetGpuMat(GPUMaterial *mat)
+{
+	m_gpuMat = mat;
+}
+
+GPUMaterial *RAS_MeshSlot::GetGpuMat()
+{
+	return m_gpuMat;
+}
+
 void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs)
 {
 	m_node.SetParent(&root);
@@ -169,8 +193,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 
 
 	if (!managerData->m_shaderOverride) {
-		rasty->ProcessLighting(materialData->m_useLighting, managerData->m_trans);
-		materialData->m_material->ActivateMeshSlot(this, rasty);
+		materialData->m_material->ActivateMeshSlot(this, rasty); // TODO sent the matrix with billboard/ray transform
 	}
 
 	if (materialData->m_zsort && managerData->m_drawingMode >= RAS_Rasterizer::RAS_SOLID && displayArrayData->m_storageInfo) {
@@ -195,8 +218,112 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 		rasty->IndexPrimitivesDerivedMesh(this);
 	}
 	else {
+		/* For blender shaders (not custom), we need
+		* to bind shader to update uniforms.
+		* In shadow pass for now, we don't update
+		* the ShaderInterface uniforms because
+		* GPUMaterial is not accessible (RenderShadowBuffer
+		* is called before main rendering and the GPUMaterial
+		* is bound only when we do the main rendering).
+		* Refs: - For drawing mode, rasterizer drawing mode is
+		* set to RAS_SHADOWS in KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
+		* - To see the order of rendering operations, this is in
+		* KX_KetsjiEngine::Render() (RenderShadowBuffers is called
+		* at the begining of Render()
+		* (m_drawingmode != 0) is used to avoid crash when we press
+		* P while we are in wireframe viewport shading mode.
+		*/
+		GPUMaterial *gpumat = GetGpuMat();
+		if (gpumat && ((rasty->GetDrawingMode() != RAS_Rasterizer::RAS_SHADOW) && (rasty->GetDrawingMode() != RAS_Rasterizer::RAS_WIREFRAME))) {
+			/*GPUPass *pass = GPU_material_get_pass(gpumat);
+			GPUShader *shader = GPU_pass_shader(pass);
+			GPU_shader_bind(shader);
+
+			rasty->ProcessLighting(materialData->m_useLighting, managerData->m_trans, shader);
+
+			KX_Scene *scene = KX_GetActiveScene();
+			KX_Camera *cam = scene->GetActiveCamera();
+
+			// lit surface frag uniforms
+			int projloc = GPU_shader_get_uniform(shader, "ProjectionMatrix");
+			int viewinvloc = GPU_shader_get_uniform(shader, "ViewMatrixInverse");
+			int viewloc = GPU_shader_get_uniform(shader, "ViewMatrix");
+			// lit surface vert uniforms
+			int modelviewprojloc = GPU_shader_get_uniform(shader, "ModelViewProjectionMatrix");
+			int modelloc = GPU_shader_get_uniform(shader, "ModelMatrix");
+			int modelviewloc = GPU_shader_get_uniform(shader, "ModelViewMatrix");
+			int worldnormloc = GPU_shader_get_uniform(shader, "WorldNormalMatrix");
+			int normloc = GPU_shader_get_uniform(shader, "NormalMatrix");
+
+			MT_Matrix4x4 proj(cam->GetProjectionMatrix());
+			MT_Matrix4x4 view(rasty->GetViewMatrix());
+			MT_Matrix4x4 viewinv(rasty->GetViewInvMatrix());
+			MT_Matrix4x4 model(m_meshUser->GetMatrix());
+			MT_Matrix4x4 modelview(rasty->GetViewMatrix() * model);
+			MT_Matrix4x4 modelviewproj(proj * modelview);
+			MT_Matrix4x4 worldnorm(model.inverse());
+			MT_Matrix4x4 norm(viewinv * worldnorm);
+
+			float projf[16];
+			float viewf[16];
+			float viewinvf[16];
+			float modelviewprojf[16];
+			float modelf[16];
+			float modelviewf[16];
+			float worldnormf[9];
+			float normf[9];
+
+			proj.getValue(projf);
+			view.getValue(viewf);
+			viewinv.getValue(viewinvf);
+			modelviewproj.getValue(modelviewprojf);
+			model.getValue(modelf);
+			modelview.getValue(modelviewf);
+
+			int k = 0;
+			for (int i = 0; i < 3; i++) {
+				for (int j = 0; j < 3; j++) {
+					worldnormf[k] = worldnorm[i][j];
+					normf[k] = norm[i][j];
+					k++;
+				}
+			}
+
+			// MATRICES
+			GPU_shader_uniform_vector(shader, projloc, 16, 1, (float *)projf);
+			GPU_shader_uniform_vector(shader, viewloc, 16, 1, (float *)viewf);
+			GPU_shader_uniform_vector(shader, viewinvloc, 16, 1, (float *)viewinvf);
+			GPU_shader_uniform_vector(shader, modelviewprojloc, 16, 1, (float *)modelviewprojf);
+			GPU_shader_uniform_vector(shader, modelloc, 16, 1, (float *)modelf);
+			GPU_shader_uniform_vector(shader, modelviewloc, 16, 1, (float *)modelviewf);
+			GPU_shader_uniform_vector(shader, worldnormloc, 9, 1, (float *)worldnormf);
+			GPU_shader_uniform_vector(shader, normloc, 16, 9, (float *)normf);
+
+			// UTIL_TEX
+			int texloc = GPU_shader_get_uniform(shader, "utilTex");
+			GPU_shader_uniform_texture(shader, texloc, scene->GetUtilTex());
+
+			// PROBES
+			int probcountloc = GPU_shader_get_uniform(shader, "probe_count");
+			GPU_shader_uniform_int(shader, probcountloc, scene->GetProbeCount()); // There is always the background probe so 1 at least
+
+			int lodmaxloc = GPU_shader_get_uniform(shader, "lodMax");
+			GPU_shader_uniform_float(shader, lodmaxloc, scene->GetProbeLodMax());
+
+			int probetexloc = GPU_shader_get_uniform(shader, "probeCubes");
+			GPU_shader_uniform_texture(shader, probetexloc, scene->GetProbeTex());
+
+			// MISCELLANEOUS
+			int gridcountloc = GPU_shader_get_uniform(shader, "grid_count");
+			GPU_shader_uniform_int(shader, gridcountloc, 0);
+
+			int planarcountloc = GPU_shader_get_uniform(shader, "planar_count");
+			GPU_shader_uniform_int(shader, planarcountloc, 0);
+
+			int spectoggleloc = GPU_shader_get_uniform(shader, "specToggle");
+			GPU_shader_uniform_int(shader, spectoggleloc, 1);*/
+		}
 		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
 	}
-
 	rasty->PopMatrix();
 }

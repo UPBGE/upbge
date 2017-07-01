@@ -52,6 +52,7 @@
 #include "DNA_mask_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_force.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sensor_types.h"
@@ -61,6 +62,8 @@
 #include "DNA_sound_types.h"
 #include "DNA_text_types.h"
 #include "DNA_vfont_types.h"
+#include "DNA_windowmanager_types.h"
+#include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_utildefines.h"
@@ -69,6 +72,7 @@
 #include "BLI_linklist_stack.h"
 
 #include "BKE_animsys.h"
+#include "BKE_collection.h"
 #include "BKE_constraint.h"
 #include "BKE_fcurve.h"
 #include "BKE_idprop.h"
@@ -82,6 +86,7 @@
 #include "BKE_sca.h"
 #include "BKE_sequencer.h"
 #include "BKE_tracking.h"
+#include "BKE_workspace.h"
 
 
 #define FOREACH_FINALIZE _finalize
@@ -403,7 +408,7 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				Scene *scene = (Scene *) id;
 				ToolSettings *toolsett = scene->toolsettings;
 				SceneRenderLayer *srl;
-				Base *base;
+				BaseLegacy *legacy_base;
 
 				CALLBACK_INVOKE(scene->camera, IDWALK_CB_NOP);
 				CALLBACK_INVOKE(scene->world, IDWALK_CB_USER);
@@ -461,8 +466,27 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 
 				CALLBACK_INVOKE(scene->gpd, IDWALK_CB_USER);
 
-				for (base = scene->base.first; base; base = base->next) {
-					CALLBACK_INVOKE(base->object, IDWALK_CB_USER);
+				for (legacy_base = scene->base.first; legacy_base; legacy_base = legacy_base->next) {
+					CALLBACK_INVOKE(legacy_base->object, IDWALK_CB_USER);
+				}
+
+				FOREACH_SCENE_COLLECTION(scene, sc)
+				{
+					for (LinkData *link = sc->objects.first; link; link = link->next) {
+						CALLBACK_INVOKE_ID(link->data, IDWALK_CB_USER);
+					}
+
+					for (LinkData *link = sc->filter_objects.first; link; link = link->next) {
+						CALLBACK_INVOKE_ID(link->data, IDWALK_CB_USER);
+					}
+				}
+				FOREACH_SCENE_COLLECTION_END
+
+				SceneLayer *sl;
+				for (sl = scene->render_layers.first; sl; sl = sl->next) {
+					for (Base *base = sl->object_bases.first; base; base = base->next) {
+						CALLBACK_INVOKE(base->object, IDWALK_NOP);
+					}
 				}
 
 				for (TimeMarker *marker = scene->markers.first; marker; marker = marker->next) {
@@ -621,31 +645,6 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				for (i = 0; i < mesh->totcol; i++) {
 					CALLBACK_INVOKE(mesh->mat[i], IDWALK_CB_USER);
 				}
-
-				/* XXX Really not happy with this - probably texface should rather use some kind of
-				 * 'texture slots' and just set indices in each poly/face item - would also save some memory.
-				 * Maybe a nice TODO for blender2.8? */
-				if (mesh->mtface || mesh->mtpoly) {
-					for (i = 0; i < mesh->pdata.totlayer; i++) {
-						if (mesh->pdata.layers[i].type == CD_MTEXPOLY) {
-							MTexPoly *txface = (MTexPoly *)mesh->pdata.layers[i].data;
-
-							for (int j = 0; j < mesh->totpoly; j++, txface++) {
-								CALLBACK_INVOKE(txface->tpage, IDWALK_CB_USER_ONE);
-							}
-						}
-					}
-
-					for (i = 0; i < mesh->fdata.totlayer; i++) {
-						if (mesh->fdata.layers[i].type == CD_MTFACE) {
-							MTFace *tface = (MTFace *)mesh->fdata.layers[i].data;
-
-							for (int j = 0; j < mesh->totface; j++, tface++) {
-								CALLBACK_INVOKE(tface->tpage, IDWALK_CB_USER_ONE);
-							}
-						}
-					}
-				}
 				break;
 			}
 
@@ -688,6 +687,7 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 					library_foreach_ID_as_subdata_link((ID **)&material->nodetree, callback, user_data, flag, &data);
 				}
 				CALLBACK_INVOKE(material->group, IDWALK_CB_USER);
+				CALLBACK_INVOKE(material->edit_image, IDWALK_CB_USER);
 				break;
 			}
 
@@ -748,13 +748,6 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				break;
 			}
 
-			case ID_SCR:
-			{
-				bScreen *screen = (bScreen *) id;
-				CALLBACK_INVOKE(screen->scene, IDWALK_CB_USER_ONE);
-				break;
-			}
-
 			case ID_WO:
 			{
 				World *world = (World *) id;
@@ -774,6 +767,13 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 			{
 				Speaker *speaker = (Speaker *) id;
 				CALLBACK_INVOKE(speaker->sound, IDWALK_CB_USER);
+				break;
+			}
+
+			case ID_LP:
+			{
+				LightProbe *probe = (LightProbe *) id;
+				CALLBACK_INVOKE(probe->image, IDWALK_CB_USER);
 				break;
 			}
 
@@ -965,6 +965,38 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				}
 				break;
 			}
+
+			case ID_WM:
+			{
+				wmWindowManager *wm = (wmWindowManager *)id;
+
+				for (wmWindow *win = wm->windows.first; win; win = win->next) {
+					ID *workspace = (ID *)BKE_workspace_active_get(win->workspace_hook);
+
+					CALLBACK_INVOKE(win->scene, IDWALK_CB_USER_ONE);
+
+					CALLBACK_INVOKE_ID(workspace, IDWALK_CB_NOP);
+					/* allow callback to set a different workspace */
+					BKE_workspace_active_set(win->workspace_hook, (WorkSpace *)workspace);
+				}
+				break;
+			}
+
+			case ID_WS:
+			{
+				WorkSpace *workspace = (WorkSpace *)id;
+				ListBase *layouts = BKE_workspace_layouts_get(workspace);
+
+				for (WorkSpaceLayout *layout = layouts->first; layout; layout = layout->next) {
+					bScreen *screen = BKE_workspace_layout_screen_get(layout);
+
+					CALLBACK_INVOKE(screen, IDWALK_CB_NOP);
+					/* allow callback to set a different screen */
+					BKE_workspace_layout_screen_set(layout, screen);
+				}
+
+				break;
+			}
 			case ID_GD:
 			{
 				bGPdata *gpencil = (bGPdata *) id;
@@ -976,11 +1008,11 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 			}
 
 			/* Nothing needed for those... */
+			case ID_SCR:
 			case ID_IM:
 			case ID_VF:
 			case ID_TXT:
 			case ID_SO:
-			case ID_WM:
 			case ID_PAL:
 			case ID_PC:
 			case ID_CF:
@@ -1108,6 +1140,9 @@ bool BKE_library_id_can_use_idtype(ID *id_owner, const short id_type_used)
 			return ELEM(id_type_used, ID_MC);  /* WARNING! mask->parent.id, not typed. */
 		case ID_LS:
 			return (ELEM(id_type_used, ID_TE, ID_OB));
+		case ID_LP:
+			return ELEM(id_type_used, ID_IM);
+		case ID_WS:
 		case ID_IM:
 		case ID_VF:
 		case ID_TXT:

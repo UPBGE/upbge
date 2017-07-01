@@ -175,8 +175,10 @@ typedef struct FontBLF {
 	/* angle in radians. */
 	float angle;
 	
+#if 0 /* BLF_BLUR_ENABLE */
 	/* blur: 3 or 5 large kernel */
 	int blur;
+#endif
 
 	/* shadow level. */
 	int shadow;
@@ -186,10 +188,10 @@ typedef struct FontBLF {
 	int shadow_y;
 
 	/* shadow color. */
-	float shadow_col[4];
+	unsigned char shadow_color[4];
 
-	/* store color here when drawing shadow or blur. */
-	float orig_col[4];
+	/* main text color. */
+	unsigned char color[4];
 
 	/* Multiplied this matrix with the current one before
 	 * draw the text! see blf_draw__start.

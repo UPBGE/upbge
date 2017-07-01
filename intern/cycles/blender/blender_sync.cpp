@@ -44,6 +44,7 @@ CCL_NAMESPACE_BEGIN
 
 BlenderSync::BlenderSync(BL::RenderEngine& b_engine,
                          BL::BlendData& b_data,
+                         BL::Depsgraph& b_depsgraph,
                          BL::Scene& b_scene,
                          Scene *scene,
                          bool preview,
@@ -51,6 +52,7 @@ BlenderSync::BlenderSync(BL::RenderEngine& b_engine,
                          bool is_cpu)
 : b_engine(b_engine),
   b_data(b_data),
+  b_depsgraph(b_depsgraph),
   b_scene(b_scene),
   shader_map(&scene->shaders),
   object_map(&scene->objects),
@@ -385,26 +387,9 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer)
 
 	/* 3d view */
 	if(b_v3d) {
-		if(RNA_boolean_get(&cscene, "preview_active_layer")) {
-			BL::RenderLayers layers(b_scene.render().ptr);
-			layername = layers.active().name();
-			layer = layername.c_str();
-		}
-		else {
-			render_layer.scene_layer = get_layer(b_v3d.layers(), b_v3d.layers_local_view());
-			render_layer.layer = render_layer.scene_layer;
-			render_layer.exclude_layer = 0;
-			render_layer.holdout_layer = 0;
-			render_layer.material_override = PointerRNA_NULL;
-			render_layer.use_background_shader = true;
-			render_layer.use_background_ao = true;
-			render_layer.use_hair = true;
-			render_layer.use_surfaces = true;
-			render_layer.use_viewport_visibility = true;
-			render_layer.samples = 0;
-			render_layer.bound_samples = false;
-			return;
-		}
+		BL::RenderLayers layers(b_scene.render().ptr);
+		layername = layers.active().name();
+		layer = layername.c_str();
 	}
 
 	/* render layer */
@@ -433,7 +418,6 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer)
 			render_layer.use_background_ao = b_rlay->use_ao();
 			render_layer.use_surfaces = b_rlay->use_solid();
 			render_layer.use_hair = b_rlay->use_strand();
-			render_layer.use_viewport_visibility = false;
 
 			render_layer.bound_samples = (use_layer_samples == 1);
 			if(use_layer_samples != 2) {
@@ -553,10 +537,15 @@ int BlenderSync::get_denoising_pass(BL::RenderPass& b_pass)
 }
 
 array<Pass> BlenderSync::sync_render_passes(BL::RenderLayer& b_rlay,
-                                            BL::SceneRenderLayer& b_srlay)
+                                            BL::SceneRenderLayer& b_srlay,
+                                            const SessionParams &session_params)
 {
 	array<Pass> passes;
 	Pass::add(PASS_COMBINED, passes);
+
+	if(!session_params.device.advanced_shading) {
+		return passes;
+	}
 
 	/* loop over passes */
 	BL::RenderLayer::passes_iterator b_pass_iter;
@@ -572,7 +561,9 @@ array<Pass> BlenderSync::sync_render_passes(BL::RenderLayer& b_rlay,
 	}
 
 	PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
-	if(get_boolean(crp, "denoising_store_passes")) {
+	if(get_boolean(crp, "denoising_store_passes") &&
+	   get_boolean(crp, "use_denoising") &&
+	   !session_params.progressive_refine) {
 		b_engine.add_pass("Denoising Normal",          3, "XYZ", b_srlay.name().c_str());
 		b_engine.add_pass("Denoising Normal Variance", 3, "XYZ", b_srlay.name().c_str());
 		b_engine.add_pass("Denoising Albedo",          3, "RGB", b_srlay.name().c_str());
@@ -836,17 +827,8 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 		params.shadingsystem = SHADINGSYSTEM_OSL;
 	
 	/* color managagement */
-#ifdef GLEW_MX
-	/* When using GLEW MX we need to check whether we've got an OpenGL
-	 * context for current window. This is because command line rendering
-	 * doesn't have OpenGL context actually.
-	 */
-	if(glewGetContext() != NULL)
-#endif
-	{
-		params.display_buffer_linear = GLEW_ARB_half_float_pixel &&
-		                               b_engine.support_display_space_shader(b_scene);
-	}
+	params.display_buffer_linear = GLEW_ARB_half_float_pixel &&
+	                               b_engine.support_display_space_shader(b_scene);
 
 	if(b_engine.is_preview()) {
 		/* For preview rendering we're using same timeout as

@@ -38,7 +38,6 @@ extern "C" {
 #include "BLI_string.h"
 
 #include "BKE_cdderivedmesh.h"
-#include "BKE_depsgraph.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
@@ -918,12 +917,6 @@ static void *add_customdata_cb(void *user_data, const char *name, int data_type)
 	numloops = dm->getNumLoops(dm);
 	cd_ptr = CustomData_add_layer_named(loopdata, cd_data_type, CD_DEFAULT,
 	                                    NULL, numloops, name);
-	if (cd_data_type == CD_MLOOPUV) {
-		CustomData_add_layer_named(dm->getPolyDataLayout(dm),
-		                           CD_MTEXPOLY, CD_DEFAULT,
-		                           NULL, numloops, name);
-	}
-
 	return cd_ptr;
 }
 

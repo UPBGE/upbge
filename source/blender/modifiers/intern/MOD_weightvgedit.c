@@ -46,7 +46,6 @@
 #include "BKE_modifier.h"
 #include "BKE_texture.h"          /* Texture masking. */
 
-#include "depsgraph_private.h"
 #include "DEG_depsgraph_build.h"
 
 #include "MEM_guardedalloc.h"
@@ -141,26 +140,6 @@ static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *u
 static void foreachTexLink(ModifierData *md, Object *ob, TexWalkFunc walk, void *userData)
 {
 	walk(userData, ob, md, "mask_texture");
-}
-
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob), DagNode *obNode)
-{
-	WeightVGEditModifierData *wmd = (WeightVGEditModifierData *) md;
-	DagNode *curNode;
-
-	if (wmd->mask_tex_map_obj && wmd->mask_tex_mapping == MOD_DISP_MAP_OBJECT) {
-		curNode = dag_get_node(forest, wmd->mask_tex_map_obj);
-
-		dag_add_relation(forest, curNode, obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA,
-		                 "WeightVGEdit Modifier");
-	}
-
-	if (wmd->mask_tex_mapping == MOD_DISP_MAP_GLOBAL)
-		dag_add_relation(forest, obNode, obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA,
-		                 "WeightVGEdit Modifier");
 }
 
 static void updateDepsgraph(ModifierData *md,
@@ -306,7 +285,6 @@ ModifierTypeInfo modifierType_WeightVGEdit = {
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
-	/* updateDepgraph */    updateDepgraph,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */  NULL,

@@ -57,7 +57,9 @@ class USERPREF_HT_header(Header):
 
         layout.operator_context = 'INVOKE_DEFAULT'
 
-        if userpref.active_section == 'INPUT':
+        if userpref.active_section == 'INTERFACE':
+            layout.operator("wm.save_workspace_file")
+        elif userpref.active_section == 'INPUT':
             layout.operator("wm.keyconfig_import")
             layout.operator("wm.keyconfig_export")
         elif userpref.active_section == 'ADDONS':
@@ -127,7 +129,7 @@ class USERPREF_MT_app_templates(Menu):
                 text=bpy.path.display_name(d),
             )
             props.use_splash = True
-            props.app_template = d;
+            props.app_template = d
 
         if use_install:
             layout.separator()
@@ -224,7 +226,6 @@ class USERPREF_PT_interface(Panel):
         col.prop(view, "show_large_cursors")
         col.prop(view, "show_view_name", text="View Name")
         col.prop(view, "show_playback_fps", text="Playback FPS")
-        col.prop(view, "use_global_scene")
         col.prop(view, "object_origin_size")
 
         col.separator()
@@ -284,11 +285,11 @@ class USERPREF_PT_interface(Panel):
         #col.prop(view, "open_left_mouse_delay", text="Hold LMB")
         #col.prop(view, "open_right_mouse_delay", text="Hold RMB")
         col.prop(view, "show_manipulator")
+        ## Currently not working
+        # col.prop(view, "show_manipulator_shaded")
         sub = col.column()
         sub.active = view.show_manipulator
         sub.prop(view, "manipulator_size", text="Size")
-        sub.prop(view, "manipulator_handle_size", text="Handle Size")
-        sub.prop(view, "manipulator_hotspot", text="Hotspot")
 
         col.separator()
         col.separator()
@@ -560,7 +561,7 @@ class USERPREF_PT_system(Panel):
         # 3. Column
         column = split.column()
 
-        column.label(text="Solid OpenGL lights:")
+        column.label(text="Solid OpenGL Lights:")
 
         split = column.split(percentage=0.1)
         split.label()

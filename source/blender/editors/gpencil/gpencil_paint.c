@@ -69,8 +69,10 @@
 #include "ED_view3d.h"
 #include "ED_clip.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
+
+#include "GPU_immediate.h"
+#include "GPU_immediate_util.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -113,6 +115,7 @@ typedef enum eGPencil_PaintFlags {
  */
 typedef struct tGPsdata {
 	Scene *scene;       /* current scene from context */
+	struct Depsgraph *graph;
 	
 	wmWindow *win;      /* window where painting originated */
 	ScrArea *sa;        /* area where painting originated */
@@ -637,7 +640,8 @@ static short gp_stroke_addpoint(tGPsdata *p, const int mval[2], float pressure, 
 				View3D *v3d = p->sa->spacedata.first;
 				
 				view3d_region_operator_needs_opengl(p->win, p->ar);
-				ED_view3d_autodist_init(p->scene, p->ar, v3d, (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 1 : 0);
+				ED_view3d_autodist_init(
+				        p->graph, p->ar, v3d, (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 1 : 0);
 			}
 			
 			/* convert screen-coordinates to appropriate coordinates (and store them) */
@@ -1237,9 +1241,8 @@ static void gp_stroke_doeraser(tGPsdata *p)
 	if (p->sa->spacetype == SPACE_VIEW3D) {
 		if (p->flags & GP_PAINTFLAG_V3D_ERASER_DEPTH) {
 			View3D *v3d = p->sa->spacedata.first;
-			
 			view3d_region_operator_needs_opengl(p->win, p->ar);
-			ED_view3d_autodist_init(p->scene, p->ar, v3d, 0);
+			ED_view3d_autodist_init(p->graph, p->ar, v3d, 0);
 		}
 	}
 	
@@ -1393,6 +1396,7 @@ static bool gp_session_initdata(bContext *C, tGPsdata *p)
 	
 	/* pass on current scene and window */
 	p->scene = CTX_data_scene(C);
+	p->graph = CTX_data_depsgraph(C);
 	p->win = CTX_wm_window(C);
 	
 	unit_m4(p->imat);
@@ -1547,6 +1551,7 @@ static bool gp_session_initdata(bContext *C, tGPsdata *p)
 	bGPDpalettecolor *palcolor = p->palettecolor;
 	bGPdata *pdata = p->gpd;
 	copy_v4_v4(pdata->scolor, palcolor->color);
+	copy_v4_v4(pdata->sfill, palcolor->fill);
 	pdata->sflag = palcolor->flag;
 	/* lock axis */
 	p->lock_axis = ts->gp_sculpt.lock_axis;
@@ -1804,7 +1809,7 @@ static void gp_paint_strokeend(tGPsdata *p)
 		
 		/* need to restore the original projection settings before packing up */
 		view3d_region_operator_needs_opengl(p->win, p->ar);
-		ED_view3d_autodist_init(p->scene, p->ar, v3d, (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 1 : 0);
+		ED_view3d_autodist_init(p->graph, p->ar, v3d, (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 1 : 0);
 	}
 	
 	/* check if doing eraser or not */
@@ -1842,28 +1847,41 @@ static void gp_paint_cleanup(tGPsdata *p)
 static void gpencil_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_ptr)
 {
 	tGPsdata *p = (tGPsdata *)p_ptr;
-	
+
 	if (p->paintmode == GP_PAINTMODE_ERASER) {
-		glPushMatrix();
-		
-		glTranslatef((float)x, (float)y, 0.0f);
-		
+		Gwn_VertFormat *format = immVertexFormat();
+		const uint shdr_pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
-		
-		glColor4ub(255, 100, 100, 20);
-		glutil_draw_filled_arc(0.0, M_PI * 2.0, p->radius, 40);
-		
-		setlinestyle(6);
-		
-		glColor4ub(255, 100, 100, 200);
-		glutil_draw_lined_arc(0.0, M_PI * 2.0, p->radius, 40);
-		
-		setlinestyle(0);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		immUniformColor4ub(255, 100, 100, 20);
+		imm_draw_circle_fill(shdr_pos, x, y, p->radius, 40);
+
+		immUnbindProgram();
+
+		immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_COLOR);
+
+		float viewport_size[4];
+		glGetFloatv(GL_VIEWPORT, viewport_size);
+		immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
+
+		immUniformColor4f(1.0f, 0.39f, 0.39f, 0.78f);
+		immUniform1i("num_colors", 0);  /* "simple" mode */
+		immUniform1f("dash_width", 12.0f);
+		immUniform1f("dash_factor", 0.5f);
+
+		imm_draw_circle_wire(shdr_pos, x, y, p->radius,
+		                     /* XXX Dashed shader gives bad results with sets of small segments currently,
+		                      *     temp hack around the issue. :( */
+		                     max_ii(8, p->radius / 2));  /* was fixed 40 */
+
+		immUnbindProgram();
+
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
-		
-		glPopMatrix();
 	}
 }
 

@@ -491,7 +491,7 @@ MINLINE void mul_v2_v2_ccw(float r[2], const float mat[2], const float vec[2])
  * return co_4d[3];
  * \endcode
  */
-MINLINE float mul_project_m4_v3_zfac(float mat[4][4], const float co[3])
+MINLINE float mul_project_m4_v3_zfac(const float mat[4][4], const float co[3])
 {
 	return (mat[0][3] * co[0]) +
 	       (mat[1][3] * co[1]) +
@@ -656,6 +656,14 @@ MINLINE void invert_v2(float r[2])
 	BLI_assert(!ELEM(0.0f, r[0], r[1]));
 	r[0] = 1.0f / r[0];
 	r[1] = 1.0f / r[1];
+}
+
+MINLINE void invert_v3(float r[3])
+{
+	BLI_assert(!ELEM(0.0f, r[0], r[1], r[2]));
+	r[0] = 1.0f / r[0];
+	r[1] = 1.0f / r[1];
+	r[2] = 1.0f / r[2];
 }
 
 MINLINE void abs_v2(float r[2])
@@ -958,6 +966,12 @@ MINLINE float normalize_v3_length(float n[3], const float unit_length)
 MINLINE float normalize_v3(float n[3])
 {
 	return normalize_v3_v3(n, n);
+}
+
+MINLINE void normal_float_to_short_v2(short out[2], const float in[2])
+{
+	out[0] = (short) (in[0] * 32767.0f);
+	out[1] = (short) (in[1] * 32767.0f);
 }
 
 MINLINE void normal_short_to_float_v3(float out[3], const short in[3])

@@ -38,6 +38,7 @@ set(INC
 	../../../blender/blenfont
 	../../../blender/blenkernel
 	../../../blender/blenlib
+	../../../blender/draw/engines/eevee/
 	../../../blender/gpu
 	../../../blender/makesdna
 	../../../../intern/glew-mx

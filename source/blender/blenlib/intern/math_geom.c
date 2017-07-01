@@ -572,8 +572,8 @@ float dist_squared_to_ray_v3(
 }
 /**
  * Find the closest point in a seg to a ray and return the distance squared.
- * \param r_point : Is the point on segment closest to ray (or to ray_origin if the ray and the segment are parallel).
- * \param depth: the distance of r_point projection on ray to the ray_origin.
+ * \param r_point: Is the point on segment closest to ray (or to ray_origin if the ray and the segment are parallel).
+ * \param r_depth: the distance of r_point projection on ray to the ray_origin.
  */
 float dist_squared_ray_to_seg_v3(
         const float ray_origin[3], const float ray_direction[3],
@@ -1828,7 +1828,7 @@ bool isect_tri_tri_epsilon_v3(
 		     (range[0].max < range[1].min)) == 0)
 		{
 			if (r_i1 && r_i2) {
-				project_plane_v3_v3v3(plane_co, plane_co, plane_no);
+				project_plane_normalized_v3_v3v3(plane_co, plane_co, plane_no);
 				madd_v3_v3v3fl(r_i1, plane_co, plane_no, max_ff(range[0].min, range[1].min));
 				madd_v3_v3v3fl(r_i2, plane_co, plane_no, min_ff(range[0].max, range[1].max));
 			}

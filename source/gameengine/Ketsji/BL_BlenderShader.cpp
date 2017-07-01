@@ -31,6 +31,7 @@
 #include "GPU_shader.h"
 #include "GPU_extensions.h"
 
+
 #include "BL_BlenderShader.h"
 
 #include "RAS_BucketManager.h"
@@ -40,20 +41,39 @@
 
 #include "KX_Scene.h"
 
+extern "C" {
+#  include "eevee_private.h"
+#  include "eevee_engine.h"
+#  include "DRW_engine.h"
+#  include "DRW_render.h"
+}
+
+extern "C" {
+	extern char datatoc_ltc_lib_glsl[];
+	extern char datatoc_bsdf_common_lib_glsl[];
+	extern char datatoc_bsdf_direct_lib_glsl[];
+	extern char datatoc_lit_surface_frag_glsl[];
+	extern char datatoc_lit_surface_vert_glsl[];
+	extern char datatoc_irradiance_lib_glsl[];
+	extern char datatoc_octahedron_lib_glsl[];
+	extern char datatoc_ambient_occlusion_lib_glsl[];
+}
+
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
 	:m_blenderScene(scene->GetBlenderScene()),
 	m_mat(ma),
 	m_lightLayer(lightlayer),
 	m_alphaBlend(GPU_BLEND_SOLID),
-	m_gpuMat(nullptr)
+	m_gpuMat(nullptr),
+	m_shGroup(nullptr)
 {
-	ReloadMaterial();
+	ReloadMaterial(scene);
 }
 
 BL_BlenderShader::~BL_BlenderShader()
 {
-	if (m_gpuMat) {
-		GPU_material_unbind(m_gpuMat);
+	if (m_shGroup) {
+		DRW_shgroup_free(m_shGroup);
 	}
 }
 
@@ -103,9 +123,16 @@ bool BL_BlenderShader::Ok() const
 	return (m_gpuMat != nullptr);
 }
 
-void BL_BlenderShader::ReloadMaterial()
+void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 {
-	m_gpuMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, false, UseInstancing()) : nullptr;
+	m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false);
+
+	if (m_shGroup) {
+		DRW_shgroup_free(m_shGroup);
+	}
+	m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
+	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData(), EEVEE_engine_data_get());
+
 	ParseAttribs();
 }
 
@@ -113,7 +140,7 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
 {
 	if (Ok()) {
 		if (enable) {
-			BLI_assert(rasty != nullptr); // XXX Kinda hacky, but SetProg() should always have the rasterizer if enable is true
+			/*BLI_assert(rasty != nullptr); // XXX Kinda hacky, but SetProg() should always have the rasterizer if enable is true
 
 			float viewmat[4][4], viewinvmat[4][4];
 			const MT_Matrix4x4& view = rasty->GetViewMatrix();
@@ -121,7 +148,13 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
 			view.getValue((float *)viewmat);
 			viewinv.getValue((float *)viewinvmat);
 
-			GPU_material_bind(m_gpuMat, m_lightLayer, m_blenderScene->lay, time, 1, viewmat, viewinvmat, nullptr, false);
+			GPU_material_bind(m_gpuMat, m_lightLayer, m_blenderScene->lay, time, 1, viewmat, viewinvmat, nullptr, false);*/
+
+			DRW_draw_shgroup(m_shGroup, (DRWState)(
+				DRW_STATE_WRITE_DEPTH |
+				DRW_STATE_DEPTH_LESS |
+// 				DRW_STATE_CULL_BACK |
+				DRW_STATE_WRITE_COLOR));
 		}
 		else {
 			GPU_material_unbind(m_gpuMat);
@@ -173,23 +206,28 @@ void BL_BlenderShader::SetAttribs(RAS_Rasterizer *ras)
 
 void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 {
-	if (!m_gpuMat || !GPU_material_bound(m_gpuMat)) {
+	/*if (!m_gpuMat || !GPU_material_bound(m_gpuMat)) {
 		return;
-	}
+	}*/
+
+	ms->SetGpuMat(m_gpuMat);
 
 	float viewmat[4][4];
 	float *obcol = (float *)ms->m_meshUser->GetColor().getValue();
 
-	rasty->GetViewMatrix().getValue((float *)viewmat);
-	float auto_bump_scale = ms->m_pDerivedMesh != 0 ? ms->m_pDerivedMesh->auto_bump_scale : 1.0f;
-	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])ms->m_meshUser->GetMatrix(), viewmat, obcol, auto_bump_scale, nullptr, nullptr);
+// 	rasty->GetViewMatrix().getValue((float *)viewmat);
+// 	float auto_bump_scale = ms->m_pDerivedMesh != 0 ? ms->m_pDerivedMesh->auto_bump_scale : 1.0f;
+// 	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])ms->m_meshUser->GetMatrix(), viewmat, obcol, auto_bump_scale, nullptr, nullptr);
+
+// 	print_m4("obmat : ", (float(*)[4])ms->m_meshUser->GetMatrix());
+	DRW_draw_geometry_prepare(m_shGroup, (float(*)[4])ms->m_meshUser->GetMatrix(), nullptr, nullptr);
 
 	m_alphaBlend = GPU_material_alpha_blend(m_gpuMat, obcol);
 }
 
 bool BL_BlenderShader::UseInstancing() const
 {
-	return (GPU_instanced_drawing_support() && (m_mat->shade_flag & MA_INSTANCING));
+	return m_mat->shade_flag & MA_INSTANCING;
 }
 
 void BL_BlenderShader::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)

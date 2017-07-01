@@ -99,7 +99,7 @@ struct ComponentDepsNode : public DepsNode {
 	 * \param op: The operation to perform
 	 * \param name: Identifier for operation - used to find/locate it again
 	 */
-	OperationDepsNode *add_operation(DepsEvalOperationCb op,
+	OperationDepsNode *add_operation(const DepsEvalOperationCb& op,
 	                                 eDepsOperation_Code opcode,
 	                                 const char *name,
 	                                 int name_tag);
@@ -131,7 +131,7 @@ struct ComponentDepsNode : public DepsNode {
 	OperationDepsNode *get_entry_operation();
 	OperationDepsNode *get_exit_operation();
 
-	void finalize_build();
+	void finalize_build(Depsgraph *graph);
 
 	IDDepsNode *owner;
 
@@ -151,9 +151,6 @@ struct ComponentDepsNode : public DepsNode {
 	OperationDepsNode *exit_operation;
 
 	// XXX: a poll() callback to check if component's first node can be started?
-
-	/* Temporary bitmask, used during graph construction. */
-	unsigned int layers;
 };
 
 /* ---------------------------------------- */
@@ -204,6 +201,14 @@ struct ShadingComponentDepsNode : public ComponentDepsNode {
 };
 
 struct CacheComponentDepsNode : public ComponentDepsNode {
+	DEG_DEPSNODE_DECLARE;
+};
+
+struct LayerCollectionsDepsNode : public ComponentDepsNode {
+	DEG_DEPSNODE_DECLARE;
+};
+
+struct CopyOnWriteDepsNode : public ComponentDepsNode {
 	DEG_DEPSNODE_DECLARE;
 };
 

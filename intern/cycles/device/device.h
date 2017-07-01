@@ -127,6 +127,9 @@ public:
 	/* Per-uber shader usage flags. */
 	bool use_principled;
 
+	/* Denoising features. */
+	bool use_denoising;
+
 	DeviceRequestedFeatures()
 	{
 		/* TODO(sergey): Find more meaningful defaults. */
@@ -145,6 +148,7 @@ public:
 		use_transparent = false;
 		use_shadow_tricks = false;
 		use_principled = false;
+		use_denoising = false;
 	}
 
 	bool modified(const DeviceRequestedFeatures& requested_features)
@@ -163,7 +167,8 @@ public:
 		         use_patch_evaluation == requested_features.use_patch_evaluation &&
 		         use_transparent == requested_features.use_transparent &&
 		         use_shadow_tricks == requested_features.use_shadow_tricks &&
-		         use_principled == requested_features.use_principled);
+		         use_principled == requested_features.use_principled &&
+		         use_denoising == requested_features.use_denoising);
 	}
 
 	/* Convert the requested features structure to a build options,
@@ -213,6 +218,9 @@ public:
 		if(!use_principled) {
 			build_options += " -D__NO_PRINCIPLED__";
 		}
+		if(!use_denoising) {
+			build_options += " -D__NO_DENOISING__";
+		}
 		return build_options;
 	}
 };
@@ -230,13 +238,26 @@ struct DeviceDrawParams {
 class Device {
 	friend class device_sub_ptr;
 protected:
-	Device(DeviceInfo& info_, Stats &stats_, bool background) : background(background), vertex_buffer(0), info(info_), stats(stats_) {}
+	enum {
+		FALLBACK_SHADER_STATUS_NONE = 0,
+		FALLBACK_SHADER_STATUS_ERROR,
+		FALLBACK_SHADER_STATUS_SUCCESS,
+	};
+
+	Device(DeviceInfo& info_, Stats &stats_, bool background) : background(background),
+	    vertex_buffer(0),
+	    fallback_status(FALLBACK_SHADER_STATUS_NONE), fallback_shader_program(0),
+	    info(info_), stats(stats_) {}
 
 	bool background;
 	string error_msg;
 
 	/* used for real time display */
 	unsigned int vertex_buffer;
+	int fallback_status, fallback_shader_program;
+	int image_texture_location, fullscreen_location;
+
+	bool bind_fallback_display_space_shader(const float width, const float height);
 
 	virtual device_ptr mem_alloc_sub_ptr(device_memory& /*mem*/, int /*offset*/, int /*size*/, MemoryType /*type*/)
 	{
@@ -311,9 +332,10 @@ public:
 	virtual void task_cancel() = 0;
 	
 	/* opengl drawing */
-	virtual void draw_pixels(device_memory& mem, int y, int w, int h,
-		int dx, int dy, int width, int height, bool transparent,
-		const DeviceDrawParams &draw_params);
+	virtual void draw_pixels(device_memory& mem, int y,
+	    int w, int h, int width, int height,
+	    int dx, int dy, int dw, int dh,
+	    bool transparent, const DeviceDrawParams &draw_params);
 
 #ifdef WITH_NETWORK
 	/* networking */

@@ -34,11 +34,18 @@ set(INC
 	../SceneGraph
 	../GameLogic
 	../../blender/makesdna
+	../../blender/makesrna
 	../../blender/blenfont
 	../../blender/blenlib
 	../../blender/blenkernel
+	../../blender/blentranslation
+	../../blender/draw
+	../../blender/draw/intern
+	../../blender/draw/engines/eevee/
 	../../blender/gpu
 	../../blender/imbuf
+	../../blender/render/extern/include
+	../../blender/render/intern/include
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
 	../../../intern/termcolor

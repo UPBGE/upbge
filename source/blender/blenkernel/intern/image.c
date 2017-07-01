@@ -81,6 +81,7 @@
 #include "BKE_scene.h"
 #include "BKE_node.h"
 #include "BKE_sequencer.h" /* seq_foreground_frame_get() */
+#include "BKE_workspace.h"
 
 #include "BLF_api.h"
 
@@ -434,7 +435,7 @@ static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src)
 }
 
 /* empty image block, of similar type and filename */
-Image *BKE_image_copy(Main *bmain, Image *ima)
+Image *BKE_image_copy(Main *bmain, const Image *ima)
 {
 	Image *nima = image_alloc(bmain, ima->id.name + 2, ima->source, ima->type);
 
@@ -2544,8 +2545,9 @@ void BKE_image_walk_all_users(const Main *mainp, void *customdata,
 	/* image window, compo node users */
 	for (wm = mainp->wm.first; wm; wm = wm->id.next) { /* only 1 wm */
 		for (win = wm->windows.first; win; win = win->next) {
-			ScrArea *sa;
-			for (sa = win->screen->areabase.first; sa; sa = sa->next) {
+			const bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
+
+			for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
 				if (sa->spacetype == SPACE_VIEW3D) {
 					View3D *v3d = sa->spacedata.first;
 					BGpic *bgpic;
@@ -2863,7 +2865,7 @@ bool BKE_image_is_stereo(Image *ima)
 {
 	return BKE_image_is_multiview(ima) &&
 	       (BLI_findstring(&ima->views, STEREO_LEFT_NAME, offsetof(ImageView, name)) &&
-            BLI_findstring(&ima->views, STEREO_RIGHT_NAME, offsetof(ImageView, name)));
+	        BLI_findstring(&ima->views, STEREO_RIGHT_NAME, offsetof(ImageView, name)));
 }
 
 static void image_init_multilayer_multiview(Image *ima, RenderResult *rr)

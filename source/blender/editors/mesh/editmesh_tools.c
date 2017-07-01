@@ -47,14 +47,17 @@
 #include "BLI_rand.h"
 #include "BLI_sort_utils.h"
 
+#include "BKE_layer.h"
 #include "BKE_material.h"
 #include "BKE_context.h"
 #include "BKE_deform.h"
-#include "BKE_depsgraph.h"
 #include "BKE_report.h"
 #include "BKE_texture.h"
 #include "BKE_main.h"
 #include "BKE_editmesh.h"
+
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 #include "BLT_translation.h"
 
@@ -306,7 +309,7 @@ void EMBM_project_snap_verts(bContext *C, ARegion *ar, BMEditMesh *em)
 	ED_view3d_init_mats_rv3d(obedit, ar->regiondata);
 
 	struct SnapObjectContext *snap_context = ED_transform_snap_object_context_create_view3d(
-	        CTX_data_main(C), CTX_data_scene(C), 0,
+	        CTX_data_main(C), CTX_data_scene(C), CTX_data_scene_layer(C), 0,
 	        ar, CTX_wm_view3d(C));
 
 	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
@@ -2448,7 +2451,7 @@ static void shape_propagate(BMEditMesh *em, wmOperator *op)
 	//TAG Mesh Objects that share this data
 	for (base = scene->base.first; base; base = base->next) {
 		if (base->object && base->object->data == me) {
-			DAG_id_tag_update(&base->object->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&base->object->id, OB_RECALC_DATA);
 		}
 	}
 #endif
@@ -3010,7 +3013,7 @@ enum {
 	MESH_SEPARATE_LOOSE    = 2,
 };
 
-static Base *mesh_separate_tagged(Main *bmain, Scene *scene, Base *base_old, BMesh *bm_old)
+static Base *mesh_separate_tagged(Main *bmain, Scene *scene, SceneLayer *sl, Base *base_old, BMesh *bm_old)
 {
 	Base *base_new;
 	Object *obedit = base_old->object;
@@ -3031,11 +3034,11 @@ static Base *mesh_separate_tagged(Main *bmain, Scene *scene, Base *base_old, BMe
 	CustomData_bmesh_init_pool(&bm_new->ldata, bm_mesh_allocsize_default.totloop, BM_LOOP);
 	CustomData_bmesh_init_pool(&bm_new->pdata, bm_mesh_allocsize_default.totface, BM_FACE);
 
-	base_new = ED_object_add_duplicate(bmain, scene, base_old, USER_DUP_MESH);
+	base_new = ED_object_add_duplicate(bmain, scene, sl, base_old, USER_DUP_MESH);
 	/* DAG_relations_tag_update(bmain); */ /* normally would call directly after but in this case delay recalc */
 	assign_matarar(base_new->object, give_matarar(obedit), *give_totcolp(obedit)); /* new in 2.5 */
 
-	ED_base_object_select(base_new, BA_SELECT);
+	ED_object_base_select(base_new, BA_SELECT);
 
 	BMO_op_callf(bm_old, (BMO_FLAG_DEFAULTS & ~BMO_FLAG_RESPECT_HIDE),
 	             "duplicate geom=%hvef dest=%p", BM_ELEM_TAG, bm_new);
@@ -3057,7 +3060,7 @@ static Base *mesh_separate_tagged(Main *bmain, Scene *scene, Base *base_old, BMe
 	return base_new;
 }
 
-static bool mesh_separate_selected(Main *bmain, Scene *scene, Base *base_old, BMesh *bm_old)
+static bool mesh_separate_selected(Main *bmain, Scene *scene, SceneLayer *sl, Base *base_old, BMesh *bm_old)
 {
 	/* we may have tags from previous operators */
 	BM_mesh_elem_hflag_disable_all(bm_old, BM_FACE | BM_EDGE | BM_VERT, BM_ELEM_TAG, false);
@@ -3065,7 +3068,7 @@ static bool mesh_separate_selected(Main *bmain, Scene *scene, Base *base_old, BM
 	/* sel -> tag */
 	BM_mesh_elem_hflag_enable_test(bm_old, BM_FACE | BM_EDGE | BM_VERT, BM_ELEM_TAG, true, false, BM_ELEM_SELECT);
 
-	return (mesh_separate_tagged(bmain, scene, base_old, bm_old) != NULL);
+	return (mesh_separate_tagged(bmain, scene, sl, base_old, bm_old) != NULL);
 }
 
 /* flush a hflag to from verts to edges/faces */
@@ -3164,7 +3167,7 @@ static void mesh_separate_material_assign_mat_nr(Main *bmain, Object *ob, const 
 	}
 }
 
-static bool mesh_separate_material(Main *bmain, Scene *scene, Base *base_old, BMesh *bm_old)
+static bool mesh_separate_material(Main *bmain, Scene *scene, SceneLayer *sl, Base *base_old, BMesh *bm_old)
 {
 	BMFace *f_cmp, *f;
 	BMIter iter;
@@ -3205,7 +3208,7 @@ static bool mesh_separate_material(Main *bmain, Scene *scene, Base *base_old, BM
 		}
 
 		/* Move selection into a separate object */
-		base_new = mesh_separate_tagged(bmain, scene, base_old, bm_old);
+		base_new = mesh_separate_tagged(bmain, scene, sl, base_old, bm_old);
 		if (base_new) {
 			mesh_separate_material_assign_mat_nr(bmain, base_new->object, mat_nr);
 		}
@@ -3216,7 +3219,7 @@ static bool mesh_separate_material(Main *bmain, Scene *scene, Base *base_old, BM
 	return result;
 }
 
-static bool mesh_separate_loose(Main *bmain, Scene *scene, Base *base_old, BMesh *bm_old)
+static bool mesh_separate_loose(Main *bmain, Scene *scene, SceneLayer *sl, Base *base_old, BMesh *bm_old)
 {
 	int i;
 	BMEdge *e;
@@ -3269,7 +3272,7 @@ static bool mesh_separate_loose(Main *bmain, Scene *scene, Base *base_old, BMesh
 		bm_mesh_hflag_flush_vert(bm_old, BM_ELEM_TAG);
 
 		/* Move selection into a separate object */
-		result |= (mesh_separate_tagged(bmain, scene, base_old, bm_old) != NULL);
+		result |= (mesh_separate_tagged(bmain, scene, sl, base_old, bm_old) != NULL);
 	}
 
 	return result;
@@ -3279,6 +3282,7 @@ static int edbm_separate_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	const int type = RNA_enum_get(op->ptr, "type");
 	int retval = 0;
 	
@@ -3299,13 +3303,13 @@ static int edbm_separate_exec(bContext *C, wmOperator *op)
 		/* editmode separate */
 		switch (type) {
 			case MESH_SEPARATE_SELECTED:
-				retval = mesh_separate_selected(bmain, scene, base, em->bm);
+			    retval = mesh_separate_selected(bmain, scene, sl, base, em->bm);
 				break;
 			case MESH_SEPARATE_MATERIAL:
-				retval = mesh_separate_material(bmain, scene, base, em->bm);
+			    retval = mesh_separate_material(bmain, scene, sl, base, em->bm);
 				break;
 			case MESH_SEPARATE_LOOSE:
-				retval = mesh_separate_loose(bmain, scene, base, em->bm);
+			    retval = mesh_separate_loose(bmain, scene, sl, base, em->bm);
 				break;
 			default:
 				BLI_assert(0);
@@ -3340,10 +3344,10 @@ static int edbm_separate_exec(bContext *C, wmOperator *op)
 
 					switch (type) {
 						case MESH_SEPARATE_MATERIAL:
-							retval_iter = mesh_separate_material(bmain, scene, base_iter, bm_old);
+						    retval_iter = mesh_separate_material(bmain, scene, sl, base_iter, bm_old);
 							break;
 						case MESH_SEPARATE_LOOSE:
-							retval_iter = mesh_separate_loose(bmain, scene, base_iter, bm_old);
+						    retval_iter = mesh_separate_loose(bmain, scene, sl, base_iter, bm_old);
 							break;
 						default:
 							BLI_assert(0);
@@ -3353,7 +3357,7 @@ static int edbm_separate_exec(bContext *C, wmOperator *op)
 					if (retval_iter) {
 						BM_mesh_bm_to_me(bm_old, me, (&(struct BMeshToMeshParams){0}));
 
-						DAG_id_tag_update(&me->id, OB_RECALC_DATA);
+						DEG_id_tag_update(&me->id, OB_RECALC_DATA);
 						WM_event_add_notifier(C, NC_GEOM | ND_DATA, me);
 					}
 
@@ -3368,7 +3372,7 @@ static int edbm_separate_exec(bContext *C, wmOperator *op)
 
 	if (retval) {
 		/* delay depsgraph recalc until all objects are duplicated */
-		DAG_relations_tag_update(bmain);
+		DEG_relations_tag_update(bmain);
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, NULL);
 
 		return OPERATOR_FINISHED;
@@ -5886,7 +5890,7 @@ static int edbm_mark_freestyle_edge_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
+	DEG_id_tag_update(obedit->data, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -5950,7 +5954,7 @@ static int edbm_mark_freestyle_face_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
+	DEG_id_tag_update(obedit->data, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;

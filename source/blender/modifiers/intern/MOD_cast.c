@@ -45,9 +45,6 @@
 #include "BKE_library_query.h"
 #include "BKE_modifier.h"
 
-
-#include "depsgraph_private.h"
-
 #include "MOD_util.h"
 
 static void initData(ModifierData *md)
@@ -103,22 +100,6 @@ static void foreachObjectLink(
 	CastModifierData *cmd = (CastModifierData *) md;
 
 	walk(userData, ob, &cmd->object, IDWALK_CB_NOP);
-}
-
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
-{
-	CastModifierData *cmd = (CastModifierData *) md;
-
-	if (cmd->object) {
-		DagNode *curNode = dag_get_node(forest, cmd->object);
-
-		dag_add_relation(forest, curNode, obNode, DAG_RL_OB_DATA,
-		                 "Cast Modifier");
-	}
 }
 
 static void updateDepsgraph(ModifierData *md,
@@ -513,7 +494,6 @@ ModifierTypeInfo modifierType_Cast = {
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
-	/* updateDepgraph */    updateDepgraph,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,

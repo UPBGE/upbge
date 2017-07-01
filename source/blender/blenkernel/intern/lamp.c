@@ -69,6 +69,7 @@ void BKE_lamp_init(Lamp *la)
 	la->bufsize = 512;
 	la->clipsta = 0.5f;
 	la->clipend = 40.0f;
+	la->bleedexp = 120.0f;
 	la->samp = 3;
 	la->bias = 1.0f;
 	la->soft = 3.0f;
@@ -116,7 +117,7 @@ Lamp *BKE_lamp_add(Main *bmain, const char *name)
 	return la;
 }
 
-Lamp *BKE_lamp_copy(Main *bmain, Lamp *la)
+Lamp *BKE_lamp_copy(Main *bmain, const Lamp *la)
 {
 	Lamp *lan;
 	int a;

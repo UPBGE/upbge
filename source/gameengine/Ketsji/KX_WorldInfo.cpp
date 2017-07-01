@@ -40,6 +40,10 @@
 #include "BLI_winstuff.h"
 #endif
 
+extern "C" {
+#  include "eevee_private.h"
+}
+
 /* This list includes only data type definitions */
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
@@ -55,6 +59,7 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 {
 	if (blenderworld) {
 		m_name = blenderworld->id.name + 2;
+		m_gpuMat = EEVEE_material_world_background_get(m_scene, blenderworld);
 		m_do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
 		m_hasworld = true;
 		m_hasmist = ((blenderworld->mode) & WO_MIST ? true : false);
@@ -77,6 +82,7 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 		setAmbientColor(MT_Vector3(blenderworld->ambr, blenderworld->ambg, blenderworld->ambb));
 		setExposure(blenderworld->exp);
 		setRange(blenderworld->range);
+
 	}
 	else {
 		m_hasworld = false;
@@ -191,14 +197,14 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_Rasterizer *rasty)
 		GPU_update_envlight_energy(m_envLightEnergy);
 
 		if (m_hasmist) {
-			rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor);
+			/*rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor);
 			GPU_mist_update_values(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_mistcolor.getValue());
 			rasty->EnableFog(true);
-			GPU_mist_update_enable(true);
+			GPU_mist_update_enable(true);*/
 		}
 		else {
-			rasty->EnableFog(false);
-			GPU_mist_update_enable(false);
+			/*rasty->EnableFog(false);
+			GPU_mist_update_enable(false);*/
 		}
 	}
 }
@@ -206,15 +212,14 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_Rasterizer *rasty)
 void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 {
 	if (m_hasworld) {
-		if (m_scene->world->skytype & (WO_SKYBLEND | WO_SKYPAPER | WO_SKYREAL)) {
-			GPUMaterial *gpumat = GPU_material_world(m_scene, m_scene->world);
+		if (/*m_scene->world->skytype & (WO_SKYBLEND | WO_SKYPAPER | WO_SKYREAL)*/true) {
 			float viewmat[4][4];
 			rasty->GetViewMatrix().getValue(&viewmat[0][0]);
 			float invviewmat[4][4];
 			rasty->GetViewInvMatrix().getValue(&invviewmat[0][0]);
 
 			static float texcofac[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-			GPU_material_bind(gpumat, 0xFFFFFFFF, m_scene->lay, 1.0f, false, viewmat, invviewmat, texcofac, false);
+			GPU_material_bind(m_gpuMat, 0xFFFFFFFF, m_scene->lay, 1.0f, false, viewmat, invviewmat, texcofac, false);
 
 			rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
 			rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
@@ -225,7 +230,7 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 			rasty->SetDepthFunc(RAS_Rasterizer::RAS_LEQUAL);
 			rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);
 
-			GPU_material_unbind(gpumat);
+			GPU_material_unbind(m_gpuMat);
 		}
 		else {
 			float srgbcolor[4];

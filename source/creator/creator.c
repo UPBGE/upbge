@@ -56,7 +56,6 @@
 #include "BKE_brush.h"
 #include "BKE_cachefile.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h" /* for DAG_init */
 #include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_material.h"
@@ -66,6 +65,7 @@
 #include "BKE_image.h"
 #include "BKE_particle.h"
 
+#include "DEG_depsgraph.h"
 
 #include "IMB_imbuf.h"  /* for IMB_init */
 
@@ -231,8 +231,7 @@ int main(
 
 	/* --- end declarations --- */
 
-	/* ensure we free data on early-exit */
-	struct CreatorAtExitData app_init_data = {NULL};
+	/* ensure we free data on early-exit */	struct CreatorAtExitData app_init_data = {NULL};
 	BKE_blender_atexit_register(callback_main_atexit, &app_init_data);
 
 #ifdef WIN32
@@ -361,7 +360,7 @@ int main(
 	BKE_cachefiles_init();
 	BKE_images_init();
 	BKE_modifier_init();
-	DAG_init();
+	DEG_register_node_types();
 
 	BKE_brush_system_init();
 	RE_texture_rng_init();

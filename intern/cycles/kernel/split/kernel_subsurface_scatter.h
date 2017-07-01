@@ -169,6 +169,7 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
 				                                                          ray_index,
 				                                                          num_samples_inv,
 				                                                          bssrdf_sd,
+				                                                          false,
 				                                                          false))
 				{
 					branched_state->ss_next_closure = i;
@@ -185,6 +186,13 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
 		}
 
 		branched_state->ss_next_sample = 0;
+	}
+
+	branched_state->ss_next_closure = sd->num_closure;
+
+	branched_state->waiting_on_shared_samples = (branched_state->shared_sample_count > 0);
+	if(branched_state->waiting_on_shared_samples) {
+		return true;
 	}
 
 	kernel_split_branched_path_indirect_loop_end(kg, ray_index);
@@ -257,21 +265,20 @@ ccl_device void kernel_subsurface_scatter(KernelGlobals *kg)
 				/* do bssrdf scatter step if we picked a bssrdf closure */
 				if(sc) {
 					uint lcg_state = lcg_state_init(&rng, state->rng_offset, state->sample, 0x68bc21eb);
-
 					float bssrdf_u, bssrdf_v;
 					path_state_rng_2D(kg,
-						              &rng,
-						              state,
-						              PRNG_BSDF_U,
-						              &bssrdf_u, &bssrdf_v);
+					                  &rng,
+					                  state,
+					                  PRNG_BSDF_U,
+					                  &bssrdf_u, &bssrdf_v);
 					subsurface_scatter_step(kg,
-						                    sd,
-						                    state,
-						                    state->flag,
-						                    sc,
-						                    &lcg_state,
-						                    bssrdf_u, bssrdf_v,
-						                    false);
+					                        sd,
+					                        state,
+					                        state->flag,
+					                        sc,
+					                        &lcg_state,
+					                        bssrdf_u, bssrdf_v,
+					                        false);
 				}
 			}
 			else {

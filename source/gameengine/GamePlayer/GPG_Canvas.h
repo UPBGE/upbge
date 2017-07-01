@@ -67,17 +67,10 @@ public:
 	 * \section Methods inherited from abstract base class RAS_ICanvas.
 	 */
 
-	virtual int GetWidth() const;
-	virtual int GetHeight() const;
-	virtual RAS_Rect &GetWindowArea();
 	virtual void BeginFrame();
 
 	/// Draws overlay banners and progress bars.
 	virtual void EndFrame();
-
-	virtual void SetViewPort(int x1, int y1, int x2, int y2);
-	virtual void UpdateViewPort(int x1, int y1, int x2, int y2);
-	virtual const int *GetViewPort();
 
 	virtual void MakeScreenShot(const std::string& filename);
 
@@ -89,8 +82,6 @@ public:
 	virtual bool GetSwapInterval(int& intervalOut);
 
 	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
-	virtual float GetMouseNormalizedX(int x);
-	virtual float GetMouseNormalizedY(int y);
 
 	virtual void GetDisplayDimensions(int &width, int &height);
 

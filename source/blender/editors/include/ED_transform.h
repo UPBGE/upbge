@@ -43,6 +43,7 @@ struct wmEvent;
 struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperatorType;
+struct WorkSpace;
 struct Main;
 struct SnapObjectContext;
 struct SnapObjectParams;
@@ -109,9 +110,11 @@ enum TfmMode {
 bool calculateTransformCenter(struct bContext *C, int centerMode, float cent3d[3], float cent2d[2]);
 
 struct TransInfo;
-struct Base;
+struct BaseLegacy;
 struct Scene;
 struct Object;
+struct wmManipulatorGroup;
+struct wmManipulatorGroupType;
 struct wmOperator;
 
 /* UNUSED */
@@ -128,7 +131,7 @@ void BIF_createTransformOrientation(struct bContext *C, struct ReportList *repor
                                     const char *name, const bool use_view,
                                     const bool activate, const bool overwrite);
 void BIF_selectTransformOrientation(struct bContext *C, struct TransformOrientation *ts);
-void BIF_selectTransformOrientationValue(struct bContext *C, int orientation);
+void BIF_selectTransformOrientationValue(struct View3D *v3d, int orientation);
 
 void ED_getTransformOrientationMatrix(const struct bContext *C, float orientation_mat[3][3], const short around);
 
@@ -152,10 +155,15 @@ int BIF_countTransformOrientation(const struct bContext *C);
 
 void Transform_Properties(struct wmOperatorType *ot, int flags);
 
-/* view3d manipulators */
+/* transform manipulators */
 
-int BIF_do_manipulator(struct bContext *C, const struct wmEvent *event, struct wmOperator *op);
-void BIF_draw_manipulator(const struct bContext *C);
+void TRANSFORM_WGT_manipulator(struct wmManipulatorGroupType *wgt);
+
+bool ED_widgetgroup_manipulator2d_poll(const struct bContext *C, struct wmManipulatorGroupType *wgt);
+void ED_widgetgroup_manipulator2d_setup(const struct bContext *C, struct wmManipulatorGroup *mgroup);
+void ED_widgetgroup_manipulator2d_refresh(const struct bContext *C, struct wmManipulatorGroup *mgroup);
+void ED_widgetgroup_manipulator2d_draw_prepare(const struct bContext *C, struct wmManipulatorGroup *mgroup);
+
 
 /* Snapping */
 

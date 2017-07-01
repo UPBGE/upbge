@@ -47,7 +47,7 @@ struct MDeformVert;
 void BKE_lattice_resize(struct Lattice *lt, int u, int v, int w, struct Object *ltOb);
 void BKE_lattice_init(struct Lattice *lt);
 struct Lattice *BKE_lattice_add(struct Main *bmain, const char *name);
-struct Lattice *BKE_lattice_copy(struct Main *bmain, struct Lattice *lt);
+struct Lattice *BKE_lattice_copy(struct Main *bmain, const struct Lattice *lt);
 void BKE_lattice_free(struct Lattice *lt);
 void BKE_lattice_make_local(struct Main *bmain, struct Lattice *lt, const bool lib_local);
 void calc_lat_fudu(int flag, int res, float *r_fu, float *r_du);
@@ -102,5 +102,13 @@ struct EvaluationContext;
 
 void BKE_lattice_eval_geometry(struct EvaluationContext *eval_ctx,
                                struct Lattice *latt);
+
+/* Draw Cache */
+enum {
+	BKE_LATTICE_BATCH_DIRTY_ALL = 0,
+	BKE_LATTICE_BATCH_DIRTY_SELECT,
+};
+void BKE_lattice_batch_cache_dirty(struct Lattice *lt, int mode);
+void BKE_lattice_batch_cache_free(struct Lattice *lt);
 
 #endif  /* __BKE_LATTICE_H__ */

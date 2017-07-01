@@ -47,7 +47,6 @@ protected:
 	wmWindow *m_window;
 	int m_alwaysUseExpandFraming;
 	bool m_drawLetterBox;
-	RAS_Rect m_areaRect;
 
 	/// Saved blender data to restore at the game end as m_savedData from LA_Launcher.
 	struct SavedBlenderData {
@@ -67,7 +66,7 @@ protected:
 	virtual void SetWindowOrder(short order);
 
 public:
-	LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_Rasterizer::StereoMode stereoMode, 
+	LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Depsgraph *depsgraph, Scene *scene, GlobalSettings *gs, RAS_Rasterizer::StereoMode stereoMode, 
 					   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming);
 	virtual ~LA_BlenderLauncher();
 

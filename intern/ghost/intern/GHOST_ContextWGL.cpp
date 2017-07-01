@@ -40,10 +40,6 @@
 #include <vector>
 
 
-#ifdef WITH_GLEW_MX
-WGLEWContext *wglewContext = NULL;
-#endif
-
 HGLRC GHOST_ContextWGL::s_sharedHGLRC = NULL;
 int   GHOST_ContextWGL::s_sharedCount = 0;
 
@@ -82,10 +78,6 @@ GHOST_ContextWGL::GHOST_ContextWGL(
       m_alphaBackground(alphaBackground),
       m_contextResetNotificationStrategy(contextResetNotificationStrategy),
       m_hGLRC(NULL)
-#ifdef WITH_GLEW_MX
-      ,
-      m_wglewContext(NULL)
-#endif
 #ifndef NDEBUG
       ,
       m_dummyVendor(NULL),
@@ -115,10 +107,6 @@ GHOST_ContextWGL::~GHOST_ContextWGL()
 			WIN32_CHK(::wglDeleteContext(m_hGLRC));
 		}
 	}
-
-#ifdef WITH_GLEW_MX
-	delete m_wglewContext;
-#endif
 
 #ifndef NDEBUG
 	free((void*)m_dummyRenderer);
@@ -158,7 +146,6 @@ GHOST_TSuccess GHOST_ContextWGL::getSwapInterval(int &intervalOut)
 GHOST_TSuccess GHOST_ContextWGL::activateDrawingContext()
 {
 	if (WIN32_CHK(::wglMakeCurrent(m_hDC, m_hGLRC))) {
-		activateGLEW();
 		return GHOST_kSuccess;
 	}
 	else {
@@ -338,15 +325,6 @@ void GHOST_ContextWGL::initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD)
 
 	int iPixelFormat;
 
-
-#ifdef WITH_GLEW_MX
-	wglewContext = new WGLEWContext;
-	memset(wglewContext, 0, sizeof(WGLEWContext));
-
-	delete m_wglewContext;
-	m_wglewContext = wglewContext;
-#endif
-
 	SetLastError(NO_ERROR);
 
 	prevHDC = ::wglGetCurrentDC();
@@ -385,13 +363,8 @@ void GHOST_ContextWGL::initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD)
 	if (!WIN32_CHK(::wglMakeCurrent(dummyHDC, dummyHGLRC)))
 		goto finalize;
 
-#ifdef WITH_GLEW_MX
-	if (GLEW_CHK(wglewInit()) != GLEW_OK)
-		fprintf(stderr, "Warning! WGLEW failed to initialize properly.\n");
-#else
 	if (GLEW_CHK(glewInit()) != GLEW_OK)
 		fprintf(stderr, "Warning! Dummy GLEW/WGLEW failed to initialize properly.\n");
-#endif
 
 	// the following are not technially WGLEW, but they also require a context to work
 
@@ -828,8 +801,6 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 		return GHOST_kFailure;
 	}
 
-	activateWGLEW();
-
 	if (WGLEW_ARB_create_context) {
 		int profileBitCore   = m_contextProfileMask & WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 		int profileBitCompat = m_contextProfileMask & WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
@@ -907,21 +878,6 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 		else
 			m_hGLRC = s_sharedHGLRC;
 	}
-	else {
-		if (m_contextProfileMask  != 0)
-			fprintf(stderr, "Warning! Legacy WGL is unable to select between OpenGL profiles.");
-
-		if (m_contextMajorVersion != 0 || m_contextMinorVersion != 0)
-			fprintf(stderr, "Warning! Legacy WGL is unable to select between OpenGL versions.");
-
-		if (m_contextFlags != 0)
-			fprintf(stderr, "Warning! Legacy WGL is unable to set context flags.");
-
-		if (!s_singleContextMode || s_sharedHGLRC == NULL)
-			m_hGLRC = ::wglCreateContext(m_hDC);
-		else
-			m_hGLRC = s_sharedHGLRC;
-	}
 
 	if (!WIN32_CHK(m_hGLRC != NULL)) {
 		::wglMakeCurrent(prevHDC, prevHGLRC);
@@ -962,7 +918,7 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 	     strcmp(renderer, "GDI Generic") == 0) && version[0] == '1' && version[2] == '1')
 	{
 		MessageBox(m_hWnd, "Your system does not use 3D hardware acceleration.\n"
-		                   "Blender requires a graphics driver with OpenGL 2.1 support.\n\n"
+		                   "Blender requires a graphics driver with OpenGL 3.3 support.\n\n"
 		                   "This may be caused by:\n"
 		                   "* A missing or faulty graphics driver installation.\n"
 		                   "  Blender needs a graphics card driver to work correctly.\n"
@@ -973,8 +929,8 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 		           MB_OK | MB_ICONERROR);
 		exit(0);
 	}
-	else if (version[0] < '2' || (version[0] == '2' && version[2] < '1')) {
-		MessageBox(m_hWnd, "Blender requires a graphics driver with OpenGL 2.1 support.\n\n"
+	else if (version[0] < '3' || (version[0] == '3' && version[2] < '3')) {
+		MessageBox(m_hWnd, "Blender requires a graphics driver with OpenGL 3.3 support.\n\n"
 		                   "The program will now close.",
 		           "Blender - Unsupported Graphics Driver!",
 		           MB_OK | MB_ICONERROR);

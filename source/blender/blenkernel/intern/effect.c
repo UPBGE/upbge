@@ -64,6 +64,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
+#include "BKE_layer.h"
 #include "BKE_library.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -209,6 +210,7 @@ static void add_particles_to_effectors(ListBase **effectors, Scene *scene, Effec
 ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src,
                           EffectorWeights *weights, bool for_simulation)
 {
+	SceneLayer *sl = BKE_scene_layer_context_active(scene); /* Can't get sl from the calling modifiers yet */
 	Base *base;
 	unsigned int layer= ob_src->lay;
 	ListBase *effectors = NULL;
@@ -231,17 +233,15 @@ ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src
 		}
 	}
 	else {
-		for (base = scene->base.first; base; base= base->next) {
-			if ( (base->lay & layer) ) {
-				if ( base->object->pd && base->object->pd->forcefield )
-					add_object_to_effectors(&effectors, scene, weights, base->object, ob_src, for_simulation);
+		for (base = FIRSTBASE_NEW; base; base = base->next) {
+			if ( base->object->pd && base->object->pd->forcefield )
+				add_object_to_effectors(&effectors, scene, weights, base->object, ob_src, for_simulation);
 
-				if ( base->object->particlesystem.first ) {
-					ParticleSystem *psys= base->object->particlesystem.first;
+			if ( base->object->particlesystem.first ) {
+				ParticleSystem *psys= base->object->particlesystem.first;
 
-					for ( ; psys; psys=psys->next )
-						add_particles_to_effectors(&effectors, scene, weights, base->object, psys, psys_src, for_simulation);
-				}
+				for ( ; psys; psys=psys->next )
+					add_particles_to_effectors(&effectors, scene, weights, base->object, psys, psys_src, for_simulation);
 			}
 		}
 	}
@@ -986,19 +986,19 @@ static void do_physical_effector(EffectorCache *eff, EffectorData *efd, Effected
  */
 void pdDoEffectors(ListBase *effectors, ListBase *colliders, EffectorWeights *weights, EffectedPoint *point, float *force, float *impulse)
 {
-/*
- * Modifies the force on a particle according to its
- * relation with the effector object
- * Different kind of effectors include:
- *     Forcefields: Gravity-like attractor
- *     (force power is related to the inverse of distance to the power of a falloff value)
- *     Vortex fields: swirling effectors
- *     (particles rotate around Z-axis of the object. otherwise, same relation as)
- *     (Forcefields, but this is not done through a force/acceleration)
- *     Guide: particles on a path
- *     (particles are guided along a curve bezier or old nurbs)
- *     (is independent of other effectors)
- */
+	/*
+	 * Modifies the force on a particle according to its
+	 * relation with the effector object
+	 * Different kind of effectors include:
+	 *     Forcefields: Gravity-like attractor
+	 *     (force power is related to the inverse of distance to the power of a falloff value)
+	 *     Vortex fields: swirling effectors
+	 *     (particles rotate around Z-axis of the object. otherwise, same relation as)
+	 *     (Forcefields, but this is not done through a force/acceleration)
+	 *     Guide: particles on a path
+	 *     (particles are guided along a curve bezier or old nurbs)
+	 *     (is independent of other effectors)
+	 */
 	EffectorCache *eff;
 	EffectorData efd;
 	int p=0, tot = 1, step = 1;

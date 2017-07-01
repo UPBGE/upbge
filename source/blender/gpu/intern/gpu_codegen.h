@@ -158,10 +158,7 @@ typedef struct GPUInput {
 } GPUInput;
 
 struct GPUPass {
-	struct GPUPass *next, *prev;
-
 	ListBase inputs;
-	struct GPUOutput *output;
 	struct GPUShader *shader;
 	char *fragmentcode;
 	char *geometrycode;
@@ -172,6 +169,9 @@ struct GPUPass {
 
 typedef struct GPUPass GPUPass;
 
+GPUPass *GPU_generate_pass_new(ListBase *nodes, struct GPUNodeLink *frag_outlink,
+                               const char *vert_code, const char *geom_code,
+                               const char *frag_lib, const char *defines);
 GPUPass *GPU_generate_pass(ListBase *nodes, struct GPUNodeLink *outlink,
                            struct GPUVertexAttribs *attribs, int *builtin,
                            const GPUMatType type, const char *name,
@@ -184,6 +184,8 @@ struct GPUShader *GPU_pass_shader(GPUPass *pass);
 void GPU_pass_bind(GPUPass *pass, double time, int mipmap);
 void GPU_pass_update_uniforms(GPUPass *pass);
 void GPU_pass_unbind(GPUPass *pass);
+
+void GPU_nodes_get_vertex_attributes(ListBase *nodes, struct GPUVertexAttribs *attribs);
 
 void GPU_pass_free(GPUPass *pass);
 void GPU_pass_free_nodes(ListBase *nodes);

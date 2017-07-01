@@ -112,9 +112,10 @@ private:
 	std::vector<Text2D> m_texts2D;
 	std::vector<Box2D> m_boxes2D;
 
-	std::unique_ptr<RAS_OpenGLDebugDraw> m_impl;
+	RAS_OpenGLDebugDraw *m_impl;
 
 public:
+	
 	RAS_DebugDraw();
 	~RAS_DebugDraw();
 

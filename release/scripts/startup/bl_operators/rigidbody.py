@@ -65,7 +65,7 @@ class CopyRigidbodySettings(Operator):
         # deselect all but mesh objects
         for o in context.selected_objects:
             if o.type != 'MESH':
-                o.select = False
+                o.select_set(action='DESELECT')
             elif o.rigid_body is None:
                 # Add rigidbody to object!
                 scene.objects.active = o
@@ -127,7 +127,7 @@ class BakeToKeyframes(Operator):
         # filter objects selection
         for obj in context.selected_objects:
             if not obj.rigid_body or obj.rigid_body.type != 'ACTIVE':
-                obj.select = False
+                obj.select_set(action='DESELECT')
 
         objects = context.selected_objects
 
@@ -260,7 +260,7 @@ class ConnectRigidBodies(Operator):
         ob.location = loc
         context.scene.objects.link(ob)
         context.scene.objects.active = ob
-        ob.select = True
+        ob.select_set(action='SELECT')
 
         bpy.ops.rigidbody.constraint_add()
         con_obj = context.active_object
@@ -305,7 +305,7 @@ class ConnectRigidBodies(Operator):
             # restore selection
             bpy.ops.object.select_all(action='DESELECT')
             for obj in objects:
-                obj.select = True
+                obj.select_set(action='SELECT')
             scene.objects.active = obj_act
             return {'FINISHED'}
         else:

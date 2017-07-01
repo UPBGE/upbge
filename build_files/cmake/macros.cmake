@@ -579,12 +579,14 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_editor_curve
 		bf_editor_gpencil
 		bf_editor_interface
+		bf_editor_manipulator_library
 		bf_editor_mesh
 		bf_editor_metaball
 		bf_editor_object
 		bf_editor_armature
 		bf_editor_physics
 		bf_editor_render
+		bf_editor_scene
 		bf_editor_screen
 		bf_editor_sculpt_paint
 		bf_editor_sound
@@ -604,6 +606,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_alembic
 		bf_bmesh
 		bf_gpu
+		bf_draw
 		bf_blenloader
 		bf_blenkernel
 		bf_physics
@@ -663,6 +666,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		cycles_util
 		cycles_subd
 		bf_intern_opencolorio
+		bf_intern_gawain
 		bf_intern_eigen
 		extern_rangetree
 		extern_wcwidth

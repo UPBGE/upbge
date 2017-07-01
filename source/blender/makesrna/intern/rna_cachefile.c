@@ -35,7 +35,6 @@
 #ifdef RNA_RUNTIME
 
 #include "BKE_cachefile.h"
-#include "BKE_depsgraph.h"
 
 #include "BLI_string.h"
 
@@ -52,7 +51,7 @@ static void rna_CacheFile_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	CacheFile *cache_file = (CacheFile *)ptr->data;
 
-	DAG_id_tag_update(&cache_file->id, 0);
+	DEG_id_tag_update(&cache_file->id, 0);
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, NULL);
 
 	UNUSED_VARS(bmain, scene);
@@ -63,7 +62,7 @@ static void rna_CacheFile_update_handle(Main *bmain, Scene *scene, PointerRNA *p
 	CacheFile *cache_file = ptr->data;
 
 	if ((cache_file->flag & CACHEFILE_DIRTY) != 0) {
-		BKE_cachefile_clean(scene, cache_file);
+		BKE_cachefile_clean(bmain, cache_file);
 		BLI_freelistN(&cache_file->object_paths);
 		cache_file->flag &= ~CACHEFILE_DIRTY;
 	}

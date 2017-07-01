@@ -33,6 +33,7 @@
  *  \author nzc
  */
 
+struct bPose;
 struct Bone;
 struct GHash;
 struct Main;
@@ -77,7 +78,7 @@ int  BKE_armature_bonelist_count(struct ListBase *lb);
 void BKE_armature_bonelist_free(struct ListBase *lb);
 void BKE_armature_free(struct bArmature *arm);
 void BKE_armature_make_local(struct Main *bmain, struct bArmature *arm, const bool lib_local);
-struct bArmature *BKE_armature_copy(struct Main *bmain, struct bArmature *arm);
+struct bArmature *BKE_armature_copy(struct Main *bmain, const struct bArmature *arm);
 
 /* Bounding box. */
 struct BoundBox *BKE_armature_boundbox_get(struct Object *ob);
@@ -97,7 +98,6 @@ void BKE_armature_where_is(struct bArmature *arm);
 void BKE_armature_where_is_bone(struct Bone *bone, struct Bone *prevbone, const bool use_recursion);
 void BKE_pose_clear_pointers(struct bPose *pose);
 void BKE_pose_rebuild(struct Object *ob, struct bArmature *arm);
-void BKE_pose_rebuild_ex(struct Object *ob, struct bArmature *arm, const bool sort_bones);
 void BKE_pose_where_is(struct Scene *scene, struct Object *ob);
 void BKE_pose_where_is_bone(struct Scene *scene, struct Object *ob, struct bPoseChannel *pchan, float ctime, bool do_extra);
 void BKE_pose_where_is_bone_tail(struct bPoseChannel *pchan);

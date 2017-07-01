@@ -43,6 +43,10 @@
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 
+extern "C" {
+#  include "DRW_render.h"
+}
+
 KX_BlenderMaterial::KX_BlenderMaterial(
 		KX_Scene *scene,
 		Material *mat,
@@ -160,7 +164,7 @@ SCA_IScene *KX_BlenderMaterial::GetScene() const
 void KX_BlenderMaterial::ReleaseMaterial()
 {
 	if (m_blenderShader)
-		m_blenderShader->ReloadMaterial();
+		m_blenderShader->ReloadMaterial(m_scene);
 }
 
 void KX_BlenderMaterial::InitTextures()
@@ -194,6 +198,7 @@ void KX_BlenderMaterial::EndFrame(RAS_Rasterizer *rasty)
 {
 	rasty->SetAlphaBlend(GPU_BLEND_SOLID);
 	RAS_Texture::DesactiveTextures();
+	DRW_end_shgroup();
 }
 
 void KX_BlenderMaterial::OnExit()
@@ -207,10 +212,6 @@ void KX_BlenderMaterial::OnExit()
 		m_blenderShader = nullptr;
 	}
 
-	/* used to call with 'm_material->tface' but this can be a freed array,
-	 * see: [#30493], so just call with nullptr, this is best since it clears
-	 * the 'lastface' pointer in GPU too - campbell */
-	GPU_set_tpage(nullptr, 1, m_alphablend);
 }
 
 
@@ -361,7 +362,7 @@ void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rast
 
 void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 {
-	if (m_shader || !m_blenderShader) {
+	/*if (m_shader || !m_blenderShader) {
 		rasty->SetSpecularity(m_material->specr * m_material->spec, m_material->specg * m_material->spec,
 							  m_material->specb * m_material->spec, m_material->spec);
 		rasty->SetShinyness(((float)m_material->har) / 4.0f);
@@ -370,7 +371,7 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 		rasty->SetEmissive(m_material->r * m_material->emit, m_material->g * m_material->emit,
 						   m_material->b * m_material->emit, 1.0f);
 		rasty->SetAmbient(m_material->amb);
-	}
+	}*/
 }
 
 void KX_BlenderMaterial::UpdateIPO(

@@ -48,6 +48,9 @@
 #  pragma warning(pop)
 #endif
 
+extern "C" {
+#include "gawain/immediate.h"
+}
 
 using namespace OCIO_NAMESPACE;
 
@@ -58,6 +61,7 @@ using namespace OCIO_NAMESPACE;
 static const int LUT3D_EDGE_SIZE = 64;
 
 extern "C" char datatoc_gpu_shader_display_transform_glsl[];
+extern "C" char datatoc_gpu_shader_display_transform_vertex_glsl[];
 
 /* **** OpenGL drawing routines using GLSL for color space transform ***** */
 
@@ -89,7 +93,9 @@ typedef struct OCIO_GLSLDrawState {
 
 	/* GLSL stuff */
 	GLuint ocio_shader;
+	GLuint vert_shader;
 	GLuint program;
+	Gwn_ShaderInterface *shader_interface;
 
 	/* Previous OpenGL state. */
 	GLint last_texture, last_texture_unit;
@@ -116,14 +122,15 @@ static GLuint compileShaderText(GLenum shaderType, const char *text)
 	return shader;
 }
 
-static GLuint linkShaders(GLuint ocio_shader)
+static GLuint linkShaders(GLuint ocio_shader, GLuint vert_shader)
 {
-	if (!ocio_shader)
+	if (!ocio_shader || !vert_shader)
 		return 0;
 
 	GLuint program = glCreateProgram();
 
 	glAttachShader(program, ocio_shader);
+	glAttachShader(program, vert_shader);
 
 	glLinkProgram(program);
 
@@ -339,6 +346,25 @@ bool OCIOImpl::setupGLSLDraw(OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRc
 			glDeleteShader(state->ocio_shader);
 		}
 
+		if (state->vert_shader) {
+			glDeleteShader(state->vert_shader);
+		}
+
+		/* Vertex shader */
+		std::ostringstream osv;
+
+		if (supportGLSL13()) {
+			osv << "#version 130\n";
+		}
+		else {
+			osv << "#version 120\n";
+		}
+
+		osv << datatoc_gpu_shader_display_transform_vertex_glsl;
+
+		state->vert_shader = compileShaderText(GL_VERTEX_SHADER, osv.str().c_str());
+
+		/* Fragment shader */
 		std::ostringstream os;
 
 		if (supportGLSL13()) {
@@ -366,8 +392,12 @@ bool OCIOImpl::setupGLSLDraw(OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRc
 
 		state->ocio_shader = compileShaderText(GL_FRAGMENT_SHADER, os.str().c_str());
 
-		if (state->ocio_shader) {
-			state->program = linkShaders(state->ocio_shader);
+		if (state->ocio_shader && state->vert_shader) {
+			state->program = linkShaders(state->ocio_shader, state->vert_shader);
+		}
+
+		if (state->program) {
+			state->shader_interface = GWN_shaderinterface_create(state->program);
 		}
 
 		state->curve_mapping_used = use_curve_mapping;
@@ -386,10 +416,21 @@ bool OCIOImpl::setupGLSLDraw(OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRc
 
 		glActiveTexture(GL_TEXTURE0);
 
-		glUseProgram(state->program);
+		/* IMM needs vertex format even if we don't draw with it.
+		 *
+		 * NOTE: The only reason why it's here is because of Cycles viewport.
+		 * All other areas are managing their own vertex formats.
+		 * Doing it here is probably harmless, but kind of stupid.
+		 *
+		 * TODO(sergey): Look into some nicer solution.
+		 */
+		Gwn_VertFormat *format = immVertexFormat();
+		GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		GWN_vertformat_attr_add(format, "texCoord", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		immBindProgram(state->program, state->shader_interface);
 
-		glUniform1i(glGetUniformLocation(state->program, "image_texture"), 0);
-		glUniform1i(glGetUniformLocation(state->program, "lut3d_texture"), 1);
+		immUniform1i("image_texture", 0);
+		immUniform1i("lut3d_texture", 1);
 
 		if (state->texture_size_used) {
 			/* we use textureSize() if possible for best performance, if not
@@ -399,30 +440,30 @@ bool OCIOImpl::setupGLSLDraw(OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRc
 			glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
 			glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
 
-			glUniform1f(glGetUniformLocation(state->program, "image_texture_width"), (float)width);
-			glUniform1f(glGetUniformLocation(state->program, "image_texture_height"), (float)height);
+			immUniform1f("image_texture_width", (float)width);
+			immUniform1f("image_texture_height", (float)height);
 		}
 
 		if (use_dither) {
-			glUniform1f(glGetUniformLocation(state->program, "dither"), dither);
+			immUniform1f("dither", dither);
 		}
 
 		if (use_curve_mapping) {
-			glUniform1i(glGetUniformLocation(state->program, "curve_mapping_texture"), 2);
-			glUniform1i(glGetUniformLocation(state->program, "curve_mapping_lut_size"), curve_mapping_settings->lut_size);
-			glUniform4iv(glGetUniformLocation(state->program, "use_curve_mapping_extend_extrapolate"), 1, curve_mapping_settings->use_extend_extrapolate);
-			glUniform4fv(glGetUniformLocation(state->program, "curve_mapping_mintable"), 1, curve_mapping_settings->mintable);
-			glUniform4fv(glGetUniformLocation(state->program, "curve_mapping_range"), 1, curve_mapping_settings->range);
-			glUniform4fv(glGetUniformLocation(state->program, "curve_mapping_ext_in_x"), 1, curve_mapping_settings->ext_in_x);
-			glUniform4fv(glGetUniformLocation(state->program, "curve_mapping_ext_in_y"), 1, curve_mapping_settings->ext_in_y);
-			glUniform4fv(glGetUniformLocation(state->program, "curve_mapping_ext_out_x"), 1, curve_mapping_settings->ext_out_x);
-			glUniform4fv(glGetUniformLocation(state->program, "curve_mapping_ext_out_y"), 1, curve_mapping_settings->ext_out_y);
-			glUniform4fv(glGetUniformLocation(state->program, "curve_mapping_first_x"), 1, curve_mapping_settings->first_x);
-			glUniform4fv(glGetUniformLocation(state->program, "curve_mapping_first_y"), 1, curve_mapping_settings->first_y);
-			glUniform4fv(glGetUniformLocation(state->program, "curve_mapping_last_x"), 1, curve_mapping_settings->last_x);
-			glUniform4fv(glGetUniformLocation(state->program, "curve_mapping_last_y"), 1, curve_mapping_settings->last_y);
-			glUniform3fv(glGetUniformLocation(state->program, "curve_mapping_black"), 1, curve_mapping_settings->black);
-			glUniform3fv(glGetUniformLocation(state->program, "curve_mapping_bwmul"), 1, curve_mapping_settings->bwmul);
+			immUniform1i("curve_mapping_texture", 2);
+			immUniform1i("curve_mapping_lut_size", curve_mapping_settings->lut_size);
+			immUniform4iv("use_curve_mapping_extend_extrapolate", curve_mapping_settings->use_extend_extrapolate);
+			immUniform4fv("curve_mapping_mintable", curve_mapping_settings->mintable);
+			immUniform4fv("curve_mapping_range", curve_mapping_settings->range);
+			immUniform4fv("curve_mapping_ext_in_x", curve_mapping_settings->ext_in_x);
+			immUniform4fv("curve_mapping_ext_in_y", curve_mapping_settings->ext_in_y);
+			immUniform4fv("curve_mapping_ext_out_x", curve_mapping_settings->ext_out_x);
+			immUniform4fv("curve_mapping_ext_out_y", curve_mapping_settings->ext_out_y);
+			immUniform4fv("curve_mapping_first_x", curve_mapping_settings->first_x);
+			immUniform4fv("curve_mapping_first_y", curve_mapping_settings->first_y);
+			immUniform4fv("curve_mapping_last_x", curve_mapping_settings->last_x);
+			immUniform4fv("curve_mapping_last_y", curve_mapping_settings->last_y);
+			immUniform3fv("curve_mapping_black", curve_mapping_settings->black);
+			immUniform3fv("curve_mapping_bwmul", curve_mapping_settings->bwmul);
 		}
 
 		return true;
@@ -439,7 +480,7 @@ void OCIOImpl::finishGLSLDraw(OCIO_GLSLDrawState *state)
 {
 	glActiveTexture(state->last_texture_unit);
 	glBindTexture(GL_TEXTURE_2D, state->last_texture);
-	glUseProgram(0);
+	immUnbindProgram();
 }
 
 void OCIOImpl::freeGLState(struct OCIO_GLSLDrawState *state)
@@ -454,6 +495,9 @@ void OCIOImpl::freeGLState(struct OCIO_GLSLDrawState *state)
 
 	if (state->program)
 		glDeleteProgram(state->program);
+
+	if (state->shader_interface)
+		GWN_shaderinterface_discard(state->shader_interface);		
 
 	if (state->ocio_shader)
 		glDeleteShader(state->ocio_shader);

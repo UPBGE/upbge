@@ -32,7 +32,7 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 	if(NOT DEFINED WITH_IN_SOURCE_BUILD)
 		message(FATAL_ERROR
 			"CMake generation for blender is not allowed within the source directory!"
-			"\n Remove the CMakeCache.txt file and try again from another folder, e.g.:"
+			"\n Remove \"${CMAKE_SOURCE_DIR}/CMakeCache.txt\" and try again from another folder, e.g.:"
 			"\n "
 			"\n rm CMakeCache.txt"
 			"\n cd .."
@@ -252,6 +252,8 @@ mark_as_advanced(WITH_GAMEENGINE_BPPLAYER)
 
 option(WITH_PLAYER        "Build Player" ON)
 option(WITH_OPENCOLORIO   "Enable OpenColorIO color management" ${_init_OPENCOLORIO})
+
+option(WITH_CLAY_ENGINE    "Enable Clay engine" ON)
 
 # Compositor
 option(WITH_COMPOSITOR         "Enable the tile based nodal compositor" ON)
@@ -474,27 +476,15 @@ endif()
 
 # OpenGL
 
-option(WITH_GLEW_MX             "Support multiple GLEW contexts (experimental)"                                                                     OFF )
 option(WITH_GLEW_ES             "Switches to experimental copy of GLEW that has support for OpenGL ES. (temporary option for development purposes)" OFF)
 option(WITH_GL_EGL              "Use the EGL OpenGL system library instead of the platform specific OpenGL system library (CGL, glX, or WGL)"       OFF)
-option(WITH_GL_PROFILE_COMPAT   "Support using the OpenGL 'compatibility' profile. (deprecated)"                                                    ON )
-option(WITH_GL_PROFILE_CORE     "Support using the OpenGL 3.2+ 'core' profile."                                                                     OFF)
 option(WITH_GL_PROFILE_ES20     "Support using OpenGL ES 2.0. (thru either EGL or the AGL/WGL/XGL 'es20' profile)"                                  OFF)
 
 mark_as_advanced(
-	WITH_GLEW_MX
 	WITH_GLEW_ES
 	WITH_GL_EGL
-	WITH_GL_PROFILE_COMPAT
-	WITH_GL_PROFILE_CORE
 	WITH_GL_PROFILE_ES20
 )
-
-if(WITH_GL_PROFILE_COMPAT)
-	set(WITH_GLU ON)
-else()
-	set(WITH_GLU OFF)
-endif()
 
 if(WIN32)
 	option(WITH_GL_ANGLE "Link with the ANGLE library, an OpenGL ES 2.0 implementation based on Direct3D, instead of the system OpenGL library." OFF)
@@ -516,11 +506,10 @@ endif()
 # We default options to whatever default standard in the current compiler.
 if(CMAKE_COMPILER_IS_GNUCC AND (NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "6.0") AND (NOT WITH_CXX11))
 	set(_c11_init ON)
-	set(_cxx11_init ON)
 else()
 	set(_c11_init OFF)
-	set(_cxx11_init OFF)
 endif()
+set(_cxx11_init ON)
 
 option(WITH_C11 "Build with C11 standard enabled, for development use only!" ${_c11_init})
 mark_as_advanced(WITH_C11)
@@ -544,8 +533,8 @@ if(CMAKE_COMPILER_IS_GNUCC)
 endif()
 
 # Dependency graph
-option(WITH_LEGACY_DEPSGRAPH "Build Blender with legacy dependency graph" ON)
-mark_as_advanced(WITH_LEGACY_DEPSGRAPH)
+option(WITH_DEPSGRAPH_COPY_ON_WRITE "Build Blender with copy-on-write support for dependency graph" OFF)
+mark_as_advanced(WITH_DEPSGRAPH_COPY_ON_WRITE)
 
 if(WIN32)
 	# Use hardcoded paths or find_package to find externals
@@ -989,19 +978,11 @@ endif()
 find_package(OpenGL)
 blender_include_dirs_sys("${OPENGL_INCLUDE_DIR}")
 
-if(WITH_GLU)
-	list(APPEND BLENDER_GL_LIBRARIES "${OPENGL_glu_LIBRARY}")
-	list(APPEND GL_DEFINITIONS -DWITH_GLU)
-endif()
-
 if(WITH_SYSTEM_GLES)
 	find_package_wrapper(OpenGLES)
 endif()
 
-if(WITH_GL_PROFILE_COMPAT OR WITH_GL_PROFILE_CORE)
-	list(APPEND BLENDER_GL_LIBRARIES "${OPENGL_gl_LIBRARY}")
-
-elseif(WITH_GL_PROFILE_ES20)
+if(WITH_GL_PROFILE_ES20)
 	if(WITH_SYSTEM_GLES)
 		if(NOT OPENGLES_LIBRARY)
 			message(FATAL_ERROR
@@ -1061,6 +1042,9 @@ elseif(WITH_GL_PROFILE_ES20)
 
 	endif()
 
+else()
+	list(APPEND BLENDER_GL_LIBRARIES "${OPENGL_gl_LIBRARY}")
+
 endif()
 
 if(WITH_GL_EGL)
@@ -1108,16 +1092,10 @@ if(WITH_GL_EGL)
 
 endif()
 
-if(WITH_GL_PROFILE_COMPAT)
-	list(APPEND GL_DEFINITIONS -DWITH_GL_PROFILE_COMPAT)
-endif()
-
-if(WITH_GL_PROFILE_CORE)
-	list(APPEND GL_DEFINITIONS -DWITH_GL_PROFILE_CORE)
-endif()
-
 if(WITH_GL_PROFILE_ES20)
 	list(APPEND GL_DEFINITIONS -DWITH_GL_PROFILE_ES20)
+else()
+	list(APPEND GL_DEFINITIONS -DWITH_GL_PROFILE_CORE)
 endif()
 
 if(WITH_GL_EGL)
@@ -1154,10 +1132,6 @@ endif()
 #-----------------------------------------------------------------------------
 # Configure GLEW
 
-if(WITH_GLEW_MX)
-	list(APPEND GL_DEFINITIONS -DWITH_GLEW_MX)
-endif()
-
 if(WITH_SYSTEM_GLEW)
 	find_package(GLEW)
 
@@ -1167,11 +1141,7 @@ if(WITH_SYSTEM_GLEW)
 		message(FATAL_ERROR "GLEW is required to build Blender. Install it or disable WITH_SYSTEM_GLEW.")
 	endif()
 
-	if(WITH_GLEW_MX)
-		set(BLENDER_GLEW_LIBRARIES ${GLEW_MX_LIBRARY})
-	else()
-		set(BLENDER_GLEW_LIBRARIES ${GLEW_LIBRARY})
-	endif()
+	set(BLENDER_GLEW_LIBRARIES ${GLEW_LIBRARY})
 else()
 	if(WITH_GLEW_ES)
 		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew-es/include")
@@ -1179,12 +1149,11 @@ else()
 		list(APPEND GL_DEFINITIONS -DGLEW_STATIC -DWITH_GLEW_ES)
 
 		# These definitions remove APIs from glew.h, making GLEW smaller, and catching unguarded API usage
-		if(NOT WITH_GL_PROFILE_ES20)
+		if(WITH_GL_PROFILE_ES20)
+			list(APPEND GL_DEFINITIONS -DGLEW_ES_ONLY)
+		else()
 			# No ES functions are needed
 			list(APPEND GL_DEFINITIONS -DGLEW_NO_ES)
-		elseif(NOT (WITH_GL_PROFILE_CORE OR WITH_GL_PROFILE_COMPAT))
-			# ES is enabled, but the other functions are all disabled
-			list(APPEND GL_DEFINITIONS -DGLEW_ES_ONLY)
 		endif()
 
 		if(WITH_GL_PROFILE_ES20)
@@ -1221,9 +1190,7 @@ else()
 
 endif()
 
-if(NOT WITH_GLU)
-	list(APPEND GL_DEFINITIONS -DGLEW_NO_GLU)
-endif()
+list(APPEND GL_DEFINITIONS -DGLEW_NO_GLU)
 
 #-----------------------------------------------------------------------------
 # Configure Bullet
@@ -1771,10 +1738,7 @@ if(FIRST_RUN)
 
 	info_cfg_text("OpenGL:")
 	info_cfg_option(WITH_GLEW_ES)
-	info_cfg_option(WITH_GLU)
 	info_cfg_option(WITH_GL_EGL)
-	info_cfg_option(WITH_GL_PROFILE_COMPAT)
-	info_cfg_option(WITH_GL_PROFILE_CORE)
 	info_cfg_option(WITH_GL_PROFILE_ES20)
 	if(WIN32)
 		info_cfg_option(WITH_GL_ANGLE)

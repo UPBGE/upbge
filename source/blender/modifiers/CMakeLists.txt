@@ -114,10 +114,6 @@ set(SRC
 	intern/MOD_weightvg_util.h
 )
 
-if(WITH_LEGACY_DEPSGRAPH)
-	add_definitions(-DWITH_LEGACY_DEPSGRAPH)
-endif()
-
 if(WITH_ALEMBIC)
 	add_definitions(-DWITH_ALEMBIC)
 	list(APPEND INC
@@ -161,5 +157,8 @@ endif()
 if(WITH_OPENSUBDIV)
 	add_definitions(-DWITH_OPENSUBDIV)
 endif()
+
+# So we can have special tricks in modifier system.
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_modifiers "${SRC}" "${INC}" "${INC_SYS}")

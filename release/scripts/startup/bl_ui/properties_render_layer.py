@@ -35,7 +35,7 @@ class RenderLayerButtonsPanel:
 
 class RENDERLAYER_UL_renderlayers(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        # assert(isinstance(item, bpy.types.SceneRenderLayer)
+        # assert(isinstance(item, bpy.types.SceneLayer)
         layer = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(layer, "name", text="", icon_value=icon, emboss=False)
@@ -48,7 +48,7 @@ class RENDERLAYER_UL_renderlayers(UIList):
 class RENDERLAYER_PT_layers(RenderLayerButtonsPanel, Panel):
     bl_label = "Layer List"
     bl_options = {'HIDE_HEADER'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
 
     def draw(self, context):
         layout = self.layout
@@ -62,110 +62,13 @@ class RENDERLAYER_PT_layers(RenderLayerButtonsPanel, Panel):
 
         row = layout.row()
         col = row.column()
-        col.template_list("RENDERLAYER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=2)
+        col.template_list("RENDERLAYER_UL_renderlayers", "", scene, "render_layers", scene.render_layers, "active_index", rows=2)
 
         col = row.column()
         sub = col.column(align=True)
         sub.operator("scene.render_layer_add", icon='ZOOMIN', text="")
         sub.operator("scene.render_layer_remove", icon='ZOOMOUT', text="")
         col.prop(rd, "use_single_layer", icon_only=True)
-
-
-class RENDERLAYER_PT_layer_options(RenderLayerButtonsPanel, Panel):
-    bl_label = "Layer"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        rl = rd.layers.active
-
-        split = layout.split()
-
-        col = split.column()
-        col.prop(scene, "layers", text="Scene")
-        col.label(text="")
-        col.prop(rl, "light_override", text="Lights")
-        col.prop(rl, "material_override", text="Material")
-
-        col = split.column()
-        col.prop(rl, "layers", text="Layer")
-        col.prop(rl, "layers_zmask", text="Mask Layer")
-
-        layout.separator()
-        layout.label(text="Include:")
-
-        split = layout.split()
-
-        col = split.column()
-        col.prop(rl, "use_zmask")
-        row = col.row()
-        row.prop(rl, "invert_zmask", text="Negate")
-        row.active = rl.use_zmask
-        col.prop(rl, "use_all_z")
-
-        col = split.column()
-        col.prop(rl, "use_solid")
-        col.prop(rl, "use_halo")
-        col.prop(rl, "use_ztransp")
-
-        col = split.column()
-        col.prop(rl, "use_sky")
-        col.prop(rl, "use_edge_enhance")
-        col.prop(rl, "use_strand")
-        if bpy.app.build_options.freestyle:
-            row = col.row()
-            row.prop(rl, "use_freestyle")
-            row.active = rd.use_freestyle
-
-
-class RENDERLAYER_PT_layer_passes(RenderLayerButtonsPanel, Panel):
-    bl_label = "Passes"
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
-
-    @staticmethod
-    def draw_pass_type_buttons(box, rl, pass_type):
-        # property names
-        use_pass_type = "use_pass_" + pass_type
-        exclude_pass_type = "exclude_" + pass_type
-        # draw pass type buttons
-        row = box.row()
-        row.prop(rl, use_pass_type)
-        row.prop(rl, exclude_pass_type, text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        rl = rd.layers.active
-
-        split = layout.split()
-
-        col = split.column()
-        col.prop(rl, "use_pass_combined")
-        col.prop(rl, "use_pass_z")
-        col.prop(rl, "use_pass_vector")
-        col.prop(rl, "use_pass_normal")
-        col.prop(rl, "use_pass_uv")
-        col.prop(rl, "use_pass_mist")
-        col.prop(rl, "use_pass_object_index")
-        col.prop(rl, "use_pass_material_index")
-        col.prop(rl, "use_pass_color")
-
-        col = split.column()
-        col.prop(rl, "use_pass_diffuse")
-        self.draw_pass_type_buttons(col, rl, "specular")
-        self.draw_pass_type_buttons(col, rl, "shadow")
-        self.draw_pass_type_buttons(col, rl, "emit")
-        self.draw_pass_type_buttons(col, rl, "ambient_occlusion")
-        self.draw_pass_type_buttons(col, rl, "environment")
-        self.draw_pass_type_buttons(col, rl, "indirect")
-        self.draw_pass_type_buttons(col, rl, "reflection")
-        self.draw_pass_type_buttons(col, rl, "refraction")
 
 
 class RENDERLAYER_UL_renderviews(UIList):
@@ -186,7 +89,7 @@ class RENDERLAYER_UL_renderviews(UIList):
 
 class RENDERLAYER_PT_views(RenderLayerButtonsPanel, Panel):
     bl_label = "Views"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
@@ -227,13 +130,98 @@ class RENDERLAYER_PT_views(RenderLayerButtonsPanel, Panel):
             row.prop(rv, "camera_suffix", text="")
 
 
+class RENDERLAYER_PT_clay_settings(RenderLayerButtonsPanel, Panel):
+    bl_label = "Render Settings"
+    COMPAT_ENGINES = {'BLENDER_CLAY'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        scene_props = scene.layer_properties['BLENDER_CLAY']
+        layer = bpy.context.render_layer
+        layer_props = layer.engine_overrides['BLENDER_CLAY']
+
+        col = layout.column()
+        col.template_override_property(layer_props, scene_props, "ssao_samples")
+
+
+class RENDERLAYER_PT_eevee_poststack_settings(RenderLayerButtonsPanel, Panel):
+    bl_label = "Post Process Stack"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        scene_props = scene.layer_properties['BLENDER_EEVEE']
+        layer = bpy.context.render_layer
+        layer_props = layer.engine_overrides['BLENDER_EEVEE']
+
+        col = layout.column()
+        col.template_override_property(layer_props, scene_props, "gtao_enable")
+        col.template_override_property(layer_props, scene_props, "motion_blur_enable")
+        col.template_override_property(layer_props, scene_props, "dof_enable")
+        col.template_override_property(layer_props, scene_props, "bloom_enable")
+
+
+class RENDERLAYER_PT_eevee_postprocess_settings(RenderLayerButtonsPanel, Panel):
+    bl_label = "Post Process Settings"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        scene_props = scene.layer_properties['BLENDER_EEVEE']
+        layer = bpy.context.render_layer
+        layer_props = layer.engine_overrides['BLENDER_EEVEE']
+
+        col = layout.column()
+        col.label("Ambient Occlusion:")
+        col.template_override_property(layer_props, scene_props, "gtao_use_bent_normals")
+        col.template_override_property(layer_props, scene_props, "gtao_samples")
+        col.template_override_property(layer_props, scene_props, "gtao_distance")
+        col.template_override_property(layer_props, scene_props, "gtao_factor")
+        col.separator()
+
+        col.label("Motion Blur:")
+        col.template_override_property(layer_props, scene_props, "motion_blur_samples")
+        col.template_override_property(layer_props, scene_props, "motion_blur_shutter")
+        col.separator()
+
+        col.label("Depth of Field:")
+        col.template_override_property(layer_props, scene_props, "bokeh_max_size")
+        col.template_override_property(layer_props, scene_props, "bokeh_threshold")
+        col.separator()
+
+        col.label("Bloom:")
+        col.template_override_property(layer_props, scene_props, "bloom_threshold")
+        col.template_override_property(layer_props, scene_props, "bloom_knee")
+        col.template_override_property(layer_props, scene_props, "bloom_radius")
+        col.template_override_property(layer_props, scene_props, "bloom_intensity")
+
+
 classes = (
     RENDERLAYER_UL_renderlayers,
     RENDERLAYER_PT_layers,
-    RENDERLAYER_PT_layer_options,
-    RENDERLAYER_PT_layer_passes,
     RENDERLAYER_UL_renderviews,
     RENDERLAYER_PT_views,
+    RENDERLAYER_PT_clay_settings,
+    RENDERLAYER_PT_eevee_poststack_settings,
+    RENDERLAYER_PT_eevee_postprocess_settings,
 )
 
 if __name__ == "__main__":  # only for live edit.

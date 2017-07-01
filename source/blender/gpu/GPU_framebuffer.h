@@ -52,10 +52,15 @@ typedef struct GPUOffScreen GPUOffScreen;
 void GPU_texture_bind_as_framebuffer(struct GPUTexture *tex);
 
 GPUFrameBuffer *GPU_framebuffer_create(void);
-int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, char err_out[256]);
-int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, struct GPUTexture *tex, int target, int slot, char err_out[256]);
+bool GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int mip);
+bool GPU_framebuffer_texture_layer_attach(
+        GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int layer, int mip);
+bool GPU_framebuffer_texture_cubeface_attach(
+        GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int face, int mip);
+int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, struct GPUTexture *tex, int target, int slot, int mip, bool forcet2d);
 void GPU_framebuffer_texture_detach(struct GPUTexture *tex);
-void GPU_framebuffer_texture_detach_target(GPUTexture *tex, int target);
+void GPU_framebuffer_texture_detach_target(struct GPUTexture *tex, int target);
+void GPU_framebuffer_bind(GPUFrameBuffer *fb);
 void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot);
 void GPU_framebuffer_texture_unbind(GPUFrameBuffer *fb, struct GPUTexture *tex);
 void GPU_framebuffer_free(GPUFrameBuffer *fb);
@@ -80,7 +85,7 @@ typedef enum GPURenderBufferType {
 	GPU_RENDERBUFFER_DEPTH = 1,
 } GPURenderBufferType;
 
-GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUHDRType hdrtype, GPURenderBufferType type, char err_out[256]);
+GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUTextureFormat data_type, GPURenderBufferType type, char err_out[256]);
 void GPU_renderbuffer_free(GPURenderBuffer *rb);
 GPUFrameBuffer *GPU_renderbuffer_framebuffer(GPURenderBuffer *rb);
 int GPU_renderbuffer_framebuffer_attachment(GPURenderBuffer *rb);
@@ -90,6 +95,14 @@ bool GPU_renderbuffer_depth(const GPURenderBuffer *rb);
 int GPU_renderbuffer_width(const GPURenderBuffer *rb);
 int GPU_renderbuffer_height(const GPURenderBuffer *rb);
 
+
+void GPU_framebuffer_blit(
+        GPUFrameBuffer *fb_read, int read_slot,
+        GPUFrameBuffer *fb_write, int write_slot, bool use_depth);
+
+void GPU_framebuffer_recursive_downsample(
+        GPUFrameBuffer *fb, struct GPUTexture *tex, int num_iter,
+        void (*callback)(void *userData, int level), void *userData);
 
 /* GPU OffScreen
  * - wrapper around framebuffer and texture for simple offscreen drawing
@@ -102,7 +115,7 @@ typedef enum GPUOffScreenMode {
 	GPU_OFFSCREEN_DEPTH_COMPARE = 1 << 2,
 } GPUOffScreenMode;
 
-GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRType hdrtype, int mode, char err_out[256]);
+GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUTextureFormat data_type, int mode, char err_out[256]);
 void GPU_offscreen_free(GPUOffScreen *ofs);
 void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
 void GPU_offscreen_bind_simple(GPUOffScreen *ofs);
@@ -115,6 +128,10 @@ int GPU_offscreen_samples(const GPUOffScreen *ofs);
 int GPU_offscreen_color_texture(const GPUOffScreen *ofs);
 GPUTexture *GPU_offscreen_texture(const GPUOffScreen *ofs);
 GPUTexture *GPU_offscreen_depth_texture(const GPUOffScreen *ofs);
+
+void GPU_offscreen_viewport_data_get(
+        GPUOffScreen *ofs,
+        GPUFrameBuffer **r_fb, struct GPUTexture **r_color, struct GPUTexture **r_depth);
 
 #ifdef __cplusplus
 }

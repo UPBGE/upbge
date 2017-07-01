@@ -77,6 +77,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_property_types.h"
 
+#include "GPU_texture.h"
+
 #include "KX_SG_NodeRelationships.h"
 
 #include "KX_NetworkMessageScene.h"
@@ -211,6 +213,21 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
+	//Set EEVEE DATA TEEEEEEEEEEMP
+	m_utilTex = m_blenderScene->eevee_util_tex;
+// 	GPU_texture_bind(m_utilTex, 7);
+	m_lightsUbo = m_blenderScene->eevee_ubo;
+	
+	m_probeTex = m_blenderScene->eevee_probe_tex;
+// 	GPU_texture_bind(m_probeTex, 6);
+	m_probeCount = m_blenderScene->eevee_probe_count;
+	m_probeLodMax = m_blenderScene->eevee_lod_max;
+
+// 	EEVEE_engine_init_scene_layer_data(EEVEE_engine_data_get(), &m_layerData);
+	memset(&m_layerData, 0, sizeof(EEVEE_SceneLayerData));
+	EEVEE_lights_init(&m_layerData);
+	EEVEE_lightprobes_init(&m_layerData, EEVEE_engine_data_get());
+
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
 
@@ -228,6 +245,8 @@ KX_Scene::~KX_Scene()
 	// It's still there but we remove all properties here otherwise some
 	// reference might be hanging and causing late release of objects
 	RemoveAllDebugProperties();
+
+	GPU_texture_unbind(m_utilTex);
 
 	while (GetRootParentList()->GetCount() > 0) 
 	{
@@ -300,6 +319,42 @@ KX_Scene::~KX_Scene()
 		Py_CLEAR(m_drawCallbacks[i]);
 	}
 #endif
+}
+
+// EEVEE DATA GET
+GPUUniformBuffer *KX_Scene::GetLightsUbo()
+{
+	return m_lightsUbo;
+}
+
+EEVEE_Light *KX_Scene::GetEeveeLightsData()
+{
+	return m_lightsData;
+}
+
+GPUTexture *KX_Scene::GetUtilTex()
+{
+	return m_utilTex;
+}
+
+GPUTexture *KX_Scene::GetProbeTex()
+{
+	return m_probeTex;
+}
+
+int KX_Scene::GetProbeCount()
+{
+	return m_probeCount;
+}
+
+float KX_Scene::GetProbeLodMax()
+{
+	return m_probeLodMax;
+}
+
+EEVEE_SceneLayerData& KX_Scene::GetSceneLayerData()
+{
+	return m_layerData;
 }
 
 std::string KX_Scene::GetName()
@@ -1342,9 +1397,11 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 		float pmat[16] = {0.0f};
 		cam->GetProjectionMatrix().getValue(pmat);
 
+		int viewport[4];
+		KX_GetActiveEngine()->GetCanvas()->GetViewportArea().Pack(viewport);
+
 		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback,&info,planes,6,m_dbvt_occlusion_res,
-		                                                 KX_GetActiveEngine()->GetCanvas()->GetViewPort(),
-		                                                 mvmat, pmat);
+		                                                 viewport, mvmat, pmat);
 	}
 	if (!dbvt_culling) {
 		KX_CullingHandler handler(nodes, cam->GetFrustum());

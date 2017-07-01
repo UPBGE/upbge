@@ -58,7 +58,6 @@
 #include "DNA_node_types.h"
 #include "DNA_material_types.h"
 
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -448,7 +447,7 @@ Text *BKE_text_load(Main *bmain, const char *file, const char *relpath)
 	return BKE_text_load_ex(bmain, file, relpath, false);
 }
 
-Text *BKE_text_copy(Main *bmain, Text *ta)
+Text *BKE_text_copy(Main *bmain, const Text *ta)
 {
 	Text *tan;
 	TextLine *line, *tmp;

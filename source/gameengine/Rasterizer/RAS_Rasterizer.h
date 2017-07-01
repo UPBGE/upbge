@@ -62,6 +62,7 @@ struct KX_ClientObjectInfo;
 class KX_RayCast;
 
 struct GPUShader;
+struct GPUViewport;
 
 /**
  * 3D rendering device context interface. 
@@ -296,26 +297,6 @@ private:
 		float *mat;
 	};
 
-	/// \section Interfaces used for frame buffer shaders.
-
-	struct OverrideShaderDrawFrameBufferInterface
-	{
-		int colorTexLoc;
-	};
-
-	struct OverrideShaderStereoStippleInterface
-	{
-		int leftEyeTexLoc;
-		int rightEyeTexLoc;
-		int stippleIdLoc;
-	};
-
-	struct OverrideShaderStereoAnaglyph
-	{
-		int leftEyeTexLoc;
-		int rightEyeTexLoc;
-	};
-
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, RAS_DebugDraw> m_debugDraws;
 
@@ -363,17 +344,16 @@ private:
 
 	OverrideShaderType m_overrideShader;
 
+	GPUViewport *m_viewport;
+
 	std::unique_ptr<RAS_StorageVBO> m_storage;
 	std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
-
-	/// Initialize custom shader interface containing uniform location.
-	void InitOverrideShadersInterface();
 
 	/// Return GPUShader coresponding to the override shader enumeration.
 	GPUShader *GetOverrideGPUShader(OverrideShaderType type);
 
-	void EnableLights();
-	void DisableLights();
+	/*void EnableLights();
+	void DisableLights();*/
 
 public:
 	RAS_Rasterizer();
@@ -489,6 +469,9 @@ public:
 	 */
 	void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen);
 
+	void BindViewport(RAS_ICanvas *canvas);
+	void UnbindViewport(RAS_ICanvas *canvas);
+
 	/**
 	 * GetRenderArea computes the render area from the 2d canvas.
 	 */
@@ -560,26 +543,17 @@ public:
 	/// Render text mesh slot using BLF functions.
 	void IndexPrimitivesText(RAS_MeshSlot *ms);
  
-	/* This one should become our final version, methinks. */
-	/**
-	 * Set the projection matrix for the rasterizer. This projects
-	 * from camera coordinates to window coordinates.
-	 * \param mat The projection matrix.
-	 */
-	void SetProjectionMatrix(const MT_Matrix4x4 &mat);
-
 	/// Get the modelview matrix according to the stereo settings.
 	MT_Matrix4x4 GetViewMatrix(StereoEye eye, const MT_Transform &camtrans, bool perspective);
 	/**
 	 * Sets the modelview matrix.
 	 */
-	void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Vector3 &pos, const MT_Vector3 &scale);
+	void SetMatrix(const MT_Matrix4x4 &viewmat, const MT_Matrix4x4& projmat, const MT_Vector3 &pos, const MT_Vector3 &scale);
 
 	/**
 	 * Get/Set viewport area
 	 */
 	void SetViewport(int x, int y, int width, int height);
-	void GetViewport(int *rect);
 
 	/**
 	 * Set scissor mask
@@ -594,9 +568,9 @@ public:
 	/**
 	 * Fog
 	 */
-	void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
+	/*void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
 	void DisplayFog();
-	void EnableFog(bool enable);
+	void EnableFog(bool enable);*/
 	
 	/**
 	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW or RAS_TEXTURED.
@@ -620,9 +594,9 @@ public:
 	void SetCullFace(bool enable);
 
 	/// Set and enable clip plane.
-	void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
+	//void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
 	/// Disable clip plane
-	void DisableClipPlane(unsigned short index);
+	//void DisableClipPlane(unsigned short index);
 
 	/**
 	 * Sets wireframe mode.
@@ -663,28 +637,28 @@ public:
 	        float left, float right, float bottom, float top,
 	        float frustnear, float frustfar);
 
-	/**
-	 * Sets the specular color component of the lighting equation.
-	 */
-	void SetSpecularity(float specX, float specY, float specZ, float specval);
-	
-	/**
-	 * Sets the specular exponent component of the lighting equation.
-	 */
-	void SetShinyness(float shiny);
+	///**
+	// * Sets the specular color component of the lighting equation.
+	// */
+	//void SetSpecularity(float specX, float specY, float specZ, float specval);
+	//
+	///**
+	// * Sets the specular exponent component of the lighting equation.
+	// */
+	//void SetShinyness(float shiny);
 
-	/**
-	 * Sets the diffuse color component of the lighting equation.
-	 */
-	void SetDiffuse(float difX,float difY, float difZ, float diffuse);
+	///**
+	// * Sets the diffuse color component of the lighting equation.
+	// */
+	//void SetDiffuse(float difX,float difY, float difZ, float diffuse);
 
-	/**
-	 * Sets the emissive color component of the lighting equation.
-	 */ 
-	void SetEmissive(float eX, float eY, float eZ, float e);
-	
+	///**
+	// * Sets the emissive color component of the lighting equation.
+	// */ 
+	//void SetEmissive(float eX, float eY, float eZ, float e);
+	//
 	void SetAmbientColor(const MT_Vector3& color);
-	void SetAmbient(float factor);
+	//void SetAmbient(float factor);
 
 	/**
 	 * Sets a polygon offset.  z depth will be: z1 = mult*z0 + add
@@ -710,9 +684,9 @@ public:
 	const MT_Matrix4x4 &GetViewMatrix() const;
 	const MT_Matrix4x4 &GetViewInvMatrix() const;
 
-	void EnableMotionBlur(float motionblurvalue);
+	/*void EnableMotionBlur(float motionblurvalue);
 	void DisableMotionBlur();
-	void SetMotionBlur(unsigned short state);
+	void SetMotionBlur(unsigned short state);*/
 
 	void SetAlphaBlend(int alphablend);
 	void SetFrontFace(bool ccw);
@@ -755,7 +729,7 @@ public:
 	        int fontid, const std::string& text, int size, int dpi,
 	        const float color[4], const float mat[16], float aspect);
 
-	void ProcessLighting(bool uselights, const MT_Transform &trans);
+	void ProcessLighting(bool uselights, const MT_Transform &trans, GPUShader *shader);
 
 	void PushMatrix();
 	void PopMatrix();
@@ -777,7 +751,7 @@ public:
 	/// Set the global depth texture to an empty texture.
 	void ResetGlobalDepthTexture();
 
-	void MotionBlur();
+	//void MotionBlur();
 
 	void SetClientObject(void *obj);
 

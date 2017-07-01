@@ -55,6 +55,7 @@
 #include "ED_paint.h"
 #include "ED_physics.h"
 #include "ED_render.h"
+#include "ED_scene.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
 #include "ED_space_api.h"
@@ -65,6 +66,7 @@
 #include "ED_clip.h"
 #include "ED_mask.h"
 #include "ED_sequencer.h"
+#include "ED_manipulator_library.h"
 
 #include "io_ops.h"
 
@@ -99,6 +101,8 @@ void ED_spacetypes_init(void)
 //	...
 	
 	/* register operator types for screen and all spaces */
+	ED_operatortypes_workspace();
+	ED_operatortypes_scene();
 	ED_operatortypes_screen();
 	ED_operatortypes_anim();
 	ED_operatortypes_animchannels();
@@ -121,12 +125,25 @@ void ED_spacetypes_init(void)
 	
 	ED_operatortypes_view2d();
 	ED_operatortypes_ui();
-	
-	/* register operators */
+
+	/* manipulator types */
+	ED_manipulatortypes_dial_3d();
+	ED_manipulatortypes_grab_3d();
+	ED_manipulatortypes_arrow_2d();
+	ED_manipulatortypes_arrow_3d();
+	ED_manipulatortypes_primitive_3d();
+	ED_manipulatortypes_cage_2d();
+
+	/* register types for operators and manipulators */
 	spacetypes = BKE_spacetypes_list();
 	for (type = spacetypes->first; type; type = type->next) {
-		if (type->operatortypes)
+		/* init manipulator types first, operator-types need them */
+		if (type->manipulators) {
+			type->manipulators();
+		}
+		if (type->operatortypes) {
 			type->operatortypes();
+		}
 	}
 
 	/* register internal render callbacks */
@@ -251,7 +268,6 @@ void ED_region_draw_cb_draw(const bContext *C, ARegion *ar, int type)
 	
 	for (rdc = ar->type->drawcalls.first; rdc; rdc = rdc->next) {
 		if (rdc->type == type) {
-			UI_reinit_gl_state();
 			rdc->draw(C, ar, rdc->customdata);
 		}
 	}

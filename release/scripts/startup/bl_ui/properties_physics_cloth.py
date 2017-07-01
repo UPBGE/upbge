@@ -64,6 +64,8 @@ class PHYSICS_PT_cloth(PhysicButtonsPanel, Panel):
 
         split = layout.split(percentage=0.25)
 
+        col = split.column()
+
         split.label(text="Presets:")
         sub = split.row(align=True)
         sub.menu("CLOTH_MT_presets", text=bpy.types.CLOTH_MT_presets.bl_label)

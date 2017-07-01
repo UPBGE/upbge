@@ -42,6 +42,7 @@
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 #include "DNA_brush_types.h"
@@ -204,7 +205,7 @@ void BKE_previewimg_clear(struct PreviewImage *prv)
 	}
 }
 
-PreviewImage *BKE_previewimg_copy(PreviewImage *prv)
+PreviewImage *BKE_previewimg_copy(const PreviewImage *prv)
 {
 	PreviewImage *prv_img = NULL;
 	int i;
@@ -222,7 +223,7 @@ PreviewImage *BKE_previewimg_copy(PreviewImage *prv)
 }
 
 /** Duplicate preview image from \a id and clear icon_id, to be used by datablock copy functions. */
-void BKE_previewimg_id_copy(ID *new_id, ID *old_id)
+void BKE_previewimg_id_copy(ID *new_id, const ID *old_id)
 {
 	PreviewImage **old_prv_p = BKE_previewimg_id_get_p(old_id);
 	PreviewImage **new_prv_p = BKE_previewimg_id_get_p(new_id);
@@ -239,7 +240,7 @@ void BKE_previewimg_id_copy(ID *new_id, ID *old_id)
 	}
 }
 
-PreviewImage **BKE_previewimg_id_get_p(ID *id)
+PreviewImage **BKE_previewimg_id_get_p(const ID *id)
 {
 	switch (GS(id->name)) {
 #define ID_PRV_CASE(id_code, id_struct) case id_code: { return &((id_struct *)id)->preview; } ((void)0)
@@ -252,6 +253,7 @@ PreviewImage **BKE_previewimg_id_get_p(ID *id)
 		ID_PRV_CASE(ID_OB, Object);
 		ID_PRV_CASE(ID_GR, Group);
 		ID_PRV_CASE(ID_SCE, Scene);
+		ID_PRV_CASE(ID_SCR, bScreen);
 #undef ID_PRV_CASE
 	}
 

@@ -57,6 +57,8 @@
 
 #include "RNA_access.h"
 
+#include "WM_api.h"
+
 #include "node_intern.h"  /* own include */
 
 
@@ -381,12 +383,12 @@ static void node_init(struct wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 
 }
 
-static void node_area_listener(bScreen *sc, ScrArea *sa, wmNotifier *wmn)
+static void node_area_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn, const Scene *scene)
 {
 	/* note, ED_area_tag_refresh will re-execute compositor */
 	SpaceNode *snode = sa->spacedata.first;
 	/* shaderfrom is only used for new shading nodes, otherwise all shaders are from objects */
-	short shader_type = BKE_scene_use_new_shading_nodes(sc->scene) ? snode->shaderfrom : SNODE_SHADER_OBJECT;
+	short shader_type = BKE_scene_use_new_shading_nodes(scene) ? snode->shaderfrom : SNODE_SHADER_OBJECT;
 
 	/* preview renders */
 	switch (wmn->category) {
@@ -643,6 +645,14 @@ static void node_main_region_init(wmWindowManager *wm, ARegion *ar)
 
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 
+	/* manipulators stay in the background for now - quick patchjob to make sure nodes themselves work */
+	if (ar->manipulator_map == NULL) {
+		ar->manipulator_map = WM_manipulatormap_new_from_type(
+		        &(const struct wmManipulatorMapType_Params){SPACE_NODE, RGN_TYPE_WINDOW});
+	}
+
+	WM_manipulatormap_add_handlers(ar, ar->manipulator_map);
+
 	/* own keymaps */
 	keymap = WM_keymap_find(wm->defaultconf, "Node Generic", SPACE_NODE, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
@@ -737,27 +747,55 @@ static void node_header_region_draw(const bContext *C, ARegion *ar)
 }
 
 /* used for header + main region */
-static void node_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+static void node_region_listener(
+        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
+        wmNotifier *wmn, const Scene *UNUSED(scene))
 {
+	wmManipulatorMap *mmap = ar->manipulator_map;
+
 	/* context changes */
 	switch (wmn->category) {
 		case NC_SPACE:
-			if (wmn->data == ND_SPACE_NODE)
-				ED_region_tag_redraw(ar);
+			switch (wmn->data) {
+				case ND_SPACE_NODE:
+					ED_region_tag_redraw(ar);
+					break;
+				case ND_SPACE_NODE_VIEW:
+					WM_manipulatormap_tag_refresh(mmap);
+					break;
+			}
 			break;
 		case NC_SCREEN:
+			if (wmn->data == ND_LAYOUTSET || wmn->action == NA_EDITED) {
+				WM_manipulatormap_tag_refresh(mmap);
+			}
 			switch (wmn->data) {
 				case ND_SCREENCAST:
 				case ND_ANIMPLAY:
+				case ND_LAYER:
 					ED_region_tag_redraw(ar);
 					break;
 			}
 			break;
+		case NC_WM:
+			if (wmn->data == ND_JOB)
+				ED_region_tag_redraw(ar);
+			break;
 		case NC_SCENE:
+			ED_region_tag_redraw(ar);
+			if (wmn->data == ND_RENDER_RESULT) {
+				WM_manipulatormap_tag_refresh(mmap);
+			}
+			break;
+		case NC_NODE:
+			ED_region_tag_redraw(ar);
+			if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
+				WM_manipulatormap_tag_refresh(mmap);
+			}
+			break;
 		case NC_MATERIAL:
 		case NC_TEXTURE:
 		case NC_WORLD:
-		case NC_NODE:
 		case NC_LINESTYLE:
 			ED_region_tag_redraw(ar);
 			break;
@@ -820,6 +858,14 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 	}
 
 	return 0;
+}
+
+static void node_widgets(void)
+{
+	/* create the widgetmap for the area here */
+	wmManipulatorMapType *mmap_type = WM_manipulatormaptype_ensure(
+	        &(const struct wmManipulatorMapType_Params){SPACE_NODE, RGN_TYPE_WINDOW});
+	WM_manipulatorgrouptype_append_and_link(mmap_type, NODE_WGT_backdrop_transform);
 }
 
 static void node_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
@@ -912,6 +958,7 @@ void ED_spacetype_node(void)
 	st->refresh = node_area_refresh;
 	st->context = node_context;
 	st->dropboxes = node_dropboxes;
+	st->manipulators = node_widgets;
 	st->id_remap = node_id_remap;
 
 	/* regions: main window */

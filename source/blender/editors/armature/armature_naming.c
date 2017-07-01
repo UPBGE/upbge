@@ -48,10 +48,11 @@
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_deform.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
+
+#include "DEG_depsgraph.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -311,8 +312,8 @@ typedef struct BoneFlipNameData {
  * This way if we are flipping related bones (e.g., Bone.L, Bone.R) at the same time
  * all the bones are safely renamed, without conflicting with each other.
  *
- * \param arm Armature the bones belong to
- * \param bones ListBase of BoneConflict elems, populated via ED_armature_bones_flip_names_add
+ * \param arm: Armature the bones belong to
+ * \param bones_names: List of BoneConflict elems.
  */
 void ED_armature_bones_flip_names(bArmature *arm, ListBase *bones_names)
 {
@@ -375,7 +376,7 @@ static int armature_flip_names_exec(bContext *C, wmOperator *UNUSED(op))
 	BLI_freelistN(&bones_names);
 	
 	/* since we renamed stuff... */
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	/* copied from #rna_Bone_update_renamed */
 	/* redraw view */
@@ -425,7 +426,7 @@ static int armature_autoside_names_exec(bContext *C, wmOperator *op)
 	CTX_DATA_END;
 	
 	/* since we renamed stuff... */
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);

@@ -38,6 +38,7 @@ struct DagForest;
 struct DagNode;
 struct Object;
 struct Scene;
+struct SceneLayer;
 struct ListBase;
 struct bArmature;
 struct Main;
@@ -259,15 +260,6 @@ typedef struct ModifierTypeInfo {
 	 * This function is optional (assumes never disabled if not present).
 	 */
 	bool (*isDisabled)(struct ModifierData *md, int userRenderParams);
-
-	/* Add the appropriate relations to the DEP graph depending on the
-	 * modifier data. 
-	 *
-	 * This function is optional.
-	 */
-	void (*updateDepgraph)(struct ModifierData *md, struct DagForest *forest,
-	                       struct Main *bmain, struct Scene *scene,
-	                       struct Object *ob, struct DagNode *obNode);
 
 	/* Add the appropriate relations to the dependency graph.
 	 *

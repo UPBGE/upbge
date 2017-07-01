@@ -24,6 +24,7 @@ set(INC
 	../../blenlib
 	../../blentranslation
 	../../bmesh
+	../../depsgraph
 	../../gpu
 	../../ikplugin
 	../../imbuf
@@ -46,6 +47,7 @@ set(SRC
 	object_bake_api.c
 	object_constraint.c
 	object_edit.c
+	object_facemap_ops.c
 	object_group.c
 	object_hook.c
 	object_lattice.c

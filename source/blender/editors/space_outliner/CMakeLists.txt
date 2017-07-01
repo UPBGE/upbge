@@ -23,6 +23,7 @@ set(INC
 	../../blenkernel
 	../../blenlib
 	../../blentranslation
+	../../depsgraph
 	../../imbuf
 	../../gpu
 	../../makesdna
@@ -37,12 +38,14 @@ set(INC_SYS
 )
 
 set(SRC
+	outliner_collections.c
 	outliner_draw.c
 	outliner_edit.c
 	outliner_ops.c
 	outliner_select.c
 	outliner_tools.c
 	outliner_tree.c
+	outliner_utils.c
 	space_outliner.c
 
 	outliner_intern.h

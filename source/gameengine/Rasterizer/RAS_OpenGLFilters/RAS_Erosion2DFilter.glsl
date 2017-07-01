@@ -1,5 +1,7 @@
 uniform sampler2D bgl_RenderedTexture;
 uniform vec2 bgl_TextureCoordinateOffset[9];
+in vec4 bgl_TexCoord;
+out vec4 fragColor;
 
 void main(void)
 {
@@ -8,10 +10,10 @@ void main(void)
 
 	for (int i = 0; i < 9; i++)
 	{
-		sample[i] = texture2D(bgl_RenderedTexture,
-		                      gl_TexCoord[0].st + bgl_TextureCoordinateOffset[i]);
+		sample[i] = texture(bgl_RenderedTexture,
+		                      bgl_TexCoord.xy + bgl_TextureCoordinateOffset[i]);
 		minValue = min(sample[i], minValue);
 	}
 
-	gl_FragColor = minValue;
+	fragColor = minValue;
 }

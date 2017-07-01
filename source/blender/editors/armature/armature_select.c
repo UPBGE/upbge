@@ -98,7 +98,7 @@ void *get_bone_from_selectbuffer(
 				/* Determine what the current bone is */
 				if (obedit == NULL || base->object != obedit) {
 					/* no singular posemode, so check for correct object */
-					if (base->selcol == (hitresult & 0xFFFF)) {
+					if (base->object->select_color == (hitresult & 0xFFFF)) {
 						bone = get_indexed_bone(base->object, hitresult);
 						
 						if (findunsel)
@@ -180,7 +180,7 @@ void *get_nearest_bone(bContext *C, const int xy[2], bool findunsel)
 	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect, VIEW3D_SELECT_PICK_NEAREST);
 
 	if (hits > 0)
-		return get_bone_from_selectbuffer(vc.scene, vc.scene->basact, buffer, hits, findunsel, true);
+		return get_bone_from_selectbuffer(vc.scene, vc.scene_layer->basact, buffer, hits, findunsel, true);
 	
 	return NULL;
 }

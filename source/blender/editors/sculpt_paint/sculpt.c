@@ -57,7 +57,6 @@
 #include "BKE_brush.h"
 #include "BKE_ccg.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_key.h"
@@ -72,6 +71,8 @@
 #include "BKE_object.h"
 #include "BKE_subsurf.h"
 #include "BKE_colortools.h"
+
+#include "DEG_depsgraph.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -626,8 +627,7 @@ static bool sculpt_get_redraw_rect(ARegion *ar, RegionView3D *rv3d,
 	return 1;
 }
 
-void ED_sculpt_redraw_planes_get(float planes[4][4], ARegion *ar,
-                                 RegionView3D *rv3d, Object *ob)
+void ED_sculpt_redraw_planes_get(float planes[4][4], ARegion *ar, Object *ob)
 {
 	PBVH *pbvh = ob->sculpt->pbvh;
 	/* copy here, original will be used below */
@@ -635,7 +635,7 @@ void ED_sculpt_redraw_planes_get(float planes[4][4], ARegion *ar,
 
 	sculpt_extend_redraw_rect_previous(ob, &rect);
 
-	paint_calc_redraw_planes(planes, ar, rv3d, ob, &rect);
+	paint_calc_redraw_planes(planes, ar, ob, &rect);
 
 	/* we will draw this rect, so now we can set it as the previous partial rect.
 	 * Note that we don't update with the union of previous/current (rect), only with
@@ -2043,6 +2043,10 @@ static void do_draw_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 	mul_v3_v3fl(offset, ss->cache->sculpt_normal_symm, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
+
+	/* XXX - this shouldn't be necessary, but sculpting crashes in blender2.8 otherwise
+	 * initialize before threads so they can do curve mapping */
+	curvemapping_initialize(brush->curve);
 
 	/* threaded loop over nodes */
 	SculptThreadedTaskData data = {
@@ -4608,7 +4612,7 @@ static void sculpt_flush_update(bContext *C)
 		GPU_drawobject_free(ob->derivedFinal);
 
 	if (ss->kb || ss->modifiers_active) {
-		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		ED_region_tag_redraw(ar);
 	}
 	else {
@@ -4792,7 +4796,7 @@ static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(str
 
 		/* try to avoid calling this, only for e.g. linked duplicates now */
 		if (((Mesh *)ob->data)->id.us > 1)
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 	}
@@ -5365,7 +5369,7 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 		 * a consistent state.
 		 */
 		if (true || flush_recalc || (ob->sculpt && ob->sculpt->bm)) {
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		}
 
 		if (me->flag & ME_SCULPT_DYNAMIC_TOPOLOGY) {
@@ -5390,7 +5394,7 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 		ob->mode |= mode_flag;
 
 		if (flush_recalc)
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 		/* Create persistent sculpt mode data */
 		if (!ts->sculpt) {

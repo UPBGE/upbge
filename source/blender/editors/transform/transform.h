@@ -50,6 +50,7 @@ struct Object;
 struct View3D;
 struct ScrArea;
 struct Scene;
+struct SceneLayer;
 struct bConstraint;
 struct wmKeyMap;
 struct wmKeyConfig;
@@ -446,6 +447,7 @@ typedef struct TransInfo {
 	short		launch_event; 	/* event type used to launch transform */
 
 	short		current_orientation;
+	TransformOrientation *custom_orientation; /* this gets used when current_orientation is V3D_MANIP_CUSTOM */
 	short		twtype;			/* backup from view3d, to restore on end */
 
 	short		prop_mode;
@@ -464,6 +466,7 @@ typedef struct TransInfo {
 	struct ScrArea	*sa;
 	struct ARegion	*ar;
 	struct Scene	*scene;
+	struct SceneLayer *scene_layer;
 	struct ToolSettings *settings;
 	struct wmTimer *animtimer;
 	struct wmKeyMap *keymap;  /* so we can do lookups for header text */
@@ -496,8 +499,7 @@ typedef struct TransInfo {
 #define T_CAMERA		(1 << 4)
 		 // trans on points, having no rotation/scale
 #define T_POINTS		(1 << 6)
-		// for manipulator exceptions, like scaling using center point, drawing help lines
-#define T_USES_MANIPULATOR	(1 << 7)
+/* empty slot - (1 << 7) */
 
 	/* restrictions flags */
 #define T_ALL_RESTRICTIONS	((1 << 8)|(1 << 9)|(1 << 10))
@@ -634,7 +636,10 @@ void flushTransMasking(TransInfo *t);
 void flushTransPaintCurve(TransInfo *t);
 void restoreBones(TransInfo *t);
 
-/*********************** exported from transform_manipulator.c ********** */
+/*********************** transform_manipulator.c ********** */
+
+#define MANIPULATOR_AXIS_LINE_WIDTH 2.0
+
 bool gimbal_axis(struct Object *ob, float gmat[3][3]); /* return 0 when no gimbal for selection */
 
 /*********************** TransData Creation and General Handling *********** */
@@ -649,7 +654,7 @@ bool transdata_check_local_islands(TransInfo *t, short around);
 int count_set_pose_transflags(int *out_mode, short around, struct Object *ob);
 
 /* auto-keying stuff used by special_aftertrans_update */
-void autokeyframe_ob_cb_func(struct bContext *C, struct Scene *scene, struct View3D *v3d, struct Object *ob, int tmode);
+void autokeyframe_ob_cb_func(struct bContext *C, struct Scene *scene, struct SceneLayer *sl, struct View3D *v3d, struct Object *ob, int tmode);
 void autokeyframe_pose_cb_func(struct bContext *C, struct Scene *scene, struct View3D *v3d, struct Object *ob, int tmode, short targetless_ik);
 
 /*********************** Constraints *****************************/
@@ -784,7 +789,7 @@ bool createSpaceNormalTangent(float mat[3][3], const float normal[3], const floa
 
 struct TransformOrientation *addMatrixSpace(struct bContext *C, float mat[3][3],
                                             const char *name, const bool overwrite);
-bool applyTransformOrientation(const struct bContext *C, float mat[3][3], char r_name[64], int index);
+bool applyTransformOrientation(const struct TransformOrientation *ts, float r_mat[3][3], char r_name[64]);
 
 #define ORIENTATION_NONE	0
 #define ORIENTATION_NORMAL	1

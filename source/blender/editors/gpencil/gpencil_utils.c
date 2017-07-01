@@ -204,7 +204,7 @@ bGPdata *ED_gpencil_data_get_active(const bContext *C)
 // XXX: this should be removed... We really shouldn't duplicate logic like this!
 bGPdata *ED_gpencil_data_get_active_v3d(Scene *scene, View3D *v3d)
 {
-	Base *base = scene->basact;
+	BaseLegacy *base = scene->basact;
 	bGPdata *gpd = NULL;
 	/* We have to make sure active object is actually visible and selected, else we must use default scene gpd,
 	 * to be consistent with ED_gpencil_data_get_active's behavior.
@@ -391,7 +391,16 @@ EnumPropertyItem *ED_gpencil_layers_with_new_enum_itemf(bContext *C, PointerRNA 
 /* ******************************************************** */
 /* Brush Tool Core */
 
-/* Check if part of stroke occurs within last segment drawn by eraser */
+/**
+ * Check whether a given stroke segment is inside a circular brush
+ *
+ * \param mval     The current screen-space coordinates (midpoint) of the brush
+ * \param mvalo    The previous screen-space coordinates (midpoint) of the brush (NOT CURRENTLY USED)
+ * \param rad      The radius of the brush
+ *
+ * \param x0, y0   The screen-space x and y coordinates of the start of the stroke segment
+ * \param x1, y1   The screen-space x and y coordinates of the end of the stroke segment
+ */
 bool gp_stroke_inside_circle(const int mval[2], const int UNUSED(mvalo[2]),
                              int rad, int x0, int y0, int x1, int y1)
 {
@@ -502,7 +511,11 @@ bGPDpalettecolor *ED_gpencil_stroke_getcolor(bGPdata *gpd, bGPDstroke *gps)
 /* ******************************************************** */
 /* Space Conversion */
 
-/* Init handling for space-conversion function (from passed-in parameters) */
+/**
+ * Init settings for stroke point space conversions
+ *
+ * \param r_gsc: [out] The space conversion settings struct, populated with necessary params
+ */
 void gp_point_conversion_init(bContext *C, GP_SpaceConversion *r_gsc)
 {
 	ScrArea *sa = CTX_wm_area(C);
@@ -521,6 +534,7 @@ void gp_point_conversion_init(bContext *C, GP_SpaceConversion *r_gsc)
 	if (sa->spacetype == SPACE_VIEW3D) {
 		wmWindow *win = CTX_wm_window(C);
 		Scene *scene = CTX_data_scene(C);
+		struct Depsgraph *graph = CTX_data_depsgraph(C);
 		View3D *v3d = (View3D *)CTX_wm_space_data(C);
 		RegionView3D *rv3d = ar->regiondata;
 		
@@ -528,7 +542,7 @@ void gp_point_conversion_init(bContext *C, GP_SpaceConversion *r_gsc)
 		view3d_operator_needs_opengl(C);
 		
 		view3d_region_operator_needs_opengl(win, ar);
-		ED_view3d_autodist_init(scene, ar, v3d, 0);
+		ED_view3d_autodist_init(graph, ar, v3d, 0);
 		
 		/* for camera view set the subrect */
 		if (rv3d->persp == RV3D_CAMOB) {
@@ -538,7 +552,13 @@ void gp_point_conversion_init(bContext *C, GP_SpaceConversion *r_gsc)
 	}
 }
 
-/* convert point to parent space */
+/**
+ * Convert point to parent space
+ *
+ * \param pt         Original point
+ * \param diff_mat   Matrix with the difference between original parent matrix
+ * \param[out] r_pt  Pointer to new point after apply matrix
+ */
 void gp_point_to_parent_space(bGPDspoint *pt, float diff_mat[4][4], bGPDspoint *r_pt) 
 {
 	float fpt[3];
@@ -547,7 +567,9 @@ void gp_point_to_parent_space(bGPDspoint *pt, float diff_mat[4][4], bGPDspoint *
 	copy_v3_v3(&r_pt->x, fpt);
 }
 
-/* Change position relative to parent object */
+/**
+ * Change points position relative to parent object
+ */
 void gp_apply_parent(bGPDlayer *gpl, bGPDstroke *gps)
 {
 	bGPDspoint *pt;
@@ -568,7 +590,9 @@ void gp_apply_parent(bGPDlayer *gpl, bGPDstroke *gps)
 	}
 }
 
-/* Change point position relative to parent object */
+/**
+ * Change point position relative to parent object
+ */
 void gp_apply_parent_point(bGPDlayer *gpl, bGPDspoint *pt)
 {
 	/* undo matrix */
@@ -583,8 +607,13 @@ void gp_apply_parent_point(bGPDlayer *gpl, bGPDspoint *pt)
 	copy_v3_v3(&pt->x, fpt);
 }
 
-/* Convert Grease Pencil points to screen-space values
- * WARNING: This assumes that the caller has already checked whether the stroke in question can be drawn
+/**
+ * Convert a Grease Pencil coordinate (i.e. can be 2D or 3D) to screenspace (2D)
+ *
+ * \param[out] r_x  The screen-space x-coordinate of the point
+ * \param[out] r_y  The screen-space y-coordinate of the point
+ *
+ * \warning This assumes that the caller has already checked whether the stroke in question can be drawn.
  */
 void gp_point_to_xy(GP_SpaceConversion *gsc, bGPDstroke *gps, bGPDspoint *pt,
                     int *r_x, int *r_y)
@@ -628,8 +657,16 @@ void gp_point_to_xy(GP_SpaceConversion *gsc, bGPDstroke *gps, bGPDspoint *pt,
 	}
 }
 
-/* Convert Grease Pencil points to screen-space values (as floats)
- * WARNING: This assumes that the caller has already checked whether the stroke in question can be drawn
+/**
+ * Convert a Grease Pencil coordinate (i.e. can be 2D or 3D) to screenspace (2D)
+ *
+ * Just like gp_point_to_xy(), except the resulting coordinates are floats not ints.
+ * Use this version to solve "stair-step" artifacts which may arise when roundtripping the calculations.
+ *
+ * \param r_x: [out] The screen-space x-coordinate of the point
+ * \param r_y: [out] The screen-space y-coordinate of the point
+ *
+ * \warning This assumes that the caller has already checked whether the stroke in question can be drawn
  */
 void gp_point_to_xy_fl(GP_SpaceConversion *gsc, bGPDstroke *gps, bGPDspoint *pt,
                        float *r_x, float *r_y)
@@ -688,6 +725,12 @@ void gp_point_to_xy_fl(GP_SpaceConversion *gsc, bGPDstroke *gps, bGPDspoint *pt,
 /**
  * Project screenspace coordinates to 3D-space
  *
+ * For use with editing tools where it is easier to perform the operations in 2D,
+ * and then later convert the transformed points back to 3D.
+ *
+ * \param screen_co: The screenspace 2D coordinates to convert to
+ * \param r_out: The resulting 3D coordinates of the input point
+ *
  * \note We include this as a utility function, since the standard method
  * involves quite a few steps, which are invariably always the same
  * for all GPencil operations. So, it's nicer to just centralize these.
@@ -722,7 +765,7 @@ bool gp_point_xy_to_3d(GP_SpaceConversion *gsc, Scene *scene, const float screen
 }
 
 /**
- * Apply smooth to stroke point 
+ * Apply smooth to stroke point
  * \param gps              Stroke to smooth
  * \param i                Point index
  * \param inf              Amount of smoothing to apply
@@ -868,8 +911,8 @@ bool gp_smooth_stroke_thickness(bGPDstroke *gps, int i, float inf)
 	ptc = &gps->points[after];
 
 	/* the optimal value is the corresponding to the interpolation of the pressure
-	*  at the distance of point b
-	*/
+	 *  at the distance of point b
+	 */
 	float fac = line_point_factor_v3(&ptb->x, &pta->x, &ptc->x);
 	float optimal = (1.0f - fac) * pta->pressure + fac * ptc->pressure;
 

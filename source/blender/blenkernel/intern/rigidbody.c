@@ -55,7 +55,6 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_cdderivedmesh.h"
-#include "BKE_depsgraph.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
@@ -184,7 +183,7 @@ void BKE_rigidbody_free_constraint(Object *ob)
  * be added to relevant groups later...
  */
 
-RigidBodyOb *BKE_rigidbody_copy_object(Object *ob)
+RigidBodyOb *BKE_rigidbody_copy_object(const Object *ob)
 {
 	RigidBodyOb *rboN = NULL;
 
@@ -204,7 +203,7 @@ RigidBodyOb *BKE_rigidbody_copy_object(Object *ob)
 	return rboN;
 }
 
-RigidBodyCon *BKE_rigidbody_copy_constraint(Object *ob)
+RigidBodyCon *BKE_rigidbody_copy_constraint(const Object *ob)
 {
 	RigidBodyCon *rbcN = NULL;
 
@@ -1589,7 +1588,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	}
 
 	/* advance simulation, we can only step one frame forward */
-	if (can_simulate) {
+	if (ctime == rbw->ltime + 1) {
 		/* write cache for first frame when on second frame */
 		if (rbw->ltime == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
 			BKE_ptcache_write(&pid, startframe);
@@ -1622,8 +1621,8 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 #  pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
 
-struct RigidBodyOb *BKE_rigidbody_copy_object(Object *ob) { return NULL; }
-struct RigidBodyCon *BKE_rigidbody_copy_constraint(Object *ob) { return NULL; }
+struct RigidBodyOb *BKE_rigidbody_copy_object(const Object *ob) { return NULL; }
+struct RigidBodyCon *BKE_rigidbody_copy_constraint(const Object *ob) { return NULL; }
 void BKE_rigidbody_validate_sim_world(Scene *scene, RigidBodyWorld *rbw, bool rebuild) {}
 void BKE_rigidbody_calc_volume(Object *ob, float *r_vol) { if (r_vol) *r_vol = 0.0f; }
 void BKE_rigidbody_calc_center_of_mass(Object *ob, float r_center[3]) { zero_v3(r_center); }
@@ -1652,7 +1651,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime) {}
 /* -------------------- */
 /* Depsgraph evaluation */
 
-void BKE_rigidbody_rebuild_sim(EvaluationContext *UNUSED(eval_ctx),
+void BKE_rigidbody_rebuild_sim(struct EvaluationContext *UNUSED(eval_ctx),
                                Scene *scene)
 {
 	float ctime = BKE_scene_frame_get(scene);
@@ -1667,7 +1666,7 @@ void BKE_rigidbody_rebuild_sim(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_rigidbody_eval_simulation(EvaluationContext *UNUSED(eval_ctx),
+void BKE_rigidbody_eval_simulation(struct EvaluationContext *UNUSED(eval_ctx),
                                    Scene *scene)
 {
 	float ctime = BKE_scene_frame_get(scene);
@@ -1682,7 +1681,7 @@ void BKE_rigidbody_eval_simulation(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_rigidbody_object_sync_transforms(EvaluationContext *UNUSED(eval_ctx),
+void BKE_rigidbody_object_sync_transforms(struct EvaluationContext *UNUSED(eval_ctx),
                                           Scene *scene,
                                           Object *ob)
 {

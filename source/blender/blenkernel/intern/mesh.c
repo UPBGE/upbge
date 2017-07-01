@@ -59,7 +59,6 @@
 #include "BKE_multires.h"
 #include "BKE_key.h"
 #include "BKE_mball.h"
-#include "BKE_depsgraph.h"
 /* these 2 are only used by conversion functions */
 #include "BKE_curve.h"
 /* -- */
@@ -127,7 +126,7 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 	
 	for (i = 0; i < c1->totlayer; i++) {
 		if (ELEM(c1->layers[i].type, CD_MVERT, CD_MEDGE, CD_MPOLY,
-		         CD_MLOOPUV, CD_MLOOPCOL, CD_MTEXPOLY, CD_MDEFORMVERT))
+		         CD_MLOOPUV, CD_MLOOPCOL, CD_MDEFORMVERT))
 		{
 			i1++;
 		}
@@ -135,7 +134,7 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 
 	for (i = 0; i < c2->totlayer; i++) {
 		if (ELEM(c2->layers[i].type, CD_MVERT, CD_MEDGE, CD_MPOLY,
-		         CD_MLOOPUV, CD_MLOOPCOL, CD_MTEXPOLY, CD_MDEFORMVERT))
+		         CD_MLOOPUV, CD_MLOOPCOL, CD_MDEFORMVERT))
 		{
 			i2++;
 		}
@@ -149,14 +148,14 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 	i1 = 0; i2 = 0;
 	for (i = 0; i < tot; i++) {
 		while (i1 < c1->totlayer && !ELEM(l1->type, CD_MVERT, CD_MEDGE, CD_MPOLY,
-		                                  CD_MLOOPUV, CD_MLOOPCOL, CD_MTEXPOLY, CD_MDEFORMVERT))
+		                                  CD_MLOOPUV, CD_MLOOPCOL, CD_MDEFORMVERT))
 		{
 			i1++;
 			l1++;
 		}
 
 		while (i2 < c2->totlayer && !ELEM(l2->type, CD_MVERT, CD_MEDGE, CD_MPOLY,
-		                                  CD_MLOOPUV, CD_MLOOPCOL, CD_MTEXPOLY, CD_MDEFORMVERT))
+		                                  CD_MLOOPUV, CD_MLOOPCOL, CD_MDEFORMVERT))
 		{
 			i2++;
 			l2++;
@@ -324,7 +323,7 @@ static void mesh_ensure_tessellation_customdata(Mesh *me)
 		 * Callers could also check but safer to do here - campbell */
 	}
 	else {
-		const int tottex_original = CustomData_number_of_layers(&me->pdata, CD_MTEXPOLY);
+		const int tottex_original = CustomData_number_of_layers(&me->ldata, CD_MLOOPUV);
 		const int totcol_original = CustomData_number_of_layers(&me->ldata, CD_MLOOPCOL);
 
 		const int tottex_tessface = CustomData_number_of_layers(&me->fdata, CD_MTFACE);
@@ -335,7 +334,7 @@ static void mesh_ensure_tessellation_customdata(Mesh *me)
 		{
 			BKE_mesh_tessface_clear(me);
 
-			CustomData_from_bmeshpoly(&me->fdata, &me->pdata, &me->ldata, me->totface);
+			CustomData_from_bmeshpoly(&me->fdata, &me->ldata, me->totface);
 
 			/* TODO - add some --debug-mesh option */
 			if (G.debug & G_DEBUG) {
@@ -344,7 +343,7 @@ static void mesh_ensure_tessellation_customdata(Mesh *me)
 				 * and check if there was any data to begin with, for now just print the warning with
 				 * some info to help troubleshoot whats going on - campbell */
 				printf("%s: warning! Tessellation uvs or vcol data got out of sync, "
-				       "had to reset!\n    CD_MTFACE: %d != CD_MTEXPOLY: %d || CD_MCOL: %d != CD_MLOOPCOL: %d\n",
+				       "had to reset!\n    CD_MTFACE: %d != CD_MLOOPUV: %d || CD_MCOL: %d != CD_MLOOPCOL: %d\n",
 				       __func__, tottex_tessface, tottex_original, totcol_tessface, totcol_original);
 			}
 		}
@@ -396,14 +395,11 @@ void BKE_mesh_ensure_skin_customdata(Mesh *me)
  * versions of the mesh. - campbell*/
 static void mesh_update_linked_customdata(Mesh *me, const bool do_ensure_tess_cd)
 {
-	if (me->edit_btmesh)
-		BKE_editmesh_update_linked_customdata(me->edit_btmesh);
-
 	if (do_ensure_tess_cd) {
 		mesh_ensure_tessellation_customdata(me);
 	}
 
-	CustomData_bmesh_update_active_layers(&me->fdata, &me->pdata, &me->ldata);
+	CustomData_bmesh_update_active_layers(&me->fdata, &me->ldata);
 }
 
 void BKE_mesh_update_customdata_pointers(Mesh *me, const bool do_ensure_tess_cd)
@@ -422,7 +418,6 @@ void BKE_mesh_update_customdata_pointers(Mesh *me, const bool do_ensure_tess_cd)
 	me->mpoly = CustomData_get_layer(&me->pdata, CD_MPOLY);
 	me->mloop = CustomData_get_layer(&me->ldata, CD_MLOOP);
 
-	me->mtpoly = CustomData_get_layer(&me->pdata, CD_MTEXPOLY);
 	me->mloopcol = CustomData_get_layer(&me->ldata, CD_MLOOPCOL);
 	me->mloopuv = CustomData_get_layer(&me->ldata, CD_MLOOPUV);
 }
@@ -441,6 +436,8 @@ bool BKE_mesh_has_custom_loop_normals(Mesh *me)
 void BKE_mesh_free(Mesh *me)
 {
 	BKE_animdata_free(&me->id, false);
+
+	BKE_mesh_batch_cache_free(me);
 
 	CustomData_free(&me->vdata, me->totvert);
 	CustomData_free(&me->edata, me->totedge);
@@ -501,7 +498,7 @@ Mesh *BKE_mesh_add(Main *bmain, const char *name)
 	return me;
 }
 
-Mesh *BKE_mesh_copy(Main *bmain, Mesh *me)
+Mesh *BKE_mesh_copy(Main *bmain, const Mesh *me)
 {
 	Mesh *men;
 	int a;
@@ -529,6 +526,7 @@ Mesh *BKE_mesh_copy(Main *bmain, Mesh *me)
 	BKE_mesh_update_customdata_pointers(men, do_tessface);
 
 	men->edit_btmesh = NULL;
+	men->batch_cache = NULL;
 
 	men->mselect = MEM_dupallocN(men->mselect);
 	men->bb = MEM_dupallocN(men->bb);
@@ -583,24 +581,34 @@ bool BKE_mesh_uv_cdlayer_rename_index(Mesh *me, const int poly_index, const int 
 		ldata = &me->ldata;
 		fdata = &me->fdata;
 	}
-	cdlp = &pdata->layers[poly_index];
+	cdlp = (poly_index != -1) ? &pdata->layers[poly_index] : NULL;
 	cdlu = &ldata->layers[loop_index];
 	cdlf = fdata && do_tessface ? &fdata->layers[face_index] : NULL;
 
-	if (cdlp->name != new_name) {
+	if (cdlp == NULL && cdlf == NULL) {
+		return false;
+	}
+
+	if (cdlu->name != new_name) {
 		/* Mesh validate passes a name from the CD layer as the new name,
 		 * Avoid memcpy from self to self in this case.
 		 */
-		BLI_strncpy(cdlp->name, new_name, sizeof(cdlp->name));
-		CustomData_set_layer_unique_name(pdata, cdlp - pdata->layers);
+		BLI_strncpy(cdlu->name, new_name, sizeof(cdlu->name));
+		CustomData_set_layer_unique_name(pdata, cdlu - pdata->layers);
 	}
 
 	/* Loop until we do have exactly the same name for all layers! */
-	for (i = 1; !STREQ(cdlp->name, cdlu->name) || (cdlf && !STREQ(cdlp->name, cdlf->name)); i++) {
+	for (i = 1;
+	     (cdlp && !STREQ(cdlp->name, cdlu->name)) ||
+	     (cdlf && !STREQ(cdlp->name, cdlf->name));
+	     i++)
+	{
 		switch (i % step) {
 			case 0:
-				BLI_strncpy(cdlp->name, cdlu->name, sizeof(cdlp->name));
-				CustomData_set_layer_unique_name(pdata, cdlp - pdata->layers);
+				if (cdlp) {
+					BLI_strncpy(cdlp->name, cdlu->name, sizeof(cdlp->name));
+					CustomData_set_layer_unique_name(pdata, cdlp - pdata->layers);
+				}
 				break;
 			case 1:
 				BLI_strncpy(cdlu->name, cdlp->name, sizeof(cdlu->name));
@@ -608,7 +616,7 @@ bool BKE_mesh_uv_cdlayer_rename_index(Mesh *me, const int poly_index, const int 
 				break;
 			case 2:
 				if (cdlf) {
-					BLI_strncpy(cdlf->name, cdlp->name, sizeof(cdlf->name));
+					BLI_strncpy(cdlf->name, cdlu->name, sizeof(cdlf->name));
 					CustomData_set_layer_unique_name(fdata, cdlf - fdata->layers);
 				}
 				break;
@@ -620,66 +628,44 @@ bool BKE_mesh_uv_cdlayer_rename_index(Mesh *me, const int poly_index, const int 
 
 bool BKE_mesh_uv_cdlayer_rename(Mesh *me, const char *old_name, const char *new_name, bool do_tessface)
 {
-	CustomData *pdata, *ldata, *fdata;
+	CustomData *ldata, *fdata;
 	if (me->edit_btmesh) {
-		pdata = &me->edit_btmesh->bm->pdata;
 		ldata = &me->edit_btmesh->bm->ldata;
 		/* No tessellated data in BMesh! */
 		fdata = NULL;
 		do_tessface = false;
 	}
 	else {
-		pdata = &me->pdata;
 		ldata = &me->ldata;
 		fdata = &me->fdata;
 		do_tessface = (do_tessface && fdata->totlayer);
 	}
 
 	{
-		const int pidx_start = CustomData_get_layer_index(pdata, CD_MTEXPOLY);
 		const int lidx_start = CustomData_get_layer_index(ldata, CD_MLOOPUV);
 		const int fidx_start = do_tessface ? CustomData_get_layer_index(fdata, CD_MTFACE) : -1;
-		int pidx = CustomData_get_named_layer(pdata, CD_MTEXPOLY, old_name);
 		int lidx = CustomData_get_named_layer(ldata, CD_MLOOPUV, old_name);
 		int fidx = do_tessface ? CustomData_get_named_layer(fdata, CD_MTFACE, old_name) : -1;
 
 		/* None of those cases should happen, in theory!
 		 * Note this assume we have the same number of mtexpoly, mloopuv and mtface layers!
 		 */
-		if (pidx == -1) {
-			if (lidx == -1) {
-				if (fidx == -1) {
-					/* No layer found with this name! */
-					return false;
-				}
-				else {
-					lidx = fidx;
-				}
+		if (lidx == -1) {
+			if (fidx == -1) {
+				/* No layer found with this name! */
+				return false;
 			}
-			pidx = lidx;
-		}
-		else {
-			if (lidx == -1) {
-				lidx = pidx;
-			}
-			if (fidx == -1 && do_tessface) {
-				fidx = pidx;
+			else {
+				lidx = fidx;
 			}
 		}
-#if 0
-		/* For now, we do not consider mismatch in indices (i.e. same name leading to (relative) different indices). */
-		else if (pidx != lidx) {
-			lidx = pidx;
-		}
-#endif
 
 		/* Go back to absolute indices! */
-		pidx += pidx_start;
 		lidx += lidx_start;
 		if (fidx != -1)
 			fidx += fidx_start;
 
-		return BKE_mesh_uv_cdlayer_rename_index(me, pidx, lidx, fidx, new_name, do_tessface);
+		return BKE_mesh_uv_cdlayer_rename_index(me, -1, lidx, fidx, new_name, do_tessface);
 	}
 }
 
@@ -755,6 +741,18 @@ void BKE_mesh_texspace_get(Mesh *me, float r_loc[3], float r_rot[3], float r_siz
 	if (r_loc) copy_v3_v3(r_loc,  me->loc);
 	if (r_rot) copy_v3_v3(r_rot,  me->rot);
 	if (r_size) copy_v3_v3(r_size, me->size);
+}
+
+void BKE_mesh_texspace_get_reference(Mesh *me, short **r_texflag,  float **r_loc, float **r_rot, float **r_size)
+{
+	if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
+		BKE_mesh_texspace_calc(me);
+	}
+
+	if (r_texflag != NULL) *r_texflag = &me->texflag;
+	if (r_loc != NULL) *r_loc = me->loc;
+	if (r_rot != NULL) *r_rot = me->rot;
+	if (r_size != NULL) *r_size = me->size;
 }
 
 void BKE_mesh_texspace_copy_from_object(Mesh *me, Object *ob)
@@ -1339,7 +1337,7 @@ int BKE_mesh_nurbs_displist_to_mdata(
 
 
 /* this may fail replacing ob->data, be sure to check ob->type */
-void BKE_mesh_from_nurbs_displist(Object *ob, ListBase *dispbase, const bool use_orco_uv)
+void BKE_mesh_from_nurbs_displist(Object *ob, ListBase *dispbase, const bool use_orco_uv, const char *obdata_name)
 {
 	Main *bmain = G.main;
 	Object *ob1;
@@ -1366,7 +1364,7 @@ void BKE_mesh_from_nurbs_displist(Object *ob, ListBase *dispbase, const bool use
 		}
 
 		/* make mesh */
-		me = BKE_mesh_add(bmain, "Mesh");
+		me = BKE_mesh_add(bmain, obdata_name);
 		me->totvert = totvert;
 		me->totedge = totedge;
 		me->totloop = totloop;
@@ -1379,14 +1377,13 @@ void BKE_mesh_from_nurbs_displist(Object *ob, ListBase *dispbase, const bool use
 
 		if (alluv) {
 			const char *uvname = "Orco";
-			me->mtpoly = CustomData_add_layer_named(&me->pdata, CD_MTEXPOLY, CD_DEFAULT, NULL, me->totpoly, uvname);
 			me->mloopuv = CustomData_add_layer_named(&me->ldata, CD_MLOOPUV, CD_ASSIGN, alluv, me->totloop, uvname);
 		}
 
 		BKE_mesh_calc_normals(me);
 	}
 	else {
-		me = BKE_mesh_add(bmain, "Mesh");
+		me = BKE_mesh_add(bmain, obdata_name);
 		DM_to_mesh(dm, me, ob, CD_MASK_MESH, false);
 	}
 
@@ -1398,9 +1395,7 @@ void BKE_mesh_from_nurbs_displist(Object *ob, ListBase *dispbase, const bool use
 	cu->mat = NULL;
 	cu->totcol = 0;
 
-	if (ob->data) {
-		BKE_libblock_free(bmain, ob->data);
-	}
+	/* Do not decrement ob->data usercount here, it's done at end of func with BKE_libblock_free_us() call. */
 	ob->data = me;
 	ob->type = OB_MESH;
 
@@ -1410,11 +1405,14 @@ void BKE_mesh_from_nurbs_displist(Object *ob, ListBase *dispbase, const bool use
 		if (ob1->data == cu) {
 			ob1->type = OB_MESH;
 		
+			id_us_min((ID *)ob1->data);
 			ob1->data = ob->data;
-			id_us_plus((ID *)ob->data);
+			id_us_plus((ID *)ob1->data);
 		}
 		ob1 = ob1->id.next;
 	}
+
+	BKE_libblock_free_us(bmain, cu);
 }
 
 void BKE_mesh_from_nurbs(Object *ob)
@@ -1427,7 +1425,7 @@ void BKE_mesh_from_nurbs(Object *ob)
 		disp = ob->curve_cache->disp;
 	}
 
-	BKE_mesh_from_nurbs_displist(ob, &disp, use_orco_uv);
+	BKE_mesh_from_nurbs_displist(ob, &disp, use_orco_uv, cu->id.name);
 }
 
 typedef struct EdgeLink {
@@ -2486,7 +2484,7 @@ Mesh *BKE_mesh_new_from_object(
 
 			/* convert object type to mesh */
 			uv_from_orco = (tmpcu->flag & CU_UV_ORCO) != 0;
-			BKE_mesh_from_nurbs_displist(tmpobj, &dispbase, uv_from_orco);
+			BKE_mesh_from_nurbs_displist(tmpobj, &dispbase, uv_from_orco, tmpcu->id.name + 2);
 
 			tmpmesh = tmpobj->data;
 
@@ -2522,7 +2520,7 @@ Mesh *BKE_mesh_new_from_object(
 			if (ob != basis_ob)
 				return NULL;  /* only do basis metaball */
 
-			tmpmesh = BKE_mesh_add(bmain, "Mesh");
+			tmpmesh = BKE_mesh_add(bmain, ((ID *)ob->data)->name + 2);
 			/* BKE_mesh_add gives us a user count we don't need */
 			id_us_min(&tmpmesh->id);
 
@@ -2577,7 +2575,7 @@ Mesh *BKE_mesh_new_from_object(
 				else
 					dm = mesh_create_derived_view(sce, ob, mask);
 
-				tmpmesh = BKE_mesh_add(bmain, "Mesh");
+				tmpmesh = BKE_mesh_add(bmain, ((ID *)ob->data)->name + 2);
 				DM_to_mesh(dm, tmpmesh, ob, mask, true);
 
 				/* Copy autosmooth settings from original mesh. */
@@ -2674,5 +2672,22 @@ void BKE_mesh_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
 	}
 	if (mesh->bb == NULL || (mesh->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(mesh);
+	}
+}
+
+/* Draw Engine */
+void (*BKE_mesh_batch_cache_dirty_cb)(Mesh *me, int mode) = NULL;
+void (*BKE_mesh_batch_cache_free_cb)(Mesh *me) = NULL;
+
+void BKE_mesh_batch_cache_dirty(Mesh *me, int mode)
+{
+	if (me->batch_cache) {
+		BKE_mesh_batch_cache_dirty_cb(me, mode);
+	}
+}
+void BKE_mesh_batch_cache_free(Mesh *me)
+{
+	if (me->batch_cache) {
+		BKE_mesh_batch_cache_free_cb(me);
 	}
 }

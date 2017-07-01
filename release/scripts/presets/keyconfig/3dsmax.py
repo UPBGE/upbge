@@ -7,7 +7,7 @@ kc = wm.keyconfigs.new('3dsmax')
 # Map Window
 km = kc.keymaps.new('Window', space_type='EMPTY', region_type='WINDOW', modal=False)
 
-kmi = km.keymap_items.new('wm.window_duplicate', 'W', 'PRESS', ctrl=True, alt=True)
+kmi = km.keymap_items.new('wm.window_new', 'W', 'PRESS', ctrl=True, alt=True)
 kmi = km.keymap_items.new('wm.read_homefile', 'N', 'PRESS', ctrl=True)
 kmi = km.keymap_items.new('wm.save_homefile', 'U', 'PRESS', ctrl=True)
 kmi = km.keymap_items.new('wm.call_menu', 'O', 'PRESS', shift=True, ctrl=True)
@@ -330,7 +330,6 @@ kmi = km.keymap_items.new('object.hide_view_set', 'H', 'PRESS', shift=True)
 kmi.properties.unselected = True
 kmi = km.keymap_items.new('object.hide_render_clear', 'H', 'PRESS', ctrl=True, alt=True)
 kmi = km.keymap_items.new('object.hide_render_set', 'H', 'PRESS', ctrl=True)
-kmi = km.keymap_items.new('object.move_to_layer', 'M', 'PRESS')
 kmi = km.keymap_items.new('object.delete', 'X', 'PRESS')
 kmi.properties.use_global = False
 kmi = km.keymap_items.new('object.delete', 'X', 'PRESS', shift=True)

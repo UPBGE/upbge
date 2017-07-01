@@ -75,6 +75,12 @@ static GPUSelectState g_select_state = {0};
  */
 void GPU_select_begin(unsigned int *buffer, unsigned int bufsize, const rcti *input, char mode, int oldhits)
 {
+	if (mode == GPU_SELECT_NEAREST_SECOND_PASS) {
+		/* In the case hits was '-1', don't start the second pass since it's not going to give useful results.
+		 * As well as buffer overflow in 'gpu_select_query_load_id'. */
+		BLI_assert(oldhits != -1);
+	}
+
 	g_select_state.select_is_active = true;
 	g_select_state.use_gpu_select = GPU_select_query_check_active();
 	g_select_state.mode = mode;
@@ -181,12 +187,7 @@ unsigned int GPU_select_end(void)
  */
 bool GPU_select_query_check_active(void)
 {
-	return ((U.gpu_select_method == USER_SELECT_USE_OCCLUSION_QUERY) ||
-	        ((U.gpu_select_method == USER_SELECT_AUTO) &&
-	         (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY) ||
-	          /* unsupported by nouveau, gallium 0.4, see: T47940 */
-	          GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE))));
-
+	return ELEM(U.gpu_select_method, USER_SELECT_USE_OCCLUSION_QUERY, USER_SELECT_AUTO);
 }
 
 /* ----------------------------------------------------------------------------

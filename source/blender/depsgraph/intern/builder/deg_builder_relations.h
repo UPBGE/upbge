@@ -45,7 +45,7 @@
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_operation.h"
 
-struct Base;
+struct BaseLegacy;
 struct bGPdata;
 struct CacheFile;
 struct ListBase;
@@ -54,6 +54,7 @@ struct ID;
 struct FCurve;
 struct Group;
 struct Key;
+struct LayerCollection;
 struct Main;
 struct Mask;
 struct Material;
@@ -83,10 +84,6 @@ struct TimeSourceDepsNode;
 struct ComponentDepsNode;
 struct OperationDepsNode;
 struct RootPChanMap;
-
-struct RootKey {
-	RootKey();
-};
 
 struct TimeSourceKey
 {
@@ -226,15 +223,39 @@ struct DepsgraphRelationBuilder
 	void build_cachefile(CacheFile *cache_file);
 	void build_mask(Mask *mask);
 	void build_movieclip(MovieClip *clip);
+	void build_lightprobe(Object *object);
 
-	void add_collision_relations(const OperationKey &key, Scene *scene, Object *ob, Group *group, int layer, bool dupli, const char *name);
-	void add_forcefield_relations(const OperationKey &key, Scene *scene, Object *ob, ParticleSystem *psys, EffectorWeights *eff, bool add_absorption, const char *name);
+	void add_collision_relations(const OperationKey &key,
+	                             Scene *scene, Object *ob, Group *group,
+	                             bool dupli, const char *name);
+	void add_forcefield_relations(const OperationKey &key,
+	                              Scene *scene, Object *ob, ParticleSystem *psys,
+	                              EffectorWeights *eff,
+	                              bool add_absorption, const char *name);
+
+	struct LayerCollectionState {
+		int index;
+		OperationKey init_key;
+		OperationKey done_key;
+		OperationKey prev_key;
+	};
+	void build_layer_collection(Scene *scene,
+	                            LayerCollection *layer_collection,
+	                            LayerCollectionState *state);
+	void build_layer_collections(Scene *scene,
+	                             ListBase *layer_collections,
+	                             LayerCollectionState *state);
+	void build_scene_layer_collections(Scene *scene);
+
+	void build_copy_on_write_relations();
+	void build_copy_on_write_relations(IDDepsNode *id_node);
 
 	template <typename KeyType>
 	OperationDepsNode *find_operation_node(const KeyType &key);
 
+	Depsgraph *getGraph();
+
 protected:
-	RootDepsNode *find_node(const RootKey &key) const;
 	TimeSourceDepsNode *find_node(const TimeSourceKey &key) const;
 	ComponentDepsNode *find_node(const ComponentKey &key) const;
 	OperationDepsNode *find_node(const OperationKey &key) const;

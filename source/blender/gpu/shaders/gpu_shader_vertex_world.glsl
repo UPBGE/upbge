@@ -1,8 +1,7 @@
 
-varying vec3 varposition;
-varying vec3 varnormal;
-
-varying float gl_ClipDistance[6];
+out vec3 varposition;
+out vec3 varnormal;
+out float gl_ClipDistance[6];
 
 /* Color, keep in sync with: gpu_shader_vertex.glsl */
 

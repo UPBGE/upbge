@@ -49,7 +49,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BIF_gl.h"
+#include "GPU_immediate.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
@@ -78,7 +78,7 @@
 #include "transform.h"
 
 /* this should be passed as an arg for use in snap functions */
-#undef BASACT
+#undef BASACT_NEW
 
 /* use half of flt-max so we can scale up without an exception */
 
@@ -163,36 +163,42 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 			size = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
 			
 			invert_m4_m4(imat, rv3d->viewmat);
-			
+
+			unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+			immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
 			for (p = t->tsnap.points.first; p; p = p->next) {
 				if (p == t->tsnap.selectedPoint) {
-					glColor4ubv(selectedCol);
+					immUniformColor4ubv(selectedCol);
 				}
 				else {
-					glColor4ubv(col);
+					immUniformColor4ubv(col);
 				}
 				
-				drawcircball(GL_LINE_LOOP, p->co, ED_view3d_pixel_size(rv3d, p->co) * size * 0.75f, imat);
+				imm_drawcircball(p->co, ED_view3d_pixel_size(rv3d, p->co) * size * 0.75f, imat, pos);
 			}
 			
 			if (t->tsnap.status & POINT_INIT) {
-				glColor4ubv(activeCol);
+				immUniformColor4ubv(activeCol);
 				
-				drawcircball(GL_LINE_LOOP, t->tsnap.snapPoint, ED_view3d_pixel_size(rv3d, t->tsnap.snapPoint) * size, imat);
+				imm_drawcircball(t->tsnap.snapPoint, ED_view3d_pixel_size(rv3d, t->tsnap.snapPoint) * size, imat, pos);
 			}
 			
 			/* draw normal if needed */
 			if (usingSnappingNormal(t) && validSnappingNormal(t)) {
-				glColor4ubv(activeCol);
+				immUniformColor4ubv(activeCol);
 				
-				glBegin(GL_LINES);
-				glVertex3f(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], t->tsnap.snapPoint[2]);
-				glVertex3f(t->tsnap.snapPoint[0] + t->tsnap.snapNormal[0],
-				           t->tsnap.snapPoint[1] + t->tsnap.snapNormal[1],
-				           t->tsnap.snapPoint[2] + t->tsnap.snapNormal[2]);
-				glEnd();
+				immBegin(GWN_PRIM_LINES, 2);
+				immVertex3f(pos, t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], t->tsnap.snapPoint[2]);
+				immVertex3f(pos, t->tsnap.snapPoint[0] + t->tsnap.snapNormal[0],
+				            t->tsnap.snapPoint[1] + t->tsnap.snapNormal[1],
+				            t->tsnap.snapPoint[2] + t->tsnap.snapNormal[2]);
+				immEnd();
 			}
-			
+
+			immUnbindProgram();
+
 			if (v3d->zbuf)
 				glEnable(GL_DEPTH_TEST);
 		}
@@ -200,35 +206,7 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 	else if (t->spacetype == SPACE_IMAGE) {
 		if (validSnap(t)) {
 			/* This will not draw, and Im nor sure why - campbell */
-#if 0
-			float xuser_asp, yuser_asp;
-			int wi, hi;
-			float w, h;
-			
-			calc_image_view(G.sima, 'f');   // float
-			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
-			glLoadIdentity();
-			
-			ED_space_image_get_aspect(t->sa->spacedata.first, &xuser_aspx, &yuser_asp);
-			ED_space_image_width(t->sa->spacedata.first, &wi, &hi);
-			w = (((float)wi) / IMG_SIZE_FALLBACK) * G.sima->zoom * xuser_asp;
-			h = (((float)hi) / IMG_SIZE_FALLBACK) * G.sima->zoom * yuser_asp;
-			
-			cpack(0xFFFFFF);
-			glTranslate2fv(t->tsnap.snapPoint);
-			
-			//glRectf(0, 0, 1, 1);
-			
-			setlinestyle(0);
-			cpack(0x0);
-			fdrawline(-0.020 / w, 0, -0.1 / w, 0);
-			fdrawline(0.1 / w, 0, 0.020 / w, 0);
-			fdrawline(0, -0.020 / h, 0, -0.1 / h);
-			fdrawline(0, 0.1 / h, 0, 0.020 / h);
-			
-			glTranslatef(-t->tsnap.snapPoint[0], -t->tsnap.snapPoint[1], 0.0f);
-			setlinestyle(0);
-#endif
+			/* TODO: see 2.7x for non-working code */
 		}
 	}
 	else if (t->spacetype == SPACE_NODE) {
@@ -241,23 +219,29 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 			
 			glEnable(GL_BLEND);
 			
+			unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+
+			immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 			for (p = t->tsnap.points.first; p; p = p->next) {
 				if (p == t->tsnap.selectedPoint) {
-					glColor4ubv(selectedCol);
+					immUniformColor4ubv(selectedCol);
 				}
 				else {
-					glColor4ubv(col);
+					immUniformColor4ubv(col);
 				}
 				
-				ED_node_draw_snap(&ar->v2d, p->co, size, 0);
+				ED_node_draw_snap(&ar->v2d, p->co, size, 0, pos);
 			}
 			
 			if (t->tsnap.status & POINT_INIT) {
-				glColor4ubv(activeCol);
+				immUniformColor4ubv(activeCol);
 				
-				ED_node_draw_snap(&ar->v2d, t->tsnap.snapPoint, size, t->tsnap.snapNodeBorder);
+				ED_node_draw_snap(&ar->v2d, t->tsnap.snapPoint, size, t->tsnap.snapNodeBorder, pos);
 			}
-			
+
+			immUnbindProgram();
+
 			glDisable(GL_BLEND);
 		}
 	}
@@ -519,8 +503,8 @@ static void initSnappingMode(TransInfo *t)
 {
 	ToolSettings *ts = t->settings;
 	Object *obedit = t->obedit;
-	Scene *scene = t->scene;
-	Base *base_act = scene->basact;
+	SceneLayer *sl = t->scene_layer;
+	Base *base_act = sl->basact;
 
 	if (t->spacetype == SPACE_NODE) {
 		/* force project off when not supported */
@@ -601,7 +585,7 @@ static void initSnappingMode(TransInfo *t)
 	if (t->spacetype == SPACE_VIEW3D) {
 		if (t->tsnap.object_context == NULL) {
 			t->tsnap.object_context = ED_transform_snap_object_context_create_view3d(
-			        G.main, t->scene, 0,
+			        G.main, t->scene, t->scene_layer, 0,
 			        t->ar, t->view);
 
 			ED_transform_snap_object_context_set_editmesh_callbacks(

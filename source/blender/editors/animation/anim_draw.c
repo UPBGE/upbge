@@ -58,11 +58,12 @@
 
 #include "RNA_access.h"
 
-#include "BIF_gl.h"
-
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
+
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
 
 /* *************************************************** */
 /* CURRENT FRAME DRAWING */
@@ -71,13 +72,17 @@
 static void draw_cfra_number(Scene *scene, View2D *v2d, const float cfra, const bool time)
 {
 	const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
-	float xscale, yscale, x, y;
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	unsigned char col[4];
+	float xscale, x, y;
 	char numstr[32] = "    t";  /* t is the character to start replacing from */
 	int slen;
 	
 	/* because the frame number text is subject to the same scaling as the contents of the view */
-	UI_view2d_scale_get(v2d, &xscale, &yscale);
-	glScalef(1.0f / xscale, 1.0f, 1.0f);
+	UI_view2d_scale_get(v2d, &xscale, NULL);
+	gpuPushMatrix();
+	gpuScale2f(1.0f / xscale, 1.0f);
 	
 	/* get timecode string 
 	 *	- padding on str-buf passed so that it doesn't sit on the frame indicator
@@ -96,17 +101,21 @@ static void draw_cfra_number(Scene *scene, View2D *v2d, const float cfra, const 
 	/* get starting coordinates for drawing */
 	x = cfra * xscale;
 	y = 0.9f * U.widget_unit;
-	
+
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 	/* draw green box around/behind text */
-	UI_ThemeColorShade(TH_CFRAME, 0);
-	glRectf(x, y,  x + slen,  y + 0.75f * U.widget_unit);
-	
-	/* draw current frame number - black text */
-	UI_ThemeColor(TH_TEXT);
-	UI_fontstyle_draw_simple(fstyle, x - 0.25f * U.widget_unit, y + 0.15f * U.widget_unit, numstr);
-	
+	immUniformThemeColorShade(TH_CFRAME, 0);
+
+	immRectf(pos, x, y,  x + slen,  y + 0.75f * U.widget_unit);
+	immUnbindProgram();
+
+	/* draw current frame number */
+	UI_GetThemeColor4ubv(TH_TEXT, col);
+	UI_fontstyle_draw_simple(fstyle, x - 0.25f * U.widget_unit, y + 0.15f * U.widget_unit, numstr, col);
+
 	/* restore view transform */
-	glScalef(xscale, 1.0, 1.0);
+	gpuPopMatrix();
 }
 
 /* General call for drawing current frame indicator in animation editor */
@@ -114,18 +123,24 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag)
 {
 	Scene *scene = CTX_data_scene(C);
 
-	/* Draw a light green line to indicate current frame */
-	UI_ThemeColor(TH_CFRAME);
-
 	const float time = scene->r.cfra + scene->r.subframe;
 	const float x = (float)(time * scene->r.framelen);
 
 	glLineWidth((flag & DRAWCFRA_WIDE) ? 3.0 : 2.0);
 
-	glBegin(GL_LINES);
-	glVertex2f(x, v2d->cur.ymin - 500.0f); /* XXX arbitrary... want it go to bottom */
-	glVertex2f(x, v2d->cur.ymax);
-	glEnd();
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+	/* Draw a light green line to indicate current frame */
+	immUniformThemeColor(TH_CFRAME);
+
+	immBegin(GWN_PRIM_LINES, 2);
+	immVertex2f(pos, x, v2d->cur.ymin - 500.0f); /* XXX arbitrary... want it go to bottom */
+	immVertex2f(pos, x, v2d->cur.ymax);
+	immEnd();
+	immUnbindProgram();
 
 	/* Draw current frame number in a little box */
 	if (flag & DRAWCFRA_SHOW_NUMBOX) {
@@ -147,17 +162,24 @@ void ANIM_draw_previewrange(const bContext *C, View2D *v2d, int end_frame_width)
 	if (PRVRANGEON) {
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
-		glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
-		
+
+		Gwn_VertFormat *format = immVertexFormat();
+		unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+		immUniformColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+
 		/* only draw two separate 'curtains' if there's no overlap between them */
 		if (PSFRA < PEFRA + end_frame_width) {
-			glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
-			glRectf((float)(PEFRA + end_frame_width), v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+			immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
+			immRectf(pos, (float)(PEFRA + end_frame_width), v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 		}
 		else {
-			glRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+			immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 		}
-		
+
+		immUnbindProgram();
+
 		glDisable(GL_BLEND);
 	}
 }

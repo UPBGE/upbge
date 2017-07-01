@@ -86,8 +86,8 @@ public:
 	void SetHdrType(RAS_Rasterizer::HdrType type);
 	RAS_Rasterizer::HdrType GetHdrType() const;
 
-	virtual int GetWidth() const = 0;
-	virtual int GetHeight() const = 0;
+	int GetWidth() const;
+	int GetHeight() const;
 
 	/** Convert mouse coordinates from screen or client window to render area coordinates.
 	 * \param x The input X coordinate.
@@ -98,29 +98,15 @@ public:
 	 */
 	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen) = 0;
 
-	virtual float GetMouseNormalizedX(int x) = 0;
-	virtual float GetMouseNormalizedY(int y) = 0;
+	float GetMouseNormalizedX(int x);
+	float GetMouseNormalizedY(int y);
 
 	/**
 	 * Used to get canvas area within blender.
 	 */
-	virtual RAS_Rect &GetWindowArea() = 0;
+	const RAS_Rect& GetWindowArea() const;
 
-	/**
-	 * Set the visible view-port
-	 */
-	virtual void SetViewPort(int x1, int y1, int x2, int y2) = 0;
-
-	/**
-	 * Update the Canvas' viewport (used when the viewport changes without using SetViewPort()
-	 * eg: Shadow buffers and FBOs
-	 */
-	virtual void UpdateViewPort(int x1, int y1, int x2, int y2) = 0;
-
-	/**
-	 * Get the visible viewport
-	 */
-	virtual const int *GetViewPort() = 0;
+	const RAS_Rect& GetViewportArea() const;
 
 	virtual void SetMouseState(RAS_MouseState mousestate) = 0;
 	virtual void SetMousePosition(int x, int y) = 0;
@@ -171,6 +157,9 @@ protected:
 	TaskScheduler *m_taskscheduler;
 	TaskPool *m_taskpool;
 	RAS_Rasterizer *m_rasterizer;
+
+	RAS_Rect m_windowArea;
+	RAS_Rect m_viewportArea;
 
 	/** Delay the screenshot to the frame end to use a valid buffer and avoid copy from an invalid buffer
 	 * at the frame begin after the buffer swap. The screenshot are proceeded in \see FlushScreenshots.

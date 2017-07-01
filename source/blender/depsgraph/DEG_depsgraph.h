@@ -66,6 +66,35 @@ struct Main;
 struct PointerRNA;
 struct PropertyRNA;
 
+/* Dependency graph evaluation context
+ *
+ * This structure stores all the local dependency graph data,
+ * which is needed for it's evaluation,
+ */
+typedef struct EvaluationContext {
+	int mode;
+	float ctime;
+} EvaluationContext;
+
+typedef enum eEvaluationMode {
+	DAG_EVAL_VIEWPORT       = 0,    /* evaluate for OpenGL viewport */
+	DAG_EVAL_PREVIEW        = 1,    /* evaluate for render with preview settings */
+	DAG_EVAL_RENDER         = 2,    /* evaluate for render purposes */
+} eEvaluationMode;
+
+/* DagNode->eval_flags */
+enum {
+	/* Regardless to curve->path animation flag path is to be evaluated anyway,
+	 * to meet dependencies with such a things as curve modifier and other guys
+	 * who're using curve deform, where_on_path and so.
+	 */
+	DAG_EVAL_NEED_CURVE_PATH = 1,
+	/* Scene evaluation would need to have object's data on CPU,
+	 * meaning no GPU shortcuts is allowed.
+	 */
+	DAG_EVAL_NEED_CPU        = 2,
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -115,10 +144,31 @@ void DEG_graph_data_tag_update(Depsgraph *graph, const struct PointerRNA *ptr);
 void DEG_graph_property_tag_update(Depsgraph *graph, const struct PointerRNA *ptr, const struct PropertyRNA *prop);
 
 /* Tag given ID for an update in all the dependency graphs. */
-void DEG_id_tag_update(struct ID *id, short flag);
+enum {
+	/* Object transformation changed, corresponds to OB_RECALC_OB. */
+	DEG_TAG_TRANSFORM   = (1 << 0),
+
+	/* Object geoemtry changed, corresponds to OB_RECALC_DATA. */
+	DEG_TAG_GEOMETRY    = (1 << 1),
+
+	/* Time changed and animation is to be re-evaluated, OB_RECALC_TIME. */
+	DEG_TAG_TIME        = (1 << 2),
+
+	/* Particle system changed. */
+	DEG_TAG_PSYSC_REDO  =  (1 << 3),
+	DEG_TAG_PSYS_RESET  =  (1 << 4),
+	DEG_TAG_PSYS_TYPE   =  (1 << 5),
+	DEG_TAG_PSYS_CHILD  = (1 << 6),
+	DEG_TAG_PSYS_PHYS   = (1 << 7),
+	DEG_TAG_PSYS        = ((1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7)),
+
+	/* Update copy on write component without flushing down the road. */
+	DEG_TAG_COPY_ON_WRITE = (1 << 8),
+};
+void DEG_id_tag_update(struct ID *id, int flag);
 void DEG_id_tag_update_ex(struct Main *bmain,
                           struct ID *id,
-                          short flag);
+                          int flag);
 
 /* Tag given ID type for update.
  *
@@ -167,16 +217,13 @@ void DEG_evaluation_context_free(struct EvaluationContext *eval_ctx);
 void DEG_evaluate_on_framechange(struct EvaluationContext *eval_ctx,
                                  struct Main *bmain,
                                  Depsgraph *graph,
-                                 float ctime,
-                                 const unsigned int layer);
+                                 float ctime);
 
 /* Data changed recalculation entry point.
  * < context_type: context to perform evaluation for
- * < layers: visible layers bitmask to update the graph for
  */
 void DEG_evaluate_on_refresh_ex(struct EvaluationContext *eval_ctx,
-                                Depsgraph *graph,
-                                const unsigned int layers);
+                                Depsgraph *graph);
 
 /* Data changed recalculation entry point.
  * < context_type: context to perform evaluation for

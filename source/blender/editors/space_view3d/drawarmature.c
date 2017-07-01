@@ -55,14 +55,16 @@
 #include "BKE_nla.h"
 #include "BKE_curve.h"
 
-
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "ED_armature.h"
 #include "ED_keyframes_draw.h"
 
 #include "GPU_basic_shader.h"
+#include "GPU_batch.h"
+#include "GPU_immediate.h"
+#include "GPU_immediate_util.h"
+#include "GPU_matrix.h"
 
 #include "UI_resources.h"
 
@@ -74,8 +76,10 @@
 
 /* global here is reset before drawing each bone */
 static ThemeWireColor *bcolor = NULL;
+static float fcolor[4] = {0.0f};
+static bool flat_color;
 
-/* values of colCode for set_pchan_glcolor */
+/* values of colCode for set_pchan_color */
 enum {
 	PCHAN_COLOR_NORMAL  = 0,        /* normal drawing */
 	PCHAN_COLOR_SOLID,              /* specific case where "solid" color is needed */
@@ -128,7 +132,7 @@ static void set_pchan_colorset(Object *ob, bPoseChannel *pchan)
 	}
 }
 
-/* This function is for brightening/darkening a given color (like UI_ThemeColorShade()) */
+/* This function is for brightening/darkening a given color (like UI_GetThemeColorShade3ubv()) */
 static void cp_shade_color3ub(unsigned char cp[3], const int offset)
 {
 	int r, g, b;
@@ -146,13 +150,13 @@ static void cp_shade_color3ub(unsigned char cp[3], const int offset)
 }
 
 /* This function sets the gl-color for coloring a certain bone (based on bcolor) */
-static bool set_pchan_glColor(short colCode, int boneflag, short constflag)
+static bool set_pchan_color(short colCode, int boneflag, short constflag)
 {
 	switch (colCode) {
 		case PCHAN_COLOR_NORMAL:
 		{
 			if (bcolor) {
-				unsigned char cp[3];
+				unsigned char cp[4] = {255};
 			
 				if (boneflag & BONE_DRAW_ACTIVE) {
 					copy_v3_v3_char((char *)cp, bcolor->active);
@@ -169,20 +173,20 @@ static bool set_pchan_glColor(short colCode, int boneflag, short constflag)
 					cp_shade_color3ub(cp, -50);
 				}
 			
-				glColor3ubv(cp);
+				rgb_uchar_to_float(fcolor, cp);
 			}
 			else {
 				if ((boneflag & BONE_DRAW_ACTIVE) && (boneflag & BONE_SELECTED)) {
-					UI_ThemeColor(TH_BONE_POSE_ACTIVE);
+					UI_GetThemeColor4fv(TH_BONE_POSE_ACTIVE, fcolor);
 				}
 				else if (boneflag & BONE_DRAW_ACTIVE) {
-					UI_ThemeColorBlend(TH_WIRE, TH_BONE_POSE, 0.15f); /* unselected active */
+					UI_GetThemeColorBlendShade4fv(TH_WIRE, TH_BONE_POSE, 0.15f, 0, fcolor);
 				}
 				else if (boneflag & BONE_SELECTED) {
-					UI_ThemeColor(TH_BONE_POSE);
+					UI_GetThemeColor4fv(TH_BONE_POSE, fcolor);
 				}
 				else {
-					UI_ThemeColor(TH_WIRE);
+					UI_GetThemeColor4fv(TH_WIRE, fcolor);
 				}
 			}
 	
@@ -191,21 +195,25 @@ static bool set_pchan_glColor(short colCode, int boneflag, short constflag)
 		case PCHAN_COLOR_SOLID:
 		{
 			if (bcolor) {
-				glColor3ubv((unsigned char *)bcolor->solid);
+				rgb_uchar_to_float(fcolor, (unsigned char *)bcolor->solid);
 			}
-			else
-				UI_ThemeColor(TH_BONE_SOLID);
+			else {
+				UI_GetThemeColor4fv(TH_BONE_SOLID, fcolor);
+			}
 			
 			return true;
 		}
 		case PCHAN_COLOR_CONSTS:
 		{
 			if ((bcolor == NULL) || (bcolor->flag & TH_WIRECOLOR_CONSTCOLS)) {
-				if (constflag & PCHAN_HAS_TARGET) glColor4ub(255, 150, 0, 80);
-				else if (constflag & PCHAN_HAS_IK) glColor4ub(255, 255, 0, 80);
-				else if (constflag & PCHAN_HAS_SPLINEIK) glColor4ub(200, 255, 0, 80);
-				else if (constflag & PCHAN_HAS_CONST) glColor4ub(0, 255, 120, 80);
-			
+				unsigned char cp[4];
+				if (constflag & PCHAN_HAS_TARGET) rgba_char_args_set((char *)cp, 255, 150, 0, 80);
+				else if (constflag & PCHAN_HAS_IK) rgba_char_args_set((char *)cp, 255, 255, 0, 80);
+				else if (constflag & PCHAN_HAS_SPLINEIK) rgba_char_args_set((char *)cp, 200, 255, 0, 80);
+				else if (constflag & PCHAN_HAS_CONST) rgba_char_args_set((char *)cp, 0, 255, 120, 80);
+
+				rgba_uchar_to_float(fcolor, cp);
+
 				return true;
 			}
 			return false;
@@ -213,7 +221,7 @@ static bool set_pchan_glColor(short colCode, int boneflag, short constflag)
 		case PCHAN_COLOR_SPHEREBONE_BASE:
 		{
 			if (bcolor) {
-				unsigned char cp[3];
+				unsigned char cp[4] = {255};
 
 				if (boneflag & BONE_DRAW_ACTIVE) {
 					copy_v3_v3_char((char *)cp, bcolor->active);
@@ -225,12 +233,18 @@ static bool set_pchan_glColor(short colCode, int boneflag, short constflag)
 					copy_v3_v3_char((char *)cp, bcolor->solid);
 				}
 
-				glColor3ubv(cp);
+				rgb_uchar_to_float(fcolor, cp);
 			}
 			else {
-				if (boneflag & BONE_DRAW_ACTIVE) UI_ThemeColorShade(TH_BONE_POSE, 40);
-				else if (boneflag & BONE_SELECTED) UI_ThemeColor(TH_BONE_POSE);
-				else UI_ThemeColor(TH_BONE_SOLID);
+				if (boneflag & BONE_DRAW_ACTIVE) {
+					UI_GetThemeColorShade4fv(TH_BONE_POSE, 40, fcolor);
+				}
+				else if (boneflag & BONE_SELECTED) {
+					UI_GetThemeColor4fv(TH_BONE_POSE, fcolor);
+				}
+				else {
+					UI_GetThemeColor4fv(TH_BONE_SOLID, fcolor);
+				}
 			}
 			
 			return true;
@@ -238,7 +252,7 @@ static bool set_pchan_glColor(short colCode, int boneflag, short constflag)
 		case PCHAN_COLOR_SPHEREBONE_END:
 		{
 			if (bcolor) {
-				unsigned char cp[3];
+				unsigned char cp[4] = {255};
 
 				if (boneflag & BONE_DRAW_ACTIVE) {
 					copy_v3_v3_char((char *)cp, bcolor->active);
@@ -253,12 +267,18 @@ static bool set_pchan_glColor(short colCode, int boneflag, short constflag)
 					cp_shade_color3ub(cp, -30);
 				}
 			
-				glColor3ubv(cp);
+				rgb_uchar_to_float(fcolor, cp);
 			}
 			else {
-				if (boneflag & BONE_DRAW_ACTIVE) UI_ThemeColorShade(TH_BONE_POSE, 10);
-				else if (boneflag & BONE_SELECTED) UI_ThemeColorShade(TH_BONE_POSE, -30);
-				else UI_ThemeColorShade(TH_BONE_SOLID, -30);
+				if (boneflag & BONE_DRAW_ACTIVE) {
+					UI_GetThemeColorShade4fv(TH_BONE_POSE, 10, fcolor);
+				}
+				else if (boneflag & BONE_SELECTED) {
+					UI_GetThemeColorShade4fv(TH_BONE_POSE, -30, fcolor);
+				}
+				else {
+					UI_GetThemeColorShade4fv(TH_BONE_SOLID, -30, fcolor);
+				}
 			}
 			break;
 		}
@@ -266,19 +286,24 @@ static bool set_pchan_glColor(short colCode, int boneflag, short constflag)
 		{
 			/* inner part in background color or constraint */
 			if ((constflag) && ((bcolor == NULL) || (bcolor->flag & TH_WIRECOLOR_CONSTCOLS))) {
-				if (constflag & PCHAN_HAS_TARGET) glColor3ub(255, 150, 0);
-				else if (constflag & PCHAN_HAS_IK) glColor3ub(255, 255, 0);
-				else if (constflag & PCHAN_HAS_SPLINEIK) glColor3ub(200, 255, 0);
-				else if (constflag & PCHAN_HAS_CONST) glColor3ub(0, 255, 120);
-				else if (constflag) UI_ThemeColor(TH_BONE_POSE);  /* PCHAN_HAS_ACTION */
+				unsigned char cp[4];
+				if (constflag & PCHAN_HAS_TARGET) rgba_char_args_set((char *)cp, 255, 150, 0, 255);
+				else if (constflag & PCHAN_HAS_IK) rgba_char_args_set((char *)cp, 255, 255, 0, 255);
+				else if (constflag & PCHAN_HAS_SPLINEIK) rgba_char_args_set((char *)cp, 200, 255, 0, 255);
+				else if (constflag & PCHAN_HAS_CONST) rgba_char_args_set((char *)cp, 0, 255, 120, 255);
+				else if (constflag) UI_GetThemeColor4ubv(TH_BONE_POSE, cp);  /* PCHAN_HAS_ACTION */
+
+				rgb_uchar_to_float(fcolor, cp);
 			}
 			else {
 				if (bcolor) {
 					const char *cp = bcolor->solid;
-					glColor4ub(cp[0], cp[1], cp[2], 204);
+					rgb_uchar_to_float(fcolor, (unsigned char *)cp);
+					fcolor[3] = 204.f / 255.f;
 				}
-				else
-					UI_ThemeColorShade(TH_BACK, -30);
+				else {
+					UI_GetThemeColorShade4fv(TH_BACK, -30, fcolor);
+				}
 			}
 		
 			return true;
@@ -288,26 +313,37 @@ static bool set_pchan_glColor(short colCode, int boneflag, short constflag)
 	return false;
 }
 
-static void set_ebone_glColor(const unsigned int boneflag)
+static void set_ebone_color(const unsigned int boneflag)
 {
 	if ((boneflag & BONE_DRAW_ACTIVE) && (boneflag & BONE_SELECTED)) {
-		UI_ThemeColor(TH_EDGE_SELECT);
+		UI_GetThemeColor4fv(TH_EDGE_SELECT, fcolor);
 	}
 	else if (boneflag & BONE_DRAW_ACTIVE) {
-		UI_ThemeColorBlend(TH_WIRE_EDIT, TH_EDGE_SELECT, 0.15f); /* unselected active */
+		UI_GetThemeColorBlendShade4fv(TH_WIRE_EDIT, TH_EDGE_SELECT, 0.15f, 0, fcolor);
 	}
 	else if (boneflag & BONE_SELECTED) {
-		UI_ThemeColorShade(TH_EDGE_SELECT, -20);
+		UI_GetThemeColorShade4fv(TH_EDGE_SELECT, -20, fcolor);
 	}
 	else {
-		UI_ThemeColor(TH_WIRE_EDIT);
+		UI_GetThemeColor4fv(TH_WIRE_EDIT, fcolor);
 	}
 }
 
 /* *************** Armature drawing, helper calls for parts ******************* */
 
+static void add_solid_flat_triangle(Gwn_VertBuf *vbo, unsigned int *vertex, unsigned int pos, unsigned int nor,
+                                    const float p1[3], const float p2[3], const float p3[3], const float n[3])
+{
+	GWN_vertbuf_attr_set(vbo, nor, *vertex, n);
+	GWN_vertbuf_attr_set(vbo, pos, (*vertex)++, p1);
+	GWN_vertbuf_attr_set(vbo, nor, *vertex, n);
+	GWN_vertbuf_attr_set(vbo, pos, (*vertex)++, p2);
+	GWN_vertbuf_attr_set(vbo, nor, *vertex, n);
+	GWN_vertbuf_attr_set(vbo, pos, (*vertex)++, p3);
+}
+
 /* half the cube, in Y */
-static const float cube[8][3] = {
+static const float cube_vert[8][3] = {
 	{-1.0,  0.0, -1.0},
 	{-1.0,  0.0,  1.0},
 	{-1.0,  1.0,  1.0},
@@ -318,128 +354,184 @@ static const float cube[8][3] = {
 	{ 1.0,  1.0, -1.0},
 };
 
+static const float cube_wire[24] = {
+	0, 1, 1, 2, 2, 3, 3, 0,
+	4, 5, 5, 6, 6, 7, 7, 4,
+	0, 4, 1, 5, 2, 6, 3, 7,
+};
+
 static void drawsolidcube_size(float xsize, float ysize, float zsize)
 {
-	static GLuint displist = 0;
-	float n[3] = {0.0f};
-	
-	glScalef(xsize, ysize, zsize);
+	static Gwn_VertFormat format = {0};
+	static Gwn_VertBuf vbo = {{0}};
+	static Gwn_Batch batch = {{0}};
+	const float light_vec[3] = {0.0f, 0.0f, 1.0f};
 
-	if (displist == 0) {
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
+	if (format.attrib_ct == 0) {
+		unsigned int i = 0;
+		float n[3] = {0.0f};
+		/* Vertex format */
+		unsigned int pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+		unsigned int nor = GWN_vertformat_attr_add(&format, "nor", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
 
-		glBegin(GL_QUADS);
+		/* Vertices */
+		GWN_vertbuf_init_with_format(&vbo, &format);
+		GWN_vertbuf_data_alloc(&vbo, 36);
+
 		n[0] = -1.0;
-		glNormal3fv(n); 
-		glVertex3fv(cube[0]); glVertex3fv(cube[1]); glVertex3fv(cube[2]); glVertex3fv(cube[3]);
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[0], cube_vert[1], cube_vert[2], n);
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[2], cube_vert[3], cube_vert[0], n);
 		n[0] = 0;
 		n[1] = -1.0;
-		glNormal3fv(n); 
-		glVertex3fv(cube[0]); glVertex3fv(cube[4]); glVertex3fv(cube[5]); glVertex3fv(cube[1]);
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[0], cube_vert[4], cube_vert[5], n);
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[5], cube_vert[1], cube_vert[0], n);
 		n[1] = 0;
 		n[0] = 1.0;
-		glNormal3fv(n); 
-		glVertex3fv(cube[4]); glVertex3fv(cube[7]); glVertex3fv(cube[6]); glVertex3fv(cube[5]);
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[4], cube_vert[7], cube_vert[6], n);
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[6], cube_vert[5], cube_vert[4], n);
 		n[0] = 0;
 		n[1] = 1.0;
-		glNormal3fv(n); 
-		glVertex3fv(cube[7]); glVertex3fv(cube[3]); glVertex3fv(cube[2]); glVertex3fv(cube[6]);
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[7], cube_vert[3], cube_vert[2], n);
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[2], cube_vert[6], cube_vert[7], n);
 		n[1] = 0;
 		n[2] = 1.0;
-		glNormal3fv(n); 
-		glVertex3fv(cube[1]); glVertex3fv(cube[5]); glVertex3fv(cube[6]); glVertex3fv(cube[2]);
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[1], cube_vert[5], cube_vert[6], n);
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[6], cube_vert[2], cube_vert[1], n);
 		n[2] = -1.0;
-		glNormal3fv(n); 
-		glVertex3fv(cube[7]); glVertex3fv(cube[4]); glVertex3fv(cube[0]); glVertex3fv(cube[3]);
-		glEnd();
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[7], cube_vert[4], cube_vert[0], n);
+		add_solid_flat_triangle(&vbo, &i, pos, nor, cube_vert[0], cube_vert[3], cube_vert[7], n);
 
-		glEndList();
+		GWN_batch_init(&batch, GWN_PRIM_TRIS, &vbo, NULL);
 	}
 
-	glCallList(displist);
+	gpuPushMatrix();
+	gpuScale3f(xsize, ysize, zsize);
+
+	if (flat_color) {
+		Batch_set_builtin_program(&batch, GPU_SHADER_3D_UNIFORM_COLOR);
+	}
+	else {
+		/* TODO replace with good default lighting shader ? */
+		Batch_set_builtin_program(&batch, GPU_SHADER_SIMPLE_LIGHTING);
+		GWN_batch_uniform_3fv(&batch, "light", light_vec);
+	}
+	GWN_batch_uniform_4fv(&batch, "color", fcolor);
+	GWN_batch_draw(&batch);
+
+	gpuPopMatrix();
 }
 
 static void drawcube_size(float xsize, float ysize, float zsize)
 {
-	static GLuint displist = 0;
-	
-	if (displist == 0) {
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
-		
-		glBegin(GL_LINE_STRIP);
-		glVertex3fv(cube[0]); glVertex3fv(cube[1]); glVertex3fv(cube[2]); glVertex3fv(cube[3]);
-		glVertex3fv(cube[0]); glVertex3fv(cube[4]); glVertex3fv(cube[5]); glVertex3fv(cube[6]);
-		glVertex3fv(cube[7]); glVertex3fv(cube[4]);
-		glEnd();
-		
-		glBegin(GL_LINES);
-		glVertex3fv(cube[1]); glVertex3fv(cube[5]);
-		glVertex3fv(cube[2]); glVertex3fv(cube[6]);
-		glVertex3fv(cube[3]); glVertex3fv(cube[7]);
-		glEnd();
-		
-		glEndList();
+	static Gwn_VertFormat format = {0};
+	static Gwn_VertBuf vbo = {{0}};
+	static Gwn_IndexBufBuilder elb = {0};
+	static Gwn_IndexBuf el = {0};
+	static Gwn_Batch batch = {{0}};
+
+	if (format.attrib_ct == 0) {
+		/* Vertex format */
+		unsigned int pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+		/* Elements */
+		GWN_indexbuf_init(&elb, GWN_PRIM_LINES, 12, 8);
+		for (int i = 0; i < 12; ++i) {
+			GWN_indexbuf_add_line_verts(&elb, cube_wire[i*2], cube_wire[i*2+1]);
+		}
+		GWN_indexbuf_build_in_place(&elb, &el);
+
+		/* Vertices */
+		GWN_vertbuf_init_with_format(&vbo, &format);
+		GWN_vertbuf_data_alloc(&vbo, 8);
+		for (int i = 0; i < 8; ++i) {
+			GWN_vertbuf_attr_set(&vbo, pos, i, cube_vert[i]);
+		}
+
+		GWN_batch_init(&batch, GWN_PRIM_LINES, &vbo, &el);
+		Batch_set_builtin_program(&batch, GPU_SHADER_3D_UNIFORM_COLOR);
 	}
 
-	glScalef(xsize, ysize, zsize);
-	glCallList(displist);
-	
+	gpuPushMatrix();
+	gpuScale3f(xsize, ysize, zsize);
+
+	GWN_batch_program_use_begin(&batch);
+	GWN_batch_uniform_4fv(&batch, "color", fcolor);
+	GWN_batch_draw(&batch);
+
+	gpuPopMatrix();
 }
 
 
 static void draw_bonevert(void)
 {
-	static GLuint displist = 0;
-	
-	if (displist == 0) {
-		GLUquadricObj   *qobj;
-		
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
-			
-		glPushMatrix();
-		
-		qobj    = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
-		gluDisk(qobj, 0.0,  0.05, 16, 1);
-		
-		glRotatef(90, 0, 1, 0);
-		gluDisk(qobj, 0.0,  0.05, 16, 1);
-		
-		glRotatef(90, 1, 0, 0);
-		gluDisk(qobj, 0.0,  0.05, 16, 1);
-		
-		gluDeleteQuadric(qobj);  
-		
-		glPopMatrix();
-		glEndList();
+	static Gwn_VertFormat format = {0};
+	static Gwn_VertBuf vbo = {{0}};
+	static Gwn_Batch batch = {{0}};
+
+	if (format.attrib_ct == 0) {
+		/* Vertex format */
+		unsigned int pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+		/* Vertices */
+		GWN_vertbuf_init_with_format(&vbo, &format);
+		GWN_vertbuf_data_alloc(&vbo, 96);
+		for (int i = 0; i < 16; ++i) {
+			float vert[3] = {0.f, 0.f, 0.f};
+			const float r = 0.05f;
+
+			vert[0] = r * cosf(2 * M_PI * i / 16.f);
+			vert[1] = r * sinf(2 * M_PI * i / 16.f);
+			GWN_vertbuf_attr_set(&vbo, pos, i * 6 + 0, vert);
+			vert[0] = r * cosf(2 * M_PI * (i + 1) / 16.f);
+			vert[1] = r * sinf(2 * M_PI * (i + 1) / 16.f);
+			GWN_vertbuf_attr_set(&vbo, pos, i * 6 + 1, vert);
+
+			vert[0] = 0.f;
+			vert[1] = r * cosf(2 * M_PI * i / 16.f);
+			vert[2] = r * sinf(2 * M_PI * i / 16.f);
+			GWN_vertbuf_attr_set(&vbo, pos, i * 6 + 2, vert);
+			vert[1] = r * cosf(2 * M_PI * (i + 1) / 16.f);
+			vert[2] = r * sinf(2 * M_PI * (i + 1) / 16.f);
+			GWN_vertbuf_attr_set(&vbo, pos, i * 6 + 3, vert);
+
+			vert[1] = 0.f;
+			vert[0] = r * cosf(2 * M_PI * i / 16.f);
+			vert[2] = r * sinf(2 * M_PI * i / 16.f);
+			GWN_vertbuf_attr_set(&vbo, pos, i * 6 + 4, vert);
+			vert[0] = r * cosf(2 * M_PI * (i + 1) / 16.f);
+			vert[2] = r * sinf(2 * M_PI * (i + 1) / 16.f);
+			GWN_vertbuf_attr_set(&vbo, pos, i * 6 + 5, vert);
+		}
+
+		GWN_batch_init(&batch, GWN_PRIM_LINES, &vbo, NULL);
+		Batch_set_builtin_program(&batch, GPU_SHADER_3D_UNIFORM_COLOR);
 	}
 
-	glCallList(displist);
+	GWN_batch_program_use_begin(&batch);
+	GWN_batch_uniform_4fv(&batch, "color", fcolor);
+	GWN_batch_draw(&batch);
 }
 
 static void draw_bonevert_solid(void)
 {
-	static GLuint displist = 0;
-	
-	if (displist == 0) {
-		GLUquadricObj *qobj;
-		
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
-		
-		qobj = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_FILL);
-		/* Draw tips of a bone */
-		gluSphere(qobj, 0.05, 8, 5);
-		gluDeleteQuadric(qobj);  
-		
-		glEndList();
-	}
+	Gwn_Batch *batch = Batch_get_sphere(0);
+	const float light_vec[3] = {0.0f, 0.0f, 1.0f};
 
-	glCallList(displist);
+	gpuPushMatrix();
+	gpuScaleUniform(0.05);
+
+	if (flat_color) {
+		Batch_set_builtin_program(batch, GPU_SHADER_3D_UNIFORM_COLOR);
+	}
+	else {
+		/* TODO replace with good default lighting shader ? */
+		Batch_set_builtin_program(batch, GPU_SHADER_SIMPLE_LIGHTING);
+		GWN_batch_uniform_3fv(batch, "light", light_vec);
+	}
+	GWN_batch_uniform_4fv(batch, "color", fcolor);
+	GWN_batch_draw(batch);
+
+	gpuPopMatrix();
 }
 
 static const float bone_octahedral_verts[6][3] = {
@@ -451,8 +543,11 @@ static const float bone_octahedral_verts[6][3] = {
 	{ 0.0f, 1.0f,  0.0f}
 };
 
-static const unsigned int bone_octahedral_wire_sides[8] = {0, 1, 5, 3, 0, 4, 5, 2};
-static const unsigned int bone_octahedral_wire_square[8] = {1, 2, 3, 4, 1};
+static const unsigned int bone_octahedral_wire[24] = {
+	0, 1,  1, 5,  5, 3,  3, 0,
+	0, 4,  4, 5,  5, 2,  2, 0,
+	1, 2,  2, 3,  3, 4,  4, 1,
+};
 
 static const unsigned int bone_octahedral_solid_tris[8][3] = {
 	{2, 1, 0}, /* bottom */
@@ -480,70 +575,78 @@ static const float bone_octahedral_solid_normals[8][3] = {
 
 static void draw_bone_octahedral(void)
 {
-	static GLuint displist = 0;
-	
-	if (displist == 0) {
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
+	static Gwn_VertFormat format = {0};
+	static Gwn_VertBuf vbo = {{0}};
+	static Gwn_IndexBufBuilder elb = {0};
+	static Gwn_IndexBuf el = {0};
+	static Gwn_Batch batch = {{0}};
 
-		/*	Section 1, sides */
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glVertexPointer(3, GL_FLOAT, 0, bone_octahedral_verts);
-		glDrawElements(GL_LINE_LOOP,
-		               sizeof(bone_octahedral_wire_sides) / sizeof(*bone_octahedral_wire_sides),
-		               GL_UNSIGNED_INT,
-		               bone_octahedral_wire_sides);
+	if (format.attrib_ct == 0) {
+		/* Vertex format */
+		unsigned int pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
 
-		/*	Section 1, square */
-		glDrawElements(GL_LINE_LOOP,
-		               sizeof(bone_octahedral_wire_square) / sizeof(*bone_octahedral_wire_square),
-		               GL_UNSIGNED_INT,
-		               bone_octahedral_wire_square);
-		glDisableClientState(GL_VERTEX_ARRAY);
-		
-		glEndList();
+		/* Elements */
+		GWN_indexbuf_init(&elb, GWN_PRIM_LINES, 12, 6);
+		for (int i = 0; i < 12; ++i) {
+			GWN_indexbuf_add_line_verts(&elb, bone_octahedral_wire[i*2], bone_octahedral_wire[i*2+1]);
+		}
+		GWN_indexbuf_build_in_place(&elb, &el);
+
+		/* Vertices */
+		GWN_vertbuf_init_with_format(&vbo, &format);
+		GWN_vertbuf_data_alloc(&vbo, 6);
+		for (int i = 0; i < 6; ++i) {
+			GWN_vertbuf_attr_set(&vbo, pos, i, bone_octahedral_verts[i]);
+		}
+
+		GWN_batch_init(&batch, GWN_PRIM_LINES, &vbo, &el);
+		Batch_set_builtin_program(&batch, GPU_SHADER_3D_UNIFORM_COLOR);
 	}
 
-	glCallList(displist);
-}	
+	GWN_batch_program_use_begin(&batch);
+	GWN_batch_uniform_4fv(&batch, "color", fcolor);
+	GWN_batch_draw(&batch);
+}
 
 static void draw_bone_solid_octahedral(void)
 {
-	static GLuint displist = 0;
+	static Gwn_VertFormat format = {0};
+	static Gwn_VertBuf vbo = {{0}};
+	static Gwn_Batch batch = {{0}};
+	const float light_vec[3] = {0.0f, 0.0f, 1.0f};
 
-	if (displist == 0) {
-		int i;
+	if (format.attrib_ct == 0) {
+		unsigned int v_idx = 0;
+		/* Vertex format */
+		unsigned int pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+		unsigned int nor = GWN_vertformat_attr_add(&format, "nor", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
 
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
+		/* Vertices */
+		GWN_vertbuf_init_with_format(&vbo, &format);
+		GWN_vertbuf_data_alloc(&vbo, 24);
 
-#if 1
-		glBegin(GL_TRIANGLES);
-		for (i = 0; i < 8; i++) {
-			glNormal3fv(bone_octahedral_solid_normals[i]);
-			glVertex3fv(bone_octahedral_verts[bone_octahedral_solid_tris[i][0]]);
-			glVertex3fv(bone_octahedral_verts[bone_octahedral_solid_tris[i][1]]);
-			glVertex3fv(bone_octahedral_verts[bone_octahedral_solid_tris[i][2]]);
+		for (int i = 0; i < 8; i++) {
+			add_solid_flat_triangle(&vbo, &v_idx, pos, nor,
+			                        bone_octahedral_verts[bone_octahedral_solid_tris[i][0]],
+			                        bone_octahedral_verts[bone_octahedral_solid_tris[i][1]],
+			                        bone_octahedral_verts[bone_octahedral_solid_tris[i][2]],
+			                        bone_octahedral_solid_normals[i]);
 		}
 
-		glEnd();
-
-#else   /* not working because each vert needs a different normal */
-		glEnableClientState(GL_NORMAL_ARRAY);
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glNormalPointer(GL_FLOAT, 0, bone_octahedral_solid_normals);
-		glVertexPointer(3, GL_FLOAT, 0, bone_octahedral_verts);
-		glDrawElements(GL_TRIANGLES, sizeof(bone_octahedral_solid_tris) / sizeof(unsigned int),
-		               GL_UNSIGNED_INT, bone_octahedral_solid_tris);
-		glDisableClientState(GL_NORMAL_ARRAY);
-		glDisableClientState(GL_VERTEX_ARRAY);
-#endif
-
-		glEndList();
+		GWN_batch_init(&batch, GWN_PRIM_TRIS, &vbo, NULL);
 	}
 
-	glCallList(displist);
-}	
+	if (flat_color) {
+		Batch_set_builtin_program(&batch, GPU_SHADER_3D_UNIFORM_COLOR);
+	}
+	else {
+		/* TODO replace with good default lighting shader ? */
+		Batch_set_builtin_program(&batch, GPU_SHADER_SIMPLE_LIGHTING);
+		GWN_batch_uniform_3fv(&batch, "light", light_vec);
+	}
+	GWN_batch_uniform_4fv(&batch, "color", fcolor);
+	GWN_batch_draw(&batch);
+}
 
 /* *************** Armature drawing, bones ******************* */
 
@@ -557,15 +660,20 @@ static void draw_bone_points(const short dt, int armflag, unsigned int boneflag,
 		
 		if (dt <= OB_WIRE) {
 			if (armflag & ARM_EDITMODE) {
-				if (boneflag & BONE_ROOTSEL) UI_ThemeColor(TH_VERTEX_SELECT);
-				else UI_ThemeColor(TH_VERTEX);
+				if (boneflag & BONE_ROOTSEL) {
+					UI_GetThemeColor4fv(TH_VERTEX_SELECT, fcolor);
+				}
+				else {
+					UI_GetThemeColor4fv(TH_VERTEX, fcolor);
+				}
 			}
 		}
 		else {
 			if (armflag & ARM_POSEMODE) 
-				set_pchan_glColor(PCHAN_COLOR_SOLID, boneflag, 0);
-			else
-				UI_ThemeColor(TH_BONE_SOLID);
+				set_pchan_color(PCHAN_COLOR_SOLID, boneflag, 0);
+			else {
+				UI_GetThemeColor4fv(TH_BONE_SOLID, fcolor);
+			}
 		}
 		
 		if (dt > OB_WIRE) 
@@ -580,24 +688,29 @@ static void draw_bone_points(const short dt, int armflag, unsigned int boneflag,
 	
 	if (dt <= OB_WIRE) {
 		if (armflag & ARM_EDITMODE) {
-			if (boneflag & BONE_TIPSEL) UI_ThemeColor(TH_VERTEX_SELECT);
-			else UI_ThemeColor(TH_VERTEX);
+			if (boneflag & BONE_TIPSEL) {
+				UI_GetThemeColor4fv(TH_VERTEX_SELECT, fcolor);
+			}
+			else {
+				UI_GetThemeColor4fv(TH_VERTEX, fcolor);
+			}
 		}
 	}
 	else {
 		if (armflag & ARM_POSEMODE) 
-			set_pchan_glColor(PCHAN_COLOR_SOLID, boneflag, 0);
-		else
-			UI_ThemeColor(TH_BONE_SOLID);
+			set_pchan_color(PCHAN_COLOR_SOLID, boneflag, 0);
+		else {
+			UI_GetThemeColor4fv(TH_BONE_SOLID, fcolor);
+		}
 	}
 	
-	glTranslatef(0.0f, 1.0f, 0.0f);
+	gpuPushMatrix();
+	gpuTranslate2f(0.0f, 1.0f);
 	if (dt > OB_WIRE) 
 		draw_bonevert_solid();
 	else 
 		draw_bonevert();
-	glTranslatef(0.0f, -1.0f, 0.0f);
-	
+	gpuPopMatrix();
 }
 
 /* 16 values of sin function (still same result!) */
@@ -696,8 +809,13 @@ static void draw_sphere_bone_dist(float smat[4][4], float imat[4][4], bPoseChann
 		
 		//mul_v3_fl(dirvec, head);
 		cross_v3_v3v3(norvec, dirvec, imat[2]);
-		
-		glBegin(GL_QUAD_STRIP);
+
+		Gwn_VertFormat *format = immVertexFormat();
+		unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+		immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+		immBegin(GWN_PRIM_TRI_STRIP, 66);
+		immUniformColor4ub(255, 255, 255, 50);
 		
 		for (a = 0; a < 16; a++) {
 			vec[0] = -si[a] * dirvec[0] + co[a] * norvec[0];
@@ -707,10 +825,8 @@ static void draw_sphere_bone_dist(float smat[4][4], float imat[4][4], bPoseChann
 			madd_v3_v3v3fl(vec1, headvec, vec, head);
 			madd_v3_v3v3fl(vec2, headvec, vec, head + dist);
 			
-			glColor4ub(255, 255, 255, 50);
-			glVertex3fv(vec1);
-			//glColor4ub(255, 255, 255, 0);
-			glVertex3fv(vec2);
+			immVertex3fv(pos, vec1);
+			immVertex3fv(pos, vec2);
 		}
 		
 		for (a = 15; a >= 0; a--) {
@@ -721,10 +837,8 @@ static void draw_sphere_bone_dist(float smat[4][4], float imat[4][4], bPoseChann
 			madd_v3_v3v3fl(vec1, tailvec, vec, tail);
 			madd_v3_v3v3fl(vec2, tailvec, vec, tail + dist);
 			
-			//glColor4ub(255, 255, 255, 50);
-			glVertex3fv(vec1);
-			//glColor4ub(255, 255, 255, 0);
-			glVertex3fv(vec2);
+			immVertex3fv(pos, vec1);
+			immVertex3fv(pos, vec2);
 		}
 		/* make it cyclic... */
 		
@@ -735,12 +849,11 @@ static void draw_sphere_bone_dist(float smat[4][4], float imat[4][4], bPoseChann
 		madd_v3_v3v3fl(vec1, headvec, vec, head);
 		madd_v3_v3v3fl(vec2, headvec, vec, head + dist);
 
-		//glColor4ub(255, 255, 255, 50);
-		glVertex3fv(vec1);
-		//glColor4ub(255, 255, 255, 0);
-		glVertex3fv(vec2);
+		immVertex3fv(pos, vec1);
+		immVertex3fv(pos, vec2);
 		
-		glEnd();
+		immEnd();
+		immUnbindProgram();
 	}
 }
 
@@ -752,6 +865,11 @@ static void draw_sphere_bone_wire(float smat[4][4], float imat[4][4],
 {
 	float head, tail /*, length*/;
 	float *headvec, *tailvec, dirvec[3];
+
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 	
 	/* figure out the sizes of spheres */
 	if (ebone) {
@@ -780,35 +898,49 @@ static void draw_sphere_bone_wire(float smat[4][4], float imat[4][4],
 	
 	/* sphere root color */
 	if (armflag & ARM_EDITMODE) {
-		if (boneflag & BONE_ROOTSEL) UI_ThemeColor(TH_VERTEX_SELECT);
-		else UI_ThemeColor(TH_VERTEX);
+		if (boneflag & BONE_ROOTSEL) {
+			UI_GetThemeColor4fv(TH_VERTEX_SELECT, fcolor);
+		}
+		else {
+			UI_GetThemeColor4fv(TH_VERTEX, fcolor);
+		}
 	}
 	else if (armflag & ARM_POSEMODE)
-		set_pchan_glColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
-	
+		set_pchan_color(PCHAN_COLOR_NORMAL, boneflag, constflag);
+
+	immUniformColor4fv(fcolor);
+
 	/*	Draw root point if we are not connected */
 	if ((boneflag & BONE_CONNECTED) == 0) {
 		if (id != -1)
 			GPU_select_load_id(id | BONESEL_ROOT);
 		
-		drawcircball(GL_LINE_LOOP, headvec, head, imat);
+		imm_drawcircball(headvec, head, imat, pos);
 	}
 	
 	/*	Draw tip point */
 	if (armflag & ARM_EDITMODE) {
-		if (boneflag & BONE_TIPSEL) UI_ThemeColor(TH_VERTEX_SELECT);
-		else UI_ThemeColor(TH_VERTEX);
+		if (boneflag & BONE_TIPSEL) {
+			UI_GetThemeColor4fv(TH_VERTEX_SELECT, fcolor);
+		}
+		else {
+			UI_GetThemeColor4fv(TH_VERTEX, fcolor);
+		}
 	}
 	
 	if (id != -1)
 		GPU_select_load_id(id | BONESEL_TIP);
 	
-	drawcircball(GL_LINE_LOOP, tailvec, tail, imat);
+	imm_drawcircball(tailvec, tail, imat, pos);
 	
 	/* base */
 	if (armflag & ARM_EDITMODE) {
-		if (boneflag & BONE_SELECTED) UI_ThemeColor(TH_SELECT);
-		else UI_ThemeColor(TH_WIRE_EDIT);
+		if (boneflag & BONE_SELECTED){
+			UI_GetThemeColor4fv(TH_SELECT, fcolor);
+		}
+		else {
+			UI_GetThemeColor4fv(TH_WIRE_EDIT, fcolor);
+		}
 	}
 	
 	sub_v3_v3v3(dirvec, tailvec, headvec);
@@ -834,34 +966,40 @@ static void draw_sphere_bone_wire(float smat[4][4], float imat[4][4],
 		if (id != -1)
 			GPU_select_load_id(id | BONESEL_BONE);
 		
-		glBegin(GL_LINES);
+		immBegin(GWN_PRIM_LINES, 4);
 
 		add_v3_v3v3(vec, headvec, norvech);
-		glVertex3fv(vec);
+		immVertex3fv(pos, vec);
 
 		add_v3_v3v3(vec, tailvec, norvect);
-		glVertex3fv(vec);
+		immVertex3fv(pos, vec);
 
 		sub_v3_v3v3(vec, headvec, norvech);
-		glVertex3fv(vec);
+		immVertex3fv(pos, vec);
 
 		sub_v3_v3v3(vec, tailvec, norvect);
-		glVertex3fv(vec);
+		immVertex3fv(pos, vec);
 		
-		glEnd();
+		immEnd();
 	}
+
+	immUnbindProgram();
 }
 
 /* does wire only for outline selecting */
 static void draw_sphere_bone(const short dt, int armflag, int boneflag, short constflag, unsigned int id,
                              bPoseChannel *pchan, EditBone *ebone)
 {
-	GLUquadricObj *qobj;
+	Gwn_Batch *sphere = Batch_get_sphere(1);
 	float head, tail, length;
-	float fac1, fac2;
-	
-	glPushMatrix();
-	qobj = gluNewQuadric();
+	float fac1, fac2, size1, size2;
+	const float light_vec[3] = {0.0f, 0.0f, 1.0f};
+
+	/* dt is always OB_SOlID */
+	Batch_set_builtin_program(sphere, GPU_SHADER_SIMPLE_LIGHTING);
+	GWN_batch_uniform_3fv(sphere, "light", light_vec);
+
+	gpuPushMatrix();
 
 	/* figure out the sizes of spheres */
 	if (ebone) {
@@ -882,110 +1020,124 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 	}
 	
 	/* move to z-axis space */
-	glRotatef(-90.0f, 1.0f, 0.0f, 0.0f);
+	gpuRotateAxis(-90.0f, 'X');
 
-	if (dt == OB_SOLID) {
-		/* set up solid drawing */
-		GPU_basic_shader_bind(GPU_SHADER_LIGHTING | GPU_SHADER_USE_COLOR);
-		
-		gluQuadricDrawStyle(qobj, GLU_FILL); 
-	}
-	else {
-		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
-	}
-	
 	/* sphere root color */
 	if (armflag & ARM_EDITMODE) {
-		if (boneflag & BONE_ROOTSEL) UI_ThemeColor(TH_VERTEX_SELECT);
-		else UI_ThemeColorShade(TH_BONE_SOLID, -30);
+		if (boneflag & BONE_ROOTSEL)
+			UI_GetThemeColor4fv(TH_VERTEX_SELECT, fcolor);
+		else
+			UI_GetThemeColorShade4fv(TH_BONE_SOLID, -30, fcolor);
 	}
 	else if (armflag & ARM_POSEMODE)
-		set_pchan_glColor(PCHAN_COLOR_SPHEREBONE_END, boneflag, constflag);
+		set_pchan_color(PCHAN_COLOR_SPHEREBONE_END, boneflag, constflag);
 	else if (dt == OB_SOLID)
-		UI_ThemeColorShade(TH_BONE_SOLID, -30);
+		UI_GetThemeColorShade4fv(TH_BONE_SOLID, -30, fcolor);
 	
 	/*	Draw root point if we are not connected */
 	if ((boneflag & BONE_CONNECTED) == 0) {
 		if (id != -1)
 			GPU_select_load_id(id | BONESEL_ROOT);
-		gluSphere(qobj, head, 16, 10);
+		gpuPushMatrix();
+		gpuScaleUniform(head);
+		GWN_batch_uniform_4fv(sphere, "color", fcolor);
+		GWN_batch_draw(sphere);
+		gpuPopMatrix();
 	}
 	
 	/*	Draw tip point */
 	if (armflag & ARM_EDITMODE) {
-		if (boneflag & BONE_TIPSEL) UI_ThemeColor(TH_VERTEX_SELECT);
-		else UI_ThemeColorShade(TH_BONE_SOLID, -30);
+		if (boneflag & BONE_TIPSEL) UI_GetThemeColor4fv(TH_VERTEX_SELECT, fcolor);
+		else UI_GetThemeColorShade4fv(TH_BONE_SOLID, -30, fcolor);
 	}
 
 	if (id != -1)
 		GPU_select_load_id(id | BONESEL_TIP);
 	
-	glTranslatef(0.0f, 0.0f, length);
-	gluSphere(qobj, tail, 16, 10);
-	glTranslatef(0.0f, 0.0f, -length);
+	gpuTranslate3f(0.0f, 0.0f, length);
+
+	gpuPushMatrix();
+	gpuScaleUniform(tail);
+	GWN_batch_program_use_begin(sphere); /* hack to make the following uniforms stick */
+	GWN_batch_uniform_4fv(sphere, "color", fcolor);
+	GWN_batch_draw(sphere);
+	gpuPopMatrix();
+
+	gpuTranslate3f(0.0f, 0.0f, -length);
 	
 	/* base */
 	if (armflag & ARM_EDITMODE) {
-		if (boneflag & BONE_SELECTED) UI_ThemeColor(TH_SELECT);
-		else UI_ThemeColor(TH_BONE_SOLID);
+		if (boneflag & BONE_SELECTED) UI_GetThemeColor4fv(TH_SELECT, fcolor);
+		else UI_GetThemeColor4fv(TH_BONE_SOLID, fcolor);
 	}
 	else if (armflag & ARM_POSEMODE)
-		set_pchan_glColor(PCHAN_COLOR_SPHEREBONE_BASE, boneflag, constflag);
+		set_pchan_color(PCHAN_COLOR_SPHEREBONE_BASE, boneflag, constflag);
 	else if (dt == OB_SOLID)
-		UI_ThemeColor(TH_BONE_SOLID);
+		UI_GetThemeColor4fv(TH_BONE_SOLID, fcolor);
+
+	GWN_batch_program_use_begin(sphere); /* hack to make the following uniforms stick */
+	GWN_batch_uniform_4fv(sphere, "color", fcolor);
 	
 	fac1 = (length - head) / length;
 	fac2 = (length - tail) / length;
 	
 	if (length > (head + tail)) {
+		size1 = fac2 * tail + (1.0f - fac2) * head;
+		size2 = fac1 * head + (1.0f - fac1) * tail;
+
 		if (id != -1)
 			GPU_select_load_id(id | BONESEL_BONE);
 		
+		/* draw sphere on extrema */
+		gpuPushMatrix();
+		gpuTranslate3f(0.0f, 0.0f, length - tail);
+		gpuScaleUniform(size1);
+
+		GWN_batch_draw(sphere);
+		gpuPopMatrix();
+
+		gpuPushMatrix();
+		gpuTranslate3f(0.0f, 0.0f, head);
+		gpuScaleUniform(size2);
+
+		GWN_batch_draw(sphere);
+		gpuPopMatrix();
+
+		/* draw cynlinder between spheres */
 		glEnable(GL_POLYGON_OFFSET_FILL);
 		glPolygonOffset(-1.0f, -1.0f);
-		
-		glTranslatef(0.0f, 0.0f, head);
-		gluCylinder(qobj, fac1 * head + (1.0f - fac1) * tail, fac2 * tail + (1.0f - fac2) * head, length - head - tail, 16, 1);
-		glTranslatef(0.0f, 0.0f, -head);
+
+		Gwn_VertFormat *format = immVertexFormat();
+		unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+		unsigned int nor = GWN_vertformat_attr_add(format, "nor", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+		immBindBuiltinProgram(GPU_SHADER_SIMPLE_LIGHTING);
+		immUniformColor4fv(fcolor);
+		immUniform3fv("light", light_vec);
+
+		gpuTranslate3f(0.0f, 0.0f, head);
+		imm_draw_cylinder_fill_normal_3d(pos, nor, size2, size1, length - head - tail, 16, 1);
+
+		immUnbindProgram();
 		
 		glDisable(GL_POLYGON_OFFSET_FILL);
-		
-		/* draw sphere on extrema */
-		glTranslatef(0.0f, 0.0f, length - tail);
-		gluSphere(qobj, fac2 * tail + (1.0f - fac2) * head, 16, 10);
-		glTranslatef(0.0f, 0.0f, -length + tail);
-		
-		glTranslatef(0.0f, 0.0f, head);
-		gluSphere(qobj, fac1 * head + (1.0f - fac1) * tail, 16, 10);
 	}
 	else {
+		size1 = fac1 * head + (1.0f - fac1) * tail;
+
 		/* 1 sphere in center */
-		glTranslatef(0.0f, 0.0f, (head + length - tail) / 2.0f);
-		gluSphere(qobj, fac1 * head + (1.0f - fac1) * tail, 16, 10);
+		gpuTranslate3f(0.0f, 0.0f, (head + length - tail) / 2.0f);
+
+		gpuScaleUniform(size1);
+		GWN_batch_draw(sphere);
 	}
 	
-	/* restore */
-	if (dt == OB_SOLID) {
-		GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
-	}
-	
-	glPopMatrix();
-	gluDeleteQuadric(qobj);  
+	gpuPopMatrix();
 }
-
-static GLubyte bm_dot6[] = {0x0, 0x18, 0x3C, 0x7E, 0x7E, 0x3C, 0x18, 0x0};
-static GLubyte bm_dot8[] = {0x3C, 0x7E, 0xFF, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C};
-
-static GLubyte bm_dot5[] = {0x0, 0x0, 0x10, 0x38, 0x7c, 0x38, 0x10, 0x0};
-static GLubyte bm_dot7[] = {0x0, 0x38, 0x7C, 0xFE, 0xFE, 0xFE, 0x7C, 0x38};
-
 
 static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned int id,
                            bPoseChannel *pchan, EditBone *ebone)
 {
-	/* call this once, avoid constant changing */
-	BLI_assert(glaGetOneInt(GL_UNPACK_ALIGNMENT) == 1);
-
 	float length;
 	
 	if (pchan) 
@@ -993,103 +1145,119 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 	else 
 		length = ebone->length;
 	
-	glPushMatrix();
-	glScalef(length, length, length);
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+	gpuPushMatrix();
+	gpuScaleUniform(length);
 	
 	/* this chunk not in object mode */
 	if (armflag & (ARM_EDITMODE | ARM_POSEMODE)) {
 		glLineWidth(4.0f);
-		if (G.f & G_PICKSEL) {
-			/* no bitmap in selection mode, crashes 3d cards...
-			 * instead draw a solid point the same size */
-			glPointSize(8.0f);
-		}
+		glPointSize(8.0f);
 
 		if (armflag & ARM_POSEMODE)
-			set_pchan_glColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+			set_pchan_color(PCHAN_COLOR_NORMAL, boneflag, constflag);
 		else if (armflag & ARM_EDITMODE) {
-			UI_ThemeColor(TH_WIRE_EDIT);
+			UI_GetThemeColor4fv(TH_WIRE_EDIT, fcolor);
 		}
-		
+
+		/* line */
+		immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+		immUniformColor4fv(fcolor);
+
+		if (id != -1)
+			GPU_select_load_id(id | BONESEL_BONE);
+
+		immBegin(GWN_PRIM_LINES, 2);
+		immVertex3f(pos, 0.0f, 1.0f, 0.0f);
+		immVertex3f(pos, 0.0f, 0.0f, 0.0f);
+		immEnd();
+
+		immUnbindProgram();
+
+		immBindBuiltinProgram(GPU_SHADER_3D_POINT_FIXED_SIZE_UNIFORM_COLOR);
+		immUniformColor4fv(fcolor);
+
 		/*	Draw root point if we are not connected */
 		if ((boneflag & BONE_CONNECTED) == 0) {
-			if (G.f & G_PICKSEL) {
+			if (G.f & G_PICKSEL)
 				GPU_select_load_id(id | BONESEL_ROOT);
-				glBegin(GL_POINTS);
-				glVertex3f(0.0f, 0.0f, 0.0f);
-				glEnd();
-			}
-			else {
-				glRasterPos3f(0.0f, 0.0f, 0.0f);
-				glBitmap(8, 8, 4, 4, 0, 0, bm_dot8);
-			}
+
+			immBegin(GWN_PRIM_POINTS, 1);
+			immVertex3f(pos, 0.0f, 0.0f, 0.0f);
+			immEnd();
 		}
-		
-		if (id != -1)
-			GPU_select_load_id((GLuint) id | BONESEL_BONE);
-		
-		glBegin(GL_LINES);
-		glVertex3f(0.0f, 0.0f, 0.0f);
-		glVertex3f(0.0f, 1.0f, 0.0f);
-		glEnd();
-		
+
 		/* tip */
-		if (G.f & G_PICKSEL) {
-			/* no bitmap in selection mode, crashes 3d cards... */
+		if (G.f & G_PICKSEL)
 			GPU_select_load_id(id | BONESEL_TIP);
-			glBegin(GL_POINTS);
-			glVertex3f(0.0f, 1.0f, 0.0f);
-			glEnd();
-		}
-		else {
-			glRasterPos3f(0.0f, 1.0f, 0.0f);
-			glBitmap(8, 8, 4, 4, 0, 0, bm_dot7);
-		}
-		
+
+		immBegin(GWN_PRIM_POINTS, 1);
+		immVertex3f(pos, 0.0f, 1.0f, 0.0f);
+		immEnd();
+
+		immUnbindProgram();
+
+
 		/* further we send no names */
 		if (id != -1)
 			GPU_select_load_id(id & 0xFFFF);  /* object tag, for bordersel optim */
 		
 		if (armflag & ARM_POSEMODE)
-			set_pchan_glColor(PCHAN_COLOR_LINEBONE, boneflag, constflag);
+			set_pchan_color(PCHAN_COLOR_LINEBONE, boneflag, constflag);
 	}
-	
-	glLineWidth(2.0);
-	
+
+	/* Now draw the inner color */
+	glLineWidth(2.0f);
+	glPointSize(5.0f);
+
+	/* line */
+	if (armflag & ARM_EDITMODE) {
+		if (boneflag & BONE_SELECTED) UI_GetThemeColor4fv(TH_EDGE_SELECT, fcolor);
+		else UI_GetThemeColorShade4fv(TH_BACK, -30, fcolor);
+	}
+
+	immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+	immUniformColor4fv(fcolor);
+
+	immBegin(GWN_PRIM_LINES, 2);
+	immVertex3f(pos, 0.0f, 1.0f, 0.0f);
+	immVertex3f(pos, 0.0f, 0.0f, 0.0f);
+	immEnd();
+
+	immUnbindProgram();
+
+	immBindBuiltinProgram(GPU_SHADER_3D_POINT_FIXED_SIZE_UNIFORM_COLOR);
+
 	/*Draw root point if we are not connected */
 	if ((boneflag & BONE_CONNECTED) == 0) {
-		if ((G.f & G_PICKSEL) == 0) {
-			/* no bitmap in selection mode, crashes 3d cards... */
-			if (armflag & ARM_EDITMODE) {
-				if (boneflag & BONE_ROOTSEL) UI_ThemeColor(TH_VERTEX_SELECT);
-				else UI_ThemeColor(TH_VERTEX);
-			}
-			glRasterPos3f(0.0f, 0.0f, 0.0f);
-			glBitmap(8, 8, 4, 4, 0, 0, bm_dot6);
+		if (armflag & ARM_EDITMODE) {
+			if (boneflag & BONE_ROOTSEL) UI_GetThemeColor4fv(TH_VERTEX_SELECT, fcolor);
+			else UI_GetThemeColor4fv(TH_VERTEX, fcolor);
 		}
+		immUniformColor4fv(fcolor);
+		immBegin(GWN_PRIM_POINTS, 1);
+		immVertex3f(pos, 0.0f, 0.0f, 0.0f);
+		immEnd();
 	}
-	
-	if (armflag & ARM_EDITMODE) {
-		if (boneflag & BONE_SELECTED) UI_ThemeColor(TH_EDGE_SELECT);
-		else UI_ThemeColorShade(TH_BACK, -30);
-	}
-	glBegin(GL_LINES);
-	glVertex3f(0.0f, 0.0f, 0.0f);
-	glVertex3f(0.0f, 1.0f, 0.0f);
-	glEnd();
-	
+
 	/* tip */
 	if ((G.f & G_PICKSEL) == 0) {
 		/* no bitmap in selection mode, crashes 3d cards... */
 		if (armflag & ARM_EDITMODE) {
-			if (boneflag & BONE_TIPSEL) UI_ThemeColor(TH_VERTEX_SELECT);
-			else UI_ThemeColor(TH_VERTEX);
+			if (boneflag & BONE_TIPSEL) UI_GetThemeColor4fv(TH_VERTEX_SELECT, fcolor);
+			else UI_GetThemeColor4fv(TH_VERTEX, fcolor);
 		}
-		glRasterPos3f(0.0f, 1.0f, 0.0f);
-		glBitmap(8, 8, 4, 4, 0, 0, bm_dot5);
+		immUniformColor4fv(fcolor);
+		immBegin(GWN_PRIM_POINTS, 1);
+		immVertex3f(pos, 0.0f, 1.0f, 0.0f);
+		immEnd();
 	}
-	
-	glPopMatrix();
+
+	immUnbindProgram();
+
+	gpuPopMatrix();
 }
 
 /* A partial copy of b_bone_spline_setup(), with just the parts for previewing editmode curve settings 
@@ -1188,18 +1356,16 @@ static void draw_b_bone_boxes(const short dt, bPoseChannel *pchan, EditBone *ebo
 		}
 		
 		for (a = 0; a < segments; a++) {
-			glPushMatrix();
-			glMultMatrixf(bbone[a].mat);
+			gpuPushMatrix();
+			gpuMultMatrix(bbone[a].mat);
 			if (dt == OB_SOLID) drawsolidcube_size(xwidth, dlen, zwidth);
 			else drawcube_size(xwidth, dlen, zwidth);
-			glPopMatrix();
+			gpuPopMatrix();
 		}
 	}
 	else {
-		glPushMatrix();
 		if (dt == OB_SOLID) drawsolidcube_size(xwidth, length, zwidth);
 		else drawcube_size(xwidth, length, zwidth);
-		glPopMatrix();
 	}
 }
 
@@ -1222,26 +1388,27 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 	/* draw points only if... */
 	if (armflag & ARM_EDITMODE) {
 		/* move to unitspace */
-		glPushMatrix();
-		glScalef(length, length, length);
+		gpuPushMatrix();
+		gpuScaleUniform(length);
 		draw_bone_points(dt, armflag, boneflag, id);
-		glPopMatrix();
+		gpuPopMatrix();
 		length *= 0.95f;  /* make vertices visible */
 	}
 
 	/* colors for modes */
 	if (armflag & ARM_POSEMODE) {
 		if (dt <= OB_WIRE)
-			set_pchan_glColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+			set_pchan_color(PCHAN_COLOR_NORMAL, boneflag, constflag);
 		else 
-			set_pchan_glColor(PCHAN_COLOR_SOLID, boneflag, constflag);
+			set_pchan_color(PCHAN_COLOR_SOLID, boneflag, constflag);
 	}
 	else if (armflag & ARM_EDITMODE) {
 		if (dt == OB_WIRE) {
-			set_ebone_glColor(boneflag);
+			set_ebone_color(boneflag);
 		}
-		else 
-			UI_ThemeColor(TH_BONE_SOLID);
+		else {
+			UI_GetThemeColor4fv(TH_BONE_SOLID, fcolor);
+		}
 	}
 	
 	if (id != -1) {
@@ -1250,33 +1417,31 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 	
 	/* set up solid drawing */
 	if (dt > OB_WIRE) {
-		GPU_basic_shader_bind(GPU_SHADER_LIGHTING | GPU_SHADER_USE_COLOR);
-		
 		if (armflag & ARM_POSEMODE)
-			set_pchan_glColor(PCHAN_COLOR_SOLID, boneflag, constflag);
-		else
-			UI_ThemeColor(TH_BONE_SOLID);
+			set_pchan_color(PCHAN_COLOR_SOLID, boneflag, constflag);
+		else {
+			UI_GetThemeColor4fv(TH_BONE_SOLID, fcolor);
+		}
 		
+		flat_color = false;
 		draw_b_bone_boxes(OB_SOLID, pchan, ebone, xwidth, length, zwidth);
-		
-		/* disable solid drawing */
-		GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
 	}
 	else {
 		/* wire */
 		if (armflag & ARM_POSEMODE) {
 			if (constflag && ((G.f & G_PICKSEL) == 0)) {
 				/* set constraint colors */
-				if (set_pchan_glColor(PCHAN_COLOR_CONSTS, boneflag, constflag)) {
+				if (set_pchan_color(PCHAN_COLOR_CONSTS, boneflag, constflag)) {
 					glEnable(GL_BLEND);
 					
+					flat_color = true;
 					draw_b_bone_boxes(OB_SOLID, pchan, ebone, xwidth, length, zwidth);
 					
 					glDisable(GL_BLEND);
 				}
 				
 				/* restore colors */
-				set_pchan_glColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+				set_pchan_color(PCHAN_COLOR_NORMAL, boneflag, constflag);
 			}
 		}
 		
@@ -1286,33 +1451,41 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 
 static void draw_wire_bone_segments(bPoseChannel *pchan, Mat4 *bbones, float length, int segments)
 {
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+	immUniformColor4fv(fcolor);
+
 	if ((segments > 1) && (pchan)) {
 		float dlen = length / (float)segments;
 		Mat4 *bbone = bbones;
 		int a;
-		
+
 		for (a = 0; a < segments; a++, bbone++) {
-			glPushMatrix();
-			glMultMatrixf(bbone->mat);
-			
-			glBegin(GL_LINES);
-			glVertex3f(0.0f, 0.0f, 0.0f);
-			glVertex3f(0.0f, dlen, 0.0f);
-			glEnd();  /* GL_LINES */
-			
-			glPopMatrix();
+			gpuPushMatrix();
+			gpuMultMatrix(bbone->mat);
+
+			immBegin(GWN_PRIM_LINES, 2);
+			immVertex3f(pos, 0.0f, 0.0f, 0.0f);
+			immVertex3f(pos, 0.0f, dlen, 0.0f);
+			immEnd();
+
+			gpuPopMatrix();
 		}
 	}
 	else {
-		glPushMatrix();
-		
-		glBegin(GL_LINES);
-		glVertex3f(0.0f, 0.0f, 0.0f);
-		glVertex3f(0.0f, length, 0.0f);
-		glEnd();
-		
-		glPopMatrix();
+		gpuPushMatrix();
+
+		immBegin(GWN_PRIM_LINES, 2);
+		immVertex3f(pos, 0.0f, 0.0f, 0.0f);
+		immVertex3f(pos, 0.0f, length, 0.0f);
+		immEnd();
+
+		gpuPopMatrix();
 	}
+
+	immUnbindProgram();
 }
 
 static void draw_wire_bone(const short dt, int armflag, int boneflag, short constflag, unsigned int id,
@@ -1338,10 +1511,11 @@ static void draw_wire_bone(const short dt, int armflag, int boneflag, short cons
 	/* draw points only if... */
 	if (armflag & ARM_EDITMODE) {
 		/* move to unitspace */
-		glPushMatrix();
-		glScalef(length, length, length);
+		gpuPushMatrix();
+		gpuScaleUniform(length);
+		flat_color = true;
 		draw_bone_points(dt, armflag, boneflag, id);
-		glPopMatrix();
+		gpuPopMatrix();
 		length *= 0.95f;  /* make vertices visible */
 	}
 	
@@ -1359,10 +1533,10 @@ static void draw_wire_bone(const short dt, int armflag, int boneflag, short cons
 	
 	/* colors for modes */
 	if (armflag & ARM_POSEMODE) {
-		set_pchan_glColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+		set_pchan_color(PCHAN_COLOR_NORMAL, boneflag, constflag);
 	}
 	else if (armflag & ARM_EDITMODE) {
-		set_ebone_glColor(boneflag);
+		set_ebone_color(boneflag);
 	}
 	
 	/* draw normal */
@@ -1372,23 +1546,23 @@ static void draw_wire_bone(const short dt, int armflag, int boneflag, short cons
 static void draw_bone(const short dt, int armflag, int boneflag, short constflag, unsigned int id, float length)
 {
 	
-	/* Draw a 3d octahedral bone, we use normalized space based on length,
-	 * for display-lists */
-	
-	glScalef(length, length, length);
+	/* Draw a 3d octahedral bone, we use normalized space based on length */
+	gpuScaleUniform(length);
 
 	/* set up solid drawing */
 	if (dt > OB_WIRE) {
-		GPU_basic_shader_bind(GPU_SHADER_LIGHTING | GPU_SHADER_USE_COLOR);
-		UI_ThemeColor(TH_BONE_SOLID);
+		UI_GetThemeColor4fv(TH_BONE_SOLID, fcolor);
+		flat_color = false;
 	}
+	else
+		flat_color = true;
 	
 	/* colors for posemode */
 	if (armflag & ARM_POSEMODE) {
 		if (dt <= OB_WIRE)
-			set_pchan_glColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+			set_pchan_color(PCHAN_COLOR_NORMAL, boneflag, constflag);
 		else 
-			set_pchan_glColor(PCHAN_COLOR_SOLID, boneflag, constflag);
+			set_pchan_color(PCHAN_COLOR_SOLID, boneflag, constflag);
 	}
 	
 	
@@ -1403,12 +1577,12 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 	if (dt <= OB_WIRE) {
 		/* colors */
 		if (armflag & ARM_EDITMODE) {
-			set_ebone_glColor(boneflag);
+			set_ebone_color(boneflag);
 		}
 		else if (armflag & ARM_POSEMODE) {
 			if (constflag && ((G.f & G_PICKSEL) == 0)) {
 				/* draw constraint colors */
-				if (set_pchan_glColor(PCHAN_COLOR_CONSTS, boneflag, constflag)) {
+				if (set_pchan_color(PCHAN_COLOR_CONSTS, boneflag, constflag)) {
 					glEnable(GL_BLEND);
 					
 					draw_bone_solid_octahedral();
@@ -1417,7 +1591,7 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 				}
 				
 				/* restore colors */
-				set_pchan_glColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+				set_pchan_color(PCHAN_COLOR_NORMAL, boneflag, constflag);
 			}
 		}
 		draw_bone_octahedral();
@@ -1425,35 +1599,31 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 	else {
 		/* solid */
 		if (armflag & ARM_POSEMODE)
-			set_pchan_glColor(PCHAN_COLOR_SOLID, boneflag, constflag);
+			set_pchan_color(PCHAN_COLOR_SOLID, boneflag, constflag);
 		else
-			UI_ThemeColor(TH_BONE_SOLID);
-		draw_bone_solid_octahedral();
-	}
+			UI_GetThemeColor4fv(TH_BONE_SOLID, fcolor);
 
-	/* disable solid drawing */
-	if (dt > OB_WIRE) {
-		GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
+		draw_bone_solid_octahedral();
 	}
 }
 
-static void draw_custom_bone(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob,
+static void draw_custom_bone(Scene *scene, SceneLayer *sl, View3D *v3d, RegionView3D *rv3d, Object *ob,
                              const short dt, int armflag, int boneflag, unsigned int id, float length)
 {
 	if (ob == NULL) return;
 	
-	glScalef(length, length, length);
+	gpuScaleUniform(length);
 	
 	/* colors for posemode */
 	if (armflag & ARM_POSEMODE) {
-		set_pchan_glColor(PCHAN_COLOR_NORMAL, boneflag, 0);
+		set_pchan_color(PCHAN_COLOR_NORMAL, boneflag, 0);
 	}
 	
 	if (id != -1) {
 		GPU_select_load_id((GLuint) id | BONESEL_BONE);
 	}
-	
-	draw_object_instance(scene, v3d, rv3d, ob, dt, armflag & ARM_POSEMODE);
+
+	draw_object_instance(scene, sl, v3d, rv3d, ob, dt, armflag & ARM_POSEMODE, fcolor);
 }
 
 
@@ -1461,7 +1631,20 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 {
 	bConstraint *con;
 	bPoseChannel *parchan;
-	
+
+	const uint shdr_pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_COLOR);
+
+	float viewport_size[4];
+	glGetFloatv(GL_VIEWPORT, viewport_size);
+	immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
+
+	immUniform1i("num_colors", 0);  /* "simple" mode */
+	immUniformColor4fv(fcolor);
+	immUniform1f("dash_width", 6.0f);
+	immUniform1f("dash_factor", 0.5f);
+
 	for (con = pchan->constraints.first; con; con = con->next) {
 		if (con->enforce == 0.0f)
 			continue;
@@ -1471,47 +1654,45 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 			{
 				bKinematicConstraint *data = (bKinematicConstraint *)con->data;
 				int segcount = 0;
+				float ik_tip[3];
 				
 				/* if only_temp, only draw if it is a temporary ik-chain */
 				if ((only_temp) && !(data->flag & CONSTRAINT_IK_TEMP))
 					continue;
-				
-				setlinestyle(3);
-				glBegin(GL_LINES);
-				
+
 				/* exclude tip from chain? */
 				if ((data->flag & CONSTRAINT_IK_TIP) == 0)
 					parchan = pchan->parent;
 				else
 					parchan = pchan;
 				
-				glVertex3fv(parchan->pose_tail);
+				copy_v3_v3(ik_tip, parchan->pose_tail);
 				
 				/* Find the chain's root */
 				while (parchan->parent) {
 					segcount++;
-					if (segcount == data->rootbone || segcount > 255) {
-						break;  /* 255 is weak */
-					}
+					/* FIXME: revise the breaking conditions */
+					if (segcount == data->rootbone || segcount > 255) break;  /* 255 is weak */
 					parchan = parchan->parent;
 				}
-				if (parchan)
-					glVertex3fv(parchan->pose_head);
+
+				if (parchan) {
+					immBegin(GWN_PRIM_LINES, 2);
+					immVertex3fv(shdr_pos, ik_tip);
+					immVertex3fv(shdr_pos, parchan->pose_head);
+					immEnd();
+				}
 				
-				glEnd();
-				setlinestyle(0);
 				break;
 			}
 			case CONSTRAINT_TYPE_SPLINEIK: 
 			{
 				bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
 				int segcount = 0;
-				
-				setlinestyle(3);
-				glBegin(GL_LINES);
+				float ik_tip[3];
 				
 				parchan = pchan;
-				glVertex3fv(parchan->pose_tail);
+				copy_v3_v3(ik_tip, parchan->pose_tail);
 				
 				/* Find the chain's root */
 				while (parchan->parent) {
@@ -1521,18 +1702,21 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 					parchan = parchan->parent;
 				}
 				/* Only draw line in case our chain is more than one bone long! */
-				if (parchan != pchan)  /* XXX revise the breaking conditions to only stop at the tail? */
-					glVertex3fv(parchan->pose_head);
-
-				glEnd();
-				setlinestyle(0);
+				if (parchan != pchan) { /* XXX revise the breaking conditions to only stop at the tail? */
+					immBegin(GWN_PRIM_LINES, 2);
+					immVertex3fv(shdr_pos, ik_tip);
+					immVertex3fv(shdr_pos, parchan->pose_head);
+					immEnd();
+				}
 				break;
 			}
 		}
 	}
+
+	immUnbindProgram();
 }
 
-static void bgl_sphere_project(float ax, float az)
+static void imm_sphere_project(unsigned int pos, float ax, float az)
 {
 	float dir[3], sine, q3;
 
@@ -1543,11 +1727,13 @@ static void bgl_sphere_project(float ax, float az)
 	dir[1] = 1.0f - 2.0f * sine;
 	dir[2] = ax * q3;
 
-	glVertex3fv(dir);
+	immVertex3fv(pos, dir);
 }
 
-static void draw_dof_ellipse(float ax, float az)
+static void draw_dof_ellipse(unsigned int pos, float ax, float az)
 {
+	const int n = 16;
+	const int tri = n*n - 2*n + 1; /* Yay fancy math ! */
 	const float staticSine[16] = {
 		0.0f, 0.104528463268f, 0.207911690818f, 0.309016994375f,
 		0.406736643076f, 0.5f, 0.587785252292f, 0.669130606359f,
@@ -1556,15 +1742,15 @@ static void draw_dof_ellipse(float ax, float az)
 		0.994521895368f, 1.0f
 	};
 
-	int i, j, n = 16;
+	int i, j;
 	float x, z, px, pz;
 
 	glEnable(GL_BLEND);
 	glDepthMask(0);
 
-	glColor4ub(70, 70, 70, 50);
+	immUniformColor4ub(70, 70, 70, 50);
 
-	glBegin(GL_QUADS);
+	immBegin(GWN_PRIM_TRIS, tri*3);
 	pz = 0.0f;
 	for (i = 1; i < n; i++) {
 		z = staticSine[i];
@@ -1574,36 +1760,35 @@ static void draw_dof_ellipse(float ax, float az)
 			x = staticSine[j];
 			
 			if (j == n - i) {
-				glEnd();
-				glBegin(GL_TRIANGLES);
-				bgl_sphere_project(ax * px, az * z);
-				bgl_sphere_project(ax * px, az * pz);
-				bgl_sphere_project(ax * x, az * pz);
-				glEnd();
-				glBegin(GL_QUADS);
+				imm_sphere_project(pos, ax * px, az * z);
+				imm_sphere_project(pos, ax * px, az * pz);
+				imm_sphere_project(pos, ax * x, az * pz);
 			}
 			else {
-				bgl_sphere_project(ax * x, az * z);
-				bgl_sphere_project(ax * x, az * pz);
-				bgl_sphere_project(ax * px, az * pz);
-				bgl_sphere_project(ax * px, az * z);
+				imm_sphere_project(pos, ax * x, az * z);
+				imm_sphere_project(pos, ax * x, az * pz);
+				imm_sphere_project(pos, ax * px, az * pz);
+
+				imm_sphere_project(pos, ax * px, az * pz);
+				imm_sphere_project(pos, ax * px, az * z);
+				imm_sphere_project(pos, ax * x, az * z);
 			}
 			
 			px = x;
 		}
 		pz = z;
 	}
-	glEnd();
+	immEnd();
 
 	glDisable(GL_BLEND);
 	glDepthMask(1);
 
-	glColor3ub(0, 0, 0);
+	immUniformColor3ub(0, 0, 0);
 
-	glBegin(GL_LINE_STRIP);
+	immBegin(GWN_PRIM_LINE_STRIP, n);
 	for (i = 0; i < n; i++)
-		bgl_sphere_project(staticSine[n - i - 1] * ax, staticSine[i] * az);
-	glEnd();
+		imm_sphere_project(pos, staticSine[n - i - 1] * ax, staticSine[i] * az);
+	immEnd();
 }
 
 static void draw_pose_dofs(Object *ob)
@@ -1611,7 +1796,12 @@ static void draw_pose_dofs(Object *ob)
 	bArmature *arm = ob->data;
 	bPoseChannel *pchan;
 	Bone *bone;
-	
+
+	Gwn_VertFormat *format = immVertexFormat();
+	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		bone = pchan->bone;
 		
@@ -1625,54 +1815,55 @@ static void draw_pose_dofs(Object *ob)
 							int a, i;
 							
 							/* in parent-bone pose, but own restspace */
-							glPushMatrix();
+							gpuPushMatrix();
 							
 							copy_v3_v3(posetrans, pchan->pose_mat[3]);
-							glTranslate3fv(posetrans);
+							gpuTranslate3fv(posetrans);
 							
 							if (pchan->parent) {
 								copy_m4_m4(mat, pchan->parent->pose_mat);
 								mat[3][0] = mat[3][1] = mat[3][2] = 0.0f;
-								glMultMatrixf(mat);
+								gpuMultMatrix(mat);
 							}
 							
 							copy_m4_m3(mat, pchan->bone->bone_mat);
-							glMultMatrixf(mat);
+							gpuMultMatrix(mat);
 							
 							scale = bone->length * pchan->size[1];
-							glScalef(scale, scale, scale);
+							gpuScaleUniform(scale);
 							
-							if (pchan->ikflag & BONE_IK_XLIMIT) {
-								if (pchan->ikflag & BONE_IK_ZLIMIT) {
-									float amin[3], amax[3];
-									
-									for (i = 0; i < 3; i++) {
-										/* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
-										amin[i] = sinf(pchan->limitmin[i] * 0.5f);
-										amax[i] = sinf(pchan->limitmax[i] * 0.5f);
-									}
-									
-									glScalef(1.0f, -1.0f, 1.0f);
-									if ((amin[0] != 0.0f) && (amin[2] != 0.0f))
-										draw_dof_ellipse(amin[0], amin[2]);
-									if ((amin[0] != 0.0f) && (amax[2] != 0.0f))
-										draw_dof_ellipse(amin[0], amax[2]);
-									if ((amax[0] != 0.0f) && (amin[2] != 0.0f))
-										draw_dof_ellipse(amax[0], amin[2]);
-									if ((amax[0] != 0.0f) && (amax[2] != 0.0f))
-										draw_dof_ellipse(amax[0], amax[2]);
-									glScalef(1.0f, -1.0f, 1.0f);
+							if (((pchan->ikflag & BONE_IK_XLIMIT) != 0) &&
+							    ((pchan->ikflag & BONE_IK_ZLIMIT) != 0))
+							{
+								float amin[3], amax[3];
+
+								for (i = 0; i < 3; i++) {
+									/* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
+									amin[i] = sinf(pchan->limitmin[i] * 0.5f);
+									amax[i] = sinf(pchan->limitmax[i] * 0.5f);
 								}
+
+								gpuScale3f(1.0f, -1.0f, 1.0f);
+								if ((amin[0] != 0.0f) && (amin[2] != 0.0f))
+									draw_dof_ellipse(pos, amin[0], amin[2]);
+								if ((amin[0] != 0.0f) && (amax[2] != 0.0f))
+									draw_dof_ellipse(pos, amin[0], amax[2]);
+								if ((amax[0] != 0.0f) && (amin[2] != 0.0f))
+									draw_dof_ellipse(pos, amax[0], amin[2]);
+								if ((amax[0] != 0.0f) && (amax[2] != 0.0f))
+									draw_dof_ellipse(pos, amax[0], amax[2]);
+								gpuScale3f(1.0f, -1.0f, 1.0f); /* XXX same as above, is this intentional? */
 							}
 							
 							/* arcs */
 							if (pchan->ikflag & BONE_IK_ZLIMIT) {
 								/* OpenGL requires rotations in degrees; so we're taking the average angle here */
 								theta = RAD2DEGF(0.5f * (pchan->limitmin[2] + pchan->limitmax[2]));
-								glRotatef(theta, 0.0f, 0.0f, 1.0f);
+								gpuPushMatrix();
+								gpuRotateAxis(theta, 'Z');
 								
-								glColor3ub(50, 50, 255);  /* blue, Z axis limit */
-								glBegin(GL_LINE_STRIP);
+								immUniformColor3ub(50, 50, 255);  /* blue, Z axis limit */
+								immBegin(GWN_PRIM_LINE_STRIP, 33);
 								for (a = -16; a <= 16; a++) {
 									/* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
 									float fac = ((float)a) / 16.0f * 0.5f;
@@ -1683,20 +1874,21 @@ static void draw_pose_dofs(Object *ob)
 									corner[i][0] = sinf(phi);
 									corner[i][1] = cosf(phi);
 									corner[i][2] = 0.0f;
-									glVertex3fv(corner[i]);
+									immVertex3fv(pos, corner[i]);
 								}
-								glEnd();
+								immEnd();
 								
-								glRotatef(-theta, 0.0f, 0.0f, 1.0f);
+								gpuPopMatrix();
 							}
 							
 							if (pchan->ikflag & BONE_IK_XLIMIT) {
 								/* OpenGL requires rotations in degrees; so we're taking the average angle here */
 								theta = RAD2DEGF(0.5f * (pchan->limitmin[0] + pchan->limitmax[0]));
-								glRotatef(theta, 1.0f, 0.0f, 0.0f);
+								gpuPushMatrix();
+								gpuRotateAxis(theta, 'X');
 								
-								glColor3ub(255, 50, 50);  /* Red, X axis limit */
-								glBegin(GL_LINE_STRIP);
+								immUniformColor3ub(255, 50, 50);  /* Red, X axis limit */
+								immBegin(GWN_PRIM_LINE_STRIP, 33);
 								for (a = -16; a <= 16; a++) {
 									/* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
 									float fac = ((float)a) / 16.0f * 0.5f;
@@ -1706,21 +1898,23 @@ static void draw_pose_dofs(Object *ob)
 									corner[i][0] = 0.0f;
 									corner[i][1] = sinf(phi);
 									corner[i][2] = cosf(phi);
-									glVertex3fv(corner[i]);
+									immVertex3fv(pos, corner[i]);
 								}
-								glEnd();
+								immEnd();
 								
-								glRotatef(-theta, 1.0f, 0.0f, 0.0f);
+								gpuPopMatrix();
 							}
 							
 							/* out of cone, out of bone */
-							glPopMatrix(); 
+							gpuPopMatrix();
 						}
 					}
 				}
 			}
 		}
 	}
+
+	immUnbindProgram();
 }
 
 static void bone_matrix_translate_y(float mat[4][4], float y)
@@ -1733,7 +1927,7 @@ static void bone_matrix_translate_y(float mat[4][4], float y)
 }
 
 /* assumes object is Armature with pose */
-static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
+static void draw_pose_bones(Scene *scene, SceneLayer *sl, View3D *v3d, ARegion *ar, Base *base,
                             const short dt, const unsigned char ob_wire_col[4],
                             const bool do_const_color, const bool is_outline)
 {
@@ -1756,7 +1950,9 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	
 	/* being set below */
 	arm->layer_used = 0;
-	
+
+	rgba_uchar_to_float(fcolor, ob_wire_col);
+
 	/* precalc inverse matrix for drawing screen aligned */
 	if (arm->drawtype == ARM_ENVELOPE) {
 		/* precalc inverse matrix for drawing screen aligned */
@@ -1805,7 +2001,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	/* if solid we draw that first, with selection codes, but without names, axes etc */
 	if (dt > OB_WIRE) {
 		if (arm->flag & ARM_POSEMODE) 
-			index = base->selcol;
+			index = base->object->select_color;
 		
 		for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 			bone = pchan->bone;
@@ -1817,13 +2013,13 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			{
 				if (bone->layer & arm->layer) {
 					const bool use_custom = (pchan->custom) && !(arm->flag & ARM_NO_CUSTOM);
-					glPushMatrix();
+					gpuPushMatrix();
 					
 					if (use_custom && pchan->custom_tx) {
-						glMultMatrixf(pchan->custom_tx->pose_mat);
+						gpuMultMatrix(pchan->custom_tx->pose_mat);
 					}
 					else {
-						glMultMatrixf(pchan->pose_mat);
+						gpuMultMatrix(pchan->pose_mat);
 					}
 					
 					/* catch exception for bone with hidden parent */
@@ -1858,7 +2054,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 								glDisable(GL_CULL_FACE);
 							}
 
-							draw_custom_bone(scene, v3d, rv3d, pchan->custom,
+							draw_custom_bone(scene, sl, v3d, rv3d, pchan->custom,
 							                 OB_SOLID, arm->flag, flag, index, PCHAN_CUSTOM_DRAW_SIZE(pchan));
 						}
 					}
@@ -1885,7 +2081,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 						}
 					}
 
-					glPopMatrix();
+					gpuPopMatrix();
 				}
 			}
 			
@@ -1908,7 +2104,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	    (draw_wire || (dt <= OB_WIRE)) )
 	{
 		if (arm->flag & ARM_POSEMODE)
-			index = base->selcol;
+			index = base->object->select_color;
 			
 		/* only draw custom bone shapes that need to be drawn as wires */
 		for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
@@ -1921,13 +2117,13 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 				if (bone->layer & arm->layer) {
 					if (pchan->custom) {
 						if ((dt < OB_SOLID) || (bone->flag & BONE_DRAWWIRE)) {
-							glPushMatrix();
+							gpuPushMatrix();
 							
 							if (pchan->custom_tx) {
-								glMultMatrixf(pchan->custom_tx->pose_mat);
+								gpuMultMatrix(pchan->custom_tx->pose_mat);
 							}
 							else {
-								glMultMatrixf(pchan->pose_mat);
+								gpuMultMatrix(pchan->pose_mat);
 							}
 							
 							/* prepare colors */
@@ -1937,7 +2133,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 							else if (arm->flag & ARM_POSEMODE)
 								set_pchan_colorset(ob, pchan);
 							else {
-								glColor3ubv(ob_wire_col);
+								rgba_uchar_to_float(fcolor, ob_wire_col);
 							}
 								
 							/* catch exception for bone with hidden parent */
@@ -1949,10 +2145,10 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 							if (bone == arm->act_bone)
 								flag |= BONE_DRAW_ACTIVE;
 							
-							draw_custom_bone(scene, v3d, rv3d, pchan->custom,
+							draw_custom_bone(scene, sl, v3d, rv3d, pchan->custom,
 							                 OB_WIRE, arm->flag, flag, index, PCHAN_CUSTOM_DRAW_SIZE(pchan));
 							
-							glPopMatrix();
+							gpuPopMatrix();
 						}
 					}
 				}
@@ -1979,7 +2175,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 		/* draw line check first. we do selection indices */
 		if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE)) {
 			if (arm->flag & ARM_POSEMODE) 
-				index = base->selcol;
+				index = base->object->select_color;
 		}
 		/* if solid && posemode, we draw again with polygonoffset */
 		else if ((dt > OB_WIRE) && (arm->flag & ARM_POSEMODE)) {
@@ -1988,7 +2184,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 		else {
 			/* and we use selection indices if not done yet */
 			if (arm->flag & ARM_POSEMODE) 
-				index = base->selcol;
+				index = base->object->select_color;
 		}
 
 		if (is_cull_enabled == false) {
@@ -2011,16 +2207,30 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 						 * - only if V3D_HIDE_HELPLINES is enabled...
 						 */
 						if ((do_dashed & DASH_HELP_LINES) && ((bone->flag & BONE_CONNECTED) == 0)) {
+							const uint shdr_pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
+							immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_COLOR);
+
+							float viewport_size[4];
+							glGetFloatv(GL_VIEWPORT, viewport_size);
+							immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
+
+							immUniform1i("num_colors", 0);  /* "simple" mode */
+							immUniformColor4fv(fcolor);
+							immUniform1f("dash_width", 6.0f);
+							immUniform1f("dash_factor", 0.5f);
+
 							if (arm->flag & ARM_POSEMODE) {
 								GPU_select_load_id(index & 0xFFFF);  /* object tag, for bordersel optim */
-								UI_ThemeColor(TH_WIRE);
+								immUniformThemeColor(TH_WIRE);
 							}
-							setlinestyle(3);
-							glBegin(GL_LINES);
-							glVertex3fv(pchan->pose_head);
-							glVertex3fv(pchan->parent->pose_tail);
-							glEnd();
-							setlinestyle(0);
+
+							immBegin(GWN_PRIM_LINES, 2);
+							immVertex3fv(shdr_pos, pchan->parent->pose_tail);
+							immVertex3fv(shdr_pos, pchan->pose_head);
+							immEnd();
+
+							immUnbindProgram();
 						}
 						
 						/* Draw a line to IK root bone 
@@ -2029,8 +2239,8 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 						if (arm->flag & ARM_POSEMODE) {
 							if (constflag & PCHAN_HAS_IK) {
 								if (bone->flag & BONE_SELECTED) {
-									if (constflag & PCHAN_HAS_TARGET) glColor3ub(200, 120, 0);
-									else glColor3ub(200, 200, 50);  /* add theme! */
+									if (constflag & PCHAN_HAS_TARGET) rgba_float_args_set(fcolor, 200.f/255.f, 120.f/255.f, 0.f/255.f, 1.0f);
+									else rgba_float_args_set(fcolor, 200.f/255.f, 200.f/255.f, 50.f/255.f, 1.0f);  /* add theme! */
 
 									GPU_select_load_id(index & 0xFFFF);
 									pchan_draw_IK_root_lines(pchan, !(do_dashed & DASH_HELP_LINES));
@@ -2038,7 +2248,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 							}
 							else if (constflag & PCHAN_HAS_SPLINEIK) {
 								if (bone->flag & BONE_SELECTED) {
-									glColor3ub(150, 200, 50);  /* add theme! */
+									rgba_float_args_set(fcolor, 150.f/255.f, 200.f/255.f, 50.f/255.f, 1.0f);  /* add theme! */
 									
 									GPU_select_load_id(index & 0xFFFF);
 									pchan_draw_IK_root_lines(pchan, !(do_dashed & DASH_HELP_LINES));
@@ -2047,9 +2257,9 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 						}
 					}
 					
-					glPushMatrix();
+					gpuPushMatrix();
 					if (arm->drawtype != ARM_ENVELOPE)
-						glMultMatrixf(pchan->pose_mat);
+						gpuMultMatrix(pchan->pose_mat);
 					
 					/* catch exception for bone with hidden parent */
 					flag = bone->flag;
@@ -2086,7 +2296,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 					else
 						draw_bone(OB_WIRE, arm->flag, flag, constflag, index, bone->length);
 					
-					glPopMatrix();
+					gpuPopMatrix();
 				}
 			}
 			
@@ -2106,7 +2316,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	
 	/* draw DoFs */
 	if (arm->flag & ARM_POSEMODE) {
-		if (((base->flag & OB_FROMDUPLI) == 0) && ((v3d->flag & V3D_HIDE_HELPLINES) == 0)) {
+		if (((base->flag_legacy & OB_FROMDUPLI) == 0) && ((v3d->flag & V3D_HIDE_HELPLINES) == 0)) {
 			draw_pose_dofs(ob);
 		}
 	}
@@ -2114,26 +2324,17 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	/* finally names and axes */
 	if ((arm->flag & (ARM_DRAWNAMES | ARM_DRAWAXES)) &&
 	    (is_outline == 0) &&
-	    ((base->flag & OB_FROMDUPLI) == 0))
+	    ((base->flag_legacy & OB_FROMDUPLI) == 0))
 	{
 		/* patch for several 3d cards (IBM mostly) that crash on GL_SELECT with text drawing */
 		if ((G.f & G_PICKSEL) == 0) {
 			float vec[3];
 
 			unsigned char col[4];
-			if (do_const_color) {
-				/* so we can draw bone names in current const color */
-				float tcol[4];
-				glGetFloatv(GL_CURRENT_COLOR, tcol);
-				rgb_float_to_uchar(col, tcol);
-				col[3] = 255;
-			}
-			else {
-				col[0] = ob_wire_col[0];
-				col[1] = ob_wire_col[1];
-				col[2] = ob_wire_col[2];
-				col[3] = 255;
-			}
+			col[0] = ob_wire_col[0];
+			col[1] = ob_wire_col[1];
+			col[2] = ob_wire_col[2];
+			col[3] = 255;
 			
 			if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 			
@@ -2156,18 +2357,16 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 						
 						/*	Draw additional axes on the bone tail  */
 						if ((arm->flag & ARM_DRAWAXES) && (arm->flag & ARM_POSEMODE)) {
-							glPushMatrix();
+							gpuPushMatrix();
 							copy_m4_m4(bmat, pchan->pose_mat);
 							bone_matrix_translate_y(bmat, pchan->bone->length);
-							glMultMatrixf(bmat);
+							gpuMultMatrix(bmat);
 							
-							glColor3ubv(col);
-
 							float viewmat_pchan[4][4];
 							mul_m4_m4m4(viewmat_pchan, rv3d->viewmatob, bmat);
-							drawaxes(viewmat_pchan, pchan->bone->length * 0.25f, OB_ARROWS);
+							drawaxes(viewmat_pchan, pchan->bone->length * 0.25f, OB_ARROWS, col);
 							
-							glPopMatrix();
+							gpuPopMatrix();
 						}
 					}
 				}
@@ -2233,9 +2432,9 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 		for (eBone = arm->edbo->first, index = 0; eBone; eBone = eBone->next, index++) {
 			if (eBone->layer & arm->layer) {
 				if ((eBone->flag & BONE_HIDDEN_A) == 0) {
-					glPushMatrix();
+					gpuPushMatrix();
 					get_matrix_editbone(eBone, bmat);
-					glMultMatrixf(bmat);
+					gpuMultMatrix(bmat);
 					
 					/* catch exception for bone with hidden parent */
 					flag = eBone->flag;
@@ -2257,7 +2456,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 						draw_bone(OB_SOLID, arm->flag, flag, 0, index, eBone->length);
 					}
 					
-					glPopMatrix();
+					gpuPopMatrix();
 				}
 			}
 		}
@@ -2295,9 +2494,9 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 						draw_sphere_bone_wire(smat, imat, arm->flag, flag, 0, index, NULL, eBone);
 				}
 				else {
-					glPushMatrix();
+					gpuPushMatrix();
 					get_matrix_editbone(eBone, bmat);
-					glMultMatrixf(bmat);
+					gpuMultMatrix(bmat);
 					
 					if (arm->drawtype == ARM_LINE) 
 						draw_line_bone(arm->flag, flag, 0, index, NULL, eBone);
@@ -2308,21 +2507,32 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 					else
 						draw_bone(OB_WIRE, arm->flag, flag, 0, index, eBone->length);
 					
-					glPopMatrix();
+					gpuPopMatrix();
 				}
 				
 				/* offset to parent */
 				if (eBone->parent) {
-					UI_ThemeColor(TH_WIRE_EDIT);
+					const uint shdr_pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+
 					GPU_select_load_id(-1);  /* -1 here is OK! */
-					setlinestyle(3);
-					
-					glBegin(GL_LINES);
-					glVertex3fv(eBone->parent->tail);
-					glVertex3fv(eBone->head);
-					glEnd();
-					
-					setlinestyle(0);
+
+					immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_COLOR);
+
+					float viewport_size[4];
+					glGetFloatv(GL_VIEWPORT, viewport_size);
+					immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
+
+					immUniform1i("num_colors", 0);  /* "simple" mode */
+					immUniformThemeColor(TH_WIRE_EDIT);
+					immUniform1f("dash_width", 6.0f);
+					immUniform1f("dash_factor", 0.5f);
+
+					immBegin(GWN_PRIM_LINES, 2);
+					immVertex3fv(shdr_pos, eBone->parent->tail);
+					immVertex3fv(shdr_pos, eBone->head);
+					immEnd();
+
+					immUnbindProgram();
 				}
 			}
 		}
@@ -2364,18 +2574,16 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 						}
 						/*	Draw additional axes */
 						if (arm->flag & ARM_DRAWAXES) {
-							glPushMatrix();
+							gpuPushMatrix();
 							get_matrix_editbone(eBone, bmat);
 							bone_matrix_translate_y(bmat, eBone->length);
-							glMultMatrixf(bmat);
-
-							glColor3ubv(col);
+							gpuMultMatrix(bmat);
 
 							float viewmat_ebone[4][4];
 							mul_m4_m4m4(viewmat_ebone, rv3d->viewmatob, bmat);
-							drawaxes(viewmat_ebone, eBone->length * 0.25f, OB_ARROWS);
+							drawaxes(viewmat_ebone, eBone->length * 0.25f, OB_ARROWS, col);
 							
-							glPopMatrix();
+							gpuPopMatrix();
 						}
 						
 					}
@@ -2448,7 +2656,7 @@ static void ghost_poses_tag_unselected(Object *ob, short unset)
 /* draw ghosts that occur within a frame range 
  *  note: object should be in posemode
  */
-static void draw_ghost_poses_range(Scene *scene, View3D *v3d, ARegion *ar, Base *base)
+static void draw_ghost_poses_range(Scene *scene, SceneLayer *sl, View3D *v3d, ARegion *ar, Base *base)
 {
 	Object *ob = base->object;
 	AnimData *adt = BKE_animdata_from_id(&ob->id);
@@ -2456,6 +2664,7 @@ static void draw_ghost_poses_range(Scene *scene, View3D *v3d, ARegion *ar, Base 
 	bPose *posen, *poseo;
 	float start, end, stepsize, range, colfac;
 	int cfrao, flago;
+	unsigned char col[4];
 	
 	start = (float)arm->ghostsf;
 	end = (float)arm->ghostef;
@@ -2488,11 +2697,11 @@ static void draw_ghost_poses_range(Scene *scene, View3D *v3d, ARegion *ar, Base 
 	/* draw from first frame of range to last */
 	for (CFRA = (int)start; CFRA <= end; CFRA += (int)stepsize) {
 		colfac = (end - (float)CFRA) / range;
-		UI_ThemeColorShadeAlpha(TH_WIRE, 0, -128 - (int)(120.0f * sqrtf(colfac)));
+		UI_GetThemeColorShadeAlpha4ubv(TH_WIRE, 0, -128 - (int)(120.0f * sqrtf(colfac)), col);
 		
 		BKE_animsys_evaluate_animdata(scene, &ob->id, adt, (float)CFRA, ADT_RECALC_ALL);
 		BKE_pose_where_is(scene, ob);
-		draw_pose_bones(scene, v3d, ar, base, OB_WIRE, NULL, true, false);
+		draw_pose_bones(scene, sl, v3d, ar, base, OB_WIRE, col, true, false);
 	}
 	glDisable(GL_BLEND);
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
@@ -2514,7 +2723,7 @@ static void draw_ghost_poses_range(Scene *scene, View3D *v3d, ARegion *ar, Base 
 /* draw ghosts on keyframes in action within range 
  *	- object should be in posemode 
  */
-static void draw_ghost_poses_keys(Scene *scene, View3D *v3d, ARegion *ar, Base *base)
+static void draw_ghost_poses_keys(Scene *scene, SceneLayer *sl, View3D *v3d, ARegion *ar, BaseLegacy *base)
 {
 	Object *ob = base->object;
 	AnimData *adt = BKE_animdata_from_id(&ob->id);
@@ -2525,6 +2734,7 @@ static void draw_ghost_poses_keys(Scene *scene, View3D *v3d, ARegion *ar, Base *
 	ActKeyColumn *ak, *akn;
 	float start, end, range, colfac, i;
 	int cfrao, flago;
+	unsigned char col[4];
 	
 	start = (float)arm->ghostsf;
 	end = (float)arm->ghostef;
@@ -2566,13 +2776,13 @@ static void draw_ghost_poses_keys(Scene *scene, View3D *v3d, ARegion *ar, Base *
 	/* draw from first frame of range to last */
 	for (ak = keys.first, i = 0; ak; ak = ak->next, i++) {
 		colfac = i / range;
-		UI_ThemeColorShadeAlpha(TH_WIRE, 0, -128 - (int)(120.0f * sqrtf(colfac)));
+		UI_GetThemeColorShadeAlpha4ubv(TH_WIRE, 0, -128 - (int)(120.0f * sqrtf(colfac)), col);
 		
 		CFRA = (int)ak->cfra;
 		
 		BKE_animsys_evaluate_animdata(scene, &ob->id, adt, (float)CFRA, ADT_RECALC_ALL);
 		BKE_pose_where_is(scene, ob);
-		draw_pose_bones(scene, v3d, ar, base, OB_WIRE, NULL, true, false);
+		draw_pose_bones(scene, sl, v3d, ar, base, OB_WIRE, col, true, false);
 	}
 	glDisable(GL_BLEND);
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
@@ -2595,7 +2805,7 @@ static void draw_ghost_poses_keys(Scene *scene, View3D *v3d, ARegion *ar, Base *
 /* draw ghosts around current frame
  *  - object is supposed to be armature in posemode
  */
-static void draw_ghost_poses(Scene *scene, View3D *v3d, ARegion *ar, Base *base)
+static void draw_ghost_poses(Scene *scene, SceneLayer *sl, View3D *v3d, ARegion *ar, Base *base)
 {
 	Object *ob = base->object;
 	AnimData *adt = BKE_animdata_from_id(&ob->id);
@@ -2603,6 +2813,7 @@ static void draw_ghost_poses(Scene *scene, View3D *v3d, ARegion *ar, Base *base)
 	bPose *posen, *poseo;
 	float cur, start, end, stepsize, range, colfac, actframe, ctime;
 	int cfrao, flago;
+	unsigned char col[4];
 	
 	/* pre conditions, get an action with sufficient frames */
 	if (ELEM(NULL, adt, adt->action))
@@ -2640,7 +2851,7 @@ static void draw_ghost_poses(Scene *scene, View3D *v3d, ARegion *ar, Base *base)
 	for (cur = stepsize; cur < range; cur += stepsize) {
 		ctime = cur - (float)fmod(cfrao, stepsize);  /* ensures consistent stepping */
 		colfac = ctime / range;
-		UI_ThemeColorShadeAlpha(TH_WIRE, 0, -128 - (int)(120.0f * sqrtf(colfac)));
+		UI_GetThemeColorShadeAlpha4ubv(TH_WIRE, 0, -128 - (int)(120.0f * sqrtf(colfac)), col);
 		
 		/* only within action range */
 		if (actframe + ctime >= start && actframe + ctime <= end) {
@@ -2649,13 +2860,13 @@ static void draw_ghost_poses(Scene *scene, View3D *v3d, ARegion *ar, Base *base)
 			if (CFRA != cfrao) {
 				BKE_animsys_evaluate_animdata(scene, &ob->id, adt, (float)CFRA, ADT_RECALC_ALL);
 				BKE_pose_where_is(scene, ob);
-				draw_pose_bones(scene, v3d, ar, base, OB_WIRE, NULL, true, false);
+				draw_pose_bones(scene, sl, v3d, ar, base, OB_WIRE, col, true, false);
 			}
 		}
 		
 		ctime = cur + (float)fmod((float)cfrao, stepsize) - stepsize + 1.0f;   /* ensures consistent stepping */
 		colfac = ctime / range;
-		UI_ThemeColorShadeAlpha(TH_WIRE, 0, -128 - (int)(120.0f * sqrtf(colfac)));
+		UI_GetThemeColorShadeAlpha4ubv(TH_WIRE, 0, -128 - (int)(120.0f * sqrtf(colfac)), col);
 		
 		/* only within action range */
 		if ((actframe - ctime >= start) && (actframe - ctime <= end)) {
@@ -2664,7 +2875,7 @@ static void draw_ghost_poses(Scene *scene, View3D *v3d, ARegion *ar, Base *base)
 			if (CFRA != cfrao) {
 				BKE_animsys_evaluate_animdata(scene, &ob->id, adt, (float)CFRA, ADT_RECALC_ALL);
 				BKE_pose_where_is(scene, ob);
-				draw_pose_bones(scene, v3d, ar, base, OB_WIRE, NULL, true, false);
+				draw_pose_bones(scene, sl, v3d, ar, base, OB_WIRE, col, true, false);
 			}
 		}
 	}
@@ -2689,7 +2900,7 @@ static void draw_ghost_poses(Scene *scene, View3D *v3d, ARegion *ar, Base *base)
 
 /* called from drawobject.c, return true if nothing was drawn
  * (ob_wire_col == NULL) when drawing ghost */
-bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
+bool draw_armature(Scene *scene, SceneLayer *sl, View3D *v3d, ARegion *ar, Base *base,
                    const short dt, const short dflag, const unsigned char ob_wire_col[4],
                    const bool is_outline)
 {
@@ -2700,11 +2911,7 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	if (v3d->flag2 & V3D_RENDER_OVERRIDE)
 		return true;
 
-	/* needed for 'draw_line_bone' which draws pixel. */
-	if (arm->drawtype == ARM_LINE) {
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	}
-
+#if 0 /* Not used until lighting is properly reimplemented */
 	if (dt > OB_WIRE) {
 		/* we use color for solid lighting */
 		if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE)) {
@@ -2719,7 +2926,8 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);  /* only for lighting... */
 		}
 	}
-	
+#endif
+
 	/* arm->flag is being used to detect mode... */
 	/* editmode? */
 	if (arm->edbo) {
@@ -2736,7 +2944,7 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			}
 
 			/* drawing posemode selection indices or colors only in these cases */
-			if (!(base->flag & OB_FROMDUPLI)) {
+			if (!(base->flag_legacy & OB_FROMDUPLI)) {
 				if (G.f & G_PICKSEL) {
 #if 0
 					/* nifty but actually confusing to allow bone selection out of posemode */
@@ -2752,31 +2960,28 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 				}
 				else if (ob->mode & OB_MODE_POSE) {
 					if (arm->ghosttype == ARM_GHOST_RANGE) {
-						draw_ghost_poses_range(scene, v3d, ar, base);
+						draw_ghost_poses_range(scene, sl, v3d, ar, base);
 					}
 					else if (arm->ghosttype == ARM_GHOST_KEYS) {
-						draw_ghost_poses_keys(scene, v3d, ar, base);
+						draw_ghost_poses_keys(scene, sl, v3d, ar, base);
 					}
 					else if (arm->ghosttype == ARM_GHOST_CUR) {
 						if (arm->ghostep)
-							draw_ghost_poses(scene, v3d, ar, base);
+							draw_ghost_poses(scene, sl, v3d, ar, base);
 					}
 					if ((dflag & DRAW_SCENESET) == 0) {
-						if (ob == OBACT)
+						if (ob == OBACT_NEW)
 							arm->flag |= ARM_POSEMODE;
-						else if (OBACT && (OBACT->mode & OB_MODE_WEIGHT_PAINT)) {
-							if (ob == modifiers_isDeformedByArmature(OBACT))
+						else if (OBACT_NEW && (OBACT_NEW->mode & OB_MODE_WEIGHT_PAINT)) {
+							if (ob == modifiers_isDeformedByArmature(OBACT_NEW))
 								arm->flag |= ARM_POSEMODE;
 						}
 						draw_pose_paths(scene, v3d, ar, ob);
 					}
 				}
 			}
-			draw_pose_bones(scene, v3d, ar, base, dt, ob_wire_col, (dflag & DRAW_CONSTCOLOR), is_outline);
+			draw_pose_bones(scene, sl, v3d, ar, base, dt, ob_wire_col, (dflag & DRAW_CONSTCOLOR), is_outline);
 			arm->flag &= ~ARM_POSEMODE; 
-			
-			if (ob->mode & OB_MODE_POSE)
-				UI_ThemeColor(TH_WIRE);  /* restore, for extra draw stuff */
 		}
 		else {
 			retval = true;
@@ -2784,10 +2989,6 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	}
 	/* restore */
 	glFrontFace(GL_CCW);
-
-	if (arm->drawtype == ARM_LINE) {
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-	}
 
 	return retval;
 }

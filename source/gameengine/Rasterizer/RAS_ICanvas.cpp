@@ -106,6 +106,36 @@ RAS_Rasterizer::HdrType RAS_ICanvas::GetHdrType() const
 	return m_hdrType;
 }
 
+int RAS_ICanvas::GetWidth() const
+{
+	return m_viewportArea.GetWidth();
+}
+
+int RAS_ICanvas::GetHeight() const
+{
+	return m_viewportArea.GetHeight();
+}
+
+float RAS_ICanvas::GetMouseNormalizedX(int x)
+{
+	return float(x) / GetWidth();
+}
+
+float RAS_ICanvas::GetMouseNormalizedY(int y)
+{
+	return float(y) / GetHeight();
+}
+
+const RAS_Rect& RAS_ICanvas::GetWindowArea() const
+{
+	return m_windowArea;
+}
+
+const RAS_Rect& RAS_ICanvas::GetViewportArea() const
+{
+	return m_viewportArea;
+}
+
 void RAS_ICanvas::FlushScreenshots()
 {
 	for (const Screenshot& screenshot : m_screenshots) {

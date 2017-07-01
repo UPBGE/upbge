@@ -310,7 +310,7 @@ static bool rna_id_write_error(PointerRNA *ptr, PyObject *key)
 	ID *id = ptr->id.data;
 	if (id) {
 		const short idcode = GS(id->name);
-		if (!ELEM(idcode, ID_WM, ID_SCR)) { /* may need more added here */
+		if (!ELEM(idcode, ID_WM, ID_SCR, ID_WS)) { /* may need more added here */
 			const char *idtype = BKE_idcode_to_name(idcode);
 			const char *pyname;
 			if (key && PyUnicode_Check(key)) pyname = _PyUnicode_AsString(key);
@@ -1842,7 +1842,7 @@ static int pyrna_py_to_prop(
 				    (BPy_StructRNA_Check(value)) &&
 				    (RNA_struct_is_a(((BPy_StructRNA *)value)->ptr.type, &RNA_Operator)))
 				{
-					value = PyObject_GetAttrString(value, "properties");
+					value = PyObject_GetAttr(value, bpy_intern_str_properties);
 					value_new = value;
 				}
 
@@ -7345,7 +7345,7 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 				arg_count = ((PyCodeObject *)PyFunction_GET_CODE(item))->co_argcount;
 
 				/* note, the number of args we check for and the number of args we give to
-				 * @staticmethods are different (quirk of python),
+				 * '@staticmethods' are different (quirk of python),
 				 * this is why rna_function_arg_count() doesn't return the value -1*/
 				if (is_staticmethod) {
 					func_arg_count++;

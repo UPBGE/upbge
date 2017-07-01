@@ -1,5 +1,7 @@
 uniform sampler2D bgl_RenderedTexture;
 uniform vec2 bgl_TextureCoordinateOffset[9];
+in vec4 bgl_TexCoord;
+out vec4 fragColor;
 
 void main(void)
 {
@@ -7,14 +9,14 @@ void main(void)
 
 	for (int i = 0; i < 9; i++)
 	{
-		sample[i] = texture2D(bgl_RenderedTexture,
-		                      gl_TexCoord[0].st + bgl_TextureCoordinateOffset[i]);
+		sample[i] = texture(bgl_RenderedTexture,
+		                      bgl_TexCoord.xy + bgl_TextureCoordinateOffset[i]);
 	}
 
-	gl_FragColor = (sample[4] * 8.0) -
+	fragColor = (sample[4] * 8.0) -
 	        (sample[0] + sample[1] + sample[2] +
 	         sample[3] + sample[5] +
 	         sample[6] + sample[7] + sample[8]);
-	gl_FragColor = vec4(gl_FragColor.rgb, 1.0);
+	fragColor = vec4(fragColor.rgb, 1.0);
 }
 

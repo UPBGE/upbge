@@ -28,9 +28,9 @@
 
 RAS_OffScreen *RAS_OffScreen::lastOffScreen = nullptr;
 
-RAS_OffScreen::RAS_OffScreen(unsigned int width, unsigned int height, int samples, GPUHDRType hdrType, GPUOffScreenMode mode, char errOut[256],
+RAS_OffScreen::RAS_OffScreen(unsigned int width, unsigned int height, int samples, GPUTextureFormat dataType, GPUOffScreenMode mode, char errOut[256],
 							 RAS_Rasterizer::OffScreenType type)
-	:m_offScreen(GPU_offscreen_create(width, height, samples, hdrType, mode, errOut)),
+	:m_offScreen(GPU_offscreen_create(width, height, samples, dataType, mode, errOut)),
 	m_type(type)
 {
 }
@@ -83,13 +83,14 @@ void RAS_OffScreen::UnbindDepthTexture()
 void RAS_OffScreen::MipmapTexture()
 {
 	GPUTexture *tex = GPU_offscreen_texture(m_offScreen);
-	GPU_texture_filter_mode(tex, false, true, true);
+	GPU_texture_mipmap_mode(tex, true, false);
 	GPU_texture_generate_mipmap(tex);
 }
 
 void RAS_OffScreen::UnmipmapTexture()
 {
-	GPU_texture_filter_mode(GPU_offscreen_texture(m_offScreen), false, true, false);
+	GPUTexture *tex = GPU_offscreen_texture(m_offScreen);
+	GPU_texture_mipmap_mode(tex, false, false);
 }
 
 int RAS_OffScreen::GetColorBindCode() const
@@ -115,6 +116,11 @@ unsigned int RAS_OffScreen::GetHeight() const
 RAS_Rasterizer::OffScreenType RAS_OffScreen::GetType() const
 {
 	return m_type;
+}
+
+GPUOffScreen * RAS_OffScreen::GetOffScreen() const
+{
+	return m_offScreen;
 }
 
 GPUTexture *RAS_OffScreen::GetDepthTexture()

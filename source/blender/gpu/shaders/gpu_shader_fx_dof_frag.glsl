@@ -17,17 +17,18 @@ uniform vec4 dof_params;
 uniform vec4 viewvecs[3];
 
 // coordinates on framebuffer in normalized (0.0-1.0) uv space
-varying vec4 uvcoordsvar;
+in vec4 uvcoordsvar;
 
 /* color texture coordinates, offset by a small amount */
-varying vec2 color_uv1;
-varying vec2 color_uv2;
+in vec2 color_uv1;
+in vec2 color_uv2;
 
-varying vec2 depth_uv1;
-varying vec2 depth_uv2;
-varying vec2 depth_uv3;
-varying vec2 depth_uv4;
+in vec2 depth_uv1;
+in vec2 depth_uv2;
+in vec2 depth_uv3;
+in vec2 depth_uv4;
 
+out vec4 FragColor;
 
 float calculate_far_coc(in float zdepth)
 {
@@ -63,85 +64,85 @@ void first_pass()
 	offset_row[2] = 3.0 * offset_row[0];
 
 	/* heavily blur the image */
-	vec4 color = texture2D(colorbuffer, color_uv1);
-	color += texture2D(colorbuffer, color_uv1 + offset_row[1]);
-	color += texture2D(colorbuffer, color_uv2);
-	color += texture2D(colorbuffer, color_uv2 + offset_row[1]);
+	vec4 color = texture(colorbuffer, color_uv1);
+	color += texture(colorbuffer, color_uv1 + offset_row[1]);
+	color += texture(colorbuffer, color_uv2);
+	color += texture(colorbuffer, color_uv2 + offset_row[1]);
 	color /= 4.0;
 
-	depth.r = texture2D(depthbuffer, depth_uv1).r;
-	depth.g = texture2D(depthbuffer, depth_uv2).r;
-	depth.b = texture2D(depthbuffer, depth_uv3).r;
-	depth.a = texture2D(depthbuffer, depth_uv4).r;
+	depth.r = texture(depthbuffer, depth_uv1).r;
+	depth.g = texture(depthbuffer, depth_uv2).r;
+	depth.b = texture(depthbuffer, depth_uv3).r;
+	depth.a = texture(depthbuffer, depth_uv4).r;
 
 	zdepth = get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), depth);
 	coc = calculate_near_coc(zdepth);
 
-	depth.r = texture2D(depthbuffer, depth_uv1 + offset_row[0]).r;
-	depth.g = texture2D(depthbuffer, depth_uv2 + offset_row[0]).r;
-	depth.b = texture2D(depthbuffer, depth_uv3 + offset_row[0]).r;
-	depth.a = texture2D(depthbuffer, depth_uv4 + offset_row[0]).r;
+	depth.r = texture(depthbuffer, depth_uv1 + offset_row[0]).r;
+	depth.g = texture(depthbuffer, depth_uv2 + offset_row[0]).r;
+	depth.b = texture(depthbuffer, depth_uv3 + offset_row[0]).r;
+	depth.a = texture(depthbuffer, depth_uv4 + offset_row[0]).r;
 
 	zdepth = get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), depth);
 	coc = max(calculate_near_coc(zdepth), coc);
 
-	depth.r = texture2D(depthbuffer, depth_uv1 + offset_row[1]).r;
-	depth.g = texture2D(depthbuffer, depth_uv2 + offset_row[1]).r;
-	depth.b = texture2D(depthbuffer, depth_uv3 + offset_row[1]).r;
-	depth.a = texture2D(depthbuffer, depth_uv4 + offset_row[1]).r;
+	depth.r = texture(depthbuffer, depth_uv1 + offset_row[1]).r;
+	depth.g = texture(depthbuffer, depth_uv2 + offset_row[1]).r;
+	depth.b = texture(depthbuffer, depth_uv3 + offset_row[1]).r;
+	depth.a = texture(depthbuffer, depth_uv4 + offset_row[1]).r;
 
 	zdepth = get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), depth);
 	coc = max(calculate_near_coc(zdepth), coc);
 
-	depth.r = texture2D(depthbuffer, depth_uv1 + offset_row[2]).r;
-	depth.g = texture2D(depthbuffer, depth_uv2 + offset_row[2]).r;
-	depth.b = texture2D(depthbuffer, depth_uv3 + offset_row[2]).r;
-	depth.a = texture2D(depthbuffer, depth_uv4 + offset_row[2]).r;
+	depth.r = texture(depthbuffer, depth_uv1 + offset_row[2]).r;
+	depth.g = texture(depthbuffer, depth_uv2 + offset_row[2]).r;
+	depth.b = texture(depthbuffer, depth_uv3 + offset_row[2]).r;
+	depth.a = texture(depthbuffer, depth_uv4 + offset_row[2]).r;
 
 	zdepth = get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), depth);
 	coc = max(calculate_near_coc(zdepth), coc);
 
 	final_coc = max(max(coc.x, coc.y), max(coc.z, coc.w));
-	gl_FragColor = vec4(color.rgb, final_coc);
+	FragColor = vec4(color.rgb, final_coc);
 }
 
 /* second pass, gaussian blur the downsampled image */
 void second_pass()
 {
-	vec4 depth = vec4(texture2D(depthbuffer, uvcoordsvar.xy).r);
+	vec4 depth = vec4(texture(depthbuffer, uvcoordsvar.xy).r);
 
 	/* clever sampling to sample 2 pixels at once. Of course it's not real gaussian sampling this way */
-	vec4 color =  texture2D(colorbuffer, uvcoordsvar.xy) * 0.3125;
-	color += texture2D(colorbuffer, uvcoordsvar.xy + invrendertargetdim) * 0.234375;
-	color += texture2D(colorbuffer, uvcoordsvar.xy + 2.5 * invrendertargetdim) * 0.09375;
-	color += texture2D(colorbuffer, uvcoordsvar.xy + 4.5 * invrendertargetdim) * 0.015625;
-	color += texture2D(colorbuffer, uvcoordsvar.xy - invrendertargetdim) * 0.234375;
-	color += texture2D(colorbuffer, uvcoordsvar.xy - 2.5 * invrendertargetdim) * 0.09375;
-	color += texture2D(colorbuffer, uvcoordsvar.xy - 4.5 * invrendertargetdim) * 0.015625;
+	vec4 color = texture(colorbuffer, uvcoordsvar.xy) * 0.3125;
+	color += texture(colorbuffer, uvcoordsvar.xy + invrendertargetdim) * 0.234375;
+	color += texture(colorbuffer, uvcoordsvar.xy + 2.5 * invrendertargetdim) * 0.09375;
+	color += texture(colorbuffer, uvcoordsvar.xy + 4.5 * invrendertargetdim) * 0.015625;
+	color += texture(colorbuffer, uvcoordsvar.xy - invrendertargetdim) * 0.234375;
+	color += texture(colorbuffer, uvcoordsvar.xy - 2.5 * invrendertargetdim) * 0.09375;
+	color += texture(colorbuffer, uvcoordsvar.xy - 4.5 * invrendertargetdim) * 0.015625;
 
-	gl_FragColor = color;
+	FragColor = color;
 }
 
 
 /* third pass, calculate the final coc from blurred and unblurred images */
 void third_pass()
 {
-	vec4 color =  texture2D(colorbuffer, uvcoordsvar.xy);
-	vec4 color_blurred =  texture2D(blurredcolorbuffer, uvcoordsvar.xy);
+	vec4 color = texture(colorbuffer, uvcoordsvar.xy);
+	vec4 color_blurred = texture(blurredcolorbuffer, uvcoordsvar.xy);
 	float coc = 2.0 * max(color_blurred.a, color.a); -color.a;
-	gl_FragColor = vec4(color.rgb, coc);
+	FragColor = vec4(color.rgb, coc);
 }
 
 
 /* fourth pass, blur the final coc once to get rid of discontinuities */
 void fourth_pass()
 {
-	vec4 color = texture2D(colorbuffer, uvcoordsvar.xz);
-	color += texture2D(colorbuffer, uvcoordsvar.yz);
-	color += texture2D(colorbuffer, uvcoordsvar.xw);
-	color += texture2D(colorbuffer, uvcoordsvar.yw);
+	vec4 color = texture(colorbuffer, uvcoordsvar.xz);
+	color += texture(colorbuffer, uvcoordsvar.yz);
+	color += texture(colorbuffer, uvcoordsvar.xw);
+	color += texture(colorbuffer, uvcoordsvar.yw);
 
-	gl_FragColor = color / 4.0;
+	FragColor = color / 4.0;
 }
 
 vec4 small_sample_blur(in sampler2D colorbuffer, in vec2 uv, in vec4 color)
@@ -150,10 +151,10 @@ vec4 small_sample_blur(in sampler2D colorbuffer, in vec2 uv, in vec4 color)
 	vec4 result = weight * color;
 	weight *= 4.0;
 
-	result += weight * texture2D(colorbuffer, uv + color_uv1.xy);
-	result += weight * texture2D(colorbuffer, uv - color_uv1.xy);
-	result += weight * texture2D(colorbuffer, uv + color_uv1.yx);
-	result += weight * texture2D(colorbuffer, uv - color_uv1.yx);
+	result += weight * texture(colorbuffer, uv + color_uv1.xy);
+	result += weight * texture(colorbuffer, uv - color_uv1.xy);
+	result += weight * texture(colorbuffer, uv + color_uv1.yx);
+	result += weight * texture(colorbuffer, uv - color_uv1.yx);
 
 	return result;
 }
@@ -163,11 +164,11 @@ vec4 small_sample_blur(in sampler2D colorbuffer, in vec2 uv, in vec4 color)
 void fifth_pass()
 {
 	vec4 factors;
-	vec4 color_orig = texture2D(colorbuffer, uvcoordsvar.xy);
-	vec4 highblurred = texture2D(blurredcolorbuffer, uvcoordsvar.xy);
-	vec4 mediumblurred = texture2D(mblurredcolorbuffer, uvcoordsvar.xy);
+	vec4 color_orig = texture(colorbuffer, uvcoordsvar.xy);
+	vec4 highblurred = texture(blurredcolorbuffer, uvcoordsvar.xy);
+	vec4 mediumblurred = texture(mblurredcolorbuffer, uvcoordsvar.xy);
 	vec4 smallblurred = small_sample_blur(colorbuffer, uvcoordsvar.xy, color_orig);
-	float depth = texture2D(depthbuffer, uvcoordsvar.xy).r;
+	float depth = texture(depthbuffer, uvcoordsvar.xy).r;
 
 	float zdepth = get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), vec4(depth)).r;
 	float coc_far = clamp(calculate_far_coc(zdepth), 0.0, 1.0);
@@ -188,7 +189,7 @@ void fifth_pass()
 	color /= dot(factors, vec4(1.0));
 	/* using original color is not correct, but use that for now because alpha of
 	 * blurred buffers uses CoC instead */
-	gl_FragColor = vec4(color.rgb, color_orig.a);
+	FragColor = vec4(color.rgb, color_orig.a);
 }
 
 

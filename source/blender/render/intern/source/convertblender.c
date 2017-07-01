@@ -66,7 +66,6 @@
 #include "BKE_customdata.h"
 #include "BKE_colortools.h"
 #include "BKE_displist.h"
-#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
 #include "BKE_key.h"
@@ -81,6 +80,8 @@
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
+
+#include "DEG_depsgraph.h"
 
 #include "PIL_time.h"
 
@@ -3153,11 +3154,11 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 			/* normalmaps, test if tangents needed, separated from shading */
 			if (ma->mode_l & MA_TANGENT_V) {
 				need_tangent= 1;
-				if (me->mtpoly==NULL)
+				if (me->mloopuv==NULL)
 					need_orco= 1;
 			}
 			if (ma->mode_l & MA_NORMAP_TANG) {
-				if (me->mtpoly==NULL) {
+				if (me->mloopuv==NULL) {
 					need_orco= 1;
 				}
 				need_tangent= 1;
@@ -3170,7 +3171,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 
 	if (re->flag & R_NEED_TANGENT) {
 		/* exception for tangent space baking */
-		if (me->mtpoly==NULL) {
+		if (me->mloopuv==NULL) {
 			need_orco= 1;
 		}
 		need_tangent= 1;
@@ -4982,14 +4983,13 @@ static void add_group_render_dupli_obs(Render *re, Group *group, int nolamps, in
 	}
 }
 
-static void database_init_objects(Render *re, unsigned int renderlay, int nolamps, int onlyselected, Object *actob, int timeoffset)
+static void database_init_objects(Render *re, unsigned int UNUSED(renderlay), int nolamps, int onlyselected, Object *actob, int timeoffset)
 {
 	Base *base;
 	Object *ob;
 	Group *group;
 	ObjectInstanceRen *obi;
 	Scene *sce_iter;
-	int lay, vectorlay;
 
 	/* for duplis we need the Object texture mapping to work as if
 	 * untransformed, set_dupli_tex_mat sets the matrix to allow that
@@ -5017,14 +5017,18 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 	for (SETLOOPER(re->scene, sce_iter, base)) {
 		ob= base->object;
 
+#if 0
+		TODO_LAYER; /* investigate if this is an issue*/
 		/* in the prev/next pass for making speed vectors, avoid creating
 		 * objects that are not on a renderlayer with a vector pass, can
 		 * save a lot of time in complex scenes */
 		vectorlay= get_vector_renderlayers(re->scene);
-		lay= (timeoffset)? renderlay & vectorlay: renderlay;
+#endif
 
-		/* if the object has been restricted from rendering in the outliner, ignore it */
-		if (is_object_restricted(re, ob)) continue;
+		/* if the object is not visible, ignore it */
+		if ((base->flag & BASE_VISIBLED) == 0) {
+			continue;
+		}
 
 		/* OB_DONE means the object itself got duplicated, so was already converted */
 		if (ob->flag & OB_DONE) {
@@ -5037,7 +5041,7 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 				}
 			}
 		}
-		else if ((base->lay & lay) || (ob->type==OB_LAMP && (base->lay & re->lay)) ) {
+		else if (((base->flag & BASE_VISIBLED) != 0) || (ob->type==OB_LAMP)) {
 			if ((ob->transflag & OB_DUPLI) && (ob->type!=OB_MBALL)) {
 				DupliObject *dob;
 				ListBase *duplilist;
@@ -5210,7 +5214,7 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 	
 	/* applies changes fully */
 	if ((re->r.scemode & (R_NO_FRAME_UPDATE|R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW))==0) {
-		BKE_scene_update_for_newframe(re->eval_ctx, re->main, re->scene, lay);
+		BKE_scene_update_for_newframe(re->eval_ctx, re->main, re->scene);
 		render_update_anim_renderdata(re, &re->scene->r);
 	}
 	
@@ -5225,7 +5229,7 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 		RE_SetView(re, mat);
 
 		/* force correct matrix for scaled cameras */
-		DAG_id_tag_update_ex(re->main, &camera->id, OB_RECALC_OB);
+		DEG_id_tag_update_ex(re->main, &camera->id, OB_RECALC_OB);
 	}
 	
 	/* store for incremental render, viewmat rotates dbase */
@@ -5380,13 +5384,9 @@ static void database_fromscene_vectors(Render *re, Scene *scene, unsigned int la
 	re->i.totface=re->i.totvert=re->i.totstrand=re->i.totlamp=re->i.tothalo= 0;
 	re->lights.first= re->lights.last= NULL;
 	
-	/* in localview, lamps are using normal layers, objects only local bits */
-	if (re->lay & 0xFF000000)
-		lay &= 0xFF000000;
-	
 	/* applies changes fully */
 	scene->r.cfra += timeoffset;
-	BKE_scene_update_for_newframe(re->eval_ctx, re->main, re->scene, lay);
+	BKE_scene_update_for_newframe(re->eval_ctx, re->main, re->scene);
 	
 	/* if no camera, viewmat should have been set! */
 	if (camera) {

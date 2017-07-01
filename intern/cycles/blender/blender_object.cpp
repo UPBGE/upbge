@@ -94,12 +94,13 @@ static uint object_ray_visibility(BL::Object& b_ob)
 void BlenderSync::sync_light(BL::Object& b_parent,
                              int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
                              BL::Object& b_ob,
+                             BL::Object& b_ob_instance,
                              Transform& tfm,
                              bool *use_portal)
 {
 	/* test if we need to sync */
 	Light *light;
-	ObjectKey key(b_parent, persistent_id, b_ob);
+	ObjectKey key(b_parent, persistent_id, b_ob_instance);
 
 	if(!light_map.sync(&light, b_ob, b_parent, key)) {
 		if(light->is_portal)
@@ -236,24 +237,41 @@ void BlenderSync::sync_background_light(bool use_portal)
 
 /* Object */
 
-Object *BlenderSync::sync_object(BL::Object& b_parent,
-                                 int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
-                                 BL::DupliObject& b_dupli_ob,
-                                 Transform& tfm,
+Object *BlenderSync::sync_object(BL::Depsgraph::duplis_iterator& b_dupli_iter,
                                  uint layer_flag,
                                  float motion_time,
                                  bool hide_tris,
                                  BlenderObjectCulling& culling,
                                  bool *use_portal)
 {
-	BL::Object b_ob = (b_dupli_ob ? b_dupli_ob.object() : b_parent);
-	bool motion = motion_time != 0.0f;
-	
+	const bool is_instance = b_dupli_iter->is_instance();
+	BL::Object b_ob = b_dupli_iter->object();
+	BL::Object b_parent = is_instance ? b_dupli_iter->parent()
+	                                  : b_dupli_iter->object();
+	BL::Object b_ob_instance = is_instance ? b_dupli_iter->instance_object()
+	                                       : b_ob;
+	const bool motion = motion_time != 0.0f;
+	/*const*/ Transform tfm = get_transform(b_ob.matrix_world());
+	int *persistent_id = NULL;
+	BL::Array<int, OBJECT_PERSISTENT_ID_SIZE> persistent_id_array;
+	if(is_instance) {
+		persistent_id_array = b_dupli_iter->persistent_id();
+		persistent_id = persistent_id_array.data;
+	}
+
 	/* light is handled separately */
 	if(object_is_light(b_ob)) {
 		/* don't use lamps for excluded layers used as mask layer */
-		if(!motion && !((layer_flag & render_layer.holdout_layer) && (layer_flag & render_layer.exclude_layer)))
-			sync_light(b_parent, persistent_id, b_ob, tfm, use_portal);
+		if(!motion && !((layer_flag & render_layer.holdout_layer) &&
+		                (layer_flag & render_layer.exclude_layer)))
+		{
+			sync_light(b_parent,
+			           persistent_id,
+			           b_ob,
+			           b_ob_instance,
+			           tfm,
+			           use_portal);
+		}
 
 		return NULL;
 	}
@@ -269,7 +287,7 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 	}
 
 	/* key to lookup object */
-	ObjectKey key(b_parent, persistent_id, b_ob);
+	ObjectKey key(b_parent, persistent_id, b_ob_instance);
 	Object *object;
 
 	/* motion vector case */
@@ -311,7 +329,7 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 	bool use_holdout = (layer_flag & render_layer.holdout_layer) != 0;
 	
 	/* mesh sync */
-	object->mesh = sync_mesh(b_ob, object_updated, hide_tris);
+	object->mesh = sync_mesh(b_ob, b_ob_instance, object_updated, hide_tris);
 
 	/* special case not tracked by object update flags */
 
@@ -380,10 +398,10 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 		}
 
 		/* dupli texture coordinates and random_id */
-		if(b_dupli_ob) {
-			object->dupli_generated = 0.5f*get_float3(b_dupli_ob.orco()) - make_float3(0.5f, 0.5f, 0.5f);
-			object->dupli_uv = get_float2(b_dupli_ob.uv());
-			object->random_id = b_dupli_ob.random_id();
+		if(is_instance) {
+			object->dupli_generated = 0.5f*get_float3(b_dupli_iter->orco()) - make_float3(0.5f, 0.5f, 0.5f);
+			object->dupli_uv = get_float2(b_dupli_iter->uv());
+			object->random_id = b_dupli_iter->random_id();
 		}
 		else {
 			object->dupli_generated = make_float3(0.0f, 0.0f, 0.0f);
@@ -469,19 +487,11 @@ static bool object_render_hide(BL::Object& b_ob,
 	}
 }
 
-static bool object_render_hide_duplis(BL::Object& b_ob)
-{
-	BL::Object parent = b_ob.parent();
-
-	return (parent && object_render_hide_original(b_ob.type(), parent.dupli_type()));
-}
-
 /* Object Loop */
 
 void BlenderSync::sync_objects(float motion_time)
 {
 	/* layer data */
-	uint scene_layer = render_layer.scene_layer;
 	bool motion = motion_time != 0.0f;
 	
 	if(!motion) {
@@ -500,100 +510,34 @@ void BlenderSync::sync_objects(float motion_time)
 	BlenderObjectCulling culling(scene, b_scene);
 
 	/* object loop */
-	BL::Scene::object_bases_iterator b_base;
-	BL::Scene b_sce = b_scene;
-	/* modifier result type (not exposed as enum in C++ API)
-	 * 1 : DAG_EVAL_PREVIEW
-	 * 2 : DAG_EVAL_RENDER
-	 */
-	int dupli_settings = (render_layer.use_viewport_visibility) ? 1 : 2;
-
 	bool cancel = false;
 	bool use_portal = false;
 
-	uint layer_override = get_layer(b_engine.layer_override());
-	for(; b_sce && !cancel; b_sce = b_sce.background_set()) {
-		/* Render layer's scene_layer is affected by local view already,
-		 * which is not a desired behavior here.
-		 */
-		uint scene_layers = layer_override ? layer_override : get_layer(b_scene.layers());
-		for(b_sce.object_bases.begin(b_base); b_base != b_sce.object_bases.end() && !cancel; ++b_base) {
-			BL::Object b_ob = b_base->object();
-			bool hide = (render_layer.use_viewport_visibility)? b_ob.hide(): b_ob.hide_render();
-			uint ob_layer = get_layer(b_base->layers(),
-			                          b_base->layers_local_view(),
-			                          object_is_light(b_ob),
-			                          scene_layers);
-			hide = hide || !(ob_layer & scene_layer);
+	BL::Depsgraph::duplis_iterator b_dupli_iter;
+	for(b_depsgraph.duplis.begin(b_dupli_iter);
+	    b_dupli_iter != b_depsgraph.duplis.end() && !cancel;
+	    ++b_dupli_iter)
+	{
+		BL::Object b_ob = b_dupli_iter->object();
+		progress.set_sync_status("Synchronizing object", b_ob.name());
 
-			if(!hide) {
-				progress.set_sync_status("Synchronizing object", b_ob.name());
+		/* load per-object culling data */
+		culling.init_object(scene, b_ob);
 
-				/* load per-object culling data */
-				culling.init_object(scene, b_ob);
+		/* test if object needs to be hidden */
+		bool hide_tris;
 
-				if(b_ob.is_duplicator() && !object_render_hide_duplis(b_ob)) {
-					/* dupli objects */
-					b_ob.dupli_list_create(b_scene, dupli_settings);
+		 if(!object_render_hide(b_ob, true, true, hide_tris)) {
+			/* object itself */
+			sync_object(b_dupli_iter,
+			            ~(0), /* until we get rid of layers */
+			            motion_time,
+			            hide_tris,
+			            culling,
+			            &use_portal);
+		 }
 
-					BL::Object::dupli_list_iterator b_dup;
-
-					for(b_ob.dupli_list.begin(b_dup); b_dup != b_ob.dupli_list.end(); ++b_dup) {
-						Transform tfm = get_transform(b_dup->matrix());
-						BL::Object b_dup_ob = b_dup->object();
-						bool dup_hide = (render_layer.use_viewport_visibility)? b_dup_ob.hide(): b_dup_ob.hide_render();
-						bool in_dupli_group = (b_dup->type() == BL::DupliObject::type_GROUP);
-						bool hide_tris;
-
-						if(!(b_dup->hide() || dup_hide || object_render_hide(b_dup_ob, false, in_dupli_group, hide_tris))) {
-							/* the persistent_id allows us to match dupli objects
-							 * between frames and updates */
-							BL::Array<int, OBJECT_PERSISTENT_ID_SIZE> persistent_id = b_dup->persistent_id();
-
-							/* sync object and mesh or light data */
-							Object *object = sync_object(b_ob,
-							                             persistent_id.data,
-							                             *b_dup,
-							                             tfm,
-							                             ob_layer,
-							                             motion_time,
-							                             hide_tris,
-							                             culling,
-							                             &use_portal);
-
-							/* sync possible particle data, note particle_id
-							 * starts counting at 1, first is dummy particle */
-							if(!motion && object) {
-								sync_dupli_particle(b_ob, *b_dup, object);
-							}
-
-						}
-					}
-
-					b_ob.dupli_list_clear();
-				}
-
-				/* test if object needs to be hidden */
-				bool hide_tris;
-
-				if(!object_render_hide(b_ob, true, true, hide_tris)) {
-					/* object itself */
-					Transform tfm = get_transform(b_ob.matrix_world());
-					BL::DupliObject b_empty_dupli_ob(PointerRNA_NULL);
-					sync_object(b_ob,
-					            NULL,
-					            b_empty_dupli_ob,
-					            tfm,
-					            ob_layer,
-					            motion_time,
-					            hide_tris,
-					            culling,
-					            &use_portal);
-				}
-			}
-
-			cancel = progress.get_cancel();
-		}
+		cancel = progress.get_cancel();
 	}
 
 	progress.set_sync_status("");

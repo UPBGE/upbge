@@ -75,8 +75,8 @@
 #include "ED_screen.h"
 #include "ED_view3d.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
+#include "GPU_immediate.h"
+#include "GPU_immediate_util.h"
 
 #include "gpencil_intern.h"
 
@@ -979,28 +979,28 @@ static bool gpsculpt_brush_apply_clone(bContext *C, tGP_BrushEditData *gso)
 static void gp_brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata))
 {
 	GP_EditBrush_Data *brush = gpsculpt_get_brush(CTX_data_scene(C));
-	
+
 	if (brush) {
-		glPushMatrix();
-		
-		glTranslatef((float)x, (float)y, 0.0f);
-		
+		Gwn_VertFormat *format = immVertexFormat();
+		unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
-		
+
 		/* Inner Ring: Light color for action of the brush */
 		/* TODO: toggle between add and remove? */
-		glColor4ub(255, 255, 255, 200);
-		glutil_draw_lined_arc(0.0, M_PI * 2.0, brush->size, 40);
-		
+		immUniformColor4ub(255, 255, 255, 200);
+		imm_draw_circle_wire(pos, x, y, brush->size, 40);
+
 		/* Outer Ring: Dark color for contrast on light backgrounds (e.g. gray on white) */
-		glColor3ub(30, 30, 30);
-		glutil_draw_lined_arc(0.0, M_PI * 2.0, brush->size + 1, 40);
-		
+		immUniformColor3ub(30, 30, 30);
+		imm_draw_circle_wire(pos, x, y, brush->size + 1, 40);
+
+		immUnbindProgram();
+
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
-		
-		glPopMatrix();
 	}
 }
 

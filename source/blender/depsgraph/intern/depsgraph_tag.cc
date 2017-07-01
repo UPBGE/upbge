@@ -49,6 +49,7 @@ extern "C" {
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_workspace.h"
 
 #define new new_
 #include "BKE_screen.h"
@@ -126,7 +127,7 @@ void lib_id_recalc_tag_flag(Main *bmain, ID *id, int flag)
 }
 
 #ifdef DEPSGRAPH_USE_LEGACY_TAGGING
-void depsgraph_legacy_handle_update_tag(Main *bmain, ID *id, short flag)
+void depsgraph_legacy_handle_update_tag(Main *bmain, ID *id, int flag)
 {
 	if (flag) {
 		Object *object;
@@ -149,6 +150,20 @@ void depsgraph_legacy_handle_update_tag(Main *bmain, ID *id, short flag)
 			}
 		}
 	}
+}
+#endif
+
+#ifdef WITH_COPY_ON_WRITE
+void id_tag_copy_on_write_update(Main *bmain, Depsgraph *graph, ID *id)
+{
+	lib_id_recalc_tag(bmain, id);
+	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(graph);
+	DEG::IDDepsNode *id_node = deg_graph->find_id_node(id);
+	DEG::ComponentDepsNode *cow_comp =
+	        id_node->find_component(DEG::DEG_NODE_TYPE_COPY_ON_WRITE);
+	DEG::OperationDepsNode *cow_node = cow_comp->get_entry_operation();
+	cow_node->tag_update(deg_graph);
+	cow_node->flag |= DEG::DEPSOP_FLAG_SKIP_FLUSH;
 }
 #endif
 
@@ -198,12 +213,12 @@ void DEG_graph_property_tag_update(Depsgraph *graph,
 }
 
 /* Tag given ID for an update in all the dependency graphs. */
-void DEG_id_tag_update(ID *id, short flag)
+void DEG_id_tag_update(ID *id, int flag)
 {
 	DEG_id_tag_update_ex(G.main, id, flag);
 }
 
-void DEG_id_tag_update_ex(Main *bmain, ID *id, short flag)
+void DEG_id_tag_update_ex(Main *bmain, ID *id, int flag)
 {
 	if (id == NULL) {
 		/* Ideally should not happen, but old depsgraph allowed this. */
@@ -238,6 +253,11 @@ void DEG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 			}
 			else if (flag & OB_RECALC_TIME) {
 				DEG_graph_id_tag_update(bmain, graph, id);
+			}
+			else if (flag & DEG_TAG_COPY_ON_WRITE) {
+#ifdef WITH_COPY_ON_WRITE
+				id_tag_copy_on_write_update(bmain, graph, id);
+#endif
 			}
 		}
 	}
@@ -289,89 +309,13 @@ void DEG_ids_flush_tagged(Main *bmain)
 /* Update dependency graph when visible scenes/layers changes. */
 void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 {
+	(void) bmain;
 	DEG::Depsgraph *graph = reinterpret_cast<DEG::Depsgraph *>(scene->depsgraph);
-	wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
-	int old_layers = graph->layers;
-	if (wm != NULL) {
-		BKE_main_id_tag_listbase(&bmain->scene, LIB_TAG_DOIT, true);
-		graph->layers = 0;
-		for (wmWindow *win = (wmWindow *)wm->windows.first;
-		     win != NULL;
-		     win = (wmWindow *)win->next)
-		{
-			Scene *scene = win->screen->scene;
-			if (scene->id.tag & LIB_TAG_DOIT) {
-				graph->layers |= BKE_screen_visible_layers(win->screen, scene);
-				scene->id.tag &= ~LIB_TAG_DOIT;
-			}
-		}
+	GHASH_FOREACH_BEGIN(DEG::IDDepsNode *, id_node, graph->id_hash)
+	{
+		id_node->tag_update(graph);
 	}
-	else {
-		/* All the layers for background render for now. */
-		graph->layers = (1 << 20) - 1;
-	}
-	if (old_layers != graph->layers) {
-		/* Tag all objects which becomes visible (or which becomes needed for dependencies)
-		 * for recalc.
-		 *
-		 * This is mainly needed on file load only, after that updates of invisible objects
-		 * will be stored in the pending list.
-		 */
-		GHASH_FOREACH_BEGIN(DEG::IDDepsNode *, id_node, graph->id_hash)
-		{
-			ID *id = id_node->id;
-			if ((id->tag & LIB_TAG_ID_RECALC_ALL) != 0 ||
-			    (id_node->layers & scene->lay_updated) == 0)
-			{
-				id_node->tag_update(graph);
-			}
-			/* A bit of magic: if object->recalc is set it means somebody tagged
-			 * it for update. If corresponding ID recalc flags are zero it means
-			 * graph has been evaluated after that and the recalc was skipped
-			 * because of visibility check.
-			 */
-			if (GS(id->name) == ID_OB) {
-				Object *object = (Object *)id;
-				if ((id->tag & LIB_TAG_ID_RECALC_ALL) == 0 &&
-				    (object->recalc & OB_RECALC_ALL) != 0)
-				{
-					id_node->tag_update(graph);
-					DEG::ComponentDepsNode *anim_comp =
-					        id_node->find_component(DEG::DEG_NODE_TYPE_ANIMATION);
-					if (anim_comp != NULL && object->recalc & OB_RECALC_TIME) {
-						anim_comp->tag_update(graph);
-					}
-				}
-			}
-		}
-		GHASH_FOREACH_END();
-	}
-	scene->lay_updated |= graph->layers;
-	/* Special trick to get local view to work.  */
-	LINKLIST_FOREACH (Base *, base, &scene->base) {
-		Object *object = base->object;
-		DEG::IDDepsNode *id_node = graph->find_id_node(&object->id);
-		id_node->layers = 0;
-	}
-	LINKLIST_FOREACH (Base *, base, &scene->base) {
-		Object *object = base->object;
-		DEG::IDDepsNode *id_node = graph->find_id_node(&object->id);
-		id_node->layers |= base->lay;
-		if (object == scene->camera) {
-			/* Camera should always be updated, it used directly by viewport. */
-			id_node->layers |= (unsigned int)(-1);
-		}
-	}
-	DEG::deg_graph_build_flush_layers(graph);
-	LINKLIST_FOREACH (Base *, base, &scene->base) {
-		Object *object = base->object;
-		DEG::IDDepsNode *id_node = graph->find_id_node(&object->id);
-		GHASH_FOREACH_BEGIN(DEG::ComponentDepsNode *, comp, id_node->components)
-		{
-			id_node->layers |= comp->layers;
-		}
-		GHASH_FOREACH_END();
-	}
+	GHASH_FOREACH_END();
 }
 
 void DEG_on_visible_update(Main *bmain, const bool UNUSED(do_time))

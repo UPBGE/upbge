@@ -56,7 +56,6 @@
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_icons.h"
 #include "BKE_image.h"
@@ -69,6 +68,8 @@
 #include "BKE_screen.h"
 #include "BKE_sound.h"
 #include "BKE_scene.h"
+
+#include "DEG_depsgraph.h"
 
 #include "GPU_draw.h"
 #include "GPU_buffers.h"
@@ -792,6 +793,7 @@ static int image_view_selected_exec(bContext *C, wmOperator *UNUSED(op))
 	SpaceImage *sima;
 	ARegion *ar;
 	Scene *scene;
+	SceneLayer *sl;
 	Object *obedit;
 	Image *ima;
 
@@ -799,6 +801,7 @@ static int image_view_selected_exec(bContext *C, wmOperator *UNUSED(op))
 	sima = CTX_wm_space_image(C);
 	ar = CTX_wm_region(C);
 	scene = CTX_data_scene(C);
+	sl = CTX_data_scene_layer(C);
 	obedit = CTX_data_edit_object(C);
 
 	ima = ED_space_image(sima);
@@ -810,7 +813,7 @@ static int image_view_selected_exec(bContext *C, wmOperator *UNUSED(op))
 			return OPERATOR_CANCELLED;
 		}
 	}
-	else if (ED_space_image_check_show_maskedit(scene, sima)) {
+	else if (ED_space_image_check_show_maskedit(sl, sima)) {
 		if (!ED_mask_selected_minmax(C, min, max)) {
 			return OPERATOR_CANCELLED;
 		}
@@ -1067,6 +1070,7 @@ typedef struct ImageOpenData {
 typedef struct ImageFrameRange {
 	struct ImageFrameRange *next, *prev;
 	ListBase frames;
+	/**  The full path of the first file in the list of image files */
 	char filepath[FILE_MAX];
 } ImageFrameRange;
 
@@ -1092,8 +1096,7 @@ static void image_open_cancel(bContext *UNUSED(C), wmOperator *op)
 /**
  * \brief Get a list of frames from the list of image files matching the first file name sequence pattern
  * \param ptr [in] the RNA pointer containing the "directory" entry and "files" collection
- * \param frames [out] the list of frame numbers found in the files matching the first one by name
- * \param path [out] the full path of the first file in the list of image files
+ * \param frames_all [out] the list of frame numbers found in the files matching the first one by name
  */
 static void image_sequence_get_frame_ranges(PointerRNA *ptr, ListBase *frames_all)
 {
@@ -2336,7 +2339,7 @@ static int image_reload_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	// XXX other users?
 	BKE_image_signal(ima, (sima) ? &sima->iuser : NULL, IMA_SIGNAL_RELOAD);
-	DAG_id_tag_update(&ima->id, 0);
+	DEG_id_tag_update(&ima->id, 0);
 
 	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
 	
@@ -2379,7 +2382,7 @@ static int image_resize_cube_map_exec(bContext *C, wmOperator *UNUSED(op))
 			tex->ima->gen_y = previous;
 			tex->ima->gen_x = previous * 3 / 2;
 
-			DAG_id_tag_update(&tex->id, 0);
+			DEG_id_tag_update(&tex->id, 0);
 			WM_main_add_notifier(NC_TEXTURE, tex);
 			WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, NULL);
 		}
@@ -2390,7 +2393,7 @@ static int image_resize_cube_map_exec(bContext *C, wmOperator *UNUSED(op))
 
 	// XXX other users?
 	BKE_image_signal(ima, (sima) ? &sima->iuser : NULL, IMA_SIGNAL_RELOAD);
-	DAG_id_tag_update(&ima->id, 0);
+	DEG_id_tag_update(&ima->id, 0);
 
 	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
 
@@ -2524,7 +2527,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 				id_us_min(&tex->ima->id);
 			tex->ima = ima;
 			ED_area_tag_redraw(CTX_wm_area(C));
-			DAG_id_tag_update(&tex->id, 0);
+			DEG_id_tag_update(&tex->id, 0);
 			WM_main_add_notifier(NC_TEXTURE, tex);
 			WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, NULL);
 		}

@@ -48,6 +48,7 @@
 #include "DNA_mesh_types.h"
 
 #include "BKE_mesh.h"
+#include "BKE_mesh_tangent.h"
 #include "BKE_mesh_mapping.h"
 #include "ED_mesh.h"
 
@@ -92,7 +93,7 @@ static void rna_Mesh_calc_tangents(Mesh *mesh, ReportList *reports, const char *
 		BKE_mesh_calc_normals_split(mesh);
 	}
 
-	BKE_mesh_loop_tangents(mesh, uvmap, r_looptangents, reports);
+	BKE_mesh_calc_loop_tangent_single(mesh, uvmap, r_looptangents, reports);
 }
 
 static void rna_Mesh_free_tangents(Mesh *mesh)
@@ -172,7 +173,7 @@ static void rna_Mesh_normals_split_custom_set(Mesh *mesh, ReportList *reports, i
 
 	rna_Mesh_normals_split_custom_do(mesh, loopnors, false);
 
-	DAG_id_tag_update(&mesh->id, 0);
+	DEG_id_tag_update(&mesh->id, 0);
 }
 
 static void rna_Mesh_normals_split_custom_set_from_vertices(
@@ -190,14 +191,14 @@ static void rna_Mesh_normals_split_custom_set_from_vertices(
 
 	rna_Mesh_normals_split_custom_do(mesh, vertnors, true);
 
-	DAG_id_tag_update(&mesh->id, 0);
+	DEG_id_tag_update(&mesh->id, 0);
 }
 
 static void rna_Mesh_transform(Mesh *mesh, float *mat, int shape_keys)
 {
 	BKE_mesh_transform(mesh, (float (*)[4])mat, shape_keys);
 
-	DAG_id_tag_update(&mesh->id, 0);
+	DEG_id_tag_update(&mesh->id, 0);
 }
 
 static void rna_Mesh_flip_normals(Mesh *mesh)
@@ -206,7 +207,7 @@ static void rna_Mesh_flip_normals(Mesh *mesh)
 	BKE_mesh_tessface_clear(mesh);
 	BKE_mesh_calc_normals(mesh);
 
-	DAG_id_tag_update(&mesh->id, 0);
+	DEG_id_tag_update(&mesh->id, 0);
 }
 
 static void rna_Mesh_split_faces(Mesh *mesh, int free_loop_normals)

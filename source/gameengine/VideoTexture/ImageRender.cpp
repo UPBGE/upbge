@@ -92,17 +92,17 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 
-	GPUHDRType type;
+	GPUTextureFormat type;
 	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
-		type = GPU_HDR_HALF_FLOAT;
+		type = GPU_RGBA16F;
 		m_internalFormat = GL_RGBA16F_ARB;
 	}
 	else if (hdr == RAS_Rasterizer::RAS_HDR_FULL_FLOAT) {
-		type = GPU_HDR_FULL_FLOAT;
+		type = GPU_RGBA32F;
 		m_internalFormat = GL_RGBA32F_ARB;
 	}
 	else {
-		type = GPU_HDR_NONE;
+		type = GPU_RGBA8;
 		m_internalFormat = GL_RGBA8;
 	}
 
@@ -300,7 +300,6 @@ bool ImageRender::Render()
 	}
 	// Store settings to be restored later
 	const RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
-	RAS_Rect area = m_canvas->GetWindowArea();
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	// bind the fbo and set the viewport to full size
@@ -315,7 +314,7 @@ bool ImageRender::Render()
 
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
-	m_rasterizer->DisplayFog();
+	//m_rasterizer->DisplayFog();
 	// matrix calculation, don't apply any of the stereo mode
 	m_rasterizer->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
 
@@ -381,12 +380,10 @@ bool ImageRender::Render()
 		m_camera->SetProjectionMatrix(projmat);
 	}
 
-	m_rasterizer->SetProjectionMatrix(m_camera->GetProjectionMatrix());
-
 	MT_Transform camtrans(m_camera->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
 	
-	m_rasterizer->SetViewMatrix(viewmat, m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling());
+	m_rasterizer->SetMatrix(viewmat, m_camera->GetProjectionMatrix(), m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling());
 	m_camera->SetModelviewMatrix(viewmat);
 
 	// restore the stereo mode now that the matrix is computed
@@ -419,8 +416,6 @@ bool ImageRender::Render()
 
 	m_scene->RenderBuckets(nodes, camtrans, m_rasterizer, m_offScreen.get());
 
-	// restore the canvas area now that the render is completed
-	m_canvas->GetWindowArea() = area;
 	m_canvas->EndFrame();
 
 	// In case multisample is active, blit the FBO
@@ -483,9 +478,9 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	// camera object
 	PyObject *camera;
 
-	const RAS_Rect& rect = KX_GetActiveEngine()->GetCanvas()->GetWindowArea();
-	int width = rect.GetWidth();
-	int height = rect.GetHeight();
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+	int width = canvas->GetWidth();
+	int height = canvas->GetHeight();
 	int samples = 0;
 	int hdr = 0;
 	// parameter keywords
@@ -747,9 +742,9 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	// material of the mirror
 	short materialID = 0;
 
-	const RAS_Rect& rect = KX_GetActiveEngine()->GetCanvas()->GetWindowArea();
-	int width = rect.GetWidth();
-	int height = rect.GetHeight();
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+	int width = canvas->GetWidth();
+	int height = canvas->GetHeight();
 	int samples = 0;
 	int hdr = 0;
 
@@ -877,17 +872,17 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
     m_mirror(mirror),
     m_clip(100.f)
 {
-	GPUHDRType type;
+	GPUTextureFormat type;
 	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
-		type = GPU_HDR_HALF_FLOAT;
+		type = GPU_RGBA16F;
 		m_internalFormat = GL_RGBA16F_ARB;
 	}
 	else if (hdr == RAS_Rasterizer::RAS_HDR_FULL_FLOAT) {
-		type = GPU_HDR_FULL_FLOAT;
+		type = GPU_RGBA32F;
 		m_internalFormat = GL_RGBA32F_ARB;
 	}
 	else {
-		type = GPU_HDR_NONE;
+		type = GPU_RGBA8;
 		m_internalFormat = GL_RGBA8;
 	}
 

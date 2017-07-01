@@ -635,7 +635,6 @@ class VIEW3D_MT_select_object(Menu):
         layout.operator("object.select_all", text="Inverse").action = 'INVERT'
         layout.operator("object.select_random", text="Random")
         layout.operator("object.select_mirror", text="Mirror")
-        layout.operator("object.select_by_layer", text="Select All by Layer")
         layout.operator_menu_enum("object.select_by_type", "type", text="Select All by Type...")
         layout.operator("object.select_camera", text="Select Camera")
 
@@ -1206,6 +1205,17 @@ class INFO_MT_lamp_add(Menu):
         layout.operator_enum("object.lamp_add", "type")
 
 
+class INFO_MT_lightprobe_add(Menu):
+    bl_idname = "INFO_MT_lightprobe_add"
+    bl_label = "Light Probe"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator_enum("object.lightprobe_add", "type")
+
+
 class INFO_MT_camera_add(Menu):
     bl_idname = "INFO_MT_camera_add"
     bl_label = "Camera"
@@ -1254,15 +1264,17 @@ class INFO_MT_add(Menu):
 
         layout.menu("INFO_MT_lamp_add", icon='OUTLINER_OB_LAMP')
         layout.separator()
+        layout.menu("INFO_MT_lightprobe_add")
+        layout.separator()
 
-        layout.operator_menu_enum("object.effector_add", "type", text="Force Field", icon='OUTLINER_OB_EMPTY')
+        layout.operator_menu_enum("object.effector_add", "type", text="Force Field", icon='OUTLINER_OB_FORCE_FIELD')
         layout.separator()
 
         if len(bpy.data.groups) > 10:
             layout.operator_context = 'INVOKE_REGION_WIN'
-            layout.operator("object.group_instance_add", text="Group Instance...", icon='OUTLINER_OB_EMPTY')
+            layout.operator("object.group_instance_add", text="Group Instance...", icon='OUTLINER_OB_GROUP_INSTANCE')
         else:
-            layout.operator_menu_enum("object.group_instance_add", "group", text="Group Instance", icon='OUTLINER_OB_EMPTY')
+            layout.operator_menu_enum("object.group_instance_add", "group", text="Group Instance", icon='OUTLINER_OB_GROUP_INSTANCE')
 
 
 # ********** Object menu **********
@@ -1326,15 +1338,6 @@ class VIEW3D_MT_object(Menu):
         layout.operator("object.datalayout_transfer")
 
         layout.separator()
-
-        if is_local_view:
-            layout.operator_context = 'EXEC_REGION_WIN'
-            layout.operator("object.move_to_layer", text="Move out of Local View")
-            layout.operator_context = 'INVOKE_REGION_WIN'
-        else:
-            layout.operator("object.move_to_layer", text="Move to Layer...")
-
-        layout.menu("VIEW3D_MT_object_showhide")
 
         layout.operator_menu_enum("object.convert", "target")
 
@@ -1614,17 +1617,6 @@ class VIEW3D_MT_object_quick_effects(Menu):
         layout.operator("object.quick_fluid")
 
 
-class VIEW3D_MT_object_showhide(Menu):
-    bl_label = "Show/Hide"
-
-    def draw(self, context):
-        layout = self.layout
-
-        layout.operator("object.hide_view_clear", text="Show Hidden")
-        layout.operator("object.hide_view_set", text="Hide Selected").unselected = False
-        layout.operator("object.hide_view_set", text="Hide Unselected").unselected = True
-
-
 class VIEW3D_MT_make_single_user(Menu):
     bl_label = "Make Single User"
 
@@ -1663,7 +1655,7 @@ class VIEW3D_MT_make_links(Menu):
             layout.operator("object.make_links_scene", text="Objects to Scene...", icon='OUTLINER_OB_EMPTY')
         else:
             layout.operator_context = 'EXEC_REGION_WIN'
-            layout.operator_menu_enum("object.make_links_scene", "scene", text="Objects to Scene...")
+            layout.operator_menu_enum("object.make_links_scene", "scene", text="Objects to Scene")
         layout.operator_context = operator_context_default
 
         layout.operator_enum("object.make_links_data", "type")  # inline
@@ -3149,7 +3141,6 @@ class VIEW3D_MT_edit_gpencil_interpolate(Menu):
 
 # ********** Panel **********
 
-
 class VIEW3D_PT_grease_pencil(GreasePencilDataPanel, Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -3357,52 +3348,6 @@ class VIEW3D_PT_view3d_stereo(Panel):
         split.prop(view, "show_stereo_3d_volume")
         split = row.split()
         split.prop(view, "stereo_3d_volume_alpha", text="Alpha")
-
-
-class VIEW3D_PT_view3d_shading(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_label = "Shading"
-
-    def draw(self, context):
-        layout = self.layout
-
-        view = context.space_data
-        scene = context.scene
-        obj = context.object
-
-        col = layout.column()
-
-        if view.viewport_shade == 'SOLID':
-            col.prop(view, "show_textured_solid")
-            col.prop(view, "use_matcap")
-            if view.use_matcap:
-                col.template_icon_view(view, "matcap_icon")
-        if view.viewport_shade == 'TEXTURED' or context.mode == 'PAINT_TEXTURE':
-            if scene.render.use_shading_nodes:
-                col.prop(view, "show_textured_shadeless")
-
-        col.prop(view, "show_backface_culling")
-
-        if view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
-            if obj and obj.mode == 'EDIT':
-                col.prop(view, "show_occlude_wire")
-
-        fx_settings = view.fx_settings
-
-        if view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
-            sub = col.column()
-            sub.active = view.region_3d.view_perspective == 'CAMERA'
-            sub.prop(fx_settings, "use_dof")
-            col.prop(fx_settings, "use_ssao", text="Ambient Occlusion")
-            if fx_settings.use_ssao:
-                ssao_settings = fx_settings.ssao
-                subcol = col.column(align=True)
-                subcol.prop(ssao_settings, "factor")
-                subcol.prop(ssao_settings, "distance_max")
-                subcol.prop(ssao_settings, "attenuation")
-                subcol.prop(ssao_settings, "samples")
-                subcol.prop(ssao_settings, "color")
 
 
 class VIEW3D_PT_view3d_motion_tracking(Panel):
@@ -3844,6 +3789,7 @@ classes = (
     INFO_MT_edit_armature_add,
     INFO_MT_armature_add,
     INFO_MT_lamp_add,
+    INFO_MT_lightprobe_add,
     INFO_MT_camera_add,
     INFO_MT_add,
     VIEW3D_MT_object,
@@ -3856,7 +3802,6 @@ classes = (
     VIEW3D_MT_object_group,
     VIEW3D_MT_object_constraints,
     VIEW3D_MT_object_quick_effects,
-    VIEW3D_MT_object_showhide,
     VIEW3D_MT_make_single_user,
     VIEW3D_MT_make_links,
     VIEW3D_MT_object_game,
@@ -3924,7 +3869,6 @@ classes = (
     VIEW3D_PT_view3d_name,
     VIEW3D_PT_view3d_display,
     VIEW3D_PT_view3d_stereo,
-    VIEW3D_PT_view3d_shading,
     VIEW3D_PT_view3d_motion_tracking,
     VIEW3D_PT_view3d_meshdisplay,
     VIEW3D_PT_view3d_meshstatvis,

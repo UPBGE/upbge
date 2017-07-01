@@ -253,6 +253,7 @@ typedef struct bNodeType {
 /* nodetype->compatibility */
 #define NODE_OLD_SHADING	1
 #define NODE_NEW_SHADING	2
+#define NODE_NEWER_SHADING	3
 
 /* node resize directions */
 #define NODE_RESIZE_TOP		1
@@ -335,8 +336,8 @@ struct bNodeTree *ntreeAddTree(struct Main *bmain, const char *name, const char 
 
 /* copy/free funcs, need to manage ID users */
 void              ntreeFreeTree(struct bNodeTree *ntree);
-struct bNodeTree *ntreeCopyTree_ex(struct bNodeTree *ntree, struct Main *bmain, const bool do_id_user);
-struct bNodeTree *ntreeCopyTree(struct Main *bmain, struct bNodeTree *ntree);
+struct bNodeTree *ntreeCopyTree_ex(const struct bNodeTree *ntree, struct Main *bmain, const bool do_id_user);
+struct bNodeTree *ntreeCopyTree(struct Main *bmain, const struct bNodeTree *ntree);
 /* node->id user count */
 void              ntreeUserIncrefID(struct bNodeTree *ntree);
 void              ntreeUserDecrefID(struct bNodeTree *ntree);
@@ -687,6 +688,13 @@ bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
 }
 /** \} */
 
+
+/* -------------------------------------------------------------------- */
+/** \name Node Tree
+ */
+
+void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, const int layer_index);
+
 /* -------------------------------------------------------------------- */
 /** \name Shader Nodes
  */
@@ -786,8 +794,11 @@ struct ShadeResult;
 #define SH_NODE_UVALONGSTROKE			191
 #define SH_NODE_TEX_POINTDENSITY		192
 #define SH_NODE_BSDF_PRINCIPLED         193
-#define SH_NODE_OBJECT			194
-#define SH_NODE_TIME			195
+#define SH_NODE_EEVEE_METALLIC			194
+#define SH_NODE_EEVEE_SPECULAR			195
+#define SH_NODE_OUTPUT_EEVEE_MATERIAL	196
+#define SH_NODE_OBJECT			197
+#define SH_NODE_TIME			198
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

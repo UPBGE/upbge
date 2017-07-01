@@ -46,8 +46,6 @@ extern "C" {
 #include "DNA_object_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BKE_depsgraph.h"
-
 #include "RNA_access.h"
 }
 
@@ -69,9 +67,8 @@ static DEG_EditorUpdateSceneCb deg_editor_update_scene_cb = NULL;
 static DEG_EditorUpdateScenePreCb deg_editor_update_scene_pre_cb = NULL;
 
 Depsgraph::Depsgraph()
-  : root_node(NULL),
-    need_update(false),
-    layers(0)
+  : time_source(NULL),
+    need_update(false)
 {
 	BLI_spin_init(&lock);
 	id_hash = BLI_ghash_ptr_new("Depsgraph id hash");
@@ -80,12 +77,11 @@ Depsgraph::Depsgraph()
 
 Depsgraph::~Depsgraph()
 {
-	/* Free root node - it won't have been freed yet... */
 	clear_id_nodes();
 	BLI_ghash_free(id_hash, NULL, NULL);
 	BLI_gset_free(entry_tags, NULL);
-	if (this->root_node != NULL) {
-		OBJECT_GUARDED_DELETE(this->root_node, RootDepsNode);
+	if (time_source != NULL) {
+		OBJECT_GUARDED_DELETE(time_source, TimeSourceDepsNode);
 	}
 	BLI_spin_end(&lock);
 }
@@ -260,19 +256,18 @@ static void id_node_deleter(void *value)
 	OBJECT_GUARDED_DELETE(id_node, IDDepsNode);
 }
 
-RootDepsNode *Depsgraph::add_root_node()
+TimeSourceDepsNode *Depsgraph::add_time_source()
 {
-	if (!root_node) {
-		DepsNodeFactory *factory = deg_get_node_factory(DEG_NODE_TYPE_ROOT);
-		root_node = (RootDepsNode *)factory->create_node(NULL, "", "Root (Scene)");
+	if (time_source == NULL) {
+		DepsNodeFactory *factory = deg_get_node_factory(DEG_NODE_TYPE_TIMESOURCE);
+		time_source = (TimeSourceDepsNode *)factory->create_node(NULL, "", "Time Source");
 	}
-	return root_node;
+	return time_source;
 }
 
 TimeSourceDepsNode *Depsgraph::find_time_source() const
 {
-	BLI_assert(root_node != NULL);
-	return root_node->time_source;
+	return time_source;
 }
 
 IDDepsNode *Depsgraph::find_id_node(const ID *id) const
@@ -287,20 +282,14 @@ IDDepsNode *Depsgraph::add_id_node(ID *id, const char *name)
 		DepsNodeFactory *factory = deg_get_node_factory(DEG_NODE_TYPE_ID_REF);
 		id_node = (IDDepsNode *)factory->create_node(id, "", name);
 		id->tag |= LIB_TAG_DOIT;
-		/* register */
+		/* Register node in ID hash.
+		 *
+		 * NOTE: We address ID nodes by the original ID pointer they are
+		 * referencing to.
+		 */
 		BLI_ghash_insert(id_hash, id, id_node);
 	}
 	return id_node;
-}
-
-void Depsgraph::remove_id_node(const ID *id)
-{
-	IDDepsNode *id_node = find_id_node(id);
-	if (id_node) {
-		/* unregister */
-		BLI_ghash_remove(id_hash, id, NULL, NULL);
-		OBJECT_GUARDED_DELETE(id_node, IDDepsNode);
-	}
 }
 
 void Depsgraph::clear_id_nodes()
@@ -321,7 +310,7 @@ DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from,
 	if (comp_node->type == DEG_NODE_TYPE_GEOMETRY) {
 		IDDepsNode *id_to = to->owner->owner;
 		IDDepsNode *id_from = from->owner->owner;
-		if (id_to != id_from && (id_to->id->tag & LIB_TAG_ID_RECALC_ALL)) {
+		if (id_to != id_from && (id_to->id_orig->tag & LIB_TAG_ID_RECALC_ALL)) {
 			if ((id_from->eval_flags & DAG_EVAL_NEED_CPU) == 0) {
 				id_from->tag_update(this);
 				id_from->eval_flags |= DAG_EVAL_NEED_CPU;
@@ -413,10 +402,19 @@ void Depsgraph::clear_all_nodes()
 {
 	clear_id_nodes();
 	BLI_ghash_clear(id_hash, NULL, NULL);
-	if (this->root_node) {
-		OBJECT_GUARDED_DELETE(this->root_node, RootDepsNode);
-		root_node = NULL;
+	if (time_source != NULL) {
+		OBJECT_GUARDED_DELETE(time_source, TimeSourceDepsNode);
+		time_source = NULL;
 	}
+}
+
+ID *Depsgraph::get_cow_id(const ID *id_orig) const
+{
+	IDDepsNode *id_node = find_id_node(id_orig);
+	if (id_node == NULL) {
+		return (ID *)id_orig;
+	}
+	return id_node->id_cow;
 }
 
 void deg_editors_id_update(Main *bmain, ID *id)

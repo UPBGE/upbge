@@ -45,11 +45,11 @@ struct GHash;
 struct GSet;
 struct PointerRNA;
 struct PropertyRNA;
+struct Scene;
 
 namespace DEG {
 
 struct DepsNode;
-struct RootDepsNode;
 struct TimeSourceDepsNode;
 struct IDDepsNode;
 struct ComponentDepsNode;
@@ -108,13 +108,11 @@ struct Depsgraph {
 	 */
 	DepsNode *find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop) const;
 
-	RootDepsNode *add_root_node();
-
+	TimeSourceDepsNode *add_time_source();
 	TimeSourceDepsNode *find_time_source() const;
 
 	IDDepsNode *find_id_node(const ID *id) const;
 	IDDepsNode *add_id_node(ID *id, const char *name = "");
-	void remove_id_node(const ID *id);
 	void clear_id_nodes();
 
 	/* Add new relationship between two nodes. */
@@ -132,14 +130,19 @@ struct Depsgraph {
 	/* Clear storage used by all nodes. */
 	void clear_all_nodes();
 
+	/* Copy-on-Write Functionality ........ */
+
+	/* For given original ID get ID which is created by CoW system. */
+	ID *get_cow_id(const ID *id_orig) const;
+
 	/* Core Graph Functionality ........... */
 
 	/* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks
 	 * (for quick lookups). */
 	GHash *id_hash;
 
-	/* "root" node - the one where all evaluation enters from. */
-	RootDepsNode *root_node;
+	/* Top-level time source node. */
+	TimeSourceDepsNode *time_source;
 
 	/* Indicates whether relations needs to be updated. */
 	bool need_update;
@@ -160,12 +163,9 @@ struct Depsgraph {
 	 */
 	SpinLock lock;
 
-	/* Layers Visibility .................. */
-
-	/* Visible layers bitfield, used for skipping invisible objects updates. */
-	unsigned int layers;
-
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
+
+	Scene *scene; /* XXX: We really shouldn't do that, but it's required for shader preview */
 };
 
 }  // namespace DEG

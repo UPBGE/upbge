@@ -51,7 +51,6 @@
 #include "DNA_object_types.h"
 
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_brush.h"
 #include "BKE_image.h"
@@ -60,6 +59,8 @@
 #include "BKE_node.h"
 #include "BKE_paint.h"
 #include "BKE_texture.h"
+
+#include "DEG_depsgraph.h"
 
 #include "UI_interface.h"
 #include "UI_view2d.h"
@@ -78,9 +79,9 @@
 
 #include "GPU_draw.h"
 #include "GPU_buffers.h"
+#include "GPU_immediate.h"
 
 #include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "IMB_colormanagement.h"
 
@@ -372,7 +373,7 @@ void ED_image_undo_restore(bContext *C, ListBase *lb)
 			ibuf->userflags |= IB_MIPMAP_INVALID;  /* force mipmap recreatiom */
 		ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
 
-		DAG_id_tag_update(&ima->id, 0);
+		DEG_id_tag_update(&ima->id, 0);
 
 		BKE_image_release_ibuf(ima, ibuf, NULL);
 	}
@@ -721,12 +722,28 @@ static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customda
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
 
+		Gwn_VertFormat *format = immVertexFormat();
+		unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_I32, 2, GWN_FETCH_INT_TO_FLOAT);
+
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 		glLineWidth(4.0);
-		glColor4ub(0, 0, 0, 255);
-		sdrawline(x, y, pop->startmouse[0], pop->startmouse[1]);
+		immUniformColor4ub(0, 0, 0, 255);
+
+		immBegin(GWN_PRIM_LINES, 2);
+		immVertex2i(pos, x, y);
+		immVertex2i(pos, pop->startmouse[0], pop->startmouse[1]);
+		immEnd();
+
 		glLineWidth(2.0);
-		glColor4ub(255, 255, 255, 255);
-		sdrawline(x, y, pop->startmouse[0], pop->startmouse[1]);
+		immUniformColor4ub(255, 255, 255, 255);
+
+		immBegin(GWN_PRIM_LINES, 2);
+		immVertex2i(pos, x, y);
+		immVertex2i(pos, pop->startmouse[0], pop->startmouse[1]);
+		immEnd();
+
+		immUnbindProgram();
 
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
@@ -748,7 +765,8 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
 
 	/* initialize from context */
 	if (CTX_wm_region_view3d(C)) {
-		Object *ob = OBACT;
+		SceneLayer *sl = CTX_data_scene_layer(C);
+		Object *ob = OBACT_NEW;
 		bool uvs, mat, tex, stencil;
 		if (!BKE_paint_proj_mesh_data_check(scene, ob, &uvs, &mat, &tex, &stencil)) {
 			BKE_paint_data_warning(op->reports, uvs, mat, tex, stencil);
@@ -1039,16 +1057,20 @@ static void toggle_paint_cursor(bContext *C, int enable)
 void ED_space_image_paint_update(wmWindowManager *wm, Scene *scene)
 {
 	ToolSettings *settings = scene->toolsettings;
-	wmWindow *win;
-	ScrArea *sa;
 	ImagePaintSettings *imapaint = &settings->imapaint;
 	bool enabled = false;
 
-	for (win = wm->windows.first; win; win = win->next)
-		for (sa = win->screen->areabase.first; sa; sa = sa->next)
-			if (sa->spacetype == SPACE_IMAGE)
-				if (((SpaceImage *)sa->spacedata.first)->mode == SI_MODE_PAINT)
+	for (wmWindow *win = wm->windows.first; win; win = win->next) {
+		bScreen *screen = WM_window_get_active_screen(win);
+
+		for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+			if (sa->spacetype == SPACE_IMAGE) {
+				if (((SpaceImage *)sa->spacedata.first)->mode == SI_MODE_PAINT) {
 					enabled = true;
+				}
+			}
+		}
+	}
 
 	if (enabled) {
 		BKE_paint_init(scene, ePaintTexture2D, PAINT_CURSOR_TEXTURE_PAINT);
@@ -1499,7 +1521,7 @@ void ED_imapaint_bucket_fill(struct bContext *C, float color[3], wmOperator *op)
 
 	ED_undo_paint_push_end(UNDO_PAINT_IMAGE);
 
-	DAG_id_tag_update(&ima->id, 0);
+	DEG_id_tag_update(&ima->id, 0);
 }
 
 

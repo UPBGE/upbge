@@ -44,11 +44,12 @@
 #include "BKE_blender_copybuffer.h"  /* own include */
 #include "BKE_blendfile.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_scene.h"
+
+#include "DEG_depsgraph_build.h"
 
 #include "BLO_readfile.h"
 #include "BLO_writefile.h"
@@ -117,7 +118,7 @@ bool BKE_copybuffer_paste(bContext *C, const char *libname, const short flag, Re
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	View3D *v3d = CTX_wm_view3d(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	Main *mainl = NULL;
 	Library *lib;
 	BlendHandle *bh;
@@ -142,7 +143,7 @@ bool BKE_copybuffer_paste(bContext *C, const char *libname, const short flag, Re
 
 	BLO_library_link_copypaste(mainl, bh);
 
-	BLO_library_link_end(mainl, &bh, flag, scene, v3d);
+	BLO_library_link_end(mainl, &bh, flag, scene, sl);
 
 	/* mark all library linked objects to be updated */
 	BKE_main_lib_objects_recalc_all(bmain);
@@ -157,7 +158,7 @@ bool BKE_copybuffer_paste(bContext *C, const char *libname, const short flag, Re
 	BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, false);
 
 	/* recreate dependency graph to include new objects */
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 
 	BLO_blendhandle_close(bh);
 	/* remove library... */

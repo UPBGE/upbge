@@ -42,7 +42,6 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "BKE_context.h"
@@ -70,6 +69,9 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+
+#include "GPU_immediate.h"
+#include "GPU_immediate_util.h"
 
 #include "filelist.h"
 
@@ -258,9 +260,10 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 
 static void draw_tile(int sx, int sy, int width, int height, int colorid, int shade)
 {
-	UI_ThemeColorShade(colorid, shade);
+	float color[4];
+	UI_GetThemeColorShade4fv(colorid, shade, color);
 	UI_draw_roundbox_corner_set(UI_CNR_ALL);
-	UI_draw_roundbox((float)sx, (float)(sy - height), (float)(sx + width), (float)sy, 5.0f);
+	UI_draw_roundbox_aa(true, (float)sx, (float)(sy - height), (float)(sx + width), (float)sy, 5.0f, color);
 }
 
 
@@ -285,7 +288,8 @@ static void file_draw_icon(uiBlock *block, const char *path, int sx, int sy, int
 }
 
 
-static void file_draw_string(int sx, int sy, const char *string, float width, int height, short align)
+static void file_draw_string(int sx, int sy, const char *string, float width, int height, short align,
+                             const unsigned char col[4])
 {
 	uiStyle *style;
 	uiFontStyle fs;
@@ -310,7 +314,7 @@ static void file_draw_string(int sx, int sy, const char *string, float width, in
 	rect.ymin = sy - height;
 	rect.ymax = sy;
 
-	UI_fontstyle_draw(&fs, &rect, fname);
+	UI_fontstyle_draw(&fs, &rect, fname, col);
 }
 
 void file_calc_previews(const bContext *C, ARegion *ar)
@@ -335,6 +339,7 @@ static void file_draw_preview(
 	float scale;
 	int ex, ey;
 	bool use_dropshadow = !is_icon && (typeflags & FILE_TYPE_IMAGE);
+	float col[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
 	BLI_assert(imb != NULL);
 
@@ -381,12 +386,12 @@ static void file_draw_preview(
 
 	/* the image */
 	if (!is_icon && typeflags & FILE_TYPE_FTFONT) {
-		UI_ThemeColor(TH_TEXT);
+		UI_GetThemeColor4fv(TH_TEXT, col);
 	}
-	else {
-		glColor4f(1.0, 1.0, 1.0, 1.0);
-	}
-	glaDrawPixelsTexScaled((float)xco, (float)yco, imb->x, imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, imb->rect, scale, scale);
+
+	IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_COLOR);
+	immDrawPixelsTexScaled(&state, (float)xco, (float)yco, imb->x, imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, imb->rect,
+	                       scale, scale, 1.0f, 1.0f, col);
 
 	if (icon) {
 		UI_icon_draw_aspect((float)xco, (float)yco, icon, icon_aspect, 1.0f);
@@ -394,8 +399,13 @@ static void file_draw_preview(
 
 	/* border */
 	if (use_dropshadow) {
-		glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
-		fdrawbox((float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
+		Gwn_VertFormat *format = immVertexFormat();
+		unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2,GWN_FETCH_FLOAT);
+
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+		immUniformColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+		imm_draw_line_box(pos, (float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
+		immUnbindProgram();
 	}
 
 	but = uiDefBut(block, UI_BTYPE_LABEL, 0, "", xco, yco, ex, ey, NULL, 0.0, 0.0, 0, 0, NULL);
@@ -451,49 +461,70 @@ static void draw_background(FileLayout *layout, View2D *v2d)
 	int i;
 	int sy;
 
-	UI_ThemeColorShade(TH_BACK, -7);
+	unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+	immUniformThemeColorShade(TH_BACK, -7);
 
 	/* alternating flat shade background */
 	for (i = 0; (i <= layout->rows); i += 2) {
 		sy = (int)v2d->cur.ymax - i * (layout->tile_h + 2 * layout->tile_border_y) - layout->tile_border_y;
 
-		glRectf(v2d->cur.xmin, (float)sy, v2d->cur.xmax, (float)(sy + layout->tile_h + 2 * layout->tile_border_y));
-		
+		immRectf(pos, v2d->cur.xmin, (float)sy, v2d->cur.xmax, (float)(sy + layout->tile_h + 2 * layout->tile_border_y));
 	}
+
+	immUnbindProgram();
 }
 
 static void draw_dividers(FileLayout *layout, View2D *v2d)
 {
-	const int step = (layout->tile_w + 2 * layout->tile_border_x);
-	int v1[2], v2[2];
-	int sx;
-	unsigned char col_hi[3], col_lo[3];
-
-	UI_GetThemeColorShade3ubv(TH_BACK,  30, col_hi);
-	UI_GetThemeColorShade3ubv(TH_BACK, -30, col_lo);
-
-	v1[1] = v2d->cur.ymax - layout->tile_border_y;
-	v2[1] = v2d->cur.ymin;
-
-	glBegin(GL_LINES);
-
 	/* vertical column dividers */
-	sx = (int)v2d->tot.xmin;
+
+	const int step = (layout->tile_w + 2 * layout->tile_border_x);
+
+	unsigned int vertex_ct = 0;
+	int sx = (int)v2d->tot.xmin;
 	while (sx < v2d->cur.xmax) {
 		sx += step;
-
-		glColor3ubv(col_lo);
-		v1[0] = v2[0] = sx;
-		glVertex2iv(v1);
-		glVertex2iv(v2);
-
-		glColor3ubv(col_hi);
-		v1[0] = v2[0] = sx + 1;
-		glVertex2iv(v1);
-		glVertex2iv(v2);
+		vertex_ct += 4; /* vertex_count = 2 points per line * 2 lines per divider */
 	}
 
-	glEnd();
+	if (vertex_ct > 0) {
+		int v1[2], v2[2];
+		unsigned char col_hi[3], col_lo[3];
+
+		UI_GetThemeColorShade3ubv(TH_BACK,  30, col_hi);
+		UI_GetThemeColorShade3ubv(TH_BACK, -30, col_lo);
+
+		v1[1] = v2d->cur.ymax - layout->tile_border_y;
+		v2[1] = v2d->cur.ymin;
+
+		Gwn_VertFormat *format = immVertexFormat();
+		unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_I32, 2, GWN_FETCH_INT_TO_FLOAT);
+		unsigned int color = GWN_vertformat_attr_add(format, "color", GWN_COMP_U8, 3, GWN_FETCH_INT_TO_FLOAT_UNIT);
+
+		immBindBuiltinProgram(GPU_SHADER_2D_FLAT_COLOR);
+		immBegin(GWN_PRIM_LINES, vertex_ct);
+
+		sx = (int)v2d->tot.xmin;
+		while (sx < v2d->cur.xmax) {
+			sx += step;
+
+			v1[0] = v2[0] = sx;
+			immSkipAttrib(color);
+			immVertex2iv(pos, v1);
+			immAttrib3ubv(color, col_lo);
+			immVertex2iv(pos, v2);
+
+			v1[0] = v2[0] = sx + 1;
+			immSkipAttrib(color);
+			immVertex2iv(pos, v1);
+			immAttrib3ubv(color, col_hi);
+			immVertex2iv(pos, v2);
+		}
+
+		immEnd();
+		immUnbindProgram();
+	}
 }
 
 void file_draw_list(const bContext *C, ARegion *ar)
@@ -517,6 +548,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	short align;
 	bool do_drag;
 	int column_space = 0.6f * UI_UNIT_X;
+	unsigned char text_col[4];
 	const bool small_size = SMALL_SIZE_CHECK(params->thumbnail_size);
 	const bool update_stat_strings = small_size != SMALL_SIZE_CHECK(layout->curr_size);
 	const float thumb_icon_aspect = sqrtf(64.0f / (float)(params->thumbnail_size));
@@ -587,9 +619,6 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		BLI_join_dirfile(path, sizeof(path), root, file->relpath);
 
-		UI_ThemeColor4(TH_TEXT);
-
-
 		if (!(file_selflag & FILE_SEL_EDITING)) {
 			if ((params->highlight_file == i) || (file_selflag & FILE_SEL_HIGHLIGHTED) ||
 			    (file_selflag & FILE_SEL_SELECTED))
@@ -625,7 +654,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			sx += ICON_DEFAULT_WIDTH_SCALE + 0.2f * UI_UNIT_X;
 		}
 
-		UI_ThemeColor4(TH_TEXT);
+		UI_GetThemeColor4ubv(TH_TEXT, text_col);
 
 		if (file_selflag & FILE_SEL_EDITING) {
 			uiBut *but;
@@ -656,7 +685,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		if (!(file_selflag& FILE_SEL_EDITING)) {
 			int tpos = (FILE_IMGDISPLAY == params->display) ? sy - layout->tile_h + layout->textheight : sy;
-			file_draw_string(sx + 1, tpos, file->name, (float)textwidth, textheight, align);
+			file_draw_string(sx + 1, tpos, file->name, (float)textwidth, textheight, align, text_col);
 		}
 
 		sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
@@ -668,7 +697,8 @@ void file_draw_list(const bContext *C, ARegion *ar)
 					BLI_filelist_entry_size_to_string(NULL, file->entry->size, small_size, file->entry->size_str);
 				}
 				file_draw_string(
-				            sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+				            sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h,
+				            align, text_col);
 			}
 			sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 		}
@@ -679,10 +709,12 @@ void file_draw_list(const bContext *C, ARegion *ar)
 					            NULL, file->entry->time, small_size, file->entry->time_str, file->entry->date_str);
 				}
 				file_draw_string(
-				            sx, sy, file->entry->date_str, layout->column_widths[COLUMN_DATE], layout->tile_h, align);
+				            sx, sy, file->entry->date_str, layout->column_widths[COLUMN_DATE], layout->tile_h,
+				            align, text_col);
 				sx += (int)layout->column_widths[COLUMN_DATE] + column_space;
 				file_draw_string(
-				            sx, sy, file->entry->time_str, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
+				            sx, sy, file->entry->time_str, layout->column_widths[COLUMN_TIME], layout->tile_h,
+				            align, text_col);
 				sx += (int)layout->column_widths[COLUMN_TIME] + column_space;
 			}
 			else {
@@ -697,7 +729,8 @@ void file_draw_list(const bContext *C, ARegion *ar)
 					BLI_filelist_entry_size_to_string(NULL, file->entry->size, small_size, file->entry->size_str);
 				}
 				file_draw_string(
-				            sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+				            sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h,
+				            align, text_col);
 			}
 			sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 		}

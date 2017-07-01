@@ -1,3 +1,4 @@
+
 // color buffer
 uniform sampler2D colorbuffer;
 
@@ -9,8 +10,10 @@ uniform sampler1D ssao_concentric_tex;
 
 // depth buffer
 uniform sampler2D depthbuffer;
+
 // coordinates on framebuffer in normalized (0.0-1.0) uv space
-varying vec4 uvcoordsvar;
+in vec4 uvcoordsvar;
+out vec4 FragColor;
 
 /* ssao_params.x : pixel scale for the ssao radious */
 /* ssao_params.y : factor for the ssao darkening */
@@ -33,7 +36,7 @@ vec3 calculate_view_space_normal(in vec3 viewposition)
 float calculate_ssao_factor(float depth)
 {
 	/* take the normalized ray direction here */
-	vec2 rotX = texture2D(jitter_tex, uvcoordsvar.xy * ssao_sample_params.yz).rg;
+	vec2 rotX = texture(jitter_tex, uvcoordsvar.xy * ssao_sample_params.yz).rg;
 	vec2 rotY = vec2(-rotX.y, rotX.x);
 
 	/* occlusion is zero in full depth */
@@ -46,9 +49,9 @@ float calculate_ssao_factor(float depth)
 	/* find the offset in screen space by multiplying a point
 	 * in camera space at the depth of the point by the projection matrix. */
 	vec2 offset;
-	float homcoord = gl_ProjectionMatrix[2][3] * position.z + gl_ProjectionMatrix[3][3];
-	offset.x = gl_ProjectionMatrix[0][0] * ssao_params.x / homcoord;
-	offset.y = gl_ProjectionMatrix[1][1] * ssao_params.x / homcoord;
+	float homcoord = ProjectionMatrix[2][3] * position.z + ProjectionMatrix[3][3];
+	offset.x = ProjectionMatrix[0][0] * ssao_params.x / homcoord;
+	offset.y = ProjectionMatrix[1][1] * ssao_params.x / homcoord;
 	/* convert from -1.0...1.0 range to 0.0..1.0 for easy use with texture coordinates */
 	offset *= 0.5;
 
@@ -57,7 +60,7 @@ float calculate_ssao_factor(float depth)
 	int num_samples = int(ssao_sample_params.x);
 
 	for (x = 0; x < num_samples; x++) {
-		vec2 dir_sample = texture1D(ssao_concentric_tex, (float(x) + 0.5) / ssao_sample_params.x).rg;
+		vec2 dir_sample = texture(ssao_concentric_tex, (float(x) + 0.5) / ssao_sample_params.x).rg;
 
 		/* rotate with random direction to get jittered result */
 		vec2 dir_jittered = vec2(dot(dir_sample, rotX), dot(dir_sample, rotY));
@@ -67,7 +70,7 @@ float calculate_ssao_factor(float depth)
 		if (uvcoords.x > 1.0 || uvcoords.x < 0.0 || uvcoords.y > 1.0 || uvcoords.y < 0.0)
 			continue;
 
-		float depth_new = texture2D(depthbuffer, uvcoords).r;
+		float depth_new = texture(depthbuffer, uvcoords).r;
 		if (depth_new != 1.0) {
 			vec3 pos_new = get_view_space_from_depth(uvcoords, viewvecs[0].xyz, viewvecs[1].xyz, depth_new);
 			vec3 dir = pos_new - position;
@@ -87,8 +90,8 @@ float calculate_ssao_factor(float depth)
 
 void main()
 {
-	float depth = texture2D(depthbuffer, uvcoordsvar.xy).r;
-	vec4 scene_col = texture2D(colorbuffer, uvcoordsvar.xy);
+	float depth = texture(depthbuffer, uvcoordsvar.xy).r;
+	vec4 scene_col = texture(colorbuffer, uvcoordsvar.xy);
 	vec3 final_color = mix(scene_col.rgb, ssao_color.rgb, calculate_ssao_factor(depth));
-	gl_FragColor = vec4(final_color.rgb, scene_col.a);
+	FragColor = vec4(final_color.rgb, scene_col.a);
 }

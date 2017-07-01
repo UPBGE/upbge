@@ -49,6 +49,7 @@ private:
 	private:
 		unsigned int m_vbo;
 		unsigned int m_ibo;
+		unsigned int m_vao;
 
 	public:
 		ScreenPlane();
@@ -61,6 +62,9 @@ private:
 	ScreenPlane m_screenPlane;
 
 	RAS_Rasterizer *m_rasterizer;
+	
+	/// To replace deprecated setMatrixMode
+	RAS_Rasterizer::MatrixMode m_currentMatrixMode;
 
 public:
 	RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer);
@@ -70,8 +74,8 @@ public:
 
 	void Enable(RAS_Rasterizer::EnableBit bit);
 	void Disable(RAS_Rasterizer::EnableBit bit);
-	void EnableLight(unsigned short count);
-	void DisableLight(unsigned short count);
+	/*void EnableLight(unsigned short count);
+	void DisableLight(unsigned short count);*/
 
 	void SetDepthFunc(RAS_Rasterizer::DepthFunc func);
 	void SetDepthMask(RAS_Rasterizer::DepthMask depthmask);
@@ -93,35 +97,34 @@ public:
 	void DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::DrawType drawingmode);
 
 	void SetViewport(int x, int y, int width, int height);
-	void GetViewport(int *rect);
 	void SetScissor(int x, int y, int width, int height);
 
-	void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
+	/*void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
 	void EnableFog(bool enable);
-	void DisplayFog();
+	void DisplayFog();*/
 
 	void SetLines(bool enable);
 
-	void SetSpecularity(float specX, float specY, float specZ, float specval);
+	/*void SetSpecularity(float specX, float specY, float specZ, float specval);
 	void SetShinyness(float shiny);
 	void SetDiffuse(float difX, float difY, float difZ, float diffuse);
-	void SetEmissive(float eX, float eY, float eZ, float e);
+	void SetEmissive(float eX, float eY, float eZ, float e);*/
 
 	void SetAmbient(const MT_Vector3& amb, float factor);
 
 	void SetPolygonOffset(float mult, float add);
 
-	void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
-	void DisableClipPlane(unsigned short index);
+	/*void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
+	void DisableClipPlane(unsigned short index);*/
 
 	void SetFrontFace(bool ccw);
 
 	/**
 	 * Render Tools
 	 */
-	void EnableLights();
-	void DisableLights();
-	void ProcessLighting(bool uselights, const MT_Transform &viewmat);
+	/*void EnableLights();
+	void DisableLights(); */
+	void ProcessLighting(bool uselights, const MT_Transform &viewmat, GPUShader *shader);
 
 	void DisableForText();
 	void RenderText3D(int fontid, const std::string& text, int size, int dpi,
@@ -134,7 +137,7 @@ public:
 	void LoadMatrix(const float mat[16]);
 	void LoadIdentity();
 
-	void MotionBlur(unsigned short state, float value);
+	//void MotionBlur(unsigned short state, float value);
 
 	/**
 	 * Prints information about what the hardware supports.

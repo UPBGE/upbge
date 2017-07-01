@@ -58,6 +58,8 @@
 #include "BIF_gl.h"
 #include "BLF_api.h"
 
+#include "GPU_immediate.h"
+
 #include "blf_internal_types.h"
 #include "blf_internal.h"
 
@@ -172,6 +174,23 @@ static void blf_font_ensure_ascii_table(FontBLF *font)
 	}                                                                            \
 } (void)0
 
+static unsigned int verts_needed(const FontBLF *font, const char *str, size_t len)
+{
+	unsigned int length = (unsigned int)((len == INT_MAX) ? strlen(str) : len);
+	unsigned int quad_ct = 1;
+
+	if (font->flags & BLF_SHADOW) {
+		if (font->shadow == 0)
+			quad_ct += 1;
+		if (font->shadow <= 4)
+			quad_ct += 9; /* 3x3 kernel */
+		else
+			quad_ct += 25; /* 5x5 kernel */
+	}
+
+	return length * quad_ct * 6;
+}
+
 static void blf_font_draw_ex(
         FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info,
         int pen_y)
@@ -186,6 +205,9 @@ static void blf_font_draw_ex(
 	BLF_KERNING_VARS(font, has_kerning, kern_mode);
 
 	blf_font_ensure_ascii_table(font);
+
+	immBeginAtMost(GWN_PRIM_TRIS, verts_needed(font, str, len));
+	/* at most because some glyphs might be clipped & not drawn */
 
 	while ((i < len) && str[i]) {
 		BLF_UTF8_NEXT_FAST(font, g, str, i, c, glyph_ascii_table);
@@ -203,6 +225,8 @@ static void blf_font_draw_ex(
 		pen_x += g->advance_i;
 		g_prev = g;
 	}
+
+	immEnd();
 
 	if (r_info) {
 		r_info->lines = 1;
@@ -229,6 +253,8 @@ static void blf_font_draw_ascii_ex(
 
 	blf_font_ensure_ascii_table(font);
 
+	immBeginAtMost(GWN_PRIM_TRIS, verts_needed(font, str, len));
+
 	while ((c = *(str++)) && len--) {
 		BLI_assert(c < 128);
 		if ((g = glyph_ascii_table[c]) == NULL)
@@ -242,6 +268,8 @@ static void blf_font_draw_ascii_ex(
 		pen_x += g->advance_i;
 		g_prev = g;
 	}
+
+	immEnd();
 
 	if (r_info) {
 		r_info->lines = 1;
@@ -265,6 +293,8 @@ int blf_font_draw_mono(FontBLF *font, const char *str, size_t len, int cwidth)
 
 	blf_font_ensure_ascii_table(font);
 
+	immBeginAtMost(GWN_PRIM_TRIS, verts_needed(font, str, len));
+
 	while ((i < len) && str[i]) {
 		BLF_UTF8_NEXT_FAST(font, g, str, i, c, glyph_ascii_table);
 
@@ -283,6 +313,8 @@ int blf_font_draw_mono(FontBLF *font, const char *str, size_t len, int cwidth)
 		columns += col;
 		pen_x += cwidth * col;
 	}
+
+	immEnd();
 
 	return columns;
 }
@@ -901,8 +933,6 @@ void blf_font_free(FontBLF *font)
 
 static void blf_font_fill(FontBLF *font)
 {
-	unsigned int i;
-
 	font->aspect[0] = 1.0f;
 	font->aspect[1] = 1.0f;
 	font->aspect[2] = 1.0f;
@@ -910,8 +940,14 @@ static void blf_font_fill(FontBLF *font)
 	font->pos[1] = 0.0f;
 	font->angle = 0.0f;
 
-	for (i = 0; i < 16; i++)
+	for (int i = 0; i < 16; i++)
 		font->m[i] = 0;
+
+	/* annoying bright color so we can see where to add BLF_color calls */
+	font->color[0] = 255;
+	font->color[1] = 255;
+	font->color[2] = 0;
+	font->color[3] = 255;
 
 	font->clip_rec.xmin = 0.0f;
 	font->clip_rec.xmax = 0.0f;
@@ -922,7 +958,9 @@ static void blf_font_fill(FontBLF *font)
 	font->size = 0;
 	BLI_listbase_clear(&font->cache);
 	font->glyph_cache = NULL;
+#if BLF_BLUR_ENABLE
 	font->blur = 0;
+#endif
 	font->max_tex_size = -1;
 
 	font->buf_info.fbuf = NULL;

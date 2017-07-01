@@ -171,9 +171,25 @@ static void buttons_main_region_draw(const bContext *C, ARegion *ar)
 		ED_region_panels(C, ar, "constraint", sbuts->mainb, vertical);
 	else if (sbuts->mainb == BCONTEXT_BONE_CONSTRAINT)
 		ED_region_panels(C, ar, "bone_constraint", sbuts->mainb, vertical);
+	else if (sbuts->mainb == BCONTEXT_COLLECTION)
+		ED_region_panels(C, ar, "collection", sbuts->mainb, vertical);
 
 	sbuts->re_align = 0;
 	sbuts->mainbo = sbuts->mainb;
+}
+
+static void buttons_main_region_listener(
+        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn,
+        const Scene *UNUSED(scene))
+{
+	/* context changes */
+	switch (wmn->category) {
+		case NC_SCREEN:
+			if (ELEM(wmn->data, ND_LAYER)) {
+				ED_region_tag_redraw(ar);
+			}
+			break;
+	}
 }
 
 static void buttons_operatortypes(void)
@@ -218,7 +234,8 @@ static void buttons_area_redraw(ScrArea *sa, short buttons)
 }
 
 /* reused! */
-static void buttons_area_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
+static void buttons_area_listener(
+        bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	SpaceButs *sbuts = sa->spacedata.first;
 
@@ -468,6 +485,7 @@ void ED_spacetype_buttons(void)
 	art->regionid = RGN_TYPE_WINDOW;
 	art->init = buttons_main_region_init;
 	art->draw = buttons_main_region_draw;
+	art->listener = buttons_main_region_listener;
 	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
 	BLI_addhead(&st->regiontypes, art);
 

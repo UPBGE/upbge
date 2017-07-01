@@ -44,6 +44,10 @@ set(INC
 	../../blender/blenkernel
 	../../blender/blenlib
 	../../blender/blenloader
+	../../blender/blentranslation
+	../../blender/draw
+	../../blender/draw/intern
+	../../blender/draw/engines/eevee
 	../../blender/gpu
 	../../blender/imbuf
 	../../blender/makesdna
@@ -52,6 +56,8 @@ set(INC
 	../../blender/python/generic
 	../../blender/python/mathutils
 	../../blender/python/intern
+	../../blender/render/extern/include
+	../../blender/render/intern/include
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
 )
@@ -254,6 +260,44 @@ set(SRC
 	../Physics/Common/PHY_Pro.h
 
 )
+
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/default_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/default_world_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/background_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/ambient_occlusion_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/effect_minmaxz_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lightprobe_filter_glossy_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lightprobe_filter_diffuse_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lightprobe_geom.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lightprobe_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lightprobe_cube_display_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lightprobe_cube_display_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lightprobe_grid_display_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lightprobe_grid_display_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lightprobe_planar_display_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lightprobe_planar_display_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lit_surface_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lit_surface_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/effect_bloom_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/effect_dof_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/effect_dof_geom.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/effect_dof_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/effect_motion_blur_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/prepass_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/prepass_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/shadow_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/shadow_geom.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/shadow_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/shadow_store_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/shadow_store_geom.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/shadow_store_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_lut_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_direct_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_common_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/irradiance_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/octahedron_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_sampling_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/ltc_lib.glsl SRC)
 
 add_definitions(${GL_DEFINITIONS})
 

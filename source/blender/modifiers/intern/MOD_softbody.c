@@ -40,10 +40,10 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_layer.h"
 #include "BKE_particle.h"
 #include "BKE_softbody.h"
 
-#include "depsgraph_private.h"
 #include "DEG_depsgraph_build.h"
 
 #include "MOD_modifiertypes.h"
@@ -54,31 +54,12 @@ static void deformVerts(ModifierData *md, Object *ob,
                         int numVerts,
                         ModifierApplyFlag UNUSED(flag))
 {
-	sbObjectStep(md->scene, ob, (float)md->scene->r.cfra, vertexCos, numVerts);
+	sbObjectStep(md->scene, BKE_scene_layer_context_active(md->scene), ob, (float)md->scene->r.cfra, vertexCos, numVerts);
 }
 
 static bool dependsOnTime(ModifierData *UNUSED(md))
 {
 	return true;
-}
-
-static void updateDepgraph(ModifierData *UNUSED(md), DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           Scene *scene, Object *ob, DagNode *obNode)
-{
-	if (ob->soft) {
-#ifdef WITH_LEGACY_DEPSGRAPH
-		/* Actual code uses ccd_build_deflector_hash */
-		dag_add_collision_relations(forest, scene, ob, obNode, ob->soft->collision_group, ob->lay, eModifierType_Collision, NULL, false, "Softbody Collision");
-
-		dag_add_forcefield_relations(forest, scene, ob, obNode, ob->soft->effector_weights, true, 0, "Softbody Field");
-#else
-	(void)forest;
-	(void)scene;
-	(void)ob;
-	(void)obNode;
-#endif
-	}
 }
 
 static void updateDepsgraph(ModifierData *UNUSED(md),
@@ -89,7 +70,7 @@ static void updateDepsgraph(ModifierData *UNUSED(md),
 {
 	if (ob->soft) {
 		/* Actual code uses ccd_build_deflector_hash */
-		DEG_add_collision_relations(node, scene, ob, ob->soft->collision_group, ob->lay, eModifierType_Collision, NULL, false, "Softbody Collision");
+		DEG_add_collision_relations(node, scene, ob, ob->soft->collision_group, eModifierType_Collision, NULL, false, "Softbody Collision");
 
 		DEG_add_forcefield_relations(node, scene, ob, ob->soft->effector_weights, true, 0, "Softbody Field");
 	}
@@ -116,7 +97,6 @@ ModifierTypeInfo modifierType_Softbody = {
 	/* requiredDataMask */  NULL,
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
-	/* updateDepgraph */    updateDepgraph,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */	NULL,

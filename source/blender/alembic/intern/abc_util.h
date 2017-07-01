@@ -33,7 +33,7 @@
 #endif
 
 /**
- * @brief The CacheReader struct is only used for anonymous pointers,
+ * \brief The CacheReader struct is only used for anonymous pointers,
  * to interface between C and C++ code. This library only creates
  * pointers to AbcObjectReader (or subclasses thereof).
  */
@@ -48,13 +48,13 @@ struct ImportSettings;
 
 struct ID;
 struct Object;
+struct Base;
 
 std::string get_id_name(const ID * const id);
 std::string get_id_name(const Object * const ob);
 std::string get_object_dag_path_name(const Object * const ob, Object *dupli_parent);
 
-bool object_selected(Object *ob);
-bool parent_selected(Object *ob);
+bool object_selected(const Base * const ob_base);
 
 Imath::M44d convert_matrix(float mat[4][4]);
 

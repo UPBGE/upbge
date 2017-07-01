@@ -100,12 +100,12 @@ void BKE_cachefile_free(CacheFile *cache_file)
 	BLI_freelistN(&cache_file->object_paths);
 }
 
-CacheFile *BKE_cachefile_copy(Main *bmain, CacheFile *cache_file)
+CacheFile *BKE_cachefile_copy(Main *bmain, const CacheFile *cache_file)
 {
 	CacheFile *new_cache_file = BKE_libblock_copy(bmain, &cache_file->id);
 	new_cache_file->handle = NULL;
 
-	BLI_listbase_clear(&cache_file->object_paths);
+	BLI_listbase_clear(&new_cache_file->object_paths);
 
 	BKE_id_copy_ensure_local(bmain, &cache_file->id, &new_cache_file->id);
 
@@ -204,11 +204,9 @@ float BKE_cachefile_time_offset(CacheFile *cache_file, const float time, const f
 }
 
 /* TODO(kevin): replace this with some depsgraph mechanism, or something similar. */
-void BKE_cachefile_clean(Scene *scene, CacheFile *cache_file)
+void BKE_cachefile_clean(struct Main *bmain, CacheFile *cache_file)
 {
-	for (Base *base = scene->base.first; base; base = base->next) {
-		Object *ob = base->object;
-
+	for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
 		ModifierData *md = modifiers_findByType(ob, eModifierType_MeshSequenceCache);
 
 		if (md) {

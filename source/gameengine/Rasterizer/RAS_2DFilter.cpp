@@ -222,7 +222,7 @@ void RAS_2DFilter::BindTextures(RAS_OffScreen *depthofs, RAS_OffScreen *colorofs
 	// Bind custom textures.
 	for (unsigned short i = 0; i < 8; ++i) {
 		if (m_textures[i]) {
-			glActiveTextureARB(GL_TEXTURE0 + i);
+			glActiveTexture(GL_TEXTURE0 + i);
 			glBindTexture(GL_TEXTURE_2D, m_textures[i]);
 		}
 	}
@@ -243,12 +243,12 @@ void RAS_2DFilter::UnbindTextures(RAS_OffScreen *depthofs, RAS_OffScreen *coloro
 	// Bind custom textures.
 	for (unsigned short i = 0; i < 8; ++i) {
 		if (m_textures[i]) {
-			glActiveTextureARB(GL_TEXTURE0 + i);
+			glActiveTexture(GL_TEXTURE0 + i);
 			glBindTexture(GL_TEXTURE_2D, 0);
 		}
 	}
 
-	glActiveTextureARB(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE0);
 }
 
 void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)

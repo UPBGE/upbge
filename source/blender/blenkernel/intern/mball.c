@@ -57,7 +57,6 @@
 
 #include "BKE_animsys.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_scene.h"
 #include "BKE_library.h"
 #include "BKE_library_query.h"
@@ -66,6 +65,8 @@
 #include "BKE_mball.h"
 #include "BKE_object.h"
 #include "BKE_material.h"
+
+//#include "DEG_depsgraph.h"
 
 /* Functions */
 
@@ -103,7 +104,7 @@ MetaBall *BKE_mball_add(Main *bmain, const char *name)
 	return mb;
 }
 
-MetaBall *BKE_mball_copy(Main *bmain, MetaBall *mb)
+MetaBall *BKE_mball_copy(Main *bmain, const MetaBall *mb)
 {
 	MetaBall *mbn;
 	int a;
@@ -316,13 +317,13 @@ bool BKE_mball_is_basis_for(Object *ob1, Object *ob2)
 void BKE_mball_properties_copy(Scene *scene, Object *active_object)
 {
 	Scene *sce_iter = scene;
-	Base *base;
+	BaseLegacy *base;
 	Object *ob;
 	MetaBall *active_mball = (MetaBall *)active_object->data;
 	int basisnr, obnr;
 	char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
 	SceneBaseIter iter;
-	EvaluationContext *eval_ctx = G.main->eval_ctx;
+	struct EvaluationContext *eval_ctx = G.main->eval_ctx;
 
 	BLI_split_name_num(basisname, &basisnr, active_object->id.name + 2, '.');
 
@@ -359,27 +360,25 @@ void BKE_mball_properties_copy(Scene *scene, Object *active_object)
  */
 Object *BKE_mball_basis_find(Scene *scene, Object *basis)
 {
-	Scene *sce_iter = scene;
-	Base *base;
-	Object *ob, *bob = basis;
+	Object *bob = basis;
 	int basisnr, obnr;
 	char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
-	SceneBaseIter iter;
-	EvaluationContext *eval_ctx = G.main->eval_ctx;
 
 	BLI_split_name_num(basisname, &basisnr, basis->id.name + 2, '.');
 
-	BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 0, NULL, NULL);
-	while (BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 1, &base, &ob)) {
-		if ((ob->type == OB_MBALL) && !(base->flag & OB_FROMDUPLI)) {
-			if (ob != bob) {
-				BLI_split_name_num(obname, &obnr, ob->id.name + 2, '.');
+	for (SceneLayer *sl = scene->render_layers.first; sl; sl = sl->next) {
+		for (Base *base = sl->object_bases.first; base; base = base->next) {
+			Object *ob = base->object;
+			if ((ob->type == OB_MBALL) && !(base->flag & OB_FROMDUPLI)) {
+				if (ob != bob) {
+					BLI_split_name_num(obname, &obnr, ob->id.name + 2, '.');
 
-				/* object ob has to be in same "group" ... it means, that it has to have same base of its name */
-				if (STREQ(obname, basisname)) {
-					if (obnr < basisnr) {
-						basis = ob;
-						basisnr = obnr;
+					/* object ob has to be in same "group" ... it means, that it has to have same base of its name */
+					if (STREQ(obname, basisname)) {
+						if (obnr < basisnr) {
+							basis = ob;
+							basisnr = obnr;
+						}
 					}
 				}
 			}
@@ -533,7 +532,7 @@ void BKE_mball_select_swap(struct MetaBall *mb)
 
 /* **** Depsgraph evaluation **** */
 
-void BKE_mball_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
+void BKE_mball_eval_geometry(struct EvaluationContext *UNUSED(eval_ctx),
                              MetaBall *UNUSED(mball))
 {
 }

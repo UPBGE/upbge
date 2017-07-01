@@ -30,6 +30,7 @@
 #ifndef __DNA_SCREEN_TYPES_H__
 #define __DNA_SCREEN_TYPES_H__
 
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_view2d_types.h"
 #include "DNA_vec_types.h"
@@ -52,10 +53,9 @@ typedef struct bScreen {
 	ListBase edgebase;
 	ListBase areabase;
 	ListBase regionbase;				/* screen level regions (menus), runtime only */
-	
-	struct Scene *scene;
-	struct Scene *newscene;				/* temporary when switching */
-	
+
+	struct Scene *scene DNA_DEPRECATED;
+
 	short winid;						/* winid from WM, starts with 1 */
 	short redraws_flag;					/* user-setting for which editors get redrawn during anim playback (used to be time->redraws) */
 
@@ -76,6 +76,8 @@ typedef struct bScreen {
 
 	struct wmTimer *animtimer;			/* if set, screen has timer handler added in window */
 	void *context;						/* context callback */
+
+	PreviewImage *preview;
 } bScreen;
 
 typedef struct ScrVert {
@@ -191,6 +193,13 @@ typedef struct uiList {           /* some list UI data need to be saved in file 
 	uiListDyn *dyn_data;
 } uiList;
 
+typedef struct TransformOrientation {
+	struct TransformOrientation *next, *prev;
+	char name[64];	/* MAX_NAME */
+	float mat[3][3];
+	int pad;
+} TransformOrientation;
+
 typedef struct uiPreview {           /* some preview UI data need to be saved in file */
 	struct uiPreview *next, *prev;
 
@@ -265,9 +274,10 @@ typedef struct ARegion {
 	ListBase ui_previews;		/* uiPreview */
 	ListBase handlers;			/* wmEventHandler */
 	ListBase panels_category;	/* Panel categories runtime */
-	
+
+	struct wmManipulatorMap *manipulator_map; /* manipulator-map of this region */
 	struct wmTimer *regiontimer; /* blend in/out */
-	
+
 	char *headerstr;			/* use this string to draw info */
 	void *regiondata;			/* XXX 2.50, need spacedata equivalent? */
 } ARegion;

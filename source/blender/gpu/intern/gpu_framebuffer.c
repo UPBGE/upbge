@@ -33,9 +33,10 @@
 
 #include "BKE_global.h"
 
-#include "GPU_debug.h"
-#include "GPU_glew.h"
+#include "GPU_batch.h"
+#include "GPU_draw.h"
 #include "GPU_framebuffer.h"
+#include "GPU_matrix.h"
 #include "GPU_shader.h"
 #include "GPU_texture.h"
 
@@ -57,44 +58,37 @@ struct GPUFrameBuffer {
 
 static void gpu_print_framebuffer_error(GLenum status, char err_out[256])
 {
+	const char *format = "GPUFrameBuffer: framebuffer status %s\n";
 	const char *err = "unknown";
 
+#define format_status(X) \
+	case GL_FRAMEBUFFER_##X: err = "GL_FRAMEBUFFER_"#X; \
+		break;
+
 	switch (status) {
-		case GL_FRAMEBUFFER_COMPLETE_EXT:
-			break;
-		case GL_INVALID_OPERATION:
-			err = "Invalid operation";
-			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT_EXT:
-			err = "Incomplete attachment";
-			break;
-		case GL_FRAMEBUFFER_UNSUPPORTED_EXT:
-			err = "Unsupported framebuffer format";
-			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT_EXT:
-			err = "Missing attachment";
-			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT:
-			err = "Attached images must have same dimensions";
-			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_FORMATS_EXT:
-			err = "Attached images must have same format";
-			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER_EXT:
-			err = "Missing draw buffer";
-			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER_EXT:
-			err = "Missing read buffer";
-			break;
+		/* success */
+		format_status(COMPLETE)
+		/* errors shared by OpenGL desktop & ES */
+		format_status(INCOMPLETE_ATTACHMENT)
+		format_status(INCOMPLETE_MISSING_ATTACHMENT)
+		format_status(UNSUPPORTED)
+#if 0 /* for OpenGL ES only */
+		format_status(INCOMPLETE_DIMENSIONS)
+#else /* for desktop GL only */
+		format_status(INCOMPLETE_DRAW_BUFFER)
+		format_status(INCOMPLETE_READ_BUFFER)
+		format_status(INCOMPLETE_MULTISAMPLE)
+		format_status(UNDEFINED)
+#endif
 	}
 
+#undef format_status
+
 	if (err_out) {
-		BLI_snprintf(err_out, 256, "GPUFrameBuffer: framebuffer incomplete error %d '%s'",
-			(int)status, err);
+		BLI_snprintf(err_out, 256, format, err);
 	}
 	else {
-		fprintf(stderr, "GPUFrameBuffer: framebuffer incomplete error %d '%s'\n",
-			(int)status, err);
+		fprintf(stderr, format, err);
 	}
 }
 
@@ -104,46 +98,38 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 {
 	GPUFrameBuffer *fb;
 
-	if (!(GLEW_VERSION_3_0 || GLEW_ARB_framebuffer_object ||
-	      (GLEW_EXT_framebuffer_object && GLEW_EXT_framebuffer_blit)))
-	{
-		return NULL;
-	}
-	
 	fb = MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
-	glGenFramebuffersEXT(1, &fb->object);
+	glGenFramebuffers(1, &fb->object);
 
 	if (!fb->object) {
-		fprintf(stderr, "GPUFFrameBuffer: framebuffer gen failed. %d\n",
-			(int)glGetError());
+		fprintf(stderr, "GPUFFrameBuffer: framebuffer gen failed.\n");
 		GPU_framebuffer_free(fb);
 		return NULL;
 	}
 
 	/* make sure no read buffer is enabled, so completeness check will not fail. We set those at binding time */
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
 	glReadBuffer(GL_NONE);
 	glDrawBuffer(GL_NONE);
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	
 	return fb;
 }
 
-int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot, char err_out[256])
+bool GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot, int mip)
 {
-	return GPU_framebuffer_texture_attach_target(fb, tex, GPU_texture_target(tex), slot, err_out);
+	return GPU_framebuffer_texture_attach_target(fb, tex, GPU_texture_target(tex), slot, mip, false);
 }
 
-int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, int target, int slot, char err_out[256])
+int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, int target, int slot, int mip, bool forcet2d)
 {
 	GLenum attachment;
-	GLenum error;
 
 	if (slot >= GPU_FB_MAX_SLOTS) {
 		fprintf(stderr,
 		        "Attaching to index %d framebuffer slot unsupported. "
 		        "Use at most %d\n", slot, GPU_FB_MAX_SLOTS);
-		return 0;
+		return false;
 	}
 
 	if ((G.debug & G_DEBUG)) {
@@ -154,26 +140,64 @@ int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, i
 		}
 	}
 
-	if (GPU_texture_depth(tex))
-		attachment = GL_DEPTH_ATTACHMENT_EXT;
-	else
-		attachment = GL_COLOR_ATTACHMENT0_EXT + slot;
-
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
 	GG.currentfb = fb->object;
 
-	/* Clean glError buffer. */
-	while (glGetError() != GL_NO_ERROR) {}
+	if (GPU_texture_stencil(tex) && GPU_texture_depth(tex))
+		attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+	else if (GPU_texture_depth(tex))
+		attachment = GL_DEPTH_ATTACHMENT;
+	else
+		attachment = GL_COLOR_ATTACHMENT0 + slot;
 
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment, 
-		target, GPU_texture_opengl_bindcode(tex), 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, attachment, GPU_texture_opengl_bindcode(tex), mip);
 
-	error = glGetError();
+	if (GPU_texture_depth(tex))
+		fb->depthtex = tex;
+	else
+		fb->colortex[slot] = tex;
 
-	if (error == GL_INVALID_OPERATION) {
-		GPU_framebuffer_restore();
-		gpu_print_framebuffer_error(error, err_out);
-		return 0;
+	GPU_texture_framebuffer_set(tex, fb, slot);
+
+	return true;
+}
+
+static bool gpu_framebuffer_texture_layer_attach_ex(GPUFrameBuffer *fb, GPUTexture *tex, int slot, int layer, int mip, bool cubemap)
+{
+	GLenum attachment;
+	GLenum facetarget;
+
+	if (slot >= GPU_FB_MAX_SLOTS) {
+		fprintf(stderr,
+		        "Attaching to index %d framebuffer slot unsupported. "
+		        "Use at most %d\n", slot, GPU_FB_MAX_SLOTS);
+		return false;
+	}
+
+	if ((G.debug & G_DEBUG)) {
+		if (GPU_texture_bound_number(tex) != -1) {
+			fprintf(stderr,
+			        "Feedback loop warning!: "
+			        "Attempting to attach texture to framebuffer while still bound to texture unit for drawing!\n");
+		}
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
+	GG.currentfb = fb->object;
+
+	if (GPU_texture_stencil(tex) && GPU_texture_depth(tex))
+		attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+	else if (GPU_texture_depth(tex))
+		attachment = GL_DEPTH_ATTACHMENT;
+	else
+		attachment = GL_COLOR_ATTACHMENT0 + slot;
+
+	if (cubemap) {
+		facetarget = GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer;
+		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, facetarget, GPU_texture_opengl_bindcode(tex), mip);
+	}
+	else {
+		glFramebufferTextureLayer(GL_FRAMEBUFFER, attachment, GPU_texture_opengl_bindcode(tex), mip, layer);
 	}
 
 	if (GPU_texture_depth(tex))
@@ -183,7 +207,18 @@ int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, i
 
 	GPU_texture_framebuffer_set(tex, fb, slot);
 
-	return 1;
+	return true;
+}
+
+bool GPU_framebuffer_texture_layer_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot, int layer, int mip)
+{
+	return gpu_framebuffer_texture_layer_attach_ex(fb, tex, slot, layer, mip, false);
+}
+
+bool GPU_framebuffer_texture_cubeface_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot, int face, int mip)
+{
+	BLI_assert(GPU_texture_target(tex) == GL_TEXTURE_CUBE_MAP);
+	return gpu_framebuffer_texture_layer_attach_ex(fb, tex, slot, face, mip, true);
 }
 
 void GPU_framebuffer_texture_detach(GPUTexture *tex)
@@ -201,21 +236,25 @@ void GPU_framebuffer_texture_detach_target(GPUTexture *tex, int target)
 		return;
 
 	if (GG.currentfb != fb->object) {
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+		glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
 		GG.currentfb = fb->object;
 	}
 
-	if (GPU_texture_depth(tex)) {
+	if (GPU_texture_stencil(tex) && GPU_texture_depth(tex)) {
 		fb->depthtex = NULL;
-		attachment = GL_DEPTH_ATTACHMENT_EXT;
+		attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+	}
+	else if (GPU_texture_depth(tex)) {
+		fb->depthtex = NULL;
+		attachment = GL_DEPTH_ATTACHMENT;
 	}
 	else {
 		BLI_assert(fb->colortex[fb_attachment] == tex);
 		fb->colortex[fb_attachment] = NULL;
-		attachment = GL_COLOR_ATTACHMENT0_EXT + fb_attachment;
+		attachment = GL_COLOR_ATTACHMENT0 + fb_attachment;
 	}
 
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment, target, 0, 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, attachment, 0, 0);
 
 	GPU_texture_framebuffer_set(tex, NULL, -1);
 }
@@ -231,11 +270,11 @@ void GPU_texture_bind_as_framebuffer(GPUTexture *tex)
 	}
 
 	/* push attributes */
-	glPushAttrib(GL_ENABLE_BIT | GL_VIEWPORT_BIT);
+	gpuPushAttrib(GPU_ENABLE_BIT | GPU_VIEWPORT_BIT);
 	glDisable(GL_SCISSOR_TEST);
 
 	/* bind framebuffer */
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
 
 	if (GPU_texture_depth(tex)) {
 		glDrawBuffer(GL_NONE);
@@ -243,22 +282,17 @@ void GPU_texture_bind_as_framebuffer(GPUTexture *tex)
 	}
 	else {
 		/* last bound prevails here, better allow explicit control here too */
-		glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT + fb_attachment);
-		glReadBuffer(GL_COLOR_ATTACHMENT0_EXT + fb_attachment);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0 + fb_attachment);
+		glReadBuffer(GL_COLOR_ATTACHMENT0 + fb_attachment);
 	}
 	
 	if (GPU_texture_target(tex) == GL_TEXTURE_2D_MULTISAMPLE) {
 		glEnable(GL_MULTISAMPLE);
 	}
 
-	/* push matrices and set default viewport and matrix */
+	/* set default viewport */
 	glViewport(0, 0, GPU_texture_width(tex), GPU_texture_height(tex));
 	GG.currentfb = fb->object;
-
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
 }
 
 void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot)
@@ -273,55 +307,79 @@ void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot)
 	
 	for (i = 0; i < 4; i++) {
 		if (fb->colortex[i]) {
-			attachments[numslots] = GL_COLOR_ATTACHMENT0_EXT + i;
+			attachments[numslots] = GL_COLOR_ATTACHMENT0 + i;
 			numslots++;
 		}
 	}
 	
 	/* push attributes */
-	glPushAttrib(GL_ENABLE_BIT | GL_VIEWPORT_BIT);
+	gpuPushAttrib(GPU_ENABLE_BIT | GPU_VIEWPORT_BIT);
 	glDisable(GL_SCISSOR_TEST);
 
 	/* bind framebuffer */
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
 
 	/* last bound prevails here, better allow explicit control here too */
 	glDrawBuffers(numslots, attachments);
-	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT + slot);
+	glReadBuffer(GL_COLOR_ATTACHMENT0 + slot);
 
-	/* push matrices and set default viewport and matrix */
+	/* set default viewport */
 	glViewport(0, 0, GPU_texture_width(fb->colortex[slot]), GPU_texture_height(fb->colortex[slot]));
 	GG.currentfb = fb->object;
-
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
 }
 
+void GPU_framebuffer_bind(GPUFrameBuffer *fb)
+{
+	int numslots = 0, i;
+	GLenum attachments[4];
+	GLenum readattachement = 0;
+	GPUTexture *tex;
+
+	for (i = 0; i < 4; i++) {
+		if (fb->colortex[i]) {
+			attachments[numslots] = GL_COLOR_ATTACHMENT0 + i;
+			tex = fb->colortex[i];
+
+			if (!readattachement)
+				readattachement = GL_COLOR_ATTACHMENT0 + i;
+
+			numslots++;
+		}
+	}
+
+	/* bind framebuffer */
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
+
+	if (numslots == 0) {
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+		tex = fb->depthtex;
+	}
+	else {
+		/* last bound prevails here, better allow explicit control here too */
+		glDrawBuffers(numslots, attachments);
+		glReadBuffer(readattachement);
+	}
+
+	glViewport(0, 0, GPU_texture_width(tex), GPU_texture_height(tex));
+	GG.currentfb = fb->object;
+}
 
 void GPU_framebuffer_texture_unbind(GPUFrameBuffer *UNUSED(fb), GPUTexture *UNUSED(tex))
 {
-	/* restore matrix */
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
-
-	/* restore attributes */
-	glPopAttrib();
+	/* Restore attributes. */
+	gpuPopAttrib();
 }
 
 void GPU_framebuffer_bind_no_save(GPUFrameBuffer *fb, int slot)
 {
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
 	/* last bound prevails here, better allow explicit control here too */
-	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT + slot);
-	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT + slot);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0 + slot);
+	glReadBuffer(GL_COLOR_ATTACHMENT0 + slot);
 
 	/* push matrices and set default viewport and matrix */
 	glViewport(0, 0, GPU_texture_width(fb->colortex[slot]), GPU_texture_height(fb->colortex[slot]));
-	GG.currentfb = fb->object;
 	GG.currentfb = fb->object;
 }
 
@@ -361,22 +419,17 @@ bool GPU_framebuffer_bound(GPUFrameBuffer *fb)
 
 bool GPU_framebuffer_check_valid(GPUFrameBuffer *fb, char err_out[256])
 {
-	GLenum status;
-	
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
 	GG.currentfb = fb->object;
-	
-	/* Clean glError buffer. */
-	while (glGetError() != GL_NO_ERROR) {}
-	
-	status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
-	
-	if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
+
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+
+	if (status != GL_FRAMEBUFFER_COMPLETE) {
 		GPU_framebuffer_restore();
 		gpu_print_framebuffer_error(status, err_out);
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -476,10 +529,10 @@ void GPU_framebuffer_free(GPUFrameBuffer *fb)
 	}
 
 	if (fb->object) {
-		glDeleteFramebuffersEXT(1, &fb->object);
+		glDeleteFramebuffers(1, &fb->object);
 
 		if (GG.currentfb == fb->object) {
-			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			GG.currentfb = 0;
 		}
 	}
@@ -490,7 +543,7 @@ void GPU_framebuffer_free(GPUFrameBuffer *fb)
 void GPU_framebuffer_restore(void)
 {
 	if (GG.currentfb != 0) {
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		GG.currentfb = 0;
 	}
 }
@@ -499,74 +552,170 @@ void GPU_framebuffer_blur(
         GPUFrameBuffer *fb, GPUTexture *tex,
         GPUFrameBuffer *blurfb, GPUTexture *blurtex, float sharpness)
 {
+	const float fullscreencos[4][2] = {{-1.0f, -1.0f}, {1.0f, -1.0f}, {-1.0f, 1.0f}, {1.0f, 1.0f}};
+	const float fullscreenuvs[4][2] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}};
+
+	static Gwn_VertFormat format = {0};
+	static Gwn_VertBuf vbo = {{0}};
+	static Gwn_Batch batch = {{0}};
+
 	const float scaleh[2] = {(1.0f - sharpness) / GPU_texture_width(blurtex), 0.0f};
 	const float scalev[2] = {0.0f, (1.0f - sharpness) / GPU_texture_height(tex)};
 
 	GPUShader *blur_shader = GPU_shader_get_builtin_shader(GPU_SHADER_SEP_GAUSSIAN_BLUR);
-	int scale_uniform, texture_source_uniform;
 
 	if (!blur_shader)
 		return;
 
-	scale_uniform = GPU_shader_get_uniform(blur_shader, "ScaleU");
-	texture_source_uniform = GPU_shader_get_uniform(blur_shader, "textureSource");
-		
-	/* Blurring horizontally */
+	/* Preparing to draw quad */
+	if (format.attrib_ct == 0) {
+		unsigned int i = 0;
+		/* Vertex format */
+		unsigned int pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+		unsigned int uvs = GWN_vertformat_attr_add(&format, "uvs", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
+		/* Vertices */
+		GWN_vertbuf_init_with_format(&vbo, &format);
+		GWN_vertbuf_data_alloc(&vbo, 36);
+
+		for (int j = 0; j < 3; ++j) {
+			GWN_vertbuf_attr_set(&vbo, uvs, i, fullscreenuvs[j]);
+			GWN_vertbuf_attr_set(&vbo, pos, i++, fullscreencos[j]);
+		}
+		for (int j = 1; j < 4; ++j) {
+			GWN_vertbuf_attr_set(&vbo, uvs, i, fullscreenuvs[j]);
+			GWN_vertbuf_attr_set(&vbo, pos, i++, fullscreencos[j]);
+		}
+
+		GWN_batch_init(&batch, GL_TRIANGLES, &vbo, NULL);
+	}
+		
+	glDisable(GL_DEPTH_TEST);
+	
+	/* Blurring horizontally */
 	/* We do the bind ourselves rather than using GPU_framebuffer_texture_bind() to avoid
 	 * pushing unnecessary matrices onto the OpenGL stack. */
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, blurfb->object);
-	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+	glBindFramebuffer(GL_FRAMEBUFFER, blurfb->object);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
 	
 	/* avoid warnings from texture binding */
 	GG.currentfb = blurfb->object;
 
-	GPU_shader_bind(blur_shader);
-	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, scaleh);
-	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, tex);
 	glViewport(0, 0, GPU_texture_width(blurtex), GPU_texture_height(blurtex));
-
-	/* Preparing to draw quad */
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	glDisable(GL_DEPTH_TEST);
 
 	GPU_texture_bind(tex, 0);
 
-	/* Drawing quad */
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex2f(1, 1);
-	glTexCoord2d(1, 0); glVertex2f(-1, 1);
-	glTexCoord2d(1, 1); glVertex2f(-1, -1);
-	glTexCoord2d(0, 1); glVertex2f(1, -1);
-	glEnd();
+	Batch_set_builtin_program(&batch, GPU_SHADER_SEP_GAUSSIAN_BLUR);
+	GWN_batch_uniform_2f(&batch, "ScaleU", scaleh[0], scaleh[1]);
+	GWN_batch_uniform_1i(&batch, "textureSource", GL_TEXTURE0);
+	GWN_batch_draw(&batch);
 
 	/* Blurring vertically */
-
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
-	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
 	
 	GG.currentfb = fb->object;
 	
 	glViewport(0, 0, GPU_texture_width(tex), GPU_texture_height(tex));
-	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, scalev);
-	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
+
 	GPU_texture_bind(blurtex, 0);
 
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex2f(1, 1);
-	glTexCoord2d(1, 0); glVertex2f(-1, 1);
-	glTexCoord2d(1, 1); glVertex2f(-1, -1);
-	glTexCoord2d(0, 1); glVertex2f(1, -1);
-	glEnd();
+	/* Hack to make the following uniform stick */
+	Batch_set_builtin_program(&batch, GPU_SHADER_SEP_GAUSSIAN_BLUR);
+	GWN_batch_uniform_2f(&batch, "ScaleU", scalev[0], scalev[1]);
+	GWN_batch_uniform_1i(&batch, "textureSource", GL_TEXTURE0);
+	GWN_batch_draw(&batch);
+}
 
-	GPU_texture_unbind(blurtex);
-	GPU_shader_unbind();
+void GPU_framebuffer_blit(GPUFrameBuffer *fb_read, int read_slot, GPUFrameBuffer *fb_write, int write_slot, bool use_depth)
+{
+	GPUTexture *read_tex = (use_depth) ? fb_read->depthtex : fb_read->colortex[read_slot];
+	GPUTexture *write_tex = (use_depth) ? fb_write->depthtex : fb_write->colortex[write_slot];
+	int read_attach = (use_depth) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0 + GPU_texture_framebuffer_attachment(read_tex);
+	int write_attach = (use_depth) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0 + GPU_texture_framebuffer_attachment(write_tex);
+	int read_bind = GPU_texture_opengl_bindcode(read_tex);
+	int write_bind = GPU_texture_opengl_bindcode(write_tex);
+	const int read_w = GPU_texture_width(read_tex);
+	const int read_h = GPU_texture_height(read_tex);
+	const int write_w = GPU_texture_width(write_tex);
+	const int write_h = GPU_texture_height(write_tex);
+
+	/* read from multi-sample buffer */
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, fb_read->object);
+	glFramebufferTexture2D(
+	        GL_READ_FRAMEBUFFER, read_attach,
+	        GL_TEXTURE_2D, read_bind, 0);
+	BLI_assert(glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+	/* write into new single-sample buffer */
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fb_write->object);
+	glFramebufferTexture2D(
+	        GL_DRAW_FRAMEBUFFER, write_attach,
+	        GL_TEXTURE_2D, write_bind, 0);
+	BLI_assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+	glBlitFramebuffer(0, 0, read_w, read_h, 0, 0, write_w, write_h, (use_depth) ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+	/* Restore previous framebuffer */
+	glBindFramebuffer(GL_FRAMEBUFFER, GG.currentfb);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+}
+
+/**
+ * Use this if you need to custom downsample your texture and use the previous mip level as input.
+ * This function only takes care of the correct texture handling. It execute the callback for each texture level.
+ **/
+void GPU_framebuffer_recursive_downsample(
+        GPUFrameBuffer *fb, GPUTexture *tex, int num_iter, void (*callback)(void *userData, int level), void *userData)
+{
+	int current_dim[2] = {GPU_texture_width(tex), GPU_texture_height(tex)};
+	GLenum attachment;
+
+	/* Manually setup framebuffer to not use GPU_texture_framebuffer_set() */
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
+	GG.currentfb = fb->object;
+
+	if (GPU_texture_stencil(tex) && GPU_texture_depth(tex))
+		attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+	else if (GPU_texture_depth(tex))
+		attachment = GL_DEPTH_ATTACHMENT;
+	else
+		attachment = GL_COLOR_ATTACHMENT0;
+
+	/* last bound prevails here, better allow explicit control here too */
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+	for (int i=1; i < num_iter+1 && (current_dim[0] > 1 && current_dim[1] > 1); i++) {
+
+		/* calculate next viewport size */
+		current_dim[0] /= 2;
+		current_dim[1] /= 2;
+
+		/* ensure that the viewport size is always at least 1x1 */
+		CLAMP_MIN(current_dim[0], 1);
+		CLAMP_MIN(current_dim[1], 1);
+
+		glViewport(0, 0, current_dim[0], current_dim[1]);
+
+		/* bind next level for rendering but first restrict fetches only to previous level */
+		GPU_texture_bind(tex, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, i-1);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, i-1);
+		GPU_texture_unbind(tex);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, GPU_texture_opengl_bindcode(tex), i);
+
+		callback(userData, i);
+	}
+
+	glFramebufferTexture(GL_FRAMEBUFFER, attachment, 0, 0);
+
+	/* reset mipmap level range for the depth image */
+	GPU_texture_bind(tex, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, num_iter - 1);
+	GPU_texture_unbind(tex);
 }
 
 /* GPURenderBuffer */
@@ -582,7 +731,7 @@ struct GPURenderBuffer {
 	unsigned int bindcode;
 };
 
-GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUHDRType hdrtype, GPURenderBufferType type, char err_out[256])
+GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUTextureFormat data_type, GPURenderBufferType type, char err_out[256])
 {
 	GPURenderBuffer *rb = MEM_callocN(sizeof(GPURenderBuffer), "GPURenderBuffer");
 
@@ -617,23 +766,27 @@ GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPU
 		rb->depth = true;
 	}
 	else {
-		GLenum internalformat = GL_RGBA8;
-		switch (hdrtype) {
-			case GPU_HDR_NONE:
+		GLenum internalformat;
+		switch (data_type) {
+			case GPU_RGBA8:
 			{
 				internalformat = GL_RGBA8;
 				break;
 			}
 			/* the following formats rely on ARB_texture_float or OpenGL 3.0 */
-			case GPU_HDR_HALF_FLOAT:
+			case GPU_RGBA16F:
 			{
-				internalformat = GL_RGBA16F_ARB;
+				internalformat = GL_RGBA16F;
 				break;
 			}
-			case GPU_HDR_FULL_FLOAT:
+			case GPU_RGBA32F:
 			{
-				internalformat = GL_RGBA32F_ARB;
+				internalformat = GL_RGBA32F;
 				break;
+			}
+			default:
+			{
+				internalformat = GL_RGBA8;
 			}
 		}
 		if (samples > 0) {
@@ -706,7 +859,7 @@ struct GPUOffScreen {
 	int samples;
 };
 
-GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRType hdrtype, int mode, char err_out[256])
+GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUTextureFormat data_type, int mode, char err_out[256])
 {
 	GPUOffScreen *ofs;
 
@@ -743,7 +896,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRTyp
 	ofs->samples = samples;
 
 	if (mode & GPU_OFFSCREEN_RENDERBUFFER_COLOR) {
-		ofs->rbcolor = GPU_renderbuffer_create(width, height, samples, hdrtype, GPU_RENDERBUFFER_COLOR, err_out);
+		ofs->rbcolor = GPU_renderbuffer_create(width, height, samples, data_type, GPU_RENDERBUFFER_COLOR, err_out);
 		if (!ofs->rbcolor) {
 			GPU_offscreen_free(ofs);
 			return NULL;
@@ -755,20 +908,20 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRTyp
 		}
 	}
 	else {
-		ofs->color = GPU_texture_create_2D_multisample(width, height, NULL, hdrtype, samples, err_out);
+		ofs->color = GPU_texture_create_2D_custom(width, height, 4, data_type, samples, NULL, err_out);
 		if (!ofs->color) {
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
 
-		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->color, 0, err_out)) {
+		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->color, 0, 0)) {
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
 	}
 
 	if (mode & GPU_OFFSCREEN_RENDERBUFFER_DEPTH) {
-		ofs->rbdepth = GPU_renderbuffer_create(width, height, samples, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, err_out);
+		ofs->rbdepth = GPU_renderbuffer_create(width, height, samples, data_type, GPU_RENDERBUFFER_DEPTH, err_out);
 		if (!ofs->rbdepth) {
 			GPU_offscreen_free(ofs);
 			return NULL;
@@ -780,13 +933,15 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRTyp
 		}
 	}
 	else {
-		ofs->depth = GPU_texture_create_depth_multisample(width, height, samples, (mode & GPU_OFFSCREEN_DEPTH_COMPARE), err_out);
+		ofs->depth = GPU_texture_create_depth_multisample(width, height, samples, err_out);
 		if (!ofs->depth) {
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
 
-		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth, 0, err_out)) {
+		GPU_texture_compare_mode(ofs->depth, mode & GPU_OFFSCREEN_DEPTH_COMPARE);
+
+		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth, 0, 0)) {
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
@@ -872,37 +1027,37 @@ void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels)
 
 #ifdef USE_FBO_CTX_SWITCH
 		/* read from multi-sample buffer */
-		glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, ofs->color->fb->object);
-		glFramebufferTexture2DEXT(
-		        GL_READ_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT + ofs->color->fb_attachment,
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, ofs->color->fb->object);
+		glFramebufferTexture2D(
+		        GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + ofs->color->fb_attachment,
 		        GL_TEXTURE_2D_MULTISAMPLE, ofs->color->bindcode, 0);
-		status = glCheckFramebufferStatusEXT(GL_READ_FRAMEBUFFER_EXT);
-		if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
+		status = glCheckFramebufferStatus(GL_READ_FRAMEBUFFER);
+		if (status != GL_FRAMEBUFFER_COMPLETE) {
 			goto finally;
 		}
 #endif
 
 		/* write into new single-sample buffer */
-		glGenFramebuffersEXT(1, &fbo_blit);
-		glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER_EXT, fbo_blit);
-		glFramebufferTexture2DEXT(
-		        GL_DRAW_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+		glGenFramebuffers(1, &fbo_blit);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo_blit);
+		glFramebufferTexture2D(
+		        GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 		        GL_TEXTURE_2D, tex_blit, 0);
-		status = glCheckFramebufferStatusEXT(GL_DRAW_FRAMEBUFFER_EXT);
-		if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
+		status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+		if (status != GL_FRAMEBUFFER_COMPLETE) {
 			goto finally;
 		}
 
 		/* perform the copy */
-		glBlitFramebufferEXT(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 		/* read the results */
-		glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, fbo_blit);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo_blit);
 		glReadPixels(0, 0, w, h, GL_RGBA, type, pixels);
 
 #ifdef USE_FBO_CTX_SWITCH
 		/* restore the original frame-bufer */
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, ofs->color->fb->object);
+		glBindFramebuffer(GL_FRAMEBUFFER, ofs->color->fb->object);
 #undef USE_FBO_CTX_SWITCH
 #endif
 
@@ -913,10 +1068,8 @@ finally:
 			glDeleteTextures(1, &tex_blit);
 		}
 		if (fbo_blit) {
-			glDeleteFramebuffersEXT(1, &fbo_blit);
+			glDeleteFramebuffers(1, &fbo_blit);
 		}
-
-		GPU_ASSERT_NO_GL_ERRORS("Read Multi-Sample Pixels");
 	}
 	else {
 		glReadPixels(0, 0, w, h, GL_RGBA, type, pixels);
@@ -997,3 +1150,12 @@ GPUTexture *GPU_offscreen_depth_texture(const GPUOffScreen *ofs)
 	return ofs->depth;
 }
 
+/* only to be used by viewport code! */
+void GPU_offscreen_viewport_data_get(
+        GPUOffScreen *ofs,
+        GPUFrameBuffer **r_fb, GPUTexture **r_color, GPUTexture **r_depth)
+{
+	*r_fb = ofs->fb;
+	*r_color = ofs->color;
+	*r_depth = ofs->depth;
+}

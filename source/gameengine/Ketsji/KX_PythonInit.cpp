@@ -1011,33 +1011,33 @@ static PyObject *gPyMakeScreenshot(PyObject *, PyObject *args)
 	Py_RETURN_NONE;
 }
 
-static PyObject *gPyEnableMotionBlur(PyObject *, PyObject *args)
-{
-	float motionblurvalue;
-	if (!PyArg_ParseTuple(args,"f:enableMotionBlur",&motionblurvalue))
-		return nullptr;
-	
-	if (!KX_GetActiveEngine()->GetRasterizer()) {
-		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.enableMotionBlur(float), Rasterizer not available");
-		return nullptr;
-	}
-	
-	KX_GetActiveEngine()->GetRasterizer()->EnableMotionBlur(motionblurvalue);
-	
-	Py_RETURN_NONE;
-}
-
-static PyObject *gPyDisableMotionBlur(PyObject *)
-{
-	if (!KX_GetActiveEngine()->GetRasterizer()) {
-		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.disableMotionBlur(), Rasterizer not available");
-		return nullptr;
-	}
-	
-	KX_GetActiveEngine()->GetRasterizer()->DisableMotionBlur();
-	
-	Py_RETURN_NONE;
-}
+//static PyObject *gPyEnableMotionBlur(PyObject *, PyObject *args)
+//{
+//	float motionblurvalue;
+//	if (!PyArg_ParseTuple(args,"f:enableMotionBlur",&motionblurvalue))
+//		return nullptr;
+//	
+//	if (!KX_GetActiveEngine()->GetRasterizer()) {
+//		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.enableMotionBlur(float), Rasterizer not available");
+//		return nullptr;
+//	}
+//	
+//	KX_GetActiveEngine()->GetRasterizer()->EnableMotionBlur(motionblurvalue);
+//	
+//	Py_RETURN_NONE;
+//}
+//
+//static PyObject *gPyDisableMotionBlur(PyObject *)
+//{
+//	if (!KX_GetActiveEngine()->GetRasterizer()) {
+//		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.disableMotionBlur(), Rasterizer not available");
+//		return nullptr;
+//	}
+//	
+//	KX_GetActiveEngine()->GetRasterizer()->DisableMotionBlur();
+//	
+//	Py_RETURN_NONE;
+//}
 
 static int getGLSLSettingFlag(const std::string& setting)
 {
@@ -1371,8 +1371,8 @@ static struct PyMethodDef rasterizer_methods[] = {
 	{"setMousePosition",(PyCFunction) gPySetMousePosition,
 	 METH_VARARGS, "setMousePosition(int x,int y)"},
 	{"setBackgroundColor", (PyCFunction)gPySetBackgroundColor, METH_O, "set Background Color (rgb)"},
-	{"enableMotionBlur",(PyCFunction)gPyEnableMotionBlur,METH_VARARGS,"enable motion blur"},
-	{"disableMotionBlur",(PyCFunction)gPyDisableMotionBlur,METH_NOARGS,"disable motion blur"},
+	/*{"enableMotionBlur",(PyCFunction)gPyEnableMotionBlur,METH_VARARGS,"enable motion blur"},
+	{"disableMotionBlur",(PyCFunction)gPyDisableMotionBlur,METH_NOARGS,"disable motion blur"},*/
 
 	{"setEyeSeparation", (PyCFunction) gPySetEyeSeparation, METH_VARARGS, "set the eye separation for stereo mode"},
 	{"getEyeSeparation", (PyCFunction) gPyGetEyeSeparation, METH_NOARGS, "get the eye separation for stereo mode"},
@@ -2539,10 +2539,6 @@ PyMODINIT_FUNC initApplicationPythonBinding()
 		BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION));
 	PyDict_SetItemString(d, "version_char", PyUnicode_FromString(
 		STRINGIFY(BLENDER_VERSION_CHAR)));
-	PyDict_SetItemString(d, "upbge_version", Py_BuildValue("(iii)",
-		UPBGE_VERSION / 100, UPBGE_VERSION % 100, UPBGE_SUBVERSION));
-	PyDict_SetItemString(d, "upbge_version_string", PyUnicode_FromFormat("%d.%d (sub %d)",
-		UPBGE_VERSION / 100, UPBGE_VERSION % 100, UPBGE_SUBVERSION));
 
 	PyDict_SetItemString(d, "has_texture_ffmpeg",
 #ifdef WITH_FFMPEG

@@ -123,8 +123,7 @@ static void comp_node_hash_value_free(void *value_v)
 
 ComponentDepsNode::ComponentDepsNode() :
     entry_operation(NULL),
-    exit_operation(NULL),
-    layers(0)
+    exit_operation(NULL)
 {
 	operations_map = BLI_ghash_new(comp_node_hash_key,
 	                               comp_node_hash_key_cmp,
@@ -157,10 +156,7 @@ string ComponentDepsNode::identifier() const
 	char typebuf[16];
 	sprintf(typebuf, "(%d)", type);
 
-	char layers[16];
-	sprintf(layers, "%u", this->layers);
-
-	return string(typebuf) + name + " : " + idname + " (Layers: " + layers + ")";
+	return string(typebuf) + name + " : " + idname;
 }
 
 OperationDepsNode *ComponentDepsNode::find_operation(OperationIDKey key) const
@@ -198,7 +194,7 @@ OperationDepsNode *ComponentDepsNode::has_operation(eDepsOperation_Code opcode,
 	return has_operation(key);
 }
 
-OperationDepsNode *ComponentDepsNode::add_operation(DepsEvalOperationCb op,
+OperationDepsNode *ComponentDepsNode::add_operation(const DepsEvalOperationCb& op,
                                                     eDepsOperation_Code opcode,
                                                     const char *name,
                                                     int name_tag)
@@ -206,7 +202,7 @@ OperationDepsNode *ComponentDepsNode::add_operation(DepsEvalOperationCb op,
 	OperationDepsNode *op_node = has_operation(opcode, name, name_tag);
 	if (!op_node) {
 		DepsNodeFactory *factory = deg_get_node_factory(DEG_NODE_TYPE_OPERATION);
-		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
+		op_node = (OperationDepsNode *)factory->create_node(this->owner->id_orig, "", name);
 
 		/* register opnode in this component's operation set */
 		OperationIDKey *key = OBJECT_GUARDED_NEW(OperationIDKey, opcode, name, name_tag);
@@ -319,7 +315,7 @@ OperationDepsNode *ComponentDepsNode::get_exit_operation()
 	return NULL;
 }
 
-void ComponentDepsNode::finalize_build()
+void ComponentDepsNode::finalize_build(Depsgraph * /*graph*/)
 {
 	operations.reserve(BLI_ghash_size(operations_map));
 	GHASH_FOREACH_BEGIN(OperationDepsNode *, op_node, operations_map)
@@ -405,6 +401,15 @@ static DepsNodeFactoryImpl<ShadingComponentDepsNode> DNTI_SHADING;
 DEG_DEPSNODE_DEFINE(CacheComponentDepsNode, DEG_NODE_TYPE_CACHE, "Cache Component");
 static DepsNodeFactoryImpl<CacheComponentDepsNode> DNTI_CACHE;
 
+/* Layer Collections Defines ============================ */
+
+DEG_DEPSNODE_DEFINE(LayerCollectionsDepsNode, DEG_NODE_TYPE_LAYER_COLLECTIONS, "Layer Collections Component");
+static DepsNodeFactoryImpl<LayerCollectionsDepsNode> DNTI_LAYER_COLLECTIONS;
+
+/* Copy-on-write Defines ============================ */
+
+DEG_DEPSNODE_DEFINE(CopyOnWriteDepsNode, DEG_NODE_TYPE_COPY_ON_WRITE, "Copy-on-Write Component");
+static DepsNodeFactoryImpl<CopyOnWriteDepsNode> DNTI_COPY_ON_WRITE;
 
 /* Node Types Register =================================== */
 
@@ -424,6 +429,10 @@ void deg_register_component_depsnodes()
 	deg_register_node_typeinfo(&DNTI_SHADING);
 
 	deg_register_node_typeinfo(&DNTI_CACHE);
+
+	deg_register_node_typeinfo(&DNTI_LAYER_COLLECTIONS);
+
+	deg_register_node_typeinfo(&DNTI_COPY_ON_WRITE);
 }
 
 }  // namespace DEG

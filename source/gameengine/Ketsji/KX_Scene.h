@@ -51,6 +51,10 @@
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 
+extern "C" {
+#  include "eevee_private.h"
+}
+
 /**
  * \section Forward declarations
  */
@@ -94,6 +98,9 @@ struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
 struct TaskPool;
 
+struct GPUUniformBuffer;
+struct GPUTexture;
+
 /* for ID freeing */
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
 
@@ -136,6 +143,17 @@ private:
 	};
 
 protected:
+
+	// EEVEE DATA TEEEEEEEEEEEMP
+	EEVEE_Light m_lightsData[128];
+	GPUUniformBuffer *m_lightsUbo;
+	GPUTexture *m_utilTex;
+	GPUTexture *m_probeTex;
+	int m_probeCount;
+	float m_probeLodMax;
+	EEVEE_SceneLayerData m_layerData;
+
+
 	KX_TextureRendererManager *m_rendererManager;
 	RAS_BucketManager*	m_bucketmanager;
 
@@ -313,6 +331,16 @@ protected:
 	int m_lodHysteresisValue;
 
 public:
+
+	//EEVEE GET DATA TEEEEEEEEEEEEEMP
+	GPUTexture *GetUtilTex();
+	GPUUniformBuffer *GetLightsUbo();
+	EEVEE_Light *GetEeveeLightsData();
+	GPUTexture *GetProbeTex();
+	int GetProbeCount();
+	float GetProbeLodMax();
+	EEVEE_SceneLayerData& GetSceneLayerData();
+
 	KX_Scene(SCA_IInputDevice *inputDevice,
 		const std::string& scenename,
 		struct Scene* scene,

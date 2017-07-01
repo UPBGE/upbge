@@ -41,7 +41,6 @@
 #include "BKE_anim.h"
 #include "BKE_armature.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_displist.h"
 #include "BKE_fcurve.h"
 #include "BKE_scene.h"
@@ -51,13 +50,7 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 
-#include "DEG_depsgraph.h"
-
-#ifdef WITH_LEGACY_DEPSGRAPH
-#  define DEBUG_PRINT if (!DEG_depsgraph_use_legacy() && G.debug & G_DEBUG_DEPSGRAPH) printf
-#else
-#  define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
-#endif
+#define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
 
 /* ********************** SPLINE IK SOLVER ******************* */
 
@@ -558,7 +551,7 @@ void BKE_splineik_execute_tree(Scene *scene, Object *ob, bPoseChannel *pchan_roo
 
 /* *************** Depsgraph evaluation callbacks ************ */
 
-void BKE_pose_eval_init(EvaluationContext *UNUSED(eval_ctx),
+void BKE_pose_eval_init(struct EvaluationContext *UNUSED(eval_ctx),
                         Scene *scene,
                         Object *ob,
                         bPose *pose)
@@ -592,7 +585,7 @@ void BKE_pose_eval_init(EvaluationContext *UNUSED(eval_ctx),
 	BKE_pose_splineik_init_tree(scene, ob, ctime);
 }
 
-void BKE_pose_eval_bone(EvaluationContext *UNUSED(eval_ctx),
+void BKE_pose_eval_bone(struct EvaluationContext *UNUSED(eval_ctx),
                         Scene *scene,
                         Object *ob,
                         bPoseChannel *pchan)
@@ -627,7 +620,7 @@ void BKE_pose_eval_bone(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_pose_constraints_evaluate(EvaluationContext *UNUSED(eval_ctx),
+void BKE_pose_constraints_evaluate(struct EvaluationContext *UNUSED(eval_ctx),
                                    Scene *scene,
                                    Object *ob,
                                    bPoseChannel *pchan)
@@ -648,7 +641,7 @@ void BKE_pose_constraints_evaluate(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_pose_bone_done(EvaluationContext *UNUSED(eval_ctx),
+void BKE_pose_bone_done(struct EvaluationContext *UNUSED(eval_ctx),
                         bPoseChannel *pchan)
 {
 	float imat[4][4];
@@ -659,7 +652,7 @@ void BKE_pose_bone_done(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_pose_iktree_evaluate(EvaluationContext *UNUSED(eval_ctx),
+void BKE_pose_iktree_evaluate(struct EvaluationContext *UNUSED(eval_ctx),
                               Scene *scene,
                               Object *ob,
                               bPoseChannel *rootchan)
@@ -669,7 +662,7 @@ void BKE_pose_iktree_evaluate(EvaluationContext *UNUSED(eval_ctx),
 	BIK_execute_tree(scene, ob, rootchan, ctime);
 }
 
-void BKE_pose_splineik_evaluate(EvaluationContext *UNUSED(eval_ctx),
+void BKE_pose_splineik_evaluate(struct EvaluationContext *UNUSED(eval_ctx),
                                 Scene *scene,
                                 Object *ob,
                                 bPoseChannel *rootchan)
@@ -679,7 +672,7 @@ void BKE_pose_splineik_evaluate(EvaluationContext *UNUSED(eval_ctx),
 	BKE_splineik_execute_tree(scene, ob, rootchan, ctime);
 }
 
-void BKE_pose_eval_flush(EvaluationContext *UNUSED(eval_ctx),
+void BKE_pose_eval_flush(struct EvaluationContext *UNUSED(eval_ctx),
                          Scene *scene,
                          Object *ob,
                          bPose *UNUSED(pose))
@@ -694,7 +687,7 @@ void BKE_pose_eval_flush(EvaluationContext *UNUSED(eval_ctx),
 	ob->recalc &= ~OB_RECALC_ALL;
 }
 
-void BKE_pose_eval_proxy_copy(EvaluationContext *UNUSED(eval_ctx), Object *ob)
+void BKE_pose_eval_proxy_copy(struct EvaluationContext *UNUSED(eval_ctx), Object *ob)
 {
 	BLI_assert(ID_IS_LINKED_DATABLOCK(ob) && ob->proxy_from != NULL);
 	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);

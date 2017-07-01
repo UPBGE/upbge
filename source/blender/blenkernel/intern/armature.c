@@ -60,7 +60,6 @@
 #include "BKE_anim.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_deform.h"
 #include "BKE_displist.h"
@@ -150,7 +149,7 @@ void BKE_armature_make_local(Main *bmain, bArmature *arm, const bool lib_local)
 	BKE_id_make_local_generic(bmain, &arm->id, true, lib_local);
 }
 
-static void copy_bonechildren(Bone *newBone, Bone *oldBone, Bone *actBone, Bone **newActBone)
+static void copy_bonechildren(Bone *newBone, const Bone *oldBone, const Bone *actBone, Bone **newActBone)
 {
 	Bone *curBone, *newChildBone;
 
@@ -172,7 +171,7 @@ static void copy_bonechildren(Bone *newBone, Bone *oldBone, Bone *actBone, Bone 
 	}
 }
 
-bArmature *BKE_armature_copy(Main *bmain, bArmature *arm)
+bArmature *BKE_armature_copy(Main *bmain, const bArmature *arm)
 {
 	bArmature *newArm;
 	Bone *oldBone, *newBone;
@@ -1935,7 +1934,7 @@ void BKE_pose_clear_pointers(bPose *pose)
 
 /* only after leave editmode, duplicating, validating older files, library syncing */
 /* NOTE: pose->flag is set for it */
-void BKE_pose_rebuild_ex(Object *ob, bArmature *arm, const bool sort_bones)
+void BKE_pose_rebuild(Object *ob, bArmature *arm)
 {
 	Bone *bone;
 	bPose *pose;
@@ -1979,25 +1978,10 @@ void BKE_pose_rebuild_ex(Object *ob, bArmature *arm, const bool sort_bones)
 
 	BKE_pose_update_constraint_flags(ob->pose); /* for IK detection for example */
 
-#ifdef WITH_LEGACY_DEPSGRAPH
-	/* the sorting */
-	/* Sorting for new dependnecy graph is done on the scene graph level. */
-	if (counter > 1 && sort_bones) {
-		DAG_pose_sort(ob);
-	}
-#else
-	UNUSED_VARS(sort_bones);
-#endif
-
 	ob->pose->flag &= ~POSE_RECALC;
 	ob->pose->flag |= POSE_WAS_REBUILT;
 
 	BKE_pose_channels_hash_make(ob->pose);
-}
-
-void BKE_pose_rebuild(Object *ob, bArmature *arm)
-{
-	BKE_pose_rebuild_ex(ob, arm, true);
 }
 
 /* ********************** THE POSE SOLVER ******************* */
