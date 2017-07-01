@@ -55,12 +55,12 @@ ImageViewport::ImageViewport()
 	 */
 
 	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-	const int *viewport = canvas->GetViewPort();
+	const RAS_Rect& viewport = canvas->GetViewportArea();
 
-	m_viewport[0] = viewport[0];
-	m_viewport[1] = viewport[1];
-	m_viewport[2] = viewport[2];
-	m_viewport[3] = viewport[3];
+	m_viewport[0] = viewport.GetLeft();
+	m_viewport[1] = viewport.GetBottom();
+	m_viewport[2] = viewport.GetRight();
+	m_viewport[3] = viewport.GetTop();
 
 	m_width = m_viewport[2] - m_viewport[0];
 	m_height = m_viewport[3] - m_viewport[1];

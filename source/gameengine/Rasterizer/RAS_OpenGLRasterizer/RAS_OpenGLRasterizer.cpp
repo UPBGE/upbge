@@ -382,11 +382,6 @@ void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
 	glViewport(x, y, width, height);
 }
 
-void RAS_OpenGLRasterizer::GetViewport(int *rect)
-{
-	glGetIntegerv(GL_VIEWPORT, rect);
-}
-
 void RAS_OpenGLRasterizer::SetScissor(int x, int y, int width, int height)
 {
 	glScissor(x, y, width, height);

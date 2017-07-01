@@ -47,7 +47,6 @@ protected:
 	wmWindow *m_window;
 	int m_alwaysUseExpandFraming;
 	bool m_drawLetterBox;
-	RAS_Rect m_areaRect;
 
 	/// Saved blender data to restore at the game end as m_savedData from LA_Launcher.
 	struct SavedBlenderData {

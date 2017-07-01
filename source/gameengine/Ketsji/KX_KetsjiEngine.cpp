@@ -619,7 +619,6 @@ void KX_KetsjiEngine::Render()
 
 	const int width = m_canvas->GetWidth();
 	const int height = m_canvas->GetHeight();
-	m_canvas->SetViewPort(0, 0, width, height);
 
 	m_rasterizer->BindViewport(m_canvas);
 	// clear the entire game screen with the border color
@@ -1048,7 +1047,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
 	const int width = m_canvas->GetWidth();
 	const int height = m_canvas->GetHeight();
-	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
+// 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 
 	RAS_OffScreen *offScreen = nullptr; //scene->Render2DFilters(m_rasterizer, m_canvas, inputofs, targetofs);

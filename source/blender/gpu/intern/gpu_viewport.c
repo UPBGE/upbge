@@ -36,6 +36,7 @@
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_math_matrix.h"
 
 #include "DNA_vec_types.h"
 
@@ -46,6 +47,8 @@
 #include "GPU_immediate.h"
 #include "GPU_texture.h"
 #include "GPU_viewport.h"
+#include "GPU_matrix.h"
+#include "GPU_debug.h"
 
 #include "DRW_engine.h"
 

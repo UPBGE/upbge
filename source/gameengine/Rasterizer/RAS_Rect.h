@@ -48,11 +48,21 @@ private:
 	int m_y2;
 
 public:
-	RAS_Rect()
-		:m_x1(0),
-		m_y1(0),
-		m_x2(0),
-		m_y2(0)
+	explicit RAS_Rect(int x1, int y1, int x2, int y2)
+		:m_x1(x1),
+		m_y1(y1),
+		m_x2(x2),
+		m_y2(y2)
+	{
+	}
+
+	explicit RAS_Rect(int w, int h)
+		:RAS_Rect(0, 0, w, h)
+	{
+	}
+
+	explicit RAS_Rect()
+		:RAS_Rect(0, 0, 0, 0)
 	{
 	}
 
@@ -97,11 +107,20 @@ public:
 	{
 		m_y2 = y2;
 	}
+
+	/// Pack to a OpenGL like viewport with width and height for the two last components.
+	void Pack(int array[4]) const
+	{
+		array[0] = GetLeft();
+		array[1] = GetBottom();
+		array[2] = GetWidth();
+		array[3] = GetHeight();
+	}
 };
 
 inline std::ostream& operator<<(std::ostream& os, const RAS_Rect& rect)
 {
-	os << "(" << rect.GetLeft() << ", " << rect.GetBottom() << ", " << rect.GetWidth() << ", " << rect.GetTop() << ")";
+	os << "(" << rect.GetLeft() << ", " << rect.GetBottom() << ", " << rect.GetRight() << ", " << rect.GetTop() << ")";
 	return os;
 }
 

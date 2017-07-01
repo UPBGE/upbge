@@ -1406,9 +1406,11 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 		float pmat[16] = {0.0f};
 		cam->GetProjectionMatrix().getValue(pmat);
 
+		int viewport[4];
+		KX_GetActiveEngine()->GetCanvas()->GetViewportArea().Pack(viewport);
+
 		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback,&info,planes,6,m_dbvt_occlusion_res,
-		                                                 KX_GetActiveEngine()->GetCanvas()->GetViewPort(),
-		                                                 mvmat, pmat);
+		                                                 viewport, mvmat, pmat);
 	}
 	if (!dbvt_culling) {
 		KX_CullingHandler handler(nodes, cam->GetFrustum());

@@ -845,7 +845,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 		}
 	}
 
-	const GLint *viewport;
+	GLint viewport[4];
 	GLfloat vec[3];
 	GLfloat win[3];
 	GLfloat modelmatrix[4][4];
@@ -858,7 +858,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	m_modelmatrix.getValue((float*) modelmatrix);
 	m_projmatrix.getValue((float*) projmatrix);
 
-	viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
+	KX_GetActiveEngine()->GetCanvas()->GetViewportArea().Pack(viewport);
 
 	gpuProject(vec, modelmatrix, projmatrix, viewport, win);
 
@@ -887,7 +887,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 
 	y = 1.0 - y; //to follow Blender window coordinate system (Top-Down)
 
-	const GLint *viewport;
+	GLint viewport[4];
 	GLfloat vec[3];
 	GLfloat win[3];
 	GLfloat modelmatrix[4][4];
@@ -899,7 +899,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 	m_modelmatrix.getValue((float*) modelmatrix);
 	m_projmatrix.getValue((float*) projmatrix);
 
-	viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
+	KX_GetActiveEngine()->GetCanvas()->GetViewportArea().Pack(viewport);
 
 	vec[0] = x * viewport[2];
 	vec[1] = y * viewport[3];

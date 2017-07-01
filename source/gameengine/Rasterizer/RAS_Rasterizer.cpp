@@ -563,10 +563,10 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 
 void RAS_Rasterizer::BindViewport(RAS_ICanvas *canvas)
 {
-	const int *viewport = canvas->GetViewPort();
+	const RAS_Rect& viewport = canvas->GetViewportArea();
 
 	rcti rect;
-	BLI_rcti_init(&rect, viewport[0], viewport[0] + viewport[2], viewport[1], viewport[1] + viewport[3]);
+	BLI_rcti_init(&rect, viewport.GetLeft(), viewport.GetRight(), viewport.GetBottom(), viewport.GetTop());
 
 	GPU_viewport_bind(m_viewport, &rect);
 	DRW_viewport_size_init();
@@ -574,10 +574,17 @@ void RAS_Rasterizer::BindViewport(RAS_ICanvas *canvas)
 
 void RAS_Rasterizer::UnbindViewport(RAS_ICanvas *canvas)
 {
-	const int *viewport = canvas->GetViewPort();
-	CM_Debug("viewport : " << MT_Vector4(viewport));
+	const RAS_Rect& window = canvas->GetWindowArea();
+	const RAS_Rect& viewport = canvas->GetViewportArea();
 
-	gpuOrtho(viewport[0], viewport[0] + viewport[2], viewport[1], viewport[1] + viewport[3], -100, 100);
+	SetScissor(window.GetLeft(), window.GetBottom(), window.GetWidth(), window.GetHeight());
+
+	const int left = -viewport.GetLeft() + window.GetLeft();
+	const int right = window.GetWidth() + left;
+	const int bottom = -viewport.GetBottom() + window.GetBottom();
+	const int top = window.GetHeight() + bottom;
+	gpuOrtho(left, right, bottom, top, -100, 100);
+
 	GPU_viewport_unbind(m_viewport);
 }
 
@@ -999,11 +1006,6 @@ void RAS_Rasterizer::SetMatrix(const MT_Matrix4x4& viewmat, const MT_Matrix4x4& 
 void RAS_Rasterizer::SetViewport(int x, int y, int width, int height)
 {
 	m_impl->SetViewport(x, y, width, height);
-}
-
-void RAS_Rasterizer::GetViewport(int *rect)
-{
-	m_impl->GetViewport(rect);
 }
 
 void RAS_Rasterizer::SetScissor(int x, int y, int width, int height)

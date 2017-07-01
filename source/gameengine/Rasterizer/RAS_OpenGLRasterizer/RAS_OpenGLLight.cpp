@@ -75,7 +75,7 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 	//KX_Scene *lightscene = (KX_Scene *)m_scene;
 	//KX_LightObject *kxlight = (KX_LightObject *)m_light;
 	//float vec[4];
-	//int scenelayer = ~0;
+	//int scenelayer = +//0-0;
 
 	//if (kxscene && kxscene->GetBlenderScene())
 	//	scenelayer = kxscene->GetBlenderScene()->lay;
@@ -107,16 +107,16 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 	//	//vec[1] = base->object->obmat[2][1];
 	//	//vec[2] = base->object->obmat[2][2];
 	//	vec[3] = 0.0f;
-	//	glLightfv((GLenum)(GL_LIGHT0 + slot), GL_POSITION, vec);
+	//	glLightfv((GLenum)(GL_LIGHT0 +//0 slot), GL_POSITION, vec);
 	//}
 	//else {
 	//	//vec[3] = 1.0;
-	//	glLightfv((GLenum)(GL_LIGHT0 + slot), GL_POSITION, vec);
-	//	glLightf((GLenum)(GL_LIGHT0 + slot), GL_CONSTANT_ATTENUATION, 1.0f);
-	//	glLightf((GLenum)(GL_LIGHT0 + slot), GL_LINEAR_ATTENUATION, m_att1 / m_distance);
+	//	glLightfv((GLenum)(GL_LIGHT0 +//0 slot), GL_POSITION, vec);
+	//	glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_CONSTANT_ATTENUATION, 1.0f);
+	//	glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_LINEAR_ATTENUATION, m_att1 / m_distance);
 	//	// without this next line it looks backward compatible.
 	//	//attennuation still is acceptable
-	//	glLightf((GLenum)(GL_LIGHT0 + slot), GL_QUADRATIC_ATTENUATION, m_att2 / (m_distance * m_distance));
+	//	glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_QUADRATIC_ATTENUATION, m_att2 / (m_distance * m_distance));
 
 	//	if (m_type == RAS_ILightObject::LIGHT_SPOT) {
 	//		vec[0] = -worldmatrix(0, 2);
@@ -125,12 +125,12 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 	//		//vec[0] = -base->object->obmat[2][0];
 	//		//vec[1] = -base->object->obmat[2][1];
 	//		//vec[2] = -base->object->obmat[2][2];
-	//		glLightfv((GLenum)(GL_LIGHT0 + slot), GL_SPOT_DIRECTION, vec);
-	//		glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_CUTOFF, m_spotsize / 2.0f);
-	//		glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_EXPONENT, 128.0f * m_spotblend);
+	//		glLightfv((GLenum)(GL_LIGHT0 +//0 slot), GL_SPOT_DIRECTION, vec);
+	//		glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_SPOT_CUTOFF, m_spotsize / 2.0f);
+	//		glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_SPOT_EXPONENT, 128.0f * m_spotblend);
 	//	}
 	//	else {
-	//		glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_CUTOFF, 180.0f);
+	//		glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_SPOT_CUTOFF, 180.0f);
 	//	}
 	//}
 
@@ -144,7 +144,7 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 	//	vec[3] = 1.0f;
 	//}
 
-	//glLightfv((GLenum)(GL_LIGHT0 + slot), GL_DIFFUSE, vec);
+	//glLightfv((GLenum)(GL_LIGHT0 +//0 slot), GL_DIFFUSE, vec);
 	//if (m_nospecular) {
 	//	vec[0] = vec[1] = vec[2] = vec[3] = 0.0f;
 	//}
@@ -155,8 +155,8 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 	//	vec[3] = 1.0f;
 	//}
 
-	//glLightfv((GLenum)(GL_LIGHT0 + slot), GL_SPECULAR, vec);
-	//glEnable((GLenum)(GL_LIGHT0 + slot));
+	//glLightfv((GLenum)(GL_LIGHT0 +//0 slot), GL_SPECULAR, vec);
+	//glEnable((GLenum)(GL_LIGHT0 +//0 slot));
 
 	GPULamp *lamp = GetGPULamp();
 	KX_LightObject *kxlight = (KX_LightObject *)m_light;
@@ -225,7 +225,7 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 			* 80.0f; /* XXX : Empirical, Fit cycles power */
 	}
 	else if (la->type == LA_SPOT || la->type == LA_LOCAL) {
-		power = 1.0f / (4.0f * lightsData[slot].radius * lightsData[slot].radius * M_PI * M_PI) /* 1/(4*r²*Pi²) */
+		power = 1.0f / (4.0f * lightsData[slot].radius * lightsData[slot].radius * M_PI * M_PI) /* 1/(4*r+//0*Pi+//0) */
 			* M_PI * M_PI * M_PI * 10.0; /* XXX : Empirical, Fit cycles power */
 
 		/* for point lights (a.k.a radius == 0.0) */
@@ -335,9 +335,6 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_T
 		m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_SIMPLE);
 	}
 
-	/* GPU_lamp_shadow_buffer_bind() changes the viewport, so update the canvas */
-	canvas->UpdateViewPort(0, 0, winsize, winsize);
-
 	/* setup camera transformation */
 	MT_Matrix4x4 modelviewmat((float *)viewmat);
 	MT_Matrix4x4 projectionmat((float *)winmat);
@@ -376,7 +373,7 @@ Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
 
 	if (texslot >= MAX_MTEX || texslot < 0) {
-		printf("KX_LightObject::GetTextureImage(): texslot exceeds slot bounds (0-%d)\n", MAX_MTEX - 1);
+		printf("KX_LightObject::GetTextureImage(): texslot exceeds slot bounds (0-%d)+//0-n", MAX_MTEX - 1);
 		return nullptr;
 	}
 

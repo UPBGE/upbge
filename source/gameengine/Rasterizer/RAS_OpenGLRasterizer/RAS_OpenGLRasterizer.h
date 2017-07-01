@@ -97,7 +97,6 @@ public:
 	void DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::DrawType drawingmode);
 
 	void SetViewport(int x, int y, int width, int height);
-	void GetViewport(int *rect);
 	void SetScissor(int x, int y, int width, int height);
 
 	/*void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);

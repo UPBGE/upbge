@@ -30,6 +30,8 @@
 
 #include "KX_PythonInit.h"
 
+#include "CM_Message.h"
+
 extern "C" {
 #  include "BKE_context.h"
 
@@ -63,11 +65,8 @@ LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Deps
 	m_windowManager = CTX_wm_manager(m_context);
 	m_window = CTX_wm_window(m_context);
 	m_view3d = CTX_wm_view3d(m_context);
-
-	m_areaRect.SetLeft(m_camFrame->xmin);
-	m_areaRect.SetBottom(m_camFrame->ymin);
-	m_areaRect.SetRight(m_camFrame->xmax);
-	m_areaRect.SetTop(m_camFrame->ymax);
+	CM_Debug(ar->winx << ", " << ar->winy);
+	print_rcti("rcti: ", &ar->winrct);
 }
 
 LA_BlenderLauncher::~LA_BlenderLauncher()
@@ -76,7 +75,7 @@ LA_BlenderLauncher::~LA_BlenderLauncher()
 
 RAS_ICanvas *LA_BlenderLauncher::CreateCanvas(RAS_Rasterizer *rasty)
 {
-	return (new KX_BlenderCanvas(rasty, m_windowManager, m_window, m_areaRect, m_ar));
+	return (new KX_BlenderCanvas(rasty, m_windowManager, m_window, m_camFrame, m_ar));
 }
 
 RAS_Rasterizer::DrawType LA_BlenderLauncher::GetRasterizerDrawMode()
@@ -196,8 +195,8 @@ void LA_BlenderLauncher::RenderEngine()
 		// We do this here since we set the canvas to be within the frames. This means the engine
 		// itself is unaware of the extra space, so we clear the whole region for it.
 		m_rasterizer->SetClearColor(m_startScene->gm.framing.col[0], m_startScene->gm.framing.col[1], m_startScene->gm.framing.col[2]);
-		m_rasterizer->SetViewport(m_ar->winrct.xmin, m_ar->winrct.ymin,
-		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
+// 		m_rasterizer->SetViewport(m_ar->winrct.xmin, m_ar->winrct.ymin,
+// 		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
 		m_rasterizer->SetScissor(m_ar->winrct.xmin, m_ar->winrct.ymin,
 		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
 		m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);

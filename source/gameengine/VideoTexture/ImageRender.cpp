@@ -300,7 +300,6 @@ bool ImageRender::Render()
 	}
 	// Store settings to be restored later
 	const RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
-	RAS_Rect area = m_canvas->GetWindowArea();
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	// bind the fbo and set the viewport to full size
@@ -417,8 +416,6 @@ bool ImageRender::Render()
 
 	m_scene->RenderBuckets(nodes, camtrans, m_rasterizer, m_offScreen.get());
 
-	// restore the canvas area now that the render is completed
-	m_canvas->GetWindowArea() = area;
 	m_canvas->EndFrame();
 
 	// In case multisample is active, blit the FBO
@@ -481,9 +478,9 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	// camera object
 	PyObject *camera;
 
-	const RAS_Rect& rect = KX_GetActiveEngine()->GetCanvas()->GetWindowArea();
-	int width = rect.GetWidth();
-	int height = rect.GetHeight();
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+	int width = canvas->GetWidth();
+	int height = canvas->GetHeight();
 	int samples = 0;
 	int hdr = 0;
 	// parameter keywords
@@ -745,9 +742,9 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	// material of the mirror
 	short materialID = 0;
 
-	const RAS_Rect& rect = KX_GetActiveEngine()->GetCanvas()->GetWindowArea();
-	int width = rect.GetWidth();
-	int height = rect.GetHeight();
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+	int width = canvas->GetWidth();
+	int height = canvas->GetHeight();
 	int samples = 0;
 	int hdr = 0;
 
