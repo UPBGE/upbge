@@ -330,6 +330,13 @@ void RAS_Rasterizer::Exit()
 
 	EndFrame();
 
+	DRW_viewport_matrix_override_unset(DRW_MAT_VIEW);
+	DRW_viewport_matrix_override_unset(DRW_MAT_VIEWINV);
+	DRW_viewport_matrix_override_unset(DRW_MAT_WIN);
+	DRW_viewport_matrix_override_unset(DRW_MAT_WININV);
+	DRW_viewport_matrix_override_unset(DRW_MAT_PERS);
+	DRW_viewport_matrix_override_unset(DRW_MAT_PERSINV);
+
 	DRW_game_render_loop_end();
 }
 
