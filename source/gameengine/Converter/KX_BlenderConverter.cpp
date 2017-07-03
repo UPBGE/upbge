@@ -235,6 +235,10 @@ void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_Rasterize
 		m_alwaysUseExpandFraming,
 		libloading);
 
+	// EEVEE Set Scene Layer Data
+	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
+	destinationscene->SetSceneLayerData(sldata);
+
 	m_sceneSlots.emplace(destinationscene, sceneConverter);
 }
 

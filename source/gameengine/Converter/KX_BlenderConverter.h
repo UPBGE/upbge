@@ -44,6 +44,10 @@
 
 #include "CM_Thread.h"
 
+extern "C" {
+#include "../draw/engines/eevee/eevee_private.h"
+}
+
 class CStringValue;
 class KX_BlenderSceneConverter;
 class KX_KetsjiEngine;

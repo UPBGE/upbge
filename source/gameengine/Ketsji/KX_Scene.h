@@ -52,7 +52,7 @@
 #include "EXP_Value.h"
 
 extern "C" {
-#  include "eevee_private.h"
+#include "../draw/engines/eevee/eevee_private.h"
 }
 
 /**
@@ -100,6 +100,7 @@ struct TaskPool;
 
 struct GPUUniformBuffer;
 struct GPUTexture;
+struct EEVEE_SceneLayerData;
 
 /* for ID freeing */
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
@@ -147,6 +148,7 @@ protected:
 	// EEVEE DATA TEEEEEEEEEEEMP
 	// lights
 	EEVEE_Light m_lightsData[128];
+	EEVEE_SceneLayerData *m_sldata;
 	GPUUniformBuffer *m_lightsUbo;
 	// utilTex
 	GPUTexture *m_utilTex;
@@ -339,6 +341,7 @@ protected:
 public:
 
 	//EEVEE GET DATA TEEEEEEEEEEEEEMP
+	void SetSceneLayerData(EEVEE_SceneLayerData *data);
 	// utilTex
 	GPUTexture *GetUtilTex();
 	// lights

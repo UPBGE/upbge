@@ -49,6 +49,10 @@
 #include "KX_Globals.h"
 #include "KX_Scene.h"
 
+extern "C" {
+#include "../draw/engines/eevee/eevee_private.h"
+}
+
 RAS_OpenGLLight::RAS_OpenGLLight(RAS_Rasterizer *ras)
 	:m_rasterizer(ras)
 {
