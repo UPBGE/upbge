@@ -145,6 +145,7 @@
 #include "DNA_object_force.h"
 #include "DNA_constraint_types.h"
 #include "DNA_python_component_types.h"
+#include "DNA_layer_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -162,6 +163,10 @@ extern "C" {
 #include "BKE_image.h"
 #include "IMB_imbuf_types.h"
 #include "BKE_displist.h"
+
+#  include "eevee_private.h"
+#  include "eevee_engine.h"
+#  include "game_engine.h"
 
 extern Material defmaterial;	/* material.c */
 }
@@ -1286,6 +1291,33 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 #endif  // WITH_PYTHON
 }
 
+static void BL_ConvertEeveeSceneLayerData(Scene *blenderscene, EEVEE_SceneLayerData& sldata, Depsgraph *graph)
+{
+	memset(&sldata, 0, sizeof(EEVEE_SceneLayerData));
+	EEVEE_lights_init(&sldata);
+	EEVEE_lightprobes_init(&sldata, EEVEE_engine_data_get());
+
+	EEVEE_SceneLayerData *blsldata = nullptr;
+
+	CM_Debug(&DRW_engine_viewport_game_type);
+	CM_Debug(&DRW_engine_viewport_eevee_type);
+	SceneLayer *sl = DEG_get_scene_layer(graph);
+	/*for (SceneLayerEngineData *sled = (SceneLayerEngineData *)sl->drawdata.first; sled; sled = sled->next) {
+		CM_Debug(sled->engine_type);
+		if ((RenderEngineType *)sled->engine_type == &DRW_engine_viewport_game_type) {
+			blsldata = (EEVEE_SceneLayerData *)sled;
+		}
+	}*/
+	blsldata = (EEVEE_SceneLayerData *)sl->drawdata.first;
+
+	BLI_assert(blsldata);
+	sldata.irradiance_pool = blsldata->irradiance_pool; // Here irradiance pool doesn't work
+	// Maybe we could use my branch (using a pointer to eevee scene layer data (irradiance works))
+	// but your uniform system ?
+	sldata.irradiance_rt = blsldata->irradiance_rt;
+	sldata.probe_pool = blsldata->probe_pool;
+}
+
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(
@@ -1493,6 +1525,11 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	worldinfo->UpdateWorldSettings(rendertools);
 	worldinfo->UpdateBackGround(rendertools);
 	kxscene->SetWorldInfo(worldinfo);
+
+
+	EEVEE_SceneLayerData sldata;
+	BL_ConvertEeveeSceneLayerData(blenderscene, sldata, depsgraph);
+	kxscene->SetSceneLayerData(sldata);
 
 	int activeLayerBitInfo = blenderscene->lay;
 	

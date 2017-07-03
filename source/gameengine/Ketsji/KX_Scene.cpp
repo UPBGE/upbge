@@ -216,7 +216,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	//Set EEVEE DATA TEEEEEEEEEEMP
 	// utilTex
 	m_utilTex = m_blenderScene->eevee_util_tex;
-// 	GPU_texture_bind(m_utilTex, 7);
 
 	// lights
 	m_lightsUbo = m_blenderScene->eevee_ubo;
@@ -230,14 +229,11 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	// Irradiance grid
 	m_irradianceTex = m_blenderScene->eevee_irradiance_grid;
-// 	GPU_texture_bind(m_irradianceTex, 5);
+ 	//GPU_texture_bind(m_irradianceTex, 5);
 	m_irradianceCount = m_blenderScene->eevee_grid_count;
 
 
 // 	EEVEE_engine_init_scene_layer_data(EEVEE_engine_data_get(), &m_layerData);
-	memset(&m_layerData, 0, sizeof(EEVEE_SceneLayerData));
-	EEVEE_lights_init(&m_layerData);
-	EEVEE_lightprobes_init(&m_layerData, EEVEE_engine_data_get());
 
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
@@ -332,9 +328,10 @@ KX_Scene::~KX_Scene()
 #endif
 }
 
-void KX_Scene::SetSceneLayerData(EEVEE_SceneLayerData *data)
+void KX_Scene::SetSceneLayerData(const EEVEE_SceneLayerData &data)
 {
-	m_sldata = data;
+	m_layerData = data;
+	//m_sldata = data;
 }
 
 // EEVEE DATA GET
@@ -342,7 +339,7 @@ void KX_Scene::SetSceneLayerData(EEVEE_SceneLayerData *data)
 // lights
 GPUUniformBuffer *KX_Scene::GetLightsUbo()
 {
-	return m_sldata->light_ubo;
+	return m_layerData.light_ubo;
 }
 
 EEVEE_Light *KX_Scene::GetEeveeLightsData()
