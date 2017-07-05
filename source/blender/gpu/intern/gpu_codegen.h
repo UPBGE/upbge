@@ -185,8 +185,6 @@ void GPU_pass_bind(GPUPass *pass, double time, int mipmap);
 void GPU_pass_update_uniforms(GPUPass *pass);
 void GPU_pass_unbind(GPUPass *pass);
 
-void GPU_nodes_get_vertex_attributes(ListBase *nodes, struct GPUVertexAttribs *attribs);
-
 void GPU_pass_free(GPUPass *pass);
 void GPU_pass_free_nodes(ListBase *nodes);
 
