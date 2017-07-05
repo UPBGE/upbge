@@ -226,7 +226,6 @@ typedef struct Material {
 	ListBase gpumaterial;		/* runtime */
 	ListBase gpumaterialinstancing;		/* runtime */
 
-	struct GPUMaterial *eevee_material;
 } Material;
 
 
