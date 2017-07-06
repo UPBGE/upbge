@@ -1308,7 +1308,7 @@ static void BL_ConvertEeveeSceneLayerData(Scene *blenderscene, EEVEE_SceneLayerD
 			blsldata = (EEVEE_SceneLayerData *)sled;
 		}
 	}*/
-	blsldata = (EEVEE_SceneLayerData *)sl->drawdata.first;
+	blsldata = (EEVEE_SceneLayerData *)((SceneLayerEngineData *)sl->drawdata.first)->storage;
 
 	BLI_assert(blsldata);
 	sldata.irradiance_pool = blsldata->irradiance_pool; // Here irradiance pool doesn't work
