@@ -40,7 +40,6 @@
 class RAS_MaterialBucket;
 class RAS_DisplayArrayBucket;
 struct DerivedMesh;
-struct GPUMaterial;
 class RAS_Deformer;
 class RAS_MeshObject;
 class RAS_MeshMaterial;
@@ -62,7 +61,6 @@ public:
 	RAS_Deformer *m_pDeformer;
 	DerivedMesh *m_pDerivedMesh;
 	RAS_MeshUser *m_meshUser;
-	GPUMaterial *m_gpuMat;
 
 	/// Batch index used for batching render.
 	short m_batchPartIndex;
@@ -83,9 +81,6 @@ public:
 
 	void GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs);
 	void RunNode(const RAS_MeshSlotNodeTuple& tuple);
-
-	void SetGpuMat(GPUMaterial *mat);
-	GPUMaterial *GetGpuMat();
 };
 
 typedef std::vector<RAS_MeshSlot *> RAS_MeshSlotList;

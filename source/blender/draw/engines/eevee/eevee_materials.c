@@ -456,6 +456,22 @@ struct GPUMaterial *EEVEE_material_hair_get(
 	return mat;
 }
 
+struct DRWShadingGroup *EEVEE_default_shading_group_get_no_pass(bool is_hair, bool is_flat_normal, bool use_ao, bool use_bent_normals)
+{
+	int options = VAR_MAT_MESH;
+
+	if (is_hair) options |= VAR_MAT_HAIR;
+	if (use_ao) options |= VAR_MAT_AO;
+	if (use_bent_normals) options |= VAR_MAT_BENT;
+	if (is_flat_normal) options |= VAR_MAT_FLAT;
+
+	if (e_data.default_lit[options] == NULL) {
+		create_default_shader(options);
+	}
+
+	return DRW_shgroup_create(e_data.default_lit[options], NULL);
+}
+
 static struct DRWShadingGroup *EEVEE_default_shading_group_get(
         EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
         bool is_hair, bool is_flat_normal, bool use_ao, bool use_bent_normals)

@@ -119,18 +119,33 @@ const RAS_Rasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const RA
 
 bool BL_BlenderShader::Ok() const
 {
-	return (m_gpuMat != nullptr);
+	return (m_shGroup != nullptr);
 }
 
 void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 {
-	m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false);
-
 	if (m_shGroup) {
 		DRW_shgroup_free(m_shGroup);
 	}
-	m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
-	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData(), EEVEE_engine_data_get());
+
+	if (m_mat->use_nodes && m_mat->nodetree) {
+		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false);
+
+		m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
+		EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData(), EEVEE_engine_data_get());
+	}
+	else {
+		float *color_p = &m_mat->r;
+		float *metal_p = &m_mat->ray_mirror;
+		float *spec_p = &m_mat->spec;
+		float *rough_p = &m_mat->gloss_mir;
+
+		m_shGroup = EEVEE_default_shading_group_get_no_pass(false, false, false, false);
+		DRW_shgroup_uniform_vec3(m_shGroup, "basecol", color_p, 1);
+		DRW_shgroup_uniform_float(m_shGroup, "metallic", metal_p, 1);
+		DRW_shgroup_uniform_float(m_shGroup, "specular", spec_p, 1);
+		DRW_shgroup_uniform_float(m_shGroup, "roughness", rough_p, 1);
+	}
 
 	ParseAttribs();
 }
@@ -209,10 +224,7 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 		return;
 	}*/
 
-	ms->SetGpuMat(m_gpuMat);
-
-	float viewmat[4][4];
-	float *obcol = (float *)ms->m_meshUser->GetColor().getValue();
+// 	float *obcol = (float *)ms->m_meshUser->GetColor().getValue();
 
 // 	rasty->GetViewMatrix().getValue((float *)viewmat);
 // 	float auto_bump_scale = ms->m_pDerivedMesh != 0 ? ms->m_pDerivedMesh->auto_bump_scale : 1.0f;
@@ -221,7 +233,7 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 // 	print_m4("obmat : ", (float(*)[4])ms->m_meshUser->GetMatrix());
 	DRW_draw_geometry_prepare(m_shGroup, (float(*)[4])ms->m_meshUser->GetMatrix(), nullptr, nullptr);
 
-	m_alphaBlend = GPU_material_alpha_blend(m_gpuMat, obcol);
+// 	m_alphaBlend = GPU_material_alpha_blend(m_gpuMat, obcol);
 }
 
 bool BL_BlenderShader::UseInstancing() const
