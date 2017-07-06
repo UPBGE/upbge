@@ -85,14 +85,16 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 
 RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
-	if (m_filters.size() == 0 && !m_toneMapAdded) {
+	if (m_filters.size() == 0 || !m_toneMapAdded) {
 		// No filters, discard.
-		RAS_2DFilterData toneMapData;
-		toneMapData.filterMode = RAS_2DFilterManager::FILTER_TONEMAP;
-		toneMapData.filterPassIndex = -1;
-		toneMapData.mipmap = false;
-		AddFilter(toneMapData);
-		m_toneMapAdded = true;
+		if (!m_toneMapAdded) {
+			RAS_2DFilterData toneMapData;
+			toneMapData.filterMode = RAS_2DFilterManager::FILTER_TONEMAP;
+			toneMapData.filterPassIndex = m_filters.size() + 1;
+			toneMapData.mipmap = false;
+			AddFilter(toneMapData);
+			m_toneMapAdded = true;
+		}
 		return inputofs;
 	}
 
