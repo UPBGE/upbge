@@ -1294,8 +1294,6 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 static void BL_ConvertEeveeSceneLayerData(Scene *blenderscene, EEVEE_SceneLayerData& sldata, Depsgraph *graph)
 {
 	memset(&sldata, 0, sizeof(EEVEE_SceneLayerData));
-	EEVEE_lights_init(&sldata);
-	EEVEE_lightprobes_init(&sldata, EEVEE_engine_data_get());
 
 	EEVEE_SceneLayerData *blsldata = nullptr;
 
@@ -1311,11 +1309,20 @@ static void BL_ConvertEeveeSceneLayerData(Scene *blenderscene, EEVEE_SceneLayerD
 	blsldata = (EEVEE_SceneLayerData *)((SceneLayerEngineData *)sl->drawdata.first)->storage;
 
 	BLI_assert(blsldata);
-	sldata.irradiance_pool = blsldata->irradiance_pool; // Here irradiance pool doesn't work
-	// Maybe we could use my branch (using a pointer to eevee scene layer data (irradiance works))
-	// but your uniform system ?
+	sldata.irradiance_pool = blsldata->irradiance_pool;
 	sldata.irradiance_rt = blsldata->irradiance_rt;
+	sldata.probes = blsldata->probes;
 	sldata.probe_pool = blsldata->probe_pool;
+	sldata.probe_ubo = blsldata->probe_ubo;
+	sldata.planar_ubo = blsldata->planar_ubo;
+	sldata.grid_ubo = blsldata->grid_ubo;
+	sldata.shadow_depth_cascade_pool = blsldata->shadow_depth_cascade_pool;
+	sldata.shadow_depth_map_pool = blsldata->shadow_depth_map_pool;
+	sldata.shadow_depth_cube_pool = blsldata->shadow_depth_cube_pool;
+	sldata.shadow_depth_cascade_pool = blsldata->shadow_depth_cascade_pool;
+
+	EEVEE_lights_init(&sldata);
+	EEVEE_lightprobes_init(&sldata, EEVEE_engine_data_get());
 }
 
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
