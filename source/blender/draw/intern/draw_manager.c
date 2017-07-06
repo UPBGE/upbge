@@ -1678,29 +1678,24 @@ static void draw_geometry(DRWShadingGroup *shgroup, Gwn_Batch *geom, const float
 	draw_geometry_execute(shgroup, geom);
 }
 
-void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
+static void bind_shader(DRWShadingGroup *shgroup)
 {
 	BLI_assert(shgroup->shader);
-	BLI_assert(shgroup->interface);
-
-	DRWInterface *interface = shgroup->interface;
-	GPUTexture *tex;
-	int val;
-	float fval;
 
 	if (DST.shader != shgroup->shader) {
 		if (DST.shader) GPU_shader_unbind();
 		GPU_shader_bind(shgroup->shader);
 		DST.shader = shgroup->shader;
 	}
+}
 
-	const bool is_normal = ELEM(shgroup->type, DRW_SHG_NORMAL);
-
-	if (!is_normal) {
-		shgroup_dynamic_batch_from_calls(shgroup);
-	}
-
-	DRW_state_set(pass_state | shgroup->state_extra);
+static void bind_uniforms(DRWShadingGroup *shgroup)
+{
+	BLI_assert(shgroup->interface);
+	DRWInterface *interface = shgroup->interface;
+	GPUTexture *tex;
+	int val;
+	float fval;
 
 	/* Binding Uniform */
 	/* Don't check anything, Interface should already contain the least uniform as possible */
@@ -1760,6 +1755,23 @@ void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 				break;
 		}
 	}
+}
+
+void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
+{
+	DRWInterface *interface = shgroup->interface;
+
+	bind_shader(shgroup);
+
+	const bool is_normal = ELEM(shgroup->type, DRW_SHG_NORMAL);
+
+	if (!is_normal) {
+		shgroup_dynamic_batch_from_calls(shgroup);
+	}
+
+	DRW_state_set(pass_state | shgroup->state_extra);
+
+	bind_uniforms(shgroup);
 
 #ifdef USE_GPU_SELECT
 	/* use the first item because of selection we only ever add one */
@@ -1827,6 +1839,12 @@ void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 
 	/* TODO: remove, (currently causes alpha issue with sculpt, need to investigate) */
 	DRW_state_reset();
+}
+
+void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup)
+{
+	bind_shader(shgroup);
+	bind_uniforms(shgroup);
 }
 
 void DRW_end_shgroup(void)

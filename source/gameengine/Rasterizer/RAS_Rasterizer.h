@@ -60,10 +60,9 @@ class SCA_IScene;
 class RAS_ISync;
 struct KX_ClientObjectInfo;
 class KX_RayCast;
-
 struct GPUShader;
 struct GPUViewport;
-
+struct DRWShadingGroup;
 struct EEVEE_SceneLayerData;
 
 /**
@@ -298,6 +297,14 @@ private:
 		float *mat;
 	};
 
+	struct ScreenShaders
+	{
+		DRWShadingGroup *normal;
+		DRWShadingGroup *anaglyph;
+		DRWShadingGroup *interlace;
+		DRWShadingGroup *vinterlace;
+	} m_screenShaders;
+
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, RAS_DebugDraw> m_debugDraws;
 
@@ -350,8 +357,11 @@ private:
 	std::unique_ptr<RAS_StorageVBO> m_storage;
 	std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
 
+	void InitScreenShaders();
+	void ExitScreenShaders();
+
 	/// Return GPUShader coresponding to the override shader enumeration.
-	GPUShader *GetOverrideGPUShader(OverrideShaderType type);
+	GPUShader *GetOverrideGPUShader(OverrideShaderType type);	
 
 	/*void EnableLights();
 	void DisableLights();*/

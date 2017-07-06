@@ -647,9 +647,13 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 	return attrib ? attrib->location : -1;
 }
 
-void GPU_shader_bind_attribute(GPUShader *shader, int location, const char *name)
+void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len)
 {
-	glBindAttribLocation(shader->program, location, name);
+	GWN_shaderinterface_discard(shader->interface);
+	for (unsigned short i = 0; i < len; ++i) {
+		glBindAttribLocation(shader->program, locations[i], names[i]);
+	}
+	shader->interface = GWN_shaderinterface_create(shader->program);
 }
 
 // Used only for VSM shader with geometry instancing support.

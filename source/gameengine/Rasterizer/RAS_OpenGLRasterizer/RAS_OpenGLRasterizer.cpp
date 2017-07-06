@@ -112,10 +112,11 @@ static const int openGLBlendFuncEnums[] = {
 RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 {
 	glGenVertexArrays(1, &m_vao);
-	glBindVertexArray(m_vao);
 	// Generate the VBO and IBO for screen overlay plane.
 	glGenBuffers(1, &m_vbo);
 	glGenBuffers(1, &m_ibo);
+
+	glBindVertexArray(m_vao);
 
 	// Vertexes for screen plane, it contains the vertex position (3 floats) and the vertex uv after (2 floats, total size = 5 floats).
 	static const float vertices[] = {
@@ -139,24 +140,23 @@ RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 	// VAO -> vertices
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, 0);
-	
+
 	// VAO -> texcoords
-	glEnableVertexAttribArray(8); // 8 corresponds to "uvs" attribute location
-	glVertexAttribPointer(8, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, ((char *)nullptr) + sizeof(float) * 3);
-	
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, ((char *)nullptr) + sizeof(float) * 3);
+
+	// Unbind VBO
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 	// VAO -> Unbind
 	glBindVertexArray(0);
-	glDisableVertexAttribArray(0);
-	glDisableVertexAttribArray(8);
-
-	// Unbind modified VBOs
-	glDeleteBuffers(1, &m_vbo);
-	glDeleteBuffers(1, &m_ibo);
 }
 
 RAS_OpenGLRasterizer::ScreenPlane::~ScreenPlane()
 {
 	glDeleteVertexArrays(1, &m_vao);
+	glDeleteBuffers(1, &m_vbo);
+	glDeleteBuffers(1, &m_ibo);
 }
 
 inline void RAS_OpenGLRasterizer::ScreenPlane::Render()

@@ -884,7 +884,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
 	}
 
 	m_attribs = {{attr, RAS_Rasterizer::RAS_TEXTANGENT}};
-	BindAttribute("Tangent", attr);
+	BindAttributes({{attr, "Tangent"}});
 	Py_RETURN_NONE;
 }
 

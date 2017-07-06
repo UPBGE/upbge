@@ -26,6 +26,9 @@
 #include "RAS_Rasterizer.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_alloca.h"
+#include "BLI_string.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "GPU_shader.h"
@@ -490,9 +493,20 @@ int RAS_Shader::GetAttribLocation(const std::string& name)
 	return GPU_shader_get_attribute(m_shader, name.c_str());
 }
 
-void RAS_Shader::BindAttribute(const std::string& attr, int loc)
+void RAS_Shader::BindAttributes(const std::unordered_map<int, std::string>& attrs)
 {
-	GPU_shader_bind_attribute(m_shader, loc, attr.c_str());
+	const unsigned short len = attrs.size();
+	int *locations = BLI_array_alloca(locations, len);
+	const char **names = BLI_array_alloca(names, len);
+
+	unsigned short i = 0;
+	for (const std::pair<int, std::string>& pair : attrs) {
+		locations[i] = pair.first;
+		names[i] = pair.second.c_str();
+		++i;
+	}
+
+	GPU_shader_bind_attributes(m_shader, locations, (const char **)names, len);
 }
 
 int RAS_Shader::GetUniformLocation(const std::string& name, bool debug)

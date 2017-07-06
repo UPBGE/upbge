@@ -359,6 +359,7 @@ bool DRW_object_is_flat_normal(struct Object *ob);
 /* Draw commands */
 void DRW_draw_geometry_prepare(DRWShadingGroup *shgroup, const float (*obmat)[4], const float *texcoloc, const float *texcosize);
 void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state);
+void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup);
 void DRW_end_shgroup(void);
 void DRW_draw_pass(DRWPass *pass);
 

@@ -87,7 +87,7 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 {
 	if (m_filters.size() == 0 || !m_toneMapAdded) {
 		// No filters, discard.
-		if (!m_toneMapAdded) {
+		if (!m_toneMapAdded) { // TODO define builtin filters.
 			RAS_2DFilterData toneMapData;
 			toneMapData.filterMode = RAS_2DFilterManager::FILTER_TONEMAP;
 			toneMapData.filterPassIndex = m_filters.size() + 1;

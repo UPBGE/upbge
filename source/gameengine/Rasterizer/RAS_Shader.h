@@ -173,7 +173,7 @@ public:
 	void SetUniformfv(int location, int type, float *param, int size, unsigned int count, bool transpose = false);
 	void SetUniformiv(int location, int type, int *param, int size, unsigned int count, bool transpose = false);
 	int GetAttribLocation(const std::string& name);
-	void BindAttribute(const std::string& attr, int loc);
+	void BindAttributes(const std::unordered_map<int, std::string>& attrs);
 
 	/** Return uniform location in the shader.
 	 * \param name The uniform name.

@@ -47,17 +47,6 @@ extern "C" {
 #  include "DRW_render.h"
 }
 
-extern "C" {
-	extern char datatoc_ltc_lib_glsl[];
-	extern char datatoc_bsdf_common_lib_glsl[];
-	extern char datatoc_bsdf_direct_lib_glsl[];
-	extern char datatoc_lit_surface_frag_glsl[];
-	extern char datatoc_lit_surface_vert_glsl[];
-	extern char datatoc_irradiance_lib_glsl[];
-	extern char datatoc_octahedron_lib_glsl[];
-	extern char datatoc_ambient_occlusion_lib_glsl[];
-}
-
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
 	:m_blenderScene(scene->GetBlenderScene()),
 	m_mat(ma),
@@ -78,6 +67,10 @@ BL_BlenderShader::~BL_BlenderShader()
 
 const RAS_Rasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
+	if (!m_gpuMat) {
+		return RAS_Rasterizer::AttribLayerList();
+	}
+
 	RAS_Rasterizer::AttribLayerList attribLayers;
 	GPUVertexAttribs attribs;
 	GPU_material_vertex_attributes(m_gpuMat, &attribs);
@@ -133,6 +126,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 
 		m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
 		EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData(), EEVEE_engine_data_get());
+		ParseAttribs();
 	}
 	else {
 		float *color_p = &m_mat->r;
@@ -145,9 +139,9 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 		DRW_shgroup_uniform_float(m_shGroup, "metallic", metal_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "specular", spec_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "roughness", rough_p, 1);
-	}
 
-	ParseAttribs();
+		m_attribs.clear();
+	}
 }
 
 void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
@@ -164,24 +158,21 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
 
 			GPU_material_bind(m_gpuMat, m_lightLayer, m_blenderScene->lay, time, 1, viewmat, viewinvmat, nullptr, false);*/
 
-			DRW_draw_shgroup(m_shGroup, (DRWState)(
+			DRW_bind_shader_shgroup(m_shGroup);
+			/*, (DRWState)(
 				DRW_STATE_WRITE_DEPTH |
 				DRW_STATE_DEPTH_LESS |
-// 				DRW_STATE_CULL_BACK |
-				DRW_STATE_WRITE_COLOR));
+				DRW_STATE_CULL_BACK |
+				DRW_STATE_WRITE_COLOR));*/
 		}
 		else {
-			GPU_material_unbind(m_gpuMat);
+			//GPU_material_unbind(m_gpuMat);
 		}
 	}
 }
 
 void BL_BlenderShader::ParseAttribs()
 {
-	if (!Ok()) {
-		return;
-	}
-
 	GPUVertexAttribs attribs;
 	GPU_material_vertex_attributes(m_gpuMat, &attribs);
 

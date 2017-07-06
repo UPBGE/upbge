@@ -93,7 +93,7 @@ void GPU_shader_uniform_float(GPUShader *shader, int location, float value);
 void GPU_shader_geometry_stage_primitive_io(GPUShader *shader, int input, int output, int number);
 
 int GPU_shader_get_attribute(GPUShader *shader, const char *name);
-void GPU_shader_bind_attribute(GPUShader *shader, int location, const char *name);
+void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len);
 
 void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, void *positionoffset, unsigned int stride);
 void GPU_shader_unbind_instancing_attrib(GPUShader *shader);
