@@ -539,8 +539,8 @@ void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen
 	}
 
 	const RAS_Rect& viewport = canvas->GetViewportArea();
-	SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth(), viewport.GetHeight());
-	SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth(), viewport.GetHeight());
+	SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+	SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 
 // 	Disable(RAS_CULL_FACE);
 // 	SetDepthFunc(RAS_ALWAYS);
@@ -565,8 +565,8 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 	}
 
 	const RAS_Rect& viewport = canvas->GetViewportArea();
-	SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth(), viewport.GetHeight());
-	SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth(), viewport.GetHeight());
+	SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+	SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 
 // 	Disable(RAS_CULL_FACE);
 // 	SetDepthFunc(RAS_ALWAYS);
