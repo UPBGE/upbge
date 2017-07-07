@@ -213,28 +213,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
-	//Set EEVEE DATA TEEEEEEEEEEMP
-	// utilTex
-	m_utilTex = m_blenderScene->eevee_util_tex;
-
-	// lights
-	m_lightsUbo = m_blenderScene->eevee_ubo;
-	
-	// Probes
-	m_probeTex = m_blenderScene->eevee_probe_tex;
-// 	GPU_texture_bind(m_probeTex, 6);
-	m_probeCount = m_blenderScene->eevee_probe_count;
-	m_probeLodMax = m_blenderScene->eevee_lod_max;
-
-
-	// Irradiance grid
-	m_irradianceTex = m_blenderScene->eevee_irradiance_grid;
- 	//GPU_texture_bind(m_irradianceTex, 5);
-	m_irradianceCount = m_blenderScene->eevee_grid_count;
-
-
-// 	EEVEE_engine_init_scene_layer_data(EEVEE_engine_data_get(), &m_layerData);
-
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
 
@@ -252,8 +230,6 @@ KX_Scene::~KX_Scene()
 	// It's still there but we remove all properties here otherwise some
 	// reference might be hanging and causing late release of objects
 	RemoveAllDebugProperties();
-
-	GPU_texture_unbind(m_utilTex);
 
 	while (GetRootParentList()->GetCount() > 0) 
 	{
@@ -328,52 +304,6 @@ KX_Scene::~KX_Scene()
 #endif
 }
 
-void KX_Scene::SetSceneLayerData(const EEVEE_SceneLayerData &data)
-{
-	m_layerData = data;
-	//m_sldata = data;
-}
-
-// EEVEE DATA GET
-
-// lights
-GPUUniformBuffer *KX_Scene::GetLightsUbo()
-{
-	return m_layerData.light_ubo;
-}
-
-EEVEE_Light *KX_Scene::GetEeveeLightsData()
-{
-	return m_lightsData;
-}
-
-// utilTex
-GPUTexture *KX_Scene::GetUtilTex()
-{
-	return m_utilTex;
-}
-
-// Probes (only world Probe for now)
-GPUTexture *KX_Scene::GetProbeTex()
-{
-	return m_probeTex;
-}
-
-int KX_Scene::GetProbeCount() // 1 = world default probe
-{
-	return m_probeCount;
-}
-
-float KX_Scene::GetProbeLodMax()
-{
-	return m_probeLodMax;
-}
-
-EEVEE_SceneLayerData& KX_Scene::GetSceneLayerData()
-{
-	return m_layerData;
-}
-
 std::string KX_Scene::GetName()
 {
 	return m_sceneName;
@@ -383,6 +313,16 @@ std::string KX_Scene::GetName()
 void KX_Scene::SetName(const std::string& name)
 {
 	m_sceneName = name;
+}
+
+void KX_Scene::SetSceneLayerData(const EEVEE_SceneLayerData &data)
+{
+	m_layerData = data;
+}
+
+EEVEE_SceneLayerData& KX_Scene::GetSceneLayerData()
+{
+	return m_layerData;
 }
 
 RAS_BucketManager* KX_Scene::GetBucketManager() const

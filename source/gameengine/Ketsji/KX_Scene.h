@@ -52,7 +52,7 @@
 #include "EXP_Value.h"
 
 extern "C" {
-#include "../draw/engines/eevee/eevee_private.h"
+#include "eevee_private.h"
 }
 
 /**
@@ -144,22 +144,7 @@ private:
 	};
 
 protected:
-
-	// EEVEE DATA TEEEEEEEEEEEMP
-	// lights
-	EEVEE_Light m_lightsData[128];
-	GPUUniformBuffer *m_lightsUbo;
-	// utilTex
-	GPUTexture *m_utilTex;
-	// Probes
-	GPUTexture *m_probeTex;
-	int m_probeCount;
-	float m_probeLodMax;
-	// irradiance grid
-	GPUTexture *m_irradianceTex;
-	int m_irradianceCount;
 	EEVEE_SceneLayerData m_layerData;
-
 
 	KX_TextureRendererManager *m_rendererManager;
 	RAS_BucketManager*	m_bucketmanager;
@@ -338,23 +323,6 @@ protected:
 	int m_lodHysteresisValue;
 
 public:
-
-	//EEVEE GET DATA TEEEEEEEEEEEEEMP
-	void SetSceneLayerData(const EEVEE_SceneLayerData &data);
-	// utilTex
-	GPUTexture *GetUtilTex();
-	// lights
-	GPUUniformBuffer *GetLightsUbo();
-	EEVEE_Light *GetEeveeLightsData();
-	// Probes
-	GPUTexture *GetProbeTex();
-	int GetProbeCount();
-	float GetProbeLodMax();
-	// irradiance grid
-	GPUTexture *GetIrradianceTex();
-	int GetIrradianceCount();
-	EEVEE_SceneLayerData& GetSceneLayerData();
-
 	KX_Scene(SCA_IInputDevice *inputDevice,
 		const std::string& scenename,
 		struct Scene* scene,
@@ -364,10 +332,13 @@ public:
 	virtual
 	~KX_Scene();
 
+	void SetSceneLayerData(const EEVEE_SceneLayerData &data);
+	EEVEE_SceneLayerData& GetSceneLayerData();
 	RAS_BucketManager* GetBucketManager() const;
 	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
+
 	void RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
 	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
 								KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
