@@ -1293,12 +1293,10 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 
 static void BL_ConvertEeveeSceneLayerData(Scene *blenderscene, EEVEE_SceneLayerData& sldata, Depsgraph *graph)
 {
-	memset(&sldata, 0, sizeof(EEVEE_SceneLayerData));
+// 	memset(&sldata, 0, sizeof(EEVEE_SceneLayerData));
 
 	EEVEE_SceneLayerData *blsldata = nullptr;
 
-	CM_Debug(&DRW_engine_viewport_game_type);
-	CM_Debug(&DRW_engine_viewport_eevee_type);
 	SceneLayer *sl = DEG_get_scene_layer(graph);
 	/*for (SceneLayerEngineData *sled = (SceneLayerEngineData *)sl->drawdata.first; sled; sled = sled->next) {
 		CM_Debug(sled->engine_type);
@@ -1307,8 +1305,9 @@ static void BL_ConvertEeveeSceneLayerData(Scene *blenderscene, EEVEE_SceneLayerD
 		}
 	}*/
 	blsldata = (EEVEE_SceneLayerData *)((SceneLayerEngineData *)sl->drawdata.first)->storage;
-
 	BLI_assert(blsldata);
+
+#if 0
 	sldata.irradiance_pool = blsldata->irradiance_pool;
 	sldata.irradiance_rt = blsldata->irradiance_rt;
 	sldata.probes = blsldata->probes;
@@ -1323,6 +1322,9 @@ static void BL_ConvertEeveeSceneLayerData(Scene *blenderscene, EEVEE_SceneLayerD
 
 	EEVEE_lights_init(&sldata);
 	EEVEE_lightprobes_init(&sldata, EEVEE_engine_data_get());
+#else
+	sldata = *blsldata;
+#endif
 }
 
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
