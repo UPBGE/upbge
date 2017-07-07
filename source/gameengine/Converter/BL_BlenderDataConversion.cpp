@@ -1293,21 +1293,18 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 
 static void BL_ConvertEeveeSceneLayerData(Scene *blenderscene, EEVEE_SceneLayerData& sldata, Depsgraph *graph)
 {
-// 	memset(&sldata, 0, sizeof(EEVEE_SceneLayerData));
-
 	EEVEE_SceneLayerData *blsldata = nullptr;
 
 	SceneLayer *sl = DEG_get_scene_layer(graph);
-	/*for (SceneLayerEngineData *sled = (SceneLayerEngineData *)sl->drawdata.first; sled; sled = sled->next) {
-		CM_Debug(sled->engine_type);
-		if ((RenderEngineType *)sled->engine_type == &DRW_engine_viewport_game_type) {
-			blsldata = (EEVEE_SceneLayerData *)sled;
+	for (SceneLayerEngineData *sled = (SceneLayerEngineData *)sl->drawdata.first; sled; sled = sled->next) {
+		if (sled->engine_type == &draw_engine_eevee_type) {
+			blsldata = (EEVEE_SceneLayerData *)sled->storage;
 		}
-	}*/
-	blsldata = (EEVEE_SceneLayerData *)((SceneLayerEngineData *)sl->drawdata.first)->storage;
+	}
 	BLI_assert(blsldata);
 
 #if 0
+	memset(&sldata, 0, sizeof(EEVEE_SceneLayerData));
 	sldata.irradiance_pool = blsldata->irradiance_pool;
 	sldata.irradiance_rt = blsldata->irradiance_rt;
 	sldata.probes = blsldata->probes;
