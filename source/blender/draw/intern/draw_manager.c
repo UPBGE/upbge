@@ -1736,9 +1736,9 @@ static void bind_uniforms(DRWShadingGroup *shgroup)
 				GPU_shader_uniform_texture(shgroup->shader, uni->location, tex);
 				break;
 			case DRW_UNIFORM_BUFFER:
-				if (!DRW_state_is_fbo()) {
+				/*if (!DRW_state_is_fbo()) {
 					break;
-				}
+				} TODO(UPBGE): Why this condition ? */
 				tex = *((GPUTexture **)uni->value);
 				BLI_assert(tex);
 				GPU_texture_bind(tex, uni->bindloc);
