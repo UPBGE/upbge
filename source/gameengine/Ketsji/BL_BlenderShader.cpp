@@ -125,8 +125,6 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false);
 
 		m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
-		EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData(), EEVEE_engine_data_get());
-		ParseAttribs();
 	}
 	else {
 		float *color_p = &m_mat->r;
@@ -139,9 +137,10 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 		DRW_shgroup_uniform_float(m_shGroup, "metallic", metal_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "specular", spec_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "roughness", rough_p, 1);
-
-		m_attribs.clear();
 	}
+
+	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData(), EEVEE_engine_data_get());
+	ParseAttribs();
 }
 
 void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
@@ -173,7 +172,7 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
 
 void BL_BlenderShader::ParseAttribs()
 {
-	GPUVertexAttribs attribs;
+	/*GPUVertexAttribs attribs;
 	GPU_material_vertex_attributes(m_gpuMat, &attribs);
 
 	m_attribs.clear();
@@ -196,7 +195,7 @@ void BL_BlenderShader::ParseAttribs()
 		else if (type == CD_MCOL) {
 			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_VCOL);
 		}
-	}
+	}*/
 }
 
 void BL_BlenderShader::SetAttribs(RAS_Rasterizer *ras)

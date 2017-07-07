@@ -661,12 +661,10 @@ void KX_KetsjiEngine::Render()
 			// Draw the scene once for each camera with an enabled viewport or an active camera.
 			for (const CameraRenderData& cameraFrameData : sceneFrameData.m_cameraDataList) {
 				// do the rendering
-				RenderCamera(scene, cameraFrameData, nullptr, pass++, isfirstscene);
+				RenderCamera(scene, cameraFrameData, offScreen, pass++, isfirstscene);
 			}
 
-			/* Choose final render off screen target. If the current off screen is using multisamples we
-			 * are sure that it will be copied to a non-multisamples off screen before render the filters.
-			 * In this case the targeted off screen is the same as the current off screen. */
+			// Choose final render off screen target.
 			RAS_Rasterizer::OffScreenType target;
 			if (offScreen->GetSamples() > 0) {
 				/* If the last scene is rendered it's useless to specify a multisamples off screen, we use then
@@ -674,6 +672,9 @@ void KX_KetsjiEngine::Render()
 				if (islastscene) {
 					target = RAS_Rasterizer::NextRenderOffScreen(frameData.m_ofsType);
 				}
+				/* If the current off screen is using multisamples we are sure that it will be copied to a
+				 * non-multisamples off screen before render the filters.
+				 * In this case the targeted off screen is the same as the current off screen. */
 				else {
 					target = frameData.m_ofsType;
 				}
