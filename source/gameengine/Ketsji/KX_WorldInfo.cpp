@@ -58,8 +58,14 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 	:m_scene(blenderscene)
 {
 	if (blenderworld) {
+		m_world = blenderworld;
 		m_name = blenderworld->id.name + 2;
-		m_gpuMat = EEVEE_material_world_background_get(m_scene, blenderworld);
+		if (m_world->use_nodes && m_world->nodetree) {
+			m_gpuMat = EEVEE_material_world_background_get(m_scene, blenderworld);
+		}
+		else {
+			m_gpuMat = nullptr;
+		}
 		m_do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
 		m_hasworld = true;
 		m_hasmist = ((blenderworld->mode) & WO_MIST ? true : false);
@@ -212,7 +218,7 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_Rasterizer *rasty)
 void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 {
 	if (m_hasworld) {
-		if (/*m_scene->world->skytype & (WO_SKYBLEND | WO_SKYPAPER | WO_SKYREAL)*/true) {
+		if (m_world->use_nodes && m_world->nodetree) {
 			float viewmat[4][4];
 			rasty->GetViewMatrix().getValue(&viewmat[0][0]);
 			float invviewmat[4][4];
