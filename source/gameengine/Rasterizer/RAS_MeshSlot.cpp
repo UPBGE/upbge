@@ -181,21 +181,22 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 
 	rasty->PushMatrix();
 
-	const bool istext = materialData->m_text;
-	if ((!m_pDeformer || !m_pDeformer->SkipVertexTransform()) && !istext) {
-		float mat[16];
-		rasty->GetTransform(m_meshUser->GetMatrix(), materialData->m_drawingMode, mat);
-		rasty->MultMatrix(mat);
-	}
-
-	if (istext) {
+	if (materialData->m_text) {
 		rasty->IndexPrimitivesText(this);
 	}
-	else if (m_pDerivedMesh) {
-		rasty->IndexPrimitivesDerivedMesh(this);
-	}
 	else {
-		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
+		if (displayArrayData->m_applyMatrix) {
+			float mat[16];
+			rasty->GetTransform(m_meshUser->GetMatrix(), materialData->m_drawingMode, mat);
+			rasty->MultMatrix(mat);
+		}
+
+		if (m_pDerivedMesh) {
+			rasty->IndexPrimitivesDerivedMesh(this);
+		}
+		else {
+			rasty->IndexPrimitives(displayArrayData->m_storageInfo);
+		}
 	}
 
 	rasty->PopMatrix();

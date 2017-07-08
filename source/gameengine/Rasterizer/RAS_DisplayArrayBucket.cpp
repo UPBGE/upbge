@@ -210,6 +210,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 
 	// Update node data.
 	m_nodeData.m_storageInfo = m_storageInfo;
+	m_nodeData.m_applyMatrix = (!m_deformer || !m_deformer->SkipVertexTransform());
 }
 
 void RAS_DisplayArrayBucket::DestructStorageInfo()
