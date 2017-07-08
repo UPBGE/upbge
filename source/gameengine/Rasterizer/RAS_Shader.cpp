@@ -496,8 +496,8 @@ int RAS_Shader::GetAttribLocation(const std::string& name)
 void RAS_Shader::BindAttributes(const std::unordered_map<int, std::string>& attrs)
 {
 	const unsigned short len = attrs.size();
-	int *locations = BLI_array_alloca(locations, len);
-	const char **names = BLI_array_alloca(names, len);
+	int *locations = (int *)BLI_array_alloca(locations, len);
+	const char **names = (const char **)BLI_array_alloca(names, len);
 
 	unsigned short i = 0;
 	for (const std::pair<int, std::string>& pair : attrs) {
