@@ -1,3 +1,4 @@
+#define DITHER 100.0
 uniform sampler2D bgl_RenderedTexture;
 in vec4 bgl_TexCoord;
 out vec4 fragColor;
@@ -79,12 +80,20 @@ vec3 Uncharted2ToneMapping(vec3 color)
 	return color;
 }
 
+float mod_dither3(vec2 u) {
+	return mod(u.x + u.y + mod(208. + u.x * 3.58, 13. + mod(u.y * 22.9, 9.)),7.) * .143 * 2. -1.;
+}
+
 void main()
 {
 	vec2 uv = bgl_TexCoord.xy;
 	vec3 color = texture(bgl_RenderedTexture, bgl_TexCoord.xy).rgb;
+	float n = mod_dither3(gl_FragCoord.xy);
+	float lum = floor(DITHER + n) / DITHER;
+	color *= lum;
 
 	color = linearToneMapping(color);
+
 	//color = simpleReinhardToneMapping(color);
 	//color = lumaBasedReinhardToneMapping(color);
 	//color = whitePreservingLumaBasedReinhardToneMapping(color);
