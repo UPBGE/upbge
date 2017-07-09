@@ -48,12 +48,15 @@ public:
 	virtual bool LinkProgram();
 
 #ifdef WITH_PYTHON
+	bool CheckTexture(int index, int bindCode, const std::string& prefix) const;
+	bool SetTextureUniform(int index, const char *samplerName);
 
 	static PyObject *pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_frameBuffer(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 	KX_PYMETHOD_DOC(KX_2DFilter, setTexture);
+	KX_PYMETHOD_DOC(KX_2DFilter, setCubeMap);
 	KX_PYMETHOD_DOC(KX_2DFilter, addOffScreen);
 	KX_PYMETHOD_DOC_NOARGS(KX_2DFilter, removeOffScreen);
 

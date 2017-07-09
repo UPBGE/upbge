@@ -48,6 +48,44 @@ bool KX_2DFilter::LinkProgram()
 
 #ifdef WITH_PYTHON
 
+bool KX_2DFilter::CheckTexture(int index, int bindCode, const std::string& prefix) const
+{
+	if (!m_shader) {
+		PyErr_Format(PyExc_ValueError, "%s: KX_2DFilter, No valid shader found", prefix.c_str());
+		return false;
+	}
+	if (index < 0 || index >= RAS_Texture::MaxUnits) {
+		PyErr_Format(PyExc_ValueError, "%s: KX_2DFilter, index out of range [0, %i]", prefix.c_str(), (RAS_Texture::MaxUnits - 1));
+		return false;
+	}
+	if (bindCode < 0) {
+		PyErr_Format(PyExc_ValueError, "%s: KX_2DFilter, bindCode negative", prefix.c_str());
+		return false;
+	}
+
+	return true;
+}
+
+bool KX_2DFilter::SetTextureUniform(int index, const char *samplerName)
+{
+	if (samplerName) {
+		if (GetError()) {
+			return false;
+		}
+		int loc = GetUniformLocation(samplerName);
+
+		if (loc != -1) {
+#ifdef SORT_UNIFORMS
+			SetUniformiv(loc, RAS_Uniform::UNI_INT, &index, (sizeof(int)), 1);
+#else
+			SetUniform(loc, index);
+#endif
+		}
+	}
+
+	return true;
+}
+
 PyTypeObject KX_2DFilter::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_2DFilter",
@@ -72,6 +110,7 @@ PyTypeObject KX_2DFilter::Type = {
 
 PyMethodDef KX_2DFilter::Methods[] = {
 	KX_PYMETHODTABLE(KX_2DFilter, setTexture),
+	KX_PYMETHODTABLE(KX_2DFilter, setCubeMap),
 	KX_PYMETHODTABLE_KEYWORDS(KX_2DFilter, addOffScreen),
 	KX_PYMETHODTABLE_NOARGS(KX_2DFilter, removeOffScreen),
 	{nullptr, nullptr} // Sentinel
@@ -118,35 +157,38 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, sampler
 	if (!PyArg_ParseTuple(args, "ii|s:setTexture", &index, &bindCode, &samplerName)) {
 		return nullptr;
 	}
-	if (!m_shader) {
-		PyErr_SetString(PyExc_ValueError, "setTexture(index, bindCode, samplerName): KX_2DFilter, No valid shader found");
-		return nullptr;
-	}
-	if (index < 0 || index >= RAS_Texture::MaxUnits) {
-		PyErr_SetString(PyExc_ValueError, "setTexture(index, bindCode, samplerName): KX_2DFilter, index out of range [0, 7]");
-		return nullptr;
-	}
-	if (bindCode < 0) {
-		PyErr_SetString(PyExc_ValueError, "setTexture(index, bindCode, samplerName): KX_2DFilter, bindCode negative");
+
+	if (!CheckTexture(index, bindCode, "setTexture(index, bindCode, samplerName)")) {
 		return nullptr;
 	}
 
-	if (samplerName) {
-		if (GetError()) {
-			Py_RETURN_NONE;
-		}
-		int loc = GetUniformLocation(samplerName);
-
-		if (loc != -1) {
-#ifdef SORT_UNIFORMS
-			SetUniformiv(loc, RAS_Uniform::UNI_INT, &index, (sizeof(int)), 1);
-#else
-			SetUniform(loc, index);
-#endif
-		}
+	if (!SetTextureUniform(index, samplerName)) {
+		return nullptr;
 	}
 
-	m_textures[index] = bindCode;
+	m_textures[index] = {RAS_Texture::GetTexture2DType(), bindCode};
+	Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_2DFilter, setCubeMap, "setCubeMap(index, bindCode, samplerName)")
+{
+	int index = 0;
+	int bindCode = 0;
+	char *samplerName = nullptr;
+
+	if (!PyArg_ParseTuple(args, "ii|s:setCubeMap", &index, &bindCode, &samplerName)) {
+		return nullptr;
+	}
+
+	if (!CheckTexture(index, bindCode, "setCubeMap(index, bindCode, samplerName)")) {
+		return nullptr;
+	}
+
+	if (!SetTextureUniform(index, samplerName)) {
+		return nullptr;
+	}
+
+	m_textures[index] = {RAS_Texture::GetCubeMapTextureType(), bindCode};
 	Py_RETURN_NONE;
 }
 

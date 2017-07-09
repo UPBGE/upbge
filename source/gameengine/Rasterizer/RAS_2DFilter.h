@@ -64,7 +64,7 @@ protected:
 	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
 	float m_textureOffsets[TEXTURE_OFFSETS_SIZE];
 
-	unsigned int m_textures[8];
+	std::unordered_map<unsigned short, std::pair<unsigned int, int> > m_textures;
 
 	/// Custom off screen for special datas.
 	std::unique_ptr<RAS_2DFilterFrameBuffer> m_frameBuffer;
