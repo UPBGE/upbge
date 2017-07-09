@@ -171,12 +171,12 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 	if (!managerData->m_shaderOverride) {
 		rasty->ProcessLighting(materialData->m_useLighting, managerData->m_trans);
 		materialData->m_material->ActivateMeshSlot(this, rasty);
-	}
 
-	if (materialData->m_zsort && managerData->m_drawingMode >= RAS_Rasterizer::RAS_SOLID && displayArrayData->m_storageInfo) {
 		RAS_IStorageInfo *storage = displayArrayData->m_storageInfo;
-		m_mesh->SortPolygons(this, managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()), storage->GetIndexMap());
-		storage->FlushIndexMap();
+		if (materialData->m_zsort && storage) {
+			m_mesh->SortPolygons(this, managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()), storage->GetIndexMap());
+			storage->FlushIndexMap();
+		}
 	}
 
 	rasty->PushMatrix();
