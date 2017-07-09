@@ -58,10 +58,6 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 		m_predefinedUniforms[i] = -1;
 	}
 
-	for (unsigned short i = 0; i < 8; ++i) {
-		m_textures[i] = 0;
-	}
-
 	m_progs[VERTEX_PROGRAM] = std::string(datatoc_RAS_VertexShader2DFilter_glsl);
 	m_progs[FRAGMENT_PROGRAM] = data.shaderText;
 
@@ -220,11 +216,9 @@ void RAS_2DFilter::BindTextures(RAS_OffScreen *depthofs, RAS_OffScreen *colorofs
 	}
 
 	// Bind custom textures.
-	for (unsigned short i = 0; i < 8; ++i) {
-		if (m_textures[i]) {
-			glActiveTextureARB(GL_TEXTURE0 + i);
-			glBindTexture(GL_TEXTURE_2D, m_textures[i]);
-		}
+	for (const auto& pair : m_textures) {
+		glActiveTexture(GL_TEXTURE0 + pair.first);
+		glBindTexture(pair.second.first, pair.second.second);
 	}
 }
 
@@ -240,12 +234,10 @@ void RAS_2DFilter::UnbindTextures(RAS_OffScreen *depthofs, RAS_OffScreen *coloro
 		depthofs->UnbindDepthTexture();
 	}
 
-	// Bind custom textures.
-	for (unsigned short i = 0; i < 8; ++i) {
-		if (m_textures[i]) {
-			glActiveTextureARB(GL_TEXTURE0 + i);
-			glBindTexture(GL_TEXTURE_2D, 0);
-		}
+	// Unbind custom textures.
+	for (const auto& pair : m_textures) {
+		glActiveTexture(GL_TEXTURE0 + pair.first);
+		glBindTexture(pair.second.first, 0);
 	}
 
 	glActiveTextureARB(GL_TEXTURE0);

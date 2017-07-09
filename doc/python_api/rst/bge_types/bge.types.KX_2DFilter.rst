@@ -45,11 +45,23 @@ base class --- :class:`BL_Shader`
    .. method:: setTexture(index, bindCode, samplerName="")
 
       Set specified texture bind code :data:`bindCode` in specified slot :data:`index`. Any call to :data:`setTexture`
-      should be followed by a call to :data:`BL_Shader.setSampler` with the same :data:`index`.
+      should be followed by a call to :data:`BL_Shader.setSampler` with the same :data:`index` if :data:`sampleName` is not specified.
 
       :arg index: The texture slot.
       :type index: integer
       :arg bindCode: The texture bind code/Id.
+      :type bindCode: integer
+      :arg samplerName: The shader sampler name set to :data:`index` if :data:`samplerName` is passed in the function. (optional)
+      :type samplerName: string
+
+   .. method:: setCubeMap(index, bindCode, samplerName="")
+
+      Set specified cube map texture bind code :data:`bindCode` in specified slot :data:`index`. Any call to :data:`setCubeMap`
+      should be followed by a call to :data:`BL_Shader.setSampler` with the same :data:`index` if :data:`sampleName` is not specified.
+
+      :arg index: The texture slot.
+      :type index: integer
+      :arg bindCode: The cube map texture bind code/Id.
       :type bindCode: integer
       :arg samplerName: The shader sampler name set to :data:`index` if :data:`samplerName` is passed in the function. (optional)
       :type samplerName: string
