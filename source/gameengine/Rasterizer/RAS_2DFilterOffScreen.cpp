@@ -72,14 +72,15 @@ void RAS_2DFilterOffScreen::Construct()
 			GPU_texture_free(texture);
 		}
 
-		// WARNING: Always respect the order from RAS_Rasterizer::HdrType.
+		/* WARNING: Always respect the order from RAS_Rasterizer::HdrType.
+		 * RAS_HDR_NONE can use RGBA8 as the tonemapping is applied before the filters. */
 		static const GPUTextureFormat dataTypeEnums[] = {
 			GPU_RGBA8, // RAS_HDR_NONE
 			GPU_RGBA16F, // RAS_HDR_HALF_FLOAT
 			GPU_RGBA32F // RAS_HDR_FULL_FLOAT
 		};
 
-		texture = GPU_texture_create_2D_custom(m_width, m_height, 4, GPU_RGBA16F, 0, nullptr, nullptr);
+		texture = GPU_texture_create_2D_custom(m_width, m_height, 4, dataTypeEnums[m_hdr], 0, nullptr, nullptr);
 		if (!GPU_framebuffer_texture_attach(m_frameBuffer, texture, i, 0)) {
 			GPU_texture_free(texture);
 			texture = nullptr;
