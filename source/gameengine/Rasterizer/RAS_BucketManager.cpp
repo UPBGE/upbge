@@ -255,7 +255,6 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 			rasty->SetLines(false);
 			break;
 		}
-		case RAS_Rasterizer::RAS_SOLID:
 		case RAS_Rasterizer::RAS_TEXTURED:
 		{
 			/* Rendering solid and alpha (regular and instancing) materials

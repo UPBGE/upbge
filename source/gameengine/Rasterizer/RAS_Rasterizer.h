@@ -74,7 +74,6 @@ public:
 	 */
 	enum DrawType {
 		RAS_WIREFRAME = 0,
-		RAS_SOLID,
 		RAS_TEXTURED,
 		RAS_RENDERER,
 		RAS_SHADOW,

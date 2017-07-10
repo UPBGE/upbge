@@ -274,7 +274,7 @@ void RAS_Rasterizer::EnableFog(bool enable)
 
 void RAS_Rasterizer::DisplayFog()
 {
-	if ((m_drawingmode >= RAS_SOLID) && m_fogenabled) {
+	if (m_fogenabled) {
 		Enable(RAS_FOG);
 	}
 	else {
@@ -328,7 +328,7 @@ void RAS_Rasterizer::BeginFrame(double time)
 	m_time = time;
 
 	// Blender camera routine destroys the settings
-	if (m_drawingmode < RAS_SOLID) {
+	if (m_drawingmode < RAS_TEXTURED) {
 		Disable(RAS_CULL_FACE);
 		Disable(RAS_DEPTH_TEST);
 	}
