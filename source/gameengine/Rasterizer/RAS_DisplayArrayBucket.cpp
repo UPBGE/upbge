@@ -136,16 +136,6 @@ void RAS_DisplayArrayBucket::RemoveActiveMeshSlots()
 	m_activeMeshSlots.clear();
 }
 
-void RAS_DisplayArrayBucket::SetDeformer(RAS_Deformer *deformer)
-{
-	/* Only deformers using display array can be set to an existing display array bucket
-	 * containing a valid display array, else the display array bucket is recreated without
-	 * display array.
-	 */
-	BLI_assert((m_displayArray != nullptr) == deformer->UseVertexArray());
-	m_deformer = deformer;
-}
-
 bool RAS_DisplayArrayBucket::UseBatching() const
 {
 	return (m_displayArray && m_displayArray->GetType() == RAS_IDisplayArray::BATCHING);

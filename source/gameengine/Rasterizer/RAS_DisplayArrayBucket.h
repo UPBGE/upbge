@@ -60,13 +60,10 @@ private:
 	RAS_MeshObject *m_mesh;
 	/// The material mesh.
 	RAS_MeshMaterial *m_meshMaterial;
-	/// The list fo all visible mesh slots to render this frame.
+	/// The list of all visible mesh slots to render this frame.
 	RAS_MeshSlotList m_activeMeshSlots;
-	/// The list of all deformer usign this display array.
+	/// The deformer using this display array.
 	RAS_Deformer *m_deformer;
-
-	/// True if a deformer is dynamic or the mesh i modified this frame.
-	bool m_meshModified;
 
 	/** Info created by the storage and freed by this class.
 	 * So it's an unique instance by display array bucket.
@@ -107,9 +104,6 @@ public:
 	void ActivateMesh(RAS_MeshSlot *slot);
 	/// Remove all mesh slots from the list.
 	void RemoveActiveMeshSlots();
-
-	/// \section Deformer
-	void SetDeformer(RAS_Deformer *deformer);
 
 	/// \section Render Infos
 	bool UseBatching() const;
