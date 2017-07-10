@@ -78,7 +78,7 @@ RAS_Rasterizer::OffScreens::OffScreens()
 	:m_width(0),
 	m_height(0),
 	m_samples(0),
-	m_hdr(RAS_HDR_HALF_FLOAT)
+	m_hdr(RAS_HDR_NONE)
 {
 }
 

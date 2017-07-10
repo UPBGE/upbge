@@ -199,8 +199,13 @@ void LA_Launcher::InitEngine()
 	// Set canvas multisamples.
 	m_canvas->SetSamples(m_samples);
 
-	RAS_Rasterizer::HdrType hdrtype = RAS_Rasterizer::RAS_HDR_HALF_FLOAT;
+	RAS_Rasterizer::HdrType hdrtype = RAS_Rasterizer::RAS_HDR_NONE;
 	switch (gm.hdr) {
+		case GAME_HDR_NONE:
+		{
+			hdrtype = RAS_Rasterizer::RAS_HDR_NONE;
+			break;
+		}
 		case GAME_HDR_HALF_FLOAT:
 		{
 			hdrtype = RAS_Rasterizer::RAS_HDR_HALF_FLOAT;

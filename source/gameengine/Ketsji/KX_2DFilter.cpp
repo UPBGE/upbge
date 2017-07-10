@@ -154,7 +154,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, width
 	int depth = 0;
 	int width = -1;
 	int height = -1;
-	int hdr = RAS_Rasterizer::RAS_HDR_HALF_FLOAT;
+	int hdr = RAS_Rasterizer::RAS_HDR_NONE;
 	int mipmap = 0;
 	int flag = 0;
 
