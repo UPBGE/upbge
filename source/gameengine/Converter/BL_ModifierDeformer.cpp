@@ -205,7 +205,7 @@ void BL_ModifierDeformer::UpdateTransverts()
 	BL_ConvertDerivedMeshToArray(m_dm, m_bmesh, mats, m_mesh->GetLayersInfo());
 
 	for (RAS_IDisplayArray *array : m_displayArrayList) {
-		array->SetModifiedFlag(RAS_IDisplayArray::SIZE_MODIFIED);
+		array->AppendModifiedFlag(RAS_IDisplayArray::SIZE_MODIFIED);
 		array->UpdateCache();
 	}
 

@@ -35,17 +35,20 @@
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
 #include "RAS_Rasterizer.h"
+#include "RAS_IPolygonMaterial.h"
 
 #include "KX_Scene.h"
 
 #include <cstring>
 
-BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
+BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma,
+		int lightlayer, CM_UpdateServer<RAS_IPolyMaterial> *materialUpdateServer)
 	:m_blenderScene(scene->GetBlenderScene()),
 	m_mat(ma),
 	m_lightLayer(lightlayer),
 	m_alphaBlend(GPU_BLEND_SOLID),
-	m_gpuMat(nullptr)
+	m_gpuMat(nullptr),
+	m_materialUpdateServer(materialUpdateServer)
 {
 	ReloadMaterial();
 }
@@ -54,39 +57,54 @@ BL_BlenderShader::~BL_BlenderShader()
 {
 }
 
-const RAS_Rasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const
+const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
-	RAS_Rasterizer::AttribLayerList attribLayers;
-	GPUVertexAttribs attribs;
-	GPU_material_vertex_attributes(m_gpuMat, &attribs);
+	RAS_AttributeArray::AttribList attribs;
+	GPUVertexAttribs gpuAttribs;
+	GPU_material_vertex_attributes(m_gpuMat, &gpuAttribs);
 
-	for (unsigned int i = 0; i < attribs.totlayer; ++i) {
-		if (attribs.layer[i].type == CD_MTFACE || attribs.layer[i].type == CD_MCOL) {
-			const char *attribname = attribs.layer[i].name;
+	for (unsigned int i = 0; i < gpuAttribs.totlayer; ++i) {
+		const int type = gpuAttribs.layer[i].type;
+		const unsigned short glindex = gpuAttribs.layer[i].glindex;
+
+		if (type == CD_MTFACE || type == CD_MCOL) {
+			const char *attribname = gpuAttribs.layer[i].name;
 			if (strlen(attribname) == 0) {
 				// The color or uv layer is not specified, then use the active color or uv layer.
-				if (attribs.layer[i].type == CD_MTFACE) {
-					attribLayers[attribs.layer[i].glindex] = layersInfo.activeUv;
+				if (type == CD_MTFACE) {
+					attribs.push_back({glindex, RAS_AttributeArray::RAS_ATTRIB_UV, false, layersInfo.activeUv});
 				}
 				else {
-					attribLayers[attribs.layer[i].glindex] = layersInfo.activeColor;
+					attribs.push_back({glindex, RAS_AttributeArray::RAS_ATTRIB_COLOR, false, layersInfo.activeColor});
 				}
 				continue;
 			}
 
 			for (const RAS_MeshObject::Layer& layer : layersInfo.layers) {
-				if ((layer.name == attribname) &&
-					((attribs.layer[i].type == CD_MTFACE && layer.type == RAS_MeshObject::Layer::UV) ||
-					(attribs.layer[i].type == CD_MCOL && layer.type == RAS_MeshObject::Layer::COLOR)))
-				{
-					attribLayers[attribs.layer[i].glindex] = layer.index;
-					break;
+				if (layer.name == attribname) {
+					if (type == CD_MTFACE && layer.type == RAS_MeshObject::Layer::UV) {
+						attribs.push_back({glindex, RAS_AttributeArray::RAS_ATTRIB_UV, false, layer.index});
+						break;
+					}
+					else if (type == CD_MCOL && layer.type == RAS_MeshObject::Layer::COLOR) {
+						attribs.push_back({glindex, RAS_AttributeArray::RAS_ATTRIB_COLOR, false, layer.index});
+						break;
+					}
 				}
 			}
 		}
+		else if (type == CD_TANGENT) {
+			attribs.push_back({glindex, RAS_AttributeArray::RAS_ATTRIB_TANGENT, false, 0});
+		}
+		else if (type == CD_ORCO) {
+			attribs.push_back({glindex, RAS_AttributeArray::RAS_ATTRIB_POS, false, 0});
+		}
+		else if (type == CD_NORMAL) {
+			attribs.push_back({glindex, RAS_AttributeArray::RAS_ATTRIB_NORM, false, 0});
+		}
 	}
 
-	return attribLayers;
+	return attribs;
 }
 
 bool BL_BlenderShader::Ok() const
@@ -103,7 +121,8 @@ void BL_BlenderShader::ReloadMaterial()
 	}
 
 	m_gpuMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, false, UseInstancing()) : nullptr;
-	ParseAttribs();
+
+	m_materialUpdateServer->NotifyUpdate(RAS_IPolyMaterial::SHADER_MODIFIED);
 }
 
 void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
@@ -124,48 +143,6 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
 			GPU_material_unbind(m_gpuMat);
 		}
 	}
-}
-
-void BL_BlenderShader::ParseAttribs()
-{
-	if (!Ok()) {
-		return;
-	}
-
-	GPUVertexAttribs attribs;
-	GPU_material_vertex_attributes(m_gpuMat, &attribs);
-
-	m_attribs.clear();
-
-	for (unsigned short i = 0; i < attribs.totlayer; ++i) {
-		const int type = attribs.layer[i].type;
-		const int glindex = attribs.layer[i].glindex;
-		if (type == CD_MTFACE) {
-			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_UV);
-		}
-		else if (type == CD_TANGENT) {
-			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXTANGENT);
-		}
-		else if (type == CD_ORCO) {
-			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_ORCO);
-		}
-		else if (type == CD_NORMAL) {
-			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_NORM);
-		}
-		else if (type == CD_MCOL) {
-			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_VCOL);
-		}
-	}
-}
-
-void BL_BlenderShader::SetAttribs(RAS_Rasterizer *ras)
-{
-	if (!Ok()) {
-		return;
-	}
-
-	ras->ClearTexCoords();
-	ras->SetAttribs(m_attribs);
 }
 
 void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
@@ -192,13 +169,6 @@ void BL_BlenderShader::ActivateInstancing(void *matrixoffset, void *positionoffs
 {
 	if (Ok()) {
 		GPU_material_bind_instancing_attrib(m_gpuMat, matrixoffset, positionoffset, coloroffset, stride);
-	}
-}
-
-void BL_BlenderShader::DesactivateInstancing()
-{
-	if (Ok()) {
-		GPU_material_unbind_instancing_attrib(m_gpuMat);
 	}
 }
 

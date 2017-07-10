@@ -352,16 +352,6 @@ void RAS_Shader::SetProg(bool enable)
 	}
 }
 
-const RAS_Rasterizer::TexCoGenList& RAS_Shader::GetTexCoords() const
-{
-	return m_texcos;
-}
-
-const RAS_Rasterizer::TexCoGenList& RAS_Shader::GetAttribs() const
-{
-	return m_attribs;
-}
-
 void RAS_Shader::SetEnabled(bool enabled)
 {
 	m_use = enabled;

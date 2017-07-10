@@ -25,6 +25,7 @@
  */
 
 #include "RAS_DisplayArray.h"
+#include "RAS_DisplayArrayStorage.h"
 #include "RAS_MeshObject.h"
 
 #include "GPU_glew.h"
@@ -55,10 +56,26 @@ struct PolygonSort
 	};
 };
 
-RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat& format)
+RAS_IDisplayArray::RAS_IDisplayArray(const RAS_IDisplayArray& other)
+	:m_type(other.m_type),
+	m_modifiedFlag(STORAGE_INVALID),
+	m_format(other.m_format),
+	m_memoryFormat(other.m_memoryFormat),
+	m_vertexInfos(other.m_vertexInfos),
+	m_vertexDataPtrs(other.m_vertexDataPtrs),
+	m_primitiveIndices(other.m_primitiveIndices),
+	m_triangleIndices(other.m_triangleIndices),
+	m_maxOrigIndex(other.m_maxOrigIndex),
+	m_polygonCenters(other.m_polygonCenters)
+{
+}
+
+RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat& format,
+		const RAS_VertexDataMemoryFormat& memoryFormat)
 	:m_type(type),
-	m_modifiedFlag(NONE_MODIFIED),
+	m_modifiedFlag(STORAGE_INVALID),
 	m_format(format),
+	m_memoryFormat(memoryFormat),
 	m_maxOrigIndex(0)
 {
 }
@@ -166,13 +183,15 @@ int RAS_IDisplayArray::GetOpenGLPrimitiveType() const
 
 void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 {
+	BLI_assert(m_format == other->GetFormat());
+
 	if (flag & TANGENT_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			GetVertex(i).SetTangent(MT_Vector4(other->GetVertex(i).GetTangent()));
 		}
 	}
 	if (flag & UVS_MODIFIED) {
-		const unsigned short uvSize = min_ii(GetVertexUvSize(), other->GetVertexUvSize());
+		const unsigned short uvSize = m_format.uvSize;
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			for (unsigned int uv = 0; uv < uvSize; ++uv) {
 				GetVertex(i).SetUV(uv, MT_Vector2(other->GetVertex(i).GetUv(uv)));
@@ -190,7 +209,7 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 		}
 	}
 	if (flag & COLORS_MODIFIED) {
-		const unsigned short colorSize = min_ii(GetVertexColorSize(), other->GetVertexColorSize());
+		const unsigned short colorSize = m_format.colorSize;
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			for (unsigned int color = 0; color < colorSize; ++color) {
 				GetVertex(i).SetRGBA(color, other->GetVertex(i).GetRawColor(color));
@@ -219,7 +238,23 @@ const RAS_VertexFormat& RAS_IDisplayArray::GetFormat() const
 	return m_format;
 }
 
+const RAS_VertexDataMemoryFormat& RAS_IDisplayArray::GetMemoryFormat() const
+{
+	return m_memoryFormat;
+}
+
 RAS_IDisplayArray::Type RAS_IDisplayArray::GetType() const
 {
 	return NORMAL;
+}
+
+RAS_DisplayArrayStorage *RAS_IDisplayArray::GetStorage()
+{
+	return &m_storage;
+}
+
+void RAS_IDisplayArray::ConstructStorage()
+{
+	m_storage.Construct(this);
+	m_storage.UpdateSize();
 }

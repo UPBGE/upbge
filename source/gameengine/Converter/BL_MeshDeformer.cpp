@@ -66,7 +66,7 @@ void BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray
 				v.SetXYZ(m_bmesh->mvert[vinfo.GetOrigIndex()].co);
 			}
 
-			array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED);
+			array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED);
 		}
 
 		m_lastDeformUpdate = m_gameobj->GetLastFrame();

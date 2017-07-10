@@ -56,14 +56,16 @@ set(SRC
 	RAS_OpenGLQuery.cpp
 	RAS_OpenGLSync.cpp
 	RAS_OpenGLRasterizer.cpp
-	RAS_StorageVBO.cpp
+	RAS_StorageVao.cpp
+	RAS_StorageVbo.cpp
 
 	RAS_OpenGLDebugDraw.h
 	RAS_OpenGLLight.h
 	RAS_OpenGLQuery.h
 	RAS_OpenGLSync.h
 	RAS_OpenGLRasterizer.h
-	RAS_StorageVBO.h
+	RAS_StorageVao.h
+	RAS_StorageVbo.h
 )
 
 add_definitions(${GL_DEFINITIONS})

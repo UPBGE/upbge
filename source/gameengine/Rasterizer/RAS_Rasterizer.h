@@ -49,8 +49,6 @@
 
 class RAS_OpenGLRasterizer;
 class RAS_OpenGLLight;
-class RAS_StorageVBO;
-class RAS_IStorageInfo;
 class RAS_ICanvas;
 class RAS_OffScreen;
 class RAS_MeshSlot;
@@ -110,28 +108,6 @@ public:
 
 		RAS_STEREO_MAXSTEREO
 	};
-
-	/**
-	 * Texture gen modes.
-	 */
-	enum TexCoGen {
-		RAS_TEXCO_GEN,      /* < GPU will generate texture coordinates */
-		RAS_TEXCO_ORCO,     /* < Vertex coordinates (object space) */
-		RAS_TEXCO_GLOB,     /* < Vertex coordinates (world space) */
-		RAS_TEXCO_UV,       /* < UV coordinates */
-		RAS_TEXCO_OBJECT,   /* < Use another object's position as coordinates */
-		RAS_TEXCO_LAVECTOR, /* < Light vector as coordinates */
-		RAS_TEXCO_VIEW,     /* < View vector as coordinates */
-		RAS_TEXCO_STICKY,   /* < Sticky coordinates */
-		RAS_TEXCO_WINDOW,   /* < Window coordinates */
-		RAS_TEXCO_NORM,     /* < Normal coordinates */
-		RAS_TEXTANGENT,     /* < */
-		RAS_TEXCO_VCOL,     /* < Vertex Color */
-		RAS_TEXCO_DISABLE,  /* < Disable this texture unit (cached) */
-	};
-
-	typedef std::vector<std::pair<int, TexCoGen> > TexCoGenList;
-	typedef std::map<unsigned short, unsigned short> AttribLayerList;
 
 	/**
 	 * Render pass identifiers for stereo.
@@ -258,13 +234,6 @@ public:
 	 */
 	static OffScreenType NextRenderOffScreen(OffScreenType index);
 
-	struct StorageAttribs
-	{
-		TexCoGenList attribs;
-		TexCoGenList texcos;
-		AttribLayerList layers;
-	};
-
 private:
 	class OffScreens
 	{
@@ -351,14 +320,11 @@ private:
 	DrawType m_drawingmode;
 	ShadowType m_shadowMode;
 
-	StorageAttribs m_storageAttribs;
-
 	bool m_invertFrontFace;
 	bool m_last_frontface;
 
 	OverrideShaderType m_overrideShader;
 
-	std::unique_ptr<RAS_StorageVBO> m_storage;
 	std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
 
 	/// Initialize custom shader interface containing uniform location.
@@ -519,30 +485,6 @@ public:
 	 */
 	RAS_ISync *CreateSync(int type);
 
-	/** Create display array storage info for drawing (mainly VBO).
-	 * \param array The display array to use vertex and index data from.
-	 * \param instancing True if the storage is used for instancing draw.
-	 */
-	RAS_IStorageInfo *GetStorageInfo(RAS_IDisplayArray *array, bool instancing);
-
-	// Drawing Functions
-	/// Set all pre-render attributes for given mesh storage info.
-	void BindPrimitives(DrawType drawingMode, RAS_IStorageInfo *storageInfo);
-	/// Unset all pre-render attributes for given mesh storage info.
-	void UnbindPrimitives(DrawType drawingMode, RAS_IStorageInfo *storageInfo);
-	/// Renders mesh storage info using instancing draw call.
-	void IndexPrimitives(RAS_IStorageInfo *storageInfo);
-
-	/** Renders mesh storage info using instancing draw call.
-	 * \param numslots Number of instances to draw.
-	 */
-	void IndexPrimitivesInstancing(RAS_IStorageInfo *storageInfo, unsigned int numslots);
-
-	/** Renders mesh storage info using multi draw call.
-	 * \param indices List of indices arrays data.
-	 * \param counts List of indices arrays size.
-	 */
-	void IndexPrimitivesBatching(RAS_IStorageInfo *storageInfo, const std::vector<void *>& indices, const std::vector<int>& counts);
 	/// Render text mesh slot using BLF functions.
 	void IndexPrimitivesText(RAS_MeshSlot *ms);
  
@@ -691,19 +633,6 @@ public:
 	RAS_DebugDraw& GetDebugDraw(SCA_IScene *scene);
 	void FlushDebugDraw(SCA_IScene *scene, RAS_ICanvas *canvas);
 
-	/// Clear the material texture coordinates list used by storages.
-	void ClearTexCoords();
-	/// Clear the material attributes list used by storages.
-	void ClearAttribs();
-	/// Clear the material attribut layers list used with material attributes by storages.
-	void ClearAttribLayers();
-	/// Set the material texture coordinates list used by storages.
-	void SetTexCoords(const TexCoGenList& texcos);
-	/// Set the material attributes list used by storages.
-	void SetAttribs(const TexCoGenList& attribs);
-	/// Set the material attribut layers used with material attributes by storages.
-	void SetAttribLayers(const RAS_Rasterizer::AttribLayerList& layers);
-
 	const MT_Matrix4x4 &GetViewMatrix() const;
 	const MT_Matrix4x4 &GetViewInvMatrix() const;
 
@@ -725,7 +654,6 @@ public:
 	void SetOverrideShader(OverrideShaderType type);
 	OverrideShaderType GetOverrideShader();
 	void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride);
-	void DesactivateOverrideShaderInstancing();
 
 	/// \see KX_RayCast
 	bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform);

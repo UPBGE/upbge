@@ -31,7 +31,8 @@
 #include "CM_Message.h"
 
 KX_2DFilter::KX_2DFilter(RAS_2DFilterData& data)
-	:RAS_2DFilter(data)
+	:RAS_2DFilter(data),
+	BL_Shader(nullptr)
 {
 }
 

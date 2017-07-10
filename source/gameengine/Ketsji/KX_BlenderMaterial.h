@@ -36,7 +36,6 @@ public:
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate(RAS_Rasterizer *rasty);
 	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
-	virtual void DesactivateInstancing();
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const MT_Transform& camtrans);
 
 	void ActivateShaders(RAS_Rasterizer *rasty);
@@ -51,7 +50,7 @@ public:
 	virtual void GetRGBAColor(unsigned char *rgba) const;
 	virtual Scene *GetBlenderScene() const;
 	virtual SCA_IScene *GetScene() const;
-	virtual void ReleaseMaterial();
+	virtual void ReloadMaterial();
 
 	/** Set scene owning this material and generate blender shader using
 	 * scene lights.
@@ -65,7 +64,7 @@ public:
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha);
 
-	virtual const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
+	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
 	// Stuff for cvalue related things.
 	virtual std::string GetName();

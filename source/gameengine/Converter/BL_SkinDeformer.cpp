@@ -294,7 +294,7 @@ void BL_SkinDeformer::UpdateTransverts()
 			aabbMax.z() = std::max(aabbMax.z(), vertpos.z());
 		}
 
-		array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
+		array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
 	}
 
 	m_boundingBox->SetAabb(aabbMin, aabbMax);

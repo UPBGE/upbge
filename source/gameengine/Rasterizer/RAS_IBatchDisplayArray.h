@@ -49,7 +49,8 @@ protected:
 	std::vector<Part> m_parts;
 
 public:
-	RAS_IBatchDisplayArray(PrimitiveType type, const RAS_VertexFormat &format);
+	RAS_IBatchDisplayArray(PrimitiveType type, const RAS_VertexFormat &format,
+			const RAS_VertexDataMemoryFormat& memoryFormat);
 	virtual ~RAS_IBatchDisplayArray();
 
 	/** Construct the display array batching corresponding of the vertex of the given format.

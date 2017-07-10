@@ -36,8 +36,8 @@
 /// Struct used to pass the vertex format to functions.
 struct RAS_VertexFormat
 {
-	unsigned short uvSize;
-	unsigned short colorSize;
+	uint8_t uvSize;
+	uint8_t colorSize;
 };
 
 /// Operators used to compare the contents (uv size, color size, ...) of two vertex formats.
@@ -54,7 +54,7 @@ public:
 private:
 	unsigned int m_origindex;
 	short m_softBodyIndex;
-	short m_flag;
+	uint8_t m_flag;
 
 public:
 	RAS_VertexInfo(unsigned int origindex, bool flat);
@@ -75,12 +75,12 @@ public:
 		m_softBodyIndex = sbIndex;
 	}
 
-	inline const short GetFlag() const
+	inline const uint8_t GetFlag() const
 	{
 		return m_flag;
 	}
 
-	inline void SetFlag(const short flag)
+	inline void SetFlag(const uint8_t flag)
 	{
 		m_flag = flag;
 	}

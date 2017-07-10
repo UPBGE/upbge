@@ -26,8 +26,9 @@
 
 #include "RAS_BatchDisplayArray.h"
 
-RAS_IBatchDisplayArray::RAS_IBatchDisplayArray(PrimitiveType type, const RAS_VertexFormat &format)
-	:RAS_IDisplayArray(type, format)
+RAS_IBatchDisplayArray::RAS_IBatchDisplayArray(PrimitiveType type, const RAS_VertexFormat &format,
+		const RAS_VertexDataMemoryFormat& memoryFormat)
+	:RAS_IDisplayArray(type, format, memoryFormat)
 {
 }
 

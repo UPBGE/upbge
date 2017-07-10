@@ -28,13 +28,14 @@
 #define __RAS_DISPLAY_ARRAY_H__
 
 #include "RAS_IDisplayArray.h"
+#include "RAS_DisplayArrayStorage.h"
 
 #include "boost/pool/object_pool.hpp"
 
 template <class VertexData>
 class RAS_BatchDisplayArray;
 
-/// An array with data used for OpenGL drawing
+/// An array with data used for OpenGL drawing.
 template <class VertexData>
 class RAS_DisplayArray : public virtual RAS_IDisplayArray
 {
@@ -46,11 +47,18 @@ protected:
 	// Temporary vertex data storage.
 	static boost::object_pool<VertexData> m_vertexPool;
 
-public:
-	RAS_DisplayArray(PrimitiveType type, const RAS_VertexFormat& format)
-		:RAS_IDisplayArray(type, format)
+	RAS_DisplayArray(const RAS_DisplayArray& other)
+		:RAS_IDisplayArray(other),
+		m_vertexes(other.m_vertexes)
 	{
 	}
+
+public:
+	RAS_DisplayArray(PrimitiveType type, const RAS_VertexFormat& format)
+		:RAS_IDisplayArray(type, format, VertexData::GetMemoryFormat())
+	{
+	}
+
 
 	virtual ~RAS_DisplayArray()
 	{
@@ -62,46 +70,6 @@ public:
 		replica->UpdateCache();
 
 		return replica;
-	}
-
-	virtual unsigned int GetVertexMemorySize() const
-	{
-		return sizeof(VertexData);
-	}
-
-	virtual void *GetVertexXYZOffset() const
-	{
-		return (void *)offsetof(VertexData, position);
-	}
-
-	virtual void *GetVertexNormalOffset() const
-	{
-		return (void *)offsetof(VertexData, normal);
-	}
-
-	virtual void *GetVertexTangentOffset() const
-	{
-		return (void *)offsetof(VertexData, tangent);
-	}
-
-	virtual void *GetVertexUVOffset() const
-	{
-		return (void *)offsetof(VertexData, uvs);
-	}
-
-	virtual void *GetVertexColorOffset() const
-	{
-		return (void *)offsetof(VertexData, colors);
-	}
-
-	virtual unsigned short GetVertexUvSize() const
-	{
-		return VertexData::UvSize;
-	}
-
-	virtual unsigned short GetVertexColorSize() const
-	{
-		return VertexData::ColorSize;
 	}
 
 	virtual RAS_Vertex GetVertexNoCache(const unsigned int index)

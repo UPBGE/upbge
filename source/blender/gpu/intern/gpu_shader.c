@@ -677,29 +677,6 @@ void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, vo
 	}
 }
 
-void GPU_shader_unbind_instancing_attrib(GPUShader *shader)
-{
-	int posloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
-	int matloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
-
-	// Matrix
-	if (matloc != -1) {
-		glDisableVertexAttribArrayARB(matloc);
-		glDisableVertexAttribArrayARB(matloc + 1);
-		glDisableVertexAttribArrayARB(matloc + 2);
-
-		glVertexAttribDivisorARB(matloc, 0);
-		glVertexAttribDivisorARB(matloc + 1, 0);
-		glVertexAttribDivisorARB(matloc + 2, 0);
-	}
-
-	// Position
-	if (posloc != -1) {
-		glDisableVertexAttribArrayARB(posloc);
-		glVertexAttribDivisorARB(posloc, 0);
-	}
-}
-
 GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 {
 	GPUShader *retval = NULL;

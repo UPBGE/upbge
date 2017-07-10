@@ -74,6 +74,18 @@ struct RAS_IVertexData : RAS_VertexDataBasic
 	}
 };
 
+struct RAS_VertexDataMemoryFormat
+{
+	/// Offsets of data in vertex class.
+	intptr_t position;
+	intptr_t normal;
+	intptr_t tangent;
+	intptr_t uvs;
+	intptr_t colors;
+	/// Size of vertex class.
+	uint8_t size;
+};
+
 template <unsigned short uvSize, unsigned short colorSize>
 struct RAS_VertexData : RAS_IVertexData, RAS_VertexDataExtra<uvSize, colorSize>
 {
@@ -103,6 +115,17 @@ struct RAS_VertexData : RAS_IVertexData, RAS_VertexDataExtra<uvSize, colorSize>
 		RAS_VertexDataExtra<uvSize, colorSize>(_uvs, _colors)
 	{
 	}
+
+	static const RAS_VertexDataMemoryFormat GetMemoryFormat()
+	{
+		return {offsetof(RAS_VertexData, position),
+				offsetof(RAS_VertexData, normal),
+				offsetof(RAS_VertexData, tangent),
+				offsetof(RAS_VertexData, uvs),
+				offsetof(RAS_VertexData, colors),
+				sizeof(RAS_VertexData)};
+	}
+
 };
 
 #endif  // __RAS_VERTEX_DATA_H__

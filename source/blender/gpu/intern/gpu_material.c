@@ -381,32 +381,6 @@ void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffs
 	}
 }
 
-void GPU_material_unbind_instancing_attrib(GPUMaterial *material)
-{
-	// Matrix
-	if (material->ininstmatloc != -1) {
-		glDisableVertexAttribArrayARB(material->ininstmatloc);
-		glDisableVertexAttribArrayARB(material->ininstmatloc + 1);
-		glDisableVertexAttribArrayARB(material->ininstmatloc + 2);
-
-		glVertexAttribDivisorARB(material->ininstmatloc, 0);
-		glVertexAttribDivisorARB(material->ininstmatloc + 1, 0);
-		glVertexAttribDivisorARB(material->ininstmatloc + 2, 0);
-	}
-
-	// Position
-	if (material->ininstposloc != -1) {
-		glDisableVertexAttribArrayARB(material->ininstposloc);
-		glVertexAttribDivisorARB(material->ininstposloc, 0);
-	}
-
-	// Color
-	if (material->ininstcolloc != -1) {
-		glDisableVertexAttribArrayARB(material->ininstcolloc);
-		glVertexAttribDivisorARB(material->ininstcolloc, 0);
-	}
-}
-
 void GPU_material_bind(
         GPUMaterial *material, int oblay, int viewlay, double time, int mipmap,
         float viewmat[4][4], float viewinv[4][4], float camerafactors[4], bool scenelock)

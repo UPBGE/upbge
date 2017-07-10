@@ -88,13 +88,6 @@ bool RAS_MaterialBucket::UseInstancing() const
 	return (m_material->UseInstancing());
 }
 
-void RAS_MaterialBucket::UpdateShader()
-{
-	for (RAS_DisplayArrayBucket *arrayBucket : m_displayArrayBucketList) {
-		arrayBucket->DestructStorageInfo();
-	}
-}
-
 void RAS_MaterialBucket::RemoveActiveMeshSlots()
 {
 	for (RAS_DisplayArrayBucket *arrayBucket : m_displayArrayBucketList) {
@@ -113,7 +106,7 @@ void RAS_MaterialBucket::DesactivateMaterial(RAS_Rasterizer *rasty)
 }
 
 void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-									  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort)
+		RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort)
 {
 	if (m_displayArrayBucketList.empty()) {
 		return;
@@ -121,7 +114,7 @@ void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS
 
 	const bool instancing = UseInstancing();
 	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
-		displayArrayBucket->GenerateTree(m_downwardNode, m_upwardNode, upwardLeafs, rasty, sort, instancing);
+		displayArrayBucket->GenerateTree(m_downwardNode, m_upwardNode, upwardLeafs, drawingMode, sort, instancing);
 	}
 
 	downwardRoot.AddChild(&m_downwardNode);

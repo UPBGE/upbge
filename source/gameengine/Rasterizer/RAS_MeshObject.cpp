@@ -272,11 +272,3 @@ const RAS_MeshObject::LayersInfo& RAS_MeshObject::GetLayersInfo() const
 {
 	return m_layersInfo;
 }
-
-void RAS_MeshObject::GenerateAttribLayers()
-{
-	for (RAS_MeshMaterial *mmat : m_materials) {
-		RAS_DisplayArrayBucket *displayArrayBucket = mmat->GetDisplayArrayBucket();
-		displayArrayBucket->GenerateAttribLayers();
-	}
-}

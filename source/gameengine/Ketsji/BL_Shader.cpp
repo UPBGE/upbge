@@ -24,8 +24,10 @@
 
 
 #include "BL_Shader.h"
+
 #include "RAS_MeshSlot.h"
 #include "RAS_MeshUser.h"
+#include "RAS_IPolygonMaterial.h"
 
 #include "KX_PyMath.h"
 #include "KX_PythonInit.h"
@@ -41,7 +43,9 @@
 
 #include "CM_Message.h"
 
-BL_Shader::BL_Shader()
+BL_Shader::BL_Shader(CM_UpdateServer<RAS_IPolyMaterial> *materialUpdateServer)
+	:m_attr(SHD_NONE),
+	m_materialUpdateServer(materialUpdateServer)
 {
 #ifdef WITH_PYTHON
 	for (unsigned short i = 0; i < CALLBACKS_MAX; ++i) {
@@ -59,6 +63,17 @@ BL_Shader::~BL_Shader()
 #endif  // WITH_PYTHON
 }
 
+bool BL_Shader::LinkProgram()
+{
+	// Can be null in case of filter shaders.
+	if (m_materialUpdateServer) {
+		// Notify all clients tracking this shader that shader is recompiled.
+		m_materialUpdateServer->NotifyUpdate(RAS_IPolyMaterial::SHADER_MODIFIED);
+	}
+
+	return RAS_Shader::LinkProgram();
+}
+
 std::string BL_Shader::GetName()
 {
 	return "BL_Shader";
@@ -70,36 +85,6 @@ std::string BL_Shader::GetText()
 			m_progs[VERTEX_PROGRAM] % m_progs[FRAGMENT_PROGRAM]).str();
 }
 
-
-void BL_Shader::InitTexCo(RAS_Texture *textures[RAS_Texture::MaxUnits])
-{
-	// Initialize textures coordinate attributes.
-	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
-		RAS_Texture *texture = textures[i];
-		/* Here textures can return false to Ok() because we're looking only at
-		 * texture attributes and not texture bind id like for the binding and
-		 * unbinding of textures. A nullptr BL_Texture means that the corresponding
-		 * mtex is nullptr too (see InitTextures).*/
-		if (texture) {
-			MTex *mtex = texture->GetMTex();
-			if (mtex->texco & (TEXCO_OBJECT | TEXCO_REFL)) {
-				m_texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_GEN);
-			}
-			else if (mtex->texco & (TEXCO_ORCO | TEXCO_GLOB)) {
-				m_texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_ORCO);
-			}
-			else if (mtex->texco & TEXCO_UV) {
-				m_texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_UV);
-			}
-			else if (mtex->texco & TEXCO_NORM) {
-				m_texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_NORM);
-			}
-			else if (mtex->texco & TEXCO_TANGENT) {
-				m_texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXTANGENT);
-			}
-		}
-	}
-}
 
 #ifdef WITH_PYTHON
 
@@ -117,6 +102,43 @@ void BL_Shader::SetCallbacks(BL_Shader::CallbacksType type, PyObject *callbacks)
 
 #endif  // WITH_PYTHON
 
+RAS_AttributeArray::AttribList BL_Shader::GetAttribs(RAS_Texture * const textures[RAS_Texture::MaxUnits]) const
+{
+	RAS_AttributeArray::AttribList attribs;
+	// Initialize textures attributes.
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
+		RAS_Texture *texture = textures[i];
+		/* Here textures can return false to Ok() because we're looking only at
+		* texture attributes and not texture bind id like for the binding and
+		* unbinding of textures. A nullptr RAS_Texture means that the corresponding
+		* mtex is nullptr too (see KX_BlenderMaterial::InitTextures).*/
+		if (texture) {
+			MTex *mtex = texture->GetMTex();
+			if (mtex->texco & (TEXCO_OBJECT | TEXCO_REFL)) {
+				attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_POS, true, 0});
+			}
+			else if (mtex->texco & (TEXCO_ORCO | TEXCO_GLOB)) {
+				attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_POS, true, 0});
+			}
+			else if (mtex->texco & TEXCO_UV) {
+				attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_UV, true, i});
+			}
+			else if (mtex->texco & TEXCO_NORM) {
+				attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_NORM, true, 0});
+			}
+			else if (mtex->texco & TEXCO_TANGENT) {
+				attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_TANGENT, true, 0});
+			}
+		}
+	}
+
+	if (m_attr == SHD_TANGENT) {
+		attribs.push_back({1, RAS_AttributeArray::RAS_ATTRIB_TANGENT, false, 0});
+	}
+
+	return attribs;
+}
+
 void BL_Shader::SetProg(bool enable)
 {
 #ifdef WITH_PYTHON
@@ -126,12 +148,6 @@ void BL_Shader::SetProg(bool enable)
 #endif  // WITH_PYTHON
 
 	RAS_Shader::SetProg(enable);
-}
-
-void BL_Shader::SetAttribs(RAS_Rasterizer *rasty)
-{
-	rasty->SetTexCoords(m_texcos);
-	rasty->SetAttribs(m_attribs);
 }
 
 void BL_Shader::Update(RAS_Rasterizer *rasty, RAS_MeshSlot *ms)
@@ -895,8 +911,20 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
 		return nullptr;
 	}
 
-	m_attribs = {{attr, RAS_Rasterizer::RAS_TEXTANGENT}};
-	BindAttribute("Tangent", attr);
+	// Avoid redundant attributes reconstruction.
+	if (attr == m_attr) {
+		Py_RETURN_NONE;
+	}
+
+	m_attr = (AttribTypes)attr;
+
+	// Can be null in case of filter shaders.
+	if (m_materialUpdateServer) {
+		// Notify all clients tracking this shader that attributes are modified.
+		m_materialUpdateServer->NotifyUpdate(RAS_IPolyMaterial::ATTRIBUTES_MODIFIED);
+	}
+
+	BindAttribute("Tangent", m_attr);
 	Py_RETURN_NONE;
 }
 

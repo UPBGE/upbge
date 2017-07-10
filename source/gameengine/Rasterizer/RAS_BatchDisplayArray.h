@@ -48,9 +48,9 @@ protected:
 
 public:
 	RAS_BatchDisplayArray(RAS_IDisplayArray::PrimitiveType type, const RAS_VertexFormat& format)
-		:RAS_IDisplayArray(type, format),
+		:RAS_IDisplayArray(type, format, VertexData::GetMemoryFormat()),
 		RAS_DisplayArray<VertexData>(type, format),
-		RAS_IBatchDisplayArray(type, format)
+		RAS_IBatchDisplayArray(type, format, VertexData::GetMemoryFormat())
 	{
 	}
 
@@ -119,7 +119,9 @@ public:
 		}
 
 		// Update the cache to avoid accessing dangling vertex pointer from GetVertex().
-		RAS_DisplayArray<VertexData>::UpdateCache();
+		UpdateCache();
+		// Request storage update.
+		m_modifiedFlag |= SIZE_MODIFIED;
 
 		return (m_parts.size() - 1);
 	}
@@ -168,6 +170,8 @@ public:
 
 		// Update the cache to avoid accessing dangling vertex pointer from GetVertex().
 		UpdateCache();
+		// Request storage update.
+		m_modifiedFlag |= SIZE_MODIFIED;
 	}
 };
 

@@ -32,10 +32,10 @@
 #ifndef __RAS_DISPLAY_MATERIAL_BUCKET_H__
 #define __RAS_DISPLAY_MATERIAL_BUCKET_H__
 
-#include "CM_RefCount.h"
+#include "CM_Update.h"
 
 #include "RAS_MeshSlot.h"
-#include "RAS_Rasterizer.h"
+#include "RAS_AttributeArray.h"
 
 #include "MT_Transform.h"
 
@@ -65,18 +65,14 @@ private:
 	/// The deformer using this display array.
 	RAS_Deformer *m_deformer;
 
-	/** Info created by the storage and freed by this class.
-	 * So it's an unique instance by display array bucket.
-	 * It contains all infos about special redering e.g
-	 * VBO and IBO ID for VBO storage.
-	 */
-	RAS_IStorageInfo *m_storageInfo;
+	RAS_DisplayArrayStorage *m_arrayStorage;
+	/// Attribute array used for each different render categories.
+	RAS_AttributeArray m_attribArray;
 
-	/// The vertex buffer object containing all the datas used for the instancing rendering.
-	RAS_InstancingBuffer *m_instancingBuffer;
+	/// The vertex buffer object containing all the data used for the instancing rendering.
+	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer;
 
-	/// The attribute's layers used by the couple mesh material.
-	RAS_Rasterizer::AttribLayerList m_attribLayers;
+	CM_UpdateClient<RAS_IPolyMaterial> m_materialUpdateClient;
 
 	RAS_DisplayArrayNodeData m_nodeData;
 	RAS_DisplayArrayDownwardNode m_downwardNode;
@@ -84,9 +80,6 @@ private:
 
 	RAS_DisplayArrayDownwardNode m_instancingNode;
 	RAS_DisplayArrayDownwardNode m_batchingNode;
-
-	void BindPrimitives(RAS_Rasterizer::DrawType drawingMode, RAS_Rasterizer *rasty);
-	void UnbindPrimitives(RAS_Rasterizer::DrawType drawingMode, RAS_Rasterizer *rasty);
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
@@ -98,7 +91,6 @@ public:
 	RAS_IDisplayArray *GetDisplayArray() const;
 	RAS_MeshObject *GetMesh() const;
 	RAS_MeshMaterial *GetMeshMaterial() const;
-	RAS_IStorageInfo *GetStorageInfo() const;
 
 	/// \section Active Mesh Slots Management.
 	void ActivateMesh(RAS_MeshSlot *slot);
@@ -109,19 +101,10 @@ public:
 	bool UseBatching() const;
 
 	/// Update render infos.
-	void UpdateActiveMeshSlots(RAS_Rasterizer *rasty);
-
-	void DestructStorageInfo();
-
-	/** Generate the attribute's layers for the used mesh and material couple.
-	 * WARNING: Always call when shader in the material are valid.
-	 */
-	void GenerateAttribLayers();
-
-	void SetAttribLayers(RAS_Rasterizer *rasty) const;
+	void UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode);
 
 	void GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
-					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing);
+			RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer::DrawType drawingMode, bool sort, bool instancing);
 	void BindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void UnbindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunDownwardNode(const RAS_DisplayArrayNodeTuple& tuple);

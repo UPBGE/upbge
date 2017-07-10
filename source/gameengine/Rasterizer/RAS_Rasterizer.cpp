@@ -43,8 +43,6 @@
 #include "RAS_OpenGLLight.h"
 #include "RAS_OpenGLSync.h"
 
-#include "RAS_StorageVBO.h"
-
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -220,7 +218,6 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_viewinvmatrix.setIdentity();
 
 	m_impl.reset(new RAS_OpenGLRasterizer(this));
-	m_storage.reset(new RAS_StorageVBO(&m_storageAttribs));
 
 	m_numgllights = m_impl->GetNumLights();
 
@@ -710,67 +707,6 @@ void RAS_Rasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 	}
 }
 
-void RAS_Rasterizer::ClearTexCoords()
-{
-	m_storageAttribs.texcos.clear();
-}
-
-void RAS_Rasterizer::ClearAttribs()
-{
-	m_storageAttribs.attribs.clear();
-}
-
-void RAS_Rasterizer::ClearAttribLayers()
-{
-	m_storageAttribs.layers.clear();
-}
-
-void RAS_Rasterizer::SetTexCoords(const TexCoGenList& texcos)
-{
-	m_storageAttribs.texcos = texcos;
-}
-
-void RAS_Rasterizer::SetAttribs(const TexCoGenList& attribs)
-{
-	m_storageAttribs.attribs = attribs;
-}
-
-void RAS_Rasterizer::SetAttribLayers(const RAS_Rasterizer::AttribLayerList& layers)
-{
-	m_storageAttribs.layers = layers;
-}
-
-RAS_IStorageInfo *RAS_Rasterizer::GetStorageInfo(RAS_IDisplayArray *array, bool instancing)
-{
-	return m_storage->GetStorageInfo(array, instancing);
-}
-
-void RAS_Rasterizer::BindPrimitives(DrawType drawingMode, RAS_IStorageInfo *storageInfo)
-{
-	m_storage->BindPrimitives(drawingMode, static_cast<VBO *>(storageInfo));
-}
-
-void RAS_Rasterizer::UnbindPrimitives(DrawType drawingMode, RAS_IStorageInfo *storageInfo)
-{
-	m_storage->UnbindPrimitives(drawingMode, static_cast<VBO *>(storageInfo));
-}
-
-void RAS_Rasterizer::IndexPrimitives(RAS_IStorageInfo *storageInfo)
-{
-	m_storage->IndexPrimitives(static_cast<VBO *>(storageInfo));
-}
-
-void RAS_Rasterizer::IndexPrimitivesInstancing(RAS_IStorageInfo *storageInfo, unsigned int numslots)
-{
-	m_storage->IndexPrimitivesInstancing(static_cast<VBO *>(storageInfo), numslots);
-}
-
-void RAS_Rasterizer::IndexPrimitivesBatching(RAS_IStorageInfo *storageInfo, const std::vector<void *>& indices,
-												   const std::vector<int>& counts)
-{
-	m_storage->IndexPrimitivesBatching(static_cast<VBO *>(storageInfo), indices, counts);
-}
-
 void RAS_Rasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 {
 	SetMatrixMode(RAS_PROJECTION);
@@ -1203,14 +1139,6 @@ void RAS_Rasterizer::ActivateOverrideShaderInstancing(void *matrixoffset, void *
 	GPUShader *shader = GetOverrideGPUShader(m_overrideShader);
 	if (shader) {
 		GPU_shader_bind_instancing_attrib(shader, matrixoffset, positionoffset, stride);
-	}
-}
-
-void RAS_Rasterizer::DesactivateOverrideShaderInstancing()
-{
-	GPUShader *shader = GetOverrideGPUShader(m_overrideShader);
-	if (shader) {
-		GPU_shader_unbind_instancing_attrib(shader);
 	}
 }
 

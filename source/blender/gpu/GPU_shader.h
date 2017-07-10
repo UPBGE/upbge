@@ -90,7 +90,6 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name);
 void GPU_shader_bind_attribute(GPUShader *shader, int location, const char *name);
 
 void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, void *positionoffset, unsigned int stride);
-void GPU_shader_unbind_instancing_attrib(GPUShader *shader);
 
 /* Builtin/Non-generated shaders */
 typedef enum GPUBuiltinShader {

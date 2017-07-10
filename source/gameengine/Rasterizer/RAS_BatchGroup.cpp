@@ -96,8 +96,6 @@ bool RAS_BatchGroup::MergeMeshSlot(RAS_BatchGroup::Batch& batch, RAS_MeshSlot *s
 	const unsigned int index = array->Merge(origArray, mat);
 	slot->m_batchPartIndex = index;
 
-	arrayBucket->DestructStorageInfo();
-
 	slot->SetDisplayArrayBucket(arrayBucket);
 
 	return true;
@@ -126,8 +124,6 @@ bool RAS_BatchGroup::SplitMeshSlot(RAS_MeshSlot *slot)
 	slot->SetDisplayArrayBucket(origArrayBucket);
 
 	batch.m_displayArray->Split(slot->m_batchPartIndex);
-
-	batch.m_displayArrayBucket->DestructStorageInfo();
 
 	batch.m_originalDisplayArrayBucketList.erase(slot);
 

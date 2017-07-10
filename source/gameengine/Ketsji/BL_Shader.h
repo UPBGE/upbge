@@ -6,11 +6,17 @@
 #ifndef __BL_SHADER_H__
 #define __BL_SHADER_H__
 
-#include "EXP_Value.h"
 #include "RAS_Shader.h"
 #include "RAS_Texture.h" // For RAS_Texture::MaxUnits.
+#include "RAS_AttributeArray.h" // For RAS_AttributeArray::AttribList.
+#include "RAS_MeshObject.h" // For RAS_MeshObject::LayersInfo.
+
+#include "EXP_Value.h"
+
+#include "CM_Update.h"
 
 class RAS_MeshSlot;
+class RAS_IPolyMaterial;
 
 class BL_Shader : public EXP_Value, public virtual RAS_Shader
 {
@@ -23,6 +29,7 @@ public:
 	};
 
 	enum AttribTypes {
+		SHD_NONE = 0,
 		SHD_TANGENT = 1
 	};
 
@@ -31,24 +38,26 @@ private:
 	PyObject *m_callbacks[CALLBACKS_MAX];
 #endif  // WITH_PYTHON
 
+	AttribTypes m_attr;
+	CM_UpdateServer<RAS_IPolyMaterial> *m_materialUpdateServer;
+
+	virtual bool LinkProgram();
+
 public:
-	BL_Shader();
+	BL_Shader(CM_UpdateServer<RAS_IPolyMaterial> *materialUpdateServer);
 	virtual ~BL_Shader();
 
 	virtual std::string GetName();
 	virtual std::string GetText();
-
-	/// Initialize textures coordinates attributes using a list of textures.
-	void InitTexCo(RAS_Texture *textures[RAS_Texture::MaxUnits]);
 
 #ifdef WITH_PYTHON
 	PyObject *GetCallbacks(CallbacksType type);
 	void SetCallbacks(CallbacksType type, PyObject *callbacks);
 #endif // WITH_PYTHON
 
-	virtual void SetProg(bool enable);
+	RAS_AttributeArray::AttribList GetAttribs(RAS_Texture * const textures[RAS_Texture::MaxUnits]) const;
 
-	void SetAttribs(RAS_Rasterizer *rasty);
+	virtual void SetProg(bool enable);
 
 	/** Update the uniform shader for the current rendered mesh slot.
 	 * The python callbacks are executed in this function and at the end

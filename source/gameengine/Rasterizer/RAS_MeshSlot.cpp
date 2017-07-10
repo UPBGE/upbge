@@ -34,7 +34,8 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_Vertex.h"
 #include "RAS_IDisplayArray.h"
-#include "RAS_IStorageInfo.h"
+#include "RAS_DisplayArrayStorage.h"
+#include "RAS_MeshObject.h"
 
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)
@@ -79,11 +80,11 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 	rasty->SetClientObject(m_meshUser->GetClientObject());
 	rasty->SetFrontFace(m_meshUser->GetFrontFace());
 
+	RAS_DisplayArrayStorage *storage = displayArrayData->m_arrayStorage;
 
 	if (!managerData->m_shaderOverride) {
 		materialData->m_material->ActivateMeshSlot(this, rasty, managerData->m_trans);
 
-		RAS_IStorageInfo *storage = displayArrayData->m_storageInfo;
 		if (materialData->m_zsort && storage) {
 			displayArrayData->m_array->SortPolygons(managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()),
 								 storage->GetIndexMap());
@@ -102,8 +103,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			rasty->GetTransform(m_meshUser->GetMatrix(), materialData->m_drawingMode, mat);
 			rasty->MultMatrix(mat);
 		}
-		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
+		storage->IndexPrimitives();
 	}
-
 	rasty->PopMatrix();
 }

@@ -36,7 +36,8 @@ class RAS_DisplayArrayBucket;
 class RAS_MeshSlot;
 class RAS_IPolyMaterial;
 class RAS_Rasterizer;
-class RAS_IStorageInfo;
+class RAS_DisplayArrayStorage;
+class RAS_AttributeArrayStorage;
 class MT_Transform;
 
 class RAS_MaterialDownwardNode;
@@ -69,8 +70,9 @@ struct RAS_MaterialNodeData
 
 struct RAS_DisplayArrayNodeData
 {
-	RAS_IStorageInfo *m_storageInfo;
 	RAS_IDisplayArray *m_array;
+	RAS_AttributeArrayStorage *m_attribStorage;
+	RAS_DisplayArrayStorage *m_arrayStorage;
 	bool m_applyMatrix;
 };
 

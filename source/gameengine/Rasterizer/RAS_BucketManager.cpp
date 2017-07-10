@@ -101,7 +101,7 @@ void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketMan
 	BucketList& solidBuckets = m_buckets[bucketType];
 	RAS_UpwardTreeLeafs leafs;
 	for (RAS_MaterialBucket *bucket : solidBuckets) {
-		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, rasty, true);
+		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, m_nodeData.m_drawingMode, true);
 	}
 
 	m_nodeData.m_sort = true;
@@ -132,7 +132,7 @@ void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketMana
 {
 	RAS_UpwardTreeLeafs leafs;
 	for (RAS_MaterialBucket *bucket : m_buckets[bucketType]) {
-		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, rasty, false);
+		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, m_nodeData.m_drawingMode, false);
 	}
 
 	if (m_downwardNode.GetValid()) {
@@ -354,30 +354,11 @@ RAS_DisplayArrayBucket *RAS_BucketManager::GetTextDisplayArrayBucket() const
 	return m_text.m_arrayBucket;
 }
 
-void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat)
-{
-	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
-		if (bucket->GetPolyMaterial() != mat && mat) {
-			continue;
-		}
-		bucket->UpdateShader();
-	}
-}
-
-void RAS_BucketManager::GenerateAttribLayers()
-{
-	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
-		for (RAS_DisplayArrayBucket *arrayBucket : bucket->GetDisplayArrayBucketList()) {
-			arrayBucket->GenerateAttribLayers();
-		}
-	}
-}
-
-void RAS_BucketManager::ReleaseMaterials(RAS_IPolyMaterial *mat)
+void RAS_BucketManager::ReloadMaterials(RAS_IPolyMaterial *mat)
 {
 	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
 		if (mat == nullptr || (mat == bucket->GetPolyMaterial())) {
-			bucket->GetPolyMaterial()->ReleaseMaterial();
+			bucket->GetPolyMaterial()->ReloadMaterial();
 		}
 	}
 }

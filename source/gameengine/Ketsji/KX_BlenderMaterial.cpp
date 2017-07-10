@@ -193,10 +193,11 @@ SCA_IScene *KX_BlenderMaterial::GetScene() const
 	return m_scene;
 }
 
-void KX_BlenderMaterial::ReleaseMaterial()
+void KX_BlenderMaterial::ReloadMaterial()
 {
-	if (m_blenderShader)
+	if (m_blenderShader) {
 		m_blenderShader->ReloadMaterial();
+	}
 }
 
 void KX_BlenderMaterial::InitTextures()
@@ -217,7 +218,7 @@ void KX_BlenderMaterial::InitScene(KX_Scene *scene)
 	m_scene = scene;
 
 	if (!m_blenderShader) {
-		m_blenderShader = new BL_BlenderShader(m_scene, m_material, m_lightLayer);
+		m_blenderShader = new BL_BlenderShader(m_scene, m_material, m_lightLayer, this);
 	}
 
 	if (!m_blenderShader->Ok()) {
@@ -283,13 +284,11 @@ void KX_BlenderMaterial::ActivateShaders(RAS_Rasterizer *rasty)
 {
 	SetShaderData(rasty);
 	ActivateGLMaterials(rasty);
-	m_shader->SetAttribs(rasty);
 }
 
 void KX_BlenderMaterial::ActivateBlenderShaders(RAS_Rasterizer *rasty)
 {
 	SetBlenderShaderData(rasty);
-	m_blenderShader->SetAttribs(rasty);
 }
 
 void KX_BlenderMaterial::Activate(RAS_Rasterizer *rasty)
@@ -315,9 +314,6 @@ void KX_BlenderMaterial::Desactivate(RAS_Rasterizer *rasty)
 	else if (m_blenderShader && m_blenderShader->Ok()) {
 		m_blenderShader->SetProg(false);
 	}
-	// Make sure no one will use the attributs set by this material.
-	rasty->ClearTexCoords();
-	rasty->ClearAttribs();
 }
 
 bool KX_BlenderMaterial::UseInstancing() const
@@ -336,13 +332,6 @@ void KX_BlenderMaterial::ActivateInstancing(RAS_Rasterizer *rasty, void *matrixo
 {
 	if (m_blenderShader) {
 		m_blenderShader->ActivateInstancing(matrixoffset, positionoffset, coloroffset, stride);
-	}
-}
-
-void KX_BlenderMaterial::DesactivateInstancing()
-{
-	if (m_blenderShader) {
-		m_blenderShader->DesactivateInstancing();
 	}
 }
 
@@ -423,14 +412,16 @@ void KX_BlenderMaterial::UpdateIPO(
 	m_material->spectra = (float)specalpha;
 }
 
-const RAS_Rasterizer::AttribLayerList KX_BlenderMaterial::GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const
+const RAS_AttributeArray::AttribList KX_BlenderMaterial::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
+	if (m_shader && m_shader->Ok()) {
+		return m_shader->GetAttribs(m_textures);
+	}
 	if (m_blenderShader && m_blenderShader->Ok()) {
-		return m_blenderShader->GetAttribLayers(layersInfo);
+		return m_blenderShader->GetAttribs(layersInfo);
 	}
 
-	static const RAS_Rasterizer::AttribLayerList attribLayers;
-	return attribLayers;
+	return {};
 }
 
 std::string KX_BlenderMaterial::GetName()
@@ -867,9 +858,7 @@ EXP_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 	// the calling script will need to check
 
 	if (!m_shader) {
-		m_shader = new BL_Shader();
-		m_shader->InitTexCo(m_textures);
-		m_scene->GetBucketManager()->UpdateShaders(this);
+		m_shader = new BL_Shader(this);
 	}
 
 	if (!m_shader->GetError()) {

@@ -27,6 +27,7 @@
 #include "RAS_Shader.h"
 
 #include <memory>
+#include <unordered_map>
 
 class RAS_2DFilterManager;
 class RAS_Rasterizer;

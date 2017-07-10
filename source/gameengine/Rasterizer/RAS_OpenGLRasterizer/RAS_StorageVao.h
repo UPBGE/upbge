@@ -20,34 +20,25 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __RAS_ISTORAGE_INFO_H__
-#define __RAS_ISTORAGE_INFO_H__
+#ifndef __RAS_STORAGE_VAO_H__
+#define __RAS_STORAGE_VAO_H__
 
-#include "RAS_Rasterizer.h"
+#include "RAS_AttributeArray.h"
 
-/** This class is used to store special storage infos for an array
- * like VBO/IBO ID for VBO storage.
- */
-class RAS_IStorageInfo
+#include "GPU_glew.h"
+
+class RAS_StorageVao
 {
 public:
-	enum DataType {
-		VERTEX_DATA,
-		INDEX_DATA
-	};
+	RAS_StorageVao(RAS_IDisplayArray *array, RAS_DisplayArrayStorage *arrayStorage,
+				   const RAS_AttributeArray::AttribList& attribList);
+	~RAS_StorageVao();
 
-	RAS_IStorageInfo()
-	{
-	}
-	virtual ~RAS_IStorageInfo()
-	{
-	}
+	void BindPrimitives();
+	void UnbindPrimitives();
 
-	virtual void UpdateVertexData() = 0;
-	virtual void UpdateSize() = 0;
-	virtual unsigned int *GetIndexMap() = 0;
-	virtual void FlushIndexMap() = 0;
-	
+private:
+	GLuint m_id;
 };
 
-#endif  // __RAS_ISTORAGE_INFO_H__
+#endif  // __RAS_STORAGE_VAO_H__

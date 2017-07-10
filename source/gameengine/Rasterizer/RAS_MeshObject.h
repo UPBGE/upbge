@@ -178,11 +178,6 @@ public:
 
 	/// Return the list of blender's layers.
 	const LayersInfo& GetLayersInfo() const;
-
-	/** Generate attribute's layers for every material use by this mesh.
-	 * WARNING: Always call when shader in the material are valid.
-	 */
-	void GenerateAttribLayers();
 };
 
 #endif  // __RAS_MESHOBJECT_H__

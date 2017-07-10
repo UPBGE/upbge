@@ -27,10 +27,13 @@
 #ifndef __RAS_IDISPLAY_ARRAY_H__
 #define __RAS_IDISPLAY_ARRAY_H__
 
+#include "RAS_DisplayArrayStorage.h"
 #include "RAS_VertexData.h"
 #include "RAS_Vertex.h"
+
 #include <vector>
 #include <algorithm>
+#include <memory>
 
 class RAS_IDisplayArray
 {
@@ -52,6 +55,8 @@ protected:
 	unsigned short m_modifiedFlag;
 	/// The vertex format used.
 	RAS_VertexFormat m_format;
+	/// The vertex memory format used.
+	RAS_VertexDataMemoryFormat m_memoryFormat;
 
 	/// The vertex infos unused for rendering, e.g original or soft body index, flag.
 	std::vector<RAS_VertexInfo> m_vertexInfos;
@@ -70,8 +75,14 @@ protected:
 	 */
 	std::vector<MT_Vector3> m_polygonCenters;
 
+	/// The OpenGL data storage used for rendering.
+	RAS_DisplayArrayStorage m_storage;
+
+	RAS_IDisplayArray(const RAS_IDisplayArray& other);
+
 public:
-	RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat& format);
+	RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat& format,
+			const RAS_VertexDataMemoryFormat& memoryFormat);
 	virtual ~RAS_IDisplayArray();
 
 	virtual RAS_IDisplayArray *GetReplica() = 0;
@@ -81,15 +92,6 @@ public:
 	 * \param format The format of vertex to use.
 	 */
 	static RAS_IDisplayArray *ConstructArray(PrimitiveType type, const RAS_VertexFormat &format);
-
-	virtual unsigned int GetVertexMemorySize() const = 0;
-	virtual void *GetVertexXYZOffset() const = 0;
-	virtual void *GetVertexNormalOffset() const = 0;
-	virtual void *GetVertexTangentOffset() const = 0;
-	virtual void *GetVertexUVOffset() const = 0;
-	virtual void *GetVertexColorOffset() const = 0;
-	virtual unsigned short GetVertexUvSize() const = 0;
-	virtual unsigned short GetVertexColorSize() const = 0;
 
 	/** Return a vertex pointer without using the cache. Used to get
 	 * a vertex pointer during contruction.
@@ -207,6 +209,7 @@ public:
 		COLORS_MODIFIED = 1 << 3, // Vertex colors modified.
 		TANGENT_MODIFIED = 1 << 4, // Vertex tangent modified.
 		SIZE_MODIFIED = 1 << 5, // Vertex and index array changed of size.
+		STORAGE_INVALID = 1 << 6, // Storage not yet created.
 		AABB_MODIFIED = POSITION_MODIFIED,
 		MESH_MODIFIED = POSITION_MODIFIED | NORMAL_MODIFIED | UVS_MODIFIED |
 						COLORS_MODIFIED | TANGENT_MODIFIED
@@ -224,8 +227,14 @@ public:
 	/// Return the vertex format used.
 	const RAS_VertexFormat& GetFormat() const;
 
+	/// Return the vertex memory format used.
+	const RAS_VertexDataMemoryFormat& GetMemoryFormat() const;
+
 	/// Return the type of the display array.
 	virtual Type GetType() const;
+
+	RAS_DisplayArrayStorage *GetStorage();
+	void ConstructStorage();
 };
 
 typedef std::vector<RAS_IDisplayArray *> RAS_IDisplayArrayList;
