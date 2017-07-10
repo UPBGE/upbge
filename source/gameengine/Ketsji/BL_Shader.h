@@ -35,17 +35,12 @@ public:
 	BL_Shader();
 	virtual ~BL_Shader();
 
-	/// Initialize textures coordinates attributes using a list of textures.
-	void InitTexCo(RAS_Texture *textures[RAS_Texture::MaxUnits]);
-
 #ifdef WITH_PYTHON
 	PyObject *GetCallbacks(CallbacksType type);
 	void SetCallbacks(CallbacksType type, PyObject *callbacks);
 #endif // WITH_PYTHON
 
 	virtual void SetProg(bool enable);
-
-	void SetAttribs(RAS_Rasterizer *rasty);
 
 	/** Update the uniform shader for the current rendered mesh slot.
 	 * The python callbacks are executed in this function and at the end

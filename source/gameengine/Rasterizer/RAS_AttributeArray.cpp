@@ -20,33 +20,38 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __RAS_ISTORAGE_INFO_H__
-#define __RAS_ISTORAGE_INFO_H__
-
-#include "RAS_Rasterizer.h"
-
-/** This class is used to store special storage infos for an array
- * like VBO/IBO ID for VBO storage.
+/** \file gameengine/Rasterizer/RAS_AttributeArray.cpp
+ *  \ingroup bgerast
  */
-class RAS_IStorageInfo
+
+#include "RAS_AttributeArray.h"
+#include "RAS_AttributeArrayStorage.h"
+#include "RAS_IDisplayArray.h"
+
+RAS_AttributeArray::RAS_AttributeArray(const AttribList& attribs, RAS_IDisplayArray *array)
+	:m_attribs(attribs),
+	m_array(array)
 {
-public:
-	enum DataType {
-		VERTEX_DATA,
-		INDEX_DATA
-	};
+}
 
-	RAS_IStorageInfo()
-	{
+RAS_AttributeArray::~RAS_AttributeArray()
+{
+}
+
+RAS_AttributeArrayStorage *RAS_AttributeArray::GetStorage(RAS_Rasterizer::DrawType drawingMode)
+{
+	RAS_AttributeArrayStorage *storage = m_storages[drawingMode].get();
+	if (!storage) {
+		storage = new RAS_AttributeArrayStorage(m_array, m_array->GetStorage(), m_attribs);
+		m_storages[drawingMode].reset(storage);
 	}
-	virtual ~RAS_IStorageInfo()
-	{
+
+	return storage;
+}
+
+void RAS_AttributeArray::DestructStorages()
+{
+	for (unsigned short i = 0; i < RAS_Rasterizer::RAS_DRAW_MAX; ++i) {
+		m_storages[i].reset(nullptr);
 	}
-
-	virtual void UpdateVertexData() = 0;
-	virtual unsigned int *GetIndexMap() = 0;
-	virtual void FlushIndexMap() = 0;
-	
-};
-
-#endif  // __RAS_ISTORAGE_INFO_H__
+}

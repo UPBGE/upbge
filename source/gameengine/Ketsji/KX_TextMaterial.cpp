@@ -94,9 +94,9 @@ void KX_TextMaterial::UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar h
 {
 }
 
-const RAS_Rasterizer::AttribLayerList KX_TextMaterial::GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const
+const RAS_AttributeArray::AttribList KX_TextMaterial::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
-	static const RAS_Rasterizer::AttribLayerList attribLayers;
+	static const RAS_AttributeArray::AttribList attribLayers;
 	return attribLayers;
 }
 

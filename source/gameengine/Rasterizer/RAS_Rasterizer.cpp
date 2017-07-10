@@ -44,8 +44,6 @@
 #include "RAS_OpenGLLight.h"
 #include "RAS_OpenGLSync.h"
 
-#include "RAS_StorageVBO.h"
-
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -228,7 +226,6 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_viewinvmatrix.setIdentity();
 
 	m_impl.reset(new RAS_OpenGLRasterizer(this));
-	m_storage.reset(new RAS_StorageVBO(&m_storageAttribs));
 
 	m_numgllights = m_impl->GetNumLights();
 }
@@ -442,8 +439,6 @@ void RAS_Rasterizer::EndFrame()
 void RAS_Rasterizer::SetDrawingMode(RAS_Rasterizer::DrawType drawingmode)
 {
 	m_drawingmode = drawingmode;
-
-	m_storage->SetDrawingMode(drawingmode);
 }
 
 RAS_Rasterizer::DrawType RAS_Rasterizer::GetDrawingMode()
@@ -826,67 +821,6 @@ void RAS_Rasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 		RenderText3D(textUser->GetFontId(), textUser->GetTexts()[i], textUser->GetSize(), textUser->GetDpi(),
 					 textUser->GetColor().getValue(), mat, textUser->GetAspect());
 	}
-}
-
-void RAS_Rasterizer::ClearTexCoords()
-{
-	m_storageAttribs.texcos.clear();
-}
-
-void RAS_Rasterizer::ClearAttribs()
-{
-	m_storageAttribs.attribs.clear();
-}
-
-void RAS_Rasterizer::ClearAttribLayers()
-{
-	m_storageAttribs.layers.clear();
-}
-
-void RAS_Rasterizer::SetTexCoords(const TexCoGenList& texcos)
-{
-	m_storageAttribs.texcos = texcos;
-}
-
-void RAS_Rasterizer::SetAttribs(const TexCoGenList& attribs)
-{
-	m_storageAttribs.attribs = attribs;
-}
-
-void RAS_Rasterizer::SetAttribLayers(const RAS_Rasterizer::AttribLayerList& layers)
-{
-	m_storageAttribs.layers = layers;
-}
-
-RAS_IStorageInfo *RAS_Rasterizer::GetStorageInfo(RAS_IDisplayArray *array, bool instancing)
-{
-	return m_storage->GetStorageInfo(array, instancing);
-}
-
-void RAS_Rasterizer::BindPrimitives(RAS_IStorageInfo *storageInfo)
-{
-	m_storage->BindPrimitives(static_cast<VBO *>(storageInfo));
-}
-
-void RAS_Rasterizer::UnbindPrimitives(RAS_IStorageInfo *storageInfo)
-{
-	m_storage->UnbindPrimitives(static_cast<VBO *>(storageInfo));
-}
-
-void RAS_Rasterizer::IndexPrimitives(RAS_IStorageInfo *storageInfo)
-{
-	m_storage->IndexPrimitives(static_cast<VBO *>(storageInfo));
-}
-
-void RAS_Rasterizer::IndexPrimitivesInstancing(RAS_IStorageInfo *storageInfo, unsigned int numslots)
-{
-	m_storage->IndexPrimitivesInstancing(static_cast<VBO *>(storageInfo), numslots);
-}
-
-void RAS_Rasterizer::IndexPrimitivesBatching(RAS_IStorageInfo *storageInfo, const std::vector<void *>& indices,
-												   const std::vector<int>& counts)
-{
-	m_storage->IndexPrimitivesBatching(static_cast<VBO *>(storageInfo), indices, counts);
 }
 
 void RAS_Rasterizer::IndexPrimitivesDerivedMesh(RAS_MeshSlot *ms)

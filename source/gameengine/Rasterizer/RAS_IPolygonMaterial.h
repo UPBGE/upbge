@@ -34,14 +34,14 @@
 
 #include "RAS_Texture.h"
 #include "RAS_MeshObject.h"
-#include "RAS_Rasterizer.h"
-
-#include <string>
+#include "RAS_AttributeArray.h"
 
 #include "MT_Vector4.h"
 
+#include <string>
 #include <map>
 
+class RAS_Rasterizer;
 struct Material;
 struct Scene;
 struct GameSettings;
@@ -129,7 +129,7 @@ public:
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha) = 0;
 
-	virtual const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const = 0;
+	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const = 0;
 
 	/**
 	 * \return the equivalent drawing mode for the material settings (equivalent to old TexFace tface->mode).

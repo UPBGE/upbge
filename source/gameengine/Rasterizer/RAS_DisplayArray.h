@@ -32,7 +32,7 @@
 template <class Vertex>
 class RAS_BatchDisplayArray;
 
-/// An array with data used for OpenGL drawing
+/// An array with data used for OpenGL drawing.
 template <class Vertex>
 class RAS_DisplayArray : public virtual RAS_IDisplayArray
 {
@@ -41,11 +41,18 @@ friend class RAS_BatchDisplayArray<Vertex>;
 protected:
 	std::vector<Vertex> m_vertexes;
 
+	RAS_DisplayArray(const RAS_DisplayArray& other)
+		:RAS_IDisplayArray(other),
+		m_vertexes(other.m_vertexes)
+	{
+	}
+
 public:
 	RAS_DisplayArray(PrimitiveType type, const RAS_TexVertFormat& format)
 		:RAS_IDisplayArray(type, format)
 	{
 	}
+
 
 	virtual ~RAS_DisplayArray()
 	{
@@ -55,6 +62,7 @@ public:
 	{
 		RAS_DisplayArray<Vertex> *replica = new RAS_DisplayArray<Vertex>(*this);
 		replica->UpdateCache();
+		replica->ConstructStorage();
 
 		return replica;
 	}
@@ -64,29 +72,29 @@ public:
 		return sizeof(Vertex);
 	}
 
-	virtual void *GetVertexXYZOffset() const
+	virtual intptr_t GetVertexXYZOffset() const
 	{
-		return (void *)offsetof(Vertex, m_localxyz);
+		return offsetof(Vertex, m_localxyz);
 	}
 
-	virtual void *GetVertexNormalOffset() const
+	virtual intptr_t GetVertexNormalOffset() const
 	{
-		return (void *)offsetof(Vertex, m_normal);
+		return offsetof(Vertex, m_normal);
 	}
 
-	virtual void *GetVertexTangentOffset() const
+	virtual intptr_t GetVertexTangentOffset() const
 	{
-		return (void *)offsetof(Vertex, m_tangent);
+		return offsetof(Vertex, m_tangent);
 	}
 
-	virtual void *GetVertexUVOffset() const
+	virtual intptr_t GetVertexUVOffset() const
 	{
-		return (void *)offsetof(Vertex, m_uvs);
+		return offsetof(Vertex, m_uvs);
 	}
 
-	virtual void *GetVertexColorOffset() const
+	virtual intptr_t GetVertexColorOffset() const
 	{
-		return (void *)offsetof(Vertex, m_rgba);
+		return offsetof(Vertex, m_rgba);
 	}
 
 	virtual unsigned short GetVertexUvSize() const

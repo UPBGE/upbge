@@ -32,7 +32,7 @@
 #ifndef __BL_BLENDERSHADER_H__
 #define __BL_BLENDERSHADER_H__
 
-#include "RAS_Rasterizer.h"
+#include "RAS_AttributeArray.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Texture.h" // for MaxUnits
 #include <string>
@@ -58,12 +58,6 @@ private:
 	GPUMaterial *m_gpuMat;
 	DRWShadingGroup *m_shGroup;
 
-	/// The material attributes passed to the rasterizer.
-	RAS_Rasterizer::TexCoGenList m_attribs;
-
-	/// Generate the material atrributes onto m_attibs.
-	void ParseAttribs();
-
 public:
 	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer);
 	virtual ~BL_BlenderShader();
@@ -71,13 +65,11 @@ public:
 	bool Ok() const;
 	void SetProg(bool enable, double time = 0.0, RAS_Rasterizer *rasty = nullptr);
 
-	void SetAttribs(RAS_Rasterizer *ras);
-
 	/** Return a map of the corresponding attribut layer for a given attribut index.
 	 * \param layers The list of the mesh layers used to link with uv and color material attributes.
 	 * \return The map of attributes layers.
 	 */
-	const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
+	const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
 	void Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty);
 

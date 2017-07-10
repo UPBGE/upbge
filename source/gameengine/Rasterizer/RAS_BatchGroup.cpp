@@ -96,8 +96,6 @@ bool RAS_BatchGroup::MergeMeshSlot(RAS_BatchGroup::Batch& batch, RAS_MeshSlot *s
 	const unsigned int index = array->Merge(origArray, mat);
 	slot->m_batchPartIndex = index;
 
-	arrayBucket->DestructStorageInfo();
-
 	slot->SetDisplayArrayBucket(arrayBucket);
 
 	return true;
@@ -126,8 +124,6 @@ bool RAS_BatchGroup::SplitMeshSlot(RAS_MeshSlot *slot)
 	slot->SetDisplayArrayBucket(origArrayBucket);
 
 	batch.m_displayArray->Split(slot->m_batchPartIndex);
-
-	batch.m_displayArrayBucket->DestructStorageInfo();
 
 	batch.m_originalDisplayArrayBucketList.erase(slot);
 
@@ -159,6 +155,8 @@ bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const MT_Matrix4x4& m
 			batch.m_displayArray = RAS_IBatchDisplayArray::ConstructArray(origarray->GetPrimitiveType(), origarray->GetFormat());
 			batch.m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, batch.m_displayArray, arrayBucket->GetMesh(),
 																	arrayBucket->GetMeshMaterial(), nullptr);
+			// Construct the attributes and storage with the new display array.
+			batch.m_displayArrayBucket->ConstructAttribs();
 		}
 
 		if (!MergeMeshSlot(batch, meshSlot, mat)) {

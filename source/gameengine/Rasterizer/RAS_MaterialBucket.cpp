@@ -91,7 +91,7 @@ bool RAS_MaterialBucket::UseInstancing() const
 void RAS_MaterialBucket::UpdateShader()
 {
 	for (RAS_DisplayArrayBucket *arrayBucket : m_displayArrayBucketList) {
-		arrayBucket->DestructStorageInfo();
+		arrayBucket->ConstructAttribs();
 	}
 
 	m_nodeData.m_useLighting = m_material->UsesLighting();

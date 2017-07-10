@@ -124,9 +124,6 @@ protected:
 	RAS_UniformVec m_uniforms;
 	RAS_UniformVecDef m_preDef;
 
-	RAS_Rasterizer::TexCoGenList m_texcos;
-	RAS_Rasterizer::TexCoGenList m_attribs;
-
 	/** Parse shader program to prevent redundant macro directives.
 	 * \param type The program type to parse.
 	 * \return The parsed program.
@@ -153,9 +150,6 @@ public:
 
 	unsigned int GetProg();
 	virtual void SetProg(bool enable);
-
-	const RAS_Rasterizer::TexCoGenList& GetTexCoords() const;
-	const RAS_Rasterizer::TexCoGenList& GetAttribs() const;
 
 	void SetEnabled(bool enabled);
 	bool GetEnabled() const;

@@ -729,7 +729,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	}
 
 	// Find attributes layer (currently only UVs) by materials for this mesh.
-	meshobj->GenerateAttribLayers();
+	meshobj->ConstructAttribs();
 
 	dm->release(dm);
 

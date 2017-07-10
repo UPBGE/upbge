@@ -268,13 +268,11 @@ void KX_BlenderMaterial::ActivateShaders(RAS_Rasterizer *rasty)
 {
 	SetShaderData(rasty);
 	ActivateGLMaterials(rasty);
-	m_shader->SetAttribs(rasty);
 }
 
 void KX_BlenderMaterial::ActivateBlenderShaders(RAS_Rasterizer *rasty)
 {
 	SetBlenderShaderData(rasty);
-	m_blenderShader->SetAttribs(rasty);
 }
 
 void KX_BlenderMaterial::Activate(RAS_Rasterizer *rasty)
@@ -300,9 +298,6 @@ void KX_BlenderMaterial::Desactivate(RAS_Rasterizer *rasty)
 	else if (m_blenderShader && m_blenderShader->Ok()) {
 		m_blenderShader->SetProg(false);
 	}
-	// Make sure no one will use the attributs set by this material.
-	rasty->ClearTexCoords();
-	rasty->ClearAttribs();
 }
 
 bool KX_BlenderMaterial::UseInstancing() const
@@ -406,14 +401,14 @@ void KX_BlenderMaterial::UpdateIPO(
 	m_material->spectra = (float)specalpha;
 }
 
-const RAS_Rasterizer::AttribLayerList KX_BlenderMaterial::GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const
+const RAS_AttributeArray::AttribList KX_BlenderMaterial::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
 	if (m_blenderShader && m_blenderShader->Ok()) {
-		return m_blenderShader->GetAttribLayers(layersInfo);
+		return m_blenderShader->GetAttribs(layersInfo);
 	}
 
-	static const RAS_Rasterizer::AttribLayerList attribLayers;
-	return attribLayers;
+	static const RAS_AttributeArray::AttribList attribs;
+	return attribs;
 }
 
 void KX_BlenderMaterial::ReplaceScene(KX_Scene *scene)
@@ -870,7 +865,6 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 		if (!m_shader->GetError()) {
 			// Set the material to use custom shader.
 			m_flag &= ~RAS_BLENDERGLSL;
-			m_shader->InitTexCo(m_textures);
 			m_scene->GetBucketManager()->UpdateShaders(this);
 		}
 	}

@@ -65,14 +65,14 @@ BL_BlenderShader::~BL_BlenderShader()
 	}
 }
 
-const RAS_Rasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const
+const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
 	if (!m_gpuMat) {
-		return RAS_Rasterizer::AttribLayerList();
+		return RAS_AttributeArray::AttribList();
 	}
 
-	RAS_Rasterizer::AttribLayerList attribLayers;
-	GPUVertexAttribs attribs;
+	RAS_AttributeArray::AttribList attribLayers;
+	/*GPUVertexAttribs attribs;
 	GPU_material_vertex_attributes(m_gpuMat, &attribs);
 
 	for (unsigned int i = 0; i < attribs.totlayer; ++i) {
@@ -105,7 +105,7 @@ const RAS_Rasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const RA
 				}
 			}
 		}
-	}
+	}*/
 
 	return attribLayers;
 }
@@ -140,7 +140,6 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 	}
 
 	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData(), EEVEE_engine_data_get());
-	ParseAttribs();
 }
 
 void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
@@ -168,44 +167,6 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
 			//GPU_material_unbind(m_gpuMat);
 		}
 	}
-}
-
-void BL_BlenderShader::ParseAttribs()
-{
-	/*GPUVertexAttribs attribs;
-	GPU_material_vertex_attributes(m_gpuMat, &attribs);
-
-	m_attribs.clear();
-
-	for (unsigned short i = 0; i < attribs.totlayer; ++i) {
-		const int type = attribs.layer[i].type;
-		const int glindex = attribs.layer[i].glindex;
-		if (type == CD_MTFACE) {
-			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_UV);
-		}
-		else if (type == CD_TANGENT) {
-			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXTANGENT);
-		}
-		else if (type == CD_ORCO) {
-			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_ORCO);
-		}
-		else if (type == CD_NORMAL) {
-			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_NORM);
-		}
-		else if (type == CD_MCOL) {
-			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_VCOL);
-		}
-	}*/
-}
-
-void BL_BlenderShader::SetAttribs(RAS_Rasterizer *ras)
-{
-	if (!Ok()) {
-		return;
-	}
-
-	ras->ClearTexCoords();
-	ras->SetAttribs(m_attribs);
 }
 
 void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)

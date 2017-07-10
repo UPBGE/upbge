@@ -118,7 +118,9 @@ public:
 		}
 
 		// Update the cache to avoid accessing dangling vertex pointer from GetVertex().
-		RAS_DisplayArray<Vertex>::UpdateCache();
+		UpdateCache();
+		// Update OpenGl storage.
+		ConstructStorage();
 
 		return (m_parts.size() - 1);
 	}
@@ -167,6 +169,8 @@ public:
 
 		// Update the cache to avoid accessing dangling vertex pointer from GetVertex().
 		UpdateCache();
+		// Update OpenGl storage.
+		ConstructStorage();
 	}
 };
 

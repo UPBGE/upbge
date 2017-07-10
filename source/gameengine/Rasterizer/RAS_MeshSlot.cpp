@@ -33,8 +33,8 @@
 #include "RAS_MeshUser.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_TexVert.h"
+#include "RAS_DisplayArrayStorage.h"
 #include "RAS_MeshObject.h"
-#include "RAS_IStorageInfo.h"
 #include "GPU_material.h"
 #include "GPU_shader.h"
 #include "GPU_texture.h"
@@ -93,11 +93,11 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 	rasty->SetClientObject(m_meshUser->GetClientObject());
 	rasty->SetFrontFace(m_meshUser->GetFrontFace());
 
+	RAS_DisplayArrayStorage *storage = displayArrayData->m_arrayStorage;
 
 	if (!managerData->m_shaderOverride) {
 		materialData->m_material->ActivateMeshSlot(this, rasty); // TODO sent the matrix with billboard/ray transform
 
-		RAS_IStorageInfo *storage = displayArrayData->m_storageInfo;
 		if (materialData->m_zsort && storage) {
 			m_mesh->SortPolygons(displayArrayData->m_array, managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()),
 								 storage->GetIndexMap());
@@ -121,7 +121,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			rasty->IndexPrimitivesDerivedMesh(this);
 		}
 		else {
-			rasty->IndexPrimitives(displayArrayData->m_storageInfo);
+			storage->IndexPrimitives();
 		}
 	}
 	rasty->PopMatrix();

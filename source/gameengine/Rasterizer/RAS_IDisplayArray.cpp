@@ -25,6 +25,7 @@
  */
 
 #include "RAS_DisplayArray.h"
+#include "RAS_DisplayArrayStorage.h"
 #include "RAS_MeshObject.h"
 
 #include "GPU_glew.h"
@@ -33,6 +34,15 @@ RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat
 	:m_type(type),
 	m_modifiedFlag(NONE_MODIFIED),
 	m_format(format)
+{
+}
+
+RAS_IDisplayArray::RAS_IDisplayArray(const RAS_IDisplayArray& other)
+	:m_type(other.m_type),
+	m_modifiedFlag(other.m_modifiedFlag),
+	m_format(other.m_format),
+	m_vertexInfos(other.m_vertexInfos),
+	m_indices(other.m_indices)
 {
 }
 
@@ -149,4 +159,14 @@ const RAS_TexVertFormat& RAS_IDisplayArray::GetFormat() const
 RAS_IDisplayArray::Type RAS_IDisplayArray::GetType() const
 {
 	return NORMAL;
+}
+
+RAS_DisplayArrayStorage *RAS_IDisplayArray::GetStorage() const
+{
+	return m_storage.get();
+}
+
+void RAS_IDisplayArray::ConstructStorage()
+{
+	m_storage.reset(new RAS_DisplayArrayStorage(this));
 }
