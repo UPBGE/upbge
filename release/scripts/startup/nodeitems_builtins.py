@@ -157,7 +157,7 @@ def object_eevee_shader_nodes_poll(context):
 
 def object_game_shader_nodes_poll(context):
     return (object_shader_nodes_poll(context) and
-            context.scene.render.engine == 'BLENDER_EEVEE')
+            context.scene.render.engine == 'BLENDER_GAME')
 
 def object_eevee_game_shader_nodes_poll(context):
     return object_eevee_shader_nodes_poll(context) or object_game_shader_nodes_poll(context)
