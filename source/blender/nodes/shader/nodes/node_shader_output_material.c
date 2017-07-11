@@ -42,7 +42,7 @@ static int node_shader_gpu_output_material(GPUMaterial *mat, bNode *UNUSED(node)
 {
 	GPUNodeLink *outlink;
 
-	if (BKE_scene_uses_blender_eevee(GPU_material_scene(mat))) {
+	if (BKE_scene_uses_blender_eevee(GPU_material_scene(mat)) || BKE_scene_uses_blender_game(GPU_material_scene(mat))) {
 		return false;
 	}
 
