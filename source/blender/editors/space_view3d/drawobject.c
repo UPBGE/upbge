@@ -8465,7 +8465,7 @@ void draw_object_wire_color(Scene *scene, SceneLayer *sl, Base *base, unsigned c
 					theme_id = TH_GROUP_ACTIVE;
 
 					if (sl->basact != base) {
-						theme_shade = -16;
+						theme_shade = -32;
 					}
 				}
 				else {
@@ -9226,8 +9226,7 @@ afterdraw:
 
 		/* help lines and so */
 		if (ob != scene->obedit && ob->parent) {
-			Base *base_parent = BKE_scene_layer_base_find(sl, ob->parent);
-			if ((base_parent->flag & BASE_VISIBLED) != 0) {
+			if ((ob->parent->base_flag & BASE_VISIBLED) != 0) {
 				setlinestyle(3);
 				immBegin(GWN_PRIM_LINES, 2);
 				immVertex3fv(pos, ob->obmat[3]);
@@ -9632,9 +9631,13 @@ static void bbs_mesh_solid_verts(Scene *scene, Object *ob)
 
 	DM_update_materials(dm, ob);
 
-	dm->drawMappedFaces(dm, bbs_mesh_solid_hide2__setDrawOpts, GPU_object_material_bind, NULL, me, DM_DRAW_SKIP_HIDDEN);
+	/* Only draw faces to mask out verts, we don't want their selection ID's. */
+	const int G_f_orig = G.f;
+	G.f &= ~G_BACKBUFSEL;
 
-	GPU_object_material_unbind();
+	dm->drawMappedFaces(dm, bbs_mesh_solid_hide2__setDrawOpts, NULL, NULL, me, DM_DRAW_SKIP_HIDDEN);
+
+	G.f |= (G_f_orig & G_BACKBUFSEL);
 
 	bbs_obmode_mesh_verts(ob, dm, 1);
 	bm_vertoffs = me->totvert + 1;

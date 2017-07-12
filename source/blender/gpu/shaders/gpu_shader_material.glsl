@@ -12,7 +12,37 @@ uniform mat4 ProjectionMatrixInverse;
 uniform mat3 NormalMatrix;
 uniform vec4 CameraTexCoFactors;
 
-out vec4 fragColor;
+/* Old glsl mode compat. */
+
+#ifndef CLOSURE_DEFAULT
+
+struct Closure {
+	vec3 radiance;
+	float opacity;
+};
+
+#define CLOSURE_DEFAULT Closure(vec3(0.0), 1.0)
+
+Closure closure_mix(Closure cl1, Closure cl2, float fac)
+{
+	Closure cl;
+	cl.radiance = mix(cl1.radiance, cl2.radiance, fac);
+	cl.opacity = mix(cl1.opacity, cl2.opacity, fac);
+	return cl;
+}
+
+Closure closure_add(Closure cl1, Closure cl2)
+{
+	Closure cl;
+	cl.radiance = cl1.radiance + cl2.radiance;
+	cl.opacity = cl1.opacity + cl2.opacity;
+	return cl;
+}
+
+Closure nodetree_exec(void); /* Prototype */
+
+#endif /* CLOSURE_DEFAULT */
+
 
 /* Converters */
 
@@ -2677,7 +2707,11 @@ float hypot(float x, float y)
 
 void generated_from_orco(vec3 orco, out vec3 generated)
 {
+#ifdef VOLUMETRICS
+	generated = worldPosition;
+#else
 	generated = orco;
+#endif
 }
 
 int floor_to_int(float x)
@@ -2811,6 +2845,40 @@ vec3 rotate_vector(vec3 p, vec3 n, float theta) {
 	       );
 }
 
+void prepare_tangent(
+        float anisotropic, float anisotropic_rotation, float roughness, vec3 N, vec3 T,
+        out vec3 X, out vec3 Y, out float ax, out float ay)
+{
+	/* rotate tangent */
+	if (anisotropic_rotation != 0.0) {
+		T = rotate_vector(T, N, anisotropic_rotation * 2.0 * M_PI);
+	}
+
+	Y = normalize(cross(T, N));
+
+	float aspect = sqrt(1.0 - anisotropic * 0.9);
+	float a = sqr(roughness);
+	ax = max(0.001, a / aspect);
+	ay = max(0.001, a * aspect);
+}
+
+void convert_metallic_to_specular(vec3 basecol, float metallic, float specular_fac, out vec3 diffuse, out vec3 f0)
+{
+	vec3 dielectric = vec3(0.034) * specular_fac * 2.0;
+	diffuse = mix(basecol, vec3(0.0), metallic);
+	f0 = mix(dielectric, basecol, metallic);
+}
+
+void convert_metallic_to_specular_tinted(
+        vec3 basecol, float metallic, float specular_fac, float specular_tint,
+        out vec3 diffuse, out vec3 f0)
+{
+	vec3 dielectric = vec3(0.034) * specular_fac * 2.0;
+	float lum = dot(basecol, vec3(0.3, 0.6, 0.1)); /* luminance approx. */
+	vec3 tint = lum > 0 ? basecol / lum : vec3(1.0); /* normalize lum. to isolate hue+sat */
+	f0 = mix(dielectric * mix(vec3(1.0), tint, specular_tint), basecol, metallic);
+	diffuse = mix(basecol, vec3(0.0), metallic);
+}
 
 /*********** NEW SHADER NODES ***************/
 
@@ -2827,10 +2895,13 @@ layout(std140) uniform lightSource {
 	glLight glLightSource[NUM_LIGHTS];
 };
 
+#ifndef VOLUMETRICS
 /* bsdfs */
-
-void node_bsdf_diffuse(vec4 color, float roughness, vec3 N, out vec4 result)
+void node_bsdf_diffuse(vec4 color, float roughness, vec3 N, out Closure result)
 {
+#ifdef EEVEE_ENGINE
+	vec3 L = eevee_surface_diffuse_lit(N, vec3(1.0), 1.0);
+#else
 	/* ambient light */
 	vec3 L = vec3(0.2);
 
@@ -2842,14 +2913,20 @@ void node_bsdf_diffuse(vec4 color, float roughness, vec3 N, out vec4 result)
 		float bsdf = max(dot(N, light_position), 0.0);
 		L += light_diffuse * bsdf;
 	}
+#endif
 
-	result = vec4(L * color.rgb, 1.0);
+	result = Closure(L * color.rgb, 1.0);
 }
 
-void node_bsdf_glossy(vec4 color, float roughness, vec3 N, out vec4 result)
+void node_bsdf_glossy(vec4 color, float roughness, vec3 N, out Closure result)
 {
+#ifdef EEVEE_ENGINE
+	vec3 L = eevee_surface_glossy_lit(N, vec3(1.0), roughness, 1.0);
+#else
 	/* ambient light */
 	vec3 L = vec3(0.2);
+
+	direction_transform_m4v3(N, ViewMatrix, N);
 
 	/* directional lights */
 	for (int i = 0; i < NUM_LIGHTS; i++) {
@@ -2863,63 +2940,44 @@ void node_bsdf_glossy(vec4 color, float roughness, vec3 N, out vec4 result)
 		bsdf += 0.5 * max(dot(N, light_position), 0.0);
 		L += light_specular * bsdf;
 	}
+#endif
 
-	result = vec4(L * color.rgb, 1.0);
+	result = Closure(L * color.rgb, 1.0);
 }
 
 void node_bsdf_anisotropic(
         vec4 color, float roughness, float anisotropy, float rotation, vec3 N, vec3 T,
-        out vec4 result)
+        out Closure result)
 {
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
-void node_bsdf_glass(vec4 color, float roughness, float ior, vec3 N, out vec4 result)
+void node_bsdf_glass(vec4 color, float roughness, float ior, vec3 N, out Closure result)
 {
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
-void node_bsdf_toon(vec4 color, float size, float tsmooth, vec3 N, out vec4 result)
+void node_bsdf_toon(vec4 color, float size, float tsmooth, vec3 N, out Closure result)
 {
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
 void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_radius, vec4 subsurface_color, float metallic, float specular,
 	float specular_tint, float roughness, float anisotropic, float anisotropic_rotation, float sheen, float sheen_tint, float clearcoat,
-	float clearcoat_gloss, float ior, float transmission, float transmission_roughness, vec3 N, vec3 CN, vec3 T, vec3 I, out vec4 result)
+	float clearcoat_roughness, float ior, float transmission, float transmission_roughness, vec3 N, vec3 CN, vec3 T, vec3 I, out Closure result)
 {
+	vec3 X, Y;
+	float ax, ay;
+	prepare_tangent(anisotropic, anisotropic_rotation, roughness, N, T, X, Y, ax, ay);
+
 	/* ambient light */
 	// TODO: set ambient light to an appropriate value
-	vec3 L = vec3(mix(0.1, 0.03, metallic)) * base_color.rgb;
+	vec3 L = mix(0.1, 0.03, metallic) * mix(base_color.rgb, subsurface_color.rgb, subsurface * (1.0 - metallic));
 
 	float eta = (2.0 / (1.0 - sqrt(0.08 * specular))) - 1.0;
 
 	/* set the viewing vector */
-	vec3 V = -normalize(I);
-
-	/* get the tangent */
-	vec3 Tangent = T;
-	if (T == vec3(0.0)) {
-		// if no tangent is set, use a default tangent
-		Tangent = vec3(1.0, 0.0, 0.0);
-		if (N.x != 0.0 || N.y != 0.0) {
-			vec3 N_xz = normalize(vec3(N.x, 0.0, N.z));
-
-			vec3 axis = normalize(cross(vec3(0.0, 0.0, 1.0), N_xz));
-			float angle = acos(dot(vec3(0.0, 0.0, 1.0), N_xz));
-
-			Tangent = normalize(rotate_vector(vec3(1.0, 0.0, 0.0), axis, angle));
-		}
-	}
-
-	/* rotate tangent */
-	if (anisotropic_rotation != 0.0) {
-		Tangent = rotate_vector(Tangent, N, anisotropic_rotation * 2.0 * M_PI);
-	}
-
-	/* calculate the tangent and bitangent */
-	vec3 Y = normalize(cross(N, Tangent));
-	vec3 X = cross(Y, N);
+	vec3 V = (ProjectionMatrix[3][3] == 0.0) ? -normalize(I) : vec3(0.0, 0.0, 1.0);
 
 	/* fresnel normalization parameters */
 	float F0 = fresnel_dielectric_0(eta);
@@ -2928,10 +2986,11 @@ void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_rad
 	/* directional lights */
 	for (int i = 0; i < NUM_LIGHTS; i++) {
 		vec3 light_position_world = glLightSource[i].position.xyz;
-		vec3 light_position = normalize(NormalMatrix * light_position_world);
+		vec3 light_position = normalize(light_position_world);
 
 		vec3 H = normalize(light_position + V);
 
+		vec3 light_diffuse = glLightSource[i].diffuse.rgb;
 		vec3 light_specular = glLightSource[i].specular.rgb;
 
 		float NdotL = dot(N, light_position);
@@ -2963,10 +3022,6 @@ void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_rad
 			float ss = 1.25 * (Fss * (1.0 / (NdotL + NdotV) - 0.5) + 0.5);
 
 			// specular
-			float aspect = sqrt(1.0 - anisotropic * 0.9);
-			float a = sqr(roughness);
-			float ax = max(0.001, a / aspect);
-			float ay = max(0.001, a * aspect);
 			float Ds = GTR2_aniso(NdotH, dot(H, X), dot(H, Y), ax, ay); //GTR2(NdotH, a);
 			float FH = (fresnel_dielectric_cos(LdotH, eta) - F0) * F0_norm;
 			vec3 Fs = mix(Cspec0, vec3(1.0), FH);
@@ -2976,8 +3031,9 @@ void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_rad
 			// sheen
 			vec3 Fsheen = schlick_fresnel(LdotH) * sheen * Csheen;
 
-			diffuse_and_specular_bsdf = (M_1_PI * mix(Fd, ss, subsurface) * base_color.rgb + Fsheen)
-			                            * (1.0 - metallic) + Gs * Fs * Ds;
+			vec3 diffuse_bsdf = (mix(Fd * base_color.rgb, ss * subsurface_color.rgb, subsurface) + Fsheen) * light_diffuse;
+			vec3 specular_bsdf = Gs * Fs * Ds * light_specular;
+			diffuse_and_specular_bsdf = diffuse_bsdf * (1.0 - metallic) + specular_bsdf;
 		}
 		diffuse_and_specular_bsdf *= max(NdotL, 0.0);
 
@@ -2990,66 +3046,129 @@ void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_rad
 			//float FH = schlick_fresnel(LdotH);
 
 			// clearcoat (ior = 1.5 -> F0 = 0.04)
-			float Dr = GTR1(CNdotH, mix(0.1, 0.001, clearcoat_gloss));
+			float Dr = GTR1(CNdotH, sqr(clearcoat_roughness));
 			float Fr = fresnel_dielectric_cos(LdotH, 1.5); //mix(0.04, 1.0, FH);
 			float Gr = smithG_GGX(CNdotL, 0.25) * smithG_GGX(CNdotV, 0.25);
 
-			clearcoat_bsdf = clearcoat * Gr * Fr * Dr * vec3(0.25);
+			clearcoat_bsdf = clearcoat * Gr * Fr * Dr * vec3(0.25) * light_specular;
 		}
 		clearcoat_bsdf *= max(CNdotL, 0.0);
 
-		L += light_specular * (diffuse_and_specular_bsdf + clearcoat_bsdf);
+		L += diffuse_and_specular_bsdf + clearcoat_bsdf;
 	}
 
-	result = vec4(L, 1.0);
+	result = Closure(L, 1.0);
 }
 
-void node_bsdf_translucent(vec4 color, vec3 N, out vec4 result)
+void node_bsdf_principled_simple(vec4 base_color, float subsurface, vec3 subsurface_radius, vec4 subsurface_color, float metallic, float specular,
+	float specular_tint, float roughness, float anisotropic, float anisotropic_rotation, float sheen, float sheen_tint, float clearcoat,
+	float clearcoat_roughness, float ior, float transmission, float transmission_roughness, vec3 N, vec3 CN, vec3 T, vec3 I, out Closure result)
+{
+#ifdef EEVEE_ENGINE
+	vec3 diffuse, f0;
+	convert_metallic_to_specular_tinted(base_color.rgb, metallic, specular, specular_tint, diffuse, f0);
+
+	result = Closure(eevee_surface_lit(N, diffuse, f0, roughness, 1.0), 1.0);
+#else
+	node_bsdf_principled(base_color, subsurface, subsurface_radius, subsurface_color, metallic, specular,
+		specular_tint, roughness, anisotropic, anisotropic_rotation, sheen, sheen_tint, clearcoat,
+		clearcoat_roughness, ior, transmission, transmission_roughness, N, CN, T, I, result);
+#endif
+}
+
+void node_bsdf_principled_clearcoat(vec4 base_color, float subsurface, vec3 subsurface_radius, vec4 subsurface_color, float metallic, float specular,
+	float specular_tint, float roughness, float anisotropic, float anisotropic_rotation, float sheen, float sheen_tint, float clearcoat,
+	float clearcoat_roughness, float ior, float transmission, float transmission_roughness, vec3 N, vec3 CN, vec3 T, vec3 I, out Closure result)
+{
+#ifdef EEVEE_ENGINE
+	vec3 diffuse, f0;
+	convert_metallic_to_specular_tinted(base_color.rgb, metallic, specular, specular_tint, diffuse, f0);
+
+	clearcoat *= 0.25;
+#if 0 /* Wait until temporal AA (aka. denoising) */
+
+	vec3 X, Y;
+	float ax, ay;
+	prepare_tangent(anisotropic, anisotropic_rotation, roughness, N, T, X, Y, ax, ay);
+
+	/* Distribute N in anisotropy direction. */
+	vec4 surface_color = vec4(0.0);
+	for (float i = 0.0; i < 5.0; ++i) {
+		vec4 rand = texture(utilTex, vec3((gl_FragCoord.xy + i) / LUT_SIZE, 2.0));
+
+		float tmp = sqrt( rand.x / (1.0 - rand.x) );
+		float x = (ax > ay ? ax : 0.0) * tmp * rand.z;
+		float y = (ay > ax ? ay : 0.0) * tmp * rand.w;
+		vec3 Ht = normalize(vec3(x, y, 1.0));
+		N = tangent_to_world(Ht, N, Y, X);
+
+		if (dot(N, cameraVec) > 0) {
+			surface_color.rgb += eevee_surface_clearcoat_lit(N, diffuse, f0, sqrt(min(ax, ay)), CN, clearcoat, clearcoat_roughness, 1.0);
+			surface_color.a += 1.0;
+		}
+	}
+	result = Closure(surface_color.rgb / surface_color.a, 1.0);
+#else
+	result = Closure(eevee_surface_clearcoat_lit(N, diffuse, f0, roughness, CN, clearcoat, clearcoat_roughness, 1.0), 1.0);
+#endif
+
+#else
+	node_bsdf_principled(base_color, subsurface, subsurface_radius, subsurface_color, metallic, specular,
+		specular_tint, roughness, anisotropic, anisotropic_rotation, sheen, sheen_tint, clearcoat,
+		clearcoat_roughness, ior, transmission, transmission_roughness, N, CN, T, I, result);
+#endif
+}
+
+void node_bsdf_translucent(vec4 color, vec3 N, out Closure result)
 {
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
-void node_bsdf_transparent(vec4 color, out vec4 result)
+void node_bsdf_transparent(vec4 color, out Closure result)
 {
 	/* this isn't right */
-	result.r = color.r;
-	result.g = color.g;
-	result.b = color.b;
-	result.a = 0.0;
+	result.radiance = color.rgb;
+	result.opacity = color.a;
 }
 
-void node_bsdf_velvet(vec4 color, float sigma, vec3 N, out vec4 result)
+void node_bsdf_velvet(vec4 color, float sigma, vec3 N, out Closure result)
 {
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
 void node_subsurface_scattering(
         vec4 color, float scale, vec3 radius, float sharpen, float texture_blur, vec3 N,
-        out vec4 result)
+        out Closure result)
 {
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
-void node_bsdf_hair(vec4 color, float offset, float roughnessu, float roughnessv, vec3 tangent, out vec4 result)
+void node_bsdf_hair(vec4 color, float offset, float roughnessu, float roughnessv, vec3 tangent, out Closure result)
 {
-	result = color;
+	result = Closure(color.rgb, color.a);
 }
 
-void node_bsdf_refraction(vec4 color, float roughness, float ior, vec3 N, out vec4 result)
+void node_bsdf_refraction(vec4 color, float roughness, float ior, vec3 N, out Closure result)
 {
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
-void node_ambient_occlusion(vec4 color, out vec4 result)
+void node_ambient_occlusion(vec4 color, out Closure result)
 {
-	result = color;
+	result = Closure(color.rgb, color.a);
 }
+#endif /* VOLUMETRICS */
 
 /* emission */
 
-void node_emission(vec4 color, float strength, vec3 N, out vec4 result)
+void node_emission(vec4 color, float strength, vec3 N, out Closure result)
 {
-	result = color * strength;
+#ifndef VOLUMETRICS
+	color *= strength;
+	result = Closure(color.rgb, color.a);
+#else
+	result = Closure(vec3(0.0), vec3(0.0), color.rgb * strength, 0.0);
+#endif
 }
 
 /* background */
@@ -3060,39 +3179,53 @@ void background_transform_to_world(vec3 viewvec, out vec3 worldvec)
 	vec4 co_homogenous = (ProjectionMatrixInverse * v);
 
 	vec4 co = vec4(co_homogenous.xyz / co_homogenous.w, 0.0);
-#ifdef WORLD_BACKGROUND
+#if defined(WORLD_BACKGROUND) || defined(PROBE_CAPTURE)
 	worldvec = (ViewMatrixInverse * co).xyz;
 #else
 	worldvec = (ModelViewMatrixInverse * co).xyz;
 #endif
 }
 
-#if defined(PROBE_CAPTURE) || defined(WORLD_BACKGROUND)
-void environment_default_vector(out vec3 worldvec)
+void node_background(vec4 color, float strength, out Closure result)
 {
-#ifdef WORLD_BACKGROUND
-	background_transform_to_world(viewPosition, worldvec);
+#ifndef VOLUMETRICS
+	color *= strength;
+	result = Closure(color.rgb, color.a);
 #else
-	worldvec = normalize(worldPosition);
+	result = CLOSURE_DEFAULT;
 #endif
 }
-#endif
 
-void node_background(vec4 color, float strength, out vec4 result)
+/* volumes */
+
+void node_volume_scatter(vec4 color, float density, float anisotropy, out Closure result)
 {
-	result = color * strength;
+#ifdef VOLUMETRICS
+	result = Closure(vec3(0.0), color.rgb * density, vec3(0.0), anisotropy);
+#else
+	result = CLOSURE_DEFAULT;
+#endif
+}
+
+void node_volume_absorption(vec4 color, float density, out Closure result)
+{
+#ifdef VOLUMETRICS
+	result = Closure((1.0 - color.rgb) * density, vec3(0.0), vec3(0.0), 0.0);
+#else
+	result = CLOSURE_DEFAULT;
+#endif
 }
 
 /* closures */
 
-void node_mix_shader(float fac, vec4 shader1, vec4 shader2, out vec4 shader)
+void node_mix_shader(float fac, Closure shader1, Closure shader2, out Closure shader)
 {
-	shader = mix(shader1, shader2, fac);
+	shader = closure_mix(shader1, shader2, fac);
 }
 
-void node_add_shader(vec4 shader1, vec4 shader2, out vec4 shader)
+void node_add_shader(Closure shader1, Closure shader2, out Closure shader)
 {
-	shader = shader1 + shader2;
+	shader = closure_add(shader1, shader2);
 }
 
 /* fresnel */
@@ -3156,17 +3289,17 @@ void node_uvmap(vec3 attr_uv, out vec3 outvec)
 
 void tangent_orco_x(vec3 orco_in, out vec3 orco_out)
 {
-	orco_out = vec3(0.0, (orco_in.z - 0.5) * -0.5, (orco_in.y - 0.5) * 0.5);
+	orco_out = orco_in.xzy * vec3(0.0, -0.25, 0.25);
 }
 
 void tangent_orco_y(vec3 orco_in, out vec3 orco_out)
 {
-	orco_out = vec3((orco_in.z - 0.5) * -0.5, 0.0, (orco_in.x - 0.5) * 0.5);
+	orco_out = orco_in.zyx * vec3(-0.25, 0.0, 0.25);
 }
 
 void tangent_orco_z(vec3 orco_in, out vec3 orco_out)
 {
-	orco_out = vec3((orco_in.y - 0.5) * -0.5, (orco_in.x - 0.5) * 0.5, 0.0);
+	orco_out = orco_in.yxz * vec3(-0.25, 0.25, 0.0);
 }
 
 void node_tangentmap(vec4 attr_tangent, mat4 toworld, out vec3 tangent)
@@ -3187,7 +3320,11 @@ void node_geometry(
         out vec3 true_normal, out vec3 incoming, out vec3 parametric,
         out float backfacing, out float pointiness)
 {
+#ifdef EEVEE_ENGINE
+	position = worldPosition;
+#else
 	position = (toworld * vec4(I, 1.0)).xyz;
+#endif
 	normal = (toworld * vec4(N, 0.0)).xyz;
 	tangent_orco_z(orco, orco);
 	node_tangent(N, orco, objmat, toworld, tangent);
@@ -3208,7 +3345,7 @@ void node_tex_coord(
         out vec3 generated, out vec3 normal, out vec3 uv, out vec3 object,
         out vec3 camera, out vec3 window, out vec3 reflection)
 {
-	generated = attr_orco;
+	generated = attr_orco * 0.5 + 0.5;
 	normal = normalize((obinvmat * (viewinvmat * vec4(N, 0.0))).xyz);
 	uv = attr_uv;
 	object = (obinvmat * (viewinvmat * vec4(I, 1.0))).xyz;
@@ -3235,9 +3372,7 @@ void node_tex_coord_background(
 
 	co = normalize(co);
 
-#ifdef PROBE_CAPTURE
-	vec3 coords = normalize(worldPosition);
-#elif defined(WORLD_BACKGROUND)
+#if defined(WORLD_BACKGROUND) || defined(PROBE_CAPTURE)
 	vec3 coords = (ViewMatrixInverse * co).xyz;
 #else
 	vec3 coords = (ModelViewMatrixInverse * co).xyz;
@@ -4088,16 +4223,20 @@ void node_bump(float strength, float dist, float height, vec3 N, vec3 surf_pos, 
 
 /* output */
 
-void node_output_material(vec4 surface, vec4 volume, float displacement, out vec4 result)
+void node_output_material(Closure surface, Closure volume, float displacement, out Closure result)
 {
 	result = surface;
 }
 
 uniform float backgroundAlpha;
 
-void node_output_world(vec4 surface, vec4 volume, out vec4 result)
+void node_output_world(Closure surface, Closure volume, out Closure result)
 {
-	result = vec4(surface.rgb, backgroundAlpha);
+#ifndef VOLUMETRICS
+	result = Closure(surface.radiance, backgroundAlpha);
+#else
+	result = volume;
+#endif /* VOLUMETRICS */
 }
 
 void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 mat, sampler2D ima, float numsteps,
@@ -4170,13 +4309,7 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 ma
 	ptexcoord = vec3(finaltexuv, texco.z);
 }
 
-void convert_metallic_to_specular(vec4 basecol, float metallic, float specular_fac, out vec4 diffuse, out vec4 f0)
-{
-	vec4 dielectric = vec4(0.034) * specular_fac * 2.0;
-	diffuse = mix(basecol, vec4(0.0), metallic);
-	f0 = mix(dielectric, basecol, metallic);
-}
-
+#ifndef VOLUMETRICS
 /* TODO : clean this ifdef mess */
 /* EEVEE output */
 #ifdef EEVEE_ENGINE
@@ -4188,28 +4321,33 @@ void world_normals_get(out vec3 N)
 void node_eevee_metallic(
         vec4 basecol, float metallic, float specular, float roughness, vec4 emissive, float transp, vec3 normal,
         float clearcoat, float clearcoat_roughness, vec3 clearcoat_normal,
-        float occlusion, out vec4 result)
+        float occlusion, out Closure result)
 {
-	vec4 diffuse, f0;
-	convert_metallic_to_specular(basecol, metallic, specular, diffuse, f0);
+	vec3 diffuse, f0;
+	convert_metallic_to_specular(basecol.rgb, metallic, specular, diffuse, f0);
 
-	result = vec4(eevee_surface_lit(normal, diffuse.rgb, f0.rgb, roughness, occlusion) + emissive.rgb, 1.0 - transp);
+	result = Closure(eevee_surface_lit(normal, diffuse, f0, roughness, occlusion) + emissive.rgb, 1.0 - transp);
 }
 
 void node_eevee_specular(
         vec4 diffuse, vec4 specular, float roughness, vec4 emissive, float transp, vec3 normal,
         float clearcoat, float clearcoat_roughness, vec3 clearcoat_normal,
-        float occlusion, out vec4 result)
+        float occlusion, out Closure result)
 {
-	result = vec4(eevee_surface_lit(normal, diffuse.rgb, specular.rgb, roughness, occlusion) + emissive.rgb, 1.0 - transp);
+	result = Closure(eevee_surface_lit(normal, diffuse.rgb, specular.rgb, roughness, occlusion) + emissive.rgb, 1.0 - transp);
 }
 
-void node_output_eevee_material(vec4 surface, out vec4 result)
+void node_output_eevee_material(Closure surface, out Closure result)
 {
-	result = vec4(surface.rgb, length(viewPosition));
-}
-
+#if defined(USE_ALPHA_HASH) || defined(USE_ALPHA_CLIP) || defined(USE_ALPHA_BLEND)
+	result = surface;
+#else
+	result = Closure(surface.radiance, length(viewPosition));
 #endif
+}
+
+#endif /* EEVEE_ENGINE */
+#endif /* VOLUMETRICS */
 
 /* ********************** matcap style render ******************** */
 

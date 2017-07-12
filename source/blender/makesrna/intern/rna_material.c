@@ -1798,6 +1798,24 @@ void RNA_def_material(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_eevee_blend_items[] = {
+		{MA_BM_SOLID, "OPAQUE", 0, "Opaque", "Render surface without transparency"},
+		{MA_BM_ADD, "ADD", 0, "Additive", "Render surface and blend the result with additive blending"},
+		{MA_BM_MULTIPLY, "MULTIPLY", 0, "Multiply", "Render surface and blend the result with multiplicative blending"},
+		{MA_BM_CLIP, "CLIP", 0, "Alpha Clip", "Use the alpha threshold to clip the visibility (binary visibility)"},
+		{MA_BM_HASHED, "HASHED", 0, "Alpha Hashed", "Use noise to dither the binary visibility (works well with multi-samples)"},
+		{MA_BM_BLEND, "BLEND", 0, "Alpha Blend", "Render polygon transparent, depending on alpha channel of the texture"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem prop_eevee_blend_shadow_items[] = {
+		{MA_BS_NONE, "NONE", 0, "None", "Material will cast no shadow"},
+		{MA_BS_SOLID, "OPAQUE", 0, "Opaque", "Material will cast shadows without transparency"},
+		{MA_BS_CLIP, "CLIP", 0, "Clip", "Use the alpha threshold to clip the visibility (binary visibility)"},
+		{MA_BS_HASHED, "HASHED", 0, "Hashed", "Use noise to dither the binary visibility and use filtering to reduce the noise"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "Material", "ID");
 	RNA_def_struct_ui_text(srna, "Material",
 	                       "Material data-block to define the appearance of geometric objects for rendering");
@@ -1850,19 +1868,7 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, transparency_items);
 	RNA_def_property_ui_text(prop, "Transparency Method", "Method to use for rendering transparency");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
-
-	/* For depth transparency */
-	prop = RNA_def_property(srna, "use_depth_transparency", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "mode2", MA_DEPTH_TRANSP);
-	RNA_def_property_ui_text(prop, "Depth Transparency", "Render material as transparent depending on the depth");
-	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-	prop = RNA_def_property(srna, "depth_transp_factor", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "depthtranspfactor");
-	RNA_def_property_range(prop, 0.001f, FLT_MAX);
-	RNA_def_property_ui_text(prop, "Depth Transparency Factor", "Amount of transparency depending on the depth");
-	RNA_def_property_update(prop, 0, "rna_Material_update");
-
+	
 	/* For Preview Render */
 	prop = RNA_def_property(srna, "preview_render_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "pr_type");

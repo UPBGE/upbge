@@ -144,7 +144,7 @@ static void EDIT_LATTICE_engine_init(void *vedata)
 	 */
 
 	if (!e_data.wire_sh) {
-		e_data.wire_sh = GPU_shader_get_builtin_shader(GPU_SHADER_3D_UNIFORM_COLOR);
+		e_data.wire_sh = GPU_shader_get_builtin_shader(GPU_SHADER_3D_SMOOTH_COLOR);
 	}
 
 	if (!e_data.overlay_vert_sh) {
@@ -177,6 +177,8 @@ static void EDIT_LATTICE_cache_init(void *vedata)
 		        "Lattice Verts",
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_POINT);
 		stl->g_data->vert_shgrp = DRW_shgroup_create(e_data.overlay_vert_sh, psl->vert_pass);
+
+		DRW_shgroup_uniform_block(stl->g_data->vert_shgrp, "globalsBlock", globals_ubo);
 	}
 }
 
@@ -196,7 +198,7 @@ static void EDIT_LATTICE_cache_populate(void *vedata, Object *ob)
 			/* Get geometry cache */
 			struct Gwn_Batch *geom;
 
-			geom = DRW_cache_lattice_wire_get(ob);
+			geom = DRW_cache_lattice_wire_get(ob, true);
 			DRW_shgroup_call_add(stl->g_data->wire_shgrp, geom, ob->obmat);
 
 			geom = DRW_cache_lattice_vert_overlay_get(ob);

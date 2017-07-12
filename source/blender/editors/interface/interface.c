@@ -1338,7 +1338,7 @@ static void ui_but_to_pixelrect(rcti *rect, const ARegion *ar, uiBlock *block, u
 	rctf rectf;
 
 	ui_block_to_window_rctf(ar, block, &rectf, (but) ? &but->rect : &block->rect);
-	BLI_rcti_rctf_copy(rect, &rectf);
+	BLI_rcti_rctf_copy_round(rect, &rectf);
 	BLI_rcti_translate(rect, -ar->winrct.xmin, -ar->winrct.ymin);
 }
 
@@ -2333,11 +2333,10 @@ bool ui_but_string_set_eval_num(bContext *C, uiBut *but, const char *str, double
 
 #else /* WITH_PYTHON */
 
-	*value = atof(str);
+	*r_value = atof(str);
 	ok = true;
 
-	(void)C;
-	(void)but;
+	UNUSED_VARS(C, but);
 
 #endif /* WITH_PYTHON */
 

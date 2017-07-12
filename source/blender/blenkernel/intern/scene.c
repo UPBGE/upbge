@@ -249,7 +249,9 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 		scen = BKE_libblock_copy(bmain, &sce->id);
 		BLI_duplicatelist(&(scen->base), &(sce->base));
 		
-		id_us_plus((ID *)scen->world);
+		if (type != SCE_COPY_FULL) {
+			id_us_plus((ID *)scen->world);
+		}
 		id_us_plus((ID *)scen->set);
 
 		scen->ed = NULL;
@@ -298,7 +300,8 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 			if (type == SCE_COPY_FULL) {
 				for (lineset = new_srl->freestyleConfig.linesets.first; lineset; lineset = lineset->next) {
 					if (lineset->linestyle) {
-						id_us_plus((ID *)lineset->linestyle);
+						/* Has been incremented by BKE_freestyle_config_copy(). */
+						id_us_min(&lineset->linestyle->id);
 						lineset->linestyle = BKE_linestyle_copy(bmain, lineset->linestyle);
 					}
 				}
@@ -385,11 +388,19 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 			ts->sculpt = MEM_dupallocN(ts->sculpt);
 			BKE_paint_copy(&ts->sculpt->paint, &ts->sculpt->paint);
 		}
+		if (ts->uvsculpt) {
+			ts->uvsculpt = MEM_dupallocN(ts->uvsculpt);
+			BKE_paint_copy(&ts->uvsculpt->paint, &ts->uvsculpt->paint);
+		}
 
 		BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint);
 		ts->imapaint.paintcursor = NULL;
 		id_us_plus((ID *)ts->imapaint.stencil);
+		id_us_plus((ID *)ts->imapaint.clone);
+		id_us_plus((ID *)ts->imapaint.canvas);
 		ts->particle.paintcursor = NULL;
+		ts->particle.scene = NULL;
+		ts->particle.object = NULL;
 		
 		/* duplicate Grease Pencil Drawing Brushes */
 		BLI_listbase_clear(&ts->gp_brushes);
@@ -433,7 +444,6 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 	/* world */
 	if (type == SCE_COPY_FULL) {
 		if (scen->world) {
-			id_us_plus((ID *)scen->world);
 			scen->world = BKE_world_copy(bmain, scen->world);
 			BKE_animdata_copy_id_action((ID *)scen->world, false);
 		}
@@ -819,7 +829,7 @@ void BKE_scene_init(Scene *sce)
 	sce->r.ffcodecdata.audio_bitrate = 192;
 	sce->r.ffcodecdata.audio_channels = 2;
 
-	BLI_strncpy(sce->r.engine, RE_engine_id_BLENDER_RENDER, sizeof(sce->r.engine));
+	BLI_strncpy(sce->r.engine, RE_engine_id_BLENDER_EEVEE, sizeof(sce->r.engine));
 
 	sce->audio.distance_model = 2.0f;
 	sce->audio.doppler_factor = 1.0f;
@@ -1515,7 +1525,7 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	prepare_mesh_for_viewport_render(bmain, scene);
 
 	/* flush recalc flags to dependencies */
-	DEG_ids_flush_tagged(bmain);
+	DEG_ids_flush_tagged(bmain, scene);
 
 	/* removed calls to quick_cache, see pointcache.c */
 	

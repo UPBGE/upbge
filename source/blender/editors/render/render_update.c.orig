@@ -352,7 +352,6 @@ static void material_changed(Main *bmain, Material *ma)
 static void lamp_changed(Main *bmain, Lamp *la)
 {
 	Object *ob;
-	Material *ma;
 
 	/* icons */
 	BKE_icon_changed(BKE_icon_id_ensure(&la->id));
@@ -362,6 +361,7 @@ static void lamp_changed(Main *bmain, Lamp *la)
 		if (ob->data == la && ob->gpulamp.first)
 			GPU_lamp_free(ob);
 
+<<<<<<< HEAD
 	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
 		if (ma->gpumaterial.first)
 			GPU_material_free(&ma->gpumaterial);
@@ -369,6 +369,8 @@ static void lamp_changed(Main *bmain, Lamp *la)
 			GPU_material_free(&ma->gpumaterialinstancing);
 	}
 
+=======
+>>>>>>> blender/blender2.8
 	if (defmaterial.gpumaterial.first)
 		GPU_material_free(&defmaterial.gpumaterial);
 	if (defmaterial.gpumaterialinstancing.first)
@@ -487,10 +489,8 @@ static void texture_changed(Main *bmain, Tex *tex)
 	}
 }
 
-static void world_changed(Main *bmain, World *wo)
+static void world_changed(Main *UNUSED(bmain), World *wo)
 {
-	Material *ma;
-
 	/* icons */
 	BKE_icon_changed(BKE_icon_id_ensure(&wo->id));
 
@@ -498,6 +498,7 @@ static void world_changed(Main *bmain, World *wo)
 	wo->update_flag = 1;
 	
 	/* glsl */
+<<<<<<< HEAD
 	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
 		if (ma->gpumaterial.first)
 			GPU_material_free(&ma->gpumaterial);
@@ -505,6 +506,8 @@ static void world_changed(Main *bmain, World *wo)
 			GPU_material_free(&ma->gpumaterialinstancing);
 	}
 
+=======
+>>>>>>> blender/blender2.8
 	if (defmaterial.gpumaterial.first)
 		GPU_material_free(&defmaterial.gpumaterial);
 	if (defmaterial.gpumaterialinstancing.first)
@@ -533,24 +536,16 @@ static void scene_changed(Main *bmain, Scene *scene)
 
 	/* glsl */
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
-#if 0 /* This was needed by old glsl where all lighting was statically linked into the shader. */
-		if (ob->gpulamp.first)
-			GPU_lamp_free(ob);
-#endif
-		
 		if (ob->mode & OB_MODE_TEXTURE_PAINT) {
 			BKE_texpaint_slots_refresh_object(scene, ob);
 			BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
 			GPU_drawobject_free(ob->derivedFinal);
 		}
 	}
-
 <<<<<<< HEAD
-	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
-=======
+
 #if 0 /* This was needed by old glsl where all lighting was statically linked into the shader. */
 	for (Material *ma = bmain->mat.first; ma; ma = ma->id.next)
->>>>>>> blender2.8/blender2.8
 		if (ma->gpumaterial.first)
 			GPU_material_free(&ma->gpumaterial);
 		if (ma->gpumaterialinstancing.first)
@@ -563,12 +558,9 @@ static void scene_changed(Main *bmain, Scene *scene)
 	
 	if (defmaterial.gpumaterial.first)
 		GPU_material_free(&defmaterial.gpumaterial);
-<<<<<<< HEAD
-	if (defmaterial.gpumaterialinstancing.first)
-		GPU_material_free(&defmaterial.gpumaterialinstancing);
-=======
 #endif
->>>>>>> blender2.8/blender2.8
+=======
+>>>>>>> blender/blender2.8
 }
 
 void ED_render_id_flush_update(Main *bmain, ID *id)

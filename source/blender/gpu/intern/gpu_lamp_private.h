@@ -80,8 +80,6 @@ struct GPULamp {
 	GPUTexture *depthtex;
 	GPUTexture *blurtex;
 
-	ListBase materials;
-
 	/* New viewport */
 	struct LampEngineData data;
 };

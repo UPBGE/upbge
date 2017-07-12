@@ -210,6 +210,8 @@ void BKE_material_init(Material *ma)
 	ma->shade_flag = MA_APPROX_OCCLUSION;
 	ma->preview = NULL;
 
+	ma->alpha_threshold = 0.5f;
+
 	ma->constflag = MA_CONSTANT_MATERIAL | MA_CONSTANT_LAMP | MA_CONSTANT_TEXTURE | MA_CONSTANT_TEXTURE_UV | MA_CONSTANT_WORLD | MA_CONSTANT_MIST;
 }
 

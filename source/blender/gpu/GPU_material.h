@@ -76,6 +76,8 @@ typedef enum GPUType {
 	GPU_MAT3 = 9,
 	GPU_MAT4 = 16,
 
+	GPU_CLOSURE = 17,
+
 	GPU_TEX2D = 1002,
 	GPU_SHADOW2D = 1003,
 	GPU_TEXCUBE = 1004,
@@ -258,8 +260,10 @@ GPUBlendMode GPU_material_alpha_blend(GPUMaterial *material, float obcol[4]);
 
 /* High level functions to create and use GPU materials */
 GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo);
+GPUMaterial *GPU_material_from_nodetree_find(
+        struct ListBase *gpumaterials, const void *engine_type, int options);
 GPUMaterial *GPU_material_from_nodetree(
-        struct Scene *scene, struct bNodeTree *ntree, struct ListBase *gpumaterials, void *engine_type, int options,
+        struct Scene *scene, struct bNodeTree *ntree, struct ListBase *gpumaterials, const void *engine_type, int options,
         const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines);
 GPUMaterial *GPU_material_from_blender(struct Scene *scene, struct Material *ma, bool use_opensubdiv, bool is_instancing);
 GPUMaterial *GPU_material_matcap(struct Scene *scene, struct Material *ma, bool use_opensubdiv);

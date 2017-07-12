@@ -25,6 +25,7 @@
 
 #include "device/device_split_kernel.h"
 
+#include "util/util_algorithm.h"
 #include "util/util_logging.h"
 #include "util/util_md5.h"
 #include "util/util_path.h"
@@ -263,7 +264,7 @@ public:
 	explicit OpenCLSplitKernel(OpenCLDeviceSplitKernel *device) : DeviceSplitKernel(device), device(device) {
 	}
 
-	virtual SplitKernelFunction* get_split_kernel_function(string kernel_name,
+	virtual SplitKernelFunction* get_split_kernel_function(const string& kernel_name,
 	                                                       const DeviceRequestedFeatures& requested_features)
 	{
 		OpenCLSplitKernelFunction* kernel = new OpenCLSplitKernelFunction(device, cached_memory);
@@ -423,12 +424,18 @@ public:
 
 		cl_ulong max_buffer_size;
 		clGetDeviceInfo(device->cdDevice, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(cl_ulong), &max_buffer_size, NULL);
+
+		if(DebugFlags().opencl.mem_limit) {
+			max_buffer_size = min(max_buffer_size,
+			                      cl_ulong(DebugFlags().opencl.mem_limit - device->stats.mem_used));
+		}
+
 		VLOG(1) << "Maximum device allocation size: "
 		        << string_human_readable_number(max_buffer_size) << " bytes. ("
 		        << string_human_readable_size(max_buffer_size) << ").";
 
 		size_t num_elements = max_elements_for_max_buffer_size(kg, data, max_buffer_size / 2);
-		int2 global_size = make_int2(round_down((int)sqrt(num_elements), 64), (int)sqrt(num_elements));
+		int2 global_size = make_int2(max(round_down((int)sqrt(num_elements), 64), 64), (int)sqrt(num_elements));
 		VLOG(1) << "Global size: " << global_size << ".";
 		return global_size;
 	}

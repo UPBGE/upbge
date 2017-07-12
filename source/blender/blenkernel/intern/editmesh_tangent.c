@@ -283,11 +283,9 @@ void BKE_editmesh_loop_tangent_calc(
         /* result */
         CustomData *loopdata_out,
         const uint  loopdata_out_len,
-        char *tangent_mask_curr_p)
+        short *tangent_mask_curr_p)
 {
 	BMesh *bm = em->bm;
-
-	BLI_assert(CustomData_number_of_layers(&bm->ldata, CD_MLOOPUV) != 0);
 
 	int act_uv_n = -1;
 	int ren_uv_n = -1;
@@ -295,8 +293,8 @@ void BKE_editmesh_loop_tangent_calc(
 	bool calc_ren = false;
 	char act_uv_name[MAX_NAME];
 	char ren_uv_name[MAX_NAME];
-	char tangent_mask = 0;
-	char tangent_mask_curr = *tangent_mask_curr_p;
+	short tangent_mask = 0;
+	short tangent_mask_curr = *tangent_mask_curr_p;
 
 	BKE_mesh_calc_loop_tangent_step_0(
 	        &bm->ldata, calc_active_tangent, tangent_names, tangent_names_len,
@@ -305,11 +303,13 @@ void BKE_editmesh_loop_tangent_calc(
 	if ((tangent_mask_curr | tangent_mask) != tangent_mask_curr) {
 		for (int i = 0; i < tangent_names_len; i++)
 			if (tangent_names[i][0])
-				BKE_mesh_add_loop_tangent_named_layer_for_uv(&bm->ldata, loopdata_out, loopdata_out_len, tangent_names[i]);
+				BKE_mesh_add_loop_tangent_named_layer_for_uv(&bm->ldata, loopdata_out, (int)loopdata_out_len, tangent_names[i]);
+		if ((tangent_mask & DM_TANGENT_MASK_ORCO) && CustomData_get_named_layer_index(loopdata_out, CD_TANGENT, "") == -1)
+					CustomData_add_layer_named(loopdata_out, CD_TANGENT, CD_CALLOC, NULL, (int)loopdata_out_len, "");
 		if (calc_act && act_uv_name[0])
-			BKE_mesh_add_loop_tangent_named_layer_for_uv(&bm->ldata, loopdata_out, loopdata_out_len, act_uv_name);
+			BKE_mesh_add_loop_tangent_named_layer_for_uv(&bm->ldata, loopdata_out, (int)loopdata_out_len, act_uv_name);
 		if (calc_ren && ren_uv_name[0])
-			BKE_mesh_add_loop_tangent_named_layer_for_uv(&bm->ldata, loopdata_out, loopdata_out_len, ren_uv_name);
+			BKE_mesh_add_loop_tangent_named_layer_for_uv(&bm->ldata, loopdata_out, (int)loopdata_out_len, ren_uv_name);
 		int totface = em->tottri;
 #ifdef USE_LOOPTRI_DETECT_QUADS
 		int num_face_as_quad_map;
@@ -336,7 +336,7 @@ void BKE_editmesh_loop_tangent_calc(
 		}
 #endif
 		/* Calculation */
-		{
+		if (em->tottri != 0) {
 			TaskScheduler *scheduler = BLI_task_scheduler_get();
 			TaskPool *task_pool;
 			task_pool = BLI_task_pool_create(scheduler, NULL);
@@ -372,6 +372,15 @@ void BKE_editmesh_loop_tangent_calc(
 						continue;
 					/* needed for orco lookups */
 					htype_index |= BM_VERT;
+					tangent_mask_curr |= DM_TANGENT_MASK_ORCO;
+				}
+				else {
+					/* Fill the resulting tangent_mask */
+					int uv_ind = CustomData_get_named_layer_index(&bm->ldata, CD_MLOOPUV, loopdata_out->layers[index].name);
+					int uv_start = CustomData_get_layer_index(&bm->ldata, CD_MLOOPUV);
+					BLI_assert(uv_ind != -1 && uv_start != -1);
+					BLI_assert(uv_ind - uv_start < MAX_MTFACE);
+					tangent_mask_curr |= 1 << (uv_ind - uv_start);
 				}
 				if (mesh2tangent->precomputedFaceNormals) {
 					/* needed for face normal lookups */
@@ -382,19 +391,15 @@ void BKE_editmesh_loop_tangent_calc(
 				mesh2tangent->looptris = (const BMLoop *(*)[3])em->looptris;
 				mesh2tangent->tangent = loopdata_out->layers[index].data;
 
-				/* Fill the resulting tangent_mask */
-				int uv_ind = CustomData_get_named_layer_index(
-				        &bm->ldata, CD_MLOOPUV, loopdata_out->layers[index].name);
-				int uv_start = CustomData_get_layer_index(&bm->ldata, CD_MLOOPUV);
-				BLI_assert(uv_ind != -1 && uv_start != -1);
-				BLI_assert(uv_ind - uv_start < MAX_MTFACE);
-				tangent_mask_curr |= 1 << (uv_ind - uv_start);
 				BLI_task_pool_push(task_pool, emDM_calc_loop_tangents_thread, mesh2tangent, false, TASK_PRIORITY_LOW);
 			}
 
 			BLI_assert(tangent_mask_curr == tangent_mask);
 			BLI_task_pool_work_and_wait(task_pool);
 			BLI_task_pool_free(task_pool);
+		}
+		else {
+			tangent_mask_curr = tangent_mask;
 		}
 #ifdef USE_LOOPTRI_DETECT_QUADS
 		if (face_as_quad_map) {
@@ -406,15 +411,18 @@ void BKE_editmesh_loop_tangent_calc(
 
 	*tangent_mask_curr_p = tangent_mask_curr;
 
-	/* Update active layer index */
-	int uv_index = CustomData_get_layer_index_n(&bm->ldata, CD_MLOOPUV, act_uv_n);
-	int tan_index = CustomData_get_named_layer_index(loopdata_out, CD_TANGENT, bm->ldata.layers[uv_index].name);
-	CustomData_set_layer_active_index(loopdata_out, CD_TANGENT, tan_index);
+	int act_uv_index = CustomData_get_layer_index_n(&bm->ldata, CD_MLOOPUV, act_uv_n);
+	if (act_uv_index >= 0) {
+		int tan_index = CustomData_get_named_layer_index(loopdata_out, CD_TANGENT, bm->ldata.layers[act_uv_index].name);
+		CustomData_set_layer_active_index(loopdata_out, CD_TANGENT, tan_index);
+	} /* else tangent has been built from orco */
 
 	/* Update render layer index */
-	uv_index = CustomData_get_layer_index_n(&bm->ldata, CD_MLOOPUV, ren_uv_n);
-	tan_index = CustomData_get_named_layer_index(loopdata_out, CD_TANGENT, bm->ldata.layers[uv_index].name);
-	CustomData_set_layer_render_index(loopdata_out, CD_TANGENT, tan_index);
+	int ren_uv_index = CustomData_get_layer_index_n(&bm->ldata, CD_MLOOPUV, ren_uv_n);
+	if (ren_uv_index >= 0) {
+		int tan_index = CustomData_get_named_layer_index(loopdata_out, CD_TANGENT, bm->ldata.layers[ren_uv_index].name);
+		CustomData_set_layer_render_index(loopdata_out, CD_TANGENT, tan_index);
+	} /* else tangent has been built from orco */
 }
 
 /** \} */

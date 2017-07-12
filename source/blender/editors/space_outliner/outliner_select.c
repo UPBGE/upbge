@@ -659,7 +659,12 @@ static eOLDrawState tree_element_active_pose(
 {
 	Object *ob = (Object *)tselem->id;
 	Base *base = BKE_scene_layer_base_find(sl, ob);
-	
+
+	if (base == NULL) {
+		/* Armature not instantiated in current scene (e.g. inside an appended group...). */
+		return OL_DRAWSEL_NONE;
+	}
+
 	if (set != OL_SETSEL_NONE) {
 		if (scene->obedit)
 			ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);
@@ -917,8 +922,11 @@ static void outliner_item_activate(
 
 				for (gob = gr->gobject.first; gob; gob = gob->next) {
 					Base *base = BKE_scene_layer_base_find(sl, gob->ob);
-					if ((base->flag & BASE_SELECTED) == 0) {
-						ED_object_base_select(base, BA_SELECT);
+					/* Object may not be in this scene */
+					if (base != NULL) {
+						if ((base->flag & BASE_SELECTED) == 0) {
+							ED_object_base_select(base, BA_SELECT);
+						}
 					}
 				}
 			}

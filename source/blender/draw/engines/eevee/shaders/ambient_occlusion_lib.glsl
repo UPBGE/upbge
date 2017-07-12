@@ -187,7 +187,8 @@ void gtao(vec3 normal, vec3 position, vec2 noise, out float visibility
 		integrate_slice(i, x, normal, x_, noise, max_dist, pixel_ratio, pixel_len, visibility, bent_normal);
 	}
 
-	visibility = clamp(visibility / aoSamples, 1e-8, 1.0);
+	/* aoSamples can be 0.0 to temporary disable the effect. */
+	visibility = clamp(max(1e-8, visibility) / max(1e-8, aoSamples), 1e-8, 1.0);
 
 #ifdef USE_BENT_NORMAL
 	/* The bent normal will show the facet look of the mesh. Try to minimize this. */
@@ -213,4 +214,29 @@ float gtao_multibounce(float visibility, vec3 albedo)
 
 	float x = visibility;
 	return max(x, ((x * a + b) * x + c) * x);
+}
+
+/* Use the right occlusion  */
+float occlusion_compute(vec3 N, vec3 vpos, float user_occlusion, vec2 randuv, out vec3 bent_normal)
+{
+#ifdef USE_AO /* Screen Space Occlusion */
+
+	float computed_occlusion;
+	vec3 vnor = mat3(ViewMatrix) * N;
+
+#ifdef USE_BENT_NORMAL
+	gtao(vnor, vpos, randuv, computed_occlusion, bent_normal);
+	bent_normal = mat3(ViewMatrixInverse) * bent_normal;
+#else
+	gtao(vnor, vpos, randuv, computed_occlusion);
+	bent_normal = N;
+#endif
+	return min(computed_occlusion, user_occlusion);
+
+#else /* No added Occlusion. */
+
+	bent_normal = N;
+	return user_occlusion;
+
+#endif
 }

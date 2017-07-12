@@ -1,6 +1,8 @@
 
 uniform sampler2D irradianceGrid;
 
+#define IRRADIANCE_LIB
+
 #ifdef IRRADIANCE_CUBEMAP
 struct IrradianceData {
 	vec3 color;
@@ -114,9 +116,9 @@ vec3 hl2_basis(vec3 N, vec3 cubesides[3])
 
 	vec3 n_squared = N * N;
 
-	irradiance += n_squared.x * cubesides[0];
-	irradiance += n_squared.y * cubesides[1];
-	irradiance += n_squared.z * cubesides[2];
+	irradiance += max(1e-8, n_squared.x) * cubesides[0];
+	irradiance += max(1e-8, n_squared.y) * cubesides[1];
+	irradiance += max(1e-8, n_squared.z) * cubesides[2];
 
 	return irradiance;
 }
@@ -132,10 +134,8 @@ vec3 compute_irradiance(vec3 N, IrradianceData ird)
 #endif
 }
 
-vec3 get_cell_color(ivec3 localpos, ivec3 gridres, int offset, vec3 ir_dir)
+vec3 irradiance_from_cell_get(int cell, vec3 ir_dir)
 {
-	/* Keep in sync with update_irradiance_probe */
-	int cell = offset + localpos.z + localpos.y * gridres.z + localpos.x * gridres.z * gridres.y;
 	IrradianceData ir_data = load_irradiance_cell(cell, ir_dir);
 	return compute_irradiance(ir_dir, ir_data);
 }

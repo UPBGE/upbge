@@ -29,6 +29,8 @@
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_lattice_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
@@ -67,7 +69,9 @@ static struct DRWShapeCache {
 	Gwn_Batch *drw_lamp_spot;
 	Gwn_Batch *drw_lamp_spot_square;
 	Gwn_Batch *drw_speaker;
-	Gwn_Batch *drw_lightprobe;
+	Gwn_Batch *drw_lightprobe_cube;
+	Gwn_Batch *drw_lightprobe_planar;
+	Gwn_Batch *drw_lightprobe_grid;
 	Gwn_Batch *drw_bone_octahedral;
 	Gwn_Batch *drw_bone_octahedral_wire;
 	Gwn_Batch *drw_bone_box;
@@ -117,7 +121,9 @@ void DRW_shape_cache_free(void)
 	BATCH_DISCARD_ALL_SAFE(SHC.drw_lamp_spot);
 	BATCH_DISCARD_ALL_SAFE(SHC.drw_lamp_spot_square);
 	BATCH_DISCARD_ALL_SAFE(SHC.drw_speaker);
-	BATCH_DISCARD_ALL_SAFE(SHC.drw_lightprobe);
+	BATCH_DISCARD_ALL_SAFE(SHC.drw_lightprobe_cube);
+	BATCH_DISCARD_ALL_SAFE(SHC.drw_lightprobe_planar);
+	BATCH_DISCARD_ALL_SAFE(SHC.drw_lightprobe_grid);
 	BATCH_DISCARD_ALL_SAFE(SHC.drw_bone_octahedral);
 	BATCH_DISCARD_ALL_SAFE(SHC.drw_bone_octahedral_wire);
 	BATCH_DISCARD_ALL_SAFE(SHC.drw_bone_box);
@@ -516,11 +522,12 @@ Gwn_Batch *DRW_cache_object_surface_get(Object *ob)
 	}
 }
 
-Gwn_Batch **DRW_cache_object_surface_material_get(struct Object *ob)
+Gwn_Batch **DRW_cache_object_surface_material_get(
+        struct Object *ob, struct GPUMaterial **gpumat_array, uint gpumat_array_len)
 {
 	switch (ob->type) {
 		case OB_MESH:
-			return DRW_cache_mesh_surface_shaded_get(ob);
+			return DRW_cache_mesh_surface_shaded_get(ob, gpumat_array, gpumat_array_len);
 		default:
 			return NULL;
 	}
@@ -1328,13 +1335,21 @@ Gwn_Batch *DRW_cache_speaker_get(void)
 /** \name Probe
  * \{ */
 
-Gwn_Batch *DRW_cache_lightprobe_get(void)
+Gwn_Batch *DRW_cache_lightprobe_cube_get(void)
 {
-#define CIRCLE_RESOL 16
-	if (!SHC.drw_lightprobe) {
+	if (!SHC.drw_lightprobe_cube) {
 		int v_idx = 0;
-		float v[3] = {0.0f, 1.0f, 0.0f};
-		/* TODO something nicer than just a circle */
+		const float sin_pi_3 = 0.86602540378f;
+		const float cos_pi_3 = 0.5f;
+		float v[7][3] = {
+			{0.0f, 1.0f, 0.0f},
+			{sin_pi_3, cos_pi_3, 0.0f},
+			{sin_pi_3, -cos_pi_3, 0.0f},
+			{0.0f, -1.0f, 0.0f},
+			{-sin_pi_3, -cos_pi_3, 0.0f},
+			{-sin_pi_3, cos_pi_3, 0.0f},
+			{0.0f, 0.0f, 0.0f},
+		};
 
 		/* Position Only 3D format */
 		static Gwn_VertFormat format = { 0 };
@@ -1344,35 +1359,114 @@ Gwn_Batch *DRW_cache_lightprobe_get(void)
 		}
 
 		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
-		GWN_vertbuf_data_alloc(vbo, CIRCLE_RESOL * 2 + 8);
+		GWN_vertbuf_data_alloc(vbo, (6 + 3) * 2);
 
-		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v);
-		for (int a = 1; a < CIRCLE_RESOL; a++) {
-			v[0] = sinf((2.0f * M_PI * a) / ((float)CIRCLE_RESOL));
-			v[1] = cosf((2.0f * M_PI * a) / ((float)CIRCLE_RESOL));
-			GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v);
-
-			if ((a % 2 == 0) && (a % 4 != 0)) {
-				v[0] *= 0.5f;
-				v[1] *= 0.5f;
-				GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v);
-				v[0] *= 3.0f;
-				v[1] *= 3.0f;
-				GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v);
-				v[0] /= 1.5f;
-				v[1] /= 1.5f;
-			}
-
-			GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v);
+		for (int i = 0; i < 6; ++i)	{
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[i]);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[(i + 1) % 6]);
 		}
-		v[0] = 0.0f;
-		v[1] = 1.0f;
-		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v);
 
-		SHC.drw_lightprobe = GWN_batch_create(GWN_PRIM_LINES, vbo, NULL);
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[1]);
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[6]);
+
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[5]);
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[6]);
+
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[3]);
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[6]);
+
+		SHC.drw_lightprobe_cube = GWN_batch_create(GWN_PRIM_LINES, vbo, NULL);
 	}
-	return SHC.drw_lightprobe;
-#undef CIRCLE_RESOL
+	return SHC.drw_lightprobe_cube;
+}
+
+Gwn_Batch *DRW_cache_lightprobe_grid_get(void)
+{
+	if (!SHC.drw_lightprobe_grid) {
+		int v_idx = 0;
+		const float sin_pi_3 = 0.86602540378f;
+		const float cos_pi_3 = 0.5f;
+		const float v[7][3] = {
+			{0.0f, 1.0f, 0.0f},
+			{sin_pi_3, cos_pi_3, 0.0f},
+			{sin_pi_3, -cos_pi_3, 0.0f},
+			{0.0f, -1.0f, 0.0f},
+			{-sin_pi_3, -cos_pi_3, 0.0f},
+			{-sin_pi_3, cos_pi_3, 0.0f},
+			{0.0f, 0.0f, 0.0f},
+		};
+
+		/* Position Only 3D format */
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos; } attr_id;
+		if (format.attrib_ct == 0) {
+			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+		}
+
+		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, (6 * 3 + 3) * 2);
+
+		for (int i = 0; i < 6; ++i)	{
+			float tmp_v1[3], tmp_v2[3], tmp_tr[3];
+			copy_v3_v3(tmp_v1, v[i]);
+			copy_v3_v3(tmp_v2, v[(i + 1) % 6]);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, tmp_v1);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, tmp_v2);
+
+			/* Internal wires. */
+			for (int j = 1; j < 2; ++j) {
+				mul_v3_v3fl(tmp_tr, v[(i / 2) * 2 + 1], -0.5f * j);
+				add_v3_v3v3(tmp_v1, v[i], tmp_tr);
+				add_v3_v3v3(tmp_v2, v[(i + 1) % 6], tmp_tr);
+				GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, tmp_v1);
+				GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, tmp_v2);
+			}
+		}
+
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[1]);
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[6]);
+
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[5]);
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[6]);
+
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[3]);
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[6]);
+
+		SHC.drw_lightprobe_grid = GWN_batch_create(GWN_PRIM_LINES, vbo, NULL);
+	}
+	return SHC.drw_lightprobe_grid;
+}
+
+Gwn_Batch *DRW_cache_lightprobe_planar_get(void)
+{
+	if (!SHC.drw_lightprobe_planar) {
+		int v_idx = 0;
+		const float sin_pi_3 = 0.86602540378f;
+		float v[4][3] = {
+			{0.0f, 0.5f, 0.0f},
+			{sin_pi_3, 0.0f, 0.0f},
+			{0.0f, -0.5f, 0.0f},
+			{-sin_pi_3, 0.0f, 0.0f},
+		};
+
+		/* Position Only 3D format */
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos; } attr_id;
+		if (format.attrib_ct == 0) {
+			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+		}
+
+		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, 4 * 2);
+
+		for (int i = 0; i < 4; ++i)	{
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[i]);
+			GWN_vertbuf_attr_set(vbo, attr_id.pos, v_idx++, v[(i + 1) % 4]);
+		}
+
+		SHC.drw_lightprobe_planar = GWN_batch_create(GWN_PRIM_LINES, vbo, NULL);
+	}
+	return SHC.drw_lightprobe_planar;
 }
 
 /** \} */
@@ -2119,12 +2213,13 @@ Gwn_Batch *DRW_cache_mesh_surface_vert_colors_get(Object *ob)
 }
 
 /* Return list of batches */
-Gwn_Batch **DRW_cache_mesh_surface_shaded_get(Object *ob)
+Gwn_Batch **DRW_cache_mesh_surface_shaded_get(
+        Object *ob, struct GPUMaterial **gpumat_array, uint gpumat_array_len)
 {
 	BLI_assert(ob->type == OB_MESH);
 
 	Mesh *me = ob->data;
-	return DRW_mesh_batch_cache_get_surface_shaded(me);
+	return DRW_mesh_batch_cache_get_surface_shaded(me, gpumat_array, gpumat_array_len);
 }
 
 /* Return list of batches */
@@ -2308,12 +2403,18 @@ Gwn_Batch *DRW_cache_lattice_verts_get(Object *ob)
 	return DRW_lattice_batch_cache_get_all_verts(lt);
 }
 
-Gwn_Batch *DRW_cache_lattice_wire_get(Object *ob)
+Gwn_Batch *DRW_cache_lattice_wire_get(Object *ob, bool use_weight)
 {
 	BLI_assert(ob->type == OB_LATTICE);
 
-	struct Lattice *lt = ob->data;
-	return DRW_lattice_batch_cache_get_all_edges(lt);
+	Lattice *lt = ob->data;
+	int actdef = -1;
+
+	if (use_weight && ob->defbase.first && lt->editlatt->latt->dvert) {
+		actdef = ob->actdef - 1;
+	}
+
+	return DRW_lattice_batch_cache_get_all_edges(lt, use_weight, actdef);
 }
 
 Gwn_Batch *DRW_cache_lattice_vert_overlay_get(Object *ob)
@@ -2331,9 +2432,9 @@ Gwn_Batch *DRW_cache_lattice_vert_overlay_get(Object *ob)
 /** \name Particles
  * \{ */
 
-Gwn_Batch *DRW_cache_particles_get_hair(ParticleSystem *psys)
+Gwn_Batch *DRW_cache_particles_get_hair(ParticleSystem *psys, ModifierData *md)
 {
-	return DRW_particles_batch_cache_get_hair(psys);
+	return DRW_particles_batch_cache_get_hair(psys, md);
 }
 
 Gwn_Batch *DRW_cache_particles_get_dots(ParticleSystem *psys)

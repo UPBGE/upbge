@@ -27,7 +27,9 @@
 #define __DRAW_CACHE_H__
 
 struct Gwn_Batch;
+struct GPUMaterial;
 struct Object;
+struct ModifierData;
 
 void DRW_shape_cache_free(void);
 
@@ -42,7 +44,8 @@ struct Gwn_Batch *DRW_cache_screenspace_circle_get(void);
 /* Common Object */
 struct Gwn_Batch *DRW_cache_object_wire_outline_get(struct Object *ob);
 struct Gwn_Batch *DRW_cache_object_surface_get(struct Object *ob);
-struct Gwn_Batch **DRW_cache_object_surface_material_get(struct Object *ob);
+struct Gwn_Batch **DRW_cache_object_surface_material_get(
+        struct Object *ob, struct GPUMaterial **gpumat_array, uint gpumat_array_len);
 
 /* Empties */
 struct Gwn_Batch *DRW_cache_plain_axes_get(void);
@@ -80,7 +83,9 @@ struct Gwn_Batch *DRW_cache_camera_tria_get(void);
 struct Gwn_Batch *DRW_cache_speaker_get(void);
 
 /* Probe */
-struct Gwn_Batch *DRW_cache_lightprobe_get(void);
+struct Gwn_Batch *DRW_cache_lightprobe_cube_get(void);
+struct Gwn_Batch *DRW_cache_lightprobe_grid_get(void);
+struct Gwn_Batch *DRW_cache_lightprobe_planar_get(void);
 
 /* Bones */
 struct Gwn_Batch *DRW_cache_bone_octahedral_get(void);
@@ -115,7 +120,8 @@ struct Gwn_Batch *DRW_cache_mesh_verts_get(struct Object *ob);
 struct Gwn_Batch *DRW_cache_mesh_edges_paint_overlay_get(struct Object *ob, bool use_wire, bool use_sel);
 struct Gwn_Batch *DRW_cache_mesh_faces_weight_overlay_get(struct Object *ob);
 struct Gwn_Batch *DRW_cache_mesh_verts_weight_overlay_get(struct Object *ob);
-struct Gwn_Batch **DRW_cache_mesh_surface_shaded_get(struct Object *ob);
+struct Gwn_Batch **DRW_cache_mesh_surface_shaded_get(
+        struct Object *ob, struct GPUMaterial **gpumat_array, uint gpumat_array_len);
 struct Gwn_Batch **DRW_cache_mesh_surface_texpaint_get(struct Object *ob);
 struct Gwn_Batch *DRW_cache_mesh_surface_texpaint_single_get(struct Object *ob);
 
@@ -140,11 +146,11 @@ struct Gwn_Batch *DRW_cache_surf_surface_get(struct Object *ob);
 
 /* Lattice */
 struct Gwn_Batch *DRW_cache_lattice_verts_get(struct Object *ob);
-struct Gwn_Batch *DRW_cache_lattice_wire_get(struct Object *ob);
+struct Gwn_Batch *DRW_cache_lattice_wire_get(struct Object *ob, bool use_weight);
 struct Gwn_Batch *DRW_cache_lattice_vert_overlay_get(struct Object *ob);
 
 /* Particles */
-struct Gwn_Batch *DRW_cache_particles_get_hair(struct ParticleSystem *psys);
+struct Gwn_Batch *DRW_cache_particles_get_hair(struct ParticleSystem *psys, struct ModifierData *md);
 struct Gwn_Batch *DRW_cache_particles_get_dots(struct ParticleSystem *psys);
 struct Gwn_Batch *DRW_cache_particles_get_prim(int type);
 

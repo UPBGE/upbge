@@ -41,15 +41,6 @@ extern GlobalsUboStorage ts;
 
 /* *********** FUNCTIONS *********** */
 
-
-void EEVEE_engine_init_scene_layer_data(EEVEE_Data *vedata, EEVEE_SceneLayerData *sldata)
-{
-	EEVEE_materials_init();
-	EEVEE_lights_init(sldata);
-	EEVEE_lightprobes_init(sldata, vedata);
-	EEVEE_effects_init(vedata);
-}
-
 static void EEVEE_engine_init(void *ved)
 {
 	EEVEE_Data *vedata = (EEVEE_Data *)ved;
@@ -72,24 +63,25 @@ static void EEVEE_engine_init(void *ved)
 	}
 	stl->g_data->background_alpha = 1.0f;
 
-	EEVEE_engine_init_scene_layer_data(vedata, sldata);
+	EEVEE_materials_init(stl);
+	EEVEE_lights_init(sldata);
+	EEVEE_lightprobes_init(sldata, vedata);
+	EEVEE_effects_init(sldata, vedata);
 }
 
 static void EEVEE_cache_init(void *vedata)
 {
 	EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
-	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 
 	EEVEE_materials_cache_init(vedata);
 	EEVEE_lights_cache_init(sldata, psl);
-	EEVEE_lightprobes_cache_init(sldata, psl, stl);
-	EEVEE_effects_cache_init(vedata);
+	EEVEE_lightprobes_cache_init(sldata, vedata);
+	EEVEE_effects_cache_init(sldata, vedata);
 }
 
 static void EEVEE_cache_populate(void *vedata, Object *ob)
 {
-	EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 
 	const DRWContextState *draw_ctx = DRW_context_state_get();
@@ -100,14 +92,12 @@ static void EEVEE_cache_populate(void *vedata, Object *ob)
 		}
 	}
 
-	struct Gwn_Batch *geom = DRW_cache_object_surface_get(ob);
-	if (geom) {
-		EEVEE_materials_cache_populate(vedata, sldata, ob, geom);
+	if (ELEM(ob->type, OB_MESH)) {
+		EEVEE_materials_cache_populate(vedata, sldata, ob);
 
 		const bool cast_shadow = true;
 
 		if (cast_shadow) {
-			EEVEE_lights_cache_shcaster_add(sldata, psl, geom, ob->obmat);
 			BLI_addtail(&sldata->shadow_casters, BLI_genericNodeN(ob));
 			EEVEE_ObjectEngineData *oedata = EEVEE_object_data_get(ob);
 			oedata->need_update = ((ob->deg_update_flag & DEG_RUNTIME_DATA_UPDATE) != 0);
@@ -168,6 +158,13 @@ static void EEVEE_draw_scene(void *vedata)
 	EEVEE_draw_default_passes(psl);
 	DRW_draw_pass(psl->material_pass);
 
+	/* Volumetrics */
+	EEVEE_effects_do_volumetrics(sldata, vedata);
+
+	/* Transparent */
+	DRW_pass_sort_shgroup_z(psl->transparent_pass);
+	DRW_draw_pass(psl->transparent_pass);
+
 	/* Post Process */
 	EEVEE_draw_effects(vedata);
 }
@@ -194,6 +191,17 @@ static void EEVEE_scene_layer_settings_create(RenderEngine *UNUSED(engine), IDPr
 	BLI_assert(props &&
 	           props->type == IDP_GROUP &&
 	           props->subtype == IDP_GROUP_SUB_ENGINE_RENDER);
+
+	BKE_collection_engine_property_add_bool(props, "volumetric_enable", false);
+	BKE_collection_engine_property_add_float(props, "volumetric_start", 0.1f);
+	BKE_collection_engine_property_add_float(props, "volumetric_end", 100.0f);
+	BKE_collection_engine_property_add_int(props, "volumetric_samples", 64);
+	BKE_collection_engine_property_add_float(props, "volumetric_sample_distribution", 0.8f);
+	BKE_collection_engine_property_add_bool(props, "volumetric_lights", true);
+	BKE_collection_engine_property_add_float(props, "volumetric_light_clamp", 0.0f);
+	BKE_collection_engine_property_add_bool(props, "volumetric_shadows", false);
+	BKE_collection_engine_property_add_int(props, "volumetric_shadow_samples", 16);
+	BKE_collection_engine_property_add_bool(props, "volumetric_colored_transmittance", true);
 
 	BKE_collection_engine_property_add_bool(props, "gtao_enable", false);
 	BKE_collection_engine_property_add_bool(props, "gtao_use_bent_normals", true);

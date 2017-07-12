@@ -240,6 +240,7 @@ struct DRWShadingGroup {
 	DRWInterface *interface;         /* Uniforms pointers */
 	ListBase calls;                  /* DRWCall or DRWCallDynamic depending of type */
 	DRWState state_extra;            /* State changes for this batch only (or'd with the pass's state) */
+	DRWState state_extra_disable;    /* State changes for this batch only (and'd with the pass's state) */
 	int type;
 
 	Gwn_Batch *instance_geom;  /* Geometry to instance */
@@ -703,6 +704,7 @@ DRWShadingGroup *DRW_shgroup_create(struct GPUShader *shader, DRWPass *pass)
 	shgroup->shader = shader;
 	shgroup->interface = DRW_interface_create(shader);
 	shgroup->state_extra = 0;
+	shgroup->state_extra_disable = ~0x0;
 	shgroup->batch_geom = NULL;
 	shgroup->instance_geom = NULL;
 
@@ -754,22 +756,22 @@ DRWShadingGroup *DRW_shgroup_material_create(struct GPUMaterial *material, DRWPa
 		/* Floats */
 		else {
 			switch (input->type) {
-				case 1:
+				case GPU_FLOAT:
 					DRW_shgroup_uniform_float(grp, input->shadername, (float *)input->dynamicvec, 1);
 					break;
-				case 2:
+				case GPU_VEC2:
 					DRW_shgroup_uniform_vec2(grp, input->shadername, (float *)input->dynamicvec, 1);
 					break;
-				case 3:
+				case GPU_VEC3:
 					DRW_shgroup_uniform_vec3(grp, input->shadername, (float *)input->dynamicvec, 1);
 					break;
-				case 4:
+				case GPU_VEC4:
 					DRW_shgroup_uniform_vec4(grp, input->shadername, (float *)input->dynamicvec, 1);
 					break;
-				case 9:
+				case GPU_MAT3:
 					DRW_shgroup_uniform_mat3(grp, input->shadername, (float *)input->dynamicvec);
 					break;
-				case 16:
+				case GPU_MAT4:
 					DRW_shgroup_uniform_mat4(grp, input->shadername, (float *)input->dynamicvec);
 					break;
 				default:
@@ -995,12 +997,15 @@ void DRW_shgroup_set_instance_count(DRWShadingGroup *shgroup, int count)
 /**
  * State is added to #Pass.state while drawing.
  * Use to temporarily enable draw options.
- *
- * Currently there is no way to disable (could add if needed).
  */
 void DRW_shgroup_state_enable(DRWShadingGroup *shgroup, DRWState state)
 {
 	shgroup->state_extra |= state;
+}
+
+void DRW_shgroup_state_disable(DRWShadingGroup *shgroup, DRWState state)
+{
+	shgroup->state_extra_disable &= ~state;
 }
 
 void DRW_shgroup_attrib_float(DRWShadingGroup *shgroup, const char *name, int size)
@@ -1262,6 +1267,55 @@ void DRW_pass_foreach_shgroup(DRWPass *pass, void (*callback)(void *userData, DR
 	}
 }
 
+typedef struct ZSortData {
+	float *axis;
+	float *origin;
+} ZSortData;
+
+static int pass_shgroup_dist_sort(void *thunk, const void *a, const void *b)
+{
+	const DRWShadingGroup *shgrp_a = (const DRWShadingGroup *)a;
+	const DRWShadingGroup *shgrp_b = (const DRWShadingGroup *)b;
+	const DRWCall *call_a = (DRWCall *)(shgrp_a)->calls.first;
+	const DRWCall *call_b = (DRWCall *)(shgrp_b)->calls.first;
+	const ZSortData *zsortdata = (ZSortData *)thunk;
+
+	float tmp[3];
+	sub_v3_v3v3(tmp, zsortdata->origin, call_a->obmat[3]);
+	const float a_sq = dot_v3v3(zsortdata->axis, tmp);
+	sub_v3_v3v3(tmp, zsortdata->origin, call_b->obmat[3]);
+	const float b_sq = dot_v3v3(zsortdata->axis, tmp);
+
+	if      (a_sq < b_sq) return  1;
+	else if (a_sq > b_sq) return -1;
+	else {
+		/* If there is a depth prepass put it before */
+		if ((shgrp_a->state_extra & DRW_STATE_WRITE_DEPTH) != 0) {
+			return -1;
+		}
+		else if ((shgrp_b->state_extra & DRW_STATE_WRITE_DEPTH) != 0) {
+			return  1;
+		}
+		else return  0;
+	}
+}
+
+/**
+ * Sort Shading groups by decreasing Z of their first draw call.
+ * This is usefull for order dependant effect such as transparency.
+ **/
+void DRW_pass_sort_shgroup_z(DRWPass *pass)
+{
+	RegionView3D *rv3d = DST.draw_ctx.rv3d;
+
+	float (*viewinv)[4];
+	viewinv = (viewport_matrix_override.override[DRW_MAT_VIEWINV])
+	          ? viewport_matrix_override.mat[DRW_MAT_VIEWINV] : rv3d->viewinv;
+
+	ZSortData zsortdata = {viewinv[2], viewinv[3]};
+	BLI_listbase_sort_r(&pass->shgroups, pass_shgroup_dist_sort, &zsortdata);
+}
+
 /** \} */
 
 
@@ -1405,7 +1459,7 @@ void DRW_state_set(DRWState state)
 	{
 		int test;
 		if (CHANGED_ANY_STORE_VAR(
-		        DRW_STATE_BLEND | DRW_STATE_ADDITIVE | DRW_STATE_MULTIPLY,
+		        DRW_STATE_BLEND | DRW_STATE_ADDITIVE | DRW_STATE_MULTIPLY | DRW_STATE_TRANSMISSION,
 		        test))
 		{
 			if (test) {
@@ -1417,8 +1471,11 @@ void DRW_state_set(DRWState state)
 				else if ((state & DRW_STATE_MULTIPLY) != 0) {
 					glBlendFunc(GL_DST_COLOR, GL_ZERO);
 				}
+				else if ((state & DRW_STATE_TRANSMISSION) != 0) {
+					glBlendFunc(GL_ONE, GL_SRC_ALPHA);
+				}
 				else if ((state & DRW_STATE_ADDITIVE) != 0) {
-					glBlendFunc(GL_ONE, GL_ONE);
+					glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 				}
 				else {
 					BLI_assert(0);
@@ -1769,7 +1826,7 @@ void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 		shgroup_dynamic_batch_from_calls(shgroup);
 	}
 
-	DRW_state_set(pass_state | shgroup->state_extra);
+	DRW_state_set((pass_state & shgroup->state_extra_disable) | shgroup->state_extra);
 
 	bind_uniforms(shgroup);
 
@@ -1862,7 +1919,7 @@ void DRW_end_shgroup(void)
 	}
 }
 
-void DRW_draw_pass(DRWPass *pass)
+static void DRW_draw_pass_ex(DRWPass *pass, DRWShadingGroup *start_group, DRWShadingGroup *end_group)
 {
 	/* Start fresh */
 	DST.shader = NULL;
@@ -1894,8 +1951,12 @@ void DRW_draw_pass(DRWPass *pass)
 		glBeginQuery(GL_TIME_ELAPSED, pass->timer_queries[pass->back_idx]);
 	}
 
-	for (DRWShadingGroup *shgroup = pass->shgroups.first; shgroup; shgroup = shgroup->next) {
+	for (DRWShadingGroup *shgroup = start_group; shgroup; shgroup = shgroup->next) {
 		DRW_draw_shgroup(shgroup, pass->state);
+		/* break if upper limit */
+		if (shgroup == end_group) {
+			break;
+		}
 	}
 
 	DRW_end_shgroup();
@@ -1905,6 +1966,17 @@ void DRW_draw_pass(DRWPass *pass)
 	}
 
 	pass->wasdrawn = true;
+}
+
+void DRW_draw_pass(DRWPass *pass)
+{
+	DRW_draw_pass_ex(pass, pass->shgroups.first, pass->shgroups.last);
+}
+
+/* Draw only a subset of shgroups. Used in special situations as grease pencil strokes */
+void DRW_draw_pass_subset(DRWPass *pass, DRWShadingGroup *start_group, DRWShadingGroup *end_group)
+{
+	DRW_draw_pass_ex(pass, start_group, end_group);
 }
 
 void DRW_draw_callbacks_pre_scene(void)
@@ -1932,6 +2004,9 @@ void DRW_state_reset_ex(DRWState state)
 
 void DRW_state_reset(void)
 {
+	/* Reset blending function */
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	DRW_state_reset_ex(DRW_STATE_DEFAULT);
 }
 
@@ -2771,14 +2846,12 @@ static void DRW_engines_enable_external(void)
 	use_drw_engine(DRW_engine_viewport_external_type.draw_engine);
 }
 
-static void DRW_engines_enable(const Scene *scene, SceneLayer *sl, const View3D *v3d)
+static void DRW_engines_enable(const Scene *scene, SceneLayer *sl)
 {
 	const int mode = CTX_data_mode_enum_ex(scene->obedit, OBACT_NEW);
 	DRW_engines_enable_from_engine(scene);
 
-	if ((DRW_state_is_scene_render() == false) &&
-	    (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0)
-	{
+	if (DRW_state_draw_support()) {
 		DRW_engines_enable_from_object_mode();
 		DRW_engines_enable_from_mode(mode);
 	}
@@ -2997,9 +3070,6 @@ void DRW_draw_render_loop_ex(
 	DST.viewport = rv3d->viewport;
 	v3d->zbuf = true;
 
-	/* Get list of enabled engines */
-	DRW_engines_enable(scene, sl, v3d);
-
 	/* Setup viewport */
 	cache_is_dirty = GPU_viewport_cache_validate(DST.viewport, DRW_engines_get_hash());
 
@@ -3010,6 +3080,9 @@ void DRW_draw_render_loop_ex(
 	};
 
 	DRW_viewport_var_init();
+
+	/* Get list of enabled engines */
+	DRW_engines_enable(scene, sl);
 
 	/* Update ubos */
 	DRW_globals_update();
@@ -3057,6 +3130,7 @@ void DRW_draw_render_loop_ex(
 	if (DST.draw_ctx.evil_C) {
 		/* needed so manipulator isn't obscured */
 		glDisable(GL_DEPTH_TEST);
+
 		DRW_draw_manipulator();
 		glEnable(GL_DEPTH_TEST);
 
@@ -3434,6 +3508,18 @@ bool DRW_state_show_text(void)
 	return (DST.options.is_select) == 0 &&
 	       (DST.options.is_depth) == 0 &&
 	       (DST.options.is_scene_render) == 0;
+}
+
+/**
+ * Should draw support elements
+ * Objects center, selection outline, probe data, ...
+ */
+bool DRW_state_draw_support(void)
+{
+	View3D *v3d = DST.draw_ctx.v3d;
+	return (DRW_state_is_scene_render() == false) &&
+	        (v3d != NULL) &&
+	        ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0);
 }
 
 /** \} */

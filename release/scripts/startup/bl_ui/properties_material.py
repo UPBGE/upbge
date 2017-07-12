@@ -1196,6 +1196,34 @@ class EEVEE_MATERIAL_PT_surface(MaterialButtonsPanel, Panel):
             layout.prop(raym, "gloss_factor", text="Roughness")
 
 
+class EEVEE_MATERIAL_PT_options(MaterialButtonsPanel, Panel):
+    bl_label = "Options"
+    bl_context = "material"
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        engine = context.scene.render.engine
+        return context.material and (engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+
+        mat = context.material
+
+        layout.prop(mat, "blend_method")
+
+        if mat.blend_method != "OPAQUE":
+            layout.prop(mat, "transparent_shadow_method")
+
+            row = layout.row()
+            row.active = ((mat.blend_method == "CLIP") or (mat.transparent_shadow_method == "CLIP"))
+            layout.prop(mat, "alpha_threshold")
+
+        if mat.blend_method not in {"OPAQUE", "CLIP", "HASHED"}:
+            layout.prop(mat, "transparent_hide_backside")
+
+
 
 class MATERIAL_PT_custom_props(MaterialButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
@@ -1232,7 +1260,6 @@ classes = (
     MATERIAL_PT_volume_options,
     EEVEE_MATERIAL_PT_context_material,
     EEVEE_MATERIAL_PT_surface,
-    MATERIAL_PT_custom_props,
 )
 
 if __name__ == "__main__":  # only for live edit.

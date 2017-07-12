@@ -43,7 +43,7 @@ static bNodeSocketTemplate sh_node_bsdf_principled_in[] = {
 	{	SOCK_FLOAT, 1, N_("Sheen"),					0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_FLOAT, 1, N_("Sheen Tint"),			0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_FLOAT, 1, N_("Clearcoat"),				0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
-	{	SOCK_FLOAT, 1, N_("Clearcoat Gloss"),		1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
+	{	SOCK_FLOAT, 1, N_("Clearcoat Roughness"),	0.03f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_FLOAT, 1, N_("IOR"),					1.45f, 0.0f, 0.0f, 0.0f, 0.0f, 1000.0f},
 	{	SOCK_FLOAT, 1, N_("Transmission"),			0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_FLOAT, 1, N_("Transmission Roughness"),0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
@@ -65,6 +65,7 @@ static void node_shader_init_principled(bNodeTree *UNUSED(ntree), bNode *node)
 
 static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
+#if 0 /* Old 2.7 glsl viewport */
 	// normal
 	if (!in[17].link)
 		in[17].link = GPU_builtin(GPU_VIEW_NORMAL);
@@ -76,8 +77,34 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *UNUSED(node)
 		in[18].link = GPU_builtin(GPU_VIEW_NORMAL);
 	else
 		GPU_link(mat, "direction_transform_m4v3", in[18].link, GPU_builtin(GPU_VIEW_MATRIX), &in[18].link);
+#endif
 
-	return GPU_stack_link(mat, "node_bsdf_principled", in, out, GPU_builtin(GPU_VIEW_POSITION));
+	/* Normals */
+	if (!in[17].link) {
+		GPU_link(mat, "world_normals_get", &in[17].link);
+	}
+
+	/* Clearcoat Normals */
+	if (!in[18].link) {
+		GPU_link(mat, "world_normals_get", &in[18].link);
+	}
+
+	/* Tangents */
+	if (!in[19].link) {
+		GPUNodeLink *orco = GPU_attribute(CD_ORCO, "");
+		GPU_link(mat, "tangent_orco_z", orco, &in[19].link);
+		GPU_link(mat, "node_tangent",
+		        GPU_builtin(GPU_VIEW_NORMAL), in[19].link, GPU_builtin(GPU_OBJECT_MATRIX), GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
+		        &in[19].link);
+	}
+
+	/* Only use complex versions when needed. */
+	if (!in[12].link && (in[12].vec[0] == 0.0f)) {
+		return GPU_stack_link(mat, "node_bsdf_principled_simple", in, out, GPU_builtin(GPU_VIEW_POSITION));
+	}
+	else {
+		return GPU_stack_link(mat, "node_bsdf_principled_clearcoat", in, out, GPU_builtin(GPU_VIEW_POSITION));
+	}
 }
 
 static void node_shader_update_principled(bNodeTree *UNUSED(ntree), bNode *node)

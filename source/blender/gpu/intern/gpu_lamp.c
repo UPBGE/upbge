@@ -20,7 +20,7 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Brecht Van Lommel, Cl??ment Foucault.
+ * Contributor(s): Brecht Van Lommel, Clément Foucault.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -283,6 +283,10 @@ GPULamp *GPU_lamp_from_blender(Scene *scene, Object *ob, Object *par)
 				return lamp;
 			}
 
+			GPU_texture_bind(lamp->depthtex, 0);
+			GPU_texture_compare_mode(lamp->depthtex, true);
+			GPU_texture_unbind(lamp->depthtex);
+
 			if (!GPU_framebuffer_texture_attach(lamp->fb, lamp->depthtex, 0, 0)) {
 				gpu_lamp_shadow_free(lamp);
 				return lamp;
@@ -340,6 +344,10 @@ GPULamp *GPU_lamp_from_blender(Scene *scene, Object *ob, Object *par)
 				return lamp;
 			}
 
+			GPU_texture_bind(lamp->tex, 0);
+			GPU_texture_compare_mode(lamp->tex, true);
+			GPU_texture_unbind(lamp->tex);
+
 			if (!GPU_framebuffer_texture_attach(lamp->fb, lamp->depthtex, 0, 0)) {
 				gpu_lamp_shadow_free(lamp);
 				return lamp;
@@ -380,20 +388,9 @@ void GPU_lamp_free(Object *ob)
 {
 	GPULamp *lamp;
 	LinkData *link;
-	LinkData *nlink;
-	Material *ma;
 
 	for (link = ob->gpulamp.first; link; link = link->next) {
 		lamp = link->data;
-
-		while (lamp->materials.first) {
-			nlink = lamp->materials.first;
-			ma = nlink->data;
-			BLI_freelinkN(&lamp->materials, nlink);
-
-			if (ma->gpumaterial.first)
-				GPU_material_free(&ma->gpumaterial);
-		}
 
 		gpu_lamp_shadow_free(lamp);
 		GPU_lamp_engine_data_free(&lamp->data);

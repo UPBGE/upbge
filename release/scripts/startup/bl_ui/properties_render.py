@@ -79,7 +79,7 @@ class RENDER_PT_render(RenderButtonsPanel, Panel):
 
 class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
     bl_label = "Dimensions"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     _frame_rate_args_prev = None
     _preset_class = None
@@ -335,7 +335,7 @@ class RENDER_PT_post_processing(RenderButtonsPanel, Panel):
 class RENDER_PT_stamp(RenderButtonsPanel, Panel):
     bl_label = "Metadata"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     def draw(self, context):
         layout = self.layout
@@ -383,7 +383,7 @@ class RENDER_PT_stamp(RenderButtonsPanel, Panel):
 
 class RENDER_PT_output(RenderButtonsPanel, Panel):
     bl_label = "Output"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     def draw(self, context):
         layout = self.layout
@@ -616,6 +616,7 @@ class RENDER_PT_clay_collection_settings(RenderButtonsPanel, Panel):
         col.prop(props, "ssao_attenuation")
         col.prop(props, "hair_brightness_randomness")
 
+
 class RENDER_PT_eevee_poststack_settings(RenderButtonsPanel, Panel):
     bl_label = "Post Process Stack"
     COMPAT_ENGINES = {'BLENDER_EEVEE'}
@@ -677,6 +678,38 @@ class RENDER_PT_eevee_postprocess_settings(RenderButtonsPanel, Panel):
         col.prop(props, "bloom_intensity")
 
 
+class RENDER_PT_eevee_volumetric(RenderButtonsPanel, Panel):
+    bl_label = "Volumetric"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+        self.layout.prop(props, "volumetric_enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+
+        layout.active = props.volumetric_enable
+        col = layout.column()
+        col.prop(props, "volumetric_start")
+        col.prop(props, "volumetric_end")
+        col.prop(props, "volumetric_samples")
+        col.prop(props, "volumetric_sample_distribution")
+        col.prop(props, "volumetric_lights")
+        col.prop(props, "volumetric_light_clamp")
+        col.prop(props, "volumetric_shadows")
+        col.prop(props, "volumetric_shadow_samples")
+        col.prop(props, "volumetric_colored_transmittance")
+
+
 classes = (
     RENDER_MT_presets,
     RENDER_MT_ffmpeg_presets,
@@ -696,6 +729,7 @@ classes = (
     RENDER_PT_clay_collection_settings,
     RENDER_PT_eevee_poststack_settings,
     RENDER_PT_eevee_postprocess_settings,
+    RENDER_PT_eevee_volumetric,
 )
 
 if __name__ == "__main__":  # only for live edit.

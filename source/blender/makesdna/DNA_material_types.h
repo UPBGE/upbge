@@ -217,6 +217,13 @@ typedef struct Material {
 	char nmap_tangent_names[9][64]; /* [MAX_MTFACE+1][MAX_NAME]; +1 for empty name */
 	int nmap_tangent_names_count, pad5;
 
+	/* Transparency */
+	float alpha_threshold;
+	char blend_method;
+	char blend_shadow;
+	char blend_flag;
+	char pad6;
+
 	/* image to use for image/uv space, also bake target
 	 * (not to be used shading/rendering pipeline, this is editor featyure only!). */
 	struct Image *edit_image;
@@ -505,6 +512,29 @@ typedef struct Material {
 #define MA_VOL_SHADE_SHADED						1
 #define MA_VOL_SHADE_MULTIPLE					3
 #define MA_VOL_SHADE_SHADEDPLUSMULTIPLE			4
+
+/* blend_method */
+enum {
+	MA_BM_SOLID,
+	MA_BM_ADD,
+	MA_BM_MULTIPLY,
+	MA_BM_CLIP,
+	MA_BM_HASHED,
+	MA_BM_BLEND,
+};
+
+/* blend_flag */
+enum {
+	MA_BL_HIDE_BACKSIDE =       (1 << 0),
+};
+
+/* blend_shadow */
+enum {
+	MA_BS_NONE = 0,
+	MA_BS_SOLID,
+	MA_BS_CLIP,
+	MA_BS_HASHED,
+};
 
 #endif
 

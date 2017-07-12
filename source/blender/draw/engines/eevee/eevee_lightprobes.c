@@ -57,6 +57,7 @@ static struct {
 	struct GPUShader *probe_filter_diffuse_sh;
 	struct GPUShader *probe_grid_display_sh;
 	struct GPUShader *probe_planar_display_sh;
+	struct GPUShader *probe_planar_downsample_sh;
 	struct GPUShader *probe_cube_display_sh;
 
 	struct GPUTexture *hammersley;
@@ -70,19 +71,23 @@ static struct {
 	bool world_ready_to_shade;
 } e_data = {NULL}; /* Engine data */
 
+extern char datatoc_background_vert_glsl[];
 extern char datatoc_default_world_frag_glsl[];
-extern char datatoc_fullscreen_vert_glsl[];
 extern char datatoc_lightprobe_filter_glossy_frag_glsl[];
 extern char datatoc_lightprobe_filter_diffuse_frag_glsl[];
 extern char datatoc_lightprobe_geom_glsl[];
 extern char datatoc_lightprobe_vert_glsl[];
 extern char datatoc_lightprobe_planar_display_frag_glsl[];
 extern char datatoc_lightprobe_planar_display_vert_glsl[];
+extern char datatoc_lightprobe_planar_downsample_frag_glsl[];
+extern char datatoc_lightprobe_planar_downsample_geom_glsl[];
+extern char datatoc_lightprobe_planar_downsample_vert_glsl[];
 extern char datatoc_lightprobe_cube_display_frag_glsl[];
 extern char datatoc_lightprobe_cube_display_vert_glsl[];
 extern char datatoc_lightprobe_grid_display_frag_glsl[];
 extern char datatoc_lightprobe_grid_display_vert_glsl[];
 extern char datatoc_irradiance_lib_glsl[];
+extern char datatoc_lightprobe_lib_glsl[];
 extern char datatoc_octahedron_lib_glsl[];
 extern char datatoc_bsdf_common_lib_glsl[];
 extern char datatoc_bsdf_sampling_lib_glsl[];
@@ -186,7 +191,7 @@ void EEVEE_lightprobes_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *UNUSED(ved
 		        "#define NOISE_SIZE 64\n");
 
 		e_data.probe_default_sh = DRW_shader_create(
-		        datatoc_lightprobe_vert_glsl, datatoc_lightprobe_geom_glsl, datatoc_default_world_frag_glsl, NULL);
+		        datatoc_background_vert_glsl, NULL, datatoc_default_world_frag_glsl, NULL);
 
 		MEM_freeN(shader_str);
 
@@ -213,7 +218,9 @@ void EEVEE_lightprobes_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *UNUSED(ved
 
 		ds_frag = BLI_dynstr_new();
 		BLI_dynstr_append(ds_frag, datatoc_octahedron_lib_glsl);
+		BLI_dynstr_append(ds_frag, datatoc_bsdf_common_lib_glsl);
 		BLI_dynstr_append(ds_frag, datatoc_irradiance_lib_glsl);
+		BLI_dynstr_append(ds_frag, datatoc_lightprobe_lib_glsl);
 		BLI_dynstr_append(ds_frag, datatoc_lightprobe_grid_display_frag_glsl);
 		shader_str = BLI_dynstr_get_cstring(ds_frag);
 		BLI_dynstr_free(ds_frag);
@@ -233,6 +240,8 @@ void EEVEE_lightprobes_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *UNUSED(ved
 
 		ds_frag = BLI_dynstr_new();
 		BLI_dynstr_append(ds_frag, datatoc_octahedron_lib_glsl);
+		BLI_dynstr_append(ds_frag, datatoc_bsdf_common_lib_glsl);
+		BLI_dynstr_append(ds_frag, datatoc_lightprobe_lib_glsl);
 		BLI_dynstr_append(ds_frag, datatoc_lightprobe_cube_display_frag_glsl);
 		shader_str = BLI_dynstr_get_cstring(ds_frag);
 		BLI_dynstr_free(ds_frag);
@@ -243,7 +252,9 @@ void EEVEE_lightprobes_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *UNUSED(ved
 		MEM_freeN(shader_str);
 
 		ds_frag = BLI_dynstr_new();
+		BLI_dynstr_append(ds_frag, datatoc_octahedron_lib_glsl);
 		BLI_dynstr_append(ds_frag, datatoc_bsdf_common_lib_glsl);
+		BLI_dynstr_append(ds_frag, datatoc_lightprobe_lib_glsl);
 		BLI_dynstr_append(ds_frag, datatoc_lightprobe_planar_display_frag_glsl);
 		shader_str = BLI_dynstr_get_cstring(ds_frag);
 		BLI_dynstr_free(ds_frag);
@@ -253,6 +264,12 @@ void EEVEE_lightprobes_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *UNUSED(ved
 		        "#define MAX_PLANAR " STRINGIFY(MAX_PLANAR) "\n");
 
 		MEM_freeN(shader_str);
+
+		e_data.probe_planar_downsample_sh = DRW_shader_create(
+		        datatoc_lightprobe_planar_downsample_vert_glsl,
+		        datatoc_lightprobe_planar_downsample_geom_glsl,
+		        datatoc_lightprobe_planar_downsample_frag_glsl,
+		        NULL);
 
 		e_data.hammersley = create_hammersley_sample_texture(1024);
 	}
@@ -296,8 +313,11 @@ void EEVEE_lightprobes_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *UNUSED(ved
 	}
 }
 
-void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl, EEVEE_StorageList *stl)
+void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 {
+	EEVEE_TextureList *txl = vedata->txl;
+	EEVEE_PassList *psl = vedata->psl;
+	EEVEE_StorageList *stl = vedata->stl;
 	EEVEE_LightProbesInfo *pinfo = sldata->probes;
 
 	pinfo->num_cube = 1; /* at least one for the world */
@@ -317,7 +337,6 @@ void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_PassList *
 		Scene *scene = draw_ctx->scene;
 		World *wo = scene->world;
 
-		static int zero = 0;
 		float *col = ts.colorBackground;
 		if (wo) {
 			col = &wo->horr;
@@ -327,13 +346,11 @@ void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_PassList *
 			if (wo->use_nodes && wo->nodetree) {
 				struct GPUMaterial *gpumat = EEVEE_material_world_lightprobe_get(scene, wo);
 
-				grp = DRW_shgroup_material_instance_create(gpumat, psl->probe_background, geom);
+				grp = DRW_shgroup_material_create(gpumat, psl->probe_background);
 
 				if (grp) {
-					DRW_shgroup_uniform_int(grp, "Layer", &zero, 1);
-
-					for (int i = 0; i < 6; ++i)
-						DRW_shgroup_call_dynamic_add_empty(grp);
+					DRW_shgroup_uniform_float(grp, "backgroundAlpha", &stl->g_data->background_alpha, 1);
+					DRW_shgroup_call_add(grp, geom, NULL);
 				}
 				else {
 					/* Shader failed : pink background */
@@ -345,12 +362,10 @@ void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_PassList *
 
 		/* Fallback if shader fails or if not using nodetree. */
 		if (grp == NULL) {
-			grp = DRW_shgroup_instance_create(e_data.probe_default_sh, psl->probe_background, geom);
+			grp = DRW_shgroup_create(e_data.probe_default_sh, psl->probe_background);
 			DRW_shgroup_uniform_vec3(grp, "color", col, 1);
-			DRW_shgroup_uniform_int(grp, "Layer", &zero, 1);
-
-			for (int i = 0; i < 6; ++i)
-				DRW_shgroup_call_dynamic_add_empty(grp);
+			DRW_shgroup_uniform_float(grp, "backgroundAlpha", &stl->g_data->background_alpha, 1);
+			DRW_shgroup_call_add(grp, geom, NULL);
 		}
 	}
 
@@ -364,7 +379,7 @@ void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_PassList *
 		DRW_shgroup_uniform_float(grp, "invSampleCount", &sldata->probes->invsamples_ct, 1);
 		DRW_shgroup_uniform_float(grp, "roughnessSquared", &sldata->probes->roughness, 1);
 		DRW_shgroup_uniform_float(grp, "lodFactor", &sldata->probes->lodfactor, 1);
-		DRW_shgroup_uniform_float(grp, "lodMax", &sldata->probes->lodmax, 1);
+		DRW_shgroup_uniform_float(grp, "lodMax", &sldata->probes->lod_rt_max, 1);
 		DRW_shgroup_uniform_float(grp, "texelSize", &sldata->probes->texel_size, 1);
 		DRW_shgroup_uniform_float(grp, "paddingSize", &sldata->probes->padding_size, 1);
 		DRW_shgroup_uniform_int(grp, "Layer", &sldata->probes->layer, 1);
@@ -385,7 +400,7 @@ void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_PassList *
 		DRW_shgroup_uniform_float(grp, "sampleCount", &sldata->probes->samples_ct, 1);
 		DRW_shgroup_uniform_float(grp, "invSampleCount", &sldata->probes->invsamples_ct, 1);
 		DRW_shgroup_uniform_float(grp, "lodFactor", &sldata->probes->lodfactor, 1);
-		DRW_shgroup_uniform_float(grp, "lodMax", &sldata->probes->lodmax, 1);
+		DRW_shgroup_uniform_float(grp, "lodMax", &sldata->probes->lod_rt_max, 1);
 		DRW_shgroup_uniform_texture(grp, "texHammersley", e_data.hammersley);
 #endif
 		DRW_shgroup_uniform_texture(grp, "probeHdr", sldata->probe_rt);
@@ -403,8 +418,17 @@ void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_PassList *
 		DRW_shgroup_attrib_float(grp, "probe_id", 1); /* XXX this works because we are still uploading 4bytes and using the right stride */
 		DRW_shgroup_attrib_float(grp, "probe_location", 3);
 		DRW_shgroup_attrib_float(grp, "sphere_size", 1);
-		DRW_shgroup_uniform_float(grp, "lodMax", &sldata->probes->lodmax, 1);
+		DRW_shgroup_uniform_float(grp, "lodCubeMax", &sldata->probes->lod_cube_max, 1);
 		DRW_shgroup_uniform_buffer(grp, "probeCubes", &sldata->probe_pool);
+	}
+
+	{
+		psl->probe_planar_downsample_ps = DRW_pass_create("LightProbe Planar Downsample", DRW_STATE_WRITE_COLOR);
+
+		struct Gwn_Batch *geom = DRW_cache_fullscreen_quad_get();
+		DRWShadingGroup *grp = stl->g_data->planar_downsample = DRW_shgroup_instance_create(e_data.probe_planar_downsample_sh, psl->probe_planar_downsample_ps, geom);
+		DRW_shgroup_uniform_buffer(grp, "source", &txl->planar_pool);
+		DRW_shgroup_uniform_vec2(grp, "texelSize", stl->g_data->texel_size, 1);
 	}
 }
 
@@ -559,7 +583,7 @@ static void EEVEE_planar_reflections_updates(EEVEE_SceneLayerData *sldata, EEVEE
 		eplanar->attenuation_bias = max_dist * -eplanar->attenuation_scale;
 
 		/* Debug Display */
-		if ((probe->flag & LIGHTPROBE_FLAG_SHOW_DATA) != 0) {
+		if (DRW_state_draw_support() && (probe->flag & LIGHTPROBE_FLAG_SHOW_DATA)) {
 			DRWShadingGroup *grp = DRW_shgroup_create(e_data.probe_planar_display_sh, psl->probe_display);
 
 			DRW_shgroup_uniform_int(grp, "probeIdx", &ped->probe_id, 1);
@@ -612,7 +636,7 @@ static void EEVEE_lightprobes_updates(EEVEE_SceneLayerData *sldata, EEVEE_PassLi
 		invert_m4(eprobe->parallaxmat);
 
 		/* Debug Display */
-		if ((probe->flag & LIGHTPROBE_FLAG_SHOW_DATA) != 0) {
+		if (DRW_state_draw_support() && (probe->flag & LIGHTPROBE_FLAG_SHOW_DATA)) {
 			DRW_shgroup_call_dynamic_add(stl->g_data->cube_display_shgrp, &ped->probe_id, ob->obmat[3], &probe->data_draw_size);
 		}
 	}
@@ -670,7 +694,7 @@ static void EEVEE_lightprobes_updates(EEVEE_SceneLayerData *sldata, EEVEE_PassLi
 		copy_v3_v3_int(egrid->resolution, &probe->grid_resolution_x);
 
 		/* Debug Display */
-		if ((probe->flag & LIGHTPROBE_FLAG_SHOW_DATA) != 0) {
+		if (DRW_state_draw_support() && (probe->flag & LIGHTPROBE_FLAG_SHOW_DATA)) {
 			struct Gwn_Batch *geom = DRW_cache_sphere_get();
 			DRWShadingGroup *grp = DRW_shgroup_instance_create(e_data.probe_grid_display_sh, psl->probe_display, geom);
 			DRW_shgroup_set_instance_count(grp, ped->num_cell);
@@ -688,6 +712,7 @@ static void EEVEE_lightprobes_updates(EEVEE_SceneLayerData *sldata, EEVEE_PassLi
 
 void EEVEE_lightprobes_cache_finish(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 {
+	EEVEE_StorageList *stl = vedata->stl;
 	EEVEE_LightProbesInfo *pinfo = sldata->probes;
 	Object *ob;
 
@@ -704,6 +729,9 @@ void EEVEE_lightprobes_cache_finish(EEVEE_SceneLayerData *sldata, EEVEE_Data *ve
 
 	/* XXX this should be run each frame as it ensure planar_depth is set */
 	planar_pool_ensure_alloc(vedata, pinfo->num_planar);
+
+	/* Setup planar filtering pass */
+	DRW_shgroup_set_instance_count(stl->g_data->planar_downsample, pinfo->num_planar);
 
 	if (!sldata->probe_pool) {
 		sldata->probe_pool = DRW_texture_create_2D_array(PROBE_OCTAHEDRON_SIZE, PROBE_OCTAHEDRON_SIZE, max_ff(1, pinfo->num_cube),
@@ -772,6 +800,24 @@ void EEVEE_lightprobes_cache_finish(EEVEE_SceneLayerData *sldata, EEVEE_Data *ve
 	DRW_uniformbuffer_update(sldata->planar_ubo, &sldata->probes->planar_data);
 }
 
+static void downsample_planar(void *vedata, int level)
+{
+	EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
+	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
+
+	const float *size = DRW_viewport_size_get();
+	copy_v2_v2(stl->g_data->texel_size, size);
+	for (int i = 0; i < level - 1; ++i) {
+		stl->g_data->texel_size[0] /= 2.0f;
+		stl->g_data->texel_size[1] /= 2.0f;
+		min_ff(floorf(stl->g_data->texel_size[0]), 1.0f);
+		min_ff(floorf(stl->g_data->texel_size[1]), 1.0f);
+	}
+	invert_v2(stl->g_data->texel_size);
+
+	DRW_draw_pass(psl->probe_planar_downsample_ps);
+}
+
 /* Glossy filter probe_rt to probe_pool at index probe_idx */
 static void glossy_filter_probe(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl, int probe_idx)
 {
@@ -826,7 +872,7 @@ static void glossy_filter_probe(EEVEE_SceneLayerData *sldata, EEVEE_PassList *ps
 
 		pinfo->invsamples_ct = 1.0f / pinfo->samples_ct;
 		pinfo->lodfactor = bias + 0.5f * log((float)(PROBE_RT_SIZE * PROBE_RT_SIZE) * pinfo->invsamples_ct) / log(2);
-		pinfo->lodmax = floorf(log2f(PROBE_RT_SIZE)) - 2.0f;
+		pinfo->lod_rt_max = floorf(log2f(PROBE_RT_SIZE)) - 2.0f;
 
 		DRW_framebuffer_texture_attach(sldata->probe_filter_fb, sldata->probe_pool, 0, i);
 		DRW_framebuffer_viewport_size(sldata->probe_filter_fb, 0, 0, mipsize, mipsize);
@@ -837,7 +883,7 @@ static void glossy_filter_probe(EEVEE_SceneLayerData *sldata, EEVEE_PassList *ps
 		CLAMP_MIN(mipsize, 1);
 	}
 	/* For shading, save max level of the octahedron map */
-	pinfo->lodmax = (float)(maxlevel - min_lod_level) - 1.0f;
+	pinfo->lod_cube_max = (float)(maxlevel - min_lod_level) - 1.0f;
 
 	/* reattach to have a valid framebuffer. */
 	DRW_framebuffer_texture_attach(sldata->probe_filter_fb, sldata->probe_pool, 0, 0);
@@ -847,9 +893,6 @@ static void glossy_filter_probe(EEVEE_SceneLayerData *sldata, EEVEE_PassList *ps
 static void diffuse_filter_probe(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl, int offset)
 {
 	EEVEE_LightProbesInfo *pinfo = sldata->probes;
-
-	/* TODO do things properly */
-	float lodmax = pinfo->lodmax;
 
 	/* 4 - Compute spherical harmonics */
 	/* Tweaking parameters to balance perf. vs precision */
@@ -880,10 +923,10 @@ static void diffuse_filter_probe(EEVEE_SceneLayerData *sldata, EEVEE_PassList *p
 	const float bias = 0.0f;
 	pinfo->invsamples_ct = 1.0f / pinfo->samples_ct;
 	pinfo->lodfactor = bias + 0.5f * log((float)(PROBE_RT_SIZE * PROBE_RT_SIZE) * pinfo->invsamples_ct) / log(2);
-	pinfo->lodmax = floorf(log2f(PROBE_RT_SIZE)) - 2.0f;
+	pinfo->lod_rt_max = floorf(log2f(PROBE_RT_SIZE)) - 2.0f;
 #else
 	pinfo->shres = 32; /* Less texture fetches & reduce branches */
-	pinfo->lodmax = 2.0f; /* Improve cache reuse */
+	pinfo->lod_rt_max = 2.0f; /* Improve cache reuse */
 #endif
 
 	DRW_framebuffer_viewport_size(sldata->probe_filter_fb, x, y, size[0], size[1]);
@@ -892,9 +935,6 @@ static void diffuse_filter_probe(EEVEE_SceneLayerData *sldata, EEVEE_PassList *p
 	/* reattach to have a valid framebuffer. */
 	DRW_framebuffer_texture_detach(sldata->irradiance_rt);
 	DRW_framebuffer_texture_attach(sldata->probe_filter_fb, sldata->probe_pool, 0, 0);
-
-	/* restore */
-	pinfo->lodmax = lodmax;
 }
 
 /* Render the scene to the probe_rt texture. */
@@ -961,7 +1001,7 @@ static void render_scene_to_probe(
 		DRW_viewport_matrix_override_set(viewinv, DRW_MAT_VIEWINV);
 		DRW_viewport_matrix_override_set(winmat, DRW_MAT_WIN);
 
-		DRW_draw_pass(psl->background_pass);
+		DRW_draw_pass(psl->probe_background);
 
 		/* Depth prepass */
 		DRW_draw_pass(psl->depth_pass);
@@ -1032,7 +1072,7 @@ static void render_scene_to_planar(
 	DRW_viewport_matrix_override_set(viewinv, DRW_MAT_VIEWINV);
 
 	/* Background */
-	DRW_draw_pass(psl->background_pass);
+	DRW_draw_pass(psl->probe_background);
 
 	/* Since we are rendering with an inverted view matrix, we need
 	 * to invert the facing for backface culling to be the same. */
@@ -1071,13 +1111,47 @@ static void render_scene_to_planar(
 static void render_world_to_probe(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl)
 {
 	EEVEE_LightProbesInfo *pinfo = sldata->probes;
+	float winmat[4][4];
 
 	/* 1 - Render to cubemap target using geometry shader. */
 	/* For world probe, we don't need to clear since we render the background directly. */
 	pinfo->layer = 0;
 
+	perspective_m4(winmat, -0.1f, 0.1f, -0.1f, 0.1f, 0.1f, 1.0f);
+
+	/* Detach to rebind the right cubeface. */
 	DRW_framebuffer_bind(sldata->probe_fb);
-	DRW_draw_pass(psl->probe_background);
+	DRW_framebuffer_texture_detach(sldata->probe_rt);
+	for (int i = 0; i < 6; ++i) {
+		float viewmat[4][4], persmat[4][4];
+		float viewinv[4][4], persinv[4][4];
+
+		DRW_framebuffer_cubeface_attach(sldata->probe_fb, sldata->probe_rt, 0, i, 0);
+		DRW_framebuffer_viewport_size(sldata->probe_fb, 0, 0, PROBE_RT_SIZE, PROBE_RT_SIZE);
+
+		/* Setup custom matrices */
+		copy_m4_m4(viewmat, cubefacemat[i]);
+		mul_m4_m4m4(persmat, winmat, viewmat);
+		invert_m4_m4(persinv, persmat);
+		invert_m4_m4(viewinv, viewmat);
+
+		DRW_viewport_matrix_override_set(persmat, DRW_MAT_PERS);
+		DRW_viewport_matrix_override_set(persinv, DRW_MAT_PERSINV);
+		DRW_viewport_matrix_override_set(viewmat, DRW_MAT_VIEW);
+		DRW_viewport_matrix_override_set(viewinv, DRW_MAT_VIEWINV);
+		DRW_viewport_matrix_override_set(winmat, DRW_MAT_WIN);
+
+		DRW_draw_pass(psl->probe_background);
+
+		DRW_framebuffer_texture_detach(sldata->probe_rt);
+	}
+	DRW_framebuffer_texture_attach(sldata->probe_fb, sldata->probe_rt, 0, 0);
+
+	DRW_viewport_matrix_override_unset(DRW_MAT_PERS);
+	DRW_viewport_matrix_override_unset(DRW_MAT_PERSINV);
+	DRW_viewport_matrix_override_unset(DRW_MAT_VIEW);
+	DRW_viewport_matrix_override_unset(DRW_MAT_VIEWINV);
+	DRW_viewport_matrix_override_unset(DRW_MAT_WIN);
 }
 
 static void lightprobe_cell_location_get(EEVEE_LightGrid *egrid, int cell_idx, float r_pos[3])
@@ -1099,6 +1173,7 @@ static void lightprobe_cell_location_get(EEVEE_LightGrid *egrid, int cell_idx, f
 
 void EEVEE_lightprobes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 {
+	EEVEE_TextureList *txl = vedata->txl;
 	EEVEE_PassList *psl = vedata->psl;
 	EEVEE_LightProbesInfo *pinfo = sldata->probes;
 	Object *ob;
@@ -1246,6 +1321,14 @@ update_planar:
 			ped->probe_id = i;
 		}
 	}
+
+	/* If there is at least one planar probe */
+	if (pinfo->num_planar > 0) {
+		const int max_lod = 5;
+		DRW_framebuffer_recursive_downsample(vedata->fbl->minmaxz_fb, txl->planar_pool, max_lod, &downsample_planar, vedata);
+		/* For shading, save max level of the planar map */
+		pinfo->lod_planar_max = (float)(max_lod);
+	}
 }
 
 void EEVEE_lightprobes_free(void)
@@ -1255,6 +1338,7 @@ void EEVEE_lightprobes_free(void)
 	DRW_SHADER_FREE_SAFE(e_data.probe_filter_diffuse_sh);
 	DRW_SHADER_FREE_SAFE(e_data.probe_grid_display_sh);
 	DRW_SHADER_FREE_SAFE(e_data.probe_planar_display_sh);
+	DRW_SHADER_FREE_SAFE(e_data.probe_planar_downsample_sh);
 	DRW_SHADER_FREE_SAFE(e_data.probe_cube_display_sh);
 	DRW_TEXTURE_FREE_SAFE(e_data.hammersley);
 	DRW_TEXTURE_FREE_SAFE(e_data.planar_pool_placeholder);

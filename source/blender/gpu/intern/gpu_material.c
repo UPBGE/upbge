@@ -104,7 +104,7 @@ struct GPUMaterial {
 	 * some code generation is done differently depending on the use case */
 	int type; /* DEPRECATED */
 
-	void *engine;   /* attached engine type */
+	const void *engine_type;   /* attached engine type */
 	int options;    /* to identify shader variations (shadow, probe, world background...) */
 	
 	/* for creating the material */
@@ -270,21 +270,6 @@ void GPU_material_free(ListBase *gpumaterial)
 		if (material->pass)
 			GPU_pass_free(material->pass);
 
-		for (LinkData *nlink = material->lamps.first; nlink; nlink = nlink->next) {
-			GPULamp *lamp = nlink->data;
-
-			if (material->ma) {
-				Material *ma = material->ma;
-				
-				LinkData *next = NULL;
-				for (LinkData *mlink = lamp->materials.first; mlink; mlink = next) {
-					next = mlink->next;
-					if (mlink->data == ma)
-						BLI_freelinkN(&lamp->materials, mlink);
-				}
-			}
-		}
-		
 		BLI_freelistN(&material->lamps);
 
 		MEM_freeN(material);
@@ -1020,14 +1005,12 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 				}
 				
 				add_user_list(&mat->lamps, lamp);
-				add_user_list(&lamp->materials, shi->gpumat->ma);
 				return;
 			}
 		}
 	}
 	else if ((mat->scene->gm.flag & GAME_GLSL_NO_SHADOWS) && (lamp->mode & LA_ONLYSHADOW)) {
 		add_user_list(&mat->lamps, lamp);
-		add_user_list(&lamp->materials, shi->gpumat->ma);
 		return;
 	}
 	else
@@ -1102,7 +1085,6 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	}
 
 	add_user_list(&mat->lamps, lamp);
-	add_user_list(&lamp->materials, shi->gpumat->ma);
 }
 
 static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
@@ -2311,28 +2293,43 @@ GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo)
 	return mat;
 }
 
-/* TODO : This is supposed to replace GPU_material_from_blender/_world in the future */
-GPUMaterial *GPU_material_from_nodetree(
-        Scene *scene, struct bNodeTree *ntree, ListBase *gpumaterials, void *engine_type, int options,
-        const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines)
+GPUMaterial *GPU_material_from_nodetree_find(
+        ListBase *gpumaterials, const void *engine_type, int options)
 {
-	GPUMaterial *mat;
-	GPUNodeLink *outlink;
-	LinkData *link;
-
-	for (link = gpumaterials->first; link; link = link->next) {
+	for (LinkData *link = gpumaterials->first; link; link = link->next) {
 		GPUMaterial *current_material = (GPUMaterial *)link->data;
-		if (current_material->engine == engine_type &&
+		if (current_material->engine_type == engine_type &&
 		    current_material->options == options)
 		{
 			return current_material;
 		}
 	}
 
+	return NULL;
+}
+
+/**
+ * TODO: This is supposed to replace GPU_material_from_blender/_world in the future
+ *
+ * \note Caller must use #GPU_material_from_nodetree_find to re-use existing materials,
+ * This is enforced since constructing other arguments to this function may be expensive
+ * so only do this when they are needed.
+ */
+GPUMaterial *GPU_material_from_nodetree(
+        Scene *scene, struct bNodeTree *ntree, ListBase *gpumaterials, const void *engine_type, int options,
+        const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines)
+{
+	GPUMaterial *mat;
+	GPUNodeLink *outlink;
+	LinkData *link;
+
+	/* Caller must re-use materials. */
+	BLI_assert(GPU_material_from_nodetree_find(gpumaterials, engine_type, options) == NULL);
+
 	/* allocate material */
 	mat = GPU_material_construct_begin(NULL); /* TODO remove GPU_material_construct_begin */
 	mat->scene = scene;
-	mat->engine = engine_type;
+	mat->engine_type = engine_type;
 	mat->options = options;
 
 	ntreeGPUMaterialNodes(ntree, mat, NODE_NEWER_SHADING);
@@ -2340,7 +2337,8 @@ GPUMaterial *GPU_material_from_nodetree(
 	/* Let Draw manager finish the construction. */
 	if (mat->outlink) {
 		outlink = mat->outlink;
-		mat->pass = GPU_generate_pass_new(&mat->nodes, outlink, vert_code, geom_code, frag_lib, defines);
+		mat->pass = GPU_generate_pass_new(
+		        &mat->nodes, outlink, &mat->attribs, vert_code, geom_code, frag_lib, defines);
 	}
 
 	/* note that even if building the shader fails in some way, we still keep
@@ -2521,7 +2519,6 @@ GPUNodeLink *GPU_lamp_get_data(
 
 	/* ensure shadow buffer and lamp textures will be updated */
 	add_user_list(&mat->lamps, lamp);
-	add_user_list(&lamp->materials, mat->ma);
 
 	return visifac;
 }
@@ -2599,6 +2596,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 					case GPU_VEC4:
 					case GPU_MAT3:
 					case GPU_MAT4:
+					case GPU_CLOSURE:
 					case GPU_ATTRIB:
 						break;
 				}
@@ -2627,6 +2625,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 						break;
 
 					case GPU_NONE:
+					case GPU_CLOSURE:
 					case GPU_TEX2D:
 					case GPU_TEXCUBE:
 					case GPU_SHADOW2D:

@@ -214,6 +214,42 @@ class RENDERLAYER_PT_eevee_postprocess_settings(RenderLayerButtonsPanel, Panel):
         col.template_override_property(layer_props, scene_props, "bloom_intensity")
 
 
+class RENDERLAYER_PT_eevee_volumetric(RenderLayerButtonsPanel, Panel):
+    bl_label = "Volumetric"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        scene = context.scene
+        scene_props = scene.layer_properties['BLENDER_EEVEE']
+        layer = bpy.context.render_layer
+        layer_props = layer.engine_overrides['BLENDER_EEVEE']
+
+        self.layout.template_override_property(layer_props, scene_props, "volumetric_enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        scene_props = scene.layer_properties['BLENDER_EEVEE']
+        layer = bpy.context.render_layer
+        layer_props = layer.engine_overrides['BLENDER_EEVEE']
+
+        col = layout.column()
+        col.template_override_property(layer_props, scene_props, "volumetric_start")
+        col.template_override_property(layer_props, scene_props, "volumetric_end")
+        col.template_override_property(layer_props, scene_props, "volumetric_samples")
+        col.template_override_property(layer_props, scene_props, "volumetric_sample_distribution")
+        col.template_override_property(layer_props, scene_props, "volumetric_lights")
+        col.template_override_property(layer_props, scene_props, "volumetric_light_clamp")
+        col.template_override_property(layer_props, scene_props, "volumetric_shadows")
+        col.template_override_property(layer_props, scene_props, "volumetric_shadow_samples")
+        col.template_override_property(layer_props, scene_props, "volumetric_colored_transmittance")
+
+
 classes = (
     RENDERLAYER_UL_renderlayers,
     RENDERLAYER_PT_layers,
@@ -222,6 +258,7 @@ classes = (
     RENDERLAYER_PT_clay_settings,
     RENDERLAYER_PT_eevee_poststack_settings,
     RENDERLAYER_PT_eevee_postprocess_settings,
+    RENDERLAYER_PT_eevee_volumetric,
 )
 
 if __name__ == "__main__":  # only for live edit.

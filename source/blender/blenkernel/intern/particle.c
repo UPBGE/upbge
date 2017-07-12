@@ -255,11 +255,16 @@ struct LatticeDeformData *psys_create_lattice_deform_data(ParticleSimulationData
 	if (psys_in_edit_mode(sim->scene, sim->psys) == 0) {
 		Object *lattice = NULL;
 		ModifierData *md = (ModifierData *)psys_get_modifier(sim->ob, sim->psys);
+		int mode = G.is_rendering ? eModifierMode_Render : eModifierMode_Realtime;
 
 		for (; md; md = md->next) {
 			if (md->type == eModifierType_Lattice) {
-				LatticeModifierData *lmd = (LatticeModifierData *)md;
-				lattice = lmd->object;
+				if (md->mode & mode) {
+					LatticeModifierData *lmd = (LatticeModifierData *)md;
+					lattice = lmd->object;
+					sim->psys->lattice_strength = lmd->strength;
+				}
+
 				break;
 			}
 		}
@@ -2710,7 +2715,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra, const bool use_re
 			/* lattices have to be calculated separately to avoid mixups between effector calculations */
 			if (psys->lattice_deform_data) {
 				for (k = 0, ca = cache[p]; k <= segments; k++, ca++)
-					calc_latt_deform(psys->lattice_deform_data, ca->co, 1.0f);
+					calc_latt_deform(psys->lattice_deform_data, ca->co, psys->lattice_strength);
 			}
 		}
 
@@ -3374,7 +3379,8 @@ void BKE_particlesettings_make_local(Main *bmain, ParticleSettings *part, const 
 /*			Textures							*/
 /************************************************/
 
-static int get_particle_uv(DerivedMesh *dm, ParticleData *pa, int face_index, const float fuv[4], char *name, float *texco)
+static int get_particle_uv(DerivedMesh *dm, ParticleData *pa, int index, const float fuv[4],
+                           char *name, float *texco, bool from_vert)
 {
 	MFace *mf;
 	MTFace *tf;
@@ -3390,11 +3396,15 @@ static int get_particle_uv(DerivedMesh *dm, ParticleData *pa, int face_index, co
 
 	if (pa) {
 		i = ELEM(pa->num_dmcache, DMCACHE_NOTFOUND, DMCACHE_ISCHILD) ? pa->num : pa->num_dmcache;
-		if (i >= dm->getNumTessFaces(dm))
+		if ((!from_vert && i >= dm->getNumTessFaces(dm)) ||
+		    (from_vert && i >= dm->getNumVerts(dm)))
+		{
 			i = -1;
+		}
 	}
-	else
-		i = face_index;
+	else {
+		i = index;
+	}
 
 	if (i == -1) {
 		texco[0] = 0.0f;
@@ -3402,7 +3412,22 @@ static int get_particle_uv(DerivedMesh *dm, ParticleData *pa, int face_index, co
 		texco[2] = 0.0f;
 	}
 	else {
-		mf = dm->getTessFaceData(dm, i, CD_MFACE);
+		if (from_vert) {
+			mf = dm->getTessFaceDataArray(dm, CD_MFACE);
+
+			/* This finds the first face to contain the emitting vertex,
+			 * this is not ideal, but is mostly fine as UV seams generally
+			 * map to equal-colored parts of a texture */
+			for (int j = 0; j < dm->getNumTessFaces(dm); j++, mf++) {
+				if (ELEM(i, mf->v1, mf->v2, mf->v3, mf->v4)) {
+					i = j;
+					break;
+				}
+			}
+		}
+		else {
+			mf = dm->getTessFaceData(dm, i, CD_MFACE);
+		}
 
 		psys_interpolate_uvs(&tf[i], mf->v4, fuv, texco);
 
@@ -3469,8 +3494,11 @@ static void get_cpa_texture(DerivedMesh *dm, ParticleSystem *psys, ParticleSetti
 						mul_m4_v3(mtex->object->imat, texvec);
 					break;
 				case TEXCO_UV:
-					if (fw && get_particle_uv(dm, NULL, face_index, fw, mtex->uvname, texvec))
+					if (fw && get_particle_uv(dm, NULL, face_index, fw, mtex->uvname,
+					                          texvec, (part->from == PART_FROM_VERT)))
+					{
 						break;
+					}
 					/* no break, failed to get uv's, so let's try orco's */
 					ATTR_FALLTHROUGH;
 				case TEXCO_ORCO:
@@ -3542,8 +3570,11 @@ void psys_get_texture(ParticleSimulationData *sim, ParticleData *pa, ParticleTex
 						mul_m4_v3(mtex->object->imat, texvec);
 					break;
 				case TEXCO_UV:
-					if (get_particle_uv(sim->psmd->dm_final, pa, 0, pa->fuv, mtex->uvname, texvec))
+					if (get_particle_uv(sim->psmd->dm_final, pa, 0, pa->fuv, mtex->uvname,
+					                    texvec, (part->from == PART_FROM_VERT)))
+					{
 						break;
+					}
 					/* no break, failed to get uv's, so let's try orco's */
 					ATTR_FALLTHROUGH;
 				case TEXCO_ORCO:
@@ -3753,7 +3784,7 @@ void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *
 					}
 
 					if (psys->lattice_deform_data && edit == 0)
-						calc_latt_deform(psys->lattice_deform_data, state->co, 1.0f);
+						calc_latt_deform(psys->lattice_deform_data, state->co, psys->lattice_strength);
 				}
 			}
 		}
@@ -3992,7 +4023,7 @@ int psys_get_particle_state(ParticleSimulationData *sim, int p, ParticleKey *sta
 			do_child_modifiers(NULL, sim, NULL, key1->co, key1->vel, key1->rot, par_orco, cpa, cpa->fuv, mat, state, t);
 
 			if (psys->lattice_deform_data)
-				calc_latt_deform(psys->lattice_deform_data, state->co, 1.0f);
+				calc_latt_deform(psys->lattice_deform_data, state->co, psys->lattice_strength);
 		}
 		else {
 			if (pa->state.time == cfra || ELEM(part->phystype, PART_PHYS_NO, PART_PHYS_KEYED))
@@ -4051,7 +4082,7 @@ int psys_get_particle_state(ParticleSimulationData *sim, int p, ParticleKey *sta
 			}
 
 			if (sim->psys->lattice_deform_data)
-				calc_latt_deform(sim->psys->lattice_deform_data, state->co, 1.0f);
+				calc_latt_deform(sim->psys->lattice_deform_data, state->co, psys->lattice_strength);
 		}
 		
 		return 1;
@@ -4298,7 +4329,7 @@ void psys_apply_hair_lattice(Scene *scene, Object *ob, ParticleSystem *psys)
 			hkey = pa->hair;
 			for (h = 0; h < pa->totkey; h++, hkey++) {
 				mul_m4_v3(hairmat, hkey->co);
-				calc_latt_deform(psys->lattice_deform_data, hkey->co, 1.0f);
+				calc_latt_deform(psys->lattice_deform_data, hkey->co, psys->lattice_strength);
 				mul_m4_v3(imat, hkey->co);
 			}
 		}

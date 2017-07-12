@@ -122,7 +122,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 	}
 
 	if (m_mat->use_nodes && m_mat->nodetree) {
-		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false);
+		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false, false, false);
 
 		m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
 	}

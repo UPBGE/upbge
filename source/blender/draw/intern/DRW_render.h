@@ -253,7 +253,8 @@ typedef enum {
 	DRW_STATE_BLEND         = (1 << 14),
 	DRW_STATE_ADDITIVE      = (1 << 15),
 	DRW_STATE_MULTIPLY      = (1 << 16),
-	DRW_STATE_CLIP_PLANES   = (1 << 17),
+	DRW_STATE_TRANSMISSION  = (1 << 17),
+	DRW_STATE_CLIP_PLANES   = (1 << 18),
 
 	DRW_STATE_WRITE_STENCIL_SELECT = (1 << 27),
 	DRW_STATE_WRITE_STENCIL_ACTIVE = (1 << 28),
@@ -296,6 +297,7 @@ void DRW_shgroup_call_dynamic_add_array(DRWShadingGroup *shgroup, const void *at
 void DRW_shgroup_set_instance_count(DRWShadingGroup *shgroup, int count);
 
 void DRW_shgroup_state_enable(DRWShadingGroup *shgroup, DRWState state);
+void DRW_shgroup_state_disable(DRWShadingGroup *shgroup, DRWState state);
 void DRW_shgroup_attrib_float(DRWShadingGroup *shgroup, const char *name, int size);
 
 void DRW_shgroup_uniform_texture(DRWShadingGroup *shgroup, const char *name, const struct GPUTexture *tex);
@@ -317,6 +319,7 @@ void DRW_shgroup_uniform_mat4(DRWShadingGroup *shgroup, const char *name, const 
 /* Passes */
 DRWPass *DRW_pass_create(const char *name, DRWState state);
 void DRW_pass_foreach_shgroup(DRWPass *pass, void (*callback)(void *userData, DRWShadingGroup *shgrp), void *userData);
+void DRW_pass_sort_shgroup_z(DRWPass *pass);
 
 /* Viewport */
 typedef enum {
@@ -362,6 +365,7 @@ void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state);
 void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup);
 void DRW_end_shgroup(void);
 void DRW_draw_pass(DRWPass *pass);
+void DRW_draw_pass_subset(DRWPass *pass, DRWShadingGroup *start_group, DRWShadingGroup *end_group);
 
 void DRW_draw_text_cache_queue(struct DRWTextStore *dt);
 
@@ -391,6 +395,7 @@ bool DRW_state_is_depth(void);
 bool DRW_state_is_image_render(void);
 bool DRW_state_is_scene_render(void);
 bool DRW_state_show_text(void);
+bool DRW_state_draw_support(void);
 
 struct DRWTextStore *DRW_state_text_cache_get(void);
 
