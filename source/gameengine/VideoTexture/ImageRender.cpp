@@ -46,6 +46,7 @@
 #include "RAS_CameraData.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
+#include "RAS_ITexVert.h"
 #include "RAS_ISync.h"
 #include "BLI_math.h"
 

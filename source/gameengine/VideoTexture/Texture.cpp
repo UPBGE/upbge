@@ -204,9 +204,9 @@ RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID)
 		// get material from mesh
 		RAS_MeshObject * mesh = gameObj->GetMesh(0);
 		RAS_MeshMaterial *meshMat = mesh->GetMeshMaterial(matID);
-		if (meshMat != nullptr && meshMat->m_bucket != nullptr)
+		if (meshMat != nullptr && meshMat->GetBucket() != nullptr)
 			// return pointer to polygon or blender material
-			return meshMat->m_bucket->GetPolyMaterial();
+			return meshMat->GetBucket()->GetPolyMaterial();
 	}
 
 	// otherwise material was not found

@@ -150,7 +150,7 @@ bool BL_SkinDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
 		return false;
 	}
 
-	RAS_IDisplayArray *origarray = meshmat->m_baseslot->GetDisplayArray();
+	RAS_IDisplayArray *origarray = meshmat->GetDisplayArray();
 
 	const short modifiedFlag = origarray->GetModifiedFlag();
 	// No modifications ?
@@ -316,10 +316,7 @@ void BL_SkinDeformer::UpdateTransverts()
 		// the vertex cache is unique to this deformer, no need to update it
 		// if it wasn't updated! We must update all the materials at once
 		// because we will not get here again for the other material
-		RAS_MeshUser *meshUser = m_gameobj->GetMeshUser();
-		for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
-			RAS_IDisplayArray *array = slot->GetDisplayArray();
-
+		for (RAS_IDisplayArray *array: m_displayArrayList) {
 			// for each vertex
 			// copy the untransformed data from the original mvert
 			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {

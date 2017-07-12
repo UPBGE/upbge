@@ -81,7 +81,6 @@ protected:
 		ALPHA_SHADOW_BUCKET,
 		SOLID_SHADOW_INSTANCING_BUCKET,
 		ALPHA_SHADOW_INSTANCING_BUCKET,
-		TEXT_BUCKET,
 		ALL_BUCKET,
 		NUM_BUCKET_TYPE,
 	};
@@ -92,13 +91,23 @@ protected:
 	RAS_ManagerDownwardNode m_downwardNode;
 	RAS_ManagerUpwardNode m_upwardNode;
 
+	struct TextMaterial
+	{
+		RAS_IPolyMaterial *m_material;
+		RAS_DisplayArrayBucket *m_arrayBucket;
+	} m_text;
+
 public:
-	RAS_BucketManager();
+	/** Initialize bucket manager and create material bucket for the text material.
+	 * \param textMaterial The material used to render texts.
+	 */
+	RAS_BucketManager(RAS_IPolyMaterial *textMaterial);
 	virtual ~RAS_BucketManager();
 
 	void Renderbuckets(const MT_Transform & cameratrans, RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata, RAS_OffScreen *offScreen);
 
 	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
+	RAS_DisplayArrayBucket *GetTextDisplayArrayBucket() const;
 
 	void UpdateShaders(RAS_IPolyMaterial *material = nullptr);
 	void ReleaseMaterials(RAS_IPolyMaterial *material = nullptr);

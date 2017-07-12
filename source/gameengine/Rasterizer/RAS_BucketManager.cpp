@@ -77,20 +77,27 @@ bool RAS_BucketManager::fronttoback::operator()(const SortedMeshSlot &a, const S
 	return (a.m_z > b.m_z) || (a.m_z == b.m_z && a.m_ms > b.m_ms);
 }
 
-RAS_BucketManager::RAS_BucketManager()
+RAS_BucketManager::RAS_BucketManager(RAS_IPolyMaterial *textMaterial)
 	:m_downwardNode(this, &m_nodeData, nullptr, nullptr),
 	m_upwardNode(this, &m_nodeData, nullptr, nullptr)
 {
-	
+	m_text.m_material = textMaterial;
+	bool created;
+	RAS_MaterialBucket *bucket = FindBucket(m_text.m_material, created);
+	m_text.m_arrayBucket = new RAS_DisplayArrayBucket(bucket, nullptr, nullptr, nullptr, nullptr);
 }
 
 RAS_BucketManager::~RAS_BucketManager()
 {
+	delete m_text.m_arrayBucket;
+	delete m_text.m_material;
+
 	BucketList& buckets = m_buckets[ALL_BUCKET];
 	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
 		delete *it;
 	}
 	buckets.clear();
+
 }
 
 void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
@@ -347,13 +354,15 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 			m_buckets[useinstancing ? SOLID_SHADOW_INSTANCING_BUCKET : SOLID_SHADOW_BUCKET].push_back(bucket);
 		}
 	}
-	if (material->IsText()) {
-		m_buckets[TEXT_BUCKET].push_back(bucket);
-	}
 
 	// Used to free the bucket.
 	m_buckets[ALL_BUCKET].push_back(bucket);
 	return bucket;
+}
+
+RAS_DisplayArrayBucket *RAS_BucketManager::GetTextDisplayArrayBucket() const
+{
+	return m_text.m_arrayBucket;
 }
 
 void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat)

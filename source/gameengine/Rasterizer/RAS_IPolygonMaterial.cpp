@@ -76,7 +76,7 @@ int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game) const
 
 bool RAS_IPolyMaterial::IsAlphaShadow() const
 {
-	return m_alphablend != GEMAT_SOLID;
+	return (m_rasMode & RAS_ALPHA_SHADOW);
 }
 
 bool RAS_IPolyMaterial::IsWire() const

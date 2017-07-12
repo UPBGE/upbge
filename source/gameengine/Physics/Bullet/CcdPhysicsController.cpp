@@ -488,14 +488,12 @@ bool CcdPhysicsController::CreateSoftbody()
 
 		if (rasMesh && !m_softbodyMappingDone) {
 			RAS_MeshMaterial *mmat;
-			RAS_MeshSlot *slot;
 
 			//for each material
 			for (int m = 0; m < rasMesh->NumMaterials(); m++) {
 				mmat = rasMesh->GetMeshMaterial(m);
 
-				slot = mmat->m_baseslot;
-				RAS_IDisplayArray *array = slot->GetDisplayArray();
+				RAS_IDisplayArray *array = mmat->GetDisplayArray();
 
 				for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 					RAS_ITexVert *vertex = array->GetVertex(i);

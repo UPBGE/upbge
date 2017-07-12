@@ -35,7 +35,6 @@
 #include "KX_Scene.h"
 #include "KX_Globals.h"
 #include "KX_PythonInit.h"
-#include "KX_TextMaterial.h"
 #include "KX_PyMath.h"
 #include "BLI_math.h"
 #include "EXP_StringValue.h"
@@ -129,31 +128,14 @@ void KX_FontObject::ProcessReplica()
 
 void KX_FontObject::AddMeshUser()
 {
-	m_meshUser = new RAS_TextUser(m_pClient_info);
+	m_meshUser = new RAS_TextUser(m_pClient_info, m_boundingBox);
 
 	NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
-	m_meshUser->SetBoundingBox(m_boundingBox);
 
 	RAS_BucketManager *bucketManager = GetScene()->GetBucketManager();
-	bool created = false;
-	RAS_MaterialBucket *bucket = bucketManager->FindBucket(GetTextMaterial(), created);
+	RAS_DisplayArrayBucket *arrayBucket = bucketManager->GetTextDisplayArrayBucket();
 
-	// If the material bucket is just created then we add a new mesh slot.
-	if (created) {
-		RAS_TexVertFormat format;
-		format.uvSize = 1;
-		format.colorSize = 1;
-		bucket->NewMesh(nullptr, nullptr, format);
-	}
-
-	/* We copy the original mesh slot which is at the begin of the list, if it's not the case it
-	 * doesn't matter as the mesh slot are all similar exepted their mesh user pointer which is
-	 * set to nullptr in copy. By copying instead of adding a mesh slot we reuse the same display
-	 * array bucket.
-	 */
-	RAS_MeshSlot *ms = bucket->CopyMesh(*bucket->msBegin());
-	ms->SetMeshUser(m_meshUser);
-	ms->SetDeformer(nullptr);
+	RAS_MeshSlot *ms = new RAS_MeshSlot(nullptr, m_meshUser, arrayBucket);
 	m_meshUser->AddMeshSlot(ms);
 }
 
@@ -162,6 +144,7 @@ void KX_FontObject::UpdateBuckets()
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
 	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
 		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
+		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
 	// Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl

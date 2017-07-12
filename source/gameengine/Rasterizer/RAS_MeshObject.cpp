@@ -120,7 +120,7 @@ RAS_MeshObject::~RAS_MeshObject()
 	m_sharedvertex_map.clear();
 	m_polygons.clear();
 
-	for (std::vector<RAS_MeshMaterial *>::iterator it = m_materials.begin(), end = m_materials.end(); it != end; ++it) {
+	for (RAS_MeshMaterialList::iterator it = m_materials.begin(), end = m_materials.end(); it != end; ++it) {
 		delete *it;
 	}
 	m_materials.clear();
@@ -136,7 +136,7 @@ const std::string RAS_MeshObject::GetMaterialName(unsigned int matid)
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
 	if (mmat)
-		return mmat->m_bucket->GetPolyMaterial()->GetName();
+		return mmat->GetBucket()->GetPolyMaterial()->GetName();
 
 	return "";
 }
@@ -152,9 +152,9 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid) const
 
 RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterialBlenderIndex(unsigned int index)
 {
-	for (std::vector<RAS_MeshMaterial *>::iterator mit = m_materials.begin(); mit != m_materials.end(); mit++) {
+	for (RAS_MeshMaterialList::iterator mit = m_materials.begin(); mit != m_materials.end(); mit++) {
 		RAS_MeshMaterial *meshmat = *mit;
-		if (meshmat->m_index == index) {
+		if (meshmat->GetIndex() == index) {
 			return meshmat;
 		}
 	}
@@ -172,16 +172,6 @@ RAS_Polygon *RAS_MeshObject::GetPolygon(int num) const
 	return m_polygons[num];
 }
 
-std::vector<RAS_MeshMaterial *>::iterator RAS_MeshObject::GetFirstMaterial()
-{
-	return m_materials.begin();
-}
-
-std::vector<RAS_MeshMaterial *>::iterator RAS_MeshObject::GetLastMaterial()
-{
-	return m_materials.end();
-}
-
 std::string& RAS_MeshObject::GetName()
 {
 	return m_name;
@@ -192,7 +182,7 @@ const std::string RAS_MeshObject::GetTextureName(unsigned int matid)
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
 	if (mmat)
-		return mmat->m_bucket->GetPolyMaterial()->GetTextureName();
+		return mmat->GetBucket()->GetPolyMaterial()->GetTextureName();
 
 	return "";
 }
@@ -203,11 +193,8 @@ RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsign
 
 	// none found, create a new one
 	if (!meshmat) {
-		meshmat = new RAS_MeshMaterial();
+		meshmat = new RAS_MeshMaterial(this, bucket, index, format);
 		m_materials.push_back(meshmat);
-		meshmat->m_bucket = bucket;
-		meshmat->m_index = index;
-		meshmat->m_baseslot = meshmat->m_bucket->NewMesh(this, meshmat, format);
 	}
 
 	return meshmat;
@@ -215,11 +202,8 @@ RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsign
 
 void RAS_MeshObject::AddLine(RAS_MeshMaterial *meshmat, unsigned int v1, unsigned int v2)
 {
-	// add it to the bucket, this also adds new display arrays
-	RAS_MeshSlot *slot = meshmat->m_baseslot;
-
 	// create a new polygon
-	RAS_IDisplayArray *darray = slot->GetDisplayArray();
+	RAS_IDisplayArray *darray = meshmat->GetDisplayArray();
 	darray->AddIndex(v1);
 	darray->AddIndex(v2);
 }
@@ -228,11 +212,10 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat, int numverts,
 										bool visible, bool collider, bool twoside)
 {
 	// add it to the bucket, this also adds new display arrays
-	RAS_MeshSlot *slot = meshmat->m_baseslot;
-	RAS_MaterialBucket *bucket = meshmat->m_bucket;
+	RAS_MaterialBucket *bucket = meshmat->GetBucket();
 
 	// create a new polygon
-	RAS_IDisplayArray *darray = slot->GetDisplayArray();
+	RAS_IDisplayArray *darray = meshmat->GetDisplayArray();
 	RAS_Polygon *poly = new RAS_Polygon(bucket, darray, numverts);
 	m_polygons.push_back(poly);
 
@@ -271,8 +254,7 @@ unsigned int RAS_MeshObject::AddVertex(
 				const bool flat,
 				const unsigned int origindex)
 {
-	RAS_MeshSlot *slot = meshmat->m_baseslot;
-	RAS_IDisplayArray *darray = slot->GetDisplayArray();
+	RAS_IDisplayArray *darray = meshmat->GetDisplayArray();
 	RAS_ITexVert *vertex = darray->CreateVertex(xyz, uvs, tangent, rgba, normal);
 
 	{	/* Shared Vertex! */
@@ -319,8 +301,7 @@ RAS_IDisplayArray *RAS_MeshObject::GetDisplayArray(unsigned int matid) const
 	if (!mmat)
 		return nullptr;
 
-	RAS_MeshSlot *slot = mmat->m_baseslot;
-	RAS_IDisplayArray *array = slot->GetDisplayArray();
+	RAS_IDisplayArray *array = mmat->GetDisplayArray();
 
 	return array;
 }
@@ -350,26 +331,33 @@ RAS_BoundingBox *RAS_MeshObject::GetBoundingBox() const
 
 RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
 {
-	RAS_MeshUser *meshUser = new RAS_MeshUser(clientobj);
-
 	RAS_BoundingBox *boundingBox = (deformer) ? deformer->GetBoundingBox() : m_boundingBox;
-	meshUser->SetBoundingBox(boundingBox);
+	RAS_MeshUser *meshUser = new RAS_MeshUser(clientobj, boundingBox);
 
-	for (std::vector<RAS_MeshMaterial *>::iterator it = m_materials.begin(); it != m_materials.end(); ++it) {
-		RAS_MeshMaterial *meshmat = *it;
-		RAS_MeshSlot *ms = meshmat->m_bucket->CopyMesh(meshmat->m_baseslot);
-		ms->SetMeshUser(meshUser);
-		ms->SetDeformer(deformer);
+	for (RAS_MeshMaterial *mmat : m_materials) {
+		RAS_DisplayArrayBucket *arrayBucket;
+		/* Duplicate the display array bucket and the display array if needed to store
+		 * the mesh slot on a unique list (= display array bucket) and use an unique vertex
+		 * array (=display array). */
+		if (deformer) {
+			RAS_IDisplayArray *array = nullptr;
+			if (deformer->UseVertexArray()) {
+				// The deformer makes use of vertex array, make sure we have our local copy.
+				array = mmat->GetDisplayArray()->GetReplica();
+			}
+
+			arrayBucket = new RAS_DisplayArrayBucket(mmat->GetBucket(), array, this, mmat, deformer);
+			// Make the deformer the owner of the display array (and bucket).
+			deformer->AddDisplayArray(array, arrayBucket);
+		}
+		else {
+			arrayBucket = mmat->GetDisplayArrayBucket();
+		}
+
+		RAS_MeshSlot *ms = new RAS_MeshSlot(this, meshUser, arrayBucket);
 		meshUser->AddMeshSlot(ms);
 	}
 	return meshUser;
-}
-
-void RAS_MeshObject::RemoveFromBuckets(RAS_MeshUser *meshUser)
-{
-	for (RAS_MeshSlot *ms : meshUser->GetMeshSlots()) {
-		ms->m_bucket->RemoveMesh(ms);
-	}
 }
 
 void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
@@ -383,15 +371,15 @@ void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 	RAS_IDisplayArrayList arrayList;
 
 	// Construct a list of all the display arrays used by this mesh.
-	for (std::vector<RAS_MeshMaterial *>::iterator it = m_materials.begin(), end = m_materials.end(); it != end; ++it) {
+	for (RAS_MeshMaterialList::iterator it = m_materials.begin(), end = m_materials.end(); it != end; ++it) {
 		RAS_MeshMaterial *meshmat = *it;
 
-		RAS_IDisplayArray *array = meshmat->m_baseslot->GetDisplayArray();
+		RAS_IDisplayArray *array = meshmat->GetDisplayArray();
 		if (array) {
 			array->UpdateCache();
 			arrayList.push_back(array);
 
-			const std::string materialname = meshmat->m_bucket->GetPolyMaterial()->GetName();
+			const std::string materialname = meshmat->GetBucket()->GetPolyMaterial()->GetName();
 			if (array->GetVertexCount() == 0) {
 				CM_Warning("mesh \"" << m_name << "\" has no vertices for material \"" << materialname
 					<< "\". It introduces performance decrease for empty render.");
@@ -415,14 +403,13 @@ const RAS_MeshObject::LayersInfo& RAS_MeshObject::GetLayersInfo() const
 
 void RAS_MeshObject::GenerateAttribLayers()
 {
-	for (std::vector<RAS_MeshMaterial *>::iterator it = m_materials.begin(), end = m_materials.end(); it != end; ++it) {
-		RAS_MeshSlot *slot = (*it)->m_baseslot;
-		RAS_DisplayArrayBucket *displayArrayBucket = slot->m_displayArrayBucket;
+	for (RAS_MeshMaterial *mmat : m_materials) {
+		RAS_DisplayArrayBucket *displayArrayBucket = mmat->GetDisplayArrayBucket();
 		displayArrayBucket->GenerateAttribLayers();
 	}
 }
 
-void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transform, unsigned int *indexmap)
+void RAS_MeshObject::SortPolygons(RAS_IDisplayArray *array, const MT_Transform &transform, unsigned int *indexmap)
 {
 	// Limitations: sorting is quite simple, and handles many
 	// cases wrong, partially due to polygons being sorted per
@@ -439,8 +426,6 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transfor
 	// larger buckets, b) and d) cannot be solved easily if we want
 	// to avoid excessive state changes while drawing. e) would
 	// require splitting polygons.
-
-	RAS_IDisplayArray *array = ms->GetDisplayArray();
 
 	// If there's no vertex array it means that the we're using modifier deformer.
 	if (!array) {

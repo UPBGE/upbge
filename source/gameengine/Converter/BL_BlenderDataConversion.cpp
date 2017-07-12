@@ -675,7 +675,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 				indices[3] = meshobj->AddVertex(meshmat, pt[3], uvs[3], tan[3], rgb[3], no[3], flat, mface->v4);
 			}
 
-			if (meshmat->m_bucket->IsWire() && visible) {
+			if (meshmat->GetBucket()->IsWire() && visible) {
 				// The fourth value can be uninitialized.
 				unsigned int mfaceindices[4] = {mface->v1, mface->v2, mface->v3, mface->v4};
 				MPoly *mpoly = mpolyarray + mfaceTompoly[f];
@@ -722,9 +722,9 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	// pre calculate texture generation
 	// However, we want to delay this if we're libloading so we can make sure we have the right scene.
 	if (!libloading) {
-		for (std::vector<RAS_MeshMaterial *>::iterator mit = meshobj->GetFirstMaterial();
-			mit != meshobj->GetLastMaterial(); ++ mit) {
-			(*mit)->m_bucket->GetPolyMaterial()->OnConstruction();
+		for (unsigned short i = 0, num = meshobj->NumMaterials(); i < num; ++i) {
+			RAS_MeshMaterial *mmat = meshobj->GetMeshMaterial(i);
+			mmat->GetBucket()->GetPolyMaterial()->OnConstruction();
 		}
 	}
 
@@ -1860,7 +1860,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 			for (unsigned short j = 0, matcount = mesh->NumMaterials(); j < matcount; ++j) {
 				RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(j);
-				RAS_IPolyMaterial *polymat = meshmat->m_bucket->GetPolyMaterial();
+				RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
 
 				for (unsigned short k = 0; k < RAS_Texture::MaxUnits; ++k) {
 					RAS_Texture *tex = polymat->GetTexture(k);

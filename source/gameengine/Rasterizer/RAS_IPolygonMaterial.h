@@ -56,13 +56,13 @@ enum MaterialProps
 
 enum MaterialRasterizerModes
 {
-	RAS_COLLIDER = 2,
-	RAS_ZSORT = 4,
-	RAS_ALPHA = 8,
-	RAS_DEPTH_ALPHA = 16,
-	RAS_WIRE = 64,
-	RAS_TEXT = 128,
-	RAS_TWOSIDED = 512,
+	RAS_ZSORT = (1 << 0),
+	RAS_ALPHA = (1 << 1),
+	RAS_DEPTH_ALPHA = (1 << 2),
+	RAS_ALPHA_SHADOW = (1 << 3),
+	RAS_WIRE = (1 << 4),
+	RAS_TEXT = (1 << 5),
+	RAS_TWOSIDED = (1 << 6),
 };
 
 /**

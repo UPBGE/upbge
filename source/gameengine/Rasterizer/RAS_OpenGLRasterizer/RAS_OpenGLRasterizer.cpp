@@ -53,6 +53,8 @@ extern "C" {
 
 #include "CM_Message.h"
 
+#include <cstring> // For memcpy.
+
 // WARNING: Always respect the order from RAS_Rasterizer::EnableBit.
 static const int openGLEnableBitEnums[] = {
 	GL_DEPTH_TEST, // RAS_DEPTH_TEST
@@ -328,7 +330,8 @@ static int CheckMaterialDM(int matnr, void *attribs)
 void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::DrawType drawingmode)
 {
 	// mesh data is in derived mesh
-	RAS_MaterialBucket *bucket = ms->m_bucket;
+	RAS_DisplayArrayBucket *arrayBucket = ms->m_displayArrayBucket;
+	RAS_MaterialBucket *bucket = arrayBucket->GetBucket();
 	RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
 
 	// handle two-side
@@ -347,7 +350,7 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::Dra
 	if (material->GetFlag() & RAS_BLENDERGLSL) {
 		// GetMaterialIndex return the original mface material index,
 		// increment by 1 to match what derived mesh is doing
-		current_blmat_nr = ms->m_meshMaterial->m_index + 1;
+		current_blmat_nr = arrayBucket->GetMeshMaterial()->GetIndex() + 1;
 		// For GLSL we need to retrieve the GPU material attribute
 		Material *blmat = material->GetBlenderMaterial();
 		Scene *blscene = material->GetBlenderScene();

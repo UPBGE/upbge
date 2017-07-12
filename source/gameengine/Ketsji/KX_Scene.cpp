@@ -40,6 +40,7 @@
 #include "BLI_utildefines.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderMaterial.h"
+#include "KX_TextMaterial.h"
 #include "KX_FontObject.h"
 #include "RAS_IPolygonMaterial.h"
 #include "EXP_ListValue.h"
@@ -195,7 +196,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_rootnode = nullptr;
 
 	m_rendererManager = new KX_TextureRendererManager(this);
-	m_bucketmanager=new RAS_BucketManager();
+	KX_TextMaterial *textMaterial = new KX_TextMaterial();
+	m_bucketmanager=new RAS_BucketManager(textMaterial);
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
 	
 	bool showObstacleSimulation = (scene->gm.flag & GAME_SHOW_OBSTACLE_SIMULATION) != 0;
