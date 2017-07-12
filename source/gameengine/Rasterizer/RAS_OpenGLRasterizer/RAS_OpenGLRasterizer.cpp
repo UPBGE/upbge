@@ -266,6 +266,7 @@ unsigned int *RAS_OpenGLRasterizer::MakeScreenshot(int x, int y, int width, int 
 	unsigned int *pixeldata = nullptr;
 
 	if (width && height) {
+		pixeldata = (unsigned int *)malloc(sizeof(unsigned int) * width * height);
 		glReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixeldata);
 	}
 
