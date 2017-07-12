@@ -771,34 +771,43 @@ int count_set_pose_transflags(int *out_mode, short around, Object *ob)
 /* -------- Auto-IK ---------- */
 
 /* adjust pose-channel's auto-ik chainlen */
-static void pchan_autoik_adjust(bPoseChannel *pchan, short chainlen)
+static bool pchan_autoik_adjust(bPoseChannel *pchan, short chainlen)
 {
 	bConstraint *con;
+	bool changed = false;
 
 	/* don't bother to search if no valid constraints */
-	if ((pchan->constflag & (PCHAN_HAS_IK | PCHAN_HAS_TARGET)) == 0)
-		return;
+	if ((pchan->constflag & (PCHAN_HAS_IK | PCHAN_HAS_TARGET)) == 0) {
+		return changed;
+	}
 
 	/* check if pchan has ik-constraint */
 	for (con = pchan->constraints.first; con; con = con->next) {
 		if (con->type == CONSTRAINT_TYPE_KINEMATIC && (con->enforce != 0.0f)) {
 			bKinematicConstraint *data = con->data;
-			
+
 			/* only accept if a temporary one (for auto-ik) */
 			if (data->flag & CONSTRAINT_IK_TEMP) {
 				/* chainlen is new chainlen, but is limited by maximum chainlen */
-				if ((chainlen == 0) || (chainlen > data->max_rootbone))
+				const int old_rootbone = data->rootbone;
+				if ((chainlen == 0) || (chainlen > data->max_rootbone)) {
 					data->rootbone = data->max_rootbone;
-				else
+				}
+				else {
 					data->rootbone = chainlen;
+				}
+				changed |= (data->rootbone != old_rootbone);
 			}
 		}
 	}
+
+	return changed;
 }
 
 /* change the chain-length of auto-ik */
 void transform_autoik_update(TransInfo *t, short mode)
 {
+	const short old_len = t->settings->autoik_chainlen;
 	short *chainlen = &t->settings->autoik_chainlen;
 	bPoseChannel *pchan;
 
@@ -812,13 +821,29 @@ void transform_autoik_update(TransInfo *t, short mode)
 		if (*chainlen > 0) (*chainlen)--;
 	}
 
+	/* IK length did not change, skip any updates. */
+	if (old_len == *chainlen) {
+		return;
+	}
+
 	/* sanity checks (don't assume t->poseobj is set, or that it is an armature) */
 	if (ELEM(NULL, t->poseobj, t->poseobj->pose))
 		return;
 
 	/* apply to all pose-channels */
+	bool changed = false;
 	for (pchan = t->poseobj->pose->chanbase.first; pchan; pchan = pchan->next) {
-		pchan_autoik_adjust(pchan, *chainlen);
+		changed |= pchan_autoik_adjust(pchan, *chainlen);
+	}
+
+#ifdef WITH_LEGACY_DEPSGRAPH
+	if (!DEG_depsgraph_use_legacy())
+#endif
+	{
+		if (changed) {
+			/* TODO(sergey): Consider doing partial update only. */
+			DAG_relations_tag_update(G.main);
+		}
 	}
 }
 
@@ -1500,6 +1525,48 @@ static TransDataCurveHandleFlags *initTransDataCurveHandles(TransData *td, struc
 	return hdata;
 }
 
+/**
+ * For the purpose of transform code we need to behave as if handles are selected,
+ * even when they aren't (see special case below).
+ */
+static int bezt_select_to_transform_triple_flag(
+        const BezTriple *bezt, const bool hide_handles)
+{
+	int flag = 0;
+
+	if (hide_handles) {
+		if (bezt->f2 & SELECT) {
+			flag = (1 << 0) | (1 << 1) | (1 << 2);
+		}
+	}
+	else {
+		flag = (
+			((bezt->f1 & SELECT) ? (1 << 0) : 0) |
+			((bezt->f2 & SELECT) ? (1 << 1) : 0) |
+			((bezt->f3 & SELECT) ? (1 << 2) : 0)
+		);
+	}
+
+	/* Special case for auto & aligned handles:
+	 * When a center point is being moved without the handles,
+	 * leaving the handles stationary makes no sense and only causes strange behavior,
+	 * where one handle is arbitrarily anchored, the other one is aligned and lengthened
+	 * based on where the center point is moved. Also a bug when cancelling, see: T52007.
+	 *
+	 * A more 'correct' solution could be to store handle locations in 'TransDataCurveHandleFlags'.
+	 * However that doesn't resolve odd behavior, so best transform the handles in this case.
+	 */
+	if ((flag != ((1 << 0) | (1 << 1) | (1 << 2))) && (flag & (1 << 1))) {
+		if (ELEM(bezt->h1, HD_AUTO, HD_ALIGN) &&
+		    ELEM(bezt->h2, HD_AUTO, HD_ALIGN))
+		{
+			flag = (1 << 0) | (1 << 1) | (1 << 2);
+		}
+	}
+
+	return flag;
+}
+
 static void createTransCurveVerts(TransInfo *t)
 {
 	Curve *cu = t->obedit->data;
@@ -1517,22 +1584,22 @@ static void createTransCurveVerts(TransInfo *t)
 	/* to be sure */
 	if (cu->editnurb == NULL) return;
 
+#define SEL_F1 (1 << 0)
+#define SEL_F2 (1 << 1)
+#define SEL_F3 (1 << 2)
+
 	/* count total of vertices, check identical as in 2nd loop for making transdata! */
 	nurbs = BKE_curve_editNurbs_get(cu);
 	for (nu = nurbs->first; nu; nu = nu->next) {
 		if (nu->type == CU_BEZIER) {
 			for (a = 0, bezt = nu->bezt; a < nu->pntsu; a++, bezt++) {
 				if (bezt->hide == 0) {
-					if (hide_handles) {
-						if (bezt->f2 & SELECT) countsel += 3;
-						if (is_prop_edit) count += 3;
-					}
-					else {
-						if (bezt->f1 & SELECT) countsel++;
-						if (bezt->f2 & SELECT) countsel++;
-						if (bezt->f3 & SELECT) countsel++;
-						if (is_prop_edit) count += 3;
-					}
+					const int bezt_tx = bezt_select_to_transform_triple_flag(bezt, hide_handles);
+					if (bezt_tx & SEL_F1) { countsel++; }
+					if (bezt_tx & SEL_F2) { countsel++; }
+					if (bezt_tx & SEL_F3) { countsel++; }
+					if (is_prop_edit) count += 3;
+
 				}
 			}
 		}
@@ -1583,10 +1650,10 @@ static void createTransCurveVerts(TransInfo *t)
 						}
 					}
 
-					if (is_prop_edit ||
-					    ((bezt->f2 & SELECT) && hide_handles) ||
-					    ((bezt->f1 & SELECT) && hide_handles == 0))
-					{
+					/* Elements that will be transform (not always a match to selection). */
+					const int bezt_tx = bezt_select_to_transform_triple_flag(bezt, hide_handles);
+
+					if (is_prop_edit || bezt_tx & SEL_F1) {
 						copy_v3_v3(td->iloc, bezt->vec[0]);
 						td->loc = bezt->vec[0];
 						copy_v3_v3(td->center, bezt->vec[(hide_handles ||
@@ -1617,7 +1684,7 @@ static void createTransCurveVerts(TransInfo *t)
 					}
 
 					/* This is the Curve Point, the other two are handles */
-					if (is_prop_edit || (bezt->f2 & SELECT)) {
+					if (is_prop_edit || bezt_tx & SEL_F2) {
 						copy_v3_v3(td->iloc, bezt->vec[1]);
 						td->loc = bezt->vec[1];
 						copy_v3_v3(td->center, td->loc);
@@ -1643,7 +1710,7 @@ static void createTransCurveVerts(TransInfo *t)
 							copy_m3_m3(td->axismtx, axismtx);
 						}
 
-						if ((bezt->f1 & SELECT) == 0 && (bezt->f3 & SELECT) == 0)
+						if ((bezt_tx & SEL_F1) == 0 && (bezt_tx & SEL_F3) == 0)
 							/* If the middle is selected but the sides arnt, this is needed */
 							if (hdata == NULL) { /* if the handle was not saved by the previous handle */
 								hdata = initTransDataCurveHandles(td, bezt);
@@ -1653,10 +1720,7 @@ static void createTransCurveVerts(TransInfo *t)
 						count++;
 						tail++;
 					}
-					if (is_prop_edit ||
-					    ((bezt->f2 & SELECT) && hide_handles) ||
-					    ((bezt->f3 & SELECT) && hide_handles == 0))
-					{
+					if (is_prop_edit || bezt_tx & SEL_F3) {
 						copy_v3_v3(td->iloc, bezt->vec[2]);
 						td->loc = bezt->vec[2];
 						copy_v3_v3(td->center, bezt->vec[(hide_handles ||
@@ -1711,6 +1775,26 @@ static void createTransCurveVerts(TransInfo *t)
 			for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a > 0; a--, bp++) {
 				if (bp->hide == 0) {
 					if (is_prop_edit || (bp->f1 & SELECT)) {
+						float axismtx[3][3];
+
+						if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
+							if (nu->pntsv == 1) {
+								float normal[3], plane[3];
+
+								BKE_nurb_bpoint_calc_normal(nu, bp, normal);
+								BKE_nurb_bpoint_calc_plane(nu, bp, plane);
+
+								if (createSpaceNormalTangent(axismtx, normal, plane)) {
+									/* pass */
+								}
+								else {
+									normalize_v3(normal);
+									axis_dominant_v3_to_m3(axismtx, normal);
+									invert_m3(axismtx);
+								}
+							}
+						}
+
 						copy_v3_v3(td->iloc, bp->vec);
 						td->loc = bp->vec;
 						copy_v3_v3(td->center, td->loc);
@@ -1729,6 +1813,11 @@ static void createTransCurveVerts(TransInfo *t)
 
 						copy_m3_m3(td->smtx, smtx);
 						copy_m3_m3(td->mtx, mtx);
+						if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
+							if (nu->pntsv == 1) {
+								copy_m3_m3(td->axismtx, axismtx);
+							}
+						}
 
 						td++;
 						count++;
@@ -1744,6 +1833,10 @@ static void createTransCurveVerts(TransInfo *t)
 				calc_distanceCurveVerts(head, tail - 1);
 		}
 	}
+
+#undef SEL_F1
+#undef SEL_F2
+#undef SEL_F3
 }
 
 /* ********************* lattice *************** */
@@ -2008,9 +2101,9 @@ static bool bmesh_test_dist_add(
 }
 
 /**
- * \parm mtx: Measure disatnce in this space.
- * \parm dists: Store the closest connected distance to selected vertices.
- * \parm index: Optionally store the original index we're measuring the distance to (can be NULL).
+ * \param mtx: Measure disatnce in this space.
+ * \param dists: Store the closest connected distance to selected vertices.
+ * \param index: Optionally store the original index we're measuring the distance to (can be NULL).
  */
 static void editmesh_set_connectivity_distance(BMesh *bm, float mtx[3][3], float *dists, int *index)
 {
@@ -5349,7 +5442,8 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
 			}
 			/* update object's loc/rot to get current rigid body transform */
 			mat4_to_loc_rot_size(ob->loc, rot, scale, ob->obmat);
-			BKE_object_mat3_to_rot(ob, rot, false);
+			sub_v3_v3(ob->loc, ob->dloc);
+			BKE_object_mat3_to_rot(ob, rot, false); /* drot is already corrected here */
 		}
 	}
 

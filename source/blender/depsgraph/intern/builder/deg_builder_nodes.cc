@@ -160,11 +160,6 @@ DepsgraphNodeBuilder::~DepsgraphNodeBuilder()
 {
 }
 
-RootDepsNode *DepsgraphNodeBuilder::add_root_node()
-{
-	return m_graph->add_root_node();
-}
-
 IDDepsNode *DepsgraphNodeBuilder::add_id_node(ID *id)
 {
 	return m_graph->add_id_node(id, id->name);
@@ -172,12 +167,7 @@ IDDepsNode *DepsgraphNodeBuilder::add_id_node(ID *id)
 
 TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source()
 {
-	/* root-node */
-	RootDepsNode *root_node = m_graph->root_node;
-	if (root_node != NULL) {
-		return root_node->add_time_source("Time Source");
-	}
-	return NULL;
+	return m_graph->add_time_source();
 }
 
 ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(
@@ -193,7 +183,7 @@ ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(
 
 OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(
         ComponentDepsNode *comp_node,
-        DepsEvalOperationCb op,
+        const DepsEvalOperationCb& op,
         eDepsOperation_Code opcode,
         const char *name,
         int name_tag)
@@ -220,7 +210,7 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(
         ID *id,
         eDepsNode_Type comp_type,
         const char *comp_name,
-        DepsEvalOperationCb op,
+        const DepsEvalOperationCb& op,
         eDepsOperation_Code opcode,
         const char *name,
         int name_tag)
@@ -232,7 +222,7 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(
 OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(
         ID *id,
         eDepsNode_Type comp_type,
-        DepsEvalOperationCb op,
+        const DepsEvalOperationCb& op,
         eDepsOperation_Code opcode,
         const char *name,
         int name_tag)
@@ -446,8 +436,8 @@ void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)
 
 	/* local transforms (from transform channels - loc/rot/scale + deltas) */
 	op_node = add_operation_node(&ob->id, DEG_NODE_TYPE_TRANSFORM,
-	                   function_bind(BKE_object_eval_local_transform, _1, scene, ob),
-	                   DEG_OPCODE_TRANSFORM_LOCAL);
+	                             function_bind(BKE_object_eval_local_transform, _1, scene, ob),
+	                             DEG_OPCODE_TRANSFORM_LOCAL);
 	op_node->set_as_entry();
 
 	/* object parent */
@@ -740,10 +730,10 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	 * Does this depend on other nodes?
 	 */
 	op_node = add_operation_node(&ob->id,
-	                   DEG_NODE_TYPE_PARAMETERS,
-	                   NULL,
-	                   DEG_OPCODE_PLACEHOLDER,
-	                   "Parameters Eval");
+	                             DEG_NODE_TYPE_PARAMETERS,
+	                             NULL,
+	                             DEG_OPCODE_PLACEHOLDER,
+	                             "Parameters Eval");
 	op_node->set_as_exit();
 
 	/* Temporary uber-update node, which does everything.
@@ -754,16 +744,16 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	 * TODO(sergey): Get rid of this node.
 	 */
 	op_node = add_operation_node(&ob->id,
-	                   DEG_NODE_TYPE_GEOMETRY,
-	                   function_bind(BKE_object_eval_uber_data, _1, scene, ob),
-	                   DEG_OPCODE_GEOMETRY_UBEREVAL);
+	                             DEG_NODE_TYPE_GEOMETRY,
+	                             function_bind(BKE_object_eval_uber_data, _1, scene, ob),
+	                             DEG_OPCODE_GEOMETRY_UBEREVAL);
 	op_node->set_as_exit();
 
 	op_node = add_operation_node(&ob->id,
-	                   DEG_NODE_TYPE_GEOMETRY,
-	                   NULL,
-	                   DEG_OPCODE_PLACEHOLDER,
-	                   "Eval Init");
+	                             DEG_NODE_TYPE_GEOMETRY,
+	                             NULL,
+	                             DEG_OPCODE_PLACEHOLDER,
+	                             "Eval Init");
 	op_node->set_as_entry();
 
 	// TODO: "Done" operation
@@ -810,12 +800,12 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 
 			/* evaluation operations */
 			op_node = add_operation_node(obdata,
-			                   DEG_NODE_TYPE_GEOMETRY,
-			                   function_bind(BKE_mesh_eval_geometry,
-			                                 _1,
-			                                 (Mesh *)obdata),
-			                   DEG_OPCODE_PLACEHOLDER,
-			                   "Geometry Eval");
+			                             DEG_NODE_TYPE_GEOMETRY,
+			                             function_bind(BKE_mesh_eval_geometry,
+			                                           _1,
+			                                           (Mesh *)obdata),
+			                             DEG_OPCODE_PLACEHOLDER,
+			                             "Geometry Eval");
 			op_node->set_as_entry();
 			break;
 		}
@@ -829,12 +819,12 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 				/* metaball evaluation operations */
 				/* NOTE: only the motherball gets evaluated! */
 				op_node = add_operation_node(obdata,
-				                   DEG_NODE_TYPE_GEOMETRY,
-				                   function_bind(BKE_mball_eval_geometry,
-				                                 _1,
-				                                 (MetaBall *)obdata),
-				                   DEG_OPCODE_PLACEHOLDER,
-				                   "Geometry Eval");
+				                             DEG_NODE_TYPE_GEOMETRY,
+				                             function_bind(BKE_mball_eval_geometry,
+				                                           _1,
+				                                           (MetaBall *)obdata),
+				                             DEG_OPCODE_PLACEHOLDER,
+				                             "Geometry Eval");
 				op_node->set_as_entry();
 			}
 			break;
@@ -847,12 +837,12 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			/* Curve/nurms evaluation operations. */
 			/* - calculate curve geometry (including path) */
 			op_node = add_operation_node(obdata,
-			                   DEG_NODE_TYPE_GEOMETRY,
-			                   function_bind(BKE_curve_eval_geometry,
-			                                 _1,
-			                                 (Curve *)obdata),
-			                   DEG_OPCODE_PLACEHOLDER,
-			                   "Geometry Eval");
+			                             DEG_NODE_TYPE_GEOMETRY,
+			                             function_bind(BKE_curve_eval_geometry,
+			                                           _1,
+			                                           (Curve *)obdata),
+			                                           DEG_OPCODE_PLACEHOLDER,
+			                                           "Geometry Eval");
 			op_node->set_as_entry();
 
 			/* Calculate curve path - this is used by constraints, etc. */
@@ -886,12 +876,12 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		{
 			/* Lattice evaluation operations. */
 			op_node = add_operation_node(obdata,
-			                   DEG_NODE_TYPE_GEOMETRY,
-			                   function_bind(BKE_lattice_eval_geometry,
-			                                 _1,
-			                                 (Lattice *)obdata),
-			                   DEG_OPCODE_PLACEHOLDER,
-			                   "Geometry Eval");
+			                             DEG_NODE_TYPE_GEOMETRY,
+			                             function_bind(BKE_lattice_eval_geometry,
+			                                           _1,
+			                                           (Lattice *)obdata),
+			                                           DEG_OPCODE_PLACEHOLDER,
+			                                           "Geometry Eval");
 			op_node->set_as_entry();
 			break;
 		}
@@ -968,7 +958,7 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
 
 	/* Parameters for drivers. */
 	op_node = add_operation_node(ntree_id, DEG_NODE_TYPE_PARAMETERS, NULL,
-	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
+	                             DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
 	op_node->set_as_exit();
 
 	/* nodetree's nodes... */

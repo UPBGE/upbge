@@ -446,10 +446,12 @@ static int rna_ParticleSystem_tessfaceidx_on_emitter(ParticleSystem *particlesys
 	int totpart;
 	int totchild = 0;
 	int totface;
+	int totvert;
 	int num = -1;
 
 	DM_ensure_tessface(modifier->dm_final); /* BMESH - UNTIL MODIFIER IS UPDATED FOR MPoly */
 	totface = modifier->dm_final->getNumTessFaces(modifier->dm_final);
+	totvert = modifier->dm_final->getNumVerts(modifier->dm_final);
 
 	/* 1. check that everything is ok & updated */
 	if (!particlesystem || !totface) {
@@ -484,13 +486,29 @@ static int rna_ParticleSystem_tessfaceidx_on_emitter(ParticleSystem *particlesys
 				return num;
 			}
 		}
+		else if (part->from == PART_FROM_VERT) {
+			if (num != DMCACHE_NOTFOUND && num < totvert) {
+				MFace *mface = modifier->dm_final->getTessFaceDataArray(modifier->dm_final, CD_MFACE);
+
+				*r_fuv = &particle->fuv;
+
+				/* This finds the first face to contain the emitting vertex,
+				 * this is not ideal, but is mostly fine as UV seams generally
+				 * map to equal-colored parts of a texture */
+				for (int i = 0; i < totface; i++, mface++) {
+					if (ELEM(num, mface->v1, mface->v2, mface->v3, mface->v4)) {
+						return i;
+					}
+				}
+			}
+		}
 	}
 	else {
 		ChildParticle *cpa = particlesystem->child + particle_no - totpart;
 		num = cpa->num;
 
 		if (part->childtype == PART_CHILD_FACES) {
-			if (ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME)) {
+			if (ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME, PART_FROM_VERT)) {
 				if (num != DMCACHE_NOTFOUND && num < totface) {
 					*r_fuv = &cpa->fuv;
 					return num;
@@ -508,6 +526,22 @@ static int rna_ParticleSystem_tessfaceidx_on_emitter(ParticleSystem *particlesys
 				if (num != DMCACHE_NOTFOUND && num < totface) {
 					*r_fuv = &parent->fuv;
 					return num;
+				}
+			}
+			else if (part->from == PART_FROM_VERT) {
+				if (num != DMCACHE_NOTFOUND && num < totvert) {
+					MFace *mface = modifier->dm_final->getTessFaceDataArray(modifier->dm_final, CD_MFACE);
+
+					*r_fuv = &parent->fuv;
+
+					/* This finds the first face to contain the emitting vertex,
+					 * this is not ideal, but is mostly fine as UV seams generally
+					 * map to equal-colored parts of a texture */
+					for (int i = 0; i < totface; i++, mface++) {
+						if (ELEM(num, mface->v1, mface->v2, mface->v3, mface->v4)) {
+							return i;
+						}
+					}
 				}
 			}
 		}
@@ -2095,7 +2129,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Even Distribution",
 	                         "Use even distribution from faces based on face areas or edge lengths");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
- 
+
 	prop = RNA_def_property(srna, "use_die_on_collision", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PART_DIE_ON_COL);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);

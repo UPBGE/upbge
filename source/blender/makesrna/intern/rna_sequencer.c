@@ -341,7 +341,7 @@ static void rna_Sequence_use_translation_set(PointerRNA *ptr, int value)
 		}
 	}
 	else {
-		seq->flag ^= SEQ_USE_TRANSFORM;
+		seq->flag &= ~SEQ_USE_TRANSFORM;
 	}
 }
 
@@ -355,7 +355,7 @@ static void rna_Sequence_use_crop_set(PointerRNA *ptr, int value)
 		}
 	}
 	else {
-		seq->flag ^= SEQ_USE_CROP;
+		seq->flag &= ~SEQ_USE_CROP;
 	}
 }
 
@@ -1126,7 +1126,7 @@ static void rna_def_strip_crop(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "min_y", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "bottom");
-	RNA_def_property_ui_text(prop, "Bottom", "Number of pixels to crop from the buttom");
+	RNA_def_property_ui_text(prop, "Bottom", "Number of pixels to crop from the bottom");
 	RNA_def_property_ui_range(prop, 0, 4096, 1, -1);
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceCrop_update");
 	
@@ -2338,7 +2338,7 @@ static void rna_def_text(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "shadow_color", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_float_sdna(prop, NULL, "shadow_color");
-	RNA_def_property_ui_text(prop, "Shadow Color", "Shadow color");
+	RNA_def_property_ui_text(prop, "Shadow Color", "");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 
 	prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_XYZ);

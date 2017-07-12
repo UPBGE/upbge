@@ -1228,6 +1228,7 @@ void ED_screen_refresh(wmWindowManager *wm, wmWindow *win)
 		winrct.ymax = winsize_y - 1;
 		
 		/* header size depends on DPI, let's verify */
+		WM_window_set_dpi(win);
 		screen_refresh_headersizes();
 		
 		screen_test_scale(win->screen, winsize_x, winsize_y);
@@ -1762,7 +1763,7 @@ bool ED_screen_delete_scene(bContext *C, Scene *scene)
 
 	BKE_libblock_remap(bmain, scene, newscene, ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_NEVER_NULL_USAGE);
 
-	BKE_libblock_free(bmain, scene);
+	BKE_libblock_free_us(bmain, scene);
 
 	return true;
 }
@@ -1926,7 +1927,6 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *sa, const s
 
 		ED_screen_set(C, sc);
 
-		BKE_screen_free(oldscreen);
 		BKE_libblock_free(CTX_data_main(C), oldscreen);
 
 		/* After we've restored back to SCREENNORMAL, we have to wait with

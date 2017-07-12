@@ -553,7 +553,6 @@ SnapObjectContext *ED_transform_snap_object_context_create_view3d(
 void ED_transform_snap_object_context_destroy(SnapObjectContext *sctx) RET_NONE
 bool ED_transform_snap_object_project_ray_ex(
         struct SnapObjectContext *sctx,
-        const unsigned short snap_to,
         const struct SnapObjectParams *params,
         const float ray_start[3], const float ray_normal[3], float *ray_depth,
         /* return args */
@@ -721,7 +720,9 @@ struct uiLayout *uiLayoutRadial(struct uiLayout *layout) RET_NULL
 int UI_pie_menu_invoke_from_operator_enum(struct bContext *C, const char *title, const char *opname,
                              const char *propname, const struct wmEvent *event) RET_ZERO
 
-/* RNA COLLADA dependency */
+/* RNA COLLADA dependency                                       */
+/* XXX (gaia) Why do we need this declaration here?             */
+/*     The collada header is included anyways further up...     */
 int collada_export(struct Scene *sce,
                    const char *filepath,
                    int apply_modifiers,
@@ -734,8 +735,7 @@ int collada_export(struct Scene *sce,
                    int deform_bones_only,
 
                    int active_uv_only,
-                   int include_uv_textures,
-                   int include_material_textures,
+                   BC_export_texture_type export_texture_type,
                    int use_texture_copies,
 
                    int triangulate,

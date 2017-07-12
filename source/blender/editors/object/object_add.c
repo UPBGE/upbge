@@ -1464,8 +1464,6 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 			}
 
 			if (ob_dst->parent) {
-				invert_m4_m4(ob_dst->parentinv, dob->mat);
-
 				/* note, this may be the parent of other objects, but it should
 				 * still work out ok */
 				BKE_object_apply_mat4(ob_dst, dob->mat, false, true);
@@ -1486,7 +1484,6 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 			ob_dst->partype = PAROBJECT;
 
 			/* similer to the code above, see comments */
-			invert_m4_m4(ob_dst->parentinv, dob->mat);
 			BKE_object_apply_mat4(ob_dst, dob->mat, false, true);
 			DAG_id_tag_update(&ob_dst->id, OB_RECALC_OB);
 		}
@@ -1640,7 +1637,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 	MetaBall *mb;
 	Mesh *me;
 	const short target = RNA_enum_get(op->ptr, "target");
-	const bool keep_original = RNA_boolean_get(op->ptr, "keep_original");
+	bool keep_original = RNA_boolean_get(op->ptr, "keep_original");
 	int a, mballConverted = 0;
 
 	/* don't forget multiple users! */
@@ -1678,6 +1675,19 @@ static int convert_exec(bContext *C, wmOperator *op)
 	{
 		for (CollectionPointerLink *link = selected_editable_bases.first; link; link = link->next) {
 			Base *base = link->ptr.data;
+			ob = base->object;
+
+			/* The way object type conversion works currently (enforcing conversion of *all* objetcs using converted
+			 * obdata, even some un-selected/hidden/inother scene ones, sounds totally bad to me.
+			 * However, changing this is more design than bugfix, not to mention convoluted code below,
+			 * so that will be for later.
+			 * But at the very least, do not do that with linked IDs! */
+			if ((ID_IS_LINKED_DATABLOCK(ob) || ID_IS_LINKED_DATABLOCK(ob->data)) && !keep_original) {
+				keep_original = true;
+				BKE_reportf(op->reports, RPT_INFO,
+				            "Converting some linked object/object data, enforcing 'Keep Original' option to True");
+			}
+
 			DAG_id_tag_update(&base->object->id, OB_RECALC_DATA);
 		}
 

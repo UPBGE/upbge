@@ -50,11 +50,12 @@ struct bContext;
 struct PointerRNA;
 struct PropertyRNA;
 
+size_t BKE_libblock_get_alloc_info(short type, const char **name);
 void *BKE_libblock_alloc_notest(short type);
 void *BKE_libblock_alloc(struct Main *bmain, short type, const char *name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 void  BKE_libblock_init_empty(struct ID *id);
-void *BKE_libblock_copy(struct Main *bmain, struct ID *id) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-void *BKE_libblock_copy_nolib(struct ID *id, const bool do_action) ATTR_NONNULL();
+void *BKE_libblock_copy(struct Main *bmain, const struct ID *id) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+void *BKE_libblock_copy_nolib(const struct ID *id, const bool do_action) ATTR_NONNULL();
 void  BKE_libblock_copy_data(struct ID *id, const struct ID *id_from, const bool do_action);
 void  BKE_libblock_rename(struct Main *bmain, struct ID *id, const char *name) ATTR_NONNULL();
 void  BLI_libblock_ensure_unique_name(struct Main *bmain, const char *name) ATTR_NONNULL();
@@ -64,9 +65,10 @@ struct ID *BKE_libblock_find_name(const short type, const char *name) ATTR_WARN_
 
 /* library_remap.c (keep here since they're general functions) */
 void  BKE_libblock_free(struct Main *bmain, void *idv) ATTR_NONNULL();
+void  BKE_libblock_free_datablock(struct ID *id) ATTR_NONNULL();
 void  BKE_libblock_free_ex(struct Main *bmain, void *idv, const bool do_id_user, const bool do_ui_user) ATTR_NONNULL();
 void  BKE_libblock_free_us(struct Main *bmain, void *idv) ATTR_NONNULL();
-void  BKE_libblock_free_data(struct Main *bmain, struct ID *id, const bool do_id_user) ATTR_NONNULL();
+void  BKE_libblock_free_data(struct ID *id, const bool do_id_user) ATTR_NONNULL();
 void  BKE_libblock_delete(struct Main *bmain, void *idv) ATTR_NONNULL();
 
 void BKE_id_lib_local_paths(struct Main *bmain, struct Library *lib, struct ID *id);
@@ -84,10 +86,10 @@ void BKE_id_clear_newpoin(struct ID *id);
 void BKE_id_make_local_generic(struct Main *bmain, struct ID *id, const bool id_in_mainlist, const bool lib_local);
 bool id_make_local(struct Main *bmain, struct ID *id, const bool test, const bool force_local);
 bool id_single_user(struct bContext *C, struct ID *id, struct PointerRNA *ptr, struct PropertyRNA *prop);
-bool id_copy(struct Main *bmain, struct ID *id, struct ID **newid, bool test);
+bool id_copy(struct Main *bmain, const struct ID *id, struct ID **newid, bool test);
 void id_sort_by_name(struct ListBase *lb, struct ID *id);
 void BKE_id_expand_local(struct Main *bmain, struct ID *id);
-void BKE_id_copy_ensure_local(struct Main *bmain, struct ID *old_id, struct ID *new_id);
+void BKE_id_copy_ensure_local(struct Main *bmain, const struct ID *old_id, struct ID *new_id);
 
 bool new_id(struct ListBase *lb, struct ID *id, const char *name);
 void id_clear_lib_data(struct Main *bmain, struct ID *id);

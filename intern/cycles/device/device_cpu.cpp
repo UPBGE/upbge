@@ -149,7 +149,8 @@ public:
 	                                            device_memory& use_queues_flag,
 	                                            device_memory& work_pool_wgs);
 
-	virtual SplitKernelFunction* get_split_kernel_function(string kernel_name, const DeviceRequestedFeatures&);
+	virtual SplitKernelFunction* get_split_kernel_function(const string& kernel_name,
+	                                                       const DeviceRequestedFeatures&);
 	virtual int2 split_kernel_local_size();
 	virtual int2 split_kernel_global_size(device_memory& kg, device_memory& data, DeviceTask *task);
 	virtual uint64_t state_buffer_size(device_memory& kg, device_memory& data, size_t num_threads);
@@ -248,6 +249,7 @@ public:
 		REGISTER_SPLIT_KERNEL(direct_lighting);
 		REGISTER_SPLIT_KERNEL(shadow_blocked_ao);
 		REGISTER_SPLIT_KERNEL(shadow_blocked_dl);
+		REGISTER_SPLIT_KERNEL(enqueue_inactive);
 		REGISTER_SPLIT_KERNEL(next_iteration_setup);
 		REGISTER_SPLIT_KERNEL(indirect_subsurface);
 		REGISTER_SPLIT_KERNEL(buffer_update);
@@ -931,7 +933,8 @@ bool CPUSplitKernel::enqueue_split_kernel_data_init(const KernelDimensions& dim,
 	return true;
 }
 
-SplitKernelFunction* CPUSplitKernel::get_split_kernel_function(string kernel_name, const DeviceRequestedFeatures&)
+SplitKernelFunction* CPUSplitKernel::get_split_kernel_function(const string& kernel_name,
+                                                               const DeviceRequestedFeatures&)
 {
 	CPUSplitKernelFunction *kernel = new CPUSplitKernelFunction(device);
 

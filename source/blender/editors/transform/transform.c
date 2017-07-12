@@ -4067,13 +4067,15 @@ static void initTrackball(TransInfo *t)
 static void applyTrackballValue(TransInfo *t, const float axis1[3], const float axis2[3], float angles[2])
 {
 	TransData *td = t->data;
-	float mat[3][3], smat[3][3], totmat[3][3];
+	float mat[3][3];
+	float axis[3];
+	float angle;
 	int i;
 
-	axis_angle_normalized_to_mat3(smat, axis1, angles[0]);
-	axis_angle_normalized_to_mat3(totmat, axis2, angles[1]);
-
-	mul_m3_m3m3(mat, smat, totmat);
+	mul_v3_v3fl(axis, axis1, angles[0]);
+	madd_v3_v3fl(axis, axis2, angles[1]);
+	angle = normalize_v3(axis);
+	axis_angle_normalized_to_mat3(mat, axis, angle);
 
 	for (i = 0; i < t->total; i++, td++) {
 		if (td->flag & TD_NOACTION)
@@ -4083,10 +4085,7 @@ static void applyTrackballValue(TransInfo *t, const float axis1[3], const float 
 			continue;
 
 		if (t->flag & T_PROP_EDIT) {
-			axis_angle_normalized_to_mat3(smat, axis1, td->factor * angles[0]);
-			axis_angle_normalized_to_mat3(totmat, axis2, td->factor * angles[1]);
-
-			mul_m3_m3m3(mat, smat, totmat);
+			axis_angle_normalized_to_mat3(mat, axis, td->factor * angle);
 		}
 
 		ElementRotation(t, td, mat, t->around);
@@ -5559,7 +5558,7 @@ static void slide_origdata_interp_data_vert(
 	float v_proj[3][3];
 
 	if (do_loop_weight || do_loop_mdisps) {
-		project_plane_v3_v3v3(v_proj[1], sv->co_orig_3d, v_proj_axis);
+		project_plane_normalized_v3_v3v3(v_proj[1], sv->co_orig_3d, v_proj_axis);
 	}
 
 	// BM_ITER_ELEM (l, &liter, sv->v, BM_LOOPS_OF_VERT) {
@@ -5593,19 +5592,19 @@ static void slide_origdata_interp_data_vert(
 			/* In the unlikely case that we're next to a zero length edge - walk around the to the next.
 			 * Since we only need to check if the vertex is in this corner,
 			 * its not important _which_ loop - as long as its not overlapping 'sv->co_orig_3d', see: T45096. */
-			project_plane_v3_v3v3(v_proj[0], co_prev, v_proj_axis);
+			project_plane_normalized_v3_v3v3(v_proj[0], co_prev, v_proj_axis);
 			while (UNLIKELY(((co_prev_ok = (len_squared_v3v3(v_proj[1], v_proj[0]) > eps)) == false) &&
 			                ((l_prev = l_prev->prev) != l->next)))
 			{
 				co_prev = slide_origdata_orig_vert_co(sod, l_prev->v);
-				project_plane_v3_v3v3(v_proj[0], co_prev, v_proj_axis);
+				project_plane_normalized_v3_v3v3(v_proj[0], co_prev, v_proj_axis);
 			}
-			project_plane_v3_v3v3(v_proj[2], co_next, v_proj_axis);
+			project_plane_normalized_v3_v3v3(v_proj[2], co_next, v_proj_axis);
 			while (UNLIKELY(((co_next_ok = (len_squared_v3v3(v_proj[1], v_proj[2]) > eps)) == false) &&
 			                ((l_next = l_next->next) != l->prev)))
 			{
 				co_next = slide_origdata_orig_vert_co(sod, l_next->v);
-				project_plane_v3_v3v3(v_proj[2], co_next, v_proj_axis);
+				project_plane_normalized_v3_v3v3(v_proj[2], co_next, v_proj_axis);
 			}
 
 			if (co_prev_ok && co_next_ok) {

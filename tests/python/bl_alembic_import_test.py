@@ -75,6 +75,39 @@ class SimpleImportTest(AbstractAlembicTest):
         self.assertEqual(objects['Cube_003'], objects['Cube_005'].parent)
         self.assertEqual(objects['Cube_003'], objects['Cube_006'].parent)
 
+    def test_inherit_or_not(self):
+        res = bpy.ops.wm.alembic_import(
+            filepath=str(self.testdir / "T52022-inheritance.abc"),
+            as_background_job=False)
+        self.assertEqual({'FINISHED'}, res)
+
+        # The objects should be linked to scene_collection in Blender 2.8,
+        # and to scene in Blender 2.7x.
+        objects = bpy.context.scene.objects
+
+        # ABC parent is top-level object, which translates to nothing in Blender
+        self.assertIsNone(objects['locator1'].parent)
+
+        # ABC parent is locator1, but locator2 has "inherits Xforms" = false, which
+        # translates to "no parent" in Blender.
+        self.assertIsNone(objects['locator2'].parent)
+
+        # Shouldn't have inherited the ABC parent's transform.
+        x, y, z = objects['locator2'].matrix_world.to_translation()
+        self.assertAlmostEqual(0, x)
+        self.assertAlmostEqual(0, y)
+        self.assertAlmostEqual(2, z)
+
+        # ABC parent is inherited and translates to normal parent in Blender.
+        self.assertEqual(objects['locator2'], objects['locatorShape2'].parent)
+
+        # Should have inherited its ABC parent's transform.
+        x, y, z = objects['locatorShape2'].matrix_world.to_translation()
+        self.assertAlmostEqual(0, x)
+        self.assertAlmostEqual(0, y)
+        self.assertAlmostEqual(2, z)
+
+
     def test_select_after_import(self):
         # Add a sphere, so that there is something in the scene, selected, and active,
         # before we do the Alembic import.
@@ -128,6 +161,9 @@ class SimpleImportTest(AbstractAlembicTest):
         # Replace the Alembic file; this should apply new animation.
         bpy.data.cache_files[fname].filepath = relpath.replace('1.abc', '2.abc')
         bpy.context.scene.update()
+
+        if args.with_legacy_depsgraph:
+            bpy.context.scene.frame_set(10)
 
         x, y, z = cube.matrix_world.to_euler('XYZ')
         self.assertAlmostEqual(x, math.pi / 2, places=5)
@@ -207,12 +243,14 @@ def main():
     import argparse
 
     if '--' in sys.argv:
-        argv = [sys.argv[0]] + sys.argv[sys.argv.index('--')+1:]
+        argv = [sys.argv[0]] + sys.argv[sys.argv.index('--') + 1:]
     else:
         argv = sys.argv
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--testdir', required=True, type=pathlib.Path)
+    parser.add_argument('--with-legacy-depsgraph', default=False,
+                        type=lambda v: v in {'ON', 'YES', 'TRUE'})
     args, remaining = parser.parse_known_args(argv)
 
     unittest.main(argv=remaining)

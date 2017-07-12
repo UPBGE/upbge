@@ -921,7 +921,7 @@ static void node_socket_copy(bNodeSocket *dst, bNodeSocket *src)
 
 /* keep socket listorder identical, for copying links */
 /* ntree is the target tree */
-bNode *nodeCopyNode(struct bNodeTree *ntree, struct bNode *node)
+bNode *nodeCopyNode(bNodeTree *ntree, bNode *node)
 {
 	bNode *nnode = MEM_callocN(sizeof(bNode), "dupli node");
 	bNodeSocket *sock, *oldsock;
@@ -1200,7 +1200,9 @@ bNodeTree *ntreeAddTree(Main *bmain, const char *name, const char *idname)
  * copying for internal use (threads for eg), where you wont want it to modify the
  * scene data.
  */
-static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool skip_database, bool do_id_user, bool do_make_extern, bool copy_previews)
+static bNodeTree *ntreeCopyTree_internal(
+        const bNodeTree *ntree, Main *bmain,
+        bool skip_database, bool do_id_user, bool do_make_extern, bool copy_previews)
 {
 	bNodeTree *newtree;
 	bNode *node /*, *nnode */ /* UNUSED */, *last;
@@ -1299,11 +1301,11 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool ski
 	return newtree;
 }
 
-bNodeTree *ntreeCopyTree_ex(bNodeTree *ntree, Main *bmain, const bool do_id_user)
+bNodeTree *ntreeCopyTree_ex(const bNodeTree *ntree, Main *bmain, const bool do_id_user)
 {
 	return ntreeCopyTree_internal(ntree, bmain, false, do_id_user, true, true);
 }
-bNodeTree *ntreeCopyTree(Main *bmain, bNodeTree *ntree)
+bNodeTree *ntreeCopyTree(Main *bmain, const bNodeTree *ntree)
 {
 	return ntreeCopyTree_ex(ntree, bmain, true);
 }
@@ -1698,11 +1700,12 @@ static void node_free_node_ex(bNodeTree *ntree, bNode *node, bool remove_animdat
 			ntreeTexEndExecTree(ntree->execdata);
 			ntree->execdata = NULL;
 		}
-		
-		if (node->typeinfo->freefunc)
-			node->typeinfo->freefunc(node);
 	}
-	
+
+	if (node->typeinfo->freefunc) {
+		node->typeinfo->freefunc(node);
+	}
+
 	for (sock = node->inputs.first; sock; sock = nextsock) {
 		nextsock = sock->next;
 		node_socket_free(ntree, sock, node);
@@ -1828,7 +1831,7 @@ void ntreeFreeTree(bNodeTree *ntree)
 		if (tntree == ntree)
 			break;
 	if (tntree == NULL) {
-		BKE_libblock_free_data(G.main, &ntree->id, true);
+		BKE_libblock_free_data(&ntree->id, true);
 	}
 }
 
@@ -3172,12 +3175,20 @@ void nodeSynchronizeID(bNode *node, bool copy_to_id)
 
 void nodeLabel(bNodeTree *ntree, bNode *node, char *label, int maxlen)
 {
-	if (node->label[0] != '\0')
+	if (node->label[0] != '\0') {
 		BLI_strncpy(label, node->label, maxlen);
-	else if (node->typeinfo->labelfunc)
+	}
+	else if (node->typeinfo->labelfunc) {
 		node->typeinfo->labelfunc(ntree, node, label, maxlen);
-	else
-		BLI_strncpy(label, IFACE_(node->typeinfo->ui_name), maxlen);
+	}
+	else {
+		/* Kind of hacky and weak... Ideally would be better to use RNA here. :| */
+		const char *tmp = CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, node->typeinfo->ui_name);
+		if (tmp == node->typeinfo->ui_name) {
+			tmp = IFACE_(node->typeinfo->ui_name);
+		}
+		BLI_strncpy(label, tmp, maxlen);
+	}
 }
 
 static void node_type_base_defaults(bNodeType *ntype)

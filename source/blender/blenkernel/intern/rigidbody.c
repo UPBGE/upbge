@@ -184,7 +184,7 @@ void BKE_rigidbody_free_constraint(Object *ob)
  * be added to relevant groups later...
  */
 
-RigidBodyOb *BKE_rigidbody_copy_object(Object *ob)
+RigidBodyOb *BKE_rigidbody_copy_object(const Object *ob)
 {
 	RigidBodyOb *rboN = NULL;
 
@@ -204,7 +204,7 @@ RigidBodyOb *BKE_rigidbody_copy_object(Object *ob)
 	return rboN;
 }
 
-RigidBodyCon *BKE_rigidbody_copy_constraint(Object *ob)
+RigidBodyCon *BKE_rigidbody_copy_constraint(const Object *ob)
 {
 	RigidBodyCon *rbcN = NULL;
 
@@ -1486,24 +1486,60 @@ void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
 void BKE_rigidbody_aftertrans_update(Object *ob, float loc[3], float rot[3], float quat[4], float rotAxis[3], float rotAngle)
 {
 	RigidBodyOb *rbo = ob->rigidbody_object;
+	bool correct_delta = !(rbo->flag & RBO_FLAG_KINEMATIC || rbo->type == RBO_TYPE_PASSIVE);
 
 	/* return rigid body and object to their initial states */
 	copy_v3_v3(rbo->pos, ob->loc);
 	copy_v3_v3(ob->loc, loc);
 
+	if (correct_delta) {
+		add_v3_v3(rbo->pos, ob->dloc);
+	}
+
 	if (ob->rotmode > 0) {
-		eulO_to_quat(rbo->orn, ob->rot, ob->rotmode);
+		float qt[4];
+		eulO_to_quat(qt, ob->rot, ob->rotmode);
+
+		if (correct_delta) {
+			float dquat[4];
+			eulO_to_quat(dquat, ob->drot, ob->rotmode);
+
+			mul_qt_qtqt(rbo->orn, dquat, qt);
+		}
+		else {
+			copy_qt_qt(rbo->orn, qt);
+		}
+
 		copy_v3_v3(ob->rot, rot);
 	}
 	else if (ob->rotmode == ROT_MODE_AXISANGLE) {
-		axis_angle_to_quat(rbo->orn, ob->rotAxis, ob->rotAngle);
+		float qt[4];
+		axis_angle_to_quat(qt, ob->rotAxis, ob->rotAngle);
+
+		if (correct_delta) {
+			float dquat[4];
+			axis_angle_to_quat(dquat, ob->drotAxis, ob->drotAngle);
+
+			mul_qt_qtqt(rbo->orn, dquat, qt);
+		}
+		else {
+			copy_qt_qt(rbo->orn, qt);
+		}
+
 		copy_v3_v3(ob->rotAxis, rotAxis);
 		ob->rotAngle = rotAngle;
 	}
 	else {
-		copy_qt_qt(rbo->orn, ob->quat);
+		if (correct_delta) {
+			mul_qt_qtqt(rbo->orn, ob->dquat, ob->quat);
+		}
+		else {
+			copy_qt_qt(rbo->orn, ob->quat);
+		}
+
 		copy_qt_qt(ob->quat, quat);
 	}
+
 	if (rbo->physics_object) {
 		/* allow passive objects to return to original transform */
 		if (rbo->type == RBO_TYPE_PASSIVE)
@@ -1515,8 +1551,9 @@ void BKE_rigidbody_aftertrans_update(Object *ob, float loc[3], float rot[3], flo
 
 void BKE_rigidbody_cache_reset(RigidBodyWorld *rbw)
 {
-	if (rbw)
+	if (rbw) {
 		rbw->pointcache->flag |= PTCACHE_OUTDATED;
+	}
 }
 
 /* ------------------ */
@@ -1563,12 +1600,8 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	BKE_ptcache_id_time(&pid, scene, ctime, &startframe, &endframe, NULL);
 	cache = rbw->pointcache;
 
-	if (ctime <= startframe) {
-		rbw->ltime = startframe;
-		return;
-	}
 	/* make sure we don't go out of cache frame range */
-	else if (ctime > endframe) {
+	if (ctime > endframe) {
 		ctime = endframe;
 	}
 
@@ -1582,9 +1615,12 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	// RB_TODO deal with interpolated, old and baked results
 	bool can_simulate = (ctime == rbw->ltime + 1) && !(cache->flag & PTCACHE_BAKED);
 
+	if (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0) {
+		rbw->ltime = cache->startframe;
+	}
+
 	if (BKE_ptcache_read(&pid, ctime, can_simulate)) {
 		BKE_ptcache_validate(cache, (int)ctime);
-		rbw->ltime = ctime;
 		return;
 	}
 
@@ -1622,8 +1658,8 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 #  pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
 
-struct RigidBodyOb *BKE_rigidbody_copy_object(Object *ob) { return NULL; }
-struct RigidBodyCon *BKE_rigidbody_copy_constraint(Object *ob) { return NULL; }
+struct RigidBodyOb *BKE_rigidbody_copy_object(const Object *ob) { return NULL; }
+struct RigidBodyCon *BKE_rigidbody_copy_constraint(const Object *ob) { return NULL; }
 void BKE_rigidbody_validate_sim_world(Scene *scene, RigidBodyWorld *rbw, bool rebuild) {}
 void BKE_rigidbody_calc_volume(Object *ob, float *r_vol) { if (r_vol) *r_vol = 0.0f; }
 void BKE_rigidbody_calc_center_of_mass(Object *ob, float r_center[3]) { zero_v3(r_center); }

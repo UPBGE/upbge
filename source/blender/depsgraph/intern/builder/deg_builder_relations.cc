@@ -198,13 +198,6 @@ DepsgraphRelationBuilder::DepsgraphRelationBuilder(Depsgraph *graph) :
 {
 }
 
-RootDepsNode *DepsgraphRelationBuilder::find_node(const RootKey &key) const
-{
-	(void)key;
-	BLI_assert(!"Doesn't seem to be correct");
-	return m_graph->root_node;
-}
-
 TimeSourceDepsNode *DepsgraphRelationBuilder::find_node(
         const TimeSourceKey &key) const
 {
@@ -213,7 +206,7 @@ TimeSourceDepsNode *DepsgraphRelationBuilder::find_node(
 		return NULL;
 	}
 	else {
-		return m_graph->root_node->time_source;
+		return m_graph->time_source;
 	}
 }
 
@@ -369,6 +362,11 @@ void DepsgraphRelationBuilder::add_forcefield_relations(const OperationKey &key,
 	}
 
 	pdEndEffectors(&effectors);
+}
+
+Depsgraph *DepsgraphRelationBuilder::getGraph()
+{
+	return m_graph;
 }
 
 /* **** Functions to build relations between entities  **** */
@@ -1467,6 +1465,19 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 	/* type-specific node/links */
 	switch (ob->type) {
 		case OB_MESH:
+			/* NOTE: This is compatibility code to support particle systems
+			 *
+			 * for viewport being properly rendered in final render mode.
+			 * This relation is similar to what dag_object_time_update_flags()
+			 * was doing for mesh objects with particle system/
+			 *
+			 * Ideally we need to get rid of this relation.
+			 */
+			if (ob->particlesystem.first != NULL) {
+				TimeSourceKey time_key;
+				OperationKey obdata_ubereval_key(&ob->id, DEG_NODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_UBEREVAL);
+				add_relation(time_key, obdata_ubereval_key, "Legacy particle time");
+			}
 			break;
 
 		case OB_MBALL:

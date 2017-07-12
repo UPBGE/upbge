@@ -126,7 +126,7 @@ void free_fcurves(ListBase *list)
 /* ---------------------- Copy --------------------------- */
 
 /* duplicate an F-Curve */
-FCurve *copy_fcurve(FCurve *fcu)
+FCurve *copy_fcurve(const FCurve *fcu)
 {
 	FCurve *fcu_d;
 	
@@ -1805,7 +1805,7 @@ void fcurve_free_driver(FCurve *fcu)
 }
 
 /* This makes a copy of the given driver */
-ChannelDriver *fcurve_copy_driver(ChannelDriver *driver)
+ChannelDriver *fcurve_copy_driver(const ChannelDriver *driver)
 {
 	ChannelDriver *ndriver;
 	
@@ -1945,7 +1945,7 @@ float evaluate_driver(PathResolvedRNA *anim_rna, ChannelDriver *driver, const fl
 				BLI_mutex_unlock(&python_driver_lock);
 			}
 #else /* WITH_PYTHON*/
-			(void)evaltime;
+			UNUSED_VARS(anim_rna, evaltime);
 #endif /* WITH_PYTHON*/
 			break;
 		}

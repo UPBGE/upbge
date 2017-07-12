@@ -252,6 +252,7 @@ public:
 class PointDensityTextureNode : public ShaderNode {
 public:
 	SHADER_NODE_NO_CLONE_CLASS(PointDensityTextureNode)
+	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
 
 	~PointDensityTextureNode();
 	ShaderNode *clone() const;
@@ -373,17 +374,17 @@ public:
 	SHADER_NODE_CLASS(PrincipledBsdfNode)
 
 	bool has_spatial_varying() { return true; }
-	bool has_surface_bssrdf() { return true; }
+	bool has_surface_bssrdf();
 	bool has_bssrdf_bump();
 	void compile(SVMCompiler& compiler, ShaderInput *metallic, ShaderInput *subsurface, ShaderInput *subsurface_radius,
 		ShaderInput *specular, ShaderInput *roughness, ShaderInput *specular_tint, ShaderInput *anisotropic,
-		ShaderInput *sheen, ShaderInput *sheen_tint, ShaderInput *clearcoat, ShaderInput *clearcoat_gloss,
+		ShaderInput *sheen, ShaderInput *sheen_tint, ShaderInput *clearcoat, ShaderInput *clearcoat_roughness,
 		ShaderInput *ior, ShaderInput *transmission, ShaderInput *anisotropic_rotation, ShaderInput *transmission_roughness);
 
 	float3 base_color;
 	float3 subsurface_color, subsurface_radius;
 	float metallic, subsurface, specular, roughness, specular_tint, anisotropic,
-		sheen, sheen_tint, clearcoat, clearcoat_gloss, ior, transmission,
+		sheen, sheen_tint, clearcoat, clearcoat_roughness, ior, transmission,
 		anisotropic_rotation, transmission_roughness;
 	float3 normal, clearcoat_normal, tangent;
 	float surface_mix_weight;

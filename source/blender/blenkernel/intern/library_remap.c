@@ -419,6 +419,7 @@ ATTR_NONNULL(1) static void libblock_remap_data(
 	IDRemap id_remap_data;
 	ListBase *lb_array[MAX_LIBARRAY];
 	int i;
+	const int foreach_id_flags = (remap_flags & ID_REMAP_NO_INDIRECT_PROXY_DATA_USAGE) != 0 ? IDWALK_NO_INDIRECT_PROXY_DATA_USAGE : IDWALK_NOP;
 
 	if (r_id_remap_data == NULL) {
 		r_id_remap_data = &id_remap_data;
@@ -439,7 +440,7 @@ ATTR_NONNULL(1) static void libblock_remap_data(
 #endif
 		r_id_remap_data->id = id;
 		libblock_remap_data_preprocess(r_id_remap_data);
-		BKE_library_foreach_ID_link(NULL, id, foreach_libblock_remap_callback, (void *)r_id_remap_data, IDWALK_NOP);
+		BKE_library_foreach_ID_link(NULL, id, foreach_libblock_remap_callback, (void *)r_id_remap_data, foreach_id_flags);
 	}
 	else {
 		i = set_listbasepointers(bmain, lb_array);
@@ -456,7 +457,7 @@ ATTR_NONNULL(1) static void libblock_remap_data(
 					r_id_remap_data->id = id_curr;
 					libblock_remap_data_preprocess(r_id_remap_data);
 					BKE_library_foreach_ID_link(
-					            NULL, id_curr, foreach_libblock_remap_callback, (void *)r_id_remap_data, IDWALK_NOP);
+					            NULL, id_curr, foreach_libblock_remap_callback, (void *)r_id_remap_data, foreach_id_flags);
 				}
 			}
 		}
@@ -723,7 +724,7 @@ void BKE_libblock_relink_to_newid(ID *id)
 	BKE_library_foreach_ID_link(NULL, id, id_relink_to_newid_looper, NULL, 0);
 }
 
-void BKE_libblock_free_data(Main *UNUSED(bmain), ID *id, const bool do_id_user)
+void BKE_libblock_free_data(ID *id, const bool do_id_user)
 {
 	if (id->properties) {
 		IDP_FreeProperty_ex(id->properties, do_id_user);
@@ -731,30 +732,9 @@ void BKE_libblock_free_data(Main *UNUSED(bmain), ID *id, const bool do_id_user)
 	}
 }
 
-/**
- * used in headerbuttons.c image.c mesh.c screen.c sound.c and library.c
- *
- * \param do_id_user: if \a true, try to release other ID's 'references' hold by \a idv.
- *                    (only applies to main database)
- * \param do_ui_user: similar to do_id_user but makes sure UI does not hold references to
- *                    \a id.
- */
-void BKE_libblock_free_ex(Main *bmain, void *idv, const bool do_id_user, const bool do_ui_user)
+void BKE_libblock_free_datablock(ID *id)
 {
-	ID *id = idv;
-	short type = GS(id->name);
-	ListBase *lb = which_libbase(bmain, type);
-
-	DAG_id_type_tag(bmain, type);
-
-#ifdef WITH_PYTHON
-	BPY_id_release(id);
-#endif
-
-	if (do_id_user) {
-		BKE_libblock_relink_ex(bmain, id, NULL, NULL, true);
-	}
-
+	const short type = GS(id->name);
 	switch (type) {
 		case ID_SCE:
 			BKE_scene_free((Scene *)id);
@@ -860,6 +840,33 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, const bool do_id_user, const b
 			BKE_cachefile_free((CacheFile *)id);
 			break;
 	}
+}
+
+/**
+ * used in headerbuttons.c image.c mesh.c screen.c sound.c and library.c
+ *
+ * \param do_id_user: if \a true, try to release other ID's 'references' hold by \a idv.
+ *                    (only applies to main database)
+ * \param do_ui_user: similar to do_id_user but makes sure UI does not hold references to
+ *                    \a id.
+ */
+void BKE_libblock_free_ex(Main *bmain, void *idv, const bool do_id_user, const bool do_ui_user)
+{
+	ID *id = idv;
+	short type = GS(id->name);
+	ListBase *lb = which_libbase(bmain, type);
+
+	DAG_id_type_tag(bmain, type);
+
+#ifdef WITH_PYTHON
+	BPY_id_release(id);
+#endif
+
+	if (do_id_user) {
+		BKE_libblock_relink_ex(bmain, id, NULL, NULL, true);
+	}
+
+	BKE_libblock_free_datablock(id);
 
 	/* avoid notifying on removed data */
 	BKE_main_lock(bmain);
@@ -876,7 +883,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, const bool do_id_user, const b
 
 	BLI_remlink(lb, id);
 
-	BKE_libblock_free_data(bmain, id, do_id_user);
+	BKE_libblock_free_data(id, do_id_user);
 	BKE_main_unlock(bmain);
 
 	MEM_freeN(id);

@@ -49,7 +49,6 @@ struct PropertyRNA;
 namespace DEG {
 
 struct DepsNode;
-struct RootDepsNode;
 struct TimeSourceDepsNode;
 struct IDDepsNode;
 struct ComponentDepsNode;
@@ -108,13 +107,11 @@ struct Depsgraph {
 	 */
 	DepsNode *find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop) const;
 
-	RootDepsNode *add_root_node();
-
+	TimeSourceDepsNode *add_time_source();
 	TimeSourceDepsNode *find_time_source() const;
 
 	IDDepsNode *find_id_node(const ID *id) const;
 	IDDepsNode *add_id_node(ID *id, const char *name = "");
-	void remove_id_node(const ID *id);
 	void clear_id_nodes();
 
 	/* Add new relationship between two nodes. */
@@ -138,8 +135,8 @@ struct Depsgraph {
 	 * (for quick lookups). */
 	GHash *id_hash;
 
-	/* "root" node - the one where all evaluation enters from. */
-	RootDepsNode *root_node;
+	/* Top-level time source node. */
+	TimeSourceDepsNode *time_source;
 
 	/* Indicates whether relations needs to be updated. */
 	bool need_update;
