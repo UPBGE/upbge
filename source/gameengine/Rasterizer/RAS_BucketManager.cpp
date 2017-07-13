@@ -157,7 +157,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 	switch (drawingMode) {
 		case RAS_Rasterizer::RAS_SHADOW:
 		{
-			const bool isVarianceShadow = rasty->GetShadowMode() == RAS_Rasterizer::RAS_SHADOW_VARIANCE;
+			const bool isVarianceShadow = false; //rasty->GetShadowMode() == RAS_Rasterizer::RAS_SHADOW_VARIANCE;
 
 			rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
 
@@ -169,7 +169,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 			if (m_buckets[SOLID_SHADOW_BUCKET].size() > 0) {
 				rasty->SetOverrideShader(isVarianceShadow ?
 				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE :
-				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_BLACK);
+				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_SHADOW);
 			}
 			RenderBasicBuckets(rasty, SOLID_SHADOW_BUCKET);
 
@@ -177,10 +177,11 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 			 * shader for variance and simple shadow.
 			 */
 
+#if 0
 			if (m_buckets[SOLID_SHADOW_INSTANCING_BUCKET].size() > 0) {
 				rasty->SetOverrideShader(isVarianceShadow ?
 				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING :
-				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_BLACK_INSTANCING);
+				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_SHADOW_INSTANCING);
 			}
 			RenderBasicBuckets(rasty, SOLID_SHADOW_INSTANCING_BUCKET);
 
@@ -215,7 +216,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 				// Render alpha shadow regular materials with ordering.
 				RenderBasicBuckets(rasty, ALPHA_SHADOW_BUCKET);
 			}
-
+#endif
 			break;
 		}
 		case RAS_Rasterizer::RAS_WIREFRAME:

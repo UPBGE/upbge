@@ -72,6 +72,16 @@ extern char datatoc_shadow_store_frag_glsl[];
 
 /* *********** FUNCTIONS *********** */
 
+struct GPUShader *EEVEE_shadow_shader_get()
+{
+	return e_data.shadow_sh;
+}
+
+struct GPUShader *EEVEE_shadow_store_shader_get()
+{
+	return e_data.shadow_store_sh;
+}
+
 void EEVEE_lights_init(EEVEE_SceneLayerData *sldata)
 {
 	const unsigned int shadow_ubo_size = sizeof(EEVEE_ShadowCube) * MAX_SHADOW_CUBE +

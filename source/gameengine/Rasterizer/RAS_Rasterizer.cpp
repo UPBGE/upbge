@@ -1173,6 +1173,11 @@ GPUShader *RAS_Rasterizer::GetOverrideGPUShader(OverrideShaderType type)
 			shader = GPU_shader_get_builtin_shader(GPU_SHADER_BLACK_INSTANCING);
 			break;
 		}
+		case RAS_OVERRIDE_SHADER_SHADOW:
+		{
+			shader = EEVEE_shadow_shader_get();
+			break;
+		}
 		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
 		{
 			shader = GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE);
