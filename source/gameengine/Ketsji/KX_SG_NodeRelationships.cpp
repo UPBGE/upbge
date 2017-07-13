@@ -76,7 +76,7 @@ UpdateChildCoordinates(
 
 		child->SetWorldScale(p_world_scale * child->GetLocalScale());
 		child->SetWorldOrientation(p_world_rotation * child->GetLocalOrientation());
-		child->SetWorldPosition(p_world_pos + p_world_scale * (p_world_rotation * child->GetLocalPosition()));
+		child->SetWorldPosition(p_world_pos + p_world_rotation * (p_world_scale * child->GetLocalPosition()));
 		child->ClearModified();
 		return true;
 	}
