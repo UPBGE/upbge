@@ -165,6 +165,9 @@ void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
 
 void RAS_MaterialBucket::RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
 {
+	if (m_displayArrayBucketList.size() == 0) {
+		return;
+	}
 	RAS_DisplayArrayBucketList::iterator it = std::find(m_displayArrayBucketList.begin(), m_displayArrayBucketList.end(), bucket);
 	if (it != m_displayArrayBucketList.end()) {
 		m_displayArrayBucketList.erase(it);

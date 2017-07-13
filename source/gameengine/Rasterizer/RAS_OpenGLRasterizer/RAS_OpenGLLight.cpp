@@ -60,7 +60,7 @@ RAS_OpenGLLight::RAS_OpenGLLight(RAS_Rasterizer *ras)
 
 RAS_OpenGLLight::~RAS_OpenGLLight()
 {
-	GPULamp *lamp;
+	/*GPULamp *lamp;
 	KX_LightObject *kxlight = (KX_LightObject *)m_light;
 	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
 
@@ -69,7 +69,7 @@ RAS_OpenGLLight::~RAS_OpenGLLight()
 		GPU_lamp_update(lamp, 0, 0, obmat);
 		GPU_lamp_update_distance(lamp, la->dist, la->att1, la->att2, la->coeff_const, la->coeff_lin, la->coeff_quad);
 		GPU_lamp_update_spot(lamp, la->spotsize, la->spotblend);
-	}
+	}*/
 }
 
 bool RAS_OpenGLLight::Update(EEVEE_Light& lightData)
