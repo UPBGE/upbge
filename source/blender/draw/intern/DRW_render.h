@@ -273,6 +273,8 @@ DRWShadingGroup *DRW_shgroup_point_batch_create(struct GPUShader *shader, DRWPas
 DRWShadingGroup *DRW_shgroup_line_batch_create(struct GPUShader *shader, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_empty_tri_batch_create(struct GPUShader *shader, DRWPass *pass, int size);
 
+struct GPUShader *DRW_shgroup_shader_get(DRWShadingGroup *shgroup);
+
 typedef void (DRWCallGenerateFn)(
         DRWShadingGroup *shgroup,
         void (*draw_fn)(DRWShadingGroup *shgroup, struct Gwn_Batch *geom),

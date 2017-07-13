@@ -48,7 +48,7 @@ public:
 
 	struct Attrib
 	{
-		unsigned short m_loc;
+		short m_loc;
 		AttribType m_type;
 		unsigned short m_layer;
 	};

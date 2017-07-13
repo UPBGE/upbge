@@ -92,7 +92,7 @@ RAS_StorageVao::RAS_StorageVao(RAS_IDisplayArray *array, RAS_DisplayArrayStorage
 			}
 		}
 
-		const unsigned short loc = attrib.m_loc;
+		const short loc = attrib.m_loc;
 		const AttribData& data = attribData[type];
 
 		glEnableVertexAttribArray(loc);

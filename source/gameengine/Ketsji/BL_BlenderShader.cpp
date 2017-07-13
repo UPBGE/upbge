@@ -67,47 +67,50 @@ BL_BlenderShader::~BL_BlenderShader()
 
 const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
-	if (!m_gpuMat) {
-		return RAS_AttributeArray::AttribList();
+	RAS_AttributeArray::AttribList attribs;
+
+	if (!m_shGroup) {
+		return attribs;
 	}
 
-	RAS_AttributeArray::AttribList attribLayers;
-	/*GPUVertexAttribs attribs;
-	GPU_material_vertex_attributes(m_gpuMat, &attribs);
+	GPUShader *shader = DRW_shgroup_shader_get(m_shGroup);
 
-	for (unsigned int i = 0; i < attribs.totlayer; ++i) {
-		if (attribs.layer[i].type == CD_MTFACE || attribs.layer[i].type == CD_MCOL) {
-			const char *attribname = attribs.layer[i].name;
-			if (strlen(attribname) == 0) {
-				// The color or uv layer is not specified, then use the active color or uv layer.
-				if (attribs.layer[i].type == CD_MTFACE) {
-					attribLayers[attribs.layer[i].glindex] = layersInfo.activeUv;
-				}
-				else {
-					attribLayers[attribs.layer[i].glindex] = layersInfo.activeColor;
-				}
-				continue;
-			}
+	struct AttribData
+	{
+		std::string name;
+		RAS_AttributeArray::AttribType type;
+		unsigned short layer;
+	};
 
-			for (RAS_MeshObject::LayerList::const_iterator it = layersInfo.layers.begin(), end = layersInfo.layers.end();
-			     it != end; ++it) {
-				const RAS_MeshObject::Layer& layer = *it;
-				bool found = false;
-				if (attribs.layer[i].type == CD_MTFACE && layer.face && layer.name == attribname) {
-					found = true;
-				}
-				else if (attribs.layer[i].type == CD_MCOL && layer.color && layer.name == attribname) {
-					found = true;
-				}
-				if (found) {
-					attribLayers[attribs.layer[i].glindex] = layer.index;
-					break;
-				}
-			}
+	// Default attributes.
+	std::vector<AttribData> attribData = {
+		{"pos", RAS_AttributeArray::RAS_ATTRIB_POS, 0},
+		{"nor", RAS_AttributeArray::RAS_ATTRIB_NORM, 0},
+		{"u", RAS_AttributeArray::RAS_ATTRIB_UV, layersInfo.activeUv},
+		{"c", RAS_AttributeArray::RAS_ATTRIB_COLOR, layersInfo.activeColor}
+	};
+
+	// Extra attributes for uv and color layers.
+	for (const RAS_MeshObject::Layer& layer : layersInfo.layers) {
+		const RAS_AttributeArray::AttribType type = (layer.face) ?
+				RAS_AttributeArray::RAS_ATTRIB_UV : RAS_AttributeArray::RAS_ATTRIB_COLOR;
+
+		const std::string prefix = (layer.face) ? "u" : "c";
+		const unsigned int hash = BLI_ghashutil_strhash(layer.name.c_str());
+		const std::string name = prefix + std::to_string(hash);
+
+		attribData.push_back({name, type, layer.index});
+	}
+
+	// Try to find all the attributes and return the valid ones.
+	for (const AttribData& data : attribData) {
+		const short loc = GPU_shader_get_attribute(shader, data.name.c_str());
+		if (loc != -1) {
+			attribs.push_back({loc, data.type, data.layer});
 		}
-	}*/
+	}
 
-	return attribLayers;
+	return attribs;
 }
 
 bool BL_BlenderShader::Ok() const

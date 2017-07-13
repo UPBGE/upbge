@@ -839,6 +839,11 @@ DRWShadingGroup *DRW_shgroup_empty_tri_batch_create(struct GPUShader *shader, DR
 	return shgroup;
 }
 
+struct GPUShader *DRW_shgroup_shader_get(DRWShadingGroup *shgroup)
+{
+	return shgroup->shader;
+}
+
 void DRW_shgroup_free(struct DRWShadingGroup *shgroup)
 {
 	BLI_freelistN(&shgroup->calls);
