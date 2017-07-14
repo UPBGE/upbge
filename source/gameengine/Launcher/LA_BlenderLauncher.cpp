@@ -91,11 +91,6 @@ RAS_Rasterizer::DrawType LA_BlenderLauncher::GetRasterizerDrawMode()
 			drawmode = RAS_Rasterizer::RAS_WIREFRAME;
 			break;
 		}
-		case OB_SOLID:
-		{
-			drawmode = RAS_Rasterizer::RAS_SOLID;
-			break;
-		}
 		case OB_MATERIAL:
 		{
 			drawmode = RAS_Rasterizer::RAS_TEXTURED;
@@ -136,7 +131,7 @@ void LA_BlenderLauncher::InitCamera()
 		camdata.m_clipend = m_view3d->far;
 		camdata.m_perspective = (rv3d->persp != RV3D_ORTHO);
 
-		m_ketsjiEngine->EnableCameraOverride(m_startSceneName, MT_CmMatrix4x4(rv3d->winmat), MT_CmMatrix4x4(rv3d->viewmat), camdata);
+		m_ketsjiEngine->EnableCameraOverride(m_startSceneName, MT_Matrix4x4(&rv3d->winmat[0][0]), MT_Matrix4x4(&rv3d->viewmat[0][0]), camdata);
 	}
 }
 

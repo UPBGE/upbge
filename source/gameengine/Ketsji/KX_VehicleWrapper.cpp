@@ -138,12 +138,9 @@ PyObject *KX_VehicleWrapper::PyGetWheelPosition(PyObject *args)
 
 	if (PyArg_ParseTuple(args,"i:getWheelPosition",&wheelIndex))
 	{
-		float position[3];
 		WHEEL_INDEX_CHECK_OR_RETURN(wheelIndex, "getWheelPosition");
 
-		m_vehicle->GetWheelPosition(wheelIndex,position[0],position[1],position[2]);
-		MT_Vector3 pos(position[0],position[1],position[2]);
-		return PyObjectFrom(pos);
+		return PyObjectFrom(m_vehicle->GetWheelPosition(wheelIndex));
 	}
 	return nullptr;
 }
@@ -165,12 +162,10 @@ PyObject *KX_VehicleWrapper::PyGetWheelOrientationQuaternion(PyObject *args)
 	int wheelIndex;
 	if (PyArg_ParseTuple(args,"i:getWheelOrientationQuaternion",&wheelIndex))
 	{
-		float orn[4];
 		WHEEL_INDEX_CHECK_OR_RETURN(wheelIndex, "getWheelOrientationQuaternion");
 
-		m_vehicle->GetWheelOrientationQuaternion(wheelIndex,orn[0],orn[1],orn[2],orn[3]);
-		MT_Quaternion	quatorn(orn[0],orn[1],orn[2],orn[3]);
-		MT_Matrix3x3 ornmat(quatorn);
+		const MT_Quaternion quat = m_vehicle->GetWheelOrientationQuaternion(wheelIndex);
+		const MT_Matrix3x3 ornmat(quat);
 		return PyObjectFrom(ornmat);
 	}
 	return nullptr;

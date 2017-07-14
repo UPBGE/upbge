@@ -90,7 +90,6 @@ protected:
 
 	int m_ccdMode;
 	int m_solverType;
-	bool m_enableSatCollisionDetection;
 
 	float m_deactivationTime;
 	float m_linearDeactivationThreshold;
@@ -251,16 +250,6 @@ public:
 
 	btDispatcher *GetDispatcher();
 
-	bool IsSatCollisionDetectionEnabled() const
-	{
-		return m_enableSatCollisionDetection;
-	}
-
-	void EnableSatCollisionDetection(bool enableSat)
-	{
-		m_enableSatCollisionDetection = enableSat;
-	}
-
 	const btPersistentManifold *GetManifold(int index) const;
 
 	void SyncMotionStates(float timeStep);
@@ -334,6 +323,7 @@ public:
 	virtual MT_Vector3 GetWorldPoint(unsigned int index, bool first) const;
 	virtual MT_Vector3 GetNormal(unsigned int index, bool first) const;
 	virtual float GetCombinedFriction(unsigned int index, bool first) const;
+	virtual float GetCombinedRollingFriction(unsigned int index, bool first) const;
 	virtual float GetCombinedRestitution(unsigned int index, bool first) const;
 	virtual float GetAppliedImpulse(unsigned int index, bool first) const;
 };

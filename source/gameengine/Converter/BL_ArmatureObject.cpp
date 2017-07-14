@@ -215,8 +215,8 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 	m_drawDebug(false),
 	m_lastapplyframe(0.0)
 {
-	m_controlledConstraints = new CListValue();
-	m_poseChannels = new CListValue();
+	m_controlledConstraints = new CListValue<BL_ArmatureConstraint>();
+	m_poseChannels = new CListValue<BL_ArmatureChannel>();
 
 	// Keep a copy of the original armature so we can fix drivers later
 	m_origObjArma = armature;
@@ -320,7 +320,7 @@ size_t BL_ArmatureObject::GetConstraintNumber() const
 
 BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(const std::string& posechannel, const std::string& constraintname)
 {
-	return m_controlledConstraints->FindIf<BL_ArmatureConstraint>(
+	return m_controlledConstraints->FindIf(
 		[&posechannel, &constraintname](BL_ArmatureConstraint *constraint) { return constraint->Match(posechannel, constraintname); });
 }
 
@@ -353,7 +353,7 @@ size_t BL_ArmatureObject::GetChannelNumber() const
 BL_ArmatureChannel *BL_ArmatureObject::GetChannel(bPoseChannel *pchan)
 {
 	LoadChannels();
-	return m_poseChannels->FindIf<BL_ArmatureChannel>([&pchan](BL_ArmatureChannel *channel) { return channel->m_posechannel == pchan; });
+	return m_poseChannels->FindIf([&pchan](BL_ArmatureChannel *channel) { return channel->m_posechannel == pchan; });
 }
 
 BL_ArmatureChannel *BL_ArmatureObject::GetChannel(const std::string& str)
@@ -383,7 +383,7 @@ void BL_ArmatureObject::ProcessReplica()
 	KX_GameObject::ProcessReplica();
 
 	// Replicate each constraints.
-	m_controlledConstraints = static_cast<CListValue *>(m_controlledConstraints->GetReplica());
+	m_controlledConstraints = static_cast<CListValue<BL_ArmatureConstraint> *>(m_controlledConstraints->GetReplica());
 	// Share pose channels.
 	m_poseChannels->AddRef();
 
@@ -400,20 +400,16 @@ int BL_ArmatureObject::GetGameObjectType() const
 
 void BL_ArmatureObject::ReParentLogic()
 {
-	for (CListValue::iterator<BL_ArmatureConstraint> it = m_controlledConstraints->GetBegin(), end = m_controlledConstraints->GetEnd();
-		 it != end; ++it)
-	{
-		(*it)->ReParent(this);
+	for (BL_ArmatureConstraint *constraint : m_controlledConstraints) {
+		constraint->ReParent(this);
 	}
 	KX_GameObject::ReParentLogic();
 }
 
 void BL_ArmatureObject::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 {
-	for (CListValue::iterator<BL_ArmatureConstraint> it = m_controlledConstraints->GetBegin(), end = m_controlledConstraints->GetEnd();
-		 it != end; ++it)
-	{
-		(*it)->Relink(obj_map);
+	for (BL_ArmatureConstraint *constraint : m_controlledConstraints) {
+		constraint->Relink(obj_map);
 	}
 	KX_GameObject::Relink(obj_map);
 }
@@ -422,10 +418,8 @@ bool BL_ArmatureObject::UnlinkObject(SCA_IObject *clientobj)
 {
 	// clientobj is being deleted, make sure we don't hold any reference to it
 	bool res = false;
-	for (CListValue::iterator<BL_ArmatureConstraint> it = m_controlledConstraints->GetBegin(), end = m_controlledConstraints->GetEnd();
-		 it != end; ++it)
-	{
-		res |= (*it)->UnlinkObject(clientobj);
+	for (BL_ArmatureConstraint *constraint : m_controlledConstraints) {
+		res |= constraint->UnlinkObject(clientobj);
 	}
 	return res;
 }
@@ -439,10 +433,8 @@ void BL_ArmatureObject::ApplyPose()
 	//m_scene->r.cfra++;
 	if (m_lastapplyframe != m_lastframe) {
 		// update the constraint if any, first put them all off so that only the active ones will be updated
-		for (CListValue::iterator<BL_ArmatureConstraint> it = m_controlledConstraints->GetBegin(), end = m_controlledConstraints->GetEnd();
-			 it != end; ++it)
-		{
-			(*it)->UpdateTarget();
+		for (BL_ArmatureConstraint *constraint : m_controlledConstraints) {
+			constraint->UpdateTarget();
 		}
 		// update ourself
 		UpdateBlenderObjectMatrix(m_objArma);

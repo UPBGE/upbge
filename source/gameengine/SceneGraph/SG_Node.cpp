@@ -53,7 +53,7 @@ SG_Node::SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks)
 	m_parent_relation(nullptr),
 	m_familly(new SG_Familly()),
 	m_modified(true),
-	m_ogldirty(false)
+	m_dirty(DIRTY_NONE)
 {
 }
 
@@ -72,7 +72,7 @@ SG_Node::SG_Node(const SG_Node & other)
 	m_worldScaling(other.m_worldScaling),
 	m_parent_relation(other.m_parent_relation->NewCopy()),
 	m_familly(new SG_Familly()),
-	m_ogldirty(false)
+	m_dirty(DIRTY_NONE)
 {
 }
 
@@ -388,7 +388,7 @@ void SG_Node::SetControllerTime(double time)
 void SG_Node::ClearModified()
 {
 	m_modified = false;
-	m_ogldirty = true;
+	m_dirty = DIRTY_ALL;
 }
 
 void SG_Node::SetModified()
@@ -397,9 +397,9 @@ void SG_Node::SetModified()
 	ActivateScheduleUpdateCallback();
 }
 
-void SG_Node::ClearDirty()
+void SG_Node::ClearDirty(DirtyFlag flag)
 {
-	m_ogldirty = false;
+	m_dirty &= ~flag;
 }
 
 void SG_Node::SetParentRelation(SG_ParentRelation *relation)
@@ -593,9 +593,10 @@ bool SG_Node::IsModified()
 {
 	return m_modified;
 }
-bool SG_Node::IsDirty()
+
+bool SG_Node::IsDirty(DirtyFlag flag)
 {
-	return m_ogldirty;
+	return (m_dirty & flag);
 }
 
 bool SG_Node::ActivateReplicationCallback(SG_Node *replica)

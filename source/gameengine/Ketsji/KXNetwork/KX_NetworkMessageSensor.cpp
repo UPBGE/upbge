@@ -113,8 +113,8 @@ bool KX_NetworkMessageSensor::Evaluate()
 		std::cout << "KX_NetworkMessageSensor found one or more messages" << std::endl;
 #endif
 		m_IsUp = true;
-		m_BodyList = new CListValue();
-		m_SubjectList = new CListValue();
+		m_BodyList = new CListValue<CStringValue>();
+		m_SubjectList = new CListValue<CStringValue>();
 	}
 
 	std::vector<KX_NetworkMessageManager::Message>::const_iterator mesit;
@@ -200,7 +200,7 @@ PyObject *KX_NetworkMessageSensor::pyattr_get_bodies(PyObjectPlus *self_v, const
 		return self->m_BodyList->GetProxy();
 	}
 	else {
-		return (new CListValue())->NewProxy(true);
+		return (new CListValue<CStringValue>())->NewProxy(true);
 	}
 }
 
@@ -211,7 +211,7 @@ PyObject *KX_NetworkMessageSensor::pyattr_get_subjects(PyObjectPlus *self_v, con
 		return self->m_SubjectList->GetProxy();
 	}
 	else {
-		return (new CListValue())->NewProxy(true);
+		return (new CListValue<CStringValue>())->NewProxy(true);
 	}
 }
 

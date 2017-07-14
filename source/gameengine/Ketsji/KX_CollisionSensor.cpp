@@ -108,7 +108,7 @@ KX_CollisionSensor::KX_CollisionSensor(SCA_EventManager *eventmgr, KX_GameObject
 	m_bCollisionPulse(bCollisionPulse),
 	m_hitMaterial("")
 {
-	m_colliders = new CListValue();
+	m_colliders = new CListValue<KX_GameObject>();
 
 	KX_ClientObjectInfo *client_info = gameobj->getClientInfo();
 	client_info->m_sensors.push_back(this);
@@ -144,7 +144,7 @@ CValue *KX_CollisionSensor::GetReplica()
 void KX_CollisionSensor::ProcessReplica()
 {
 	SCA_ISensor::ProcessReplica();
-	m_colliders = new CListValue();
+	m_colliders = new CListValue<KX_GameObject>();
 	Init();
 }
 
@@ -269,7 +269,7 @@ bool KX_CollisionSensor::NewHandleCollision(void *object1, void *object2, const 
 		}
 		if (found) {
 			if (!m_colliders->SearchValue(gameobj)) {
-				m_colliders->Add(gameobj->AddRef());
+				m_colliders->Add(CM_AddRef(gameobj));
 
 				if (m_bCollisionPulse) {
 					m_bColliderHash += (uint_ptr)(static_cast<void *>(&gameobj));

@@ -160,14 +160,10 @@ void KX_RadarSensor::SynchronizeTransform()
 	m_cone_target[2] = temp[2];
 
 
-	if (m_physCtrl)
-	{
+	if (m_physCtrl) {
 		PHY_IMotionState* motionState = m_physCtrl->GetMotionState();
-		const MT_Vector3& pos = trans.getOrigin();
-		float ori[12];
-		trans.getBasis().getValue(ori);
-		motionState->SetWorldPosition(pos[0], pos[1], pos[2]);
-		motionState->SetWorldOrientation(ori);
+		motionState->SetWorldPosition(trans.getOrigin());
+		motionState->SetWorldOrientation(trans.getBasis());
 		m_physCtrl->WriteMotionStateToDynamics(true);
 	}
 

@@ -38,6 +38,7 @@ set(INC_SYS
 )
 
 set(SRC
+	intern/BaseListValue.cpp
 	intern/BoolValue.cpp
 	intern/ConstExpr.cpp
 	intern/EmptyValue.cpp
@@ -48,7 +49,6 @@ set(SRC
 	intern/IfExpr.cpp
 	intern/InputParser.cpp
 	intern/IntValue.cpp
-	intern/ListValue.cpp
 	intern/Operator1Expr.cpp
 	intern/Operator2Expr.cpp
 	intern/PyObjectPlus.cpp
@@ -56,6 +56,7 @@ set(SRC
 	intern/Value.cpp
 	intern/ListWrapper.cpp
 
+	EXP_BaseListValue.h
 	EXP_BoolValue.h
 	EXP_ConstExpr.h
 	EXP_EmptyValue.h
@@ -66,7 +67,6 @@ set(SRC
 	EXP_IfExpr.h
 	EXP_InputParser.h
 	EXP_IntValue.h
-	EXP_ListValue.h
 	EXP_Operator1Expr.h
 	EXP_Operator2Expr.h
 	EXP_PyObjectPlus.h

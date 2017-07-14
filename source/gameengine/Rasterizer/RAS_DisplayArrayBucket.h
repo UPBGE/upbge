@@ -49,7 +49,7 @@ class RAS_Deformer;
 class RAS_IStorageInfo;
 class RAS_InstancingBuffer;
 
-class RAS_DisplayArrayBucket : public CM_RefCount<RAS_DisplayArrayBucket>
+class RAS_DisplayArrayBucket
 {
 private:
 	/// The parent bucket.
@@ -60,13 +60,10 @@ private:
 	RAS_MeshObject *m_mesh;
 	/// The material mesh.
 	RAS_MeshMaterial *m_meshMaterial;
-	/// The list fo all visible mesh slots to render this frame.
+	/// The list of all visible mesh slots to render this frame.
 	RAS_MeshSlotList m_activeMeshSlots;
-	/// The list of all deformer usign this display array.
+	/// The deformer using this display array.
 	RAS_Deformer *m_deformer;
-
-	/// True if a deformer is dynamic or the mesh i modified this frame.
-	bool m_meshModified;
 
 	/** Info created by the storage and freed by this class.
 	 * So it's an unique instance by display array bucket.
@@ -96,11 +93,8 @@ public:
 						   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer);
 	~RAS_DisplayArrayBucket();
 
-	/// \section Replication
-	RAS_DisplayArrayBucket *GetReplica();
-	void ProcessReplica();
-
 	/// \section Accesor
+	RAS_MaterialBucket *GetBucket() const;
 	RAS_IDisplayArray *GetDisplayArray() const;
 	RAS_MeshObject *GetMesh() const;
 	RAS_MeshMaterial *GetMeshMaterial() const;
@@ -108,13 +102,8 @@ public:
 
 	/// \section Active Mesh Slots Management.
 	void ActivateMesh(RAS_MeshSlot *slot);
-	RAS_MeshSlotList& GetActiveMeshSlots();
-	unsigned int GetNumActiveMeshSlots() const;
 	/// Remove all mesh slots from the list.
 	void RemoveActiveMeshSlots();
-
-	/// \section Deformer
-	void SetDeformer(RAS_Deformer *deformer);
 
 	/// \section Render Infos
 	bool UseBatching() const;

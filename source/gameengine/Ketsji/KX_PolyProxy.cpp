@@ -228,7 +228,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialIndex,
 	for (matid=0; matid<(unsigned int)m_mesh->NumMaterials(); matid++)
 	{
 		RAS_MeshMaterial* meshMat = m_mesh->GetMeshMaterial(matid);
-		if (meshMat->m_bucket == polyBucket)
+		if (meshMat->GetBucket() == polyBucket)
 			// found it
 			break;
 	}

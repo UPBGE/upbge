@@ -92,7 +92,7 @@ bool KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 	// update the vertex in m_transverts
 	Update();
 
-	RAS_IDisplayArray *origarray = meshmat->m_baseslot->GetDisplayArray();
+	RAS_IDisplayArray *origarray = meshmat->GetDisplayArray();
 
 	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 

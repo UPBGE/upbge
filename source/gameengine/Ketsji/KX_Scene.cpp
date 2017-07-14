@@ -40,6 +40,7 @@
 #include "BLI_utildefines.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderMaterial.h"
+#include "KX_TextMaterial.h"
 #include "KX_FontObject.h"
 #include "RAS_IPolygonMaterial.h"
 #include "EXP_ListValue.h"
@@ -162,14 +163,12 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_dbvt_occlusion_res = 0;
 	m_activity_culling = false;
 	m_suspend = false;
-	m_tempObjectList = new CListValue();
-	m_objectlist = new CListValue();
-	m_parentlist = new CListValue();
-	m_lightlist= new CListValue();
-	m_inactivelist = new CListValue();
-	m_euthanasyobjects = new CListValue();
-	m_cameralist = new CListValue();
-	m_fontlist = new CListValue();
+	m_objectlist = new CListValue<KX_GameObject>();
+	m_parentlist = new CListValue<KX_GameObject>();
+	m_lightlist = new CListValue<KX_LightObject>();
+	m_inactivelist = new CListValue<KX_GameObject>();
+	m_cameralist = new CListValue<KX_Camera>();
+	m_fontlist = new CListValue<KX_FontObject>();
 
 	m_filterManager = new KX_2DFilterManager();
 	m_logicmgr = new SCA_LogicManager();
@@ -195,7 +194,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_rootnode = nullptr;
 
 	m_rendererManager = new KX_TextureRendererManager(this);
-	m_bucketmanager=new RAS_BucketManager();
+	KX_TextMaterial *textMaterial = new KX_TextMaterial();
+	m_bucketmanager=new RAS_BucketManager(textMaterial);
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
 	
 	bool showObstacleSimulation = (scene->gm.flag & GAME_SHOW_OBSTACLE_SIMULATION) != 0;
@@ -233,7 +233,7 @@ KX_Scene::~KX_Scene()
 
 	while (GetRootParentList()->GetCount() > 0) 
 	{
-		KX_GameObject* parentobj = (KX_GameObject*) GetRootParentList()->GetValue(0);
+		KX_GameObject* parentobj = GetRootParentList()->GetValue(0);
 		this->RemoveObject(parentobj);
 	}
 
@@ -255,12 +255,6 @@ KX_Scene::~KX_Scene()
 
 	if (m_lightlist)
 		m_lightlist->Release();
-	
-	if (m_tempObjectList)
-		m_tempObjectList->Release();
-
-	if (m_euthanasyobjects)
-		m_euthanasyobjects->Release();
 
 	if (m_cameralist) {
 		m_cameralist->Release();
@@ -321,7 +315,7 @@ void KX_Scene::SetName(const std::string& name)
 	m_sceneName = name;
 }
 
-RAS_BucketManager* KX_Scene::GetBucketManager()
+RAS_BucketManager* KX_Scene::GetBucketManager() const
 {
 	return m_bucketmanager;
 }
@@ -331,55 +325,47 @@ KX_TextureRendererManager *KX_Scene::GetTextureRendererManager() const
 	return m_rendererManager;
 }
 
-RAS_BoundingBoxManager *KX_Scene::GetBoundingBoxManager()
+RAS_BoundingBoxManager *KX_Scene::GetBoundingBoxManager() const
 {
 	return m_boundingBoxManager;
 }
 
-CListValue* KX_Scene::GetTempObjectList()
-{
-	return m_tempObjectList;
-}
-
-CListValue* KX_Scene::GetObjectList()
+CListValue<KX_GameObject> *KX_Scene::GetObjectList() const
 {
 	return m_objectlist;
 }
 
-
-CListValue* KX_Scene::GetRootParentList()
+CListValue<KX_GameObject> *KX_Scene::GetRootParentList() const
 {
 	return m_parentlist;
 }
 
-CListValue* KX_Scene::GetInactiveList()
+CListValue<KX_GameObject> *KX_Scene::GetInactiveList() const
 {
 	return m_inactivelist;
 }
 
-
-
-CListValue* KX_Scene::GetLightList()
+CListValue<KX_LightObject> *KX_Scene::GetLightList() const
 {
 	return m_lightlist;
 }
 
-SCA_LogicManager* KX_Scene::GetLogicManager()
+SCA_LogicManager* KX_Scene::GetLogicManager() const
 {
 	return m_logicmgr;
 }
 
-SCA_TimeEventManager* KX_Scene::GetTimeEventManager()
+SCA_TimeEventManager* KX_Scene::GetTimeEventManager() const
 {
 	return m_timemgr;
 }
 
-CListValue* KX_Scene::GetCameraList()
+CListValue<KX_Camera> *KX_Scene::GetCameraList() const
 {
 	return m_cameralist;
 }
 
-CListValue* KX_Scene::GetFontList()
+CListValue<KX_FontObject> *KX_Scene::GetFontList() const
 {
 	return m_fontlist;
 }
@@ -455,18 +441,9 @@ void KX_Scene::RemoveNodeDestructObject(SG_Node* node, KX_GameObject *gameobj)
 {
 	if (NewRemoveObject(gameobj)) {
 		// object is not yet deleted because a reference is hanging somewhere.
-		// This should not happen anymore since we use proxy object for Python
-		// confident enough to put an assert?
-		//assert(false);
-		CM_Warning("zombie object! name=" << gameobj->GetName());
-		gameobj->SetSGNode(nullptr);
-		PHY_IGraphicController* ctrl = gameobj->GetGraphicController();
-		if (ctrl)
-		{
-			// a graphic controller is set, we must delete it as the node will be deleted
-			delete ctrl;
-			gameobj->SetGraphicController(nullptr);
-		}
+		// This should not happen anymore since we use proxy object for Python.
+		CM_Error("zombie object! name=" << gameobj->GetName());
+		BLI_assert(false);
 	}
 	if (node)
 		delete node;
@@ -526,21 +503,21 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(SG_Node* node, KX_GameObject *game
 	replicanode->SetSGClientObject(newobj);
 
 	// this is the list of object that are send to the graphics pipeline
-	m_objectlist->Add(newobj->AddRef());
+	m_objectlist->Add(CM_AddRef(newobj));
 	switch (newobj->GetGameObjectType()) {
 		case SCA_IObject::OBJ_LIGHT:
 		{
-			m_lightlist->Add(newobj->AddRef());
+			m_lightlist->Add(CM_AddRef(static_cast<KX_LightObject *>(newobj)));
 			break;
 		}
 		case SCA_IObject::OBJ_TEXT:
 		{
-			m_fontlist->Add(newobj->AddRef());
+			m_fontlist->Add(CM_AddRef(static_cast<KX_FontObject *>(newobj)));
 			break;
 		}
 		case SCA_IObject::OBJ_CAMERA:
 		{
-			m_cameralist->Add(newobj->AddRef());
+			m_cameralist->Add(CM_AddRef(static_cast<KX_Camera *>(newobj)));
 			break;
 		}
 		case SCA_IObject::OBJ_ARMATURE:
@@ -650,7 +627,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 			if (!newsensorobj)
 			{
 				// no, then the sensor points outside the hierarchy, keep it the same
-				if (m_objectlist->SearchValue(oldsensorobj))
+				if (m_objectlist->SearchValue(static_cast<KX_GameObject *>(oldsensorobj)))
 					// only replicate links that points to active objects
 					m_logicmgr->RegisterToSensor(cont,oldsensor);
 			}
@@ -685,7 +662,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 			if (!newactuatorobj)
 			{
 				// no, then the sensor points outside the hierarchy, keep it the same
-				if (m_objectlist->SearchValue(oldactuatorobj))
+				if (m_objectlist->SearchValue(static_cast<KX_GameObject *>(oldactuatorobj)))
 					// only replicate links that points to active objects
 					m_logicmgr->RegisterToActuator(cont,oldactuator);
 			}
@@ -776,7 +753,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		}
 		replica = (KX_GameObject*) AddNodeReplicaObject(nullptr,gameobj);
 		// add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame)
-		m_parentlist->Add(replica->AddRef());
+		m_parentlist->Add(CM_AddRef(replica));
 
 		// recurse replication into children nodes
 		NodeList& children = gameobj->GetSGNode()->GetSGChildren();
@@ -882,7 +859,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 	if (lifespan > 0.0f)
 	{
 		// for now, convert between so called frames and realtime
-		m_tempObjectList->Add(replica->AddRef());
+		m_tempObjectList.push_back(replica);
 		// this convert the life from frames to sort-of seconds, hard coded 0.02 that assumes we have 50 frames per second
 		// if you change this value, make sure you change it in KX_GameObject::pyattr_get_life property too
 		CValue *fval = new CFloatValue(lifespan*0.02f);
@@ -891,7 +868,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 	}
 
 	// add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame)
-	m_parentlist->Add(replica->AddRef());
+	m_parentlist->Add(CM_AddRef(replica));
 
 	// recurse replication into children nodes
 
@@ -985,9 +962,8 @@ void KX_Scene::RemoveObject(KX_GameObject *gameobj)
 void KX_Scene::RemoveDupliGroup(KX_GameObject *gameobj)
 {
 	if (gameobj->IsDupliGroup()) {
-		for (int i = 0; i < gameobj->GetInstanceObjects()->GetCount(); i++) {
-			CValue *obj = gameobj->GetInstanceObjects()->GetValue(i);
-			DelayedRemoveObject(static_cast<KX_GameObject *>(obj));
+		for (KX_GameObject *instance : gameobj->GetInstanceObjects()) {
+			DelayedRemoveObject(instance);
 		}
 	}
 }
@@ -996,9 +972,8 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 {
 	RemoveDupliGroup(gameobj);
 
-	if (!m_euthanasyobjects->SearchValue(gameobj))
-	{
-		m_euthanasyobjects->Add(gameobj->AddRef());
+	if (std::find(m_euthanasyobjects.begin(), m_euthanasyobjects.end(), gameobj) == m_euthanasyobjects.end()) {
+		m_euthanasyobjects.push_back(gameobj);
 	}
 }
 
@@ -1063,14 +1038,13 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 	// if the object is the dupligroup proxy, you have to cleanup all m_pDupliGroupObject's in all
 	// instances refering to this group
 	if (gameobj->GetInstanceObjects()) {
-		for (int i = 0; i < gameobj->GetInstanceObjects()->GetCount(); i++) {
-			KX_GameObject* instance = (KX_GameObject*)gameobj->GetInstanceObjects()->GetValue(i);
+		for (KX_GameObject *instance : gameobj->GetInstanceObjects()) {
 			instance->RemoveDupliGroupObject();
 		}
 	}
 
 	// if this object was part of a group, make sure to remove it from that group's instance list
-	KX_GameObject* group = gameobj->GetDupliGroupObject();
+	KX_GameObject *group = gameobj->GetDupliGroupObject();
 	if (group)
 		group->RemoveInstanceObject(gameobj);
 
@@ -1083,22 +1057,18 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 	m_rendererManager->InvalidateViewpoint(gameobj);
 
 	bool ret = true;
-	if (gameobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(gameobj))
+	if (gameobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(static_cast<KX_LightObject *>(gameobj)))
 		ret = (gameobj->Release() != nullptr);
 	if (m_objectlist->RemoveValue(gameobj))
-		ret = (gameobj->Release() != nullptr);
-	if (m_tempObjectList->RemoveValue(gameobj))
 		ret = (gameobj->Release() != nullptr);
 	if (m_parentlist->RemoveValue(gameobj))
 		ret = (gameobj->Release() != nullptr);
 	if (m_inactivelist->RemoveValue(gameobj))
 		ret = (gameobj->Release() != nullptr);
-	if (m_euthanasyobjects->RemoveValue(gameobj))
-		ret = (gameobj->Release() != nullptr);
-	if (m_fontlist->RemoveValue(gameobj)) {
+	if (m_fontlist->RemoveValue(static_cast<KX_FontObject *>(gameobj))) {
 		ret = (gameobj->Release() != nullptr);
 	}
-	if (m_cameralist->RemoveValue(gameobj)) {
+	if (m_cameralist->RemoveValue(static_cast<KX_Camera *>(gameobj))) {
 		ret = (gameobj->Release() != nullptr);
 	}
 
@@ -1328,8 +1298,7 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 	m_boundingBoxManager->Update(false);
 
 	// Update the object bounding volume box if the object had a deformer.
-	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : m_objectlist) {
 		if (gameobj->GetDeformer()) {
 			/** Update all the deformer, not only per material.
 			 * One of the side effect is to clear some flags about AABB calculation.
@@ -1343,8 +1312,7 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 	m_boundingBoxManager->ClearModified();
 
 	if (!cam->GetFrustumCulling()) {
-		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-			KX_GameObject *gameobj = *it;
+		for (KX_GameObject *gameobj : m_objectlist) {
 			KX_CullingNode *node = gameobj->GetCullingNode();
 			nodes.push_back(gameobj->GetCullingNode());
 			node->SetCulled(false);
@@ -1359,8 +1327,7 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 		 * since DBVT culling will only set it to false.
 		 * This is similar to what RAS_BucketManager does for RAS_MeshSlot culling.
 		 */
-		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-			KX_GameObject *gameobj = *it;
+		for (KX_GameObject *gameobj : m_objectlist) {
 			gameobj->SetCulled(true);
 		}
 
@@ -1383,8 +1350,7 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 	}
 	if (!dbvt_culling) {
 		KX_CullingHandler handler(nodes, cam->GetFrustum());
-		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-			KX_GameObject *gameobj = *it;
+		for (KX_GameObject *gameobj : m_objectlist) {
 			if (gameobj->UseCulling() && gameobj->GetVisible() && (layer == 0 || gameobj->GetLayer() & layer)) {
 				handler.Process(gameobj->GetCullingNode());
 			}
@@ -1396,9 +1362,7 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nod
 {
 	const KX_DebugOption showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
 	if (showBoundingBox != KX_DebugOption::DISABLE) {
-		for (KX_CullingNode *node : nodes) {
-			KX_GameObject *gameobj = node->GetObject();
-
+		for (KX_GameObject *gameobj : m_objectlist) {
 			const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
 			const MT_Vector3& position = gameobj->NodeGetWorldPosition();
 			const MT_Matrix3x3& orientation = gameobj->NodeGetWorldOrientation();
@@ -1485,9 +1449,9 @@ void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int 
 void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 {
 	// have a look at temp objects ...
-	for (CListValue::iterator<KX_GameObject> it = m_tempObjectList->GetBegin(), end = m_tempObjectList->GetEnd(); it != end; ++it) {
+	for (std::vector<KX_GameObject *>::iterator it = m_tempObjectList.begin(); it != m_tempObjectList.end();) {
 		KX_GameObject *gameobj = *it;
-		CFloatValue* propval = (CFloatValue*) gameobj->GetProperty("::timebomb");
+		CFloatValue* propval = (CFloatValue *)gameobj->GetProperty("::timebomb");
 		
 		if (propval)
 		{
@@ -1496,16 +1460,19 @@ void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 			if (timeleft > 0)
 			{
 				propval->SetFloat(timeleft);
+				++it;
 			}
 			else
 			{
-				DelayedRemoveObject(gameobj);
 				// remove obj
+				DelayedRemoveObject(gameobj);
+				it = m_tempObjectList.erase(it);
 			}
 		}
 		else
 		{
 			// all object is the tempObjectList should have a clock
+			BLI_assert(false);
 		}
 	}
 	m_logicmgr->BeginFrame(curtime, framestep);
@@ -1521,8 +1488,8 @@ void KX_Scene::AddAnimatedObject(KX_GameObject *gameobj)
 
 static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
 {
-	KX_GameObject *gameobj, *child, *parent;
-	CListValue *children;
+	KX_GameObject *gameobj, *parent;
+	CListValue<KX_GameObject> *children;
 	bool needs_update;
 	KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData *)BLI_task_pool_userdata(pool);
 	double curtime = data->curtime;
@@ -1540,9 +1507,7 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 		bool has_mesh = false, has_non_mesh = false;
 
 		// Check for meshes that haven't been culled
-		for (CListValue::iterator<KX_GameObject> it = children->GetBegin(), end = children->GetEnd(); it != end; ++it) {
-			child = *it;
-
+		for (KX_GameObject *child : children) {
 			if (!child->GetCulled()) {
 				needs_update = true;
 				break;
@@ -1575,9 +1540,7 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 		if (gameobj->GetDeformer() && (!parent || parent->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE))
 			gameobj->GetDeformer()->Update();
 
-		for (CListValue::iterator<KX_GameObject> it = children->GetBegin(), end = children->GetEnd(); it != end; ++it) {
-			child = *it;
-
+		for (KX_GameObject *child : children) {
 			if (child->GetDeformer()) {
 				child->GetDeformer()->Update();
 			}
@@ -1605,12 +1568,12 @@ void KX_Scene::LogicUpdateFrame(double curtime)
 	 */
 
 	std::vector<KX_GameObject *> objects;
-	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-		objects.push_back(*it);
+	for (KX_GameObject *gameobj : m_objectlist) {
+		objects.push_back(gameobj);
 	}
 
-	for (std::vector<KX_GameObject *>::iterator it = objects.begin(), end = objects.end(); it != end; ++it) {
-		(*it)->UpdateComponents();
+	for (KX_GameObject *gameobj : objects) {
+		gameobj->UpdateComponents();
 	}
 
 	m_logicmgr->UpdateFrame(curtime);
@@ -1619,25 +1582,18 @@ void KX_Scene::LogicUpdateFrame(double curtime)
 void KX_Scene::LogicEndFrame()
 {
 	m_logicmgr->EndFrame();
-	int numobj;
 
-	KX_GameObject* obj;
-
-	while ((numobj = m_euthanasyobjects->GetCount()) > 0)
-	{
-		// remove the object from this list to make sure we will not hit it again
-		obj = (KX_GameObject*)m_euthanasyobjects->GetValue(numobj-1);
-		m_euthanasyobjects->Remove(numobj-1);
-		obj->Release();
-		RemoveObject(obj);
+	for (KX_GameObject *gameobj : m_euthanasyobjects) {
+		RemoveObject(gameobj);
 	}
+	m_euthanasyobjects.clear();
 
 	//prepare obstacle simulation for new frame
 	if (m_obstacleSimulation)
 		m_obstacleSimulation->UpdateObstacles();
 
-	for (CListValue::iterator<KX_FontObject> it = m_fontlist->GetBegin(), end = m_fontlist->GetEnd(); it != end; ++it) {
-		(*it)->UpdateTextFromProperty();
+	for (KX_FontObject *font : m_fontlist) {
+		font->UpdateTextFromProperty();
 	}
 }
 
@@ -1655,12 +1611,6 @@ void KX_Scene::UpdateParents(double curtime)
 	{
 		node->UpdateWorldData(curtime);
 	}
-
-	//for (int i=0; i<GetRootParentList()->GetCount(); i++)
-	//{
-	//	KX_GameObject* parentobj = (KX_GameObject*)GetRootParentList()->GetValue(i);
-	//	parentobj->NodeUpdateGS(curtime);
-	//}
 
 	// the list must be empty here
 	BLI_assert(m_sghead.Empty());
@@ -1733,9 +1683,7 @@ void KX_Scene::UpdateObjectActivity(void)
 		/* determine the activity criterium and set objects accordingly */
 		MT_Vector3 camloc = GetActiveCamera()->NodeGetWorldPosition(); //GetCameraLocation();
 
-		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-			KX_GameObject* ob = *it;
-			
+		for (KX_GameObject *ob : *m_objectlist) {
 			if (!ob->GetIgnoreActivityCulling()) {
 				/* Simple test: more than 10 away from the camera, count
 				 * Manhattan distance. */
@@ -1925,8 +1873,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	GetTextureRendererManager()->Merge(other->GetTextureRendererManager());
 
 	/* active + inactive == all ??? - lets hope so */
-	for (CListValue::iterator<KX_GameObject> it = other->GetObjectList()->GetBegin(), end = other->GetObjectList()->GetEnd(); it != end; ++it) {
-		KX_GameObject* gameobj = *it;
+	for (KX_GameObject *gameobj : *other->GetObjectList()) {
 		MergeScene_GameObject(gameobj, this, other);
 
 		/* add properties to debug list for LibLoad objects */
@@ -1935,19 +1882,17 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		}
 	}
 
-	for (CListValue::iterator<KX_GameObject> it = other->GetInactiveList()->GetBegin(), end = other->GetInactiveList()->GetEnd(); it != end; ++it) {
-		KX_GameObject* gameobj = *it;
+	for (KX_GameObject *gameobj : *other->GetInactiveList()) {
 		MergeScene_GameObject(gameobj, this, other);
 	}
 
 	if (env) {
 		env->MergeEnvironment(env_other);
-		CListValue *otherObjects = other->GetObjectList();
+		CListValue<KX_GameObject> *otherObjects = other->GetObjectList();
 
 		// List of all physics objects to merge (needed by ReplicateConstraints).
 		std::vector<KX_GameObject *> physicsObjects;
-		for (CListValue::iterator<KX_GameObject> it = otherObjects->GetBegin(), end = otherObjects->GetEnd(); it != end; ++it) {
-			KX_GameObject* gameobj = *it;
+		for (KX_GameObject *gameobj : *otherObjects) {
 			if (gameobj->GetPhysicsController()) {
 				physicsObjects.push_back(gameobj);
 			}
@@ -1961,9 +1906,6 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		}
 	}
 
-
-	GetTempObjectList()->MergeList(other->GetTempObjectList());
-	other->GetTempObjectList()->ReleaseAndRemoveAll();
 
 	GetObjectList()->MergeList(other->GetObjectList());
 	other->GetObjectList()->ReleaseAndRemoveAll();

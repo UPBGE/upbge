@@ -42,6 +42,7 @@
 #include "BL_MeshDeformer.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_MeshObject.h"
+#include "RAS_MeshUser.h"
 #include "RAS_Polygon.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -53,17 +54,8 @@ bool BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray
 {
 	// only apply once per frame if the mesh is actually modified
 	if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
-		// For each material
-		for (std::vector<RAS_MeshMaterial *>::iterator mit = m_mesh->GetFirstMaterial();
-		     mit != m_mesh->GetLastMaterial(); ++mit)
-		{
-			RAS_MeshMaterial *meshmat = *mit;
-			RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
-			if (!slot) {
-				continue;
-			}
-
-			RAS_IDisplayArray *array = slot->GetDisplayArray();
+		// For each display array
+		for (RAS_IDisplayArray *array: m_displayArrayList) {
 			if (array->GetModifiedFlag() == RAS_IDisplayArray::NONE_MODIFIED) {
 				continue;
 			}
@@ -140,7 +132,6 @@ void BL_MeshDeformer::RecalcNormals()
 	 * gives area-weight normals which often look better anyway, and use
 	 * GL_NORMALIZE so we don't have to do per vertex normalization either
 	 * since the GPU can do it faster */
-	std::vector<RAS_MeshMaterial *>::iterator mit;
 
 	/* set vertex normals to zero */
 	memset(m_transnors, 0, sizeof(float) * 3 * m_bmesh->totvert);
@@ -192,16 +183,8 @@ void BL_MeshDeformer::RecalcNormals()
 		}
 	}
 
-	/* assign smooth vertex normals */
-	for (mit = m_mesh->GetFirstMaterial(); mit != m_mesh->GetLastMaterial(); ++mit) {
-		RAS_MeshMaterial *meshmat = *mit;
-		RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
-		if (!slot) {
-			continue;
-		}
-
-		RAS_IDisplayArray *array = slot->GetDisplayArray();
-
+	// Assign smooth vertex normals.
+	for (RAS_IDisplayArray *array: m_displayArrayList) {
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 			RAS_ITexVert *v = array->GetVertex(i);
 			const RAS_TexVertInfo& vinfo = array->GetVertexInfo(i);

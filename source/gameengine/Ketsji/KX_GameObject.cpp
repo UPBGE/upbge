@@ -250,7 +250,7 @@ KX_GameObject* KX_GameObject::GetDupliGroupObject()
 	return m_pDupliGroupObject;
 }
 
-CListValue* KX_GameObject::GetInstanceObjects()
+CListValue<KX_GameObject> *KX_GameObject::GetInstanceObjects()
 { 
 	return m_pInstanceObjects;
 }
@@ -258,7 +258,7 @@ CListValue* KX_GameObject::GetInstanceObjects()
 void KX_GameObject::AddInstanceObjects(KX_GameObject* obj)
 {
 	if (!m_pInstanceObjects)
-		m_pInstanceObjects = new CListValue();
+		m_pInstanceObjects = new CListValue<KX_GameObject>();
 
 	obj->AddRef();
 	m_pInstanceObjects->Add(obj);
@@ -320,8 +320,6 @@ void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost
 {
 	// check on valid node in case a python controller holds a reference to a deleted object
 	if (obj && 
-		GetSGNode() &&			// object is not zombi
-		obj->GetSGNode() &&		// object is not zombi
 		GetSGNode()->GetSGParent() != obj->GetSGNode() &&	// not already parented to same object
 		!GetSGNode()->IsAncessor(obj->GetSGNode()) && 		// no parenting loop
 		this != obj) // not the object itself
@@ -362,7 +360,7 @@ void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost
 		NodeSetLocalOrientation(invori*NodeGetWorldOrientation());
 		NodeUpdateGS(0.f);
 		// object will now be a child, it must be removed from the parent list
-		CListValue* rootlist = scene->GetRootParentList();
+		CListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
 		if (rootlist->RemoveValue(this))
 			// the object was in parent list, decrement ref count as it's now removed
 			Release();
@@ -387,7 +385,7 @@ void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost
 void KX_GameObject::RemoveParent()
 {
 	// check on valid node in case a python controller holds a reference to a deleted object
-	if (GetSGNode() && GetSGNode()->GetSGParent())
+	if (GetSGNode()->GetSGParent())
 	{
 		// get the root object to remove us from compound object if needed
 		KX_GameObject* rootobj = (KX_GameObject*)GetSGNode()->GetRootSGParent()->GetSGClientObject();
@@ -402,10 +400,10 @@ void KX_GameObject::RemoveParent()
 
 		KX_Scene *scene = GetScene();
 		// the object is now a root object, add it to the parentlist
-		CListValue* rootlist = scene->GetRootParentList();
+		CListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
 		if (!rootlist->SearchValue(this))
 			// object was not in root list, add it now and increment ref count
-			rootlist->Add(AddRef());
+			rootlist->Add(CM_AddRef(this));
 		if (m_pPhysicsController)
 		{
 			// in case this controller was added as a child shape to the parent
@@ -533,9 +531,8 @@ void KX_GameObject::ProcessReplica()
 		m_attr_dict= PyDict_Copy(m_attr_dict);
 
 	if (m_components) {
-		m_components = (CListValue *)m_components->GetReplica();
-		for (CListValue::iterator<KX_PythonComponent> it = m_components->GetBegin(), end = m_components->GetEnd(); it != end; ++it) {
-			KX_PythonComponent *component = *it;
+		m_components = (CListValue<KX_PythonComponent> *)m_components->GetReplica();
+		for (KX_PythonComponent *component : m_components) {
 			component->SetGameObject(this);
 		}
 	}
@@ -678,55 +675,24 @@ void KX_GameObject::ApplyTorque(const MT_Vector3& torque,bool local)
 
 void KX_GameObject::ApplyMovement(const MT_Vector3& dloc,bool local)
 {
-	if (GetSGNode()) 
+	if (m_pPhysicsController) // (IsDynamic())
 	{
-		if (m_pPhysicsController) // (IsDynamic())
-		{
-			m_pPhysicsController->RelativeTranslate(dloc,local);
-		}
-		GetSGNode()->RelativeTranslate(dloc,GetSGNode()->GetSGParent(),local);
-		NodeUpdateGS(0.0f);
+		m_pPhysicsController->RelativeTranslate(dloc,local);
 	}
+	GetSGNode()->RelativeTranslate(dloc,GetSGNode()->GetSGParent(),local);
+	NodeUpdateGS(0.0f);
 }
-
-
 
 void KX_GameObject::ApplyRotation(const MT_Vector3& drot,bool local)
 {
 	MT_Matrix3x3 rotmat(drot);
-	
-	if (GetSGNode()) {
-		GetSGNode()->RelativeRotate(rotmat,local);
 
-		if (m_pPhysicsController) { // (IsDynamic())
-			m_pPhysicsController->RelativeRotate(rotmat,local);
-		}
-		NodeUpdateGS(0.0f);
+	GetSGNode()->RelativeRotate(rotmat,local);
+
+	if (m_pPhysicsController) { // (IsDynamic())
+		m_pPhysicsController->RelativeRotate(rotmat,local);
 	}
-}
-
-
-
-/**
- * GetOpenGL Matrix, returns an OpenGL 'compatible' matrix
- */
-float *KX_GameObject::GetOpenGLMatrix()
-{
-	// todo: optimize and only update if necessary
-	float *fl = m_OpenGL_4x4Matrix.getPointer();
-	if (GetSGNode()) {
-		MT_Transform trans;
-	
-		trans.setOrigin(GetSGNode()->GetWorldPosition());
-		trans.setBasis(GetSGNode()->GetWorldOrientation());
-	
-		MT_Vector3 scaling = GetSGNode()->GetWorldScaling();
-		m_bIsNegativeScaling = ((scaling[0] < 0.0f) ^ (scaling[1] < 0.0f) ^ (scaling[2] < 0.0f)) ? true : false;
-		trans.scale(scaling[0], scaling[1], scaling[2]);
-		trans.getValue(fl);
-		GetSGNode()->ClearDirty();
-	}
-	return fl;
+	NodeUpdateGS(0.0f);
 }
 
 void KX_GameObject::UpdateBlenderObjectMatrix(Object* blendobj)
@@ -750,19 +716,18 @@ void KX_GameObject::AddMeshUser()
 	for (size_t i = 0; i < m_meshes.size(); ++i) {
 		m_meshUser = m_meshes[i]->AddMeshUser(m_pClient_info, GetDeformer());
 	}
-	// set the part of the mesh slot that never change
-	float *fl = GetOpenGLMatrixPtr()->getPointer();
 
 	if (m_meshUser) {
-		m_meshUser->SetMatrix(fl);
+		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
 	}
 }
 
 void KX_GameObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_pSGNode->IsDirty()) {
-		GetOpenGLMatrix();
+	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
+		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
+		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
 	m_meshUser->SetColor(m_objectColor);
@@ -772,8 +737,6 @@ void KX_GameObject::UpdateBuckets()
 
 void KX_GameObject::RemoveMeshes()
 {
-	for (size_t i=0;i<m_meshes.size();i++)
-		m_meshes[i]->RemoveFromBuckets(m_pClient_info);
 	// Remove all mesh slots.
 	if (m_meshUser) {
 		delete m_meshUser;
@@ -928,13 +891,11 @@ KX_GameObject::SetVisible(
 	bool recursive
 	)
 {
-	if (GetSGNode()) {
-		m_bVisible = v;
-		if (m_pGraphicController)
-			m_pGraphicController->Activate(m_bVisible);
-		if (recursive)
-			setVisible_recursive(GetSGNode(), v);
-	}
+	m_bVisible = v;
+	if (m_pGraphicController)
+		m_pGraphicController->Activate(m_bVisible);
+	if (recursive)
+		setVisible_recursive(GetSGNode(), v);
 }
 
 static void setOccluder_recursive(SG_Node* node, bool v)
@@ -960,11 +921,9 @@ KX_GameObject::SetOccluder(
 	bool recursive
 	)
 {
-	if (GetSGNode()) {
-		m_bOccluder = v;
-		if (recursive)
-			setOccluder_recursive(GetSGNode(), v);
-	}
+	m_bOccluder = v;
+	if (recursive)
+		setOccluder_recursive(GetSGNode(), v);
 }
 
 static void setDebug_recursive(KX_Scene *scene, SG_Node *node, bool debug)
@@ -1079,10 +1038,6 @@ void KX_GameObject::AlignAxisToVect(const MT_Vector3& dir, int axis, float fac)
 	MT_Matrix3x3 orimat;
 	MT_Vector3 vect,ori,z,x,y;
 	MT_Scalar len;
-
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (!GetSGNode())
-		return;
 
 	vect = dir;
 	len = vect.length();
@@ -1245,10 +1200,6 @@ MT_Vector3 KX_GameObject::GetVelocity(const MT_Vector3& point)
 
 void KX_GameObject::NodeSetLocalPosition(const MT_Vector3& trans)
 {
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (!GetSGNode())
-		return;
-
 	if (m_pPhysicsController && !GetSGNode()->GetSGParent())
 	{
 		// don't update physic controller if the object is a child:
@@ -1266,10 +1217,6 @@ void KX_GameObject::NodeSetLocalPosition(const MT_Vector3& trans)
 
 void KX_GameObject::NodeSetLocalOrientation(const MT_Matrix3x3& rot)
 {
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (!GetSGNode())
-		return;
-
 	if (m_pPhysicsController && !GetSGNode()->GetSGParent())
 	{
 		// see note above
@@ -1280,10 +1227,6 @@ void KX_GameObject::NodeSetLocalOrientation(const MT_Matrix3x3& rot)
 
 void KX_GameObject::NodeSetGlobalOrientation(const MT_Matrix3x3& rot)
 {
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (!GetSGNode())
-		return;
-
 	if (GetSGNode()->GetSGParent())
 		GetSGNode()->SetLocalOrientation(GetSGNode()->GetSGParent()->GetWorldOrientation().inverse()*rot);
 	else
@@ -1292,10 +1235,6 @@ void KX_GameObject::NodeSetGlobalOrientation(const MT_Matrix3x3& rot)
 
 void KX_GameObject::NodeSetLocalScale(const MT_Vector3& scale)
 {
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (!GetSGNode())
-		return;
-
 	if (m_pPhysicsController && !GetSGNode()->GetSGParent())
 	{
 		// see note above
@@ -1308,24 +1247,19 @@ void KX_GameObject::NodeSetLocalScale(const MT_Vector3& scale)
 
 void KX_GameObject::NodeSetRelativeScale(const MT_Vector3& scale)
 {
-	if (GetSGNode())
+	GetSGNode()->RelativeScale(scale);
+	if (m_pPhysicsController && (!GetSGNode()->GetSGParent()))
 	{
-		GetSGNode()->RelativeScale(scale);
-		if (m_pPhysicsController && (!GetSGNode()->GetSGParent()))
-		{
-			// see note above
-			// we can use the local scale: it's the same thing for a root object 
-			// and the world scale is not yet updated
-			MT_Vector3 newscale = GetSGNode()->GetLocalScale();
-			m_pPhysicsController->SetScaling(newscale);
-		}
+		// see note above
+		// we can use the local scale: it's the same thing for a root object 
+		// and the world scale is not yet updated
+		MT_Vector3 newscale = GetSGNode()->GetLocalScale();
+		m_pPhysicsController->SetScaling(newscale);
 	}
 }
 
 void KX_GameObject::NodeSetWorldScale(const MT_Vector3& scale)
 {
-	if (!GetSGNode())
-		return;
 	SG_Node* parent = GetSGNode()->GetSGParent();
 	if (parent != nullptr)
 	{
@@ -1352,9 +1286,7 @@ void KX_GameObject::NodeSetWorldScale(const MT_Vector3& scale)
 
 void KX_GameObject::NodeSetWorldPosition(const MT_Vector3& trans)
 {
-	if (!GetSGNode())
-		return;
-	SG_Node* parent = GetSGNode()->GetSGParent();
+	SG_Node* parent = m_pSGNode->GetSGParent();
 	if (parent != nullptr)
 	{
 		// Make sure the objects have some scale
@@ -1381,62 +1313,47 @@ void KX_GameObject::NodeSetWorldPosition(const MT_Vector3& trans)
 
 void KX_GameObject::NodeUpdateGS(double time)
 {
-	if (GetSGNode())
-		GetSGNode()->UpdateWorldData(time);
+	m_pSGNode->UpdateWorldData(time);
 }
-
-
 
 const MT_Matrix3x3& KX_GameObject::NodeGetWorldOrientation() const
 {
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (!GetSGNode())
-		return dummy_orientation;
-	return GetSGNode()->GetWorldOrientation();
+	return m_pSGNode->GetWorldOrientation();
 }
 
 const MT_Matrix3x3& KX_GameObject::NodeGetLocalOrientation() const
 {
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (!GetSGNode())
-		return dummy_orientation;
-	return GetSGNode()->GetLocalOrientation();
+	return m_pSGNode->GetLocalOrientation();
 }
 
 const MT_Vector3& KX_GameObject::NodeGetWorldScaling() const
 {
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (!GetSGNode())
-		return dummy_scaling;
-
-	return GetSGNode()->GetWorldScaling();
+	return m_pSGNode->GetWorldScaling();
 }
 
 const MT_Vector3& KX_GameObject::NodeGetLocalScaling() const
 {
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (!GetSGNode())
-		return dummy_scaling;
-
-	return GetSGNode()->GetLocalScale();
+	return m_pSGNode->GetLocalScale();
 }
 
 const MT_Vector3& KX_GameObject::NodeGetWorldPosition() const
 {
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (GetSGNode())
-		return GetSGNode()->GetWorldPosition();
-	else
-		return dummy_point;
+	return m_pSGNode->GetWorldPosition();
 }
 
 const MT_Vector3& KX_GameObject::NodeGetLocalPosition() const
 {
-	// check on valid node in case a python controller holds a reference to a deleted object
-	if (GetSGNode())
-		return GetSGNode()->GetLocalPosition();
-	else
-		return dummy_point;
+	return m_pSGNode->GetLocalPosition();
+}
+
+MT_Transform KX_GameObject::NodeGetWorldTransform() const
+{
+	return m_pSGNode->GetWorldTransform();
+}
+
+MT_Transform KX_GameObject::NodeGetLocalTransform() const
+{
+	return m_pSGNode->GetLocalTransform();
 }
 
 void KX_GameObject::UpdateBounds(bool force)
@@ -1573,7 +1490,7 @@ void KX_GameObject::Suspend()
 	}
 }
 
-static void walk_children(SG_Node* node, CListValue* list, bool recursive)
+static void walk_children(SG_Node* node, CListValue<KX_GameObject> *list, bool recursive)
 {
 	if (!node)
 		return;
@@ -1582,7 +1499,7 @@ static void walk_children(SG_Node* node, CListValue* list, bool recursive)
 	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit)
 	{
 		SG_Node* childnode = (*childit);
-		CValue* childobj = (CValue*)childnode->GetSGClientObject();
+		KX_GameObject *childobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
 		if (childobj != nullptr) // This is a GameObject
 		{
 			// add to the list, no AddRef because the list doesn't own its items.
@@ -1597,9 +1514,9 @@ static void walk_children(SG_Node* node, CListValue* list, bool recursive)
 	}
 }
 
-CListValue* KX_GameObject::GetChildren()
+CListValue<KX_GameObject> *KX_GameObject::GetChildren()
 {
-	CListValue* list = new CListValue();
+	CListValue<KX_GameObject> *list = new CListValue<KX_GameObject>();
 	/* The list must not own any data because is temporary and we can't
 	 * ensure that it will freed before item's in it (e.g python owner). */
 	list->SetReleaseOnDestruct(false);
@@ -1607,9 +1524,9 @@ CListValue* KX_GameObject::GetChildren()
 	return list;
 }
 
-CListValue* KX_GameObject::GetChildrenRecursive()
+CListValue<KX_GameObject> *KX_GameObject::GetChildrenRecursive()
 {
-	CListValue* list = new CListValue();
+	CListValue<KX_GameObject> *list = new CListValue<KX_GameObject>();
 	/* The list must not own any data because is temporary and we can't
 	 * ensure that it will freed before item's in it (e.g python owner). */
 	list->SetReleaseOnDestruct(false);
@@ -1617,12 +1534,12 @@ CListValue* KX_GameObject::GetChildrenRecursive()
 	return list;
 }
 
-CListValue *KX_GameObject::GetComponents() const
+CListValue<KX_PythonComponent> *KX_GameObject::GetComponents() const
 {
 	return m_components;
 }
 
-void KX_GameObject::SetComponents(CListValue *components)
+void KX_GameObject::SetComponents(CListValue<KX_PythonComponent> *components)
 {
 	m_components = components;
 }
@@ -1634,8 +1551,7 @@ void KX_GameObject::UpdateComponents()
 		return;
 	}
 
-	for (CListValue::iterator<KX_PythonComponent> it = m_components->GetBegin(), end = m_components->GetEnd(); it != end; ++it) {
-		KX_PythonComponent *comp = *it;
+	for (KX_PythonComponent *comp : m_components) {
 		comp->Update();
 	}
 
@@ -2321,7 +2237,7 @@ PyObject *KX_GameObject::pyattr_get_parent(PyObjectPlus *self_v, const KX_PYATTR
 PyObject *KX_GameObject::pyattr_get_group_members(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-	CListValue* instances = self->GetInstanceObjects();
+	CListValue<KX_GameObject> *instances = self->GetInstanceObjects();
 	if (instances) {
 		return instances->GetProxy();
 	}
@@ -2813,19 +2729,7 @@ PyObject *KX_GameObject::pyattr_get_localTransform(PyObjectPlus *self_v, const K
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 
-	float mat[16];
-
-	MT_Transform trans;
-	
-	trans.setOrigin(self->GetSGNode()->GetLocalPosition());
-	trans.setBasis(self->GetSGNode()->GetLocalOrientation());
-	
-	MT_Vector3 scaling = self->GetSGNode()->GetLocalScale();
-	trans.scale(scaling[0], scaling[1], scaling[2]);
-
-	trans.getValue(mat);
-
-	return PyObjectFrom(MT_Matrix4x4(mat));
+	return PyObjectFrom(self->NodeGetLocalTransform().toMatrix());
 }
 
 int KX_GameObject::pyattr_set_localTransform(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -2859,7 +2763,7 @@ PyObject *KX_GameObject::pyattr_get_worldTransform(PyObjectPlus *self_v, const K
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 
-	return PyObjectFrom(MT_Matrix4x4(self->GetOpenGLMatrix()));
+	return PyObjectFrom(MT_Matrix4x4(self->NodeGetWorldTransform()));
 }
 
 int KX_GameObject::pyattr_set_worldTransform(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -3018,7 +2922,7 @@ PyObject *KX_GameObject::pyattr_get_timeOffset(PyObjectPlus *self_v, const KX_PY
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 	SG_Node* sg_parent;
-	if (self->GetSGNode() && (sg_parent = self->GetSGNode()->GetSGParent()) != nullptr && sg_parent->IsSlowParent()) {
+	if ((sg_parent = self->GetSGNode()->GetSGParent()) != nullptr && sg_parent->IsSlowParent()) {
 		return PyFloat_FromDouble(static_cast<KX_SlowParentRelation *>(sg_parent->GetParentRelation())->GetTimeOffset());
 	} else {
 		return PyFloat_FromDouble(0.0f);
@@ -3028,16 +2932,14 @@ PyObject *KX_GameObject::pyattr_get_timeOffset(PyObjectPlus *self_v, const KX_PY
 int KX_GameObject::pyattr_set_timeOffset(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-	if (self->GetSGNode()) {
-		MT_Scalar val = PyFloat_AsDouble(value);
-		SG_Node *sg_parent= self->GetSGNode()->GetSGParent();
-		if (val < 0.0f) { /* also accounts for non float */
-			PyErr_SetString(PyExc_AttributeError, "gameOb.timeOffset = float: KX_GameObject, expected a float zero or above");
-			return PY_SET_ATTR_FAIL;
-		}
-		if (sg_parent && sg_parent->IsSlowParent())
-			static_cast<KX_SlowParentRelation *>(sg_parent->GetParentRelation())->SetTimeOffset(val);
+	MT_Scalar val = PyFloat_AsDouble(value);
+	SG_Node *sg_parent= self->GetSGNode()->GetSGParent();
+	if (val < 0.0f) { /* also accounts for non float */
+		PyErr_SetString(PyExc_AttributeError, "gameOb.timeOffset = float: KX_GameObject, expected a float zero or above");
+		return PY_SET_ATTR_FAIL;
 	}
+	if (sg_parent && sg_parent->IsSlowParent())
+		static_cast<KX_SlowParentRelation *>(sg_parent->GetParentRelation())->SetTimeOffset(val);
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -3126,8 +3028,8 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v, const KX_PYATTRIBUTE
 PyObject* KX_GameObject::pyattr_get_components(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	CListValue *components = self->GetComponents();
-	return components ? components->GetProxy() : (new CListValue())->NewProxy(true);
+	CListValue<KX_PythonComponent> *components = self->GetComponents();
+	return components ? components->GetProxy() : (new CListValue<KX_PythonComponent>())->NewProxy(true);
 }
 
 static int kx_game_object_get_sensors_size_cb(void *self_v)

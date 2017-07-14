@@ -3051,19 +3051,13 @@ static void Bend(TransInfo *t, const int UNUSED(mval[2]))
 /** \name Transform Shear
  * \{ */
 
-static void postInputShear(TransInfo *UNUSED(t), float values[3])
-{
-	mul_v3_fl(values, 0.05f);
-}
-
 static void initShear(TransInfo *t)
 {
 	t->mode = TFM_SHEAR;
 	t->transform = applyShear;
 	t->handleEvent = handleEventShear;
-	
-	setInputPostFct(&t->mouse, postInputShear);
-	initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_ABSOLUTE);
+
+	initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_RATIO);
 	
 	t->idx_max = 0;
 	t->num.idx_max = 0;
@@ -3085,24 +3079,24 @@ static eRedrawFlag handleEventShear(TransInfo *t, const wmEvent *event)
 	if (event->type == MIDDLEMOUSE && event->val == KM_PRESS) {
 		/* Use custom.mode.data pointer to signal Shear direction */
 		if (t->custom.mode.data == NULL) {
-			initMouseInputMode(t, &t->mouse, INPUT_VERTICAL_ABSOLUTE);
+			initMouseInputMode(t, &t->mouse, INPUT_VERTICAL_RATIO);
 			t->custom.mode.data = (void *)1;
 		}
 		else {
-			initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_ABSOLUTE);
+			initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_RATIO);
 			t->custom.mode.data = NULL;
 		}
 
 		status = TREDRAW_HARD;
 	}
 	else if (event->type == XKEY && event->val == KM_PRESS) {
-		initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_ABSOLUTE);
+		initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_RATIO);
 		t->custom.mode.data = NULL;
 		
 		status = TREDRAW_HARD;
 	}
 	else if (event->type == YKEY && event->val == KM_PRESS) {
-		initMouseInputMode(t, &t->mouse, INPUT_VERTICAL_ABSOLUTE);
+		initMouseInputMode(t, &t->mouse, INPUT_VERTICAL_RATIO);
 		t->custom.mode.data = (void *)1;
 		
 		status = TREDRAW_HARD;
@@ -4278,7 +4272,7 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
 		bUnit_AsString(distvec, sizeof(distvec), dist * t->scene->unit.scale_length, 4, t->scene->unit.system,
 		               B_UNIT_LENGTH, do_split, false);
 	}
-	else if (dist > 1e10f || dist < -1e10f)  {
+	else if (dist > 1e10f || dist < -1e10f) {
 		/* prevent string buffer overflow */
 		BLI_snprintf(distvec, NUM_STR_REP_LEN, "%.4e", dist);
 	}

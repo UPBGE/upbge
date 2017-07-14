@@ -36,7 +36,6 @@
 #  pragma warning (disable:4786)
 #endif
 
-#include "MT_CmMatrix4x4.h"
 #include "MT_Matrix4x4.h"
 
 #include "RAS_DebugDraw.h"
@@ -75,7 +74,6 @@ public:
 	 */
 	enum DrawType {
 		RAS_WIREFRAME = 0,
-		RAS_SOLID,
 		RAS_TEXTURED,
 		RAS_RENDERER,
 		RAS_SHADOW,
@@ -532,11 +530,6 @@ public:
 	 */
 	RAS_ISync *CreateSync(int type);
 
-	/**
-	 * SwapBuffers swaps the back buffer with the front buffer.
-	 */
-	void SwapBuffers(RAS_ICanvas *canvas);
-
 	/** Create display array storage info for drawing (mainly VBO).
 	 * \param array The display array to use vertex and index data from.
 	 * \param instancing True if the storage is used for instancing draw.
@@ -566,8 +559,6 @@ public:
 	/// Render text mesh slot using BLF functions.
 	void IndexPrimitivesText(RAS_MeshSlot *ms);
  
-	void SetProjectionMatrix(MT_CmMatrix4x4 &mat);
-
 	/* This one should become our final version, methinks. */
 	/**
 	 * Set the projection matrix for the rasterizer. This projects

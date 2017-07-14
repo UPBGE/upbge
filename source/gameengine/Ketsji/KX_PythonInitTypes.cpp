@@ -216,7 +216,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_AttrPtr(dict, BL_ArmatureChannel, init_getset);
 		PyType_Ready_Attr(dict, BL_Texture, init_getset);
 		// PyType_Ready_Attr(dict, CPropValue, init_getset);  // doesn't use Py_Header
-		PyType_Ready_Attr(dict, CListValue, init_getset);
+		PyType_Ready_Attr(dict, CBaseListValue, init_getset);
 		PyType_Ready_Attr(dict, CListWrapper, init_getset);
 		PyType_Ready_Attr(dict, CValue, init_getset);
 		PyType_Ready_Attr(dict, KX_2DFilter, init_getset);

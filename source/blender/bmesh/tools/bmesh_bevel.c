@@ -205,6 +205,38 @@ static int bev_debug_flags = 0;
 #define DEBUG_OLD_PROJ_TO_PERP_PLANE (bev_debug_flags & 2)
 #define DEBUG_OLD_FLAT_MID (bev_debug_flags & 4)
 
+/* this flag values will get set on geom we want to return in 'out' slots for edges and verts */
+#define EDGE_OUT 4
+#define VERT_OUT 8
+
+/* If we're called from the modifier, tool flags aren't available, but don't need output geometry */
+static void flag_out_edge(BMesh *bm, BMEdge *bme)
+{
+	if (bm->use_toolflags)
+		BMO_edge_flag_enable(bm, bme, EDGE_OUT);
+}
+
+static void flag_out_vert(BMesh *bm, BMVert *bmv)
+{
+	if (bm->use_toolflags)
+		BMO_vert_flag_enable(bm, bmv, VERT_OUT);
+}
+
+static void disable_flag_out_edge(BMesh *bm, BMEdge *bme)
+{
+	if (bm->use_toolflags)
+		BMO_edge_flag_disable(bm, bme, EDGE_OUT);
+}
+
+/* Are d1 and d2 parallel or nearly so? */
+static bool nearly_parallel(const float d1[3], const float d2[3])
+{
+	float ang;
+
+	ang = angle_v3v3(d1, d2);
+	return (fabsf(ang) < BEVEL_EPSILON_ANG) || (fabsf(ang - M_PI) < BEVEL_EPSILON_ANG);
+}
+
 /* Make a new BoundVert of the given kind, insert it at the end of the circular linked
  * list with entry point bv->boundstart, and return it. */
 static BoundVert *add_new_bound_vert(MemArena *mem_arena, VMesh *vm, const float co[3])
@@ -253,6 +285,7 @@ static void create_mesh_bmvert(BMesh *bm, VMesh *vm, int i, int j, int k, BMVert
 	NewVert *nv = mesh_vert(vm, i, j, k);
 	nv->v = BM_vert_create(bm, nv->co, eg, BM_CREATE_NOP);
 	BM_elem_flag_disable(nv->v, BM_ELEM_TAG);
+	flag_out_vert(bm, nv->v);
 }
 
 static void copy_mesh_vert(
@@ -495,9 +528,12 @@ static BMFace *bev_create_ngon(
 	}
 
 	/* not essential for bevels own internal logic,
-	 * this is done so the operator can select newly created faces */
+	 * this is done so the operator can select newly created geometry */
 	if (f) {
 		BM_elem_flag_enable(f, BM_ELEM_TAG);
+		BM_ITER_ELEM(bme, &iter, f, BM_EDGES_OF_FACE) {
+			flag_out_edge(bm, bme);
+		}
 	}
 
 	if (mat_nr >= 0)
@@ -1059,7 +1095,7 @@ static void set_profile_params(BevelParams *bp, BevVert *bv, BoundVert *bndv)
 {
 	EdgeHalf *e;
 	Profile *pro;
-	float co1[3], co2[3], co3[3], d1[3], d2[3], l;
+	float co1[3], co2[3], co3[3], d1[3], d2[3];
 	bool do_linear_interp;
 
 	copy_v3_v3(co1, bndv->nv.co);
@@ -1097,8 +1133,8 @@ static void set_profile_params(BevelParams *bp, BevVert *bv, BoundVert *bndv)
 		normalize_v3(d1);
 		normalize_v3(d2);
 		cross_v3_v3v3(pro->plane_no, d1, d2);
-		l = normalize_v3(pro->plane_no);
-		if (l  <= BEVEL_EPSILON_BIG) {
+		normalize_v3(pro->plane_no);
+		if (nearly_parallel(d1, d2)) {
 			/* co1 - midco -co2 are collinear.
 			 * Should be case that beveled edge is coplanar with two boundary verts.
 			 * We want to move the profile to that common plane, if possible.
@@ -1130,16 +1166,23 @@ static void set_profile_params(BevelParams *bp, BevVert *bv, BoundVert *bndv)
 						sub_v3_v3v3(d4, e->next->e->v1->co, e->next->e->v2->co);
 						normalize_v3(d3);
 						normalize_v3(d4);
-						add_v3_v3v3(co3, co1, d3);
-						add_v3_v3v3(co4, co2, d4);
-						isect_kind = isect_line_line_v3(co1, co3, co2, co4, meetco, isect2);
-						if (isect_kind != 0) {
-							copy_v3_v3(pro->midco, meetco);
-						}
-						else {
+						if (nearly_parallel(d3, d4)) {
 							/* offset lines are collinear - want linear interpolation */
 							mid_v3_v3v3(pro->midco, co1, co2);
 							do_linear_interp = true;
+						}
+						else {
+							add_v3_v3v3(co3, co1, d3);
+							add_v3_v3v3(co4, co2, d4);
+							isect_kind = isect_line_line_v3(co1, co3, co2, co4, meetco, isect2);
+							if (isect_kind != 0) {
+								copy_v3_v3(pro->midco, meetco);
+							}
+							else {
+								/* offset lines don't intersect - want linear interpolation */
+								mid_v3_v3v3(pro->midco, co1, co2);
+								do_linear_interp = true;
+							}
 						}
 					}
 				}
@@ -1149,8 +1192,8 @@ static void set_profile_params(BevelParams *bp, BevVert *bv, BoundVert *bndv)
 				sub_v3_v3v3(d2, pro->midco, co2);
 				normalize_v3(d2);
 				cross_v3_v3v3(pro->plane_no, d1, d2);
-				l = normalize_v3(pro->plane_no);
-				if (l <= BEVEL_EPSILON_BIG) {
+				normalize_v3(pro->plane_no);
+				if (nearly_parallel(d1, d2)) {
 					/* whole profile is collinear with edge: just interpolate */
 					do_linear_interp = true;
 				}
@@ -3197,6 +3240,7 @@ static void bevel_build_trifan(BevelParams *bp, BMesh *bm, BevVert *bv)
 			BMFace *f_new;
 			BLI_assert(v_fan == l_fan->v);
 			f_new = BM_face_split(bm, f, l_fan, l_fan->next->next, &l_new, NULL, false);
+			flag_out_edge(bm, l_new->e);
 
 			if (f_new->len > f->len) {
 				f = f_new;
@@ -3243,6 +3287,7 @@ static void bevel_build_quadstrip(BevelParams *bp, BMesh *bm, BevVert *bv)
 			else {
 				BM_face_split(bm, f, l_a, l_b, &l_new, NULL, false);
 				f = l_new->f;
+				flag_out_edge(bm, l_new->e);
 
 				/* walk around the new face to get the next verts to split */
 				l_a = l_new->prev;
@@ -3262,7 +3307,7 @@ static void bevel_vert_two_edges(BevelParams *bp, BMesh *bm, BevVert *bv)
 {
 	VMesh *vm = bv->vmesh;
 	BMVert *v1, *v2;
-	BMEdge *e_eg;
+	BMEdge *e_eg, *bme;
 	Profile *pro;
 	float co[3];
 	BoundVert *bndv;
@@ -3304,7 +3349,9 @@ static void bevel_vert_two_edges(BevelParams *bp, BMesh *bm, BevVert *bv)
 			v1 = mesh_vert(vm, 0, 0, k)->v;
 			v2 = mesh_vert(vm, 0, 0, k + 1)->v;
 			BLI_assert(v1 != NULL && v2 != NULL);
-			BM_edge_create(bm, v1, v2, e_eg, BM_CREATE_NO_DOUBLE);
+			bme = BM_edge_create(bm, v1, v2, e_eg, BM_CREATE_NO_DOUBLE);
+			if (bme)
+				flag_out_edge(bm, bme);
 		}
 	}
 }
@@ -3885,7 +3932,7 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 /* Face f has at least one beveled vertex.  Rebuild f */
 static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 {
-	BMIter liter;
+	BMIter liter, eiter, fiter;
 	BMLoop *l, *lprev;
 	BevVert *bv;
 	BoundVert *v, *vstart, *vend;
@@ -3893,10 +3940,10 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 	VMesh *vm;
 	int i, k, n;
 	bool do_rebuild = false;
-	bool go_ccw, corner3special;
+	bool go_ccw, corner3special, keep;
 	BMVert *bmv;
 	BMEdge *bme, *bme_new, *bme_prev;
-	BMFace *f_new;
+	BMFace *f_new, *f_other;
 	BMVert **vv = NULL;
 	BMVert **vv_fix = NULL;
 	BMEdge **ee = NULL;
@@ -4034,9 +4081,21 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 			}
 		}
 
-		/* don't select newly created boundary faces... */
+		/* don't select newly or return created boundary faces... */
 		if (f_new) {
 			BM_elem_flag_disable(f_new, BM_ELEM_TAG);
+			/* Also don't want new edges that aren't part of a new bevel face */
+			BM_ITER_ELEM(bme, &eiter, f_new, BM_EDGES_OF_FACE) {
+				keep = false;
+				BM_ITER_ELEM(f_other, &fiter, bme, BM_FACES_OF_EDGE) {
+					if (BM_elem_flag_test(f_other, BM_ELEM_TAG)) {
+						keep = true;
+						break;
+					}
+				}
+				if (!keep)
+					disable_flag_out_edge(bm, bme);
+			}
 		}
 	}
 
@@ -4118,8 +4177,9 @@ static void bevel_reattach_wires(BMesh *bm, BevelParams *bp, BMVert *v)
 				}
 			}
 		} while ((bndv = bndv->next) != bv->vmesh->boundstart);
-		if (vclosest)
+		if (vclosest) {
 			BM_edge_create(bm, vclosest, votherclosest, e, BM_CREATE_NO_DOUBLE);
+		}
 	}
 }
 
@@ -4523,9 +4583,9 @@ static float bevel_limit_offset(BMesh *bm, BevelParams *bp)
 /**
  * - Currently only bevels BM_ELEM_TAG'd verts and edges.
  *
- * - Newly created faces are BM_ELEM_TAG'd too,
- *   the caller needs to ensure this is cleared before calling
- *   if its going to use this face tag.
+ * - Newly created faces, edges, and verts are BM_ELEM_TAG'd too,
+ *   the caller needs to ensure these are cleared before calling
+ *   if its going to use this tag.
  *
  * - If limit_offset is set, adjusts offset down if necessary
  *   to avoid geometry collisions.
@@ -4614,6 +4674,20 @@ void BM_mesh_bevel(
 			if (BM_elem_flag_test(v, BM_ELEM_TAG)) {
 				BLI_assert(find_bevvert(&bp, v) != NULL);
 				BM_vert_kill(bm, v);
+			}
+		}
+
+		/* When called from operator (as opposed to modifier), bm->use_toolflags
+		 * will be set, and we to transfer the oflags to BM_ELEM_TAGs */
+		if (bm->use_toolflags) {
+			BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+				if (BMO_vert_flag_test(bm, v, VERT_OUT))
+					BM_elem_flag_enable(v, BM_ELEM_TAG);
+			}
+			BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+				if (BMO_edge_flag_test(bm, e, EDGE_OUT)) {
+					BM_elem_flag_enable(e, BM_ELEM_TAG);
+				}
 			}
 		}
 

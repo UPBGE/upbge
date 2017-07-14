@@ -9,6 +9,7 @@ __pycache__/
 *~
 *.swp
 *.swo
+*.kdev4
 *#
 
 # QtCreator

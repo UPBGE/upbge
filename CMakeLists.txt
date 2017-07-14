@@ -533,6 +533,16 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	mark_as_advanced(WITH_LINKER_GOLD)
 endif()
 
+# GCCFilter, if appliciable
+if(CMAKE_COMPILER_IS_GNUCC)
+  option(WITH_COLOR_GCC "Use GCCFilter to color compiler output messages" OFF)
+  set(COLOR_GCC_OPTIONS "-c -r -w" CACHE STRING "Arguments that are passed to gccfilter when output coloring is switchend on. Defaults to -c -r -w.")
+  mark_as_advanced(COLOR_GCC_OPTIONS)
+  if(WITH_COLOR_GCC)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CMAKE_SOURCE_DIR}/build_files/utils/gccfilter ${COLOR_GCC_OPTIONS}")
+  endif()
+endif()
+
 # Dependency graph
 option(WITH_LEGACY_DEPSGRAPH "Build Blender with legacy dependency graph" ON)
 mark_as_advanced(WITH_LEGACY_DEPSGRAPH)
