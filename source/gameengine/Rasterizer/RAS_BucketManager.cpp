@@ -97,18 +97,17 @@ RAS_BucketManager::~RAS_BucketManager()
 		delete *it;
 	}
 	buckets.clear();
-
 }
 
 void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
 {
 	BucketList& solidBuckets = m_buckets[bucketType];
 	RAS_UpwardTreeLeafs leafs;
-	for (RAS_MaterialBucket *bucket : solidBuckets) {
-		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, rasty, true);
-	}
 
 	m_nodeData.m_sort = true;
+	for (RAS_MaterialBucket *bucket : solidBuckets) {
+		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, rasty, m_nodeData.m_sort, m_nodeData.m_shaderOverride);
+	}
 
 	if (m_downwardNode.GetValid()) {
 		m_downwardNode.Execute(RAS_DummyNodeTuple());
@@ -136,12 +135,13 @@ void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketMana
 {
 	BucketList& solidBuckets = m_buckets[bucketType];
 	RAS_UpwardTreeLeafs leafs;
+
+	m_nodeData.m_sort = false;
 	for (RAS_MaterialBucket *bucket : solidBuckets) {
-		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, rasty, false);
+		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, rasty, m_nodeData.m_sort, m_nodeData.m_shaderOverride);
 	}
 
 	if (m_downwardNode.GetValid()) {
-		m_nodeData.m_sort = false;
 		m_downwardNode.Execute(RAS_DummyNodeTuple());
 	}
 }

@@ -52,6 +52,13 @@ class RAS_InstancingBuffer;
 class RAS_DisplayArrayBucket
 {
 private:
+	enum NodeType {
+		NODE_NORMAL = 0,
+		NODE_INSTANCING,
+		NODE_BATCHING,
+		NODE_TYPE_MAX
+	};
+
 	/// The parent bucket.
 	RAS_MaterialBucket *m_bucket;
 	/// The display array = list of vertexes and indexes.
@@ -73,11 +80,8 @@ private:
 	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer;
 
 	RAS_DisplayArrayNodeData m_nodeData;
-	RAS_DisplayArrayDownwardNode m_downwardNode;
+	RAS_DisplayArrayDownwardNode m_downwardNode[NODE_TYPE_MAX];
 	RAS_DisplayArrayUpwardNode m_upwardNode;
-
-	RAS_DisplayArrayDownwardNode m_instancingNode;
-	RAS_DisplayArrayDownwardNode m_batchingNode;
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,

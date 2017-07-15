@@ -250,4 +250,12 @@ public:
 	}
 };
 
+#define RAS_NODE_FUNC(func) std::mem_fn(&func)
+
+#define RAS_INIT_RENDER_NODE_DATA(node, data, bind, unbind) \
+	node = typeof(node)(this, &data, bind, unbind)
+
+#define RAS_INIT_RENDER_NODE(node, bind, unbind) \
+	RAS_INIT_RENDER_NODE_DATA(node, m_nodeData, bind, unbind)
+
 #endif  // __RAS_RENDER_NODE__

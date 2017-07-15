@@ -47,10 +47,12 @@
 #endif // WIN32
 
 RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
-	:m_material(mat),
-	m_downwardNode(this, &m_nodeData, std::mem_fn(&RAS_MaterialBucket::BindNode), std::mem_fn(&RAS_MaterialBucket::UnbindNode)),
-	m_upwardNode(this, &m_nodeData, std::mem_fn(&RAS_MaterialBucket::BindNode), std::mem_fn(&RAS_MaterialBucket::UnbindNode))
+	:m_material(mat)
 {
+	RAS_INIT_RENDER_NODE(m_downwardNode[NODE_MATERIAL], RAS_NODE_FUNC(RAS_MaterialBucket::BindNode), RAS_NODE_FUNC(RAS_MaterialBucket::UnbindNode));
+	RAS_INIT_RENDER_NODE(m_downwardNode[NODE_OVERRIDE], nullptr, nullptr);
+	RAS_INIT_RENDER_NODE(m_upwardNode, RAS_NODE_FUNC(RAS_MaterialBucket::BindNode), RAS_NODE_FUNC(RAS_MaterialBucket::UnbindNode));
+
 	m_nodeData.m_material = m_material;
 	m_nodeData.m_drawingMode = m_material->GetDrawingMode();
 	m_nodeData.m_cullFace = m_material->IsCullFace();
@@ -117,18 +119,21 @@ void RAS_MaterialBucket::DesactivateMaterial(RAS_Rasterizer *rasty)
 }
 
 void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-									  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort)
+									  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool override)
 {
 	if (m_displayArrayBucketList.size() == 0) {
 		return;
 	}
 
 	const bool instancing = UseInstancing();
+
+	RAS_MaterialDownwardNode& downwardNode = m_downwardNode[override ? NODE_OVERRIDE : NODE_MATERIAL];
+
 	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
-		displayArrayBucket->GenerateTree(m_downwardNode, m_upwardNode, upwardLeafs, rasty, sort, instancing);
+		displayArrayBucket->GenerateTree(downwardNode, m_upwardNode, upwardLeafs, rasty, sort, instancing);
 	}
 
-	downwardRoot.AddChild(&m_downwardNode);
+	downwardRoot.AddChild(&downwardNode);
 
 	if (sort) {
 		m_upwardNode.SetParent(&upwardRoot);
@@ -142,20 +147,18 @@ void RAS_MaterialBucket::BindNode(const RAS_MaterialNodeTuple& tuple)
 {
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
 	RAS_Rasterizer *rasty = managerData->m_rasty;
+
 	rasty->SetCullFace(m_nodeData.m_cullFace);
 	rasty->SetPolygonOffset(-m_nodeData.m_zoffset, 0.0f);
-
-	if (!managerData->m_shaderOverride) {
-		ActivateMaterial(managerData->m_rasty);
-	}
+	m_material->Activate(rasty);
 }
 
 void RAS_MaterialBucket::UnbindNode(const RAS_MaterialNodeTuple& tuple)
 {
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
-	if (!managerData->m_shaderOverride) {
-		DesactivateMaterial(managerData->m_rasty);
-	}
+	RAS_Rasterizer *rasty = managerData->m_rasty;
+
+	m_material->Desactivate(rasty);
 }
 
 void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)

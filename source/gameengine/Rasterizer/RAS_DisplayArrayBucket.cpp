@@ -59,21 +59,21 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_meshMaterial(meshmat),
 	m_deformer(deformer),
 	m_attribArray(nullptr),
-	m_instancingBuffer(nullptr),
-	m_instancingNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunInstancingNode), nullptr),
-	m_batchingNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunBatchingNode), nullptr)
+	m_instancingBuffer(nullptr)
 {
 	m_bucket->AddDisplayArrayBucket(this);
 
+	RAS_INIT_RENDER_NODE(m_downwardNode[NODE_INSTANCING], RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunInstancingNode), nullptr);
+	RAS_INIT_RENDER_NODE(m_downwardNode[NODE_BATCHING], RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunBatchingNode), nullptr);
+
 	if (m_displayArray) {
-		m_downwardNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr);
-		m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode),
-												  std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode));
+		RAS_INIT_RENDER_NODE(m_downwardNode[NODE_NORMAL], RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunDownwardNode), nullptr);
+		RAS_INIT_RENDER_NODE(m_upwardNode, RAS_NODE_FUNC(RAS_DisplayArrayBucket::BindUpwardNode), RAS_NODE_FUNC(RAS_DisplayArrayBucket::UnbindUpwardNode));
 	}
 	else {
 		// If there's no display array then we draw using derived mesh, in this case the display array bind/unbind should be avoid.
-		m_downwardNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNodeNoArray), nullptr);
-		m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, nullptr, nullptr);
+		RAS_INIT_RENDER_NODE(m_downwardNode[NODE_NORMAL], RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunDownwardNodeNoArray), nullptr);
+		RAS_INIT_RENDER_NODE(m_upwardNode, nullptr, nullptr);
 	}
 
 	// Initialize node arguments.
@@ -174,10 +174,10 @@ void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot
 	UpdateActiveMeshSlots(rasty);
 
 	if (instancing) {
-		downwardRoot.AddChild(&m_instancingNode);
+		downwardRoot.AddChild(&m_downwardNode[NODE_INSTANCING]);
 	}
 	else if (UseBatching()) {
-		downwardRoot.AddChild(&m_batchingNode);
+		downwardRoot.AddChild(&m_downwardNode[NODE_BATCHING]);
 	}
 	else if (sort) {
 		for (RAS_MeshSlot *slot : m_activeMeshSlots) {
@@ -187,7 +187,7 @@ void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot
 		m_upwardNode.SetParent(&upwardRoot);
 	}
 	else {
-		downwardRoot.AddChild(&m_downwardNode);
+		downwardRoot.AddChild(&m_downwardNode[NODE_NORMAL]);
 	}
 }
 

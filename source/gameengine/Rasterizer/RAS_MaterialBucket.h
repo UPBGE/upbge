@@ -64,7 +64,7 @@ public:
 
 	// Render nodes.
 	void GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort);
+					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool override);
 	void BindNode(const RAS_MaterialNodeTuple& tuple);
 	void UnbindNode(const RAS_MaterialNodeTuple& tuple);
 
@@ -78,11 +78,17 @@ public:
 	void MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket);
 
 private:
+	enum NodeType {
+		NODE_MATERIAL = 0,
+		NODE_OVERRIDE,
+		NODE_TYPE_MAX
+	};
+
 	RAS_IPolyMaterial *m_material;
 	RAS_DisplayArrayBucketList m_displayArrayBucketList;
 
 	RAS_MaterialNodeData m_nodeData;
-	RAS_MaterialDownwardNode m_downwardNode;
+	RAS_MaterialDownwardNode m_downwardNode[NODE_TYPE_MAX];
 	RAS_MaterialUpwardNode m_upwardNode;
 };
 
