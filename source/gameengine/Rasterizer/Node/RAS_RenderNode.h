@@ -41,6 +41,7 @@ class RAS_Rasterizer;
 class RAS_DisplayArrayStorage;
 class RAS_AttributeArrayStorage;
 class MT_Transform;
+struct EEVEE_SceneLayerData;
 
 class RAS_MaterialDownwardNode;
 class RAS_ManagerDownwardNode;
@@ -56,6 +57,7 @@ struct RAS_ManagerNodeData
 	MT_Transform m_trans;
 	RAS_Rasterizer *m_rasty;
 	RAS_Rasterizer::DrawType m_drawingMode;
+	EEVEE_SceneLayerData *m_sldata;
 	bool m_sort;
 	RAS_OverrideShader *m_overrideShader;
 };

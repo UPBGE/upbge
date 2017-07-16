@@ -32,7 +32,7 @@ void KX_MaterialShader::Desactivate()
 	m_shader->SetProg(false);
 }
 
-void KX_MaterialShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser)
+void KX_MaterialShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata)
 {
 	m_shader->Update(rasty, meshUser);
 }

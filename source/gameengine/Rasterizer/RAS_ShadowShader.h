@@ -9,7 +9,7 @@ public:
 	RAS_ShadowShader();
 	virtual ~RAS_ShadowShader();
 
-	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);
+	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata);
 };
 
 #endif  // __RAS_SHADOW_SHADER_H__

@@ -32,7 +32,7 @@ void RAS_OverrideShader::Desactivate()
 	GPU_shader_unbind();
 }
 
-void RAS_OverrideShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser)
+void RAS_OverrideShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata)
 {
 }
 

@@ -254,12 +254,13 @@ GPULamp *RAS_OpenGLLight::GetGPULamp()
 
 bool RAS_OpenGLLight::HasShadowBuffer()
 {
-	GPULamp *lamp;
+	/*GPULamp *lamp;
 
 	if ((lamp = GetGPULamp()))
 		return GPU_lamp_has_shadow_buffer(lamp);
 	else
-		return false;
+		return false;*/
+	return true;
 }
 
 
@@ -326,7 +327,7 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_T
 
 	/* bind framebuffer */
 	lamp = GetGPULamp();
-	GPU_lamp_shadow_buffer_bind(lamp, viewmat, &winsize, winmat);
+// 	GPU_lamp_shadow_buffer_bind(lamp, viewmat, &winsize, winmat);
 
 	if (GPU_lamp_shadow_buffer_type(lamp) == LA_SHADMAP_VARIANCE) {
 		m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_VARIANCE);
@@ -360,7 +361,7 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_T
 void RAS_OpenGLLight::UnbindShadowBuffer()
 {
 	GPULamp *lamp = GetGPULamp();
-	GPU_lamp_shadow_buffer_unbind(lamp);
+// 	GPU_lamp_shadow_buffer_unbind(lamp);
 
 	m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_NONE);
 

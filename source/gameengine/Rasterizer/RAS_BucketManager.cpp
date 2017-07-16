@@ -175,6 +175,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 	m_nodeData.m_rasty = rasty;
 	m_nodeData.m_trans = cameratrans;
 	m_nodeData.m_drawingMode = drawingMode;
+	m_nodeData.m_sldata = &sldata;
 
 	switch (drawingMode) {
 		case RAS_Rasterizer::RAS_SHADOW:

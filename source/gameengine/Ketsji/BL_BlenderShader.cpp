@@ -151,7 +151,7 @@ void BL_BlenderShader::Desactivate()
 {
 }
 
-void BL_BlenderShader::Update(RAS_Rasterizer *UNUSED(rasty), RAS_MeshUser *meshUser)
+void BL_BlenderShader::Update(RAS_Rasterizer *UNUSED(rasty), RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata)
 {
 	DRW_draw_geometry_prepare(m_shGroup, (float(*)[4])meshUser->GetMatrix(), nullptr, nullptr);
 }
