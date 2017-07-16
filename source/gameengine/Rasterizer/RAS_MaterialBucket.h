@@ -79,17 +79,20 @@ public:
 
 private:
 	enum NodeType {
-		NODE_MATERIAL = 0,
-		NODE_OVERRIDE,
-		NODE_TYPE_MAX
+		NODE_DOWNWARD_NORMAL = 0,
+		NODE_DOWNWARD_OVERRIDE,
+		NODE_DOWNWARD_TYPE_MAX,
+
+		NODE_UPWARD_NORMAL = 0,
+		NODE_UPWARD_TYPE_MAX
 	};
 
 	RAS_IPolyMaterial *m_material;
 	RAS_DisplayArrayBucketList m_displayArrayBucketList;
 
 	RAS_MaterialNodeData m_nodeData;
-	RAS_MaterialDownwardNode m_downwardNode[NODE_TYPE_MAX];
-	RAS_MaterialUpwardNode m_upwardNode;
+	RAS_MaterialDownwardNode m_downwardNode[NODE_DOWNWARD_TYPE_MAX];
+	RAS_MaterialUpwardNode m_upwardNode[NODE_UPWARD_TYPE_MAX];
 };
 
 #endif  // __RAS_MATERIAL_BUCKET_H__

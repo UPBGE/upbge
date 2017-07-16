@@ -44,7 +44,17 @@ struct DerivedMesh;
 class RAS_MeshSlot
 {
 private:
-	RAS_MeshSlotUpwardNode m_node;
+	enum NodeType {
+		NODE_NORMAL = 0,
+		NODE_DERIVED_MESH,
+		NODE_TEXT,
+		NODE_TYPE_MAX
+	};
+
+	RAS_MeshSlotUpwardNode m_node[NODE_TYPE_MAX];
+
+	/// Render node utilities
+	void PrepareRunNode(const RAS_MeshSlotNodeTuple& tuple);
 
 public:
 	// for rendering
@@ -61,8 +71,11 @@ public:
 
 	void SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket);
 
-	void GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs);
-	void RunNode(const RAS_MeshSlotNodeTuple& tuple);
+	void GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs, bool text);
+
+	void RunNodeDerivedMesh(const RAS_MeshSlotNodeTuple& tuple);
+	void RunNodeText(const RAS_MeshSlotNodeTuple& tuple);
+	void RunNodeNormal(const RAS_MeshSlotNodeTuple& tuple);
 };
 
 typedef std::vector<RAS_MeshSlot *> RAS_MeshSlotList;

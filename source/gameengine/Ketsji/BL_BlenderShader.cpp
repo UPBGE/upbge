@@ -172,7 +172,7 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
 	}
 }
 
-void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
+void BL_BlenderShader::Update(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty)
 {
 	/*if (!m_gpuMat || !GPU_material_bound(m_gpuMat)) {
 		return;
@@ -185,7 +185,7 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 // 	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])ms->m_meshUser->GetMatrix(), viewmat, obcol, auto_bump_scale, nullptr, nullptr);
 
 // 	print_m4("obmat : ", (float(*)[4])ms->m_meshUser->GetMatrix());
-	DRW_draw_geometry_prepare(m_shGroup, (float(*)[4])ms->m_meshUser->GetMatrix(), nullptr, nullptr);
+	DRW_draw_geometry_prepare(m_shGroup, (float(*)[4])meshUser->GetMatrix(), nullptr, nullptr);
 
 // 	m_alphaBlend = GPU_material_alpha_blend(m_gpuMat, obcol);
 }

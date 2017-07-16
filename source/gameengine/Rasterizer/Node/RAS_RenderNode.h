@@ -250,12 +250,20 @@ public:
 	}
 };
 
+/// \brief Structure used to initialize a list of render nodes.
+template <class NodeType>
+struct RAS_RenderNodeDefine
+{
+	int m_index;
+	typename NodeType::Function m_bind;
+	typename NodeType::Function m_unbind;
+
+	inline NodeType Init(typename NodeType::OwnerType *owner, typename NodeType::DataType *data) const
+	{
+		return NodeType(owner, data, m_bind, m_unbind);
+	}
+};
+
 #define RAS_NODE_FUNC(func) std::mem_fn(&func)
-
-#define RAS_INIT_RENDER_NODE_DATA(node, data, bind, unbind) \
-	node = typeof(node)(this, &data, bind, unbind)
-
-#define RAS_INIT_RENDER_NODE(node, bind, unbind) \
-	RAS_INIT_RENDER_NODE_DATA(node, m_nodeData, bind, unbind)
 
 #endif  // __RAS_RENDER_NODE__

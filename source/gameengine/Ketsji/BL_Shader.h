@@ -10,7 +10,7 @@
 #include "RAS_Shader.h"
 #include "RAS_Texture.h" // For RAS_Texture::MaxUnits.
 
-class RAS_MeshSlot;
+class RAS_MeshUser;
 
 class BL_Shader : public PyObjectPlus, public virtual RAS_Shader
 {
@@ -46,7 +46,7 @@ public:
 	 * The python callbacks are executed in this function and at the end
 	 * RAS_Shader::Update(rasty, mat) is called.
 	 */
-	void Update(RAS_Rasterizer *rasty, RAS_MeshSlot *ms);
+	void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);
 
 	// Python interface
 #ifdef WITH_PYTHON

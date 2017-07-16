@@ -63,17 +63,24 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 {
 	m_bucket->AddDisplayArrayBucket(this);
 
-	RAS_INIT_RENDER_NODE(m_downwardNode[NODE_INSTANCING], RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunInstancingNode), nullptr);
-	RAS_INIT_RENDER_NODE(m_downwardNode[NODE_BATCHING], RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunBatchingNode), nullptr);
+	static const std::vector<RAS_RenderNodeDefine<RAS_DisplayArrayDownwardNode> > downwardNodeDefines = {
+		{NODE_DOWNWARD_NORMAL, RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunDownwardNode), nullptr},
+		{NODE_DOWNWARD_DERIVED_MESH, RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunDownwardNodeDerivedMesh), nullptr},
+		{NODE_DOWNWARD_INSTANCING, RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunInstancingNode), nullptr},
+		{NODE_DOWNWARD_BATCHING, RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunBatchingNode), nullptr},
+	};
 
-	if (m_displayArray) {
-		RAS_INIT_RENDER_NODE(m_downwardNode[NODE_NORMAL], RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunDownwardNode), nullptr);
-		RAS_INIT_RENDER_NODE(m_upwardNode, RAS_NODE_FUNC(RAS_DisplayArrayBucket::BindUpwardNode), RAS_NODE_FUNC(RAS_DisplayArrayBucket::UnbindUpwardNode));
+	static const std::vector<RAS_RenderNodeDefine<RAS_DisplayArrayUpwardNode> > upwardNodeDefines = {
+		{NODE_UPWARD_NORMAL, RAS_NODE_FUNC(RAS_DisplayArrayBucket::BindUpwardNode),
+			RAS_NODE_FUNC(RAS_DisplayArrayBucket::UnbindUpwardNode)},
+		{NODE_UPWARD_NO_ARRAY, nullptr, nullptr}
+	};
+
+	for (const RAS_RenderNodeDefine<RAS_DisplayArrayDownwardNode>& define : downwardNodeDefines) {
+		m_downwardNode[define.m_index] = define.Init(this, &m_nodeData);
 	}
-	else {
-		// If there's no display array then we draw using derived mesh, in this case the display array bind/unbind should be avoid.
-		RAS_INIT_RENDER_NODE(m_downwardNode[NODE_NORMAL], RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunDownwardNodeNoArray), nullptr);
-		RAS_INIT_RENDER_NODE(m_upwardNode, nullptr, nullptr);
+	for (const RAS_RenderNodeDefine<RAS_DisplayArrayUpwardNode>& define : upwardNodeDefines) {
+		m_upwardNode[define.m_index] = define.Init(this, &m_nodeData);
 	}
 
 	// Initialize node arguments.
@@ -164,7 +171,7 @@ void RAS_DisplayArrayBucket::ConstructAttribs()
 }
 
 void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
-										  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing)
+										  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing, bool text)
 {
 	if (m_activeMeshSlots.size() == 0) {
 		return;
@@ -174,20 +181,21 @@ void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot
 	UpdateActiveMeshSlots(rasty);
 
 	if (instancing) {
-		downwardRoot.AddChild(&m_downwardNode[NODE_INSTANCING]);
+		downwardRoot.AddChild(&m_downwardNode[NODE_DOWNWARD_INSTANCING]);
 	}
 	else if (UseBatching()) {
-		downwardRoot.AddChild(&m_downwardNode[NODE_BATCHING]);
+		downwardRoot.AddChild(&m_downwardNode[NODE_DOWNWARD_BATCHING]);
 	}
 	else if (sort) {
+		RAS_DisplayArrayUpwardNode& upwardNode = m_upwardNode[(m_displayArray) ? NODE_UPWARD_NORMAL : NODE_UPWARD_NO_ARRAY];
 		for (RAS_MeshSlot *slot : m_activeMeshSlots) {
-			slot->GenerateTree(m_upwardNode, upwardLeafs);
+			slot->GenerateTree(upwardNode, upwardLeafs, text);
 		}
 
-		m_upwardNode.SetParent(&upwardRoot);
+		upwardNode.SetParent(&upwardRoot);
 	}
 	else {
-		downwardRoot.AddChild(&m_downwardNode[NODE_NORMAL]);
+		downwardRoot.AddChild(&m_downwardNode[(m_displayArray) ? NODE_DOWNWARD_NORMAL : NODE_DOWNWARD_DERIVED_MESH]);
 	}
 }
 
@@ -209,18 +217,27 @@ void RAS_DisplayArrayBucket::RunDownwardNode(const RAS_DisplayArrayNodeTuple& tu
 	const RAS_MeshSlotNodeTuple msTuple(tuple, &m_nodeData);
 	for (RAS_MeshSlot *ms : m_activeMeshSlots) {
 		// Reuse the node function without spend time storing RAS_MeshSlot under nodes.
-		ms->RunNode(msTuple);
+		ms->RunNodeNormal(msTuple);
 	}
 
 	attribStorage->UnbindPrimitives();
 }
 
-void RAS_DisplayArrayBucket::RunDownwardNodeNoArray(const RAS_DisplayArrayNodeTuple& tuple)
+void RAS_DisplayArrayBucket::RunDownwardNodeDerivedMesh(const RAS_DisplayArrayNodeTuple& tuple)
 {
 	const RAS_MeshSlotNodeTuple msTuple(tuple, &m_nodeData);
 	for (RAS_MeshSlot *ms : m_activeMeshSlots) {
 		// Reuse the node function without spend time storing RAS_MeshSlot under nodes.
-		ms->RunNode(msTuple);
+		ms->RunNodeDerivedMesh(msTuple);
+	}
+}
+
+void RAS_DisplayArrayBucket::RunDownwardNodeText(const RAS_DisplayArrayNodeTuple& tuple)
+{
+	const RAS_MeshSlotNodeTuple msTuple(tuple, &m_nodeData);
+	for (RAS_MeshSlot *ms : m_activeMeshSlots) {
+		// Reuse the node function without spend time storing RAS_MeshSlot under nodes.
+		ms->RunNodeText(msTuple);
 	}
 }
 

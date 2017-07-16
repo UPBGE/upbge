@@ -339,14 +339,14 @@ bool KX_BlenderMaterial::UsesLighting() const
 		return true;
 }
 
-void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
+void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty)
 {
 	if (m_shader && m_shader->Ok()) {
-		m_shader->Update(rasty, ms);
+		m_shader->Update(rasty, meshUser);
 		m_shader->ApplyShader();
 	}
 	else if (m_blenderShader) {
-		m_blenderShader->Update(ms, rasty);
+		m_blenderShader->Update(meshUser, rasty);
 
 		/* we do blend modes here, because they can change per object
 		 * with the same material due to obcolor/obalpha */

@@ -49,9 +49,21 @@
 RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
 	:m_material(mat)
 {
-	RAS_INIT_RENDER_NODE(m_downwardNode[NODE_MATERIAL], RAS_NODE_FUNC(RAS_MaterialBucket::BindNode), RAS_NODE_FUNC(RAS_MaterialBucket::UnbindNode));
-	RAS_INIT_RENDER_NODE(m_downwardNode[NODE_OVERRIDE], nullptr, nullptr);
-	RAS_INIT_RENDER_NODE(m_upwardNode, RAS_NODE_FUNC(RAS_MaterialBucket::BindNode), RAS_NODE_FUNC(RAS_MaterialBucket::UnbindNode));
+	static const std::vector<RAS_RenderNodeDefine<RAS_MaterialDownwardNode> > downwardNodeDefines = {
+		{NODE_DOWNWARD_NORMAL, RAS_NODE_FUNC(RAS_MaterialBucket::BindNode), RAS_NODE_FUNC(RAS_MaterialBucket::UnbindNode)},
+		{NODE_DOWNWARD_OVERRIDE, nullptr, nullptr},
+	};
+
+	static const std::vector<RAS_RenderNodeDefine<RAS_MaterialUpwardNode> > upwardNodeDefines = {
+		{NODE_UPWARD_NORMAL, RAS_NODE_FUNC(RAS_MaterialBucket::BindNode), RAS_NODE_FUNC(RAS_MaterialBucket::UnbindNode)}
+	};
+
+	for (const RAS_RenderNodeDefine<RAS_MaterialDownwardNode>& define : downwardNodeDefines) {
+		m_downwardNode[define.m_index] = define.Init(this, &m_nodeData);
+	}
+	for (const RAS_RenderNodeDefine<RAS_MaterialUpwardNode>& define : upwardNodeDefines) {
+		m_upwardNode[define.m_index] = define.Init(this, &m_nodeData);
+	}
 
 	m_nodeData.m_material = m_material;
 	m_nodeData.m_drawingMode = m_material->GetDrawingMode();
@@ -126,17 +138,18 @@ void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS
 	}
 
 	const bool instancing = UseInstancing();
+	const bool text = m_material->IsText();
 
-	RAS_MaterialDownwardNode& downwardNode = m_downwardNode[override ? NODE_OVERRIDE : NODE_MATERIAL];
+	RAS_MaterialDownwardNode& downwardNode = m_downwardNode[override ? NODE_DOWNWARD_OVERRIDE : NODE_DOWNWARD_NORMAL];
 
 	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
-		displayArrayBucket->GenerateTree(downwardNode, m_upwardNode, upwardLeafs, rasty, sort, instancing);
+		displayArrayBucket->GenerateTree(downwardNode, m_upwardNode[NODE_UPWARD_NORMAL], upwardLeafs, rasty, sort, instancing, text);
 	}
 
 	downwardRoot.AddChild(&downwardNode);
 
 	if (sort) {
-		m_upwardNode.SetParent(&upwardRoot);
+		m_upwardNode[NODE_UPWARD_NORMAL].SetParent(&upwardRoot);
 	}
 
 	// Use lighting flag changes when user specified a valid custom shader.

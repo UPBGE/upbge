@@ -53,10 +53,15 @@ class RAS_DisplayArrayBucket
 {
 private:
 	enum NodeType {
-		NODE_NORMAL = 0,
-		NODE_INSTANCING,
-		NODE_BATCHING,
-		NODE_TYPE_MAX
+		NODE_DOWNWARD_NORMAL = 0,
+		NODE_DOWNWARD_DERIVED_MESH,
+		NODE_DOWNWARD_INSTANCING,
+		NODE_DOWNWARD_BATCHING,
+		NODE_DOWNWARD_TYPE_MAX,
+
+		NODE_UPWARD_NORMAL = 0,
+		NODE_UPWARD_NO_ARRAY,
+		NODE_UPWARD_TYPE_MAX
 	};
 
 	/// The parent bucket.
@@ -80,8 +85,8 @@ private:
 	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer;
 
 	RAS_DisplayArrayNodeData m_nodeData;
-	RAS_DisplayArrayDownwardNode m_downwardNode[NODE_TYPE_MAX];
-	RAS_DisplayArrayUpwardNode m_upwardNode;
+	RAS_DisplayArrayDownwardNode m_downwardNode[NODE_DOWNWARD_TYPE_MAX];
+	RAS_DisplayArrayUpwardNode m_upwardNode[NODE_UPWARD_TYPE_MAX];
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
@@ -111,11 +116,12 @@ public:
 	void ConstructAttribs();
 
 	void GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
-					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing);
+					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing, bool text);
 	void BindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void UnbindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunDownwardNode(const RAS_DisplayArrayNodeTuple& tuple);
-	void RunDownwardNodeNoArray(const RAS_DisplayArrayNodeTuple& tuple);
+	void RunDownwardNodeDerivedMesh(const RAS_DisplayArrayNodeTuple& tuple);
+	void RunDownwardNodeText(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunInstancingNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunBatchingNode(const RAS_DisplayArrayNodeTuple& tuple);
 

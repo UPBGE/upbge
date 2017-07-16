@@ -42,7 +42,7 @@ struct Scene;
 struct GPUMaterial;
 struct DRWShadingGroup;
 class KX_Scene;
-class RAS_MeshSlot;
+class RAS_MeshUser;
 
 /**
  * BL_BlenderShader
@@ -71,7 +71,7 @@ public:
 	 */
 	const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
-	void Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty);
+	void Update(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty);
 
 	/// Return true if the shader uses a special vertex shader for geometry instancing.
 	bool UseInstancing() const;
