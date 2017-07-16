@@ -35,6 +35,7 @@ class RAS_MaterialBucket;
 class RAS_DisplayArrayBucket;
 class RAS_MeshSlot;
 class RAS_IPolyMaterial;
+class RAS_MaterialShader;
 class RAS_Rasterizer;
 class RAS_DisplayArrayStorage;
 class RAS_AttributeArrayStorage;
@@ -61,6 +62,7 @@ struct RAS_ManagerNodeData
 struct RAS_MaterialNodeData
 {
 	RAS_IPolyMaterial *m_material;
+	RAS_MaterialShader *m_shader;
 	int m_drawingMode;
 	bool m_useLighting;
 	bool m_cullFace;

@@ -36,6 +36,7 @@
 #include "MT_Transform.h"
 
 class RAS_IPolyMaterial;
+class RAS_MaterialShader;
 class RAS_Rasterizer;
 
 /* Contains a list of display arrays with the same material,
@@ -50,17 +51,16 @@ public:
 
 	// Material Properties
 	RAS_IPolyMaterial *GetPolyMaterial() const;
+	RAS_MaterialShader *GetShader() const;
 	bool IsAlpha() const;
 	bool IsZSort() const;
 	bool IsWire() const;
 	bool UseInstancing() const;
 
-	/// Regenerate shader dependent data.
-	void UpdateShader();
-
-	// Rendering
-	void ActivateMaterial(RAS_Rasterizer *rasty);
-	void DesactivateMaterial(RAS_Rasterizer *rasty);
+	/** Set the shader after its conversion or when changing to custom shader.
+	 * Regenerate shader dependent data as vertex attributes if attrib is true.
+	 */
+	void UpdateShader(bool attrib);
 
 	// Render nodes.
 	void GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
@@ -72,8 +72,6 @@ public:
 
 	void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 	void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
-
-	RAS_DisplayArrayBucketList& GetDisplayArrayBucketList();
 
 	void MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket);
 
@@ -88,6 +86,7 @@ private:
 	};
 
 	RAS_IPolyMaterial *m_material;
+	RAS_MaterialShader *m_shader;
 	RAS_DisplayArrayBucketList m_displayArrayBucketList;
 
 	RAS_MaterialNodeData m_nodeData;

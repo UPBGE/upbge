@@ -31,7 +31,7 @@
 
 #include "RAS_MeshSlot.h"
 #include "RAS_MeshUser.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_MaterialShader.h"
 #include "RAS_TexVert.h"
 #include "RAS_DisplayArrayStorage.h"
 #include "RAS_MeshObject.h"
@@ -116,7 +116,7 @@ void RAS_MeshSlot::PrepareRunNode(const RAS_MeshSlotNodeTuple& tuple)
 			rasty->MultMatrix(mat);
 		}
 	*/
-	materialData->m_material->ActivateMeshSlot(m_meshUser, rasty); // TODO sent the matrix with billboard/ray transform
+	materialData->m_shader->Update(rasty, m_meshUser); // TODO sent the matrix with billboard/ray transform
 }
 
 void RAS_MeshSlot::RunNodeDerivedMesh(const RAS_MeshSlotNodeTuple& tuple)

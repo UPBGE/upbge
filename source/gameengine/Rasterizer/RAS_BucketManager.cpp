@@ -334,7 +334,7 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 	RAS_MaterialBucket *bucket = new RAS_MaterialBucket(material);
 	bucketCreated = true;
 
-	const bool useinstancing = material->UseInstancing();
+	const bool useinstancing = false; //material->UseInstancing();
 	if (!material->OnlyShadow()) {
 		if (material->IsAlpha()) {
 			m_buckets[useinstancing ? ALPHA_INSTANCING_BUCKET : ALPHA_BUCKET].push_back(bucket);
@@ -365,7 +365,7 @@ RAS_DisplayArrayBucket *RAS_BucketManager::GetTextDisplayArrayBucket() const
 	return m_text.m_arrayBucket;
 }
 
-void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat)
+void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat, bool attrib)
 {
 	BucketList& buckets = m_buckets[ALL_BUCKET];
 	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
@@ -373,7 +373,7 @@ void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat)
 		if (bucket->GetPolyMaterial() != mat && mat) {
 			continue;
 		}
-		bucket->UpdateShader();
+		bucket->UpdateShader(attrib);
 	}
 }
 

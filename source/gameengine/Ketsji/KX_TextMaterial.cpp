@@ -40,24 +40,9 @@ KX_TextMaterial::~KX_TextMaterial()
 {
 }
 
-void KX_TextMaterial::Activate(RAS_Rasterizer *rasty)
+RAS_MaterialShader *KX_TextMaterial::GetShader() const
 {
-}
-
-void KX_TextMaterial::Desactivate(RAS_Rasterizer *rasty)
-{
-}
-
-void KX_TextMaterial::ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
-{
-}
-
-void KX_TextMaterial::DesactivateInstancing()
-{
-}
-
-void KX_TextMaterial::ActivateMeshSlot(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty)
-{
+	return nullptr;
 }
 
 const std::string KX_TextMaterial::GetTextureName() const
@@ -80,11 +65,6 @@ SCA_IScene *KX_TextMaterial::GetScene() const
 	return nullptr;
 }
 
-bool KX_TextMaterial::UseInstancing() const
-{
-	return false;
-}
-
 void KX_TextMaterial::ReleaseMaterial()
 {
 }
@@ -92,12 +72,6 @@ void KX_TextMaterial::ReleaseMaterial()
 void KX_TextMaterial::UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
 			   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha)
 {
-}
-
-const RAS_AttributeArray::AttribList KX_TextMaterial::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
-{
-	static const RAS_AttributeArray::AttribList attribLayers;
-	return attribLayers;
 }
 
 void KX_TextMaterial::OnConstruction()

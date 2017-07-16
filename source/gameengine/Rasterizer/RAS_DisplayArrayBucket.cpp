@@ -34,7 +34,7 @@
 #include "RAS_DisplayArrayStorage.h"
 #include "RAS_AttributeArrayStorage.h"
 #include "RAS_MaterialBucket.h"
-#include "RAS_IPolygonMaterial.h"
+#include "RAS_MaterialShader.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"
 #include "RAS_Rasterizer.h"
@@ -163,9 +163,9 @@ void RAS_DisplayArrayBucket::ConstructAttribs()
 		return;
 	}
 
-	RAS_IPolyMaterial *polymat = m_bucket->GetPolyMaterial();
+	RAS_MaterialShader *shader = m_bucket->GetShader();
 	const RAS_MeshObject::LayersInfo& layersInfo = m_mesh->GetLayersInfo();
-	const RAS_AttributeArray::AttribList attribList = polymat->GetAttribs(layersInfo);
+	const RAS_AttributeArray::AttribList attribList = shader->GetAttribs(layersInfo);
 
 	m_attribArray.reset(new RAS_AttributeArray(attribList, m_displayArray));
 }
@@ -243,6 +243,7 @@ void RAS_DisplayArrayBucket::RunDownwardNodeText(const RAS_DisplayArrayNodeTuple
 
 void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& tuple)
 {
+#if 0
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
 	RAS_MaterialNodeData *materialData = tuple.m_materialData;
 	RAS_Rasterizer *rasty = managerData->m_rasty;
@@ -326,10 +327,12 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 	}
 
 	attribStorage->UnbindPrimitives();
+#endif
 }
 
 void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tuple)
 {
+#if 0
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
 	RAS_MaterialNodeData *materialData = tuple.m_materialData;
 
@@ -383,6 +386,7 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tu
 	m_arrayStorage->IndexPrimitivesBatching(indices, counts);
 
 	attribStorage->UnbindPrimitives();
+#endif
 }
 
 void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)

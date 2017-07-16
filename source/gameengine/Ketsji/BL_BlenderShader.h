@@ -35,6 +35,7 @@
 #include "RAS_AttributeArray.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Texture.h" // for MaxUnits
+#include "RAS_MaterialShader.h"
 #include <string>
 
 struct Material;
@@ -42,44 +43,30 @@ struct Scene;
 struct GPUMaterial;
 struct DRWShadingGroup;
 class KX_Scene;
-class RAS_MeshUser;
 
 /**
  * BL_BlenderShader
  * Blender GPU shader material
  */
-class BL_BlenderShader
+class BL_BlenderShader : public RAS_MaterialShader
 {
 private:
 	Scene *m_blenderScene;
 	Material *m_mat;
-	int m_lightLayer;
-	int m_alphaBlend;
-	GPUMaterial *m_gpuMat;
 	DRWShadingGroup *m_shGroup;
 
 public:
 	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer);
 	virtual ~BL_BlenderShader();
 
-	bool Ok() const;
-	void SetProg(bool enable, double time = 0.0, RAS_Rasterizer *rasty = nullptr);
+	void ReloadMaterial(KX_Scene *scene); // TODO virtual ?
 
-	/** Return a map of the corresponding attribut layer for a given attribut index.
-	 * \param layers The list of the mesh layers used to link with uv and color material attributes.
-	 * \return The map of attributes layers.
-	 */
-	const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;
+	virtual bool IsValid() const;
+	virtual void Activate();
+	virtual void Desactivate();
+	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);
+	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
-	void Update(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty);
-
-	/// Return true if the shader uses a special vertex shader for geometry instancing.
-	bool UseInstancing() const;
-	void ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
-	void DesactivateInstancing();
-
-	void ReloadMaterial(KX_Scene *scene);
-	int GetAlphaBlend();
 };
 
 #endif // __BL_BLENDERSHADER_H__

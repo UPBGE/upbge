@@ -50,9 +50,6 @@ extern "C" {
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
 	:m_blenderScene(scene->GetBlenderScene()),
 	m_mat(ma),
-	m_lightLayer(lightlayer),
-	m_alphaBlend(GPU_BLEND_SOLID),
-	m_gpuMat(nullptr),
 	m_shGroup(nullptr)
 {
 	ReloadMaterial(scene);
@@ -113,11 +110,6 @@ const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_Mesh
 	return attribs;
 }
 
-bool BL_BlenderShader::Ok() const
-{
-	return (m_shGroup != nullptr);
-}
-
 void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 {
 	if (m_shGroup) {
@@ -125,9 +117,9 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 	}
 
 	if (m_mat->use_nodes && m_mat->nodetree) {
-		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false, false, false);
+		GPUMaterial *gpumat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false, false, false);
 
-		m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
+		m_shGroup = DRW_shgroup_material_create(gpumat, nullptr);
 	}
 	else {
 		float *color_p = &m_mat->r;
@@ -145,71 +137,21 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData(), EEVEE_engine_data_get());
 }
 
-void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
+bool BL_BlenderShader::IsValid() const
 {
-	if (Ok()) {
-		if (enable) {
-			/*BLI_assert(rasty != nullptr); // XXX Kinda hacky, but SetProg() should always have the rasterizer if enable is true
-
-			float viewmat[4][4], viewinvmat[4][4];
-			const MT_Matrix4x4& view = rasty->GetViewMatrix();
-			const MT_Matrix4x4& viewinv = rasty->GetViewInvMatrix();
-			view.getValue((float *)viewmat);
-			viewinv.getValue((float *)viewinvmat);
-
-			GPU_material_bind(m_gpuMat, m_lightLayer, m_blenderScene->lay, time, 1, viewmat, viewinvmat, nullptr, false);*/
-
-			DRW_bind_shader_shgroup(m_shGroup);
-			/*, (DRWState)(
-				DRW_STATE_WRITE_DEPTH |
-				DRW_STATE_DEPTH_LESS |
-				DRW_STATE_CULL_BACK |
-				DRW_STATE_WRITE_COLOR));*/
-		}
-		else {
-			//GPU_material_unbind(m_gpuMat);
-		}
-	}
+	return (m_shGroup != nullptr);
 }
 
-void BL_BlenderShader::Update(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty)
+void BL_BlenderShader::Activate()
 {
-	/*if (!m_gpuMat || !GPU_material_bound(m_gpuMat)) {
-		return;
-	}*/
+	DRW_bind_shader_shgroup(m_shGroup);
+}
 
-// 	float *obcol = (float *)ms->m_meshUser->GetColor().getValue();
+void BL_BlenderShader::Desactivate()
+{
+}
 
-// 	rasty->GetViewMatrix().getValue((float *)viewmat);
-// 	float auto_bump_scale = ms->m_pDerivedMesh != 0 ? ms->m_pDerivedMesh->auto_bump_scale : 1.0f;
-// 	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])ms->m_meshUser->GetMatrix(), viewmat, obcol, auto_bump_scale, nullptr, nullptr);
-
-// 	print_m4("obmat : ", (float(*)[4])ms->m_meshUser->GetMatrix());
+void BL_BlenderShader::Update(RAS_Rasterizer *UNUSED(rasty), RAS_MeshUser *meshUser)
+{
 	DRW_draw_geometry_prepare(m_shGroup, (float(*)[4])meshUser->GetMatrix(), nullptr, nullptr);
-
-// 	m_alphaBlend = GPU_material_alpha_blend(m_gpuMat, obcol);
-}
-
-bool BL_BlenderShader::UseInstancing() const
-{
-	return m_mat->shade_flag & MA_INSTANCING;
-}
-
-void BL_BlenderShader::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
-{
-	if (Ok()) {
-		GPU_material_bind_instancing_attrib(m_gpuMat, matrixoffset, positionoffset, coloroffset, stride);
-	}
-}
-
-void BL_BlenderShader::DesactivateInstancing()
-{
-	if (Ok()) {
-		GPU_material_unbind_instancing_attrib(m_gpuMat);
-	}
-}
-
-int BL_BlenderShader::GetAlphaBlend()
-{
-	return m_alphaBlend;
 }

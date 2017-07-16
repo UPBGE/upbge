@@ -17,7 +17,7 @@
 class SCA_IScene;
 class KX_Scene;
 class BL_BlenderShader;
-class BL_Shader;
+class KX_MaterialShader;
 struct Material;
 
 #ifdef USE_MATHUTILS
@@ -38,17 +38,7 @@ public:
 
 	virtual ~KX_BlenderMaterial();
 
-	virtual void Activate(RAS_Rasterizer *rasty);
-	virtual void Desactivate(RAS_Rasterizer *rasty);
-	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
-	virtual void DesactivateInstancing();
-	virtual void ActivateMeshSlot(RAS_MeshUser *meshUser, RAS_Rasterizer *rasty);
-
-	void ActivateShaders(RAS_Rasterizer *rasty);
-
-	void ActivateBlenderShaders(RAS_Rasterizer *rasty);
-
-	virtual bool UseInstancing() const;
+	virtual RAS_MaterialShader *GetShader() const ;
 	virtual const std::string GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
 	virtual bool UsesLighting() const;
@@ -64,8 +54,6 @@ public:
 	// for ipos
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha);
-
-	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
 	void ReplaceScene(KX_Scene *scene);
 
@@ -105,15 +93,14 @@ public:
 
 #endif  // WITH_PYTHON
 
-	// pre calculate to avoid pops/lag at startup
 	virtual void OnConstruction();
 
 	static void EndFrame(RAS_Rasterizer *rasty);
 
 private:
 	Material *m_material;
-	BL_Shader *m_shader;
-	BL_BlenderShader *m_blenderShader;
+	std::unique_ptr<KX_MaterialShader> m_shader;
+	std::unique_ptr<BL_BlenderShader> m_blenderShader;
 	KX_Scene *m_scene;
 	bool m_userDefBlend;
 	unsigned int m_blendFunc[2];
@@ -137,7 +124,6 @@ private:
 
 	void ActivateGLMaterials(RAS_Rasterizer *rasty) const;
 
-	void SetBlenderShaderData(RAS_Rasterizer *ras);
 	void SetShaderData(RAS_Rasterizer *ras);
 
 	// cleanup stuff

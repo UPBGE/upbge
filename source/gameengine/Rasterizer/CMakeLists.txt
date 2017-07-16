@@ -122,6 +122,7 @@ set(SRC
 	RAS_ISync.h
 	RAS_ITexVert.h
 	RAS_MaterialBucket.h
+	RAS_MaterialShader.h
 	RAS_MeshMaterial.h
 	RAS_MeshObject.h
 	RAS_MeshSlot.h
