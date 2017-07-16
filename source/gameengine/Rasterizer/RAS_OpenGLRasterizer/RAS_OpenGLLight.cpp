@@ -50,7 +50,8 @@
 #include "KX_Scene.h"
 
 extern "C" {
-#include "../draw/engines/eevee/eevee_private.h"
+#  include "eevee_private.h"
+#  include "DRW_render.h"
 }
 
 RAS_OpenGLLight::RAS_OpenGLLight(RAS_Rasterizer *ras)
@@ -319,46 +320,57 @@ int RAS_OpenGLLight::GetShadowLayer()
 		return 0;
 }
 
-void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_Transform& camtrans)
+void RAS_OpenGLLight::BindShadowBuffer(const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata)
 {
-	GPULamp *lamp;
-	float viewmat[4][4], winmat[4][4];
-	int winsize;
+	float projmat[4][4];
+	float viewprojmat[6][4][4];
 
-	/* bind framebuffer */
-	lamp = GetGPULamp();
-// 	GPU_lamp_shadow_buffer_bind(lamp, viewmat, &winsize, winmat);
+	EEVEE_LampsInfo *linfo = sldata.lamps;
+// 	EEVEE_Light *evli = linfo->light_data + evsmp->light_id;
+	EEVEE_ShadowCube& evsh = linfo->shadow_cube_data[id];
+	KX_LightObject *kxlight = (KX_LightObject *)m_light;
+	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
 
-	if (GPU_lamp_shadow_buffer_type(lamp) == LA_SHADMAP_VARIANCE) {
-		m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_VARIANCE);
+	perspective_m4(projmat, -la->clipsta, la->clipsta, -la->clipsta, la->clipsta, la->clipsta, la->clipend);
+
+	for (int i = 0; i < 6; ++i) {
+		float tmp[4][4];
+		unit_m4(tmp);
+		negate_v3_v3(tmp[3], pos.getValue());
+		mul_m4_m4m4(tmp, cubefacemat[i], tmp);
+		mul_m4_m4m4(viewprojmat[i], projmat, tmp);
 	}
-	else {
-		m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_SIMPLE);
+
+	evsh.bias = 0.05f * la->bias;
+	evsh.nearf = la->clipsta;
+	evsh.farf = la->clipend;
+	evsh.exp = la->bleedexp;
+
+// 	evli->shadowid = (float)(evsmp->shadow_id);
+
+	EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
+
+	srd->layer = id;
+	srd->exponent = la->bleedexp;
+	pos.getValue(srd->position);
+	for (int j = 0; j < 6; j++) {
+		float tmp[4][4];
+
+		unit_m4(tmp);
+		negate_v3_v3(tmp[3], pos.getValue());
+		mul_m4_m4m4(srd->viewmat[j], cubefacemat[j], tmp);
+
+		copy_m4_m4(srd->shadowmat[j], viewprojmat[j]);
 	}
 
-	/* setup camera transformation */
-	MT_Matrix4x4 modelviewmat((float *)viewmat);
-	MT_Matrix4x4 projectionmat((float *)winmat);
+	DRW_uniformbuffer_update(sldata.shadow_render_ubo, &linfo->shadow_render_data);
 
-	MT_Transform trans = MT_Transform((float *)viewmat);
-	camtrans.invert(trans);
-
-	cam->SetModelviewMatrix(modelviewmat);
-	cam->SetProjectionMatrix(projectionmat);
-
-	cam->NodeSetLocalPosition(camtrans.getOrigin());
-	cam->NodeSetLocalOrientation(camtrans.getBasis());
-	cam->NodeUpdateGS(0);
-
-	/* setup rasterizer transformations */
-	/* SetViewMatrix may use stereomode which we temporarily disable here */
-	RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
-	m_rasterizer->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
-	m_rasterizer->SetMatrix(modelviewmat, projectionmat, cam->NodeGetWorldPosition(), cam->NodeGetLocalScaling());
-	m_rasterizer->SetStereoMode(stereomode);
+	DRW_framebuffer_bind(sldata.shadow_cube_target_fb);
+	static float clear_color[4] = {FLT_MAX, FLT_MAX, FLT_MAX, 0.0f};
+	DRW_framebuffer_clear(true, true, false, clear_color, 1.0f);
 }
 
-void RAS_OpenGLLight::UnbindShadowBuffer()
+void RAS_OpenGLLight::UnbindShadowBuffer(EEVEE_SceneLayerData& sldata)
 {
 	GPULamp *lamp = GetGPULamp();
 // 	GPU_lamp_shadow_buffer_unbind(lamp);

@@ -838,6 +838,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
 
+	EEVEE_SceneLayerData& sldata = scene->GetSceneLayerData();
+
+	int id = 0;
 	for (KX_LightObject *light : lightlist) {
 		RAS_ILightObject *raslight = light->GetLightData();
 
@@ -850,6 +853,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			RAS_CameraData camdata = RAS_CameraData();
 			KX_Camera *cam = new KX_Camera(scene, scene->m_callbacks, camdata, true, true);
 			cam->SetName("__shadow__cam__");
+			const MT_Vector3& pos = light->NodeGetWorldPosition();
+			cam->NodeSetLocalPosition(pos);
+			cam->NodeSetLocalOrientation(light->NodeGetWorldOrientation());
 
 			MT_Transform camtrans;
 
@@ -858,7 +864,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
 
 			/* binds framebuffer object, sets up camera .. */
-			raslight->BindShadowBuffer(m_canvas, cam, camtrans);
+			raslight->BindShadowBuffer(pos, id, sldata);
 
 			KX_CullingNodeList nodes;
 			/* update scene */
@@ -869,14 +875,15 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
 
 			/* render */
-			m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT | RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
 			// Send a nullptr off screen because the viewport is binding it's using its own private one.
 			scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
 
 			/* unbind framebuffer object, restore drawmode, free camera */
-			raslight->UnbindShadowBuffer();
+			raslight->UnbindShadowBuffer(sldata);
 			m_rasterizer->SetDrawingMode(drawmode);
 			cam->Release();
+
+			++id;
 		}
 	}
 }

@@ -32,14 +32,10 @@
 #ifndef __RAS_LIGHTOBJECT_H__
 #define __RAS_LIGHTOBJECT_H__
 
-class RAS_ICanvas;
-
-class KX_Camera;
-class KX_Scene;
-
+class MT_Vector3;
 class MT_Transform;
 class MT_Matrix4x4;
-
+struct EEVEE_SceneLayerData;
 struct Image;
 
 class RAS_ILightObject
@@ -94,8 +90,8 @@ public:
 	virtual MT_Matrix4x4 GetViewMat() = 0;
 	virtual MT_Matrix4x4 GetWinMat() = 0;
 	virtual int GetShadowLayer() = 0;
-	virtual void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_Transform& camtrans) = 0;
-	virtual void UnbindShadowBuffer() = 0;
+	virtual void BindShadowBuffer(const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata) = 0;
+	virtual void UnbindShadowBuffer(EEVEE_SceneLayerData& sldata) = 0;
 	virtual Image *GetTextureImage(short texslot) = 0;
 	virtual void Update() = 0;
 };

@@ -33,8 +33,6 @@ set(INC
 	../Physics/Common
 	../SceneGraph
 	../GameLogic
-	../../blender/makesdna
-	../../blender/makesrna
 	../../blender/blenfont
 	../../blender/blenlib
 	../../blender/blenkernel
@@ -44,6 +42,8 @@ set(INC
 	../../blender/draw/engines/eevee/
 	../../blender/gpu
 	../../blender/imbuf
+	../../blender/makesdna
+	../../blender/makesrna
 	../../blender/render/extern/include
 	../../blender/render/intern/include
 	../../../intern/glew-mx
