@@ -37,6 +37,7 @@
 
 class RAS_IPolyMaterial;
 class RAS_MaterialShader;
+class RAS_OverrideShader;
 class RAS_Rasterizer;
 
 /* Contains a list of display arrays with the same material,
@@ -64,7 +65,8 @@ public:
 
 	// Render nodes.
 	void GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool override);
+					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort,
+					  RAS_OverrideShader *overrideShader);
 	void BindNode(const RAS_MaterialNodeTuple& tuple);
 	void UnbindNode(const RAS_MaterialNodeTuple& tuple);
 

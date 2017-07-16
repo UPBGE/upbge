@@ -130,18 +130,6 @@ public:
 		RAS_MIPMAP_MAX,  /* Should always be last */
 	};
 
-	/**
-	 * Override shaders
-	 */
-	enum OverrideShaderType {
-		RAS_OVERRIDE_SHADER_NONE,
-		RAS_OVERRIDE_SHADER_BLACK,
-		RAS_OVERRIDE_SHADER_BLACK_INSTANCING,
-		RAS_OVERRIDE_SHADER_SHADOW,
-		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE,
-		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING,
-	};
-
 	enum ShadowType {
 		RAS_SHADOW_NONE,
 		RAS_SHADOW_SIMPLE,
@@ -318,17 +306,12 @@ private:
 	bool m_invertFrontFace;
 	bool m_last_frontface;
 
-	OverrideShaderType m_overrideShader;
-
 	GPUViewport *m_viewport;
 
 	std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
 
 	void InitScreenShaders();
 	void ExitScreenShaders();
-
-	/// Return GPUShader coresponding to the override shader enumeration.
-	GPUShader *GetOverrideGPUShader(OverrideShaderType type);	
 
 	/*void EnableLights();
 	void DisableLights();*/
@@ -639,11 +622,6 @@ public:
 
 	void SetMipmapping(MipmapOption val);
 	MipmapOption GetMipmapping();
-
-	void SetOverrideShader(OverrideShaderType type);
-	OverrideShaderType GetOverrideShader();
-	void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride);
-	void DesactivateOverrideShaderInstancing();
 
 	/// \see KX_RayCast
 	bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform);

@@ -32,6 +32,7 @@
 #include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MaterialShader.h"
+#include "RAS_OverrideShader.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
@@ -130,7 +131,8 @@ void RAS_MaterialBucket::RemoveActiveMeshSlots()
 }
 
 void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-									  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool override)
+									  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort,
+									  RAS_OverrideShader *overrideShader)
 {
 	if (m_displayArrayBucketList.size() == 0) {
 		return;
@@ -139,8 +141,8 @@ void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS
 	const bool instancing = UseInstancing();
 	const bool text = m_material->IsText();
 
-	m_nodeData.m_shader = m_shader; // TODO temp override shader
-	RAS_MaterialDownwardNode& downwardNode = m_downwardNode[override ? NODE_DOWNWARD_OVERRIDE : NODE_DOWNWARD_NORMAL];
+	m_nodeData.m_shader = overrideShader ? overrideShader : m_shader;
+	RAS_MaterialDownwardNode& downwardNode = m_downwardNode[overrideShader ? NODE_DOWNWARD_OVERRIDE : NODE_DOWNWARD_NORMAL];
 
 	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
 		displayArrayBucket->GenerateTree(downwardNode, m_upwardNode[NODE_UPWARD_NORMAL], upwardLeafs, rasty, sort, instancing, text);

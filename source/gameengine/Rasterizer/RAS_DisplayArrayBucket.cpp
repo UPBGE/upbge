@@ -287,7 +287,7 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 	m_instancingBuffer->Bind();
 
 	// Bind all vertex attributs for the used material and the given buffer offset.
-	if (managerData->m_shaderOverride) {
+	if (managerData->m_overrideShader) {
 		rasty->ActivateOverrideShaderInstancing(
 			m_instancingBuffer->GetMatrixOffset(),
 			m_instancingBuffer->GetPositionOffset(),
@@ -319,7 +319,7 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 
 	m_arrayStorage->IndexPrimitivesInstancing(nummeshslots);
 	// Unbind vertex attributs.
-	if (managerData->m_shaderOverride) {
+	if (managerData->m_overrideShader) {
 		rasty->DesactivateOverrideShaderInstancing();
 	}
 	else {

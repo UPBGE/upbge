@@ -219,7 +219,6 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_invertFrontFace(false),
 	m_last_frontface(true),
-	m_overrideShader(RAS_OVERRIDE_SHADER_NONE),
 	m_viewport(nullptr)
 {
 	m_viewmatrix.setIdentity();
@@ -1152,81 +1151,6 @@ RAS_Rasterizer::MipmapOption RAS_Rasterizer::GetMipmapping()
 	}
 	else {
 		return RAS_Rasterizer::RAS_MIPMAP_NONE;
-	}
-}
-
-GPUShader *RAS_Rasterizer::GetOverrideGPUShader(OverrideShaderType type)
-{
-	GPUShader *shader = nullptr;
-	switch (type) {
-		case RAS_OVERRIDE_SHADER_NONE:
-		{
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_BLACK:
-		{
-			shader = GPU_shader_get_builtin_shader(GPU_SHADER_BLACK);
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_BLACK_INSTANCING:
-		{
-			shader = GPU_shader_get_builtin_shader(GPU_SHADER_BLACK_INSTANCING);
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_SHADOW:
-		{
-			shader = EEVEE_shadow_shader_get();
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
-		{
-			shader = GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE);
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
-		{
-			shader = GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING);
-			break;
-		}
-	}
-
-	return shader;
-}
-
-void RAS_Rasterizer::SetOverrideShader(RAS_Rasterizer::OverrideShaderType type)
-{
-	if (type == m_overrideShader) {
-		return;
-	}
-
-	GPUShader *shader = GetOverrideGPUShader(type);
-	if (shader) {
-		GPU_shader_bind(shader);
-	}
-	else {
-		GPU_shader_unbind();
-	}
-	m_overrideShader = type;
-}
-
-RAS_Rasterizer::OverrideShaderType RAS_Rasterizer::GetOverrideShader()
-{
-	return m_overrideShader;
-}
-
-void RAS_Rasterizer::ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride)
-{
-	GPUShader *shader = GetOverrideGPUShader(m_overrideShader);
-	if (shader) {
-		GPU_shader_bind_instancing_attrib(shader, matrixoffset, positionoffset, stride);
-	}
-}
-
-void RAS_Rasterizer::DesactivateOverrideShaderInstancing()
-{
-	GPUShader *shader = GetOverrideGPUShader(m_overrideShader);
-	if (shader) {
-		GPU_shader_unbind_instancing_attrib(shader);
 	}
 }
 

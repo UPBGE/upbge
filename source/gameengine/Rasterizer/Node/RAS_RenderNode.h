@@ -36,6 +36,7 @@ class RAS_DisplayArrayBucket;
 class RAS_MeshSlot;
 class RAS_IPolyMaterial;
 class RAS_MaterialShader;
+class RAS_OverrideShader;
 class RAS_Rasterizer;
 class RAS_DisplayArrayStorage;
 class RAS_AttributeArrayStorage;
@@ -56,7 +57,7 @@ struct RAS_ManagerNodeData
 	RAS_Rasterizer *m_rasty;
 	RAS_Rasterizer::DrawType m_drawingMode;
 	bool m_sort;
-	bool m_shaderOverride;
+	RAS_OverrideShader *m_overrideShader;
 };
 
 struct RAS_MaterialNodeData

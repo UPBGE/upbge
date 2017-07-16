@@ -38,6 +38,7 @@
 #include <vector>
 
 class RAS_OffScreen;
+class RAS_OverrideShader;
 class SCA_IScene;
 
 class RAS_BucketManager
@@ -69,7 +70,7 @@ public:
 		bool operator()(const SortedMeshSlot &a, const SortedMeshSlot &b);
 	};
 
-protected:
+private:
 	enum BucketType {
 		SOLID_BUCKET = 0,
 		ALPHA_BUCKET,
@@ -85,7 +86,21 @@ protected:
 		NUM_BUCKET_TYPE,
 	};
 
+	/// Override shaders.
+	enum OverrideShaderType {
+		OVERRIDE_SHADER_NONE = -1,
+		OVERRIDE_SHADER_BLACK = 0,
+// 		OVERRIDE_SHADER_BLACK_INSTANCING,
+		OVERRIDE_SHADER_SHADOW,
+// 		OVERRIDE_SHADER_SHADOW_VARIANCE,
+// 		OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING,
+		OVERRIDE_SHADER_MAX
+	};
+
 	BucketList m_buckets[NUM_BUCKET_TYPE];
+
+	std::unique_ptr<RAS_OverrideShader> m_overrideShader[OVERRIDE_SHADER_MAX];
+	RAS_OverrideShader *m_currentOverrideShader;
 
 	RAS_ManagerNodeData m_nodeData;
 	RAS_ManagerDownwardNode m_downwardNode;
@@ -96,6 +111,11 @@ protected:
 		RAS_IPolyMaterial *m_material;
 		RAS_DisplayArrayBucket *m_arrayBucket;
 	} m_text;
+
+	void SetOverrideShader(OverrideShaderType shaderType);
+
+	void RenderBasicBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
+	void RenderSortedBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 
 public:
 	/** Initialize bucket manager and create material bucket for the text material.
@@ -121,10 +141,6 @@ public:
 	{
 		return m_buckets[ALL_BUCKET];
 	}
-
-private:
-	void RenderBasicBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
-	void RenderSortedBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 };
 
 #endif // __RAS_BUCKETMANAGER_H__
