@@ -178,6 +178,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 	m_nodeData.m_trans = cameratrans;
 	m_nodeData.m_drawingMode = drawingMode;
 	m_nodeData.m_sldata = &sldata;
+	m_nodeData.m_cubeMap = false;
 
 	switch (drawingMode) {
 		case RAS_Rasterizer::RAS_SHADOW:
@@ -195,7 +196,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE :
 				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_SHADOW);*/
 // 			}
-
+			m_nodeData.m_cubeMap = true;
 			SetOverrideShader(OVERRIDE_SHADER_SHADOW);
 			RenderBasicBuckets(rasty, SOLID_SHADOW_BUCKET);
 

@@ -68,7 +68,8 @@ RAS_MeshSlot::RAS_MeshSlot(RAS_MeshObject *mesh, RAS_MeshUser *meshUser, RAS_Dis
 {
 	static const std::vector<RAS_RenderNodeDefine<RAS_MeshSlotUpwardNode> > nodeDefines = {
 		{NODE_NORMAL, RAS_NODE_FUNC(RAS_MeshSlot::RunNodeNormal), nullptr},
-		{NODE_DERIVED_MESH, RAS_NODE_FUNC(RAS_MeshSlot::RunNodeDerivedMesh), nullptr},
+// 		{NODE_DERIVED_MESH, RAS_NODE_FUNC(RAS_MeshSlot::RunNodeDerivedMesh), nullptr},
+		{NODE_CUBE_MAP, RAS_NODE_FUNC(RAS_MeshSlot::RunNodeCubeMap), nullptr},
 		{NODE_TEXT, RAS_NODE_FUNC(RAS_MeshSlot::RunNodeText), nullptr},
 	};
 
@@ -88,15 +89,19 @@ void RAS_MeshSlot::SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket)
 
 void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs, const RAS_MeshSlotNodeTuple& tuple)
 {
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
 	RAS_MaterialNodeData *materialData = tuple.m_materialData;
 
 	NodeType type = NODE_NORMAL;
 	if (materialData->m_text) {
 		type = NODE_TEXT;
 	}
-	else if (m_pDerivedMesh) {
-		type = NODE_DERIVED_MESH;
+	else if (managerData->m_cubeMap) {
+		type = NODE_CUBE_MAP;
 	}
+	/*else if (m_pDerivedMesh) {
+		type = NODE_DERIVED_MESH;
+	}*/
 
 	RAS_MeshSlotUpwardNode& node = m_node[type];
 	node.SetParent(&root);
@@ -121,14 +126,14 @@ void RAS_MeshSlot::PrepareRunNode(const RAS_MeshSlotNodeTuple& tuple)
 	materialData->m_shader->Update(rasty, m_meshUser, managerData->m_sldata); // TODO sent the matrix with billboard/ray transform
 }
 
-void RAS_MeshSlot::RunNodeDerivedMesh(const RAS_MeshSlotNodeTuple& tuple)
+/*void RAS_MeshSlot::RunNodeDerivedMesh(const RAS_MeshSlotNodeTuple& tuple)
 {
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
 
 	PrepareRunNode(tuple);
 
 	managerData->m_rasty->IndexPrimitivesDerivedMesh(this);
-}
+}*/
 
 void RAS_MeshSlot::RunNodeText(const RAS_MeshSlotNodeTuple& tuple)
 {
@@ -137,6 +142,15 @@ void RAS_MeshSlot::RunNodeText(const RAS_MeshSlotNodeTuple& tuple)
 	PrepareRunNode(tuple);
 
 	managerData->m_rasty->IndexPrimitivesText(this);
+}
+
+void RAS_MeshSlot::RunNodeCubeMap(const RAS_MeshSlotNodeTuple& tuple)
+{
+	PrepareRunNode(tuple);
+
+	RAS_DisplayArrayNodeData *displayArrayData = tuple.m_displayArrayData;
+
+	displayArrayData->m_arrayStorage->IndexPrimitivesInstancing(6);
 }
 
 void RAS_MeshSlot::RunNodeNormal(const RAS_MeshSlotNodeTuple& tuple)

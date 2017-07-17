@@ -46,7 +46,8 @@ class RAS_MeshSlot
 private:
 	enum NodeType {
 		NODE_NORMAL = 0,
-		NODE_DERIVED_MESH,
+// 		NODE_DERIVED_MESH,
+		NODE_CUBE_MAP,
 		NODE_TEXT,
 		NODE_TYPE_MAX
 	};
@@ -73,7 +74,8 @@ public:
 
 	void GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs, const RAS_MeshSlotNodeTuple& tuple);
 
-	void RunNodeDerivedMesh(const RAS_MeshSlotNodeTuple& tuple);
+// 	void RunNodeDerivedMesh(const RAS_MeshSlotNodeTuple& tuple);
+	void RunNodeCubeMap(const RAS_MeshSlotNodeTuple& tuple);
 	void RunNodeText(const RAS_MeshSlotNodeTuple& tuple);
 	void RunNodeNormal(const RAS_MeshSlotNodeTuple& tuple);
 };

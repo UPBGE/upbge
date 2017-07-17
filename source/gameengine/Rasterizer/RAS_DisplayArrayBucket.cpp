@@ -65,7 +65,8 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 
 	static const std::vector<RAS_RenderNodeDefine<RAS_DisplayArrayDownwardNode> > downwardNodeDefines = {
 		{NODE_DOWNWARD_NORMAL, RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunDownwardNode), nullptr},
-		{NODE_DOWNWARD_DERIVED_MESH, RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunDownwardNodeDerivedMesh), nullptr},
+// 		{NODE_DOWNWARD_DERIVED_MESH, RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunDownwardNodeDerivedMesh), nullptr},
+		{NODE_DOWNWARD_CUBE_MAP, RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunDownwardNodeCubeMap), nullptr},
 		{NODE_DOWNWARD_INSTANCING, RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunInstancingNode), nullptr},
 		{NODE_DOWNWARD_BATCHING, RAS_NODE_FUNC(RAS_DisplayArrayBucket::RunBatchingNode), nullptr},
 	};
@@ -197,7 +198,7 @@ void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot
 		upwardNode.SetParent(&upwardRoot);
 	}
 	else {
-		downwardRoot.AddChild(&m_downwardNode[(m_displayArray) ? NODE_DOWNWARD_NORMAL : NODE_DOWNWARD_DERIVED_MESH]);
+		downwardRoot.AddChild(&m_downwardNode[(managerData->m_cubeMap) ? NODE_DOWNWARD_CUBE_MAP : NODE_DOWNWARD_NORMAL]);
 	}
 }
 
@@ -225,14 +226,28 @@ void RAS_DisplayArrayBucket::RunDownwardNode(const RAS_DisplayArrayNodeTuple& tu
 	attribStorage->UnbindPrimitives();
 }
 
-void RAS_DisplayArrayBucket::RunDownwardNodeDerivedMesh(const RAS_DisplayArrayNodeTuple& tuple)
+void RAS_DisplayArrayBucket::RunDownwardNodeCubeMap(const RAS_DisplayArrayNodeTuple& tuple)
+{
+	RAS_AttributeArrayStorage *attribStorage = m_nodeData.m_attribStorage;
+	attribStorage->BindPrimitives();
+
+	const RAS_MeshSlotNodeTuple msTuple(tuple, &m_nodeData);
+	for (RAS_MeshSlot *ms : m_activeMeshSlots) {
+		// Reuse the node function without spend time storing RAS_MeshSlot under nodes.
+		ms->RunNodeCubeMap(msTuple);
+	}
+
+	attribStorage->UnbindPrimitives();
+}
+
+/*void RAS_DisplayArrayBucket::RunDownwardNodeDerivedMesh(const RAS_DisplayArrayNodeTuple& tuple)
 {
 	const RAS_MeshSlotNodeTuple msTuple(tuple, &m_nodeData);
 	for (RAS_MeshSlot *ms : m_activeMeshSlots) {
 		// Reuse the node function without spend time storing RAS_MeshSlot under nodes.
 		ms->RunNodeDerivedMesh(msTuple);
 	}
-}
+}*/
 
 void RAS_DisplayArrayBucket::RunDownwardNodeText(const RAS_DisplayArrayNodeTuple& tuple)
 {

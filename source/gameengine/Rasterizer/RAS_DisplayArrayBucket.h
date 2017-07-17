@@ -54,7 +54,8 @@ class RAS_DisplayArrayBucket
 private:
 	enum NodeType {
 		NODE_DOWNWARD_NORMAL = 0,
-		NODE_DOWNWARD_DERIVED_MESH,
+// 		NODE_DOWNWARD_DERIVED_MESH,
+		NODE_DOWNWARD_CUBE_MAP,
 		NODE_DOWNWARD_INSTANCING,
 		NODE_DOWNWARD_BATCHING,
 		NODE_DOWNWARD_TYPE_MAX,
@@ -114,7 +115,8 @@ public:
 	void BindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void UnbindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunDownwardNode(const RAS_DisplayArrayNodeTuple& tuple);
-	void RunDownwardNodeDerivedMesh(const RAS_DisplayArrayNodeTuple& tuple);
+	void RunDownwardNodeCubeMap(const RAS_DisplayArrayNodeTuple& tuple);
+// 	void RunDownwardNodeDerivedMesh(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunDownwardNodeText(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunInstancingNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunBatchingNode(const RAS_DisplayArrayNodeTuple& tuple);
