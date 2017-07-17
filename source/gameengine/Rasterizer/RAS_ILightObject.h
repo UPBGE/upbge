@@ -32,6 +32,7 @@
 #ifndef __RAS_LIGHTOBJECT_H__
 #define __RAS_LIGHTOBJECT_H__
 
+class RAS_Rasterizer;
 class MT_Vector3;
 class MT_Transform;
 class MT_Matrix4x4;
@@ -91,7 +92,7 @@ public:
 	virtual MT_Matrix4x4 GetWinMat() = 0;
 	virtual int GetShadowLayer() = 0;
 	virtual void BindShadowBuffer(const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata) = 0;
-	virtual void UnbindShadowBuffer(EEVEE_SceneLayerData& sldata) = 0;
+	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata) = 0;
 	virtual Image *GetTextureImage(short texslot) = 0;
 	virtual void Update() = 0;
 };

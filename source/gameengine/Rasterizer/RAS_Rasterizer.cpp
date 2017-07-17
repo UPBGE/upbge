@@ -1270,9 +1270,9 @@ void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat
 //	m_lastlighting = false;
 //}
 
-RAS_ILightObject *RAS_Rasterizer::CreateLight()
+RAS_ILightObject *RAS_Rasterizer::CreateLight(EEVEE_SceneLayerData& sldata)
 {
-	return new RAS_OpenGLLight(this);
+	return new RAS_OpenGLLight(sldata);
 }
 
 void RAS_Rasterizer::AddLight(RAS_ILightObject *lightobject)

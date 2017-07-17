@@ -879,7 +879,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
 
 			/* unbind framebuffer object, restore drawmode, free camera */
-			raslight->UnbindShadowBuffer(sldata);
+			raslight->UnbindShadowBuffer(m_rasterizer, sldata);
 			m_rasterizer->SetDrawingMode(drawmode);
 			cam->Release();
 

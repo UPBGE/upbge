@@ -27,22 +27,20 @@
 
 #include "RAS_ILightObject.h"
 
-class RAS_Rasterizer;
 struct GPULamp;
 struct Image;
-
+struct DRWShadingGroup;
 struct EEVEE_Light;
 
 class RAS_OpenGLLight : public RAS_ILightObject
 {
-
-	RAS_Rasterizer *m_rasterizer;
-
 	GPULamp *GetGPULamp();
 
+	DRWShadingGroup *m_shGroup;
+
 public:
-	RAS_OpenGLLight(RAS_Rasterizer *ras);
-	~RAS_OpenGLLight();
+	RAS_OpenGLLight(EEVEE_SceneLayerData& sldata);
+	virtual ~RAS_OpenGLLight();
 
 	bool Update(EEVEE_Light& lightData);
 
@@ -51,16 +49,16 @@ public:
 		return new RAS_OpenGLLight(*this);
 	}
 
-	bool HasShadowBuffer();
-	bool NeedShadowUpdate();
-	int GetShadowBindCode();
-	MT_Matrix4x4 GetViewMat();
-	MT_Matrix4x4 GetWinMat();
-	MT_Matrix4x4 GetShadowMatrix();
-	int GetShadowLayer();
-	void BindShadowBuffer(const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata);
-	void UnbindShadowBuffer(EEVEE_SceneLayerData& sldata);
-	Image *GetTextureImage(short texslot);
-	void Update();
+	virtual bool HasShadowBuffer();
+	virtual bool NeedShadowUpdate();
+	virtual int GetShadowBindCode();
+	virtual MT_Matrix4x4 GetViewMat();
+	virtual MT_Matrix4x4 GetWinMat();
+	virtual MT_Matrix4x4 GetShadowMatrix();
+	virtual int GetShadowLayer();
+	virtual void BindShadowBuffer(const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata);
+	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata);
+	virtual Image *GetTextureImage(short texslot);
+	virtual void Update();
 	void SetShadowUpdateState(short state);
 };

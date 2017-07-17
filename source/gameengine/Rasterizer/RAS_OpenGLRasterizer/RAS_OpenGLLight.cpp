@@ -26,6 +26,7 @@
  */
 
 #include "GPU_glew.h"
+#include "GPU_shader.h"
 
 #include <stdio.h>
 
@@ -54,13 +55,19 @@ extern "C" {
 #  include "DRW_render.h"
 }
 
-RAS_OpenGLLight::RAS_OpenGLLight(RAS_Rasterizer *ras)
-	:m_rasterizer(ras)
+RAS_OpenGLLight::RAS_OpenGLLight(EEVEE_SceneLayerData& sldata)
 {
+	m_shGroup = DRW_shgroup_create(EEVEE_shadow_store_shader_get(), nullptr);
+	DRW_shgroup_uniform_buffer(m_shGroup, "shadowCube", &sldata.shadow_color_cube_target);
+	DRW_shgroup_uniform_block(m_shGroup, "shadow_render_block", sldata.shadow_render_ubo);
 }
 
 RAS_OpenGLLight::~RAS_OpenGLLight()
 {
+	if (m_shGroup) {
+		DRW_shgroup_free(m_shGroup);
+	}
+
 	/*GPULamp *lamp;
 	KX_LightObject *kxlight = (KX_LightObject *)m_light;
 	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
@@ -370,12 +377,14 @@ void RAS_OpenGLLight::BindShadowBuffer(const MT_Vector3& pos, int id, EEVEE_Scen
 	DRW_framebuffer_clear(true, true, false, clear_color, 1.0f);
 }
 
-void RAS_OpenGLLight::UnbindShadowBuffer(EEVEE_SceneLayerData& sldata)
+void RAS_OpenGLLight::UnbindShadowBuffer(RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata)
 {
-	GPULamp *lamp = GetGPULamp();
-// 	GPU_lamp_shadow_buffer_unbind(lamp);
+	DRW_framebuffer_bind(sldata.shadow_cube_fb);
+	DRW_bind_shader_shgroup(m_shGroup);
 
-	m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_NONE);
+	rasty->DrawOverlayPlane();
+
+// 	m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_NONE);
 
 	m_requestShadowUpdate = false;
 }

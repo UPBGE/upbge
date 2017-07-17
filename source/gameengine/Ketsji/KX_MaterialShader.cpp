@@ -21,7 +21,7 @@ bool KX_MaterialShader::IsValid() const
 	return m_shader->Ok();
 }
 
-void KX_MaterialShader::Activate()
+void KX_MaterialShader::Activate(EEVEE_SceneLayerData *sldata)
 {
 	m_shader->SetProg(true);
 	m_shader->ApplyShader();

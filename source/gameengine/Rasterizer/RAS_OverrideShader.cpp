@@ -4,12 +4,11 @@
 #include "BLI_utildefines.h"
 
 RAS_OverrideShader::RAS_OverrideShader(GPUShader *shader)
-	:m_shader(shader),
-	m_posLoc(GPU_shader_get_attribute(m_shader, "pos")),
-	m_mvpLoc(GPU_shader_get_uniform(m_shader, "ModelViewProjectionMatrix"))
-
+	:m_shader(shader)
 {
 	BLI_assert(shader);
+	m_posLoc = GPU_shader_get_attribute(m_shader, "pos");
+	m_mvpLoc = GPU_shader_get_uniform(m_shader, "ModelViewProjectionMatrix");
 }
 
 RAS_OverrideShader::RAS_OverrideShader(GPUBuiltinShader type)
@@ -26,7 +25,7 @@ bool RAS_OverrideShader::IsValid() const
 	return true;
 }
 
-void RAS_OverrideShader::Activate()
+void RAS_OverrideShader::Activate(EEVEE_SceneLayerData *sldata)
 {
 	GPU_shader_bind(m_shader);
 }

@@ -903,7 +903,7 @@ static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene,
 
 static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_Rasterizer *rasterizer, KX_BlenderSceneConverter& converter)
 {
-	RAS_ILightObject *lightobj = rasterizer->CreateLight();
+	RAS_ILightObject *lightobj = rasterizer->CreateLight(kxscene->GetSceneLayerData());
 	KX_LightObject *gamelight;
 	
 	lightobj->m_att1 = la->att1;

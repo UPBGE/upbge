@@ -671,7 +671,7 @@ public:
 	void LoadMatrix(const float mat[16]);
 	void LoadIdentity();
 
-	RAS_ILightObject *CreateLight();
+	RAS_ILightObject *CreateLight(EEVEE_SceneLayerData& sldata);
 	void AddLight(RAS_ILightObject *lightobject);
 	void RemoveLight(RAS_ILightObject *lightobject);
 	void UpdateLights(EEVEE_SceneLayerData &sldata);

@@ -142,7 +142,7 @@ bool BL_BlenderShader::IsValid() const
 	return (m_shGroup != nullptr);
 }
 
-void BL_BlenderShader::Activate()
+void BL_BlenderShader::Activate(EEVEE_SceneLayerData *sldata)
 {
 	DRW_bind_shader_shgroup(m_shGroup);
 }

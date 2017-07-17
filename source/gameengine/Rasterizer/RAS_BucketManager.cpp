@@ -117,7 +117,7 @@ void RAS_BucketManager::SetOverrideShader(RAS_BucketManager::OverrideShaderType 
 	}
 	// Bind current override shader.
 	if (shader) {
-		shader->Activate();
+		shader->Activate(m_nodeData.m_sldata);
 	}
 
 	m_nodeData.m_overrideShader = m_currentOverrideShader = shader;
