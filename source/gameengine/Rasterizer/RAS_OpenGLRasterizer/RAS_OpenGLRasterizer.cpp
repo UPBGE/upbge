@@ -584,19 +584,19 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 	if (support) {
 		CM_Message(" ----------Details----------");
 		int max=0;
-		glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS_ARB, (GLint*)&max);
+		glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, (GLint*)&max);
 		CM_Message("  Max uniform components." << max);
 
-		glGetIntegerv(GL_MAX_VARYING_FLOATS_ARB, (GLint*)&max);
+		glGetIntegerv(GL_MAX_VARYING_FLOATS, (GLint*)&max);
 		CM_Message("  Max varying floats." << max);
 
-		glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS_ARB, (GLint*)&max);
+		glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, (GLint*)&max);
 		CM_Message("  Max vertex texture units." << max);
 
-		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS_ARB, (GLint*)&max);
+		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, (GLint*)&max);
 		CM_Message("  Max vertex attribs." << max);
 
-		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS_ARB, (GLint*)&max);
+		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, (GLint*)&max);
 		CM_Message("  Max combined texture units." << max);
 		CM_Message("");
 	}
@@ -606,7 +606,7 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 	if (support) {
 		CM_Message(" ----------Details----------");
 		int max=0;
-		glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS_ARB, (GLint*)&max);
+		glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, (GLint*)&max);
 		CM_Message("  Max uniform components." << max);
 		CM_Message("");
 	}
@@ -616,7 +616,7 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 	if (support) {
 		CM_Message(" ----------Details----------");
 		int size=0;
-		glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE_ARB, (GLint*)&size);
+		glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, (GLint*)&size);
 		CM_Message("  Max cubemap size." << size);
 		CM_Message("");
 	}
@@ -626,7 +626,7 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 	if (support) {
 		CM_Message(" ----------Details----------");
 		int units=0;
-		glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, (GLint*)&units);
+		glGetIntegerv(GL_MAX_TEXTURE_UNITS, (GLint*)&units);
 		CM_Message("  Max texture units available.  " << units);
 		CM_Message("");
 	}

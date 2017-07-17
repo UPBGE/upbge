@@ -65,7 +65,7 @@ public:
 	static int GetCubeMapTextureType();
 	/// Return GL_TEXTURE_CUBE_MAP.
 	static int GetTexture2DType();
-	/// Return all the OpenGL cube map face target, e.g GL_TEXTURE_CUBE_MAP_POSITIVE_Z_ARB.
+	/// Return all the OpenGL cube map face target, e.g GL_TEXTURE_CUBE_MAP_POSITIVE_Z.
 	static const std::array<int, 6>& GetCubeMapTargets();
 
 	enum {MaxUnits = 8};

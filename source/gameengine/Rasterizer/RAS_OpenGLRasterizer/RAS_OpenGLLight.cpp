@@ -247,8 +247,8 @@ bool RAS_OpenGLLight::Update(EEVEE_Light& lightData)
 	/* Lamp Type */
 	lightData.lamptype = (float)la->type;
 
-	/* No shadow by default */
-	lightData.shadowid = -1.0f;
+// 	/* No shadow by default */
+	lightData.shadowid = 0.0f;
 
 	return true;
 }

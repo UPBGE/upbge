@@ -38,8 +38,8 @@ RAS_StorageVbo::RAS_StorageVbo(RAS_IDisplayArray *array)
 	m_mode = m_data->GetOpenGLPrimitiveType();
 
 	// Generate Buffers
-	glGenBuffersARB(1, &m_ibo);
-	glGenBuffersARB(1, &m_vbo_id);
+	glGenBuffers(1, &m_ibo);
+	glGenBuffers(1, &m_vbo_id);
 
 	// Fill the buffers with initial data
 	AllocData();
@@ -47,45 +47,45 @@ RAS_StorageVbo::RAS_StorageVbo(RAS_IDisplayArray *array)
 
 RAS_StorageVbo::~RAS_StorageVbo()
 {
-	glDeleteBuffersARB(1, &m_ibo);
-	glDeleteBuffersARB(1, &m_vbo_id);
+	glDeleteBuffers(1, &m_ibo);
+	glDeleteBuffers(1, &m_vbo_id);
 }
 
 void RAS_StorageVbo::BindVertexBuffer()
 {
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
+	glBindBuffer(GL_ARRAY_BUFFER, m_vbo_id);
 }
 
 void RAS_StorageVbo::UnbindVertexBuffer()
 {
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void RAS_StorageVbo::BindIndexBuffer()
 {
-	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
 }
 
 void RAS_StorageVbo::UnbindIndexBuffer()
 {
-	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 void RAS_StorageVbo::AllocData()
 {
 	BindVertexBuffer();
-	glBufferDataARB(GL_ARRAY_BUFFER_ARB, m_stride * m_size, m_data->GetVertexPointer(), GL_DYNAMIC_DRAW_ARB);
+	glBufferData(GL_ARRAY_BUFFER, m_stride * m_size, m_data->GetVertexPointer(), GL_DYNAMIC_DRAW);
 	UnbindVertexBuffer();
 
 	BindIndexBuffer();
-	glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_DYNAMIC_DRAW_ARB);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_DYNAMIC_DRAW);
 	UnbindIndexBuffer();
 }
 
 void RAS_StorageVbo::UpdateVertexData()
 {
 	BindVertexBuffer();
-	glBufferSubDataARB(GL_ARRAY_BUFFER_ARB, 0, m_stride * m_size, m_data->GetVertexPointer());
+	glBufferSubData(GL_ARRAY_BUFFER, 0, m_stride * m_size, m_data->GetVertexPointer());
 	UnbindVertexBuffer();
 }
 
@@ -108,7 +108,7 @@ void RAS_StorageVbo::IndexPrimitives()
 
 void RAS_StorageVbo::IndexPrimitivesInstancing(unsigned int numinstance)
 {
-	glDrawElementsInstancedARB(m_mode, m_indices, GL_UNSIGNED_INT, 0, numinstance);
+	glDrawElementsInstanced(m_mode, m_indices, GL_UNSIGNED_INT, 0, numinstance);
 }
 
 void RAS_StorageVbo::IndexPrimitivesBatching(const std::vector<void *>& indices, const std::vector<int>& counts)
