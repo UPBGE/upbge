@@ -49,7 +49,7 @@ void BL_DeformableGameObject::ProcessReplica()
 	KX_GameObject::ProcessReplica();
 
 	if (m_pDeformer)
-		m_pDeformer= (BL_MeshDeformer*)m_pDeformer->GetReplica();
+		m_pDeformer = m_pDeformer->GetReplica();
 }
 
 CValue*		BL_DeformableGameObject::GetReplica()
@@ -102,15 +102,8 @@ bool BL_DeformableGameObject::GetShape(std::vector<float> &shape)
 
 void BL_DeformableGameObject::SetDeformer(class RAS_Deformer* deformer)
 {
+	// Make sure that the object doesn't already have a mesh user.
+	BLI_assert(m_meshUser == nullptr);
 	m_pDeformer = deformer;
-
-	if (m_meshUser) {
-		RAS_MeshSlotList& meshSlots = m_meshUser->GetMeshSlots();
-		for (RAS_MeshSlotList::iterator it = meshSlots.begin(), end = meshSlots.end(); it != end; ++it) {
-			(*it)->SetDeformer(deformer);
-		}
-		RAS_BoundingBox *boundingBox = (m_pDeformer) ? m_pDeformer->GetBoundingBox() : m_meshes[0]->GetBoundingBox();
-		m_meshUser->SetBoundingBox(boundingBox);
-	}
 }
 

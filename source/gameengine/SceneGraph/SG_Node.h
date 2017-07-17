@@ -108,6 +108,13 @@ typedef std::vector<SG_Node *> NodeList;
 class SG_Node : public SG_QList
 {
 public:
+	enum DirtyFlag {
+		DIRTY_NONE = 0,
+		DIRTY_ALL = 0xFF,
+		DIRTY_RENDER = (1 << 0),
+		DIRTY_CULLING = (1 << 1)
+	};
+
 	SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks);
 	SG_Node(const SG_Node & other);
 	virtual ~SG_Node();
@@ -127,7 +134,6 @@ public:
 	 * If the node was not a child of this object no action is performed.
 	 */
 	void RemoveChild(SG_Node *child);
-
 	/**
 	 * Return true if the node is the ancestor of child
 	 */
@@ -284,7 +290,7 @@ public:
 
 	void ClearModified();
 	void SetModified();
-	void ClearDirty();
+	void ClearDirty(DirtyFlag flag);
 
 	/**
 	 * Define the relationship this node has with it's parent
@@ -339,7 +345,7 @@ public:
 	void SetFamilly(const std::shared_ptr<SG_Familly>& familly);
 
 	bool IsModified();
-	bool IsDirty();
+	bool IsDirty(DirtyFlag flag);
 
 protected:
 	friend class SG_Controller;
@@ -394,7 +400,7 @@ private:
 	CM_ThreadMutex m_mutex;
 
 	bool m_modified;
-	bool m_ogldirty; // true if the openGL matrix for this object must be recomputed
+	unsigned short m_dirty;
 };
 
 #endif  // __SG_NODE_H__

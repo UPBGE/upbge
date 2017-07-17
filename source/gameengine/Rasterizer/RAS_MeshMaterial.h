@@ -32,23 +32,40 @@
 #ifndef __RAS_MESH_MATERIAL_H__
 #define __RAS_MESH_MATERIAL_H__
 
-#include <map>
 #include <vector>
 
+class RAS_MeshObject;
 class RAS_MaterialBucket;
-class RAS_MeshSlot;
+class RAS_DisplayArrayBucket;
+class RAS_IDisplayArray;
+struct RAS_TexVertFormat;
 
-// Used by RAS_MeshObject, to point to it's slots in a bucket
+/** \brief Node between material and mesh.
+ * Own the display array and the display array bucket used to draw the part of the mesh
+ * with the bucket material.
+ */
 class RAS_MeshMaterial
 {
-public:
-	RAS_MeshSlot *m_baseslot;
+private:
 	RAS_MaterialBucket *m_bucket;
 	/// The blender material index position in the mesh.
 	unsigned int m_index;
 
-	/// the KX_GameObject is used as a key here
-	std::map<void *, RAS_MeshSlot *> m_slots;
+	RAS_IDisplayArray *m_displayArray;
+	RAS_DisplayArrayBucket *m_displayArrayBucket;
+
+public:
+	RAS_MeshMaterial(RAS_MeshObject *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_TexVertFormat& format);
+	~RAS_MeshMaterial();
+
+	unsigned int GetIndex() const;
+	RAS_MaterialBucket *GetBucket() const;
+	RAS_IDisplayArray *GetDisplayArray() const;
+	RAS_DisplayArrayBucket *GetDisplayArrayBucket() const;
+
+	void ReplaceMaterial(RAS_MaterialBucket *bucket);
 };
+
+using RAS_MeshMaterialList = std::vector<RAS_MeshMaterial *>;
 
 #endif  // __RAS_MESH_MATERIAL_H__

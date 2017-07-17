@@ -2461,7 +2461,7 @@ float test_shadow_pcf(sampler2DShadow shadowmap, vec4 co, float samples, float s
 float test_shadow_vsm(sampler2D shadowmap, vec4 co, float bias, float bleedbias)
 {
 	vec2 moments = texture2DProj(shadowmap, co).rg;
-	float dist = co.z;
+	float dist = co.z / co.w;
 	float p = 0.0;
 
 	if (dist <= moments.x)
@@ -3272,10 +3272,10 @@ vec2 calc_brick_texture(vec3 p, float mortar_size, float mortar_smooth, float bi
 	float tint = clamp((integer_noise((rownum << 16) + (bricknum & 0xFFFF)) + bias), 0.0, 1.0);
 
 	float min_dist = min(min(x, y), min(brick_width - x, row_height - y));
-	if(min_dist >= mortar_size) {
+	if (min_dist >= mortar_size) {
 		return vec2(tint, 0.0);
 	}
-	else if(mortar_smooth == 0.0) {
+	else if (mortar_smooth == 0.0) {
 		return vec2(tint, 1.0);
 	}
 	else {

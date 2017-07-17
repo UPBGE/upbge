@@ -31,6 +31,7 @@
 #include "EXP_Value.h"
 
 class KX_GameObject;
+template <class ItemType>
 class CListValue;
 
 class KX_BatchGroup : public CValue, public RAS_BatchGroup
@@ -38,7 +39,7 @@ class KX_BatchGroup : public CValue, public RAS_BatchGroup
 	Py_Header
 private:
 	/// The objects currently merged in the batch group.
-	CListValue *m_objects;
+	CListValue<KX_GameObject> *m_objects;
 
 public:
 	KX_BatchGroup();
@@ -46,7 +47,7 @@ public:
 
 	virtual std::string GetName();
 
-	CListValue *GetObjects() const;
+	CListValue<KX_GameObject> *GetObjects() const;
 
 	/** Merge a list of objects using their mesh user and transformation.
 	 * \param objects The list of objects to merge.

@@ -53,6 +53,7 @@ public:
 	virtual MT_Vector3 GetWorldPoint(unsigned int index, bool first) const = 0;
 	virtual MT_Vector3 GetNormal(unsigned int index, bool first) const = 0;
 	virtual float GetCombinedFriction(unsigned int index, bool first) const = 0;
+	virtual float GetCombinedRollingFriction(unsigned int index, bool first) const = 0;
 	virtual float GetCombinedRestitution(unsigned int index, bool first) const = 0;
 	virtual float GetAppliedImpulse(unsigned int index, bool first) const = 0;
 };

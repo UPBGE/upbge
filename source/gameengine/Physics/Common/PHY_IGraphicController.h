@@ -48,7 +48,6 @@ public:
 	virtual bool SetGraphicTransform() = 0;
 	virtual void Activate(bool active = true) = 0;
 	virtual void SetLocalAabb(const class MT_Vector3& aabbMin, const class MT_Vector3& aabbMax) = 0;
-	virtual void SetLocalAabb(const float *aabbMin, const float *aabbMax) = 0;
 
 	virtual PHY_IGraphicController *GetReplica(class PHY_IMotionState *motionstate)
 	{

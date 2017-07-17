@@ -30,15 +30,13 @@
 
 #include "intern/builder/deg_builder.h"
 
-// TODO(sergey): Use own wrapper over STD.
-#include <stack>
-
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_ID.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
+#include "BLI_stack.h"
 
 #include "intern/depsgraph.h"
 #include "intern/depsgraph_types.h"
@@ -71,50 +69,52 @@ static bool check_object_needs_evaluation(Object *object)
 
 void deg_graph_build_flush_layers(Depsgraph *graph)
 {
-	std::stack<OperationDepsNode *> stack;
+	BLI_Stack *stack = BLI_stack_new(sizeof(OperationDepsNode*),
+	                                 "DEG flush layers stack");
 	foreach (OperationDepsNode *node, graph->operations) {
 		IDDepsNode *id_node = node->owner->owner;
 		node->done = 0;
 		node->num_links_pending = 0;
 		foreach (DepsRelation *rel, node->outlinks) {
-			if ((rel->from->type == DEPSNODE_TYPE_OPERATION) &&
+			if ((rel->from->type == DEG_NODE_TYPE_OPERATION) &&
 			    (rel->flag & DEPSREL_FLAG_CYCLIC) == 0)
 			{
 				++node->num_links_pending;
 			}
 		}
 		if (node->num_links_pending == 0) {
-			stack.push(node);
+			BLI_stack_push(stack, &node);
 			node->done = 1;
 		}
 		node->owner->layers = id_node->layers;
 		id_node->id->tag |= LIB_TAG_DOIT;
 	}
-	while (!stack.empty()) {
-		OperationDepsNode *node = stack.top();
-		stack.pop();
+	while (!BLI_stack_is_empty(stack)) {
+		OperationDepsNode *node;
+		BLI_stack_pop(stack, &node);
 		/* Flush layers to parents. */
 		foreach (DepsRelation *rel, node->inlinks) {
-			if (rel->from->type == DEPSNODE_TYPE_OPERATION) {
+			if (rel->from->type == DEG_NODE_TYPE_OPERATION) {
 				OperationDepsNode *from = (OperationDepsNode *)rel->from;
 				from->owner->layers |= node->owner->layers;
 			}
 		}
 		/* Schedule parent nodes. */
 		foreach (DepsRelation *rel, node->inlinks) {
-			if (rel->from->type == DEPSNODE_TYPE_OPERATION) {
+			if (rel->from->type == DEG_NODE_TYPE_OPERATION) {
 				OperationDepsNode *from = (OperationDepsNode *)rel->from;
 				if ((rel->flag & DEPSREL_FLAG_CYCLIC) == 0) {
 					BLI_assert(from->num_links_pending > 0);
 					--from->num_links_pending;
 				}
 				if (from->num_links_pending == 0 && from->done == 0) {
-					stack.push(from);
+					BLI_stack_push(stack, &from);
 					from->done = 1;
 				}
 			}
 		}
 	}
+	BLI_stack_free(stack);
 }
 
 void deg_graph_build_finalize(Depsgraph *graph)

@@ -50,29 +50,16 @@ void CcdGraphicController::SetLocalAabb(const btVector3& aabbMin, const btVector
 
 void CcdGraphicController::SetLocalAabb(const MT_Vector3& aabbMin, const MT_Vector3& aabbMax)
 {
-	m_localAabbMin.setValue(aabbMin[0], aabbMin[1], aabbMin[2]);
-	m_localAabbMax.setValue(aabbMax[0], aabbMax[1], aabbMax[2]);
-	SetGraphicTransform();
-}
-
-void CcdGraphicController::SetLocalAabb(const float *aabbMin, const float *aabbMax)
-{
-	m_localAabbMin.setValue(aabbMin[0], aabbMin[1], aabbMin[2]);
-	m_localAabbMax.setValue(aabbMax[0], aabbMax[1], aabbMax[2]);
+	m_localAabbMin = ToBullet(aabbMin);
+	m_localAabbMax = ToBullet(aabbMax);
 	SetGraphicTransform();
 }
 
 void CcdGraphicController::GetAabb(btVector3& aabbMin, btVector3& aabbMax)
 {
-	btVector3 pos;
-	btVector3 scale;
-	float ori[12];
-	m_motionState->GetWorldPosition(pos.m_floats[0], pos.m_floats[1], pos.m_floats[2]);
-	m_motionState->GetWorldScaling(scale.m_floats[0], scale.m_floats[1], scale.m_floats[2]);
-	m_motionState->GetWorldOrientation(ori);
-	btMatrix3x3 rot(ori[0], ori[4], ori[8],
-	                ori[1], ori[5], ori[9],
-	                ori[2], ori[6], ori[10]);
+	const btVector3 pos = ToBullet(m_motionState->GetWorldPosition());
+	const btVector3 scale = ToBullet(m_motionState->GetWorldScaling());
+	const btMatrix3x3 rot = ToBullet(m_motionState->GetWorldOrientation());
 
 	btVector3 localAabbMin = m_localAabbMin;
 	btVector3 localAabbMax = m_localAabbMax;

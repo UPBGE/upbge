@@ -86,8 +86,11 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_rasMode |= (mat->material_type == MA_TYPE_WIRE) ? RAS_WIRE : 0;
 	m_rasMode |= (mat->mode2 & MA_DEPTH_TRANSP) ? RAS_DEPTH_ALPHA : 0;
 
+	if (ELEM(m_alphablend, GEMAT_CLIP, GEMAT_ALPHA_TO_COVERAGE)) {
+		m_rasMode |= RAS_ALPHA_SHADOW;
+	}
 	// always zsort alpha + add
-	if (ELEM(m_alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD) && (m_alphablend != GEMAT_CLIP)) {
+	else if (ELEM(m_alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD)) {
 		m_rasMode |= RAS_ALPHA;
 		m_rasMode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? RAS_ZSORT : 0;
 	}

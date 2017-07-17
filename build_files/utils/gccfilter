@@ -1,0 +1,530 @@
+#!/usr/bin/perl -w
+
+=head1 NAME
+
+gccfilter - A filter for gcc diagnostic messages.
+
+=head1 SYNOPSIS
+
+    gccfilter [ GCCFILTER SPECIFIC OPTIONS ] [ GCC COMMAND ]
+
+=head1 DESCRIPTION
+
+gccfilter is a filter to colorize and simplify (or expand)
+gcc diagnostic messages. gccfilter is particularly aimed at g++
+(i.e. regarding C++) messages which can contain lot of
+template-related errors or warnings difficult to understand.
+
+=head1 USAGE
+
+gccfilter takes as command line arguments, in that order, (1) gccfilter
+specific options (documented in this page), followed by (2) a gcc command
+(usally g++) with all it options and source files.
+
+=head1 EXAMPLE
+
+To compile F<test.cpp>
+
+    gccfilter --colorize --remove-template-args g++ -I./include test.cpp
+
+or, short version
+
+    gccfilter -c -a g++ -I./include test.cpp
+
+To use in a Makefile, one can define the variable CXX as
+
+    CXX="gccfilter -c -a g++"
+
+=head1 OPTIONS
+
+These are gccfilter specific options. These options can be stored in
+a configuration file. See L</FILES>.
+
+=over
+
+=item B<--help>|B<-h>
+
+display a short help message.
+
+=item B<--man>|B<-m>
+
+display the man page.
+
+=item B<--colorize>|B<-c>
+
+colorize output.
+
+=item B<--force-colorize>|B<-f>
+
+colorize output even if output is not a terminal.
+
+=item B<--remove-path>|B<-p>
+
+remove the path before source filenames (the path is replaced by C<...>).
+
+=item B<--remove-template-args>|B<-a>
+
+remove the template arguments between angle brackets.
+
+=item B<--replace-template-args>|B<-r>
+
+replace the template arguments with their values displayed in the with clause.
+
+=item B<--heide_with_clause>|B<-w>
+
+do not display the with clause.
+
+=item B<--hide-custom> I<regex-list>
+
+remove all lines that match any regex in I<regex-list> in the ORIGINAL output.
+Be careful when escaping your regexes.
+
+=item B<--remove-namespaces>|B<-n>
+
+remove the namespaces specified by the B<--namespaces> option.
+If the B<--namespaces> option is not given, removes all namespaces.
+
+=item B<--namespaces>|B<-s> I<namespace-list>
+
+list of namepaces to remove with the B<--remove-namespaces> option.
+
+=item B<--remove-instantiated-from>|B<-i>
+
+remove all the "instantiated from I<some-function>" lines.
+
+=back
+
+=head2 Color options
+
+These options specify the colors for each element of the diagnostic message.
+The color specification I<color-spec> is a string of color attributes as defined
+in L<Term::ANSIColor(3perl)>. To sum up: foreground color attributes are black,
+red, green, yellow, blue, magenta, cyan, and white. Background color attributes
+are on_black, on_red, on_green, on_yellow, on_blue, on_magenta, on_cyan,
+and on_white. Non-color attributes are clear (or reset), bold, dark (or faint),
+underline (or underscore), blink, reverse, and concealed. Case is not significant.
+The options are:
+
+=over
+
+=item B<--color-filename>|B<-cf>      I<color-spec>
+
+=item B<--color-linenum>|B<-cl>       I<color-spec>
+
+=item B<--color-code>|B<-cc>          I<color-spec>
+
+=item B<--color-withclause>|B<-cw>    I<color-spec>
+
+=item B<--color-error-keyw>|B<-cek>   I<color-spec>
+
+=item B<--color-error-mesg>|B<-cem>   I<color-spec>
+
+=item B<--color-warning-keyw>|B<-cwk> I<color-spec>
+
+=item B<--color-warning-mesg>|B<-cwm> I<color-spec>
+
+=item B<--color-note-keyw>|B<-cnk>    I<color-spec>
+
+=item B<--color-note-mesg>|B<-cnm>    I<color-spec>
+
+=back
+
+Where keyw stands for keyword (C<error>, C<warning> or C<note>, depending on the type
+of diagnostic) and mesg stands for message (the body of the diagnostic). Example of a
+(flashy) colors specification:
+
+    colorgcc -c --color-filename 'bold blink green on_red' g++ test.cpp
+
+=head1 FILES
+
+gccfilter uses L<Getopt::ArgvFile(3pm)> to allow the storage of commonly used options
+in configuration files. gccfilter searches for configuration files named F<.gccfilter>
+in the current working directory and then, if unsuccesfull in the home directory. The
+format of the file is simple: it contains the options, as if thy were entered in the
+command line (see L<Getopt::ArgvFile(3pm)>).
+
+=over
+
+=item F<$PWD/.gccfilter>
+
+Per directory configuration file.
+
+=item F<$HOME/.gccfilter>
+
+User's configuration file if the previous file does not exist.
+
+=back
+
+=head1 EXIT STATUS
+
+gccfilter exits with the status of the gcc command issued.
+
+=head1 LIMITATIONS
+
+gcc diagnostic messages are usually subject to localization. gccfilter does not
+handle that and invokes gcc in the "C" locale.
+
+=head1 SEE ALSO
+
+gccfilter depends on the following perl modules: L<Term::ANSIColor(3perl)>,
+L<Getopt::ArgvFile(3pm)>, L<Getopt::Long(3perl)>, L<Regexp::Common(3pm)>.
+
+The idea of gccfilter commes from L<colorgcc(1)>, a tool to colorize gcc output,
+which seens to be unmaintained for years now. Yet the two programs do not share
+a single line of code.
+
+=head1 AUTHOR
+
+Emmanuel Le Trong, L<mailto:manu@mixtion.org>.
+
+=head1 CONTRIBUTORS
+
+Various GitHub users contributed to this project.
+This version of gccfilter was obtained from
+https://github.com/dichlofos/gccfilter
+
+Please do not hestiate to submit pull requests.
+
+=head1 COPYRIGHT
+
+Copyright 2010 by Emmanuel Le Trong.
+
+This is free software; see the source for copying conditions.
+There is NO warranty; not even for MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.
+
+=cut
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+use warnings;
+use strict;
+use feature 'state';
+use File::Basename;
+use IPC::Open3;
+use IO::Select;
+use Symbol;
+
+BEGIN{ push @INC, dirname(__FILE__) };
+
+use Regexp::Common qw/balanced/;
+use Getopt::ArgvFile (home=>1, current=>1);
+use Getopt::Long qw/:config pass_through require_order/;
+use Term::ANSIColor;
+
+my (
+    $opt_remove_template_args,
+    $opt_remove_template_with,
+    $opt_remove_path,
+    $opt_remove_namespace,
+    $opt_colorize,
+    $opt_force_colorize,
+    @opt_namespaces,
+    $opt_expand_templates,
+    $opt_hide_with,
+    $opt_remove_inst,
+    @hide_custom,
+);
+
+my %color = (
+    file         => 'bold black',
+    line         => 'magenta',
+    code         => 'cyan',
+    with         => 'bold cyan',
+    error_keyw   => 'bold red',
+    error_mesg   => 'red',
+    warning_keyw => 'bold yellow',
+    warning_mesg => 'yellow',
+    note_keyw    => 'bold green',
+    note_mesg    => 'green',
+);
+
+GetOptions (
+    "colorize|c!"               => \$opt_colorize,
+    "force-colorize|f!"         => \$opt_force_colorize,
+    "remove-path|p!"            => \$opt_remove_path,
+    "remove-instantiated-from|i!" => \$opt_remove_inst,
+    "remove-template-args|a!"   => \$opt_remove_template_args,
+    "replace-template-args|r!" => \$opt_expand_templates,
+    "hide-with-clause|w!"       => \$opt_hide_with,
+    "remove-namespaces|n!"      => \$opt_remove_namespace,
+    "namespaces|s=s"              => \@opt_namespaces,
+
+    'hide-custom|=s@{1,}'       => \@hide_custom,
+
+    "color-filename|cf=s"       => \$color{file},
+    "color-linenum|cl=s"        => \$color{line},
+    "color-code|cc=s"           => \$color{code},
+    "color-withclause|cw=s"     => \$color{with},
+    "color-error-keyw|cek=s"    => \$color{error_keyw},
+    "color-error-mesg|cem=s"    => \$color{error_mesg},
+    "color-warning-keyw|cwk=s"  => \$color{warning_keyw},
+    "color-warning-mesg|cwm=s"  => \$color{warning_mesg},
+    "color-note-keyw|cnk=s"     => \$color{note_keyw},
+    "color-note-mesg|cnm=s"     => \$color{note_mesg},
+
+    "man|m!"                    => sub {
+        exec "pod2man $0 | man -l -";
+    },
+
+    "help|h!"                   => sub {
+        print "Usage: gccfilter [options] [gcc command]\n".
+            "With options:\n".
+            "  --help                   -h\n".
+            "  --man                    -m (display man page)\n".
+            "  --colorize               -c\n".
+            "  --force-colorize         -f\n".
+            "  --remove-path            -p\n".
+            "  --remove-template-args   -a\n".
+            "  --replace-templates-args -r\n".
+            "  --hide-with-clause       -w\n".
+            "  --remove-namespaces      -n\n".
+            "  --namespaces             -s <name list>\n".
+            "  --hide-custom            <regex list>\n".
+            "  --color-filename         -cf <color-spec>\n".
+            "  --color-linenum          -cl <color-spec>\n".
+            "  --color-code             -cc <color-spec>\n".
+            "  --color-withclause       -cw <color-spec>\n".
+            "  --color-error-keyw       -cek <color-spec>\n".
+            "  --color-error-mesg       -cem <color-spec>\n".
+            "  --color-warning-keyw     -cwk <color-spec>\n".
+            "  --color-warning-mesg     -cwm <color-spec>\n".
+            "  --color-note-keyw        -cnk <color-spec>\n".
+            "  --color-note-mesg        -cnm <color-spec>\n";
+        exit;
+    },
+);
+@opt_namespaces = split(/,/,join(',',@opt_namespaces));
+
+my %data;
+
+my $c_code  = color ($color{code});
+my $c_reset = color ('reset');
+my %c;
+$c{error}   = color ($color{error_mesg});
+$c{warning} = color ($color{warning_mesg});
+$c{note}    = color ($color{note_mesg});
+
+sub col {
+    my $k = shift;
+    return '' unless $data{$k};
+    return colored ($data{$k}, $color{$k});
+}
+sub col_k {
+    my $k = shift;
+    return colored ($k, $color{$k.'_keyw'});
+}
+sub col_m {
+    my $k = shift;
+    return '' unless $data{mesg};
+    return colored ($data{mesg}, $color{$k.'_mesg'});
+}
+
+sub colorize {
+    $data{'file'} = col ('file');
+    $data{'line'} = col ('line');
+
+    if ($_ = $data{keyw}){
+        $data{keyw} = col_k ($_);
+        $data{mesg} = col_m ($_);
+        $data{'mesg'} =~ s/'(.+?)'/'$c_code$1$c_reset$c{$_}'/g;
+    } else {
+        $data{'mesg'} =~ s/'(.+?)'/'$c_code$1$c_reset'/g if $data{mesg};
+    }
+}
+
+sub remove_template_arg {
+    $data{'mesg'} =~ s/$RE{balanced}{-parens=>'<>'}/<>/g;
+    map { s/$RE{balanced}{-parens=>'<>'}/<>/g } values %{$data{'templates'}};
+}
+
+sub remove_custom {
+    foreach my $regex (@hide_custom){
+        if($data{'orig'} =~ m/$regex/){
+            $data{'ordr'} = 0;
+            return;
+        }
+    }
+}
+
+sub remove_namespace {
+    my $re = join ('|', @opt_namespaces);
+    $data{'mesg'} =~ s/(?:$re):://g if $re;
+}
+
+sub remove_path {
+    $data{'file'} =~ s/.+\//...\//g;
+}
+
+# 2009-12-25: remove ellipsis of variadic templ. args. when expanding.
+sub expand_templates {
+    foreach my $t (keys %{$data{'templates'}}) {
+        $data{'mesg'} =~ s/$t/$data{'templates'}->{$t}/g;
+    }
+}
+
+sub build_with {
+    return unless defined $data{'templates'} && %{$data{'templates'}};
+    if ($opt_colorize || $opt_force_colorize){
+        $data{'with'} = " with " . join ('; ',
+            map {
+                colored ($_, $color{with}) . " = " .
+                colored ($data{'templates'}{$_}, $color{'with'})
+            } keys %{$data{'templates'}});
+    } else {
+        $data{'with'} = " with " . join ('; ',
+            map { "$_ = $data{'templates'}{$_}" } keys %{$data{'templates'}});
+    }
+}
+
+sub remove_instantiated {
+    state $on = 0;
+    if ($data{'mesg'} =~ /\s+instantiated from '/){
+        if ($on) {
+            @data{'mesg', 'file', 'line', 'with', 'keyw'} = ('');
+            return;
+        }
+        @data{'file', 'line', 'with', 'keyw', 'mesg'} = ("(instantiation chain skipped)");
+        $on = 1;
+        return;
+    }
+    $on = 0;
+}
+
+# 2009-12-24: value ($v) can be an empty string!
+# 2009-12-24: variadic template arguments : value of the last templ arg
+#             can be a comma-separated list !
+sub parse_with_clause {
+    my $str = shift;
+    my %data;
+    my $last_key = '';
+    while ($str) {
+        # key
+        unless ($str =~ s/([^=]+) = //){
+            $data{$last_key} .= ", $str";
+            last;
+        }
+        (my $k = $1) =~ s/\w+ (\w+)/$1/;
+        $last_key = $k;
+        # value
+        my $v = '';
+        my $prev_str = '';
+        for (;;) {
+            last if $str eq '' || $str =~ /^[,;]/;
+            $str =~ s/[\w\*&:]*(?:$RE{balanced}{-parens=>'<>{}()'})?\s?//;
+            $v .= $&;
+            last if $str eq $prev_str; # str was immune to regexp, bail out
+            $prev_str = $str;
+        }
+        $data{$k} = $v;
+        $str =~ s/(?:[,;] )?//;
+    }
+    \%data;
+}
+
+sub execute_program {
+    my @args = @_;
+    $ENV{'LANG'} = 'C';
+    # http://stackoverflow.com/questions/10029406/why-does-ipcopen3-get-deadlocked
+    my @stdout;
+    my @stderr;
+    my $pid = open3(my $in, my $out, my $err = gensym(), @ARGV);
+    my $sel = new IO::Select;
+    $sel->add($out, $err);
+    while (my @fhs = $sel->can_read) {
+        foreach my $fh (@fhs) {
+            my $line = <$fh>;
+            unless (defined $line) {
+                $sel->remove($fh);
+                next;
+            }
+            if ($fh == $out) {
+                push @stdout, $line;
+            } elsif ($fh == $err) {
+                push @stderr, $line;
+            } else {
+                die "[ERROR]: This should never execute!";
+            }
+        }
+    }
+    waitpid($pid, 0);
+    return (\@stdout, \@stderr, $? >> 8);
+}
+
+if (! -t STDOUT)
+{
+    $opt_colorize = 0;
+}
+
+my ($gcc_stdout_ref, $gcc_stderr_ref, $gcc_exit_code) = execute_program(@ARGV);
+
+# print gcc stdout without any processing
+for (@$gcc_stdout_ref) {
+    print "$_";
+}
+
+# main parser
+for (@$gcc_stderr_ref) {
+    # things like "In file included from ..."
+    if (/^([\w\s]+from) ([^:]+):(\d+)(:|,)$/){
+        %data = (
+            orig => $_,
+            mesg => $1,
+            file => $2,
+            line => $3,
+            eoli => $4,
+            ordr => 2
+        );
+    } elsif (/^([^:]+):(?:((?:\d+:)?\d+): | )(?:(error|warning|note): )?(.+)$/) {
+        %data = (
+            orig => $_,
+            ordr => 1,
+            file => $1,
+        );
+        $data{'line'} = $2 if defined $2;
+        $data{'keyw'} = $3 if defined $3;
+        my $rest = $4;
+        if ($rest =~ s/ \[with (.+?)\]//) {
+            my $with = $1;
+            $data{'templates'} = parse_with_clause ($with);
+        }
+        $data{'mesg'} = $rest;
+    } else {
+        print STDERR "$_";
+        next;
+    }
+
+    remove_custom ()          if @hide_custom;
+    expand_templates ()       if $opt_expand_templates;
+    remove_template_arg ()    if $opt_remove_template_args;
+    remove_namespace ()       if $opt_remove_namespace;
+    remove_path ()            if $opt_remove_path;
+    build_with ()             unless $opt_hide_with;
+    remove_instantiated ()    if $opt_remove_inst;
+    colorize ()               if $opt_colorize || $opt_force_colorize;
+
+    my $str;
+    if ($data{'ordr'} == 1) {
+        $str = "$data{'file'}:"   if $data{file};
+        $str .= "$data{'line'}: " if $data{line};
+        $str .= "$data{'keyw'}: " if $data{keyw};
+        $str .= "$data{'mesg'}"   if $data{mesg};
+        $str .= "$data{'with'}"   if $data{with};
+    } elsif ($data{'ordr'} == 2) {
+        $str = "$data{'mesg'} $data{'file'}:$data{line}$data{'eoli'}";
+    }
+    print STDERR "$str\n" if $str;
+}
+exit($gcc_exit_code);
+

@@ -169,7 +169,7 @@ Functions
 
 .. function:: makeScreenshot(filename)
 
-   Writes an image file with the current displayed frame.
+   Writes an image file with the displayed image at the frame end.
 
    The image is written to *'filename'*.
    The path may be absolute (eg. ``/home/foo/image``) or relative when started with

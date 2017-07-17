@@ -58,6 +58,12 @@ base class --- :class:`CValue`
 
       :type: float
 
+   .. attribute:: combinedRollingFriction
+
+      The combined rolling friction of the owner and collider object.
+
+      :type: float
+
    .. attribute:: combinedRestitution
 
       The combined restitution of the owner and collider object.

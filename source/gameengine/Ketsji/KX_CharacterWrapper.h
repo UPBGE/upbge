@@ -23,14 +23,20 @@ public:
 	virtual std::string GetName();
 #ifdef WITH_PYTHON
 	KX_PYMETHOD_DOC_NOARGS(KX_CharacterWrapper, jump);
+	KX_PYMETHOD_DOC(KX_CharacterWrapper, setVelocity);
+	KX_PYMETHOD_DOC_NOARGS(KX_CharacterWrapper, reset);
 
 	static PyObject* pyattr_get_onground(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	
 	static PyObject*	pyattr_get_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_fallSpeed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_fallSpeed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_max_jumps(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_max_jumps(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_jump_count(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_jumpSpeed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_jumpSpeed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_walk_dir(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_walk_dir(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif // WITH_PYTHON

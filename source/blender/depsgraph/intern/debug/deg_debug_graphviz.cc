@@ -35,10 +35,10 @@
 
 extern "C" {
 #include "DNA_listBase.h"
+}  /* extern "C" */
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_debug.h"
-}  /* extern "C" */
 
 #include "intern/depsgraph_intern.h"
 #include "util/deg_util_foreach.h"
@@ -77,20 +77,19 @@ static const char *deg_debug_colors_light[] = {
 
 #ifdef COLOR_SCHEME_NODE_TYPE
 static const int deg_debug_node_type_color_map[][2] = {
-    {DEPSNODE_TYPE_ROOT,         0},
-    {DEPSNODE_TYPE_TIMESOURCE,   1},
-    {DEPSNODE_TYPE_ID_REF,       2},
-    {DEPSNODE_TYPE_SUBGRAPH,     3},
+    {DEG_NODE_TYPE_ROOT,         0},
+    {DEG_NODE_TYPE_TIMESOURCE,   1},
+    {DEG_NODE_TYPE_ID_REF,       2},
 
     /* Outer Types */
-    {DEPSNODE_TYPE_PARAMETERS,   4},
-    {DEPSNODE_TYPE_PROXY,        5},
-    {DEPSNODE_TYPE_ANIMATION,    6},
-    {DEPSNODE_TYPE_TRANSFORM,    7},
-    {DEPSNODE_TYPE_GEOMETRY,     8},
-    {DEPSNODE_TYPE_SEQUENCER,    9},
-    {DEPSNODE_TYPE_SHADING,      10},
-    {DEPSNODE_TYPE_CACHE,        11},
+    {DEG_NODE_TYPE_PARAMETERS,   3},
+    {DEG_NODE_TYPE_PROXY,        4},
+    {DEG_NODE_TYPE_ANIMATION,    5},
+    {DEG_NODE_TYPE_TRANSFORM,    6},
+    {DEG_NODE_TYPE_GEOMETRY,     7},
+    {DEG_NODE_TYPE_SEQUENCER,    8},
+    {DEG_NODE_TYPE_SHADING,      9},
+    {DEG_NODE_TYPE_CACHE,        10},
     {-1,                         0}
 };
 #endif
@@ -100,9 +99,9 @@ static int deg_debug_node_color_index(const DepsNode *node)
 #ifdef COLOR_SCHEME_NODE_CLASS
 	/* Some special types. */
 	switch (node->type) {
-		case DEPSNODE_TYPE_ID_REF:
+		case DEG_NODE_TYPE_ID_REF:
 			return 5;
-		case DEPSNODE_TYPE_OPERATION:
+		case DEG_NODE_TYPE_OPERATION:
 		{
 			OperationDepsNode *op_node = (OperationDepsNode *)node;
 			if (op_node->is_noop())
@@ -115,9 +114,9 @@ static int deg_debug_node_color_index(const DepsNode *node)
 	}
 	/* Do others based on class. */
 	switch (node->tclass) {
-		case DEPSNODE_CLASS_OPERATION:
+		case DEG_NODE_CLASS_OPERATION:
 			return 4;
-		case DEPSNODE_CLASS_COMPONENT:
+		case DEG_NODE_CLASS_COMPONENT:
 			return 1;
 		default:
 			return 9;
@@ -201,7 +200,7 @@ static void deg_debug_graphviz_node_color(const DebugContext &ctx,
 	const char *color_update = "dodgerblue3";
 	const char *color = color_default;
 	if (ctx.show_tags) {
-		if (node->tclass == DEPSNODE_CLASS_OPERATION) {
+		if (node->tclass == DEG_NODE_CLASS_OPERATION) {
 			OperationDepsNode *op_node = (OperationDepsNode *)node;
 			if (op_node->flag & DEPSOP_FLAG_DIRECTLY_MODIFIED) {
 				color = color_modified;
@@ -222,7 +221,7 @@ static void deg_debug_graphviz_node_penwidth(const DebugContext &ctx,
 	float penwidth_update = 4.0f;
 	float penwidth = penwidth_default;
 	if (ctx.show_tags) {
-		if (node->tclass == DEPSNODE_CLASS_OPERATION) {
+		if (node->tclass == DEG_NODE_CLASS_OPERATION) {
 			OperationDepsNode *op_node = (OperationDepsNode *)node;
 			if (op_node->flag & DEPSOP_FLAG_DIRECTLY_MODIFIED) {
 				penwidth = penwidth_modified;
@@ -260,7 +259,7 @@ static void deg_debug_graphviz_node_style(const DebugContext &ctx, const DepsNod
 {
 	const char *base_style = "filled"; /* default style */
 	if (ctx.show_tags) {
-		if (node->tclass == DEPSNODE_CLASS_OPERATION) {
+		if (node->tclass == DEG_NODE_CLASS_OPERATION) {
 			OperationDepsNode *op_node = (OperationDepsNode *)node;
 			if (op_node->flag & (DEPSOP_FLAG_DIRECTLY_MODIFIED | DEPSOP_FLAG_NEEDS_UPDATE)) {
 				base_style = "striped";
@@ -268,13 +267,13 @@ static void deg_debug_graphviz_node_style(const DebugContext &ctx, const DepsNod
 		}
 	}
 	switch (node->tclass) {
-		case DEPSNODE_CLASS_GENERIC:
+		case DEG_NODE_CLASS_GENERIC:
 			deg_debug_fprintf(ctx, "\"%s\"", base_style);
 			break;
-		case DEPSNODE_CLASS_COMPONENT:
+		case DEG_NODE_CLASS_COMPONENT:
 			deg_debug_fprintf(ctx, "\"%s\"", base_style);
 			break;
-		case DEPSNODE_CLASS_OPERATION:
+		case DEG_NODE_CLASS_OPERATION:
 			deg_debug_fprintf(ctx, "\"%s,rounded\"", base_style);
 			break;
 	}
@@ -286,13 +285,13 @@ static void deg_debug_graphviz_node_single(const DebugContext &ctx,
 	const char *shape = "box";
 	string name = node->identifier();
 	float priority = -1.0f;
-	if (node->type == DEPSNODE_TYPE_ID_REF) {
+	if (node->type == DEG_NODE_TYPE_ID_REF) {
 		IDDepsNode *id_node = (IDDepsNode *)node;
 		char buf[256];
 		BLI_snprintf(buf, sizeof(buf), " (Layers: %u)", id_node->layers);
 		name += buf;
 	}
-	if (ctx.show_eval_priority && node->tclass == DEPSNODE_CLASS_OPERATION) {
+	if (ctx.show_eval_priority && node->tclass == DEG_NODE_CLASS_OPERATION) {
 		priority = ((OperationDepsNode *)node)->eval_priority;
 	}
 	deg_debug_fprintf(ctx, "// %s\n", name.c_str());
@@ -322,7 +321,7 @@ static void deg_debug_graphviz_node_cluster_begin(const DebugContext &ctx,
                                                   const DepsNode *node)
 {
 	string name = node->identifier();
-	if (node->type == DEPSNODE_TYPE_ID_REF) {
+	if (node->type == DEG_NODE_TYPE_ID_REF) {
 		IDDepsNode *id_node = (IDDepsNode *)node;
 		char buf[256];
 		BLI_snprintf(buf, sizeof(buf), " (Layers: %u)", id_node->layers);
@@ -363,7 +362,7 @@ static void deg_debug_graphviz_node(const DebugContext &ctx,
                                     const DepsNode *node)
 {
 	switch (node->type) {
-		case DEPSNODE_TYPE_ID_REF:
+		case DEG_NODE_TYPE_ID_REF:
 		{
 			const IDDepsNode *id_node = (const IDDepsNode *)node;
 			if (BLI_ghash_size(id_node->components) == 0) {
@@ -380,30 +379,17 @@ static void deg_debug_graphviz_node(const DebugContext &ctx,
 			}
 			break;
 		}
-		case DEPSNODE_TYPE_SUBGRAPH:
-		{
-			SubgraphDepsNode *sub_node = (SubgraphDepsNode *)node;
-			if (sub_node->graph) {
-				deg_debug_graphviz_node_cluster_begin(ctx, node);
-				deg_debug_graphviz_graph_nodes(ctx, sub_node->graph);
-				deg_debug_graphviz_node_cluster_end(ctx);
-			}
-			else {
-				deg_debug_graphviz_node_single(ctx, node);
-			}
-			break;
-		}
-		case DEPSNODE_TYPE_PARAMETERS:
-		case DEPSNODE_TYPE_ANIMATION:
-		case DEPSNODE_TYPE_TRANSFORM:
-		case DEPSNODE_TYPE_PROXY:
-		case DEPSNODE_TYPE_GEOMETRY:
-		case DEPSNODE_TYPE_SEQUENCER:
-		case DEPSNODE_TYPE_EVAL_POSE:
-		case DEPSNODE_TYPE_BONE:
-		case DEPSNODE_TYPE_SHADING:
-		case DEPSNODE_TYPE_CACHE:
-		case DEPSNODE_TYPE_EVAL_PARTICLES:
+		case DEG_NODE_TYPE_PARAMETERS:
+		case DEG_NODE_TYPE_ANIMATION:
+		case DEG_NODE_TYPE_TRANSFORM:
+		case DEG_NODE_TYPE_PROXY:
+		case DEG_NODE_TYPE_GEOMETRY:
+		case DEG_NODE_TYPE_SEQUENCER:
+		case DEG_NODE_TYPE_EVAL_POSE:
+		case DEG_NODE_TYPE_BONE:
+		case DEG_NODE_TYPE_SHADING:
+		case DEG_NODE_TYPE_CACHE:
+		case DEG_NODE_TYPE_EVAL_PARTICLES:
 		{
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
 			if (!comp_node->operations.empty()) {
@@ -427,24 +413,19 @@ static void deg_debug_graphviz_node(const DebugContext &ctx,
 static bool deg_debug_graphviz_is_cluster(const DepsNode *node)
 {
 	switch (node->type) {
-		case DEPSNODE_TYPE_ID_REF:
+		case DEG_NODE_TYPE_ID_REF:
 		{
 			const IDDepsNode *id_node = (const IDDepsNode *)node;
 			return BLI_ghash_size(id_node->components) > 0;
 		}
-		case DEPSNODE_TYPE_SUBGRAPH:
-		{
-			SubgraphDepsNode *sub_node = (SubgraphDepsNode *)node;
-			return sub_node->graph != NULL;
-		}
-		case DEPSNODE_TYPE_PARAMETERS:
-		case DEPSNODE_TYPE_ANIMATION:
-		case DEPSNODE_TYPE_TRANSFORM:
-		case DEPSNODE_TYPE_PROXY:
-		case DEPSNODE_TYPE_GEOMETRY:
-		case DEPSNODE_TYPE_SEQUENCER:
-		case DEPSNODE_TYPE_EVAL_POSE:
-		case DEPSNODE_TYPE_BONE:
+		case DEG_NODE_TYPE_PARAMETERS:
+		case DEG_NODE_TYPE_ANIMATION:
+		case DEG_NODE_TYPE_TRANSFORM:
+		case DEG_NODE_TYPE_PROXY:
+		case DEG_NODE_TYPE_GEOMETRY:
+		case DEG_NODE_TYPE_SEQUENCER:
+		case DEG_NODE_TYPE_EVAL_POSE:
+		case DEG_NODE_TYPE_BONE:
 		{
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
 			return !comp_node->operations.empty();
@@ -458,14 +439,14 @@ static bool deg_debug_graphviz_is_owner(const DepsNode *node,
                                         const DepsNode *other)
 {
 	switch (node->tclass) {
-		case DEPSNODE_CLASS_COMPONENT:
+		case DEG_NODE_CLASS_COMPONENT:
 		{
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
 			if (comp_node->owner == other)
 				return true;
 			break;
 		}
-		case DEPSNODE_CLASS_OPERATION:
+		case DEG_NODE_CLASS_OPERATION:
 		{
 			OperationDepsNode *op_node = (OperationDepsNode *)node;
 			if (op_node->owner == other)
@@ -525,7 +506,7 @@ static void deg_debug_graphviz_graph_nodes(const DebugContext &ctx,
 		deg_debug_graphviz_node(ctx, node);
 	}
 	GHASH_FOREACH_END();
-	TimeSourceDepsNode *time_source = graph->find_time_source(NULL);
+	TimeSourceDepsNode *time_source = graph->find_time_source();
 	if (time_source != NULL) {
 		deg_debug_graphviz_node(ctx, time_source);
 	}
@@ -546,7 +527,7 @@ static void deg_debug_graphviz_graph_relations(const DebugContext &ctx,
 	}
 	GHASH_FOREACH_END();
 
-	TimeSourceDepsNode *time_source = graph->find_time_source(NULL);
+	TimeSourceDepsNode *time_source = graph->find_time_source();
 	if (time_source != NULL) {
 		deg_debug_graphviz_node_relations(ctx, time_source);
 	}

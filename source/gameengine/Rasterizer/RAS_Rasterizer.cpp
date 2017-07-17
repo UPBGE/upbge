@@ -274,7 +274,7 @@ void RAS_Rasterizer::EnableFog(bool enable)
 
 void RAS_Rasterizer::DisplayFog()
 {
-	if ((m_drawingmode >= RAS_SOLID) && m_fogenabled) {
+	if (m_fogenabled) {
 		Enable(RAS_FOG);
 	}
 	else {
@@ -328,7 +328,7 @@ void RAS_Rasterizer::BeginFrame(double time)
 	m_time = time;
 
 	// Blender camera routine destroys the settings
-	if (m_drawingmode < RAS_SOLID) {
+	if (m_drawingmode < RAS_TEXTURED) {
 		Disable(RAS_CULL_FACE);
 		Disable(RAS_DEPTH_TEST);
 	}
@@ -711,10 +711,6 @@ RAS_ISync *RAS_Rasterizer::CreateSync(int type)
 	}
 	return sync;
 }
-void RAS_Rasterizer::SwapBuffers(RAS_ICanvas *canvas)
-{
-	canvas->SwapBuffers();
-}
 
 const MT_Matrix4x4& RAS_Rasterizer::GetViewMatrix() const
 {
@@ -815,15 +811,6 @@ void RAS_Rasterizer::IndexPrimitivesBatching(RAS_IStorageInfo *storageInfo, cons
 void RAS_Rasterizer::IndexPrimitivesDerivedMesh(RAS_MeshSlot *ms)
 {
 	m_impl->DrawDerivedMesh(ms, m_drawingmode);
-}
-
-void RAS_Rasterizer::SetProjectionMatrix(MT_CmMatrix4x4 &mat)
-{
-	SetMatrixMode(RAS_PROJECTION);
-	float *matrix = &mat(0, 0);
-	LoadMatrix(matrix);
-
-	m_camortho = (mat(3, 3) != 0.0f);
 }
 
 void RAS_Rasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)

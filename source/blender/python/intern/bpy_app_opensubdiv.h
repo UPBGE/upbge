@@ -15,27 +15,18 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2014 Blender Foundation.
- * All rights reserved.
- *
- * Original Author: Brecht van Lommel
- * Contributor(s): Lukas Toenne
+ * Contributor(s): Sergey Sharybin
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/util/deg_util_hash.h
- *  \ingroup depsgraph
+/** \file blender/python/intern/bpy_app_opensubdiv.h
+ *  \ingroup pythonintern
  */
 
-#pragma once
+#ifndef __BPY_APP_OPENSUBDIV_H__
+#define __BPY_APP_OPENSUBDIV_H__
 
-#include "BLI_utildefines.h"
+PyObject *BPY_app_opensubdiv_struct(void);
 
-#include "BLI_ghash.h"
-
-/* XXX this might require 2 different variants for sizeof(size_t) (32 vs 64 bit) */
-BLI_INLINE size_t hash_combine(size_t hash_a, size_t hash_b)
-{
-	return hash_a ^ (hash_b + 0x9e3779b9 + (hash_a << 6) + (hash_a >> 2));
-}
+#endif  /* __BPY_APP_OPENSUBDIV_H__ */

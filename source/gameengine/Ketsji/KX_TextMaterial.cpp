@@ -28,13 +28,6 @@
 
 #include "DNA_material_types.h"
 
-static KX_TextMaterial textMaterial = KX_TextMaterial();
-
-KX_TextMaterial *GetTextMaterial()
-{
-	return &textMaterial;
-}
-
 KX_TextMaterial::KX_TextMaterial()
 	:RAS_IPolyMaterial("__TextMaterial__", nullptr)
 {

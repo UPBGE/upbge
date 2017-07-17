@@ -116,6 +116,10 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, sampler
 	if (!PyArg_ParseTuple(args, "ii|s:setTexture", &index, &bindCode, &samplerName)) {
 		return nullptr;
 	}
+	if (!m_shader) {
+		PyErr_SetString(PyExc_ValueError, "setTexture(index, bindCode, samplerName): KX_2DFilter, No valid shader found");
+		return nullptr;
+	}
 	if (index < 0 || index >= RAS_Texture::MaxUnits) {
 		PyErr_SetString(PyExc_ValueError, "setTexture(index, bindCode, samplerName): KX_2DFilter, index out of range [0, 7]");
 		return nullptr;

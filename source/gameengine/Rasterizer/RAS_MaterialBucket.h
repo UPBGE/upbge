@@ -68,18 +68,7 @@ public:
 	void BindNode(const RAS_MaterialNodeTuple& tuple);
 	void UnbindNode(const RAS_MaterialNodeTuple& tuple);
 
-	// Mesh Slot Access
-	RAS_MeshSlotList::iterator msBegin();
-	RAS_MeshSlotList::iterator msEnd();
-
-	RAS_MeshSlot *NewMesh(RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format);
-	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
-	void AddMesh(RAS_MeshSlot *ms);
-	void RemoveMesh(RAS_MeshSlot *ms);
-	/// Remove all mesh slot using the given mesh object.
-	void RemoveMeshObject(RAS_MeshObject *mesh);
 	void RemoveActiveMeshSlots();
-	unsigned int GetNumActiveMeshSlots();
 
 	void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 	void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
@@ -89,7 +78,6 @@ public:
 	void MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket);
 
 private:
-	RAS_MeshSlotList m_meshSlots; // all the mesh slots
 	RAS_IPolyMaterial *m_material;
 	RAS_DisplayArrayBucketList m_displayArrayBucketList;
 

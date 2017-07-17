@@ -46,7 +46,7 @@ private:
 	MT_Vector3 m_spacing;
 
 public:
-	RAS_TextUser(void *clientobj);
+	RAS_TextUser(void *clientobj, RAS_BoundingBox *boundingBox);
 	virtual ~RAS_TextUser();
 
 	int GetFontId() const;

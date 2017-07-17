@@ -189,7 +189,7 @@ bool BL_Action::Play(const std::string& name,
 		RAS_MeshObject *mesh = m_obj->GetMesh(i);
 		for (unsigned short j = 0, matcount = mesh->NumMaterials(); j < matcount; ++j) {
 			RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(j);
-			RAS_IPolyMaterial *polymat = meshmat->m_bucket->GetPolyMaterial();
+			RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
 
 			sg_contr = BL_CreateMaterialIpo(m_action, polymat, m_obj, kxscene);
 			if (sg_contr) {

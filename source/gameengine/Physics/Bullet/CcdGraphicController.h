@@ -42,7 +42,6 @@ public:
 
 	void SetLocalAabb(const btVector3& aabbMin, const btVector3& aabbMax);
 	virtual void SetLocalAabb(const MT_Vector3& aabbMin, const MT_Vector3& aabbMax);
-	virtual void SetLocalAabb(const float aabbMin[3], const float aabbMax[3]);
 
 	PHY_IMotionState *GetMotionState()
 	{
