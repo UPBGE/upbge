@@ -171,25 +171,30 @@ void RAS_DisplayArrayBucket::ConstructAttribs()
 }
 
 void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
-										  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing, bool text)
+										  RAS_UpwardTreeLeafs& upwardLeafs, const RAS_DisplayArrayNodeTuple& tuple)
 {
 	if (m_activeMeshSlots.size() == 0) {
 		return;
 	}
 
-	// Update deformer and render settings.
-	UpdateActiveMeshSlots(rasty);
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
 
-	if (instancing) {
+	// Update deformer and render settings.
+	UpdateActiveMeshSlots(managerData->m_rasty);
+
+	/*if (instancing) {
 		downwardRoot.AddChild(&m_downwardNode[NODE_DOWNWARD_INSTANCING]);
-	}
-	else if (UseBatching()) {
+	}*/
+
+	if (UseBatching()) {
 		downwardRoot.AddChild(&m_downwardNode[NODE_DOWNWARD_BATCHING]);
 	}
-	else if (sort) {
+	else if (managerData->m_sort) {
 		RAS_DisplayArrayUpwardNode& upwardNode = m_upwardNode[(m_displayArray) ? NODE_UPWARD_NORMAL : NODE_UPWARD_NO_ARRAY];
+
+		const RAS_MeshSlotNodeTuple msTuple(tuple, &m_nodeData);
 		for (RAS_MeshSlot *slot : m_activeMeshSlots) {
-			slot->GenerateTree(upwardNode, upwardLeafs, text);
+			slot->GenerateTree(upwardNode, upwardLeafs, msTuple);
 		}
 
 		upwardNode.SetParent(&upwardRoot);

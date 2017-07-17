@@ -116,7 +116,7 @@ public:
 	void ConstructAttribs();
 
 	void GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
-					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing, bool text);
+					  RAS_UpwardTreeLeafs& upwardLeafs, const RAS_DisplayArrayNodeTuple& tuple);
 	void BindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void UnbindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
 	void RunDownwardNode(const RAS_DisplayArrayNodeTuple& tuple);

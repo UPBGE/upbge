@@ -65,8 +65,7 @@ public:
 
 	// Render nodes.
 	void GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort,
-					  RAS_OverrideShader *overrideShader);
+					  RAS_UpwardTreeLeafs& upwardLeafs, const RAS_MaterialNodeTuple& tuple);
 	void BindNode(const RAS_MaterialNodeTuple& tuple);
 	void UnbindNode(const RAS_MaterialNodeTuple& tuple);
 

@@ -48,6 +48,8 @@
 #include <algorithm>
 /* sorting */
 
+static const RAS_DummyNodeTuple dummyNodeTuple;
+
 RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlot *ms, const MT_Vector3& pnorm)
 	:m_ms(ms)
 {
@@ -80,9 +82,9 @@ bool RAS_BucketManager::fronttoback::operator()(const SortedMeshSlot &a, const S
 }
 
 RAS_BucketManager::RAS_BucketManager(RAS_IPolyMaterial *textMaterial)
-	:m_downwardNode(this, &m_nodeData, nullptr, nullptr),
-	m_upwardNode(this, &m_nodeData, nullptr, nullptr),
-	m_currentOverrideShader(nullptr)
+	:m_currentOverrideShader(nullptr),
+	m_downwardNode(this, &m_nodeData, nullptr, nullptr),
+	m_upwardNode(this, &m_nodeData, nullptr, nullptr)
 {
 	m_text.m_material = textMaterial;
 	bool created;
@@ -123,16 +125,16 @@ void RAS_BucketManager::SetOverrideShader(RAS_BucketManager::OverrideShaderType 
 
 void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
 {
-	BucketList& solidBuckets = m_buckets[bucketType];
-	RAS_UpwardTreeLeafs leafs;
-
 	m_nodeData.m_sort = true;
-	for (RAS_MaterialBucket *bucket : solidBuckets) {
-		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, rasty, m_nodeData.m_sort, m_nodeData.m_overrideShader);
+
+	RAS_UpwardTreeLeafs leafs;
+	const RAS_MaterialNodeTuple matTuple(dummyNodeTuple, &m_nodeData);
+	for (RAS_MaterialBucket *bucket : m_buckets[bucketType]) {
+		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, matTuple);
 	}
 
 	if (m_downwardNode.GetValid()) {
-		m_downwardNode.Execute(RAS_DummyNodeTuple());
+		m_downwardNode.Execute(dummyNodeTuple);
 	}
 	if (leafs.size() > 0) {
 		/* Camera's near plane equation: pnorm.dot(point) + pval,
@@ -155,16 +157,16 @@ void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketMan
 
 void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
 {
-	BucketList& solidBuckets = m_buckets[bucketType];
-	RAS_UpwardTreeLeafs leafs;
-
 	m_nodeData.m_sort = false;
-	for (RAS_MaterialBucket *bucket : solidBuckets) {
-		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, rasty, m_nodeData.m_sort, m_nodeData.m_overrideShader);
+
+	RAS_UpwardTreeLeafs leafs;
+	const RAS_MaterialNodeTuple matTuple(dummyNodeTuple, &m_nodeData);
+	for (RAS_MaterialBucket *bucket : m_buckets[bucketType]) {
+		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, matTuple);
 	}
 
 	if (m_downwardNode.GetValid()) {
-		m_downwardNode.Execute(RAS_DummyNodeTuple());
+		m_downwardNode.Execute(dummyNodeTuple);
 	}
 }
 

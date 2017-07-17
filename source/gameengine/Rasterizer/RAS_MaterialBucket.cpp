@@ -131,31 +131,28 @@ void RAS_MaterialBucket::RemoveActiveMeshSlots()
 }
 
 void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-									  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort,
-									  RAS_OverrideShader *overrideShader)
+									  RAS_UpwardTreeLeafs& upwardLeafs, const RAS_MaterialNodeTuple& tuple)
 {
 	if (m_displayArrayBucketList.size() == 0) {
 		return;
 	}
 
-	const bool instancing = UseInstancing();
-	const bool text = m_material->IsText();
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	RAS_OverrideShader *overrideShader = managerData->m_overrideShader;
 
 	m_nodeData.m_shader = overrideShader ? overrideShader : m_shader;
 	RAS_MaterialDownwardNode& downwardNode = m_downwardNode[overrideShader ? NODE_DOWNWARD_OVERRIDE : NODE_DOWNWARD_NORMAL];
 
+	const RAS_DisplayArrayNodeTuple arrayTuple(tuple, &m_nodeData);
 	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
-		displayArrayBucket->GenerateTree(downwardNode, m_upwardNode[NODE_UPWARD_NORMAL], upwardLeafs, rasty, sort, instancing, text);
+		displayArrayBucket->GenerateTree(downwardNode, m_upwardNode[NODE_UPWARD_NORMAL], upwardLeafs, arrayTuple);
 	}
 
 	downwardRoot.AddChild(&downwardNode);
 
-	if (sort) {
+	if (managerData->m_sort) {
 		m_upwardNode[NODE_UPWARD_NORMAL].SetParent(&upwardRoot);
 	}
-
-	// Use lighting flag changes when user specified a valid custom shader.
-	m_nodeData.m_useLighting = m_material->UsesLighting();
 }
 
 void RAS_MaterialBucket::BindNode(const RAS_MaterialNodeTuple& tuple)

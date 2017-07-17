@@ -71,7 +71,7 @@ public:
 
 	void SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket);
 
-	void GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs, bool text);
+	void GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs, const RAS_MeshSlotNodeTuple& tuple);
 
 	void RunNodeDerivedMesh(const RAS_MeshSlotNodeTuple& tuple);
 	void RunNodeText(const RAS_MeshSlotNodeTuple& tuple);

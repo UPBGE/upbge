@@ -86,10 +86,12 @@ void RAS_MeshSlot::SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket)
 	m_displayArrayBucket = arrayBucket;
 }
 
-void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs, bool text)
+void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs, const RAS_MeshSlotNodeTuple& tuple)
 {
+	RAS_MaterialNodeData *materialData = tuple.m_materialData;
+
 	NodeType type = NODE_NORMAL;
-	if (text) {
+	if (materialData->m_text) {
 		type = NODE_TEXT;
 	}
 	else if (m_pDerivedMesh) {
