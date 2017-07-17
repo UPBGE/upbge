@@ -391,6 +391,7 @@ void RAS_OpenGLRasterizer::SetLines(bool enable)
 {
 	if (enable) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glLineWidth(1.0f);
 	}
 	else {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

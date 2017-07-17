@@ -390,7 +390,7 @@ RAS_DisplayArrayBucket *RAS_BucketManager::GetTextDisplayArrayBucket() const
 	return m_text.m_arrayBucket;
 }
 
-void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat, bool attrib)
+void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat)
 {
 	BucketList& buckets = m_buckets[ALL_BUCKET];
 	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
@@ -398,7 +398,7 @@ void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat, bool attrib)
 		if (bucket->GetPolyMaterial() != mat && mat) {
 			continue;
 		}
-		bucket->UpdateShader(attrib);
+		bucket->UpdateShader();
 	}
 }
 

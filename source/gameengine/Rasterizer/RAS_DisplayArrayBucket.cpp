@@ -83,6 +83,10 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 		m_upwardNode[define.m_index] = define.Init(this, &m_nodeData);
 	}
 
+	if (m_displayArray) {
+		m_attribArray.reset(new RAS_AttributeArray(m_displayArray));
+	}
+
 	// Initialize node arguments.
 	m_nodeData.m_array = m_displayArray;
 	m_nodeData.m_applyMatrix = (!m_deformer || !m_deformer->SkipVertexTransform());
@@ -128,7 +132,7 @@ bool RAS_DisplayArrayBucket::UseBatching() const
 	return (m_displayArray && m_displayArray->GetType() == RAS_IDisplayArray::BATCHING);
 }
 
-void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
+void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode, RAS_MaterialShader *shader)
 {
 	bool arrayModified = false;
 
@@ -142,32 +146,24 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 			m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
 		}
 
-		m_arrayStorage = m_displayArray->GetStorage();
-
+		m_nodeData.m_arrayStorage = m_displayArray->GetStorage();
 		// Set the storage info modified if the mesh is modified.
 		if (arrayModified) {
-			m_arrayStorage->UpdateVertexData();
+			m_nodeData.m_arrayStorage->UpdateVertexData();
 		}
 
-		m_nodeData.m_arrayStorage = m_arrayStorage;
-		m_nodeData.m_attribStorage = m_attribArray->GetStorage(rasty->GetDrawingMode());
+
+		RAS_AttributeArrayStorage *attribStorage = m_attribArray->GetStorage(shader);
+		if (!attribStorage) {
+			const RAS_MeshObject::LayersInfo& layersInfo = m_mesh->GetLayersInfo();
+			const RAS_AttributeArray::AttribList attribList = shader->GetAttribs(layersInfo);
+			attribStorage = m_attribArray->ConstructStorage(shader, attribList);
+		}
+		m_nodeData.m_attribStorage = attribStorage;
 	}
 	else {
 		m_nodeData.m_attribStorage = nullptr;
 	}
-}
-
-void RAS_DisplayArrayBucket::ConstructAttribs()
-{
-	if (!m_displayArray) {
-		return;
-	}
-
-	RAS_MaterialShader *shader = m_bucket->GetShader();
-	const RAS_MeshObject::LayersInfo& layersInfo = m_mesh->GetLayersInfo();
-	const RAS_AttributeArray::AttribList attribList = shader->GetAttribs(layersInfo);
-
-	m_attribArray.reset(new RAS_AttributeArray(attribList, m_displayArray));
 }
 
 void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
@@ -178,9 +174,10 @@ void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot
 	}
 
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	RAS_MaterialNodeData *materialData = tuple.m_materialData;
 
 	// Update deformer and render settings.
-	UpdateActiveMeshSlots(managerData->m_rasty);
+	UpdateActiveMeshSlots(managerData->m_drawingMode, materialData->m_shader);
 
 	/*if (instancing) {
 		downwardRoot.AddChild(&m_downwardNode[NODE_DOWNWARD_INSTANCING]);
@@ -398,6 +395,6 @@ void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)
 {
 	m_bucket = bucket;
 
-	/// Reconstruct the attributes using the new material.
-	ConstructAttribs();
+	// Destruct the attributes storage to request regeneration.
+	m_attribArray->DestructStorages();
 }

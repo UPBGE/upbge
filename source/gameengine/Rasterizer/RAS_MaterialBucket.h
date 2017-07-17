@@ -58,10 +58,8 @@ public:
 	bool IsWire() const;
 	bool UseInstancing() const;
 
-	/** Set the shader after its conversion or when changing to custom shader.
-	 * Regenerate shader dependent data as vertex attributes if attrib is true.
-	 */
-	void UpdateShader(bool attrib);
+	/// Set the shader after its conversion or when changing to custom shader.
+	void UpdateShader();
 
 	// Render nodes.
 	void GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,

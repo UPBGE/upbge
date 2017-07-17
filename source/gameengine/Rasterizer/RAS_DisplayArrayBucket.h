@@ -77,7 +77,6 @@ private:
 	/// The deformer using this display array.
 	RAS_Deformer *m_deformer;
 
-	RAS_DisplayArrayStorage *m_arrayStorage;
 	/// Attribute array used for each different render categories.
 	std::unique_ptr<RAS_AttributeArray> m_attribArray;
 
@@ -108,12 +107,7 @@ public:
 	bool UseBatching() const;
 
 	/// Update render infos.
-	void UpdateActiveMeshSlots(RAS_Rasterizer *rasty);
-
-	/** Construct the attribute for the used mesh and material couple.
-	 * WARNING: Always call when shader in the material are valid.
-	 */
-	void ConstructAttribs();
+	void UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode, RAS_MaterialShader *shader);
 
 	void GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
 					  RAS_UpwardTreeLeafs& upwardLeafs, const RAS_DisplayArrayNodeTuple& tuple);

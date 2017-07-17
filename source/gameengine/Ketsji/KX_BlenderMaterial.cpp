@@ -204,8 +204,7 @@ void KX_BlenderMaterial::OnConstruction()
 	}
 
 	SetBlenderGLSLShader();
-	// Don't generate attributes here as we could not know all the display array bucket.
-	m_scene->GetBucketManager()->UpdateShaders(this, false);
+	m_scene->GetBucketManager()->UpdateShaders(this);
 
 	m_blendFunc[0] = 0;
 	m_blendFunc[1] = 0;
@@ -781,7 +780,7 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 		m_shader.reset(new KX_MaterialShader());
 		// Set the material to use custom shader.
 		m_flag &= ~RAS_BLENDERGLSL;
-		m_scene->GetBucketManager()->UpdateShaders(this, true);
+		m_scene->GetBucketManager()->UpdateShaders(this);
 	}
 
 	return m_shader->GetShader()->GetProxy();

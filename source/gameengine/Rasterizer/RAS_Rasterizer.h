@@ -263,6 +263,16 @@ private:
 		DRWShadingGroup *vinterlace;
 	} m_screenShaders;
 
+	struct Matrices
+	{
+		MT_Matrix4x4 view;
+		MT_Matrix4x4 viewinv;
+		MT_Matrix4x4 proj;
+		MT_Matrix4x4 projinv;
+		MT_Matrix4x4 pers;
+		MT_Matrix4x4 persinv;
+	} m_matrices;
+
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, RAS_DebugDraw> m_debugDraws;
 
@@ -607,6 +617,10 @@ public:
 
 	const MT_Matrix4x4 &GetViewMatrix() const;
 	const MT_Matrix4x4 &GetViewInvMatrix() const;
+	const MT_Matrix4x4& GetProjMatrix() const;
+	const MT_Matrix4x4& GetProjInvMatrix() const;
+	const MT_Matrix4x4& GetPersMatrix() const;
+	const MT_Matrix4x4& GetPersInvMatrix() const;
 
 	/*void EnableMotionBlur(float motionblurvalue);
 	void DisableMotionBlur();

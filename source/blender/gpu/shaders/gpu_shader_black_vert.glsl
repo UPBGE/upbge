@@ -1,22 +1,8 @@
-in vec4 bgeOfsPos;
-uniform mat4 ProjectionMatrix;
-uniform mat4 ModelViewMatrix;
+uniform mat4 ModelViewProjectionMatrix;
 
-#ifdef USE_INSTANCING
-in mat3 ininstmatrix;
-in vec3 ininstposition;
-#endif
+in vec3 pos;
 
 void main()
 {
-#ifdef USE_INSTANCING
-	mat4 instmat = mat4(vec4(ininstmatrix[0], ininstposition.x),
-						vec4(ininstmatrix[1], ininstposition.y),
-						vec4(ininstmatrix[2], ininstposition.z),
-						vec4(0.0, 0.0, 0.0, 1.0));
-
-	gl_Position = ProjectionMatrix * ModelViewMatrix * (bgeOfsPos * instmat);
-#else
-	gl_Position = ProjectionMatrix * ModelViewMatrix * bgeOfsPos;
-#endif
+	gl_Position = ModelViewProjectionMatrix * vec4(pos, 1.0);
 }

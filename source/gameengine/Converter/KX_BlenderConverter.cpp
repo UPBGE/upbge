@@ -742,10 +742,6 @@ void KX_BlenderConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 	for (std::unique_ptr<KX_BlenderMaterial>& mat : sceneSlotFrom.m_materials) {
 		mat->ReplaceScene(to);
 	}
-	for (std::unique_ptr<RAS_MeshObject>& meshobj : sceneSlotFrom.m_meshobjects) {
-		// Generate mesh to material attribute's layers since the materials are constructed now.
-		meshobj->ConstructAttribs();
-	}
 
 	m_sceneSlots[to].Merge(sceneSlotFrom);
 	m_sceneSlots.erase(from);

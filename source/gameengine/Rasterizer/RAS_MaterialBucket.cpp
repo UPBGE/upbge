@@ -110,15 +110,9 @@ bool RAS_MaterialBucket::UseInstancing() const
 	return false; //(m_material->UseInstancing());
 }
 
-void RAS_MaterialBucket::UpdateShader(bool attrib)
+void RAS_MaterialBucket::UpdateShader()
 {
 	m_shader = m_material->GetShader();
-
-	if (attrib) {
-		for (RAS_DisplayArrayBucket *arrayBucket : m_displayArrayBucketList) {
-			arrayBucket->ConstructAttribs();
-		}
-	}
 }
 
 void RAS_MaterialBucket::RemoveActiveMeshSlots()

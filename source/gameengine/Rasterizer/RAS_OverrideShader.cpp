@@ -1,9 +1,13 @@
 #include "RAS_OverrideShader.h"
+#include "RAS_MeshUser.h"
 
 #include "BLI_utildefines.h"
 
 RAS_OverrideShader::RAS_OverrideShader(GPUShader *shader)
-	:m_shader(shader)
+	:m_shader(shader),
+	m_posLoc(GPU_shader_get_attribute(m_shader, "pos")),
+	m_mvpLoc(GPU_shader_get_uniform(m_shader, "ModelViewProjectionMatrix"))
+
 {
 	BLI_assert(shader);
 }
@@ -34,9 +38,14 @@ void RAS_OverrideShader::Desactivate()
 
 void RAS_OverrideShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata)
 {
+	const MT_Matrix4x4 mat = rasty->GetPersMatrix() * MT_Matrix4x4(meshUser->GetMatrix());
+	float mvp[16];
+	mat.getValue(mvp);
+
+	GPU_shader_uniform_vector(m_shader, m_mvpLoc, 16, 1, (float *)mvp);
 }
 
 const RAS_AttributeArray::AttribList RAS_OverrideShader::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
-	return RAS_AttributeArray::AttribList();
+	return {{m_posLoc, RAS_AttributeArray::RAS_ATTRIB_POS, 0}};
 }

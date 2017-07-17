@@ -9,8 +9,11 @@
  */
 class RAS_OverrideShader : public RAS_MaterialShader
 {
-private:
+protected:
 	GPUShader *m_shader;
+
+	short m_posLoc;
+	short m_mvpLoc;
 
 public:
 	RAS_OverrideShader(GPUShader *shader);

@@ -221,9 +221,6 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_last_frontface(true),
 	m_viewport(nullptr)
 {
-	m_viewmatrix.setIdentity();
-	m_viewinvmatrix.setIdentity();
-
 	m_impl.reset(new RAS_OpenGLRasterizer(this));
 
 	m_numgllights = m_impl->GetNumLights();
@@ -789,12 +786,32 @@ RAS_ISync *RAS_Rasterizer::CreateSync(int type)
 
 const MT_Matrix4x4& RAS_Rasterizer::GetViewMatrix() const
 {
-	return m_viewmatrix;
+	return m_matrices.view;
 }
 
 const MT_Matrix4x4& RAS_Rasterizer::GetViewInvMatrix() const
 {
-	return m_viewinvmatrix;
+	return m_matrices.viewinv;
+}
+
+const MT_Matrix4x4& RAS_Rasterizer::GetProjMatrix() const
+{
+	return m_matrices.proj;
+}
+
+const MT_Matrix4x4& RAS_Rasterizer::GetProjInvMatrix() const
+{
+	return m_matrices.projinv;
+}
+
+const MT_Matrix4x4& RAS_Rasterizer::GetPersMatrix() const
+{
+	return m_matrices.pers;
+}
+
+const MT_Matrix4x4& RAS_Rasterizer::GetPersInvMatrix() const
+{
+	return m_matrices.persinv;
 }
 
 void RAS_Rasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
@@ -937,45 +954,47 @@ MT_Matrix4x4 RAS_Rasterizer::GetViewMatrix(StereoEye eye, const MT_Transform &ca
 
 void RAS_Rasterizer::SetMatrix(const MT_Matrix4x4& viewmat, const MT_Matrix4x4& projmat, const MT_Vector3& pos, const MT_Vector3& scale)
 {
-	m_viewmatrix = viewmat;
+	m_matrices.view = viewmat;
+	m_matrices.proj = projmat;
+	m_matrices.viewinv = m_matrices.view.inverse();
+	m_matrices.projinv = m_matrices.proj.inverse();
+	m_matrices.pers = m_matrices.proj * m_matrices.view;
+	m_matrices.persinv = m_matrices.pers.inverse();
 
 	// Don't making variable negX/negY/negZ allow drastic time saving.
 	if (scale[0] < 0.0f || scale[1] < 0.0f || scale[2] < 0.0f) {
 		const bool negX = (scale[0] < 0.0f);
 		const bool negY = (scale[1] < 0.0f);
 		const bool negZ = (scale[2] < 0.0f);
-		m_viewmatrix.tscale((negX) ? -1.0f : 1.0f, (negY) ? -1.0f : 1.0f, (negZ) ? -1.0f : 1.0f, 1.0f);
+		m_matrices.view.tscale((negX) ? -1.0f : 1.0f, (negY) ? -1.0f : 1.0f, (negZ) ? -1.0f : 1.0f, 1.0f);
 		m_camnegscale = negX ^ negY ^ negZ;
 	}
 	else {
 		m_camnegscale = false;
 	}
 
-	m_viewinvmatrix = m_viewmatrix.inverse();
 	m_campos = pos;
 
 	float mat[4][4];
 	float matinv[4][4];
 
-	m_viewmatrix.getValue(&mat[0][0]);
-	m_viewinvmatrix.getValue(&matinv[0][0]);
+	m_matrices.view.getValue(&mat[0][0]);
+	m_matrices.viewinv.getValue(&matinv[0][0]);
 
 	DRW_viewport_matrix_override_set(mat, DRW_MAT_VIEW);
 	DRW_viewport_matrix_override_set(matinv, DRW_MAT_VIEWINV);
 
-	projmat.getValue(&mat[0][0]);
-	projmat.inverse().getValue(&matinv[0][0]);
+	m_matrices.proj.getValue(&mat[0][0]);
+	m_matrices.projinv.getValue(&matinv[0][0]);
 
 	DRW_viewport_matrix_override_set(mat, DRW_MAT_WIN);
 	DRW_viewport_matrix_override_set(matinv, DRW_MAT_WININV);
 
-	const MT_Matrix4x4 persmat = projmat * viewmat;
-	persmat.getValue(&mat[0][0]);
-	persmat.inverse().getValue(&matinv[0][0]);
+	m_matrices.pers.getValue(&mat[0][0]);
+	m_matrices.persinv.getValue(&matinv[0][0]);
 
 	DRW_viewport_matrix_override_set(mat, DRW_MAT_PERS);
 	DRW_viewport_matrix_override_set(matinv, DRW_MAT_PERSINV);
-
 
 	m_camortho = (mat[3][3] != 0.0f);
 }
@@ -1348,7 +1367,7 @@ void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[
 
 		MT_Vector3 left;
 		if (m_camortho) {
-			left = m_viewmatrix[2].to3d().safe_normalized();
+			left = m_matrices.view[2].to3d().safe_normalized();
 		}
 		else {
 			const MT_Vector3 objpos(&origmat[12]);

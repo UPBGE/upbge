@@ -28,9 +28,8 @@
 #include "RAS_AttributeArrayStorage.h"
 #include "RAS_IDisplayArray.h"
 
-RAS_AttributeArray::RAS_AttributeArray(const AttribList& attribs, RAS_IDisplayArray *array)
-	:m_attribs(attribs),
-	m_array(array)
+RAS_AttributeArray::RAS_AttributeArray(RAS_IDisplayArray *array)
+	:m_array(array)
 {
 }
 
@@ -38,20 +37,24 @@ RAS_AttributeArray::~RAS_AttributeArray()
 {
 }
 
-RAS_AttributeArrayStorage *RAS_AttributeArray::GetStorage(RAS_Rasterizer::DrawType drawingMode)
+RAS_AttributeArrayStorage *RAS_AttributeArray::GetStorage(RAS_MaterialShader *shader) const
 {
-	RAS_AttributeArrayStorage *storage = m_storages[drawingMode].get();
-	if (!storage) {
-		storage = new RAS_AttributeArrayStorage(m_array, m_array->GetStorage(), m_attribs);
-		m_storages[drawingMode].reset(storage);
+	const auto& it = m_storages.find(shader);
+	if (it != m_storages.end()) {
+		return it->second.get();
 	}
+	return nullptr;
+}
+
+RAS_AttributeArrayStorage * RAS_AttributeArray::ConstructStorage(RAS_MaterialShader *shader, const AttribList& attribs)
+{
+	RAS_AttributeArrayStorage *storage = new RAS_AttributeArrayStorage(m_array, m_array->GetStorage(), attribs);
+	m_storages[shader].reset(storage);
 
 	return storage;
 }
 
 void RAS_AttributeArray::DestructStorages()
 {
-	for (unsigned short i = 0; i < RAS_Rasterizer::RAS_DRAW_MAX; ++i) {
-		m_storages[i].reset(nullptr);
-	}
+	m_storages.clear();
 }

@@ -728,9 +728,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		}
 	}
 
-	// Find attributes layer (currently only UVs) by materials for this mesh.
-	meshobj->ConstructAttribs();
-
 	dm->release(dm);
 
 	converter.RegisterGameMesh(meshobj, mesh);

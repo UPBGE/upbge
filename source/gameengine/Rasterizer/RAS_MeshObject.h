@@ -160,11 +160,6 @@ public:
 	/// Return the list of blender's layers.
 	const LayersInfo& GetLayersInfo() const;
 
-	/** Construct attributes for every material use by this mesh.
-	 * WARNING: Always call when shader in the material are valid.
-	 */
-	void ConstructAttribs();
-
 	// polygon sorting by Z for alpha
 	void SortPolygons(RAS_IDisplayArray *array, const MT_Transform &transform, unsigned int *indexmap);
 

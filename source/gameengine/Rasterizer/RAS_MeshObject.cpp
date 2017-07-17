@@ -402,14 +402,6 @@ const RAS_MeshObject::LayersInfo& RAS_MeshObject::GetLayersInfo() const
 	return m_layersInfo;
 }
 
-void RAS_MeshObject::ConstructAttribs()
-{
-	for (RAS_MeshMaterial *mmat : m_materials) {
-		RAS_DisplayArrayBucket *displayArrayBucket = mmat->GetDisplayArrayBucket();
-		displayArrayBucket->ConstructAttribs();
-	}
-}
-
 void RAS_MeshObject::SortPolygons(RAS_IDisplayArray *array, const MT_Transform &transform, unsigned int *indexmap)
 {
 	// Limitations: sorting is quite simple, and handles many

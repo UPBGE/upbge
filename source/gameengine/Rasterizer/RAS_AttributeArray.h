@@ -30,9 +30,11 @@
 #include "RAS_Rasterizer.h"
 
 #include <vector>
+#include <unordered_map>
 
 class RAS_AttributeArrayStorage;
 class RAS_DisplayArrayStorage;
+class RAS_MaterialShader;
 
 class RAS_AttributeArray
 {
@@ -59,15 +61,15 @@ public:
 	using AttribList = std::vector<Attrib>;
 
 private:
-	std::unique_ptr<RAS_AttributeArrayStorage> m_storages[RAS_Rasterizer::RAS_DRAW_MAX];
-	AttribList m_attribs;
+	std::unordered_map<RAS_MaterialShader *, std::unique_ptr<RAS_AttributeArrayStorage> > m_storages;
 	RAS_IDisplayArray *m_array;
 
 public:
-	RAS_AttributeArray(const AttribList& attribs, RAS_IDisplayArray *array);
+	RAS_AttributeArray(RAS_IDisplayArray *array);
 	~RAS_AttributeArray();
 
-	RAS_AttributeArrayStorage *GetStorage(RAS_Rasterizer::DrawType drawingMode);
+	RAS_AttributeArrayStorage *GetStorage(RAS_MaterialShader *shader) const;
+	RAS_AttributeArrayStorage *ConstructStorage(RAS_MaterialShader *shader, const AttribList& attribs);
 	void DestructStorages();
 };
 

@@ -155,8 +155,6 @@ bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const MT_Matrix4x4& m
 			batch.m_displayArray = RAS_IBatchDisplayArray::ConstructArray(origarray->GetPrimitiveType(), origarray->GetFormat());
 			batch.m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, batch.m_displayArray, arrayBucket->GetMesh(),
 																	arrayBucket->GetMeshMaterial(), nullptr);
-			// Construct the attributes and storage with the new display array.
-			batch.m_displayArrayBucket->ConstructAttribs();
 		}
 
 		if (!MergeMeshSlot(batch, meshSlot, mat)) {

@@ -126,7 +126,7 @@ public:
 	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 	RAS_DisplayArrayBucket *GetTextDisplayArrayBucket() const;
 
-	void UpdateShaders(RAS_IPolyMaterial *material = nullptr, bool attrib = false);
+	void UpdateShaders(RAS_IPolyMaterial *material = nullptr);
 	void ReleaseMaterials(RAS_IPolyMaterial *material = nullptr);
 
 	// freeing scenes only
