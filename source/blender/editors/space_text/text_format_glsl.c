@@ -254,6 +254,8 @@ static int txtfmt_glsl_find_reserved(const char *string) {
 	else if (STR_LITERAL_STARTSWITH(string, "mod",            len))  i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "clamp",          len))  i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "step",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "trunc",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "round",           len))  i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "length",         len))  i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "distance",       len))  i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "normalize",      len))  i = len;
@@ -261,10 +263,10 @@ static int txtfmt_glsl_find_reserved(const char *string) {
 	else if (STR_LITERAL_STARTSWITH(string, "any",            len))  i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "all",            len))  i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "not",            len))  i = len;
-	else if(STR_LITERAL_STARTSWITH(string, "texture3DLod", len))  i = len;
-	else if(STR_LITERAL_STARTSWITH(string, "texture2DLod", len))  i = len;
-	else if(STR_LITERAL_STARTSWITH(string, "texture1DLod", len))  i = len;
-	else if(STR_LITERAL_STARTSWITH(string, "textureCubeLod", len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "texture3DLod",   len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "texture2DLod",   len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "texture1DLod",   len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "textureCubeLod", len))  i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "texture3D",      len))  i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "texture2D",      len))  i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "texture1D",      len))  i = len;
