@@ -1639,6 +1639,11 @@ def write_sphinx_conf_py(basepath):
     fw("version = '%s - API'\n" % BLENDER_VERSION_DOTS)
     fw("release = '%s - API'\n" % BLENDER_VERSION_DOTS)
 
+    # Quiet file not in table-of-contents warnings.
+    fw("exclude_patterns = [\n")
+    fw("    'include__bmesh.rst',\n")
+    fw("]\n\n")
+
     if ARGS.sphinx_theme != 'default':
         fw("html_theme = '%s'\n" % ARGS.sphinx_theme)
 
@@ -1659,6 +1664,24 @@ def write_sphinx_conf_py(basepath):
     fw("}\n\n")
 
     fw("latex_documents = [ ('contents', 'contents.tex', 'Blender Index', 'Blender Foundation', 'manual'), ]\n")
+
+    # Workaround for useless links leading to compile errors
+    # See https://github.com/sphinx-doc/sphinx/issues/3866
+    fw(r"""
+from sphinx.domains.python import PythonDomain
+
+class PatchedPythonDomain(PythonDomain):
+    def resolve_xref(self, env, fromdocname, builder, typ, target, node, contnode):
+        if 'refspecific' in node:
+            del node['refspecific']
+        return super(PatchedPythonDomain, self).resolve_xref(
+            env, fromdocname, builder, typ, target, node, contnode)
+
+def setup(sphinx):
+    sphinx.override_domain(PatchedPythonDomain)
+""")
+    # end workaround
+
     file.close()
 
 
@@ -1696,9 +1719,6 @@ def write_rst_contents(basepath):
         fw("   :maxdepth: 1\n\n")
         for info, info_desc in INFO_DOCS:
             fw("   %s <%s>\n\n" % (info_desc, info))
-        fw("\n")
-        fw("- :ref:`Blender/Python Add-on Tutorial: a step by step guide on")
-        fw(" how to write an add-on from scratch <blender_manual:advanced_scripting_addon_tutorial>`\n")
         fw("\n")
 
     fw(title_string("Application Modules", "=", double=True))
