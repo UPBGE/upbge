@@ -87,7 +87,7 @@ static void EEVEE_cache_populate(void *vedata, Object *ob)
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 	const bool is_active = (ob == draw_ctx->obact);
 	if (is_active) {
-		if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)) {
+		if (DRW_object_is_mode_shade(ob) == true) {
 			return;
 		}
 	}
@@ -98,9 +98,14 @@ static void EEVEE_cache_populate(void *vedata, Object *ob)
 		const bool cast_shadow = true;
 
 		if (cast_shadow) {
-			BLI_addtail(&sldata->shadow_casters, BLI_genericNodeN(ob));
-			EEVEE_ObjectEngineData *oedata = EEVEE_object_data_get(ob);
-			oedata->need_update = ((ob->deg_update_flag & DEG_RUNTIME_DATA_UPDATE) != 0);
+			if ((ob->base_flag & BASE_FROMDUPLI) != 0) {
+				/* TODO: Special case for dupli objects because we cannot save the object pointer. */
+			}
+			else {
+				BLI_addtail(&sldata->shadow_casters, BLI_genericNodeN(ob));
+				EEVEE_ObjectEngineData *oedata = EEVEE_object_data_get(ob);
+				oedata->need_update = ((ob->deg_update_flag & DEG_RUNTIME_DATA_UPDATE) != 0);
+			}
 		}
 	}
 	else if (ob->type == OB_LIGHTPROBE) {

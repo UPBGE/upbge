@@ -354,7 +354,7 @@ static void draw_marker(
 		Gwn_VertFormat *format = immVertexFormat();
 		uint pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
-		immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_COLOR);
+		immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
 
 		float viewport_size[4];
 		glGetFloatv(GL_VIEWPORT, viewport_size);
@@ -913,7 +913,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 			case PADENTER:
 			case LEFTMOUSE:
 			case MIDDLEMOUSE:
-				if (WM_modal_tweak_exit(event, mm->event_type)) {
+				if (WM_event_is_modal_tweak_exit(event, mm->event_type)) {
 					ed_marker_move_exit(C, op);
 					WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, NULL);
 					WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, NULL);

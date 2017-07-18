@@ -142,7 +142,7 @@ void EEVEE_effects_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 	EEVEE_EffectsInfo *effects;
 
 	const DRWContextState *draw_ctx = DRW_context_state_get();
-	SceneLayer *scene_layer = draw_ctx->sl;
+	SceneLayer *scene_layer = draw_ctx->scene_layer;
 	Scene *scene = draw_ctx->scene;
 	View3D *v3d = draw_ctx->v3d;
 	RegionView3D *rv3d = draw_ctx->rv3d;
@@ -747,6 +747,9 @@ void EEVEE_effects_do_volumetrics(EEVEE_SceneLayerData *sldata, EEVEE_Data *veda
 		if (sldata->volumetrics->use_colored_transmit) {
 			DRW_framebuffer_texture_detach(stl->g_data->volumetric_transmit);
 		}
+
+		/* Rebind main buffer after attach/detach operations */
+		DRW_framebuffer_bind(fbl->main);
 	}
 }
 

@@ -432,7 +432,7 @@ static void CLAY_engine_init(void *vedata)
 	/* SSAO setup */
 	{
 		const DRWContextState *draw_ctx = DRW_context_state_get();
-		SceneLayer *scene_layer = draw_ctx->sl;
+		SceneLayer *scene_layer = draw_ctx->scene_layer;
 		IDProperty *props = BKE_scene_layer_engine_evaluated_get(
 		        scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_CLAY);
 		int ssao_samples = BKE_collection_engine_property_value_get_int(props, "ssao_samples");
@@ -771,7 +771,7 @@ static void CLAY_cache_populate(void *vedata, Object *ob)
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 	const bool is_active = (ob == draw_ctx->obact);
 	if (is_active) {
-		if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)) {
+		if (DRW_object_is_mode_shade(ob) == true) {
 			return;
 		}
 	}

@@ -256,7 +256,7 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 
 		scen->ed = NULL;
 		scen->theDag = NULL;
-		scen->depsgraph = NULL;
+		scen->depsgraph_legacy = NULL;
 		scen->obedit = NULL;
 		scen->fps_info = NULL;
 
@@ -584,8 +584,8 @@ void BKE_scene_free_ex(Scene *sce, const bool do_id_user)
 	}
 	
 	DEG_scene_graph_free(sce);
-	if (sce->depsgraph)
-		DEG_graph_free(sce->depsgraph);
+	if (sce->depsgraph_legacy)
+		DEG_graph_free(sce->depsgraph_legacy);
 
 	MEM_SAFE_FREE(sce->fps_info);
 
@@ -625,7 +625,7 @@ void BKE_scene_free_ex(Scene *sce, const bool do_id_user)
 
 void BKE_scene_free(Scene *sce)
 {
-	return BKE_scene_free_ex(sce, true);
+	BKE_scene_free_ex(sce, true);
 }
 
 void BKE_scene_init(Scene *sce)
@@ -1540,7 +1540,7 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	 *
 	 * in the future this should handle updates for all datablocks, not
 	 * only objects and scenes. - brecht */
-	DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph, scene);
+	DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph_legacy, scene);
 	/* TODO(sergey): This is to beocme a node in new depsgraph. */
 	BKE_mask_update_scene(bmain, scene);
 
@@ -1602,7 +1602,7 @@ void BKE_scene_update_for_newframe(EvaluationContext *eval_ctx, Main *bmain, Sce
 	BKE_main_id_tag_idcode(bmain, ID_LA, LIB_TAG_DOIT, false);
 
 	/* BKE_object_handle_update() on all objects, groups and sets */
-	DEG_evaluate_on_framechange(eval_ctx, bmain, sce->depsgraph, ctime);
+	DEG_evaluate_on_framechange(eval_ctx, bmain, sce->depsgraph_legacy, ctime);
 
 	/* update sound system animation (TODO, move to depsgraph) */
 	BKE_sound_update_scene(bmain, sce);
@@ -1772,7 +1772,7 @@ Base *_setlooper_base_step(Scene **sce_iter, Base *base)
 		/* first time looping, return the scenes first base */
 
 		/* for the first loop we should get the layer from context */
-		SceneLayer *sl = BKE_scene_layer_context_active((*sce_iter));
+		SceneLayer *sl = BKE_scene_layer_context_active_PLACEHOLDER((*sce_iter));
 		/* TODO For first scene (non-background set), we should pass the render layer as argument.
 		 * In some cases we want it to be the workspace one, in other the scene one. */
 		TODO_LAYER;
@@ -1787,7 +1787,7 @@ Base *_setlooper_base_step(Scene **sce_iter, Base *base)
 next_set:
 		/* reached the end, get the next base in the set */
 		while ((*sce_iter = (*sce_iter)->set)) {
-			SceneLayer *sl = BKE_scene_layer_render_active((*sce_iter));
+			SceneLayer *sl = BKE_scene_layer_from_scene_get((*sce_iter));
 			base = (Base *)sl->object_bases.first;
 
 			if (base) {
@@ -2247,4 +2247,10 @@ int BKE_scene_multiview_num_videos_get(const RenderData *rd)
 		/* R_IMF_VIEWS_INDIVIDUAL */
 		return BKE_scene_multiview_num_views_get(rd);
 	}
+}
+
+Depsgraph* BKE_scene_get_depsgraph(Scene *scene, SceneLayer *scene_layer)
+{
+	(void) scene_layer;
+	return scene->depsgraph_legacy;
 }

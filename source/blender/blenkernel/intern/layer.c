@@ -69,9 +69,9 @@ static void object_bases_iterator_next(BLI_Iterator *iter, const int flag);
 
 /**
  * Returns the SceneLayer to be used for rendering
- * Most of the time BKE_scene_layer_context_active should be used instead
+ * Most of the time BKE_scene_layer_from_workspace_get should be used instead
  */
-SceneLayer *BKE_scene_layer_render_active(const Scene *scene)
+SceneLayer *BKE_scene_layer_from_scene_get(const Scene *scene)
 {
 	SceneLayer *sl = BLI_findlink(&scene->render_layers, scene->active_layer);
 	BLI_assert(sl);
@@ -81,23 +81,18 @@ SceneLayer *BKE_scene_layer_render_active(const Scene *scene)
 /**
  * Returns the SceneLayer to be used for drawing, outliner, and other context related areas.
  */
-SceneLayer *BKE_scene_layer_context_active_ex(const Main *bmain, const Scene *UNUSED(scene))
+SceneLayer *BKE_scene_layer_from_workspace_get(const struct WorkSpace *workspace)
 {
-	/* XXX We should really pass the workspace as argument, but would require
-	 * some bigger changes since it's often not available where we call this.
-	 * Just working around this by getting active window from WM for now */
-	for (wmWindowManager *wm = bmain->wm.first; wm; wm = wm->id.next) {
-		/* Called on startup, so 'winactive' may not be set, in that case fall back to first window. */
-		wmWindow *win = wm->winactive ? wm->winactive : wm->windows.first;
-		const WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
-		return BKE_workspace_render_layer_get(workspace);
-	}
-
-	return NULL;
+	return BKE_workspace_render_layer_get(workspace);
 }
-SceneLayer *BKE_scene_layer_context_active(const Scene *scene)
+
+/**
+ * This is a placeholder to know which areas of the code need to be addressed for the Workspace changes.
+ * Never use this, you should either use BKE_scene_layer_workspace_active or get SceneLayer explicitly.
+ */
+SceneLayer *BKE_scene_layer_context_active_PLACEHOLDER(const Scene *scene)
 {
-	return BKE_scene_layer_context_active_ex(G.main, scene);
+	return BKE_scene_layer_from_scene_get(scene);
 }
 
 /**
@@ -1742,7 +1737,7 @@ static void idproperty_reset(IDProperty **props, IDProperty *props_ref)
 void BKE_layer_eval_layer_collection_pre(struct EvaluationContext *UNUSED(eval_ctx),
                                          Scene *scene, SceneLayer *scene_layer)
 {
-	DEBUG_PRINT("%s on %s\n", __func__, scene_layer->name);
+	DEBUG_PRINT("%s on %s (%p)\n", __func__, scene_layer->name, scene_layer);
 	for (Base *base = scene_layer->object_bases.first; base != NULL; base = base->next) {
 		base->flag &= ~(BASE_VISIBLED | BASE_SELECTABLED);
 		idproperty_reset(&base->collection_properties, scene->collection_properties);
@@ -1760,10 +1755,12 @@ void BKE_layer_eval_layer_collection(struct EvaluationContext *UNUSED(eval_ctx),
                                      LayerCollection *layer_collection,
                                      LayerCollection *parent_layer_collection)
 {
-	DEBUG_PRINT("%s on %s, parent %s\n",
+	DEBUG_PRINT("%s on %s (%p), parent %s (%p)\n",
 	            __func__,
 	            layer_collection->scene_collection->name,
-	            (parent_layer_collection != NULL) ? parent_layer_collection->scene_collection->name : "NONE");
+	            layer_collection->scene_collection,
+	            (parent_layer_collection != NULL) ? parent_layer_collection->scene_collection->name : "NONE",
+	            (parent_layer_collection != NULL) ? parent_layer_collection->scene_collection : NULL);
 
 	/* visibility */
 	layer_collection->flag_evaluated = layer_collection->flag;
@@ -1804,7 +1801,7 @@ void BKE_layer_eval_layer_collection(struct EvaluationContext *UNUSED(eval_ctx),
 void BKE_layer_eval_layer_collection_post(struct EvaluationContext *UNUSED(eval_ctx),
                                           SceneLayer *scene_layer)
 {
-	DEBUG_PRINT("%s on %s\n", __func__, scene_layer->name);
+	DEBUG_PRINT("%s on %s (%p)\n", __func__, scene_layer->name, scene_layer);
 	/* if base is not selectabled, clear select */
 	for (Base *base = scene_layer->object_bases.first; base; base = base->next) {
 		if ((base->flag & BASE_SELECTABLED) == 0) {

@@ -359,7 +359,8 @@ void DRW_lamp_engine_data_free(struct LampEngineData *led);
 
 /* Settings */
 bool DRW_object_is_renderable(struct Object *ob);
-bool DRW_object_is_flat_normal(struct Object *ob);
+bool DRW_object_is_flat_normal(const struct Object *ob);
+int  DRW_object_is_mode_shade(const struct Object *ob);
 
 /* Draw commands */
 void DRW_draw_geometry_prepare(DRWShadingGroup *shgroup, const float (*obmat)[4], const float *texcoloc, const float *texcosize);
@@ -408,7 +409,7 @@ typedef struct DRWContextState {
 	struct View3D *v3d;     /* 'CTX_wm_view3d(C)' */
 
 	struct Scene *scene;    /* 'CTX_data_scene(C)' */
-	struct SceneLayer *sl;  /* 'CTX_data_scene_layer(C)' */
+	struct SceneLayer *scene_layer;  /* 'CTX_data_scene_layer(C)' */
 
 	/* Use 'scene->obedit' for edit-mode */
 	struct Object *obact;   /* 'OBACT_NEW' */
@@ -418,7 +419,6 @@ typedef struct DRWContextState {
 	const struct bContext *evil_C;
 } DRWContextState;
 
-void DRW_context_state_init(const struct bContext *C, DRWContextState *r_draw_ctx);
 const DRWContextState *DRW_context_state_get(void);
 
 #endif /* __DRW_RENDER_H__ */

@@ -1212,7 +1212,7 @@ int main(
 						Scene *scene = bfd->curscene;
 						G.main = maggie;
 						DEG_scene_relations_rebuild(maggie, scene);
-						Depsgraph *depsgraph = scene->depsgraph;
+						Depsgraph *depsgraph = scene->depsgraph_legacy;
 
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;

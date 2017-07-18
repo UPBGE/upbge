@@ -335,7 +335,7 @@ void wm_event_do_notifiers(bContext *C)
 				}
 			}
 			if (ELEM(note->category, NC_SCENE, NC_OBJECT, NC_GEOM, NC_WM)) {
-				SceneLayer *sl = BKE_scene_layer_context_active(scene);
+				SceneLayer *sl = BKE_scene_layer_context_active_PLACEHOLDER(scene);
 				ED_info_stats_clear(sl);
 				WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, NULL);
 			}
@@ -642,6 +642,16 @@ void WM_report_banner_show(void)
 bool WM_event_is_absolute(const wmEvent *event)
 {
 	return (event->tablet_data != NULL);
+}
+
+bool WM_event_is_last_mousemove(const wmEvent *event)
+{
+	while ((event = event->next)) {
+		if (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 #ifdef WITH_INPUT_NDOF
@@ -2986,7 +2996,7 @@ void WM_event_add_mousemove(bContext *C)
 
 
 /* for modal callbacks, check configuration for how to interpret exit with tweaks  */
-bool WM_modal_tweak_exit(const wmEvent *event, int tweak_event)
+bool WM_event_is_modal_tweak_exit(const wmEvent *event, int tweak_event)
 {
 	/* if the release-confirm userpref setting is enabled, 
 	 * tweak events can be canceled when mouse is released

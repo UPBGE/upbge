@@ -763,19 +763,19 @@ void EEVEE_draw_shadows(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl)
 			srd->layer = i;
 			srd->exponent = la->bleedexp;
 			copy_v3_v3(srd->position, ob->obmat[3]);
-			for (int j = 0; j < 6; ++j) {
+			for (int j = 0; j < 6; j++) {
 				float tmp[4][4];
 
 				unit_m4(tmp);
 				negate_v3_v3(tmp[3], ob->obmat[3]);
-				mul_m4_m4m4(srd->viewmat[j], cubefacemat[i], tmp);
+				mul_m4_m4m4(srd->viewmat[j], cubefacemat[j], tmp);
 
 				copy_m4_m4(srd->shadowmat[j], evscd->viewprojmat[j]);
 			}
 			DRW_uniformbuffer_update(sldata->shadow_render_ubo, &linfo->shadow_render_data);
 
 			DRW_framebuffer_bind(sldata->shadow_cube_target_fb);
-			DRW_framebuffer_clear(true, true, false, clear_color, 1.0);
+			DRW_framebuffer_clear(true, true, false, clear_color, 1.0f);
 			/* Render shadow cube */
 			DRW_draw_pass(psl->shadow_cube_pass);
 

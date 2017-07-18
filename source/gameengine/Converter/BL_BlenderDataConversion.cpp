@@ -1292,7 +1292,7 @@ static void BL_ConvertEeveeSceneLayerData(Scene *blenderscene, EEVEE_SceneLayerD
 {
 	EEVEE_SceneLayerData *blsldata = nullptr;
 
-	SceneLayer *sl = DEG_get_scene_layer(graph);
+	SceneLayer *sl = DEG_get_evaluated_scene_layer(graph);
 	for (SceneLayerEngineData *sled = (SceneLayerEngineData *)sl->drawdata.first; sled; sled = sled->next) {
 		if (sled->engine_type == &draw_engine_eevee_type) {
 			blsldata = (EEVEE_SceneLayerData *)sled->storage;

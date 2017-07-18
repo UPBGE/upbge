@@ -178,8 +178,7 @@ static void PAINT_TEXTURE_engine_init(void *vedata)
 		e_data.face_overlay_shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_UNIFORM_COLOR);
 	}
 }
-#include "BKE_global.h"
-#include "BKE_main.h"
+
 /* Here init all passes and shading groups
  * Assume that all Passes are NULL */
 static void PAINT_TEXTURE_cache_init(void *vedata)
@@ -199,12 +198,6 @@ static void PAINT_TEXTURE_cache_init(void *vedata)
 		                 DRW_STATE_BLEND | DRW_STATE_WIRE;
 		psl->image_faces = DRW_pass_create("Image Color Pass", state);
 
-		/* Create a shadingGroup using a function in draw_common.c or custom one */
-		/*
-		 * stl->g_data->group = shgroup_dynlines_uniform_color(psl->pass, ts.colorWire);
-		 * -- or --
-		 * stl->g_data->group = DRW_shgroup_create(e_data.custom_shader, psl->pass);
-		 */
 		stl->g_data->shgroup_fallback = DRW_shgroup_create(e_data.fallback_sh, psl->image_faces);
 
 		/* Uniforms need a pointer to it's value so be sure it's accessible at
@@ -218,7 +211,7 @@ static void PAINT_TEXTURE_cache_init(void *vedata)
 		Object *ob = draw_ctx->obact;
 		if (ob && ob->type == OB_MESH) {
 			Scene *scene = draw_ctx->scene;
-			bool use_material_slots = (scene->toolsettings->imapaint.mode == IMAGEPAINT_MODE_MATERIAL);
+			const bool use_material_slots = (scene->toolsettings->imapaint.mode == IMAGEPAINT_MODE_MATERIAL);
 			const Mesh *me = ob->data;
 
 			stl->g_data->shgroup_image_array = MEM_mallocN(
@@ -292,41 +285,44 @@ static void PAINT_TEXTURE_cache_populate(void *vedata, Object *ob)
 		/* Get geometry cache */
 		const Mesh *me = ob->data;
 		Scene *scene = draw_ctx->scene;
-		bool use_material_slots = (scene->toolsettings->imapaint.mode == IMAGEPAINT_MODE_MATERIAL);
+		const bool use_surface = DRW_object_is_mode_shade(ob) == true;
+		const bool use_material_slots = (scene->toolsettings->imapaint.mode == IMAGEPAINT_MODE_MATERIAL);
 		bool ok = false;
 
-		if (me->mloopuv != NULL) {
-			if (use_material_slots) {
-				struct Gwn_Batch **geom_array = me->totcol ? DRW_cache_mesh_surface_texpaint_get(ob) : NULL;
-				if ((me->totcol == 0) || (geom_array == NULL)) {
-					struct Gwn_Batch *geom = DRW_cache_mesh_surface_get(ob);
-					DRW_shgroup_call_add(stl->g_data->shgroup_fallback, geom, ob->obmat);
-					ok = true;
+		if (use_surface) {
+			if (me->mloopuv != NULL) {
+				if (use_material_slots) {
+					struct Gwn_Batch **geom_array = me->totcol ? DRW_cache_mesh_surface_texpaint_get(ob) : NULL;
+					if ((me->totcol == 0) || (geom_array == NULL)) {
+						struct Gwn_Batch *geom = DRW_cache_mesh_surface_get(ob);
+						DRW_shgroup_call_add(stl->g_data->shgroup_fallback, geom, ob->obmat);
+						ok = true;
+					}
+					else {
+						for (int i = 0; i < me->totcol; i++) {
+							if (stl->g_data->shgroup_image_array[i]) {
+								DRW_shgroup_call_add(stl->g_data->shgroup_image_array[i], geom_array[i], ob->obmat);
+							}
+							else {
+								DRW_shgroup_call_add(stl->g_data->shgroup_fallback, geom_array[i], ob->obmat);
+							}
+							ok = true;
+						}
+					}
 				}
 				else {
-					for (int i = 0; i < me->totcol; i++) {
-						if (stl->g_data->shgroup_image_array[i]) {
-							DRW_shgroup_call_add(stl->g_data->shgroup_image_array[i], geom_array[i], ob->obmat);
-						}
-						else {
-							DRW_shgroup_call_add(stl->g_data->shgroup_fallback, geom_array[i], ob->obmat);
-						}
+					struct Gwn_Batch *geom = DRW_cache_mesh_surface_texpaint_single_get(ob);
+					if (geom && stl->g_data->shgroup_image_array[0]) {
+						DRW_shgroup_call_add(stl->g_data->shgroup_image_array[0], geom, ob->obmat);
 						ok = true;
 					}
 				}
 			}
-			else {
-				struct Gwn_Batch *geom = DRW_cache_mesh_surface_texpaint_single_get(ob);
-				if (geom && stl->g_data->shgroup_image_array[0]) {
-					DRW_shgroup_call_add(stl->g_data->shgroup_image_array[0], geom, ob->obmat);
-					ok = true;
-				}
-			}
-		}
 
-		if (!ok) {
-			struct Gwn_Batch *geom = DRW_cache_mesh_surface_get(ob);
-			DRW_shgroup_call_add(stl->g_data->shgroup_fallback, geom, ob->obmat);
+			if (!ok) {
+				struct Gwn_Batch *geom = DRW_cache_mesh_surface_get(ob);
+				DRW_shgroup_call_add(stl->g_data->shgroup_fallback, geom, ob->obmat);
+			}
 		}
 
 		/* Face Mask */
