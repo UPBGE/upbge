@@ -286,7 +286,6 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 		}
 		case RAS_Rasterizer::RAS_TEXTURED:
 		{
-			rasty->UpdateLights(sldata);
 			/* Rendering solid and alpha (regular and instancing) materials
 			 * with their shaders.
 			 */

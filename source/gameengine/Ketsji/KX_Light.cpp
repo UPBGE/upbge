@@ -53,16 +53,13 @@
 #include "BLI_math.h"
 
 KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks,
-                               RAS_Rasterizer *rasterizer,
                                RAS_ILightObject *lightobj)
 	:KX_GameObject(sgReplicationInfo, callbacks),
-	m_rasterizer(rasterizer),
 	m_showShadowFrustum(false)
 {
 	m_lightobj = lightobj;
 	m_lightobj->m_scene = sgReplicationInfo;
 	m_lightobj->m_light = this;
-	m_rasterizer->AddLight(m_lightobj);
 	m_blenderscene = ((KX_Scene *)sgReplicationInfo)->GetBlenderScene();
 	m_base = nullptr;
 }
@@ -70,7 +67,6 @@ KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks,
 KX_LightObject::~KX_LightObject()
 {
 	if (m_lightobj) {
-		m_rasterizer->RemoveLight(m_lightobj);
 		delete(m_lightobj);
 	}
 
@@ -88,7 +84,6 @@ CValue *KX_LightObject::GetReplica()
 
 	replica->m_lightobj = m_lightobj->Clone();
 	replica->m_lightobj->m_light = replica;
-	m_rasterizer->AddLight(replica->m_lightobj);
 	if (m_base)
 		m_base = nullptr;
 
@@ -271,7 +266,7 @@ PyObject *KX_LightObject::pyattr_get_shadow_color(PyObjectPlus *self_v, const KX
 PyObject *KX_LightObject::pyattr_get_shadow_active(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LightObject *self = static_cast<KX_LightObject *>(self_v);
-	return PyBool_FromLong(self->m_lightobj->HasShadowBuffer());
+	return PyBool_FromLong(self->m_lightobj->HasShadow());
 }
 
 PyObject *KX_LightObject::pyattr_get_distance(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

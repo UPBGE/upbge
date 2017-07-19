@@ -48,12 +48,10 @@
 #include <memory>
 
 class RAS_OpenGLRasterizer;
-class RAS_OpenGLLight;
 class RAS_ICanvas;
 class RAS_OffScreen;
 class RAS_MeshSlot;
 class RAS_IDisplayArray;
-class RAS_ILightObject;
 class SCA_IScene;
 class RAS_ISync;
 struct KX_ClientObjectInfo;
@@ -301,7 +299,6 @@ private:
 	/* Render tools */
 	void *m_clientobject;
 	void *m_auxilaryClientInfo;
-	std::vector<RAS_OpenGLLight *> m_lights;
 	int m_lastlightlayer;
 	bool m_lastlighting;
 	void *m_lastauxinfo;
@@ -670,11 +667,6 @@ public:
 	void SetMatrixMode(MatrixMode mode);
 	void LoadMatrix(const float mat[16]);
 	void LoadIdentity();
-
-	RAS_ILightObject *CreateLight(EEVEE_SceneLayerData& sldata);
-	void AddLight(RAS_ILightObject *lightobject);
-	void RemoveLight(RAS_ILightObject *lightobject);
-	void UpdateLights(EEVEE_SceneLayerData &sldata);
 
 	/** Set the current off screen depth to the global depth texture used by materials.
 	 * In case of mutlisample off screen a blit to RAS_OFFSCREEN_BLIT_DEPTH is procceed.

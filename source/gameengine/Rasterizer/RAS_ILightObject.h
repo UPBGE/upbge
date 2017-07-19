@@ -38,7 +38,9 @@ class RAS_Rasterizer;
 class MT_Vector3;
 class MT_Transform;
 class MT_Matrix4x4;
+class MT_Matrix3x3;
 struct EEVEE_SceneLayerData;
+class EEVEE_Light;
 struct Image;
 
 class RAS_ILightObject
@@ -60,13 +62,13 @@ public:
 		AREA_BOX
 	};
 
-	bool	m_modified;
 	int		m_layer;
 	void	*m_scene;
 	void	*m_light;
 
 	float	m_energy;
 	float	m_distance;
+	bool m_hasShadow;
 	float	m_shadowclipstart;
 	float	m_shadowfrustumsize;
 	float	m_shadowclipend;
@@ -98,7 +100,7 @@ public:
 	virtual ~RAS_ILightObject() {}
 	virtual RAS_ILightObject* Clone() = 0;
 
-	virtual bool HasShadowBuffer() = 0;
+	virtual bool HasShadow() const = 0;
 	virtual bool NeedShadowUpdate() = 0;
 	virtual int GetShadowBindCode() = 0;
 	virtual MT_Matrix4x4 GetShadowMatrix() = 0;
@@ -108,7 +110,7 @@ public:
 	virtual void BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata) = 0;
 	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata) = 0;
 	virtual Image *GetTextureImage(short texslot) = 0;
-	virtual void Update() = 0;
+	virtual void Update(EEVEE_Light& lightData, int shadowid, const MT_Matrix3x3& rot, const MT_Vector3& pos, const MT_Vector3& scale) = 0;
 };
 
 #endif  /* __RAS_LIGHTOBJECT_H__ */

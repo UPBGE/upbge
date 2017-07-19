@@ -63,6 +63,7 @@
 
 #include "RAS_MeshObject.h"
 #include "RAS_Rasterizer.h"
+#include "RAS_OpenGLLight.h"
 #include "RAS_ILightObject.h"
 
 #include "KX_ConvertActuators.h"
@@ -903,7 +904,7 @@ static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene,
 
 static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_Rasterizer *rasterizer, KX_BlenderSceneConverter& converter)
 {
-	RAS_ILightObject *lightobj = rasterizer->CreateLight(kxscene->GetSceneLayerData());
+	RAS_ILightObject *lightobj = new RAS_OpenGLLight(kxscene->GetSceneLayerData());
 	KX_LightObject *gamelight;
 	
 	lightobj->m_att1 = la->att1;
@@ -916,6 +917,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	lightobj->m_color[2] = la->b;
 	lightobj->m_distance = la->dist;
 	lightobj->m_energy = la->energy;
+	lightobj->m_hasShadow = (la->mode & (LA_SHAD_BUF | LA_SHAD_RAY));
 	lightobj->m_shadowclipstart = la->clipsta;
 	lightobj->m_shadowclipend = la->clipend;
 	lightobj->m_shadowbias = la->bias;
@@ -955,7 +957,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	};
 	lightobj->m_areaShape = convertAreaShapeTable[la->area_shape];
 
-	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rasterizer, lightobj);
+	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, lightobj);
 
 	gamelight->SetShowShadowFrustum((la->mode & LA_SHOW_SHADOW_BOX) && (la->mode & LA_SHAD_RAY));
 

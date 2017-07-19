@@ -429,6 +429,8 @@ void RAS_Rasterizer::EndFrame()
 
 	Disable(RAS_MULTISAMPLE);
 
+	DRW_end_shgroup();
+
 	//Disable(RAS_FOG);
 }
 
@@ -1269,44 +1271,6 @@ void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat
 //
 //	m_lastlighting = false;
 //}
-
-RAS_ILightObject *RAS_Rasterizer::CreateLight(EEVEE_SceneLayerData& sldata)
-{
-	return new RAS_OpenGLLight(sldata);
-}
-
-void RAS_Rasterizer::AddLight(RAS_ILightObject *lightobject)
-{
-	RAS_OpenGLLight *gllight = dynamic_cast<RAS_OpenGLLight *>(lightobject);
-	BLI_assert(gllight);
-	m_lights.push_back(gllight);
-}
-
-void RAS_Rasterizer::RemoveLight(RAS_ILightObject *lightobject)
-{
-	RAS_OpenGLLight *gllight = dynamic_cast<RAS_OpenGLLight *>(lightobject);
-	BLI_assert(gllight);
-
-	std::vector<RAS_OpenGLLight *>::iterator lit =
-	    std::find(m_lights.begin(), m_lights.end(), gllight);
-
-	if (lit != m_lights.end()) {
-		m_lights.erase(lit);
-	}
-}
-
-void RAS_Rasterizer::UpdateLights(EEVEE_SceneLayerData& sldata)
-{
-	EEVEE_LampsInfo *linfo = sldata.lamps;
-	unsigned int i = 0;
-	for (unsigned short size = m_lights.size(); i < size;) {
-		if (m_lights[i]->Update(linfo->light_data[i])) {
-			++i;
-		}
-	}
-	linfo->num_light = i;
-	DRW_uniformbuffer_update(sldata.light_ubo, &linfo->light_data);
-}
 
 bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform)
 {
