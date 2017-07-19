@@ -56,7 +56,7 @@ public:
 	virtual MT_Matrix4x4 GetWinMat();
 	virtual MT_Matrix4x4 GetShadowMatrix();
 	virtual int GetShadowLayer();
-	virtual void BindShadowBuffer(const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata);
+	virtual void BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata);
 	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata);
 	virtual Image *GetTextureImage(short texslot);
 	virtual void Update();

@@ -864,7 +864,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
 
 			/* binds framebuffer object, sets up camera .. */
-			raslight->BindShadowBuffer(pos, id, sldata);
+			raslight->BindShadowBuffer(m_rasterizer, pos, id, sldata);
 
 			KX_CullingNodeList nodes;
 			/* update scene */

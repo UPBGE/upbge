@@ -327,7 +327,7 @@ int RAS_OpenGLLight::GetShadowLayer()
 		return 0;
 }
 
-void RAS_OpenGLLight::BindShadowBuffer(const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata)
+void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata)
 {
 	float projmat[4][4];
 	float viewprojmat[6][4][4];
@@ -372,6 +372,8 @@ void RAS_OpenGLLight::BindShadowBuffer(const MT_Vector3& pos, int id, EEVEE_Scen
 
 	DRW_uniformbuffer_update(sldata.shadow_render_ubo, &linfo->shadow_render_data);
 
+	rasty->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+
 	DRW_framebuffer_bind(sldata.shadow_cube_target_fb);
 	static float clear_color[4] = {FLT_MAX, FLT_MAX, FLT_MAX, 0.0f};
 	DRW_framebuffer_clear(true, true, false, clear_color, 1.0f);
@@ -385,6 +387,8 @@ void RAS_OpenGLLight::UnbindShadowBuffer(RAS_Rasterizer *rasty, EEVEE_SceneLayer
 	rasty->DrawOverlayPlane();
 
 // 	m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_NONE);
+
+	rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
 	m_requestShadowUpdate = false;
 }
