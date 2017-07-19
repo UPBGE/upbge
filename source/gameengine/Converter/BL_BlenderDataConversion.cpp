@@ -919,6 +919,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	lightobj->m_shadowclipstart = la->clipsta;
 	lightobj->m_shadowclipend = la->clipend;
 	lightobj->m_shadowbias = la->bias;
+	lightobj->m_shadowBleedExp = la->bleedexp;
 	lightobj->m_shadowbleedbias = la->bleedbias;
 	lightobj->m_shadowmaptype = la->shadowmap_type;
 	lightobj->m_shadowfrustumsize = la->shadow_frustum_size;
@@ -935,21 +936,24 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	lightobj->m_nodiffuse = (la->mode & LA_NO_DIFF) != 0;
 	lightobj->m_nospecular = (la->mode & LA_NO_SPEC) != 0;
 
-	if (la->type == LA_SUN) {
-		lightobj->m_type = RAS_ILightObject::LIGHT_SUN;
-	}
-	else if (la->type == LA_SPOT) {
-		lightobj->m_type = RAS_ILightObject::LIGHT_SPOT;
-	}
-	else if (la->type == LA_HEMI) {
-		lightobj->m_type = RAS_ILightObject::LIGHT_HEMI;
-	}
-	else if (la->type == LA_AREA) {
-		lightobj->m_type = RAS_ILightObject::LIGHT_AREA;
-	}
-	else {
-		lightobj->m_type = RAS_ILightObject::LIGHT_NORMAL;
-	}
+	lightobj->m_areaSize = MT_Vector2(la->area_size, la->area_sizey);
+
+	static RAS_ILightObject::LightType convertTypeTable[] = {
+		RAS_ILightObject::LIGHT_NORMAL, // LA_LOCAL
+		RAS_ILightObject::LIGHT_SUN, // LA_SUN
+		RAS_ILightObject::LIGHT_SPOT, // LA_SPOT
+		RAS_ILightObject::LIGHT_HEMI, // LA_HEMI
+		RAS_ILightObject::LIGHT_AREA // LA_AREA
+	};
+	lightobj->m_type = convertTypeTable[la->type];
+
+	static RAS_ILightObject::AreaShapeType convertAreaShapeTable[] = {
+		RAS_ILightObject::AREA_SQUARE, // LA_AREA_SQUARE
+		RAS_ILightObject::AREA_RECT, // LA_AREA_RECT
+		RAS_ILightObject::AREA_CUBE, // LA_AREA_CUBE
+		RAS_ILightObject::AREA_BOX // LA_AREA_BOX
+	};
+	lightobj->m_areaShape = convertAreaShapeTable[la->area_shape];
 
 	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rasterizer, lightobj);
 

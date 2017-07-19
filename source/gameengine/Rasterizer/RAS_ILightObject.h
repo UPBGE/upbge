@@ -32,6 +32,8 @@
 #ifndef __RAS_LIGHTOBJECT_H__
 #define __RAS_LIGHTOBJECT_H__
 
+#include "MT_Vector2.h"
+
 class RAS_Rasterizer;
 class MT_Vector3;
 class MT_Transform;
@@ -42,12 +44,20 @@ struct Image;
 class RAS_ILightObject
 {
 public:
+	// WARNING: have to match DNA enums for shader identification.
 	enum LightType {
-		LIGHT_NORMAL = 0,
-		LIGHT_SUN = 1,
-		LIGHT_SPOT = 2,
-		LIGHT_HEMI = 3,
-		LIGHT_AREA = 4
+		LIGHT_NORMAL = 0, // LA_LOCAL
+		LIGHT_SUN = 1, // LA_SUN
+		LIGHT_SPOT = 2, // LA_SPOT
+		LIGHT_HEMI = 3, // LA_HEMI
+		LIGHT_AREA = 4 // LA_AREA
+	};
+
+	enum AreaShapeType {
+		AREA_SQUARE,
+		AREA_RECT,
+		AREA_CUBE,
+		AREA_BOX
 	};
 
 	bool	m_modified;
@@ -61,6 +71,7 @@ public:
 	float	m_shadowfrustumsize;
 	float	m_shadowclipend;
 	float	m_shadowbias;
+	float m_shadowBleedExp;
 	float	m_shadowbleedbias;
 	short	m_shadowmaptype;
 	float	m_shadowcolor[3];
@@ -73,7 +84,10 @@ public:
 	float	m_spotsize;
 	float	m_spotblend;
 
+	MT_Vector2 m_areaSize;
+
 	LightType	m_type;
+	AreaShapeType m_areaShape;
 	
 	bool	m_nodiffuse;
 	bool	m_nospecular;

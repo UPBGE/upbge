@@ -176,7 +176,6 @@ bool RAS_OpenGLLight::Update(EEVEE_Light& lightData)
 		return false;
 	}
 
-	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
 	float obmat[4][4];
 	const MT_Transform trans = kxlight->NodeGetWorldTransform();
 	trans.getValue(&obmat[0][0]);
@@ -189,10 +188,10 @@ bool RAS_OpenGLLight::Update(EEVEE_Light& lightData)
 	copy_v3_v3(lightData.position, obmat[3]);
 
 	/* Color */
-	copy_v3_v3(lightData.color, &la->r);
+	copy_v3_v3(lightData.color, m_color);
 
 	/* Influence Radius */
-	lightData.dist = la->dist;
+	lightData.dist = m_energy;
 
 	/* Vectors */
 	normalize_m4_m4_ex(mat, obmat, scale);
@@ -207,32 +206,32 @@ bool RAS_OpenGLLight::Update(EEVEE_Light& lightData)
 	normalize_v3(lightData.upvec);
 
 	/* Spot size & blend */
-	if (la->type == LA_SPOT) {
+	if (m_type == LIGHT_SPOT) {
 		lightData.sizex = scale[0] / scale[2];
 		lightData.sizey = scale[1] / scale[2];
-		lightData.spotsize = cosf(la->spotsize * 0.5f);
-		lightData.spotblend = (1.0f - lightData.spotsize) * la->spotblend;
-		lightData.radius = max_ff(0.001f, la->area_size);
+		lightData.spotsize = cosf(m_spotsize * 0.5f);
+		lightData.spotblend = (1.0f - lightData.spotsize) * m_spotblend;
+		lightData.radius = max_ff(0.001f, m_areaSize.x());
 	}
-	else if (la->type == LA_AREA) {
-		lightData.sizex = max_ff(0.0001f, la->area_size * scale[0] * 0.5f);
-		if (la->area_shape == LA_AREA_RECT) {
-			lightData.sizey = max_ff(0.0001f, la->area_sizey * scale[1] * 0.5f);
+	else if (m_type == LIGHT_AREA) {
+		lightData.sizex = max_ff(0.0001f, m_areaSize.x() * scale[0] * 0.5f);
+		if (m_areaShape == AREA_RECT) {
+			lightData.sizey = max_ff(0.0001f, m_areaSize.y() * scale[1] * 0.5f);
 		}
 		else {
-			lightData.sizey = max_ff(0.0001f, la->area_size * scale[1] * 0.5f);
+			lightData.sizey = max_ff(0.0001f, m_areaSize.x() * scale[1] * 0.5f);
 		}
 	}
 	else {
-		lightData.radius = max_ff(0.001f, la->area_size);
+		lightData.radius = max_ff(0.001f, m_areaSize.x());
 	}
 
 	/* Make illumination power constant */
-	if (la->type == LA_AREA) {
+	if (m_type == LIGHT_AREA) {
 		power = 1.0f / (lightData.sizex * lightData.sizey * 4.0f * M_PI) /* 1/(w*h*Pi) */
 			* 80.0f; /* XXX : Empirical, Fit cycles power */
 	}
-	else if (la->type == LA_SPOT || la->type == LA_LOCAL) {
+	else if (m_type == LIGHT_SPOT || m_type == LIGHT_NORMAL) {
 		power = 1.0f / (4.0f * lightData.radius * lightData.radius * M_PI * M_PI) /* 1/(4*r+//0*Pi+//0) */
 			* M_PI * M_PI * M_PI * 10.0; /* XXX : Empirical, Fit cycles power */
 
@@ -242,10 +241,10 @@ bool RAS_OpenGLLight::Update(EEVEE_Light& lightData)
 	else {
 		power = 1.0f;
 	}
-	mul_v3_fl(lightData.color, power * la->energy);
+	mul_v3_fl(lightData.color, power * m_energy);
 
 	/* Lamp Type */
-	lightData.lamptype = (float)la->type;
+	lightData.lamptype = (float)m_type;
 
 // 	/* No shadow by default */
 	lightData.shadowid = 0.0f;
@@ -281,49 +280,47 @@ bool RAS_OpenGLLight::NeedShadowUpdate()
 
 int RAS_OpenGLLight::GetShadowBindCode()
 {
-	GPULamp *lamp;
+	/*GPULamp *lamp;
 	
 	if ((lamp = GetGPULamp()))
-		return GPU_lamp_shadow_bind_code(lamp);
+		return GPU_lamp_shadow_bind_code(lamp);*/
 	return -1;
 }
 
 MT_Matrix4x4 RAS_OpenGLLight::GetViewMat()
 {
-	GPULamp *lamp = GetGPULamp();
+	/*GPULamp *lamp = GetGPULamp();
 	if (lamp) {
 		return MT_Matrix4x4(GPU_lamp_get_viewmat(lamp));
-	}
+	}*/
 	return MT_Matrix4x4::Identity();
 }
 
 MT_Matrix4x4 RAS_OpenGLLight::GetWinMat()
 {
-	GPULamp *lamp = GetGPULamp();
+	/*GPULamp *lamp = GetGPULamp();
 	if (lamp) {
 		return MT_Matrix4x4(GPU_lamp_get_winmat(lamp));
-	}
+	}*/
 	return MT_Matrix4x4::Identity();
 }
 
 MT_Matrix4x4 RAS_OpenGLLight::GetShadowMatrix()
 {
-	GPULamp *lamp;
+	/*GPULamp *lamp;
 
 	if ((lamp = GetGPULamp()))
-		return MT_Matrix4x4(GPU_lamp_dynpersmat(lamp));
-	MT_Matrix4x4 mat;
-	mat.setIdentity();
-	return mat;
+		return MT_Matrix4x4(GPU_lamp_dynpersmat(lamp));*/
+	return MT_Matrix4x4::Identity();
 }
 
 int RAS_OpenGLLight::GetShadowLayer()
 {
-	GPULamp *lamp;
+	/*GPULamp *lamp;
 
 	if ((lamp = GetGPULamp()))
 		return GPU_lamp_shadow_layer(lamp);
-	else
+	else*/
 		return 0;
 }
 
@@ -333,12 +330,10 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& 
 	float viewprojmat[6][4][4];
 
 	EEVEE_LampsInfo *linfo = sldata.lamps;
-// 	EEVEE_Light *evli = linfo->light_data + evsmp->light_id;
 	EEVEE_ShadowCube& evsh = linfo->shadow_cube_data[id];
-	KX_LightObject *kxlight = (KX_LightObject *)m_light;
-	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
 
-	perspective_m4(projmat, -la->clipsta, la->clipsta, -la->clipsta, la->clipsta, la->clipsta, la->clipend);
+	perspective_m4(projmat, -m_shadowclipstart, m_shadowclipstart, -m_shadowclipstart, m_shadowclipstart,
+				   m_shadowclipstart, m_shadowclipend);
 
 	for (int i = 0; i < 6; ++i) {
 		float tmp[4][4];
@@ -348,17 +343,15 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& 
 		mul_m4_m4m4(viewprojmat[i], projmat, tmp);
 	}
 
-	evsh.bias = 0.05f * la->bias;
-	evsh.nearf = la->clipsta;
-	evsh.farf = la->clipend;
-	evsh.exp = la->bleedexp;
-
-// 	evli->shadowid = (float)(evsmp->shadow_id);
+	evsh.bias = 0.05f * m_shadowbias;
+	evsh.nearf = m_shadowclipstart;
+	evsh.farf = m_shadowclipend;
+	evsh.exp = m_shadowBleedExp;
 
 	EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
 
 	srd->layer = id;
-	srd->exponent = la->bleedexp;
+	srd->exponent = m_shadowBleedExp;
 	pos.getValue(srd->position);
 	for (int j = 0; j < 6; j++) {
 		float tmp[4][4];
@@ -411,7 +404,7 @@ Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 
 void RAS_OpenGLLight::Update()
 {
-	GPULamp *lamp;
+	/*GPULamp *lamp;
 	KX_LightObject *kxlight = (KX_LightObject *)m_light;
 
 	if ((lamp = GetGPULamp()) != nullptr && kxlight->GetSGNode()) {
@@ -425,6 +418,6 @@ void RAS_OpenGLLight::Update()
 		                       m_color[2], m_energy);
 		GPU_lamp_update_distance(lamp, m_distance, m_att1, m_att2, m_coeff_const, m_coeff_lin, m_coeff_quad);
 		GPU_lamp_update_spot(lamp, m_spotsize, m_spotblend);
-	}
+	}*/
 }
 
