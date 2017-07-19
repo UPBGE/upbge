@@ -5,12 +5,15 @@
 
 #include "GPU_shader.h"
 
+struct DRWShadingGroup;
+
 /** \brief Override shader used to draw geometry in case of shadow, wire etc...
  */
 class RAS_OverrideShader : public RAS_MaterialShader
 {
 protected:
 	GPUShader *m_shader;
+	DRWShadingGroup *m_shGroup;
 
 	short m_posLoc;
 	short m_mvpLoc;

@@ -3,12 +3,19 @@
 
 #include "BLI_utildefines.h"
 
+extern "C" {
+#  include "DRW_render.h"
+}
+
 RAS_OverrideShader::RAS_OverrideShader(GPUShader *shader)
 	:m_shader(shader)
 {
 	BLI_assert(shader);
+
 	m_posLoc = GPU_shader_get_attribute(m_shader, "pos");
 	m_mvpLoc = GPU_shader_get_uniform(m_shader, "ModelViewProjectionMatrix");
+
+	m_shGroup = DRW_shgroup_create(m_shader, nullptr);
 }
 
 RAS_OverrideShader::RAS_OverrideShader(GPUBuiltinShader type)
@@ -18,6 +25,9 @@ RAS_OverrideShader::RAS_OverrideShader(GPUBuiltinShader type)
 
 RAS_OverrideShader::~RAS_OverrideShader()
 {
+	if (m_shGroup) {
+		DRW_shgroup_free(m_shGroup);
+	}
 }
 
 bool RAS_OverrideShader::IsValid() const
@@ -27,12 +37,11 @@ bool RAS_OverrideShader::IsValid() const
 
 void RAS_OverrideShader::Activate(EEVEE_SceneLayerData *sldata)
 {
-	GPU_shader_bind(m_shader);
+	DRW_bind_shader_shgroup(m_shGroup);
 }
 
 void RAS_OverrideShader::Desactivate()
 {
-	GPU_shader_unbind();
 }
 
 void RAS_OverrideShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata)
