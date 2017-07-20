@@ -348,4 +348,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 	rasty->SetMatrixMode(RAS_Rasterizer::RAS_MODELVIEW);
 
 	rasty->PopMatrix();
+
+	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 }
