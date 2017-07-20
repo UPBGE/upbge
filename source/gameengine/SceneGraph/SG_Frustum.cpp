@@ -5,18 +5,18 @@
 SG_Frustum::SG_Frustum(const MT_Matrix4x4& matrix)
 	:m_matrix(matrix)
 {
-	// Left clip plane
-	m_planes[0] = m_matrix[3] + m_matrix[0];
-	// Right clip plane
-	m_planes[1] = m_matrix[3] - m_matrix[0];
-	// Top clip plane
-	m_planes[2] = m_matrix[3] - m_matrix[1];
-	// Bottom clip plane
-	m_planes[3] = m_matrix[3] + m_matrix[1];
 	// Near clip plane
-	m_planes[4] = m_matrix[3] + m_matrix[2];
+	m_planes[0] = m_matrix[3] + m_matrix[2];
 	// Far clip plane
-	m_planes[5] = m_matrix[3] - m_matrix[2];
+	m_planes[1] = m_matrix[3] - m_matrix[2];
+	// Left clip plane
+	m_planes[2] = m_matrix[3] + m_matrix[0];
+	// Right clip plane
+	m_planes[3] = m_matrix[3] - m_matrix[0];
+	// Top clip plane
+	m_planes[4] = m_matrix[3] - m_matrix[1];
+	// Bottom clip plane
+	m_planes[5] = m_matrix[3] + m_matrix[1];
 
 	// Normalize clip planes.
 	for (MT_Vector4& plane : m_planes) {
@@ -30,6 +30,11 @@ SG_Frustum::SG_Frustum(const MT_Matrix4x4& matrix)
 const std::array<MT_Vector4, 6>& SG_Frustum::GetPlanes() const
 {
 	return m_planes;
+}
+
+const MT_Matrix4x4& SG_Frustum::GetMatrix() const
+{
+	return m_matrix;
 }
 
 SG_Frustum::TestType SG_Frustum::PointInsideFrustum(const MT_Vector3& point) const

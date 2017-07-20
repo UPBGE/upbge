@@ -1362,7 +1362,7 @@ struct OcclusionBuffer {
 		m[15] = btScalar(m1[3] * m2[12] + m1[7] * m2[13] + m1[11] * m2[14] + m1[15] * m2[15]);
 	}
 
-	void setup(int size, const int *view, float modelview[16], float projection[16])
+	void setup(int size, const int *view, float mat[16])
 	{
 		m_initialized = false;
 		m_occlusion = false;
@@ -1381,7 +1381,9 @@ struct OcclusionBuffer {
 		// at this time of the rendering, the modelview matrix is the
 		// world to camera transformation and the projection matrix is
 		// camera to clip transformation. combine both so that
-		CMmat4mul(m_wtc, projection, modelview);
+		for (unsigned short i = 0; i < 16; i++) {
+			m_wtc[i] = btScalar(mat[i]);
+		}
 	}
 
 	void initialize()
@@ -1897,30 +1899,31 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 };
 
 static OcclusionBuffer gOcb;
-bool CcdPhysicsEnvironment::CullingTest(PHY_CullingCallback callback, void *userData, MT_Vector4 *planes, int nplanes, int occlusionRes, const int *viewport, float modelview[16], float projection[16])
+bool CcdPhysicsEnvironment::CullingTest(PHY_CullingCallback callback, void *userData, const std::array<MT_Vector4, 6>& planes,
+										int occlusionRes, const int *viewport, const MT_Matrix4x4& matrix)
 {
 	if (!m_cullingTree)
 		return false;
 	DbvtCullingCallback dispatcher(callback, userData);
 	btVector3 planes_n[6];
 	btScalar planes_o[6];
-	if (nplanes > 6)
-		nplanes = 6;
-	for (int i = 0; i < nplanes; i++) {
+	for (int i = 0; i < 6; i++) {
 		planes_n[i] = ToBullet(planes[i]);
 		planes_o[i] = planes[i][3];
 	}
 	// if occlusionRes != 0 => occlusion culling
 	if (occlusionRes) {
-		gOcb.setup(occlusionRes, viewport, modelview, projection);
+		float mat[16];
+		matrix.getValue(mat);
+		gOcb.setup(occlusionRes, viewport, mat);
 		dispatcher.m_ocb = &gOcb;
 		// occlusion culling, the direction of the view is taken from the first plan which MUST be the near plane
-		btDbvt::collideOCL(m_cullingTree->m_sets[1].m_root, planes_n, planes_o, planes_n[0], nplanes, dispatcher);
-		btDbvt::collideOCL(m_cullingTree->m_sets[0].m_root, planes_n, planes_o, planes_n[0], nplanes, dispatcher);
+		btDbvt::collideOCL(m_cullingTree->m_sets[1].m_root, planes_n, planes_o, planes_n[0], 6, dispatcher);
+		btDbvt::collideOCL(m_cullingTree->m_sets[0].m_root, planes_n, planes_o, planes_n[0], 6, dispatcher);
 	}
 	else {
-		btDbvt::collideKDOP(m_cullingTree->m_sets[1].m_root, planes_n, planes_o, nplanes, dispatcher);
-		btDbvt::collideKDOP(m_cullingTree->m_sets[0].m_root, planes_n, planes_o, nplanes, dispatcher);
+		btDbvt::collideKDOP(m_cullingTree->m_sets[1].m_root, planes_n, planes_o, 6, dispatcher);
+		btDbvt::collideKDOP(m_cullingTree->m_sets[0].m_root, planes_n, planes_o, 6, dispatcher);
 	}
 	return true;
 }

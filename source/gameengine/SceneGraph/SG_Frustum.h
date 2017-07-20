@@ -27,6 +27,7 @@ public:
 	~SG_Frustum() = default;
 
 	const std::array<MT_Vector4, 6>& GetPlanes() const;
+	const MT_Matrix4x4& GetMatrix() const;
 
 	TestType PointInsideFrustum(const MT_Vector3& point) const;
 	TestType SphereInsideFrustum(const MT_Vector3& center, float radius) const;
