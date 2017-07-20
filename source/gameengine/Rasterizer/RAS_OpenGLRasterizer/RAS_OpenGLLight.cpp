@@ -30,44 +30,22 @@
 
 #include <stdio.h>
 
-
 #include "RAS_OpenGLLight.h"
 #include "RAS_Rasterizer.h"
-#include "RAS_ICanvas.h"
-
-#include "KX_Camera.h"
-#include "KX_Light.h"
-#include "KX_Scene.h"
-
-#include "DNA_lamp_types.h"
-#include "DNA_scene_types.h"
-
-#include "GPU_lamp.h"
-#include "GPU_material.h"
+#include "RAS_SceneLayerData.h"
 
 #include "BLI_math.h"
 
-#include "KX_Globals.h"
-#include "KX_Scene.h"
-
 extern "C" {
-#  include "eevee_private.h"
 #  include "DRW_render.h"
 }
 
-RAS_OpenGLLight::RAS_OpenGLLight(EEVEE_SceneLayerData& sldata)
+RAS_OpenGLLight::RAS_OpenGLLight()
 {
-	m_shGroup = DRW_shgroup_create(EEVEE_shadow_store_shader_get(), nullptr);
-	DRW_shgroup_uniform_buffer(m_shGroup, "shadowCube", &sldata.shadow_color_cube_target);
-	DRW_shgroup_uniform_block(m_shGroup, "shadow_render_block", sldata.shadow_render_ubo);
 }
 
 RAS_OpenGLLight::~RAS_OpenGLLight()
 {
-	if (m_shGroup) {
-		DRW_shgroup_free(m_shGroup);
-	}
-
 	/*GPULamp *lamp;
 	KX_LightObject *kxlight = (KX_LightObject *)m_light;
 	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
@@ -234,12 +212,12 @@ void RAS_OpenGLLight::Update(EEVEE_Light& lightData, int shadowid, const MT_Matr
 	lightData.shadowid = shadowid;
 }
 
-GPULamp *RAS_OpenGLLight::GetGPULamp()
+/*GPULamp *RAS_OpenGLLight::GetGPULamp()
 {
 	KX_LightObject *kxlight = (KX_LightObject *)m_light;
 
 	return GPU_lamp_from_blender(kxlight->GetScene()->GetBlenderScene(), kxlight->GetBlenderObject(), kxlight->GetBlenderGroupObject());
-}
+}*/
 
 bool RAS_OpenGLLight::HasShadow() const
 {
@@ -248,10 +226,6 @@ bool RAS_OpenGLLight::HasShadow() const
 
 bool RAS_OpenGLLight::NeedShadowUpdate()
 {
-	if (!HasShadow()) {
-		return false;
-	}
-
 	if (m_staticShadow) {
 		return m_requestShadowUpdate;
 	}
@@ -305,11 +279,10 @@ int RAS_OpenGLLight::GetShadowLayer()
 		return 0;
 }
 
-void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata)
+void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, int id, RAS_SceneLayerData *layerData)
 {
-	EEVEE_LampsInfo *linfo = sldata.lamps;
-	EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
-	EEVEE_ShadowCube& evsh = linfo->shadow_cube_data[id];
+	EEVEE_ShadowRender& srd = layerData->GetShadowRender();
+	EEVEE_ShadowCube& evsh = layerData->GetShadowCube(id);
 
 	float projmat[4][4];
 	perspective_m4(projmat, -m_shadowclipstart, m_shadowclipstart, -m_shadowclipstart, m_shadowclipstart,
@@ -331,28 +304,22 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& 
 	evsh.farf = m_shadowclipend;
 	evsh.exp = m_shadowBleedExp;
 
-	srd->layer = id;
-	srd->exponent = m_shadowBleedExp;
-	pos.getValue(srd->position);
+	srd.layer = id;
+	srd.exponent = m_shadowBleedExp;
+	pos.getValue(srd.position);
 	for (int j = 0; j < 6; j++) {
-		view[j].getValue(&srd->viewmat[j][0][0]);
-		(proj * view[j]).getValue(&srd->shadowmat[j][0][0]);
+		view[j].getValue(&srd.viewmat[j][0][0]);
+		(proj * view[j]).getValue(&srd.shadowmat[j][0][0]);
 	}
-
-	DRW_uniformbuffer_update(sldata.shadow_ubo, &linfo->shadow_cube_data); /* Update all data at once */
-	DRW_uniformbuffer_update(sldata.shadow_render_ubo, &linfo->shadow_render_data);
 
 	rasty->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
-	DRW_framebuffer_bind(sldata.shadow_cube_target_fb);
-	static float clear_color[4] = {FLT_MAX, FLT_MAX, FLT_MAX, 0.0f};
-	DRW_framebuffer_clear(true, true, false, clear_color, 1.0f);
+	layerData->PrepareShadowRender();
 }
 
-void RAS_OpenGLLight::UnbindShadowBuffer(RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata)
+void RAS_OpenGLLight::UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerData *layerData)
 {
-	DRW_framebuffer_bind(sldata.shadow_cube_fb);
-	DRW_bind_shader_shgroup(m_shGroup);
+	layerData->PrepareShadowStore();
 
 	rasty->DrawOverlayPlane();
 
@@ -365,7 +332,7 @@ void RAS_OpenGLLight::UnbindShadowBuffer(RAS_Rasterizer *rasty, EEVEE_SceneLayer
 
 Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 {
-	KX_LightObject *kxlight = (KX_LightObject *)m_light;
+	/*KX_LightObject *kxlight = (KX_LightObject *)m_light;
 	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
 
 	if (texslot >= MAX_MTEX || texslot < 0) {
@@ -374,7 +341,7 @@ Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 	}
 
 	if (la->mtex[texslot])
-		return la->mtex[texslot]->tex->ima;
+		return la->mtex[texslot]->tex->ima;*/
 
 	return nullptr;
 }

@@ -33,12 +33,12 @@ struct DRWShadingGroup;
 
 class RAS_OpenGLLight : public RAS_ILightObject
 {
-	GPULamp *GetGPULamp();
+// 	GPULamp *GetGPULamp();
 
 	DRWShadingGroup *m_shGroup;
 
 public:
-	RAS_OpenGLLight(EEVEE_SceneLayerData& sldata);
+	RAS_OpenGLLight();
 	virtual ~RAS_OpenGLLight();
 
 	RAS_OpenGLLight *Clone()
@@ -53,8 +53,8 @@ public:
 	virtual MT_Matrix4x4 GetWinMat();
 	virtual MT_Matrix4x4 GetShadowMatrix();
 	virtual int GetShadowLayer();
-	virtual void BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata);
-	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata);
+	virtual void BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, int id, RAS_SceneLayerData *layerData);
+	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerData *layerData);
 	virtual Image *GetTextureImage(short texslot);
 	virtual void Update(EEVEE_Light& lightData, int shadowid, const MT_Matrix3x3& rot, const MT_Vector3& pos, const MT_Vector3& scale);
 	void SetShadowUpdateState(short state);

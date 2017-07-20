@@ -88,6 +88,7 @@
 #include "RAS_BucketManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_IPolygonMaterial.h"
+#include "RAS_SceneLayerData.h"
 #include "KX_BlenderMaterial.h"
 #include "KX_TextureRendererManager.h"
 #include "BL_Texture.h"
@@ -902,11 +903,10 @@ static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene,
 	return lodManager;
 }
 
-static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_Rasterizer *rasterizer, KX_BlenderSceneConverter& converter)
+static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene)
 {
-	RAS_ILightObject *lightobj = new RAS_OpenGLLight(kxscene->GetSceneLayerData());
-	KX_LightObject *gamelight;
-	
+	RAS_ILightObject *lightobj = new RAS_OpenGLLight();
+
 	lightobj->m_att1 = la->att1;
 	lightobj->m_att2 = (la->mode & LA_QUAD) ? la->att2 : 0.0f;
 	lightobj->m_coeff_const = la->coeff_const;
@@ -957,14 +957,14 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	};
 	lightobj->m_areaShape = convertAreaShapeTable[la->area_shape];
 
-	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, lightobj);
+	KX_LightObject *gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, lightobj);
 
 	gamelight->SetShowShadowFrustum((la->mode & LA_SHOW_SHADOW_BOX) && (la->mode & LA_SHAD_RAY));
 
 	return gamelight;
 }
 
-static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_BlenderSceneConverter& converter)
+static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene)
 {
 	Camera* ca = static_cast<Camera*>(ob->data);
 	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
@@ -1002,7 +1002,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 	switch (ob->type) {
 	case OB_LAMP:
 	{
-		KX_LightObject* gamelight = gamelight_from_blamp(ob, static_cast<Lamp*>(ob->data), ob->lay, kxscene, rendertools, converter);
+		KX_LightObject* gamelight = gamelight_from_blamp(ob, static_cast<Lamp*>(ob->data), ob->lay, kxscene);
 		gameobj = gamelight;
 		gamelight->AddRef();
 		kxscene->GetLightList()->Add(gamelight);
@@ -1012,7 +1012,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 	
 	case OB_CAMERA:
 	{
-		KX_Camera* gamecamera = gamecamera_from_bcamera(ob, kxscene, converter);
+		KX_Camera* gamecamera = gamecamera_from_bcamera(ob, kxscene);
 		gameobj = gamecamera;
 		
 		//don't add a reference: the camera list in kxscene->m_cameras is not released at the end
@@ -1294,7 +1294,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 #endif  // WITH_PYTHON
 }
 
-static void BL_ConvertEeveeSceneLayerData(Scene *blenderscene, EEVEE_SceneLayerData& sldata, Depsgraph *graph)
+static RAS_SceneLayerData *BL_ConvertEeveeSceneLayerData(Scene *blenderscene, Depsgraph *graph)
 {
 	EEVEE_SceneLayerData *blsldata = nullptr;
 
@@ -1323,7 +1323,7 @@ static void BL_ConvertEeveeSceneLayerData(Scene *blenderscene, EEVEE_SceneLayerD
 	EEVEE_lights_init(&sldata);
 	EEVEE_lightprobes_init(&sldata, EEVEE_engine_data_get());
 #else
-	sldata = *blsldata;
+	return new RAS_SceneLayerData(*blsldata);
 #endif
 }
 
@@ -1536,9 +1536,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	kxscene->SetWorldInfo(worldinfo);
 
 
-	EEVEE_SceneLayerData sldata;
-	BL_ConvertEeveeSceneLayerData(blenderscene, sldata, depsgraph);
-	kxscene->SetSceneLayerData(sldata);
+	RAS_SceneLayerData *layerData = BL_ConvertEeveeSceneLayerData(blenderscene, depsgraph);
+	kxscene->SetSceneLayerData(layerData);
 
 	int activeLayerBitInfo = blenderscene->lay;
 	

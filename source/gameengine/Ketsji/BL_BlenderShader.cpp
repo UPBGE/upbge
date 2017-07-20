@@ -31,23 +31,24 @@
 #include "GPU_shader.h"
 #include "GPU_extensions.h"
 
-
 #include "BL_BlenderShader.h"
 
 #include "RAS_BucketManager.h"
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
 #include "RAS_Rasterizer.h"
+#include "RAS_SceneLayerData.h"
 
 #include "KX_Scene.h"
 
 extern "C" {
+#  include "eevee_private.h"
 #  include "eevee_engine.h"
 #  include "DRW_engine.h"
 #  include "DRW_render.h"
 }
 
-BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
+BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer)
 	:m_blenderScene(scene->GetBlenderScene()),
 	m_mat(ma),
 	m_shGroup(nullptr)
@@ -134,7 +135,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 		DRW_shgroup_uniform_float(m_shGroup, "roughness", rough_p, 1);
 	}
 
-	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData(), EEVEE_engine_data_get());
+	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData()->GetData(), EEVEE_engine_data_get());
 }
 
 bool BL_BlenderShader::IsValid() const
@@ -142,7 +143,7 @@ bool BL_BlenderShader::IsValid() const
 	return (m_shGroup != nullptr);
 }
 
-void BL_BlenderShader::Activate(EEVEE_SceneLayerData *sldata)
+void BL_BlenderShader::Activate()
 {
 	DRW_bind_shader_shgroup(m_shGroup);
 }
@@ -151,7 +152,7 @@ void BL_BlenderShader::Desactivate()
 {
 }
 
-void BL_BlenderShader::Update(RAS_Rasterizer *UNUSED(rasty), RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata)
+void BL_BlenderShader::Update(RAS_Rasterizer *UNUSED(rasty), RAS_MeshUser *meshUser)
 {
 	DRW_draw_geometry_prepare(m_shGroup, (float(*)[4])meshUser->GetMatrix(), nullptr, nullptr);
 }

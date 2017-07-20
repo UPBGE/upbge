@@ -16,11 +16,11 @@ public:
 	/// Return true when the shader can be bound.
 	virtual bool IsValid() const = 0;
 	// Bind the shader and mainly update global uniforms.
-	virtual void Activate(EEVEE_SceneLayerData *sldata) = 0;
+	virtual void Activate() = 0;
 	/// Unbind the shader.
 	virtual void Desactivate() = 0;
 	/// Update the shader with mesh user data as model matrix.
-	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata) = 0;
+	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser) = 0;
 	/** Return a map of the corresponding attribut layer for a given attribut index.
 	 * \param layers The list of the mesh layers used to link with uv and color material attributes.
 	 * \return The map of attributes layers.

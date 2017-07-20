@@ -19,9 +19,9 @@ public:
 	BL_Shader *GetShader() const;
 
 	virtual bool IsValid() const;
-	virtual void Activate(EEVEE_SceneLayerData *sldata);
+	virtual void Activate();
 	virtual void Desactivate();
-	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata);
+	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);
 	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
 };

@@ -39,7 +39,7 @@ class MT_Vector3;
 class MT_Transform;
 class MT_Matrix4x4;
 class MT_Matrix3x3;
-struct EEVEE_SceneLayerData;
+class RAS_SceneLayerData;
 struct EEVEE_Light;
 struct Image;
 
@@ -63,8 +63,6 @@ public:
 	};
 
 	int		m_layer;
-	void	*m_scene;
-	void	*m_light;
 
 	float	m_energy;
 	float	m_distance;
@@ -107,8 +105,8 @@ public:
 	virtual MT_Matrix4x4 GetViewMat() = 0;
 	virtual MT_Matrix4x4 GetWinMat() = 0;
 	virtual int GetShadowLayer() = 0;
-	virtual void BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, int id, EEVEE_SceneLayerData& sldata) = 0;
-	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata) = 0;
+	virtual void BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, int id, RAS_SceneLayerData *layerData) = 0;
+	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerData *layerData) = 0;
 	virtual Image *GetTextureImage(short texslot) = 0;
 	virtual void Update(EEVEE_Light& lightData, int shadowid, const MT_Matrix3x3& rot, const MT_Vector3& pos, const MT_Vector3& scale) = 0;
 };

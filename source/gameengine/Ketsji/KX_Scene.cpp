@@ -67,6 +67,7 @@
 #include "KX_2DFilterManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
+#include "RAS_SceneLayerData.h"
 
 #include "EXP_FloatValue.h"
 #include "SCA_IController.h"
@@ -317,14 +318,15 @@ void KX_Scene::SetName(const std::string& name)
 	m_sceneName = name;
 }
 
-void KX_Scene::SetSceneLayerData(const EEVEE_SceneLayerData &data)
+void KX_Scene::SetSceneLayerData(RAS_SceneLayerData *layerData)
 {
-	m_layerData = data;
+	m_layerData.reset(layerData);
+	m_bucketmanager->InitOverrideShaders(m_layerData.get());
 }
 
-EEVEE_SceneLayerData& KX_Scene::GetSceneLayerData()
+RAS_SceneLayerData *KX_Scene::GetSceneLayerData() const
 {
-	return m_layerData;
+	return m_layerData.get();
 }
 
 RAS_BucketManager* KX_Scene::GetBucketManager() const
@@ -1651,7 +1653,7 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 		node->GetObject()->UpdateBuckets();
 	}
 
-	m_bucketmanager->Renderbuckets(cameratransform, rasty, m_layerData, offScreen);
+	m_bucketmanager->Renderbuckets(cameratransform, rasty, offScreen);
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
@@ -1851,9 +1853,6 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 					children[i]->SetSGClientInfo(to);
 		}
 	}
-	/* If the object is a light, update it's scene */
-	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT)
-		((KX_LightObject*)gameobj)->UpdateScene(to);
 
 	// All armatures should be in the animated object list to be umpdated.
 	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
@@ -1882,7 +1881,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		return false;
 	}
 
-	GetBucketManager()->MergeBucketManager(other->GetBucketManager(), this);
+	GetBucketManager()->MergeBucketManager(other->GetBucketManager());
 	GetBoundingBoxManager()->Merge(other->GetBoundingBoxManager());
 	GetTextureRendererManager()->Merge(other->GetTextureRendererManager());
 

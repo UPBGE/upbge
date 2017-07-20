@@ -55,24 +55,15 @@
 KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks,
                                RAS_ILightObject *lightobj)
 	:KX_GameObject(sgReplicationInfo, callbacks),
+	m_lightobj(lightobj),
 	m_showShadowFrustum(false)
 {
-	m_lightobj = lightobj;
-	m_lightobj->m_scene = sgReplicationInfo;
-	m_lightobj->m_light = this;
-	m_blenderscene = ((KX_Scene *)sgReplicationInfo)->GetBlenderScene();
-	m_base = nullptr;
 }
 
 KX_LightObject::~KX_LightObject()
 {
 	if (m_lightobj) {
 		delete(m_lightobj);
-	}
-
-	if (m_base) {
-		BKE_scene_base_unlink(m_blenderscene, m_base);
-		MEM_freeN(m_base);
 	}
 }
 
@@ -83,9 +74,6 @@ CValue *KX_LightObject::GetReplica()
 	replica->ProcessReplica();
 
 	replica->m_lightobj = m_lightobj->Clone();
-	replica->m_lightobj->m_light = replica;
-	if (m_base)
-		m_base = nullptr;
 
 	return replica;
 }
@@ -98,13 +86,6 @@ bool KX_LightObject::GetShowShadowFrustum() const
 void KX_LightObject::SetShowShadowFrustum(bool show)
 {
 	m_showShadowFrustum = show;
-}
-
-void KX_LightObject::UpdateScene(KX_Scene *kxscene)
-{
-	m_lightobj->m_scene = (void *)kxscene;
-	m_blenderscene = kxscene->GetBlenderScene();
-	m_base = BKE_scene_base_add(m_blenderscene, GetBlenderObject());
 }
 
 void KX_LightObject::SetLayer(int layer)

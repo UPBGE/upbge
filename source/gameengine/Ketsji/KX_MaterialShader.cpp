@@ -21,7 +21,7 @@ bool KX_MaterialShader::IsValid() const
 	return m_shader->Ok();
 }
 
-void KX_MaterialShader::Activate(EEVEE_SceneLayerData *sldata)
+void KX_MaterialShader::Activate()
 {
 	m_shader->SetProg(true);
 	m_shader->ApplyShader();
@@ -32,7 +32,7 @@ void KX_MaterialShader::Desactivate()
 	m_shader->SetProg(false);
 }
 
-void KX_MaterialShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata)
+void KX_MaterialShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser)
 {
 	m_shader->Update(rasty, meshUser);
 }

@@ -154,10 +154,11 @@ void RAS_MaterialBucket::BindNode(const RAS_MaterialNodeTuple& tuple)
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
 	RAS_Rasterizer *rasty = managerData->m_rasty;
 
+	
 	rasty->SetCullFace(m_nodeData.m_cullFace);
 	rasty->SetPolygonOffset(-m_nodeData.m_zoffset, 0.0f);
 
-	m_shader->Activate(managerData->m_sldata);
+	m_shader->Activate();
 }
 
 void RAS_MaterialBucket::UnbindNode(const RAS_MaterialNodeTuple& tuple)

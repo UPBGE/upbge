@@ -51,10 +51,6 @@
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 
-extern "C" {
-#include "eevee_private.h"
-}
-
 /**
  * \section Forward declarations
  */
@@ -89,6 +85,7 @@ class RAS_IPolyMaterial;
 class RAS_Rasterizer;
 class RAS_DebugDraw;
 class RAS_OffScreen;
+class RAS_SceneLayerData;
 class RAS_2DFilterManager;
 class KX_2DFilterManager;
 class SCA_JoystickManager;
@@ -97,10 +94,6 @@ class KX_BlenderSceneConverter;
 struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
 struct TaskPool;
-
-struct GPUUniformBuffer;
-struct GPUTexture;
-struct EEVEE_SceneLayerData;
 
 /* for ID freeing */
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
@@ -144,7 +137,7 @@ private:
 	};
 
 protected:
-	EEVEE_SceneLayerData m_layerData;
+	std::unique_ptr<RAS_SceneLayerData> m_layerData;
 
 	KX_TextureRendererManager *m_rendererManager;
 	RAS_BucketManager*	m_bucketmanager;
@@ -332,8 +325,8 @@ public:
 	virtual
 	~KX_Scene();
 
-	void SetSceneLayerData(const EEVEE_SceneLayerData &data);
-	EEVEE_SceneLayerData& GetSceneLayerData();
+	void SetSceneLayerData(RAS_SceneLayerData *layerData);
+	RAS_SceneLayerData *GetSceneLayerData() const;
 	RAS_BucketManager* GetBucketManager() const;
 	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;

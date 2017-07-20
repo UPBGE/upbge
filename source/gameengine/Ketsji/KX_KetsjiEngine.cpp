@@ -52,6 +52,7 @@
 #include "RAS_ICanvas.h"
 #include "RAS_OffScreen.h"
 #include "RAS_ILightObject.h"
+#include "RAS_SceneLayerData.h"
 #include "MT_Vector3.h"
 #include "MT_Transform.h"
 #include "SCA_IInputDevice.h"
@@ -842,8 +843,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
 
-	EEVEE_SceneLayerData& sldata = scene->GetSceneLayerData();
-	EEVEE_LampsInfo *linfo = sldata.lamps;
+	RAS_SceneLayerData *layerData = scene->GetSceneLayerData();
+
+	const bool textured = (m_rasterizer->GetDrawingMode() == RAS_Rasterizer::RAS_TEXTURED);
 
 	int lightid = 0;
 	int shadowid = 0;
@@ -857,11 +859,12 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 		const MT_Matrix3x3& rot = light->NodeGetWorldOrientation();
 		const MT_Vector3& pos = light->NodeGetWorldPosition();
 		const MT_Vector3& scale = light->NodeGetWorldScaling();
-		const bool useShadow = ((m_rasterizer->GetDrawingMode() == RAS_Rasterizer::RAS_TEXTURED) && raslight->NeedShadowUpdate());
 
-		raslight->Update(linfo->light_data[lightid++], (useShadow) ? shadowid : -1, rot, pos, scale);
+		const bool useShadow = (textured && raslight->HasShadow());
 
-		if (useShadow) {
+		raslight->Update(layerData->GetLight(lightid++), (useShadow) ? shadowid : -1, rot, pos, scale);
+
+		if (useShadow && raslight->NeedShadowUpdate()) {
 			/* make temporary camera */
 			RAS_CameraData camdata = RAS_CameraData();
 			KX_Camera *cam = new KX_Camera(scene, scene->m_callbacks, camdata, true, true);
@@ -876,7 +879,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
 
 			/* binds framebuffer object, sets up camera .. */
-			raslight->BindShadowBuffer(m_rasterizer, pos, shadowid++, sldata);
+			raslight->BindShadowBuffer(m_rasterizer, pos, shadowid++, layerData);
 
 			KX_CullingNodeList nodes;
 			/* update scene */
@@ -891,14 +894,13 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
 
 			/* unbind framebuffer object, restore drawmode, free camera */
-			raslight->UnbindShadowBuffer(m_rasterizer, sldata);
+			raslight->UnbindShadowBuffer(m_rasterizer, layerData);
 			m_rasterizer->SetDrawingMode(drawmode);
 			cam->Release();
 		}
 	}
 
-	linfo->num_light = lightid;
-	DRW_uniformbuffer_update(sldata.light_ubo, &linfo->light_data);
+	layerData->FlushLightData(lightid);
 }
 
 MT_Matrix4x4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoEye eye,

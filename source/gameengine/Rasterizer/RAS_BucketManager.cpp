@@ -90,10 +90,13 @@ RAS_BucketManager::RAS_BucketManager(RAS_IPolyMaterial *textMaterial)
 	bool created;
 	RAS_MaterialBucket *bucket = FindBucket(m_text.m_material, created);
 	m_text.m_arrayBucket = new RAS_DisplayArrayBucket(bucket, nullptr, nullptr, nullptr, nullptr);
+}
 
+void RAS_BucketManager::InitOverrideShaders(RAS_SceneLayerData *layerData)
+{
 	// Initialize the override shaders.
 	m_overrideShader[OVERRIDE_SHADER_BLACK].reset(new RAS_OverrideShader(GPU_SHADER_BLACK));
-	m_overrideShader[OVERRIDE_SHADER_SHADOW].reset(new RAS_ShadowShader());
+	m_overrideShader[OVERRIDE_SHADER_SHADOW].reset(new RAS_ShadowShader(layerData));
 }
 
 RAS_BucketManager::~RAS_BucketManager()
@@ -117,7 +120,7 @@ void RAS_BucketManager::SetOverrideShader(RAS_BucketManager::OverrideShaderType 
 	}
 	// Bind current override shader.
 	if (shader) {
-		shader->Activate(m_nodeData.m_sldata);
+		shader->Activate();
 	}
 
 	m_nodeData.m_overrideShader = m_currentOverrideShader = shader;
@@ -170,14 +173,13 @@ void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketMana
 	}
 }
 
-void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata, RAS_OffScreen *offScreen)
+void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
 {
 	RAS_Rasterizer::DrawType drawingMode = rasty->GetDrawingMode();
 
 	m_nodeData.m_rasty = rasty;
 	m_nodeData.m_trans = cameratrans;
 	m_nodeData.m_drawingMode = drawingMode;
-	m_nodeData.m_sldata = &sldata;
 	m_nodeData.m_cubeMap = false;
 
 	switch (drawingMode) {
@@ -433,7 +435,7 @@ void RAS_BucketManager::RemoveMaterial(RAS_IPolyMaterial *mat)
 	}
 }
 
-void RAS_BucketManager::MergeBucketManager(RAS_BucketManager *other, SCA_IScene *scene)
+void RAS_BucketManager::MergeBucketManager(RAS_BucketManager *other)
 {
 	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
 		BucketList& buckets = m_buckets[i];

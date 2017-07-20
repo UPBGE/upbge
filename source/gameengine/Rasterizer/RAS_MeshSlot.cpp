@@ -123,7 +123,7 @@ void RAS_MeshSlot::PrepareRunNode(const RAS_MeshSlotNodeTuple& tuple)
 			rasty->MultMatrix(mat);
 		}
 	*/
-	materialData->m_shader->Update(rasty, m_meshUser, managerData->m_sldata); // TODO sent the matrix with billboard/ray transform
+	materialData->m_shader->Update(rasty, m_meshUser); // TODO sent the matrix with billboard/ray transform
 }
 
 /*void RAS_MeshSlot::RunNodeDerivedMesh(const RAS_MeshSlotNodeTuple& tuple)

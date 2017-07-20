@@ -47,8 +47,6 @@ class KX_LightObject : public KX_GameObject
 	Py_Header
 protected:
 	RAS_ILightObject *m_lightobj;
-	Scene *m_blenderscene;
-	BaseLegacy *m_base;
 
 	bool m_showShadowFrustum;
 
@@ -65,7 +63,6 @@ public:
 	bool GetShowShadowFrustum() const;
 	void SetShowShadowFrustum(bool show);
 
-	void UpdateScene(KX_Scene *kxscene);
 	virtual void SetLayer(int layer);
 
 	virtual int GetGameObjectType() const

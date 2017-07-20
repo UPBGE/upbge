@@ -57,7 +57,6 @@ struct RAS_ManagerNodeData
 	MT_Transform m_trans;
 	RAS_Rasterizer *m_rasty;
 	RAS_Rasterizer::DrawType m_drawingMode;
-	EEVEE_SceneLayerData *m_sldata;
 	RAS_OverrideShader *m_overrideShader;
 	bool m_sort;
 	bool m_cubeMap;

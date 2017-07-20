@@ -39,7 +39,7 @@
 
 class RAS_OffScreen;
 class RAS_OverrideShader;
-class SCA_IScene;
+class RAS_SceneLayerData;
 
 class RAS_BucketManager
 {
@@ -121,7 +121,9 @@ public:
 	RAS_BucketManager(RAS_IPolyMaterial *textMaterial);
 	virtual ~RAS_BucketManager();
 
-	void Renderbuckets(const MT_Transform & cameratrans, RAS_Rasterizer *rasty, EEVEE_SceneLayerData& sldata, RAS_OffScreen *offScreen);
+	void InitOverrideShaders(RAS_SceneLayerData *layerData);
+
+	void Renderbuckets(const MT_Transform & cameratrans, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
 
 	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 	RAS_DisplayArrayBucket *GetTextDisplayArrayBucket() const;
@@ -133,7 +135,7 @@ public:
 	void RemoveMaterial(RAS_IPolyMaterial *mat);
 
 	// for merging
-	void MergeBucketManager(RAS_BucketManager *other, SCA_IScene *scene);
+	void MergeBucketManager(RAS_BucketManager *other);
 	BucketList& GetBuckets()
 	{
 		return m_buckets[ALL_BUCKET];

@@ -35,7 +35,7 @@ bool RAS_OverrideShader::IsValid() const
 	return true;
 }
 
-void RAS_OverrideShader::Activate(EEVEE_SceneLayerData *sldata)
+void RAS_OverrideShader::Activate()
 {
 	DRW_bind_shader_shgroup(m_shGroup);
 }
@@ -44,7 +44,7 @@ void RAS_OverrideShader::Desactivate()
 {
 }
 
-void RAS_OverrideShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata)
+void RAS_OverrideShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser)
 {
 	const MT_Matrix4x4 mat = rasty->GetPersMatrix() * MT_Matrix4x4(meshUser->GetMatrix());
 	float mvp[16];
