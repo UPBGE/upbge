@@ -1295,42 +1295,38 @@ void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cul
 
 void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer)
 {
-	m_boundingBoxManager->Update(false);
-
-	// Update the object bounding volume box if the object had a deformer.
-	for (KX_GameObject *gameobj : m_objectlist) {
-		if (gameobj->GetDeformer()) {
-			/** Update all the deformer, not only per material.
-			 * One of the side effect is to clear some flags about AABB calculation.
-			 * like in KX_SoftBodyDeformer.
-			 */
-			gameobj->GetDeformer()->UpdateBuckets();
-		}
-		gameobj->UpdateBounds(false);
-	}
-
-	m_boundingBoxManager->ClearModified();
-
 	if (!cam->GetFrustumCulling()) {
 		for (KX_GameObject *gameobj : m_objectlist) {
 			KX_CullingNode *node = gameobj->GetCullingNode();
 			nodes.push_back(gameobj->GetCullingNode());
 			node->SetCulled(false);
 		}
-
 		return;
 	}
 
-	const SG_Frustum& frustum = cam->GetFrustum();
+	CalculateVisibleMeshes(nodes, cam->GetFrustum(), layer);
+}
+
+void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustum& frustum, int layer)
+{
+	m_boundingBoxManager->Update(false);
 
 	bool dbvt_culling = false;
 	if (m_dbvt_culling) {
-		/* Reset KX_GameObject m_bCulled to true before doing culling
-		 * since DBVT culling will only set it to false.
-		 * This is similar to what RAS_BucketManager does for RAS_MeshSlot culling.
-		 */
 		for (KX_GameObject *gameobj : m_objectlist) {
 			gameobj->SetCulled(true);
+			/* Reset KX_GameObject m_culled to true before doing culling
+			 * since DBVT culling will only set it to false.
+			 */
+			if (gameobj->GetDeformer()) {
+				/** Update all the deformer, not only per material.
+				 * One of the side effect is to clear some flags about AABB calculation.
+				 * like in KX_SoftBodyDeformer.
+				 */
+				gameobj->GetDeformer()->UpdateBuckets();
+			}
+			// Update the object bounding volume box.
+			gameobj->UpdateBounds(false);
 		}
 
 		// test culling through Bullet
@@ -1346,10 +1342,22 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 		KX_CullingHandler handler(nodes, frustum);
 		for (KX_GameObject *gameobj : m_objectlist) {
 			if (gameobj->UseCulling() && gameobj->GetVisible() && (layer == 0 || gameobj->GetLayer() & layer)) {
+				if (gameobj->GetDeformer()) {
+					/** Update all the deformer, not only per material.
+					 * One of the side effect is to clear some flags about AABB calculation.
+					 * like in KX_SoftBodyDeformer.
+					 */
+					gameobj->GetDeformer()->UpdateBuckets();
+				}
+				// Update the object bounding volume box.
+				gameobj->UpdateBounds(false);
+
 				handler.Process(gameobj->GetCullingNode());
 			}
 		}
 	}
+
+	m_boundingBoxManager->ClearModified();
 }
 
 void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nodes)

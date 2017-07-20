@@ -414,7 +414,7 @@ bool ImageRender::Render()
 	}
 
 	KX_CullingNodeList nodes;
-	m_scene->CalculateVisibleMeshes(nodes, m_camera);
+	m_scene->CalculateVisibleMeshes(nodes, m_camera, 0);
 
 	m_engine->UpdateAnimations(m_scene);
 

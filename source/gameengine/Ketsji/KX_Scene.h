@@ -42,6 +42,7 @@
 #include <list>
 
 #include "SG_Node.h"
+#include "SG_Frustum.h"
 #include "SCA_IScene.h"
 #include "MT_Transform.h"
 
@@ -469,7 +470,8 @@ public:
 
 	void SetWorldInfo(class KX_WorldInfo* wi);
 	KX_WorldInfo* GetWorldInfo();
-	void CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer=0);
+	void CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer);
+	void CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustum& frustum, int layer);
 
 	/// \section Debug draw.
 	void DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nodes);
