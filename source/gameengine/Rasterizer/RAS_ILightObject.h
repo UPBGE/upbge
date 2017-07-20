@@ -40,7 +40,7 @@ class MT_Transform;
 class MT_Matrix4x4;
 class MT_Matrix3x3;
 struct EEVEE_SceneLayerData;
-class EEVEE_Light;
+struct EEVEE_Light;
 struct Image;
 
 class RAS_ILightObject
