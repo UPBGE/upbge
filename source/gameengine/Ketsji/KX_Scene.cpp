@@ -1335,6 +1335,8 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 		return;
 	}
 
+	const SG_Frustum& frustum = cam->GetFrustum();
+
 	bool dbvt_culling = false;
 	if (m_dbvt_culling) {
 		/* Reset KX_GameObject m_bCulled to true before doing culling
@@ -1347,25 +1349,17 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 
 		// test culling through Bullet
 		// get the clip planes
-		const std::array<MT_Vector4, 6>& cplanes = cam->GetFrustum().GetPlanes();
-		// and convert
-		MT_Vector4 planes[6] = {cplanes[4], cplanes[5], cplanes[0], cplanes[1], cplanes[2], cplanes[3]};
-
-		CullingInfo info(layer, nodes);
-
-		float mvmat[16] = {0.0f};
-		cam->GetModelviewMatrix().getValue(mvmat);
-		float pmat[16] = {0.0f};
-		cam->GetProjectionMatrix().getValue(pmat);
-
+		const std::array<MT_Vector4, 6>& planes = frustum.GetPlanes();
+		const MT_Matrix4x4& matrix = frustum.GetMatrix();
 		int viewport[4];
 		KX_GetActiveEngine()->GetCanvas()->GetViewportArea().Pack(viewport);
 
-		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback,&info,planes,6,m_dbvt_occlusion_res,
-		                                                 viewport, mvmat, pmat);
+		CullingInfo info(layer, nodes);
+
+		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback, &info, planes, m_dbvt_occlusion_res, viewport, matrix);
 	}
 	if (!dbvt_culling) {
-		KX_CullingHandler handler(nodes, cam->GetFrustum());
+		KX_CullingHandler handler(nodes, frustum);
 		for (KX_GameObject *gameobj : m_objectlist) {
 			if (gameobj->UseCulling() && gameobj->GetVisible() && (layer == 0 || gameobj->GetLayer() & layer)) {
 				handler.Process(gameobj->GetCullingNode());

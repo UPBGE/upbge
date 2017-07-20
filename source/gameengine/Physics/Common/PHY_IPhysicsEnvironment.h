@@ -33,9 +33,12 @@
 #define __PHY_IPHYSICSENVIRONMENT_H__
 
 #include "PHY_DynamicTypes.h"
+#include "MT_Matrix4x4.h"
 #include "MT_Vector2.h"
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
+
+#include <array>
 
 class PHY_IConstraint;
 class PHY_IVehicle;
@@ -209,7 +212,8 @@ public:
 	// culling based on physical broad phase
 	// the plane number must be set as follow: near, far, left, right, top, botton
 	// the near plane must be the first one and must always be present, it is used to get the direction of the view
-	virtual bool CullingTest(PHY_CullingCallback callback, void *userData, MT_Vector4 * planeNormals, int planeNumber, int occlusionRes, const int *viewport, float modelview[16], float projection[16]) = 0;
+	virtual bool CullingTest(PHY_CullingCallback callback, void *userData, const std::array<MT_Vector4, 6>& planes,
+							 int occlusionRes, const int *viewport, const MT_Matrix4x4& matrix) = 0;
 
 	// Methods for gamelogic collision/physics callbacks
 	virtual void AddSensor(PHY_IPhysicsController *ctrl) = 0;
