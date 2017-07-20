@@ -171,7 +171,7 @@ void RAS_OpenGLLight::Update(EEVEE_Light& lightData, int shadowid, const MT_Matr
 #endif
 
 // 	GPULamp *lamp = GetGPULamp();
-	KX_LightObject *kxlight = (KX_LightObject *)m_light;
+// 	KX_LightObject *kxlight = (KX_LightObject *)m_light;
 
 // 	GPU_lamp_update(lamp, m_layer, hide, obmat);
 
@@ -182,18 +182,12 @@ void RAS_OpenGLLight::Update(EEVEE_Light& lightData, int shadowid, const MT_Matr
 	copy_v3_v3(lightData.color, m_color);
 
 	/* Influence Radius */
-	lightData.dist = m_energy;
+	lightData.dist = m_distance;
 
 	/* Vectors */
-	copy_v3_v3(lightData.forwardvec, rot[2].getValue());
-	normalize_v3(lightData.forwardvec);
-	negate_v3(lightData.forwardvec);
-
-	copy_v3_v3(lightData.rightvec, rot[0].getValue());
-	normalize_v3(lightData.rightvec);
-
-	copy_v3_v3(lightData.upvec, rot[1].getValue());
-	normalize_v3(lightData.upvec);
+	copy_v3_fl3(lightData.forwardvec, -rot[0][2], -rot[1][2], -rot[2][2]);
+	copy_v3_fl3(lightData.rightvec, rot[0][0], rot[1][0], rot[2][0]);
+	copy_v3_fl3(lightData.upvec, rot[0][1], rot[1][1], rot[2][1]);
 
 	/* Spot size & blend */
 	if (m_type == LIGHT_SPOT) {

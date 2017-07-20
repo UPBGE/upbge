@@ -23,7 +23,7 @@ void RAS_ShadowShader::Activate(EEVEE_SceneLayerData* sldata)
 
 	GPUUniformBuffer *ubo = sldata->shadow_render_ubo;
 	GPU_uniformbuffer_bind(ubo, 0);
-	GPU_shader_uniform_buffer(m_shader, m_srdLoc, ubo);
+	GPU_shader_uniform_buffer(m_shader, m_srdLoc, ubo); // TODO move in shgroup and then have acces of sldata in RAS_BucketManager ctor
 }
 
 void RAS_ShadowShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser, EEVEE_SceneLayerData *sldata)
