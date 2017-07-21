@@ -123,10 +123,10 @@ void RAS_DebugDraw::DrawSolidBox(const std::array<MT_Vector3, 8>& vertices, cons
 	m_solidBoxes.emplace_back(insideColor, outsideColor, vertices, lineColor);
 }
 
-void RAS_DebugDraw::DrawCameraFrustum(const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat)
+void RAS_DebugDraw::DrawCameraFrustum(const MT_Matrix4x4& persmat)
 {
 	std::array<MT_Vector3, 8> box;
-	MT_FrustumBox((projmat * viewmat).inverse(), box);
+	MT_FrustumBox(persmat.inverse(), box);
 
 	DrawSolidBox(box, MT_Vector4(0.4f, 0.4f, 0.4f, 0.4f), MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f),
 		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f));

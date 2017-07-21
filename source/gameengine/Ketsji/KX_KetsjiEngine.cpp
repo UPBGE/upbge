@@ -865,15 +865,6 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 		raslight->Update(layerData->GetLight(lightid++), (useShadow) ? shadowid : -1, rot, pos, scale);
 
 		if (useShadow && raslight->NeedShadowUpdate()) {
-			/* make temporary camera */
-			RAS_CameraData camdata = RAS_CameraData();
-			KX_Camera *cam = new KX_Camera(scene, scene->m_callbacks, camdata, true, true);
-			cam->SetName("__shadow__cam__");
-			cam->NodeSetLocalPosition(pos);
-			cam->NodeSetLocalOrientation(rot);
-
-			MT_Transform camtrans;
-
 			/* switch drawmode for speed */
 			RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
 			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
@@ -882,21 +873,22 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			raslight->BindShadowBuffer(m_rasterizer, pos, shadowid++, layerData);
 
 			KX_CullingNodeList nodes;
+			const SG_Frustum frustum(light->GetShadowFrustumMatrix());
 			/* update scene */
-			scene->CalculateVisibleMeshes(nodes, cam, raslight->GetShadowLayer());
+			scene->CalculateVisibleMeshes(nodes, frustum, raslight->GetShadowLayer());
 
 			m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds());
 			UpdateAnimations(scene);
 			m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
 
 			/* render */
+			MT_Transform camtrans;
 			// Send a nullptr off screen because the viewport is binding it's using its own private one.
 			scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
 
 			/* unbind framebuffer object, restore drawmode, free camera */
 			raslight->UnbindShadowBuffer(m_rasterizer, layerData);
 			m_rasterizer->SetDrawingMode(drawmode);
-			cam->Release();
 		}
 	}
 
@@ -1251,7 +1243,7 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 		if (cam != cameraFrameData.m_renderCamera && (m_showCameraFrustum == KX_DebugOption::FORCE || cam->GetShowCameraFrustum())) {
 			const MT_Matrix4x4 viewmat = m_rasterizer->GetViewMatrix(cameraFrameData.m_eye, cam->GetWorldToCamera(), cam->GetCameraData()->m_perspective);
 			const MT_Matrix4x4 projmat = GetCameraProjectionMatrix(scene, cam, cameraFrameData.m_eye, cameraFrameData.m_viewport, cameraFrameData.m_area);
-			debugDraw.DrawCameraFrustum(projmat, viewmat);
+			debugDraw.DrawCameraFrustum(projmat * viewmat);
 		}
 	}
 }
@@ -1265,10 +1257,7 @@ void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 	for (KX_LightObject *light : scene->GetLightList()) {
 		RAS_ILightObject *raslight = light->GetLightData();
 		if (m_showShadowFrustum == KX_DebugOption::FORCE || light->GetShowShadowFrustum()) {
-			const MT_Matrix4x4 projmat(raslight->GetWinMat());
-			const MT_Matrix4x4 viewmat(raslight->GetViewMat());
-
-			debugDraw.DrawCameraFrustum(projmat, viewmat);
+			debugDraw.DrawCameraFrustum(light->GetShadowFrustumMatrix());
 		}
 	}
 }

@@ -60,6 +60,8 @@ public:
 		return m_lightobj;
 	}
 
+	MT_Matrix4x4 GetShadowFrustumMatrix() const;
+
 	bool GetShowShadowFrustum() const;
 	void SetShowShadowFrustum(bool show);
 

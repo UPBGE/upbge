@@ -135,10 +135,9 @@ public:
 	void DrawSolidBox(const std::array<MT_Vector3, 8>& vertices, const MT_Vector4& insideColor,
 							  const MT_Vector4& outsideColor, const MT_Vector4& lineColor);
 	/** Draw a box representing a camera frustum volume.
-	 * \param projmat The camera projection matrix.
-	 * \param viewmat The camera view matrix.
+	 * \param persmat The camera perspective matrix.
 	 */
-	void DrawCameraFrustum(const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat);
+	void DrawCameraFrustum(const MT_Matrix4x4& persmat);
 
 	void RenderBox2D(const MT_Vector2& pos, const MT_Vector2& size, const MT_Vector4& color);
 
