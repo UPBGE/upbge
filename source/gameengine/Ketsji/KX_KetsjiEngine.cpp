@@ -873,9 +873,15 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			raslight->BindShadowBuffer(m_rasterizer, pos, shadowid++, layerData);
 
 			KX_CullingNodeList nodes;
-			const SG_Frustum frustum(light->GetShadowFrustumMatrix());
+			const SG_Frustum frustum(light->GetShadowFrustumMatrix().inverse());
 			/* update scene */
 			scene->CalculateVisibleMeshes(nodes, frustum, raslight->GetShadowLayer());
+
+			/*for (KX_GameObject *gamob : scene->GetObjectList()) {
+				if (!gamob->GetCulled()) {
+					std::cout << gamob->GetName() << std::endl;
+				}
+			}*/
 
 			m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds());
 			UpdateAnimations(scene);
@@ -1257,7 +1263,7 @@ void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 	for (KX_LightObject *light : scene->GetLightList()) {
 		RAS_ILightObject *raslight = light->GetLightData();
 		if (m_showShadowFrustum == KX_DebugOption::FORCE || light->GetShowShadowFrustum()) {
-			debugDraw.DrawCameraFrustum(light->GetShadowFrustumMatrix());
+			debugDraw.DrawCameraFrustum(light->GetShadowFrustumMatrix().inverse());
 		}
 	}
 }
