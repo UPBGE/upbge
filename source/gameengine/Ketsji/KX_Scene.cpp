@@ -216,6 +216,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
+	m_eeveeData = m_blenderScene->eevee_data;
+
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
 
@@ -327,6 +329,11 @@ void KX_Scene::SetSceneLayerData(RAS_SceneLayerData *layerData)
 RAS_SceneLayerData *KX_Scene::GetSceneLayerData() const
 {
 	return m_layerData.get();
+}
+
+EEVEE_Data *KX_Scene::GetEeveeData()
+{
+	return m_eeveeData;
 }
 
 RAS_BucketManager* KX_Scene::GetBucketManager() const

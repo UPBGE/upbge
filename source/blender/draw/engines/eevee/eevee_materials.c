@@ -278,6 +278,10 @@ static void add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *
 		DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
 		DRW_shgroup_uniform_vec3(shgrp, "aoParameters", &vedata->stl->effects->ao_dist, 1);
 	}
+
+	DRWContextState *ctx = DRW_context_state_get();
+	Scene *scene = ctx->scene;
+	scene->eevee_data = vedata;
 }
 
 void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, const EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
@@ -296,15 +300,15 @@ void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, const EEVE
 	DRW_shgroup_uniform_float(shgrp, "lodPlanarMax", &sldata->probes->lod_planar_max, 1);
 	DRW_shgroup_uniform_texture(shgrp, "utilTex", e_data.util_tex);
 	DRW_shgroup_uniform_buffer(shgrp, "probeCubes", &sldata->probe_pool);
-// 	DRW_shgroup_uniform_buffer(shgrp, "probePlanars", &vedata->txl->planar_pool);
+ 	DRW_shgroup_uniform_buffer(shgrp, "probePlanars", &vedata->txl->planar_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "irradianceGrid", &sldata->irradiance_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "shadowCubes", &sldata->shadow_depth_cube_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "shadowCascades", &sldata->shadow_depth_cascade_pool);
-	/*if (vedata->stl->effects && vedata->stl->effects->use_ao) {
+	if (vedata->stl->effects && vedata->stl->effects->use_ao) {
 		DRW_shgroup_uniform_vec4(shgrp, "viewvecs[0]", (float *)e_data.viewvecs, 2);
 		DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
 		DRW_shgroup_uniform_vec3(shgrp, "aoParameters", &vedata->stl->effects->ao_dist, 1);
-	}*/
+	}
 }
 
 static void create_default_shader(int options)

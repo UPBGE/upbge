@@ -135,7 +135,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 		DRW_shgroup_uniform_float(m_shGroup, "roughness", rough_p, 1);
 	}
 
-	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData()->GetData(), EEVEE_engine_data_get());
+	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, &scene->GetSceneLayerData()->GetData(), scene->GetEeveeData());
 }
 
 bool BL_BlenderShader::IsValid() const
