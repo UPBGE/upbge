@@ -49,65 +49,54 @@ private:
 		float m_color[4];
 	};
 
-	struct Line : Shape
+	struct Line
 	{
 		Line(const mt::vec3& from, const mt::vec3& to, const mt::vec4& color);
+		float m_color[4];
 		float m_from[3];
+		float m_color2[4];
 		float m_to[3];
-	};
-
-	struct Circle : Shape
-	{
-		Circle(const mt::vec3& center, const mt::vec3& normal, float radius, int sector, const mt::vec4& color);
-		float m_center[3];
-		float m_normal[3];
-		float m_radius;
-		int m_sector;
 	};
 
 	struct Aabb : Shape
 	{
 		Aabb(const mt::vec3& pos, const mt::mat3& rot, const mt::vec3& min, const mt::vec3& max, const mt::vec4& color);
-		float m_pos[3];
-		float m_rot[9];
-		float m_min[3];
-		float m_max[3];
+		float m_mat[16];
 	};
 
-	struct Box : Shape
+	struct Frustum
 	{
-		Box(const std::array<mt::vec3, 8>& vertices, const mt::vec4& color);
-		std::array<std::array<float, 3>, 8> m_vertices;
-	};
-
-	struct SolidBox : Box
-	{
-		SolidBox(const mt::vec4& insideColor, const mt::vec4& outsideColor, const std::array<mt::vec3, 8>& vertices, const mt::vec4& color);
+		Frustum(const mt::mat4& persmat, const mt::vec4& insideColor, const mt::vec4& outsideColor, const mt::vec4& wireColor);
+		float m_persMat[16];
+		float m_wireColor[4];
 		float m_insideColor[4];
 		float m_outsideColor[4];
 	};
 
-	struct Text2D : Shape
+	struct Text2d : Shape
 	{
-		Text2D(const std::string& text, const mt::vec2& pos, const mt::vec4& color);
+		Text2d(const std::string& text, const mt::vec2& pos, const mt::vec4& color);
 		std::string m_text;
 		float m_pos[2];
 	};
 
-	struct Box2D : Shape
+	struct Box2d : Shape
 	{
-		Box2D(const mt::vec2& pos, const mt::vec2& size, const mt::vec4& color);
-		float m_pos[2];
-		float m_size[2];
+		Box2d(const mt::vec2& pos, const mt::vec2& size, const mt::vec4& color);
+		union {
+			struct {
+				float m_pos[2];
+				float m_size[2];
+			};
+			float m_trans[4];
+		};
 	};
 
 	std::vector<Line> m_lines;
-	std::vector<Circle> m_circles;
 	std::vector<Aabb> m_aabbs;
-	std::vector<Box> m_boxes;
-	std::vector<SolidBox> m_solidBoxes;
-	std::vector<Text2D> m_texts2D;
-	std::vector<Box2D> m_boxes2D;
+	std::vector<Frustum> m_frustums;
+	std::vector<Text2d> m_texts2d;
+	std::vector<Box2d> m_boxes2d;
 
 	std::unique_ptr<RAS_OpenGLDebugDraw> m_impl;
 
@@ -116,8 +105,6 @@ public:
 	~RAS_DebugDraw();
 
 	void DrawLine(const mt::vec3 &from, const mt::vec3 &to, const mt::vec4& color);
-	void DrawCircle(const mt::vec3 &center, const float radius,
-								 const mt::vec4 &color, const mt::vec3 &normal, int nsector);
 	/** Draw a box depends on minimal and maximal corner.
 	 * \param pos The box's position.
 	 * \param rot The box's orientation.
@@ -126,19 +113,15 @@ public:
 	 * \param color The box's color.
 	 */
 	void DrawAabb(const mt::vec3& pos, const mt::mat3& rot,
-							  const mt::vec3& min, const mt::vec3& max, const mt::vec4& color);
-	void DrawBox(const std::array<mt::vec3, 8>& vertices, const mt::vec4& color);
-	void DrawSolidBox(const std::array<mt::vec3, 8>& vertices, const mt::vec4& insideColor,
-							  const mt::vec4& outsideColor, const mt::vec4& lineColor);
+				  const mt::vec3& min, const mt::vec3& max, const mt::vec4& color);
 	/** Draw a box representing a camera frustum volume.
-	 * \param projmat The camera projection matrix.
-	 * \param viewmat The camera view matrix.
+	 * \param projmat The camera perspective matrix.
 	 */
-	void DrawCameraFrustum(const mt::mat4& projmat, const mt::mat4& viewmat);
+	void DrawCameraFrustum(const mt::mat4& persmat);
 
-	void RenderBox2D(const mt::vec2& pos, const mt::vec2& size, const mt::vec4& color);
+	void RenderBox2d(const mt::vec2& pos, const mt::vec2& size, const mt::vec4& color);
 
-	void RenderText2D(const std::string& text, const mt::vec2& pos, const mt::vec4& color);
+	void RenderText2d(const std::string& text, const mt::vec2& pos, const mt::vec4& color);
 
 	void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas);
 };

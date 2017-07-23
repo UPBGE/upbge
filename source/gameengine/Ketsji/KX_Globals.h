@@ -44,7 +44,5 @@ const std::string& KX_GetMainPath();
 const std::string& KX_GetOrigPath();
 
 void KX_RasterizerDrawDebugLine(const mt::vec3 &from,const mt::vec3 &to,const mt::vec4 &color);
-void KX_RasterizerDrawDebugCircle(const mt::vec3 &center, const float radius, const mt::vec4 &color,
-                                  const mt::vec3 &normal, int nsector);
 
 #endif // __KX_GLOBALS_H__

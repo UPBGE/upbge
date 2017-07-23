@@ -62,6 +62,9 @@ set(SRC
 	intern/gpu_shader.c
 	intern/gpu_texture.c
 
+	shaders/gpu_shader_2d_box_vert.glsl
+	shaders/gpu_shader_flat_color_frag.glsl
+	shaders/gpu_shader_flat_color_vert.glsl
 	shaders/gpu_shader_fx_lib.glsl
 	shaders/gpu_shader_fx_ssao_frag.glsl
 	shaders/gpu_shader_fx_dof_frag.glsl
@@ -83,6 +86,9 @@ set(SRC
 	shaders/gpu_shader_vsm_store_vert.glsl
 	shaders/gpu_shader_fx_depth_resolve.glsl
 	shaders/gpu_shader_fire_frag.glsl
+	shaders/gpu_shader_frustum_line_vert.glsl
+	shaders/gpu_shader_frustum_solid_frag.glsl
+	shaders/gpu_shader_frustum_solid_vert.glsl
 	shaders/gpu_shader_smoke_frag.glsl
 	shaders/gpu_shader_smoke_vert.glsl
 
@@ -104,7 +110,13 @@ set(SRC
 	intern/gpu_select_private.h
 )
 
+data_to_c_simple(shaders/gpu_shader_2d_box_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_geometry.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_flat_color_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_flat_color_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_frustum_line_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_frustum_solid_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_frustum_solid_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fire_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_smoke_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_smoke_vert.glsl SRC)

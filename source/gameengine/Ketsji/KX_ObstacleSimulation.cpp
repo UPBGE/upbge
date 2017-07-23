@@ -297,7 +297,6 @@ void KX_ObstacleSimulation::DrawObstacles()
 	if (!m_enableVisualization)
 		return;
 	static const mt::vec4 bluecolor(0.0f, 0.0f, 1.0f, 1.0f);
-	static const mt::vec3 normal = mt::axisZ3;
 	static const int SECTORS_NUM = 32;
 	for (size_t i=0; i<m_obstacles.size(); i++)
 	{
@@ -317,8 +316,16 @@ void KX_ObstacleSimulation::DrawObstacles()
 		}
 		else if (m_obstacles[i]->m_shape==KX_OBSTACLE_CIRCLE)
 		{
-			KX_RasterizerDrawDebugCircle(m_obstacles[i]->m_pos, m_obstacles[i]->m_rad, bluecolor,
-			                             normal, SECTORS_NUM);
+			const float radius = m_obstacles[i]->m_rad;
+			const mt::vec3& pos = m_obstacles[i]->m_pos;
+			const float delta = M_PI * 2.0f / SECTORS_NUM;
+			for (unsigned short i = 0; i < SECTORS_NUM; ++i) {
+				const float t1 = delta * i;
+				const float t2 = delta * (i + 1);
+				const mt::vec3 p1 = mt::vec3(cosf(t1), sinf(t1), 0.0f) * radius + pos;
+				const mt::vec3 p2 = mt::vec3(cosf(t2), sinf(t2), 0.0f) * radius + pos;
+				KX_RasterizerDrawDebugLine(p1, p2, bluecolor);
+			}
 		}
 	}
 }

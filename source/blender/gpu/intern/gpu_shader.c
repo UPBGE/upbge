@@ -47,11 +47,17 @@
 #define MAX_EXT_DEFINE_LENGTH 1024
 
 /* Non-generated shaders */
+extern char datatoc_gpu_shader_2d_box_vert_glsl[];
 extern char datatoc_gpu_shader_black_frag_glsl[];
 extern char datatoc_gpu_shader_black_vert_glsl[];
+extern char datatoc_gpu_shader_fire_frag_glsl[];
+extern char datatoc_gpu_shader_flat_color_frag_glsl[];
+extern char datatoc_gpu_shader_flat_color_vert_glsl[];
 extern char datatoc_gpu_shader_frame_buffer_frag_glsl[];
 extern char datatoc_gpu_shader_frame_buffer_vert_glsl[];
-extern char datatoc_gpu_shader_fire_frag_glsl[];
+extern char datatoc_gpu_shader_frustum_line_vert_glsl[];
+extern char datatoc_gpu_shader_frustum_solid_vert_glsl[];
+extern char datatoc_gpu_shader_frustum_solid_frag_glsl[];
 extern char datatoc_gpu_shader_smoke_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_frag_glsl[];
 extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
@@ -82,6 +88,10 @@ static struct GPUShadersGlobal {
 		GPUShader *draw_frame_buffer;
 		GPUShader *stereo_stipple;
 		GPUShader *stereo_anaglyph;
+		GPUShader *frustum_line;
+		GPUShader *frustum_solid;
+		GPUShader *flat_color;
+		GPUShader *box2d;
 		/* cache for shader fx. Those can exist in combinations so store them here */
 		GPUShader *fx_shaders[MAX_FX_SHADERS * 2];
 	} shaders;
@@ -760,6 +770,34 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 					NULL, NULL, "#define ANAGLYPH;\n", 0, 0, 0);
 			retval = GG.shaders.stereo_anaglyph;
 			break;
+		case GPU_SHADER_FRUSTUM_LINE:
+			if (!GG.shaders.frustum_line)
+				GG.shaders.frustum_line = GPU_shader_create(
+					datatoc_gpu_shader_frustum_line_vert_glsl, datatoc_gpu_shader_flat_color_frag_glsl,
+					NULL, NULL, NULL, 0, 0, 0);
+			retval = GG.shaders.frustum_line;
+			break;
+		case GPU_SHADER_FRUSTUM_SOLID:
+			if (!GG.shaders.frustum_solid)
+				GG.shaders.frustum_solid = GPU_shader_create(
+					datatoc_gpu_shader_frustum_solid_vert_glsl, datatoc_gpu_shader_frustum_solid_frag_glsl,
+					NULL, NULL, NULL, 0, 0, 0);
+			retval = GG.shaders.frustum_solid;
+			break;
+		case GPU_SHADER_FLAT_COLOR:
+			if (!GG.shaders.flat_color)
+				GG.shaders.flat_color = GPU_shader_create(
+					datatoc_gpu_shader_flat_color_vert_glsl, datatoc_gpu_shader_flat_color_frag_glsl,
+					NULL, NULL, NULL, 0, 0, 0);
+			retval = GG.shaders.flat_color;
+			break;
+		case GPU_SHADER_2D_BOX:
+			if (!GG.shaders.box2d)
+				GG.shaders.box2d = GPU_shader_create(
+					datatoc_gpu_shader_2d_box_vert_glsl, datatoc_gpu_shader_flat_color_frag_glsl,
+					NULL, NULL, NULL, 0, 0, 0);
+			retval = GG.shaders.box2d;
+			break;
 	}
 
 	if (retval == NULL)
@@ -899,6 +937,26 @@ void GPU_shader_free_builtin_shaders(void)
 	if (GG.shaders.stereo_anaglyph) {
 		GPU_shader_free(GG.shaders.stereo_anaglyph);
 		GG.shaders.stereo_anaglyph = NULL;
+	}
+
+	if (GG.shaders.frustum_line) {
+		GPU_shader_free(GG.shaders.frustum_line);
+		GG.shaders.frustum_line = NULL;
+	}
+
+	if (GG.shaders.frustum_solid) {
+		GPU_shader_free(GG.shaders.frustum_solid);
+		GG.shaders.frustum_solid = NULL;
+	}
+
+	if (GG.shaders.flat_color) {
+		GPU_shader_free(GG.shaders.flat_color);
+		GG.shaders.flat_color = NULL;
+	}
+
+	if (GG.shaders.box2d) {
+		GPU_shader_free(GG.shaders.box2d);
+		GG.shaders.box2d = NULL;
 	}
 
 	for (i = 0; i < 2 * MAX_FX_SHADERS; ++i) {

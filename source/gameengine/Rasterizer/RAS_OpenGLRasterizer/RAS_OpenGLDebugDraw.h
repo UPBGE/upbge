@@ -30,12 +30,48 @@
 class RAS_Rasterizer;
 class RAS_ICanvas;
 class RAS_DebugDraw;
+struct GPUShader;
 
 class RAS_OpenGLDebugDraw
 {
+private:
+	enum IboType {
+		BOX_IBO = 0,
+		MAX_IBO
+	};
+
+	enum VboType {
+		BOX_UNIT_VBO = 0,
+		BOX_2D_UNIT_VBO,
+		LINES_VBO,
+		BOX_VBO,
+		BOX_2D_VBO,
+		AABB_VBO,
+		FRUSTUMS_VBO,
+		MAX_VBO
+	};
+
+	enum VaoType {
+		LINES_VAO = 0,
+		FRUSTUMS_LINE_VAO,
+		FRUSTUMS_SOLID_VAO,
+		AABB_VAO,
+		BOX_2D_VAO,
+		MAX_VAO
+	};
+
+	unsigned int m_ibos[MAX_IBO];
+	unsigned int m_vbos[MAX_VBO];
+	unsigned int m_vaos[MAX_VAO];
+
+	GPUShader *m_colorShader;
+	GPUShader *m_frustumLineShader;
+	GPUShader *m_frustumSolidShader;
+	GPUShader *m_box2dShader;
+
 public:
-	RAS_OpenGLDebugDraw() = default;
-	~RAS_OpenGLDebugDraw() = default;
+	RAS_OpenGLDebugDraw();
+	~RAS_OpenGLDebugDraw();
 
 	void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
 };

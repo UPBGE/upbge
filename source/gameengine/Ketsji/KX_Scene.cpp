@@ -1170,7 +1170,7 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObje
 {
 	const KX_DebugOption showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
 	if (showBoundingBox != KX_DebugOption::DISABLE) {
-		for (KX_GameObject *gameobj : m_objectlist) {
+		for (KX_GameObject *gameobj : objects) {
 			const mt::vec3& scale = gameobj->NodeGetWorldScaling();
 			const mt::vec3& position = gameobj->NodeGetWorldPosition();
 			const mt::mat3& orientation = gameobj->NodeGetWorldOrientation();
@@ -1181,15 +1181,15 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObje
 			                   mt::vec4(1.0f, 0.0f, 1.0f, 1.0f));
 
 			// Render center in red, green and blue.
-			debugDraw.DrawLine(orientation * center * scale + position,
-			                   orientation * (center + mt::axisX3) * scale + position,
-			                   mt::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-			debugDraw.DrawLine(orientation * center * scale + position,
-			                   orientation * (center + mt::axisY3) * scale  + position,
-			                   mt::vec4(0.0f, 1.0f, 0.0f, 1.0f));
-			debugDraw.DrawLine(orientation * center * scale + position,
-			                   orientation * (center + mt::axisZ3) * scale  + position,
-			                   mt::vec4(0.0f, 0.0f, 1.0f, 1.0f));
+			debugDraw.DrawLine(orientation * (center * scale) + position,
+				orientation * ((center + mt::axisX3) * scale) + position,
+				mt::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+			debugDraw.DrawLine(orientation * (center * scale) + position,
+				orientation * ((center + mt::axisY3) * scale)  + position,
+				mt::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+			debugDraw.DrawLine(orientation * (center * scale) + position,
+				orientation * ((center + mt::axisZ3) * scale)  + position,
+				mt::vec4(0.0f, 0.0f, 1.0f, 1.0f));
 		}
 	}
 
@@ -1238,7 +1238,7 @@ void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int 
 					first = false;
 				}
 			}
-			debugDraw.RenderText2D(debugtxt, mt::vec2(xcoord + xindent, ycoord), white);
+			debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + xindent, ycoord), white);
 			ycoord += ysize;
 		}
 		else {
@@ -1246,7 +1246,7 @@ void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int 
 			if (propval) {
 				const std::string text = propval->GetText();
 				const std::string debugtxt = objname + ": '" + propname + "' = " + text;
-				debugDraw.RenderText2D(debugtxt, mt::vec2(xcoord + xindent, ycoord), white);
+				debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + xindent, ycoord), white);
 				ycoord += ysize;
 			}
 		}

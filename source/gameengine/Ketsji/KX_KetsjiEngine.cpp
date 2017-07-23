@@ -1160,7 +1160,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	if (m_flags & (SHOW_FRAMERATE | SHOW_PROFILE)) {
 		// Title for profiling("Profile")
 		// Adds the constant x indent (0 for now) to the title x margin
-		debugDraw.RenderText2D("Profile", mt::vec2(xcoord + const_xindent + title_xmargin, ycoord), white);
+		debugDraw.RenderText2d("Profile", mt::vec2(xcoord + const_xindent + title_xmargin, ycoord), white);
 
 		// Increase the indent by default increase
 		ycoord += const_ysize;
@@ -1170,12 +1170,12 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 	// Framerate display
 	if (m_flags & SHOW_FRAMERATE) {
-		debugDraw.RenderText2D("Frametime :",
+		debugDraw.RenderText2d("Frametime :",
 		                           mt::vec2(xcoord + const_xindent,
 		                           ycoord), white);
 
 		debugtxt = (boost::format("%5.2fms (%.1ffps)") %  (tottime * 1000.0f) % (1.0f / tottime)).str();
-		debugDraw.RenderText2D(debugtxt, mt::vec2(xcoord + const_xindent + profile_indent, ycoord), white);
+		debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + const_xindent + profile_indent, ycoord), white);
 		// Increase the indent by default increase
 		ycoord += const_ysize;
 	}
@@ -1183,25 +1183,25 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	// Profile display
 	if (m_flags & SHOW_PROFILE) {
 		for (int j = tc_first; j < tc_numCategories; j++) {
-			debugDraw.RenderText2D(m_profileLabels[j], mt::vec2(xcoord + const_xindent, ycoord), white);
+			debugDraw.RenderText2d(m_profileLabels[j], mt::vec2(xcoord + const_xindent, ycoord), white);
 
 			double time = m_logger.GetAverage((KX_TimeCategory)j);
 
 			debugtxt = (boost::format("%5.2fms | %d%%") % (time*1000.f) % (int)(time/tottime * 100.f)).str();
-			debugDraw.RenderText2D(debugtxt, mt::vec2(xcoord + const_xindent + profile_indent, ycoord), white);
+			debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + const_xindent + profile_indent, ycoord), white);
 
-			const mt::vec2 boxSize(50 * (time / tottime), 10);
-			debugDraw.RenderBox2D(mt::vec2(xcoord + (int)(2.2 * profile_indent), ycoord), boxSize, white);
+			const mt::vec2 boxSize(50 * (time / tottime), 9);
+			debugDraw.RenderBox2d(mt::vec2(xcoord + (int)(2.2 * profile_indent), ycoord), boxSize, white);
 			ycoord += const_ysize;
 		}
 	}
 
 	if (m_flags & SHOW_RENDER_QUERIES) {
-		debugDraw.RenderText2D("Render Queries :", mt::vec2(xcoord + const_xindent + title_xmargin, ycoord), white);
+		debugDraw.RenderText2d("Render Queries :", mt::vec2(xcoord + const_xindent + title_xmargin, ycoord), white);
 		ycoord += const_ysize;
 
 		for (unsigned short i = 0; i < QUERY_MAX; ++i) {
-			debugDraw.RenderText2D(m_renderQueriesLabels[i], mt::vec2(xcoord + const_xindent, ycoord), white);
+			debugDraw.RenderText2d(m_renderQueriesLabels[i], mt::vec2(xcoord + const_xindent, ycoord), white);
 
 			if (i == QUERY_TIME) {
 				debugtxt = (boost::format("%.2fms") % (((float)m_renderQueries[i].Result()) / 1e6)).str();
@@ -1210,7 +1210,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 				debugtxt = (boost::format("%i") % m_renderQueries[i].Result()).str();
 			}
 
-			debugDraw.RenderText2D(debugtxt, mt::vec2(xcoord + const_xindent + profile_indent, ycoord), white);
+			debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + const_xindent + profile_indent, ycoord), white);
 			ycoord += const_ysize;
 		}
 	}
@@ -1222,7 +1222,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	if (m_flags & SHOW_DEBUG_PROPERTIES) {
 		// Title for debugging("Debug properties")
 		// Adds the constant x indent (0 for now) to the title x margin
-		debugDraw.RenderText2D("Debug Properties", mt::vec2(xcoord + const_xindent + title_xmargin, ycoord), white);
+		debugDraw.RenderText2d("Debug Properties", mt::vec2(xcoord + const_xindent + title_xmargin, ycoord), white);
 
 		// Increase the indent by default increase
 		ycoord += const_ysize;
@@ -1252,7 +1252,7 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 					cam->GetWorldToCamera(), cam->GetCameraData()->m_perspective);
 			const mt::mat4 projmat = GetCameraProjectionMatrix(scene, cam, cameraFrameData.m_stereoMode, cameraFrameData.m_eye,
 					cameraFrameData.m_viewport, cameraFrameData.m_area);
-			debugDraw.DrawCameraFrustum(projmat, viewmat);
+			debugDraw.DrawCameraFrustum(projmat * viewmat);
 		}
 	}
 }
@@ -1269,7 +1269,7 @@ void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 			const mt::mat4 projmat(raslight->GetWinMat());
 			const mt::mat4 viewmat(raslight->GetViewMat());
 
-			debugDraw.DrawCameraFrustum(projmat, viewmat);
+			debugDraw.DrawCameraFrustum(projmat * viewmat);
 		}
 	}
 }
