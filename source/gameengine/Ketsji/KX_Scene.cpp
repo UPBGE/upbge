@@ -219,7 +219,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_eeveeData = m_blenderScene->eevee_data;
 
-	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData);
+	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas);
 
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;

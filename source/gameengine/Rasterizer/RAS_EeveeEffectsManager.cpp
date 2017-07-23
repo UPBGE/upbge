@@ -35,7 +35,8 @@
 
 
 
-RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata)
+RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas):
+m_canvas(canvas)
 {
 	m_psl = vedata->psl;
 	m_txl = vedata->txl;

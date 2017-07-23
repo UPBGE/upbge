@@ -39,7 +39,7 @@ class RAS_EeveeEffectsManager
 {
 public:
 
-	RAS_EeveeEffectsManager(EEVEE_Data *vedata);
+	RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas);
 	virtual ~RAS_EeveeEffectsManager();
 
 	/** Applies the filters to the scene.
@@ -69,6 +69,10 @@ private:
 	EEVEE_StorageList *m_stl;
 	EEVEE_EffectsInfo *m_effects;
 	//bool m_toneMapAdded;
+
+	RAS_ICanvas *m_canvas;
+
+	void InitBloom();
 
 	/** Creates a filter matching the given filter data. Returns nullptr if no
 	* filter can be created with such information.
