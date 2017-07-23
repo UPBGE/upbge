@@ -65,6 +65,7 @@
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
 #include "KX_2DFilterManager.h"
+#include "RAS_EeveeEffectsManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
 #include "RAS_SceneLayerData.h"
@@ -218,6 +219,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_eeveeData = m_blenderScene->eevee_data;
 
+	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData);
+
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
 
@@ -271,6 +274,10 @@ KX_Scene::~KX_Scene()
 
 	if (m_filterManager) {
 		delete m_filterManager;
+	}
+
+	if (m_effectsManager) {
+		delete m_effectsManager;
 	}
 
 	if (m_logicmgr)
@@ -1993,6 +2000,11 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 RAS_OffScreen *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
 	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs);
+}
+
+RAS_OffScreen *KX_Scene::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+{
+	return m_effectsManager->RenderEeveeEffects(rasty, canvas, inputofs, targetofs);
 }
 
 #ifdef WITH_PYTHON

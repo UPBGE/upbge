@@ -73,6 +73,7 @@ set(SRC
 	RAS_Deformer.cpp
 	RAS_DisplayArrayBucket.cpp
 	RAS_DisplayArrayStorage.cpp
+	RAS_EeveeEffectsManager.cpp
 	RAS_FramingManager.cpp
 	RAS_ICanvas.cpp
 	RAS_IDisplayArray.cpp
@@ -114,6 +115,7 @@ set(SRC
 	RAS_DisplayArray.h
 	RAS_DisplayArrayBucket.h
 	RAS_DisplayArrayStorage.h
+	RAS_EeveeEffectsManager.h
 	RAS_FramingManager.h
 	RAS_ICanvas.h
 	RAS_IDisplayArray.h

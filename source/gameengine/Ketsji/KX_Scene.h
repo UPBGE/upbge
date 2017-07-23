@@ -89,6 +89,7 @@ class RAS_OffScreen;
 class RAS_SceneLayerData;
 class RAS_2DFilterManager;
 class KX_2DFilterManager;
+class RAS_EeveeEffectsManager;
 class SCA_JoystickManager;
 class btCollisionShape;
 class KX_BlenderSceneConverter;
@@ -306,6 +307,7 @@ protected:
 	struct Scene* m_blenderScene;
 
 	KX_2DFilterManager *m_filterManager;
+	RAS_EeveeEffectsManager *m_effectsManager;
 
 	KX_ObstacleSimulation* m_obstacleSimulation;
 
@@ -542,6 +544,7 @@ public:
 	 */
 	RAS_2DFilterManager *Get2DFilterManager() const;
 	RAS_OffScreen *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
+	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 

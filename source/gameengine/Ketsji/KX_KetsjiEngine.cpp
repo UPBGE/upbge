@@ -690,6 +690,8 @@ void KX_KetsjiEngine::Render()
 				target = RAS_Rasterizer::NextRenderOffScreen(frameData.m_ofsType);
 			}
 
+			// Render EEVEE effects before tonemapping and custom filters
+			offScreen = PostRenderEevee(scene, offScreen, m_rasterizer->GetOffScreen(target));
 			// Render filters and get output off screen.
 			offScreen = PostRenderScene(scene, offScreen, m_rasterizer->GetOffScreen(target));
 			frameData.m_ofsType = offScreen->GetType();
@@ -1083,6 +1085,21 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 	// Python draw callback can also call debug draw functions, so we have to clear debug shapes.
 	m_rasterizer->FlushDebugDraw(scene, m_canvas);
 #endif
+
+	return offScreen;
+}
+
+RAS_OffScreen *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+{
+	KX_SetActiveScene(scene);
+
+	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
+	const int width = m_canvas->GetWidth();
+	const int height = m_canvas->GetHeight();
+	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
+	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
+
+	RAS_OffScreen *offScreen = scene->RenderEeveeEffects(m_rasterizer, m_canvas, inputofs, targetofs);
 
 	return offScreen;
 }
