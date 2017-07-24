@@ -43,6 +43,7 @@
 
 #include "eevee_private.h"
 #include "GPU_texture.h"
+#include "GPU_debug.h"
 
 typedef struct EEVEE_LightProbeData {
 	short probe_id, shadow_id;
@@ -841,6 +842,7 @@ void EEVEE_draw_effects(EEVEE_Data *vedata)
 		SWAP_BUFFERS();
 	}
 
+	GPU_string_marker("debug");
 	/* Bloom */
 	if ((effects->enabled_effects & EFFECT_BLOOM) != 0) {
 		struct GPUTexture *last;

@@ -73,6 +73,9 @@ public:
 	/// Get the existing filter for the given pass index.
 	RAS_2DFilter *GetFilterPass(unsigned int passIndex);*/
 
+	void InitBloomShaders();
+	void InitBloom();
+
 private:
 	EEVEE_EffectsInfo *m_effectsInfo;
 	EEVEE_PassList *m_psl;
@@ -88,9 +91,6 @@ private:
 	//bool m_toneMapAdded;
 
 	RAS_ICanvas *m_canvas;
-
-	void InitBloomShaders();
-	void InitBloom();
 
 	/** Creates a filter matching the given filter data. Returns nullptr if no
 	* filter can be created with such information.

@@ -123,6 +123,11 @@ GPUOffScreen * RAS_OffScreen::GetOffScreen() const
 	return m_offScreen;
 }
 
+GPUTexture *RAS_OffScreen::GetColorTexture()
+{
+	return GPU_offscreen_texture(m_offScreen);
+}
+
 GPUTexture *RAS_OffScreen::GetDepthTexture()
 {
 	return GPU_offscreen_depth_texture(m_offScreen);

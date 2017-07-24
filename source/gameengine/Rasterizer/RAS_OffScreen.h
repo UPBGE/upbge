@@ -72,6 +72,7 @@ public:
 	RAS_Rasterizer::OffScreenType GetType() const;
 
 	GPUOffScreen *GetOffScreen() const;
+	GPUTexture *GetColorTexture();
 	GPUTexture *GetDepthTexture();
 
 	static RAS_OffScreen *GetLastOffScreen();

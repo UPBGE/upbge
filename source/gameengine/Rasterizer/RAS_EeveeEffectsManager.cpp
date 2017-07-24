@@ -49,6 +49,7 @@ m_canvas(canvas)
 	m_effects = m_stl->effects;
 
 	InitBloom();
+	InitBloomShaders();
 }
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
@@ -68,11 +69,11 @@ void RAS_EeveeEffectsManager::InitBloom()
 		int blitsize[2], texsize[2];
 
 		/* Blit Buffer */
-		m_effects->source_texel_size[0] = 1.0f / (m_canvas->GetWidth() + 1);
-		m_effects->source_texel_size[1] = 1.0f / (m_canvas->GetHeight() + 1);
+		m_effects->source_texel_size[0] = 1.0f / (m_canvas->GetWidth());
+		m_effects->source_texel_size[1] = 1.0f / (m_canvas->GetHeight());
 
-		blitsize[0] = (int)(m_canvas->GetWidth() + 1);
-		blitsize[1] = (int)(m_canvas->GetHeight() + 1);
+		blitsize[0] = (int)(m_canvas->GetWidth());
+		blitsize[1] = (int)(m_canvas->GetHeight());
 
 		m_effects->blit_texel_size[0] = 1.0f / (float)blitsize[0];
 		m_effects->blit_texel_size[1] = 1.0f / (float)blitsize[1];
@@ -113,68 +114,94 @@ void RAS_EeveeEffectsManager::InitBloom()
 			m_bloomDownOfs[i].reset(new RAS_OffScreen(texsize[0], texsize[1], 0, GPU_R11F_G11F_B10F,
 					GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
 		}
+
+
+		/* Upsample buffers */
+		copy_v2_v2_int(texsize, blitsize);
+		for (int i = 0; i < m_effects->bloom_iteration_ct - 1; ++i) {
+			texsize[0] /= 2; texsize[1] /= 2;
+			texsize[0] = MAX2(texsize[0], 2);
+			texsize[1] = MAX2(texsize[1], 2);
+
+			m_bloomAccumOfs[i].reset(new RAS_OffScreen(texsize[0], texsize[1], 0, GPU_R11F_G11F_B10F,
+				GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
+		}
 	}
 }
 
 RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs,
 														   RAS_OffScreen *targetofs)
 {
-#if 0
-
+	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	/* Bloom */
-	if ((effects->enabled_effects & EFFECT_BLOOM) != 0) {
-		struct GPUTexture *last;
-
+	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
 		/* Extract bright pixels */
-		copy_v2_v2(effects->unf_source_texel_size, effects->source_texel_size);
-		effects->unf_source_buffer = effects->source_buffer;
+		copy_v2_v2(m_effects->unf_source_texel_size, m_effects->source_texel_size);
+		m_effects->unf_source_buffer = inputofs->GetColorTexture();
 
-		DRW_framebuffer_bind(fbl->bloom_blit_fb);
-		DRW_draw_pass(psl->bloom_blit);
+		//DRW_framebuffer_bind(fbl->bloom_blit_fb);
+		//DRW_draw_pass(psl->bloom_blit);
+		m_bloomBlitOfs->Bind(); // j'ail l'impression qu'une cube map est toujours activée
+		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_BLIT]);
+		rasty->DrawOverlayPlane();
 
 		/* Downsample */
-		copy_v2_v2(effects->unf_source_texel_size, effects->blit_texel_size);
-		effects->unf_source_buffer = txl->bloom_blit;
+		copy_v2_v2(m_effects->unf_source_texel_size, m_effects->blit_texel_size);
+		m_effects->unf_source_buffer = m_bloomBlitOfs->GetColorTexture(); // voila2 sec ici
 
-		DRW_framebuffer_bind(fbl->bloom_down_fb[0]);
-		DRW_draw_pass(psl->bloom_downsample_first);
+		//DRW_framebuffer_bind(fbl->bloom_down_fb[0]);
+		//DRW_draw_pass(psl->bloom_downsample_first);
+		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_FIRST]);
+		m_bloomDownOfs[0]->Bind();
+		rasty->DrawOverlayPlane();
 
-		last = txl->bloom_downsample[0];
+		GPUTexture *last = m_bloomDownOfs[0]->GetColorTexture();
 
-		for (int i = 1; i < effects->bloom_iteration_ct; ++i) {
-			copy_v2_v2(effects->unf_source_texel_size, effects->downsamp_texel_size[i-1]);
-			effects->unf_source_buffer = last;
+		for (int i = 1; i < m_effects->bloom_iteration_ct; ++i) {
+			copy_v2_v2(m_effects->unf_source_texel_size, m_effects->downsamp_texel_size[i - 1]);
+			m_effects->unf_source_buffer = last;
 
-			DRW_framebuffer_bind(fbl->bloom_down_fb[i]);
-			DRW_draw_pass(psl->bloom_downsample);
+			//DRW_framebuffer_bind(fbl->bloom_down_fb[i]);
+			//DRW_draw_pass(psl->bloom_downsample);
+
+			DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_DOWNSAMPLE]);
+			m_bloomDownOfs[i]->Bind();
+			rasty->DrawOverlayPlane();
 
 			/* Used in next loop */
-			last = txl->bloom_downsample[i];
+			last = m_bloomDownOfs[i]->GetColorTexture();
 		}
 
 		/* Upsample and accumulate */
-		for (int i = effects->bloom_iteration_ct - 2; i >= 0; --i) {
-			copy_v2_v2(effects->unf_source_texel_size, effects->downsamp_texel_size[i]);
-			effects->unf_source_buffer = txl->bloom_downsample[i];
-			effects->unf_base_buffer = last;
+		for (int i = m_effects->bloom_iteration_ct - 2; i >= 0; --i) {
+			copy_v2_v2(m_effects->unf_source_texel_size, m_effects->downsamp_texel_size[i]);
+			m_effects->unf_source_buffer = m_bloomDownOfs[i]->GetColorTexture();
+			m_effects->unf_base_buffer = last;
 
-			DRW_framebuffer_bind(fbl->bloom_accum_fb[i]);
-			DRW_draw_pass(psl->bloom_upsample);
+			//DRW_framebuffer_bind(fbl->bloom_accum_fb[i]);
+			//DRW_draw_pass(psl->bloom_upsample);
 
-			last = txl->bloom_upsample[i];
+			DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_UPSAMPLE]);
+			m_bloomAccumOfs[i]->Bind();
+			rasty->DrawOverlayPlane();
+
+			last = m_bloomAccumOfs[i]->GetColorTexture();
 		}
 
 		/* Resolve */
-		copy_v2_v2(effects->unf_source_texel_size, effects->downsamp_texel_size[0]);
-		effects->unf_source_buffer = last;
-		effects->unf_base_buffer = effects->source_buffer;
+		copy_v2_v2(m_effects->unf_source_texel_size, m_effects->downsamp_texel_size[0]);
+		m_effects->unf_source_buffer = last;
+		m_effects->unf_base_buffer = m_effects->source_buffer;
 
-		DRW_framebuffer_bind(effects->target_buffer);
-		DRW_draw_pass(psl->bloom_resolve);
-		SWAP_BUFFERS();
+		//DRW_framebuffer_bind(effects->target_buffer);
+		//DRW_draw_pass(psl->bloom_resolve);
+		//SWAP_BUFFERS();
+
+		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_RESOLVE]);
+		targetofs->Bind();
+		rasty->DrawOverlayPlane();
 	}
+	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
-#endif
-
-	return inputofs;
+	return targetofs;
 }
