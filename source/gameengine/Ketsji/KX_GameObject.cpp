@@ -1187,6 +1187,24 @@ MT_Vector3 KX_GameObject::GetAngularVelocity(bool local)
 	return velocity;
 }
 
+MT_Vector3 KX_GameObject::GetGravity()
+{
+	MT_Vector3 gravity(0.0f, 0.0f, 0.0f);
+	if (m_pPhysicsController)
+	{
+		gravity = m_pPhysicsController->GetGravity();
+		return gravity;
+	}
+	return gravity;
+}
+
+void KX_GameObject::SetGravity(const MT_Vector3 &gravity)
+{
+	if (m_pPhysicsController) {
+		m_pPhysicsController->SetGravity(gravity);
+	}
+}
+
 MT_Vector3 KX_GameObject::GetVelocity(const MT_Vector3& point)
 {
 	if (m_pPhysicsController)
@@ -1609,6 +1627,7 @@ void KX_GameObject::Relink(std::map<SCA_IObject *, SCA_IObject *>& map_parameter
 #define MATHUTILS_VEC_CB_LINVEL_GLOBAL 8
 #define MATHUTILS_VEC_CB_ANGVEL_LOCAL 9
 #define MATHUTILS_VEC_CB_ANGVEL_GLOBAL 10
+#define MATHUTILS_VEC_CB_GRAVITY 11
 
 static unsigned char mathutils_kxgameob_vector_cb_index= -1; /* index for our callbacks */
 
@@ -1663,6 +1682,10 @@ static int mathutils_kxgameob_vector_get(BaseMathObject *bmo, int subtype)
 			PYTHON_CHECK_PHYSICS_CONTROLLER(self, "worldLinearVelocity", -1);
 			self->GetAngularVelocity(false).getValue(bmo->data);
 			break;
+		case MATHUTILS_VEC_CB_GRAVITY:
+			PYTHON_CHECK_PHYSICS_CONTROLLER(self, "gravity", -1);
+			self->GetGravity().getValue(bmo->data);
+			break;
 			
 	}
 	
@@ -1711,6 +1734,9 @@ static int mathutils_kxgameob_vector_set(BaseMathObject *bmo, int subtype)
 			break;
 		case MATHUTILS_VEC_CB_ANGVEL_GLOBAL:
 			self->setAngularVelocity(MT_Vector3(bmo->data),false);
+			break;
+		case MATHUTILS_VEC_CB_GRAVITY:
+			self->SetGravity(MT_Vector3(bmo->data));
 			break;
 	}
 	
@@ -1922,6 +1948,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("debug",	KX_GameObject, pyattr_get_debug, pyattr_set_debug),
 	KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
 	KX_PYATTRIBUTE_RW_FUNCTION("debugRecursive",	KX_GameObject, pyattr_get_debugRecursive, pyattr_set_debugRecursive),
+	KX_PYATTRIBUTE_RW_FUNCTION("gravity", KX_GameObject, pyattr_get_gravity, pyattr_set_gravity),
 
 	/* experimental, don't rely on these yet */
 	KX_PYATTRIBUTE_RO_FUNCTION("sensors",		KX_GameObject, pyattr_get_sensors),
@@ -2885,6 +2912,30 @@ int KX_GameObject::pyattr_set_localAngularVelocity(PyObjectPlus *self_v, const K
 		return PY_SET_ATTR_FAIL;
 
 	self->setAngularVelocity(velocity, true);
+
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+#ifdef USE_MATHUTILS
+	return Vector_CreatePyObject_cb(
+		BGE_PROXY_FROM_REF_BORROW(self_v), 3,
+		mathutils_kxgameob_vector_cb_index, MATHUTILS_VEC_CB_GRAVITY);
+#else
+	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	return PyObjectFrom(GetGravity());
+#endif
+}
+
+int KX_GameObject::pyattr_set_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	MT_Vector3 gravity;
+	if (!PyVecTo(value, gravity))
+		return PY_SET_ATTR_FAIL;
+
+	self->SetGravity(gravity);
 
 	return PY_SET_ATTR_SUCCESS;
 }

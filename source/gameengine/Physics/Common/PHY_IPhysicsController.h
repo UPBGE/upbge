@@ -96,6 +96,7 @@ public:
 	virtual void SetLinearDamping(float damping) = 0;
 	virtual void SetAngularDamping(float damping) = 0;
 	virtual void SetDamping(float linear, float angular) = 0;
+	virtual void SetGravity(const MT_Vector3 &gravity) = 0;
 
 	virtual void RefreshCollisions() = 0;
 	virtual void SuspendPhysics(bool freeConstraints) = 0;
@@ -110,6 +111,7 @@ public:
 	virtual MT_Vector3 GetAngularVelocity() = 0;
 	virtual MT_Vector3 GetVelocity(const MT_Vector3& pos) = 0;
 	virtual MT_Vector3 GetLocalInertia() = 0;
+	virtual MT_Vector3 GetGravity() = 0;
 
 	// dyna's that are rigidbody are free in orientation, dyna's with non-rigidbody are restricted
 	virtual void SetRigidBody(bool rigid) = 0;

@@ -392,6 +392,17 @@ public:
 		bool local=false
 	);
 
+	/**
+	 * Return object's physics controller gravity
+	 */
+		MT_Vector3
+	GetGravity();
+
+	/**
+	 * Set object's physics controller gravity
+	 */
+		void
+	SetGravity(const MT_Vector3 &gravity);
 	/** 
 	 * Align the object to a given normal.
 	 */
@@ -1020,6 +1031,8 @@ public:
 	static int			pyattr_set_worldAngularVelocity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_localAngularVelocity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_localAngularVelocity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_timeOffset(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_timeOffset(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_state(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
