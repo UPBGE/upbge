@@ -119,5 +119,62 @@ void RAS_EeveeEffectsManager::InitBloom()
 RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs,
 														   RAS_OffScreen *targetofs)
 {
+#if 0
+
+	/* Bloom */
+	if ((effects->enabled_effects & EFFECT_BLOOM) != 0) {
+		struct GPUTexture *last;
+
+		/* Extract bright pixels */
+		copy_v2_v2(effects->unf_source_texel_size, effects->source_texel_size);
+		effects->unf_source_buffer = effects->source_buffer;
+
+		DRW_framebuffer_bind(fbl->bloom_blit_fb);
+		DRW_draw_pass(psl->bloom_blit);
+
+		/* Downsample */
+		copy_v2_v2(effects->unf_source_texel_size, effects->blit_texel_size);
+		effects->unf_source_buffer = txl->bloom_blit;
+
+		DRW_framebuffer_bind(fbl->bloom_down_fb[0]);
+		DRW_draw_pass(psl->bloom_downsample_first);
+
+		last = txl->bloom_downsample[0];
+
+		for (int i = 1; i < effects->bloom_iteration_ct; ++i) {
+			copy_v2_v2(effects->unf_source_texel_size, effects->downsamp_texel_size[i-1]);
+			effects->unf_source_buffer = last;
+
+			DRW_framebuffer_bind(fbl->bloom_down_fb[i]);
+			DRW_draw_pass(psl->bloom_downsample);
+
+			/* Used in next loop */
+			last = txl->bloom_downsample[i];
+		}
+
+		/* Upsample and accumulate */
+		for (int i = effects->bloom_iteration_ct - 2; i >= 0; --i) {
+			copy_v2_v2(effects->unf_source_texel_size, effects->downsamp_texel_size[i]);
+			effects->unf_source_buffer = txl->bloom_downsample[i];
+			effects->unf_base_buffer = last;
+
+			DRW_framebuffer_bind(fbl->bloom_accum_fb[i]);
+			DRW_draw_pass(psl->bloom_upsample);
+
+			last = txl->bloom_upsample[i];
+		}
+
+		/* Resolve */
+		copy_v2_v2(effects->unf_source_texel_size, effects->downsamp_texel_size[0]);
+		effects->unf_source_buffer = last;
+		effects->unf_base_buffer = effects->source_buffer;
+
+		DRW_framebuffer_bind(effects->target_buffer);
+		DRW_draw_pass(psl->bloom_resolve);
+		SWAP_BUFFERS();
+	}
+
+#endif
+
 	return inputofs;
 }
