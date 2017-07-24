@@ -688,12 +688,14 @@ public:
 	virtual void SetLinearDamping(float damping);
 	virtual void SetAngularDamping(float damping);
 	virtual void SetDamping(float linear, float angular);
+	virtual void SetGravity(const MT_Vector3 &gravity);
 
 	// reading out information from physics
 	virtual MT_Vector3 GetLinearVelocity();
 	virtual MT_Vector3 GetAngularVelocity();
 	virtual MT_Vector3 GetVelocity(const MT_Vector3& posin);
 	virtual MT_Vector3 GetLocalInertia();
+	virtual MT_Vector3 GetGravity();
 
 	// dyna's that are rigidbody are free in orientation, dyna's with non-rigidbody are restricted
 	virtual void SetRigidBody(bool rigid);

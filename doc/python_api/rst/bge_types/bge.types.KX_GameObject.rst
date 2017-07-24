@@ -394,6 +394,12 @@ base class --- :class:`SCA_IObject`
 
       :type: :class:`mathutils.Vector`
 
+   .. attribute:: gravity
+
+      The object's gravity. [x, y, z]
+
+      :type: :class:`mathutils.Vector`
+
    .. attribute:: timeOffset
 
       adjust the slowparent delay at runtime.

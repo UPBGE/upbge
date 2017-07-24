@@ -610,6 +610,26 @@ void CcdPhysicsController::CreateRigidbody()
 	}
 }
 
+MT_Vector3 CcdPhysicsController::GetGravity()
+{
+	MT_Vector3 gravity(0.0f, 0.0f, 0.0f);
+	btRigidBody *body = GetRigidBody();
+	if (body) {
+		btVector3 g = body->getGravity();
+		gravity = MT_Vector3(g[0], g[1], g[2]);
+		return gravity;
+	}
+	return gravity;
+}
+
+void CcdPhysicsController::SetGravity(const MT_Vector3 &gravity)
+{
+	btRigidBody *body = GetRigidBody();
+	if (body) {
+		body->setGravity(ToBullet(gravity));
+	}
+}
+
 static void DeleteBulletShape(btCollisionShape *shape, bool free)
 {
 	if (shape->getShapeType() == SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE) {
