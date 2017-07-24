@@ -1656,6 +1656,7 @@ void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
 	}
 	
 	for (; ima; ima = ima->id.next) {
+		ima->lastupdate = 0.0f;
 		ima->cache = newimaadr(fd, ima->cache);
 		if (ima->cache == NULL) {
 			ima->tpageflag &= ~IMA_GLBIND_IS_DATA;
