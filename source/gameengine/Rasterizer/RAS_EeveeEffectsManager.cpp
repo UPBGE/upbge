@@ -39,7 +39,6 @@ extern "C" {
 #  include "DRW_render.h"
 }
 
-
 RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas):
 m_canvas(canvas)
 {
@@ -54,6 +53,12 @@ m_canvas(canvas)
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 {
+}
+
+void RAS_EeveeEffectsManager::InitBloomShaders()
+{
+	EEVEE_create_bloom_shgroups(m_effects, &m_bloomShGroup[BLOOM_FIRST], &m_bloomShGroup[BLOOM_DOWNSAMPLE],
+		&m_bloomShGroup[BLOOM_UPSAMPLE], &m_bloomShGroup[BLOOM_BLIT], &m_bloomShGroup[BLOOM_RESOLVE]);
 }
 
 void RAS_EeveeEffectsManager::InitBloom()
@@ -72,10 +77,8 @@ void RAS_EeveeEffectsManager::InitBloom()
 		m_effects->blit_texel_size[0] = 1.0f / (float)blitsize[0];
 		m_effects->blit_texel_size[1] = 1.0f / (float)blitsize[1];
 
-		DRWFboTexture tex_blit = { &m_txl->bloom_blit, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER };
-		//DRW_framebuffer_init(&m_fbl->bloom_blit_fb, &draw_engine_eevee_type,
-			//(int)blitsize[0], (int)blitsize[1],
-			//&tex_blit, 1);
+		m_bloomBlitOfs.reset(new RAS_OffScreen(blitsize[0], blitsize[1], 0, GPU_R11F_G11F_B10F,
+				GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
 
 		/* Parameters */
 		float threshold = 0.8f;// BKE_collection_engine_property_value_get_float(props, "bloom_threshold");
@@ -107,117 +110,14 @@ void RAS_EeveeEffectsManager::InitBloom()
 			m_effects->downsamp_texel_size[i][0] = 1.0f / (float)texsize[0];
 			m_effects->downsamp_texel_size[i][1] = 1.0f / (float)texsize[1];
 
-			DRWFboTexture tex_bloom = { &m_txl->bloom_downsample[i], DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER };
-			//DRW_framebuffer_init(&m_fbl->bloom_down_fb[i], &draw_engine_eevee_type,
-				//(int)texsize[0], (int)texsize[1],
-				//&tex_bloom, 1);
+			m_bloomDownOfs[i].reset(new RAS_OffScreen(texsize[0], texsize[1], 0, GPU_R11F_G11F_B10F,
+					GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
 		}
 	}
 }
 
-//RAS_2DFilter *RAS_2DFilterManager::AddFilter(RAS_2DFilterData& filterData)
-//{
-//	RAS_2DFilter *filter = CreateFilter(filterData);
-//
-//	m_filters[filterData.filterPassIndex] = filter;
-//	// By default enable the filter.
-//	filter->SetEnabled(true);
-//
-//	return filter;
-//}
-//
-//void RAS_2DFilterManager::RemoveFilterPass(unsigned int passIndex)
-//{
-//	m_filters.erase(passIndex);
-//}
-//
-//RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
-//{
-//	RAS_PassTo2DFilter::iterator it = m_filters.find(passIndex);
-//	return (it != m_filters.end()) ? it->second : nullptr;
-//}
-
-RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs,
+														   RAS_OffScreen *targetofs)
 {
-	//if (m_filters.size() == 0 || !m_toneMapAdded) {
-	//	// No filters, discard.
-	//	if (!m_toneMapAdded) { // TODO define builtin filters.
-	//		RAS_2DFilterData toneMapData;
-	//		toneMapData.filterMode = RAS_2DFilterManager::FILTER_TONEMAP;
-	//		toneMapData.filterPassIndex = m_filters.size() + 1;
-	//		toneMapData.mipmap = false;
-	//		AddFilter(toneMapData);
-	//		m_toneMapAdded = true;
-	//	}
-	//	return inputofs;
-	//}
-
-#if 1
 	return inputofs;
-#else
-
-	rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
-	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
-	rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_DISABLED);
-	rasty->Disable(RAS_Rasterizer::RAS_BLEND);
-	rasty->Disable(RAS_Rasterizer::RAS_ALPHA_TEST);
-
-	rasty->SetLines(false);
-
-	RAS_OffScreen *previousofs = inputofs;
-
-	/* Set source off screen to RAS_OFFSCREEN_FILTER0 in case of multisample and blit,
-	* else keep the original source off screen. */
-	if (inputofs->GetSamples()) {
-		previousofs = rasty->GetOffScreen(RAS_Rasterizer::RAS_OFFSCREEN_FILTER0);
-		// No need to bind previousofs because a blit is proceeded.
-		rasty->DrawOffScreen(inputofs, previousofs);
-	}
-
-	// The filter color input off screen, changed for each filters.
-	RAS_OffScreen *colorofs;
-	// The filter depth input off scree, unchanged for each filters.
-	RAS_OffScreen *depthofs = previousofs;
-
-	// Used to know if a filter is the last of the container.
-	//RAS_PassTo2DFilter::const_iterator pend = std::prev(m_filters.end());
-
-	//for (RAS_PassTo2DFilter::iterator begin = m_filters.begin(), it = begin, end = m_filters.end(); it != end; ++it) {
-	//	RAS_2DFilter *filter = it->second;
-
-	//	/* Assign the previous off screen to the input off screen. At the first render it's the
-	//	* input off screen sent to RenderFilters. */
-	//	colorofs = previousofs;
-
-	//	RAS_OffScreen *ftargetofs;
-	//	// Computing the filter targeted off screen.
-	//	if (it == pend) {
-	//		// Render to the targeted off screen for the last filter.
-	//		ftargetofs = targetofs;
-	//	}
-	//	else {
-	//		// Else render to the next off screen compared to the input off screen.
-	//		ftargetofs = rasty->GetOffScreen(RAS_Rasterizer::NextFilterOffScreen(colorofs->GetType()));
-	//	}
-
-	//	/* Get the output off screen of the filter, could be the same as the input off screen
-	//	* if no modifications were made or the targeted off screen.
-	//	* This output off screen is used for the next filter as input off screen */
-	//	previousofs = filter->Start(rasty, canvas, depthofs, colorofs, ftargetofs);
-	//	filter->End();
-	//}
-
-	// The last filter doesn't use its own off screen and didn't render to the targeted off screen ?
-	if (previousofs != targetofs) {
-		// Render manually to the targeted off screen as the last filter didn't do it for us.
-		targetofs->Bind();
-		rasty->DrawOffScreen(previousofs, targetofs);
-	}
-
-	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
-	rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
-	rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);
-
-	return targetofs;
-#endif
 }

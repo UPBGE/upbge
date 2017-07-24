@@ -27,18 +27,30 @@
 #ifndef __RAS_EEVEEEFFECTSMANAGER_H__
 #define __RAS_EEVEEEFFECTSMANAGER_H__
 
-#include "eevee_private.h"
+extern "C" {
+#  include "eevee_private.h"
+}
 
 class RAS_ICanvas;
 class RAS_Rasterizer;
 class RAS_OffScreen;
-
-//typedef std::map<unsigned int, RAS_2DFilter *> RAS_PassTo2DFilter;
+struct DRWShadingGroup;
 
 class RAS_EeveeEffectsManager
 {
-public:
+private:
+	enum BloomShader {
+		BLOOM_FIRST,
+		BLOOM_DOWNSAMPLE,
+		BLOOM_UPSAMPLE,
+		BLOOM_BLIT,
+		BLOOM_RESOLVE,
+		BLOOM_MAX
+	};
 
+	DRWShadingGroup *m_bloomShGroup[BLOOM_MAX];
+
+public:
 	RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas);
 	virtual ~RAS_EeveeEffectsManager();
 
@@ -68,10 +80,16 @@ private:
 	EEVEE_FramebufferList *m_fbl;
 	EEVEE_StorageList *m_stl;
 	EEVEE_EffectsInfo *m_effects;
+
+	std::unique_ptr<RAS_OffScreen> m_bloomBlitOfs;
+	std::unique_ptr<RAS_OffScreen> m_bloomDownOfs[MAX_BLOOM_STEP];
+	std::unique_ptr<RAS_OffScreen> m_bloomAccumOfs[MAX_BLOOM_STEP-1];
+
 	//bool m_toneMapAdded;
 
 	RAS_ICanvas *m_canvas;
 
+	void InitBloomShaders();
 	void InitBloom();
 
 	/** Creates a filter matching the given filter data. Returns nullptr if no

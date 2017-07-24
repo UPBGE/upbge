@@ -493,6 +493,34 @@ static DRWShadingGroup *eevee_create_bloom_pass(const char *name, EEVEE_EffectsI
 	return grp;
 }
 
+DRWShadingGroup *EEVEE_create_bloom_shgroup(EEVEE_EffectsInfo *effects, struct GPUShader *sh, bool upsample)
+{
+	DRWShadingGroup *grp = DRW_shgroup_create(sh, NULL);
+	DRW_shgroup_uniform_buffer(grp, "sourceBuffer", &effects->unf_source_buffer);
+	DRW_shgroup_uniform_vec2(grp, "sourceBufferTexelSize", effects->unf_source_texel_size, 1);
+	if (upsample) {
+		DRW_shgroup_uniform_buffer(grp, "baseBuffer", &effects->unf_base_buffer);
+		DRW_shgroup_uniform_float(grp, "sampleScale", &effects->bloom_sample_scale, 1);
+	}
+
+	return grp;
+}
+
+void EEVEE_create_bloom_shgroups(EEVEE_EffectsInfo *effects, DRWShadingGroup **first, DRWShadingGroup **downsample,
+								 DRWShadingGroup **upsample, DRWShadingGroup **blit, DRWShadingGroup **resolve)
+{
+	const bool use_highres = true;
+	const bool use_antiflicker = true;
+
+	*first = EEVEE_create_bloom_shgroup(effects, e_data.bloom_downsample_sh[use_antiflicker], false);
+	*downsample = EEVEE_create_bloom_shgroup(effects, e_data.bloom_downsample_sh[0], false);
+	*upsample = EEVEE_create_bloom_shgroup(effects, e_data.bloom_upsample_sh[use_highres], true);
+	*blit = EEVEE_create_bloom_shgroup(effects, e_data.bloom_blit_sh[use_antiflicker], false);
+	DRW_shgroup_uniform_vec4(*blit, "curveThreshold", effects->bloom_curve_threshold, 1);
+	*resolve = EEVEE_create_bloom_shgroup(effects, e_data.bloom_resolve_sh[use_highres], true);
+	DRW_shgroup_uniform_float(*resolve, "bloomIntensity", &effects->bloom_intensity, 1);
+}
+
 void EEVEE_effects_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 {
 	EEVEE_PassList *psl = vedata->psl;
