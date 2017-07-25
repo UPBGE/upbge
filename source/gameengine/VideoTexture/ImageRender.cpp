@@ -304,7 +304,7 @@ bool ImageRender::Render()
 	// bind the fbo and set the viewport to full size
 	m_offScreen->Bind();
 
-	m_rasterizer->BeginFrame(m_engine->GetClockTime());
+	m_rasterizer->BeginFrame(m_engine->GetFrameTime());
 
 	m_rasterizer->SetViewport(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
 	m_rasterizer->SetScissor(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
