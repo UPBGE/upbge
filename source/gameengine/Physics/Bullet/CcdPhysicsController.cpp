@@ -615,9 +615,7 @@ MT_Vector3 CcdPhysicsController::GetGravity()
 	MT_Vector3 gravity(0.0f, 0.0f, 0.0f);
 	btRigidBody *body = GetRigidBody();
 	if (body) {
-		btVector3 g = body->getGravity();
-		gravity = MT_Vector3(g[0], g[1], g[2]);
-		return gravity;
+		return ToMoto(body->getGravity());
 	}
 	return gravity;
 }
