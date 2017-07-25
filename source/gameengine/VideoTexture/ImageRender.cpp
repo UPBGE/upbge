@@ -400,7 +400,7 @@ bool ImageRender::Render()
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_scene->RenderBuckets(nodes, camtrans, m_rasterizer, m_offScreen.get());
+	m_scene->RenderBuckets(nodes, RAS_Rasterizer::RAS_TEXTURED, camtrans, m_rasterizer, m_offScreen.get());
 
 	m_canvas->EndFrame();
 

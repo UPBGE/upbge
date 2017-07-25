@@ -1631,7 +1631,8 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 
 
 
-void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
+void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, RAS_Rasterizer::DrawType drawingMode, const MT_Transform& cameratransform,
+		RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
 {
 	for (KX_CullingNode *node : nodes) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
@@ -1639,12 +1640,12 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 		node->GetObject()->UpdateBuckets();
 	}
 
-	m_bucketmanager->Renderbuckets(cameratransform, rasty, offScreen);
+	m_bucketmanager->Renderbuckets(drawingMode, cameratransform, rasty, offScreen);
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen, KX_Camera *camera,
-									  const RAS_Rect& viewport, const RAS_Rect& area)
+void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty,
+		RAS_OffScreen *offScreen, KX_Camera *camera, const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	m_rendererManager->Render(category, rasty, offScreen, camera, viewport, area);
 }

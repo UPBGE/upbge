@@ -176,7 +176,7 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 		// Now the objects are culled and we can render the scene.
 		m_scene->GetWorldInfo()->RenderBackground(rasty);
 		// Send a nullptr off screen because we use a set of FBO with shared textures, not an off screen.
-		m_scene->RenderBuckets(nodes, camtrans, rasty, nullptr);
+		m_scene->RenderBuckets(nodes, RAS_Rasterizer::RAS_RENDERER, camtrans, rasty, nullptr);
 
 		renderer->EndRenderFace(rasty);
 	}
@@ -196,9 +196,6 @@ void KX_TextureRendererManager::Render(RendererCategory category, RAS_Rasterizer
 		return;
 	}
 
-	const RAS_Rasterizer::DrawType drawmode = rasty->GetDrawingMode();
-	rasty->SetDrawingMode(RAS_Rasterizer::RAS_RENDERER);
-
 	// Disable scissor to not bother with scissor box.
 	rasty->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
@@ -209,8 +206,6 @@ void KX_TextureRendererManager::Render(RendererCategory category, RAS_Rasterizer
 	}
 
 	rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-
-	rasty->SetDrawingMode(drawmode);
 
 	if (offScreen && rendered) {
 		// Restore the off screen bound before rendering the texture renderers.

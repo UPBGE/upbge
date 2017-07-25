@@ -46,6 +46,7 @@
 #include "SCA_IScene.h"
 #include "MT_Transform.h"
 
+#include "RAS_Rasterizer.h" // For RAS_Rasterizer::DrawType.
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"
 
@@ -327,9 +328,10 @@ public:
 	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
-	void RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
+	void RenderBuckets(const KX_CullingNodeList& nodes, RAS_Rasterizer::DrawType drawingMode, const MT_Transform& cameratransform,
+			RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
 	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
-								KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
+			KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
 	/**
 	 * Update all transforms according to the scenegraph.
