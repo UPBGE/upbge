@@ -29,49 +29,64 @@
  *  \ingroup bgeconv
  */
 
-
 #include "BL_DeformableGameObject.h"
 #include "BL_ShapeDeformer.h"
-#include "RAS_MeshObject.h"
-#include "RAS_MeshUser.h"
-#include "RAS_MaterialBucket.h"
-#include "RAS_BoundingBoxManager.h"
 
+BL_DeformableGameObject::BL_DeformableGameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
+	:KX_GameObject(sgReplicationInfo, callbacks),
+	m_pDeformer(nullptr),
+	m_lastframe(0.0),
+	m_activePriority(9999)
+{
+}
 
 BL_DeformableGameObject::~BL_DeformableGameObject()
 {
-	if (m_pDeformer)
-		delete m_pDeformer;		//	__NLA : Temporary until we decide where to put this
+	if (m_pDeformer) {
+		delete m_pDeformer;
+	}
+}
+
+CValue *BL_DeformableGameObject::GetReplica()
+{
+	BL_DeformableGameObject *replica = new BL_DeformableGameObject(*this);
+	replica->ProcessReplica();
+	return replica;
 }
 
 void BL_DeformableGameObject::ProcessReplica()
 {
 	KX_GameObject::ProcessReplica();
 
-	if (m_pDeformer)
+	if (m_pDeformer) {
 		m_pDeformer = m_pDeformer->GetReplica();
+	}
 }
 
-CValue*		BL_DeformableGameObject::GetReplica()
+void BL_DeformableGameObject::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 {
+	if (m_pDeformer) {
+		m_pDeformer->Relink(map);
+	}
+	KX_GameObject::Relink(map);
+}
 
-	BL_DeformableGameObject* replica = new BL_DeformableGameObject(*this);//m_float,GetName());
-	replica->ProcessReplica();
-	return replica;
+double BL_DeformableGameObject::GetLastFrame() const
+{
+	return m_lastframe;
 }
 
 bool BL_DeformableGameObject::SetActiveAction(short priority, double curtime)
 {
 	if (curtime != m_lastframe) {
 		m_activePriority = 9999;
-		m_lastframe= curtime;
+		m_lastframe = curtime;
 	}
 
-	if (priority<=m_activePriority)
-	{
+	if (priority <= m_activePriority) {
 		m_activePriority = priority;
 		m_lastframe = curtime;
-	
+
 		return true;
 	}
 	else {
@@ -82,17 +97,14 @@ bool BL_DeformableGameObject::SetActiveAction(short priority, double curtime)
 bool BL_DeformableGameObject::GetShape(std::vector<float> &shape)
 {
 	shape.clear();
-	BL_ShapeDeformer* shape_deformer = dynamic_cast<BL_ShapeDeformer*>(m_pDeformer);
-	if (shape_deformer)
-	{
+	BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer *>(m_pDeformer);
+	if (shape_deformer) {
 		// this check is normally superfluous: a shape deformer can only be created if the mesh
 		// has relative keys
-		Key* key = shape_deformer->GetKey();
-		if (key && key->type==KEY_RELATIVE) 
-		{
+		Key *key = shape_deformer->GetKey();
+		if (key && key->type == KEY_RELATIVE) {
 			KeyBlock *kb;
-			for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next)
-			{
+			for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next) {
 				shape.push_back(kb->curval);
 			}
 		}
@@ -100,10 +112,19 @@ bool BL_DeformableGameObject::GetShape(std::vector<float> &shape)
 	return !shape.empty();
 }
 
-void BL_DeformableGameObject::SetDeformer(class RAS_Deformer* deformer)
+void BL_DeformableGameObject::SetDeformer(RAS_Deformer *deformer)
 {
 	// Make sure that the object doesn't already have a mesh user.
 	BLI_assert(m_meshUser == nullptr);
 	m_pDeformer = deformer;
 }
 
+RAS_Deformer *BL_DeformableGameObject::GetDeformer()
+{
+	return m_pDeformer;
+}
+
+bool BL_DeformableGameObject::IsDeformable() const
+{
+	return true;
+}

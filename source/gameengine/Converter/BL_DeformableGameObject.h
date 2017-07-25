@@ -36,60 +36,37 @@
 #  pragma warning (disable:4786) // get rid of stupid stl-visual compiler debug warning
 #endif
 
-#include "DNA_mesh_types.h"
 #include "KX_GameObject.h"
-#include "RAS_Deformer.h"
 #include <vector>
 
+class RAS_Deformer;
 struct Key;
 
-class BL_DeformableGameObject : public KX_GameObject  
+class BL_DeformableGameObject : public KX_GameObject
 {
-public:
-	CValue*		GetReplica();
+private:
+	RAS_Deformer *m_pDeformer;
 
-	double GetLastFrame ()
-	{
-		return m_lastframe;
-	}
-	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
-	{
-		if (m_pDeformer)
-			m_pDeformer->Relink(map);
-		KX_GameObject::Relink(map);
-	};
+	double m_lastframe;
+	short m_activePriority;
+
+public:
+	BL_DeformableGameObject(void *sgReplicationInfo, SG_Callbacks callbacks);
+	virtual ~BL_DeformableGameObject();
+
+	virtual CValue *GetReplica();
 	void ProcessReplica();
 
-	BL_DeformableGameObject(void* sgReplicationInfo, SG_Callbacks callbacks) :
-		KX_GameObject(sgReplicationInfo,callbacks),
-		m_pDeformer(nullptr),
-		m_lastframe(0.0),
-		m_activePriority(9999)
-	{
-	};
-	virtual ~BL_DeformableGameObject();
+	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
+
+	double GetLastFrame() const;
+
 	bool SetActiveAction(short priority, double curtime);
-
 	bool GetShape(std::vector<float> &shape);
-	
-	virtual void	SetDeformer(class RAS_Deformer* deformer);
-	virtual class RAS_Deformer* GetDeformer()
-	{
-		return m_pDeformer;
-	}
-	virtual bool IsDeformable() const
-	{
-		return true;
-	}
 
-public:
-	
-protected:
-
-	RAS_Deformer		*m_pDeformer;
-
-	double		m_lastframe;
-	short		m_activePriority;
+	virtual void SetDeformer(RAS_Deformer *deformer);
+	virtual RAS_Deformer *GetDeformer();
+	virtual bool IsDeformable() const;
 };
 
 #endif  /* __BL_DEFORMABLEGAMEOBJECT_H__ */
