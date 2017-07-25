@@ -257,12 +257,8 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_T
 	cam->NodeUpdateGS(0);
 
 	/* setup rasterizer transformations */
-	/* SetViewMatrix may use stereomode which we temporarily disable here */
-	RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
-	m_rasterizer->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
 	m_rasterizer->SetProjectionMatrix(projectionmat);
 	m_rasterizer->SetViewMatrix(modelviewmat, cam->NodeGetWorldPosition(), cam->NodeGetLocalScaling());
-	m_rasterizer->SetStereoMode(stereomode);
 }
 
 void RAS_OpenGLLight::UnbindShadowBuffer()

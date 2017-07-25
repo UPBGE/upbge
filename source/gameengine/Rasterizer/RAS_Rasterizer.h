@@ -485,13 +485,14 @@ public:
 	 * \param canvas The canvas containing the screen viewport.
 	 * \param lefteyeindex The left off screen index.
 	 * \param righteyeindex The right off screen index.
+	 * \param stereoMode The stereo category.
 	 */
-	void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen);
+	void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen, StereoMode stereoMode);
 
 	/**
 	 * GetRenderArea computes the render area from the 2d canvas.
 	 */
-	RAS_Rect GetRenderArea(RAS_ICanvas *canvas, StereoEye eye);
+	RAS_Rect GetRenderArea(RAS_ICanvas *canvas, StereoMode stereoMode, StereoEye eye);
 
 	// Stereo Functions
 	/**
@@ -499,11 +500,6 @@ public:
 	 */
 	void SetStereoMode(const StereoMode stereomode);
 
-	/**
-	 * Stereo can be used to query if the rasterizer is in stereo mode.
-	 * \return true if stereo mode is enabled.
-	 */
-	bool Stereo();
 	StereoMode GetStereoMode();
 
 	/**
@@ -568,7 +564,7 @@ public:
 	void SetProjectionMatrix(const MT_Matrix4x4 &mat);
 
 	/// Get the modelview matrix according to the stereo settings.
-	MT_Matrix4x4 GetViewMatrix(StereoEye eye, const MT_Transform &camtrans, bool perspective);
+	MT_Matrix4x4 GetViewMatrix(StereoMode stereoMode, StereoEye eye, const MT_Transform &camtrans, bool perspective);
 	/**
 	 * Sets the modelview matrix.
 	 */
@@ -633,6 +629,22 @@ public:
 	double GetTime();
 
 	/**
+	 * Generates a projection matrix from the specified frustum and stereomode.
+	 * \param eye The stereo eye.
+	 * \param stereoMode The stereo category.
+	 * \param focallength The stereo eye focal length.
+	 * \param left the left clipping plane
+	 * \param right the right clipping plane
+	 * \param bottom the bottom clipping plane
+	 * \param top the top clipping plane
+	 * \param frustnear the near clipping plane
+	 * \param frustfar the far clipping plane
+	 * \return a 4x4 matrix representing the projection transform.
+	 */
+	MT_Matrix4x4 GetFrustumMatrix(StereoMode stereoMode, StereoEye eye, float focallength,
+	        float left, float right, float bottom, float top, float frustnear, float frustfar);
+
+	/**
 	 * Generates a projection matrix from the specified frustum.
 	 * \param left the left clipping plane
 	 * \param right the right clipping plane
@@ -642,11 +654,8 @@ public:
 	 * \param frustfar the far clipping plane
 	 * \return a 4x4 matrix representing the projection transform.
 	 */
-	MT_Matrix4x4 GetFrustumMatrix(
-			StereoEye eye,
-	        float left, float right, float bottom, float top,
-	        float frustnear, float frustfar,
-	        float focallength = 0.0f, bool perspective = true);
+	MT_Matrix4x4 GetFrustumMatrix(float left, float right, float bottom, float top, float frustnear, float frustfar);
+
 
 	/**
 	 * Generates a orthographic projection matrix from the specified frustum.

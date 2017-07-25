@@ -490,7 +490,8 @@ void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen
 	Enable(RAS_CULL_FACE);
 }
 
-void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen)
+void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen,
+										 StereoMode stereoMode)
 {
 	if (leftOffScreen->GetSamples() > 0) {
 		// Then leftOffScreen == RAS_OFFSCREEN_EYE_LEFT0.
@@ -511,7 +512,7 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 
 	RAS_OffScreen::RestoreScreen();
 
-	if (m_stereomode == RAS_STEREO_VINTERLACE || m_stereomode == RAS_STEREO_INTERLACED) {
+	if (stereoMode == RAS_STEREO_VINTERLACE || stereoMode == RAS_STEREO_INTERLACED) {
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_STIPPLE);
 		GPU_shader_bind(shader);
 
@@ -522,7 +523,7 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 
 		GPU_shader_uniform_int(shader, interface->leftEyeTexLoc, 0);
 		GPU_shader_uniform_int(shader, interface->rightEyeTexLoc, 1);
-		GPU_shader_uniform_int(shader, interface->stippleIdLoc, (m_stereomode == RAS_STEREO_INTERLACED) ? 1 : 0);
+		GPU_shader_uniform_int(shader, interface->stippleIdLoc, (stereoMode == RAS_STEREO_INTERLACED) ? 1 : 0);
 
 		DrawOverlayPlane();
 
@@ -531,7 +532,7 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 		leftOffScreen->UnbindColorTexture();
 		rightOffScreen->UnbindColorTexture();
 	}
-	else if (m_stereomode == RAS_STEREO_ANAGLYPH) {
+	else if (stereoMode == RAS_STEREO_ANAGLYPH) {
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_ANAGLYPH);
 		GPU_shader_bind(shader);
 
@@ -555,11 +556,11 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 	Enable(RAS_CULL_FACE);
 }
 
-RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoEye eye)
+RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoMode stereoMode, StereoEye eye)
 {
 	RAS_Rect area;
 	// only above/below stereo method needs viewport adjustment
-	switch (m_stereomode)
+	switch (stereoMode)
 	{
 		case RAS_STEREO_ABOVEBELOW:
 		{
@@ -660,14 +661,6 @@ void RAS_Rasterizer::SetStereoMode(const StereoMode stereomode)
 RAS_Rasterizer::StereoMode RAS_Rasterizer::GetStereoMode()
 {
 	return m_stereomode;
-}
-
-bool RAS_Rasterizer::Stereo()
-{
-	if (m_stereomode > RAS_STEREO_NOSTEREO) // > 0
-		return true;
-	else
-		return false;
 }
 
 void RAS_Rasterizer::SetEye(const StereoEye eye)
@@ -824,19 +817,11 @@ void RAS_Rasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 	m_camortho = (mat[3][3] != 0.0f);
 }
 
-MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(
-	StereoEye eye,
-    float left,
-    float right,
-    float bottom,
-    float top,
-    float frustnear,
-    float frustfar,
-    float focallength,
-    bool perspective)
+MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(StereoMode stereoMode, StereoEye eye, float focallength,
+		float left, float right, float bottom, float top, float frustnear, float frustfar)
 {
 	// correction for stereo
-	if (Stereo()) {
+	if (stereoMode > RAS_STEREO_NOSTEREO) {
 		// if Rasterizer.setFocalLength is not called we use the camera focallength
 		if (!m_setfocallength) {
 			// if focallength is null we use a value known to be reasonable
@@ -861,7 +846,7 @@ MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(
 			}
 		}
 		// leave bottom and top untouched
-		if (m_stereomode == RAS_STEREO_3DTVTOPBOTTOM) {
+		if (stereoMode == RAS_STEREO_3DTVTOPBOTTOM) {
 			// restore the vertical frustum because the 3DTV will
 			// expand the top and bottom part to the full size of the screen
 			bottom *= 2.0f;
@@ -869,6 +854,11 @@ MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(
 		}
 	}
 
+	return GetFrustumMatrix(left, right, bottom, top, frustnear, frustfar);
+}
+
+MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(float left, float right, float bottom, float top, float frustnear, float frustfar)
+{
 	float mat[4][4];
 	perspective_m4(mat, left, right, bottom, top, frustnear, frustfar);
 
@@ -890,10 +880,10 @@ MT_Matrix4x4 RAS_Rasterizer::GetOrthoMatrix(
 }
 
 // next arguments probably contain redundant info, for later...
-MT_Matrix4x4 RAS_Rasterizer::GetViewMatrix(StereoEye eye, const MT_Transform &camtrans, bool perspective)
+MT_Matrix4x4 RAS_Rasterizer::GetViewMatrix(StereoMode stereoMode, StereoEye eye, const MT_Transform &camtrans, bool perspective)
 {
 	// correction for stereo
-	if (Stereo() && perspective) {
+	if ((stereoMode != RAS_STEREO_NOSTEREO) && perspective) {
 		static const MT_Vector3 unitViewDir(0.0f, -1.0f, 0.0f);  // minus y direction, Blender convention
 		static const MT_Vector3 unitViewupVec(0.0f, 0.0f, 1.0f);
 

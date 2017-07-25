@@ -96,8 +96,7 @@ const MT_Matrix4x4& KX_CubeMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Sc
 													const RAS_Rect& UNUSED(viewport), const RAS_Rect& UNUSED(area))
 {
 	if (m_invalidProjection) {
-		m_projection = rasty->GetFrustumMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE, -m_clipStart, m_clipStart, -m_clipStart, m_clipStart,
-											   m_clipStart, m_clipEnd, 1.0f, true);
+		m_projection = rasty->GetFrustumMatrix(-m_clipStart, m_clipStart, -m_clipStart, m_clipStart, m_clipStart, m_clipEnd);
 		m_invalidProjection = false;
 	}
 

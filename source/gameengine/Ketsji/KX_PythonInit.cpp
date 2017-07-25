@@ -981,8 +981,6 @@ static PyObject *gPyGetFocalLength(PyObject *, PyObject *, PyObject *)
 
 static PyObject *gPyGetStereoEye(PyObject *, PyObject *, PyObject *)
 {
-	int flag = RAS_Rasterizer::RAS_STEREO_LEFTEYE;
-
 	RAS_Rasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
 
 	if (!rasterizer) {
@@ -990,8 +988,7 @@ static PyObject *gPyGetStereoEye(PyObject *, PyObject *, PyObject *)
 		return nullptr;
 	}
 
-	if (rasterizer->Stereo())
-		flag = rasterizer->GetEye();
+	int flag = rasterizer->GetEye();
 
 	return PyLong_FromLong(flag);
 }

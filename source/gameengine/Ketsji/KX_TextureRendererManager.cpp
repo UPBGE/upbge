@@ -202,19 +202,11 @@ void KX_TextureRendererManager::Render(RendererCategory category, RAS_Rasterizer
 	// Disable scissor to not bother with scissor box.
 	rasty->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
-	// Copy current stereo mode.
-	const RAS_Rasterizer::StereoMode steremode = rasty->GetStereoMode();
-	// Disable stereo for realtime renderer.
-	rasty->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
-
 	// Check if at least one renderer was rendered.
 	bool rendered = false;
 	for (KX_TextureRenderer *renderer : renderers) {
 		rendered |= RenderRenderer(rasty, renderer, sceneCamera, viewport, area);
 	}
-
-	// Restore previous stereo mode.
-	rasty->SetStereoMode(steremode);
 
 	rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 

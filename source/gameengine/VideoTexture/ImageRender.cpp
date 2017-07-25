@@ -299,9 +299,6 @@ bool ImageRender::Render()
 		frustum.camnear = -mirrorOffset[2];
 		frustum.camfar = -mirrorOffset[2]+m_clip;
 	}
-	// Store settings to be restored later
-	const RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
-	RAS_Rect area = m_canvas->GetWindowArea();
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	// bind the fbo and set the viewport to full size
@@ -317,15 +314,12 @@ bool ImageRender::Render()
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
 	m_rasterizer->DisplayFog();
-	// matrix calculation, don't apply any of the stereo mode
-	m_rasterizer->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
 
 	if (m_mirror)
 	{
 		// frustum was computed above
 		// get frustum matrix and set projection matrix
-		MT_Matrix4x4 projmat = m_rasterizer->GetFrustumMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE,
-		            frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
+		MT_Matrix4x4 projmat = m_rasterizer->GetFrustumMatrix(frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 
 		m_camera->SetProjectionMatrix(projmat);
 	}
@@ -376,8 +370,7 @@ bool ImageRender::Render()
 			            aspect_ratio,
 			            frustum);
 			
-			projmat = m_rasterizer->GetFrustumMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE,
-			            frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
+			projmat = m_rasterizer->GetFrustumMatrix(frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 		}
 		m_camera->SetProjectionMatrix(projmat);
 	}
@@ -389,17 +382,6 @@ bool ImageRender::Render()
 	
 	m_rasterizer->SetViewMatrix(viewmat, m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling());
 	m_camera->SetModelviewMatrix(viewmat);
-
-	// restore the stereo mode now that the matrix is computed
-	m_rasterizer->SetStereoMode(stereomode);
-
-	if (m_rasterizer->Stereo())	{
-		// stereo mode change render settings that disturb this render, cancel them all
-		// we don't need to restore them as they are set before each frame render.
-		glDrawBuffer(GL_BACK_LEFT);
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		glDisable(GL_POLYGON_STIPPLE);
-	}
 
 	// Render Background
 	if (m_scene->GetWorldInfo()) {
@@ -420,8 +402,6 @@ bool ImageRender::Render()
 
 	m_scene->RenderBuckets(nodes, camtrans, m_rasterizer, m_offScreen.get());
 
-	// restore the canvas area now that the render is completed
-	m_canvas->GetWindowArea() = area;
 	m_canvas->EndFrame();
 
 	// In case multisample is active, blit the FBO

@@ -105,7 +105,8 @@ public:
 private:
 	struct CameraRenderData
 	{
-		CameraRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area, const RAS_Rect& viewport, RAS_Rasterizer::StereoEye eye);
+		CameraRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area, const RAS_Rect& viewport,
+				RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye);
 		CameraRenderData(const CameraRenderData& other);
 		~CameraRenderData();
 
@@ -114,6 +115,7 @@ private:
 		KX_Camera *m_cullingCamera;
 		RAS_Rect m_area;
 		RAS_Rect m_viewport;
+		RAS_Rasterizer::StereoMode m_stereoMode;
 		RAS_Rasterizer::StereoEye m_eye;
 	};
 
@@ -132,6 +134,15 @@ private:
 
 		RAS_Rasterizer::OffScreenType m_ofsType;
 		std::vector<SceneRenderData> m_sceneDataList;
+	};
+
+	struct RenderData
+	{
+		RenderData(RAS_Rasterizer::StereoMode stereoMode, bool renderPerEye);
+
+		RAS_Rasterizer::StereoMode m_stereoMode;
+		bool m_renderPerEye;
+		std::vector<FrameRenderData> m_frameDataList;
 	};
 
 	/// 2D Canvas (2D Rendering Device Context)
@@ -252,12 +263,12 @@ private:
 	void UpdateSuspendedScenes(double framestep);
 
 	/// Update and return the projection matrix of a camera depending on the viewport.
-	MT_Matrix4x4 GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoEye eye,
-										   const RAS_Rect& viewport, const RAS_Rect& area) const;
+	MT_Matrix4x4 GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoMode stereoMode,
+			RAS_Rasterizer::StereoEye eye, const RAS_Rect& viewport, const RAS_Rect& area) const;
 	CameraRenderData GetCameraRenderData(KX_Scene *scene, KX_Camera *camera, KX_Camera *overrideCullingCam, const RAS_Rect& displayArea,
-											  RAS_Rasterizer::StereoEye eye, bool usestereo);
+			RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye);
 	/// Compute frame render data per eyes (in case of stereo), scenes and camera.
-	bool GetFrameRenderData(std::vector<FrameRenderData>& frameDataList);
+	RenderData GetRenderData();
 
 	void RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, RAS_OffScreen *offScreen, unsigned short pass, bool isFirstScene);
 	RAS_OffScreen *PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
