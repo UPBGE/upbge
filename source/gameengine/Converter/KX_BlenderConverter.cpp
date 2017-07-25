@@ -248,11 +248,14 @@ void KX_BlenderConverter::RemoveScene(KX_Scene *scene)
 	Texture::FreeAllTextures(scene);
 #endif  // WITH_PYTHON
 
-	// delete the scene first as it will stop the use of entities
-	scene->Release();
-
-	// delete the entities of this scene
+	/* Delete the scene entity as some one of them depends to the data owned by the scene
+	 * e.g the display array bucket owned by the meshes and needed to be unregistered
+	 * from the bucket manager in the scene.
+	 */
 	m_sceneSlots.erase(scene);
+
+	// Delete the scene.
+	scene->Release();
 }
 
 void KX_BlenderConverter::SetAlwaysUseExpandFraming(bool to_what)
