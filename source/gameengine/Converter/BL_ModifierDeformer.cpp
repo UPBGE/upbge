@@ -142,7 +142,7 @@ DerivedMesh *BL_ModifierDeformer::GetPhysicsMesh()
 	BL_ShapeDeformer::ForceUpdate();
 	BL_ShapeDeformer::Update();
 	// now apply the modifiers but without those that don't support mapping
-	Object *blendobj = m_gameobj->GetBlendObject();
+	Object *blendobj = m_gameobj->GetBlenderObject();
 	/* hack: the modifiers require that the mesh is attached to the object
 	 * It may not be the case here because of replace mesh actuator */
 	Mesh *oldmesh = (Mesh *)blendobj->data;
@@ -169,7 +169,7 @@ bool BL_ModifierDeformer::Update(void)
 			// Set to true if it's the first time Update() function is called.
 			const bool initialize = (m_dm == nullptr);
 			/* execute the modifiers */
-			Object *blendobj = m_gameobj->GetBlendObject();
+			Object *blendobj = m_gameobj->GetBlenderObject();
 			/* hack: the modifiers require that the mesh is attached to the object
 			 * It may not be the case here because of replace mesh actuator */
 			Mesh *oldmesh = (Mesh *)blendobj->data;

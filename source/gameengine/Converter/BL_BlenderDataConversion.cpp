@@ -1038,7 +1038,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 			break;
 		}
 
-		gameobj = new BL_DeformableGameObject(ob,kxscene,KX_Scene::m_callbacks);
+		gameobj = new BL_DeformableGameObject(kxscene, KX_Scene::m_callbacks);
 	
 		// set transformation
 		gameobj->AddMesh(meshobj);

@@ -52,10 +52,6 @@ public:
 	{
 		return m_lastframe;
 	}
-	Object* GetBlendObject()
-	{
-		return m_blendobj;
-	}
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 	{
 		if (m_pDeformer)
@@ -64,11 +60,10 @@ public:
 	};
 	void ProcessReplica();
 
-	BL_DeformableGameObject(Object* blendobj, void* sgReplicationInfo, SG_Callbacks callbacks) :
+	BL_DeformableGameObject(void* sgReplicationInfo, SG_Callbacks callbacks) :
 		KX_GameObject(sgReplicationInfo,callbacks),
 		m_pDeformer(nullptr),
 		m_lastframe(0.0),
-		m_blendobj(blendobj),
 		m_activePriority(9999)
 	{
 	};
@@ -90,11 +85,10 @@ public:
 public:
 	
 protected:
-	
+
 	RAS_Deformer		*m_pDeformer;
 
 	double		m_lastframe;
-	Object*		m_blendobj;
 	short		m_activePriority;
 };
 
