@@ -228,7 +228,7 @@ bool ImageRender::Render()
 	// Store settings to be restored later
 	const RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
 
-	m_rasterizer->BeginFrame(m_engine->GetClockTime());
+	m_rasterizer->BeginFrame(m_engine->GetFrameTime());
 
 	int viewport[4] = { m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1] };
 
