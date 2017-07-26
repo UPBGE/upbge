@@ -143,7 +143,7 @@ void RAS_MaterialBucket::BindNode(const RAS_MaterialNodeTuple& tuple)
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
 	RAS_Rasterizer *rasty = managerData->m_rasty;
 	rasty->SetCullFace(m_nodeData.m_cullFace);
-	rasty->SetPolygonOffset(-m_nodeData.m_zoffset, 0.0f);
+	rasty->SetPolygonOffset(managerData->m_drawingMode, -m_nodeData.m_zoffset, 0.0f);
 
 	if (!managerData->m_shaderOverride) {
 		ActivateMaterial(managerData->m_rasty);

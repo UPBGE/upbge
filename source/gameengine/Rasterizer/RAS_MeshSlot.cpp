@@ -107,7 +107,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 		}
 
 		if (m_pDerivedMesh) {
-			rasty->IndexPrimitivesDerivedMesh(this);
+			rasty->IndexPrimitivesDerivedMesh(managerData->m_drawingMode, this);
 		}
 		else {
 			rasty->IndexPrimitives(displayArrayData->m_storageInfo);

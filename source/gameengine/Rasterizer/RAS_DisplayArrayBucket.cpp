@@ -89,16 +89,16 @@ RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 	}
 }
 
-void RAS_DisplayArrayBucket::BindPrimitives(RAS_Rasterizer *rasty)
+void RAS_DisplayArrayBucket::BindPrimitives(RAS_Rasterizer::DrawType drawingMode, RAS_Rasterizer *rasty)
 {
 	// Set the proper uv layer for uv attributes.
 	rasty->SetAttribLayers(m_attribLayers);
-	rasty->BindPrimitives(m_storageInfo);
+	rasty->BindPrimitives(drawingMode, m_storageInfo);
 }
 
-void RAS_DisplayArrayBucket::UnbindPrimitives(RAS_Rasterizer *rasty)
+void RAS_DisplayArrayBucket::UnbindPrimitives(RAS_Rasterizer::DrawType drawingMode, RAS_Rasterizer *rasty)
 {
-	rasty->UnbindPrimitives(m_storageInfo);
+	rasty->UnbindPrimitives(drawingMode, m_storageInfo);
 }
 
 RAS_MaterialBucket *RAS_DisplayArrayBucket::GetBucket() const
@@ -224,19 +224,23 @@ void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot
 
 void RAS_DisplayArrayBucket::BindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple)
 {
-	BindPrimitives(tuple.m_managerData->m_rasty);
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	BindPrimitives(managerData->m_drawingMode, managerData->m_rasty);
 }
 
 void RAS_DisplayArrayBucket::UnbindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple)
 {
-	UnbindPrimitives(tuple.m_managerData->m_rasty);
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	UnbindPrimitives(managerData->m_drawingMode, managerData->m_rasty);
 }
 
 void RAS_DisplayArrayBucket::RunDownwardNode(const RAS_DisplayArrayNodeTuple& tuple)
 {
-	RAS_Rasterizer *rasty = tuple.m_managerData->m_rasty;
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	RAS_Rasterizer *rasty = managerData->m_rasty;
+	const RAS_Rasterizer::DrawType drawingMode = managerData->m_drawingMode;
 
-	BindPrimitives(rasty);
+	BindPrimitives(drawingMode, rasty);
 
 	const RAS_MeshSlotNodeTuple msTuple(tuple, &m_nodeData);
 	for (RAS_MeshSlot *ms : m_activeMeshSlots) {
@@ -244,7 +248,7 @@ void RAS_DisplayArrayBucket::RunDownwardNode(const RAS_DisplayArrayNodeTuple& tu
 		ms->RunNode(msTuple);
 	}
 
-	UnbindPrimitives(rasty);
+	UnbindPrimitives(drawingMode, rasty);
 }
 
 void RAS_DisplayArrayBucket::RunDownwardNodeNoArray(const RAS_DisplayArrayNodeTuple& tuple)
@@ -328,7 +332,8 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 	// Unbind the buffer to avoid conflict with the render after.
 	m_instancingBuffer->Unbind();
 
-	BindPrimitives(rasty);
+	const RAS_Rasterizer::DrawType drawingMode = managerData->m_drawingMode;
+	BindPrimitives(drawingMode, rasty);
 
 	rasty->IndexPrimitivesInstancing(m_storageInfo, nummeshslots);
 	// Unbind vertex attributs.
@@ -339,7 +344,7 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 		material->DesactivateInstancing();
 	}
 
-	UnbindPrimitives(rasty);
+	UnbindPrimitives(drawingMode, rasty);
 }
 
 void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tuple)
@@ -391,11 +396,12 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tu
 	 * To be sure we don't use the old face wise we force it to true. */
 	rasty->SetFrontFace(true);
 
-	BindPrimitives(rasty);
+	const RAS_Rasterizer::DrawType drawingMode = managerData->m_drawingMode;
+	BindPrimitives(drawingMode, rasty);
 
 	rasty->IndexPrimitivesBatching(m_storageInfo, indices, counts);
 
-	UnbindPrimitives(rasty);
+	UnbindPrimitives(drawingMode, rasty);
 }
 
 void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)

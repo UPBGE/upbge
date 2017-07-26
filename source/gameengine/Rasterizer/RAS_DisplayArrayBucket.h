@@ -35,7 +35,7 @@
 #include "CM_RefCount.h"
 
 #include "RAS_MeshSlot.h"
-#include "RAS_Rasterizer.h" // needed for RAS_Rasterizer::StorageType and RAS_Rasterizer::AttribLayerList
+#include "RAS_Rasterizer.h"
 
 #include "MT_Transform.h"
 
@@ -85,8 +85,8 @@ private:
 	RAS_DisplayArrayDownwardNode m_instancingNode;
 	RAS_DisplayArrayDownwardNode m_batchingNode;
 
-	void BindPrimitives(RAS_Rasterizer *rasty);
-	void UnbindPrimitives(RAS_Rasterizer *rasty);
+	void BindPrimitives(RAS_Rasterizer::DrawType drawingMode, RAS_Rasterizer *rasty);
+	void UnbindPrimitives(RAS_Rasterizer::DrawType drawingMode, RAS_Rasterizer *rasty);
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,

@@ -272,8 +272,7 @@ void VBO::DrawBatching(const std::vector<void *>& indices, const std::vector<int
 }
 
 RAS_StorageVBO::RAS_StorageVBO(RAS_Rasterizer::StorageAttribs *storageAttribs)
-	:m_drawingmode(RAS_Rasterizer::RAS_TEXTURED),
-	m_storageAttribs(storageAttribs)
+	:m_storageAttribs(storageAttribs)
 {
 }
 
@@ -287,14 +286,14 @@ RAS_IStorageInfo *RAS_StorageVBO::GetStorageInfo(RAS_IDisplayArray *array, bool 
 	return vbo;
 }
 
-void RAS_StorageVBO::BindPrimitives(VBO *vbo)
+void RAS_StorageVBO::BindPrimitives(RAS_Rasterizer::DrawType drawingMode, VBO *vbo)
 {
-	vbo->Bind(m_storageAttribs, m_drawingmode);
+	vbo->Bind(m_storageAttribs, drawingMode);
 }
 
-void RAS_StorageVBO::UnbindPrimitives(VBO *vbo)
+void RAS_StorageVBO::UnbindPrimitives(RAS_Rasterizer::DrawType drawingMode, VBO *vbo)
 {
-	vbo->Unbind(m_storageAttribs, m_drawingmode);
+	vbo->Unbind(m_storageAttribs, drawingMode);
 }
 
 void RAS_StorageVBO::IndexPrimitives(VBO *vbo)

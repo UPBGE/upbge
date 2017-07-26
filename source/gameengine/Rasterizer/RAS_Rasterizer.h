@@ -534,9 +534,9 @@ public:
 
 	// Drawing Functions
 	/// Set all pre-render attributes for given mesh storage info.
-	void BindPrimitives(RAS_IStorageInfo *storageInfo);
+	void BindPrimitives(DrawType drawingMode, RAS_IStorageInfo *storageInfo);
 	/// Unset all pre-render attributes for given mesh storage info.
-	void UnbindPrimitives(RAS_IStorageInfo *storageInfo);
+	void UnbindPrimitives(DrawType drawingMode, RAS_IStorageInfo *storageInfo);
 	/// Renders mesh storage info using instancing draw call.
 	void IndexPrimitives(RAS_IStorageInfo *storageInfo);
 
@@ -551,7 +551,7 @@ public:
 	 */
 	void IndexPrimitivesBatching(RAS_IStorageInfo *storageInfo, const std::vector<void *>& indices, const std::vector<int>& counts);
 	/// Render primitives using a derived mesh drawing.
-	void IndexPrimitivesDerivedMesh(RAS_MeshSlot *ms);
+	void IndexPrimitivesDerivedMesh(DrawType drawingMode, RAS_MeshSlot *ms);
 	/// Render text mesh slot using BLF functions.
 	void IndexPrimitivesText(RAS_MeshSlot *ms);
  
@@ -697,7 +697,7 @@ public:
 	/**
 	 * Sets a polygon offset.  z depth will be: z1 = mult*z0 + add
 	 */
-	void	SetPolygonOffset(float mult, float add);
+	void SetPolygonOffset(DrawType drawingMode, float mult, float add);
 
 	RAS_DebugDraw& GetDebugDraw(SCA_IScene *scene);
 	void FlushDebugDraw(SCA_IScene *scene, RAS_ICanvas *canvas);

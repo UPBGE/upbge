@@ -327,15 +327,8 @@ void RAS_Rasterizer::BeginFrame(double time)
 {
 	m_time = time;
 
-	// Blender camera routine destroys the settings
-	if (m_drawingmode < RAS_TEXTURED) {
-		Disable(RAS_CULL_FACE);
-		Disable(RAS_DEPTH_TEST);
-	}
-	else {
-		Enable(RAS_CULL_FACE);
-		Enable(RAS_DEPTH_TEST);
-	}
+	Enable(RAS_CULL_FACE);
+	Enable(RAS_DEPTH_TEST);
 
 	Disable(RAS_BLEND);
 	Disable(RAS_ALPHA_TEST);
@@ -350,7 +343,6 @@ void RAS_Rasterizer::BeginFrame(double time)
 
 	Enable(RAS_SCISSOR_TEST);
 
-	Enable(RAS_DEPTH_TEST);
 	SetDepthFunc(RAS_LEQUAL);
 
 	// Render Tools
@@ -374,8 +366,6 @@ void RAS_Rasterizer::EndFrame()
 void RAS_Rasterizer::SetDrawingMode(RAS_Rasterizer::DrawType drawingmode)
 {
 	m_drawingmode = drawingmode;
-
-	m_storage->SetDrawingMode(drawingmode);
 }
 
 RAS_Rasterizer::DrawType RAS_Rasterizer::GetDrawingMode()
@@ -775,14 +765,14 @@ RAS_IStorageInfo *RAS_Rasterizer::GetStorageInfo(RAS_IDisplayArray *array, bool 
 	return m_storage->GetStorageInfo(array, instancing);
 }
 
-void RAS_Rasterizer::BindPrimitives(RAS_IStorageInfo *storageInfo)
+void RAS_Rasterizer::BindPrimitives(DrawType drawingMode, RAS_IStorageInfo *storageInfo)
 {
-	m_storage->BindPrimitives(static_cast<VBO *>(storageInfo));
+	m_storage->BindPrimitives(drawingMode, static_cast<VBO *>(storageInfo));
 }
 
-void RAS_Rasterizer::UnbindPrimitives(RAS_IStorageInfo *storageInfo)
+void RAS_Rasterizer::UnbindPrimitives(DrawType drawingMode, RAS_IStorageInfo *storageInfo)
 {
-	m_storage->UnbindPrimitives(static_cast<VBO *>(storageInfo));
+	m_storage->UnbindPrimitives(drawingMode, static_cast<VBO *>(storageInfo));
 }
 
 void RAS_Rasterizer::IndexPrimitives(RAS_IStorageInfo *storageInfo)
@@ -801,9 +791,9 @@ void RAS_Rasterizer::IndexPrimitivesBatching(RAS_IStorageInfo *storageInfo, cons
 	m_storage->IndexPrimitivesBatching(static_cast<VBO *>(storageInfo), indices, counts);
 }
 
-void RAS_Rasterizer::IndexPrimitivesDerivedMesh(RAS_MeshSlot *ms)
+void RAS_Rasterizer::IndexPrimitivesDerivedMesh(DrawType drawingMode, RAS_MeshSlot *ms)
 {
-	m_impl->DrawDerivedMesh(ms, m_drawingmode);
+	m_impl->DrawDerivedMesh(ms, drawingMode);
 }
 
 void RAS_Rasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
@@ -1027,11 +1017,11 @@ double RAS_Rasterizer::GetTime()
 	return m_time;
 }
 
-void RAS_Rasterizer::SetPolygonOffset(float mult, float add)
+void RAS_Rasterizer::SetPolygonOffset(DrawType drawingMode, float mult, float add)
 {
 	m_impl->SetPolygonOffset(mult, add);
 	EnableBit mode = RAS_POLYGON_OFFSET_FILL;
-	if (m_drawingmode < RAS_TEXTURED) {
+	if (drawingMode < RAS_TEXTURED) {
 		mode = RAS_POLYGON_OFFSET_LINE;
 	}
 	if (mult != 0.0f || add != 0.0f) {

@@ -87,22 +87,15 @@ public:
 	RAS_StorageVBO(RAS_Rasterizer::StorageAttribs *storageAttribs);
 	~RAS_StorageVBO();
 
-	void BindPrimitives(VBO *vbo);
-	void UnbindPrimitives(VBO *vbo);
+	void BindPrimitives(RAS_Rasterizer::DrawType drawingMode, VBO *vbo);
+	void UnbindPrimitives(RAS_Rasterizer::DrawType drawingMode, VBO *vbo);
 	void IndexPrimitives(VBO *vbo);
 	void IndexPrimitivesInstancing(VBO *vbo, unsigned int numslots);
 	void IndexPrimitivesBatching(VBO *vbo, const std::vector<void *>& indices, const std::vector<int>& counts);
 
 	RAS_IStorageInfo *GetStorageInfo(RAS_IDisplayArray *array, bool instancing);
 
-	void SetDrawingMode(RAS_Rasterizer::DrawType drawingmode)
-	{
-		m_drawingmode = drawingmode;
-	};
-
 protected:
-	RAS_Rasterizer::DrawType m_drawingmode;
-
 	RAS_Rasterizer::StorageAttribs *m_storageAttribs;
 };
 
