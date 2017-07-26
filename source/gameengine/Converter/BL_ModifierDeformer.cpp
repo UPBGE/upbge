@@ -209,8 +209,11 @@ bool BL_ModifierDeformer::Update(void)
 		bShapeUpdate = true;
 
 		RAS_MeshUser *meshUser = m_gameobj->GetMeshUser();
-		for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
-			slot->m_pDerivedMesh = m_dm;
+		// In case of conversion of a hidden game object, the mesh user is invalid.
+		if (meshUser) {
+			for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
+				slot->m_pDerivedMesh = m_dm;
+			}
 		}
 	}
 
