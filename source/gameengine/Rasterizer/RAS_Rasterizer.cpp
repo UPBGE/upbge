@@ -101,13 +101,15 @@ inline void RAS_Rasterizer::OffScreens::Update(RAS_ICanvas *canvas)
 
 	// Destruct all off screens.
 	for (unsigned short i = 0; i < RAS_Rasterizer::RAS_OFFSCREEN_MAX; ++i) {
-		m_offScreens[i].reset(nullptr);
+		for (unsigned short j = 0; j < 16; j++) {
+			m_offScreens[i][j].reset(nullptr);
+		}
 	}
 }
 
-inline RAS_OffScreen *RAS_Rasterizer::OffScreens::GetOffScreen(OffScreenType type)
+inline RAS_OffScreen *RAS_Rasterizer::OffScreens::GetOffScreen(OffScreenType type, int id)
 {
-	if (!m_offScreens[type]) {
+	if (!m_offScreens[type][id]) {
 		// The offscreen need to be created now.
 
 		// Check if the off screen type can support samples.
@@ -138,7 +140,7 @@ inline RAS_OffScreen *RAS_Rasterizer::OffScreens::GetOffScreen(OffScreenType typ
 				continue;
 			}
 
-			m_offScreens[type].reset(ofs);
+			m_offScreens[type][id].reset(ofs);
 			m_samples = samples;
 			break;
 		}
@@ -151,7 +153,7 @@ inline RAS_OffScreen *RAS_Rasterizer::OffScreens::GetOffScreen(OffScreenType typ
 		}
 	}
 
-	return m_offScreens[type].get();
+	return m_offScreens[type][id].get();
 }
 
 RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextFilterOffScreen(RAS_Rasterizer::OffScreenType index)
@@ -166,6 +168,44 @@ RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextFilterOffScreen(RAS_Rasterizer
 		default:
 		{
 			return RAS_OFFSCREEN_FILTER0;
+		}
+	}
+}
+
+RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextBloomOffScreen(RAS_Rasterizer::OffScreenType index)
+{
+	switch (index) {
+		case RAS_OFFSCREEN_BLOOMBLIT0:
+		{
+			return RAS_OFFSCREEN_BLOOMBLIT1;
+		}
+		case RAS_OFFSCREEN_BLOOMBLIT1:
+		{
+			return RAS_OFFSCREEN_BLOOMBLIT0;
+		}
+		case RAS_OFFSCREEN_BLOOMDOWN0:
+		{
+			return RAS_OFFSCREEN_BLOOMDOWN1;
+		}
+		case RAS_OFFSCREEN_BLOOMDOWN1:
+		{
+			return RAS_OFFSCREEN_BLOOMDOWN0;
+		}
+		case RAS_OFFSCREEN_BLOOMACCUM0:
+		{
+			return RAS_OFFSCREEN_BLOOMACCUM1;
+		}
+		case RAS_OFFSCREEN_BLOOMACCUM1:
+		{
+			return RAS_OFFSCREEN_BLOOMACCUM0;
+		}
+		case RAS_OFFSCREEN_BLOOMTARGET0:
+		{
+			return RAS_OFFSCREEN_BLOOMTARGET1;
+		}
+		case RAS_OFFSCREEN_BLOOMTARGET1:
+		{
+			return RAS_OFFSCREEN_BLOOMTARGET0;
 		}
 	}
 }
@@ -504,9 +544,9 @@ void RAS_Rasterizer::UpdateOffScreens(RAS_ICanvas *canvas)
 	m_offScreens.Update(canvas);
 }
 
-RAS_OffScreen *RAS_Rasterizer::GetOffScreen(OffScreenType type)
+RAS_OffScreen *RAS_Rasterizer::GetOffScreen(OffScreenType type, int id)
 {
-	return m_offScreens.GetOffScreen(type);
+	return m_offScreens.GetOffScreen(type, id);
 }
 
 void RAS_Rasterizer::DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *dstOffScreen)
@@ -528,7 +568,7 @@ void RAS_Rasterizer::DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *d
 void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen)
 {
 	if (offScreen->GetSamples() > 0) {
-		offScreen = offScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_LEFT1), true, false);
+		offScreen = offScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_LEFT1, 0), true, false);
 	}
 
 	const RAS_Rect& viewport = canvas->GetViewportArea();
@@ -549,12 +589,12 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 {
 	if (leftOffScreen->GetSamples() > 0) {
 		// Then leftOffScreen == RAS_OFFSCREEN_EYE_LEFT0.
-		leftOffScreen = leftOffScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_LEFT1), true, false);
+		leftOffScreen = leftOffScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_LEFT1, 0), true, false);
 	}
 
 	if (rightOffScreen->GetSamples() > 0) {
 		// Then rightOffScreen == RAS_OFFSCREEN_EYE_RIGHT0.
-		rightOffScreen = rightOffScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_RIGHT1), true, false);
+		rightOffScreen = rightOffScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_RIGHT1, 0), true, false);
 	}
 
 	const RAS_Rect& viewport = canvas->GetViewportArea();
@@ -1461,7 +1501,7 @@ void RAS_Rasterizer::UpdateGlobalDepthTexture(RAS_OffScreen *offScreen)
 	/* In case of multisamples the depth off screen must be blit to be used in shader.
 	 * But the original off screen must be kept bound after the blit. */
 	if (offScreen->GetSamples()) {
-		RAS_OffScreen *dstOffScreen = GetOffScreen(RAS_Rasterizer::RAS_OFFSCREEN_BLIT_DEPTH);
+		RAS_OffScreen *dstOffScreen = GetOffScreen(RAS_Rasterizer::RAS_OFFSCREEN_BLIT_DEPTH, 0);
 		offScreen->Blit(dstOffScreen, false, true);
 		// Restore original off screen.
 		offScreen->Bind();

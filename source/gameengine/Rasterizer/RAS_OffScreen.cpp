@@ -31,7 +31,8 @@ RAS_OffScreen *RAS_OffScreen::lastOffScreen = nullptr;
 RAS_OffScreen::RAS_OffScreen(unsigned int width, unsigned int height, int samples, GPUTextureFormat dataType, GPUOffScreenMode mode, char errOut[256],
 							 RAS_Rasterizer::OffScreenType type)
 	:m_offScreen(GPU_offscreen_create(width, height, samples, dataType, mode, errOut)),
-	m_type(type)
+	m_type(type),
+	m_id(0)
 {
 }
 
@@ -116,6 +117,16 @@ unsigned int RAS_OffScreen::GetHeight() const
 RAS_Rasterizer::OffScreenType RAS_OffScreen::GetType() const
 {
 	return m_type;
+}
+
+int RAS_OffScreen::GetId()
+{
+	return m_id;
+}
+
+void RAS_OffScreen::SetId(int id)
+{
+	m_id = id;
 }
 
 GPUOffScreen * RAS_OffScreen::GetOffScreen() const

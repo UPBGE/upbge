@@ -41,6 +41,7 @@ private:
 	GPUOffScreen *m_offScreen;
 	/// The off screen type, render, final, filter ect...
 	RAS_Rasterizer::OffScreenType m_type;
+	int m_id;
 
 	/// The last bound off screen, set to nullptr in RestoreScreen().
 	static RAS_OffScreen *lastOffScreen;
@@ -70,6 +71,8 @@ public:
 	unsigned GetWidth() const;
 	unsigned GetHeight() const;
 	RAS_Rasterizer::OffScreenType GetType() const;
+	int GetId();
+	void SetId(int id);
 
 	GPUOffScreen *GetOffScreen() const;
 	GPUTexture *GetColorTexture();

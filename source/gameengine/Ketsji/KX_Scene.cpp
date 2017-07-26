@@ -2002,9 +2002,9 @@ RAS_OffScreen *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *can
 	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs);
 }
 
-RAS_OffScreen *KX_Scene::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+RAS_OffScreen *KX_Scene::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs)
 {
-	return m_effectsManager->RenderEeveeEffects(rasty, canvas, inputofs, targetofs);
+	return m_effectsManager->RenderEeveeEffects(rasty, canvas, inputofs);
 }
 
 #ifdef WITH_PYTHON

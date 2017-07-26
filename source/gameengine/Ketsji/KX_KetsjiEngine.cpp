@@ -644,7 +644,7 @@ void KX_KetsjiEngine::Render()
 
 	for (FrameRenderData& frameData : frameDataList) {
 		// Current bound off screen.
-		RAS_OffScreen *offScreen = m_rasterizer->GetOffScreen(frameData.m_ofsType);
+		RAS_OffScreen *offScreen = m_rasterizer->GetOffScreen(frameData.m_ofsType, 0);
 		offScreen->Bind();
 
 		// Clear off screen only before the first scene render.
@@ -691,22 +691,22 @@ void KX_KetsjiEngine::Render()
 			}
 
 			// Render EEVEE effects before tonemapping and custom filters
-			offScreen = PostRenderEevee(scene, offScreen, m_rasterizer->GetOffScreen(target));
+			offScreen = PostRenderEevee(scene, offScreen);
 			// Render filters and get output off screen.
-			offScreen = PostRenderScene(scene, offScreen, m_rasterizer->GetOffScreen(target));
+			offScreen = PostRenderScene(scene, offScreen, m_rasterizer->GetOffScreen(target, 0));
 			frameData.m_ofsType = offScreen->GetType();
 		}
 	}
 
 	// Compositing per eye off screens to screen.
 	if (renderpereye) {
-		RAS_OffScreen *leftofs = m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType);
-		RAS_OffScreen *rightofs = m_rasterizer->GetOffScreen(frameDataList[1].m_ofsType);
+		RAS_OffScreen *leftofs = m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType, 0);
+		RAS_OffScreen *rightofs = m_rasterizer->GetOffScreen(frameDataList[1].m_ofsType, 0);
 		m_rasterizer->DrawStereoOffScreen(m_canvas, leftofs, rightofs);
 	}
 	// Else simply draw the off screen to screen.
 	else {
-		m_rasterizer->DrawOffScreen(m_canvas, m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType));
+		m_rasterizer->DrawOffScreen(m_canvas, m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType, 0));
 	}
 
 // 	m_rasterizer->BindViewport(m_canvas);
@@ -1089,7 +1089,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 	return offScreen;
 }
 
-RAS_OffScreen *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+RAS_OffScreen *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, RAS_OffScreen *inputofs)
 {
 	KX_SetActiveScene(scene);
 
@@ -1099,7 +1099,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, RAS_OffScreen *
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 
-	RAS_OffScreen *offScreen = scene->RenderEeveeEffects(m_rasterizer, m_canvas, inputofs, targetofs);
+	RAS_OffScreen *offScreen = scene->RenderEeveeEffects(m_rasterizer, m_canvas, inputofs);
 
 	return offScreen;
 }
