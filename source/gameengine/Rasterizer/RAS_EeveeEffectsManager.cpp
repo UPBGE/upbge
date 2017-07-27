@@ -211,11 +211,11 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 		m_effects->unf_source_buffer = last;
 		m_effects->unf_base_buffer = m_effects->source_buffer;
 
-		m_effects->source_buffer = inputofs->GetColorTexture();
-
 		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_RESOLVE]);
 		targetofs->Bind();
 		rasty->DrawOverlayPlane();
+
+		m_effects->source_buffer = inputofs->GetColorTexture();
 
 		return targetofs;
 	}
