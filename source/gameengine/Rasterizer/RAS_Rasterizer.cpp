@@ -199,6 +199,10 @@ RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextBloomOffScreen(RAS_Rasterizer:
 		{
 			return RAS_OFFSCREEN_BLOOMACCUM0;
 		}
+		default:
+		{
+			return RAS_OFFSCREEN_EYE_LEFT0;
+		}
 	}
 }
 
