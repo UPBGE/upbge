@@ -69,6 +69,8 @@ public:
 	virtual RAS_Deformer *GetReplica()=0;
 	virtual void ProcessReplica()
 	{
+		m_displayArrayList.clear();
+		m_displayArrayBucketList.clear();
 		m_boundingBox = m_boundingBox->GetReplica();
 	}
 	virtual bool SkipVertexTransform()
