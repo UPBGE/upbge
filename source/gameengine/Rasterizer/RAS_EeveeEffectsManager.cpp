@@ -79,7 +79,7 @@ void RAS_EeveeEffectsManager::InitBloom()
 		m_effects->blit_texel_size[0] = 1.0f / (float)blitsize[0];
 		m_effects->blit_texel_size[1] = 1.0f / (float)blitsize[1];
 
-		m_bloomBlitOfs = new RAS_OffScreen(blitsize[0], blitsize[1], 0, GPU_R11F_G11F_B10F,
+		m_bloomBlitOfs = new RAS_OffScreen(blitsize[0], blitsize[1], 0, GPU_RGB16F,
 			GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_BLOOMBLIT0);
 
 		/* Parameters */
@@ -112,7 +112,7 @@ void RAS_EeveeEffectsManager::InitBloom()
 			m_effects->downsamp_texel_size[i][0] = 1.0f / (float)texsize[0];
 			m_effects->downsamp_texel_size[i][1] = 1.0f / (float)texsize[1];
 
-			m_bloomDownOfs[i] = new RAS_OffScreen(texsize[0], texsize[1], 0, GPU_R11F_G11F_B10F,
+			m_bloomDownOfs[i] = new RAS_OffScreen(texsize[0], texsize[1], 0, GPU_RGB16F,
 				GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_BLOOMDOWN0);
 			m_bloomDownOfs[i]->SetId(i);
 		}
@@ -125,7 +125,7 @@ void RAS_EeveeEffectsManager::InitBloom()
 			texsize[0] = MAX2(texsize[0], 2);
 			texsize[1] = MAX2(texsize[1], 2);
 
-			m_bloomAccumOfs[i] = new RAS_OffScreen(texsize[0], texsize[1], 0, GPU_R11F_G11F_B10F,
+			m_bloomAccumOfs[i] = new RAS_OffScreen(texsize[0], texsize[1], 0, GPU_RGB16F,
 				GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_BLOOMACCUM0);
 			m_bloomAccumOfs[i]->SetId(i);
 		}
