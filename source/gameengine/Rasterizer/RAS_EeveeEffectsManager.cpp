@@ -65,7 +65,7 @@ void RAS_EeveeEffectsManager::InitBloomShaders()
 
 void RAS_EeveeEffectsManager::InitBloom()
 {
-	if (1) {//BKE_collection_engine_property_value_get_bool(props, "bloom_enable")) {
+	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {//BKE_collection_engine_property_value_get_bool(props, "bloom_enable")) {
 		/* Bloom */
 		int blitsize[2], texsize[2];
 
@@ -216,9 +216,11 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_RESOLVE]);
 		targetofs->Bind();
 		rasty->DrawOverlayPlane();
+
+		return targetofs;
 	}
 
 	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
-
-	return targetofs;
+	
+	return inputofs;
 }
