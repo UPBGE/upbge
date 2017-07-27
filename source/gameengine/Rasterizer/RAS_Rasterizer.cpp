@@ -199,14 +199,6 @@ RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextBloomOffScreen(RAS_Rasterizer:
 		{
 			return RAS_OFFSCREEN_BLOOMACCUM0;
 		}
-		case RAS_OFFSCREEN_BLOOMTARGET0:
-		{
-			return RAS_OFFSCREEN_BLOOMTARGET1;
-		}
-		case RAS_OFFSCREEN_BLOOMTARGET1:
-		{
-			return RAS_OFFSCREEN_BLOOMTARGET0;
-		}
 	}
 }
 

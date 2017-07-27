@@ -842,7 +842,6 @@ void EEVEE_draw_effects(EEVEE_Data *vedata)
 		SWAP_BUFFERS();
 	}
 
-	GPU_string_marker("debug");
 	/* Bloom */
 	if ((effects->enabled_effects & EFFECT_BLOOM) != 0) {
 		struct GPUTexture *last;

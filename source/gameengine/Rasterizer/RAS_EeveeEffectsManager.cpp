@@ -55,21 +55,6 @@ m_canvas(canvas)
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 {
-	if (m_bloomBlitOfs) {
-		delete m_bloomBlitOfs;
-	}
-	if (m_bloomTargetOfs) {
-		delete m_bloomTargetOfs;
-	}
-
-	for (int i = 0; i < m_bloomSteps; i++) {
-		if (m_bloomDownOfs[i]) {
-			delete m_bloomDownOfs[i];
-		}
-		if (m_bloomAccumOfs[i]) {
-			delete m_bloomAccumOfs[i];
-		}
-	}
 }
 
 void RAS_EeveeEffectsManager::InitBloomShaders()
@@ -144,9 +129,6 @@ void RAS_EeveeEffectsManager::InitBloom()
 				GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_BLOOMACCUM0);
 			m_bloomAccumOfs[i]->SetId(i);
 		}
-		m_bloomTargetOfs = new RAS_OffScreen(texsize[0], texsize[1], 0, GPU_R11F_G11F_B10F,
-			GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_BLOOMTARGET0);
-
 		m_bloomSteps = m_effects->bloom_iteration_ct;
 	}
 }
@@ -154,7 +136,6 @@ void RAS_EeveeEffectsManager::InitBloom()
 void RAS_EeveeEffectsManager::SwapOffscreens(RAS_Rasterizer *rasty)
 {
 	m_bloomBlitOfs = rasty->GetOffScreen(rasty->NextBloomOffScreen(m_bloomBlitOfs->GetType()), 0);
-	m_bloomTargetOfs = rasty->GetOffScreen(rasty->NextBloomOffScreen(m_bloomTargetOfs->GetType()), 0);
 	for (int i = 0; i < m_bloomSteps; i++) {
 		m_bloomDownOfs[i] = rasty->GetOffScreen(rasty->NextBloomOffScreen(m_bloomDownOfs[i]->GetType()), i);
 		if (i < m_bloomSteps - 1) {
@@ -163,9 +144,10 @@ void RAS_EeveeEffectsManager::SwapOffscreens(RAS_Rasterizer *rasty)
 	}
 }
 
-RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs)
+RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
+
 	/* Bloom */
 	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
 
@@ -187,8 +169,8 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 
 		//DRW_framebuffer_bind(fbl->bloom_down_fb[0]);
 		//DRW_draw_pass(psl->bloom_downsample_first);
-		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_FIRST]);
 		m_bloomDownOfs[0]->Bind();
+		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_FIRST]);
 		rasty->DrawOverlayPlane();
 
 		GPUTexture *last = m_bloomDownOfs[0]->GetColorTexture();
@@ -200,8 +182,8 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 			//DRW_framebuffer_bind(fbl->bloom_down_fb[i]);
 			//DRW_draw_pass(psl->bloom_downsample);
 
-			DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_DOWNSAMPLE]);
 			m_bloomDownOfs[i]->Bind();
+			DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_DOWNSAMPLE]);
 			rasty->DrawOverlayPlane();
 
 			/* Used in next loop */
@@ -217,8 +199,8 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 			//DRW_framebuffer_bind(fbl->bloom_accum_fb[i]);
 			//DRW_draw_pass(psl->bloom_upsample);
 
-			DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_UPSAMPLE]);
 			m_bloomAccumOfs[i]->Bind();
+			DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_UPSAMPLE]);
 			rasty->DrawOverlayPlane();
 
 			last = m_bloomAccumOfs[i]->GetColorTexture();
@@ -229,15 +211,14 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 		m_effects->unf_source_buffer = last;
 		m_effects->unf_base_buffer = m_effects->source_buffer;
 
-		//DRW_framebuffer_bind(effects->target_buffer);
-		//DRW_draw_pass(psl->bloom_resolve);
-		//SWAP_BUFFERS();
+		m_effects->source_buffer = inputofs->GetColorTexture();
 
 		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_RESOLVE]);
-		m_bloomTargetOfs->Bind();
+		targetofs->Bind();
 		rasty->DrawOverlayPlane();
 	}
+
 	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
-	return m_bloomTargetOfs;
+	return targetofs;
 }

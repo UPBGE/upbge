@@ -62,7 +62,7 @@ public:
 	* \return The last used off screen, if none filters were rendered it's the
 	* same off screen than inputofs.
 	*/
-	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs);
+	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 
 	/*/// Add a filter to the stack of filters managed by this object.
 	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);
@@ -88,7 +88,6 @@ private:
 	RAS_OffScreen *m_bloomBlitOfs;
 	RAS_OffScreen *m_bloomDownOfs[MAX_BLOOM_STEP];
 	RAS_OffScreen *m_bloomAccumOfs[MAX_BLOOM_STEP-1];
-	RAS_OffScreen *m_bloomTargetOfs;
 
 	int m_bloomSteps;
 
