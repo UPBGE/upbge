@@ -1197,6 +1197,12 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
     m_animatedlist.erase(animit);
   }
 
+  const std::vector<KX_GameObject *>::const_iterator euthit = std::find(
+      m_euthanasyobjects.begin(), m_euthanasyobjects.end(), gameobj);
+  if (euthit != m_euthanasyobjects.end()) {
+    m_euthanasyobjects.erase(euthit);
+  }
+
   if (gameobj == m_active_camera) {
     // no AddRef done on m_active_camera so no Release
     // m_active_camera->Release();
@@ -1425,10 +1431,15 @@ void KX_Scene::LogicEndFrame()
 {
   m_logicmgr->EndFrame();
 
-  for (KX_GameObject *gameobj : m_euthanasyobjects) {
-    RemoveObject(gameobj);
+  /* Don't remove the objects from the euthanasy list here as the child objects of a deleted
+   * parent object are destructed directly from the sgnode in the same time the parent
+   * object is destructed. These child objects must be removed automatically from the
+   * euthanasy list to avoid double deletion in case the user ask to delete the child object
+   * explicitly. NewRemoveObject is the place to do it.
+   */
+  while (m_euthanasyobjects.size() > 0) {
+    RemoveObject(m_euthanasyobjects.front());
   }
-  m_euthanasyobjects.clear();
 
   // prepare obstacle simulation for new frame
   if (m_obstacleSimulation)
