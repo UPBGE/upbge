@@ -1295,7 +1295,7 @@ static void do_material_tex(GPUShadeInput *shi)
 	GPUMaterial *mat = shi->gpumat;
 	MTex *mtex;
 	Tex *tex;
-	GPUNodeLink *texco, *tin, *trgb, *tnor, *tcol, *stencil, *tnorfac, *rotmat;
+	GPUNodeLink *texco, *tin, *trgb, *tnor, *tcol, *stencil, *tnorfac, *tangent;
 	GPUNodeLink *texco_norm, *texco_orco, *texco_object;
 	GPUNodeLink *texco_global, *texco_uv = NULL;
 	GPUNodeLink *newnor, *orn;
@@ -1332,31 +1332,35 @@ static void do_material_tex(GPUShadeInput *shi)
 		if (ma->mtex[tex_nr]) {
 			mtex = ma->mtex[tex_nr];
 			tex = mtex->tex;
-			if (tex == NULL || !((mtex->texflag & MTEX_PARALLAX_UV) || (mtex->mapto & MAP_PARALLAX)) || mtex->texco != TEXCO_UV) {
+
+			if (tex == NULL || !(mtex->mapto & MAP_PARALLAX)) {
 				continue;
 			}
+
+			GPU_link(mat, "mtex_tangent_rotate", GPU_attribute(CD_TANGENT, ""), orn,
+				 GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma),
+				 &tangent);
 
 			GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco_uv);
 			texco = texco_uv;
 
-			if (mtex->mapto & MAP_PARALLAX) {
-				GPU_link(mat, "mat_math_rot", GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma), &rotmat);
-				GPU_link(mat, "mtex_mapping_transform", texco, rotmat,
-						 GPU_select_uniform(mtex->ofs, GPU_DYNAMIC_TEX_UVOFFSET, NULL, ma),
-						 GPU_select_uniform(mtex->size, GPU_DYNAMIC_TEX_UVSIZE, NULL, ma),
-						 &texco);
+			GPU_link(mat, "mtex_mapping_transform", texco,
+					 GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma),
+					 GPU_select_uniform(mtex->ofs, GPU_DYNAMIC_TEX_UVOFFSET, NULL, ma),
+					 GPU_select_uniform(mtex->size, GPU_DYNAMIC_TEX_UVSIZE, NULL, ma),
+					 &texco);
 
-				discard = (mtex->parflag & MTEX_DISCARD_AT_EDGES) != 0 ? 1.0f : 0.0f;
-				GPU_link(mat, "parallax_out", texco,
-					GPU_builtin(GPU_VIEW_POSITION), GPU_attribute(CD_TANGENT, ""),
-					GPU_builtin(GPU_VIEW_NORMAL),
-					GPU_select_uniform(mtex->size, GPU_DYNAMIC_TEX_UVSIZE, NULL, ma), rotmat,
-					GPU_image(tex->ima, &tex->iuser, false),
-					GPU_select_uniform(&mtex->parallaxsteps, GPU_DYNAMIC_TEX_PARALLAXSTEP, NULL, ma),
-					GPU_select_uniform(&mtex->parallaxbumpsc, GPU_DYNAMIC_TEX_PARALLAXBUMP, NULL, ma),
-					GPU_uniform(&discard),
-					&parco);
-			}
+			discard = (mtex->parflag & MTEX_DISCARD_AT_EDGES) != 0 ? 1.0f : 0.0f;
+			GPU_link(mat, "mtex_parallax", texco,
+					 GPU_builtin(GPU_VIEW_POSITION), tangent, orn,
+					 GPU_image(tex->ima, &tex->iuser, false),
+					 GPU_select_uniform(&mtex->parallaxsteps, GPU_DYNAMIC_TEX_PARALLAXSTEP, NULL, ma),
+					 GPU_select_uniform(&mtex->parallaxbumpsc, GPU_DYNAMIC_TEX_PARALLAXBUMP, NULL, ma),
+					 GPU_uniform(&discard),
+					 &parco);
+
+			// only one parallax per material.
+			break;
 		}
 	}
 
@@ -1410,8 +1414,8 @@ static void do_material_tex(GPUShadeInput *shi)
 				(mtex->ofs[0] == 0.0f || mtex->ofs[1] == 0.0f) ||
 				(mtex->rot != 0.0f)))
 			{
-				GPU_link(mat, "mat_math_rot", GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma), &rotmat);
-				GPU_link(mat, "mtex_mapping_transform", texco, rotmat,
+				GPU_link(mat, "mtex_mapping_transform", texco,
+						 GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma),
 						 GPU_select_uniform(mtex->ofs, GPU_DYNAMIC_TEX_UVOFFSET, NULL, ma),
 						 GPU_select_uniform(mtex->size, GPU_DYNAMIC_TEX_UVSIZE, NULL, ma),
 						 &texco);
@@ -1547,18 +1551,22 @@ static void do_material_tex(GPUShadeInput *shi)
 							GPU_link(mat, "mtex_negate_texnormal", tnor, &tnor);
 
 						if (mtex->normapspace == MTEX_NSPACE_TANGENT) {
+							GPU_link(mat, "mtex_tangent_rotate", GPU_attribute(CD_TANGENT, ""), orn,
+									 GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma),
+									 &tangent);
+
 							if (iFirstTimeNMap != 0) {
 								// use unnormalized normal (this is how we bake it - closer to gamedev)
 								GPUNodeLink *vNegNorm;
 								GPU_link(mat, "vec_math_negate",
 								         GPU_builtin(GPU_VIEW_NORMAL), &vNegNorm);
 								GPU_link(mat, "mtex_nspace_tangent",
-								         GPU_attribute(CD_TANGENT, ""), vNegNorm, tnor, &newnor);
+								         tangent, vNegNorm, tnor, &newnor);
 								iFirstTimeNMap = 0;
 							}
 							else { /* otherwise use accumulated perturbations */
 								GPU_link(mat, "mtex_nspace_tangent",
-								         GPU_attribute(CD_TANGENT, ""), shi->vn, tnor, &newnor);
+								         tangent, shi->vn, tnor, &newnor);
 							}
 						}
 						else if (mtex->normapspace == MTEX_NSPACE_OBJECT) {
