@@ -1104,7 +1104,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 		(GPU_link_changed(shi->spec) || ma->spec != 0.0f || !(ma->constflag & MA_CONSTANT_MATERIAL)))
 	{
 		if (lamp->type == LA_HEMI) {
-			GPU_link(mat, "shade_hemi_spec", vn, lv, view, GPU_uniform(&ma->spec), shi->har, visifac, &t);
+			GPU_link(mat, "shade_hemi_spec", vn, lv, view, GPU_select_uniform(&ma->spec, GPU_DYNAMIC_MAT_SPEC, NULL, ma), shi->har, visifac, &t);
 			GPU_link(mat, "shade_add_spec", t, lcol, shi->specrgb, &outcol);
 			GPU_link(mat, "shade_add_clamped", shr->spec, outcol, &shr->spec);
 		}
