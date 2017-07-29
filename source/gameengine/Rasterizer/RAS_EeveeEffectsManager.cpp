@@ -51,7 +51,6 @@ m_canvas(canvas)
 
 	InitBloom();
 	InitBloomShaders();
-	m_frame = 0;
 }
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
@@ -79,9 +78,6 @@ void RAS_EeveeEffectsManager::InitBloom()
 
 		m_effects->blit_texel_size[0] = 1.0f / (float)blitsize[0];
 		m_effects->blit_texel_size[1] = 1.0f / (float)blitsize[1];
-
-		m_bloomBlitOfs = new RAS_OffScreen(blitsize[0], blitsize[1], 0, GPU_RGB16F,
-			GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_BLOOMBLIT0);
 
 		/* Parameters */
 		float threshold = 0.8f;// BKE_collection_engine_property_value_get_float(props, "bloom_threshold");
@@ -112,50 +108,17 @@ void RAS_EeveeEffectsManager::InitBloom()
 
 			m_effects->downsamp_texel_size[i][0] = 1.0f / (float)texsize[0];
 			m_effects->downsamp_texel_size[i][1] = 1.0f / (float)texsize[1];
-
-			m_bloomDownOfs[i] = new RAS_OffScreen(texsize[0], texsize[1], 0, GPU_RGB16F,
-				GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_BLOOMDOWN0);
-			m_bloomDownOfs[i]->SetId(i);
-		}
-
-
-		/* Upsample buffers */
-		copy_v2_v2_int(texsize, blitsize);
-		for (int i = 0; i < m_effects->bloom_iteration_ct - 1; ++i) {
-			texsize[0] /= 2; texsize[1] /= 2;
-			texsize[0] = MAX2(texsize[0], 2);
-			texsize[1] = MAX2(texsize[1], 2);
-
-			m_bloomAccumOfs[i] = new RAS_OffScreen(texsize[0], texsize[1], 0, GPU_RGB16F,
-				GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_BLOOMACCUM0);
-			m_bloomAccumOfs[i]->SetId(i);
-		}
-		m_bloomSteps = m_effects->bloom_iteration_ct;
-	}
-}
-
-void RAS_EeveeEffectsManager::SwapOffscreens(RAS_Rasterizer *rasty)
-{
-	m_bloomBlitOfs = rasty->GetOffScreen(rasty->NextBloomOffScreen(m_bloomBlitOfs->GetType()), 0);
-	for (int i = 0; i < m_bloomSteps; i++) {
-		m_bloomDownOfs[i] = rasty->GetOffScreen(rasty->NextBloomOffScreen(m_bloomDownOfs[i]->GetType()), i);
-		if (i < m_bloomSteps - 1) {
-			m_bloomAccumOfs[i] = rasty->GetOffScreen(rasty->NextBloomOffScreen(m_bloomAccumOfs[i]->GetType()), i);
 		}
 	}
 }
 
-RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs)
 {
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
 	/* Bloom */
 	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
 		struct GPUTexture *last;
-
-		RAS_OffScreen *ofslist[2];
-		ofslist[0] = inputofs;
-		ofslist[1] = targetofs;
 
 		/* Extract bright pixels */
 		copy_v2_v2(m_effects->unf_source_texel_size, m_effects->source_texel_size);
