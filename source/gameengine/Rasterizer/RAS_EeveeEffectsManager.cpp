@@ -51,6 +51,7 @@ m_canvas(canvas)
 
 	InitBloom();
 	InitBloomShaders();
+	m_frame = 0;
 }
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
@@ -150,60 +151,49 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 
 	/* Bloom */
 	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
+		struct GPUTexture *last;
 
-		SwapOffscreens(rasty);
+		RAS_OffScreen *ofslist[2];
+		ofslist[0] = inputofs;
+		ofslist[1] = targetofs;
 
 		/* Extract bright pixels */
 		copy_v2_v2(m_effects->unf_source_texel_size, m_effects->source_texel_size);
-		m_effects->unf_source_buffer = inputofs->GetColorTexture();
+		m_effects->unf_source_buffer = m_effects->source_buffer;
 
-		//DRW_framebuffer_bind(fbl->bloom_blit_fb);
-		//DRW_draw_pass(psl->bloom_blit);
-		m_bloomBlitOfs->Bind(); // j'ail l'impression qu'une cube map est toujours activée
-		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_BLIT]);
-		rasty->DrawOverlayPlane();
+		DRW_framebuffer_bind(m_fbl->bloom_blit_fb);
+		DRW_draw_pass(m_psl->bloom_blit);
 
 		/* Downsample */
 		copy_v2_v2(m_effects->unf_source_texel_size, m_effects->blit_texel_size);
-		m_effects->unf_source_buffer = m_bloomBlitOfs->GetColorTexture(); // voila2 sec ici
+		m_effects->unf_source_buffer = m_txl->bloom_blit;
 
-		//DRW_framebuffer_bind(fbl->bloom_down_fb[0]);
-		//DRW_draw_pass(psl->bloom_downsample_first);
-		m_bloomDownOfs[0]->Bind();
-		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_FIRST]);
-		rasty->DrawOverlayPlane();
+		DRW_framebuffer_bind(m_fbl->bloom_down_fb[0]);
+		DRW_draw_pass(m_psl->bloom_downsample_first);
 
-		GPUTexture *last = m_bloomDownOfs[0]->GetColorTexture();
+		last = m_txl->bloom_downsample[0];
 
 		for (int i = 1; i < m_effects->bloom_iteration_ct; ++i) {
 			copy_v2_v2(m_effects->unf_source_texel_size, m_effects->downsamp_texel_size[i - 1]);
 			m_effects->unf_source_buffer = last;
 
-			//DRW_framebuffer_bind(fbl->bloom_down_fb[i]);
-			//DRW_draw_pass(psl->bloom_downsample);
-
-			m_bloomDownOfs[i]->Bind();
-			DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_DOWNSAMPLE]);
-			rasty->DrawOverlayPlane();
+			DRW_framebuffer_bind(m_fbl->bloom_down_fb[i]);
+			DRW_draw_pass(m_psl->bloom_downsample);
 
 			/* Used in next loop */
-			last = m_bloomDownOfs[i]->GetColorTexture();
+			last = m_txl->bloom_downsample[i];
 		}
 
 		/* Upsample and accumulate */
 		for (int i = m_effects->bloom_iteration_ct - 2; i >= 0; --i) {
 			copy_v2_v2(m_effects->unf_source_texel_size, m_effects->downsamp_texel_size[i]);
-			m_effects->unf_source_buffer = m_bloomDownOfs[i]->GetColorTexture();
+			m_effects->unf_source_buffer = m_txl->bloom_downsample[i];
 			m_effects->unf_base_buffer = last;
 
-			//DRW_framebuffer_bind(fbl->bloom_accum_fb[i]);
-			//DRW_draw_pass(psl->bloom_upsample);
+			DRW_framebuffer_bind(m_fbl->bloom_accum_fb[i]);
+			DRW_draw_pass(m_psl->bloom_upsample);
 
-			m_bloomAccumOfs[i]->Bind();
-			DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_UPSAMPLE]);
-			rasty->DrawOverlayPlane();
-
-			last = m_bloomAccumOfs[i]->GetColorTexture();
+			last = m_txl->bloom_upsample[i];
 		}
 
 		/* Resolve */
@@ -211,13 +201,15 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 		m_effects->unf_source_buffer = last;
 		m_effects->unf_base_buffer = m_effects->source_buffer;
 
+		rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+
 		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_RESOLVE]);
-		targetofs->Bind();
+		inputofs->Bind();
 		rasty->DrawOverlayPlane();
 
 		m_effects->source_buffer = inputofs->GetColorTexture();
 
-		return targetofs;
+		return inputofs;
 	}
 
 	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);

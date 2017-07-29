@@ -89,6 +89,8 @@ private:
 	RAS_OffScreen *m_bloomDownOfs[MAX_BLOOM_STEP];
 	RAS_OffScreen *m_bloomAccumOfs[MAX_BLOOM_STEP-1];
 
+	int m_frame;
+
 	int m_bloomSteps;
 
 	//bool m_toneMapAdded;
