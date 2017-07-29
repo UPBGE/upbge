@@ -644,7 +644,7 @@ void KX_KetsjiEngine::Render()
 
 	for (FrameRenderData& frameData : frameDataList) {
 		// Current bound off screen.
-		RAS_OffScreen *offScreen = m_rasterizer->GetOffScreen(frameData.m_ofsType, 0);
+		RAS_OffScreen *offScreen = m_rasterizer->GetOffScreen(frameData.m_ofsType);
 		offScreen->Bind();
 
 		// Clear off screen only before the first scene render.
@@ -694,20 +694,20 @@ void KX_KetsjiEngine::Render()
 			offScreen = PostRenderEevee(scene, offScreen);
 			target = RAS_Rasterizer::NextRenderOffScreen(offScreen->GetType());
 			// Render filters and get output off screen.
-			offScreen = PostRenderScene(scene, offScreen, m_rasterizer->GetOffScreen(target, 0));
+			offScreen = PostRenderScene(scene, offScreen, m_rasterizer->GetOffScreen(target));
 			frameData.m_ofsType = offScreen->GetType();
 		}
 	}
 
 	// Compositing per eye off screens to screen.
 	if (renderpereye) {
-		RAS_OffScreen *leftofs = m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType, 0);
-		RAS_OffScreen *rightofs = m_rasterizer->GetOffScreen(frameDataList[1].m_ofsType, 0);
+		RAS_OffScreen *leftofs = m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType);
+		RAS_OffScreen *rightofs = m_rasterizer->GetOffScreen(frameDataList[1].m_ofsType);
 		m_rasterizer->DrawStereoOffScreen(m_canvas, leftofs, rightofs);
 	}
 	// Else simply draw the off screen to screen.
 	else {
-		m_rasterizer->DrawOffScreen(m_canvas, m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType, 0));
+		m_rasterizer->DrawOffScreen(m_canvas, m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType));
 	}
 
 // 	m_rasterizer->BindViewport(m_canvas);

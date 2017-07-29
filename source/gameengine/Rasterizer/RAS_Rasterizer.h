@@ -197,12 +197,6 @@ public:
 		RAS_OFFSCREEN_EYE_LEFT1,
 		RAS_OFFSCREEN_EYE_RIGHT1,
 		RAS_OFFSCREEN_BLIT_DEPTH,
-		RAS_OFFSCREEN_BLOOMBLIT0,
-		RAS_OFFSCREEN_BLOOMBLIT1,
-		RAS_OFFSCREEN_BLOOMDOWN0,
-		RAS_OFFSCREEN_BLOOMDOWN1,
-		RAS_OFFSCREEN_BLOOMACCUM0,
-		RAS_OFFSCREEN_BLOOMACCUM1,
 		RAS_OFFSCREEN_MAX,
 
 		RAS_OFFSCREEN_CUSTOM,
@@ -229,13 +223,11 @@ public:
 	 */
 	static OffScreenType NextRenderOffScreen(OffScreenType index);
 
-	OffScreenType NextBloomOffScreen(OffScreenType type);
-
 private:
 	class OffScreens
 	{
 	private:
-		std::unique_ptr<RAS_OffScreen> m_offScreens[RAS_OFFSCREEN_MAX][16];
+		std::unique_ptr<RAS_OffScreen> m_offScreens[RAS_OFFSCREEN_MAX];
 		unsigned int m_width;
 		unsigned int m_height;
 		int m_samples;
@@ -246,7 +238,7 @@ private:
 		~OffScreens();
 
 		void Update(RAS_ICanvas *canvas);
-		RAS_OffScreen *GetOffScreen(RAS_Rasterizer::OffScreenType type, int id);
+		RAS_OffScreen *GetOffScreen(RAS_Rasterizer::OffScreenType type);
 	};
 
 	// All info used to compute the ray cast transform matrix.
@@ -422,7 +414,7 @@ public:
 	/** Return the corresponding off screen to off screen type.
 	 * \param type The off screen type to return.
 	 */
-	RAS_OffScreen *GetOffScreen(OffScreenType type, int id);
+	RAS_OffScreen *GetOffScreen(OffScreenType type);
 
 	/** Draw off screen without set viewport.
 	 * Used to copy the frame buffer object to another.

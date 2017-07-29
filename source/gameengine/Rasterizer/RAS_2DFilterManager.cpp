@@ -111,7 +111,7 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 	/* Set source off screen to RAS_OFFSCREEN_FILTER0 in case of multisample and blit,
 	 * else keep the original source off screen. */
 	if (inputofs->GetSamples()) {
-		previousofs = rasty->GetOffScreen(RAS_Rasterizer::RAS_OFFSCREEN_FILTER0, 0);
+		previousofs = rasty->GetOffScreen(RAS_Rasterizer::RAS_OFFSCREEN_FILTER0);
 		// No need to bind previousofs because a blit is proceeded.
 		rasty->DrawOffScreen(inputofs, previousofs);
 	}
@@ -139,7 +139,7 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 		}
 		else {
 			// Else render to the next off screen compared to the input off screen.
-			ftargetofs = rasty->GetOffScreen(RAS_Rasterizer::NextFilterOffScreen(colorofs->GetType()), 0);
+			ftargetofs = rasty->GetOffScreen(RAS_Rasterizer::NextFilterOffScreen(colorofs->GetType()));
 		}
 
 		/* Get the output off screen of the filter, could be the same as the input off screen
