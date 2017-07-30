@@ -1140,6 +1140,7 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			ntype->draw_buttons = node_shader_buts_material;
 			break;
 		case SH_NODE_TEXTURE:
+		case SH_NODE_PARALLAX:
 			ntype->draw_buttons = node_buts_texture;
 			break;
 		case SH_NODE_NORMAL:

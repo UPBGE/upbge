@@ -176,6 +176,7 @@ shader_node_categories = [
     ShaderOldNodeCategory("SH_OP_VECTOR", "Vector", items=[
         NodeItem("ShaderNodeNormal"),
         NodeItem("ShaderNodeMapping"),
+        NodeItem("ShaderNodeParallax"),
         NodeItem("ShaderNodeVectorCurve"),
         NodeItem("ShaderNodeVectorTransform"),
         NodeItem("ShaderNodeNormalMap"),
@@ -274,6 +275,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeBump"),
         NodeItem("ShaderNodeNormalMap"),
         NodeItem("ShaderNodeNormal"),
+        NodeItem("ShaderNodeParallax"),
         NodeItem("ShaderNodeVectorCurve"),
         NodeItem("ShaderNodeVectorTransform"),
         ]),

@@ -788,6 +788,7 @@ struct ShadeResult;
 #define SH_NODE_BSDF_PRINCIPLED         193
 #define SH_NODE_OBJECT			194
 #define SH_NODE_TIME			195
+#define SH_NODE_PARALLAX		196
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

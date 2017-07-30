@@ -4118,6 +4118,11 @@ void mtex_parallax(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, sampler2D ima, fl
 	ptexcoord = vec3(finaltexuv, texco.z);
 }
 
+void parallax_uv_attribute(vec3 uv, out vec3 outuv)
+{
+	outuv = vec3(uv.xy * 2.0 - vec2(1.0), uv.z);
+}
+
 /* ********************** matcap style render ******************** */
 
 void material_preview_matcap(vec4 color, sampler2D ima, vec4 N, vec4 mask, out vec4 result)

@@ -3551,6 +3551,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_normal();
 	register_node_type_sh_geom();
 	register_node_type_sh_mapping();
+	register_node_type_sh_parallax();
 	register_node_type_sh_curve_vec();
 	register_node_type_sh_curve_rgb();
 	register_node_type_sh_math();

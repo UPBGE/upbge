@@ -184,12 +184,12 @@ set(SRC
 	shader/nodes/node_shader_normal_map.c
 	shader/nodes/node_shader_object.c
 	shader/nodes/node_shader_object_info.c
-	shader/nodes/node_shader_time.c
 	shader/nodes/node_shader_hair_info.c
 	shader/nodes/node_shader_output_lamp.c
 	shader/nodes/node_shader_output_material.c
 	shader/nodes/node_shader_output_world.c
 	shader/nodes/node_shader_output_linestyle.c
+	shader/nodes/node_shader_parallax.c
 	shader/nodes/node_shader_particle_info.c
 	shader/nodes/node_shader_script.c
 	shader/nodes/node_shader_subsurface_scattering.c
@@ -207,6 +207,7 @@ set(SRC
 	shader/nodes/node_shader_tex_sky.c
 	shader/nodes/node_shader_tex_voronoi.c
 	shader/nodes/node_shader_tex_wave.c
+	shader/nodes/node_shader_time.c
 	shader/nodes/node_shader_volume_scatter.c
 	shader/nodes/node_shader_volume_absorption.c
 	shader/nodes/node_shader_uvAlongStroke.c

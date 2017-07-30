@@ -20,7 +20,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/nodes/shader/nodes/node_shader_object.c
+/** \file blender/nodes/shader/nodes/node_shader_time.c
  *  \ingroup shdnodes
  */
 
