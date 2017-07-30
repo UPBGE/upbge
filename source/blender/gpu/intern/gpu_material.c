@@ -1337,18 +1337,27 @@ static void do_material_tex(GPUShadeInput *shi)
 				continue;
 			}
 
-			GPU_link(mat, "mtex_tangent_rotate", GPU_attribute(CD_TANGENT, ""), orn,
-				 GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma),
-				 &tangent);
+			tangent = GPU_attribute(CD_TANGENT, "");
+			if (!(ma->constflag & MA_CONSTANT_TEXTURE_UV) || (mtex->rot != 0.0f)) {
+				GPU_link(mat, "mtex_tangent_rotate", tangent, orn,
+					GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma),
+					&tangent);
+			}
 
 			GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco_uv);
 			texco = texco_uv;
 
-			GPU_link(mat, "mtex_mapping_transform", texco,
-					 GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma),
-					 GPU_select_uniform(mtex->ofs, GPU_DYNAMIC_TEX_UVOFFSET, NULL, ma),
-					 GPU_select_uniform(mtex->size, GPU_DYNAMIC_TEX_UVSIZE, NULL, ma),
-					 &texco);
+			if (!(ma->constflag & MA_CONSTANT_TEXTURE_UV) ||
+				((mtex->size[0] != 1.0f || mtex->size[1] != 1.0f || mtex->size[2] != 1.0f) ||
+				(mtex->ofs[0] == 0.0f || mtex->ofs[1] == 0.0f) ||
+				(mtex->rot != 0.0f)))
+			{
+				GPU_link(mat, "mtex_mapping_transform", texco,
+						GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma),
+						GPU_select_uniform(mtex->ofs, GPU_DYNAMIC_TEX_UVOFFSET, NULL, ma),
+						GPU_select_uniform(mtex->size, GPU_DYNAMIC_TEX_UVSIZE, NULL, ma),
+						&texco);
+			}
 
 			discard = (mtex->parflag & MTEX_DISCARD_AT_EDGES) != 0 ? 1.0f : 0.0f;
 			GPU_link(mat, "mtex_parallax", texco,
@@ -1551,9 +1560,12 @@ static void do_material_tex(GPUShadeInput *shi)
 							GPU_link(mat, "mtex_negate_texnormal", tnor, &tnor);
 
 						if (mtex->normapspace == MTEX_NSPACE_TANGENT) {
-							GPU_link(mat, "mtex_tangent_rotate", GPU_attribute(CD_TANGENT, ""), orn,
-									 GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma),
-									 &tangent);
+							tangent = GPU_attribute(CD_TANGENT, "");
+							if (!(ma->constflag & MA_CONSTANT_TEXTURE_UV) || (mtex->rot != 0.0f)) {
+								GPU_link(mat, "mtex_tangent_rotate", tangent, orn,
+										GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma),
+										&tangent);
+							}
 
 							if (iFirstTimeNMap != 0) {
 								// use unnormalized normal (this is how we bake it - closer to gamedev)
