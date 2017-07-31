@@ -2415,8 +2415,8 @@ float texture_shadow_offset(sampler2DShadow shadowmap, vec4 co, vec2 offset)
 float test_shadow_pcf_early_bail(sampler2DShadow shadowmap, vec4 co, float samples, float samplesize)
 {
 	float step = samplesize / samples;
-	float fullstep = samplesize - step * 0.95;
-	float halfsample = samplesize / 2.0 - step * 0.5 * 0.95;
+	float fullstep = samplesize - step * 0.98;
+	float halfsample = samplesize * 0.5 - step * 0.49;
 
 	float result = 0.0;
 	for (float y = -halfsample; y <= halfsample; y += fullstep) {
@@ -2449,12 +2449,35 @@ float test_shadow_pcf_early_bail(sampler2DShadow shadowmap, vec4 co, float sampl
 float test_shadow_pcf(sampler2DShadow shadowmap, vec4 co, float samples, float samplesize)
 {
 	float step = samplesize / samples;
-	float halfsample = samplesize / 2.0 - step * 0.5 * 0.95;
+	float halfsample = samplesize * 0.5 - step * 0.49;
 
 	float result = 0.0;
 	for (float y = -halfsample; y <= halfsample; y += step) {
 		for (float x = -halfsample; x <= halfsample; x += step) {
 			result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
+		}
+	}
+	result /= (samples * samples);
+
+	return result;
+}
+
+float test_shadow_pcf_jitter(sampler2DShadow shadowmap, vec4 co, sampler2D jitter, float samples, float samplesize)
+{
+	float step = samplesize / samples;
+	float halfsample = samplesize * 0.5 - step * 0.49;
+
+	vec2 jitterco = co.xy * 43543.0;
+	vec2 vec = texture2D(jitter, jitterco).xy;
+
+	mat2 rot = mat2(vec.x, vec.y,
+					-vec.y, vec.x);
+
+	float result = 0.0;
+	for (float y = -halfsample; y <= halfsample; y += step) {
+		for (float x = -halfsample; x <= halfsample; x += step) {
+			vec2 ofs = vec2(x, y) * 0.1;
+			result += texture_shadow_offset(shadowmap, co, (vec2(x, y) * rot) * 0.1);
 		}
 	}
 	result /= (samples * samples);
@@ -2515,6 +2538,26 @@ void shadow_pcf(
 
 		if (shadow_visibility(co)) {
 			result = test_shadow_pcf(shadowmap, co, samples, samplesize);
+		}
+		else {
+			result = 1.0;
+		}
+	}
+}
+
+void shadow_pcf_jitter(
+        vec3 rco, vec3 vn, sampler2DShadow shadowmap, mat4 shadowpersmat, float bias, float slopebias,
+        sampler2D jitter, float samples, float samplesize, float inp,
+        out float result)
+{
+	if (inp <= 0.0) {
+		result = 0.0;
+	}
+	else {
+		vec4 co = shadow_proj_coord(rco, vn, shadowpersmat, bias, slopebias);
+
+		if (shadow_visibility(co)) {
+			result = test_shadow_pcf_jitter(shadowmap, co, jitter, samples, samplesize);
 		}
 		else {
 			result = 1.0;

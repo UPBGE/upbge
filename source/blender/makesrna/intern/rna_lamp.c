@@ -549,6 +549,7 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 		{LA_SHADOW_FILTER_NONE, "NONE", 0, "None", "None filtering"},
 		{LA_SHADOW_FILTER_PCF, "PCF", 0, "PCF", "Percentage Closer Filtering"},
 		{LA_SHADOW_FILTER_PCF_BAIL, "PCF_BAIL", 0, "PCF Early Bail", "Percentage Closer Filtering Early Bail"},
+		{LA_SHADOW_FILTER_PCF_JITTER, "PCF_JITTER", 0, "PCF Jitter", "Percentage Closer Filtering Jitter"},
 		{0, NULL, 0, NULL, NULL}
 	};
 

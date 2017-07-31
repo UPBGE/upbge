@@ -1028,6 +1028,16 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 								 GPU_uniform(&lamp->bias), GPU_uniform(&lamp->slopebias),
 								 GPU_uniform(&samp), GPU_uniform(&samplesize), inp, &shadfac);
 					}
+					if (lamp->la->shadow_filter == LA_SHADOW_FILTER_PCF_JITTER) {
+						GPU_link(mat, "shadow_pcf_jitter",
+								 GPU_builtin(GPU_VIEW_POSITION),
+								 GPU_builtin(GPU_VIEW_NORMAL),
+								 GPU_dynamic_texture(lamp->depthtex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+								 GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
+								 GPU_uniform(&lamp->bias), GPU_uniform(&lamp->slopebias),
+								 GPU_dynamic_texture(GPU_texture_global_jitter_64(), GPU_DYNAMIC_SAMPLER_2DIMAGE, NULL),
+								 GPU_uniform(&samp), GPU_uniform(&samplesize), inp, &shadfac);
+					}
 					else if (lamp->la->shadow_filter == LA_SHADOW_FILTER_PCF_BAIL) {
 						GPU_link(mat, "shadow_pcf_early_bail",
 								 GPU_builtin(GPU_VIEW_POSITION),
@@ -2910,6 +2920,16 @@ GPUNodeLink *GPU_lamp_get_data(
 							 GPU_dynamic_texture(lamp->depthtex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
 							 GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
 							 GPU_uniform(&lamp->bias), GPU_uniform(&lamp->slopebias),
+							 GPU_uniform(&samp), GPU_uniform(&samplesize), inp, &shadowfac);
+				}
+				if (lamp->la->shadow_filter == LA_SHADOW_FILTER_PCF_JITTER) {
+					GPU_link(mat, "shadow_pcf_jitter",
+							 GPU_builtin(GPU_VIEW_POSITION),
+							 GPU_builtin(GPU_VIEW_NORMAL),
+							 GPU_dynamic_texture(lamp->depthtex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+							 GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
+							 GPU_uniform(&lamp->bias), GPU_uniform(&lamp->slopebias),
+							 GPU_dynamic_texture(GPU_texture_global_jitter_64(), GPU_DYNAMIC_SAMPLER_2DIMAGE, NULL),
 							 GPU_uniform(&samp), GPU_uniform(&samplesize), inp, &shadowfac);
 				}
 				else if (lamp->la->shadow_filter == LA_SHADOW_FILTER_PCF_BAIL) {

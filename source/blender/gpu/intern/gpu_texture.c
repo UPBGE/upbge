@@ -32,6 +32,9 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_math_base.h"
+#include "BLI_math_vector.h"
+#include "BLI_rand.h"
+#include "BLI_alloca.h"
 
 #include "BKE_global.h"
 
@@ -46,6 +49,7 @@ static struct GPUTextureGlobal {
 	GPUTexture *invalid_tex_1D; /* texture used in place of invalid textures (not loaded correctly, missing) */
 	GPUTexture *invalid_tex_2D;
 	GPUTexture *invalid_tex_3D;
+	GPUTexture *jitter_64_tex;
 	GPUTexture *depth_tex;
 } GG = {NULL, NULL, NULL, NULL};
 
@@ -546,7 +550,7 @@ GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256])
 	return tex;
 }
 
-GPUTexture *GPU_texture_create_2D_procedural(int w, int h, const float *pixels, bool repeat, char err_out[256])
+GPUTexture *GPU_texture_create_2D_procedural(int w, int h, const float *pixels, bool repeat, bool filter, char err_out[256])
 {
 	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, pixels, GPU_TEXTURE_MODE_NONE, GPU_HDR_HALF_FLOAT, 2, 0, err_out);
 
@@ -556,8 +560,10 @@ GPUTexture *GPU_texture_create_2D_procedural(int w, int h, const float *pixels, 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		}
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		if (!filter) {
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		}
 
 		GPU_texture_unbind(tex);
 	}
@@ -581,6 +587,25 @@ GPUTexture *GPU_texture_create_1D_procedural(int w, const float *pixels, char er
 	return tex;
 }
 
+GPUTexture *GPU_texture_create_jitter(int w)
+{
+	float *jitter = BLI_array_alloca(jitter, w * w * 2);
+	int i;
+
+	for (i = 0; i < (w * w); i++) {
+		jitter[i * 2] = 2.0f * BLI_frand() - 1.0f;
+		jitter[i * 2 + 1] = 2.0f * BLI_frand() - 1.0f;
+		normalize_v2(&jitter[i * 2]);
+	}
+
+	return GPU_texture_create_2D_procedural(w, w, jitter, true, true, NULL);
+}
+
+GPUTexture *GPU_texture_global_jitter_64(void)
+{
+	return GG.jitter_64_tex;
+}
+
 GPUTexture **GPU_texture_global_depth_ptr(void)
 {
 	return &GG.depth_tex;
@@ -602,6 +627,7 @@ void GPU_invalid_tex_init(void)
 	GG.invalid_tex_1D = GPU_texture_create_1D(1, color, NULL);
 	GG.invalid_tex_2D = GPU_texture_create_2D(1, 1, color, GPU_HDR_NONE, NULL);
 	GG.invalid_tex_3D = GPU_texture_create_3D(1, 1, 1, 4, color);
+	GG.jitter_64_tex = GPU_texture_create_jitter(64);
 	GG.depth_tex = GG.invalid_tex_2D;
 }
 
@@ -628,6 +654,9 @@ void GPU_invalid_tex_free(void)
 		GPU_texture_free(GG.invalid_tex_2D);
 	if (GG.invalid_tex_3D)
 		GPU_texture_free(GG.invalid_tex_3D);
+	if (GG.jitter_64_tex) {
+		GPU_texture_free(GG.jitter_64_tex);
+	}
 }
 
 

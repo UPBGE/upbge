@@ -356,21 +356,6 @@ void GPU_fx_compositor_destroy(GPUFX *fx)
 	MEM_freeN(fx);
 }
 
-static GPUTexture * create_jitter_texture(void)
-{
-	float jitter[64 * 64][2];
-	int i;
-
-	for (i = 0; i < 64 * 64; i++) {
-		jitter[i][0] = 2.0f * BLI_frand() - 1.0f;
-		jitter[i][1] = 2.0f * BLI_frand() - 1.0f;
-		normalize_v2(jitter[i]);
-	}
-
-	return GPU_texture_create_2D_procedural(64, 64, &jitter[0][0], true, NULL);
-}
-
-
 bool GPU_fx_compositor_initialize_passes(
         GPUFX *fx, const rcti *rect, const rcti *scissor_rect,
         const GPUFXSettings *fx_settings)
@@ -430,7 +415,7 @@ bool GPU_fx_compositor_initialize_passes(
 
 	/* try creating the jitter texture */
 	if (!fx->jitter_buffer)
-		fx->jitter_buffer = create_jitter_texture();
+		fx->jitter_buffer = GPU_texture_create_jitter(64);
 
 	/* check if color buffers need recreation */
 	if (!fx->color_buffer || !fx->depth_buffer || w != fx->gbuffer_dim[0] || h != fx->gbuffer_dim[1]) {
@@ -502,7 +487,7 @@ bool GPU_fx_compositor_initialize_passes(
 					return false;
 				}
 				if (!(fx->dof_nearfar_coc = GPU_texture_create_2D_procedural(
-				      fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, false, err_out)))
+				      fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, false, false, err_out)))
 				{
 					printf("%.256s\n", err_out);
 					cleanup_fx_gl_data(fx, true);

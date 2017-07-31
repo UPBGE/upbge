@@ -72,7 +72,7 @@ GPUTexture *GPU_texture_create_2D(int w, int h, const float *pixels, GPUHDRType 
 GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, const float *fpixels);
 GPUTexture *GPU_texture_create_depth(int w, int h, bool compare, char err_out[256]);
 GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256]);
-GPUTexture *GPU_texture_create_2D_procedural(int w, int h, const float *pixels, bool repeat, char err_out[256]);
+GPUTexture *GPU_texture_create_2D_procedural(int w, int h, const float *pixels, bool repeat, bool filter, char err_out[256]);
 GPUTexture *GPU_texture_create_1D_procedural(int w, const float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_create_2D_multisample(
         int w, int h, const float *pixels, GPUHDRType hdr, int samples, char err_out[256]);
@@ -80,6 +80,8 @@ GPUTexture *GPU_texture_create_depth_multisample(int w, int h, int samples, bool
 GPUTexture *GPU_texture_from_blender(
         struct Image *ima, struct ImageUser *iuser, int textarget, bool is_data, double time, int mipmap);
 GPUTexture *GPU_texture_from_preview(struct PreviewImage *prv, int mipmap);
+GPUTexture *GPU_texture_create_jitter(int w);
+GPUTexture *GPU_texture_global_jitter_64(void);
 GPUTexture **GPU_texture_global_depth_ptr(void);
 void GPU_texture_set_global_depth(GPUTexture *depthtex);
 void GPU_invalid_tex_init(void);

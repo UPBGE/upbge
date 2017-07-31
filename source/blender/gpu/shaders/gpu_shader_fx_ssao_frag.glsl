@@ -33,7 +33,7 @@ vec3 calculate_view_space_normal(in vec3 viewposition)
 float calculate_ssao_factor(float depth)
 {
 	/* take the normalized ray direction here */
-	vec2 rotX = texture2D(jitter_tex, uvcoordsvar.xy * ssao_sample_params.yz).rg;
+	vec2 rotX = texture2DLod(jitter_tex, uvcoordsvar.xy * ssao_sample_params.yz, 0).rg;
 	vec2 rotY = vec2(-rotX.y, rotX.x);
 
 	/* occlusion is zero in full depth */
