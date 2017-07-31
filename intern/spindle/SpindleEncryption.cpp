@@ -32,6 +32,7 @@
 #include <string.h>
 #include <fstream>
 #include <iostream>
+#include <cstdlib>
 
 char *staticKey = NULL;
 char *dynamicKey = NULL;
