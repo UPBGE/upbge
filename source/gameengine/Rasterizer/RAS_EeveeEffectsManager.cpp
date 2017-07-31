@@ -60,14 +60,14 @@ RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 
 void RAS_EeveeEffectsManager::InitBloomShaders()
 {
-	EEVEE_create_bloom_shgroups(m_effects, &m_bloomShGroup[BLOOM_FIRST], &m_bloomShGroup[BLOOM_DOWNSAMPLE],
-		&m_bloomShGroup[BLOOM_UPSAMPLE], &m_bloomShGroup[BLOOM_BLIT], &m_bloomShGroup[BLOOM_RESOLVE]);
+	EEVEE_create_bloom_shgroups_bge(m_effects, &m_bloomResolve);
 }
 
 void RAS_EeveeEffectsManager::InitBloom()
 {
-	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {//BKE_collection_engine_property_value_get_bool(props, "bloom_enable")) {
-		/* Bloom */
+	/* Bloom */
+	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
+		
 		int blitsize[2], texsize[2];
 
 		/* Blit Buffer */
@@ -113,10 +113,8 @@ void RAS_EeveeEffectsManager::InitBloom()
 	}
 }
 
-RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+RAS_OffScreen *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
 {
-	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
-
 	/* Bloom */
 	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
 		struct GPUTexture *last;
@@ -167,7 +165,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 
 		rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
-		DRW_bind_shader_shgroup(m_bloomShGroup[BLOOM_RESOLVE]);
+		DRW_bind_shader_shgroup(m_bloomResolve);
 		inputofs->Bind();
 		rasty->DrawOverlayPlane();
 
@@ -175,6 +173,14 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 
 		return inputofs;
 	}
+	return inputofs;
+}
+
+RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+{
+	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
+
+	inputofs = RenderBloom(rasty, inputofs);
 
 	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	
