@@ -499,7 +499,7 @@ void CcdPhysicsEnvironment::AddCcdPhysicsController(CcdPhysicsController *ctrl)
 void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con, bool free)
 {
 	CcdConstraint *userData = (CcdConstraint *)con->getUserConstraintPtr();
-	if (!userData->GetEnabled()) {
+	if (!userData->GetActive()) {
 		return;
 	}
 
@@ -508,7 +508,7 @@ void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con, bool free)
 	rbA.activate();
 	rbB.activate();
 
-	userData->SetEnabled(false);
+	userData->SetActive(false);
 	m_dynamicsWorld->removeConstraint(con);
 
 	if (free) {
@@ -539,7 +539,7 @@ void CcdPhysicsEnvironment::RemoveVehicle(WrapperVehicle *vehicle, bool free)
 void CcdPhysicsEnvironment::RestoreConstraint(CcdPhysicsController *ctrl, btTypedConstraint *con)
 {
 	CcdConstraint *userData = (CcdConstraint *)con->getUserConstraintPtr();
-	if (userData->GetEnabled()) {
+	if (userData->GetActive()) {
 		return;
 	}
 
@@ -558,7 +558,7 @@ void CcdPhysicsEnvironment::RestoreConstraint(CcdPhysicsController *ctrl, btType
 
 	// Avoid add constraint if one of the objects are not available.
 	if (IsActiveCcdPhysicsController(other)) {
-		userData->SetEnabled(true);
+		userData->SetActive(true);
 		m_dynamicsWorld->addConstraint(con, userData->GetDisableCollision());
 	}
 }
@@ -3177,6 +3177,10 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src, KX_Ga
 			constraint->SetParam(dof, 1.0f, -1.0f);
 		}
 		dofbit <<= 1;
+	}
+
+	if (dat->flag & CONSTRAINT_USE_BREAKING) {
+		constraint->SetBreakingThreshold(dat->breaking);
 	}
 }
 

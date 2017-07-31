@@ -1590,6 +1590,15 @@ static void rna_def_constraint_rigid_body_joint(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 32);
 	RNA_def_property_ui_text(prop, "Angular Z Limit", "Use minimum/maximum Z angular limit");
 	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
+	prop = RNA_def_property(srna, "use_breaking", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", CONSTRAINT_USE_BREAKING);
+	RNA_def_property_ui_text(prop, "Use Breaking", "Allow breaking on high impulse");
+
+	prop = RNA_def_property(srna, "breaking_threshold", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "breaking");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_text(prop, "Breaking Impulse Threshold", "Break on impulse greater than threshold");
 }
 
 static void rna_def_constraint_clamp_to(BlenderRNA *brna)

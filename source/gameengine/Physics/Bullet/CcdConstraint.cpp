@@ -1,12 +1,15 @@
 #include "CcdConstraint.h"
 
+#include "BLI_utildefines.h"
+
 #include "btBulletDynamicsCommon.h"
 
 CcdConstraint::CcdConstraint(btTypedConstraint *constraint, bool disableCollision)
 	:m_constraint(constraint),
 	m_disableCollision(disableCollision),
-	m_enabled(true)
+	m_active(true)
 {
+	BLI_assert(m_constraint);
 }
 
 CcdConstraint::~CcdConstraint()
@@ -18,21 +21,34 @@ bool CcdConstraint::GetDisableCollision() const
 	return m_disableCollision;
 }
 
+bool CcdConstraint::GetActive() const
+{
+	return m_active;
+}
+
+void CcdConstraint::SetActive(bool active)
+{
+	m_active = active;
+}
+
 bool CcdConstraint::GetEnabled() const
 {
-	return m_enabled;
+	return m_constraint->isEnabled();
 }
 
 void CcdConstraint::SetEnabled(bool enabled)
 {
-	m_enabled = enabled;
+	m_constraint->setEnabled(enabled);
+
+	// Unsleep objects to enable constraint influence.
+	if (enabled) {
+		m_constraint->getRigidBodyA().activate(true);
+		m_constraint->getRigidBodyB().activate(true);
+	}
 }
 
 void CcdConstraint::SetParam(int param, float value0, float value1)
 {
-	if (!m_constraint)
-		return;
-
 	switch (m_constraint->getUserConstraintType())
 	{
 		case PHY_GENERIC_6DOF_CONSTRAINT:
@@ -140,9 +156,6 @@ void CcdConstraint::SetParam(int param, float value0, float value1)
 
 float CcdConstraint::GetParam(int param)
 {
-	if (!m_constraint)
-		return 0.0f;
-
 	switch (m_constraint->getUserConstraintType())
 	{
 		case PHY_GENERIC_6DOF_CONSTRAINT:
@@ -176,6 +189,16 @@ float CcdConstraint::GetParam(int param)
 		};
 	};
 	return 0.0f;
+}
+
+float CcdConstraint::GetBreakingThreshold() const
+{
+	return m_constraint->getBreakingImpulseThreshold();
+}
+
+void CcdConstraint::SetBreakingThreshold(float threshold)
+{
+	m_constraint->setBreakingImpulseThreshold(threshold);
 }
 
 int CcdConstraint::GetIdentifier() const
