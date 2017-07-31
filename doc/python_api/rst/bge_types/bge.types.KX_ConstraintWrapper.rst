@@ -138,3 +138,15 @@ base class --- :class:`PyObjectPlus`
          - :class:`~bge.constraints.CONETWIST_CONSTRAINT`
          - :class:`~bge.constraints.VEHICLE_CONSTRAINT`
          - :class:`~bge.constraints.GENERIC_6DOF_CONSTRAINT`
+
+   .. attribute:: breakingThreshold
+
+      The impulse threshold breaking the constraint, if the constraint is broken :data:`enabled` is set to `False`.
+
+      :type: float greater or equal to 0
+
+   .. attribute:: enabled
+
+      The status of the constraint. Set to `True` to restore a constraint after breaking.
+
+      :type: boolean

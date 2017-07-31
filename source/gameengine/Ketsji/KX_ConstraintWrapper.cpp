@@ -113,6 +113,8 @@ PyMethodDef KX_ConstraintWrapper::Methods[] = {
 PyAttributeDef KX_ConstraintWrapper::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("constraint_id", KX_ConstraintWrapper, pyattr_get_constraintId),
 	KX_PYATTRIBUTE_RO_FUNCTION("constraint_type", KX_ConstraintWrapper, pyattr_get_constraintType),
+	KX_PYATTRIBUTE_RW_FUNCTION("breakingThreshold", KX_ConstraintWrapper, pyattr_get_breakingThreshold, pyattr_set_breakingThreshold),
+	KX_PYATTRIBUTE_RW_FUNCTION("enabled", KX_ConstraintWrapper, pyattr_get_enabled, pyattr_set_enabled),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
@@ -126,6 +128,46 @@ PyObject *KX_ConstraintWrapper::pyattr_get_constraintType(PyObjectPlus *self_v, 
 {
 	KX_ConstraintWrapper* self = static_cast<KX_ConstraintWrapper*>(self_v);
 	return PyLong_FromLong(self->m_constraint->GetType());
+}
+
+PyObject *KX_ConstraintWrapper::pyattr_get_breakingThreshold(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_ConstraintWrapper *self = static_cast<KX_ConstraintWrapper *>(self_v);
+	return PyFloat_FromDouble(self->m_constraint->GetBreakingThreshold());
+}
+
+int KX_ConstraintWrapper::pyattr_set_breakingThreshold(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_ConstraintWrapper *self = static_cast<KX_ConstraintWrapper *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "constraint.%s = float: KX_ConstraintWrapper, expected a float", attrdef->m_name.c_str());
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->m_constraint->SetBreakingThreshold(val);
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_ConstraintWrapper::pyattr_get_enabled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_ConstraintWrapper *self = static_cast<KX_ConstraintWrapper *>(self_v);
+	return PyBool_FromLong(self->m_constraint->GetEnabled());
+}
+
+int KX_ConstraintWrapper::pyattr_set_enabled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_ConstraintWrapper *self = static_cast<KX_ConstraintWrapper *>(self_v);
+	bool val = PyObject_IsTrue(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "constraint.%s = bool: KX_ConstraintWrapper, expected True or False", attrdef->m_name.c_str());
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->m_constraint->SetEnabled(val);
+	return PY_SET_ATTR_SUCCESS;
 }
 
 #endif // WITH_PYTHON

@@ -572,6 +572,12 @@ class ConstraintButtonsPanel:
         row.prop(con, "use_linked_collision", text="Linked Collision")
         row.prop(con, "show_pivot", text="Display Pivot")
 
+        row = layout.row()
+        row.prop(con, "use_breaking")
+        row = row.row()
+        row.active = con.use_breaking
+        row.prop(con, "breaking_threshold")
+
         split = layout.split()
 
         col = split.column(align=True)

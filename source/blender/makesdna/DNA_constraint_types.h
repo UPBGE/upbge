@@ -405,7 +405,8 @@ typedef struct bRigidBodyJointConstraint {
   float maxLimit[6];
   float extraFz;
   short flag;
-  char _pad[6];
+  short _pad;
+  float breaking;
 } bRigidBodyJointConstraint;
 
 /* Clamp-To Constraint */
@@ -1147,7 +1148,8 @@ typedef enum eObjectSolver_Flags {
 
 /* Rigid-Body Constraint */
 #define CONSTRAINT_DRAW_PIVOT 0x40
-#define 	CONSTRAINT_DISABLE_LINKED_COLLISION 0x80
+#define CONSTRAINT_DISABLE_LINKED_COLLISION 0x80
+#define CONSTRAINT_USE_BREAKING 0x100
 
 /* ObjectSolver Constraint -> flag */
 typedef enum eStretchTo_Flags {

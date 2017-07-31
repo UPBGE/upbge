@@ -13,18 +13,24 @@ private:
 	/// Disable collision between constrained objects?
 	bool m_disableCollision;
 	/// The constraint is added in dynamic world?
-	bool m_enabled;
+	bool m_active;
 
 public:
 	CcdConstraint(btTypedConstraint *constraint, bool disableCollision);
 	virtual ~CcdConstraint();
 
 	bool GetDisableCollision() const;
-	bool GetEnabled() const;
-	void SetEnabled(bool enabled);
+	bool GetActive() const;
+	void SetActive(bool active);
+
+	virtual bool GetEnabled() const;
+	virtual void SetEnabled(bool enabled);
 
 	virtual void SetParam(int param, float value0, float value1);
 	virtual float GetParam(int param);
+
+	virtual float GetBreakingThreshold() const;
+	virtual void SetBreakingThreshold(float threshold);
 
 	virtual int GetIdentifier() const;
 	virtual PHY_ConstraintType GetType() const;
