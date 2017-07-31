@@ -288,6 +288,13 @@ static void node_buts_texture(uiLayout *layout, bContext *UNUSED(C), PointerRNA 
 	}
 }
 
+static void node_buts_parallax(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "texture", 0, "", ICON_NONE);
+	uiItemR(layout, ptr, "component", 0, "", ICON_NONE);
+	uiItemR(layout, ptr, "discard", 0, "Discard", ICON_NONE);
+}
+
 static void node_buts_math(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 { 
 	uiItemR(layout, ptr, "operation", 0, "", ICON_NONE);
@@ -1140,8 +1147,10 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			ntype->draw_buttons = node_shader_buts_material;
 			break;
 		case SH_NODE_TEXTURE:
-		case SH_NODE_PARALLAX:
 			ntype->draw_buttons = node_buts_texture;
+			break;
+		case SH_NODE_PARALLAX:
+			ntype->draw_buttons = node_buts_parallax;
 			break;
 		case SH_NODE_NORMAL:
 			ntype->draw_buttons = node_buts_normal;

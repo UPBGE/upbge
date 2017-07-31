@@ -4090,13 +4090,16 @@ void node_output_world(vec4 surface, vec4 volume, out vec4 result)
 }
 
 void mtex_parallax(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, sampler2D ima, float numsteps,
-				  float bumpscale, float discarduv, out vec3 ptexcoord)
+				  float bumpscale, float discarduv, float comp, out vec3 ptexcoord)
 {
 	// Compute binormal/bitangent from tangent and normal.
 	vec3 binormal = cross(-vn, tangent.xyz) * tangent.w;
 	// Transform the fragment position in texture space.
 	vec3 vvec = vec3(dot(tangent.xyz, vp), dot(binormal, vp), dot(-vn, vp));
 	vec3 vv = normalize(vvec);
+
+	// The component to extract the height information from
+	int ci = int(comp);
 
 	// The uv shift per depth step.
 	vec2 delta = (vec3(-vv.x, gl_FrontFacing ? vv.y : -vv.y, 0.0) * bumpscale / vv.z).xy;
@@ -4113,7 +4116,7 @@ void mtex_parallax(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, sampler2D ima, fl
 
 	// Linear sample from top.
 	for (int i = 0; i < numsteps; ++i) {
-		height = textureLod(ima, texco.xy - delta * (1.0 - depth), 0).a;
+		height = textureLod(ima, texco.xy - delta * (1.0 - depth), 0)[ci];
 		// Stop if the texture height is greater than current depth.
 		if (height > depth) {
 			break;
@@ -4136,7 +4139,7 @@ void mtex_parallax(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, sampler2D ima, fl
 	// The shift between the texture height and the last depth.
 	float depthshiftcurlay = height - depth;
 	// The shift between the texture height with precedent uv computed with pre detph and the pre depth.
-	float depthshiftprelay = textureLod(ima, texuvprelay, 0).a - depthprelay;
+	float depthshiftprelay = textureLod(ima, texuvprelay, 0)[ci] - depthprelay;
 
 	float weight = 1.0;
 	// If the height is right in the middle of two step the difference of the two shifts will be null.

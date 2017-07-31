@@ -173,6 +173,7 @@ extern EnumPropertyItem rna_enum_node_icon_items[];
 extern EnumPropertyItem rna_enum_node_math_items[];
 extern EnumPropertyItem rna_enum_node_vec_math_items[];
 extern EnumPropertyItem rna_enum_node_filter_items[];
+extern EnumPropertyItem rna_enum_node_parallax_items[];
 
 extern EnumPropertyItem rna_enum_ramp_blend_items[];
 

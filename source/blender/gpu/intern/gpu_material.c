@@ -1370,12 +1370,14 @@ static void do_material_tex(GPUShadeInput *shi)
 			}
 
 			discard = (mtex->parflag & MTEX_DISCARD_AT_EDGES) != 0 ? 1.0f : 0.0f;
+			float comp = 3.0f; // alpha
 			GPU_link(mat, "mtex_parallax", texco,
 					 GPU_builtin(GPU_VIEW_POSITION), tangent, orn,
 					 GPU_image(tex->ima, &tex->iuser, false),
 					 GPU_select_uniform(&mtex->parallaxsteps, GPU_DYNAMIC_TEX_PARALLAXSTEP, NULL, ma),
 					 GPU_select_uniform(&mtex->parallaxbumpsc, GPU_DYNAMIC_TEX_PARALLAXBUMP, NULL, ma),
 					 GPU_uniform(&discard),
+					 GPU_uniform(&comp),
 					 &parco);
 
 			// only one parallax per material.

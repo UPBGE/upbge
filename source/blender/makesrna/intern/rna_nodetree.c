@@ -66,6 +66,8 @@
 
 #include "NOD_composite.h"
 
+#include "UI_resources.h"
+
 EnumPropertyItem rna_enum_node_socket_in_out_items[] = {
 	{ SOCK_IN, "IN", 0, "Input", "" },
 	{ SOCK_OUT, "OUT", 0, "Output", "" },
@@ -156,6 +158,14 @@ EnumPropertyItem rna_enum_node_filter_items[] = {
 	{4, "PREWITT", 0, "Prewitt", ""},
 	{5, "KIRSCH",  0, "Kirsch",  ""},
 	{6, "SHADOW",  0, "Shadow",  ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
+EnumPropertyItem rna_enum_node_parallax_items[] = {
+	{0, "RED",  ICON_COLOR_RED, "Red",  ""},
+	{1, "GREEN",  ICON_COLOR_GREEN, "Green",  ""},
+	{2, "BLUE",  ICON_COLOR_BLUE, "Blue",  ""},
+	{3, "ALPHA",  ICON_IMAGE_ALPHA, "Alpha",  ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -3477,6 +3487,30 @@ static void def_texture(StructRNA *srna)
 	RNA_def_property_int_sdna(prop, NULL, "custom1");
 	RNA_def_property_ui_text(prop, "Node Output", "For node-based textures, which output node to use");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_parallax(StructRNA *srna)
+{
+	PropertyRNA *prop;
+
+	prop = RNA_def_property(srna, "texture", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "id");
+	RNA_def_property_struct_type(prop, "Texture");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Texture", "");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "component", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, rna_enum_node_parallax_items);
+	RNA_def_property_ui_text(prop, "Component", "The color component to extract the height information from");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "discard", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "custom2", 1);
+	RNA_def_property_ui_text(prop, "Discard", "Discard parallax edges");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
 }
 
 

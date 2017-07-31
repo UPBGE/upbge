@@ -75,6 +75,7 @@ void node_blend_label(struct bNodeTree *ntree, struct bNode *node, char *label, 
 void node_math_label(struct bNodeTree *ntree, struct bNode *node, char *label, int maxlen);
 void node_vect_math_label(struct bNodeTree *ntree, struct bNode *node, char *label, int maxlen);
 void node_filter_label(struct bNodeTree *ntree, struct bNode *node, char *label, int maxlen);
+void node_parallax_label(struct bNodeTree *ntree, struct bNode *node, char *label, int maxlen);
 
 
 /*** Link Handling */
