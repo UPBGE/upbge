@@ -1100,7 +1100,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, RAS_OffScreen *
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 
-	RAS_OffScreen *offScreen = scene->RenderEeveeEffects(m_rasterizer, m_canvas, inputofs);
+	RAS_OffScreen *offScreen = scene->RenderEeveeEffects(m_rasterizer, inputofs);
 
 	return offScreen;
 }

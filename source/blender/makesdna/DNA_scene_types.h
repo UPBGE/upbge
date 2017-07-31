@@ -1731,6 +1731,7 @@ typedef struct Scene {
 	IDProperty *layer_properties;  /* settings to be override by workspaces */
 
 	struct EEVEE_Data *eevee_data;
+	IDProperty *eevee_properties;
 
 	int pad5[2];
 } Scene;

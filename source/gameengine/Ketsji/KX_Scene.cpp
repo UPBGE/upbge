@@ -218,8 +218,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
 	m_eeveeData = m_blenderScene->eevee_data;
+	m_props = m_blenderScene->eevee_properties;
 
-	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas);
+	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props);
 
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
@@ -2002,9 +2003,9 @@ RAS_OffScreen *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *can
 	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs);
 }
 
-RAS_OffScreen *KX_Scene::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs)
+RAS_OffScreen *KX_Scene::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
 {
-	return m_effectsManager->RenderEeveeEffects(rasty, canvas, inputofs);
+	return m_effectsManager->RenderEeveeEffects(rasty, inputofs);
 }
 
 #ifdef WITH_PYTHON

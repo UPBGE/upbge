@@ -97,6 +97,7 @@ struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
 struct TaskPool;
 struct EEVEE_Data;
+struct IDProperty;
 
 /* for ID freeing */
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
@@ -142,6 +143,7 @@ private:
 protected:
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
 	EEVEE_Data *m_eeveeData;
+	IDProperty *m_props;
 
 	KX_TextureRendererManager *m_rendererManager;
 	RAS_BucketManager*	m_bucketmanager;
@@ -544,7 +546,7 @@ public:
 	 */
 	RAS_2DFilterManager *Get2DFilterManager() const;
 	RAS_OffScreen *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
-	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs);
+	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 

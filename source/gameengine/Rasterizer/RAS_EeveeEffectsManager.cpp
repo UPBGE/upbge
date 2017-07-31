@@ -40,8 +40,9 @@ extern "C" {
 #  include "DRW_render.h"
 }
 
-RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas):
-m_canvas(canvas)
+RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas, IDProperty *props):
+m_canvas(canvas),
+m_props(props)
 {
 	m_psl = vedata->psl;
 	m_txl = vedata->txl;
@@ -80,10 +81,10 @@ void RAS_EeveeEffectsManager::InitBloom()
 		m_effects->blit_texel_size[1] = 1.0f / (float)blitsize[1];
 
 		/* Parameters */
-		float threshold = 0.8f;// BKE_collection_engine_property_value_get_float(props, "bloom_threshold");
-		float knee = 0.5f;// BKE_collection_engine_property_value_get_float(props, "bloom_knee");
-		float intensity = 0.8f;// BKE_collection_engine_property_value_get_float(props, "bloom_intensity");
-		float radius = 6.5f;// BKE_collection_engine_property_value_get_float(props, "bloom_radius");
+		float threshold = BKE_collection_engine_property_value_get_float(m_props, "bloom_threshold");
+		float knee = BKE_collection_engine_property_value_get_float(m_props, "bloom_knee");
+		float intensity = BKE_collection_engine_property_value_get_float(m_props, "bloom_intensity");
+		float radius = BKE_collection_engine_property_value_get_float(m_props, "bloom_radius");
 
 		/* determine the iteration count */
 		const float minDim = (float)MIN2(blitsize[0], blitsize[1]);
@@ -112,7 +113,7 @@ void RAS_EeveeEffectsManager::InitBloom()
 	}
 }
 
-RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs)
+RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
 {
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 

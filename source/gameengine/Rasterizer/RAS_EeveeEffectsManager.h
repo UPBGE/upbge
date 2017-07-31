@@ -35,6 +35,7 @@ class RAS_ICanvas;
 class RAS_Rasterizer;
 class RAS_OffScreen;
 struct DRWShadingGroup;
+struct IDProperty;
 
 class RAS_EeveeEffectsManager
 {
@@ -51,7 +52,7 @@ private:
 	DRWShadingGroup *m_bloomShGroup[BLOOM_MAX];
 
 public:
-	RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas);
+	RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas, IDProperty *props);
 	virtual ~RAS_EeveeEffectsManager();
 
 	/** Applies the filters to the scene.
@@ -62,7 +63,7 @@ public:
 	* \return The last used off screen, if none filters were rendered it's the
 	* same off screen than inputofs.
 	*/
-	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs);
+	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 
 	/*/// Add a filter to the stack of filters managed by this object.
 	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);
@@ -85,6 +86,7 @@ private:
 	EEVEE_EffectsInfo *m_effects;
 
 	RAS_ICanvas *m_canvas;
+	IDProperty *m_props;
 
 	/** Creates a filter matching the given filter data. Returns nullptr if no
 	* filter can be created with such information.

@@ -280,7 +280,9 @@ static void add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *
 	}
 
 	DRWContextState *ctx = DRW_context_state_get();
+	SceneLayer *sl = ctx->scene_layer;
 	Scene *scene = ctx->scene;
+	scene->eevee_properties = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 	scene->eevee_data = vedata;
 }
 
