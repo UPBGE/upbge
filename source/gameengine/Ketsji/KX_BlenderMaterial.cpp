@@ -269,6 +269,8 @@ void KX_BlenderMaterial::UpdateIPO(
 
 void KX_BlenderMaterial::ReplaceScene(KX_Scene *scene)
 {
+	m_scene = scene;
+
 	OnConstruction();
 }
 
