@@ -58,6 +58,11 @@ protected:
 	/// The indices used for rendering.
 	std::vector<unsigned int> m_indices;
 
+	/** Polygon centers cache used to sort polygons depending on depth.
+	 * This list is stored here because we store per array not per entire mesh.
+	 */
+	std::vector<MT_Vector3> m_polygonCenters;
+
 public:
 	RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat& format);
 	virtual ~RAS_IDisplayArray();
@@ -134,6 +139,9 @@ public:
 	{
 		return m_indices.size();
 	}
+
+	void SortPolygons(const MT_Transform &transform, unsigned int *indexmap);
+	void InvalidatePolygonCenters();
 
 	virtual RAS_ITexVert *CreateVertex(
 				const MT_Vector3& xyz,

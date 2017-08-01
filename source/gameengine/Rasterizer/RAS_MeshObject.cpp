@@ -46,62 +46,6 @@
 
 #include "CM_Message.h"
 
-#include <algorithm>
-
-// polygon sorting
-
-struct RAS_MeshObject::polygonSlot
-{
-	float m_z;
-	int m_index[4];
-
-	polygonSlot()
-	{
-	}
-
-	/* pnorm is the normal from the plane equation that the distance from is
-	 * used to sort again. */
-	void get(RAS_IDisplayArray *array, int offset, int nvert, const MT_Vector3& pnorm)
-	{
-		MT_Vector3 center(0.0f, 0.0f, 0.0f);
-
-		for (unsigned short i = 0; i < nvert; ++i) {
-			m_index[i] = array->GetIndex(offset + i);
-			center += array->GetVertex(m_index[i])->xyz();
-		}
-
-		/* note we don't divide center by the number of vertices, since all
-		* polygons have the same number of vertices, and that we leave out
-		* the 4-th component of the plane equation since it is constant. */
-		m_z = MT_dot(pnorm, center);
-	}
-
-	void set(unsigned int *indexmap, int offset, int nvert)
-	{
-		for (unsigned short i = 0; i < nvert; ++i) {
-			indexmap[offset + i] = m_index[i];
-		}
-	}
-};
-
-struct RAS_MeshObject::backtofront
-{
-	bool operator()(const polygonSlot &a, const polygonSlot &b) const
-	{
-		return a.m_z < b.m_z;
-	}
-};
-
-struct RAS_MeshObject::fronttoback
-{
-	bool operator()(const polygonSlot &a, const polygonSlot &b) const
-	{
-		return a.m_z > b.m_z;
-	}
-};
-
-// mesh object
-
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
 	:m_name(mesh->id.name + 2),
 	m_layersInfo(layersInfo),
@@ -349,7 +293,7 @@ RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deforme
 			arrayBucket = mmat->GetDisplayArrayBucket();
 		}
 
-		RAS_MeshSlot *ms = new RAS_MeshSlot(this, meshUser, arrayBucket);
+		RAS_MeshSlot *ms = new RAS_MeshSlot(meshUser, arrayBucket);
 		meshUser->AddMeshSlot(ms);
 	}
 	return meshUser;
@@ -403,54 +347,6 @@ void RAS_MeshObject::GenerateAttribLayers()
 		displayArrayBucket->GenerateAttribLayers();
 	}
 }
-
-void RAS_MeshObject::SortPolygons(RAS_IDisplayArray *array, const MT_Transform &transform, unsigned int *indexmap)
-{
-	// Limitations: sorting is quite simple, and handles many
-	// cases wrong, partially due to polygons being sorted per
-	// bucket.
-	//
-	// a) mixed triangles/quads are sorted wrong
-	// b) mixed materials are sorted wrong
-	// c) more than 65k faces are sorted wrong
-	// d) intersecting objects are sorted wrong
-	// e) intersecting polygons are sorted wrong
-	//
-	// a) can be solved by making all faces either triangles or quads
-	// if they need to be z-sorted. c) could be solved by allowing
-	// larger buckets, b) and d) cannot be solved easily if we want
-	// to avoid excessive state changes while drawing. e) would
-	// require splitting polygons.
-
-	// If there's no vertex array it means that the we're using modifier deformer.
-	if (!array) {
-		return;
-	}
-
-	unsigned int nvert = 3;
-	unsigned int totpoly = array->GetIndexCount() / nvert;
-
-	if (totpoly <= 1)
-		return;
-
-	// Extract camera Z plane...
-	const MT_Vector3 pnorm(transform.getBasis()[2]);
-	// unneeded: const MT_Scalar pval = transform.getOrigin()[2];
-
-	std::vector<polygonSlot> poly_slots(totpoly);
-
-	// get indices and z into temporary array
-	for (unsigned int j = 0; j < totpoly; j++)
-		poly_slots[j].get(array, j * nvert, nvert, pnorm);
-
-	// sort (stable_sort might be better, if flickering happens?)
-	std::sort(poly_slots.begin(), poly_slots.end(), backtofront());
-
-	// get indices from temporary array again
-	for (unsigned int j = 0; j < totpoly; j++)
-		poly_slots[j].set(indexmap, j * nvert, nvert);
-}
-
 
 bool RAS_MeshObject::HasColliderPolygon()
 {

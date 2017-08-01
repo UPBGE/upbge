@@ -94,11 +94,6 @@ private:
 
 	std::vector<RAS_Polygon> m_polygons;
 
-	/* polygon sorting */
-	struct polygonSlot;
-	struct backtofront;
-	struct fronttoback;
-
 	/// The mesh bounding box.
 	RAS_BoundingBox *m_boundingBox;
 
@@ -164,9 +159,6 @@ public:
 	 * WARNING: Always call when shader in the material are valid.
 	 */
 	void GenerateAttribLayers();
-
-	// polygon sorting by Z for alpha
-	void SortPolygons(RAS_IDisplayArray *array, const MT_Transform &transform, unsigned int *indexmap);
 
 	bool HasColliderPolygon();
 

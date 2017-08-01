@@ -33,7 +33,7 @@
 #include "RAS_MeshUser.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_TexVert.h"
-#include "RAS_MeshObject.h"
+#include "RAS_IDisplayArray.h"
 #include "RAS_IStorageInfo.h"
 
 #ifdef _MSC_VER
@@ -47,10 +47,9 @@
 static RAS_DummyNodeData dummyNodeData;
 
 // mesh slot
-RAS_MeshSlot::RAS_MeshSlot(RAS_MeshObject *mesh, RAS_MeshUser *meshUser, RAS_DisplayArrayBucket *arrayBucket)
+RAS_MeshSlot::RAS_MeshSlot(RAS_MeshUser *meshUser, RAS_DisplayArrayBucket *arrayBucket)
 	:m_node(this, &dummyNodeData, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
 	m_displayArrayBucket(arrayBucket),
-	m_mesh(mesh),
 	m_pDerivedMesh(nullptr),
 	m_meshUser(meshUser),
 	m_batchPartIndex(-1)
@@ -88,7 +87,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 
 		RAS_IStorageInfo *storage = displayArrayData->m_storageInfo;
 		if (materialData->m_zsort && storage) {
-			m_mesh->SortPolygons(displayArrayData->m_array, managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()),
+			displayArrayData->m_array->SortPolygons(managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()),
 								 storage->GetIndexMap());
 			storage->FlushIndexMap();
 		}

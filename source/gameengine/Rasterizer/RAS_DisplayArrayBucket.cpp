@@ -150,9 +150,15 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 	}
 
 	if (m_displayArray) {
-		if (m_displayArray->GetModifiedFlag() & RAS_IDisplayArray::MESH_MODIFIED) {
+		const unsigned short modifiedFlag = m_displayArray->GetModifiedFlag();
+		if (modifiedFlag & RAS_IDisplayArray::MESH_MODIFIED) {
 			arrayModified = true;
 			m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
+
+			if (modifiedFlag & RAS_IDisplayArray::POSITION_MODIFIED) {
+				// Reset polygons center cache to ask update.
+				m_displayArray->InvalidatePolygonCenters();
+			}
 		}
 
 		// Create the storage info if it was destructed or not yet created.
