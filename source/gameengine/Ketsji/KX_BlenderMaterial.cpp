@@ -417,6 +417,8 @@ const RAS_Rasterizer::AttribLayerList KX_BlenderMaterial::GetAttribLayers(const 
 
 void KX_BlenderMaterial::ReplaceScene(KX_Scene *scene)
 {
+	m_scene = scene;
+
 	OnConstruction();
 }
 
