@@ -486,45 +486,41 @@ void LA_Launcher::RunPythonMainLoop(const std::string& pythonCode)
 
 bool LA_Launcher::EngineNextFrame()
 {
-	// Update the state of the game engine.
-	if (m_kxsystem && m_exitRequested == KX_ExitRequest::NO_REQUEST) {
-		// First check if we want to exit.
-		m_exitRequested = m_ketsjiEngine->GetExitCode();
-
 #ifdef WITH_PYTHON
-		// Check if we can create a python console debugging.
-		HandlePythonConsole();
+	// Check if we can create a python console debugging.
+	HandlePythonConsole();
 #endif
+	// Kick the engine.
+	bool renderFrame = m_ketsjiEngine->NextFrame();
 
-		// Kick the engine.
-		bool renderFrame = m_ketsjiEngine->NextFrame();
+	// First check if we want to exit.
+	m_exitRequested = m_ketsjiEngine->GetExitCode();
+	m_exitString = m_ketsjiEngine->GetExitString();
+
+	if (m_exitRequested == KX_ExitRequest::NO_REQUEST) {
 		if (renderFrame) {
 			RenderEngine();
 		}
-
-		m_system->processEvents(false);
-		m_system->dispatchEvents();
-
-		if (m_inputDevice->GetInput((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey()).Find(SCA_InputEvent::ACTIVE) &&
-			!m_inputDevice->GetHookExitKey())
-		{
-			m_inputDevice->ConvertEvent((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey(), 0, 0);
-			m_exitRequested = KX_ExitRequest::BLENDER_ESC;
-		}
-		else if (m_inputDevice->GetInput(SCA_IInputDevice::WINCLOSE).Find(SCA_InputEvent::ACTIVE) ||
-			m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE))
-		{
-			m_inputDevice->ConvertEvent(SCA_IInputDevice::WINCLOSE, 0, 0);
-			m_inputDevice->ConvertEvent(SCA_IInputDevice::WINQUIT, 0, 0);
-			m_exitRequested = KX_ExitRequest::OUTSIDE;
-		}
 	}
-	m_exitString = m_ketsjiEngine->GetExitString();
 
-	if (m_exitRequested != KX_ExitRequest::NO_REQUEST) {
-		return false;
+	m_system->processEvents(false);
+	m_system->dispatchEvents();
+
+	if (m_inputDevice->GetInput((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey()).Find(SCA_InputEvent::ACTIVE) &&
+		!m_inputDevice->GetHookExitKey())
+	{
+		m_inputDevice->ConvertEvent((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey(), 0, 0);
+		m_exitRequested = KX_ExitRequest::BLENDER_ESC;
 	}
-	return true;
+	else if (m_inputDevice->GetInput(SCA_IInputDevice::WINCLOSE).Find(SCA_InputEvent::ACTIVE) ||
+		m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE))
+	{
+		m_inputDevice->ConvertEvent(SCA_IInputDevice::WINCLOSE, 0, 0);
+		m_inputDevice->ConvertEvent(SCA_IInputDevice::WINQUIT, 0, 0);
+		m_exitRequested = KX_ExitRequest::OUTSIDE;
+	}
+
+	return (m_exitRequested == KX_ExitRequest::NO_REQUEST);
 }
 
 void LA_Launcher::EngineMainLoop()
