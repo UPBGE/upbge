@@ -268,7 +268,7 @@ void VBO::DrawInstancing(unsigned int numinstance)
 
 void VBO::DrawBatching(const std::vector<void *>& indices, const std::vector<int>& counts)
 {
-	glMultiDrawElements(m_mode, counts.data(), GL_UNSIGNED_INT, (void **)indices.data(), counts.size());
+	glMultiDrawElements(m_mode, counts.data(), GL_UNSIGNED_INT, (const void **)indices.data(), counts.size());
 }
 
 RAS_StorageVBO::RAS_StorageVBO(RAS_Rasterizer::StorageAttribs *storageAttribs)
