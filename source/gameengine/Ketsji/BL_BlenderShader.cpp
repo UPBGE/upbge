@@ -81,7 +81,7 @@ const RAS_Rasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const RA
 			     it != end; ++it) {
 				const RAS_MeshObject::Layer& layer = *it;
 				bool found = false;
-				if (attribs.layer[i].type == CD_MTFACE && layer.face && layer.name == attribname) {
+				if (attribs.layer[i].type == CD_MTFACE && layer.uv && layer.name == attribname) {
 					found = true;
 				}
 				else if (attribs.layer[i].type == CD_MCOL && layer.color && layer.name == attribname) {
