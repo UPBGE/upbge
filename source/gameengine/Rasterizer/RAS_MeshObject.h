@@ -50,8 +50,8 @@
 class RAS_Polygon;
 class RAS_ITexVert;
 struct Mesh;
-struct MTFace;
-struct MCol;
+struct MLoopUV;
+struct MLoopCol;
 
 /* RAS_MeshObject is a mesh used for rendering. It stores polygons,
  * but the actual vertices and index arrays are stored in material
@@ -65,8 +65,8 @@ public:
 	 * attribute's names in shader and names of the mesh layers here.
 	 */
 	struct Layer {
-		MTFace *face;
-		MCol *color;
+		MLoopUV *uv;
+		MLoopCol *color;
 		/// The index of the color or uv layer in the vertices.
 		unsigned short index;
 		/// The name of the color or uv layer used to find corresponding material attributes.
