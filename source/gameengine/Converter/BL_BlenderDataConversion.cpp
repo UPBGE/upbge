@@ -190,8 +190,6 @@ extern Material defmaterial;	/* material.c */
 
 #include "BLI_threads.h"
 
-static bool default_light_mode = 0;
-
 static std::map<int, SCA_IInputDevice::SCA_EnumInputs> create_translate_table()
 {
 	std::map<int, SCA_IInputDevice::SCA_EnumInputs> m;
@@ -357,22 +355,6 @@ static unsigned int KX_Mcol2uint_new(MCol col)
 	out_color.cp[3] = in_color.cp[0]; // alpha
 	
 	return out_color.integer;
-}
-
-static void SetDefaultLightMode(Scene* scene)
-{
-	default_light_mode = false;
-	Scene *sce_iter;
-	Base *base;
-
-	for (SETLOOPER(scene, sce_iter, base))
-	{
-		if (base->object->type == OB_LAMP)
-		{
-			default_light_mode = true;
-			return;
-		}
-	}
 }
 
 static void GetRGB(
@@ -1527,8 +1509,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	{
 		logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
 	}
-
-	SetDefaultLightMode(blenderscene);
 
 	blenderSceneSetBackground(blenderscene);
 
