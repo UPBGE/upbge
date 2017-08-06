@@ -70,6 +70,8 @@ private:
 
 	DRWShadingGroup *m_bloomResolve;
 	RAS_OffScreen *m_blurTarget;
+
+	float m_shutter; // camera motion blur
 };
 
 #endif // __RAS_EEVEEEFFECTSMANAGER_H__

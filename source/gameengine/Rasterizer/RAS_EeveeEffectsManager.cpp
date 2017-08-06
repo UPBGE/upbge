@@ -57,6 +57,8 @@ m_scene(scene)
 	m_savedColor = m_scene->GetDefaultTextureList()->color;
 	m_savedDepth = m_scene->GetDefaultTextureList()->depth;
 
+	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
+
 	m_blurTarget = new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, GPU_R11F_G11F_B10F,
 		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0);
 
@@ -199,15 +201,19 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, 
 		m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
 		float camToWorld[4][4];
 		cam->GetCameraToWorld().getValue(&camToWorld[0][0]);
+		camToWorld[3][0] *= m_shutter;
+		camToWorld[3][1] *= m_shutter;
+		camToWorld[3][2] *= m_shutter;
 		copy_m4_m4(m_effects->current_ndc_to_world, camToWorld);
-
-		//rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
 		m_blurTarget->Bind();
 		DRW_draw_pass(m_psl->motion_blur);
 
 		float worldToCam[4][4];
 		cam->GetWorldToCamera().getValue(&worldToCam[0][0]);
+		worldToCam[3][0] *= m_shutter;
+		worldToCam[3][1] *= m_shutter;
+		worldToCam[3][2] *= m_shutter;
 		copy_m4_m4(m_effects->past_world_to_ndc, worldToCam);
 
 		return m_blurTarget;
