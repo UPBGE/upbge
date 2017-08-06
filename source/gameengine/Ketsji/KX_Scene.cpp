@@ -219,8 +219,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_eeveeData = m_blenderScene->eevee_data;
 	m_props = m_blenderScene->eevee_properties;
+	m_dtxl = m_blenderScene->eevee_dtxl;
 
-	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props);
+	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, this);
 
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
@@ -342,6 +343,11 @@ RAS_SceneLayerData *KX_Scene::GetSceneLayerData() const
 EEVEE_Data *KX_Scene::GetEeveeData()
 {
 	return m_eeveeData;
+}
+
+DefaultTextureList *KX_Scene::GetDefaultTextureList()
+{
+	return m_dtxl;
 }
 
 RAS_BucketManager* KX_Scene::GetBucketManager() const

@@ -284,6 +284,7 @@ static void add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *
 	Scene *scene = ctx->scene;
 	scene->eevee_properties = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 	scene->eevee_data = vedata;
+	scene->eevee_dtxl = DRW_viewport_texture_list_get();
 }
 
 void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, const EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)

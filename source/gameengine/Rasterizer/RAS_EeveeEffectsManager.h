@@ -34,6 +34,7 @@ extern "C" {
 class RAS_ICanvas;
 class RAS_Rasterizer;
 class RAS_OffScreen;
+class KX_Scene;
 struct DRWShadingGroup;
 struct IDProperty;
 
@@ -41,7 +42,7 @@ class RAS_EeveeEffectsManager
 {
 
 public:
-	RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas, IDProperty *props);
+	RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas, IDProperty *props, KX_Scene *scene);
 	virtual ~RAS_EeveeEffectsManager();
 
 	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
@@ -49,6 +50,7 @@ public:
 	void InitBloomShaders();
 	void InitBloom();
 	RAS_OffScreen *RenderBloom(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
+	RAS_OffScreen *RenderMotionBlur(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 
 private:
 	EEVEE_EffectsInfo *m_effectsInfo;
@@ -58,10 +60,16 @@ private:
 	EEVEE_StorageList *m_stl;
 	EEVEE_EffectsInfo *m_effects;
 
+	KX_Scene *m_scene;
+
+	GPUTexture *m_savedDepth;
+	GPUTexture *m_savedColor;
+
 	RAS_ICanvas *m_canvas;
 	IDProperty *m_props;
 
 	DRWShadingGroup *m_bloomResolve;
+	RAS_OffScreen *m_blurTarget;
 };
 
 #endif // __RAS_EEVEEEFFECTSMANAGER_H__

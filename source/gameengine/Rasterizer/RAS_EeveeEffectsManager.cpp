@@ -35,14 +35,18 @@
 
 #include "BLI_math.h"
 
+#include "KX_Scene.h"
+#include "KX_Camera.h"
+
 
 extern "C" {
 #  include "DRW_render.h"
 }
 
-RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas, IDProperty *props):
+RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas, IDProperty *props, KX_Scene *scene):
 m_canvas(canvas),
-m_props(props)
+m_props(props),
+m_scene(scene)
 {
 	m_psl = vedata->psl;
 	m_txl = vedata->txl;
@@ -50,12 +54,20 @@ m_props(props)
 	m_stl = vedata->stl;
 	m_effects = m_stl->effects;
 
+	m_savedColor = m_scene->GetDefaultTextureList()->color;
+	m_savedDepth = m_scene->GetDefaultTextureList()->depth;
+
+	m_blurTarget = new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, GPU_R11F_G11F_B10F,
+		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0);
+
 	InitBloom();
 	InitBloomShaders();
 }
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 {
+	m_scene->GetDefaultTextureList()->color = m_savedColor;
+	m_scene->GetDefaultTextureList()->depth = m_savedDepth;
 }
 
 void RAS_EeveeEffectsManager::InitBloomShaders()
@@ -176,9 +188,38 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, RAS_O
 	return inputofs;
 }
 
+RAS_OffScreen *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+{
+	/* Motion Blur */
+	if ((m_effects->enabled_effects & EFFECT_MOTION_BLUR) != 0) {
+
+		KX_Camera *cam = m_scene->GetActiveCamera();
+
+		m_effects->source_buffer = inputofs->GetColorTexture();
+		m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
+		float camToWorld[4][4];
+		cam->GetCameraToWorld().getValue(&camToWorld[0][0]);
+		copy_m4_m4(m_effects->current_ndc_to_world, camToWorld);
+
+		//rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+
+		m_blurTarget->Bind();
+		DRW_draw_pass(m_psl->motion_blur);
+
+		float worldToCam[4][4];
+		cam->GetWorldToCamera().getValue(&worldToCam[0][0]);
+		copy_m4_m4(m_effects->past_world_to_ndc, worldToCam);
+
+		return m_blurTarget;
+	}
+	return inputofs;
+}
+
 RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
 {
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
+
+	inputofs = RenderMotionBlur(rasty, inputofs);
 
 	inputofs = RenderBloom(rasty, inputofs);
 

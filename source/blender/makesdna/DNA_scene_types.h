@@ -1732,6 +1732,7 @@ typedef struct Scene {
 
 	struct EEVEE_Data *eevee_data;
 	IDProperty *eevee_properties;
+	struct DefaultTextureList *eevee_dtxl;
 
 	int pad5[2];
 } Scene;
