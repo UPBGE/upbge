@@ -492,7 +492,6 @@ void EEVEE_lightprobes_free(void);
 
 /* eevee_effects.c */
 DRWShadingGroup *EEVEE_create_bloom_shgroup(EEVEE_EffectsInfo *effects, struct GPUShader *sh, bool upsample);
-void EEVEE_create_bloom_shgroups_bge(EEVEE_EffectsInfo *effects, DRWShadingGroup **bloom_resolve);
 void EEVEE_effects_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_effects_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_create_minmax_buffer(EEVEE_Data *vedata, struct GPUTexture *depth_src);

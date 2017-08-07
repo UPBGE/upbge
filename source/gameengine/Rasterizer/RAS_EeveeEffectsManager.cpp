@@ -57,24 +57,21 @@ m_scene(scene)
 	m_savedColor = m_scene->GetDefaultTextureList()->color;
 	m_savedDepth = m_scene->GetDefaultTextureList()->depth;
 
-	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
+	// Bloom
+	m_bloomTarget = new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, GPU_R11F_G11F_B10F,
+		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0);
+	InitBloom();
 
+	// Camera Motion Blur
+	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 	m_blurTarget = new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, GPU_R11F_G11F_B10F,
 		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0);
-
-	InitBloom();
-	InitBloomShaders();
 }
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 {
 	m_scene->GetDefaultTextureList()->color = m_savedColor;
 	m_scene->GetDefaultTextureList()->depth = m_savedDepth;
-}
-
-void RAS_EeveeEffectsManager::InitBloomShaders()
-{
-	EEVEE_create_bloom_shgroups_bge(m_effects, &m_bloomResolve);
 }
 
 void RAS_EeveeEffectsManager::InitBloom()
@@ -133,6 +130,8 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, RAS_O
 	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
 		struct GPUTexture *last;
 
+		m_effects->source_buffer = inputofs->GetColorTexture();
+
 		/* Extract bright pixels */
 		copy_v2_v2(m_effects->unf_source_texel_size, m_effects->source_texel_size);
 		m_effects->unf_source_buffer = m_effects->source_buffer;
@@ -179,13 +178,10 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, RAS_O
 
 		rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
-		DRW_bind_shader_shgroup(m_bloomResolve);
-		inputofs->Bind();
-		rasty->DrawOverlayPlane();
+		m_bloomTarget->Bind();
+		DRW_draw_pass(m_psl->bloom_resolve);
 
-		m_effects->source_buffer = inputofs->GetColorTexture();
-
-		return inputofs;
+		return m_bloomTarget;
 	}
 	return inputofs;
 }

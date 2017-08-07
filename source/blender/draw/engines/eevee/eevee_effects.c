@@ -507,14 +507,6 @@ DRWShadingGroup *EEVEE_create_bloom_shgroup(EEVEE_EffectsInfo *effects, struct G
 	return grp;
 }
 
-void EEVEE_create_bloom_shgroups_bge(EEVEE_EffectsInfo *effects, DRWShadingGroup **bloom_resolve)
-{
-	const bool use_highres = true;
-
-	*bloom_resolve = EEVEE_create_bloom_shgroup(effects, e_data.bloom_resolve_sh[use_highres], true);
-	DRW_shgroup_uniform_float(*bloom_resolve, "bloomIntensity", &effects->bloom_intensity, 1);
-}
-
 void EEVEE_effects_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 {
 	EEVEE_PassList *psl = vedata->psl;

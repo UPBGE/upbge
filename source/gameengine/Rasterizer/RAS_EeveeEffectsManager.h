@@ -47,7 +47,6 @@ public:
 
 	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 
-	void InitBloomShaders();
 	void InitBloom();
 	RAS_OffScreen *RenderBloom(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	RAS_OffScreen *RenderMotionBlur(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
@@ -68,7 +67,7 @@ private:
 	RAS_ICanvas *m_canvas;
 	IDProperty *m_props;
 
-	DRWShadingGroup *m_bloomResolve;
+	RAS_OffScreen *m_bloomTarget;
 	RAS_OffScreen *m_blurTarget;
 
 	float m_shutter; // camera motion blur
