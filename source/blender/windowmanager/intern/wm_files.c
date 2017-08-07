@@ -2086,6 +2086,7 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	WM_event_add_notifier(C, NC_WM | ND_FILESAVE, NULL);
+	WM_event_add_notifier(C, NC_SCENE | ND_LAYER, NULL);
 
 	return OPERATOR_FINISHED;
 }
