@@ -59,18 +59,18 @@ m_dofInitialized(false)
 	m_savedDepth = m_scene->GetDefaultTextureList()->depth;
 
 	// Bloom
-	m_bloomTarget = new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, GPU_R11F_G11F_B10F,
-		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0);
+	m_bloomTarget.reset(new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, GPU_R11F_G11F_B10F,
+		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
 	InitBloom();
 
 	// Camera Motion Blur
 	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
-	m_blurTarget = new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, GPU_R11F_G11F_B10F,
-		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0);
+	m_blurTarget.reset(new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, GPU_R11F_G11F_B10F,
+		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
 
 	// Depth of field
-	m_dofTarget = new RAS_OffScreen(int(m_canvas->GetWidth() / 2), int(m_canvas->GetHeight() / 2), 0, GPU_R11F_G11F_B10F,
-		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0);
+	m_dofTarget.reset(new RAS_OffScreen(int(m_canvas->GetWidth() / 2), int(m_canvas->GetHeight() / 2), 0, GPU_R11F_G11F_B10F,
+		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
 }
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
@@ -199,7 +199,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, RAS_O
 		m_bloomTarget->Bind();
 		DRW_draw_pass(m_psl->bloom_resolve);
 
-		return m_bloomTarget;
+		return m_bloomTarget.get();
 	}
 	return inputofs;
 }
@@ -230,7 +230,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, 
 		worldToCam[3][2] *= m_shutter;
 		copy_m4_m4(m_effects->past_world_to_ndc, worldToCam);
 
-		return m_blurTarget;
+		return m_blurTarget.get();
 	}
 	return inputofs;
 }
@@ -281,7 +281,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderDof(RAS_Rasterizer *rasty, RAS_Off
 		m_dofTarget->Bind();
 		DRW_draw_pass(m_psl->dof_resolve);
 
-		return m_dofTarget;
+		return m_dofTarget.get();
 	}
 	return inputofs;
 }

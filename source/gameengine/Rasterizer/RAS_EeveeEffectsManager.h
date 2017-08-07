@@ -70,9 +70,9 @@ private:
 	RAS_ICanvas *m_canvas;
 	IDProperty *m_props;
 
-	RAS_OffScreen *m_bloomTarget;
-	RAS_OffScreen *m_blurTarget;
-	RAS_OffScreen *m_dofTarget;
+	std::unique_ptr<RAS_OffScreen> m_bloomTarget;
+	std::unique_ptr<RAS_OffScreen> m_blurTarget;
+	std::unique_ptr<RAS_OffScreen> m_dofTarget;
 
 	float m_shutter; // camera motion blur
 
