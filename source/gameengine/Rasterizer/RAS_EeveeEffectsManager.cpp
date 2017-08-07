@@ -29,14 +29,10 @@
 #include "RAS_OffScreen.h"
 #include "RAS_EeveeEffectsManager.h"
 
-#include "CM_Message.h"
-
-#include "GPU_glew.h"
-
 #include "BLI_math.h"
 
-#include "KX_Scene.h"
-#include "KX_Camera.h"
+#include "KX_Scene.h"  // For DOF
+#include "KX_Camera.h" // and motion blur
 
 
 extern "C" {
@@ -52,10 +48,8 @@ m_dofInitialized(false)
 	m_psl = vedata->psl;
 	m_txl = vedata->txl;
 	m_fbl = vedata->fbl;
-	m_stl = vedata->stl;
-	m_effects = m_stl->effects;
+	m_effects = vedata->stl->effects;
 
-	m_savedColor = m_scene->GetDefaultTextureList()->color;
 	m_savedDepth = m_scene->GetDefaultTextureList()->depth;
 
 	// Bloom
@@ -75,7 +69,7 @@ m_dofInitialized(false)
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 {
-	m_scene->GetDefaultTextureList()->color = m_savedColor;
+	// Restore dtxl->depth at ge exit
 	m_scene->GetDefaultTextureList()->depth = m_savedDepth;
 }
 
@@ -83,7 +77,7 @@ void RAS_EeveeEffectsManager::InitBloom()
 {
 	/* Bloom */
 	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
-		
+		/* We have to update eevee effects to the game engine viewport size */
 		int blitsize[2], texsize[2];
 
 		/* Blit Buffer */
@@ -95,26 +89,6 @@ void RAS_EeveeEffectsManager::InitBloom()
 
 		m_effects->blit_texel_size[0] = 1.0f / (float)blitsize[0];
 		m_effects->blit_texel_size[1] = 1.0f / (float)blitsize[1];
-
-		/* Parameters */
-		float threshold = BKE_collection_engine_property_value_get_float(m_props, "bloom_threshold");
-		float knee = BKE_collection_engine_property_value_get_float(m_props, "bloom_knee");
-		float intensity = BKE_collection_engine_property_value_get_float(m_props, "bloom_intensity");
-		float radius = BKE_collection_engine_property_value_get_float(m_props, "bloom_radius");
-
-		/* determine the iteration count */
-		const float minDim = (float)MIN2(blitsize[0], blitsize[1]);
-		const float maxIter = (radius - 8.0f) + log(minDim) / log(2);
-		const int maxIterInt = m_effects->bloom_iteration_ct = (int)maxIter;
-
-		CLAMP(m_effects->bloom_iteration_ct, 1, MAX_BLOOM_STEP);
-
-		m_effects->bloom_sample_scale = 0.5f + maxIter - (float)maxIterInt;
-		m_effects->bloom_curve_threshold[0] = threshold - knee;
-		m_effects->bloom_curve_threshold[1] = knee * 2.0f;
-		m_effects->bloom_curve_threshold[2] = 0.25f / max_ff(1e-5f, knee);
-		m_effects->bloom_curve_threshold[3] = threshold;
-		m_effects->bloom_intensity = intensity;
 
 		/* Downsample buffers */
 		copy_v2_v2_int(texsize, blitsize);

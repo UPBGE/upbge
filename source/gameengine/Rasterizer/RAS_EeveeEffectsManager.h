@@ -55,28 +55,29 @@ public:
 	RAS_OffScreen *RenderDof(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 
 private:
-	EEVEE_EffectsInfo *m_effectsInfo;
 	EEVEE_PassList *m_psl;
 	EEVEE_TextureList *m_txl;
 	EEVEE_FramebufferList *m_fbl;
-	EEVEE_StorageList *m_stl;
 	EEVEE_EffectsInfo *m_effects;
 
-	KX_Scene *m_scene;
+	KX_Scene *m_scene; // used for DOF and motion blur
 
-	GPUTexture *m_savedDepth;
-	GPUTexture *m_savedColor;
+	GPUTexture *m_savedDepth; // used to restore dtxl->depth at ge exit
 
-	RAS_ICanvas *m_canvas;
-	IDProperty *m_props;
+	RAS_ICanvas *m_canvas; // used to get viewport size
+	IDProperty *m_props; // eevee engine properties
 
+	/* eevee effects offscreen targets
+	 * std::unique_ptr is used to avoid
+	 * to take care about offscreens deletion
+	 */
 	std::unique_ptr<RAS_OffScreen> m_bloomTarget;
 	std::unique_ptr<RAS_OffScreen> m_blurTarget;
 	std::unique_ptr<RAS_OffScreen> m_dofTarget;
 
 	float m_shutter; // camera motion blur
 
-	bool m_dofInitialized;
+	bool m_dofInitialized; // see comment in RenderDof()
 };
 
 #endif // __RAS_EEVEEEFFECTSMANAGER_H__
