@@ -463,12 +463,12 @@ static PyObject *gPyGetUseExternalClock(PyObject *)
 
 static PyObject *gPySetUseExternalClock(PyObject *, PyObject *args)
 {
-	bool bUseExternalClock;
+	int bUseExternalClock;
 
 	if (!PyArg_ParseTuple(args, "p:setUseExternalClock", &bUseExternalClock))
 		return nullptr;
 
-	KX_GetActiveEngine()->SetFlag(KX_KetsjiEngine::USE_EXTERNAL_CLOCK, bUseExternalClock);
+	KX_GetActiveEngine()->SetFlag(KX_KetsjiEngine::USE_EXTERNAL_CLOCK, (bool)bUseExternalClock);
 	Py_RETURN_NONE;
 }
 
