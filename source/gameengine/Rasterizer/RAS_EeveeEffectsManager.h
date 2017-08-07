@@ -48,8 +48,11 @@ public:
 	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 
 	void InitBloom();
+	void InitDof();
+
 	RAS_OffScreen *RenderBloom(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	RAS_OffScreen *RenderMotionBlur(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
+	RAS_OffScreen *RenderDof(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 
 private:
 	EEVEE_EffectsInfo *m_effectsInfo;
@@ -69,8 +72,11 @@ private:
 
 	RAS_OffScreen *m_bloomTarget;
 	RAS_OffScreen *m_blurTarget;
+	RAS_OffScreen *m_dofTarget;
 
 	float m_shutter; // camera motion blur
+
+	bool m_dofInitialized;
 };
 
 #endif // __RAS_EEVEEEFFECTSMANAGER_H__

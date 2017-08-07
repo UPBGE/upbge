@@ -46,7 +46,8 @@ extern "C" {
 RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas, IDProperty *props, KX_Scene *scene):
 m_canvas(canvas),
 m_props(props),
-m_scene(scene)
+m_scene(scene),
+m_dofInitialized(false)
 {
 	m_psl = vedata->psl;
 	m_txl = vedata->txl;
@@ -65,6 +66,10 @@ m_scene(scene)
 	// Camera Motion Blur
 	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 	m_blurTarget = new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, GPU_R11F_G11F_B10F,
+		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0);
+
+	// Depth of field
+	m_dofTarget = new RAS_OffScreen(int(m_canvas->GetWidth() / 2), int(m_canvas->GetHeight() / 2), 0, GPU_R11F_G11F_B10F,
 		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0);
 }
 
@@ -121,6 +126,19 @@ void RAS_EeveeEffectsManager::InitBloom()
 			m_effects->downsamp_texel_size[i][0] = 1.0f / (float)texsize[0];
 			m_effects->downsamp_texel_size[i][1] = 1.0f / (float)texsize[1];
 		}
+	}
+}
+
+void RAS_EeveeEffectsManager::InitDof()
+{
+	if (m_effects->enabled_effects & EFFECT_DOF) {
+		/* Depth Of Field */
+		KX_Camera *cam = m_scene->GetActiveCamera();
+		float sensorSize = cam->GetCameraData()->m_sensor_x;
+		/* Only update params that needs to be updated */
+		float scaleCamera = 0.001f;
+		float sensorScaled = scaleCamera * sensorSize;
+		m_effects->dof_params[2] = m_canvas->GetWidth() / (1.0f * sensorScaled);
 	}
 }
 
@@ -217,11 +235,64 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, 
 	return inputofs;
 }
 
+RAS_OffScreen *RAS_EeveeEffectsManager::RenderDof(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+{
+	/* Depth Of Field */
+	if ((m_effects->enabled_effects & EFFECT_DOF) != 0) {
+
+		if (!m_dofInitialized) {
+			/* We need to initialize at runtime (not in constructor)
+			 * to access m_scene->GetActiveCamera()
+			 */
+			InitDof();
+			m_dofInitialized = true;
+		}
+
+		float clear_col[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		m_effects->source_buffer = inputofs->GetColorTexture();
+		m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
+
+		/* Downsample */
+		DRW_framebuffer_bind(m_fbl->dof_down_fb);
+		DRW_draw_pass(m_psl->dof_down);
+
+		/* Scatter Far */
+		m_effects->unf_source_buffer = m_txl->dof_down_far;
+		copy_v2_fl2(m_effects->dof_layer_select, 0.0f, 1.0f);
+		DRW_framebuffer_bind(m_fbl->dof_scatter_far_fb);
+		DRW_framebuffer_clear(true, false, false, clear_col, 0.0f);
+		DRW_draw_pass(m_psl->dof_scatter);
+
+		/* Scatter Near */
+		if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
+			/* Reuse bloom half res buffer */
+			m_effects->unf_source_buffer = m_txl->bloom_downsample[0];
+		}
+		else {
+			m_effects->unf_source_buffer = m_txl->dof_down_near;
+		}
+		copy_v2_fl2(m_effects->dof_layer_select, 1.0f, 0.0f);
+		DRW_framebuffer_bind(m_fbl->dof_scatter_near_fb);
+		DRW_framebuffer_clear(true, false, false, clear_col, 0.0f);
+		DRW_draw_pass(m_psl->dof_scatter);
+
+		/* Resolve */
+		m_dofTarget->Bind();
+		DRW_draw_pass(m_psl->dof_resolve);
+
+		return m_dofTarget;
+	}
+	return inputofs;
+}
+
 RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
 {
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
 	inputofs = RenderMotionBlur(rasty, inputofs);
+
+	inputofs = RenderDof(rasty, inputofs);
 
 	inputofs = RenderBloom(rasty, inputofs);
 
