@@ -167,8 +167,6 @@ private:
 	double m_frameTime;
 	/// game time for the next rendering step
 	double m_clockTime;
-	/// game time of the previous rendering step
-	double m_previousClockTime;
 	///game time when the animations were last updated
 	double m_previousAnimTime;
 	double m_remainingTime;

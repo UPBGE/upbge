@@ -149,7 +149,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_flags(AUTO_ADD_DEBUG_PROPERTIES),
 	m_frameTime(0.0f),
 	m_clockTime(0.0f),
-	m_previousClockTime(0.0f),
 	m_previousAnimTime(0.0f),
 	m_timescale(1.0f),
 	m_previousRealTime(0.0f),
@@ -237,9 +236,6 @@ void KX_KetsjiEngine::SetConverter(KX_BlenderConverter *converter)
 
 void KX_KetsjiEngine::StartEngine()
 {
-	m_clockTime = m_kxsystem->GetTimeInSeconds();
-	m_frameTime = m_kxsystem->GetTimeInSeconds();
-	m_previousClockTime = m_kxsystem->GetTimeInSeconds();
 	m_previousRealTime = m_kxsystem->GetTimeInSeconds();
 
 	m_bInitialized = true;
