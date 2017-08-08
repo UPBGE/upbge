@@ -31,9 +31,8 @@
 
 #include "BLI_math.h"
 
-#include "KX_Scene.h"  // For DOF
-#include "KX_Camera.h" // and motion blur
-
+#include "KX_Scene.h"  // For DOF,
+#include "KX_Camera.h" // motion blur and AO
 
 extern "C" {
 #  include "DRW_render.h"
@@ -261,9 +260,15 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderDof(RAS_Rasterizer *rasty, RAS_Off
 	return inputofs;
 }
 
-void RAS_EeveeEffectsManager::UpdateAO()
+void RAS_EeveeEffectsManager::UpdateAO(RAS_OffScreen *inputofs)
 {
 	if (m_useAO) {
+		/* Create stl->g_data->minmaxz from our depth texture.
+		 * This texture is used as uniform if AO is enabled.
+		 * See: DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
+		 */
+		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), inputofs->GetDepthTexture());
+
 		/* Update viewvecs */
 		const bool is_persp = DRW_viewport_is_persp_get();
 		float invproj[4][4], winmat[4][4];
@@ -312,7 +317,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 {
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
-	UpdateAO();
+	UpdateAO(inputofs);
 
 	inputofs = RenderMotionBlur(rasty, inputofs);
 
