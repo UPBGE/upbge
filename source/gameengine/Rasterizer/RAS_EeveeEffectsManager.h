@@ -53,8 +53,10 @@ public:
 	RAS_OffScreen *RenderBloom(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	RAS_OffScreen *RenderMotionBlur(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	RAS_OffScreen *RenderDof(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
+	void UpdateAO();
 
 private:
+	EEVEE_StorageList *m_stl;
 	EEVEE_PassList *m_psl;
 	EEVEE_TextureList *m_txl;
 	EEVEE_FramebufferList *m_fbl;
@@ -78,6 +80,8 @@ private:
 	float m_shutter; // camera motion blur
 
 	bool m_dofInitialized; // see comment in RenderDof()
+
+	bool m_useAO;
 };
 
 #endif // __RAS_EEVEEEFFECTSMANAGER_H__

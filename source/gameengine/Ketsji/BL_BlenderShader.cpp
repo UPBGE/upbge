@@ -116,9 +116,11 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 	if (m_shGroup) {
 		DRW_shgroup_free(m_shGroup);
 	}
-
+	EEVEE_Data *vedata = scene->GetEeveeData();
+	bool useAO = vedata->stl->effects->use_ao;
+	bool useBentNormals = vedata->stl->effects->use_bent_normals;
 	if (m_mat->use_nodes && m_mat->nodetree) {
-		GPUMaterial *gpumat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false, false, false);
+		GPUMaterial *gpumat = EEVEE_material_mesh_get(m_blenderScene, m_mat, useAO, useBentNormals, false, false);
 
 		m_shGroup = DRW_shgroup_material_create(gpumat, nullptr);
 	}
@@ -128,7 +130,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 		float *spec_p = &m_mat->spec;
 		float *rough_p = &m_mat->gloss_mir;
 
-		m_shGroup = EEVEE_default_shading_group_get_no_pass(false, false, false, false);
+		m_shGroup = EEVEE_default_shading_group_get_no_pass(false, false, useAO, useBentNormals);
 		DRW_shgroup_uniform_vec3(m_shGroup, "basecol", color_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "metallic", metal_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "specular", spec_p, 1);
