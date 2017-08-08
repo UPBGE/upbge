@@ -65,6 +65,9 @@ m_dofInitialized(false)
 	// Depth of field
 	m_dofTarget.reset(new RAS_OffScreen(int(m_canvas->GetWidth() / 2), int(m_canvas->GetHeight() / 2), 0, GPU_R11F_G11F_B10F,
 		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
+
+	// Ambient occlusion
+	m_useAO = m_effects->use_ao;
 }
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
