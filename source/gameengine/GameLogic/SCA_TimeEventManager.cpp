@@ -58,14 +58,16 @@ SCA_TimeEventManager::~SCA_TimeEventManager()
 
 
 
-void SCA_TimeEventManager::RegisterSensor(SCA_ISensor* sensor)
+bool SCA_TimeEventManager::RegisterSensor(SCA_ISensor* sensor)
 {
 	// not yet
+	return false;
 }
 
-void SCA_TimeEventManager::RemoveSensor(SCA_ISensor* sensor)
+bool SCA_TimeEventManager::RemoveSensor(SCA_ISensor* sensor)
 {
 	// empty
+	return false;
 }
 
 

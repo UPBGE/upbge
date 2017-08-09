@@ -94,8 +94,8 @@ public:
 	virtual ~KX_CollisionEventManager();
 	virtual void NextFrame();
 	virtual void EndFrame();
-	virtual void RegisterSensor(SCA_ISensor *sensor);
-	virtual void RemoveSensor(SCA_ISensor *sensor);
+	virtual bool RegisterSensor(SCA_ISensor *sensor);
+	virtual bool RemoveSensor(SCA_ISensor *sensor);
 
 	SCA_LogicManager *GetLogicManager()
 	{

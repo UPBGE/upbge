@@ -72,10 +72,8 @@ void SCA_MouseManager::NextFrame()
 {
 	if (m_mousedevice)
 	{
-		SG_DList::iterator<SCA_ISensor> it(m_sensors);
-		for (it.begin();!it.end();++it)
-		{
-			SCA_MouseSensor* mousesensor = (SCA_MouseSensor*)(*it);
+		for (SCA_ISensor *sensor : m_sensors) {
+			SCA_MouseSensor* mousesensor = static_cast<SCA_MouseSensor *>(sensor);
 			// (0,0) is the Upper Left corner in our local window
 			// coordinates
 			if (!mousesensor->IsSuspended())

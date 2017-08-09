@@ -41,8 +41,7 @@ class SCA_EventManager;
 /**
  * Interface Class for all logic Sensors. Implements
  * pulsemode,pulsefrequency
- * Use of SG_DList element: link sensors to their respective event manager
- *                          Head: SCA_EventManager::m_sensors
+ * Use of SG_DList element: not used
  * Use of SG_QList element: not used
  */
 class SCA_ISensor : public SCA_ILogicBrick

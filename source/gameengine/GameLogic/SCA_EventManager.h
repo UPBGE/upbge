@@ -36,16 +36,14 @@
 #include <set>
 #include <algorithm>
 
-#include "SG_DList.h"
+class SCA_ISensor;
 
 class SCA_EventManager
 {
 protected:
 	class SCA_LogicManager* m_logicmgr; /* all event manager subclasses use this (other then TimeEventManager) */
 
-	// use a set to speed-up insertion/removal
-	//std::set <class SCA_ISensor*>				m_sensors;
-	SG_DList		m_sensors;
+	std::vector<SCA_ISensor *> m_sensors;
 
 public:
 	enum EVENT_MANAGER_TYPE {
@@ -66,12 +64,12 @@ public:
 	SCA_EventManager(SCA_LogicManager* logicmgr, EVENT_MANAGER_TYPE mgrtype);
 	virtual ~SCA_EventManager();
 	
-	virtual void	RemoveSensor(class SCA_ISensor* sensor);
+	virtual bool	RemoveSensor(class SCA_ISensor* sensor);
 	virtual void	NextFrame(double curtime, double fixedtime);
 	virtual void	NextFrame();
 	virtual void    UpdateFrame();
 	virtual void	EndFrame();
-	virtual void	RegisterSensor(class SCA_ISensor* sensor);
+	virtual bool	RegisterSensor(class SCA_ISensor* sensor);
 	int		GetType();
 	//SG_DList &GetSensors() { return m_sensors; }
 
