@@ -414,9 +414,8 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 				if (sizeof(int) != attrdef->m_size) {
 					return nullptr;
 				}
-				// Walkthrough
 			}
-			// walkthrough
+			ATTR_FALLTHROUGH;
 		case KX_PYATTRIBUTE_TYPE_INT:
 			{
 				int *val = reinterpret_cast<int *>(ptr);

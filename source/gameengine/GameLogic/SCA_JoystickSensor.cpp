@@ -148,8 +148,8 @@ bool SCA_JoystickSensor::Evaluate()
 		case KX_JOYSENSORMODE_SHOULDER_TRIGGER:
 		{
 			axis_single_index = m_axis + 4;
-			/* pass-through */
 		}
+		ATTR_FALLTHROUGH;
 		case KX_JOYSENSORMODE_AXIS_SINGLE:
 		{
 			/* Like KX_JOYSENSORMODE_AXIS but don't pair up axis */
