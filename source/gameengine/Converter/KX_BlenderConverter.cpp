@@ -84,6 +84,8 @@ extern "C" {
 #include "BLI_task.h"
 #include "CM_Message.h"
 
+#include <cstring>
+
 KX_BlenderConverter::SceneSlot::SceneSlot() = default;
 
 KX_BlenderConverter::SceneSlot::SceneSlot(const KX_BlenderSceneConverter& converter)
