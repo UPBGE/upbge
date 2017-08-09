@@ -427,6 +427,8 @@ void LA_Launcher::RenderEngine()
 	m_ketsjiEngine->Render();
 }
 
+#ifdef WITH_PYTHON
+
 bool LA_Launcher::GetPythonMainLoopCode(std::string& pythonCode, std::string& pythonFileName)
 {
 	pythonFileName = KX_GetPythonMain(m_startScene);
@@ -446,6 +448,8 @@ void LA_Launcher::RunPythonMainLoop(const std::string& pythonCode)
 {
 	PyRun_SimpleString(pythonCode.c_str());
 }
+
+#endif  // WITH_PYTHON
 
 bool LA_Launcher::EngineNextFrame()
 {

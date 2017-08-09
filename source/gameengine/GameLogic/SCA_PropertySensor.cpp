@@ -38,6 +38,8 @@
 #include "EXP_BoolValue.h"
 #include "EXP_FloatValue.h"
 
+#include "BLI_compiler_attrs.h"
+
 #include "CM_Format.h"
 
 #include <boost/algorithm/string.hpp>
