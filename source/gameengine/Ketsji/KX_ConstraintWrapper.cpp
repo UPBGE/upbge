@@ -159,7 +159,7 @@ PyObject *KX_ConstraintWrapper::pyattr_get_enabled(PyObjectPlus *self_v, const K
 int KX_ConstraintWrapper::pyattr_set_enabled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_ConstraintWrapper *self = static_cast<KX_ConstraintWrapper *>(self_v);
-	bool val = PyObject_IsTrue(value);
+	int val = PyObject_IsTrue(value);
 
 	if (val == -1 && PyErr_Occurred()) {
 		PyErr_Format(PyExc_AttributeError, "constraint.%s = bool: KX_ConstraintWrapper, expected True or False", attrdef->m_name.c_str());
