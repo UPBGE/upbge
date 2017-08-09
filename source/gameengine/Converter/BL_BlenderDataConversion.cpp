@@ -340,6 +340,8 @@ SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code)
 static void GetUvRgba(const RAS_MeshObject::LayerList& layers, unsigned short loop,
 		MT_Vector2 uvs[RAS_Texture::MaxUnits], unsigned int rgba[RAS_ITexVert::MAX_UNIT])
 {
+	// No need to initialize layers to zero as all the converted layer are all the layers needed.
+
 	for (const RAS_MeshObject::Layer& layer : layers) {
 		const unsigned short index = layer.index;
 		if (layer.color) {
@@ -354,18 +356,11 @@ static void GetUvRgba(const RAS_MeshObject::LayerList& layers, unsigned short lo
 			Convert con;
 			con.col = col;
 
-			rgba[layer.index] = con.val;
+			rgba[index] = con.val;
 		}
-		else {
-			rgba[index] = 0xFFFFFFFF;
-		}
-
-		if (layer.uv) {
+		else if (layer.uv) {
 			const MLoopUV& uv = layer.uv[loop];
 			uvs[index].setValue(uv.uv);
-		}
-		else {
-			uvs[index].setValue(0.0f, 0.0f);
 		}
 	}
 }
