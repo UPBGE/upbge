@@ -50,19 +50,15 @@ SCA_ActuatorEventManager::~SCA_ActuatorEventManager()
 void SCA_ActuatorEventManager::NextFrame()
 {
 	// check for changed actuator
-	SG_DList::iterator<SCA_ISensor> it(m_sensors);
-	for (it.begin();!it.end();++it)
-	{
-		(*it)->Activate(m_logicmgr);
+	for (SCA_ISensor *sensor : m_sensors) {
+		sensor->Activate(m_logicmgr);
 	}
 }
 
 void SCA_ActuatorEventManager::UpdateFrame()
 {
 	// update the state of actuator before executing them
-	SG_DList::iterator<SCA_ActuatorSensor> it(m_sensors);
-	for (it.begin();!it.end();++it)
-	{
-		(*it)->Update();
+	for (SCA_ISensor *sensor : m_sensors) {
+		static_cast<SCA_ActuatorSensor *>(sensor)->Update();
 	}
 }

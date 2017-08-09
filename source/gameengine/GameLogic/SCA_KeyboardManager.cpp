@@ -63,11 +63,7 @@ SCA_IInputDevice* SCA_KeyboardManager::GetInputDevice()
 
 void SCA_KeyboardManager::NextFrame()
 {
-	//const SCA_InputEvent& event =	GetInput(SCA_IInputDevice::SCA_EnumInputs inputcode)=0;
-//	cerr << "SCA_KeyboardManager::NextFrame"<< endl;
-	SG_DList::iterator<SCA_ISensor> it(m_sensors);
-	for (it.begin();!it.end();++it)
-	{
-		(*it)->Activate(m_logicmgr);
+	for (SCA_ISensor *sensor : m_sensors) {
+		sensor->Activate(m_logicmgr);
 	}
 }

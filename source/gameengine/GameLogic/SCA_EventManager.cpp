@@ -30,7 +30,6 @@
  */
 
 
-#include <assert.h>
 #include "SCA_EventManager.h"
 #include "SCA_ISensor.h"
 
@@ -46,17 +45,28 @@ SCA_EventManager::SCA_EventManager(SCA_LogicManager* logicmgr, EVENT_MANAGER_TYP
 SCA_EventManager::~SCA_EventManager()
 {
 	// all sensors should be removed
-	BLI_assert(m_sensors.Empty());
+	BLI_assert(m_sensors.size() == 0);
 }
 
-void SCA_EventManager::RegisterSensor(class SCA_ISensor* sensor)
+bool SCA_EventManager::RegisterSensor(class SCA_ISensor* sensor)
 {
-	m_sensors.AddBack(sensor);
+	if (std::find(m_sensors.begin(), m_sensors.end(), sensor) == m_sensors.end()) {
+		m_sensors.push_back(sensor);
+		return true;
+	}
+
+	return false;
 }
 
-void SCA_EventManager::RemoveSensor(class SCA_ISensor* sensor)
+bool SCA_EventManager::RemoveSensor(class SCA_ISensor* sensor)
 {
-	sensor->Delink();
+	std::vector<SCA_ISensor *>::iterator it = std::find(m_sensors.begin(), m_sensors.end(), sensor);
+	if (it != m_sensors.end()) {
+		m_sensors.erase(it);
+		return true;
+	}
+
+	return false;
 }
 
 void SCA_EventManager::NextFrame(double curtime, double fixedtime)

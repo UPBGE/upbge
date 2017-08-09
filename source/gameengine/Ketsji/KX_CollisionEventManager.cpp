@@ -153,31 +153,36 @@ bool KX_CollisionEventManager::newBroadphaseResponse(void *client_data,
 	return true;
 }
 
-void KX_CollisionEventManager::RegisterSensor(SCA_ISensor *sensor)
+bool KX_CollisionEventManager::RegisterSensor(SCA_ISensor *sensor)
 {
-	KX_CollisionSensor *collisionsensor = static_cast<KX_CollisionSensor *>(sensor);
-	if (m_sensors.AddBack(collisionsensor)) {
+	if (SCA_EventManager::RegisterSensor(sensor)) {
+		KX_CollisionSensor *collisionsensor = static_cast<KX_CollisionSensor *>(sensor);
 		// the sensor was effectively inserted, register it
 		collisionsensor->RegisterSumo(this);
+		return true;
 	}
+
+	return false;
 }
 
-void KX_CollisionEventManager::RemoveSensor(SCA_ISensor *sensor)
+bool KX_CollisionEventManager::RemoveSensor(SCA_ISensor *sensor)
 {
-	KX_CollisionSensor *collisionsensor = static_cast<KX_CollisionSensor *>(sensor);
-	if (collisionsensor->Delink()) {
+	if (SCA_EventManager::RemoveSensor(sensor)) {
+		KX_CollisionSensor *collisionsensor = static_cast<KX_CollisionSensor *>(sensor);
 		// the sensor was effectively removed, unregister it
 		collisionsensor->UnregisterSumo(this);
+		return true;
 	}
+
+	return false;
 }
 
 
 
 void KX_CollisionEventManager::EndFrame()
 {
-	SG_DList::iterator<KX_CollisionSensor> it(m_sensors);
-	for (it.begin(); !it.end(); ++it) {
-		(*it)->EndFrame();
+	for (SCA_ISensor *sensor : m_sensors) {
+		static_cast<KX_CollisionSensor *>(sensor)->EndFrame();
 	}
 }
 
@@ -185,9 +190,8 @@ void KX_CollisionEventManager::EndFrame()
 
 void KX_CollisionEventManager::NextFrame()
 {
-	SG_DList::iterator<KX_CollisionSensor> it(m_sensors);
-	for (it.begin(); !it.end(); ++it) {
-		(*it)->SynchronizeTransform();
+	for (SCA_ISensor *sensor : m_sensors) {
+		static_cast<KX_CollisionSensor *>(sensor)->SynchronizeTransform();
 	}
 
 	for (std::set<NewCollision>::iterator cit = m_newCollisions.begin(); cit != m_newCollisions.end(); ++cit) {
@@ -225,8 +229,8 @@ void KX_CollisionEventManager::NextFrame()
 		kxObj2->RunCollisionCallbacks(kxObj1, contactPointList1);
 	}
 
-	for (it.begin(); !it.end(); ++it) {
-		(*it)->Activate(m_logicmgr);
+	for (SCA_ISensor *sensor : m_sensors) {
+		sensor->Activate(m_logicmgr);
 	}
 
 	RemoveNewCollisions();

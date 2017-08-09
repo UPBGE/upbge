@@ -48,19 +48,8 @@ SCA_JoystickManager::~SCA_JoystickManager()
 
 void SCA_JoystickManager::NextFrame(double curtime,double deltatime)
 {
-	if (m_sensors.Empty()) {
-		return;
-	}
-	else {
-		SG_DList::iterator<SCA_JoystickSensor> it(m_sensors);
-		for (it.begin();!it.end();++it)
-		{
-			SCA_JoystickSensor* joysensor = *it;
-			if (!joysensor->IsSuspended())
-			{
-				joysensor->Activate(m_logicmgr);
-			}
-		}
+	for (SCA_ISensor *sensor : m_sensors) {
+		sensor->Activate(m_logicmgr);
 	}
 }
 
