@@ -68,6 +68,8 @@ LA_PlayerLauncher::~LA_PlayerLauncher()
 {
 }
 
+#ifdef WITH_PYTHON
+
 bool LA_PlayerLauncher::GetPythonMainLoopCode(std::string& pythonCode, std::string& pythonFileName)
 {
 #ifndef WITH_GAMEENGINE_SECURITY
@@ -98,6 +100,8 @@ void LA_PlayerLauncher::RunPythonMainLoop(const std::string& pythonCode)
 	}
 	LA_Launcher::RunPythonMainLoop(pythonCode);
 }
+
+#endif  // WITH_PYTHON
 
 RAS_Rasterizer::DrawType LA_PlayerLauncher::GetRasterizerDrawMode()
 {

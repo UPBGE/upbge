@@ -39,6 +39,8 @@
 
 #include "CM_Message.h"
 
+#include "BLI_compiler_attrs.h"
+
 SCA_JoystickSensor::SCA_JoystickSensor(class SCA_JoystickManager* eventmgr,
 									   SCA_IObject* gameobj,
 									   short int joyindex,

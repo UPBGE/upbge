@@ -40,6 +40,8 @@
 
 #include "KX_Scene.h"
 
+#include <cstring>
+
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
 	:m_blenderScene(scene->GetBlenderScene()),
 	m_mat(ma),
