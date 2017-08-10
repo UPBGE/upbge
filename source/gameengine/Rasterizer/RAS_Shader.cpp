@@ -286,7 +286,6 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type) const
 	if (pos != -1) {
 		CM_Warning("found redundant #version directive in shader program, directive ignored.");
 		const unsigned int nline = prog.find("\n", pos);
-		CM_Debug(pos << ", " << nline);
 		prog.erase(pos, nline - pos);
 	}
 
