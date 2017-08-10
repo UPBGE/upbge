@@ -337,7 +337,7 @@ SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code)
 	return gReverseKeyTranslateTable[key_code];
 }
 
-static void GetUvRgba(const RAS_MeshObject::LayerList& layers, unsigned short loop,
+static void GetUvRgba(const RAS_MeshObject::LayerList& layers, unsigned int loop,
 		MT_Vector2 uvs[RAS_Texture::MaxUnits], unsigned int rgba[RAS_ITexVert::MAX_UNIT])
 {
 	// No need to initialize layers to zero as all the converted layer are all the layers needed.
