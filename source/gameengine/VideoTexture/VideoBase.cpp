@@ -169,7 +169,7 @@ PyObject *Video_refresh(PyImage *self, PyObject *args)
 					else
 						THRWEXCP(InvalidImageMode,S_OK);
 
-					if (!self->m_image->loadImage((unsigned int *)buffer.buf, buffer.len, format, ts)) {
+					if (!self->m_image->loadImage((unsigned int *)buffer.buf, buffer.len, false, format, ts)) {
 						PyErr_SetString(PyExc_TypeError, "Could not load the buffer, perhaps size is not compatible");
 					}
 				}

@@ -158,7 +158,7 @@ void ImageViewport::setPosition (GLint pos[2])
 
 
 // capture image from viewport
-void ImageViewport::calcViewport (unsigned int texId, double ts, unsigned int format)
+void ImageViewport::calcViewport (unsigned int texId, double ts, bool mipmap, unsigned int format)
 {
 	// if scale was changed
 	if (m_scaleChange)
@@ -167,7 +167,7 @@ void ImageViewport::calcViewport (unsigned int texId, double ts, unsigned int fo
 	// if texture wasn't initialized
 	if (!m_texInit && texId != 0) {
 		// initialize it
-		loadTexture(texId, m_image, m_size, false, m_internalFormat);
+		loadTexture(texId, m_image, m_size, mipmap, m_internalFormat);
 		m_texInit = true;
 	}
 	// if texture can be directly created
@@ -177,6 +177,9 @@ void ImageViewport::calcViewport (unsigned int texId, double ts, unsigned int fo
 		// just copy current viewport to texture
 		glBindTexture(GL_TEXTURE_2D, texId);
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_upLeft[0], m_upLeft[1], (GLsizei)m_capSize[0], (GLsizei)m_capSize[1]);
+		if (mipmap) {
+			glGenerateMipmap(GL_TEXTURE_2D);
+		}
 		glBindTexture(GL_TEXTURE_2D, 0);
 		// image is not available
 		m_avail = false;
@@ -253,7 +256,7 @@ void ImageViewport::calcViewport (unsigned int texId, double ts, unsigned int fo
 	}
 }
 
-bool ImageViewport::loadImage(unsigned int *buffer, unsigned int size, unsigned int format, double ts)
+bool ImageViewport::loadImage(unsigned int *buffer, unsigned int size, bool mipmap, unsigned int format, double ts)
 {
 	unsigned int *tmp_image;
 	bool ret;
@@ -270,12 +273,12 @@ bool ImageViewport::loadImage(unsigned int *buffer, unsigned int size, unsigned 
 
 	if (m_avail) {
 		// just copy
-		return ImageBase::loadImage(buffer, size, format, ts);
+		return ImageBase::loadImage(buffer, size, mipmap, format, ts);
 	}
 	else {
 		tmp_image = m_image;
 		m_image = buffer;
-		calcViewport(0, ts, format);
+		calcViewport(0, ts, mipmap, format);
 		ret = m_avail;
 		m_image = tmp_image;
 		// since the image was not loaded to our buffer, it's not valid

@@ -762,7 +762,7 @@ void VideoFFmpeg::setFrameRate (float rate)
 
 // image calculation
 // load frame from video
-void VideoFFmpeg::calcImage (unsigned int texId, double ts)
+void VideoFFmpeg::calcImage (unsigned int texId, double ts, bool mipmap, unsigned int format)
 {
 	if (m_status == SourcePlaying)
 	{

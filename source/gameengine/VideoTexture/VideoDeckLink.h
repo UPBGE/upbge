@@ -112,7 +112,7 @@ public:
 protected:
 	// format and codec information
 	/// image calculation
-	virtual void calcImage (unsigned int texId, double ts);
+	virtual void calcImage (unsigned int texId, double ts, bool mipmap, unsigned int format);
 
 private:
 	void					VideoFrameArrived(IDeckLinkVideoInputFrame* inputFrame);

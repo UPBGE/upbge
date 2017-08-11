@@ -139,10 +139,13 @@ protected:
 	MT_Vector4 m_zenith;
 
 	/// render 3d scene to image
-	virtual void calcImage (unsigned int texId, double ts, unsigned int format) { calcViewport(texId, ts, format); }
+	virtual void calcImage (unsigned int texId, double ts, bool mipmap, unsigned int format)
+	{
+		calcViewport(texId, ts, mipmap, format);
+	}
 
 	/// render 3d scene to image
-	virtual void calcViewport (unsigned int texId, double ts, unsigned int format);
+	virtual void calcViewport (unsigned int texId, double ts, bool mipmap, unsigned int format);
 
 	void setHorizonFromScene(KX_Scene *scene);
 	void setZenithFromScene(KX_Scene *scene);

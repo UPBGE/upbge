@@ -69,7 +69,7 @@ public:
 	void setPosition (GLint pos[2] = nullptr);
 
 	/// capture image from viewport to user buffer
-	virtual bool loadImage(unsigned int *buffer, unsigned int size, unsigned int format, double ts);
+	virtual bool loadImage(unsigned int *buffer, unsigned int size, bool mipmap, unsigned int format, double ts);
 
 protected:
 	unsigned int m_width;
@@ -95,10 +95,10 @@ protected:
 	bool m_texInit;
 
 	/// capture image from viewport
-	virtual void calcImage (unsigned int texId, double ts) { calcViewport(texId, ts, GL_RGBA);	}
+	virtual void calcImage (unsigned int texId, double ts, bool mipmap, unsigned int format) { calcViewport(texId, ts, mipmap, GL_RGBA);	}
 
 	/// capture image from viewport
-	virtual void calcViewport (unsigned int texId, double ts, unsigned int format);
+	virtual void calcViewport (unsigned int texId, double ts, bool mipmap, unsigned int format);
 
 	/// get viewport size
 	GLint * getViewportSize (void) { return m_viewport + 2; }

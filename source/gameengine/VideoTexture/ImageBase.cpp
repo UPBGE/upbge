@@ -100,7 +100,7 @@ bool ImageBase::release (void)
 
 
 // get image
-unsigned int * ImageBase::getImage (unsigned int texId, double ts)
+unsigned int * ImageBase::getImage (unsigned int texId, double ts, bool mipmap)
 {
 	// if image is not available
 	if (!m_avail)
@@ -111,21 +111,21 @@ unsigned int * ImageBase::getImage (unsigned int texId, double ts)
 			// get images from sources
 			for (ImageSourceList::iterator it = m_sources.begin(); it != m_sources.end(); ++it)
 				// get source image
-				(*it)->getImage(ts);
+				(*it)->getImage(ts, mipmap);
 			// init image
 			init(m_sources[0]->getSize()[0], m_sources[0]->getSize()[1]);
 		}
 		// calculate new image
-		calcImage(texId, ts);
+		calcImage(texId, ts, mipmap, m_internalFormat);
 	}
 	// if image is available, return it, otherwise nullptr
 	return m_avail ? m_image : nullptr;
 }
 
-bool ImageBase::loadImage(unsigned int *buffer, unsigned int size, unsigned int format, double ts)
+bool ImageBase::loadImage(unsigned int *buffer, unsigned int size, bool mipmap, unsigned int format, double ts)
 {
 	unsigned int *d, *s, v, len;
-	if (getImage(0, ts) != nullptr && size >= getBuffSize()) {
+	if (getImage(0, ts, mipmap) != nullptr && size >= getBuffSize()) {
 		switch (format) {
 		case GL_RGBA:
 			memcpy(buffer, m_image, getBuffSize());
@@ -373,12 +373,12 @@ void ImageSource::setSource (PyImage *source)
 
 
 // get image from source
-unsigned int * ImageSource::getImage (double ts)
+unsigned int * ImageSource::getImage (double ts, bool mipmap)
 {
 	// if source is available
 	if (m_source != nullptr)
 		// get image from source
-		m_image = m_source->m_image->getImage(0, ts);
+		m_image = m_source->m_image->getImage(0, ts, mipmap);
 	// otherwise reset buffer
 	else
 		m_image = nullptr;
@@ -438,7 +438,7 @@ PyObject *Image_getImage(PyImage *self, char *mode)
 {
 	try
 	{
-		unsigned int * image = self->m_image->getImage();
+		unsigned int * image = self->m_image->getImage(0, -1.0, false);
 		if (image) 
 		{
 			// build BGL buffer
@@ -571,7 +571,7 @@ PyObject *Image_refresh (PyImage *self, PyObject *args)
 					else
 						THRWEXCP(InvalidImageMode,S_OK);
 
-					done = self->m_image->loadImage((unsigned int *)buffer.buf, buffer.len, format, ts);
+					done = self->m_image->loadImage((unsigned int *)buffer.buf, buffer.len, false, format, ts);
 				}
 				catch (Exception & exp) {
 					exp.report();
@@ -802,7 +802,7 @@ static int Image_getbuffer(PyImage *self, Py_buffer *view, int flags)
 
 	try {
 		// can throw in case of resize
-		image = self->m_image->getImage();
+		image = self->m_image->getImage(0, -1.0, false);
 	}
 	catch (Exception & exp) {
 		exp.report();

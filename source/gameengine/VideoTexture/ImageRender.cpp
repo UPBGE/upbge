@@ -199,7 +199,7 @@ void ImageRender::setZenithFromScene(KX_Scene *scene)
 }
 
 // capture image from viewport
-void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int format)
+void ImageRender::calcViewport (unsigned int texId, double ts, bool mipmap, unsigned int format)
 {
 	// render the scene from the camera
 	if (!m_done) {
@@ -213,7 +213,7 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	// wait until all render operations are completed
 	WaitSync();
 	// get image from viewport (or FBO)
-	ImageViewport::calcViewport(texId, ts, format);
+	ImageViewport::calcViewport(texId, ts, mipmap, format);
 
 	RAS_OffScreen::RestoreScreen();
 }

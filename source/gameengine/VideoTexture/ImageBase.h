@@ -64,7 +64,7 @@ public:
 	bool isImageAvailable(void)
 	{ return m_avail; }
 	/// get image
-	unsigned int *getImage(unsigned int texId = 0, double timestamp=-1.0);
+	unsigned int *getImage(unsigned int texId, double timestamp, bool mipmap);
 	/// get image size
 	short * getSize(void) { return m_size; }
 
@@ -112,7 +112,7 @@ public:
 
 	/// calculate image from sources and send it to a target buffer instead of a texture
     /// format is GL_RGBA or GL_BGRA
-	virtual bool loadImage(unsigned int *buffer, unsigned int size, unsigned int format, double ts);
+	virtual bool loadImage(unsigned int *buffer, unsigned int size, bool mipmap, unsigned int format, double ts);
 
 	/// swap the B and R channel in-place in the image buffer
 	void swapImageBR();
@@ -164,7 +164,7 @@ protected:
 	bool checkSourceSizes(void);
 
 	/// calculate image from sources and set its availability
-	virtual void calcImage(unsigned int texId, double ts) {}
+	virtual void calcImage(unsigned int texId, double ts, bool mipmap, unsigned int format) {}
 
 	/// perform loop detection
 	bool loopDetect(ImageBase * img);
@@ -310,7 +310,7 @@ public:
 	void setSource (PyImage *source);
 
 	/// get image from source
-	unsigned int * getImage (double ts=-1.0);
+	unsigned int * getImage (double ts, bool mipmap);
 	/// get buffered image
 	unsigned int * getImageBuf (void) { return m_image; }
 	/// refresh source

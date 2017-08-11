@@ -57,6 +57,8 @@
 #include <memory.h>
 #include "GPU_glew.h"
 
+#include "CM_Message.h"
+
 extern "C" {
 	#include "IMB_imbuf.h"
 }
@@ -331,9 +333,10 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 				if (texObj->m_source != nullptr)
 					tex->SetSource(texObj->m_source);
 			}
-			else
+			else {
 				// otherwise generate texture code
 				glGenTextures(1, (GLuint*)&tex->m_actTex);
+			}
 		}
 		catch (Exception & exp)
 		{
@@ -408,7 +411,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 				}
 
 				// get texture
-				unsigned int * texture = m_source->m_image->getImage(m_actTex, ts);
+				unsigned int * texture = m_source->m_image->getImage(m_actTex, ts, m_mipmap);
 				// if texture is available
 				if (texture != nullptr)
 				{

@@ -1036,7 +1036,7 @@ void VideoDeckLink::setFrameRate (float rate)
 
 // image calculation
 // send cache frame directly to GPU
-void VideoDeckLink::calcImage (unsigned int texId, double ts)
+void VideoDeckLink::calcImage (unsigned int texId, double ts, bool mipmap, unsigned int format)
 {
 	IDeckLinkVideoInputFrame* pFrame;
 	LockCache();

@@ -550,12 +550,12 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
 				if (srcSize[0] == self->mSize[0] && srcSize[1] == self->mSize[1])
 				{
 					// buffer has same size, can load directly
-					if (!leftImage->loadImage(leftEye, self->mFrameSize, GL_BGRA, ts))
+					if (!leftImage->loadImage(leftEye, self->mFrameSize, false, GL_BGRA, ts))
 						leftEye = nullptr;
 				}
 				else {
 					// scaling is required, go the hard way
-					unsigned int *src = leftImage->getImage(0, ts);
+					unsigned int *src = leftImage->getImage(0, ts, false);
 					if (src != nullptr)
 						decklink_ConvImage(leftEye, self->mSize, src, srcSize, self->mUseExtend);
 					else
@@ -570,11 +570,11 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
 					if (srcSize[0] == self->mSize[0] && srcSize[1] == self->mSize[1])
 					{
 						// buffer has same size, can load directly
-						rightImage->loadImage(rightEye, self->mFrameSize, GL_BGRA, ts);
+						rightImage->loadImage(rightEye, self->mFrameSize, false, GL_BGRA, ts);
 					}
 					else {
 						// scaling is required, go the hard way
-						unsigned int *src = rightImage->getImage(0, ts);
+						unsigned int *src = rightImage->getImage(0, ts, false);
 						if (src != nullptr)
 							decklink_ConvImage(rightEye, self->mSize, src, srcSize, self->mUseExtend);
 					}

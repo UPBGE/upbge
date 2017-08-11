@@ -164,7 +164,7 @@ protected:
 	std::string m_imageName;
 
 	/// image calculation
-	virtual void calcImage (unsigned int texId, double ts);
+	virtual void calcImage (unsigned int texId, double ts, bool mipmap, unsigned int format);
 
 	/// set actual position
 	void setPositions (void);
