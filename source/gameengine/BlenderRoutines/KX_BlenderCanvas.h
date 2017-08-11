@@ -84,6 +84,8 @@ public:
 
 	virtual int GetWidth() const;
 	virtual int GetHeight() const;
+	virtual int GetMaxX() const;
+	virtual int GetMaxY() const;
 
 	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
 
@@ -92,8 +94,8 @@ public:
 
 	virtual RAS_Rect &GetWindowArea();
 
-	virtual void SetViewPort(int x1, int y1, int x2, int y2);
-	virtual void UpdateViewPort(int x1, int y1, int x2, int y2);
+	virtual void SetViewPort(int x, int y, int width, int height);
+	virtual void UpdateViewPort(int x, int y, int width, int height);
 	virtual const int *GetViewPort();
 
 	virtual void SetMouseState(RAS_MouseState mousestate);

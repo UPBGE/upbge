@@ -69,14 +69,16 @@ public:
 
 	virtual int GetWidth() const;
 	virtual int GetHeight() const;
+	virtual int GetMaxX() const;
+	virtual int GetMaxY() const;
 	virtual RAS_Rect &GetWindowArea();
 	virtual void BeginFrame();
 
 	/// Draws overlay banners and progress bars.
 	virtual void EndFrame();
 
-	virtual void SetViewPort(int x1, int y1, int x2, int y2);
-	virtual void UpdateViewPort(int x1, int y1, int x2, int y2);
+	virtual void SetViewPort(int x, int y, int width, int height);
+	virtual void UpdateViewPort(int x, int y, int width, int height);
 	virtual const int *GetViewPort();
 
 	virtual void MakeScreenShot(const std::string& filename);

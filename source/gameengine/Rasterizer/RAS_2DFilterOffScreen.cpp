@@ -116,8 +116,8 @@ void RAS_2DFilterOffScreen::MipmapTexture()
 bool RAS_2DFilterOffScreen::Update(RAS_ICanvas *canvas)
 {
 	if (m_flag & RAS_VIEWPORT_SIZE) {
-		const unsigned int width = canvas->GetWidth() + 1;
-		const unsigned int height = canvas->GetHeight() + 1;
+		const unsigned int width = canvas->GetWidth();
+		const unsigned int height = canvas->GetHeight();
 		if (m_width != width || m_height != height) {
 			m_width = width;
 			m_height = height;
@@ -134,8 +134,8 @@ void RAS_2DFilterOffScreen::Bind(RAS_Rasterizer *rasty)
 	GPU_framebuffer_bind_all_attachments(m_frameBuffer);
 
 	if (!(m_flag & RAS_VIEWPORT_SIZE)) {
-		rasty->SetViewport(0, 0, m_width + 1, m_height + 1);
-		rasty->SetScissor(0, 0, m_width + 1, m_height + 1);
+		rasty->SetViewport(0, 0, m_width, m_height);
+		rasty->SetScissor(0, 0, m_width, m_height);
 	}
 }
 
@@ -148,8 +148,8 @@ void RAS_2DFilterOffScreen::Unbind(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
 	if (!(m_flag & RAS_VIEWPORT_SIZE)) {
 		const int width = canvas->GetWidth();
 		const int height = canvas->GetHeight();
-		rasty->SetViewport(0, 0, width + 1, height + 1);
-		rasty->SetScissor(0, 0, width + 1, height + 1);
+		rasty->SetViewport(0, 0, width, height);
+		rasty->SetScissor(0, 0, width, height);
 	}
 }
 

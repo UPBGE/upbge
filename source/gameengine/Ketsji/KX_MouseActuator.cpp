@@ -135,11 +135,11 @@ bool KX_MouseActuator::Update()
 				movement[1] = position[1];
 
 				//preventing undesired drifting when resolution is odd
-				if ((m_canvas->GetWidth() % 2) != 0) {
-					center_x = ((m_canvas->GetWidth() - 1.0f) / 2.0f) / (m_canvas->GetWidth());
+				if ((m_canvas->GetWidth() % 2) == 0) {
+					center_x = float(m_canvas->GetMaxX() / 2) / m_canvas->GetMaxX();
 				}
-				if ((m_canvas->GetHeight() % 2) != 0) {
-					center_y = ((m_canvas->GetHeight() - 1.0f) / 2.0f) / (m_canvas->GetHeight());
+				if ((m_canvas->GetHeight() % 2) == 0) {
+					center_y = float(m_canvas->GetMaxY() / 2) / m_canvas->GetMaxY();
 				}
 
 				//preventing initial skipping.
@@ -333,8 +333,8 @@ void KX_MouseActuator::setMousePosition(float fx, float fy)
 {
 	int x, y;
 
-	x = (int)(fx * m_canvas->GetWidth());
-	y = (int)(fy * m_canvas->GetHeight());
+	x = (int)(fx * m_canvas->GetMaxX());
+	y = (int)(fy * m_canvas->GetMaxY());
 
 	m_canvas->SetMousePosition(x, y);
 }

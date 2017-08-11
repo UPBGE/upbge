@@ -315,8 +315,8 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						}
 
 						/* initial mouse position */
-						int startx  = canvas->GetWidth()/2;
-						int starty = canvas->GetHeight()/2;
+						int startx  = canvas->GetMaxX() / 2;
+						int starty = canvas->GetMaxY() / 2;
 
 						if (!trackfocus) {
 							/* plain, simple mouse sensor */

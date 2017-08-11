@@ -296,8 +296,8 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 		return false;
 	}
 
-	float height = float(viewport.GetTop() - viewport.GetBottom() + 1);
-	float width  = float(viewport.GetRight() - viewport.GetLeft() + 1);
+	float maxy = float(viewport.GetMaxY());
+	float maxx  = float(viewport.GetMaxX());
 	
 	float x_lb = float(viewport.GetLeft());
 	float y_lb = float(viewport.GetBottom());
@@ -319,13 +319,13 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 	 *	The actual z coordinates used don't have to be exact just infront and 
 	 *	behind of the near and far clip planes.
 	 */ 
-	frompoint.setValue(	(2 * (m_x-x_lb) / width) - 1.0f,
-						1.0f - (2 * (m_y_inv - y_lb) / height),
+	frompoint.setValue(	(2 * (m_x-x_lb) / maxx) - 1.0f,
+						1.0f - (2 * (m_y_inv - y_lb) / maxy),
 						-1.0f,
 						1.0f );
 	
-	topoint.setValue(	(2 * (m_x-x_lb) / width) - 1.0f,
-						1.0f - (2 * (m_y_inv-y_lb) / height),
+	topoint.setValue(	(2 * (m_x-x_lb) / maxx) - 1.0f,
+						1.0f - (2 * (m_y_inv-y_lb) / maxy),
 						1.0f,
 						1.0f );
 	

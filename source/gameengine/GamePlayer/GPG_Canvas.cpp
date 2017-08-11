@@ -73,6 +73,16 @@ int GPG_Canvas::GetHeight() const
 	return m_height;
 }
 
+int GPG_Canvas::GetMaxX() const
+{
+	return (m_width - 1);
+}
+
+int GPG_Canvas::GetMaxY() const
+{
+	return (m_height - 1);
+}
+
 RAS_Rect &GPG_Canvas::GetWindowArea()
 {
 	return m_area;
@@ -102,30 +112,24 @@ void GPG_Canvas::Resize(int width, int height)
 	// initialize area so that it's available for game logic on frame 1 (ImageViewport)
 	m_area.SetLeft(0);
 	m_area.SetBottom(0);
-	m_area.SetRight(width);
-	m_area.SetTop(height);
+	m_area.SetRight(width - 1);
+	m_area.SetTop(height - 1);
 }
 
-void GPG_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
+void GPG_Canvas::SetViewPort(int x, int y, int width, int height)
 {
-	/*	x1 and y1 are the min pixel coordinate (e.g. 0)
-	    x2 and y2 are the max pixel coordinate
-	    the width,height is calculated including both pixels
-	    therefore: max - min + 1
-	 */
-
-	m_viewport[0] = x1;
-	m_viewport[1] = y1;
-	m_viewport[2] = x2 - x1 + 1;
-	m_viewport[3] = y2 - y1 + 1;
+	m_viewport[0] = x;
+	m_viewport[1] = y;
+	m_viewport[2] = width;
+	m_viewport[3] = height;
 }
 
-void GPG_Canvas::UpdateViewPort(int x1, int y1, int x2, int y2)
+void GPG_Canvas::UpdateViewPort(int x, int y, int width, int height)
 {
-	m_viewport[0] = x1;
-	m_viewport[1] = y1;
-	m_viewport[2] = x2;
-	m_viewport[3] = y2;
+	m_viewport[0] = x;
+	m_viewport[1] = y;
+	m_viewport[2] = width;
+	m_viewport[3] = height;
 }
 
 const int *GPG_Canvas::GetViewPort()
@@ -265,15 +269,22 @@ bool GPG_Canvas::GetFullScreen()
 
 void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNUSED(screen))
 {
-	m_window->screenToClient(x, y, r_x, r_y);
+	int _x;
+	int _y;
+	m_window->screenToClient(x, y, _x, _y);
+
+	const float fac = m_window->getNativePixelSize();
+
+	r_x = _x * fac;
+	r_y = _y * fac;
 }
 
 float GPG_Canvas::GetMouseNormalizedX(int x)
 {
-	return float(x) / this->GetWidth();
+	return float(x) / GetMaxX();
 }
 
 float GPG_Canvas::GetMouseNormalizedY(int y)
 {
-	return float(y) / this->GetHeight();
+	return float(y) / GetMaxY();
 }

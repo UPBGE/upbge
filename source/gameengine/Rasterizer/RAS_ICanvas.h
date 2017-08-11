@@ -88,6 +88,8 @@ public:
 
 	virtual int GetWidth() const = 0;
 	virtual int GetHeight() const = 0;
+	virtual int GetMaxX() const = 0;
+	virtual int GetMaxY() const = 0;
 
 	/** Convert mouse coordinates from screen or client window to render area coordinates.
 	 * \param x The input X coordinate.
@@ -109,13 +111,13 @@ public:
 	/**
 	 * Set the visible view-port
 	 */
-	virtual void SetViewPort(int x1, int y1, int x2, int y2) = 0;
+	virtual void SetViewPort(int x, int y, int width, int height) = 0;
 
 	/**
 	 * Update the Canvas' viewport (used when the viewport changes without using SetViewPort()
 	 * eg: Shadow buffers and FBOs
 	 */
-	virtual void UpdateViewPort(int x1, int y1, int x2, int y2) = 0;
+	virtual void UpdateViewPort(int x, int y, int width, int height) = 0;
 
 	/**
 	 * Get the visible viewport
