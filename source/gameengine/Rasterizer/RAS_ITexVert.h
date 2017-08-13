@@ -170,14 +170,16 @@ public:
 	// splitting up based on uv's, colors, etc
 	inline const bool closeTo(const RAS_ITexVert *other)
 	{
+		BLI_assert(getUvSize() == other->getUvSize());
+		BLI_assert(getColorSize() == other->getColorSize());
 		static const float eps = FLT_EPSILON;
-		for (int i = 0, size = min_ii(getUvSize(), other->getUvSize()); i < size; ++i) {
+		for (int i = 0, size = getUvSize(); i < size; ++i) {
 			if (!compare_v2v2(getUV(i), other->getUV(i), eps)) {
 				return false;
 			}
 		}
 
-		for (int i = 0, size = min_ii(getColorSize(), other->getColorSize()); i < size; ++i) {
+		for (int i = 0, size = getColorSize(); i < size; ++i) {
 			if (getRawRGBA(i) != other->getRawRGBA(i)) {
 				return false;
 			}

@@ -338,7 +338,8 @@ SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code)
 }
 
 static void GetUvRgba(const RAS_MeshObject::LayerList& layers, unsigned int loop,
-		MT_Vector2 uvs[RAS_Texture::MaxUnits], unsigned int rgba[RAS_ITexVert::MAX_UNIT])
+		MT_Vector2 uvs[RAS_Texture::MaxUnits], unsigned int rgba[RAS_ITexVert::MAX_UNIT],
+		unsigned short uvLayers, unsigned short colorLayers)
 {
 	// No need to initialize layers to zero as all the converted layer are all the layers needed.
 
@@ -362,6 +363,17 @@ static void GetUvRgba(const RAS_MeshObject::LayerList& layers, unsigned int loop
 			const MLoopUV& uv = layer.uv[loop];
 			uvs[index].setValue(uv.uv);
 		}
+	}
+
+	/* All vertices have at least one uv and color layer accessible to the user
+	 * even if it they are not used in any shaders. Initialize this layer to zero
+	 * when no uv or color layer exist.
+	 */
+	if (uvLayers == 0) {
+		uvs[0] = MT_Vector2(0.0f, 0.0f);
+	}
+	if (colorLayers == 0) {
+		rgba[0] = 0xFFFFFFFF;
 	}
 }
 
@@ -434,11 +446,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	}
 	const float (*normals)[3] = (float (*)[3])dm->getLoopDataArray(dm, CD_NORMAL);
 
-	if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
-		DM_calc_loop_tangents(dm, true, nullptr, 0);
-	}
-	const float (*tangent)[4] = (float(*)[4])dm->getLoopDataArray(dm, CD_TANGENT);
-
 	/* Extract available layers.
 	 * Get the active color and uv layer. */
 	const short activeUv = CustomData_get_active_layer(&dm->loopData, CD_MLOOPUV);
@@ -462,6 +469,14 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		const std::string name = CustomData_get_layer_name(&dm->loopData, CD_MLOOPCOL, i);
 		MLoopCol *col = (MLoopCol *)CustomData_get_layer_n(&dm->loopData, CD_MLOOPCOL, i);
 		layersInfo.layers.push_back({nullptr, col, i, name});
+	}
+
+	float (*tangent)[4] = nullptr;
+	if (uvLayers > 0) {
+		if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
+			DM_calc_loop_tangents(dm, true, nullptr, 0);
+		}
+		tangent = (float(*)[4])dm->getLoopDataArray(dm, CD_TANGENT);
 	}
 
 	meshobj = new RAS_MeshObject(mesh, layersInfo);
@@ -537,7 +552,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			MT_Vector2 uvs[RAS_Texture::MaxUnits];
 			unsigned int rgba[RAS_Texture::MaxUnits];
 
-			GetUvRgba(layersInfo.layers, j, uvs, rgba);
+			GetUvRgba(layersInfo.layers, j, uvs, rgba, uvLayers, colorLayers);
 
 			// Add tracked vertices by the mpoly.
 			vertices[vertid] = meshobj->AddVertex(meshmat, pt, uvs, tan, rgba, no, flat, vertid);
