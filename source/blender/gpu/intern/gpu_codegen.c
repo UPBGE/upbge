@@ -88,10 +88,9 @@ typedef struct GPUFunction {
 } GPUFunction;
 
 /* Indices match the GPUType enum */
-static const char *GPU_DATATYPE_STR[18] = {
+static const char *GPU_DATATYPE_STR[17] = {
 	"", "float", "vec2", "vec3", "vec4",
-	NULL, NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4",
-	"Closure"
+	"Closure", NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4"
 };
 
 /* GLSL code parsing for finding function definitions.
@@ -175,7 +174,7 @@ static void gpu_parse_functions_string(GHash *hash, char *code)
 
 			/* test for type */
 			type = GPU_NONE;
-			for (i = 1; i <= 17; i++) {
+			for (i = 1; i <= 16; i++) {
 				if (GPU_DATATYPE_STR[i] && gpu_str_prefix(code, GPU_DATATYPE_STR[i])) {
 					type = i;
 					break;

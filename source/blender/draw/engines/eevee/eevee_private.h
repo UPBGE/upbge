@@ -495,6 +495,7 @@ DRWShadingGroup *EEVEE_create_bloom_shgroup(EEVEE_EffectsInfo *effects, struct G
 void EEVEE_effects_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_effects_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_create_minmax_buffer(EEVEE_Data *vedata, struct GPUTexture *depth_src);
+void EEVEE_effects_replace_dtxl_depth(struct GPUTexture *depth_src);
 void EEVEE_effects_do_volumetrics(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_draw_effects(EEVEE_Data *vedata);
 void EEVEE_effects_free(void);

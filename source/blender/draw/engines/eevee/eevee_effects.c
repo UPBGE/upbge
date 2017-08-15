@@ -727,6 +727,11 @@ void EEVEE_create_minmax_buffer(EEVEE_Data *vedata, GPUTexture *depth_src)
 	DRW_framebuffer_recursive_downsample(fbl->minmaxz_fb, stl->g_data->minmaxz, 6, &minmax_downsample_cb, vedata);
 }
 
+void EEVEE_effects_replace_dtxl_depth(GPUTexture *depth_src)
+{
+	e_data.depth_src = depth_src;
+}
+
 void EEVEE_effects_do_volumetrics(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 {
 	EEVEE_PassList *psl = vedata->psl;

@@ -53,6 +53,7 @@ public:
 	RAS_OffScreen *RenderBloom(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	RAS_OffScreen *RenderMotionBlur(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	RAS_OffScreen *RenderDof(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
+	RAS_OffScreen *RenderVolumetrics(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	void UpdateAO(RAS_OffScreen *inputofs);
 
 private:

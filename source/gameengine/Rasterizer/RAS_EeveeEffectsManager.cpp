@@ -28,6 +28,7 @@
 #include "RAS_Rasterizer.h"
 #include "RAS_OffScreen.h"
 #include "RAS_EeveeEffectsManager.h"
+#include "RAS_SceneLayerData.h"
 
 #include "BLI_math.h"
 
@@ -316,11 +317,53 @@ void RAS_EeveeEffectsManager::UpdateAO(RAS_OffScreen *inputofs)
 	}
 }
 
+RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+{
+	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0) {
+
+		EEVEE_effects_replace_dtxl_depth(inputofs->GetDepthTexture());
+		//e_data.depth_src = dtxl->depth;
+
+		/* Compute volumetric integration at halfres. */
+		DRW_framebuffer_texture_attach(m_fbl->volumetric_fb, m_stl->g_data->volumetric, 0, 0);
+		EEVEE_SceneLayerData *sldata = (EEVEE_SceneLayerData *)(&m_scene->GetSceneLayerData()->GetData());
+		if (sldata->volumetrics->use_colored_transmit) {
+			DRW_framebuffer_texture_attach(m_fbl->volumetric_fb, m_stl->g_data->volumetric_transmit, 1, 0);
+		}
+		DRW_framebuffer_bind(m_fbl->volumetric_fb);
+		DRW_draw_pass(m_psl->volumetric_integrate_ps);
+
+		/* Resolve at fullres */
+		DRW_framebuffer_texture_detach(m_scene->GetDefaultTextureList()->depth);
+		DRW_framebuffer_bind(m_fbl->main);
+		if (sldata->volumetrics->use_colored_transmit) {
+			DRW_draw_pass(m_psl->volumetric_resolve_transmit_ps);
+		}
+		inputofs->Bind();
+		DRW_draw_pass(m_psl->volumetric_resolve_ps);
+
+		///* Restore */
+		//DRW_framebuffer_texture_attach(fbl->main, dtxl->depth, 0, 0);
+		//DRW_framebuffer_texture_detach(stl->g_data->volumetric);
+		//if (sldata->volumetrics->use_colored_transmit) {
+		//	DRW_framebuffer_texture_detach(stl->g_data->volumetric_transmit);
+		//}
+
+		///* Rebind main buffer after attach/detach operations */
+		//DRW_framebuffer_bind(fbl->main);
+		return inputofs;
+	}
+	return inputofs;
+}
+
+
 RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
 {
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
 	UpdateAO(inputofs);
+
+	inputofs = RenderVolumetrics(rasty, inputofs);
 
 	inputofs = RenderMotionBlur(rasty, inputofs);
 
