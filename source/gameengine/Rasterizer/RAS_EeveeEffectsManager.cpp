@@ -77,6 +77,51 @@ RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 	m_scene->GetDefaultTextureList()->depth = m_savedDepth;
 }
 
+void RAS_EeveeEffectsManager::UpdateViewVecs()
+{
+	/* Update viewvecs */
+	const bool is_persp = DRW_viewport_is_persp_get();
+	float invproj[4][4], winmat[4][4];
+	/* view vectors for the corners of the view frustum.
+	* Can be used to recreate the world space position easily */
+	float viewvecs[3][4] = {
+		{ -1.0f, -1.0f, -1.0f, 1.0f },
+		{ 1.0f, -1.0f, -1.0f, 1.0f },
+		{ -1.0f, 1.0f, -1.0f, 1.0f }
+	};
+
+	KX_Camera *cam = m_scene->GetActiveCamera();
+	/* invert the view matrix */
+	cam->GetProjectionMatrix().getValue(&winmat[0][0]);
+	invert_m4_m4(invproj, winmat);
+
+	/* convert the view vectors to view space */
+	for (int i = 0; i < 3; i++) {
+		mul_m4_v4(invproj, viewvecs[i]);
+		/* normalized trick see:
+		* http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
+		mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][3]);
+		if (is_persp)
+			mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][2]);
+		viewvecs[i][3] = 1.0;
+	}
+
+	copy_v4_v4(m_stl->g_data->viewvecs[0], viewvecs[0]);
+	copy_v4_v4(m_stl->g_data->viewvecs[1], viewvecs[1]);
+
+	/* we need to store the differences */
+	m_stl->g_data->viewvecs[1][0] -= viewvecs[0][0];
+	m_stl->g_data->viewvecs[1][1] = viewvecs[2][1] - viewvecs[0][1];
+
+	/* calculate a depth offset as well */
+	if (!is_persp) {
+		float vec_far[] = { -1.0f, -1.0f, 1.0f, 1.0f };
+		mul_m4_v4(invproj, vec_far);
+		mul_v3_fl(vec_far, 1.0f / vec_far[3]);
+		m_stl->g_data->viewvecs[1][2] = vec_far[2] - viewvecs[0][2];
+	}
+}
+
 void RAS_EeveeEffectsManager::InitBloom()
 {
 	/* Bloom */
@@ -273,53 +318,15 @@ void RAS_EeveeEffectsManager::UpdateAO(RAS_OffScreen *inputofs)
 		 */
 		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), inputofs->GetDepthTexture());
 
-		/* Update viewvecs */
-		const bool is_persp = DRW_viewport_is_persp_get();
-		float invproj[4][4], winmat[4][4];
-		/* view vectors for the corners of the view frustum.
-		* Can be used to recreate the world space position easily */
-		float viewvecs[3][4] = {
-			{ -1.0f, -1.0f, -1.0f, 1.0f },
-			{ 1.0f, -1.0f, -1.0f, 1.0f },
-			{ -1.0f, 1.0f, -1.0f, 1.0f }
-		};
-
-		KX_Camera *cam = m_scene->GetActiveCamera();
-		/* invert the view matrix */
-		cam->GetProjectionMatrix().getValue(&winmat[0][0]);
-		invert_m4_m4(invproj, winmat);
-
-		/* convert the view vectors to view space */
-		for (int i = 0; i < 3; i++) {
-			mul_m4_v4(invproj, viewvecs[i]);
-			/* normalized trick see:
-			* http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
-			mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][3]);
-			if (is_persp)
-				mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][2]);
-			viewvecs[i][3] = 1.0;
-		}
-
-		copy_v4_v4(m_stl->g_data->viewvecs[0], viewvecs[0]);
-		copy_v4_v4(m_stl->g_data->viewvecs[1], viewvecs[1]);
-
-		/* we need to store the differences */
-		m_stl->g_data->viewvecs[1][0] -= viewvecs[0][0];
-		m_stl->g_data->viewvecs[1][1] = viewvecs[2][1] - viewvecs[0][1];
-
-		/* calculate a depth offset as well */
-		if (!is_persp) {
-			float vec_far[] = { -1.0f, -1.0f, 1.0f, 1.0f };
-			mul_m4_v4(invproj, vec_far);
-			mul_v3_fl(vec_far, 1.0f / vec_far[3]);
-			m_stl->g_data->viewvecs[1][2] = vec_far[2] - viewvecs[0][2];
-		}
+		UpdateViewVecs();
 	}
 }
 
 RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
 {
 	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0) {
+
+		UpdateViewVecs();
 
 		EEVEE_effects_replace_dtxl_depth(inputofs->GetDepthTexture());
 		//e_data.depth_src = dtxl->depth;

@@ -55,6 +55,7 @@ public:
 	RAS_OffScreen *RenderDof(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	RAS_OffScreen *RenderVolumetrics(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	void UpdateAO(RAS_OffScreen *inputofs);
+	void UpdateViewVecs();
 
 private:
 	EEVEE_StorageList *m_stl;
