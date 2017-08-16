@@ -361,7 +361,6 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty,
 		if (sldata->volumetrics->use_colored_transmit) {
 			DRW_draw_pass(m_psl->volumetric_resolve_transmit_ps);
 		}
-		inputofs->Bind();
 		DRW_draw_pass(m_psl->volumetric_resolve_ps);
 
 		///* Restore */
