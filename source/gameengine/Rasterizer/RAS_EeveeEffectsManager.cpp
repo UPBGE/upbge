@@ -31,6 +31,7 @@
 #include "RAS_SceneLayerData.h"
 
 #include "BLI_math.h"
+#include "DNA_world_types.h"
 
 #include "KX_Scene.h"  // For DOF,
 #include "KX_Camera.h" // motion blur and AO
@@ -75,6 +76,10 @@ m_dofInitialized(false)
 
 	// Ambient occlusion
 	m_useAO = m_effects->use_ao;
+
+	// Volumetrics
+	World *world = m_scene->GetBlenderScene()->world;
+	m_useVolumetricNodes = (world && world->use_nodes && world->nodetree);
 }
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
@@ -330,7 +335,7 @@ void RAS_EeveeEffectsManager::UpdateAO(RAS_OffScreen *inputofs)
 
 RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
 {
-	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0) {
+	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0 && m_useVolumetricNodes) {
 
 		UpdateViewVecs();
 
