@@ -343,6 +343,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty,
 			m_volumetricsInitialized = true;
 		}
 
+		m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
 		EEVEE_effects_replace_dtxl_depth(inputofs->GetDepthTexture());
 
 		/* Compute volumetric integration at halfres. */
@@ -356,7 +357,6 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty,
 
 		/* Resolve at fullres */
 		rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
-		DRW_framebuffer_texture_detach(m_scene->GetDefaultTextureList()->depth);
 		inputofs->Bind();
 		if (sldata->volumetrics->use_colored_transmit) {
 			DRW_draw_pass(m_psl->volumetric_resolve_transmit_ps);
