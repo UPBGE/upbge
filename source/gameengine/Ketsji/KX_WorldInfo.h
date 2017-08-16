@@ -43,7 +43,7 @@ void KX_WorldInfo_Mathutils_Callback_Init(void);
 
 struct Scene;
 struct World;
-struct GPUMaterial;
+struct DRWShadingGroup;
 
 class KX_WorldInfo : public PyObjectPlus
 {
@@ -51,7 +51,6 @@ class KX_WorldInfo : public PyObjectPlus
 
 	std::string m_name;
 	Scene *m_scene;
-	GPUMaterial *m_gpuMat;
 	bool m_do_color_management;
 	bool m_hasworld;
 	bool m_hasmist;
@@ -71,6 +70,7 @@ class KX_WorldInfo : public PyObjectPlus
 	MT_Vector3 m_con_mistcolor;
 	MT_Vector3 m_con_ambientcolor;
 	World *m_world;
+	DRWShadingGroup *m_backgroundShGroup;
 
 public:
 	/**

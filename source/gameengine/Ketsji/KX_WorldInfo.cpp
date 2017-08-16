@@ -42,6 +42,7 @@
 
 extern "C" {
 #  include "eevee_private.h"
+#  include "DRW_render.h"
 }
 
 /* This list includes only data type definitions */
@@ -61,10 +62,11 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 		m_world = blenderworld;
 		m_name = blenderworld->id.name + 2;
 		if (m_world->use_nodes && m_world->nodetree) {
-			m_gpuMat = EEVEE_material_world_background_get(m_scene, blenderworld);
+			GPUMaterial *mat = EEVEE_material_world_background_get(m_scene, blenderworld);
+			m_backgroundShGroup = DRW_shgroup_material_create(mat, nullptr);
 		}
 		else {
-			m_gpuMat = nullptr;
+			m_backgroundShGroup = nullptr;
 		}
 		m_do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
 		m_hasworld = true;
@@ -219,24 +221,9 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 {
 	if (m_hasworld) {
 		if (m_world->use_nodes && m_world->nodetree) {
-			float viewmat[4][4];
-			rasty->GetViewMatrix().getValue(&viewmat[0][0]);
-			float invviewmat[4][4];
-			rasty->GetViewInvMatrix().getValue(&invviewmat[0][0]);
 
-			static float texcofac[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-			GPU_material_bind(m_gpuMat, 0xFFFFFFFF, m_scene->lay, 1.0f, false, viewmat, invviewmat, texcofac, false);
-
-			rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
-			rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
-			rasty->SetDepthFunc(RAS_Rasterizer::RAS_ALWAYS);
-
+			DRW_bind_shader_shgroup(m_backgroundShGroup);
 			rasty->DrawOverlayPlane();
-
-			rasty->SetDepthFunc(RAS_Rasterizer::RAS_LEQUAL);
-			rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);
-
-			GPU_material_unbind(m_gpuMat);
 		}
 		else {
 			rasty->SetClearColor(m_horizoncolor[0], m_horizoncolor[1], m_horizoncolor[2], m_horizoncolor[3]);
