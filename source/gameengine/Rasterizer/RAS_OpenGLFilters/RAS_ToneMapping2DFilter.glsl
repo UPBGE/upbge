@@ -1,4 +1,4 @@
-#define DITHER 100.0
+#define DITHER 20.0
 uniform sampler2D bgl_RenderedTexture;
 in vec4 bgl_TexCoord;
 out vec4 fragColor;
