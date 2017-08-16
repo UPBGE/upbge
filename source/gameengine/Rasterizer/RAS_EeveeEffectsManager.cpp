@@ -51,20 +51,26 @@ m_dofInitialized(false)
 	m_fbl = vedata->fbl;
 	m_effects = m_stl->effects;
 
+	static const GPUTextureFormat dataTypeEnums[] = {
+		GPU_RGBA8, // RAS_HDR_NONE
+		GPU_RGBA16F, // RAS_HDR_HALF_FLOAT
+		GPU_RGBA32F // RAS_HDR_FULL_FLOAT
+	};
+
 	m_savedDepth = m_scene->GetDefaultTextureList()->depth;
 
 	// Bloom
-	m_bloomTarget.reset(new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, GPU_R11F_G11F_B10F,
+	m_bloomTarget.reset(new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, dataTypeEnums[m_canvas->GetHdrType()],
 		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
 	InitBloom();
 
 	// Camera Motion Blur
 	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
-	m_blurTarget.reset(new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, GPU_R11F_G11F_B10F,
+	m_blurTarget.reset(new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, dataTypeEnums[m_canvas->GetHdrType()],
 		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
 
 	// Depth of field
-	m_dofTarget.reset(new RAS_OffScreen(int(m_canvas->GetWidth() / 2), int(m_canvas->GetHeight() / 2), 0, GPU_R11F_G11F_B10F,
+	m_dofTarget.reset(new RAS_OffScreen(int(m_canvas->GetWidth() / 2), int(m_canvas->GetHeight() / 2), 0, dataTypeEnums[m_canvas->GetHdrType()],
 		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
 
 	// Ambient occlusion
