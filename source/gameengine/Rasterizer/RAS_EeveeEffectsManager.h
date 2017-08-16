@@ -86,6 +86,7 @@ private:
 	bool m_useAO;
 
 	bool m_useVolumetricNodes; // avoid rendering volumetrics when no background nodes
+	bool m_volumetricsInitialized;
 };
 
 #endif // __RAS_EEVEEEFFECTSMANAGER_H__

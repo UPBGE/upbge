@@ -44,7 +44,8 @@ RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas
 m_canvas(canvas),
 m_props(props),
 m_scene(scene),
-m_dofInitialized(false)
+m_dofInitialized(false),
+m_volumetricsInitialized(false)
 {
 	m_stl = vedata->stl;
 	m_psl = vedata->psl;
@@ -337,10 +338,12 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty,
 {
 	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0 && m_useVolumetricNodes) {
 
-		UpdateViewVecs();
+		if (!m_volumetricsInitialized) {
+			UpdateViewVecs();
+			m_volumetricsInitialized = true;
+		}
 
 		EEVEE_effects_replace_dtxl_depth(inputofs->GetDepthTexture());
-		//e_data.depth_src = dtxl->depth;
 
 		/* Compute volumetric integration at halfres. */
 		DRW_framebuffer_texture_attach(m_fbl->volumetric_fb, m_stl->g_data->volumetric, 0, 0);
@@ -361,14 +364,11 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty,
 		DRW_draw_pass(m_psl->volumetric_resolve_ps);
 
 		///* Restore */
-		//DRW_framebuffer_texture_attach(fbl->main, dtxl->depth, 0, 0);
-		//DRW_framebuffer_texture_detach(stl->g_data->volumetric);
-		//if (sldata->volumetrics->use_colored_transmit) {
-		//	DRW_framebuffer_texture_detach(stl->g_data->volumetric_transmit);
-		//}
+		DRW_framebuffer_texture_detach(m_stl->g_data->volumetric);
+		if (sldata->volumetrics->use_colored_transmit) {
+			DRW_framebuffer_texture_detach(m_stl->g_data->volumetric_transmit);
+		}
 
-		///* Rebind main buffer after attach/detach operations */
-		//DRW_framebuffer_bind(fbl->main);
 		return inputofs;
 	}
 	return inputofs;
