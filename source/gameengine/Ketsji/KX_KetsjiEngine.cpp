@@ -1098,7 +1098,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, RAS_OffScreen *
 	const int width = m_canvas->GetWidth();
 	const int height = m_canvas->GetHeight();
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
-	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
+	m_rasterizer->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
 	RAS_OffScreen *offScreen = scene->RenderEeveeEffects(m_rasterizer, inputofs);
 
