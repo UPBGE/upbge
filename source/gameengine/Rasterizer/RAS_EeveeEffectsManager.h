@@ -84,6 +84,7 @@ private:
 	bool m_dofInitialized; // see comment in RenderDof()
 
 	bool m_useAO;
+	bool m_aoInitialized;
 
 	bool m_useVolumetricNodes; // avoid rendering volumetrics when no background nodes
 	bool m_volumetricsInitialized;

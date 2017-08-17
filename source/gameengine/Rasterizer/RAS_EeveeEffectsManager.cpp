@@ -44,6 +44,7 @@ RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas
 m_canvas(canvas),
 m_props(props),
 m_scene(scene),
+m_aoInitialized(false),
 m_dofInitialized(false),
 m_volumetricsInitialized(false)
 {
@@ -330,7 +331,10 @@ void RAS_EeveeEffectsManager::UpdateAO(RAS_OffScreen *inputofs)
 		 */
 		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), inputofs->GetDepthTexture());
 
-		UpdateViewVecs();
+		if (!m_aoInitialized) {
+			UpdateViewVecs();
+			m_aoInitialized = true;
+		}
 	}
 }
 
