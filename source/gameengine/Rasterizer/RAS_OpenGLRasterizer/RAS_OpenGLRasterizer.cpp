@@ -554,7 +554,8 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 {
 	CM_Message("GL_VENDOR: " << glGetString(GL_VENDOR));
 	CM_Message("GL_RENDERER: " << glGetString(GL_RENDERER));
-	CM_Message("GL_VERSION:  " << glGetString(GL_VERSION));
+	CM_Message("GL_VERSION: " << glGetString(GL_VERSION));
+    CM_Message("GL_SHADING_LANGUAGE_VERSION: " << glGetString(GL_SHADING_LANGUAGE_VERSION));
 	bool support=0;
 	CM_Message("Supported Extensions...");
 	CM_Message(" GL_ARB_shader_objects supported?       "<< (GLEW_ARB_shader_objects?"yes.":"no."));
