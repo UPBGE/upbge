@@ -54,7 +54,7 @@ m_volumetricsInitialized(false)
 	m_effects = m_stl->effects;
 
 	static const GPUTextureFormat dataTypeEnums[] = {
-		GPU_RGBA8, // RAS_HDR_NONE
+		GPU_R11F_G11F_B10F, // RAS_HDR_NONE
 		GPU_RGBA16F, // RAS_HDR_HALF_FLOAT
 		GPU_RGBA32F // RAS_HDR_FULL_FLOAT
 	};

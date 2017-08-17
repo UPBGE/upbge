@@ -75,7 +75,7 @@ void RAS_2DFilterOffScreen::Construct()
 		/* WARNING: Always respect the order from RAS_Rasterizer::HdrType.
 		 * RAS_HDR_NONE can use RGBA8 as the tonemapping is applied before the filters. */
 		static const GPUTextureFormat dataTypeEnums[] = {
-			GPU_RGBA8, // RAS_HDR_NONE
+			GPU_R11F_G11F_B10F, // RAS_HDR_NONE
 			GPU_RGBA16F, // RAS_HDR_HALF_FLOAT
 			GPU_RGBA32F // RAS_HDR_FULL_FLOAT
 		};
