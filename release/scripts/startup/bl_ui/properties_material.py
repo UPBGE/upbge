@@ -183,7 +183,7 @@ class MATERIAL_PT_context_material(MaterialButtonsPanel, Panel):
 
 class MATERIAL_PT_preview(MaterialButtonsPanel, Panel):
     bl_label = "Preview"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw(self, context):
         self.layout.template_preview(context.material)
@@ -651,6 +651,7 @@ class MATERIAL_PT_flare(MaterialButtonsPanel, Panel):
 
 class MATERIAL_PT_game_settings(MaterialButtonsPanel, Panel):
     bl_label = "Game Settings"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     @classmethod
@@ -773,6 +774,7 @@ class MATERIAL_PT_options(MaterialButtonsPanel, Panel):
 
 class MATERIAL_PT_game_options(MaterialButtonsPanel, Panel):
     bl_label = "Options"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     @classmethod
