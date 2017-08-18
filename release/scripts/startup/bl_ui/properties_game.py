@@ -681,77 +681,6 @@ class DataButtonsPanel:
     bl_context = "data"
 
 
-class DATA_PT_shadow_game(DataButtonsPanel, Panel):
-    bl_label = "Shadow"
-    COMPAT_ENGINES = {'BLENDER_GAME'}
-
-    @classmethod
-    def poll(cls, context):
-        COMPAT_LIGHTS = {'SPOT', 'SUN'}
-        lamp = context.lamp
-        engine = context.scene.render.engine
-        return (lamp and lamp.type in COMPAT_LIGHTS) and (engine in cls.COMPAT_ENGINES)
-
-    def draw_header(self, context):
-        lamp = context.lamp
-
-        self.layout.prop(lamp, "use_shadow", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        lamp = context.lamp
-
-        layout.active = lamp.use_shadow
-
-        split = layout.split()
-
-        col = split.column()
-        col.prop(lamp, "shadow_color", text="")
-        if lamp.type in ('SUN', 'SPOT'):
-            col.prop(lamp, "show_shadow_box")
-        col.prop(lamp, "static_shadow")
-
-        col = split.column()
-        col.prop(lamp, "use_shadow_layer", text="This Layer Only")
-        col.prop(lamp, "use_only_shadow")
-
-        col = layout.column()
-        col.label("Buffer Type:")
-        col.prop(lamp, "ge_shadow_buffer_type", text="", toggle=True)
-        if lamp.ge_shadow_buffer_type == "SIMPLE":
-            col.label("Filter Type:")
-            col.prop(lamp, "shadow_filter", text="", toggle=True)
-
-        col.label("Quality:")
-        col = layout.column(align=True)
-        col.prop(lamp, "shadow_buffer_size", text="Size")
-        if lamp.ge_shadow_buffer_type == "VARIANCE":
-            col.prop(lamp, "shadow_buffer_sharp", text="Sharpness")
-        elif lamp.shadow_filter in ("PCF", "PCF_BAIL"):
-            col.prop(lamp, "shadow_buffer_samples", text="Samples")
-            col.prop(lamp, "shadow_buffer_soft", text="Soft")
-
-        row = layout.row()
-        row.label("Bias:")
-        row = layout.row(align=True)
-        row.prop(lamp, "shadow_buffer_bias", text="Bias")
-        if lamp.ge_shadow_buffer_type == "VARIANCE":
-            row.prop(lamp, "shadow_buffer_bleed_bias", text="Bleed Bias")
-        else:
-            row.prop(lamp, "shadow_buffer_slope_bias", text="Slope Bias")
-
-        row = layout.row()
-        row.label("Clipping:")
-        row = layout.row(align=True)
-        row.prop(lamp, "shadow_buffer_clip_start", text="Clip Start")
-        row.prop(lamp, "shadow_buffer_clip_end", text="Clip End")
-
-        if lamp.type == 'SUN':
-            row = layout.row()
-            row.prop(lamp, "shadow_frustum_size", text="Frustum Size")
-
-
 class ObjectButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -844,7 +773,6 @@ classes = (
     SCENE_PT_game_navmesh,
     SCENE_PT_game_hysteresis,
     SCENE_PT_game_console,
-    DATA_PT_shadow_game,
     OBJECT_MT_lod_tools,
     OBJECT_MT_culling,
     OBJECT_PT_levels_of_detail,

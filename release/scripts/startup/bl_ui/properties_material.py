@@ -107,7 +107,7 @@ class MaterialButtonsPanel:
 class MATERIAL_PT_context_material(MaterialButtonsPanel, Panel):
     bl_label = ""
     bl_options = {'HIDE_HEADER'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     @classmethod
     def poll(cls, context):
@@ -245,7 +245,7 @@ class MATERIAL_PT_pipeline(MaterialButtonsPanel, Panel):
 
 class MATERIAL_PT_diffuse(MaterialButtonsPanel, Panel):
     bl_label = "Diffuse"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     @classmethod
     def poll(cls, context):
@@ -302,7 +302,7 @@ class MATERIAL_PT_diffuse(MaterialButtonsPanel, Panel):
 
 class MATERIAL_PT_specular(MaterialButtonsPanel, Panel):
     bl_label = "Specular"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     @classmethod
     def poll(cls, context):
@@ -355,7 +355,7 @@ class MATERIAL_PT_specular(MaterialButtonsPanel, Panel):
 
 class MATERIAL_PT_shading(MaterialButtonsPanel, Panel):
     bl_label = "Shading"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     @classmethod
     def poll(cls, context):
@@ -513,7 +513,7 @@ class MATERIAL_PT_mirror(MaterialButtonsPanel, Panel):
 class MATERIAL_PT_sss(MaterialButtonsPanel, Panel):
     bl_label = "Subsurface Scattering"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     @classmethod
     def poll(cls, context):
@@ -544,26 +544,21 @@ class MATERIAL_PT_sss(MaterialButtonsPanel, Panel):
 
         split = layout.split()
 
-        if context.scene.render.engine != 'BLENDER_GAME':
-            col = split.column()
-            col.prop(sss, "ior")
-            col.prop(sss, "scale")
-            col.prop(sss, "color", text="")
-            col.prop(sss, "radius", text="RGB Radius", expand=True)
-            col = split.column()
-            sub = col.column(align=True)
-            sub.label(text="Blend:")
-            sub.prop(sss, "color_factor", text="Color")
-            sub.prop(sss, "texture_factor", text="Texture")
-            sub.label(text="Scattering Weight:")
-            sub.prop(sss, "front")
-            sub.prop(sss, "back")
-            col.separator()
-            col.prop(sss, "error_threshold", text="Error")
-        else:
-            col = split.column()
-            col.prop(sss, "scale")
-            col.prop(sss, "radius", text="RGB Radius", expand=True)
+        col = split.column()
+        col.prop(sss, "ior")
+        col.prop(sss, "scale")
+        col.prop(sss, "color", text="")
+        col.prop(sss, "radius", text="RGB Radius", expand=True)
+        col = split.column()
+        sub = col.column(align=True)
+        sub.label(text="Blend:")
+        sub.prop(sss, "color_factor", text="Color")
+        sub.prop(sss, "texture_factor", text="Texture")
+        sub.label(text="Scattering Weight:")
+        sub.prop(sss, "front")
+        sub.prop(sss, "back")
+        col.separator()
+        col.prop(sss, "error_threshold", text="Error")
 
 
 class MATERIAL_PT_halo(MaterialButtonsPanel, Panel):
@@ -673,19 +668,13 @@ class MATERIAL_PT_game_settings(MaterialButtonsPanel, Panel):
         col.prop(game, "use_backface_culling")
         col.prop(game, "invisible")
         col.prop(game, "physics")
+
+        col = split.column()
         col.label(text="Face Orientation:")
         col.prop(game, "face_orientation", text="")
         col.label(text="Alpha Blend:")
         col.prop(game, "alpha_blend", text="")
 
-        col = split.column()
-        col.label(text="Constant Values:")
-        col.prop(mat, "use_constant_material")
-        col.prop(mat, "use_constant_lamp")
-        col.prop(mat, "use_constant_texture")
-        col.prop(mat, "use_constant_texture_uv")
-        col.prop(mat, "use_constant_world")
-        col.prop(mat, "use_constant_mist")
 
 class MATERIAL_PT_strand(MaterialButtonsPanel, Panel):
     bl_label = "Strand"
@@ -801,24 +790,10 @@ class MATERIAL_PT_game_options(MaterialButtonsPanel, Panel):
         split = layout.split()
 
         col = split.column()
-        if simple_material(base_mat):
-            col.prop(mat, "invert_z")
-            sub = col.row()
-            sub.prop(mat, "offset_z")
-            sub.active = mat.use_transparency and mat.transparency_method == 'Z_TRANSPARENCY'
-        sub = col.column(align=True)
-        sub.label(text="Light Group:")
-        sub.prop(mat, "light_group", text="")
-        row = sub.row(align=True)
-        row.active = bool(mat.light_group)
-        row.prop(mat, "use_light_group_exclusive", text="Exclusive")
-        row.prop(mat, "use_light_group_local", text="Local")
+        col.prop(mat, "invert_z")
+        col.prop(mat, "offset_z")
 
         col = split.column()
-        col.prop(mat, "use_mist")
-        col.prop(mat, "use_vertex_color_paint")
-        col.prop(mat, "use_vertex_color_light")
-        col.prop(mat, "use_object_color")
         col.prop(mat, "use_instancing")
 
 class MATERIAL_PT_shadow(MaterialButtonsPanel, Panel):
@@ -887,11 +862,10 @@ class MATERIAL_PT_game_shadow(MaterialButtonsPanel, Panel):
 
         split = layout.split()
 
-        if simple_material(base_mat):
-            col = split.column()
+        col = split.column()
 
-            col.prop(mat, "use_cast_shadows", text="Cast")
-            col.prop(mat, "use_cast_shadows_only", text="Cast Only")
+        col.prop(mat, "use_cast_shadows", text="Cast")
+        col.prop(mat, "use_cast_shadows_only", text="Cast Only")
 
         col = split.column()
         col.prop(mat, "use_shadows", text="Receive")
@@ -910,8 +884,7 @@ class MATERIAL_PT_transp_game(MaterialButtonsPanel, Panel):
     def draw_header(self, context):
         mat = context.material
 
-        if simple_material(mat):
-            self.layout.prop(mat, "use_transparency", text="")
+        self.layout.prop(mat, "use_transparency", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -919,17 +892,8 @@ class MATERIAL_PT_transp_game(MaterialButtonsPanel, Panel):
         mat = active_node_mat(base_mat)
 
         layout.active = mat.use_transparency
-
-        split = layout.split()
-        col = split.column()
-        col.active = mat.use_depth_transparency
-        col.prop(mat, "depth_transp_factor", text="Depth Factor")
-        col = split.column()
-        col.prop(mat, "use_depth_transparency")
-
-        if simple_material(base_mat):
-            row = layout.row()
-            row.prop(mat, "transparency_method", expand=True)
+        row = layout.row()
+        row.prop(mat, "transparency_method", expand=True)
 
         layout.prop(mat, "alpha")
         layout.prop(mat, "specular_alpha", text="Specular")
@@ -1064,7 +1028,7 @@ class MATERIAL_PT_volume_integration(VolumeButtonsPanel, Panel):
 
 class MATERIAL_PT_volume_options(VolumeButtonsPanel, Panel):
     bl_label = "Options"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -1245,13 +1209,9 @@ classes = (
     MATERIAL_PT_sss,
     MATERIAL_PT_halo,
     MATERIAL_PT_flare,
-    MATERIAL_PT_game_settings,
     MATERIAL_PT_strand,
     MATERIAL_PT_options,
-    MATERIAL_PT_game_options,
     MATERIAL_PT_shadow,
-    MATERIAL_PT_game_shadow,
-    MATERIAL_PT_transp_game,
     MATERIAL_PT_volume_density,
     MATERIAL_PT_volume_shading,
     MATERIAL_PT_volume_lighting,
@@ -1260,6 +1220,10 @@ classes = (
     MATERIAL_PT_volume_options,
     EEVEE_MATERIAL_PT_context_material,
     EEVEE_MATERIAL_PT_surface,
+    MATERIAL_PT_game_settings,
+    MATERIAL_PT_game_options,
+    MATERIAL_PT_game_shadow,
+    MATERIAL_PT_transp_game,
 )
 
 if __name__ == "__main__":  # only for live edit.
