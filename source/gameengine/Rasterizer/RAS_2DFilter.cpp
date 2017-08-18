@@ -103,15 +103,12 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 	}
 }
 
-RAS_OffScreen *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *depthofs,
+RAS_OffScreen *RAS_2DFilter::Draw(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *depthofs,
 						 RAS_OffScreen *colorofs, RAS_OffScreen *targetofs)
 {
 	/* The off screen the filter rendered to. If the filter is invalid or uses a custom
 	 * off screen the output off screen is the same as the input off screen. */
 	RAS_OffScreen *outputofs = colorofs;
-	if (!Ok()) {
-		return outputofs;
-	}
 
 	/* The target off screen must be not the color input off screen, it can be the same as depth input
 	 * screen because depth is unchanged. */
@@ -148,14 +145,9 @@ RAS_OffScreen *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, R
 		m_offScreen->Unbind(rasty, canvas);
 	}
 
-	return outputofs;
-}
+	SetProg(false);
 
-void RAS_2DFilter::End()
-{
-	if(Ok()) {
-		SetProg(false);
-	}
+	return outputofs;
 }
 
 bool RAS_2DFilter::LinkProgram()

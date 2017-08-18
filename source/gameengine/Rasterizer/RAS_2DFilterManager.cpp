@@ -83,7 +83,7 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 	return (it != m_filters.end()) ? it->second : nullptr;
 }
 
-RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+void RAS_2DFilterManager::CompleteCollection(RAS_ScreenPassCollection& collection)
 {
 	if (m_filters.size() == 0 || !m_toneMapAdded) {
 		// No filters, discard.
@@ -95,9 +95,17 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 			AddFilter(toneMapData);
 			m_toneMapAdded = true;
 		}
-		return inputofs;
+// 		return inputofs;
 	}
 
+	for (RAS_PassTo2DFilter::iterator it = m_filters.begin(), end = m_filters.end(); it != end; ++it) {
+		RAS_2DFilter *filter = it->second;
+		if (filter->Ok()) {
+			collection.AddPass(filter);
+		}
+	}
+
+#if 0
 	rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_DISABLED);
@@ -145,8 +153,7 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 		/* Get the output off screen of the filter, could be the same as the input off screen
 		 * if no modifications were made or the targeted off screen.
 		 * This output off screen is used for the next filter as input off screen */
-		previousofs = filter->Start(rasty, canvas, depthofs, colorofs, ftargetofs);
-		filter->End();
+		previousofs = filter->Draw(rasty, canvas, depthofs, colorofs, ftargetofs);
 	}
 
 	// The last filter doesn't use its own off screen and didn't render to the targeted off screen ?
@@ -159,8 +166,7 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
 	rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);
-
-	return targetofs;
+#endif
 }
 
 RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)

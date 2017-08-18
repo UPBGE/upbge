@@ -538,7 +538,7 @@ public:
 	 * 2D Filters
 	 */
 	RAS_2DFilterManager *Get2DFilterManager() const;
-	RAS_OffScreen *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
+	RAS_OffScreen *RenderScreenPasses(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 

@@ -68,6 +68,7 @@
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
 #include "RAS_SceneLayerData.h"
+#include "RAS_ScreenPassCollection.h"
 
 #include "EXP_FloatValue.h"
 #include "SCA_IController.h"
@@ -1983,9 +1984,12 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 	return m_filterManager;
 }
 
-RAS_OffScreen *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+RAS_OffScreen *KX_Scene::RenderScreenPasses(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
-	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs);
+	RAS_ScreenPassCollection collection(rasty, canvas, inputofs, targetofs);
+	m_filterManager->CompleteCollection(collection);
+
+	return collection.Execute();
 }
 
 #ifdef WITH_PYTHON

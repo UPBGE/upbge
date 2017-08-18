@@ -1071,7 +1071,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 
-	RAS_OffScreen *offScreen = scene->Render2DFilters(m_rasterizer, m_canvas, inputofs, targetofs);
+	RAS_OffScreen *offScreen = scene->RenderScreenPasses(m_rasterizer, m_canvas, inputofs, targetofs);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());

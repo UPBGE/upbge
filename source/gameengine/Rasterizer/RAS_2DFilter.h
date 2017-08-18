@@ -25,17 +25,15 @@
 
 #include "RAS_2DFilterData.h"
 #include "RAS_Shader.h"
+#include "RAS_ScreenPass.h"
 
 #include <memory>
 
 class RAS_2DFilterManager;
-class RAS_Rasterizer;
-class RAS_ICanvas;
-class RAS_OffScreen;
 class RAS_2DFilterOffScreen;
 class CValue;
 
-class RAS_2DFilter : public virtual RAS_Shader
+class RAS_2DFilter : public virtual RAS_Shader, public RAS_ScreenPass
 {
 public:
 	enum PredefinedUniformType {
@@ -89,20 +87,8 @@ public:
 	/// Called by the filter manager when it has informations like the display size, a gl context...
 	void Initialize(RAS_ICanvas *canvas);
 
-	/** Starts executing the filter.
-	 * \param rasty The used rasterizer to call draw commands.
-	 * \param canvas The canvas containing screen viewport.
-	 * \param detphofs The off screen used only for the depth texture input,
-	 * the same for all filters of a scene.
-	 * \param colorofs The off screen used only for the color texture input, unique per filters.
-	 * \param targetofs The off screen used to draw the filter to.
-	 * \return The off screen to use as input for the next filter.
-	 */
-	RAS_OffScreen *Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *detphofs,
+	virtual RAS_OffScreen *Draw(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *detphofs,
 			   RAS_OffScreen *colorofs, RAS_OffScreen *targetofs);
-
-	/// Finalizes the execution stage of the filter.
-	void End();
 };
 
 #endif // __RAS_2DFILTER_H__

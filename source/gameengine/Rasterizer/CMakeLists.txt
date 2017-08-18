@@ -91,6 +91,7 @@ set(SRC
 	RAS_Polygon.cpp
 	RAS_Query.cpp
 	RAS_SceneLayerData.cpp
+	RAS_ScreenPassCollection.cpp
 	RAS_Shader.cpp
 	RAS_ShadowShader.cpp
 	RAS_Texture.cpp
@@ -136,6 +137,8 @@ set(SRC
 	RAS_Query.h
 	RAS_Rect.h
 	RAS_SceneLayerData.h
+	RAS_ScreenPass.h
+	RAS_ScreenPassCollection.h
 	RAS_Shader.h
 	RAS_ShadowShader.h
 	RAS_Texture.h

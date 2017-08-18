@@ -28,6 +28,7 @@
 #define __RAS_2DFILTERMANAGER_H__
 
 #include "RAS_2DFilterData.h"
+#include "RAS_ScreenPassCollection.h"
 #include <map>
 
 class RAS_ICanvas;
@@ -63,15 +64,7 @@ public:
 	RAS_2DFilterManager();
 	virtual ~RAS_2DFilterManager();
 
-	/** Applies the filters to the scene.
-	 * \param rasty The rasterizer used for draw commands.
-	 * \param canvas The canvas containing the screen viewport.
-	 * \param inputofs The off screen used as input of the first filter.
-	 * \param targetofs The off screen used as output of the last filter.
-	 * \return The last used off screen, if none filters were rendered it's the
-	 * same off screen than inputofs.
-	 */
-	RAS_OffScreen *RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
+	void CompleteCollection(RAS_ScreenPassCollection& collection);
 
 	/// Add a filter to the stack of filters managed by this object.
 	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);
