@@ -619,7 +619,8 @@ class RENDER_PT_clay_collection_settings(RenderButtonsPanel, Panel):
 
 class RENDER_PT_eevee_poststack_settings(RenderButtonsPanel, Panel):
     bl_label = "Post Process Stack"
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
 
     @classmethod
     def poll(cls, context):
@@ -640,7 +641,7 @@ class RENDER_PT_eevee_poststack_settings(RenderButtonsPanel, Panel):
 
 class RENDER_PT_eevee_postprocess_settings(RenderButtonsPanel, Panel):
     bl_label = "Post Process Settings"
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
 
     @classmethod
     def poll(cls, context):
@@ -680,7 +681,7 @@ class RENDER_PT_eevee_postprocess_settings(RenderButtonsPanel, Panel):
 
 class RENDER_PT_eevee_volumetric(RenderButtonsPanel, Panel):
     bl_label = "Volumetric"
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
 
     @classmethod
     def poll(cls, context):

@@ -302,6 +302,7 @@ class RenderButtonsPanel:
 
 class RENDER_PT_embedded(RenderButtonsPanel, Panel):
     bl_label = "Embedded Player"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     def draw(self, context):
@@ -320,6 +321,7 @@ class RENDER_PT_embedded(RenderButtonsPanel, Panel):
 
 class RENDER_PT_game_player(RenderButtonsPanel, Panel):
     bl_label = "Standalone Player"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     def draw(self, context):
@@ -355,6 +357,7 @@ class RENDER_PT_game_player(RenderButtonsPanel, Panel):
 
 class RENDER_PT_game_stereo(RenderButtonsPanel, Panel):
     bl_label = "Stereo"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     def draw(self, context):
@@ -374,6 +377,7 @@ class RENDER_PT_game_stereo(RenderButtonsPanel, Panel):
 
 class RENDER_PT_game_shading(RenderButtonsPanel, Panel):
     bl_label = "Shading"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     def draw(self, context):
@@ -396,6 +400,7 @@ class RENDER_PT_game_shading(RenderButtonsPanel, Panel):
 
 class RENDER_PT_game_system(RenderButtonsPanel, Panel):
     bl_label = "System"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     def draw(self, context):
@@ -421,6 +426,7 @@ class RENDER_PT_game_system(RenderButtonsPanel, Panel):
 
 class RENDER_PT_game_animations(RenderButtonsPanel, Panel):
     bl_label = "Animations"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     def draw(self, context):
@@ -434,6 +440,7 @@ class RENDER_PT_game_animations(RenderButtonsPanel, Panel):
 
 class RENDER_PT_game_display(RenderButtonsPanel, Panel):
     bl_label = "Display"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     def draw(self, context):
@@ -452,6 +459,7 @@ class RENDER_PT_game_display(RenderButtonsPanel, Panel):
 
 class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
     bl_label = "Debug"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     def draw(self, context):
