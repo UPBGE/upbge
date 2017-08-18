@@ -143,11 +143,11 @@ void RAS_EeveeEffectsManager::InitBloom()
 		int blitsize[2], texsize[2];
 
 		/* Blit Buffer */
-		m_effects->source_texel_size[0] = 1.0f / (m_canvas->GetWidth());
-		m_effects->source_texel_size[1] = 1.0f / (m_canvas->GetHeight());
+		m_effects->source_texel_size[0] = 1.0f / (m_canvas->GetWidth() + 1);
+		m_effects->source_texel_size[1] = 1.0f / (m_canvas->GetHeight() + 1);
 
-		blitsize[0] = (int)(m_canvas->GetWidth());
-		blitsize[1] = (int)(m_canvas->GetHeight());
+		blitsize[0] = (int)(m_canvas->GetWidth() + 1);
+		blitsize[1] = (int)(m_canvas->GetHeight() + 1);
 
 		m_effects->blit_texel_size[0] = 1.0f / (float)blitsize[0];
 		m_effects->blit_texel_size[1] = 1.0f / (float)blitsize[1];
@@ -383,8 +383,6 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 {
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
-	UpdateAO(inputofs);
-
 	inputofs = RenderVolumetrics(rasty, inputofs);
 
 	inputofs = RenderMotionBlur(rasty, inputofs);
@@ -392,6 +390,8 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 	inputofs = RenderDof(rasty, inputofs);
 
 	inputofs = RenderBloom(rasty, inputofs);
+
+	UpdateAO(inputofs);
 
 	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	
