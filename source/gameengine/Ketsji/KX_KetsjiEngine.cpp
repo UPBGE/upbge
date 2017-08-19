@@ -1102,6 +1102,8 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, RAS_OffScreen *
 
 	RAS_OffScreen *offScreen = scene->RenderEeveeEffects(m_rasterizer, inputofs);
 
+	m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+
 	return offScreen;
 }
 
