@@ -2334,6 +2334,13 @@ void env_apply(vec4 col, vec3 hor, vec3 zen, vec4 f, mat4 vm, vec3 vn, out vec4 
 	outcol = col + f * vec4(mix(hor, zen, skyfac), 0);
 }
 
+void env_apply_tex(vec4 col, vec4 f, samplerCube wtex, vec3 vn, mat4 ivm, out vec4 outcol)
+{
+	vec3 ndir = normalize(ivm * vec4(vn, 0.0)).xyz;
+	vec4 cubeD = textureCubeLod(wtex, ndir, 9.0);
+	outcol = col + f * cubeD * (1.0 / 3.141592654);
+}
+
 void shade_maddf(vec4 col, float f, vec4 col1, out vec4 outcol)
 {
 	outcol = col + f * col1;

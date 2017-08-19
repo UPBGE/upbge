@@ -1989,7 +1989,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 				if (((world->ao_env_energy != 0.0f) && (GPU_link_changed(shi->amb) || ma->amb != 0.0f) &&
 				    (GPU_link_changed(shi->refl) || ma->ref != 0.0f)) || !(ma->constflag & MA_CONSTANT_WORLD))
 				{
-					if (world->aocolor != WO_AOPLAIN) {
+					if (world->aocolor == WO_AOSKYCOL) {
 						if (!(is_zero_v3(&world->horr) & is_zero_v3(&world->zenr)) || !(ma->constflag & MA_CONSTANT_WORLD)) {
 							GPUNodeLink *fcol, *f;
 							GPU_link(mat, "math_multiply", shi->amb, shi->refl, &f);
@@ -1998,7 +1998,21 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 							GPU_link(mat, "env_apply", shr->combined,
 							         GPU_select_uniform(GPUWorld.horicol, GPU_DYNAMIC_HORIZON_COLOR, NULL, ma),
 							         GPU_select_uniform(GPUWorld.zencol, GPU_DYNAMIC_ZENITH_COLOR, NULL, ma), fcol,
-							         GPU_builtin(GPU_VIEW_MATRIX), shi->vn, &shr->combined);
+									 GPU_builtin(GPU_VIEW_MATRIX), shi->vn, &shr->combined);
+						}
+					}
+					else if (world->aocolor == WO_AOSKYTEX) {
+						if (world->mtex && world->mtex[0] && world->mtex[0]->tex && world->mtex[0]->tex->ima) {
+							GPUNodeLink *fcol, *f;
+							Tex* tex = world->mtex[0]->tex;
+							GPU_link(mat, "math_multiply", shi->amb, shi->refl, &f);
+							GPU_link(mat, "math_multiply", f, GPU_select_uniform(&GPUWorld.envlightenergy, GPU_DYNAMIC_ENVLIGHT_ENERGY, NULL, ma), &f);
+							GPU_link(mat, "shade_mul_value", f, shi->rgb, &fcol);
+							GPU_link(mat, "env_apply_tex", shr->combined, fcol,
+									 GPU_cube_map(tex->ima, &tex->iuser, false),
+									 GPU_builtin(GPU_VIEW_NORMAL),
+									 GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
+									 &shr->combined);
 						}
 					}
 					else {
