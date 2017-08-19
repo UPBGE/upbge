@@ -390,7 +390,7 @@ PyMappingMethods CBaseListValue::instance_as_mapping = {
 
 PyTypeObject CBaseListValue::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"CBaseListValue",           /*tp_name*/
+	"CListValue",           /*tp_name*/
 	sizeof(PyObjectPlus_Proxy), /*tp_basicsize*/
 	0,              /*tp_itemsize*/
 	/* methods */
