@@ -1084,6 +1084,11 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 		m_euthanasyobjects.erase(euthit);
 	}
 
+	const std::vector<KX_GameObject *>::const_iterator tempit = std::find(m_tempObjectList.begin(), m_tempObjectList.end(), gameobj);
+	if (tempit != m_tempObjectList.end()) {
+		m_tempObjectList.erase(tempit);
+	}
+
 	if (gameobj == m_active_camera)
 	{
 		//no AddRef done on m_active_camera so no Release
@@ -1456,29 +1461,22 @@ void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int 
 void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 {
 	// have a look at temp objects ...
-	for (std::vector<KX_GameObject *>::iterator it = m_tempObjectList.begin(); it != m_tempObjectList.end();) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : m_tempObjectList) {
 		CFloatValue* propval = (CFloatValue *)gameobj->GetProperty("::timebomb");
 		
-		if (propval)
-		{
-			float timeleft = propval->GetNumber() - framestep;
+		if (propval) {
+			const float timeleft = propval->GetNumber() - framestep;
 			
-			if (timeleft > 0)
-			{
+			if (timeleft > 0) {
 				propval->SetFloat(timeleft);
-				++it;
 			}
-			else
-			{
-				// remove obj
+			else {
+				// Remove obj, remove the object from tempObjectList in NewRemoveObject only.
 				DelayedRemoveObject(gameobj);
-				it = m_tempObjectList.erase(it);
 			}
 		}
-		else
-		{
-			// all object is the tempObjectList should have a clock
+		else {
+			// All object is the tempObjectList should have a clock.
 			BLI_assert(false);
 		}
 	}
