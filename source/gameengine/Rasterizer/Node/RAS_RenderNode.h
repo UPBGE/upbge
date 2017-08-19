@@ -55,17 +55,17 @@ class RAS_MeshSlotUpwardNode;
 struct RAS_ManagerNodeData
 {
 	MT_Transform m_trans;
-	RAS_Rasterizer *m_rasty;
+	RAS_Rasterizer *m_rasty = nullptr;
 	RAS_Rasterizer::DrawType m_drawingMode;
-	RAS_OverrideShader *m_overrideShader;
+	RAS_OverrideShader *m_overrideShader = nullptr;
 	bool m_sort;
 	bool m_cubeMap;
 };
 
 struct RAS_MaterialNodeData
 {
-	RAS_IPolyMaterial *m_material;
-	RAS_MaterialShader *m_shader;
+	RAS_IPolyMaterial *m_material = nullptr;
+	RAS_MaterialShader *m_shader = nullptr;
 	int m_drawingMode;
 	bool m_useLighting;
 	bool m_cullFace;
@@ -76,9 +76,9 @@ struct RAS_MaterialNodeData
 
 struct RAS_DisplayArrayNodeData
 {
-	RAS_IDisplayArray *m_array;
-	RAS_AttributeArrayStorage *m_attribStorage;
-	RAS_DisplayArrayStorage *m_arrayStorage;
+	RAS_IDisplayArray *m_array = nullptr;
+	RAS_AttributeArrayStorage *m_attribStorage = nullptr;
+	RAS_DisplayArrayStorage *m_arrayStorage = nullptr;
 	bool m_applyMatrix;
 };
 
@@ -89,7 +89,7 @@ struct RAS_MeshSlotNodeData
 /// Data passed to material node.
 struct RAS_MaterialNodeTuple
 {
-	RAS_ManagerNodeData *m_managerData;
+	RAS_ManagerNodeData *m_managerData = nullptr;
 
 	RAS_MaterialNodeTuple(const RAS_DummyNodeTuple& dummyTuple, RAS_ManagerNodeData *managerData)
 		:m_managerData(managerData)
@@ -100,7 +100,7 @@ struct RAS_MaterialNodeTuple
 /// Data passed to display array node.
 struct RAS_DisplayArrayNodeTuple : RAS_MaterialNodeTuple
 {
-	RAS_MaterialNodeData *m_materialData;
+	RAS_MaterialNodeData *m_materialData = nullptr;
 
 	RAS_DisplayArrayNodeTuple(const RAS_MaterialNodeTuple& materialTuple, RAS_MaterialNodeData *materialData)
 		:RAS_MaterialNodeTuple(materialTuple),
@@ -112,7 +112,7 @@ struct RAS_DisplayArrayNodeTuple : RAS_MaterialNodeTuple
 /// Data passed to mesh slot node.
 struct RAS_MeshSlotNodeTuple : RAS_DisplayArrayNodeTuple
 {
-	RAS_DisplayArrayNodeData *m_displayArrayData;
+	RAS_DisplayArrayNodeData *m_displayArrayData = nullptr;
 
 	RAS_MeshSlotNodeTuple(const RAS_DisplayArrayNodeTuple& displayArrayTuple, RAS_DisplayArrayNodeData *displayArrayData)
 		:RAS_DisplayArrayNodeTuple(displayArrayTuple),
