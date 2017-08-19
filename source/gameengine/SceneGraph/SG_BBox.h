@@ -33,7 +33,7 @@
 #ifndef __SG_BBOX_H__
 #define __SG_BBOX_H__
 
-#include "MT_Vector3.h"
+#include "mathfu.h"
 
 /**
  * Bounding box class.
@@ -44,11 +44,11 @@ class SG_BBox
 {
 private:
 	/// AABB data.
-	MT_Vector3 m_min;
-	MT_Vector3 m_max;
+	mt::vec3 m_min;
+	mt::vec3 m_max;
 
 	/// Sphere data.
-	MT_Vector3 m_center;
+	mt::vec3 m_center;
 	float m_radius;
 
 	/// Update sphere data with current AABB data.
@@ -56,24 +56,24 @@ private:
 
 public:
 	SG_BBox();
-	SG_BBox(const MT_Vector3 &min, const MT_Vector3 &max);
+	SG_BBox(const mt::vec3 &min, const mt::vec3 &max);
 	~SG_BBox() = default;
 
-	const MT_Vector3& GetCenter() const;
+	const mt::vec3& GetCenter() const;
 	const float GetRadius() const;
 
-	const MT_Vector3& GetMin() const;
-	const MT_Vector3& GetMax() const;
+	const mt::vec3& GetMin() const;
+	const mt::vec3& GetMax() const;
 
-	void Get(MT_Vector3& min, MT_Vector3& max) const;
+	void Get(mt::vec3& min, mt::vec3& max) const;
 
-	void SetMin(const MT_Vector3& min);
-	void SetMax(const MT_Vector3& max);
+	void SetMin(const mt::vec3& min);
+	void SetMax(const mt::vec3& max);
 
-	void Set(const MT_Vector3& min, const MT_Vector3& max);
+	void Set(const mt::vec3& min, const mt::vec3& max);
 
 	/// Test if the given point is inside this bounding box.
-	bool Inside(const MT_Vector3& point) const;
+	bool Inside(const mt::vec3& point) const;
 };
 
 #endif  // __SG_BBOX_H__

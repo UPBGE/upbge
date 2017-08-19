@@ -38,8 +38,6 @@
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
 
-#include "MT_Vector3.h"
-
 class KX_Scene;
 class KX_GameObject;
 

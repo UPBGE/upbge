@@ -36,7 +36,6 @@
 #define __KX_CAMERAACTUATOR_H__
 
 #include "SCA_IActuator.h"
-#include "MT_Scalar.h"
 #include "SCA_LogicManager.h"
 
 /**
@@ -55,11 +54,11 @@ private :
 	SCA_IObject *m_ob;
 
 	/** height (float), */
-	//const MT_Scalar m_height;
+	//const float m_height;
 	/** min (float), */
-	//const MT_Scalar m_minHeight;
+	//const float m_minHeight;
 	/** max (float), */
-	//const MT_Scalar m_maxHeight;
+	//const float m_maxHeight;
 	
 	/** height (float), */
 	float m_height;

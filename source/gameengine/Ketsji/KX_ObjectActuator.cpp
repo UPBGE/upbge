@@ -43,12 +43,12 @@
 
 KX_ObjectActuator::KX_ObjectActuator(SCA_IObject *gameobj,
                                      KX_GameObject *refobj,
-                                     const MT_Vector3& force,
-                                     const MT_Vector3& torque,
-                                     const MT_Vector3& dloc,
-                                     const MT_Vector3& drot,
-                                     const MT_Vector3& linV,
-                                     const MT_Vector3& angV,
+                                     const mt::vec3& force,
+                                     const mt::vec3& torque,
+                                     const mt::vec3& dloc,
+                                     const mt::vec3& drot,
+                                     const mt::vec3& linV,
+                                     const mt::vec3& angV,
                                      const short damping,
                                      const KX_LocalFlags& flag)
 	:SCA_IActuator(gameobj, KX_ACT_OBJECT),
@@ -100,14 +100,14 @@ KX_ObjectActuator::~KX_ObjectActuator()
 
 void KX_ObjectActuator::UpdateFuzzyFlags()
 {
-	m_bitLocalFlag.ZeroForce = MT_fuzzyZero(m_force);
-	m_bitLocalFlag.ZeroTorque = MT_fuzzyZero(m_torque);
-	m_bitLocalFlag.ZeroDLoc = MT_fuzzyZero(m_dloc);
-	m_bitLocalFlag.ZeroDRot = MT_fuzzyZero(m_drot);
-	m_bitLocalFlag.ZeroLinearVelocity = MT_fuzzyZero(m_linear_velocity);
-	m_linear_length2 = (m_bitLocalFlag.ZeroLinearVelocity) ? 0.0f : m_linear_velocity.length2();
-	m_bitLocalFlag.ZeroAngularVelocity = MT_fuzzyZero(m_angular_velocity);
-	m_angular_length2 = (m_bitLocalFlag.ZeroAngularVelocity) ? 0.0f : m_angular_velocity.length2();
+	m_bitLocalFlag.ZeroForce = mt::FuzzyZero(m_force);
+	m_bitLocalFlag.ZeroTorque = mt::FuzzyZero(m_torque);
+	m_bitLocalFlag.ZeroDLoc = mt::FuzzyZero(m_dloc);
+	m_bitLocalFlag.ZeroDRot = mt::FuzzyZero(m_drot);
+	m_bitLocalFlag.ZeroLinearVelocity = mt::FuzzyZero(m_linear_velocity);
+	m_linear_length2 = (m_bitLocalFlag.ZeroLinearVelocity) ? 0.0f : m_linear_velocity.LengthSquared();
+	m_bitLocalFlag.ZeroAngularVelocity = mt::FuzzyZero(m_angular_velocity);
+	m_angular_length2 = (m_bitLocalFlag.ZeroAngularVelocity) ? 0.0f : m_angular_velocity.LengthSquared();
 }
 
 bool KX_ObjectActuator::Update()
@@ -121,13 +121,13 @@ bool KX_ObjectActuator::Update()
 	if (bNegativeEvent) {
 		// Explicitly stop the movement if we're using character motion
 		if (m_bitLocalFlag.CharacterMotion) {
-			character->SetWalkDirection(MT_Vector3(0.0f, 0.0f, 0.0f));
+			character->SetWalkDirection(mt::zero3);
 		}
 
 		m_linear_damping_active = false;
 		m_angular_damping_active = false;
-		m_error_accumulator.setValue(0.0f, 0.0f, 0.0f);
-		m_previous_error.setValue(0.0f, 0.0f, 0.0f);
+		m_error_accumulator = mt::zero3;
+		m_previous_error = mt::zero3;
 		m_jumping = false;
 		return false;
 	}
@@ -144,12 +144,12 @@ bool KX_ObjectActuator::Update()
 			// dv = e(t) - e(t-1)
 			// KP, KD, KI : coefficient
 			// F = KP*e+KI*I+KD*dv
-			MT_Scalar mass = parent->GetMass();
-			if (mass < MT_EPSILON) {
+			float mass = parent->GetMass();
+			if (mt::FuzzyZero(mass)) {
 				return false;
 			}
 
-			MT_Vector3 v;
+			mt::vec3 v;
 			if (m_bitLocalFlag.ServoControlAngular) {
 				v = parent->GetAngularVelocity(m_bitLocalFlag.AngularVelocity);
 			}
@@ -159,23 +159,23 @@ bool KX_ObjectActuator::Update()
 
 			if (m_reference) {
 				if (m_bitLocalFlag.ServoControlAngular) {
-					const MT_Vector3 vel = m_reference->GetAngularVelocity(m_bitLocalFlag.AngularVelocity);
+					const mt::vec3 vel = m_reference->GetAngularVelocity(m_bitLocalFlag.AngularVelocity);
 					v -= vel;
 				}
 				else {
-					const MT_Vector3& mypos = parent->NodeGetWorldPosition();
-					const MT_Vector3& refpos = m_reference->NodeGetWorldPosition();
-					const MT_Vector3 relpos = (mypos - refpos);
-					MT_Vector3 vel = m_reference->GetVelocity(relpos);
+					const mt::vec3& mypos = parent->NodeGetWorldPosition();
+					const mt::vec3& refpos = m_reference->NodeGetWorldPosition();
+					const mt::vec3 relpos = (mypos - refpos);
+					mt::vec3 vel = m_reference->GetVelocity(relpos);
 					if (m_bitLocalFlag.LinearVelocity) {
 						// must convert in local space
-						vel = parent->NodeGetWorldOrientation().transposed() * vel;
+						vel = parent->NodeGetWorldOrientation().Transpose() * vel;
 					}
 					v -= vel;
 				}
 			}
 
-			MT_Vector3 e;
+			mt::vec3 e;
 			if (m_bitLocalFlag.ServoControlAngular) {
 				e = m_angular_velocity - v;
 			}
@@ -183,16 +183,16 @@ bool KX_ObjectActuator::Update()
 				e = m_linear_velocity - v;
 			}
 
-			MT_Vector3 dv = e - m_previous_error;
-			MT_Vector3 I = m_error_accumulator + e;
+			mt::vec3 dv = e - m_previous_error;
+			mt::vec3 I = m_error_accumulator + e;
 
-			MT_Vector3& f = (m_bitLocalFlag.ServoControlAngular) ? m_torque : m_force;
-			f = m_pid.x() * e + m_pid.y() * I + m_pid.z() * dv;
+			mt::vec3& f = (m_bitLocalFlag.ServoControlAngular) ? m_torque : m_force;
+			f = m_pid.x * e + m_pid.y * I + m_pid.z * dv;
 
 			/* Make sure velocity is correct depending on how body react to force/torque.
 			 * See btRigidBody::integrateVelocities */
 			if (m_bitLocalFlag.ServoControlAngular) {
-				f = f * parent->GetLocalInertia();
+				f *= parent->GetLocalInertia();
 			}
 			else {
 				f *= mass;
@@ -226,22 +226,22 @@ bool KX_ObjectActuator::Update()
 			}
 		}
 		else if (m_bitLocalFlag.CharacterMotion) {
-			MT_Vector3 dir = m_dloc;
+			mt::vec3 dir = m_dloc;
 
 			if (m_bitLocalFlag.DLoc) {
-				MT_Matrix3x3 basis = parent->GetPhysicsController()->GetOrientation();
+				mt::mat3 basis = parent->GetPhysicsController()->GetOrientation();
 				dir = basis * dir;
 			}
 
 			if (m_bitLocalFlag.AddOrSetCharLoc) {
-				MT_Vector3 old_dir = character->GetWalkDirection();
+				mt::vec3 old_dir = character->GetWalkDirection();
 
-				if (!old_dir.fuzzyZero()) {
-					MT_Scalar mag = old_dir.length();
+				if (!mt::FuzzyZero(old_dir)) {
+					float mag = old_dir.Length();
 
 					dir = dir + old_dir;
-					if (!dir.fuzzyZero()) {
-						dir = dir.normalized() * mag;
+					if (!mt::FuzzyZero(dir)) {
+						dir = dir.Normalized() * mag;
 					}
 				}
 			}
@@ -282,12 +282,12 @@ bool KX_ObjectActuator::Update()
 				}
 				else {
 					if (m_damping > 0) {
-						MT_Vector3 linV;
+						mt::vec3 linV;
 						if (!m_linear_damping_active) {
 							// delta and the start speed (depends on the existing speed in that direction)
 							linV = parent->GetLinearVelocity(m_bitLocalFlag.LinearVelocity);
 							// keep only the projection along the desired direction
-							m_current_linear_factor = linV.dot(m_linear_velocity) / m_linear_length2;
+							m_current_linear_factor = mt::dot(linV, m_linear_velocity) / m_linear_length2;
 							m_linear_damping_active = true;
 						}
 						if (m_current_linear_factor < 1.0f) {
@@ -306,12 +306,12 @@ bool KX_ObjectActuator::Update()
 			}
 			if (!m_bitLocalFlag.ZeroAngularVelocity) {
 				if (m_damping > 0) {
-					MT_Vector3 angV;
+					mt::vec3 angV;
 					if (!m_angular_damping_active) {
 						// delta and the start speed (depends on the existing speed in that direction)
 						angV = parent->GetAngularVelocity(m_bitLocalFlag.AngularVelocity);
 						// keep only the projection along the desired direction
-						m_current_angular_factor = angV.dot(m_angular_velocity) / m_angular_length2;
+						m_current_angular_factor = mt::dot(angV, m_angular_velocity) / m_angular_length2;
 						m_angular_damping_active = true;
 					}
 					if (m_current_angular_factor < 1.0) {
@@ -461,12 +461,12 @@ static int mathutils_obactu_vector_get(BaseMathObject *bmo, int subtype)
 	switch (subtype) {
 		case MATHUTILS_VEC_CB_LINV:
 		{
-			self->m_linear_velocity.getValue(bmo->data);
+			self->m_linear_velocity.Pack(bmo->data);
 			break;
 		}
 		case MATHUTILS_VEC_CB_ANGV:
 		{
-			self->m_angular_velocity.getValue(bmo->data);
+			self->m_angular_velocity.Pack(bmo->data);
 			break;
 		}
 	}
@@ -484,12 +484,12 @@ static int mathutils_obactu_vector_set(BaseMathObject *bmo, int subtype)
 	switch (subtype) {
 		case MATHUTILS_VEC_CB_LINV:
 		{
-			self->m_linear_velocity.setValue(bmo->data);
+			self->m_linear_velocity = mt::vec3(bmo->data);
 			break;
 		}
 		case MATHUTILS_VEC_CB_ANGV:
 		{
-			self->m_angular_velocity.setValue(bmo->data);
+			self->m_angular_velocity = mt::vec3(bmo->data);
 			break;
 		}
 	}

@@ -34,6 +34,8 @@
 
 #include "BKE_image.h"
 
+#include "BLI_utildefines.h"
+
 #include "DNA_texture_types.h"
 
 RAS_TextureRenderer::Face::Face(int target)

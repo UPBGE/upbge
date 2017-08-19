@@ -36,8 +36,6 @@
 #include "BL_DeformableGameObject.h"
 #include "DNA_object_types.h"
 #include "DNA_key_types.h"
-#include "MT_Vector3.h"
-#include <stdlib.h>
 
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)  /* get rid of stupid stl-visual compiler debug warning */

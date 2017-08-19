@@ -35,6 +35,8 @@
 
 #include "CM_List.h"
 
+#include "BLI_utildefines.h"
+
 static CM_ThreadMutex scheduleMutex;
 static CM_ThreadMutex transformMutex;
 
@@ -44,12 +46,12 @@ SG_Node::SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks)
 	m_SGclientInfo(clientinfo),
 	m_callbacks(callbacks),
 	m_SGparent(nullptr),
-	m_localPosition(0.0f, 0.0f, 0.0f),
-	m_localRotation(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-	m_localScaling(1.0f, 1.0f, 1.0f),
-	m_worldPosition(0.0f, 0.0f, 0.0f),
-	m_worldRotation(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-	m_worldScaling(1.0f, 1.0f, 1.0f),
+	m_localPosition(mt::zero3),
+	m_localRotation(mt::mat3::Identity()),
+	m_localScaling(mt::one3),
+	m_worldPosition(mt::zero3),
+	m_worldRotation(mt::mat3::Identity()),
+	m_worldScaling(mt::one3),
 	m_parent_relation(nullptr),
 	m_familly(new SG_Familly()),
 	m_modified(true),
@@ -442,7 +444,7 @@ bool SG_Node::UpdateSpatialData(const SG_Node *parent, double time, bool& parent
 /**
  * Position and translation methods
  */
-void SG_Node::RelativeTranslate(const MT_Vector3& trans, const SG_Node *parent, bool local)
+void SG_Node::RelativeTranslate(const mt::vec3& trans, const SG_Node *parent, bool local)
 {
 	if (local) {
 		m_localPosition += m_localRotation * trans;
@@ -458,13 +460,13 @@ void SG_Node::RelativeTranslate(const MT_Vector3& trans, const SG_Node *parent, 
 	SetModified();
 }
 
-void SG_Node::SetLocalPosition(const MT_Vector3& trans)
+void SG_Node::SetLocalPosition(const mt::vec3& trans)
 {
 	m_localPosition = trans;
 	SetModified();
 }
 
-void SG_Node::SetWorldPosition(const MT_Vector3& trans)
+void SG_Node::SetWorldPosition(const mt::vec3& trans)
 {
 	m_worldPosition = trans;
 }
@@ -476,76 +478,70 @@ void SG_Node::SetWorldPosition(const MT_Vector3& trans)
 /**
  * Orientation and rotation methods.
  */
-void SG_Node::RelativeRotate(const MT_Matrix3x3& rot, bool local)
+void SG_Node::RelativeRotate(const mt::mat3& rot, bool local)
 {
 	m_localRotation = m_localRotation * (
 		local ?
 		rot
 		:
-		(GetWorldOrientation().inverse() * rot * GetWorldOrientation()));
+		(GetWorldOrientation().Inverse() * rot * GetWorldOrientation()));
 	SetModified();
 }
 
-void SG_Node::SetLocalOrientation(const MT_Matrix3x3& rot)
+void SG_Node::SetLocalOrientation(const mt::mat3& rot)
 {
 	m_localRotation = rot;
 	SetModified();
 }
 
-void SG_Node::SetLocalOrientation(const float *rot)
-{
-	m_localRotation.setValue(rot);
-	SetModified();
-}
-
-void SG_Node::SetWorldOrientation(const MT_Matrix3x3& rot)
+void SG_Node::SetWorldOrientation(const mt::mat3& rot)
 {
 	m_worldRotation = rot;
 }
 
-void SG_Node::RelativeScale(const MT_Vector3& scale)
+void SG_Node::RelativeScale(const mt::vec3& scale)
 {
 	m_localScaling = m_localScaling * scale;
 	SetModified();
 }
 
-void SG_Node::SetLocalScale(const MT_Vector3& scale)
+void SG_Node::SetLocalScale(const mt::vec3& scale)
 {
 	m_localScaling = scale;
 	SetModified();
 }
 
-void SG_Node::SetWorldScale(const MT_Vector3& scale)
+void SG_Node::SetWorldScale(const mt::vec3& scale)
 {
 	m_worldScaling = scale;
 }
 
-const MT_Vector3& SG_Node::GetLocalPosition() const
+const mt::vec3& SG_Node::GetLocalPosition() const
 {
 	return m_localPosition;
 }
 
-const MT_Matrix3x3& SG_Node::GetLocalOrientation() const
+const mt::mat3& SG_Node::GetLocalOrientation() const
 {
 	return m_localRotation;
 }
 
-const MT_Vector3& SG_Node::GetLocalScale() const
+const mt::vec3& SG_Node::GetLocalScale() const
 {
 	return m_localScaling;
 }
 
-const MT_Vector3& SG_Node::GetWorldPosition() const
+const mt::vec3& SG_Node::GetWorldPosition() const
 {
 	return m_worldPosition;
 }
 
-const MT_Matrix3x3& SG_Node::GetWorldOrientation() const
+const mt::mat3& SG_Node::GetWorldOrientation() const
 {
 	return m_worldRotation;
 }
 
-const MT_Vector3& SG_Node::GetWorldScaling() const
+const mt::vec3& SG_Node::GetWorldScaling() const
 {
 	return m_worldScaling;
 }
@@ -557,18 +553,14 @@ void SG_Node::SetWorldFromLocalTransform()
 	m_worldRotation = m_localRotation;
 }
 
-MT_Transform SG_Node::GetWorldTransform() const
+mt::mat3x4 SG_Node::GetWorldTransform() const
 {
-	return MT_Transform(m_worldPosition,
-	                    m_worldRotation.scaled(
-							m_worldScaling[0], m_worldScaling[1], m_worldScaling[2]));
+	return mt::mat3x4(m_worldRotation, m_worldPosition, m_worldScaling);
 }
 
-MT_Transform SG_Node::GetLocalTransform() const
+mt::mat3x4 SG_Node::GetLocalTransform() const
 {
-	return MT_Transform(m_localPosition,
-	                    m_localRotation.scaled(
-							m_localScaling[0], m_localScaling[1], m_localScaling[2]));
+	return mt::mat3x4(m_localRotation, m_localPosition, m_localScaling);
 }
 
 bool SG_Node::ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated)

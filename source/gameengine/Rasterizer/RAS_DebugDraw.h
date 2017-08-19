@@ -27,10 +27,7 @@
 #ifndef __RAS_DEBUG_DRAW_H__
 #define __RAS_DEBUG_DRAW_H__
 
-#include "MT_Matrix4x4.h"
-#include "MT_Vector4.h"
-#include "MT_Vector3.h"
-#include "MT_Vector2.h"
+#include "mathfu.h"
 
 #include <string>
 #include <vector>
@@ -48,60 +45,60 @@ class RAS_DebugDraw
 private:
 	struct Shape
 	{
-		Shape(const MT_Vector4& color);
-		MT_Vector4 m_color;
+		Shape(const mt::vec4& color);
+		float m_color[4];
 	};
 
 	struct Line : Shape
 	{
-		Line(const MT_Vector3& from, const MT_Vector3& to, const MT_Vector4& color);
-		MT_Vector3 m_from;
-		MT_Vector3 m_to;
+		Line(const mt::vec3& from, const mt::vec3& to, const mt::vec4& color);
+		float m_from[3];
+		float m_to[3];
 	};
 
 	struct Circle : Shape
 	{
-		Circle(const MT_Vector3& center, const MT_Vector3& normal, float radius, int sector, const MT_Vector4& color);
-		MT_Vector3 m_center;
-		MT_Vector3 m_normal;
+		Circle(const mt::vec3& center, const mt::vec3& normal, float radius, int sector, const mt::vec4& color);
+		float m_center[3];
+		float m_normal[3];
 		float m_radius;
 		int m_sector;
 	};
 
 	struct Aabb : Shape
 	{
-		Aabb(const MT_Vector3& pos, const MT_Matrix3x3& rot, const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color);
-		MT_Vector3 m_pos;
-		MT_Matrix3x3 m_rot;
-		MT_Vector3 m_min;
-		MT_Vector3 m_max;
+		Aabb(const mt::vec3& pos, const mt::mat3& rot, const mt::vec3& min, const mt::vec3& max, const mt::vec4& color);
+		float m_pos[3];
+		float m_rot[9];
+		float m_min[3];
+		float m_max[3];
 	};
 
 	struct Box : Shape
 	{
-		Box(const std::array<MT_Vector3, 8>& vertices, const MT_Vector4& color);
-		std::array<MT_Vector3, 8> m_vertices;
+		Box(const std::array<mt::vec3, 8>& vertices, const mt::vec4& color);
+		std::array<std::array<float, 3>, 8> m_vertices;
 	};
 
 	struct SolidBox : Box
 	{
-		SolidBox(const MT_Vector4& insideColor, const MT_Vector4& outsideColor, const std::array<MT_Vector3, 8>& vertices, const MT_Vector4& color);
-		MT_Vector4 m_insideColor;
-		MT_Vector4 m_outsideColor;
+		SolidBox(const mt::vec4& insideColor, const mt::vec4& outsideColor, const std::array<mt::vec3, 8>& vertices, const mt::vec4& color);
+		float m_insideColor[4];
+		float m_outsideColor[4];
 	};
 
 	struct Text2D : Shape
 	{
-		Text2D(const std::string& text, const MT_Vector2& pos, const MT_Vector4& color);
+		Text2D(const std::string& text, const mt::vec2& pos, const mt::vec4& color);
 		std::string m_text;
-		MT_Vector2 m_pos;
+		float m_pos[2];
 	};
 
 	struct Box2D : Shape
 	{
-		Box2D(const MT_Vector2& pos, const MT_Vector2& size, const MT_Vector4& color);
-		MT_Vector2 m_pos;
-		MT_Vector2 m_size;
+		Box2D(const mt::vec2& pos, const mt::vec2& size, const mt::vec4& color);
+		float m_pos[2];
+		float m_size[2];
 	};
 
 	std::vector<Line> m_lines;
@@ -118,9 +115,9 @@ public:
 	RAS_DebugDraw();
 	~RAS_DebugDraw();
 
-	void DrawLine(const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4& color);
-	void DrawCircle(const MT_Vector3 &center, const MT_Scalar radius,
-								 const MT_Vector4 &color, const MT_Vector3 &normal, int nsector);
+	void DrawLine(const mt::vec3 &from, const mt::vec3 &to, const mt::vec4& color);
+	void DrawCircle(const mt::vec3 &center, const float radius,
+								 const mt::vec4 &color, const mt::vec3 &normal, int nsector);
 	/** Draw a box depends on minimal and maximal corner.
 	 * \param pos The box's position.
 	 * \param rot The box's orientation.
@@ -128,20 +125,20 @@ public:
 	 * \param max The box's maximal corner.
 	 * \param color The box's color.
 	 */
-	void DrawAabb(const MT_Vector3& pos, const MT_Matrix3x3& rot,
-							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color);
-	void DrawBox(const std::array<MT_Vector3, 8>& vertices, const MT_Vector4& color);
-	void DrawSolidBox(const std::array<MT_Vector3, 8>& vertices, const MT_Vector4& insideColor,
-							  const MT_Vector4& outsideColor, const MT_Vector4& lineColor);
+	void DrawAabb(const mt::vec3& pos, const mt::mat3& rot,
+							  const mt::vec3& min, const mt::vec3& max, const mt::vec4& color);
+	void DrawBox(const std::array<mt::vec3, 8>& vertices, const mt::vec4& color);
+	void DrawSolidBox(const std::array<mt::vec3, 8>& vertices, const mt::vec4& insideColor,
+							  const mt::vec4& outsideColor, const mt::vec4& lineColor);
 	/** Draw a box representing a camera frustum volume.
 	 * \param projmat The camera projection matrix.
 	 * \param viewmat The camera view matrix.
 	 */
-	void DrawCameraFrustum(const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat);
+	void DrawCameraFrustum(const mt::mat4& projmat, const mt::mat4& viewmat);
 
-	void RenderBox2D(const MT_Vector2& pos, const MT_Vector2& size, const MT_Vector4& color);
+	void RenderBox2D(const mt::vec2& pos, const mt::vec2& size, const mt::vec4& color);
 
-	void RenderText2D(const std::string& text, const MT_Vector2& pos, const MT_Vector4& color);
+	void RenderText2D(const std::string& text, const mt::vec2& pos, const mt::vec4& color);
 
 	void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas);
 };

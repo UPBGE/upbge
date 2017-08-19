@@ -57,8 +57,6 @@ extern "C" {
 
 #include "EXP_ListWrapper.h"
 
-#include "MT_Matrix4x4.h"
-
 #include "CM_Message.h"
 
 /**
@@ -508,12 +506,13 @@ double BL_ArmatureObject::GetLastFrame()
 	return m_lastframe;
 }
 
-bool BL_ArmatureObject::GetBoneMatrix(Bone *bone, MT_Matrix4x4& matrix)
+bool BL_ArmatureObject::GetBoneMatrix(Bone *bone, mt::mat3x4& trans)
 {
 	ApplyPose();
 	bPoseChannel *pchan = BKE_pose_channel_find_name(m_objArma->pose, bone->name);
 	if (pchan) {
-		matrix.setValue(&pchan->pose_mat[0][0]);
+		trans = mt::mat3x4(mt::vec3(pchan->pose_mat[0]), mt::vec3(pchan->pose_mat[1]),
+						   mt::vec3(pchan->pose_mat[2]), mt::vec3(pchan->pose_mat[3]));
 	}
 
 	return (pchan != nullptr);
@@ -526,21 +525,21 @@ bool BL_ArmatureObject::GetDrawDebug() const
 
 void BL_ArmatureObject::DrawDebug(RAS_DebugDraw& debugDraw)
 {
-	const MT_Vector3& scale = NodeGetWorldScaling();
-	const MT_Matrix3x3& rot = NodeGetWorldOrientation();
-	const MT_Vector3& pos = NodeGetWorldPosition();
+	const mt::vec3& scale = NodeGetWorldScaling();
+	const mt::mat3& rot = NodeGetWorldOrientation();
+	const mt::vec3& pos = NodeGetWorldPosition();
 
 	for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan; pchan = pchan->next) {
-		MT_Vector3 head = rot * (MT_Vector3(pchan->pose_head) * scale) + pos;
-		MT_Vector3 tail = rot * (MT_Vector3(pchan->pose_tail) * scale) + pos;
-		debugDraw.DrawLine(tail, head, MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
+		mt::vec3 head = rot * (mt::vec3(pchan->pose_head) * scale) + pos;
+		mt::vec3 tail = rot * (mt::vec3(pchan->pose_tail) * scale) + pos;
+		debugDraw.DrawLine(tail, head, mt::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 	}
 	m_drawDebug = false;
 }
 
 float BL_ArmatureObject::GetBoneLength(Bone *bone) const
 {
-	return (float)(MT_Vector3(bone->head) - MT_Vector3(bone->tail)).length();
+	return (float)(mt::vec3(bone->head) - mt::vec3(bone->tail)).Length();
 }
 
 #ifdef WITH_PYTHON

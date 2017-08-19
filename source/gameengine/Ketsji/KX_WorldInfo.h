@@ -32,8 +32,7 @@
 #ifndef __KX_WORLDINFO_H__
 #define __KX_WORLDINFO_H__
 
-#include "MT_Scalar.h"
-#include "MT_Vector4.h"
+#include "mathfu.h"
 #include "KX_KetsjiEngine.h"
 #include "EXP_Value.h"
 
@@ -44,7 +43,7 @@ void KX_WorldInfo_Mathutils_Callback_Init(void);
 struct Scene;
 struct World;
 
-class KX_WorldInfo : public EXP_Value
+class KX_WorldInfo : public EXP_Value, public mt::SimdClassAllocator
 {
 	Py_Header
 
@@ -62,12 +61,12 @@ class KX_WorldInfo : public EXP_Value
 	float m_range;
 	float m_exposure;
 	float m_envLightEnergy;
-	MT_Vector3 m_mistcolor;
-	MT_Vector4 m_horizoncolor;
-	MT_Vector4 m_zenithcolor;
-	MT_Vector3 m_ambientcolor;
-	MT_Vector3 m_con_mistcolor;
-	MT_Vector3 m_con_ambientcolor;
+	mt::vec3 m_mistcolor;
+	mt::vec4 m_horizoncolor;
+	mt::vec4 m_zenithcolor;
+	mt::vec3 m_ambientcolor;
+	mt::vec3 m_con_mistcolor;
+	mt::vec3 m_con_ambientcolor;
 
 public:
 	/**
@@ -83,8 +82,8 @@ public:
 	~KX_WorldInfo();
 
 	struct {
-		MT_Vector3 horizonColor;
-		MT_Vector3 zenithColor;
+		mt::vec3 horizonColor;
+		mt::vec3 zenithColor;
 	} m_savedData;
 
 	virtual std::string GetName();
@@ -94,10 +93,10 @@ public:
 	void setMistIntensity(float intensity);
 	void setExposure(float exposure);
 	void setRange(float range);
-	void setMistColor(const MT_Vector3& mistcolor);
-	void setHorizonColor(const MT_Vector4& horizoncolor);
-	void setZenithColor(const MT_Vector4& zenithcolor);
-	void setAmbientColor(const MT_Vector3& ambientcolor);
+	void setMistColor(const mt::vec3& mistcolor);
+	void setHorizonColor(const mt::vec4& horizoncolor);
+	void setZenithColor(const mt::vec4& zenithcolor);
+	void setAmbientColor(const mt::vec3& ambientcolor);
 	void UpdateBackGround(RAS_Rasterizer *rasty);
 	void UpdateWorldSettings(RAS_Rasterizer *rasty);
 	void RenderBackground(RAS_Rasterizer *rasty);

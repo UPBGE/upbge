@@ -46,7 +46,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "MT_Matrix4x4.h"
 
 #include "BKE_action.h"
 #include "EXP_FloatValue.h"
@@ -76,8 +75,6 @@ BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
 					short	end_reset,
 					float	stride) 
 	: SCA_IActuator(gameobj, KX_ACT_ACTION),
-		
-	m_lastpos(0, 0, 0),
 	m_blendframe(0),
 	m_flag(0),
 	m_startframe (starttime),

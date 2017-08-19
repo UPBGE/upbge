@@ -474,7 +474,7 @@ GPUBuiltin GPU_get_material_builtins(GPUMaterial *material)
 }
 
 void GPU_material_bind_uniforms(
-        GPUMaterial *material, float obmat[4][4], float viewmat[4][4], float obcol[4],
+        GPUMaterial *material, float obmat[4][4], float viewmat[4][4], const float obcol[4],
         float autobumpscale, GPUParticleInfo *pi, float object_info[3])
 {
 	if (material->pass) {
@@ -570,7 +570,7 @@ void GPU_material_enable_alpha(GPUMaterial *material)
 	material->alpha = 1;
 }
 
-GPUBlendMode GPU_material_alpha_blend(GPUMaterial *material, float obcol[4])
+GPUBlendMode GPU_material_alpha_blend(GPUMaterial *material, const float obcol[4])
 {
 	if (material->alpha || (material->obcolalpha && obcol[3] < 1.0f))
 		return GPU_BLEND_ALPHA;
@@ -1866,7 +1866,7 @@ void GPU_mist_update_enable(short enable)
 	GPUWorld.mistenabled = (float)enable;
 }
 
-void GPU_mist_update_values(int type, float start, float dist, float inten, float color[3])
+void GPU_mist_update_values(int type, float start, float dist, float inten, const float color[3])
 {
 	GPUWorld.mistype = (float)type;
 	GPUWorld.miststart = start;
@@ -1876,18 +1876,18 @@ void GPU_mist_update_values(int type, float start, float dist, float inten, floa
 	GPUWorld.mistcol[3] = 1.0f;
 }
 
-void GPU_horizon_update_color(float color[3])
+void GPU_horizon_update_color(const float color[3])
 {
 	copy_v3_v3(GPUWorld.horicol, color);
 }
 
-void GPU_ambient_update_color(float color[3])
+void GPU_ambient_update_color(const float color[3])
 {
 	copy_v3_v3(GPUWorld.ambcol, color);
 	GPUWorld.ambcol[3] = 1.0f;
 }
 
-void GPU_zenith_update_color(float color[3])
+void GPU_zenith_update_color(const float color[3])
 {
 	copy_v3_v3(GPUWorld.zencol, color);
 }

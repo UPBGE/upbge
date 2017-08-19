@@ -37,35 +37,29 @@
 
 #ifdef WITH_PYTHON
 
-#include "MT_Vector3.h"
-#include "MT_Vector4.h"
-#include "MT_Matrix4x4.h"
-#include "MT_Vector2.h"
-
 #include "EXP_ListValue.h"
 
-#include "EXP_Python.h"
 #include "KX_PyMath.h"
 
-bool PyOrientationTo(PyObject *pyval, MT_Matrix3x3 &rot, const char *error_prefix)
+bool PyOrientationTo(PyObject *pyval, mt::mat3 &rot, const char *error_prefix)
 {
 	int size= PySequence_Size(pyval);
 	
 	if (size == 4)
 	{
-		MT_Quaternion qrot;
+		mt::quat qrot;
 		if (PyQuatTo(pyval, qrot))
 		{
-			rot.setRotation(qrot);
+			rot = qrot.ToMatrix();
 			return true;
 		}
 	}
 	else if (size == 3) {
 		/* 3x3 matrix or euler */
-		MT_Vector3 erot;
+		mt::vec3 erot;
 		if (PyVecTo(pyval, erot))
 		{
-			rot.setEuler(erot);
+			rot = mt::mat3(erot);
 			return true;
 		}
 		PyErr_Clear();
@@ -80,13 +74,13 @@ bool PyOrientationTo(PyObject *pyval, MT_Matrix3x3 &rot, const char *error_prefi
 	return false;
 }
 
-bool PyQuatTo(PyObject *pyval, MT_Quaternion &qrot)
+bool PyQuatTo(PyObject *pyval, mt::quat &qrot)
 {
 	if (!PyVecTo(pyval, qrot))
 		return false;
 
 	/* annoying!, Blender/Mathutils have the W axis first! */
-	MT_Scalar w = qrot[0]; /* from python, this is actually the W */
+	float w = qrot[0]; /* from python, this is actually the W */
 	qrot[0] = qrot[1];
 	qrot[1] = qrot[2];
 	qrot[2] = qrot[3];
@@ -95,12 +89,10 @@ bool PyQuatTo(PyObject *pyval, MT_Quaternion &qrot)
 	return true;
 }
 
-PyObject *PyObjectFrom(const MT_Matrix4x4 &mat)
+PyObject *PyObjectFrom(const mt::mat4 &mat)
 {
 #ifdef USE_MATHUTILS
-	float fmat[16];
-	mat.getValue(fmat);
-	return Matrix_CreatePyObject(fmat, 4, 4, nullptr);
+	return Matrix_CreatePyObject((float *)mat.Data(), 4, 4, nullptr);
 #else
 	PyObject *collist = PyList_New(4);
 	PyObject *col;
@@ -119,11 +111,11 @@ PyObject *PyObjectFrom(const MT_Matrix4x4 &mat)
 #endif
 }
 
-PyObject *PyObjectFrom(const MT_Matrix3x3 &mat)
+PyObject *PyObjectFrom(const mt::mat3 &mat)
 {
 #ifdef USE_MATHUTILS
 	float fmat[9];
-	mat.getValue3x3(fmat);
+	mat.Pack(fmat);
 	return Matrix_CreatePyObject(fmat, 3, 3, nullptr);
 #else
 	PyObject *collist = PyList_New(3);
@@ -143,21 +135,18 @@ PyObject *PyObjectFrom(const MT_Matrix3x3 &mat)
 }
 
 #ifdef USE_MATHUTILS
-PyObject *PyObjectFrom(const MT_Quaternion &qrot)
+PyObject *PyObjectFrom(const mt::quat &qrot)
 {
-	/* NOTE, were re-ordering here for Mathutils compat */
-	float fvec[4];
-	qrot.getValue(fvec);
-	return Quaternion_CreatePyObject(fvec, nullptr);
+	float data[4];
+	qrot.Pack(data);
+	return Quaternion_CreatePyObject(data, nullptr);
 }
 #endif
 
-PyObject *PyObjectFrom(const MT_Vector4 &vec)
+PyObject *PyObjectFrom(const mt::vec4 &vec)
 {
 #ifdef USE_MATHUTILS
-	float fvec[4];
-	vec.getValue(fvec);
-	return Vector_CreatePyObject(fvec, 4, nullptr);
+	return Vector_CreatePyObject(vec.Data(), 4, nullptr);
 #else
 	PyObject *list = PyList_New(4);
 	PyList_SET_ITEM(list, 0, PyFloat_FromDouble(vec[0]));
@@ -168,12 +157,10 @@ PyObject *PyObjectFrom(const MT_Vector4 &vec)
 #endif
 }
 
-PyObject *PyObjectFrom(const MT_Vector3 &vec)
+PyObject *PyObjectFrom(const mt::vec3 &vec)
 {
 #ifdef USE_MATHUTILS
-	float fvec[3];
-	vec.getValue(fvec);
-	return Vector_CreatePyObject(fvec, 3, nullptr);
+	return Vector_CreatePyObject(vec.Data(), 3, nullptr);
 #else
 	PyObject *list = PyList_New(3);
 	PyList_SET_ITEM(list, 0, PyFloat_FromDouble(vec[0]));
@@ -183,12 +170,10 @@ PyObject *PyObjectFrom(const MT_Vector3 &vec)
 #endif
 }
 
-PyObject *PyObjectFrom(const MT_Vector2 &vec)
+PyObject *PyObjectFrom(const mt::vec2 &vec)
 {
 #ifdef USE_MATHUTILS
-	float fvec[2];
-	vec.getValue(fvec);
-	return Vector_CreatePyObject(fvec, 2, nullptr);
+	return Vector_CreatePyObject(vec.Data(), 2, nullptr);
 #else
 	PyObject *list = PyList_New(2);
 	PyList_SET_ITEM(list, 0, PyFloat_FromDouble(vec[0]));
@@ -197,12 +182,10 @@ PyObject *PyObjectFrom(const MT_Vector2 &vec)
 #endif
 }
 
-PyObject *PyColorFromVector(const MT_Vector3 &vec)
+PyObject *PyColorFromVector(const mt::vec3 &vec)
 {
 #ifdef USE_MATHUTILS
-	float fvec[3];
-	vec.getValue(fvec);
-	return Color_CreatePyObject(fvec, nullptr);
+	return Color_CreatePyObject(vec.Data(), nullptr);
 #else
 	PyObject *list = PyList_New(3);
 	PyList_SET_ITEM(list, 0, PyFloat_FromDouble(vec[0]));

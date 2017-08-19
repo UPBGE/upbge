@@ -29,7 +29,7 @@
 
 #include "RAS_VertexData.h"
 
-#include "MT_Matrix4x4.h"
+#include "mathfu.h"
 
 #include "BLI_math_vector.h"
 
@@ -143,14 +143,14 @@ public:
 		return m_data->tangent;
 	}
 
-	inline MT_Vector3 xyz() const
+	inline mt::vec3 xyz() const
 	{
-		return MT_Vector3(m_data->position);
+		return mt::vec3(m_data->position);
 	}
 
-	inline void SetXYZ(const MT_Vector3& xyz)
+	inline void SetXYZ(const mt::vec3& xyz)
 	{
-		xyz.getValue(m_data->position);
+		xyz.Pack(m_data->position);
 	}
 
 	inline void SetXYZ(const float xyz[3])
@@ -158,9 +158,9 @@ public:
 		copy_v3_v3(m_data->position, xyz);
 	}
 
-	inline void SetNormal(const MT_Vector3& normal)
+	inline void SetNormal(const mt::vec3& normal)
 	{
-		normal.getValue(m_data->normal);
+		normal.Pack(m_data->normal);
 	}
 
 	inline void SetNormal(const float normal[3])
@@ -168,9 +168,14 @@ public:
 		copy_v3_v3(m_data->normal, normal);
 	}
 
-	inline void SetTangent(const MT_Vector4& tangent)
+	inline void SetTangent(const mt::vec4& tangent)
 	{
-		tangent.getValue(m_data->tangent);
+		tangent.Pack(m_data->tangent);
+	}
+
+	inline void SetTangent(const float tangent[4])
+	{
+		copy_v4_v4(m_data->tangent, tangent);
 	}
 
 	inline const float (&GetUv(const int index) const)[2]
@@ -178,9 +183,9 @@ public:
 		return reinterpret_cast<float (&)[2]>(*GetUvInternal(index));
 	}
 
-	inline void SetUV(const int index, const MT_Vector2& uv)
+	inline void SetUV(const int index, const mt::vec2& uv)
 	{
-		uv.getValue(GetUvInternal(index));
+		uv.Pack(GetUvInternal(index));
 	}
 
 	inline void SetUV(const int index, const float uv[2])
@@ -198,18 +203,18 @@ public:
 		return *GetColorInternal(index);
 	}
 
-	inline void SetRGBA(const int index, const unsigned int rgba)
+	inline void SetColor(const int index, const unsigned int color)
 	{
-		*GetColorInternal(index) = rgba;
+		*GetColorInternal(index) = color;
 	}
 
-	inline void SetRGBA(const int index, const MT_Vector4& rgba)
+	inline void SetColor(const int index, const mt::vec4& color)
 	{
 		unsigned char *colp = (unsigned char *)GetColorInternal(index);
-		colp[0] = (unsigned char)(rgba[0] * 255.0f);
-		colp[1] = (unsigned char)(rgba[1] * 255.0f);
-		colp[2] = (unsigned char)(rgba[2] * 255.0f);
-		colp[3] = (unsigned char)(rgba[3] * 255.0f);
+		colp[0] = (unsigned char)(color[0] * 255.0f);
+		colp[1] = (unsigned char)(color[1] * 255.0f);
+		colp[2] = (unsigned char)(color[2] * 255.0f);
+		colp[3] = (unsigned char)(color[3] * 255.0f);
 	}
 
 	// compare two vertices, to test if they can be shared, used for
@@ -239,16 +244,16 @@ public:
 				);
 	}
 
-	inline void Transform(const MT_Matrix4x4& mat, const MT_Matrix4x4& nmat)
+	inline void Transform(const mt::mat4& mat, const mt::mat4& nmat)
 	{
-		SetXYZ((mat * MT_Vector4(m_data->position[0], m_data->position[1], m_data->position[2], 1.0f)).to3d());
-		SetNormal((nmat * MT_Vector4(m_data->normal[0], m_data->normal[1], m_data->normal[2], 1.0f)).to3d());
-		SetTangent((nmat * MT_Vector4(m_data->tangent[0], m_data->tangent[1], m_data->tangent[2], 1.0f)));
+		SetXYZ(mat * mt::vec3(m_data->position));
+		SetNormal(nmat * mt::vec3(m_data->normal));
+		SetTangent(nmat * mt::vec4(m_data->tangent));
 	}
 
-	inline void TransformUv(const int index, const MT_Matrix4x4& mat)
+	inline void TransformUv(const int index, const mt::mat4& mat)
 	{
-		SetUV(index, (mat * MT_Vector4(GetUv(index)[0], GetUv(index)[1], 0.0f, 1.0f)).to2d());
+		SetUV(index, (mat * mt::vec3(GetUv(index)[0], GetUv(index)[1], 0.0f)).xy());
 	}
 };
 

@@ -36,7 +36,7 @@
 #  pragma warning (disable:4786)
 #endif
 
-#include "MT_Matrix4x4.h"
+#include "mathfu.h"
 
 #include "RAS_DebugDraw.h"
 #include "RAS_Rect.h"
@@ -64,7 +64,7 @@ struct GPUShader;
 /**
  * 3D rendering device context interface. 
  */
-class RAS_Rasterizer
+class RAS_Rasterizer : public mt::SimdClassAllocator
 {
 public:
 	/**
@@ -256,7 +256,7 @@ private:
 	struct RayCastTranform
 	{
 		/// The object scale.
-		MT_Vector3 scale;
+		mt::vec3 scale;
 		/// The original object matrix.
 		float *origmat;
 		/// The output matrix.
@@ -287,10 +287,10 @@ private:
 	std::map<SCA_IScene *, RAS_DebugDraw> m_debugDraws;
 
 	double m_time;
-	MT_Vector3 m_ambient;
-	MT_Matrix4x4 m_viewmatrix;
-	MT_Matrix4x4 m_viewinvmatrix;
-	MT_Vector3 m_campos;
+	mt::vec3 m_ambient;
+	mt::mat4 m_viewmatrix;
+	mt::mat4 m_viewinvmatrix;
+	mt::vec3 m_campos;
 	bool m_camortho;
 	bool m_camnegscale;
 
@@ -487,21 +487,21 @@ public:
 
 	/// Render text mesh slot using BLF functions.
 	void IndexPrimitivesText(RAS_MeshSlot *ms);
- 
+
 	/* This one should become our final version, methinks. */
 	/**
 	 * Set the projection matrix for the rasterizer. This projects
 	 * from camera coordinates to window coordinates.
 	 * \param mat The projection matrix.
 	 */
-	void SetProjectionMatrix(const MT_Matrix4x4 &mat);
+	void SetProjectionMatrix(const mt::mat4 &mat);
 
 	/// Get the modelview matrix according to the stereo settings.
-	MT_Matrix4x4 GetViewMatrix(StereoMode stereoMode, StereoEye eye, const MT_Transform &camtrans, bool perspective);
+	mt::mat4 GetViewMatrix(StereoMode stereoMode, StereoEye eye, const mt::mat3x4 &camtrans, bool perspective);
 	/**
 	 * Sets the modelview matrix.
 	 */
-	void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Vector3 &pos, const MT_Vector3 &scale);
+	void SetViewMatrix(const mt::mat4 &mat, const mt::vec3 &pos, const mt::vec3 &scale);
 
 	/**
 	 * Get/Set viewport area
@@ -516,13 +516,13 @@ public:
 
 	/**
 	 */
-	const MT_Vector3& GetCameraPosition();
+	const mt::vec3& GetCameraPosition();
 	bool GetCameraOrtho();
 
 	/**
 	 * Fog
 	 */
-	void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
+	void SetFog(short type, float start, float dist, float intensity, const mt::vec3& color);
 	
 	/**
 	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW or RAS_TEXTURED.
@@ -546,7 +546,7 @@ public:
 	void SetCullFace(bool enable);
 
 	/// Set and enable clip plane.
-	void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
+	void EnableClipPlane(unsigned short index, const mt::vec4& plane);
 	/// Disable clip plane
 	void DisableClipPlane(unsigned short index);
 
@@ -572,7 +572,7 @@ public:
 	 * \param frustfar the far clipping plane
 	 * \return a 4x4 matrix representing the projection transform.
 	 */
-	MT_Matrix4x4 GetFrustumMatrix(StereoMode stereoMode, StereoEye eye, float focallength,
+	mt::mat4 GetFrustumMatrix(StereoMode stereoMode, StereoEye eye, float focallength,
 	        float left, float right, float bottom, float top, float frustnear, float frustfar);
 
 	/**
@@ -585,7 +585,7 @@ public:
 	 * \param frustfar the far clipping plane
 	 * \return a 4x4 matrix representing the projection transform.
 	 */
-	MT_Matrix4x4 GetFrustumMatrix(float left, float right, float bottom, float top, float frustnear, float frustfar);
+	mt::mat4 GetFrustumMatrix(float left, float right, float bottom, float top, float frustnear, float frustfar);
 
 
 	/**
@@ -598,7 +598,7 @@ public:
 	 * \param frustfar the far clipping plane
 	 * \return a 4x4 matrix representing the projection transform.
 	 */
-	MT_Matrix4x4 GetOrthoMatrix(
+	mt::mat4 GetOrthoMatrix(
 	        float left, float right, float bottom, float top,
 	        float frustnear, float frustfar);
 
@@ -622,7 +622,7 @@ public:
 	 */ 
 	void SetEmissive(float eX, float eY, float eZ, float e);
 	
-	void SetAmbientColor(const MT_Vector3& color);
+	void SetAmbientColor(const mt::vec3& color);
 	void SetAmbient(float factor);
 
 	/**
@@ -633,8 +633,8 @@ public:
 	RAS_DebugDraw& GetDebugDraw(SCA_IScene *scene);
 	void FlushDebugDraw(SCA_IScene *scene, RAS_ICanvas *canvas);
 
-	const MT_Matrix4x4 &GetViewMatrix() const;
-	const MT_Matrix4x4 &GetViewInvMatrix() const;
+	const mt::mat4 &GetViewMatrix() const;
+	const mt::mat4 &GetViewInvMatrix() const;
 
 	void EnableMotionBlur(float motionblurvalue);
 	void DisableMotionBlur();
@@ -682,7 +682,7 @@ public:
 
 	void EnableLights();
 	void DisableLights();
-	void ProcessLighting(bool uselights, const MT_Transform &trans);
+	void ProcessLighting(bool uselights, const mt::mat3x4 &trans);
 
 	void PushMatrix();
 	void PopMatrix();

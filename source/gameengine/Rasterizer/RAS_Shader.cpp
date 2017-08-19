@@ -362,13 +362,13 @@ bool RAS_Shader::GetEnabled() const
 	return m_use;
 }
 
-void RAS_Shader::Update(RAS_Rasterizer *rasty, const MT_Matrix4x4 model)
+void RAS_Shader::Update(RAS_Rasterizer *rasty, const mt::mat4 &model)
 {
 	if (!Ok() || m_preDef.empty()) {
 		return;
 	}
 
-	const MT_Matrix4x4 &view = rasty->GetViewMatrix();
+	const mt::mat4 &view = rasty->GetViewMatrix();
 
 	for (RAS_DefUniform *uni : m_preDef) {
 		if (uni->m_loc == -1) {
@@ -388,12 +388,12 @@ void RAS_Shader::Update(RAS_Rasterizer *rasty, const MT_Matrix4x4 model)
 			}
 			case MODELMATRIX_INVERSE:
 			{
-				SetUniform(uni->m_loc, model.inverse());
+				SetUniform(uni->m_loc, model.Inverse());
 				break;
 			}
 			case MODELMATRIX_INVERSETRANSPOSE:
 			{
-				SetUniform(uni->m_loc, model.inverse(), true);
+				SetUniform(uni->m_loc, model.Inverse(), true);
 				break;
 			}
 			case MODELVIEWMATRIX:
@@ -403,25 +403,25 @@ void RAS_Shader::Update(RAS_Rasterizer *rasty, const MT_Matrix4x4 model)
 			}
 			case MODELVIEWMATRIX_TRANSPOSE:
 			{
-				MT_Matrix4x4 mat(view * model);
+				mt::mat4 mat(view * model);
 				SetUniform(uni->m_loc, mat, true);
 				break;
 			}
 			case MODELVIEWMATRIX_INVERSE:
 			{
-				MT_Matrix4x4 mat(view * model);
-				SetUniform(uni->m_loc, mat.inverse());
+				mt::mat4 mat(view * model);
+				SetUniform(uni->m_loc, mat.Inverse());
 				break;
 			}
 			case MODELVIEWMATRIX_INVERSETRANSPOSE:
 			{
-				MT_Matrix4x4 mat(view * model);
-				SetUniform(uni->m_loc, mat.inverse(), true);
+				mt::mat4 mat(view * model);
+				SetUniform(uni->m_loc, mat.Inverse(), true);
 				break;
 			}
 			case CAM_POS:
 			{
-				MT_Vector3 pos(rasty->GetCameraPosition());
+				mt::vec3 pos(rasty->GetCameraPosition());
 				SetUniform(uni->m_loc, pos);
 				break;
 			}
@@ -437,12 +437,12 @@ void RAS_Shader::Update(RAS_Rasterizer *rasty, const MT_Matrix4x4 model)
 			}
 			case VIEWMATRIX_INVERSE:
 			{
-				SetUniform(uni->m_loc, view.inverse());
+				SetUniform(uni->m_loc, view.Inverse());
 				break;
 			}
 			case VIEWMATRIX_INVERSETRANSPOSE:
 			{
-				SetUniform(uni->m_loc, view.inverse(), true);
+				SetUniform(uni->m_loc, view.Inverse(), true);
 				break;
 			}
 			case CONSTANT_TIMER:
@@ -482,25 +482,19 @@ int RAS_Shader::GetUniformLocation(const std::string& name, bool debug)
 	return location;
 }
 
-void RAS_Shader::SetUniform(int uniform, const MT_Vector2 &vec)
+void RAS_Shader::SetUniform(int uniform, const mt::vec2 &vec)
 {
-	float value[2];
-	vec.getValue(value);
-	GPU_shader_uniform_vector(m_shader, uniform, 2, 1, value);
+	GPU_shader_uniform_vector(m_shader, uniform, 2, 1, vec.Data());
 }
 
-void RAS_Shader::SetUniform(int uniform, const MT_Vector3 &vec)
+void RAS_Shader::SetUniform(int uniform, const mt::vec3 &vec)
 {
-	float value[3];
-	vec.getValue(value);
-	GPU_shader_uniform_vector(m_shader, uniform, 3, 1, value);
+	GPU_shader_uniform_vector(m_shader, uniform, 3, 1, vec.Data());
 }
 
-void RAS_Shader::SetUniform(int uniform, const MT_Vector4 &vec)
+void RAS_Shader::SetUniform(int uniform, const mt::vec4 &vec)
 {
-	float value[4];
-	vec.getValue(value);
-	GPU_shader_uniform_vector(m_shader, uniform, 4, 1, value);
+	GPU_shader_uniform_vector(m_shader, uniform, 4, 1, vec.Data());
 }
 
 void RAS_Shader::SetUniform(int uniform, const unsigned int &val)
@@ -518,26 +512,15 @@ void RAS_Shader::SetUniform(int uniform, const float &val)
 	GPU_shader_uniform_float(m_shader, uniform, val);
 }
 
-void RAS_Shader::SetUniform(int uniform, const MT_Matrix4x4 &vec, bool transpose)
+void RAS_Shader::SetUniform(int uniform, const mt::mat4 &vec, bool transpose)
 {
-	float value[16];
-	// note: getValue gives back column major as needed by OpenGL
-	vec.getValue(value);
-	GPU_shader_uniform_vector(m_shader, uniform, 16, 1, value);
+	GPU_shader_uniform_vector(m_shader, uniform, 16, 1, (float *)vec.Data());
 }
 
-void RAS_Shader::SetUniform(int uniform, const MT_Matrix3x3 &vec, bool transpose)
+void RAS_Shader::SetUniform(int uniform, const mt::mat3 &vec, bool transpose)
 {
 	float value[9];
-	value[0] = (float)vec[0][0];
-	value[1] = (float)vec[1][0];
-	value[2] = (float)vec[2][0];
-	value[3] = (float)vec[0][1];
-	value[4] = (float)vec[1][1];
-	value[5] = (float)vec[2][1];
-	value[6] = (float)vec[0][2];
-	value[7] = (float)vec[1][2];
-	value[8] = (float)vec[2][2];
+	vec.Pack(value);
 	GPU_shader_uniform_vector(m_shader, uniform, 9, 1, value);
 }
 

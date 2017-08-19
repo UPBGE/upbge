@@ -10,8 +10,6 @@
 
 #include "PHY_DynamicTypes.h"
 
-#include "MT_Quaternion.h"
-
 class PHY_IMotionState;
 
 class PHY_IVehicle
@@ -23,17 +21,17 @@ public:
 
 	virtual void AddWheel(
 	    PHY_IMotionState *motionState,
-	    MT_Vector3 connectionPoint,
-	    MT_Vector3 downDirection,
-	    MT_Vector3 axleDirection,
+	    const mt::vec3 &connectionPoint,
+	    const mt::vec3 &downDirection,
+	    const mt::vec3 &axleDirection,
 	    float suspensionRestLength,
 	    float wheelRadius,
 	    bool hasSteering) = 0;
 
 	virtual int GetNumWheels() const = 0;
 
-	virtual MT_Vector3 GetWheelPosition(int wheelIndex) const = 0;
-	virtual MT_Quaternion GetWheelOrientationQuaternion(int wheelIndex) const = 0;
+	virtual mt::vec3 GetWheelPosition(int wheelIndex) const = 0;
+	virtual mt::quat GetWheelOrientationQuaternion(int wheelIndex) const = 0;
 	virtual float GetWheelRotation(int wheelIndex) const = 0;
 
 	virtual int GetUserConstraintId() const = 0;

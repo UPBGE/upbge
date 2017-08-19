@@ -33,13 +33,13 @@
 #define __KX_ORIENTATIONINTERPOLATOR_H__
 
 #include "KX_IInterpolator.h"
+#include "mathfu.h"
 
-class MT_Matrix3x3;
 class KX_IScalarInterpolator;
 
 class KX_OrientationInterpolator : public KX_IInterpolator {
 public:
-	KX_OrientationInterpolator(MT_Matrix3x3& target,
+	KX_OrientationInterpolator(mt::mat3& target,
 	                           KX_IScalarInterpolator **ipos)
 	    : m_target(target)
 	{
@@ -51,7 +51,7 @@ public:
 	virtual void Execute(float currentTime) const;
 
 private:
-	MT_Matrix3x3&            m_target;
+	mt::mat3&            m_target;
 	KX_IScalarInterpolator *m_ipos[3];
 };
 

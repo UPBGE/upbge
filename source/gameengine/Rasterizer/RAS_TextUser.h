@@ -42,8 +42,8 @@ private:
 	int m_dpi;
 	float m_aspect;
 	float m_resolution;
-	MT_Vector3 m_offset;
-	MT_Vector3 m_spacing;
+	mt::vec3 m_offset;
+	mt::vec3 m_spacing;
 
 public:
 	RAS_TextUser(void *clientobj, RAS_BoundingBox *boundingBox);
@@ -53,16 +53,16 @@ public:
 	int GetSize() const;
 	int GetDpi() const;
 	float GetAspect() const;
-	const MT_Vector3& GetOffset() const;
-	const MT_Vector3& GetSpacing() const;
+	const mt::vec3& GetOffset() const;
+	const mt::vec3& GetSpacing() const;
 	const std::vector<std::string>& GetTexts() const;
 
 	void SetFontId(int fontid);
 	void SetSize(int size);
 	void SetDpi(int dpi);
 	void SetAspect(float aspect);
-	void SetOffset(const MT_Vector3& offset);
-	void SetSpacing(const MT_Vector3& spacing);
+	void SetOffset(const mt::vec3& offset);
+	void SetSpacing(const mt::vec3& spacing);
 	void SetTexts(const std::vector<std::string>& texts);
 };
 

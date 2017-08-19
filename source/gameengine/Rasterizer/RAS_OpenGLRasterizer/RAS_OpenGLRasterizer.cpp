@@ -224,13 +224,13 @@ void RAS_OpenGLRasterizer::Init()
 	glShadeModel(GL_SMOOTH);
 }
 
-void RAS_OpenGLRasterizer::SetAmbient(const MT_Vector3& amb, float factor)
+void RAS_OpenGLRasterizer::SetAmbient(const mt::vec3& amb, float factor)
 {
-	float ambient[] = {amb.x() * factor, amb.y() * factor, amb.z() * factor, 1.0f};
+	float ambient[] = {amb.x * factor, amb.y * factor, amb.z * factor, 1.0f};
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
 }
 
-void RAS_OpenGLRasterizer::SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color)
+void RAS_OpenGLRasterizer::SetFog(short type, float start, float dist, float intensity, const mt::vec3& color)
 {
 	float params[4] = {color[0], color[1], color[2], 1.0f};
 	glFogi(GL_FOG_MODE, GL_LINEAR);
@@ -362,9 +362,9 @@ void RAS_OpenGLRasterizer::SetPolygonOffset(float mult, float add)
 	glPolygonOffset(mult, add);
 }
 
-void RAS_OpenGLRasterizer::EnableClipPlane(unsigned short index, const MT_Vector4& plane)
+void RAS_OpenGLRasterizer::EnableClipPlane(unsigned short index, const mt::vec4& plane)
 {
-	double planev[4] = {plane.x(), plane.y(), plane.z(), plane.w()};
+	double planev[4] = {plane.x, plane.y, plane.z, plane.w};
 	glClipPlane(GL_CLIP_PLANE0 + index, planev);
 	glEnable(GL_CLIP_PLANE0 + index);
 }

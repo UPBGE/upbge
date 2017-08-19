@@ -224,7 +224,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						// this sumoObject is not deleted by a gameobj, so delete it ourself
 						// later (memleaks)!
 						float radius = blendernearsensor->dist;
-						const MT_Vector3& wpos = gameobj->NodeGetWorldPosition();
+						const mt::vec3& wpos = gameobj->NodeGetWorldPosition();
 						bool bFindMaterial = false;
 						PHY_IPhysicsController* physCtrl = kxscene->GetPhysicsEnvironment()->CreateSphereController(radius,wpos);
 
@@ -435,21 +435,21 @@ void BL_ConvertSensors(struct Object* blenderobject,
 
 						int radaraxis = blenderradarsensor->axis;
 
-						MT_Scalar coneheight = blenderradarsensor->range;
+						float coneheight = blenderradarsensor->range;
 
 						// janco: the angle was doubled, so should I divide the factor in 2
 						// or the blenderradarsensor->angle?
 						// nzc: the angle is the opening angle. We need to init with
 						// the axis-hull angle,so /2.0.
-						MT_Scalar factor = tan(blenderradarsensor->angle * 0.5f);
-						//MT_Scalar coneradius = coneheight * (factor / 2);
-						MT_Scalar coneradius = coneheight * factor;
+						float factor = tan(blenderradarsensor->angle * 0.5f);
+						//float coneradius = coneheight * (factor / 2);
+						float coneradius = coneheight * factor;
 
 
 						// this sumoObject is not deleted by a gameobj, so delete it ourself
 						// later (memleaks)!
-						MT_Scalar smallmargin = 0.0;
-						MT_Scalar largemargin = 0.0;
+						float smallmargin = 0.0;
+						float largemargin = 0.0;
 
 						bool bFindMaterial = false;
 						PHY_IPhysicsController* ctrl = kxscene->GetPhysicsEnvironment()->CreateConeController((float)coneradius, (float)coneheight);

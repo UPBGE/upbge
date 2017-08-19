@@ -33,13 +33,13 @@
 #define __KX_POSITIONINTERPOLATOR_H__
 
 #include "KX_IInterpolator.h"
+#include "mathfu.h"
 
-class MT_Vector3;
 class KX_IScalarInterpolator;
 
 class KX_PositionInterpolator : public KX_IInterpolator {
 public:
-	KX_PositionInterpolator(MT_Vector3& target, 
+	KX_PositionInterpolator(mt::vec3& target, 
 							KX_IScalarInterpolator *ipos[]) :
 		m_target(target) 
 	{
@@ -51,7 +51,7 @@ public:
 	virtual void Execute(float currentTime) const;
 
 private:
-	MT_Vector3&               m_target;
+	mt::vec3&               m_target;
 	KX_IScalarInterpolator *m_ipos[3];
 };
 

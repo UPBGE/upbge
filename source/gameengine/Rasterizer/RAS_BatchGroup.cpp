@@ -70,7 +70,7 @@ RAS_BatchGroup *RAS_BatchGroup::RemoveMeshUser()
 	return this;
 }
 
-bool RAS_BatchGroup::MergeMeshSlot(RAS_BatchGroup::Batch& batch, RAS_MeshSlot *slot, const MT_Matrix4x4& mat)
+bool RAS_BatchGroup::MergeMeshSlot(RAS_BatchGroup::Batch& batch, RAS_MeshSlot *slot, const mt::mat4& mat)
 {
 	RAS_DisplayArrayBucket *origArrayBucket = slot->m_displayArrayBucket;
 	RAS_IDisplayArray *origArray = origArrayBucket->GetDisplayArray();
@@ -139,7 +139,7 @@ bool RAS_BatchGroup::SplitMeshSlot(RAS_MeshSlot *slot)
 	return true;
 }
 
-bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const MT_Matrix4x4& mat)
+bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const mt::mat4& mat)
 {
 	for (RAS_MeshSlot *meshSlot : meshUser->GetMeshSlots()) {
 		RAS_DisplayArrayBucket *arrayBucket = meshSlot->m_displayArrayBucket;

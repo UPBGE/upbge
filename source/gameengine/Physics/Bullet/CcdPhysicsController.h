@@ -65,9 +65,10 @@ class btCollisionShape;
 
 // Shape contructor
 // It contains all the information needed to create a simple bullet shape at runtime
-class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo>
+class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo>, public mt::SimdClassAllocator
 {
 public:
+
 	struct UVco
 	{
 		float uv[2];
@@ -505,12 +506,12 @@ public:
 	{
 		return getJumpCount();
 	}
-	virtual void SetWalkDirection(const MT_Vector3& dir)
+	virtual void SetWalkDirection(const mt::vec3& dir)
 	{
 		setWalkDirection(ToBullet(dir));
 	}
 
-	virtual MT_Vector3 GetWalkDirection()
+	virtual mt::vec3 GetWalkDirection()
 	{
 		return ToMoto(getWalkDirection());
 	}
@@ -524,7 +525,7 @@ public:
 	virtual float GetJumpSpeed() const;
 	virtual void SetJumpSpeed(float jumpSpeed);
 
-	virtual void SetVelocity(const MT_Vector3& vel, float time, bool local);
+	virtual void SetVelocity(const mt::vec3& vel, float time, bool local);
 
 	virtual void Reset();
 };
@@ -547,7 +548,7 @@ public:
 };
 
 /// CcdPhysicsController is a physics object that supports continuous collision detection and time of impact based physics resolution.
-class CcdPhysicsController : public PHY_IPhysicsController
+class CcdPhysicsController : public PHY_IPhysicsController, public mt::SimdClassAllocator
 {
 protected:
 	btCollisionObject *m_object;
@@ -580,7 +581,7 @@ protected:
 	int m_savedCollisionFlags;
 	short m_savedCollisionFilterGroup;
 	short m_savedCollisionFilterMask;
-	MT_Scalar m_savedMass;
+	float m_savedMass;
 	bool m_savedDyna;
 	bool m_suspended;
 
@@ -613,6 +614,7 @@ protected:
 	void ForceWorldTransform(const btMatrix3x3& mat, const btVector3& pos);
 
 public:
+
 	CcdPhysicsController(const CcdConstructionInfo& ci);
 
 	/**
@@ -680,26 +682,26 @@ public:
 	virtual void SetPhysicsEnvironment(class PHY_IPhysicsEnvironment *env);
 
 	// kinematic methods
-	virtual void RelativeTranslate(const MT_Vector3& dloc, bool local);
-	virtual void RelativeRotate(const MT_Matrix3x3&rotval, bool local);
-	virtual MT_Matrix3x3 GetOrientation();
-	virtual void SetOrientation(const MT_Matrix3x3& orn);
-	virtual void SetPosition(const MT_Vector3& pos);
-	virtual void GetPosition(MT_Vector3& pos) const;
-	virtual void SetScaling(const MT_Vector3& scale);
+	virtual void RelativeTranslate(const mt::vec3& dloc, bool local);
+	virtual void RelativeRotate(const mt::mat3&rotval, bool local);
+	virtual mt::mat3 GetOrientation();
+	virtual void SetOrientation(const mt::mat3& orn);
+	virtual void SetPosition(const mt::vec3& pos);
+	virtual void GetPosition(mt::vec3& pos) const;
+	virtual void SetScaling(const mt::vec3& scale);
 	virtual void SetTransform();
 
-	virtual MT_Scalar GetMass();
-	virtual void SetMass(MT_Scalar newmass);
+	virtual float GetMass();
+	virtual void SetMass(float newmass);
 
 	float GetInertiaFactor() const;
 
 	// physics methods
-	virtual void ApplyImpulse(const MT_Vector3& attach, const MT_Vector3& impulsein, bool local);
-	virtual void ApplyTorque(const MT_Vector3& torque, bool local);
-	virtual void ApplyForce(const MT_Vector3& force, bool local);
-	virtual void SetAngularVelocity(const MT_Vector3& ang_vel, bool local);
-	virtual void SetLinearVelocity(const MT_Vector3& lin_vel, bool local);
+	virtual void ApplyImpulse(const mt::vec3& attach, const mt::vec3& impulsein, bool local);
+	virtual void ApplyTorque(const mt::vec3& torque, bool local);
+	virtual void ApplyForce(const mt::vec3& force, bool local);
+	virtual void SetAngularVelocity(const mt::vec3& ang_vel, bool local);
+	virtual void SetLinearVelocity(const mt::vec3& lin_vel, bool local);
 	virtual void Jump();
 	virtual void SetActive(bool active);
 
@@ -713,14 +715,14 @@ public:
 	virtual void SetLinearDamping(float damping);
 	virtual void SetAngularDamping(float damping);
 	virtual void SetDamping(float linear, float angular);
-	virtual void SetGravity(const MT_Vector3 &gravity);
+	virtual void SetGravity(const mt::vec3 &gravity);
 
 	// reading out information from physics
-	virtual MT_Vector3 GetLinearVelocity();
-	virtual MT_Vector3 GetAngularVelocity();
-	virtual MT_Vector3 GetVelocity(const MT_Vector3& posin);
-	virtual MT_Vector3 GetLocalInertia();
-	virtual MT_Vector3 GetGravity();
+	virtual mt::vec3 GetLinearVelocity();
+	virtual mt::vec3 GetAngularVelocity();
+	virtual mt::vec3 GetVelocity(const mt::vec3& posin);
+	virtual mt::vec3 GetLocalInertia();
+	virtual mt::vec3 GetGravity();
 
 	// dyna's that are rigidbody are free in orientation, dyna's with non-rigidbody are restricted
 	virtual void SetRigidBody(bool rigid);
@@ -872,20 +874,20 @@ public:
 };
 
 /// DefaultMotionState implements standard motionstate, using btTransform
-class DefaultMotionState : public PHY_IMotionState
+class DefaultMotionState : public PHY_IMotionState, public mt::SimdClassAllocator
 {
 public:
 	DefaultMotionState();
 
 	virtual ~DefaultMotionState();
 
-	virtual MT_Vector3 GetWorldPosition() const;
-	virtual MT_Vector3 GetWorldScaling() const;
-	virtual MT_Matrix3x3 GetWorldOrientation() const;
+	virtual mt::vec3 GetWorldPosition() const;
+	virtual mt::vec3 GetWorldScaling() const;
+	virtual mt::mat3 GetWorldOrientation() const;
 
-	virtual void SetWorldPosition(const MT_Vector3& pos);
-	virtual void SetWorldOrientation(const MT_Matrix3x3& ori);
-	virtual void SetWorldOrientation(const MT_Quaternion& quat);
+	virtual void SetWorldPosition(const mt::vec3& pos);
+	virtual void SetWorldOrientation(const mt::mat3& ori);
+	virtual void SetWorldOrientation(const mt::quat& quat);
 
 	virtual void CalculateWorldTransformations();
 

@@ -110,11 +110,11 @@ public:
 	}
 
 	virtual RAS_Vertex CreateVertex(
-				const MT_Vector3& xyz,
-				const MT_Vector2 * const uvs,
-				const MT_Vector4& tangent,
+				const mt::vec3& xyz,
+				const mt::vec2 * const uvs,
+				const mt::vec4& tangent,
 				const unsigned int *rgba,
-				const MT_Vector3& normal)
+				const mt::vec3& normal)
 	{
 		VertexData *data = new (m_vertexPool.malloc()) VertexData(xyz, uvs, tangent, rgba, normal);
 		return RAS_Vertex(data, m_format);

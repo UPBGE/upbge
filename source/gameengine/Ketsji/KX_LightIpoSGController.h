@@ -42,9 +42,9 @@ class RAS_ILightObject;
 class KX_LightIpoSGController : public SG_Controller
 {
 public:
-	MT_Scalar           m_energy;
-	MT_Scalar           m_col_rgb[3];
-	MT_Scalar           m_dist;
+	float           m_energy;
+	float           m_col_rgb[3];
+	float           m_dist;
 
 private:
 	T_InterpolatorList	m_interpolators;

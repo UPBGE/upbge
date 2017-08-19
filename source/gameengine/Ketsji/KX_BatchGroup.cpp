@@ -68,11 +68,9 @@ void KX_BatchGroup::MergeObjects(const std::vector<KX_GameObject *>& objects)
 			continue;
 		}
 
-		MT_Transform trans(gameobj->NodeGetWorldPosition(), gameobj->NodeGetWorldOrientation());
-		const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
-		trans.scale(scale.x(), scale.y(), scale.z());
+		mt::mat3x4 trans(gameobj->NodeGetWorldOrientation(), gameobj->NodeGetWorldPosition(), gameobj->NodeGetWorldScaling());
 
-		if (MergeMeshUser(meshUser, trans.toMatrix())) {
+		if (MergeMeshUser(meshUser, mt::mat4::FromAffineTransform(trans))) {
 			m_objects->Add(gameobj);
 		}
 		else {

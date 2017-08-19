@@ -34,10 +34,10 @@
 
 SG_BBox::SG_BBox()
 {
-	Set(MT_Vector3(0.0f, 0.0f, 0.0f), MT_Vector3(0.0f, 0.0f, 0.0f));
+	Set(mt::zero3, mt::zero3);
 }
 
-SG_BBox::SG_BBox(const MT_Vector3 &min, const MT_Vector3 &max)
+SG_BBox::SG_BBox(const mt::vec3 &min, const mt::vec3 &max)
 {
 	Set(min, max);
 }
@@ -45,10 +45,10 @@ SG_BBox::SG_BBox(const MT_Vector3 &min, const MT_Vector3 &max)
 void SG_BBox::UpdateSphere()
 {
 	m_center = (m_max + m_min) * 0.5f;
-	m_radius = m_center.distance(m_min);
+	m_radius = (m_center - m_min).Length();
 }
 
-const MT_Vector3& SG_BBox::GetCenter() const
+const mt::vec3& SG_BBox::GetCenter() const
 {
 	return m_center;
 }
@@ -58,42 +58,42 @@ const float SG_BBox::GetRadius() const
 	return m_radius;
 }
 
-const MT_Vector3& SG_BBox::GetMin() const
+const mt::vec3& SG_BBox::GetMin() const
 {
 	return m_min;
 }
 
-const MT_Vector3& SG_BBox::GetMax() const
+const mt::vec3& SG_BBox::GetMax() const
 {
 	return m_max;
 }
 
-void SG_BBox::Get(MT_Vector3& min, MT_Vector3& max) const
+void SG_BBox::Get(mt::vec3& min, mt::vec3& max) const
 {
 	min = m_min;
 	max = m_max;
 }
 
-void SG_BBox::SetMin(const MT_Vector3& min)
+void SG_BBox::SetMin(const mt::vec3& min)
 {
 	m_min = min;
 	UpdateSphere();
 }
 
-void SG_BBox::SetMax(const MT_Vector3& max)
+void SG_BBox::SetMax(const mt::vec3& max)
 {
 	m_max = max;
 	UpdateSphere();
 }
 
-void SG_BBox::Set(const MT_Vector3& min, const MT_Vector3& max)
+void SG_BBox::Set(const mt::vec3& min, const mt::vec3& max)
 {
 	m_min = min;
 	m_max = max;
 	UpdateSphere();
 }
 
-bool SG_BBox::Inside(const MT_Vector3& point) const
+bool SG_BBox::Inside(const mt::vec3& point) const
 {
 	return point[0] >= m_min[0] && point[0] <= m_max[0] &&
 	       point[1] >= m_min[1] && point[1] <= m_max[1] &&

@@ -69,7 +69,7 @@ public:
 	/// Update text from property.
 	void UpdateTextFromProperty();
 	/// Return text dimensions in blender unit.
-	const MT_Vector2 GetTextDimensions();
+	const mt::vec2 GetTextDimensions();
 
 protected:
 	std::string m_text;
@@ -80,7 +80,7 @@ protected:
 	float m_fsize;
 	float m_resolution;
 	float m_line_spacing;
-	MT_Vector3 m_offset;
+	mt::vec3 m_offset;
 
 	/// Text bounding box for mesh/text user.
 	RAS_BoundingBox *m_boundingBox;
@@ -89,7 +89,7 @@ protected:
 
 	bool m_do_color_management;
 
-	void GetTextAabb(MT_Vector2& min, MT_Vector2& max);
+	void GetTextAabb(mt::vec2& min, mt::vec2& max);
 
 #ifdef WITH_PYTHON
 	static PyObject *pyattr_get_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

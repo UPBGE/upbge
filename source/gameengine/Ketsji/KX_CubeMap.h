@@ -29,13 +29,13 @@
 
 #include "KX_TextureRenderer.h"
 
-class KX_CubeMap : public KX_TextureRenderer
+class KX_CubeMap : public KX_TextureRenderer, public mt::SimdClassAllocator
 {
 	Py_Header
 
 private:
 	/// The camera projection matrix depending on clip start/end.
-	MT_Matrix4x4 m_projection;
+	mt::mat4 m_projection;
 	/// True if the projection matrix is invalid and need to be recomputed.
 	bool m_invalidProjection;
 
@@ -45,7 +45,7 @@ public:
 	};
 
 	/// Face view matrices in 3x3 matrices.
-	static const MT_Matrix3x3 faceViewMatrices3x3[NUM_FACES];
+	static const mt::mat3 faceViewMatrices3x3[NUM_FACES];
 
 	KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint);
 	virtual ~KX_CubeMap();
@@ -53,7 +53,7 @@ public:
 	virtual std::string GetName();
 
 	virtual void InvalidateProjectionMatrix();
-	virtual const MT_Matrix4x4& GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+	virtual const mt::mat4& GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
 													const RAS_Rect& viewport, const RAS_Rect& area);
 
 	virtual bool SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera);

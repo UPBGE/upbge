@@ -160,7 +160,7 @@ void BL_Shader::Update(RAS_Rasterizer *rasty, RAS_MeshSlot *ms)
 	}
 #endif  // WITH_PYTHON
 
-	RAS_Shader::Update(rasty, MT_Matrix4x4(ms->m_meshUser->GetMatrix()));
+	RAS_Shader::Update(rasty, mt::mat4(ms->m_meshUser->GetMatrix()));
 }
 
 #ifdef WITH_PYTHON
@@ -804,13 +804,6 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
 		Py_RETURN_NONE;
 	}
 
-	float matr[16] = {
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
-	};
-
 	const char *uniform;
 	PyObject *matrix = nullptr;
 	int transp = 0; // python use column major by default, so no transpose....
@@ -827,7 +820,7 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
 		return nullptr;
 	}
 
-	MT_Matrix4x4 mat;
+	mt::mat4 mat;
 
 	if (!PyMatTo(matrix, mat)) {
 		PyErr_SetString(PyExc_TypeError,
@@ -837,8 +830,7 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
 
 	// Sanity checks done!
 #ifdef SORT_UNIFORMS
-	mat.getValue(matr);
-	SetUniformfv(loc, RAS_Uniform::UNI_MAT4, matr, (sizeof(float) * 16), 1, (transp != 0));
+	SetUniformfv(loc, RAS_Uniform::UNI_MAT4, (float *)mat.Data(), (sizeof(float) * 16), 1, (transp != 0));
 #else
 	SetUniform(loc, mat, (transp != 0));
 #endif
@@ -852,12 +844,6 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
 	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
-
-	float matr[9] = {
-		1.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,
-	};
 
 	const char *uniform;
 	PyObject *matrix = nullptr;
@@ -875,7 +861,7 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
 		return nullptr;
 	}
 
-	MT_Matrix3x3 mat;
+	mt::mat3 mat;
 
 	if (!PyMatTo(matrix, mat)) {
 		PyErr_SetString(PyExc_TypeError,
@@ -884,7 +870,8 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
 	}
 
 #ifdef SORT_UNIFORMS
-	mat.getValue3x3(matr);
+	float matr[9];
+	mat.Pack(matr);
 	SetUniformfv(loc, RAS_Uniform::UNI_MAT3, matr, (sizeof(float) * 9), 1, (transp != 0));
 #else
 	SetUniform(loc, mat, (transp != 0));

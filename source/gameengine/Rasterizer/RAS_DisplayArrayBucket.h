@@ -37,8 +37,6 @@
 #include "RAS_MeshSlot.h"
 #include "RAS_AttributeArray.h"
 
-#include "MT_Transform.h"
-
 #include <vector>
 
 class RAS_MaterialBucket;

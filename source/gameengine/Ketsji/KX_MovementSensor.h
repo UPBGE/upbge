@@ -34,10 +34,10 @@
 #define __KX_MOVEMENT_H__
 
 #include "SCA_ISensor.h"
-#include "MT_Vector3.h"
+#include "mathfu.h"
 
 
-class KX_MovementSensor : public SCA_ISensor
+class KX_MovementSensor : public SCA_ISensor, public mt::SimdClassAllocator
 {
 	Py_Header
 
@@ -58,7 +58,7 @@ private:
 	/// The axis to detect mouvement, can be all axis.
 	int m_axis;
 	/// The previous object position.
-	MT_Vector3 m_previousPosition;
+	mt::vec3 m_previousPosition;
 	/** True if the position is not the same (depends of a treshold value)
 	 * between two logic frame.
 	 */
@@ -74,7 +74,7 @@ public:
 					  float threshold);
 	virtual ~KX_MovementSensor();
 	virtual EXP_Value *GetReplica();
-	MT_Vector3 GetOwnerPosition(bool local);
+	mt::vec3 GetOwnerPosition(bool local);
 
 	virtual bool Evaluate();
 	virtual bool IsPositiveTrigger();

@@ -74,7 +74,7 @@ void DummyPhysicsEnvironment::SetGravity(float x, float y, float z)
 {
 }
 
-void DummyPhysicsEnvironment::GetGravity(class MT_Vector3& grav)
+void DummyPhysicsEnvironment::GetGravity(mt::vec3& grav)
 {
 }
 

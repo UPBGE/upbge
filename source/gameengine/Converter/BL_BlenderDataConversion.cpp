@@ -52,8 +52,7 @@
 #include <algorithm>
 
 
-#include "MT_Transform.h"
-#include "MT_MinMax.h"
+#include "mathfu.h"
 
 #include "PHY_IPhysicsEnvironment.h"
 
@@ -951,7 +950,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 	if (gameobj) {
 		gameobj->SetLayer(ob->lay);
 		gameobj->SetBlenderObject(ob);
-		gameobj->SetObjectColor(MT_Vector4(ob->col));
+		gameobj->SetObjectColor(mt::vec4(ob->col));
 		// Set the visibility state based on the objects render option in the outliner.
 		if (ob->restrictflag & OB_RESTRICT_RENDER) {
 			gameobj->SetVisible(false, false);
@@ -1104,17 +1103,16 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter& converter,
                                            SCA_LogicManager *logicmgr, SCA_TimeEventManager *timemgr,
                                            bool isInActiveLayer)
 {
-	const MT_Vector3 pos(
+	mt::vec3 pos(
 		blenderobject->loc[0] + blenderobject->dloc[0],
 		blenderobject->loc[1] + blenderobject->dloc[1],
 		blenderobject->loc[2] + blenderobject->dloc[2]);
 
-	MT_Matrix3x3 rotation;
 	float rotmat[3][3];
 	BKE_object_rot_to_mat3(blenderobject, rotmat, false);
-	rotation.setValue3x3((float *)rotmat);
+	mt::mat3 rotation(rotmat);
 
-	const MT_Vector3 scale(blenderobject->size);
+	mt::vec3 scale(blenderobject->size);
 
 	gameobj->NodeSetLocalPosition(pos);
 	gameobj->NodeSetLocalOrientation(rotation);
@@ -1143,27 +1141,27 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter& converter,
 		vec_parent_child.push_back(pclink);
 
 		float *fl = (float *)blenderobject->parentinv;
-		const MT_Transform parinvtrans(fl);
-		parentinversenode->SetLocalPosition(parinvtrans.getOrigin());
+		const mt::mat3x4 parinvtrans(fl);
+		parentinversenode->SetLocalPosition(parinvtrans.TranslationVector3D());
 
 		// Extract the rotation and the scaling from the basis.
-		MT_Matrix3x3 ori(parinvtrans.getBasis());
-		MT_Vector3 x(ori.getColumn(0));
-		MT_Vector3 y(ori.getColumn(1));
-		MT_Vector3 z(ori.getColumn(2));
-		const MT_Vector3 parscale(x.length(), y.length(), z.length());
-		if (!MT_fuzzyZero(parscale[0])) {
+		mt::mat3 ori(parinvtrans.RotationMatrix());
+		mt::vec3 x(ori.GetColumn(0));
+		mt::vec3 y(ori.GetColumn(1));
+		mt::vec3 z(ori.GetColumn(2));
+		mt::vec3 parscale(x.Length(), y.Length(), z.Length());
+		if (!mt::FuzzyZero(parscale[0])) {
 			x /= parscale[0];
 		}
-		if (!MT_fuzzyZero(parscale[1])) {
+		if (!mt::FuzzyZero(parscale[1])) {
 			y /= parscale[1];
 		}
-		if (!MT_fuzzyZero(parscale[2])) {
+		if (!mt::FuzzyZero(parscale[2])) {
 			z /= parscale[2];
 		}
-		ori.setColumn(0, x);
-		ori.setColumn(1, y);
-		ori.setColumn(2, z);
+		ori.GetColumn(0) = x;
+		ori.GetColumn(1) = y;
+		ori.GetColumn(2) = z;
 		parentinversenode->SetLocalOrientation(ori);
 		parentinversenode->SetLocalScale(parscale);
 
@@ -1272,7 +1270,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		aspect_height);
 	kxscene->SetFramingType(frame_settings);
 
-	kxscene->SetGravity(MT_Vector3(0.0f, 0.0f, -blenderscene->gm.gravity));
+	kxscene->SetGravity(mt::vec3(0.0f, 0.0f, -blenderscene->gm.gravity));
 
 	// Set activity culling parameters.
 	kxscene->SetActivityCulling((blenderscene->gm.mode & WO_ACTIVITY_CULLING) != 0);
@@ -1624,8 +1622,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			gameobj->SetAutoUpdateBounds(false);
 
 			// AABB Box : min/max.
-			MT_Vector3 aabbMin;
-			MT_Vector3 aabbMax;
+			mt::vec3 aabbMin;
+			mt::vec3 aabbMax;
 			// Get the mesh bounding box for none deformer.
 			RAS_BoundingBox *boundingBox = meshobj->GetBoundingBox();
 			// Get the AABB.

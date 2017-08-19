@@ -41,10 +41,10 @@ struct PolygonSort
 
 	PolygonSort() = default;
 
-	void Init(unsigned int first, const MT_Vector3& center, const MT_Vector3& pnorm)
+	void Init(unsigned int first, const mt::vec3& center, const mt::vec3& pnorm)
 	{
 		m_first = first;
-		m_z = pnorm.dot(center);
+		m_z = mt::dot(pnorm, center);
 	}
 
 	struct BackToFront
@@ -115,7 +115,7 @@ RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::Primitiv
 #undef NEW_DISPLAY_ARRAY_UV
 #undef NEW_DISPLAY_ARRAY_COLOR
 
-void RAS_IDisplayArray::SortPolygons(const MT_Transform& transform, unsigned int *indexmap)
+void RAS_IDisplayArray::SortPolygons(const mt::mat3x4& transform, unsigned int *indexmap)
 {
 	const unsigned int totpoly = GetPrimitiveIndexCount() / 3;
 
@@ -124,13 +124,13 @@ void RAS_IDisplayArray::SortPolygons(const MT_Transform& transform, unsigned int
 	}
 
 	// Extract camera Z plane.
-	const MT_Vector3 pnorm(transform.getBasis()[2]);
+	const mt::vec3 pnorm(transform[2], transform[5], transform[8]);
 
 	if (m_polygonCenters.size() != totpoly) {
-		m_polygonCenters.resize(totpoly, MT_Vector3(0.0f, 0.0f, 0.0f));
+		m_polygonCenters.resize(totpoly, mt::zero3);
 		for (unsigned int i = 0; i < totpoly; ++i) {
 			// Compute polygon center.
-			MT_Vector3& center = m_polygonCenters[i];
+			mt::vec3& center = m_polygonCenters[i];
 			for (unsigned short j = 0; j < 3; ++j) {
 				/* Note that we don't divide by 3 as it is not needed
 				 * to compare polygons. */
@@ -187,32 +187,32 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 
 	if (flag & TANGENT_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			GetVertex(i).SetTangent(MT_Vector4(other->GetVertex(i).GetTangent()));
+			GetVertex(i).SetTangent(other->GetVertex(i).GetTangent());
 		}
 	}
 	if (flag & UVS_MODIFIED) {
 		const unsigned short uvSize = m_format.uvSize;
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			for (unsigned int uv = 0; uv < uvSize; ++uv) {
-				GetVertex(i).SetUV(uv, MT_Vector2(other->GetVertex(i).GetUv(uv)));
+				GetVertex(i).SetUV(uv, other->GetVertex(i).GetUv(uv));
 			}
 		}
 	}
 	if (flag & POSITION_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			GetVertex(i).SetXYZ(MT_Vector3(other->GetVertex(i).GetXYZ()));
+			GetVertex(i).SetXYZ(other->GetVertex(i).GetXYZ());
 		}
 	}
 	if (flag & NORMAL_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			GetVertex(i).SetNormal(MT_Vector3(other->GetVertex(i).GetNormal()));
+			GetVertex(i).SetNormal(other->GetVertex(i).GetNormal());
 		}
 	}
 	if (flag & COLORS_MODIFIED) {
 		const unsigned short colorSize = m_format.colorSize;
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			for (unsigned int color = 0; color < colorSize; ++color) {
-				GetVertex(i).SetRGBA(color, other->GetVertex(i).GetRawColor(color));
+				GetVertex(i).SetColor(color, other->GetVertex(i).GetRawColor(color));
 			}
 		}
 	}

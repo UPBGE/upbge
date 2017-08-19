@@ -71,10 +71,10 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 		m_miststart = blenderworld->miststa;
 		m_mistdistance = blenderworld->mistdist;
 		m_mistintensity = blenderworld->misi;
-		setMistColor(MT_Vector3(blenderworld->horr, blenderworld->horg, blenderworld->horb));
-		setHorizonColor(MT_Vector4(blenderworld->horr, blenderworld->horg, blenderworld->horb, 1.0f));
-		setZenithColor(MT_Vector4(blenderworld->zenr, blenderworld->zeng, blenderworld->zenb, 1.0f));
-		setAmbientColor(MT_Vector3(blenderworld->ambr, blenderworld->ambg, blenderworld->ambb));
+		setMistColor(mt::vec3(blenderworld->horr, blenderworld->horg, blenderworld->horb));
+		setHorizonColor(mt::vec4(blenderworld->horr, blenderworld->horg, blenderworld->horb, 1.0f));
+		setZenithColor(mt::vec4(blenderworld->zenr, blenderworld->zeng, blenderworld->zenb, 1.0f));
+		setAmbientColor(mt::vec3(blenderworld->ambr, blenderworld->ambg, blenderworld->ambb));
 		setExposure(blenderworld->exp);
 		setRange(blenderworld->range);
 	}
@@ -106,12 +106,12 @@ bool KX_WorldInfo::hasWorld()
 	return m_hasworld;
 }
 
-void KX_WorldInfo::setHorizonColor(const MT_Vector4& horizoncolor)
+void KX_WorldInfo::setHorizonColor(const mt::vec4& horizoncolor)
 {
 	m_horizoncolor = horizoncolor;
 }
 
-void KX_WorldInfo::setZenithColor(const MT_Vector4& zenithcolor)
+void KX_WorldInfo::setZenithColor(const mt::vec4& zenithcolor)
 {
 	m_zenithcolor = zenithcolor;
 }
@@ -141,24 +141,28 @@ void KX_WorldInfo::setRange(float range)
 	m_range = range;
 }
 
-void KX_WorldInfo::setMistColor(const MT_Vector3& mistcolor)
+void KX_WorldInfo::setMistColor(const mt::vec3& mistcolor)
 {
 	m_mistcolor = mistcolor;
 
 	if (m_do_color_management) {
-		linearrgb_to_srgb_v3_v3(m_con_mistcolor.getValue(), m_mistcolor.getValue());
+		float col[3];
+		linearrgb_to_srgb_v3_v3(col, m_mistcolor.Data());
+		m_con_mistcolor = mt::vec3(col);
 	}
 	else {
 		m_con_mistcolor = m_mistcolor;
 	}
 }
 
-void KX_WorldInfo::setAmbientColor(const MT_Vector3& ambientcolor)
+void KX_WorldInfo::setAmbientColor(const mt::vec3& ambientcolor)
 {
 	m_ambientcolor = ambientcolor;
 
 	if (m_do_color_management) {
-		linearrgb_to_srgb_v3_v3(m_con_ambientcolor.getValue(), m_ambientcolor.getValue());
+		float col[3];
+		linearrgb_to_srgb_v3_v3(col, m_ambientcolor.Data());
+		m_con_ambientcolor = mt::vec3(col);
 	}
 	else {
 		m_con_ambientcolor = m_ambientcolor;
@@ -177,8 +181,8 @@ void KX_WorldInfo::UpdateBackGround(RAS_Rasterizer *rasty)
 		m_scene->world->horb = m_horizoncolor[2];
 
 		// Update GPUWorld values for regular materials.
-		GPU_horizon_update_color(m_horizoncolor.getValue());
-		GPU_zenith_update_color(m_zenithcolor.getValue());
+		GPU_horizon_update_color(m_horizoncolor.Data());
+		GPU_zenith_update_color(m_zenithcolor.Data());
 	}
 }
 
@@ -186,13 +190,13 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_Rasterizer *rasty)
 {
 	if (m_hasworld) {
 		rasty->SetAmbientColor(m_con_ambientcolor);
-		GPU_ambient_update_color(m_ambientcolor.getValue());
+		GPU_ambient_update_color(m_ambientcolor.Data());
 		GPU_update_exposure_range(m_exposure, m_range);
 		GPU_update_envlight_energy(m_envLightEnergy);
 
 		if (m_hasmist) {
 			rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor);
-			GPU_mist_update_values(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_mistcolor.getValue());
+			GPU_mist_update_values(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_mistcolor.Data());
 			GPU_mist_update_enable(true);
 		}
 		else {
@@ -206,13 +210,10 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 	if (m_hasworld) {
 		if (m_scene->world->skytype & (WO_SKYBLEND | WO_SKYPAPER | WO_SKYREAL)) {
 			GPUMaterial *gpumat = GPU_material_world(m_scene, m_scene->world);
-			float viewmat[4][4];
-			rasty->GetViewMatrix().getValue(&viewmat[0][0]);
-			float invviewmat[4][4];
-			rasty->GetViewInvMatrix().getValue(&invviewmat[0][0]);
 
 			static float texcofac[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-			GPU_material_bind(gpumat, 0xFFFFFFFF, m_scene->lay, 1.0f, false, viewmat, invviewmat, texcofac, false);
+			GPU_material_bind(gpumat, 0xFFFFFFFF, m_scene->lay, 1.0f, false, rasty->GetViewMatrix().Data(),
+							  rasty->GetViewInvMatrix().Data(), texcofac, false);
 
 			rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
 			rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
@@ -228,7 +229,7 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 		else {
 			if (m_do_color_management) {
 				float srgbcolor[4];
-				linearrgb_to_srgb_v4(srgbcolor, m_horizoncolor.getValue());
+				linearrgb_to_srgb_v4(srgbcolor, m_horizoncolor.Data());
 				rasty->SetClearColor(srgbcolor[0], srgbcolor[1], srgbcolor[2], srgbcolor[3]);
 			}
 			else {
@@ -336,17 +337,17 @@ static int mathutils_world_color_get(BaseMathObject *bmo, int subtype)
 
 	switch (subtype) {
 		case MATHUTILS_COL_CB_MIST_COLOR:
-			self->m_mistcolor.getValue(bmo->data);
+			self->m_mistcolor.Pack(bmo->data);
 			break;
 		case MATHUTILS_COL_CB_HOR_COLOR:
 		case MATHUTILS_COL_CB_BACK_COLOR:
-			self->m_horizoncolor.getValue(bmo->data);
+			self->m_horizoncolor.Pack(bmo->data);
 			break;
 		case MATHUTILS_COL_CB_ZEN_COLOR:
-			self->m_zenithcolor.getValue(bmo->data);
+			self->m_zenithcolor.Pack(bmo->data);
 			break;
 		case MATHUTILS_COL_CB_AMBIENT_COLOR:
-			self->m_ambientcolor.getValue(bmo->data);
+			self->m_ambientcolor.Pack(bmo->data);
 			break;
 	default:
 		return -1;
@@ -363,19 +364,19 @@ static int mathutils_world_color_set(BaseMathObject *bmo, int subtype)
 
 	switch (subtype) {
 		case MATHUTILS_COL_CB_MIST_COLOR:
-			self->setMistColor(MT_Vector3(bmo->data));
+			self->setMistColor(mt::vec3(bmo->data));
 			break;
 		case MATHUTILS_COL_CB_HOR_COLOR:
-			self->setHorizonColor(MT_Vector4(bmo->data));
+			self->setHorizonColor(mt::vec4(bmo->data));
 			break;
 		case MATHUTILS_COL_CB_BACK_COLOR:
-			self->setHorizonColor(MT_Vector4(bmo->data[0], bmo->data[1], bmo->data[2], 1.0f));
+			self->setHorizonColor(mt::vec4(bmo->data[0], bmo->data[1], bmo->data[2], 1.0f));
 			break;
 		case MATHUTILS_COL_CB_ZEN_COLOR:
-			self->setZenithColor(MT_Vector4(bmo->data));
+			self->setZenithColor(mt::vec4(bmo->data));
 			break;
 		case MATHUTILS_COL_CB_AMBIENT_COLOR:
-			self->setAmbientColor(MT_Vector3(bmo->data));
+			self->setAmbientColor(mt::vec3(bmo->data));
 			break;
 	default:
 		return -1;
@@ -428,7 +429,7 @@ static int mathutils_world_color_set_index(BaseMathObject *bmo, int subtype, int
 	switch (subtype) {
 		case MATHUTILS_COL_CB_MIST_COLOR:
 		{
-			MT_Vector3 color = self->m_mistcolor;
+			mt::vec3 color = self->m_mistcolor;
 			color[index] = bmo->data[index];
 			self->setMistColor(color);
 			break;
@@ -436,7 +437,7 @@ static int mathutils_world_color_set_index(BaseMathObject *bmo, int subtype, int
 		case MATHUTILS_COL_CB_HOR_COLOR:
 		case MATHUTILS_COL_CB_BACK_COLOR:
 		{
-			MT_Vector4 color = self->m_horizoncolor;
+			mt::vec4 color = self->m_horizoncolor;
 			color[index] = bmo->data[index];
 			CLAMP(color[0], 0.0f, 1.0f);
 			CLAMP(color[1], 0.0f, 1.0f);
@@ -447,7 +448,7 @@ static int mathutils_world_color_set_index(BaseMathObject *bmo, int subtype, int
 		}
 		case MATHUTILS_COL_CB_ZEN_COLOR:
 		{
-			MT_Vector4 color = self->m_zenithcolor;
+			mt::vec4 color = self->m_zenithcolor;
 			color[index] = bmo->data[index];
 			CLAMP(color[0], 0.0f, 1.0f);
 			CLAMP(color[1], 0.0f, 1.0f);
@@ -458,7 +459,7 @@ static int mathutils_world_color_set_index(BaseMathObject *bmo, int subtype, int
 		}
 		case MATHUTILS_COL_CB_AMBIENT_COLOR:
 		{
-			MT_Vector3 color = self->m_ambientcolor;
+			mt::vec3 color = self->m_ambientcolor;
 			color[index] = bmo->data[index];
 			self->setAmbientColor(color);
 			break;
@@ -524,7 +525,7 @@ int KX_WorldInfo::pyattr_set_mist_color(EXP_PyObjectPlus *self_v, const EXP_PYAT
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
 
-	MT_Vector3 color;
+	mt::vec3 color;
 	if (PyVecTo(value, color))
 	{
 		self->setMistColor(color);
@@ -550,7 +551,7 @@ int KX_WorldInfo::pyattr_set_horizon_color(EXP_PyObjectPlus *self_v, const EXP_P
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
 
-	MT_Vector4 color;
+	mt::vec4 color;
 	if (PyVecTo(value, color))
 	{
 		self->setHorizonColor(color);
@@ -567,7 +568,7 @@ PyObject *KX_WorldInfo::pyattr_get_background_color(EXP_PyObjectPlus *self_v, co
 	        mathutils_world_color_cb_index, MATHUTILS_COL_CB_BACK_COLOR);
 #else
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
-	return PyObjectFrom(self->m_horizoncolor.to3d());
+	return PyObjectFrom(self->m_horizoncolor.xyz());
 #endif
 }
 
@@ -575,9 +576,9 @@ int KX_WorldInfo::pyattr_set_background_color(EXP_PyObjectPlus *self_v, const EX
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
 
-	MT_Vector3 color;
+	mt::vec3 color;
 	if (PyVecTo(value, color)) {
-		self->setHorizonColor(MT_Vector4(color[0], color[1], color[2], 1.0f));
+		self->setHorizonColor(mt::vec4(color[0], color[1], color[2], 1.0f));
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -600,7 +601,7 @@ int KX_WorldInfo::pyattr_set_zenith_color(EXP_PyObjectPlus *self_v, const EXP_PY
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
 
-	MT_Vector4 color;
+	mt::vec4 color;
 	if (PyVecTo(value, color))
 	{
 		self->setZenithColor(color);
@@ -625,7 +626,7 @@ int KX_WorldInfo::pyattr_set_ambient_color(EXP_PyObjectPlus *self_v, const EXP_P
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
 
-	MT_Vector3 color;
+	mt::vec3 color;
 	if (PyVecTo(value, color))
 	{
 		self->setAmbientColor(color);

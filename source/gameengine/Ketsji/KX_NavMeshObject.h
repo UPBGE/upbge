@@ -32,7 +32,6 @@
 #include <vector>
 
 class RAS_MeshObject;
-class MT_Transform;
 
 class KX_NavMeshObject: public KX_GameObject
 {
@@ -56,15 +55,15 @@ public:
 
 	bool BuildNavMesh();
 	dtStatNavMesh* GetNavMesh();
-	int FindPath(const MT_Vector3& from, const MT_Vector3& to, float* path, int maxPathLen);
-	float Raycast(const MT_Vector3& from, const MT_Vector3& to);
+	int FindPath(const mt::vec3& from, const mt::vec3& to, float* path, int maxPathLen);
+	float Raycast(const mt::vec3& from, const mt::vec3& to);
 
 	enum NavMeshRenderMode {RM_WALLS, RM_POLYS, RM_TRIS, RM_MAX};
 	void DrawNavMesh(NavMeshRenderMode mode);
-	void DrawPath(const float *path, int pathLen, const MT_Vector4& color);
+	void DrawPath(const float *path, int pathLen, const mt::vec4& color);
 
-	MT_Vector3 TransformToLocalCoords(const MT_Vector3& wpos);
-	MT_Vector3 TransformToWorldCoords(const MT_Vector3& lpos);
+	mt::vec3 TransformToLocalCoords(const mt::vec3& wpos);
+	mt::vec3 TransformToWorldCoords(const mt::vec3& lpos);
 #ifdef WITH_PYTHON
 	/* --------------------------------------------------------------------- */
 	/* Python interface ---------------------------------------------------- */

@@ -65,12 +65,12 @@ bool KX_WorldIpoController::Update(double currentTime)
 		}
 
 		if (m_modify_horizon_color) {
-			world->setHorizonColor(MT_Vector4(m_hori_rgb[0], m_hori_rgb[1], m_hori_rgb[2], 1.0f));
+			world->setHorizonColor(mt::vec4(m_hori_rgb[0], m_hori_rgb[1], m_hori_rgb[2], 1.0f));
 			world->setMistColor(m_hori_rgb);
 		}
 
 		if (m_modify_zenith_color) {
-			world->setZenithColor(MT_Vector4(m_zeni_rgb[0], m_zeni_rgb[1], m_zeni_rgb[2], 1.0f));
+			world->setZenithColor(mt::vec4(m_zeni_rgb[0], m_zeni_rgb[1], m_zeni_rgb[2], 1.0f));
 		}
 
 		if (m_modify_ambient_color) {
@@ -106,13 +106,13 @@ SG_Controller*	KX_WorldIpoController::GetReplica(class SG_Node* destnode)
 		KX_ScalarInterpolator* copyipo = new KX_ScalarInterpolator(*((KX_ScalarInterpolator*)*i));
 		iporeplica->AddInterpolator(copyipo);
 
-		MT_Scalar* scaal = ((KX_ScalarInterpolator*)*i)->GetTarget();
+		float* scaal = ((KX_ScalarInterpolator*)*i)->GetTarget();
 		uint_ptr orgbase = (uint_ptr)this;
 		uint_ptr orgloc = (uint_ptr)scaal;
 		uint_ptr offset = orgloc-orgbase;
 		uint_ptr newaddrbase = (uint_ptr)iporeplica + offset;
-		MT_Scalar* blaptr = (MT_Scalar*) newaddrbase;
-		copyipo->SetNewTarget((MT_Scalar*)blaptr);
+		float* blaptr = (float*) newaddrbase;
+		copyipo->SetNewTarget((float*)blaptr);
 	}
 	
 	return iporeplica;

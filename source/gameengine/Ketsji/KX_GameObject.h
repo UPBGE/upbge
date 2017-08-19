@@ -44,7 +44,7 @@
 #include "SCA_IObject.h"
 #include "SG_Node.h"
 #include "SG_CullingNode.h"
-#include "MT_Transform.h"
+#include "mathfu.h"
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
 #include "DNA_constraint_types.h" /* for constraint replication */
@@ -79,7 +79,7 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
-class KX_GameObject : public SCA_IObject
+class KX_GameObject : public SCA_IObject, public mt::SimdClassAllocator
 {
 	Py_Header
 public:
@@ -112,7 +112,7 @@ protected:
 	struct Object*						m_pBlenderGroupObject;
 	
 	bool								m_bIsNegativeScaling;
-	MT_Vector4							m_objectColor;
+	mt::vec4							m_objectColor;
 
 	// visible = user setting
 	// culled = while rendering, depending on camera
@@ -323,7 +323,6 @@ public:
 	 * Construct a game object. This class also inherits the 
 	 * default constructors - use those with care!
 	 */
-
 	KX_GameObject(
 		void* sgReplicationInfo,
 		SG_Callbacks callbacks
@@ -370,7 +369,7 @@ public:
 	/** 
 	 * Return the linear velocity of the game object.
 	 */
-		MT_Vector3 
+		mt::vec3 
 	GetLinearVelocity(
 		bool local=false
 	);
@@ -379,27 +378,27 @@ public:
 	 * Return the linear velocity of a given point in world coordinate
 	 * but relative to center of object ([0,0,0]=center of object)
 	 */
-		MT_Vector3 
+		mt::vec3 
 	GetVelocity(
-		const MT_Vector3& position
+		const mt::vec3& position
 	);
 
 	/**
 	 * Return the mass of the object
 	 */
-		MT_Scalar
+		float
 	GetMass();
 
 	/**
 	 * Return the local inertia vector of the object
 	 */
-		MT_Vector3
+		mt::vec3
 	GetLocalInertia();
 
 	/** 
 	 * Return the angular velocity of the game object.
 	 */
-		MT_Vector3 
+		mt::vec3 
 	GetAngularVelocity(
 		bool local=false
 	);
@@ -407,20 +406,18 @@ public:
 	/**
 	 * Return object's physics controller gravity
 	 */
-		MT_Vector3
-	GetGravity();
+	mt::vec3 GetGravity() const;
 
 	/**
 	 * Set object's physics controller gravity
 	 */
-		void
-	SetGravity(const MT_Vector3 &gravity);
+	void SetGravity(const mt::vec3 &gravity);
 	/** 
 	 * Align the object to a given normal.
 	 */
 		void 
 	AlignAxisToVect(
-		const MT_Vector3& vect,
+		const mt::vec3& vect,
 		int axis = 2,
 		float fac = 1.0
 	);
@@ -431,10 +428,10 @@ public:
 
 		void
 	SetObjectColor(
-		const MT_Vector4& rgbavec
+		const mt::vec4& rgbavec
 	);
 
-		const MT_Vector4&
+		const mt::vec4&
 	GetObjectColor();
 
 	/**
@@ -495,33 +492,33 @@ public:
 	 * \section Coordinate system manipulation functions
 	 */
 
-	void	NodeSetLocalPosition(const MT_Vector3& trans	);
+	void	NodeSetLocalPosition(const mt::vec3& trans	);
 
-	void	NodeSetLocalOrientation(const MT_Matrix3x3& rot	);
-	void	NodeSetGlobalOrientation(const MT_Matrix3x3& rot	);
+	void	NodeSetLocalOrientation(const mt::mat3& rot	);
+	void	NodeSetGlobalOrientation(const mt::mat3& rot	);
 
-	void	NodeSetLocalScale(	const MT_Vector3& scale	);
-	void	NodeSetWorldScale(	const MT_Vector3& scale );
+	void	NodeSetLocalScale(	const mt::vec3& scale	);
+	void	NodeSetWorldScale(	const mt::vec3& scale );
 
-	void	NodeSetRelativeScale(	const MT_Vector3& scale	);
+	void	NodeSetRelativeScale(	const mt::vec3& scale	);
 
 	// adapt local position so that world position is set to desired position
-	void	NodeSetWorldPosition(const MT_Vector3& trans);
+	void	NodeSetWorldPosition(const mt::vec3& trans);
 
 		void
 	NodeUpdateGS(
 		double time
 	);
 
-	const MT_Matrix3x3& NodeGetWorldOrientation(  ) const;
-	const MT_Vector3& NodeGetWorldScaling(  ) const;
-	const MT_Vector3& NodeGetWorldPosition(  ) const;
-	MT_Transform NodeGetWorldTransform() const;
+	const mt::mat3& NodeGetWorldOrientation(  ) const;
+	const mt::vec3& NodeGetWorldScaling(  ) const;
+	const mt::vec3& NodeGetWorldPosition(  ) const;
+	mt::mat3x4 NodeGetWorldTransform() const;
 
-	const MT_Matrix3x3& NodeGetLocalOrientation(  ) const;
-	const MT_Vector3& NodeGetLocalScaling(  ) const;
-	const MT_Vector3& NodeGetLocalPosition(  ) const;
-	MT_Transform NodeGetLocalTransform() const;
+	const mt::mat3& NodeGetLocalOrientation(  ) const;
+	const mt::vec3& NodeGetLocalScaling(  ) const;
+	const mt::vec3& NodeGetLocalPosition(  ) const;
+	mt::mat3x4 NodeGetLocalTransform() const;
 
 	/**
 	 * \section scene graph node accessor functions.
@@ -612,42 +609,42 @@ public:
 
 		void
 	ApplyForce(
-		const MT_Vector3& force,	bool local
+		const mt::vec3& force,	bool local
 	);
 
 		void
 	ApplyTorque(
-		const MT_Vector3& torque,
+		const mt::vec3& torque,
 		bool local
 	);
 
 		void
 	ApplyRotation(
-		const MT_Vector3& drot,
+		const mt::vec3& drot,
 		bool local
 	);
 
 		void
 	ApplyMovement(
-		const MT_Vector3& dloc,
+		const mt::vec3& dloc,
 		bool local
 	);
 
 		void
 	addLinearVelocity(
-		const MT_Vector3& lin_vel,
+		const mt::vec3& lin_vel,
 		bool local
 	);
 
 		void
 	setLinearVelocity(
-		const MT_Vector3& lin_vel,
+		const mt::vec3& lin_vel,
 		bool local
 	);
 
 		void
 	setAngularVelocity(
-		const MT_Vector3& ang_vel,
+		const mt::vec3& ang_vel,
 		bool local
 	);
 
@@ -746,7 +743,7 @@ public:
 	/**
 	 * Updates the current lod level based on distance from camera.
 	 */
-	void UpdateLod(const MT_Vector3& cam_pos, float lodfactor);
+	void UpdateLod(const mt::vec3& cam_pos, float lodfactor);
 
 	/** Update the activity culling of the object.
 	 * \param distance Squared nearest distance to the cameras of this object.
@@ -848,8 +845,8 @@ public:
 	 * and a valid graphic controller (if it exists).
 	 */
 	void UpdateBounds(bool force);
-	void SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax);
-	void GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const;
+	void SetBoundsAabb(const mt::vec3 &aabbMin, const mt::vec3 &aabbMax);
+	void GetBoundsAabb(mt::vec3 &aabbMin, mt::vec3 &aabbMax) const;
 
 	SG_CullingNode *GetCullingNode();
 

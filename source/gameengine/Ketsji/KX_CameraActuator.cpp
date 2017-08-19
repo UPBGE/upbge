@@ -33,14 +33,8 @@
  *  \ingroup ketsji
  */
 
-#include "BLI_math_vector.h"
-
 #include "KX_CameraActuator.h"
-#include <math.h>
-#include <float.h>
 #include "KX_GameObject.h"
-
-#include "EXP_PyObjectPlus.h" 
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
@@ -114,9 +108,8 @@ void KX_CameraActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 
 /* copied from blender BLI_math ... don't know if there's an equivalent */
 
-static void Kx_VecUpMat3(float vec[3], float mat[3][3], short axis)
+static void Kx_VecUpMat3(mt::vec3 &vec, mt::mat3& mat, short axis)
 {
-
 	// Construct a camera matrix s.t. the specified axis
 
 	// maps to the given vector (*vec). Also defines the rotation
@@ -142,9 +135,7 @@ static void Kx_VecUpMat3(float vec[3], float mat[3][3], short axis)
 	}
 	if (axis==3) {
 		cox= 0; coy= 1; coz= 2;		/* Y op -Z tr */
-		vec[0] = -vec[0];
-		vec[1] = -vec[1];
-		vec[2] = -vec[2];
+		vec = -vec;
 	}
 	if (axis==4) {
 		cox= 1; coy= 0; coz= 2;		/*  */
@@ -153,30 +144,24 @@ static void Kx_VecUpMat3(float vec[3], float mat[3][3], short axis)
 		cox= 2; coy= 1; coz= 0;		/* Y up X tr */
 	}
 
-	mat[coz][0] = vec[0];
-	mat[coz][1] = vec[1];
-	mat[coz][2] = vec[2];
-	if (normalize_v3((float *)mat[coz]) == 0.f) {
+	mat.GetColumn(coz) = vec;
+	if (mat.GetColumn(coz).Normalize() == 0.f) {
 		/* this is a very abnormal situation: the camera has reach the object center exactly
 		 * We will choose a completely arbitrary direction */
-		mat[coz][0] = 1.0f;
-		mat[coz][1] = 0.0f;
-		mat[coz][2] = 0.0f;
+		mat.GetColumn(coz) = mt::axisX3;
 	}
 	
-	inp = mat[coz][2];
-	mat[coy][0] =      - inp * mat[coz][0];
-	mat[coy][1] =      - inp * mat[coz][1];
-	mat[coy][2] = 1.0f - inp * mat[coz][2];
+	inp = mat(coz, 2);
+	mat(0, coy) =      - inp * mat(0, coz);
+	mat(1, coy) =      - inp * mat(1, coz);
+	mat(2, coy) = 1.0f - inp * mat(2, coz);
 
-	if (normalize_v3((float *)mat[coy]) == 0.f) {
+	if (mat.GetColumn(coy).Normalize() == 0.f) {
 		/* the camera is vertical, chose the y axis arbitrary */
-		mat[coy][0] = 0.f;
-		mat[coy][1] = 1.f;
-		mat[coy][2] = 0.f;
+		mat.GetColumn(coy) = mt::axisY3;
 	}
-	
-	cross_v3_v3v3(mat[cox], mat[coy], mat[coz]);
+
+	mat.GetColumn(cox) = mt::vec3::CrossProduct(mat.GetColumn(coy), mat.GetColumn(coz));
 }
 
 bool KX_CameraActuator::Update(double curtime)
@@ -190,16 +175,16 @@ bool KX_CameraActuator::Update(double curtime)
 		return false;
 	
 	KX_GameObject *obj = (KX_GameObject*) GetParent();
-	MT_Vector3 from = obj->NodeGetWorldPosition();
-	MT_Matrix3x3 frommat = obj->NodeGetWorldOrientation();
+	mt::vec3 from = obj->NodeGetWorldPosition();
+	mt::mat3 frommat = obj->NodeGetWorldOrientation();
 	/* These casts are _very_ dangerous!!! */
-	MT_Vector3 lookat = ((KX_GameObject*)m_ob)->NodeGetWorldPosition();
-	MT_Matrix3x3 actormat = ((KX_GameObject*)m_ob)->NodeGetWorldOrientation();
+	mt::vec3 lookat = ((KX_GameObject*)m_ob)->NodeGetWorldPosition();
+	mt::mat3 actormat = ((KX_GameObject*)m_ob)->NodeGetWorldOrientation();
 
-	float fp1[3]={0}, fp2[3]={0}, rc[3];
+	mt::vec3 fp1, fp2, rc;
 	float inp, fac; //, factor = 0.0; /* some factor...                                    */
 	float mindistsq, maxdistsq, distsq;
-	float mat[3][3];
+	mt::mat3 mat;
 	
 	/* The rules:                                                            */
 	/* CONSTRAINT 1: not implemented */
@@ -238,56 +223,38 @@ bool KX_CameraActuator::Update(double curtime)
 	switch (m_axis) {
 		case OB_POSX:
 			/* X */
-			fp1[0] = actormat[0][0];
-			fp1[1] = actormat[1][0];
-			fp1[2] = actormat[2][0];
+			fp1 = actormat.GetColumn(0);
 
-			fp2[0] = frommat[0][0];
-			fp2[1] = frommat[1][0];
-			fp2[2] = frommat[2][0];
+			fp2 = frommat.GetColumn(0);
 			break;
 		case OB_POSY:
 			/* Y */
-			fp1[0] = actormat[0][1];
-			fp1[1] = actormat[1][1];
-			fp1[2] = actormat[2][1];
+			fp1 = actormat.GetColumn(1);
 
-			fp2[0] = frommat[0][1];
-			fp2[1] = frommat[1][1];
-			fp2[2] = frommat[2][1];
+			fp2 = frommat.GetColumn(1);
 			break;
 		case OB_NEGX:
 			/* -X */
-			fp1[0] = -actormat[0][0];
-			fp1[1] = -actormat[1][0];
-			fp1[2] = -actormat[2][0];
+			fp1 = -actormat.GetColumn(0);
 
-			fp2[0] = frommat[0][0];
-			fp2[1] = frommat[1][0];
-			fp2[2] = frommat[2][0];
+			fp2 = frommat.GetColumn(0);
 			break;
 		case OB_NEGY:
 			/* -Y */
-			fp1[0] = -actormat[0][1];
-			fp1[1] = -actormat[1][1];
-			fp1[2] = -actormat[2][1];
+			fp1 = -actormat.GetColumn(1);
 
-			fp2[0] = frommat[0][1];
-			fp2[1] = frommat[1][1];
-			fp2[2] = frommat[2][1];
+			fp2 = frommat.GetColumn(1);
 			break;
 		default:
 			BLI_assert(0);
 			break;
 	}
 
-	inp = fp1[0]*fp2[0] + fp1[1]*fp2[1] + fp1[2]*fp2[2];
+	inp = mt::vec3::DotProduct(fp1, fp2);
 	fac = (-1.0f + inp) * m_damping;
 
-	from[0] += fac * fp1[0];
-	from[1] += fac * fp1[1];
-	from[2] += fac * fp1[2];
-	
+	from += fac * fp1;
+
 	/* only for it lies: cross test and perpendicular bites up */
 	if (inp < 0.0f) {
 		/* Don't do anything if the cross product is too small.
@@ -306,44 +273,29 @@ bool KX_CameraActuator::Update(double curtime)
 
 	/* CONSTRAINT 5: minimum / maximum distance */
 
-	rc[0] = (lookat[0]-from[0]);
-	rc[1] = (lookat[1]-from[1]);
-	rc[2] = (lookat[2]-from[2]);
-	distsq = rc[0]*rc[0] + rc[1]*rc[1] + rc[2]*rc[2];
+	rc = lookat - from;
+	distsq = rc.LengthSquared();
 
 	if (distsq > maxdistsq) {
 		distsq = 0.15f * (distsq - maxdistsq) / distsq;
-		
-		from[0] += distsq*rc[0];
-		from[1] += distsq*rc[1];
-		from[2] += distsq*rc[2];
+
+		from += distsq * rc;
 	}
 	else if (distsq < mindistsq) {
 		distsq = 0.15f * (mindistsq - distsq) / mindistsq;
-		
-		from[0] -= distsq*rc[0];
-		from[1] -= distsq*rc[1];
-		from[2] -= distsq*rc[2];
+
+		from -= distsq * rc;
 	}
 
-
 	/* CONSTRAINT 7: track to floor below actor */
-	rc[0] = (lookat[0]-from[0]);
-	rc[1] = (lookat[1]-from[1]);
-	rc[2] = (lookat[2]-from[2]);
+	rc = lookat - from;
 	Kx_VecUpMat3(rc, mat, 3);	/* y up Track -z */
-	
-
-
 
 	/* now set the camera position and rotation */
-	
+
 	obj->NodeSetLocalPosition(from);
-	
-	actormat[0][0] = mat[0][0]; actormat[0][1] = mat[1][0]; actormat[0][2] = mat[2][0];
-	actormat[1][0] = mat[0][1]; actormat[1][1] = mat[1][1]; actormat[1][2] = mat[2][1];
-	actormat[2][0] = mat[0][2]; actormat[2][1] = mat[1][2]; actormat[2][2] = mat[2][2];
-	obj->NodeSetLocalOrientation(actormat);
+
+	obj->NodeSetLocalOrientation(mat);
 
 	return true;
 }

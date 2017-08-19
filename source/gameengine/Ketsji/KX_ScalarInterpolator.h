@@ -32,14 +32,13 @@
 #ifndef __KX_SCALARINTERPOLATOR_H__
 #define __KX_SCALARINTERPOLATOR_H__
 
-#include "MT_Scalar.h"
 #include "KX_IInterpolator.h"
 
 class KX_IScalarInterpolator;
 
 class KX_ScalarInterpolator : public KX_IInterpolator {
 public:
-	KX_ScalarInterpolator(MT_Scalar* target, 
+	KX_ScalarInterpolator(float* target, 
 						  KX_IScalarInterpolator *ipo) :
 		m_target(target),
 		m_ipo(ipo)
@@ -47,16 +46,16 @@ public:
 	
 	virtual ~KX_ScalarInterpolator() {}
 	virtual void Execute(float currentTime) const;
-	void		SetNewTarget(MT_Scalar* newtarget)
+	void		SetNewTarget(float* newtarget)
 	{
 		m_target=newtarget;
 	}
-	MT_Scalar*	GetTarget()
+	float*	GetTarget()
 	{
 		return m_target;
 	}
 private:
-	MT_Scalar*               m_target;
+	float*               m_target;
 	KX_IScalarInterpolator *m_ipo;
 };
 

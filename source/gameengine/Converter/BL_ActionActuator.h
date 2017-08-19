@@ -34,7 +34,6 @@
 
 #include "SCA_IActuator.h"
 #include "DNA_actuator_types.h"
-#include "MT_Vector3.h"
 #include "BL_Action.h" // For BL_Action::PlayMode.
 
 class BL_ActionActuator : public SCA_IActuator  
@@ -111,7 +110,6 @@ public:
 #endif  /* WITH_PYTHON */
 	
 protected:
-	MT_Vector3	m_lastpos;
 	float	m_blendframe;
 	int		m_flag;
 	/** The frame this action starts */

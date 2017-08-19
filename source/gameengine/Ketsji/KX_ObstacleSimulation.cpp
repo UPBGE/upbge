@@ -34,7 +34,7 @@
 
 namespace
 {
-	inline float perp(const MT_Vector2& a, const MT_Vector2& b) { return a.x()*b.y() - a.y()*b.x(); }
+	inline float perp(const mt::vec2& a, const mt::vec2& b) { return a.x*b.y - a.y*b.x; }
 
 	inline float sqr(float x) { return x * x; }
 	inline float lerp(float a, float b, float t) { return a + (b - a) * t; }
@@ -43,21 +43,21 @@ namespace
 }
 
 static int sweepCircleCircle(
-        const MT_Vector2 &pos0, const MT_Scalar r0, const MT_Vector2 &v,
-        const MT_Vector2 &pos1, const MT_Scalar r1,
+        const mt::vec2 &pos0, const float r0, const mt::vec2 &v,
+        const mt::vec2 &pos1, const float r1,
         float& tmin, float& tmax)
 {
 	static const float EPS = 0.0001f;
-	MT_Vector2 c0(pos0.x(), pos0.y());
-	MT_Vector2 c1(pos1.x(), pos1.y());
-	MT_Vector2 s = c1 - c0;
-	MT_Scalar  r = r0+r1;
-	float c = s.length2() - r*r;
-	float a = v.length2();
+	mt::vec2 c0(pos0.x, pos0.y);
+	mt::vec2 c1(pos1.x, pos1.y);
+	mt::vec2 s = c1 - c0;
+	float  r = r0+r1;
+	float c = s.LengthSquared() - r*r;
+	float a = v.LengthSquared();
 	if (a < EPS) return 0;	// not moving
 
 	// Overlap, calc time to exit.
-	float b = MT_dot(v,s);
+	float b = mt::dot(v,s);
 	float d = b*b - a*c;
 	if (d < 0.0f) return 0; // no intersection.
 	tmin = (b - sqrtf(d)) / a;
@@ -66,18 +66,18 @@ static int sweepCircleCircle(
 }
 
 static int sweepCircleSegment(
-        const MT_Vector2 &pos0, const MT_Scalar r0, const MT_Vector2 &v,
-        const MT_Vector2& pa, const MT_Vector2 &pb, const MT_Scalar sr,
+        const mt::vec2 &pos0, const float r0, const mt::vec2 &v,
+        const mt::vec2& pa, const mt::vec2 &pb, const float sr,
         float& tmin, float &tmax)
 {
 	// equation parameters
-	MT_Vector2 c0(pos0.x(), pos0.y());
-	MT_Vector2 sa(pa.x(), pa.y());
-	MT_Vector2 sb(pb.x(), pb.y());
-	MT_Vector2 L = sb-sa;
-	MT_Vector2 H = c0-sa;
-	MT_Scalar radius = r0+sr;
-	float l2 = L.length2();
+	mt::vec2 c0(pos0.x, pos0.y);
+	mt::vec2 sa(pa.x, pa.y);
+	mt::vec2 sb(pb.x, pb.y);
+	mt::vec2 L = sb-sa;
+	mt::vec2 H = c0-sa;
+	float radius = r0+sr;
+	float l2 = L.LengthSquared();
 	float r2 = radius * radius;
 	float dl = perp(v, L);
 	float hl = perp(H, L);
@@ -99,13 +99,13 @@ static int sweepCircleSegment(
 	return 0;*/
 
 	// find what part of the ray was collided.
-	MT_Vector2 Pedge;
+	mt::vec2 Pedge;
 	Pedge = c0+v*tmin;
 	H = Pedge - sa;
-	float e0 = MT_dot(H, L) / l2;
+	float e0 = mt::dot(H, L) / l2;
 	Pedge = c0 + v*tmax;
 	H = Pedge - sa;
-	float e1 = MT_dot(H, L) / l2;
+	float e1 = mt::dot(H, L) / l2;
 
 	if (e0 < 0.0f || e1 < 0.0f)
 	{
@@ -169,7 +169,7 @@ static float interpolateToi(float a, const float* dir, const float* toi, const i
 	return 0;
 }
 
-KX_ObstacleSimulation::KX_ObstacleSimulation(MT_Scalar levelHeight, bool enableVisualization)
+KX_ObstacleSimulation::KX_ObstacleSimulation(float levelHeight, bool enableVisualization)
 :	m_levelHeight(levelHeight)
 ,	m_enableVisualization(enableVisualization)
 {
@@ -230,8 +230,8 @@ void KX_ObstacleSimulation::AddObstaclesForNavMesh(KX_NavMeshObject* navmeshobj)
 				KX_Obstacle* obstacle = CreateObstacle(navmeshobj);
 				obstacle->m_type = KX_OBSTACLE_NAV_MESH;
 				obstacle->m_shape = KX_OBSTACLE_SEGMENT;
-				obstacle->m_pos = MT_Vector3(vj[0], vj[2], vj[1]);
-				obstacle->m_pos2 = MT_Vector3(vi[0], vi[2], vi[1]);
+				obstacle->m_pos = mt::vec3(vj[0], vj[2], vj[1]);
+				obstacle->m_pos2 = mt::vec3(vi[0], vi[2], vi[1]);
 				obstacle->m_rad = 0;
 			}
 		}
@@ -263,8 +263,8 @@ void KX_ObstacleSimulation::UpdateObstacles()
 
 		KX_Obstacle* obs = m_obstacles[i];
 		obs->m_pos = obs->m_gameObj->NodeGetWorldPosition();
-		obs->vel[0] = obs->m_gameObj->GetLinearVelocity().x();
-		obs->vel[1] = obs->m_gameObj->GetLinearVelocity().y();
+		obs->vel[0] = obs->m_gameObj->GetLinearVelocity().x;
+		obs->vel[1] = obs->m_gameObj->GetLinearVelocity().y;
 
 		// Update velocity history and calculate perceived (average) velocity.
 		copy_v2_v2(&obs->hvel[obs->hhead * 2], obs->vel);
@@ -288,7 +288,7 @@ KX_Obstacle* KX_ObstacleSimulation::GetObstacle(KX_GameObject* gameobj)
 }
 
 void KX_ObstacleSimulation::AdjustObstacleVelocity(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavMeshObj, 
-										MT_Vector3& velocity, MT_Scalar maxDeltaSpeed,MT_Scalar maxDeltaAngle)
+										mt::vec3& velocity, float maxDeltaSpeed,float maxDeltaAngle)
 {
 }
 
@@ -296,15 +296,15 @@ void KX_ObstacleSimulation::DrawObstacles()
 {
 	if (!m_enableVisualization)
 		return;
-	static const MT_Vector4 bluecolor(0.0f, 0.0f, 1.0f, 1.0f);
-	static const MT_Vector3 normal(0.0f, 0.0f, 1.0f);
+	static const mt::vec4 bluecolor(0.0f, 0.0f, 1.0f, 1.0f);
+	static const mt::vec3 normal = mt::axisZ3;
 	static const int SECTORS_NUM = 32;
 	for (size_t i=0; i<m_obstacles.size(); i++)
 	{
 		if (m_obstacles[i]->m_shape==KX_OBSTACLE_SEGMENT)
 		{
-			MT_Vector3 p1 = m_obstacles[i]->m_pos;
-			MT_Vector3 p2 = m_obstacles[i]->m_pos2;
+			mt::vec3 p1 = m_obstacles[i]->m_pos;
+			mt::vec3 p2 = m_obstacles[i]->m_pos2;
 			//apply world transform
 			if (m_obstacles[i]->m_type == KX_OBSTACLE_NAV_MESH)
 			{
@@ -323,21 +323,21 @@ void KX_ObstacleSimulation::DrawObstacles()
 	}
 }
 
-static MT_Vector3 nearestPointToObstacle(MT_Vector3& pos ,KX_Obstacle* obstacle)
+static mt::vec3 nearestPointToObstacle(mt::vec3& pos ,KX_Obstacle* obstacle)
 {
 	switch (obstacle->m_shape)
 	{
 	case KX_OBSTACLE_SEGMENT :
 	{
-		MT_Vector3 ab = obstacle->m_pos2 - obstacle->m_pos;
-		if (!ab.fuzzyZero())
+		mt::vec3 ab = obstacle->m_pos2 - obstacle->m_pos;
+		if (!mt::FuzzyZero(ab))
 		{
-			const MT_Scalar dist = ab.length();
-			MT_Vector3 abdir = ab.normalized();
-			MT_Vector3  v = pos - obstacle->m_pos;
-			MT_Scalar proj = abdir.dot(v);
+			const float dist = ab.Length();
+			mt::vec3 abdir = ab.Normalized();
+			mt::vec3  v = pos - obstacle->m_pos;
+			float proj = mt::dot(abdir, v);
 			CLAMP(proj, 0, dist);
-			MT_Vector3 res = obstacle->m_pos + abdir*proj;
+			mt::vec3 res = obstacle->m_pos + abdir*proj;
 			return res;
 		}
 		ATTR_FALLTHROUGH;
@@ -357,15 +357,15 @@ static bool filterObstacle(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 		return false;
 
 	//filter obstacles by position
-	MT_Vector3 p = nearestPointToObstacle(activeObst->m_pos, otherObst);
-	if ( fabsf(activeObst->m_pos.z() - p.z()) > levelHeight)
+	mt::vec3 p = nearestPointToObstacle(activeObst->m_pos, otherObst);
+	if ( fabsf(activeObst->m_pos.z - p.z) > levelHeight)
 		return false;
 
 	return true;
 }
 
 ///////////*********TOI_rays**********/////////////////
-KX_ObstacleSimulationTOI::KX_ObstacleSimulationTOI(MT_Scalar levelHeight, bool enableVisualization)
+KX_ObstacleSimulationTOI::KX_ObstacleSimulationTOI(float levelHeight, bool enableVisualization)
 :	KX_ObstacleSimulation(levelHeight, enableVisualization),
 	m_maxSamples(32),
 	m_minToi(0.0f),
@@ -379,14 +379,14 @@ KX_ObstacleSimulationTOI::KX_ObstacleSimulationTOI(MT_Scalar levelHeight, bool e
 
 
 void KX_ObstacleSimulationTOI::AdjustObstacleVelocity(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavMeshObj, 
-                                                      MT_Vector3& velocity, MT_Scalar maxDeltaSpeed, MT_Scalar maxDeltaAngle)
+                                                      mt::vec3& velocity, float maxDeltaSpeed, float maxDeltaAngle)
 {
 	int nobs = m_obstacles.size();
 	int obstidx = std::find(m_obstacles.begin(), m_obstacles.end(), activeObst) - m_obstacles.begin();
 	if (obstidx == nobs)
 		return;
 
-	vset(activeObst->dvel, velocity.x(), velocity.y());
+	vset(activeObst->dvel, velocity.x, velocity.y);
 
 	//apply RVO
 	sampleRVO(activeObst, activeNavMeshObj, maxDeltaAngle);
@@ -400,8 +400,8 @@ void KX_ObstacleSimulationTOI::AdjustObstacleVelocity(KX_Obstacle* activeObst, K
 		mul_v2_fl(dv, fabs(maxDeltaSpeed / ds));
 	add_v2_v2v2(vel, activeObst->vel, dv);
 
-	velocity.x() = vel[0];
-	velocity.y() = vel[1];
+	velocity.x = vel[0];
+	velocity.y = vel[1];
 }
 
 ///////////*********TOI_rays**********/////////////////
@@ -416,7 +416,7 @@ struct TOICircle
 	float	minToi, maxToi;			// Min/max TOI (seconds)
 };
 
-KX_ObstacleSimulationTOI_rays::KX_ObstacleSimulationTOI_rays(MT_Scalar levelHeight, bool enableVisualization):
+KX_ObstacleSimulationTOI_rays::KX_ObstacleSimulationTOI_rays(float levelHeight, bool enableVisualization):
 	KX_ObstacleSimulationTOI(levelHeight, enableVisualization)
 {
 	m_maxSamples = 32;
@@ -431,12 +431,12 @@ KX_ObstacleSimulationTOI_rays::KX_ObstacleSimulationTOI_rays(MT_Scalar levelHeig
 void KX_ObstacleSimulationTOI_rays::sampleRVO(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavMeshObj, 
 										const float maxDeltaAngle)
 {
-	MT_Vector2 vel(activeObst->dvel[0], activeObst->dvel[1]);
-	float vmax = (float) vel.length();
-	float odir = (float) atan2(vel.y(), vel.x());
+	mt::vec2 vel(activeObst->dvel[0], activeObst->dvel[1]);
+	float vmax = (float) vel.Length();
+	float odir = (float) atan2(vel.y, vel.x);
 
-	MT_Vector2 ddir = vel;
-	ddir.normalize();
+	mt::vec2 ddir = vel;
+	ddir.Normalize();
 
 	float bestScore = FLT_MAX;
 	float bestDir = odir;
@@ -456,9 +456,9 @@ void KX_ObstacleSimulationTOI_rays::sampleRVO(KX_Obstacle* activeObst, KX_NavMes
 		// Calculate sample velocity
 		const float ndir = ((float)iter/(float)m_maxSamples) - aoff;
 		const float dir = odir+ndir*(float)M_PI*2.0f;
-		MT_Vector2 svel;
-		svel.x() = cosf(dir) * vmax;
-		svel.y() = sinf(dir) * vmax;
+		mt::vec2 svel;
+		svel.x = cosf(dir) * vmax;
+		svel.y = sinf(dir) * vmax;
 
 		// Find min time of impact and exit amongst all obstacles.
 		float tmin = m_maxToi;
@@ -474,7 +474,7 @@ void KX_ObstacleSimulationTOI_rays::sampleRVO(KX_Obstacle* activeObst, KX_NavMes
 
 			if (ob->m_shape == KX_OBSTACLE_CIRCLE)
 			{
-				MT_Vector2 vab;
+				mt::vec2 vab;
 				if (len_v2(ob->vel) < 0.01f * 0.01f) {
 					// Stationary, use VO
 					vab = svel;
@@ -482,19 +482,19 @@ void KX_ObstacleSimulationTOI_rays::sampleRVO(KX_Obstacle* activeObst, KX_NavMes
 				else
 				{
 					// Moving, use RVO
-					vab = 2*svel - vel - MT_Vector2(ob->vel);
+					vab = (2.0f * svel) - vel - mt::vec2(ob->vel);
 				}
 
-				if (!sweepCircleCircle(activeObst->m_pos.to2d(), activeObst->m_rad,
-				                       vab, ob->m_pos.to2d(), ob->m_rad, htmin, htmax))
+				if (!sweepCircleCircle(activeObst->m_pos.xy(), activeObst->m_rad,
+				                       vab, ob->m_pos.xy(), ob->m_rad, htmin, htmax))
 				{
 					continue;
 				}
 			}
 			else if (ob->m_shape == KX_OBSTACLE_SEGMENT)
 			{
-				MT_Vector3 p1 = ob->m_pos;
-				MT_Vector3 p2 = ob->m_pos2;
+				mt::vec3 p1 = ob->m_pos;
+				mt::vec3 p2 = ob->m_pos2;
 				//apply world transform
 				if (ob->m_type == KX_OBSTACLE_NAV_MESH)
 				{
@@ -503,8 +503,8 @@ void KX_ObstacleSimulationTOI_rays::sampleRVO(KX_Obstacle* activeObst, KX_NavMes
 					p2 = navmeshobj->TransformToWorldCoords(p2);
 				}
 
-				if (!sweepCircleSegment(activeObst->m_pos.to2d(), activeObst->m_rad, svel,
-				                        p1.to2d(), p2.to2d(), ob->m_rad, htmin, htmax))
+				if (!sweepCircleSegment(activeObst->m_pos.xy(), activeObst->m_rad, svel,
+				                        p1.xy(), p2.xy(), ob->m_rad, htmin, htmax))
 				{
 					continue;
 				}
@@ -591,7 +591,7 @@ static void processSamples(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 	}
 
 	float activeObstPos[2];
-	vset(activeObstPos, activeObst->m_pos.x(), activeObst->m_pos.y()); 
+	vset(activeObstPos, activeObst->m_pos.x, activeObst->m_pos.y); 
 	/* adist = vdot(adir, activeObstPos); */
 
 	float minPenalty = FLT_MAX;
@@ -628,7 +628,7 @@ static void processSamples(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 				// they can be precomputed per object. 
 				const float* pa = activeObstPos;
 				float pb[2];
-				vset(pb, ob->m_pos.x(), ob->m_pos.y());
+				vset(pb, ob->m_pos.x, ob->m_pos.y);
 
 				const float orig[2] = {0, 0};
 				float dp[2], dv[2], np[2];
@@ -650,8 +650,8 @@ static void processSamples(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 				                  dot_v2v2(np, vab)) * 2.0f, 0.0f, 1.0f);
 				nside++;
 
-				if (!sweepCircleCircle(activeObst->m_pos.to2d(), activeObst->m_rad,
-				                       MT_Vector2(vab), ob->m_pos.to2d(), ob->m_rad, htmin, htmax))
+				if (!sweepCircleCircle(activeObst->m_pos.xy(), activeObst->m_rad,
+				                       mt::vec2(vab), ob->m_pos.xy(), ob->m_rad, htmin, htmax))
 				{
 					continue;
 				}
@@ -665,8 +665,8 @@ static void processSamples(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 			}
 			else if (ob->m_shape == KX_OBSTACLE_SEGMENT)
 			{
-				MT_Vector3 p1 = ob->m_pos;
-				MT_Vector3 p2 = ob->m_pos2;
+				mt::vec3 p1 = ob->m_pos;
+				mt::vec3 p2 = ob->m_pos2;
 				//apply world transform
 				if (ob->m_type == KX_OBSTACLE_NAV_MESH)
 				{
@@ -675,8 +675,8 @@ static void processSamples(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 					p2 = navmeshobj->TransformToWorldCoords(p2);
 				}
 				float p[2], q[2];
-				vset(p, p1.x(), p1.y());
-				vset(q, p2.x(), p2.y());
+				vset(p, p1.x, p1.y);
+				vset(q, p2.x, p2.y);
 
 				// NOTE: the segments are assumed to come from a navmesh which is shrunken by
 				// the agent radius, hence the use of really small radius.
@@ -697,8 +697,8 @@ static void processSamples(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 				}
 				else
 				{
-					if (!sweepCircleSegment(MT_Vector2(activeObstPos), r, MT_Vector2(vcand), 
-											MT_Vector2(p), MT_Vector2(q), ob->m_rad, htmin, htmax))
+					if (!sweepCircleSegment(mt::vec2(activeObstPos), r, mt::vec2(vcand), 
+											mt::vec2(p), mt::vec2(q), ob->m_rad, htmin, htmax))
 						continue;
 				}
 
@@ -812,7 +812,7 @@ void KX_ObstacleSimulationTOI_cells::sampleRVO(KX_Obstacle* activeObst, KX_NavMe
 	delete [] spos;
 }
 
-KX_ObstacleSimulationTOI_cells::KX_ObstacleSimulationTOI_cells(MT_Scalar levelHeight, bool enableVisualization)
+KX_ObstacleSimulationTOI_cells::KX_ObstacleSimulationTOI_cells(float levelHeight, bool enableVisualization)
 :	KX_ObstacleSimulationTOI(levelHeight, enableVisualization)
 ,	m_bias(0.4f)
 ,	m_adaptive(true)

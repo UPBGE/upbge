@@ -66,10 +66,6 @@ if(WITH_IK_ITASC)
 	add_subdirectory(itasc)
 endif()
 
-if(WITH_GAMEENGINE)
-	add_subdirectory(moto)
-endif()
-
 if(WITH_CYCLES)
 	add_subdirectory(cycles)
 endif()

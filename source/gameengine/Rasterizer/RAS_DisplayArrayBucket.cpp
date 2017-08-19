@@ -256,7 +256,8 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_DisplayArrayNodeTuple& 
 	if (managerData->m_sort) {
 		std::vector<RAS_BucketManager::SortedMeshSlot> sortedMeshSlots(nummeshslots);
 
-		const MT_Vector3 pnorm(managerData->m_trans.getBasis()[2]);
+		const mt::mat3x4& trans = managerData->m_trans;
+		const mt::vec3 pnorm(trans[2], trans[5], trans[8]);
 		std::transform(m_activeMeshSlots.begin(), m_activeMeshSlots.end(), sortedMeshSlots.end(),
 			[&pnorm](RAS_MeshSlot *slot) { return RAS_BucketManager::SortedMeshSlot(slot, pnorm); });
 
@@ -333,7 +334,8 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_DisplayArrayNodeTuple& tu
 	if (managerData->m_sort) {
 		std::vector<RAS_BucketManager::SortedMeshSlot> sortedMeshSlots(nummeshslots);
 
-		const MT_Vector3 pnorm(managerData->m_trans.getBasis()[2]);
+		const mt::mat3x4& trans = managerData->m_trans;
+		const mt::vec3 pnorm(trans[2], trans[5], trans[8]);
 		std::transform(m_activeMeshSlots.begin(), m_activeMeshSlots.end(), sortedMeshSlots.begin(),
 					   [&pnorm](RAS_MeshSlot *slot) { return RAS_BucketManager::SortedMeshSlot(slot, pnorm); });
 

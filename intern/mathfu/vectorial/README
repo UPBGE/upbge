@@ -1,0 +1,60 @@
+
+    Vectorial - vector math library
+
+
+
+  Motivation
+
+    I couldn't find an open source math library that was usable and
+    supported simd - especially the ARM NEON variant.
+
+
+  Features
+
+    Supports NEON, SSE, scalar and generic gcc vector extension.
+    Most basic vector and matrix math is available, but not quite
+    yet full featured.
+
+
+  Design
+
+    Vectorial consists of two main parts, pure-C wrapper around
+    platform-specific vector instructions in the simd*.h files
+    and C++ classes for common uses, the vec*.h and mat*.h
+
+    The config.h autodetects approriate vector instructions to use.
+
+    The platform-specific support is done with intrisincs only,
+    allowing the compiler to have a full view of the code, hopefully
+    resulting in better optimizations especially with reordering etc.
+
+
+  Installation / Usage
+
+    Add vectorial/include to your include path
+
+    #include "vectorial/simd4f.h"  
+    for C-only simd wrapper, using it looks like this:
+      simd4f v = simd4f_normalize( simd4f_add( simd4f_create(1,2,3,4), y) );
+      float z = simd4f_get_z(v);
+
+    #include "vectorial/vectorial.h"
+    for C++ classes. They reside in vectorial namespace, you might
+    want to alias them to your own namespace
+      namespace myproject {
+        using namespace ::vectorial;
+        // if you like different name: typedef vec3f Vector3;
+      }
+      using myproject::vec4f;
+      
+      vec4f v = normalize( vec4f(1,2,3,4) + y );
+      float z = v.z();
+
+
+  License
+
+    2-clause BSD. See LICENSE
+
+
+
+

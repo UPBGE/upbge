@@ -35,8 +35,8 @@ RAS_TextUser::RAS_TextUser(void *clientobj, RAS_BoundingBox *boundingBox)
 	m_size(0),
 	m_dpi(0),
 	m_aspect(0.0f),
-	m_offset(MT_Vector3(0.0f, 0.0f, 0.0f)),
-	m_spacing(MT_Vector3(0.0f, 0.0f, 0.0f))
+	m_offset(mt::zero3),
+	m_spacing(mt::zero3)
 {
 }
 
@@ -64,12 +64,12 @@ float RAS_TextUser::GetAspect() const
 	return m_aspect;
 }
 
-const MT_Vector3& RAS_TextUser::GetOffset() const
+const mt::vec3& RAS_TextUser::GetOffset() const
 {
 	return m_offset;
 }
 
-const MT_Vector3& RAS_TextUser::GetSpacing() const
+const mt::vec3& RAS_TextUser::GetSpacing() const
 {
 	return m_spacing;
 }
@@ -99,12 +99,12 @@ void RAS_TextUser::SetAspect(float aspect)
 	m_aspect = aspect;
 }
 
-void RAS_TextUser::SetOffset(const MT_Vector3& offset)
+void RAS_TextUser::SetOffset(const mt::vec3& offset)
 {
 	m_offset = offset;
 }
 
-void RAS_TextUser::SetSpacing(const MT_Vector3& spacing)
+void RAS_TextUser::SetSpacing(const mt::vec3& spacing)
 {
 	m_spacing = spacing;
 }

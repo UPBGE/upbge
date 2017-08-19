@@ -83,13 +83,13 @@ const std::string& KX_GetOrigPath()
 	return g_origPath;
 }
 
-void KX_RasterizerDrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,const MT_Vector4& color)
+void KX_RasterizerDrawDebugLine(const mt::vec3& from,const mt::vec3& to,const mt::vec4& color)
 {
 	g_engine->GetRasterizer()->GetDebugDraw(g_scene).DrawLine(from, to, color);
 }
 
-void KX_RasterizerDrawDebugCircle(const MT_Vector3& center, const MT_Scalar radius, const MT_Vector4& color,
-                                  const MT_Vector3& normal, int nsector)
+void KX_RasterizerDrawDebugCircle(const mt::vec3& center, const float radius, const mt::vec4& color,
+                                  const mt::vec3& normal, int nsector)
 {
 	g_engine->GetRasterizer()->GetDebugDraw(g_scene).DrawCircle(center, radius, color, normal, nsector);
 }

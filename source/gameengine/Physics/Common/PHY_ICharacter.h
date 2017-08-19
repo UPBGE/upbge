@@ -26,8 +26,8 @@ public:
 
 	virtual unsigned char GetJumpCount() = 0;
 
-	virtual void SetWalkDirection(const class MT_Vector3& dir) = 0;
-	virtual MT_Vector3 GetWalkDirection() = 0;
+	virtual void SetWalkDirection(const mt::vec3& dir) = 0;
+	virtual mt::vec3 GetWalkDirection() = 0;
 
 	virtual float GetFallSpeed() const = 0;
 	virtual void SetFallSpeed(float fallSpeed) = 0;
@@ -38,7 +38,7 @@ public:
 	virtual float GetJumpSpeed() const = 0;
 	virtual void SetJumpSpeed(float jumpSpeed) = 0;
 
-	virtual void SetVelocity(const MT_Vector3& vel, float time, bool local) = 0;
+	virtual void SetVelocity(const mt::vec3& vel, float time, bool local) = 0;
 
 	virtual void Reset() = 0;
 };

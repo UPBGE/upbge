@@ -131,13 +131,8 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
 		if (enable) {
 			BLI_assert(rasty != nullptr); // XXX Kinda hacky, but SetProg() should always have the rasterizer if enable is true
 
-			float viewmat[4][4], viewinvmat[4][4];
-			const MT_Matrix4x4& view = rasty->GetViewMatrix();
-			const MT_Matrix4x4& viewinv = rasty->GetViewInvMatrix();
-			view.getValue((float *)viewmat);
-			viewinv.getValue((float *)viewinvmat);
-
-			GPU_material_bind(m_gpuMat, m_lightLayer, m_blenderScene->lay, time, 1, viewmat, viewinvmat, nullptr, false);
+			GPU_material_bind(m_gpuMat, m_lightLayer, m_blenderScene->lay, time, 1,
+							  rasty->GetViewMatrix().Data(), rasty->GetViewInvMatrix().Data(), nullptr, false);
 		}
 		else {
 			GPU_material_unbind(m_gpuMat);
@@ -151,11 +146,10 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 		return;
 	}
 
-	float viewmat[4][4];
-	float *obcol = (float *)ms->m_meshUser->GetColor().getValue();
+	const float *obcol = ms->m_meshUser->GetColor().Data();
 
-	rasty->GetViewMatrix().getValue((float *)viewmat);
-	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])ms->m_meshUser->GetMatrix(), viewmat, obcol, 1.0f, nullptr, nullptr);
+	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])ms->m_meshUser->GetMatrix(), rasty->GetViewMatrix().Data(),
+							   obcol, 1.0f, nullptr, nullptr);
 
 	m_alphaBlend = GPU_material_alpha_blend(m_gpuMat, obcol);
 }

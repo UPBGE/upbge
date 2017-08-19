@@ -29,7 +29,7 @@
 
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
-#include "MT_Matrix3x3.h"
+#include "mathfu.h"
 
 class KX_GameObject;
 class KX_NavMeshObject;
@@ -37,7 +37,7 @@ struct KX_Obstacle;
 class KX_ObstacleSimulation;
 const int MAX_PATH_LENGTH  = 128;
 
-class KX_SteeringActuator : public SCA_IActuator
+class KX_SteeringActuator : public SCA_IActuator, public mt::SimdClassAllocator
 {
 	Py_Header
 
@@ -64,9 +64,9 @@ class KX_SteeringActuator : public SCA_IActuator
 	double m_pathUpdateTime;
 	bool m_lockzvel;
 	int m_wayPointIdx;
-	MT_Matrix3x3 m_parentlocalmat;
-	MT_Vector3 m_steerVec;
-	void HandleActorFace(MT_Vector3& velocity);
+	mt::mat3 m_parentlocalmat;
+	mt::vec3 m_steerVec;
+	void HandleActorFace(mt::vec3& velocity);
 public:
 	enum KX_STEERINGACT_MODE
 	{
@@ -100,7 +100,7 @@ public:
 	virtual void ReParent(SCA_IObject* parent);
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
 	virtual bool UnlinkObject(SCA_IObject* clientobj);
-	const MT_Vector3& GetSteeringVec();
+	const mt::vec3& GetSteeringVec();
 
 #ifdef WITH_PYTHON
 

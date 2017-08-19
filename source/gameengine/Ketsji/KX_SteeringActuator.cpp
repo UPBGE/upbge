@@ -77,7 +77,7 @@ KX_SteeringActuator::KX_SteeringActuator(SCA_IObject *gameobj,
       m_pathUpdatePeriod(pathUpdatePeriod),
       m_lockzvel(lockzvel),
       m_wayPointIdx(-1),
-      m_steerVec(MT_Vector3(0, 0, 0))
+      m_steerVec(mt::zero3)
 {
 	m_navmesh = static_cast<KX_NavMeshObject*>(navmesh);
 	if (m_navmesh)
@@ -93,7 +93,7 @@ KX_SteeringActuator::KX_SteeringActuator(SCA_IObject *gameobj,
 		m_parentlocalmat = parent->GetSGNode()->GetLocalOrientation();
 	}
 	else
-		m_parentlocalmat.setIdentity();
+		m_parentlocalmat = mt::mat3::Identity();
 } 
 
 KX_SteeringActuator::~KX_SteeringActuator()
@@ -187,40 +187,40 @@ bool KX_SteeringActuator::Update(double curtime)
 		return false; // do nothing on negative events
 
 	KX_GameObject *obj = (KX_GameObject*) GetParent();
-	const MT_Vector3& mypos = obj->NodeGetWorldPosition();
-	const MT_Vector3& targpos = m_target->NodeGetWorldPosition();
-	MT_Vector3 vectotarg = targpos - mypos;
-	MT_Vector3 vectotarg2d = vectotarg;
-	vectotarg2d.z() = 0.0f;
-	m_steerVec = MT_Vector3(0.0f, 0.0f, 0.0f);
+	const mt::vec3& mypos = obj->NodeGetWorldPosition();
+	const mt::vec3& targpos = m_target->NodeGetWorldPosition();
+	mt::vec3 vectotarg = targpos - mypos;
+	mt::vec3 vectotarg2d = vectotarg;
+	vectotarg2d.z = 0.0f;
+	m_steerVec = mt::zero3;
 	bool apply_steerforce = false;
 	bool terminate = true;
 
 	switch (m_mode) {
 		case KX_STEERING_SEEK:
-			if (vectotarg2d.length2()>m_distance*m_distance)
+			if (vectotarg2d.LengthSquared()>m_distance*m_distance)
 			{
 				terminate = false;
 				m_steerVec = vectotarg;
-				m_steerVec.normalize();
+				m_steerVec.Normalize();
 				apply_steerforce = true;
 			}
 			break;
 		case KX_STEERING_FLEE:
-			if (vectotarg2d.length2()<m_distance*m_distance)
+			if (vectotarg2d.LengthSquared()<m_distance*m_distance)
 			{
 				terminate = false;
 				m_steerVec = -vectotarg;
-				m_steerVec.normalize();
+				m_steerVec.Normalize();
 				apply_steerforce = true;
 			}
 			break;
 		case KX_STEERING_PATHFOLLOWING:
-			if (m_navmesh && vectotarg.length2()>m_distance*m_distance)
+			if (m_navmesh && vectotarg.LengthSquared()>m_distance*m_distance)
 			{
 				terminate = false;
 
-				static const MT_Scalar WAYPOINT_RADIUS(0.25f);
+				static const float WAYPOINT_RADIUS(0.25f);
 
 				if (m_pathUpdateTime<0 || (m_pathUpdatePeriod>=0 && 
 											curtime - m_pathUpdateTime>((double)m_pathUpdatePeriod/1000.0)))
@@ -232,8 +232,8 @@ bool KX_SteeringActuator::Update(double curtime)
 
 				if (m_wayPointIdx>0)
 				{
-					MT_Vector3 waypoint(&m_path[3*m_wayPointIdx]);
-					if ((waypoint-mypos).length2()<WAYPOINT_RADIUS*WAYPOINT_RADIUS)
+					mt::vec3 waypoint(&m_path[3*m_wayPointIdx]);
+					if ((waypoint-mypos).LengthSquared()<WAYPOINT_RADIUS*WAYPOINT_RADIUS)
 					{
 						m_wayPointIdx++;
 						if (m_wayPointIdx>=m_pathLen)
@@ -242,7 +242,7 @@ bool KX_SteeringActuator::Update(double curtime)
 							terminate = true;
 						}
 						else
-							waypoint.setValue(&m_path[3*m_wayPointIdx]);
+							waypoint = mt::vec3(&m_path[3*m_wayPointIdx]);
 					}
 
 					m_steerVec = waypoint - mypos;
@@ -252,7 +252,7 @@ bool KX_SteeringActuator::Update(double curtime)
 					if (m_enableVisualization)
 					{
 						//debug draw
-						static const MT_Vector4 PATH_COLOR(1.0f, 0.0f, 0.0f, 1.0f);
+						static const mt::vec4 PATH_COLOR(1.0f, 0.0f, 0.0f, 1.0f);
 						m_navmesh->DrawPath(m_path, m_pathLen, PATH_COLOR);
 					}
 				}
@@ -265,20 +265,20 @@ bool KX_SteeringActuator::Update(double curtime)
 	{
 		bool isdyna = obj->IsDynamic();
 		if (isdyna)
-			m_steerVec.z() = 0;
-		if (!m_steerVec.fuzzyZero())
-			m_steerVec.normalize();
-		MT_Vector3 newvel = m_velocity * m_steerVec;
+			m_steerVec.z = 0;
+		if (!mt::FuzzyZero(m_steerVec))
+			m_steerVec.Normalize();
+		mt::vec3 newvel = m_velocity * m_steerVec;
 
 		//adjust velocity to avoid obstacles
 		if (m_simulation && m_obstacle /*&& !newvel.fuzzyZero()*/)
 		{
 			if (m_enableVisualization)
-				KX_RasterizerDrawDebugLine(mypos, mypos + newvel, MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
+				KX_RasterizerDrawDebugLine(mypos, mypos + newvel, mt::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 			m_simulation->AdjustObstacleVelocity(m_obstacle, m_mode!=KX_STEERING_PATHFOLLOWING ? m_navmesh : nullptr,
 							newvel, m_acceleration*(float)delta, m_turnspeed/(180.0f*(float)(M_PI*delta)));
 			if (m_enableVisualization)
-				KX_RasterizerDrawDebugLine(mypos, mypos + newvel, MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
+				KX_RasterizerDrawDebugLine(mypos, mypos + newvel, mt::vec4(0.0f, 1.0f, 0.0f, 1.0f));
 		}
 
 		HandleActorFace(newvel);
@@ -286,18 +286,18 @@ bool KX_SteeringActuator::Update(double curtime)
 		{
 			//temporary solution: set 2D steering velocity directly to obj
 			//correct way is to apply physical force
-			MT_Vector3 curvel = obj->GetLinearVelocity();
+			mt::vec3 curvel = obj->GetLinearVelocity();
 
 			if (m_lockzvel)
-				newvel.z() = 0.0f;
+				newvel.z = 0.0f;
 			else
-				newvel.z() = curvel.z();
+				newvel.z = curvel.z;
 
 			obj->setLinearVelocity(newvel, false);
 		}
 		else
 		{
-			MT_Vector3 movement = delta*newvel;
+			mt::vec3 movement = ((float)delta) * newvel;
 			obj->ApplyMovement(movement, false);
 		}
 	}
@@ -317,13 +317,12 @@ bool KX_SteeringActuator::Update(double curtime)
 	return true;
 }
 
-const MT_Vector3& KX_SteeringActuator::GetSteeringVec()
+const mt::vec3& KX_SteeringActuator::GetSteeringVec()
 {
-	static MT_Vector3 ZERO_VECTOR(0, 0, 0);
 	if (m_isActive)
 		return m_steerVec;
 	else
-		return ZERO_VECTOR;
+		return mt::zero3;
 }
 
 inline float vdot2(const float* a, const float* b)
@@ -358,11 +357,11 @@ inline void flipAxes(float* vec)
 	std::swap(vec[1],vec[2]);
 }
 
-static bool getNavmeshNormal(dtStatNavMesh* navmesh, const MT_Vector3& pos, MT_Vector3& normal)
+static bool getNavmeshNormal(dtStatNavMesh* navmesh, const mt::vec3& pos, mt::vec3& normal)
 {
 	static const float polyPickExt[3] = {2, 4, 2};
 	float spos[3];
-	pos.getValue(spos);
+	pos.Pack(spos);
 	flipAxes(spos);
 	dtStatPolyRef sPolyRef = navmesh->findNearestPoly(spos, polyPickExt);
 	if (sPolyRef == 0)
@@ -402,42 +401,42 @@ static bool getNavmeshNormal(dtStatNavMesh* navmesh, const MT_Vector3& pos, MT_V
 			else
 				v[j] = navmesh->getDetailVertex(pd->vbase+(t[j]-p->nv));
 		}
-		MT_Vector3 tri[3];
+		mt::vec3 tri[3];
 		for (size_t j=0; j<3; j++)
-			tri[j].setValue(v[j][0],v[j][2],v[j][1]);
-		MT_Vector3 a,b;
+			tri[j] = mt::vec3(v[j]);
+		mt::vec3 a,b;
 		a = tri[1]-tri[0];
 		b = tri[2]-tri[0];
-		normal = b.cross(a).safe_normalized();
+		normal = mt::cross(b, a).SafeNormalized(mt::axisX3);
 		return true;
 	}
 
 	return false;
 }
 
-void KX_SteeringActuator::HandleActorFace(MT_Vector3& velocity)
+void KX_SteeringActuator::HandleActorFace(mt::vec3& velocity)
 {
 	if (m_facingMode==0 && (!m_navmesh || !m_normalUp))
 		return;
 	KX_GameObject* curobj = (KX_GameObject*) GetParent();
-	MT_Vector3 dir = m_facingMode==0 ?  curobj->NodeGetLocalOrientation().getColumn(1) : velocity;
-	if (dir.fuzzyZero())
+	mt::vec3 dir = m_facingMode==0 ?  curobj->NodeGetLocalOrientation().GetColumn(1) : velocity;
+	if (mt::FuzzyZero(dir))
 		return;
-	dir.normalize();
-	MT_Vector3 up(0,0,1);
-	MT_Vector3 left;
-	MT_Matrix3x3 mat;
+	dir.Normalize();
+	mt::vec3 up = mt::axisZ3;
+	mt::vec3 left;
+	mt::mat3 mat;
 	
 	if (m_navmesh && m_normalUp)
 	{
 		dtStatNavMesh* navmesh =  m_navmesh->GetNavMesh();
-		MT_Vector3 normal;
-		MT_Vector3 trpos = m_navmesh->TransformToLocalCoords(curobj->NodeGetWorldPosition());
+		mt::vec3 normal;
+		mt::vec3 trpos = m_navmesh->TransformToLocalCoords(curobj->NodeGetWorldPosition());
 		if (getNavmeshNormal(navmesh, trpos, normal))
 		{
 
-			left = (dir.cross(up)).safe_normalized();
-			dir = (-left.cross(normal)).safe_normalized();
+			left = (mt::cross(dir, up)).SafeNormalized(mt::axisX3);
+			dir = (-mt::cross(left, normal)).SafeNormalized(mt::axisX3);
 			up = normal;
 		}
 	}
@@ -446,62 +445,56 @@ void KX_SteeringActuator::HandleActorFace(MT_Vector3& velocity)
 	{
 	case 1: // TRACK X
 		{
-			left  = dir.safe_normalized();
-			dir = -(left.cross(up)).safe_normalized();
+			left  = dir.SafeNormalized(mt::axisX3);
+			dir = -(mt::cross(left, up)).SafeNormalized(mt::axisX3);
 			break;
 		};
 	case 2:	// TRACK Y
 		{
-			left  = (dir.cross(up)).safe_normalized();
+			left  = (mt::cross(dir, up)).SafeNormalized(mt::axisX3);
 			break;
 		}
 
 	case 3: // track Z
 		{
-			left = up.safe_normalized();
-			up = dir.safe_normalized();
+			left = up.SafeNormalized(mt::axisX3);
+			up = dir.SafeNormalized(mt::axisX3);
 			dir = left;
-			left  = (dir.cross(up)).safe_normalized();
+			left  = (mt::cross(dir, up)).SafeNormalized(mt::axisX3);
 			break;
 		}
 
 	case 4: // TRACK -X
 		{
-			left  = -dir.safe_normalized();
-			dir = -(left.cross(up)).safe_normalized();
+			left  = -dir.SafeNormalized(mt::axisX3);
+			dir = -(mt::cross(left, up)).SafeNormalized(mt::axisX3);
 			break;
 		};
 	case 5: // TRACK -Y
 		{
-			left  = (-dir.cross(up)).safe_normalized();
+			left  = (-mt::cross(dir, up)).SafeNormalized(mt::axisX3);
 			dir = -dir;
 			break;
 		}
 	case 6: // track -Z
 		{
-			left = up.safe_normalized();
-			up = -dir.safe_normalized();
+			left = up.SafeNormalized(mt::axisX3);
+			up = -dir.SafeNormalized(mt::axisX3);
 			dir = left;
-			left  = (dir.cross(up)).safe_normalized();
+			left  = (mt::cross(dir, up)).SafeNormalized(mt::axisX3);
 			break;
 		}
 	}
 
-	mat.setValue (
-		left[0], dir[0],up[0], 
-		left[1], dir[1],up[1],
-		left[2], dir[2],up[2]
-	);
+	mat = mt::mat3(left, dir, up);
 
-	
-	
 	KX_GameObject* parentObject = curobj->GetParent();
 	if (parentObject)
 	{ 
-		MT_Vector3 localpos;
+		mt::vec3 localpos;
 		localpos = curobj->GetSGNode()->GetLocalPosition();
-		MT_Matrix3x3 parentmatinv;
-		parentmatinv = parentObject->NodeGetWorldOrientation ().inverse ();
+		mt::mat3 parentmatinv;
+		parentmatinv = parentObject->NodeGetWorldOrientation ().Inverse ();
 		mat = parentmatinv * mat;
 		mat = m_parentlocalmat * mat;
 		curobj->NodeSetLocalOrientation(mat);
@@ -629,7 +622,7 @@ int KX_SteeringActuator::pyattr_set_navmesh(EXP_PyObjectPlus *self, const struct
 PyObject *KX_SteeringActuator::pyattr_get_steeringVec(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SteeringActuator* actuator = static_cast<KX_SteeringActuator*>(self);
-	const MT_Vector3& steeringVec = actuator->GetSteeringVec();
+	const mt::vec3& steeringVec = actuator->GetSteeringVec();
 	return PyObjectFrom(steeringVec);
 }
 
@@ -641,7 +634,7 @@ static int kx_steering_actuator_get_path_size_cb(void *self)
 static PyObject *kx_steering_actuator_get_path_item_cb(void *self, int index)
 {
 	float *path = ((KX_SteeringActuator *)self)->m_path;
-	MT_Vector3 point(&path[3*index]);
+	mt::vec3 point(&path[3*index]);
 	return PyObjectFrom(point);
 }
 

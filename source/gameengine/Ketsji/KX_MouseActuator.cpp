@@ -27,8 +27,6 @@
 #include "SCA_IInputDevice.h"
 #include "RAS_ICanvas.h"
 #include "KX_GameObject.h"
-#include "MT_Vector3.h"
-#include "MT_Scalar.h"
 #include "BLI_utildefines.h"
 #include "limits.h"
 
@@ -125,7 +123,7 @@ bool KX_MouseActuator::Update()
 
 				float position[2];
 				float movement[2];
-				MT_Vector3 rotation;
+				mt::vec3 rotation;
 				float setposition[2] = {0.0f};
 				float center_x = 0.5f, center_y = 0.5f;
 
@@ -197,17 +195,17 @@ bool KX_MouseActuator::Update()
 						switch (m_object_axis[0]) {
 							case KX_ACT_MOUSE_OBJECT_AXIS_X:
 							{
-								rotation = MT_Vector3(movement[0], 0.0f, 0.0f);
+								rotation = mt::vec3(movement[0], 0.0f, 0.0f);
 								break;
 							}
 							case KX_ACT_MOUSE_OBJECT_AXIS_Y:
 							{
-								rotation = MT_Vector3(0.0f, movement[0], 0.0f);
+								rotation = mt::vec3(0.0f, movement[0], 0.0f);
 								break;
 							}
 							case KX_ACT_MOUSE_OBJECT_AXIS_Z:
 							{
-								rotation = MT_Vector3(0.0f, 0.0f, movement[0]);
+								rotation = mt::vec3(0.0f, 0.0f, movement[0]);
 								break;
 							}
 							default:
@@ -256,17 +254,17 @@ bool KX_MouseActuator::Update()
 						{
 							case KX_ACT_MOUSE_OBJECT_AXIS_X:
 							{
-								rotation = MT_Vector3(movement[1], 0.0f, 0.0f);
+								rotation = mt::vec3(movement[1], 0.0f, 0.0f);
 								break;
 							}
 							case KX_ACT_MOUSE_OBJECT_AXIS_Y:
 							{
-								rotation = MT_Vector3(0.0f, movement[1], 0.0f);
+								rotation = mt::vec3(0.0f, movement[1], 0.0f);
 								break;
 							}
 							case KX_ACT_MOUSE_OBJECT_AXIS_Z:
 							{
-								rotation = MT_Vector3(0.0f, 0.0f, movement[1]);
+								rotation = mt::vec3(0.0f, 0.0f, movement[1]);
 								break;
 							}
 							default:
@@ -395,7 +393,7 @@ PyAttributeDef KX_MouseActuator::Attributes[] = {
 PyObject* KX_MouseActuator::pyattr_get_limit_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MouseActuator* self= static_cast<KX_MouseActuator*>(self_v);
-	return PyObjectFrom(MT_Vector2(self->m_limit_x[0] / (float)M_PI * 180.0f, self->m_limit_x[1] / (float)M_PI * 180.0f));
+	return PyObjectFrom(mt::vec2(self->m_limit_x[0] / (float)M_PI * 180.0f, self->m_limit_x[1] / (float)M_PI * 180.0f));
 }
 
 int KX_MouseActuator::pyattr_set_limit_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -426,7 +424,7 @@ int KX_MouseActuator::pyattr_set_limit_x(EXP_PyObjectPlus *self_v, const EXP_PYA
 PyObject* KX_MouseActuator::pyattr_get_limit_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MouseActuator* self= static_cast<KX_MouseActuator*>(self_v);
-	return PyObjectFrom(MT_Vector2(self->m_limit_y[0] / (float)M_PI * 180.0f, self->m_limit_y[1] / (float)M_PI * 180.0f));
+	return PyObjectFrom(mt::vec2(self->m_limit_y[0] / (float)M_PI * 180.0f, self->m_limit_y[1] / (float)M_PI * 180.0f));
 }
 
 int KX_MouseActuator::pyattr_set_limit_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -457,7 +455,7 @@ int KX_MouseActuator::pyattr_set_limit_y(EXP_PyObjectPlus *self_v, const EXP_PYA
 PyObject* KX_MouseActuator::pyattr_get_angle(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MouseActuator* self= static_cast<KX_MouseActuator*>(self_v);
-	return PyObjectFrom(MT_Vector2(self->m_angle[0] / (float)M_PI * 180.0f, self->m_angle[1] / (float)M_PI * 180.0f));
+	return PyObjectFrom(mt::vec2(self->m_angle[0] / (float)M_PI * 180.0f, self->m_angle[1] / (float)M_PI * 180.0f));
 }
 
 int KX_MouseActuator::pyattr_set_angle(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -487,23 +485,23 @@ int KX_MouseActuator::pyattr_set_angle(EXP_PyObjectPlus *self_v, const EXP_PYATT
 
 PyObject* KX_MouseActuator::PyReset()
 {
-	MT_Vector3 rotation;
+	mt::vec3 rotation;
 	KX_GameObject *parent = static_cast<KX_GameObject *>(GetParent());
 
 	switch (m_object_axis[0]) {
 		case KX_ACT_MOUSE_OBJECT_AXIS_X:
 		{
-			rotation = MT_Vector3(-1.0f * m_angle[0], 0.0f, 0.0f);
+			rotation = mt::vec3(-1.0f * m_angle[0], 0.0f, 0.0f);
 			break;
 		}
 		case KX_ACT_MOUSE_OBJECT_AXIS_Y:
 		{
-			rotation = MT_Vector3(0.0f, -1.0f * m_angle[0], 0.0f);
+			rotation = mt::vec3(0.0f, -1.0f * m_angle[0], 0.0f);
 			break;
 		}
 		case KX_ACT_MOUSE_OBJECT_AXIS_Z:
 		{
-			rotation = MT_Vector3(0.0f, 0.0f, -1.0f * m_angle[0]);
+			rotation = mt::vec3(0.0f, 0.0f, -1.0f * m_angle[0]);
 			break;
 		}
 		default:
@@ -514,17 +512,17 @@ PyObject* KX_MouseActuator::PyReset()
 	switch (m_object_axis[1]) {
 		case KX_ACT_MOUSE_OBJECT_AXIS_X:
 		{
-			rotation = MT_Vector3(-1.0f * m_angle[1], 0.0f, 0.0f);
+			rotation = mt::vec3(-1.0f * m_angle[1], 0.0f, 0.0f);
 			break;
 		}
 		case KX_ACT_MOUSE_OBJECT_AXIS_Y:
 		{
-			rotation = MT_Vector3(0.0f, -1.0f * m_angle[1], 0.0f);
+			rotation = mt::vec3(0.0f, -1.0f * m_angle[1], 0.0f);
 			break;
 		}
 		case KX_ACT_MOUSE_OBJECT_AXIS_Z:
 		{
-			rotation = MT_Vector3(0.0f, 0.0f, -1.0f * m_angle[1]);
+			rotation = mt::vec3(0.0f, 0.0f, -1.0f * m_angle[1]);
 			break;
 		}
 		default:

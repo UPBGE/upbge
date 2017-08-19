@@ -37,7 +37,6 @@
 #include "PHY_IPhysicsController.h"
 #include "PHY_IVehicle.h"
 #include "PHY_DynamicTypes.h"
-#include "MT_Matrix3x3.h"
 
 #include "KX_GameObject.h" // ConvertPythonToGameObject()
 #include "KX_Globals.h"
@@ -529,16 +528,16 @@ static PyObject *gPyCreateConstraint(PyObject *self,
 
 			//we need to pass a full constraint frame, not just axis
 			//localConstraintFrameBasis
-			MT_Matrix3x3 localCFrame(MT_Vector3(deg2rad*axisX, deg2rad*axisY, deg2rad*axisZ));
-			MT_Vector3 axis0 = localCFrame.getColumn(0);
-			MT_Vector3 axis1 = localCFrame.getColumn(1);
-			MT_Vector3 axis2 = localCFrame.getColumn(2);
+			mt::mat3 localCFrame(mt::vec3(deg2rad*axisX, deg2rad*axisY, deg2rad*axisZ));
+			mt::vec3 axis0 = localCFrame.GetColumn(0);
+			mt::vec3 axis1 = localCFrame.GetColumn(1);
+			mt::vec3 axis2 = localCFrame.GetColumn(2);
 
 			PHY_IConstraint *constraint = PHY_GetActiveEnvironment()->CreateConstraint(
 			        physctrl, physctrl2, (enum PHY_ConstraintType)constrainttype, pivotX, pivotY, pivotZ,
-			        (float)axis0.x(), (float)axis0.y(), (float)axis0.z(),
-			        (float)axis1.x(), (float)axis1.y(), (float)axis1.z(),
-			        (float)axis2.x(), (float)axis2.y(), (float)axis2.z(), flag);
+			        (float)axis0.x, (float)axis0.y, (float)axis0.z,
+			        (float)axis1.x, (float)axis1.y, (float)axis1.z,
+			        (float)axis2.x, (float)axis2.y, (float)axis2.z, flag);
 
 			if (!constraint) {
 				return nullptr;

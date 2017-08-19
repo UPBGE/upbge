@@ -79,18 +79,19 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 	if (kxscene != lightscene || !(m_layer & scenelayer))
 		return false;
 
-	const MT_Matrix4x4 worldmatrix = kxlight->NodeGetWorldTransform().toMatrix();
+	const mt::mat4 worldmatrix = mt::mat4::FromAffineTransform(kxlight->NodeGetWorldTransform());
 
-	vec[0] = worldmatrix[0][3];
-	vec[1] = worldmatrix[1][3];
-	vec[2] = worldmatrix[2][3];
+
+	vec[0] = worldmatrix(0, 3);
+	vec[1] = worldmatrix(1, 3);
+	vec[2] = worldmatrix(2, 3);
 	vec[3] = 1.0f;
 
 	if (m_type == RAS_ILightObject::LIGHT_SUN) {
 
-		vec[0] = worldmatrix[0][2];
-		vec[1] = worldmatrix[1][2];
-		vec[2] = worldmatrix[2][2];
+		vec[0] = worldmatrix(0, 2);
+		vec[1] = worldmatrix(1, 2);
+		vec[2] = worldmatrix(2, 2);
 		//vec[0] = base->object->obmat[2][0];
 		//vec[1] = base->object->obmat[2][1];
 		//vec[2] = base->object->obmat[2][2];
@@ -107,9 +108,9 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 		glLightf((GLenum)(GL_LIGHT0 + slot), GL_QUADRATIC_ATTENUATION, m_att2 / (m_distance * m_distance));
 
 		if (m_type == RAS_ILightObject::LIGHT_SPOT) {
-			vec[0] = -worldmatrix[0][2];
-			vec[1] = -worldmatrix[1][2];
-			vec[2] = -worldmatrix[2][2];
+			vec[0] = -worldmatrix(0, 2);
+			vec[1] = -worldmatrix(1, 2);
+			vec[2] = -worldmatrix(2, 2);
 			//vec[0] = -base->object->obmat[2][0];
 			//vec[1] = -base->object->obmat[2][1];
 			//vec[2] = -base->object->obmat[2][2];
@@ -183,33 +184,32 @@ int RAS_OpenGLLight::GetShadowBindCode()
 	return -1;
 }
 
-MT_Matrix4x4 RAS_OpenGLLight::GetViewMat()
+mt::mat4 RAS_OpenGLLight::GetViewMat()
 {
 	GPULamp *lamp = GetGPULamp();
 	if (lamp) {
-		return MT_Matrix4x4(GPU_lamp_get_viewmat(lamp));
+		return mt::mat4(GPU_lamp_get_viewmat(lamp));
 	}
-	return MT_Matrix4x4::Identity();
+	return mt::mat4::Identity();
 }
 
-MT_Matrix4x4 RAS_OpenGLLight::GetWinMat()
+mt::mat4 RAS_OpenGLLight::GetWinMat()
 {
 	GPULamp *lamp = GetGPULamp();
 	if (lamp) {
-		return MT_Matrix4x4(GPU_lamp_get_winmat(lamp));
+		return mt::mat4(GPU_lamp_get_winmat(lamp));
 	}
-	return MT_Matrix4x4::Identity();
+	return mt::mat4::Identity();
 }
 
-MT_Matrix4x4 RAS_OpenGLLight::GetShadowMatrix()
+mt::mat4 RAS_OpenGLLight::GetShadowMatrix()
 {
 	GPULamp *lamp;
 
 	if ((lamp = GetGPULamp()))
-		return MT_Matrix4x4(GPU_lamp_dynpersmat(lamp));
-	MT_Matrix4x4 mat;
-	mat.setIdentity();
-	return mat;
+		return mt::mat4(GPU_lamp_dynpersmat(lamp));
+
+	return mt::mat4::Identity();
 }
 
 int RAS_OpenGLLight::GetShadowLayer()
@@ -222,7 +222,7 @@ int RAS_OpenGLLight::GetShadowLayer()
 		return 0;
 }
 
-void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_Transform& camtrans)
+void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, mt::mat3x4& camtrans)
 {
 	GPULamp *lamp;
 	float viewmat[4][4], winmat[4][4];
@@ -243,17 +243,17 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_T
 	canvas->UpdateViewPort(0, 0, winsize, winsize);
 
 	/* setup camera transformation */
-	MT_Matrix4x4 modelviewmat((float *)viewmat);
-	MT_Matrix4x4 projectionmat((float *)winmat);
+	mt::mat4 modelviewmat((float *)viewmat);
+	mt::mat4 projectionmat((float *)winmat);
 
-	MT_Transform trans = MT_Transform((float *)viewmat);
-	camtrans.invert(trans);
+	const mt::mat3x4 trans = mt::mat3x4((float *)viewmat);
+	camtrans = trans.Inverse();
 
 	cam->SetModelviewMatrix(modelviewmat);
 	cam->SetProjectionMatrix(projectionmat);
 
-	cam->NodeSetLocalPosition(camtrans.getOrigin());
-	cam->NodeSetLocalOrientation(camtrans.getBasis());
+	cam->NodeSetLocalPosition(camtrans.TranslationVector3D());
+	cam->NodeSetLocalOrientation(camtrans.RotationMatrix());
 	cam->NodeUpdateGS(0);
 
 	/* setup rasterizer transformations */
@@ -294,8 +294,8 @@ void RAS_OpenGLLight::Update()
 
 	if ((lamp = GetGPULamp()) != nullptr && kxlight->GetSGNode()) {
 		float obmat[4][4];
-		const MT_Transform trans = kxlight->NodeGetWorldTransform();
-		trans.getValue(&obmat[0][0]);
+		const mt::mat3x4 trans = kxlight->NodeGetWorldTransform();
+		trans.PackFromAffineTransform(obmat);
 
 		int hide = kxlight->GetVisible() ? 0 : 1;
 		GPU_lamp_update(lamp, m_layer, hide, obmat);

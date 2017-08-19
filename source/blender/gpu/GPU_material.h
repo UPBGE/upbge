@@ -252,7 +252,7 @@ bool GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNod
 void GPU_material_output_link(GPUMaterial *material, GPUNodeLink *link);
 void GPU_material_enable_alpha(GPUMaterial *material);
 GPUBuiltin GPU_get_material_builtins(GPUMaterial *material);
-GPUBlendMode GPU_material_alpha_blend(GPUMaterial *material, float obcol[4]);
+GPUBlendMode GPU_material_alpha_blend(GPUMaterial *material, const float obcol[4]);
 
 /* High level functions to create and use GPU materials */
 GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo);
@@ -268,7 +268,7 @@ void GPU_material_bind(
         GPUMaterial *material, int oblay, int viewlay, double time, int mipmap,
         float viewmat[4][4], float viewinv[4][4], float cameraborder[4], bool scenelock);
 void GPU_material_bind_uniforms(
-        GPUMaterial *material, float obmat[4][4], float viewmat[4][4], float obcol[4],
+        GPUMaterial *material, float obmat[4][4], float viewmat[4][4], const float obcol[4],
         float autobumpscale, GPUParticleInfo *pi, float object_info[3]);
 void GPU_material_unbind(GPUMaterial *material);
 bool GPU_material_bound(GPUMaterial *material);
@@ -376,10 +376,10 @@ GPUNodeLink *GPU_lamp_get_data(
 
 /* World */
 void GPU_mist_update_enable(short enable);
-void GPU_mist_update_values(int type, float start, float dist, float inten, float color[3]);
-void GPU_horizon_update_color(float color[3]);
-void GPU_ambient_update_color(float color[3]);
-void GPU_zenith_update_color(float color[3]);
+void GPU_mist_update_values(int type, float start, float dist, float inten, const float color[3]);
+void GPU_horizon_update_color(const float color[3]);
+void GPU_ambient_update_color(const float color[3]);
+void GPU_zenith_update_color(const float color[3]);
 void GPU_update_exposure_range(float exp, float range);
 void GPU_update_envlight_energy(float energy);
 

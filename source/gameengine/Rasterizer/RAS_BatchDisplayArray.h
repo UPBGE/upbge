@@ -73,7 +73,7 @@ public:
 	 * batched array.
 	 * \param mat The transformation to apply on each vertex in the merging.
 	 */
-	virtual unsigned int Merge(RAS_IDisplayArray *iarray, const MT_Matrix4x4& mat)
+	virtual unsigned int Merge(RAS_IDisplayArray *iarray, const mt::mat4& mat)
 	{
 		RAS_DisplayArray<VertexData> *array = dynamic_cast<RAS_DisplayArray<VertexData> *>(iarray);
 		const unsigned int vertexcount = iarray->GetVertexCount();
@@ -100,8 +100,8 @@ public:
 #endif  // DEBUG
 
 		// Normal and tangent matrix.
-		MT_Matrix4x4 nmat = mat;
-		nmat[0][3] = nmat[1][3] = nmat[2][3] = 0.0f;
+		mt::mat4 nmat = mat;
+		nmat(0, 3) = nmat(1, 3) = nmat(2, 3) = 0.0f;
 
 		// Copy the vertex by not using a reference in the loop.
 		for (unsigned int i = 0; i < vertexcount; ++i) {

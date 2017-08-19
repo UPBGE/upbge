@@ -199,7 +199,7 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 	PyObject *pymat;
 	bool ok = false;
 
-	MT_Matrix4x4 transform;
+	mt::mat4 transform;
 
 	if (!PyArg_ParseTuple(args, "iO:transform", &matindex, &pymat) ||
 	    !PyMatTo(pymat, transform))
@@ -207,8 +207,8 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	MT_Matrix4x4 ntransform = transform;
-	ntransform[0][3] = ntransform[1][3] = ntransform[2][3] = 0.0f;
+	mt::mat4 ntransform = transform;
+	ntransform(0, 3) = ntransform(1, 3) = ntransform(2, 3) = 0.0f;
 
 	/* transform mesh verts */
 	for (unsigned short i = 0, num = m_meshobj->GetNumMaterials(); i < num; ++i) {
@@ -257,7 +257,7 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 	int uvindex_from = -1;
 	bool ok = false;
 
-	MT_Matrix4x4 transform;
+	mt::mat4 transform;
 
 	if (!PyArg_ParseTuple(args, "iO|iii:transformUV", &matindex, &pymat, &uvindex, &uvindex_from) ||
 	    !PyMatTo(pymat, transform))
