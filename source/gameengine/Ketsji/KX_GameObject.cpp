@@ -709,7 +709,7 @@ void KX_GameObject::AddMeshUser()
 	for (size_t i = 0; i < m_meshes.size(); ++i) {
 		m_meshUser = m_meshes[i]->AddMeshUser(m_pClient_info, GetDeformer());
 		// Make sure the mesh user get the matrix even if the object doesn't move.
-		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
+		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
 	}
 
 	if (m_meshUser) {

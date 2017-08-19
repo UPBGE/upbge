@@ -131,7 +131,7 @@ void KX_FontObject::AddMeshUser()
 	m_meshUser = new RAS_TextUser(m_pClient_info, m_boundingBox);
 
 	// Make sure the mesh user get the matrix even if the object doesn't move.
-	NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
+	NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
 
 	RAS_BucketManager *bucketManager = GetScene()->GetBucketManager();
 	RAS_DisplayArrayBucket *arrayBucket = bucketManager->GetTextDisplayArrayBucket();
