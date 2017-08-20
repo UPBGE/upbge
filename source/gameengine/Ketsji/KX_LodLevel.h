@@ -27,10 +27,10 @@
 #ifndef __KX_LOD_LEVEL_H__
 #define __KX_LOD_LEVEL_H__
 
-#include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
 #include "RAS_MeshObject.h"
 
-class KX_LodLevel : public PyObjectPlus
+class KX_LodLevel : public CValue
 {
 	Py_Header
 private:
@@ -43,6 +43,8 @@ private:
 public:
 	KX_LodLevel(float distance, float hysteresis, unsigned short level, RAS_MeshObject *meshobj, unsigned short flag);
 	virtual ~KX_LodLevel();
+
+	virtual std::string GetName();
 
 	float GetDistance() const;
 	float GetHysteresis() const;
@@ -60,11 +62,6 @@ public:
 	};
 
 #ifdef WITH_PYTHON
-
-	virtual PyObject *py_repr()
-	{
-		return PyUnicode_FromStdString(m_meshobj->GetName());
-	}
 
 	static PyObject *pyattr_get_mesh(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_use_hysteresis(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

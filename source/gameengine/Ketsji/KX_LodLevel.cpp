@@ -40,6 +40,11 @@ KX_LodLevel::~KX_LodLevel()
 {
 }
 
+std::string KX_LodLevel::GetName()
+{
+	return m_meshobj->GetName();
+}
+
 float KX_LodLevel::GetDistance() const
 {
 	return m_distance;

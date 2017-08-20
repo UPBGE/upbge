@@ -46,7 +46,7 @@ int CEmptyValue::GetValueType()
 	return VALUE_EMPTY_TYPE;
 }
 
-const std::string CEmptyValue::GetText()
+std::string CEmptyValue::GetText()
 {
 	return "";
 }

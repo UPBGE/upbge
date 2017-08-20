@@ -86,7 +86,6 @@ protected:
 
 	KX_ClientObjectInfo*				m_pClient_info;
 	std::string							m_name;
-	std::string							m_text;
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
 	KX_LodManager						*m_lodManager;
@@ -321,11 +320,6 @@ public:
 	 * Inherited from CValue and needs an implementation. 
 	 * Do not expect these functions do to anything sensible.
 	 */
-
-	/**
-	 * Inherited from CValue
-	 */
-	virtual const std::string GetText();
 
 	/**
 	 * \section Inherited from CValue. These are the useful
@@ -914,10 +908,6 @@ public:
 	/**
 	 * \section Python interface functions.
 	 */
-	virtual PyObject *py_repr(void)
-	{
-		return PyUnicode_FromStdString(GetName());
-	}
 
 	KX_PYMETHOD_O(KX_GameObject,SetWorldPosition);
 	KX_PYMETHOD_VARARGS(KX_GameObject, ApplyForce);

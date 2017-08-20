@@ -91,8 +91,8 @@ public:
 
 	/// \section CValue Inherited Functions.
 	virtual std::string GetName();
+	virtual std::string GetText();
 	virtual int GetValueType();
-	virtual PyObject *py_repr();
 
 	// Python list operators.
 	static PySequenceMethods py_as_sequence;

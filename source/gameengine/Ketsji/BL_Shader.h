@@ -6,13 +6,13 @@
 #ifndef __BL_SHADER_H__
 #define __BL_SHADER_H__
 
-#include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
 #include "RAS_Shader.h"
 #include "RAS_Texture.h" // For RAS_Texture::MaxUnits.
 
 class RAS_MeshSlot;
 
-class BL_Shader : public PyObjectPlus, public virtual RAS_Shader
+class BL_Shader : public CValue, public virtual RAS_Shader
 {
 	Py_Header
 public:
@@ -35,6 +35,9 @@ public:
 	BL_Shader();
 	virtual ~BL_Shader();
 
+	virtual std::string GetName();
+	virtual std::string GetText();
+
 	/// Initialize textures coordinates attributes using a list of textures.
 	void InitTexCo(RAS_Texture *textures[RAS_Texture::MaxUnits]);
 
@@ -55,10 +58,6 @@ public:
 
 	// Python interface
 #ifdef WITH_PYTHON
-	virtual PyObject *py_repr()
-	{
-		return PyUnicode_FromFormat("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n", m_progs[VERTEX_PROGRAM].c_str(), m_progs[FRAGMENT_PROGRAM].c_str());
-	}
 
 	static PyObject *pyattr_get_enabled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_enabled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);

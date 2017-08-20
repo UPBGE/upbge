@@ -25,6 +25,8 @@
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"
 
+#include <boost/format.hpp>
+
 #ifdef WITH_PYTHON
 
 KX_BoundingBox::KX_BoundingBox(KX_GameObject *owner)
@@ -35,6 +37,19 @@ KX_BoundingBox::KX_BoundingBox(KX_GameObject *owner)
 
 KX_BoundingBox::~KX_BoundingBox()
 {
+}
+
+std::string KX_BoundingBox::GetName()
+{
+	return "KX_BoundingBox";
+}
+
+std::string KX_BoundingBox::GetText()
+{
+	if (!IsValidOwner()) {
+		return "KX_BoundingBox of invalid object";
+	}
+	return (boost::format("KX_BoundingBox of object %s, min: %R, max: %R") % m_owner->GetName() % GetMin() % GetMax()).str();
 }
 
 bool KX_BoundingBox::IsValidOwner()
@@ -239,15 +254,6 @@ PyAttributeDef KX_BoundingBox::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("autoUpdate", KX_BoundingBox, pyattr_get_auto_update, pyattr_set_auto_update),
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
-
-PyObject *KX_BoundingBox::py_repr()
-{
-	if (!IsValidOwner()) {
-		return PyUnicode_FromString("KX_BoundingBox of invalid object");
-	}
-	return PyUnicode_FromFormat("KX_BoundingBox of object %s, min: %R, max: %R", m_owner->GetName().c_str(),
-								PyObjectFrom(GetMin()), PyObjectFrom(GetMax()));
-}
 
 PyObject *KX_BoundingBox::pyattr_get_min(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {

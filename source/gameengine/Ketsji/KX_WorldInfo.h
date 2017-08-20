@@ -35,7 +35,7 @@
 #include "MT_Scalar.h"
 #include "MT_Vector4.h"
 #include "KX_KetsjiEngine.h"
-#include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
 
 #ifdef USE_MATHUTILS
 void KX_WorldInfo_Mathutils_Callback_Init(void);
@@ -44,7 +44,7 @@ void KX_WorldInfo_Mathutils_Callback_Init(void);
 struct Scene;
 struct World;
 
-class KX_WorldInfo : public PyObjectPlus
+class KX_WorldInfo : public CValue
 {
 	Py_Header
 
@@ -87,7 +87,7 @@ public:
 		MT_Vector3 zenithColor;
 	} m_savedData;
 
-	const std::string& GetName();
+	virtual std::string GetName();
 	bool hasWorld();
 	void setMistStart(float d);
 	void setMistDistance(float d);
@@ -115,7 +115,6 @@ public:
 	static int pyattr_set_zenith_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_ambient_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_ambient_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	virtual PyObject *py_repr(void);
 #endif
 };
 

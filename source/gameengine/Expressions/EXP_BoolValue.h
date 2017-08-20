@@ -34,7 +34,7 @@ public:
 	CBoolValue(bool inBool);
 	CBoolValue(bool innie, const std::string& name);
 
-	virtual const std::string GetText();
+	virtual std::string GetText();
 	virtual double GetNumber();
 	virtual int GetValueType();
 	bool GetBool();

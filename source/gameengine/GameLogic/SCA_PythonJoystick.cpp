@@ -36,8 +36,7 @@
 /* ------------------------------------------------------------------------- */
 
 SCA_PythonJoystick::SCA_PythonJoystick(DEV_Joystick* joystick, int joyindex)
-: PyObjectPlus(),
-  m_joystick(joystick),
+  :m_joystick(joystick),
   m_joyindex(joyindex)
 {
 #ifdef WITH_PYTHON
@@ -53,16 +52,16 @@ SCA_PythonJoystick::~SCA_PythonJoystick()
 #endif
 }
 
+std::string SCA_PythonJoystick::GetName()
+{
+	return m_joystick->GetName();
+}
+
 #ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
 /* Python functions                                                          */
 /* ------------------------------------------------------------------------- */
-PyObject* SCA_PythonJoystick::py_repr(void)
-{
-	return PyUnicode_FromStdString(m_joystick->GetName());
-}
-
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_PythonJoystick::Type = {

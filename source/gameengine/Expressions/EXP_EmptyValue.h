@@ -27,7 +27,7 @@ public:
 	CEmptyValue();
 	virtual ~CEmptyValue();
 
-	virtual const std::string GetText();
+	virtual std::string GetText();
 	virtual double GetNumber();
 	virtual int GetValueType();
 	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);

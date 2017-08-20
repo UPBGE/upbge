@@ -314,7 +314,7 @@ void CFloatValue::SetValue(CValue *newval)
 	m_float = (float)newval->GetNumber();
 }
 
-const std::string CFloatValue::GetText()
+std::string CFloatValue::GetText()
 {
 	return std::to_string(m_float);
 }

@@ -576,8 +576,6 @@ public:
 	static int			pyattr_set_drawing_callback(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-
-	virtual PyObject *py_repr(void) { return PyUnicode_FromStdString(GetName()); }
 	
 	/* getitem/setitem */
 	static PyMappingMethods	Mapping;

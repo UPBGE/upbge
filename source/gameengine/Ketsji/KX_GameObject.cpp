@@ -224,11 +224,6 @@ KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
 	return info->m_gameobject;
 }
 
-const std::string KX_GameObject::GetText()
-{
-	return m_text;
-}
-
 std::string KX_GameObject::GetName()
 {
 	return m_name;

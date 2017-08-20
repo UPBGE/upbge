@@ -62,11 +62,6 @@ PyTypeObject BL_ArmatureChannel::Type = {
 	py_base_new
 };
 
-PyObject *BL_ArmatureChannel::py_repr(void)
-{
-	return PyUnicode_FromString(m_posechannel->name);
-}
-
 PyObject *BL_ArmatureChannel::GetProxy()
 {
 	return GetProxyPlus_Ext(this, &Type, m_posechannel);

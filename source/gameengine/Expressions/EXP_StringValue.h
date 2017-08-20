@@ -32,7 +32,7 @@ public:
 
 	/// CValue implementation
 	virtual bool IsEqual(const std::string & other);
-	virtual const std::string GetText();
+	virtual std::string GetText();
 	virtual double GetNumber();
 	virtual int GetValueType();
 

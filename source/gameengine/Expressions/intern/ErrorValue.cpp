@@ -67,7 +67,7 @@ int CErrorValue::GetValueType()
 	return VALUE_ERROR_TYPE;
 }
 
-const std::string CErrorValue::GetText()
+std::string CErrorValue::GetText()
 {
 	return m_strErrorText;
 }

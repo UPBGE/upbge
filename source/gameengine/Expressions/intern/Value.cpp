@@ -442,7 +442,7 @@ void CValue::SetValue(CValue *newval)
 	BLI_assert(false);
 }
 
-const std::string CValue::GetText()
+std::string CValue::GetText()
 {
 	return GetName();
 }

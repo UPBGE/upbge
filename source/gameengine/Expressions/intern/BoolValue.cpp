@@ -149,7 +149,7 @@ int CBoolValue::GetValueType()
 	return VALUE_BOOL_TYPE;
 }
 
-const std::string CBoolValue::GetText()
+std::string CBoolValue::GetText()
 {
 	return m_bool ? sTrueString : sFalseString;
 }

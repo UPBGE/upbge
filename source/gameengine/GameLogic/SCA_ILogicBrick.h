@@ -51,7 +51,6 @@ protected:
 
 	bool				m_bActive;
 	CValue*				m_eventval;
-	std::string			m_text;
 	std::string			m_name;
 	//unsigned long		m_drawcolor;
 	void RemoveEvent();
@@ -69,7 +68,6 @@ public:
 	virtual void	Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
 	virtual void Delete() { Release(); }
 
-	virtual const std::string GetText();
 	virtual std::string GetName();
 	virtual void		SetName(const std::string& name);
 		

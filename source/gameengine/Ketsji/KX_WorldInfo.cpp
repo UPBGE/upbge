@@ -96,7 +96,7 @@ KX_WorldInfo::~KX_WorldInfo()
 	}
 }
 
-const std::string& KX_WorldInfo::GetName()
+std::string KX_WorldInfo::GetName()
 {
 	return m_name;
 }
@@ -254,10 +254,6 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 /* -------------------------------------------------------------------------
  * Python functions
  * ------------------------------------------------------------------------- */
-PyObject *KX_WorldInfo::py_repr(void)
-{
-	return PyUnicode_FromStdString(GetName());
-}
 
 /* -------------------------------------------------------------------------
  * Python Integration Hooks

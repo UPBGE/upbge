@@ -25,7 +25,7 @@
 
 #ifdef WITH_PYTHON
 
-#include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
 #include "MT_Vector3.h"
 
 class KX_GameObject;
@@ -38,7 +38,7 @@ void KX_BoundingBox_Mathutils_Callback_Init();
 /** \brief Temporary python proxy class to alterate the game object
  * bounding box/AABB. Any instance of this class is owned by python.
  */
-class KX_BoundingBox : public PyObjectPlus
+class KX_BoundingBox : public CValue
 {
 	Py_Header
 protected:
@@ -50,6 +50,9 @@ protected:
 public:
 	KX_BoundingBox(KX_GameObject *owner);
 	virtual ~KX_BoundingBox();
+
+	virtual std::string GetName();
+	virtual std::string GetText();
 
 	/** Return true if the object owner is still valid.
 	 * Else return false and print a python error.
@@ -68,8 +71,6 @@ public:
 	bool SetMax(MT_Vector3 max);
 	/// Set AABB min, return true if the max is greater than max.
 	bool SetMin(MT_Vector3 min);
-
-	virtual PyObject *py_repr();
 
 	static PyObject *pyattr_get_min(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_min(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);

@@ -109,7 +109,7 @@ int CStringValue::GetValueType()
 	return VALUE_STRING_TYPE;
 }
 
-const std::string CStringValue::GetText()
+std::string CStringValue::GetText()
 {
 	return m_strString;
 }
