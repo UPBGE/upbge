@@ -69,11 +69,6 @@ PyTypeObject BL_ArmatureConstraint::Type = {
 	py_base_new
 };
 
-PyObject *BL_ArmatureConstraint::py_repr(void)
-{
-	return PyUnicode_FromStdString(m_name);
-}
-
 #endif // WITH_PYTHON
 
 BL_ArmatureConstraint::BL_ArmatureConstraint(

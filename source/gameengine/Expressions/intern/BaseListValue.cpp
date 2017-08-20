@@ -103,7 +103,7 @@ bool CBaseListValue::CheckEqual(CValue *first, CValue *second)
 	if (eqval == NULL) {
 		return false;
 	}
-	const std::string& text = eqval->GetText();
+	std::string text = eqval->GetText();
 	if (text == CBoolValue::sTrueString) {
 		result = true;
 	}
@@ -111,7 +111,7 @@ bool CBaseListValue::CheckEqual(CValue *first, CValue *second)
 	return result;
 }
 
-const std::string CBaseListValue::GetText()
+std::string CBaseListValue::GetText()
 {
 	std::string strListRep = "[";
 	std::string commastr = "";
@@ -119,7 +119,7 @@ const std::string CBaseListValue::GetText()
 	for (CValue *item : m_pValueArray) {
 		strListRep += commastr;
 		strListRep += item->GetText();
-		commastr = ",";
+		commastr = ", ";
 	}
 	strListRep += "]";
 

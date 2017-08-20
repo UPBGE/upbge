@@ -142,7 +142,7 @@ public:
 
 	virtual CValue *FindIdentifier(const std::string& identifiername);
 
-	virtual const std::string GetText();
+	virtual std::string GetText();
 	virtual double GetNumber();
 	/// Get Prop value type.
 	virtual int GetValueType();

@@ -28,7 +28,7 @@ public:
 	CErrorValue(const std::string& errmsg);
 	virtual ~CErrorValue();
 
-	virtual const std::string GetText();
+	virtual std::string GetText();
 	virtual int GetValueType();
 	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
 	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);

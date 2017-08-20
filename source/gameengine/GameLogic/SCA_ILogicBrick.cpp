@@ -45,7 +45,6 @@ SCA_ILogicBrick::SCA_ILogicBrick(SCA_IObject* gameobj)
 	m_bActive(false),
 	m_eventval(0)
 {
-	m_text = "KX_LogicBrick";
 }
 
 
@@ -79,14 +78,6 @@ void SCA_ILogicBrick::ReParent(SCA_IObject* parent)
 void SCA_ILogicBrick::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 {
 	// nothing to do
-}
-
-const std::string SCA_ILogicBrick::GetText()
-{ 
-	if (m_name.size())
-		return m_name;
-
-	return m_text;
 }
 
 std::string SCA_ILogicBrick::GetName()

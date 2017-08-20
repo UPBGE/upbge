@@ -46,6 +46,11 @@ SCA_InputEvent::SCA_InputEvent(int type)
 	m_values.push_back(0);
 }
 
+std::string SCA_InputEvent::GetName()
+{
+	return "SCA_InputEvent";
+}
+
 void SCA_InputEvent::Clear()
 {
 	SCA_EnumInputs status = m_status[m_status.size() - 1];

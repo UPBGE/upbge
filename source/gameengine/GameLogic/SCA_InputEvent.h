@@ -27,11 +27,11 @@
 #ifndef __SCA_INPUTEVENT_H__
 #define __SCA_INPUTEVENT_H__
 
-#include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
 
 #include <vector>
 
-class SCA_InputEvent : public PyObjectPlus
+class SCA_InputEvent : public CValue
 {
 Py_Header
 public:
@@ -44,6 +44,8 @@ public:
 
 	SCA_InputEvent();
 	SCA_InputEvent(int type);
+
+	virtual std::string GetName();
 
 	/// Clear status, values and queue but keep status and value from before.
 	void Clear();
@@ -66,11 +68,6 @@ public:
 	int m_type;
 
 #ifdef WITH_PYTHON
-	virtual PyObject *py_repr()
-	{
-		return PyUnicode_FromString("SCA_InputEvent");
-	}
-
 	static int get_status_size_cb(void *self_v);
 	static PyObject *get_status_item_cb(void *self_v, int index);
 	static int get_queue_size_cb(void *self_v);

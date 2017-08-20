@@ -310,7 +310,7 @@ int CIntValue::GetValueType()
 	return VALUE_INT_TYPE;
 }
 
-const std::string CIntValue::GetText()
+std::string CIntValue::GetText()
 {
 	return (boost::format("%lld") % m_int).str();
 }

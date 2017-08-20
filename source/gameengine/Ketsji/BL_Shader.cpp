@@ -35,6 +35,8 @@
 #  include "EXP_PythonCallBack.h"
 #endif  // WITH_PYTHON
 
+#include <boost/format.hpp>
+
 #include "CM_Message.h"
 
 BL_Shader::BL_Shader()
@@ -53,6 +55,17 @@ BL_Shader::~BL_Shader()
 		Py_XDECREF(m_callbacks[i]);
 	}
 #endif  // WITH_PYTHON
+}
+
+std::string BL_Shader::GetName()
+{
+	return "BL_Shader";
+}
+
+std::string BL_Shader::GetText()
+{
+	return (boost::format("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n") %
+			m_progs[VERTEX_PROGRAM] % m_progs[FRAGMENT_PROGRAM]).str();
 }
 
 #ifdef WITH_PYTHON

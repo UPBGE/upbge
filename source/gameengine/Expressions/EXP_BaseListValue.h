@@ -49,7 +49,7 @@ public:
 
 	virtual int GetValueType();
 	virtual CValue *GetReplica() = 0;
-	virtual const std::string GetText();
+	virtual std::string GetText();
 
 	void SetReleaseOnDestruct(bool bReleaseContents);
 
@@ -59,15 +59,6 @@ public:
 	int GetCount() const;
 
 #ifdef WITH_PYTHON
-	virtual PyObject *py_repr()
-	{
-		PyObject *py_proxy = this->GetProxy();
-		PyObject *py_list = PySequence_List(py_proxy);
-		PyObject *py_string = PyObject_Repr(py_list);
-		Py_DECREF(py_list);
-		Py_DECREF(py_proxy);
-		return py_string;
-	}
 
 	KX_PYMETHOD_O(CBaseListValue, append);
 	KX_PYMETHOD_NOARGS(CBaseListValue, reverse);

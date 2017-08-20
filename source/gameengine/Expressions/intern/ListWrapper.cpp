@@ -112,27 +112,25 @@ std::string CListWrapper::GetName()
 	return "ListWrapper";
 }
 
+std::string CListWrapper::GetText()
+{
+	std::string strListRep = "[";
+	std::string commastr = "";
+
+	for (unsigned int i = 0, size = GetSize(); i < size; ++i) {
+		strListRep += commastr;
+		strListRep += _PyUnicode_AsString(PyObject_Repr(GetItem(i)));
+		commastr = ", ";
+	}
+	strListRep += "]";
+
+	return strListRep;
+}
+
 int CListWrapper::GetValueType()
 {
 	return -1;
 }
-
-// We convert all elements to python objects to make a proper repr string.
-PyObject *CListWrapper::py_repr()
-{
-	if (!CheckValid()) {
-		PyErr_SetString(PyExc_SystemError, "CListWrapper : repr, " BGE_PROXY_ERROR_MSG);
-		return nullptr;
-	}
-
-	PyObject *py_proxy = GetProxy();
-	PyObject *py_list = PySequence_List(py_proxy);
-	PyObject *py_string = PyObject_Repr(py_list);
-	Py_DECREF(py_list);
-	Py_DECREF(py_proxy);
-	return py_string;
-}
-
 
 Py_ssize_t CListWrapper::py_len(PyObject *self)
 {
