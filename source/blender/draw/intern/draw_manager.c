@@ -3440,6 +3440,11 @@ void DRW_draw_depth_loop(
 }
 /** \} */
 
+void DRW_game_render_loop_end()
+{
+	memset(&DST, 0xFF, sizeof(DST));
+}
+
 
 /* -------------------------------------------------------------------- */
 
