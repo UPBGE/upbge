@@ -218,8 +218,7 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_invertFrontFace(false),
-	m_last_frontface(true),
-	m_viewport(nullptr)
+	m_last_frontface(true)
 {
 	m_impl.reset(new RAS_OpenGLRasterizer(this));
 
@@ -340,9 +339,6 @@ void RAS_Rasterizer::Init()
 
 	SetColorMask(true, true, true, true);
 
-	m_viewport = GPU_viewport_create();
-	DRW_game_render_loop_begin(m_viewport);
-
 	//m_impl->Init();
 
 	InitScreenShaders();
@@ -378,8 +374,6 @@ void RAS_Rasterizer::Exit()
 	DRW_viewport_matrix_override_unset(DRW_MAT_WININV);
 	DRW_viewport_matrix_override_unset(DRW_MAT_PERS);
 	DRW_viewport_matrix_override_unset(DRW_MAT_PERSINV);
-
-	DRW_game_render_loop_end();
 }
 
 void RAS_Rasterizer::BeginFrame(double time)
@@ -598,35 +592,6 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 
 // 	SetDepthFunc(RAS_LEQUAL);
 // 	Enable(RAS_CULL_FACE);
-}
-
-void RAS_Rasterizer::BindViewport(RAS_ICanvas *canvas)
-{
-	const RAS_Rect& viewport = canvas->GetViewportArea();
-
-	rcti rect;
-	BLI_rcti_init(&rect, viewport.GetLeft(), viewport.GetRight(), viewport.GetBottom(), viewport.GetTop());
-
-	GPU_viewport_bind(m_viewport, &rect);
-	DRW_viewport_size_init();
-}
-
-void RAS_Rasterizer::UnbindViewport(RAS_ICanvas *canvas)
-{
-	const RAS_Rect& window = canvas->GetWindowArea();
-	const RAS_Rect& viewport = canvas->GetViewportArea();
-
-	SetScissor(window.GetLeft(), window.GetBottom(), window.GetWidth(), window.GetHeight());
-
-	const int left = -viewport.GetLeft() + window.GetLeft();
-	const int right = window.GetWidth() + left;
-	const int bottom = -viewport.GetBottom() + window.GetBottom();
-	const int top = window.GetHeight() + bottom;
-	gpuOrtho(left, right, bottom, top, -100, 100);
-
-	gpuLoadIdentity();
-
-	GPU_viewport_unbind(m_viewport);
 }
 
 RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoEye eye)

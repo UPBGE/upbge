@@ -110,6 +110,10 @@
 
 #include "CM_Message.h"
 
+extern "C" {
+#  include "DRW_render.h" // For DRW_viewport_texture_list_get()
+}
+
 static void *KX_SceneReplicationFunc(SG_Node* node,void* gameobj,void* scene)
 {
 	KX_GameObject* replica = ((KX_Scene*)scene)->AddNodeReplicaObject(node,(KX_GameObject*)gameobj);
@@ -217,9 +221,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
-	m_eeveeData = m_blenderScene->eevee_data;
-	m_props = m_blenderScene->eevee_properties;
-	m_dtxl = m_blenderScene->eevee_dtxl;
+	m_eeveeData = EEVEE_engine_data_get();
+	SceneLayer *sl = BKE_scene_layer_from_scene_get(m_blenderScene);
+	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+	m_dtxl = DRW_viewport_texture_list_get();
 
 	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, this);
 

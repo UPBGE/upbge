@@ -88,6 +88,6 @@ RenderEngineType DRW_engine_viewport_game_type = {
 	"BLENDER_GAME", N_("Blender Game"), RE_INTERNAL | RE_USE_SHADING_NODES,
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	&GE_layer_collection_settings_create, &GE_scene_layer_settings_create,
-	&draw_engine_game_type,
+	&draw_engine_eevee_type,
 	{NULL, NULL, NULL}
 };

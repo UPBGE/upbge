@@ -1294,39 +1294,6 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 #endif  // WITH_PYTHON
 }
 
-static RAS_SceneLayerData *BL_ConvertEeveeSceneLayerData(Scene *blenderscene, Depsgraph *graph)
-{
-	EEVEE_SceneLayerData *blsldata = nullptr;
-
-	SceneLayer *sl = DEG_get_evaluated_scene_layer(graph);
-	for (SceneLayerEngineData *sled = (SceneLayerEngineData *)sl->drawdata.first; sled; sled = sled->next) {
-		if (sled->engine_type == &draw_engine_eevee_type) {
-			blsldata = (EEVEE_SceneLayerData *)sled->storage;
-		}
-	}
-	BLI_assert(blsldata);
-
-#if 0
-	memset(&sldata, 0, sizeof(EEVEE_SceneLayerData));
-	sldata.irradiance_pool = blsldata->irradiance_pool;
-	sldata.irradiance_rt = blsldata->irradiance_rt;
-	sldata.probes = blsldata->probes;
-	sldata.probe_pool = blsldata->probe_pool;
-	sldata.probe_ubo = blsldata->probe_ubo;
-	sldata.planar_ubo = blsldata->planar_ubo;
-	sldata.grid_ubo = blsldata->grid_ubo;
-	sldata.shadow_depth_cascade_pool = blsldata->shadow_depth_cascade_pool;
-	sldata.shadow_depth_map_pool = blsldata->shadow_depth_map_pool;
-	sldata.shadow_depth_cube_pool = blsldata->shadow_depth_cube_pool;
-	sldata.shadow_depth_cascade_pool = blsldata->shadow_depth_cascade_pool;
-
-	EEVEE_lights_init(&sldata);
-	EEVEE_lightprobes_init(&sldata, EEVEE_engine_data_get());
-#else
-	return new RAS_SceneLayerData(*blsldata);
-#endif
-}
-
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(
@@ -1535,8 +1502,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	worldinfo->UpdateBackGround(rendertools);
 	kxscene->SetWorldInfo(worldinfo);
 
-
-	RAS_SceneLayerData *layerData = BL_ConvertEeveeSceneLayerData(blenderscene, depsgraph);
+	EEVEE_SceneLayerData *blsldata = EEVEE_scene_layer_data_get();
+	RAS_SceneLayerData *layerData = new RAS_SceneLayerData(*blsldata);
 	kxscene->SetSceneLayerData(layerData);
 
 	int activeLayerBitInfo = blenderscene->lay;

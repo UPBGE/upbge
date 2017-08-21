@@ -3089,7 +3089,7 @@ void DRW_draw_view(const bContext *C)
 
 	/* Reset before using it. */
 	memset(&DST, 0x0, sizeof(DST));
-	DRW_draw_render_loop_ex(graph, ar, v3d, C);
+	DRW_draw_render_loop_ex(graph, ar, v3d, C, true);
 }
 
 /**
@@ -3099,7 +3099,7 @@ void DRW_draw_view(const bContext *C)
 void DRW_draw_render_loop_ex(
         struct Depsgraph *graph,
         ARegion *ar, View3D *v3d,
-        const bContext *evil_C)
+        const bContext *evil_C, bool freeDST)
 {
 	Scene *scene = DEG_get_evaluated_scene(graph);
 	SceneLayer *sl = DEG_get_evaluated_scene_layer(graph);
@@ -3188,17 +3188,17 @@ void DRW_draw_render_loop_ex(
 
 #ifdef DEBUG
 	/* Avoid accidental reuse. */
-	memset(&DST, 0xFF, sizeof(DST));
+	if (freeDST) memset(&DST, 0xFF, sizeof(DST));
 #endif
 }
 
 void DRW_draw_render_loop(
         struct Depsgraph *graph,
-        ARegion *ar, View3D *v3d)
+        ARegion *ar, View3D *v3d, bool freeDST)
 {
 	/* Reset before using it. */
 	memset(&DST, 0x0, sizeof(DST));
-	DRW_draw_render_loop_ex(graph, ar, v3d, NULL);
+	DRW_draw_render_loop_ex(graph, ar, v3d, NULL, freeDST);
 }
 
 void DRW_draw_render_loop_offscreen(
@@ -3217,7 +3217,7 @@ void DRW_draw_render_loop_offscreen(
 	/* Reset before using it. */
 	memset(&DST, 0x0, sizeof(DST));
 	DST.options.is_image_render = true;
-	DRW_draw_render_loop_ex(graph, ar, v3d, NULL);
+	DRW_draw_render_loop_ex(graph, ar, v3d, NULL, true);
 
 	/* restore */
 	{
@@ -3438,55 +3438,6 @@ void DRW_draw_depth_loop(
 	/* restore */
 	rv3d->viewport = backup_viewport;
 }
-
-void DRW_game_render_loop_begin(GPUViewport *viewport)
-{
-	/* Reset before using it. */
-	memset(&DST, 0x0, sizeof(DST));
-
-	DST.viewport = viewport;
-
-	DRW_engines_enable_basic();
-
-	/*int size[2];
-	GPU_viewport_size_get(DST.viewport, size);
-	DST.size[0] = size[0];
-	DST.size[1] = size[1];
-
-	DefaultFramebufferList *fbl = (DefaultFramebufferList *)GPU_viewport_framebuffer_list_get(DST.viewport);
-	DST.default_framebuffer = fbl->default_fb;*/
-
-	/* Refresh DST.screenvecs */
-	/*copy_v3_v3(DST.screenvecs[0], rv3d->viewinv[0]);
-	copy_v3_v3(DST.screenvecs[1], rv3d->viewinv[1]);
-	normalize_v3(DST.screenvecs[0]);
-	normalize_v3(DST.screenvecs[1]); TODO(UPBGE) */ 
-
-	/* Refresh DST.pixelsize */
-	/* DST.pixsize = rv3d->pixsize; TODO(UPBGE) */
-
-	DST.is_persp = true;
-
-	/* Reset facing */
-	DST.frontface = GL_CCW;
-	DST.backface = GL_CW;
-	glFrontFace(DST.frontface);
-
-	/* Init engines */
-	DRW_engines_init();
-
-	DRW_state_reset();
-	DRW_engines_disable();
-}
-
-void DRW_game_render_loop_end(void)
-{
-#ifdef DEBUG
-	/* Avoid accidental reuse. */
-	memset(&DST, 0xFF, sizeof(DST));
-#endif
-}
-
 /** \} */
 
 

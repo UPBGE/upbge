@@ -1730,10 +1730,6 @@ typedef struct Scene {
 	IDProperty *collection_properties;  /* settings to be overriden by layer collections */
 	IDProperty *layer_properties;  /* settings to be override by workspaces */
 
-	struct EEVEE_Data *eevee_data;
-	IDProperty *eevee_properties;
-	struct DefaultTextureList *eevee_dtxl;
-
 	int pad5[2];
 } Scene;
 

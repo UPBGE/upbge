@@ -312,8 +312,6 @@ private:
 	bool m_invertFrontFace;
 	bool m_last_frontface;
 
-	GPUViewport *m_viewport;
-
 	std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
 
 	void InitScreenShaders();
@@ -435,9 +433,6 @@ public:
 	 * \param righteyeindex The right off screen index.
 	 */
 	void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen);
-
-	void BindViewport(RAS_ICanvas *canvas);
-	void UnbindViewport(RAS_ICanvas *canvas);
 
 	/**
 	 * GetRenderArea computes the render area from the 2d canvas.

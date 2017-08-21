@@ -70,10 +70,10 @@ void DRW_draw_view(const struct bContext *C);
 void DRW_draw_render_loop_ex(
         struct Depsgraph *graph,
         struct ARegion *ar, struct View3D *v3d,
-        const struct bContext *evil_C);
+        const struct bContext *evil_C, bool freeDST); // For bge we need to access DST data
 void DRW_draw_render_loop(
         struct Depsgraph *graph,
-        struct ARegion *ar, struct View3D *v3d);
+        struct ARegion *ar, struct View3D *v3d, bool freeDST);
 void DRW_draw_render_loop_offscreen(
         struct Depsgraph *graph,
         struct ARegion *ar, struct View3D *v3d,
@@ -85,7 +85,7 @@ void DRW_draw_select_loop(
 void DRW_draw_depth_loop(
         struct Depsgraph *graph,
         struct ARegion *ar, struct View3D *v3d);
-void DRW_game_render_loop_begin(struct GPUViewport *viewport);
+void DRW_game_render_loop_begin(struct Depsgraph *depsgraph, struct ARegion *ar, struct View3D *v3d);
 void DRW_game_render_loop_end(void);
 
 /* This is here because GPUViewport needs it */
