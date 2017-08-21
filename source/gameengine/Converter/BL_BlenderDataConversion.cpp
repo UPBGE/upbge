@@ -862,7 +862,7 @@ static KX_LightObject *BL_GameLightFromBlenderLamp(Lamp *la, unsigned int layerf
 	return gamelight;
 }
 
-static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene)
+static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene, RAS_ICanvas *canvas)
 {
 	Camera *ca = static_cast<Camera *>(ob->data);
 	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
@@ -870,6 +870,20 @@ static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene)
 
 	gamecamera = new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
 	gamecamera->SetName(ca->id.name + 2);
+
+	if (ca->gameflag & GAME_CAM_VIEWPORT) {
+		const GameCameraViewportSettings& settings = ca->gameviewport;
+		if (settings.leftratio > settings.rightratio || settings.bottomratio > settings.topratio) {
+			CM_Warning("\"" << gamecamera->GetName() << "\" uses invalid custom viewport ratios, disabling custom viewport.");
+		}
+		else {
+			gamecamera->EnableViewport(true);
+			const int maxx = canvas->GetMaxX();
+			const int maxy = canvas->GetMaxY();
+			gamecamera->SetViewport(maxx * settings.leftratio, maxy * settings.bottomratio,
+									maxx * settings.rightratio, maxy * settings.topratio);
+		}
+	}
 
 	gamecamera->SetShowCameraFrustum(ca->gameflag & GAME_CAM_SHOW_FRUSTUM);
 	gamecamera->SetLodDistanceFactor(ca->lodfactor);
@@ -890,7 +904,7 @@ static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene)
 }
 
 static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxscene, RAS_Rasterizer *rendertools,
-                                                    BL_BlenderSceneConverter &converter)
+                                                    RAS_ICanvas *canvas, BL_BlenderSceneConverter &converter)
 {
 	KX_GameObject *gameobj = nullptr;
 	Scene *blenderscene = kxscene->GetBlenderScene();
@@ -908,7 +922,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 
 		case OB_CAMERA:
 		{
-			KX_Camera *gamecamera = BL_GameCameraFromBlenderCamera(ob, kxscene);
+			KX_Camera *gamecamera = BL_GameCameraFromBlenderCamera(ob, kxscene, canvas);
 			gameobj = gamecamera;
 
 			kxscene->GetCameraList()->Add(CM_AddRef(gamecamera));
@@ -1382,7 +1396,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		Object *blenderobject = base->object;
 		allblobj.insert(blenderobject);
 
-		KX_GameObject *gameobj = BL_GameObjectFromBlenderObject(base->object, kxscene, rendertools, converter);
+		KX_GameObject *gameobj = BL_GameObjectFromBlenderObject(base->object, kxscene, rendertools, canvas, converter);
 
 		bool isInActiveLayer = (blenderobject->lay & activeLayerBitInfo) != 0;
 		if (gameobj) {
@@ -1419,7 +1433,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 					if (!converter.FindGameObject(blenderobject)) {
 						allblobj.insert(blenderobject);
 						groupobj.insert(blenderobject);
-						KX_GameObject *gameobj = BL_GameObjectFromBlenderObject(blenderobject, kxscene, rendertools, converter);
+						KX_GameObject *gameobj = BL_GameObjectFromBlenderObject(blenderobject, kxscene, rendertools, canvas, converter);
 
 						bool isInActiveLayer = false;
 						if (gameobj) {

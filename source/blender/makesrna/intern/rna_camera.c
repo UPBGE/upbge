@@ -171,6 +171,35 @@ static void rna_def_camera_stereo_data(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 }
 
+static void rna_def_game_camera_viewport_data(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "GameCameraViewportData", NULL);
+	RNA_def_struct_sdna(srna, "GameCameraViewportSettings");
+	RNA_def_struct_nested(brna, srna, "Camera");
+	RNA_def_struct_ui_text(srna, "Viewport", "Game custom camera viewport settings");
+
+	prop = RNA_def_property(srna, "left_ratio", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "leftratio");
+	RNA_def_property_ui_text(prop, "Left Ratio", "Set camera viewport left to a ratio of the entire viewport width");
+
+	prop = RNA_def_property(srna, "right_ratio", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "rightratio");
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Right Ratio", "Set camera viewport right to a ratio of the entire viewport width");
+
+	prop = RNA_def_property(srna, "bottom_ratio", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "bottomratio");
+	RNA_def_property_ui_text(prop, "Bottom Ratio", "Set camera viewport bottom to a ratio of the entire viewport height");
+
+	prop = RNA_def_property(srna, "top_ratio", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "topratio");
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Top Ratio", "Set camera viewport top to a ratio of the entire viewport height");
+}
+
 void RNA_def_camera(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -339,6 +368,12 @@ void RNA_def_camera(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "CameraStereoData");
 	RNA_def_property_ui_text(prop, "Stereo", "");
 
+	/* Stereo Settings */
+	prop = RNA_def_property(srna, "viewport", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_pointer_sdna(prop, NULL, "gameviewport");
+	RNA_def_property_struct_type(prop, "GameCameraViewportData");
+
 	/* flag */
 	prop = RNA_def_property(srna, "override_culling", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERRIDE_CULLING);
@@ -347,6 +382,11 @@ void RNA_def_camera(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "show_frustum", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_SHOW_FRUSTUM);
+	RNA_def_property_ui_text(prop, "Show Frustum", "Show a visualization of frustum in Game Engine");
+	RNA_def_property_update(prop, NC_CAMERA, NULL);
+
+	prop = RNA_def_property(srna, "use_viewport", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_VIEWPORT);
 	RNA_def_property_ui_text(prop, "Show Frustum", "Show a visualization of frustum in Game Engine");
 	RNA_def_property_update(prop, NC_CAMERA, NULL);
 
@@ -416,6 +456,9 @@ void RNA_def_camera(BlenderRNA *brna)
 
 	/* *** Animated *** */
 	rna_def_camera_stereo_data(brna);
+
+	/* Game Data */
+	rna_def_game_camera_viewport_data(brna);
 
 	/* Camera API */
 	RNA_api_camera(srna);

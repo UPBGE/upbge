@@ -262,6 +262,8 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 
 		for (Camera *camera = main->camera.first; camera; camera = camera->id.next) {
 			camera->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
+			camera->gameviewport.rightratio = 1.0f;
+			camera->gameviewport.topratio = 1.0f;
 		}
 	}
 }
