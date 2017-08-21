@@ -59,6 +59,13 @@ typedef struct CameraStereoSettings {
 	float pole_merge_angle_to;
 } CameraStereoSettings;
 
+typedef struct GameCameraViewportSettings {
+	float leftratio;
+	float rightratio;
+	float bottomratio;
+	float topratio;
+} GameCameraViewportSettings;
+
 typedef struct Camera {
 	ID id;
 	struct AnimData *adt;	/* animation data (must be immediately after id for utilities to use it) */ 
@@ -68,6 +75,7 @@ typedef struct Camera {
 	short flag;
 	short gameflag;
 	short pad2;
+	struct GameCameraViewportSettings gameviewport;
 	float passepartalpha;
 	float clipsta, clipend;
 	float lens, ortho_scale, drawsize;
@@ -134,6 +142,7 @@ enum {
 enum {
 	GAME_CAM_SHOW_FRUSTUM		= (1 << 0),
 	GAME_CAM_OVERRIDE_CULLING	= (1 << 1),
+	GAME_CAM_VIEWPORT			= (1 << 2),
 };
 
 /* yafray: dof sampling switch */

@@ -242,4 +242,11 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 2, 0)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Camera", "GameCameraViewportSettings", "viewport")) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->gm.timeScale = 1.0f;
+			}
+		}
+	}
 }

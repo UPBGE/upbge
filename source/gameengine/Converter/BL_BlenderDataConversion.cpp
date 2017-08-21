@@ -827,7 +827,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	return gamelight;
 }
 
-static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, BL_BlenderSceneConverter& converter)
+static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, RAS_ICanvas *canvas, BL_BlenderSceneConverter& converter)
 {
 	Camera* ca = static_cast<Camera*>(ob->data);
 	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
@@ -835,6 +835,20 @@ static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, BL_Blen
 	
 	gamecamera= new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
 	gamecamera->SetName(ca->id.name + 2);
+
+	if (ca->gameflag & GAME_CAM_VIEWPORT) {
+		const GameCameraViewportSettings& settings = ca->gameviewport;
+		if (settings.leftratio > settings.rightratio || settings.bottomratio > settings.topratio) {
+			CM_Warning("\"" << gamecamera->GetName() << "\" uses invalid custom viewport ratios, disabling custom viewport.");
+		}
+		else {
+			gamecamera->EnableViewport(true);
+			const int maxx = canvas->GetWidth() - 1;
+			const int maxy = canvas->GetHeight() - 1;
+			gamecamera->SetViewport(maxx * settings.leftratio, maxy * settings.bottomratio,
+									maxx * settings.rightratio, maxy * settings.topratio);
+		}
+	}
 
 	gamecamera->SetShowCameraFrustum(ca->gameflag & GAME_CAM_SHOW_FRUSTUM);
 	gamecamera->SetLodDistanceFactor(ca->lodfactor);
@@ -856,6 +870,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 								Object *ob, 
 								KX_Scene *kxscene, 
 								RAS_Rasterizer *rendertools,
+								RAS_ICanvas *canvas,
 								BL_BlenderSceneConverter& converter,
 								bool libloading) 
 {
@@ -875,7 +890,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 	
 	case OB_CAMERA:
 	{
-		KX_Camera* gamecamera = gamecamera_from_bcamera(ob, kxscene, converter);
+		KX_Camera* gamecamera = gamecamera_from_bcamera(ob, kxscene, canvas, converter);
 		gameobj = gamecamera;
 		
 		//don't add a reference: the camera list in kxscene->m_cameras is not released at the end
@@ -1404,7 +1419,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		KX_GameObject* gameobj = gameobject_from_blenderobject(
 										base->object, 
 										kxscene, 
-										rendertools, 
+										rendertools,
+										canvas,
 										converter,
 										libloading);
 
@@ -1456,7 +1472,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 						KX_GameObject* gameobj = gameobject_from_blenderobject(
 														blenderobject, 
 														kxscene, 
-														rendertools, 
+														rendertools,
+														canvas,
 														converter,
 														libloading);
 

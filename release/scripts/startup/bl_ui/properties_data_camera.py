@@ -168,6 +168,36 @@ class DATA_PT_frustum_culling(CameraButtonsPanel, Panel):
         row.prop(cam, "override_culling")
 
 
+class DATA_PT_game_viewport(CameraButtonsPanel, Panel):
+    bl_label = "Custom Viewport"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.camera and context.scene.render.engine in cls.COMPAT_ENGINES
+
+    def draw_header(self, context):
+        cam = context.camera
+
+        self.layout.prop(cam, "use_viewport", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        cam = context.camera
+        viewport = cam.viewport
+
+        split = layout.split()
+        split.active = cam.use_viewport
+
+        col = split.column()
+        col.prop(viewport, "left_ratio")
+        col.prop(viewport, "right_ratio")
+
+        col = split.column()
+        col.prop(viewport, "bottom_ratio")
+        col.prop(viewport, "top_ratio")
+
+
 class DATA_PT_camera_stereoscopy(CameraButtonsPanel, Panel):
     bl_label = "Stereoscopy"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
@@ -366,6 +396,7 @@ classes = (
     DATA_PT_camera,
     DATA_PT_levels_of_detail,
     DATA_PT_frustum_culling,
+    DATA_PT_game_viewport,
     DATA_PT_camera_stereoscopy,
     DATA_PT_camera_dof,
     DATA_PT_camera_display,
