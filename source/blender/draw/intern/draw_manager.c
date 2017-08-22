@@ -3081,7 +3081,7 @@ static void DRW_debug_gpu_stats(void)
 /* Everything starts here.
  * This function takes care of calling all cache and rendering functions
  * for each relevant engine / mode engine. */
-void DRW_draw_view(const bContext *C)
+void DRW_draw_view(const bContext *C, bool freeDST)
 {
 	struct Depsgraph *graph = CTX_data_depsgraph(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -3089,7 +3089,7 @@ void DRW_draw_view(const bContext *C)
 
 	/* Reset before using it. */
 	memset(&DST, 0x0, sizeof(DST));
-	DRW_draw_render_loop_ex(graph, ar, v3d, C, true);
+	DRW_draw_render_loop_ex(graph, ar, v3d, C, freeDST);
 }
 
 /**
