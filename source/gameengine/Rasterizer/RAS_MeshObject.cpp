@@ -112,11 +112,6 @@ RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
 
 RAS_MeshObject::~RAS_MeshObject()
 {
-	std::vector<RAS_Polygon *>::iterator it;
-
-	for (it = m_polygons.begin(); it != m_polygons.end(); it++)
-		delete (*it);
-
 	m_sharedvertex_map.clear();
 	m_polygons.clear();
 
@@ -167,9 +162,9 @@ int RAS_MeshObject::NumPolygons()
 	return m_polygons.size();
 }
 
-RAS_Polygon *RAS_MeshObject::GetPolygon(int num) const
+RAS_Polygon *RAS_MeshObject::GetPolygon(int num)
 {
-	return m_polygons[num];
+	return &m_polygons[num];
 }
 
 std::string& RAS_MeshObject::GetName()
@@ -216,15 +211,14 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat, int numverts,
 
 	// create a new polygon
 	RAS_IDisplayArray *darray = meshmat->GetDisplayArray();
-	RAS_Polygon *poly = new RAS_Polygon(bucket, darray, numverts);
-	m_polygons.push_back(poly);
+	RAS_Polygon poly(bucket, darray, numverts);
 
-	poly->SetVisible(visible);
-	poly->SetCollider(collider);
-	poly->SetTwoside(twoside);
+	poly.SetVisible(visible);
+	poly.SetCollider(collider);
+	poly.SetTwoside(twoside);
 
 	for (unsigned short i = 0; i < numverts; ++i) {
-		poly->SetVertexOffset(i, indices[i]);
+		poly.SetVertexOffset(i, indices[i]);
 	}
 
 	if (visible && !bucket->IsWire()) {
@@ -241,7 +235,8 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat, int numverts,
 		}
 	}
 
-	return poly;
+	m_polygons.push_back(poly);
+	return &m_polygons.back();
 }
 
 unsigned int RAS_MeshObject::AddVertex(
@@ -459,10 +454,10 @@ void RAS_MeshObject::SortPolygons(RAS_IDisplayArray *array, const MT_Transform &
 
 bool RAS_MeshObject::HasColliderPolygon()
 {
-	int numpolys = NumPolygons();
-	for (int p = 0; p < numpolys; p++) {
-		if (m_polygons[p]->IsCollider())
+	for (const RAS_Polygon& poly : m_polygons) {
+		if (poly.IsCollider()) {
 			return true;
+		}
 	}
 
 	return false;

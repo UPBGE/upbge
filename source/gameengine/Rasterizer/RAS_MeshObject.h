@@ -92,7 +92,7 @@ private:
 
 	LayersInfo m_layersInfo;
 
-	std::vector<RAS_Polygon *> m_polygons;
+	std::vector<RAS_Polygon> m_polygons;
 
 	/* polygon sorting */
 	struct polygonSlot;
@@ -149,7 +149,7 @@ public:
 	const float *GetVertexLocation(unsigned int orig_index);
 
 	int NumPolygons();
-	RAS_Polygon *GetPolygon(int num) const;
+	RAS_Polygon *GetPolygon(int num);
 
 	RAS_BoundingBox *GetBoundingBox() const;
 	// buckets

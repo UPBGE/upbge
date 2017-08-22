@@ -58,24 +58,24 @@ public:
 	{
 	}
 
-	int VertexCount();
-	RAS_ITexVert *GetVertex(int i);
-	RAS_TexVertInfo& GetVertexInfo(unsigned int i);
+	int VertexCount() const;
+	RAS_ITexVert *GetVertex(int i) const;
+	const RAS_TexVertInfo& GetVertexInfo(unsigned int i) const;
 
 	void SetVertexOffset(int i, unsigned int offset);
-	unsigned int GetVertexOffset(unsigned int i);
+	unsigned int GetVertexOffset(unsigned int i) const;
 
-	bool IsVisible();
+	bool IsVisible() const;
 	void SetVisible(bool visible);
 
-	bool IsCollider();
+	bool IsCollider() const;
 	void SetCollider(bool collider);
 
-	bool IsTwoside();
+	bool IsTwoside() const;
 	void SetTwoside(bool twoside);
 
-	RAS_MaterialBucket *GetMaterial();
-	RAS_IDisplayArray *GetDisplayArray();
+	RAS_MaterialBucket *GetMaterial() const;
+	RAS_IDisplayArray *GetDisplayArray() const;
 };
 
 #endif
