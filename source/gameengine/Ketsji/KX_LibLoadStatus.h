@@ -29,62 +29,61 @@
 
 #include "EXP_PyObjectPlus.h"
 
+class BL_BlenderConverter;
+class KX_KetsjiEngine;
+class KX_Scene;
+
 class KX_LibLoadStatus : public PyObjectPlus
 {
 	Py_Header
 private:
-	class BL_BlenderConverter*	m_converter;
-	class KX_KetsjiEngine*			m_engine;
-	class KX_Scene*					m_mergescene;
-	void*							m_data;
-	std::string						m_libname;
+	BL_BlenderConverter *m_converter;
+	KX_KetsjiEngine *m_engine;
+	KX_Scene *m_mergescene;
+	void *m_data;
+	std::string m_libname;
 
-	float	m_progress;
-	double	m_starttime;
-	double	m_endtime;
+	float m_progress;
+	double m_starttime;
+	double m_endtime;
 
-	// The current status of this libload, used by the scene converter.
+	/// The current status of this libload, used by the scene converter.
 	bool m_finished;
 
 #ifdef WITH_PYTHON
-	PyObject*	m_finish_cb;
-	PyObject*	m_progress_cb;
+	PyObject *m_finish_cb;
+	PyObject *m_progress_cb;
 #endif
 
 public:
-	KX_LibLoadStatus(class BL_BlenderConverter* kx_converter,
-						class KX_KetsjiEngine* kx_engine,
-						class KX_Scene* merge_scene,
-						const std::string& path);
+	KX_LibLoadStatus(BL_BlenderConverter *converter, KX_KetsjiEngine *engine, KX_Scene *merge_scene, const std::string& path);
 
-	void Finish(); // Called when the libload is done
+	/// Called when the libload is done.
+	void Finish();
 	void RunFinishCallback();
 	void RunProgressCallback();
 
-	class BL_BlenderConverter *GetConverter();
-	class KX_KetsjiEngine *GetEngine();
-	class KX_Scene *GetMergeScene();
+	BL_BlenderConverter *GetConverter() const;
+	KX_KetsjiEngine *GetEngine() const;
+	KX_Scene *GetMergeScene() const;
 
 	void SetData(void *data);
-	void *GetData();
+	void *GetData() const;
 
-	inline bool IsFinished() const
-	{
-		return m_finished;
-	}
+	bool IsFinished() const;
 
 	void SetProgress(float progress);
-	float GetProgress();
+	float GetProgress() const;
 	void AddProgress(float progress);
 
 #ifdef WITH_PYTHON
-	static PyObject*	pyattr_get_onfinish(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_onfinish(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_onprogress(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_onprogress(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_onfinish(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_onfinish(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_onprogress(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_onprogress(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	static PyObject*	pyattr_get_timetaken(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_timetaken(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 
-#endif // __KX_LIBLOADSTATUS_H__
+#endif  // __KX_LIBLOADSTATUS_H__
