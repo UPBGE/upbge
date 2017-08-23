@@ -65,9 +65,9 @@
 #include "RAS_Rasterizer.h"
 #include "RAS_ILightObject.h"
 
-#include "KX_ConvertActuators.h"
-#include "KX_ConvertControllers.h"
-#include "KX_ConvertSensors.h"
+#include "BL_ConvertActuators.h"
+#include "BL_ConvertControllers.h"
+#include "BL_ConvertSensors.h"
 #include "SCA_LogicManager.h"
 #include "SCA_TimeEventManager.h"
 
@@ -106,7 +106,7 @@
 #include "KX_WorldInfo.h"
 
 #include "KX_KetsjiEngine.h"
-#include "KX_BlenderSceneConverter.h"
+#include "BL_BlenderSceneConverter.h"
 
 #include "KX_Globals.h"
 #include "KX_PyConstraintBinding.h"
@@ -166,7 +166,7 @@ extern Material defmaterial;	/* material.c */
 
 /* end of blender include block */
 
-#include "KX_ConvertProperties.h"
+#include "BL_ConvertProperties.h"
 
 #include "SG_Node.h"
 #include "SG_BBox.h"
@@ -393,7 +393,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 	return kx_blmat;
 }
 
-static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_Scene *scene, KX_BlenderSceneConverter& converter)
+static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_Scene *scene, BL_BlenderSceneConverter& converter)
 {
 	KX_BlenderMaterial* mat = converter.FindMaterial(ma);
 
@@ -412,7 +412,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_S
 }
 
 /* blenderobj can be nullptr, make sure its checked for */
-RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, KX_BlenderSceneConverter& converter, bool libloading)
+RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, BL_BlenderSceneConverter& converter, bool libloading)
 {
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
@@ -692,7 +692,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
                                       RAS_MeshObject* meshobj,
                                       KX_Scene* kxscene,
                                       int activeLayerBitInfo,
-                                      KX_BlenderSceneConverter& converter,
+                                      BL_BlenderSceneConverter& converter,
                                       bool processCompoundChildren
                                       )
 
@@ -757,7 +757,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	}
 }
 
-static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter& converter, bool libloading)
+static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter, bool libloading)
 {
 	if (BLI_listbase_count_ex(&ob->lodlevels, 2) <= 1) {
 		return nullptr;
@@ -773,7 +773,7 @@ static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene,
 	return lodManager;
 }
 
-static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_Rasterizer *rasterizer, KX_BlenderSceneConverter& converter)
+static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_Rasterizer *rasterizer, BL_BlenderSceneConverter& converter)
 {
 	RAS_ILightObject *lightobj = rasterizer->CreateLight();
 	KX_LightObject *gamelight;
@@ -827,7 +827,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	return gamelight;
 }
 
-static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_BlenderSceneConverter& converter)
+static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, BL_BlenderSceneConverter& converter)
 {
 	Camera* ca = static_cast<Camera*>(ob->data);
 	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
@@ -856,7 +856,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 								Object *ob, 
 								KX_Scene *kxscene, 
 								RAS_Rasterizer *rendertools,
-								KX_BlenderSceneConverter& converter,
+								BL_BlenderSceneConverter& converter,
 								bool libloading) 
 {
 	KX_GameObject *gameobj = nullptr;
@@ -1160,7 +1160,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(
-        KX_BlenderSceneConverter& converter,
+        BL_BlenderSceneConverter& converter,
        Object *blenderobject,
         std::vector<parentChildLink> &vec_parent_child,
         CListValue<KX_GameObject> *logicbrick_conversionlist,
@@ -1279,7 +1279,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							  e_PhysicsEngine	physics_engine,
 							  RAS_Rasterizer* rendertools,
 							  RAS_ICanvas* canvas,
-							  KX_BlenderSceneConverter& converter,
+							  BL_BlenderSceneConverter& converter,
 							  bool alwaysUseExpandFraming,
 							  bool libloading
 							  )

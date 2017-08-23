@@ -91,7 +91,7 @@ class RAS_2DFilterManager;
 class KX_2DFilterManager;
 class SCA_JoystickManager;
 class btCollisionShape;
-class KX_BlenderSceneConverter;
+class BL_BlenderSceneConverter;
 struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
 struct TaskPool;
@@ -516,7 +516,7 @@ public:
 	void SetDbvtOcclusionRes(int i) { m_dbvt_occlusion_res = i; }
 	int GetDbvtOcclusionRes() { return m_dbvt_occlusion_res; }
 	
-	void SetSceneConverter(class KX_BlenderSceneConverter* sceneConverter);
+	void SetSceneConverter(class BL_BlenderSceneConverter* sceneConverter);
 
 	class PHY_IPhysicsEnvironment*		GetPhysicsEnvironment()
 	{

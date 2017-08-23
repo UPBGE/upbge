@@ -254,7 +254,7 @@ public:
 
 	static CcdPhysicsEnvironment *Create(struct Scene *blenderscene, bool visualizePhysics);
 
-	virtual void ConvertObject(KX_BlenderSceneConverter& converter,
+	virtual void ConvertObject(BL_BlenderSceneConverter& converter,
 							   KX_GameObject *gameobj,
 	                           RAS_MeshObject *meshobj,
 	                           DerivedMesh *dm,

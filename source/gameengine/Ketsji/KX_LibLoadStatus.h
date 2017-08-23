@@ -33,7 +33,7 @@ class KX_LibLoadStatus : public PyObjectPlus
 {
 	Py_Header
 private:
-	class KX_BlenderConverter*	m_converter;
+	class BL_BlenderConverter*	m_converter;
 	class KX_KetsjiEngine*			m_engine;
 	class KX_Scene*					m_mergescene;
 	void*							m_data;
@@ -52,7 +52,7 @@ private:
 #endif
 
 public:
-	KX_LibLoadStatus(class KX_BlenderConverter* kx_converter,
+	KX_LibLoadStatus(class BL_BlenderConverter* kx_converter,
 						class KX_KetsjiEngine* kx_engine,
 						class KX_Scene* merge_scene,
 						const std::string& path);
@@ -61,7 +61,7 @@ public:
 	void RunFinishCallback();
 	void RunProgressCallback();
 
-	class KX_BlenderConverter *GetConverter();
+	class BL_BlenderConverter *GetConverter();
 	class KX_KetsjiEngine *GetEngine();
 	class KX_Scene *GetMergeScene();
 

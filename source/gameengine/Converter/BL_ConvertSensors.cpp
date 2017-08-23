@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Converter/KX_ConvertSensors.cpp
+/** \file gameengine/Converter/BL_ConvertSensors.cpp
  *  \ingroup bgeconv
  *
  * Conversion of Blender data blocks to KX sensor system
@@ -36,8 +36,8 @@
 #endif
 
 #include "wm_event_types.h"
-#include "KX_BlenderSceneConverter.h"
-#include "KX_ConvertSensors.h"
+#include "BL_BlenderSceneConverter.h"
+#include "BL_ConvertSensors.h"
 
 /* This little block needed for linking to Blender... */
 #ifdef _MSC_VER
@@ -95,7 +95,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					   int activeLayerBitInfo,
 					   bool isInActiveLayer,
 					   RAS_ICanvas* canvas,
-					   KX_BlenderSceneConverter& converter
+					   BL_BlenderSceneConverter& converter
 					   )
 {
 

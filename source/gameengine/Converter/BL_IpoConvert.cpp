@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Converter/KX_IpoConvert.cpp
+/** \file gameengine/Converter/BL_IpoConvert.cpp
  *  \ingroup bgeconv
  */
 
@@ -37,12 +37,12 @@
 #include "BKE_material.h" /* give_current_material */
 
 #include "KX_GameObject.h"
-#include "KX_IpoConvert.h"
+#include "BL_IpoConvert.h"
 #include "KX_IInterpolator.h"
 #include "KX_ScalarInterpolator.h"
 
-#include "KX_BlenderScalarInterpolator.h"
-#include "KX_BlenderConverter.h"
+#include "BL_BlenderScalarInterpolator.h"
+#include "BL_BlenderConverter.h"
 #include "KX_Globals.h"
 
 #include "RAS_IPolygonMaterial.h"
@@ -68,7 +68,7 @@
 
 static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 {
-	KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+	BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
 	BL_InterpolatorList *adtList= converter->FindInterpolatorList(scene, for_act);
 
 	if (!adtList) {

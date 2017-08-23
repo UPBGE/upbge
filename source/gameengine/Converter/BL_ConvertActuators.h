@@ -25,17 +25,21 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_ConvertProperties.h
+/** \file BL_ConvertActuators.h
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_CONVERTPROPERTIES_H__
-#define __KX_CONVERTPROPERTIES_H__
+#ifndef __KX_CONVERTACTUATORS_H__
+#define __KX_CONVERTACTUATORS_H__
 
-void BL_ConvertProperties(struct Object* object,
-                          class KX_GameObject* gameobj,
-                          class SCA_TimeEventManager* timemgr,
-                          class SCA_IScene* scene,
-                          bool isInActiveLayer);
+void BL_ConvertActuators(const char* maggiename,
+                         struct Object* blenderobject,
+                         class KX_GameObject* gameobj,
+                         class SCA_LogicManager* logicmgr,
+                         class KX_Scene* scene,
+                         class KX_KetsjiEngine* ketsjiEngine,
+                         int activeLayerBitInfo,
+                         bool isInActiveLayer,
+                         class BL_BlenderSceneConverter& converter);
 
-#endif  /* __KX_CONVERTPROPERTIES_H__ */
+#endif  /* __KX_CONVERTACTUATORS_H__ */

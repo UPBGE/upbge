@@ -30,7 +30,7 @@
 #include "BL_ArmatureObject.h"
 #include "BL_DeformableGameObject.h"
 #include "BL_ShapeDeformer.h"
-#include "KX_IpoConvert.h"
+#include "BL_IpoConvert.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 
@@ -40,7 +40,7 @@
 
 // These three are for getting the action from the logic manager
 #include "KX_Scene.h"
-#include "KX_BlenderConverter.h"
+#include "BL_BlenderConverter.h"
 #include "SCA_LogicManager.h"
 
 extern "C" {

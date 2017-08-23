@@ -67,7 +67,7 @@
 #include "KX_PythonInit.h" // for updatePythonJoysticks
 
 #include "KX_WorldInfo.h"
-#include "KX_BlenderConverter.h"
+#include "BL_BlenderConverter.h"
 
 #include "RAS_FramingManager.h"
 #include "DNA_world_types.h"
@@ -225,7 +225,7 @@ PyObject *KX_KetsjiEngine::GetPyProfileDict()
 }
 #endif
 
-void KX_KetsjiEngine::SetConverter(KX_BlenderConverter *converter)
+void KX_KetsjiEngine::SetConverter(BL_BlenderConverter *converter)
 {
 	BLI_assert(converter);
 	m_converter = converter;

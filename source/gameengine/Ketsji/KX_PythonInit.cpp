@@ -147,7 +147,7 @@ extern "C" {
 }
 
 /* for converting new scenes */
-#include "KX_BlenderConverter.h"
+#include "BL_BlenderConverter.h"
 #include "KX_LibLoadStatus.h"
 #include "KX_MeshProxy.h" /* for creating a new library of mesh objects */
 extern "C" {
@@ -648,15 +648,15 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 
 	/* setup options */
 	if (load_actions != 0)
-		options |= KX_BlenderConverter::LIB_LOAD_LOAD_ACTIONS;
+		options |= BL_BlenderConverter::LIB_LOAD_LOAD_ACTIONS;
 	if (verbose != 0)
-		options |= KX_BlenderConverter::LIB_LOAD_VERBOSE;
+		options |= BL_BlenderConverter::LIB_LOAD_VERBOSE;
 	if (load_scripts != 0)
-		options |= KX_BlenderConverter::LIB_LOAD_LOAD_SCRIPTS;
+		options |= BL_BlenderConverter::LIB_LOAD_LOAD_SCRIPTS;
 	if (async != 0)
-		options |= KX_BlenderConverter::LIB_LOAD_ASYNC;
+		options |= BL_BlenderConverter::LIB_LOAD_ASYNC;
 
-	KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+	BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
 
 	if (!py_buffer.buf)
 	{
@@ -700,7 +700,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"ssO!:LibNew",&path, &group, &PyList_Type, &names))
 		return nullptr;
 
-	KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+	BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
 
 	if (converter->GetMainDynamicPath(path)) {
 		PyErr_SetString(PyExc_KeyError, "the name of the path given exists");

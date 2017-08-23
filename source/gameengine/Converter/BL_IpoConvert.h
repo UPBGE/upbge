@@ -25,23 +25,45 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_ConvertControllers.h
+/** \file BL_IpoConvert.h
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_CONVERTCONTROLLERS_H__
-#define __KX_CONVERTCONTROLLERS_H__
+#ifndef __KX_IPOCONVERT_H__
+#define __KX_IPOCONVERT_H__
 
-#include "EXP_Python.h"
+struct Object;
+struct bAction;
+class SG_Controller;
+class KX_GameObject;
+class KX_Scene;
+class RAS_IPolyMaterial;
 
-void BL_ConvertControllers(
-	struct Object* blenderobject,
-	class KX_GameObject* gameobj,
-	class SCA_LogicManager* logicmgr,
-	int activeLayerBitInfo,
-	bool isInActiveLayer, 
-	class KX_BlenderSceneConverter& converter,
-	bool libloading
-);
+SG_Controller *BL_CreateIPO(bAction *action,
+	KX_GameObject* gameobj,
+	KX_Scene *scene);
 
-#endif  /* __KX_CONVERTCONTROLLERS_H__ */
+SG_Controller *BL_CreateObColorIPO(bAction *action,
+	KX_GameObject* gameobj,
+	KX_Scene *scene);
+
+SG_Controller *BL_CreateLampIPO(bAction *action,
+	KX_GameObject* lightobj,
+	KX_Scene *scene);
+
+SG_Controller *BL_CreateWorldIPO(bAction *action,
+	struct World *blenderworld,
+	KX_Scene *scene);
+
+SG_Controller *BL_CreateCameraIPO(bAction *action,
+	KX_GameObject* cameraobj,
+	KX_Scene *scene);
+
+SG_Controller *BL_CreateMaterialIpo(
+	bAction *action,
+	RAS_IPolyMaterial *polymat,
+	KX_GameObject* gameobj,
+	KX_Scene *scene);
+
+
+#endif  /* __KX_IPOCONVERT_H__ */

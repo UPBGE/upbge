@@ -25,15 +25,15 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Converter/KX_ConvertControllers.cpp
+/** \file gameengine/Converter/BL_ConvertControllers.cpp
  *  \ingroup bgeconv
  */
 
 
 #include "MEM_guardedalloc.h"
 
-#include "KX_BlenderSceneConverter.h"
-#include "KX_ConvertControllers.h"
+#include "BL_BlenderSceneConverter.h"
+#include "BL_ConvertControllers.h"
 #include "EXP_Python.h"
 
 // Controller
@@ -73,7 +73,7 @@ LinkControllerToActuators(
 	SCA_IController *game_controller,
 	bController* bcontr,
 	SCA_LogicManager* logicmgr,
-	KX_BlenderSceneConverter& converter
+	BL_BlenderSceneConverter& converter
 ) {
 	// Iterate through the actuators of the game blender
 	// controller and find the corresponding ketsji actuator.
@@ -95,7 +95,7 @@ void BL_ConvertControllers(
 	SCA_LogicManager* logicmgr,
 	int activeLayerBitInfo,
 	bool isInActiveLayer,
-	KX_BlenderSceneConverter& converter,
+	BL_BlenderSceneConverter& converter,
 	bool libloading
 ) {
 	int uniqueint=0;

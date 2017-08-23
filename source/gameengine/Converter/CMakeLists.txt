@@ -75,16 +75,14 @@ set(SRC
 	BL_ModifierDeformer.cpp
 	BL_ShapeDeformer.cpp
 	BL_SkinDeformer.cpp
-	KX_BlenderConverter.cpp
-	KX_BlenderScalarInterpolator.cpp
-	KX_BlenderSceneConverter.cpp
-	KX_ConvertActuators.cpp
-	KX_ConvertControllers.cpp
-	KX_ConvertProperties.cpp
-	KX_ConvertSensors.cpp
-	KX_IpoConvert.cpp
-	KX_LibLoadStatus.cpp
-	KX_SoftBodyDeformer.cpp
+	BL_BlenderConverter.cpp
+	BL_BlenderScalarInterpolator.cpp
+	BL_BlenderSceneConverter.cpp
+	BL_ConvertActuators.cpp
+	BL_ConvertControllers.cpp
+	BL_ConvertProperties.cpp
+	BL_ConvertSensors.cpp
+	BL_IpoConvert.cpp
 
 	BL_ActionActuator.h
 	BL_ArmatureActuator.h
@@ -97,16 +95,14 @@ set(SRC
 	BL_ModifierDeformer.h
 	BL_ShapeDeformer.h
 	BL_SkinDeformer.h
-	KX_BlenderConverter.h
-	KX_BlenderScalarInterpolator.h
-	KX_BlenderSceneConverter.h
-	KX_ConvertActuators.h
-	KX_ConvertControllers.h
-	KX_ConvertProperties.h
-	KX_ConvertSensors.h
-	KX_IpoConvert.h
-	KX_LibLoadStatus.h
-	KX_SoftBodyDeformer.h
+	BL_BlenderConverter.h
+	BL_BlenderScalarInterpolator.h
+	BL_BlenderSceneConverter.h
+	BL_ConvertActuators.h
+	BL_ConvertControllers.h
+	BL_ConvertProperties.h
+	BL_ConvertSensors.h
+	BL_IpoConvert.h
 )
 
 if(WITH_BULLET)

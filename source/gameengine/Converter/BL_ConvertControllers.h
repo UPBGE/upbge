@@ -25,51 +25,23 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_BlenderScalarInterpolator.h
+/** \file BL_ConvertControllers.h
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_BLENDERSCALARINTERPOLATOR_H__
-#define __KX_BLENDERSCALARINTERPOLATOR_H__
+#ifndef __KX_CONVERTCONTROLLERS_H__
+#define __KX_CONVERTCONTROLLERS_H__
 
-#include <vector>
+#include "EXP_Python.h"
 
-#include "KX_IScalarInterpolator.h"
+void BL_ConvertControllers(
+	struct Object* blenderobject,
+	class KX_GameObject* gameobj,
+	class SCA_LogicManager* logicmgr,
+	int activeLayerBitInfo,
+	bool isInActiveLayer, 
+	class BL_BlenderSceneConverter& converter,
+	bool libloading
+);
 
-struct bAction;
-
-typedef unsigned short BL_IpoChannel;
-
-class BL_ScalarInterpolator : public KX_IScalarInterpolator {
-public:
-	BL_ScalarInterpolator() {} // required for use in STL list
-	BL_ScalarInterpolator(struct FCurve* fcu) :
-		m_fcu(fcu)
-		{}
-
-	virtual ~BL_ScalarInterpolator() {}
-	
-	virtual float GetValue(float currentTime) const;
-	struct FCurve *GetFCurve() { return m_fcu; }
-
-private:
-	struct FCurve *m_fcu;
-};
-
-
-class BL_InterpolatorList
-{
-private:
-	bAction *m_action;
-	std::vector<BL_ScalarInterpolator *> m_interpolators;
-
-public:
-	BL_InterpolatorList(struct bAction *action);
-	~BL_InterpolatorList();
-
-	bAction *GetAction() const;
-
-	BL_ScalarInterpolator *GetScalarInterpolator(const char *rna_path, int array_index);
-};
-
-#endif  /* __KX_BLENDERSCALARINTERPOLATOR_H__ */
+#endif  /* __KX_CONVERTCONTROLLERS_H__ */

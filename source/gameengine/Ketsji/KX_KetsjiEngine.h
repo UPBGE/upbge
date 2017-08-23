@@ -46,7 +46,7 @@
 
 struct TaskScheduler;
 class KX_ISystem;
-class KX_BlenderConverter;
+class BL_BlenderConverter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class RAS_OffScreen;
@@ -150,7 +150,7 @@ private:
 	/// 3D Rasterizer (3D Rendering)
 	RAS_Rasterizer *m_rasterizer;
 	KX_ISystem *m_kxsystem;
-	KX_BlenderConverter *m_converter;
+	BL_BlenderConverter *m_converter;
 	KX_NetworkMessageManager *m_networkMessageManager;
 #ifdef WITH_PYTHON
 	PyObject *m_pyprofiledict;
@@ -307,8 +307,8 @@ public:
 #ifdef WITH_PYTHON
 	PyObject *GetPyProfileDict();
 #endif
-	void SetConverter(KX_BlenderConverter *converter);
-	KX_BlenderConverter *GetConverter()
+	void SetConverter(BL_BlenderConverter *converter);
+	BL_BlenderConverter *GetConverter()
 	{
 		return m_converter;
 	}

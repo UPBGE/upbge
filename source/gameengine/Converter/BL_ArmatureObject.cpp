@@ -49,7 +49,7 @@ extern "C" {
 #include "BL_ArmatureObject.h"
 #include "BL_ActionActuator.h"
 #include "BL_Action.h"
-#include "KX_BlenderSceneConverter.h"
+#include "BL_BlenderSceneConverter.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 
@@ -244,7 +244,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
 	}
 }
 
-void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter& converter)
+void BL_ArmatureObject::LoadConstraints(BL_BlenderSceneConverter& converter)
 {
 	// first delete any existing constraint (should not have any)
 	m_controlledConstraints->ReleaseAndRemoveAll();

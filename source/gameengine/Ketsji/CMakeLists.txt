@@ -96,6 +96,7 @@ set(SRC
 	KX_Globals.cpp
 	KX_IPO_SGController.cpp
 	KX_KetsjiEngine.cpp
+	KX_LibLoadStatus.cpp
 	KX_Light.cpp
 	KX_LightIpoSGController.cpp
 	KX_LodLevel.cpp
@@ -135,6 +136,7 @@ set(SRC
 	KX_ScalingInterpolator.cpp
 	KX_Scene.cpp
 	KX_SceneActuator.cpp
+	KX_SoftBodyDeformer.cpp
 	KX_SoundActuator.cpp
 	KX_StateActuator.cpp
 	KX_SteeringActuator.cpp
@@ -184,6 +186,7 @@ set(SRC
 	KX_IScalarInterpolator.h
 	KX_ISystem.h
 	KX_KetsjiEngine.h
+	KX_LibLoadStatus.h
 	KX_Light.h
 	KX_LightIpoSGController.h
 	KX_LodLevel.h
@@ -224,6 +227,7 @@ set(SRC
 	KX_ScalingInterpolator.h
 	KX_Scene.h
 	KX_SceneActuator.h
+	KX_SoftBodyDeformer.h
 	KX_SoundActuator.h
 	KX_StateActuator.h
 	KX_SteeringActuator.h

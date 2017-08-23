@@ -25,45 +25,21 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_IpoConvert.h
+/** \file BL_ConvertSensors.h
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_IPOCONVERT_H__
-#define __KX_IPOCONVERT_H__
+#ifndef __KX_CONVERTSENSORS_H__
+#define __KX_CONVERTSENSORS_H__
 
-struct Object;
-struct bAction;
-class SG_Controller;
-class KX_GameObject;
-class KX_Scene;
-class RAS_IPolyMaterial;
+void BL_ConvertSensors(struct Object* blenderobject,
+	   class KX_GameObject* gameobj,
+	   class SCA_LogicManager* logicmgr,
+	   class KX_Scene* kxscene,
+	   class KX_KetsjiEngine* kxengine,
+	   int activeLayerBitInfo,
+	   bool isInActiveLayer,
+	   class RAS_ICanvas* canvas, 
+	   class BL_BlenderSceneConverter& converter);
 
-SG_Controller *BL_CreateIPO(bAction *action,
-	KX_GameObject* gameobj,
-	KX_Scene *scene);
-
-SG_Controller *BL_CreateObColorIPO(bAction *action,
-	KX_GameObject* gameobj,
-	KX_Scene *scene);
-
-SG_Controller *BL_CreateLampIPO(bAction *action,
-	KX_GameObject* lightobj,
-	KX_Scene *scene);
-
-SG_Controller *BL_CreateWorldIPO(bAction *action,
-	struct World *blenderworld,
-	KX_Scene *scene);
-
-SG_Controller *BL_CreateCameraIPO(bAction *action,
-	KX_GameObject* cameraobj,
-	KX_Scene *scene);
-
-SG_Controller *BL_CreateMaterialIpo(
-	bAction *action,
-	RAS_IPolyMaterial *polymat,
-	KX_GameObject* gameobj,
-	KX_Scene *scene);
-
-
-#endif  /* __KX_IPOCONVERT_H__ */
+#endif  /* __KX_CONVERTSENSORS_H__ */

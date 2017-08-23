@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Converter/KX_BlenderScalarInterpolator.cpp
+/** \file gameengine/Converter/BL_BlenderScalarInterpolator.cpp
  *  \ingroup bgeconv
  */
 
 
-#include "KX_BlenderScalarInterpolator.h"
+#include "BL_BlenderScalarInterpolator.h"
 
 #include <cstring>
 

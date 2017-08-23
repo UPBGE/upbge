@@ -26,7 +26,7 @@
  * Convert Blender actuators for use in the GameEngine
  */
 
-/** \file gameengine/Converter/KX_ConvertActuators.cpp
+/** \file gameengine/Converter/BL_ConvertActuators.cpp
  *  \ingroup bgeconv
  */
 
@@ -38,8 +38,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "KX_BlenderSceneConverter.h"
-#include "KX_ConvertActuators.h"
+#include "BL_BlenderSceneConverter.h"
+#include "BL_ConvertActuators.h"
 
 #ifdef WITH_AUDASPACE
 #  include AUD_SOUND_H
@@ -123,7 +123,7 @@ void BL_ConvertActuators(const char* maggiename,
                          KX_KetsjiEngine* ketsjiEngine,
                          int activeLayerBitInfo,
                          bool isInActiveLayer,
-                         KX_BlenderSceneConverter& converter
+                         BL_BlenderSceneConverter& converter
                          )
 {
 	
