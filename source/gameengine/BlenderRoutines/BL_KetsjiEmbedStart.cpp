@@ -47,6 +47,7 @@
 extern "C" {
 #  include "DNA_scene_types.h"
 
+#  include "BKE_global.h"
 #  include "BKE_report.h"
 #  include "BKE_main.h"
 #  include "BKE_context.h"
@@ -87,11 +88,13 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	Main* blenderdata = maggie1;
 
 	char* startscenename = startscene->id.name + 2;
-	char pathname[FILE_MAXDIR+FILE_MAXFILE];
+	char pathname[FILE_MAXDIR + FILE_MAXFILE];
+	char prevPathName[FILE_MAXDIR + FILE_MAXFILE];
 	std::string exitstring = "";
 	BlendFileData *bfd = nullptr;
 
 	BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
+	BLI_strncpy(prevPathName, G.main->name, sizeof(prevPathName));
 
 	KX_SetOrigPath(std::string(blenderdata->name));
 
@@ -149,6 +152,8 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 				if (blenderdata) {
 					BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
+					// Change G.main path to ensure loading of data using relative paths.
+					BLI_strncpy(G.main->name, pathname, sizeof(G.main->name));
 				}
 			}
 			// else forget it, we can't find it
@@ -238,4 +243,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	PyGILState_Release(gilstate);
 #endif
 
+	// Restore G.main path.
+	BLI_strncpy(G.main->name, prevPathName, sizeof(G.main->name));
 }
