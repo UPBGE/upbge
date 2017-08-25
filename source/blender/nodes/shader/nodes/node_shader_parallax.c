@@ -49,6 +49,7 @@ static int gpu_shader_parallax(GPUMaterial *mat, bNode *node, bNodeExecData *UNU
 		GPUNodeLink *texco;
 		GPUNodeLink *norm;
 		GPUNodeLink *outuv;
+		float one[3] = { 1.0f, 1.0f, 1.0f };
 
 		for (unsigned short i = 0; i < 3; ++i) {
 			if (!in[i].link) {
@@ -62,7 +63,7 @@ static int gpu_shader_parallax(GPUMaterial *mat, bNode *node, bNodeExecData *UNU
 		float comp = (float) node->custom1;
 		float discard = (float) node->custom2;
 		GPU_link(mat, "mtex_parallax", texco, GPU_builtin(GPU_VIEW_POSITION), GPU_attribute(CD_TANGENT, ""), norm, texlink,
-			in[1].link, in[2].link, GPU_uniform(&discard), GPU_uniform(&comp), &outuv);
+			in[1].link, in[2].link, GPU_uniform(one), GPU_uniform(&discard), GPU_uniform(&comp), &outuv);
 
 		GPU_link(mat, "parallax_uv_attribute", outuv, &out[0].link);
 

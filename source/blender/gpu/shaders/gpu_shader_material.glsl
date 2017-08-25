@@ -4097,7 +4097,7 @@ void node_output_world(vec4 surface, vec4 volume, out vec4 result)
 }
 
 void mtex_parallax(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, sampler2D ima, float numsteps,
-				  float bumpscale, float discarduv, float comp, out vec3 ptexcoord)
+				  float bumpscale, vec3 scale, float discarduv, float comp, out vec3 ptexcoord)
 {
 	// Compute binormal/bitangent from tangent and normal.
 	vec3 binormal = cross(-vn, tangent.xyz) * tangent.w;
@@ -4158,8 +4158,8 @@ void mtex_parallax(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, sampler2D ima, fl
 	vec2 finaltexuv = mix(texuv, texuvprelay, weight);
 
 	// Discard if uv is out of the range 0 to 1.
-	const vec2 clampmin = vec2(-0.5);
-	const vec2 clampmax = vec2(0.5);
+	vec2 clampmin = vec2(-0.5) * scale.xy;
+	vec2 clampmax = vec2(0.5) * scale.xy;
 
 	if ((discarduv == 1.0) &&
 		(finaltexuv.x - 0.5 < clampmin.x || finaltexuv.x - 0.5 > clampmax.x ||
