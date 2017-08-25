@@ -121,6 +121,10 @@ PyAttributeDef SCA_InputEvent::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("status", SCA_InputEvent, pyattr_get_status),
 	KX_PYATTRIBUTE_RO_FUNCTION("queue", SCA_InputEvent, pyattr_get_queue),
 	KX_PYATTRIBUTE_RO_FUNCTION("values", SCA_InputEvent, pyattr_get_values),
+	KX_PYATTRIBUTE_RO_FUNCTION("up", SCA_InputEvent, pyattr_get_up),
+	KX_PYATTRIBUTE_RO_FUNCTION("down", SCA_InputEvent, pyattr_get_down),
+	KX_PYATTRIBUTE_RO_FUNCTION("pressed", SCA_InputEvent, pyattr_get_pressed),
+	KX_PYATTRIBUTE_RO_FUNCTION("released", SCA_InputEvent, pyattr_get_released),
 	KX_PYATTRIBUTE_INT_RO("type", SCA_InputEvent, m_type),
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
@@ -189,6 +193,34 @@ PyObject *SCA_InputEvent::pyattr_get_values(PyObjectPlus *self_v, const KX_PYATT
 							 nullptr,
 							 nullptr,
 							 CListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
+}
+
+PyObject *SCA_InputEvent::pyattr_get_up(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_InputEvent *self = static_cast<SCA_InputEvent *>(self_v);
+
+	return PyBool_FromLong(self->Find(SCA_InputEvent::NONE));
+}
+
+PyObject *SCA_InputEvent::pyattr_get_down(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_InputEvent *self = static_cast<SCA_InputEvent *>(self_v);
+
+	return PyBool_FromLong(self->Find(SCA_InputEvent::ACTIVE));
+}
+
+PyObject *SCA_InputEvent::pyattr_get_pressed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_InputEvent *self = static_cast<SCA_InputEvent *>(self_v);
+
+	return PyBool_FromLong(self->Find(SCA_InputEvent::JUSTACTIVATED));
+}
+
+PyObject *SCA_InputEvent::pyattr_get_released(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_InputEvent *self = static_cast<SCA_InputEvent *>(self_v);
+
+	return PyBool_FromLong(self->Find(SCA_InputEvent::JUSTRELEASED));
 }
 
 #endif  // WITH_PYTHON

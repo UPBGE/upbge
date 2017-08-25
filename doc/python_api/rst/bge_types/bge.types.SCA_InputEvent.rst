@@ -46,6 +46,30 @@ base class --- :class:`PyObjectPlus`
 
       :type: list of integer.
 
+   .. attribute:: up
+
+      True if the input was up from the last frame.
+
+      :type: boolean
+
+   .. attribute:: down
+
+      True if the input was down from the last frame.
+
+      :type: boolean
+
+   .. attribute:: pressed
+
+      True if the input was pressed from the last frame.
+
+      :type: boolean
+
+   .. attribute:: released
+
+      True if the input was released from the last frame.
+
+      :type: boolean
+
    .. attribute:: type
 
       The type of the input.
