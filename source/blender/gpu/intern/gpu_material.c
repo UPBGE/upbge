@@ -1376,6 +1376,7 @@ static void do_material_tex(GPUShadeInput *shi)
 					 GPU_image(tex->ima, &tex->iuser, false),
 					 GPU_select_uniform(&mtex->parallaxsteps, GPU_DYNAMIC_TEX_PARALLAXSTEP, NULL, ma),
 					 GPU_select_uniform(&mtex->parallaxbumpsc, GPU_DYNAMIC_TEX_PARALLAXBUMP, NULL, ma),
+					 GPU_select_uniform(mtex->size, GPU_DYNAMIC_TEX_UVSIZE, NULL, ma),
 					 GPU_uniform(&discard),
 					 GPU_uniform(&comp),
 					 &parco);
