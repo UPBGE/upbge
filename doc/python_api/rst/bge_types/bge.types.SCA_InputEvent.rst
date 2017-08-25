@@ -46,6 +46,30 @@ base class --- :class:`PyObjectPlus`
 
       :type: list of integer.
 
+   .. attribute:: inactive
+
+      True if the input was inactive from the last frame.
+
+      :type: boolean
+
+   .. attribute:: active
+
+      True if the input was active from the last frame.
+
+      :type: boolean
+
+   .. attribute:: activated
+
+      True if the input was activated from the last frame.
+
+      :type: boolean
+
+   .. attribute:: released
+
+      True if the input was released from the last frame.
+
+      :type: boolean
+
    .. attribute:: type
 
       The type of the input.
