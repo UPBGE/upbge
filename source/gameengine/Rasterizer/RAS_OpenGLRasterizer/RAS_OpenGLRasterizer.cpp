@@ -325,6 +325,11 @@ static int CheckMaterialDM(int matnr, void *attribs)
 	return 1;
 }
 
+static DMDrawOption checkTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matnr)
+{
+	return DM_DRAW_OPTION_NORMAL;
+}
+
 void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::DrawType drawingmode)
 {
 	// mesh data is in derived mesh
@@ -358,19 +363,22 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::Dra
 		else {
 			memset(&current_gpu_attribs, 0, sizeof(current_gpu_attribs));
 		}
+
+		// DM draw can mess up blending mode, restore at the end
+		int current_blend_mode = GPU_get_material_alpha_blend();
+
+		if (wireframe) {
+			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+		}
+		ms->m_pDerivedMesh->drawFacesGLSL(ms->m_pDerivedMesh, CheckMaterialDM);
+		GPU_set_material_alpha_blend(current_blend_mode);
+
+		if (bucket->IsWire()) {
+			SetLines(false);
+		}
 	}
-
-	// DM draw can mess up blending mode, restore at the end
-	int current_blend_mode = GPU_get_material_alpha_blend();
-
-	if (wireframe) {
-		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-	}
-	ms->m_pDerivedMesh->drawFacesGLSL(ms->m_pDerivedMesh, CheckMaterialDM);
-	GPU_set_material_alpha_blend(current_blend_mode);
-
-	if (bucket->IsWire()) {
-		SetLines(false);
+	else { // derived meshes with custom shaders
+		ms->m_pDerivedMesh->drawFacesTex(ms->m_pDerivedMesh, checkTexDM, nullptr, nullptr, DM_DRAW_USE_ACTIVE_UV);
 	}
 }
 
