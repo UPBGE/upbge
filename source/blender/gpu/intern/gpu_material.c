@@ -2873,7 +2873,13 @@ int GPU_lamp_shadow_buffer_type(GPULamp *lamp)
 
 int GPU_lamp_shadow_bind_code(GPULamp *lamp)
 {
-	return lamp->depthtex ? GPU_texture_opengl_bindcode(lamp->depthtex) : -1;
+	if (lamp->tex) {
+		return GPU_texture_opengl_bindcode(lamp->tex);
+	}
+	else if (lamp->depthtex) {
+		return GPU_texture_opengl_bindcode(lamp->depthtex);
+	}
+	return -1;
 }
 
 const float *GPU_lamp_dynpersmat(GPULamp *lamp)
