@@ -324,21 +324,21 @@ PyObject *SCA_KeyboardSensor::pyattr_get_inputs(PyObjectPlus *self_v, const KX_P
 
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)self->m_eventmgr)->GetInputDevice();
 
-	PyObject *resultlist = PyList_New(0);
+	PyObject *dict = PyDict_New();
 	
 	for (int i=SCA_IInputDevice::BEGINKEY ; i<= SCA_IInputDevice::ENDKEY;i++)
 	{
 		SCA_InputEvent& input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) i);
 		if (input.Find(SCA_InputEvent::ACTIVE))
 		{
-			PyObject *keypair = PyList_New(2);
-			PyList_SET_ITEM(keypair,0,PyLong_FromLong(i));
-			PyList_SET_ITEM(keypair,1,input.GetProxy());
-			PyList_Append(resultlist,keypair);
-			Py_DECREF(keypair);
+			PyObject *key = PyLong_FromLong(i);
+
+			PyDict_SetItem(dict, key, input.GetProxy());
+
+			Py_DECREF(key);
 		}
 	}
-	return resultlist;
+	return dict;
 }
 
 PyObject *SCA_KeyboardSensor::pyattr_get_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

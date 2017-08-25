@@ -51,7 +51,7 @@ base class --- :class:`SCA_ISensor`
 
       A list of pressed input keys that have either been pressed, or just released, or are active this frame. (read-only).
 
-      :type: list [[:ref:`keycode<keyboard-keys>`, :class:`SCA_InputEvent`], ...]
+      :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`SCA_InputEvent`, ...}
 
    .. attribute:: events
 
