@@ -3445,11 +3445,19 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	memset(&DST, 0xFF, sizeof(DST));
 
 	DST.draw_ctx.evil_C = NULL;
+	DST.enabled_engines.first = DST.enabled_engines.last = NULL;
+	DST.draw_ctx.scene_layer = sl;
+	DST.draw_ctx.scene = scene;
 
-	DST.enabled_engines.first = DST.enabled_engines.last = engine;
+	use_drw_engine(engine);
 
 	DST.viewport = GPU_viewport_create_from_offscreen(ofs);
 
+	// Create datafor the viewport
+	GPU_viewport_engine_data_create(DST.viewport, engine);
+
+	////////////////////HERE WE ARE///////////////TO BE CONTINUED
+	DRW_viewport_size_init();
 	//DRW_viewport_var_init();
 
 	/* Get list of enabled engines */
