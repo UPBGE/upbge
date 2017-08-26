@@ -238,7 +238,7 @@ void LA_Launcher::InitEngine()
 	m_networkMessageManager = new KX_NetworkMessageManager();
 	
 	// Create the ketsjiengine.
-	m_ketsjiEngine = new KX_KetsjiEngine(m_kxsystem);
+	m_ketsjiEngine = new KX_KetsjiEngine(m_kxsystem, m_depsgraph);
 	KX_SetActiveEngine(m_ketsjiEngine);
 
 	// Set the devices.

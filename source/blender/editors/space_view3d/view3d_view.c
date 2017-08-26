@@ -1412,12 +1412,6 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	RegionView3D *rv3d;
 	rcti cam_frame;
 
-	/* We draw the eevee scene a last time without freeing DRW_GlobalState
-	 * before ge runtime to make sure we'll have all the data needed
-	 * Now the question is: Can we do that for all scenes?? (to get overlay scenes data for example)
-	 */
-	DRW_draw_view(C, false); // free DST in debug mode = false
-
 	(void)op; /* unused */
 	
 	/* bad context switch .. */

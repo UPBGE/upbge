@@ -76,6 +76,8 @@
 
 #include "KX_NavMeshObject.h"
 
+#include "depsgraph\DEG_depsgraph.h"
+
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 
 #ifdef FREE_WINDOWS /* XXX mingw64 (gcc 4.7.0) defines a macro for DrawText that translates to DrawTextA. Not good */
@@ -138,7 +140,7 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
 /**
  * Constructor of the Ketsji Engine
  */
-KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
+KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system, Depsgraph *graph)
 	:m_canvas(nullptr),
 	m_rasterizer(nullptr),
 	m_kxsystem(system),
@@ -167,7 +169,8 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_showBoundingBox(KX_DebugOption::DISABLE),
 	m_showArmature(KX_DebugOption::DISABLE),
 	m_showCameraFrustum(KX_DebugOption::DISABLE),
-	m_showShadowFrustum(KX_DebugOption::DISABLE)
+	m_showShadowFrustum(KX_DebugOption::DISABLE),
+	m_depsgraph(graph)
 {
 	for (int i = tc_first; i < tc_numCategories; i++) {
 		m_logger.AddCategory((KX_TimeCategory)i);
@@ -195,6 +198,11 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 		BLI_task_scheduler_free(m_taskscheduler);
 
 	m_scenes->Release();
+}
+
+Depsgraph *KX_KetsjiEngine::GetDepsgraph()
+{
+	return m_depsgraph;
 }
 
 void KX_KetsjiEngine::SetInputDevice(SCA_IInputDevice *inputDevice)

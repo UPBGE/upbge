@@ -3440,6 +3440,54 @@ void DRW_draw_depth_loop(
 }
 /** \} */
 
+void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scene, SceneLayer *sl, void *engine)
+{
+	memset(&DST, 0xFF, sizeof(DST));
+
+	DST.draw_ctx.evil_C = NULL;
+
+	DST.enabled_engines.first = DST.enabled_engines.last = engine;
+
+	DST.viewport = GPU_viewport_create_from_offscreen(ofs);
+
+	//DRW_viewport_var_init();
+
+	/* Get list of enabled engines */
+	DRW_engines_enable(scene, sl);
+
+	/* Init engines */
+	DRW_engines_init();
+
+	DRW_engines_cache_init();
+
+	DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL);
+	{
+		DRW_engines_cache_populate(ob);
+		/* XXX find a better place for this. maybe Depsgraph? */
+		ob->deg_update_flag = 0;
+	}
+	DEG_OBJECT_ITER_END
+
+	DRW_engines_cache_finish();
+
+	/* Start Drawing */
+	DRW_state_reset();
+	DRW_engines_draw_background();
+
+	DRW_draw_callbacks_pre_scene();
+
+	DRW_engines_draw_scene();
+
+	DRW_draw_callbacks_post_scene();
+
+	DRW_state_reset();
+
+	DRW_engines_draw_text();
+
+	DRW_state_reset();
+	DRW_engines_disable();
+}
+
 void DRW_game_render_loop_end()
 {
 	memset(&DST, 0xFF, sizeof(DST));

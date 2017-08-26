@@ -69,6 +69,7 @@
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
 #include "RAS_SceneLayerData.h"
+#include "RAS_OffScreen.h"
 
 #include "EXP_FloatValue.h"
 #include "SCA_IController.h"
@@ -111,7 +112,8 @@
 #include "CM_Message.h"
 
 extern "C" {
-#  include "DRW_render.h" // For DRW_viewport_texture_list_get()
+#  include "DRW_engine.h"
+#  include "BKE_layer.h"
 }
 
 static void *KX_SceneReplicationFunc(SG_Node* node,void* gameobj,void* scene)
@@ -221,12 +223,17 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
-	m_eeveeData = EEVEE_engine_data_get();
 	SceneLayer *sl = BKE_scene_layer_from_scene_get(m_blenderScene);
-	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
-	m_dtxl = DRW_viewport_texture_list_get();
 
-	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, this);
+	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, GPU_R11F_G11F_B10F, GPU_OFFSCREEN_DEPTH_COMPARE, nullptr);
+	DRW_game_render_loop_begin(tempgpuofs, KX_GetActiveEngine()->GetDepsgraph(), m_blenderScene, sl, &draw_engine_eevee_type);
+
+	m_eeveeData = EEVEE_engine_data_get();
+	
+	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+	//m_dtxl = DRW_viewport_texture_list_get();
+
+	//m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, this);
 
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
