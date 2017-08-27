@@ -64,22 +64,7 @@
 	SHADER_IRRADIANCE
 
 /* *********** STATIC *********** */
-static struct {
-	char *frag_shader_lib;
-	char *volume_shader_lib;
-
-	struct GPUShader *default_prepass_sh;
-	struct GPUShader *default_prepass_clip_sh;
-	struct GPUShader *default_lit[VAR_MAT_MAX];
-
-	struct GPUShader *default_background;
-
-	/* 64*64 array texture containing all LUTs and other utilitarian arrays.
-	 * Packing enables us to same precious textures slots. */
-	struct GPUTexture *util_tex;
-
-	float viewvecs[2][4];
-} e_data = {NULL}; /* Engine data */
+static EEVEE_MaterialData e_data = {NULL}; /* Engine data */
 
 extern char datatoc_lamps_lib_glsl[];
 extern char datatoc_lightprobe_lib_glsl[];
@@ -1196,4 +1181,9 @@ void EEVEE_draw_default_passes(EEVEE_PassList *psl)
 			DRW_draw_pass(psl->default_pass[i]);
 		}
 	}
+}
+
+EEVEE_MaterialData *EEVEE_material_data_get()
+{
+	return &e_data;
 }

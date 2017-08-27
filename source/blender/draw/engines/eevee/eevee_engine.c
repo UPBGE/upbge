@@ -51,7 +51,6 @@ static void EEVEE_engine_init(void *ved)
 	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
 
 	DRWFboTexture tex = {&txl->color, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER};
-
 	const float *viewport_size = DRW_viewport_size_get();
 	DRW_framebuffer_init(&fbl->main, &draw_engine_eevee_type,
 	                    (int)viewport_size[0], (int)viewport_size[1],
@@ -255,3 +254,16 @@ RenderEngineType DRW_engine_viewport_eevee_type = {
 
 
 #undef EEVEE_ENGINE
+
+#define GAME_ENGINE "BLENDER_GAME"
+
+RenderEngineType DRW_engine_viewport_game_type = {
+	NULL, NULL,
+	GAME_ENGINE, N_("Blender Game"), RE_INTERNAL | RE_USE_SHADING_NODES,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	&EEVEE_layer_collection_settings_create, &EEVEE_scene_layer_settings_create,
+	&draw_engine_eevee_type,
+	{ NULL, NULL, NULL }
+};
+
+#undef GAME_ENGINE

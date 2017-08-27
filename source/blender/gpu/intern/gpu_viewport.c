@@ -195,6 +195,17 @@ void *GPU_viewport_texture_list_get(GPUViewport *viewport)
 	return viewport->txl;
 }
 
+void *GPU_viewport_storage_list_get(GPUViewport *viewport, void *engine_type)
+{
+	for (LinkData *link = viewport->data.first; link; link = link->next) {
+		ViewportEngineData *vdata = link->data;
+		if (vdata->engine_type == engine_type) {
+			return vdata->stl;
+		}
+	}
+	return NULL;
+}
+
 void GPU_viewport_size_get(const GPUViewport *viewport, int size[2])
 {
 	size[0] = viewport->size[0];

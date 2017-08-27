@@ -89,7 +89,8 @@
 #include "engines/eevee/eevee_engine.h"
 #include "engines/basic/basic_engine.h"
 #include "engines/external/external_engine.h"
-#include "engines/game/game_engine.h"
+
+#include "engines\eevee\eevee_private.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -2425,6 +2426,32 @@ static void DRW_viewport_var_init(void)
 	glFrontFace(DST.frontface);
 }
 
+static void DRW_viewport_var_init_bge(void)
+{
+	RegionView3D *rv3d = DST.draw_ctx.rv3d;
+
+	DRW_viewport_size_init();
+
+	float dummyvec[3] = { 1.0f, 1.0f, 1.0f };
+
+	/* Refresh DST.screenvecs */
+	copy_v3_v3(DST.screenvecs[0], dummyvec);
+	copy_v3_v3(DST.screenvecs[1], dummyvec);
+	normalize_v3(DST.screenvecs[0]);
+	normalize_v3(DST.screenvecs[1]);
+
+	/* Refresh DST.pixelsize */
+	DST.pixsize = 0.1;
+
+	/* Refresh DST.is_persp */
+	DST.is_persp = true;
+
+	/* Reset facing */
+	DST.frontface = GL_CCW;
+	DST.backface = GL_CW;
+	glFrontFace(DST.frontface);
+}
+
 void DRW_viewport_size_init(void)
 {
 	/* Refresh DST.size */
@@ -2449,7 +2476,9 @@ void DRW_viewport_matrix_get(float mat[4][4], DRWViewportMatrixType type)
 {
 	RegionView3D *rv3d = DST.draw_ctx.rv3d;
 
-	switch (type) {
+	if (rv3d) {
+
+		switch (type) {
 		case DRW_MAT_PERS:
 			copy_m4_m4(mat, rv3d->persmat);
 			break;
@@ -2471,6 +2500,7 @@ void DRW_viewport_matrix_get(float mat[4][4], DRWViewportMatrixType type)
 		default:
 			BLI_assert(!"Matrix type invalid");
 			break;
+		}
 	}
 }
 
@@ -3444,53 +3474,73 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 {
 	memset(&DST, 0xFF, sizeof(DST));
 
+	BLI_listbase_clear(&DST.enabled_engines);
+	BLI_listbase_clear(&DST.bound_texs);
+
 	DST.draw_ctx.evil_C = NULL;
-	DST.enabled_engines.first = DST.enabled_engines.last = NULL;
+	
 	DST.draw_ctx.scene_layer = sl;
 	DST.draw_ctx.scene = scene;
 
-	use_drw_engine(engine);
-
+	use_drw_engine(&draw_engine_eevee_type);
+	
 	DST.viewport = GPU_viewport_create_from_offscreen(ofs);
 
-	// Create datafor the viewport
-	GPU_viewport_engine_data_create(DST.viewport, engine);
+	GPU_viewport_engine_data_create(DST.viewport, &draw_engine_eevee_type);
 
-	////////////////////HERE WE ARE///////////////TO BE CONTINUED
-	DRW_viewport_size_init();
-	//DRW_viewport_var_init();
+	DRW_viewport_var_init_bge();
 
-	/* Get list of enabled engines */
-	DRW_engines_enable(scene, sl);
+	EEVEE_Data vedata;
 
-	/* Init engines */
-	DRW_engines_init();
+	EEVEE_FramebufferList *fbl = GPU_viewport_framebuffer_list_get(DST.viewport);
+	vedata.fbl = fbl;
+	EEVEE_TextureList *txl = GPU_viewport_texture_list_get(DST.viewport);
+	vedata.txl = txl;
+	EEVEE_StorageList *stl = GPU_viewport_storage_list_get(DST.viewport, &draw_engine_eevee_type);
+	vedata.stl = stl;
 
-	DRW_engines_cache_init();
+	EEVEE_MaterialData *matdata = EEVEE_material_data_get();
+	matdata->frag_shader_lib = NULL;
+	DST.draw_ctx.rv3d = NULL;
+	
+	
 
-	DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL);
+	draw_engine_eevee_type.engine_init(&vedata);
+	/*draw_engine_eevee_type.cache_init(&vedata);
+	DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL)
 	{
-		DRW_engines_cache_populate(ob);
-		/* XXX find a better place for this. maybe Depsgraph? */
-		ob->deg_update_flag = 0;
+		draw_engine_eevee_type.cache_populate(&vedata, ob);
 	}
 	DEG_OBJECT_ITER_END
 
-	DRW_engines_cache_finish();
+	draw_engine_eevee_type.cache_finish(&vedata);*/
 
-	/* Start Drawing */
-	DRW_state_reset();
-	DRW_engines_draw_background();
+	///* Init engines */
+	//DRW_engines_init();
 
-	DRW_draw_callbacks_pre_scene();
+	//DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL);
+	//{
+	//	DRW_engines_cache_populate(ob);
+	//	/* XXX find a better place for this. maybe Depsgraph? */
+	//	ob->deg_update_flag = 0;
+	//}
+	//DEG_OBJECT_ITER_END
 
-	DRW_engines_draw_scene();
+	//DRW_engines_cache_finish();
 
-	DRW_draw_callbacks_post_scene();
+	///* Start Drawing */
+	//DRW_state_reset();
+	//DRW_engines_draw_background();
 
-	DRW_state_reset();
+	//DRW_draw_callbacks_pre_scene();
 
-	DRW_engines_draw_text();
+	//DRW_engines_draw_scene();
+
+	//DRW_draw_callbacks_post_scene();
+
+	//DRW_state_reset();
+
+	//DRW_engines_draw_text();
 
 	DRW_state_reset();
 	DRW_engines_disable();

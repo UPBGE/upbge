@@ -168,7 +168,6 @@ extern "C" {
 
 #  include "eevee_private.h"
 #  include "eevee_engine.h"
-#  include "game_engine.h"
 
 extern Material defmaterial;	/* material.c */
 }

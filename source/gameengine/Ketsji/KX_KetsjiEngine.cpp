@@ -623,7 +623,7 @@ void KX_KetsjiEngine::Render()
 
 	for (KX_Scene *scene : m_scenes) {
 		// shadow buffers
-		RenderShadowBuffers(scene);
+		//RenderShadowBuffers(scene);
 		// Render only independent texture renderers here.
 // 		scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_INDEPENDENT, m_rasterizer, nullptr, nullptr, RAS_Rect(), RAS_Rect());
 	}

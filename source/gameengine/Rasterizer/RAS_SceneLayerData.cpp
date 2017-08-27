@@ -61,6 +61,6 @@ void RAS_SceneLayerData::PrepareShadowRender()
 void RAS_SceneLayerData::PrepareShadowStore()
 {
 	DRW_framebuffer_bind(m_data.shadow_cube_fb);
-	DRW_bind_shader_shgroup(m_shadowStoreGroup);
+	//DRW_bind_shader_shgroup(m_shadowStoreGroup);
 }
 

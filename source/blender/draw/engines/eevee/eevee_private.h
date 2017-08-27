@@ -32,6 +32,7 @@ struct Material;
 struct Object;
 
 extern struct DrawEngineType draw_engine_eevee_type;
+extern struct DrawEngineType draw_engine_game_type;
 
 /* Minimum UBO is 16384 bytes */
 #define MAX_PROBE 128 /* TODO : find size by dividing UBO max size by probe data size */
@@ -163,6 +164,23 @@ typedef struct EEVEE_StorageList {
 
 	struct EEVEE_PrivateData *g_data;
 } EEVEE_StorageList;
+
+typedef struct EEVEE_MaterialData {
+	char *frag_shader_lib;
+	char *volume_shader_lib;
+
+	struct GPUShader *default_prepass_sh;
+	struct GPUShader *default_prepass_clip_sh;
+	struct GPUShader *default_lit[VAR_MAT_MAX];
+
+	struct GPUShader *default_background;
+
+	/* 64*64 array texture containing all LUTs and other utilitarian arrays.
+	* Packing enables us to same precious textures slots. */
+	struct GPUTexture *util_tex;
+
+	float viewvecs[2][4];
+} EEVEE_MaterialData;
 
 /* ************ LIGHT UBO ************* */
 typedef struct EEVEE_Light {
@@ -465,6 +483,7 @@ struct GPUMaterial *EEVEE_material_hair_get(struct Scene *scene, Material *ma, b
 struct DRWShadingGroup *EEVEE_default_shading_group_get_no_pass(bool is_hair, bool is_flat_normal, bool use_ao, bool use_bent_normals);
 void EEVEE_materials_free(void);
 void EEVEE_draw_default_passes(EEVEE_PassList *psl);
+struct EEVEE_MaterialData *EEVEE_material_data_get();
 
 /* eevee_lights.c */
 struct GPUShader *EEVEE_shadow_shader_get();
