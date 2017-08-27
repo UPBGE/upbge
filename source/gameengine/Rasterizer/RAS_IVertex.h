@@ -58,7 +58,6 @@ public:
 
 private:
 	unsigned int m_origindex; // 4
-	short m_softBodyIndex; //2
 	short m_flag; // 2
 
 public:
@@ -68,16 +67,6 @@ public:
 	inline const unsigned int getOrigIndex() const
 	{
 		return m_origindex;
-	}
-
-	inline short int getSoftBodyIndex() const
-	{
-		return m_softBodyIndex;
-	}
-
-	inline void setSoftBodyIndex(short int sbIndex)
-	{
-		m_softBodyIndex = sbIndex;
 	}
 
 	inline const short getFlag() const

@@ -90,8 +90,6 @@ public:
 	void SetColorMask(bool r, bool g, bool b, bool a);
 	void EndFrame();
 
-	void DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::DrawType drawingmode);
-
 	void SetViewport(int x, int y, int width, int height);
 	void GetViewport(int *rect);
 	void SetScissor(int x, int y, int width, int height);

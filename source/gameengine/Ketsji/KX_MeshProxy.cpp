@@ -149,13 +149,9 @@ PyObject *KX_MeshProxy::PyGetVertexArrayLength(PyObject *args, PyObject *kwds)
 	if (!PyArg_ParseTuple(args, "i:getVertexArrayLength", &matid))
 		return nullptr;
 
-	RAS_MeshMaterial *mmat = m_meshobj->GetMeshMaterial(matid); /* can be nullptr*/
-
-	if (mmat) {
-		RAS_IDisplayArray *array = mmat->GetDisplayArray();
-		if (array) {
-			length = array->GetVertexCount();
-		}
+	RAS_IDisplayArray *array = m_meshobj->GetDisplayArray(matid);
+	if (array) {
+		length = array->GetVertexCount();
 	}
 
 	return PyLong_FromLong(length);
@@ -183,24 +179,18 @@ PyObject *KX_MeshProxy::PyGetVertex(PyObject *args, PyObject *kwds)
 PyObject *KX_MeshProxy::PyGetPolygon(PyObject *args, PyObject *kwds)
 {
 	int polyindex = 1;
-	PyObject *polyob = nullptr;
 
 	if (!PyArg_ParseTuple(args, "i:getPolygon", &polyindex))
 		return nullptr;
 
-	if (polyindex < 0 || polyindex >= m_meshobj->NumPolygons()) {
+	if (polyindex < 0 || polyindex >= m_meshobj->GetNumPolygons()) {
 		PyErr_SetString(PyExc_AttributeError, "mesh.getPolygon(int): KX_MeshProxy, invalid polygon index");
 		return nullptr;
 	}
 
-	RAS_Polygon *polygon = m_meshobj->GetPolygon(polyindex);
-	if (polygon) {
-		polyob = (new KX_PolyProxy(this, m_meshobj, polygon))->NewProxy(true);
-	}
-	else {
-		PyErr_SetString(PyExc_AttributeError, "mesh.getPolygon(int): KX_MeshProxy, polygon is nullptr, unknown reason");
-	}
-	return polyob;
+	const RAS_MeshObject::PolygonInfo polygon = m_meshobj->GetPolygon(polyindex);
+	KX_PolyProxy *polyProxy = new KX_PolyProxy(this, m_meshobj, polygon);
+	return polyProxy->NewProxy(true);
 }
 
 PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
@@ -221,7 +211,7 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 	ntransform[0][3] = ntransform[1][3] = ntransform[2][3] = 0.0f;
 
 	/* transform mesh verts */
-	for (unsigned short i = 0, num = m_meshobj->NumMaterials(); i < num; ++i) {
+	for (unsigned short i = 0, num = m_meshobj->GetNumMaterials(); i < num; ++i) {
 		if (matindex == -1) {
 			/* always transform */
 		}
@@ -232,8 +222,7 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 			continue;
 		}
 
-		RAS_MeshMaterial *mmat = m_meshobj->GetMeshMaterial(i);
-		RAS_IDisplayArray *array = mmat->GetDisplayArray();
+		RAS_IDisplayArray *array = m_meshobj->GetDisplayArray(i);
 		ok = true;
 
 		for (unsigned int j = 0, size = array->GetVertexCount(); j < size; ++j) {
@@ -291,7 +280,7 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 	}
 
 	/* transform mesh verts */
-	for (unsigned short i = 0, num = m_meshobj->NumMaterials(); i < num; ++i) {
+	for (unsigned short i = 0, num = m_meshobj->GetNumMaterials(); i < num; ++i) {
 		if (matindex == -1) {
 			/* always transform */
 		}
@@ -302,8 +291,7 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 			continue;
 		}
 
-		RAS_MeshMaterial *mmat = m_meshobj->GetMeshMaterial(i);
-		RAS_IDisplayArray *array = mmat->GetDisplayArray();
+		RAS_IDisplayArray *array = m_meshobj->GetDisplayArray(i);
 		ok = true;
 
 		for (unsigned int j = 0, size = array->GetVertexCount(); j < size; ++j) {
@@ -379,7 +367,7 @@ PyObject *KX_MeshProxy::pyattr_get_materials(PyObjectPlus *self_v, const KX_PYAT
 {
 	KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
 
-	const unsigned short tot = self->m_meshobj->NumMaterials();
+	const unsigned short tot = self->m_meshobj->GetNumMaterials();
 
 	PyObject *materials = PyList_New(tot);
 
@@ -395,27 +383,28 @@ PyObject *KX_MeshProxy::pyattr_get_materials(PyObjectPlus *self_v, const KX_PYAT
 PyObject *KX_MeshProxy::pyattr_get_numMaterials(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MeshProxy *self = static_cast<KX_MeshProxy *> (self_v);
-	return PyLong_FromLong(self->m_meshobj->NumMaterials());
+	return PyLong_FromLong(self->m_meshobj->GetNumMaterials());
 }
 
 PyObject *KX_MeshProxy::pyattr_get_numPolygons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MeshProxy *self = static_cast<KX_MeshProxy *> (self_v);
-	return PyLong_FromLong(self->m_meshobj->NumPolygons());
+	return PyLong_FromLong(self->m_meshobj->GetNumPolygons());
 }
 
 static int kx_mesh_proxy_get_polygons_size_cb(void *self_v)
 {
-	return ((KX_MeshProxy *)self_v)->GetMesh()->NumPolygons();
+	return ((KX_MeshProxy *)self_v)->GetMesh()->GetNumPolygons();
 }
 
 static PyObject *kx_mesh_proxy_get_polygons_item_cb(void *self_v, int index)
 {
 	KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
 	RAS_MeshObject *mesh = self->GetMesh();
-	RAS_Polygon *polygon = mesh->GetPolygon(index);
-	PyObject *polyob = (new KX_PolyProxy(self, mesh, polygon))->NewProxy(true);
-	return polyob;
+	const RAS_MeshObject::PolygonInfo polygon = mesh->GetPolygon(index);
+
+	KX_PolyProxy *polyProxy = new KX_PolyProxy(self, mesh, polygon);
+	return polyProxy->NewProxy(true);
 }
 
 PyObject *KX_MeshProxy::pyattr_get_polygons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

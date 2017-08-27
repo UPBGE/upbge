@@ -43,7 +43,6 @@
 
 extern "C" {
 #  include "BLF_api.h"
-#  include "BKE_DerivedMesh.h"
 }
 
 #include "MEM_guardedalloc.h"
@@ -304,65 +303,6 @@ void RAS_OpenGLRasterizer::SetColorMask(bool r, bool g, bool b, bool a)
 void RAS_OpenGLRasterizer::DrawOverlayPlane()
 {
 	m_screenPlane.Render();
-}
-
-// Code for hooking into Blender's mesh drawing for derived meshes.
-// If/when we use more of Blender's drawing code, we may be able to
-// clean this up
-static int current_blmat_nr;
-static GPUVertexAttribs current_gpu_attribs;
-static int CheckMaterialDM(int matnr, void *attribs)
-{
-	// only draw the current material
-	if (matnr != current_blmat_nr) {
-		return 0;
-	}
-	GPUVertexAttribs *gattribs = (GPUVertexAttribs *)attribs;
-	if (gattribs) {
-		memcpy(gattribs, &current_gpu_attribs, sizeof(GPUVertexAttribs));
-	}
-	return 1;
-}
-
-void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::DrawType drawingmode)
-{
-	// mesh data is in derived mesh
-	RAS_DisplayArrayBucket *arrayBucket = ms->m_displayArrayBucket;
-	RAS_MaterialBucket *bucket = arrayBucket->GetBucket();
-	RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
-
-	if (bucket->IsWire()) {
-		SetLines(true);
-	}
-
-	bool wireframe = (drawingmode == RAS_Rasterizer::RAS_WIREFRAME);
-	if (material->GetFlag() & RAS_IPolyMaterial::RAS_BLENDERGLSL) {
-		// GetMaterialIndex return the original mface material index,
-		// increment by 1 to match what derived mesh is doing
-		current_blmat_nr = arrayBucket->GetMeshMaterial()->GetIndex() + 1;
-		// For GLSL we need to retrieve the GPU material attribute
-		Material *blmat = material->GetBlenderMaterial();
-		Scene *blscene = material->GetBlenderScene();
-		if (!wireframe && blscene && blmat) {
-			GPU_material_vertex_attributes(GPU_material_from_blender(blscene, blmat, false, material->UseInstancing()), &current_gpu_attribs);
-		}
-		else {
-			memset(&current_gpu_attribs, 0, sizeof(current_gpu_attribs));
-		}
-	}
-
-	// DM draw can mess up blending mode, restore at the end
-	int current_blend_mode = GPU_get_material_alpha_blend();
-
-	if (wireframe) {
-		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-	}
-	ms->m_pDerivedMesh->drawFacesGLSL(ms->m_pDerivedMesh, CheckMaterialDM);
-	GPU_set_material_alpha_blend(current_blend_mode);
-
-	if (bucket->IsWire()) {
-		SetLines(false);
-	}
 }
 
 void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)

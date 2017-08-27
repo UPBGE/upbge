@@ -123,12 +123,10 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 		if (m_bFindMaterial) {
 			for (unsigned int i = 0; i < hitKXObj->GetMeshCount(); ++i) {
 				RAS_MeshObject *meshObj = hitKXObj->GetMesh(i);
-				for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-					bFound = (m_propertyname == std::string(meshObj->GetMaterialName(j), 2));
-					if (bFound) {
-						hitMaterial = true;
-						break;
-					}
+				bFound = (meshObj->FindMaterialName(m_propertyname) != nullptr);
+				if (bFound) {
+					hitMaterial = true;
+					break;
 				}
 			}
 		}
@@ -181,10 +179,9 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 			bool found = false;
 			for (unsigned int i = 0; i < hitKXObj->GetMeshCount(); ++i) {
 				RAS_MeshObject *meshObj = hitKXObj->GetMesh(i);
-				for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-					found = (m_propertyname == std::string(meshObj->GetMaterialName(j), 2));
-					if (found)
-						break;
+				found = (meshObj->FindMaterialName(m_propertyname) != nullptr);
+				if (found) {
+					break;
 				}
 			}
 			if (!found)

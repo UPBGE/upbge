@@ -35,8 +35,10 @@
 
 #include "MEM_guardedalloc.h"
 #include "BL_ModifierDeformer.h"
+#include "BL_BlenderDataConversion.h"
 #include <string>
 #include "RAS_IPolygonMaterial.h"
+#include "RAS_MaterialBucket.h"
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
 #include "RAS_BoundingBox.h"
@@ -131,34 +133,6 @@ bool BL_ModifierDeformer::HasArmatureDeformer(Object *ob)
 	return false;
 }
 
-// return a deformed mesh that supports mapping (with a valid CD_ORIGINDEX layer)
-DerivedMesh *BL_ModifierDeformer::GetPhysicsMesh()
-{
-	/* we need to compute the deformed mesh taking into account the current
-	 * shape and skin deformers, we cannot just call mesh_create_derived_physics()
-	 * because that would use the m_transvers already deformed previously by BL_ModifierDeformer::Update(),
-	 * so restart from scratch by forcing a full update the shape/skin deformers
-	 * (will do nothing if there is no such deformer) */
-	BL_ShapeDeformer::ForceUpdate();
-	BL_ShapeDeformer::Update();
-	// now apply the modifiers but without those that don't support mapping
-	Object *blendobj = m_gameobj->GetBlenderObject();
-	/* hack: the modifiers require that the mesh is attached to the object
-	 * It may not be the case here because of replace mesh actuator */
-	Mesh *oldmesh = (Mesh *)blendobj->data;
-	blendobj->data = m_bmesh;
-	DerivedMesh *dm = mesh_create_derived_physics(m_scene, blendobj, (float (*)[3])m_transverts.data(), CD_MASK_MESH);
-	/* restore object data */
-	blendobj->data = oldmesh;
-
-	// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
-	DM_ensure_tessface(dm);
-
-	/* m_transverts is correct here (takes into account deform only modifiers) */
-	/* the derived mesh returned by this function must be released by the caller !!! */
-	return dm;
-}
-
 bool BL_ModifierDeformer::Update(void)
 {
 	bool bShapeUpdate = BL_ShapeDeformer::Update();
@@ -166,8 +140,6 @@ bool BL_ModifierDeformer::Update(void)
 	if (bShapeUpdate || m_lastModifierUpdate != m_gameobj->GetLastFrame()) {
 		// static derived mesh are not updated
 		if (m_dm == nullptr || m_bDynamic) {
-			// Set to true if it's the first time Update() function is called.
-			const bool initialize = (m_dm == nullptr);
 			/* execute the modifiers */
 			Object *blendobj = m_gameobj->GetBlenderObject();
 			/* hack: the modifiers require that the mesh is attached to the object
@@ -194,30 +166,53 @@ bool BL_ModifierDeformer::Update(void)
 			m_dm->deformedOnly = 1;
 			DM_update_materials(m_dm, blendobj);
 
-			// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
-			DM_ensure_tessface(m_dm);
-
-			// Update object's AABB.
-			if (initialize || m_gameobj->GetAutoUpdateBounds()) {
-				float min[3], max[3];
-				INIT_MINMAX(min, max);
-				m_dm->getMinMax(m_dm, min, max);
-				m_boundingBox->SetAabb(MT_Vector3(min), MT_Vector3(max));
-			}
+			UpdateBounds();
+			UpdateTransverts();
 		}
 		m_lastModifierUpdate = m_gameobj->GetLastFrame();
 		bShapeUpdate = true;
-
-		RAS_MeshUser *meshUser = m_gameobj->GetMeshUser();
-		// In case of conversion of a hidden game object, the mesh user is invalid.
-		if (meshUser) {
-			for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
-				slot->m_pDerivedMesh = m_dm;
-			}
-		}
 	}
 
 	return bShapeUpdate;
+}
+
+void BL_ModifierDeformer::UpdateBounds()
+{
+	float min[3], max[3];
+	INIT_MINMAX(min, max);
+	m_dm->getMinMax(m_dm, min, max);
+	m_boundingBox->SetAabb(MT_Vector3(min), MT_Vector3(max));
+}
+
+void BL_ModifierDeformer::UpdateTransverts()
+{
+	if (!m_dm || m_displayArrayList.size() == 0) {
+		return;
+	}
+
+	const unsigned short nummat = m_mesh->GetNumMaterials();
+	std::vector<BL_MeshMaterial> mats(nummat);
+
+	for (unsigned short i = 0; i < nummat; ++i) {
+		RAS_MeshMaterial *meshmat = m_mesh->GetMeshMaterial(i);
+		RAS_IDisplayArray *array = m_displayArrayList[i];
+		array->Clear();
+
+		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
+		mats[i] = {array, meshmat->GetBucket(), mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
+	}
+
+	BL_ConvertDerivedMeshToArray(m_dm, m_bmesh, mats, m_mesh->GetLayersInfo());
+
+	for (RAS_IDisplayArray *array : m_displayArrayList) {
+		array->SetModifiedFlag(RAS_IDisplayArray::SIZE_MODIFIED);
+		array->UpdateCache();
+	}
+
+	// Update object's AABB.
+	if (m_gameobj->GetAutoUpdateBounds()) {
+		UpdateBounds();
+	}
 }
 
 void BL_ModifierDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)

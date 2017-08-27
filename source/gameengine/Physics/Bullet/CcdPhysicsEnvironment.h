@@ -52,6 +52,9 @@ class PHY_IVehicle;
 class CcdOverlapFilterCallBack;
 class CcdShapeConstructionInfo;
 
+/// Find the id of the closest node to a point in a soft body.
+int Ccd_FindClosestNode(btSoftBody *sb, const btVector3& worldPoint);
+
 /** CcdPhysicsEnvironment is an experimental mainloop for physics simulation using optional continuous collision detection.
  * Physics Environment takes care of stepping the simulation and is a container for physics entities.
  * It stores rigidbodies,constraints, materials etc.
@@ -254,7 +257,6 @@ public:
 	virtual void ConvertObject(BL_BlenderSceneConverter& converter,
 							   KX_GameObject *gameobj,
 	                           RAS_MeshObject *meshobj,
-	                           DerivedMesh *dm,
 	                           KX_Scene *kxscene,
 	                           PHY_ShapeProps *shapeprops,
 	                           PHY_IMotionState *motionstate,

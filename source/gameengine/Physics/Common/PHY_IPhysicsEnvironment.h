@@ -47,7 +47,6 @@ class RAS_MeshObject;
 class PHY_IPhysicsController;
 
 class RAS_MeshObject;
-struct DerivedMesh;
 class KX_GameObject;
 class KX_Scene;
 class BL_BlenderSceneConverter;
@@ -232,7 +231,6 @@ public:
 	virtual void ConvertObject(BL_BlenderSceneConverter& converter,
 							   KX_GameObject *gameobj,
 	                           RAS_MeshObject *meshobj,
-	                           DerivedMesh *dm,
 	                           KX_Scene *kxscene,
 	                           PHY_ShapeProps *shapeprops,
 	                           PHY_IMotionState *motionstate,

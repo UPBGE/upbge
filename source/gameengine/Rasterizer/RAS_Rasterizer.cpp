@@ -38,7 +38,6 @@
 #include "RAS_OffScreen.h"
 #include "RAS_Rect.h"
 #include "RAS_TextUser.h"
-#include "RAS_Polygon.h"
 #include "RAS_ILightObject.h"
 
 #include "RAS_OpenGLLight.h"
@@ -773,11 +772,6 @@ void RAS_Rasterizer::IndexPrimitivesBatching(RAS_IStorageInfo *storageInfo, cons
 	m_storage->IndexPrimitivesBatching(static_cast<VBO *>(storageInfo), indices, counts);
 }
 
-void RAS_Rasterizer::IndexPrimitivesDerivedMesh(DrawType drawingMode, RAS_MeshSlot *ms)
-{
-	m_impl->DrawDerivedMesh(ms, drawingMode);
-}
-
 void RAS_Rasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 {
 	SetMatrixMode(RAS_PROJECTION);
@@ -1341,8 +1335,8 @@ void RAS_Rasterizer::RemoveLight(RAS_ILightObject *lightobject)
 bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform)
 {
 	if (result->m_hitMesh) {
-		RAS_Polygon *poly = result->m_hitMesh->GetPolygon(result->m_hitPolygon);
-		if (!poly->IsVisible()) {
+		const RAS_MeshObject::PolygonInfo poly = result->m_hitMesh->GetPolygon(result->m_hitPolygon);
+		if (!(poly.flags & RAS_MeshObject::PolygonInfo::VISIBLE)) {
 			return false;
 		}
 

@@ -30,7 +30,7 @@
 #include "BLI_math_vector.h"
 #include "KX_NavMeshObject.h"
 #include "RAS_MeshObject.h"
-#include "RAS_Polygon.h"
+#include "RAS_IDisplayArray.h"
 #include "RAS_IVertex.h"
 
 #include "DNA_mesh_types.h"
@@ -226,53 +226,64 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 	else
 	{
 		//create from RAS_MeshObject (detailed mesh is fake)
-		RAS_MeshObject* meshobj = GetMesh(0);
+		RAS_MeshObject *meshobj = GetMesh(0);
 		vertsPerPoly = 3;
-		nverts = meshobj->m_sharedvertex_map.size();
-		if (nverts >= 0xffff)
-			return false;
-		//calculate count of tris
-		int nmeshpolys = meshobj->NumPolygons();
-		npolys = nmeshpolys;
-		for (int p=0; p<nmeshpolys; p++)
-		{
-			int vertcount = meshobj->GetPolygon(p)->VertexCount();
-			npolys+=vertcount-3;
+
+		// Indices count.
+		unsigned int numindices = 0;
+		// Original (without split of normal or UV) vertex count.
+		unsigned int numvertices = 0;
+
+		for (unsigned int i = 0, nummat = meshobj->GetNumMaterials(); i < nummat; ++i) {
+			RAS_MeshMaterial *meshmat = meshobj->GetMeshMaterial(i);
+			RAS_IDisplayArray *array = meshmat->GetDisplayArray();
+
+			numindices += array->GetTriangleIndexCount();
+			numvertices = std::max(numvertices, array->GetMaxOrigIndex() + 1);
 		}
 
-		//create verts
-		vertices = new float[nverts*3];
-		float* vert = vertices;
-		for (int vi=0; vi<nverts; vi++)
-		{
-			const float* pos = !meshobj->m_sharedvertex_map[vi].empty() ? meshobj->GetVertexLocation(vi) : nullptr;
-			if (pos)
-				copy_v3_v3(vert, pos);
-			else
-			{
-				memset(vert, 0, 3*sizeof(float)); //vertex isn't in any poly, set dummy zero coordinates
-			}
-			vert+=3;
-		}
+		vertices = new float[numvertices * 3];
+		polys = (unsigned short *)MEM_callocN(sizeof(unsigned short) * numindices, "BuildVertIndArrays polys");
 
-		//create tris
-		polys = (unsigned short *)MEM_callocN(sizeof(unsigned short)*3*2*npolys, "BuildVertIndArrays polys");
-		memset(polys, 0xff, sizeof(unsigned short)*3*2*npolys);
-		unsigned short *poly = polys;
-		RAS_Polygon* raspoly;
-		for (int p=0; p<nmeshpolys; p++)
-		{
-			raspoly = meshobj->GetPolygon(p);
-			for (int v=0; v<raspoly->VertexCount()-2; v++)
-			{
-				poly[0] = raspoly->GetVertexInfo(0).getOrigIndex();
-				for (size_t i=1; i<3; i++)
-				{
-					poly[i] = raspoly->GetVertexInfo(v+i).getOrigIndex();
+		/// Map from original vertex index to m_vertexArray vertex index.
+		std::vector<int> vertRemap(numvertices, -1);
+
+		// Current vertex written.
+		unsigned int curvert = 0;
+		// Current index written.
+		unsigned int curind = 0;
+		for (unsigned int i = 0, nummat = meshobj->GetNumMaterials(); i < nummat; ++i) {
+			RAS_MeshMaterial *meshmat = meshobj->GetMeshMaterial(i);
+			RAS_IDisplayArray *array = meshmat->GetDisplayArray();
+			// Convert location of all vertices and remap if vertices weren't already converted.
+			for (unsigned int j = 0, numvert = array->GetVertexCount(); j < numvert; ++j) {
+				const RAS_VertexInfo& info = array->GetVertexInfo(j);
+				const unsigned int origIndex = info.getOrigIndex();
+				/* Avoid double conversion of two unique vertices using the same base:
+				* using the same original vertex and so the same position.
+				*/
+				if (vertRemap[origIndex] != -1) {
+					continue;
 				}
-				poly += 6;
+
+				RAS_IVertex *vert = array->GetVertex(j);
+				const float *pos = vert->getXYZ();
+				copy_v3_v3(&vertices[curvert * 3], pos);
+
+				// Register the vertex index where the position was converted in m_vertexArray.
+				vertRemap[origIndex] = curvert++;
+				vert += 3;
+			}
+
+			for (unsigned int j = 0, numtris = array->GetTriangleIndexCount(); j < numtris; ++j) {
+				const unsigned int index = array->GetTriangleIndex(j);
+				const RAS_VertexInfo& info = array->GetVertexInfo(index);
+				const unsigned int origIndex = info.getOrigIndex();
+				polys[curind++] = vertRemap[origIndex];
 			}
 		}
+
+		npolys = numindices;
 		dmeshes = nullptr;
 		dvertices = nullptr;
 		ndvertsuniq = 0;
@@ -280,7 +291,6 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 		ndtris = npolys;
 	}
 	dm->release(dm);
-	
 	return true;
 }
 

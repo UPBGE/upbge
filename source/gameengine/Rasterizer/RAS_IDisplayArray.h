@@ -29,6 +29,7 @@
 
 #include "RAS_Vertex.h"
 #include <vector>
+#include <algorithm>
 
 class RAS_IDisplayArray
 {
@@ -56,7 +57,12 @@ protected:
 	/// Cached vertex pointers. This list is constructed with the function UpdateCache.
 	std::vector<RAS_IVertex *> m_vertexPtrs;
 	/// The indices used for rendering.
-	std::vector<unsigned int> m_indices;
+	std::vector<unsigned int> m_primitiveIndices;
+	/// The indices of the original triangle independently of the primitive type.
+	std::vector<unsigned int> m_triangleIndices;
+
+	/// Maximum original vertex index.
+	unsigned int m_maxOrigIndex;
 
 	/** Polygon centers cache used to sort polygons depending on depth.
 	 * This list is stored here because we store per array not per entire mesh.
@@ -94,14 +100,14 @@ public:
 		return m_vertexPtrs[index];
 	}
 
-	inline unsigned int GetIndex(const unsigned int index) const
+	inline unsigned int GetPrimitiveIndex(const unsigned int index) const
 	{
-		return m_indices[index];
+		return m_primitiveIndices[index];
 	}
 
-	inline void SetIndex(const unsigned int index, const unsigned int value)
+	inline unsigned int GetTriangleIndex(const unsigned int index) const
 	{
-		m_indices[index] = value;
+		return m_triangleIndices[index];
 	}
 
 	inline const RAS_VertexInfo& GetVertexInfo(const unsigned int index) const
@@ -114,30 +120,48 @@ public:
 		return m_vertexInfos[index];
 	}
 
-	virtual void AddVertex(RAS_IVertex *vert) = 0;
+	virtual unsigned int AddVertex(RAS_IVertex *vert) = 0;
 
-	inline void AddIndex(const unsigned int index)
+	inline void AddPrimitiveIndex(const unsigned int index)
 	{
-		m_indices.push_back(index);
+		m_primitiveIndices.push_back(index);
+	}
+
+	inline void AddTriangleIndex(const unsigned int origIndex)
+	{
+		m_triangleIndices.push_back(origIndex);
 	}
 
 	inline void AddVertexInfo(const RAS_VertexInfo& info)
 	{
+		m_maxOrigIndex = std::max(m_maxOrigIndex, info.getOrigIndex());
 		m_vertexInfos.push_back(info);
 	}
 
+	virtual void Clear() = 0;
+
 	virtual const RAS_IVertex *GetVertexPointer() const = 0;
 
-	inline const unsigned int *GetIndexPointer() const
+	inline const unsigned int *GetPrimitiveIndexPointer() const
 	{
-		return (unsigned int *)m_indices.data();
+		return (unsigned int *)m_primitiveIndices.data();
 	}
 
 	virtual unsigned int GetVertexCount() const = 0;
 
-	inline unsigned int GetIndexCount() const
+	inline unsigned int GetPrimitiveIndexCount() const
 	{
-		return m_indices.size();
+		return m_primitiveIndices.size();
+	}
+
+	inline unsigned int GetTriangleIndexCount() const
+	{
+		return m_triangleIndices.size();
+	}
+
+	inline unsigned int GetMaxOrigIndex() const
+	{
+		return m_maxOrigIndex;
 	}
 
 	void SortPolygons(const MT_Transform &transform, unsigned int *indexmap);
@@ -172,6 +196,7 @@ public:
 		UVS_MODIFIED = 1 << 2, // Vertex UVs modified.
 		COLORS_MODIFIED = 1 << 3, // Vertex colors modified.
 		TANGENT_MODIFIED = 1 << 4, // Vertex tangent modified.
+		SIZE_MODIFIED = 1 << 5, // Vertex and index array changed of size.
 		AABB_MODIFIED = POSITION_MODIFIED,
 		MESH_MODIFIED = POSITION_MODIFIED | NORMAL_MODIFIED | UVS_MODIFIED |
 						COLORS_MODIFIED | TANGENT_MODIFIED

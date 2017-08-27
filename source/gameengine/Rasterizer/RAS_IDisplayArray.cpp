@@ -58,7 +58,8 @@ struct PolygonSort
 RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat& format)
 	:m_type(type),
 	m_modifiedFlag(NONE_MODIFIED),
-	m_format(format)
+	m_format(format),
+	m_maxOrigIndex(0)
 {
 }
 
@@ -99,7 +100,7 @@ RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::Primitiv
 
 void RAS_IDisplayArray::SortPolygons(const MT_Transform& transform, unsigned int *indexmap)
 {
-	const unsigned int totpoly = GetIndexCount() / 3;
+	const unsigned int totpoly = GetPrimitiveIndexCount() / 3;
 
 	if (totpoly <= 1 || m_type == LINES) {
 		return;
@@ -116,7 +117,7 @@ void RAS_IDisplayArray::SortPolygons(const MT_Transform& transform, unsigned int
 			for (unsigned short j = 0; j < 3; ++j) {
 				/* Note that we don't divide by 3 as it is not needed
 				 * to compare polygons. */
-				center += GetVertex(m_indices[i * 3 + j])->xyz();
+				center += GetVertex(m_primitiveIndices[i * 3 + j])->xyz();
 			}
 		}
 	}
@@ -133,7 +134,7 @@ void RAS_IDisplayArray::SortPolygons(const MT_Transform& transform, unsigned int
 	for (unsigned int i = 0; i < totpoly; ++i) {
 		const unsigned int first = sortedPoly[i].m_first;
 		for (unsigned short j = 0; j < 3; ++j) {
-			indexmap[i * 3 + j] = m_indices[first + j];
+			indexmap[i * 3 + j] = m_primitiveIndices[first + j];
 		}
 	}
 }

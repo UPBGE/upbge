@@ -45,7 +45,8 @@
 #include "RAS_OffScreen.h"
 #include "RAS_CameraData.h"
 #include "RAS_MeshObject.h"
-#include "RAS_Polygon.h"
+#include "RAS_MaterialBucket.h"
+#include "RAS_IDisplayArray.h"
 #include "RAS_IVertex.h"
 #include "RAS_ISync.h"
 #include "BLI_math.h"
@@ -906,37 +907,29 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	for (int meshIndex = 0; meshIndex < mirror->GetMeshCount(); meshIndex++)
 	{
 		RAS_MeshObject*	mesh = mirror->GetMesh(meshIndex);
-		int numPolygons = mesh->NumPolygons();
-		for (int polygonIndex=0; polygonIndex < numPolygons; polygonIndex++)
-		{
-			RAS_Polygon* polygon = mesh->GetPolygon(polygonIndex);
-			if (polygon->GetMaterial()->GetPolyMaterial() == mat)
-			{
-				RAS_IVertex *v1, *v2, *v3, *v4;
-				float normal[3];
-				float area;
-				// this polygon is part of the mirror
-				v1 = polygon->GetVertex(0);
-				v2 = polygon->GetVertex(1);
-				v3 = polygon->GetVertex(2);
-				mirrorVerts.push_back(v1);
-				mirrorVerts.push_back(v2);
-				mirrorVerts.push_back(v3);
-				if (polygon->VertexCount() == 4) {
-					v4 = polygon->GetVertex(3);
-					mirrorVerts.push_back(v4);
-					area = normal_quad_v3(normal,(float*)v1->getXYZ(), (float*)v2->getXYZ(), (float*)v3->getXYZ(), (float*)v4->getXYZ());
+		for (unsigned short i = 0, matCount = mesh->GetNumMaterials(); i < matCount; ++i) {
+			RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(i);
+			if (meshmat->GetBucket()->GetPolyMaterial() == mat) {
+				RAS_IDisplayArray *array = meshmat->GetDisplayArray();
+				for (unsigned int j = 0, indexCount = array->GetTriangleIndexCount(); j < indexCount; j += 3) {
+					float normal[3];
+					RAS_IVertex *v1 = array->GetVertex(array->GetTriangleIndex(j));
+					RAS_IVertex *v2 = array->GetVertex(array->GetTriangleIndex(j + 1));
+					RAS_IVertex *v3 = array->GetVertex(array->GetTriangleIndex(j + 2));
+
+					mirrorVerts.push_back(v1);
+					mirrorVerts.push_back(v2);
+					mirrorVerts.push_back(v3);
+					float area = normal_tri_v3(normal,(float*)v1->getXYZ(), (float*)v2->getXYZ(), (float*)v3->getXYZ());
+					area = fabs(area);
+					mirrorArea += area;
+					mul_v3_fl(normal, area);
+					add_v3_v3v3(mirrorNormal, mirrorNormal, normal);
 				}
-				else {
-					area = normal_tri_v3(normal,(float*)v1->getXYZ(), (float*)v2->getXYZ(), (float*)v3->getXYZ());
-				}
-				area = fabs(area);
-				mirrorArea += area;
-				mul_v3_fl(normal, area);
-				add_v3_v3v3(mirrorNormal, mirrorNormal, normal);
 			}
 		}
 	}
+
 	if (mirrorVerts.size() == 0 || mirrorArea < FLT_EPSILON)
 	{
 		// no vertex or zero size mirror

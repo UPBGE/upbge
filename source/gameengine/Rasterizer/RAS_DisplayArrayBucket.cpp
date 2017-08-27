@@ -64,10 +64,11 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 {
 	m_bucket->AddDisplayArrayBucket(this);
 
+	// Display array can be null in case of text.
 	if (m_displayArray) {
 		m_downwardNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr);
 		m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode),
-												  std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode));
+				std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode));
 	}
 	else {
 		// If there's no display array then we draw using derived mesh, in this case the display array bind/unbind should be avoid.
@@ -76,7 +77,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	}
 
 	// Initialize node arguments.
-	m_nodeData.m_array = array;
+	m_nodeData.m_array = m_displayArray;
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
@@ -143,8 +144,6 @@ bool RAS_DisplayArrayBucket::UseBatching() const
 
 void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 {
-	bool arrayModified = false;
-
 	if (m_deformer) {
 		m_deformer->Apply(m_meshMaterial, m_displayArray);
 	}
@@ -152,7 +151,6 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 	if (m_displayArray) {
 		const unsigned short modifiedFlag = m_displayArray->GetModifiedFlag();
 		if (modifiedFlag & RAS_IDisplayArray::MESH_MODIFIED) {
-			arrayModified = true;
 			m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
 
 			if (modifiedFlag & RAS_IDisplayArray::POSITION_MODIFIED) {
@@ -166,8 +164,17 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 			m_storageInfo = rasty->GetStorageInfo(m_displayArray, m_bucket->UseInstancing());
 		}
 		// Set the storage info modified if the mesh is modified.
-		else if (arrayModified) {
-			m_storageInfo->UpdateVertexData();
+		else {
+			if (modifiedFlag & RAS_IDisplayArray::SIZE_MODIFIED) {
+				m_storageInfo->UpdateSize();
+			}
+			else if (modifiedFlag & RAS_IDisplayArray::MESH_MODIFIED) {
+				m_storageInfo->UpdateVertexData();
+			}
+		}
+
+		if (modifiedFlag != RAS_IDisplayArray::NONE_MODIFIED) {
+			m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
 		}
 	}
 

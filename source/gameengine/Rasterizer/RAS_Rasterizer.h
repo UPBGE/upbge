@@ -543,8 +543,6 @@ public:
 	 * \param counts List of indices arrays size.
 	 */
 	void IndexPrimitivesBatching(RAS_IStorageInfo *storageInfo, const std::vector<void *>& indices, const std::vector<int>& counts);
-	/// Render primitives using a derived mesh drawing.
-	void IndexPrimitivesDerivedMesh(DrawType drawingMode, RAS_MeshSlot *ms);
 	/// Render text mesh slot using BLF functions.
 	void IndexPrimitivesText(RAS_MeshSlot *ms);
  

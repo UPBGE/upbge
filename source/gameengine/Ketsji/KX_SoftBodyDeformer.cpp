@@ -95,6 +95,7 @@ void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 	RAS_IDisplayArray *origarray = meshmat->GetDisplayArray();
 
 	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
+	const std::vector<unsigned int>& indices = ctrl->GetSoftBodyIndices();
 
 	if (m_needUpdateAabb) {
 		m_boundingBox->SetAabb(MT_Vector3(0.0f, 0.0f, 0.0f), MT_Vector3(0.0f, 0.0f, 0.0f));
@@ -107,24 +108,13 @@ void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 
 	for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 		RAS_IVertex *v = array->GetVertex(i);
-		const RAS_VertexInfo& vinfo = origarray->GetVertexInfo(i);
-		/* The physics converter write the soft body index only in the original
-		 * vertex array because at this moment it doesn't know which is the
-		 * game object. It didn't cause any issues because it's always the same
-		 * vertex order.
-		 */
-		const unsigned int softbodyindex = vinfo.getSoftBodyIndex();
+		const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 
-		MT_Vector3 pt(
-		    nodes[softbodyindex].m_x.getX(),
-		    nodes[softbodyindex].m_x.getY(),
-		    nodes[softbodyindex].m_x.getZ());
+		const unsigned int index = indices[vinfo.getOrigIndex()];
+		const MT_Vector3 pt(ToMoto(nodes[index].m_x));
 		v->SetXYZ(pt);
 
-		MT_Vector3 normal(
-		    nodes[softbodyindex].m_n.getX(),
-		    nodes[softbodyindex].m_n.getY(),
-		    nodes[softbodyindex].m_n.getZ());
+		const MT_Vector3 normal(ToMoto(nodes[index].m_n));
 		v->SetNormal(normal);
 
 		if (!m_gameobj->GetAutoUpdateBounds()) {
@@ -137,18 +127,18 @@ void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 		const MT_Matrix3x3& rot = m_gameobj->NodeGetWorldOrientation();
 
 		// Extract object transform from the vertex position.
-		pt = (pt - pos) * rot * invertscale;
+		const MT_Vector3 ptWorld = (pt - pos) * rot * invertscale;
 		// if the AABB need an update.
 		if (i == 0) {
-			aabbMin = aabbMax = pt;
+			aabbMin = aabbMax = ptWorld;
 		}
 		else {
-			aabbMin.x() = std::min(aabbMin.x(), pt.x());
-			aabbMin.y() = std::min(aabbMin.y(), pt.y());
-			aabbMin.z() = std::min(aabbMin.z(), pt.z());
-			aabbMax.x() = std::max(aabbMax.x(), pt.x());
-			aabbMax.y() = std::max(aabbMax.y(), pt.y());
-			aabbMax.z() = std::max(aabbMax.z(), pt.z());
+			aabbMin.x() = std::min(aabbMin.x(), ptWorld.x());
+			aabbMin.y() = std::min(aabbMin.y(), ptWorld.y());
+			aabbMin.z() = std::min(aabbMin.z(), ptWorld.z());
+			aabbMax.x() = std::max(aabbMax.x(), ptWorld.x());
+			aabbMax.y() = std::max(aabbMax.y(), ptWorld.y());
+			aabbMax.z() = std::max(aabbMax.z(), ptWorld.z());
 		}
 	}
 

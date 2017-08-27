@@ -34,28 +34,27 @@
 
 #ifdef WITH_PYTHON
 
-#include "SCA_IObject.h"
+#include "EXP_Value.h"
+#include "RAS_MeshObject.h"
 
 class KX_MeshProxy;
-class RAS_MeshObject;
-class RAS_Polygon;
 
 class KX_PolyProxy : public CValue
 {
 	Py_Header
 protected:
 	KX_MeshProxy *m_meshProxy;
-	RAS_Polygon* m_polygon;
-	RAS_MeshObject*	m_mesh;
+	RAS_MeshObject::PolygonInfo m_polygon;
+	RAS_MeshObject *m_mesh;
+
 public:
-	KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_MeshObject *mesh, RAS_Polygon *polygon);
+	KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_MeshObject *mesh, const RAS_MeshObject::PolygonInfo& polygon);
 	virtual ~KX_PolyProxy();
 
 	// stuff for cvalue related things
 	virtual std::string GetName();
 
-	RAS_Polygon *GetPolygon();
-	KX_MeshProxy *GetMeshProxy();
+	const RAS_MeshObject::PolygonInfo& GetPolygon() const;
 
 	// stuff for python integration
 	static PyObject *pyattr_get_material_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

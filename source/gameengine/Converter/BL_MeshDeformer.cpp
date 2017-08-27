@@ -43,7 +43,6 @@
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
-#include "RAS_Polygon.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
@@ -111,11 +110,6 @@ void BL_MeshDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
  */
 void BL_MeshDeformer::RecalcNormals()
 {
-	// if we don't use a vertex array we does nothing.
-	if (!UseVertexArray()) {
-		return;
-	}
-
 	/* We don't normalize for performance, not doing it for faces normals
 	 * gives area-weight normals which often look better anyway, and use
 	 * GL_NORMALIZE so we don't have to do per vertex normalization either
@@ -126,48 +120,35 @@ void BL_MeshDeformer::RecalcNormals()
 		normal = {{0.0f, 0.0f, 0.0f}};
 	}
 
-	for (unsigned int i = 0, numpoly = m_mesh->NumPolygons(); i < numpoly; ++i) {
-		RAS_Polygon *poly = m_mesh->GetPolygon(i);
-		RAS_IDisplayArray *array = poly->GetDisplayArray();
-		const unsigned short numvert = poly->VertexCount();
+	for (RAS_IDisplayArray *array : m_displayArrayList) {
+		for (unsigned int i = 0, size = array->GetTriangleIndexCount(); i < size; i += 3) {
+			const float *co[3];
+			bool flat = false;
 
-		const float *co[4];
-		unsigned int indices[4];
-		unsigned int origindices[4];
-		bool flat = true;
+			for (unsigned short j = 0; j < 3; ++j) {
+				const unsigned int index = array->GetTriangleIndex(i + j);
+				const RAS_VertexInfo& vinfo = array->GetVertexInfo(index);
+				const unsigned int origindex = vinfo.getOrigIndex();
 
-		for (unsigned int j = 0; j < numvert; ++j) {
-			const unsigned int index = poly->GetVertexOffset(j);
-			const RAS_VertexInfo& vinfo = array->GetVertexInfo(index);
-			const unsigned int origindex = vinfo.getOrigIndex();
-
-			co[j] = m_transverts[origindex].data();
-			indices[j] = index;
-			origindices[j] = origindex;
-
-			if (!(vinfo.getFlag() & RAS_VertexInfo::FLAT)) {
-				flat = false;
+				co[j] = m_transverts[origindex].data();
+				flat |= (vinfo.getFlag() & RAS_VertexInfo::FLAT);
 			}
-		}
 
-		float pnorm[3];
-		if (numvert == 3) {
+			float pnorm[3];
 			normal_tri_v3(pnorm, co[0], co[1], co[2]);
-		}
-		else {
-			normal_quad_v3(pnorm, co[0], co[1], co[2], co[3]);
-		}
 
-		if (flat) {
-			for (unsigned int j = 0; j < numvert; ++j) {
-				RAS_IVertex *vert = array->GetVertex(indices[j]);
+			for (unsigned short j = 0; j < 3; ++j) {
+				const unsigned int index = array->GetTriangleIndex(i + j);
 
-				vert->SetNormal(pnorm);
-			}
-		}
-		else {
-			for (unsigned int j = 0; j < numvert; ++j) {
-				add_v3_v3(m_transnors[origindices[j]].data(), pnorm);
+				if (flat) {
+					RAS_IVertex *vert = array->GetVertex(index);
+					vert->SetNormal(pnorm);
+				}
+				else {
+					const RAS_VertexInfo& vinfo = array->GetVertexInfo(index);
+					const unsigned int origindex = vinfo.getOrigIndex();
+					add_v3_v3(m_transnors[origindex].data(), pnorm);
+				}
 			}
 		}
 	}
@@ -178,8 +159,9 @@ void BL_MeshDeformer::RecalcNormals()
 			RAS_IVertex *v = array->GetVertex(i);
 			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 
-			if (!(vinfo.getFlag() & RAS_VertexInfo::FLAT))
-				v->SetNormal(m_transnors[vinfo.getOrigIndex()].data()); //.safe_normalized()
+			if (!(vinfo.getFlag() & RAS_VertexInfo::FLAT)) {
+				v->SetNormal(m_transnors[vinfo.getOrigIndex()].data());
+			}
 		}
 	}
 }

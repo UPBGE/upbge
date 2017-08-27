@@ -44,6 +44,7 @@ public:
 	}
 
 	virtual void UpdateVertexData() = 0;
+	virtual void UpdateSize() = 0;
 	virtual unsigned int *GetIndexMap() = 0;
 	virtual void FlushIndexMap() = 0;
 	

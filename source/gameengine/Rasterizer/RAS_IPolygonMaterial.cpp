@@ -74,6 +74,21 @@ bool RAS_IPolyMaterial::IsCullFace() const
 	return !(m_rasMode & (RAS_TWOSIDED | RAS_WIRE));
 }
 
+bool RAS_IPolyMaterial::IsTwoSided() const
+{
+	return (m_rasMode & RAS_TWOSIDED);
+}
+
+bool RAS_IPolyMaterial::IsVisible() const
+{
+	return (m_rasMode & RAS_VISIBLE);
+}
+
+bool RAS_IPolyMaterial::IsCollider() const
+{
+	return (m_rasMode & RAS_COLLIDER);
+}
+
 void RAS_IPolyMaterial::GetRGBAColor(unsigned char *rgba) const
 {
 	*rgba++ = 0xFF;

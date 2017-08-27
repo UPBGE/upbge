@@ -68,6 +68,8 @@ public:
 		RAS_WIRE = (1 << 4),
 		RAS_TEXT = (1 << 5),
 		RAS_TWOSIDED = (1 << 6),
+		RAS_VISIBLE = (1 << 7),
+		RAS_COLLIDER = (1 << 8)
 	};
 
 	enum DrawingModes
@@ -105,6 +107,9 @@ public:
 	bool IsWire() const;
 	bool IsText() const;
 	bool IsCullFace() const;
+	bool IsTwoSided() const;
+	bool IsVisible() const;
+	bool IsCollider() const;
 	int GetDrawingMode() const;
 	int GetAlphaBlend() const;
 	float GetZOffset() const;

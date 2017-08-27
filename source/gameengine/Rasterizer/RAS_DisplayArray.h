@@ -109,9 +109,20 @@ public:
 		return (RAS_IVertex *)m_vertexes.data();
 	}
 
-	virtual void AddVertex(RAS_IVertex *vert)
+	virtual unsigned int AddVertex(RAS_IVertex *vert)
 	{
 		m_vertexes.push_back(*((Vertex *)vert));
+		return m_vertexes.size() - 1;
+	}
+
+	virtual void Clear()
+	{
+		m_vertexes.clear();
+		m_vertexPtrs.clear();
+		m_vertexInfos.clear();
+		m_primitiveIndices.clear();
+		m_triangleIndices.clear();
+		m_maxOrigIndex = 0;
 	}
 
 	virtual unsigned int GetVertexCount() const

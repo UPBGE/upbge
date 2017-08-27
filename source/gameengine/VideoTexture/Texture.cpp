@@ -45,6 +45,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_Texture.h"
 

@@ -121,7 +121,6 @@ public:
 	virtual void ConvertObject(BL_BlenderSceneConverter& converter,
 							   KX_GameObject *gameobj,
 	                           RAS_MeshObject *meshobj,
-	                           DerivedMesh *dm,
 	                           KX_Scene *kxscene,
 	                           PHY_ShapeProps *shapeprops,
 	                           PHY_IMotionState *motionstate,

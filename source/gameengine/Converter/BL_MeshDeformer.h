@@ -75,14 +75,6 @@ public:
 	{
 		return m_bmesh;
 	}
-	virtual RAS_MeshObject *GetRasMesh()
-	{
-		return m_mesh;
-	}
-	virtual const std::vector<std::array<float, 3> >& GetTransVerts() const
-	{
-		return m_transverts;
-	}
 
 protected:
 	Mesh *m_bmesh;

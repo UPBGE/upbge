@@ -57,8 +57,7 @@ base class --- :class:`SCA_IObject`
 
    .. attribute:: v4
 
-      Vertex index of the fourth vertex of the polygon, 0 if polygon has only 3 vertex
-      Use this to retrieve vertex proxy from mesh proxy.
+      .. deprecated:: polygons are triangles.
 
       :type: integer
 
@@ -109,7 +108,7 @@ base class --- :class:`SCA_IObject`
 
       Returns the number of vertex of the polygon.
 
-      :return: number of vertex, 3 or 4.
+      :return: number of vertex.
       :rtype: integer
 
    .. method:: isVisible()
@@ -131,7 +130,7 @@ base class --- :class:`SCA_IObject`
       Returns the mesh vertex index of a polygon vertex
       This index and the one returned by getMaterialIndex() are needed to retrieve the vertex proxy from :class:`MeshProxy`.
 
-      :arg vertex: index of the vertex in the polygon: 0->3
+      :arg vertex: index of the vertex in the polygon: 0->2
       :arg vertex: integer
       :return: mesh vertex index
       :rtype: integer

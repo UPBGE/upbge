@@ -48,7 +48,9 @@
 #include "KX_Globals.h" // for KX_RasterizerDrawDebugLine
 #include "BL_BlenderSceneConverter.h"
 #include "RAS_MeshObject.h"
-#include "RAS_Polygon.h"
+#include "RAS_IDisplayArray.h"
+#include "RAS_MaterialBucket.h"
+#include "RAS_IPolygonMaterial.h"
 #include "RAS_IVertex.h"
 
 #include "DNA_scene_types.h"
@@ -1226,7 +1228,7 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::RayTest(PHY_IRayCastFilterCallbac
 						}
 					}
 					// retrieve the original mesh polygon (in case of quad->tri conversion)
-					result.m_polygon = shapeInfo->m_polygonIndexArray.at(rayCallback.m_hitTriangleIndex);
+					result.m_polygon = shapeInfo->m_polygonIndexArray[rayCallback.m_hitTriangleIndex];
 					// hit triangle in world coordinate, for face normal and UV coordinate
 					btVector3 triangle[3];
 					bool triangleOK = false;
@@ -1794,20 +1796,7 @@ struct OcclusionBuffer {
 		transformM(c, p[2]);
 		clipDraw<3, WriteOCL>(p, face, btScalar(0.0f));
 	}
-	// add a quad (in model coordinate)
-	void appendOccluderM(const float *a,
-	                     const float *b,
-	                     const float *c,
-	                     const float *d,
-	                     const float face)
-	{
-		btVector4 p[4];
-		transformM(a, p[0]);
-		transformM(b, p[1]);
-		transformM(c, p[2]);
-		transformM(d, p[3]);
-		clipDraw<4, WriteOCL>(p, face, btScalar(0.0f));
-	}
+
 	// query occluder for a box (c=center, e=extend) in world coordinate
 	inline bool queryOccluderW(const btVector3 &c,
 	                           const btVector3 &e)
@@ -1888,30 +1877,23 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 				// this will create the occlusion buffer if not already done
 				// and compute the transformation from model local space to clip space
 				m_ocb->SetModelMatrix(fl);
-				float face = (gameobj->IsNegativeScaling()) ? -1.0f : 1.0f;
+				const float negative = gameobj->IsNegativeScaling();
 				// walk through the meshes and for each add to buffer
 				for (int i = 0; i < gameobj->GetMeshCount(); i++) {
 					RAS_MeshObject *meshobj = gameobj->GetMesh(i);
-					const float *v1, *v2, *v3, *v4;
 
-					int polycount = meshobj->NumPolygons();
-					for (int j = 0; j < polycount; j++) {
-						RAS_Polygon *poly = meshobj->GetPolygon(j);
-						switch (poly->VertexCount())
-						{
-							case 3:
-								v1 = poly->GetVertex(0)->getXYZ();
-								v2 = poly->GetVertex(1)->getXYZ();
-								v3 = poly->GetVertex(2)->getXYZ();
-								m_ocb->appendOccluderM(v1, v2, v3, ((poly->IsTwoside()) ? 0.f : face));
-								break;
-							case 4:
-								v1 = poly->GetVertex(0)->getXYZ();
-								v2 = poly->GetVertex(1)->getXYZ();
-								v3 = poly->GetVertex(2)->getXYZ();
-								v4 = poly->GetVertex(3)->getXYZ();
-								m_ocb->appendOccluderM(v1, v2, v3, v4, ((poly->IsTwoside()) ? 0.f : face));
-								break;
+					for (unsigned short matid = 0, matCount = meshobj->GetNumMaterials(); matid < matCount; ++matid) {
+						RAS_MeshMaterial *meshmat = meshobj->GetMeshMaterial(matid);
+						RAS_IDisplayArray *array = meshmat->GetDisplayArray();
+						const bool twoside = meshmat->GetBucket()->GetPolyMaterial()->IsTwoSided();
+						const float face = (twoside) ? 0.0f : ((negative) ? -1.0f : 1.0f);
+
+						for (unsigned int j = 0, size = array->GetTriangleIndexCount(); i < size; i += 3) {
+							const unsigned int index = array->GetTriangleIndex(j);
+							m_ocb->appendOccluderM(array->GetVertex(index)->getXYZ(),
+												   array->GetVertex(index + 1)->getXYZ(),
+												   array->GetVertex(index + 2)->getXYZ(),
+												   face);
 						}
 					}
 				}
@@ -2244,8 +2226,7 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::CreateSphereController(float radi
 	return sphereController;
 }
 
-int findClosestNode(btSoftBody *sb, const btVector3& worldPoint);
-int findClosestNode(btSoftBody *sb, const btVector3& worldPoint)
+int Ccd_FindClosestNode(btSoftBody *sb, const btVector3& worldPoint)
 {
 	int node = -1;
 
@@ -2300,7 +2281,7 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 		//either cluster or node attach, let's find closest node first
 		//the soft body doesn't have a 'real' world transform, so get its initial world transform for now
 		btVector3 pivotPointSoftWorld = sb0->m_initialWorldTransform(pivotInA);
-		int node = findClosestNode(sb0, pivotPointSoftWorld);
+		int node = Ccd_FindClosestNode(sb0, pivotPointSoftWorld);
 		if (node >= 0) {
 			if (rb1) {
 				sb0->appendAnchor(node, rb1, disableCollisionBetweenLinkedBodies);
@@ -2314,7 +2295,7 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 
 	if (sb1) {
 		btVector3 pivotPointAWorld = colObj0->getWorldTransform()(pivotInA);
-		int node = findClosestNode(sb1, pivotPointAWorld);
+		int node = Ccd_FindClosestNode(sb1, pivotPointAWorld);
 		if (node >= 0) {
 			if (rb0) {
 				sb1->appendAnchor(node, rb0, disableCollisionBetweenLinkedBodies);
@@ -2707,7 +2688,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 }
 
 void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, KX_GameObject *gameobj, RAS_MeshObject *meshobj,
-										  DerivedMesh *dm, KX_Scene *kxscene, PHY_ShapeProps *shapeprops, PHY_IMotionState *motionstate,
+										  KX_Scene *kxscene, PHY_ShapeProps *shapeprops, PHY_IMotionState *motionstate,
 										  int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
 {
 	Object *blenderobject = gameobj->GetBlenderObject();
@@ -2934,7 +2915,19 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 		}
 		case OB_BOUND_CONVEX_HULL:
 		{
-			shapeInfo->SetMesh(meshobj, dm, true);
+			// Convex shapes can be shared, check first if we already have a shape on that mesh.
+			CcdShapeConstructionInfo *sharedShapeInfo = CcdShapeConstructionInfo::FindMesh(meshobj, gameobj->GetDeformer(), PHY_SHAPE_POLYTOPE);
+			if (sharedShapeInfo) {
+				shapeInfo->Release();
+				shapeInfo = sharedShapeInfo;
+				shapeInfo->AddRef();
+			}
+			else {
+				shapeInfo->m_shapeType = PHY_SHAPE_POLYTOPE;
+				// Update from deformer or mesh.
+				shapeInfo->UpdateMesh(gameobj, nullptr);
+			}
+
 			bm = shapeInfo->CreateBulletShape(ci.m_margin);
 			break;
 		}
@@ -2950,15 +2943,17 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 		}
 		case OB_BOUND_TRIANGLE_MESH:
 		{
-			// mesh shapes can be shared, check first if we already have a shape on that mesh
-			class CcdShapeConstructionInfo *sharedShapeInfo = CcdShapeConstructionInfo::FindMesh(meshobj, dm, false);
-			if (sharedShapeInfo != nullptr) {
+			// Mesh shapes can be shared, check first if we already have a shape on that mesh.
+			CcdShapeConstructionInfo *sharedShapeInfo = CcdShapeConstructionInfo::FindMesh(meshobj, gameobj->GetDeformer(), PHY_SHAPE_MESH);
+			if (sharedShapeInfo) {
 				shapeInfo->Release();
 				shapeInfo = sharedShapeInfo;
 				shapeInfo->AddRef();
 			}
 			else {
-				shapeInfo->SetMesh(meshobj, dm, false);
+				shapeInfo->m_shapeType = PHY_SHAPE_MESH;
+				// Update from deformer or mesh.
+				shapeInfo->UpdateMesh(gameobj, nullptr);
 			}
 
 			// Soft bodies can benefit from welding, don't do it on non-soft bodies

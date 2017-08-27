@@ -50,7 +50,6 @@ static RAS_DummyNodeData dummyNodeData;
 RAS_MeshSlot::RAS_MeshSlot(RAS_MeshUser *meshUser, RAS_DisplayArrayBucket *arrayBucket)
 	:m_node(this, &dummyNodeData, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
 	m_displayArrayBucket(arrayBucket),
-	m_pDerivedMesh(nullptr),
 	m_meshUser(meshUser),
 	m_batchPartIndex(-1)
 {
@@ -103,13 +102,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 			rasty->GetTransform(m_meshUser->GetMatrix(), materialData->m_drawingMode, mat);
 			rasty->MultMatrix(mat);
 		}
-
-		if (m_pDerivedMesh) {
-			rasty->IndexPrimitivesDerivedMesh(managerData->m_drawingMode, this);
-		}
-		else {
-			rasty->IndexPrimitives(displayArrayData->m_storageInfo);
-		}
+		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
 	}
 
 	rasty->PopMatrix();

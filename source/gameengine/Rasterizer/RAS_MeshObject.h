@@ -39,23 +39,18 @@
 
 #include <vector>
 #include <list>
-
-#include "RAS_MaterialBucket.h"
-#include "RAS_MeshMaterial.h"
-#include "RAS_Texture.h"
-#include "MT_Transform.h"
-#include "MT_Vector2.h"
 #include <string>
 
+#include "RAS_MeshMaterial.h"
+#include "MT_Transform.h"
+
+class RAS_MaterialBucket;
 class RAS_MeshUser;
 class RAS_Deformer;
-class RAS_Polygon;
 class RAS_IVertex;
 class RAS_BoundingBox;
 class RAS_BoundingBoxManager;
 struct Mesh;
-struct MLoopUV;
-struct MLoopCol;
 
 /* RAS_MeshObject is a mesh used for rendering. It stores polygons,
  * but the actual vertices and index arrays are stored in material
@@ -69,8 +64,11 @@ public:
 	 * attribute's names in shader and names of the mesh layers here.
 	 */
 	struct Layer {
-		MLoopUV *uv;
-		MLoopCol *color;
+		/// The type of the layer, uv or color.
+		enum Type {
+			UV,
+			COLOR
+		} type;
 		/// The index of the color or uv layer in the vertices.
 		unsigned short index;
 		/// The name of the color or uv layer used to find corresponding material attributes.
@@ -85,14 +83,54 @@ public:
 		unsigned short activeColor;
 		// The active uv layer index as default.
 		unsigned short activeUv;
+		// The number of uv layers.
+		unsigned short uvCount;
+		// The number of color layers.
+		unsigned short colorCount;
+	};
+
+	/** Polygon info generate when getting a polygon through
+	 * RAS_MeshObject::GetPolygon. */
+	struct PolygonInfo {
+		enum Flags {
+			NONE = 0,
+			VISIBLE = (1 << 0),
+			COLLIDER = (1 << 1),
+			TWOSIDE = (1 << 2)
+		};
+
+		/// Display array owning the polygon, used to get vertices.
+		RAS_IDisplayArray *array;
+		/// Polygon vertices indices in the display array.
+		unsigned int indices[3];
+		/// Polygon flags depending on material using this display array.
+		Flags flags;
+		/// Material index owning the display array of this polygon.
+		unsigned short matId;
 	};
 
 private:
+	/** Polygon info per range depending of display array stored to generate
+	 * the individual polygon info. */
+	struct PolygonRangeInfo {
+		/// Display array owning polygons for this index range.
+		RAS_IDisplayArray *array;
+		/// Start absolute vertex index of the range.
+		unsigned int startIndex;
+		/// End absolute vertex index of the range.
+		unsigned int endIndex;
+		/// Polygon flags depending on material using this display array.
+		PolygonInfo::Flags flags;
+		/// Material index owning the display array of this polygon range.
+		unsigned short matId;
+	};
+
+	std::vector<PolygonRangeInfo> m_polygonRanges;
+	unsigned int m_numPolygons;
+
 	std::string m_name;
 
 	LayersInfo m_layersInfo;
-
-	std::vector<RAS_Polygon> m_polygons;
 
 	/// The mesh bounding box.
 	RAS_BoundingBox *m_boundingBox;
@@ -107,15 +145,16 @@ public:
 	virtual ~RAS_MeshObject();
 
 	// materials
-	int NumMaterials();
-	const std::string GetMaterialName(unsigned int matid);
-	const std::string GetTextureName(unsigned int matid);
+	unsigned short GetNumMaterials() const;
+	std::string GetMaterialName(unsigned int matid) const;
+	std::string GetTextureName(unsigned int matid) const;
 
 	RAS_MeshMaterial *GetMeshMaterial(unsigned int matid) const;
-	RAS_MeshMaterial *GetMeshMaterialBlenderIndex(unsigned int index);
+	RAS_MeshMaterial *GetMeshMaterialBlenderIndex(unsigned int index) const;
+	RAS_MeshMaterial *FindMaterialName(const std::string& name) const;
 
 	// name
-	std::string& GetName();
+	const std::string& GetName() const;
 
 	// original blender mesh
 	Mesh *GetMesh()
@@ -125,26 +164,12 @@ public:
 
 	// mesh construction
 	RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format);
-	void AddLine(RAS_MeshMaterial *meshmat, unsigned int v1, unsigned int v2);
-	virtual RAS_Polygon *AddPolygon(RAS_MeshMaterial *meshmat, int numverts, unsigned int indices[4],
-									bool visible, bool collider, bool twoside);
-	virtual unsigned int AddVertex(
-				RAS_MeshMaterial *meshmat,
-				const MT_Vector3& xyz,
-				const MT_Vector2 * const uvs,
-				const MT_Vector4& tangent,
-				const unsigned int *rgba,
-				const MT_Vector3& normal,
-				const bool flat,
-				const unsigned int origindex);
 
-	// vertex and polygon acces
 	RAS_IDisplayArray *GetDisplayArray(unsigned int matid) const;
-	RAS_IVertex *GetVertex(unsigned int matid, unsigned int index);
-	const float *GetVertexLocation(unsigned int orig_index);
+	RAS_IVertex *GetVertex(unsigned int matid, unsigned int index) const;
 
-	int NumPolygons();
-	RAS_Polygon *GetPolygon(int num);
+	unsigned int GetNumPolygons() const;
+	PolygonInfo GetPolygon(unsigned int index) const;
 
 	RAS_BoundingBox *GetBoundingBox() const;
 	// buckets
@@ -159,17 +184,6 @@ public:
 	 * WARNING: Always call when shader in the material are valid.
 	 */
 	void GenerateAttribLayers();
-
-	bool HasColliderPolygon();
-
-	// for construction to find shared vertices
-	struct SharedVertex
-	{
-		RAS_IDisplayArray *m_darray;
-		int m_offset;
-	};
-
-	std::vector<std::vector<SharedVertex> > m_sharedvertex_map;
 };
 
 #endif  // __RAS_MESHOBJECT_H__

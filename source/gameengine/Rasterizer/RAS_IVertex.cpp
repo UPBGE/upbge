@@ -42,8 +42,7 @@ bool operator!= (const RAS_VertexFormat& format1, const RAS_VertexFormat& format
 }
 
 RAS_VertexInfo::RAS_VertexInfo(unsigned int origindex, bool flat)
-	:m_origindex(origindex),
-	m_softBodyIndex(-1)
+	:m_origindex(origindex)
 {
 	m_flag = (flat) ? FLAT : 0;
 }

@@ -32,23 +32,44 @@
 #ifndef __BL_BLENDERDATACONVERSION_H__
 #define __BL_BLENDERDATACONVERSION_H__
 
-#include <string>
-#include "EXP_Python.h"
+#include "RAS_MeshObject.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "SCA_IInputDevice.h"
 
-class RAS_MeshObject* BL_ConvertMesh(struct Mesh* mesh,struct Object* lightobj,class KX_Scene* scene, class BL_BlenderSceneConverter& converter);
+struct Material;
+struct Mesh;
+struct DerivedMesh;
+struct Object;
+struct Main;
+class RAS_Rasterizer;
+class RAS_ICanvas;
+class KX_KetsjiEngine;
+class KX_Scene;
+class BL_BlenderSceneConverter;
 
-void BL_ConvertBlenderObjects(struct Main* maggie,
-							  class KX_Scene* kxscene,
-							  class KX_KetsjiEngine* ketsjiEngine,
-							  e_PhysicsEngine	physics_engine,
-							  class RAS_Rasterizer* rendertools,
-							  class RAS_ICanvas* canvas,
-							  class BL_BlenderSceneConverter& sceneconverter,
+struct BL_MeshMaterial
+{
+	RAS_IDisplayArray *array;
+	RAS_MaterialBucket *bucket;
+	bool visible;
+	bool twoside;
+	bool collider;
+	bool wire;
+};
+
+RAS_MeshObject *BL_ConvertMesh(Mesh *mesh, Object *lightobj, KX_Scene *scene, BL_BlenderSceneConverter& converter);
+void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<BL_MeshMaterial>& mats,
+		const RAS_MeshObject::LayersInfo& layersInfo);
+
+void BL_ConvertBlenderObjects(Main *maggie,
+							  KX_Scene *kxscene,
+							  KX_KetsjiEngine *ketsjiEngine,
+							  e_PhysicsEngine physics_engine,
+							  RAS_Rasterizer *rendertools,
+							  RAS_ICanvas *canvas,
+							  BL_BlenderSceneConverter& sceneconverter,
 							  bool alwaysUseExpandFraming,
-							  bool libloading=false
-							  );
+							  bool libloading=false);
 
 SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code);
 

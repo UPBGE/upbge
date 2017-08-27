@@ -659,7 +659,7 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
 							}
 							else {
 								// also free the mesh if it's using a tagged material
-								int mat_index = mesh->NumMaterials();
+								int mat_index = mesh->GetNumMaterials();
 								while (mat_index--) {
 									if (IS_TAGGED(mesh->GetMeshMaterial(mat_index)->GetBucket()->GetPolyMaterial()->GetBlenderMaterial())) {
 										gameobj->RemoveMeshes(); // XXX - slack, same as above

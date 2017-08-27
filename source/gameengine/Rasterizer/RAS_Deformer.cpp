@@ -29,15 +29,22 @@ RAS_Deformer::~RAS_Deformer()
 	}
 
 	for (RAS_IDisplayArray *array : m_displayArrayList) {
-		// The display array can be null for modifier deformers.
-		if (array) {
-			delete array;
-		}
+		delete array;
 	}
+}
+
+RAS_MeshObject *RAS_Deformer::GetMesh() const
+{
+	return m_mesh;
 }
 
 void RAS_Deformer::AddDisplayArray(RAS_IDisplayArray *array, RAS_DisplayArrayBucket *arrayBucket)
 {
 	m_displayArrayList.push_back(array);
 	m_displayArrayBucketList.push_back(arrayBucket);
+}
+
+RAS_IDisplayArray *RAS_Deformer::GetDisplayArray(unsigned short index) const
+{
+	return m_displayArrayList[index];
 }

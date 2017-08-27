@@ -44,7 +44,7 @@ class RAS_BatchDisplayArray : public RAS_DisplayArray<Vertex>, public RAS_IBatch
 {
 protected:
 	using RAS_DisplayArray<Vertex>::m_vertexes;
-	using RAS_DisplayArray<Vertex>::m_indices;
+	using RAS_DisplayArray<Vertex>::m_primitiveIndices;
 
 public:
 	RAS_BatchDisplayArray(RAS_IDisplayArray::PrimitiveType type, const RAS_VertexFormat& format)
@@ -77,10 +77,10 @@ public:
 	{
 		RAS_DisplayArray<Vertex> *array = dynamic_cast<RAS_DisplayArray<Vertex> *>(iarray);
 		const unsigned int vertexcount = iarray->GetVertexCount();
-		const unsigned int indexcount = iarray->GetIndexCount();
+		const unsigned int indexcount = iarray->GetPrimitiveIndexCount();
 
 		const unsigned int startvertex = m_vertexes.size();
-		const unsigned int startindex = m_indices.size();
+		const unsigned int startindex = m_primitiveIndices.size();
 
 		// Add the part info.
 		Part part;
@@ -93,7 +93,7 @@ public:
 
 		// Pre-allocate vertex list and index list.
 		m_vertexes.resize(startvertex + vertexcount);
-		m_indices.resize(startindex + indexcount);
+		m_primitiveIndices.resize(startindex + indexcount);
 
 #if 0
 		CM_Debug("Add part : " << (m_parts.size() - 1) << ", start index: " << startindex << ", index count: " << indexcount << ", start vertex: " << startvertex << ", vertex count: " << vertexcount);
@@ -114,7 +114,7 @@ public:
 
 		// Copy the indices of the merged array with as gap the first vertex index.
 		for (unsigned int i = 0; i < indexcount; ++i) {
-			m_indices[startindex + i] = (array->m_indices[i] + startvertex);
+			m_primitiveIndices[startindex + i] = (array->m_primitiveIndices[i] + startvertex);
 		}
 
 		// Update the cache to avoid accessing dangling vertex pointer from GetVertex().
@@ -136,16 +136,16 @@ public:
 		const unsigned int endvertex = startvertex + vertexcount;
 
 #ifdef DEBUG
-		CM_Debug("Move indices from " << startindex << " to " << m_indices.size() - indexcount << ", shift of " << indexcount);
+		CM_Debug("Move indices from " << startindex << " to " << m_primitiveIndices.size() - indexcount << ", shift of " << indexcount);
 #endif  // DEBUG
 
 		// Move the indices after the part to remove before of vertexcount places.
-		for (unsigned int i = startindex, size = m_indices.size() - indexcount; i < size; ++i) {
-			m_indices[i] = m_indices[i + indexcount] - vertexcount;
+		for (unsigned int i = startindex, size = m_primitiveIndices.size() - indexcount; i < size; ++i) {
+			m_primitiveIndices[i] = m_primitiveIndices[i + indexcount] - vertexcount;
 		}
 
 		// Erase the end of the index.
-		m_indices.erase(m_indices.end() - indexcount, m_indices.end());
+		m_primitiveIndices.erase(m_primitiveIndices.end() - indexcount, m_primitiveIndices.end());
 
 #ifdef DEBUG
 		CM_Debug("Remove vertexes : start vertex: " << startvertex << ", end vertex: " << endvertex);

@@ -44,9 +44,6 @@
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
 #include "RAS_BoundingBoxManager.h"
-#include "RAS_Deformer.h"
-#include "RAS_IDisplayArray.h"
-#include "RAS_Polygon.h"
 #include "KX_NavMeshObject.h"
 #include "KX_MeshProxy.h"
 #include "KX_PolyProxy.h"
@@ -3948,8 +3945,8 @@ KX_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 				{
 					KX_MeshProxy *meshProxy = new KX_MeshProxy(callback.m_hitMesh);
 					// if this field is set, then we can trust that m_hitPolygon is a valid polygon
-					RAS_Polygon* polygon = callback.m_hitMesh->GetPolygon(callback.m_hitPolygon);
-					KX_PolyProxy* polyproxy = new KX_PolyProxy(meshProxy, callback.m_hitMesh, polygon);
+					const RAS_MeshObject::PolygonInfo polygon = callback.m_hitMesh->GetPolygon(callback.m_hitPolygon);
+					KX_PolyProxy *polyproxy = new KX_PolyProxy(meshProxy, callback.m_hitMesh, polygon);
 					PyTuple_SET_ITEM(returnValue, 3, polyproxy->NewProxy(true));
 					if (poly == 2)
 					{

@@ -169,10 +169,9 @@ bool KX_MouseFocusSensor::RayHit(KX_ClientObjectInfo *client_info, KX_RayCast *r
 			if (m_bFindMaterial) {
 				for (unsigned int i = 0; i < hitKXObj->GetMeshCount(); ++i) {
 					RAS_MeshObject *meshObj = hitKXObj->GetMesh(i);
-					for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-						bFound = (m_propertyname == std::string(meshObj->GetMaterialName(j), 2));
-						if (bFound)
-							break;
+					bFound = (meshObj->FindMaterialName(m_propertyname) != nullptr);
+					if (bFound) {
+						break;
 					}
 				}
 			}
@@ -222,10 +221,9 @@ bool KX_MouseFocusSensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(
 			bool found = false;
 			for (unsigned int i = 0; i < hitKXObj->GetMeshCount(); ++i) {
 				RAS_MeshObject *meshObj = hitKXObj->GetMesh(i);
-				for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-					found = (m_propertyname == std::string(meshObj->GetMaterialName(j), 2));
-					if (found)
-						break;
+				found = (meshObj->FindMaterialName(m_propertyname) != nullptr);
+				if (found) {
+					break;
 				}
 			}
 			if (!found)
