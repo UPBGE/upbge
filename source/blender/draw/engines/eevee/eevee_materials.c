@@ -64,7 +64,7 @@
 	SHADER_IRRADIANCE
 
 /* *********** STATIC *********** */
-static EEVEE_MaterialData e_data = {NULL}; /* Engine data */
+static EEVEE_StaticMaterialData e_data = {NULL}; /* Engine data */
 
 extern char datatoc_lamps_lib_glsl[];
 extern char datatoc_lightprobe_lib_glsl[];
@@ -281,15 +281,15 @@ void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, const EEVE
 	DRW_shgroup_uniform_float(shgrp, "lodPlanarMax", &sldata->probes->lod_planar_max, 1);
 	DRW_shgroup_uniform_texture(shgrp, "utilTex", e_data.util_tex);
 	DRW_shgroup_uniform_buffer(shgrp, "probeCubes", &sldata->probe_pool);
- 	DRW_shgroup_uniform_buffer(shgrp, "probePlanars", &vedata->txl->planar_pool);
+ 	//DRW_shgroup_uniform_buffer(shgrp, "probePlanars", &vedata->txl->planar_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "irradianceGrid", &sldata->irradiance_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "shadowCubes", &sldata->shadow_depth_cube_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "shadowCascades", &sldata->shadow_depth_cascade_pool);
-	if (vedata->stl->effects && vedata->stl->effects->use_ao) {
-		DRW_shgroup_uniform_vec4(shgrp, "viewvecs[0]", (float *)vedata->stl->g_data->viewvecs, 2);
-		DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
-		DRW_shgroup_uniform_vec3(shgrp, "aoParameters", &vedata->stl->effects->ao_dist, 1);
-	}
+	//if (vedata->stl->effects && vedata->stl->effects->use_ao) {
+		//DRW_shgroup_uniform_vec4(shgrp, "viewvecs[0]", (float *)vedata->stl->g_data->viewvecs, 2);
+		//DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
+		//DRW_shgroup_uniform_vec3(shgrp, "aoParameters", &vedata->stl->effects->ao_dist, 1);
+	//}
 }
 
 static void create_default_shader(int options)
@@ -1183,7 +1183,7 @@ void EEVEE_draw_default_passes(EEVEE_PassList *psl)
 	}
 }
 
-EEVEE_MaterialData *EEVEE_material_data_get()
+EEVEE_StaticMaterialData *EEVEE_static_material_data_get()
 {
 	return &e_data;
 }

@@ -3478,6 +3478,8 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	BLI_listbase_clear(&DST.bound_texs);
 
 	DST.draw_ctx.evil_C = NULL;
+	MEM_freeN(&DST.viewport);
+	DST.viewport = NULL;
 	
 	DST.draw_ctx.scene_layer = sl;
 	DST.draw_ctx.scene = scene;
@@ -3499,11 +3501,16 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	EEVEE_StorageList *stl = GPU_viewport_storage_list_get(DST.viewport, &draw_engine_eevee_type);
 	vedata.stl = stl;
 
-	EEVEE_MaterialData *matdata = EEVEE_material_data_get();
+	/* free static datas if needed to reinitialize it after */
+	EEVEE_StaticMaterialData *matdata = EEVEE_static_material_data_get();
 	matdata->frag_shader_lib = NULL;
 	DST.draw_ctx.rv3d = NULL;
-	
-	
+	for (int i = 0; i < VAR_MAT_MAX; i++) {
+		matdata->default_lit[i] = NULL;
+	}
+	EEVEE_StaticLightData *lightdata = EEVEE_static_light_data_get();
+	EEVEE_StaticProbeData *probedata = EEVEE_static_probe_data_get();
+	EEVEE_StaticEffectData *effectdata = EEVEE_static_effect_data_get();	
 
 	draw_engine_eevee_type.engine_init(&vedata);
 	/*draw_engine_eevee_type.cache_init(&vedata);

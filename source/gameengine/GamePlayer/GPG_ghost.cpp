@@ -68,6 +68,8 @@ extern "C"
 #  include "BKE_material.h"
 #  include "BKE_text.h"
 #  include "BKE_sound.h"
+#  include "BKE_scene.h"
+#  include "BKE_layer.h"
 
 #  include "IMB_imbuf.h"
 #  include "IMB_moviecache.h"
@@ -1213,6 +1215,8 @@ int main(
 						G.main = maggie;
 						DEG_scene_relations_rebuild(maggie, scene);
 						Depsgraph *depsgraph = scene->depsgraph_legacy;
+						SceneLayer *sl = BKE_scene_layer_from_scene_get(scene);
+						BKE_layer_eval_layer_collection_pre(NULL, scene, sl);
 
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;
