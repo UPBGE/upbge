@@ -49,6 +49,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_world_types.h"
 
 #include "ED_space_api.h"
 #include "ED_screen.h"
@@ -3476,6 +3477,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 
 	BLI_listbase_clear(&DST.enabled_engines);
 	BLI_listbase_clear(&DST.bound_texs);
+	BLI_listbase_clear(&scene->world->gpumaterial);
 
 	DST.draw_ctx.evil_C = NULL;
 	MEM_freeN(&DST.viewport);
@@ -3527,16 +3529,38 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	effectdata->motion_blur_sh = NULL;
 
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
-	sldata->lamps = NULL;
-	sldata->probes = NULL;
-	sldata->probe_pool = NULL; /////////// NEED TO FREE and REINIT all of that
-	sldata->irradiance_pool = NULL;
-	//sldata->irradiance_rt = NULL;
-	//sldata->shadow_depth_cube_target = NULL;
-	sldata->shadow_depth_cube_pool = NULL;
-	sldata->shadow_depth_map_pool = NULL;
-	sldata->shadow_depth_cascade_pool = NULL;
-	//sldata->probe_rt = NULL;
+	/* Lights */
+	MEM_SAFE_FREE(sldata->lamps);
+	DRW_UBO_FREE_SAFE(sldata->light_ubo);
+	DRW_UBO_FREE_SAFE(sldata->shadow_ubo);
+	DRW_UBO_FREE_SAFE(sldata->shadow_render_ubo);
+	DRW_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cube_target_fb);
+	DRW_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cube_fb);
+	DRW_FRAMEBUFFER_FREE_SAFE(sldata->shadow_map_fb);
+	DRW_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cascade_fb);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_depth_cube_target);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_color_cube_target);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_depth_cube_pool);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_depth_map_pool);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_depth_cascade_pool);
+	BLI_freelistN(&sldata->shadow_casters);
+
+	/* Probes */
+	MEM_SAFE_FREE(sldata->probes);
+	DRW_UBO_FREE_SAFE(sldata->probe_ubo);
+	DRW_UBO_FREE_SAFE(sldata->grid_ubo);
+	DRW_UBO_FREE_SAFE(sldata->planar_ubo);
+	DRW_FRAMEBUFFER_FREE_SAFE(sldata->probe_fb);
+	DRW_FRAMEBUFFER_FREE_SAFE(sldata->probe_filter_fb);
+	DRW_TEXTURE_FREE_SAFE(sldata->probe_rt);
+	DRW_TEXTURE_FREE_SAFE(sldata->probe_pool);
+	DRW_TEXTURE_FREE_SAFE(sldata->irradiance_pool);
+	DRW_TEXTURE_FREE_SAFE(sldata->irradiance_rt);
+
+	/* Volumetrics */
+	MEM_SAFE_FREE(sldata->volumetrics);
+
+	draw_engine_eevee_type.engine_free();
 
 
 	draw_engine_eevee_type.engine_init(&vedata);
