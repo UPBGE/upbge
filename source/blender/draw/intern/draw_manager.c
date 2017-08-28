@@ -3496,6 +3496,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 
 	EEVEE_FramebufferList *fbl = GPU_viewport_framebuffer_list_get(DST.viewport);
 	vedata.fbl = fbl;
+	fbl->main = NULL;
 	EEVEE_TextureList *txl = GPU_viewport_texture_list_get(DST.viewport);
 	vedata.txl = txl;
 	vedata.txl->color = NULL;
