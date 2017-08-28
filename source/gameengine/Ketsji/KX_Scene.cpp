@@ -232,7 +232,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_eeveeData = EEVEE_engine_data_get();
 	
 	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
-	//m_dtxl = DRW_viewport_texture_list_get();
 
 	//m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, this);
 
@@ -356,11 +355,6 @@ RAS_SceneLayerData *KX_Scene::GetSceneLayerData() const
 EEVEE_Data *KX_Scene::GetEeveeData()
 {
 	return m_eeveeData;
-}
-
-DefaultTextureList *KX_Scene::GetDefaultTextureList()
-{
-	return m_dtxl;
 }
 
 RAS_BucketManager* KX_Scene::GetBucketManager() const

@@ -145,7 +145,6 @@ protected:
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
 	EEVEE_Data *m_eeveeData;
 	IDProperty *m_props;
-	DefaultTextureList *m_dtxl;
 
 	KX_TextureRendererManager *m_rendererManager;
 	RAS_BucketManager*	m_bucketmanager;
@@ -334,12 +333,11 @@ public:
 	virtual
 	~KX_Scene();
 
+	/********************** EEVEE **********************/
 	void SetSceneLayerData(RAS_SceneLayerData *layerData);
 	RAS_SceneLayerData *GetSceneLayerData() const;
 	EEVEE_Data *GetEeveeData();
-	DefaultTextureList *GetDefaultTextureList();
-
-
+	/***************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;
 	KX_TextureRendererManager *GetTextureRendererManager() const;

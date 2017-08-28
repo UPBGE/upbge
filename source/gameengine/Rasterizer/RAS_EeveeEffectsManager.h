@@ -55,7 +55,6 @@ public:
 	RAS_OffScreen *RenderDof(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	RAS_OffScreen *RenderVolumetrics(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	void UpdateAO(RAS_OffScreen *inputofs);
-	void UpdateViewVecs();
 
 private:
 	EEVEE_StorageList *m_stl;
@@ -87,7 +86,7 @@ private:
 	bool m_aoInitialized;
 
 	bool m_useVolumetricNodes; // avoid rendering volumetrics when no background nodes
-	bool m_volumetricsInitialized;
+	//bool m_volumetricsInitialized;
 };
 
 #endif // __RAS_EEVEEEFFECTSMANAGER_H__

@@ -3498,8 +3498,17 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	vedata.fbl = fbl;
 	EEVEE_TextureList *txl = GPU_viewport_texture_list_get(DST.viewport);
 	vedata.txl = txl;
+	vedata.txl->color = NULL;
+	//vedata.txl->planar_pool = NULL;
 	EEVEE_StorageList *stl = GPU_viewport_storage_list_get(DST.viewport, &draw_engine_eevee_type);
 	vedata.stl = stl;
+	vedata.stl->effects = NULL;
+	vedata.stl->g_data = NULL;
+	EEVEE_PassList *psl = GPU_viewport_pass_list_get(DST.viewport, &draw_engine_eevee_type);
+	vedata.psl = psl;
+	for (int i = 0; i < VAR_MAT_MAX; i++) {
+		vedata.psl->default_pass[i] = NULL;
+	}
 
 	/* free static datas if needed to reinitialize it after */
 	EEVEE_StaticMaterialData *matdata = EEVEE_static_material_data_get();
@@ -3509,45 +3518,35 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 		matdata->default_lit[i] = NULL;
 	}
 	EEVEE_StaticLightData *lightdata = EEVEE_static_light_data_get();
+	lightdata->shadow_sh = NULL;
 	EEVEE_StaticProbeData *probedata = EEVEE_static_probe_data_get();
-	EEVEE_StaticEffectData *effectdata = EEVEE_static_effect_data_get();	
+	probedata->probe_filter_glossy_sh = NULL;
+	//probedata->planar_pool_placeholder = NULL;
+	EEVEE_StaticEffectData *effectdata = EEVEE_static_effect_data_get();
+	effectdata->motion_blur_sh = NULL;
+
+	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
+	sldata->lamps = NULL;
+	sldata->probes = NULL;
+	sldata->probe_pool = NULL; /////////// NEED TO FREE and REINIT all of that
+	sldata->irradiance_pool = NULL;
+	//sldata->irradiance_rt = NULL;
+	//sldata->shadow_depth_cube_target = NULL;
+	sldata->shadow_depth_cube_pool = NULL;
+	sldata->shadow_depth_map_pool = NULL;
+	sldata->shadow_depth_cascade_pool = NULL;
+	//sldata->probe_rt = NULL;
+
 
 	draw_engine_eevee_type.engine_init(&vedata);
-	/*draw_engine_eevee_type.cache_init(&vedata);
+	draw_engine_eevee_type.cache_init(&vedata);
 	DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL)
 	{
 		draw_engine_eevee_type.cache_populate(&vedata, ob);
 	}
 	DEG_OBJECT_ITER_END
 
-	draw_engine_eevee_type.cache_finish(&vedata);*/
-
-	///* Init engines */
-	//DRW_engines_init();
-
-	//DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL);
-	//{
-	//	DRW_engines_cache_populate(ob);
-	//	/* XXX find a better place for this. maybe Depsgraph? */
-	//	ob->deg_update_flag = 0;
-	//}
-	//DEG_OBJECT_ITER_END
-
-	//DRW_engines_cache_finish();
-
-	///* Start Drawing */
-	//DRW_state_reset();
-	//DRW_engines_draw_background();
-
-	//DRW_draw_callbacks_pre_scene();
-
-	//DRW_engines_draw_scene();
-
-	//DRW_draw_callbacks_post_scene();
-
-	//DRW_state_reset();
-
-	//DRW_engines_draw_text();
+	draw_engine_eevee_type.cache_finish(&vedata);
 
 	DRW_state_reset();
 	DRW_engines_disable();
@@ -3555,6 +3554,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 
 void DRW_game_render_loop_end()
 {
+	draw_engine_eevee_type.engine_free();
 	memset(&DST, 0xFF, sizeof(DST));
 }
 

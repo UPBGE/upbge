@@ -44,6 +44,11 @@
 
 #include "GPU_glew.h"
 
+extern "C" {
+#  include "eevee_private.h"
+#  include "DRW_render.h"
+}
+
 KX_Camera::KX_Camera(void* sgReplicationInfo,
                      SG_Callbacks callbacks,
                      const RAS_CameraData& camdata,
@@ -93,6 +98,50 @@ void KX_Camera::ProcessReplica()
 	KX_GameObject::ProcessReplica();
 	// replicated camera are always registered in the scene
 	m_delete_node = false;
+}
+
+void KX_Camera::UpdateViewVecs(EEVEE_StorageList *stl)
+{
+	/* Update viewvecs */
+	const bool is_persp = DRW_viewport_is_persp_get();
+	float invproj[4][4], winmat[4][4];
+	/* view vectors for the corners of the view frustum.
+	* Can be used to recreate the world space position easily */
+	float viewvecs[3][4] = {
+		{ -1.0f, -1.0f, -1.0f, 1.0f },
+		{ 1.0f, -1.0f, -1.0f, 1.0f },
+		{ -1.0f, 1.0f, -1.0f, 1.0f }
+	};
+
+	/* invert the view matrix */
+	GetProjectionMatrix().getValue(&winmat[0][0]);
+	invert_m4_m4(invproj, winmat);
+
+	/* convert the view vectors to view space */
+	for (int i = 0; i < 3; i++) {
+		mul_m4_v4(invproj, viewvecs[i]);
+		/* normalized trick see:
+		* http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
+		mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][3]);
+		if (is_persp)
+			mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][2]);
+		viewvecs[i][3] = 1.0;
+	}
+
+	copy_v4_v4(stl->g_data->viewvecs[0], viewvecs[0]);
+	copy_v4_v4(stl->g_data->viewvecs[1], viewvecs[1]);
+
+	/* we need to store the differences */
+	stl->g_data->viewvecs[1][0] -= viewvecs[0][0];
+	stl->g_data->viewvecs[1][1] = viewvecs[2][1] - viewvecs[0][1];
+
+	/* calculate a depth offset as well */
+	if (!is_persp) {
+		float vec_far[] = { -1.0f, -1.0f, 1.0f, 1.0f };
+		mul_m4_v4(invproj, vec_far);
+		mul_v3_fl(vec_far, 1.0f / vec_far[3]);
+		stl->g_data->viewvecs[1][2] = vec_far[2] - viewvecs[0][2];
+	}
 }
 
 MT_Transform KX_Camera::GetWorldToCamera() const

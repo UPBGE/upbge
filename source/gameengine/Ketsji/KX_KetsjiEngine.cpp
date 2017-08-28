@@ -599,6 +599,9 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 			SceneRenderData& sceneFrameData = frameData.m_sceneDataList.back();
 
 			KX_Camera *activecam = scene->GetActiveCamera();
+			/* TEMP -> needs to be optimised */
+			activecam->UpdateViewVecs(scene->GetEeveeData()->stl);
+
 			KX_Camera *overrideCullingCam = scene->GetOverrideCullingCamera();
 			for (KX_Camera *cam : scene->GetCameraList()) {
 				if (cam != activecam && !cam->GetViewport()) {
@@ -623,7 +626,7 @@ void KX_KetsjiEngine::Render()
 
 	for (KX_Scene *scene : m_scenes) {
 		// shadow buffers
-		//RenderShadowBuffers(scene);
+		RenderShadowBuffers(scene);
 		// Render only independent texture renderers here.
 // 		scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_INDEPENDENT, m_rasterizer, nullptr, nullptr, RAS_Rect(), RAS_Rect());
 	}

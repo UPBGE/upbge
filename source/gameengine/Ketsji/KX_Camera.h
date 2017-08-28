@@ -44,6 +44,8 @@
 bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object, bool py_none_ok, const char *error_prefix);
 #endif
 
+struct EEVEE_StorageList;
+
 class KX_Camera : public KX_GameObject
 {
 	Py_Header
@@ -130,6 +132,9 @@ public:
 
 	KX_Camera(void* sgReplicationInfo,SG_Callbacks callbacks,const RAS_CameraData& camdata, bool frustum_culling = true, bool delete_node = false);
 	virtual ~KX_Camera();
+
+	/* EEVEE materials and effects needs "viewvecs" based on projection matrix */
+	void UpdateViewVecs(EEVEE_StorageList *stl);
 	
 	/** 
 	 * Inherited from CValue -- return a new copy of this

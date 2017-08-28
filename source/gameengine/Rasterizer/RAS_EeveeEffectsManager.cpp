@@ -45,8 +45,7 @@ m_canvas(canvas),
 m_props(props),
 m_scene(scene),
 m_aoInitialized(false),
-m_dofInitialized(false),
-m_volumetricsInitialized(false)
+m_dofInitialized(false)
 {
 	m_stl = vedata->stl;
 	m_psl = vedata->psl;
@@ -59,8 +58,6 @@ m_volumetricsInitialized(false)
 		GPU_RGBA16F, // RAS_HDR_HALF_FLOAT
 		GPU_RGBA32F // RAS_HDR_FULL_FLOAT
 	};
-
-	m_savedDepth = m_scene->GetDefaultTextureList()->depth;
 
 	// Bloom
 	m_bloomTarget.reset(new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, dataTypeEnums[m_canvas->GetHdrType()],
@@ -87,52 +84,6 @@ m_volumetricsInitialized(false)
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 {
 	// Restore dtxl->depth at ge exit
-	m_scene->GetDefaultTextureList()->depth = m_savedDepth;
-}
-
-void RAS_EeveeEffectsManager::UpdateViewVecs()
-{
-	/* Update viewvecs */
-	const bool is_persp = DRW_viewport_is_persp_get();
-	float invproj[4][4], winmat[4][4];
-	/* view vectors for the corners of the view frustum.
-	* Can be used to recreate the world space position easily */
-	float viewvecs[3][4] = {
-		{ -1.0f, -1.0f, -1.0f, 1.0f },
-		{ 1.0f, -1.0f, -1.0f, 1.0f },
-		{ -1.0f, 1.0f, -1.0f, 1.0f }
-	};
-
-	KX_Camera *cam = m_scene->GetActiveCamera();
-	/* invert the view matrix */
-	cam->GetProjectionMatrix().getValue(&winmat[0][0]);
-	invert_m4_m4(invproj, winmat);
-
-	/* convert the view vectors to view space */
-	for (int i = 0; i < 3; i++) {
-		mul_m4_v4(invproj, viewvecs[i]);
-		/* normalized trick see:
-		* http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
-		mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][3]);
-		if (is_persp)
-			mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][2]);
-		viewvecs[i][3] = 1.0;
-	}
-
-	copy_v4_v4(m_stl->g_data->viewvecs[0], viewvecs[0]);
-	copy_v4_v4(m_stl->g_data->viewvecs[1], viewvecs[1]);
-
-	/* we need to store the differences */
-	m_stl->g_data->viewvecs[1][0] -= viewvecs[0][0];
-	m_stl->g_data->viewvecs[1][1] = viewvecs[2][1] - viewvecs[0][1];
-
-	/* calculate a depth offset as well */
-	if (!is_persp) {
-		float vec_far[] = { -1.0f, -1.0f, 1.0f, 1.0f };
-		mul_m4_v4(invproj, vec_far);
-		mul_v3_fl(vec_far, 1.0f / vec_far[3]);
-		m_stl->g_data->viewvecs[1][2] = vec_far[2] - viewvecs[0][2];
-	}
 }
 
 void RAS_EeveeEffectsManager::InitBloom()
@@ -248,7 +199,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, 
 		KX_Camera *cam = m_scene->GetActiveCamera();
 
 		m_effects->source_buffer = inputofs->GetColorTexture();
-		m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
+		//m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
 		float camToWorld[4][4];
 		cam->GetCameraToWorld().getValue(&camToWorld[0][0]);
 		camToWorld[3][0] *= m_shutter;
@@ -287,7 +238,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderDof(RAS_Rasterizer *rasty, RAS_Off
 		float clear_col[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		m_effects->source_buffer = inputofs->GetColorTexture();
-		m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
+		//m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
 
 		/* Downsample */
 		DRW_framebuffer_bind(m_fbl->dof_down_fb);
@@ -330,11 +281,6 @@ void RAS_EeveeEffectsManager::UpdateAO(RAS_OffScreen *inputofs)
 		 * See: DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
 		 */
 		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), inputofs->GetDepthTexture());
-
-		if (!m_aoInitialized) {
-			UpdateViewVecs();
-			m_aoInitialized = true;
-		}
 	}
 }
 
@@ -342,12 +288,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty,
 {
 	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0 && m_useVolumetricNodes) {
 
-		if (!m_volumetricsInitialized) {
-			UpdateViewVecs();
-			m_volumetricsInitialized = true;
-		}
-
-		m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
+		//m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
 		EEVEE_effects_replace_e_data_depth(inputofs->GetDepthTexture());
 
 		/* Compute volumetric integration at halfres. */
