@@ -228,6 +228,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, GPU_R11F_G11F_B10F, GPU_OFFSCREEN_DEPTH_COMPARE, nullptr);
 	DRW_game_render_loop_begin(tempgpuofs, KX_GetActiveEngine()->GetDepsgraph(), m_blenderScene, sl, &draw_engine_eevee_type);
+	GPU_offscreen_free(tempgpuofs);
 
 	m_eeveeData = EEVEE_engine_data_get();
 	
