@@ -292,10 +292,11 @@ public:
 
 	/**
 	 * Kick the object's action manager
-	 * \param curtime The current time used to compute the actions frame.
+	 * \param deltatime The delta time of a frame.
+	 * \param curtime The current frame time without scene suspend time.
 	 * \param applyObject Set to true if the actions must transform this object, else it only manages actions' frames.
 	 */
-	void UpdateActionManager(float curtime, bool applyObject);
+	void UpdateActionManager(float deltatime, float curtime, float frameRate, bool applyObject);
 
 	/*********************************
 	 * End Animation API

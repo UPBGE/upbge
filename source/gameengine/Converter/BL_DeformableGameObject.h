@@ -48,7 +48,6 @@ private:
 	RAS_Deformer *m_pDeformer;
 
 	double m_lastframe;
-	short m_activePriority;
 
 public:
 	BL_DeformableGameObject(void *sgReplicationInfo, SG_Callbacks callbacks);
@@ -60,8 +59,8 @@ public:
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
 
 	double GetLastFrame() const;
+	void UpdateLastFrame(double deltatime);
 
-	bool SetActiveAction(short priority, double curtime);
 	bool GetShape(std::vector<float> &shape);
 
 	virtual void SetDeformer(RAS_Deformer *deformer);

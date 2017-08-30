@@ -146,7 +146,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_flags(AUTO_ADD_DEBUG_PROPERTIES),
 	m_frameTime(0.0f),
 	m_clockTime(0.0f),
-	m_previousAnimTime(0.0f),
 	m_timescale(1.0f),
 	m_previousRealTime(0.0f),
 	m_maxLogicFrame(5),
@@ -406,7 +405,7 @@ bool KX_KetsjiEngine::NextFrame()
 				// Scenegraph needs to be updated again, because Logic Controllers
 				// can affect the local matrices.
 				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-				scene->UpdateParents(m_frameTime);
+				scene->UpdateParents(m_frameTime); // TODO
 
 				// Process actuators
 
@@ -808,24 +807,7 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, const RA
 
 void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 {
-	if (scene->IsSuspended()) {
-		return;
-	}
-
-	// Handle the animations independently of the logic time step
-	if (m_flags & RESTRICT_ANIMATION) {
-		double anim_timestep = 1.0 / scene->GetAnimationFPS();
-		if (m_frameTime - m_previousAnimTime > anim_timestep || m_frameTime == m_previousAnimTime) {
-			// Sanity/debug print to make sure we're actually going at the fps we want (should be close to anim_timestep)
-			// CM_Debug("Anim fps: " << 1.0/(m_frameTime - m_previousAnimTime));
-			m_previousAnimTime = m_frameTime;
-			for (KX_Scene *scene : m_scenes) {
-				scene->UpdateAnimations(m_frameTime);
-			}
-		}
-	}
-	else
-		scene->UpdateAnimations(m_frameTime);
+	scene->UpdateAnimations(m_frameTime, m_anim_framerate, m_flags & RESTRICT_ANIMATION);
 }
 
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)

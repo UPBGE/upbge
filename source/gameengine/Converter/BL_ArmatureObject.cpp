@@ -210,7 +210,7 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 	:KX_GameObject(sgReplicationInfo, callbacks),
 	m_scene(scene),
 	m_lastframe(0.0),
-	m_timestep(0.040),
+	m_timestep(0.0),
 	m_vert_deform_type(vert_deform_type),
 	m_drawDebug(false),
 	m_lastapplyframe(0.0)
@@ -472,13 +472,11 @@ void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
 	game_blend_poses(m_pose, blend_pose, weight, mode);
 }
 
-bool BL_ArmatureObject::UpdateTimestep(double curtime)
+bool BL_ArmatureObject::UpdateTimestep(double deltatime)
 {
-	if (curtime != m_lastframe) {
-		// compute the timestep for the underlying IK algorithm
-		m_timestep = curtime - m_lastframe;
-		m_lastframe = curtime;
-	}
+	// compute the timestep for the underlying IK algorithm
+	m_timestep = deltatime;
+	m_lastframe += deltatime;
 
 	return false;
 }

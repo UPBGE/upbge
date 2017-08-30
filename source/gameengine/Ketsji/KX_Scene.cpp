@@ -154,6 +154,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_overrideCullingCamera(nullptr),
 	m_ueberExecutionPriority(0),
 	m_suspendeddelta(0.0),
+	m_previousAnimTime(0.0),
 	m_blenderScene(scene),
 	m_isActivedHysteresis(false),
 	m_lodHysteresisValue(0)
@@ -1497,7 +1498,6 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 	CListValue<KX_GameObject> *children;
 	bool needs_update;
 	KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData *)BLI_task_pool_userdata(pool);
-	double curtime = data->curtime;
 
 	gameobj = (KX_GameObject*)taskdata;
 
@@ -1534,7 +1534,7 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 	}
 
 	// If the object is a culled armature, then we manage only the animation time and end of its animations.
-	gameobj->UpdateActionManager(curtime, needs_update);
+	gameobj->UpdateActionManager(data->deltatime, data->curtime, data->framerate, needs_update);
 
 	if (needs_update) {
 		children = gameobj->GetChildren();
@@ -1555,9 +1555,28 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 	}
 }
 
-void KX_Scene::UpdateAnimations(double curtime)
+void KX_Scene::UpdateAnimations(double curtime, double frameRate, bool restricted)
 {
+	if (m_suspend) {
+		return;
+	}
+
+	// Manage time gap caused by scene suspending.
+	curtime -= m_suspendeddelta;
+
+	if (restricted) {
+		const double anim_timestep = 1.0 / GetAnimationFPS();
+		if (curtime - m_previousAnimTime < anim_timestep) {
+			// Sanity/debug print to make sure we're actually going at the fps we want (should be close to anim_timestep)
+			// CM_Debug("Anim fps: " << 1.0/(curtime - m_previousAnimTime));
+			return;
+		}
+	}
+
 	m_animationPoolData.curtime = curtime;
+	m_animationPoolData.deltatime = curtime - m_previousAnimTime;
+	m_animationPoolData.framerate = frameRate;
+	m_previousAnimTime = curtime;
 
 	for (KX_GameObject *gameobj : m_animatedlist) {
 		BLI_task_pool_push(m_animationPool, update_anim_thread_func, gameobj, false, TASK_PRIORITY_LOW);

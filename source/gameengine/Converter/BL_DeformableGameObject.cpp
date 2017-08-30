@@ -35,8 +35,7 @@
 BL_DeformableGameObject::BL_DeformableGameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
 	:KX_GameObject(sgReplicationInfo, callbacks),
 	m_pDeformer(nullptr),
-	m_lastframe(0.0),
-	m_activePriority(9999)
+	m_lastframe(0.0)
 {
 }
 
@@ -76,22 +75,9 @@ double BL_DeformableGameObject::GetLastFrame() const
 	return m_lastframe;
 }
 
-bool BL_DeformableGameObject::SetActiveAction(short priority, double curtime)
+void BL_DeformableGameObject::UpdateLastFrame(double deltatime)
 {
-	if (curtime != m_lastframe) {
-		m_activePriority = 9999;
-		m_lastframe = curtime;
-	}
-
-	if (priority <= m_activePriority) {
-		m_activePriority = priority;
-		m_lastframe = curtime;
-
-		return true;
-	}
-	else {
-		return false;
-	}
+	m_lastframe += deltatime;
 }
 
 bool BL_DeformableGameObject::GetShape(std::vector<float> &shape)

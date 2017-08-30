@@ -46,11 +46,9 @@ private:
 	float m_endframe;
 	/// The current action frame.
 	float m_localframe;
-	float m_starttime;
 
 	float m_blendin;
 	float m_blendframe;
-	float m_blendstart;
 
 	float m_layer_weight;
 
@@ -71,16 +69,14 @@ private:
 
 	/// Set to true when the action was updated and applied. Back to false in the IPO update (UpdateIPO).
 	bool m_requestIpo;
-	bool m_calc_localtime;
 
 	// The last update time to avoid double animation update.
 	float m_prevUpdate;
 
 	void ClearControllerList();
 	void InitIPO();
-	void SetLocalTime(float curtime);
-	void ResetStartTime(float curtime);
-	void IncrementBlending(float curtime);
+	void SetLocalTime(float curtime, float frameRate);
+	void IncrementBlending(float curtime, float frameRate);
 	void BlendShape(struct Key* key, float srcweight, std::vector<float>& blendshape);
 public:
 	BL_Action(class KX_GameObject* gameobj);
@@ -105,11 +101,12 @@ public:
 	bool IsDone();
 	/**
 	 * Update the action's frame, etc.
-	 * \param curtime The current time used to compute the action's' frame.
+	 * \param deltatime The delta time of a frame.
+	 * \param curtime The current frame time without scene suspend time.
 	 * \param applyToObject Set to true when the action must be applied to the object,
 	 * else it only manages action's' time/end.
 	 */
-	void Update(float curtime, bool applyToObject);
+	void Update(float deltatime, float curtime, float frameRate, bool applyToObject);
 	/**
 	 * Update object IPOs (note: not thread-safe!)
 	 */
