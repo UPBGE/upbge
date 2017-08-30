@@ -703,10 +703,6 @@ void CcdPhysicsEnvironment::UpdateCcdPhysicsControllerShape(CcdShapeConstruction
 	}
 }
 
-void CcdPhysicsEnvironment::BeginFrame()
-{
-}
-
 void CcdPhysicsEnvironment::DebugDrawWorld()
 {
 	if (m_dynamicsWorld->getDebugDrawer() &&  m_dynamicsWorld->getDebugDrawer()->getDebugMode() > 0)

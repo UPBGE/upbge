@@ -48,8 +48,6 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment
 public:
 	DummyPhysicsEnvironment ();
 	virtual ~DummyPhysicsEnvironment ();
-	virtual void BeginFrame();
-	virtual void EndFrame();
 // Perform an integration step of duration 'timeStep'.
 	virtual bool ProceedDeltaTime(double curTime, float timeStep, float interval);
 	virtual void SetFixedTimeStep(bool useFixedTimeStep, float fixedTimeStep);

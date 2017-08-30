@@ -45,16 +45,6 @@ DummyPhysicsEnvironment::~DummyPhysicsEnvironment()
 	//destroy physicsengine data
 }
 
-void DummyPhysicsEnvironment::BeginFrame()
-{
-	// beginning of logic frame: apply forces
-}
-
-void DummyPhysicsEnvironment::EndFrame()
-{
-	// end of logic frame: clear forces
-}
-
 bool DummyPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, float interval)
 {
 	//step physics simulation, typically perform
