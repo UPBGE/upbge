@@ -3573,6 +3573,12 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 
 	draw_engine_eevee_type.cache_finish(&vedata);
 
+	/* Refresh shadows */
+	//EEVEE_draw_shadows(sldata, psl);
+
+	/* Refresh Probes */
+	EEVEE_lightprobes_refresh(sldata, &vedata);
+
 	DRW_state_reset();
 	DRW_engines_disable();
 }
