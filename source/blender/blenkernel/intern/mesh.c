@@ -2689,6 +2689,8 @@ void BKE_mesh_batch_cache_dirty(Mesh *me, int mode)
 void BKE_mesh_batch_cache_free(Mesh *me)
 {
 	if (me->batch_cache) {
-		BKE_mesh_batch_cache_free_cb(me);
+		if (BKE_mesh_batch_cache_free_cb) {
+			BKE_mesh_batch_cache_free_cb(me);
+		}
 	}
 }
