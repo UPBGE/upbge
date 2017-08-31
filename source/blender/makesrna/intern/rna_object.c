@@ -115,6 +115,7 @@ static EnumPropertyItem collision_bounds_items[] = {
 	{OB_BOUND_CONVEX_HULL, "CONVEX_HULL", ICON_MESH_ICOSPHERE, "Convex Hull", ""},
 	{OB_BOUND_TRIANGLE_MESH, "TRIANGLE_MESH", ICON_MESH_MONKEY, "Triangle Mesh", ""},
 	{OB_BOUND_CAPSULE, "CAPSULE", ICON_MESH_CAPSULE, "Capsule", ""},
+	{OB_BOUND_EMPTY, "Empty", ICON_EMPTY_DATA, "Empty", ""},
 	/*{OB_DYN_MESH, "DYNAMIC_MESH", 0, "Dynamic Mesh", ""}, */
 	{0, NULL, 0, NULL, NULL}
 };
@@ -504,6 +505,7 @@ static EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext *UNUSED(C), 
 		RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_SPHERE);
 		RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_BOX);
 		RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_CAPSULE);
+		RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_EMPTY);
 	}
 
 	RNA_enum_item_end(&item, &totitem);

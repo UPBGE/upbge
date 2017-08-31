@@ -494,6 +494,7 @@ enum {
 	OB_BOUND_CONVEX_HULL   = 5,
 /*	OB_BOUND_DYN_MESH      = 6, */ /*UNUSED*/
 	OB_BOUND_CAPSULE       = 7,
+	OB_BOUND_EMPTY         = 8,
 };
 
 /* lod flags */
