@@ -3545,9 +3545,6 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	DRW_TEXTURE_FREE_SAFE(sldata->shadow_depth_cascade_pool);
 	BLI_freelistN(&sldata->shadow_casters);
 
-	/* Volumetrics */
-	MEM_SAFE_FREE(sldata->volumetrics);
-
 	draw_engine_eevee_type.engine_free();
 
 
