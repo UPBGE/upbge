@@ -271,7 +271,7 @@ void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, const EEVE
 	DRW_shgroup_uniform_block(shgrp, "grid_block", sldata->grid_ubo);
 	//DRW_shgroup_uniform_block(shgrp, "planar_block", sldata->planar_ubo);
 	DRW_shgroup_uniform_block(shgrp, "light_block", sldata->light_ubo);
-	//DRW_shgroup_uniform_block(shgrp, "shadow_block", sldata->shadow_ubo);
+	DRW_shgroup_uniform_block(shgrp, "shadow_block", sldata->shadow_ubo);
 	DRW_shgroup_uniform_int(shgrp, "light_count", &sldata->lamps->num_light, 1);
 	DRW_shgroup_uniform_int(shgrp, "probe_count", &sldata->probes->num_render_cube, 1);
 	DRW_shgroup_uniform_int(shgrp, "grid_count", &sldata->probes->num_render_grid, 1);
@@ -283,8 +283,8 @@ void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, const EEVE
 	DRW_shgroup_uniform_buffer(shgrp, "probeCubes", &sldata->probe_pool);
  	//DRW_shgroup_uniform_buffer(shgrp, "probePlanars", &vedata->txl->planar_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "irradianceGrid", &sldata->irradiance_pool);
-	//DRW_shgroup_uniform_buffer(shgrp, "shadowCubes", &sldata->shadow_depth_cube_pool);
-	//DRW_shgroup_uniform_buffer(shgrp, "shadowCascades", &sldata->shadow_depth_cascade_pool);
+	DRW_shgroup_uniform_buffer(shgrp, "shadowCubes", &sldata->shadow_depth_cube_pool);
+	DRW_shgroup_uniform_buffer(shgrp, "shadowCascades", &sldata->shadow_depth_cascade_pool);
 	if (vedata->stl->effects && vedata->stl->effects->use_ao) {
 		DRW_shgroup_uniform_vec4(shgrp, "viewvecs[0]", (float *)vedata->stl->g_data->viewvecs, 2);
 		DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
