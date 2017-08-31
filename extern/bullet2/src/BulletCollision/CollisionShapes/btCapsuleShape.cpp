@@ -24,6 +24,8 @@ btCapsuleShape::btCapsuleShape(btScalar radius, btScalar height) : btConvexInter
 	m_shapeType = CAPSULE_SHAPE_PROXYTYPE;
 	m_upAxis = 1;
 	m_implicitShapeDimensions.setValue(radius,0.5f*height,radius);
+	btVector3 margin(getMargin(),getMargin(),getMargin());
+	m_implicitShapeDimensions -= margin;
 }
 
  
@@ -53,9 +55,9 @@ btCapsuleShape::btCapsuleShape(btScalar radius, btScalar height) : btConvexInter
 
 	{
 		btVector3 pos(0,0,0);
-		pos[getUpAxis()] = getHalfHeight();
+		pos[getUpAxis()] = getExtend();
 
-		vtx = pos +vec*(radius) - vec * getMargin();
+		vtx = pos +vec*(radius);
 		newDot = vec.dot(vtx);
 		if (newDot > maxDot)
 		{
@@ -65,9 +67,9 @@ btCapsuleShape::btCapsuleShape(btScalar radius, btScalar height) : btConvexInter
 	}
 	{
 		btVector3 pos(0,0,0);
-		pos[getUpAxis()] = -getHalfHeight();
+		pos[getUpAxis()] = -getExtend();
 
-		vtx = pos +vec*(radius) - vec * getMargin();
+		vtx = pos +vec*(radius);
 		newDot = vec.dot(vtx);
 		if (newDot > maxDot)
 		{
@@ -95,8 +97,8 @@ btCapsuleShape::btCapsuleShape(btScalar radius, btScalar height) : btConvexInter
 		btScalar newDot;
 		{
 			btVector3 pos(0,0,0);
-			pos[getUpAxis()] = getHalfHeight();
-			vtx = pos +vec*(radius) - vec * getMargin();
+			pos[getUpAxis()] = getExtend();
+			vtx = pos +vec*(radius);
 			newDot = vec.dot(vtx);
 			if (newDot > maxDot)
 			{
@@ -106,8 +108,8 @@ btCapsuleShape::btCapsuleShape(btScalar radius, btScalar height) : btConvexInter
 		}
 		{
 			btVector3 pos(0,0,0);
-			pos[getUpAxis()] = -getHalfHeight();
-			vtx = pos +vec*(radius) - vec * getMargin();
+			pos[getUpAxis()] = -getExtend();
+			vtx = pos +vec*(radius);
 			newDot = vec.dot(vtx);
 			if (newDot > maxDot)
 			{
@@ -131,9 +133,9 @@ void	btCapsuleShape::calculateLocalInertia(btScalar mass,btVector3& inertia) con
 	btScalar radius = getRadius();
 
 	btVector3 halfExtents(radius,radius,radius);
-	halfExtents[getUpAxis()]+=getHalfHeight();
+	halfExtents[getUpAxis()]+=getExtend();
 
-	btScalar margin = CONVEX_DISTANCE_MARGIN;
+	btScalar margin = getMargin();
 
 	btScalar lx=btScalar(2.)*(halfExtents[0]+margin);
 	btScalar ly=btScalar(2.)*(halfExtents[1]+margin);
@@ -153,6 +155,8 @@ btCapsuleShapeX::btCapsuleShapeX(btScalar radius,btScalar height)
 {
 	m_upAxis = 0;
 	m_implicitShapeDimensions.setValue(0.5f*height, radius,radius);
+	btVector3 margin(getMargin(),getMargin(),getMargin());
+	m_implicitShapeDimensions -= margin;
 }
 
 
@@ -164,6 +168,8 @@ btCapsuleShapeZ::btCapsuleShapeZ(btScalar radius,btScalar height)
 {
 	m_upAxis = 2;
 	m_implicitShapeDimensions.setValue(radius,radius,0.5f*height);
+	btVector3 margin(getMargin(),getMargin(),getMargin());
+	m_implicitShapeDimensions -= margin;
 }
 
 
