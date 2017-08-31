@@ -55,13 +55,12 @@ public:
 		btConvexInternalShape::setMargin(collisionMargin);
 		btVector3 newMargin(getMargin(),getMargin(),getMargin());
 		m_implicitShapeDimensions = implicitShapeDimensionsWithMargin - newMargin;
-
 	}
 
 	virtual void getAabb (const btTransform& t, btVector3& aabbMin, btVector3& aabbMax) const
 	{
 			btVector3 halfExtents(getRadius(),getRadius(),getRadius());
-			halfExtents[m_upAxis] = getRadius() + getHalfHeight();
+			halfExtents[m_upAxis] += getExtend();
 			halfExtents += btVector3(getMargin(),getMargin(),getMargin());
 			btMatrix3x3 abs_b = t.getBasis().absolute();  
 			btVector3 center = t.getOrigin();
@@ -92,16 +91,27 @@ public:
 		return m_implicitShapeDimensions[m_upAxis];
 	}
 
+	btScalar getExtend() const
+	{
+		return getHalfHeight() - getRadius();
+	}
+
 	virtual void	setLocalScaling(const btVector3& scaling)
 	{
-		btVector3 oldMargin(getMargin(),getMargin(),getMargin());
-		btVector3 implicitShapeDimensionsWithMargin = m_implicitShapeDimensions+oldMargin;
-		btVector3 unScaledImplicitShapeDimensionsWithMargin = implicitShapeDimensionsWithMargin / m_localScaling;
+		const unsigned short r1 = (m_upAxis + 1) % 3;
+		const unsigned short r2 = (m_upAxis + 2) % 3;
 
+		const float margin = getMargin();
+		const float halfHeight = m_implicitShapeDimensions[m_upAxis];
+		float radius = m_implicitShapeDimensions[r2];
+		float radiusWithMargin = radius + margin;
+		const float halfHeightWithMargin = halfHeight + margin;
+
+		const btVector3 scaleRatio = scaling / m_localScaling;
+		m_implicitShapeDimensions[r2] = radiusWithMargin * (scaleRatio[r1] + scaleRatio[r2]) / 2.0f - margin;
+
+		m_implicitShapeDimensions[m_upAxis] = halfHeightWithMargin * scaleRatio[m_upAxis] - margin;
 		btConvexInternalShape::setLocalScaling(scaling);
-
-		m_implicitShapeDimensions = (unScaledImplicitShapeDimensionsWithMargin * m_localScaling) - oldMargin;
-
 	}
 
 	virtual btVector3	getAnisotropicRollingFrictionDirection() const

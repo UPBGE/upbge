@@ -1303,10 +1303,10 @@ void btCollisionWorld::debugDrawObject(const btTransform& worldTransform, const 
                 const btCapsuleShape* capsuleShape = static_cast<const btCapsuleShape*>(shape);
 
                 btScalar radius = capsuleShape->getRadius();
-                btScalar halfHeight = capsuleShape->getHalfHeight();
+                btScalar extend = capsuleShape->getExtend();
 
                 int upAxis = capsuleShape->getUpAxis();
-                getDebugDrawer()->drawCapsule(radius, halfHeight, upAxis, worldTransform, color);
+                getDebugDrawer()->drawCapsule(radius, extend, upAxis, worldTransform, color);
                 break;
             }
         case CONE_SHAPE_PROXYTYPE:

@@ -227,7 +227,7 @@ btVector3 btConvexShape::localGetSupportVertexWithoutMarginNonVirtual (const btV
 		btVector3 vec0(localDir.getX(),localDir.getY(),localDir.getZ());
 
 		btCapsuleShape* capsuleShape = (btCapsuleShape*)this;
-		btScalar halfHeight = capsuleShape->getHalfHeight();
+		btScalar extend = capsuleShape->getExtend();
 		int capsuleUpAxis = capsuleShape->getUpAxis();
 
 		btScalar radius = capsuleShape->getRadius();
@@ -249,10 +249,9 @@ btVector3 btConvexShape::localGetSupportVertexWithoutMarginNonVirtual (const btV
 		btScalar newDot;
 		{
 			btVector3 pos(0,0,0);
-			pos[capsuleUpAxis] = halfHeight;
+			pos[capsuleUpAxis] = extend;
 
-			//vtx = pos +vec*(radius);
-			vtx = pos +vec*(radius) - vec * capsuleShape->getMarginNV();
+			vtx = pos +vec*(radius);
 			newDot = vec.dot(vtx);
 			
 
@@ -264,10 +263,9 @@ btVector3 btConvexShape::localGetSupportVertexWithoutMarginNonVirtual (const btV
 		}
 		{
 			btVector3 pos(0,0,0);
-			pos[capsuleUpAxis] = -halfHeight;
+			pos[capsuleUpAxis] = -extend;
 
-			//vtx = pos +vec*(radius);
-			vtx = pos +vec*(radius) - vec * capsuleShape->getMarginNV();
+			vtx = pos +vec*(radius);
 			newDot = vec.dot(vtx);
 			if (newDot > maxDot)
 			{
@@ -426,7 +424,7 @@ void btConvexShape::getAabbNonVirtual (const btTransform& t, btVector3& aabbMin,
 		btCapsuleShape* capsuleShape = (btCapsuleShape*)this;
 		btVector3 halfExtents(capsuleShape->getRadius(),capsuleShape->getRadius(),capsuleShape->getRadius());
 		int m_upAxis = capsuleShape->getUpAxis();
-		halfExtents[m_upAxis] = capsuleShape->getRadius() + capsuleShape->getHalfHeight();
+		halfExtents[m_upAxis] += capsuleShape->getExtend();
 		halfExtents += btVector3(capsuleShape->getMarginNonVirtual(),capsuleShape->getMarginNonVirtual(),capsuleShape->getMarginNonVirtual());
 		btMatrix3x3 abs_b = t.getBasis().absolute();  
 		btVector3 center = t.getOrigin();
