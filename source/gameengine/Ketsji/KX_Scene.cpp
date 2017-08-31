@@ -1690,28 +1690,6 @@ int KX_Scene::GetLodHysteresisValue(void)
 
 void KX_Scene::UpdateObjectActivity(void) 
 {
-	if (m_activity_culling) {
-		/* determine the activity criterium and set objects accordingly */
-		MT_Vector3 camloc = GetActiveCamera()->NodeGetWorldPosition(); //GetCameraLocation();
-
-		for (KX_GameObject *ob : *m_objectlist) {
-			if (!ob->GetIgnoreActivityCulling()) {
-				/* Simple test: more than 10 away from the camera, count
-				 * Manhattan distance. */
-				MT_Vector3 obpos = ob->NodeGetWorldPosition();
-				
-				if ((fabsf(camloc[0] - obpos[0]) > m_activity_box_radius) ||
-				    (fabsf(camloc[1] - obpos[1]) > m_activity_box_radius) ||
-				    (fabsf(camloc[2] - obpos[2]) > m_activity_box_radius) )
-				{
-					ob->Suspend();
-				}
-				else {
-					ob->Resume();
-				}
-			}
-		}
-	}
 }
 
 void KX_Scene::SetActivityCullingRadius(float f)
