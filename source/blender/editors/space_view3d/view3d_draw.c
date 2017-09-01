@@ -1863,7 +1863,7 @@ static void view3d_draw_view(const bContext *C, ARegion *ar)
 	ED_view3d_draw_setup_view(CTX_wm_window(C), CTX_data_scene(C), ar, CTX_wm_view3d(C), NULL, NULL, NULL);
 
 	/* Only 100% compliant on new spec goes bellow */
-	DRW_draw_view(C, true);
+	DRW_draw_view(C);
 }
 
 void view3d_main_region_draw(const bContext *C, ARegion *ar)

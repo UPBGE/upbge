@@ -3087,7 +3087,7 @@ static void DRW_debug_gpu_stats(void)
 /* Everything starts here.
  * This function takes care of calling all cache and rendering functions
  * for each relevant engine / mode engine. */
-void DRW_draw_view(const bContext *C, bool freeDST)
+void DRW_draw_view(const bContext *C)
 {
 	struct Depsgraph *graph = CTX_data_depsgraph(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -3095,7 +3095,7 @@ void DRW_draw_view(const bContext *C, bool freeDST)
 
 	/* Reset before using it. */
 	memset(&DST, 0x0, sizeof(DST));
-	DRW_draw_render_loop_ex(graph, ar, v3d, C, freeDST);
+	DRW_draw_render_loop_ex(graph, ar, v3d, C);
 }
 
 /**
@@ -3105,7 +3105,7 @@ void DRW_draw_view(const bContext *C, bool freeDST)
 void DRW_draw_render_loop_ex(
         struct Depsgraph *graph,
         ARegion *ar, View3D *v3d,
-        const bContext *evil_C, bool freeDST)
+        const bContext *evil_C)
 {
 	Scene *scene = DEG_get_evaluated_scene(graph);
 	SceneLayer *sl = DEG_get_evaluated_scene_layer(graph);
@@ -3194,17 +3194,17 @@ void DRW_draw_render_loop_ex(
 
 #ifdef DEBUG
 	/* Avoid accidental reuse. */
-	if (freeDST) memset(&DST, 0xFF, sizeof(DST));
+	memset(&DST, 0xFF, sizeof(DST));
 #endif
 }
 
 void DRW_draw_render_loop(
         struct Depsgraph *graph,
-        ARegion *ar, View3D *v3d, bool freeDST)
+        ARegion *ar, View3D *v3d)
 {
 	/* Reset before using it. */
 	memset(&DST, 0x0, sizeof(DST));
-	DRW_draw_render_loop_ex(graph, ar, v3d, NULL, freeDST);
+	DRW_draw_render_loop_ex(graph, ar, v3d, NULL);
 }
 
 void DRW_draw_render_loop_offscreen(
@@ -3223,7 +3223,7 @@ void DRW_draw_render_loop_offscreen(
 	/* Reset before using it. */
 	memset(&DST, 0x0, sizeof(DST));
 	DST.options.is_image_render = true;
-	DRW_draw_render_loop_ex(graph, ar, v3d, NULL, true);
+	DRW_draw_render_loop_ex(graph, ar, v3d, NULL);
 
 	/* restore */
 	{

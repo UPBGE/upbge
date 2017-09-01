@@ -65,15 +65,15 @@ void DRW_engine_viewport_data_size_get(
         const void *engine_type,
         int *r_fbl_len, int *r_txl_len, int *r_psl_len, int *r_stl_len);
 
-void DRW_draw_view(const struct bContext *C, bool freeDST);
+void DRW_draw_view(const struct bContext *C);
 
 void DRW_draw_render_loop_ex(
         struct Depsgraph *graph,
         struct ARegion *ar, struct View3D *v3d,
-        const struct bContext *evil_C, bool freeDST); // For bge we need to access DST data
+        const struct bContext *evil_C);
 void DRW_draw_render_loop(
         struct Depsgraph *graph,
-        struct ARegion *ar, struct View3D *v3d, bool freeDST);
+        struct ARegion *ar, struct View3D *v3d);
 void DRW_draw_render_loop_offscreen(
         struct Depsgraph *graph,
         struct ARegion *ar, struct View3D *v3d,
