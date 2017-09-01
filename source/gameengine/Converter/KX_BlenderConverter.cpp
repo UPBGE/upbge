@@ -145,6 +145,11 @@ KX_BlenderConverter::~KX_BlenderConverter()
 	BLI_task_pool_free(m_threadinfo.m_pool);
 }
 
+Main *KX_BlenderConverter::GetMain()
+{
+	return m_maggie;
+}
+
 Scene *KX_BlenderConverter::GetBlenderSceneForName(const std::string &name)
 {
 	Scene *sce;

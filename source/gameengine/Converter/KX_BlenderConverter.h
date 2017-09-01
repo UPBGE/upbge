@@ -129,6 +129,7 @@ public:
 	Scene *GetBlenderSceneForName(const std::string& name);
 	CListValue<CStringValue> *GetInactiveSceneNames();
 
+	Main *GetMain();
 	Main *CreateMainDynamic(const std::string& path);
 	Main *GetMainDynamicPath(const std::string& path) const;
 	const std::vector<Main *> &GetMainDynamic() const;

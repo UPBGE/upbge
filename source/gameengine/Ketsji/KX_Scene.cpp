@@ -114,6 +114,8 @@
 extern "C" {
 #  include "DRW_engine.h"
 #  include "BKE_layer.h"
+#  include "BKE_camera.h"
+#  include "BKE_main.h"
 }
 
 static void *KX_SceneReplicationFunc(SG_Node* node,void* gameobj,void* scene)
@@ -226,8 +228,12 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	SceneLayer *sl = BKE_scene_layer_from_scene_get(m_blenderScene);
 
+	Object *maincam = (Object *)KX_GetActiveEngine()->GetConverter()->GetMain()->camera.first;
+
 	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, GPU_R11F_G11F_B10F, GPU_OFFSCREEN_DEPTH_COMPARE, nullptr);
-	DRW_game_render_loop_begin(tempgpuofs, KX_GetActiveEngine()->GetDepsgraph(), m_blenderScene, sl, &draw_engine_eevee_type);
+	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
+	DRW_game_render_loop_begin(tempgpuofs, KX_GetActiveEngine()->GetDepsgraph(), m_blenderScene,
+		sl, maincam, viewportsize);
 	GPU_offscreen_free(tempgpuofs);
 
 	m_eeveeData = EEVEE_engine_data_get();

@@ -37,6 +37,7 @@
 #include "BKE_object.h"
 #include "BKE_pbvh.h"
 #include "BKE_paint.h"
+#include "BKE_camera.h"
 
 #include "BLT_translation.h"
 #include "BLF_api.h"
@@ -2427,32 +2428,6 @@ static void DRW_viewport_var_init(void)
 	glFrontFace(DST.frontface);
 }
 
-static void DRW_viewport_var_init_bge(void)
-{
-	RegionView3D *rv3d = DST.draw_ctx.rv3d;
-
-	DRW_viewport_size_init();
-
-	float dummyvec[3] = { 1.0f, 1.0f, 1.0f };
-
-	/* Refresh DST.screenvecs */
-	copy_v3_v3(DST.screenvecs[0], dummyvec);
-	copy_v3_v3(DST.screenvecs[1], dummyvec);
-	normalize_v3(DST.screenvecs[0]);
-	normalize_v3(DST.screenvecs[1]);
-
-	/* Refresh DST.pixelsize */
-	DST.pixsize = 0.1;
-
-	/* Refresh DST.is_persp */
-	DST.is_persp = true;
-
-	/* Reset facing */
-	DST.frontface = GL_CCW;
-	DST.backface = GL_CW;
-	glFrontFace(DST.frontface);
-}
-
 void DRW_viewport_size_init(void)
 {
 	/* Refresh DST.size */
@@ -3471,7 +3446,42 @@ void DRW_draw_depth_loop(
 }
 /** \} */
 
-void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scene, SceneLayer *sl, void *engine)
+static void game_camera_border(
+	const Scene *scene, const ARegion *ar, const View3D *v3d, const RegionView3D *rv3d,
+	rctf *r_viewborder, const bool no_shift, const bool no_zoom)
+{
+	CameraParams params;
+	rctf rect_view, rect_camera;
+
+	/* get viewport viewplane */
+	BKE_camera_params_init(&params);
+	BKE_camera_params_from_view3d(&params, v3d, rv3d);
+	if (no_zoom)
+		params.zoom = 1.0f;
+	BKE_camera_params_compute_viewplane(&params, ar->winx, ar->winy, 1.0f, 1.0f);
+	rect_view = params.viewplane;
+
+	/* get camera viewplane */
+	BKE_camera_params_init(&params);
+	/* fallback for non camera objects */
+	params.clipsta = v3d->near;
+	params.clipend = v3d->far;
+	BKE_camera_params_from_object(&params, v3d->camera);
+	if (no_shift) {
+		params.shiftx = 0.0f;
+		params.shifty = 0.0f;
+	}
+	BKE_camera_params_compute_viewplane(&params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
+	rect_camera = params.viewplane;
+
+	/* get camera border within viewport */
+	r_viewborder->xmin = ((rect_camera.xmin - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
+	r_viewborder->xmax = ((rect_camera.xmax - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
+	r_viewborder->ymin = ((rect_camera.ymin - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
+	r_viewborder->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
+}
+
+void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scene, SceneLayer *sl, Object *maincam, int viewportsize[2])
 {
 	memset(&DST, 0xFF, sizeof(DST));
 
@@ -3492,7 +3502,32 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 
 	GPU_viewport_engine_data_create(DST.viewport, &draw_engine_eevee_type);
 
-	DRW_viewport_var_init_bge();
+	ARegion ar;
+	ar.winx = viewportsize[0];
+	ar.winy = viewportsize[1];
+
+	View3D v3d;
+	Object *obcam = scene->camera ? scene->camera : maincam;
+	Camera *cam = (Camera *)obcam;
+	v3d.camera = obcam;
+	v3d.lens = cam->lens;
+	v3d.near = cam->clipsta;
+	v3d.far = cam->clipend;
+
+	RegionView3D rv3d;
+	rv3d.camdx = 0.0f;
+	rv3d.camdy = 0.0f;
+	rv3d.camzoom = 0.0f;
+	rv3d.persp = RV3D_CAMOB;
+	rctf cameraborder;
+	game_camera_border(scene, &ar, &v3d, &rv3d, &cameraborder, false, false);
+	rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
+
+	DST.draw_ctx.ar = &ar;
+	DST.draw_ctx.v3d = &v3d;
+	DST.draw_ctx.rv3d = &rv3d;
+
+	DRW_viewport_var_init();
 
 	EEVEE_Data vedata;
 
@@ -3545,6 +3580,9 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	DRW_TEXTURE_FREE_SAFE(sldata->shadow_depth_cascade_pool);
 	BLI_freelistN(&sldata->shadow_casters);
 
+	/* Volumetrics */
+	MEM_SAFE_FREE(sldata->volumetrics);
+
 	draw_engine_eevee_type.engine_free();
 
 
@@ -3556,7 +3594,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	}
 	DEG_OBJECT_ITER_END
 
-	draw_engine_eevee_type.cache_finish(&vedata);
+		draw_engine_eevee_type.cache_finish(&vedata);
 
 	/* Refresh shadows */
 	EEVEE_draw_shadows(sldata, psl);
