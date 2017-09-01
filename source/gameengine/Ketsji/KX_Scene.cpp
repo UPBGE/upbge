@@ -116,6 +116,34 @@ extern "C" {
 #  include "BKE_layer.h"
 #  include "BKE_camera.h"
 #  include "BKE_main.h"
+#  include "BKE_idprop.h"
+# include "MEM_guardedalloc.h"
+}
+
+static void idproperty_reset(IDProperty **props, IDProperty *props_ref)
+{
+	IDPropertyTemplate val = { 0 };
+
+	if (*props) {
+		IDP_FreeProperty(*props);
+		MEM_freeN(*props);
+	}
+	*props = IDP_New(IDP_GROUP, &val, ROOT_PROP);
+
+	if (props_ref) {
+		IDP_MergeGroup(*props, props_ref, true);
+	}
+}
+
+static void InitProperties(SceneLayer *scene_layer, Scene *scene)
+{
+	for (Base *base = (Base *)scene_layer->object_bases.first; base != NULL; base = base->next) {
+		idproperty_reset(&base->collection_properties, scene->collection_properties);
+	}
+
+	/* Sync properties from scene to scene layer. */
+	idproperty_reset(&scene_layer->properties_evaluated, scene->layer_properties);
+	IDP_MergeGroup(scene_layer->properties_evaluated, scene_layer->properties, true);
 }
 
 static void *KX_SceneReplicationFunc(SG_Node* node,void* gameobj,void* scene)
@@ -156,7 +184,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 				   const std::string& sceneName,
 				   Scene *scene,
 				   class RAS_ICanvas* canvas,
-				   KX_NetworkMessageManager *messageManager): 
+				   KX_NetworkMessageManager *messageManager) :
 	CValue(),
 	m_keyboardmgr(nullptr),
 	m_mousemgr(nullptr),
@@ -169,7 +197,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_blenderScene(scene),
 	m_isActivedHysteresis(false),
 	m_lodHysteresisValue(0),
-	m_effectsManager(nullptr)
+	m_effectsManager(nullptr),
+	m_eeveeData(nullptr)
 {
 
 	m_dbvt_culling = false;
@@ -227,18 +256,18 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
 	SceneLayer *sl = BKE_scene_layer_from_scene_get(m_blenderScene);
+	InitProperties(sl, m_blenderScene);
+	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 
-	Object *maincam = (Object *)KX_GetActiveEngine()->GetConverter()->GetMain()->camera.first;
+	Object *maincam = m_blenderScene->camera ? (Object *)m_blenderScene->camera : (Object *)KX_GetActiveEngine()->GetConverter()->GetMain()->camera.first;
 
 	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, GPU_R11F_G11F_B10F, GPU_OFFSCREEN_DEPTH_COMPARE, nullptr);
 	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
 	DRW_game_render_loop_begin(tempgpuofs, KX_GetActiveEngine()->GetDepsgraph(), m_blenderScene,
 		sl, maincam, viewportsize);
 	GPU_offscreen_free(tempgpuofs);
-
-	m_eeveeData = EEVEE_engine_data_get();
 	
-	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+	m_eeveeData = EEVEE_engine_data_get();
 
 	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, this);
 
@@ -2018,9 +2047,9 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 	return m_filterManager;
 }
 
-RAS_OffScreen *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+RAS_OffScreen *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs, bool isLastScene)
 {
-	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs);
+	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs, isLastScene);
 }
 
 RAS_OffScreen *KX_Scene::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)

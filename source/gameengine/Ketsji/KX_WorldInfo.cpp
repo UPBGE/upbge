@@ -221,9 +221,15 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 {
 	if (m_hasworld) {
 		if (m_world->use_nodes && m_world->nodetree) {
+			rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
+			rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
+			rasty->SetDepthFunc(RAS_Rasterizer::RAS_ALWAYS);
 
 			DRW_bind_shader_shgroup(m_backgroundShGroup);
 			rasty->DrawOverlayPlane();
+
+			rasty->SetDepthFunc(RAS_Rasterizer::RAS_LEQUAL);
+			rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);
 		}
 		else {
 			rasty->SetClearColor(m_horizoncolor[0], m_horizoncolor[1], m_horizoncolor[2], m_horizoncolor[3]);

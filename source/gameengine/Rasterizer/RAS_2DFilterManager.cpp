@@ -83,11 +83,11 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 	return (it != m_filters.end()) ? it->second : nullptr;
 }
 
-RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs, bool isLastScene)
 {
 	if (m_filters.size() == 0 || !m_toneMapAdded) {
 		// No filters, discard.
-		if (!m_toneMapAdded) { // TODO define builtin filters.
+		if (!m_toneMapAdded && isLastScene) { // TODO define builtin filters.
 			RAS_2DFilterData toneMapData;
 			toneMapData.filterMode = RAS_2DFilterManager::FILTER_TONEMAP;
 			toneMapData.filterPassIndex = m_filters.size() + 1;

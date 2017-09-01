@@ -629,32 +629,6 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 
 #endif  // WITH_GAMEENGINE_BPPLAYER
 
-static void idproperty_reset(IDProperty **props, IDProperty *props_ref)
-{
-	IDPropertyTemplate val = { 0 };
-
-	if (*props) {
-		IDP_FreeProperty(*props);
-		MEM_freeN(*props);
-	}
-	*props = IDP_New(IDP_GROUP, &val, ROOT_PROP);
-
-	if (props_ref) {
-		IDP_MergeGroup(*props, props_ref, true);
-	}
-}
-
-static void InitProperties(SceneLayer *scene_layer, Scene *scene)
-{
-	for (Base *base = (Base *)scene_layer->object_bases.first; base != NULL; base = base->next) {
-		idproperty_reset(&base->collection_properties, scene->collection_properties);
-	}
-
-	/* Sync properties from scene to scene layer. */
-	idproperty_reset(&scene_layer->properties_evaluated, scene->layer_properties);
-	IDP_MergeGroup(scene_layer->properties_evaluated, scene_layer->properties, true);
-}
-
 int main(
 	int argc,
 #ifdef WIN32
@@ -1242,8 +1216,6 @@ int main(
 						G.main = maggie;
 						DEG_scene_relations_rebuild(maggie, scene);
 						Depsgraph *depsgraph = scene->depsgraph_legacy;
-						SceneLayer *sl = BKE_scene_layer_from_scene_get(scene);
-						InitProperties(sl, scene);
 
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;

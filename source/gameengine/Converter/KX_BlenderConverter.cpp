@@ -189,9 +189,9 @@ void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_Rasterize
 
 	// Find out which physics engine
 	Scene *blenderscene = destinationscene->GetBlenderScene();
-
-	blenderscene->depsgraph_legacy = m_depsgraph;
+	
 	DEG_scene_relations_rebuild(m_maggie, blenderscene);
+	m_depsgraph = blenderscene->depsgraph_legacy;
 
 	PHY_IPhysicsEnvironment *phy_env = nullptr;
 
