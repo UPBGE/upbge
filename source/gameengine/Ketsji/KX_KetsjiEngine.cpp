@@ -702,8 +702,8 @@ void KX_KetsjiEngine::Render()
 			}
 
 			// Render EEVEE effects before tonemapping and custom filters
-			//offScreen = PostRenderEevee(scene, offScreen);
-			//target = RAS_Rasterizer::NextRenderOffScreen(offScreen->GetType());
+			offScreen = PostRenderEevee(scene, offScreen);
+			target = RAS_Rasterizer::NextRenderOffScreen(offScreen->GetType());
 			// Render filters and get output off screen.
 			offScreen = PostRenderScene(scene, offScreen, m_rasterizer->GetOffScreen(target));
 			frameData.m_ofsType = offScreen->GetType();

@@ -240,7 +240,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	
 	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 
-	//m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, this);
+	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, this);
 
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;

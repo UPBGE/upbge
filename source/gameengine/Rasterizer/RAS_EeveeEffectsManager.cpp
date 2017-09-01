@@ -53,6 +53,8 @@ m_dofInitialized(false)
 	m_fbl = vedata->fbl;
 	m_effects = m_stl->effects;
 
+	m_savedDepth = DRW_viewport_texture_list_get()->depth;
+
 	static const GPUTextureFormat dataTypeEnums[] = {
 		GPU_R11F_G11F_B10F, // RAS_HDR_NONE
 		GPU_RGBA16F, // RAS_HDR_HALF_FLOAT
@@ -84,6 +86,7 @@ m_dofInitialized(false)
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 {
 	// Restore dtxl->depth at ge exit
+	DRW_viewport_texture_list_get()->depth = m_savedDepth;
 }
 
 void RAS_EeveeEffectsManager::InitBloom()
@@ -199,7 +202,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, 
 		KX_Camera *cam = m_scene->GetActiveCamera();
 
 		m_effects->source_buffer = inputofs->GetColorTexture();
-		//m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
+		DRW_viewport_texture_list_get()->depth = inputofs->GetDepthTexture();
 		float camToWorld[4][4];
 		cam->GetCameraToWorld().getValue(&camToWorld[0][0]);
 		camToWorld[3][0] *= m_shutter;
@@ -238,7 +241,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderDof(RAS_Rasterizer *rasty, RAS_Off
 		float clear_col[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		m_effects->source_buffer = inputofs->GetColorTexture();
-		//m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
+		DRW_viewport_texture_list_get()->depth = inputofs->GetDepthTexture();
 
 		/* Downsample */
 		DRW_framebuffer_bind(m_fbl->dof_down_fb);
@@ -288,7 +291,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty,
 {
 	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0 && m_useVolumetricNodes) {
 
-		//m_scene->GetDefaultTextureList()->depth = inputofs->GetDepthTexture();
+		DRW_viewport_texture_list_get()->depth = inputofs->GetDepthTexture();
 		EEVEE_effects_replace_e_data_depth(inputofs->GetDepthTexture());
 
 		/* Compute volumetric integration at halfres. */
