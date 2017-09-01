@@ -34,7 +34,6 @@
 #include "BL_ActionActuator.h"
 #include "BL_ArmatureObject.h"
 #include "BL_SkinDeformer.h"
-#include "BL_Action.h"
 #include "BL_ActionManager.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
@@ -83,9 +82,7 @@ BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
 	m_flag(0),
 	m_startframe (starttime),
 	m_endframe(endtime) ,
-	m_starttime(0),
 	m_localtime(starttime),
-	m_lastUpdate(-1),
 	m_blendin(blendin),
 	m_blendstart(0),
 	m_stridelength(stride),
@@ -111,54 +108,7 @@ void BL_ActionActuator::ProcessReplica()
 {
 	SCA_IActuator::ProcessReplica();
 
-	m_localtime=m_startframe;
-	m_lastUpdate=-1;
-	
-}
-
-void BL_ActionActuator::SetLocalTime(float curtime)
-{
-	float dt = (curtime - m_starttime) * KX_GetActiveEngine()->GetAnimFrameRate();
-
-	if (m_endframe < m_startframe)
-		dt = -dt;
-
-	m_localtime = m_startframe + dt;
-	
-	// Handle wrap around
-	if (m_localtime < std::min(m_startframe, m_endframe) || m_localtime > std::max(m_startframe, m_endframe))
-	{
-		switch (m_playtype) {
-		case ACT_ACTION_PLAY:
-			// Clamp
-			m_localtime = m_endframe;
-			break;
-		case ACT_ACTION_LOOP_END:
-			// Put the time back to the beginning
-			m_localtime = m_startframe;
-			m_starttime = curtime;
-			break;
-		case ACT_ACTION_PINGPONG:
-			// Swap the start and end frames
-			float temp = m_startframe;
-			m_startframe = m_endframe;
-			m_endframe = temp;
-
-			m_starttime = curtime;
-
-			m_flag ^= ACT_FLAG_REVERSE;
-
-			break;
-		}
-	}
-}
-
-void BL_ActionActuator::ResetStartTime(float curtime)
-{
-	float dt = m_localtime - m_startframe;
-
-	m_starttime = curtime - dt / KX_GetActiveEngine()->GetAnimFrameRate();
-	//SetLocalTime(curtime);
+	m_localtime = m_startframe;	
 }
 
 CValue* BL_ActionActuator::GetReplica()
@@ -170,122 +120,118 @@ CValue* BL_ActionActuator::GetReplica()
 
 bool BL_ActionActuator::Update(double curtime)
 {
-	bool bUseContinue = false;
 	KX_GameObject *obj = (KX_GameObject*)GetParent();
 	short playtype = BL_Action::ACT_MODE_PLAY;
-	short blendmode = (m_blendmode == ACT_ACTION_ADD) ? BL_Action::ACT_BLEND_ADD : BL_Action::ACT_BLEND_BLEND;
 	float start = m_startframe;
 	float end = m_endframe;
 
 	// If we don't have an action, we can't do anything
-	if (!m_action)
+	if (!m_action) {
 		return false;
+	}
 
 	// Convert our playtype to one that BL_Action likes
 	switch (m_playtype) {
 		case ACT_ACTION_LOOP_END:
 		case ACT_ACTION_LOOP_STOP:
+		{
 			playtype = BL_Action::ACT_MODE_LOOP;
 			break;
-
+		}
 		case ACT_ACTION_PINGPONG:
-			// We handle ping pong ourselves to increase compabitility
-			// with files made prior to animation changes from GSoC 2011.
-			playtype = BL_Action::ACT_MODE_PLAY;
-		
-			if (m_flag & ACT_FLAG_REVERSE)
-			{
-				start = m_endframe;
-				end = m_startframe;
-			}
-
+		{
+			playtype = BL_Action::ACT_MODE_PING_PONG;
 			break;
-		case ACT_ACTION_FROM_PROP:
-			CValue* prop = GetParent()->GetProperty(m_propname);
-
-			// If we don't have a property, we can't do anything, so just bail
-			if (!prop) return false;
-
-			playtype = BL_Action::ACT_MODE_PLAY;
-			start = end = prop->GetNumber();
-
-			break;
+		}
 	}
 
-	if (m_flag & ACT_FLAG_CONTINUE)
-		bUseContinue = true;
-	
-	
+	const bool useContinue = (m_flag & ACT_FLAG_CONTINUE);
+
 	// Handle events
-	bool bNegativeEvent = m_negevent;
-	bool bPositiveEvent = m_posevent;
+	const bool negativeEvent = m_negevent;
+	const bool positiveEvent = m_posevent;
 	RemoveAllEvents();
 
-	// "Active" actions need to keep updating their current frame
-	if (bUseContinue && (m_flag & ACT_FLAG_ACTIVE))
+	if (m_flag & ACT_FLAG_ACTIVE) {
+		// "Active" actions need to keep updating their current frame
 		m_localtime = obj->GetActionFrame(m_layer);
 
-	if (m_flag & ACT_FLAG_ATTEMPT_PLAY)
-		SetLocalTime(curtime);
-	else
-		ResetStartTime(curtime);
+		// Handle a frame property if it's defined
+		if (!m_framepropname.empty()) {
+			CValue* oldprop = obj->GetProperty(m_framepropname);
+			CValue* newval = new CFloatValue(obj->GetActionFrame(m_layer));
+			if (oldprop) {
+				oldprop->SetValue(newval);
+			}
+			else {
+				obj->SetProperty(m_framepropname, newval);
+			}
 
-	// Handle a frame property if it's defined
-	if ((m_flag & ACT_FLAG_ACTIVE) && m_framepropname[0] != 0)
-	{
-		CValue* oldprop = obj->GetProperty(m_framepropname);
-		CValue* newval = new CFloatValue(obj->GetActionFrame(m_layer));
-		if (oldprop)
-			oldprop->SetValue(newval);
-		else
-			obj->SetProperty(m_framepropname, newval);
-
-		newval->Release();
+			newval->Release();
+		}
 	}
 
 	// Handle a finished animation
-	if ((m_flag & ACT_FLAG_PLAY_END) && (m_flag & ACT_FLAG_ACTIVE) && obj->IsActionDone(m_layer))
-	{
+	if ((m_flag & ACT_FLAG_PLAY_END) && (m_flag & ACT_FLAG_ACTIVE) && obj->IsActionDone(m_layer)) {
 		m_flag &= ~ACT_FLAG_ACTIVE;
-
-		if (m_playtype == ACT_ACTION_PINGPONG) {
-			m_flag ^= ACT_FLAG_REVERSE;
-		}
-		else {
-			m_flag &= ~ACT_FLAG_ATTEMPT_PLAY;
-			return false;
-		}
+		m_flag &= ~ACT_FLAG_PLAY_END;
+		return false;
 	}
-	
+
 	// If a different action is playing, we've been overruled and are no longer active
-	if (obj->GetCurrentAction(m_layer) != m_action && !obj->IsActionDone(m_layer))
+	if (obj->GetCurrentAction(m_layer) != m_action && !obj->IsActionDone(m_layer)) {
 		m_flag &= ~ACT_FLAG_ACTIVE;
-
-	if (bPositiveEvent || (m_flag & ACT_FLAG_ATTEMPT_PLAY && !(m_flag & ACT_FLAG_ACTIVE)))
-	{
-		if (bPositiveEvent && m_playtype == ACT_ACTION_PLAY)
-		{
-			if (obj->IsActionDone(m_layer))
-				m_localtime = start;
-			ResetStartTime(curtime);
-		}
-
-		if (obj->PlayAction(m_action->id.name+2, start, end, m_layer, m_priority, m_blendin, playtype, m_layer_weight, m_ipo_flags, 1.f, blendmode))
-		{
-			m_flag |= ACT_FLAG_ACTIVE;
-			if (bUseContinue)
-				obj->SetActionFrame(m_layer, m_localtime);
-
-			if (m_playtype == ACT_ACTION_PLAY || m_playtype == ACT_ACTION_PINGPONG)
-				m_flag |= ACT_FLAG_PLAY_END;
-			else
-				m_flag &= ~ACT_FLAG_PLAY_END;
-		}
-		m_flag |= ACT_FLAG_ATTEMPT_PLAY;
 	}
-	else if ((m_flag & ACT_FLAG_ACTIVE) && bNegativeEvent)
+
+	if (positiveEvent) {
+		switch (m_playtype) {
+			case ACT_ACTION_PLAY:
+			{
+				if (!(m_flag & ACT_FLAG_ACTIVE)) {
+					m_localtime = start;
+					m_flag |= ACT_FLAG_PLAY_END;
+				}
+			}
+			case ACT_ACTION_LOOP_END:
+			case ACT_ACTION_LOOP_STOP:
+			case ACT_ACTION_PINGPONG:
+			{
+				if (!(m_flag & ACT_FLAG_ACTIVE) && Play(obj, start, end, playtype)) {
+					m_flag |= ACT_FLAG_ACTIVE;
+					if (useContinue) {
+						obj->SetActionFrame(m_layer, m_localtime);
+					}
+				}
+				break;
+			}
+			case ACT_ACTION_FROM_PROP:
+			{
+				CValue* prop = GetParent()->GetProperty(m_propname);
+				// If we don't have a property, we can't do anything, so just bail
+				if (!prop) {
+					return false;
+				}
+
+				if (!(m_flag & ACT_FLAG_ACTIVE) && Play(obj, start, end, playtype)) {
+					m_flag |= ACT_FLAG_ACTIVE;
+				}
+				obj->SetActionFrame(m_layer, prop->GetNumber());
+				break;
+			}
+			case ACT_ACTION_FLIPPER:
+			{
+				if ((!(m_flag & ACT_FLAG_ACTIVE) || m_flag & ACT_FLAG_PLAY_END) && Play(obj, start, end, playtype)) {
+					m_flag |= ACT_FLAG_ACTIVE;
+					m_flag &= ~ACT_FLAG_PLAY_END;
+					if (useContinue) {
+						obj->SetActionFrame(m_layer, m_localtime);
+					}
+				}
+			}
+		}
+	}
+	else if ((m_flag & ACT_FLAG_ACTIVE) && negativeEvent)
 	{
-		m_flag &= ~ACT_FLAG_ATTEMPT_PLAY;
 		m_localtime = obj->GetActionFrame(m_layer);
 		bAction *curr_action = obj->GetCurrentAction(m_layer);
 		if (curr_action && curr_action != m_action)
@@ -311,14 +257,13 @@ bool BL_ActionActuator::Update(double curtime)
 
 				m_flag |= ACT_FLAG_PLAY_END;
 				break;
-	
+
 			case ACT_ACTION_FLIPPER:
 				// Convert into a play action and play back to the beginning
 				float temp = end;
 				end = start;
 				start = curr_action ? obj->GetActionFrame(m_layer) : temp;
-				obj->PlayAction(m_action->id.name+2, start, end, m_layer, m_priority, 0, BL_Action::ACT_MODE_PLAY, m_layer_weight, m_ipo_flags, 1.f, blendmode);
-
+				Play(obj, start, end, BL_Action::ACT_MODE_PLAY);
 				m_flag |= ACT_FLAG_PLAY_END;
 				break;
 		}
@@ -338,171 +283,13 @@ void BL_ActionActuator::DecLink()
 	}
 }
 
+bool BL_ActionActuator::Play(KX_GameObject *obj, float start, float end, short mode)
+{
+	const short blendmode = (m_blendmode == ACT_ACTION_ADD) ? BL_Action::ACT_BLEND_ADD : BL_Action::ACT_BLEND_BLEND;
+	return obj->PlayAction(m_action->id.name + 2, start, end, m_layer, m_priority, 0, mode, m_layer_weight, m_ipo_flags, 1.f, blendmode);
+}
+
 #ifdef WITH_PYTHON
-
-/* ------------------------------------------------------------------------- */
-/* Python functions                                                          */
-/* ------------------------------------------------------------------------- */
-
-PyObject *BL_ActionActuator::PyGetChannel(PyObject *value)
-{
-	PyErr_SetString(PyExc_NotImplementedError, "BL_ActionActuator.getChannel() no longer works, please use BL_ArmatureObject.channels instead");
-	return nullptr;
-#if 0 // XXX To be removed in a later version (first removed in 2.64)
-	const char *string= _PyUnicode_AsString(value);
-
-	if (GetParent()->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE)
-	{
-		PyErr_SetString(PyExc_NotImplementedError, "actuator.getChannel(): Only armatures support channels");
-		return nullptr;
-	}
-	
-	if (!string) {
-		PyErr_SetString(PyExc_TypeError, "expected a single string");
-		return nullptr;
-	}
-	
-	bPoseChannel *pchan;
-	
-	if (m_userpose==nullptr && m_pose==nullptr) {
-		BL_ArmatureObject *obj = (BL_ArmatureObject*)GetParent();
-		obj->GetPose(&m_pose); /* Get the underlying pose from the armature */
-	}
-	
-	// BKE_pose_channel_find_name accounts for nullptr pose, run on both in case one exists but
-	// the channel doesnt
-	if (		!(pchan=BKE_pose_channel_find_name(m_userpose, string)) &&
-			!(pchan=BKE_pose_channel_find_name(m_pose, string))  )
-	{
-		PyErr_SetString(PyExc_ValueError, "channel doesnt exist");
-		return nullptr;
-	}
-
-	PyObject *ret = PyTuple_New(3);
-	
-	PyObject *list = PyList_New(3); 
-	PyList_SET_ITEM(list, 0, PyFloat_FromDouble(pchan->loc[0]));
-	PyList_SET_ITEM(list, 1, PyFloat_FromDouble(pchan->loc[1]));
-	PyList_SET_ITEM(list, 2, PyFloat_FromDouble(pchan->loc[2]));
-	PyTuple_SET_ITEM(ret, 0, list);
-	
-	list = PyList_New(3);
-	PyList_SET_ITEM(list, 0, PyFloat_FromDouble(pchan->size[0]));
-	PyList_SET_ITEM(list, 1, PyFloat_FromDouble(pchan->size[1]));
-	PyList_SET_ITEM(list, 2, PyFloat_FromDouble(pchan->size[2]));
-	PyTuple_SET_ITEM(ret, 1, list);
-	
-	list = PyList_New(4);
-	PyList_SET_ITEM(list, 0, PyFloat_FromDouble(pchan->quat[0]));
-	PyList_SET_ITEM(list, 1, PyFloat_FromDouble(pchan->quat[1]));
-	PyList_SET_ITEM(list, 2, PyFloat_FromDouble(pchan->quat[2]));
-	PyList_SET_ITEM(list, 3, PyFloat_FromDouble(pchan->quat[3]));
-	PyTuple_SET_ITEM(ret, 2, list);
-
-	return ret;
-#if 0
-	return Py_BuildValue("([fff][fff][ffff])",
-		pchan->loc[0], pchan->loc[1], pchan->loc[2],
-		pchan->size[0], pchan->size[1], pchan->size[2],
-		pchan->quat[0], pchan->quat[1], pchan->quat[2], pchan->quat[3] );
-#endif
-#endif
-}
-
-/*     setChannel                                                         */
-KX_PYMETHODDEF_DOC(BL_ActionActuator, setChannel,
-"setChannel(channel, matrix)\n"
-"\t - channel   : A string specifying the name of the bone channel.\n"
-"\t - matrix    : A 4x4 matrix specifying the overriding transformation\n"
-"\t               as an offset from the bone's rest position.\n")
-{
-	PyErr_SetString(PyExc_NotImplementedError, "BL_ActionActuator.setChannel() no longer works, please use BL_ArmatureObject.channels instead");
-	return nullptr;
-
-#if 0 // XXX To be removed in a later version (first removed in 2.64)
-	BL_ArmatureObject *obj = (BL_ArmatureObject*)GetParent();
-	char *string;
-	PyObject *pymat= nullptr;
-	PyObject *pyloc= nullptr, *pysize= nullptr, *pyquat= nullptr;
-	bPoseChannel *pchan;
-
-	if (GetParent()->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE)
-	{
-		PyErr_SetString(PyExc_NotImplementedError, "actuator.setChannel(): Only armatures support channels");
-		return nullptr;
-	}
-	
-	if (PyTuple_Size(args)==2) {
-		if (!PyArg_ParseTuple(args,"sO:setChannel", &string, &pymat)) // matrix
-			return nullptr;
-	}
-	else if (PyTuple_Size(args)==4) {
-		if (!PyArg_ParseTuple(args,"sOOO:setChannel", &string, &pyloc, &pysize, &pyquat)) // loc/size/quat
-			return nullptr;
-	}
-	else {
-		PyErr_SetString(PyExc_ValueError, "Expected a string and a 4x4 matrix (2 args) or a string and loc/size/quat sequences (4 args)");
-		return nullptr;
-	}
-	
-	if (pymat) {
-		float matrix[4][4];
-		MT_Matrix4x4 mat;
-		
-		if (!PyMatTo(pymat, mat))
-			return nullptr;
-		
-		mat.getValue((float*)matrix);
-		
-		BL_ArmatureObject *obj = (BL_ArmatureObject*)GetParent();
-		
-		if (!m_userpose) {
-			if (!m_pose)
-				obj->GetPose(&m_pose); /* Get the underlying pose from the armature */
-			game_copy_pose(&m_userpose, m_pose, 0);
-		}
-		// pchan= BKE_pose_channel_verify(m_userpose, string); // adds the channel if its not there.
-		pchan= BKE_pose_channel_find_name(m_userpose, string); // adds the channel if its not there.
-		
-		if (pchan) {
-			copy_v3_v3(pchan->loc, matrix[3]);
-			mat4_to_size(pchan->size, matrix);
-			mat4_to_quat(pchan->quat, matrix);
-		}
-	}
-	else {
-		MT_Vector3 loc;
-		MT_Vector3 size;
-		MT_Quaternion quat;
-		
-		if (!PyVecTo(pyloc, loc) || !PyVecTo(pysize, size) || !PyQuatTo(pyquat, quat))
-			return nullptr;
-		
-		// same as above
-		if (!m_userpose) {
-			if (!m_pose)
-				obj->GetPose(&m_pose); /* Get the underlying pose from the armature */
-			game_copy_pose(&m_userpose, m_pose, 0);
-		}
-		// pchan= BKE_pose_channel_verify(m_userpose, string);
-		pchan= BKE_pose_channel_find_name(m_userpose, string); // adds the channel if its not there.
-		
-		// for some reason loc.setValue(pchan->loc) fails
-		if (pchan) {
-			pchan->loc[0] = loc[0]; pchan->loc[1] = loc[1]; pchan->loc[2] = loc[2];
-			pchan->size[0] = size[0]; pchan->size[1] = size[1]; pchan->size[2] = size[2];
-			pchan->quat[0] = quat[3]; pchan->quat[1] = quat[0]; pchan->quat[2] = quat[1]; pchan->quat[3] = quat[2]; /* notice xyzw -> wxyz is intentional */
-		}
-	}
-	
-	if (pchan==nullptr) {
-		PyErr_SetString(PyExc_ValueError, "Channel could not be found, use the 'channelNames' attribute to get a list of valid channels");
-		return nullptr;
-	}
-	
-	Py_RETURN_NONE;
-#endif
-}
 
 /* ------------------------------------------------------------------------- */
 /* Python Integration Hooks					                                 */
@@ -531,8 +318,6 @@ PyTypeObject BL_ActionActuator::Type = {
 };
 
 PyMethodDef BL_ActionActuator::Methods[] = {
-	{"getChannel", (PyCFunction) BL_ActionActuator::sPyGetChannel, METH_O},
-	KX_PYMETHODTABLE(BL_ActionActuator, setChannel),
 	{nullptr,nullptr} //Sentinel
 };
 
@@ -541,7 +326,6 @@ PyAttributeDef BL_ActionActuator::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RW("frameEnd", 0, MAXFRAMEF, BL_ActionActuator, m_endframe),
 	KX_PYATTRIBUTE_FLOAT_RW("blendIn", 0, MAXFRAMEF, BL_ActionActuator, m_blendin),
 	KX_PYATTRIBUTE_RW_FUNCTION("action", BL_ActionActuator, pyattr_get_action, pyattr_set_action),
-	KX_PYATTRIBUTE_RO_FUNCTION("channelNames", BL_ActionActuator, pyattr_get_channel_names),
 	KX_PYATTRIBUTE_SHORT_RW("priority", 0, 100, false, BL_ActionActuator, m_priority),
 	KX_PYATTRIBUTE_SHORT_RW("layer", 0, MAX_ACTION_LAYERS-1, true, BL_ActionActuator, m_layer),
 	KX_PYATTRIBUTE_FLOAT_RW("layerWeight", 0, 1.0, BL_ActionActuator, m_layer_weight),
@@ -586,37 +370,6 @@ int BL_ActionActuator::pyattr_set_action(PyObjectPlus *self_v, const KX_PYATTRIB
 	self->SetAction(action);
 	return PY_SET_ATTR_SUCCESS;
 
-}
-
-PyObject *BL_ActionActuator::pyattr_get_channel_names(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	PyErr_SetString(PyExc_NotImplementedError, "BL_ActionActuator.channelNames no longer works, please use BL_ArmatureObject.channels instead");
-	return nullptr;
-
-#if 0 // XXX To be removed in a later version (first removed in 2.64)
-	BL_ActionActuator* self = static_cast<BL_ActionActuator*>(self_v);
-	PyObject *ret= PyList_New(0);
-	PyObject *item;
-	
-	if (self->GetParent()->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE)
-	{
-		PyErr_SetString(PyExc_NotImplementedError, "actuator.channelNames: Only armatures support channels");
-		return nullptr;
-	}
-
-	bPose *pose= ((BL_ArmatureObject*)self->GetParent())->GetOrigPose();
-	
-	if (pose) {
-		bPoseChannel *pchan;
-		for (pchan= (bPoseChannel *)pose->chanbase.first; pchan; pchan= (bPoseChannel *)pchan->next) {
-			item= PyUnicode_FromString(pchan->name);
-			PyList_Append(ret, item);
-			Py_DECREF(item);
-		}
-	}
-	
-	return ret;
-#endif
 }
 
 PyObject *BL_ActionActuator::pyattr_get_use_continue(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

@@ -35,6 +35,7 @@
 #include "SCA_IActuator.h"
 #include "DNA_actuator_types.h"
 #include "MT_Vector3.h"
+#include "BL_Action.h" // For BL_Action::PlayMode.
 
 class BL_ActionActuator : public SCA_IActuator  
 {
@@ -69,14 +70,12 @@ public:
 
 	virtual void DecLink();
 
-#ifdef WITH_PYTHON
+	bool Play(KX_GameObject *obj, float start, float end, short mode);
 
-	KX_PYMETHOD_O(BL_ActionActuator,GetChannel)
-	KX_PYMETHOD_DOC(BL_ActionActuator,setChannel)
+#ifdef WITH_PYTHON
 
 	static PyObject*	pyattr_get_action(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_action(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_channel_names(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_use_continue(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_use_continue(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_frame(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -119,8 +118,6 @@ protected:
 	float	m_startframe;
 	/** The frame this action ends */
 	float	m_endframe;
-	/** The time this action started */
-	float	m_starttime;
 	/** The current time of the action */
 	float	m_localtime;
 	
@@ -140,11 +137,9 @@ protected:
 };
 
 enum {
-	ACT_FLAG_REVERSE	= 1<<0,
 	ACT_FLAG_ACTIVE		= 1<<1,
 	ACT_FLAG_CONTINUE	= 1<<2,
 	ACT_FLAG_PLAY_END	= 1<<3,
-	ACT_FLAG_ATTEMPT_PLAY = 1<<4,
 };
 
 #endif
