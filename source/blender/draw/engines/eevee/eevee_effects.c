@@ -49,7 +49,31 @@ typedef struct EEVEE_LightProbeData {
 	short probe_id, shadow_id;
 } EEVEE_LightProbeData;
 
-static EEVEE_StaticEffectData e_data = { NULL }; /* Engine data */
+static struct {
+	/* Downsample Depth */
+	struct GPUShader *minmaxz_downlevel_sh;
+	struct GPUShader *minmaxz_downdepth_sh;
+	struct GPUShader *minmaxz_copydepth_sh;
+
+	/* Motion Blur */
+	struct GPUShader *motion_blur_sh;
+
+	/* Bloom */
+	struct GPUShader *bloom_blit_sh[2];
+	struct GPUShader *bloom_downsample_sh[2];
+	struct GPUShader *bloom_upsample_sh[2];
+	struct GPUShader *bloom_resolve_sh[2];
+
+	/* Depth Of Field */
+	struct GPUShader *dof_downsample_sh;
+	struct GPUShader *dof_scatter_sh;
+	struct GPUShader *dof_resolve_sh;
+
+	/* Volumetric */
+	struct GPUShader *volumetric_upsample_sh;
+
+	struct GPUTexture *depth_src;
+} e_data = { NULL }; /* Engine data */
 
 extern char datatoc_effect_minmaxz_frag_glsl[];
 extern char datatoc_effect_motion_blur_frag_glsl[];
@@ -892,7 +916,3 @@ void EEVEE_effects_free(void)
 	DRW_SHADER_FREE_SAFE(e_data.bloom_resolve_sh[1]);
 }
 
-EEVEE_StaticEffectData *EEVEE_static_effect_data_get()
-{
-	return &e_data;
-}

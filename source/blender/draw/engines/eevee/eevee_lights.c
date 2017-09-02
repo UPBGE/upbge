@@ -58,7 +58,10 @@ typedef struct ShadowCaster {
 	bool prune;
 } ShadowCaster;
 
-static EEVEE_StaticLightData e_data = { NULL };
+static struct {
+	struct GPUShader *shadow_sh;
+	struct GPUShader *shadow_store_sh;
+} e_data = { NULL }; /* Engine data */
 
 extern char datatoc_shadow_vert_glsl[];
 extern char datatoc_shadow_geom_glsl[];
@@ -825,9 +828,4 @@ void EEVEE_lights_free(void)
 {
 	DRW_SHADER_FREE_SAFE(e_data.shadow_sh);
 	DRW_SHADER_FREE_SAFE(e_data.shadow_store_sh);
-}
-
-EEVEE_StaticLightData *EEVEE_static_light_data_get()
-{
-	return &e_data;
 }

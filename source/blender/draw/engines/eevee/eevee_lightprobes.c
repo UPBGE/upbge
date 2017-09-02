@@ -51,7 +51,25 @@
 #define PROBE_OCTAHEDRON_SIZE 1024
 #define IRRADIANCE_POOL_SIZE 1024
 
-static EEVEE_StaticProbeData e_data = { NULL }; /* Engine data */
+static struct {
+	struct GPUShader *probe_default_sh;
+	struct GPUShader *probe_filter_glossy_sh;
+	struct GPUShader *probe_filter_diffuse_sh;
+	struct GPUShader *probe_grid_display_sh;
+	struct GPUShader *probe_planar_display_sh;
+	struct GPUShader *probe_planar_downsample_sh;
+	struct GPUShader *probe_cube_display_sh;
+
+	struct GPUTexture *hammersley;
+	struct GPUTexture *planar_depth;
+	struct GPUTexture *planar_minmaxz;
+	struct GPUTexture *planar_pool_placeholder;
+	struct GPUTexture *cube_face_depth;
+	struct GPUTexture *cube_face_minmaxz;
+
+	bool update_world;
+	bool world_ready_to_shade;
+} e_data = { NULL }; /* Engine data */
 
 extern char datatoc_background_vert_glsl[];
 extern char datatoc_default_world_frag_glsl[];
@@ -1326,7 +1344,3 @@ void EEVEE_lightprobes_free(void)
 	DRW_TEXTURE_FREE_SAFE(e_data.planar_pool_placeholder);
 }
 
-EEVEE_StaticProbeData *EEVEE_static_probe_data_get()
-{
-	return &e_data;
-}
