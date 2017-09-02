@@ -92,7 +92,7 @@
 #include "engines/basic/basic_engine.h"
 #include "engines/external/external_engine.h"
 
-#include "engines\eevee\eevee_private.h"
+#include "engines/eevee/eevee_private.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"

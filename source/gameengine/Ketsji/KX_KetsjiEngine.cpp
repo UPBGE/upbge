@@ -76,7 +76,7 @@
 
 #include "KX_NavMeshObject.h"
 
-#include "depsgraph\DEG_depsgraph.h"
+#include "depsgraph/DEG_depsgraph.h"
 
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 
