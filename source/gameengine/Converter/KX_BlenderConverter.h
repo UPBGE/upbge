@@ -103,7 +103,6 @@ private:
 	std::map<std::string, KX_LibLoadStatus *> m_status_map;
 	std::vector<KX_LibLoadStatus *> m_mergequeue;
 
-	Depsgraph *m_depsgraph;
 	Main *m_maggie;
 	std::vector<Main *> m_DynamicMaggie;
 
@@ -111,7 +110,7 @@ private:
 	bool m_alwaysUseExpandFraming;
 
 public:
-	KX_BlenderConverter(Main *maggie, Depsgraph *depsgraph, KX_KetsjiEngine *engine);
+	KX_BlenderConverter(Main *maggie, KX_KetsjiEngine *engine);
 	virtual ~KX_BlenderConverter();
 
 	/** \param Scenename name of the scene to be converted.

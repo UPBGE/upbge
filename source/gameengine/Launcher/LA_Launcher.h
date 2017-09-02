@@ -46,7 +46,6 @@ class DEV_InputDevice;
 class GHOST_ISystem;
 struct Scene;
 struct Main;
-struct Depsgraph;
 
 class LA_Launcher
 {
@@ -56,7 +55,6 @@ protected:
 	Scene *m_startScene;
 	Main *m_maggie;
 	KX_Scene *m_kxStartScene;
-	Depsgraph *m_depsgraph;
 
 	/// \section Exit state.
 	KX_ExitRequest m_exitRequested;
@@ -136,7 +134,7 @@ protected:
 	virtual void SetWindowOrder(short order) = 0;
 
 public:
-	LA_Launcher(GHOST_ISystem *system, Main *maggie, Depsgraph *depsgraph, Scene *scene, GlobalSettings *gs,
+	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
 				RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv);
 	virtual ~LA_Launcher();
 

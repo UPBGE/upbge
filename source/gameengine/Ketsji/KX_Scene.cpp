@@ -117,7 +117,7 @@ extern "C" {
 #  include "BKE_camera.h"
 #  include "BKE_main.h"
 #  include "BKE_idprop.h"
-# include "MEM_guardedalloc.h"
+#  include "MEM_guardedalloc.h"
 }
 
 static void idproperty_reset(IDProperty **props, IDProperty *props_ref)
@@ -265,7 +265,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, GPU_R11F_G11F_B10F, GPU_OFFSCREEN_DEPTH_COMPARE, nullptr);
 	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
-	DRW_game_render_loop_begin(tempgpuofs, KX_GetActiveEngine()->GetDepsgraph(), m_blenderScene,
+	DRW_game_render_loop_begin(tempgpuofs, m_blenderScene->depsgraph_legacy, m_blenderScene,
 		sl, maincam, viewportsize);
 	GPU_offscreen_free(tempgpuofs);
 

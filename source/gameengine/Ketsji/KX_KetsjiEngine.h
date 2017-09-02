@@ -51,7 +51,6 @@ class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class RAS_OffScreen;
 class SCA_IInputDevice;
-struct Depsgraph;
 
 enum class KX_ExitRequest
 {
@@ -134,8 +133,6 @@ private:
 		RAS_Rasterizer::OffScreenType m_ofsType;
 		std::vector<SceneRenderData> m_sceneDataList;
 	};
-
-	Depsgraph *m_depsgraph;
 
 	/// 2D Canvas (2D Rendering Device Context)
 	RAS_ICanvas *m_canvas;
@@ -291,10 +288,8 @@ private:
 	void EndFrame();
 
 public:
-	KX_KetsjiEngine(KX_ISystem *system, Depsgraph *graph);
+	KX_KetsjiEngine(KX_ISystem *system);
 	virtual ~KX_KetsjiEngine();
-
-	Depsgraph *GetDepsgraph();
 
 	/// set the devices and stuff. the client must take care of creating these
 	void SetInputDevice(SCA_IInputDevice *inputDevice);

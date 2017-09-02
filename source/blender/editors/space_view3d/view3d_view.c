@@ -51,6 +51,7 @@
 #include "BKE_screen.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 #include "BIF_glutil.h"
 
@@ -1417,6 +1418,10 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	/* bad context switch .. */
 	if (!ED_view3d_context_activate(C))
 		return OPERATOR_CANCELLED;
+
+	for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+		DEG_scene_relations_rebuild(bmain, scene);
+	}
 	
 	/* redraw to hide any menus/popups, we don't go back to
 	 * the window manager until after this operator exits */

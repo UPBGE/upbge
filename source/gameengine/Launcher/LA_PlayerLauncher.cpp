@@ -56,9 +56,9 @@ extern "C" {
 
 #include "CM_Message.h"
 
-LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, GHOST_IWindow *window, Main *maggie, Depsgraph *depsgraph, Scene *scene, GlobalSettings *gs,
+LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, GHOST_IWindow *window, Main *maggie, Scene *scene, GlobalSettings *gs,
 								 RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop)
-	:LA_Launcher(system, maggie, depsgraph, scene, gs, stereoMode, samples, argc, argv),
+	:LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv),
 	m_mainWindow(window),
 	m_pythonMainLoop(pythonMainLoop)
 {

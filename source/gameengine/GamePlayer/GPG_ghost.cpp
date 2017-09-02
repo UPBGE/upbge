@@ -1214,8 +1214,10 @@ int main(
 						Main *maggie = bfd->main;
 						Scene *scene = bfd->curscene;
 						G.main = maggie;
-						DEG_scene_relations_rebuild(maggie, scene);
-						Depsgraph *depsgraph = scene->depsgraph_legacy;
+						for (Scene *sc = (Scene *)maggie->scene.first; sc; sc = (Scene *)sc->id.next) {
+							DEG_scene_relations_rebuild(maggie, sc);
+						}
+						Depsgraph *depsgraph = scene->depsgraph_legacy;						
 
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;
@@ -1381,7 +1383,7 @@ int main(
 						}
 
 						// This argc cant be argc_py_clamped, since python uses it.
-						LA_PlayerLauncher launcher(system, window, maggie, depsgraph, scene, &gs, stereomode, aasamples,
+						LA_PlayerLauncher launcher(system, window, maggie, scene, &gs, stereomode, aasamples,
 												   argc, argv, pythonControllerFile);
 #ifdef WITH_PYTHON
 						if (!globalDict) {

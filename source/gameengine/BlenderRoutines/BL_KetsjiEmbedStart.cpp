@@ -82,7 +82,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	/* context values */
 	Scene *startscene = CTX_data_scene(C);
 	Main* maggie1 = CTX_data_main(C);
-	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 
 	KX_ExitRequest exitrequested = KX_ExitRequest::NO_REQUEST;
 	Main* blenderdata = maggie1;
@@ -207,7 +206,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		}
 
 		GHOST_ISystem *system = GHOST_ISystem::getSystem();
-		LA_BlenderLauncher launcher = LA_BlenderLauncher(system, blenderdata, depsgraph, scene, &gs, stereoMode, 0, nullptr, C, cam_frame, ar, always_use_expand_framing);
+		LA_BlenderLauncher launcher = LA_BlenderLauncher(system, blenderdata, scene, &gs, stereoMode, 0, nullptr, C, cam_frame, ar, always_use_expand_framing);
 #ifdef WITH_PYTHON
 		launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
