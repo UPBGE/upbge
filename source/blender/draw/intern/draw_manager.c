@@ -3556,12 +3556,6 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	DRW_state_reset();
 	DRW_engines_draw_background();
 
-	DRW_draw_callbacks_pre_scene();
-
-	DRW_engines_draw_scene();
-
-	DRW_draw_callbacks_post_scene();
-
 	DRW_state_reset();
 	DRW_engines_disable();
 }
