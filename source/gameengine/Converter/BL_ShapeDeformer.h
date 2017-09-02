@@ -56,9 +56,7 @@ public:
 					 Object *bmeshobj_old,
 					 Object *bmeshobj_new,
 					 RAS_MeshObject *mesh,
-					 bool release_object,
-					 bool recalc_normal,
-					 BL_ArmatureObject *arma = nullptr);
+					 BL_ArmatureObject *arma);
 
 	virtual RAS_Deformer *GetReplica();
 	virtual void ProcessReplica();

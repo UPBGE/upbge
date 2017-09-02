@@ -1141,8 +1141,6 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
 				parentobj &&								// current parent is armature
 				parentobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE &&
 				oldblendobj &&								// needed for mesh deform
-				blendobj->parent &&							// original object had armature (not sure this test is needed)
-				blendobj->parent->type == OB_ARMATURE &&
 				blendmesh->dvert!=nullptr;						// mesh has vertex group
 #ifdef WITH_BULLET
 			bool bHasSoftBody = (!parentobj && (blendobj->gameflag & OB_SOFT_BODY));
@@ -1154,88 +1152,44 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
 					bHasShapeKey= bHasDvert= bHasArmature=bHasModifier= false;
 				}
 			}
-			
-			if (bHasModifier)
-			{
-				BL_ModifierDeformer* modifierDeformer;
-				if (bHasShapeKey || bHasArmature)
-				{
-					modifierDeformer = new BL_ModifierDeformer(
-						newobj,
-						m_blenderScene,
-						oldblendobj, blendobj,
-						mesh,
-						true,
-						static_cast<BL_ArmatureObject*>( parentobj->AddRef() )
+
+			RAS_Deformer *deformer = nullptr;
+			if (bHasModifier) {
+				if (bHasShapeKey || bHasArmature) {
+					BL_ModifierDeformer *modifierDeformer = new BL_ModifierDeformer(newobj, m_blenderScene, oldblendobj, blendobj,
+							mesh, static_cast<BL_ArmatureObject *>(parentobj)
 					);
 					modifierDeformer->LoadShapeDrivers(parentobj);
+					deformer = modifierDeformer;
 				}
-				else
-				{
-					modifierDeformer = new BL_ModifierDeformer(
-						newobj,
-						m_blenderScene,
-						oldblendobj, blendobj,
-						mesh,
-						false,
-						nullptr
-					);
+				else {
+					deformer = new BL_ModifierDeformer(newobj, m_blenderScene, oldblendobj, blendobj, mesh, nullptr);
 				}
-				newobj->SetDeformer(modifierDeformer);
 			}
 			else if (bHasShapeKey) {
-				BL_ShapeDeformer* shapeDeformer;
-				if (bHasArmature) 
-				{
-					shapeDeformer = new BL_ShapeDeformer(
-						newobj,
-						oldblendobj, blendobj,
-						mesh,
-						true,
-						true,
-						static_cast<BL_ArmatureObject*>( parentobj->AddRef() )
-					);
+				if (bHasArmature) {
+					BL_ShapeDeformer *shapeDeformer = new BL_ShapeDeformer(newobj, oldblendobj, blendobj, mesh,
+							static_cast<BL_ArmatureObject *>(parentobj));
 					shapeDeformer->LoadShapeDrivers(parentobj);
+					deformer = shapeDeformer;
 				}
-				else
-				{
-					shapeDeformer = new BL_ShapeDeformer(
-						newobj,
-						oldblendobj, blendobj,
-						mesh,
-						false,
-						true,
-						nullptr
-					);
+				else {
+					deformer = new BL_ShapeDeformer(newobj, oldblendobj, blendobj, mesh, nullptr);
 				}
-				newobj->SetDeformer( shapeDeformer);
 			}
-			else if (bHasArmature) 
-			{
-				BL_SkinDeformer* skinDeformer = new BL_SkinDeformer(
-					newobj,
-					oldblendobj, blendobj,
-					mesh,
-					true,
-					true,
-					static_cast<BL_ArmatureObject*>( parentobj->AddRef() )
-				);
-				newobj->SetDeformer(skinDeformer);
+			else if (bHasArmature) {
+				deformer = new BL_SkinDeformer(newobj, oldblendobj, blendobj, mesh,
+						static_cast<BL_ArmatureObject *>(parentobj));
 			}
-			else if (bHasDvert)
-			{
-				BL_MeshDeformer* meshdeformer = new BL_MeshDeformer(
-					newobj, oldblendobj, mesh
-				);
-				newobj->SetDeformer(meshdeformer);
+			else if (bHasDvert) {
+				deformer = new BL_MeshDeformer(newobj, oldblendobj, mesh);
 			}
 #ifdef WITH_BULLET
-			else if (bHasSoftBody)
-			{
-				KX_SoftBodyDeformer *softdeformer = new KX_SoftBodyDeformer(mesh, newobj);
-				newobj->SetDeformer(softdeformer);
+			else if (bHasSoftBody) {
+				deformer = new KX_SoftBodyDeformer(mesh, newobj);
 			}
 #endif
+			newobj->SetDeformer(deformer);
 		}
 	}
 

@@ -63,13 +63,10 @@ extern "C" {
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 
-#define __NLA_DEFNORMALS
-//#undef __NLA_DEFNORMALS
-
 BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
                                    Object *bmeshobj,
                                    RAS_MeshObject *mesh)
-	:BL_SkinDeformer(gameobj, bmeshobj, mesh),
+	:BL_SkinDeformer(gameobj, bmeshobj, mesh, nullptr),
 	m_useShapeDrivers(false),
 	m_lastShapeUpdate(-1)
 {
@@ -81,10 +78,8 @@ BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
                                    Object *bmeshobj_old,
                                    Object *bmeshobj_new,
                                    RAS_MeshObject *mesh,
-                                   bool release_object,
-                                   bool recalc_normal,
                                    BL_ArmatureObject *arma)
-	:BL_SkinDeformer(gameobj, bmeshobj_old, bmeshobj_new, mesh, release_object, recalc_normal, arma),
+	:BL_SkinDeformer(gameobj, bmeshobj_old, bmeshobj_new, mesh, arma),
 	m_useShapeDrivers(false),
 	m_lastShapeUpdate(-1)
 {
@@ -188,7 +183,7 @@ bool BL_ShapeDeformer::Update()
 			VerifyStorage();
 
 			per_keyblock_weights = BKE_keyblock_get_per_block_weights(blendobj, m_key, &cache);
-			BKE_key_evaluate_relative(0, m_bmesh->totvert, m_bmesh->totvert, (char *)(float *)m_transverts,
+			BKE_key_evaluate_relative(0, m_bmesh->totvert, m_bmesh->totvert, (char *)(float *)m_transverts.data(),
 			                          m_key, nullptr, per_keyblock_weights, 0); /* last arg is ignored */
 			BKE_keyblock_free_per_block_weights(m_key, per_keyblock_weights, &cache);
 
@@ -213,11 +208,7 @@ bool BL_ShapeDeformer::Update()
 	if (!bSkinUpdate && bShapeUpdate && m_bDynamic) {
 		// this means that there is no armature, we still need to
 		// update the normal (was not done after shape key calculation)
-
-#ifdef __NLA_DEFNORMALS
-		if (m_recalcNormal)
-			RecalcNormals();
-#endif
+		RecalcNormals();
 
 		// We also need to handle transverts now (used to be in BL_SkinDeformer::Apply())
 		UpdateTransverts();

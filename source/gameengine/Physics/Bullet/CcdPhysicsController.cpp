@@ -2275,16 +2275,8 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 
 		/* transverts are only used for deformed RAS_Meshes, the RAS_Vertex data
 		 * is too hard to get at, see below for details */
-		float(*transverts)[3] = nullptr;
-		int transverts_tot = 0; // with deformed meshes - should always be greater than the max orginal index, or we get crashes
-
-		if (deformer) {
-			/* map locations from the deformed array
-			 *
-			 * Could call deformer->Update(); but rely on redraw updating.
-			 * */
-			transverts = deformer->GetTransVerts(&transverts_tot);
-		}
+		static const std::vector<std::array<float, 3> > emptyList;
+		const std::vector<std::array<float, 3> >& transverts = deformer ? deformer->GetTransVerts() : emptyList;
 
 		// Tag verts we're using
 		numpolys = meshobj->NumPolygons();
@@ -2335,7 +2327,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 				for (; *fv_pt > -1; fv_pt++) {
 					v_orig = poly->GetVertexInfo(*fv_pt).getOrigIndex();
 					if (vert_tag_array[v_orig]) {
-						if (transverts) {
+						if (transverts.size() > 0) {
 							/* deformed mesh, using RAS_Vertex locations would be too troublesome
 							 * because they are use the gameob as a hash in the material slot */
 							*bt++ = transverts[v_orig][0];

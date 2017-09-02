@@ -63,9 +63,9 @@ public:
 	virtual ~RAS_Deformer();
 
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map) = 0;
-	virtual bool Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array) = 0;
+	virtual void Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array) = 0;
 	virtual bool Update(void)=0;
-	virtual bool UpdateBuckets(void)=0;
+	virtual void UpdateBuckets(void)=0;
 	virtual RAS_Deformer *GetReplica()=0;
 	virtual void ProcessReplica()
 	{
@@ -98,7 +98,11 @@ public:
 	{
 		return nullptr;
 	}
-	virtual float (* GetTransVerts(int *tot))[3]	{	*tot= 0; return nullptr; }
+	virtual const std::vector<std::array<float, 3> >& GetTransVerts() const
+	{
+		static const std::vector<std::array<float, 3> > emptyList;
+		return emptyList;
+	}
 
 	RAS_BoundingBox *GetBoundingBox() const
 	{

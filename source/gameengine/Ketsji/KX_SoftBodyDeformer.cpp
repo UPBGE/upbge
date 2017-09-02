@@ -79,15 +79,15 @@ void KX_SoftBodyDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 	}
 }
 
-bool KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
+void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
 {
 	CcdPhysicsController *ctrl = (CcdPhysicsController *)m_gameobj->GetPhysicsController();
 	if (!ctrl)
-		return false;
+		return;
 
 	btSoftBody *softBody = ctrl->GetSoftBody();
 	if (!softBody)
-		return false;
+		return;
 
 	// update the vertex in m_transverts
 	Update();
@@ -160,8 +160,6 @@ bool KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 	m_boundingBox->ExtendAabb(aabbMin, aabbMax);
 
 	array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
-
-	return true;
 }
 
 #endif

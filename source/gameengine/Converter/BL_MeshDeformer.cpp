@@ -50,7 +50,7 @@
 #include <string>
 #include "BLI_math.h"
 
-bool BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray *UNUSED(array))
+void BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray *UNUSED(array))
 {
 	// only apply once per frame if the mesh is actually modified
 	if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
@@ -71,20 +71,13 @@ bool BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray
 		}
 
 		m_lastDeformUpdate = m_gameobj->GetLastFrame();
-
-		return true;
 	}
-
-	return false;
 }
 
 BL_MeshDeformer::BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_MeshObject *meshobj)
 	:RAS_Deformer(meshobj),
 	m_bmesh((Mesh *)(obj->data)),
-	m_transverts(nullptr),
-	m_transnors(nullptr),
 	m_objMesh(obj),
-	m_tvtot(0),
 	m_gameobj(gameobj),
 	m_lastDeformUpdate(-1.0)
 {
@@ -97,18 +90,13 @@ BL_MeshDeformer::BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, 
 
 BL_MeshDeformer::~BL_MeshDeformer()
 {
-	if (m_transverts)
-		delete[] m_transverts;
-	if (m_transnors)
-		delete[] m_transnors;
 }
 
 void BL_MeshDeformer::ProcessReplica()
 {
 	RAS_Deformer::ProcessReplica();
-	m_transverts = nullptr;
-	m_transnors = nullptr;
-	m_tvtot = 0;
+	m_transverts.clear();
+	m_transnors.clear();
 	m_bDynamic = false;
 	m_lastDeformUpdate = -1.0;
 }
@@ -134,7 +122,9 @@ void BL_MeshDeformer::RecalcNormals()
 	 * since the GPU can do it faster */
 
 	/* set vertex normals to zero */
-	memset(m_transnors, 0, sizeof(float) * 3 * m_bmesh->totvert);
+	for (std::array<float, 3>& normal : m_transnors) {
+		normal = {{0.0f, 0.0f, 0.0f}};
+	}
 
 	for (unsigned int i = 0, numpoly = m_mesh->NumPolygons(); i < numpoly; ++i) {
 		RAS_Polygon *poly = m_mesh->GetPolygon(i);
@@ -151,7 +141,7 @@ void BL_MeshDeformer::RecalcNormals()
 			const RAS_VertexInfo& vinfo = array->GetVertexInfo(index);
 			const unsigned int origindex = vinfo.getOrigIndex();
 
-			co[j] = m_transverts[origindex];
+			co[j] = m_transverts[origindex].data();
 			indices[j] = index;
 			origindices[j] = origindex;
 
@@ -169,16 +159,15 @@ void BL_MeshDeformer::RecalcNormals()
 		}
 
 		if (flat) {
-			MT_Vector3 normal(pnorm);
 			for (unsigned int j = 0; j < numvert; ++j) {
 				RAS_IVertex *vert = array->GetVertex(indices[j]);
 
-				vert->SetNormal(normal);
+				vert->SetNormal(pnorm);
 			}
 		}
 		else {
 			for (unsigned int j = 0; j < numvert; ++j) {
-				add_v3_v3(m_transnors[origindices[j]], pnorm);
+				add_v3_v3(m_transnors[origindices[j]].data(), pnorm);
 			}
 		}
 	}
@@ -190,7 +179,7 @@ void BL_MeshDeformer::RecalcNormals()
 			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 
 			if (!(vinfo.getFlag() & RAS_VertexInfo::FLAT))
-				v->SetNormal(MT_Vector3(m_transnors[vinfo.getOrigIndex()])); //.safe_normalized()
+				v->SetNormal(m_transnors[vinfo.getOrigIndex()].data()); //.safe_normalized()
 		}
 	}
 }
@@ -198,20 +187,15 @@ void BL_MeshDeformer::RecalcNormals()
 void BL_MeshDeformer::VerifyStorage()
 {
 	/* Ensure that we have the right number of verts assigned */
-	if (m_tvtot != m_bmesh->totvert) {
-		if (m_transverts)
-			delete[] m_transverts;
-		if (m_transnors)
-			delete[] m_transnors;
-
-		m_transverts = new float[m_bmesh->totvert][3];
-		m_transnors = new float[m_bmesh->totvert][3];
-		m_tvtot = m_bmesh->totvert;
+	const unsigned int totvert = m_bmesh->totvert;
+	if (m_transverts.size() != totvert) {
+		m_transverts.resize(totvert);
+		m_transnors.resize(totvert);
 	}
 
-	for (unsigned int v = 0; v < m_bmesh->totvert; v++) {
-		copy_v3_v3(m_transverts[v], m_bmesh->mvert[v].co);
-		normal_short_to_float_v3(m_transnors[v], m_bmesh->mvert[v].no);
+	for (unsigned int v = 0; v < totvert; ++v) {
+		copy_v3_v3(m_transverts[v].data(), m_bmesh->mvert[v].co);
+		normal_short_to_float_v3(m_transnors[v].data(), m_bmesh->mvert[v].no);
 	}
 }
 

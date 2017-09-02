@@ -58,17 +58,13 @@ public:
 
 	BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_MeshObject *meshobj);
 	virtual ~BL_MeshDeformer();
-	virtual void SetSimulatedTime(double time)
-	{
-	}
-	virtual bool Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
+	virtual void Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
 	virtual bool Update()
 	{
 		return false;
 	}
-	virtual bool UpdateBuckets()
+	virtual void UpdateBuckets()
 	{
-		return false;
 	}
 	virtual RAS_Deformer *GetReplica()
 	{
@@ -83,9 +79,9 @@ public:
 	{
 		return m_mesh;
 	}
-	virtual float(*GetTransVerts(int *tot))[3]
+	virtual const std::vector<std::array<float, 3> >& GetTransVerts() const
 	{
-		*tot = m_tvtot; return m_transverts;
+		return m_transverts;
 	}
 
 protected:
@@ -93,11 +89,10 @@ protected:
 
 	// this is so m_transverts doesn't need to be converted
 	// before deformation
-	float (*m_transverts)[3];
-	float (*m_transnors)[3];
+	std::vector<std::array<float, 3> > m_transverts;
+	std::vector<std::array<float, 3> > m_transnors;
 	Object *m_objMesh;
 
-	int m_tvtot;
 	BL_DeformableGameObject *m_gameobj;
 	double m_lastDeformUpdate;
 };

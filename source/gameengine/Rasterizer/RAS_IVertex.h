@@ -161,6 +161,11 @@ public:
 		normal.getValue(m_normal);
 	}
 
+	inline void SetNormal(const float normal[3])
+	{
+		copy_v3_v3(m_normal, normal);
+	}
+
 	inline void SetTangent(const MT_Vector4& tangent)
 	{
 		tangent.getValue(m_tangent);

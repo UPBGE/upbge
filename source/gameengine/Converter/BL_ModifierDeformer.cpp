@@ -147,7 +147,7 @@ DerivedMesh *BL_ModifierDeformer::GetPhysicsMesh()
 	 * It may not be the case here because of replace mesh actuator */
 	Mesh *oldmesh = (Mesh *)blendobj->data;
 	blendobj->data = m_bmesh;
-	DerivedMesh *dm = mesh_create_derived_physics(m_scene, blendobj, m_transverts, CD_MASK_MESH);
+	DerivedMesh *dm = mesh_create_derived_physics(m_scene, blendobj, (float (*)[3])m_transverts.data(), CD_MASK_MESH);
 	/* restore object data */
 	blendobj->data = oldmesh;
 
@@ -175,7 +175,7 @@ bool BL_ModifierDeformer::Update(void)
 			Mesh *oldmesh = (Mesh *)blendobj->data;
 			blendobj->data = m_bmesh;
 			/* execute the modifiers */
-			DerivedMesh *dm = mesh_create_derived_no_virtual(m_scene, blendobj, m_transverts, CD_MASK_MESH);
+			DerivedMesh *dm = mesh_create_derived_no_virtual(m_scene, blendobj, (float (*)[3])m_transverts.data(), CD_MASK_MESH);
 			/* restore object data */
 			blendobj->data = oldmesh;
 			/* free the current derived mesh and replace, (dm should never be nullptr) */
@@ -220,10 +220,7 @@ bool BL_ModifierDeformer::Update(void)
 	return bShapeUpdate;
 }
 
-bool BL_ModifierDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
+void BL_ModifierDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
 {
-	if (!Update())
-		return false;
-
-	return true;
+	Update();
 }

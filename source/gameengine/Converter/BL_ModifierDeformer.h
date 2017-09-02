@@ -59,7 +59,6 @@ public:
 		m_scene(scene),
 		m_dm(nullptr)
 	{
-		m_recalcNormal = false;
 	}
 
 	/* this second constructor is needed for making a mesh deformable on the fly. */
@@ -68,9 +67,8 @@ public:
 						Object *bmeshobj_old,
 						Object *bmeshobj_new,
 						RAS_MeshObject *mesh,
-						bool release_object,
-						BL_ArmatureObject *arma = nullptr)
-		:BL_ShapeDeformer(gameobj, bmeshobj_old, bmeshobj_new, mesh, release_object, false, arma),
+						BL_ArmatureObject *arma)
+		:BL_ShapeDeformer(gameobj, bmeshobj_old, bmeshobj_new, mesh, arma),
 		m_lastModifierUpdate(-1),
 		m_scene(scene),
 		m_dm(nullptr)
@@ -86,7 +84,7 @@ public:
 	}
 
 	bool Update();
-	virtual bool Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
+	virtual void Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
 	void ForceUpdate()
 	{
 		m_lastModifierUpdate = -1.0;

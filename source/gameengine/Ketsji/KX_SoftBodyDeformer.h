@@ -55,19 +55,18 @@ public:
 	virtual ~KX_SoftBodyDeformer();
 
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
-	virtual bool Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
+	virtual void Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
 	virtual bool Update()
 	{
 		m_bDynamic = true;
 		return true;
 	}
-	virtual bool UpdateBuckets()
+	virtual void UpdateBuckets()
 	{
 		// invalidate the AABB for each read acces.
 		m_needUpdateAabb = true;
 		// this is to update the mesh slots outside the rasterizer,
 		// no need to do it for this deformer, it's done in any case in Apply()
-		return false;
 	}
 
 	virtual RAS_Deformer *GetReplica()

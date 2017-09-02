@@ -940,7 +940,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 			deformer = new BL_ShapeDeformer(deformableGameObj, ob, meshobj);
 		}
 		else if (bHasArmature) {
-			deformer = new BL_SkinDeformer(deformableGameObj, ob, meshobj);
+			deformer = new BL_SkinDeformer(deformableGameObj, ob, meshobj, nullptr);
 		}
 		else if (bHasDvert) {
 			// this case correspond to a mesh that can potentially deform but not with the
