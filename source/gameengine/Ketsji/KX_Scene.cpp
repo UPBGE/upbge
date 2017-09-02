@@ -255,6 +255,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
+	/*************************************************EEVEE INTEGRATION***********************************************************/
+
 	SceneLayer *sl = BKE_scene_layer_from_scene_get(m_blenderScene);
 	InitProperties(sl, m_blenderScene);
 	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
@@ -266,10 +268,16 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	DRW_game_render_loop_begin(tempgpuofs, KX_GetActiveEngine()->GetDepsgraph(), m_blenderScene,
 		sl, maincam, viewportsize);
 	GPU_offscreen_free(tempgpuofs);
+
+	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
+	RAS_SceneLayerData *layerData = new RAS_SceneLayerData(*sldata);
+	SetSceneLayerData(layerData);
 	
 	m_eeveeData = EEVEE_engine_data_get();
 
 	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, this);
+
+	/******************************************************************************************************************************/
 
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;

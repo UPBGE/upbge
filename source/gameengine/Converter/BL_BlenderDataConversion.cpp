@@ -88,7 +88,6 @@
 #include "RAS_BucketManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_IPolygonMaterial.h"
-#include "RAS_SceneLayerData.h"
 #include "KX_BlenderMaterial.h"
 #include "KX_TextureRendererManager.h"
 #include "BL_Texture.h"
@@ -1500,10 +1499,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	worldinfo->UpdateWorldSettings(rendertools);
 	worldinfo->UpdateBackGround(rendertools);
 	kxscene->SetWorldInfo(worldinfo);
-
-	EEVEE_SceneLayerData *blsldata = EEVEE_scene_layer_data_get();
-	RAS_SceneLayerData *layerData = new RAS_SceneLayerData(*blsldata);
-	kxscene->SetSceneLayerData(layerData);
 
 	int activeLayerBitInfo = blenderscene->lay;
 	
