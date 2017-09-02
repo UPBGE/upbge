@@ -3496,7 +3496,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	ar.winy = viewportsize[1];
 
 	View3D v3d;
-	Object *obcam = scene->camera ? scene->camera : maincam;
+	Object *obcam = maincam;
 	Camera *cam = (Camera *)obcam;
 	v3d.camera = obcam;
 	v3d.lens = cam->lens;
@@ -3557,9 +3557,6 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	DRW_engines_draw_background();
 
 	DRW_draw_callbacks_pre_scene();
-	if (DST.draw_ctx.evil_C) {
-		ED_region_draw_cb_draw(DST.draw_ctx.evil_C, DST.draw_ctx.ar, REGION_DRAW_PRE_VIEW);
-	}
 
 	DRW_engines_draw_scene();
 
