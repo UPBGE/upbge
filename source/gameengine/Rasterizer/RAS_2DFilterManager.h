@@ -35,6 +35,8 @@ class RAS_Rasterizer;
 class RAS_OffScreen;
 class RAS_2DFilter;
 
+class KX_Scene;
+
 typedef std::map<unsigned int, RAS_2DFilter *> RAS_PassTo2DFilter;
 
 class RAS_2DFilterManager
@@ -71,7 +73,7 @@ public:
 	 * \return The last used off screen, if none filters were rendered it's the
 	 * same off screen than inputofs.
 	 */
-	RAS_OffScreen *RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs, bool isLastScene);
+	RAS_OffScreen *RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs, KX_Scene *scene);
 
 	/// Add a filter to the stack of filters managed by this object.
 	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);
@@ -84,7 +86,7 @@ public:
 
 private:
 	RAS_PassTo2DFilter m_filters;
-	bool m_toneMapAdded;
+	RAS_2DFilter *m_toneMapFilter;
 
 	/** Creates a filter matching the given filter data. Returns nullptr if no
 	 * filter can be created with such information.

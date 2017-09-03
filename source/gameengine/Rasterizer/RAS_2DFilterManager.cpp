@@ -30,6 +30,8 @@
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilter.h"
 
+#include "KX_Scene.h"
+
 #include "CM_Message.h"
 
 #include "GPU_glew.h"
@@ -49,7 +51,7 @@ extern "C" {
 }
 
 RAS_2DFilterManager::RAS_2DFilterManager():
-m_toneMapAdded(false)
+m_toneMapFilter(nullptr)
 {
 }
 
@@ -83,18 +85,31 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 	return (it != m_filters.end()) ? it->second : nullptr;
 }
 
-RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs, bool isLastScene)
+RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs, KX_Scene *scene)
 {
-	if (m_filters.size() == 0 || !m_toneMapAdded) {
-		// No filters, discard.
-		if (!m_toneMapAdded && isLastScene) { // TODO define builtin filters.
-			RAS_2DFilterData toneMapData;
-			toneMapData.filterMode = RAS_2DFilterManager::FILTER_TONEMAP;
-			toneMapData.filterPassIndex = m_filters.size() + 1;
-			toneMapData.mipmap = false;
-			AddFilter(toneMapData);
-			m_toneMapAdded = true;
+	if (m_filters.size() == 0 || (scene->GetIsLastScene() && (!m_toneMapFilter || !m_toneMapFilter->GetEnabled())) ||
+		(!scene->GetIsLastScene() && m_toneMapFilter && m_toneMapFilter->GetEnabled())) {
+		/* It's a bit confusing because m_toneMapFilter belongs to
+		 * (RAS_2DFilterManager and the manager belongs) to the scene
+		 * so we had to find a way to add the filter only for
+		 * the last rendered scene (overlay scene) and next, remove
+		 * the other tonemap filter in the first scene */
+		if (!scene->GetIsLastScene() && m_toneMapFilter) {
+			m_toneMapFilter->SetEnabled(false);
 		}
+		if (scene->GetIsLastScene() && (!m_toneMapFilter || !m_toneMapFilter->GetEnabled())) {
+			if (!m_toneMapFilter) {
+				RAS_2DFilterData toneMapData;
+				toneMapData.filterMode = RAS_2DFilterManager::FILTER_TONEMAP;
+				toneMapData.filterPassIndex = m_filters.size() + 1;
+				toneMapData.mipmap = false;
+				m_toneMapFilter = AddFilter(toneMapData);
+			}
+			else {
+				m_toneMapFilter->SetEnabled(true);
+			}
+		}
+		// No filters, discard.
 		return inputofs;
 	}
 

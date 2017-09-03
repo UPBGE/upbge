@@ -87,6 +87,7 @@ class RAS_Rasterizer;
 class RAS_DebugDraw;
 class RAS_OffScreen;
 class RAS_SceneLayerData;
+class RAS_2DFilter;
 class RAS_2DFilterManager;
 class KX_2DFilterManager;
 class RAS_EeveeEffectsManager;
@@ -323,6 +324,8 @@ protected:
 	bool m_isActivedHysteresis;
 	int m_lodHysteresisValue;
 
+	bool m_isLastScene;
+
 public:
 	KX_Scene(SCA_IInputDevice *inputDevice,
 		const std::string& scenename,
@@ -337,6 +340,8 @@ public:
 	void SetSceneLayerData(RAS_SceneLayerData *layerData);
 	RAS_SceneLayerData *GetSceneLayerData() const;
 	EEVEE_Data *GetEeveeData();
+	void SetIsLastScene(bool isLastScene);
+	bool GetIsLastScene();
 	/***************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;
@@ -549,7 +554,7 @@ public:
 	 * 2D Filters
 	 */
 	RAS_2DFilterManager *Get2DFilterManager() const;
-	RAS_OffScreen *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs, bool isLastScene);
+	RAS_OffScreen *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }

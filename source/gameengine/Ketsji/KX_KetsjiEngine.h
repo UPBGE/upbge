@@ -260,7 +260,7 @@ private:
 	bool GetFrameRenderData(std::vector<FrameRenderData>& frameDataList);
 
 	void RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, RAS_OffScreen *offScreen, unsigned short pass, bool isFirstScene);
-	RAS_OffScreen *PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs, bool isLastScene);
+	RAS_OffScreen *PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 	RAS_OffScreen *PostRenderEevee(KX_Scene *scene, RAS_OffScreen *inputofs);
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.

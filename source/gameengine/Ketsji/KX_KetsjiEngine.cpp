@@ -694,11 +694,11 @@ void KX_KetsjiEngine::Render()
 			}
 
 			// Render EEVEE effects before tonemapping and custom filters
-			bool isLastScene = scene == m_scenes->GetBack();
+			scene->SetIsLastScene(scene == m_scenes->GetBack());
 			offScreen = PostRenderEevee(scene, offScreen);
 			target = RAS_Rasterizer::NextRenderOffScreen(offScreen->GetType());
 			// Render filters and get output off screen.
-			offScreen = PostRenderScene(scene, offScreen, m_rasterizer->GetOffScreen(target), isLastScene);
+			offScreen = PostRenderScene(scene, offScreen, m_rasterizer->GetOffScreen(target));
 			frameData.m_ofsType = offScreen->GetType();
 		}
 	}
@@ -1066,7 +1066,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 /*
  * To run once per scene
  */
-RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs, bool isLastScene)
+RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
 	KX_SetActiveScene(scene);
 
@@ -1078,7 +1078,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 
-	RAS_OffScreen *offScreen = scene->Render2DFilters(m_rasterizer, m_canvas, inputofs, targetofs, isLastScene);
+	RAS_OffScreen *offScreen = scene->Render2DFilters(m_rasterizer, m_canvas, inputofs, targetofs);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());

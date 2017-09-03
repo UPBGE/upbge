@@ -64,6 +64,7 @@
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
+#include "RAS_2DFilter.h"
 #include "KX_2DFilterManager.h"
 #include "RAS_EeveeEffectsManager.h"
 #include "RAS_BoundingBoxManager.h"
@@ -198,7 +199,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_isActivedHysteresis(false),
 	m_lodHysteresisValue(0),
 	m_effectsManager(nullptr),
-	m_eeveeData(nullptr)
+	m_eeveeData(nullptr),
+	m_isLastScene(false)
 {
 
 	m_dbvt_culling = false;
@@ -2050,14 +2052,24 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	return true;
 }
 
+void KX_Scene::SetIsLastScene(bool isLastScene)
+{
+	m_isLastScene = isLastScene;
+}
+
+bool KX_Scene::GetIsLastScene()
+{
+	return m_isLastScene;
+}
+
 RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 {
 	return m_filterManager;
 }
 
-RAS_OffScreen *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs, bool isLastScene)
+RAS_OffScreen *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
-	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs, isLastScene);
+	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs, this);
 }
 
 RAS_OffScreen *KX_Scene::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
