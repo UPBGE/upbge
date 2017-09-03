@@ -280,7 +280,7 @@ static void add_standard_uniforms(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *
 	}
 }
 
-void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, const EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
+void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 {
 	DRW_shgroup_uniform_block(shgrp, "probe_block", sldata->probe_ubo);
 	DRW_shgroup_uniform_block(shgrp, "grid_block", sldata->grid_ubo);
