@@ -191,6 +191,7 @@ bool BL_ActionActuator::Update(double curtime)
 					m_localtime = start;
 					m_flag |= ACT_FLAG_PLAY_END;
 				}
+				ATTR_FALLTHROUGH;
 			}
 			case ACT_ACTION_LOOP_END:
 			case ACT_ACTION_LOOP_STOP:
@@ -227,6 +228,7 @@ bool BL_ActionActuator::Update(double curtime)
 						obj->SetActionFrame(m_layer, m_localtime);
 					}
 				}
+				break;
 			}
 		}
 	}
