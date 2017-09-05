@@ -263,30 +263,33 @@ int GetFontId(VFont *vfont)
 	}
 
 	// once we have packed working we can load the builtin font
-	const char *filepath = vfont->name;
 	if (BKE_vfont_is_builtin(vfont)) {
 		fontid = BLF_load("default");
-
-		/* XXX the following code is supposed to work (after you add get_builtin_packedfile to BKE_font.h )
-		 * unfortunately it's crashing on blf_glyph.c:173 because gc->max_glyph_width is 0
-		 */
-		// packedfile=get_builtin_packedfile();
-		// fontid= BLF_load_mem(font->name, (unsigned char*)packedfile->data, packedfile->size);
-		// return fontid;
-
-		return BLF_load("default");
+		return fontid;
 	}
 
-	// convert from absolute to relative
+	// convert from relative to absolute
 	char expanded[FILE_MAX];
-	BLI_strncpy(expanded, filepath, FILE_MAX);
-	BLI_path_abs(expanded, vfont->id.lib ? vfont->id.lib->name : KX_GetMainPath().c_str());
+	BLI_strncpy(expanded, vfont->name, FILE_MAX);
+
+	char libpath[FILE_MAX];
+	// Use library path if available and ensure it is absolute.
+	if (vfont->id.lib) {
+		BLI_strncpy(libpath, vfont->id.lib->name, FILE_MAX);
+		BLI_path_abs(libpath, KX_GetMainPath().c_str());
+	}
+	else {
+		BLI_strncpy(libpath, KX_GetMainPath().c_str(), FILE_MAX);
+	}
+	BLI_path_abs(expanded, libpath);
 
 	fontid = BLF_load(expanded);
 
 	// fallback
-	if (fontid == -1)
+	if (fontid == -1) {
 		fontid = BLF_load("default");
+		CM_Warning("failed loading font \"" << vfont->name << "\"");
+	}
 
 	return fontid;
 }
