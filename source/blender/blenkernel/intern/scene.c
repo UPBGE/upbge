@@ -728,7 +728,7 @@ void BKE_scene_init(Scene *sce)
 
 	sce->gm.gravity = 9.8f;
 	sce->gm.physicsEngine = WOPHY_BULLET;
-	sce->gm.mode = 32; //XXX ugly harcoding, still not sure we should drop mode. 32 == 1 << 5 == use_occlusion_culling 
+	sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
 	sce->gm.occlusionRes = 128;
 	sce->gm.ticrate = 60;
 	sce->gm.maxlogicstep = 5;

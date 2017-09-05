@@ -31,7 +31,8 @@
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
 
 BL_ActionManager::BL_ActionManager(class KX_GameObject *obj):
-	m_obj(obj)
+	m_obj(obj),
+	m_suspended(false)
 {
 }
 
@@ -138,6 +139,21 @@ bool BL_ActionManager::IsActionDone(short layer)
 	BL_Action *action = GetAction(layer);
 
 	return action ? action->IsDone() : true;
+}
+
+void BL_ActionManager::Suspend()
+{
+	m_suspended = true;
+}
+
+void BL_ActionManager::Resume()
+{
+	m_suspended = false;
+}
+
+bool BL_ActionManager::IsSuspended() const
+{
+	return m_suspended;
 }
 
 void BL_ActionManager::Update(float deltatime, float curtime, float frameRate, bool applyToObject)

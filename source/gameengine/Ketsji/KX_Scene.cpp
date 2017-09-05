@@ -155,6 +155,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_ueberExecutionPriority(0),
 	m_suspendeddelta(0.0),
 	m_previousAnimTime(0.0),
+	m_activityCulling(false),
 	m_blenderScene(scene),
 	m_isActivedHysteresis(false),
 	m_lodHysteresisValue(0)
@@ -162,7 +163,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_dbvt_culling = false;
 	m_dbvt_occlusion_res = 0;
-	m_activity_culling = false;
 	m_suspend = false;
 	m_objectlist = new CListValue<KX_GameObject>();
 	m_parentlist = new CListValue<KX_GameObject>();
@@ -411,7 +411,7 @@ void KX_Scene::Resume()
 
 void KX_Scene::SetActivityCulling(bool b)
 {
-	m_activity_culling = b;
+	m_activityCulling = b;
 }
 
 bool KX_Scene::IsSuspended()
@@ -1579,7 +1579,9 @@ void KX_Scene::UpdateAnimations(double curtime, double frameRate, bool restricte
 	m_previousAnimTime = curtime;
 
 	for (KX_GameObject *gameobj : m_animatedlist) {
-		BLI_task_pool_push(m_animationPool, update_anim_thread_func, gameobj, false, TASK_PRIORITY_LOW);
+		if (!gameobj->IsActionsSuspended()) {
+			BLI_task_pool_push(m_animationPool, update_anim_thread_func, gameobj, false, TASK_PRIORITY_LOW);
+		}
 	}
 
 	BLI_task_pool_work_and_wait(m_animationPool);
@@ -1707,15 +1709,40 @@ int KX_Scene::GetLodHysteresisValue(void)
 	return m_lodHysteresisValue;
 }
 
-void KX_Scene::UpdateObjectActivity(void) 
+void KX_Scene::UpdateObjectActivity()
 {
-}
+	if (!m_activityCulling) {
+		return;
+	}
 
-void KX_Scene::SetActivityCullingRadius(float f)
-{
-	if (f < 0.5f)
-		f = 0.5f;
-	m_activity_box_radius = f;
+	std::vector<MT_Vector3> camPositions;
+
+	for (KX_Camera *cam : m_cameralist) {
+		if (cam->GetActivityCulling()) {
+			camPositions.push_back(cam->NodeGetWorldPosition());
+		}
+	}
+
+	// None cameras are using object activity culling?
+	if (camPositions.size() == 0) {
+		return;
+	}
+
+	for (KX_GameObject *gameobj : m_objectlist) {
+		// If the object doesn't manage activity culling we don't compute distance.
+		if (gameobj->GetActivityCullingInfo().m_flags & KX_GameObject::ActivityCullingInfo::ACTIVITY_NONE) {
+			continue;
+		}
+
+		// For each camera compute the distance to objects and keep the minimum distance.
+		const MT_Vector3& obpos = gameobj->NodeGetWorldPosition();
+		float dist = FLT_MAX;
+		for (const MT_Vector3& campos : camPositions) {
+			// Keep the minimum distance.
+			dist = std::min(obpos.distance2(campos), dist);
+		}
+		gameobj->UpdateActivity(dist);
+	}
 }
 
 KX_NetworkMessageScene* KX_Scene::GetNetworkMessageScene()
@@ -2331,8 +2358,7 @@ PyAttributeDef KX_Scene::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("pre_draw_setup",	KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
 	KX_PYATTRIBUTE_RW_FUNCTION("gravity",			KX_Scene, pyattr_get_gravity, pyattr_set_gravity),
 	KX_PYATTRIBUTE_BOOL_RO("suspended",				KX_Scene, m_suspend),
-	KX_PYATTRIBUTE_BOOL_RO("activity_culling",		KX_Scene, m_activity_culling),
-	KX_PYATTRIBUTE_FLOAT_RW("activity_culling_radius", 0.5f, FLT_MAX, KX_Scene, m_activity_box_radius),
+	KX_PYATTRIBUTE_BOOL_RO("activityCulling",		KX_Scene, m_activityCulling),
 	KX_PYATTRIBUTE_BOOL_RO("dbvt_culling",			KX_Scene, m_dbvt_culling),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };

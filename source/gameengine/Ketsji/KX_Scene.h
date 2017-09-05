@@ -267,15 +267,8 @@ protected:
 	/// Time of previous animation update.
 	double m_previousAnimTime;
 
-	/**
-	 * Radius in Manhattan distance of the box for activity culling.
-	 */
-	float m_activity_box_radius;
-
-	/**
-	 * Toggle to enable or disable activity culling.
-	 */
-	bool m_activity_culling;
+	/// Toggle to enable or disable object activity culling.
+	bool m_activityCulling;
 	
 	/**
 	 * Toggle to enable or disable culling via DBVT broadphase of Bullet.
@@ -506,14 +499,11 @@ public:
 	void SetLodHysteresisValue(int hysteresisvalue);
 	int GetLodHysteresisValue();
 	
-	// Update the activity box settings for objects in this scene, if needed.
-	void UpdateObjectActivity(void);
-
-	// Enable/disable activity culling.
+	/// Update the activity culling of objects in this scene, if needed.
+	void UpdateObjectActivity();
+	/// Enable/disable activity culling.
 	void SetActivityCulling(bool b);
 
-	// Set the radius of the activity culling box.
-	void SetActivityCullingRadius(float f);
 	bool IsSuspended();
 	// use of DBVT tree for camera culling
 	void SetDbvtCulling(bool b) { m_dbvt_culling = b; }

@@ -115,6 +115,9 @@ protected:
 	/** Distance factor for level of detail*/
 	float m_lodDistanceFactor;
 
+	/// Enable object activity culling for this camera.
+	bool m_activityCulling;
+
 	/**
 	 * Show Debug Camera Frustum?
 	 */
@@ -198,6 +201,9 @@ public:
 	float GetLodDistanceFactor() const;
 	/** Set level of detail distance factor */
 	void SetLodDistanceFactor(float lodfactor);
+
+	bool GetActivityCulling() const;
+	void SetActivityCulling(bool enable);
 
 	const SG_Frustum& GetFrustum();
 

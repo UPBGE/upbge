@@ -132,8 +132,9 @@ enum {
 
 /* gameflag */
 enum {
-	GAME_CAM_SHOW_FRUSTUM		= (1 << 0),
-	GAME_CAM_OVERRIDE_CULLING	= (1 << 1),
+	GAME_CAM_SHOW_FRUSTUM				= (1 << 0),
+	GAME_CAM_OVERRIDE_CULLING			= (1 << 1),
+	GAME_CAM_OBJECT_ACTIVITY_CULLING	= (1 << 2),
 };
 
 /* yafray: dof sampling switch */

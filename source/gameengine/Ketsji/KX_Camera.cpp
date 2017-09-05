@@ -57,6 +57,7 @@ KX_Camera::KX_Camera(void* sgReplicationInfo,
       m_set_projection_matrix(false),
       m_delete_node(delete_node),
 	  m_lodDistanceFactor(1.0f),
+	  m_activityCulling(false),
 	  m_showDebugCameraFrustum(false)
 {
 	// setting a name would be nice...
@@ -256,6 +257,16 @@ void KX_Camera::SetLodDistanceFactor(float lodfactor)
 	m_lodDistanceFactor = lodfactor;
 }
 
+bool KX_Camera::GetActivityCulling() const
+{
+	return m_activityCulling;
+}
+
+void KX_Camera::SetActivityCulling(bool enable)
+{
+	m_activityCulling = enable;
+}
+
 void KX_Camera::ExtractFrustum()
 {
 	if (m_dirty) {
@@ -336,6 +347,7 @@ PyMethodDef KX_Camera::Methods[] = {
 PyAttributeDef KX_Camera::Attributes[] = {
 	
 	KX_PYATTRIBUTE_BOOL_RW("frustum_culling", KX_Camera, m_frustum_culling),
+	KX_PYATTRIBUTE_BOOL_RW("activityCulling", KX_Camera, m_activityCulling),
 	KX_PYATTRIBUTE_RW_FUNCTION("perspective", KX_Camera, pyattr_get_perspective, pyattr_set_perspective),
 	
 	KX_PYATTRIBUTE_RW_FUNCTION("lens",	KX_Camera,	pyattr_get_lens, pyattr_set_lens),

@@ -521,11 +521,18 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             sub = col.row()
             sub.prop(gs, "deactivation_time", text="Time")
 
-            col = layout.column()
+            split = layout.split()
+
+            col = split.column()
+            col.label(text="Culling:")
             col.prop(gs, "use_occlusion_culling", text="Occlusion Culling")
             sub = col.column()
             sub.active = gs.use_occlusion_culling
             sub.prop(gs, "occlusion_culling_resolution", text="Resolution")
+
+            col = split.column()
+            col.label(text="Object Activity:")
+            col.prop(gs, "use_activity_culling")
 
         else:
             split = layout.split()
@@ -896,6 +903,33 @@ class OBJECT_MT_culling(ObjectButtonsPanel, Panel):
         layout.label(text="Predefined Bound:")
         layout.prop(game, "predefined_bound", "")
 
+class OBJECT_PT_activity_culling(ObjectButtonsPanel, Panel):
+    bl_label = "Activity Culling"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return context.scene.render.engine in cls.COMPAT_ENGINES and ob.type not in {'CAMERA'}
+
+    def draw(self, context):
+        layout = self.layout
+        activity = context.object.game.activity_culling
+
+        split = layout.split()
+
+        col = split.column()
+        col.prop(activity, "use_physics", text="Physics")
+        sub = col.column()
+        sub.active = activity.use_physics
+        sub.prop(activity, "physics_radius")
+
+        col = split.column()
+        col.prop(activity, "use_logic", text="Logic")
+        sub = col.column()
+        sub.active = activity.use_logic
+        sub.prop(activity, "logic_radius")
+
 class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
     bl_label = "Levels of Detail"
     COMPAT_ENGINES = {'BLENDER_GAME'}
@@ -963,6 +997,7 @@ classes = (
     DATA_PT_shadow_game,
     OBJECT_MT_lod_tools,
     OBJECT_MT_culling,
+    OBJECT_PT_activity_culling,
     OBJECT_PT_levels_of_detail,
 )
 
