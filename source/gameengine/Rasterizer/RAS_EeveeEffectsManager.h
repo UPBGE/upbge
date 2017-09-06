@@ -47,7 +47,6 @@ public:
 
 	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 
-	void InitBloom();
 	void InitDof();
 
 	RAS_OffScreen *RenderBloom(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
@@ -65,8 +64,6 @@ private:
 
 	KX_Scene *m_scene; // used for DOF and motion blur
 
-	GPUTexture *m_savedDepth; // used to restore dtxl->depth at ge exit
-
 	RAS_ICanvas *m_canvas; // used to get viewport size
 	IDProperty *m_props; // eevee engine properties
 
@@ -83,7 +80,6 @@ private:
 	bool m_dofInitialized; // see comment in RenderDof()
 
 	bool m_useAO;
-	bool m_aoInitialized;
 
 	bool m_useVolumetricNodes; // avoid rendering volumetrics when no background nodes
 };

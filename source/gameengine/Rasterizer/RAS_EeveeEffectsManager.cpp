@@ -44,7 +44,6 @@ RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas
 m_canvas(canvas),
 m_props(props),
 m_scene(scene),
-m_aoInitialized(false),
 m_dofInitialized(false)
 {
 	m_stl = vedata->stl;
@@ -52,8 +51,6 @@ m_dofInitialized(false)
 	m_txl = vedata->txl;
 	m_fbl = vedata->fbl;
 	m_effects = m_stl->effects;
-
-	m_savedDepth = DRW_viewport_texture_list_get()->depth;
 
 	static const GPUTextureFormat dataTypeEnums[] = {
 		GPU_R11F_G11F_B10F, // RAS_HDR_NONE
@@ -64,10 +61,10 @@ m_dofInitialized(false)
 	// Bloom
 	m_bloomTarget.reset(new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, dataTypeEnums[m_canvas->GetHdrType()],
 		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
-	InitBloom();
 
 	// Camera Motion Blur
 	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
+	m_effects->motion_blur_samples = BKE_collection_engine_property_value_get_int(m_props, "motion_blur_samples");
 	m_blurTarget.reset(new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, dataTypeEnums[m_canvas->GetHdrType()],
 		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
 
@@ -85,38 +82,6 @@ m_dofInitialized(false)
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 {
-	// Restore dtxl->depth at ge exit
-	DRW_viewport_texture_list_get()->depth = m_savedDepth;
-}
-
-void RAS_EeveeEffectsManager::InitBloom()
-{
-	/* Bloom */
-	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
-		/* We have to update eevee effects to the game engine viewport size */
-		int blitsize[2], texsize[2];
-
-		/* Blit Buffer */
-		m_effects->source_texel_size[0] = 1.0f / (m_canvas->GetWidth() + 1);
-		m_effects->source_texel_size[1] = 1.0f / (m_canvas->GetHeight() + 1);
-
-		blitsize[0] = (int)(m_canvas->GetWidth() + 1);
-		blitsize[1] = (int)(m_canvas->GetHeight() + 1);
-
-		m_effects->blit_texel_size[0] = 1.0f / (float)blitsize[0];
-		m_effects->blit_texel_size[1] = 1.0f / (float)blitsize[1];
-
-		/* Downsample buffers */
-		copy_v2_v2_int(texsize, blitsize);
-		for (int i = 0; i < m_effects->bloom_iteration_ct; ++i) {
-			texsize[0] /= 2; texsize[1] /= 2;
-			texsize[0] = MAX2(texsize[0], 2);
-			texsize[1] = MAX2(texsize[1], 2);
-
-			m_effects->downsamp_texel_size[i][0] = 1.0f / (float)texsize[0];
-			m_effects->downsamp_texel_size[i][1] = 1.0f / (float)texsize[1];
-		}
-	}
 }
 
 void RAS_EeveeEffectsManager::InitDof()
@@ -197,7 +162,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, RAS_O
 RAS_OffScreen *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
 {
 	/* Motion Blur */
-	if ((m_effects->enabled_effects & EFFECT_MOTION_BLUR) != 0) {
+	if (BKE_collection_engine_property_value_get_bool(m_props, "motion_blur_enable")) {
 
 		KX_Camera *cam = m_scene->GetActiveCamera();
 
