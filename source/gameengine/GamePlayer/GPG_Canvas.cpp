@@ -104,6 +104,7 @@ void GPG_Canvas::MakeScreenShot(const std::string& filename)
 void GPG_Canvas::Init()
 {
 	if (m_window) {
+		m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT | RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 		m_window->setDrawingContextType(GHOST_kDrawingContextTypeOpenGL);
 		BLI_assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
 	}

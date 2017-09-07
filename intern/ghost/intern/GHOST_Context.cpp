@@ -150,7 +150,6 @@ void GHOST_Context::initContextGLEW()
 void GHOST_Context::initClearGL()
 {
 	glClearColor(0.447, 0.447, 0.447, 0.000);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); ///////////////// Warning I don't know what I do but this (I added GL_DEPTH_BUFFER_BIT) is
-	///////////////////////////////////////////////////////////////////// a temp fix to solve grey screen issue in blenderplayer. youle
+	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(0.000, 0.000, 0.000, 0.000);
 }
