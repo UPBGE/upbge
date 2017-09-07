@@ -88,9 +88,10 @@ typedef struct GPUFunction {
 } GPUFunction;
 
 /* Indices match the GPUType enum */
-static const char *GPU_DATATYPE_STR[17] = {
+static const char *GPU_DATATYPE_STR[18] = {
 	"", "float", "vec2", "vec3", "vec4",
-	"Closure", NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4"
+	NULL, NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4",
+	"Closure"
 };
 
 /* GLSL code parsing for finding function definitions.
@@ -174,7 +175,7 @@ static void gpu_parse_functions_string(GHash *hash, char *code)
 
 			/* test for type */
 			type = GPU_NONE;
-			for (i = 1; i <= 16; i++) {
+			for (i = 1; i <= 17; i++) {
 				if (GPU_DATATYPE_STR[i] && gpu_str_prefix(code, GPU_DATATYPE_STR[i])) {
 					type = i;
 					break;
@@ -1570,8 +1571,9 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
 		/* uniform vector */
 		input->type = type;
 		input->source = GPU_SOURCE_VEC_UNIFORM;
-
-		memcpy(input->vec, link->ptr1, type * sizeof(float));
+		if (type != GPU_CLOSURE) {
+			memcpy(input->vec, link->ptr1, type * sizeof(float));
+		}
 		if (link->dynamic) {
 			input->dynamicvec = link->ptr1;
 			input->dynamictype = link->dynamictype;

@@ -79,7 +79,7 @@ typedef enum GPUType {
 	GPU_MAT3 = 9,
 	GPU_MAT4 = 16,
 
-	GPU_CLOSURE = 5,
+	GPU_CLOSURE = 17,
 
 	GPU_TEX2D = 1002,
 	GPU_SHADOW2D = 1003,
