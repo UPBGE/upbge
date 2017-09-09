@@ -177,6 +177,9 @@ private:
 	double m_frameTime;
 	/// game time for the next rendering step
 	double m_clockTime;
+	///game time when the animations were last updated
+	double m_previousAnimTime;
+	double m_remainingTime;
 	/// time scaling parameter. if > 1.0, time goes faster than real-time. If < 1.0, times goes slower than real-time.
 	double m_timescale;
 	double m_previousRealTime;

@@ -140,10 +140,10 @@ bool BL_ActionManager::IsActionDone(short layer)
 	return action ? action->IsDone() : true;
 }
 
-void BL_ActionManager::Update(float deltatime, float curtime, float frameRate, bool applyToObject)
+void BL_ActionManager::Update(float curtime, bool applyToObject)
 {
 	for (const auto& pair : m_layers) {
-		pair.second->Update(deltatime, curtime, frameRate, applyToObject);
+		pair.second->Update(curtime, applyToObject);
 	}
 
 	for (const auto& pair : m_layers) {

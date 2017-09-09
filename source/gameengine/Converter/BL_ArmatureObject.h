@@ -99,7 +99,7 @@ public:
 	void BlendInPose(bPose *blend_pose, float weight, short mode);
 	void RestorePose();
 
-	bool UpdateTimestep(double deltatime);
+	bool UpdateTimestep(double curtime);
 
 	bArmature *GetArmature();
 	const bArmature *GetArmature() const;

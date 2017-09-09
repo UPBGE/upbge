@@ -109,11 +109,10 @@ public:
 
 	/**
 	 * Update any running actions
-	 * \param deltatime The delta time of a frame.
-	 * \param curtime The current frame time without scene suspend time.
+	 * \param curtime The current time used to compute the actions' frame.
 	 * \param applyToObject Set to true if the actions must transform the object, else it only manages actions' frames.
 	 */
-	void Update(float deltatime, float curtime, float frameRate, bool applyToObject);
+	void Update(float curtime, bool applyToObject);
 
 	/**
 	 * Update object IPOs (note: not thread-safe!)
