@@ -49,7 +49,7 @@ std::string KX_BoundingBox::GetText()
 	if (!IsValidOwner()) {
 		return "KX_BoundingBox of invalid object";
 	}
-	return (boost::format("KX_BoundingBox of object %s, min: %R, max: %R") % m_owner->GetName() % GetMin() % GetMax()).str();
+	return (boost::format("KX_BoundingBox of object %1%, min: %2%, max: %3%") % m_owner->GetName() % GetMin() % GetMax()).str();
 }
 
 bool KX_BoundingBox::IsValidOwner()
