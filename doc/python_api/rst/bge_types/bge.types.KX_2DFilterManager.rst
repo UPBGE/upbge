@@ -30,7 +30,7 @@ base class --- :class:`PyObjectPlus`
 
       :type type: integer
       :arg fragmentProgram: The filter shader fragment program.
-          Specified only if :data:`type` is :data:`bge.logic.RAS_2DFILTER_CUSTOMFILTER`. (optional)
+          Used only if :data:`type` is :data:`bge.logic.RAS_2DFILTER_CUSTOMFILTER`, if empty or not specified the filter is created without shader, waiting call to :data:`BL_Shader.setSourceList`. (optional)
       :type fragmentProgram: string
       :return: The 2D Filter.
       :rtype: :class:`KX_2DFilter`

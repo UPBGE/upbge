@@ -58,10 +58,12 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 		m_predefinedUniforms[i] = -1;
 	}
 
-	m_progs[VERTEX_PROGRAM] = std::string(datatoc_RAS_VertexShader2DFilter_glsl);
-	m_progs[FRAGMENT_PROGRAM] = data.shaderText;
+	if (!data.shaderText.empty()) {
+		m_progs[VERTEX_PROGRAM] = std::string(datatoc_RAS_VertexShader2DFilter_glsl);
+		m_progs[FRAGMENT_PROGRAM] = data.shaderText;
 
-	LinkProgram();
+		LinkProgram();
+	}
 }
 
 RAS_2DFilter::~RAS_2DFilter()
