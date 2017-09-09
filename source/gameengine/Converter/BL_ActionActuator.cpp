@@ -213,10 +213,10 @@ bool BL_ActionActuator::Update(double curtime)
 					return false;
 				}
 
-				if (!(m_flag & ACT_FLAG_ACTIVE) && Play(obj, start, end, playtype)) {
+				const float frame = prop->GetNumber();
+				if (Play(obj, frame, frame, playtype)) {
 					m_flag |= ACT_FLAG_ACTIVE;
 				}
-				obj->SetActionFrame(m_layer, prop->GetNumber());
 				break;
 			}
 			case ACT_ACTION_FLIPPER:
