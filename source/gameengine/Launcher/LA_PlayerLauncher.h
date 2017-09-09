@@ -57,8 +57,6 @@ protected:
 	virtual RAS_Rasterizer::DrawType GetRasterizerDrawMode();
 	virtual bool GetUseAlwaysExpandFraming();
 	virtual void InitCamera();
-	virtual void InitPython();
-	virtual void ExitPython();
 
 	virtual void SetWindowOrder(short order);
 

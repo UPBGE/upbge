@@ -93,6 +93,7 @@ extern "C"
 #include "GPU_draw.h"
 
 #include "KX_Globals.h"
+#include "KX_PythonInit.h"
 
 #include "LA_SystemCommandLine.h"
 #include "LA_PlayerLauncher.h"
@@ -553,7 +554,7 @@ static void get_filename(int argc, char **argv, char *filename)
 #endif // !_APPLE
 }
 
-static BlendFileData *load_game_data(const char *progname, char *filename = nullptr, char *relativename = nullptr)
+static BlendFileData *load_game_data(const char *progname, char *filename = nullptr)
 {
 	ReportList reports;
 	BlendFileData *bfd = nullptr;
@@ -1121,7 +1122,13 @@ int main(
 			// receive an event with the filename
 			
 			system->processEvents(0);
-			
+
+#ifdef WITH_PYTHON
+			// Initialize python and the global dictionary.
+			initPlayerPython(argc, argv);
+			PyObject *globalDict = PyDict_New();
+#endif  // WITH_PYTHON
+
 			// this bracket is needed for app (see below) to get out
 			// of scope before GHOST_ISystem::disposeSystem() is called.
 			{
@@ -1140,10 +1147,6 @@ int main(
 				// fill the GlobalSettings with the first scene files
 				// those may change during the game and persist after using Game Actuator
 				GlobalSettings gs;
-
-#ifdef WITH_PYTHON
-				PyObject *globalDict = nullptr;
-#endif  // WITH_PYTHON
 
 				do {
 					// Read the Blender file
@@ -1378,10 +1381,8 @@ int main(
 						// This argc cant be argc_py_clamped, since python uses it.
 						LA_PlayerLauncher launcher(system, window, maggie, scene, &gs, stereomode, aasamples,
 												   argc, argv, pythonControllerFile);
+
 #ifdef WITH_PYTHON
-						if (!globalDict) {
-							globalDict = PyDict_New();
-						}
 						launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
 
@@ -1394,18 +1395,6 @@ int main(
 						exitstring = launcher.GetExitString();
 						gs = *launcher.GetGlobalSettings();
 
-						/* Delete the globalDict before free the launcher, because the launcher calls
-						 * Py_Finalize() which disallow any python commands after.
-						 */
-						if (quitGame(exitcode)) {
-#ifdef WITH_PYTHON
-							// If the globalDict is to nullptr then python is certainly not initialized.
-							if (globalDict) {
-								PyDict_Clear(globalDict);
-								Py_DECREF(globalDict);
-							}
-#endif
-						}
 						launcher.ExitEngine();
 
 						BLO_blendfiledata_free(bfd);
@@ -1416,6 +1405,12 @@ int main(
 			}
 
 			GPU_exit();
+
+#ifdef WITH_PYTHON
+			PyDict_Clear(globalDict);
+			Py_DECREF(globalDict);
+			exitPlayerPython();
+#endif  // WITH_PYTHON
 
 			// Seg Fault; icon.c gIcons == 0
 			BKE_icons_free();

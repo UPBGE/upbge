@@ -135,22 +135,6 @@ void LA_BlenderLauncher::InitCamera()
 	}
 }
 
-
-void LA_BlenderLauncher::InitPython()
-{
-#ifdef WITH_PYTHON
-
-#endif  // WITH_PYTHON
-}
-void LA_BlenderLauncher::ExitPython()
-{
-#ifdef WITH_PYTHON
-
-	exitGamePythonScripting();
-
-#endif  // WITH_PYTHON
-}
-
 void LA_BlenderLauncher::SetWindowOrder(short order)
 {
 	wm_window_set_order(m_window, order);

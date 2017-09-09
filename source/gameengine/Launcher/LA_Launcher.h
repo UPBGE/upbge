@@ -127,8 +127,6 @@ protected:
 	virtual RAS_Rasterizer::DrawType GetRasterizerDrawMode() = 0;
 	virtual bool GetUseAlwaysExpandFraming() = 0;
 	virtual void InitCamera() = 0;
-	virtual void InitPython() = 0;
-	virtual void ExitPython() = 0;
 
 	virtual void SetWindowOrder(short order) = 0;
 

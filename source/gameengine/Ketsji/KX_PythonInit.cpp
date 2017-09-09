@@ -151,9 +151,9 @@ extern "C" {
 
 #ifdef WITH_PYTHON
 
-static SCA_PythonKeyboard* gp_PythonKeyboard = nullptr;
-static SCA_PythonMouse* gp_PythonMouse = nullptr;
-static SCA_PythonJoystick* gp_PythonJoysticks[JOYINDEX_MAX] = {nullptr};
+static std::unique_ptr<SCA_PythonKeyboard> gp_PythonKeyboard;
+static std::unique_ptr<SCA_PythonMouse> gp_PythonMouse;
+static std::unique_ptr<SCA_PythonJoystick> gp_PythonJoysticks[JOYINDEX_MAX];
 
 static struct {
 	PyObject *path;
@@ -1438,13 +1438,15 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	
 	PyDict_SetItemString(d, "globalDict", item=PyDict_New()); Py_DECREF(item);
 
+	KX_KetsjiEngine *engine = KX_GetActiveEngine();
+
 	// Add keyboard, mouse and joysticks attributes to this module
 	BLI_assert(!gp_PythonKeyboard);
-	gp_PythonKeyboard = new SCA_PythonKeyboard(KX_GetActiveEngine()->GetInputDevice());
+	gp_PythonKeyboard.reset(new SCA_PythonKeyboard(engine->GetInputDevice()));
 	PyDict_SetItemString(d, "keyboard", gp_PythonKeyboard->GetProxy());
 
 	BLI_assert(!gp_PythonMouse);
-	gp_PythonMouse = new SCA_PythonMouse(KX_GetActiveEngine()->GetInputDevice(), KX_GetActiveEngine()->GetCanvas());
+	gp_PythonMouse.reset(new SCA_PythonMouse(engine->GetInputDevice(), engine->GetCanvas()));
 	PyDict_SetItemString(d, "mouse", gp_PythonMouse->GetProxy());
 
 	PyObject *joylist = PyList_New(JOYINDEX_MAX);
@@ -1858,6 +1860,7 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
 	
 	Py_DECREF(item);
 }
+
 static void initPySysObjects(Main *maggie)
 {
 	PyObject *sys_path      = PySys_GetObject("path");
@@ -1986,69 +1989,37 @@ static struct _inittab bge_internal_modules[] = {
  * Python is not initialized.
  * see bpy_interface.c's BPY_python_start() which shares the same functionality in blender.
  */
-void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
+void initPlayerPython(int argc, char** argv)
 {
-	/* Yet another gotcha in the py api
-	 * Cant run PySys_SetArgv more than once because this adds the
-	 * binary dir to the sys.path each time.
-	 * Id have thought python being totally restarted would make this ok but
-	 * somehow it remembers the sys.path - Campbell
-	 */
-	static bool first_time = true;
 	const char * const py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, nullptr);
 
-	/* not essential but nice to set our name */
-	static wchar_t program_path_wchar[FILE_MAX]; /* python holds a reference */
+	// Not essential but nice to set our name, not that python holds a reference to program path string.
+	static wchar_t program_path_wchar[FILE_MAX];
 	BLI_strncpy_wchar_from_utf8(program_path_wchar, BKE_appdir_program_path(), ARRAY_SIZE(program_path_wchar));
 	Py_SetProgramName(program_path_wchar);
 
-	/* Update, Py3.3 resolves attempting to parse non-existing header */
-#if 0
-	/* Python 3.2 now looks for '2.xx/python/include/python3.2d/pyconfig.h' to
-	 * parse from the 'sysconfig' module which is used by 'site',
-	 * so for now disable site. alternatively we could copy the file. */
-	if (py_path_bundle != nullptr) {
-		Py_NoSiteFlag = 1; /* inhibits the automatic importing of 'site' */
-	}
-#endif
-
 	Py_FrozenFlag = 1;
 
-	/* must run before python initializes */
+	// Must run before python initializes.
 	PyImport_ExtendInittab(bge_internal_modules);
 
-	/* find local python installation */
+	// Find local python installation.
 	PyC_SetHomePath(py_path_bundle);
 
 	Py_Initialize();
-	
-	if (argv && first_time) { /* browser plugins don't currently set this */
-		// Until python support ascii again, we use our own.
-		// PySys_SetArgv(argc, argv);
-		int i;
-		PyObject *py_argv= PyList_New(argc);
 
-		for (i=0; i<argc; i++)
-			PyList_SET_ITEM(py_argv, i, PyC_UnicodeFromByte(argv[i]));
-
-		PySys_SetObject("argv", py_argv);
-		Py_DECREF(py_argv);
+	// Until python support ascii again, we use our own.
+	PyObject *py_argv = PyList_New(argc);
+	for (unsigned short i = 0; i < argc; ++i) {
+		PyList_SET_ITEM(py_argv, i, PyC_UnicodeFromByte(argv[i]));
 	}
+	PySys_SetObject("argv", py_argv);
+	Py_DECREF(py_argv);
 
-	/* Initialize thread support (also acquires lock) */
+	// Initialize thread support (also acquires lock).
 	PyEval_InitThreads();
 
 	bpy_import_init(PyEval_GetBuiltins());
-
-	bpy_import_main_set(maggie);
-
-	initPySysObjects(maggie);
-
-	/* mathutils types are used by the BGE even if we don't import them */
-	{
-		PyObject *mod = PyImport_ImportModuleLevel("mathutils", nullptr, nullptr, nullptr, 0);
-		Py_DECREF(mod);
-	}
 
 #ifdef WITH_AUDASPACE
 	/* accessing a SoundActuator's sound results in a crash if aud is not initialized... */
@@ -2057,107 +2028,61 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 		Py_DECREF(mod);
 	}
 #endif
-
-	PyObject *mod = initBGE();
-	PyDict_SetItemString(PyImport_GetModuleDict(), "bge", mod);
-	Py_DECREF(mod);
-
-	first_time = false;
-	
-	EXP_PyObjectPlus::ClearDeprecationWarning();
 }
 
-void exitGamePlayerPythonScripting()
+void exitPlayerPython()
 {
-	/* Clean up the Python mouse and keyboard */
-	delete gp_PythonKeyboard;
-	gp_PythonKeyboard = nullptr;
-
-	delete gp_PythonMouse;
-	gp_PythonMouse = nullptr;
-
-	for (int i=0; i<JOYINDEX_MAX; ++i) {
-		if (gp_PythonJoysticks[i]) {
-			delete gp_PythonJoysticks[i];
-			gp_PythonJoysticks[i] = nullptr;
-		}
-	}
-
-	/* since python restarts we cant let the python backup of the sys.path hang around in a global pointer */
-	restorePySysObjects(); /* get back the original sys.path and clear the backup */
-	
 	Py_Finalize();
-	bpy_import_main_set(nullptr);
-	EXP_PyObjectPlus::ClearDeprecationWarning();
 }
 
-
-
-/**
- * Python is already initialized.
- */
-void initGamePythonScripting(Main *maggie)
+void initGamePython(Main *main, PyObject *pyGlobalDict)
 {
-	/* no need to Py_SetProgramName, it was already taken care of in BPY_python_start */
+	PyObject *modules = PyImport_GetModuleDict();
 
-	bpy_import_main_set(maggie);
-
-	initPySysObjects(maggie);
+	bpy_import_main_set(main);
+	initPySysObjects(main);
 
 #ifdef WITH_AUDASPACE
-	/* accessing a SoundActuator's sound results in a crash if aud is not initialized... */
+	// Accessing a SoundActuator's sound results in a crash if aud is not initialized.
 	{
-		PyObject *mod= PyImport_ImportModuleLevel("aud", nullptr, nullptr, nullptr, 0);
+		PyObject *mod = PyImport_ImportModuleLevel("aud", nullptr, nullptr, nullptr, 0);
 		Py_DECREF(mod);
 	}
 #endif
 
 	PyObject *mod = initBGE();
-	PyDict_SetItemString(PyImport_GetModuleDict(), "bge", mod);
+	PyDict_SetItemString(modules, "bge", mod);
 	Py_DECREF(mod);
 
 	EXP_PyObjectPlus::NullDeprecationWarning();
+
+	PyObject *gameLogic = PyDict_GetItemString(modules, "GameLogic");
+	PyDict_SetItemString(PyModule_GetDict(gameLogic), "globalDict", pyGlobalDict);
+	Py_DECREF(gameLogic);
 }
 
-void exitGamePythonScripting()
+void exitGamePython()
 {
-	/* Clean up the Python mouse and keyboard */
-	delete gp_PythonKeyboard;
-	gp_PythonKeyboard = nullptr;
-
-	delete gp_PythonMouse;
-	gp_PythonMouse = nullptr;
-
-	for (int i=0; i<JOYINDEX_MAX; ++i) {
-		if (gp_PythonJoysticks[i]) {
-			delete gp_PythonJoysticks[i];
-			gp_PythonJoysticks[i] = nullptr;
-		}
+	// Clean up the Python mouse and keyboard.
+	gp_PythonKeyboard.reset(nullptr);
+	gp_PythonMouse.reset(nullptr);
+	for (unsigned short i = 0; i < JOYINDEX_MAX; ++i) {
+		gp_PythonJoysticks[i].reset(nullptr);
 	}
 
-	restorePySysObjects(); /* get back the original sys.path and clear the backup */
 	bpy_import_main_set(nullptr);
 	EXP_PyObjectPlus::ClearDeprecationWarning();
 }
 
-/* similar to the above functions except it sets up the namespace
- * and other more general things */
-void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata, PyObject *pyGlobalDict, int argc, char** argv)
+void initBlenderPython()
 {
-	PyObject *modules;
+	
+}
 
-	if (argv) /* player only */
-		initGamePlayerPythonScripting(blenderdata, argc, argv);
-	else
-		initGamePythonScripting(blenderdata);
-
-	modules = PyImport_GetModuleDict();
-
-	PyObject *gameLogic = PyDict_GetItemString(modules, "GameLogic");
-	/* is set in initGameLogicPythonBinding so only set here if we want it to persist between scenes */
-	if (pyGlobalDict)
-		PyDict_SetItemString(PyModule_GetDict(gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.z
-	Py_DECREF(gameLogic);
+void exitBlenderPython()
+{
+	// Get back the original sys.path and clear the backup.
+	restorePySysObjects();
 }
 
 void createPythonConsole()
@@ -2188,15 +2113,12 @@ void updatePythonJoysticks(short (&addrem)[JOYINDEX_MAX])
 		if (addrem[i] == 1) {
 			DEV_Joystick *joy = DEV_Joystick::GetInstance(i);
 			if (joy && joy->Connected()) {
-				gp_PythonJoysticks[i] = new SCA_PythonJoystick(joy, i);
+				gp_PythonJoysticks[i].reset(new SCA_PythonJoystick(joy, i));
 				item = gp_PythonJoysticks[i]->GetProxy();
 			}
 		}
 		else if (addrem[i] == 2) {
-			if (gp_PythonJoysticks[i]) {
-				delete gp_PythonJoysticks[i];
-				gp_PythonJoysticks[i] = nullptr;
-			}
+			gp_PythonJoysticks[i].reset(nullptr);
 		}
 
 		PyList_SetItem(pythonJoyList, i, item);

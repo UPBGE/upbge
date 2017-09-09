@@ -368,13 +368,9 @@ void SCA_PythonController::Trigger(SCA_LogicManager* logicmgr)
 			 */
 
 			if (!m_pythondictionary) {
-				m_pythondictionary = PyDict_Copy(PyC_DefaultNameSpace(nullptr)); /* new reference */
-
 				/* Without __file__ set the sys.argv[0] is used for the filename
 				 * which ends up with lines from the blender binary being printed in the console */
-				PyObject *value = PyUnicode_FromStdString(m_scriptName);
-				PyDict_SetItemString(m_pythondictionary, "__file__", value);
-				Py_DECREF(value);
+				m_pythondictionary = PyDict_Copy(PyC_DefaultNameSpace(m_scriptName.c_str())); /* new reference */
 			}
 
 			excdict= PyDict_Copy(m_pythondictionary);

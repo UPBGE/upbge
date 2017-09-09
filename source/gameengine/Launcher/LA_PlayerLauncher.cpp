@@ -124,17 +124,6 @@ void LA_PlayerLauncher::InitCamera()
 {
 }
 
-void LA_PlayerLauncher::InitPython()
-{
-}
-
-void LA_PlayerLauncher::ExitPython()
-{
-#ifdef WITH_PYTHON
-	exitGamePlayerPythonScripting();
-#endif  // WITH_PYTHON
-}
-
 void LA_PlayerLauncher::SetWindowOrder(short order)
 {
 	m_mainWindow->setOrder((order == 0) ? GHOST_kWindowOrderBottom : GHOST_kWindowOrderTop);
