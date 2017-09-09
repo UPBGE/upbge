@@ -160,8 +160,8 @@ bool RAS_Shader::Ok() const
 
 RAS_Shader::RAS_Shader()
 	:m_shader(nullptr),
-	m_use(0),
-	m_error(0),
+	m_use(false),
+	m_error(false),
 	m_dirty(true)
 {
 	for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
@@ -300,10 +300,6 @@ bool RAS_Shader::LinkProgram()
 	std::string frag;
 	std::string geom;
 
-	if (m_error) {
-		goto program_error;
-	}
-
 	if (m_progs[VERTEX_PROGRAM].empty() || m_progs[FRAGMENT_PROGRAM].empty()) {
 		CM_Error("invalid GLSL sources.");
 		return false;
@@ -315,18 +311,12 @@ bool RAS_Shader::LinkProgram()
 	m_shader = GPU_shader_create(vert.c_str(), frag.c_str(), geom.empty() ? nullptr : geom.c_str(),
 									nullptr, nullptr, 0, 0, 0);
 	if (!m_shader) {
-		goto program_error;
-	}
-
-	m_error = 0;
-	return true;
-
-	program_error:
-	{
-		m_use = 0;
-		m_error = 1;
+		m_error = true;
 		return false;
 	}
+
+	m_error = false;
+	return true;
 }
 
 void RAS_Shader::ValidateProgram()

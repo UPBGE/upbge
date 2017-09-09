@@ -273,7 +273,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 
 		m_progs[VERTEX_PROGRAM] = "";
 		m_progs[FRAGMENT_PROGRAM] = "";
-		m_use = 0;
+		m_use = false;
 		Py_RETURN_NONE;
 	}
 	return nullptr;
@@ -320,7 +320,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
 		for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
 			m_progs[i] = "";
 		}
-		m_use = 0;
+		m_use = false;
 		return nullptr;
 	}
 

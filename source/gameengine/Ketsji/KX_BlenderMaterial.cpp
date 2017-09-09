@@ -868,12 +868,10 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 
 	if (!m_shader) {
 		m_shader = new BL_Shader();
-		if (!m_shader->GetError()) {
-			// Set the material to use custom shader.
-			m_flag &= ~RAS_BLENDERGLSL;
-			m_shader->InitTexCo(m_textures);
-			m_scene->GetBucketManager()->UpdateShaders(this);
-		}
+		// Set the material to use custom shader.
+		m_flag &= ~RAS_BLENDERGLSL;
+		m_shader->InitTexCo(m_textures);
+		m_scene->GetBucketManager()->UpdateShaders(this);
 	}
 
 	if (!m_shader->GetError()) {
