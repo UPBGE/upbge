@@ -387,8 +387,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
 		m_calc_localtime = true;
 	}
 
+	// Compute minimum and maximum action frame.
+	const float minFrame = std::min(m_startframe, m_endframe);
+	const float maxFrame = std::max(m_startframe, m_endframe);
+
 	// Handle wrap around
-	if (m_localframe < std::min(m_startframe, m_endframe) || m_localframe > std::max(m_startframe, m_endframe)) {
+	if (m_localframe < minFrame || m_localframe > maxFrame) {
 		switch (m_playmode) {
 			case ACT_MODE_PLAY:
 				// Clamp
@@ -401,16 +405,18 @@ void BL_Action::Update(float curtime, bool applyToObject)
 				m_starttime = curtime;
 				break;
 			case ACT_MODE_PING_PONG:
+				m_localframe = m_endframe;
+				m_starttime = curtime;
+
 				// Swap the start and end frames
 				float temp = m_startframe;
 				m_startframe = m_endframe;
 				m_endframe = temp;
-
-				m_starttime = curtime;
-
 				break;
 		}
 	}
+
+	BLI_assert(m_localframe < minFrame || m_localframe > maxFrame);
 
 	m_appliedToObject = applyToObject;
 	// In case of culled armatures (doesn't requesting to transform the object) we only manages time.
