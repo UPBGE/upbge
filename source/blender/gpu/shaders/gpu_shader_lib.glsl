@@ -1,4 +1,4 @@
-#if __VERSION__ < 140
+#if __VERSION__ < 140 && !defined(GPU_ATI)
 /* Manual implementation of inverse(mat4) for GLSL version before 1.40, 
  * copied from https://github.com/stackgl/glsl-inverse/blob/master/index.glsl
  */
