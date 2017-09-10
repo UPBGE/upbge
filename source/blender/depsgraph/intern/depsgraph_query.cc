@@ -205,7 +205,7 @@ void DEG_objects_iterator_next(BLI_Iterator *iter)
 
 	base = data->base->next;
 	while (base != NULL) {
-		if ((base->flag & BASE_VISIBLED) != 0 || BKE_scene_uses_blender_game(data->scene)) {
+		if ((base->flag & BASE_VISIBLED) != 0) {
 			// Object *ob = DEG_get_evaluated_object(data->graph, base->object);
 			Object *ob = base->object;
 			iter->current = ob;

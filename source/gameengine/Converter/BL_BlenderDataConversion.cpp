@@ -1207,7 +1207,6 @@ static void blenderSceneSetBackground(Scene *blenderscene)
 	Base *base;
 
 	for (SETLOOPER(blenderscene, it, base)) {
-		base->object->lay = base->lay;
 		BKE_scene_base_flag_sync_from_base(base);
 	}
 }
@@ -1435,6 +1434,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 
 	Scene *blenderscene = kxscene->GetBlenderScene();
+	Scene *sce_iter;
+	Base *base;
 
 	// Get the frame settings of the canvas.
 	// Get the aspect ratio of the canvas as designed by the user.
@@ -1529,12 +1530,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	// Beware of name conflict in linked data, it will not crash but will create confusion
 	// in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
 	// no conflicting name for Object, Object data and Action.
-	DEG_OBJECT_ITER(depsgraph, blenderobject, DEG_OBJECT_ITER_FLAG_ALL)
+	for (SETLOOPER(blenderscene, sce_iter, base))
 	{
+		Object *blenderobject = base->object;
 		allblobj.insert(blenderobject);
 
-		bool isInActiveLayer = (blenderobject->base_flag & BASE_VISIBLED) != 0;
-		blenderobject->lay = (blenderobject->base_flag & BASE_VISIBLED) != 0;
+		bool isInActiveLayer = (base->flag & BASE_VISIBLED) != 0;
+		blenderobject->lay = (base->flag & BASE_VISIBLED) != 0;
 
 		KX_GameObject* gameobj = gameobject_from_blenderobject(
 										blenderobject,
@@ -1563,7 +1565,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			gameobj->Release();
 		}
 	}
-	DEG_OBJECT_ITER_END
 
 	if (!grouplist.empty())
 	{
