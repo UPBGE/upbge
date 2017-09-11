@@ -66,6 +66,8 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment
 	void RemoveConstraint(btTypedConstraint *con, bool free);
 	/// Remove a vehicle wrapper.
 	void RemoveVehicle(WrapperVehicle *vehicle, bool free);
+	/// Remove vehicle wrapper used by a physics controller used as chassis.
+	void RemoveVehicle(CcdPhysicsController *ctrl, bool free);
 	/// Restore the constraint if the owner and target are presents.
 	void RestoreConstraint(CcdPhysicsController *ctrl, btTypedConstraint *con);
 

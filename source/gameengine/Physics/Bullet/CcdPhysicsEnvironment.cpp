@@ -531,8 +531,24 @@ void CcdPhysicsEnvironment::RemoveVehicle(WrapperVehicle *vehicle, bool free)
 {
 	m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
 	if (free) {
-		m_wrapperVehicles.erase(std::remove(m_wrapperVehicles.begin(), m_wrapperVehicles.end(), vehicle));
+		m_wrapperVehicles.erase(std::find(m_wrapperVehicles.begin(), m_wrapperVehicles.end(), vehicle));
 		delete vehicle;
+	}
+}
+
+void CcdPhysicsEnvironment::RemoveVehicle(CcdPhysicsController *ctrl, bool free)
+{
+	for (std::vector<WrapperVehicle *>::iterator it = m_wrapperVehicles.begin(); it != m_wrapperVehicles.end();) {
+		WrapperVehicle *vehicle = *it;
+		if (vehicle->GetChassis() == ctrl) {
+			m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
+			if (free) {
+				it = m_wrapperVehicles.erase(it);
+				delete vehicle;
+				continue;
+			}
+		}
+		++it;
 	}
 }
 
@@ -587,11 +603,7 @@ bool CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController *ctr
 		m_dynamicsWorld->removeRigidBody(ctrl->GetRigidBody());
 
 		// Handle potential vehicle constraints
-		for (WrapperVehicle *vehicle : m_wrapperVehicles) {
-			if (vehicle->GetChassis() == ctrl) {
-				RemoveVehicle(vehicle, freeConstraints);
-			}
-		}
+		RemoveVehicle(ctrl, freeConstraints);
 	}
 	else {
 		//if a softbody
