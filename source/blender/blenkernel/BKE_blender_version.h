@@ -33,8 +33,8 @@
 #define BLENDER_MINVERSION      270
 #define BLENDER_MINSUBVERSION   6
 
-#define UPBGE_VERSION           1
-#define UPBGE_SUBVERSION        9
+#define UPBGE_VERSION           2
+#define UPBGE_SUBVERSION        0
 
 /* used by packaging tools */
 /* can be left blank, otherwise a,b,c... etc with no quotes */
