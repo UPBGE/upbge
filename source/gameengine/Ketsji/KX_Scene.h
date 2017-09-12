@@ -146,6 +146,7 @@ protected:
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
 	EEVEE_Data *m_eeveeData;
 	IDProperty *m_props;
+	std::vector<KX_GameObject *>m_lightProbes;
 
 	KX_TextureRendererManager *m_rendererManager;
 	RAS_BucketManager*	m_bucketmanager;
@@ -342,6 +343,9 @@ public:
 	EEVEE_Data *GetEeveeData();
 	void SetIsLastScene(bool isLastScene);
 	bool GetIsLastScene();
+	void AppendProbeList(KX_GameObject *probe);
+	void RenderSceneToProbes(std::vector<KX_GameObject *>probeList, RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
+	std::vector<KX_GameObject *>GetProbeList();
 	/***************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;

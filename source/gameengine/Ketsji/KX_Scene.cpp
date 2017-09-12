@@ -114,6 +114,7 @@
 
 extern "C" {
 #  include "DRW_engine.h"
+#  include "DRW_render.h"
 #  include "BKE_layer.h"
 #  include "BKE_camera.h"
 #  include "BKE_main.h"
@@ -385,6 +386,16 @@ std::string KX_Scene::GetName()
 void KX_Scene::SetName(const std::string& name)
 {
 	m_sceneName = name;
+}
+
+void KX_Scene::AppendProbeList(KX_GameObject *probe)
+{
+	m_lightProbes.push_back(probe);
+}
+
+std::vector<KX_GameObject *>KX_Scene::GetProbeList()
+{
+	return m_lightProbes;
 }
 
 void KX_Scene::SetSceneLayerData(RAS_SceneLayerData *layerData)
@@ -667,6 +678,117 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(SG_Node* node, KX_GameObject *game
 	newobj->UpdateBounds(true);
 
 	return newobj;
+}
+
+static void render_scene_to_planar(
+	EEVEE_Data *vedata, int layer,
+	float(*viewmat)[4], float(*persmat)[4],
+	float clip_plane[4], KX_Scene *scene, RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+{
+	EEVEE_FramebufferList *fbl = vedata->fbl;
+	EEVEE_TextureList *txl = vedata->txl;
+	EEVEE_PassList *psl = vedata->psl;
+	EEVEE_StorageList *stl = vedata->stl;
+	EEVEE_StaticProbeData *e_data = EEVEE_static_probe_data_get();
+
+	float viewinv[4][4];
+	float persinv[4][4];
+
+	invert_m4_m4(viewinv, viewmat);
+	invert_m4_m4(persinv, persmat);
+
+	/* Attach depth here since it's a DRW_TEX_TEMP */
+	//DRW_framebuffer_texture_attach(fbl->planarref_fb, e_data->planar_depth, 0, 0);
+	//DRW_framebuffer_texture_layer_attach(fbl->planarref_fb, txl->planar_pool, 0, layer, 0);
+	//DRW_framebuffer_bind(fbl->planarref_fb);
+
+	//DRW_framebuffer_clear(false, true, false, NULL, 1.0);
+
+	/* Avoid using the texture attached to framebuffer when rendering. */
+	/* XXX */
+	GPUTexture *tmp_planar_pool = txl->planar_pool;
+	GPUTexture *tmp_minmaxz = stl->g_data->minmaxz;
+	txl->planar_pool = e_data->planar_pool_placeholder;
+	stl->g_data->minmaxz = e_data->planar_minmaxz;
+	stl->g_data->background_alpha = FLT_MAX; /* Alpha is distance for planar reflections. */
+
+	DRW_viewport_matrix_override_set(persmat, DRW_MAT_PERS);
+	DRW_viewport_matrix_override_set(persinv, DRW_MAT_PERSINV);
+	DRW_viewport_matrix_override_set(viewmat, DRW_MAT_VIEW);
+	DRW_viewport_matrix_override_set(viewinv, DRW_MAT_VIEWINV);
+
+	/* Background */
+	//DRW_draw_pass(psl->probe_background);
+
+	/* Since we are rendering with an inverted view matrix, we need
+	* to invert the facing for backface culling to be the same. */
+	DRW_state_invert_facing();
+	DRW_state_clip_planes_add(clip_plane);
+
+	inputofs->Bind();
+
+	/* Depth prepass */
+	//DRW_draw_pass(psl->depth_pass_clip);
+	//DRW_draw_pass(psl->depth_pass_clip_cull);
+
+	//EEVEE_create_minmax_buffer(vedata, e_data->planar_depth);
+
+	/* Rebind Planar FB */
+	//DRW_framebuffer_bind(fbl->planarref_fb);
+
+	/* Shading pass */
+	//EEVEE_draw_default_passes(psl);
+	//DRW_draw_pass(psl->material_pass);
+
+	KX_CullingNodeList nodes;
+	float temp[16];
+	int k = 0;
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			temp[k] = persmat[i][j];
+			k++;
+		}
+	}
+	MT_Matrix4x4 t(temp);
+	MT_Transform trans(temp);
+	const SG_Frustum frustum(t);
+	/* update scene */
+	scene->CalculateVisibleMeshes(nodes, frustum, layer);
+	scene->RenderBuckets(nodes, trans, rasty, inputofs);
+
+	DRW_state_invert_facing();
+	DRW_state_clip_planes_reset();
+
+	/* Restore */
+	txl->planar_pool = tmp_planar_pool;
+	stl->g_data->minmaxz = tmp_minmaxz;
+	stl->g_data->background_alpha = 1.0;
+	DRW_viewport_matrix_override_unset(DRW_MAT_PERS);
+	DRW_viewport_matrix_override_unset(DRW_MAT_PERSINV);
+	DRW_viewport_matrix_override_unset(DRW_MAT_VIEW);
+	DRW_viewport_matrix_override_unset(DRW_MAT_VIEWINV);
+
+	DRW_framebuffer_texture_detach(txl->planar_pool);
+	DRW_framebuffer_texture_detach(e_data->planar_depth);
+}
+
+void KX_Scene::RenderSceneToProbes(std::vector<KX_GameObject *>probeList, RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+{
+	EEVEE_Data *vedata = EEVEE_engine_data_get();
+	KX_Camera *cam = GetActiveCamera();
+	int i = 0;
+	for (KX_GameObject *probe : probeList) {
+		if (probe->GetBlenderObject()->type == OB_LIGHTPROBE) {
+			EEVEE_LightProbeEngineData *ped = EEVEE_lightprobe_data_get(probe->GetBlenderObject());
+			float probeviewmat[4][4], probepersmat[4][4];
+			MT_Matrix4x4 mv = cam->GetModelviewMatrix() * MT_Matrix4x4(probe->NodeGetWorldTransform());
+			MT_Matrix4x4 mvp = cam->GetProjectionMatrix() * cam->GetModelviewMatrix() *MT_Matrix4x4(probe->NodeGetWorldTransform());
+			mv.getValue(&probeviewmat[0][0]);
+			mvp.getValue(&probepersmat[0][0]);
+			render_scene_to_planar(vedata, i, probeviewmat, probepersmat, ped->planer_eq_offset, this, rasty, inputofs);
+		}
+		i++;
+	}
 }
 
 
@@ -1730,6 +1852,7 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 	}
 
 	m_bucketmanager->Renderbuckets(cameratransform, rasty, offScreen);
+
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 

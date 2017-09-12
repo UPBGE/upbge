@@ -672,6 +672,8 @@ void KX_KetsjiEngine::Render()
 				RenderCamera(scene, cameraFrameData, offScreen, pass++, isfirstscene);
 			}
 
+			scene->RenderSceneToProbes(scene->GetProbeList(), m_rasterizer, offScreen);
+
 			// Choose final render off screen target.
 			RAS_Rasterizer::OffScreenType target;
 			if (offScreen->GetSamples() > 0) {

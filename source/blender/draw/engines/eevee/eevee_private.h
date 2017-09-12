@@ -295,6 +295,26 @@ typedef struct EEVEE_LightProbesInfo {
 	struct EEVEE_PlanarReflection planar_data[MAX_PLANAR];
 } EEVEE_LightProbesInfo;
 
+typedef struct EEVEE_StaticProbeData {
+	struct GPUShader *probe_default_sh;
+	struct GPUShader *probe_filter_glossy_sh;
+	struct GPUShader *probe_filter_diffuse_sh;
+	struct GPUShader *probe_grid_display_sh;
+	struct GPUShader *probe_planar_display_sh;
+	struct GPUShader *probe_planar_downsample_sh;
+	struct GPUShader *probe_cube_display_sh;
+
+	struct GPUTexture *hammersley;
+	struct GPUTexture *planar_depth;
+	struct GPUTexture *planar_minmaxz;
+	struct GPUTexture *planar_pool_placeholder;
+	struct GPUTexture *cube_face_depth;
+	struct GPUTexture *cube_face_minmaxz;
+
+	bool update_world;
+	bool world_ready_to_shade;
+} EEVEE_StaticProbeData;
+
 /* EEVEE_LightProbesInfo->update_flag */
 enum {
 	PROBE_UPDATE_CUBE = (1 << 0),
@@ -490,6 +510,7 @@ void EEVEE_lightprobes_cache_add(EEVEE_SceneLayerData *sldata, Object *ob);
 void EEVEE_lightprobes_cache_finish(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_lightprobes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_lightprobes_free(void);
+EEVEE_StaticProbeData *EEVEE_static_probe_data_get();
 
 /* eevee_effects.c */
 DRWShadingGroup *EEVEE_create_bloom_shgroup(EEVEE_EffectsInfo *effects, struct GPUShader *sh, bool upsample);
