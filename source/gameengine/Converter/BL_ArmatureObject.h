@@ -56,8 +56,6 @@ protected:
 	CListValue<BL_ArmatureChannel> *m_poseChannels;
 	Object *m_objArma;
 	Object *m_origObjArma;
-	bPose *m_pose;
-	bPose *m_armpose;
 	// Need for BKE_pose_where_is.
 	Scene *m_scene;
 	double m_lastframe;
@@ -90,20 +88,15 @@ public:
 
 	double GetLastFrame();
 
-	void GetPose(bPose **pose);
-	void SetPose(bPose *pose);
+	void GetPose(bPose **pose) const;
 	/// Never edit this, only for accessing names.
-	bPose *GetOrigPose();
+	bPose *GetPose() const;
 	void ApplyPose();
 	void SetPoseByAction(bAction *action, float localtime);
 	void BlendInPose(bPose *blend_pose, float weight, short mode);
-	void RestorePose();
 
 	bool UpdateTimestep(double curtime);
 
-	bArmature *GetArmature();
-	const bArmature *GetArmature() const;
-	const Scene *GetScene() const;
 	Object *GetArmatureObject();
 	Object *GetOrigArmatureObject();
 	int GetVertDeformType();

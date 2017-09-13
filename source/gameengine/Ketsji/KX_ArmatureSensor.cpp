@@ -73,7 +73,7 @@ void KX_ArmatureSensor::FindConstraint()
 	if (m_gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 		BL_ArmatureObject* armobj = (BL_ArmatureObject*)m_gameobj;
 		// get the persistent pose structure
-		bPose* pose = armobj->GetOrigPose();
+		bPose* pose = armobj->GetPose();
 		bPoseChannel* pchan;
 		bConstraint* pcon;
 		// and locate the constraint

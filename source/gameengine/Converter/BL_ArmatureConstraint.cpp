@@ -168,7 +168,7 @@ void BL_ArmatureConstraint::ReParent(BL_ArmatureObject* armature)
 	m_constraint = nullptr;
 	m_posechannel = nullptr;
 
-	bPose *newpose = m_armature->GetOrigPose();
+	bPose *newpose = m_armature->GetPose();
 
 	// find the corresponding constraint in the new armature object
 	// and locate the constraint
@@ -226,14 +226,16 @@ void BL_ArmatureConstraint::UpdateTarget()
 			// external target, must be updated
 			m_target->UpdateBlenderObjectMatrix(m_blendtarget);
 
-			if (m_target->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
+			if (m_target->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 				// update the pose in case a bone is specified in the constraint target
-				m_blendtarget->pose = static_cast<BL_ArmatureObject *>(m_target)->GetOrigPose();
+				m_blendtarget->pose = static_cast<BL_ArmatureObject *>(m_target)->GetPose();
+			}
 		}
 		if (m_blendsubtarget && m_subtarget) {
 			m_subtarget->UpdateBlenderObjectMatrix(m_blendsubtarget);
-			if (m_subtarget->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
-				m_blendsubtarget->pose = static_cast<BL_ArmatureObject *>(m_subtarget)->GetOrigPose();
+			if (m_subtarget->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
+				m_blendsubtarget->pose = static_cast<BL_ArmatureObject *>(m_subtarget)->GetPose();
+			}
 		}
 	}
 }
