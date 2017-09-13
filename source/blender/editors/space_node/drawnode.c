@@ -1138,6 +1138,19 @@ static void node_buts_output_linestyle(uiLayout *layout, bContext *UNUSED(C), Po
 	uiItemR(col, ptr, "use_clamp", 0, NULL, ICON_NONE);
 }
 
+static void node_buts_vector(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	bNode *node = ptr->data;
+	uiLayout *col;
+
+	bNodeSocket *output = node->outputs.first;
+	PointerRNA sockptr;
+	RNA_pointer_create(ptr->id.data, &RNA_NodeSocket, output, &sockptr);
+
+	col = uiLayoutColumn(layout, true);
+	uiItemR(col, &sockptr, "default_value", 0, "", ICON_NONE);
+}
+
 /* only once called */
 static void node_shader_set_butfunc(bNodeType *ntype)
 {
@@ -1271,6 +1284,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			break;
 		case SH_NODE_OUTPUT_LINESTYLE:
 			ntype->draw_buttons = node_buts_output_linestyle;
+			break;
+		case SH_NODE_VECTOR:
+			ntype->draw_buttons = node_buts_vector;
 			break;
 	}
 }

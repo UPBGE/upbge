@@ -154,6 +154,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeLayerWeight"),
         NodeItem("ShaderNodeLampData"),
         NodeItem("ShaderNodeValue"),
+        NodeItem("ShaderNodeVector"),
         NodeItem("ShaderNodeRGB"),
         NodeItem("ShaderNodeTexture"),
         NodeItem("ShaderNodeGeometry"),

@@ -1053,6 +1053,8 @@ enum {
 	NODE_MATH_GREATER = 16,
 	NODE_MATH_MOD     = 17,
 	NODE_MATH_ABS     = 18,
+	NODE_MATH_EXP     = 19,
+	NODE_MATH_EQUALS  = 20
 };
 
 /* mix rgb node flags */

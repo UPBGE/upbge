@@ -135,6 +135,8 @@ EnumPropertyItem rna_enum_node_math_items[] = {
 	{NODE_MATH_GREATER, "GREATER_THAN", 0, "Greater Than", ""},
 	{NODE_MATH_MOD,     "MODULO",       0, "Modulo",       ""},
 	{NODE_MATH_ABS,     "ABSOLUTE",     0, "Absolute",     ""},
+	{NODE_MATH_EXP,     "EXPONENT",     0, "Exponent",     ""},
+	{NODE_MATH_EQUALS,  "EQUALS",       0, "Equals",       ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -3512,7 +3514,6 @@ static void def_parallax(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
 }
-
 
 /* -- Shader Nodes ---------------------------------------------------------- */
 

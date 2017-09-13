@@ -212,6 +212,7 @@ set(SRC
 	shader/nodes/node_shader_volume_absorption.c
 	shader/nodes/node_shader_uvAlongStroke.c
 	shader/nodes/node_shader_uvmap.c
+	shader/nodes/node_shader_vector.c
 	shader/node_shader_tree.c
 	shader/node_shader_util.c
 

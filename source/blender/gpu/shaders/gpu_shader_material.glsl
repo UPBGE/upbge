@@ -2,11 +2,7 @@
 
 float convert_rgba_to_float(vec4 color)
 {
-#ifdef USE_NEW_SHADING
-	return color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
-#else
-	return (color.r + color.g + color.b) / 3.0;
-#endif
+	return dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
 }
 
 float exp_blender(float f)
@@ -409,6 +405,16 @@ void math_modulo(float val1, float val2, out float outval)
 void math_abs(float val1, out float outval)
 {
 	outval = abs(val1);
+}
+
+void math_exp(float val1, out float outval)
+{
+	outval = exp(val1);
+}
+
+void math_equals(float val1, float val2, out float outval)
+{
+	outval = val1 == val2 ? 1.0 : 0.0;
 }
 
 void squeeze(float val, float width, float center, out float outval)
@@ -907,16 +913,17 @@ void hue_sat(float hue, float sat, float value, float fac, vec4 col, out vec4 ou
 	outcol = mix(col, outcol, fac);
 }
 
-void separate_rgb(vec4 col, out float r, out float g, out float b)
+void separate_rgba(vec4 col, out float r, out float g, out float b, out float a)
 {
 	r = col.r;
 	g = col.g;
 	b = col.b;
+	a = col.a;
 }
 
-void combine_rgb(float r, float g, float b, out vec4 col)
+void combine_rgba(float r, float g, float b, float a, out vec4 col)
 {
-	col = vec4(r, g, b, 1.0);
+	col = vec4(r, g, b, a);
 }
 
 void separate_xyz(vec3 vec, out float x, out float y, out float z)

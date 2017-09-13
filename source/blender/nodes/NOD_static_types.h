@@ -65,9 +65,10 @@ DefNode( ShaderNode,     SH_NODE_VECT_MATH,       def_vector_math,        "VECT_
 DefNode( ShaderNode,     SH_NODE_SQUEEZE,         0,                      "SQUEEZE",        Squeeze,          "Squeeze Value",     ""              )
 DefNode( ShaderNode,     SH_NODE_MATERIAL_EXT,    def_sh_material,        "MATERIAL_EXT",   ExtendedMaterial, "Extended Material", ""              )
 DefNode( ShaderNode,     SH_NODE_INVERT,          0,                      "INVERT",         Invert,           "Invert",            ""              )
-DefNode( ShaderNode,     SH_NODE_SEPRGB,          0,                      "SEPRGB",         SeparateRGB,      "Separate RGB",      ""              )
-DefNode( ShaderNode,     SH_NODE_COMBRGB,         0,                      "COMBRGB",        CombineRGB,       "Combine RGB",       ""              )
+DefNode( ShaderNode,     SH_NODE_SEPRGB,          0,                      "SEPRGB",         SeparateRGB,      "Separate RGBA",     ""              )
+DefNode( ShaderNode,     SH_NODE_COMBRGB,         0,                      "COMBRGB",        CombineRGB,       "Combine RGBA",      ""              )
 DefNode( ShaderNode,     SH_NODE_HUE_SAT,         0,                      "HUE_SAT",        HueSaturation,    "Hue/Saturation",    ""              )
+DefNode( ShaderNode,     SH_NODE_VECTOR,          0,                      "INPUT_VECTOR",   Vector,           "Vector",            ""              )
 
 DefNode( ShaderNode,     SH_NODE_OUTPUT_MATERIAL,    def_sh_output,          "OUTPUT_MATERIAL",    OutputMaterial,   "Material Output",   ""       )
 DefNode( ShaderNode,     SH_NODE_OUTPUT_LAMP,        def_sh_output,          "OUTPUT_LAMP",        OutputLamp,       "Lamp Output",       ""       )

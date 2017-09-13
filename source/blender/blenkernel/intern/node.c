@@ -3567,6 +3567,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_sepxyz();
 	register_node_type_sh_combxyz();
 	register_node_type_sh_hue_sat();
+	register_node_type_sh_vector();
 
 	register_node_type_sh_attribute();
 	register_node_type_sh_geometry();
