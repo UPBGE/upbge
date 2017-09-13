@@ -81,6 +81,7 @@
 #include "DNA_group_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_property_types.h"
+#include "DNA_lightprobe_types.h"
 
 #include "GPU_texture.h"
 
@@ -680,10 +681,127 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(SG_Node* node, KX_GameObject *game
 	return newobj;
 }
 
+static void scale_m4_v3(float R[4][4], float v[3])
+{
+	for (int i = 0; i < 4; ++i)
+		mul_v3_v3(R[i], v);
+}
+
+static void EEVEE_planar_reflections_updates(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl, EEVEE_TextureList *txl,
+	KX_Camera *cam, KX_GameObject *gameobj, int layer)
+{
+	EEVEE_LightProbesInfo *pinfo = sldata->probes;
+	Object *ob = gameobj->GetBlenderObject();
+	float mtx[4][4], normat[4][4], imat[4][4], rangemat[4][4], obmat[4][4];
+
+	float viewmat[4][4], winmat[4][4];
+	cam->GetModelviewMatrix().getValue(&viewmat[0][0]);
+	cam->GetProjectionMatrix().getValue(&winmat[0][0]);
+	gameobj->NodeGetWorldTransform().getValue(&obmat[0][0]);
+
+	zero_m4(rangemat);
+	rangemat[0][0] = rangemat[1][1] = rangemat[2][2] = 0.5f;
+	rangemat[3][0] = rangemat[3][1] = rangemat[3][2] = 0.5f;
+	rangemat[3][3] = 1.0f;
+
+	/* PLANAR REFLECTION */
+	
+	LightProbe *probe = (LightProbe *)ob->data;
+	EEVEE_PlanarReflection *eplanar = &pinfo->planar_data[layer];
+	EEVEE_LightProbeEngineData *ped = EEVEE_lightprobe_data_get(ob);
+	EEVEE_StaticProbeData *e_data = EEVEE_static_probe_data_get();
+
+	/* Computing mtx : matrix that mirror position around object's XY plane. */
+	normalize_m4_m4(normat, obmat);  /* object > world */
+	invert_m4_m4(imat, normat); /* world > object */
+
+	float reflect[3] = { 1.0f, 1.0f, -1.0f }; /* XY reflection plane */
+	scale_m4_v3(imat, reflect); /* world > object > mirrored obj */
+	mul_m4_m4m4(mtx, normat, imat); /* world > object > mirrored obj > world */
+
+	/* Reflect Camera Matrix. */
+	mul_m4_m4m4(ped->viewmat, viewmat, mtx);
+
+	/* TODO FOV margin */
+	float winmat_fov[4][4];
+	copy_m4_m4(winmat_fov, winmat);
+
+	/* Apply Perspective Matrix. */
+	mul_m4_m4m4(ped->persmat, winmat_fov, ped->viewmat);
+
+	/* This is the matrix used to reconstruct texture coordinates.
+	* We use the original view matrix because it does not create
+	* visual artifacts if receiver is not perfectly aligned with
+	* the planar reflection probe. */
+	mul_m4_m4m4(eplanar->reflectionmat, winmat_fov, viewmat); /* TODO FOV margin */
+	/* Convert from [-1, 1] to [0, 1] (NDC to Texture coord). */
+	mul_m4_m4m4(eplanar->reflectionmat, rangemat, eplanar->reflectionmat);
+
+	/* TODO frustum check. */
+	ped->need_update = true;
+
+	/* Compute clip plane equation / normal. */
+	float refpoint[3];
+	copy_v3_v3(eplanar->plane_equation, obmat[2]);
+	normalize_v3(eplanar->plane_equation); /* plane normal */
+	eplanar->plane_equation[3] = -dot_v3v3(eplanar->plane_equation, obmat[3]);
+
+	/* Compute offset plane equation (fix missing texels near reflection plane). */
+	copy_v3_v3(ped->planer_eq_offset, eplanar->plane_equation);
+	mul_v3_v3fl(refpoint, eplanar->plane_equation, -probe->clipsta);
+	add_v3_v3(refpoint, obmat[3]);
+	ped->planer_eq_offset[3] = -dot_v3v3(eplanar->plane_equation, refpoint);
+
+	/* Compute XY clip planes. */
+	normalize_v3_v3(eplanar->clip_vec_x, obmat[0]);
+	normalize_v3_v3(eplanar->clip_vec_y, obmat[1]);
+
+	float vec[3] = { 0.0f, 0.0f, 0.0f };
+	vec[0] = 1.0f; vec[1] = 0.0f; vec[2] = 0.0f;
+	mul_m4_v3(obmat, vec); /* Point on the edge */
+	eplanar->clip_edge_x_pos = dot_v3v3(eplanar->clip_vec_x, vec);
+
+	vec[0] = 0.0f; vec[1] = 1.0f; vec[2] = 0.0f;
+	mul_m4_v3(obmat, vec); /* Point on the edge */
+	eplanar->clip_edge_y_pos = dot_v3v3(eplanar->clip_vec_y, vec);
+
+	vec[0] = -1.0f; vec[1] = 0.0f; vec[2] = 0.0f;
+	mul_m4_v3(obmat, vec); /* Point on the edge */
+	eplanar->clip_edge_x_neg = dot_v3v3(eplanar->clip_vec_x, vec);
+
+	vec[0] = 0.0f; vec[1] = -1.0f; vec[2] = 0.0f;
+	mul_m4_v3(obmat, vec); /* Point on the edge */
+	eplanar->clip_edge_y_neg = dot_v3v3(eplanar->clip_vec_y, vec);
+
+	/* Facing factors */
+	float max_angle = max_ff(1e-2f, probe->falloff) * M_PI * 0.5f;
+	float min_angle = 0.0f;
+	eplanar->facing_scale = 1.0f / max_ff(1e-8f, cosf(min_angle) - cosf(max_angle));
+	eplanar->facing_bias = -min_ff(1.0f - 1e-8f, cosf(max_angle)) * eplanar->facing_scale;
+
+	/* Distance factors */
+	float max_dist = probe->distinf;
+	float min_dist = min_ff(1.0f - 1e-8f, 1.0f - probe->falloff) * probe->distinf;
+	eplanar->attenuation_scale = -1.0f / max_ff(1e-8f, max_dist - min_dist);
+	eplanar->attenuation_bias = max_dist * -eplanar->attenuation_scale;
+
+	/* Debug Display */
+	if (DRW_state_draw_support() && (probe->flag & LIGHTPROBE_FLAG_SHOW_DATA)) {
+		DRWShadingGroup *grp = DRW_shgroup_create(e_data->probe_planar_display_sh, psl->probe_display);
+
+		DRW_shgroup_uniform_int(grp, "probeIdx", &ped->probe_id, 1);
+		DRW_shgroup_uniform_buffer(grp, "probePlanars", &txl->planar_pool);
+		DRW_shgroup_uniform_block(grp, "planar_block", sldata->planar_ubo);
+
+		struct Gwn_Batch *geom = DRW_cache_fullscreen_quad_get();
+		DRW_shgroup_call_add(grp, geom, obmat);
+	}
+}
+
 static void render_scene_to_planar(
 	EEVEE_Data *vedata, int layer,
 	float(*viewmat)[4], float(*persmat)[4],
-	float clip_plane[4], KX_Scene *scene, RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+	float clip_plane[4], KX_Scene *scene, RAS_Rasterizer *rasty, RAS_OffScreen *inputofs, KX_Camera *cam)
 {
 	EEVEE_FramebufferList *fbl = vedata->fbl;
 	EEVEE_TextureList *txl = vedata->txl;
@@ -698,11 +816,12 @@ static void render_scene_to_planar(
 	invert_m4_m4(persinv, persmat);
 
 	/* Attach depth here since it's a DRW_TEX_TEMP */
-	//DRW_framebuffer_texture_attach(fbl->planarref_fb, e_data->planar_depth, 0, 0);
-	//DRW_framebuffer_texture_layer_attach(fbl->planarref_fb, txl->planar_pool, 0, layer, 0);
-	//DRW_framebuffer_bind(fbl->planarref_fb);
+	DRW_framebuffer_texture_attach(fbl->planarref_fb, e_data->planar_depth, 0, 0);
+	DRW_framebuffer_texture_layer_attach(fbl->planarref_fb, txl->planar_pool, 0, layer, 0);
+	DRW_framebuffer_bind(fbl->planarref_fb);
+	inputofs->Bind();
 
-	//DRW_framebuffer_clear(false, true, false, NULL, 1.0);
+	DRW_framebuffer_clear(false, true, false, NULL, 1.0);
 
 	/* Avoid using the texture attached to framebuffer when rendering. */
 	/* XXX */
@@ -717,6 +836,7 @@ static void render_scene_to_planar(
 	DRW_viewport_matrix_override_set(viewmat, DRW_MAT_VIEW);
 	DRW_viewport_matrix_override_set(viewinv, DRW_MAT_VIEWINV);
 
+	//inputofs->Bind();
 	/* Background */
 	//DRW_draw_pass(psl->probe_background);
 
@@ -725,35 +845,26 @@ static void render_scene_to_planar(
 	DRW_state_invert_facing();
 	DRW_state_clip_planes_add(clip_plane);
 
-	inputofs->Bind();
-
 	/* Depth prepass */
-	//DRW_draw_pass(psl->depth_pass_clip);
-	//DRW_draw_pass(psl->depth_pass_clip_cull);
+	DRW_draw_pass(psl->depth_pass_clip);
+	DRW_draw_pass(psl->depth_pass_clip_cull);
 
-	//EEVEE_create_minmax_buffer(vedata, e_data->planar_depth);
+	//EEVEE_create_minmax_buffer(vedata, inputofs->GetDepthTexture());//e_data->planar_depth);
 
 	/* Rebind Planar FB */
 	//DRW_framebuffer_bind(fbl->planarref_fb);
+	inputofs->Bind();
 
 	/* Shading pass */
 	//EEVEE_draw_default_passes(psl);
 	//DRW_draw_pass(psl->material_pass);
 
 	KX_CullingNodeList nodes;
-	float temp[16];
-	int k = 0;
-	for (int i = 0; i < 4; i++) {
-		for (int j = 0; j < 4; j++) {
-			temp[k] = persmat[i][j];
-			k++;
-		}
-	}
-	MT_Matrix4x4 t(temp);
-	MT_Transform trans(temp);
-	const SG_Frustum frustum(t);
+	
+	MT_Transform trans(cam->GetCameraToWorld());
+	const SG_Frustum frustum(cam->GetFrustum());
 	/* update scene */
-	scene->CalculateVisibleMeshes(nodes, frustum, layer);
+	scene->CalculateVisibleMeshes(nodes, frustum, 0);
 	scene->RenderBuckets(nodes, trans, rasty, inputofs);
 
 	DRW_state_invert_facing();
@@ -780,12 +891,9 @@ void KX_Scene::RenderSceneToProbes(std::vector<KX_GameObject *>probeList, RAS_Ra
 	for (KX_GameObject *probe : probeList) {
 		if (probe->GetBlenderObject()->type == OB_LIGHTPROBE) {
 			EEVEE_LightProbeEngineData *ped = EEVEE_lightprobe_data_get(probe->GetBlenderObject());
-			float probeviewmat[4][4], probepersmat[4][4];
-			MT_Matrix4x4 mv = cam->GetModelviewMatrix() * MT_Matrix4x4(probe->NodeGetWorldTransform());
-			MT_Matrix4x4 mvp = cam->GetProjectionMatrix() * cam->GetModelviewMatrix() *MT_Matrix4x4(probe->NodeGetWorldTransform());
-			mv.getValue(&probeviewmat[0][0]);
-			mvp.getValue(&probepersmat[0][0]);
-			render_scene_to_planar(vedata, i, probeviewmat, probepersmat, ped->planer_eq_offset, this, rasty, inputofs);
+
+			EEVEE_planar_reflections_updates(EEVEE_scene_layer_data_get(), vedata->psl, vedata->txl, cam, probe, i);
+			render_scene_to_planar(vedata, i, ped->viewmat, ped->persmat, ped->planer_eq_offset, this, rasty, inputofs, cam);
 		}
 		i++;
 	}
