@@ -867,9 +867,8 @@ static int Buffer_ass_slice(Buffer *self, int begin, int end, PyObject *seq)
 
 	/* re-use count var */
 	if ((count = PySequence_Size(seq)) != (end - begin)) {
-		PyErr_Format(PyExc_TypeError,
-		             "buffer[:] = value, size mismatch in assignment. "
-		             "Expected: %d (given: %d)", count, end - begin);
+		PyErr_Format(PyExc_ValueError,
+			"Mismatch in assignment. bgl.Buffer dimension: %d and template size: %d", end - begin, count);
 		return -1;
 	}
 	
