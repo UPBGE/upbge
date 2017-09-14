@@ -416,7 +416,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 		}
 	}
 
-	BLI_assert(m_localframe < minFrame || m_localframe > maxFrame);
+	BLI_assert(m_localframe >= minFrame && m_localframe <= maxFrame);
 
 	m_appliedToObject = applyToObject;
 	// In case of culled armatures (doesn't requesting to transform the object) we only manages time.
