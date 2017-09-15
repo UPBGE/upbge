@@ -121,7 +121,11 @@ public:
 		return static_cast<ItemType *>(CBaseListValue::FindValue(name));
 	}
 
-	bool RemoveValue(ItemType *val)
+	/** \note Allow to remove by base class pointer as an upcast from this class type
+	 * to the item type could failed if the pointer is dangling, in example when it was
+	 * just deleted.
+	 */
+	bool RemoveValue(CValue *val)
 	{
 		return CBaseListValue::RemoveValue(val);
 	}

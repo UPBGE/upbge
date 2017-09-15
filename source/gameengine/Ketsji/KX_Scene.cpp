@@ -1057,18 +1057,22 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 	m_rendererManager->InvalidateViewpoint(gameobj);
 
 	bool ret = true;
-	if (gameobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(static_cast<KX_LightObject *>(gameobj)))
-		ret = (gameobj->Release() != nullptr);
-	if (m_objectlist->RemoveValue(gameobj))
-		ret = (gameobj->Release() != nullptr);
-	if (m_parentlist->RemoveValue(gameobj))
-		ret = (gameobj->Release() != nullptr);
-	if (m_inactivelist->RemoveValue(gameobj))
-		ret = (gameobj->Release() != nullptr);
-	if (m_fontlist->RemoveValue(static_cast<KX_FontObject *>(gameobj))) {
+	if (m_lightlist->RemoveValue(gameobj)) {
 		ret = (gameobj->Release() != nullptr);
 	}
-	if (m_cameralist->RemoveValue(static_cast<KX_Camera *>(gameobj))) {
+	if (m_objectlist->RemoveValue(gameobj)) {
+		ret = (gameobj->Release() != nullptr);
+	}
+	if (m_parentlist->RemoveValue(gameobj)) {
+		ret = (gameobj->Release() != nullptr);
+	}
+	if (m_inactivelist->RemoveValue(gameobj)) {
+		ret = (gameobj->Release() != nullptr);
+	}
+	if (m_fontlist->RemoveValue(gameobj)) {
+		ret = (gameobj->Release() != nullptr);
+	}
+	if (m_cameralist->RemoveValue(gameobj)) {
 		ret = (gameobj->Release() != nullptr);
 	}
 
