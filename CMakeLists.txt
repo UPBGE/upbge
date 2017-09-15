@@ -546,6 +546,13 @@ if(CMAKE_COMPILER_IS_GNUCC)
   endif()
 endif()
 
+if (CMAKE_COMPILER_IS_GNUCC)
+  option(WITH_GAMEENGINE_TEST "Compile game engine with GCC sanitizer" OFF)
+  mark_as_advanced(WITH_GAMEENGINE_TEST)
+
+  set(SANITIZER_OPTIONS "-fsanitize=address -fsanitize=undefined" CACHE STRING "Sanitizer arguments passed to GCC.")
+endif()
+
 # Dependency graph
 option(WITH_LEGACY_DEPSGRAPH "Build Blender with legacy dependency graph" ON)
 mark_as_advanced(WITH_LEGACY_DEPSGRAPH)

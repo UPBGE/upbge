@@ -31,6 +31,11 @@ if(WITH_PYTHON)
 	add_definitions(-DWITH_PYTHON)
 endif()
 
+if(WITH_GAMEENGINE_TEST)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SANITIZER_OPTIONS}")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZER_OPTIONS}")
+endif()
+
 add_subdirectory(BlenderRoutines)
 add_subdirectory(Common)
 add_subdirectory(Converter)
