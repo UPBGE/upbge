@@ -221,8 +221,8 @@ public:
 	    float wheelRadius,
 	    bool hasSteering)
 	{
-		btWheelInfo& info = m_vehicle->addWheel(ToBullet(connectionPoint), ToBullet(downDirection), ToBullet(axleDirection),
-		                                        suspensionRestLength, wheelRadius, gTuning, hasSteering);
+		btWheelInfo& info = m_vehicle->addWheel(ToBullet(connectionPoint), ToBullet(downDirection.normalized()),
+				ToBullet(axleDirection.normalized()), suspensionRestLength, wheelRadius, gTuning, hasSteering);
 		info.m_clientInfo = motionState;
 	}
 
