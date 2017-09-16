@@ -834,6 +834,9 @@ set(PLATFORM_LINKLIBS "")
 set(PLATFORM_LINKFLAGS "")
 set(PLATFORM_LINKFLAGS_DEBUG "")
 
+if(WITH_GAMEENGINE_TEST)
+	set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} ${SANITIZER_OPTIONS}")
+endif()
 
 #-----------------------------------------------------------------------------
 #Platform specifics
