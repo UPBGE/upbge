@@ -1872,7 +1872,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_O},
 
 	KX_PYMETHODTABLE(KX_GameObject, rayCastTo),
-	KX_PYMETHODTABLE(KX_GameObject, rayCast),
+	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, rayCast),
 	KX_PYMETHODTABLE_O(KX_GameObject, getDistanceTo),
 	KX_PYMETHODTABLE_O(KX_GameObject, getVectTo),
 	KX_PYMETHODTABLE(KX_GameObject, sendMessage),
@@ -3872,7 +3872,12 @@ KX_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 	int mask = (1 << OB_MAX_COL_MASKS) - 1;
 	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
-	if (!PyArg_ParseTuple(args,"O|Ofsiiii:rayCast", &pyto, &pyfrom, &dist, &propName, &face, &xray, &poly, &mask)) {
+    // keywords taken from Python API on web.
+    static const char *kwlist[] = {"objto", "objfrom", "dist", "prop", "face", "xray", "poly", "mask", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+	        args, kwds, "O|Ofsiiii:rayCast", const_cast<char**>(kwlist),
+	        &pyto, &pyfrom, &dist, &propName, &face, &xray, &poly, &mask // arg
+	    )) {
 		return nullptr; // Python sets a simple error
 	}
 
