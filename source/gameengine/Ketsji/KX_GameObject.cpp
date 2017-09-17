@@ -1866,7 +1866,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 
 	{"getPhysicsId", (PyCFunction)KX_GameObject::sPyGetPhysicsId,METH_NOARGS},
 	{"getPropertyNames", (PyCFunction)KX_GameObject::sPyGetPropertyNames,METH_NOARGS},
-	{"replaceMesh",(PyCFunction) KX_GameObject::sPyReplaceMesh, METH_VARARGS},
+	{"replaceMesh",(PyCFunction) KX_GameObject::sPyReplaceMesh, METH_VARARGS | METH_KEYWORDS},
 	{"endObject",(PyCFunction) KX_GameObject::sPyEndObject, METH_NOARGS},
 	{"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh,METH_VARARGS},
 	{"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_O},
@@ -1954,15 +1954,19 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *KX_GameObject::PyReplaceMesh(PyObject *args)
+PyObject *KX_GameObject::PyReplaceMesh(PyObject *args, PyObject *kwds)
 {
 	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
 	PyObject *value;
 	int use_gfx= 1, use_phys= 0;
 	RAS_MeshObject *new_mesh;
-	
-	if (!PyArg_ParseTuple(args,"O|ii:replaceMesh", &value, &use_gfx, &use_phys))
+
+	static const char *kwlist[] = {"mesh", "useDisplayMesh", "usePhysicsMesh", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+	        args, kwds, "O|ii:replaceMesh", const_cast<char**>(kwlist),
+	        &value, &use_gfx, &use_phys
+	    ))
 		return nullptr;
 	
 	if (!ConvertPythonToMesh(logicmgr, value, &new_mesh, false, "gameOb.replaceMesh(value): KX_GameObject"))
