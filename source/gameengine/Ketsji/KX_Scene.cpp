@@ -801,7 +801,7 @@ static void EEVEE_planar_reflections_updates(EEVEE_SceneLayerData *sldata, EEVEE
 static void render_scene_to_planar(
 	EEVEE_Data *vedata, int layer,
 	float(*viewmat)[4], float(*persmat)[4],
-	float clip_plane[4], KX_Scene *scene, RAS_Rasterizer *rasty, RAS_OffScreen *inputofs, KX_Camera *cam)
+	float clip_plane[4], KX_Scene *scene, RAS_Rasterizer *rasty, RAS_OffScreen *inputofs, KX_GameObject *probe)
 {
 	EEVEE_FramebufferList *fbl = vedata->fbl;
 	EEVEE_TextureList *txl = vedata->txl;
@@ -819,7 +819,6 @@ static void render_scene_to_planar(
 	DRW_framebuffer_texture_attach(fbl->planarref_fb, e_data->planar_depth, 0, 0);
 	DRW_framebuffer_texture_layer_attach(fbl->planarref_fb, txl->planar_pool, 0, layer, 0);
 	DRW_framebuffer_bind(fbl->planarref_fb);
-	inputofs->Bind();
 
 	DRW_framebuffer_clear(false, true, false, NULL, 1.0);
 
@@ -836,9 +835,8 @@ static void render_scene_to_planar(
 	DRW_viewport_matrix_override_set(viewmat, DRW_MAT_VIEW);
 	DRW_viewport_matrix_override_set(viewinv, DRW_MAT_VIEWINV);
 
-	//inputofs->Bind();
 	/* Background */
-	//DRW_draw_pass(psl->probe_background);
+	DRW_draw_pass(psl->probe_background);
 
 	/* Since we are rendering with an inverted view matrix, we need
 	* to invert the facing for backface culling to be the same. */
@@ -849,10 +847,10 @@ static void render_scene_to_planar(
 	DRW_draw_pass(psl->depth_pass_clip);
 	DRW_draw_pass(psl->depth_pass_clip_cull);
 
-	//EEVEE_create_minmax_buffer(vedata, inputofs->GetDepthTexture());//e_data->planar_depth);
+	EEVEE_create_minmax_buffer(vedata, inputofs->GetDepthTexture());//e_data->planar_depth);
 
 	/* Rebind Planar FB */
-	//DRW_framebuffer_bind(fbl->planarref_fb);
+	DRW_framebuffer_bind(fbl->planarref_fb);
 	inputofs->Bind();
 
 	/* Shading pass */
@@ -861,8 +859,10 @@ static void render_scene_to_planar(
 
 	KX_CullingNodeList nodes;
 	
-	MT_Transform trans(cam->GetCameraToWorld());
-	const SG_Frustum frustum(cam->GetFrustum());
+	MT_Transform trans;
+	MT_Matrix4x4 probebox(probe->NodeGetWorldTransform());
+	probebox.invert();
+	const SG_Frustum frustum(probebox);
 	/* update scene */
 	scene->CalculateVisibleMeshes(nodes, frustum, 0);
 	scene->RenderBuckets(nodes, trans, rasty, inputofs);
@@ -893,7 +893,7 @@ void KX_Scene::RenderSceneToProbes(std::vector<KX_GameObject *>probeList, RAS_Ra
 			EEVEE_LightProbeEngineData *ped = EEVEE_lightprobe_data_get(probe->GetBlenderObject());
 
 			EEVEE_planar_reflections_updates(EEVEE_scene_layer_data_get(), vedata->psl, vedata->txl, cam, probe, i);
-			render_scene_to_planar(vedata, i, ped->viewmat, ped->persmat, ped->planer_eq_offset, this, rasty, inputofs, cam);
+			render_scene_to_planar(vedata, i, ped->viewmat, ped->persmat, ped->planer_eq_offset, this, rasty, inputofs, probe);
 		}
 		i++;
 	}
