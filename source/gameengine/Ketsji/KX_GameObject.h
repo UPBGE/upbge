@@ -929,7 +929,7 @@ public:
 	KX_PYMETHOD_VARARGS(KX_GameObject,SetOcclusion);
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetState);
 	KX_PYMETHOD_O(KX_GameObject,SetState);
-	KX_PYMETHOD_VARARGS(KX_GameObject,AlignAxisToVect);
+	KX_PYMETHOD(KX_GameObject,AlignAxisToVect);
 	KX_PYMETHOD_O(KX_GameObject,GetAxisVect);
 	KX_PYMETHOD_VARARGS(KX_GameObject,SuspendPhysics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestorePhysics);

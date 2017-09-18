@@ -1848,7 +1848,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"getVelocity", (PyCFunction) KX_GameObject::sPyGetVelocity, METH_VARARGS},
 	{"setDamping", (PyCFunction) KX_GameObject::sPySetDamping, METH_VARARGS},
 	{"getReactionForce", (PyCFunction) KX_GameObject::sPyGetReactionForce, METH_NOARGS},
-	{"alignAxisToVect",(PyCFunction) KX_GameObject::sPyAlignAxisToVect, METH_VARARGS},
+	{"alignAxisToVect",(PyCFunction) KX_GameObject::sPyAlignAxisToVect, METH_VARARGS | METH_KEYWORDS},
 	{"getAxisVect",(PyCFunction) KX_GameObject::sPyGetAxisVect, METH_O},
 	{"suspendPhysics", (PyCFunction)KX_GameObject::sPySuspendPhysics, METH_VARARGS},
 	{"restorePhysics", (PyCFunction)KX_GameObject::sPyRestorePhysics,METH_NOARGS},
@@ -3561,13 +3561,17 @@ PyObject *KX_GameObject::PyRestoreDynamics()
 }
 
 
-PyObject *KX_GameObject::PyAlignAxisToVect(PyObject *args)
+PyObject *KX_GameObject::PyAlignAxisToVect(PyObject *args, PyObject *kwds)
 {
 	PyObject *pyvect;
 	int axis = 2; //z axis is the default
 	float fac = 1.0f;
-	
-	if (PyArg_ParseTuple(args,"O|if:alignAxisToVect",&pyvect,&axis, &fac))
+
+	static const char *kwlist[] = {"vect", "axis", "factor", nullptr};
+	if (PyArg_ParseTupleAndKeywords(
+	    args, kwds, "O|if:alignAxisToVect", const_cast<char**>(kwlist),
+	    &pyvect, &axis, &fac
+	))
 	{
 		MT_Vector3 vect;
 		if (PyVecTo(pyvect, vect)) {
