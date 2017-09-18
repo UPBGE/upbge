@@ -933,7 +933,7 @@ public:
 	KX_PYMETHOD_O(KX_GameObject,GetAxisVect);
 	KX_PYMETHOD(KX_GameObject,SuspendPhysics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestorePhysics);
-	KX_PYMETHOD_VARARGS(KX_GameObject,SuspendDynamics);
+	KX_PYMETHOD(KX_GameObject,SuspendDynamics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestoreDynamics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,EnableRigidBody);
 	KX_PYMETHOD_NOARGS(KX_GameObject,DisableRigidBody);

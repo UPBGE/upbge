@@ -1852,7 +1852,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"getAxisVect",(PyCFunction) KX_GameObject::sPyGetAxisVect, METH_O},
 	{"suspendPhysics", (PyCFunction)KX_GameObject::sPySuspendPhysics, METH_VARARGS | METH_KEYWORDS},
 	{"restorePhysics", (PyCFunction)KX_GameObject::sPyRestorePhysics,METH_NOARGS},
-	{"suspendDynamics", (PyCFunction)KX_GameObject::sPySuspendDynamics, METH_VARARGS},
+	{"suspendDynamics", (PyCFunction)KX_GameObject::sPySuspendDynamics, METH_VARARGS | METH_KEYWORDS},
 	{"restoreDynamics", (PyCFunction)KX_GameObject::sPyRestoreDynamics,METH_NOARGS},
 	{"enableRigidBody", (PyCFunction)KX_GameObject::sPyEnableRigidBody,METH_NOARGS},
 	{"disableRigidBody", (PyCFunction)KX_GameObject::sPyDisableRigidBody,METH_NOARGS},
@@ -3561,12 +3561,17 @@ PyObject *KX_GameObject::PyRestorePhysics()
 	Py_RETURN_NONE;
 }
 
-PyObject *KX_GameObject::PySuspendDynamics(PyObject *args)
+PyObject *KX_GameObject::PySuspendDynamics(PyObject *args, PyObject *kwds)
 {
 	bool ghost = false;
 
-	if (!PyArg_ParseTuple(args, "|b", &ghost))
+    static const char *kwlist[] = {"ghost", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "|b", const_cast<char**>(kwlist),
+            &ghost
+    )) {
 		return nullptr;
+	}
 
 	if (GetPhysicsController())
 		GetPhysicsController()->SuspendDynamics(ghost);
