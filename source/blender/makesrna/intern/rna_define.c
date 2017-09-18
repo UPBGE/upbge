@@ -135,6 +135,38 @@ void rna_freelistN(ListBase *listbase)
 	listbase->first = listbase->last = NULL;
 }
 
+static void rna_brna_structs_add(BlenderRNA *brna, StructRNA *srna)
+{
+	rna_addtail(&brna->structs, srna);
+	brna->structs_len += 1;
+
+	/* This exception is only needed for pre-processing.
+	 * otherwise we don't allow empty names. */
+	if ((srna->flag & STRUCT_PUBLIC_NAMESPACE) &&
+	    (srna->identifier[0] != '\0'))
+	{
+		BLI_ghash_insert(brna->structs_map, (void *)srna->identifier, srna);
+	}
+}
+
+#ifdef RNA_RUNTIME
+static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
+{
+	if ((srna->flag & STRUCT_PUBLIC_NAMESPACE) && brna->structs_map) {
+		if (srna->identifier[0] != '\0') {
+			BLI_ghash_remove(brna->structs_map, (void *)srna->identifier, NULL, NULL);
+		}
+	}
+
+	RNA_def_struct_free_pointers(NULL, srna);
+
+	if (srna->flag & STRUCT_RUNTIME) {
+		rna_freelinkN(&brna->structs, srna);
+	}
+	brna->structs_len -= 1;
+}
+#endif
+
 StructDefRNA *rna_find_struct_def(StructRNA *srna)
 {
 	StructDefRNA *dsrna;
@@ -534,6 +566,8 @@ BlenderRNA *RNA_create(void)
 	const char *error_message = NULL;
 
 	BLI_listbase_clear(&DefRNA.structs);
+	brna->structs_map = BLI_ghash_str_new_ex(__func__, 2048);
+
 	DefRNA.error = 0;
 	DefRNA.preprocess = 1;
 
@@ -640,10 +674,8 @@ void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
 			rna_freelinkN(&srna->functions, func);
 	}
 
-	RNA_def_struct_free_pointers(srna);
 
-	if (srna->flag & STRUCT_RUNTIME)
-		rna_freelinkN(&brna->structs, srna);
+	rna_brna_structs_remove_and_free(brna, srna);
 #else
 	UNUSED_VARS(brna, srna);
 #endif
@@ -653,6 +685,9 @@ void RNA_free(BlenderRNA *brna)
 {
 	StructRNA *srna, *nextsrna;
 	FunctionRNA *func;
+
+	BLI_ghash_free(brna->structs_map, NULL, NULL);
+	brna->structs_map = NULL;
 
 	if (DefRNA.preprocess) {
 		RNA_define_free(brna);
@@ -730,12 +765,19 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
 		BLI_listbase_clear(&srna->functions);
 		srna->py_type = NULL;
 
+		srna->base = srnafrom;
+
 		if (DefRNA.preprocess) {
-			srna->base = srnafrom;
 			dsfrom = rna_find_def_struct(srnafrom);
 		}
-		else
-			srna->base = srnafrom;
+		else {
+			if (srnafrom->flag & STRUCT_PUBLIC_NAMESPACE_INHERIT) {
+				srna->flag |= STRUCT_PUBLIC_NAMESPACE | STRUCT_PUBLIC_NAMESPACE_INHERIT;
+			}
+			else {
+				srna->flag &= ~(STRUCT_PUBLIC_NAMESPACE | STRUCT_PUBLIC_NAMESPACE_INHERIT);
+			}
+		}
 	}
 
 	srna->identifier = identifier;
@@ -747,7 +789,11 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
 	if (!srnafrom)
 		srna->icon = ICON_DOT;
 
-	rna_addtail(&brna->structs, srna);
+	if (DefRNA.preprocess) {
+		srna->flag |= STRUCT_PUBLIC_NAMESPACE;
+	}
+
+	rna_brna_structs_add(brna, srna);
 
 	if (DefRNA.preprocess) {
 		ds = MEM_callocN(sizeof(StructDefRNA), "StructDefRNA");
@@ -819,10 +865,8 @@ StructRNA *RNA_def_struct(BlenderRNA *brna, const char *identifier, const char *
 
 	if (from) {
 		/* find struct to derive from */
-		for (srnafrom = brna->structs.first; srnafrom; srnafrom = srnafrom->cont.next)
-			if (STREQ(srnafrom->identifier, from))
-				break;
-
+		/* Inline RNA_struct_find(...) because it wont link from here. */
+		srnafrom = BLI_ghash_lookup(brna->structs_map, from);
 		if (!srnafrom) {
 			fprintf(stderr, "%s: struct %s not found to define %s.\n", __func__, from, identifier);
 			DefRNA.error = 1;
@@ -901,10 +945,7 @@ void RNA_def_struct_nested(BlenderRNA *brna, StructRNA *srna, const char *struct
 	StructRNA *srnafrom;
 
 	/* find struct to derive from */
-	for (srnafrom = brna->structs.first; srnafrom; srnafrom = srnafrom->cont.next)
-		if (STREQ(srnafrom->identifier, structname))
-			break;
-
+	srnafrom = BLI_ghash_lookup(brna->structs_map, structname);
 	if (!srnafrom) {
 		fprintf(stderr, "%s: struct %s not found for %s.\n", __func__, structname, srna->identifier);
 		DefRNA.error = 1;
@@ -965,7 +1006,32 @@ void RNA_def_struct_path_func(StructRNA *srna, const char *path)
 	if (path) srna->path = (StructPathFunc)path;
 }
 
-void RNA_def_struct_identifier(StructRNA *srna, const char *identifier)
+void RNA_def_struct_identifier(BlenderRNA *brna, StructRNA *srna, const char *identifier)
+{
+	if (DefRNA.preprocess) {
+		fprintf(stderr, "%s: only at runtime.\n", __func__);
+		return;
+	}
+
+	/* Operator registration may set twice, see: operator_properties_init */
+	if (srna->flag & STRUCT_PUBLIC_NAMESPACE) {
+		if (identifier != srna->identifier) {
+			if (srna->identifier[0] != '\0') {
+				BLI_ghash_remove(brna->structs_map, (void *)srna->identifier, NULL, NULL);
+			}
+			if (identifier[0] != '\0') {
+				BLI_ghash_insert(brna->structs_map, (void *)identifier, srna);
+			}
+		}
+	}
+
+	srna->identifier = identifier;
+}
+
+/**
+ * Only used in one case when we name the struct for the purpose of useful error messages.
+ */
+void RNA_def_struct_identifier_no_struct_map(StructRNA *srna, const char *identifier)
 {
 	if (DefRNA.preprocess) {
 		fprintf(stderr, "%s: only at runtime.\n", __func__);
@@ -3262,21 +3328,41 @@ void RNA_enum_item_end(EnumPropertyItem **items, int *totitem)
 /* Memory management */
 
 #ifdef RNA_RUNTIME
-void RNA_def_struct_duplicate_pointers(StructRNA *srna)
+void RNA_def_struct_duplicate_pointers(BlenderRNA *brna, StructRNA *srna)
 {
-	if (srna->identifier) srna->identifier = BLI_strdup(srna->identifier);
-	if (srna->name) srna->name = BLI_strdup(srna->name);
-	if (srna->description) srna->description = BLI_strdup(srna->description);
+	if (srna->identifier) {
+		srna->identifier = BLI_strdup(srna->identifier);
+		if (srna->flag & STRUCT_PUBLIC_NAMESPACE) {
+			BLI_ghash_replace_key(brna->structs_map, (void *)srna->identifier);
+		}
+	}
+	if (srna->name) {
+		srna->name = BLI_strdup(srna->name);
+	}
+	if (srna->description) {
+		srna->description = BLI_strdup(srna->description);
+	}
 
 	srna->flag |= STRUCT_FREE_POINTERS;
 }
 
-void RNA_def_struct_free_pointers(StructRNA *srna)
+void RNA_def_struct_free_pointers(BlenderRNA *brna, StructRNA *srna)
 {
 	if (srna->flag & STRUCT_FREE_POINTERS) {
-		if (srna->identifier) MEM_freeN((void *)srna->identifier);
-		if (srna->name) MEM_freeN((void *)srna->name);
-		if (srna->description) MEM_freeN((void *)srna->description);
+		if (srna->identifier) {
+			if (srna->flag & STRUCT_PUBLIC_NAMESPACE) {
+				if (brna != NULL) {
+					BLI_ghash_remove(brna->structs_map, (void *)srna->identifier, NULL, NULL);
+				}
+			}
+			MEM_freeN((void *)srna->identifier);
+		}
+		if (srna->name) {
+			MEM_freeN((void *)srna->name);
+		}
+		if (srna->description) {
+			MEM_freeN((void *)srna->description);
+		}
 	}
 }
 

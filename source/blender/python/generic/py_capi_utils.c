@@ -85,7 +85,7 @@ int PyC_AsArray_FAST(
 		/* could use is_double for 'long int' but no use now */
 		int *array_int = array;
 		for (i = 0; i < length; i++) {
-			array_int[i] = PyLong_AsLong(value_fast_items[i]);
+			array_int[i] = PyC_Long_AsI32(value_fast_items[i]);
 		}
 	}
 	else if (type == &PyBool_Type) {
@@ -127,53 +127,51 @@ int PyC_AsArray(
 	return ret;
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Typed Tuple Packing
+ *
+ * \note See #PyC_Tuple_Pack_* macros that take multiple arguments.
+ *
+ * \{ */
+
 /* array utility function */
-PyObject *PyC_FromArray(const void *array, int length, const PyTypeObject *type,
-                        const bool is_double, const char *error_prefix)
+PyObject *PyC_Tuple_PackArray_F32(const float *array, uint len)
 {
-	PyObject *tuple;
-	int i;
-
-	tuple = PyTuple_New(length);
-
-	/* for each type */
-	if (type == &PyFloat_Type) {
-		if (is_double) {
-			const double *array_double = array;
-			for (i = 0; i < length; ++i) {
-				PyTuple_SET_ITEM(tuple, i, PyFloat_FromDouble(array_double[i]));
-			}
-		}
-		else {
-			const float *array_float = array;
-			for (i = 0; i < length; ++i) {
-				PyTuple_SET_ITEM(tuple, i, PyFloat_FromDouble(array_float[i]));
-			}
-		}
+	PyObject *tuple = PyTuple_New(len);
+	for (uint i = 0; i < len; i++) {
+		PyTuple_SET_ITEM(tuple, i, PyFloat_FromDouble(array[i]));
 	}
-	else if (type == &PyLong_Type) {
-		/* could use is_double for 'long int' but no use now */
-		const int *array_int = array;
-		for (i = 0; i < length; ++i) {
-			PyTuple_SET_ITEM(tuple, i, PyLong_FromLong(array_int[i]));
-		}
-	}
-	else if (type == &PyBool_Type) {
-		const int *array_bool = array;
-		for (i = 0; i < length; ++i) {
-			PyTuple_SET_ITEM(tuple, i, PyBool_FromLong(array_bool[i]));
-		}
-	}
-	else {
-		Py_DECREF(tuple);
-		PyErr_Format(PyExc_TypeError,
-		             "%s: internal error %s is invalid",
-		             error_prefix, type->tp_name);
-		return NULL;
-	}
-
 	return tuple;
 }
+
+PyObject *PyC_Tuple_PackArray_I32(const int *array, uint len)
+{
+	PyObject *tuple = PyTuple_New(len);
+	for (uint i = 0; i < len; i++) {
+		PyTuple_SET_ITEM(tuple, i, PyLong_FromLong(array[i]));
+	}
+	return tuple;
+}
+
+PyObject *PyC_Tuple_PackArray_I32FromBool(const int *array, uint len)
+{
+	PyObject *tuple = PyTuple_New(len);
+	for (uint i = 0; i < len; i++) {
+		PyTuple_SET_ITEM(tuple, i, PyBool_FromLong(array[i]));
+	}
+	return tuple;
+}
+
+PyObject *PyC_Tuple_PackArray_Bool(const bool *array, uint len)
+{
+	PyObject *tuple = PyTuple_New(len);
+	for (uint i = 0; i < len; i++) {
+		PyTuple_SET_ITEM(tuple, i, PyBool_FromLong(array[i]));
+	}
+	return tuple;
+}
+
+/** \} */
 
 /**
  * Caller needs to ensure tuple is uninitialized.
@@ -203,6 +201,8 @@ void PyC_List_Fill(PyObject *list, PyObject *value)
 
 /**
  * Use with PyArg_ParseTuple's "O&" formatting.
+ *
+ * \see #PyC_Long_AsBool for a similar function to use outside of argument parsing.
  */
 int PyC_ParseBool(PyObject *o, void *p)
 {
@@ -1115,3 +1115,101 @@ bool PyC_RunString_AsString(const char *expr, const char *filename, char **r_val
 }
 
 #endif  /* #ifndef MATH_STANDALONE */
+
+/* -------------------------------------------------------------------- */
+
+/** \name Int Conversion
+ *
+ * \note Python doesn't provide overflow checks for specific bit-widths.
+ *
+ * \{ */
+
+/* Compiler optimizes out redundant checks. */
+#ifdef __GNUC__
+#  pragma warning(push)
+#  pragma GCC diagnostic ignored "-Wtype-limits"
+#endif
+
+/**
+ * Don't use `bool` return type, so -1 can be used as an error value.
+ */
+int PyC_Long_AsBool(PyObject *value)
+{
+	int test = _PyLong_AsInt(value);
+	if (UNLIKELY((uint)test > 1)) {
+		PyErr_SetString(PyExc_TypeError,
+		                "Python number not a bool (0/1)");
+		return -1;
+	}
+	return test;
+}
+
+int8_t PyC_Long_AsI8(PyObject *value)
+{
+	int test = _PyLong_AsInt(value);
+	if (UNLIKELY(test < INT8_MIN || test > INT8_MAX)) {
+		PyErr_SetString(PyExc_OverflowError,
+		                "Python int too large to convert to C int8");
+		return -1;
+	}
+	return (int8_t)test;
+}
+
+int16_t PyC_Long_AsI16(PyObject *value)
+{
+	int test = _PyLong_AsInt(value);
+	if (UNLIKELY(test < INT16_MIN || test > INT16_MAX)) {
+		PyErr_SetString(PyExc_OverflowError,
+		                "Python int too large to convert to C int16");
+		return -1;
+	}
+	return (int16_t)test;
+}
+
+/* Inlined in header:
+ * PyC_Long_AsI32
+ * PyC_Long_AsI64
+ */
+
+uint8_t PyC_Long_AsU8(PyObject *value)
+{
+	ulong test = PyLong_AsUnsignedLong(value);
+	if (UNLIKELY(test > UINT8_MAX)) {
+		PyErr_SetString(PyExc_OverflowError,
+		                "Python int too large to convert to C uint8");
+		return (uint8_t)-1;
+	}
+	return (uint8_t)test;
+}
+
+uint16_t PyC_Long_AsU16(PyObject *value)
+{
+	ulong test = PyLong_AsUnsignedLong(value);
+	if (UNLIKELY(test > UINT16_MAX)) {
+		PyErr_SetString(PyExc_OverflowError,
+		                "Python int too large to convert to C uint16");
+		return (uint16_t)-1;
+	}
+	return (uint16_t)test;
+}
+
+uint32_t PyC_Long_AsU32(PyObject *value)
+{
+	ulong test = PyLong_AsUnsignedLong(value);
+	if (UNLIKELY(test > UINT32_MAX)) {
+		PyErr_SetString(PyExc_OverflowError,
+		                "Python int too large to convert to C uint32");
+		return (uint32_t)-1;
+	}
+	return (uint32_t)test;
+}
+
+/* Inlined in header:
+ * PyC_Long_AsU64
+ */
+
+#ifdef __GNUC__
+#  pragma warning(pop)
+#endif
+
+/** \} */

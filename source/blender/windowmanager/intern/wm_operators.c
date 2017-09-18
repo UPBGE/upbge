@@ -177,7 +177,7 @@ void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
 
 	/* XXX All ops should have a description but for now allow them not to. */
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-	RNA_def_struct_identifier(ot->srna, ot->idname);
+	RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
 
 	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
 }
@@ -193,7 +193,7 @@ void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *, void *), void *
 	ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
 	opfunc(ot, userdata);
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-	RNA_def_struct_identifier(ot->srna, ot->idname);
+	RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
 
 	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
 }
@@ -398,7 +398,7 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *nam
 		ot->description = UNDOCUMENTED_OPERATOR_TIP;
 	
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description);
-	RNA_def_struct_identifier(ot->srna, ot->idname);
+	RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
 	/* Use i18n context from ext.srna if possible (py operators). */
 	i18n_context = ot->ext.srna ? RNA_struct_translation_context(ot->ext.srna) : BLT_I18NCONTEXT_OPERATOR_DEFAULT;
 	RNA_def_struct_translation_context(ot->srna, i18n_context);
@@ -432,7 +432,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *, void *), 
 	opfunc(ot, userdata);
 
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description);
-	RNA_def_struct_identifier(ot->srna, ot->idname);
+	RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
 
 	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
 }
@@ -570,6 +570,46 @@ void WM_operator_bl_idname(char *to, const char *from)
 	}
 	else
 		to[0] = 0;
+}
+
+/**
+ * Sanity check to ensure #WM_operator_bl_idname won't fail.
+ * \returns true when there are no problems with \a idname, otherwise report an error.
+ */
+bool WM_operator_py_idname_ok_or_report(ReportList *reports, const char *classname, const char *idname)
+{
+	const char *ch = idname;
+	int dot = 0;
+	int i;
+	for (i = 0; *ch; i++, ch++) {
+		if ((*ch >= 'a' && *ch <= 'z') || (*ch >= '0' && *ch <= '9') || *ch == '_') {
+			/* pass */
+		}
+		else if (*ch == '.') {
+			dot++;
+		}
+		else {
+			BKE_reportf(reports, RPT_ERROR,
+			            "Registering operator class: '%s', invalid bl_idname '%s', at position %d",
+			            classname, idname, i);
+			return false;
+		}
+	}
+
+	if (i > (MAX_NAME - 3)) {
+		BKE_reportf(reports, RPT_ERROR, "Registering operator class: '%s', invalid bl_idname '%s', "
+		            "is too long, maximum length is %d", classname, idname,
+		            MAX_NAME - 3);
+		return false;
+	}
+
+	if (dot != 1) {
+		BKE_reportf(reports, RPT_ERROR,
+		            "Registering operator class: '%s', invalid bl_idname '%s', must contain 1 '.' character",
+		            classname, idname);
+		return false;
+	}
+	return true;
 }
 
 /**
@@ -806,9 +846,19 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 			} \
 		} (void)0
 
+#define CTX_TEST_SPACE_TYPE(space_data_type, member_full, dataptr_cmp) \
+		{ \
+			const char *ctx_member_full = member_full; \
+			if (space_data->spacetype == space_data_type && ptr->data == dataptr_cmp) { \
+				member_id = ctx_member_full; \
+				break; \
+			} \
+		} (void)0
+
 		switch (GS(((ID *)ptr->id.data)->name)) {
 			case ID_SCE:
 			{
+				CTX_TEST_PTR_DATA_TYPE(C, "active_gpencil_brush", RNA_GPencilBrush, ptr, CTX_data_active_gpencil_brush(C));
 				CTX_TEST_PTR_ID(C, "scene", ptr->id.data);
 				break;
 			}
@@ -843,12 +893,22 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 			{
 				CTX_TEST_PTR_ID(C, "screen", ptr->id.data);
 
-				CTX_TEST_PTR_DATA_TYPE(C, "space_data", RNA_Space, ptr, CTX_wm_space_data(C));
+				SpaceLink *space_data = CTX_wm_space_data(C);
+
+				CTX_TEST_PTR_DATA_TYPE(C, "space_data", RNA_Space, ptr, space_data);
 				CTX_TEST_PTR_DATA_TYPE(C, "area", RNA_Area, ptr, CTX_wm_area(C));
 				CTX_TEST_PTR_DATA_TYPE(C, "region", RNA_Region, ptr, CTX_wm_region(C));
 
+				CTX_TEST_SPACE_TYPE(SPACE_IMAGE, "space_data.uv_editor", space_data);
+				CTX_TEST_SPACE_TYPE(SPACE_VIEW3D, "space_data.fx_settings", &(CTX_wm_view3d(C)->fx_settings));
+				CTX_TEST_SPACE_TYPE(SPACE_NLA, "space_data.dopesheet", CTX_wm_space_nla(C)->ads);
+				CTX_TEST_SPACE_TYPE(SPACE_IPO, "space_data.dopesheet", CTX_wm_space_graph(C)->ads);
+				CTX_TEST_SPACE_TYPE(SPACE_ACTION, "space_data.dopesheet", &(CTX_wm_space_action(C)->ads));
+				CTX_TEST_SPACE_TYPE(SPACE_FILE, "space_data.params", CTX_wm_space_file(C)->params);
 				break;
 			}
+			default:
+				break;
 		}
 
 		if (member_id) {
@@ -860,6 +920,7 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 		}
 #undef CTX_TEST_PTR_ID
 #undef CTX_TEST_PTR_ID_CAST
+#undef CTX_TEST_SPACE_TYPE
 	}
 
 	return ret;

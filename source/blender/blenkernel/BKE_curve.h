@@ -78,6 +78,7 @@ void BKE_curve_free(struct Curve *cu);
 void BKE_curve_editfont_free(struct Curve *cu);
 void BKE_curve_init(struct Curve *cu);
 struct Curve *BKE_curve_add(struct Main *bmain, const char *name, int type);
+void BKE_curve_copy_data(struct Main *bmain, struct Curve *cu_dst, const struct Curve *cu_src, const int flag);
 struct Curve *BKE_curve_copy(struct Main *bmain, const struct Curve *cu);
 void BKE_curve_make_local(struct Main *bmain, struct Curve *cu, const bool lib_local);
 short BKE_curve_type_get(struct Curve *cu);
@@ -92,8 +93,8 @@ void BKE_curve_texspace_get(struct Curve *cu, float r_loc[3], float r_rot[3], fl
 bool BKE_curve_minmax(struct Curve *cu, bool use_radius, float min[3], float max[3]);
 bool BKE_curve_center_median(struct Curve *cu, float cent[3]);
 bool BKE_curve_center_bounds(struct Curve *cu, float cent[3]);
-void BKE_curve_transform_ex(struct Curve *cu, float mat[4][4], const bool do_keys, const float unit_scale);
-void BKE_curve_transform(struct Curve *cu, float mat[4][4], const bool do_keys);
+void BKE_curve_transform_ex(struct Curve *cu, float mat[4][4], const bool do_keys, const bool do_props, const float unit_scale);
+void BKE_curve_transform(struct Curve *cu, float mat[4][4], const bool do_keys, const bool do_props);
 void BKE_curve_translate(struct Curve *cu, float offset[3], const bool do_keys);
 void BKE_curve_material_index_remove(struct Curve *cu, int index);
 void BKE_curve_material_index_clear(struct Curve *cu);
@@ -216,8 +217,5 @@ struct EvaluationContext;
 
 void BKE_curve_eval_geometry(struct EvaluationContext *eval_ctx,
                              struct Curve *curve);
-
-void BKE_curve_eval_path(struct EvaluationContext *eval_ctx,
-                         struct Curve *curve);
 
 #endif  /* __BKE_CURVE_H__ */

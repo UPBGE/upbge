@@ -2472,6 +2472,7 @@ static void view3d_draw_depth_loop(Scene *scene, ARegion *ar, View3D *v3d)
 
 void ED_view3d_draw_depth(Scene *scene, ARegion *ar, View3D *v3d, bool alphaoverride)
 {
+	struct bThemeState theme_state;
 	RegionView3D *rv3d = ar->regiondata;
 	short zbuf = v3d->zbuf;
 	short flag = v3d->flag;
@@ -2484,6 +2485,10 @@ void ED_view3d_draw_depth(Scene *scene, ARegion *ar, View3D *v3d, bool alphaover
 	U.glalphaclip = alphaoverride ? 0.5f : glalphaclip; /* not that nice but means we wont zoom into billboards */
 	U.obcenter_dia = 0;
 	
+	/* Tools may request depth outside of regular drawing code. */
+	UI_Theme_Store(&theme_state);
+	UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
+
 	/* Setup view matrix. */
 	ED_view3d_draw_setup_view(NULL, scene, ar, v3d, rv3d->viewmat, rv3d->winmat, NULL);
 	
@@ -2511,6 +2516,8 @@ void ED_view3d_draw_depth(Scene *scene, ARegion *ar, View3D *v3d, bool alphaover
 	U.glalphaclip = glalphaclip;
 	v3d->flag = flag;
 	U.obcenter_dia = obcenter_dia;
+
+	UI_Theme_Restore(&theme_state);
 }
 
 void ED_view3d_draw_select_loop(
@@ -2593,7 +2600,7 @@ static void gpu_render_lamp_update(Scene *scene, View3D *v3d,
 		if (layers &&
 		    GPU_lamp_has_shadow_buffer(lamp) &&
 		    /* keep last, may do string lookup */
-		    GPU_lamp_override_visible(lamp, srl, NULL))
+		    GPU_lamp_visible(lamp, srl, NULL))
 		{
 			shadow = MEM_callocN(sizeof(View3DShadow), "View3DShadow");
 			shadow->lamp = lamp;

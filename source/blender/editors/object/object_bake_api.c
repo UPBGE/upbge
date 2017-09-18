@@ -625,7 +625,9 @@ static Mesh *bake_mesh_new_from_object(Main *bmain, Scene *scene, Object *ob)
 		ED_object_editmode_load(ob);
 
 	Mesh *me = BKE_mesh_new_from_object(bmain, scene, ob, 1, 2, 0, 0);
-	BKE_mesh_split_faces(me, true);
+	if (me->flag & ME_AUTOSMOOTH) {
+		BKE_mesh_split_faces(me, true);
+	}
 
 	return me;
 }
@@ -1029,7 +1031,7 @@ cage_cleanup:
 						}
 						else {
 							/* if everything else fails, use the material index */
-							char tmp[4];
+							char tmp[5];
 							sprintf(tmp, "%d", i % 1000);
 							BLI_path_suffix(name, FILE_MAX, tmp, "_");
 						}
@@ -1159,7 +1161,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
 
 	bkr->result = OPERATOR_CANCELLED;
 
-	bkr->render = RE_NewRender(bkr->scene->id.name);
+	bkr->render = RE_NewSceneRender(bkr->scene);
 
 	/* XXX hack to force saving to always be internal. Whether (and how) to support
 	 * external saving will be addressed later */

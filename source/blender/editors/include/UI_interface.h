@@ -212,6 +212,8 @@ enum {
 	UI_BUT_ALIGN_STITCH_TOP  = (1 << 18),
 	UI_BUT_ALIGN_STITCH_LEFT = (1 << 19),
 	UI_BUT_ALIGN_ALL         = (UI_BUT_ALIGN | UI_BUT_ALIGN_STITCH_TOP | UI_BUT_ALIGN_STITCH_LEFT),
+
+	UI_BUT_BOX_ITEM          = (1 << 20), /* This but is "inside" a box item (currently used to change theme colors). */
 };
 
 /* scale fixed button widths by this to account for DPI */
@@ -1082,7 +1084,7 @@ void UI_butstore_unregister(uiButStore *bs_handle, uiBut **but_p);
 
 
 /* Float precision helpers */
-#define UI_PRECISION_FLOAT_MAX 7
+#define UI_PRECISION_FLOAT_MAX 6
 /* For float buttons the 'step' (or a1), is scaled */
 #define UI_PRECISION_FLOAT_SCALE 0.01f
 

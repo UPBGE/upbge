@@ -246,8 +246,9 @@ static void rna_KeyingSetInfo_unregister(Main *bmain, StructRNA *type)
 	ANIM_keyingset_info_unregister(bmain, ksi);
 }
 
-static StructRNA *rna_KeyingSetInfo_register(Main *bmain, ReportList *reports, void *data, const char *identifier,
-                                             StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_KeyingSetInfo_register(
+        Main *bmain, ReportList *reports, void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	KeyingSetInfo dummyksi = {NULL};
 	KeyingSetInfo *ksi;
@@ -270,9 +271,10 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain, ReportList *reports, v
 	
 	/* check if we have registered this info before, and remove it */
 	ksi = ANIM_keyingset_info_find_name(dummyksi.idname);
-	if (ksi && ksi->ext.srna)
+	if (ksi && ksi->ext.srna) {
 		rna_KeyingSetInfo_unregister(bmain, ksi->ext.srna);
-	
+	}
+
 	/* create a new KeyingSetInfo type */
 	ksi = MEM_callocN(sizeof(KeyingSetInfo), "python keying set info");
 	memcpy(ksi, &dummyksi, sizeof(KeyingSetInfo));

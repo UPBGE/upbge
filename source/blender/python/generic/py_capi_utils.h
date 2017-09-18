@@ -24,9 +24,11 @@
  *  \ingroup pygen
  */
 
-
 #ifndef __PY_CAPI_UTILS_H__
 #define __PY_CAPI_UTILS_H__
+
+#include "BLI_sys_types.h"
+#include "BLI_variadic_defines.h"
 
 void			PyC_ObSpit(const char *name, PyObject *var);
 void			PyC_LineSpit(void);
@@ -44,8 +46,21 @@ int             PyC_AsArray_FAST(
 int             PyC_AsArray(
         void *array, PyObject *value, const Py_ssize_t length,
         const PyTypeObject *type, const bool is_double, const char *error_prefix);
-PyObject *      PyC_FromArray(const void *array, int length, const PyTypeObject *type,
-                              const bool is_double, const char *error_prefix);
+
+PyObject       *PyC_Tuple_PackArray_F32(const float *array, uint len);
+PyObject       *PyC_Tuple_PackArray_I32(const int *array, uint len);
+PyObject       *PyC_Tuple_PackArray_I32FromBool(const int *array, uint len);
+PyObject       *PyC_Tuple_PackArray_Bool(const bool *array, uint len);
+
+#define PyC_Tuple_Pack_F32(...) \
+	PyC_Tuple_PackArray_F32(((const float []){__VA_ARGS__}), VA_NARGS_COUNT(__VA_ARGS__))
+#define PyC_Tuple_Pack_I32(...) \
+	PyC_Tuple_PackArray_I32(((const int []){__VA_ARGS__}), VA_NARGS_COUNT(__VA_ARGS__))
+#define PyC_Tuple_Pack_I32FromBool(...) \
+	PyC_Tuple_PackArray_I32FromBool(((const int []){__VA_ARGS__}), VA_NARGS_COUNT(__VA_ARGS__))
+#define PyC_Tuple_Pack_Bool(...) \
+	PyC_Tuple_PackArray_Bool(((const bool []){__VA_ARGS__}), VA_NARGS_COUNT(__VA_ARGS__))
+
 void            PyC_Tuple_Fill(PyObject *tuple, PyObject *value);
 void            PyC_List_Fill(PyObject *list, PyObject *value);
 
@@ -84,5 +99,27 @@ bool PyC_RunString_AsNumber(const char *expr, const char *filename, double *r_va
 bool PyC_RunString_AsString(const char *expr, const char *filename, char **r_value);
 
 int PyC_ParseBool(PyObject *o, void *p);
+
+
+/* Integer parsing (with overflow checks), -1 on error. */
+int     PyC_Long_AsBool(PyObject *value);
+int8_t  PyC_Long_AsI8(PyObject *value);
+int16_t PyC_Long_AsI16(PyObject *value);
+#if 0 /* inline */
+int32_t PyC_Long_AsI32(PyObject *value);
+int64_t PyC_Long_AsI64(PyObject *value);
+#endif
+
+uint8_t  PyC_Long_AsU8(PyObject *value);
+uint16_t PyC_Long_AsU16(PyObject *value);
+uint32_t PyC_Long_AsU32(PyObject *value);
+#if 0 /* inline */
+uint64_t PyC_Long_AsU64(PyObject *value);
+#endif
+
+/* inline so type signatures match as expected */
+Py_LOCAL_INLINE(int32_t)  PyC_Long_AsI32(PyObject *value) { return (int32_t)_PyLong_AsInt(value); }
+Py_LOCAL_INLINE(int64_t)  PyC_Long_AsI64(PyObject *value) { return (int64_t)PyLong_AsLongLong(value); }
+Py_LOCAL_INLINE(uint64_t) PyC_Long_AsU64(PyObject *value) { return (uint64_t)PyLong_AsUnsignedLongLong(value); }
 
 #endif  /* __PY_CAPI_UTILS_H__ */

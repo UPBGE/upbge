@@ -66,8 +66,8 @@ ccl_device_noinline void shader_setup_from_ray(KernelGlobals *kg,
 	/* matrices and time */
 #ifdef __OBJECT_MOTION__
 	shader_setup_object_transforms(kg, sd, ray->time);
-	sd->time = ray->time;
 #endif
+	sd->time = ray->time;
 
 	sd->prim = kernel_tex_fetch(__prim_index, isect->prim);
 	sd->ray_length = isect->t;
@@ -83,7 +83,7 @@ ccl_device_noinline void shader_setup_from_ray(KernelGlobals *kg,
 		float4 curvedata = kernel_tex_fetch(__curves, sd->prim);
 
 		sd->shader = __float_as_int(curvedata.z);
-		sd->P = bvh_curve_refine(kg, sd, isect, ray);
+		sd->P = curve_refine(kg, sd, isect, ray);
 	}
 	else
 #endif
@@ -271,17 +271,17 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals *kg,
 	sd->u = u;
 	sd->v = v;
 #endif
+	sd->time = time;
 	sd->ray_length = t;
 
 	sd->flag = kernel_tex_fetch(__shader_flag, (sd->shader & SHADER_MASK)*SHADER_SIZE);
 	sd->object_flag = 0;
 	if(sd->object != OBJECT_NONE) {
 		sd->object_flag |= kernel_tex_fetch(__object_flag,
-		                                               sd->object);
+		                                    sd->object);
 
 #ifdef __OBJECT_MOTION__
 		shader_setup_object_transforms(kg, sd, time);
-		sd->time = time;
 	}
 	else if(lamp != LAMP_NONE) {
 		sd->ob_tfm  = lamp_fetch_transform(kg, lamp, false);
@@ -385,9 +385,7 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderDat
 	sd->shader = kernel_data.background.surface_shader;
 	sd->flag = kernel_tex_fetch(__shader_flag, (sd->shader & SHADER_MASK)*SHADER_SIZE);
 	sd->object_flag = 0;
-#ifdef __OBJECT_MOTION__
 	sd->time = ray->time;
-#endif
 	sd->ray_length = 0.0f;
 
 #ifdef __INSTANCING__
@@ -427,9 +425,7 @@ ccl_device_inline void shader_setup_from_volume(KernelGlobals *kg, ShaderData *s
 	sd->shader = SHADER_NONE;
 	sd->flag = 0;
 	sd->object_flag = 0;
-#ifdef __OBJECT_MOTION__
 	sd->time = ray->time;
-#endif
 	sd->ray_length = 0.0f; /* todo: can we set this to some useful value? */
 
 #ifdef __INSTANCING__
@@ -669,7 +665,7 @@ ccl_device void shader_bsdf_blur(KernelGlobals *kg, ShaderData *sd, float roughn
 	}
 }
 
-ccl_device float3 shader_bsdf_transparency(KernelGlobals *kg, ShaderData *sd)
+ccl_device float3 shader_bsdf_transparency(KernelGlobals *kg, const ShaderData *sd)
 {
 	if(sd->flag & SD_HAS_ONLY_VOLUME)
 		return make_float3(1.0f, 1.0f, 1.0f);
@@ -677,7 +673,7 @@ ccl_device float3 shader_bsdf_transparency(KernelGlobals *kg, ShaderData *sd)
 	float3 eval = make_float3(0.0f, 0.0f, 0.0f);
 
 	for(int i = 0; i < sd->num_closure; i++) {
-		ShaderClosure *sc = &sd->closure[i];
+		const ShaderClosure *sc = &sd->closure[i];
 
 		if(sc->type == CLOSURE_BSDF_TRANSPARENT_ID) // todo: make this work for osl
 			eval += sc->weight;
@@ -764,6 +760,19 @@ ccl_device float3 shader_bsdf_subsurface(KernelGlobals *kg, ShaderData *sd)
 	return eval;
 }
 
+ccl_device float3 shader_bsdf_average_normal(KernelGlobals *kg, ShaderData *sd)
+{
+	float3 N = make_float3(0.0f, 0.0f, 0.0f);
+
+	for(int i = 0; i < sd->num_closure; i++) {
+		ShaderClosure *sc = &sd->closure[i];
+		if(CLOSURE_IS_BSDF_OR_BSSRDF(sc->type))
+			N += sc->N*average(sc->weight);
+	}
+
+	return (is_zero(N))? sd->N : normalize(N);
+}
+
 ccl_device float3 shader_bsdf_ao(KernelGlobals *kg, ShaderData *sd, float ao_factor, float3 *N_)
 {
 	float3 eval = make_float3(0.0f, 0.0f, 0.0f);
@@ -783,12 +792,7 @@ ccl_device float3 shader_bsdf_ao(KernelGlobals *kg, ShaderData *sd, float ao_fac
 		}
 	}
 
-	if(is_zero(N))
-		N = sd->N;
-	else
-		N = normalize(N);
-
-	*N_ = N;
+	*N_ = (is_zero(N))? sd->N : normalize(N);
 	return eval;
 }
 
@@ -863,8 +867,8 @@ ccl_device float3 shader_holdout_eval(KernelGlobals *kg, ShaderData *sd)
 
 /* Surface Evaluation */
 
-ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd, RNG *rng,
-	ccl_addr_space PathState *state, float randb, int path_flag, ShaderContext ctx)
+ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd,
+	ccl_addr_space PathState *state, float randb, int path_flag)
 {
 	sd->num_closure = 0;
 	sd->num_closure_extra = 0;
@@ -872,7 +876,7 @@ ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd, RNG *rng,
 
 #ifdef __OSL__
 	if(kg->osl)
-		OSLShader::eval_surface(kg, sd, state, path_flag, ctx);
+		OSLShader::eval_surface(kg, sd, state, path_flag);
 	else
 #endif
 	{
@@ -887,15 +891,15 @@ ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd, RNG *rng,
 #endif
 	}
 
-	if(rng && (sd->flag & SD_BSDF_NEEDS_LCG)) {
-		sd->lcg_state = lcg_state_init(rng, state->rng_offset, state->sample, 0xb4bc3953);
+	if(sd->flag & SD_BSDF_NEEDS_LCG) {
+		sd->lcg_state = lcg_state_init_addrspace(state, 0xb4bc3953);
 	}
 }
 
 /* Background Evaluation */
 
 ccl_device float3 shader_eval_background(KernelGlobals *kg, ShaderData *sd,
-	ccl_addr_space PathState *state, int path_flag, ShaderContext ctx)
+	ccl_addr_space PathState *state, int path_flag)
 {
 	sd->num_closure = 0;
 	sd->num_closure_extra = 0;
@@ -904,7 +908,7 @@ ccl_device float3 shader_eval_background(KernelGlobals *kg, ShaderData *sd,
 #ifdef __SVM__
 #ifdef __OSL__
 	if(kg->osl) {
-		OSLShader::eval_background(kg, sd, state, path_flag, ctx);
+		OSLShader::eval_background(kg, sd, state, path_flag);
 	}
 	else
 #endif
@@ -1039,8 +1043,7 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
                                           ShaderData *sd,
                                           ccl_addr_space PathState *state,
                                           ccl_addr_space VolumeStack *stack,
-                                          int path_flag,
-                                          ShaderContext ctx)
+                                          int path_flag)
 {
 	/* reset closures once at the start, we will be accumulating the closures
 	 * for all volumes in the stack into a single array of closures */
@@ -1073,7 +1076,7 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
 #ifdef __SVM__
 #  ifdef __OSL__
 		if(kg->osl) {
-			OSLShader::eval_volume(kg, sd, state, path_flag, ctx);
+			OSLShader::eval_volume(kg, sd, state, path_flag);
 		}
 		else
 #  endif
@@ -1092,7 +1095,7 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
 
 /* Displacement Evaluation */
 
-ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, ccl_addr_space PathState *state, ShaderContext ctx)
+ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, ccl_addr_space PathState *state)
 {
 	sd->num_closure = 0;
 	sd->num_closure_extra = 0;
@@ -1102,7 +1105,7 @@ ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, ccl_
 #ifdef __SVM__
 #  ifdef __OSL__
 	if(kg->osl)
-		OSLShader::eval_displacement(kg, sd, ctx);
+		OSLShader::eval_displacement(kg, sd);
 	else
 #  endif
 	{

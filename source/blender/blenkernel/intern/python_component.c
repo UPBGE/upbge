@@ -528,7 +528,7 @@ static PythonComponent *copy_component(PythonComponent *comp)
 	return compn;
 }
 
-void BKE_python_component_copy_list(ListBase *lbn, ListBase *lbo)
+void BKE_python_component_copy_list(ListBase *lbn, const ListBase *lbo)
 {
 	PythonComponent *comp, *compn;
 

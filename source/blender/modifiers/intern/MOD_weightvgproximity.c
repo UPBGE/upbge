@@ -51,7 +51,9 @@
 #include "DEG_depsgraph_build.h"
 
 #include "MEM_guardedalloc.h"
+
 #include "MOD_weightvg_util.h"
+#include "MOD_modifiertypes.h"
 
 //#define USE_TIMEIT
 
@@ -286,14 +288,10 @@ static void copyData(ModifierData *md, ModifierData *target)
 {
 #if 0
 	WeightVGProximityModifierData *wmd  = (WeightVGProximityModifierData *) md;
-#endif
 	WeightVGProximityModifierData *twmd = (WeightVGProximityModifierData *) target;
+#endif
 
 	modifier_copyData_generic(md, target);
-
-	if (twmd->mask_texture) {
-		id_us_plus(&twmd->mask_texture->id);
-	}
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)

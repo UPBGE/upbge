@@ -50,7 +50,9 @@
 #include "DEG_depsgraph_build.h"
 
 #include "MEM_guardedalloc.h"
+
 #include "MOD_weightvg_util.h"
+#include "MOD_modifiertypes.h"
 
 /**************************************
  * Modifiers functions.               *
@@ -91,10 +93,6 @@ static void copyData(ModifierData *md, ModifierData *target)
 	modifier_copyData_generic(md, target);
 
 	twmd->cmap_curve = curvemapping_copy(wmd->cmap_curve);
-
-	if (twmd->mask_texture) {
-		id_us_plus(&twmd->mask_texture->id);
-	}
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)

@@ -160,7 +160,8 @@ static char **get_keys_sorted(GHash *messages, const uint32_t num_keys)
 	return keys;
 }
 
-BLI_INLINE size_t uint32_to_bytes(const int value, char *bytes) {
+BLI_INLINE size_t uint32_to_bytes(const int value, char *bytes)
+{
 	size_t i;
 	for (i = 0; i < sizeof(value); i++) {
 		bytes[i] = (char) ((value >> ((int)i * 8)) & 0xff);
@@ -168,7 +169,8 @@ BLI_INLINE size_t uint32_to_bytes(const int value, char *bytes) {
 	return i;
 }
 
-BLI_INLINE size_t msg_to_bytes(char *msg, char *bytes, uint32_t size) {
+BLI_INLINE size_t msg_to_bytes(char *msg, char *bytes, uint32_t size)
+{
 	/* Note that we also perform replacing of our NULLSEP placeholder by real NULL char... */
 	size_t i;
 	for (i = 0; i < size; i++, msg++, bytes++) {
@@ -452,7 +454,8 @@ static int make(const char *input_file_name, const char *output_file_name)
 	return EXIT_SUCCESS;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
 	if (argc != 3) {
 		printf("Usage: %s <input.po> <output.mo>\n", argv[0]);
 		return EXIT_FAILURE;

@@ -28,6 +28,7 @@
 #include <stdlib.h>
 
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "rna_internal.h"
 
@@ -75,13 +76,15 @@ EnumPropertyItem rna_enum_gpencil_sculpt_brush_items[] = {
 	{ 0, NULL, 0, NULL, NULL }
 };
 
-EnumPropertyItem rna_enum_gpencil_lockaxis_items[] = {
+#ifndef RNA_RUNTIME
+static EnumPropertyItem rna_enum_gpencil_lockaxis_items[] = {
 	{ GP_LOCKAXIS_NONE, "GP_LOCKAXIS_NONE", 0, "None", "" },
 	{ GP_LOCKAXIS_X, "GP_LOCKAXIS_X", 0, "X", "Project strokes to plane locked to X" },
 	{ GP_LOCKAXIS_Y, "GP_LOCKAXIS_Y", 0, "Y", "Project strokes to plane locked to Y" },
 	{ GP_LOCKAXIS_Z, "GP_LOCKAXIS_Z", 0, "Z", "Project strokes to plane locked to Z" },
 	{ 0, NULL, 0, NULL, NULL }
 };
+#endif
 
 EnumPropertyItem rna_enum_symmetrize_direction_items[] = {
 	{BMO_SYMMETRIZE_NEGATIVE_X, "NEGATIVE_X", 0, "-X to +X", ""},

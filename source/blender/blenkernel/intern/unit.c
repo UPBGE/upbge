@@ -372,6 +372,12 @@ static size_t unit_as_string(char *str, int len_max, double value, int prec, con
 
 	value_conv = value / unit->scalar;
 
+	/* Adjust precision to expected number of significant digits.
+	 * Note that here, we shall not have to worry about very big/small numbers, units are expected to replace
+	 * 'scientific notation' in those cases. */
+	prec -= integer_digits_d(value_conv);
+	CLAMP(prec, 0, 6);
+
 	/* Convert to a string */
 	len = BLI_snprintf_rlen(str, len_max, "%.*f", prec, value_conv);
 
@@ -442,12 +448,15 @@ size_t bUnit_AsString(char *str, int len_max, double value, int prec, int system
 			size_t i;
 			i = unit_as_string(str, len_max, value_a, prec, usys, unit_a, '\0');
 
+			prec -= integer_digits_d(value_a / unit_b->scalar) - integer_digits_d(value_b / unit_b->scalar);
+			prec = max_ii(prec, 0);
+
 			/* is there enough space for at least 1 char of the next unit? */
 			if (i + 2 < len_max) {
 				str[i++] = ' ';
 
 				/* use low precision since this is a smaller unit */
-				i += unit_as_string(str + i, len_max - i, value_b, prec ? 1 : 0, usys, unit_b, '\0');
+				i += unit_as_string(str + i, len_max - i, value_b, prec, usys, unit_b, '\0');
 			}
 			return i;
 		}

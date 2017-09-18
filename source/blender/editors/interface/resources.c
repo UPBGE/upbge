@@ -2758,6 +2758,24 @@ void init_userdef_do_versions(void)
 		}
 	}
 
+	if (!USER_VERSION_ATLEAST(278, 6)) {
+		/* Clear preference flags for re-use. */
+		U.flag &= ~(
+		    USER_FLAG_DEPRECATED_1 | USER_FLAG_DEPRECATED_2 | USER_FLAG_DEPRECATED_3 |
+		    USER_FLAG_DEPRECATED_6 | USER_FLAG_DEPRECATED_7 |
+		    USER_FLAG_DEPRECATED_9 | USER_FLAG_DEPRECATED_10);
+		U.uiflag &= ~(
+		    USER_UIFLAG_DEPRECATED_7);
+		U.transopts &= ~(
+		    USER_TR_DEPRECATED_2 | USER_TR_DEPRECATED_3 | USER_TR_DEPRECATED_4 |
+		    USER_TR_DEPRECATED_6 | USER_TR_DEPRECATED_7);
+		U.gameflags &= ~(
+		    USER_GL_RENDER_DEPRECATED_0 | USER_GL_RENDER_DEPRECATED_1 |
+		    USER_GL_RENDER_DEPRECATED_3 | USER_GL_RENDER_DEPRECATED_4);
+
+		U.uiflag |= USER_LOCK_CURSOR_ADJUST;
+	}
+
 	/**
 	 * Include next version bump.
 	 *

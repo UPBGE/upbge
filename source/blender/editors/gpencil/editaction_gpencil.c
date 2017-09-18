@@ -252,8 +252,10 @@ bool ED_gplayer_frames_delete(bGPDlayer *gpl)
 	for (gpf = gpl->frames.first; gpf; gpf = gpfn) {
 		gpfn = gpf->next;
 		
-		if (gpf->flag & GP_FRAME_SELECT)
-			changed |= BKE_gpencil_layer_delframe(gpl, gpf);
+		if (gpf->flag & GP_FRAME_SELECT) {
+			BKE_gpencil_layer_delframe(gpl, gpf);
+			changed = true;
+		}
 	}
 	
 	return changed;
@@ -314,7 +316,7 @@ void ED_gplayer_frames_keytype_set(bGPDlayer *gpl, short type)
  */
 
 /* globals for copy/paste data (like for other copy/paste buffers) */
-ListBase gp_anim_copybuf = {NULL, NULL};
+static ListBase gp_anim_copybuf = {NULL, NULL};
 static int gp_anim_copy_firstframe =  999999999;
 static int gp_anim_copy_lastframe  = -999999999;
 static int gp_anim_copy_cfra       =  0;

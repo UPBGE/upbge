@@ -1344,89 +1344,87 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
                                        const bool use_hierarchy)
 {
 	Main *bmain = CTX_data_main(C);
-	ListBase *lb;
+	ListBase *lb_duplis;
 	DupliObject *dob;
-	GHash *dupli_gh = NULL, *parent_gh = NULL;
-	Object *object;
+	GHash *dupli_gh, *parent_gh = NULL;
 
-	if (!(base->object->transflag & OB_DUPLI))
+	if (!(base->object->transflag & OB_DUPLI)) {
 		return;
+	}
 
-	lb = object_duplilist(bmain->eval_ctx, scene, base->object);
+	lb_duplis = object_duplilist(bmain->eval_ctx, scene, base->object);
 
-	if (use_hierarchy || use_base_parent) {
-		dupli_gh = BLI_ghash_ptr_new(__func__);
-		if (use_hierarchy) {
-			if (base->object->transflag & OB_DUPLIGROUP) {
-				parent_gh = BLI_ghash_new(dupliobject_group_hash, dupliobject_group_cmp, __func__);
-			}
-			else {
-				parent_gh = BLI_ghash_new(dupliobject_hash, dupliobject_cmp, __func__);
-			}
+	dupli_gh = BLI_ghash_ptr_new(__func__);
+	if (use_hierarchy) {
+		if (base->object->transflag & OB_DUPLIGROUP) {
+			parent_gh = BLI_ghash_new(dupliobject_group_hash, dupliobject_group_cmp, __func__);
+		}
+		else {
+			parent_gh = BLI_ghash_new(dupliobject_hash, dupliobject_cmp, __func__);
 		}
 	}
 
-	for (dob = lb->first; dob; dob = dob->next) {
-		Base *basen;
-		Object *ob = ID_NEW_SET(dob->ob, BKE_object_copy(bmain, dob->ob));
+	for (dob = lb_duplis->first; dob; dob = dob->next) {
+		Object *ob_src = dob->ob;
+		Object *ob_dst = ID_NEW_SET(dob->ob, BKE_object_copy(bmain, ob_src));
+		Base *base_dst;
 
 		/* font duplis can have a totcol without material, we get them from parent
 		 * should be implemented better...
 		 */
-		if (ob->mat == NULL) ob->totcol = 0;
+		if (ob_dst->mat == NULL) {
+			ob_dst->totcol = 0;
+		}
 
-		basen = MEM_dupallocN(base);
-		basen->flag &= ~(OB_FROMDUPLI | OB_FROMGROUP);
-		ob->flag = basen->flag;
-		basen->lay = base->lay;
-		BLI_addhead(&scene->base, basen);   /* addhead: othwise eternal loop */
-		basen->object = ob;
+		base_dst = MEM_dupallocN(base);
+		base_dst->flag &= ~(OB_FROMDUPLI | OB_FROMGROUP);
+		ob_dst->flag = base_dst->flag;
+		base_dst->lay = base->lay;
+		BLI_addhead(&scene->base, base_dst);   /* addhead: othwise eternal loop */
+		base_dst->object = ob_dst;
 
 		/* make sure apply works */
-		BKE_animdata_free(&ob->id, true);
-		ob->adt = NULL;
+		BKE_animdata_free(&ob_dst->id, true);
+		ob_dst->adt = NULL;
 
 		/* Proxies are not to be copied. */
-		ob->proxy_from = NULL;
-		ob->proxy_group = NULL;
-		ob->proxy = NULL;
+		ob_dst->proxy_from = NULL;
+		ob_dst->proxy_group = NULL;
+		ob_dst->proxy = NULL;
 
-		ob->parent = NULL;
-		BKE_constraints_free(&ob->constraints);
-		ob->curve_cache = NULL;
-		ob->transflag &= ~OB_DUPLI;
-		ob->lay = base->lay;
+		ob_dst->parent = NULL;
+		BKE_constraints_free(&ob_dst->constraints);
+		ob_dst->curve_cache = NULL;
+		ob_dst->transflag &= ~OB_DUPLI;
+		ob_dst->lay = base->lay;
 
-		copy_m4_m4(ob->obmat, dob->mat);
-		BKE_object_apply_mat4(ob, ob->obmat, false, false);
+		copy_m4_m4(ob_dst->obmat, dob->mat);
+		BKE_object_apply_mat4(ob_dst, ob_dst->obmat, false, false);
 
-		if (dupli_gh) {
-			BLI_ghash_insert(dupli_gh, dob, ob);
-		}
+		BLI_ghash_insert(dupli_gh, dob, ob_dst);
 		if (parent_gh) {
 			void **val;
 			/* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as 'the same',
 			 * this avoids trying to insert same key several time and raise asserts in debug builds... */
 			if (!BLI_ghash_ensure_p(parent_gh, dob, &val)) {
-				*val = ob;
+				*val = ob_dst;
 			}
 		}
-
-		/* Remap new object to itself, and clear again newid pointer of orig object. */
-		BKE_libblock_relink_to_newid(&ob->id);
-		set_sca_new_poins_ob(ob);
-		BKE_id_clear_newpoin(&dob->ob->id);
-
-		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	}
 
-	if (use_hierarchy) {
-		for (dob = lb->first; dob; dob = dob->next) {
-			/* original parents */
-			Object *ob_src =     dob->ob;
-			Object *ob_src_par = ob_src->parent;
+	for (dob = lb_duplis->first; dob; dob = dob->next) {
+		Object *ob_src = dob->ob;
+		Object *ob_dst = BLI_ghash_lookup(dupli_gh, dob);
 
-			Object *ob_dst =     BLI_ghash_lookup(dupli_gh, dob);
+		/* Remap new object to itself, and clear again newid pointer of orig object. */
+		BKE_libblock_relink_to_newid(&ob_dst->id);
+		set_sca_new_poins_ob(ob_dst);
+
+		DAG_id_tag_update(&ob_dst->id, OB_RECALC_DATA);
+
+		if (use_hierarchy) {
+			/* original parents */
+			Object *ob_src_par = ob_src->parent;
 			Object *ob_dst_par = NULL;
 
 			/* find parent that was also made real */
@@ -1437,8 +1435,8 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 				dob_key.ob = ob_src_par;
 				if (base->object->transflag & OB_DUPLIGROUP) {
 					memcpy(&dob_key.persistent_id[1],
-						   &dob->persistent_id[1],
-						   sizeof(dob->persistent_id[1]) * (MAX_DUPLI_RECUR - 1));
+					       &dob->persistent_id[1],
+					       sizeof(dob->persistent_id[1]) * (MAX_DUPLI_RECUR - 1));
 				}
 				else {
 					dob_key.persistent_id[0] = dob->persistent_id[0];
@@ -1462,49 +1460,42 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 				ob_dst->parent = base->object;
 				ob_dst->partype = PAROBJECT;
 			}
-
-			if (ob_dst->parent) {
-				/* note, this may be the parent of other objects, but it should
-				 * still work out ok */
-				BKE_object_apply_mat4(ob_dst, dob->mat, false, true);
-
-				/* to set ob_dst->orig and in case theres any other discrepicies */
-				DAG_id_tag_update(&ob_dst->id, OB_RECALC_OB);
-			}
 		}
-	}
-	else if (use_base_parent) {
-		/* since we are ignoring the internal hierarchy - parent all to the
-		 * base object */
-		for (dob = lb->first; dob; dob = dob->next) {
-			/* original parents */
-			Object *ob_dst = BLI_ghash_lookup(dupli_gh, dob);
-
+		else if (use_base_parent) {
+			/* since we are ignoring the internal hierarchy - parent all to the
+			 * base object */
 			ob_dst->parent = base->object;
 			ob_dst->partype = PAROBJECT;
+		}
 
-			/* similer to the code above, see comments */
+		if (ob_dst->parent) {
+			/* note, this may be the parent of other objects, but it should
+			 * still work out ok */
 			BKE_object_apply_mat4(ob_dst, dob->mat, false, true);
+
+			/* to set ob_dst->orig and in case theres any other discrepicies */
 			DAG_id_tag_update(&ob_dst->id, OB_RECALC_OB);
 		}
 	}
 
 	if (base->object->transflag & OB_DUPLIGROUP && base->object->dup_group) {
-		for (object = bmain->object.first; object; object = object->id.next) {
-			if (object->proxy_group == base->object) {
-				object->proxy = NULL;
-				object->proxy_from = NULL;
-				DAG_id_tag_update(&object->id, OB_RECALC_OB);
+		for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
+			if (ob->proxy_group == base->object) {
+				ob->proxy = NULL;
+				ob->proxy_from = NULL;
+				DAG_id_tag_update(&ob->id, OB_RECALC_OB);
 			}
 		}
 	}
 
-	if (dupli_gh)
-		BLI_ghash_free(dupli_gh, NULL, NULL);
-	if (parent_gh)
+	BLI_ghash_free(dupli_gh, NULL, NULL);
+	if (parent_gh) {
 		BLI_ghash_free(parent_gh, NULL, NULL);
+	}
 
-	free_object_duplilist(lb);
+	free_object_duplilist(lb_duplis);
+
+	BKE_main_id_clear_newpoins(bmain);
 
 	base->object->transflag &= ~OB_DUPLI;
 }
@@ -1682,7 +1673,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 			 * However, changing this is more design than bugfix, not to mention convoluted code below,
 			 * so that will be for later.
 			 * But at the very least, do not do that with linked IDs! */
-			if ((ID_IS_LINKED_DATABLOCK(ob) || ID_IS_LINKED_DATABLOCK(ob->data)) && !keep_original) {
+			if ((ID_IS_LINKED_DATABLOCK(ob) || (ob->data && ID_IS_LINKED_DATABLOCK(ob->data))) && !keep_original) {
 				keep_original = true;
 				BKE_reportf(op->reports, RPT_INFO,
 				            "Converting some linked object/object data, enforcing 'Keep Original' option to True");
@@ -2197,6 +2188,11 @@ static Base *object_add_duplicate_internal(Main *bmain, Scene *scene, Base *base
 		/* check if obdata is copied */
 		if (didit) {
 			Key *key = BKE_key_from_object(obn);
+
+			Key *oldkey = BKE_key_from_object(ob);
+			if (oldkey != NULL) {
+				ID_NEW_SET(oldkey, key);
+			}
 
 			if (dupflag & USER_DUP_ACT) {
 				bActuator *act;

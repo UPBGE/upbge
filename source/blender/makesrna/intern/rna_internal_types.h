@@ -413,6 +413,11 @@ struct StructRNA {
 
 struct BlenderRNA {
 	ListBase structs;
+	/* A map of structs: {StructRNA.identifier -> StructRNA}
+	 * These are ensured to have unique names (with STRUCT_PUBLIC_NAMESPACE enabled). */
+	struct GHash *structs_map;
+	/* Needed because types with an empty identifier aren't included in 'structs_map'. */
+	unsigned int  structs_len;
 };
 
 #define CONTAINER_RNA_ID(cont) (*(const char **)(((ContainerRNA *)(cont))+1))

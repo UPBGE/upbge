@@ -153,7 +153,6 @@ void BVH::pack_primitives()
 		if(pack.prim_index[i] != -1) {
 			int tob = pack.prim_object[i];
 			Object *ob = objects[tob];
-
 			if((pack.prim_type[i] & PRIMITIVE_ALL_TRIANGLE) != 0) {
 				pack_triangle(i, (float4*)&pack.prim_tri_verts[3 * prim_triangle_index]);
 				pack.prim_tri_index[i] = 3 * prim_triangle_index;
@@ -162,11 +161,10 @@ void BVH::pack_primitives()
 			else {
 				pack.prim_tri_index[i] = -1;
 			}
-
-			pack.prim_visibility[i] = ob->visibility;
-
-			if(pack.prim_type[i] & PRIMITIVE_ALL_CURVE)
+			pack.prim_visibility[i] = ob->visibility_for_tracing();
+			if(pack.prim_type[i] & PRIMITIVE_ALL_CURVE) {
 				pack.prim_visibility[i] |= PATH_RAY_CURVE;
+			}
 		}
 		else {
 			pack.prim_tri_index[i] = -1;

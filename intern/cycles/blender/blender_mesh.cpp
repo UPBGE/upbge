@@ -50,8 +50,7 @@ enum {
  * Two triangles has vertex indices in the original Blender-side face.
  * If face is already a quad tri_b will not be initialized.
  */
-inline void face_split_tri_indices(const int num_verts,
-                                   const int face_flag,
+inline void face_split_tri_indices(const int face_flag,
                                    int tri_a[3],
                                    int tri_b[3])
 {
@@ -59,36 +58,38 @@ inline void face_split_tri_indices(const int num_verts,
 		tri_a[0] = 0;
 		tri_a[1] = 1;
 		tri_a[2] = 3;
-		if(num_verts == 4) {
-			tri_b[0] = 2;
-			tri_b[1] = 3;
-			tri_b[2] = 1;
-		}
+
+		tri_b[0] = 2;
+		tri_b[1] = 3;
+		tri_b[2] = 1;
 	}
 	else /*if(face_flag & FACE_FLAG_DIVIDE_13)*/ {
+		assert(face_flag & FACE_FLAG_DIVIDE_13);
+
 		tri_a[0] = 0;
 		tri_a[1] = 1;
 		tri_a[2] = 2;
-		if(num_verts == 4) {
-			tri_b[0] = 0;
-			tri_b[1] = 2;
-			tri_b[2] = 3;
-		}
+
+		tri_b[0] = 0;
+		tri_b[1] = 2;
+		tri_b[2] = 3;
 	}
 }
 
 /* Tangent Space */
 
 struct MikkUserData {
-	MikkUserData(const BL::Mesh& mesh_,
-	             BL::MeshTextureFaceLayer *layer_,
-	             int num_faces_)
-	: mesh(mesh_), layer(layer_), num_faces(num_faces_)
+	MikkUserData(const BL::Mesh& b_mesh,
+	             BL::MeshTextureFaceLayer *layer,
+	             int num_faces)
+	        : b_mesh(b_mesh),
+	          layer(layer),
+	          num_faces(num_faces)
 	{
 		tangent.resize(num_faces*4);
 	}
 
-	BL::Mesh mesh;
+	BL::Mesh b_mesh;
 	BL::MeshTextureFaceLayer *layer;
 	int num_faces;
 	vector<float4> tangent;
@@ -103,7 +104,7 @@ static int mikk_get_num_faces(const SMikkTSpaceContext *context)
 static int mikk_get_num_verts_of_face(const SMikkTSpaceContext *context, const int face_num)
 {
 	MikkUserData *userdata = (MikkUserData*)context->m_pUserData;
-	BL::MeshTessFace f = userdata->mesh.tessfaces[face_num];
+	BL::MeshTessFace f = userdata->b_mesh.tessfaces[face_num];
 	int4 vi = get_int4(f.vertices_raw());
 
 	return (vi[3] == 0)? 3: 4;
@@ -112,9 +113,9 @@ static int mikk_get_num_verts_of_face(const SMikkTSpaceContext *context, const i
 static void mikk_get_position(const SMikkTSpaceContext *context, float P[3], const int face_num, const int vert_num)
 {
 	MikkUserData *userdata = (MikkUserData*)context->m_pUserData;
-	BL::MeshTessFace f = userdata->mesh.tessfaces[face_num];
+	BL::MeshTessFace f = userdata->b_mesh.tessfaces[face_num];
 	int4 vi = get_int4(f.vertices_raw());
-	BL::MeshVertex v = userdata->mesh.vertices[vi[vert_num]];
+	BL::MeshVertex v = userdata->b_mesh.vertices[vi[vert_num]];
 	float3 vP = get_float3(v.co());
 
 	P[0] = vP.x;
@@ -148,9 +149,9 @@ static void mikk_get_texture_coordinate(const SMikkTSpaceContext *context, float
 		uv[1] = tfuv.y;
 	}
 	else {
-		int vert_idx = userdata->mesh.tessfaces[face_num].vertices()[vert_num];
+		int vert_idx = userdata->b_mesh.tessfaces[face_num].vertices()[vert_num];
 		float3 orco =
-			get_float3(userdata->mesh.vertices[vert_idx].undeformed_co());
+			get_float3(userdata->b_mesh.vertices[vert_idx].undeformed_co());
 		float2 tmp = map_to_sphere(make_float3(orco[0], orco[1], orco[2]));
 		uv[0] = tmp.x;
 		uv[1] = tmp.y;
@@ -160,12 +161,12 @@ static void mikk_get_texture_coordinate(const SMikkTSpaceContext *context, float
 static void mikk_get_normal(const SMikkTSpaceContext *context, float N[3], const int face_num, const int vert_num)
 {
 	MikkUserData *userdata = (MikkUserData*)context->m_pUserData;
-	BL::MeshTessFace f = userdata->mesh.tessfaces[face_num];
+	BL::MeshTessFace f = userdata->b_mesh.tessfaces[face_num];
 	float3 vN;
 
 	if(f.use_smooth()) {
 		int4 vi = get_int4(f.vertices_raw());
-		BL::MeshVertex v = userdata->mesh.vertices[vi[vert_num]];
+		BL::MeshVertex v = userdata->b_mesh.vertices[vi[vert_num]];
 		vN = get_float3(v.normal());
 	}
 	else {
@@ -250,7 +251,7 @@ static void mikk_compute_tangents(BL::Mesh& b_mesh,
 
 	for(int i = 0; i < nverts.size(); i++) {
 		int tri_a[3], tri_b[3];
-		face_split_tri_indices(nverts[i], face_flags[i], tri_a, tri_b);
+		face_split_tri_indices(face_flags[i], tri_a, tri_b);
 
 		tangent[0] = float4_to_float3(userdata.tangent[i*4 + tri_a[0]]);
 		tangent[1] = float4_to_float3(userdata.tangent[i*4 + tri_a[1]]);
@@ -376,7 +377,7 @@ static void attr_create_vertex_color(Scene *scene,
 
 			for(l->data.begin(c); c != l->data.end(); ++c, ++i) {
 				int tri_a[3], tri_b[3];
-				face_split_tri_indices(nverts[i], face_flags[i], tri_a, tri_b);
+				face_split_tri_indices(face_flags[i], tri_a, tri_b);
 
 				uchar4 colors[4];
 				colors[0] = color_float_to_byte(color_srgb_to_scene_linear_v3(get_float3(c->color1())));
@@ -469,7 +470,7 @@ static void attr_create_uv_map(Scene *scene,
 
 				for(l->data.begin(t); t != l->data.end(); ++t, ++i) {
 					int tri_a[3], tri_b[3];
-					face_split_tri_indices(nverts[i], face_flags[i], tri_a, tri_b);
+					face_split_tri_indices(face_flags[i], tri_a, tri_b);
 
 					float3 uvs[4];
 					uvs[0] = get_float3(t->uv1());
@@ -1079,7 +1080,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 			}
 
 			/* free derived mesh */
-			b_data.meshes.remove(b_mesh, false);
+			b_data.meshes.remove(b_mesh, false, true, false);
 		}
 	}
 	mesh->geometry_flags = requested_geometry_flags;
@@ -1299,7 +1300,7 @@ void BlenderSync::sync_mesh_motion(BL::Object& b_ob,
 		sync_curves(mesh, b_mesh, b_ob, true, time_index);
 
 	/* free derived mesh */
-	b_data.meshes.remove(b_mesh, false);
+	b_data.meshes.remove(b_mesh, false, true, false);
 }
 
 CCL_NAMESPACE_END

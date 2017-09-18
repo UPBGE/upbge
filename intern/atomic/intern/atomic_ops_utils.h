@@ -52,8 +52,8 @@
 #ifndef __ATOMIC_OPS_UTILS_H__
 #define __ATOMIC_OPS_UTILS_H__
 
-/* needed for int types */
-#include "../../../source/blender/blenlib/BLI_sys_types.h"
+#include <stdint.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <limits.h>
 
@@ -63,12 +63,7 @@
 #if defined(_MSC_VER)
 #  define ATOMIC_INLINE static __forceinline
 #else
-#  if (defined(__APPLE__) && defined(__ppc__))
-/* static inline __attribute__ here breaks osx ppc gcc42 build */
-#    define ATOMIC_INLINE static __attribute__((always_inline))
-#  else
-#    define ATOMIC_INLINE static inline __attribute__((always_inline))
-#  endif
+#  define ATOMIC_INLINE static inline __attribute__((always_inline))
 #endif
 
 #ifndef LIKELY

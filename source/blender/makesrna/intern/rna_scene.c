@@ -95,13 +95,15 @@ EnumPropertyItem rna_enum_exr_codec_items[] = {
 };
 #endif
 
-EnumPropertyItem uv_sculpt_relaxation_items[] = {
+#ifndef RNA_RUNTIME
+static EnumPropertyItem uv_sculpt_relaxation_items[] = {
 	{UV_SCULPT_TOOL_RELAX_LAPLACIAN, "LAPLACIAN", 0, "Laplacian", "Use Laplacian method for relaxation"},
 	{UV_SCULPT_TOOL_RELAX_HC, "HC", 0, "HC", "Use HC method for relaxation"},
 	{0, NULL, 0, NULL, NULL}
 };
+#endif
 
-EnumPropertyItem uv_sculpt_tool_items[] = {
+EnumPropertyItem rna_enum_uv_sculpt_tool_items[] = {
 	{UV_SCULPT_TOOL_PINCH, "PINCH", 0, "Pinch", "Pinch UVs"},
 	{UV_SCULPT_TOOL_RELAX, "RELAX", 0, "Relax", "Relax UVs"},
 	{UV_SCULPT_TOOL_GRAB, "GRAB", 0, "Grab", "Grab UVs"},
@@ -176,11 +178,13 @@ EnumPropertyItem rna_enum_snap_node_element_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem snap_uv_element_items[] = {
+#ifndef RNA_RUNTIME
+static EnumPropertyItem snap_uv_element_items[] = {
 	{SCE_SNAP_MODE_INCREMENT, "INCREMENT", ICON_SNAP_INCREMENT, "Increment", "Snap to increments of grid"},
 	{SCE_SNAP_MODE_VERTEX, "VERTEX", ICON_SNAP_VERTEX, "Vertex", "Snap to vertices"},
 	{0, NULL, 0, NULL, NULL}
 };
+#endif
 
 EnumPropertyItem rna_enum_curve_fit_method_items[] = {
 	{CURVE_PAINT_FIT_METHOD_REFIT, "REFIT", 0, "Refit", "Incrementally re-fit the curve (high quality)"},
@@ -266,12 +270,14 @@ EnumPropertyItem rna_enum_curve_fit_method_items[] = {
 	R_IMF_ENUM_TIFF                                                           \
 
 
-EnumPropertyItem image_only_type_items[] = {
+#ifdef RNA_RUNTIME
+static EnumPropertyItem image_only_type_items[] = {
 
 	IMAGE_TYPE_ITEMS_IMAGE_ONLY
 
 	{0, NULL, 0, NULL, NULL}
 };
+#endif
 
 EnumPropertyItem rna_enum_image_type_items[] = {
 	{0, "", 0, N_("Image"), NULL},
@@ -409,7 +415,8 @@ EnumPropertyItem rna_enum_bake_pass_filter_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem rna_enum_gpencil_interpolation_mode_items[] = {
+#ifndef RNA_RUNTIME
+static EnumPropertyItem rna_enum_gpencil_interpolation_mode_items[] = {
 	/* interpolation */
 	{0, "", 0, N_("Interpolation"), "Standard transitions between keyframes"},
 	{GP_IPO_LINEAR,   "LINEAR", ICON_IPO_LINEAR, "Linear", "Straight-line interpolation between A and B (i.e. no ease in/out)"},
@@ -432,6 +439,7 @@ EnumPropertyItem rna_enum_gpencil_interpolation_mode_items[] = {
 	
 	{0, NULL, 0, NULL, NULL}
 };
+#endif
 
 #ifdef RNA_RUNTIME
 
@@ -1839,6 +1847,13 @@ static void rna_Scene_simplify_update(Main *bmain, Scene *UNUSED(scene), Pointer
 		rna_Scene_use_simplify_update(bmain, sce, ptr);
 }
 
+static void rna_SceneRenderData_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	Scene *sce = ptr->id.data;
+
+	DAG_id_tag_update(&sce->id, 0);
+}
+
 static void rna_Scene_use_persistent_data_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Scene *sce = ptr->id.data;
@@ -2714,7 +2729,7 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 
 	prop = RNA_def_property(srna, "uv_sculpt_tool", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "uv_sculpt_tool");
-	RNA_def_property_enum_items(prop, uv_sculpt_tool_items);
+	RNA_def_property_enum_items(prop, rna_enum_uv_sculpt_tool_items);
 	RNA_def_property_ui_text(prop, "UV Sculpt Tools", "Select Tools for the UV sculpt brushes");
 
 	prop = RNA_def_property(srna, "uv_relax_method", PROP_ENUM, PROP_NONE);
@@ -5931,6 +5946,15 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 	
+	static EnumPropertyItem pixel_size_items[] = {
+		{0, "AUTO", 0, "Automatic", "Automatic pixel size, depends on the UI scale"},
+		{1, "1", 0, "1x", "Render at full resolution"},
+		{2, "2", 0, "2x", "Render at 50% resolution"},
+		{4, "4", 0, "4x", "Render at 25% resolution"},
+		{8, "8", 0, "8x", "Render at 12.5% resolution"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static EnumPropertyItem octree_resolution_items[] = {
 		{64, "64", 0, "64", ""},
 		{128, "128", 0, "128", ""},
@@ -6053,6 +6077,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Start Resolution", "Resolution to start rendering preview at, "
 	                                                   "progressively increasing it to the full viewport size");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	prop = RNA_def_property(srna, "preview_pixel_size", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "preview_pixel_size");
+	RNA_def_property_enum_items(prop, pixel_size_items);
+	RNA_def_property_ui_text(prop, "Pixel Size", "Pixel size for viewport rendering");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_SceneRenderData_update");
 
 	prop = RNA_def_property(srna, "pixel_aspect_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "xasp");
@@ -6286,8 +6316,8 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "motion_blur_shutter", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_float_sdna(prop, NULL, "blurfac");
 	RNA_def_property_ui_range(prop, 0.01f, 2.0f, 1, 2);
-	RNA_def_property_ui_text(prop, "Shutter", "Time taken in frames between shutter open and close");
-	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_ui_text(prop, "Shutter", "Time taken in frames between shutter open and close "
+	                                          "(NOTE: Blender Internal does not support animated shutter)");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_glsl_update");
 
 	prop = RNA_def_property(srna, "motion_blur_shutter_curve", PROP_POINTER, PROP_NONE);
@@ -6649,11 +6679,6 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
 	/* sequencer draw options */
 
-	prop = RNA_def_property(srna, "use_sequencer_gl_preview", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "seq_flag", R_SEQ_GL_PREV);
-	RNA_def_property_ui_text(prop, "Sequencer OpenGL", "");
-	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SceneSequencer_update");
-
 #if 0  /* see R_SEQ_GL_REND comment */
 	prop = RNA_def_property(srna, "use_sequencer_gl_render", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "seq_flag", R_SEQ_GL_REND);
@@ -6666,10 +6691,13 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Sequencer Preview Shading", "Method to draw in the sequencer view");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SceneSequencer_update");
 
+#if 0  /* UNUSED, see R_SEQ_GL_REND comment */
 	prop = RNA_def_property(srna, "sequencer_gl_render", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "seq_rend_type");
 	RNA_def_property_enum_items(prop, rna_enum_viewport_shade_items);
+	/* XXX Label and tooltips are obviously wrong! */
 	RNA_def_property_ui_text(prop, "Sequencer Preview Shading", "Method to draw in the sequencer view");
+#endif
 
 	prop = RNA_def_property(srna, "use_sequencer_gl_textured_solid", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "seq_flag", R_SEQ_SOLID_TEX);

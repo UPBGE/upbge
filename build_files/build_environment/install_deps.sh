@@ -1599,7 +1599,7 @@ compile_OIIO() {
   fi
 
   # To be changed each time we make edits that would modify the compiled result!
-  oiio_magic=16
+  oiio_magic=17
   _init_oiio
 
   # Clean install if needed!
@@ -1662,6 +1662,9 @@ compile_OIIO() {
       cmake_d="$cmake_d -D OPENEXR_HOME=$INST/openexr"
       INFO "ILMBASE_HOME=$INST/openexr"
     fi
+
+    # ptex is only needed when nicholas bishop is ready
+    cmake_d="$cmake_d -D USE_PTEX=OFF"
 
     # Optional tests and cmd tools
     cmake_d="$cmake_d -D USE_QT=OFF"
@@ -1774,7 +1777,7 @@ compile_LLVM() {
       cd $_src
 
       # XXX Ugly patching hack!
-      patch -p1 -i "$SCRIPT_DIR/install_deps_patches/llvm.patch"
+      patch -p1 -i "$SCRIPT_DIR/patches/install_deps_llvm.diff"
 
       cd $CWD
 
@@ -1880,7 +1883,7 @@ compile_OSL() {
       git reset --hard
 
       # XXX Ugly patching hack!
-      patch -p1 -i "$SCRIPT_DIR/install_deps_patches/osl.patch"
+      patch -p1 -i "$SCRIPT_DIR/patches/install_deps_osl.diff"
     fi
 
     # Always refresh the whole build!

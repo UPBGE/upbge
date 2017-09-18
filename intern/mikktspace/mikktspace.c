@@ -39,17 +39,23 @@
 
 #define INTERNAL_RND_SORT_SEED		39871946
 
+#ifdef _MSC_VER
+#  define MIKK_INLINE static __forceinline
+#else
+#  define MIKK_INLINE static inline __attribute__((always_inline)) __attribute__((unused))
+#endif
+
 // internal structure
 typedef struct {
 	float x, y, z;
 } SVec3;
 
-static tbool			veq( const SVec3 v1, const SVec3 v2 )
+MIKK_INLINE tbool			veq( const SVec3 v1, const SVec3 v2 )
 {
 	return (v1.x == v2.x) && (v1.y == v2.y) && (v1.z == v2.z);
 }
 
-static SVec3		vadd( const SVec3 v1, const SVec3 v2 )
+MIKK_INLINE SVec3		vadd( const SVec3 v1, const SVec3 v2 )
 {
 	SVec3 vRes;
 
@@ -61,7 +67,7 @@ static SVec3		vadd( const SVec3 v1, const SVec3 v2 )
 }
 
 
-static SVec3		vsub( const SVec3 v1, const SVec3 v2 )
+MIKK_INLINE SVec3		vsub( const SVec3 v1, const SVec3 v2 )
 {
 	SVec3 vRes;
 
@@ -72,7 +78,7 @@ static SVec3		vsub( const SVec3 v1, const SVec3 v2 )
 	return vRes;
 }
 
-static SVec3		vscale(const float fS, const SVec3 v)
+MIKK_INLINE SVec3		vscale(const float fS, const SVec3 v)
 {
 	SVec3 vRes;
 
@@ -83,39 +89,54 @@ static SVec3		vscale(const float fS, const SVec3 v)
 	return vRes;
 }
 
-static float			LengthSquared( const SVec3 v )
+MIKK_INLINE float			LengthSquared( const SVec3 v )
 {
 	return v.x*v.x + v.y*v.y + v.z*v.z;
 }
 
-static float			Length( const SVec3 v )
+MIKK_INLINE float			Length( const SVec3 v )
 {
 	return sqrtf(LengthSquared(v));
 }
 
-static SVec3		Normalize( const SVec3 v )
+#if 0  // UNUSED
+MIKK_INLINE SVec3		Normalize( const SVec3 v )
 {
-	return vscale(1 / Length(v), v);
+	return vscale(1.0f / Length(v), v);
+}
+#endif
+
+MIKK_INLINE SVec3		NormalizeSafe( const SVec3 v )
+{
+	const float len = Length(v);
+	if (len != 0.0f) {
+		return vscale(1.0f / len, v);
+	}
+	else
+	{
+		return v;
+	}
 }
 
-static float		vdot( const SVec3 v1, const SVec3 v2)
+MIKK_INLINE float		vdot( const SVec3 v1, const SVec3 v2)
 {
 	return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
 }
 
 
-static tbool NotZero(const float fX)
+MIKK_INLINE tbool NotZero(const float fX)
 {
 	// could possibly use FLT_EPSILON instead
 	return fabsf(fX) > FLT_MIN;
 }
 
-static tbool VNotZero(const SVec3 v)
+#if 0  // UNUSED
+MIKK_INLINE tbool VNotZero(const SVec3 v)
 {
 	// might change this to an epsilon based test
 	return NotZero(v.x) || NotZero(v.y) || NotZero(v.z);
 }
-
+#endif
 
 
 typedef struct {
@@ -169,13 +190,13 @@ static tbool GenerateTSpaces(STSpace psTspace[], const STriInfo pTriInfos[], con
                              const int iNrActiveGroups, const int piTriListIn[], const float fThresCos,
                              const SMikkTSpaceContext * pContext);
 
-static int MakeIndex(const int iFace, const int iVert)
+MIKK_INLINE int MakeIndex(const int iFace, const int iVert)
 {
 	assert(iVert>=0 && iVert<4 && iFace>=0);
 	return (iFace<<2) | (iVert&0x3);
 }
 
-static void IndexToData(int * piFace, int * piVert, const int iIndexIn)
+MIKK_INLINE void IndexToData(int * piFace, int * piVert, const int iIndexIn)
 {
 	piVert[0] = iIndexIn&0x3;
 	piFace[0] = iIndexIn>>2;
@@ -202,8 +223,8 @@ static STSpace AvgTSpace(const STSpace * pTS0, const STSpace * pTS1)
 		ts_res.fMagT = 0.5f*(pTS0->fMagT+pTS1->fMagT);
 		ts_res.vOs = vadd(pTS0->vOs,pTS1->vOs);
 		ts_res.vOt = vadd(pTS0->vOt,pTS1->vOt);
-		if ( VNotZero(ts_res.vOs) ) ts_res.vOs = Normalize(ts_res.vOs);
-		if ( VNotZero(ts_res.vOt) ) ts_res.vOt = Normalize(ts_res.vOt);
+		ts_res.vOs = NormalizeSafe(ts_res.vOs);
+		ts_res.vOt = NormalizeSafe(ts_res.vOt);
 	}
 
 	return ts_res;
@@ -211,9 +232,9 @@ static STSpace AvgTSpace(const STSpace * pTS0, const STSpace * pTS1)
 
 
 
-static SVec3 GetPosition(const SMikkTSpaceContext * pContext, const int index);
-static SVec3 GetNormal(const SMikkTSpaceContext * pContext, const int index);
-static SVec3 GetTexCoord(const SMikkTSpaceContext * pContext, const int index);
+MIKK_INLINE SVec3 GetPosition(const SMikkTSpaceContext * pContext, const int index);
+MIKK_INLINE SVec3 GetNormal(const SMikkTSpaceContext * pContext, const int index);
+MIKK_INLINE SVec3 GetTexCoord(const SMikkTSpaceContext * pContext, const int index);
 
 
 // degen triangles
@@ -238,7 +259,7 @@ tbool genTangSpace(const SMikkTSpaceContext * pContext, const float fAngularThre
 	int iNrActiveGroups = 0, index = 0;
 	const int iNrFaces = pContext->m_pInterface->m_getNumFaces(pContext);
 	tbool bRes = TFALSE;
-	const float fThresCos = (float) cos((fAngularThreshold*(float)M_PI)/180.0f);
+	const float fThresCos = cosf((fAngularThreshold*(float)M_PI)/180.0f);
 
 	// verify all call-backs have been set
 	if ( pContext->m_pInterface->m_getNumFaces==NULL ||
@@ -258,7 +279,7 @@ tbool genTangSpace(const SMikkTSpaceContext * pContext, const float fAngularThre
 	if (iNrTrianglesIn<=0) return TFALSE;
 
 	// allocate memory for an index list
-	piTriListIn = (int *) malloc(sizeof(int)*3*iNrTrianglesIn);
+	piTriListIn = (int *) malloc(sizeof(int[3])*iNrTrianglesIn);
 	pTriInfos = (STriInfo *) malloc(sizeof(STriInfo)*iNrTrianglesIn);
 	if (piTriListIn==NULL || pTriInfos==NULL)
 	{
@@ -311,7 +332,7 @@ tbool genTangSpace(const SMikkTSpaceContext * pContext, const float fAngularThre
 	// based on the 4 rules, identify groups based on connectivity
 	iNrMaxGroups = iNrTrianglesIn*3;
 	pGroups = (SGroup *) malloc(sizeof(SGroup)*iNrMaxGroups);
-	piGroupTrianglesBuffer = (int *) malloc(sizeof(int)*iNrTrianglesIn*3);
+	piGroupTrianglesBuffer = (int *) malloc(sizeof(int[3])*iNrTrianglesIn);
 	if (pGroups==NULL || piGroupTrianglesBuffer==NULL)
 	{
 		if (pGroups!=NULL) free(pGroups);
@@ -427,6 +448,7 @@ typedef struct {
 } STmpVert;
 
 static const int g_iCells = 2048;
+static const float g_iCells_fl = 2048.0f;
 
 #ifdef _MSC_VER
 #  define NOINLINE __declspec(noinline)
@@ -439,7 +461,7 @@ static const int g_iCells = 2048;
 // results for the same effective input value fVal.
 static NOINLINE int FindGridCell(const float fMin, const float fMax, const float fVal)
 {
-	const float fIndex = g_iCells * ((fVal-fMin)/(fMax-fMin));
+	const float fIndex = g_iCells_fl * ((fVal-fMin)/(fMax-fMin));
 	const int iIndex = (int)fIndex;
 	return iIndex < g_iCells ? (iIndex >= 0 ? iIndex : 0) : (g_iCells - 1);
 }
@@ -488,7 +510,7 @@ static void GenerateSharedVerticesIndexList(int piTriList_in_and_out[], const SM
 	}
 
 	// make allocations
-	piHashTable = (int *) malloc(sizeof(int)*iNrTrianglesIn*3);
+	piHashTable = (int *) malloc(sizeof(int[3])*iNrTrianglesIn);
 	piHashCount = (int *) malloc(sizeof(int)*g_iCells);
 	piHashOffsets = (int *) malloc(sizeof(int)*g_iCells);
 	piHashCount2 = (int *) malloc(sizeof(int)*g_iCells);
@@ -544,7 +566,7 @@ static void GenerateSharedVerticesIndexList(int piTriList_in_and_out[], const SM
 		if (iMaxCount<piHashCount[k])
 			iMaxCount=piHashCount[k];
 	pTmpVert = (STmpVert *) malloc(sizeof(STmpVert)*iMaxCount);
-	
+
 
 	// complete the merge
 	for (k=0; k<g_iCells; k++)
@@ -880,7 +902,7 @@ static int GenerateInitialVerticesIndexList(STriInfo pTriInfos[], int piTriList_
 	return iTSpacesOffs;
 }
 
-static SVec3 GetPosition(const SMikkTSpaceContext * pContext, const int index)
+MIKK_INLINE SVec3 GetPosition(const SMikkTSpaceContext * pContext, const int index)
 {
 	int iF, iI;
 	SVec3 res; float pos[3];
@@ -890,7 +912,7 @@ static SVec3 GetPosition(const SMikkTSpaceContext * pContext, const int index)
 	return res;
 }
 
-static SVec3 GetNormal(const SMikkTSpaceContext * pContext, const int index)
+MIKK_INLINE SVec3 GetNormal(const SMikkTSpaceContext * pContext, const int index)
 {
 	int iF, iI;
 	SVec3 res; float norm[3];
@@ -900,7 +922,7 @@ static SVec3 GetNormal(const SMikkTSpaceContext * pContext, const int index)
 	return res;
 }
 
-static SVec3 GetTexCoord(const SMikkTSpaceContext * pContext, const int index)
+MIKK_INLINE SVec3 GetTexCoord(const SMikkTSpaceContext * pContext, const int index)
 {
 	int iF, iI;
 	SVec3 res; float texc[2];
@@ -1048,7 +1070,7 @@ static void InitTriInfo(STriInfo pTriInfos[], const int piTriListIn[], const SMi
 	
 	// match up edge pairs
 	{
-		SEdge * pEdges = (SEdge *) malloc(sizeof(SEdge)*iNrTrianglesIn*3);
+		SEdge * pEdges = (SEdge *) malloc(sizeof(SEdge[3])*iNrTrianglesIn);
 		if (pEdges==NULL)
 			BuildNeighborsSlow(pTriInfos, piTriListIn, iNrTrianglesIn);
 		else
@@ -1064,7 +1086,7 @@ static void InitTriInfo(STriInfo pTriInfos[], const int piTriListIn[], const SMi
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static tbool AssignRecur(const int piTriListIn[], STriInfo psTriInfos[], const int iMyTriIndex, SGroup * pGroup);
-static void AddTriToGroup(SGroup * pGroup, const int iTriIndex);
+MIKK_INLINE void AddTriToGroup(SGroup * pGroup, const int iTriIndex);
 
 static int Build4RuleGroups(STriInfo pTriInfos[], SGroup pGroups[], int piGroupTrianglesBuffer[], const int piTriListIn[], const int iNrTrianglesIn)
 {
@@ -1130,7 +1152,7 @@ static int Build4RuleGroups(STriInfo pTriInfos[], SGroup pGroups[], int piGroupT
 	return iNrActiveGroups;
 }
 
-static void AddTriToGroup(SGroup * pGroup, const int iTriIndex)
+MIKK_INLINE void AddTriToGroup(SGroup * pGroup, const int iTriIndex)
 {
 	pGroup->pFaceIndices[pGroup->iNrFaces] = iTriIndex;
 	++pGroup->iNrFaces;
@@ -1247,10 +1269,8 @@ static tbool GenerateTSpaces(STSpace psTspace[], const STriInfo pTriInfos[], con
 			n = GetNormal(pContext, iVertIndex);
 			
 			// project
-			vOs = vsub(pTriInfos[f].vOs, vscale(vdot(n,pTriInfos[f].vOs), n));
-			vOt = vsub(pTriInfos[f].vOt, vscale(vdot(n,pTriInfos[f].vOt), n));
-			if ( VNotZero(vOs) ) vOs = Normalize(vOs);
-			if ( VNotZero(vOt) ) vOt = Normalize(vOt);
+			vOs = NormalizeSafe(vsub(pTriInfos[f].vOs, vscale(vdot(n,pTriInfos[f].vOs), n)));
+			vOt = NormalizeSafe(vsub(pTriInfos[f].vOt, vscale(vdot(n,pTriInfos[f].vOt), n)));
 
 			// original face number
 			iOF_1 = pTriInfos[f].iOrgFaceNumber;
@@ -1262,10 +1282,8 @@ static tbool GenerateTSpaces(STSpace psTspace[], const STriInfo pTriInfos[], con
 				const int iOF_2 = pTriInfos[t].iOrgFaceNumber;
 
 				// project
-				SVec3 vOs2 = vsub(pTriInfos[t].vOs, vscale(vdot(n,pTriInfos[t].vOs), n));
-				SVec3 vOt2 = vsub(pTriInfos[t].vOt, vscale(vdot(n,pTriInfos[t].vOt), n));
-				if ( VNotZero(vOs2) ) vOs2 = Normalize(vOs2);
-				if ( VNotZero(vOt2) ) vOt2 = Normalize(vOt2);
+				SVec3 vOs2 = NormalizeSafe(vsub(pTriInfos[t].vOs, vscale(vdot(n,pTriInfos[t].vOs), n)));
+				SVec3 vOt2 = NormalizeSafe(vsub(pTriInfos[t].vOt, vscale(vdot(n,pTriInfos[t].vOt), n)));
 
 				{
 					const tbool bAny = ( (pTriInfos[f].iFlag | pTriInfos[t].iFlag) & GROUP_WITH_ANY )!=0 ? TTRUE : TFALSE;
@@ -1321,7 +1339,7 @@ static tbool GenerateTSpaces(STSpace psTspace[], const STriInfo pTriInfos[], con
 				}
 				pUniSubGroups[iUniqueSubGroups].iNrFaces = iMembers;
 				pUniSubGroups[iUniqueSubGroups].pTriMembers = pIndices;
-				memcpy(pIndices, tmp_group.pTriMembers, iMembers*sizeof(int));
+				memcpy(pIndices, tmp_group.pTriMembers, sizeof(int)*iMembers);
 				pSubGroupTspace[iUniqueSubGroups] =
 					EvalTspace(tmp_group.pTriMembers, iMembers, piTriListIn, pTriInfos, pContext, pGroup->iVertexRepresentitive);
 				++iUniqueSubGroups;
@@ -1392,10 +1410,8 @@ static STSpace EvalTspace(int face_indices[], const int iFaces, const int piTriL
 			// project
 			index = piTriListIn[3*f+i];
 			n = GetNormal(pContext, index);
-			vOs = vsub(pTriInfos[f].vOs, vscale(vdot(n,pTriInfos[f].vOs), n));
-			vOt = vsub(pTriInfos[f].vOt, vscale(vdot(n,pTriInfos[f].vOt), n));
-			if ( VNotZero(vOs) ) vOs = Normalize(vOs);
-			if ( VNotZero(vOt) ) vOt = Normalize(vOt);
+			vOs = NormalizeSafe(vsub(pTriInfos[f].vOs, vscale(vdot(n,pTriInfos[f].vOs), n)));
+			vOt = NormalizeSafe(vsub(pTriInfos[f].vOt, vscale(vdot(n,pTriInfos[f].vOt), n)));
 
 			i2 = piTriListIn[3*f + (i<2?(i+1):0)];
 			i1 = piTriListIn[3*f + i];
@@ -1408,8 +1424,8 @@ static STSpace EvalTspace(int face_indices[], const int iFaces, const int piTriL
 			v2 = vsub(p2,p1);
 
 			// project
-			v1 = vsub(v1, vscale(vdot(n,v1),n)); if ( VNotZero(v1) ) v1 = Normalize(v1);
-			v2 = vsub(v2, vscale(vdot(n,v2),n)); if ( VNotZero(v2) ) v2 = Normalize(v2);
+			v1 = NormalizeSafe(vsub(v1, vscale(vdot(n,v1),n)));
+			v2 = NormalizeSafe(vsub(v2, vscale(vdot(n,v2),n)));
 
 			// weight contribution by the angle
 			// between the two edge vectors
@@ -1427,8 +1443,8 @@ static STSpace EvalTspace(int face_indices[], const int iFaces, const int piTriL
 	}
 
 	// normalize
-	if ( VNotZero(res.vOs) ) res.vOs = Normalize(res.vOs);
-	if ( VNotZero(res.vOt) ) res.vOt = Normalize(res.vOt);
+	res.vOs = NormalizeSafe(res.vOs);
+	res.vOt = NormalizeSafe(res.vOt);
 	if (fAngleSum>0)
 	{
 		res.fMagS /= fAngleSum;
@@ -1464,7 +1480,7 @@ static void QuickSort(int* pSortBuffer, int iLeft, int iRight, unsigned int uSee
 	iL=iLeft; iR=iRight;
 	n = (iR-iL)+1;
 	assert(n>=0);
-	index = (int) (uSeed%n);
+	index = (int) (uSeed%(unsigned int)n);
 
 	iMid=pSortBuffer[index + iL];
 
@@ -1661,6 +1677,20 @@ static void QuickSortEdges(SEdge * pSortBuffer, int iLeft, int iRight, const int
 		}
 		return;
 	}
+	else if(iElems < 16) {
+		int i, j;
+		for (i = 0; i < iElems - 1; i++) {
+			for (j = 0; j < iElems - i - 1; j++) {
+				int index = iLeft + j;
+				if (pSortBuffer[index].array[channel] > pSortBuffer[index + 1].array[channel]) {
+					sTmp = pSortBuffer[index];
+					pSortBuffer[index] = pSortBuffer[index + 1];
+					pSortBuffer[index + 1] = sTmp;
+				}
+			}
+		}
+		return;
+	}
 
 	// Random
 	t=uSeed&31;
@@ -1672,7 +1702,7 @@ static void QuickSortEdges(SEdge * pSortBuffer, int iLeft, int iRight, const int
 	iR = iRight;
 	n = (iR-iL)+1;
 	assert(n>=0);
-	index = (int) (uSeed%n);
+	index = (int) (uSeed%(unsigned int)n);
 
 	iMid=pSortBuffer[index + iL].array[channel];
 

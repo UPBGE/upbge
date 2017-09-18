@@ -414,7 +414,10 @@ static void ignore_parent_tx(Main *bmain, Scene *scene, Object *ob)
 	}
 }
 
-static int apply_objects_internal(bContext *C, ReportList *reports, bool apply_loc, bool apply_rot, bool apply_scale)
+static int apply_objects_internal(
+        bContext *C, ReportList *reports,
+        bool apply_loc, bool apply_rot, bool apply_scale,
+        bool do_props)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
@@ -531,7 +534,7 @@ static int apply_objects_internal(bContext *C, ReportList *reports, bool apply_l
 			BKE_mesh_calc_normals(me);
 		}
 		else if (ob->type == OB_ARMATURE) {
-			ED_armature_apply_transform(ob, mat);
+			ED_armature_apply_transform(ob, mat, do_props);
 		}
 		else if (ob->type == OB_LATTICE) {
 			Lattice *lt = ob->data;
@@ -540,12 +543,12 @@ static int apply_objects_internal(bContext *C, ReportList *reports, bool apply_l
 		}
 		else if (ob->type == OB_MBALL) {
 			MetaBall *mb = ob->data;
-			BKE_mball_transform(mb, mat);
+			BKE_mball_transform(mb, mat, do_props);
 		}
 		else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
 			Curve *cu = ob->data;
 			scale = mat3_to_scale(rsmat);
-			BKE_curve_transform_ex(cu, mat, true, scale);
+			BKE_curve_transform_ex(cu, mat, true, do_props, scale);
 		}
 		else if (ob->type == OB_FONT) {
 			Curve *cu = ob->data;
@@ -561,7 +564,9 @@ static int apply_objects_internal(bContext *C, ReportList *reports, bool apply_l
 				tb->h *= scale;
 			}
 
-			cu->fsize *= scale;
+			if (do_props) {
+				cu->fsize *= scale;
+			}
 		}
 		else if (ob->type == OB_CAMERA) {
 			MovieClip *clip = BKE_object_movieclip_get(scene, ob, false);
@@ -677,9 +682,10 @@ static int object_transform_apply_exec(bContext *C, wmOperator *op)
 	const bool loc = RNA_boolean_get(op->ptr, "location");
 	const bool rot = RNA_boolean_get(op->ptr, "rotation");
 	const bool sca = RNA_boolean_get(op->ptr, "scale");
+	const bool do_props = RNA_boolean_get(op->ptr, "properties");
 
 	if (loc || rot || sca) {
-		return apply_objects_internal(C, op->reports, loc, rot, sca);
+		return apply_objects_internal(C, op->reports, loc, rot, sca, do_props);
 	}
 	else {
 		/* allow for redo */
@@ -704,6 +710,8 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "location", 0, "Location", "");
 	RNA_def_boolean(ot->srna, "rotation", 0, "Rotation", "");
 	RNA_def_boolean(ot->srna, "scale", 0, "Scale", "");
+	RNA_def_boolean(ot->srna, "properties", true, "Apply Properties",
+	                "Modify properties such as curve vertex radius, font size and bone envelope");
 }
 
 /********************* Set Object Center ************************/
@@ -712,7 +720,8 @@ enum {
 	GEOMETRY_TO_ORIGIN = 0,
 	ORIGIN_TO_GEOMETRY,
 	ORIGIN_TO_CURSOR,
-	ORIGIN_TO_CENTER_OF_MASS
+	ORIGIN_TO_CENTER_OF_MASS_SURFACE,
+	ORIGIN_TO_CENTER_OF_MASS_VOLUME,
 };
 
 static int object_origin_set_exec(bContext *C, wmOperator *op)
@@ -866,10 +875,21 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 			if (obedit == NULL && ob->type == OB_MESH) {
 				Mesh *me = ob->data;
 
-				if (centermode == ORIGIN_TO_CURSOR) { /* done */ }
-				else if (centermode == ORIGIN_TO_CENTER_OF_MASS)    { BKE_mesh_center_centroid(me, cent); }
-				else if (around == V3D_AROUND_CENTER_MEAN)          { BKE_mesh_center_median(me, cent); }
-				else                                                { BKE_mesh_center_bounds(me, cent); }
+				if (centermode == ORIGIN_TO_CURSOR) {
+					/* done */
+				}
+				else if (centermode == ORIGIN_TO_CENTER_OF_MASS_SURFACE) {
+					BKE_mesh_center_of_surface(me, cent);
+				}
+				else if (centermode == ORIGIN_TO_CENTER_OF_MASS_VOLUME) {
+					BKE_mesh_center_of_volume(me, cent);
+				}
+				else if (around == V3D_AROUND_CENTER_MEAN) {
+					BKE_mesh_center_median(me, cent);
+				}
+				else {
+					BKE_mesh_center_bounds(me, cent);
+				}
 
 				negate_v3_v3(cent_neg, cent);
 				BKE_mesh_translate(me, cent_neg, 1);
@@ -1077,11 +1097,14 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
 	static EnumPropertyItem prop_set_center_types[] = {
 		{GEOMETRY_TO_ORIGIN, "GEOMETRY_ORIGIN", 0, "Geometry to Origin", "Move object geometry to object origin"},
 		{ORIGIN_TO_GEOMETRY, "ORIGIN_GEOMETRY", 0, "Origin to Geometry",
-		                     "Move object origin to center of object geometry"},
+		 "Calculate the center of geometry based on the current pivot point (median, otherwise bounding-box)"},
 		{ORIGIN_TO_CURSOR, "ORIGIN_CURSOR", 0, "Origin to 3D Cursor",
-		                   "Move object origin to position of the 3D cursor"},
-		{ORIGIN_TO_CENTER_OF_MASS, "ORIGIN_CENTER_OF_MASS", 0, "Origin to Center of Mass",
-		                           "Move object origin to the object center of mass (assuming uniform density)"},
+		 "Move object origin to position of the 3D cursor"},
+		/* Intentional naming mismatch since some scripts refer to this. */
+		{ORIGIN_TO_CENTER_OF_MASS_SURFACE, "ORIGIN_CENTER_OF_MASS", 0, "Origin to Center of Mass (Surface)",
+		 "Calculate the center of mass from the surface area"},
+		{ORIGIN_TO_CENTER_OF_MASS_VOLUME, "ORIGIN_CENTER_OF_VOLUME", 0, "Origin to Center of Mass (Volume)",
+		 "Calculate the center of mass from the volume (must be manifold geometry with consistent normals)"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	

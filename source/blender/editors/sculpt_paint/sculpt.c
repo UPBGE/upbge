@@ -4656,8 +4656,11 @@ static bool sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
                                     const float mouse[2])
 {
 	/* Don't start the stroke until mouse goes over the mesh.
-	 * note: mouse will only be null when re-executing the saved stroke. */
-	if (!mouse || over_mesh(C, op, mouse[0], mouse[1])) {
+	 * note: mouse will only be null when re-executing the saved stroke.
+	 * We have exception for 'exec' strokes since they may not set 'mouse', only 'location', see: T52195. */
+	if (((op->flag & OP_IS_INVOKE) == 0) ||
+	    (mouse == NULL) || over_mesh(C, op, mouse[0], mouse[1]))
+	{
 		Object *ob = CTX_data_active_object(C);
 		SculptSession *ss = ob->sculpt;
 		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
@@ -5527,7 +5530,7 @@ static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *UNUSED(op))
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
 	float size;
-	float bb_min[3], bb_max[3];
+	float bb_min[3], bb_max[3], center[3], dim[3];
 	int i, totnodes;
 	PBVHNode **nodes;
 
@@ -5539,11 +5542,12 @@ static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *UNUSED(op))
 	for (i = 0; i < totnodes; i++) {
 		BKE_pbvh_node_mark_topology_update(nodes[i]);
 	}
-	/* get the bounding box, store the size to bb_max and center (zero) to bb_min */
+	/* get the bounding box, it's center and size */
 	BKE_pbvh_bounding_box(ob->sculpt->pbvh, bb_min, bb_max);
-	sub_v3_v3(bb_max, bb_min);
-	zero_v3(bb_min);
-	size = max_fff(bb_max[0], bb_max[1], bb_max[2]);
+	add_v3_v3v3(center, bb_min, bb_max);
+	mul_v3_fl(center, 0.5f);
+	sub_v3_v3v3(dim, bb_max, bb_min);
+	size = max_fff(dim[0], dim[1], dim[2]);
 
 	/* update topology size */
 	BKE_pbvh_bmesh_detail_size_set(ss->pbvh, 1.0f / sd->constant_detail);
@@ -5553,7 +5557,7 @@ static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *UNUSED(op))
 
 	while (BKE_pbvh_bmesh_update_topology(
 	               ss->pbvh, PBVH_Collapse | PBVH_Subdivide,
-	               bb_min, NULL, size))
+	               center, NULL, size))
 	{
 		for (i = 0; i < totnodes; i++)
 			BKE_pbvh_node_mark_topology_update(nodes[i]);

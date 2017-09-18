@@ -184,15 +184,12 @@ void WM_init(bContext *C, int argc, const char **argv)
 	BLF_init(); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
 	BLT_lang_init();
 
-	/* Enforce loading the UI for the initial homefile */
-	G.fileflags &= ~G_FILE_NO_UI;
-
 	/* reports cant be initialized before the wm,
 	 * but keep before file reading, since that may report errors */
 	wm_init_reports(C);
 
 	/* get the default database, plus a wm */
-	wm_homefile_read(C, NULL, G.factory_startup, false, NULL, NULL);
+	wm_homefile_read(C, NULL, G.factory_startup, false, true, NULL, NULL);
 	
 
 	BLT_lang_set(NULL);

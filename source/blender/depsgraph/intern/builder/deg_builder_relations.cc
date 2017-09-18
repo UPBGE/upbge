@@ -661,58 +661,74 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 	}
 }
 
-void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const char *component_subdata,
-                                                 ListBase *constraints, RootPChanMap *root_map)
+void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id,
+                                                 eDepsNode_Type component_type,
+                                                 const char *component_subdata,
+                                                 ListBase *constraints,
+                                                 RootPChanMap *root_map)
 {
-	OperationKey constraint_op_key(id, component_type, component_subdata,
-	                               (component_type == DEG_NODE_TYPE_BONE) ? DEG_OPCODE_BONE_CONSTRAINTS : DEG_OPCODE_TRANSFORM_CONSTRAINTS);
-
-	/* add dependencies for each constraint in turn */
+	OperationKey constraint_op_key(
+	        id,
+	        component_type,
+	        component_subdata,
+	        (component_type == DEG_NODE_TYPE_BONE)
+	                ? DEG_OPCODE_BONE_CONSTRAINTS
+	                : DEG_OPCODE_TRANSFORM_CONSTRAINTS);
+	/* Add dependencies for each constraint in turn. */
 	for (bConstraint *con = (bConstraint *)constraints->first; con; con = con->next) {
 		const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
-
-		/* invalid constraint type... */
-		if (cti == NULL)
+		/* Invalid constraint type. */
+		if (cti == NULL) {
 			continue;
-
-		/* special case for camera tracking -- it doesn't use targets to define relations */
-		// TODO: we can now represent dependencies in a much richer manner, so review how this is done...
-		if (ELEM(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER, CONSTRAINT_TYPE_OBJECTSOLVER)) {
+		}
+		/* Special case for camera tracking -- it doesn't use targets to
+		 * define relations.
+		 */
+		/* TODO: we can now represent dependencies in a much richer manner,
+		 * so review how this is done.
+		 */
+		if (ELEM(cti->type,
+		         CONSTRAINT_TYPE_FOLLOWTRACK,
+		         CONSTRAINT_TYPE_CAMERASOLVER,
+		         CONSTRAINT_TYPE_OBJECTSOLVER))
+		{
 			bool depends_on_camera = false;
-
 			if (cti->type == CONSTRAINT_TYPE_FOLLOWTRACK) {
 				bFollowTrackConstraint *data = (bFollowTrackConstraint *)con->data;
-
-				if (((data->clip) || (data->flag & FOLLOWTRACK_ACTIVECLIP)) && data->track[0])
+				if (((data->clip) ||
+				     (data->flag & FOLLOWTRACK_ACTIVECLIP)) && data->track[0])
+				{
 					depends_on_camera = true;
-
+				}
 				if (data->depth_ob) {
-					// DAG_RL_DATA_OB | DAG_RL_OB_OB
-					ComponentKey depth_key(&data->depth_ob->id, DEG_NODE_TYPE_TRANSFORM);
-					add_relation(depth_key, constraint_op_key, cti->name);
+					ComponentKey depth_transform_key(&data->depth_ob->id,
+					                                 DEG_NODE_TYPE_TRANSFORM);
+					ComponentKey depth_geometry_key(&data->depth_ob->id,
+					                                DEG_NODE_TYPE_GEOMETRY);
+					add_relation(depth_transform_key, constraint_op_key, cti->name);
+					add_relation(depth_geometry_key, constraint_op_key, cti->name);
 				}
 			}
 			else if (cti->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
 				depends_on_camera = true;
 			}
-
 			if (depends_on_camera && scene->camera) {
-				// DAG_RL_DATA_OB | DAG_RL_OB_OB
 				ComponentKey camera_key(&scene->camera->id, DEG_NODE_TYPE_TRANSFORM);
 				add_relation(camera_key, constraint_op_key, cti->name);
 			}
-
-			/* TODO(sergey): This is more a TimeSource -> MovieClip -> Constraint dependency chain. */
+			/* TODO(sergey): This is more a TimeSource -> MovieClip ->
+			 * Constraint dependency chain.
+			 */
 			TimeSourceKey time_src_key;
 			add_relation(time_src_key, constraint_op_key, "[TimeSrc -> Animation]");
 		}
 		else if (cti->type == CONSTRAINT_TYPE_TRANSFORM_CACHE) {
-			/* TODO(kevin): This is more a TimeSource -> CacheFile -> Constraint dependency chain. */
+			/* TODO(kevin): This is more a TimeSource -> CacheFile -> Constraint
+			 * dependency chain.
+			 */
 			TimeSourceKey time_src_key;
 			add_relation(time_src_key, constraint_op_key, "[TimeSrc -> Animation]");
-
 			bTransformCacheConstraint *data = (bTransformCacheConstraint *)con->data;
-
 			if (data->cache_file) {
 				ComponentKey cache_key(&data->cache_file->id, DEG_NODE_TYPE_CACHE);
 				add_relation(cache_key, constraint_op_key, cti->name);
@@ -721,52 +737,73 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 		else if (cti->get_constraint_targets) {
 			ListBase targets = {NULL, NULL};
 			cti->get_constraint_targets(con, &targets);
-
 			LINKLIST_FOREACH (bConstraintTarget *, ct, &targets) {
 				if (ct->tar == NULL) {
 					continue;
 				}
-
-				if (ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK)) {
-					/* ignore IK constraints - these are handled separately (on pose level) */
+				if (ELEM(con->type,
+				         CONSTRAINT_TYPE_KINEMATIC,
+				         CONSTRAINT_TYPE_SPLINEIK))
+				{
+					/* Ignore IK constraints - these are handled separately
+					 * (on pose level).
+					 */
 				}
-				else if (ELEM(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO)) {
-					/* these constraints require path geometry data... */
+				else if (ELEM(con->type,
+				              CONSTRAINT_TYPE_FOLLOWPATH,
+				              CONSTRAINT_TYPE_CLAMPTO))
+				{
+					/* These constraints require path geometry data. */
 					ComponentKey target_key(&ct->tar->id, DEG_NODE_TYPE_GEOMETRY);
-					add_relation(target_key, constraint_op_key, cti->name); // XXX: type = geom_transform
-					// TODO: path dependency
+					add_relation(target_key, constraint_op_key, cti->name);
+					ComponentKey target_transform_key(&ct->tar->id,
+					                                  DEG_NODE_TYPE_TRANSFORM);
+					add_relation(target_transform_key, constraint_op_key, cti->name);
 				}
 				else if ((ct->tar->type == OB_ARMATURE) && (ct->subtarget[0])) {
 					/* bone */
 					if (&ct->tar->id == id) {
 						/* same armature  */
 						eDepsOperation_Code target_key_opcode;
-
-						/* Using "done" here breaks in-chain deps, while using "ready" here breaks most production rigs instead...
-						 * So, we do a compromise here, and only do this when an IK chain conflict may occur
+						/* Using "done" here breaks in-chain deps, while using
+						 * "ready" here breaks most production rigs instead.
+						 * So, we do a compromise here, and only do this when an
+						 * IK chain conflict may occur.
 						 */
-						if (root_map->has_common_root(component_subdata, ct->subtarget)) {
+						if (root_map->has_common_root(component_subdata,
+						                              ct->subtarget))
+						{
 							target_key_opcode = DEG_OPCODE_BONE_READY;
 						}
 						else {
 							target_key_opcode = DEG_OPCODE_BONE_DONE;
 						}
-
-						OperationKey target_key(&ct->tar->id, DEG_NODE_TYPE_BONE, ct->subtarget, target_key_opcode);
+						OperationKey target_key(&ct->tar->id,
+						                        DEG_NODE_TYPE_BONE,
+						                        ct->subtarget,
+						                        target_key_opcode);
 						add_relation(target_key, constraint_op_key, cti->name);
 					}
 					else {
-						/* different armature - we can safely use the result of that */
-						OperationKey target_key(&ct->tar->id, DEG_NODE_TYPE_BONE, ct->subtarget, DEG_OPCODE_BONE_DONE);
+						/* Different armature - we can safely use the result
+						 * of that.
+						 */
+						OperationKey target_key(&ct->tar->id,
+						                        DEG_NODE_TYPE_BONE,
+						                        ct->subtarget,
+						                        DEG_OPCODE_BONE_DONE);
 						add_relation(target_key, constraint_op_key, cti->name);
 					}
 				}
-				else if (ELEM(ct->tar->type, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
-					/* vertex group */
-					/* NOTE: for now, we don't need to represent vertex groups separately... */
+				else if (ELEM(ct->tar->type, OB_MESH, OB_LATTICE) &&
+				         (ct->subtarget[0]))
+				{
+					/* Vertex group. */
+					/* NOTE: for now, we don't need to represent vertex groups
+					 * separately.
+					 */
 					ComponentKey target_key(&ct->tar->id, DEG_NODE_TYPE_GEOMETRY);
 					add_relation(target_key, constraint_op_key, cti->name);
-
 					if (ct->tar->type == OB_MESH) {
 						OperationDepsNode *node2 = find_operation_node(target_key);
 						if (node2 != NULL) {
@@ -778,37 +815,48 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 					/* Constraints which requires the target object surface. */
 					ComponentKey target_key(&ct->tar->id, DEG_NODE_TYPE_GEOMETRY);
 					add_relation(target_key, constraint_op_key, cti->name);
-
-					/* NOTE: obdata eval now doesn't necessarily depend on the object's transform... */
-					ComponentKey target_transform_key(&ct->tar->id, DEG_NODE_TYPE_TRANSFORM);
+					/* NOTE: obdata eval now doesn't necessarily depend on the
+					 * object's transform.
+					 */
+					ComponentKey target_transform_key(&ct->tar->id,
+					                                  DEG_NODE_TYPE_TRANSFORM);
 					add_relation(target_transform_key, constraint_op_key, cti->name);
 				}
 				else {
-					/* standard object relation */
+					/* Standard object relation. */
 					// TODO: loc vs rot vs scale?
 					if (&ct->tar->id == id) {
 						/* Constraint targetting own object:
-						 * - This case is fine IFF we're dealing with a bone constraint pointing to
-						 *   its own armature. In that case, it's just transform -> bone.
-						 * - If however it is a real self targetting case, just make it depend on the
-						 *   previous constraint (or the pre-constraint state)...
+						 * - This case is fine IFF we're dealing with a bone
+						 *   constraint pointing to its own armature. In that
+						 *   case, it's just transform -> bone.
+						 * - If however it is a real self targetting case, just
+						 *   make it depend on the previous constraint (or the
+						 *   pre-constraint state).
 						 */
-						if ((ct->tar->type == OB_ARMATURE) && (component_type == DEG_NODE_TYPE_BONE)) {
-							OperationKey target_key(&ct->tar->id, DEG_NODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_FINAL);
+						if ((ct->tar->type == OB_ARMATURE) &&
+						    (component_type == DEG_NODE_TYPE_BONE))
+						{
+							OperationKey target_key(&ct->tar->id,
+							                        DEG_NODE_TYPE_TRANSFORM,
+							                        DEG_OPCODE_TRANSFORM_FINAL);
 							add_relation(target_key, constraint_op_key, cti->name);
 						}
 						else {
-							OperationKey target_key(&ct->tar->id, DEG_NODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_LOCAL);
+							OperationKey target_key(&ct->tar->id,
+							                        DEG_NODE_TYPE_TRANSFORM,
+							                        DEG_OPCODE_TRANSFORM_LOCAL);
 							add_relation(target_key, constraint_op_key, cti->name);
 						}
 					}
 					else {
-						/* normal object dependency */
-						OperationKey target_key(&ct->tar->id, DEG_NODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_FINAL);
+						/* Normal object dependency. */
+						OperationKey target_key(&ct->tar->id,
+						                        DEG_NODE_TYPE_TRANSFORM,
+						                        DEG_OPCODE_TRANSFORM_FINAL);
 						add_relation(target_key, constraint_op_key, cti->name);
 					}
 				}
-
 				/* Constraints which needs world's matrix for transform.
 				 * TODO(sergey): More constraints here?
 				 */
@@ -819,14 +867,14 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				         CONSTRAINT_TYPE_TRANSLIKE))
 				{
 					/* TODO(sergey): Add used space check. */
-					ComponentKey target_transform_key(&ct->tar->id, DEG_NODE_TYPE_TRANSFORM);
+					ComponentKey target_transform_key(&ct->tar->id,
+					                                  DEG_NODE_TYPE_TRANSFORM);
 					add_relation(target_transform_key, constraint_op_key, cti->name);
 				}
-
 			}
-
-			if (cti->flush_constraint_targets)
+			if (cti->flush_constraint_targets) {
 				cti->flush_constraint_targets(con, &targets, 1);
+			}
 		}
 	}
 }
@@ -927,16 +975,20 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 
 	const char *rna_path = fcu->rna_path ? fcu->rna_path : "";
 
-	/* create dependency between driver and data affected by it */
+	/* Create dependency between driver and data affected by it. */
 	/* - direct property relationship... */
 	//RNAPathKey affected_key(id, fcu->rna_path);
 	//add_relation(driver_key, affected_key, "[Driver -> Data] DepsRel");
 
-	/* driver -> data components (for interleaved evaluation - bones/constraints/modifiers) */
-	// XXX: this probably should probably be moved out into a separate function
+	/* Driver -> data components (for interleaved evaluation
+	 * bones/constraints/modifiers).
+	 */
+	// XXX: this probably should probably be moved out into a separate function.
 	if (strstr(rna_path, "pose.bones[") != NULL) {
 		/* interleaved drivers during bone eval */
-		// TODO: ideally, if this is for a constraint, it goes to said constraint
+		/* TODO: ideally, if this is for a constraint, it goes to said
+		 * constraint.
+		 */
 		Object *ob = (Object *)id;
 		char *bone_name;
 
@@ -949,7 +1001,10 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 		}
 
 		if (pchan) {
-			OperationKey bone_key(id, DEG_NODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_LOCAL);
+			OperationKey bone_key(id,
+			                      DEG_NODE_TYPE_BONE,
+			                      pchan->name,
+			                      DEG_OPCODE_BONE_LOCAL);
 			add_relation(driver_key, bone_key, "[Driver -> Bone]");
 		}
 		else {
@@ -959,30 +1014,36 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 		}
 	}
 	else if (GS(id->name) == ID_AR && strstr(rna_path, "bones[")) {
-		/* drivers on armature-level bone settings (i.e. bbone stuff),
-		 * which will affect the evaluation of corresponding pose bones
+		/* Drivers on armature-level bone settings (i.e. bbone stuff),
+		 * which will affect the evaluation of corresponding pose bones.
 		 */
 		IDDepsNode *arm_node = m_graph->find_id_node(id);
 		char *bone_name = BLI_str_quoted_substrN(rna_path, "bones[");
 
 		if (arm_node && bone_name) {
-			/* find objects which use this, and make their eval callbacks depend on this */
+			/* Find objects which use this, and make their eval callbacks
+			 * depend on this.
+			 */
 			foreach (DepsRelation *rel, arm_node->outlinks) {
 				IDDepsNode *to_node = (IDDepsNode *)rel->to;
-
-				/* we only care about objects with pose data which use this... */
+				/* We only care about objects with pose data which use this. */
 				if (GS(to_node->id->name) == ID_OB) {
 					Object *ob = (Object *)to_node->id;
-					bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name); // NOTE: ob->pose may be NULL
-
-					if (pchan) {
-						OperationKey bone_key(&ob->id, DEG_NODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_LOCAL);
-						add_relation(driver_key, bone_key, "[Arm Bone -> Driver -> Bone]");
+					/* NOTE: ob->pose may be NULL. */
+					bPoseChannel *pchan = BKE_pose_channel_find_name(
+					        ob->pose, bone_name);
+					if (pchan != NULL) {
+						OperationKey bone_key(&ob->id,
+						                      DEG_NODE_TYPE_BONE,
+						                      pchan->name,
+						                      DEG_OPCODE_BONE_LOCAL);
+						add_relation(driver_key,
+						             bone_key,
+						             "[Arm Bone -> Driver -> Bone]");
 					}
 				}
 			}
-
-			/* free temp data */
+			/* Free temp data. */
 			MEM_freeN(bone_name);
 			bone_name = NULL;
 		}
@@ -993,7 +1054,9 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 		}
 	}
 	else if (GS(id->name) == ID_OB && strstr(rna_path, "modifiers[")) {
-		OperationKey modifier_key(id, DEG_NODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_UBEREVAL);
+		OperationKey modifier_key(id,
+		                          DEG_NODE_TYPE_GEOMETRY,
+		                          DEG_OPCODE_GEOMETRY_UBEREVAL);
 		if (has_node(modifier_key)) {
 			add_relation(driver_key, modifier_key, "[Driver -> Modifier]");
 		}
@@ -1002,7 +1065,7 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 		}
 	}
 	else if (GS(id->name) == ID_KE && strstr(rna_path, "key_blocks[")) {
-		/* shape key driver - hook into the base geometry operation */
+		/* Shape key driver - hook into the base geometry operation. */
 		// XXX: double check where this points
 		Key *shape_key = (Key *)id;
 
@@ -1016,33 +1079,44 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 	else {
 		if (GS(id->name) == ID_OB) {
 			/* assume that driver affects a transform... */
-			OperationKey local_transform_key(id, DEG_NODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_LOCAL);
-			add_relation(driver_key, local_transform_key, "[Driver -> Transform]");
+			OperationKey local_transform_key(id,
+			                                 DEG_NODE_TYPE_TRANSFORM,
+			                                 DEG_OPCODE_TRANSFORM_LOCAL);
+			add_relation(driver_key,
+			             local_transform_key,
+			             "[Driver -> Transform]");
 		}
 		else if (GS(id->name) == ID_KE) {
 			ComponentKey geometry_key(id, DEG_NODE_TYPE_GEOMETRY);
-			add_relation(driver_key, geometry_key, "[Driver -> Shapekey Geometry]");
+			add_relation(driver_key,
+			             geometry_key,
+			             "[Driver -> Shapekey Geometry]");
 		}
 	}
-
-	/* ensure that affected prop's update callbacks will be triggered once done */
-	// TODO: implement this once the functionality to add these links exists in RNA
-	// XXX: the data itself could also set this, if it were to be truly initialised later?
-
-	/* loop over variables to get the target relationships */
+	/* Ensure that affected prop's update callbacks will be triggered once
+	 * done.
+	 */
+	/* TODO: Implement this once the functionality to add these links exists
+	 * RNA.
+	 */
+	/* XXX: the data itself could also set this, if it were to be truly
+	 * initialised later?
+	 */
+	/* Loop over variables to get the target relationships. */
 	LINKLIST_FOREACH (DriverVar *, dvar, &driver->variables) {
-		/* only used targets */
+		/* Only used targets. */
 		DRIVER_TARGETS_USED_LOOPER(dvar)
 		{
-			if (dtar->id == NULL)
+			if (dtar->id == NULL) {
 				continue;
-
-			/* special handling for directly-named bones */
+			}
+			/* Special handling for directly-named bones. */
 			if ((dtar->flag & DTAR_FLAG_STRUCT_REF) && (dtar->pchan_name[0])) {
 				Object *ob = (Object *)dtar->id;
-				bPoseChannel *target_pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
+				bPoseChannel *target_pchan =
+				        BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
 				if (target_pchan != NULL) {
-					/* get node associated with bone */
+					/* Get node associated with bone. */
 					// XXX: watch the space!
 					/* Some cases can't use final bone transform, for example:
 					 * - Driving the bone with itself (addressed here)
@@ -1054,55 +1128,75 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 					{
 						continue;
 					}
-					OperationKey target_key(dtar->id, DEG_NODE_TYPE_BONE, target_pchan->name, DEG_OPCODE_BONE_DONE);
-					add_relation(target_key, driver_key, "[Bone Target -> Driver]");
+					OperationKey target_key(dtar->id,
+					                        DEG_NODE_TYPE_BONE,
+					                        target_pchan->name,
+					                        DEG_OPCODE_BONE_DONE);
+					add_relation(target_key,
+					             driver_key,
+					             "[Bone Target -> Driver]");
 				}
 			}
 			else if (dtar->flag & DTAR_FLAG_STRUCT_REF) {
-				/* get node associated with the object's transforms */
-				OperationKey target_key(dtar->id, DEG_NODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_FINAL);
+				/* Get node associated with the object's transforms. */
+				if (dtar->id == id) {
+					/* Ignore input dependency if we're driving properties of
+					 * the same ID, otherwise we'll be ending up in a cyclic
+					 * dependency here.
+					 */
+					continue;
+				}
+				OperationKey target_key(dtar->id,
+				                        DEG_NODE_TYPE_TRANSFORM,
+				                        DEG_OPCODE_TRANSFORM_FINAL);
 				add_relation(target_key, driver_key, "[Target -> Driver]");
 			}
 			else if (dtar->rna_path && strstr(dtar->rna_path, "pose.bones[")) {
-				/* workaround for ensuring that local bone transforms don't end up
-				 * having to wait for pose eval to finish (to prevent cycles)
+				/* Workaround for ensuring that local bone transforms don't end
+				 * up having to wait for pose eval to finish (to prevent cycles).
 				 */
 				Object *ob = (Object *)dtar->id;
-				char *bone_name = BLI_str_quoted_substrN(dtar->rna_path, "pose.bones[");
-				bPoseChannel *target_pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
-				if (bone_name) {
+				char *bone_name = BLI_str_quoted_substrN(dtar->rna_path,
+				                                         "pose.bones[");
+				bPoseChannel *target_pchan =
+				        BKE_pose_channel_find_name(ob->pose, bone_name);
+				if (bone_name != NULL) {
 					MEM_freeN(bone_name);
 					bone_name = NULL;
 				}
-				if (target_pchan) {
+				if (target_pchan != NULL) {
 					if (dtar->id == id &&
 					    pchan != NULL &&
 					    STREQ(pchan->name, target_pchan->name))
 					{
 						continue;
 					}
-					OperationKey bone_key(dtar->id, DEG_NODE_TYPE_BONE, target_pchan->name, DEG_OPCODE_BONE_LOCAL);
+					OperationKey bone_key(dtar->id,
+					                      DEG_NODE_TYPE_BONE,
+					                      target_pchan->name,
+					                      DEG_OPCODE_BONE_LOCAL);
 					add_relation(bone_key, driver_key, "[RNA Bone -> Driver]");
 				}
 			}
 			else {
 				if (dtar->id == id) {
-					/* Ignore input dependency if we're driving properties of the same ID,
-					 * otherwise we'll be ending up in a cyclic dependency here.
+					/* Ignore input dependency if we're driving properties of
+					 * the same ID, otherwise we'll be ending up in a cyclic
+					 * dependency here.
 					 */
 					continue;
 				}
-				/* resolve path to get node */
-				RNAPathKey target_key(dtar->id, dtar->rna_path ? dtar->rna_path : "");
+				/* Resolve path to get node. */
+				RNAPathKey target_key(dtar->id,
+				                      dtar->rna_path ? dtar->rna_path : "");
 				add_relation(target_key, driver_key, "[RNA Target -> Driver]");
 			}
 		}
 		DRIVER_TARGETS_LOOPER_END
 	}
-
-	/* It's quite tricky to detect if the driver actually depends on time or not,
-	 * so for now we'll be quite conservative here about optimization and consider
-	 * all python drivers to be depending on time.
+	/* It's quite tricky to detect if the driver actually depends on time or
+	 * not, so for now we'll be quite conservative here about optimization and
+	 * consider all python drivers to be depending on time.
 	 */
 	if ((driver->type == DRIVER_TYPE_PYTHON) &&
 	    python_driver_depends_on_time(driver))
@@ -1239,6 +1333,13 @@ void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 	OperationKey obdata_ubereval_key(&ob->id,
 	                                 DEG_NODE_TYPE_GEOMETRY,
 	                                 DEG_OPCODE_GEOMETRY_UBEREVAL);
+	OperationKey eval_init_key(&ob->id,
+	                           DEG_NODE_TYPE_EVAL_PARTICLES,
+	                           DEG_OPCODE_PSYS_EVAL_INIT);
+	/* TODO(sergey): Are all particle systems depends on time?
+	 * Hair without dynamics i.e.
+	 */
+	add_relation(time_src_key, eval_init_key, "TimeSrc -> PSys");
 
 	/* particle systems */
 	LINKLIST_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
@@ -1254,10 +1355,7 @@ void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 		if (!psys_check_enabled(ob, psys, G.is_rendering))
 			continue;
 
-		/* TODO(sergey): Are all particle systems depends on time?
-		 * Hair without dynamics i.e.
-		 */
-		add_relation(time_src_key, psys_key, "TimeSrc -> PSys");
+		add_relation(eval_init_key, psys_key, "Init -> PSys");
 
 		/* TODO(sergey): Currently particle update is just a placeholder,
 		 * hook it to the ubereval node so particle system is getting updated
@@ -1737,8 +1835,18 @@ void DepsgraphRelationBuilder::build_cachefile(CacheFile *cache_file) {
 
 void DepsgraphRelationBuilder::build_mask(Mask *mask)
 {
-	/* Animation. */
-	build_animdata(&mask->id);
+	ID *mask_id = &mask->id;
+	/* F-Curve animation. */
+	build_animdata(mask_id);
+	/* Own mask animation. */
+	OperationKey mask_animation_key(mask_id,
+	                                DEG_NODE_TYPE_ANIMATION,
+	                                DEG_OPCODE_MASK_ANIMATION);
+	TimeSourceKey time_src_key;
+	add_relation(time_src_key, mask_animation_key, "TimeSrc -> Mask Animation");
+	/* Final mask evaluation. */
+	ComponentKey parameters_key(mask_id, DEG_NODE_TYPE_PARAMETERS);
+	add_relation(mask_animation_key, parameters_key, "Mask Animation -> Mask Eval");
 }
 
 void DepsgraphRelationBuilder::build_movieclip(MovieClip *clip)

@@ -80,7 +80,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "form_factor")
             col.prop(game, "elasticity", slider=True)
 
-            col.label(text="Linear velocity:")
+            col.label(text="Linear Velocity:")
             sub = col.column(align=True)
             sub.prop(game, "velocity_min", text="Minimum")
             sub.prop(game, "velocity_max", text="Maximum")

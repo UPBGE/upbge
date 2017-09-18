@@ -33,6 +33,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_path_util.h"
 
+#include "BKE_scene.h"
+
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
@@ -41,6 +43,7 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
+#include "ED_render.h"
 
 /* Deprecated, only provided for API compatibility. */
 EnumPropertyItem rna_enum_render_pass_type_items[] = {
@@ -121,6 +124,11 @@ static void engine_tag_update(RenderEngine *engine)
 static int engine_support_display_space_shader(RenderEngine *UNUSED(engine), Scene *scene)
 {
 	return IMB_colormanagement_support_glsl_draw(&scene->view_settings);
+}
+
+static int engine_get_preview_pixel_size(RenderEngine *UNUSED(engine), Scene *scene)
+{
+	return BKE_render_preview_pixel_size(&scene->r);
 }
 
 static void engine_bind_display_space_shader(RenderEngine *UNUSED(engine), Scene *scene)
@@ -271,7 +279,7 @@ static void engine_update_render_passes(RenderEngine *engine, struct Scene *scen
 
 /* RenderEngine registration */
 
-static void rna_RenderEngine_unregister(Main *UNUSED(bmain), StructRNA *type)
+static void rna_RenderEngine_unregister(Main *bmain, StructRNA *type)
 {
 	RenderEngineType *et = RNA_struct_blender_type_get(type);
 
@@ -279,12 +287,16 @@ static void rna_RenderEngine_unregister(Main *UNUSED(bmain), StructRNA *type)
 		return;
 	
 	RNA_struct_free_extension(type, &et->ext);
-	BLI_freelinkN(&R_engines, et);
 	RNA_struct_free(&BLENDER_RNA, type);
+	BLI_freelinkN(&R_engines, et);
+
+	/* Stop all renders in case we were using this one. */
+	ED_render_engine_changed(bmain);
 }
 
-static StructRNA *rna_RenderEngine_register(Main *bmain, ReportList *reports, void *data, const char *identifier,
-                                            StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_RenderEngine_register(
+        Main *bmain, ReportList *reports, void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	RenderEngineType *et, dummyet = {NULL};
 	RenderEngine dummyengine = {NULL};
@@ -645,6 +657,13 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	parm = RNA_def_pointer(func, "scene", "Scene", "", "");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	parm = RNA_def_boolean(func, "supported", 0, "Supported", "");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "get_preview_pixel_size", "engine_get_preview_pixel_size");
+	RNA_def_function_ui_description(func, "Get the pixel size that should be used for preview rendering");
+	parm = RNA_def_pointer(func, "scene", "Scene", "", "");
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+	parm = RNA_def_int(func, "pixel_size", 0, 1, 8, "Pixel Size", "", 1, 8);
 	RNA_def_function_return(func, parm);
 
 	RNA_define_verify_sdna(0);

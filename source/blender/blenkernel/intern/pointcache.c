@@ -3449,7 +3449,7 @@ void BKE_ptcache_free_list(ListBase *ptcaches)
 	}
 }
 
-static PointCache *ptcache_copy(PointCache *cache, bool copy_data)
+static PointCache *ptcache_copy(PointCache *cache, const bool copy_data)
 {
 	PointCache *ncache;
 
@@ -3492,14 +3492,15 @@ static PointCache *ptcache_copy(PointCache *cache, bool copy_data)
 }
 
 /* returns first point cache */
-PointCache *BKE_ptcache_copy_list(ListBase *ptcaches_new, const ListBase *ptcaches_old, bool copy_data)
+PointCache *BKE_ptcache_copy_list(ListBase *ptcaches_new, const ListBase *ptcaches_old, const int flag)
 {
 	PointCache *cache = ptcaches_old->first;
 
 	BLI_listbase_clear(ptcaches_new);
 
-	for (; cache; cache=cache->next)
-		BLI_addtail(ptcaches_new, ptcache_copy(cache, copy_data));
+	for (; cache; cache=cache->next) {
+		BLI_addtail(ptcaches_new, ptcache_copy(cache, (flag & LIB_ID_COPY_CACHES) != 0));
+	}
 
 	return ptcaches_new->first;
 }
@@ -3618,7 +3619,13 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 						psys_get_pointcache_start_end(scene, pid->calldata, &cache->startframe, &cache->endframe);
 					}
 
-					if (((cache->flag & PTCACHE_BAKED) == 0) && (render || bake)) {
+					// XXX workaround for regression inroduced in ee3fadd, needs looking into
+					if (pid->type == PTCACHE_TYPE_RIGIDBODY) {
+						if ((cache->flag & PTCACHE_REDO_NEEDED || (cache->flag & PTCACHE_SIMULATION_VALID)==0) && (render || bake)) {
+							BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
+						}
+					}
+					else if (((cache->flag & PTCACHE_BAKED) == 0) && (render || bake)) {
 						BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
 					}
 

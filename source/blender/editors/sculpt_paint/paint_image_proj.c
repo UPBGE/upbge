@@ -4295,7 +4295,7 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 				return;
 		}
 		else {
-			blend_color_interpolate_float(rgba, rgba, projPixel->pixel.f_pt, mask);
+			blend_color_interpolate_float(rgba, projPixel->pixel.f_pt, rgba, mask);
 		}
 
 		BLI_linklist_prepend_arena(softenPixels, (void *)projPixel, softenArena);
@@ -4753,6 +4753,9 @@ static void *do_projectpaint_thread(void *ph_v)
 
 							copy_v3_v3(texrgb, texrgba);
 							mask *= texrgba[3];
+						}
+						else {
+							zero_v3(texrgb);
 						}
 
 						/* extra mask for normal, layer stencil, .. */

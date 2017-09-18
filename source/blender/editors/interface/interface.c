@@ -684,7 +684,7 @@ static bool ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBu
 
 	if (oldbut->active) {
 		/* flags from the buttons we want to refresh, may want to add more here... */
-		const int flag_copy = UI_BUT_REDALERT;
+		const int flag_copy = UI_BUT_REDALERT | UI_HAS_ICON;
 
 		found_active = true;
 
@@ -1165,6 +1165,8 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 	uiBut *but;
 	char buf[128];
 
+	BLI_assert(block->flag & UI_BLOCK_LOOP);
+
 	/* only do it before bounding */
 	if (block->rect.xmin != block->rect.xmax)
 		return;
@@ -1179,6 +1181,9 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 	}
 	else {
 		for (but = block->buttons.first; but; but = but->next) {
+			if (but->dt != UI_EMBOSS_PULLDOWN) {
+				continue;
+			}
 
 			if (ui_but_event_operator_string(C, but, buf, sizeof(buf))) {
 				ui_but_add_shortcut(but, buf, false);
@@ -1932,13 +1937,14 @@ void ui_but_value_set(uiBut *but, double value)
 	else {
 		/* first do rounding */
 		if (but->pointype == UI_BUT_POIN_CHAR) {
-			value = (char)floor(value + 0.5);
+			value = round_db_to_uchar_clamp(value);
 		}
 		else if (but->pointype == UI_BUT_POIN_SHORT) {
-			value = (short)floor(value + 0.5);
+			value = round_db_to_short_clamp(value);
 		}
-		else if (but->pointype == UI_BUT_POIN_INT)
-			value = (int)floor(value + 0.5);
+		else if (but->pointype == UI_BUT_POIN_INT) {
+			value = round_db_to_int_clamp(value);
+		}
 		else if (but->pointype == UI_BUT_POIN_FLOAT) {
 			float fval = (float)value;
 			if (fval >= -0.00001f && fval <= 0.00001f) fval = 0.0f;  /* prevent negative zero */
@@ -2146,9 +2152,14 @@ static float ui_get_but_step_unit(uiBut *but, float step_default)
 
 /**
  * \param float_precision  For number buttons the precision to use or -1 to fallback to the button default.
+ * \param use_exp_float  Use exponent representation of floats when out of reasonable range (outside of 1e3/1e-3).
  */
-void ui_but_string_get_ex(uiBut *but, char *str, const size_t maxlen, const int float_precision)
+void ui_but_string_get_ex(uiBut *but, char *str, const size_t maxlen, const int float_precision, const bool use_exp_float, bool *r_use_exp_float)
 {
+	if (r_use_exp_float) {
+		*r_use_exp_float = false;
+	}
+
 	if (but->rnaprop && ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
 		PropertyType type;
 		const char *buf = NULL;
@@ -2216,17 +2227,38 @@ void ui_but_string_get_ex(uiBut *but, char *str, const size_t maxlen, const int 
 				ui_get_but_string_unit(but, str, maxlen, value, false, float_precision);
 			}
 			else {
-				const int prec = (float_precision == -1) ? ui_but_calc_float_precision(but, value) : float_precision;
-				BLI_snprintf(str, maxlen, "%.*f", prec, value);
+				int prec = (float_precision == -1) ? ui_but_calc_float_precision(but, value) : float_precision;
+				if (use_exp_float) {
+					const int int_digits_num = integer_digits_f(value);
+					if (int_digits_num < -6 || int_digits_num > 12) {
+						BLI_snprintf(str, maxlen, "%.*g", prec, value);
+						if (r_use_exp_float) {
+							*r_use_exp_float = true;
+						}
+					}
+					else {
+						prec -= int_digits_num;
+						CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
+						BLI_snprintf(str, maxlen, "%.*f", prec, value);
+					}
+				}
+				else {
+#if 0				/* TODO, but will likely break some stuff, so better after 2.79 release. */
+					prec -= int_digits_num;
+					CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
+#endif
+					BLI_snprintf(str, maxlen, "%.*f", prec, value);
+				}
 			}
 		}
-		else
+		else {
 			BLI_snprintf(str, maxlen, "%d", (int)value);
+		}
 	}
 }
 void ui_but_string_get(uiBut *but, char *str, const size_t maxlen)
 {
-	ui_but_string_get_ex(but, str, maxlen, -1);
+	ui_but_string_get_ex(but, str, maxlen, -1, false, NULL);
 }
 
 /**
@@ -2448,7 +2480,9 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
 			return false;
 		}
 
-		if (!ui_but_is_float(but)) value = (int)floor(value + 0.5);
+		if (!ui_but_is_float(but)) {
+			value = floor(value + 0.5);
+		}
 
 		/* not that we use hard limits here */
 		if (value < (double)but->hardmin) value = but->hardmin;

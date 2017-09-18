@@ -645,7 +645,7 @@ static void node_draw_reroute(const bContext *C, ARegion *ar, SpaceNode *UNUSED(
 	 * highlight also if node itself is selected, since we don't display the node body separately!
 	 */
 	for (sock = node->inputs.first; sock; sock = sock->next) {
-		node_socket_circle_draw(C, ntree, node, sock, socket_size, (sock->flag & SELECT) || (node->flag & SELECT));
+		node_socket_draw(C, ntree, node, sock, socket_size, (sock->flag & SELECT) || (node->flag & SELECT));
 	}
 
 	UI_block_end(C, node->block);
@@ -2214,16 +2214,17 @@ static void node_composit_backdrop_viewer(SpaceNode *snode, ImBuf *backdrop, bNo
 	if (node->custom1 == 0) {
 		const float backdropWidth = backdrop->x;
 		const float backdropHeight = backdrop->y;
-		const float cx  = x + snode->zoom * backdropWidth * node->custom3;
+		const float cx = x + snode->zoom * backdropWidth  * node->custom3;
 		const float cy = y + snode->zoom * backdropHeight * node->custom4;
+		const float cross_size = 12 * U.pixelsize;
 
 		glColor3f(1.0, 1.0, 1.0);
 
 		glBegin(GL_LINES);
-		glVertex2f(cx - 25, cy - 25);
-		glVertex2f(cx + 25, cy + 25);
-		glVertex2f(cx + 25, cy - 25);
-		glVertex2f(cx - 25, cy + 25);
+		glVertex2f(cx - cross_size, cy - cross_size);
+		glVertex2f(cx + cross_size, cy + cross_size);
+		glVertex2f(cx + cross_size, cy - cross_size);
+		glVertex2f(cx - cross_size, cy + cross_size);
 		glEnd();
 	}
 }

@@ -726,10 +726,15 @@ static enum eViewOpsOrbit viewops_orbit_mode(void)
 
 /**
  * Calculate the values for #ViewOpsData
+ *
+ * \param use_ensure_persp: When enabled run #view3d_ensure_persp this may switch out of
+ * camera view when orbiting or switch from ortho to perspective when auto-persp is enabled.
+ * Some operations don't require this (view zoom/pan or ndof where subtle rotation is common
+ * so we don't want it to trigger auto-perspective).
  */
 static void viewops_data_create_ex(
         bContext *C, wmOperator *op, const wmEvent *event,
-        bool switch_from_camera, enum eViewOpsOrbit orbit_mode)
+        bool use_ensure_persp, enum eViewOpsOrbit orbit_mode)
 {
 	ViewOpsData *vod = op->customdata;
 	RegionView3D *rv3d = vod->rv3d;
@@ -750,8 +755,7 @@ static void viewops_data_create_ex(
 		vod->use_dyn_ofs = false;
 	}
 
-	if (switch_from_camera) {
-		/* switch from camera view when: */
+	if (use_ensure_persp) {
 		if (view3d_ensure_persp(vod->v3d, vod->ar)) {
 			/* If we're switching from camera view to the perspective one,
 			 * need to tag viewport update, so camera vuew and borders
@@ -853,10 +857,10 @@ static void viewops_data_create_ex(
 	rv3d->rflag |= RV3D_NAVIGATING;
 }
 
-static void viewops_data_create(bContext *C, wmOperator *op, const wmEvent *event, bool switch_from_camera)
+static void viewops_data_create(bContext *C, wmOperator *op, const wmEvent *event, bool use_ensure_persp)
 {
 	enum eViewOpsOrbit orbit_mode = viewops_orbit_mode();
-	viewops_data_create_ex(C, op, event, switch_from_camera, orbit_mode);
+	viewops_data_create_ex(C, op, event, use_ensure_persp, orbit_mode);
 }
 
 static void viewops_data_free(bContext *C, wmOperator *op)
@@ -1673,7 +1677,7 @@ static int ndof_orbit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		viewops_data_alloc(C, op);
 		viewops_data_create_ex(
 		        C, op, event,
-		        viewops_orbit_mode_ex((U.uiflag & USER_ORBIT_SELECTION) != 0, false), false);
+		        false, viewops_orbit_mode_ex((U.uiflag & USER_ORBIT_SELECTION) != 0, false));
 		vod = op->customdata;
 
 		ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
@@ -1742,7 +1746,7 @@ static int ndof_orbit_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 		viewops_data_alloc(C, op);
 		viewops_data_create_ex(
 		        C, op, event,
-		        viewops_orbit_mode_ex((U.uiflag & USER_ORBIT_SELECTION) != 0, false), false);
+		        false, viewops_orbit_mode_ex((U.uiflag & USER_ORBIT_SELECTION) != 0, false));
 
 		vod = op->customdata;
 
@@ -4753,13 +4757,20 @@ void ED_view3d_cursor3d_update(bContext *C, const int mval[2])
 		ARegion *ar = CTX_wm_region(C);
 		RegionView3D *rv3d = ar->regiondata;
 
-		float co_curr[2], co_prev[2];
+		if (U.uiflag & USER_LOCK_CURSOR_ADJUST) {
 
-		if ((ED_view3d_project_float_global(ar, fp_prev, co_prev, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) &&
-		    (ED_view3d_project_float_global(ar, fp_curr, co_curr, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK))
-		{
-			rv3d->ofs_lock[0] += (co_curr[0] - co_prev[0]) / (ar->winx * 0.5f);
-			rv3d->ofs_lock[1] += (co_curr[1] - co_prev[1]) / (ar->winy * 0.5f);
+			float co_curr[2], co_prev[2];
+
+			if ((ED_view3d_project_float_global(ar, fp_prev, co_prev, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) &&
+			    (ED_view3d_project_float_global(ar, fp_curr, co_curr, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK))
+			{
+				rv3d->ofs_lock[0] += (co_curr[0] - co_prev[0]) / (ar->winx * 0.5f);
+				rv3d->ofs_lock[1] += (co_curr[1] - co_prev[1]) / (ar->winy * 0.5f);
+			}
+		}
+		else {
+			/* Cursor may be outside of the view, prevent it getting 'lost', see: T40353 & T45301 */
+			zero_v2(rv3d->ofs_lock);
 		}
 	}
 

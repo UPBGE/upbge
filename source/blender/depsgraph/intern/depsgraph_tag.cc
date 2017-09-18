@@ -109,7 +109,7 @@ void lib_id_recalc_tag_flag(Main *bmain, ID *id, int flag)
 		 * nodes for update after relations update and after layer
 		 * visibility changes.
 		 */
-		short idtype = GS(id->name);
+		ID_Type idtype = GS(id->name);
 		if (idtype == ID_OB) {
 			Object *object = (Object *)id;
 			object->recalc |= (flag & OB_RECALC_ALL);
@@ -277,13 +277,18 @@ void DEG_ids_flush_tagged(Main *bmain)
 	     scene != NULL;
 	     scene = (Scene *)scene->id.next)
 	{
-		/* TODO(sergey): Only visible scenes? */
-		if (scene->depsgraph != NULL) {
-			DEG::deg_graph_flush_updates(
-			        bmain,
-			        reinterpret_cast<DEG::Depsgraph *>(scene->depsgraph));
-		}
+		DEG_scene_flush_update(bmain, scene);
 	}
+}
+
+void DEG_scene_flush_update(Main *bmain, Scene *scene)
+{
+	if (scene->depsgraph == NULL) {
+		return;
+	}
+	DEG::deg_graph_flush_updates(
+	        bmain,
+	        reinterpret_cast<DEG::Depsgraph *>(scene->depsgraph));
 }
 
 /* Update dependency graph when visible scenes/layers changes. */
@@ -347,6 +352,12 @@ void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 		GHASH_FOREACH_END();
 	}
 	scene->lay_updated |= graph->layers;
+	/* If graph is tagged for update, we don't need to bother with updates here,
+	 * nodes will be re-created.
+	 */
+	if (graph->need_update) {
+		return;
+	}
 	/* Special trick to get local view to work.  */
 	LINKLIST_FOREACH (Base *, base, &scene->base) {
 		Object *object = base->object;

@@ -39,6 +39,7 @@
 #include "BLI_jitter.h"
 #include "BLI_kdtree.h"
 #include "BLI_math.h"
+#include "BLI_math_geom.h"
 #include "BLI_rand.h"
 #include "BLI_sort.h"
 #include "BLI_task.h"
@@ -213,14 +214,22 @@ static void distribute_grid(DerivedMesh *dm, ParticleSystem *psys)
 					copy_v3_v3(co2, co1);
 					co2[a] += delta[a] + 0.001f*d;
 					co1[a] -= 0.001f*d;
-					
+
+					struct IsectRayPrecalc isect_precalc;
+					float ray_direction[3];
+					sub_v3_v3v3(ray_direction, co2, co1);
+					isect_ray_tri_watertight_v3_precalc(&isect_precalc, ray_direction);
+
 					/* lets intersect the faces */
 					for (i=0; i<totface; i++,mface++) {
 						copy_v3_v3(v1, mvert[mface->v1].co);
 						copy_v3_v3(v2, mvert[mface->v2].co);
 						copy_v3_v3(v3, mvert[mface->v3].co);
 
-						bool intersects_tri = isect_axial_line_segment_tri_v3(a, co1, co2, v2, v3, v1, &lambda);
+						bool intersects_tri = isect_ray_tri_watertight_v3(co1,
+						                                                  &isect_precalc,
+						                                                  v1, v2, v3,
+						                                                  &lambda, NULL);
 						if (intersects_tri) {
 							if (from==PART_FROM_FACE)
 								(pa+(int)(lambda*size[a])*a0mul)->flag &= ~PARS_UNEXIST;
@@ -231,7 +240,10 @@ static void distribute_grid(DerivedMesh *dm, ParticleSystem *psys)
 						if (mface->v4 && (!intersects_tri || from==PART_FROM_VOLUME)) {
 							copy_v3_v3(v4, mvert[mface->v4].co);
 
-							if (isect_axial_line_segment_tri_v3(a, co1, co2, v4, v1, v3, &lambda)) {
+							if (isect_ray_tri_watertight_v3(co1,
+							                                &isect_precalc,
+							                                v1, v3, v4,
+							                                &lambda, NULL)) {
 								if (from==PART_FROM_FACE)
 									(pa+(int)(lambda*size[a])*a0mul)->flag &= ~PARS_UNEXIST;
 								else
@@ -429,7 +441,6 @@ static void distribute_from_verts_exec(ParticleTask *thread, ParticleData *pa, i
 	ParticleThreadContext *ctx= thread->ctx;
 	MFace *mface;
 
-	DM_ensure_tessface(ctx->dm);
 	mface = ctx->dm->getTessFaceDataArray(ctx->dm, CD_MFACE);
 
 	int rng_skip_tot = PSYS_RND_DIST_SKIP; /* count how many rng_* calls wont need skipping */
@@ -899,10 +910,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 		else
 			dm= CDDM_from_mesh((Mesh*)ob->data);
 
-		/* BMESH ONLY, for verts we don't care about tessfaces */
-		if (from != PART_FROM_VERT) {
-			DM_ensure_tessface(dm);
-		}
+		DM_ensure_tessface(dm);
 
 		/* we need orco for consistent distributions */
 		if (!CustomData_has_layer(&dm->vertData, CD_ORCO))
@@ -1096,13 +1104,10 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 		/* This is to address tricky issues with vertex-emitting when user tries (and expects) exact 1-1 vert/part
 		 * distribution (see T47983 and its two example files). It allows us to consider pos as
 		 * 'midpoint between v and v+1' (or 'p and p+1', depending whether we have more vertices than particles or not),
-		 * and avoid stumbling over float imprecisions in element_sum. */
-		if (from == PART_FROM_VERT) {
-			pos = (totpart < totmapped) ? 0.5 / (double)totmapped : step * 0.5;  /* We choose the smaller step. */
-		}
-		else {
-			pos = 0.0;
-		}
+		 * and avoid stumbling over float imprecisions in element_sum.
+		 * Note: moved face and volume distribution to this as well (instead of starting at zero),
+		 * for the same reasons, see T52682. */
+		pos = (totpart < totmapped) ? 0.5 / (double)totmapped : step * 0.5;  /* We choose the smaller step. */
 
 		for (i = 0, p = 0; p < totpart; p++, pos += step) {
 			for ( ; (i < totmapped - 1) && (pos > (double)element_sum[i]); i++);
@@ -1141,7 +1146,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 		
 		if (jitlevel == 0) {
 			jitlevel= totpart/totelem;
-			if (part->flag & PART_EDISTR) jitlevel*= 2;	/* looks better in general, not very scietific */
+			if (part->flag & PART_EDISTR) jitlevel*= 2;	/* looks better in general, not very scientific */
 			if (jitlevel<3) jitlevel= 3;
 		}
 		
