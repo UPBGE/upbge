@@ -1850,7 +1850,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"getReactionForce", (PyCFunction) KX_GameObject::sPyGetReactionForce, METH_NOARGS},
 	{"alignAxisToVect",(PyCFunction) KX_GameObject::sPyAlignAxisToVect, METH_VARARGS | METH_KEYWORDS},
 	{"getAxisVect",(PyCFunction) KX_GameObject::sPyGetAxisVect, METH_O},
-	{"suspendPhysics", (PyCFunction)KX_GameObject::sPySuspendPhysics, METH_VARARGS},
+	{"suspendPhysics", (PyCFunction)KX_GameObject::sPySuspendPhysics, METH_VARARGS | METH_KEYWORDS},
 	{"restorePhysics", (PyCFunction)KX_GameObject::sPyRestorePhysics,METH_NOARGS},
 	{"suspendDynamics", (PyCFunction)KX_GameObject::sPySuspendDynamics, METH_VARARGS},
 	{"restoreDynamics", (PyCFunction)KX_GameObject::sPyRestoreDynamics,METH_NOARGS},
@@ -3535,11 +3535,15 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args, PyObject *kwds)
 	return nullptr;
 }
 
-PyObject *KX_GameObject::PySuspendPhysics(PyObject *args)
+PyObject *KX_GameObject::PySuspendPhysics(PyObject *args, PyObject *kwds)
 {
 	int freeConstraints = false;
 
-	if (!PyArg_ParseTuple(args, "|i:suspendPhysics", &freeConstraints)) {
+    static const char *kwlist[] = {"freeConstraints", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+	    args, kwds, "|i:suspendPhysics", const_cast<char**>(kwlist),
+	    &freeConstraints
+	)) {
 		return nullptr;
 	}
 
