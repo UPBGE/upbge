@@ -48,8 +48,8 @@ RAS_BatchGroup::RAS_BatchGroup()
 
 RAS_BatchGroup::~RAS_BatchGroup()
 {
-	for (std::map<RAS_IPolyMaterial *, Batch>::iterator it = m_batchs.begin(), end = m_batchs.end(); it != end; ++it) {
-		Batch& batch = it->second;
+	for (const auto& pair : m_batchs) {
+		const Batch& batch = pair.second;
 		delete batch.m_displayArrayBucket;
 	}
 }
@@ -145,9 +145,7 @@ bool RAS_BatchGroup::SplitMeshSlot(RAS_MeshSlot *slot)
 
 bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const MT_Matrix4x4& mat)
 {
-	const RAS_MeshSlotList& meshSlots = meshUser->GetMeshSlots();
-	for (RAS_MeshSlotList::const_iterator it = meshSlots.begin(), end = meshSlots.end(); it != end; ++it) {
-		RAS_MeshSlot *meshSlot = *it;
+	for (RAS_MeshSlot *meshSlot : meshUser->GetMeshSlots()) {
 		RAS_DisplayArrayBucket *arrayBucket = meshSlot->m_displayArrayBucket;
 		RAS_MaterialBucket *bucket = arrayBucket->GetBucket();
 		RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
@@ -173,9 +171,7 @@ bool RAS_BatchGroup::MergeMeshUser(RAS_MeshUser *meshUser, const MT_Matrix4x4& m
 
 bool RAS_BatchGroup::SplitMeshUser(RAS_MeshUser *meshUser)
 {
-	const RAS_MeshSlotList& meshSlots = meshUser->GetMeshSlots();
-	for (RAS_MeshSlotList::const_iterator it = meshSlots.begin(), end = meshSlots.end(); it != end; ++it) {
-		RAS_MeshSlot *meshSlot = *it;
+	for (RAS_MeshSlot *meshSlot : meshUser->GetMeshSlots()) {
 		if (!SplitMeshSlot(meshSlot)) {
 			return false;
 		}
@@ -196,11 +192,9 @@ void RAS_BatchGroup::Destruct()
 	 */
 	AddMeshUser();
 
-	for (std::map<RAS_IPolyMaterial *, Batch>::iterator bit = m_batchs.begin(), bend = m_batchs.end(); bit != bend; ++bit) {
-		Batch& batch = bit->second;
-		const RAS_MeshSlotList& meshSlots = batch.m_meshSlots;
-		for (std::vector<RAS_MeshSlot *>::const_iterator mit = meshSlots.begin(), mend = meshSlots.end(); mit != mend; ++mit) {
-			RAS_MeshSlot *slot = *mit;
+	for (auto& pair : m_batchs) {
+		Batch& batch = pair.second;
+		for (RAS_MeshSlot *slot : batch.m_meshSlots) {
 			RAS_DisplayArrayBucket *origArrayBucket = batch.m_originalDisplayArrayBucketList[slot];
 
 			slot->SetDisplayArrayBucket(origArrayBucket);

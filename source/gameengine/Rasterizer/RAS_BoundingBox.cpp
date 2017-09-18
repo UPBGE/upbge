@@ -150,8 +150,8 @@ void RAS_MeshBoundingBox::Update(bool force)
 {
 	bool modified = false;
 	// Detect if a display array was modified.
-	for (RAS_IDisplayArrayList::iterator it = m_displayArrayList.begin(), end = m_displayArrayList.end(); it != end; ++it) {
-		if ((*it)->GetModifiedFlag() & RAS_IDisplayArray::AABB_MODIFIED) {
+	for (RAS_IDisplayArray *array : m_displayArrayList) {
+		if (array->GetModifiedFlag() & RAS_IDisplayArray::AABB_MODIFIED) {
 			modified = true;
 			break;
 		}

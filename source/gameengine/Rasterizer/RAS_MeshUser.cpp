@@ -122,8 +122,7 @@ void RAS_MeshUser::SetBatchGroup(RAS_BatchGroup *batchGroup)
 
 void RAS_MeshUser::ActivateMeshSlots()
 {
-	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
-		RAS_MeshSlot *ms = *it;
+	for (RAS_MeshSlot *ms : m_meshSlots) {
 		ms->m_displayArrayBucket->ActivateMesh(ms);
 	}
 }

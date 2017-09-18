@@ -537,12 +537,10 @@ void KX_GameObject::ProcessReplica()
 
 static void setGraphicController_recursive(SG_Node* node)
 {
-	NodeList& children = node->GetSGChildren();
+	const NodeList& children = node->GetSGChildren();
 
-	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit)
-	{
-		SG_Node* childnode = (*childit);
-		KX_GameObject *clientgameobj = static_cast<KX_GameObject*>( (*childit)->GetSGClientObject());
+	for (SG_Node *childnode : children) {
+		KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
 		if (clientgameobj != nullptr) // This is a GameObject
 			clientgameobj->ActivateGraphicController(false);
 		
@@ -866,12 +864,10 @@ KX_GameObject::GetVisible(
 
 static void setVisible_recursive(SG_Node* node, bool v)
 {
-	NodeList& children = node->GetSGChildren();
+	const NodeList& children = node->GetSGChildren();
 
-	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit)
-	{
-		SG_Node* childnode = (*childit);
-		KX_GameObject *clientgameobj = static_cast<KX_GameObject*>( (*childit)->GetSGClientObject());
+	for (SG_Node *childnode : children) {
+		KX_GameObject *clientgameobj = static_cast<KX_GameObject*>(childnode->GetSGClientObject());
 		if (clientgameobj != nullptr) // This is a GameObject
 			clientgameobj->SetVisible(v, 0);
 		
@@ -897,12 +893,10 @@ KX_GameObject::SetVisible(
 
 static void setOccluder_recursive(SG_Node* node, bool v)
 {
-	NodeList& children = node->GetSGChildren();
+	const NodeList& children = node->GetSGChildren();
 
-	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit)
-	{
-		SG_Node* childnode = (*childit);
-		KX_GameObject *clientgameobj = static_cast<KX_GameObject*>( (*childit)->GetSGClientObject());
+	for (SG_Node *childnode : children) {
+		KX_GameObject *clientgameobj = static_cast<KX_GameObject*>(childnode->GetSGClientObject());
 		if (clientgameobj != nullptr) // This is a GameObject
 			clientgameobj->SetOccluder(v, false);
 		
@@ -925,11 +919,10 @@ KX_GameObject::SetOccluder(
 
 static void setDebug_recursive(KX_Scene *scene, SG_Node *node, bool debug)
 {
-	NodeList& children = node->GetSGChildren();
+	const NodeList& children = node->GetSGChildren();
 
-	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit) {
-		SG_Node *childnode = (*childit);
-		KX_GameObject *clientgameobj = static_cast<KX_GameObject*>( (*childit)->GetSGClientObject());
+	for (SG_Node *childnode : children) {
+		KX_GameObject *clientgameobj = static_cast<KX_GameObject*>(childnode->GetSGClientObject());
 		if (clientgameobj != nullptr) {
 			if (debug) {
 				if (!scene->ObjectInDebugList(clientgameobj))
@@ -1511,9 +1504,7 @@ static void walk_children(SG_Node* node, CListValue<KX_GameObject> *list, bool r
 		return;
 	NodeList& children = node->GetSGChildren();
 
-	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit)
-	{
-		SG_Node* childnode = (*childit);
+	for (SG_Node *childnode : children) {
 		KX_GameObject *childobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
 		if (childobj != nullptr) // This is a GameObject
 		{

@@ -129,8 +129,8 @@ KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, BL_BlenderSceneConvert
 
 KX_LodManager::~KX_LodManager()
 {
-	for (std::vector<KX_LodLevel *>::iterator it = m_levels.begin(), end = m_levels.end(); it != end; ++it) {
-		delete *it;
+	for (KX_LodLevel *lodLevel : m_levels) {
+		delete lodLevel;
 	}
 }
 

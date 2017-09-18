@@ -92,12 +92,9 @@ RAS_BucketManager::~RAS_BucketManager()
 	delete m_text.m_arrayBucket;
 	delete m_text.m_material;
 
-	BucketList& buckets = m_buckets[ALL_BUCKET];
-	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-		delete *it;
+	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
+		delete bucket;
 	}
-	buckets.clear();
-
 }
 
 void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
@@ -134,9 +131,8 @@ void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketMan
 
 void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
 {
-	BucketList& solidBuckets = m_buckets[bucketType];
 	RAS_UpwardTreeLeafs leafs;
-	for (RAS_MaterialBucket *bucket : solidBuckets) {
+	for (RAS_MaterialBucket *bucket : m_buckets[bucketType]) {
 		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, rasty, false);
 	}
 
@@ -308,9 +304,8 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 		}
 	}
 
-	BucketList& buckets = m_buckets[ALL_BUCKET];
-	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-		(*it)->RemoveActiveMeshSlots();
+	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
+		bucket->RemoveActiveMeshSlots();
 	}
 
 	rasty->SetClientObject(nullptr);
@@ -320,9 +315,7 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 {
 	bucketCreated = false;
 
-	BucketList& buckets = m_buckets[ALL_BUCKET];
-	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-		RAS_MaterialBucket *bucket = *it;
+	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
 		if (bucket->GetPolyMaterial() == material) {
 			return bucket;
 		}
@@ -364,9 +357,7 @@ RAS_DisplayArrayBucket *RAS_BucketManager::GetTextDisplayArrayBucket() const
 
 void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat)
 {
-	BucketList& buckets = m_buckets[ALL_BUCKET];
-	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-		RAS_MaterialBucket *bucket = *it;
+	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
 		if (bucket->GetPolyMaterial() != mat && mat) {
 			continue;
 		}
@@ -376,9 +367,7 @@ void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat)
 
 void RAS_BucketManager::ReleaseMaterials(RAS_IPolyMaterial *mat)
 {
-	BucketList& buckets = m_buckets[ALL_BUCKET];
-	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-		RAS_MaterialBucket *bucket = *it;
+	for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
 		if (mat == nullptr || (mat == bucket->GetPolyMaterial())) {
 			bucket->GetPolyMaterial()->ReleaseMaterial();
 		}
