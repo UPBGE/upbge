@@ -910,10 +910,10 @@ public:
 	 */
 
 	KX_PYMETHOD_O(KX_GameObject,SetWorldPosition);
-	KX_PYMETHOD_VARARGS(KX_GameObject, ApplyForce);
-	KX_PYMETHOD_VARARGS(KX_GameObject, ApplyTorque);
-	KX_PYMETHOD_VARARGS(KX_GameObject, ApplyRotation);
-	KX_PYMETHOD_VARARGS(KX_GameObject, ApplyMovement);
+	KX_PYMETHOD(KX_GameObject, ApplyForce);
+	KX_PYMETHOD(KX_GameObject, ApplyTorque);
+	KX_PYMETHOD(KX_GameObject, ApplyRotation);
+	KX_PYMETHOD(KX_GameObject, ApplyMovement);
 	KX_PYMETHOD_VARARGS(KX_GameObject,GetLinearVelocity);
 	KX_PYMETHOD_VARARGS(KX_GameObject,SetLinearVelocity);
 	KX_PYMETHOD_VARARGS(KX_GameObject,GetAngularVelocity);
@@ -937,7 +937,7 @@ public:
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestoreDynamics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,EnableRigidBody);
 	KX_PYMETHOD_NOARGS(KX_GameObject,DisableRigidBody);
-	KX_PYMETHOD_VARARGS(KX_GameObject,ApplyImpulse);
+	KX_PYMETHOD(KX_GameObject,ApplyImpulse);
 	KX_PYMETHOD_O(KX_GameObject,SetCollisionMargin);
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetParent);
 	KX_PYMETHOD_VARARGS(KX_GameObject,SetParent);
