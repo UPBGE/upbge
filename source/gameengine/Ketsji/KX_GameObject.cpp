@@ -1876,7 +1876,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	KX_PYMETHODTABLE_O(KX_GameObject, getDistanceTo),
 	KX_PYMETHODTABLE_O(KX_GameObject, getVectTo),
 	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, sendMessage),
-	KX_PYMETHODTABLE(KX_GameObject, addDebugProperty),
+	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, addDebugProperty),
 
 	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, playAction),
 	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, stopAction),
@@ -4233,8 +4233,14 @@ KX_PYMETHODDEF_DOC(KX_GameObject, addDebugProperty,
 	char *name;
 	int visible = 1;
 
-	if (!PyArg_ParseTuple(args,"s|i:debugProperty", &name , &visible))
+	static const char *kwlist[] = {"name", "debug", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "s|i:debugProperty", const_cast<char**>(kwlist),
+            &name , &visible
+    ))
+    {
 		return nullptr;
+    }
 
 	if (visible) {
 		if (!scene->PropertyInDebugList(this, name))
