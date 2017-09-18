@@ -1871,7 +1871,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh,METH_VARARGS},
 	{"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_O},
 
-	KX_PYMETHODTABLE(KX_GameObject, rayCastTo),
+	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, rayCastTo),
 	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, rayCast),
 	KX_PYMETHODTABLE_O(KX_GameObject, getDistanceTo),
 	KX_PYMETHODTABLE_O(KX_GameObject, getVectTo),
@@ -3759,7 +3759,11 @@ KX_PYMETHODDEF_DOC(KX_GameObject, rayCastTo,
 	const char *propName = "";
 	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
-	if (!PyArg_ParseTuple(args,"O|fs:rayCastTo", &pyarg, &dist, &propName)) {
+    static const char *kwlist[] = {"other", "dist", "prop", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+	        args, kwds, "O|fs:rayCastTo",  const_cast<char**>(kwlist),
+	        &pyarg, &dist, &propName
+	    )) {
 		return nullptr; // python sets simple error
 	}
 
