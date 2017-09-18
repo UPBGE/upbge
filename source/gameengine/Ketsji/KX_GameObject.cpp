@@ -1879,11 +1879,11 @@ PyMethodDef KX_GameObject::Methods[] = {
 	KX_PYMETHODTABLE(KX_GameObject, addDebugProperty),
 
 	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, playAction),
-	KX_PYMETHODTABLE(KX_GameObject, stopAction),
-	KX_PYMETHODTABLE(KX_GameObject, getActionFrame),
-	KX_PYMETHODTABLE(KX_GameObject, getActionName),
-	KX_PYMETHODTABLE(KX_GameObject, setActionFrame),
-	KX_PYMETHODTABLE(KX_GameObject, isPlayingAction),
+	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, stopAction),
+	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, getActionFrame),
+	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, getActionName),
+	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, setActionFrame),
+	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, isPlayingAction),
 	
 	// dict style access for props
 	{"get",(PyCFunction) KX_GameObject::sPyget, METH_VARARGS},
@@ -4125,8 +4125,14 @@ KX_PYMETHODDEF_DOC(KX_GameObject, stopAction,
 {
 	short layer = 0;
 
-	if (!PyArg_ParseTuple(args, "|h:stopAction", &layer))
+    static const char *kwlist[] = {"layer", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+	    args, kwds, "|h:stopAction", const_cast<char**>(kwlist),
+	    &layer
+	))
+    {
 		return nullptr;
+    }
 
 	layer_check(layer, "stopAction");
 
@@ -4141,8 +4147,14 @@ KX_PYMETHODDEF_DOC(KX_GameObject, getActionFrame,
 {
 	short layer = 0;
 
-	if (!PyArg_ParseTuple(args, "|h:getActionFrame", &layer))
+    static const char *kwlist[] = {"layer", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+	    args, kwds, "|h:getActionFrame", const_cast<char**>(kwlist),
+	    &layer
+	))
+	{
 		return nullptr;
+	}
 
 	layer_check(layer, "getActionFrame");
 
@@ -4155,8 +4167,14 @@ KX_PYMETHODDEF_DOC(KX_GameObject, getActionName,
 {
 	short layer = 0;
 
-	if (!PyArg_ParseTuple(args, "|h:getActionName", &layer))
+    static const char *kwlist[] = {"layer", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+	    args, kwds, "|h:getActionName",  const_cast<char**>(kwlist),
+	    &layer
+	))
+	{
 		return nullptr;
+	}
 
 	layer_check(layer, "getActionName");
 
@@ -4170,8 +4188,14 @@ KX_PYMETHODDEF_DOC(KX_GameObject, setActionFrame,
 	short layer = 0;
 	float frame;
 
-	if (!PyArg_ParseTuple(args, "f|h:setActionFrame", &frame, &layer))
+    static const char *kwlist[] = {"frame", "layer", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+	    args, kwds, "f|h:setActionFrame", const_cast<char**>(kwlist),
+	    &frame, &layer
+	))
+	{
 		return nullptr;
+	}
 
 	layer_check(layer, "setActionFrame");
 
@@ -4186,8 +4210,14 @@ KX_PYMETHODDEF_DOC(KX_GameObject, isPlayingAction,
 {
 	short layer = 0;
 
-	if (!PyArg_ParseTuple(args, "|h:isPlayingAction", &layer))
+    static const char *kwlist[] = {"layer", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+	    args, kwds, "|h:isPlayingAction", const_cast<char**>(kwlist),
+	    &layer
+	))
+	{
 		return nullptr;
+	}
 
 	layer_check(layer, "isPlayingAction");
 
