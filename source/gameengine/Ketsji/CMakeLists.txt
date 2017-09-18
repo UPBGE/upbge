@@ -90,6 +90,7 @@ set(SRC
 	KX_CullingHandler.cpp
 	KX_CullingNode.cpp
 	KX_EmptyObject.cpp
+	KX_EngineLoop.cpp
 	KX_FontObject.cpp
 	KX_GameActuator.cpp
 	KX_GameObject.cpp
@@ -176,6 +177,7 @@ set(SRC
 	KX_CullingHandler.h
 	KX_CullingNode.h
 	KX_EmptyObject.h
+	KX_EngineLoop.h
 	KX_FontObject.h
 	KX_GameActuator.h
 	KX_GameObject.h

@@ -248,18 +248,6 @@ private:
 	/// Task scheduler for multi-threading
 	TaskScheduler *m_taskscheduler;
 
-	/** Set scene's total pause duration for animations process.
-	 * This is done in a separate loop to get the proper state of each scenes.
-	 * eg: There's 2 scenes, the first is suspended and the second is active.
-	 * If the second scene resume the first, the first scene will be not proceed
-	 * in 'NextFrame' for one frame, but set as active.
-	 * The render functions, called after and which update animations,
-	 * will see the first scene as active and will proceed to it,
-	 * but it will cause some negative current frame on actions because of the
-	 * total pause duration not set.
-	 */
-	void UpdateSuspendedScenes(double framestep);
-
 	/// Update and return the projection matrix of a camera depending on the viewport.
 	MT_Matrix4x4 GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoMode stereoMode,
 			RAS_Rasterizer::StereoEye eye, const RAS_Rect& viewport, const RAS_Rect& area) const;
@@ -275,14 +263,6 @@ private:
 	void DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const CameraRenderData& cameraFrameData);
 	/// Debug draw lights shadow frustum of a scene.
 	void DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw);
-
-	/**
-	 * Processes all scheduled scene activity.
-	 * At the end, if the scene lists have changed,
-	 * SceneListsChanged(void) is called.
-	 * \see SceneListsChanged(void).
-	 */
-	void ProcessScheduledScenes(void);
 
 	/**
 	 * This method is invoked when the scene lists have changed.
@@ -358,6 +338,14 @@ public:
 	bool ReplaceScene(const std::string& oldscene, const std::string& newscene);
 	void SuspendScene(const std::string& scenename);
 	void ResumeScene(const std::string& scenename);
+
+	/**
+	 * Processes all scheduled scene activity.
+	 * At the end, if the scene lists have changed,
+	 * SceneListsChanged(void) is called.
+	 * \see SceneListsChanged(void).
+	 */
+	void ProcessScheduledScenes(void);
 
 	void GetSceneViewport(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& displayArea, RAS_Rect& area, RAS_Rect& viewport);
 

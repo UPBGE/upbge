@@ -366,20 +366,20 @@ bool KX_KetsjiEngine::NextFrame()
 	for (unsigned short i = 0; i < frames; ++i) {
 		m_frameTime += framestep;
 
-		m_converter->MergeAsyncLoads();
+// 		m_converter->MergeAsyncLoads();
 
-		if (m_inputDevice) {
-			m_inputDevice->ReleaseMoveEvent();
-		}
-#ifdef WITH_SDL
-		// Handle all SDL Joystick events here to share them for all scenes properly.
-		short addrem[JOYINDEX_MAX] = {0};
-		if (DEV_Joystick::HandleEvents(addrem)) {
-#  ifdef WITH_PYTHON
-			updatePythonJoysticks(addrem);
-#  endif  // WITH_PYTHON
-		}
-#endif  // WITH_SDL
+// 		if (m_inputDevice) {
+// 			m_inputDevice->ReleaseMoveEvent();
+// 		}
+// #ifdef WITH_SDL
+// 		// Handle all SDL Joystick events here to share them for all scenes properly.
+// 		short addrem[JOYINDEX_MAX] = {0};
+// 		if (DEV_Joystick::HandleEvents(addrem)) {
+// #  ifdef WITH_PYTHON
+// 			updatePythonJoysticks(addrem);
+// #  endif  // WITH_PYTHON
+// 		}
+// #endif  // WITH_SDL
 
 		// for each scene, call the proceed functions
 		for (KX_Scene *scene : m_scenes) {
@@ -389,77 +389,68 @@ bool KX_KetsjiEngine::NextFrame()
 			 * update. */
 			m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
 
-			scene->UpdateObjectActivity();
+// 			scene->UpdateObjectActivity();
 
 			if (!scene->IsSuspended()) {
 				m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
-				// set Python hooks for each scene
-#ifdef WITH_PYTHON
-				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
-#endif
-				KX_SetActiveScene(scene);
+// 				// set Python hooks for each scene
+// #ifdef WITH_PYTHON
+// 				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
+// #endif
+// 				KX_SetActiveScene(scene);
 
 				// Process sensors, and controllers
 				m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
-				scene->LogicBeginFrame(m_frameTime, framestep);
+// 				scene->LogicBeginFrame(m_frameTime, framestep);
 
 				// Scenegraph needs to be updated again, because Logic Controllers
 				// can affect the local matrices.
 				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-				scene->UpdateParents(m_frameTime);
+// 				scene->UpdateParents(m_frameTime);
 
 				// Process actuators
 
 				// Do some cleanup work for this logic frame
 				m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
-				scene->LogicUpdateFrame(m_frameTime);
+// 				scene->LogicUpdateFrame(m_frameTime);
 
-				scene->LogicEndFrame();
+// 				scene->LogicEndFrame();
 
 				// Actuators can affect the scenegraph
 				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-				scene->UpdateParents(m_frameTime);
+// 				scene->UpdateParents(m_frameTime);
 
 				m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
 
 				// Perform physics calculations on the scene. This can involve
 				// many iterations of the physics solver.
-				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_frameTime, timestep, framestep);//m_deltatimerealDeltaTime);
+// 				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_frameTime, timestep, framestep);
 
 				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-				scene->UpdateParents(m_frameTime);
+// 				scene->UpdateParents(m_frameTime);
 			}
 
 			m_logger.StartLog(tc_services, m_kxsystem->GetTimeInSeconds());
 		}
 
 		m_logger.StartLog(tc_network, m_kxsystem->GetTimeInSeconds());
-		m_networkMessageManager->ClearMessages();
+// 		m_networkMessageManager->ClearMessages();
 
 		// update system devices
 		m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
-		if (m_inputDevice) {
-			m_inputDevice->ClearInputs();
-		}
+// 		if (m_inputDevice) {
+// 			m_inputDevice->ClearInputs();
+// 		}
 
-		UpdateSuspendedScenes(framestep);
+// 		UpdateSuspendedScenes(framestep);
 		// scene management
-		ProcessScheduledScenes();
+// 		ProcessScheduledScenes();
 	}
 
 	// Start logging time spent outside main loop
 	m_logger.StartLog(tc_outside, m_kxsystem->GetTimeInSeconds());
 
 	return doRender && m_doRender;
-}
-
-void KX_KetsjiEngine::UpdateSuspendedScenes(double framestep)
-{
-	for (KX_Scene *scene : m_scenes) {
-		if (scene->IsSuspended()) {
-			scene->SetSuspendedDelta(scene->GetSuspendedDelta() + framestep);
-		}
-	}
 }
 
 KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(KX_Scene *scene, KX_Camera *camera, KX_Camera *overrideCullingCam,
