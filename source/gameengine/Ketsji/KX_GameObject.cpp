@@ -1868,8 +1868,8 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"getPropertyNames", (PyCFunction)KX_GameObject::sPyGetPropertyNames,METH_NOARGS},
 	{"replaceMesh",(PyCFunction) KX_GameObject::sPyReplaceMesh, METH_VARARGS | METH_KEYWORDS},
 	{"endObject",(PyCFunction) KX_GameObject::sPyEndObject, METH_NOARGS},
-	{"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh,METH_VARARGS},
-	{"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_O},
+	{"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh,METH_VARARGS | METH_KEYWORDS},
+	{"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_VARARGS | METH_KEYWORDS},
 
 	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, rayCastTo),
 	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, rayCast),
@@ -1983,7 +1983,7 @@ PyObject *KX_GameObject::PyEndObject()
 	Py_RETURN_NONE;
 }
 
-PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args)
+PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
 {
 	KX_GameObject *gameobj= nullptr;
 	RAS_MeshObject *mesh= nullptr;
@@ -1993,7 +1993,11 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args)
 	PyObject *gameobj_py= nullptr;
 	PyObject *mesh_py= nullptr;
 
-	if (!PyArg_ParseTuple(args,"|OOi:reinstancePhysicsMesh",&gameobj_py, &mesh_py, &dupli) ||
+    static const char *kwlist[] = {"gameObject", "meshObject", "dupli", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "|OOi:reinstancePhysicsMesh", const_cast<char**>(kwlist),
+            &gameobj_py, &mesh_py, &dupli
+	    ) ||
 		(gameobj_py && !ConvertPythonToGameObject(logicmgr, gameobj_py, &gameobj, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject")) ||
 		(mesh_py && !ConvertPythonToMesh(logicmgr, mesh_py, &mesh, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject")))
 	{
@@ -2007,12 +2011,20 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args)
 	Py_RETURN_FALSE;
 }
 
-PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
+PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *args, PyObject *kwds)
 {
 	KX_GameObject *gameobj;
 	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
-	if (!ConvertPythonToGameObject(logicmgr, value, &gameobj, false, "gameOb.replacePhysicsShape(obj): KX_GameObject")) {
+	PyObject *gameobj_py= nullptr;
+
+    static const char *kwlist[] = {"gameObject", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+	        args, kwds, "O:replacePhysicsShape", const_cast<char**>(kwlist),
+	        &gameobj_py
+	    ) ||
+	    (gameobj_py && !ConvertPythonToGameObject(logicmgr, gameobj_py, &gameobj, false, "gameOb.replacePhysicsShape(obj): KX_GameObject")
+	)) {
 		return nullptr;
 	}
 
