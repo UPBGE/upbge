@@ -953,7 +953,7 @@ public:
 	KX_PYMETHOD_DOC(KX_GameObject,rayCast);
 	KX_PYMETHOD_DOC_O(KX_GameObject,getDistanceTo);
 	KX_PYMETHOD_DOC_O(KX_GameObject,getVectTo);
-	KX_PYMETHOD_DOC_VARARGS(KX_GameObject, sendMessage);
+	KX_PYMETHOD_DOC(KX_GameObject, sendMessage);
 	KX_PYMETHOD_VARARGS(KX_GameObject, ReinstancePhysicsMesh);
 	KX_PYMETHOD_O(KX_GameObject, ReplacePhysicsShape);
 	KX_PYMETHOD_DOC(KX_GameObject, addDebugProperty);

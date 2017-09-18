@@ -1875,7 +1875,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, rayCast),
 	KX_PYMETHODTABLE_O(KX_GameObject, getDistanceTo),
 	KX_PYMETHODTABLE_O(KX_GameObject, getVectTo),
-	KX_PYMETHODTABLE(KX_GameObject, sendMessage),
+	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, sendMessage),
 	KX_PYMETHODTABLE(KX_GameObject, addDebugProperty),
 
 	KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, playAction),
@@ -4029,7 +4029,7 @@ KX_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 		return none_tuple_3();
 }
 
-KX_PYMETHODDEF_DOC_VARARGS(KX_GameObject, sendMessage, 
+KX_PYMETHODDEF_DOC(KX_GameObject, sendMessage,
 						   "sendMessage(subject, [body, to])\n"
 "sends a message in same manner as a message actuator"
 "subject = Subject of the message (string)"
@@ -4040,8 +4040,13 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_GameObject, sendMessage,
 	char* body = (char *)"";
 	char* to = (char *)"";
 
-	if (!PyArg_ParseTuple(args, "s|ss:sendMessage", &subject, &body, &to))
+	static const char *kwlist[] = {"subject", "body", "to", nullptr};
+	if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "s|ss:sendMessage", const_cast<char**>(kwlist),
+            &subject, &body, &to
+    )) {
 		return nullptr;
+    }
 	
 	GetScene()->GetNetworkMessageScene()->SendMessage(to, this, subject, body);
 	Py_RETURN_NONE;
