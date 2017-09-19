@@ -414,10 +414,6 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "varinstmat";
 	else if (builtin == GPU_INSTANCING_INVERSE_MATRIX)
 		return "varinstinvmat";
-	else if (builtin == GPU_INSTANCING_LOC_TO_VIEW_MATRIX)
-		return "varinstlocaltoviewmat";
-	else if (builtin == GPU_INSTANCING_INVERSE_LOC_TO_VIEW_MATRIX)
-		return "varinstinvlocaltoviewmat";
 	else if (builtin == GPU_INSTANCING_COLOR)
 		return "varinstcolor";
 	else if (builtin == GPU_INSTANCING_COLOR_ATTRIB)
