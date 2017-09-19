@@ -910,30 +910,30 @@ public:
 	 */
 
 	KX_PYMETHOD_O(KX_GameObject,SetWorldPosition);
-	KX_PYMETHOD(KX_GameObject, ApplyForce);
-	KX_PYMETHOD(KX_GameObject, ApplyTorque);
-	KX_PYMETHOD(KX_GameObject, ApplyRotation);
-	KX_PYMETHOD(KX_GameObject, ApplyMovement);
-	KX_PYMETHOD(KX_GameObject,GetLinearVelocity);
-	KX_PYMETHOD(KX_GameObject,SetLinearVelocity);
-	KX_PYMETHOD(KX_GameObject,GetAngularVelocity);
-	KX_PYMETHOD(KX_GameObject,SetAngularVelocity);
-	KX_PYMETHOD(KX_GameObject,GetVelocity);
+	KX_PYMETHOD_VARARGS(KX_GameObject, ApplyForce);
+	KX_PYMETHOD_VARARGS(KX_GameObject, ApplyTorque);
+	KX_PYMETHOD_VARARGS(KX_GameObject, ApplyRotation);
+	KX_PYMETHOD_VARARGS(KX_GameObject, ApplyMovement);
+	KX_PYMETHOD_VARARGS(KX_GameObject,GetLinearVelocity);
+	KX_PYMETHOD_VARARGS(KX_GameObject,SetLinearVelocity);
+	KX_PYMETHOD_VARARGS(KX_GameObject,GetAngularVelocity);
+	KX_PYMETHOD_VARARGS(KX_GameObject,SetAngularVelocity);
+	KX_PYMETHOD_VARARGS(KX_GameObject,GetVelocity);
 	KX_PYMETHOD(KX_GameObject,SetDamping);
 
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetReactionForce);
 
 
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetVisible);
-	KX_PYMETHOD(KX_GameObject,SetVisible);
-	KX_PYMETHOD(KX_GameObject,SetOcclusion);
+	KX_PYMETHOD_VARARGS(KX_GameObject,SetVisible);
+	KX_PYMETHOD_VARARGS(KX_GameObject,SetOcclusion);
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetState);
 	KX_PYMETHOD_O(KX_GameObject,SetState);
 	KX_PYMETHOD(KX_GameObject,AlignAxisToVect);
 	KX_PYMETHOD_O(KX_GameObject,GetAxisVect);
-	KX_PYMETHOD(KX_GameObject,SuspendPhysics);
+	KX_PYMETHOD_VARARGS(KX_GameObject,SuspendPhysics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestorePhysics);
-	KX_PYMETHOD(KX_GameObject,SuspendDynamics);
+	KX_PYMETHOD_VARARGS(KX_GameObject,SuspendDynamics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestoreDynamics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,EnableRigidBody);
 	KX_PYMETHOD_NOARGS(KX_GameObject,DisableRigidBody);
@@ -955,7 +955,7 @@ public:
 	KX_PYMETHOD_DOC_O(KX_GameObject,getVectTo);
 	KX_PYMETHOD_DOC(KX_GameObject, sendMessage);
 	KX_PYMETHOD(KX_GameObject, ReinstancePhysicsMesh);
-	KX_PYMETHOD(KX_GameObject, ReplacePhysicsShape);
+	KX_PYMETHOD_O(KX_GameObject, ReplacePhysicsShape);
 	KX_PYMETHOD_DOC(KX_GameObject, addDebugProperty);
 
 	KX_PYMETHOD_DOC(KX_GameObject, playAction);
@@ -966,7 +966,7 @@ public:
 	KX_PYMETHOD_DOC(KX_GameObject, isPlayingAction);
 	
 	/* Dict access */
-	KX_PYMETHOD(KX_GameObject,get);
+	KX_PYMETHOD_VARARGS(KX_GameObject,get);
 	
 	/* attributes */
 	static PyObject*	pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
