@@ -550,18 +550,22 @@ base class --- :class:`SCA_IObject`
       :arg usePhysicsMesh: when enabled the physics mesh will be replaced (optional argument).
       :type usePhysicsMesh: boolean
 
-   .. method:: setVisible(visible, recursive)
+   .. method:: setVisible(visible[, recursive])
 
       Sets the game object's visible flag.
+
+      recursive defaults to False if no value is passed.
 
       :arg visible: the visible state to set.
       :type visible: boolean
       :arg recursive: optional argument to set all childrens visibility flag too.
       :type recursive: boolean
 
-   .. method:: setOcclusion(occlusion, recursive)
+   .. method:: setOcclusion(occlusion[, recursive])
 
       Sets the game object's occlusion capability.
+
+      recursive defaults to False if no value is passed.
 
       :arg occlusion: the state to set the occlusion to.
       :type occlusion: boolean
@@ -595,7 +599,7 @@ base class --- :class:`SCA_IObject`
       :return: The vector in relation to the objects rotation.
       :rtype: 3d vector.
 
-   .. method:: applyMovement(movement, local=False)
+   .. method:: applyMovement(movement[, local])
 
       Sets the game object's movement.
 
@@ -606,7 +610,7 @@ base class --- :class:`SCA_IObject`
          * True: you get the "local" movement ie: relative to object orientation.
       :arg local: boolean
 
-   .. method:: applyRotation(rotation, local=False)
+   .. method:: applyRotation(rotation[, local])
 
       Sets the game object's rotation.
 
@@ -617,11 +621,13 @@ base class --- :class:`SCA_IObject`
          * True: you get the "local" rotation ie: relative to object orientation.
       :arg local: boolean
 
-   .. method:: applyForce(force, local=False)
+   .. method:: applyForce(force[, local])
 
       Sets the game object's force.
 
       This requires a dynamic object.
+
+      local defaults to False if not passed.
 
       :arg force: force vector.
       :type force: 3D Vector
@@ -630,11 +636,13 @@ base class --- :class:`SCA_IObject`
          * True: you get the "local" force ie: relative to object orientation.
       :type local: boolean
 
-   .. method:: applyTorque(torque, local=False)
+   .. method:: applyTorque(torque[, local])
 
       Sets the game object's torque.
 
       This requires a dynamic object.
+
+      local defaults to False if not passed.
 
       :arg torque: torque vector.
       :type torque: 3D Vector
@@ -643,11 +651,13 @@ base class --- :class:`SCA_IObject`
          * True: you get the "local" torque ie: relative to object orientation.
       :type local: boolean
 
-   .. method:: getLinearVelocity(local=False)
+   .. method:: getLinearVelocity([local])
 
       Gets the game object's linear velocity.
 
       This method returns the game object's velocity through it's center of mass, ie no angular velocity component.
+
+      local defaults to False if not passed.
 
       :arg local:
          * False: you get the "global" velocity ie: relative to world orientation.
@@ -656,7 +666,7 @@ base class --- :class:`SCA_IObject`
       :return: the object's linear velocity.
       :rtype: Vector((vx, vy, vz))
 
-   .. method:: setLinearVelocity(velocity, local=False)
+   .. method:: setLinearVelocity(velocity[, local])
 
       Sets the game object's linear velocity.
 
@@ -665,6 +675,8 @@ base class --- :class:`SCA_IObject`
 
       This requires a dynamic object.
 
+      local defaults to False if not passed.
+
       :arg velocity: linear velocity vector.
       :type velocity: 3D Vector
       :arg local:
@@ -672,9 +684,10 @@ base class --- :class:`SCA_IObject`
          * True: you get the "local" velocity ie: relative to object orientation.
       :type local: boolean
 
-   .. method:: getAngularVelocity(local=False)
+   .. method:: getAngularVelocity([local])
 
       Gets the game object's angular velocity.
+      local defaults to False if not passed.
 
       :arg local:
          * False: you get the "global" velocity ie: relative to world orientation.
@@ -683,9 +696,10 @@ base class --- :class:`SCA_IObject`
       :return: the object's angular velocity.
       :rtype: Vector((vx, vy, vz))
 
-   .. method:: setAngularVelocity(velocity, local=False)
+   .. method:: setAngularVelocity(velocity[, local])
 
       Sets the game object's angular velocity.
+      local defaults to False if not passed.
 
       This requires a dynamic object.
 
@@ -695,9 +709,10 @@ base class --- :class:`SCA_IObject`
          * False: you get the "global" velocity ie: relative to world orientation.
          * True: you get the "local" velocity ie: relative to object orientation.
 
-   .. method:: getVelocity(point=(0, 0, 0))
+   .. method:: getVelocity([point])
 
       Gets the game object's velocity at the specified point.
+      point defaults to Vector[0, 0, 0]
 
       Gets the game object's velocity at the specified point, including angular
       components.
@@ -1001,9 +1016,10 @@ base class --- :class:`SCA_IObject`
       :arg gameObject: set the physics shape from this gameObjets.
       :type gameObject: string, :class:`KX_GameObject`
 
-   .. method:: get(key, default=None)
+   .. method:: get(key[, default])
 
       Return the value matching key, or the default value if its not found.
+      default defaults to None.
       :return: The key value or a default.
 
    .. method:: playAction(name, start_frame, end_frame, layer=0, priority=0, blendin=0, play_mode=KX_ACTION_MODE_PLAY, layer_weight=0.0, ipo_flags=0, speed=1.0, blend_mode=KX_ACTION_BLEND_BLEND)
@@ -1033,16 +1049,18 @@ base class --- :class:`SCA_IObject`
       :arg blend_mode: how to blend this layer with previous layers
       :type blend_mode: one of :ref:`these constants <gameobject-playaction-blend>`
 
-   .. method:: stopAction(layer=0)
+   .. method:: stopAction([layer])
 
       Stop playing the action on the given layer.
+      If no layer is specified, stops actions on layer 0.
 
       :arg layer: The layer to stop playing.
       :type layer: integer
 
-   .. method:: getActionFrame(layer=0)
+   .. method:: getActionFrame([layer])
 
       Gets the current frame of the action playing in the supplied layer.
+      Layer defaults to 0 if no value is passed.
 
       :arg layer: The layer that you want to get the frame from.
       :type layer: integer
@@ -1050,9 +1068,10 @@ base class --- :class:`SCA_IObject`
       :return: The current frame of the action
       :rtype: float
 
-   .. method:: getActionName(layer=0)
+   .. method:: getActionName([layer])
 
       Gets the name of the current action playing in the supplied layer.
+      Layer defaults to 0 if no value is passed.
 
       :arg layer: The layer that you want to get the action name from.
       :type layer: integer
@@ -1060,18 +1079,20 @@ base class --- :class:`SCA_IObject`
       :return: The name of the current action
       :rtype: string
 
-   .. method:: setActionFrame(frame, layer=0)
+   .. method:: setActionFrame(frame[, layer])
 
       Set the current frame of the action playing in the supplied layer.
+      Layer defaults to 0 if no value is passed.
 
       :arg layer: The layer where you want to set the frame
       :type layer: integer
       :arg frame: The frame to set the action to
       :type frame: float
 
-   .. method:: isPlayingAction(layer=0)
+   .. method:: isPlayingAction([layer])
 
       Checks to see if there is an action playing in the given layer.
+      Layer defaults to 0 if no value is passed
 
       :arg layer: The layer to check for a playing action.
       :type layer: integer
@@ -1079,9 +1100,10 @@ base class --- :class:`SCA_IObject`
       :return: Whether or not the action is playing
       :rtype: boolean
 
-   .. method:: addDebugProperty (name, debug = True)
+   .. method:: addDebugProperty (name[, debug])
 
       Adds a single debug property to the debug list.
+      If not passed, debug state defaults to True
 
       :arg name: name of the property that added to the debug list.
       :type name: string
