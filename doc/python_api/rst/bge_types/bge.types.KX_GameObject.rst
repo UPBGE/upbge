@@ -603,6 +603,8 @@ base class --- :class:`SCA_IObject`
 
       Sets the game object's movement.
 
+      local defaults to False if not passed.
+
       :arg movement: movement vector.
       :type movement: 3D Vector
       :arg local:
@@ -613,6 +615,8 @@ base class --- :class:`SCA_IObject`
    .. method:: applyRotation(rotation[, local])
 
       Sets the game object's rotation.
+
+      local defaults to False if not passed.
 
       :arg rotation: rotation vector.
       :type rotation: 3D Vector
