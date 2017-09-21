@@ -51,7 +51,8 @@ extern "C" {
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer)
 	:m_blenderScene(scene->GetBlenderScene()),
 	m_mat(ma),
-	m_shGroup(nullptr)
+	m_shGroup(nullptr),
+	m_gpuMat(nullptr)
 {
 	ReloadMaterial(scene);
 }
@@ -120,9 +121,9 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 	bool useAO = vedata->stl->effects->use_ao;
 	bool useBentNormals = vedata->stl->effects->use_bent_normals;
 	if (m_mat->use_nodes && m_mat->nodetree) {
-		GPUMaterial *gpumat = EEVEE_material_mesh_get(m_blenderScene, m_mat, useAO, useBentNormals, false, false);
+		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, useAO, useBentNormals, false, false);
 
-		m_shGroup = DRW_shgroup_material_create(gpumat, nullptr);
+		m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
 	}
 	else {
 		float *color_p = &m_mat->r;
@@ -138,6 +139,11 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 	}
 
 	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, (EEVEE_SceneLayerData *)&scene->GetSceneLayerData()->GetData(), scene->GetEeveeData());
+}
+
+GPUMaterial *BL_BlenderShader::GetGpuMaterial()
+{
+	return m_gpuMat;
 }
 
 bool BL_BlenderShader::IsValid() const

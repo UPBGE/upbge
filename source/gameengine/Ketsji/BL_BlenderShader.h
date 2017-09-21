@@ -54,12 +54,14 @@ private:
 	Scene *m_blenderScene;
 	Material *m_mat;
 	DRWShadingGroup *m_shGroup;
+	GPUMaterial *m_gpuMat;
 
 public:
 	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer);
 	virtual ~BL_BlenderShader();
 
 	void ReloadMaterial(KX_Scene *scene);
+	GPUMaterial *GetGpuMaterial();
 
 	virtual bool IsValid() const;
 	virtual void Activate();

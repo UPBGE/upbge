@@ -34,43 +34,20 @@
 
 #include "BLI_math.h"
 
-BL_Texture::BL_Texture(MTex *mtex)
+extern "C" {
+#  include "gpu/intern/gpu_codegen.h"
+}
+
+BL_Texture::BL_Texture(GPUInput *input)
 	:CValue(),
 	m_isCubeMap(false),
-	m_mtex(mtex),
-	m_gpuTex(nullptr)
+	m_gpuTex(nullptr),
+	m_input(input)
 {
-	Tex *tex = m_mtex->tex;
-	EnvMap *env = tex->env;
-	m_isCubeMap = (env && tex->type == TEX_ENVMAP &&
-				  (env->stype == ENV_LOAD ||
-				  (env->stype == ENV_REALT && env->type == ENV_CUBE)));
+	m_isCubeMap = input->textarget == GetCubeMapTextureType();
+	m_name = input->ima->id.name;
 
-	Image *ima = tex->ima;
-	ImageUser& iuser = tex->iuser;
-	const int gltextarget = m_isCubeMap ? GetCubeMapTextureType() : GetTexture2DType();
-
-	m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : nullptr);
-
-	// Initialize saved data.
-	m_name = std::string(m_mtex->tex->id.name + 2);
-	m_savedData.colintensfac = m_mtex->difffac;
-	m_savedData.colfac = m_mtex->colfac;
-	m_savedData.alphafac = m_mtex->alphafac;
-	m_savedData.specintensfac = m_mtex->specfac;
-	m_savedData.speccolorfac = m_mtex->colspecfac;
-	m_savedData.hardnessfac = m_mtex->hardfac;
-	m_savedData.emitfac = m_mtex->emitfac;
-	m_savedData.mirrorfac = m_mtex->mirrfac;
-	m_savedData.normalfac = m_mtex->norfac;
-	m_savedData.parallaxbumpfac = m_mtex->parallaxbumpsc;
-	m_savedData.parallaxstepfac = m_mtex->parallaxsteps;
-	m_savedData.lodbias = m_mtex->lodbias;
-	m_savedData.ior = m_mtex->ior;
-	m_savedData.ratio = m_mtex->refrratio;
-	m_savedData.uvrot = m_mtex->rot;
-	copy_v3_v3(m_savedData.uvoffset, m_mtex->ofs);
-	copy_v3_v3(m_savedData.uvsize, m_mtex->size);
+	m_gpuTex = GPU_texture_from_blender(input->ima, input->iuser, input->textarget, input->image_isdata, 0.0f, 1);
 
 	if (m_gpuTex) {
 		m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -81,25 +58,6 @@ BL_Texture::BL_Texture(MTex *mtex)
 
 BL_Texture::~BL_Texture()
 {
-	// Restore saved data.
-	m_mtex->difffac = m_savedData.colintensfac;
-	m_mtex->colfac = m_savedData.colfac;
-	m_mtex->alphafac = m_savedData.alphafac;
-	m_mtex->specfac = m_savedData.specintensfac;
-	m_mtex->colspecfac = m_savedData.speccolorfac;
-	m_mtex->hardfac = m_savedData.hardnessfac;
-	m_mtex->emitfac = m_savedData.emitfac;
-	m_mtex->mirrfac = m_savedData.mirrorfac;
-	m_mtex->norfac = m_savedData.normalfac;
-	m_mtex->parallaxbumpsc = m_savedData.parallaxbumpfac;
-	m_mtex->parallaxsteps = m_savedData.parallaxstepfac;
-	m_mtex->lodbias = m_savedData.lodbias;
-	m_mtex->ior = m_savedData.ior;
-	m_mtex->refrratio = m_savedData.ratio;
-	m_mtex->rot = m_savedData.uvrot;
-	copy_v3_v3(m_mtex->ofs, m_savedData.uvoffset);
-	copy_v3_v3(m_mtex->size, m_savedData.uvsize);
-
 	if (m_gpuTex) {
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
 		GPU_texture_free(m_gpuTex);
@@ -119,18 +77,12 @@ void BL_Texture::CheckValidTexture()
 	 * gpu texture. In both cases we call GPU_texture_from_blender.
 	 */
 	int target = m_isCubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
-	if (m_gpuTex != m_mtex->tex->ima->gputexture[target]) {
-		Tex *tex = m_mtex->tex;
-		Image *ima = tex->ima;
-		ImageUser& iuser = tex->iuser;
-
-		const int gltextarget = m_isCubeMap ? GetCubeMapTextureType() : GetTexture2DType();
-
+	if (m_gpuTex != m_input->ima->gputexture[target]) {
 		// Restore gpu texture original bind cdoe to make sure we will delete the right opengl texture.
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
 		GPU_texture_free(m_gpuTex);
 
-		m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : nullptr);
+		m_gpuTex = (m_input->ima ? GPU_texture_from_blender(m_input->ima, m_input->iuser, m_input->textarget, false, 0.0, true) : nullptr);
 
 		if (m_gpuTex) {
 			int bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -156,17 +108,17 @@ bool BL_Texture::IsCubeMap() const
 
 MTex *BL_Texture::GetMTex() const
 {
-	return m_mtex;
+	return m_mtex; //deprecated
 }
 
 Tex *BL_Texture::GetTex() const
 {
-	return m_mtex->tex;
+	return m_mtex->tex; //deprecated
 }
 
 Image *BL_Texture::GetImage() const
 {
-	return m_mtex->tex->ima;
+	return m_input->ima;
 }
 
 GPUTexture *BL_Texture::GetGPUTexture() const
@@ -176,7 +128,7 @@ GPUTexture *BL_Texture::GetGPUTexture() const
 
 unsigned int BL_Texture::GetTextureType()
 {
-	return GPU_texture_target(m_gpuTex);
+	return m_input->textarget;
 }
 
 void BL_Texture::ActivateTexture(int unit)

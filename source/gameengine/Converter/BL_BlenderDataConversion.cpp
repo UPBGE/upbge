@@ -1826,7 +1826,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	// Look at every material texture and ask to create realtime cube map.
-	for (KX_GameObject *gameobj : sumolist) {
+	/*for (KX_GameObject *gameobj : sumolist) {
 		for (unsigned short i = 0, meshcount = gameobj->GetMeshCount(); i < meshcount; ++i) {
 			RAS_MeshObject *mesh = gameobj->GetMesh(i);
 
@@ -1858,7 +1858,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 				}
 			}
 		}
-	}
+	}*/
 
 	// Create and set bounding volume.
 	for (KX_GameObject *gameobj : sumolist) {

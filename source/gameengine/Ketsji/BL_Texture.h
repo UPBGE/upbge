@@ -33,13 +33,16 @@
 void BL_Texture_Mathutils_Callback_Init();
 #endif
 
+struct GPUInput;
+
 class BL_Texture : public CValue, public RAS_Texture
 {
 	Py_Header
 private:
 	bool m_isCubeMap;
-	MTex *m_mtex;
+	MTex *m_mtex; //Keep it waiting we finish refactor
 	GPUTexture *m_gpuTex;
+	GPUInput *m_input;
 
 	struct {
 		unsigned int bindcode;
@@ -63,7 +66,7 @@ private:
 	} m_savedData;
 
 public:
-	BL_Texture(MTex *mtex);
+	BL_Texture(GPUInput *input);
 	virtual ~BL_Texture();
 
 	// stuff for cvalue related things

@@ -43,6 +43,7 @@
 
 extern "C" {
 #  include "DRW_render.h"
+#  include "../gpu/intern/gpu_codegen.h"
 }
 
 KX_BlenderMaterial::KX_BlenderMaterial(
@@ -102,8 +103,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_flag |= RAS_BLENDERGLSL;
 	m_flag |= ((mat->mode2 & MA_CASTSHADOW) != 0) ? RAS_CASTSHADOW : 0;
 	m_flag |= ((mat->mode & MA_ONLYCAST) != 0) ? RAS_ONLYSHADOW : 0;
-
-	InitTextures();
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()
@@ -179,19 +178,36 @@ SCA_IScene *KX_BlenderMaterial::GetScene() const
 
 void KX_BlenderMaterial::ReleaseMaterial()
 {
-	if (m_blenderShader)
+	if (m_blenderShader) {
 		m_blenderShader->ReloadMaterial(m_scene);
+	}
 }
 
 void KX_BlenderMaterial::InitTextures()
 {
-	// for each unique material...
-	int i;
-	for (i = 0; i < RAS_Texture::MaxUnits; i++) {
-		MTex *mtex = m_material->mtex[i];
-		if (mtex && mtex->tex) {
-			BL_Texture *texture = new BL_Texture(mtex);
+	GPUMaterial *gpumat = m_blenderShader->GetGpuMaterial();
+	if (!gpumat) {
+		return;
+	}
+	GPUPass *gpupass = GPU_material_get_pass(gpumat);
+
+	if (!gpupass) {
+		/* Shader compilation error */
+		return;
+	}
+
+	GPUShader *shader = GPU_pass_shader(gpupass);
+
+	/* Converting dynamic GPUInput to DRWUniform */
+	ListBase *inputs = &gpupass->inputs;
+
+	int i = 0;
+	for (GPUInput *input = (GPUInput *)inputs->first; input; input = input->next) {
+		/* Textures */
+		if (input->ima) {
+			BL_Texture *texture = new BL_Texture(input);
 			m_textures[i] = texture;
+			i++;
 		}
 	}
 }
@@ -342,6 +358,7 @@ void KX_BlenderMaterial::SetBlenderGLSLShader()
 {
 	if (!m_blenderShader) {
 		m_blenderShader.reset(new BL_BlenderShader(m_scene, m_material, m_lightLayer));
+		InitTextures();
 	}
 }
 
