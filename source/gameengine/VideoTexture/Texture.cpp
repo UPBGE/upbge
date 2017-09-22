@@ -56,6 +56,7 @@
 
 #include <memory.h>
 #include "GPU_glew.h"
+#include "GPU_texture.h"
 
 extern "C" {
 	#include "IMB_imbuf.h"
@@ -388,6 +389,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 					// save original image code
 					if (m_useMatTexture) {
 						m_orgTex = m_matTexture->GetBindCode();
+						GPU_texture_set_opengl_bindcode(m_matTexture->GetGPUTexture(), m_actTex);
 						m_matTexture->SetBindCode(m_actTex);
 						if (m_imgTexture) {
 							m_orgImg = m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D];
