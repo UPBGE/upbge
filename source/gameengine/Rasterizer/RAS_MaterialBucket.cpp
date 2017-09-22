@@ -97,10 +97,8 @@ void RAS_MaterialBucket::UpdateShader()
 
 void RAS_MaterialBucket::RemoveActiveMeshSlots()
 {
-	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
-		 it != end; ++it)
-	{
-		(*it)->RemoveActiveMeshSlots();
+	for (RAS_DisplayArrayBucket *arrayBucket : m_displayArrayBucketList) {
+		arrayBucket->RemoveActiveMeshSlots();
 	}
 }
 
