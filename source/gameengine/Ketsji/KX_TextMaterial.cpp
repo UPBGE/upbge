@@ -56,7 +56,7 @@ void KX_TextMaterial::DesactivateInstancing()
 {
 }
 
-void KX_TextMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
+void KX_TextMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const MT_Transform& camtrans)
 {
 }
 

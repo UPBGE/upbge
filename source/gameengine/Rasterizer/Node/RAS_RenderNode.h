@@ -61,7 +61,6 @@ struct RAS_MaterialNodeData
 {
 	RAS_IPolyMaterial *m_material;
 	int m_drawingMode;
-	bool m_useLighting;
 	bool m_cullFace;
 	bool m_zsort;
 	bool m_text;

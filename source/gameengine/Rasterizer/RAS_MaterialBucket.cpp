@@ -93,8 +93,6 @@ void RAS_MaterialBucket::UpdateShader()
 	for (RAS_DisplayArrayBucket *arrayBucket : m_displayArrayBucketList) {
 		arrayBucket->DestructStorageInfo();
 	}
-
-	m_nodeData.m_useLighting = m_material->UsesLighting();
 }
 
 void RAS_MaterialBucket::RemoveActiveMeshSlots()
@@ -133,9 +131,6 @@ void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS
 	if (sort) {
 		m_upwardNode.SetParent(&upwardRoot);
 	}
-
-	// Use lighting flag changes when user specified a valid custom shader.
-	m_nodeData.m_useLighting = m_material->UsesLighting();
 }
 
 void RAS_MaterialBucket::BindNode(const RAS_MaterialNodeTuple& tuple)

@@ -343,11 +343,13 @@ bool KX_BlenderMaterial::UsesLighting() const
 		return true;
 }
 
-void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
+void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const MT_Transform& camtrans)
 {
 	if (m_shader && m_shader->Ok()) {
 		m_shader->Update(rasty, ms);
 		m_shader->ApplyShader();
+		// Update OpenGL lighting builtins.
+		rasty->ProcessLighting(UsesLighting(), camtrans);
 	}
 	else if (m_blenderShader) {
 		m_blenderShader->Update(ms, rasty);

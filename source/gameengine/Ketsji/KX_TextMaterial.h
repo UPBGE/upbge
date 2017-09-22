@@ -40,7 +40,7 @@ public:
 	virtual void Desactivate(RAS_Rasterizer *rasty);
 	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 	virtual void DesactivateInstancing();
-	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty);
+	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty, const MT_Transform& camtrans);
 
 	virtual const std::string GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
