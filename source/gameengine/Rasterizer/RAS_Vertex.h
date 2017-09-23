@@ -99,12 +99,12 @@ private:
 
 	inline float *GetUvInternal(const unsigned short index) const
 	{
-		return reinterpret_cast<float *>(m_data + sizeof(RAS_VertexDataBasic) + sizeof(float) * 2 * index);
+		return (float *)(intptr_t(m_data) + (sizeof(RAS_VertexDataBasic) + sizeof(float[2]) * index));
 	}
 
 	inline unsigned int *GetColorInternal(const unsigned short index) const
 	{
-		return reinterpret_cast<unsigned int *>(m_data + sizeof(RAS_VertexDataBasic) + sizeof(float) * 2 * m_format.uvSize + sizeof(unsigned int) * index);
+		return (unsigned int *)(intptr_t(m_data) + (sizeof(RAS_VertexDataBasic) + sizeof(float[2]) * m_format.uvSize + sizeof(unsigned int) * index));
 	}
 
 public:
@@ -216,7 +216,7 @@ public:
 	// splitting up based on uv's, colors, etc
 	inline const bool CloseTo(const RAS_Vertex& other)
 	{
-		BLI_assert(m_format == other->GetFormat());
+		BLI_assert(m_format == other.GetFormat());
 		static const float eps = FLT_EPSILON;
 		for (int i = 0, size = m_format.uvSize; i < size; ++i) {
 			if (!compare_v2v2(GetUv(i), other.GetUv(i), eps)) {
