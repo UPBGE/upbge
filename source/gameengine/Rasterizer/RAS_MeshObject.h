@@ -47,7 +47,6 @@
 class RAS_MaterialBucket;
 class RAS_MeshUser;
 class RAS_Deformer;
-class RAS_IVertex;
 class RAS_BoundingBox;
 class RAS_BoundingBoxManager;
 struct Mesh;
@@ -167,7 +166,6 @@ public:
 	RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format);
 
 	RAS_IDisplayArray *GetDisplayArray(unsigned int matid) const;
-	RAS_IVertex *GetVertex(unsigned int matid, unsigned int index) const;
 
 	unsigned int GetNumPolygons() const;
 	PolygonInfo GetPolygon(unsigned int index) const;

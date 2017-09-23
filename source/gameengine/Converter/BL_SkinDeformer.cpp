@@ -274,13 +274,13 @@ void BL_SkinDeformer::UpdateTransverts()
 		// for each vertex
 		// copy the untransformed data from the original mvert
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-			RAS_IVertex *v = array->GetVertex(i);
+			RAS_Vertex v = array->GetVertex(i);
 			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
-			v->SetXYZ(m_transverts[vinfo.getOrigIndex()].data());
+			v.SetXYZ(m_transverts[vinfo.GetOrigIndex()].data());
 			if (m_copyNormals)
-				v->SetNormal(m_transnors[vinfo.getOrigIndex()].data());
+				v.SetNormal(m_transnors[vinfo.GetOrigIndex()].data());
 
-			MT_Vector3 vertpos = v->xyz();
+			MT_Vector3 vertpos = v.xyz();
 
 			if (!m_gameobj->GetAutoUpdateBounds()) {
 				continue;

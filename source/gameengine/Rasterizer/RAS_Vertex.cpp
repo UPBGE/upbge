@@ -29,7 +29,7 @@
  *  \ingroup bgerast
  */
 
-#include "RAS_IVertex.h"
+#include "RAS_Vertex.h"
 
 bool operator== (const RAS_VertexFormat& format1, const RAS_VertexFormat& format2)
 {
@@ -48,18 +48,5 @@ RAS_VertexInfo::RAS_VertexInfo(unsigned int origindex, bool flat)
 }
 
 RAS_VertexInfo::~RAS_VertexInfo()
-{
-}
-
-RAS_IVertex::RAS_IVertex(const MT_Vector3& xyz,
-						 const MT_Vector4& tangent,
-						 const MT_Vector3& normal)
-{
-	xyz.getValue(m_localxyz);
-	SetNormal(normal);
-	SetTangent(tangent);
-}
-
-RAS_IVertex::~RAS_IVertex()
 {
 }

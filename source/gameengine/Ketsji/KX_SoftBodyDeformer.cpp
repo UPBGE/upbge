@@ -107,15 +107,15 @@ void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 	MT_Vector3 aabbMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 	for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-		RAS_IVertex *v = array->GetVertex(i);
+		RAS_Vertex v = array->GetVertex(i);
 		const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 
-		const unsigned int index = indices[vinfo.getOrigIndex()];
+		const unsigned int index = indices[vinfo.GetOrigIndex()];
 		const MT_Vector3 pt(ToMoto(nodes[index].m_x));
-		v->SetXYZ(pt);
+		v.SetXYZ(pt);
 
 		const MT_Vector3 normal(ToMoto(nodes[index].m_n));
-		v->SetNormal(normal);
+		v.SetNormal(normal);
 
 		if (!m_gameobj->GetAutoUpdateBounds()) {
 			continue;

@@ -39,17 +39,17 @@
 #  pragma warning (disable:4250)
 #endif
 
-template <class Vertex>
-class RAS_BatchDisplayArray : public RAS_DisplayArray<Vertex>, public RAS_IBatchDisplayArray
+template <class VertexData>
+class RAS_BatchDisplayArray : public RAS_DisplayArray<VertexData>, public RAS_IBatchDisplayArray
 {
 protected:
-	using RAS_DisplayArray<Vertex>::m_vertexes;
-	using RAS_DisplayArray<Vertex>::m_primitiveIndices;
+	using RAS_DisplayArray<VertexData>::m_vertexes;
+	using RAS_DisplayArray<VertexData>::m_primitiveIndices;
 
 public:
 	RAS_BatchDisplayArray(RAS_IDisplayArray::PrimitiveType type, const RAS_VertexFormat& format)
 		:RAS_IDisplayArray(type, format),
-		RAS_DisplayArray<Vertex>(type, format),
+		RAS_DisplayArray<VertexData>(type, format),
 		RAS_IBatchDisplayArray(type, format)
 	{
 	}
@@ -75,7 +75,7 @@ public:
 	 */
 	virtual unsigned int Merge(RAS_IDisplayArray *iarray, const MT_Matrix4x4& mat)
 	{
-		RAS_DisplayArray<Vertex> *array = dynamic_cast<RAS_DisplayArray<Vertex> *>(iarray);
+		RAS_DisplayArray<VertexData> *array = dynamic_cast<RAS_DisplayArray<VertexData> *>(iarray);
 		const unsigned int vertexcount = iarray->GetVertexCount();
 		const unsigned int indexcount = iarray->GetPrimitiveIndexCount();
 
@@ -105,11 +105,12 @@ public:
 
 		// Copy the vertex by not using a reference in the loop.
 		for (unsigned int i = 0; i < vertexcount; ++i) {
-			Vertex vert = array->m_vertexes[i];
+			VertexData data = array->m_vertexes[i];
+			RAS_Vertex vert(&data, m_format);
 			// Transform the vertex position, normal and tangent.
 			vert.Transform(mat, nmat);
 			// Add the vertex in the list.
-			m_vertexes[startvertex + i] = vert;
+			m_vertexes[startvertex + i] = data;
 		}
 
 		// Copy the indices of the merged array with as gap the first vertex index.
@@ -118,7 +119,7 @@ public:
 		}
 
 		// Update the cache to avoid accessing dangling vertex pointer from GetVertex().
-		RAS_DisplayArray<Vertex>::UpdateCache();
+		RAS_DisplayArray<VertexData>::UpdateCache();
 
 		return (m_parts.size() - 1);
 	}

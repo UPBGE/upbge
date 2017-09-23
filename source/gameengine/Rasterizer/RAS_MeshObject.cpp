@@ -186,17 +186,6 @@ RAS_IDisplayArray *RAS_MeshObject::GetDisplayArray(unsigned int matid) const
 	return array;
 }
 
-RAS_IVertex *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index) const
-{
-	RAS_IDisplayArray *array = GetDisplayArray(matid);
-
-	if (index < array->GetVertexCount()) {
-		return array->GetVertex(index);
-	}
-
-	return nullptr;
-}
-
 RAS_BoundingBox *RAS_MeshObject::GetBoundingBox() const
 {
 	return m_boundingBox;

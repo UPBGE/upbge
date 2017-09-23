@@ -70,7 +70,6 @@ set(SRC
 	RAS_InstancingBuffer.cpp
 	RAS_IPolygonMaterial.cpp
 	RAS_Rasterizer.cpp
-	RAS_IVertex.cpp
 	RAS_MaterialBucket.cpp
 	RAS_MeshMaterial.cpp
 	RAS_MeshObject.cpp
@@ -82,6 +81,7 @@ set(SRC
 	RAS_Texture.cpp
 	RAS_TextureRenderer.cpp
 	RAS_TextUser.cpp
+	RAS_Vertex.cpp
  
 	RAS_2DFilterData.h
 	RAS_2DFilter.h
@@ -107,7 +107,6 @@ set(SRC
 	RAS_ILightObject.h
 	RAS_InstancingBuffer.h
 	RAS_ISync.h
-	RAS_IVertex.h
 	RAS_MaterialBucket.h
 	RAS_MeshMaterial.h
 	RAS_MeshObject.h
@@ -121,6 +120,7 @@ set(SRC
 	RAS_TextureRenderer.h
 	RAS_TextUser.h
 	RAS_Vertex.h
+	RAS_VertexData.h
 )
 
 data_to_c_simple(RAS_OpenGLFilters/RAS_Blur2DFilter.glsl SRC)

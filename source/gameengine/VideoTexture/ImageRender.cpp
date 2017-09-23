@@ -47,7 +47,6 @@
 #include "RAS_MeshObject.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IDisplayArray.h"
-#include "RAS_IVertex.h"
 #include "RAS_ISync.h"
 #include "BLI_math.h"
 
@@ -884,8 +883,8 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	// this constructor is used for automatic planar mirror
 	// create a camera, take all data by default, in any case we will recompute the frustum on each frame
 	RAS_CameraData camdata;
-	std::vector<RAS_IVertex*> mirrorVerts;
-	std::vector<RAS_IVertex*>::iterator it;
+	std::vector<RAS_Vertex> mirrorVerts;
+	std::vector<RAS_Vertex>::iterator it;
 	float mirrorArea = 0.f;
 	float mirrorNormal[3] = {0.f, 0.f, 0.f};
 	float mirrorUp[3];
@@ -910,14 +909,14 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 				RAS_IDisplayArray *array = meshmat->GetDisplayArray();
 				for (unsigned int j = 0, indexCount = array->GetTriangleIndexCount(); j < indexCount; j += 3) {
 					float normal[3];
-					RAS_IVertex *v1 = array->GetVertex(array->GetTriangleIndex(j));
-					RAS_IVertex *v2 = array->GetVertex(array->GetTriangleIndex(j + 1));
-					RAS_IVertex *v3 = array->GetVertex(array->GetTriangleIndex(j + 2));
+					RAS_Vertex v1 = array->GetVertex(array->GetTriangleIndex(j));
+					RAS_Vertex v2 = array->GetVertex(array->GetTriangleIndex(j + 1));
+					RAS_Vertex v3 = array->GetVertex(array->GetTriangleIndex(j + 2));
 
 					mirrorVerts.push_back(v1);
 					mirrorVerts.push_back(v2);
 					mirrorVerts.push_back(v3);
-					float area = normal_tri_v3(normal,(float*)v1->getXYZ(), (float*)v2->getXYZ(), (float*)v3->getXYZ());
+					float area = normal_tri_v3(normal,(float*)v1.GetXYZ(), (float*)v2.GetXYZ(), (float*)v3.GetXYZ());
 					area = fabs(area);
 					mirrorArea += area;
 					mul_v3_fl(normal, area);
@@ -989,7 +988,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	back = -FLT_MAX; // most backward vertex (=highest Z coord in mirror space)
 	for (it = mirrorVerts.begin(); it != mirrorVerts.end(); it++)
 	{
-		copy_v3_v3(vec, (float*)(*it)->getXYZ());
+		copy_v3_v3(vec, (float*)(*it).GetXYZ());
 		mul_m3_v3(mirrorMat, vec);
 		if (vec[0] < left)
 			left = vec[0];

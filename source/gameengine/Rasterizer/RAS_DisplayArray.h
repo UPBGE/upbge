@@ -29,17 +29,17 @@
 
 #include "RAS_IDisplayArray.h"
 
-template <class Vertex>
+template <class VertexData>
 class RAS_BatchDisplayArray;
 
 /// An array with data used for OpenGL drawing
-template <class Vertex>
+template <class VertexData>
 class RAS_DisplayArray : public virtual RAS_IDisplayArray
 {
-friend class RAS_BatchDisplayArray<Vertex>;
+friend class RAS_BatchDisplayArray<VertexData>;
 
 protected:
-	std::vector<Vertex> m_vertexes;
+	std::vector<VertexData> m_vertexes;
 
 public:
 	RAS_DisplayArray(PrimitiveType type, const RAS_VertexFormat& format)
@@ -53,7 +53,7 @@ public:
 
 	virtual RAS_IDisplayArray *GetReplica()
 	{
-		RAS_DisplayArray<Vertex> *replica = new RAS_DisplayArray<Vertex>(*this);
+		RAS_DisplayArray<VertexData> *replica = new RAS_DisplayArray<VertexData>(*this);
 		replica->UpdateCache();
 
 		return replica;
@@ -61,64 +61,66 @@ public:
 
 	virtual unsigned int GetVertexMemorySize() const
 	{
-		return sizeof(Vertex);
+		return sizeof(VertexData);
 	}
 
 	virtual void *GetVertexXYZOffset() const
 	{
-		return (void *)offsetof(Vertex, m_localxyz);
+		return (void *)offsetof(VertexData, position);
 	}
 
 	virtual void *GetVertexNormalOffset() const
 	{
-		return (void *)offsetof(Vertex, m_normal);
+		return (void *)offsetof(VertexData, normal);
 	}
 
 	virtual void *GetVertexTangentOffset() const
 	{
-		return (void *)offsetof(Vertex, m_tangent);
+		return (void *)offsetof(VertexData, tangent);
 	}
 
 	virtual void *GetVertexUVOffset() const
 	{
-		return (void *)offsetof(Vertex, m_uvs);
+		return (void *)offsetof(VertexData, uvs);
 	}
 
 	virtual void *GetVertexColorOffset() const
 	{
-		return (void *)offsetof(Vertex, m_rgba);
+		return (void *)offsetof(VertexData, colors);
 	}
 
 	virtual unsigned short GetVertexUvSize() const
 	{
-		return Vertex::UvSize;
+		return VertexData::UvSize;
 	}
 
 	virtual unsigned short GetVertexColorSize() const
 	{
-		return Vertex::ColorSize;
+		return VertexData::ColorSize;
 	}
 
-	virtual RAS_IVertex *GetVertexNoCache(const unsigned int index) const
+	virtual RAS_Vertex GetVertexNoCache(const unsigned int index)
 	{
-		return (RAS_IVertex *)&m_vertexes[index];
+		return RAS_Vertex(&m_vertexes[index], m_format);
 	}
 
-	virtual const RAS_IVertex *GetVertexPointer() const
+	virtual const RAS_IVertexData *GetVertexPointer() const
 	{
-		return (RAS_IVertex *)m_vertexes.data();
+		return m_vertexes.data();
 	}
 
-	virtual unsigned int AddVertex(RAS_IVertex *vert)
+	virtual unsigned int AddVertex(RAS_Vertex& vert)
 	{
-		m_vertexes.push_back(*((Vertex *)vert));
+		VertexData *data = static_cast<VertexData *>(vert.GetData());
+		m_vertexes.push_back(*data);
+		delete data;
 		return m_vertexes.size() - 1;
 	}
 
 	virtual void Clear()
 	{
 		m_vertexes.clear();
-		m_vertexPtrs.clear();
+		m_vertexDataPtrs.clear();
 		m_vertexInfos.clear();
 		m_primitiveIndices.clear();
 		m_triangleIndices.clear();
@@ -130,22 +132,23 @@ public:
 		return m_vertexes.size();
 	}
 
-	virtual RAS_IVertex *CreateVertex(
+	virtual RAS_Vertex CreateVertex(
 				const MT_Vector3& xyz,
 				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
 				const unsigned int *rgba,
 				const MT_Vector3& normal)
 	{
-		return new Vertex(xyz, uvs, tangent, rgba, normal);
+		VertexData *data = new VertexData(xyz, uvs, tangent, rgba, normal);
+		return RAS_Vertex(data, m_format);
 	}
 
 	virtual void UpdateCache()
 	{
 		const unsigned int size = GetVertexCount();
-		m_vertexPtrs.resize(size);
+		m_vertexDataPtrs.resize(size);
 		for (unsigned int i = 0; i < size; ++i) {
-			m_vertexPtrs[i] = (RAS_IVertex *)&m_vertexes[i];
+			m_vertexDataPtrs[i] = &m_vertexes[i];
 		}
 	}
 };

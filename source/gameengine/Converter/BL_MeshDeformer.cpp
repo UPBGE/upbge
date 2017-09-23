@@ -61,9 +61,9 @@ void BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray
 
 			//	For each vertex
 			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-				RAS_IVertex *v = array->GetVertex(i);
+				RAS_Vertex v = array->GetVertex(i);
 				const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
-				v->SetXYZ(m_bmesh->mvert[vinfo.getOrigIndex()].co);
+				v.SetXYZ(m_bmesh->mvert[vinfo.GetOrigIndex()].co);
 			}
 
 			array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED);
@@ -128,10 +128,10 @@ void BL_MeshDeformer::RecalcNormals()
 			for (unsigned short j = 0; j < 3; ++j) {
 				const unsigned int index = array->GetTriangleIndex(i + j);
 				const RAS_VertexInfo& vinfo = array->GetVertexInfo(index);
-				const unsigned int origindex = vinfo.getOrigIndex();
+				const unsigned int origindex = vinfo.GetOrigIndex();
 
 				co[j] = m_transverts[origindex].data();
-				flat |= (vinfo.getFlag() & RAS_VertexInfo::FLAT);
+				flat |= (vinfo.GetFlag() & RAS_VertexInfo::FLAT);
 			}
 
 			float pnorm[3];
@@ -141,12 +141,12 @@ void BL_MeshDeformer::RecalcNormals()
 				const unsigned int index = array->GetTriangleIndex(i + j);
 
 				if (flat) {
-					RAS_IVertex *vert = array->GetVertex(index);
-					vert->SetNormal(pnorm);
+					RAS_Vertex vert = array->GetVertex(index);
+					vert.SetNormal(pnorm);
 				}
 				else {
 					const RAS_VertexInfo& vinfo = array->GetVertexInfo(index);
-					const unsigned int origindex = vinfo.getOrigIndex();
+					const unsigned int origindex = vinfo.GetOrigIndex();
 					add_v3_v3(m_transnors[origindex].data(), pnorm);
 				}
 			}
@@ -156,11 +156,11 @@ void BL_MeshDeformer::RecalcNormals()
 	// Assign smooth vertex normals.
 	for (RAS_IDisplayArray *array: m_displayArrayList) {
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-			RAS_IVertex *v = array->GetVertex(i);
+			RAS_Vertex v = array->GetVertex(i);
 			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 
-			if (!(vinfo.getFlag() & RAS_VertexInfo::FLAT)) {
-				v->SetNormal(m_transnors[vinfo.getOrigIndex()].data());
+			if (!(vinfo.GetFlag() & RAS_VertexInfo::FLAT)) {
+				v.SetNormal(m_transnors[vinfo.GetOrigIndex()].data());
 			}
 		}
 	}
