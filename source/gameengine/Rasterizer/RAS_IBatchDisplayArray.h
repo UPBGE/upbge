@@ -49,14 +49,14 @@ protected:
 	std::vector<Part> m_parts;
 
 public:
-	RAS_IBatchDisplayArray(PrimitiveType type, const RAS_TexVertFormat &format);
+	RAS_IBatchDisplayArray(PrimitiveType type, const RAS_VertexFormat &format);
 	virtual ~RAS_IBatchDisplayArray();
 
 	/** Construct the display array batching corresponding of the vertex of the given format.
 	 * \param type The type of primitives, one of the enumeration PrimitiveType.
 	 * \param format The format of vertex to use.
 	 */
-	static RAS_IBatchDisplayArray *ConstructArray(PrimitiveType type, const RAS_TexVertFormat &format);
+	static RAS_IBatchDisplayArray *ConstructArray(PrimitiveType type, const RAS_VertexFormat &format);
 
 	inline void *GetPartIndexOffset(const unsigned short index)
 	{

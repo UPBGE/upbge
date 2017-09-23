@@ -27,7 +27,7 @@
 #ifndef __RAS_IDISPLAY_ARRAY_H__
 #define __RAS_IDISPLAY_ARRAY_H__
 
-#include "RAS_TexVert.h"
+#include "RAS_Vertex.h"
 #include <vector>
 
 class RAS_IDisplayArray
@@ -49,12 +49,12 @@ protected:
 	/// Modification flag.
 	unsigned short m_modifiedFlag;
 	/// The vertex format used.
-	RAS_TexVertFormat m_format;
+	RAS_VertexFormat m_format;
 
 	/// The vertex infos unused for rendering, e.g original or soft body index, flag.
-	std::vector<RAS_TexVertInfo> m_vertexInfos;
+	std::vector<RAS_VertexInfo> m_vertexInfos;
 	/// Cached vertex pointers. This list is constructed with the function UpdateCache.
-	std::vector<RAS_ITexVert *> m_vertexPtrs;
+	std::vector<RAS_IVertex *> m_vertexPtrs;
 	/// The indices used for rendering.
 	std::vector<unsigned int> m_indices;
 
@@ -64,7 +64,7 @@ protected:
 	std::vector<MT_Vector3> m_polygonCenters;
 
 public:
-	RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat& format);
+	RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat& format);
 	virtual ~RAS_IDisplayArray();
 
 	virtual RAS_IDisplayArray *GetReplica() = 0;
@@ -73,7 +73,7 @@ public:
 	 * \param type The type of primitives, one of the enumeration PrimitiveType.
 	 * \param format The format of vertex to use.
 	 */
-	static RAS_IDisplayArray *ConstructArray(PrimitiveType type, const RAS_TexVertFormat &format);
+	static RAS_IDisplayArray *ConstructArray(PrimitiveType type, const RAS_VertexFormat &format);
 
 	virtual unsigned int GetVertexMemorySize() const = 0;
 	virtual void *GetVertexXYZOffset() const = 0;
@@ -87,9 +87,9 @@ public:
 	/** Return a vertex pointer without using the cache. Used to get
 	 * a vertex pointer during contruction.
 	 */
-	virtual RAS_ITexVert *GetVertexNoCache(const unsigned int index) const = 0;
+	virtual RAS_IVertex *GetVertexNoCache(const unsigned int index) const = 0;
 
-	inline RAS_ITexVert *GetVertex(const unsigned int index) const
+	inline RAS_IVertex *GetVertex(const unsigned int index) const
 	{
 		return m_vertexPtrs[index];
 	}
@@ -104,29 +104,29 @@ public:
 		m_indices[index] = value;
 	}
 
-	inline const RAS_TexVertInfo& GetVertexInfo(const unsigned int index) const
+	inline const RAS_VertexInfo& GetVertexInfo(const unsigned int index) const
 	{
 		return m_vertexInfos[index];
 	}
 
-	inline RAS_TexVertInfo& GetVertexInfo(const unsigned int index)
+	inline RAS_VertexInfo& GetVertexInfo(const unsigned int index)
 	{
 		return m_vertexInfos[index];
 	}
 
-	virtual void AddVertex(RAS_ITexVert *vert) = 0;
+	virtual void AddVertex(RAS_IVertex *vert) = 0;
 
 	inline void AddIndex(const unsigned int index)
 	{
 		m_indices.push_back(index);
 	}
 
-	inline void AddVertexInfo(const RAS_TexVertInfo& info)
+	inline void AddVertexInfo(const RAS_VertexInfo& info)
 	{
 		m_vertexInfos.push_back(info);
 	}
 
-	virtual const RAS_ITexVert *GetVertexPointer() const = 0;
+	virtual const RAS_IVertex *GetVertexPointer() const = 0;
 
 	inline const unsigned int *GetIndexPointer() const
 	{
@@ -143,7 +143,7 @@ public:
 	void SortPolygons(const MT_Transform &transform, unsigned int *indexmap);
 	void InvalidatePolygonCenters();
 
-	virtual RAS_ITexVert *CreateVertex(
+	virtual RAS_IVertex *CreateVertex(
 				const MT_Vector3& xyz,
 				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
@@ -187,7 +187,7 @@ public:
 	void SetModifiedFlag(unsigned short flag);
 
 	/// Return the vertex format used.
-	const RAS_TexVertFormat& GetFormat() const;
+	const RAS_VertexFormat& GetFormat() const;
 
 	/// Return the type of the display array.
 	virtual Type GetType() const;

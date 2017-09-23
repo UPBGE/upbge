@@ -165,7 +165,7 @@ void RAS_MeshBoundingBox::Update(bool force)
 		RAS_IDisplayArray *displayArray = m_displayArrayList[i];
 		// For each vertex.
 		for (unsigned int j = 0, size = displayArray->GetVertexCount(); j < size; ++j) {
-			RAS_ITexVert *vert = displayArray->GetVertex(j);
+			RAS_IVertex *vert = displayArray->GetVertex(j);
 			const MT_Vector3 vertPos = vert->xyz();
 
 			// Initialize the AABB to the first vertex position.

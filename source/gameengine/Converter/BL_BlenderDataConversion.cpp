@@ -83,7 +83,7 @@
 
 #include "RAS_ICanvas.h"
 #include "RAS_Polygon.h"
-#include "RAS_TexVert.h"
+#include "RAS_Vertex.h"
 #include "RAS_BucketManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_IPolygonMaterial.h"
@@ -338,7 +338,7 @@ SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code)
 }
 
 static void GetUvRgba(const RAS_MeshObject::LayerList& layers, unsigned int loop,
-		MT_Vector2 uvs[RAS_Texture::MaxUnits], unsigned int rgba[RAS_ITexVert::MAX_UNIT],
+		MT_Vector2 uvs[RAS_Texture::MaxUnits], unsigned int rgba[RAS_IVertex::MAX_UNIT],
 		unsigned short uvLayers, unsigned short colorLayers)
 {
 	// No need to initialize layers to zero as all the converted layer are all the layers needed.
@@ -483,7 +483,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	meshobj->m_sharedvertex_map.resize(totverts);
 
 	// Initialize vertex format with used uv and color layers.
-	RAS_TexVertFormat vertformat;
+	RAS_VertexFormat vertformat;
 	vertformat.uvSize = max_ii(1, uvLayers);
 	vertformat.colorSize = max_ii(1, colorLayers);
 

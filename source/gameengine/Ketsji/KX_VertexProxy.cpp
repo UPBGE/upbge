@@ -33,7 +33,7 @@
 
 #include "KX_VertexProxy.h"
 #include "KX_MeshProxy.h"
-#include "RAS_ITexVert.h"
+#include "RAS_IVertex.h"
 #include "RAS_IDisplayArray.h"
 
 #include "KX_PyMath.h"
@@ -537,7 +537,7 @@ int KX_VertexProxy::pyattr_set_normal(PyObjectPlus *self_v, const struct KX_PYAT
 	return PY_SET_ATTR_FAIL;
 }
 
-KX_VertexProxy::KX_VertexProxy(RAS_IDisplayArray *array, RAS_ITexVert *vertex)
+KX_VertexProxy::KX_VertexProxy(RAS_IDisplayArray *array, RAS_IVertex *vertex)
 	:m_vertex(vertex),
 	m_array(array)
 {
@@ -547,7 +547,7 @@ KX_VertexProxy::~KX_VertexProxy()
 {
 }
 
-RAS_ITexVert *KX_VertexProxy::GetVertex()
+RAS_IVertex *KX_VertexProxy::GetVertex()
 {
 	return m_vertex;
 }

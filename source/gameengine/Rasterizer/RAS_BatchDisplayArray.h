@@ -47,7 +47,7 @@ protected:
 	using RAS_DisplayArray<Vertex>::m_indices;
 
 public:
-	RAS_BatchDisplayArray(RAS_IDisplayArray::PrimitiveType type, const RAS_TexVertFormat& format)
+	RAS_BatchDisplayArray(RAS_IDisplayArray::PrimitiveType type, const RAS_VertexFormat& format)
 		:RAS_IDisplayArray(type, format),
 		RAS_DisplayArray<Vertex>(type, format),
 		RAS_IBatchDisplayArray(type, format)

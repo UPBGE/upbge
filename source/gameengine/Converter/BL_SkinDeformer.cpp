@@ -320,8 +320,8 @@ void BL_SkinDeformer::UpdateTransverts()
 			// for each vertex
 			// copy the untransformed data from the original mvert
 			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-				RAS_ITexVert *v = array->GetVertex(i);
-				const RAS_TexVertInfo& vinfo = array->GetVertexInfo(i);
+				RAS_IVertex *v = array->GetVertex(i);
+				const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 				v->SetXYZ(m_transverts[vinfo.getOrigIndex()]);
 				if (m_copyNormals)
 					v->SetNormal(MT_Vector3(m_transnors[vinfo.getOrigIndex()]));

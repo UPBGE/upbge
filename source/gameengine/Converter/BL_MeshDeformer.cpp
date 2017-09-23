@@ -62,8 +62,8 @@ bool BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray
 
 			//	For each vertex
 			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-				RAS_ITexVert *v = array->GetVertex(i);
-				const RAS_TexVertInfo& vinfo = array->GetVertexInfo(i);
+				RAS_IVertex *v = array->GetVertex(i);
+				const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 				v->SetXYZ(m_bmesh->mvert[vinfo.getOrigIndex()].co);
 			}
 
@@ -148,14 +148,14 @@ void BL_MeshDeformer::RecalcNormals()
 
 		for (unsigned int j = 0; j < numvert; ++j) {
 			const unsigned int index = poly->GetVertexOffset(j);
-			const RAS_TexVertInfo& vinfo = array->GetVertexInfo(index);
+			const RAS_VertexInfo& vinfo = array->GetVertexInfo(index);
 			const unsigned int origindex = vinfo.getOrigIndex();
 
 			co[j] = m_transverts[origindex];
 			indices[j] = index;
 			origindices[j] = origindex;
 
-			if (!(vinfo.getFlag() & RAS_TexVertInfo::FLAT)) {
+			if (!(vinfo.getFlag() & RAS_VertexInfo::FLAT)) {
 				flat = false;
 			}
 		}
@@ -171,7 +171,7 @@ void BL_MeshDeformer::RecalcNormals()
 		if (flat) {
 			MT_Vector3 normal(pnorm);
 			for (unsigned int j = 0; j < numvert; ++j) {
-				RAS_ITexVert *vert = array->GetVertex(indices[j]);
+				RAS_IVertex *vert = array->GetVertex(indices[j]);
 
 				vert->SetNormal(normal);
 			}
@@ -186,10 +186,10 @@ void BL_MeshDeformer::RecalcNormals()
 	// Assign smooth vertex normals.
 	for (RAS_IDisplayArray *array: m_displayArrayList) {
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-			RAS_ITexVert *v = array->GetVertex(i);
-			const RAS_TexVertInfo& vinfo = array->GetVertexInfo(i);
+			RAS_IVertex *v = array->GetVertex(i);
+			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 
-			if (!(vinfo.getFlag() & RAS_TexVertInfo::FLAT))
+			if (!(vinfo.getFlag() & RAS_VertexInfo::FLAT))
 				v->SetNormal(MT_Vector3(m_transnors[vinfo.getOrigIndex()])); //.safe_normalized()
 		}
 	}

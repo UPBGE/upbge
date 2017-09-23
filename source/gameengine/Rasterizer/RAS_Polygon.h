@@ -34,8 +34,8 @@
 
 class RAS_IDisplayArray;
 class RAS_MaterialBucket;
-class RAS_ITexVert;
-class RAS_TexVertInfo;
+class RAS_IVertex;
+class RAS_VertexInfo;
 
 class RAS_Polygon
 {
@@ -59,8 +59,8 @@ public:
 	}
 
 	int VertexCount() const;
-	RAS_ITexVert *GetVertex(int i) const;
-	const RAS_TexVertInfo& GetVertexInfo(unsigned int i) const;
+	RAS_IVertex *GetVertex(int i) const;
+	const RAS_VertexInfo& GetVertexInfo(unsigned int i) const;
 
 	void SetVertexOffset(int i, unsigned int offset);
 	unsigned int GetVertexOffset(unsigned int i) const;

@@ -20,22 +20,22 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file RAS_TexVert.h
+/** \file RAS_Vertex.h
  *  \ingroup bgerast
  */
 
 #ifndef __RAS_TEXVERT_H__
 #define __RAS_TEXVERT_H__
 
-#include "RAS_ITexVert.h"
+#include "RAS_IVertex.h"
 
 template <class Vertex>
 class RAS_DisplayArray;
 
 template <unsigned int uvSize, unsigned int colorSize>
-class RAS_TexVert : public RAS_ITexVert
+class RAS_Vertex : public RAS_IVertex
 {
-friend class RAS_DisplayArray<RAS_TexVert<uvSize, colorSize> >;
+friend class RAS_DisplayArray<RAS_Vertex<uvSize, colorSize> >;
 public:
 	enum {
 		UvSize = uvSize,
@@ -47,16 +47,16 @@ private:
 	unsigned int m_rgba[ColorSize];
 
 public:
-	RAS_TexVert()
+	RAS_Vertex()
 	{
 	}
 
-	RAS_TexVert(const MT_Vector3& xyz,
+	RAS_Vertex(const MT_Vector3& xyz,
 	            const MT_Vector2 uvs[UvSize],
 	            const MT_Vector4& tangent,
 				const unsigned int rgba[ColorSize],
 	            const MT_Vector3& normal)
-		:RAS_ITexVert(xyz, tangent, normal)
+		:RAS_IVertex(xyz, tangent, normal)
 	{
 		for (int i = 0; i < UvSize; ++i) {
 			uvs[i].getValue(m_uvs[i]);
@@ -67,7 +67,7 @@ public:
 		}
 	}
 
-	virtual ~RAS_TexVert()
+	virtual ~RAS_Vertex()
 	{
 	}
 

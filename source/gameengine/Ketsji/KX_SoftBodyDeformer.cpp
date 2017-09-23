@@ -106,8 +106,8 @@ bool KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 	MT_Vector3 aabbMax;
 
 	for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-		RAS_ITexVert *v = array->GetVertex(i);
-		const RAS_TexVertInfo& vinfo = origarray->GetVertexInfo(i);
+		RAS_IVertex *v = array->GetVertex(i);
+		const RAS_VertexInfo& vinfo = origarray->GetVertexInfo(i);
 		/* The physics converter write the soft body index only in the original
 		 * vertex array because at this moment it doesn't know which is the
 		 * game object. It didn't cause any issues because it's always the same

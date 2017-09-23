@@ -32,7 +32,7 @@
 #include "RAS_MeshSlot.h"
 #include "RAS_MeshUser.h"
 #include "RAS_IPolygonMaterial.h"
-#include "RAS_TexVert.h"
+#include "RAS_Vertex.h"
 #include "RAS_IDisplayArray.h"
 #include "RAS_IStorageInfo.h"
 
