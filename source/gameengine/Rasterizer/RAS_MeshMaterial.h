@@ -35,9 +35,9 @@
 #include <vector>
 
 class RAS_MeshObject;
-class RAS_MaterialBucket;
-class RAS_DisplayArrayBucket;
 class RAS_IDisplayArray;
+class RAS_DisplayArrayBucket;
+class RAS_MaterialBucket;
 struct RAS_VertexFormat;
 
 /** \brief Node between material and mesh.

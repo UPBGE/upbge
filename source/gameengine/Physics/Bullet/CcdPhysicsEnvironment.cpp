@@ -51,7 +51,6 @@
 #include "RAS_IDisplayArray.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
-#include "RAS_IVertex.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
@@ -1881,9 +1880,9 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 
 						for (unsigned int j = 0, size = array->GetTriangleIndexCount(); j < size; j += 3) {
 							const unsigned int index = array->GetTriangleIndex(j);
-							m_ocb->appendOccluderM(array->GetVertex(index)->getXYZ(),
-												   array->GetVertex(index + 1)->getXYZ(),
-												   array->GetVertex(index + 2)->getXYZ(),
+							m_ocb->appendOccluderM(array->GetVertex(index).GetXYZ(),
+												   array->GetVertex(index + 1).GetXYZ(),
+												   array->GetVertex(index + 2).GetXYZ(),
 												   face);
 						}
 					}

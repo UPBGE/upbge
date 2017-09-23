@@ -171,7 +171,7 @@ PyObject *KX_MeshProxy::PyGetVertex(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	RAS_IVertex *vertex = array->GetVertex(vertexindex);
+	RAS_Vertex vertex = array->GetVertex(vertexindex);
 
 	return (new KX_VertexProxy(array, vertex))->NewProxy(true);
 }
@@ -226,8 +226,8 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 		ok = true;
 
 		for (unsigned int j = 0, size = array->GetVertexCount(); j < size; ++j) {
-			RAS_IVertex *vert = array->GetVertex(j);
-			vert->Transform(transform, ntransform);
+			RAS_Vertex vert = array->GetVertex(j);
+			vert.Transform(transform, ntransform);
 		}
 
 		array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED |
@@ -295,17 +295,17 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 		ok = true;
 
 		for (unsigned int j = 0, size = array->GetVertexCount(); j < size; ++j) {
-			RAS_IVertex *vert = array->GetVertex(j);
+			RAS_Vertex vert = array->GetVertex(j);
 			if (uvindex_from != -1) {
-				vert->SetUV(uvindex, vert->getUV(uvindex_from));
+				vert.SetUV(uvindex, vert.GetUv(uvindex_from));
 			}
 
 			if (uvindex >= 0) {
-				vert->TransformUV(uvindex, transform);
+				vert.TransformUv(uvindex, transform);
 			}
 			else if (uvindex == -1) {
 				for (int i = 0; i < RAS_Texture::MaxUnits; ++i) {
-					vert->TransformUV(i, transform);
+					vert.TransformUv(i, transform);
 				}
 			}
 		}

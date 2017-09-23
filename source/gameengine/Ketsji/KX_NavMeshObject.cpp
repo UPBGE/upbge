@@ -31,7 +31,7 @@
 #include "KX_NavMeshObject.h"
 #include "RAS_MeshObject.h"
 #include "RAS_IDisplayArray.h"
-#include "RAS_IVertex.h"
+#include "RAS_Vertex.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -256,7 +256,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 			// Convert location of all vertices and remap if vertices weren't already converted.
 			for (unsigned int j = 0, numvert = array->GetVertexCount(); j < numvert; ++j) {
 				const RAS_VertexInfo& info = array->GetVertexInfo(j);
-				const unsigned int origIndex = info.getOrigIndex();
+				const unsigned int origIndex = info.GetOrigIndex();
 				/* Avoid double conversion of two unique vertices using the same base:
 				* using the same original vertex and so the same position.
 				*/
@@ -264,19 +264,18 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 					continue;
 				}
 
-				RAS_IVertex *vert = array->GetVertex(j);
-				const float *pos = vert->getXYZ();
+				RAS_Vertex vert = array->GetVertex(j);
+				const float *pos = vert.GetXYZ();
 				copy_v3_v3(&vertices[curvert * 3], pos);
 
 				// Register the vertex index where the position was converted in m_vertexArray.
 				vertRemap[origIndex] = curvert++;
-				vert += 3;
 			}
 
 			for (unsigned int j = 0, numtris = array->GetTriangleIndexCount(); j < numtris; ++j) {
 				const unsigned int index = array->GetTriangleIndex(j);
 				const RAS_VertexInfo& info = array->GetVertexInfo(index);
-				const unsigned int origIndex = info.getOrigIndex();
+				const unsigned int origIndex = info.GetOrigIndex();
 				polys[curind++] = vertRemap[origIndex];
 			}
 		}

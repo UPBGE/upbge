@@ -27,97 +27,228 @@
 #ifndef __RAS_TEXVERT_H__
 #define __RAS_TEXVERT_H__
 
-#include "RAS_IVertex.h"
+#include "RAS_VertexData.h"
 
-template <class Vertex>
-class RAS_DisplayArray;
+#include "MT_Matrix4x4.h"
 
-template <unsigned int uvSize, unsigned int colorSize>
-class RAS_Vertex : public RAS_IVertex
+#include "BLI_math_vector.h"
+
+/// Struct used to pass the vertex format to functions.
+struct RAS_VertexFormat
 {
-friend class RAS_DisplayArray<RAS_Vertex<uvSize, colorSize> >;
+	unsigned short uvSize;
+	unsigned short colorSize;
+};
+
+/// Operators used to compare the contents (uv size, color size, ...) of two vertex formats.
+bool operator== (const RAS_VertexFormat& format1, const RAS_VertexFormat& format2);
+bool operator!= (const RAS_VertexFormat& format1, const RAS_VertexFormat& format2);
+
+class RAS_VertexInfo
+{
 public:
 	enum {
-		UvSize = uvSize,
-		ColorSize = colorSize
+		FLAT = 1,
 	};
 
 private:
-	float m_uvs[UvSize][2];
-	unsigned int m_rgba[ColorSize];
+	unsigned int m_origindex;
+	short m_softBodyIndex;
+	short m_flag;
 
 public:
-	RAS_Vertex()
+	RAS_VertexInfo(unsigned int origindex, bool flat);
+	~RAS_VertexInfo();
+
+	inline const unsigned int GetOrigIndex() const
+	{
+		return m_origindex;
+	}
+
+	inline short int GetSoftBodyIndex() const
+	{
+		return m_softBodyIndex;
+	}
+
+	inline void SetSoftBodyIndex(short int sbIndex)
+	{
+		m_softBodyIndex = sbIndex;
+	}
+
+	inline const short GetFlag() const
+	{
+		return m_flag;
+	}
+
+	inline void SetFlag(const short flag)
+	{
+		m_flag = flag;
+	}
+};
+
+class RAS_Vertex
+{
+public:
+	enum {
+		MAX_UNIT = 8
+	};
+
+private:
+	RAS_IVertexData *m_data;
+	RAS_VertexFormat m_format;
+
+	inline float *GetUvInternal(const unsigned short index) const
+	{
+		return (float *)(intptr_t(m_data) + (sizeof(RAS_VertexDataBasic) + sizeof(float[2]) * index));
+	}
+
+	inline unsigned int *GetColorInternal(const unsigned short index) const
+	{
+		return (unsigned int *)(intptr_t(m_data) + (sizeof(RAS_VertexDataBasic) + sizeof(float[2]) * m_format.uvSize + sizeof(unsigned int) * index));
+	}
+
+public:
+	RAS_Vertex(RAS_IVertexData *data, const RAS_VertexFormat& format)
+		:m_data(data),
+		m_format(format)
 	{
 	}
 
-	RAS_Vertex(const MT_Vector3& xyz,
-	            const MT_Vector2 uvs[UvSize],
-	            const MT_Vector4& tangent,
-				const unsigned int rgba[ColorSize],
-	            const MT_Vector3& normal)
-		:RAS_IVertex(xyz, tangent, normal)
-	{
-		for (int i = 0; i < UvSize; ++i) {
-			uvs[i].getValue(m_uvs[i]);
-		}
-
-		for (unsigned short i = 0; i < ColorSize; ++i) {
-			m_rgba[i] = rgba[i];
-		}
-	}
-
-	virtual ~RAS_Vertex()
+	~RAS_Vertex()
 	{
 	}
 
-	virtual const unsigned short getUvSize() const
+	inline RAS_IVertexData *GetData() const
 	{
-		return UvSize;
+		return m_data;
 	}
 
-	virtual const float *getUV(const int unit) const
+	inline const RAS_VertexFormat& GetFormat() const
 	{
-		return m_uvs[unit];
+		return m_format;
 	}
 
-	virtual void SetUV(const int index, const MT_Vector2& uv)
+	inline const float *GetXYZ() const
 	{
-		uv.getValue(m_uvs[index]);
+		return m_data->position;
 	}
 
-	virtual void SetUV(const int index, const float uv[2])
+	inline const float *GetNormal() const
 	{
-		copy_v2_v2(m_uvs[index], uv);
+		return m_data->normal;
 	}
 
-	virtual const unsigned short getColorSize() const
+	inline const float *GetTangent() const
 	{
-		return ColorSize;
+		return m_data->tangent;
 	}
 
-	virtual const unsigned char *getRGBA(const int index) const
+	inline MT_Vector3 xyz() const
 	{
-		return (unsigned char *)&m_rgba[index];
+		return MT_Vector3(m_data->position);
 	}
 
-	virtual const unsigned int getRawRGBA(const int index) const
+	inline void SetXYZ(const MT_Vector3& xyz)
 	{
-		return m_rgba[index];
+		xyz.getValue(m_data->position);
 	}
 
-	virtual void SetRGBA(const int index, const unsigned int rgba)
+	inline void SetXYZ(const float xyz[3])
 	{
-		m_rgba[index] = rgba;
+		copy_v3_v3(m_data->position, xyz);
 	}
 
-	virtual void SetRGBA(const int index, const MT_Vector4& rgba)
+	inline void SetNormal(const MT_Vector3& normal)
 	{
-		unsigned char *colp = (unsigned char *)&m_rgba[index];
+		normal.getValue(m_data->normal);
+	}
+
+	inline void SetNormal(const float normal[3])
+	{
+		copy_v3_v3(m_data->normal, normal);
+	}
+
+	inline void SetTangent(const MT_Vector4& tangent)
+	{
+		tangent.getValue(m_data->tangent);
+	}
+
+	inline const float *GetUv(const int index) const
+	{
+		return GetUvInternal(index);
+	}
+
+	inline void SetUV(const int index, const MT_Vector2& uv)
+	{
+		uv.getValue(GetUvInternal(index));
+	}
+
+	inline void SetUV(const int index, const float uv[2])
+	{
+		copy_v2_v2(GetUvInternal(index), uv);
+	}
+
+	inline const unsigned char *GetColor(const int index) const
+	{
+		return (unsigned char *)GetColorInternal(index);
+	}
+
+	inline const unsigned int GetRawColor(const int index) const
+	{
+		return *GetColorInternal(index);
+	}
+
+	inline void SetRGBA(const int index, const unsigned int rgba)
+	{
+		*GetColorInternal(index) = rgba;
+	}
+
+	inline void SetRGBA(const int index, const MT_Vector4& rgba)
+	{
+		unsigned char *colp = (unsigned char *)GetColorInternal(index);
 		colp[0] = (unsigned char)(rgba[0] * 255.0f);
 		colp[1] = (unsigned char)(rgba[1] * 255.0f);
 		colp[2] = (unsigned char)(rgba[2] * 255.0f);
 		colp[3] = (unsigned char)(rgba[3] * 255.0f);
+	}
+
+	// compare two vertices, to test if they can be shared, used for
+	// splitting up based on uv's, colors, etc
+	inline const bool CloseTo(const RAS_Vertex& other)
+	{
+		BLI_assert(m_format == other.GetFormat());
+		static const float eps = FLT_EPSILON;
+		for (int i = 0, size = m_format.uvSize; i < size; ++i) {
+			if (!compare_v2v2(GetUv(i), other.GetUv(i), eps)) {
+				return false;
+			}
+		}
+
+		for (int i = 0, size = m_format.colorSize; i < size; ++i) {
+			if (GetRawColor(i) != other.GetRawColor(i)) {
+				return false;
+			}
+		}
+
+		return (/* m_flag == other->m_flag && */
+				/* at the moment the face only stores the smooth/flat setting so don't bother comparing it */
+				compare_v3v3(m_data->normal, other.m_data->normal, eps) &&
+				compare_v3v3(m_data->tangent, other.m_data->tangent, eps)
+				/* don't bother comparing m_data->position since we know there from the same vert */
+				/* && compare_v3v3(m_data->position, other->m_data->position, eps))*/
+				);
+	}
+
+	inline void Transform(const MT_Matrix4x4& mat, const MT_Matrix4x4& nmat)
+	{
+		SetXYZ((mat * MT_Vector4(m_data->position[0], m_data->position[1], m_data->position[2], 1.0f)).to3d());
+		SetNormal((nmat * MT_Vector4(m_data->normal[0], m_data->normal[1], m_data->normal[2], 1.0f)).to3d());
+		SetTangent((nmat * MT_Vector4(m_data->tangent[0], m_data->tangent[1], m_data->tangent[2], 1.0f)));
+	}
+
+	inline void TransformUv(const int index, const MT_Matrix4x4& mat)
+	{
+		SetUV(index, (mat * MT_Vector4(GetUv(index)[0], GetUv(index)[1], 0.0f, 1.0f)).to2d());
 	}
 };
 

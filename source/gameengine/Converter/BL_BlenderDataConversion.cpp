@@ -190,11 +190,11 @@ using BL_SharedVertexMap = std::vector<BL_SharedVertexList>;
 class BL_SharedVertexPredicate
 {
 private:
-	RAS_IVertex *m_vertex;
+	RAS_Vertex m_vertex;
 	RAS_IDisplayArray *m_array;
 
 public:
-	BL_SharedVertexPredicate(RAS_IVertex *vertex, RAS_IDisplayArray *array)
+	BL_SharedVertexPredicate(RAS_Vertex vertex, RAS_IDisplayArray *array)
 		:m_vertex(vertex),
 		m_array(array)
 	{
@@ -203,7 +203,7 @@ public:
 	bool operator()(const BL_SharedVertex& sharedVert) const
 	{
 		RAS_IDisplayArray *otherArray = sharedVert.array;
-		return (m_array == otherArray) && (otherArray->GetVertexNoCache(sharedVert.offset)->closeTo(m_vertex));
+		return (m_array == otherArray) && (otherArray->GetVertexNoCache(sharedVert.offset).CloseTo(m_vertex));
 	}
 };
 
@@ -346,7 +346,7 @@ SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 
 static void BL_GetUvRgba(const RAS_MeshObject::LayerList& layers, std::vector<MLoopUV *>& uvLayers, std::vector<MLoopCol *>& colorLayers,
                       unsigned short uvCount, unsigned short colorCount,
-                      unsigned int loop, MT_Vector2 uvs[RAS_Texture::MaxUnits], unsigned int rgba[RAS_IVertex::MAX_UNIT])
+                      unsigned int loop, MT_Vector2 uvs[RAS_Texture::MaxUnits], unsigned int rgba[RAS_Vertex::MAX_UNIT])
 {
 	// No need to initialize layers to zero as all the converted layer are all the layers needed.
 
@@ -572,7 +572,7 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 
 			BL_GetUvRgba(layersInfo.layers, uvLayers, colorLayers, layersInfo.uvCount, layersInfo.colorCount, j, uvs, rgba);
 
-			RAS_IVertex *vertex = array->CreateVertex(pt, uvs, tan, rgba, no);
+			RAS_Vertex vertex = array->CreateVertex(pt, uvs, tan, rgba, no);
 
 			BL_SharedVertexList& sharedList = sharedMap[vertid];
 			BL_SharedVertexList::iterator it = std::find_if(sharedList.begin(), sharedList.end(),
@@ -591,7 +591,6 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 
 			// Add tracked vertices by the mpoly.
 			vertices[vertid] = offset;
-			delete vertex;
 		}
 
 		const unsigned int ltstart = poly_to_tri_count(i, mpoly.loopstart);

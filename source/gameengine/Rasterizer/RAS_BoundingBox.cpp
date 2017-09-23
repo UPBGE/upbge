@@ -166,8 +166,8 @@ void RAS_MeshBoundingBox::Update(bool force)
 	for (RAS_IDisplayArray *displayArray : m_displayArrayList) {
 		// For each vertex.
 		for (unsigned int i = 0, size = displayArray->GetVertexCount(); i < size; ++i) {
-			RAS_IVertex *vert = displayArray->GetVertex(i);
-			const MT_Vector3 vertPos = vert->xyz();
+			RAS_Vertex vert = displayArray->GetVertex(i);
+			const MT_Vector3 vertPos = vert.xyz();
 
 			m_aabbMin.x() = std::min(m_aabbMin.x(), vertPos.x());
 			m_aabbMin.y() = std::min(m_aabbMin.y(), vertPos.y());

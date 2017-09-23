@@ -69,7 +69,7 @@ RAS_IDisplayArray::~RAS_IDisplayArray()
 
 #define NEW_DISPLAY_ARRAY_UV(vertformat, uv, color, primtype) \
 	if (vertformat.uvSize == uv && vertformat.colorSize == color) { \
-		return new RAS_DisplayArray<RAS_Vertex<uv, color> >(primtype, vertformat); \
+		return new RAS_DisplayArray<RAS_VertexData<uv, color> >(primtype, vertformat); \
 	}
 
 #define NEW_DISPLAY_ARRAY_COLOR(vertformat, color, primtype) \
@@ -117,7 +117,7 @@ void RAS_IDisplayArray::SortPolygons(const MT_Transform& transform, unsigned int
 			for (unsigned short j = 0; j < 3; ++j) {
 				/* Note that we don't divide by 3 as it is not needed
 				 * to compare polygons. */
-				center += GetVertex(m_primitiveIndices[i * 3 + j])->xyz();
+				center += GetVertex(m_primitiveIndices[i * 3 + j]).xyz();
 			}
 		}
 	}
@@ -168,32 +168,32 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 {
 	if (flag & TANGENT_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			GetVertex(i)->SetTangent(MT_Vector4(other->GetVertex(i)->getTangent()));
+			GetVertex(i).SetTangent(MT_Vector4(other->GetVertex(i).GetTangent()));
 		}
 	}
 	if (flag & UVS_MODIFIED) {
 		const unsigned short uvSize = min_ii(GetVertexUvSize(), other->GetVertexUvSize());
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			for (unsigned int uv = 0; uv < uvSize; ++uv) {
-				GetVertex(i)->SetUV(uv, MT_Vector2(other->GetVertex(i)->getUV(uv)));
+				GetVertex(i).SetUV(uv, MT_Vector2(other->GetVertex(i).GetUv(uv)));
 			}
 		}
 	}
 	if (flag & POSITION_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			GetVertex(i)->SetXYZ(MT_Vector3(other->GetVertex(i)->getXYZ()));
+			GetVertex(i).SetXYZ(MT_Vector3(other->GetVertex(i).GetXYZ()));
 		}
 	}
 	if (flag & NORMAL_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			GetVertex(i)->SetNormal(MT_Vector3(other->GetVertex(i)->getNormal()));
+			GetVertex(i).SetNormal(MT_Vector3(other->GetVertex(i).GetNormal()));
 		}
 	}
 	if (flag & COLORS_MODIFIED) {
 		const unsigned short colorSize = min_ii(GetVertexColorSize(), other->GetVertexColorSize());
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			for (unsigned int color = 0; color < colorSize; ++color) {
-				GetVertex(i)->SetRGBA(color, other->GetVertex(i)->getRawRGBA(color));
+				GetVertex(i).SetRGBA(color, other->GetVertex(i).GetRawColor(color));
 			}
 		}
 	}

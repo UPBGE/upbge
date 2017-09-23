@@ -1817,7 +1817,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 		// Convert location of all vertices and remap if vertices weren't already converted.
 		for (unsigned int j = 0, numvert = array->GetVertexCount(); j < numvert; ++j) {
 			const RAS_VertexInfo& info = array->GetVertexInfo(j);
-			const unsigned int origIndex = info.getOrigIndex();
+			const unsigned int origIndex = info.GetOrigIndex();
 			/* Avoid double conversion of two unique vertices using the same base:
 			 * using the same original vertex and so the same position.
 			 */
@@ -1825,8 +1825,8 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 				continue;
 			}
 
-			RAS_IVertex *vert = array->GetVertex(j);
-			const float *pos = vert->getXYZ();
+			RAS_Vertex vert = array->GetVertex(j);
+			const float *pos = vert.GetXYZ();
 			m_vertexArray[curVert * 3] = pos[0];
 			m_vertexArray[curVert * 3 + 1] = pos[1];
 			m_vertexArray[curVert * 3 + 2] = pos[2];
@@ -1859,13 +1859,13 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 					const unsigned int curInd = curTri * 3 + k;
 
 					// Convert UV for raycast UV computation.
-					RAS_IVertex *vert = array->GetVertex(index);
-					const float *uv = vert->getUV(0);
+					RAS_Vertex vert = array->GetVertex(index);
+					const float *uv = vert.GetUv(0);
 					m_triFaceUVcoArray[curInd] = {{uv[0], uv[1]}};
 
 					// Get vertex index from original index to m_vertexArray vertex index.
 					const RAS_VertexInfo& info = array->GetVertexInfo(index);
-					const unsigned int origIndex = info.getOrigIndex();
+					const unsigned int origIndex = info.GetOrigIndex();
 					m_triFaceArray[curInd] = m_vertexRemap[origIndex];
 				}
 				++curTri;
