@@ -318,9 +318,6 @@ private:
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, RAS_DebugDraw> m_debugDraws;
 
-	/* fogging vars */
-	bool m_fogenabled;
-
 	double m_time;
 	MT_Vector3 m_ambient;
 	MT_Matrix4x4 m_viewmatrix;
@@ -590,7 +587,6 @@ public:
 	 * Fog
 	 */
 	void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
-	void DisplayFog();
 	void EnableFog(bool enable);
 	
 	/**

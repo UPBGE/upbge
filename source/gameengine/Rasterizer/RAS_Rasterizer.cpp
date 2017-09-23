@@ -195,8 +195,7 @@ RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextRenderOffScreen(RAS_Rasterizer
 }
 
 RAS_Rasterizer::RAS_Rasterizer()
-	:m_fogenabled(false),
-	m_time(0.0f),
+	:m_time(0.0f),
 	m_ambient(0.0f, 0.0f, 0.0f),
 	m_campos(0.0f, 0.0f, 0.0f),
 	m_camortho(false),
@@ -269,17 +268,7 @@ void RAS_Rasterizer::SetFog(short type, float start, float dist, float intensity
 
 void RAS_Rasterizer::EnableFog(bool enable)
 {
-	m_fogenabled = enable;
-}
-
-void RAS_Rasterizer::DisplayFog()
-{
-	if (m_fogenabled) {
-		Enable(RAS_FOG);
-	}
-	else {
-		Disable(RAS_FOG);
-	}
+	Enable(RAS_FOG);
 }
 
 void RAS_Rasterizer::Init()

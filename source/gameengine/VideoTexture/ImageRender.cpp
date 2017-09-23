@@ -313,7 +313,6 @@ bool ImageRender::Render()
 
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
-	m_rasterizer->DisplayFog();
 
 	if (m_mirror)
 	{
