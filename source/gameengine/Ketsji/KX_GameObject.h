@@ -919,7 +919,7 @@ public:
 	KX_PYMETHOD_VARARGS(KX_GameObject,GetAngularVelocity);
 	KX_PYMETHOD_VARARGS(KX_GameObject,SetAngularVelocity);
 	KX_PYMETHOD_VARARGS(KX_GameObject,GetVelocity);
-	KX_PYMETHOD_VARARGS(KX_GameObject,SetDamping);
+	KX_PYMETHOD(KX_GameObject,SetDamping);
 
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetReactionForce);
 
@@ -929,7 +929,7 @@ public:
 	KX_PYMETHOD_VARARGS(KX_GameObject,SetOcclusion);
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetState);
 	KX_PYMETHOD_O(KX_GameObject,SetState);
-	KX_PYMETHOD_VARARGS(KX_GameObject,AlignAxisToVect);
+	KX_PYMETHOD(KX_GameObject,AlignAxisToVect);
 	KX_PYMETHOD_O(KX_GameObject,GetAxisVect);
 	KX_PYMETHOD_VARARGS(KX_GameObject,SuspendPhysics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestorePhysics);
@@ -937,24 +937,24 @@ public:
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestoreDynamics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,EnableRigidBody);
 	KX_PYMETHOD_NOARGS(KX_GameObject,DisableRigidBody);
-	KX_PYMETHOD_VARARGS(KX_GameObject,ApplyImpulse);
+	KX_PYMETHOD(KX_GameObject,ApplyImpulse);
 	KX_PYMETHOD_O(KX_GameObject,SetCollisionMargin);
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetParent);
-	KX_PYMETHOD_VARARGS(KX_GameObject,SetParent);
+	KX_PYMETHOD(KX_GameObject,SetParent);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RemoveParent);
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetChildren);
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetChildrenRecursive);
 	KX_PYMETHOD_VARARGS(KX_GameObject,GetMesh);
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetPhysicsId);
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetPropertyNames);
-	KX_PYMETHOD_VARARGS(KX_GameObject,ReplaceMesh);
+	KX_PYMETHOD(KX_GameObject,ReplaceMesh);
 	KX_PYMETHOD_NOARGS(KX_GameObject,EndObject);
 	KX_PYMETHOD_DOC(KX_GameObject,rayCastTo);
 	KX_PYMETHOD_DOC(KX_GameObject,rayCast);
 	KX_PYMETHOD_DOC_O(KX_GameObject,getDistanceTo);
 	KX_PYMETHOD_DOC_O(KX_GameObject,getVectTo);
-	KX_PYMETHOD_DOC_VARARGS(KX_GameObject, sendMessage);
-	KX_PYMETHOD_VARARGS(KX_GameObject, ReinstancePhysicsMesh);
+	KX_PYMETHOD_DOC(KX_GameObject, sendMessage);
+	KX_PYMETHOD(KX_GameObject, ReinstancePhysicsMesh);
 	KX_PYMETHOD_O(KX_GameObject, ReplacePhysicsShape);
 	KX_PYMETHOD_DOC(KX_GameObject, addDebugProperty);
 
