@@ -298,7 +298,7 @@ std::string RAS_Shader::GetParsedProgram(ProgramType type) const
 	return prog;
 }
 
-bool RAS_Shader::LinkProgram()
+bool RAS_Shader::LinkProgram(bool isCustomShader)
 {
 	std::string vert;
 	std::string frag;
@@ -316,8 +316,8 @@ bool RAS_Shader::LinkProgram()
 	vert = GetParsedProgram(VERTEX_PROGRAM);
 	frag = GetParsedProgram(FRAGMENT_PROGRAM);
 	geom = GetParsedProgram(GEOMETRY_PROGRAM);
-	m_shader = GPU_shader_create(vert.c_str(), frag.c_str(), geom.empty() ? nullptr : geom.c_str(),
-									nullptr, nullptr);
+	m_shader = GPU_shader_create_ex(vert.c_str(), frag.c_str(), geom.empty() ? nullptr : geom.c_str(),
+									nullptr, nullptr, isCustomShader ? GPU_SHADER_FLAGS_CUSTOM_MAT_SHADER : GPU_SHADER_FLAGS_NONE);
 	if (!m_shader) {
 		goto program_error;
 	}

@@ -131,7 +131,7 @@ protected:
 	std::string GetParsedProgram(ProgramType type) const;
 
 	// Compiles and links the shader
-	virtual bool LinkProgram();
+	virtual bool LinkProgram(bool isCustomShader);
 	void ValidateProgram();
 
 	// search by location

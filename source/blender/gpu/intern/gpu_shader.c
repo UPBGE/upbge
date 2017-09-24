@@ -291,6 +291,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	bool use_opensubdiv = false;
 #endif
 	bool use_instancing = (flags & GPU_SHADER_FLAGS_SPECIAL_INSTANCING) != 0;
+	bool use_custom_mat_shader = (flags & GPU_SHADER_FLAGS_CUSTOM_MAT_SHADER) != 0;
 	GLint status;
 	GLchar log[5000];
 	GLsizei length = 0;
@@ -330,7 +331,9 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		/* custom limit, may be too small, beware */
 		int num_source = 0;
 
-		source[num_source++] = gpu_shader_version();
+		if (!use_custom_mat_shader) {
+			source[num_source++] = gpu_shader_version();
+		}
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
 
@@ -356,7 +359,9 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		const char *source[7];
 		int num_source = 0;
 
-		source[num_source++] = gpu_shader_version();
+		if (!use_custom_mat_shader) {
+			source[num_source++] = gpu_shader_version();
+		}
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
 
@@ -395,7 +400,9 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		const char *source[5];
 		int num_source = 0;
 
-		source[num_source++] = gpu_shader_version();
+		if (!use_custom_mat_shader) {
+			source[num_source++] = gpu_shader_version();
+		}
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
 

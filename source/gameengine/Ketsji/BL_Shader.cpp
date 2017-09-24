@@ -215,7 +215,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 		m_progs[FRAGMENT_PROGRAM] = std::string(f);
 		m_progs[GEOMETRY_PROGRAM] = "";
 
-		if (LinkProgram()) {
+		if (LinkProgram(true)) {
 			SetProg(true);
 			m_use = apply != 0;
 			Py_RETURN_NONE;
@@ -274,7 +274,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
 		return nullptr;
 	}
 
-	if (LinkProgram()) {
+	if (LinkProgram(true)) {
 		SetProg(true);
 		m_use = apply != 0;
 	}
