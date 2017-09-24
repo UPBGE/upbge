@@ -181,6 +181,14 @@ RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextRenderOffScreen(RAS_Rasterizer
 		{
 			return RAS_OFFSCREEN_EYE_LEFT0;
 		}
+		case RAS_OFFSCREEN_IMRENDER0:
+		{
+			return RAS_OFFSCREEN_IMRENDER1;
+		}
+		case RAS_OFFSCREEN_IMRENDER1:
+		{
+			return RAS_OFFSCREEN_IMRENDER0;
+		}
 		case RAS_OFFSCREEN_EYE_RIGHT0:
 		{
 			return RAS_OFFSCREEN_EYE_RIGHT1;

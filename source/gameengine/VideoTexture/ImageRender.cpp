@@ -107,9 +107,9 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 		m_internalFormat = GL_RGBA8;
 	}
 
-	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
+	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_IMRENDER0));
 	if (m_samples > 0) {
-		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
+		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_IMRENDER0));
 		m_finalOffScreen = m_blitOffScreen.get();
 	}
 	else {
@@ -210,10 +210,15 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 
 	m_finalOffScreen->Bind();
 
-	// wait until all render operations are completed
+	// wait until all render operations are completed: TO DO: Remove sync and rename this MipMapTexture
 	WaitSync();
+
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
+
+	// We need to tonemap the rendered texture so we post render the scene
+	RAS_Rasterizer::OffScreenType target = RAS_Rasterizer::NextRenderOffScreen(m_finalOffScreen->GetType());
+	m_finalOffScreen = m_engine->PostRenderScene(m_scene, m_offScreen.get(), m_rasterizer->GetOffScreen(target));
 
 	RAS_OffScreen::RestoreScreen();
 }
@@ -887,9 +892,9 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 		m_internalFormat = GL_RGBA8;
 	}
 
-	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
+	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_IMRENDER0));
 	if (m_samples > 0) {
-		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
+		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_IMRENDER0));
 		m_finalOffScreen = m_blitOffScreen.get();
 	}
 	else {
