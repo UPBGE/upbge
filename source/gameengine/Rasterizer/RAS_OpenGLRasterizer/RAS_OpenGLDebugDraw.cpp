@@ -40,6 +40,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 {
 	rasty->SetFrontFace(true);
 	rasty->SetAlphaBlend(GPU_BLEND_ALPHA);
+	rasty->DisableLights();
 
 	// draw lines
 	glBegin(GL_LINES);
