@@ -266,11 +266,6 @@ void RAS_Rasterizer::SetFog(short type, float start, float dist, float intensity
 	m_impl->SetFog(type, start, dist, intensity, color);
 }
 
-void RAS_Rasterizer::EnableFog(bool enable)
-{
-	Enable(RAS_FOG);
-}
-
 void RAS_Rasterizer::Init()
 {
 	GPU_state_init();
@@ -348,8 +343,6 @@ void RAS_Rasterizer::EndFrame()
 	SetColorMask(true, true, true, true);
 
 	Disable(RAS_MULTISAMPLE);
-
-	Disable(RAS_FOG);
 }
 
 void RAS_Rasterizer::SetDrawingMode(RAS_Rasterizer::DrawType drawingmode)

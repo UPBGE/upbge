@@ -97,8 +97,6 @@ public:
 	void SetScissor(int x, int y, int width, int height);
 
 	void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
-	void EnableFog(bool enable);
-	void DisplayFog();
 
 	void SetLines(bool enable);
 

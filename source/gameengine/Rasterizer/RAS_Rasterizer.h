@@ -178,7 +178,6 @@ public:
 		RAS_BLEND,
 		RAS_COLOR_MATERIAL,
 		RAS_CULL_FACE,
-		RAS_FOG,
 		RAS_LIGHTING,
 		RAS_MULTISAMPLE,
 		RAS_POLYGON_STIPPLE,
@@ -584,7 +583,6 @@ public:
 	 * Fog
 	 */
 	void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
-	void EnableFog(bool enable);
 	
 	/**
 	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW or RAS_TEXTURED.
