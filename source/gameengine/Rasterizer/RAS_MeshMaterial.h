@@ -56,7 +56,12 @@ private:
 
 public:
 	RAS_MeshMaterial(RAS_Mesh *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format);
+	/** Copy mesh material for a given mesh object.
+	 * \param mesh Owner of copied mesh material.
+	 */
+	RAS_MeshMaterial(const RAS_MeshMaterial& other, RAS_Mesh *mesh);
 	~RAS_MeshMaterial();
+
 
 	unsigned int GetIndex() const;
 	RAS_MaterialBucket *GetBucket() const;

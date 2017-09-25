@@ -151,3 +151,9 @@ base class --- :class:`EXP_Value`
 
          Changing the material of a mesh used by many objects can be slow. This function should be not called every frames
 
+   .. method:: copy()
+
+      Return a duplicated mesh.
+
+      :return: a duplicated mesh of the current used.
+      :rtype: :class:`KX_Mesh`.

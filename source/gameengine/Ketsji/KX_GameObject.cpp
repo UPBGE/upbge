@@ -3127,7 +3127,7 @@ PyObject *KX_GameObject::pyattr_get_meshes(EXP_PyObjectPlus *self_v, const EXP_P
 		Py_INCREF(item);
 		PyList_SET_ITEM(meshes, i, item);
 	}
-	
+
 	return meshes;
 }
 

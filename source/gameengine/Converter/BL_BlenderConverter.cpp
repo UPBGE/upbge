@@ -237,8 +237,12 @@ void BL_BlenderConverter::ConvertScene(BL_BlenderSceneConverter& converter, bool
 	m_sceneSlots.emplace(scene, converter);
 }
 
-void BL_BlenderConverter::InitSceneShaders(const BL_BlenderSceneConverter& converter, KX_Scene *mergeScene)
+void BL_BlenderConverter::FinalizeSceneData(const BL_BlenderSceneConverter& converter, KX_Scene *mergeScene)
 {
+	for (KX_Mesh *mesh : converter.m_meshobjects) {
+		mesh->ReplaceScene(mergeScene);
+	}
+
 	for (KX_BlenderMaterial *mat : converter.m_materials) {
 		// Do this after lights are available so materials can use the lights in shaders.
 		mat->InitScene(mergeScene);
@@ -286,6 +290,11 @@ BL_InterpolatorList *BL_BlenderConverter::FindInterpolatorList(KX_Scene *scene, 
 	return m_sceneSlots[scene].m_actionToInterp[for_act];
 }
 
+void BL_BlenderConverter::RegisterMesh(KX_Scene *scene, KX_Mesh *mesh)
+{
+	m_sceneSlots[scene].m_meshobjects.emplace_back(mesh);
+}
+
 Main *BL_BlenderConverter::CreateMainDynamic(const std::string& path)
 {
 	Main *maggie = BKE_main_new();
@@ -321,7 +330,7 @@ void BL_BlenderConverter::MergeAsyncLoads()
 			KX_Scene *scene = converter.GetScene();
 			MergeScene(mergeScene, scene);
 			// Finalize material and mesh conversion.
-			InitSceneShaders(converter, mergeScene);
+			FinalizeSceneData(converter, mergeScene);
 			delete scene;
 		}
 
@@ -479,7 +488,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *blendlib, cons
 		}
 
 		// Finalize material and mesh conversion.
-		InitSceneShaders(sceneConverter, scene_merge);
+		FinalizeSceneData(sceneConverter, scene_merge);
 		m_sceneSlots[scene_merge].Merge(sceneConverter);
 	}
 	else if (idcode == ID_AC) {
@@ -525,7 +534,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *blendlib, cons
 				MergeScene(scene_merge, other);
 
 				// Finalize material and mesh conversion.
-				InitSceneShaders(sceneConverter, scene_merge);
+				FinalizeSceneData(sceneConverter, scene_merge);
 
 				delete other;
 			}
@@ -836,7 +845,7 @@ KX_Mesh *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggi
 	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 
 	// Finalize material and mesh conversion.
-	InitSceneShaders(sceneConverter, kx_scene);
+	FinalizeSceneData(sceneConverter, kx_scene);
 	m_sceneSlots[kx_scene].Merge(sceneConverter);
 
 	return meshobj;

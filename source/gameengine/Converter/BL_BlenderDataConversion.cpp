@@ -453,7 +453,7 @@ KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_Blende
 	vertformat.uvSize = max_ii(1, uvCount);
 	vertformat.colorSize = max_ii(1, colorCount);
 
-	meshobj = new KX_Mesh(me, layersInfo);
+	meshobj = new KX_Mesh(scene, me, layersInfo);
 
 	const unsigned short totmat = max_ii(me->totcol, 1);
 	std::vector<BL_MeshMaterial> mats(totmat);

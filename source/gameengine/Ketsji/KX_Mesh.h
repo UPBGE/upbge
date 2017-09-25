@@ -38,6 +38,7 @@
 
 class KX_Mesh;
 class SCA_LogicManager;
+class KX_Scene;
 
 #ifdef WITH_PYTHON
 // utility conversion function
@@ -49,12 +50,18 @@ class KX_Mesh : public EXP_Value, public RAS_Mesh
 {
 	Py_Header
 
+private:
+	KX_Scene *m_scene;
+
 public:
-	KX_Mesh(Mesh *mesh, const LayersInfo& layersInfo);
+	KX_Mesh(KX_Scene *scene, Mesh *mesh, const LayersInfo& layersInfo);
+	KX_Mesh(const KX_Mesh& other);
 	virtual ~KX_Mesh();
 
 	// stuff for cvalue related things
 	virtual std::string GetName();
+
+	void ReplaceScene(KX_Scene *scene);
 
 #ifdef WITH_PYTHON
 
@@ -68,6 +75,7 @@ public:
 	EXP_PYMETHOD(KX_Mesh, Transform);
 	EXP_PYMETHOD(KX_Mesh, TransformUV);
 	EXP_PYMETHOD(KX_Mesh, ReplaceMaterial);
+	EXP_PYMETHOD_NOARGS(KX_Mesh, Copy);
 
 	static PyObject *pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_numMaterials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

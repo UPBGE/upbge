@@ -51,6 +51,18 @@ RAS_Mesh::RAS_Mesh(Mesh *mesh, const LayersInfo& layersInfo)
 {
 }
 
+RAS_Mesh::RAS_Mesh(const RAS_Mesh& other)
+	:m_name(other.m_name),
+	m_layersInfo(other.m_layersInfo),
+	m_boundingBox(nullptr),
+	m_mesh(other.m_mesh)
+{
+	for (RAS_MeshMaterial *meshmat : other.m_materials) {
+		RAS_MeshMaterial *newmeshmat = new RAS_MeshMaterial(*meshmat, this);
+		m_materials.push_back(newmeshmat);
+	}
+}
+
 RAS_Mesh::~RAS_Mesh()
 {
 	for (RAS_MeshMaterial *meshmat : m_materials) {

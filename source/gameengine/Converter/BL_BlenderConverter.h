@@ -118,7 +118,7 @@ public:
 	 * \param converter The scene convert to finalize.
 	 * \param mergeScene The scene used to generate shaders.
 	 */
-	void InitSceneShaders(const BL_BlenderSceneConverter& converter, KX_Scene *mergeScene);
+	void FinalizeSceneData(const BL_BlenderSceneConverter& converter, KX_Scene *mergeScene);
 
 	/** This function removes all entities stored in the converter for that scene
 	 * It should be used instead of direct delete scene
@@ -133,6 +133,8 @@ public:
 
 	void RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *interpolator, bAction *for_act);
 	BL_InterpolatorList *FindInterpolatorList(KX_Scene *scene, bAction *for_act);
+	/// Register a mesh object copy.
+	void RegisterMesh(KX_Scene *scene, KX_Mesh *mesh);
 
 	Scene *GetBlenderSceneForName(const std::string& name);
 	EXP_ListValue<EXP_StringValue> *GetInactiveSceneNames();

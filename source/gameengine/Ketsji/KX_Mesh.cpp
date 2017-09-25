@@ -31,6 +31,11 @@
 
 #include "KX_Mesh.h"
 #include "KX_Scene.h"
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
+
+#include "BL_BlenderConverter.h"
+
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_BucketManager.h"
@@ -48,13 +53,25 @@
 #include "EXP_PyObjectPlus.h"
 #include "EXP_ListWrapper.h"
 
-KX_Mesh::KX_Mesh(Mesh *mesh, const RAS_Mesh::LayersInfo& layersInfo)
-	:RAS_Mesh(mesh, layersInfo)
+KX_Mesh::KX_Mesh(KX_Scene *scene, Mesh *mesh, const RAS_Mesh::LayersInfo& layersInfo)
+	:RAS_Mesh(mesh, layersInfo),
+	m_scene(scene)
+{
+}
+
+KX_Mesh::KX_Mesh(const KX_Mesh& other)
+	:RAS_Mesh(other),
+	m_scene(other.m_scene)
 {
 }
 
 KX_Mesh::~KX_Mesh()
 {
+}
+
+void KX_Mesh::ReplaceScene(KX_Scene *scene)
+{
+	m_scene = scene;
 }
 
 #ifdef WITH_PYTHON
@@ -90,6 +107,7 @@ PyMethodDef KX_Mesh::Methods[] = {
 	{"transform", (PyCFunction) KX_Mesh::sPyTransform, METH_VARARGS},
 	{"transformUV", (PyCFunction) KX_Mesh::sPyTransformUV, METH_VARARGS},
 	{"replaceMaterial", (PyCFunction) KX_Mesh::sPyReplaceMaterial, METH_VARARGS},
+	{"copy", (PyCFunction) KX_Mesh::sPyCopy, METH_NOARGS},
 	{nullptr, nullptr} //Sentinel
 };
 
@@ -357,6 +375,18 @@ PyObject *KX_Mesh::PyReplaceMaterial(PyObject *args, PyObject *kwds)
 	meshmat->ReplaceMaterial(bucket);
 
 	Py_RETURN_NONE;
+}
+
+PyObject *KX_Mesh::PyCopy()
+{
+	KX_Mesh *dupli = new KX_Mesh(*this);
+	// Create bounding box.
+	dupli->EndConversion(m_scene->GetBoundingBoxManager());
+
+	// Transfer ownership to converter.
+	KX_GetActiveEngine()->GetConverter()->RegisterMesh(m_scene, dupli);
+
+	return dupli->GetProxy();
 }
 
 PyObject *KX_Mesh::pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
