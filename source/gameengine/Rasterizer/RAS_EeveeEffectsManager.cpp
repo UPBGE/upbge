@@ -175,6 +175,8 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, 
 		camToWorld[3][2] *= m_shutter;
 		copy_m4_m4(m_effects->current_ndc_to_world, camToWorld);
 
+		rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+
 		m_blurTarget->Bind();
 		DRW_draw_pass(m_psl->motion_blur);
 
@@ -292,6 +294,8 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 {
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
+	UpdateAO(inputofs);
+
 	inputofs = RenderVolumetrics(rasty, inputofs);
 
 	inputofs = RenderMotionBlur(rasty, inputofs);
@@ -299,8 +303,6 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty
 	inputofs = RenderDof(rasty, inputofs);
 
 	inputofs = RenderBloom(rasty, inputofs);
-
-	UpdateAO(inputofs);
 
 	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	
