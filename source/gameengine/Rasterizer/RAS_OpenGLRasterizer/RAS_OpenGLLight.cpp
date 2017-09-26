@@ -279,38 +279,55 @@ int RAS_OpenGLLight::GetShadowLayer()
 		return 0;
 }
 
-void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, int id, RAS_SceneLayerData *layerData)
+typedef struct EEVEE_ShadowCubeData {
+	short light_id, shadow_id, cube_id, layer_id;
+} EEVEE_ShadowCubeData;
+
+void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, Object *ob, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led, RAS_SceneLayerData *layerData)
 {
+	/**********************************************************************************************/
+	Lamp *la = (Lamp *)ob->data;
 	EEVEE_ShadowRender& srd = layerData->GetShadowRender();
-	EEVEE_ShadowCube& evsh = layerData->GetShadowCube(id);
+
+	srd.clip_near = la->clipsta;
+	srd.clip_far = la->clipend;
 
 	float projmat[4][4];
 	perspective_m4(projmat, -m_shadowclipstart, m_shadowclipstart, -m_shadowclipstart, m_shadowclipstart,
-				   m_shadowclipstart, m_shadowclipend);
+		m_shadowclipstart, m_shadowclipend);
 	const MT_Matrix4x4 proj = MT_Matrix4x4(&projmat[0][0]);
 
 	MT_Matrix4x4 view[6];
 	const MT_Matrix4x4 tmp(1.0f, 0.0f, 0.0f, -pos.x(),
-						   0.0f, 1.0f, 0.0f, -pos.y(),
-						   0.0f, 0.0f, 1.0f, -pos.z(),
-						   0.0f, 0.0f, 0.0f, 1.0f);
+		0.0f, 1.0f, 0.0f, -pos.y(),
+		0.0f, 0.0f, 1.0f, -pos.z(),
+		0.0f, 0.0f, 0.0f, 1.0f);
 
 	for (int i = 0; i < 6; ++i) {
 		view[i] = MT_Matrix4x4(&cubefacemat[i][0][0]) * tmp;
 	}
-
-	/*evsh.bias = 0.05f * m_shadowbias;
-	evsh.nearf = m_shadowclipstart;
-	evsh.farf = m_shadowclipend;
-	evsh.exp = m_shadowBleedExp;
-
-	srd.layer = id;
-	srd.exponent = m_shadowBleedExp;*/
 	pos.getValue(srd.position);
 	for (int j = 0; j < 6; j++) {
 		view[j].getValue(&srd.viewmat[j][0][0]);
 		(proj * view[j]).getValue(&srd.shadowmat[j][0][0]);
 	}
+
+	/*******************************************************************/
+	EEVEE_ShadowCubeData *sh_data = (EEVEE_ShadowCubeData *)led->storage;
+	EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
+	EEVEE_Shadow *ubo_data = linfo->shadow_data + sh_data->shadow_id;
+
+	int sh_nbr = 1; /* TODO: MSM */
+
+	ubo_data->bias = 0.05f * la->bias;
+	ubo_data->nearf = la->clipsta;
+	ubo_data->farf = la->clipend;
+	ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
+
+	evli->shadowid = (float)(sh_data->shadow_id);
+	ubo_data->shadow_start = (float)(sh_data->layer_id);
+	ubo_data->data_start = (float)(sh_data->cube_id);
+	ubo_data->multi_shadow_count = (float)(sh_nbr);
 
 	rasty->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
@@ -322,6 +339,8 @@ void RAS_OpenGLLight::UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerDa
 	layerData->PrepareShadowStore();
 
 	rasty->DrawOverlayPlane();
+
+	DRW_framebuffer_texture_detach(layerData->GetData().shadow_cube_target);
 
 // 	m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_NONE);
 

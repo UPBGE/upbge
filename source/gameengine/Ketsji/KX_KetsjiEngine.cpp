@@ -618,7 +618,7 @@ void KX_KetsjiEngine::Render()
 
 	for (KX_Scene *scene : m_scenes) {
 		// shadow buffers
-		//RenderShadowBuffers(scene);
+		RenderShadowBuffers(scene);
 		// Render only independent texture renderers here.
 // 		scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_INDEPENDENT, m_rasterizer, nullptr, nullptr, RAS_Rect(), RAS_Rect());
 	}
@@ -876,8 +876,12 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
 			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
 
+			Object *obLamp = light->GetBlenderObject();
+			EEVEE_LampEngineData *led = EEVEE_lamp_data_get(obLamp);
+			EEVEE_LampsInfo *linfo = layerData->GetData().lamps;
+
 			/* binds framebuffer object, sets up camera .. */
-			raslight->BindShadowBuffer(m_rasterizer, pos, shadowid++, layerData);
+			raslight->BindShadowBuffer(m_rasterizer, pos, obLamp, linfo, led, layerData);
 
 			KX_CullingNodeList nodes;
 			const SG_Frustum frustum(light->GetShadowFrustumMatrix().inverse());
