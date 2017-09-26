@@ -245,7 +245,7 @@ static void mesh_cd_calc_used_gpu_layers(
         struct GPUMaterial **gpumat_array, int gpumat_array_len)
 {
 	/* See: DM_vertex_attributes_from_gpu for similar logic */
-	GPUVertexAttribs gattribs = {0};
+	GPUVertexAttribs gattribs = {{{0}}};
 
 	for (int i = 0; i < gpumat_array_len; i++) {
 		GPUMaterial *gpumat = gpumat_array[i];
@@ -1420,28 +1420,39 @@ typedef struct MeshBatchCache {
 	Gwn_VertBuf *nor_in_order;
 	Gwn_IndexBuf *edges_in_order;
 	Gwn_IndexBuf *triangles_in_order;
-	Gwn_IndexBuf *overlay_triangles_vpaint;
 
 	Gwn_Batch *all_verts;
 	Gwn_Batch *all_edges;
 	Gwn_Batch *all_triangles;
 
 	Gwn_VertBuf *pos_with_normals;
-	Gwn_VertBuf *pos_with_normals_visible_only;  /* for paint modes with vert/face hide support. */
-	Gwn_VertBuf *tri_aligned_weights;
-	Gwn_VertBuf *tri_aligned_vert_colors;
-	Gwn_VertBuf *tri_aligned_select_id;
 	Gwn_VertBuf *tri_aligned_uv;  /* Active UV layer (mloopuv) */
-	Gwn_VertBuf *edge_pos_with_select_bool;
-	Gwn_VertBuf *pos_with_select_bool;
+
+	/**
+	 * Other uses are all positions or loose elements.
+	 * This stores all visible elements, needed for selection.
+	 */
+	Gwn_VertBuf *ed_fcenter_pos_with_nor_and_sel;
+	Gwn_VertBuf *ed_edge_pos;
+	Gwn_VertBuf *ed_vert_pos;
+
 	Gwn_Batch *triangles_with_normals;
 
-	/* Skip hidden (depending on paint select mode),
-	 * 'pos_with_normals' or 'pos_with_normals_visible_only'. */
+	/* Skip hidden (depending on paint select mode) */
 	Gwn_Batch *triangles_with_weights;
 	Gwn_Batch *triangles_with_vert_colors;
 	/* Always skip hidden */
+	Gwn_Batch *triangles_with_select_mask;
 	Gwn_Batch *triangles_with_select_id;
+	uint       triangles_with_select_id_offset;
+
+	Gwn_Batch *facedot_with_select_id;  /* shares vbo with 'overlay_facedots' */
+	Gwn_Batch *edges_with_select_id;
+	Gwn_Batch *verts_with_select_id;
+
+	uint facedot_with_select_id_offset;
+	uint edges_with_select_id_offset;
+	uint verts_with_select_id_offset;
 
 	Gwn_Batch *points_with_normals;
 	Gwn_Batch *fancy_edges; /* owns its vertex buffer (not shared) */
@@ -1471,9 +1482,6 @@ typedef struct MeshBatchCache {
 	Gwn_VertBuf *ed_lvert_nor; /* VertNor */
 	Gwn_VertBuf *ed_lvert_data;
 
-	Gwn_VertBuf *ed_fcenter_pos;
-	Gwn_VertBuf *ed_fcenter_nor;
-
 	Gwn_Batch *overlay_triangles;
 	Gwn_Batch *overlay_triangles_nor; /* GWN_PRIM_POINTS */
 	Gwn_Batch *overlay_loose_edges;
@@ -1486,8 +1494,8 @@ typedef struct MeshBatchCache {
 	Gwn_Batch *overlay_paint_edges;
 
 	/* settings to determine if cache is invalid */
-	bool is_dirty;
-	bool is_really_dirty; /* Instantly invalidates cache, skipping mesh check */
+	bool is_maybe_dirty;
+	bool is_dirty; /* Instantly invalidates cache, skipping mesh check */
 	int edge_len;
 	int tri_len;
 	int poly_len;
@@ -1511,18 +1519,18 @@ static bool mesh_batch_cache_valid(Mesh *me)
 
 	/* XXX find another place for this */
 	if (cache->mat_len != mesh_render_mat_len_get(me)) {
-		cache->is_dirty = true;
+		cache->is_maybe_dirty = true;
 	}
 
 	if (cache->is_editmode != (me->edit_btmesh != NULL)) {
 		return false;
 	}
 
-	if (cache->is_really_dirty) {
+	if (cache->is_dirty) {
 		return false;
 	}
 
-	if (cache->is_dirty == false) {
+	if (cache->is_maybe_dirty == false) {
 		return true;
 	}
 	else {
@@ -1564,8 +1572,8 @@ static void mesh_batch_cache_init(Mesh *me)
 
 	cache->mat_len = mesh_render_mat_len_get(me);
 
+	cache->is_maybe_dirty = false;
 	cache->is_dirty = false;
-	cache->is_really_dirty = false;
 }
 
 static MeshBatchCache *mesh_batch_cache_get(Mesh *me)
@@ -1584,27 +1592,33 @@ void DRW_mesh_batch_cache_dirty(Mesh *me, int mode)
 		return;
 	}
 	switch (mode) {
-		case BKE_MESH_BATCH_DIRTY_ALL:
-			cache->is_dirty = true;
+		case BKE_MESH_BATCH_DIRTY_MAYBE_ALL:
+			cache->is_maybe_dirty = true;
 			break;
 		case BKE_MESH_BATCH_DIRTY_SELECT:
 			GWN_VERTBUF_DISCARD_SAFE(cache->ed_tri_data);
 			GWN_VERTBUF_DISCARD_SAFE(cache->ed_ledge_data);
 			GWN_VERTBUF_DISCARD_SAFE(cache->ed_lvert_data);
-			GWN_VERTBUF_DISCARD_SAFE(cache->ed_fcenter_nor); /* Contains select flag */
+			GWN_VERTBUF_DISCARD_SAFE(cache->ed_fcenter_pos_with_nor_and_sel); /* Contains select flag */
+			GWN_VERTBUF_DISCARD_SAFE(cache->ed_edge_pos);
+			GWN_VERTBUF_DISCARD_SAFE(cache->ed_vert_pos);
+
 			GWN_BATCH_DISCARD_SAFE(cache->overlay_triangles);
 			GWN_BATCH_DISCARD_SAFE(cache->overlay_loose_verts);
 			GWN_BATCH_DISCARD_SAFE(cache->overlay_loose_edges);
-
-			BATCH_DISCARD_ALL_SAFE(cache->overlay_facedots);
+			GWN_BATCH_DISCARD_SAFE(cache->overlay_facedots);
+			/* Edit mode selection. */
+			GWN_BATCH_DISCARD_SAFE(cache->facedot_with_select_id);
+			GWN_BATCH_DISCARD_SAFE(cache->edges_with_select_id);
+			GWN_BATCH_DISCARD_SAFE(cache->verts_with_select_id);
 			break;
-		case BKE_MESH_BATCH_DIRTY_NOCHECK:
-			cache->is_really_dirty = true;
+		case BKE_MESH_BATCH_DIRTY_ALL:
+			cache->is_dirty = true;
 			break;
 		case BKE_MESH_BATCH_DIRTY_SHADING:
 			/* TODO: This should only update UV and tangent data,
 			 * and not free the entire cache. */
-			cache->is_really_dirty = true;
+			cache->is_dirty = true;
 			break;
 		case BKE_MESH_BATCH_DIRTY_SCULPT_COORDS:
 			cache->is_sculpt_points_tag = true;
@@ -1626,10 +1640,8 @@ static void mesh_batch_cache_clear(Mesh *me)
 	GWN_BATCH_DISCARD_SAFE(cache->all_triangles);
 
 	GWN_VERTBUF_DISCARD_SAFE(cache->pos_in_order);
-	GWN_VERTBUF_DISCARD_SAFE(cache->pos_with_select_bool);
 	GWN_INDEXBUF_DISCARD_SAFE(cache->edges_in_order);
 	GWN_INDEXBUF_DISCARD_SAFE(cache->triangles_in_order);
-	GWN_INDEXBUF_DISCARD_SAFE(cache->overlay_triangles_vpaint);
 
 	GWN_VERTBUF_DISCARD_SAFE(cache->ed_tri_pos);
 	GWN_VERTBUF_DISCARD_SAFE(cache->ed_tri_nor);
@@ -1640,8 +1652,6 @@ static void mesh_batch_cache_clear(Mesh *me)
 	GWN_VERTBUF_DISCARD_SAFE(cache->ed_lvert_pos);
 	GWN_VERTBUF_DISCARD_SAFE(cache->ed_lvert_nor);
 	GWN_VERTBUF_DISCARD_SAFE(cache->ed_lvert_data);
-	GWN_VERTBUF_DISCARD_SAFE(cache->ed_fcenter_pos);
-	GWN_VERTBUF_DISCARD_SAFE(cache->ed_fcenter_nor);
 	GWN_BATCH_DISCARD_SAFE(cache->overlay_triangles);
 	GWN_BATCH_DISCARD_SAFE(cache->overlay_triangles_nor);
 	GWN_BATCH_DISCARD_SAFE(cache->overlay_loose_verts);
@@ -1650,22 +1660,25 @@ static void mesh_batch_cache_clear(Mesh *me)
 
 	GWN_BATCH_DISCARD_SAFE(cache->overlay_weight_faces);
 	GWN_BATCH_DISCARD_SAFE(cache->overlay_weight_verts);
-	BATCH_DISCARD_ALL_SAFE(cache->overlay_paint_edges);
-	BATCH_DISCARD_ALL_SAFE(cache->overlay_facedots);
+	GWN_BATCH_DISCARD_SAFE(cache->overlay_paint_edges);
+	GWN_BATCH_DISCARD_SAFE(cache->overlay_facedots);
 
 	GWN_BATCH_DISCARD_SAFE(cache->triangles_with_normals);
 	GWN_BATCH_DISCARD_SAFE(cache->points_with_normals);
 	GWN_VERTBUF_DISCARD_SAFE(cache->pos_with_normals);
-	GWN_VERTBUF_DISCARD_SAFE(cache->pos_with_normals_visible_only);
-	GWN_VERTBUF_DISCARD_SAFE(cache->tri_aligned_vert_colors);
-	GWN_VERTBUF_DISCARD_SAFE(cache->tri_aligned_weights);
 	GWN_BATCH_DISCARD_SAFE(cache->triangles_with_weights);
 	GWN_BATCH_DISCARD_SAFE(cache->triangles_with_vert_colors);
-	GWN_VERTBUF_DISCARD_SAFE(cache->tri_aligned_select_id);
 	GWN_VERTBUF_DISCARD_SAFE(cache->tri_aligned_uv);
+	GWN_VERTBUF_DISCARD_SAFE(cache->ed_fcenter_pos_with_nor_and_sel);
+	GWN_VERTBUF_DISCARD_SAFE(cache->ed_edge_pos);
+	GWN_VERTBUF_DISCARD_SAFE(cache->ed_vert_pos);
+	GWN_BATCH_DISCARD_SAFE(cache->triangles_with_select_mask);
 	GWN_BATCH_DISCARD_SAFE(cache->triangles_with_select_id);
+	GWN_BATCH_DISCARD_SAFE(cache->facedot_with_select_id);
+	GWN_BATCH_DISCARD_SAFE(cache->edges_with_select_id);
+	GWN_BATCH_DISCARD_SAFE(cache->verts_with_select_id);
 
-	BATCH_DISCARD_ALL_SAFE(cache->fancy_edges);
+	GWN_BATCH_DISCARD_SAFE(cache->fancy_edges);
 
 	GWN_VERTBUF_DISCARD_SAFE(cache->shaded_triangles_data);
 	if (cache->shaded_triangles_in_order) {
@@ -2060,22 +2073,317 @@ static Gwn_VertBuf *mesh_batch_cache_get_tri_pos_and_normals(
 	        rdata, false,
 	        &cache->pos_with_normals);
 }
-static Gwn_VertBuf *mesh_batch_cache_get_tri_pos_and_normals_visible_only(
-        MeshRenderData *rdata, MeshBatchCache *cache)
+static Gwn_VertBuf *mesh_create_tri_pos_and_normals_visible_only(
+        MeshRenderData *rdata)
 {
+	Gwn_VertBuf *vbo_dummy = NULL;
 	return mesh_batch_cache_get_tri_pos_and_normals_ex(
 	        rdata, true,
-	        &cache->pos_with_normals_visible_only);
+	        &vbo_dummy);
 }
 
-static Gwn_VertBuf *mesh_batch_cache_get_tri_weights(
-        MeshRenderData *rdata, MeshBatchCache *cache, bool use_hide, int defgroup)
+static Gwn_VertBuf *mesh_batch_cache_get_facedot_pos_with_normals_and_flag(
+        MeshRenderData *rdata, MeshBatchCache *cache)
+{
+	BLI_assert(rdata->types & (MR_DATATYPE_VERT | MR_DATATYPE_LOOP | MR_DATATYPE_POLY));
+
+	if (cache->ed_fcenter_pos_with_nor_and_sel == NULL) {
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos, data; } attr_id;
+		if (format.attrib_ct == 0) {
+			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+			attr_id.data = GWN_vertformat_attr_add(&format, "norAndFlag", GWN_COMP_I10, 4, GWN_FETCH_INT_TO_FLOAT_UNIT);
+		}
+
+		const int vbo_len_capacity = mesh_render_data_polys_len_get(rdata);
+		int vidx = 0;
+
+		Gwn_VertBuf *vbo = cache->ed_fcenter_pos_with_nor_and_sel = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, vbo_len_capacity);
+		for (int i = 0; i < vbo_len_capacity; ++i) {
+			float pcenter[3], pnor[3];
+			bool selected = false;
+
+			if (mesh_render_data_pnors_pcenter_select_get(rdata, i, pnor, pcenter, &selected)) {
+
+				Gwn_PackedNormal nor = { .x = 0, .y = 0, .z = -511 };
+				nor = GWN_normal_convert_i10_v3(pnor);
+				nor.w = selected ? 1 : 0;
+				GWN_vertbuf_attr_set(vbo, attr_id.data, vidx, &nor);
+
+				GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx, pcenter);
+
+				vidx += 1;
+			}
+		}
+		const int vbo_len_used = vidx;
+		if (vbo_len_used != vbo_len_capacity) {
+			GWN_vertbuf_data_resize(vbo, vbo_len_used);
+		}
+		BLI_assert(vbo_len_capacity == vbo_len_used);
+		UNUSED_VARS_NDEBUG(vbo_len_used);
+	}
+
+	return cache->ed_fcenter_pos_with_nor_and_sel;
+}
+
+static Gwn_VertBuf *mesh_batch_cache_get_edges_visible(
+        MeshRenderData *rdata, MeshBatchCache *cache)
+{
+	BLI_assert(rdata->types & (MR_DATATYPE_VERT | MR_DATATYPE_EDGE));
+
+	if (cache->ed_edge_pos == NULL) {
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos, data; } attr_id;
+		if (format.attrib_ct == 0) {
+			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+		}
+
+		const int vbo_len_capacity = mesh_render_data_edges_len_get(rdata) * 2;
+		int vidx = 0;
+
+		Gwn_VertBuf *vbo = cache->ed_edge_pos = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, vbo_len_capacity);
+		if (rdata->edit_bmesh) {
+			BMesh *bm = rdata->edit_bmesh->bm;
+			BMIter iter;
+			BMEdge *eed;
+
+			BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+				if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+					GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx, eed->v1->co);
+					vidx += 1;
+					GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx, eed->v2->co);
+					vidx += 1;
+				}
+			}
+		}
+		else {
+			/* not yet done! */
+			BLI_assert(0);
+		}
+		const int vbo_len_used = vidx;
+		if (vbo_len_used != vbo_len_capacity) {
+			GWN_vertbuf_data_resize(vbo, vbo_len_used);
+		}
+		UNUSED_VARS_NDEBUG(vbo_len_used);
+	}
+
+	return cache->ed_edge_pos;
+}
+
+static Gwn_VertBuf *mesh_batch_cache_get_verts_visible(
+        MeshRenderData *rdata, MeshBatchCache *cache)
+{
+	BLI_assert(rdata->types & MR_DATATYPE_VERT);
+
+	if (cache->ed_vert_pos == NULL) {
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos, data; } attr_id;
+		if (format.attrib_ct == 0) {
+			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+		}
+
+		const int vbo_len_capacity = mesh_render_data_verts_len_get(rdata);
+		uint vidx = 0;
+
+		Gwn_VertBuf *vbo = cache->ed_vert_pos = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, vbo_len_capacity);
+		if (rdata->edit_bmesh) {
+			BMesh *bm = rdata->edit_bmesh->bm;
+			BMIter iter;
+			BMVert *eve;
+
+			BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+				if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
+					GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx, eve->co);
+					vidx += 1;
+				}
+			}
+		}
+		else {
+			for (int i = 0; i < vbo_len_capacity; i++) {
+				const MVert *mv = &rdata->mvert[i];
+				if (!(mv->flag & ME_HIDE)) {
+					GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx, mv->co);
+					vidx += 1;
+				}
+			}
+		}
+		const uint vbo_len_used = vidx;
+		if (vbo_len_used != vbo_len_capacity) {
+			GWN_vertbuf_data_resize(vbo, vbo_len_used);
+		}
+
+		UNUSED_VARS_NDEBUG(vbo_len_used);
+	}
+
+	return cache->ed_vert_pos;
+}
+
+static Gwn_VertBuf *mesh_create_facedot_select_id(
+        MeshRenderData *rdata, uint select_id_offset)
+{
+	BLI_assert(rdata->types & (MR_DATATYPE_VERT | MR_DATATYPE_LOOP | MR_DATATYPE_POLY));
+
+	Gwn_VertBuf *vbo;
+	{
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos, col; } attr_id;
+		if (format.attrib_ct == 0) {
+			attr_id.col = GWN_vertformat_attr_add(&format, "color", GWN_COMP_I32, 1, GWN_FETCH_INT);
+		}
+
+		const int vbo_len_capacity = mesh_render_data_polys_len_get(rdata);
+		int vidx = 0;
+
+		vbo = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, vbo_len_capacity);
+		uint select_index = select_id_offset;
+
+		if (rdata->edit_bmesh) {
+			BMesh *bm = rdata->edit_bmesh->bm;
+			BMIter iter;
+			BMEdge *efa;
+
+			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+				if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
+					int select_id;
+					GPU_select_index_get(select_index, &select_id);
+					GWN_vertbuf_attr_set(vbo, attr_id.col, vidx, &select_id);
+					vidx += 1;
+				}
+				select_index += 1;
+			}
+		}
+		else {
+			/* not yet done! */
+			BLI_assert(0);
+		}
+		const int vbo_len_used = vidx;
+		if (vbo_len_used != vbo_len_capacity) {
+			GWN_vertbuf_data_resize(vbo, vbo_len_used);
+		}
+	}
+
+	return vbo;
+}
+
+static Gwn_VertBuf *mesh_create_edges_select_id(
+        MeshRenderData *rdata, uint select_id_offset)
+{
+	BLI_assert(rdata->types & (MR_DATATYPE_VERT | MR_DATATYPE_EDGE));
+
+	Gwn_VertBuf *vbo;
+	{
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos, col; } attr_id;
+		if (format.attrib_ct == 0) {
+			attr_id.col = GWN_vertformat_attr_add(&format, "color", GWN_COMP_I32, 1, GWN_FETCH_INT);
+		}
+
+		const int vbo_len_capacity = mesh_render_data_edges_len_get(rdata) * 2;
+		int vidx = 0;
+
+		vbo = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, vbo_len_capacity);
+		uint select_index = select_id_offset;
+
+		if (rdata->edit_bmesh) {
+			BMesh *bm = rdata->edit_bmesh->bm;
+			BMIter iter;
+			BMEdge *eed;
+
+			BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+				if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+					int select_id;
+					GPU_select_index_get(select_index, &select_id);
+					GWN_vertbuf_attr_set(vbo, attr_id.col, vidx, &select_id);
+					vidx += 1;
+					GWN_vertbuf_attr_set(vbo, attr_id.col, vidx, &select_id);
+					vidx += 1;
+				}
+				select_index += 1;
+			}
+		}
+		else {
+			/* not yet done! */
+			BLI_assert(0);
+		}
+		const int vbo_len_used = vidx;
+		if (vbo_len_used != vbo_len_capacity) {
+			GWN_vertbuf_data_resize(vbo, vbo_len_used);
+		}
+	}
+
+	return vbo;
+}
+
+static Gwn_VertBuf *mesh_create_verts_select_id(
+        MeshRenderData *rdata, uint select_id_offset)
+{
+	BLI_assert(rdata->types & (MR_DATATYPE_VERT | MR_DATATYPE_LOOP | MR_DATATYPE_POLY));
+
+	Gwn_VertBuf *vbo;
+	{
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos, col; } attr_id;
+		if (format.attrib_ct == 0) {
+			attr_id.col = GWN_vertformat_attr_add(&format, "color", GWN_COMP_I32, 1, GWN_FETCH_INT);
+		}
+
+		const int vbo_len_capacity = mesh_render_data_verts_len_get(rdata);
+		int vidx = 0;
+
+		vbo = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, vbo_len_capacity);
+		uint select_index = select_id_offset;
+
+		if (rdata->edit_bmesh) {
+			BMesh *bm = rdata->edit_bmesh->bm;
+			BMIter iter;
+			BMVert *eve;
+
+			BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+				if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
+					int select_id;
+					GPU_select_index_get(select_index, &select_id);
+					GWN_vertbuf_attr_set(vbo, attr_id.col, vidx, &select_id);
+					vidx += 1;
+				}
+				select_index += 1;
+			}
+		}
+		else {
+			for (int i = 0; i < vbo_len_capacity; i++) {
+				const MVert *mv = &rdata->mvert[i];
+				if (!(mv->flag & ME_HIDE)) {
+					int select_id;
+					GPU_select_index_get(select_index, &select_id);
+					GWN_vertbuf_attr_set(vbo, attr_id.col, vidx, &select_id);
+					vidx += 1;
+				}
+				select_index += 1;
+			}
+		}
+		const int vbo_len_used = vidx;
+		if (vbo_len_used != vbo_len_capacity) {
+			GWN_vertbuf_data_resize(vbo, vbo_len_used);
+		}
+	}
+
+	return vbo;
+}
+
+static Gwn_VertBuf *mesh_create_tri_weights(
+        MeshRenderData *rdata, bool use_hide, int defgroup)
 {
 	BLI_assert(
 	        rdata->types &
 	        (MR_DATATYPE_VERT | MR_DATATYPE_LOOPTRI | MR_DATATYPE_LOOP | MR_DATATYPE_POLY | MR_DATATYPE_DVERT));
 
-	if (cache->tri_aligned_weights == NULL) {
+	Gwn_VertBuf *vbo;
+	{
 		unsigned int cidx = 0;
 
 		static Gwn_VertFormat format = { 0 };
@@ -2084,10 +2392,9 @@ static Gwn_VertBuf *mesh_batch_cache_get_tri_weights(
 			attr_id.col = GWN_vertformat_attr_add(&format, "color", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
 		}
 
+		vbo = GWN_vertbuf_create_with_format(&format);
+
 		const int tri_len = mesh_render_data_looptri_len_get(rdata);
-
-		Gwn_VertBuf *vbo = cache->tri_aligned_weights = GWN_vertbuf_create_with_format(&format);
-
 		const int vbo_len_capacity = tri_len * 3;
 		int vbo_len_used = 0;
 		GWN_vertbuf_data_alloc(vbo, vbo_len_capacity);
@@ -2125,17 +2432,18 @@ static Gwn_VertBuf *mesh_batch_cache_get_tri_weights(
 		}
 	}
 
-	return cache->tri_aligned_weights;
+	return vbo;
 }
 
-static Gwn_VertBuf *mesh_batch_cache_get_tri_vert_colors(
-        MeshRenderData *rdata, MeshBatchCache *cache, bool use_hide)
+static Gwn_VertBuf *mesh_create_tri_vert_colors(
+        MeshRenderData *rdata, bool use_hide)
 {
 	BLI_assert(
 	        rdata->types &
 	        (MR_DATATYPE_VERT | MR_DATATYPE_LOOPTRI | MR_DATATYPE_LOOP | MR_DATATYPE_POLY | MR_DATATYPE_LOOPCOL));
 
-	if (cache->tri_aligned_vert_colors == NULL) {
+	Gwn_VertBuf *vbo;
+	{
 		unsigned int cidx = 0;
 
 		static Gwn_VertFormat format = { 0 };
@@ -2146,7 +2454,7 @@ static Gwn_VertBuf *mesh_batch_cache_get_tri_vert_colors(
 
 		const int tri_len = mesh_render_data_looptri_len_get(rdata);
 
-		Gwn_VertBuf *vbo = cache->tri_aligned_vert_colors = GWN_vertbuf_create_with_format(&format);
+		vbo = GWN_vertbuf_create_with_format(&format);
 
 		const uint vbo_len_capacity = tri_len * 3;
 		GWN_vertbuf_data_alloc(vbo, vbo_len_capacity);
@@ -2184,17 +2492,18 @@ static Gwn_VertBuf *mesh_batch_cache_get_tri_vert_colors(
 		}
 	}
 
-	return cache->tri_aligned_vert_colors;
+	return vbo;
 }
 
-static Gwn_VertBuf *mesh_batch_cache_get_tri_select_id(
-        MeshRenderData *rdata, MeshBatchCache *cache, bool use_hide)
+static Gwn_VertBuf *mesh_create_tri_select_id(
+        MeshRenderData *rdata, bool use_hide, uint select_id_offset)
 {
 	BLI_assert(
 	        rdata->types &
 	        (MR_DATATYPE_VERT | MR_DATATYPE_LOOPTRI | MR_DATATYPE_LOOP | MR_DATATYPE_POLY));
 
-	if (cache->tri_aligned_select_id == NULL) {
+	Gwn_VertBuf *vbo;
+	{
 		unsigned int cidx = 0;
 
 		static Gwn_VertFormat format = { 0 };
@@ -2205,7 +2514,7 @@ static Gwn_VertBuf *mesh_batch_cache_get_tri_select_id(
 
 		const int tri_len = mesh_render_data_looptri_len_get(rdata);
 
-		Gwn_VertBuf *vbo = cache->tri_aligned_select_id = GWN_vertbuf_create_with_format(&format);
+		vbo = GWN_vertbuf_create_with_format(&format);
 
 		const int vbo_len_capacity = tri_len * 3;
 		int vbo_len_used = 0;
@@ -2218,7 +2527,7 @@ static Gwn_VertBuf *mesh_batch_cache_get_tri_select_id(
 				if (!BM_elem_flag_test(ltri[0]->f, BM_ELEM_HIDDEN)) {
 					const int poly_index = BM_elem_index_get(ltri[0]->f);
 					int select_id;
-					GPU_select_index_get(poly_index + 1, &select_id);
+					GPU_select_index_get(poly_index + select_id_offset, &select_id);
 					for (uint tri_corner = 0; tri_corner < 3; tri_corner++) {
 						GWN_vertbuf_attr_set(vbo, attr_id.col, cidx++, &select_id);
 					}
@@ -2231,7 +2540,7 @@ static Gwn_VertBuf *mesh_batch_cache_get_tri_select_id(
 				const int poly_index = mlt->poly;
 				if (!(use_hide && (rdata->mpoly[poly_index].flag & ME_HIDE))) {
 					int select_id;
-					GPU_select_index_get(poly_index + 1, &select_id);
+					GPU_select_index_get(poly_index + select_id_offset, &select_id);
 					for (uint tri_corner = 0; tri_corner < 3; tri_corner++) {
 						GWN_vertbuf_attr_set(vbo, attr_id.col, cidx++, &select_id);
 					}
@@ -2244,8 +2553,7 @@ static Gwn_VertBuf *mesh_batch_cache_get_tri_select_id(
 			GWN_vertbuf_data_resize(vbo, vbo_len_used);
 		}
 	}
-
-	return cache->tri_aligned_select_id;
+	return vbo;
 }
 
 static Gwn_VertBuf *mesh_batch_cache_get_vert_pos_and_nor_in_order(
@@ -2780,13 +3088,14 @@ static Gwn_IndexBuf **mesh_batch_cache_get_triangles_in_order_split_by_material(
 	return cache->shaded_triangles_in_order;
 }
 
-static Gwn_VertBuf *mesh_batch_cache_get_edge_pos_with_sel(
-        MeshRenderData *rdata, MeshBatchCache *cache, bool use_wire, bool use_select_bool)
+static Gwn_VertBuf *mesh_create_edge_pos_with_sel(
+        MeshRenderData *rdata, bool use_wire, bool use_select_bool)
 {
 	BLI_assert(rdata->types & (MR_DATATYPE_VERT | MR_DATATYPE_EDGE | MR_DATATYPE_POLY | MR_DATATYPE_LOOP));
 	BLI_assert(rdata->edit_bmesh == NULL);
 
-	if (!cache->edge_pos_with_select_bool) {
+	Gwn_VertBuf *vbo;
+	{
 		unsigned int vidx = 0, cidx = 0;
 
 		static Gwn_VertFormat format = { 0 };
@@ -2798,7 +3107,7 @@ static Gwn_VertBuf *mesh_batch_cache_get_edge_pos_with_sel(
 
 		const int edge_len = mesh_render_data_edges_len_get(rdata);
 
-		Gwn_VertBuf *vbo = cache->edge_pos_with_select_bool = GWN_vertbuf_create_with_format(&format);
+		vbo= GWN_vertbuf_create_with_format(&format);
 
 		const int vbo_len_capacity = edge_len * 2;
 		int vbo_len_used = 0;
@@ -2836,15 +3145,15 @@ static Gwn_VertBuf *mesh_batch_cache_get_edge_pos_with_sel(
 		}
 	}
 
-	return cache->edge_pos_with_select_bool;
+	return vbo;
 }
 
-static Gwn_IndexBuf *mesh_batch_cache_get_tri_overlay_weight_faces(
-        MeshRenderData *rdata, MeshBatchCache *cache)
+static Gwn_IndexBuf *mesh_create_tri_overlay_weight_faces(
+        MeshRenderData *rdata)
 {
 	BLI_assert(rdata->types & (MR_DATATYPE_VERT | MR_DATATYPE_LOOPTRI));
 
-	if (cache->overlay_triangles_vpaint == NULL) {
+	{
 		const int vert_len = mesh_render_data_verts_len_get(rdata);
 		const int tri_len = mesh_render_data_looptri_len_get(rdata);
 
@@ -2859,22 +3168,21 @@ static Gwn_IndexBuf *mesh_batch_cache_get_tri_overlay_weight_faces(
 				}
 			}
 		}
-		cache->overlay_triangles_vpaint = GWN_indexbuf_build(&elb);
+		return GWN_indexbuf_build(&elb);
 	}
-
-	return cache->overlay_triangles_vpaint;
 }
 
 /**
  * Non-edit mode vertices (only used for weight-paint mode).
  */
-static Gwn_VertBuf *mesh_batch_cache_get_vert_pos_with_overlay_data(
-        MeshRenderData *rdata, MeshBatchCache *cache)
+static Gwn_VertBuf *mesh_create_vert_pos_with_overlay_data(
+        MeshRenderData *rdata)
 {
 	BLI_assert(rdata->types & (MR_DATATYPE_VERT));
 	BLI_assert(rdata->edit_bmesh == NULL);
 
-	if (cache->pos_with_select_bool == NULL) {
+	Gwn_VertBuf *vbo;
+	{
 		unsigned int cidx = 0;
 
 		static Gwn_VertFormat format = { 0 };
@@ -2885,7 +3193,7 @@ static Gwn_VertBuf *mesh_batch_cache_get_vert_pos_with_overlay_data(
 
 		const int vert_len = mesh_render_data_verts_len_get(rdata);
 
-		Gwn_VertBuf *vbo = cache->pos_with_select_bool = GWN_vertbuf_create_with_format(&format);
+		vbo = GWN_vertbuf_create_with_format(&format);
 
 		const int vbo_len_capacity = vert_len;
 		int vbo_len_used = 0;
@@ -2902,8 +3210,7 @@ static Gwn_VertBuf *mesh_batch_cache_get_vert_pos_with_overlay_data(
 			GWN_vertbuf_data_resize(vbo, vbo_len_used);
 		}
 	}
-
-	return cache->pos_with_select_bool;
+	return vbo;
 }
 
 /** \} */
@@ -2979,14 +3286,14 @@ Gwn_Batch *DRW_mesh_batch_cache_get_triangles_with_normals_and_weights(Mesh *me,
 		        MR_DATATYPE_VERT | MR_DATATYPE_LOOPTRI | MR_DATATYPE_LOOP | MR_DATATYPE_POLY | MR_DATATYPE_DVERT;
 		MeshRenderData *rdata = mesh_render_data_create(me, datatype);
 
-		cache->triangles_with_weights = GWN_batch_create(
-		        GWN_PRIM_TRIS, mesh_batch_cache_get_tri_weights(rdata, cache, use_hide, defgroup), NULL);
+		cache->triangles_with_weights = GWN_batch_create_ex(
+		        GWN_PRIM_TRIS, mesh_create_tri_weights(rdata, use_hide, defgroup), NULL, GWN_BATCH_OWNS_VBO);
 
 		Gwn_VertBuf *vbo_tris = use_hide ?
-		        mesh_batch_cache_get_tri_pos_and_normals_visible_only(rdata, cache) :
+		        mesh_create_tri_pos_and_normals_visible_only(rdata) :
 		        mesh_batch_cache_get_tri_pos_and_normals(rdata, cache);
 
-		GWN_batch_vertbuf_add(cache->triangles_with_weights, vbo_tris);
+		GWN_batch_vertbuf_add_ex(cache->triangles_with_weights, vbo_tris, use_hide);
 
 		mesh_render_data_free(rdata);
 	}
@@ -3004,13 +3311,13 @@ Gwn_Batch *DRW_mesh_batch_cache_get_triangles_with_normals_and_vert_colors(Mesh 
 		        MR_DATATYPE_VERT | MR_DATATYPE_LOOPTRI | MR_DATATYPE_LOOP | MR_DATATYPE_POLY | MR_DATATYPE_LOOPCOL;
 		MeshRenderData *rdata = mesh_render_data_create(me, datatype);
 
-		cache->triangles_with_vert_colors = GWN_batch_create(
-		        GWN_PRIM_TRIS, mesh_batch_cache_get_tri_vert_colors(rdata, cache, use_hide), NULL);
+		cache->triangles_with_vert_colors = GWN_batch_create_ex(
+		        GWN_PRIM_TRIS, mesh_create_tri_vert_colors(rdata, use_hide), NULL, GWN_BATCH_OWNS_VBO);
 
 		Gwn_VertBuf *vbo_tris = use_hide ?
-		        mesh_batch_cache_get_tri_pos_and_normals_visible_only(rdata, cache) :
+		        mesh_create_tri_pos_and_normals_visible_only(rdata) :
 		        mesh_batch_cache_get_tri_pos_and_normals(rdata, cache);
-		GWN_batch_vertbuf_add(cache->triangles_with_vert_colors, vbo_tris);
+		GWN_batch_vertbuf_add_ex(cache->triangles_with_vert_colors, vbo_tris, use_hide);
 
 		mesh_render_data_free(rdata);
 	}
@@ -3019,27 +3326,58 @@ Gwn_Batch *DRW_mesh_batch_cache_get_triangles_with_normals_and_vert_colors(Mesh 
 }
 
 
-struct Gwn_Batch *DRW_mesh_batch_cache_get_triangles_with_select_id(struct Mesh *me, bool use_hide)
+struct Gwn_Batch *DRW_mesh_batch_cache_get_triangles_with_select_id(
+        struct Mesh *me, bool use_hide, uint select_id_offset)
 {
 	MeshBatchCache *cache = mesh_batch_cache_get(me);
+
+	if (cache->triangles_with_select_id_offset != select_id_offset) {
+		cache->triangles_with_select_id_offset = select_id_offset;
+		GWN_BATCH_DISCARD_SAFE(cache->triangles_with_select_id);
+	}
 
 	if (cache->triangles_with_select_id == NULL) {
 		const int datatype =
 		        MR_DATATYPE_VERT | MR_DATATYPE_LOOPTRI | MR_DATATYPE_LOOP | MR_DATATYPE_POLY;
 		MeshRenderData *rdata = mesh_render_data_create(me, datatype);
 
-		cache->triangles_with_select_id = GWN_batch_create(
-		        GWN_PRIM_TRIS, mesh_batch_cache_get_tri_select_id(rdata, cache, use_hide), NULL);
+		cache->triangles_with_select_id = GWN_batch_create_ex(
+		        GWN_PRIM_TRIS, mesh_create_tri_select_id(rdata, use_hide, select_id_offset), NULL, GWN_BATCH_OWNS_VBO);
 
 		Gwn_VertBuf *vbo_tris = use_hide ?
-		        mesh_batch_cache_get_tri_pos_and_normals_visible_only(rdata, cache) :
+		        mesh_create_tri_pos_and_normals_visible_only(rdata) :
 		        mesh_batch_cache_get_tri_pos_and_normals(rdata, cache);
-		GWN_batch_vertbuf_add(cache->triangles_with_select_id, vbo_tris);
+		GWN_batch_vertbuf_add_ex(cache->triangles_with_select_id, vbo_tris, use_hide);
 
 		mesh_render_data_free(rdata);
 	}
 
 	return cache->triangles_with_select_id;
+}
+
+/**
+ * Same as #DRW_mesh_batch_cache_get_triangles_with_select_id
+ * without the ID's, use to mask out geometry, eg - dont select face-dots behind other faces.
+ */
+struct Gwn_Batch *DRW_mesh_batch_cache_get_triangles_with_select_mask(struct Mesh *me, bool use_hide)
+{
+	MeshBatchCache *cache = mesh_batch_cache_get(me);
+	if (cache->triangles_with_select_mask == NULL) {
+		const int datatype =
+		        MR_DATATYPE_VERT | MR_DATATYPE_LOOPTRI | MR_DATATYPE_LOOP | MR_DATATYPE_POLY;
+		MeshRenderData *rdata = mesh_render_data_create(me, datatype);
+
+		Gwn_VertBuf *vbo_tris = use_hide ?
+		        mesh_create_tri_pos_and_normals_visible_only(rdata) :
+		        mesh_batch_cache_get_tri_pos_and_normals(rdata, cache);
+
+		cache->triangles_with_select_mask = GWN_batch_create_ex(
+		        GWN_PRIM_TRIS, vbo_tris, NULL, use_hide ? GWN_BATCH_OWNS_VBO : 0);
+
+		mesh_render_data_free(rdata);
+	}
+
+	return cache->triangles_with_select_mask;
 }
 
 Gwn_Batch *DRW_mesh_batch_cache_get_points_with_normals(Mesh *me)
@@ -3133,7 +3471,7 @@ Gwn_Batch *DRW_mesh_batch_cache_get_fancy_edges(Mesh *me)
 			GWN_vertbuf_data_resize(vbo, vbo_len_used);
 		}
 
-		cache->fancy_edges = GWN_batch_create(GWN_PRIM_LINES, vbo, NULL);
+		cache->fancy_edges = GWN_batch_create_ex(GWN_PRIM_LINES, vbo, NULL, GWN_BATCH_OWNS_VBO);
 
 		mesh_render_data_free(rdata);
 	}
@@ -3251,46 +3589,90 @@ Gwn_Batch *DRW_mesh_batch_cache_get_overlay_facedots(Mesh *me)
 	if (cache->overlay_facedots == NULL) {
 		MeshRenderData *rdata = mesh_render_data_create(me, MR_DATATYPE_VERT | MR_DATATYPE_LOOP | MR_DATATYPE_POLY);
 
-		static Gwn_VertFormat format = { 0 };
-		static struct { uint pos, data; } attr_id;
-		if (format.attrib_ct == 0) {
-			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
-			attr_id.data = GWN_vertformat_attr_add(&format, "norAndFlag", GWN_COMP_I10, 4, GWN_FETCH_INT_TO_FLOAT_UNIT);
-		}
-
-		const int vbo_len_capacity = mesh_render_data_polys_len_get(rdata);
-		int vidx = 0;
-
-		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
-		GWN_vertbuf_data_alloc(vbo, vbo_len_capacity);
-		for (int i = 0; i < vbo_len_capacity; ++i) {
-			float pcenter[3], pnor[3];
-			bool selected = false;
-
-			if (mesh_render_data_pnors_pcenter_select_get(rdata, i, pnor, pcenter, &selected)) {
-
-				Gwn_PackedNormal nor = { .x = 0, .y = 0, .z = -511 };
-				nor = GWN_normal_convert_i10_v3(pnor);
-				nor.w = selected ? 1 : 0;
-				GWN_vertbuf_attr_set(vbo, attr_id.data, vidx, &nor);
-
-				GWN_vertbuf_attr_set(vbo, attr_id.pos, vidx, pcenter);
-
-				vidx += 1;
-
-			}
-		}
-		const int vbo_len_used = vidx;
-		if (vbo_len_used != vbo_len_capacity) {
-			GWN_vertbuf_data_resize(vbo, vbo_len_used);
-		}
-
-		cache->overlay_facedots = GWN_batch_create(GWN_PRIM_POINTS, vbo, NULL);
+		cache->overlay_facedots = GWN_batch_create(
+		        GWN_PRIM_POINTS, mesh_batch_cache_get_facedot_pos_with_normals_and_flag(rdata, cache), NULL);
 
 		mesh_render_data_free(rdata);
 	}
 
 	return cache->overlay_facedots;
+}
+
+Gwn_Batch *DRW_mesh_batch_cache_get_facedots_with_select_id(Mesh *me, uint select_id_offset)
+{
+	MeshBatchCache *cache = mesh_batch_cache_get(me);
+
+	if (cache->facedot_with_select_id_offset != select_id_offset) {
+		cache->facedot_with_select_id_offset = select_id_offset;
+		GWN_BATCH_DISCARD_SAFE(cache->edges_with_select_id);
+	}
+
+	if (cache->facedot_with_select_id == NULL) {
+		MeshRenderData *rdata = mesh_render_data_create(me, MR_DATATYPE_VERT | MR_DATATYPE_LOOP | MR_DATATYPE_POLY);
+
+		/* We only want the 'pos', not the normals or flag.
+		 * Use since this is almost certainly already created. */
+		cache->facedot_with_select_id = GWN_batch_create(
+		        GWN_PRIM_POINTS, mesh_batch_cache_get_facedot_pos_with_normals_and_flag(rdata, cache), NULL);
+
+		GWN_batch_vertbuf_add_ex(
+		        cache->facedot_with_select_id,
+		        mesh_create_facedot_select_id(rdata, select_id_offset), true);
+
+		mesh_render_data_free(rdata);
+	}
+
+	return cache->facedot_with_select_id;
+}
+
+Gwn_Batch *DRW_mesh_batch_cache_get_edges_with_select_id(Mesh *me, uint select_id_offset)
+{
+	MeshBatchCache *cache = mesh_batch_cache_get(me);
+
+	if (cache->edges_with_select_id_offset != select_id_offset) {
+		cache->edges_with_select_id_offset = select_id_offset;
+		GWN_BATCH_DISCARD_SAFE(cache->edges_with_select_id);
+	}
+
+	if (cache->edges_with_select_id == NULL) {
+		MeshRenderData *rdata = mesh_render_data_create(me, MR_DATATYPE_VERT | MR_DATATYPE_EDGE);
+
+		cache->edges_with_select_id = GWN_batch_create(
+		        GWN_PRIM_LINES, mesh_batch_cache_get_edges_visible(rdata, cache), NULL);
+
+		GWN_batch_vertbuf_add_ex(
+		        cache->edges_with_select_id,
+		        mesh_create_edges_select_id(rdata, select_id_offset), true);
+
+		mesh_render_data_free(rdata);
+	}
+
+	return cache->edges_with_select_id;
+}
+
+Gwn_Batch *DRW_mesh_batch_cache_get_verts_with_select_id(Mesh *me, uint select_id_offset)
+{
+	MeshBatchCache *cache = mesh_batch_cache_get(me);
+
+	if (cache->verts_with_select_id_offset != select_id_offset) {
+		cache->verts_with_select_id_offset = select_id_offset;
+		GWN_BATCH_DISCARD_SAFE(cache->verts_with_select_id);
+	}
+
+	if (cache->verts_with_select_id == NULL) {
+		MeshRenderData *rdata = mesh_render_data_create(me, MR_DATATYPE_VERT);
+
+		cache->verts_with_select_id = GWN_batch_create(
+		        GWN_PRIM_POINTS, mesh_batch_cache_get_verts_visible(rdata, cache), NULL);
+
+		GWN_batch_vertbuf_add_ex(
+		        cache->verts_with_select_id,
+		        mesh_create_verts_select_id(rdata, select_id_offset), true);
+
+		mesh_render_data_free(rdata);
+	}
+
+	return cache->verts_with_select_id;
 }
 
 Gwn_Batch **DRW_mesh_batch_cache_get_surface_shaded(
@@ -3391,8 +3773,8 @@ Gwn_Batch *DRW_mesh_batch_cache_get_weight_overlay_edges(Mesh *me, bool use_wire
 		const int datatype = MR_DATATYPE_VERT | MR_DATATYPE_EDGE | MR_DATATYPE_POLY | MR_DATATYPE_LOOP;
 		MeshRenderData *rdata = mesh_render_data_create(me, datatype);
 
-		cache->overlay_paint_edges = GWN_batch_create(
-		        GWN_PRIM_LINES, mesh_batch_cache_get_edge_pos_with_sel(rdata, cache, use_wire, use_sel), NULL);
+		cache->overlay_paint_edges = GWN_batch_create_ex(
+		        GWN_PRIM_LINES, mesh_create_edge_pos_with_sel(rdata, use_wire, use_sel), NULL, GWN_BATCH_OWNS_VBO);
 
 		mesh_render_data_free(rdata);
 	}
@@ -3409,9 +3791,9 @@ Gwn_Batch *DRW_mesh_batch_cache_get_weight_overlay_faces(Mesh *me)
 		const int datatype = MR_DATATYPE_VERT | MR_DATATYPE_POLY | MR_DATATYPE_LOOP | MR_DATATYPE_LOOPTRI;
 		MeshRenderData *rdata = mesh_render_data_create(me, datatype);
 
-		cache->overlay_weight_faces = GWN_batch_create(
+		cache->overlay_weight_faces = GWN_batch_create_ex(
 		        GWN_PRIM_TRIS, mesh_batch_cache_get_vert_pos_and_nor_in_order(rdata, cache),
-		        mesh_batch_cache_get_tri_overlay_weight_faces(rdata, cache));
+		        mesh_create_tri_overlay_weight_faces(rdata), GWN_BATCH_OWNS_INDEX);
 
 		mesh_render_data_free(rdata);
 	}
@@ -3430,9 +3812,9 @@ Gwn_Batch *DRW_mesh_batch_cache_get_weight_overlay_verts(Mesh *me)
 		cache->overlay_weight_verts = GWN_batch_create(
 		        GWN_PRIM_POINTS, mesh_batch_cache_get_vert_pos_and_nor_in_order(rdata, cache), NULL);
 
-		GWN_batch_vertbuf_add(
+		GWN_batch_vertbuf_add_ex(
 		        cache->overlay_weight_verts,
-		        mesh_batch_cache_get_vert_pos_with_overlay_data(rdata, cache));
+		        mesh_create_vert_pos_with_overlay_data(rdata), true);
 		mesh_render_data_free(rdata);
 	}
 

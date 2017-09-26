@@ -90,9 +90,16 @@ static void wm_manipulatorgrouptype_append__end(wmManipulatorGroupType *wgt)
 	BLI_assert(wgt->name != NULL);
 	BLI_assert(wgt->idname != NULL);
 
+	wgt->type_update_flag |= WM_MANIPULATORMAPTYPE_KEYMAP_INIT;
+
 	/* if not set, use default */
 	if (wgt->setup_keymap == NULL) {
-		wgt->setup_keymap = WM_manipulatorgroup_keymap_common;
+		if (wgt->flag & WM_MANIPULATORGROUPTYPE_SELECT) {
+			wgt->setup_keymap = WM_manipulatorgroup_keymap_common_select;
+		}
+		else {
+			wgt->setup_keymap = WM_manipulatorgroup_keymap_common;
+		}
 	}
 
 	BLI_ghash_insert(global_manipulatorgrouptype_hash, (void *)wgt->idname, wgt);
@@ -137,10 +144,14 @@ wmManipulatorGroupTypeRef *WM_manipulatorgrouptype_append_and_link(
  */
 static void manipulatorgrouptype_free(wmManipulatorGroupType *wgt)
 {
+	if (wgt->ext.srna) { /* python manipulator group, allocs own string */
+		MEM_freeN((void *)wgt->idname);
+	}
+
 	MEM_freeN(wgt);
 }
 
-void WM_manipulatorgrouptype_remove_ptr(wmManipulatorGroupType *wgt)
+void WM_manipulatorgrouptype_free_ptr(wmManipulatorGroupType *wgt)
 {
 	BLI_assert(wgt == WM_manipulatorgrouptype_find(wgt->idname, false));
 
@@ -151,7 +162,7 @@ void WM_manipulatorgrouptype_remove_ptr(wmManipulatorGroupType *wgt)
 	/* XXX, TODO, update the world! */
 }
 
-bool WM_manipulatorgrouptype_remove(const char *idname)
+bool WM_manipulatorgrouptype_free(const char *idname)
 {
 	wmManipulatorGroupType *wgt = BLI_ghash_lookup(global_manipulatorgrouptype_hash, idname);
 
@@ -159,7 +170,7 @@ bool WM_manipulatorgrouptype_remove(const char *idname)
 		return false;
 	}
 
-	WM_manipulatorgrouptype_remove_ptr(wgt);
+	WM_manipulatorgrouptype_free_ptr(wgt);
 
 	return true;
 }

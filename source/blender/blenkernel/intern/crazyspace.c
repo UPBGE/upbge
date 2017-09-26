@@ -99,7 +99,8 @@ static int modifiers_disable_subsurf_temporary(Object *ob)
 }
 
 /* disable subsurf temporal, get mapped cos, and enable it */
-float (*BKE_crazyspace_get_mapped_editverts(Scene *scene, Object *obedit))[3]
+float (*BKE_crazyspace_get_mapped_editverts(
+           const struct EvaluationContext *eval_ctx, Scene *scene, Object *obedit))[3]
 {
 	Mesh *me = obedit->data;
 	DerivedMesh *dm;
@@ -109,13 +110,13 @@ float (*BKE_crazyspace_get_mapped_editverts(Scene *scene, Object *obedit))[3]
 	/* disable subsurf temporal, get mapped cos, and enable it */
 	if (modifiers_disable_subsurf_temporary(obedit)) {
 		/* need to make new derivemesh */
-		makeDerivedMesh(scene, obedit, me->edit_btmesh, CD_MASK_BAREMESH, false);
+		makeDerivedMesh(eval_ctx, scene, obedit, me->edit_btmesh, CD_MASK_BAREMESH, false);
 	}
 
 	/* now get the cage */
 	vertexcos = MEM_mallocN(sizeof(*vertexcos) * nverts, "vertexcos map");
 
-	dm = editbmesh_get_derived_cage(scene, obedit, me->edit_btmesh, CD_MASK_BAREMESH);
+	dm = editbmesh_get_derived_cage(eval_ctx, scene, obedit, me->edit_btmesh, CD_MASK_BAREMESH);
 
 	mesh_get_mapped_verts_coords(dm, vertexcos, nverts);
 
@@ -250,8 +251,9 @@ void BKE_crazyspace_set_quats_mesh(Mesh *me, float (*origcos)[3], float (*mapped
 
 /** returns an array of deform matrices for crazyspace correction, and the
  * number of modifiers left */
-int BKE_crazyspace_get_first_deform_matrices_editbmesh(Scene *scene, Object *ob, BMEditMesh *em,
-                                        float (**deformmats)[3][3], float (**deformcos)[3])
+int BKE_crazyspace_get_first_deform_matrices_editbmesh(
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, BMEditMesh *em,
+        float (**deformmats)[3][3], float (**deformcos)[3])
 {
 	ModifierData *md;
 	DerivedMesh *dm;
@@ -290,7 +292,7 @@ int BKE_crazyspace_get_first_deform_matrices_editbmesh(Scene *scene, Object *ob,
 					unit_m3(defmats[a]);
 			}
 
-			mti->deformMatricesEM(md, ob, em, dm, deformedVerts, defmats,
+			mti->deformMatricesEM(md, eval_ctx, ob, em, dm, deformedVerts, defmats,
 			                      numVerts);
 		}
 		else
@@ -310,7 +312,9 @@ int BKE_crazyspace_get_first_deform_matrices_editbmesh(Scene *scene, Object *ob,
 	return numleft;
 }
 
-int BKE_sculpt_get_first_deform_matrices(Scene *scene, Object *ob, float (**deformmats)[3][3], float (**deformcos)[3])
+int BKE_sculpt_get_first_deform_matrices(
+        const struct EvaluationContext *eval_ctx, Scene *scene,
+        Object *ob, float (**deformmats)[3][3], float (**deformcos)[3])
 {
 	ModifierData *md;
 	DerivedMesh *dm;
@@ -346,7 +350,7 @@ int BKE_sculpt_get_first_deform_matrices(Scene *scene, Object *ob, float (**defo
 					unit_m3(defmats[a]);
 			}
 
-			if (mti->deformMatrices) mti->deformMatrices(md, ob, dm, deformedVerts, defmats, numVerts);
+			if (mti->deformMatrices) mti->deformMatrices(md, eval_ctx, ob, dm, deformedVerts, defmats, numVerts);
 			else break;
 		}
 	}
@@ -369,9 +373,9 @@ int BKE_sculpt_get_first_deform_matrices(Scene *scene, Object *ob, float (**defo
 	return numleft;
 }
 
-void BKE_crazyspace_build_sculpt(Scene *scene, Object *ob, float (**deformmats)[3][3], float (**deformcos)[3])
+void BKE_crazyspace_build_sculpt(const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, float (**deformmats)[3][3], float (**deformcos)[3])
 {
-	int totleft = BKE_sculpt_get_first_deform_matrices(scene, ob, deformmats, deformcos);
+	int totleft = BKE_sculpt_get_first_deform_matrices(eval_ctx, scene, ob, deformmats, deformcos);
 
 	if (totleft) {
 		/* there are deformation modifier which doesn't support deformation matrices
@@ -396,7 +400,7 @@ void BKE_crazyspace_build_sculpt(Scene *scene, Object *ob, float (**deformmats)[
 				if (mti->deformMatrices && !deformed)
 					continue;
 
-				mti->deformVerts(md, ob, NULL, deformedVerts, me->totvert, 0);
+				mti->deformVerts(md, eval_ctx, ob, NULL, deformedVerts, me->totvert, 0);
 				deformed = 1;
 			}
 		}

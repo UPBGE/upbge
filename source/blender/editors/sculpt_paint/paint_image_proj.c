@@ -3421,12 +3421,15 @@ static void project_paint_bleed_add_face_user(
 #endif
 
 /* Return true if DM can be painted on, false otherwise */
-static bool proj_paint_state_dm_init(ProjPaintState *ps)
+static bool proj_paint_state_dm_init(const bContext *C, ProjPaintState *ps)
 {
+	EvaluationContext eval_ctx;
+	CTX_data_eval_ctx(C, &eval_ctx);
+
 	/* Workaround for subsurf selection, try the display mesh first */
 	if (ps->source == PROJ_SRC_IMAGE_CAM) {
 		/* using render mesh, assume only camera was rendered from */
-		ps->dm = mesh_create_derived_render(ps->scene, ps->ob, ps->scene->customdata_mask | CD_MASK_MTFACE);
+		ps->dm = mesh_create_derived_render(&eval_ctx, ps->scene, ps->ob, ps->scene->customdata_mask | CD_MASK_MTFACE);
 		ps->dm_release = true;
 	}
 	else if (ps->ob->derivedFinal &&
@@ -3438,7 +3441,7 @@ static bool proj_paint_state_dm_init(ProjPaintState *ps)
 	}
 	else {
 		ps->dm = mesh_get_derived_final(
-		        ps->scene, ps->ob,
+		        &eval_ctx, ps->scene, ps->ob,
 		        ps->scene->customdata_mask | CD_MASK_MTFACE | (ps->do_face_sel ? CD_ORIGINDEX : 0));
 		ps->dm_release = true;
 	}
@@ -3818,7 +3821,7 @@ static void project_paint_prepare_all_faces(
 
 /* run once per stroke before projection painting */
 static void project_paint_begin(
-        ProjPaintState *ps,
+        const bContext *C, ProjPaintState *ps,
         const bool is_multi_view, const char symmetry_flag)
 {
 	ProjPaintLayerClone layer_clone;
@@ -3841,7 +3844,7 @@ static void project_paint_begin(
 
 	/* paint onto the derived mesh */
 	if (ps->is_shared_user == false) {
-		if (!proj_paint_state_dm_init(ps)) {
+		if (!proj_paint_state_dm_init(C, ps)) {
 			return;
 		}
 	}
@@ -4296,7 +4299,7 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 				return;
 		}
 		else {
-			blend_color_interpolate_float(rgba, rgba, projPixel->pixel.f_pt, mask);
+			blend_color_interpolate_float(rgba, projPixel->pixel.f_pt, rgba, mask);
 		}
 
 		BLI_linklist_prepend_arena(softenPixels, (void *)projPixel, softenArena);
@@ -4755,6 +4758,9 @@ static void *do_projectpaint_thread(void *ph_v)
 							copy_v3_v3(texrgb, texrgba);
 							mask *= texrgba[3];
 						}
+						else {
+							zero_v3(texrgb);
+						}
 
 						/* extra mask for normal, layer stencil, .. */
 						mask *= ((float)projPixel->mask) * (1.0f / 65535.0f);
@@ -5021,6 +5027,7 @@ void paint_proj_stroke(
 
 	/* clone gets special treatment here to avoid going through image initialization */
 	if (ps_handle->is_clone_cursor_pick) {
+		EvaluationContext eval_ctx;
 		Scene *scene = ps_handle->scene;
 		struct Depsgraph *graph = CTX_data_depsgraph(C);
 		View3D *v3d = CTX_wm_view3d(C);
@@ -5030,7 +5037,9 @@ void paint_proj_stroke(
 
 		view3d_operator_needs_opengl(C);
 
-		if (!ED_view3d_autodist(graph, ar, v3d, mval_i, cursor, false, NULL)) {
+		CTX_data_eval_ctx(C, &eval_ctx);
+
+		if (!ED_view3d_autodist(&eval_ctx, graph, ar, v3d, mval_i, cursor, false, NULL)) {
 			return;
 		}
 
@@ -5234,7 +5243,7 @@ void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int m
 			PROJ_PAINT_STATE_SHARED_MEMCPY(ps, ps_handle->ps_views[0]);
 		}
 
-		project_paint_begin(ps, is_multi_view, symmetry_flag_views[i]);
+		project_paint_begin(C, ps, is_multi_view, symmetry_flag_views[i]);
 
 		paint_proj_begin_clone(ps, mouse);
 
@@ -5317,7 +5326,7 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 	int orig_brush_size;
 	IDProperty *idgroup;
 	IDProperty *view_data = NULL;
-	Object *ob = OBACT_NEW;
+	Object *ob = OBACT_NEW(sl);
 	bool uvs, mat, tex;
 
 	if (ob == NULL || ob->type != OB_MESH) {
@@ -5388,7 +5397,7 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 	                         ED_image_undo_restore, ED_image_undo_free, NULL);
 
 	/* allocate and initialize spatial data structures */
-	project_paint_begin(&ps, false, 0);
+	project_paint_begin(C, &ps, false, 0);
 
 	if (ps.dm == NULL) {
 		BKE_brush_size_set(scene, ps.brush, orig_brush_size);
@@ -5447,11 +5456,14 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 
 	Scene *scene = CTX_data_scene(C);
 	SceneLayer *sl = CTX_data_scene_layer(C);
+	EvaluationContext eval_ctx;
 	ToolSettings *settings = scene->toolsettings;
 	int w = settings->imapaint.screen_grab_size[0];
 	int h = settings->imapaint.screen_grab_size[1];
 	int maxsize;
 	char err_out[256] = "unknown";
+
+	CTX_data_eval_ctx(C, &eval_ctx);
 
 	RNA_string_get(op->ptr, "filepath", filename);
 
@@ -5461,7 +5473,7 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 	if (h > maxsize) h = maxsize;
 
 	ibuf = ED_view3d_draw_offscreen_imbuf(
-	        scene, sl, CTX_wm_view3d(C), CTX_wm_region(C),
+	        &eval_ctx, scene, sl, CTX_wm_view3d(C), CTX_wm_region(C),
 	        w, h, IB_rect, false, R_ALPHAPREMUL, 0, false, NULL,
 	        NULL, NULL, err_out);
 	if (!ibuf) {

@@ -40,6 +40,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_mask_types.h"
+#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -643,7 +644,7 @@ static void draw_sequence_extensions(Scene *scene, ARegion *ar, Sequence *seq, u
 
 		immUniformColor3ubvAlpha(col, col[3] + 50);
 
-		imm_draw_line_box(pos, (float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  /* outline */
+		imm_draw_line_box_2d(pos, (float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  /* outline */
 	}
 	if (seq->endofs) {
 		immUniformColor4ubv(col);
@@ -651,7 +652,7 @@ static void draw_sequence_extensions(Scene *scene, ARegion *ar, Sequence *seq, u
 
 		immUniformColor3ubvAlpha(col, col[3] + 50);
 
-		imm_draw_line_box(pos, x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); /* outline */
+		imm_draw_line_box_2d(pos, x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); /* outline */
 	}
 
 	if (seq->startofs || seq->endofs) {
@@ -846,7 +847,7 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 		immUniformColor3ubv(col);
 	}
 
-	imm_draw_line_box(pos, x1, y1, x2, y2); /* outline */
+	imm_draw_line_box_2d(pos, x1, y1, x2, y2); /* outline */
 
 	immUnbindProgram();
 
@@ -1046,7 +1047,7 @@ static void sequencer_draw_borders(const SpaceSeq *sseq, const View2D *v2d, cons
 	immUniform1f("dash_width", 6.0f);
 	immUniform1f("dash_factor", 0.5f);
 
-	imm_draw_line_box(shdr_pos, x1 - 0.5f, y1 - 0.5f, x2 + 0.5f, y2 + 0.5f);
+	imm_draw_line_box_2d(shdr_pos, x1 - 0.5f, y1 - 0.5f, x2 + 0.5f, y2 + 0.5f);
 
 	/* safety border */
 	if (sseq->flag & SEQ_SHOW_SAFE_MARGINS) {
@@ -1080,7 +1081,7 @@ static void sequencer_draw_background(
 	/* only draw alpha for main buffer */
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
 		if ((sseq->flag & SEQ_USE_ALPHA) && !draw_overlay) {
-			imm_draw_checker_box(v2d->tot.xmin, v2d->tot.ymin, v2d->tot.xmax, v2d->tot.ymax);
+			imm_draw_checker_box_2d(v2d->tot.xmin, v2d->tot.ymin, v2d->tot.xmax, v2d->tot.ymax);
 		}
 	}
 }
@@ -1104,18 +1105,16 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
 	bool draw_metadata = false;
 
-	if (G.is_rendering == false && (scene->r.seq_flag & R_SEQ_GL_PREV) == 0) {
+	if (G.is_rendering == false && (scene->r.seq_prev_type) == OB_RENDER) {
 		/* stop all running jobs, except screen one. currently previews frustrate Render
 		 * needed to make so sequencer's rendering doesn't conflict with compositor
 		 */
 		WM_jobs_kill_type(CTX_wm_manager(C), NULL, WM_JOB_TYPE_COMPOSITE);
 
-		if ((scene->r.seq_flag & R_SEQ_GL_PREV) == 0) {
-			/* in case of final rendering used for preview, kill all previews,
-			 * otherwise threading conflict will happen in rendering module
-			 */
-			WM_jobs_kill_type(CTX_wm_manager(C), NULL, WM_JOB_TYPE_RENDER_PREVIEW);
-		}
+		/* in case of final rendering used for preview, kill all previews,
+		 * otherwise threading conflict will happen in rendering module
+		 */
+		WM_jobs_kill_type(CTX_wm_manager(C), NULL, WM_JOB_TYPE_RENDER_PREVIEW);
 	}
 
 	if ((!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) && !draw_backdrop) {

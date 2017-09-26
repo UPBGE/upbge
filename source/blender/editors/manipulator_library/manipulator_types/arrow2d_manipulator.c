@@ -63,21 +63,17 @@
 static void arrow2d_draw_geom(wmManipulator *mpr, const float matrix[4][4], const float color[4])
 {
 	const float size = 0.11f;
-	const float size_h = size / 2.0f;
-	const float arrow_length = RNA_float_get(mpr->ptr, "length");
+	const float size_breadth = size / 2.0f;
+	const float size_length = size * 1.7f;
+	/* Subtract the length so the arrow fits in the hotspot. */
+	const float arrow_length = RNA_float_get(mpr->ptr, "length") - size_length;
 	const float arrow_angle = RNA_float_get(mpr->ptr, "angle");
-	const float draw_line_ofs = (mpr->line_width * 0.5f) / mpr->scale_final;
 
 	uint pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
 	gpuPushMatrix();
 	gpuMultMatrix(matrix);
-	gpuScaleUniform(mpr->scale_final);
 	gpuRotate2D(RAD2DEGF(arrow_angle));
-	/* local offset */
-	gpuTranslate2f(
-	        mpr->matrix_offset[3][0] + draw_line_ofs,
-	        mpr->matrix_offset[3][1]);
 
 	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
@@ -89,9 +85,9 @@ static void arrow2d_draw_geom(wmManipulator *mpr, const float matrix[4][4], cons
 	immEnd();
 
 	immBegin(GWN_PRIM_TRIS, 3);
-	immVertex2f(pos, size_h, arrow_length);
-	immVertex2f(pos, -size_h, arrow_length);
-	immVertex2f(pos, 0.0f, arrow_length + size * 1.7f);
+	immVertex2f(pos, size_breadth, arrow_length);
+	immVertex2f(pos, -size_breadth, arrow_length);
+	immVertex2f(pos, 0.0f, arrow_length + size_length);
 	immEnd();
 
 	immUnbindProgram();
@@ -101,36 +97,45 @@ static void arrow2d_draw_geom(wmManipulator *mpr, const float matrix[4][4], cons
 
 static void manipulator_arrow2d_draw(const bContext *UNUSED(C), wmManipulator *mpr)
 {
-	float col[4];
+	float color[4];
 
-	manipulator_color_get(mpr, mpr->state & WM_MANIPULATOR_STATE_HIGHLIGHT, col);
+	float matrix_final[4][4];
+
+	manipulator_color_get(mpr, mpr->state & WM_MANIPULATOR_STATE_HIGHLIGHT, color);
 
 	glLineWidth(mpr->line_width);
+
+	WM_manipulator_calc_matrix_final(mpr, matrix_final);
+
 	glEnable(GL_BLEND);
-	arrow2d_draw_geom(mpr, mpr->matrix_basis, col);
+	arrow2d_draw_geom(mpr, matrix_final, color);
 	glDisable(GL_BLEND);
 
 	if (mpr->interaction_data) {
 		ManipulatorInteraction *inter = mpr->interaction_data;
 
 		glEnable(GL_BLEND);
-		arrow2d_draw_geom(mpr, inter->init_matrix, (const float[4]){0.5f, 0.5f, 0.5f, 0.5f});
+		arrow2d_draw_geom(mpr, inter->init_matrix_final, (const float[4]){0.5f, 0.5f, 0.5f, 0.5f});
 		glDisable(GL_BLEND);
 	}
 }
 
 static void manipulator_arrow2d_setup(wmManipulator *mpr)
 {
-	mpr->flag |= WM_MANIPULATOR_DRAW_ACTIVE;
+	mpr->flag |= WM_MANIPULATOR_DRAW_MODAL;
 }
 
-static void manipulator_arrow2d_invoke(
+static int manipulator_arrow2d_invoke(
         bContext *UNUSED(C), wmManipulator *mpr, const wmEvent *UNUSED(event))
 {
 	ManipulatorInteraction *inter = MEM_callocN(sizeof(ManipulatorInteraction), __func__);
 
-	copy_m4_m4(inter->init_matrix, mpr->matrix_basis);
+	copy_m4_m4(inter->init_matrix_basis, mpr->matrix_basis);
+	WM_manipulator_calc_matrix_final(mpr, inter->init_matrix_final);
+
 	mpr->interaction_data = inter;
+
+	return OPERATOR_RUNNING_MODAL;
 }
 
 static int manipulator_arrow2d_test_select(
@@ -170,16 +175,20 @@ static int manipulator_arrow2d_test_select(
 
 		const float lambda_1 = line_point_factor_v2(isect_1, line_ext[0], line_ext[1]);
 		if (isect == 1) {
-			return IN_RANGE_INCL(lambda_1, 0.0f, 1.0f);
+			if (IN_RANGE_INCL(lambda_1, 0.0f, 1.0f)) {
+				return 0;
+			}
 		}
 		else {
 			BLI_assert(isect == 2);
 			const float lambda_2 = line_point_factor_v2(isect_2, line_ext[0], line_ext[1]);
-			return IN_RANGE_INCL(lambda_1, 0.0f, 1.0f) && IN_RANGE_INCL(lambda_2, 0.0f, 1.0f);
+			if (IN_RANGE_INCL(lambda_1, 0.0f, 1.0f) && IN_RANGE_INCL(lambda_2, 0.0f, 1.0f)) {
+				return 0;
+			}
 		}
 	}
 
-	return 0;
+	return -1;
 }
 
 /* -------------------------------------------------------------------- */

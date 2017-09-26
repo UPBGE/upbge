@@ -80,7 +80,7 @@ static void shader_get_from_context(const bContext *C, bNodeTreeType *UNUSED(tre
 	SpaceNode *snode = CTX_wm_space_node(C);
 	Scene *scene = CTX_data_scene(C);
 	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW;
+	Object *ob = OBACT_NEW(sl);
 	
 	if ((snode->shaderfrom == SNODE_SHADER_OBJECT) ||
 	    (BKE_scene_use_new_shading_nodes(scene) == false))
@@ -214,6 +214,9 @@ static void ntree_shader_link_builtin_normal(bNodeTree *ntree,
  * render engines works but it's how the GPU shader compilation works. This we
  * can change in the future and make it a generic function, but for now it stays
  * private here.
+ *
+ * It also does not yet take into account render engine specific output nodes,
+ * it should give priority to e.g. the Eevee material output node for Eevee.
  */
 static bNode *ntree_shader_output_node(bNodeTree *ntree)
 {
@@ -475,6 +478,48 @@ static void ntree_shader_relink_displacement(bNodeTree *ntree,
 	ntreeUpdateTree(G.main, ntree);
 }
 
+static bool ntree_tag_ssr_bsdf_cb(bNode *fromnode, bNode *UNUSED(tonode), void *userdata, const bool UNUSED(reversed))
+{
+	switch (fromnode->type) {
+		case SH_NODE_BSDF_ANISOTROPIC:
+		case SH_NODE_EEVEE_SPECULAR:
+		case SH_NODE_BSDF_PRINCIPLED:
+		case SH_NODE_BSDF_GLOSSY:
+		case SH_NODE_BSDF_GLASS:
+			fromnode->ssr_id = (*(float *)userdata);
+			(*(float *)userdata) += 1;
+			break;
+		default:
+			/* We could return false here but since we (will)
+			 * allow the use of Closure as RGBA, we can have
+			 * Bsdf nodes linked to other Bsdf nodes. */
+			break;
+	}
+
+	return true;
+}
+
+/* EEVEE: Scan the ntree to set the Screen Space Reflection
+ * layer id of every specular node.
+ */
+static void ntree_shader_tag_ssr_node(bNodeTree *ntree, short compatibility)
+{
+	if (compatibility != NODE_NEWER_SHADING) {
+		/* We can only deal with new shading system here. */
+		return;
+	}
+
+	bNode *output_node = ntree_shader_output_node(ntree);
+	if (output_node == NULL) {
+		return;
+	}
+	/* Make sure sockets links pointers are correct. */
+	ntreeUpdateTree(G.main, ntree);
+
+	int lobe_count = 0;
+	nodeChainIter(ntree, output_node, ntree_tag_ssr_bsdf_cb, &lobe_count, true);
+}
+
 void ntreeGPUMaterialNodes(bNodeTree *ntree, GPUMaterial *mat, short compatibility)
 {
 	/* localize tree to create links for reroute and mute */
@@ -485,6 +530,8 @@ void ntreeGPUMaterialNodes(bNodeTree *ntree, GPUMaterial *mat, short compatibili
 	 * displacement/bump mapping.
 	 */
 	ntree_shader_relink_displacement(localtree, compatibility);
+
+	ntree_shader_tag_ssr_node(localtree, compatibility);
 
 	exec = ntreeShaderBeginExecTree(localtree);
 	ntreeExecGPUNodes(exec, mat, 1, compatibility);

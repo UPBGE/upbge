@@ -545,8 +545,8 @@ static void copymenu_properties(SceneLayer *sl, Object *ob)
 	nr = pupmenu(str);
 	
 	if (nr == 1 || nr == 2) {
-		for (base = FIRSTBASE_NEW; base; base = base->next) {
-			if ((base != BASACT_NEW) && (TESTBASELIB_NEW(base))) {
+		for (base = FIRSTBASE_NEW(sl); base; base = base->next) {
+			if ((base != BASACT_NEW(sl)) && (TESTBASELIB_NEW(base))) {
 				if (nr == 1) { /* replace */
 					BKE_bproperty_copy_list(&base->object->prop, &ob->prop);
 				}
@@ -562,8 +562,8 @@ static void copymenu_properties(SceneLayer *sl, Object *ob)
 		prop = BLI_findlink(&ob->prop, nr - 4); /* account for first 3 menu items & menu index starting at 1*/
 		
 		if (prop) {
-			for (base = FIRSTBASE_NEW; base; base = base->next) {
-				if ((base != BASACT_NEW) && (TESTBASELIB_NEW(base))) {
+			for (base = FIRSTBASE_NEW(sl); base; base = base->next) {
+				if ((base != BASACT_NEW(sl)) && (TESTBASELIB_NEW(base))) {
 					BKE_bproperty_object_set(base->object, prop);
 				}
 			}
@@ -578,7 +578,7 @@ static void copymenu_logicbricks(SceneLayer *sl, Object *ob)
 //XXX no longer used - to be removed - replaced by logicbricks_copy_exec
 	Base *base;
 	
-	for (base = FIRSTBASE_NEW; base; base = base->next) {
+	for (base = FIRSTBASE_NEW(sl); base; base = base->next) {
 		if (base->object != ob) {
 			if (TESTBASELIB_NEW(base)) {
 				
@@ -591,9 +591,9 @@ static void copymenu_logicbricks(SceneLayer *sl, Object *ob)
 				
 				/* now copy it, this also works without logicbricks! */
 				clear_sca_new_poins_ob(ob);
-				copy_sensors(&base->object->sensors, &ob->sensors);
-				copy_controllers(&base->object->controllers, &ob->controllers);
-				copy_actuators(&base->object->actuators, &ob->actuators);
+				copy_sensors(&base->object->sensors, &ob->sensors, 0);
+				copy_controllers(&base->object->controllers, &ob->controllers, 0);
+				copy_actuators(&base->object->actuators, &ob->actuators, 0);
 				set_sca_new_poins_ob(base->object);
 				
 				/* some menu settings */
@@ -669,7 +669,7 @@ static void copy_attr(Main *bmain, Scene *scene, SceneLayer *sl, short event)
 	
 	if (ID_IS_LINKED_DATABLOCK(scene)) return;
 
-	if (!(ob = OBACT_NEW)) return;
+	if (!(ob = OBACT_NEW(sl))) return;
 	
 	if (scene->obedit) { // XXX get from context
 		/* obedit_copymenu(); */
@@ -689,8 +689,8 @@ static void copy_attr(Main *bmain, Scene *scene, SceneLayer *sl, short event)
 		return;
 	}
 
-	for (base = FIRSTBASE_NEW; base; base = base->next) {
-		if (base != BASACT_NEW) {
+	for (base = FIRSTBASE_NEW(sl); base; base = base->next) {
+		if (base != BASACT_NEW(sl)) {
 			if (TESTBASELIB_NEW(base)) {
 				DEG_id_tag_update(&base->object->id, OB_RECALC_DATA);
 				
@@ -752,7 +752,7 @@ static void copy_attr(Main *bmain, Scene *scene, SceneLayer *sl, short event)
 						base->object->collision_boundtype = ob->collision_boundtype;
 					}
 					base->object->margin = ob->margin;
-					base->object->bsoft = copy_bulletsoftbody(ob->bsoft);
+					base->object->bsoft = copy_bulletsoftbody(ob->bsoft, 0);
 
 				}
 				else if (event == 17) {   /* tex space */
@@ -860,7 +860,7 @@ static void copy_attr(Main *bmain, Scene *scene, SceneLayer *sl, short event)
 					base->object->softflag = ob->softflag;
 					if (base->object->soft) sbFree(base->object->soft);
 					
-					base->object->soft = copy_softbody(ob->soft, false);
+					base->object->soft = copy_softbody(ob->soft, 0);
 
 					if (!modifiers_findByType(base->object, eModifierType_Softbody)) {
 						BLI_addhead(&base->object->modifiers, modifier_new(eModifierType_Softbody));
@@ -916,7 +916,7 @@ static void UNUSED_FUNCTION(copy_attr_menu) (Main *bmain, Scene *scene, SceneLay
 	short event;
 	char str[512];
 	
-	if (!(ob = OBACT_NEW)) return;
+	if (!(ob = OBACT_NEW(sl))) return;
 	
 	if (scene->obedit) { /* XXX get from context */
 /*		if (ob->type == OB_MESH) */
@@ -976,13 +976,16 @@ void ED_object_check_force_modifiers(Main *bmain, Scene *scene, Object *object)
 
 	/* add/remove modifier as needed */
 	if (!md) {
-		if (pd && (pd->shape == PFIELD_SHAPE_SURFACE) && ELEM(pd->forcefield, PFIELD_GUIDE, PFIELD_TEXTURE) == 0)
-			if (ELEM(object->type, OB_MESH, OB_SURF, OB_FONT, OB_CURVE))
+		if (pd && (pd->shape == PFIELD_SHAPE_SURFACE) && !ELEM(pd->forcefield, 0, PFIELD_GUIDE, PFIELD_TEXTURE)) {
+			if (ELEM(object->type, OB_MESH, OB_SURF, OB_FONT, OB_CURVE)) {
 				ED_object_modifier_add(NULL, bmain, scene, object, NULL, eModifierType_Surface);
+			}
+		}
 	}
 	else {
-		if (!pd || pd->shape != PFIELD_SHAPE_SURFACE || pd->forcefield != PFIELD_FORCE)
+		if (!pd || (pd->shape != PFIELD_SHAPE_SURFACE) || ELEM(pd->forcefield, 0, PFIELD_GUIDE, PFIELD_TEXTURE)) {
 			ED_object_modifier_remove(NULL, bmain, object, md);
+		}
 	}
 }
 
@@ -1042,7 +1045,7 @@ void ED_objects_recalculate_paths(bContext *C, Scene *scene)
 	CTX_DATA_END;
 	
 	/* recalculate paths, then free */
-	animviz_calc_motionpaths(scene, &targets);
+	animviz_calc_motionpaths(C, scene, &targets);
 	BLI_freelistN(&targets);
 }
 
@@ -1263,7 +1266,7 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
 		if (ob->type == OB_MESH) {
 			BKE_mesh_smooth_flag_set(ob, !clear);
 
-			BKE_mesh_batch_cache_dirty(ob->data, BKE_MESH_BATCH_DIRTY_NOCHECK);
+			BKE_mesh_batch_cache_dirty(ob->data, BKE_MESH_BATCH_DIRTY_ALL);
 			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 			WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
@@ -1341,7 +1344,7 @@ static void UNUSED_FUNCTION(image_aspect) (Scene *scene, SceneLayer *sl)
 	if (scene->obedit) return;  // XXX get from context
 	if (ID_IS_LINKED_DATABLOCK(scene)) return;
 	
-	for (base = FIRSTBASE_NEW; base; base = base->next) {
+	for (base = FIRSTBASE_NEW(sl); base; base = base->next) {
 		if (TESTBASELIB_NEW(base)) {
 			ob = base->object;
 			done = false;
@@ -1942,9 +1945,9 @@ static int logicbricks_copy_exec(bContext *C, wmOperator *UNUSED(op))
 		
 			/* now copy it, this also works without logicbricks! */
 			clear_sca_new_poins_ob(ob);
-			copy_sensors(&ob_iter->sensors, &ob->sensors);
-			copy_controllers(&ob_iter->controllers, &ob->controllers);
-			copy_actuators(&ob_iter->actuators, &ob->actuators);
+			copy_sensors(&ob_iter->sensors, &ob->sensors, 0);
+			copy_controllers(&ob_iter->controllers, &ob->controllers, 0);
+			copy_actuators(&ob_iter->actuators, &ob->actuators, 0);
 			set_sca_new_poins_ob(ob_iter);
 		
 			/* some menu settings */
@@ -2012,7 +2015,7 @@ static int game_physics_copy_exec(bContext *C, wmOperator *UNUSED(op))
 			copy_v3_v3(ob_iter->anisotropicFriction, ob->anisotropicFriction);
 			ob_iter->collision_boundtype = ob->collision_boundtype;
 			ob_iter->margin = ob->margin;
-			ob_iter->bsoft = copy_bulletsoftbody(ob->bsoft);
+			ob_iter->bsoft = copy_bulletsoftbody(ob->bsoft, 0);
 			if (ob->restrictflag & OB_RESTRICT_RENDER) 
 				ob_iter->restrictflag |= OB_RESTRICT_RENDER;
 			else

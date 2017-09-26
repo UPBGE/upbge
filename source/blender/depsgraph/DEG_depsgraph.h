@@ -65,6 +65,14 @@ struct Main;
 
 struct PointerRNA;
 struct PropertyRNA;
+struct Scene;
+struct SceneLayer;
+
+typedef enum eEvaluationMode {
+	DAG_EVAL_VIEWPORT       = 0,    /* evaluate for OpenGL viewport */
+	DAG_EVAL_PREVIEW        = 1,    /* evaluate for render with preview settings */
+	DAG_EVAL_RENDER         = 2,    /* evaluate for render purposes */
+} eEvaluationMode;
 
 /* Dependency graph evaluation context
  *
@@ -72,15 +80,11 @@ struct PropertyRNA;
  * which is needed for it's evaluation,
  */
 typedef struct EvaluationContext {
-	int mode;
+	eEvaluationMode mode;
 	float ctime;
-} EvaluationContext;
 
-typedef enum eEvaluationMode {
-	DAG_EVAL_VIEWPORT       = 0,    /* evaluate for OpenGL viewport */
-	DAG_EVAL_PREVIEW        = 1,    /* evaluate for render with preview settings */
-	DAG_EVAL_RENDER         = 2,    /* evaluate for render purposes */
-} eEvaluationMode;
+	struct SceneLayer *scene_layer;
+} EvaluationContext;
 
 /* DagNode->eval_flags */
 enum {
@@ -136,13 +140,6 @@ void DEG_graph_on_visible_update(struct Main *bmain, struct Scene *scene);
 /* Update all dependency graphs when visible scenes/layers changes. */
 void DEG_on_visible_update(struct Main *bmain, const bool do_time);
 
-/* Tag node(s) associated with changed data for later updates */
-void DEG_graph_id_tag_update(struct Main *bmain,
-                             Depsgraph *graph,
-                             struct ID *id);
-void DEG_graph_data_tag_update(Depsgraph *graph, const struct PointerRNA *ptr);
-void DEG_graph_property_tag_update(Depsgraph *graph, const struct PointerRNA *ptr, const struct PropertyRNA *prop);
-
 /* Tag given ID for an update in all the dependency graphs. */
 enum {
 	/* Object transformation changed, corresponds to OB_RECALC_OB. */
@@ -164,6 +161,11 @@ enum {
 
 	/* Update copy on write component without flushing down the road. */
 	DEG_TAG_COPY_ON_WRITE = (1 << 8),
+
+	/* Tag shading components for update.
+	 * Only parameters of material changed).
+	 */
+	DEG_TAG_SHADING_UPDATE  = (1 << 9),
 };
 void DEG_id_tag_update(struct ID *id, int flag);
 void DEG_id_tag_update_ex(struct Main *bmain,
@@ -175,14 +177,17 @@ void DEG_id_tag_update_ex(struct Main *bmain,
  * Used by all sort of render engines to quickly check if
  * IDs of a given type need to be checked for update.
  */
-void DEG_id_type_tag(struct Main *bmain, short idtype);
+void DEG_id_type_tag(struct Main *bmain, short id_type);
 
 void DEG_ids_clear_recalc(struct Main *bmain);
 
 /* Update Flushing ------------------------------- */
 
 /* Flush updates for all IDs */
-void DEG_ids_flush_tagged(struct Main *bmain, struct Scene *scene);
+void DEG_ids_flush_tagged(struct Main *bmain);
+
+/* Flush updates for IDs in a single scene. */
+void DEG_scene_flush_update(struct Main *bmain, struct Scene *scene);
 
 /* Check if something was changed in the database and inform
  * editors about this.
@@ -197,13 +202,18 @@ void DEG_ids_check_recalc(struct Main *bmain,
 /* Evaluation Context ---------------------------- */
 
 /* Create new evaluation context. */
-struct EvaluationContext *DEG_evaluation_context_new(int mode);
+struct EvaluationContext *DEG_evaluation_context_new(eEvaluationMode mode);
 
 /* Initialize evaluation context.
  * Used by the areas which currently overrides the context or doesn't have
  * access to a proper one.
  */
-void DEG_evaluation_context_init(struct EvaluationContext *eval_ctx, int mode);
+void DEG_evaluation_context_init(struct EvaluationContext *eval_ctx,
+                                 eEvaluationMode mode);
+void DEG_evaluation_context_init_from_scene(struct EvaluationContext *eval_ctx,
+                                            struct Scene *scene,
+                                            struct SceneLayer *scene_layer,
+                                            eEvaluationMode mode);
 
 /* Free evaluation context. */
 void DEG_evaluation_context_free(struct EvaluationContext *eval_ctx);

@@ -29,6 +29,9 @@ uniform vec2 viewportSize;
 in vec4 vPos[];
 in vec4 pPos[];
 in ivec4 vData[];
+#ifdef VERTEX_FACING
+in float vFacing[];
+#endif
 
 /* these are the same for all vertices
  * and does not need interpolation */
@@ -39,6 +42,9 @@ flat out vec4 faceColor;
 flat out int clipCase;
 #ifdef VERTEX_SELECTION
 out vec3 vertexColor;
+#endif
+#ifdef VERTEX_FACING
+out float facing;
 #endif
 
 /* See fragment shader */
@@ -103,10 +109,20 @@ void doVertex(int v, vec4 pos)
 	vertexColor = getVertexColor(v);
 #endif
 
+#ifdef VERTEX_FACING
+	facing = vFacing[v];
+#endif
+
 	gl_Position = pos;
 
 	EmitVertex();
 }
+
+#ifdef ANTI_ALIASING
+#define Z_OFFSET 0.008
+#else
+#define Z_OFFSET 0.0
+#endif
 
 void main()
 {
@@ -214,7 +230,7 @@ void main()
 		}
 
 		/* to not let face color bleed */
-		faceColor = vec4(0.0);
+		faceColor.a = 0.0;
 
 		/* we don't want other edges : make them far */
 		eData1 = vec4(1e10);
@@ -231,7 +247,7 @@ void main()
 			eData1.zw = pos[vbe];
 
 			doVertex(v, pPos[v]);
-			doVertex(v, pPos[v] + vec4(fixvec[v], 0.0, 0.0));
+			doVertex(v, pPos[v] + vec4(fixvec[v], Z_OFFSET, 0.0));
 
 			/* Now one triangle only shade one edge
 			 * so we use the edge distance calculated
@@ -247,19 +263,19 @@ void main()
 			edgesBweight[2] = ebweight[vbe];
 
 			doVertex(vaf, pPos[vaf]);
-			doVertex(vaf, pPos[vaf] + vec4(fixvecaf[v], 0.0, 0.0));
+			doVertex(vaf, pPos[vaf] + vec4(fixvecaf[v], Z_OFFSET, 0.0));
 
 			/* corner vertices should not draw edges but draw point only */
 			flag[2] = (vData[vbe].x << 8);
 #ifdef VERTEX_SELECTION
 			doVertex(vaf, pPos[vaf]);
-			doVertex(vaf, pPos[vaf] + vec4(cornervec[vaf], 0.0, 0.0));
+			doVertex(vaf, pPos[vaf] + vec4(cornervec[vaf], Z_OFFSET, 0.0));
 #endif
 		}
 
 		/* finish the loop strip */
 		doVertex(2, pPos[2]);
-		doVertex(2, pPos[2] + vec4(fixvec[2], 0.0, 0.0));
+		doVertex(2, pPos[2] + vec4(fixvec[2], Z_OFFSET, 0.0));
 #endif
 	}
 	/* Harder case : compute visible edges vectors */

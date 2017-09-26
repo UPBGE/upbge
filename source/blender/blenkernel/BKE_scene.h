@@ -99,8 +99,9 @@ typedef struct SceneBaseIter {
 	int phase;
 } SceneBaseIter;
 
-int BKE_scene_base_iter_next(struct EvaluationContext *eval_ctx, struct SceneBaseIter *iter,
-                             struct Scene **scene, int val, struct BaseLegacy **base, struct Object **ob);
+int BKE_scene_base_iter_next(
+        const struct EvaluationContext *eval_ctx, struct SceneBaseIter *iter,
+        struct Scene **scene, int val, struct BaseLegacy **base, struct Object **ob);
 
 void BKE_scene_base_flag_to_objects(struct SceneLayer *sl);
 void BKE_scene_base_flag_from_objects(struct Scene *scene);
@@ -112,6 +113,7 @@ void BKE_scene_object_base_flag_sync_from_object(struct Base *base);
 void BKE_scene_set_background(struct Main *bmain, struct Scene *sce);
 struct Scene *BKE_scene_set_name(struct Main *bmain, const char *name);
 
+void BKE_scene_copy_data(struct Main *bmain, struct Scene *sce_dst, const struct Scene *sce_src, const int flag);
 struct Scene *BKE_scene_copy(struct Main *bmain, struct Scene *sce, int type);
 void BKE_scene_groups_relink(struct Scene *sce);
 
@@ -166,6 +168,8 @@ bool BKE_scene_check_rigidbody_active(const struct Scene *scene);
 
 int BKE_scene_num_threads(const struct Scene *scene);
 int BKE_render_num_threads(const struct RenderData *r);
+
+int BKE_render_preview_pixel_size(const struct RenderData *r);
 
 double BKE_scene_unit_scale(const struct UnitSettings *unit, const int unit_type, double value);
 

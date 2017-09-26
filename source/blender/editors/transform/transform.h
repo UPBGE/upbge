@@ -535,6 +535,9 @@ typedef struct TransInfo {
 	/* alternative transformation. used to add offset to tracking markers */
 #define T_ALT_TRANSFORM		(1 << 24)
 
+	/** #TransInfo.center has been set, don't change it. */
+#define T_OVERRIDE_CENTER	(1 << 25)
+
 /* TransInfo->modifiers */
 #define	MOD_CONSTRAINT_SELECT	0x01
 #define	MOD_PRECISION			0x02
@@ -638,7 +641,7 @@ void restoreBones(TransInfo *t);
 
 /*********************** transform_manipulator.c ********** */
 
-#define MANIPULATOR_AXIS_LINE_WIDTH 2.0
+#define MANIPULATOR_AXIS_LINE_WIDTH 2.0f
 
 bool gimbal_axis(struct Object *ob, float gmat[3][3]); /* return 0 when no gimbal for selection */
 

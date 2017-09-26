@@ -41,6 +41,8 @@
 #include "intern/depsgraph_types.h"
 #include "intern/nodes/deg_node.h"
 
+#include "DEG_depsgraph.h"
+
 namespace DEG {
 
 void deg_graph_build_finalize(Depsgraph *graph)
@@ -61,11 +63,9 @@ void deg_graph_build_finalize(Depsgraph *graph)
 				id_node->tag_update(graph);
 			}
 		}
-		/* XXX: This is only so we've got proper COW IDs after rebuild. */
-		/* TODO(sergey): Ideally we'll need to copy evaluated CoW from previous
-		 * depsgraph, so we don't need to re-tag anything what we already have.
-		 */
-		id_node->tag_update(graph);
+#ifdef WITH_COPY_ON_WRITE
+		DEG_id_tag_update_ex(graph->bmain, id_node->id_orig, DEG_TAG_COPY_ON_WRITE);
+#endif
 	}
 	GHASH_FOREACH_END();
 }

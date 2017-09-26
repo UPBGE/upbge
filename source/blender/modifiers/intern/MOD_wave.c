@@ -88,14 +88,10 @@ static void copyData(ModifierData *md, ModifierData *target)
 {
 #if 0
 	WaveModifierData *wmd = (WaveModifierData *) md;
-#endif
 	WaveModifierData *twmd = (WaveModifierData *) target;
+#endif
 
 	modifier_copyData_generic(md, target);
-
-	if (twmd->texture) {
-		id_us_plus(&twmd->texture->id);
-	}
 }
 
 static bool dependsOnTime(ModifierData *UNUSED(md))
@@ -314,8 +310,8 @@ static void waveModifier_do(WaveModifierData *md,
 	if (wmd->texture) MEM_freeN(tex_co);
 }
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *derivedData,
+static void deformVerts(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+                        Object *ob, DerivedMesh *derivedData,
                         float (*vertexCos)[3],
                         int numVerts,
                         ModifierApplyFlag UNUSED(flag))
@@ -335,7 +331,7 @@ static void deformVerts(ModifierData *md, Object *ob,
 }
 
 static void deformVertsEM(
-        ModifierData *md, Object *ob, struct BMEditMesh *editData,
+        ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob, struct BMEditMesh *editData,
         DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
 	DerivedMesh *dm = derivedData;

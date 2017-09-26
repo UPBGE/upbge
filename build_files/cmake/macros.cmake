@@ -318,7 +318,7 @@ function(SETUP_LIBDIRS)
 		link_directories(${JACK_LIBPATH})
 	endif()
 	if(WITH_CODEC_SNDFILE)
-		link_directories(${SNDFILE_LIBPATH})
+		link_directories(${LIBSNDFILE_LIBPATH})
 	endif()
 	if(WITH_FFTW3)
 		link_directories(${FFTW3_LIBPATH})
@@ -398,7 +398,7 @@ function(setup_liblinks
 		target_link_libraries(${target} ${JACK_LIBRARIES})
 	endif()
 	if(WITH_CODEC_SNDFILE)
-		target_link_libraries(${target} ${SNDFILE_LIBRARIES})
+		target_link_libraries(${target} ${LIBSNDFILE_LIBRARIES})
 	endif()
 	if(WITH_SDL AND NOT WITH_SDL_DYNLOAD)
 		target_link_libraries(${target} ${SDL_LIBRARY})
@@ -549,8 +549,18 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		endif()
 	endif()
 
+	if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)
+		list(APPEND BLENDER_LINK_LIBS
+			audaspace
+			audaspace-py)
+	endif()
+
 	# Sort libraries
 	set(BLENDER_SORTED_LIBS
+
+		audaspace
+		audaspace-py
+
 		bf_windowmanager
 
 		bf_editor_space_api
@@ -617,6 +627,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_python
 		bf_python_ext
 		bf_python_mathutils
+		bf_python_gawain
 		bf_python_bmesh
 		bf_freestyle
 		bf_ikplugin
@@ -1519,6 +1530,7 @@ function(find_python_package
 		  NAMES
 		    ${package}
 		  HINTS
+		    "${PYTHON_LIBPATH}/"
 		    "${PYTHON_LIBPATH}/python${PYTHON_VERSION}/"
 		    "${PYTHON_LIBPATH}/python${_PY_VER_MAJOR}/"
 		  PATH_SUFFIXES

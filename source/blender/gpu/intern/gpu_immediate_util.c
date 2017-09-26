@@ -51,12 +51,13 @@ void imm_cpack(unsigned int x)
 	                   (((x) >> 16) & 0xFF));
 }
 
-static void imm_draw_circle(Gwn_PrimType prim_type, const uint shdr_pos, float x, float y, float rad, int nsegments)
+static void imm_draw_circle(
+        Gwn_PrimType prim_type, const uint shdr_pos, float x, float y, float rad_x, float rad_y, int nsegments)
 {
 	immBegin(prim_type, nsegments);
 	for (int i = 0; i < nsegments; ++i) {
-		const float angle = 2 * M_PI * ((float)i / (float)nsegments);
-		immVertex2f(shdr_pos, x + rad * cosf(angle), y + rad * sinf(angle));
+		const float angle = (float)(2 * M_PI) * ((float)i / (float)nsegments);
+		immVertex2f(shdr_pos, x + (rad_x * cosf(angle)), y + (rad_y * sinf(angle)));
 	}
 	immEnd();
 }
@@ -71,9 +72,9 @@ static void imm_draw_circle(Gwn_PrimType prim_type, const uint shdr_pos, float x
  * \param radius The circle's radius.
  * \param nsegments The number of segments to use in drawing (more = smoother).
  */
-void imm_draw_circle_wire(uint shdr_pos, float x, float y, float rad, int nsegments)
+void imm_draw_circle_wire_2d(uint shdr_pos, float x, float y, float rad, int nsegments)
 {
-	imm_draw_circle(GWN_PRIM_LINE_LOOP, shdr_pos, x, y, rad, nsegments);
+	imm_draw_circle(GWN_PRIM_LINE_LOOP, shdr_pos, x, y, rad, rad, nsegments);
 }
 
 /**
@@ -86,9 +87,18 @@ void imm_draw_circle_wire(uint shdr_pos, float x, float y, float rad, int nsegme
  * \param radius The circle's radius.
  * \param nsegments The number of segments to use in drawing (more = smoother).
  */
-void imm_draw_circle_fill(uint shdr_pos, float x, float y, float rad, int nsegments)
+void imm_draw_circle_fill_2d(uint shdr_pos, float x, float y, float rad, int nsegments)
 {
-	imm_draw_circle(GWN_PRIM_TRI_FAN, shdr_pos, x, y, rad, nsegments);
+	imm_draw_circle(GWN_PRIM_TRI_FAN, shdr_pos, x, y, rad, rad, nsegments);
+}
+
+void imm_draw_circle_wire_aspect_2d(uint shdr_pos, float x, float y, float rad_x, float rad_y, int nsegments)
+{
+	imm_draw_circle(GWN_PRIM_LINE_LOOP, shdr_pos, x, y, rad_x, rad_y, nsegments);
+}
+void imm_draw_circle_fill_aspect_2d(uint shdr_pos, float x, float y, float rad_x, float rad_y, int nsegments)
+{
+	imm_draw_circle(GWN_PRIM_TRI_FAN, shdr_pos, x, y, rad_x, rad_y, nsegments);
 }
 
 /**
@@ -99,7 +109,7 @@ static void imm_draw_disk_partial(
         float rad_inner, float rad_outer, int nsegments, float start, float sweep)
 {
 	/* shift & reverse angle, increase 'nsegments' to match gluPartialDisk */
-	const float angle_start = -(DEG2RADF(start)) + (M_PI / 2);
+	const float angle_start = -(DEG2RADF(start)) + (float)(M_PI / 2);
 	const float angle_end   = -(DEG2RADF(sweep) - angle_start);
 	nsegments += 1;
 	immBegin(prim_type, nsegments * 2);
@@ -128,7 +138,7 @@ static void imm_draw_disk_partial(
  * \param start: Specifies the starting angle, in degrees, of the disk portion.
  * \param sweep: Specifies the sweep angle, in degrees, of the disk portion.
  */
-void imm_draw_disk_partial_fill(
+void imm_draw_disk_partial_fill_2d(
         unsigned pos, float x, float y,
         float rad_inner, float rad_outer, int nsegments, float start, float sweep)
 {
@@ -141,7 +151,7 @@ static void imm_draw_circle_3D(
 {
 	immBegin(prim_type, nsegments);
 	for (int i = 0; i < nsegments; ++i) {
-		float angle = 2 * M_PI * ((float)i / (float)nsegments);
+		float angle = (float)(2 * M_PI) * ((float)i / (float)nsegments);
 		immVertex3f(pos, x + rad * cosf(angle), y + rad * sinf(angle), 0.0f);
 	}
 	immEnd();
@@ -166,7 +176,7 @@ void imm_draw_circle_fill_3d(unsigned pos, float x, float y, float rad, int nseg
 * \param x2 right.
 * \param y2 top.
 */
-void imm_draw_line_box(unsigned pos, float x1, float y1, float x2, float y2)
+void imm_draw_line_box_2d(unsigned pos, float x1, float y1, float x2, float y2)
 {
 	immBegin(GWN_PRIM_LINE_LOOP, 4);
 	immVertex2f(pos, x1, y1);
@@ -190,7 +200,7 @@ void imm_draw_line_box_3d(unsigned pos, float x1, float y1, float x2, float y2)
 /**
  * Draw a standard checkerboard to indicate transparent backgrounds.
  */
-void imm_draw_checker_box(float x1, float y1, float x2, float y2)
+void imm_draw_checker_box_2d(float x1, float y1, float x2, float y2)
 {
 	unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 	immBindBuiltinProgram(GPU_SHADER_2D_CHECKER);
@@ -221,8 +231,8 @@ void imm_draw_cylinder_fill_normal_3d(
 {
 	immBegin(GWN_PRIM_TRIS, 6 * slices * stacks);
 	for (int i = 0; i < slices; ++i) {
-		const float angle1 = 2 * M_PI * ((float)i / (float)slices);
-		const float angle2 = 2 * M_PI * ((float)(i + 1) / (float)slices);
+		const float angle1 = (float)(2 * M_PI) * ((float)i / (float)slices);
+		const float angle2 = (float)(2 * M_PI) * ((float)(i + 1) / (float)slices);
 		const float cos1 = cosf(angle1);
 		const float sin1 = sinf(angle1);
 		const float cos2 = cosf(angle2);
@@ -272,8 +282,8 @@ void imm_draw_cylinder_wire_3d(unsigned int pos, float base, float top, float he
 {
 	immBegin(GWN_PRIM_LINES, 6 * slices * stacks);
 	for (int i = 0; i < slices; ++i) {
-		const float angle1 = 2 * M_PI * ((float)i / (float)slices);
-		const float angle2 = 2 * M_PI * ((float)(i + 1) / (float)slices);
+		const float angle1 = (float)(2 * M_PI) * ((float)i / (float)slices);
+		const float angle2 = (float)(2 * M_PI) * ((float)(i + 1) / (float)slices);
 		const float cos1 = cosf(angle1);
 		const float sin1 = sinf(angle1);
 		const float cos2 = cosf(angle2);
@@ -309,8 +319,8 @@ void imm_draw_cylinder_fill_3d(unsigned int pos, float base, float top, float he
 {
 	immBegin(GWN_PRIM_TRIS, 6 * slices * stacks);
 	for (int i = 0; i < slices; ++i) {
-		const float angle1 = 2 * M_PI * ((float)i / (float)slices);
-		const float angle2 = 2 * M_PI * ((float)(i + 1) / (float)slices);
+		const float angle1 = (float)(2 * M_PI) * ((float)i / (float)slices);
+		const float angle2 = (float)(2 * M_PI) * ((float)(i + 1) / (float)slices);
 		const float cos1 = cosf(angle1);
 		const float sin1 = sinf(angle1);
 		const float cos2 = cosf(angle2);

@@ -289,7 +289,12 @@ static void rna_Scene_collada_export(
         int limit_precision,
         int keep_bind_info)
 {
-	collada_export(scene,
+	EvaluationContext eval_ctx;
+
+	CTX_data_eval_ctx(C, &eval_ctx);
+
+	collada_export(&eval_ctx,
+		scene,
 		CTX_data_scene_layer(C),
 		filepath,
 

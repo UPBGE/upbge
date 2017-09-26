@@ -88,23 +88,21 @@ static void manipulator_primitive_draw_intern(
         wmManipulator *mpr, const bool UNUSED(select),
         const bool highlight)
 {
-	float col_inner[4], col_outer[4];
-	float mat[4][4];
+	float color_inner[4], color_outer[4];
+	float matrix_final[4][4];
 	const int draw_style = RNA_enum_get(mpr->ptr, "draw_style");
 
-	manipulator_color_get(mpr, highlight, col_outer);
-	copy_v4_v4(col_inner, col_outer);
-	col_inner[3] *= 0.5f;
+	manipulator_color_get(mpr, highlight, color_outer);
+	copy_v4_v4(color_inner, color_outer);
+	color_inner[3] *= 0.5f;
 
-	copy_m4_m4(mat, mpr->matrix_basis);
-	mul_mat3_m4_fl(mat, mpr->scale_final);
+	WM_manipulator_calc_matrix_final(mpr, matrix_final);
 
 	gpuPushMatrix();
-	gpuMultMatrix(mat);
+	gpuMultMatrix(matrix_final);
 
 	glEnable(GL_BLEND);
-	gpuMultMatrix(mpr->matrix_offset);
-	manipulator_primitive_draw_geom(col_inner, col_outer, draw_style);
+	manipulator_primitive_draw_geom(color_inner, color_outer, draw_style);
 	glDisable(GL_BLEND);
 
 	gpuPopMatrix();
@@ -112,19 +110,15 @@ static void manipulator_primitive_draw_intern(
 	if (mpr->interaction_data) {
 		ManipulatorInteraction *inter = mpr->interaction_data;
 
-		copy_v4_fl(col_inner, 0.5f);
-		copy_v3_fl(col_outer, 0.5f);
-		col_outer[3] = 0.8f;
-
-		copy_m4_m4(mat, inter->init_matrix);
-		mul_mat3_m4_fl(mat, inter->init_scale);
+		copy_v4_fl(color_inner, 0.5f);
+		copy_v3_fl(color_outer, 0.5f);
+		color_outer[3] = 0.8f;
 
 		gpuPushMatrix();
-		gpuMultMatrix(mat);
+		gpuMultMatrix(inter->init_matrix_final);
 
 		glEnable(GL_BLEND);
-		gpuMultMatrix(mpr->matrix_offset);
-		manipulator_primitive_draw_geom(col_inner, col_outer, draw_style);
+		manipulator_primitive_draw_geom(color_inner, color_outer, draw_style);
 		glDisable(GL_BLEND);
 
 		gpuPopMatrix();
@@ -133,9 +127,9 @@ static void manipulator_primitive_draw_intern(
 
 static void manipulator_primitive_draw_select(
         const bContext *UNUSED(C), wmManipulator *mpr,
-        int selectionbase)
+        int select_id)
 {
-	GPU_select_load_id(selectionbase);
+	GPU_select_load_id(select_id);
 	manipulator_primitive_draw_intern(mpr, true, false);
 }
 
@@ -148,18 +142,19 @@ static void manipulator_primitive_draw(const bContext *UNUSED(C), wmManipulator 
 
 static void manipulator_primitive_setup(wmManipulator *mpr)
 {
-	mpr->flag |= WM_MANIPULATOR_DRAW_ACTIVE;
+	mpr->flag |= WM_MANIPULATOR_DRAW_MODAL;
 }
 
-static void manipulator_primitive_invoke(
+static int manipulator_primitive_invoke(
         bContext *UNUSED(C), wmManipulator *mpr, const wmEvent *UNUSED(event))
 {
 	ManipulatorInteraction *inter = MEM_callocN(sizeof(ManipulatorInteraction), __func__);
 
-	copy_m4_m4(inter->init_matrix, mpr->matrix_basis);
-	inter->init_scale = mpr->scale_final;
+	WM_manipulator_calc_matrix_final(mpr, inter->init_matrix_final);
 
 	mpr->interaction_data = inter;
+
+	return OPERATOR_RUNNING_MODAL;
 }
 
 /* -------------------------------------------------------------------- */

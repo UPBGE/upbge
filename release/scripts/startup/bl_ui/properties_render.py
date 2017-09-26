@@ -275,6 +275,7 @@ class RENDER_PT_performance(RenderButtonsPanel, Panel):
 
         col.separator()
         col.prop(rd, "preview_start_resolution")
+        col.prop(rd, "preview_pixel_size", text="")
 
         col = split.column()
         col.label(text="Memory:")
@@ -286,7 +287,7 @@ class RENDER_PT_performance(RenderButtonsPanel, Panel):
         sub.prop(rd, "use_free_image_textures")
         sub = col.column()
         sub.active = rd.use_raytrace
-        sub.label(text="Acceleration structure:")
+        sub.label(text="Acceleration Structure:")
         sub.prop(rd, "raytrace_method", text="")
         if rd.raytrace_method == 'OCTREE':
             sub.prop(rd, "octree_resolution", text="Resolution")
@@ -347,7 +348,7 @@ class RENDER_PT_stamp(RenderButtonsPanel, Panel):
         col.active = rd.use_stamp
         row = col.row()
         row.prop(rd, "stamp_font_size", text="Font Size")
-        row.prop(rd, "use_stamp_labels", text="Draw labels")
+        row.prop(rd, "use_stamp_labels", text="Draw Labels")
 
         row = col.row()
         row.column().prop(rd, "stamp_foreground", slider=True)
@@ -482,9 +483,9 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
         layout.prop(ffmpeg, "gopsize")
         # B-Frames
         row = layout.row()
-        row.prop(ffmpeg, "use_max_b_frames", text='Max B-frames')
+        row.prop(ffmpeg, "use_max_b_frames", text="Max B-frames")
         pbox = row.split()
-        pbox.prop(ffmpeg, "max_b_frames", text='')
+        pbox.prop(ffmpeg, "max_b_frames", text="")
         pbox.enabled = ffmpeg.use_max_b_frames
 
         split = layout.split()
@@ -657,9 +658,12 @@ class RENDER_PT_eevee_postprocess_settings(RenderButtonsPanel, Panel):
 
         col.label("Ambient Occlusion:")
         col.prop(props, "gtao_use_bent_normals")
+        col.prop(props, "gtao_denoise")
+        col.prop(props, "gtao_bounce")
         col.prop(props, "gtao_samples")
         col.prop(props, "gtao_distance")
         col.prop(props, "gtao_factor")
+        col.prop(props, "gtao_quality")
         col.separator()
 
         col.label("Motion Blur:")
@@ -676,7 +680,9 @@ class RENDER_PT_eevee_postprocess_settings(RenderButtonsPanel, Panel):
         col.prop(props, "bloom_threshold")
         col.prop(props, "bloom_knee")
         col.prop(props, "bloom_radius")
+        col.prop(props, "bloom_color")
         col.prop(props, "bloom_intensity")
+        col.prop(props, "bloom_clamp")
 
 
 class RENDER_PT_eevee_volumetric(RenderButtonsPanel, Panel):
@@ -711,6 +717,56 @@ class RENDER_PT_eevee_volumetric(RenderButtonsPanel, Panel):
         col.prop(props, "volumetric_colored_transmittance")
 
 
+class RENDER_PT_eevee_screen_space_reflections(RenderButtonsPanel, Panel):
+    bl_label = "Screen Space Reflections"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+        self.layout.prop(props, "ssr_enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+
+        col = layout.column()
+        col.prop(props, "ssr_refraction")
+        col.prop(props, "ssr_halfres")
+        col.prop(props, "ssr_ray_count")
+        col.prop(props, "ssr_quality")
+        col.prop(props, "ssr_max_roughness")
+        col.prop(props, "ssr_thickness")
+        col.prop(props, "ssr_border_fade")
+        col.prop(props, "ssr_firefly_fac")
+
+
+class RENDER_PT_eevee_shadows(RenderButtonsPanel, Panel):
+    bl_label = "Shadows"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+
+        col = layout.column()
+        col.prop(props, "shadow_method")
+        col.prop(props, "shadow_size")
+        col.prop(props, "shadow_high_bitdepth")
+
+
 classes = (
     RENDER_MT_presets,
     RENDER_MT_ffmpeg_presets,
@@ -728,9 +784,11 @@ classes = (
     RENDER_PT_bake,
     RENDER_PT_clay_layer_settings,
     RENDER_PT_clay_collection_settings,
+    RENDER_PT_eevee_volumetric,
+    RENDER_PT_eevee_screen_space_reflections,
     RENDER_PT_eevee_poststack_settings,
     RENDER_PT_eevee_postprocess_settings,
-    RENDER_PT_eevee_volumetric,
+    RENDER_PT_eevee_shadows,
 )
 
 if __name__ == "__main__":  # only for live edit.

@@ -59,6 +59,8 @@
 
 #include "BKE_appdir.h"
 #include "BKE_key.h"
+#include "BKE_library.h"
+#include "BKE_library_query.h"
 #include "BKE_multires.h"
 #include "BKE_DerivedMesh.h"
 
@@ -269,14 +271,37 @@ void modifier_copyData_generic(const ModifierData *md_src, ModifierData *md_dst)
 	memcpy(md_dst_data, md_src_data, (size_t)mti->structSize - data_size);
 }
 
-void modifier_copyData(ModifierData *md, ModifierData *target)
+static void modifier_copy_data_id_us_cb(void *UNUSED(userData), Object *UNUSED(ob), ID **idpoin, int cb_flag)
+{
+	ID *id = *idpoin;
+	if (id != NULL && (cb_flag & IDWALK_CB_USER) != 0) {
+		id_us_plus(id);
+	}
+}
+
+void modifier_copyData_ex(ModifierData *md, ModifierData *target, const int flag)
 {
 	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 	target->mode = md->mode;
 
-	if (mti->copyData)
+	if (mti->copyData) {
 		mti->copyData(md, target);
+	}
+
+	if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+		if (mti->foreachIDLink) {
+			mti->foreachIDLink(target, NULL, modifier_copy_data_id_us_cb, NULL);
+		}
+		else if (mti->foreachObjectLink) {
+			mti->foreachObjectLink(target, NULL, (ObjectWalkFunc)modifier_copy_data_id_us_cb, NULL);
+		}
+	}
+}
+
+void modifier_copyData(ModifierData *md, ModifierData *target)
+{
+	modifier_copyData_ex(md, target, 0);
 }
 
 
@@ -732,8 +757,8 @@ void modifier_path_init(char *path, int path_maxlen, const char *name)
 /* wrapper around ModifierTypeInfo.applyModifier that ensures valid normals */
 
 struct DerivedMesh *modwrap_applyModifier(
-        ModifierData *md, Object *ob,
-        struct DerivedMesh *dm,
+        ModifierData *md, const struct EvaluationContext *eval_ctx,
+        Object *ob, struct DerivedMesh *dm,
         ModifierApplyFlag flag)
 {
 	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
@@ -742,12 +767,12 @@ struct DerivedMesh *modwrap_applyModifier(
 	if (mti->dependsOnNormals && mti->dependsOnNormals(md)) {
 		DM_ensure_normals(dm);
 	}
-	return mti->applyModifier(md, ob, dm, flag);
+	return mti->applyModifier(md, eval_ctx, ob, dm, flag);
 }
 
 struct DerivedMesh *modwrap_applyModifierEM(
-        ModifierData *md, Object *ob,
-        struct BMEditMesh *em,
+        ModifierData *md, const struct EvaluationContext *eval_ctx,
+        Object *ob, struct BMEditMesh *em,
         DerivedMesh *dm,
         ModifierApplyFlag flag)
 {
@@ -757,12 +782,12 @@ struct DerivedMesh *modwrap_applyModifierEM(
 	if (mti->dependsOnNormals && mti->dependsOnNormals(md)) {
 		DM_ensure_normals(dm);
 	}
-	return mti->applyModifierEM(md, ob, em, dm, flag);
+	return mti->applyModifierEM(md, eval_ctx, ob, em, dm, flag);
 }
 
 void modwrap_deformVerts(
-        ModifierData *md, Object *ob,
-        DerivedMesh *dm,
+        ModifierData *md, const struct EvaluationContext *eval_ctx,
+        Object *ob, DerivedMesh *dm,
         float (*vertexCos)[3], int numVerts,
         ModifierApplyFlag flag)
 {
@@ -772,11 +797,11 @@ void modwrap_deformVerts(
 	if (dm && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
 		DM_ensure_normals(dm);
 	}
-	mti->deformVerts(md, ob, dm, vertexCos, numVerts, flag);
+	mti->deformVerts(md, eval_ctx, ob, dm, vertexCos, numVerts, flag);
 }
 
 void modwrap_deformVertsEM(
-        ModifierData *md, Object *ob,
+        ModifierData *md, const struct EvaluationContext *eval_ctx, Object *ob,
         struct BMEditMesh *em, DerivedMesh *dm,
         float (*vertexCos)[3], int numVerts)
 {
@@ -786,6 +811,6 @@ void modwrap_deformVertsEM(
 	if (dm && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
 		DM_ensure_normals(dm);
 	}
-	mti->deformVertsEM(md, ob, em, dm, vertexCos, numVerts);
+	mti->deformVertsEM(md, eval_ctx, ob, em, dm, vertexCos, numVerts);
 }
 /* end modifier callback wrappers */

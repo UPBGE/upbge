@@ -47,6 +47,8 @@
 
 #include "DEG_depsgraph_build.h"
 
+#include "MOD_modifiertypes.h"
+
 static void initData(ModifierData *md)
 {
 	MirrorModifierData *mmd = (MirrorModifierData *) md;
@@ -319,8 +321,8 @@ static DerivedMesh *mirrorModifier__doMirror(MirrorModifierData *mmd,
 	return result;
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-                                  DerivedMesh *derivedData,
+static DerivedMesh *applyModifier(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+                                  Object *ob, DerivedMesh *derivedData,
                                   ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *result;

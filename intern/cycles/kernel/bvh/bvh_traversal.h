@@ -244,14 +244,14 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								{
 									/* shadow ray early termination */
 #if defined(__KERNEL_SSE2__)
-									if(visibility == PATH_RAY_SHADOW_OPAQUE)
+									if(visibility & PATH_RAY_SHADOW_OPAQUE)
 										return true;
 									tsplat = ssef(0.0f, 0.0f, -isect->t, -isect->t);
 #  if BVH_FEATURE(BVH_HAIR)
 									tfar = ssef(isect->t);
 #  endif
 #else
-									if(visibility == PATH_RAY_SHADOW_OPAQUE)
+									if(visibility & PATH_RAY_SHADOW_OPAQUE)
 										return true;
 #endif
 								}
@@ -274,14 +274,14 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								{
 									/* shadow ray early termination */
 #  if defined(__KERNEL_SSE2__)
-									if(visibility == PATH_RAY_SHADOW_OPAQUE)
+									if(visibility & PATH_RAY_SHADOW_OPAQUE)
 										return true;
 									tsplat = ssef(0.0f, 0.0f, -isect->t, -isect->t);
 #    if BVH_FEATURE(BVH_HAIR)
 									tfar = ssef(isect->t);
 #    endif
 #  else
-									if(visibility == PATH_RAY_SHADOW_OPAQUE)
+									if(visibility & PATH_RAY_SHADOW_OPAQUE)
 										return true;
 #  endif
 								}
@@ -298,44 +298,44 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								kernel_assert((curve_type & PRIMITIVE_ALL) == (type & PRIMITIVE_ALL));
 								bool hit;
 								if(kernel_data.curve.curveflags & CURVE_KN_INTERPOLATE) {
-									hit = bvh_cardinal_curve_intersect(kg,
-									                                   isect,
-									                                   P,
-									                                   dir,
-									                                   visibility,
-									                                   object,
-									                                   prim_addr,
-									                                   ray->time,
-									                                   curve_type,
-									                                   lcg_state,
-									                                   difl,
-									                                   extmax);
+									hit = cardinal_curve_intersect(kg,
+									                               isect,
+									                               P,
+									                               dir,
+									                               visibility,
+									                               object,
+									                               prim_addr,
+									                               ray->time,
+									                               curve_type,
+									                               lcg_state,
+									                               difl,
+									                               extmax);
 								}
 								else {
-									hit = bvh_curve_intersect(kg,
-									                          isect,
-									                          P,
-									                          dir,
-									                          visibility,
-									                          object,
-									                          prim_addr,
-									                          ray->time,
-									                          curve_type,
-									                          lcg_state,
-									                          difl,
-									                          extmax);
+									hit = curve_intersect(kg,
+									                      isect,
+									                      P,
+									                      dir,
+									                      visibility,
+									                      object,
+									                      prim_addr,
+									                      ray->time,
+									                      curve_type,
+									                      lcg_state,
+									                      difl,
+									                      extmax);
 								}
 								if(hit) {
 									/* shadow ray early termination */
 #  if defined(__KERNEL_SSE2__)
-									if(visibility == PATH_RAY_SHADOW_OPAQUE)
+									if(visibility & PATH_RAY_SHADOW_OPAQUE)
 										return true;
 									tsplat = ssef(0.0f, 0.0f, -isect->t, -isect->t);
 #    if BVH_FEATURE(BVH_HAIR)
 									tfar = ssef(isect->t);
 #    endif
 #  else
-									if(visibility == PATH_RAY_SHADOW_OPAQUE)
+									if(visibility & PATH_RAY_SHADOW_OPAQUE)
 										return true;
 #  endif
 								}

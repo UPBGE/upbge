@@ -294,11 +294,18 @@ class VIEW3D_MT_transform_object(VIEW3D_MT_transform_base):
         layout.operator("object.origin_set", text="Geometry to Origin").type = 'GEOMETRY_ORIGIN'
         layout.operator("object.origin_set", text="Origin to Geometry").type = 'ORIGIN_GEOMETRY'
         layout.operator("object.origin_set", text="Origin to 3D Cursor").type = 'ORIGIN_CURSOR'
-        layout.operator("object.origin_set", text="Origin to Center of Mass").type = 'ORIGIN_CENTER_OF_MASS'
+        layout.operator("object.origin_set", text="Origin to Center of Mass (Surface)").type = 'ORIGIN_CENTER_OF_MASS'
+        layout.operator("object.origin_set", text="Origin to Center of Mass (Volume)").type = 'ORIGIN_CENTER_OF_VOLUME'
         layout.separator()
 
         layout.operator("object.randomize_transform")
         layout.operator("object.align")
+
+        # TODO: there is a strange context bug here.
+        """
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("object.transform_axis_target")
+        """
 
 
 # Armature EditMode extensions to Transform menu
@@ -1702,7 +1709,7 @@ class VIEW3D_MT_brush(Menu):
 
         # skip if no active brush
         if not brush:
-            layout.label(text="No Brushes currently available", icon="INFO")
+            layout.label(text="No Brushes currently available", icon='INFO')
             return
 
         # brush paint modes
@@ -2105,7 +2112,7 @@ class VIEW3D_MT_pose_transform(Menu):
 
         layout.separator()
 
-        layout.operator("pose.user_transforms_clear", text="Reset unkeyed")
+        layout.operator("pose.user_transforms_clear", text="Reset Unkeyed")
 
 
 class VIEW3D_MT_pose_slide(Menu):

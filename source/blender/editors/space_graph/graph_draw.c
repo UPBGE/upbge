@@ -221,7 +221,7 @@ static void draw_fcurve_selected_handle_vertices(FCurve *fcu, View2D *v2d, bool 
 	float hcolor[3];
 	UI_GetThemeColor3fv(sel ? TH_HANDLE_VERTEX_SELECT : TH_HANDLE_VERTEX, hcolor);
 	immUniform4f("outlineColor", hcolor[0], hcolor[1], hcolor[2], 1.0f);
-	immUniformColor3fvAlpha(hcolor, 0.4f);
+	immUniformColor3fvAlpha(hcolor, 0.01f); /* almost invisible - only keep for smoothness */
 
 	immBeginAtMost(GWN_PRIM_POINTS, fcu->totvert * 2);
 
@@ -259,8 +259,8 @@ static void draw_fcurve_handle_vertices(FCurve *fcu, View2D *v2d, bool sel_handl
 	immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_OUTLINE_AA);
 
 	/* set handle size */
-	immUniform1f("size", (UI_GetThemeValuef(TH_HANDLE_VERTEX_SIZE) + 1.0f) * U.pixelsize);
-	immUniform1f("outlineWidth", 1.0f * U.pixelsize);
+	immUniform1f("size", (1.4f * UI_GetThemeValuef(TH_HANDLE_VERTEX_SIZE)) * U.pixelsize);
+	immUniform1f("outlineWidth", 1.5f * U.pixelsize);
 
 	draw_fcurve_selected_handle_vertices(fcu, v2d, false, sel_handle_only, pos);
 	draw_fcurve_selected_handle_vertices(fcu, v2d, true, sel_handle_only, pos);
@@ -1039,7 +1039,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 			/* set color/drawing style for curve itself */
 			/* draw active F-Curve thicker than the rest to make it stand out */
 			if (fcu->flag & FCURVE_ACTIVE) {
-				glLineWidth(2.0);
+				glLineWidth(2.5);
 			}
 			else {
 				glLineWidth(1.0);

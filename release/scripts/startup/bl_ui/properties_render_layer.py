@@ -192,9 +192,12 @@ class RENDERLAYER_PT_eevee_postprocess_settings(RenderLayerButtonsPanel, Panel):
         col = layout.column()
         col.label("Ambient Occlusion:")
         col.template_override_property(layer_props, scene_props, "gtao_use_bent_normals")
+        col.template_override_property(layer_props, scene_props, "gtao_denoise")
+        col.template_override_property(layer_props, scene_props, "gtao_bounce")
         col.template_override_property(layer_props, scene_props, "gtao_samples")
         col.template_override_property(layer_props, scene_props, "gtao_distance")
         col.template_override_property(layer_props, scene_props, "gtao_factor")
+        col.template_override_property(layer_props, scene_props, "gtao_quality")
         col.separator()
 
         col.label("Motion Blur:")
@@ -211,7 +214,9 @@ class RENDERLAYER_PT_eevee_postprocess_settings(RenderLayerButtonsPanel, Panel):
         col.template_override_property(layer_props, scene_props, "bloom_threshold")
         col.template_override_property(layer_props, scene_props, "bloom_knee")
         col.template_override_property(layer_props, scene_props, "bloom_radius")
+        col.template_override_property(layer_props, scene_props, "bloom_color")
         col.template_override_property(layer_props, scene_props, "bloom_intensity")
+        col.template_override_property(layer_props, scene_props, "bloom_clamp")
 
 
 class RENDERLAYER_PT_eevee_volumetric(RenderLayerButtonsPanel, Panel):
@@ -250,6 +255,63 @@ class RENDERLAYER_PT_eevee_volumetric(RenderLayerButtonsPanel, Panel):
         col.template_override_property(layer_props, scene_props, "volumetric_colored_transmittance")
 
 
+class RENDERLAYER_PT_eevee_screen_space_reflections(RenderLayerButtonsPanel, Panel):
+    bl_label = "Screen Space Reflections"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        scene = context.scene
+        scene_props = scene.layer_properties['BLENDER_EEVEE']
+        layer = bpy.context.render_layer
+        layer_props = layer.engine_overrides['BLENDER_EEVEE']
+
+        self.layout.template_override_property(layer_props, scene_props, "ssr_enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        scene_props = scene.layer_properties['BLENDER_EEVEE']
+        layer = bpy.context.render_layer
+        layer_props = layer.engine_overrides['BLENDER_EEVEE']
+
+        col = layout.column()
+        col.template_override_property(layer_props, scene_props, "ssr_halfres")
+        col.template_override_property(layer_props, scene_props, "ssr_refraction")
+        col.template_override_property(layer_props, scene_props, "ssr_ray_count")
+        col.template_override_property(layer_props, scene_props, "ssr_quality")
+        col.template_override_property(layer_props, scene_props, "ssr_max_roughness")
+        col.template_override_property(layer_props, scene_props, "ssr_thickness")
+        col.template_override_property(layer_props, scene_props, "ssr_border_fade")
+        col.template_override_property(layer_props, scene_props, "ssr_firefly_fac")
+
+
+class RENDERLAYER_PT_eevee_shadows(RenderLayerButtonsPanel, Panel):
+    bl_label = "Shadows"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        scene_props = scene.layer_properties['BLENDER_EEVEE']
+        layer = bpy.context.render_layer
+        layer_props = layer.engine_overrides['BLENDER_EEVEE']
+
+        col = layout.column()
+        col.template_override_property(layer_props, scene_props, "shadow_method")
+        col.template_override_property(layer_props, scene_props, "shadow_size")
+        col.template_override_property(layer_props, scene_props, "shadow_high_bitdepth")
+
+
 classes = (
     RENDERLAYER_UL_renderlayers,
     RENDERLAYER_PT_layers,
@@ -258,7 +320,9 @@ classes = (
     RENDERLAYER_PT_clay_settings,
     RENDERLAYER_PT_eevee_poststack_settings,
     RENDERLAYER_PT_eevee_postprocess_settings,
+    RENDERLAYER_PT_eevee_screen_space_reflections,
     RENDERLAYER_PT_eevee_volumetric,
+    RENDERLAYER_PT_eevee_shadows,
 )
 
 if __name__ == "__main__":  # only for live edit.

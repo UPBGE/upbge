@@ -102,7 +102,7 @@ static void wm_manipulatortype_append__end(wmManipulatorType *wt)
 {
 	BLI_assert(wt->struct_size >= sizeof(wmManipulator));
 
-	RNA_def_struct_identifier(wt->srna, wt->idname);
+	RNA_def_struct_identifier(&BLENDER_RNA, wt->srna, wt->idname);
 
 	BLI_ghash_insert(global_manipulatortype_hash, (void *)wt->idname, wt);
 }
@@ -126,6 +126,10 @@ void WM_manipulatortype_append_ptr(void (*wtfunc)(struct wmManipulatorType *, vo
  */
 static void manipulatortype_free(wmManipulatorType *wt)
 {
+	if (wt->ext.srna) { /* python manipulator, allocs own string */
+		MEM_freeN((void *)wt->idname);
+	}
+
 	BLI_freelistN(&wt->target_property_defs);
 	MEM_freeN(wt);
 }
@@ -150,7 +154,7 @@ static void manipulatortype_unlink(
 								mpr_next = mpr->next;
 								BLI_assert(mgroup->parent_mmap == mmap);
 								if (mpr->type == wt) {
-									WM_manipulator_free(&mgroup->manipulators, mgroup->parent_mmap, mpr, C);
+									WM_manipulator_unlink(&mgroup->manipulators, mgroup->parent_mmap, mpr, C);
 									ED_region_tag_redraw(ar);
 								}
 							}

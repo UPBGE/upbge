@@ -128,8 +128,8 @@ IDDepsNode::ComponentIDKey::ComponentIDKey(eDepsNode_Type type,
 
 bool IDDepsNode::ComponentIDKey::operator== (const ComponentIDKey &other) const
 {
-    return type == other.type &&
-           STREQ(name, other.name);
+	return type == other.type &&
+		STREQ(name, other.name);
 }
 
 static unsigned int id_deps_node_hash_key(const void *key_v)
@@ -165,24 +165,43 @@ static void id_deps_node_hash_value_free(void *value_v)
 /* Initialize 'id' node - from pointer data given. */
 void IDDepsNode::init(const ID *id, const char *UNUSED(subdata))
 {
-	/* Store ID-pointer. */
 	BLI_assert(id != NULL);
-	this->id_orig = (ID *)id;
-	this->eval_flags = 0;
+	/* Store ID-pointer. */
+	id_orig = (ID *)id;
+	eval_flags = 0;
 
 	components = BLI_ghash_new(id_deps_node_hash_key,
 	                           id_deps_node_hash_key_cmp,
 	                           "Depsgraph id components hash");
+}
 
+void IDDepsNode::init_copy_on_write(ID *id_cow_hint)
+{
 #ifdef WITH_COPY_ON_WRITE
 	/* Create pointer as early as possible, so we can use it for function
 	 * bindings. Rest of data we'll be copying to the new datablock when
 	 * it is actually needed.
 	 */
-	id_cow = (ID *)BKE_libblock_alloc_notest(GS(id->name));
-	DEG_COW_PRINT("Create shallow copy for %s: id_orig=%p id_cow=%p\n",
-	              id_orig->name, id_orig, id_cow);
+	if (id_cow_hint != NULL) {
+		// BLI_assert(deg_copy_on_write_is_needed(id_orig));
+		if (deg_copy_on_write_is_needed(id_orig)) {
+			id_cow = id_cow_hint;
+		}
+		else {
+			id_cow = id_orig;
+		}
+	}
+	else if (deg_copy_on_write_is_needed(id_orig)) {
+		id_cow = (ID *)BKE_libblock_alloc_notest(GS(id_orig->name));
+		DEG_COW_PRINT("Create shallow copy for %s: id_orig=%p id_cow=%p\n",
+		              id_orig->name, id_orig, id_cow);
+		deg_tag_copy_on_write_id(id_cow, id_orig);
+	}
+	else {
+		id_cow = id_orig;
+	}
 #else
+	UNUSED_VARS(id_cow_hint);
 	id_cow = id_orig;
 #endif
 }
@@ -190,17 +209,30 @@ void IDDepsNode::init(const ID *id, const char *UNUSED(subdata))
 /* Free 'id' node. */
 IDDepsNode::~IDDepsNode()
 {
+	destroy();
+}
+
+void IDDepsNode::destroy()
+{
+	if (id_orig == NULL) {
+		return;
+	}
+
 	BLI_ghash_free(components,
 	               id_deps_node_hash_key_free,
 	               id_deps_node_hash_value_free);
 
 #ifdef WITH_COPY_ON_WRITE
 	/* Free memory used by this CoW ID. */
-	deg_free_copy_on_write_datablock(id_cow);
-	MEM_freeN(id_cow);
-	DEG_COW_PRINT("Destroy CoW for %s: id_orig=%p id_cow=%p\n",
-	              id_orig->name, id_orig, id_cow);
+	if (id_cow != id_orig && id_cow != NULL) {
+		deg_free_copy_on_write_datablock(id_cow);
+		MEM_freeN(id_cow);
+		DEG_COW_PRINT("Destroy CoW for %s: id_orig=%p id_cow=%p\n",
+		              id_orig->name, id_orig, id_cow);
+	}
 #endif
+	/* Tag that the node is freed. */
+	id_orig = NULL;
 }
 
 ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type,
@@ -243,9 +275,18 @@ void IDDepsNode::tag_update(Depsgraph *graph)
 			/* TODO(sergey): For until we properly handle granular flags for DEG_id_tag_update()
 			 * we skip flushing here to keep Luca happy.
 			 */
-			if (GS(id_orig->name) != ID_MA) {
+			if (GS(id_orig->name) != ID_MA &&
+			    GS(id_orig->name) != ID_WO)
+			{
 				do_component_tag = false;
 			}
+		}
+		else if (comp_node->type == DEG_NODE_TYPE_SHADING_PARAMETERS) {
+			do_component_tag = false;
+		}
+		else if (comp_node->type == DEG_NODE_TYPE_EVAL_PARTICLES) {
+			/* Only do explicit particle settings tagging. */
+			do_component_tag = false;
 		}
 		if (do_component_tag) {
 			comp_node->tag_update(graph);

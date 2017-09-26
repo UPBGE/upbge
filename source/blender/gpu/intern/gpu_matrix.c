@@ -29,8 +29,12 @@
  *  \ingroup gpu
  */
 
+#include "../../../intern/gawain/gawain/gwn_shader_interface.h"
+
 #define SUPPRESS_GENERIC_MATRIX_API
+#define USE_GPU_PY_MATRIX_API  /* only so values are declared */
 #include "GPU_matrix.h"
+#undef USE_GPU_PY_MATRIX_API
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -117,7 +121,7 @@ static void checkmat(cosnt float *m)
 
 void gpuPushMatrix(void)
 {
-	BLI_assert(ModelViewStack.top < MATRIX_STACK_DEPTH);
+	BLI_assert(ModelViewStack.top + 1 < MATRIX_STACK_DEPTH);
 	ModelViewStack.top++;
 	copy_m4_m4(ModelView, ModelViewStack.stack[ModelViewStack.top - 1]);
 }
@@ -131,7 +135,7 @@ void gpuPopMatrix(void)
 
 void gpuPushProjectionMatrix(void)
 {
-	BLI_assert(ProjectionStack.top < MATRIX_STACK_DEPTH);
+	BLI_assert(ProjectionStack.top + 1 < MATRIX_STACK_DEPTH);
 	ProjectionStack.top++;
 	copy_m4_m4(Projection, ProjectionStack.stack[ProjectionStack.top - 1]);
 }
@@ -554,7 +558,7 @@ const float (*gpuGetNormalMatrixInverse(float m[3][3]))[3]
 	return m;
 }
 
-void gpuBindMatrices(const Gwn_ShaderInterface* shaderface)
+void gpuBindMatrices(const Gwn_ShaderInterface *shaderface)
 {
 	/* set uniform values to matrix stack values
 	 * call this before a draw call if desired matrices are dirty
@@ -622,3 +626,24 @@ bool gpuMatricesDirty(void)
 {
 	return state.dirty;
 }
+
+
+/* -------------------------------------------------------------------- */
+
+/** \name Python API Helpers
+ * \{ */
+BLI_STATIC_ASSERT(GPU_PY_MATRIX_STACK_LEN + 1 == MATRIX_STACK_DEPTH, "define mismatch");
+
+/* Return int since caller is may subtract. */
+
+int GPU_matrix_stack_level_get_model_view(void)
+{
+	return (int)state.model_view_stack.top;
+}
+
+int GPU_matrix_stack_level_get_projection(void)
+{
+	return (int)state.projection_stack.top;
+}
+
+/** \} */

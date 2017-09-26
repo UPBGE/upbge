@@ -52,9 +52,7 @@ void KERNEL_FUNCTION_FULL_NAME(data_init)(
         ccl_global uint *rng_state,
 
 #ifdef __KERNEL_OPENCL__
-#define KERNEL_TEX(type, ttype, name)                                   \
-        ccl_global type *name,
-#include "kernel/kernel_textures.h"
+		KERNEL_BUFFER_PARAMS,
 #endif
 
         int start_sample,
@@ -100,9 +98,8 @@ void KERNEL_FUNCTION_FULL_NAME(data_init)(
 	split_data_init(kg, &kernel_split_state, num_elements, split_data_buffer, ray_state);
 
 #ifdef __KERNEL_OPENCL__
-#define KERNEL_TEX(type, ttype, name) \
-	kg->name = name;
-#include "kernel/kernel_textures.h"
+	kernel_set_buffer_pointers(kg, KERNEL_BUFFER_ARGS);
+	kernel_set_buffer_info(kg);
 #endif
 
 	int thread_index = ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0);
@@ -127,14 +124,25 @@ void KERNEL_FUNCTION_FULL_NAME(data_init)(
 
 	/* zero the tiles pixels and initialize rng_state if this is the first sample */
 	if(start_sample == 0) {
-		parallel_for(kg, i, sw * sh * kernel_data.film.pass_stride) {
-			int pixel = i / kernel_data.film.pass_stride;
-			int pass = i % kernel_data.film.pass_stride;
+		int pass_stride = kernel_data.film.pass_stride;
+
+#ifdef __KERNEL_CPU__
+		for(int y = sy; y < sy + sh; y++) {
+			int index = offset + y * stride;
+			memset(buffer + (sx + index) * pass_stride, 0, sizeof(float) * pass_stride * sw);
+			for(int x = sx; x < sx + sw; x++) {
+				rng_state[index + x] = hash_int_2d(x, y);
+			}
+		}
+#else
+		parallel_for(kg, i, sw * sh * pass_stride) {
+			int pixel = i / pass_stride;
+			int pass = i % pass_stride;
 
 			int x = sx + pixel % sw;
 			int y = sy + pixel / sw;
 
-			int index = (offset + x + y*stride) * kernel_data.film.pass_stride + pass;
+			int index = (offset + x + y*stride) * pass_stride + pass;
 
 			*(buffer + index) = 0.0f;
 		}
@@ -146,6 +154,7 @@ void KERNEL_FUNCTION_FULL_NAME(data_init)(
 			int index = (offset + x + y*stride);
 			*(rng_state + index) = hash_int_2d(x, y);
 		}
+#endif
 	}
 
 #endif  /* KERENL_STUB */

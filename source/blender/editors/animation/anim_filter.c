@@ -136,7 +136,7 @@ static Key *actedit_get_shapekeys(bAnimContext *ac)
 	Object *ob;
 	Key *key;
 	
-	ob = OBACT_NEW;
+	ob = OBACT_NEW(sl);
 	if (ob == NULL) 
 		return NULL;
 	
@@ -2251,6 +2251,8 @@ static void animfilter_modifier_idpoin_cb(void *afm_ptr, Object *ob, ID **idpoin
 		}
 		
 		/* TODO: images? */
+		default:
+			break;
 	}
 }
 

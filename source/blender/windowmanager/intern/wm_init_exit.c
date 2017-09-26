@@ -173,6 +173,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	BKE_library_callback_free_window_manager_set(wm_close_and_free);   /* library.c */
 	BKE_library_callback_free_notifier_reference_set(WM_main_remove_notifier_reference);   /* library.c */
 	BKE_region_callback_free_manipulatormap_set(wm_manipulatormap_remove); /* screen.c */
+	BKE_region_callback_refresh_tag_manipulatormap_set(WM_manipulatormap_tag_refresh);
 	BKE_library_callback_remap_editor_id_reference_set(WM_main_remap_editor_id_reference);   /* library.c */
 	BKE_blender_callback_test_break_set(wm_window_testbreak); /* blender.c */
 	BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
@@ -188,15 +189,12 @@ void WM_init(bContext *C, int argc, const char **argv)
 	BLF_init(); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
 	BLT_lang_init();
 
-	/* Enforce loading the UI for the initial homefile */
-	G.fileflags &= ~G_FILE_NO_UI;
-
 	/* reports cant be initialized before the wm,
 	 * but keep before file reading, since that may report errors */
 	wm_init_reports(C);
 
 	/* get the default database, plus a wm */
-	wm_homefile_read(C, NULL, G.factory_startup, false, NULL, NULL);
+	wm_homefile_read(C, NULL, G.factory_startup, false, true, NULL, NULL);
 	
 
 	BLT_lang_set(NULL);

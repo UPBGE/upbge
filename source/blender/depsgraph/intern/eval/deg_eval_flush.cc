@@ -50,26 +50,16 @@ extern "C" {
 #include "intern/nodes/deg_node_operation.h"
 
 #include "intern/depsgraph_intern.h"
+#include "intern/eval/deg_eval_copy_on_write.h"
 #include "util/deg_util_foreach.h"
 
 namespace DEG {
 
-namespace {
-
-// TODO(sergey): De-duplicate with depsgraph_tag,cc
-void lib_id_recalc_tag(Main *bmain, ID *id)
-{
-	id->tag |= LIB_TAG_ID_RECALC;
-	DEG_id_type_tag(bmain, GS(id->name));
-}
-
-void lib_id_recalc_data_tag(Main *bmain, ID *id)
-{
-	id->tag |= LIB_TAG_ID_RECALC_DATA;
-	DEG_id_type_tag(bmain, GS(id->name));
-}
-
-}  /* namespace */
+enum {
+	COMPONENT_STATE_NONE      = 0,
+	COMPONENT_STATE_SCHEDULED = 1,
+	COMPONENT_STATE_DONE      = 2,
+};
 
 typedef std::deque<OperationDepsNode *> FlushQueue;
 
@@ -83,7 +73,7 @@ static void flush_init_func(void *data_v, int i)
 	ComponentDepsNode *comp_node = node->owner;
 	IDDepsNode *id_node = comp_node->owner;
 	id_node->done = 0;
-	comp_node->done = 0;
+	comp_node->done = COMPONENT_STATE_NONE;
 	node->scheduled = false;
 }
 
@@ -122,10 +112,8 @@ void deg_graph_flush_updates(Main *bmain, Depsgraph *graph)
 	 */
 	GSET_FOREACH_BEGIN(OperationDepsNode *, op_node, graph->entry_tags)
 	{
-		if ((op_node->flag & DEPSOP_FLAG_SKIP_FLUSH) == 0) {
-			queue.push_back(op_node);
-			op_node->scheduled = true;
-		}
+		queue.push_back(op_node);
+		op_node->scheduled = true;
 	}
 	GSET_FOREACH_END();
 
@@ -141,34 +129,51 @@ void deg_graph_flush_updates(Main *bmain, Depsgraph *graph)
 			IDDepsNode *id_node = comp_node->owner;
 
 			/* TODO(sergey): Do we need to pass original or evaluated ID here? */
-			ID *id = id_node->id_orig;
+			ID *id_orig = id_node->id_orig;
+			ID *id_cow = id_node->id_cow;
 			if (id_node->done == 0) {
-				deg_editors_id_update(bmain, id);
-				lib_id_recalc_tag(bmain, id);
+				/* Copy tag from original data to CoW storage.
+				 * This is because DEG_id_tag_update() sets tags on original
+				 * data.
+				 */
+				id_cow->tag |= (id_orig->tag & LIB_TAG_ID_RECALC_ALL);
+				if (deg_copy_on_write_is_expanded(id_cow)) {
+					deg_editors_id_update(bmain, id_cow);
+				}
+				lib_id_recalc_tag(bmain, id_orig);
 				/* TODO(sergey): For until we've got proper data nodes in the graph. */
-				lib_id_recalc_data_tag(bmain, id);
+				lib_id_recalc_data_tag(bmain, id_orig);
+			}
 
+			if (comp_node->done != COMPONENT_STATE_DONE) {
 #ifdef WITH_COPY_ON_WRITE
 				/* Currently this is needed to get ob->mesh to be replaced with
 				 * original mesh (rather than being evaluated_mesh).
 				 *
 				 * TODO(sergey): This is something we need to avoid.
 				 */
-				ComponentDepsNode *cow_comp =
-				        id_node->find_component(DEG_NODE_TYPE_COPY_ON_WRITE);
-				cow_comp->tag_update(graph);
+				if (comp_node->depends_on_cow()) {
+					ComponentDepsNode *cow_comp =
+					        id_node->find_component(DEG_NODE_TYPE_COPY_ON_WRITE);
+					cow_comp->tag_update(graph);
+				}
 #endif
-			}
-
-			if (comp_node->done == 0) {
 				Object *object = NULL;
-				if (GS(id->name) == ID_OB) {
-					object = (Object *)id;
+				if (GS(id_orig->name) == ID_OB) {
+					object = (Object *)id_orig;
 					if (id_node->done == 0) {
 						++num_flushed_objects;
 					}
 				}
 				foreach (OperationDepsNode *op, comp_node->operations) {
+					/* We don't want to flush tags in "upstream" direction for
+					 * certain types of operations.
+					 *
+					 * TODO(sergey): Need a more generic solution for this.
+					 */
+					if (op->opcode == DEG_OPCODE_PARTICLE_SETTINGS_EVAL) {
+						continue;
+					}
 					op->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
 				}
 				if (object != NULL) {
@@ -204,15 +209,29 @@ void deg_graph_flush_updates(Main *bmain, Depsgraph *graph)
 						case DEG_NODE_TYPE_PROXY:
 							object->recalc |= OB_RECALC_DATA;
 							break;
+						case DEG_NODE_TYPE_SHADING_PARAMETERS:
+							break;
 					}
 
 					/* TODO : replace with more granular flags */
 					object->deg_update_flag |= DEG_RUNTIME_DATA_UPDATE;
 				}
+				/* When some target changes bone, we might need to re-run the
+				 * whole IK solver, otherwise result might be unpredictable.
+				 */
+				if (comp_node->type == DEG_NODE_TYPE_BONE) {
+					ComponentDepsNode *pose_comp =
+					        id_node->find_component(DEG_NODE_TYPE_EVAL_POSE);
+					BLI_assert(pose_comp != NULL);
+					if (pose_comp->done == COMPONENT_STATE_NONE) {
+						queue.push_front(pose_comp->get_entry_operation());
+						pose_comp->done = COMPONENT_STATE_SCHEDULED;
+					}
+				}
 			}
 
 			id_node->done = 1;
-			comp_node->done = 1;
+			comp_node->done = COMPONENT_STATE_DONE;
 
 			/* Flush to nodes along links... */
 			/* TODO(sergey): This is mainly giving speedup due ot less queue pushes, which

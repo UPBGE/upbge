@@ -366,8 +366,8 @@ void GPU_material_bind(
 		if (material->type == GPU_MATERIAL_TYPE_MESH || material->use_instancing) {
 			for (LinkData *nlink = material->lamps.first; nlink; nlink = nlink->next) {
 				GPULamp *lamp = nlink->data;
-				if (!lamp->hide && (lamp->lay & viewlay) && (!(lamp->mode & LA_LAYER) || (lamp->lay & oblay)) &&
-				    GPU_lamp_override_visible(lamp, srl, material->ma))
+				if ((lamp->lay & viewlay) && (!(lamp->mode & LA_LAYER) || (lamp->lay & oblay)) &&
+				    GPU_lamp_visible(lamp, srl, material->ma))
 				{
 					lamp->dynenergy = lamp->energy;
 					copy_v3_v3(lamp->dyncol, lamp->col);

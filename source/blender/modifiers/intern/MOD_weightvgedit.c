@@ -49,7 +49,9 @@
 #include "DEG_depsgraph_build.h"
 
 #include "MEM_guardedalloc.h"
+
 #include "MOD_weightvg_util.h"
+#include "MOD_modifiertypes.h"
 
 /**************************************
  * Modifiers functions.               *
@@ -90,10 +92,6 @@ static void copyData(ModifierData *md, ModifierData *target)
 	modifier_copyData_generic(md, target);
 
 	twmd->cmap_curve = curvemapping_copy(wmd->cmap_curve);
-
-	if (twmd->mask_texture) {
-		id_us_plus(&twmd->mask_texture->id);
-	}
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -164,7 +162,10 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 	return (wmd->defgrp_name[0] == '\0');
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *derivedData,
+static DerivedMesh *applyModifier(ModifierData *md,
+                                  const struct EvaluationContext *UNUSED(eval_ctx),
+                                  Object *ob,
+                                  DerivedMesh *derivedData,
                                   ModifierApplyFlag UNUSED(flag))
 {
 	WeightVGEditModifierData *wmd = (WeightVGEditModifierData *) md;

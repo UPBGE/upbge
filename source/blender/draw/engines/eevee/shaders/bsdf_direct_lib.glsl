@@ -85,6 +85,7 @@ float direct_diffuse_unit_disc(vec3 N, vec3 L)
 /* ----------- GGx ------------ */
 vec3 direct_ggx_point(vec3 N, vec3 V, vec4 l_vector, float roughness, vec3 f0)
 {
+	roughness = max(1e-3, roughness);
 	float dist = l_vector.w;
 	vec3 L = l_vector.xyz / dist;
 	float bsdf = bsdf_ggx(N, L, V, roughness);
@@ -97,15 +98,16 @@ vec3 direct_ggx_point(vec3 N, vec3 V, vec4 l_vector, float roughness, vec3 f0)
 
 vec3 direct_ggx_sun(LightData ld, vec3 N, vec3 V, float roughness, vec3 f0)
 {
+	roughness = max(1e-3, roughness);
 	float bsdf = bsdf_ggx(N, -ld.l_forward, V, roughness);
-	float VH = max(dot(V, normalize(V - ld.l_forward)), 0.0);
+	float VH = dot(V, -ld.l_forward) * 0.5 + 0.5;
 	return F_schlick(f0, VH) * bsdf;
 }
 
 vec3 direct_ggx_sphere(LightData ld, vec3 N, vec3 V, vec4 l_vector, float roughness, vec3 f0)
 {
 	vec3 L = l_vector.xyz / l_vector.w;
-	vec3 spec_dir = get_specular_dominant_dir(N, V, roughness);
+	vec3 spec_dir = get_specular_reflection_dominant_dir(N, V, roughness);
 	vec3 P = line_aligned_plane_intersect(vec3(0.0), spec_dir, l_vector.xyz);
 
 	vec3 Px = normalize(P - l_vector.xyz) * ld.l_radius;

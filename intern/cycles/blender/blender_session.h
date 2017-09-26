@@ -108,6 +108,7 @@ public:
 	BL::RenderSettings b_render;
 	BL::Depsgraph b_depsgraph;
 	BL::Scene b_scene;
+	BL::SceneLayer b_scene_layer;
 	BL::SpaceView3D b_v3d;
 	BL::RegionView3D b_rv3d;
 	string b_rlay_name;
@@ -159,15 +160,18 @@ protected:
 	                        int &width,
 	                        int &height,
 	                        int &depth,
-	                        int &channels);
+	                        int &channels,
+	                        bool &free_cache);
 	bool builtin_image_pixels(const string &builtin_name,
 	                          void *builtin_data,
 	                          unsigned char *pixels,
-	                          const size_t pixels_size);
+	                          const size_t pixels_size,
+	                          const bool free_cache);
 	bool builtin_image_float_pixels(const string &builtin_name,
 	                                void *builtin_data,
 	                                float *pixels,
-	                                const size_t pixels_size);
+	                                const size_t pixels_size,
+	                                const bool free_cache);
 
 	/* Update tile manager to reflect resumable render settings. */
 	void update_resumable_tile_manager(int num_samples);

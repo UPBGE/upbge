@@ -30,6 +30,8 @@
 
 #pragma once
 
+#include <stddef.h>
+
 struct EvaluationContext;
 struct ID;
 
@@ -48,20 +50,25 @@ struct ID;
 namespace DEG {
 
 struct Depsgraph;
+struct DepsgraphNodeBuilder;
 struct IDDepsNode;
 
 /* Get fully expanded (ready for use) copy-on-write datablock for the given
  * original datablock.
  */
-ID *deg_expand_copy_on_write_datablock(const Depsgraph *depsgraph,
-                                       const IDDepsNode *id_node);
 ID *deg_expand_copy_on_write_datablock(const struct Depsgraph *depsgraph,
-                                       struct ID *id_orig);
+                                       const IDDepsNode *id_node,
+                                       DepsgraphNodeBuilder *node_builder = NULL,
+                                       bool create_placeholders = false);
+ID *deg_expand_copy_on_write_datablock(const struct Depsgraph *depsgraph,
+                                       struct ID *id_orig,
+                                       DepsgraphNodeBuilder *node_builder = NULL,
+                                       bool create_placeholders = false);
 
 /* Makes sure given CoW datablock is brought back to state of the original
  * datablock.
  */
-ID *deg_update_copy_on_write_datablock(const Depsgraph *depsgraph,
+ID *deg_update_copy_on_write_datablock(const struct Depsgraph *depsgraph,
                                        const IDDepsNode *id_node);
 ID *deg_update_copy_on_write_datablock(const struct Depsgraph *depsgraph,
                                        struct ID *id_orig);
@@ -72,7 +79,7 @@ void deg_free_copy_on_write_datablock(struct ID *id_cow);
 /* Callback function for depsgraph operation node which ensures copy-on-write
  * datablock is ready for use by further evaluation routines.
  */
-void deg_evaluate_copy_on_write(struct EvaluationContext *eval_ctx,
+void deg_evaluate_copy_on_write(const struct EvaluationContext *eval_ctx,
                                 const struct Depsgraph *depsgraph,
                                 const struct IDDepsNode *id_node);
 
@@ -80,5 +87,23 @@ void deg_evaluate_copy_on_write(struct EvaluationContext *eval_ctx,
  * copies inside.
   */
 bool deg_validate_copy_on_write_datablock(ID *id_cow);
+
+/* Tag given ID block as being copy-on-wtritten. */
+void deg_tag_copy_on_write_id(struct ID *id_cow, const struct ID *id_orig);
+
+/* Check whether ID datablock is expanded.
+ *
+ * TODO(sergey): Make it an inline function or a macro.
+ */
+bool deg_copy_on_write_is_expanded(const struct ID *id_cow);
+
+/* Check whether copy-on-write datablock is needed for given ID.
+ *
+ * There are some exceptions on datablocks which are covered by dependency graph
+ * but which we don't want to start duplicating.
+ *
+ * This includes images.
+ */
+bool deg_copy_on_write_is_needed(const ID *id_orig);
 
 }  // namespace DEG

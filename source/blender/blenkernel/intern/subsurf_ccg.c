@@ -4220,16 +4220,17 @@ static void ccgDM_recalcTessellation(DerivedMesh *UNUSED(dm))
 	/* Nothing to do: CCG handles creating its own tessfaces */
 }
 
+/* WARNING! *MUST* be called in an 'loops_cache_rwlock' protected thread context! */
 static void ccgDM_recalcLoopTri(DerivedMesh *dm)
 {
-	BLI_rw_mutex_lock(&loops_cache_rwlock, THREAD_LOCK_WRITE);
-	MLoopTri *mlooptri;
+	MLoopTri *mlooptri = dm->looptris.array;
 	const int tottri = dm->numPolyData * 2;
 	int i, poly_index;
 
 	DM_ensure_looptri_data(dm);
-	mlooptri = dm->looptris.array;
+	mlooptri = dm->looptris.array_wip;
 
+	BLI_assert(tottri == 0 || mlooptri != NULL);
 	BLI_assert(poly_to_tri_count(dm->numPolyData, dm->numLoopData) == dm->looptris.num);
 	BLI_assert(tottri == dm->looptris.num);
 
@@ -4248,19 +4249,9 @@ static void ccgDM_recalcLoopTri(DerivedMesh *dm)
 		lt->tri[2] = (poly_index * 4) + 2;
 		lt->poly = poly_index;
 	}
-	BLI_rw_mutex_unlock(&loops_cache_rwlock);
-}
 
-static const MLoopTri *ccgDM_getLoopTriArray(DerivedMesh *dm)
-{
-	if (dm->looptris.array) {
-		BLI_assert(poly_to_tri_count(dm->numPolyData, dm->numLoopData) == dm->looptris.num);
-	}
-	else {
-		dm->recalcLoopTri(dm);
-	}
-
-	return dm->looptris.array;
+	BLI_assert(dm->looptris.array == NULL);
+	SWAP(MLoopTri *, dm->looptris.array, dm->looptris.array_wip);
 }
 
 static void ccgDM_calcNormals(DerivedMesh *dm)
@@ -4278,8 +4269,6 @@ static void set_default_ccgdm_callbacks(CCGDerivedMesh *ccgdm)
 	/* reuse of ccgDM_getNumTessFaces is intentional here: subsurf polys are just created from tessfaces */
 	ccgdm->dm.getNumPolys = ccgDM_getNumPolys;
 	ccgdm->dm.getNumTessFaces = ccgDM_getNumTessFaces;
-
-	ccgdm->dm.getLoopTriArray = ccgDM_getLoopTriArray;
 
 	ccgdm->dm.getVert = ccgDM_getFinalVert;
 	ccgdm->dm.getEdge = ccgDM_getFinalEdge;

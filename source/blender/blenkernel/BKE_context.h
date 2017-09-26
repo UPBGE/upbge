@@ -73,6 +73,7 @@ struct SpaceText;
 struct SpaceImage;
 struct SpaceClip;
 struct ID;
+struct EvaluationContext;
 
 /* Structs */
 
@@ -152,6 +153,7 @@ struct SpaceLink *CTX_wm_space_data(const bContext *C);
 struct ARegion *CTX_wm_region(const bContext *C);
 void *CTX_wm_region_data(const bContext *C);
 struct ARegion *CTX_wm_menu(const bContext *C);
+struct wmManipulatorGroup *CTX_wm_manipulator_group(const bContext *C);
 struct ReportList *CTX_wm_reports(const bContext *C);
 
 struct View3D *CTX_wm_view3d(const bContext *C);
@@ -179,6 +181,7 @@ void CTX_wm_screen_set(bContext *C, struct bScreen *screen); /* to be removed */
 void CTX_wm_area_set(bContext *C, struct ScrArea *sa);
 void CTX_wm_region_set(bContext *C, struct ARegion *region);
 void CTX_wm_menu_set(bContext *C, struct ARegion *menu);
+void CTX_wm_manipulator_group_set(bContext *C, struct wmManipulatorGroup *mgroup);
 const char *CTX_wm_operator_poll_msg_get(struct bContext *C);
 void CTX_wm_operator_poll_msg_set(struct bContext *C, const char *msg);
 
@@ -307,6 +310,8 @@ int CTX_data_editable_gpencil_layers(const bContext *C, ListBase *list);
 int CTX_data_editable_gpencil_strokes(const bContext *C, ListBase *list);
 
 struct Depsgraph *CTX_data_depsgraph(const bContext *C);
+
+void CTX_data_eval_ctx(const bContext *C, struct EvaluationContext *eval_ctx);
 
 #ifdef __cplusplus
 }

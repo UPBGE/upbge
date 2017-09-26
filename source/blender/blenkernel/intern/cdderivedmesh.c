@@ -37,7 +37,7 @@
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 #include "BLI_utildefines.h"
-#include "BLI_stackdefines.h"
+#include "BLI_utildefines_stack.h"
 
 #include "BKE_pbvh.h"
 #include "BKE_cdderivedmesh.h"
@@ -1799,25 +1799,16 @@ void CDDM_recalc_looptri(DerivedMesh *dm)
 	const unsigned int totloop = dm->numLoopData;
 
 	DM_ensure_looptri_data(dm);
+	BLI_assert(totpoly == 0 || cddm->dm.looptris.array_wip != NULL);
 
 	BKE_mesh_recalc_looptri(
 	        cddm->mloop, cddm->mpoly,
 	        cddm->mvert,
 	        totloop, totpoly,
-	        cddm->dm.looptris.array);
-}
+	        cddm->dm.looptris.array_wip);
 
-static const MLoopTri *cdDM_getLoopTriArray(DerivedMesh *dm)
-{
-	if (dm->looptris.array) {
-		BLI_assert(poly_to_tri_count(dm->numPolyData, dm->numLoopData) == dm->looptris.num);
-	}
-	else {
-		dm->recalcLoopTri(dm);
-
-		/* ccdm is an exception here, that recalcLoopTri will fill in the array too  */
-	}
-	return dm->looptris.array;
+	BLI_assert(cddm->dm.looptris.array == NULL);
+	SWAP(MLoopTri *, cddm->dm.looptris.array, cddm->dm.looptris.array_wip);
 }
 
 static void cdDM_free_internal(CDDerivedMesh *cddm)
@@ -1869,8 +1860,6 @@ static CDDerivedMesh *cdDM_create(const char *desc)
 	dm->getVertDataArray = DM_get_vert_data_layer;
 	dm->getEdgeDataArray = DM_get_edge_data_layer;
 	dm->getTessFaceDataArray = DM_get_tessface_data_layer;
-
-	dm->getLoopTriArray = cdDM_getLoopTriArray;
 
 	dm->calcNormals = CDDM_calc_normals;
 	dm->calcLoopNormals = CDDM_calc_loop_normals;
@@ -3056,7 +3045,7 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 						MPoly *target_poly = cddm->mpoly + *(cddm->pmap[v_target].indices + i_poly);
 
 						if (cddm_poly_compare(cddm->mloop, mp, target_poly, vtargetmap, +1) ||
-							cddm_poly_compare(cddm->mloop, mp, target_poly, vtargetmap, -1))
+						    cddm_poly_compare(cddm->mloop, mp, target_poly, vtargetmap, -1))
 						{
 							found = true;
 							break;

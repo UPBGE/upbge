@@ -62,6 +62,7 @@ struct RNG;
 struct BVHTreeRay;
 struct BVHTreeRayHit; 
 struct EdgeHash;
+struct EvaluationContext;
 
 #define PARTICLE_COLLISION_MAX_COLLISIONS 10
 
@@ -77,6 +78,7 @@ struct EdgeHash;
 
 /* common stuff that many particle functions need */
 typedef struct ParticleSimulationData {
+	const struct EvaluationContext *eval_ctx;
 	struct Scene *scene;
 	struct Object *ob;
 	struct ParticleSystem *psys;
@@ -324,6 +326,9 @@ struct ParticleSystemModifierData *psys_get_modifier(struct Object *ob, struct P
 struct ModifierData *object_add_particle_system(struct Scene *scene, struct Object *ob, const char *name);
 void object_remove_particle_system(struct Scene *scene, struct Object *ob);
 struct ParticleSettings *psys_new_settings(const char *name, struct Main *main);
+void BKE_particlesettings_copy_data(
+        struct Main *bmain, struct ParticleSettings *part_dst, const struct ParticleSettings *part_src,
+        const int flag);
 struct ParticleSettings *BKE_particlesettings_copy(struct Main *bmain, const struct ParticleSettings *part);
 void BKE_particlesettings_make_local(struct Main *bmain, struct ParticleSettings *part, const bool lib_local);
 
@@ -332,9 +337,9 @@ void psys_reset(struct ParticleSystem *psys, int mode);
 void psys_find_parents(struct ParticleSimulationData *sim, const bool use_render_params);
 
 void psys_cache_paths(struct ParticleSimulationData *sim, float cfra, const bool use_render_params);
-void psys_cache_edit_paths(struct Scene *scene, struct Object *ob, struct PTCacheEdit *edit, float cfra, const bool use_render_params);
+void psys_cache_edit_paths(const struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob, struct PTCacheEdit *edit, float cfra, const bool use_render_params);
 void psys_cache_child_paths(struct ParticleSimulationData *sim, float cfra, const bool editupdate, const bool use_render_params);
-int do_guides(struct ParticleSettings *part, struct ListBase *effectors, ParticleKey *state, int pa_num, float time);
+int do_guides(const struct EvaluationContext *eval_ctx, struct ParticleSettings *part, struct ListBase *effectors, ParticleKey *state, int pa_num, float time);
 void precalc_guides(struct ParticleSimulationData *sim, struct ListBase *effectors);
 float psys_get_timestep(struct ParticleSimulationData *sim);
 float psys_get_child_time(struct ParticleSystem *psys, struct ChildParticle *cpa, float cfra, float *birthtime, float *dietime);
@@ -366,7 +371,7 @@ void psys_tasks_create(struct ParticleThreadContext *ctx, int startpart, int end
 void psys_tasks_free(struct ParticleTask *tasks, int numtasks);
 
 void psys_make_billboard(ParticleBillboardData *bb, float xvec[3], float yvec[3], float zvec[3], float center[3]);
-void psys_apply_hair_lattice(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
+void psys_apply_hair_lattice(const struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
 
 /* particle_system.c */
 struct ParticleSystem *psys_get_target_system(struct Object *ob, struct ParticleTarget *pt);
@@ -381,7 +386,7 @@ void psys_check_boid_data(struct ParticleSystem *psys);
 
 void psys_get_birth_coords(struct ParticleSimulationData *sim, struct ParticleData *pa, struct ParticleKey *state, float dtime, float cfra);
 
-void particle_system_update(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys, const bool use_render_params);
+void particle_system_update(const struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob, struct ParticleSystem *psys, const bool use_render_params);
 
 /* Callback format for performing operations on ID-pointers for particle systems */
 typedef void (*ParticleSystemIDFunc)(struct ParticleSystem *psys, struct ID **idpoin, void *userdata, int cb_flag);
@@ -473,10 +478,14 @@ typedef struct ParticleRenderData {
 
 struct EvaluationContext;
 
-void BKE_particle_system_eval(struct EvaluationContext *eval_ctx,
-                              struct Scene *scene,
-                              struct Object *ob,
-                              struct ParticleSystem *psys);
+void BKE_particle_system_settings_eval(const struct EvaluationContext *eval_ctx,
+                                       struct ParticleSystem *psys);
+void BKE_particle_system_settings_recalc_clear(struct EvaluationContext *UNUSED(eval_ctx),
+                                               struct ParticleSettings *particle_settings);
+
+void BKE_particle_system_eval_init(const struct EvaluationContext *eval_ctx,
+                                   struct Scene *scene,
+                                   struct Object *ob);
 
 #endif
 

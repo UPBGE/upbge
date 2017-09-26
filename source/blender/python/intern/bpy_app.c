@@ -89,6 +89,7 @@ static PyStructSequence_Field app_info_fields[] = {
 	{(char *)"version_cycle", (char *)"The release status of this build alpha/beta/rc/release"},
 	{(char *)"binary_path", (char *)"The location of blenders executable, useful for utilities that spawn new instances"},
 	{(char *)"background", (char *)"Boolean, True when blender is running without a user interface (started with -b)"},
+	{(char *)"factory_startup", (char *)"Boolean, True when blender is running with --factory-startup)"},
 
 	/* buildinfo */
 	{(char *)"build_date", (char *)"The date this blender instance was built"},
@@ -156,8 +157,7 @@ static PyObject *make_app_info(void)
 #define SetObjItem(obj) \
 	PyStructSequence_SET_ITEM(app_info, pos++, obj)
 
-	SetObjItem(Py_BuildValue("(iii)",
-	                         BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION));
+	SetObjItem(PyC_Tuple_Pack_I32(BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION));
 	SetObjItem(PyUnicode_FromFormat("%d.%02d (sub %d)",
 	                                BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION));
 
@@ -165,6 +165,7 @@ static PyObject *make_app_info(void)
 	SetStrItem(STRINGIFY(BLENDER_VERSION_CYCLE));
 	SetStrItem(BKE_appdir_program_path());
 	SetObjItem(PyBool_FromLong(G.background));
+	SetObjItem(PyBool_FromLong(G.factory_startup));
 
 	/* build info, use bytes since we can't assume _any_ encoding:
 	 * see patch [#30154] for issue */
@@ -290,7 +291,7 @@ static PyObject *bpy_app_debug_value_get(PyObject *UNUSED(self), void *UNUSED(cl
 
 static int bpy_app_debug_value_set(PyObject *UNUSED(self), PyObject *value, void *UNUSED(closure))
 {
-	int param = PyLong_AsLong(value);
+	int param = PyC_Long_AsI32(value);
 
 	if (param == -1 && PyErr_Occurred()) {
 		PyErr_SetString(PyExc_TypeError, "bpy.app.debug_value can only be set to a whole number");

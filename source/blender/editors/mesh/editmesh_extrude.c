@@ -53,6 +53,8 @@
 #include "ED_transform.h"
 #include "ED_view3d.h"
 
+#include "UI_resources.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "mesh_intern.h"  /* own include */
@@ -759,7 +761,7 @@ static int edbm_spin_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(e
 	if (ret & OPERATOR_FINISHED) {
 		/* Setup manipulators */
 		if (v3d && (v3d->twtype & V3D_MANIPULATOR_DRAW)) {
-			WM_manipulator_group_add("MESH_WGT_spin");
+			WM_manipulator_group_type_add("MESH_WGT_spin");
 		}
 	}
 #endif
@@ -859,9 +861,9 @@ static void manipulator_mesh_spin_update_from_op(ManipulatorSpinGroup *man)
 	RNA_property_float_get_array(op->ptr, man->data.prop_axis_no, plane_no);
 
 	WM_manipulator_set_matrix_location(man->translate_z, plane_co);
-	WM_manipulator_set_matrix_location(man->translate_c, plane_co);
 	WM_manipulator_set_matrix_location(man->rotate_c, plane_co);
 	WM_manipulator_set_matrix_location(man->angle_z, plane_co);
+	/* translate_c location comes from the property. */
 
 	WM_manipulator_set_matrix_rotation_from_z_axis(man->translate_z, plane_no);
 	WM_manipulator_set_matrix_rotation_from_z_axis(man->angle_z, plane_no);
@@ -878,7 +880,7 @@ static void manipulator_mesh_spin_update_from_op(ManipulatorSpinGroup *man)
 		normalize_v3(man->data.rotate_up);
 
 		WM_manipulator_set_matrix_rotation_from_z_axis(man->translate_c, plane_no);
-		WM_manipulator_set_matrix_rotation_from_yz_axis(man->rotate_c, man->data.rotate_axis, plane_no);
+		WM_manipulator_set_matrix_rotation_from_yz_axis(man->rotate_c, plane_no, man->data.rotate_axis);
 
 		/* show the axis instead of mouse cursor */
 		RNA_enum_set(man->rotate_c->ptr, "draw_options",
@@ -1057,7 +1059,7 @@ static bool manipulator_mesh_spin_poll(const bContext *C, wmManipulatorGroupType
 {
 	wmOperator *op = WM_operator_last_redo(C);
 	if (op == NULL || !STREQ(op->type->idname, "MESH_OT_spin")) {
-		WM_manipulator_group_remove_ptr_delayed(wgt);
+		WM_manipulator_group_type_remove_ptr_delayed(wgt);
 		return false;
 	}
 	return true;
@@ -1078,13 +1080,19 @@ static void manipulator_mesh_spin_setup(const bContext *C, wmManipulatorGroup *m
 	const wmManipulatorType *wt_grab = WM_manipulatortype_find("MANIPULATOR_WT_grab_3d", true);
 	const wmManipulatorType *wt_dial = WM_manipulatortype_find("MANIPULATOR_WT_dial_3d", true);
 
-	man->translate_z = WM_manipulator_new_ptr(wt_arrow, mgroup, "translate_z", NULL);
-	man->translate_c = WM_manipulator_new_ptr(wt_grab, mgroup, "translate_c", NULL);
-	man->rotate_c = WM_manipulator_new_ptr(wt_dial, mgroup, "rotate_c", NULL);
-	man->angle_z = WM_manipulator_new_ptr(wt_dial, mgroup, "angle_z", NULL);
+	man->translate_z = WM_manipulator_new_ptr(wt_arrow, mgroup, NULL);
+	man->translate_c = WM_manipulator_new_ptr(wt_grab, mgroup, NULL);
+	man->rotate_c = WM_manipulator_new_ptr(wt_dial, mgroup, NULL);
+	man->angle_z = WM_manipulator_new_ptr(wt_dial, mgroup, NULL);
+
+	UI_GetThemeColor3fv(TH_MANIPULATOR_PRIMARY, man->translate_z->color);
+	UI_GetThemeColor3fv(TH_MANIPULATOR_PRIMARY, man->translate_c->color);
+	UI_GetThemeColor3fv(TH_MANIPULATOR_SECONDARY, man->rotate_c->color);
+	UI_GetThemeColor3fv(TH_AXIS_Z, man->angle_z->color);
+
 
 	RNA_enum_set(man->translate_z->ptr, "draw_style", ED_MANIPULATOR_ARROW_STYLE_NORMAL);
-	RNA_enum_set(man->translate_c->ptr, "draw_style", ED_MANIPULATOR_GRAB_STYLE_RING);
+	RNA_enum_set(man->translate_c->ptr, "draw_style", ED_MANIPULATOR_GRAB_STYLE_RING_2D);
 
 	WM_manipulator_set_flag(man->translate_c, WM_MANIPULATOR_DRAW_VALUE, true);
 	WM_manipulator_set_flag(man->rotate_c, WM_MANIPULATOR_DRAW_VALUE, true);

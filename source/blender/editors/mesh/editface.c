@@ -107,7 +107,7 @@ void paintface_flush_flags(Object *ob, short flag)
 		GPU_drawobject_free(dm);
 	}
 
-	BKE_mesh_batch_cache_dirty(me, BKE_MESH_BATCH_DIRTY_NOCHECK);
+	BKE_mesh_batch_cache_dirty(me, BKE_MESH_BATCH_DIRTY_ALL);
 }
 
 void paintface_hide(Object *ob, const bool unselected)
@@ -396,7 +396,7 @@ bool paintface_mouse_select(struct bContext *C, Object *ob, const int mval[2], b
 	return true;
 }
 
-int do_paintface_box_select(ViewContext *vc, rcti *rect, bool select, bool extend)
+int do_paintface_box_select(const struct EvaluationContext *eval_ctx, ViewContext *vc, rcti *rect, bool select, bool extend)
 {
 	Object *ob = vc->obact;
 	Mesh *me;
@@ -427,7 +427,7 @@ int do_paintface_box_select(ViewContext *vc, rcti *rect, bool select, bool exten
 		}
 	}
 
-	ED_view3d_backbuf_validate(vc);
+	ED_view3d_backbuf_validate(eval_ctx, vc);
 
 	ibuf = IMB_allocImBuf(size[0], size[1], 32, IB_rect);
 	rt = ibuf->rect;
@@ -518,7 +518,7 @@ void paintvert_flush_flags(Object *ob)
 		}
 	}
 
-	BKE_mesh_batch_cache_dirty(me, BKE_MESH_BATCH_DIRTY_NOCHECK);
+	BKE_mesh_batch_cache_dirty(me, BKE_MESH_BATCH_DIRTY_ALL);
 }
 /*  note: if the caller passes false to flush_flags, then they will need to run paintvert_flush_flags(ob) themselves */
 void paintvert_deselect_all_visible(Object *ob, int action, bool flush_flags)
@@ -801,25 +801,47 @@ void ED_mesh_mirrtopo_init(Mesh *me, DerivedMesh *dm, const int ob_mode, MirrTop
 
 	qsort(topo_pairs, totvert, sizeof(MirrTopoVert_t), mirrtopo_vert_sort);
 
-	/* Since the loop starts at 2, we must define the last index where the hash's differ */
-	last = ((totvert >= 2) && (topo_pairs[0].hash == topo_pairs[1].hash)) ? 0 : 1;
+	last = 0;
 
 	/* Get the pairs out of the sorted hashes, note, totvert+1 means we can use the previous 2,
 	 * but you cant ever access the last 'a' index of MirrTopoPairs */
-	for (a = 2; a <= totvert; a++) {
-		/* printf("I %d %ld %d\n", (a-last), MirrTopoPairs[a  ].hash, MirrTopoPairs[a  ].v_index ); */
-		if ((a == totvert) || (topo_pairs[a - 1].hash != topo_pairs[a].hash)) {
-			if (a - last == 2) {
-				if (em) {
-					index_lookup[topo_pairs[a - 1].v_index] = (intptr_t)BM_vert_at_index(em->bm, topo_pairs[a - 2].v_index);
-					index_lookup[topo_pairs[a - 2].v_index] = (intptr_t)BM_vert_at_index(em->bm, topo_pairs[a - 1].v_index);
+	if (em) {
+		BMVert **vtable = em->bm->vtable;
+		for (a = 1; a <= totvert; a++) {
+			/* printf("I %d %ld %d\n", (a - last), MirrTopoPairs[a].hash, MirrTopoPairs[a].v_indexs); */
+			if ((a == totvert) || (topo_pairs[a - 1].hash != topo_pairs[a].hash)) {
+				const int match_count = a - last;
+				if (match_count == 2) {
+					const int j = topo_pairs[a - 1].v_index, k = topo_pairs[a - 2].v_index;
+					index_lookup[j] = (intptr_t)vtable[k];
+					index_lookup[k] = (intptr_t)vtable[j];
 				}
-				else {
-					index_lookup[topo_pairs[a - 1].v_index] = topo_pairs[a - 2].v_index;
-					index_lookup[topo_pairs[a - 2].v_index] = topo_pairs[a - 1].v_index;
+				else if (match_count == 1) {
+					/* Center vertex. */
+					const int j = topo_pairs[a - 1].v_index;
+					index_lookup[j] = (intptr_t)vtable[j];
 				}
+				last = a;
 			}
-			last = a;
+		}
+	}
+	else {
+		/* same as above, for mesh */
+		for (a = 1; a <= totvert; a++) {
+			if ((a == totvert) || (topo_pairs[a - 1].hash != topo_pairs[a].hash)) {
+				const int match_count = a - last;
+				if (match_count == 2) {
+					const int j = topo_pairs[a - 1].v_index, k = topo_pairs[a - 2].v_index;
+					index_lookup[j] = k;
+					index_lookup[k] = j;
+				}
+				else if (match_count == 1) {
+					/* Center vertex. */
+					const int j = topo_pairs[a - 1].v_index;
+					index_lookup[j] = j;
+				}
+				last = a;
+			}
 		}
 	}
 

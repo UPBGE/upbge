@@ -329,7 +329,7 @@ static void recalcData_actedit(TransInfo *t)
 	/* NOTE: sync this with the code in ANIM_animdata_get_context() */
 	ac.scene = t->scene;
 	ac.scene_layer = t->scene_layer;
-	ac.obact = OBACT_NEW;
+	ac.obact = OBACT_NEW(sl);
 	ac.sa = t->sa;
 	ac.ar = t->ar;
 	ac.sl = (t->sa) ? t->sa->spacedata.first : NULL;
@@ -379,7 +379,7 @@ static void recalcData_graphedit(TransInfo *t)
 	/* NOTE: sync this with the code in ANIM_animdata_get_context() */
 	ac.scene = t->scene;
 	ac.scene_layer = t->scene_layer;
-	ac.obact = OBACT_NEW;
+	ac.obact = OBACT_NEW(sl);
 	ac.sa = t->sa;
 	ac.ar = t->ar;
 	ac.sl = (t->sa) ? t->sa->spacedata.first : NULL;
@@ -714,6 +714,9 @@ static void recalcData_spaceclip(TransInfo *t)
 static void recalcData_objects(TransInfo *t)
 {
 	Base *base = t->scene_layer->basact;
+	EvaluationContext eval_ctx;
+
+	CTX_data_eval_ctx(t->context, &eval_ctx);
 
 	if (t->obedit) {
 		if (ELEM(t->obedit->type, OB_CURVE, OB_SURF)) {
@@ -898,7 +901,7 @@ static void recalcData_objects(TransInfo *t)
 			BIK_clear_data(ob->pose);
 		}
 		else
-			BKE_pose_where_is(t->scene, ob);
+			BKE_pose_where_is(&eval_ctx, t->scene, ob);
 	}
 	else if (base && (base->object->mode & OB_MODE_PARTICLE_EDIT) && PE_get_current(t->scene, t->scene_layer, base->object)) {
 		if (t->state != TRANS_CANCEL) {
@@ -1457,6 +1460,13 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 #endif
 
 	setTransformViewAspect(t, t->aspect);
+
+	if (op && (prop = RNA_struct_find_property(op->ptr, "center_override")) && RNA_property_is_set(op->ptr, prop)) {
+		RNA_property_float_get_array(op->ptr, prop, t->center);
+		mul_v3_v3(t->center, t->aspect);
+		t->flag |= T_OVERRIDE_CENTER;
+	}
+
 	setTransformViewMatrices(t);
 	initNumInput(&t->num);
 }
@@ -1790,7 +1800,7 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
 	}
 	else if (t->flag & T_POSE) {
 		SceneLayer *sl = t->scene_layer;
-		Object *ob = OBACT_NEW;
+		Object *ob = OBACT_NEW(sl);
 		if (ob) {
 			bPoseChannel *pchan = BKE_pose_channel_active(ob);
 			if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
@@ -1810,8 +1820,8 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
 	else {
 		/* object mode */
 		SceneLayer *sl = t->scene_layer;
-		Object *ob = OBACT_NEW;
-		Base *base = BASACT_NEW;
+		Object *ob = OBACT_NEW(sl);
+		Base *base = BASACT_NEW(sl);
 		if (ob && ((!select_only) || ((base->flag & BASE_SELECTED) != 0))) {
 			copy_v3_v3(r_center, ob->obmat[3]);
 			ok = true;
@@ -1858,7 +1868,9 @@ static void calculateCenter_FromAround(TransInfo *t, int around, float r_center[
 
 void calculateCenter(TransInfo *t)
 {
-	calculateCenter_FromAround(t, t->around, t->center);
+	if ((t->flag & T_OVERRIDE_CENTER) == 0) {
+		calculateCenter_FromAround(t, t->around, t->center);
+	}
 	calculateCenterGlobal(t, t->center, t->center_global);
 
 	/* avoid calculating again */
@@ -1872,7 +1884,7 @@ void calculateCenter(TransInfo *t)
 	calculateCenter2D(t);
 
 	/* for panning from cameraview */
-	if (t->flag & T_OBJECT) {
+	if ((t->flag & T_OBJECT) && (t->flag & T_OVERRIDE_CENTER) == 0) {
 		if (t->spacetype == SPACE_VIEW3D && t->ar && t->ar->regiontype == RGN_TYPE_WINDOW) {
 			
 			if (t->flag & T_CAMERA) {

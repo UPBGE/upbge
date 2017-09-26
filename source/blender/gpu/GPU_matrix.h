@@ -33,12 +33,12 @@
 #define __GPU_MATRIX_H__
 
 #include "BLI_sys_types.h"
-#include "GPU_glew.h"
-#include "../../../intern/gawain/gawain/shader_interface.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct Gwn_ShaderInterface;
 
 void gpuMatrixReset(void); /* to Identity transform & empty stack */
 
@@ -111,8 +111,18 @@ const float (*gpuGetNormalMatrixInverse(float m[3][3]))[3];
 
 
 /* set uniform values for currently bound shader */
-void gpuBindMatrices(const Gwn_ShaderInterface*);
+void gpuBindMatrices(const struct Gwn_ShaderInterface *);
 bool gpuMatricesDirty(void); /* since last bind */
+
+
+/* Python API needs to be able to inspect the stack so errors raise exceptions instead of crashing. */
+#ifdef USE_GPU_PY_MATRIX_API
+int GPU_matrix_stack_level_get_model_view(void);
+int GPU_matrix_stack_level_get_projection(void);
+/* static assert ensures this doesn't change! */
+#define GPU_PY_MATRIX_STACK_LEN 31
+#endif  /* USE_GPU_PY_MATRIX_API */
+
 
 #ifdef __cplusplus
 }

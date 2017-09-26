@@ -151,7 +151,8 @@ int BIF_countTransformOrientation(const struct bContext *C);
 #define P_CORRECT_UV    (1 << 8)
 #define P_NO_DEFAULTS   (1 << 10)
 #define P_NO_TEXSPACE   (1 << 11)
-#define P_GPENCIL_EDIT  (1 << 12)
+#define P_CENTER        (1 << 12)
+#define P_GPENCIL_EDIT  (1 << 13)
 
 void Transform_Properties(struct wmOperatorType *ot, int flags);
 
@@ -166,12 +167,6 @@ void ED_widgetgroup_manipulator2d_draw_prepare(const struct bContext *C, struct 
 
 
 /* Snapping */
-
-typedef enum SnapSelect {
-	SNAP_ALL = 0,
-	SNAP_NOT_SELECTED = 1,
-	SNAP_NOT_ACTIVE = 2,
-} SnapSelect;
 
 #define SNAP_MIN_DISTANCE 30
 
@@ -195,11 +190,7 @@ bool snapObjectsTransform(
         /* return args */
         float r_loc[3], float r_no[3]);
 bool snapNodesTransform(
-        struct TransInfo *t, const int mval[2], SnapSelect snap_select,
-        /* return args */
-        float r_loc[2], float *r_dist_px, char *r_node_border);
-bool snapNodesContext(
-        struct bContext *C, const int mval[2], SnapSelect snap_select,
+        struct TransInfo *t, const int mval[2],
         /* return args */
         float r_loc[2], float *r_dist_px, char *r_node_border);
 

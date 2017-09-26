@@ -71,7 +71,9 @@
 /* to use custom dials exported to geom_dial_manipulator.c */
 // #define USE_MANIPULATOR_CUSTOM_DIAL
 
-static void manipulator_dial_modal(bContext *C, wmManipulator *mpr, const wmEvent *event, const int flag);
+static int manipulator_dial_modal(
+        bContext *C, wmManipulator *mpr, const wmEvent *event,
+        eWM_ManipulatorTweak tweak_flag);
 
 typedef struct DialInteraction {
 	float init_mval[2];
@@ -94,7 +96,9 @@ typedef struct DialInteraction {
 #define DIAL_WIDTH       1.0f
 #define DIAL_RESOLUTION 32
 
-
+/**
+ * We can't use this for the #wmManipulatorType.matrix_basis_get callback, it conflicts with depth picking.
+ */
 static void dial_calc_matrix(const wmManipulator *mpr, float mat[4][4])
 {
 	float rot[3][3];
@@ -103,13 +107,12 @@ static void dial_calc_matrix(const wmManipulator *mpr, float mat[4][4])
 	rotation_between_vecs_to_mat3(rot, up, mpr->matrix_basis[2]);
 	copy_m4_m3(mat, rot);
 	copy_v3_v3(mat[3], mpr->matrix_basis[3]);
-	mul_mat3_m4_fl(mat, mpr->scale_final);
 }
 
 /* -------------------------------------------------------------------- */
 
 static void dial_geom_draw(
-        const wmManipulator *mpr, const float col[4], const bool select,
+        const wmManipulator *mpr, const float color[4], const bool select,
         float axis_modal_mat[4][4], float clip_plane[4])
 {
 #ifdef USE_MANIPULATOR_CUSTOM_DIAL
@@ -134,13 +137,13 @@ static void dial_geom_draw(
 		immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 	}
 
-	immUniformColor4fv(col);
+	immUniformColor4fv(color);
 
 	if (filled) {
-		imm_draw_circle_fill(pos, 0, 0, 1.0, DIAL_RESOLUTION);
+		imm_draw_circle_fill_2d(pos, 0, 0, 1.0, DIAL_RESOLUTION);
 	}
 	else {
-		imm_draw_circle_wire(pos, 0, 0, 1.0, DIAL_RESOLUTION);
+		imm_draw_circle_wire_2d(pos, 0, 0, 1.0, DIAL_RESOLUTION);
 	}
 
 	immUnbindProgram();
@@ -152,7 +155,7 @@ static void dial_geom_draw(
 /**
  * Draws a line from (0, 0, 0) to \a co_outer, at \a angle.
  */
-static void dial_ghostarc_draw_helpline(const float angle, const float co_outer[3], const float col[4])
+static void dial_ghostarc_draw_helpline(const float angle, const float co_outer[3], const float color[4])
 {
 	glLineWidth(1.0f);
 
@@ -163,7 +166,7 @@ static void dial_ghostarc_draw_helpline(const float angle, const float co_outer[
 
 	immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-	immUniformColor4fv(col);
+	immUniformColor4fv(color);
 
 	immBegin(GWN_PRIM_LINE_STRIP, 2);
 	immVertex3f(pos, 0.0f, 0.0f, 0.0f);
@@ -184,7 +187,7 @@ static void dial_ghostarc_draw(
 	uint pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 	immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 	immUniformColor4fv(color);
-	imm_draw_disk_partial_fill(
+	imm_draw_disk_partial_fill_2d(
 	        pos, 0, 0, 0.0, width_inner, DIAL_RESOLUTION, RAD2DEGF(angle_ofs), RAD2DEGF(angle_delta));
 	immUnbindProgram();
 }
@@ -271,22 +274,27 @@ static void dial_draw_intern(
         const bContext *C, wmManipulator *mpr,
         const bool select, const bool highlight, float clip_plane[4])
 {
-	float mat[4][4];
-	float col[4];
+	float matrix_basis_adjust[4][4];
+	float matrix_final[4][4];
+	float color[4];
 
 	BLI_assert(CTX_wm_area(C)->spacetype == SPACE_VIEW3D);
 
-	manipulator_color_get(mpr, highlight, col);
+	manipulator_color_get(mpr, highlight, color);
 
-	dial_calc_matrix(mpr, mat);
+	dial_calc_matrix(mpr, matrix_basis_adjust);
+
+	WM_manipulator_calc_matrix_final_params(
+	        mpr, &((struct WM_ManipulatorMatrixParams) {
+	            .matrix_basis = (void *)matrix_basis_adjust,
+	        }), matrix_final);
 
 	gpuPushMatrix();
-	gpuMultMatrix(mat);
-	gpuMultMatrix(mpr->matrix_offset);
+	gpuMultMatrix(matrix_final);
 
 	/* draw rotation indicator arc first */
 	if ((mpr->flag & WM_MANIPULATOR_DRAW_VALUE) &&
-	    (mpr->state & WM_MANIPULATOR_STATE_ACTIVE))
+	    (mpr->state & WM_MANIPULATOR_STATE_MODAL))
 	{
 		const float co_outer[4] = {0.0f, DIAL_WIDTH, 0.0f}; /* coordinate at which the arc drawing will be started */
 
@@ -305,8 +313,8 @@ static void dial_draw_intern(
 		for (int i = 0; i < 2; i++) {
 			dial_ghostarc_draw(mpr, angle_ofs, angle_delta, (const float [4]){0.8f, 0.8f, 0.8f, 0.4f});
 
-			dial_ghostarc_draw_helpline(angle_ofs, co_outer, col); /* starting position */
-			dial_ghostarc_draw_helpline(angle_ofs + angle_delta, co_outer, col); /* starting position + current value */
+			dial_ghostarc_draw_helpline(angle_ofs, co_outer, color); /* starting position */
+			dial_ghostarc_draw_helpline(angle_ofs + angle_delta, co_outer, color); /* starting position + current value */
 
 			if (i == 0) {
 				const int draw_options = RNA_enum_get(mpr->ptr, "draw_options");
@@ -315,17 +323,17 @@ static void dial_draw_intern(
 				}
 			}
 
-			angle_ofs += M_PI;
+			angle_ofs += (float)M_PI;
 		}
 	}
 
 	/* draw actual dial manipulator */
-	dial_geom_draw(mpr, col, select, mat, clip_plane);
+	dial_geom_draw(mpr, color, select, matrix_basis_adjust, clip_plane);
 
 	gpuPopMatrix();
 }
 
-static void manipulator_dial_draw_select(const bContext *C, wmManipulator *mpr, int selectionbase)
+static void manipulator_dial_draw_select(const bContext *C, wmManipulator *mpr, int select_id)
 {
 	float clip_plane_buf[4];
 	const int draw_options = RNA_enum_get(mpr->ptr, "draw_options");
@@ -341,7 +349,7 @@ static void manipulator_dial_draw_select(const bContext *C, wmManipulator *mpr, 
 		glEnable(GL_CLIP_DISTANCE0);
 	}
 
-	GPU_select_load_id(selectionbase);
+	GPU_select_load_id(select_id);
 	dial_draw_intern(C, mpr, true, false, clip_plane);
 
 	if (clip_plane) {
@@ -351,11 +359,11 @@ static void manipulator_dial_draw_select(const bContext *C, wmManipulator *mpr, 
 
 static void manipulator_dial_draw(const bContext *C, wmManipulator *mpr)
 {
-	const bool active = mpr->state & WM_MANIPULATOR_STATE_ACTIVE;
-	const bool highlight = (mpr->state & WM_MANIPULATOR_STATE_HIGHLIGHT) != 0;
+	const bool is_modal = mpr->state & WM_MANIPULATOR_STATE_MODAL;
+	const bool is_highlight = (mpr->state & WM_MANIPULATOR_STATE_HIGHLIGHT) != 0;
 	float clip_plane_buf[4];
 	const int draw_options = RNA_enum_get(mpr->ptr, "draw_options");
-	float *clip_plane = (!active && (draw_options & ED_MANIPULATOR_DIAL_DRAW_FLAG_CLIP)) ? clip_plane_buf : NULL;
+	float *clip_plane = (!is_modal && (draw_options & ED_MANIPULATOR_DIAL_DRAW_FLAG_CLIP)) ? clip_plane_buf : NULL;
 
 	/* enable clipping if needed */
 	if (clip_plane) {
@@ -364,13 +372,13 @@ static void manipulator_dial_draw(const bContext *C, wmManipulator *mpr)
 
 		copy_v3_v3(clip_plane, rv3d->viewinv[2]);
 		clip_plane[3] = -dot_v3v3(rv3d->viewinv[2], mpr->matrix_basis[3]);
-		clip_plane[3] -= 0.02 * mpr->scale_final;
+		clip_plane[3] -= 0.02f * mpr->scale_final;
 
 		glEnable(GL_CLIP_DISTANCE0);
 	}
 
 	glEnable(GL_BLEND);
-	dial_draw_intern(C, mpr, false, highlight, clip_plane);
+	dial_draw_intern(C, mpr, false, is_highlight, clip_plane);
 	glDisable(GL_BLEND);
 
 	if (clip_plane) {
@@ -378,7 +386,9 @@ static void manipulator_dial_draw(const bContext *C, wmManipulator *mpr)
 	}
 }
 
-static void manipulator_dial_modal(bContext *C, wmManipulator *mpr, const wmEvent *event, const int UNUSED(flag))
+static int manipulator_dial_modal(
+        bContext *C, wmManipulator *mpr, const wmEvent *event,
+        eWM_ManipulatorTweak UNUSED(tweak_flag))
 {
 	const float co_outer[4] = {0.0f, DIAL_WIDTH, 0.0f}; /* coordinate at which the arc drawing will be started */
 	float angle_ofs, angle_delta;
@@ -400,6 +410,7 @@ static void manipulator_dial_modal(bContext *C, wmManipulator *mpr, const wmEven
 	if (WM_manipulator_target_property_is_valid(mpr_prop)) {
 		WM_manipulator_target_property_value_set(C, mpr, mpr_prop, inter->init_prop_angle + angle_delta);
 	}
+	return OPERATOR_RUNNING_MODAL;
 }
 
 
@@ -411,7 +422,7 @@ static void manipulator_dial_setup(wmManipulator *mpr)
 	copy_v3_v3(mpr->matrix_basis[2], dir_default);
 }
 
-static void manipulator_dial_invoke(
+static int manipulator_dial_invoke(
         bContext *UNUSED(C), wmManipulator *mpr, const wmEvent *event)
 {
 	DialInteraction *inter = MEM_callocN(sizeof(DialInteraction), __func__);
@@ -425,6 +436,8 @@ static void manipulator_dial_invoke(
 	}
 
 	mpr->interaction_data = inter;
+
+	return OPERATOR_RUNNING_MODAL;
 }
 
 /* -------------------------------------------------------------------- */

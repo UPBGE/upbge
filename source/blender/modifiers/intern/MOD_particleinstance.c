@@ -53,6 +53,8 @@
 
 #include "DEG_depsgraph_build.h"
 
+#include "MOD_modifiertypes.h"
+
 static void initData(ModifierData *md)
 {
 	ParticleInstanceModifierData *pimd = (ParticleInstanceModifierData *) md;
@@ -164,8 +166,8 @@ static int particle_skip(ParticleInstanceModifierData *pimd, ParticleSystem *psy
 	return 0;
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-                                  DerivedMesh *derivedData,
+static DerivedMesh *applyModifier(ModifierData *md, const struct EvaluationContext *eval_ctx,
+                                  Object *ob, DerivedMesh *derivedData,
                                   ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *dm = derivedData, *result;
@@ -210,6 +212,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	if (totpart == 0)
 		return derivedData;
 
+	sim.eval_ctx = eval_ctx;
 	sim.scene = md->scene;
 	sim.ob = pimd->ob;
 	sim.psys = psys;

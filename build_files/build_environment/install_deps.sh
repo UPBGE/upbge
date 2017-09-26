@@ -287,13 +287,13 @@ NO_BUILD=false
 NO_CONFIRM=false
 USE_CXX11=true  # Mandatory in blender2.8
 
-PYTHON_VERSION="3.5.3"
-PYTHON_VERSION_MIN="3.5"
+PYTHON_VERSION="3.6.2"
+PYTHON_VERSION_MIN="3.6"
 PYTHON_FORCE_BUILD=false
 PYTHON_FORCE_REBUILD=false
 PYTHON_SKIP=false
 
-NUMPY_VERSION="1.10.1"
+NUMPY_VERSION="1.13.1"
 NUMPY_VERSION_MIN="1.8"
 NUMPY_FORCE_BUILD=false
 NUMPY_FORCE_REBUILD=false
@@ -1591,7 +1591,7 @@ compile_OIIO() {
   fi
 
   # To be changed each time we make edits that would modify the compiled result!
-  oiio_magic=16
+  oiio_magic=17
   _init_oiio
 
   # Clean install if needed!
@@ -1654,6 +1654,9 @@ compile_OIIO() {
       cmake_d="$cmake_d -D OPENEXR_HOME=$INST/openexr"
       INFO "ILMBASE_HOME=$INST/openexr"
     fi
+
+    # ptex is only needed when nicholas bishop is ready
+    cmake_d="$cmake_d -D USE_PTEX=OFF"
 
     # Optional tests and cmd tools
     cmake_d="$cmake_d -D USE_QT=OFF"
@@ -1766,7 +1769,7 @@ compile_LLVM() {
       cd $_src
 
       # XXX Ugly patching hack!
-      patch -p1 -i "$SCRIPT_DIR/install_deps_patches/llvm.patch"
+      patch -p1 -i "$SCRIPT_DIR/patches/install_deps_llvm.diff"
 
       cd $CWD
 
@@ -1872,7 +1875,7 @@ compile_OSL() {
       git reset --hard
 
       # XXX Ugly patching hack!
-      patch -p1 -i "$SCRIPT_DIR/install_deps_patches/osl.patch"
+      patch -p1 -i "$SCRIPT_DIR/patches/install_deps_osl.diff"
     fi
 
     # Always refresh the whole build!
@@ -2670,10 +2673,10 @@ install_DEB() {
   install_packages_DEB $_packages
 
   PRINT""
-  SNDFILE_DEV="libsndfile1-dev"
-  check_package_DEB $SNDFILE_DEV
+  LIBSNDFILE_DEV="libsndfile1-dev"
+  check_package_DEB $LIBSNDFILE_DEV
   if [ $? -eq 0 ]; then
-    install_packages_DEB $SNDFILE_DEV
+    install_packages_DEB $LIBSNDFILE_DEV
   fi
 
   PRINT ""
@@ -3268,10 +3271,10 @@ install_RPM() {
   fi
 
   PRINT""
-  SNDFILE_DEV="libsndfile-devel"
-  check_package_RPM $SNDFILE_DEV
+  LIBSNDFILE_DEV="libsndfile-devel"
+  check_package_RPM $LIBSNDFILE_DEV
   if [ $? -eq 0 ]; then
-    install_packages_RPM $SNDFILE_DEV
+    install_packages_RPM $LIBSNDFILE_DEV
   fi
 
   if [ "$WITH_ALL" = true ]; then
@@ -3675,10 +3678,10 @@ install_ARCH() {
   install_packages_ARCH $_packages
 
   PRINT""
-  SNDFILE_DEV="libsndfile"
-  check_package_ARCH $SNDFILE_DEV
+  LIBSNDFILE_DEV="libsndfile"
+  check_package_ARCH $LIBSNDFILE_DEV
   if [ $? -eq 0 ]; then
-    install_packages_ARCH $SNDFILE_DEV
+    install_packages_ARCH $LIBSNDFILE_DEV
   fi
 
   PRINT ""

@@ -4,63 +4,62 @@
  * Adapted from http://rastergrid.com/blog/2010/10/hierarchical-z-map-based-occlusion-culling/
  **/
 
-uniform sampler2D depthBuffer;
-
-out vec4 FragMinMax;
-
-vec2 sampleLowerMip(ivec2 texel)
-{
-#ifdef INPUT_DEPTH
-	return texelFetch(depthBuffer, texel, 0).rr;
+#ifdef LAYERED
+uniform sampler2DArray depthBuffer;
+uniform int depthLayer;
 #else
-	return texelFetch(depthBuffer, texel, 0).rg;
+uniform sampler2D depthBuffer;
 #endif
-}
 
-void minmax(inout vec2 val[2])
-{
-	val[0].x = min(val[0].x, val[1].x);
-	val[0].y = max(val[0].y, val[1].y);
-}
+#ifdef LAYERED
+#define sampleLowerMip(t) texelFetch(depthBuffer, ivec3(t, depthLayer), 0).r
+#else
+#define sampleLowerMip(t) texelFetch(depthBuffer, t, 0).r
+#endif
+
+#ifdef MIN_PASS
+#define minmax(a, b) min(a, b)
+#else /* MAX_PASS */
+#define minmax(a, b) max(a, b)
+#endif
 
 void main()
 {
-	vec2 val[2];
 	ivec2 texelPos = ivec2(gl_FragCoord.xy);
-	ivec2 mipsize = textureSize(depthBuffer, 0);
+	ivec2 mipsize = textureSize(depthBuffer, 0).xy;
+
 #ifndef COPY_DEPTH
 	texelPos *= 2;
 #endif
 
-	val[0] = sampleLowerMip(texelPos);
+	float val = sampleLowerMip(texelPos);
 #ifndef COPY_DEPTH
-	val[1] = sampleLowerMip(texelPos + ivec2(1, 0));
-	minmax(val);
-	val[1] = sampleLowerMip(texelPos + ivec2(1, 1));
-	minmax(val);
-	val[1] = sampleLowerMip(texelPos + ivec2(0, 1));
-	minmax(val);
+	float val2 = sampleLowerMip(texelPos + ivec2(1, 0));
+	float val3 = sampleLowerMip(texelPos + ivec2(1, 1));
+	float val4 = sampleLowerMip(texelPos + ivec2(0, 1));
+	val = minmax(val, val2);
+	val = minmax(val, val3);
+	val = minmax(val, val4);
 
 	/* if we are reducing an odd-width texture then fetch the edge texels */
-	if (((mipsize.x & 1) != 0) && (int(gl_FragCoord.x) == mipsize.x-3)) {
+	if (((mipsize.x & 1) != 0) && (texelPos.x == mipsize.x - 3)) {
 		/* if both edges are odd, fetch the top-left corner texel */
-		if (((mipsize.y & 1) != 0) && (int(gl_FragCoord.y) == mipsize.y-3)) {
-			val[1] = sampleLowerMip(texelPos + ivec2(-1, -1));
-			minmax(val);
+		if (((mipsize.y & 1) != 0) && (texelPos.y == mipsize.y - 3)) {
+			val = minmax(val, sampleLowerMip(texelPos + ivec2(2, 2)));
 		}
-		val[1] = sampleLowerMip(texelPos + ivec2(0, -1));
-		minmax(val);
-		val[1] = sampleLowerMip(texelPos + ivec2(1, -1));
-		minmax(val);
+		float val2 = sampleLowerMip(texelPos + ivec2(2, 0));
+		float val3 = sampleLowerMip(texelPos + ivec2(2, 1));
+		val = minmax(val, val2);
+		val = minmax(val, val3);
 	}
 	/* if we are reducing an odd-height texture then fetch the edge texels */
-	else if (((mipsize.y & 1) != 0) && (int(gl_FragCoord.y) == mipsize.y-3)) {
-		val[1] = sampleLowerMip(texelPos + ivec2(0, -1));
-		minmax(val);
-		val[1] = sampleLowerMip(texelPos + ivec2(1, -1));
-		minmax(val);
+	if (((mipsize.y & 1) != 0) && (texelPos.y == mipsize.y - 3)) {
+		float val2 = sampleLowerMip(texelPos + ivec2(0, 2));
+		float val3 = sampleLowerMip(texelPos + ivec2(1, 2));
+		val = minmax(val, val2);
+		val = minmax(val, val3);
 	}
 #endif
 
-	FragMinMax = vec4(val[0], 0.0, 1.0);
+	gl_FragDepth = val;
 }

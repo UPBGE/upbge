@@ -82,7 +82,7 @@ bArmature *BKE_armature_add(Main *bmain, const char *name)
 {
 	bArmature *arm;
 
-	arm = BKE_libblock_alloc(bmain, ID_AR, name);
+	arm = BKE_libblock_alloc(bmain, ID_AR, name, 0);
 	arm->deformflag = ARM_DEF_VGROUP | ARM_DEF_ENVELOPE;
 	arm->flag = ARM_COL_CUSTOM; /* custom bone-group colors */
 	arm->layer = 1;
@@ -149,54 +149,70 @@ void BKE_armature_make_local(Main *bmain, bArmature *arm, const bool lib_local)
 	BKE_id_make_local_generic(bmain, &arm->id, true, lib_local);
 }
 
-static void copy_bonechildren(Bone *newBone, const Bone *oldBone, const Bone *actBone, Bone **newActBone)
+static void copy_bonechildren(
+        Bone *bone_dst, const Bone *bone_src, const Bone *bone_src_act, Bone **r_bone_dst_act, const int flag)
 {
-	Bone *curBone, *newChildBone;
+	Bone *bone_src_child, *bone_dst_child;
 
-	if (oldBone == actBone)
-		*newActBone = newBone;
+	if (bone_src == bone_src_act) {
+		*r_bone_dst_act = bone_dst;
+	}
 
-	if (oldBone->prop)
-		newBone->prop = IDP_CopyProperty(oldBone->prop);
+	if (bone_src->prop) {
+		bone_dst->prop = IDP_CopyProperty_ex(bone_src->prop, flag);
+	}
 
 	/* Copy this bone's list */
-	BLI_duplicatelist(&newBone->childbase, &oldBone->childbase);
+	BLI_duplicatelist(&bone_dst->childbase, &bone_src->childbase);
 
 	/* For each child in the list, update it's children */
-	newChildBone = newBone->childbase.first;
-	for (curBone = oldBone->childbase.first; curBone; curBone = curBone->next) {
-		newChildBone->parent = newBone;
-		copy_bonechildren(newChildBone, curBone, actBone, newActBone);
-		newChildBone = newChildBone->next;
+	for (bone_src_child = bone_src->childbase.first, bone_dst_child = bone_dst->childbase.first;
+	     bone_src_child;
+	     bone_src_child = bone_src_child->next, bone_dst_child = bone_dst_child->next)
+	{
+		bone_dst_child->parent = bone_dst;
+		copy_bonechildren(bone_dst_child, bone_src_child, bone_src_act, r_bone_dst_act, flag);
 	}
+}
+
+/**
+ * Only copy internal data of Armature ID from source to already allocated/initialized destination.
+ * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ *
+ * WARNING! This function will not handle ID user count!
+ *
+ * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ */
+void BKE_armature_copy_data(Main *UNUSED(bmain), bArmature *arm_dst, const bArmature *arm_src, const int flag)
+{
+	Bone *bone_src, *bone_dst;
+	Bone *bone_dst_act = NULL;
+
+	/* We never handle usercount here for own data. */
+	const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+
+	BLI_duplicatelist(&arm_dst->bonebase, &arm_src->bonebase);
+
+	/* Duplicate the childrens' lists */
+	bone_dst = arm_dst->bonebase.first;
+	for (bone_src = arm_src->bonebase.first; bone_src; bone_src = bone_src->next) {
+		bone_dst->parent = NULL;
+		copy_bonechildren(bone_dst, bone_src, arm_src->act_bone, &bone_dst_act, flag_subdata);
+		bone_dst = bone_dst->next;
+	}
+
+	arm_dst->act_bone = bone_dst_act;
+
+	arm_dst->edbo = NULL;
+	arm_dst->act_edbone = NULL;
+	arm_dst->sketch = NULL;
 }
 
 bArmature *BKE_armature_copy(Main *bmain, const bArmature *arm)
 {
-	bArmature *newArm;
-	Bone *oldBone, *newBone;
-	Bone *newActBone = NULL;
-
-	newArm = BKE_libblock_copy(bmain, &arm->id);
-	BLI_duplicatelist(&newArm->bonebase, &arm->bonebase);
-
-	/* Duplicate the childrens' lists */
-	newBone = newArm->bonebase.first;
-	for (oldBone = arm->bonebase.first; oldBone; oldBone = oldBone->next) {
-		newBone->parent = NULL;
-		copy_bonechildren(newBone, oldBone, arm->act_bone, &newActBone);
-		newBone = newBone->next;
-	}
-
-	newArm->act_bone = newActBone;
-
-	newArm->edbo = NULL;
-	newArm->act_edbone = NULL;
-	newArm->sketch = NULL;
-
-	BKE_id_copy_ensure_local(bmain, &arm->id, &newArm->id);
-
-	return newArm;
+	bArmature *arm_copy;
+	BKE_id_copy_ex(bmain, &arm->id, (ID **)&arm_copy, 0, false);
+	return arm_copy;
 }
 
 static Bone *get_named_bone_bonechildren(ListBase *lb, const char *name)
@@ -1445,13 +1461,13 @@ void BKE_armature_loc_pose_to_bone(bPoseChannel *pchan, const float inloc[3], fl
 	copy_v3_v3(outloc, nLocMat[3]);
 }
 
-void BKE_armature_mat_pose_to_bone_ex(Object *ob, bPoseChannel *pchan, float inmat[4][4], float outmat[4][4])
+void BKE_armature_mat_pose_to_bone_ex(const struct EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan, float inmat[4][4], float outmat[4][4])
 {
 	bPoseChannel work_pchan = *pchan;
 
 	/* recalculate pose matrix with only parent transformations,
 	 * bone loc/sca/rot is ignored, scene and frame are not used. */
-	BKE_pose_where_is_bone(NULL, ob, &work_pchan, 0.0f, false);
+	BKE_pose_where_is_bone(eval_ctx, NULL, ob, &work_pchan, 0.0f, false);
 
 	/* find the matrix, need to remove the bone transforms first so this is
 	 * calculated as a matrix to set rather then a difference ontop of whats
@@ -2178,7 +2194,9 @@ void BKE_pose_where_is_bone_tail(bPoseChannel *pchan)
 /* pchan is validated, as having bone and parent pointer
  * 'do_extra': when zero skips loc/size/rot, constraints and strip modifiers.
  */
-void BKE_pose_where_is_bone(Scene *scene, Object *ob, bPoseChannel *pchan, float ctime, bool do_extra)
+void BKE_pose_where_is_bone(
+        const struct EvaluationContext *eval_ctx, Scene *scene,
+        Object *ob, bPoseChannel *pchan, float ctime, bool do_extra)
 {
 	/* This gives a chan_mat with actions (ipos) results. */
 	if (do_extra)
@@ -2217,7 +2235,7 @@ void BKE_pose_where_is_bone(Scene *scene, Object *ob, bPoseChannel *pchan, float
 			cob = BKE_constraints_make_evalob(scene, ob, pchan, CONSTRAINT_OBTYPE_BONE);
 
 			/* Solve PoseChannel's Constraints */
-			BKE_constraints_solve(&pchan->constraints, cob, ctime); /* ctime doesnt alter objects */
+			BKE_constraints_solve(eval_ctx, &pchan->constraints, cob, ctime); /* ctime doesnt alter objects */
 
 			/* cleanup after Constraint Solving
 			 * - applies matrix back to pchan, and frees temporary struct used
@@ -2239,7 +2257,7 @@ void BKE_pose_where_is_bone(Scene *scene, Object *ob, bPoseChannel *pchan, float
 
 /* This only reads anim data from channels, and writes to channels */
 /* This is the only function adding poses */
-void BKE_pose_where_is(Scene *scene, Object *ob)
+void BKE_pose_where_is(const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob)
 {
 	bArmature *arm;
 	Bone *bone;
@@ -2278,7 +2296,7 @@ void BKE_pose_where_is(Scene *scene, Object *ob)
 		}
 
 		/* 2a. construct the IK tree (standard IK) */
-		BIK_initialize_tree(scene, ob, ctime);
+		BIK_initialize_tree(eval_ctx, scene, ob, ctime);
 
 		/* 2b. construct the Spline IK trees
 		 *  - this is not integrated as an IK plugin, since it should be able
@@ -2290,15 +2308,15 @@ void BKE_pose_where_is(Scene *scene, Object *ob)
 		for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 			/* 4a. if we find an IK root, we handle it separated */
 			if (pchan->flag & POSE_IKTREE) {
-				BIK_execute_tree(scene, ob, pchan, ctime);
+				BIK_execute_tree(eval_ctx, scene, ob, pchan, ctime);
 			}
 			/* 4b. if we find a Spline IK root, we handle it separated too */
 			else if (pchan->flag & POSE_IKSPLINE) {
-				BKE_splineik_execute_tree(scene, ob, pchan, ctime);
+				BKE_splineik_execute_tree(eval_ctx, scene, ob, pchan, ctime);
 			}
 			/* 5. otherwise just call the normal solver */
 			else if (!(pchan->flag & POSE_DONE)) {
-				BKE_pose_where_is_bone(scene, ob, pchan, ctime, 1);
+				BKE_pose_where_is_bone(eval_ctx, scene, ob, pchan, ctime, 1);
 			}
 		}
 		/* 6. release the IK tree */

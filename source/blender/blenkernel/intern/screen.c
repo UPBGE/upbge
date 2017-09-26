@@ -185,6 +185,7 @@ ARegion *BKE_area_region_copy(SpaceType *st, ARegion *ar)
 	newar->swinid = 0;
 	newar->manipulator_map = NULL;
 	newar->regiontimer = NULL;
+	newar->headerstr = NULL;
 	
 	/* use optional regiondata callback */
 	if (ar->regiondata) {
@@ -292,6 +293,32 @@ void BKE_spacedata_id_unref(struct ScrArea *sa, struct SpaceLink *sl, struct ID 
 	}
 }
 
+/**
+ * Avoid bad-level calls to #WM_manipulatormap_tag_refresh.
+ */
+static void (*region_refresh_tag_manipulatormap_callback)(struct wmManipulatorMap *) = NULL;
+
+void BKE_region_callback_refresh_tag_manipulatormap_set(void (*callback)(struct wmManipulatorMap *))
+{
+	region_refresh_tag_manipulatormap_callback = callback;
+}
+
+void BKE_screen_manipulator_tag_refresh(struct bScreen *sc)
+{
+	if (region_refresh_tag_manipulatormap_callback == NULL) {
+		return;
+	}
+
+	ScrArea *sa;
+	ARegion *ar;
+	for (sa = sc->areabase.first; sa; sa = sa->next) {
+		for (ar = sa->regionbase.first; ar; ar = ar->next) {
+			if (ar->manipulator_map != NULL) {
+				region_refresh_tag_manipulatormap_callback(ar->manipulator_map);
+			}
+		}
+	}
+}
 
 /**
  * Avoid bad-level calls to #WM_manipulatormap_delete.
@@ -353,7 +380,10 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 		}
 	}
 
-	region_free_manipulatormap_callback(ar->manipulator_map);
+	if (ar->manipulator_map != NULL) {
+		region_free_manipulatormap_callback(ar->manipulator_map);
+	}
+
 	BLI_freelistN(&ar->ui_lists);
 	BLI_freelistN(&ar->ui_previews);
 	BLI_freelistN(&ar->panels_category);

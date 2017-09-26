@@ -67,18 +67,17 @@ extern "C" {
 #include "intern/depsgraph_intern.h"
 #include "util/deg_util_foreach.h"
 
+/* Define this in order to have more strict sanitization of what tagging flags
+ * are used for ID databnlocks. Ideally, we would always want this, but there
+ * are cases in generic modules (like IR remapping) where we don't want to spent
+ * lots of time trying to guess which components are to be updated.
+ */
+// #define STRICT_COMPONENT_TAGGING
+
 /* *********************** */
 /* Update Tagging/Flushing */
 
-/* Legacy depsgraph did some special trickery for things like particle systems
- * when tagging ID for an update. Ideally that tagging needs to become obsolete
- * in favor of havng dedicated node for that which gets tagged, but for until
- * design of those areas is more clear we'll do the same legacy code here.
- *                                                                  - sergey -
- */
-#define DEPSGRAPH_USE_LEGACY_TAGGING
-
-namespace {
+namespace DEG {
 
 /* Data-Based Tagging ------------------------------- */
 
@@ -94,123 +93,308 @@ void lib_id_recalc_data_tag(Main *bmain, ID *id)
 	DEG_id_type_tag(bmain, GS(id->name));
 }
 
+namespace {
+
+void deg_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id, int flag);
+
 void lib_id_recalc_tag_flag(Main *bmain, ID *id, int flag)
 {
+	/* This bit of code ensures legacy object->recalc flags are still filled in
+	 * the same way as it was expected with the old dependency graph.
+	 *
+	 * This is because some areas like motion paths and likely some other
+	 * physics baking process are doing manual scene update on all the frames,
+	 * trying to minimize number of updates.
+	 *
+	 * But this flag will also let us to re-construct entry nodes for update
+	 * after relations update and after layer visibility changes.
+	 */
 	if (flag) {
-		/* This bit of code ensures legacy object->recalc flags
-		 * are still filled in the same way as it was expected
-		 * with the old dependency graph.
-		 *
-		 * This is because some areas like motion paths and likely
-		 * some other physics baking process are doing manual scene
-		 * update on all the frames, trying to minimize number of
-		 * updates.
-		 *
-		 * But this flag will also let us to re-construct entry
-		 * nodes for update after relations update and after layer
-		 * visibility changes.
-		 */
-		short idtype = GS(id->name);
-		if (idtype == ID_OB) {
+		ID_Type id_type = GS(id->name);
+		if (id_type == ID_OB) {
 			Object *object = (Object *)id;
 			object->recalc |= (flag & OB_RECALC_ALL);
 		}
-
-		if (flag & OB_RECALC_OB)
+		if (flag & OB_RECALC_OB) {
 			lib_id_recalc_tag(bmain, id);
-		if (flag & (OB_RECALC_DATA | PSYS_RECALC))
+		}
+		if (flag & (OB_RECALC_DATA | PSYS_RECALC)) {
 			lib_id_recalc_data_tag(bmain, id);
+		}
 	}
 	else {
 		lib_id_recalc_tag(bmain, id);
 	}
 }
 
-#ifdef DEPSGRAPH_USE_LEGACY_TAGGING
-void depsgraph_legacy_handle_update_tag(Main *bmain, ID *id, int flag)
+/* Special tagging  */
+void id_tag_update_special_zero_flag(Depsgraph *graph, IDDepsNode *id_node)
 {
-	if (flag) {
-		Object *object;
-		short idtype = GS(id->name);
-		if (idtype == ID_PA) {
-			ParticleSystem *psys;
-			for (object = (Object *)bmain->object.first;
-			     object != NULL;
-			     object = (Object *)object->id.next)
-			{
-				for (psys = (ParticleSystem *)object->particlesystem.first;
-				     psys != NULL;
-				     psys = (ParticleSystem *)psys->next)
-				{
-					if (&psys->part->id == id) {
-						DEG_id_tag_update_ex(bmain, &object->id, flag & OB_RECALC_ALL);
-						psys->recalc |= (flag & PSYS_RECALC);
-					}
-				}
+	/* NOTE: Full ID node update for now, need to minimize that i9n the future. */
+	id_node->tag_update(graph);
+}
+
+/* Tag corresponding to OB_RECALC_OB. */
+void id_tag_update_object_transform(Depsgraph *graph, IDDepsNode *id_node)
+{
+	ComponentDepsNode *transform_comp =
+	        id_node->find_component(DEG_NODE_TYPE_TRANSFORM);
+	if (transform_comp == NULL) {
+#ifdef STRICT_COMPONENT_TAGGING
+		DEG_ERROR_PRINTF("ERROR: Unable to find transform component for %s\n",
+		                 id_node->id_orig->name);
+		BLI_assert(!"This is not supposed to happen!");
+#endif
+		return;
+	}
+	transform_comp->tag_update(graph);
+}
+
+/* Tag corresponding to OB_RECALC_DATA. */
+void id_tag_update_object_data(Depsgraph *graph, IDDepsNode *id_node)
+{
+	const ID_Type id_type = GS(id_node->id_orig->name);
+	ComponentDepsNode *data_comp = NULL;
+	switch (id_type) {
+		case ID_OB:
+		{
+			const Object *object = (Object *)id_node->id_orig;
+			switch (object->type) {
+				case OB_MESH:
+				case OB_CURVE:
+				case OB_SURF:
+				case OB_FONT:
+				case OB_MBALL:
+					data_comp = id_node->find_component(DEG_NODE_TYPE_GEOMETRY);
+					break;
+				case OB_ARMATURE:
+					data_comp = id_node->find_component(DEG_NODE_TYPE_EVAL_POSE);
+					break;
+				/* TODO(sergey): More cases here? */
+			}
+			break;
+		}
+		case ID_ME:
+			data_comp = id_node->find_component(DEG_NODE_TYPE_GEOMETRY);
+			break;
+		case ID_PA:
+			return;
+		default:
+			break;
+	}
+	if (data_comp == NULL) {
+#ifdef STRICT_COMPONENT_TAGGING
+		DEG_ERROR_PRINTF("ERROR: Unable to find data component for %s\n",
+		                 id_node->id_orig->name);
+		BLI_assert(!"This is not supposed to happen!");
+#endif
+		return;
+	}
+	data_comp->tag_update(graph);
+	/* Special legacy compatibility code, tag data ID for update when object
+	 * is tagged for data update.
+	 */
+	if (id_type == ID_OB) {
+		Object *object = (Object *)id_node->id_orig;
+		ID *data_id = (ID *)object->data;
+		if (data_id != NULL) {
+			IDDepsNode *data_id_node = graph->find_id_node(data_id);
+			// BLI_assert(data_id_node != NULL);
+			/* TODO(sergey): Do we want more granular tags here? */
+			/* TODO(sergey): Hrm, during some operations it's possible to have
+			 * object node existing but not it's data. For example, when making
+			 * objects local. This is valid situation, but how can we distinguish
+			 * that from someone trying to do stupid things with dependency
+			 * graph?
+			 */
+			if (data_id_node != NULL) {
+				data_id_node->tag_update(graph);
 			}
 		}
 	}
 }
+
+/* Tag corresponding to OB_RECALC_TIME. */
+void id_tag_update_object_time(Depsgraph *graph, IDDepsNode *id_node)
+{
+	ComponentDepsNode *animation_comp =
+	        id_node->find_component(DEG_NODE_TYPE_ANIMATION);
+	if (animation_comp == NULL) {
+		/* It's not necessarily we've got animation component in cases when
+		 * we are tagging for time updates.
+		 */
+		return;
+	}
+	animation_comp->tag_update(graph);
+	/* TODO(sergey): More components to tag here? */
+}
+
+void id_tag_update_particle(Depsgraph *graph, IDDepsNode *id_node, int tag)
+{
+	ComponentDepsNode *particle_comp =
+	        id_node->find_component(DEG_NODE_TYPE_PARAMETERS);
+	ParticleSettings *particle_settings = (ParticleSettings *)id_node->id_orig;
+	particle_settings->recalc |= (tag & PSYS_RECALC);
+	if (particle_comp == NULL) {
+#ifdef STRICT_COMPONENT_TAGGING
+		DEG_ERROR_PRINTF("ERROR: Unable to find particle component for %s\n",
+		                 id_node->id_orig->name);
+		BLI_assert(!"This is not supposed to happen!");
 #endif
+		return;
+	}
+	particle_comp->tag_update(graph);
+}
+
+void id_tag_update_shading(Depsgraph *graph, IDDepsNode *id_node)
+{
+	ComponentDepsNode *shading_comp;
+	if (GS(id_node->id_orig->name) == ID_NT) {
+		shading_comp = id_node->find_component(DEG_NODE_TYPE_SHADING_PARAMETERS);
+	}
+	else {
+		shading_comp = id_node->find_component(DEG_NODE_TYPE_SHADING);
+	}
+	if (shading_comp == NULL) {
+#ifdef STRICT_COMPONENT_TAGGING
+		DEG_ERROR_PRINTF("ERROR: Unable to find shading component for %s\n",
+		                 id_node->id_orig->name);
+		BLI_assert(!"This is not supposed to happen!");
+#endif
+		return;
+	}
+	shading_comp->tag_update(graph);
+}
 
 #ifdef WITH_COPY_ON_WRITE
-void id_tag_copy_on_write_update(Main *bmain, Depsgraph *graph, ID *id)
+/* Tag corresponding to DEG_TAG_COPY_ON_WRITE. */
+void id_tag_update_copy_on_write(Depsgraph *graph, IDDepsNode *id_node)
 {
-	lib_id_recalc_tag(bmain, id);
-	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(graph);
-	DEG::IDDepsNode *id_node = deg_graph->find_id_node(id);
-	DEG::ComponentDepsNode *cow_comp =
-	        id_node->find_component(DEG::DEG_NODE_TYPE_COPY_ON_WRITE);
-	DEG::OperationDepsNode *cow_node = cow_comp->get_entry_operation();
-	cow_node->tag_update(deg_graph);
-	cow_node->flag |= DEG::DEPSOP_FLAG_SKIP_FLUSH;
+	ComponentDepsNode *cow_comp =
+	        id_node->find_component(DEG_NODE_TYPE_COPY_ON_WRITE);
+	OperationDepsNode *cow_node = cow_comp->get_entry_operation();
+	cow_node->tag_update(graph);
 }
 #endif
+
+void id_tag_update_ntree_special(Main *bmain, Depsgraph *graph, ID *id, int flag)
+{
+	bNodeTree *ntree = NULL;
+	switch (GS(id->name)) {
+		case ID_MA:
+			ntree = ((Material *)id)->nodetree;
+			break;
+		default:
+			break;
+	}
+	if (ntree == NULL) {
+		return;
+	}
+	IDDepsNode *id_node = graph->find_id_node(&ntree->id);
+	if (id_node != NULL) {
+		deg_graph_id_tag_update(bmain, graph, id_node->id_orig, flag);
+	}
+}
+
+void deg_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id, int flag)
+{
+	Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(graph);
+	IDDepsNode *id_node = deg_graph->find_id_node(id);
+	/* Make sure legacy flags are all nicely update. */
+	lib_id_recalc_tag_flag(bmain, id, flag);
+	if (id_node == NULL) {
+		/* Shouldn't happen, but better be sure here. */
+		return;
+	}
+	/* Tag components based on flags. */
+	if (flag == 0) {
+		id_tag_update_special_zero_flag(graph, id_node);
+		id_tag_update_ntree_special(bmain, graph, id, flag);
+		return;
+	}
+	if (flag & OB_RECALC_OB) {
+		id_tag_update_object_transform(graph, id_node);
+	}
+	if (flag & OB_RECALC_DATA) {
+		id_tag_update_object_data(graph, id_node);
+#ifdef WITH_COPY_ON_WRITE
+		if (flag & DEG_TAG_COPY_ON_WRITE) {
+			const ID_Type id_type = GS(id_node->id_orig->name);
+			if (id_type == ID_OB) {
+				Object *object = (Object *)id_node->id_orig;
+				ID *ob_data = (ID *)object->data;
+				DEG_id_tag_update_ex(bmain, ob_data, flag);
+			}
+		}
+#endif
+	}
+	if (flag & OB_RECALC_TIME) {
+		id_tag_update_object_time(graph, id_node);
+	}
+	if (flag & PSYS_RECALC) {
+		id_tag_update_particle(graph, id_node, flag);
+	}
+	if (flag & DEG_TAG_SHADING_UPDATE) {
+		id_tag_update_shading(graph, id_node);
+	}
+#ifdef WITH_COPY_ON_WRITE
+	if (flag & DEG_TAG_COPY_ON_WRITE) {
+		id_tag_update_copy_on_write(graph, id_node);
+	}
+#endif
+	id_tag_update_ntree_special(bmain, graph, id, flag);
+}
+
+void deg_id_tag_update(Main *bmain, ID *id, int flag)
+{
+	lib_id_recalc_tag_flag(bmain, id, flag);
+	for (Scene *scene = (Scene *)bmain->scene.first;
+	     scene != NULL;
+	     scene = (Scene *)scene->id.next)
+	{
+		if (scene->depsgraph_legacy != NULL) {
+			Depsgraph *graph = (Depsgraph *)scene->depsgraph_legacy;
+			deg_graph_id_tag_update(bmain, graph, id, flag);
+		}
+	}
+}
+
+void deg_graph_on_visible_update(Main *bmain, Scene *scene, Depsgraph *graph)
+{
+	/* Make sure objects are up to date. */
+	GHASH_FOREACH_BEGIN(DEG::IDDepsNode *, id_node, graph->id_hash)
+	{
+		const ID_Type id_type = GS(id_node->id_orig->name);
+		/* TODO(sergey): Special exception for now. */
+		if (id_type == ID_MSK) {
+			deg_graph_id_tag_update(bmain, graph, id_node->id_orig, 0);
+		}
+		if (id_type != ID_OB) {
+			/* Ignore non-object nodes on visibility changes. */
+			continue;
+		}
+		int flag = 0;
+		/* We only tag components which needs an update. Tagging everything is
+		 * not a good idea because that might reset particles cache (or any
+		 * other type of cache).
+		 *
+		 * TODO(sergey): Need to generalize this somehow.
+		 */
+		if (id_type == ID_OB) {
+			flag |= OB_RECALC_OB | OB_RECALC_DATA | DEG_TAG_COPY_ON_WRITE;
+		}
+		deg_graph_id_tag_update(bmain, graph, id_node->id_orig, flag);
+	}
+	GHASH_FOREACH_END();
+	/* Make sure collection properties are up to date. */
+	IDDepsNode *scene_id_node = graph->find_id_node(&scene->id);
+	BLI_assert(scene_id_node != NULL);
+	scene_id_node->tag_update(graph);
+}
 
 }  /* namespace */
 
-/* Tag all nodes in ID-block for update.
- * This is a crude measure, but is most convenient for old code.
- */
-void DEG_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id)
-{
-	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(graph);
-	DEG::IDDepsNode *node = deg_graph->find_id_node(id);
-	lib_id_recalc_tag(bmain, id);
-	if (node != NULL) {
-		node->tag_update(deg_graph);
-	}
-}
-
-/* Tag nodes related to a specific piece of data */
-void DEG_graph_data_tag_update(Depsgraph *graph, const PointerRNA *ptr)
-{
-	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(graph);
-	DEG::DepsNode *node = deg_graph->find_node_from_pointer(ptr, NULL);
-	if (node != NULL) {
-		node->tag_update(deg_graph);
-	}
-	else {
-		printf("Missing node in %s\n", __func__);
-		BLI_assert(!"Shouldn't happens since it'll miss crucial update.");
-	}
-}
-
-/* Tag nodes related to a specific property. */
-void DEG_graph_property_tag_update(Depsgraph *graph,
-                                   const PointerRNA *ptr,
-                                   const PropertyRNA *prop)
-{
-	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(graph);
-	DEG::DepsNode *node = deg_graph->find_node_from_pointer(ptr, prop);
-	if (node != NULL) {
-		node->tag_update(deg_graph);
-	}
-	else {
-		printf("Missing node in %s\n", __func__);
-		BLI_assert(!"Shouldn't happens since it'll miss crucial update.");
-	}
-}
+}  // namespace DEG
 
 /* Tag given ID for an update in all the dependency graphs. */
 void DEG_id_tag_update(ID *id, int flag)
@@ -225,56 +409,13 @@ void DEG_id_tag_update_ex(Main *bmain, ID *id, int flag)
 		return;
 	}
 	DEG_DEBUG_PRINTF("%s: id=%s flag=%d\n", __func__, id->name, flag);
-	lib_id_recalc_tag_flag(bmain, id, flag);
-	for (Scene *scene = (Scene *)bmain->scene.first;
-	     scene != NULL;
-	     scene = (Scene *)scene->id.next)
-	{
-		if (scene->depsgraph_legacy) {
-			Depsgraph *graph = scene->depsgraph_legacy;
-			if (flag == 0) {
-				/* TODO(sergey): Currently blender is still tagging IDs
-				 * for recalc just using flag=0. This isn't totally correct
-				 * but we'd better deal with such cases and don't fail.
-				 */
-				DEG_graph_id_tag_update(bmain, graph, id);
-				continue;
-			}
-			if (flag & OB_RECALC_DATA && GS(id->name) == ID_OB) {
-				Object *object = (Object *)id;
-				if (object->data != NULL) {
-					DEG_graph_id_tag_update(bmain,
-					                        graph,
-					                        (ID *)object->data);
-				}
-			}
-			if (flag & (OB_RECALC_OB | OB_RECALC_DATA)) {
-				DEG_graph_id_tag_update(bmain, graph, id);
-			}
-			else if (flag & OB_RECALC_TIME) {
-				DEG_graph_id_tag_update(bmain, graph, id);
-			}
-			else if (flag & DEG_TAG_COPY_ON_WRITE) {
-#ifdef WITH_COPY_ON_WRITE
-				id_tag_copy_on_write_update(bmain, graph, id);
-#endif
-			}
-		}
-	}
-
-#ifdef DEPSGRAPH_USE_LEGACY_TAGGING
-	/* Special handling from the legacy depsgraph.
-	 * TODO(sergey): Need to get rid of those once all the areas
-	 * are re-formulated in terms of franular nodes.
-	 */
-	depsgraph_legacy_handle_update_tag(bmain, id, flag);
-#endif
+	DEG::deg_id_tag_update(bmain, id, flag);
 }
 
 /* Tag given ID type for update. */
-void DEG_id_type_tag(Main *bmain, short idtype)
+void DEG_id_type_tag(Main *bmain, short id_type)
 {
-	if (idtype == ID_NT) {
+	if (id_type == ID_NT) {
 		/* Stupid workaround so parent datablocks of nested nodetree get looped
 		 * over when we loop over tagged datablock types.
 		 */
@@ -285,32 +426,37 @@ void DEG_id_type_tag(Main *bmain, short idtype)
 		DEG_id_type_tag(bmain, ID_SCE);
 	}
 
-	bmain->id_tag_update[BKE_idcode_to_index(idtype)] = 1;
+	bmain->id_tag_update[BKE_idcode_to_index(id_type)] = 1;
 }
 
 /* Recursively push updates out to all nodes dependent on this,
  * until all affected are tagged and/or scheduled up for eval
  */
-void DEG_ids_flush_tagged(Main *bmain, Scene *scene)
+void DEG_ids_flush_tagged(Main *bmain)
 {
-	/* TODO(sergey): Only visible scenes? */
-	if (scene->depsgraph_legacy != NULL) {
-		DEG::deg_graph_flush_updates(
-		        bmain,
-		        reinterpret_cast<DEG::Depsgraph *>(scene->depsgraph_legacy));
+	for (Scene *scene = (Scene *)bmain->scene.first;
+	     scene != NULL;
+	     scene = (Scene *)scene->id.next)
+	{
+		DEG_scene_flush_update(bmain, scene);
 	}
+}
+
+void DEG_scene_flush_update(Main *bmain, Scene *scene)
+{
+	if (scene->depsgraph_legacy == NULL) {
+		return;
+	}
+	DEG::deg_graph_flush_updates(
+	        bmain,
+	        reinterpret_cast<DEG::Depsgraph *>(scene->depsgraph_legacy));
 }
 
 /* Update dependency graph when visible scenes/layers changes. */
 void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 {
-	(void) bmain;
-	DEG::Depsgraph *graph = reinterpret_cast<DEG::Depsgraph *>(scene->depsgraph_legacy);
-	GHASH_FOREACH_BEGIN(DEG::IDDepsNode *, id_node, graph->id_hash)
-	{
-		id_node->tag_update(graph);
-	}
-	GHASH_FOREACH_END();
+	DEG::Depsgraph *graph = (DEG::Depsgraph *)scene->depsgraph_legacy;
+	DEG::deg_graph_on_visible_update(bmain, scene, graph);
 }
 
 void DEG_on_visible_update(Main *bmain, const bool UNUSED(do_time))

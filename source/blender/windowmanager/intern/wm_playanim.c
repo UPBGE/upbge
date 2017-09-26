@@ -77,10 +77,10 @@
 #include "WM_api.h"  /* only for WM_main_playanim */
 
 #ifdef WITH_AUDASPACE
-#  include AUD_DEVICE_H
-#  include AUD_HANDLE_H
-#  include AUD_SOUND_H
-#  include AUD_SPECIAL_H
+#  include <AUD_Device.h>
+#  include <AUD_Handle.h>
+#  include <AUD_Sound.h>
+#  include <AUD_Special.h>
 
 static AUD_Sound *source = NULL;
 static AUD_Handle *playback_handle = NULL;
@@ -319,7 +319,7 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		imm_draw_checker_box(offs_x, offs_y, offs_x + span_x, offs_y + span_y);
+		imm_draw_checker_box_2d(offs_x, offs_y, offs_x + span_x, offs_y + span_y);
 	}
 
 	IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_COLOR);

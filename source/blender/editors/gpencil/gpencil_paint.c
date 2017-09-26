@@ -80,6 +80,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "DEG_depsgraph.h"
+
 #include "gpencil_intern.h"
 
 /* ******************************************* */
@@ -114,6 +116,7 @@ typedef enum eGPencil_PaintFlags {
  *   "p" = op->customdata
  */
 typedef struct tGPsdata {
+	EvaluationContext eval_ctx;
 	Scene *scene;       /* current scene from context */
 	struct Depsgraph *graph;
 	
@@ -484,7 +487,8 @@ static void gp_brush_angle(bGPdata *gpd, bGPDbrush *brush, tGPspoint *pt, const 
 }
 
 /* add current stroke-point to buffer (returns whether point was successfully added) */
-static short gp_stroke_addpoint(tGPsdata *p, const int mval[2], float pressure, double curtime)
+static short gp_stroke_addpoint(
+        tGPsdata *p, const int mval[2], float pressure, double curtime)
 {
 	bGPdata *gpd = p->gpd;
 	bGPDbrush *brush = p->brush;
@@ -643,7 +647,7 @@ static short gp_stroke_addpoint(tGPsdata *p, const int mval[2], float pressure, 
 				
 				view3d_region_operator_needs_opengl(p->win, p->ar);
 				ED_view3d_autodist_init(
-				        p->graph, p->ar, v3d, (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 1 : 0);
+				        &p->eval_ctx, p->graph, p->ar, v3d, (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 1 : 0);
 			}
 			
 			/* convert screen-coordinates to appropriate coordinates (and store them) */
@@ -739,7 +743,7 @@ static void gp_stroke_simplify(tGPsdata *p)
 			
 			/* ignore return values on this... assume to be ok for now */
 			gp_stroke_addpoint(p, mco, pressure, p->inittime + (double)time);
-			
+
 			j += 2;
 		}
 	}
@@ -1244,7 +1248,7 @@ static void gp_stroke_doeraser(tGPsdata *p)
 		if (p->flags & GP_PAINTFLAG_V3D_ERASER_DEPTH) {
 			View3D *v3d = p->sa->spacedata.first;
 			view3d_region_operator_needs_opengl(p->win, p->ar);
-			ED_view3d_autodist_init(p->graph, p->ar, v3d, 0);
+			ED_view3d_autodist_init(&p->eval_ctx, p->graph, p->ar, v3d, 0);
 		}
 	}
 	
@@ -1397,6 +1401,7 @@ static bool gp_session_initdata(bContext *C, tGPsdata *p)
 	}
 	
 	/* pass on current scene and window */
+	CTX_data_eval_ctx(C, &p->eval_ctx);
 	p->scene = CTX_data_scene(C);
 	p->graph = CTX_data_depsgraph(C);
 	p->win = CTX_wm_window(C);
@@ -1811,14 +1816,14 @@ static void gp_paint_strokeend(tGPsdata *p)
 		
 		/* need to restore the original projection settings before packing up */
 		view3d_region_operator_needs_opengl(p->win, p->ar);
-		ED_view3d_autodist_init(p->graph, p->ar, v3d, (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 1 : 0);
+		ED_view3d_autodist_init(&p->eval_ctx, p->graph, p->ar, v3d, (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 1 : 0);
 	}
 	
 	/* check if doing eraser or not */
 	if ((p->gpd->sbuffer_sflag & GP_STROKE_ERASER) == 0) {
 		/* simplify stroke before transferring? */
 		gp_stroke_simplify(p);
-		
+
 		/* transfer stroke to frame */
 		gp_stroke_newfrombuffer(p);
 	}
@@ -1860,7 +1865,7 @@ static void gpencil_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_ptr)
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		immUniformColor4ub(255, 100, 100, 20);
-		imm_draw_circle_fill(shdr_pos, x, y, p->radius, 40);
+		imm_draw_circle_fill_2d(shdr_pos, x, y, p->radius, 40);
 
 		immUnbindProgram();
 
@@ -1875,7 +1880,7 @@ static void gpencil_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_ptr)
 		immUniform1f("dash_width", 12.0f);
 		immUniform1f("dash_factor", 0.5f);
 
-		imm_draw_circle_wire(shdr_pos, x, y, p->radius,
+		imm_draw_circle_wire_2d(shdr_pos, x, y, p->radius,
 		                     /* XXX Dashed shader gives bad results with sets of small segments currently,
 		                      *     temp hack around the issue. :( */
 		                     max_ii(8, p->radius / 2));  /* was fixed 40 */
@@ -2057,7 +2062,7 @@ static void gpencil_draw_apply(wmOperator *op, tGPsdata *p)
 	if (p->paintmode == GP_PAINTMODE_ERASER) {
 		/* do 'live' erasing now */
 		gp_stroke_doeraser(p);
-		
+
 		/* store used values */
 		p->mvalo[0] = p->mval[0];
 		p->mvalo[1] = p->mval[1];
@@ -2067,7 +2072,7 @@ static void gpencil_draw_apply(wmOperator *op, tGPsdata *p)
 	else if (gp_stroke_filtermval(p, p->mval, p->mvalo)) {
 		/* try to add point */
 		short ok = gp_stroke_addpoint(p, p->mval, p->pressure, p->curtime);
-		
+
 		/* handle errors while adding point */
 		if ((ok == GP_STROKEADD_FULL) || (ok == GP_STROKEADD_OVERFLOW)) {
 			/* finish off old stroke */
@@ -2212,7 +2217,7 @@ static void gpencil_draw_apply_event(wmOperator *op, const wmEvent *event)
 	
 	/* apply the current latest drawing point */
 	gpencil_draw_apply(op, p);
-	
+
 	/* force refresh */
 	ED_region_tag_redraw(p->ar); /* just active area for now, since doing whole screen is too slow */
 }
@@ -2388,9 +2393,9 @@ static tGPsdata *gpencil_stroke_begin(bContext *C, wmOperator *op)
 static void gpencil_stroke_end(wmOperator *op)
 {
 	tGPsdata *p = op->customdata;
-	
+
 	gp_paint_cleanup(p);
-	
+
 	gpencil_undo_push(p->gpd);
 	
 	gp_session_cleanup(p);
@@ -2524,7 +2529,7 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				/* end stroke only, and then wait to resume painting soon */
 				/* printf("\t\tGP - end stroke only\n"); */
 				gpencil_stroke_end(op);
-				
+
 				/* If eraser mode is on, turn it off after the stroke finishes
 				 * NOTE: This just makes it nicer to work with drawing sessions
 				 */
@@ -2667,7 +2672,7 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			/* handle drawing event */
 			/* printf("\t\tGP - add point\n"); */
 			gpencil_draw_apply_event(op, event);
-			
+
 			/* finish painting operation if anything went wrong just now */
 			if (p->status == GP_STATUS_ERROR) {
 				printf("\t\t\t\tGP - add error done!\n");

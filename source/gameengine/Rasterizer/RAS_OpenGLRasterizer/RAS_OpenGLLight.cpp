@@ -299,13 +299,13 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& 
 		view[i] = MT_Matrix4x4(&cubefacemat[i][0][0]) * tmp;
 	}
 
-	evsh.bias = 0.05f * m_shadowbias;
+	/*evsh.bias = 0.05f * m_shadowbias;
 	evsh.nearf = m_shadowclipstart;
 	evsh.farf = m_shadowclipend;
 	evsh.exp = m_shadowBleedExp;
 
 	srd.layer = id;
-	srd.exponent = m_shadowBleedExp;
+	srd.exponent = m_shadowBleedExp;*/
 	pos.getValue(srd.position);
 	for (int j = 0; j < 6; j++) {
 		view[j].getValue(&srd.viewmat[j][0][0]);

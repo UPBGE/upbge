@@ -132,6 +132,7 @@ extern StructRNA RNA_CompositorNodeCombRGBA;
 extern StructRNA RNA_CompositorNodeCombYCCA;
 extern StructRNA RNA_CompositorNodeCombYUVA;
 extern StructRNA RNA_CompositorNodeComposite;
+extern StructRNA RNA_CompositorNodeCornerPin;
 extern StructRNA RNA_CompositorNodeCrop;
 extern StructRNA RNA_CompositorNodeCurveRGB;
 extern StructRNA RNA_CompositorNodeCurveVec;
@@ -175,6 +176,7 @@ extern StructRNA RNA_CompositorNodeSepYCCA;
 extern StructRNA RNA_CompositorNodeSepYUVA;
 extern StructRNA RNA_CompositorNodeSetAlpha;
 extern StructRNA RNA_CompositorNodeSplitViewer;
+extern StructRNA RNA_CompositorNodeSunBeams;
 extern StructRNA RNA_CompositorNodeSwitchView;
 extern StructRNA RNA_CompositorNodeTexture;
 extern StructRNA RNA_CompositorNodeTime;
@@ -799,6 +801,9 @@ FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier);
 const struct ListBase *RNA_struct_type_functions(StructRNA *srna);
 
 char *RNA_struct_name_get_alloc(PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len);
+
+bool RNA_struct_available_or_report(struct ReportList *reports, const char *identifier);
+bool RNA_struct_bl_idname_ok_or_report(struct ReportList *reports, const char *identifier, const char *sep);
 
 /* Properties
  *

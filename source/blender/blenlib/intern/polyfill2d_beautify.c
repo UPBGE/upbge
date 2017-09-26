@@ -121,45 +121,50 @@ BLI_INLINE bool is_boundary_edge(unsigned int i_a, unsigned int i_b, const unsig
  * Assuming we have 2 triangles sharing an edge (2 - 4),
  * check if the edge running from (1 - 3) gives better results.
  *
+ * \param lock_degenerate: Use to avoid rotating out of a degenerate state.
+ * - When true, an existing zero area face on either side of the (2 - 4) split will return a positive value.
+ * - When false, the check must be non-biased towards either split direction.
+ *
  * \return (negative number means the edge can be rotated, lager == better).
  */
-float BLI_polyfill_beautify_quad_rotate_calc(
-        const float v1[2], const float v2[2], const float v3[2], const float v4[2])
+float BLI_polyfill_beautify_quad_rotate_calc_ex(
+        const float v1[2], const float v2[2], const float v3[2], const float v4[2],
+        const bool lock_degenerate)
 {
 	/* not a loop (only to be able to break out) */
 	do {
-		bool is_zero_a, is_zero_b;
-
 		const float area_2x_234 = cross_tri_v2(v2, v3, v4);
 		const float area_2x_241 = cross_tri_v2(v2, v4, v1);
 
 		const float area_2x_123 = cross_tri_v2(v1, v2, v3);
 		const float area_2x_134 = cross_tri_v2(v1, v3, v4);
 
+		BLI_assert((ELEM(v1, v2, v3, v4) == false) &&
+		           (ELEM(v2, v1, v3, v4) == false) &&
+		           (ELEM(v3, v1, v2, v4) == false) &&
+		           (ELEM(v4, v1, v2, v3) == false));
+
+		/*
+		 * Test for unusable (1-3) state.
+		 * - Area sign flipping to check faces aren't going to point in opposite directions.
+		 * - Area epsilon check that the one of the faces won't be zero area.
+		 */
+		if (((area_2x_123 >= 0.0f) != (area_2x_134 >= 0.0f)) ||
+		    (fabsf(area_2x_123) <= FLT_EPSILON) || (fabsf(area_2x_134) <= FLT_EPSILON))
 		{
-			BLI_assert((ELEM(v1, v2, v3, v4) == false) &&
-			           (ELEM(v2, v1, v3, v4) == false) &&
-			           (ELEM(v3, v1, v2, v4) == false) &&
-			           (ELEM(v4, v1, v2, v3) == false));
+			break;
+		}
 
-			is_zero_a = (fabsf(area_2x_234) <= FLT_EPSILON);
-			is_zero_b = (fabsf(area_2x_241) <= FLT_EPSILON);
-
-			if (is_zero_a && is_zero_b) {
+		/* Test for unusable (2-4) state (same as above). */
+		if (((area_2x_234 >= 0.0f) != (area_2x_241 >= 0.0f)) ||
+		    ((fabsf(area_2x_234) <= FLT_EPSILON) || (fabsf(area_2x_241) <= FLT_EPSILON)))
+		{
+			if (lock_degenerate) {
 				break;
 			}
-		}
-
-		/* one of the tri's was degenerate, check we're not rotating
-		 * into a different degenerate shape or flipping the face */
-		if ((fabsf(area_2x_123) <= FLT_EPSILON) || (fabsf(area_2x_134) <= FLT_EPSILON)) {
-			/* one of the new rotations is degenerate */
-			break;
-		}
-
-		if ((area_2x_123 >= 0.0f) != (area_2x_134 >= 0.0f)) {
-			/* rotation would cause flipping */
-			break;
+			else {
+				return -FLT_MAX;  /* always rotate */
+			}
 		}
 
 		{

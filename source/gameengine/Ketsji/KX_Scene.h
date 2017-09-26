@@ -344,7 +344,6 @@ public:
 	void SetIsLastScene(bool isLastScene);
 	bool GetIsLastScene();
 	void AppendProbeList(KX_GameObject *probe);
-	void RenderSceneToProbes(std::vector<KX_GameObject *>probeList, RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
 	std::vector<KX_GameObject *>GetProbeList();
 	/***************************************************/
 

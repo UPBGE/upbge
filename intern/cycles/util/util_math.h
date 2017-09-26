@@ -94,6 +94,7 @@ ccl_device_inline float fminf(float a, float b)
 #ifndef __KERNEL_GPU__
 using std::isfinite;
 using std::isnan;
+using std::sqrt;
 
 ccl_device_inline int abs(int x)
 {
@@ -223,7 +224,7 @@ ccl_device_inline bool isfinite_safe(float f)
 {
 	/* By IEEE 754 rule, 2*Inf equals Inf */
 	unsigned int x = __float_as_uint(f);
-	return (f == f) && (x == 0 || (f != 2.0f*f)) && !((x << 1) > 0xff000000u);
+	return (f == f) && (x == 0 || x == (1u << 31) || (f != 2.0f*f)) && !((x << 1) > 0xff000000u);
 }
 
 ccl_device_inline float ensure_finite(float v)
@@ -329,15 +330,22 @@ template<class A, class B> A lerp(const A& a, const A& b, const B& t)
 	return (A)(a * ((B)1 - t) + b * t);
 }
 
+#endif  /* __KERNEL_OPENCL__ */
+
 /* Triangle */
 
+#ifndef __KERNEL_OPENCL__
 ccl_device_inline float triangle_area(const float3& v1,
                                       const float3& v2,
                                       const float3& v3)
+#else
+ccl_device_inline float triangle_area(const float3 v1,
+                                      const float3 v2,
+                                      const float3 v3)
+#endif
 {
 	return len(cross(v3 - v2, v1 - v2))*0.5f;
 }
-#endif  /* __KERNEL_OPENCL__ */
 
 /* Orthonormal vectors */
 

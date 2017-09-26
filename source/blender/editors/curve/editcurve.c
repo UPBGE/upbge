@@ -6275,12 +6275,15 @@ static int match_texture_space_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *object = CTX_data_active_object(C);
+	EvaluationContext eval_ctx;
 	Curve *curve = (Curve *) object->data;
 	float min[3], max[3], size[3], loc[3];
 	int a;
 
+	CTX_data_eval_ctx(C, &eval_ctx);
+
 	if (object->curve_cache == NULL) {
-		BKE_displist_make_curveTypes(scene, object, false);
+		BKE_displist_make_curveTypes(&eval_ctx, scene, object, false);
 	}
 
 	INIT_MINMAX(min, max);

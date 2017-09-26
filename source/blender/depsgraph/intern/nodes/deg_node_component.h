@@ -151,6 +151,7 @@ struct ComponentDepsNode : public DepsNode {
 	OperationDepsNode *exit_operation;
 
 	// XXX: a poll() callback to check if component's first node can be started?
+	virtual bool depends_on_cow() { return true; }
 };
 
 /* ---------------------------------------- */
@@ -200,6 +201,11 @@ struct ShadingComponentDepsNode : public ComponentDepsNode {
 	DEG_DEPSNODE_DECLARE;
 };
 
+struct ShadingParametersComponentDepsNode : public ComponentDepsNode {
+	DEG_DEPSNODE_DECLARE;
+	virtual bool depends_on_cow() { return false; }
+};
+
 struct CacheComponentDepsNode : public ComponentDepsNode {
 	DEG_DEPSNODE_DECLARE;
 };
@@ -210,6 +216,8 @@ struct LayerCollectionsDepsNode : public ComponentDepsNode {
 
 struct CopyOnWriteDepsNode : public ComponentDepsNode {
 	DEG_DEPSNODE_DECLARE;
+
+	virtual bool depends_on_cow() { return false; }
 };
 
 

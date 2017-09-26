@@ -58,6 +58,7 @@ void   BKE_images_exit(void);
 void    BKE_image_free_packedfiles(struct Image *image);
 void    BKE_image_free_views(struct Image *image);
 void    BKE_image_free_buffers(struct Image *image);
+void    BKE_image_free_buffers_ex(struct Image *image, bool do_lock);
 /* call from library */
 void    BKE_image_free(struct Image *image);
 
@@ -250,6 +251,7 @@ void BKE_image_packfiles_from_mem(struct ReportList *reports, struct Image *ima,
 void BKE_image_print_memlist(void);
 
 /* empty image block, of similar type and filename */
+void BKE_image_copy_data(struct Main *bmain, struct Image *ima_dst, const struct Image *ima_src, const int flag);
 struct Image *BKE_image_copy(struct Main *bmain, const struct Image *ima);
 
 /* merge source into dest, and free source */

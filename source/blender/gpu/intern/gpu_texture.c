@@ -67,6 +67,7 @@ struct GPUTexture {
 
 	unsigned int bytesize; /* number of byte for one pixel */
 	int format;         /* GPUTextureFormat */
+	int components;     /* number of color/alpha channels */
 };
 
 /* ------ Memory Management ------- */
@@ -168,6 +169,7 @@ static GLenum gpu_texture_get_format(
 			break;
 		case GPU_DEPTH_COMPONENT16:
 		case GPU_R16F:
+		case GPU_RG8:
 			*bytesize = 2;
 			break;
 		case GPU_R8:
@@ -190,6 +192,7 @@ static GLenum gpu_texture_get_format(
 		case GPU_RGBA8: return GL_RGBA8;
 		case GPU_R32F: return GL_R32F;
 		case GPU_R16F: return GL_R16F;
+		case GPU_RG8: return GL_RG8;
 		case GPU_R8: return GL_R8;
 		/* Special formats texture & renderbuffer */
 		case GPU_R11F_G11F_B10F: return GL_R11F_G11F_B10F;
@@ -325,6 +328,7 @@ static GPUTexture *GPU_texture_create_nD(
 	tex->refcount = 1;
 	tex->fb_attachment = -1;
 	tex->format = data_type;
+	tex->components = components;
 
 	if (n == 2) {
 		if (d == 0)
@@ -467,6 +471,7 @@ static GPUTexture *GPU_texture_cube_create(
 	tex->refcount = 1;
 	tex->fb_attachment = -1;
 	tex->format = data_type;
+	tex->components = components;
 
 	if (d == 0) {
 		tex->target_base = tex->target = GL_TEXTURE_CUBE_MAP;
@@ -554,6 +559,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int textarget
 	tex->target_base = textarget;
 	tex->fromblender = 1;
 	tex->format = -1;
+	tex->components = -1;
 
 	ima->gputexture[gputt] = tex;
 
@@ -607,6 +613,7 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 	tex->target = GL_TEXTURE_2D;
 	tex->target_base = GL_TEXTURE_2D;
 	tex->format = -1;
+	tex->components = -1;
 	
 	prv->gputexture[0] = tex;
 	
@@ -703,6 +710,36 @@ GPUTexture *GPU_texture_create_depth_with_stencil(int w, int h, char err_out[256
 GPUTexture *GPU_texture_create_depth_multisample(int w, int h, int samples, char err_out[256])
 {
 	return GPU_texture_create_nD(w, h, 0, 2, NULL, GPU_DEPTH_COMPONENT24, 1, samples, false, err_out);
+}
+
+void GPU_texture_update(GPUTexture *tex, const float *pixels)
+{
+	BLI_assert(tex->format > -1);
+	BLI_assert(tex->components > -1);
+
+	GLenum format, data_format;
+	gpu_texture_get_format(tex->components, tex->format, &format, &data_format, &tex->depth, &tex->stencil, &tex->bytesize);
+
+	glBindTexture(tex->target, tex->bindcode);
+
+	switch (tex->target) {
+		case GL_TEXTURE_2D:
+		case GL_TEXTURE_2D_MULTISAMPLE:
+		case GL_TEXTURE_1D_ARRAY:
+			glTexSubImage2D(tex->target, 0, 0, 0, tex->w, tex->h, format, data_format, pixels);
+			break;
+		case GL_TEXTURE_1D:
+			glTexSubImage1D(tex->target, 0, 0, tex->w, format, data_format, pixels);
+			break;
+		case GL_TEXTURE_3D:
+		case GL_TEXTURE_2D_ARRAY:
+			glTexSubImage3D(tex->target, 0, 0, 0, 0, tex->w, tex->h, tex->d, format, data_format, pixels);
+			break;
+		default:
+			BLI_assert(!"tex->target mode not supported");
+	}
+
+	glBindTexture(tex->target, 0);
 }
 
 GPUTexture **GPU_texture_global_depth_ptr(void)
@@ -890,6 +927,9 @@ void GPU_texture_mipmap_mode(GPUTexture *tex, bool use_mipmap, bool use_filter)
 	       ? use_mipmap ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR
 	       : use_mipmap ? GL_NEAREST_MIPMAP_LINEAR : GL_NEAREST;
 	glTexParameteri(tex->target_base, GL_TEXTURE_MIN_FILTER, mipmap);
+
+	GLenum filter = use_filter ? GL_LINEAR : GL_NEAREST;
+	glTexParameteri(tex->target_base, GL_TEXTURE_MAG_FILTER, filter);
 
 	if (tex->number != 0)
 		glActiveTexture(GL_TEXTURE0);

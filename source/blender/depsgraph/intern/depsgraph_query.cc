@@ -54,9 +54,9 @@ extern "C" {
 #  include "intern/eval/deg_eval_copy_on_write.h"
 #endif
 
-bool DEG_id_type_tagged(Main *bmain, short idtype)
+bool DEG_id_type_tagged(Main *bmain, short id_type)
 {
-	return bmain->id_tag_update[BKE_idcode_to_index(idtype)] != 0;
+	return bmain->id_tag_update[BKE_idcode_to_index(id_type)] != 0;
 }
 
 short DEG_get_eval_flags_for_id(Depsgraph *graph, ID *id)
@@ -105,8 +105,16 @@ Object *DEG_get_evaluated_object(Depsgraph *depsgraph, Object *object)
 
 ID *DEG_get_evaluated_id(struct Depsgraph *depsgraph, ID *id)
 {
-	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(depsgraph);
-	return deg_graph->get_cow_id(id);
+	/* TODO(sergey): This is a duplicate of Depsgraph::get_cow_id(),
+	 * but here we never do assert, since we don't know nature of the
+	 * incoming ID datablock.
+	 */
+	DEG::Depsgraph *deg_graph = (DEG::Depsgraph *)depsgraph;
+	DEG::IDDepsNode *id_node = deg_graph->find_id_node(id);
+	if (id_node == NULL) {
+		return id;
+	}
+	return id_node->id_cow;
 }
 
 /* ************************ DAG ITERATORS ********************* */
@@ -204,33 +212,30 @@ void DEG_objects_iterator_next(BLI_Iterator *iter)
 	}
 
 	base = data->base->next;
-	while (base != NULL) {
-		if ((base->flag & BASE_VISIBLED) != 0) {
-			// Object *ob = DEG_get_evaluated_object(data->graph, base->object);
-			Object *ob = base->object;
-			iter->current = ob;
-			data->base = base;
+	if (base != NULL) {
+		// Object *ob = DEG_get_evaluated_object(data->graph, base->object);
+		Object *ob = base->object;
+		iter->current = ob;
+		data->base = base;
 
-			BLI_assert(DEG::deg_validate_copy_on_write_datablock(&ob->id));
+		BLI_assert(DEG::deg_validate_copy_on_write_datablock(&ob->id));
 
-			/* Make sure we have the base collection settings is already populated.
-			 * This will fail when BKE_layer_eval_layer_collection_pre hasn't run yet
-			 * Which usually means a missing call to DAG_id_tag_update(). */
-			BLI_assert(!BLI_listbase_is_empty(&base->collection_properties->data.group));
+		/* Make sure we have the base collection settings is already populated.
+		 * This will fail when BKE_layer_eval_layer_collection_pre hasn't run yet
+		 * Which usually means a missing call to DEG_id_tag_update(). */
+		BLI_assert(!BLI_listbase_is_empty(&base->collection_properties->data.group));
 
-			/* Flushing depsgraph data. */
-			deg_flush_base_flags_and_settings(ob,
-			                                  base,
-			                                  data->base_flag);
+		/* Flushing depsgraph data. */
+		deg_flush_base_flags_and_settings(ob,
+										  base,
+										  data->base_flag);
 
-			if ((data->flag & DEG_OBJECT_ITER_FLAG_DUPLI) && (ob->transflag & OB_DUPLI)) {
-				data->dupli_parent = ob;
-				data->dupli_list = object_duplilist(&data->eval_ctx, data->scene, ob);
-				data->dupli_object_next = (DupliObject *)data->dupli_list->first;
-			}
-			return;
+		if ((data->flag & DEG_OBJECT_ITER_FLAG_DUPLI) && (ob->transflag & OB_DUPLI)) {
+			data->dupli_parent = ob;
+			data->dupli_list = object_duplilist(&data->eval_ctx, data->scene, ob);
+			data->dupli_object_next = (DupliObject *)data->dupli_list->first;
 		}
-		base = base->next;
+		return;
 	}
 
 	/* Look for an object in the next set. */

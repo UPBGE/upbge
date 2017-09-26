@@ -138,7 +138,9 @@ struct IDDepsNode : public DepsNode {
 	};
 
 	void init(const ID *id, const char *subdata);
+	void init_copy_on_write(ID *id_cow_hint = NULL);
 	~IDDepsNode();
+	void destroy();
 
 	ComponentDepsNode *find_component(eDepsNode_Type type,
 	                                  const char *name = "") const;

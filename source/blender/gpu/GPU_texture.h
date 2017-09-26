@@ -69,6 +69,7 @@ typedef enum GPUTextureFormat {
 	GPU_RG16F,
 	GPU_R32F,
 	GPU_R16F,
+	GPU_RG8,
 	GPU_R8,
 #if 0
 	GPU_RGBA32I,
@@ -83,7 +84,6 @@ typedef enum GPUTextureFormat {
 	GPU_RG16,
 	GPU_RG16I,
 	GPU_RG16UI,
-	GPU_RG8,
 	GPU_RG8I,
 	GPU_RG8UI,
 	GPU_R32I,
@@ -172,6 +172,8 @@ GPUTexture *GPU_texture_create_depth_multisample(int w, int h, int samples, char
 GPUTexture *GPU_texture_from_blender(
         struct Image *ima, struct ImageUser *iuser, int textarget, bool is_data, double time, int mipmap);
 GPUTexture *GPU_texture_from_preview(struct PreviewImage *prv, int mipmap);
+
+void GPU_texture_update(GPUTexture *tex, const float *pixels);
 GPUTexture **GPU_texture_global_depth_ptr(void);
 void GPU_texture_set_global_depth(GPUTexture *depthtex);
 void GPU_invalid_tex_init(void);

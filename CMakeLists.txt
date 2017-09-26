@@ -45,7 +45,7 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 	endif()
 endif()
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 
 if(NOT EXECUTABLE_OUTPUT_PATH)
 	set(FIRST_RUN TRUE)
@@ -303,7 +303,7 @@ if(WITH_X11)
 endif()
 
 if(UNIX AND NOT APPLE)
-	option(WITH_SYSTEM_GLEW "Use GLEW OpenGL wrapper library provided by the operating system" ON)
+	option(WITH_SYSTEM_GLEW "Use GLEW OpenGL wrapper library provided by the operating system" OFF)
 	option(WITH_SYSTEM_GLES "Use OpenGL ES library provided by the operating system"           ON)
 else()
 	# not an option for other OS's
@@ -404,10 +404,14 @@ if(UNIX AND NOT APPLE)
 endif()
 
 option(WITH_PYTHON_INSTALL       "Copy system python into the blender install folder" ON)
-if(WITH_PYTHON_INSTALL)
-	option(WITH_PYTHON_INSTALL_NUMPY "Copy system numpy into the blender install folder"  ON)
+if(WITH_PYTHON_INSTALL OR (WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE))
 	set(PYTHON_NUMPY_PATH            "" CACHE PATH "Path to python site-packages or dist-packages containing 'numpy' module")
 	mark_as_advanced(PYTHON_NUMPY_PATH)
+	set(PYTHON_NUMPY_INCLUDE_DIRS ${PYTHON_NUMPY_PATH}/numpy/core/include CACHE PATH "Path to the include directory of the numpy module")
+	mark_as_advanced(PYTHON_NUMPY_INCLUDE_DIRS)
+endif()
+if(WITH_PYTHON_INSTALL)
+	option(WITH_PYTHON_INSTALL_NUMPY "Copy system numpy into the blender install folder"  ON)
 
 	if(UNIX AND NOT APPLE)
 		option(WITH_PYTHON_INSTALL_REQUESTS "Copy system requests into the blender install folder" ON)
@@ -597,6 +601,12 @@ if(NOT WITH_GAMEENGINE AND WITH_PLAYER)
 	message(FATAL_ERROR "WITH_PLAYER requires WITH_GAMEENGINE")
 endif()
 
+if(NOT WITH_CXX11)
+	if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)
+		message(FATAL_ERROR "WITH_AUDASPACE requires WITH_CXX11")
+	endif()
+endif()
+
 if(NOT WITH_AUDASPACE)
 	if(WITH_OPENAL)
 		message(FATAL_ERROR "WITH_OPENAL requires WITH_AUDASPACE")
@@ -642,16 +652,11 @@ if(NOT WITH_BOOST)
 	endmacro()
 
 	set_and_warn(WITH_CYCLES         OFF)
-	set_and_warn(WITH_AUDASPACE      OFF)
 	set_and_warn(WITH_INTERNATIONAL  OFF)
 	set_and_warn(WITH_OPENVDB        OFF)
 	set_and_warn(WITH_OPENCOLORIO    OFF)
 	set_and_warn(WITH_MOD_BOOLEAN    OFF)
-
-	set_and_warn(WITH_OPENAL         OFF)  # depends on AUDASPACE
-	set_and_warn(WITH_GAMEENGINE     OFF)  # depends on AUDASPACE
-	set_and_warn(WITH_PLAYER         OFF)  # depends on GAMEENGINE
-elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL OR
+elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_INTERNATIONAL OR
        WITH_OPENVDB OR WITH_OPENCOLORIO OR WITH_MOD_BOOLEAN)
 	# Keep enabled
 else()
@@ -720,30 +725,9 @@ TEST_SHARED_PTR_SUPPORT()
 TEST_UNORDERED_MAP_SUPPORT()
 
 if(WITH_AUDASPACE)
-	if(WITH_SYSTEM_AUDASPACE)
-		set(AUDASPACE_DEFINITIONS
-			-DWITH_AUDASPACE
-			-DWITH_SYSTEM_AUDASPACE
-			"-DAUD_DEVICE_H=<AUD_Device.h>"
-			"-DAUD_SPECIAL_H=<AUD_Special.h>"
-			"-DAUD_SOUND_H=<AUD_Sound.h>"
-			"-DAUD_HANDLE_H=<AUD_Handle.h>"
-			"-DAUD_SEQUENCE_H=<AUD_Sequence.h>"
-			"-DAUD_TYPES_H=<AUD_Types.h>"
-			"-DAUD_PYTHON_H=<python/PyAPI.h>"
-		)
-	else()
-		set(AUDASPACE_C_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/intern/audaspace/intern")
-		set(AUDASPACE_PY_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/intern/audaspace/intern")
-		set(AUDASPACE_DEFINITIONS
-			-DWITH_AUDASPACE
-			"-DAUD_DEVICE_H=<AUD_C-API.h>"
-			"-DAUD_SPECIAL_H=<AUD_C-API.h>"
-			"-DAUD_SOUND_H=<AUD_C-API.h>"
-			"-DAUD_HANDLE_H=<AUD_C-API.h>"
-			"-DAUD_SEQUENCE_H=<AUD_C-API.h>"
-			"-DAUD_TYPES_H=<AUD_Space.h>"
-		)
+	if(NOT WITH_SYSTEM_AUDASPACE)
+		set(AUDASPACE_C_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/audaspace/bindings/C" "${CMAKE_BINARY_DIR}/extern/audaspace")
+		set(AUDASPACE_PY_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/audaspace/bindings")
 	endif()
 endif()
 
@@ -1497,10 +1481,15 @@ if(WITH_PYTHON)
 		)
 	endif()
 
-	if(WIN32 OR APPLE)
+	if(WIN32)
 		# pass, we have this in an archive to extract
-	elseif(WITH_PYTHON_INSTALL AND WITH_PYTHON_INSTALL_NUMPY)
-		find_python_package(numpy)
+	elseif((WITH_PYTHON_INSTALL AND WITH_PYTHON_INSTALL_NUMPY) OR (WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE))
+		if(("${PYTHON_NUMPY_PATH}" STREQUAL "") OR (${PYTHON_NUMPY_PATH} MATCHES NOTFOUND))
+			find_python_package(numpy)
+			unset(PYTHON_NUMPY_INCLUDE_DIRS CACHE)
+			set(PYTHON_NUMPY_INCLUDE_DIRS ${PYTHON_NUMPY_PATH}/numpy/core/include CACHE PATH "Path to the include directory of the numpy module")
+		        mark_as_advanced(PYTHON_NUMPY_INCLUDE_DIRS)
+		endif()
 	endif()
 
 	if(WIN32 OR APPLE)

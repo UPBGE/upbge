@@ -54,6 +54,8 @@
 #include "BKE_editmesh_bvh.h"
 #include "BKE_report.h"
 
+#include "DEG_depsgraph.h"
+
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 
@@ -159,6 +161,7 @@ typedef struct KnifePosData {
 typedef struct KnifeTool_OpData {
 	ARegion *ar;        /* region that knifetool was activated in */
 	void *draw_handle;  /* for drawing preview loop */
+	EvaluationContext eval_ctx;
 	ViewContext vc;     /* note: _don't_ use 'mval', instead use the one we define below */
 	float mval[2];      /* mouse value with snapping applied */
 	//bContext *C;
@@ -1226,6 +1229,7 @@ static bool knife_ray_intersect_face(
 
 	for (; tri_i < tottri; tri_i++) {
 		const float *lv1, *lv2, *lv3;
+		float ray_tri_uv[2];
 
 		tri = kcd->em->looptris[tri_i];
 		if (tri[0]->f != f)
@@ -1237,7 +1241,7 @@ static bool knife_ray_intersect_face(
 		 * tesselation edge and might not hit either tesselation tri with
 		 * an exact test;
 		 * we will exclude hits near real edges by a later test */
-		if (isect_ray_tri_epsilon_v3(v1, raydir, lv1, lv2, lv3, &lambda, NULL, KNIFE_FLT_EPS)) {
+		if (isect_ray_tri_epsilon_v3(v1, raydir, lv1, lv2, lv3, &lambda, ray_tri_uv, KNIFE_FLT_EPS)) {
 			/* check if line coplanar with tri */
 			normal_tri_v3(tri_norm, lv1, lv2, lv3);
 			plane_from_point_normal_v3(tri_plane, lv1, tri_norm);
@@ -1246,8 +1250,7 @@ static bool knife_ray_intersect_face(
 			{
 				return false;
 			}
-			copy_v3_v3(hit_cageco, v1);
-			madd_v3_v3fl(hit_cageco, raydir, lambda);
+			interp_v3_v3v3v3_uv(hit_cageco, lv1, lv2, lv3, ray_tri_uv);
 			/* Now check that far enough away from verts and edges */
 			lst = knife_get_face_kedges(kcd, f);
 			for (ref = lst->first; ref; ref = ref->next) {
@@ -1259,11 +1262,7 @@ static bool knife_ray_intersect_face(
 					return false;
 				}
 			}
-
-			transform_point_by_tri_v3(
-			        hit_co, hit_cageco,
-			        tri[0]->v->co, tri[1]->v->co, tri[2]->v->co,
-			        lv1, lv2, lv3);
+			interp_v3_v3v3v3_uv(hit_co, tri[0]->v->co, tri[1]->v->co, tri[2]->v->co, ray_tri_uv);
 			return true;
 		}
 	}
@@ -1837,7 +1836,7 @@ static BMFace *knife_find_closest_face(KnifeTool_OpData *kcd, float co[3], float
 	if (!f) {
 		if (kcd->is_interactive) {
 			/* try to use backbuffer selection method if ray casting failed */
-			f = EDBM_face_find_nearest(&kcd->vc, &dist);
+			f = EDBM_face_find_nearest(&kcd->eval_ctx, &kcd->vc, &dist);
 
 			/* cheat for now; just put in the origin instead
 			 * of a true coordinate on the face.
@@ -2589,7 +2588,7 @@ static void knifetool_init_bmbvh(KnifeTool_OpData *kcd)
 {
 	BM_mesh_elem_index_ensure(kcd->em->bm, BM_VERT);
 
-	kcd->cagecos = (const float (*)[3])BKE_editmesh_vertexCos_get(kcd->em, kcd->scene, NULL);
+	kcd->cagecos = (const float (*)[3])BKE_editmesh_vertexCos_get(&kcd->eval_ctx, kcd->em, kcd->scene, NULL);
 
 	kcd->bmbvh = BKE_bmbvh_new_from_editmesh(
 	        kcd->em,
@@ -2623,6 +2622,7 @@ static void knifetool_init(bContext *C, KnifeTool_OpData *kcd,
 	kcd->ob = obedit;
 	kcd->ar = CTX_wm_region(C);
 
+	CTX_data_eval_ctx(C, &kcd->eval_ctx);
 	em_setup_viewcontext(C, &kcd->vc);
 
 	kcd->em = BKE_editmesh_from_object(kcd->ob);
@@ -2777,6 +2777,7 @@ static int knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		return OPERATOR_FINISHED;
 	}
 
+	CTX_data_eval_ctx(C, &kcd->eval_ctx);
 	em_setup_viewcontext(C, &kcd->vc);
 	kcd->ar = kcd->vc.ar;
 

@@ -754,7 +754,7 @@ typedef struct RenderData {
 
 	/* sequencer options */
 	char seq_prev_type;
-	char seq_rend_type;
+	char seq_rend_type;  /* UNUSED! */
 	char seq_flag; /* flag use for sequence render/draw */
 	char pad5[5];
 
@@ -786,13 +786,12 @@ typedef struct RenderData {
 	struct BakeData bake;
 
 	int preview_start_resolution;
+	short preview_pixel_size;
 
 	/* Type of the debug pass to use.
 	 * Only used when built with debug passes support.
 	 */
 	short debug_pass_type;
-
-	short pad;
 
 	/* MultiView */
 	ListBase views;  /* SceneRenderView */
@@ -1706,11 +1705,11 @@ typedef struct Scene {
 	/* Physics simulation settings */
 	struct PhysicsSettings physics_settings;
 
-	/* Movie Tracking */
-	struct MovieClip *clip;			/* active movie clip */
-
 	uint64_t customdata_mask;	/* XXX. runtime flag for drawing, actually belongs in the window, only used by BKE_object_handle_update() */
 	uint64_t customdata_mask_modal; /* XXX. same as above but for temp operator use (gl renders) */
+
+	/* Movie Tracking */
+	struct MovieClip *clip;			/* active movie clip */
 
 	/* Color Management */
 	ColorManagedViewSettings view_settings;
@@ -1739,8 +1738,7 @@ typedef struct Scene {
 	/* use preview range */
 #define SCER_PRV_RANGE	(1<<0)
 #define SCER_LOCK_FRAME_SELECTION	(1<<1)
-	/* timeline/keyframe jumping - only selected items (on by default) */
-#define SCE_KEYS_NO_SELONLY	(1<<2)
+	/* show/use subframes (for checking motion blur) */
 #define SCER_SHOW_SUBFRAME	(1<<3)
 
 /* mode (int now) */
@@ -1780,7 +1778,7 @@ typedef struct Scene {
 #define R_USE_WS_SHADING	0x8000000 /* use world space interpretation of lighting data */
 
 /* seq_flag */
-#define R_SEQ_GL_PREV 1
+// #define R_SEQ_GL_PREV 1  // UNUSED, we just use setting from seq_prev_type now.
 // #define R_SEQ_GL_REND 2  // UNUSED, opengl render has its own operator now.
 #define R_SEQ_SOLID_TEX 4
 
@@ -1927,16 +1925,18 @@ extern const char *RE_engine_id_CYCLES;
 /* **************** SCENE ********************* */
 
 /* note that much higher maxframes give imprecise sub-frames, see: T46859 */
+/* Current precision is 16 for the sub-frames closer to MAXFRAME. */
+
 /* for general use */
-#define MAXFRAME	500000
-#define MAXFRAMEF	500000.0f
+#define MAXFRAME	1048574
+#define MAXFRAMEF	1048574.0f
 
 #define MINFRAME	0
 #define MINFRAMEF	0.0f
 
 /* (minimum frame number for current-frame) */
-#define MINAFRAME	-500000
-#define MINAFRAMEF	-500000.0f
+#define MINAFRAME	-1048574
+#define MINAFRAMEF	-1048574.0f
 
 /* depricate this! */
 #define TESTBASE(v3d, base)  (                                                \
@@ -1968,10 +1968,10 @@ extern const char *RE_engine_id_CYCLES;
 #define BASACT			(scene->basact)
 #define OBACT			(BASACT ? BASACT->object: NULL)
 
-#define FIRSTBASE_NEW	(sl)->object_bases.first
-#define LASTBASE_NEW	(sl)->object_bases.last
-#define BASACT_NEW		((sl)->basact)
-#define OBACT_NEW		(BASACT_NEW ? BASACT_NEW->object: NULL)
+#define FIRSTBASE_NEW(_sl)  ((_sl)->object_bases.first)
+#define LASTBASE_NEW(_sl)   ((_sl)->object_bases.last)
+#define BASACT_NEW(_sl)     ((_sl)->basact)
+#define OBACT_NEW(_sl)      (BASACT_NEW(_sl) ? BASACT_NEW(_sl)->object: NULL)
 
 #define V3D_CAMERA_LOCAL(v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : NULL)
 #define V3D_CAMERA_SCENE(scene, v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : (scene)->camera)
@@ -2077,6 +2077,7 @@ typedef enum eVGroupSelect {
 #define SCE_DS_COLLAPSED		(1<<1)
 #define SCE_NLA_EDIT_ON			(1<<2)
 #define SCE_FRAME_DROP			(1<<3)
+#define SCE_KEYS_NO_SELONLY	    (1<<4)
 
 
 	/* return flag BKE_scene_base_iter_next functions */

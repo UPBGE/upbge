@@ -604,7 +604,7 @@ void UI_draw_safe_areas(
 			float maxx = x2 - margin_x;
 			float maxy = y2 - margin_y;
 
-			imm_draw_line_box(pos, minx, miny, maxx, maxy);
+			imm_draw_line_box_2d(pos, minx, miny, maxx, maxy);
 		}
 	}
 }
@@ -771,12 +771,12 @@ static void waveform_draw_one(float *waveform, int nbr, const float col[3])
 	GWN_vertbuf_attr_fill(vbo, pos_id, waveform);
 
 	/* TODO store the Gwn_Batch inside the scope */
-	Gwn_Batch *batch = GWN_batch_create(GWN_PRIM_POINTS, vbo, NULL);
-	Batch_set_builtin_program(batch, GPU_SHADER_2D_UNIFORM_COLOR);
+	Gwn_Batch *batch = GWN_batch_create_ex(GWN_PRIM_POINTS, vbo, NULL, GWN_BATCH_OWNS_VBO);
+	GWN_batch_program_set_builtin(batch, GPU_SHADER_2D_UNIFORM_COLOR);
 	GWN_batch_uniform_4f(batch, "color", col[0], col[1], col[2], 1.0f);
 	GWN_batch_draw(batch);
 
-	GWN_batch_discard_all(batch);
+	GWN_batch_discard(batch);
 }
 
 void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti *recti)
@@ -1377,7 +1377,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti 
 
 	/* layer: box outline */
 	immUniformColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-	imm_draw_line_box(position, x1, y1, x1 + sizex, rect->ymax);
+	imm_draw_line_box_2d(position, x1, y1, x1 + sizex, rect->ymax);
 
 	/* layer: box outline */
 	glEnable(GL_BLEND);
@@ -1443,8 +1443,8 @@ void ui_draw_but_UNITVEC(uiBut *but, uiWidgetColors *wcol, const rcti *rect)
 	gpuTranslate2f(rect->xmin + 0.5f * BLI_rcti_size_x(rect), rect->ymin + 0.5f * BLI_rcti_size_y(rect));
 	gpuScaleUniform(size);
 
-	Gwn_Batch *sphere = Batch_get_sphere(2);
-	Batch_set_builtin_program(sphere, GPU_SHADER_SIMPLE_LIGHTING);
+	Gwn_Batch *sphere = GPU_batch_preset_sphere(2);
+	GWN_batch_program_set_builtin(sphere, GPU_SHADER_SIMPLE_LIGHTING);
 	GWN_batch_uniform_4f(sphere, "color", diffuse[0], diffuse[1], diffuse[2], 1.0f);
 	GWN_batch_uniform_3fv(sphere, "light", light);
 	GWN_batch_draw(sphere);
@@ -1460,7 +1460,7 @@ void ui_draw_but_UNITVEC(uiBut *but, uiWidgetColors *wcol, const rcti *rect)
 
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
-	imm_draw_circle_wire(pos, 0.0f, 0.0f, 1.0f, 32);
+	imm_draw_circle_wire_2d(pos, 0.0f, 0.0f, 1.0f, 32);
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);
 
@@ -1717,7 +1717,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti
 	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
 	immUniformColor3ubv((unsigned char *)wcol->outline);
-	imm_draw_line_box(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+	imm_draw_line_box_2d(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
 	immUnbindProgram();
 }

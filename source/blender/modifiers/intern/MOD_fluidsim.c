@@ -47,6 +47,8 @@
 #include "DEG_depsgraph_build.h"
 
 #include "MOD_fluidsim_util.h"
+#include "MOD_modifiertypes.h"
+
 #include "MEM_guardedalloc.h"
 
 /* Fluidsim */
@@ -80,8 +82,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 
 
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-                                  DerivedMesh *dm,
+static DerivedMesh *applyModifier(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+                                  Object *ob, DerivedMesh *dm,
                                   ModifierApplyFlag flag)
 {
 	FluidsimModifierData *fluidmd = (FluidsimModifierData *) md;

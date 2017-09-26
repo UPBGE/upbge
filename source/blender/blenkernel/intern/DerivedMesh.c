@@ -96,6 +96,10 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
 #  define ASSERT_IS_VALID_DM(dm)
 #endif
 
+
+static ThreadRWMutex loops_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
+
+
 static void add_shapekey_layers(DerivedMesh *dm, Mesh *me, Object *ob);
 static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape_uid);
 
@@ -238,6 +242,30 @@ static int dm_getNumLoopTri(DerivedMesh *dm)
 	return numlooptris;
 }
 
+static const MLoopTri *dm_getLoopTriArray(DerivedMesh *dm)
+{
+	MLoopTri *looptri;
+
+	BLI_rw_mutex_lock(&loops_cache_lock, THREAD_LOCK_READ);
+	looptri = dm->looptris.array;
+	BLI_rw_mutex_unlock(&loops_cache_lock);
+
+	if (looptri != NULL) {
+		BLI_assert(dm->getNumLoopTri(dm) == dm->looptris.num);
+	}
+	else {
+		BLI_rw_mutex_lock(&loops_cache_lock, THREAD_LOCK_WRITE);
+		/* We need to ensure array is still NULL inside mutex-protected code, some other thread might have already
+		 * recomputed those looptris. */
+		if (dm->looptris.array == NULL) {
+			dm->recalcLoopTri(dm);
+		}
+		looptri = dm->looptris.array;
+		BLI_rw_mutex_unlock(&loops_cache_lock);
+	}
+	return looptri;
+}
+
 static CustomData *dm_getVertCData(DerivedMesh *dm)
 {
 	return &dm->vertData;
@@ -280,6 +308,8 @@ void DM_init_funcs(DerivedMesh *dm)
 	dm->dupTessFaceArray = dm_dupFaceArray;
 	dm->dupLoopArray = dm_dupLoopArray;
 	dm->dupPolyArray = dm_dupPolyArray;
+
+	dm->getLoopTriArray = dm_getLoopTriArray;
 
 	/* subtypes handle getting actual data */
 	dm->getNumLoopTri = dm_getNumLoopTri;
@@ -475,6 +505,8 @@ void DM_ensure_tessface(DerivedMesh *dm)
 
 /**
  * Ensure the array is large enough
+ *
+ * /note This function must always be thread-protected by caller. It should only be used by internal code.
  */
 void DM_ensure_looptri_data(DerivedMesh *dm)
 {
@@ -482,35 +514,26 @@ void DM_ensure_looptri_data(DerivedMesh *dm)
 	const unsigned int totloop = dm->numLoopData;
 	const int looptris_num = poly_to_tri_count(totpoly, totloop);
 
+	BLI_assert(dm->looptris.array_wip == NULL);
+
+	SWAP(MLoopTri *, dm->looptris.array, dm->looptris.array_wip);
+
 	if ((looptris_num > dm->looptris.num_alloc) ||
 	    (looptris_num < dm->looptris.num_alloc * 2) ||
 	    (totpoly == 0))
 	{
-		MEM_SAFE_FREE(dm->looptris.array);
+		MEM_SAFE_FREE(dm->looptris.array_wip);
 		dm->looptris.num_alloc = 0;
 		dm->looptris.num = 0;
 	}
 
 	if (totpoly) {
-		if (dm->looptris.array == NULL) {
-			dm->looptris.array = MEM_mallocN(sizeof(*dm->looptris.array) * looptris_num, __func__);
+		if (dm->looptris.array_wip == NULL) {
+			dm->looptris.array_wip = MEM_mallocN(sizeof(*dm->looptris.array_wip) * looptris_num, __func__);
 			dm->looptris.num_alloc = looptris_num;
 		}
 
 		dm->looptris.num = looptris_num;
-	}
-}
-
-/**
- * The purpose of this function is that we can call:
- * `dm->getLoopTriArray(dm)` and get the array returned.
- */
-void DM_ensure_looptri(DerivedMesh *dm)
-{
-	const int numPolys =  dm->getNumPolys(dm);
-
-	if ((dm->looptris.num == 0) && (numPolys != 0)) {
-		dm->recalcLoopTri(dm);
 	}
 }
 
@@ -1126,7 +1149,7 @@ DerivedMesh *mesh_create_derived(Mesh *me, float (*vertCos)[3])
 }
 
 DerivedMesh *mesh_create_derived_for_modifier(
-        Scene *scene, Object *ob,
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob,
         ModifierData *md, int build_shapekey_layers)
 {
 	Mesh *me = ob->data;
@@ -1152,7 +1175,7 @@ DerivedMesh *mesh_create_derived_for_modifier(
 		int numVerts;
 		float (*deformedVerts)[3] = BKE_mesh_vertexCos_get(me, &numVerts);
 
-		modwrap_deformVerts(md, ob, NULL, deformedVerts, numVerts, 0);
+		modwrap_deformVerts(md, eval_ctx, ob, NULL, deformedVerts, numVerts, 0);
 		dm = mesh_create_derived(me, deformedVerts);
 
 		if (build_shapekey_layers)
@@ -1166,7 +1189,7 @@ DerivedMesh *mesh_create_derived_for_modifier(
 		if (build_shapekey_layers)
 			add_shapekey_layers(tdm, me, ob);
 		
-		dm = modwrap_applyModifier(md, ob, tdm, 0);
+		dm = modwrap_applyModifier(md, eval_ctx, ob, tdm, 0);
 		ASSERT_IS_VALID_DM(dm);
 
 		if (tdm != dm) tdm->release(tdm);
@@ -1732,7 +1755,7 @@ static void dm_ensure_display_normals(DerivedMesh *dm)
  * - apply deform modifiers and input vertexco
  */
 static void mesh_calc_modifiers(
-        Scene *scene, Object *ob, float (*inputVertexCos)[3],
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, float (*inputVertexCos)[3],
         const bool useRenderParams, int useDeform,
         const bool need_mapping, CustomDataMask dataMask,
         const int index, const bool useCache, const bool build_shapekey_layers,
@@ -1843,7 +1866,7 @@ static void mesh_calc_modifiers(
 				if (!deformedVerts)
 					deformedVerts = BKE_mesh_vertexCos_get(me, &numVerts);
 
-				modwrap_deformVerts(md, ob, NULL, deformedVerts, numVerts, deform_app_flags);
+				modwrap_deformVerts(md, eval_ctx, ob, NULL, deformedVerts, numVerts, deform_app_flags);
 			}
 			else {
 				break;
@@ -1984,7 +2007,7 @@ static void mesh_calc_modifiers(
 				}
 			}
 
-			modwrap_deformVerts(md, ob, dm, deformedVerts, numVerts, deform_app_flags);
+			modwrap_deformVerts(md, eval_ctx, ob, dm, deformedVerts, numVerts, deform_app_flags);
 		}
 		else {
 			DerivedMesh *ndm;
@@ -2059,7 +2082,7 @@ static void mesh_calc_modifiers(
 				}
 			}
 
-			ndm = modwrap_applyModifier(md, ob, dm, app_flags);
+			ndm = modwrap_applyModifier(md, eval_ctx, ob, dm, app_flags);
 			ASSERT_IS_VALID_DM(ndm);
 
 			if (ndm) {
@@ -2086,7 +2109,7 @@ static void mesh_calc_modifiers(
 				                 (mti->requiredDataMask ?
 				                  mti->requiredDataMask(ob, md) : 0));
 
-				ndm = modwrap_applyModifier(md, ob, orcodm, (app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
+				ndm = modwrap_applyModifier(md, eval_ctx, ob, orcodm, (app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
 				ASSERT_IS_VALID_DM(ndm);
 
 				if (ndm) {
@@ -2104,7 +2127,7 @@ static void mesh_calc_modifiers(
 				nextmask &= ~CD_MASK_CLOTH_ORCO;
 				DM_set_only_copy(clothorcodm, nextmask | CD_MASK_ORIGINDEX);
 
-				ndm = modwrap_applyModifier(md, ob, clothorcodm, (app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
+				ndm = modwrap_applyModifier(md, eval_ctx, ob, clothorcodm, (app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
 				ASSERT_IS_VALID_DM(ndm);
 
 				if (ndm) {
@@ -2203,7 +2226,6 @@ static void mesh_calc_modifiers(
 		if (dataMask & CD_MASK_MFACE) {
 			DM_ensure_tessface(finaldm);
 		}
-		DM_ensure_looptri(finaldm);
 
 		/* without this, drawing ngon tri's faces will show ugly tessellated face
 		 * normals and will also have to calculate normals on the fly, try avoid
@@ -2288,8 +2310,8 @@ bool editbmesh_modifier_is_enabled(Scene *scene, ModifierData *md, DerivedMesh *
 }
 
 static void editbmesh_calc_modifiers(
-        Scene *scene, Object *ob, BMEditMesh *em,
-        CustomDataMask dataMask,
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob,
+        BMEditMesh *em, CustomDataMask dataMask,
         /* return args */
         DerivedMesh **r_cage, DerivedMesh **r_final)
 {
@@ -2376,9 +2398,9 @@ static void editbmesh_calc_modifiers(
 			}
 
 			if (mti->deformVertsEM)
-				modwrap_deformVertsEM(md, ob, em, dm, deformedVerts, numVerts);
+				modwrap_deformVertsEM(md, eval_ctx, ob, em, dm, deformedVerts, numVerts);
 			else
-				modwrap_deformVerts(md, ob, dm, deformedVerts, numVerts, 0);
+				modwrap_deformVerts(md, eval_ctx, ob, dm, deformedVerts, numVerts, 0);
 		}
 		else {
 			DerivedMesh *ndm;
@@ -2423,10 +2445,10 @@ static void editbmesh_calc_modifiers(
 				DM_set_only_copy(orcodm, mask | CD_MASK_ORIGINDEX);
 
 				if (mti->applyModifierEM) {
-					ndm = modwrap_applyModifierEM(md, ob, em, orcodm, MOD_APPLY_ORCO);
+					ndm = modwrap_applyModifierEM(md, eval_ctx, ob, em, orcodm, MOD_APPLY_ORCO);
 				}
 				else {
-					ndm = modwrap_applyModifier(md, ob, orcodm, MOD_APPLY_ORCO);
+					ndm = modwrap_applyModifier(md, eval_ctx, ob, orcodm, MOD_APPLY_ORCO);
 				}
 				ASSERT_IS_VALID_DM(ndm);
 
@@ -2451,9 +2473,9 @@ static void editbmesh_calc_modifiers(
 			}
 
 			if (mti->applyModifierEM)
-				ndm = modwrap_applyModifierEM(md, ob, em, dm, MOD_APPLY_USECACHE | MOD_APPLY_ALLOW_GPU);
+				ndm = modwrap_applyModifierEM(md, eval_ctx, ob, em, dm, MOD_APPLY_USECACHE | MOD_APPLY_ALLOW_GPU);
 			else
-				ndm = modwrap_applyModifier(md, ob, dm, MOD_APPLY_USECACHE | MOD_APPLY_ALLOW_GPU);
+				ndm = modwrap_applyModifier(md, eval_ctx, ob, dm, MOD_APPLY_USECACHE | MOD_APPLY_ALLOW_GPU);
 			ASSERT_IS_VALID_DM(ndm);
 
 			if (ndm) {
@@ -2618,7 +2640,7 @@ static bool calc_modifiers_skip_orco(Scene *scene,
 #endif
 
 static void mesh_build_data(
-        Scene *scene, Object *ob, CustomDataMask dataMask,
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, CustomDataMask dataMask,
         const bool build_shapekey_layers, const bool need_mapping)
 {
 	BLI_assert(ob->type == OB_MESH);
@@ -2633,7 +2655,7 @@ static void mesh_build_data(
 #endif
 
 	mesh_calc_modifiers(
-	        scene, ob, NULL, false, 1, need_mapping, dataMask, -1, true, build_shapekey_layers,
+	        eval_ctx, scene, ob, NULL, false, 1, need_mapping, dataMask, -1, true, build_shapekey_layers,
 	        true,
 	        &ob->derivedDeform, &ob->derivedFinal);
 
@@ -2648,13 +2670,15 @@ static void mesh_build_data(
 		/* create PBVH immediately (would be created on the fly too,
 		 * but this avoids waiting on first stroke) */
 
-		BKE_sculpt_update_mesh_elements(scene, scene->toolsettings->sculpt, ob, false, false);
+		BKE_sculpt_update_mesh_elements(eval_ctx, scene, scene->toolsettings->sculpt, ob, false, false);
 	}
 
 	BLI_assert(!(ob->derivedFinal->dirty & DM_DIRTY_NORMALS));
 }
 
-static void editbmesh_build_data(Scene *scene, Object *obedit, BMEditMesh *em, CustomDataMask dataMask)
+static void editbmesh_build_data(
+        const struct EvaluationContext *eval_ctx, Scene *scene,
+        Object *obedit, BMEditMesh *em, CustomDataMask dataMask)
 {
 	BKE_object_free_derived_caches(obedit);
 	BKE_object_sculpt_modifiers_changed(obedit);
@@ -2668,7 +2692,7 @@ static void editbmesh_build_data(Scene *scene, Object *obedit, BMEditMesh *em, C
 #endif
 
 	editbmesh_calc_modifiers(
-	        scene, obedit, em, dataMask,
+	        eval_ctx, scene, obedit, em, dataMask,
 	        &em->derivedCage, &em->derivedFinal);
 
 	DM_set_object_boundbox(obedit, em->derivedFinal);
@@ -2721,23 +2745,24 @@ static CustomDataMask object_get_datamask(const Scene *scene, Object *ob, bool *
 }
 
 void makeDerivedMesh(
-        Scene *scene, Object *ob, BMEditMesh *em,
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, BMEditMesh *em,
         CustomDataMask dataMask, const bool build_shapekey_layers)
 {
 	bool need_mapping;
 	dataMask |= object_get_datamask(scene, ob, &need_mapping);
 
 	if (em) {
-		editbmesh_build_data(scene, ob, em, dataMask);
+		editbmesh_build_data(eval_ctx, scene, ob, em, dataMask);
 	}
 	else {
-		mesh_build_data(scene, ob, dataMask, build_shapekey_layers, need_mapping);
+		mesh_build_data(eval_ctx, scene, ob, dataMask, build_shapekey_layers, need_mapping);
 	}
 }
 
 /***/
 
-DerivedMesh *mesh_get_derived_final(Scene *scene, Object *ob, CustomDataMask dataMask)
+DerivedMesh *mesh_get_derived_final(
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, CustomDataMask dataMask)
 {
 	/* if there's no derived mesh or the last data mask used doesn't include
 	 * the data we need, rebuild the derived mesh
@@ -2749,14 +2774,14 @@ DerivedMesh *mesh_get_derived_final(Scene *scene, Object *ob, CustomDataMask dat
 	    ((dataMask & ob->lastDataMask) != dataMask) ||
 	    (need_mapping != ob->lastNeedMapping))
 	{
-		mesh_build_data(scene, ob, dataMask, false, need_mapping);
+		mesh_build_data(eval_ctx, scene, ob, dataMask, false, need_mapping);
 	}
 
 	if (ob->derivedFinal) { BLI_assert(!(ob->derivedFinal->dirty & DM_DIRTY_NORMALS)); }
 	return ob->derivedFinal;
 }
 
-DerivedMesh *mesh_get_derived_deform(Scene *scene, Object *ob, CustomDataMask dataMask)
+DerivedMesh *mesh_get_derived_deform(const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, CustomDataMask dataMask)
 {
 	/* if there's no derived mesh or the last data mask used doesn't include
 	 * the data we need, rebuild the derived mesh
@@ -2769,37 +2794,37 @@ DerivedMesh *mesh_get_derived_deform(Scene *scene, Object *ob, CustomDataMask da
 	    ((dataMask & ob->lastDataMask) != dataMask) ||
 	    (need_mapping != ob->lastNeedMapping))
 	{
-		mesh_build_data(scene, ob, dataMask, false, need_mapping);
+		mesh_build_data(eval_ctx, scene, ob, dataMask, false, need_mapping);
 	}
 
 	return ob->derivedDeform;
 }
 
-DerivedMesh *mesh_create_derived_render(Scene *scene, Object *ob, CustomDataMask dataMask)
+DerivedMesh *mesh_create_derived_render(const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, CustomDataMask dataMask)
 {
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, NULL, true, 1, false, dataMask, -1, false, false, false,
+	        eval_ctx, scene, ob, NULL, true, 1, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
 }
 
-DerivedMesh *mesh_create_derived_index_render(Scene *scene, Object *ob, CustomDataMask dataMask, int index)
+DerivedMesh *mesh_create_derived_index_render(const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, CustomDataMask dataMask, int index)
 {
 	DerivedMesh *final;
 
 	mesh_calc_modifiers(
-	        scene, ob, NULL, true, 1, false, dataMask, index, false, false, false,
+	        eval_ctx, scene, ob, NULL, true, 1, false, dataMask, index, false, false, false,
 	        NULL, &final);
 
 	return final;
 }
 
 DerivedMesh *mesh_create_derived_view(
-        Scene *scene, Object *ob,
-        CustomDataMask dataMask)
+        const struct EvaluationContext *eval_ctx, Scene *scene,
+        Object *ob, CustomDataMask dataMask)
 {
 	DerivedMesh *final;
 
@@ -2810,7 +2835,7 @@ DerivedMesh *mesh_create_derived_view(
 	ob->transflag |= OB_NO_PSYS_UPDATE;
 
 	mesh_calc_modifiers(
-	        scene, ob, NULL, false, 1, false, dataMask, -1, false, false, false,
+	        eval_ctx, scene, ob, NULL, false, 1, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	ob->transflag &= ~OB_NO_PSYS_UPDATE;
@@ -2819,53 +2844,53 @@ DerivedMesh *mesh_create_derived_view(
 }
 
 DerivedMesh *mesh_create_derived_no_deform(
-        Scene *scene, Object *ob, float (*vertCos)[3],
-        CustomDataMask dataMask)
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob,
+        float (*vertCos)[3], CustomDataMask dataMask)
 {
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, false, 0, false, dataMask, -1, false, false, false,
+	        eval_ctx, scene, ob, vertCos, false, 0, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
 }
 
 DerivedMesh *mesh_create_derived_no_virtual(
-        Scene *scene, Object *ob, float (*vertCos)[3],
-        CustomDataMask dataMask)
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob,
+        float (*vertCos)[3], CustomDataMask dataMask)
 {
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, false, -1, false, dataMask, -1, false, false, false,
+	        eval_ctx, scene, ob, vertCos, false, -1, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
 }
 
 DerivedMesh *mesh_create_derived_physics(
-        Scene *scene, Object *ob, float (*vertCos)[3],
-        CustomDataMask dataMask)
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob,
+        float (*vertCos)[3], CustomDataMask dataMask)
 {
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, false, -1, true, dataMask, -1, false, false, false,
+	        eval_ctx, scene, ob, vertCos, false, -1, true, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
 }
 
 DerivedMesh *mesh_create_derived_no_deform_render(
-        Scene *scene, Object *ob,
-        float (*vertCos)[3],
+        const struct EvaluationContext *eval_ctx, Scene *scene,
+        Object *ob, float (*vertCos)[3],
         CustomDataMask dataMask)
 {
 	DerivedMesh *final;
 
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, true, 0, false, dataMask, -1, false, false, false,
+	        eval_ctx, scene, ob, vertCos, true, 0, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -2874,7 +2899,7 @@ DerivedMesh *mesh_create_derived_no_deform_render(
 /***/
 
 DerivedMesh *editbmesh_get_derived_cage_and_final(
-        Scene *scene, Object *obedit, BMEditMesh *em,
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *obedit, BMEditMesh *em,
         CustomDataMask dataMask,
         /* return args */
         DerivedMesh **r_final)
@@ -2887,7 +2912,7 @@ DerivedMesh *editbmesh_get_derived_cage_and_final(
 	if (!em->derivedCage ||
 	    (em->lastDataMask & dataMask) != dataMask)
 	{
-		editbmesh_build_data(scene, obedit, em, dataMask);
+		editbmesh_build_data(eval_ctx, scene, obedit, em, dataMask);
 	}
 
 	*r_final = em->derivedFinal;
@@ -2895,7 +2920,9 @@ DerivedMesh *editbmesh_get_derived_cage_and_final(
 	return em->derivedCage;
 }
 
-DerivedMesh *editbmesh_get_derived_cage(Scene *scene, Object *obedit, BMEditMesh *em, CustomDataMask dataMask)
+DerivedMesh *editbmesh_get_derived_cage(
+        const struct EvaluationContext *eval_ctx, Scene *scene, Object *obedit, BMEditMesh *em,
+        CustomDataMask dataMask)
 {
 	/* if there's no derived mesh or the last data mask used doesn't include
 	 * the data we need, rebuild the derived mesh
@@ -2905,7 +2932,7 @@ DerivedMesh *editbmesh_get_derived_cage(Scene *scene, Object *obedit, BMEditMesh
 	if (!em->derivedCage ||
 	    (em->lastDataMask & dataMask) != dataMask)
 	{
-		editbmesh_build_data(scene, obedit, em, dataMask);
+		editbmesh_build_data(eval_ctx, scene, obedit, em, dataMask);
 	}
 
 	return em->derivedCage;
@@ -3950,36 +3977,4 @@ MFace *DM_get_tessface_array(DerivedMesh *dm, bool *r_allocated)
 	}
 
 	return mface;
-}
-
-const MLoopTri *DM_get_looptri_array(
-        DerivedMesh *dm,
-        const MVert *mvert,
-        const MPoly *mpoly, int mpoly_len,
-        const MLoop *mloop, int mloop_len,
-        bool *r_allocated)
-{
-	const MLoopTri *looptri = dm->getLoopTriArray(dm);
-	*r_allocated = false;
-
-	if (looptri == NULL) {
-		if (mpoly_len > 0) {
-			const int looptris_num = poly_to_tri_count(mpoly_len, mloop_len);
-			MLoopTri *looptri_data;
-
-			looptri_data = MEM_mallocN(sizeof(MLoopTri) * looptris_num, __func__);
-
-			BKE_mesh_recalc_looptri(
-			        mloop, mpoly,
-			        mvert,
-			        mloop_len, mpoly_len,
-			        looptri_data);
-
-			looptri = looptri_data;
-
-			*r_allocated = true;
-		}
-	}
-
-	return looptri;
 }

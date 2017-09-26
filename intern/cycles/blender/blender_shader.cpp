@@ -231,18 +231,11 @@ static void get_tex_mapping(TextureMapping *mapping,
 		mapping->max = get_float3(b_mapping.max());
 }
 
-static bool is_output_node(BL::Node& b_node)
-{
-	return (b_node.is_a(&RNA_ShaderNodeOutputMaterial)
-		    || b_node.is_a(&RNA_ShaderNodeOutputWorld)
-		    || b_node.is_a(&RNA_ShaderNodeOutputLamp)
-		    || b_node.is_a(&RNA_ShaderNodeOutputEeveeMaterial));
-}
-
 static ShaderNode *add_node(Scene *scene,
                             BL::RenderEngine& b_engine,
                             BL::BlendData& b_data,
                             BL::Scene& b_scene,
+                            BL::SceneLayer b_scene_layer,
                             const bool background,
                             ShaderGraph *graph,
                             BL::ShaderNodeTree& b_ntree,
@@ -839,7 +832,7 @@ static ShaderNode *add_node(Scene *scene,
 
 		/* TODO(sergey): Use more proper update flag. */
 		if(true) {
-			b_point_density_node.cache_point_density(b_scene, settings);
+			b_point_density_node.cache_point_density(b_scene, b_scene_layer, settings);
 			scene->image_manager->tag_reload_image(
 			        point_density->filename.string(),
 			        point_density->builtin_data,
@@ -857,7 +850,7 @@ static ShaderNode *add_node(Scene *scene,
 		BL::Object b_ob(b_point_density_node.object());
 		if(b_ob) {
 			float3 loc, size;
-			point_density_texture_space(b_scene,
+			point_density_texture_space(b_scene, b_scene_layer,
 			                            b_point_density_node,
 			                            settings,
 			                            loc,
@@ -950,10 +943,36 @@ static ShaderOutput *node_find_output_by_name(ShaderNode *node,
 	return node->output(name.c_str());
 }
 
+static BL::ShaderNode find_output_node(BL::ShaderNodeTree& b_ntree)
+{
+	BL::ShaderNodeTree::nodes_iterator b_node;
+	BL::ShaderNode output_node(PointerRNA_NULL);
+
+	for(b_ntree.nodes.begin(b_node); b_node != b_ntree.nodes.end(); ++b_node) {
+		BL::ShaderNodeOutputMaterial b_output_node(*b_node);
+
+		if (b_output_node.is_a(&RNA_ShaderNodeOutputMaterial) ||
+		    b_output_node.is_a(&RNA_ShaderNodeOutputWorld) ||
+		    b_output_node.is_a(&RNA_ShaderNodeOutputLamp)) {
+			/* regular Cycles output node */
+			if(b_output_node.is_active_output()) {
+				output_node = b_output_node;
+				break;
+			}
+			else if(!output_node.ptr.data) {
+				output_node = b_output_node;
+			}
+		}
+	}
+
+	return output_node;
+}
+
 static void add_nodes(Scene *scene,
                       BL::RenderEngine& b_engine,
                       BL::BlendData& b_data,
                       BL::Scene& b_scene,
+                      BL::SceneLayer& b_scene_layer,
                       const bool background,
                       ShaderGraph *graph,
                       BL::ShaderNodeTree& b_ntree,
@@ -969,23 +988,7 @@ static void add_nodes(Scene *scene,
 	BL::Node::outputs_iterator b_output;
 
 	/* find the node to use for output if there are multiple */
-	bool found_active_output = false;
-	BL::ShaderNode output_node(PointerRNA_NULL);
-
-	for(b_ntree.nodes.begin(b_node); b_node != b_ntree.nodes.end(); ++b_node) {
-		if(is_output_node(*b_node)) {
-			BL::ShaderNodeOutputMaterial b_output_node(*b_node);
-
-			if(b_output_node.is_active_output()) {
-				output_node = b_output_node;
-				found_active_output = true;
-				break;
-			}
-			else if(!output_node.ptr.data && !found_active_output) {
-				output_node = b_output_node;
-			}
-		}
-	}
+	BL::ShaderNode output_node = find_output_node(b_ntree);
 
 	/* add nodes */
 	for(b_ntree.nodes.begin(b_node); b_node != b_ntree.nodes.end(); ++b_node) {
@@ -1044,6 +1047,7 @@ static void add_nodes(Scene *scene,
 				          b_engine,
 				          b_data,
 				          b_scene,
+				          b_scene_layer,
 				          background,
 				          graph,
 				          b_group_ntree,
@@ -1082,10 +1086,8 @@ static void add_nodes(Scene *scene,
 		else {
 			ShaderNode *node = NULL;
 
-			if(is_output_node(*b_node)) {
-				if(b_node->ptr.data == output_node.ptr.data) {
-					node = graph->output();
-				}
+			if(b_node->ptr.data == output_node.ptr.data) {
+				node = graph->output();
 			}
 			else {
 				BL::ShaderNode b_shader_node(*b_node);
@@ -1093,6 +1095,7 @@ static void add_nodes(Scene *scene,
 				                b_engine,
 				                b_data,
 				                b_scene,
+				                b_scene_layer,
 				                background,
 				                graph,
 				                b_ntree,
@@ -1156,6 +1159,7 @@ static void add_nodes(Scene *scene,
                       BL::RenderEngine& b_engine,
                       BL::BlendData& b_data,
                       BL::Scene& b_scene,
+                      BL::SceneLayer& b_scene_layer,
                       const bool background,
                       ShaderGraph *graph,
                       BL::ShaderNodeTree& b_ntree)
@@ -1165,6 +1169,7 @@ static void add_nodes(Scene *scene,
 	          b_engine,
 	          b_data,
 	          b_scene,
+	          b_scene_layer,
 	          background,
 	          graph,
 	          b_ntree,
@@ -1203,7 +1208,7 @@ void BlenderSync::sync_materials(bool update_all)
 			if(b_mat->use_nodes() && b_mat->node_tree()) {
 				BL::ShaderNodeTree b_ntree(b_mat->node_tree());
 
-				add_nodes(scene, b_engine, b_data, b_scene, !preview, graph, b_ntree);
+				add_nodes(scene, b_engine, b_data, b_scene, b_scene_layer, !preview, graph, b_ntree);
 			}
 			else {
 				DiffuseBsdfNode *diffuse = new DiffuseBsdfNode();
@@ -1274,7 +1279,7 @@ void BlenderSync::sync_world(bool update_all)
 		if(b_world && b_world.use_nodes() && b_world.node_tree()) {
 			BL::ShaderNodeTree b_ntree(b_world.node_tree());
 
-			add_nodes(scene, b_engine, b_data, b_scene, !preview, graph, b_ntree);
+			add_nodes(scene, b_engine, b_data, b_scene, b_scene_layer, !preview, graph, b_ntree);
 
 			/* volume */
 			PointerRNA cworld = RNA_pointer_get(&b_world.ptr, "cycles");
@@ -1369,7 +1374,7 @@ void BlenderSync::sync_lamps(bool update_all)
 
 				BL::ShaderNodeTree b_ntree(b_lamp->node_tree());
 
-				add_nodes(scene, b_engine, b_data, b_scene, !preview, graph, b_ntree);
+				add_nodes(scene, b_engine, b_data, b_scene, b_scene_layer, !preview, graph, b_ntree);
 			}
 			else {
 				float strength = 1.0f;

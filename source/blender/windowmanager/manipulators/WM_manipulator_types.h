@@ -45,18 +45,114 @@ struct wmManipulator;
 struct wmManipulatorProperty;
 struct wmKeyConfig;
 
-#include "wm_manipulator_fn.h"
-
 #include "DNA_listBase.h"
+
+
+/* -------------------------------------------------------------------- */
+/* Enum Typedef's */
+
+
+/**
+ * #wmManipulator.state
+ */
+typedef enum eWM_ManipulatorState {
+	WM_MANIPULATOR_STATE_HIGHLIGHT   = (1 << 0), /* while hovered */
+	WM_MANIPULATOR_STATE_MODAL       = (1 << 1), /* while dragging */
+	WM_MANIPULATOR_STATE_SELECT      = (1 << 2),
+} eWM_ManipulatorState;
+
+
+/**
+ * #wmManipulator.flag
+ * Flags for individual manipulators.
+ */
+typedef enum eWM_ManipulatorFlag {
+	WM_MANIPULATOR_DRAW_HOVER  = (1 << 0), /* draw *only* while hovering */
+	WM_MANIPULATOR_DRAW_MODAL  = (1 << 1), /* draw while dragging */
+	WM_MANIPULATOR_DRAW_VALUE  = (1 << 2), /* draw an indicator for the current value while dragging */
+	WM_MANIPULATOR_HIDDEN      = (1 << 3),
+	/**
+	 * When set 'scale_final' value also scales the offset.
+	 * Use when offset is to avoid screen-space overlap instead of absolute positioning. */
+	WM_MANIPULATOR_DRAW_OFFSET_SCALE  = (1 << 4),
+	/**
+	 * User should still use 'scale_final' for any handles and UI elements.
+	 * This simply skips scale when calculating the final matrix.
+	 * Needed when the manipulator needs to align with the interface underneath it. */
+	WM_MANIPULATOR_DRAW_NO_SCALE  = (1 << 5),
+} eWM_ManipulatorFlag;
+
+/**
+ * #wmManipulatorGroupType.flag
+ * Flags that influence the behavior of all manipulators in the group.
+ */
+typedef enum eWM_ManipulatorGroupTypeFlag {
+	/* Mark manipulator-group as being 3D */
+	WM_MANIPULATORGROUPTYPE_3D       = (1 << 0),
+	/* Scale manipulators as 3D object that respects zoom (otherwise zoom independent draw size).
+	 * note: currently only for 3D views, 2D support needs adding. */
+	WM_MANIPULATORGROUPTYPE_SCALE    = (1 << 1),
+	/* Manipulators can be depth culled with scene objects (covered by other geometry - TODO) */
+	WM_MANIPULATORGROUPTYPE_DEPTH_3D = (1 << 2),
+	/* Manipulators can be selected */
+	WM_MANIPULATORGROUPTYPE_SELECT  = (1 << 3),
+	/* The manipulator group is to be kept (not removed on loading a new file for eg). */
+	WM_MANIPULATORGROUPTYPE_PERSISTENT = (1 << 4),
+	/* Show all other manipulators when interacting. */
+	WM_MANIPULATORGROUPTYPE_DRAW_MODAL_ALL = (1 << 5),
+} eWM_ManipulatorGroupTypeFlag;
+
+
+/**
+ * #wmManipulatorGroup.init_flag
+ */
+typedef enum eWM_ManipulatorGroupInitFlag {
+	/* mgroup has been initialized */
+	WM_MANIPULATORGROUP_INIT_SETUP = (1 << 0),
+} eWM_ManipulatorGroupInitFlag;
+
+/**
+ * #wmManipulatorMapType.type_update_flag
+ * Manipulator-map type update flag
+ */
+typedef enum eWM_ManipulatorMapTypeUpdateFlag {
+	/* A new type has been added, needs to be initialized for all views. */
+	WM_MANIPULATORMAPTYPE_UPDATE_INIT = (1 << 0),
+	WM_MANIPULATORMAPTYPE_UPDATE_REMOVE = (1 << 1),
+
+	/* Needed because keymap may be registered before and after window initialization.
+	 * So we need to keep track of keymap initialization separately. */
+	WM_MANIPULATORMAPTYPE_KEYMAP_INIT = (1 << 2),
+} eWM_ManipulatorMapTypeUpdateFlag;
 
 /* -------------------------------------------------------------------- */
 /* wmManipulator */
 
+/**
+ * \brief Manipulator tweak flag.
+ * Bitflag passed to manipulator while tweaking.
+ *
+ * \note Manipulators are responsible for handling this #wmManipulator.modal callback!.
+ */
+typedef enum {
+	/* Drag with extra precision (Shift). */
+	WM_MANIPULATOR_TWEAK_PRECISE = (1 << 0),
+	/* Drag with snap enabled (Ctrl).  */
+	WM_MANIPULATOR_TWEAK_SNAP = (1 << 1),
+} eWM_ManipulatorTweak;
+
+#include "wm_manipulator_fn.h"
+
+typedef struct wmManipulatorOpElem {
+	struct wmOperatorType *type;
+	/* operator properties if manipulator spawns and controls an operator,
+	 * or owner pointer if manipulator spawns and controls a property */
+	PointerRNA ptr;
+} wmManipulatorOpElem;
+
 /* manipulators are set per region by registering them on manipulator-maps */
 struct wmManipulator {
 	struct wmManipulator *next, *prev;
-
-	char name[64 + 4]; /* MAX_NAME + 4 for unique '.001', '.002', etc suffix */
 
 	/* While we don't have a real type, use this to put type-like vars. */
 	const struct wmManipulatorType *type;
@@ -73,10 +169,13 @@ struct wmManipulator {
 	/* rna pointer to access properties */
 	struct PointerRNA *ptr;
 
-	int flag; /* flags that influence the behavior or how the manipulators are drawn */
-	short state; /* state flags (active, highlighted, selected) */
+	/* flags that influence the behavior or how the manipulators are drawn */
+	eWM_ManipulatorFlag flag;
+	/* state flags (active, highlighted, selected) */
+	eWM_ManipulatorState state;
 
-	/* Optional ID for highlighting different parts of this manipulator. */
+	/* Optional ID for highlighting different parts of this manipulator.
+	 * -1 when unset, otherwise a valid index. (Used as index to 'op_data'). */
 	int highlight_part;
 
 	/* Transformation of the manipulator in 2d or 3d space.
@@ -87,6 +186,10 @@ struct wmManipulator {
 	 *   besides this it's up to the manipulators internal code how the
 	 *   rotation components are used for drawing and interaction.
 	 */
+
+	/* The space this manipulator is being modified in. */
+	float matrix_space[4][4];
+	/* Transformation of this manipulator. */
 	float matrix_basis[4][4];
 	/* custom offset from origin */
 	float matrix_offset[4][4];
@@ -102,21 +205,15 @@ struct wmManipulator {
 	/* data used during interaction */
 	void *interaction_data;
 
-	/* name of operator to spawn when activating the manipulator */
-	struct {
-		struct wmOperatorType *type;
-		/* operator properties if manipulator spawns and controls an operator,
-		 * or owner pointer if manipulator spawns and controls a property */
-		PointerRNA ptr;
-	} op_data;
+	/* Operator to spawn when activating the manipulator (overrides property editing),
+	 * an array of items (aligned with #wmManipulator.highlight_part). */
+	wmManipulatorOpElem *op_data;
+	int op_data_len;
 
 	struct IDProperty *properties;
 
 	/* over alloc target_properties after 'wmManipulatorType.struct_size' */
 };
-
-typedef void (*wmManipulatorGroupFnInit)(
-        const struct bContext *, struct wmManipulatorGroup *);
 
 /* Similar to PropertyElemRNA, but has an identifier. */
 typedef struct wmManipulatorProperty {
@@ -133,7 +230,6 @@ typedef struct wmManipulatorProperty {
 		wmManipulatorPropertyFnSet value_set_fn;
 		wmManipulatorPropertyFnRangeGet range_get_fn;
 		wmManipulatorPropertyFnFree free_fn;
-		const struct bContext *context;
 		void *user_data;
 	} custom_func;
 } wmManipulatorProperty;
@@ -152,7 +248,6 @@ typedef struct wmManipulatorPropertyType {
 } wmManipulatorPropertyType;
 
 
-
 /**
  * Simple utility wrapper for storing a single manipulator as wmManipulatorGroup.customdata (which gets freed).
  */
@@ -163,36 +258,6 @@ typedef struct wmManipulatorWrapper {
 struct wmManipulatorMapType_Params {
 	short spaceid;
 	short regionid;
-};
-
-
-/* wmManipulator.flag
- * Flags for individual manipulators. */
-enum {
-	WM_MANIPULATOR_DRAW_HOVER  = (1 << 0), /* draw *only* while hovering */
-	WM_MANIPULATOR_DRAW_ACTIVE = (1 << 1), /* draw while dragging */
-	WM_MANIPULATOR_DRAW_VALUE  = (1 << 2), /* draw an indicator for the current value while dragging */
-	WM_MANIPULATOR_HIDDEN      = (1 << 3),
-};
-
-/* wmManipulator.state */
-enum {
-	WM_MANIPULATOR_STATE_HIGHLIGHT   = (1 << 0), /* while hovered */
-	WM_MANIPULATOR_STATE_ACTIVE      = (1 << 1), /* while dragging */
-	WM_MANIPULATOR_STATE_SELECT      = (1 << 2),
-};
-
-/**
- * \brief Manipulator tweak flag.
- * Bitflag passed to manipulator while tweaking.
- *
- * \note Manipulators are responsible for handling this #wmManipulator.modal callback!.
- */
-enum {
-	/* Drag with extra precision (Shift). */
-	WM_MANIPULATOR_TWEAK_PRECISE = (1 << 0),
-	/* Drag with snap enabled (Ctrl).  */
-	WM_MANIPULATOR_TWEAK_SNAP = (1 << 1),
 };
 
 typedef struct wmManipulatorType {
@@ -212,7 +277,8 @@ typedef struct wmManipulatorType {
 	/* determines 3d intersection by rendering the manipulator in a selection routine. */
 	wmManipulatorFnDrawSelect draw_select;
 
-	/* determine if the mouse intersects with the manipulator. The calculation should be done in the callback itself */
+	/* Determine if the mouse intersects with the manipulator.
+	 * The calculation should be done in the callback itself, -1 for no seleciton. */
 	wmManipulatorFnTestSelect test_select;
 
 	/* handler used by the manipulator. Usually handles interaction tied to a manipulator type */
@@ -227,7 +293,7 @@ typedef struct wmManipulatorType {
 	 * - Scale isn't applied (wmManipulator.scale/user_scale).
 	 * - Offset isn't applied (wmManipulator.matrix_offset).
 	 */
-	wmManipulatorFnMatrixWorldGet matrix_world_get;
+	wmManipulatorFnMatrixBasisGet matrix_basis_get;
 
 	/* activate a manipulator state when the user clicks on it */
 	wmManipulatorFnInvoke invoke;
@@ -238,7 +304,7 @@ typedef struct wmManipulatorType {
 	wmManipulatorFnCursorGet cursor_get;
 
 	/* called when manipulator selection state changes */
-	wmManipulatorFnSelect select;
+	wmManipulatorFnSelectRefresh select_refresh;
 
 	/* RNA for properties */
 	struct StructRNA *srna;
@@ -293,10 +359,10 @@ typedef struct wmManipulatorGroupType {
 	/* RNA integration */
 	ExtensionRNA ext;
 
-	int flag;
+	eWM_ManipulatorGroupTypeFlag flag;
 
-	/* eManipulatorMapTypeUpdateFlags (so we know which group type to update) */
-	uchar type_update_flag;
+	/* So we know which group type to update. */
+	eWM_ManipulatorMapTypeUpdateFlag type_update_flag;
 
 	/* same as manipulator-maps, so registering/unregistering goes to the correct region */
 	struct wmManipulatorMapType_Params mmap_params;
@@ -316,37 +382,8 @@ typedef struct wmManipulatorGroup {
 
 	void *customdata;
 	void (*customdata_free)(void *); /* for freeing customdata from above */
-	int flag; /* private */
-	int pad;
+	eWM_ManipulatorGroupInitFlag init_flag;
 } wmManipulatorGroup;
-
-/**
- * Manipulator-map type update flag: `wmManipulatorMapType.type_update_flag`
- */
-enum eManipulatorMapTypeUpdateFlags {
-	/* A new type has been added, needs to be initialized for all views. */
-	WM_MANIPULATORMAPTYPE_UPDATE_INIT = (1 << 0),
-	WM_MANIPULATORMAPTYPE_UPDATE_REMOVE = (1 << 1),
-};
-
-/**
- * wmManipulatorGroupType.flag
- * Flags that influence the behavior of all manipulators in the group.
- */
-enum {
-	/* Mark manipulator-group as being 3D */
-	WM_MANIPULATORGROUPTYPE_3D       = (1 << 0),
-	/* Scale manipulators as 3D object that respects zoom (otherwise zoom independent draw size).
-	 * note: currently only for 3D views, 2D support needs adding. */
-	WM_MANIPULATORGROUPTYPE_SCALE    = (1 << 1),
-	/* Manipulators can be depth culled with scene objects (covered by other geometry - TODO) */
-	WM_MANIPULATORGROUPTYPE_DEPTH_3D = (1 << 2),
-	/* Manipulators can be selected */
-	WM_MANIPULATORGROUPTYPE_SELECT  = (1 << 3),
-	/* The manipulator group is to be kept (not removed on loading a new file for eg). */
-	WM_MANIPULATORGROUPTYPE_PERSISTENT = (1 << 4),
-};
-
 
 /* -------------------------------------------------------------------- */
 /* wmManipulatorMap */
@@ -354,14 +391,12 @@ enum {
 /**
  * Pass a value of this enum to #WM_manipulatormap_draw to tell it what to draw.
  */
-enum {
-	/* Draw 2D manipulator-groups (ManipulatorGroupType.is_3d == false) */
+typedef enum eWM_ManipulatorMapDrawStep {
+	/** Draw 2D manipulator-groups (#WM_MANIPULATORGROUPTYPE_3D not set). */
 	WM_MANIPULATORMAP_DRAWSTEP_2D = 0,
-	/* Draw 3D manipulator-groups (ManipulatorGroupType.is_3d == true) */
+	/** Draw 3D manipulator-groups (#WM_MANIPULATORGROUPTYPE_3D set). */
 	WM_MANIPULATORMAP_DRAWSTEP_3D,
-	/* Draw only depth culled manipulators (WM_MANIPULATOR_SCENE_DEPTH flag).
-	 * Note that these are expected to be 3D manipulators too. */
-	WM_MANIPULATORMAP_DRAWSTEP_IN_SCENE,
-};
+} eWM_ManipulatorMapDrawStep;
+#define WM_MANIPULATORMAP_DRAWSTEP_MAX 2
 
 #endif  /* __WM_MANIPULATOR_TYPES_H__ */

@@ -43,6 +43,7 @@ struct Scene;
 
 void          BKE_group_free(struct Group *group);
 struct Group *BKE_group_add(struct Main *bmain, const char *name);
+void          BKE_group_copy_data(struct Main *bmain, struct Group *group_dst, const struct Group *group_src, const int flag);
 struct Group *BKE_group_copy(struct Main *bmain, const struct Group *group);
 void          BKE_group_make_local(struct Main *bmain, struct Group *group, const bool lib_local);
 bool          BKE_group_object_add(struct Group *group, struct Object *ob);
@@ -53,6 +54,6 @@ bool          BKE_group_object_cyclic_check(struct Main *bmain, struct Object *o
 bool          BKE_group_is_animated(struct Group *group, struct Object *parent);
 
 void          BKE_group_tag_recalc(struct Group *group);
-void          BKE_group_handle_recalc_and_update(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *parent, struct Group *group);
+void          BKE_group_handle_recalc_and_update(const struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *parent, struct Group *group);
 
 #endif  /* __BKE_GROUP_H__ */

@@ -42,6 +42,7 @@ struct Mesh;
 struct Object;
 struct ReportList;
 struct SDNA;
+struct SceneLayer;
 
 /* Data structures used during define */
 
@@ -221,6 +222,7 @@ void rna_ID_name_set(struct PointerRNA *ptr, const char *value);
 struct StructRNA *rna_ID_refine(struct PointerRNA *ptr);
 struct IDProperty *rna_ID_idprops(struct PointerRNA *ptr, bool create);
 void rna_ID_fake_user_set(struct PointerRNA *ptr, int value);
+void **rna_ID_instance(PointerRNA *ptr);
 struct IDProperty *rna_PropertyGroup_idprops(struct PointerRNA *ptr, bool create);
 void rna_PropertyGroup_unregister(struct Main *bmain, struct StructRNA *type);
 struct StructRNA *rna_PropertyGroup_register(struct Main *bmain, struct ReportList *reports, void *data,
@@ -410,7 +412,7 @@ PointerRNA rna_pointer_inherit_refine(struct PointerRNA *ptr, struct StructRNA *
 int rna_parameter_size(struct PropertyRNA *parm);
 
 struct Mesh *rna_Main_meshes_new_from_object(
-        struct Main *bmain, struct ReportList *reports, struct Scene *sce,
+        struct Main *bmain, struct ReportList *reports, struct Scene *sce, struct SceneLayer *sl,
         struct Object *ob, int apply_modifiers, int settings, int calc_tessface, int calc_undeformed);
 
 /* XXX, these should not need to be defined here~! */

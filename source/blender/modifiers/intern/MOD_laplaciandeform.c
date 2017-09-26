@@ -29,7 +29,7 @@
  */
 
 #include "BLI_utildefines.h"
-#include "BLI_stackdefines.h"
+#include "BLI_utildefines_stack.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
 
@@ -539,7 +539,7 @@ static void initSystem(LaplacianDeformModifierData *lmd, Object *ob, DerivedMesh
 				STACK_PUSH(index_anchors, i);
 			}
 		}
-		DM_ensure_looptri(dm);
+
 		total_anchors = STACK_SIZE(index_anchors);
 		lmd->cache_system = initLaplacianSystem(numVerts, dm->getNumEdges(dm), dm->getNumLoopTri(dm),
 		                                       total_anchors, lmd->anchor_grp_name, lmd->repeat);
@@ -724,7 +724,7 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	return dataMask;
 }
 
-static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
+static void deformVerts(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob, DerivedMesh *derivedData,
                         float (*vertexCos)[3], int numVerts, ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *dm = get_dm(ob, NULL, derivedData, NULL, false, false);
@@ -736,7 +736,7 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
 }
 
 static void deformVertsEM(
-        ModifierData *md, Object *ob, struct BMEditMesh *editData,
+        ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob, struct BMEditMesh *editData,
         DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
 	DerivedMesh *dm = get_dm(ob, editData, derivedData, NULL, false, false);

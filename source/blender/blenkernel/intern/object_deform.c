@@ -407,7 +407,7 @@ void BKE_object_defgroup_remove(Object *ob, bDeformGroup *defgroup)
 	else
 		object_defgroup_remove_object_mode(ob, defgroup);
 
-	BKE_mesh_batch_cache_dirty(ob->data, BKE_MESH_BATCH_DIRTY_NOCHECK);
+	BKE_mesh_batch_cache_dirty(ob->data, BKE_MESH_BATCH_DIRTY_ALL);
 }
 
 /**
@@ -484,6 +484,8 @@ bool BKE_object_defgroup_array_get(ID *id, MDeformVert **dvert_arr, int *dvert_t
 				*dvert_tot = lt->pntsu * lt->pntsv * lt->pntsw;
 				return true;
 			}
+			default:
+				break;
 		}
 	}
 

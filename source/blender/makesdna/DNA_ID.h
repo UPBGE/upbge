@@ -138,11 +138,11 @@ typedef struct ID {
 	/**
 	 * LIB_TAG_... tags (runtime only, cleared at read time).
 	 */
-	short tag;
-	short pad_s1;
+	int tag;
 	int us;
 	int icon_id;
 	IDProperty *properties;
+	void *py_instance;
 } ID;
 
 /**
@@ -301,7 +301,7 @@ typedef enum ID_Type {
 #ifdef GS
 #  undef GS
 #endif
-#define GS(a)	(CHECK_TYPE_ANY(a, char *, const char *, char [66], const char[66]), (*((const short *)(a))))
+#define GS(a)	(CHECK_TYPE_ANY(a, char *, const char *, char [66], const char[66]), (ID_Type)(*((const short *)(a))))
 
 #define ID_NEW_SET(_id, _idn) \
 	(((ID *)(_id))->newid = (ID *)(_idn), ((ID *)(_id))->newid->tag |= LIB_TAG_NEW, (void *)((ID *)(_id))->newid)
@@ -363,6 +363,16 @@ enum {
 	LIB_TAG_ID_RECALC_DATA  = 1 << 13,
 	LIB_TAG_ANIM_NO_RECALC  = 1 << 14,
 	LIB_TAG_ID_RECALC_ALL   = (LIB_TAG_ID_RECALC | LIB_TAG_ID_RECALC_DATA),
+
+	/* The datablock is a copy-on-write version. */
+	LIB_TAG_COPY_ON_WRITE   = 1 << 15,
+
+	/* RESET_NEVER tag datablock for freeing etc. behavior (usually set when copying real one into temp/runtime one). */
+	LIB_TAG_NO_MAIN          = 1 << 16,  /* Datablock is not listed in Main database. */
+	LIB_TAG_NO_USER_REFCOUNT = 1 << 17,  /* Datablock does not refcount usages of other IDs. */
+	/* Datablock was not allocated by standard system (BKE_libblock_alloc), do not free its memory
+	 * (usual type-specific freeing is called though). */
+	LIB_TAG_NOT_ALLOCATED     = 1 << 18,
 };
 
 /* To filter ID types (filter_id) */
@@ -401,7 +411,7 @@ enum {
 	FILTER_ID_PA        = (1 << 27),
 	FILTER_ID_CF        = (1 << 28),
 	FILTER_ID_WS        = (1 << 29),
-	FILTER_ID_LP        = (1 << 31),
+	FILTER_ID_LP        = (1u << 31),
 };
 
 /* IMPORTANT: this enum matches the order currently use in set_listbasepointers,

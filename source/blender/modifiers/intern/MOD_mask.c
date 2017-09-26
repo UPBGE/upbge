@@ -52,6 +52,8 @@
 
 #include "DEG_depsgraph_build.h"
 
+#include "MOD_modifiertypes.h"
+
 #include "BLI_strict_flags.h"
 
 static void copyData(ModifierData *md, ModifierData *target)
@@ -92,8 +94,8 @@ static void updateDepsgraph(ModifierData *md,
 	}
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-                                  DerivedMesh *dm,
+static DerivedMesh *applyModifier(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+                                  Object *ob, DerivedMesh *dm,
                                   ModifierApplyFlag UNUSED(flag))
 {
 	MaskModifierData *mmd = (MaskModifierData *)md;

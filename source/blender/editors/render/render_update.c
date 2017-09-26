@@ -202,7 +202,7 @@ void ED_render_engine_changed(Main *bmain)
 }
 
 /***************************** Updates ***********************************
- * ED_render_id_flush_update gets called from DAG_id_tag_update, to do   *
+ * ED_render_id_flush_update gets called from DEG_id_tag_update, to do   *
  * editor level updates when the ID changes. when these ID blocks are in *
  * the dependency graph, we can get rid of the manual dependency checks  */
 
@@ -299,8 +299,11 @@ static void material_changed(Main *bmain, Material *ma)
 	BKE_icon_changed(BKE_icon_id_ensure(&ma->id));
 
 	/* glsl */
-	if (ma->gpumaterial.first)
-		GPU_material_free(&ma->gpumaterial);
+	if (ma->id.tag & LIB_TAG_ID_RECALC) {
+		if (!BLI_listbase_is_empty(&ma->gpumaterial)) {
+			GPU_material_free(&ma->gpumaterial);
+		}
+	}
 	if (ma->gpumaterialinstancing.first)
 		GPU_material_free(&ma->gpumaterialinstancing);
 
@@ -487,13 +490,15 @@ static void world_changed(Main *UNUSED(bmain), World *wo)
 	/* XXX temporary flag waiting for depsgraph proper tagging */
 	wo->update_flag = 1;
 
-	if (defmaterial.gpumaterial.first)
-		GPU_material_free(&defmaterial.gpumaterial);
-	if (defmaterial.gpumaterialinstancing.first)
-		GPU_material_free(&defmaterial.gpumaterialinstancing);
-	
-	if (wo->gpumaterial.first)
-		GPU_material_free(&wo->gpumaterial);
+	/* glsl */
+	if (wo->id.tag & LIB_TAG_ID_RECALC) {
+		if (!BLI_listbase_is_empty(&defmaterial.gpumaterial)) {
+			GPU_material_free(&defmaterial.gpumaterial);
+		}
+		if (!BLI_listbase_is_empty(&wo->gpumaterial)) {
+			GPU_material_free(&wo->gpumaterial);
+		}
+	}
 }
 
 static void image_changed(Main *bmain, Image *ima)

@@ -433,7 +433,7 @@ void RAS_Rasterizer::EndFrame()
 
 	Disable(RAS_MULTISAMPLE);
 
-	DRW_end_shgroup();
+	//DRW_end_shgroup();
 
 	//Disable(RAS_FOG);
 }

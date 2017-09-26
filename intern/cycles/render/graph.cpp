@@ -221,28 +221,6 @@ OutputNode *ShaderGraph::output()
 	return (OutputNode*)nodes.front();
 }
 
-ShaderGraph *ShaderGraph::copy()
-{
-	ShaderGraph *newgraph = new ShaderGraph();
-
-	/* copy nodes */
-	ShaderNodeSet nodes_all;
-	foreach(ShaderNode *node, nodes)
-		nodes_all.insert(node);
-
-	ShaderNodeMap nodes_copy;
-	copy_nodes(nodes_all, nodes_copy);
-
-	/* add nodes (in same order, so output is still first) */
-	newgraph->clear_nodes();
-	foreach(ShaderNode *node, nodes)
-		newgraph->add(nodes_copy[node]);
-
-	newgraph->simplified = simplified;
-
-	return newgraph;
-}
-
 void ShaderGraph::connect(ShaderOutput *from, ShaderInput *to)
 {
 	assert(!finalized);
@@ -1039,6 +1017,9 @@ int ShaderGraph::get_num_closures()
 		}
 		else if(CLOSURE_IS_PRINCIPLED(closure_type)) {
 			num_closures += 8;
+		}
+		else if(CLOSURE_IS_VOLUME(closure_type)) {
+			num_closures += VOLUME_STACK_SIZE;
 		}
 		else {
 			++num_closures;

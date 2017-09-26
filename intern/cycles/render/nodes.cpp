@@ -365,7 +365,8 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 	if(is_float == -1) {
 		if(builtin_data == NULL) {
 			ImageDataType type;
-			type = image_manager->get_image_metadata(filename.string(), NULL, is_linear);
+			bool builtin_free_cache;
+			type = image_manager->get_image_metadata(filename.string(), NULL, is_linear, builtin_free_cache);
 			if(type == IMAGE_DATA_TYPE_FLOAT || type == IMAGE_DATA_TYPE_FLOAT4)
 				is_float = 1;
 		}
@@ -554,7 +555,8 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 	if(is_float == -1) {
 		if(builtin_data == NULL) {
 			ImageDataType type;
-			type = image_manager->get_image_metadata(filename.string(), NULL, is_linear);
+			bool builtin_free_cache;
+			type = image_manager->get_image_metadata(filename.string(), NULL, is_linear, builtin_free_cache);
 			if(type == IMAGE_DATA_TYPE_FLOAT || type == IMAGE_DATA_TYPE_FLOAT4)
 				is_float = 1;
 		}
@@ -1799,6 +1801,14 @@ BsdfBaseNode::BsdfBaseNode(const NodeType *node_type)
 	special_type = SHADER_SPECIAL_TYPE_CLOSURE;
 }
 
+bool BsdfBaseNode::has_bump()
+{
+	/* detect if anything is plugged into the normal input besides the default */
+	ShaderInput *normal_in = input("Normal");
+	return (normal_in && normal_in->link &&
+	        normal_in->link->parent->special_type != SHADER_SPECIAL_TYPE_GEOMETRY);
+}
+
 /* BSDF Closure */
 
 BsdfNode::BsdfNode(const NodeType *node_type)
@@ -2437,9 +2447,7 @@ void PrincipledBsdfNode::compile(OSLCompiler& compiler)
 
 bool PrincipledBsdfNode::has_bssrdf_bump()
 {
-	/* detect if anything is plugged into the normal input besides the default */
-	ShaderInput *normal_in = input("Normal");
-	return (normal_in->link && normal_in->link->parent->special_type != SHADER_SPECIAL_TYPE_GEOMETRY);
+	return has_surface_bssrdf() && has_bump();
 }
 
 /* Translucent BSDF Closure */

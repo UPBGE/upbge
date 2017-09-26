@@ -735,9 +735,14 @@ static void view3d_widgets(void)
 	        &(const struct wmManipulatorMapType_Params){SPACE_VIEW3D, RGN_TYPE_WINDOW});
 
 	WM_manipulatorgrouptype_append_and_link(mmap_type, TRANSFORM_WGT_manipulator);
-	WM_manipulatorgrouptype_append_and_link(mmap_type, VIEW3D_WGT_lamp);
+	WM_manipulatorgrouptype_append_and_link(mmap_type, VIEW3D_WGT_lamp_spot);
+	WM_manipulatorgrouptype_append_and_link(mmap_type, VIEW3D_WGT_lamp_area);
+	WM_manipulatorgrouptype_append_and_link(mmap_type, VIEW3D_WGT_lamp_target);
 	WM_manipulatorgrouptype_append_and_link(mmap_type, VIEW3D_WGT_force_field);
 	WM_manipulatorgrouptype_append_and_link(mmap_type, VIEW3D_WGT_camera);
+	WM_manipulatorgrouptype_append_and_link(mmap_type, VIEW3D_WGT_camera_view);
+	WM_manipulatorgrouptype_append_and_link(mmap_type, VIEW3D_WGT_empty_image);
+	WM_manipulatorgrouptype_append_and_link(mmap_type, VIEW3D_WGT_armature_spline);
 }
 
 
@@ -877,6 +882,7 @@ static void view3d_main_region_listener(
 						BKE_screen_view3d_sync(v3d, wmn->reference);
 					}
 					ED_region_tag_redraw(ar);
+					WM_manipulatormap_tag_refresh(mmap);
 					break;
 				case ND_OB_ACTIVE:
 				case ND_OB_SELECT:
@@ -1398,33 +1404,31 @@ static void view3d_id_remap(ScrArea *sa, SpaceLink *slink, ID *old_id, ID *new_i
 				}
 			}
 		}
-		if ((ID *)v3d->ob_centre == old_id) {
-			v3d->ob_centre = (Object *)new_id;
-			if (new_id == NULL) {  /* Otherwise, bonename may remain valid... We could be smart and check this, too? */
-				v3d->ob_centre_bone[0] = '\0';
-			}
-		}
 
-		if ((ID *)v3d->defmaterial == old_id) {
-			v3d->defmaterial = (Material *)new_id;
-		}
-#if 0  /* XXX Deprecated? */
-		if ((ID *)v3d->gpd == old_id) {
-			v3d->gpd = (bGPData *)new_id;
-		}
-#endif
+		/* Values in local-view aren't used, see: T52663 */
+		if (is_local == false) {
+			/* Skip 'v3d->defmaterial', it's not library data.  */
 
-		if (ELEM(GS(old_id->name), ID_IM, ID_MC)) {
-			for (BGpic *bgpic = v3d->bgpicbase.first; bgpic; bgpic = bgpic->next) {
-				if ((ID *)bgpic->ima == old_id) {
-					bgpic->ima = (Image *)new_id;
-					id_us_min(old_id);
-					id_us_plus(new_id);
+			if ((ID *)v3d->ob_centre == old_id) {
+				v3d->ob_centre = (Object *)new_id;
+				/* Otherwise, bonename may remain valid... We could be smart and check this, too? */
+				if (new_id == NULL) {
+					v3d->ob_centre_bone[0] = '\0';
 				}
-				if ((ID *)bgpic->clip == old_id) {
-					bgpic->clip = (MovieClip *)new_id;
-					id_us_min(old_id);
-					id_us_plus(new_id);
+			}
+
+			if (ELEM(GS(old_id->name), ID_IM, ID_MC)) {
+				for (BGpic *bgpic = v3d->bgpicbase.first; bgpic; bgpic = bgpic->next) {
+					if ((ID *)bgpic->ima == old_id) {
+						bgpic->ima = (Image *)new_id;
+						id_us_min(old_id);
+						id_us_plus(new_id);
+					}
+					if ((ID *)bgpic->clip == old_id) {
+						bgpic->clip = (MovieClip *)new_id;
+						id_us_min(old_id);
+						id_us_plus(new_id);
+					}
 				}
 			}
 		}

@@ -193,8 +193,8 @@ static int foreach_libblock_remap_callback(void *user_data, ID *id_self, ID **id
 		const bool skip_never_null = (id_remap_data->flag & ID_REMAP_SKIP_NEVER_NULL_USAGE) != 0;
 
 #ifdef DEBUG_PRINT
-		printf("In %s: Remapping %s (%p) to %s (%p) (skip_indirect: %d)\n",
-		       id->name, old_id->name, old_id, new_id ? new_id->name : "<NONE>", new_id, skip_indirect);
+		printf("In %s: Remapping %s (%p) to %s (%p) (is_indirect: %d, skip_indirect: %d)\n",
+		       id->name, old_id->name, old_id, new_id ? new_id->name : "<NONE>", new_id, is_indirect, skip_indirect);
 #endif
 
 		if ((id_remap_data->flag & ID_REMAP_FLAG_NEVER_NULL_USAGE) && (cb_flag & IDWALK_CB_NEVER_NULL)) {
@@ -208,6 +208,14 @@ static int foreach_libblock_remap_callback(void *user_data, ID *id_self, ID **id
 		{
 			if (is_indirect) {
 				id_remap_data->skipped_indirect++;
+				if (is_obj) {
+					Object *ob = (Object *)id;
+					if (ob->data == *id_p && ob->proxy != NULL) {
+						/* And another 'Proudly brought to you by Proxy Hell' hack!
+						 * This will allow us to avoid clearing 'LIB_EXTERN' flag of obdata of proxies... */
+						id_remap_data->skipped_direct++;
+					}
+				}
 			}
 			else if (is_never_null || is_obj_editmode) {
 				id_remap_data->skipped_direct++;
@@ -248,7 +256,7 @@ static int foreach_libblock_remap_callback(void *user_data, ID *id_self, ID **id
 	return IDWALK_RET_NOP;
 }
 
-/* Some reamapping unfortunately require extra and/or specific handling, tackle those here. */
+/* Some remapping unfortunately require extra and/or specific handling, tackle those here. */
 static void libblock_remap_data_preprocess_scene_base_unlink(
         IDRemap *r_id_remap_data, Scene *sce, BaseLegacy *base, const bool skip_indirect, const bool is_indirect)
 {
@@ -352,7 +360,7 @@ static void libblock_remap_data_preprocess(IDRemap *r_id_remap_data)
 	}
 }
 
-static void libblock_remap_data_postprocess_object_fromgroup_update(Main *bmain, Object *old_ob, Object *new_ob)
+static void libblock_remap_data_postprocess_object_update(Main *bmain, Object *old_ob, Object *new_ob)
 {
 	if (old_ob->flag & OB_FROMGROUP) {
 		/* Note that for Scene's BaseObject->flag, either we:
@@ -369,6 +377,13 @@ static void libblock_remap_data_postprocess_object_fromgroup_update(Main *bmain,
 		}
 		else {
 			new_ob->flag |= OB_FROMGROUP;
+		}
+	}
+	if (old_ob->type == OB_MBALL) {
+		for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
+			if (ob->type == OB_MBALL && BKE_mball_is_basis_for(ob, old_ob)) {
+				DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			}
 		}
 	}
 }
@@ -575,7 +590,7 @@ void BKE_libblock_remap_locked(
 	 */
 	switch (GS(old_id->name)) {
 		case ID_OB:
-			libblock_remap_data_postprocess_object_fromgroup_update(bmain, (Object *)old_id, (Object *)new_id);
+			libblock_remap_data_postprocess_object_update(bmain, (Object *)old_id, (Object *)new_id);
 			break;
 		case ID_GR:
 			if (!new_id) {  /* Only affects us in case group was unlinked. */
@@ -605,7 +620,7 @@ void BKE_libblock_remap_locked(
 	libblock_remap_data_postprocess_nodetree_update(bmain, new_id);
 	BKE_main_lock(bmain);
 
-	/* Full rebuild of DAG! */
+	/* Full rebuild of DEG! */
 	DEG_relations_tag_update(bmain);
 }
 
@@ -685,8 +700,7 @@ void BKE_libblock_relink_ex(
 				switch (GS(old_id->name)) {
 					case ID_OB:
 					{
-						libblock_remap_data_postprocess_object_fromgroup_update(
-						            bmain, (Object *)old_id, (Object *)new_id);
+						libblock_remap_data_postprocess_object_update(bmain, (Object *)old_id, (Object *)new_id);
 						break;
 					}
 					case ID_GR:
@@ -701,7 +715,7 @@ void BKE_libblock_relink_ex(
 			else {
 				/* No choice but to check whole objects/groups. */
 				for (Object *ob = bmain->object.first; ob; ob = ob->id.next) {
-					libblock_remap_data_postprocess_object_fromgroup_update(bmain, ob, NULL);
+					libblock_remap_data_postprocess_object_update(bmain, ob, NULL);
 				}
 				for (Group *grp = bmain->group.first; grp; grp = grp->id.next) {
 					libblock_remap_data_postprocess_group_scene_unlink(bmain, sce, NULL);
@@ -758,9 +772,11 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
 		IDP_FreeProperty_ex(id->properties, do_id_user);
 		MEM_freeN(id->properties);
 	}
+
+	/* XXX TODO remove animdata handling from each type's freeing func, and do it here, like for copy! */
 }
 
-void BKE_libblock_free_datablock(ID *id)
+void BKE_libblock_free_datablock(ID *id, const int UNUSED(flag))
 {
 	const short type = GS(id->name);
 	switch (type) {
@@ -876,6 +892,90 @@ void BKE_libblock_free_datablock(ID *id)
 	}
 }
 
+
+void BKE_id_free_ex(Main *bmain, void *idv, int flag, const bool use_flag_from_idtag)
+{
+	ID *id = idv;
+
+	if (use_flag_from_idtag) {
+		if ((id->tag & LIB_TAG_NO_MAIN) != 0) {
+			flag |= LIB_ID_FREE_NO_MAIN;
+		}
+		else {
+			flag &= ~LIB_ID_FREE_NO_MAIN;
+		}
+
+		if ((id->tag & LIB_TAG_NO_USER_REFCOUNT) != 0) {
+			flag |= LIB_ID_FREE_NO_USER_REFCOUNT;
+		}
+		else {
+			flag &= ~LIB_ID_FREE_NO_USER_REFCOUNT;
+		}
+
+		if ((id->tag & LIB_TAG_NOT_ALLOCATED) != 0) {
+			flag |= LIB_ID_FREE_NOT_ALLOCATED;
+		}
+		else {
+			flag &= ~LIB_ID_FREE_NOT_ALLOCATED;
+		}
+	}
+
+	BLI_assert((flag & LIB_ID_FREE_NO_MAIN) != 0 || bmain != NULL);
+	BLI_assert((flag & LIB_ID_FREE_NO_MAIN) != 0 || (flag & LIB_ID_FREE_NOT_ALLOCATED) == 0);
+	BLI_assert((flag & LIB_ID_FREE_NO_MAIN) != 0 || (flag & LIB_ID_FREE_NO_USER_REFCOUNT) == 0);
+
+	const short type = GS(id->name);
+
+	if (bmain && (flag & LIB_ID_FREE_NO_DEG_TAG) == 0) {
+		DEG_id_type_tag(bmain, type);
+	}
+
+#ifdef WITH_PYTHON
+	BPY_id_release(id);
+#endif
+
+	if ((flag & LIB_ID_FREE_NO_USER_REFCOUNT) == 0) {
+		BKE_libblock_relink_ex(bmain, id, NULL, NULL, true);
+	}
+
+	BKE_libblock_free_datablock(id, flag);
+
+	/* avoid notifying on removed data */
+	if (bmain) {
+		BKE_main_lock(bmain);
+	}
+
+	if ((flag & LIB_ID_FREE_NO_UI_USER) == 0) {
+		if (free_notifier_reference_cb) {
+			free_notifier_reference_cb(id);
+		}
+
+		if (remap_editor_id_reference_cb) {
+			remap_editor_id_reference_cb(id, NULL);
+		}
+	}
+
+	if ((flag & LIB_ID_FREE_NO_MAIN) == 0) {
+		ListBase *lb = which_libbase(bmain, type);
+		BLI_remlink(lb, id);
+	}
+
+	BKE_libblock_free_data(id, (flag & LIB_ID_FREE_NO_USER_REFCOUNT) == 0);
+
+	if (bmain) {
+		BKE_main_unlock(bmain);
+	}
+
+	if ((flag & LIB_ID_FREE_NOT_ALLOCATED) == 0) {
+		MEM_freeN(id);
+	}
+}
+
+void BKE_id_free(Main *bmain, void *idv)
+{
+	BKE_id_free_ex(bmain, idv, 0, true);
+}
+
 /**
  * used in headerbuttons.c image.c mesh.c screen.c sound.c and library.c
  *
@@ -893,14 +993,19 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, const bool do_id_user, const b
 	DEG_id_type_tag(bmain, type);
 
 #ifdef WITH_PYTHON
+#ifdef WITH_PYTHON_SAFETY
 	BPY_id_release(id);
+#endif
+	if (id->py_instance) {
+		BPY_DECREF_RNA_INVALIDATE(id->py_instance);
+	}
 #endif
 
 	if (do_id_user) {
 		BKE_libblock_relink_ex(bmain, id, NULL, NULL, true);
 	}
 
-	BKE_libblock_free_datablock(id);
+	BKE_libblock_free_datablock(id, 0);
 
 	/* avoid notifying on removed data */
 	BKE_main_lock(bmain);

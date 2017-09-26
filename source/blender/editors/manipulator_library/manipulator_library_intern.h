@@ -50,10 +50,10 @@ typedef struct ManipulatorCommonData {
 
 typedef struct ManipulatorInteraction {
 	float init_value; /* initial property value */
-	float init_matrix[4][4];
 	float init_mval[2];
 	float init_offset;
-	float init_scale;
+	float init_matrix_final[4][4];
+	float init_matrix_basis[4][4];
 
 	/* offset of last handling step */
 	float prev_offset;
@@ -87,8 +87,11 @@ void  manipulator_property_value_reset(
 
 void manipulator_color_get(
         const struct wmManipulator *mpr, const bool highlight,
-        float r_col[]);
+        float r_color[4]);
 
+bool manipulator_window_project_2d(
+        bContext *C, const struct wmManipulator *mpr, const float mval[2], int axis, bool use_offset,
+        float r_co[2]);
 
 /* -------------------------------------------------------------------- */
 /* Manipulator drawing */

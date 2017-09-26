@@ -49,6 +49,7 @@ struct MTex;
 struct MovieClip;
 struct bNodeTree;
 struct Object;
+struct ParticleSettings;
 struct Probe;
 struct bPoseChannel;
 struct bConstraint;
@@ -71,16 +72,42 @@ struct DepsgraphNodeBuilder {
 	DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph);
 	~DepsgraphNodeBuilder();
 
-	void begin_build(Main *bmain);
-
+	/* For given original ID get ID which is created by CoW system. */
 	ID *get_cow_id(const ID *id_orig) const;
+	/* Similar to above, but for the cases when there is no ID node we create
+	 * one.
+	 */
+	ID *ensure_cow_id(ID *id_orig);
 
+	/* Helper wrapper function which wraps get_cow_id with a needed type cast. */
 	template<typename T>
 	T *get_cow_datablock(const T *orig) const {
 		return (T *)get_cow_id(&orig->id);
 	}
 
-	IDDepsNode *add_id_node(ID *id);
+	/* Get fully expanded (ready for use) copy-on-write datablock for the given
+	 * original datablock.
+	 */
+	ID *expand_cow_id(IDDepsNode *id_node);
+	ID *expand_cow_id(ID *id_orig);
+	template<typename T>
+	T *expand_cow_datablock(T *orig) {
+		return (T *)expand_cow_id(&orig->id);
+	}
+
+	/* For a given COW datablock get corresponding original one. */
+	template<typename T>
+	T *get_orig_datablock(const T *cow) const {
+#ifdef WITH_COPY_ON_WRITE
+		return (T *)cow->id.newid;
+#else
+		return (T *)cow;
+#endif
+	}
+
+	void begin_build(Main *bmain);
+
+	IDDepsNode *add_id_node(ID *id, bool do_tag = true);
 	TimeSourceDepsNode *add_time_source();
 
 	ComponentDepsNode *add_component_node(ID *id,
@@ -134,6 +161,7 @@ struct DepsgraphNodeBuilder {
 	void build_pose_constraints(Scene *scene, Object *ob, bPoseChannel *pchan);
 	void build_rigidbody(Scene *scene);
 	void build_particles(Scene *scene, Object *ob);
+	void build_particle_settings(ParticleSettings *part);
 	void build_cloth(Scene *scene, Object *object);
 	void build_animdata(ID *id);
 	OperationDepsNode *build_driver(ID *id, FCurve *fcurve);
@@ -178,6 +206,7 @@ struct DepsgraphNodeBuilder {
 protected:
 	Main *m_bmain;
 	Depsgraph *m_graph;
+	GHash *m_cow_id_hash;
 };
 
 }  // namespace DEG

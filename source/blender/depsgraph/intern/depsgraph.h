@@ -102,7 +102,8 @@ struct Depsgraph {
 	 * Convenience wrapper to find node given just pointer + property.
 	 *
 	 * \param ptr: pointer to the data that node will represent
-	 * \param prop: optional property affected - providing this effectively results in inner nodes being returned
+	 * \param prop: optional property affected - providing this effectively
+	 *              results in inner nodes being returned
 	 *
 	 * \return A node matching the required characteristics if it exists
 	 * or NULL if no such node exists in the graph
@@ -113,7 +114,7 @@ struct Depsgraph {
 	TimeSourceDepsNode *find_time_source() const;
 
 	IDDepsNode *find_id_node(const ID *id) const;
-	IDDepsNode *add_id_node(ID *id, const char *name = "");
+	IDDepsNode *add_id_node(ID *id, bool do_tag = true, ID *id_cow_hint = NULL);
 	void clear_id_nodes();
 
 	/* Add new relationship between two nodes. */

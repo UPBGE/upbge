@@ -144,36 +144,6 @@ static PyObject *pygpu_offscreen_unbind(BPy_GPUOffScreen *self, PyObject *args, 
 	Py_RETURN_NONE;
 }
 
-/**
- * Use with PyArg_ParseTuple's "O&" formatting.
- */
-static int pygpu_offscreen_check_matrix(PyObject *o, void *p)
-{
-	MatrixObject **pymat_p = p;
-	MatrixObject  *pymat = (MatrixObject *)o;
-
-	if (!MatrixObject_Check(pymat)) {
-		PyErr_Format(PyExc_TypeError,
-		             "expected a mathutils.Matrix, not a %.200s",
-		             Py_TYPE(o)->tp_name);
-		return 0;
-	}
-
-	if (BaseMath_ReadCallback(pymat) == -1) {
-		return 0;
-	}
-
-	if ((pymat->num_col != 4) ||
-	    (pymat->num_row != 4))
-	{
-		PyErr_SetString(PyExc_ValueError, "matrix must be 4x4");
-		return 0;
-	}
-
-	*pymat_p = pymat;
-	return 1;
-}
-
 PyDoc_STRVAR(pygpu_offscreen_draw_view3d_doc,
 "draw_view3d(scene, view3d, region, modelview_matrix, projection_matrix)\n"
 "\n"
@@ -192,6 +162,8 @@ PyDoc_STRVAR(pygpu_offscreen_draw_view3d_doc,
 );
 static PyObject *pygpu_offscreen_draw_view3d(BPy_GPUOffScreen *self, PyObject *args, PyObject *kwds)
 {
+	/* TODO: This doesn't work currently because of eval_ctx. */
+#if 0
 	static const char *kwlist[] = {"scene", "render_layer", "view3d", "region", "projection_matrix", "modelview_matrix", NULL};
 
 	MatrixObject *py_mat_modelview, *py_mat_projection;
@@ -210,8 +182,8 @@ static PyObject *pygpu_offscreen_draw_view3d(BPy_GPUOffScreen *self, PyObject *a
 	if (!PyArg_ParseTupleAndKeywords(
 	        args, kwds, "OOOOO&O&:draw_view3d", (char **)(kwlist),
 	        &py_scene, &py_scene_layer, &py_view3d, &py_region,
-	        pygpu_offscreen_check_matrix, &py_mat_projection,
-	        pygpu_offscreen_check_matrix, &py_mat_modelview) ||
+	        Matrix_Parse4x4, &py_mat_projection,
+	        Matrix_Parse4x4, &py_mat_modelview) ||
 	    (!(scene    = PyC_RNA_AsPointer(py_scene, "Scene")) ||
 	     !(sl       = PyC_RNA_AsPointer(py_scene_layer, "SceneLayer")) ||
 	     !(v3d      = PyC_RNA_AsPointer(py_view3d, "SpaceView3D")) ||
@@ -244,6 +216,10 @@ static PyObject *pygpu_offscreen_draw_view3d(BPy_GPUOffScreen *self, PyObject *a
 	MEM_freeN(rv3d_mats);
 
 	Py_RETURN_NONE;
+#else
+	UNUSED_VARS(self, args, kwds);
+#endif
+	return NULL;
 }
 
 PyDoc_STRVAR(pygpu_offscreen_free_doc,

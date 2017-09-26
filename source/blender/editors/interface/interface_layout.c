@@ -128,6 +128,8 @@ typedef struct uiItem {
 enum {
 	UI_ITEM_FIXED     = 1 << 0,
 	UI_ITEM_MIN       = 1 << 1,
+
+	UI_ITEM_BOX_ITEM  = 1 << 2, /* The item is "inside" a box item */
 };
 
 typedef struct uiButtonItem {
@@ -192,8 +194,9 @@ static const char *ui_item_name_add_colon(const char *name, char namestr[UI_MAX_
 static int ui_item_fit(int item, int pos, int all, int available, bool is_last, int alignment, float *extra_pixel)
 {
 	/* available == 0 is unlimited */
-	if (available == 0)
+	if (ELEM(0, available, all)) {
 		return item;
+	}
 
 	if (all > available) {
 		/* contents is bigger than available space */
@@ -216,8 +219,9 @@ static int ui_item_fit(int item, int pos, int all, int available, bool is_last, 
 				return (int)width;
 			}
 		}
-		else
+		else {
 			return item;
+		}
 	}
 }
 
@@ -243,7 +247,9 @@ static int ui_text_icon_width(uiLayout *layout, const char *name, int icon, bool
 	variable = (ui_layout_vary_direction(layout) == UI_ITEM_VARY_X);
 
 	if (variable) {
-		layout->item.flag |= UI_ITEM_MIN;
+		if (layout->alignment != UI_LAYOUT_ALIGN_EXPAND) {
+			layout->item.flag |= UI_ITEM_MIN;
+		}
 		const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 		/* it may seem odd that the icon only adds (UI_UNIT_X / 4)
 		 * but taking margins into account its fine */
@@ -700,7 +706,7 @@ static uiBut *ui_item_with_label(uiLayout *layout, uiBlock *block, const char *n
 		              WM_OP_INVOKE_DEFAULT, ICON_FILESEL, x, y, UI_UNIT_X, h, NULL);
 	}
 	else if (flag & UI_ITEM_R_EVENT) {
-		uiDefButR_prop(block, UI_BTYPE_KEY_EVENT, 0, name, x, y, w, h, ptr, prop, index, 0, 0, -1, -1, NULL);
+		but = uiDefButR_prop(block, UI_BTYPE_KEY_EVENT, 0, name, x, y, w, h, ptr, prop, index, 0, 0, -1, -1, NULL);
 	}
 	else if (flag & UI_ITEM_R_FULL_EVENT) {
 		if (RNA_struct_is_a(ptr->type, &RNA_KeyMapItem)) {
@@ -1642,6 +1648,10 @@ void ui_but_add_search(uiBut *but, PointerRNA *ptr, PropertyRNA *prop, PointerRN
 		            coll_search, NULL, NULL);
 		but->free_search_arg = true;
 	}
+	else if (but->type == UI_BTYPE_SEARCH_MENU) {
+		/* In case we fail to find proper searchprop, so other code might have already set but->type to search menu... */
+		but->type = UI_BTYPE_LABEL;
+	}
 }
 
 void uiItemPointerR(uiLayout *layout, struct PointerRNA *ptr, const char *propname, struct PointerRNA *searchptr, const char *searchpropname, const char *name, int icon)
@@ -2228,6 +2238,10 @@ static void ui_litem_layout_column(uiLayout *litem, bool is_box)
 
 		if (item->next && (!is_box || item != litem->items.first))
 			y -= litem->space;
+
+		if (is_box) {
+			item->flag |= UI_ITEM_BOX_ITEM;
+		}
 	}
 
 	litem->h = litem->y - y;
@@ -2379,7 +2393,6 @@ static void ui_litem_estimate_box(uiLayout *litem)
 	uiStyle *style = litem->root->style;
 
 	ui_litem_estimate_column(litem, true);
-	litem->item.flag &= ~UI_ITEM_MIN;
 	litem->w += 2 * style->boxspace;
 	litem->h += 2 * style->boxspace;
 }
@@ -3051,8 +3064,11 @@ static void ui_item_estimate(uiItem *item)
 		for (subitem = litem->items.first; subitem; subitem = subitem->next)
 			ui_item_estimate(subitem);
 
-		if (BLI_listbase_is_empty(&litem->items))
+		if (BLI_listbase_is_empty(&litem->items)) {
+			litem->w = 0;
+			litem->h = 0;
 			return;
+		}
 
 		if (litem->scale[0] != 0.0f || litem->scale[1] != 0.0f)
 			ui_item_scale(litem, litem->scale);
@@ -3188,8 +3204,18 @@ static void ui_item_layout(uiItem *item)
 				break;
 		}
 
-		for (subitem = litem->items.first; subitem; subitem = subitem->next)
+		for (subitem = litem->items.first; subitem; subitem = subitem->next) {
+			if (item->flag & UI_ITEM_BOX_ITEM) {
+				subitem->flag |= UI_ITEM_BOX_ITEM;
+			}
 			ui_item_layout(subitem);
+		}
+	}
+	else {
+		if (item->flag & UI_ITEM_BOX_ITEM) {
+			uiButtonItem *bitem = (uiButtonItem *)item;
+			bitem->but->drawflag |= UI_BUT_BOX_ITEM;
+		}
 	}
 }
 
@@ -3306,8 +3332,9 @@ void ui_layout_add_but(uiLayout *layout, uiBut *but)
 	ui_item_size((uiItem *)bitem, &w, &h);
 	/* XXX uiBut hasn't scaled yet
 	 * we can flag the button as not expandable, depending on its size */
-	if (w <= 2 * UI_UNIT_X)
+	if (w <= 2 * UI_UNIT_X && (!but->str || but->str[0] == '\0')) {
 		bitem->item.flag |= UI_ITEM_MIN;
+	}
 
 	BLI_addtail(&layout->items, bitem);
 

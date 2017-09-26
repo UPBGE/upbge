@@ -53,6 +53,8 @@ extern "C" {
 
 #include "DEG_depsgraph.h"
 
+#include "intern/eval/deg_eval_copy_on_write.h"
+
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_component.h"
 #include "intern/nodes/deg_node_operation.h"
@@ -250,11 +252,13 @@ DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr,
 
 /* Node Management ---------------------------- */
 
+#ifndef WITH_COPY_ON_WRITE
 static void id_node_deleter(void *value)
 {
 	IDDepsNode *id_node = reinterpret_cast<IDDepsNode *>(value);
 	OBJECT_GUARDED_DELETE(id_node, IDDepsNode);
 }
+#endif
 
 TimeSourceDepsNode *Depsgraph::add_time_source()
 {
@@ -275,26 +279,58 @@ IDDepsNode *Depsgraph::find_id_node(const ID *id) const
 	return reinterpret_cast<IDDepsNode *>(BLI_ghash_lookup(id_hash, id));
 }
 
-IDDepsNode *Depsgraph::add_id_node(ID *id, const char *name)
+IDDepsNode *Depsgraph::add_id_node(ID *id, bool do_tag, ID *id_cow_hint)
 {
+	BLI_assert((id->tag & LIB_TAG_COPY_ON_WRITE) == 0);
 	IDDepsNode *id_node = find_id_node(id);
 	if (!id_node) {
 		DepsNodeFactory *factory = deg_get_node_factory(DEG_NODE_TYPE_ID_REF);
-		id_node = (IDDepsNode *)factory->create_node(id, "", name);
-		id->tag |= LIB_TAG_DOIT;
+		id_node = (IDDepsNode *)factory->create_node(id, "", id->name);
+		id_node->init_copy_on_write(id_cow_hint);
+		if (do_tag) {
+			id->tag |= LIB_TAG_DOIT;
+		}
 		/* Register node in ID hash.
 		 *
 		 * NOTE: We address ID nodes by the original ID pointer they are
 		 * referencing to.
 		 */
 		BLI_ghash_insert(id_hash, id, id_node);
+	} else if (do_tag) {
+		id->tag |= LIB_TAG_DOIT;
 	}
 	return id_node;
 }
 
 void Depsgraph::clear_id_nodes()
 {
+#ifndef WITH_COPY_ON_WRITE
 	BLI_ghash_clear(id_hash, NULL, id_node_deleter);
+#else
+	/* Stupid workaround to ensure we free IDs in a proper order. */
+	GHASH_FOREACH_BEGIN(IDDepsNode *, id_node, id_hash)
+	{
+		if (id_node->id_cow == NULL) {
+			/* This means builder "stole" ownership of the copy-on-written
+			 * datablock for her own dirty needs.
+			 */
+			continue;
+		}
+		if (!deg_copy_on_write_is_expanded(id_node->id_cow)) {
+			continue;
+		}
+		const ID_Type id_type = GS(id_node->id_cow->name);
+		if (id_type != ID_PA) {
+			id_node->destroy();
+		}
+	}
+	GHASH_FOREACH_END();
+	GHASH_FOREACH_BEGIN(IDDepsNode *, id_node, id_hash)
+	{
+		OBJECT_GUARDED_DELETE(id_node, IDDepsNode);
+	}
+	GHASH_FOREACH_END();
+#endif
 }
 
 /* Add new relationship between two nodes. */
@@ -389,9 +425,9 @@ DepsRelation::~DepsRelation()
 void Depsgraph::add_entry_tag(OperationDepsNode *node)
 {
 	/* Sanity check. */
-	if (!node)
+	if (node == NULL) {
 		return;
-
+	}
 	/* Add to graph-level set of directly modified nodes to start searching from.
 	 * NOTE: this is necessary since we have several thousand nodes to play with...
 	 */
@@ -412,6 +448,25 @@ ID *Depsgraph::get_cow_id(const ID *id_orig) const
 {
 	IDDepsNode *id_node = find_id_node(id_orig);
 	if (id_node == NULL) {
+		/* This function is used from places where we expect ID to be either
+		 * already a copy-on-write version or have a corresponding copy-on-write
+		 * version.
+		 *
+		 * We try to enforce that in debug builds, for for release we play a bit
+		 * safer game here.
+		 */
+		if ((id_orig->tag & LIB_TAG_COPY_ON_WRITE) == 0) {
+			/* TODO(sergey): This is nice sanity check to have, but it fails
+			 * in following situations:
+			 *
+			 * - Material has link to texture, which is not needed by new
+			 *   shading system and hence can be ignored at construction.
+			 * - Object or mesh has material at a slot which is not used (for
+			 *   example, object has material slot by materials are set to
+			 *   object data).
+			 */
+			// BLI_assert(!"Request for non-existing copy-on-write ID");
+		}
 		return (ID *)id_orig;
 	}
 	return id_node->id_cow;

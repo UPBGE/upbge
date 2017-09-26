@@ -605,7 +605,7 @@ void GPU_framebuffer_blur(
 
 	GPU_texture_bind(tex, 0);
 
-	Batch_set_builtin_program(&batch, GPU_SHADER_SEP_GAUSSIAN_BLUR);
+	GWN_batch_program_set_builtin(&batch, GPU_SHADER_SEP_GAUSSIAN_BLUR);
 	GWN_batch_uniform_2f(&batch, "ScaleU", scaleh[0], scaleh[1]);
 	GWN_batch_uniform_1i(&batch, "textureSource", GL_TEXTURE0);
 	GWN_batch_draw(&batch);
@@ -621,7 +621,7 @@ void GPU_framebuffer_blur(
 	GPU_texture_bind(blurtex, 0);
 
 	/* Hack to make the following uniform stick */
-	Batch_set_builtin_program(&batch, GPU_SHADER_SEP_GAUSSIAN_BLUR);
+	GWN_batch_program_set_builtin(&batch, GPU_SHADER_SEP_GAUSSIAN_BLUR);
 	GWN_batch_uniform_2f(&batch, "ScaleU", scalev[0], scalev[1]);
 	GWN_batch_uniform_1i(&batch, "textureSource", GL_TEXTURE0);
 	GWN_batch_draw(&batch);
@@ -668,6 +668,7 @@ void GPU_framebuffer_blit(GPUFrameBuffer *fb_read, int read_slot, GPUFrameBuffer
 void GPU_framebuffer_recursive_downsample(
         GPUFrameBuffer *fb, GPUTexture *tex, int num_iter, void (*callback)(void *userData, int level), void *userData)
 {
+	int i;
 	int current_dim[2] = {GPU_texture_width(tex), GPU_texture_height(tex)};
 	GLenum attachment;
 
@@ -683,10 +684,16 @@ void GPU_framebuffer_recursive_downsample(
 		attachment = GL_COLOR_ATTACHMENT0;
 
 	/* last bound prevails here, better allow explicit control here too */
-	glDrawBuffer(GL_COLOR_ATTACHMENT0);
-	glReadBuffer(GL_COLOR_ATTACHMENT0);
+	if (GPU_texture_depth(tex)) {
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+	}
+	else {
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+		glReadBuffer(GL_COLOR_ATTACHMENT0);
+	}
 
-	for (int i=1; i < num_iter+1 && (current_dim[0] > 1 && current_dim[1] > 1); i++) {
+	for (i=1; i < num_iter+1 && (current_dim[0] > 4 && current_dim[1] > 4); i++) {
 
 		/* calculate next viewport size */
 		current_dim[0] /= 2;
@@ -714,7 +721,7 @@ void GPU_framebuffer_recursive_downsample(
 	/* reset mipmap level range for the depth image */
 	GPU_texture_bind(tex, 0);
 	glTexParameteri(GPU_texture_target(tex), GL_TEXTURE_BASE_LEVEL, 0);
-	glTexParameteri(GPU_texture_target(tex), GL_TEXTURE_MAX_LEVEL, num_iter);
+	glTexParameteri(GPU_texture_target(tex), GL_TEXTURE_MAX_LEVEL, i-1);
 	GPU_texture_unbind(tex);
 }
 

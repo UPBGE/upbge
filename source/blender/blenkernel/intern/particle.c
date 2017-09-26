@@ -1845,7 +1845,7 @@ void precalc_guides(ParticleSimulationData *sim, ListBase *effectors)
 	}
 }
 
-int do_guides(ParticleSettings *part, ListBase *effectors, ParticleKey *state, int index, float time)
+int do_guides(const EvaluationContext *eval_ctx, ParticleSettings *part, ListBase *effectors, ParticleKey *state, int index, float time)
 {
 	CurveMapping *clumpcurve = (part->child_flag & PART_CHILD_USE_CLUMP_CURVE) ? part->clumpcurve : NULL;
 	CurveMapping *roughcurve = (part->child_flag & PART_CHILD_USE_ROUGH_CURVE) ? part->roughcurve : NULL;
@@ -1908,7 +1908,7 @@ int do_guides(ParticleSettings *part, ListBase *effectors, ParticleKey *state, i
 		
 		/* curve taper */
 		if (cu->taperobj)
-			mul_v3_fl(vec_to_point, BKE_displist_calc_taper(eff->scene, cu->taperobj, (int)(data->strength * guidetime * 100.0f), 100));
+			mul_v3_fl(vec_to_point, BKE_displist_calc_taper(eval_ctx, eff->scene, cu->taperobj, (int)(data->strength * guidetime * 100.0f), 100));
 		
 		else { /* curve size*/
 			if (cu->flag & CU_PATH_RADIUS) {
@@ -2709,7 +2709,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra, const bool use_re
 			if (sim->psys->effectors && (psys->part->flag & PART_CHILD_EFFECT) == 0) {
 				for (k = 0, ca = cache[p]; k <= segments; k++, ca++)
 					/* ca is safe to cast, since only co and vel are used */
-					do_guides(sim->psys->part, sim->psys->effectors, (ParticleKey *)ca, p, (float)k / (float)segments);
+					do_guides(sim->eval_ctx, sim->psys->part, sim->psys->effectors, (ParticleKey *)ca, p, (float)k / (float)segments);
 			}
 
 			/* lattices have to be calculated separately to avoid mixups between effector calculations */
@@ -2757,7 +2757,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra, const bool use_re
 	if (vg_length)
 		MEM_freeN(vg_length);
 }
-void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cfra, const bool use_render_params)
+void psys_cache_edit_paths(const EvaluationContext *eval_ctx, Scene *scene, Object *ob, PTCacheEdit *edit, float cfra, const bool use_render_params)
 {
 	ParticleCacheKey *ca, **cache = edit->pathcache;
 	ParticleEditSettings *pset = &scene->toolsettings->particle;
@@ -2948,6 +2948,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 
 	if (psys) {
 		ParticleSimulationData sim = {0};
+		sim.eval_ctx = eval_ctx;
 		sim.scene = scene;
 		sim.ob = ob;
 		sim.psys = psys;
@@ -3305,7 +3306,7 @@ ParticleSettings *psys_new_settings(const char *name, Main *main)
 	if (main == NULL)
 		main = G.main;
 
-	part = BKE_libblock_alloc(main, ID_PA, name);
+	part = BKE_libblock_alloc(main, ID_PA, name, 0);
 	
 	default_particle_settings(part);
 
@@ -3336,38 +3337,45 @@ void BKE_particlesettings_rough_curve_init(ParticleSettings *part)
 	part->roughcurve = cumap;
 }
 
-ParticleSettings *BKE_particlesettings_copy(Main *bmain, const ParticleSettings *part)
+/**
+ * Only copy internal data of ParticleSettings ID from source to already allocated/initialized destination.
+ * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ *
+ * WARNING! This function will not handle ID user count!
+ *
+ * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ */
+void BKE_particlesettings_copy_data(
+        Main *UNUSED(bmain), ParticleSettings *part_dst, const ParticleSettings *part_src, const int UNUSED(flag))
 {
-	ParticleSettings *partn;
-	int a;
+	part_dst->pd = MEM_dupallocN(part_src->pd);
+	part_dst->pd2 = MEM_dupallocN(part_src->pd2);
+	part_dst->effector_weights = MEM_dupallocN(part_src->effector_weights);
+	part_dst->fluid = MEM_dupallocN(part_src->fluid);
 
-	partn = BKE_libblock_copy(bmain, &part->id);
+	if (part_src->clumpcurve) {
+		part_dst->clumpcurve = curvemapping_copy(part_src->clumpcurve);
+	}
+	if (part_src->roughcurve) {
+		part_dst->roughcurve = curvemapping_copy(part_src->roughcurve);
+	}
 
-	partn->pd = MEM_dupallocN(part->pd);
-	partn->pd2 = MEM_dupallocN(part->pd2);
-	partn->effector_weights = MEM_dupallocN(part->effector_weights);
-	partn->fluid = MEM_dupallocN(part->fluid);
+	part_dst->boids = boid_copy_settings(part_src->boids);
 
-	if (part->clumpcurve)
-		partn->clumpcurve = curvemapping_copy(part->clumpcurve);
-	if (part->roughcurve)
-		partn->roughcurve = curvemapping_copy(part->roughcurve);
-	
-	partn->boids = boid_copy_settings(part->boids);
-
-	for (a = 0; a < MAX_MTEX; a++) {
-		if (part->mtex[a]) {
-			partn->mtex[a] = MEM_mallocN(sizeof(MTex), "psys_copy_tex");
-			memcpy(partn->mtex[a], part->mtex[a], sizeof(MTex));
-			id_us_plus((ID *)partn->mtex[a]->tex);
+	for (int a = 0; a < MAX_MTEX; a++) {
+		if (part_src->mtex[a]) {
+			part_dst->mtex[a] = MEM_dupallocN(part_src->mtex[a]);
 		}
 	}
 
-	BLI_duplicatelist(&partn->dupliweights, &part->dupliweights);
-	
-	BKE_id_copy_ensure_local(bmain, &part->id, &partn->id);
+	BLI_duplicatelist(&part_dst->dupliweights, &part_src->dupliweights);
+}
 
-	return partn;
+ParticleSettings *BKE_particlesettings_copy(Main *bmain, const ParticleSettings *part)
+{
+	ParticleSettings *part_copy;
+	BKE_id_copy_ex(bmain, &part->id, (ID **)&part_copy, 0, false);
+	return part_copy;
 }
 
 void BKE_particlesettings_make_local(Main *bmain, ParticleSettings *part, const bool lib_local)
@@ -3779,7 +3787,7 @@ void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *
 					mul_mat3_m4_v3(hairmat, state->vel);
 
 					if (sim->psys->effectors && (part->flag & PART_CHILD_GUIDE) == 0) {
-						do_guides(sim->psys->part, sim->psys->effectors, state, p, state->time);
+						do_guides(sim->eval_ctx, sim->psys->part, sim->psys->effectors, state, p, state->time);
 						/* TODO: proper velocity handling */
 					}
 
@@ -4306,9 +4314,10 @@ void psys_make_billboard(ParticleBillboardData *bb, float xvec[3], float yvec[3]
 	madd_v3_v3fl(center, yvec, bb->offset[1]);
 }
 
-void psys_apply_hair_lattice(Scene *scene, Object *ob, ParticleSystem *psys)
+void psys_apply_hair_lattice(const EvaluationContext *eval_ctx, Scene *scene, Object *ob, ParticleSystem *psys)
 {
 	ParticleSimulationData sim = {0};
+	sim.eval_ctx = eval_ctx;
 	sim.scene = scene;
 	sim.ob = ob;
 	sim.psys = psys;

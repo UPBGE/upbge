@@ -36,7 +36,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
-#include "BLI_stackdefines.h"
+#include "BLI_utildefines_stack.h"
 #include "BLI_bitmap.h"
 #include "BLI_math.h"
 
@@ -205,8 +205,8 @@ BLI_INLINE void madd_v3v3short_fl(float r[3], const short a[3], const float f)
 }
 
 static DerivedMesh *applyModifier(
-        ModifierData *md, Object *ob,
-        DerivedMesh *dm,
+        ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+        Object *ob, DerivedMesh *dm,
         ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *result;

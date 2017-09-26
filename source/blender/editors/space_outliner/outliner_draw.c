@@ -59,6 +59,7 @@
 #include "BKE_object.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 #include "ED_armature.h"
 #include "ED_keyframing.h"
@@ -246,6 +247,30 @@ static void restrictbutton_gp_layer_flag_cb(bContext *C, void *UNUSED(poin), voi
 	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
 }
 
+static void enablebutton_collection_flag_cb(bContext *C, void *poin, void *poin2)
+{
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = poin;
+	LayerCollection *layer_collection = poin2;
+	SceneLayer *scene_layer = BKE_scene_layer_find_from_collection(scene, layer_collection);
+
+	/* We need to toggle the flag since this is called after the flag is already set. */
+	layer_collection->flag ^= COLLECTION_DISABLED;
+
+	if (layer_collection->flag & COLLECTION_DISABLED) {
+		BKE_collection_enable(scene_layer, layer_collection);
+	}
+	else {
+		BKE_collection_disable(scene_layer, layer_collection);
+	}
+
+	DEG_relations_tag_update(bmain);
+	/* TODO(sergey): Use proper flag for tagging here. */
+	DEG_id_tag_update(&scene->id, 0);
+	WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, NULL);
+}
+
 static void restrictbutton_collection_flag_cb(bContext *C, void *poin, void *UNUSED(poin2))
 {
 	Scene *scene = poin;
@@ -337,7 +362,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 						BLI_strncpy(newname, ebone->name, sizeof(ebone->name));
 						BLI_strncpy(ebone->name, oldname, sizeof(ebone->name));
 						ED_armature_bone_rename(obedit->data, oldname, newname);
-						WM_event_add_notifier(C, NC_OBJECT | ND_POSE, OBACT_NEW);
+						WM_event_add_notifier(C, NC_OBJECT | ND_POSE, OBACT_NEW(sl));
 					}
 					break;
 				}
@@ -350,7 +375,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					
 					/* always make current object active */
 					tree_element_active(C, scene, sl, soops, te, OL_SETSEL_NORMAL, true);
-					ob = OBACT_NEW;
+					ob = OBACT_NEW(sl);
 					
 					/* restore bone name */
 					BLI_strncpy(newname, bone->name, sizeof(bone->name));
@@ -367,7 +392,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					
 					/* always make current pose-bone active */
 					tree_element_active(C, scene, sl, soops, te, OL_SETSEL_NORMAL, true);
-					ob = OBACT_NEW;
+					ob = OBACT_NEW(sl);
 
 					BLI_assert(ob->type == OB_ARMATURE);
 					
@@ -559,7 +584,17 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 			else if (tselem->type == TSE_LAYER_COLLECTION) {
 				LayerCollection *collection = te->directdata;
 
+				const bool is_enabled = (collection->flag & COLLECTION_DISABLED) == 0;
+
 				UI_block_emboss_set(block, UI_EMBOSS_NONE);
+
+				bt = uiDefIconButBitS(block, UI_BTYPE_BUT_TOGGLE, COLLECTION_DISABLED, 0,
+				                      is_enabled ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT,
+				                      (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_ENABLEX), te->ys, UI_UNIT_X,
+				                      UI_UNIT_Y, &collection->flag, 0, 0, 0, 0,
+				                      TIP_("Enable/Disable collection from depsgraph"));
+				UI_but_func_set(bt, enablebutton_collection_flag_cb, scene, collection);
+				UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
 
 				bt = uiDefIconButBitS(block, UI_BTYPE_ICON_TOGGLE_N, COLLECTION_VISIBLE, 0, ICON_RESTRICT_VIEW_OFF,
 				                      (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX), te->ys, UI_UNIT_X,
@@ -1120,7 +1155,10 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 			}
 		}
 		else {
-			switch (GS(tselem->id->name)) {
+			/* TODO(sergey): Casting to short here just to handle ID_NLA which is
+			 * NOT inside of IDType enum.
+			 */
+			switch ((short)GS(tselem->id->name)) {
 				case ID_SCE:
 					tselem_draw_icon_uibut(&arg, ICON_SCENE_DATA); break;
 				case ID_ME:
@@ -1190,6 +1228,8 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 					tselem_draw_icon_uibut(&arg, ICON_LINE_DATA); break;
 				case ID_GD:
 					tselem_draw_icon_uibut(&arg, ICON_GREASEPENCIL); break;
+				default:
+					break;
 			}
 		}
 	}
@@ -1217,7 +1257,7 @@ static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, Sce
 			/* active blocks get white circle */
 			if (tselem->type == 0) {
 				if (te->idcode == ID_OB) {
-					active = (OBACT_NEW == (Object *)tselem->id) ? OL_DRAWSEL_NORMAL : OL_DRAWSEL_NONE;
+					active = (OBACT_NEW(sl) == (Object *)tselem->id) ? OL_DRAWSEL_NORMAL : OL_DRAWSEL_NONE;
 				}
 				else if (scene->obedit && scene->obedit->data == tselem->id) {
 					active = OL_DRAWSEL_NORMAL;
@@ -1323,13 +1363,13 @@ static void outliner_draw_tree_element(
 			else if (te->idcode == ID_OB) {
 				Object *ob = (Object *)tselem->id;
 				
-				if (ob == OBACT_NEW || (ob->flag & SELECT)) {
+				if (ob == OBACT_NEW(sl) || (ob->flag & SELECT)) {
 					char col[4] = {0, 0, 0, 0};
 					
 					/* outliner active ob: always white text, circle color now similar to view3d */
 					
 					active = OL_DRAWSEL_ACTIVE;
-					if (ob == OBACT_NEW) {
+					if (ob == OBACT_NEW(sl)) {
 						if (ob->flag & SELECT) {
 							UI_GetThemeColorType4ubv(TH_ACTIVE, SPACE_VIEW3D, col);
 							col[3] = alpha;

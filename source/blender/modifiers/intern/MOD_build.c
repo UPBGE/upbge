@@ -47,6 +47,8 @@
 #include "BKE_particle.h"
 #include "BKE_scene.h"
 
+
+
 #ifdef _OPENMP
 #  include "BKE_mesh.h"  /* BKE_MESH_OMP_LIMIT */
 #endif
@@ -73,8 +75,8 @@ static bool dependsOnTime(ModifierData *UNUSED(md))
 	return true;
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
-                                  DerivedMesh *derivedData,
+static DerivedMesh *applyModifier(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+                                  Object *UNUSED(ob), DerivedMesh *derivedData,
                                   ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *dm = derivedData;

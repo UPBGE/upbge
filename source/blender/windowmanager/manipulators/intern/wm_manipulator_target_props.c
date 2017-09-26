@@ -87,7 +87,7 @@ void WM_manipulator_target_property_def_rna_ptr(
 	wmManipulatorProperty *mpr_prop = WM_manipulator_target_property_at_index(mpr, mpr_prop_type->index_in_type);
 
 	/* if manipulator evokes an operator we cannot use it for property manipulation */
-	mpr->op_data.type = NULL;
+	BLI_assert(mpr->op_data == NULL);
 
 	mpr_prop->type = mpr_prop_type;
 
@@ -116,7 +116,7 @@ void WM_manipulator_target_property_def_func_ptr(
 	wmManipulatorProperty *mpr_prop = WM_manipulator_target_property_at_index(mpr, mpr_prop_type->index_in_type);
 
 	/* if manipulator evokes an operator we cannot use it for property manipulation */
-	mpr->op_data.type = NULL;
+	BLI_assert(mpr->op_data == NULL);
 
 	mpr_prop->type = mpr_prop_type;
 
@@ -211,7 +211,7 @@ void WM_manipulator_target_property_value_get_array(
 		mpr_prop->custom_func.value_get_fn(mpr, mpr_prop, value);
 		return;
 	}
-	return RNA_property_float_get_array(&mpr_prop->ptr, mpr_prop->prop, value);
+	RNA_property_float_get_array(&mpr_prop->ptr, mpr_prop->prop, value);
 }
 
 void WM_manipulator_target_property_value_set_array(
@@ -227,17 +227,33 @@ void WM_manipulator_target_property_value_set_array(
 	RNA_property_update(C, &mpr_prop->ptr, mpr_prop->prop);
 }
 
-void WM_manipulator_target_property_range_get(
+bool WM_manipulator_target_property_range_get(
         const wmManipulator *mpr, wmManipulatorProperty *mpr_prop,
         float range[2])
 {
-	if (mpr_prop->custom_func.range_get_fn) {
-		mpr_prop->custom_func.range_get_fn(mpr, mpr_prop, range);
-		return;
+	if (mpr_prop->custom_func.value_get_fn) {
+		if (mpr_prop->custom_func.range_get_fn) {
+			mpr_prop->custom_func.range_get_fn(mpr, mpr_prop, range);
+			return true;
+		}
+		else{
+			return false;
+
+		}
 	}
 
 	float step, precision;
 	RNA_property_float_ui_range(&mpr_prop->ptr, mpr_prop->prop, &range[0], &range[1], &step, &precision);
+	return true;
+}
+
+int WM_manipulator_target_property_array_length(
+        const wmManipulator *UNUSED(mpr), wmManipulatorProperty *mpr_prop)
+{
+	if (mpr_prop->custom_func.value_get_fn) {
+		return mpr_prop->type->array_length;
+	}
+	return RNA_property_array_length(&mpr_prop->ptr, mpr_prop->prop);
 }
 
 /** \} */

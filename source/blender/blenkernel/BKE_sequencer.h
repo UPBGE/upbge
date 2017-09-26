@@ -335,7 +335,8 @@ bool BKE_sequence_base_shuffle(
 bool BKE_sequence_base_shuffle_time(ListBase *seqbasep, struct Scene *evil_scene);
 bool BKE_sequence_base_isolated_sel_check(struct ListBase *seqbase);
 void BKE_sequencer_free_imbuf(struct Scene *scene, struct ListBase *seqbasep, bool for_render);
-struct Sequence *BKE_sequence_dupli_recursive(struct Scene *scene, struct Scene *scene_to, struct Sequence *seq, int dupe_flag);
+struct Sequence *BKE_sequence_dupli_recursive(
+        const struct Scene *scene_src, struct Scene *scene_dst, struct Sequence *seq, int dupe_flag);
 int BKE_sequence_swap(struct Sequence *seq_a, struct Sequence *seq_b, const char **error_str);
 
 bool BKE_sequence_check_depend(struct Sequence *seq, struct Sequence *cur);
@@ -352,8 +353,8 @@ void BKE_sequencer_refresh_sound_length(struct Scene *scene);
 
 void BKE_sequence_base_unique_name_recursive(ListBase *seqbasep, struct Sequence *seq);
 void BKE_sequence_base_dupli_recursive(
-        struct Scene *scene, struct Scene *scene_to, ListBase *nseqbase, ListBase *seqbase,
-        int dupe_flag);
+        const struct Scene *scene_src, struct Scene *scene_dst, struct ListBase *nseqbase, const struct ListBase *seqbase,
+        int dupe_flag, const int flag);
 bool BKE_sequence_is_valid_check(struct Sequence *seq);
 
 void BKE_sequencer_clear_scene_in_allseqs(struct Main *bmain, struct Scene *sce);
@@ -421,7 +422,7 @@ struct Sequence *BKE_sequencer_add_movie_strip(struct bContext *C, ListBase *seq
 
 /* view3d draw callback, run when not in background view */
 typedef struct ImBuf *(*SequencerDrawView)(
-        struct Scene *, struct SceneLayer *sl, struct Object *, int, int,
+        const struct EvaluationContext *eval_ctx, struct Scene *, struct SceneLayer *sl, struct Object *, int, int,
         unsigned int, int, bool, bool, bool,
         int, int, bool, const char *,
         struct GPUFX *, struct GPUOffScreen *, char[256]);

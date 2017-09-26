@@ -35,6 +35,8 @@
 #include "bmesh.h"
 #include "bmesh_tools.h"
 
+#include "MOD_modifiertypes.h"
+
 static DerivedMesh *triangulate_dm(DerivedMesh *dm, const int quad_method, const int ngon_method)
 {
 	DerivedMesh *result;
@@ -83,6 +85,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 }
 
 static DerivedMesh *applyModifier(ModifierData *md,
+                                  const struct EvaluationContext *UNUSED(eval_ctx),
                                   Object *UNUSED(ob),
                                   DerivedMesh *dm,
                                   ModifierApplyFlag UNUSED(flag))

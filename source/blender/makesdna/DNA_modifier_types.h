@@ -98,7 +98,7 @@ typedef enum ModifierMode {
 	eModifierMode_Expanded          = (1 << 4),
 	eModifierMode_Virtual           = (1 << 5),
 	eModifierMode_ApplyOnSpline     = (1 << 6),
-	eModifierMode_DisableTemporary  = (1 << 31)
+	eModifierMode_DisableTemporary  = (1u << 31)
 } ModifierMode;
 
 typedef struct ModifierData {
@@ -654,7 +654,8 @@ typedef struct BooleanModifierData {
 	struct Object *object;
 	char operation;
 	char solver;
-	char pad[2];
+	char pad;
+	char bm_flag;
 	float double_threshold;
 } BooleanModifierData;
 
@@ -668,6 +669,13 @@ typedef enum {
 	eBooleanModifierSolver_Carve    = 0,
 	eBooleanModifierSolver_BMesh = 1,
 } BooleanSolver;
+
+/* bm_flag (only used when G_DEBUG) */
+enum {
+	eBooleanModifierBMeshFlag_BMesh_Separate            = (1 << 0),
+	eBooleanModifierBMeshFlag_BMesh_NoDissolve          = (1 << 1),
+	eBooleanModifierBMeshFlag_BMesh_NoConnectRegions    = (1 << 2),
+};
 
 typedef struct MDefInfluence {
 	int vertex;
@@ -924,9 +932,10 @@ typedef struct ScrewModifierData {
 	unsigned int iter;
 	float screw_ofs;
 	float angle;
-	char axis;
-	char pad;
+	float merge_dist;
 	short flag;
+	char axis;
+	char pad[5];
 } ScrewModifierData;
 
 enum {
@@ -937,6 +946,7 @@ enum {
 	MOD_SCREW_SMOOTH_SHADING = (1 << 5),
 	MOD_SCREW_UV_STRETCH_U   = (1 << 6),
 	MOD_SCREW_UV_STRETCH_V   = (1 << 7),
+	MOD_SCREW_MERGE          = (1 << 8),
 };
 
 typedef struct OceanModifierData {
@@ -1515,7 +1525,7 @@ enum {
 	MOD_DATATRANSFER_USE_VERT         = 1 << 28,
 	MOD_DATATRANSFER_USE_EDGE         = 1 << 29,
 	MOD_DATATRANSFER_USE_LOOP         = 1 << 30,
-	MOD_DATATRANSFER_USE_POLY         = 1 << 31,
+	MOD_DATATRANSFER_USE_POLY         = 1u << 31,
 };
 
 /* Set Split Normals modifier */

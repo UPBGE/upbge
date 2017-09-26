@@ -430,7 +430,7 @@ void wm_clear_default_size(bContext *C)
 /* on startup, it adds all data, for matching */
 void wm_add_default(bContext *C)
 {
-	wmWindowManager *wm = BKE_libblock_alloc(CTX_data_main(C), ID_WM, "WinMan");
+	wmWindowManager *wm = BKE_libblock_alloc(CTX_data_main(C), ID_WM, "WinMan", 0);
 	wmWindow *win;
 	bScreen *screen = CTX_wm_screen(C); /* XXX from file read hrmf */
 	struct WorkSpace *workspace = G.main->workspaces.last;
@@ -497,6 +497,10 @@ void wm_close_and_free_all(bContext *C, ListBase *wmlist)
 
 void WM_main(bContext *C)
 {
+	/* Single refresh before handling events.
+	 * This ensures we don't run operators before the depsgraph has been evaluated. */
+	wm_event_do_refresh_wm_and_depsgraph(C);
+
 	while (1) {
 		
 		/* get events from ghost, handle window events, add to window queues */

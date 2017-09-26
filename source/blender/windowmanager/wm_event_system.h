@@ -52,7 +52,7 @@ typedef struct wmEventHandler {
 	wmKeyMap *keymap;                   /* pointer to builtin/custom keymaps */
 	const rcti *bblocal, *bbwin;              /* optional local and windowspace bb */
 
-	/* modal operator handler and WM_HANDLER_FILESELECT */
+	/* modal operator handler */
 	wmOperator *op;                     /* for derived/modal handlers */
 	struct ScrArea *op_area;            /* for derived/modal handlers */
 	struct ARegion *op_region;          /* for derived/modal handlers */
@@ -88,7 +88,8 @@ void        wm_event_do_handlers    (bContext *C);
 
 void        wm_event_add_ghostevent (wmWindowManager *wm, wmWindow *win, int type, int time, void *customdata);
 
-void        wm_event_do_notifiers   (bContext *C);
+void        wm_event_do_refresh_wm_and_depsgraph(bContext *C);
+void        wm_event_do_notifiers(bContext *C);
 
 /* wm_keymap.c */
 

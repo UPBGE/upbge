@@ -46,6 +46,8 @@
 #include "BKE_modifier.h"
 #include "BKE_subsurf.h"
 
+#include "MOD_modifiertypes.h"
+
 static void initData(ModifierData *md)
 {
 	MultiresModifierData *mmd = (MultiresModifierData *)md;
@@ -65,8 +67,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 	modifier_copyData_generic(md, target);
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
-                                  ModifierApplyFlag flag)
+static DerivedMesh *applyModifier(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob,
+                                  DerivedMesh *dm, ModifierApplyFlag flag)
 {
 	MultiresModifierData *mmd = (MultiresModifierData *)md;
 	DerivedMesh *result;

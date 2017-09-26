@@ -32,6 +32,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_listbase.h"
 #include "BLI_mempool.h"
+#include "BLI_utildefines_iter.h"
 
 #include "bmesh.h"
 
@@ -708,21 +709,16 @@ void BM_edgeloop_expand(
 	}
 
 	if (el_store->len < el_store_len) {
-		const int step = max_ii(1, el_store->len / (el_store->len % el_store_len));
-		LinkData *node_first = el_store->verts.first;
-		LinkData *node_curr = node_first;
+		LinkData *node_curr = el_store->verts.first;
 
-		do {
-			LinkData *node_curr_init = node_curr;
-			LinkData *node_curr_copy;
-			int i = 0;
-			BLI_LISTBASE_CIRCULAR_FORWARD_BEGIN (&el_store->verts, node_curr, node_curr_init) {
-				if (i++ < step) {
-					break;
-				}
+		int iter_prev = 0;
+		BLI_FOREACH_SPARSE_RANGE(el_store->len, (el_store_len - el_store->len), iter) {
+			while (iter_prev < iter) {
+				node_curr = node_curr->next;
+				iter_prev += 1;
 			}
-			BLI_LISTBASE_CIRCULAR_FORWARD_END (&el_store->verts, node_curr, node_curr_init);
 
+			LinkData *node_curr_copy;
 			node_curr_copy = MEM_dupallocN(node_curr);
 			if (split == false) {
 				BLI_insertlinkafter(&el_store->verts, node_curr, node_curr_copy);
@@ -730,7 +726,8 @@ void BM_edgeloop_expand(
 			}
 			else {
 				if (node_curr->next || (el_store->flag & BM_EDGELOOP_IS_CLOSED)) {
-					EDGE_SPLIT(node_curr_copy, node_curr->next ? node_curr->next : (LinkData *)el_store->verts.first);
+					EDGE_SPLIT(node_curr_copy,
+					           node_curr->next ? node_curr->next : (LinkData *)el_store->verts.first);
 					BLI_insertlinkafter(&el_store->verts, node_curr, node_curr_copy);
 					node_curr = node_curr_copy->next;
 				}
@@ -742,9 +739,11 @@ void BM_edgeloop_expand(
 				split_swap = !split_swap;
 			}
 			el_store->len++;
-		} while (el_store->len < el_store_len);
+			iter_prev += 1;
+		}
 	}
 
+#undef BKE_FOREACH_SUBSET_OF_RANGE
 #undef EDGE_SPLIT
 
 	BLI_assert(el_store->len == el_store_len);

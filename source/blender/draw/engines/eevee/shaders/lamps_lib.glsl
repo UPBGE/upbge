@@ -1,23 +1,10 @@
 
-uniform sampler2DArray shadowCubes;
-uniform sampler2DArrayShadow shadowCascades;
+uniform sampler2DArray shadowTexture;
 
 layout(std140) uniform shadow_block {
+	ShadowData        shadows_data[MAX_SHADOW];
 	ShadowCubeData    shadows_cube_data[MAX_SHADOW_CUBE];
-	ShadowMapData     shadows_map_data[MAX_SHADOW_MAP];
 	ShadowCascadeData shadows_cascade_data[MAX_SHADOW_CASCADE];
-};
-
-layout(std140) uniform probe_block {
-	CubeData probes_data[MAX_PROBE];
-};
-
-layout(std140) uniform grid_block {
-	GridData grids_data[MAX_GRID];
-};
-
-layout(std140) uniform planar_block {
-	PlanarData planars_data[MAX_PLANAR];
 };
 
 layout(std140) uniform light_block {
@@ -31,60 +18,131 @@ layout(std140) uniform light_block {
 #define HEMI     3.0
 #define AREA     4.0
 
-float shadow_cubemap(float shid, vec4 l_vector)
+/* ----------------------------------------------------------- */
+/* ----------------------- Shadow tests ---------------------- */
+/* ----------------------------------------------------------- */
+
+float shadow_test_esm(float z, float dist, float exponent)
 {
-	ShadowCubeData scd = shadows_cube_data[int(shid)];
-
-	vec3 cubevec = -l_vector.xyz / l_vector.w;
-	float dist = l_vector.w - scd.sh_cube_bias;
-
-	float z = texture_octahedron(shadowCubes, vec4(cubevec, shid)).r;
-
-	float esm_test = saturate(exp(scd.sh_cube_exp * (z - dist)));
-	// float sh_test = step(0, z - dist);
-
-	return esm_test;
+	return saturate(exp(exponent * (z - dist)));
 }
 
-float shadow_cascade(float shid, vec3 W)
+float shadow_test_pcf(float z, float dist)
 {
-	/* Shadow Cascade */
-	shid -= (MAX_SHADOW_CUBE + MAX_SHADOW_MAP);
-	ShadowCascadeData smd = shadows_cascade_data[int(shid)];
+	return step(0, z - dist);
+}
 
-	/* Finding Cascade index */
-	vec4 z = vec4(-dot(cameraPos - W, cameraForward));
-	vec4 comp = step(z, smd.split_distances);
-	float cascade = dot(comp, comp);
-	mat4 shadowmat;
-	float bias;
+float shadow_test_vsm(vec2 moments, float dist, float bias, float bleed_bias)
+{
+	float p = 0.0;
 
-	/* Manual Unrolling of a loop for better performance.
-	 * Doing fetch directly with cascade index leads to
-	 * major performance impact. (0.27ms -> 10.0ms for 1 light) */
-	if (cascade == 0.0) {
-		shadowmat = smd.shadowmat[0];
-		bias = smd.bias[0];
-	}
-	else if (cascade == 1.0) {
-		shadowmat = smd.shadowmat[1];
-		bias = smd.bias[1];
-	}
-	else if (cascade == 2.0) {
-		shadowmat = smd.shadowmat[2];
-		bias = smd.bias[2];
+	if (dist <= moments.x)
+		p = 1.0;
+
+	float variance = moments.y - (moments.x * moments.x);
+	variance = max(variance, bias / 10.0);
+
+	float d = moments.x - dist;
+	float p_max = variance / (variance + d * d);
+
+	/* Now reduce light-bleeding by removing the [0, x] tail and linearly rescaling (x, 1] */
+	p_max = clamp((p_max - bleed_bias) / (1.0 - bleed_bias), 0.0, 1.0);
+
+	return max(p, p_max);
+}
+
+
+/* ----------------------------------------------------------- */
+/* ----------------------- Shadow types ---------------------- */
+/* ----------------------------------------------------------- */
+
+float shadow_cubemap(ShadowData sd, ShadowCubeData scd, float texid, vec3 W)
+{
+	vec3 cubevec = W - scd.position.xyz;
+	float dist = length(cubevec);
+
+	/* If fragment is out of shadowmap range, do not occlude */
+	/* XXX : we check radial distance against a cubeface distance.
+	 * We loose quite a bit of valid area. */
+	if (dist > sd.sh_far)
+		return 1.0;
+
+	cubevec /= dist;
+
+#if defined(SHADOW_VSM)
+	vec2 moments = texture_octahedron(shadowTexture, vec4(cubevec, texid)).rg;
+#else
+	float z = texture_octahedron(shadowTexture, vec4(cubevec, texid)).r;
+#endif
+
+#if defined(SHADOW_VSM)
+	return shadow_test_vsm(moments, dist, sd.sh_bias, sd.sh_bleed);
+#elif defined(SHADOW_ESM)
+	return shadow_test_esm(z, dist - sd.sh_bias, sd.sh_exp);
+#else
+	return shadow_test_pcf(z, dist - sd.sh_bias);
+#endif
+}
+
+float evaluate_cascade(ShadowData sd, mat4 shadowmat, vec3 W, float range, float texid)
+{
+	vec4 shpos = shadowmat * vec4(W, 1.0);
+	float dist = shpos.z * range;
+
+#if defined(SHADOW_VSM)
+	vec2 moments = texture(shadowTexture, vec3(shpos.xy, texid)).rg;
+#else
+	float z = texture(shadowTexture, vec3(shpos.xy, texid)).r;
+#endif
+
+	float vis;
+#if defined(SHADOW_VSM)
+	vis = shadow_test_vsm(moments, dist, sd.sh_bias, sd.sh_bleed);
+#elif defined(SHADOW_ESM)
+	vis = shadow_test_esm(z, dist - sd.sh_bias, sd.sh_exp);
+#else
+	vis = shadow_test_pcf(z, dist - sd.sh_bias);
+#endif
+
+	/* If fragment is out of shadowmap range, do not occlude */
+	if (shpos.z < 1.0 && shpos.z > 0.0) {
+		return vis;
 	}
 	else {
-		shadowmat = smd.shadowmat[3];
-		bias = smd.bias[3];
+		return 1.0;
 	}
-
-	vec4 shpos = shadowmat * vec4(W, 1.0);
-	shpos.z -= bias * shpos.w;
-	shpos.xyz /= shpos.w;
-
-	return texture(shadowCascades, vec4(shpos.xy, shid * float(MAX_CASCADE_NUM) + cascade, shpos.z));
 }
+
+float shadow_cascade(ShadowData sd, ShadowCascadeData scd, float texid, vec3 W)
+{
+	vec4 view_z = vec4(dot(W - cameraPos, cameraForward));
+	vec4 weights = smoothstep(scd.split_end_distances, scd.split_start_distances.yzwx, view_z);
+	weights.yzw -= weights.xyz;
+
+	vec4 vis = vec4(1.0);
+	float range = abs(sd.sh_far - sd.sh_near); /* Same factor as in get_cascade_world_distance(). */
+
+	/* Branching using (weights > 0.0) is reaally slooow on intel so avoid it for now. */
+	vis.x = evaluate_cascade(sd, scd.shadowmat[0], W, range, texid + 0);
+	vis.y = evaluate_cascade(sd, scd.shadowmat[1], W, range, texid + 1);
+	vis.z = evaluate_cascade(sd, scd.shadowmat[2], W, range, texid + 2);
+	vis.w = evaluate_cascade(sd, scd.shadowmat[3], W, range, texid + 3);
+
+	float weight_sum = dot(vec4(1.0), weights);
+	if (weight_sum > 0.9999) {
+		float vis_sum = dot(vec4(1.0), vis * weights);
+		return vis_sum / weight_sum;
+	}
+	else {
+		float vis_sum = dot(vec4(1.0), vis * step(0.001, weights));
+		return mix(1.0, vis_sum, weight_sum);
+	}
+}
+
+/* ----------------------------------------------------------- */
+/* --------------------- Light Functions --------------------- */
+/* ----------------------------------------------------------- */
+#define MAX_MULTI_SHADOW 4
 
 float light_visibility(LightData ld, vec3 W, vec4 l_vector)
 {
@@ -109,11 +167,24 @@ float light_visibility(LightData ld, vec3 W, vec4 l_vector)
 
 #if !defined(VOLUMETRICS) || defined(VOLUME_SHADOW)
 	/* shadowing */
-	if (ld.l_shadowid >= (MAX_SHADOW_MAP + MAX_SHADOW_CUBE)) {
-		vis *= shadow_cascade(ld.l_shadowid, W);
-	}
-	else if (ld.l_shadowid >= 0.0) {
-		vis *= shadow_cubemap(ld.l_shadowid, l_vector);
+	if (ld.l_shadowid >= 0.0) {
+		ShadowData data = shadows_data[int(ld.l_shadowid)];
+		if (ld.l_type == SUN) {
+			/* TODO : MSM */
+			// for (int i = 0; i < MAX_MULTI_SHADOW; ++i) {
+				vis *= shadow_cascade(
+					data, shadows_cascade_data[int(data.sh_data_start)],
+					data.sh_tex_start, W);
+			// }
+		}
+		else {
+			/* TODO : MSM */
+			// for (int i = 0; i < MAX_MULTI_SHADOW; ++i) {
+				vis *= shadow_cubemap(
+					data, shadows_cube_data[int(data.sh_data_start)],
+					data.sh_tex_start, W);
+			// }
+		}
 	}
 #endif
 

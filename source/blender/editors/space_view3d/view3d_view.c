@@ -55,6 +55,9 @@
 
 #include "BIF_glutil.h"
 
+#include "UI_resources.h"
+
+#include "GPU_glew.h"
 #include "GPU_select.h"
 #include "GPU_matrix.h"
 
@@ -443,6 +446,9 @@ void ED_view3d_smooth_view_force_finish(
         View3D *v3d, ARegion *ar)
 {
 	RegionView3D *rv3d = ar->regiondata;
+	EvaluationContext eval_ctx;
+
+	CTX_data_eval_ctx(C, &eval_ctx);
 
 	if (rv3d && rv3d->sms) {
 		rv3d->sms->time_allowed = 0.0;  /* force finishing */
@@ -451,7 +457,7 @@ void ED_view3d_smooth_view_force_finish(
 		/* force update of view matrix so tools that run immediately after
 		 * can use them without redrawing first */
 		Scene *scene = CTX_data_scene(C);
-		ED_view3d_update_viewmat(scene, v3d, ar, NULL, NULL, NULL);
+		ED_view3d_update_viewmat(&eval_ctx, scene, v3d, ar, NULL, NULL, NULL);
 	}
 }
 
@@ -810,18 +816,99 @@ bool ED_view3d_boundbox_clip(RegionView3D *rv3d, const BoundBox *bb)
 	return view3d_boundbox_clip_m4(bb, rv3d->persmatob);
 }
 
-float ED_view3d_depth_read_cached(const ViewContext *vc, int x, int y)
+/* -------------------------------------------------------------------- */
+
+/** \name Depth Utilities
+ * \{ */
+
+float ED_view3d_depth_read_cached(const ViewContext *vc, const int mval[2])
 {
 	ViewDepths *vd = vc->rv3d->depths;
 		
-	x -= vc->ar->winrct.xmin;
-	y -= vc->ar->winrct.ymin;
+	int x = mval[0];
+	int y = mval[1];
 
-	if (vd && vd->depths && x > 0 && y > 0 && x < vd->w && y < vd->h)
+	if (vd && vd->depths && x > 0 && y > 0 && x < vd->w && y < vd->h) {
 		return vd->depths[y * vd->w + x];
-	else
-		return 1;
+	}
+	else {
+		BLI_assert(1.0 <= vd->depth_range[1]);
+		return 1.0f;
+	}
 }
+
+bool ED_view3d_depth_read_cached_normal(
+        const ViewContext *vc, const int mval[2],
+        float r_normal[3])
+{
+	/* Note: we could support passing in a radius.
+	 * For now just read 9 pixels. */
+
+	/* pixels surrounding */
+	bool  depths_valid[9] = {false};
+	float coords[9][3] = {{0}};
+
+	ARegion *ar = vc->ar;
+	const ViewDepths *depths = vc->rv3d->depths;
+
+	for (int x = 0, i = 0; x < 2; x++) {
+		for (int y = 0; y < 2; y++) {
+			const int mval_ofs[2] = {mval[0] + (x - 1), mval[1] + (y - 1)};
+
+			const double depth = (double)ED_view3d_depth_read_cached(vc, mval_ofs);
+			if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
+				if (ED_view3d_depth_unproject(ar, mval_ofs, depth, coords[i])) {
+					depths_valid[i] = true;
+				}
+			}
+			i++;
+		}
+	}
+
+	const int edges[2][6][2] = {
+	    /* x edges */
+	    {{0, 1}, {1, 2},
+	     {3, 4}, {4, 5},
+	     {6, 7}, {7, 8}},
+	    /* y edges */
+	    {{0, 3}, {3, 6},
+	     {1, 4}, {4, 7},
+	     {2, 5}, {5, 8}},
+	};
+
+	float cross[2][3] = {{0.0f}};
+
+	for (int i = 0; i < 6; i++) {
+		for (int axis = 0; axis < 2; axis++) {
+			if (depths_valid[edges[axis][i][0]] && depths_valid[edges[axis][i][1]]) {
+				float delta[3];
+				sub_v3_v3v3(delta, coords[edges[axis][i][0]], coords[edges[axis][i][1]]);
+				add_v3_v3(cross[axis], delta);
+			}
+		}
+	}
+
+	cross_v3_v3v3(r_normal, cross[0], cross[1]);
+
+	if (normalize_v3(r_normal) != 0.0f) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+bool ED_view3d_depth_unproject(
+        const ARegion *ar,
+        const int mval[2], const double depth,
+        float r_location_world[3])
+{
+	float centx = (float)mval[0] + 0.5f;
+	float centy = (float)mval[1] + 0.5f;
+	return ED_view3d_unproject(ar, centx, centy, depth, r_location_world);
+}
+
+/** \} */
 
 void ED_view3d_depth_tag_update(RegionView3D *rv3d)
 {
@@ -1023,11 +1110,11 @@ bool ED_view3d_lock(RegionView3D *rv3d)
 }
 
 /* don't set windows active in here, is used by renderwin too */
-void view3d_viewmatrix_set(Scene *scene, const View3D *v3d, RegionView3D *rv3d)
+void view3d_viewmatrix_set(const EvaluationContext *eval_ctx, Scene *scene, const View3D *v3d, RegionView3D *rv3d)
 {
 	if (rv3d->persp == RV3D_CAMOB) {      /* obs/camera */
 		if (v3d->camera) {
-			BKE_object_where_is_calc(scene, v3d->camera);
+			BKE_object_where_is_calc(eval_ctx, scene, v3d->camera);
 			obmat_to_viewmat(rv3d, v3d->camera);
 		}
 		else {
@@ -1112,9 +1199,10 @@ void view3d_opengl_select_cache_end(void)
  * \note (vc->obedit == NULL) can be set to explicitly skip edit-object selection.
  */
 int view3d_opengl_select(
-        ViewContext *vc, unsigned int *buffer, unsigned int bufsize, const rcti *input,
+        const EvaluationContext *eval_ctx, ViewContext *vc, unsigned int *buffer, unsigned int bufsize, const rcti *input,
         eV3DSelectMode select_mode)
 {
+	struct bThemeState theme_state;
 	Depsgraph *graph = vc->depsgraph;
 	Scene *scene = vc->scene;
 	View3D *v3d = vc->v3d;
@@ -1160,6 +1248,10 @@ int view3d_opengl_select(
 		}
 	}
 
+	/* Tools may request depth outside of regular drawing code. */
+	UI_Theme_Store(&theme_state);
+	UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
+
 	/* Re-use cache (rect must be smaller then the cached)
 	 * other context is assumed to be unchanged */
 	if (GPU_select_is_cached()) {
@@ -1173,7 +1265,7 @@ int view3d_opengl_select(
 
 	/* Important we use the 'viewmat' and don't re-calculate since
 	 * the object & bone view locking takes 'rect' into account, see: T51629. */
-	ED_view3d_draw_setup_view(vc->win, scene, ar, v3d, vc->rv3d->viewmat, NULL, &rect);
+	ED_view3d_draw_setup_view(vc->win, eval_ctx, scene, ar, v3d, vc->rv3d->viewmat, NULL, &rect);
 
 	if (v3d->drawtype > OB_WIRE) {
 		v3d->zbuf = true;
@@ -1217,7 +1309,7 @@ int view3d_opengl_select(
 	}
 
 	G.f &= ~G_PICKSEL;
-	ED_view3d_draw_setup_view(vc->win, scene, ar, v3d, vc->rv3d->viewmat, NULL, NULL);
+	ED_view3d_draw_setup_view(vc->win, eval_ctx, scene, ar, v3d, vc->rv3d->viewmat, NULL, NULL);
 	
 	if (v3d->drawtype > OB_WIRE) {
 		v3d->zbuf = 0;
@@ -1229,6 +1321,8 @@ int view3d_opengl_select(
 
 finally:
 	if (hits < 0) printf("Too many objects in select buffer\n");  /* XXX make error message */
+
+	UI_Theme_Restore(&theme_state);
 
 	return hits;
 }

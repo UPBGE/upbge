@@ -4394,10 +4394,13 @@ static void sculpt_stroke_modifiers_check(const bContext *C, Object *ob)
 	SculptSession *ss = ob->sculpt;
 
 	if (ss->kb || ss->modifiers_active) {
+		EvaluationContext eval_ctx;
 		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 		Brush *brush = BKE_paint_brush(&sd->paint);
 
-		BKE_sculpt_update_mesh_elements(CTX_data_scene(C), sd, ob,
+		CTX_data_eval_ctx(C, &eval_ctx);
+
+		BKE_sculpt_update_mesh_elements(&eval_ctx, CTX_data_scene(C), sd, ob,
 		                            sculpt_any_smooth_mode(brush, ss->cache, 0), false);
 	}
 }
@@ -4554,11 +4557,14 @@ static bool sculpt_brush_stroke_init(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
+	EvaluationContext eval_ctx;
 	SculptSession *ss = CTX_data_active_object(C)->sculpt;
 	Brush *brush = BKE_paint_brush(&sd->paint);
 	int mode = RNA_enum_get(op->ptr, "mode");
 	bool is_smooth;
 	bool need_mask = false;
+
+	CTX_data_eval_ctx(C, &eval_ctx);
 
 	if (brush->sculpt_tool == SCULPT_TOOL_MASK) {
 		need_mask = true;
@@ -4568,7 +4574,7 @@ static bool sculpt_brush_stroke_init(bContext *C, wmOperator *op)
 	sculpt_brush_init_tex(scene, sd, ss);
 
 	is_smooth = sculpt_any_smooth_mode(brush, NULL, mode);
-	BKE_sculpt_update_mesh_elements(scene, sd, ob, is_smooth, need_mask);
+	BKE_sculpt_update_mesh_elements(&eval_ctx, scene, sd, ob, is_smooth, need_mask);
 
 	return 1;
 }
@@ -4663,8 +4669,11 @@ static bool sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
                                     const float mouse[2])
 {
 	/* Don't start the stroke until mouse goes over the mesh.
-	 * note: mouse will only be null when re-executing the saved stroke. */
-	if (!mouse || over_mesh(C, op, mouse[0], mouse[1])) {
+	 * note: mouse will only be null when re-executing the saved stroke.
+	 * We have exception for 'exec' strokes since they may not set 'mouse', only 'location', see: T52195. */
+	if (((op->flag & OP_IS_INVOKE) == 0) ||
+	    (mouse == NULL) || over_mesh(C, op, mouse[0], mouse[1]))
+	{
 		Object *ob = CTX_data_active_object(C);
 		SculptSession *ss = ob->sculpt;
 		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
@@ -4725,7 +4734,7 @@ static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *UNUSED(st
 	 * Could be optimized later, but currently don't think it's so
 	 * much common scenario.
 	 *
-	 * Same applies to the DAG_id_tag_update() invoked from
+	 * Same applies to the DEG_id_tag_update() invoked from
 	 * sculpt_flush_update().
 	 */
 	if (ss->modifiers_active) {
@@ -4995,10 +5004,13 @@ void sculpt_update_after_dynamic_topology_toggle(bContext *C)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
+	EvaluationContext eval_ctx;
 	Sculpt *sd = scene->toolsettings->sculpt;
 
+	CTX_data_eval_ctx(C, &eval_ctx);
+
 	/* Create the PBVH */
-	BKE_sculpt_update_mesh_elements(scene, sd, ob, false, false);
+	BKE_sculpt_update_mesh_elements(&eval_ctx, scene, sd, ob, false, false);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 }
 
@@ -5332,11 +5344,15 @@ static void SCULPT_OT_symmetrize(wmOperatorType *ot)
 
 /**** Toggle operator for turning sculpt mode on or off ****/
 
-static void sculpt_init_session(Scene *scene, Object *ob)
+static void sculpt_init_session(const bContext *C, Scene *scene, Object *ob)
 {
+	EvaluationContext eval_ctx;
+
+	CTX_data_eval_ctx(C, &eval_ctx);
+
 	ob->sculpt = MEM_callocN(sizeof(SculptSession), "sculpt session");
 
-	BKE_sculpt_update_mesh_elements(scene, scene->toolsettings->sculpt, ob, 0, false);
+	BKE_sculpt_update_mesh_elements(&eval_ctx, scene, scene->toolsettings->sculpt, ob, 0, false);
 }
 
 
@@ -5428,7 +5444,7 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 		if (ob->sculpt)
 			BKE_sculptsession_free(ob);
 
-		sculpt_init_session(scene, ob);
+		sculpt_init_session(C, scene, ob);
 
 		/* Mask layer is required */
 		if (mmd) {
@@ -5534,7 +5550,7 @@ static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *UNUSED(op))
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
 	float size;
-	float bb_min[3], bb_max[3];
+	float bb_min[3], bb_max[3], center[3], dim[3];
 	int i, totnodes;
 	PBVHNode **nodes;
 
@@ -5546,11 +5562,12 @@ static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *UNUSED(op))
 	for (i = 0; i < totnodes; i++) {
 		BKE_pbvh_node_mark_topology_update(nodes[i]);
 	}
-	/* get the bounding box, store the size to bb_max and center (zero) to bb_min */
+	/* get the bounding box, it's center and size */
 	BKE_pbvh_bounding_box(ob->sculpt->pbvh, bb_min, bb_max);
-	sub_v3_v3(bb_max, bb_min);
-	zero_v3(bb_min);
-	size = max_fff(bb_max[0], bb_max[1], bb_max[2]);
+	add_v3_v3v3(center, bb_min, bb_max);
+	mul_v3_fl(center, 0.5f);
+	sub_v3_v3v3(dim, bb_max, bb_min);
+	size = max_fff(dim[0], dim[1], dim[2]);
 
 	/* update topology size */
 	BKE_pbvh_bmesh_detail_size_set(ss->pbvh, 1.0f / sd->constant_detail);
@@ -5560,7 +5577,7 @@ static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *UNUSED(op))
 
 	while (BKE_pbvh_bmesh_update_topology(
 	               ss->pbvh, PBVH_Collapse | PBVH_Subdivide,
-	               bb_min, NULL, size))
+	               center, NULL, size))
 	{
 		for (i = 0; i < totnodes; i++)
 			BKE_pbvh_node_mark_topology_update(nodes[i]);

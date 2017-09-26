@@ -37,6 +37,7 @@
 struct RigidBodyWorld;
 struct RigidBodyOb;
 
+struct EvaluationContext;
 struct Scene;
 struct Object;
 
@@ -49,8 +50,8 @@ void BKE_rigidbody_free_constraint(struct Object *ob);
 
 /* ...... */
 
-struct RigidBodyOb *BKE_rigidbody_copy_object(const struct Object *ob);
-struct RigidBodyCon *BKE_rigidbody_copy_constraint(const struct Object *ob);
+struct RigidBodyOb *BKE_rigidbody_copy_object(const struct Object *ob, const int flag);
+struct RigidBodyCon *BKE_rigidbody_copy_constraint(const struct Object *ob, const int flag);
 
 /* Callback format for performing operations on ID-pointers for rigidbody world. */
 typedef void (*RigidbodyWorldIDFunc)(struct RigidBodyWorld *rbw, struct ID **idpoin, void *userdata, int cb_flag);
@@ -66,7 +67,7 @@ struct RigidBodyOb *BKE_rigidbody_create_object(struct Scene *scene, struct Obje
 struct RigidBodyCon *BKE_rigidbody_create_constraint(struct Scene *scene, struct Object *ob, short type);
 
 /* copy */
-struct RigidBodyWorld *BKE_rigidbody_world_copy(struct RigidBodyWorld *rbw);
+struct RigidBodyWorld *BKE_rigidbody_world_copy(struct RigidBodyWorld *rbw, const int flag);
 void BKE_rigidbody_world_groups_relink(struct RigidBodyWorld *rbw);
 
 /* 'validate' (i.e. make new or replace old) Physics-Engine objects */
@@ -99,21 +100,19 @@ void BKE_rigidbody_aftertrans_update(struct Object *ob, float loc[3], float rot[
 void BKE_rigidbody_sync_transforms(struct RigidBodyWorld *rbw, struct Object *ob, float ctime);
 bool BKE_rigidbody_check_sim_running(struct RigidBodyWorld *rbw, float ctime);
 void BKE_rigidbody_cache_reset(struct RigidBodyWorld *rbw);
-void BKE_rigidbody_rebuild_world(struct Scene *scene, float ctime);
-void BKE_rigidbody_do_simulation(struct Scene *scene, float ctime);
+void BKE_rigidbody_rebuild_world(const struct EvaluationContext *eval_ctx, struct Scene *scene, float ctime);
+void BKE_rigidbody_do_simulation(const struct EvaluationContext *eval_ctx, struct Scene *scene, float ctime);
 
 /* -------------------- */
 /* Depsgraph evaluation */
 
-struct EvaluationContext;
-
-void BKE_rigidbody_rebuild_sim(struct EvaluationContext *eval_ctx,
+void BKE_rigidbody_rebuild_sim(const struct EvaluationContext *eval_ctx,
                                struct Scene *scene);
 
-void BKE_rigidbody_eval_simulation(struct EvaluationContext *eval_ctx,
+void BKE_rigidbody_eval_simulation(const struct EvaluationContext *eval_ctx,
                                    struct Scene *scene);
 
-void BKE_rigidbody_object_sync_transforms(struct EvaluationContext *eval_ctx,
+void BKE_rigidbody_object_sync_transforms(const struct EvaluationContext *eval_ctx,
                                           struct Scene *scene,
                                           struct Object *ob);
 

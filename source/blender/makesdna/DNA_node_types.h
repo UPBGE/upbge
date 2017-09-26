@@ -111,7 +111,7 @@ typedef struct bNodeSocket {
 	short stack_index;			/* local stack index */
 	/* XXX deprecated, kept for forward compatibility */
 	short stack_type  DNA_DEPRECATED;
-	int pad;
+	char draw_shape, pad[3];
 	
 	void *cache;				/* cached data from execution */
 	
@@ -142,6 +142,13 @@ typedef enum eNodeSocketDatatype {
 	SOCK_INT			= 6,
 	SOCK_STRING			= 7
 } eNodeSocketDatatype;
+
+/* socket shape */
+typedef enum eNodeSocketDrawShape {
+	SOCK_DRAW_SHAPE_CIRCLE = 0,
+	SOCK_DRAW_SHAPE_SQUARE = 1,
+	SOCK_DRAW_SHAPE_DIAMOND = 2
+} eNodeSocketDrawShape;
 
 /* socket side (input/output) */
 typedef enum eNodeSocketInOut {
@@ -214,8 +221,11 @@ typedef struct bNode {
 	 * and replacing all uses with per-instance data.
 	 */
 	short preview_xsize, preview_ysize;	/* reserved size of the preview rect */
-	int pad2;
+	short pad2[2];
 	struct uiBlock *block;	/* runtime during drawing */
+
+	float ssr_id; /* XXX: eevee only, id of screen space reflection layer, needs to be a float to feed GPU_uniform. */
+	float pad3;
 } bNode;
 
 /* node->flag */

@@ -17,6 +17,7 @@
 # ***** END GPL LICENSE BLOCK *****
 
 add_subdirectory(intern)
+add_subdirectory(gawain)
 add_subdirectory(generic)
 add_subdirectory(mathutils)
 add_subdirectory(bmesh)

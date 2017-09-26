@@ -399,8 +399,8 @@ void ED_node_shader_default(const bContext *C, ID *id)
 			ma->nodetree = ntree;
 
 			if (BKE_scene_uses_blender_eevee(scene) || BKE_scene_uses_blender_game(scene)) {
-				output_type = SH_NODE_OUTPUT_EEVEE_MATERIAL;
-				shader_type = SH_NODE_EEVEE_METALLIC;
+				output_type = SH_NODE_OUTPUT_MATERIAL;
+				shader_type = SH_NODE_BSDF_PRINCIPLED;
 			}
 			else if (BKE_scene_use_new_shading_nodes(scene)) {
 				output_type = SH_NODE_OUTPUT_MATERIAL;
@@ -1326,7 +1326,7 @@ static int node_read_fullsamplelayers_exec(bContext *C, wmOperator *UNUSED(op))
 	Main *bmain = CTX_data_main(C);
 	SpaceNode *snode = CTX_wm_space_node(C);
 	Scene *curscene = CTX_data_scene(C);
-	Render *re = RE_NewRender(curscene->id.name);
+	Render *re = RE_NewSceneRender(curscene);
 
 	WM_cursor_wait(1);
 	RE_MergeFullSample(re, bmain, curscene, snode->nodetree);

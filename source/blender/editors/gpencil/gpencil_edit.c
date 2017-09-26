@@ -79,6 +79,8 @@
 #include "ED_view3d.h"
 #include "ED_space_api.h"
 
+#include "DEG_depsgraph.h"
+
 #include "gpencil_intern.h"
 
 /* ************************************************ */
@@ -343,7 +345,7 @@ ListBase gp_strokes_copypastebuf = {NULL, NULL};
  * This is needed to prevent dangling and unsafe pointers when pasting across datablocks,
  * or after a color used by a stroke in the buffer gets deleted (via user action or undo).
  */
-GHash *gp_strokes_copypastebuf_colors = NULL;
+static GHash *gp_strokes_copypastebuf_colors = NULL;
 
 /* Free copy/paste buffer data */
 void ED_gpencil_strokes_copybuf_free(void)
@@ -2106,9 +2108,12 @@ static int gp_strokes_reproject_exec(bContext *C, wmOperator *op)
 	
 	/* init autodist for geometry projection */
 	if (mode == GP_REPROJECT_SURFACE) {
+		EvaluationContext eval_ctx;
+		CTX_data_eval_ctx(C, &eval_ctx);
+
 		struct Depsgraph *graph = CTX_data_depsgraph(C);
 		view3d_region_operator_needs_opengl(CTX_wm_window(C), gsc.ar);
-		ED_view3d_autodist_init(graph, gsc.ar, CTX_wm_view3d(C), 0);
+		ED_view3d_autodist_init(&eval_ctx, graph, gsc.ar, CTX_wm_view3d(C), 0);
 	}
 	
 	// TODO: For deforming geometry workflow, create new frames?

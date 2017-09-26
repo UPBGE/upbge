@@ -610,6 +610,22 @@ static int rna_Property_array_length_get(PointerRNA *ptr)
 	return prop->totarraylength;
 }
 
+static void rna_Property_array_dimensions_get(PointerRNA *ptr, int dimensions[RNA_MAX_ARRAY_DIMENSION])
+{
+	PropertyRNA *prop = (PropertyRNA *)ptr->data;
+	rna_idproperty_check(&prop, ptr);
+
+	if (prop->arraydimension > 1) {
+		for (int i = RNA_MAX_ARRAY_DIMENSION; i--; ) {
+			dimensions[i] = (i >= prop->arraydimension) ? 0 : prop->arraylength[i];
+		}
+	}
+	else {
+		memset(dimensions, 0, sizeof(*dimensions) * RNA_MAX_ARRAY_DIMENSION);
+		dimensions[0] = prop->totarraylength;
+	}
+}
+
 static int rna_Property_is_registered_get(PointerRNA *ptr)
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
@@ -983,21 +999,32 @@ static int rna_Function_use_self_type_get(PointerRNA *ptr)
 
 /* Blender RNA */
 
+static int rna_struct_is_publc(CollectionPropertyIterator *UNUSED(iter), void *data)
+{
+	StructRNA *srna = data;
+
+	return !(srna->flag & STRUCT_PUBLIC_NAMESPACE);
+}
+
+
 static void rna_BlenderRNA_structs_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-	rna_iterator_listbase_begin(iter, &((BlenderRNA *)ptr->data)->structs, NULL);
+	BlenderRNA *brna = ptr->data;
+	rna_iterator_listbase_begin(iter, &brna->structs, rna_struct_is_publc);
 }
 
 /* optional, for faster lookups */
 static int rna_BlenderRNA_structs_length(PointerRNA *ptr)
 {
-	return BLI_listbase_count(&((BlenderRNA *)ptr->data)->structs);
+	BlenderRNA *brna = ptr->data;
+	BLI_assert(brna->structs_len == BLI_listbase_count(&brna->structs));
+	return brna->structs_len;
 }
 static int rna_BlenderRNA_structs_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
 {
-	StructRNA *srna = BLI_findlink(&((BlenderRNA *)ptr->data)->structs, index);
-
-	if (srna) {
+	BlenderRNA *brna = ptr->data;
+	StructRNA *srna = index < brna->structs_len ? BLI_findlink(&brna->structs, index) : NULL;
+	if (srna != NULL) {
 		RNA_pointer_create(NULL, &RNA_Struct, srna, r_ptr);
 		return true;
 	}
@@ -1007,12 +1034,11 @@ static int rna_BlenderRNA_structs_lookup_int(PointerRNA *ptr, int index, Pointer
 }
 static int rna_BlenderRNA_structs_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
 {
-	StructRNA *srna = ((BlenderRNA *)ptr->data)->structs.first;
-	for (; srna; srna = srna->cont.next) {
-		if (key[0] == srna->identifier[0] && STREQ(key, srna->identifier)) {
-			RNA_pointer_create(NULL, &RNA_Struct, srna, r_ptr);
-			return true;
-		}
+	BlenderRNA *brna = ptr->data;
+	StructRNA *srna = BLI_ghash_lookup(brna->structs_map, (void *)key);
+	if (srna != NULL) {
+		RNA_pointer_create(NULL, &RNA_Struct, srna, r_ptr);
+		return true;
 	}
 
 	return false;
@@ -1343,6 +1369,12 @@ static void rna_def_number_property(StructRNA *srna, PropertyType type)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_funcs(prop, "rna_Property_array_length_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Array Length", "Maximum length of the array, 0 means unlimited");
+
+	prop = RNA_def_property(srna, "array_dimensions", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_array(prop, RNA_MAX_ARRAY_DIMENSION);
+	RNA_def_property_int_funcs(prop, "rna_Property_array_dimensions_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Array Dimensions", "Length of each dimension of the array");
 
 	prop = RNA_def_property(srna, "is_array", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

@@ -182,7 +182,7 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
 {
 	Curve *cu;
 
-	cu = BKE_libblock_alloc(bmain, ID_CU, name);
+	cu = BKE_libblock_alloc(bmain, ID_CU, name, 0);
 	cu->type = type;
 
 	BKE_curve_init(cu);
@@ -190,43 +190,40 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
 	return cu;
 }
 
+/**
+ * Only copy internal data of Curve ID from source to already allocated/initialized destination.
+ * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ *
+ * WARNING! This function will not handle ID user count!
+ *
+ * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ */
+void BKE_curve_copy_data(Main *bmain, Curve *cu_dst, const Curve *cu_src, const int flag)
+{
+	BLI_listbase_clear(&cu_dst->nurb);
+	BKE_nurbList_duplicate(&(cu_dst->nurb), &(cu_src->nurb));
+
+	cu_dst->mat = MEM_dupallocN(cu_src->mat);
+
+	cu_dst->str = MEM_dupallocN(cu_src->str);
+	cu_dst->strinfo = MEM_dupallocN(cu_src->strinfo);
+	cu_dst->tb = MEM_dupallocN(cu_src->tb);
+	cu_dst->bb = MEM_dupallocN(cu_src->bb);
+	cu_dst->batch_cache = NULL;
+
+	if (cu_src->key) {
+		BKE_id_copy_ex(bmain, &cu_src->key->id, (ID **)&cu_dst->key, flag, false);
+	}
+
+	cu_dst->editnurb = NULL;
+	cu_dst->editfont = NULL;
+}
+
 Curve *BKE_curve_copy(Main *bmain, const Curve *cu)
 {
-	Curve *cun;
-	int a;
-
-	cun = BKE_libblock_copy(bmain, &cu->id);
-
-	BLI_listbase_clear(&cun->nurb);
-	BKE_nurbList_duplicate(&(cun->nurb), &(cu->nurb));
-
-	cun->mat = MEM_dupallocN(cu->mat);
-	for (a = 0; a < cun->totcol; a++) {
-		id_us_plus((ID *)cun->mat[a]);
-	}
-
-	cun->str = MEM_dupallocN(cu->str);
-	cun->strinfo = MEM_dupallocN(cu->strinfo);
-	cun->tb = MEM_dupallocN(cu->tb);
-	cun->bb = MEM_dupallocN(cu->bb);
-	cun->batch_cache = NULL;
-
-	if (cu->key) {
-		cun->key = BKE_key_copy(bmain, cu->key);
-		cun->key->from = (ID *)cun;
-	}
-
-	cun->editnurb = NULL;
-	cun->editfont = NULL;
-
-	id_us_plus((ID *)cun->vfont);
-	id_us_plus((ID *)cun->vfontb);
-	id_us_plus((ID *)cun->vfonti);
-	id_us_plus((ID *)cun->vfontbi);
-
-	BKE_id_copy_ensure_local(bmain, &cu->id, &cun->id);
-
-	return cun;
+	Curve *cu_copy;
+	BKE_id_copy_ex(bmain, &cu->id, (ID **)&cu_copy, 0, false);
+	return cu_copy;
 }
 
 void BKE_curve_make_local(Main *bmain, Curve *cu, const bool lib_local)
@@ -1625,7 +1622,7 @@ float *BKE_curve_surf_make_orco(Object *ob)
 /* NOTE: This routine is tied to the order of vertex
  * built by displist and as passed to the renderer.
  */
-float *BKE_curve_make_orco(Scene *scene, Object *ob, int *r_numVerts)
+float *BKE_curve_make_orco(const EvaluationContext *eval_ctx, Scene *scene, Object *ob, int *r_numVerts)
 {
 	Curve *cu = ob->data;
 	DispList *dl;
@@ -1633,7 +1630,7 @@ float *BKE_curve_make_orco(Scene *scene, Object *ob, int *r_numVerts)
 	float *fp, *coord_array;
 	ListBase disp = {NULL, NULL};
 
-	BKE_displist_make_curveTypes_forOrco(scene, ob, &disp);
+	BKE_displist_make_curveTypes_forOrco(eval_ctx, scene, ob, &disp);
 
 	numVerts = 0;
 	for (dl = disp.first; dl; dl = dl->next) {
@@ -1724,8 +1721,9 @@ float *BKE_curve_make_orco(Scene *scene, Object *ob, int *r_numVerts)
 
 /* ***************** BEVEL ****************** */
 
-void BKE_curve_bevel_make(Scene *scene, Object *ob, ListBase *disp,
-                          const bool for_render, const bool use_render_resolution)
+void BKE_curve_bevel_make(
+        const EvaluationContext *eval_ctx, Scene *scene, Object *ob, ListBase *disp,
+        const bool for_render, const bool use_render_resolution)
 {
 	DispList *dl, *dlnew;
 	Curve *bevcu, *cu;
@@ -1749,7 +1747,7 @@ void BKE_curve_bevel_make(Scene *scene, Object *ob, ListBase *disp,
 			facy = cu->bevobj->size[1];
 
 			if (for_render) {
-				BKE_displist_make_curveTypes_forRender(scene, cu->bevobj, &bevdisp, NULL, false, use_render_resolution);
+				BKE_displist_make_curveTypes_forRender(eval_ctx, scene, cu->bevobj, &bevdisp, NULL, false, use_render_resolution);
 				dl = bevdisp.first;
 			}
 			else if (cu->bevobj->curve_cache) {
@@ -4449,7 +4447,9 @@ bool BKE_curve_center_bounds(Curve *cu, float cent[3])
 }
 
 
-void BKE_curve_transform_ex(Curve *cu, float mat[4][4], const bool do_keys, const float unit_scale)
+void BKE_curve_transform_ex(
+        Curve *cu, float mat[4][4],
+        const bool do_keys, const bool do_props, const float unit_scale)
 {
 	Nurb *nu;
 	BPoint *bp;
@@ -4463,7 +4463,9 @@ void BKE_curve_transform_ex(Curve *cu, float mat[4][4], const bool do_keys, cons
 				mul_m4_v3(mat, bezt->vec[0]);
 				mul_m4_v3(mat, bezt->vec[1]);
 				mul_m4_v3(mat, bezt->vec[2]);
-				bezt->radius *= unit_scale;
+				if (do_props) {
+					bezt->radius *= unit_scale;
+				}
 			}
 			BKE_nurb_handles_calc(nu);
 		}
@@ -4471,7 +4473,9 @@ void BKE_curve_transform_ex(Curve *cu, float mat[4][4], const bool do_keys, cons
 			i = nu->pntsu * nu->pntsv;
 			for (bp = nu->bp; i--; bp++) {
 				mul_m4_v3(mat, bp->vec);
-				bp->radius *= unit_scale;
+				if (do_props) {
+					bp->radius *= unit_scale;
+				}
 			}
 		}
 	}
@@ -4487,10 +4491,12 @@ void BKE_curve_transform_ex(Curve *cu, float mat[4][4], const bool do_keys, cons
 	}
 }
 
-void BKE_curve_transform(Curve *cu, float mat[4][4], const bool do_keys)
+void BKE_curve_transform(
+        Curve *cu, float mat[4][4],
+        const bool do_keys, const bool do_props)
 {
 	float unit_scale = mat4_to_scale(mat);
-	BKE_curve_transform_ex(cu, mat, do_keys, unit_scale);
+	BKE_curve_transform_ex(cu, mat, do_keys, do_props, unit_scale);
 }
 
 void BKE_curve_translate(Curve *cu, float offset[3], const bool do_keys)
@@ -4669,7 +4675,7 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 
 /* **** Depsgraph evaluation **** */
 
-void BKE_curve_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
+void BKE_curve_eval_geometry(const EvaluationContext *UNUSED(eval_ctx),
                              Curve *curve)
 {
 	if (G.debug & G_DEBUG_DEPSGRAPH) {
@@ -4677,17 +4683,6 @@ void BKE_curve_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
 	}
 	if (curve->bb == NULL || (curve->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_curve_texspace_calc(curve);
-	}
-}
-
-void BKE_curve_eval_path(EvaluationContext *UNUSED(eval_ctx),
-                         Curve *curve)
-{
-	/* TODO(sergey): This will probably need to be a part of
-	 * the modifier stack still.
-	 */
-	if (G.debug & G_DEBUG_DEPSGRAPH) {
-		printf("%s on %s\n", __func__, curve->id.name);
 	}
 }
 

@@ -166,16 +166,16 @@ void ED_armature_ebone_from_mat4(EditBone *ebone, float mat[4][4]);
 void transform_armature_mirror_update(struct Object *obedit);
 void ED_armature_origin_set(struct Scene *scene, struct Object *ob, float cursor[3], int centermode, int around);
 
-void ED_armature_transform_bones(struct bArmature *arm, float mat[4][4]);
-void ED_armature_apply_transform(struct Object *ob, float mat[4][4]);
-void ED_armature_transform(struct bArmature *arm, float mat[4][4]);
+void ED_armature_transform_bones(struct bArmature *arm, float mat[4][4], const bool do_props);
+void ED_armature_apply_transform(struct Object *ob, float mat[4][4], const bool do_props);
+void ED_armature_transform(struct bArmature *arm, float mat[4][4], const bool do_props);
 
 #define ARM_GROUPS_NAME     1
 #define ARM_GROUPS_ENVELOPE 2
 #define ARM_GROUPS_AUTO     3
 
-void create_vgroups_from_armature(struct ReportList *reports, struct Scene *scene, struct Object *ob,
-                                  struct Object *par, const int mode, const bool mirror);
+void create_vgroups_from_armature(struct ReportList *reports, const struct bContext *C, struct Scene *scene,
+                                  struct Object *ob, struct Object *par, const int mode, const bool mirror);
 
 /* if bone is already in list, pass it as param to ignore it */
 void unique_editbone_name(struct ListBase *ebones, char *name, EditBone *bone);
@@ -196,7 +196,7 @@ void ED_armature_exit_posemode(struct bContext *C, struct Base *base);
 void ED_armature_enter_posemode(struct bContext *C, struct Base *base);
 void ED_pose_de_selectall(struct Object *ob, int select_mode, const bool ignore_visibility);
 void ED_pose_bone_select(struct Object *ob, struct bPoseChannel *pchan, bool select);
-void ED_pose_recalculate_paths(struct Scene *scene, struct Object *ob);
+void ED_pose_recalculate_paths(struct bContext *C, struct Scene *scene, struct Object *ob);
 struct Object *ED_pose_object_from_context(struct bContext *C);
 
 /* sketch */

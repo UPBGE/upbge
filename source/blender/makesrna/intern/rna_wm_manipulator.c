@@ -31,6 +31,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_string_utils.h"
 
 #include "BLT_translation.h"
 
@@ -135,23 +136,31 @@ static int rna_manipulator_test_select_cb(
 	return intersect_id;
 }
 
-static void rna_manipulator_modal_cb(
-        struct bContext *C, struct wmManipulator *mpr, const struct wmEvent *event, int tweak)
+static int rna_manipulator_modal_cb(
+        struct bContext *C, struct wmManipulator *mpr, const struct wmEvent *event,
+        eWM_ManipulatorTweak tweak_flag)
 {
 	extern FunctionRNA rna_Manipulator_modal_func;
 	wmManipulatorGroup *mgroup = mpr->parent_mgroup;
 	PointerRNA mpr_ptr;
 	ParameterList list;
 	FunctionRNA *func;
+	const int tweak_flag_int = tweak_flag;
 	RNA_pointer_create(NULL, mpr->type->ext.srna, mpr, &mpr_ptr);
 	/* RNA_struct_find_function(&mpr_ptr, "modal"); */
 	func = &rna_Manipulator_modal_func;
 	RNA_parameter_list_create(&list, &mpr_ptr, func);
 	RNA_parameter_set_lookup(&list, "context", &C);
 	RNA_parameter_set_lookup(&list, "event", &event);
-	RNA_parameter_set_lookup(&list, "tweak", &tweak);
+	RNA_parameter_set_lookup(&list, "tweak", &tweak_flag_int);
 	mgroup->type->ext.call((bContext *)C, &mpr_ptr, func, &list);
+
+	void *ret;
+	RNA_parameter_get_lookup(&list, "result", &ret);
+	int ret_enum = *(int *)ret;
+
 	RNA_parameter_list_free(&list);
+	return ret_enum;
 }
 
 static void rna_manipulator_setup_cb(
@@ -171,7 +180,7 @@ static void rna_manipulator_setup_cb(
 }
 
 
-static void rna_manipulator_invoke_cb(
+static int rna_manipulator_invoke_cb(
         struct bContext *C, struct wmManipulator *mpr, const struct wmEvent *event)
 {
 	extern FunctionRNA rna_Manipulator_invoke_func;
@@ -186,7 +195,13 @@ static void rna_manipulator_invoke_cb(
 	RNA_parameter_set_lookup(&list, "context", &C);
 	RNA_parameter_set_lookup(&list, "event", &event);
 	mgroup->type->ext.call((bContext *)C, &mpr_ptr, func, &list);
+
+	void *ret;
+	RNA_parameter_get_lookup(&list, "result", &ret);
+	int ret_enum = *(int *)ret;
+
 	RNA_parameter_list_free(&list);
+	return ret_enum;
 }
 
 static void rna_manipulator_exit_cb(
@@ -210,21 +225,19 @@ static void rna_manipulator_exit_cb(
 	RNA_parameter_list_free(&list);
 }
 
-static void rna_manipulator_select_cb(
-        struct bContext *C, struct wmManipulator *mpr, int action)
+static void rna_manipulator_select_refresh_cb(
+        struct wmManipulator *mpr)
 {
-	extern FunctionRNA rna_Manipulator_select_func;
+	extern FunctionRNA rna_Manipulator_select_refresh_func;
 	wmManipulatorGroup *mgroup = mpr->parent_mgroup;
 	PointerRNA mpr_ptr;
 	ParameterList list;
 	FunctionRNA *func;
 	RNA_pointer_create(NULL, mpr->type->ext.srna, mpr, &mpr_ptr);
-	/* RNA_struct_find_function(&mpr_ptr, "select"); */
-	func = &rna_Manipulator_select_func;
+	/* RNA_struct_find_function(&mpr_ptr, "select_refresh"); */
+	func = &rna_Manipulator_select_refresh_func;
 	RNA_parameter_list_create(&list, &mpr_ptr, func);
-	RNA_parameter_set_lookup(&list, "context", &C);
-	RNA_parameter_set_lookup(&list, "action", &action);
-	mgroup->type->ext.call((bContext *)C, &mpr_ptr, func, &list);
+	mgroup->type->ext.call((bContext *)NULL, &mpr_ptr, func, &list);
 	RNA_parameter_list_free(&list);
 }
 
@@ -346,6 +359,19 @@ static void rna_Manipulator_##func_id##_set(PointerRNA *ptr, int value) \
 	BKE_BIT_TEST_SET(mpr->member_id, value, flag_value); \
 }
 
+/* wmManipulator.flag (negative) */
+#define RNA_MANIPULATOR_GENERIC_FLAG_NEG_RW_DEF(func_id, member_id, flag_value) \
+static int rna_Manipulator_##func_id##_get(PointerRNA *ptr) \
+{ \
+	wmManipulator *mpr = ptr->data; \
+	return (mpr->member_id & flag_value) == 0; \
+} \
+static void rna_Manipulator_##func_id##_set(PointerRNA *ptr, int value) \
+{ \
+	wmManipulator *mpr = ptr->data; \
+	BKE_BIT_TEST_SET(mpr->member_id, !value, flag_value); \
+}
+
 #define RNA_MANIPULATOR_FLAG_RO_DEF(func_id, member_id, flag_value) \
 static int rna_Manipulator_##func_id##_get(PointerRNA *ptr) \
 { \
@@ -359,38 +385,42 @@ RNA_MANIPULATOR_GENERIC_FLOAT_ARRAY_RW_DEF(color_hi, color_hi, 3);
 RNA_MANIPULATOR_GENERIC_FLOAT_ARRAY_INDEX_RW_DEF(alpha, color, 3);
 RNA_MANIPULATOR_GENERIC_FLOAT_ARRAY_INDEX_RW_DEF(alpha_hi, color_hi, 3);
 
+RNA_MANIPULATOR_GENERIC_FLOAT_ARRAY_RW_DEF(matrix_space, matrix_space, 16);
 RNA_MANIPULATOR_GENERIC_FLOAT_ARRAY_RW_DEF(matrix_basis, matrix_basis, 16);
 RNA_MANIPULATOR_GENERIC_FLOAT_ARRAY_RW_DEF(matrix_offset, matrix_offset, 16);
+
+static void rna_Manipulator_matrix_world_get(PointerRNA *ptr, float value[16])
+{
+	wmManipulator *mpr = ptr->data;
+	WM_manipulator_calc_matrix_final(mpr, (float (*)[4])value);
+}
 
 RNA_MANIPULATOR_GENERIC_FLOAT_RW_DEF(scale_basis, scale_basis);
 RNA_MANIPULATOR_GENERIC_FLOAT_RW_DEF(line_width, line_width);
 
 RNA_MANIPULATOR_GENERIC_FLAG_RW_DEF(flag_use_draw_hover, flag, WM_MANIPULATOR_DRAW_HOVER);
-RNA_MANIPULATOR_GENERIC_FLAG_RW_DEF(flag_use_draw_active, flag, WM_MANIPULATOR_DRAW_ACTIVE);
+RNA_MANIPULATOR_GENERIC_FLAG_RW_DEF(flag_use_draw_modal, flag, WM_MANIPULATOR_DRAW_MODAL);
 RNA_MANIPULATOR_GENERIC_FLAG_RW_DEF(flag_use_draw_value, flag, WM_MANIPULATOR_DRAW_VALUE);
+RNA_MANIPULATOR_GENERIC_FLAG_RW_DEF(flag_use_draw_offset_scale, flag, WM_MANIPULATOR_DRAW_OFFSET_SCALE);
+RNA_MANIPULATOR_GENERIC_FLAG_NEG_RW_DEF(flag_use_draw_scale, flag, WM_MANIPULATOR_DRAW_OFFSET_SCALE);
 RNA_MANIPULATOR_GENERIC_FLAG_RW_DEF(flag_hide, flag, WM_MANIPULATOR_HIDDEN);
 
 /* wmManipulator.state */
 RNA_MANIPULATOR_FLAG_RO_DEF(state_is_highlight, state, WM_MANIPULATOR_STATE_HIGHLIGHT);
-RNA_MANIPULATOR_FLAG_RO_DEF(state_is_active, state, WM_MANIPULATOR_STATE_ACTIVE);
+RNA_MANIPULATOR_FLAG_RO_DEF(state_is_modal, state, WM_MANIPULATOR_STATE_MODAL);
 RNA_MANIPULATOR_FLAG_RO_DEF(state_select, state, WM_MANIPULATOR_STATE_SELECT);
 
-static void rna_Manipulator_name_get(PointerRNA *ptr, char *value)
+static void rna_Manipulator_state_select_set(struct PointerRNA *ptr, int value)
 {
 	wmManipulator *mpr = ptr->data;
-	strcpy(value, mpr->name);
+	wmManipulatorGroup *mgroup = mpr->parent_mgroup;
+	WM_manipulator_select_set(mgroup->parent_mmap, mpr, value);
 }
 
-static void rna_Manipulator_name_set(PointerRNA *ptr, const char *value)
+static PointerRNA rna_Manipulator_group_get(PointerRNA *ptr)
 {
 	wmManipulator *mpr = ptr->data;
-	WM_manipulator_name_set(mpr->parent_mgroup, mpr, value);
-}
-
-static int rna_Manipulator_name_length(PointerRNA *ptr)
-{
-	wmManipulator *mpr = ptr->data;
-	return strlen(mpr->name);
+	return rna_pointer_inherit_refine(ptr, &RNA_ManipulatorGroup, mpr->parent_mgroup);
 }
 
 #ifdef WITH_PYTHON
@@ -438,6 +468,14 @@ static StructRNA *rna_Manipulator_register(
 			rna_Manipulator_unregister(bmain, wt->ext.srna);
 		}
 	}
+	if (!RNA_struct_available_or_report(reports, dummywt.idname)) {
+		return NULL;
+	}
+
+	{   /* allocate the idname */
+		/* For multiple strings see ManipulatorGroup. */
+		dummywt.idname = BLI_strdup(temp_buffers.idname);
+	}
 
 	/* create a new manipulator type */
 	dummywt.ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummywt.idname, &RNA_Manipulator);
@@ -458,15 +496,10 @@ static StructRNA *rna_Manipulator_register(
 		dummywt.setup = (have_function[i++]) ? rna_manipulator_setup_cb : NULL;
 		dummywt.invoke = (have_function[i++]) ? rna_manipulator_invoke_cb : NULL;
 		dummywt.exit = (have_function[i++]) ? rna_manipulator_exit_cb : NULL;
-		dummywt.select = (have_function[i++]) ? rna_manipulator_select_cb : NULL;
+		dummywt.select_refresh = (have_function[i++]) ? rna_manipulator_select_refresh_cb : NULL;
 
 		BLI_assert(i == ARRAY_SIZE(have_function));
 	}
-
-	RNA_def_struct_duplicate_pointers(dummywt.ext.srna);
-
-	/* use duplicated string */
-	dummywt.idname = dummywt.ext.srna->identifier;
 
 	WM_manipulatortype_append_ptr(BPY_RNA_manipulator_wrapper, (void *)&dummywt);
 
@@ -483,13 +516,12 @@ static void rna_Manipulator_unregister(struct Main *bmain, StructRNA *type)
 	if (!wt)
 		return;
 
+	RNA_struct_free_extension(type, &wt->ext);
+	RNA_struct_free(&BLENDER_RNA, type);
+
 	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
 
-	RNA_struct_free_extension(type, &wt->ext);
-
 	WM_manipulatortype_remove_ptr(NULL, bmain, wt);
-
-	RNA_struct_free(&BLENDER_RNA, type);
 }
 
 static void **rna_Manipulator_instance(PointerRNA *ptr)
@@ -513,28 +545,28 @@ static StructRNA *rna_Manipulator_refine(PointerRNA *mnp_ptr)
  * \{ */
 
 static wmManipulator *rna_ManipulatorGroup_manipulator_new(
-        wmManipulatorGroup *mgroup, ReportList *reports, const char *idname, const char *name)
+        wmManipulatorGroup *mgroup, ReportList *reports, const char *idname)
 {
 	const wmManipulatorType *wt = WM_manipulatortype_find(idname, true);
 	if (wt == NULL) {
 		BKE_reportf(reports, RPT_ERROR, "ManipulatorType '%s' not known", idname);
 		return NULL;
 	}
-	wmManipulator *mpr = WM_manipulator_new_ptr(wt, mgroup, name, NULL);
+	wmManipulator *mpr = WM_manipulator_new_ptr(wt, mgroup, NULL);
 	return mpr;
 }
 
 static void rna_ManipulatorGroup_manipulator_remove(
         wmManipulatorGroup *mgroup, bContext *C, wmManipulator *mpr)
 {
-	WM_manipulator_free(&mgroup->manipulators, mgroup->parent_mmap, mpr, C);
+	WM_manipulator_unlink(&mgroup->manipulators, mgroup->parent_mmap, mpr, C);
 }
 
 static void rna_ManipulatorGroup_manipulator_clear(
         wmManipulatorGroup *mgroup, bContext *C)
 {
 	while (mgroup->manipulators.first) {
-		WM_manipulator_free(&mgroup->manipulators, mgroup->parent_mmap, mgroup->manipulators.first, C);
+		WM_manipulator_unlink(&mgroup->manipulators, mgroup->parent_mmap, mgroup->manipulators.first, C);
 	}
 }
 
@@ -626,7 +658,6 @@ static void rna_manipulatorgroup_setup_cb(const bContext *C, wmManipulatorGroup 
 static wmKeyMap *rna_manipulatorgroup_setup_keymap_cb(const wmManipulatorGroupType *wgt, wmKeyConfig *config)
 {
 	extern FunctionRNA rna_ManipulatorGroup_setup_keymap_func;
-	const char *wgroupname = wgt->name;
 	void *ret;
 
 	PointerRNA ptr;
@@ -638,7 +669,6 @@ static wmKeyMap *rna_manipulatorgroup_setup_keymap_cb(const wmManipulatorGroupTy
 
 	RNA_parameter_list_create(&list, &ptr, func);
 	RNA_parameter_set_lookup(&list, "keyconfig", &config);
-	RNA_parameter_set_lookup(&list, "manipulator_group", &wgroupname);
 	wgt->ext.call(NULL, &ptr, func, &list);
 
 	RNA_parameter_get_lookup(&list, "keymap", &ret);
@@ -686,6 +716,7 @@ static void rna_manipulatorgroup_draw_prepare_cb(const bContext *C, wmManipulato
 }
 
 void BPY_RNA_manipulatorgroup_wrapper(wmManipulatorGroupType *wgt, void *userdata);
+static void rna_ManipulatorGroup_unregister(struct Main *bmain, StructRNA *type);
 
 static StructRNA *rna_ManipulatorGroup_register(
         Main *bmain, ReportList *reports, void *data, const char *identifier,
@@ -739,11 +770,24 @@ static StructRNA *rna_ManipulatorGroup_register(
 	{
 		wmManipulatorGroupType *wgt = WM_manipulatorgrouptype_find(dummywgt.idname, true);
 		if (wgt && wgt->ext.srna) {
-			WM_manipulatormaptype_group_unlink(NULL, bmain, mmap_type, wgt);
-			WM_manipulatorgrouptype_remove_ptr(wgt);
-
-			WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
+			rna_ManipulatorGroup_unregister(bmain, wgt->ext.srna);
 		}
+	}
+	if (!RNA_struct_available_or_report(reports, dummywgt.idname)) {
+		return NULL;
+	}
+
+	{   /* allocate the idname */
+		const char *strings[] = {
+			temp_buffers.idname,
+			temp_buffers.name,
+		};
+		char *strings_table[ARRAY_SIZE(strings)];
+		BLI_string_join_array_by_sep_char_with_tableN('\0', strings_table, strings, ARRAY_SIZE(strings));
+
+		dummywgt.idname = strings_table[0];  /* allocated string stored here */
+		dummywgt.name = strings_table[1];
+		BLI_assert(ARRAY_SIZE(strings) == 2);
 	}
 
 	/* create a new manipulatorgroup type */
@@ -761,15 +805,11 @@ static StructRNA *rna_ManipulatorGroup_register(
 	dummywgt.refresh =          (have_function[3]) ? rna_manipulatorgroup_refresh_cb : NULL;
 	dummywgt.draw_prepare =     (have_function[4]) ? rna_manipulatorgroup_draw_prepare_cb : NULL;
 
-	RNA_def_struct_duplicate_pointers(dummywgt.ext.srna);
-	dummywgt.idname = dummywgt.ext.srna->identifier;
-	dummywgt.name = dummywgt.ext.srna->name;
-
 	wmManipulatorGroupType *wgt = WM_manipulatorgrouptype_append_ptr(
 	        BPY_RNA_manipulatorgroup_wrapper, (void *)&dummywgt);
 
 	if (wgt->flag & WM_MANIPULATORGROUPTYPE_PERSISTENT) {
-		WM_manipulator_group_add_ptr_ex(wgt, mmap_type);
+		WM_manipulator_group_type_add_ptr_ex(wgt, mmap_type);
 
 		/* update while blender is running */
 		WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
@@ -785,13 +825,12 @@ static void rna_ManipulatorGroup_unregister(struct Main *bmain, StructRNA *type)
 	if (!wgt)
 		return;
 
+	RNA_struct_free_extension(type, &wgt->ext);
+	RNA_struct_free(&BLENDER_RNA, type);
+
 	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
 
-	RNA_struct_free_extension(type, &wgt->ext);
-
-	WM_manipulator_group_remove_ptr(bmain, wgt);
-
-	RNA_struct_free(&BLENDER_RNA, type);
+	WM_manipulator_group_type_remove_ptr(bmain, wgt);
 }
 
 static void **rna_ManipulatorGroup_instance(PointerRNA *ptr)
@@ -837,7 +876,6 @@ static void rna_def_manipulators(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_ui_description(func, "Add manipulator");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	RNA_def_string(func, "type", "Type", 0, "", "Manipulator identifier"); /* optional */
-	RNA_def_string(func, "name", "Name", 0, "", "Manipulator name"); /* optional */
 	parm = RNA_def_pointer(func, "manipulator", "Manipulator", "", "New manipulator");
 	RNA_def_function_return(func, parm);
 
@@ -937,10 +975,10 @@ static void rna_def_manipulator(BlenderRNA *brna, PropertyRNA *cprop)
 	parm = RNA_def_pointer(func, "event", "Event", "", "");
 	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 	/* TODO, shuold be a enum-flag */
-	parm = RNA_def_enum(func, "tweak", tweak_actions, 0, "Tweak", "");
+	parm = RNA_def_enum_flag(func, "tweak", tweak_actions, 0, "Tweak", "");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
-	RNA_def_property_flag(parm, PROP_ENUM_FLAG);
-
+	parm = RNA_def_enum_flag(func, "result", rna_enum_operator_return_items, OPERATOR_CANCELLED, "result", "");
+	RNA_def_function_return(func, parm);
 	/* wmManipulator.property_update */
 	/* TODO */
 
@@ -957,6 +995,8 @@ static void rna_def_manipulator(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 	parm = RNA_def_pointer(func, "event", "Event", "", "");
 	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+	parm = RNA_def_enum_flag(func, "result", rna_enum_operator_return_items, OPERATOR_CANCELLED, "result", "");
+	RNA_def_function_return(func, parm);
 
 	/* wmManipulator.exit */
 	func = RNA_def_function(srna, "exit", NULL);
@@ -970,33 +1010,20 @@ static void rna_def_manipulator(BlenderRNA *brna, PropertyRNA *cprop)
 	/* wmManipulator.cursor_get */
 	/* TODO */
 
-	/* wmManipulator.select */
-	/* TODO, de-duplicate! */
-	static EnumPropertyItem select_actions[] = {
-		{SEL_TOGGLE, "TOGGLE", 0, "Toggle", "Toggle selection for all elements"},
-		{SEL_SELECT, "SELECT", 0, "Select", "Select all elements"},
-		{SEL_DESELECT, "DESELECT", 0, "Deselect", "Deselect all elements"},
-		{SEL_INVERT, "INVERT", 0, "Invert", "Invert selection of all elements"},
-		{0, NULL, 0, NULL, NULL}
-	};
-	func = RNA_def_function(srna, "select", NULL);
+	/* wmManipulator.select_refresh */
+	func = RNA_def_function(srna, "select_refresh", NULL);
 	RNA_def_function_ui_description(func, "");
 	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
-	parm = RNA_def_pointer(func, "context", "Context", "", "");
-	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
-	parm = RNA_def_enum(func, "action", select_actions, 0, "Action", "Selection action to execute");
-	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 
 
 	/* -------------------------------------------------------------------- */
 	/* Instance Variables */
 
-	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_funcs(
-	        prop, "rna_Manipulator_name_get", "rna_Manipulator_name_length", "rna_Manipulator_name_set");
-	RNA_def_property_ui_text(prop, "Name", "");
-	RNA_def_struct_name_property(srna, prop);
-	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, NULL);
+	prop = RNA_def_property(srna, "group", PROP_POINTER, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_struct_type(prop, "ManipulatorGroup");
+	RNA_def_property_pointer_funcs(prop, "rna_Manipulator_group_get", NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "", "Manipulator group this manipulator is a member of");
 
 	/* Color & Alpha */
 	prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
@@ -1020,6 +1047,12 @@ static void rna_def_manipulator(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_update(prop, NC_SCREEN | NA_EDITED, NULL);
 
+	prop = RNA_def_property(srna, "matrix_space", PROP_FLOAT, PROP_MATRIX);
+	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);
+	RNA_def_property_ui_text(prop, "Space Matrix", "");
+	RNA_def_property_float_funcs(prop, "rna_Manipulator_matrix_space_get", "rna_Manipulator_matrix_space_set", NULL);
+	RNA_def_property_update(prop, NC_SCREEN | NA_EDITED, NULL);
+
 	prop = RNA_def_property(srna, "matrix_basis", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);
 	RNA_def_property_ui_text(prop, "Basis Matrix", "");
@@ -1031,6 +1064,12 @@ static void rna_def_manipulator(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_ui_text(prop, "Offset Matrix", "");
 	RNA_def_property_float_funcs(prop, "rna_Manipulator_matrix_offset_get", "rna_Manipulator_matrix_offset_set", NULL);
 	RNA_def_property_update(prop, NC_SCREEN | NA_EDITED, NULL);
+
+	prop = RNA_def_property(srna, "matrix_world", PROP_FLOAT, PROP_MATRIX);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);
+	RNA_def_property_ui_text(prop, "Final World Matrix", "");
+	RNA_def_property_float_funcs(prop, "rna_Manipulator_matrix_world_get", NULL, NULL);
 
 	prop = RNA_def_property(srna, "scale_basis", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Scale Basis", "");
@@ -1057,10 +1096,10 @@ static void rna_def_manipulator(BlenderRNA *brna, PropertyRNA *cprop)
 	        prop, "rna_Manipulator_flag_use_draw_hover_get", "rna_Manipulator_flag_use_draw_hover_set");
 	RNA_def_property_ui_text(prop, "Draw Hover", "");
 	RNA_def_property_update(prop, NC_SCREEN | NA_EDITED, NULL);
-	/* WM_MANIPULATOR_DRAW_ACTIVE */
-	prop = RNA_def_property(srna, "use_draw_active", PROP_BOOLEAN, PROP_NONE);
+	/* WM_MANIPULATOR_DRAW_MODAL */
+	prop = RNA_def_property(srna, "use_draw_modal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(
-	        prop, "rna_Manipulator_flag_use_draw_active_get", "rna_Manipulator_flag_use_draw_active_set");
+	        prop, "rna_Manipulator_flag_use_draw_modal_get", "rna_Manipulator_flag_use_draw_modal_set");
 	RNA_def_property_ui_text(prop, "Draw Active", "Draw while dragging");
 	RNA_def_property_update(prop, NC_SCREEN | NA_EDITED, NULL);
 	/* WM_MANIPULATOR_DRAW_VALUE */
@@ -1069,6 +1108,18 @@ static void rna_def_manipulator(BlenderRNA *brna, PropertyRNA *cprop)
 	        prop, "rna_Manipulator_flag_use_draw_value_get", "rna_Manipulator_flag_use_draw_value_set");
 	RNA_def_property_ui_text(prop, "Draw Value", "Show an indicator for the current value while dragging");
 	RNA_def_property_update(prop, NC_SCREEN | NA_EDITED, NULL);
+	/* WM_MANIPULATOR_DRAW_OFFSET_SCALE */
+	prop = RNA_def_property(srna, "use_draw_offset_scale", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(
+	        prop, "rna_Manipulator_flag_use_draw_offset_scale_get", "rna_Manipulator_flag_use_draw_offset_scale_set");
+	RNA_def_property_ui_text(prop, "Scale Offset", "Scale the offset matrix (use to apply screen-space offset)");
+	RNA_def_property_update(prop, NC_SCREEN | NA_EDITED, NULL);
+	/* WM_MANIPULATOR_DRAW_NO_SCALE (negated) */
+	prop = RNA_def_property(srna, "use_draw_scale", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(
+	        prop, "rna_Manipulator_flag_use_draw_scale_get", "rna_Manipulator_flag_use_draw_scale_set");
+	RNA_def_property_ui_text(prop, "Scale", "Use scale when calculating the matrix");
+	RNA_def_property_update(prop, NC_SCREEN | NA_EDITED, NULL);
 
 	/* wmManipulator.state (readonly) */
 	/* WM_MANIPULATOR_STATE_HIGHLIGHT */
@@ -1076,16 +1127,16 @@ static void rna_def_manipulator(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_boolean_funcs(prop, "rna_Manipulator_state_is_highlight_get", NULL);
 	RNA_def_property_ui_text(prop, "Highlight", "");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	/* WM_MANIPULATOR_STATE_ACTIVE */
-	prop = RNA_def_property(srna, "is_active", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_Manipulator_state_is_active_get", NULL);
+	/* WM_MANIPULATOR_STATE_MODAL */
+	prop = RNA_def_property(srna, "is_modal", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_Manipulator_state_is_modal_get", NULL);
 	RNA_def_property_ui_text(prop, "Highlight", "");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	/* WM_MANIPULATOR_STATE_SELECT */
+	/* (note that setting is involved, needs to handle array) */
 	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_Manipulator_state_select_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Manipulator_state_select_get", "rna_Manipulator_state_select_set");
 	RNA_def_property_ui_text(prop, "Select", "");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	RNA_api_manipulator(srna);
 
@@ -1160,6 +1211,8 @@ static void rna_def_manipulatorgroup(BlenderRNA *brna)
 		 "Supports selection"},
 		{WM_MANIPULATORGROUPTYPE_PERSISTENT, "PERSISTENT", 0, "Persistent",
 		 ""},
+		{WM_MANIPULATORGROUPTYPE_DRAW_MODAL_ALL, "SHOW_MODAL_ALL", 0, "Show Modal All",
+		 "Show all while interacting"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
@@ -1181,18 +1234,14 @@ static void rna_def_manipulatorgroup(BlenderRNA *brna)
 	parm = RNA_def_pointer(func, "context", "Context", "", "");
 	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
-	/* keymap_init */
+	/* setup_keymap */
 	func = RNA_def_function(srna, "setup_keymap", NULL);
 	RNA_def_function_ui_description(
 	        func,
 	        "Initialize keymaps for this manipulator group, use fallback keymap when not present");
 	RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_REGISTER_OPTIONAL);
-	parm = RNA_def_pointer(func, "keyconf", "KeyConfig", "", "");
+	parm = RNA_def_pointer(func, "keyconfig", "KeyConfig", "", "");
 	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
-	parm = RNA_def_property(func, "manipulator_group", PROP_STRING, PROP_NONE);
-	RNA_def_property_ui_text(parm, "Manipulator Group", "Manipulator Group ID");
-	// RNA_def_property_string_default(parm, "");
-	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	/* return */
 	parm = RNA_def_pointer(func, "keymap", "KeyMap", "", "");
 	RNA_def_property_flag(parm, PROP_NEVER_NULL);

@@ -230,6 +230,7 @@ static void find_iobject(const IObject &object, IObject &ret,
 }
 
 struct ExportJobData {
+	EvaluationContext eval_ctx;
 	Scene *scene;
 	Main *bmain;
 
@@ -262,7 +263,7 @@ static void export_startjob(void *customdata, short *stop, short *do_update, flo
 
 	try {
 		Scene *scene = data->scene;
-		AbcExporter exporter(scene, data->filename, data->settings);
+		AbcExporter exporter(&data->eval_ctx, scene, data->filename, data->settings);
 
 		const int orig_frame = CFRA;
 
@@ -310,6 +311,9 @@ bool ABC_export(
         bool as_background_job)
 {
 	ExportJobData *job = static_cast<ExportJobData *>(MEM_mallocN(sizeof(ExportJobData), "ExportJobData"));
+
+	CTX_data_eval_ctx(C, &job->eval_ctx);
+
 	job->scene = scene;
 	job->bmain = CTX_data_main(C);
 	job->export_ok = false;
@@ -1022,6 +1026,10 @@ CacheReader *CacheReader_open_alembic_object(AbcArchiveHandle *handle, CacheRead
 
 	ImportSettings settings;
 	AbcObjectReader *abc_reader = create_reader(iobject, settings);
+	if (abc_reader == NULL) {
+		/* This object is not supported */
+		return NULL;
+	}
 	abc_reader->object(object);
 	abc_reader->incref();
 

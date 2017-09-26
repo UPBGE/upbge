@@ -38,6 +38,7 @@
 struct bMovieHandle;
 struct bNodeTree;
 struct Depsgraph;
+struct EvaluationContext;
 struct Image;
 struct ImageFormatData;
 struct Main;
@@ -194,6 +195,10 @@ typedef struct RenderStats {
 /* calling a new render with same name, frees automatic existing render */
 struct Render *RE_NewRender(const char *name);
 struct Render *RE_GetRender(const char *name);
+
+struct Scene;
+struct Render *RE_NewSceneRender(const struct Scene *scene);
+struct Render *RE_GetSceneRender(const struct Scene *scene);
 
 /* assign default dummy callbacks */
 void RE_InitRenderCB(struct Render *re);
@@ -369,6 +374,7 @@ void RE_DataBase_GetView(struct Render *re, float mat[4][4]);
 void RE_GetCameraWindow(struct Render *re, struct Object *camera, int frame, float mat[4][4]);
 void RE_GetCameraModelMatrix(struct Render *re, struct Object *camera, float r_mat[4][4]);
 struct Scene *RE_GetScene(struct Render *re);
+struct EvaluationContext *RE_GetEvalCtx(struct Render *re);
 
 bool RE_force_single_renderlayer(struct Scene *scene);
 bool RE_is_rendering_allowed(struct Scene *scene, struct Object *camera_override, struct ReportList *reports);

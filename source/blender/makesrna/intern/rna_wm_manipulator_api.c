@@ -68,8 +68,12 @@ static void rna_manipulator_draw_preset_facemap(
         wmManipulator *mpr, struct bContext *C, struct Object *ob, int facemap, int select_id)
 {
 	struct Scene *scene = CTX_data_scene(C);
-	ED_manipulator_draw_preset_facemap(mpr, scene, ob, facemap, select_id);
+	ED_manipulator_draw_preset_facemap(C, mpr, scene, ob, facemap, select_id);
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Manipulator Property Define
+ * \{ */
 
 static void rna_manipulator_target_set_prop(
         wmManipulator *mpr, ReportList *reports, const char *target_propname,
@@ -136,7 +140,7 @@ static void rna_manipulator_target_set_prop(
 }
 
 static PointerRNA rna_manipulator_target_set_operator(
-        wmManipulator *mpr, ReportList *reports, const char *opname)
+        wmManipulator *mpr, ReportList *reports, const char *opname, int part_index)
 {
 	wmOperatorType *ot;
 
@@ -153,10 +157,29 @@ static PointerRNA rna_manipulator_target_set_operator(
 		properties = IDP_New(IDP_GROUP, &val, "wmManipulatorProperties");
 	}
 
-	WM_manipulator_set_operator(mpr, ot, properties);
-
-	return mpr->op_data.ptr;
+	return *WM_manipulator_operator_set(mpr, part_index, ot, properties);
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Manipulator Property Access
+ * \{ */
+
+static int rna_manipulator_target_is_valid(
+        wmManipulator *mpr, ReportList *reports, const char *target_propname)
+{
+	wmManipulatorProperty *mpr_prop =
+	        WM_manipulator_target_property_find(mpr, target_propname);
+	if (mpr_prop == NULL) {
+		BKE_reportf(reports, RPT_ERROR, "Manipulator target property '%s.%s' not found",
+		            mpr->type->idname, target_propname);
+		return false;
+	}
+	return WM_manipulator_target_property_is_valid(mpr_prop);
+}
+
+/** \} */
 
 #else
 
@@ -178,7 +201,7 @@ void RNA_api_manipulator(StructRNA *srna)
 	func = RNA_def_function(srna, "draw_preset_box", "rna_manipulator_draw_preset_box");
 	RNA_def_function_ui_description(func, "Draw a box");
 	parm = RNA_def_property(func, "matrix", PROP_FLOAT, PROP_MATRIX);
-	RNA_def_property_flag(parm, PARM_REQUIRED);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
 	RNA_def_property_ui_text(parm, "", "The matrix to transform");
 	RNA_def_int(func, "select_id", -1, -1, INT_MAX, "Zero when not selecting", "", -1, INT_MAX);
@@ -187,7 +210,7 @@ void RNA_api_manipulator(StructRNA *srna)
 	func = RNA_def_function(srna, "draw_preset_arrow", "rna_manipulator_draw_preset_arrow");
 	RNA_def_function_ui_description(func, "Draw a box");
 	parm = RNA_def_property(func, "matrix", PROP_FLOAT, PROP_MATRIX);
-	RNA_def_property_flag(parm, PARM_REQUIRED);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
 	RNA_def_property_ui_text(parm, "", "The matrix to transform");
 	RNA_def_enum(func, "axis", rna_enum_object_axis_items, 2, "", "Arrow Orientation");
@@ -196,7 +219,7 @@ void RNA_api_manipulator(StructRNA *srna)
 	func = RNA_def_function(srna, "draw_preset_circle", "rna_manipulator_draw_preset_circle");
 	RNA_def_function_ui_description(func, "Draw a box");
 	parm = RNA_def_property(func, "matrix", PROP_FLOAT, PROP_MATRIX);
-	RNA_def_property_flag(parm, PARM_REQUIRED);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
 	RNA_def_property_ui_text(parm, "", "The matrix to transform");
 	RNA_def_enum(func, "axis", rna_enum_object_axis_items, 2, "", "Arrow Orientation");
@@ -218,6 +241,7 @@ void RNA_api_manipulator(StructRNA *srna)
 	/* -------------------------------------------------------------------- */
 	/* Property API */
 
+	/* Define Properties */
 	/* note, 'target_set_handler' is defined in 'bpy_rna_manipulator.c' */
 	func = RNA_def_function(srna, "target_set_prop", "rna_manipulator_target_set_prop");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
@@ -238,9 +262,21 @@ void RNA_api_manipulator(StructRNA *srna)
 	        "(overrides property targets)");
 	parm = RNA_def_string(func, "operator", NULL, 0, "", "Target operator");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+	RNA_def_int(func, "index", 0, 0, 255, "Part index", "", 0, 255);
+
 	/* similar to UILayout.operator */
 	parm = RNA_def_pointer(func, "properties", "OperatorProperties", "", "Operator properties to fill in");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED | PARM_RNAPTR);
+	RNA_def_function_return(func, parm);
+
+	/* Access Properties */
+	/* note, 'target_get', 'target_set' is defined in 'bpy_rna_manipulator.c' */
+	func = RNA_def_function(srna, "target_is_valid", "rna_manipulator_target_is_valid");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm = RNA_def_string(func, "property", NULL, 0, "", "Property identifier");
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+	RNA_def_function_ui_description(func, "");
+	parm = RNA_def_boolean(func, "result", 0, "", "");
 	RNA_def_function_return(func, parm);
 
 }

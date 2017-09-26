@@ -42,9 +42,6 @@
 #include "WM_keymap.h"
 #include "BLI_compiler_attrs.h"
 
-/* Include external manipulator API's */
-#include "manipulators/WM_manipulator_api.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -68,6 +65,7 @@ struct ImBuf;
 struct ImageFormatData;
 struct ARegion;
 struct ScrArea;
+struct Main;
 
 #ifdef WITH_INPUT_NDOF
 struct wmNDOFMotionData;
@@ -165,6 +163,7 @@ float		WM_cursor_pressure	(const struct wmWindow *win);
 
 			/* event map */
 int			WM_userdef_event_map(int kmitype);
+int			WM_userdef_event_type_from_keymap_type(int kmitype);
 
 			/* handlers */
 
@@ -380,6 +379,7 @@ bool         WM_operator_pystring_abbreviate(char *str, int str_len_max);
 char		*WM_prop_pystring_assign(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int index);
 void		WM_operator_bl_idname(char *to, const char *from);
 void		WM_operator_py_idname(char *to, const char *from);
+bool        WM_operator_py_idname_ok_or_report(struct ReportList *reports, const char *classname, const char *idname);
 
 /* *************** uilist types ******************** */
 void                WM_uilisttype_init(void);

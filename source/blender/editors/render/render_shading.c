@@ -656,7 +656,7 @@ static int render_layer_remove_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = BKE_scene_layer_context_active_PLACEHOLDER(scene);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 
 	if (!ED_scene_render_layer_delete(bmain, scene, sl, NULL)) {
 		return OPERATOR_CANCELLED;
@@ -1302,16 +1302,16 @@ static int freestyle_modifier_copy_exec(bContext *C, wmOperator *op)
 
 	switch (freestyle_get_modifier_type(&ptr)) {
 		case LS_MODIFIER_TYPE_COLOR:
-			BKE_linestyle_color_modifier_copy(lineset->linestyle, modifier);
+			BKE_linestyle_color_modifier_copy(lineset->linestyle, modifier, 0);
 			break;
 		case LS_MODIFIER_TYPE_ALPHA:
-			BKE_linestyle_alpha_modifier_copy(lineset->linestyle, modifier);
+			BKE_linestyle_alpha_modifier_copy(lineset->linestyle, modifier, 0);
 			break;
 		case LS_MODIFIER_TYPE_THICKNESS:
-			BKE_linestyle_thickness_modifier_copy(lineset->linestyle, modifier);
+			BKE_linestyle_thickness_modifier_copy(lineset->linestyle, modifier, 0);
 			break;
 		case LS_MODIFIER_TYPE_GEOMETRY:
-			BKE_linestyle_geometry_modifier_copy(lineset->linestyle, modifier);
+			BKE_linestyle_geometry_modifier_copy(lineset->linestyle, modifier, 0);
 			break;
 		default:
 			BKE_report(op->reports, RPT_ERROR, "The object the data pointer refers to is not a valid modifier");
@@ -1785,6 +1785,8 @@ static void copy_mtex_copybuf(ID *id)
 		case ID_LS:
 			mtex = &(((FreestyleLineStyle *)id)->mtex[(int)((FreestyleLineStyle *)id)->texact]);
 			break;
+		default:
+			break;
 	}
 	
 	if (mtex && *mtex) {
@@ -1822,7 +1824,7 @@ static void paste_mtex_copybuf(ID *id)
 			mtex = &(((FreestyleLineStyle *)id)->mtex[(int)((FreestyleLineStyle *)id)->texact]);
 			break;
 		default:
-			BLI_assert("invalid id type");
+			BLI_assert(!"invalid id type");
 			return;
 	}
 	

@@ -40,13 +40,14 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-
 #include "BKE_collision.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_global.h"
 #include "BKE_modifier.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
+
+#include "MOD_modifiertypes.h"
 
 static void initData(ModifierData *md) 
 {
@@ -97,8 +98,8 @@ static bool dependsOnTime(ModifierData *UNUSED(md))
 	return true;
 }
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *derivedData,
+static void deformVerts(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+                        Object *ob, DerivedMesh *derivedData,
                         float (*vertexCos)[3],
                         int UNUSED(numVerts),
                         ModifierApplyFlag UNUSED(flag))
@@ -152,8 +153,6 @@ static void deformVerts(ModifierData *md, Object *ob,
 				collmd->current_v = MEM_dupallocN(collmd->x); // inter-frame
 
 				collmd->mvert_num = mvert_num;
-				
-				DM_ensure_looptri(dm);
 
 				collmd->tri_num = dm->getNumLoopTri(dm);
 				{

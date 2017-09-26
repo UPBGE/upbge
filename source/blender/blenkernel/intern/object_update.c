@@ -69,7 +69,7 @@
 
 static ThreadMutex material_lock = BLI_MUTEX_INITIALIZER;
 
-void BKE_object_eval_local_transform(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_local_transform(const EvaluationContext *UNUSED(eval_ctx),
                                      Scene *UNUSED(scene),
                                      Object *ob)
 {
@@ -81,7 +81,7 @@ void BKE_object_eval_local_transform(EvaluationContext *UNUSED(eval_ctx),
 
 /* Evaluate parent */
 /* NOTE: based on solve_parenting(), but with the cruft stripped out */
-void BKE_object_eval_parent(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_parent(const EvaluationContext *UNUSED(eval_ctx),
                             Scene *scene,
                             Object *ob)
 {
@@ -113,7 +113,7 @@ void BKE_object_eval_parent(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_object_eval_constraints(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_constraints(const EvaluationContext *eval_ctx,
                                  Scene *scene,
                                  Object *ob)
 {
@@ -132,11 +132,11 @@ void BKE_object_eval_constraints(EvaluationContext *UNUSED(eval_ctx),
 	 *
 	 */
 	cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
-	BKE_constraints_solve(&ob->constraints, cob, ctime);
+	BKE_constraints_solve(eval_ctx, &ob->constraints, cob, ctime);
 	BKE_constraints_clear_evalob(cob);
 }
 
-void BKE_object_eval_done(EvaluationContext *UNUSED(eval_ctx), Object *ob)
+void BKE_object_eval_done(const EvaluationContext *UNUSED(eval_ctx), Object *ob)
 {
 	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
 
@@ -145,9 +145,10 @@ void BKE_object_eval_done(EvaluationContext *UNUSED(eval_ctx), Object *ob)
 	else ob->transflag &= ~OB_NEG_SCALE;
 }
 
-void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
-                                   Scene *scene,
-                                   Object *ob)
+void BKE_object_handle_data_update(
+        const EvaluationContext *eval_ctx,
+        Scene *scene,
+        Object *ob)
 {
 	ID *data_id = (ID *)ob->data;
 	AnimData *adt = BKE_animdata_from_id(data_id);
@@ -184,10 +185,10 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 			}
 #endif
 			if (em) {
-				makeDerivedMesh(scene, ob, em,  data_mask, false); /* was CD_MASK_BAREMESH */
+				makeDerivedMesh(eval_ctx, scene, ob, em,  data_mask, false); /* was CD_MASK_BAREMESH */
 			}
 			else {
-				makeDerivedMesh(scene, ob, NULL, data_mask, false);
+				makeDerivedMesh(eval_ctx, scene, ob, NULL, data_mask, false);
 			}
 			break;
 		}
@@ -199,7 +200,7 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 				}
 			}
 			else {
-				BKE_pose_where_is(scene, ob);
+				BKE_pose_where_is(eval_ctx, scene, ob);
 			}
 			break;
 
@@ -210,11 +211,11 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 		case OB_CURVE:
 		case OB_SURF:
 		case OB_FONT:
-			BKE_displist_make_curveTypes(scene, ob, 0);
+			BKE_displist_make_curveTypes(eval_ctx, scene, ob, 0);
 			break;
 
 		case OB_LATTICE:
-			BKE_lattice_modifiers_calc(scene, ob);
+			BKE_lattice_modifiers_calc(eval_ctx, scene, ob);
 			break;
 
 		case OB_EMPTY:
@@ -267,7 +268,7 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 					ob->transflag |= OB_DUPLIPARTS;
 				}
 
-				particle_system_update(scene, ob, psys, (eval_ctx->mode == DAG_EVAL_RENDER));
+				particle_system_update(eval_ctx, scene, ob, psys, (eval_ctx->mode == DAG_EVAL_RENDER));
 				psys = psys->next;
 			}
 			else if (psys->flag & PSYS_DELETE) {
@@ -285,7 +286,7 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 			 * the derivedmesh must be created before init_render_mesh,
 			 * since object_duplilist does dupliparticles before that */
 			CustomDataMask data_mask = CD_MASK_BAREMESH | CD_MASK_MFACE | CD_MASK_MTFACE | CD_MASK_MCOL;
-			dm = mesh_create_derived_render(scene, ob, data_mask);
+			dm = mesh_create_derived_render(eval_ctx, scene, ob, data_mask);
 			dm->release(dm);
 
 			for (psys = ob->particlesystem.first; psys; psys = psys->next)
@@ -296,7 +297,7 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 	/* quick cache removed */
 }
 
-void BKE_object_eval_uber_transform(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_uber_transform(const EvaluationContext *UNUSED(eval_ctx),
                                     Scene *UNUSED(scene),
                                     Object *ob)
 {
@@ -326,7 +327,7 @@ void BKE_object_eval_uber_transform(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
+void BKE_object_eval_uber_data(const EvaluationContext *eval_ctx,
                                Scene *scene,
                                Object *ob)
 {
@@ -361,7 +362,7 @@ void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
 			/* Copy materials so render engines can access them. */
 			new_mesh->mat = MEM_dupallocN(mesh->mat);
 			new_mesh->totcol = mesh->totcol;
-			DM_to_mesh(dm, new_mesh, ob, ob->lastDataMask, true);
+			DM_to_mesh(dm, new_mesh, ob, CD_MASK_MESH, true);
 			new_mesh->edit_btmesh = mesh->edit_btmesh;
 			/* Store result mesh as derived_mesh of object. This way we have
 			 * explicit  way to query final object evaluated data and know for sure
@@ -377,6 +378,11 @@ void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
 			/* NOTE: Watch out, some tools might need it!
 			 * So keep around for now..
 			 */
+			/* Store original ID as a pointer in evaluated ID.
+			 * This way we can restore original object data when we are freeing
+			 * evaluated mesh.
+			 */
+			new_mesh->id.newid = &mesh->id;
 		}
 #if 0
 		if (ob->derivedFinal != NULL) {
@@ -396,13 +402,13 @@ void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
 	ob->recalc &= ~(OB_RECALC_DATA | OB_RECALC_TIME);
 }
 
-void BKE_object_eval_cloth(EvaluationContext *UNUSED(eval_ctx), Scene *scene, Object *object)
+void BKE_object_eval_cloth(const EvaluationContext *UNUSED(eval_ctx), Scene *scene, Object *object)
 {
 	DEBUG_PRINT("%s on %s\n", __func__, object->id.name);
 	BKE_ptcache_object_reset(scene, object, PTCACHE_RESET_DEPSGRAPH);
 }
 
-void BKE_object_eval_update_shading(EvaluationContext *UNUSED(eval_ctx), Object *object)
+void BKE_object_eval_update_shading(const EvaluationContext *UNUSED(eval_ctx), Object *object)
 {
 	DEBUG_PRINT("%s on %s\n", __func__, object->id.name);
 	if (object->type == OB_MESH) {

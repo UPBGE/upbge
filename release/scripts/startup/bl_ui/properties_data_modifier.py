@@ -146,9 +146,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.row().prop(md, "offset_type", expand=True)
 
     def BOOLEAN(self, layout, ob, md):
+        solver = md.solver
         if not bpy.app.build_options.mod_boolean:
-            layout.label("Built without Boolean modifier")
-            return
+            if solver == 'CARVE':
+                layout.label("Built without Carve solver")
 
         split = layout.split()
 
@@ -164,8 +165,12 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         split.column().label(text="Solver:")
         split.column().prop(md, "solver", text="")
 
-        if md.solver == 'BMESH':
+        if solver == 'BMESH':
             layout.prop(md, "double_threshold")
+
+            if bpy.app.debug:
+                layout.prop(md, "debug_options")
+
 
     def BUILD(self, layout, ob, md):
         split = layout.split()
@@ -381,7 +386,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         split = layout.split()
 
         col = split.column()
-        col.label(text="Vertex group:")
+        col.label(text="Vertex Group:")
         col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
         sub = col.column()
         sub.active = bool(md.vertex_group)
@@ -747,6 +752,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "steps")
         col.prop(md, "render_steps")
         col.prop(md, "use_smooth_shade")
+        col.prop(md, "use_merge_vertices")
+        sub = col.column()
+        sub.active = md.use_merge_vertices
+        sub.prop(md, "merge_threshold")
 
         col = split.column()
         row = col.row()
@@ -917,9 +926,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         scene = bpy.context.scene
         engine = scene.render.engine
-        show_adaptive_options = (engine == "CYCLES" and md == ob.modifiers[-1] and
-                                 scene.cycles.feature_set == "EXPERIMENTAL")
-
+        show_adaptive_options = (
+            engine == 'CYCLES' and md == ob.modifiers[-1] and
+            scene.cycles.feature_set == 'EXPERIMENTAL'
+        )
         if show_adaptive_options:
             col.label(text="View:")
             col.prop(md, "levels", text="Levels")

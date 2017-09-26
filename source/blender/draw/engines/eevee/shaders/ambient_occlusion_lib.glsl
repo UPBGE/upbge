@@ -4,209 +4,309 @@
  * http://blog.selfshadow.com/publications/s2016-shading-course/activision/s2016_pbs_activision_occlusion.pptx */
 
 #define MAX_PHI_STEP 32
-/* NOTICE : this is multiplied by 2 */
-#define MAX_THETA_STEP 12
+#define MAX_SEARCH_ITER 32
+#define MAX_LOD 6.0
 
-uniform sampler2D minMaxDepthTex;
-uniform vec3 aoParameters;
+#ifndef UTIL_TEX
+#define UTIL_TEX
+uniform sampler2DArray utilTex;
+#endif /* UTIL_TEX */
 
-#define aoDistance   aoParameters.x
-#define aoSamples    aoParameters.y
-#define aoFactor     aoParameters.z
+uniform vec4 aoParameters[2];
+uniform sampler2DArray horizonBuffer;
 
-float get_max_horizon(vec2 co, vec3 x, float h, float lod)
+/* Cannot use textureSize(horizonBuffer) when rendering to it */
+uniform ivec2 aoHorizonTexSize;
+
+#define aoDistance   aoParameters[0].x
+#define aoSamples    aoParameters[0].y
+#define aoFactor     aoParameters[0].z
+#define aoInvSamples aoParameters[0].w
+
+#define aoOffset     aoParameters[1].x /* UNUSED */
+#define aoBounceFac  aoParameters[1].y
+#define aoQuality    aoParameters[1].z
+#define aoSettings   aoParameters[1].w
+
+#define USE_AO            1
+#define USE_BENT_NORMAL   2
+#define USE_DENOISE       4
+
+vec2 pack_horizons(vec2 v) { return v * 0.5 + 0.5; }
+vec2 unpack_horizons(vec2 v) { return v * 2.0 - 1.0; }
+
+/* Returns the texel coordinate in horizonBuffer
+ * for a given fullscreen coord */
+ivec2 get_hr_co(ivec2 fs_co)
 {
-	float depth = textureLod(minMaxDepthTex, co, floor(lod)).g;
+	bvec2 quarter = notEqual(fs_co & ivec2(1), ivec2(0));
 
-	/* Background case */
-	/* this is really slow and is only a problem
-	 * if the far clip plane is near enough to notice */
-	// depth += step(1.0, depth) * 1e20;
+	ivec2 hr_co = fs_co / 2;
+	hr_co += ivec2(quarter) * (aoHorizonTexSize / 2);
 
-	vec3 s = get_view_space_from_depth(co, depth); /* s View coordinate */
-	vec3 omega_s = s - x;
-	float len = length(omega_s);
-
-	float max_h = max(h, omega_s.z / len);
-	/* Blend weight after half the aoDistance to fade artifacts */
-	float blend = saturate((1.0 - len / aoDistance) * 2.0);
-
-	return mix(h, max_h, blend);
+	return hr_co;
 }
 
-void search_step(
-        vec2 t_phi, vec3 x, vec2 x_, float rand, vec2 pixel_ratio,
-        inout float j, inout float ofs, inout float h1, inout float h2)
+/* Returns the texel coordinate in fullscreen (depthBuffer)
+ * for a given horizonBuffer coord */
+ivec2 get_fs_co(ivec2 hr_co)
 {
-	ofs += ofs; /* Step size is doubled each iteration */
+	hr_co *= 2;
+	bvec2 quarter = greaterThanEqual(hr_co, aoHorizonTexSize);
 
-	vec2 s_ = t_phi * ofs * rand * pixel_ratio; /* s^ Screen coordinate */
-	vec2 co;
+	hr_co -= ivec2(quarter) * (aoHorizonTexSize - 1);
 
-	co = x_ + s_;
-	h1 = get_max_horizon(co, x, h1, j);
-
-	co = x_ - s_;
-	h2 = get_max_horizon(co, x, h2, j);
-
-	j += 0.5;
+	return hr_co;
 }
 
-void search_horizon(
-        vec2 t_phi, vec3 x, vec2 x_, float rand,
-        float max_dist, vec2 pixel_ratio, float pixel_len,
-        inout float h1, inout float h2)
+/* Returns the phi angle in horizonBuffer
+ * for a given horizonBuffer coord */
+float get_phi(ivec2 hr_co, ivec2 fs_co, float sample)
 {
-	float ofs = 1.5 * pixel_len;
-	float j = 0.0;
+	bvec2 quarter = greaterThanEqual(hr_co, aoHorizonTexSize / 2);
+	ivec2 tex_co = ((int(aoSettings) & USE_DENOISE) != 0) ? hr_co - ivec2(quarter) * (aoHorizonTexSize / 2) : fs_co;
+	float blue_noise = texture(utilTex, vec3((vec2(tex_co) + 0.5) / LUT_SIZE, 2.0)).r;
 
-#if 0 /* manually unrolled bellow */
-	for (int i = 0; i < MAX_THETA_STEP; i++) {
-		search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-		if (ofs > max_dist)
-			return;
+	float phi = sample * aoInvSamples;
+
+	if ((int(aoSettings) & USE_DENOISE) != 0) {
+		/* Interleaved jitter for spatial 2x2 denoising */
+		phi += 0.25 * aoInvSamples * (float(quarter.x) + 2.0 * float(quarter.y));
+		blue_noise *= 0.25;
 	}
-#endif
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-	if (ofs > max_dist)	return;
+	/* Blue noise is scaled to cover the rest of the range. */
+	phi += aoInvSamples * blue_noise;
+	phi *= M_PI;
 
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-	if (ofs > max_dist)	return;
-
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-	if (ofs > max_dist)	return;
-
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-	if (ofs > max_dist)	return;
-
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-	if (ofs > max_dist)	return;
-
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-	if (ofs > max_dist)	return;
-
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-	if (ofs > max_dist)	return;
-
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-	if (ofs > max_dist)	return;
-
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-	if (ofs > max_dist)	return;
-
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-	if (ofs > max_dist)	return;
-
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
-	if (ofs > max_dist)	return;
-
-	search_step(t_phi, x, x_, rand, pixel_ratio, j, ofs, h1, h2);
+	return phi;
 }
 
-void integrate_slice(
-        float iter, vec3 x, vec3 normal, vec2 x_, vec2 noise,
-        float max_dist, vec2 pixel_ratio, float pixel_len,
-        inout float visibility, inout vec3 bent_normal)
+/* Returns direction jittered offset for a given fullscreen coord */
+float get_offset(ivec2 fs_co, float sample)
 {
-	float phi = M_PI * ((noise.r + iter) / aoSamples);
+	float offset = sample * aoInvSamples;
 
-	/* Rotate with random direction to get jittered result. */
+	/* Interleaved jitter for spatial 2x2 denoising */
+	offset += 0.25 * dot(vec2(1.0), vec2(fs_co & 1));
+	offset += texture(utilTex, vec3((vec2(fs_co / 2) + 0.5 + 16.0) / LUT_SIZE, 2.0)).r;
+	return offset;
+}
+
+/* Returns maximum screen distance an AO ray can travel for a given view depth */
+vec2 get_max_dir(float view_depth)
+{
+	float homcco = ProjectionMatrix[2][3] * view_depth + ProjectionMatrix[3][3];
+	float max_dist = aoDistance / homcco;
+	return vec2(ProjectionMatrix[0][0], ProjectionMatrix[1][1]) * max_dist;
+}
+
+void get_max_horizon_grouped(vec4 co1, vec4 co2, vec3 x, float lod, inout float h)
+{
+	co1 *= mipRatio[int(lod + 1.0)].xyxy; /* +1 because we are using half res top level */
+	co2 *= mipRatio[int(lod + 1.0)].xyxy; /* +1 because we are using half res top level */
+
+	float depth1 = textureLod(maxzBuffer, co1.xy, floor(lod)).r;
+	float depth2 = textureLod(maxzBuffer, co1.zw, floor(lod)).r;
+	float depth3 = textureLod(maxzBuffer, co2.xy, floor(lod)).r;
+	float depth4 = textureLod(maxzBuffer, co2.zw, floor(lod)).r;
+
+	vec4 len, s_h;
+
+	vec3 s1 = get_view_space_from_depth(co1.xy, depth1); /* s View coordinate */
+	vec3 omega_s1 = s1 - x;
+	len.x = length(omega_s1);
+	s_h.x = omega_s1.z / len.x;
+
+	vec3 s2 = get_view_space_from_depth(co1.zw, depth2); /* s View coordinate */
+	vec3 omega_s2 = s2 - x;
+	len.y = length(omega_s2);
+	s_h.y = omega_s2.z / len.y;
+
+	vec3 s3 = get_view_space_from_depth(co2.xy, depth3); /* s View coordinate */
+	vec3 omega_s3 = s3 - x;
+	len.z = length(omega_s3);
+	s_h.z = omega_s3.z / len.z;
+
+	vec3 s4 = get_view_space_from_depth(co2.zw, depth4); /* s View coordinate */
+	vec3 omega_s4 = s4 - x;
+	len.w = length(omega_s4);
+	s_h.w = omega_s4.z / len.w;
+
+	/* Blend weight after half the aoDistance to fade artifacts */
+	vec4 blend = saturate((1.0 - len / aoDistance) * 2.0);
+
+	h = mix(h, max(h, s_h.x), blend.x);
+	h = mix(h, max(h, s_h.y), blend.y);
+	h = mix(h, max(h, s_h.z), blend.z);
+	h = mix(h, max(h, s_h.w), blend.w);
+}
+
+vec2 search_horizon_sweep(float phi, vec3 pos, vec2 uvs, float jitter, vec2 max_dir)
+{
 	vec2 t_phi = vec2(cos(phi), sin(phi)); /* Screen space direction */
 
-	/* Search maximum horizon angles h1 and h2 */
-	float h1 = -1.0, h2 = -1.0; /* init at cos(pi) */
-	search_horizon(t_phi, x, x_, noise.g, max_dist, pixel_ratio, pixel_len, h1, h2);
+	max_dir *= max_v2(abs(t_phi));
 
-	/* (Slide 54) */
-	h1 = -fast_acos(h1);
-	h2 = fast_acos(h2);
+	/* Convert to pixel space. */
+	t_phi /= vec2(textureSize(maxzBuffer, 0));
+
+	/* Avoid division by 0 */
+	t_phi += vec2(1e-5);
+
+	jitter *= 0.25;
+
+	/* Compute end points */
+	vec2 corner1 = min(vec2(1.0) - uvs,  max_dir); /* Top right */
+	vec2 corner2 = max(vec2(0.0) - uvs, -max_dir); /* Bottom left */
+	vec2 iter1 = corner1 / t_phi;
+	vec2 iter2 = corner2 / t_phi;
+
+	vec2 min_iter = max(-iter1, -iter2);
+	vec2 max_iter = max( iter1,  iter2);
+
+	vec2 times = vec2(-min_v2(min_iter), min_v2(max_iter));
+
+	vec2 h = vec2(-1.0); /* init at cos(pi) */
+
+	/* This is freaking sexy optimized. */
+	for (float i = 0.0, ofs = 4.0, time = -1.0;
+		 i < MAX_SEARCH_ITER && time > times.x;
+		 i++, time -= ofs, ofs = min(exp2(MAX_LOD) * 4.0, ofs + ofs * aoQuality))
+	{
+		vec4 t = max(times.xxxx, vec4(time) - (vec4(0.25, 0.5, 0.75, 1.0) - jitter) * ofs);
+		vec4 cos1 = uvs.xyxy + t_phi.xyxy * t.xxyy;
+		vec4 cos2 = uvs.xyxy + t_phi.xyxy * t.zzww;
+		float lod = min(MAX_LOD, max(i - jitter * 4.0, 0.0) * aoQuality);
+		get_max_horizon_grouped(cos1, cos2, pos, lod, h.y);
+	}
+
+	for (float i = 0.0, ofs = 4.0, time = 1.0;
+		 i < MAX_SEARCH_ITER && time < times.y;
+		 i++, time += ofs, ofs = min(exp2(MAX_LOD) * 4.0, ofs + ofs * aoQuality))
+	{
+		vec4 t = min(times.yyyy, vec4(time) + (vec4(0.25, 0.5, 0.75, 1.0) - jitter) * ofs);
+		vec4 cos1 = uvs.xyxy + t_phi.xyxy * t.xxyy;
+		vec4 cos2 = uvs.xyxy + t_phi.xyxy * t.zzww;
+		float lod = min(MAX_LOD, max(i - jitter * 4.0, 0.0) * aoQuality);
+		get_max_horizon_grouped(cos1, cos2, pos, lod, h.x);
+	}
+
+	return h;
+}
+
+void integrate_slice(vec3 normal, float phi, vec2 horizons, inout float visibility, inout vec3 bent_normal)
+{
+	/* TODO OPTI Could be precomputed. */
+	vec2 t_phi = vec2(cos(phi), sin(phi)); /* Screen space direction */
 
 	/* Projecting Normal to Plane P defined by t_phi and omega_o */
-	vec3 h = vec3(t_phi.y, -t_phi.x, 0.0); /* Normal vector to Integration plane */
+	vec3 np = vec3(t_phi.y, -t_phi.x, 0.0); /* Normal vector to Integration plane */
 	vec3 t = vec3(-t_phi, 0.0);
-	vec3 n_proj = normal - h * dot(h, normal);
+	vec3 n_proj = normal - np * dot(np, normal);
 	float n_proj_len = max(1e-16, length(n_proj));
 
-	/* Clamping thetas (slide 58) */
 	float cos_n = clamp(n_proj.z / n_proj_len, -1.0, 1.0);
 	float n = sign(dot(n_proj, t)) * fast_acos(cos_n); /* Angle between view vec and normal */
-	h1 = n + max(h1 - n, -M_PI_2);
-	h2 = n + min(h2 - n, M_PI_2);
+
+	/* (Slide 54) */
+	vec2 h = fast_acos(horizons);
+	h.x = -h.x;
+
+	/* Clamping thetas (slide 58) */
+	h.x = n + max(h.x - n, -M_PI_2);
+	h.y = n + min(h.y - n, M_PI_2);
 
 	/* Solving inner integral */
-	float sin_n = sin(n);
-	float h1_2 = 2.0 * h1;
-	float h2_2 = 2.0 * h2;
-	float vd = (-cos(h1_2 - n) + cos_n + h1_2 * sin_n) + (-cos(h2_2 - n) + cos_n + h2_2 * sin_n);
-	vd *= 0.25 * n_proj_len;
-	visibility += vd;
+	vec2 h_2 = 2.0 * h;
+	vec2 vd = -cos(h_2 - n) + cos_n + h_2 * sin(n);
+	float vis = (vd.x + vd.y) * 0.25 * n_proj_len;
 
-#ifdef USE_BENT_NORMAL
+	visibility += vis;
+
 	/* Finding Bent normal */
-	float b_angle = (h1 + h2) / 2.0;
+	float b_angle = (h.x + h.y) * 0.5;
 	/* The 0.5 factor below is here to equilibrate the accumulated vectors.
 	 * (sin(b_angle) * -t_phi) will accumulate to (phi_step * result_nor.xy * 0.5).
 	 * (cos(b_angle) * 0.5) will accumulate to (phi_step * result_nor.z * 0.5). */
-	/* Weight sample by vd */
-	bent_normal += vec3(sin(b_angle) * -t_phi, cos(b_angle) * 0.5) * vd;
-#endif
+	bent_normal += vec3(sin(b_angle) * -t_phi, cos(b_angle) * 0.5);
 }
 
-void gtao(vec3 normal, vec3 position, vec2 noise, out float visibility
-#ifdef USE_BENT_NORMAL
-	, out vec3 bent_normal
-#endif
-	)
+void denoise_ao(vec3 normal, float frag_depth, inout float visibility, inout vec3 bent_normal)
 {
-	vec2 screenres = vec2(textureSize(minMaxDepthTex, 0)) * 2.0;
-	vec2 pixel_size = vec2(1.0) / screenres.xy;
+	vec2 d_sign = vec2(ivec2(gl_FragCoord.xy) & 1) - 0.5;
 
-	/* Renaming */
-	vec2 x_ = gl_FragCoord.xy * pixel_size; /* x^ Screen coordinate */
-	vec3 x = position; /* x view space coordinate */
-
-	/* NOTE : We set up integration domain around the camera forward axis
-	 * and not the view vector like in the paper.
-	 * This allows us to save a lot of dot products. */
-	/* omega_o = vec3(0.0, 0.0, 1.0); */
-
-	vec2 pixel_ratio = vec2(screenres.y / screenres.x, 1.0);
-	float pixel_len = length(pixel_size);
-	float homcco = ProjectionMatrix[2][3] * position.z + ProjectionMatrix[3][3];
-	float max_dist = aoDistance / homcco; /* Search distance */
-
-	/* Integral over PI */
-	visibility = 0.0;
-#ifdef USE_BENT_NORMAL
-	bent_normal = vec3(0.0);
-#else
-	vec3 bent_normal = vec3(0.0);
-#endif
-	for (float i = 0.0; i < MAX_PHI_STEP; i++) {
-		if (i >= aoSamples) break;
-		integrate_slice(i, x, normal, x_, noise, max_dist, pixel_ratio, pixel_len, visibility, bent_normal);
+	if ((int(aoSettings) & USE_DENOISE) == 0) {
+		d_sign *= 0.0;
 	}
 
-	/* aoSamples can be 0.0 to temporary disable the effect. */
-	visibility = clamp(max(1e-8, visibility) / max(1e-8, aoSamples), 1e-8, 1.0);
+	/* 2x2 Bilateral Filter using derivatives. */
+	vec2 n_step = step(-0.2, -abs(vec2(length(dFdx(normal)), length(dFdy(normal)))));
+	vec2 z_step = step(-0.1, -abs(vec2(dFdx(frag_depth), dFdy(frag_depth))));
 
-#ifdef USE_BENT_NORMAL
-	/* The bent normal will show the facet look of the mesh. Try to minimize this. */
-	bent_normal = normalize(mix(bent_normal / visibility, normal, visibility * visibility * visibility));
-#endif
+	visibility -= dFdx(visibility) * d_sign.x * z_step.x * n_step.x;
+	visibility -= dFdy(visibility) * d_sign.y * z_step.y * n_step.y;
 
-	/* Scale by user factor */
-	visibility = pow(visibility, aoFactor);
+	bent_normal -= dFdx(bent_normal) * d_sign.x * z_step.x * n_step.x;
+	bent_normal -= dFdy(bent_normal) * d_sign.y * z_step.y * n_step.y;
+}
+
+void gtao_deferred(vec3 normal, vec3 position, float frag_depth, out float visibility, out vec3 bent_normal)
+{
+	vec2 uvs = get_uvs_from_view(position);
+
+	vec4 texel_size = vec4(-1.0, -1.0, 1.0, 1.0) / vec2(textureSize(depthBuffer, 0)).xyxy;
+
+	ivec2 fs_co = ivec2(gl_FragCoord.xy);
+	ivec2 hr_co = get_hr_co(fs_co);
+
+	bent_normal = vec3(0.0);
+	visibility = 0.0;
+
+	for (float i = 0.0; i < MAX_PHI_STEP; i++) {
+		if (i >= aoSamples) break;
+
+		vec2 horiz = unpack_horizons(texelFetch(horizonBuffer, ivec3(hr_co, int(i)), 0).rg);
+		float phi = get_phi(hr_co, fs_co, i);
+
+		integrate_slice(normal, phi, horiz.xy, visibility, bent_normal);
+	}
+
+	visibility *= aoInvSamples;
+	bent_normal = normalize(bent_normal);
+}
+
+void gtao(vec3 normal, vec3 position, vec2 noise, out float visibility, out vec3 bent_normal)
+{
+	vec2 uvs = get_uvs_from_view(position);
+
+	float homcco = ProjectionMatrix[2][3] * position.z + ProjectionMatrix[3][3];
+	float max_dist = aoDistance / homcco; /* Search distance */
+	vec2 max_dir = max_dist * vec2(ProjectionMatrix[0][0], ProjectionMatrix[1][1]);
+
+	bent_normal = vec3(0.0);
+	visibility = 0.0;
+
+	for (float i = 0.0; i < MAX_PHI_STEP; i++) {
+		if (i >= aoSamples) break;
+
+		float phi = M_PI * (i + noise.x) * aoInvSamples;
+		vec2 horizons = search_horizon_sweep(phi, position, uvs, noise.g, max_dir);
+
+		integrate_slice(normal, phi, horizons, visibility, bent_normal);
+	}
+
+	visibility *= aoInvSamples;
+	bent_normal = normalize(bent_normal);
 }
 
 /* Multibounce approximation base on surface albedo.
  * Page 78 in the .pdf version. */
 float gtao_multibounce(float visibility, vec3 albedo)
 {
+	if (aoBounceFac == 0.0) return visibility;
+
 	/* Median luminance. Because Colored multibounce looks bad. */
-	float lum = albedo.x * 0.3333;
-	lum += albedo.y * 0.3333;
-	lum += albedo.z * 0.3333;
+	float lum = dot(albedo, vec3(0.3333));
 
 	float a =  2.0404 * lum - 0.3324;
 	float b = -4.7951 * lum + 0.6417;
@@ -219,24 +319,38 @@ float gtao_multibounce(float visibility, vec3 albedo)
 /* Use the right occlusion  */
 float occlusion_compute(vec3 N, vec3 vpos, float user_occlusion, vec2 randuv, out vec3 bent_normal)
 {
-#ifdef USE_AO /* Screen Space Occlusion */
+	if ((int(aoSettings) & USE_AO) == 0) {
+		bent_normal = N;
+		return user_occlusion;
+	}
+	else {
+		float visibility;
+		vec3 vnor = mat3(ViewMatrix) * N;
 
-	float computed_occlusion;
-	vec3 vnor = mat3(ViewMatrix) * N;
-
-#ifdef USE_BENT_NORMAL
-	gtao(vnor, vpos, randuv, computed_occlusion, bent_normal);
-	bent_normal = mat3(ViewMatrixInverse) * bent_normal;
+#if defined(MESH_SHADER) && !defined(USE_ALPHA_HASH) && !defined(USE_ALPHA_CLIP) && !defined(SHADOW_SHADER) && !defined(USE_MULTIPLY) && !defined(USE_ALPHA_BLEND)
+		gtao_deferred(vnor, vpos, gl_FragCoord.z, visibility, bent_normal);
 #else
-	gtao(vnor, vpos, randuv, computed_occlusion);
-	bent_normal = N;
+		gtao(vnor, vpos, randuv, visibility, bent_normal);
 #endif
-	return min(computed_occlusion, user_occlusion);
+		denoise_ao(vnor, gl_FragCoord.z, visibility, bent_normal);
 
-#else /* No added Occlusion. */
+		/* Prevent some problems down the road. */
+		visibility = max(1e-3, visibility);
 
-	bent_normal = N;
-	return user_occlusion;
+		if ((int(aoSettings) & USE_BENT_NORMAL) != 0) {
+			/* The bent normal will show the facet look of the mesh. Try to minimize this. */
+			float mix_fac = visibility * visibility;
+			bent_normal = normalize(mix(bent_normal, vnor, mix_fac));
 
-#endif
+			bent_normal = transform_direction(ViewMatrixInverse, bent_normal);
+		}
+		else {
+			bent_normal = N;
+		}
+
+		/* Scale by user factor */
+		visibility = pow(visibility, aoFactor);
+
+		return min(visibility, user_occlusion);
+	}
 }

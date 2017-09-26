@@ -43,6 +43,7 @@
 #include "BKE_camera.h"
 #include "BKE_curve.h"
 #include "BKE_global.h"
+#include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_image.h"
 #include "BKE_texture.h"
@@ -75,6 +76,8 @@ extern char datatoc_object_particle_prim_frag_glsl[];
 extern char datatoc_object_particle_dot_vert_glsl[];
 extern char datatoc_object_particle_dot_frag_glsl[];
 extern char datatoc_common_globals_lib_glsl[];
+extern char datatoc_common_fxaa_lib_glsl[];
+extern char datatoc_gpu_shader_fullscreen_vert_glsl[];
 
 /* *********** LISTS *********** */
 typedef struct OBJECT_PassList {
@@ -83,11 +86,7 @@ typedef struct OBJECT_PassList {
 	struct DRWPass *outlines;
 	struct DRWPass *outlines_search;
 	struct DRWPass *outlines_expand;
-	struct DRWPass *outlines_fade1;
-	struct DRWPass *outlines_fade2;
-	struct DRWPass *outlines_fade3;
-	struct DRWPass *outlines_fade4;
-	struct DRWPass *outlines_fade5;
+	struct DRWPass *outlines_bleed;
 	struct DRWPass *outlines_resolve;
 	struct DRWPass *grid;
 	struct DRWPass *bone_solid;
@@ -204,6 +203,7 @@ typedef struct OBJECT_PrivateData{
 static struct {
 	/* fullscreen shaders */
 	GPUShader *outline_resolve_sh;
+	GPUShader *outline_resolve_aa_sh;
 	GPUShader *outline_detect_sh;
 	GPUShader *outline_fade_sh;
 
@@ -225,6 +225,7 @@ static struct {
 	int zneg_flag;
 	float zplane_normal[3];
 	float zplane_axes[3];
+	float inv_viewport_size[2];
 	bool draw_grid;
 	/* Temp buffer textures */
 	struct GPUTexture *outlines_depth_tx;
@@ -273,6 +274,15 @@ static void OBJECT_engine_init(void *vedata)
 
 	if (!e_data.outline_resolve_sh) {
 		e_data.outline_resolve_sh = DRW_shader_create_fullscreen(datatoc_object_outline_resolve_frag_glsl, NULL);
+	}
+
+	if (!e_data.outline_resolve_aa_sh) {
+		e_data.outline_resolve_aa_sh = DRW_shader_create_with_lib(
+		            datatoc_gpu_shader_fullscreen_vert_glsl, NULL,
+		            datatoc_object_outline_resolve_frag_glsl,
+		            datatoc_common_fxaa_lib_glsl,
+		            "#define FXAA_ALPHA\n"
+		            "#define USE_FXAA\n");
 	}
 
 	if (!e_data.outline_detect_sh) {
@@ -496,13 +506,17 @@ static void OBJECT_engine_init(void *vedata)
 		e_data.grid_settings[1] = grid_res; /* gridResolution */
 		e_data.grid_settings[2] = grid_scale; /* gridScale */
 		e_data.grid_settings[3] = v3d->gridsubdiv; /* gridSubdiv */
-		e_data.grid_settings[4] = (v3d->gridsubdiv > 1) ? 1.0f / log(v3d->gridsubdiv) : 0.0; /* 1/log(gridSubdiv) */
+		e_data.grid_settings[4] = (v3d->gridsubdiv > 1) ? 1.0f / logf(v3d->gridsubdiv) : 0.0f; /* 1/log(gridSubdiv) */
 	}
+
+	copy_v2_v2(e_data.inv_viewport_size, DRW_viewport_size_get());
+	invert_v2(e_data.inv_viewport_size);
 }
 
 static void OBJECT_engine_free(void)
 {
 	DRW_SHADER_FREE_SAFE(e_data.outline_resolve_sh);
+	DRW_SHADER_FREE_SAFE(e_data.outline_resolve_aa_sh);
 	DRW_SHADER_FREE_SAFE(e_data.outline_detect_sh);
 	DRW_SHADER_FREE_SAFE(e_data.outline_fade_sh);
 	DRW_SHADER_FREE_SAFE(e_data.object_empty_image_sh);
@@ -696,7 +710,7 @@ static void OBJECT_cache_init(void *vedata)
 
 	{
 		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS | DRW_STATE_WIRE;
-		psl->outlines = DRW_pass_create("Outlines Pass", state);
+		psl->outlines = DRW_pass_create("Outlines Depth Pass", state);
 
 		GPUShader *sh = GPU_shader_get_builtin_shader(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -716,16 +730,10 @@ static void OBJECT_cache_init(void *vedata)
 		DRWState state = DRW_STATE_WRITE_COLOR;
 		struct Gwn_Batch *quad = DRW_cache_fullscreen_quad_get();
 		static float alphaOcclu = 0.35f;
-		static float one = 1.0f;
-		static float alpha1 = 5.0f / 6.0f;
-		static float alpha2 = 4.0f / 5.0f;
-		static float alpha3 = 3.0f / 4.0f;
-		static float alpha4 = 2.0f / 3.0f;
-		static float alpha5 = 1.0f / 2.0f;
 		static bool bTrue = true;
 		static bool bFalse = false;
 
-		psl->outlines_search = DRW_pass_create("Outlines Expand Pass", state);
+		psl->outlines_search = DRW_pass_create("Outlines Detect Pass", state);
 
 		DRWShadingGroup *grp = DRW_shgroup_create(e_data.outline_detect_sh, psl->outlines_search);
 		DRW_shgroup_uniform_buffer(grp, "outlineColor", &e_data.outlines_color_tx);
@@ -738,53 +746,13 @@ static void OBJECT_cache_init(void *vedata)
 
 		grp = DRW_shgroup_create(e_data.outline_fade_sh, psl->outlines_expand);
 		DRW_shgroup_uniform_buffer(grp, "outlineColor", &e_data.outlines_blur_tx);
-		DRW_shgroup_uniform_buffer(grp, "outlineDepth", &e_data.outlines_depth_tx);
-		DRW_shgroup_uniform_float(grp, "alpha", &one, 1);
 		DRW_shgroup_uniform_bool(grp, "doExpand", &bTrue, 1);
 		DRW_shgroup_call_add(grp, quad, NULL);
 
-		psl->outlines_fade1 = DRW_pass_create("Outlines Fade 1 Pass", state);
+		psl->outlines_bleed = DRW_pass_create("Outlines Bleed Pass", state);
 
-		grp = DRW_shgroup_create(e_data.outline_fade_sh, psl->outlines_fade1);
+		grp = DRW_shgroup_create(e_data.outline_fade_sh, psl->outlines_bleed);
 		DRW_shgroup_uniform_buffer(grp, "outlineColor", &e_data.outlines_color_tx);
-		DRW_shgroup_uniform_buffer(grp, "outlineDepth", &e_data.outlines_depth_tx);
-		DRW_shgroup_uniform_float(grp, "alpha", &alpha1, 1);
-		DRW_shgroup_uniform_bool(grp, "doExpand", &bFalse, 1);
-		DRW_shgroup_call_add(grp, quad, NULL);
-
-		psl->outlines_fade2 = DRW_pass_create("Outlines Fade 2 Pass", state);
-
-		grp = DRW_shgroup_create(e_data.outline_fade_sh, psl->outlines_fade2);
-		DRW_shgroup_uniform_buffer(grp, "outlineColor", &e_data.outlines_blur_tx);
-		DRW_shgroup_uniform_buffer(grp, "outlineDepth", &e_data.outlines_depth_tx);
-		DRW_shgroup_uniform_float(grp, "alpha", &alpha2, 1);
-		DRW_shgroup_uniform_bool(grp, "doExpand", &bFalse, 1);
-		DRW_shgroup_call_add(grp, quad, NULL);
-
-		psl->outlines_fade3 = DRW_pass_create("Outlines Fade 3 Pass", state);
-
-		grp = DRW_shgroup_create(e_data.outline_fade_sh, psl->outlines_fade3);
-		DRW_shgroup_uniform_buffer(grp, "outlineColor", &e_data.outlines_color_tx);
-		DRW_shgroup_uniform_buffer(grp, "outlineDepth", &e_data.outlines_depth_tx);
-		DRW_shgroup_uniform_float(grp, "alpha", &alpha3, 1);
-		DRW_shgroup_uniform_bool(grp, "doExpand", &bFalse, 1);
-		DRW_shgroup_call_add(grp, quad, NULL);
-
-		psl->outlines_fade4 = DRW_pass_create("Outlines Fade 4 Pass", state);
-
-		grp = DRW_shgroup_create(e_data.outline_fade_sh, psl->outlines_fade4);
-		DRW_shgroup_uniform_buffer(grp, "outlineColor", &e_data.outlines_blur_tx);
-		DRW_shgroup_uniform_buffer(grp, "outlineDepth", &e_data.outlines_depth_tx);
-		DRW_shgroup_uniform_float(grp, "alpha", &alpha4, 1);
-		DRW_shgroup_uniform_bool(grp, "doExpand", &bFalse, 1);
-		DRW_shgroup_call_add(grp, quad, NULL);
-
-		psl->outlines_fade5 = DRW_pass_create("Outlines Fade 5 Pass", state);
-
-		grp = DRW_shgroup_create(e_data.outline_fade_sh, psl->outlines_fade5);
-		DRW_shgroup_uniform_buffer(grp, "outlineColor", &e_data.outlines_color_tx);
-		DRW_shgroup_uniform_buffer(grp, "outlineDepth", &e_data.outlines_depth_tx);
-		DRW_shgroup_uniform_float(grp, "alpha", &alpha5, 1);
 		DRW_shgroup_uniform_bool(grp, "doExpand", &bFalse, 1);
 		DRW_shgroup_call_add(grp, quad, NULL);
 	}
@@ -795,8 +763,9 @@ static void OBJECT_cache_init(void *vedata)
 
 		struct Gwn_Batch *quad = DRW_cache_fullscreen_quad_get();
 
-		DRWShadingGroup *grp = DRW_shgroup_create(e_data.outline_resolve_sh, psl->outlines_resolve);
+		DRWShadingGroup *grp = DRW_shgroup_create(e_data.outline_resolve_aa_sh, psl->outlines_resolve);
 		DRW_shgroup_uniform_buffer(grp, "outlineBluredColor", &e_data.outlines_blur_tx);
+		DRW_shgroup_uniform_vec2(grp, "rcpDimensions", e_data.inv_viewport_size, 1);
 		DRW_shgroup_call_add(grp, quad, NULL);
 	}
 
@@ -827,12 +796,14 @@ static void OBJECT_cache_init(void *vedata)
 		DRW_shgroup_uniform_int(grp, "gridFlag", &e_data.grid_flag, 1);
 		DRW_shgroup_uniform_vec3(grp, "planeNormal", e_data.grid_normal, 1);
 		DRW_shgroup_uniform_vec3(grp, "planeAxes", e_data.grid_axes, 1);
+		DRW_shgroup_uniform_block(grp, "globalsBlock", globals_ubo);
 		DRW_shgroup_call_add(grp, quad, mat);
 
 		grp = DRW_shgroup_create(e_data.grid_sh, psl->grid);
 		DRW_shgroup_uniform_int(grp, "gridFlag", &e_data.zpos_flag, 1);
 		DRW_shgroup_uniform_vec3(grp, "planeNormal", e_data.zplane_normal, 1);
 		DRW_shgroup_uniform_vec3(grp, "planeAxes", e_data.zplane_axes, 1);
+		DRW_shgroup_uniform_block(grp, "globalsBlock", globals_ubo);
 		DRW_shgroup_call_add(grp, quad, mat);
 	}
 
@@ -1147,7 +1118,7 @@ static void DRW_shgroup_lamp(OBJECT_StorageList *stl, Object *ob, SceneLayer *sl
 		size[0] = size[1] = blend; size[2] = 1.0f;
 		size_to_mat4(sizemat, size);
 		translate_m4(sizemat, 0.0f, 0.0f, -1.0f);
-		rotate_m4(sizemat, 'X', M_PI / 2.0f);
+		rotate_m4(sizemat, 'X', (float)(M_PI / 2));
 		mul_m4_m4m4(spotblendmat, shapemat, sizemat);
 
 		if (la->mode & LA_SQUARE) {
@@ -1560,7 +1531,7 @@ static void DRW_shgroup_lightprobe(OBJECT_StorageList *stl, Object *ob, SceneLay
 
 static void DRW_shgroup_relationship_lines(OBJECT_StorageList *stl, Object *ob)
 {
-	if (ob->parent && ((ob->parent->base_flag & BASE_VISIBLED) != 0)) {
+	if (ob->parent && BKE_object_is_visible(ob->parent)) {
 		DRW_shgroup_call_dynamic_add(stl->g_data->relationship_lines, ob->obmat[3]);
 		DRW_shgroup_call_dynamic_add(stl->g_data->relationship_lines, ob->parent->obmat[3]);
 	}
@@ -1571,7 +1542,7 @@ static void DRW_shgroup_object_center(OBJECT_StorageList *stl, Object *ob, Scene
 	const bool is_library = ob->id.us > 1 || ID_IS_LINKED_DATABLOCK(ob);
 	DRWShadingGroup *shgroup;
 
-	if (ob == OBACT_NEW) {
+	if (ob == OBACT_NEW(sl)) {
 		shgroup = stl->g_data->center_active;
 	}
 	else if (ob->base_flag & BASE_SELECTED) {
@@ -1674,6 +1645,10 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
 	SceneLayer *sl = draw_ctx->scene_layer;
 	View3D *v3d = draw_ctx->v3d;
 	int theme_id = TH_UNDEFINED;
+
+	if (!BKE_object_is_visible(ob)) {
+		return;
+	}
 
 	//CollectionEngineSettings *ces_mode_ob = BKE_layer_collection_engine_evaluated_get(ob, COLLECTION_MODE_OBJECT, "");
 
@@ -1815,6 +1790,7 @@ static void OBJECT_draw_scene(void *vedata)
 	float clearcol[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 	if (DRW_state_is_fbo()) {
+		DRW_stats_group_start("Outlines");
 		/* attach temp textures */
 		DRW_framebuffer_texture_attach(fbl->outlines, e_data.outlines_depth_tx, 0, 0);
 		DRW_framebuffer_texture_attach(fbl->outlines, e_data.outlines_color_tx, 0, 0);
@@ -1825,6 +1801,7 @@ static void OBJECT_draw_scene(void *vedata)
 		DRW_framebuffer_clear(true, true, false, clearcol, 1.0f);
 		DRW_draw_pass(psl->outlines);
 
+
 		/* detach textures */
 		DRW_framebuffer_texture_detach(e_data.outlines_depth_tx);
 
@@ -1832,24 +1809,13 @@ static void OBJECT_draw_scene(void *vedata)
 		DRW_framebuffer_bind(fbl->blur);
 		DRW_draw_pass(psl->outlines_search);
 
-		/* Expand and fade gradually */
+		/* Expand outline to form a 3px wide line */
 		DRW_framebuffer_bind(fbl->outlines);
 		DRW_draw_pass(psl->outlines_expand);
 
+		/* Bleed color so the AA can do it's stuff */
 		DRW_framebuffer_bind(fbl->blur);
-		DRW_draw_pass(psl->outlines_fade1);
-
-		DRW_framebuffer_bind(fbl->outlines);
-		DRW_draw_pass(psl->outlines_fade2);
-
-		DRW_framebuffer_bind(fbl->blur);
-		DRW_draw_pass(psl->outlines_fade3);
-
-		DRW_framebuffer_bind(fbl->outlines);
-		DRW_draw_pass(psl->outlines_fade4);
-
-		DRW_framebuffer_bind(fbl->blur);
-		DRW_draw_pass(psl->outlines_fade5);
+		DRW_draw_pass(psl->outlines_bleed);
 
 		/* detach temp textures */
 		DRW_framebuffer_texture_detach(e_data.outlines_color_tx);
@@ -1857,6 +1823,7 @@ static void OBJECT_draw_scene(void *vedata)
 
 		/* restore main framebuffer */
 		DRW_framebuffer_bind(dfbl->default_fb);
+		DRW_stats_group_end();
 	}
 
 	/* This needs to be drawn after the oultine */

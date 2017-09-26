@@ -32,7 +32,7 @@
 #include "BLI_array.h"
 #include "BLI_alloca.h"
 #include "BLI_linklist_stack.h"
-#include "BLI_stackdefines.h"
+#include "BLI_utildefines_stack.h"
 
 #include "BLT_translation.h"
 
@@ -2415,7 +2415,8 @@ static void bmesh_kernel_vert_separate__cleanup(BMesh *bm, LinkNode *edges_separ
 					/* don't visit again */
 					n_prev->next = n_step->next;
 				}
-			} while ((n_prev = n_step),
+			} while ((void)
+			         (n_prev = n_step),
 			         (n_step = n_step->next));
 
 		} while ((n_orig = n_orig->next) && n_orig->next);

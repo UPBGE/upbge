@@ -258,7 +258,7 @@ class DATA_PT_shadow(DataButtonsPanel, Panel):
             split = layout.split()
 
             col = split.column()
-            col.label(text="Form factor sampling:")
+            col.label(text="Form Factor Sampling:")
 
             sub = col.row(align=True)
 
@@ -371,19 +371,35 @@ class DATA_PT_EEVEE_shadow(DataButtonsPanel, Panel):
 
         lamp = context.lamp
 
+        split = layout.split()
+        split.active = lamp.use_shadow
+
+        sub = split.column()
+        col = sub.column(align=True)
+        col.prop(lamp, "shadow_buffer_clip_start", text="Clip Start")
+        col.prop(lamp, "shadow_buffer_clip_end", text="Clip End")
+        col = sub.column()
+        col.prop(lamp, "shadow_buffer_soft", text="Soft")
+
+        col = split.column(align=True)
+        col.prop(lamp, "shadow_buffer_bias", text="Bias")
+        col.prop(lamp, "shadow_buffer_exp", text="Exponent")
+        col.prop(lamp, "shadow_buffer_bleed_bias", text="Bleed Bias")
+
         if lamp.type == 'SUN':
-            layout.label("Comming Soon")
-        else:
-            split = layout.split()
-            split.active = lamp.use_shadow
+            col = layout.column()
+            col.active = lamp.use_shadow
+            col.label("Cascaded Shadow Map:")
 
-            col = split.column(align=True)
-            col.prop(lamp, "shadow_buffer_clip_start", text="Clip Start")
-            col.prop(lamp, "shadow_buffer_clip_end", text="Clip End")
+            split = col.split()
 
-            col = split.column(align=True)
-            col.prop(lamp, "shadow_buffer_bias", text="Bias")
-            col.prop(lamp, "shadow_buffer_exp", text="Exponent")
+            sub = split.column()
+            sub.prop(lamp, "shadow_cascade_count", text="Count")
+            sub.prop(lamp, "shadow_cascade_fade", text="Fade")
+
+            sub = split.column()
+            sub.prop(lamp, "shadow_cascade_max_distance", text="Max Distance")
+            sub.prop(lamp, "shadow_cascade_exponent", text="Distribution")
 
 class DATA_PT_GAME_shadow(DataButtonsPanel, Panel):
     bl_label = "Game Shadow"

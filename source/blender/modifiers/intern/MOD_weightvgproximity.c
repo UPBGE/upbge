@@ -50,7 +50,9 @@
 #include "DEG_depsgraph_build.h"
 
 #include "MEM_guardedalloc.h"
+
 #include "MOD_weightvg_util.h"
+#include "MOD_modifiertypes.h"
 
 //#define USE_TIMEIT
 
@@ -285,14 +287,10 @@ static void copyData(ModifierData *md, ModifierData *target)
 {
 #if 0
 	WeightVGProximityModifierData *wmd  = (WeightVGProximityModifierData *) md;
-#endif
 	WeightVGProximityModifierData *twmd = (WeightVGProximityModifierData *) target;
+#endif
 
 	modifier_copyData_generic(md, target);
-
-	if (twmd->mask_texture) {
-		id_us_plus(&twmd->mask_texture->id);
-	}
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -372,8 +370,8 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 	return (wmd->proximity_ob_target == NULL);
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *derivedData,
-                                  ModifierApplyFlag UNUSED(flag))
+static DerivedMesh *applyModifier(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob,
+                                  DerivedMesh *derivedData, ModifierApplyFlag UNUSED(flag))
 {
 	WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *) md;
 	DerivedMesh *dm = derivedData;

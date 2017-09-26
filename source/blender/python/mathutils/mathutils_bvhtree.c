@@ -761,7 +761,7 @@ static PyObject *C_BVHTree_FromPolygons(PyObject *UNUSED(cls), PyObject *args, P
 			py_tricoords_fast_items = PySequence_Fast_ITEMS(py_tricoords_fast);
 
 			for (j = 0; j < 3; j++) {
-				tri[j] = (unsigned int)_PyLong_AsInt(py_tricoords_fast_items[j]);
+				tri[j] = PyC_Long_AsU32(py_tricoords_fast_items[j]);
 				if (UNLIKELY(tri[j] >= (unsigned int)coords_len)) {
 					PyErr_Format(PyExc_ValueError,
 					             "%s: index %d must be less than %d",
@@ -812,7 +812,7 @@ static PyObject *C_BVHTree_FromPolygons(PyObject *UNUSED(cls), PyObject *args, P
 			p_plink_prev = &plink->next;
 
 			for (j = 0; j < py_tricoords_len; j++) {
-				plink->poly[j] = (unsigned int)_PyLong_AsInt(py_tricoords_fast_items[j]);
+				plink->poly[j] = PyC_Long_AsU32(py_tricoords_fast_items[j]);
 				if (UNLIKELY(plink->poly[j] >= (unsigned int)coords_len)) {
 					PyErr_Format(PyExc_ValueError,
 					             "%s: index %d must be less than %d",
@@ -1049,6 +1049,8 @@ static DerivedMesh *bvh_get_derived_mesh(
         const char *funcname, struct Scene *scene, Object *ob,
         bool use_deform, bool use_render, bool use_cage)
 {
+	/* TODO: This doesn't work currently because of eval_ctx. */
+#if 0
 	/* we only need minimum mesh data for topology and vertex locations */
 	CustomDataMask mask = CD_MASK_BAREMESH;
 
@@ -1096,6 +1098,11 @@ static DerivedMesh *bvh_get_derived_mesh(
 			}
 		}
 	}
+#else
+	UNUSED_VARS(funcname, scene, ob, use_deform, use_render, use_cage);
+#endif
+
+	return NULL;
 }
 
 PyDoc_STRVAR(C_BVHTree_FromObject_doc,
@@ -1156,7 +1163,6 @@ static PyObject *C_BVHTree_FromObject(PyObject *UNUSED(cls), PyObject *args, PyO
 
 	/* Get data for tessellation */
 	{
-		DM_ensure_looptri(dm);
 		lt = dm->getLoopTriArray(dm);
 
 		tris_len = (unsigned int)dm->getNumLoopTri(dm);

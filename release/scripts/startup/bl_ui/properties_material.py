@@ -1127,10 +1127,12 @@ def panel_node_draw(layout, ntree, output_type):
 
     if node:
         input = find_node_input(node, 'Surface')
-        layout.template_node_view(ntree, node, input)
-        return True
-
-    return False
+        if input:
+            layout.template_node_view(ntree, node, input)
+        else:
+            layout.label(text="Incompatible output node")
+    else:
+        layout.label(text="No output node")
 
 
 class EEVEE_MATERIAL_PT_surface(MaterialButtonsPanel, Panel):
@@ -1152,8 +1154,7 @@ class EEVEE_MATERIAL_PT_surface(MaterialButtonsPanel, Panel):
         layout.separator()
 
         if mat.use_nodes:
-            if not panel_node_draw(layout, mat.node_tree, 'OUTPUT_EEVEE_MATERIAL'):
-                layout.label(text="No output node")
+            panel_node_draw(layout, mat.node_tree, ('OUTPUT_EEVEE_MATERIAL', 'OUTPUT_MATERIAL'))
         else:
             raym = mat.raytrace_mirror
             layout.prop(mat, "diffuse_color", text="Base Color")
@@ -1189,6 +1190,8 @@ class EEVEE_MATERIAL_PT_options(MaterialButtonsPanel, Panel):
         if mat.blend_method not in {"OPAQUE", "CLIP", "HASHED"}:
             layout.prop(mat, "transparent_hide_backside")
 
+        layout.prop(mat, "use_screen_refraction")
+        layout.prop(mat, "refraction_depth")
 
 
 class MATERIAL_PT_custom_props(MaterialButtonsPanel, PropertyPanel, Panel):

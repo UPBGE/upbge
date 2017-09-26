@@ -54,6 +54,7 @@ BlenderSync::BlenderSync(BL::RenderEngine& b_engine,
   b_data(b_data),
   b_depsgraph(b_depsgraph),
   b_scene(b_scene),
+  b_scene_layer(b_engine.scene_layer()),
   shader_map(&scene->shaders),
   object_map(&scene->objects),
   mesh_map(&scene->meshes),
@@ -236,7 +237,6 @@ void BlenderSync::sync_integrator()
 	Integrator *integrator = scene->integrator;
 	Integrator previntegrator = *integrator;
 
-	integrator->min_bounce = get_int(cscene, "min_bounces");
 	integrator->max_bounce = get_int(cscene, "max_bounces");
 
 	integrator->max_diffuse_bounce = get_int(cscene, "diffuse_bounces");
@@ -245,8 +245,6 @@ void BlenderSync::sync_integrator()
 	integrator->max_volume_bounce = get_int(cscene, "volume_bounces");
 
 	integrator->transparent_max_bounce = get_int(cscene, "transparent_max_bounces");
-	integrator->transparent_min_bounce = get_int(cscene, "transparent_min_bounces");
-	integrator->transparent_shadows = get_boolean(cscene, "use_transparent_shadows");
 
 	integrator->volume_max_steps = get_int(cscene, "volume_max_steps");
 	integrator->volume_step_size = get_float(cscene, "volume_step_size");
@@ -613,14 +611,10 @@ SceneParams BlenderSync::get_scene_params(BL::Scene& b_scene,
 	else if(shadingsystem == 1)
 		params.shadingsystem = SHADINGSYSTEM_OSL;
 	
-	if(background)
+	if(background || DebugFlags().viewport_static_bvh)
 		params.bvh_type = SceneParams::BVH_STATIC;
 	else
-		params.bvh_type = (SceneParams::BVHType)get_enum(
-		        cscene,
-		        "debug_bvh_type",
-		        SceneParams::BVH_NUM_TYPES,
-		        SceneParams::BVH_STATIC);
+		params.bvh_type = SceneParams::BVH_DYNAMIC;
 
 	params.use_bvh_spatial_split = RNA_boolean_get(&cscene, "debug_use_spatial_splits");
 	params.use_bvh_unaligned_nodes = RNA_boolean_get(&cscene, "debug_use_hair_bvh");
@@ -794,6 +788,7 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 	}
 
 	params.start_resolution = get_int(cscene, "preview_start_resolution");
+	params.pixel_size = b_engine.get_preview_pixel_size(b_scene);
 
 	/* other parameters */
 	if(b_scene.render().threads_mode() == BL::RenderSettings::threads_mode_FIXED)
@@ -814,6 +809,7 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 			params.progressive = false;
 
 		params.start_resolution = INT_MAX;
+		params.pixel_size = 1;
 	}
 	else
 		params.progressive = true;

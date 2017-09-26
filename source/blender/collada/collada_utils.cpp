@@ -93,6 +93,9 @@ int bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space)
 {
 	Object workob;
 	Scene *sce = CTX_data_scene(C);
+	EvaluationContext eval_ctx;
+
+	CTX_data_eval_ctx(C, &eval_ctx);
 	
 	if (!par || bc_test_parent_loop(par, ob))
 		return false;
@@ -105,7 +108,7 @@ int bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space)
 	if (is_parent_space) {
 		float mat[4][4];
 		// calc par->obmat
-		BKE_object_where_is_calc(sce, par);
+		BKE_object_where_is_calc(&eval_ctx, sce, par);
 
 		// move child obmat into world space
 		mul_m4_m4m4(mat, par->obmat, ob->obmat);
@@ -116,7 +119,7 @@ int bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space)
 	BKE_object_apply_mat4(ob, ob->obmat, 0, 0);
 
 	// compute parentinv
-	BKE_object_workob_calc_parent(sce, ob, &workob);
+	BKE_object_workob_calc_parent(&eval_ctx, sce, ob, &workob);
 	invert_m4_m4(ob->parentinv, workob.obmat);
 
 	DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA);
@@ -144,7 +147,7 @@ Object *bc_add_object(Scene *scene, int type, const char *name)
 	return ob;
 }
 
-Mesh *bc_get_mesh_copy(Scene *scene, Object *ob, BC_export_mesh_type export_mesh_type, bool apply_modifiers, bool triangulate)
+Mesh *bc_get_mesh_copy(const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, BC_export_mesh_type export_mesh_type, bool apply_modifiers, bool triangulate)
 {
 	Mesh *tmpmesh;
 	CustomDataMask mask = CD_MASK_MESH;
@@ -154,12 +157,12 @@ Mesh *bc_get_mesh_copy(Scene *scene, Object *ob, BC_export_mesh_type export_mesh
 		switch (export_mesh_type) {
 			case BC_MESH_TYPE_VIEW:
 			{
-				dm = mesh_create_derived_view(scene, ob, mask);
+				dm = mesh_create_derived_view(eval_ctx, scene, ob, mask);
 				break;
 			}
 			case BC_MESH_TYPE_RENDER:
 			{
-				dm = mesh_create_derived_render(scene, ob, mask);
+				dm = mesh_create_derived_render(eval_ctx, scene, ob, mask);
 				break;
 			}
 		}

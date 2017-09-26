@@ -77,6 +77,8 @@
 #include "BKE_mesh_mapping.h"
 #include "BKE_modifier.h"
 
+#include "MOD_modifiertypes.h"
+
 #include "bmesh.h"
 
 typedef struct {
@@ -1915,6 +1917,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 }
 
 static DerivedMesh *applyModifier(ModifierData *md,
+                                  const struct EvaluationContext *UNUSED(eval_ctx),
                                   Object *UNUSED(ob),
                                   DerivedMesh *dm,
                                   ModifierApplyFlag UNUSED(flag))

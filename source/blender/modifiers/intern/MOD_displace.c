@@ -74,14 +74,10 @@ static void copyData(ModifierData *md, ModifierData *target)
 {
 #if 0
 	DisplaceModifierData *dmd = (DisplaceModifierData *) md;
-#endif
 	DisplaceModifierData *tdmd = (DisplaceModifierData *) target;
+#endif
 
 	modifier_copyData_generic(md, target);
-
-	if (tdmd->texture) {
-		id_us_plus(&tdmd->texture->id);
-	}
 }
 
 static void freeData(ModifierData *md)
@@ -375,8 +371,8 @@ static void displaceModifier_do(
 	}
 }
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *derivedData,
+static void deformVerts(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+                        Object *ob, DerivedMesh *derivedData,
                         float (*vertexCos)[3],
                         int numVerts,
                         ModifierApplyFlag UNUSED(flag))
@@ -391,7 +387,7 @@ static void deformVerts(ModifierData *md, Object *ob,
 }
 
 static void deformVertsEM(
-        ModifierData *md, Object *ob, struct BMEditMesh *editData,
+        ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob, struct BMEditMesh *editData,
         DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
 	DerivedMesh *dm = get_cddm(ob, editData, derivedData, vertexCos, dependsOnNormals(md));

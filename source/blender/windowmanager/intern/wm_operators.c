@@ -179,7 +179,7 @@ static void wm_operatortype_append__end(wmOperatorType *ot)
 
 	/* XXX All ops should have a description but for now allow them not to. */
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-	RNA_def_struct_identifier(ot->srna, ot->idname);
+	RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
 
 	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
 }
@@ -401,7 +401,7 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *nam
 		ot->description = UNDOCUMENTED_OPERATOR_TIP;
 	
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description);
-	RNA_def_struct_identifier(ot->srna, ot->idname);
+	RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
 	/* Use i18n context from ext.srna if possible (py operators). */
 	i18n_context = ot->ext.srna ? RNA_struct_translation_context(ot->ext.srna) : BLT_I18NCONTEXT_OPERATOR_DEFAULT;
 	RNA_def_struct_translation_context(ot->srna, i18n_context);
@@ -435,7 +435,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *, void *), 
 	opfunc(ot, userdata);
 
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description);
-	RNA_def_struct_identifier(ot->srna, ot->idname);
+	RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
 
 	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
 }
@@ -573,6 +573,46 @@ void WM_operator_bl_idname(char *to, const char *from)
 	}
 	else
 		to[0] = 0;
+}
+
+/**
+ * Sanity check to ensure #WM_operator_bl_idname won't fail.
+ * \returns true when there are no problems with \a idname, otherwise report an error.
+ */
+bool WM_operator_py_idname_ok_or_report(ReportList *reports, const char *classname, const char *idname)
+{
+	const char *ch = idname;
+	int dot = 0;
+	int i;
+	for (i = 0; *ch; i++, ch++) {
+		if ((*ch >= 'a' && *ch <= 'z') || (*ch >= '0' && *ch <= '9') || *ch == '_') {
+			/* pass */
+		}
+		else if (*ch == '.') {
+			dot++;
+		}
+		else {
+			BKE_reportf(reports, RPT_ERROR,
+			            "Registering operator class: '%s', invalid bl_idname '%s', at position %d",
+			            classname, idname, i);
+			return false;
+		}
+	}
+
+	if (i > (MAX_NAME - 3)) {
+		BKE_reportf(reports, RPT_ERROR, "Registering operator class: '%s', invalid bl_idname '%s', "
+		            "is too long, maximum length is %d", classname, idname,
+		            MAX_NAME - 3);
+		return false;
+	}
+
+	if (dot != 1) {
+		BKE_reportf(reports, RPT_ERROR,
+		            "Registering operator class: '%s', invalid bl_idname '%s', must contain 1 '.' character",
+		            classname, idname);
+		return false;
+	}
+	return true;
 }
 
 /**
@@ -809,9 +849,19 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 			} \
 		} (void)0
 
+#define CTX_TEST_SPACE_TYPE(space_data_type, member_full, dataptr_cmp) \
+		{ \
+			const char *ctx_member_full = member_full; \
+			if (space_data->spacetype == space_data_type && ptr->data == dataptr_cmp) { \
+				member_id = ctx_member_full; \
+				break; \
+			} \
+		} (void)0
+
 		switch (GS(((ID *)ptr->id.data)->name)) {
 			case ID_SCE:
 			{
+				CTX_TEST_PTR_DATA_TYPE(C, "active_gpencil_brush", RNA_GPencilBrush, ptr, CTX_data_active_gpencil_brush(C));
 				CTX_TEST_PTR_ID(C, "scene", ptr->id.data);
 				break;
 			}
@@ -846,12 +896,22 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 			{
 				CTX_TEST_PTR_ID(C, "screen", ptr->id.data);
 
-				CTX_TEST_PTR_DATA_TYPE(C, "space_data", RNA_Space, ptr, CTX_wm_space_data(C));
+				SpaceLink *space_data = CTX_wm_space_data(C);
+
+				CTX_TEST_PTR_DATA_TYPE(C, "space_data", RNA_Space, ptr, space_data);
 				CTX_TEST_PTR_DATA_TYPE(C, "area", RNA_Area, ptr, CTX_wm_area(C));
 				CTX_TEST_PTR_DATA_TYPE(C, "region", RNA_Region, ptr, CTX_wm_region(C));
 
+				CTX_TEST_SPACE_TYPE(SPACE_IMAGE, "space_data.uv_editor", space_data);
+				CTX_TEST_SPACE_TYPE(SPACE_VIEW3D, "space_data.fx_settings", &(CTX_wm_view3d(C)->fx_settings));
+				CTX_TEST_SPACE_TYPE(SPACE_NLA, "space_data.dopesheet", CTX_wm_space_nla(C)->ads);
+				CTX_TEST_SPACE_TYPE(SPACE_IPO, "space_data.dopesheet", CTX_wm_space_graph(C)->ads);
+				CTX_TEST_SPACE_TYPE(SPACE_ACTION, "space_data.dopesheet", &(CTX_wm_space_action(C)->ads));
+				CTX_TEST_SPACE_TYPE(SPACE_FILE, "space_data.params", CTX_wm_space_file(C)->params);
 				break;
 			}
+			default:
+				break;
 		}
 
 		if (member_id) {
@@ -863,6 +923,7 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 		}
 #undef CTX_TEST_PTR_ID
 #undef CTX_TEST_PTR_ID_CAST
+#undef CTX_TEST_SPACE_TYPE
 	}
 
 	return ret;
@@ -1826,8 +1887,8 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	if (version_suffix != NULL && version_suffix[0]) {
 		/* placed after the version number in the image,
 		 * placing y is tricky to match baseline */
-		int x = 260 * U.pixelsize - (2 * UI_DPI_FAC);
-		int y = 242 * U.pixelsize + (4 * UI_DPI_FAC);
+		int x = 236 * U.pixelsize - (2 * UI_DPI_FAC);
+		int y = 231 * U.pixelsize + (4 * UI_DPI_FAC);
 		int w = 240 * U.pixelsize;
 
 		/* hack to have text draw 'text_sel' */
@@ -1840,17 +1901,32 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 
 #ifdef WITH_BUILDINFO
 	if (build_commit_timestamp != 0) {
-		uiDefBut(block, UI_BTYPE_LABEL, 0, date_buf, U.pixelsize * 494 - date_width, U.pixelsize * 270, date_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+		but = uiDefBut(
+		          block, UI_BTYPE_LABEL, 0, date_buf,
+		          U.pixelsize * 502 - date_width, U.pixelsize * 267,
+		          date_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+		/* XXX, set internal flag - UI_SELECT */
+		UI_but_flag_enable(but, 1);
 		label_delta = 12;
 	}
-	uiDefBut(block, UI_BTYPE_LABEL, 0, hash_buf, U.pixelsize * 494 - hash_width, U.pixelsize * (270 - label_delta), hash_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+	but = uiDefBut(
+	          block, UI_BTYPE_LABEL, 0, hash_buf,
+	          U.pixelsize * 502 - hash_width, U.pixelsize * (267 - label_delta),
+	          hash_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+	/* XXX, set internal flag - UI_SELECT */
+	UI_but_flag_enable(but, 1);
 
 	if (!STREQ(build_branch, "master")) {
 		char branch_buf[128] = "\0";
 		int branch_width;
 		BLI_snprintf(branch_buf, sizeof(branch_buf), "Branch: %s", build_branch);
 		branch_width = (int)BLF_width(style->widgetlabel.uifont_id, branch_buf, sizeof(branch_buf)) + U.widget_unit;
-		uiDefBut(block, UI_BTYPE_LABEL, 0, branch_buf, U.pixelsize * 494 - branch_width, U.pixelsize * (258 - label_delta), branch_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+		but = uiDefBut(
+		          block, UI_BTYPE_LABEL, 0, branch_buf,
+		          U.pixelsize * 502 - branch_width, U.pixelsize * (255 - label_delta),
+		          branch_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+		/* XXX, set internal flag - UI_SELECT */
+		UI_but_flag_enable(but, 1);
 	}
 #endif  /* WITH_BUILDINFO */
 	
@@ -3123,7 +3199,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		/* flat color if no texture available */
 		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 		immUniformColor3fvAlpha(col, alpha);
-		imm_draw_circle_fill(pos, 0.0f, 0.0f, radius, 40);
+		imm_draw_circle_fill_2d(pos, 0.0f, 0.0f, radius, 40);
 	}
 	
 	immUnbindProgram();
@@ -3230,10 +3306,10 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	}
 
 	/* draw circles on top */
-	imm_draw_circle_wire(pos, 0.0f, 0.0f, r1, 40);
-	imm_draw_circle_wire(pos, 0.0f, 0.0f, r2, 40);
+	imm_draw_circle_wire_2d(pos, 0.0f, 0.0f, r1, 40);
+	imm_draw_circle_wire_2d(pos, 0.0f, 0.0f, r2, 40);
 	if (rmin > 0.0f)
-		imm_draw_circle_wire(pos, 0.0, 0.0f, rmin, 40);
+		imm_draw_circle_wire_2d(pos, 0.0, 0.0f, rmin, 40);
 	immUnbindProgram();
 
 	BLF_size(fontid, 1.5 * fstyle_points * U.pixelsize, U.dpi);

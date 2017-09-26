@@ -96,7 +96,8 @@ void ED_armature_enter_posemode(bContext *C, Base *base)
 		case OB_ARMATURE:
 			ob->restore_mode = ob->mode;
 			ob->mode |= OB_MODE_POSE;
-			
+			/* Inform all CoW versions that we changed the mode. */
+			DEG_id_tag_update_ex(CTX_data_main(C), &ob->id, DEG_TAG_COPY_ON_WRITE);
 			WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_POSE, NULL);
 			
 			break;
@@ -115,7 +116,10 @@ void ED_armature_exit_posemode(bContext *C, Base *base)
 		
 		ob->restore_mode = ob->mode;
 		ob->mode &= ~OB_MODE_POSE;
-		
+
+		/* Inform all CoW versions that we changed the mode. */
+		DEG_id_tag_update_ex(CTX_data_main(C), &ob->id, DEG_TAG_COPY_ON_WRITE);
+
 		WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, NULL);
 	}
 }
@@ -155,7 +159,7 @@ static bool pose_has_protected_selected(Object *ob, short warn)
  *
  * To be called from various tools that do incremental updates 
  */
-void ED_pose_recalculate_paths(Scene *scene, Object *ob)
+void ED_pose_recalculate_paths(bContext *C, Scene *scene, Object *ob)
 {
 	ListBase targets = {NULL, NULL};
 	
@@ -164,7 +168,7 @@ void ED_pose_recalculate_paths(Scene *scene, Object *ob)
 	animviz_get_object_motionpaths(ob, &targets);
 	
 	/* recalculate paths, then free */
-	animviz_calc_motionpaths(scene, &targets);
+	animviz_calc_motionpaths(C, scene, &targets);
 	BLI_freelistN(&targets);
 }
 
@@ -227,7 +231,7 @@ static int pose_calculate_paths_exec(bContext *C, wmOperator *op)
 
 	/* calculate the bones that now have motionpaths... */
 	/* TODO: only make for the selected bones? */
-	ED_pose_recalculate_paths(scene, ob);
+	ED_pose_recalculate_paths(C, scene, ob);
 
 	/* notifiers for updates */
 	WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
@@ -283,7 +287,7 @@ static int pose_update_paths_exec(bContext *C, wmOperator *UNUSED(op))
 
 	/* calculate the bones that now have motionpaths... */
 	/* TODO: only make for the selected bones? */
-	ED_pose_recalculate_paths(scene, ob);
+	ED_pose_recalculate_paths(C, scene, ob);
 	
 	/* notifiers for updates */
 	WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);

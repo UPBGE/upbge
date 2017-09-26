@@ -6,11 +6,18 @@ uniform float invSampleCount;
 
 vec2 jitternoise = vec2(0.0);
 
+#ifndef UTIL_TEX
+#define UTIL_TEX
+uniform sampler2DArray utilTex;
+#endif /* UTIL_TEX */
+
 void setup_noise(void)
 {
-	jitternoise = texture(texJitter, gl_FragCoord.xy / NOISE_SIZE).rg; /* Global variable */
+	jitternoise = texture(utilTex, vec3(gl_FragCoord.xy / LUT_SIZE, 2.0)).rg; /* Global variable */
+	jitternoise.g = (jitternoise.g - 0.5) * 2.0;
 }
 
+#ifdef HAMMERSLEY_SIZE
 vec3 hammersley_3d(float i, float invsamplenbr)
 {
 	vec3 Xi; /* Theta, cos(Phi), sin(Phi) */
@@ -29,6 +36,7 @@ vec3 hammersley_3d(float i)
 {
 	return hammersley_3d(i, invSampleCount);
 }
+#endif
 
 /* -------------- BSDFS -------------- */
 
@@ -42,19 +50,30 @@ float pdf_hemisphere()
 	return 0.5 * M_1_PI;
 }
 
+vec3 sample_ggx(vec3 rand, float a2)
+{
+	/* Theta is the aperture angle of the cone */
+	float z = sqrt( (1.0 - rand.x) / ( 1.0 + a2 * rand.x - rand.x ) ); /* cos theta */
+	float r = sqrt( 1.0 - z * z ); /* sin theta */
+	float x = r * rand.y;
+	float y = r * rand.z;
+
+	/* Microfacet Normal */
+	return vec3(x, y, z);
+}
+
+vec3 sample_ggx(vec3 rand, float a2, vec3 N, vec3 T, vec3 B, out float NH)
+{
+	vec3 Ht = sample_ggx(rand, a2);
+	NH = Ht.z;
+	return tangent_to_world(Ht, N, T, B);
+}
+
+#ifdef HAMMERSLEY_SIZE
 vec3 sample_ggx(float nsample, float a2, vec3 N, vec3 T, vec3 B)
 {
 	vec3 Xi = hammersley_3d(nsample);
-
-	/* Theta is the aperture angle of the cone */
-	float z = sqrt( (1.0 - Xi.x) / ( 1.0 + a2 * Xi.x - Xi.x ) ); /* cos theta */
-	float r = sqrt( 1.0 - z * z ); /* sin theta */
-	float x = r * Xi.y;
-	float y = r * Xi.z;
-
-	/* Microfacet Normal */
-	vec3 Ht = vec3(x, y, z);
-
+	vec3 Ht = sample_ggx(Xi, a2);
 	return tangent_to_world(Ht, N, T, B);
 }
 
@@ -71,3 +90,4 @@ vec3 sample_hemisphere(float nsample, vec3 N, vec3 T, vec3 B)
 
 	return tangent_to_world(Ht, N, T, B);
 }
+#endif

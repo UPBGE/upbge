@@ -463,8 +463,8 @@ bScreen *screen_add(const char *name, const int winsize_x, const int winsize_y)
 {
 	bScreen *sc;
 	ScrVert *sv1, *sv2, *sv3, *sv4;
-
-	sc = BKE_libblock_alloc(G.main, ID_SCR, name);
+	
+	sc = BKE_libblock_alloc(G.main, ID_SCR, name, 0);
 	sc->do_refresh = true;
 	sc->redraws_flag = TIME_ALL_3D_WIN | TIME_ALL_ANIM_WIN;
 
@@ -472,15 +472,15 @@ bScreen *screen_add(const char *name, const int winsize_x, const int winsize_y)
 	sv2 = screen_addvert(sc, 0, winsize_y - 1);
 	sv3 = screen_addvert(sc, winsize_x - 1, winsize_y - 1);
 	sv4 = screen_addvert(sc, winsize_x - 1, 0);
-
+	
 	screen_addedge(sc, sv1, sv2);
 	screen_addedge(sc, sv2, sv3);
 	screen_addedge(sc, sv3, sv4);
 	screen_addedge(sc, sv4, sv1);
-
+	
 	/* dummy type, no spacedata */
 	screen_addarea(sc, sv1, sv2, sv3, sv4, HEADERDOWN, SPACE_EMPTY);
-
+		
 	return sc;
 }
 
@@ -856,8 +856,10 @@ static void region_cursor_set(wmWindow *win, int swinid, int swin_changed)
 		for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
 			if (ar->swinid == swinid) {
 				if (swin_changed || (ar->type && ar->type->event_cursor)) {
-					if (WM_manipulatormap_cursor_set(ar->manipulator_map, win)) {
-						return;
+					if (ar->manipulator_map != NULL) {
+						if (WM_manipulatormap_cursor_set(ar->manipulator_map, win)) {
+							return;
+						}
 					}
 					ED_region_cursor_set(win, sa, ar);
 				}
@@ -990,7 +992,7 @@ void ED_region_exit(bContext *C, ARegion *ar)
 		wm_subwindow_close(win, ar->swinid);
 		ar->swinid = 0;
 	}
-
+	
 	if (ar->headerstr) {
 		MEM_freeN(ar->headerstr);
 		ar->headerstr = NULL;
@@ -1470,17 +1472,28 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *sa, const s
 	if (sa && sa->full) {
 		WorkSpaceLayout *layout_old = WM_window_get_active_layout(win);
 		/* restoring back to SCREENNORMAL */
-		ScrArea *old;
-
 		sc = sa->full;       /* the old screen to restore */
 		oldscreen = WM_window_get_active_screen(win); /* the one disappearing */
 
 		sc->state = SCREENNORMAL;
 
-		/* find old area */
-		for (old = sc->areabase.first; old; old = old->next)
-			if (old->full) break;
-		if (old == NULL) {
+		/* find old area to restore from */
+		ScrArea *fullsa = NULL;
+		for (ScrArea *old = sc->areabase.first; old; old = old->next) {
+			/* area to restore from is always first */
+			if (old->full && !fullsa) {
+				fullsa = old;
+			}
+
+			/* clear full screen state */
+			old->full = NULL;
+			old->flag &= ~AREA_TEMP_INFO;
+		}
+
+		sa->flag &= ~AREA_TEMP_INFO;
+		sa->full = NULL;
+
+		if (fullsa == NULL) {
 			if (G.debug & G_DEBUG)
 				printf("%s: something wrong in areafullscreen\n", __func__);
 			return NULL;
@@ -1493,9 +1506,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *sa, const s
 			}
 		}
 
-		ED_area_data_swap(old, sa);
-		if (sa->flag & AREA_TEMP_INFO) sa->flag &= ~AREA_TEMP_INFO;
-		old->full = NULL;
+		ED_area_data_swap(fullsa, sa);
 
 		/* animtimer back */
 		sc->animtimer = oldscreen->animtimer;

@@ -62,13 +62,13 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	ArmatureModifierData *amd = (ArmatureModifierData *) md;
+#endif
 	ArmatureModifierData *tamd = (ArmatureModifierData *) target;
 
-	tamd->object = amd->object;
-	tamd->deformflag = amd->deformflag;
-	tamd->multi = amd->multi;
-	BLI_strncpy(tamd->defgrp_name, amd->defgrp_name, sizeof(tamd->defgrp_name));
+	modifier_copyData_generic(md, target);
+	tamd->prevCos = NULL;
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *UNUSED(md))
@@ -110,8 +110,8 @@ static void updateDepsgraph(ModifierData *md,
 	}
 }
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *derivedData,
+static void deformVerts(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+                        Object *ob, DerivedMesh *derivedData,
                         float (*vertexCos)[3],
                         int numVerts,
                         ModifierApplyFlag UNUSED(flag))
@@ -131,7 +131,7 @@ static void deformVerts(ModifierData *md, Object *ob,
 }
 
 static void deformVertsEM(
-        ModifierData *md, Object *ob, struct BMEditMesh *em,
+        ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob, struct BMEditMesh *em,
         DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
 	ArmatureModifierData *amd = (ArmatureModifierData *) md;
@@ -154,7 +154,7 @@ static void deformVertsEM(
 }
 
 static void deformMatricesEM(
-        ModifierData *md, Object *ob, struct BMEditMesh *em,
+        ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob, struct BMEditMesh *em,
         DerivedMesh *derivedData, float (*vertexCos)[3],
         float (*defMats)[3][3], int numVerts)
 {
@@ -169,7 +169,7 @@ static void deformMatricesEM(
 	if (!derivedData) dm->release(dm);
 }
 
-static void deformMatrices(ModifierData *md, Object *ob, DerivedMesh *derivedData,
+static void deformMatrices(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob, DerivedMesh *derivedData,
                            float (*vertexCos)[3], float (*defMats)[3][3], int numVerts)
 {
 	ArmatureModifierData *amd = (ArmatureModifierData *) md;

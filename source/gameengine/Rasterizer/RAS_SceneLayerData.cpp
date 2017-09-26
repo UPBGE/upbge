@@ -8,7 +8,7 @@ RAS_SceneLayerData::RAS_SceneLayerData(EEVEE_SceneLayerData& data)
 	:m_data(data)
 {
 	m_shadowStoreGroup = DRW_shgroup_create(EEVEE_shadow_store_shader_get(), nullptr);
-	DRW_shgroup_uniform_buffer(m_shadowStoreGroup, "shadowCube", &m_data.shadow_color_cube_target);
+	DRW_shgroup_uniform_buffer(m_shadowStoreGroup, "shadowCube", &m_data.shadow_cube_target);//shadow_color_cube_target);
 	DRW_shgroup_uniform_block(m_shadowStoreGroup, "shadow_render_block", m_data.shadow_render_ubo);
 }
 
@@ -54,13 +54,13 @@ void RAS_SceneLayerData::PrepareShadowRender()
 	EEVEE_LampsInfo *linfo = m_data.lamps;
 
 	DRW_uniformbuffer_update(m_data.shadow_render_ubo, &linfo->shadow_render_data);
-	DRW_framebuffer_bind(m_data.shadow_cube_target_fb);
+	//DRW_framebuffer_bind(m_data.shadow_cube_target_fb);
 	DRW_framebuffer_clear(true, true, false, clear_color, 1.0f);
 }
 
 void RAS_SceneLayerData::PrepareShadowStore()
 {
-	DRW_framebuffer_bind(m_data.shadow_cube_fb);
+	//DRW_framebuffer_bind(m_data.shadow_cube_fb);
 	DRW_bind_shader_shgroup(m_shadowStoreGroup);
 }
 

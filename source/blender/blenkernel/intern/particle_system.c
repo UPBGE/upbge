@@ -980,14 +980,14 @@ void psys_get_birth_coords(ParticleSimulationData *sim, ParticleData *pa, Partic
 }
 
 /* recursively evaluate emitter parent anim at cfra */
-static void evaluate_emitter_anim(Scene *scene, Object *ob, float cfra)
+static void evaluate_emitter_anim(const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, float cfra)
 {
 	if (ob->parent)
-		evaluate_emitter_anim(scene, ob->parent, cfra);
+		evaluate_emitter_anim(eval_ctx, scene, ob->parent, cfra);
 	
 	/* we have to force RECALC_ANIM here since where_is_objec_time only does drivers */
 	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, cfra, ADT_RECALC_ANIM);
-	BKE_object_where_is_calc_time(scene, ob, cfra);
+	BKE_object_where_is_calc_time(eval_ctx, scene, ob, cfra);
 }
 
 /* sets particle to the emitter surface with initial velocity & rotation */
@@ -1001,7 +1001,7 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 	
 	/* get precise emitter matrix if particle is born */
 	if (part->type != PART_HAIR && dtime > 0.f && pa->time < cfra && pa->time >= sim->psys->cfra) {
-		evaluate_emitter_anim(sim->scene, sim->ob, pa->time);
+		evaluate_emitter_anim(sim->eval_ctx, sim->scene, sim->ob, pa->time);
 
 		psys->flag |= PSYS_OB_ANIM_RESTORE;
 	}
@@ -1133,7 +1133,8 @@ static void set_keyed_keys(ParticleSimulationData *sim)
 	int totpart = psys->totpart, k, totkeys = psys->totkeyed;
 	int keyed_flag = 0;
 
-	ksim.scene= sim->scene;
+	ksim.eval_ctx = sim->eval_ctx;
+	ksim.scene = sim->scene;
 	
 	/* no proper targets so let's clear and bail out */
 	if (psys->totkeyed==0) {
@@ -1294,7 +1295,7 @@ void psys_update_particle_tree(ParticleSystem *psys, float cfra)
 static void psys_update_effectors(ParticleSimulationData *sim)
 {
 	pdEndEffectors(&sim->psys->effectors);
-	sim->psys->effectors = pdInitEffectors(sim->scene, sim->ob, sim->psys,
+	sim->psys->effectors = pdInitEffectors(sim->eval_ctx, sim->scene, sim->ob, sim->psys,
 	                                       sim->psys->part->effector_weights, true);
 	precalc_guides(sim, sim->psys->effectors);
 }
@@ -2115,7 +2116,7 @@ static void basic_integrate(ParticleSimulationData *sim, int p, float dfra, floa
 	tkey.time=pa->state.time;
 
 	if (part->type != PART_HAIR) {
-		if (do_guides(sim->psys->part, sim->psys->effectors, &tkey, p, time)) {
+		if (do_guides(sim->eval_ctx, sim->psys->part, sim->psys->effectors, &tkey, p, time)) {
 			copy_v3_v3(pa->state.co,tkey.co);
 			/* guides don't produce valid velocity */
 			sub_v3_v3v3(pa->state.vel, tkey.co, pa->prev_state.co);
@@ -3043,10 +3044,12 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 	/* calculate maximum segment length */
 	max_length = 0.0f;
 	LOOP_PARTICLES {
-		for (k=1, key=pa->hair+1; k<pa->totkey; k++,key++) {
-			float length = len_v3v3(key->co, (key-1)->co);
-			if (max_length < length)
-				max_length = length;
+		if (!(pa->flag & PARS_UNEXIST)) {
+			for (k=1, key=pa->hair+1; k<pa->totkey; k++,key++) {
+				float length = len_v3v3(key->co, (key-1)->co);
+				if (max_length < length)
+					max_length = length;
+			}
 		}
 	}
 	
@@ -3058,76 +3061,78 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 	/* make vgroup for pin roots etc.. */
 	hair_index = 1;
 	LOOP_PARTICLES {
-		float root_mat[4][4];
-		float bending_stiffness;
-		bool use_hair;
-		
-		pa->hair_index = hair_index;
-		use_hair = psys_hair_use_simulation(pa, max_length);
-		
-		psys_mat_hair_to_object(sim->ob, sim->psmd->dm_final, psys->part->from, pa, hairmat);
-		mul_m4_m4m4(root_mat, sim->ob->obmat, hairmat);
-		normalize_m4(root_mat);
-		
-		bending_stiffness = CLAMPIS(1.0f - part->bending_random * psys_frand(psys, p + 666), 0.0f, 1.0f);
-		
-		for (k=0, key=pa->hair; k<pa->totkey; k++,key++) {
-			ClothHairData *hair;
-			float *co, *co_next;
-			
-			co = key->co;
-			co_next = (key+1)->co;
-			
-			/* create fake root before actual root to resist bending */
-			if (k==0) {
-				hair = &psys->clmd->hairdata[pa->hair_index - 1];
+		if (!(pa->flag & PARS_UNEXIST)) {
+			float root_mat[4][4];
+			float bending_stiffness;
+			bool use_hair;
+
+			pa->hair_index = hair_index;
+			use_hair = psys_hair_use_simulation(pa, max_length);
+
+			psys_mat_hair_to_object(sim->ob, sim->psmd->dm_final, psys->part->from, pa, hairmat);
+			mul_m4_m4m4(root_mat, sim->ob->obmat, hairmat);
+			normalize_m4(root_mat);
+
+			bending_stiffness = CLAMPIS(1.0f - part->bending_random * psys_frand(psys, p + 666), 0.0f, 1.0f);
+
+			for (k=0, key=pa->hair; k<pa->totkey; k++,key++) {
+				ClothHairData *hair;
+				float *co, *co_next;
+
+				co = key->co;
+				co_next = (key+1)->co;
+
+				/* create fake root before actual root to resist bending */
+				if (k==0) {
+					hair = &psys->clmd->hairdata[pa->hair_index - 1];
+					copy_v3_v3(hair->loc, root_mat[3]);
+					copy_m3_m4(hair->rot, root_mat);
+
+					hair->radius = hair_radius;
+					hair->bending_stiffness = bending_stiffness;
+
+					add_v3_v3v3(mvert->co, co, co);
+					sub_v3_v3(mvert->co, co_next);
+					mul_m4_v3(hairmat, mvert->co);
+
+					medge->v1 = pa->hair_index - 1;
+					medge->v2 = pa->hair_index;
+
+					dvert = hair_set_pinning(dvert, 1.0f);
+
+					mvert++;
+					medge++;
+				}
+
+				/* store root transform in cloth data */
+				hair = &psys->clmd->hairdata[pa->hair_index + k];
 				copy_v3_v3(hair->loc, root_mat[3]);
 				copy_m3_m4(hair->rot, root_mat);
-				
+
 				hair->radius = hair_radius;
 				hair->bending_stiffness = bending_stiffness;
-				
-				add_v3_v3v3(mvert->co, co, co);
-				sub_v3_v3(mvert->co, co_next);
+
+				copy_v3_v3(mvert->co, co);
 				mul_m4_v3(hairmat, mvert->co);
-				
-				medge->v1 = pa->hair_index - 1;
-				medge->v2 = pa->hair_index;
-				
-				dvert = hair_set_pinning(dvert, 1.0f);
-				
+
+				if (k) {
+					medge->v1 = pa->hair_index + k - 1;
+					medge->v2 = pa->hair_index + k;
+				}
+
+				/* roots and disabled hairs should be 1.0, the rest can be anything from 0.0 to 1.0 */
+				if (use_hair)
+					dvert = hair_set_pinning(dvert, key->weight);
+				else
+					dvert = hair_set_pinning(dvert, 1.0f);
+
 				mvert++;
-				medge++;
+				if (k)
+					medge++;
 			}
-			
-			/* store root transform in cloth data */
-			hair = &psys->clmd->hairdata[pa->hair_index + k];
-			copy_v3_v3(hair->loc, root_mat[3]);
-			copy_m3_m4(hair->rot, root_mat);
-			
-			hair->radius = hair_radius;
-			hair->bending_stiffness = bending_stiffness;
-			
-			copy_v3_v3(mvert->co, co);
-			mul_m4_v3(hairmat, mvert->co);
-			
-			if (k) {
-				medge->v1 = pa->hair_index + k - 1;
-				medge->v2 = pa->hair_index + k;
-			}
-			
-			/* roots and disabled hairs should be 1.0, the rest can be anything from 0.0 to 1.0 */
-			if (use_hair)
-				dvert = hair_set_pinning(dvert, key->weight);
-			else
-				dvert = hair_set_pinning(dvert, 1.0f);
-			
-			mvert++;
-			if (k)
-				medge++;
+
+			hair_index += pa->totkey + 1;
 		}
-		
-		hair_index += pa->totkey + 1;
 	}
 }
 
@@ -3153,9 +3158,11 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	totpoint = 0;
 	totedge = 0;
 	LOOP_PARTICLES {
-		/* "out" dm contains all hairs */
-		totedge += pa->totkey;
-		totpoint += pa->totkey + 1; /* +1 for virtual root point */
+		if (!(pa->flag & PARS_UNEXIST)) {
+			/* "out" dm contains all hairs */
+			totedge += pa->totkey;
+			totpoint += pa->totkey + 1; /* +1 for virtual root point */
+		}
 	}
 	
 	realloc_roots = false; /* whether hair root info array has to be reallocated */
@@ -3191,7 +3198,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	psys->hair_out_dm = CDDM_copy(psys->hair_in_dm);
 	psys->hair_out_dm->getVertCos(psys->hair_out_dm, deformedVerts);
 	
-	clothModifier_do(psys->clmd, sim->scene, sim->ob, psys->hair_in_dm, deformedVerts);
+	clothModifier_do(psys->clmd, sim->eval_ctx, sim->scene, sim->ob, psys->hair_in_dm, deformedVerts);
 	
 	CDDM_apply_vert_coords(psys->hair_out_dm, deformedVerts);
 	
@@ -4151,7 +4158,7 @@ static int hair_needs_recalc(ParticleSystem *psys)
 
 /* main particle update call, checks that things are ok on the large scale and
  * then advances in to actual particle calculations depending on particle type */
-void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys, const bool use_render_params)
+void particle_system_update(const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, ParticleSystem *psys, const bool use_render_params)
 {
 	ParticleSimulationData sim= {0};
 	ParticleSettings *part = psys->part;
@@ -4165,10 +4172,11 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys, cons
 
 	cfra= BKE_scene_frame_get(scene);
 
-	sim.scene= scene;
-	sim.ob= ob;
-	sim.psys= psys;
-	sim.psmd= psys_get_modifier(ob, psys);
+	sim.eval_ctx = eval_ctx;
+	sim.scene = scene;
+	sim.ob = ob;
+	sim.psys = psys;
+	sim.psmd = psys_get_modifier(ob, psys);
 
 	/* system was already updated from modifier stack */
 	if (sim.psmd->flag & eParticleSystemFlag_psys_updated) {
@@ -4311,7 +4319,7 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys, cons
 
 	/* make sure emitter is left at correct time (particle emission can change this) */
 	if (psys->flag & PSYS_OB_ANIM_RESTORE) {
-		evaluate_emitter_anim(scene, ob, cfra);
+		evaluate_emitter_anim(eval_ctx, scene, ob, cfra);
 		psys->flag &= ~PSYS_OB_ANIM_RESTORE;
 	}
 
@@ -4353,13 +4361,30 @@ void BKE_particlesystem_id_loop(ParticleSystem *psys, ParticleSystemIDFunc func,
 
 /* **** Depsgraph evaluation **** */
 
-void BKE_particle_system_eval(struct EvaluationContext *UNUSED(eval_ctx),
-                              Scene *scene,
-                              Object *ob,
-                              ParticleSystem *psys)
+void BKE_particle_system_settings_eval(const struct EvaluationContext *UNUSED(eval_ctx),
+                                       ParticleSystem *psys)
 {
 	if (G.debug & G_DEBUG_DEPSGRAPH) {
-		printf("%s on %s:%s\n", __func__, ob->id.name, psys->name);
+		printf("%s on %s (%p)\n", __func__, psys->name, psys);
+	}
+	psys->recalc |= psys->part->recalc;
+}
+
+void BKE_particle_system_settings_recalc_clear(struct EvaluationContext *UNUSED(eval_ctx),
+                                               ParticleSettings *particle_settings)
+{
+	if (G.debug & G_DEBUG_DEPSGRAPH) {
+		printf("%s on %s (%p)\n", __func__, particle_settings->id.name, particle_settings);
+	}
+	particle_settings->recalc = 0;
+}
+
+void BKE_particle_system_eval_init(const struct EvaluationContext *UNUSED(eval_ctx),
+                                   Scene *scene,
+                                   Object *ob)
+{
+	if (G.debug & G_DEBUG_DEPSGRAPH) {
+		printf("%s on %s (%p)\n", __func__, ob->id.name, ob);
 	}
 	BKE_ptcache_object_reset(scene, ob, PTCACHE_RESET_DEPSGRAPH);
 }

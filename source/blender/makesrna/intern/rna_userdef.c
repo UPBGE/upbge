@@ -66,16 +66,7 @@ static EnumPropertyItem opensubdiv_compute_type_items[] = {
 #endif
 
 static EnumPropertyItem audio_device_items[] = {
-	{0, "NONE", 0, "None", "Null device - there will be no audio output"},
-#ifdef WITH_SDL
-	{1, "SDL", 0, "SDL", "SDL device - simple direct media layer, recommended for sequencer usage"},
-#endif
-#ifdef WITH_OPENAL
-	{2, "OPENAL", 0, "OpenAL", "OpenAL device - supports 3D audio, recommended for game engine usage"},
-#endif
-#ifdef WITH_JACK
-	{3, "JACK", 0, "JACK", "JACK Audio Connection Kit, recommended for pro audio users"},
-#endif
+	{0, "Null", 0, "None", "Null device - there will be no audio output"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -519,7 +510,6 @@ static EnumPropertyItem *rna_userdef_audio_device_itemf(bContext *UNUSED(C), Poi
 	int totitem = 0;
 	EnumPropertyItem *item = NULL;
 
-#ifdef WITH_SYSTEM_AUDASPACE
 	int i;
 
 	char **names = BKE_sound_get_device_names();
@@ -528,31 +518,6 @@ static EnumPropertyItem *rna_userdef_audio_device_itemf(bContext *UNUSED(C), Poi
 		EnumPropertyItem new_item = {i, names[i], 0, names[i], names[i]};
 		RNA_enum_item_add(&item, &totitem, &new_item);
 	}
-#else
-	/* NONE */
-	RNA_enum_item_add(&item, &totitem, &audio_device_items[index++]);
-
-#ifdef WITH_SDL
-#  ifdef WITH_SDL_DYNLOAD
-	if (sdlewInit() == SDLEW_SUCCESS)
-#  endif
-	{
-		RNA_enum_item_add(&item, &totitem, &audio_device_items[index]);
-	}
-	index++;
-#endif
-
-#ifdef WITH_OPENAL
-	RNA_enum_item_add(&item, &totitem, &audio_device_items[index++]);
-#endif
-
-#ifdef WITH_JACK
-	if (BKE_sound_is_jack_supported()) {
-		RNA_enum_item_add(&item, &totitem, &audio_device_items[index]);
-	}
-	index++;
-#endif
-#endif
 
 	/* may be unused */
 	UNUSED_VARS(index, audio_device_items);
@@ -609,16 +574,17 @@ static void rna_AddonPref_unregister(Main *UNUSED(bmain), StructRNA *type)
 		return;
 
 	RNA_struct_free_extension(type, &apt->ext);
+	RNA_struct_free(&BLENDER_RNA, type);
 
 	BKE_addon_pref_type_remove(apt);
-	RNA_struct_free(&BLENDER_RNA, type);
 
 	/* update while blender is running */
 	WM_main_add_notifier(NC_WINDOW, NULL);
 }
 
-static StructRNA *rna_AddonPref_register(Main *bmain, ReportList *reports, void *data, const char *identifier,
-                                         StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_AddonPref_register(
+        Main *bmain, ReportList *reports, void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	bAddonPrefType *apt, dummyapt = {{'\0'}};
 	bAddon dummyaddon = {NULL};
@@ -641,10 +607,8 @@ static StructRNA *rna_AddonPref_register(Main *bmain, ReportList *reports, void 
 
 	/* check if we have registered this header type before, and remove it */
 	apt = BKE_addon_pref_type_find(dummyaddon.module, true);
-	if (apt) {
-		if (apt->ext.srna) {
-			rna_AddonPref_unregister(bmain, apt->ext.srna);
-		}
+	if (apt && apt->ext.srna) {
+		rna_AddonPref_unregister(bmain, apt->ext.srna);
 	}
 
 	/* create a new header type */
@@ -1074,6 +1038,37 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Z Axis", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	/* Generic manipulator colors. */
+	prop = RNA_def_property(srna, "manipulator_hi", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "manipulator_hi");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Manipulator Highlight", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "manipulator_primary", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "manipulator_primary");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Manipulator Primary", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "manipulator_secondary", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "manipulator_secondary");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Manipulator Secondary", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "manipulator_a", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "manipulator_a");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Manipulator A", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "manipulator_b", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "manipulator_b");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Manipulator B", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
 static void rna_def_userdef_theme_space_common(StructRNA *srna)
@@ -1277,7 +1272,7 @@ static void rna_def_userdef_theme_spaces_vertex(StructRNA *srna)
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	prop = RNA_def_property(srna, "vertex_size", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 1, 10);
+	RNA_def_property_range(prop, 1, 32);
 	RNA_def_property_ui_text(prop, "Vertex Size", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
@@ -1499,7 +1494,7 @@ static void rna_def_userdef_theme_spaces_curves(StructRNA *srna, bool incl_nurbs
 		RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 		prop = RNA_def_property(srna, "handle_vertex_size", PROP_INT, PROP_NONE);
-		RNA_def_property_range(prop, 0, 255);
+		RNA_def_property_range(prop, 1, 100);
 		RNA_def_property_ui_text(prop, "Handle Vertex Size", "");
 		RNA_def_property_update(prop, 0, "rna_userdef_update");
 	}
@@ -3307,6 +3302,13 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem line_width[] = {
+		{-1, "THIN", 0, "Thin", "Thinner lines than the default"},
+		{ 0, "AUTO", 0, "Auto", "Automatic line width based on UI scale"},
+		{ 1, "THICK", 0, "Thick", "Thicker lines than the default"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	PropertyRNA *prop;
 	StructRNA *srna;
 	
@@ -3322,6 +3324,12 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.25f, 4.0f);
 	RNA_def_property_ui_range(prop, 0.5f, 2.0f, 1, 2);
 	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
+
+	prop = RNA_def_property(srna, "ui_line_width", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, line_width);
+	RNA_def_property_ui_text(prop, "UI Line Width",
+	                         "Changes the thickness of lines and points in the interface");
 	RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
 
 	/* display */
@@ -3442,6 +3450,11 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_ZBUF_CURSOR);
 	RNA_def_property_ui_text(prop, "Cursor Depth",
 	                         "Use the depth under the mouse when placing the cursor");
+
+	prop = RNA_def_property(srna, "use_cursor_lock_adjust", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_LOCK_CURSOR_ADJUST);
+	RNA_def_property_ui_text(prop, "Cursor Lock Adjust",
+	                         "Place the cursor without 'jumping' to the new location (when lock-to-cursor is used)");
 
 	prop = RNA_def_property(srna, "use_camera_lock_parent", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "uiflag", USER_CAM_LOCK_NO_PARENT);
@@ -3920,17 +3933,17 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "dpi", PROP_INT, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "DPI",
-	                         "DPI for addons to use when drawing custom user interface elements. Controlled by "
-	                         "operating system settings and Blender UI scale, with a reference value of 72 DPI. "
-	                         "Note that since this value includes a user defined scale, it is not always the "
-	                         "actual monitor DPI");
+	                         "DPI for add-ons to use when drawing custom user interface elements, controlled by "
+	                         "operating system settings and Blender UI scale, with a reference value of 72 DPI "
+	                         "(note that since this value includes a user defined scale, it is not always the "
+	                         "actual monitor DPI)");
 
 	prop = RNA_def_property(srna, "pixel_size", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_sdna(prop, NULL, "pixelsize");
 	RNA_def_property_ui_text(prop, "Pixel Size",
-	                         "Suggested line thickness and point size in pixels, for addons drawing custom user "
-	                         "interface elements. Controlled by operating system settings and Blender UI scale");
+	                         "Suggested line thickness and point size in pixels, for add-ons drawing custom user "
+	                         "interface elements, controlled by operating system settings and Blender UI scale");
 
 	prop = RNA_def_property(srna, "font_path_ui", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_string_sdna(prop, NULL, "font_path_ui");
@@ -3976,11 +3989,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_translate_new_dataname", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "transopts", USER_TR_NEWDATANAME);
 	RNA_def_property_ui_text(prop, "Translate New Names", "Translate new data names (when adding/creating some)");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
-
-	prop = RNA_def_property(srna, "use_textured_fonts", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "transopts", USER_USETEXTUREFONT);
-	RNA_def_property_ui_text(prop, "Textured Fonts", "Use textures for drawing international fonts");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	/* System & OpenGL */

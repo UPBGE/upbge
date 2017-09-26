@@ -31,6 +31,7 @@ uniform vec2 sourceBufferTexelSize;
 
 /* Step Blit */
 uniform vec4 curveThreshold;
+uniform float clampIntensity;
 
 /* Step Upsample */
 uniform sampler2D baseBuffer; /* Previous accumulation buffer */
@@ -38,7 +39,7 @@ uniform vec2 baseBufferTexelSize;
 uniform float sampleScale;
 
 /* Step Resolve */
-uniform float bloomIntensity;
+uniform vec3 bloomColor;
 
 in vec4 uvcoordsvar;
 
@@ -46,15 +47,21 @@ out vec4 FragColor;
 
 /* -------------- Utils ------------- */
 
+vec3 safe_color(vec3 c)
+{
+	/* Clamp to avoid black square artifacts if a pixel goes NaN. */
+	return clamp(c, vec3(0.0), vec3(1e20)); /* 1e20 arbitrary. */
+}
+
 float brightness(vec3 c)
 {
-    return max(max(c.r, c.g), c.b);
+	return max(max(c.r, c.g), c.b);
 }
 
 /* 3-tap median filter */
 vec3 median(vec3 a, vec3 b, vec3 c)
 {
-    return a + b + c - min(min(a, b), c) - max(max(a, b), c);
+	return a + b + c - min(min(a, b), c) - max(max(a, b), c);
 }
 
 /* ------------- Filters ------------ */
@@ -64,10 +71,10 @@ vec3 downsample_filter_high(sampler2D tex, vec2 uv, vec2 texelSize)
 	/* Downsample with a 4x4 box filter + anti-flicker filter */
 	vec4 d = texelSize.xyxy * vec4(-1, -1, +1, +1);
 
-	vec3 s1 = texture(tex, uv + d.xy).rgb;
-	vec3 s2 = texture(tex, uv + d.zy).rgb;
-	vec3 s3 = texture(tex, uv + d.xw).rgb;
-	vec3 s4 = texture(tex, uv + d.zw).rgb;
+	vec3 s1 = textureLod(tex, uv + d.xy, 0.0).rgb;
+	vec3 s2 = textureLod(tex, uv + d.zy, 0.0).rgb;
+	vec3 s3 = textureLod(tex, uv + d.xw, 0.0).rgb;
+	vec3 s4 = textureLod(tex, uv + d.zw, 0.0).rgb;
 
 	/* Karis's luma weighted average (using brightness instead of luma) */
 	float s1w = 1.0 / (brightness(s1) + 1.0);
@@ -85,10 +92,10 @@ vec3 downsample_filter(sampler2D tex, vec2 uv, vec2 texelSize)
 	vec4 d = texelSize.xyxy * vec4(-1, -1, +1, +1);
 
 	vec3 s;
-	s  = texture(tex, uv + d.xy).rgb;
-	s += texture(tex, uv + d.zy).rgb;
-	s += texture(tex, uv + d.xw).rgb;
-	s += texture(tex, uv + d.zw).rgb;
+	s  = textureLod(tex, uv + d.xy, 0.0).rgb;
+	s += textureLod(tex, uv + d.zy, 0.0).rgb;
+	s += textureLod(tex, uv + d.xw, 0.0).rgb;
+	s += textureLod(tex, uv + d.zw, 0.0).rgb;
 
 	return s * (1.0 / 4);
 }
@@ -99,17 +106,17 @@ vec3 upsample_filter_high(sampler2D tex, vec2 uv, vec2 texelSize)
 	vec4 d = texelSize.xyxy * vec4(1, 1, -1, 0) * sampleScale;
 
 	vec3 s;
-	s  = texture(tex, uv - d.xy).rgb;
-	s += texture(tex, uv - d.wy).rgb * 2;
-	s += texture(tex, uv - d.zy).rgb;
+	s  = textureLod(tex, uv - d.xy, 0.0).rgb;
+	s += textureLod(tex, uv - d.wy, 0.0).rgb * 2;
+	s += textureLod(tex, uv - d.zy, 0.0).rgb;
 
-	s += texture(tex, uv + d.zw).rgb * 2;
-	s += texture(tex, uv       ).rgb * 4;
-	s += texture(tex, uv + d.xw).rgb * 2;
+	s += textureLod(tex, uv + d.zw, 0.0).rgb * 2;
+	s += textureLod(tex, uv       , 0.0).rgb * 4;
+	s += textureLod(tex, uv + d.xw, 0.0).rgb * 2;
 
-	s += texture(tex, uv + d.zy).rgb;
-	s += texture(tex, uv + d.wy).rgb * 2;
-	s += texture(tex, uv + d.xy).rgb;
+	s += textureLod(tex, uv + d.zy, 0.0).rgb;
+	s += textureLod(tex, uv + d.wy, 0.0).rgb * 2;
+	s += textureLod(tex, uv + d.xy, 0.0).rgb;
 
 	return s * (1.0 / 16.0);
 }
@@ -120,10 +127,10 @@ vec3 upsample_filter(sampler2D tex, vec2 uv, vec2 texelSize)
 	vec4 d = texelSize.xyxy * vec4(-1, -1, +1, +1) * (sampleScale * 0.5);
 
 	vec3 s;
-	s  = texture(tex, uv + d.xy).rgb;
-	s += texture(tex, uv + d.zy).rgb;
-	s += texture(tex, uv + d.xw).rgb;
-	s += texture(tex, uv + d.zw).rgb;
+	s  = textureLod(tex, uv + d.xy, 0.0).rgb;
+	s += textureLod(tex, uv + d.zy, 0.0).rgb;
+	s += textureLod(tex, uv + d.xw, 0.0).rgb;
+	s += textureLod(tex, uv + d.zw, 0.0).rgb;
 
 	return s * (1.0 / 4.0);
 }
@@ -136,14 +143,14 @@ vec4 step_blit(void)
 
 #ifdef HIGH_QUALITY /* Anti flicker */
 	vec3 d = sourceBufferTexelSize.xyx * vec3(1, 1, 0);
-	vec3 s0 = texture(sourceBuffer, uvcoordsvar.xy).rgb;
-	vec3 s1 = texture(sourceBuffer, uvcoordsvar.xy - d.xz).rgb;
-	vec3 s2 = texture(sourceBuffer, uvcoordsvar.xy + d.xz).rgb;
-	vec3 s3 = texture(sourceBuffer, uvcoordsvar.xy - d.zy).rgb;
-	vec3 s4 = texture(sourceBuffer, uvcoordsvar.xy + d.zy).rgb;
+	vec3 s0 = safe_color(textureLod(sourceBuffer, uvcoordsvar.xy, 0.0).rgb);
+	vec3 s1 = safe_color(textureLod(sourceBuffer, uvcoordsvar.xy - d.xz, 0.0).rgb);
+	vec3 s2 = safe_color(textureLod(sourceBuffer, uvcoordsvar.xy + d.xz, 0.0).rgb);
+	vec3 s3 = safe_color(textureLod(sourceBuffer, uvcoordsvar.xy - d.zy, 0.0).rgb);
+	vec3 s4 = safe_color(textureLod(sourceBuffer, uvcoordsvar.xy + d.zy, 0.0).rgb);
 	vec3 m = median(median(s0.rgb, s1, s2), s3, s4);
 #else
-	vec3 s0 = texture(sourceBuffer, uvcoordsvar.xy).rgb;
+	vec3 s0 = safe_color(textureLod(sourceBuffer, uvcoordsvar.xy, 0.0).rgb);
 	vec3 m = s0.rgb;
 #endif
 
@@ -155,10 +162,11 @@ vec4 step_blit(void)
 	rq = curveThreshold.z * rq * rq;
 
 	/* Combine and apply the brightness response curve. */
-	m *= max(rq, br - curveThreshold.w) / max(br, 1e-5);
+	m *= max(rq, br - curveThreshold.w) / max(1e-5, br);
 
-	/* Clamp to avoid black square artifacts if a pixel goes NaN. */
-	clamp(m, vec3(0.0), vec3(1e20)); /* 1e20 arbitrary. */
+	/* Clamp pixel intensity */
+	br = max(1e-5, brightness(m));
+	m *= 1.0 - max(0.0, br - clampIntensity) / br;
 
 	return vec4(m, 1.0);
 }
@@ -180,7 +188,7 @@ vec4 step_upsample(void)
 #else
 	vec3 blur = upsample_filter(sourceBuffer, uvcoordsvar.xy, sourceBufferTexelSize);
 #endif
-	vec3 base = texture(baseBuffer, uvcoordsvar.xy).rgb;
+	vec3 base = textureLod(baseBuffer, uvcoordsvar.xy, 0.0).rgb;
 	return vec4(base + blur, 1.0);
 }
 
@@ -191,8 +199,8 @@ vec4 step_resolve(void)
 #else
 	vec3 blur = upsample_filter(sourceBuffer, uvcoordsvar.xy, sourceBufferTexelSize);
 #endif
-	vec4 base = texture(baseBuffer, uvcoordsvar.xy);
-	vec3 cout = base.rgb + blur * bloomIntensity;
+	vec4 base = textureLod(baseBuffer, uvcoordsvar.xy, 0.0);
+	vec3 cout = base.rgb + blur * bloomColor;
 	return vec4(cout, base.a);
 }
 

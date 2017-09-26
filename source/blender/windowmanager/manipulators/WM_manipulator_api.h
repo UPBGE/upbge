@@ -59,18 +59,25 @@ struct wmManipulatorMapType_Params;
 
 struct wmManipulator *WM_manipulator_new_ptr(
         const struct wmManipulatorType *wt, struct wmManipulatorGroup *mgroup,
-        const char *name, struct PointerRNA *properties);
+        struct PointerRNA *properties);
 struct wmManipulator *WM_manipulator_new(
         const char *idname, struct wmManipulatorGroup *mgroup,
-        const char *name, struct PointerRNA *properties);
-void WM_manipulator_free(
+        struct PointerRNA *properties);
+void WM_manipulator_free(struct wmManipulator *mpr);
+void WM_manipulator_unlink(
         ListBase *manipulatorlist, struct wmManipulatorMap *mmap, struct wmManipulator *mpr,
         struct bContext *C);
 
 void WM_manipulator_name_set(struct wmManipulatorGroup *mgroup, struct wmManipulator *mpr, const char *name);
 
-struct PointerRNA *WM_manipulator_set_operator(
-        struct wmManipulator *, struct wmOperatorType *ot, struct IDProperty *properties);
+bool WM_manipulator_select_unlink(struct wmManipulatorMap *mmap, struct wmManipulator *mpr);
+bool WM_manipulator_select_set(struct wmManipulatorMap *mmap, struct wmManipulator *mpr, bool select);
+
+struct wmManipulatorOpElem *WM_manipulator_operator_get(
+        struct wmManipulator *mpr, int part_index);
+struct PointerRNA *WM_manipulator_operator_set(
+        struct wmManipulator *mpr, int part_index,
+        struct wmOperatorType *ot, struct IDProperty *properties);
 
 /* callbacks */
 void WM_manipulator_set_fn_custom_modal(struct wmManipulator *mpr, wmManipulatorFnModal fn);
@@ -93,10 +100,26 @@ void WM_manipulator_set_flag(struct wmManipulator *mpr, const int flag, const bo
 void WM_manipulator_set_scale(struct wmManipulator *mpr, float scale);
 void WM_manipulator_set_line_width(struct wmManipulator *mpr, const float line_width);
 
-void WM_manipulator_get_color(const struct wmManipulator *mpr, float col[4]);
-void WM_manipulator_set_color(struct wmManipulator *mpr, const float col[4]);
-void WM_manipulator_get_color_highlight(const struct wmManipulator *mpr, float col_hi[4]);
-void WM_manipulator_set_color_highlight(struct wmManipulator *mpr, const float col[4]);
+void WM_manipulator_get_color(const struct wmManipulator *mpr, float color[4]);
+void WM_manipulator_set_color(struct wmManipulator *mpr, const float color[4]);
+void WM_manipulator_get_color_highlight(const struct wmManipulator *mpr, float color_hi[4]);
+void WM_manipulator_set_color_highlight(struct wmManipulator *mpr, const float color[4]);
+
+/**
+ * Leaving values NULL use values from #wmManipulator.
+ */
+struct WM_ManipulatorMatrixParams {
+	const float(*matrix_space)[4];
+	const float(*matrix_basis)[4];
+	const float(*matrix_offset)[4];
+	const float *scale_final;
+};
+
+void WM_manipulator_calc_matrix_final_params(
+        const struct wmManipulator *mpr, const struct WM_ManipulatorMatrixParams *params,
+        float r_mat[4][4]);
+
+void WM_manipulator_calc_matrix_final(const struct wmManipulator *mpr, float r_mat[4][4]);
 
 /* properties */
 void WM_manipulator_properties_create_ptr(struct PointerRNA *ptr, struct wmManipulatorType *wt);
@@ -121,8 +144,8 @@ void WM_manipulatortype_iter(struct GHashIterator *ghi);
 struct wmManipulatorGroupType *WM_manipulatorgrouptype_find(const char *idname, bool quiet);
 struct wmManipulatorGroupType *WM_manipulatorgrouptype_append(void (*wtfunc)(struct wmManipulatorGroupType *));
 struct wmManipulatorGroupType *WM_manipulatorgrouptype_append_ptr(void (*mnpfunc)(struct wmManipulatorGroupType *, void *), void *userdata);
-bool WM_manipulatorgrouptype_remove(const char *idname);
-void WM_manipulatorgrouptype_remove_ptr(struct wmManipulatorGroupType *wt);
+bool WM_manipulatorgrouptype_free(const char *idname);
+void WM_manipulatorgrouptype_free_ptr(struct wmManipulatorGroupType *wt);
 void WM_manipulatorgrouptype_iter(struct GHashIterator *ghi);
 
 struct wmManipulatorGroupTypeRef *WM_manipulatorgrouptype_append_and_link(
@@ -174,9 +197,12 @@ void WM_manipulator_target_property_value_set_array(
         struct bContext *C, const struct wmManipulator *mpr, struct wmManipulatorProperty *mpr_prop,
         const float *value);
 
-void WM_manipulator_target_property_range_get(
+bool WM_manipulator_target_property_range_get(
         const struct wmManipulator *mpr, struct wmManipulatorProperty *mpr_prop,
         float range[2]);
+
+int WM_manipulator_target_property_array_length(
+        const struct wmManipulator *mpr, struct wmManipulatorProperty *mpr_prop);
 
 /* definitions */
 const struct wmManipulatorPropertyType *WM_manipulatortype_target_property_find(
@@ -202,10 +228,15 @@ struct wmManipulatorMap *WM_manipulatormap_new_from_type(
         const struct wmManipulatorMapType_Params *mmap_params);
 const struct ListBase *WM_manipulatormap_group_list(struct wmManipulatorMap *mmap);
 void WM_manipulatormap_tag_refresh(struct wmManipulatorMap *mmap);
-void WM_manipulatormap_draw(struct wmManipulatorMap *mmap, const struct bContext *C, const int drawstep);
+void WM_manipulatormap_draw(
+        struct wmManipulatorMap *mmap, const struct bContext *C, const eWM_ManipulatorMapDrawStep drawstep);
 void WM_manipulatormap_add_handlers(struct ARegion *ar, struct wmManipulatorMap *mmap);
 bool WM_manipulatormap_select_all(struct bContext *C, struct wmManipulatorMap *mmap, const int action);
 bool WM_manipulatormap_cursor_set(const struct wmManipulatorMap *mmap, struct wmWindow *win);
+bool WM_manipulatormap_is_any_selected(const struct wmManipulatorMap *mmap);
+bool WM_manipulatormap_minmax(
+        const struct wmManipulatorMap *mmap, bool use_hidden, bool use_select,
+        float r_min[3], float r_max[3]);
 
 /* -------------------------------------------------------------------- */
 /* wmManipulatorMapType */
@@ -228,6 +259,9 @@ struct wmManipulatorGroupTypeRef *WM_manipulatormaptype_group_link_ptr(
         struct wmManipulatorMapType *mmap_type,
         struct wmManipulatorGroupType *wgt);
 
+void WM_manipulatormaptype_group_init_runtime_keymap(
+        const struct Main *bmain,
+        struct wmManipulatorGroupType *wgt);
 void WM_manipulatormaptype_group_init_runtime(
         const struct Main *bmain, struct wmManipulatorMapType *mmap_type,
         struct wmManipulatorGroupType *wgt);
@@ -238,27 +272,32 @@ void WM_manipulatormaptype_group_unlink(
 void WM_manipulatormaptype_group_free(struct wmManipulatorGroupTypeRef *wgt);
 
 /* -------------------------------------------------------------------- */
-/* Manipulator Add/Remove (High level API) */
+/* ManipulatorGroup */
 
-void WM_manipulator_group_add_ptr_ex(
+/* Add/Remove (High level API) */
+
+void WM_manipulator_group_type_add_ptr_ex(
         struct wmManipulatorGroupType *wgt,
         struct wmManipulatorMapType *mmap_type);
-void WM_manipulator_group_add_ptr(
+void WM_manipulator_group_type_add_ptr(
         struct wmManipulatorGroupType *wgt);
-void WM_manipulator_group_add(const char *idname);
+void WM_manipulator_group_type_add(const char *idname);
 
-void WM_manipulator_group_remove_ptr_ex(
+void WM_manipulator_group_type_remove_ptr_ex(
         struct Main *bmain, struct wmManipulatorGroupType *wgt,
         struct wmManipulatorMapType *mmap_type);
-void WM_manipulator_group_remove_ptr(
+void WM_manipulator_group_type_remove_ptr(
         struct Main *bmain, struct wmManipulatorGroupType *wgt);
-void WM_manipulator_group_remove(struct Main *bmain, const char *idname);
+void WM_manipulator_group_type_remove(struct Main *bmain, const char *idname);
 
-void WM_manipulator_group_remove_ptr_delayed_ex(
+void WM_manipulator_group_type_remove_ptr_delayed_ex(
         struct wmManipulatorGroupType *wgt,
         struct wmManipulatorMapType *mmap_type);
-void WM_manipulator_group_remove_ptr_delayed(
+void WM_manipulator_group_type_remove_ptr_delayed(
         struct wmManipulatorGroupType *wgt);
-void WM_manipulator_group_remove_delayed(const char *idname);
+void WM_manipulator_group_type_remove_delayed(const char *idname);
+
+/* Utilities */
+void WM_manipulator_group_type_is_any_selected(const char *idname);
 
 #endif  /* __WM_MANIPULATOR_API_H__ */

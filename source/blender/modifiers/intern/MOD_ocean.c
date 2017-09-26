@@ -44,6 +44,8 @@
 #include "BKE_modifier.h"
 #include "BKE_ocean.h"
 
+#include "MOD_modifiertypes.h"
+
 #ifdef WITH_OCEANSIM
 static void init_cache_data(Object *ob, struct OceanModifierData *omd)
 {
@@ -540,8 +542,8 @@ static DerivedMesh *doOcean(ModifierData *md, Object *UNUSED(ob),
 }
 #endif /* WITH_OCEANSIM */
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-                                  DerivedMesh *derivedData,
+static DerivedMesh *applyModifier(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+                                  Object *ob, DerivedMesh *derivedData,
                                   ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *result;

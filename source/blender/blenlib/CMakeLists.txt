@@ -50,6 +50,7 @@ set(SRC
 	intern/BLI_kdtree.c
 	intern/BLI_linklist.c
 	intern/BLI_memarena.c
+	intern/BLI_memiter.c
 	intern/BLI_mempool.c
 	intern/DLRB_tree.c
 	intern/array_store.c
@@ -179,6 +180,7 @@ set(SRC
 	BLI_math_statistics.h
 	BLI_math_vector.h
 	BLI_memarena.h
+	BLI_memiter.h
 	BLI_memory_utils.h
 	BLI_mempool.h
 	BLI_noise.h
@@ -193,7 +195,6 @@ set(SRC
 	BLI_sort.h
 	BLI_sort_utils.h
 	BLI_stack.h
-	BLI_stackdefines.h
 	BLI_strict_flags.h
 	BLI_string.h
 	BLI_string_cursor_utf8.h
@@ -205,6 +206,9 @@ set(SRC
 	BLI_threads.h
 	BLI_timecode.h
 	BLI_utildefines.h
+	BLI_utildefines_iter.h
+	BLI_utildefines_stack.h
+	BLI_utildefines_variadic.h
 	BLI_uvproject.h
 	BLI_vfontdata.h
 	BLI_voronoi.h

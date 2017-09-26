@@ -60,6 +60,7 @@
 
 #include "IMB_imbuf.h"
 
+#include "GPU_glew.h"
 #include "GPU_matrix.h"
 
 #include "WM_api.h"
@@ -821,6 +822,7 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 #endif
 }
 
+/* DO NOT make this static, this hides the symbol and breaks API generation script. */
 const char *clip_context_dir[] = {"edit_movieclip", "edit_mask", NULL};
 
 static int clip_context(const bContext *C, const char *member, bContextDataResult *result)

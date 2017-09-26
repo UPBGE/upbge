@@ -5,14 +5,8 @@ uniform sampler3D lut3d_texture;
 uniform float dither;
 #endif
 
-#ifdef USE_TEXTURE_SIZE
-uniform float image_texture_width;
-uniform float image_texture_height;
-#endif
-
 in vec2 texCoord_interp;
 out vec4 fragColor;
-#define texture2D texture
 
 #ifdef USE_CURVE_MAPPING
 /* Curve mapping parameters
@@ -42,7 +36,7 @@ float read_curve_mapping(int table, int index)
 	 *               But is it actually correct to subtract 1 here?
 	 */
 	float texture_index = float(index) / float(curve_mapping_lut_size  - 1);
-	return texture1D(curve_mapping_texture, texture_index)[table];
+	return texture(curve_mapping_texture, texture_index)[table];
 }
 
 float curvemap_calc_extend(int table, float x, vec2 first, vec2 last)
@@ -123,11 +117,7 @@ float dither_random_value(vec2 co)
 vec2 round_to_pixel(vec2 st)
 {
 	vec2 result;
-#ifdef USE_TEXTURE_SIZE
-	vec2 size = vec2(image_texture_width, image_texture_height);
-#else
 	vec2 size = textureSize(image_texture, 0);
-#endif
 	result.x = float(int(st.x * size.x)) / size.x;
 	result.y = float(int(st.y * size.y)) / size.y;
 	return result;
@@ -147,7 +137,7 @@ vec4 apply_dither(vec2 st, vec4 col)
 
 void main()
 {
-	vec4 col = texture2D(image_texture, texCoord_interp.st);
+	vec4 col = texture(image_texture, texCoord_interp.st);
 #ifdef USE_CURVE_MAPPING
 	col = curvemapping_evaluate_premulRGBF(col);
 #endif

@@ -51,7 +51,6 @@
 
 #include "ED_screen.h"
 #include "ED_view3d.h"
-#include "ED_transform.h"
 #include "ED_transform_snap_object_context.h"
 #include "ED_space_api.h"
 
@@ -705,7 +704,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 			immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 			immUniformColor4fv(color_act);
 
-			imm_draw_circle_wire(pos, co_ss[0], co_ss[1], size * U.pixelsize, 32);
+			imm_draw_circle_wire_2d(pos, co_ss[0], co_ss[1], size * U.pixelsize, 32);
 
 			immUnbindProgram();
 		}

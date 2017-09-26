@@ -49,6 +49,8 @@
 #include "draw_cache.h"
 #include "draw_view.h"
 
+#include "draw_manager_profiling.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "RE_engine.h"
@@ -163,6 +165,7 @@ struct GPUTexture *DRW_texture_create_2D_array(
 struct GPUTexture *DRW_texture_create_cube(
         int w, DRWTextureFormat format, DRWTextureFlag flags, const float *fpixels);
 void DRW_texture_generate_mipmaps(struct GPUTexture *tex);
+void DRW_texture_update(struct GPUTexture *tex, const float *pixels);
 void DRW_texture_free(struct GPUTexture *tex);
 #define DRW_TEXTURE_FREE_SAFE(tex) do { \
 	if (tex != NULL) { \
@@ -267,7 +270,8 @@ typedef enum {
 
 DRWShadingGroup *DRW_shgroup_create(struct GPUShader *shader, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_material_create(struct GPUMaterial *material, DRWPass *pass);
-DRWShadingGroup *DRW_shgroup_material_instance_create(struct GPUMaterial *material, DRWPass *pass, struct Gwn_Batch *geom);
+DRWShadingGroup *DRW_shgroup_material_instance_create(
+        struct GPUMaterial *material, DRWPass *pass, struct Gwn_Batch *geom, struct Object *ob);
 DRWShadingGroup *DRW_shgroup_instance_create(struct GPUShader *shader, DRWPass *pass, struct Gwn_Batch *geom);
 DRWShadingGroup *DRW_shgroup_point_batch_create(struct GPUShader *shader, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_line_batch_create(struct GPUShader *shader, DRWPass *pass);
@@ -364,7 +368,6 @@ int  DRW_object_is_mode_shade(const struct Object *ob);
 
 /* Draw commands */
 void DRW_draw_geometry_prepare(DRWShadingGroup *shgroup, const float (*obmat)[4], const float *texcoloc, const float *texcosize);
-void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state);
 void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup);
 void DRW_end_shgroup(void);
 void DRW_draw_pass(DRWPass *pass);

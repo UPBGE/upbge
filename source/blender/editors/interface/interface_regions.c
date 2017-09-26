@@ -347,10 +347,12 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
 
 	/* Tip */
 	if (but_tip.strinfo) {
-		BLI_strncpy(data->header, but_tip.strinfo, sizeof(data->lines[0]));
 		if (enum_label.strinfo) {
 			BLI_snprintf(data->header, sizeof(data->header), "%s:  ", but_tip.strinfo);
 			BLI_strncpy(data->active_info, enum_label.strinfo, sizeof(data->lines[0]));
+		}
+		else {
+			BLI_snprintf(data->header, sizeof(data->header), "%s.", but_tip.strinfo);
 		}
 		data->format[data->totline].style = UI_TIP_STYLE_HEADER;
 		data->totline++;
@@ -2448,7 +2450,7 @@ static void ui_block_colorpicker(uiBlock *block, float rgba[4], PointerRNA *ptr,
 	BLI_snprintf(hexcol, sizeof(hexcol), "%02X%02X%02X", UNPACK3_EX((unsigned int), rgb_gamma_uchar, ));
 
 	yco = -3.0f * UI_UNIT_Y;
-	bt = uiDefBut(block, UI_BTYPE_TEXT, 0, IFACE_("Hex: "), 0, yco, butwidth, UI_UNIT_Y, hexcol, 0, 7, 0, 0, TIP_("Hex triplet for color (#RRGGBB)"));
+	bt = uiDefBut(block, UI_BTYPE_TEXT, 0, IFACE_("Hex: "), 0, yco, butwidth, UI_UNIT_Y, hexcol, 0, 8, 0, 0, TIP_("Hex triplet for color (#RRGGBB)"));
 	UI_but_func_set(bt, ui_colorpicker_hex_rna_cb, bt, hexcol);
 	bt->custom_data = cpicker;
 	uiDefBut(block, UI_BTYPE_LABEL, 0, IFACE_("(Gamma Corrected)"), 0, yco - UI_UNIT_Y, butwidth, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
@@ -2960,8 +2962,8 @@ uiPieMenu *UI_pie_menu_begin(struct bContext *C, const char *title, int icon, co
 	pie->block_radial->puphash = ui_popup_menu_hash(title);
 	pie->block_radial->flag |= UI_BLOCK_RADIAL;
 
-	/* if pie is spawned by a left click, it is always assumed to be click style */
-	if (event->type == LEFTMOUSE) {
+	/* if pie is spawned by a left click, release or click event, it is always assumed to be click style */
+	if (event->type == LEFTMOUSE || ELEM(event->val, KM_RELEASE, KM_CLICK)) {
 		pie->block_radial->pie_data.flags |= UI_PIE_CLICK_STYLE;
 		pie->block_radial->pie_data.event = EVENT_NONE;
 		win->lock_pie_event = EVENT_NONE;

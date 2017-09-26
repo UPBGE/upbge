@@ -56,14 +56,6 @@ typedef struct SplitParams {
 
 /* SPLIT_DATA_ENTRY(type, name, num) */
 
-#if defined(WITH_CYCLES_DEBUG) || defined(__KERNEL_DEBUG__)
-/* DebugData memory */
-#  define SPLIT_DATA_DEBUG_ENTRIES \
-	SPLIT_DATA_ENTRY(DebugData, debug_data, 1)
-#else
-#  define SPLIT_DATA_DEBUG_ENTRIES
-#endif  /* DEBUG */
-
 #ifdef __BRANCHED_PATH__
 
 typedef ccl_global struct SplitBranchedState {
@@ -80,7 +72,6 @@ typedef ccl_global struct SplitBranchedState {
 	/* indirect loop state */
 	int next_closure;
 	int next_sample;
-	int num_samples;
 
 #ifdef __SUBSURFACE__
 	int ss_next_closure;
@@ -122,9 +113,7 @@ typedef ccl_global struct SplitBranchedState {
 #endif /* __VOLUME__ */
 
 #define SPLIT_DATA_ENTRIES \
-	SPLIT_DATA_ENTRY(ccl_global RNG, rng, 1) \
 	SPLIT_DATA_ENTRY(ccl_global float3, throughput, 1) \
-	SPLIT_DATA_ENTRY(ccl_global float, L_transparent, 1) \
 	SPLIT_DATA_ENTRY(PathRadiance, path_radiance, 1) \
 	SPLIT_DATA_ENTRY(ccl_global Ray, ray, 1) \
 	SPLIT_DATA_ENTRY(ccl_global PathState, path_state, 1) \
@@ -133,19 +122,16 @@ typedef ccl_global struct SplitBranchedState {
 	SPLIT_DATA_ENTRY(ccl_global int, is_lamp, 1) \
 	SPLIT_DATA_ENTRY(ccl_global Ray, light_ray, 1) \
 	SPLIT_DATA_ENTRY(ccl_global int, queue_data, (NUM_QUEUES*2)) /* TODO(mai): this is too large? */ \
-	SPLIT_DATA_ENTRY(ccl_global uint, work_array, 1) \
+	SPLIT_DATA_ENTRY(ccl_global uint, buffer_offset, 1) \
 	SPLIT_DATA_ENTRY(ShaderData, sd, 1) \
 	SPLIT_DATA_ENTRY(ShaderData, sd_DL_shadow, 1) \
 	SPLIT_DATA_SUBSURFACE_ENTRIES \
 	SPLIT_DATA_VOLUME_ENTRIES \
 	SPLIT_DATA_BRANCHED_ENTRIES \
-	SPLIT_DATA_DEBUG_ENTRIES \
 
 /* entries to be copied to inactive rays when sharing branched samples (TODO: which are actually needed?) */
 #define SPLIT_DATA_ENTRIES_BRANCHED_SHARED \
-	SPLIT_DATA_ENTRY(ccl_global RNG, rng, 1) \
 	SPLIT_DATA_ENTRY(ccl_global float3, throughput, 1) \
-	SPLIT_DATA_ENTRY(ccl_global float, L_transparent, 1) \
 	SPLIT_DATA_ENTRY(PathRadiance, path_radiance, 1) \
 	SPLIT_DATA_ENTRY(ccl_global Ray, ray, 1) \
 	SPLIT_DATA_ENTRY(ccl_global PathState, path_state, 1) \
@@ -158,7 +144,6 @@ typedef ccl_global struct SplitBranchedState {
 	SPLIT_DATA_SUBSURFACE_ENTRIES \
 	SPLIT_DATA_VOLUME_ENTRIES \
 	SPLIT_DATA_BRANCHED_ENTRIES \
-	SPLIT_DATA_DEBUG_ENTRIES \
 
 /* struct that holds pointers to data in the shared state buffer */
 typedef struct SplitData {

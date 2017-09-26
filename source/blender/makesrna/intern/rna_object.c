@@ -858,9 +858,14 @@ static void rna_Object_active_particle_system_index_set(PointerRNA *ptr, int val
 
 static void rna_Object_particle_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
 {
+	/* TODO: Disabled for now, because bContext is not available. */
+#if 0
 	Object *ob = (Object *)ptr->id.data;
-
-	PE_current_changed(scene, ob);
+	PE_current_changed(NULL, scene, ob);
+#else
+	(void) scene;
+	(void) ptr;
+#endif
 }
 
 /* rotation - axis-angle */
@@ -1773,6 +1778,11 @@ static void rna_def_face_map(BlenderRNA *brna)
 	/* update data because modifiers may use [#24761] */
 	RNA_def_property_update(prop, NC_GEOM | ND_DATA | NA_RENAME, "rna_Object_internal_update_data");
 	
+	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SELECT);
+	RNA_def_property_ui_text(prop, "Select", "Face-map selection state (for tools to use)");
+	/* important not to use a notifier here, creates a feedback loop! */
+
 	prop = RNA_def_property(srna, "index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_funcs(prop, "rna_FaceMap_index_get", NULL, NULL);
@@ -2693,7 +2703,7 @@ static void rna_def_object(BlenderRNA *brna)
 	/* only for the transform-panel and conflicts with animating scale */
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_float_funcs(prop, "rna_Object_dimensions_get", "rna_Object_dimensions_set", NULL);
-	RNA_def_property_ui_range(prop, 0.0f, FLT_MAX, 1, 3);
+	RNA_def_property_ui_range(prop, 0.0f, FLT_MAX, 1, RNA_TRANSLATION_PREC_DEFAULT);
 	RNA_def_property_ui_text(prop, "Dimensions", "Absolute bounding box dimensions of the object");
 	RNA_def_property_update(prop, NC_OBJECT | ND_TRANSFORM, "rna_Object_internal_update");
 	
@@ -2932,6 +2942,12 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Restrict Render", "Restrict renderability");
 	RNA_def_property_ui_icon(prop, ICON_RESTRICT_RENDER_OFF, 1);
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_hide_update");
+
+	/* Keep it in sync with BKE_object_is_visible. */
+	prop = RNA_def_property(srna, "is_visible", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "base_flag", BASE_VISIBLED);
+	RNA_def_property_ui_text(prop, "Visible", "Visible to camera rays, set only on objects evaluated by depsgraph");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	prop = RNA_def_property(srna, "collection_properties", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "base_collection_properties->data.group", NULL);

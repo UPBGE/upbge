@@ -58,6 +58,10 @@ extern "C" {
 	void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *cam_frame, int always_use_expand_framing);
 }
 
+#ifdef WITH_AUDASPACE
+#  include <AUD_Device.h>
+#endif
+
 static BlendFileData *load_game_data(const char *filename)
 {
 	ReportList reports;

@@ -279,6 +279,12 @@ enum {
 	TH_AXIS_Y,
 	TH_AXIS_Z,
 
+	TH_MANIPULATOR_HI,
+	TH_MANIPULATOR_PRIMARY,
+	TH_MANIPULATOR_SECONDARY,
+	TH_MANIPULATOR_A,
+	TH_MANIPULATOR_B,
+
 	TH_LOW_GRAD,
 	TH_HIGH_GRAD,
 	TH_SHOW_BACK_GRAD,
@@ -303,7 +309,6 @@ enum {
 	TH_EDGE_BEVEL,
 	TH_VERTEX_BEVEL
 };
-/* XXX WARNING: previous is saved in file, so do not change order! */
 
 /* specific defines per space should have higher define values */
 

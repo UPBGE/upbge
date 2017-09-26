@@ -426,6 +426,8 @@ bool BL_ArmatureObject::UnlinkObject(SCA_IObject *clientobj)
 
 void BL_ArmatureObject::ApplyPose()
 {
+	/* TODO: This doesn't work currently because of eval_ctx. */
+#if 0
 	m_armpose = m_objArma->pose;
 	m_objArma->pose = m_pose;
 	// in the GE, we use ctime to store the timestep
@@ -443,6 +445,7 @@ void BL_ArmatureObject::ApplyPose()
 		memcpy(m_objArma->obmat, m_obmat, sizeof(m_obmat));
 		m_lastapplyframe = m_lastframe;
 	}
+#endif
 }
 
 void BL_ArmatureObject::RestorePose()

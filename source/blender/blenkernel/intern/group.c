@@ -77,7 +77,7 @@ Group *BKE_group_add(Main *bmain, const char *name)
 {
 	Group *group;
 	
-	group = BKE_libblock_alloc(bmain, ID_GR, name);
+	group = BKE_libblock_alloc(bmain, ID_GR, name, 0);
 	id_us_min(&group->id);
 	id_us_ensure_real(&group->id);
 	group->layer = (1 << 20) - 1;
@@ -87,19 +87,32 @@ Group *BKE_group_add(Main *bmain, const char *name)
 	return group;
 }
 
-Group *BKE_group_copy(Main *bmain, const Group *group)
+/**
+ * Only copy internal data of Group ID from source to already allocated/initialized destination.
+ * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
+ *
+ * WARNING! This function will not handle ID user count!
+ *
+ * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ */
+void BKE_group_copy_data(Main *UNUSED(bmain), Group *group_dst, const Group *group_src, const int flag)
 {
-	Group *groupn;
-
-	groupn = BKE_libblock_copy(bmain, &group->id);
-	BLI_duplicatelist(&groupn->gobject, &group->gobject);
+	BLI_duplicatelist(&group_dst->gobject, &group_src->gobject);
 
 	/* Do not copy group's preview (same behavior as for objects). */
-	groupn->preview = NULL;
+	if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0 && false) {  /* XXX TODO temp hack */
+		BKE_previewimg_id_copy(&group_dst->id, &group_src->id);
+	}
+	else {
+		group_dst->preview = NULL;
+	}
+}
 
-	BKE_id_copy_ensure_local(bmain, &group->id, &groupn->id);
-
-	return groupn;
+Group *BKE_group_copy(Main *bmain, const Group *group)
+{
+	Group *group_copy;
+	BKE_id_copy_ex(bmain, &group->id, (ID **)&group_copy, 0, false);
+	return group_copy;
 }
 
 void BKE_group_make_local(Main *bmain, Group *group, const bool lib_local)
@@ -314,7 +327,7 @@ static void group_replaces_nla(Object *parent, Object *target, char mode)
  * you can draw everything, leaves tags in objects to signal it needs further updating */
 
 /* note: does not work for derivedmesh and render... it recreates all again in convertblender.c */
-void BKE_group_handle_recalc_and_update(struct EvaluationContext *eval_ctx, Scene *scene, Object *UNUSED(parent), Group *group)
+void BKE_group_handle_recalc_and_update(const struct EvaluationContext *eval_ctx, Scene *scene, Object *UNUSED(parent), Group *group)
 {
 	GroupObject *go;
 	

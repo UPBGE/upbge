@@ -39,9 +39,16 @@ struct World;
 void BKE_world_free(struct World *sc);
 void BKE_world_init(struct World *wrld);
 struct World *add_world(struct Main *bmian, const char *name);
+void BKE_world_copy_data(struct Main *bmain, struct World *wrld_dst, const struct World *wrld_src, const int flag);
 struct World *BKE_world_copy(struct Main *bmain, const struct World *wrld);
 struct World *localize_world(struct World *wrld);
 void BKE_world_make_local(struct Main *bmain, struct World *wrld, const bool lib_local);
+
+/* Evaluation. */
+
+struct EvaluationContext;
+
+void BKE_world_eval(const struct EvaluationContext *eval_ctx, struct World *world);
 
 #endif
 

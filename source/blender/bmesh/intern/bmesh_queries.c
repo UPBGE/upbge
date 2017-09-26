@@ -36,7 +36,7 @@
 #include "BLI_math.h"
 #include "BLI_alloca.h"
 #include "BLI_linklist.h"
-#include "BLI_stackdefines.h"
+#include "BLI_utildefines_stack.h"
 
 #include "BKE_customdata.h"
 
@@ -749,6 +749,22 @@ bool BM_vert_is_edge_pair(const BMVert *v)
 	if (e) {
 		BMEdge *e_other = BM_DISK_EDGE_NEXT(e, v);
 		return ((e_other != e) && (BM_DISK_EDGE_NEXT(e_other, v) == e));
+	}
+	return false;
+}
+
+/**
+ * Fast alternative to ``(BM_vert_edge_count(v) == 2)``
+ * that checks both edges connect to the same faces.
+ */
+bool BM_vert_is_edge_pair_manifold(const BMVert *v)
+{
+	const BMEdge *e = v->e;
+	if (e) {
+		BMEdge *e_other = BM_DISK_EDGE_NEXT(e, v);
+		if (((e_other != e) && (BM_DISK_EDGE_NEXT(e_other, v) == e))) {
+			return BM_edge_is_manifold(e) && BM_edge_is_manifold(e_other);
+		}
 	}
 	return false;
 }

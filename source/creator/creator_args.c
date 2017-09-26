@@ -1016,7 +1016,7 @@ static int arg_handle_audio_disable(int UNUSED(argc), const char **UNUSED(argv),
 }
 
 static const char arg_handle_audio_set_doc[] =
-"\n\tForce sound system to a specific device\n\tNULL SDL OPENAL JACK"
+"\n\tForce sound system to a specific device\n\tThe name is the same as found in the user preferences, e.g. OpenAL."
 ;
 static int arg_handle_audio_set(int argc, const char **argv, void *UNUSED(data))
 {
@@ -1326,7 +1326,7 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
 				return 1;
 			}
 
-			re = RE_NewRender(scene->id.name);
+			re = RE_NewSceneRender(scene);
 			BLI_begin_threaded_malloc();
 			BKE_reports_init(&reports, RPT_STORE);
 
@@ -1368,7 +1368,7 @@ static int arg_handle_render_animation(int UNUSED(argc), const char **UNUSED(arg
 	Scene *scene = CTX_data_scene(C);
 	if (scene) {
 		Main *bmain = CTX_data_main(C);
-		Render *re = RE_NewRender(scene->id.name);
+		Render *re = RE_NewSceneRender(scene);
 		ReportList reports;
 		BLI_begin_threaded_malloc();
 		BKE_reports_init(&reports, RPT_STORE);
