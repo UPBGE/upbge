@@ -844,72 +844,237 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 		scene->UpdateAnimations(m_frameTime);
 }
 
+typedef struct EEVEE_LightData {
+	short light_id, shadow_id;
+} EEVEE_LightData;
+
+typedef struct EEVEE_ShadowCubeData {
+	short light_id, shadow_id, cube_id, layer_id;
+} EEVEE_ShadowCubeData;
+
+/* Update buffer with lamp data */
+static void eevee_light_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led)
+{
+	/* TODO only update if data changes */
+	EEVEE_LightData *evld = (EEVEE_LightData *)led->storage;
+	EEVEE_Light *evli = linfo->light_data + evld->light_id;
+	Object *ob = kxlight->GetBlenderObject();
+	Lamp *la = (Lamp *)ob->data;
+	float mat[4][4], scale[3], power, obmat[4][4];
+
+	kxlight->NodeGetWorldTransform().getValue(&obmat[0][0]);
+
+	/* Position */
+	copy_v3_v3(evli->position, obmat[3]);
+
+	/* Color */
+	copy_v3_v3(evli->color, &la->r);
+
+	/* Influence Radius */
+	evli->dist = la->dist;
+
+	/* Vectors */
+	normalize_m4_m4_ex(mat, obmat, scale);
+	copy_v3_v3(evli->forwardvec, mat[2]);
+	normalize_v3(evli->forwardvec);
+	negate_v3(evli->forwardvec);
+
+	copy_v3_v3(evli->rightvec, mat[0]);
+	normalize_v3(evli->rightvec);
+
+	copy_v3_v3(evli->upvec, mat[1]);
+	normalize_v3(evli->upvec);
+
+	/* Spot size & blend */
+	if (la->type == LA_SPOT) {
+		evli->sizex = scale[0] / scale[2];
+		evli->sizey = scale[1] / scale[2];
+		evli->spotsize = cosf(la->spotsize * 0.5f);
+		evli->spotblend = (1.0f - evli->spotsize) * la->spotblend;
+		evli->radius = max_ff(0.001f, la->area_size);
+	}
+	else if (la->type == LA_AREA) {
+		evli->sizex = max_ff(0.0001f, la->area_size * scale[0] * 0.5f);
+		if (la->area_shape == LA_AREA_RECT) {
+			evli->sizey = max_ff(0.0001f, la->area_sizey * scale[1] * 0.5f);
+		}
+		else {
+			evli->sizey = max_ff(0.0001f, la->area_size * scale[1] * 0.5f);
+		}
+	}
+	else {
+		evli->radius = max_ff(0.001f, la->area_size);
+	}
+
+	/* Make illumination power constant */
+	if (la->type == LA_AREA) {
+		power = 1.0f / (evli->sizex * evli->sizey * 4.0f * M_PI) /* 1/(w*h*Pi) */
+			* 80.0f; /* XXX : Empirical, Fit cycles power */
+	}
+	else if (la->type == LA_SPOT || la->type == LA_LOCAL) {
+		power = 1.0f / (4.0f * evli->radius * evli->radius * M_PI * M_PI) /* 1/(4*r²*Pi²) */
+			* M_PI * M_PI * M_PI * 10.0; /* XXX : Empirical, Fit cycles power */
+
+		/* for point lights (a.k.a radius == 0.0) */
+		// power = M_PI * M_PI * 0.78; /* XXX : Empirical, Fit cycles power */
+	}
+	else {
+		power = 1.0f;
+	}
+	mul_v3_fl(evli->color, power * la->energy);
+
+	/* Lamp Type */
+	evli->lamptype = (float)la->type;
+
+	/* No shadow by default */
+	evli->shadowid = -1.0f;
+}
+
+static void eevee_shadow_cube_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led)
+{
+	EEVEE_ShadowCubeData *sh_data = (EEVEE_ShadowCubeData *)led->storage;
+	EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
+	EEVEE_Shadow *ubo_data = linfo->shadow_data + sh_data->shadow_id;
+	EEVEE_ShadowCube *cube_data = linfo->shadow_cube_data + sh_data->cube_id;
+	Object *ob = kxlight->GetBlenderObject();
+	Lamp *la = (Lamp *)ob->data;
+
+	float obmat[4][4];
+	kxlight->NodeGetWorldTransform().getValue(&obmat[0][0]);
+
+	int sh_nbr = 1; /* TODO: MSM */
+
+	for (int i = 0; i < sh_nbr; ++i) {
+		/* TODO : choose MSM sample point here. */
+		copy_v3_v3(cube_data->position, obmat[3]);
+	}
+
+	ubo_data->bias = 0.05f * la->bias;
+	ubo_data->nearf = la->clipsta;
+	ubo_data->farf = la->clipend;
+	ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
+
+	evli->shadowid = (float)(sh_data->shadow_id);
+	ubo_data->shadow_start = (float)(sh_data->layer_id);
+	ubo_data->data_start = (float)(sh_data->cube_id);
+	ubo_data->multi_shadow_count = (float)(sh_nbr);
+}
+
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
 	CListValue<KX_LightObject> *lightlist = scene->GetLightList();
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
+	m_rasterizer->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
 	RAS_SceneLayerData *layerData = scene->GetSceneLayerData();
+	const EEVEE_SceneLayerData *sldata = &scene->GetSceneLayerData()->GetData();
+	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
 
 	const bool textured = (m_rasterizer->GetDrawingMode() == RAS_Rasterizer::RAS_TEXTURED);
 
-	int lightid = 0;
 	int shadowid = 0;
+
+	EEVEE_LampsInfo *linfo = scene->GetSceneLayerData()->GetData().lamps;
+	
+	float clear_col[4] = { FLT_MAX };
+
+	/* Cube Shadow Maps */
+	DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cube_target, 0, 0);
+
 	for (KX_LightObject *light : lightlist) {
 		if (!light->GetVisible()) {
 			continue;
 		}
 
 		RAS_ILightObject *raslight = light->GetLightData();
+		Object *ob = light->GetBlenderObject();
+		EEVEE_LampsInfo *linfo = layerData->GetData().lamps;
+		EEVEE_LampEngineData *led = EEVEE_lamp_data_get(ob);
 
-		const MT_Matrix3x3& rot = light->NodeGetWorldOrientation();
-		const MT_Vector3& pos = light->NodeGetWorldPosition();
-		const MT_Vector3& scale = light->NodeGetWorldScaling();
+		eevee_light_setup(light, linfo, led);
 
 		const bool useShadow = (textured && raslight->HasShadow());
 
-		raslight->Update(layerData->GetLight(lightid++), (useShadow) ? shadowid : -1, rot, pos, scale);
-
 		if (useShadow && raslight->NeedShadowUpdate()) {
-			/* switch drawmode for speed */
-			RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
-			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
 
-			Object *obLamp = light->GetBlenderObject();
-			EEVEE_LampEngineData *led = EEVEE_lamp_data_get(obLamp);
-			EEVEE_LampsInfo *linfo = layerData->GetData().lamps;
+			eevee_shadow_cube_setup(light, linfo, led);
+			
+			EEVEE_LampEngineData *led = EEVEE_lamp_data_get(ob);
+			Lamp *la = (Lamp *)ob->data;
 
-			/* binds framebuffer object, sets up camera .. */
-			raslight->BindShadowBuffer(m_rasterizer, pos, obLamp, linfo, led, layerData);
+			float cube_projmat[4][4];
+			perspective_m4(cube_projmat, -la->clipsta, la->clipsta, -la->clipsta, la->clipsta, la->clipsta, la->clipend);
 
-			KX_CullingNodeList nodes;
-			const SG_Frustum frustum(light->GetShadowFrustumMatrix().inverse());
-			/* update scene */
-			scene->CalculateVisibleMeshes(nodes, frustum, raslight->GetShadowLayer());
+			float obmat[4][4];
+			light->NodeGetWorldTransform().getValue(&obmat[0][0]);
 
-			/*for (KX_GameObject *gamob : scene->GetObjectList()) {
-				if (!gamob->GetCulled()) {
-					std::cout << gamob->GetName() << std::endl;
-				}
-			}*/
+			EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
 
-			m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds());
-			UpdateAnimations(scene);
-			m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+			srd->clip_near = la->clipsta;
+			srd->clip_far = la->clipend;
+			copy_v3_v3(srd->position, obmat[3]);
+			for (int j = 0; j < 6; j++) {
+				float tmp[4][4];
 
-			/* render */
-			MT_Transform camtrans;
-			// Send a nullptr off screen because the viewport is binding it's using its own private one.
-			scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
+				unit_m4(tmp);
+				negate_v3_v3(tmp[3], obmat[3]);
+				mul_m4_m4m4(srd->viewmat[j], cubefacemat[j], tmp);
 
-			/* unbind framebuffer object, restore drawmode, free camera */
-			raslight->UnbindShadowBuffer(m_rasterizer, layerData);
-			m_rasterizer->SetDrawingMode(drawmode);
+				mul_m4_m4m4(srd->shadowmat[j], cube_projmat, srd->viewmat[j]);
+			}
+			DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
+
+			DRW_framebuffer_bind(sldata->shadow_target_fb);
+			DRW_framebuffer_clear(true, true, false, clear_col, 1.0f);
+
+			/* Render shadow cube */
+			DRW_draw_pass(psl->shadow_cube_pass);
+
+			/* 0.001f is arbitrary, but it should be relatively small so that filter size is not too big. */
+			float filter_texture_size = la->soft * 0.001f;
+			float filter_pixel_size = ceil(filter_texture_size / linfo->shadow_render_data.cube_texel_size);
+			linfo->filter_size = linfo->shadow_render_data.cube_texel_size * ((filter_pixel_size > 1.0f) ? 1.5f : 0.0f);
+
+			/* TODO: OPTI: Filter all faces in one/two draw call */
+			for (linfo->current_shadow_face = 0;
+				linfo->current_shadow_face < 6;
+				linfo->current_shadow_face++)
+			{
+				/* Copy using a small 3x3 box filter */
+				DRW_framebuffer_cubeface_attach(sldata->shadow_store_fb, sldata->shadow_cube_blur, 0, linfo->current_shadow_face, 0);
+				DRW_framebuffer_bind(sldata->shadow_store_fb);
+				DRW_draw_pass(psl->shadow_cube_copy_pass);
+				DRW_framebuffer_texture_detach(sldata->shadow_cube_blur);
+			}
+
+			/* Push it to shadowmap array */
+
+			/* Adjust constants if concentric samples change. */
+			const float max_filter_size = 7.5f;
+			const float previous_box_filter_size = 9.0f; /* Dunno why but that works. */
+			const int max_sample = 256;
+
+			if (filter_pixel_size > 2.0f) {
+				linfo->filter_size = linfo->shadow_render_data.cube_texel_size * max_filter_size * previous_box_filter_size;
+				filter_pixel_size = max_ff(0.0f, filter_pixel_size - 3.0f);
+				/* Compute number of concentric samples. Depends directly on filter size. */
+				float pix_size_sqr = filter_pixel_size * filter_pixel_size;
+				srd->shadow_samples_ct = min_ii(max_sample, 4 + 8 * (int)filter_pixel_size + 4 * (int)(pix_size_sqr));
+			}
+			else {
+				linfo->filter_size = 0.0f;
+				srd->shadow_samples_ct = 4;
+			}
+			srd->shadow_inv_samples_ct = 1.0f / (float)srd->shadow_samples_ct;
+			DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
+
+			DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_pool, 0, shadowid++, 0);
+			DRW_framebuffer_bind(sldata->shadow_store_fb);
+			DRW_draw_pass(psl->shadow_cube_store_pass);
 		}
+		DRW_framebuffer_texture_detach(sldata->shadow_cube_target);		
 	}
-
-	layerData->FlushLightData(lightid);
 }
 
 MT_Matrix4x4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoEye eye,

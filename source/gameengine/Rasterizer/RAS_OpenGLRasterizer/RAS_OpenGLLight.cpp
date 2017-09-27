@@ -283,7 +283,8 @@ typedef struct EEVEE_ShadowCubeData {
 	short light_id, shadow_id, cube_id, layer_id;
 } EEVEE_ShadowCubeData;
 
-void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, Object *ob, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led, RAS_SceneLayerData *layerData)
+void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, Object *ob, EEVEE_LampsInfo *linfo,
+	EEVEE_LampEngineData *led, RAS_SceneLayerData *layerData, int shadowid)
 {
 	/**********************************************************************************************/
 	Lamp *la = (Lamp *)ob->data;
@@ -316,8 +317,14 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& 
 	EEVEE_ShadowCubeData *sh_data = (EEVEE_ShadowCubeData *)led->storage;
 	EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
 	EEVEE_Shadow *ubo_data = linfo->shadow_data + sh_data->shadow_id;
+	EEVEE_ShadowCube *cube_data = &layerData->GetShadowCube(sh_data->shadow_id);
 
 	int sh_nbr = 1; /* TODO: MSM */
+
+	for (int i = 0; i < sh_nbr; ++i) {
+		/* TODO : choose MSM sample point here. */
+		pos.getValue(cube_data->position);// copy_v3_v3(cube_data->position, ob->obmat[3]);
+	}
 
 	ubo_data->bias = 0.05f * la->bias;
 	ubo_data->nearf = la->clipsta;
@@ -334,13 +341,14 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& 
 	layerData->PrepareShadowRender();
 }
 
-void RAS_OpenGLLight::UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerData *layerData)
+void RAS_OpenGLLight::UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerData *layerData, int shadowid)
 {
-	layerData->PrepareShadowStore();
+	layerData->PrepareShadowStore(shadowid);
 
 	rasty->DrawOverlayPlane();
 
 	DRW_framebuffer_texture_detach(layerData->GetData().shadow_cube_target);
+	DRW_framebuffer_texture_layer_attach(layerData->GetData().shadow_store_fb, layerData->GetData().shadow_pool, 0, shadowid, 0);
 
 // 	m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_NONE);
 

@@ -25,7 +25,7 @@ public:
 	void FlushLightData(unsigned short lightCount);
 
 	void PrepareShadowRender();
-	void PrepareShadowStore();
+	void PrepareShadowStore(int shadowid);
 };
 
 #endif  // __RAS_SCENE_LAYER_DATA_H__

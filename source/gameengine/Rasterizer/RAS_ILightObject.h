@@ -108,8 +108,9 @@ public:
 	virtual MT_Matrix4x4 GetViewMat() = 0;
 	virtual MT_Matrix4x4 GetWinMat() = 0;
 	virtual int GetShadowLayer() = 0;
-	virtual void BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, Object *ob, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led, RAS_SceneLayerData *layerData) = 0;
-	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerData *layerData) = 0;
+	virtual void BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, Object *ob, EEVEE_LampsInfo *linfo,
+		EEVEE_LampEngineData *led, RAS_SceneLayerData *layerData, int shadowid) = 0;
+	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerData *layerData, int shadowid) = 0;
 	virtual Image *GetTextureImage(short texslot) = 0;
 	virtual void Update(EEVEE_Light& lightData, int shadowid, const MT_Matrix3x3& rot, const MT_Vector3& pos, const MT_Vector3& scale) = 0;
 };
