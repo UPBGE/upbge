@@ -348,7 +348,6 @@ void RAS_OpenGLLight::UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerDa
 	rasty->DrawOverlayPlane();
 
 	DRW_framebuffer_texture_detach(layerData->GetData().shadow_cube_target);
-	DRW_framebuffer_texture_layer_attach(layerData->GetData().shadow_store_fb, layerData->GetData().shadow_pool, 0, shadowid, 0);
 
 // 	m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_NONE);
 

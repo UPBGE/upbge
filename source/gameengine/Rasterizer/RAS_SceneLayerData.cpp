@@ -63,7 +63,7 @@ void RAS_SceneLayerData::PrepareShadowRender()
 void RAS_SceneLayerData::PrepareShadowStore(int shadowid)
 {
 	DRW_framebuffer_texture_layer_attach(m_data.shadow_store_fb, m_data.shadow_pool, 0, shadowid, 0);
-	DRW_framebuffer_bind(m_data.shadow_store_fb);//DRW_framebuffer_bind(m_data.shadow_cube_fb);
+	DRW_framebuffer_bind(m_data.shadow_store_fb);
 	DRW_bind_shader_shgroup(m_shadowStoreGroup);
 }
 
