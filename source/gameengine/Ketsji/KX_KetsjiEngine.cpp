@@ -991,12 +991,17 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 		Object *ob = light->GetBlenderObject();
 		EEVEE_LampsInfo *linfo = layerData->GetData().lamps;
 		EEVEE_LampEngineData *led = EEVEE_lamp_data_get(ob);
+		led->need_update = true;
 
 		eevee_light_setup(light, linfo, led);
 
 		const bool useShadow = (textured && raslight->HasShadow());
 
 		if (useShadow && raslight->NeedShadowUpdate()) {
+
+			/* switch drawmode for speed */
+			RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
+			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
 
 			eevee_shadow_cube_setup(light, linfo, led);
 			
@@ -1028,8 +1033,14 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			DRW_framebuffer_bind(sldata->shadow_target_fb);
 			DRW_framebuffer_clear(true, true, false, clear_col, 1.0f);
 
-			/* Render shadow cube */
-			DRW_draw_pass(psl->shadow_cube_pass);
+			/* render */
+			MT_Transform camtrans;
+			KX_CullingNodeList nodes;
+			const SG_Frustum frustum(light->GetShadowFrustumMatrix().inverse());
+			/* update scene */
+			scene->CalculateVisibleMeshes(nodes, frustum, raslight->GetShadowLayer());
+			// Send a nullptr off screen because the viewport is binding it's using its own private one.
+			scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
 
 			/* 0.001f is arbitrary, but it should be relatively small so that filter size is not too big. */
 			float filter_texture_size = la->soft * 0.001f;
@@ -1072,8 +1083,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_pool, 0, shadowid++, 0);
 			DRW_framebuffer_bind(sldata->shadow_store_fb);
 			DRW_draw_pass(psl->shadow_cube_store_pass);
+			m_rasterizer->SetDrawingMode(drawmode);
 		}
-		DRW_framebuffer_texture_detach(sldata->shadow_cube_target);		
+		DRW_framebuffer_texture_detach(sldata->shadow_cube_target);
 	}
 }
 

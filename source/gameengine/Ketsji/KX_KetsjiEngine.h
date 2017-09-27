@@ -103,6 +103,7 @@ public:
 	};
 
 private:
+
 	struct CameraRenderData
 	{
 		CameraRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area, const RAS_Rect& viewport, RAS_Rasterizer::StereoEye eye);
