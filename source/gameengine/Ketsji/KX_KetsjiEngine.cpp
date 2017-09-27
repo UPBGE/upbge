@@ -854,6 +854,19 @@ typedef struct EEVEE_ShadowCubeData {
 	short light_id, shadow_id, cube_id, layer_id;
 } EEVEE_ShadowCubeData;
 
+typedef struct EEVEE_ShadowCascadeData {
+	short light_id, shadow_id, cascade_id, layer_id;
+	float viewprojmat[MAX_CASCADE_NUM][4][4]; /* World->Lamp->NDC : used for rendering the shadow map. */
+	float radius[MAX_CASCADE_NUM];
+} EEVEE_ShadowCascadeData;
+
+#define LERP(t, a, b) ((a) + (t) * ((b) - (a)))
+
+enum LightShadowType {
+	SHADOW_CUBE = 0,
+	SHADOW_CASCADE
+};
+
 /* Update buffer with lamp data */
 static void eevee_light_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led)
 {
@@ -962,6 +975,258 @@ static void eevee_shadow_cube_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *li
 	ubo_data->multi_shadow_count = (float)(sh_nbr);
 }
 
+static void frustum_min_bounding_sphere(const float corners[8][4], float r_center[3], float *r_radius)
+{
+#if 0 /* Simple solution but waist too much space. */
+	float minvec[3], maxvec[3];
+
+	/* compute the bounding box */
+	INIT_MINMAX(minvec, maxvec);
+	for (int i = 0; i < 8; ++i)	{
+		minmax_v3v3_v3(minvec, maxvec, corners[i]);
+	}
+
+	/* compute the bounding sphere of this box */
+	r_radius = len_v3v3(minvec, maxvec) * 0.5f;
+	add_v3_v3v3(r_center, minvec, maxvec);
+	mul_v3_fl(r_center, 0.5f);
+#else
+	/* Make the bouding sphere always centered on the front diagonal */
+	add_v3_v3v3(r_center, corners[4], corners[7]);
+	mul_v3_fl(r_center, 0.5f);
+	*r_radius = len_v3v3(corners[0], r_center);
+
+	/* Search the largest distance between the sphere center
+	* and the front plane corners. */
+	for (int i = 0; i < 4; ++i) {
+		float rad = len_v3v3(corners[4 + i], r_center);
+		if (rad > *r_radius) {
+			*r_radius = rad;
+		}
+	}
+#endif
+}
+
+static void eevee_shadow_cascade_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led, KX_Scene *scene)
+{
+	Object *ob = kxlight->GetBlenderObject();
+	Lamp *la = (Lamp *)ob->data;
+
+	float obmat[4][4];
+	kxlight->NodeGetWorldTransform().getValue(&obmat[0][0]);
+
+	/* Camera Matrices */
+	float persmat[4][4], persinv[4][4];
+	float viewprojmat[4][4], projinv[4][4];
+	float view_near, view_far;
+	float near_v[4] = { 0.0f, 0.0f, -1.0f, 1.0f };
+	float far_v[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
+	bool is_persp = DRW_viewport_is_persp_get();
+
+	KX_Camera *cam = scene->GetActiveCamera();
+
+	MT_Matrix4x4 proj(cam->GetProjectionMatrix());
+	MT_Matrix4x4 mvp(proj * cam->GetModelviewMatrix());
+
+	proj.getValue(&persmat[0][0]);
+
+	invert_m4_m4(persinv, persmat);
+	/* FIXME : Get near / far from Draw manager? */
+
+	mvp.getValue(&viewprojmat[0][0]);
+
+	invert_m4_m4(projinv, viewprojmat);
+	mul_m4_v4(projinv, near_v);
+	mul_m4_v4(projinv, far_v);
+	view_near = near_v[2];
+	view_far = far_v[2]; /* TODO: Should be a shadow parameter */
+	if (is_persp) {
+		view_near /= near_v[3];
+		view_far /= far_v[3];
+	}
+
+	/* Lamps Matrices */
+	float viewmat[4][4], projmat[4][4];
+	int sh_nbr = 1; /* TODO : MSM */
+	int cascade_nbr = la->cascade_count;
+
+	EEVEE_ShadowCascadeData *sh_data = (EEVEE_ShadowCascadeData *)led->storage;
+	EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
+	EEVEE_Shadow *ubo_data = linfo->shadow_data + sh_data->shadow_id;
+	EEVEE_ShadowCascade *cascade_data = linfo->shadow_cascade_data + sh_data->cascade_id;
+
+	/* The technique consists into splitting
+	* the view frustum into several sub-frustum
+	* that are individually receiving one shadow map */
+
+	float csm_start, csm_end;
+
+	if (is_persp) {
+		csm_start = view_near;
+		csm_end = max_ff(view_far, -la->cascade_max_dist);
+		/* Avoid artifacts */
+		csm_end = min_ff(view_near, csm_end);
+	}
+	else {
+		csm_start = -view_far;
+		csm_end = view_far;
+	}
+
+	/* init near/far */
+	for (int c = 0; c < MAX_CASCADE_NUM; ++c) {
+		cascade_data->split_start[c] = csm_end;
+		cascade_data->split_end[c] = csm_end;
+	}
+
+	/* Compute split planes */
+	float splits_start_ndc[MAX_CASCADE_NUM];
+	float splits_end_ndc[MAX_CASCADE_NUM];
+
+	{
+		/* Nearest plane */
+		float p[4] = { 1.0f, 1.0f, csm_start, 1.0f };
+		/* TODO: we don't need full m4 multiply here */
+		mul_m4_v4(viewprojmat, p);
+		splits_start_ndc[0] = p[2];
+		if (is_persp) {
+			splits_start_ndc[0] /= p[3];
+		}
+	}
+
+	{
+		/* Farthest plane */
+		float p[4] = { 1.0f, 1.0f, csm_end, 1.0f };
+		/* TODO: we don't need full m4 multiply here */
+		mul_m4_v4(viewprojmat, p);
+		splits_end_ndc[cascade_nbr - 1] = p[2];
+		if (is_persp) {
+			splits_end_ndc[cascade_nbr - 1] /= p[3];
+		}
+	}
+
+	cascade_data->split_start[0] = csm_start;
+	cascade_data->split_end[cascade_nbr - 1] = csm_end;
+
+	for (int c = 1; c < cascade_nbr; ++c) {
+		/* View Space */
+		float linear_split = LERP(((float)(c) / (float)cascade_nbr), csm_start, csm_end);
+		float exp_split = csm_start * powf(csm_end / csm_start, (float)(c) / (float)cascade_nbr);
+
+		if (is_persp) {
+			cascade_data->split_start[c] = LERP(la->cascade_exponent, linear_split, exp_split);
+		}
+		else {
+			cascade_data->split_start[c] = linear_split;
+		}
+		cascade_data->split_end[c - 1] = cascade_data->split_start[c];
+
+		/* Add some overlap for smooth transition */
+		cascade_data->split_start[c] = LERP(la->cascade_fade, cascade_data->split_end[c - 1],
+			(c > 1) ? cascade_data->split_end[c - 2] : cascade_data->split_start[0]);
+
+		/* NDC Space */
+		{
+			float p[4] = { 1.0f, 1.0f, cascade_data->split_start[c], 1.0f };
+			/* TODO: we don't need full m4 multiply here */
+			mul_m4_v4(viewprojmat, p);
+			splits_start_ndc[c] = p[2];
+
+			if (is_persp) {
+				splits_start_ndc[c] /= p[3];
+			}
+		}
+
+		{
+			float p[4] = { 1.0f, 1.0f, cascade_data->split_end[c - 1], 1.0f };
+			/* TODO: we don't need full m4 multiply here */
+			mul_m4_v4(viewprojmat, p);
+			splits_end_ndc[c - 1] = p[2];
+
+			if (is_persp) {
+				splits_end_ndc[c - 1] /= p[3];
+			}
+		}
+	}
+
+	/* Set last cascade split fade distance into the first split_start. */
+	float prev_split = (cascade_nbr > 1) ? cascade_data->split_end[cascade_nbr - 2] : cascade_data->split_start[0];
+	cascade_data->split_start[0] = LERP(la->cascade_fade, cascade_data->split_end[cascade_nbr - 1], prev_split);
+
+	/* For each cascade */
+	for (int c = 0; c < cascade_nbr; ++c) {
+		/* Given 8 frustum corners */
+		float corners[8][4] = {
+			/* Near Cap */
+			{ -1.0f, -1.0f, splits_start_ndc[c], 1.0f },
+			{ 1.0f, -1.0f, splits_start_ndc[c], 1.0f },
+			{ -1.0f, 1.0f, splits_start_ndc[c], 1.0f },
+			{ 1.0f, 1.0f, splits_start_ndc[c], 1.0f },
+			/* Far Cap */
+			{ -1.0f, -1.0f, splits_end_ndc[c], 1.0f },
+			{ 1.0f, -1.0f, splits_end_ndc[c], 1.0f },
+			{ -1.0f, 1.0f, splits_end_ndc[c], 1.0f },
+			{ 1.0f, 1.0f, splits_end_ndc[c], 1.0f }
+		};
+
+		/* Transform them into world space */
+		for (int i = 0; i < 8; ++i)	{
+			mul_m4_v4(persinv, corners[i]);
+			mul_v3_fl(corners[i], 1.0f / corners[i][3]);
+			corners[i][3] = 1.0f;
+		}
+
+
+		/* Project them into light space */
+		invert_m4_m4(viewmat, obmat);
+		normalize_v3(viewmat[0]);
+		normalize_v3(viewmat[1]);
+		normalize_v3(viewmat[2]);
+
+		for (int i = 0; i < 8; ++i)	{
+			mul_m4_v4(viewmat, corners[i]);
+		}
+
+		float center[3];
+		frustum_min_bounding_sphere(corners, center, &(sh_data->radius[c]));
+
+		/* Snap projection center to nearest texel to cancel shimmering. */
+		float shadow_origin[2], shadow_texco[2];
+		mul_v2_v2fl(shadow_origin, center, linfo->shadow_size / (2.0f * sh_data->radius[c])); /* Light to texture space. */
+
+		/* Find the nearest texel. */
+		shadow_texco[0] = round(shadow_origin[0]);
+		shadow_texco[1] = round(shadow_origin[1]);
+
+		/* Compute offset. */
+		sub_v2_v2(shadow_texco, shadow_origin);
+		mul_v2_fl(shadow_texco, (2.0f * sh_data->radius[c]) / linfo->shadow_size); /* Texture to light space. */
+
+		/* Apply offset. */
+		add_v2_v2(center, shadow_texco);
+
+		/* Expand the projection to cover frustum range */
+		orthographic_m4(projmat,
+			center[0] - sh_data->radius[c],
+			center[0] + sh_data->radius[c],
+			center[1] - sh_data->radius[c],
+			center[1] + sh_data->radius[c],
+			la->clipsta, la->clipend);
+
+		mul_m4_m4m4(sh_data->viewprojmat[c], projmat, viewmat);
+		mul_m4_m4m4(cascade_data->shadowmat[c], texcomat, sh_data->viewprojmat[c]);
+	}
+
+	ubo_data->bias = 0.05f * la->bias;
+	ubo_data->nearf = la->clipsta;
+	ubo_data->farf = la->clipend;
+	ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
+
+	evli->shadowid = (float)(sh_data->shadow_id);
+	ubo_data->shadow_start = (float)(sh_data->layer_id);
+	ubo_data->data_start = (float)(sh_data->cascade_id);
+	ubo_data->multi_shadow_count = (float)(sh_nbr);
+}
+
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
 	CListValue<KX_LightObject> *lightlist = scene->GetLightList();
@@ -988,6 +1253,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 		Object *ob = light->GetBlenderObject();
 		EEVEE_LampsInfo *linfo = layerData->GetData().lamps;
 		EEVEE_LampEngineData *led = EEVEE_lamp_data_get(ob);
+		LightShadowType shadowtype = linfo->shadow_cascade_ref[linfo->cpu_cascade_ct] == ob ? SHADOW_CASCADE : SHADOW_CUBE;
 
 		eevee_light_setup(light, linfo, led);
 
@@ -995,96 +1261,179 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 		if (useShadow && raslight->NeedShadowUpdate()) {
 
-			EEVEE_ShadowCubeData *sh_data = (EEVEE_ShadowCubeData *)led->storage;
+			if (shadowtype == SHADOW_CUBE) {
 
-			/* switch drawmode for speed */
-			RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
-			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
+				EEVEE_ShadowCubeData *sh_data = (EEVEE_ShadowCubeData *)led->storage;
 
-			/* Cube Shadow Maps */
-			DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cube_target, 0, 0);
+				/* switch drawmode for speed */
+				RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
+				m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
 
-			eevee_shadow_cube_setup(light, linfo, led);
-			
-			Lamp *la = (Lamp *)ob->data;
+				/* Cube Shadow Maps */
+				DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cube_target, 0, 0);
 
-			float cube_projmat[4][4];
-			perspective_m4(cube_projmat, -la->clipsta, la->clipsta, -la->clipsta, la->clipsta, la->clipsta, la->clipend);
+				eevee_shadow_cube_setup(light, linfo, led);
 
-			float obmat[4][4];
-			light->NodeGetWorldTransform().getValue(&obmat[0][0]);
+				Lamp *la = (Lamp *)ob->data;
 
-			EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
+				float cube_projmat[4][4];
+				perspective_m4(cube_projmat, -la->clipsta, la->clipsta, -la->clipsta, la->clipsta, la->clipsta, la->clipend);
 
-			srd->clip_near = la->clipsta;
-			srd->clip_far = la->clipend;
-			copy_v3_v3(srd->position, obmat[3]);
-			for (int j = 0; j < 6; j++) {
-				float tmp[4][4];
+				float obmat[4][4];
+				light->NodeGetWorldTransform().getValue(&obmat[0][0]);
 
-				unit_m4(tmp);
-				negate_v3_v3(tmp[3], obmat[3]);
-				mul_m4_m4m4(srd->viewmat[j], cubefacemat[j], tmp);
+				EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
 
-				mul_m4_m4m4(srd->shadowmat[j], cube_projmat, srd->viewmat[j]);
-			}
-			DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
+				srd->clip_near = la->clipsta;
+				srd->clip_far = la->clipend;
+				copy_v3_v3(srd->position, obmat[3]);
+				for (int j = 0; j < 6; j++) {
+					float tmp[4][4];
 
-			DRW_framebuffer_bind(sldata->shadow_target_fb);
-			DRW_framebuffer_clear(true, true, false, clear_col, 1.0f);
+					unit_m4(tmp);
+					negate_v3_v3(tmp[3], obmat[3]);
+					mul_m4_m4m4(srd->viewmat[j], cubefacemat[j], tmp);
 
-			/* render */
-			MT_Transform camtrans;
-			KX_CullingNodeList nodes;
-			const SG_Frustum frustum(light->GetShadowFrustumMatrix().inverse());
-			/* update scene */
-			scene->CalculateVisibleMeshes(nodes, frustum, raslight->GetShadowLayer());
-			// Send a nullptr off screen because the viewport is binding it's using its own private one.
-			scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
+					mul_m4_m4m4(srd->shadowmat[j], cube_projmat, srd->viewmat[j]);
+				}
+				DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
 
-			/* 0.001f is arbitrary, but it should be relatively small so that filter size is not too big. */
-			float filter_texture_size = la->soft * 0.001f;
-			float filter_pixel_size = ceil(filter_texture_size / linfo->shadow_render_data.cube_texel_size);
-			linfo->filter_size = linfo->shadow_render_data.cube_texel_size * ((filter_pixel_size > 1.0f) ? 1.5f : 0.0f);
+				DRW_framebuffer_bind(sldata->shadow_target_fb);
+				DRW_framebuffer_clear(true, true, false, clear_col, 1.0f);
 
-			/* TODO: OPTI: Filter all faces in one/two draw call */
-			for (linfo->current_shadow_face = 0;
-				linfo->current_shadow_face < 6;
-				linfo->current_shadow_face++)
-			{
-				/* Copy using a small 3x3 box filter */
-				DRW_framebuffer_cubeface_attach(sldata->shadow_store_fb, sldata->shadow_cube_blur, 0, linfo->current_shadow_face, 0);
+				/* render */
+				MT_Transform camtrans;
+				KX_CullingNodeList nodes;
+				const SG_Frustum frustum(light->GetShadowFrustumMatrix().inverse());
+				/* update scene */
+				scene->CalculateVisibleMeshes(nodes, frustum, raslight->GetShadowLayer());
+				// Send a nullptr off screen because the viewport is binding it's using its own private one.
+				scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
+
+				/* 0.001f is arbitrary, but it should be relatively small so that filter size is not too big. */
+				float filter_texture_size = la->soft * 0.001f;
+				float filter_pixel_size = ceil(filter_texture_size / linfo->shadow_render_data.cube_texel_size);
+				linfo->filter_size = linfo->shadow_render_data.cube_texel_size * ((filter_pixel_size > 1.0f) ? 1.5f : 0.0f);
+
+				/* TODO: OPTI: Filter all faces in one/two draw call */
+				for (linfo->current_shadow_face = 0;
+					linfo->current_shadow_face < 6;
+					linfo->current_shadow_face++)
+				{
+					/* Copy using a small 3x3 box filter */
+					DRW_framebuffer_cubeface_attach(sldata->shadow_store_fb, sldata->shadow_cube_blur, 0, linfo->current_shadow_face, 0);
+					DRW_framebuffer_bind(sldata->shadow_store_fb);
+					DRW_draw_pass(psl->shadow_cube_copy_pass);
+					DRW_framebuffer_texture_detach(sldata->shadow_cube_blur);
+				}
+
+				/* Push it to shadowmap array */
+
+				/* Adjust constants if concentric samples change. */
+				const float max_filter_size = 7.5f;
+				const float previous_box_filter_size = 9.0f; /* Dunno why but that works. */
+				const int max_sample = 256;
+
+				if (filter_pixel_size > 2.0f) {
+					linfo->filter_size = linfo->shadow_render_data.cube_texel_size * max_filter_size * previous_box_filter_size;
+					filter_pixel_size = max_ff(0.0f, filter_pixel_size - 3.0f);
+					/* Compute number of concentric samples. Depends directly on filter size. */
+					float pix_size_sqr = filter_pixel_size * filter_pixel_size;
+					srd->shadow_samples_ct = min_ii(max_sample, 4 + 8 * (int)filter_pixel_size + 4 * (int)(pix_size_sqr));
+				}
+				else {
+					linfo->filter_size = 0.0f;
+					srd->shadow_samples_ct = 4;
+				}
+				srd->shadow_inv_samples_ct = 1.0f / (float)srd->shadow_samples_ct;
+				DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
+
+				DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_pool, 0, sh_data->layer_id, 0);
 				DRW_framebuffer_bind(sldata->shadow_store_fb);
-				DRW_draw_pass(psl->shadow_cube_copy_pass);
-				DRW_framebuffer_texture_detach(sldata->shadow_cube_blur);
+				DRW_draw_pass(psl->shadow_cube_store_pass);
+				m_rasterizer->SetDrawingMode(drawmode);
+				DRW_framebuffer_texture_detach(sldata->shadow_cube_target);
 			}
 
-			/* Push it to shadowmap array */
+			else if (shadowtype == SHADOW_CASCADE) {
 
-			/* Adjust constants if concentric samples change. */
-			const float max_filter_size = 7.5f;
-			const float previous_box_filter_size = 9.0f; /* Dunno why but that works. */
-			const int max_sample = 256;
+				/* Cascaded Shadow Maps */
+				DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cascade_target, 0, 0);
+				Lamp *la = (Lamp *)ob->data;
 
-			if (filter_pixel_size > 2.0f) {
-				linfo->filter_size = linfo->shadow_render_data.cube_texel_size * max_filter_size * previous_box_filter_size;
-				filter_pixel_size = max_ff(0.0f, filter_pixel_size - 3.0f);
-				/* Compute number of concentric samples. Depends directly on filter size. */
-				float pix_size_sqr = filter_pixel_size * filter_pixel_size;
-				srd->shadow_samples_ct = min_ii(max_sample, 4 + 8 * (int)filter_pixel_size + 4 * (int)(pix_size_sqr));
+				EEVEE_ShadowCascadeData *evscd = (EEVEE_ShadowCascadeData *)led->storage;
+				EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
+
+				/* switch drawmode for speed */
+				RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
+				m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
+
+				eevee_shadow_cascade_setup(light, linfo, led, scene);
+
+				srd->clip_near = la->clipsta;
+				srd->clip_far = la->clipend;
+				for (int j = 0; j < la->cascade_count; ++j) {
+					copy_m4_m4(srd->shadowmat[j], evscd->viewprojmat[j]);
+				}
+				DRW_uniformbuffer_update(sldata->shadow_render_ubo, &linfo->shadow_render_data);
+
+				DRW_framebuffer_bind(sldata->shadow_target_fb);
+				DRW_framebuffer_clear(false, true, false, NULL, 1.0);
+
+				/* render */
+				MT_Transform camtrans;
+				KX_CullingNodeList nodes;
+				const SG_Frustum frustum(light->GetShadowFrustumMatrix().inverse());
+				/* update scene */
+				scene->CalculateVisibleMeshes(nodes, frustum, raslight->GetShadowLayer());
+				// Send a nullptr off screen because the viewport is binding it's using its own private one.
+				scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
+
+				/* TODO: OPTI: Filter all cascade in one/two draw call */
+				for (linfo->current_shadow_cascade = 0;
+					linfo->current_shadow_cascade < la->cascade_count;
+					++linfo->current_shadow_cascade)
+				{
+					/* 0.01f factor to convert to percentage */
+					float filter_texture_size = la->soft * 0.01f / evscd->radius[linfo->current_shadow_cascade];
+					float filter_pixel_size = ceil(linfo->shadow_size * filter_texture_size);
+
+					/* Copy using a small 3x3 box filter */
+					linfo->filter_size = linfo->shadow_render_data.stored_texel_size * ((filter_pixel_size > 1.0f) ? 1.0f : 0.0f);
+					DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_cascade_blur, 0, linfo->current_shadow_cascade, 0);
+					DRW_framebuffer_bind(sldata->shadow_store_fb);
+					DRW_draw_pass(psl->shadow_cascade_copy_pass);
+					DRW_framebuffer_texture_detach(sldata->shadow_cascade_blur);
+
+					/* Push it to shadowmap array and blur more */
+
+					/* Adjust constants if concentric samples change. */
+					const float max_filter_size = 7.5f;
+					const float previous_box_filter_size = 3.2f; /* Arbitrary: less banding */
+					const int max_sample = 256;
+
+					if (filter_pixel_size > 2.0f) {
+						linfo->filter_size = linfo->shadow_render_data.stored_texel_size * max_filter_size * previous_box_filter_size;
+						filter_pixel_size = max_ff(0.0f, filter_pixel_size - 3.0f);
+						/* Compute number of concentric samples. Depends directly on filter size. */
+						float pix_size_sqr = filter_pixel_size * filter_pixel_size;
+						srd->shadow_samples_ct = min_ii(max_sample, 4 + 8 * (int)filter_pixel_size + 4 * (int)(pix_size_sqr));
+					}
+					else {
+						linfo->filter_size = 0.0f;
+						srd->shadow_samples_ct = 4;
+					}
+					srd->shadow_inv_samples_ct = 1.0f / (float)srd->shadow_samples_ct;
+					DRW_uniformbuffer_update(sldata->shadow_render_ubo, &linfo->shadow_render_data);
+
+					int layer = evscd->layer_id + linfo->current_shadow_cascade;
+					DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_pool, 0, layer, 0);
+					DRW_framebuffer_bind(sldata->shadow_store_fb);
+					DRW_draw_pass(psl->shadow_cascade_store_pass);
+				}
+				m_rasterizer->SetDrawingMode(drawmode);
+				DRW_framebuffer_texture_detach(sldata->shadow_cascade_target);
 			}
-			else {
-				linfo->filter_size = 0.0f;
-				srd->shadow_samples_ct = 4;
-			}
-			srd->shadow_inv_samples_ct = 1.0f / (float)srd->shadow_samples_ct;
-			DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
-
-			DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_pool, 0, sh_data->layer_id, 0);
-			DRW_framebuffer_bind(sldata->shadow_store_fb);
-			DRW_draw_pass(psl->shadow_cube_store_pass);
-			m_rasterizer->SetDrawingMode(drawmode);
-			DRW_framebuffer_texture_detach(sldata->shadow_cube_target);
 		}
 	}
 	DRW_uniformbuffer_update(sldata->light_ubo, &linfo->light_data);

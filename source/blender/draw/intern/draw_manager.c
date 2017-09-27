@@ -3691,6 +3691,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	rv3d.camdy = 0.0f;
 	rv3d.camzoom = 0.0f;
 	rv3d.persp = RV3D_CAMOB;
+	rv3d.is_persp = true; //temp
 	rctf cameraborder;
 	game_camera_border(scene, &ar, &v3d, &rv3d, &cameraborder, false, false);
 	rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
