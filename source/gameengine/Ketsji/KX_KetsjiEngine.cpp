@@ -844,6 +844,8 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 		scene->UpdateAnimations(m_frameTime);
 }
 
+/***********************EEVEE SHADOWS SYSTEM************************/
+
 typedef struct EEVEE_LightData {
 	short light_id, shadow_id;
 } EEVEE_LightData;
@@ -1090,6 +1092,8 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 	DRW_uniformbuffer_update(sldata->shadow_ubo, &linfo->shadow_data);
 	m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 }
+
+/***********************END OF EEVEE SHADOWS SYSTEM************************/
 
 MT_Matrix4x4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoEye eye,
 											const RAS_Rect& viewport, const RAS_Rect& area) const
