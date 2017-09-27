@@ -981,9 +981,6 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 	
 	float clear_col[4] = { FLT_MAX };
 
-	/* Cube Shadow Maps */
-	DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cube_target, 0, 0);
-
 	for (KX_LightObject *light : lightlist) {
 		if (!light->GetVisible()) {
 			continue;
@@ -1003,6 +1000,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			/* switch drawmode for speed */
 			RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
 			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
+
+			/* Cube Shadow Maps */
+			DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cube_target, 0, 0);
 
 			eevee_shadow_cube_setup(light, linfo, led);
 			
@@ -1085,8 +1085,8 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			DRW_framebuffer_bind(sldata->shadow_store_fb);
 			DRW_draw_pass(psl->shadow_cube_store_pass);
 			m_rasterizer->SetDrawingMode(drawmode);
+			DRW_framebuffer_texture_detach(sldata->shadow_cube_target);
 		}
-		DRW_framebuffer_texture_detach(sldata->shadow_cube_target);
 	}
 	DRW_uniformbuffer_update(sldata->light_ubo, &linfo->light_data);
 	DRW_uniformbuffer_update(sldata->shadow_ubo, &linfo->shadow_data);
