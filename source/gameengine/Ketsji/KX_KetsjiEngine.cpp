@@ -975,8 +975,6 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 	const bool textured = (m_rasterizer->GetDrawingMode() == RAS_Rasterizer::RAS_TEXTURED);
 
-	int shadowid = 0;
-
 	EEVEE_LampsInfo *linfo = scene->GetSceneLayerData()->GetData().lamps;
 	
 	float clear_col[4] = { FLT_MAX };
@@ -997,6 +995,8 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 		if (useShadow && raslight->NeedShadowUpdate()) {
 
+			EEVEE_ShadowCubeData *sh_data = (EEVEE_ShadowCubeData *)led->storage;
+
 			/* switch drawmode for speed */
 			RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
 			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
@@ -1006,7 +1006,6 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 			eevee_shadow_cube_setup(light, linfo, led);
 			
-			EEVEE_LampEngineData *led = EEVEE_lamp_data_get(ob);
 			Lamp *la = (Lamp *)ob->data;
 
 			float cube_projmat[4][4];
@@ -1081,7 +1080,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			srd->shadow_inv_samples_ct = 1.0f / (float)srd->shadow_samples_ct;
 			DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
 
-			DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_pool, 0, shadowid++, 0);
+			DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_pool, 0, sh_data->layer_id, 0);
 			DRW_framebuffer_bind(sldata->shadow_store_fb);
 			DRW_draw_pass(psl->shadow_cube_store_pass);
 			m_rasterizer->SetDrawingMode(drawmode);
