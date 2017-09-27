@@ -3661,7 +3661,8 @@ static void game_camera_border(
 	r_viewborder->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
 }
 
-void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scene, SceneLayer *sl, Object *maincam, int viewportsize[2])
+void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph,
+	Scene *scene, SceneLayer *sl, Object *maincam, int viewportsize[2])
 {
 	memset(&DST, 0x0, sizeof(DST));
 	/*DRW_end_shgroup();
@@ -3669,7 +3670,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 	release_ubo_slots();*/
 
 	use_drw_engine(&draw_engine_eevee_type);
-	
+
 	DST.viewport = GPU_viewport_create_from_offscreen(ofs);
 
 	GPU_viewport_engine_data_create(DST.viewport, &draw_engine_eevee_type);
@@ -3702,17 +3703,17 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph, Scene *scen
 
 	DST.draw_ctx.evil_C = NULL;
 
-	bool cache_is_dirty;
 	DST.draw_ctx.v3d->zbuf = true;
-
-	/* Setup viewport */
-	cache_is_dirty = GPU_viewport_cache_validate(DST.viewport, DRW_engines_get_hash());
 
 	DST.draw_ctx = (DRWContextState){
 		DST.draw_ctx.ar, DST.draw_ctx.rv3d, DST.draw_ctx.v3d, scene, sl, OBACT_NEW(sl),
 			/* reuse if caller sets */
 			DST.draw_ctx.evil_C,
 	};
+
+	bool cache_is_dirty;
+	/* Setup viewport */
+	cache_is_dirty = GPU_viewport_cache_validate(DST.viewport, DRW_engines_get_hash());
 
 	DRW_viewport_var_init();
 

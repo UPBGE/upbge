@@ -86,8 +86,8 @@ void DRW_draw_depth_loop(
         struct Depsgraph *graph,
         struct ARegion *ar, struct View3D *v3d);
 
-void DRW_game_render_loop_begin(struct GPUOffScreen *ofs, struct Depsgraph *graph, struct Scene *scene,
-	struct SceneLayer *sl, struct Object *maincam, int viewportsize[2]);
+void DRW_game_render_loop_begin(struct GPUOffScreen *ofs, struct Depsgraph *graph,
+		struct Scene *scene, struct SceneLayer *sl, struct Object *maincam, int viewportsize[2]);
 void DRW_game_render_loop_end(void);
 
 /* This is here because GPUViewport needs it */
