@@ -32,21 +32,14 @@
 
 #include "RAS_IPolygonMaterial.h"
 
-#include "DNA_material_types.h"
-
-RAS_IPolyMaterial::RAS_IPolyMaterial(
-	const std::string& name,
-	GameSettings *game)
+RAS_IPolyMaterial::RAS_IPolyMaterial(const std::string& name)
 	:m_name(name),
+	m_drawingMode(0),
 	m_alphablend(0),
 	m_zoffset(0.0f),
 	m_rasMode(0),
 	m_flag(0)
 {
-	if (game) {
-		m_drawingmode = ConvertFaceMode(game);
-	}
-
 	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
 		m_textures[i] = nullptr;
 	}
@@ -59,19 +52,6 @@ RAS_IPolyMaterial::~RAS_IPolyMaterial()
 			delete m_textures[i];
 		}
 	}
-}
-
-int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game) const
-{
-	int modefinal = 0;
-
-	int orimode = game->face_orientation;
-	int alpha_blend = game->alpha_blend;
-	int flags = game->flag & (GEMAT_BACKCULL);
-
-	modefinal = orimode | alpha_blend | flags;
-
-	return modefinal;
 }
 
 bool RAS_IPolyMaterial::IsAlphaShadow() const
@@ -119,7 +99,7 @@ bool RAS_IPolyMaterial::IsZSort() const
 
 int RAS_IPolyMaterial::GetDrawingMode() const
 {
-	return m_drawingmode;
+	return m_drawingMode;
 }
 
 int RAS_IPolyMaterial::GetAlphaBlend() const

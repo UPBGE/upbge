@@ -1384,9 +1384,11 @@ bool RAS_Rasterizer::NeedRayCast(KX_ClientObjectInfo *UNUSED(info), void *UNUSED
 
 void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[16])
 {
-	if (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED ||
-	    objectdrawmode & RAS_IPolyMaterial::BILLBOARD_AXISALIGNED)
-	{
+	if (objectdrawmode == RAS_IPolyMaterial::RAS_NORMAL) {
+		// 'normal' object
+		memcpy(mat, origmat, sizeof(float) * 16);
+	}
+	else if (ELEM(objectdrawmode, RAS_IPolyMaterial::RAS_HALO, RAS_IPolyMaterial::RAS_BILLBOARD)) {
 		// rotate the billboard/halo
 		//page 360/361 3D Game Engine Design, David Eberly for a discussion
 		// on screen aligned and axis aligned billboards
@@ -1410,7 +1412,7 @@ void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[
 		// get scaling of halo object
 		const MT_Vector3& scale = MT_Vector3(len_v3(&origmat[0]), len_v3(&origmat[4]), len_v3(&origmat[8]));
 
-		if (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED) {
+		if (objectdrawmode & RAS_IPolyMaterial::RAS_HALO) {
 			up = (up - up.dot(left) * left).safe_normalized();
 		}
 		else {
@@ -1434,7 +1436,7 @@ void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[
 		};
 		memcpy(mat, tmpmat, sizeof(float) * 16);
 	}
-	else if (objectdrawmode & RAS_IPolyMaterial::SHADOW) {
+	else {
 		// shadow must be cast to the ground, physics system needed here!
 		const MT_Vector3 frompoint(&origmat[12]);
 		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject);
@@ -1465,10 +1467,6 @@ void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[
 			// couldn't find something to cast the shadow on...
 			memcpy(mat, origmat, sizeof(float) * 16);
 		}
-	}
-	else {
-		// 'normal' object
-		memcpy(mat, origmat, sizeof(float) * 16);
 	}
 }
 

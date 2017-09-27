@@ -47,9 +47,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		KX_Scene *scene,
 		Material *mat,
 		const std::string& name,
-		GameSettings *game,
 		int lightlayer)
-	:RAS_IPolyMaterial(name, game),
+	:RAS_IPolyMaterial(name),
 	m_material(mat),
 	m_shader(nullptr),
 	m_blenderShader(nullptr),
@@ -95,7 +94,29 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		m_rasMode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? RAS_ZSORT : 0;
 	}
 
-	// RAS_IPolyMaterial variables...
+	switch (mat->game.face_orientation) {
+		case GEMAT_NORMAL:
+		{
+			m_drawingMode = RAS_NORMAL;
+			break;
+		}
+		case GEMAT_BILLBOARD:
+		{
+			m_drawingMode = RAS_BILLBOARD;
+			break;
+		}
+		case GEMAT_HALO:
+		{
+			m_drawingMode = RAS_HALO;
+			break;
+		}
+		case GEMAT_SHADOW:
+		{
+			m_drawingMode = RAS_SHADOW;
+			break;
+		}
+	}
+
 	m_flag |= ((mat->mode & MA_SHLESS) != 0) ? 0 : RAS_MULTILIGHT;
 	m_flag |= RAS_BLENDERGLSL;
 	m_flag |= ((mat->mode2 & MA_CASTSHADOW) != 0) ? RAS_CASTSHADOW : 0;

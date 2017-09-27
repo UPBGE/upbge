@@ -33,7 +33,6 @@ public:
 			KX_Scene *scene,
 			Material *mat,
 			const std::string& name,
-			GameSettings *game,
 			int lightlayer);
 
 	virtual ~KX_BlenderMaterial();

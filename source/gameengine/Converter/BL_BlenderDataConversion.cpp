@@ -388,7 +388,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 		name = "MA";
 	}
 
-	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, name, (mat ? &mat->game : nullptr), lightlayer);
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, name, lightlayer);
 
 	return kx_blmat;
 }

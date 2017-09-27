@@ -331,20 +331,12 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::Dra
 	RAS_MaterialBucket *bucket = arrayBucket->GetBucket();
 	RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
 
-	// handle two-side
-	if (material->GetDrawingMode() & RAS_Rasterizer::RAS_BACKCULL) {
-		m_rasterizer->SetCullFace(true);
-	}
-	else {
-		m_rasterizer->SetCullFace(false);
-	}
-
 	if (bucket->IsWire()) {
 		SetLines(true);
 	}
 
 	bool wireframe = (drawingmode == RAS_Rasterizer::RAS_WIREFRAME);
-	if (material->GetFlag() & RAS_BLENDERGLSL) {
+	if (material->GetFlag() & RAS_IPolyMaterial::RAS_BLENDERGLSL) {
 		// GetMaterialIndex return the original mface material index,
 		// increment by 1 to match what derived mesh is doing
 		current_blmat_nr = arrayBucket->GetMeshMaterial()->GetIndex() + 1;
