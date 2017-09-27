@@ -965,6 +965,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 	CListValue<KX_LightObject> *lightlist = scene->GetLightList();
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
+	m_rasterizer->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
 	RAS_SceneLayerData *layerData = scene->GetSceneLayerData();
 	const EEVEE_SceneLayerData *sldata = &scene->GetSceneLayerData()->GetData();
@@ -1087,6 +1088,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 	}
 	DRW_uniformbuffer_update(sldata->light_ubo, &linfo->light_data);
 	DRW_uniformbuffer_update(sldata->shadow_ubo, &linfo->shadow_data);
+	m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 }
 
 MT_Matrix4x4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoEye eye,
