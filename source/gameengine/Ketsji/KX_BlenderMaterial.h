@@ -16,6 +16,7 @@
 
 class SCA_IScene;
 class KX_Scene;
+class RAS_Rasterizer;
 class BL_BlenderShader;
 class KX_MaterialShader;
 struct Material;
@@ -30,6 +31,7 @@ class KX_BlenderMaterial : public CValue, public RAS_IPolyMaterial
 
 public:
 	KX_BlenderMaterial(
+			RAS_Rasterizer *rasty,
 			KX_Scene *scene,
 			Material *mat,
 			const std::string& name,
@@ -101,6 +103,7 @@ private:
 	Material *m_material;
 	std::unique_ptr<KX_MaterialShader> m_shader;
 	std::unique_ptr<BL_BlenderShader> m_blenderShader;
+	RAS_Rasterizer *m_rasterizer;
 	KX_Scene *m_scene;
 	bool m_userDefBlend;
 	unsigned int m_blendFunc[2];

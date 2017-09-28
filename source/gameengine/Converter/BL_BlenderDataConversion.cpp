@@ -426,7 +426,8 @@ static void GetUVs(const RAS_MeshObject::LayerList& layers, MFace *mface, MTFace
 static KX_BlenderMaterial *ConvertMaterial(
 	Material *mat,
 	int lightlayer,
-	KX_Scene *scene)
+	KX_Scene *scene,
+	RAS_Rasterizer *rasty)
 {
 	std::string name = mat->id.name;
 	// Always ensure that the name of a material start with "MA" prefix due to video texture name check.
@@ -434,7 +435,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 		name = "MA";
 	}
 
-	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, name, (mat ? &mat->game : nullptr), lightlayer);
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(rasty, scene, mat, name, (mat ? &mat->game : nullptr), lightlayer);
 
 	return kx_blmat;
 }
@@ -450,12 +451,12 @@ static void uvsRgbFromMesh(Material *ma, MFace *mface, MTFace *tface, const RAS_
 	}
 }
 
-static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_Scene *scene, KX_BlenderSceneConverter& converter)
+static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_Scene *scene, RAS_Rasterizer *rasty, KX_BlenderSceneConverter& converter)
 {
 	KX_BlenderMaterial* mat = converter.FindMaterial(ma);
 
 	if (!mat) {
-		mat = ConvertMaterial(ma, lightlayer, scene);
+		mat = ConvertMaterial(ma, lightlayer, scene, rasty);
 		// this is needed to free up memory afterwards.
 		converter.RegisterMaterial(mat, ma);
 	}
@@ -469,7 +470,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_S
 }
 
 /* blenderobj can be nullptr, make sure its checked for */
-RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, KX_BlenderSceneConverter& converter, bool libloading)
+RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, RAS_Rasterizer *rasty, KX_BlenderSceneConverter& converter, bool libloading)
 {
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
@@ -596,7 +597,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			ma = &defmaterial;
 		}
 
-		RAS_MaterialBucket *bucket = material_from_mesh(ma, lightlayer, scene, converter);
+		RAS_MaterialBucket *bucket = material_from_mesh(ma, lightlayer, scene, rasty, converter);
 		meshobj->AddMaterial(bucket, i, vertformat);
 	}
 
@@ -887,13 +888,13 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	}
 }
 
-static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter& converter, bool libloading)
+static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, RAS_Rasterizer *rasty, KX_BlenderSceneConverter& converter, bool libloading)
 {
 	if (BLI_listbase_count_ex(&ob->lodlevels, 2) <= 1) {
 		return nullptr;
 	}
 
-	KX_LodManager *lodManager = new KX_LodManager(ob, scene, converter, libloading);
+	KX_LodManager *lodManager = new KX_LodManager(ob, scene, rasty, converter, libloading);
 	// The lod manager is useless ?
 	if (lodManager->GetLevelCount() <= 1) {
 		lodManager->Release();
@@ -992,7 +993,7 @@ static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene)
 static KX_GameObject *gameobject_from_blenderobject(
 								Object *ob, 
 								KX_Scene *kxscene, 
-								RAS_Rasterizer *rendertools,
+								RAS_Rasterizer *rasty,
 								KX_BlenderSceneConverter& converter,
 								bool libloading) 
 {
@@ -1025,7 +1026,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 	case OB_MESH:
 	{
 		Mesh* mesh = static_cast<Mesh*>(ob->data);
-		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter, libloading);
+		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh, ob, kxscene, rasty, converter, libloading);
 		
 		// needed for python scripting
 		kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
@@ -1043,7 +1044,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		gameobj->AddMesh(meshobj);
 
 		// gather levels of detail
-		KX_LodManager *lodManager = lodmanager_from_blenderobject(ob, kxscene, converter, libloading);
+		KX_LodManager *lodManager = lodmanager_from_blenderobject(ob, kxscene, rasty, converter, libloading);
 		gameobj->SetLodManager(lodManager);
 		if (lodManager) {
 			lodManager->Release();
@@ -1132,7 +1133,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 	{
 		bool do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
 		/* font objects have no bounding box */
-		KX_FontObject *fontobj = new KX_FontObject(kxscene,KX_Scene::m_callbacks, rendertools, kxscene->GetBoundingBoxManager(), ob, do_color_management);
+		KX_FontObject *fontobj = new KX_FontObject(kxscene, KX_Scene::m_callbacks, rasty, kxscene->GetBoundingBoxManager(), ob, do_color_management);
 		gameobj = fontobj;
 
 		kxscene->GetFontList()->Add(CM_AddRef(fontobj));

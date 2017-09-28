@@ -47,6 +47,7 @@ extern "C" {
 }
 
 KX_BlenderMaterial::KX_BlenderMaterial(
+		RAS_Rasterizer *rasty,
 		KX_Scene *scene,
 		Material *mat,
 		const std::string& name,
@@ -56,6 +57,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_material(mat),
 	m_shader(nullptr),
 	m_blenderShader(nullptr),
+	m_rasterizer(rasty),
 	m_scene(scene),
 	m_userDefBlend(false),
 	m_constructed(false),
@@ -185,7 +187,7 @@ void KX_BlenderMaterial::ReleaseMaterial()
 
 void KX_BlenderMaterial::InitTextures()
 {
-	GPUMaterial *gpumat = m_blenderShader->GetGpuMaterial();
+	GPUMaterial *gpumat = m_blenderShader->GetGpuMaterial(m_rasterizer->GetDrawingMode());
 	if (!gpumat) {
 		return;
 	}

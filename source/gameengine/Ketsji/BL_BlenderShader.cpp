@@ -52,7 +52,9 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer
 	:m_blenderScene(scene->GetBlenderScene()),
 	m_mat(ma),
 	m_shGroup(nullptr),
-	m_gpuMat(nullptr)
+	m_gpuMat(nullptr),
+	m_depthShGroup(nullptr),
+	m_depthGpuMat(nullptr)
 {
 	ReloadMaterial(scene);
 }
@@ -117,7 +119,13 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 	if (m_shGroup) {
 		DRW_shgroup_free(m_shGroup);
 	}
+	if (m_depthShGroup) {
+		DRW_shgroup_free(m_depthShGroup);
+	}
 	EEVEE_Data *vedata = scene->GetEeveeData();
+	EEVEE_StorageList *stl = vedata->stl;
+
+	/* STANDARD MATERIAL */
 	if (m_mat->use_nodes && m_mat->nodetree) {
 		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false, false, SHADOW_ESM);
 
@@ -135,14 +143,49 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 		DRW_shgroup_uniform_float(m_shGroup, "specular", spec_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "roughness", rough_p, 1);
 	}
+	/* DEPTH MATERIAL */
+	if (m_mat->use_nodes && m_mat->nodetree) {
+		m_depthGpuMat = EEVEE_material_mesh_depth_get(m_blenderScene, m_mat, false, false);
+
+		m_depthShGroup = DRW_shgroup_material_create(m_depthGpuMat, nullptr);
+	}
+	else {
+		m_depthShGroup = stl->g_data->depth_shgrp;
+	}
+	/* DEPTH CLIP MATERIAL */
+	if (m_mat->use_nodes && m_mat->nodetree) {
+		m_depthGpuMat = EEVEE_material_mesh_depth_get(m_blenderScene, m_mat, false, false);
+
+		m_depthShGroup = DRW_shgroup_material_create(m_depthGpuMat, nullptr);
+	}
+	else {
+		m_depthShGroup = stl->g_data->depth_shgrp_clip;
+	}
 
 	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, (EEVEE_SceneLayerData *)&scene->GetSceneLayerData()->GetData(),
 		scene->GetEeveeData(), NULL, NULL, false);
 }
 
-GPUMaterial *BL_BlenderShader::GetGpuMaterial()
+GPUMaterial *BL_BlenderShader::GetGpuMaterial(RAS_Rasterizer::DrawType drawtype)
 {
-	return m_gpuMat;
+	switch (drawtype) {
+		case RAS_Rasterizer::RAS_TEXTURED:
+		{
+			return m_gpuMat;
+		}
+		case RAS_Rasterizer::RAS_DEPTH_PASS:
+		{
+			return m_depthGpuMat;
+		}
+		case RAS_Rasterizer::RAS_DEPTH_PASS_CLIP:
+		{
+			return m_depthClipGpuMat;
+		}
+		default:
+		{
+			return m_gpuMat;
+		}
+	}
 }
 
 bool BL_BlenderShader::IsValid() const

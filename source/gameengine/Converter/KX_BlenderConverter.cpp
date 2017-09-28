@@ -473,7 +473,7 @@ KX_LibLoadStatus *KX_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib, c
 			if (options & LIB_LOAD_VERBOSE) {
 				CM_Debug("mesh name: " << mesh->name + 2);
 			}
-			RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)mesh, nullptr, scene_merge, sceneConverter, false); // For now only use the libloading option for scenes, which need to handle materials/shaders
+			RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)mesh, nullptr, scene_merge, m_ketsjiEngine->GetRasterizer(), sceneConverter, false); // For now only use the libloading option for scenes, which need to handle materials/shaders
 			scene_merge->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 		}
 		m_sceneSlots[scene_merge].Merge(sceneConverter);
@@ -826,7 +826,7 @@ RAS_MeshObject *KX_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main
 
 	KX_BlenderSceneConverter sceneConverter;
 
-	RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)me, nullptr, kx_scene, sceneConverter, false);
+	RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)me, nullptr, kx_scene, m_ketsjiEngine->GetRasterizer(), sceneConverter, false);
 	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 
 	m_sceneSlots[kx_scene].Merge(sceneConverter);

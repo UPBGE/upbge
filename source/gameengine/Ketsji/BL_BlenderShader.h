@@ -54,14 +54,20 @@ private:
 	Scene *m_blenderScene;
 	Material *m_mat;
 	DRWShadingGroup *m_shGroup;
+	DRWShadingGroup *m_depthShGroup;
+	DRWShadingGroup *m_depthClipShGroup;
 	GPUMaterial *m_gpuMat;
+	GPUMaterial *m_depthGpuMat;
+	GPUMaterial *m_depthClipGpuMat;
+
 
 public:
 	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer);
 	virtual ~BL_BlenderShader();
 
 	void ReloadMaterial(KX_Scene *scene);
-	GPUMaterial *GetGpuMaterial();
+
+	GPUMaterial *GetGpuMaterial(RAS_Rasterizer::DrawType drawtype);
 
 	virtual bool IsValid() const;
 	virtual void Activate();

@@ -1451,6 +1451,7 @@ void KX_KetsjiEngine::Render()
 			}
 
 			/*****************************PROBES*****************************/
+			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_DEPTH_PASS);
 			EEVEE_Data *vedata = EEVEE_engine_data_get();
 			EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 			EEVEE_lightprobes_updates(sldata, vedata->psl, vedata->stl, scene);
@@ -1460,6 +1461,7 @@ void KX_KetsjiEngine::Render()
 			DRW_uniformbuffer_update(sldata->grid_ubo, &sldata->probes->grid_data);
 			DRW_uniformbuffer_update(sldata->planar_ubo, &sldata->probes->planar_data);
 			EEVEE_lightprobes_refresh_bge(sldata, vedata, scene, m_rasterizer, scene->GetActiveCamera(), offScreen);
+			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_TEXTURED);
 			/*************************END OF PROBES**************************/
 
 
