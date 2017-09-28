@@ -149,6 +149,9 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(soft, "dynamic_friction", slider=True)
             col.prop(soft, "collision_margin", slider=True)
             col.prop(soft, "use_bending_constraints", text="Bending Constraints")
+            sub = col.column()
+            sub.active = soft.use_bending_constraints
+            sub.prop(soft, "bending_distance")
 
             col = split.column()
             col.prop(soft, "use_shape_match")

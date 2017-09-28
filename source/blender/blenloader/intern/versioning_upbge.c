@@ -35,6 +35,7 @@
 
 #include "DNA_genfile.h"
 #include "DNA_material_types.h"
+#include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_sdna_types.h"
@@ -238,6 +239,16 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 						// All one, because this was the previous behavior.
 						mouseSensor->mask = 0xFFFF;
 					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 2, 1)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "BulletSoftBody", "int", "bending_dist")) {
+			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+				if (ob->bsoft) {
+					ob->bsoft->bending_dist = 2;
 				}
 			}
 		}
