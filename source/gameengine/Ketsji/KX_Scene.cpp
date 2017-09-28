@@ -267,14 +267,13 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	Object *maincam = m_blenderScene->camera ? (Object *)m_blenderScene->camera : (Object *)KX_GetActiveEngine()->GetConverter()->GetMain()->camera.first;
 	bool isFirstScene = KX_GetActiveEngine()->CurrentScenes()->GetCount() == 0;
-	if (isFirstScene) {
-		GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, GPU_R11F_G11F_B10F, GPU_OFFSCREEN_DEPTH_COMPARE, nullptr);
-		int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
-		DRW_game_render_loop_begin(tempgpuofs, m_blenderScene->depsgraph_legacy, m_blenderScene,
-			sl, maincam, viewportsize);
-		GPU_offscreen_free(tempgpuofs);
-	}
-
+	
+	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, GPU_R11F_G11F_B10F, GPU_OFFSCREEN_DEPTH_COMPARE, nullptr);
+	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
+	DRW_game_render_loop_begin(tempgpuofs, m_blenderScene->depsgraph_legacy, m_blenderScene,
+		sl, maincam, viewportsize, isFirstScene);
+	GPU_offscreen_free(tempgpuofs);
+	
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 	RAS_SceneLayerData *layerData = new RAS_SceneLayerData(*sldata);
 	SetSceneLayerData(layerData);
