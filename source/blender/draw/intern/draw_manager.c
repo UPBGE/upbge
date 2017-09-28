@@ -3731,7 +3731,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph,
 			}
 			DEG_OBJECT_ITER_END
 
-				DRW_engines_cache_finish();
+			DRW_engines_cache_finish();
 		}
 
 		EEVEE_lightprobes_refresh(EEVEE_scene_layer_data_get(), EEVEE_engine_data_get());
