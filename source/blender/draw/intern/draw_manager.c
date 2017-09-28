@@ -3702,14 +3702,10 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph,
 	DST.draw_ctx.rv3d = &rv3d;
 
 	DST.draw_ctx.evil_C = NULL;
-
 	DST.draw_ctx.v3d->zbuf = true;
-
-	DST.draw_ctx = (DRWContextState){
-		DST.draw_ctx.ar, DST.draw_ctx.rv3d, DST.draw_ctx.v3d, scene, sl, OBACT_NEW(sl),
-			/* reuse if caller sets */
-			DST.draw_ctx.evil_C,
-	};
+	DST.draw_ctx.scene = scene;
+	DST.draw_ctx.scene_layer = sl;
+	DST.draw_ctx.obact = OBACT_NEW(sl);
 
 	bool cache_is_dirty;
 	/* Setup viewport */
