@@ -357,9 +357,10 @@ typedef struct EEVEE_StaticProbeData {
 	struct GPUShader *probe_cube_display_sh;
 
 	struct GPUTexture *hammersley;
-	struct GPUTexture *planar_depth;
 	struct GPUTexture *planar_minmaxz;
 	struct GPUTexture *planar_pool_placeholder;
+	struct GPUTexture *depth_placeholder;
+	struct GPUTexture *depth_array_placeholder;
 	struct GPUTexture *cube_face_depth;
 	struct GPUTexture *cube_face_minmaxz;
 

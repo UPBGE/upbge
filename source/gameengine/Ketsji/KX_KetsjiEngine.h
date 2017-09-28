@@ -292,6 +292,8 @@ public:
 
 	RAS_OffScreen *PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 	RAS_OffScreen *PostRenderEevee(KX_Scene *scene, RAS_OffScreen *inputofs);
+	void EEVEE_lightprobes_refresh_bge(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata, KX_Scene *scene,
+		RAS_Rasterizer *rasty, KX_Camera *cam, RAS_OffScreen *inputofs);
 
 	/// set the devices and stuff. the client must take care of creating these
 	void SetInputDevice(SCA_IInputDevice *inputDevice);
