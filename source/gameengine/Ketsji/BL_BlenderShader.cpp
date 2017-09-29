@@ -188,14 +188,36 @@ GPUMaterial *BL_BlenderShader::GetGpuMaterial(RAS_Rasterizer::DrawType drawtype)
 	}
 }
 
+DRWShadingGroup *BL_BlenderShader::GetDRWShadingGroup(RAS_Rasterizer::DrawType drawtype)
+{
+	switch (drawtype) {
+		case RAS_Rasterizer::RAS_TEXTURED:
+		{
+			return m_shGroup;
+		}
+		case RAS_Rasterizer::RAS_DEPTH_PASS:
+		{
+			return m_depthShGroup;
+		}
+		case RAS_Rasterizer::RAS_DEPTH_PASS_CLIP:
+		{
+			return m_depthClipShGroup;
+		}
+		default:
+		{
+			return m_shGroup;
+		}
+	}
+}
+
 bool BL_BlenderShader::IsValid() const
 {
 	return (m_shGroup != nullptr);
 }
 
-void BL_BlenderShader::Activate()
+void BL_BlenderShader::Activate(RAS_Rasterizer *rasty)
 {
-	DRW_bind_shader_shgroup(m_shGroup);
+	DRW_bind_shader_shgroup(GetDRWShadingGroup(rasty->GetDrawingMode()));
 }
 
 void BL_BlenderShader::Desactivate()

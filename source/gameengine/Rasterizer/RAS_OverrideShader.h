@@ -6,6 +6,7 @@
 #include "GPU_shader.h"
 
 struct DRWShadingGroup;
+class RAS_Rasterizer;
 
 /** \brief Override shader used to draw geometry in case of shadow, wire etc...
  */
@@ -24,7 +25,7 @@ public:
 	virtual ~RAS_OverrideShader();
 
 	virtual bool IsValid() const;
-	virtual void Activate();
+	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate();
 	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);
 	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;

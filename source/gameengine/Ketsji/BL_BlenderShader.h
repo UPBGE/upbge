@@ -68,9 +68,10 @@ public:
 	void ReloadMaterial(KX_Scene *scene);
 
 	GPUMaterial *GetGpuMaterial(RAS_Rasterizer::DrawType drawtype);
+	DRWShadingGroup *GetDRWShadingGroup(RAS_Rasterizer::DrawType drawtype);
 
 	virtual bool IsValid() const;
-	virtual void Activate();
+	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate();
 	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);
 	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;

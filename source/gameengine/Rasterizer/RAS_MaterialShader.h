@@ -16,7 +16,7 @@ public:
 	/// Return true when the shader can be bound.
 	virtual bool IsValid() const = 0;
 	// Bind the shader and mainly update global uniforms.
-	virtual void Activate() = 0;
+	virtual void Activate(RAS_Rasterizer *rasty) = 0;
 	/// Unbind the shader.
 	virtual void Desactivate() = 0;
 	/// Update the shader with mesh user data as model matrix.

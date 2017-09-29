@@ -35,7 +35,7 @@ bool RAS_OverrideShader::IsValid() const
 	return true;
 }
 
-void RAS_OverrideShader::Activate()
+void RAS_OverrideShader::Activate(RAS_Rasterizer *rasty)
 {
 	DRW_bind_shader_shgroup(m_shGroup);
 }

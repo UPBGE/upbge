@@ -158,7 +158,7 @@ void RAS_MaterialBucket::BindNode(const RAS_MaterialNodeTuple& tuple)
 	rasty->SetCullFace(m_nodeData.m_cullFace);
 	rasty->SetPolygonOffset(-m_nodeData.m_zoffset, 0.0f);
 
-	m_shader->Activate();
+	m_shader->Activate(rasty);
 }
 
 void RAS_MaterialBucket::UnbindNode(const RAS_MaterialNodeTuple& tuple)

@@ -120,7 +120,7 @@ void RAS_BucketManager::SetOverrideShader(RAS_BucketManager::OverrideShaderType 
 	}
 	// Bind current override shader.
 	if (shader) {
-		shader->Activate();
+		shader->Activate(nullptr);
 	}
 
 	m_nodeData.m_overrideShader = m_currentOverrideShader = shader;
@@ -291,6 +291,30 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 			/* Rendering solid and alpha (regular and instancing) materials
 			 * with their shaders.
 			 */
+
+			rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
+
+			RenderBasicBuckets(rasty, SOLID_BUCKET);
+			RenderBasicBuckets(rasty, SOLID_INSTANCING_BUCKET);
+
+			rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_DISABLED);
+
+			// Update depth transparency depth texture after rendering all solid materials.
+			if ((m_buckets[ALPHA_DEPTH_BUCKET].size() + m_buckets[ALPHA_DEPTH_INSTANCING_BUCKET].size()) > 0) {
+				rasty->UpdateGlobalDepthTexture(offScreen);
+			}
+			RenderBasicBuckets(rasty, ALPHA_INSTANCING_BUCKET);
+			RenderSortedBuckets(rasty, ALPHA_BUCKET);
+
+
+			rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
+			break;
+		}
+		case RAS_Rasterizer::RAS_DEPTH_PASS:
+		{
+			/* Rendering solid and alpha (regular and instancing) materials
+			* with their shaders.
+			*/
 
 			rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
 
