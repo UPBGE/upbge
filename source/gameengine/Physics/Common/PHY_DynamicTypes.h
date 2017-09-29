@@ -103,4 +103,12 @@ typedef enum PHY_ShapeType {
 	PHY_SHAPE_PROXY
 } PHY_ShapeType;
 
+typedef enum PHY_SolverType {
+	PHY_SOLVER_NONE,
+	PHY_SOLVER_SEQUENTIAL,
+	PHY_SOLVER_NNCG,
+	PHY_SOLVER_MLCP_DANTZIG,
+	PHY_SOLVER_MLCP_LEMKE
+} PHY_SolverType;
+
 #endif  /* __PHY_DYNAMICTYPES_H__ */

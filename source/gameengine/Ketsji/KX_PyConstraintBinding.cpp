@@ -425,7 +425,7 @@ static PyObject *gPySetSolverType(PyObject *self,
 	{
 		if (PHY_GetActiveEnvironment())
 		{
-			PHY_GetActiveEnvironment()->SetSolverType(solverType);
+			PHY_GetActiveEnvironment()->SetSolverType((PHY_SolverType)solverType);
 		}
 	}
 	else {

@@ -31,6 +31,11 @@
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/NarrowPhaseCollision/btRaycastCallback.h"
+#include "BulletDynamics/ConstraintSolver/btNNCGConstraintSolver.h"
+#include "BulletDynamics/MLCPSolvers/btMLCPSolver.h"
+#include "BulletDynamics/MLCPSolvers/btDantzigSolver.h"
+#include "BulletDynamics/MLCPSolvers/btLemkeSolver.h"
+#include "BulletDynamics/MLCPSolvers/btPATHSolver.h"
 
 //profiling/timings
 #include "LinearMath/btQuickprof.h"
@@ -386,13 +391,14 @@ void CcdPhysicsEnvironment::SetDebugDrawer(btIDebugDraw *debugDrawer)
 	m_debugDrawer = debugDrawer;
 }
 
-CcdPhysicsEnvironment::CcdPhysicsEnvironment(bool useDbvtCulling, btDispatcher *dispatcher, btOverlappingPairCache *pairCache)
-	:m_cullingCache(nullptr),
+CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling, btDispatcher *dispatcher, btOverlappingPairCache *pairCache)
+	:m_debugDrawer(nullptr),
+	m_cullingCache(nullptr),
 	m_cullingTree(nullptr),
 	m_numIterations(10),
 	m_numTimeSubSteps(1),
 	m_ccdMode(0),
-	m_solverType(-1),
+	m_solverType(PHY_SOLVER_NONE),
 	m_deactivationTime(2.0f),
 	m_linearDeactivationThreshold(0.8f),
 	m_angularDeactivationThreshold(1.0f),
@@ -432,14 +438,11 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(bool useDbvtCulling, btDispatcher *
 	m_broadphase->getOverlappingPairCache()->setOverlapFilterCallback(m_filterCallback);
 	m_broadphase->getOverlappingPairCache()->setInternalGhostPairCallback(m_ghostPairCallback);
 
-	SetSolverType(1);//issues with quickstep and memory allocations
-//	m_dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,m_broadphase,m_solver,m_collisionConfiguration);
+	SetSolverType(solverType);
+
 	m_dynamicsWorld = new btSoftRigidDynamicsWorld(dispatcher, m_broadphase, m_solver, m_collisionConfiguration);
 	m_dynamicsWorld->setInternalTickCallback(&CcdPhysicsEnvironment::StaticSimulationSubtickCallback, this);
-	//m_dynamicsWorld->getSolverInfo().m_linearSlop = 0.01f;
-	//m_dynamicsWorld->getSolverInfo().m_solverMode=	SOLVER_USE_WARMSTARTING +	SOLVER_USE_2_FRICTION_DIRECTIONS +	SOLVER_RANDMIZE_ORDER +	SOLVER_USE_FRICTION_WARMSTARTING;
 
-	m_debugDrawer = nullptr;
 	SetGravity(0.0f, 0.0f, -9.81f);
 }
 
@@ -999,24 +1002,38 @@ void CcdPhysicsEnvironment::SetUseEpa(bool epa)
 	//gUseEpa = epa;
 }
 
-void CcdPhysicsEnvironment::SetSolverType(int solverType)
+void CcdPhysicsEnvironment::SetSolverType(PHY_SolverType solverType)
 {
+	if (m_solverType == solverType) {
+		return;
+	}
+
 	switch (solverType)
 	{
-		case 1:
+		case PHY_SOLVER_SEQUENTIAL:
 		{
-			if (m_solverType != solverType) {
-				m_solver = new btSequentialImpulseConstraintSolver();
-				break;
-			}
+			m_solver = new btSequentialImpulseConstraintSolver();
+			break;
 		}
-
-		case 0:
+		case PHY_SOLVER_NNCG:
+		{
+			m_solver = new btNNCGConstraintSolver();
+			break;
+		}
+		case PHY_SOLVER_MLCP_DANTZIG:
+		{
+			m_solver = new btMLCPSolver(new btDantzigSolver());
+			break;
+		}
+		case PHY_SOLVER_MLCP_LEMKE:
+		{
+			m_solver = new btMLCPSolver(new btLemkeSolver());
+			break;
+		}
 		default:
-			if (m_solverType != solverType) {
-//			m_solver = new OdeConstraintSolver();
-				break;
-			}
+		{
+			BLI_assert(false);
+		}
 	};
 	m_solverType = solverType;
 }
@@ -2666,14 +2683,25 @@ struct BlenderDebugDraw : public btIDebugDraw
 
 CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool visualizePhysics)
 {
-	CcdPhysicsEnvironment *ccdPhysEnv = new CcdPhysicsEnvironment((blenderscene->gm.mode & WO_DBVT_CULLING) != 0);
+	static const PHY_SolverType solverTypeTable[] = {
+		PHY_SOLVER_SEQUENTIAL, // GAME_SOLVER_SEQUENTIAL
+		PHY_SOLVER_NNCG, // GAME_SOLVER_NNGC
+		PHY_SOLVER_MLCP_DANTZIG, // GAME_SOLVER_MLCP_DANTZIG
+		PHY_SOLVER_MLCP_LEMKE // GAME_SOLVER_MLCP_LEMKE
+	};
+
+	CcdPhysicsEnvironment *ccdPhysEnv = new CcdPhysicsEnvironment(solverTypeTable[blenderscene->gm.solverType],
+			(blenderscene->gm.mode & WO_DBVT_CULLING) != 0);
+
 	ccdPhysEnv->SetDebugDrawer(new BlenderDebugDraw());
 	ccdPhysEnv->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
 	ccdPhysEnv->SetDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);
 	ccdPhysEnv->SetDeactivationTime(blenderscene->gm.deactivationtime);
 
-	if (visualizePhysics)
-		ccdPhysEnv->SetDebugMode(btIDebugDraw::DBG_DrawWireframe | btIDebugDraw::DBG_DrawAabb | btIDebugDraw::DBG_DrawContactPoints | btIDebugDraw::DBG_DrawText | btIDebugDraw::DBG_DrawConstraintLimits | btIDebugDraw::DBG_DrawConstraints);
+	if (visualizePhysics) {
+		ccdPhysEnv->SetDebugMode(btIDebugDraw::DBG_DrawWireframe | btIDebugDraw::DBG_DrawAabb | btIDebugDraw::DBG_DrawContactPoints |
+				btIDebugDraw::DBG_DrawText | btIDebugDraw::DBG_DrawConstraintLimits | btIDebugDraw::DBG_DrawConstraints);
+	}
 
 	return ccdPhysEnv;
 }

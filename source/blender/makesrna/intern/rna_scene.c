@@ -4556,6 +4556,14 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem solver_items[] = {
+		{GAME_SOLVER_SEQUENTIAL, "SOLVER_SEQUENTIAL", 0, "Sequential", "Sequential physics solver, default solver"},
+		{GAME_SOLVER_NNCG, "SOLVER_NNGC", 0, "NNGC", "NNGC physics solver"},
+		{GAME_SOLVER_MLCP_DANTZIG, "SOLVER_MLCP_DANTZIG", 0, "MLCP Dantzig", "MLCP Dantzig physics solver"},
+		{GAME_SOLVER_MLCP_LEMKE, "SOLVER_MLCP_LEMKE", 0, "MLCP Lemke", "MLCP Lemke physics solver"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static EnumPropertyItem framing_types_items[] = {
 		{SCE_GAMEFRAMING_BARS, "LETTERBOX", 0, "Letterbox",
 		                       "Show the entire viewport in the display window, using bar horizontally or vertically"},
@@ -4730,6 +4738,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Physics Gravity",
 	                         "Gravitational constant used for physics simulation in the game engine");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop = RNA_def_property(srna, "physics_solver", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "solverType");
+	RNA_def_property_enum_items(prop, solver_items);
+	RNA_def_property_ui_text(prop, "Physics Solver", "Physics constraint solver");
 
 	prop = RNA_def_property(srna, "occlusion_culling_resolution", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "occlusionRes");

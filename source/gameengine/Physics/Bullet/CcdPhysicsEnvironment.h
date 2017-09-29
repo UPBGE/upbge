@@ -89,7 +89,7 @@ protected:
 	int m_numTimeSubSteps;
 
 	int m_ccdMode;
-	int m_solverType;
+	PHY_SolverType m_solverType;
 
 	float m_deactivationTime;
 	float m_linearDeactivationThreshold;
@@ -99,7 +99,7 @@ protected:
 	void ProcessFhSprings(double curTime, float timeStep);
 
 public:
-	CcdPhysicsEnvironment(bool useDbvtCulling, btDispatcher *dispatcher = nullptr, btOverlappingPairCache *pairCache = nullptr);
+	CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling, btDispatcher *dispatcher = nullptr, btOverlappingPairCache *pairCache = nullptr);
 
 	virtual ~CcdPhysicsEnvironment();
 
@@ -121,7 +121,7 @@ public:
 	virtual void SetDeactivationAngularTreshold(float angTresh);
 	virtual void SetContactBreakingTreshold(float contactBreakingTreshold);
 	virtual void SetCcdMode(int ccdMode);
-	virtual void SetSolverType(int solverType);
+	virtual void SetSolverType(PHY_SolverType solverType);
 	virtual void SetSolverSorConstant(float sor);
 	virtual void SetSolverTau(float tau);
 	virtual void SetSolverDamping(float damping);

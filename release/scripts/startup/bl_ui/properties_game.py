@@ -498,6 +498,7 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
 
         layout.prop(gs, "physics_engine", text="Engine")
         if gs.physics_engine != 'NONE':
+            layout.prop(gs, "physics_solver")
             layout.prop(gs, "physics_gravity", text="Gravity")
 
             split = layout.split()
