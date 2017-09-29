@@ -104,6 +104,12 @@ bool BL_BlenderShader::Ok() const
 
 void BL_BlenderShader::ReloadMaterial()
 {
+	// Force regenerating shader by deleting it.
+	if (m_gpuMat) {
+		GPU_material_free(&m_mat->gpumaterial);
+		GPU_material_free(&m_mat->gpumaterialinstancing);
+	}
+
 	m_gpuMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, false, UseInstancing()) : nullptr;
 	ParseAttribs();
 }
