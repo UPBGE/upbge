@@ -54,7 +54,9 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer
 	m_shGroup(nullptr),
 	m_gpuMat(nullptr),
 	m_depthShGroup(nullptr),
-	m_depthGpuMat(nullptr)
+	m_depthGpuMat(nullptr),
+	m_depthClipShGroup(nullptr),
+	m_depthClipGpuMat(nullptr)
 {
 	ReloadMaterial(scene);
 }
@@ -210,14 +212,33 @@ DRWShadingGroup *BL_BlenderShader::GetDRWShadingGroup(RAS_Rasterizer::DrawType d
 	}
 }
 
-bool BL_BlenderShader::IsValid() const
+bool BL_BlenderShader::IsValid(RAS_Rasterizer::DrawType drawtype) const
 {
-	return (m_shGroup != nullptr);
+	switch (drawtype) {
+		case RAS_Rasterizer::RAS_TEXTURED:
+		{
+			return m_shGroup != nullptr;
+		}
+		case RAS_Rasterizer::RAS_DEPTH_PASS:
+		{
+			return m_depthShGroup != nullptr;
+		}
+		case RAS_Rasterizer::RAS_DEPTH_PASS_CLIP:
+		{
+			return m_depthClipShGroup != nullptr;
+		}
+		default:
+		{
+			return false;
+		}
+	}
 }
 
 void BL_BlenderShader::Activate(RAS_Rasterizer *rasty)
 {
-	DRW_bind_shader_shgroup(GetDRWShadingGroup(rasty->GetDrawingMode()));
+	if (IsValid(rasty->GetDrawingMode())) {
+		DRW_bind_shader_shgroup(GetDRWShadingGroup(rasty->GetDrawingMode()));
+	}
 }
 
 void BL_BlenderShader::Desactivate()

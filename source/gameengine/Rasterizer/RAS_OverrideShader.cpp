@@ -30,7 +30,7 @@ RAS_OverrideShader::~RAS_OverrideShader()
 	}
 }
 
-bool RAS_OverrideShader::IsValid() const
+bool RAS_OverrideShader::IsValid(RAS_Rasterizer::DrawType drawtype) const
 {
 	return true;
 }

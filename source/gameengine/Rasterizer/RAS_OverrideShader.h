@@ -24,7 +24,7 @@ public:
 	RAS_OverrideShader(GPUBuiltinShader type);
 	virtual ~RAS_OverrideShader();
 
-	virtual bool IsValid() const;
+	virtual bool IsValid(RAS_Rasterizer::DrawType drawtype) const;
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate();
 	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);

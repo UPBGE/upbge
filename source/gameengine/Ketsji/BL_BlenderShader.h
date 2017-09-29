@@ -70,7 +70,7 @@ public:
 	GPUMaterial *GetGpuMaterial(RAS_Rasterizer::DrawType drawtype);
 	DRWShadingGroup *GetDRWShadingGroup(RAS_Rasterizer::DrawType drawtype);
 
-	virtual bool IsValid() const;
+	virtual bool IsValid(RAS_Rasterizer::DrawType drawtype) const;
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate();
 	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);

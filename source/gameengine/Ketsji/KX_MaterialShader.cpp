@@ -16,7 +16,7 @@ BL_Shader *KX_MaterialShader::GetShader() const
 	return m_shader.get();
 }
 
-bool KX_MaterialShader::IsValid() const
+bool KX_MaterialShader::IsValid(RAS_Rasterizer::DrawType drawtype) const
 {
 	return m_shader->Ok();
 }

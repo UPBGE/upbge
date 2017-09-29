@@ -133,10 +133,10 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 
 RAS_MaterialShader *KX_BlenderMaterial::GetShader() const
 {
-	if (m_shader && m_shader->IsValid()) {
+	if (m_shader && m_shader->IsValid(m_rasterizer->GetDrawingMode())) {
 		return m_shader.get();
 	}
-	else if (m_blenderShader && m_blenderShader->IsValid()) {
+	else if (m_blenderShader && m_blenderShader->IsValid(m_rasterizer->GetDrawingMode())) {
 		return m_blenderShader.get();
 	}
 
@@ -300,9 +300,9 @@ bool KX_BlenderMaterial::UsesLighting() const
 	if (!RAS_IPolyMaterial::UsesLighting())
 		return false;
 
-	if (m_shader && m_shader->IsValid())
+	if (m_shader && m_shader->IsValid(m_rasterizer->GetDrawingMode()))
 		return true;
-	else if (m_blenderShader && m_blenderShader->IsValid())
+	else if (m_blenderShader && m_blenderShader->IsValid(m_rasterizer->GetDrawingMode()))
 		return false;
 	else
 		return true;
