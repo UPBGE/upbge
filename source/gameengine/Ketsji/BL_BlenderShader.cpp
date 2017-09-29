@@ -41,6 +41,8 @@
 
 #include "KX_Scene.h"
 
+#include "CM_Message.h" // For debugging purposes
+
 extern "C" {
 #  include "eevee_private.h"
 #  include "eevee_engine.h"
@@ -234,11 +236,33 @@ bool BL_BlenderShader::IsValid(RAS_Rasterizer::DrawType drawtype) const
 	}
 }
 
+void BL_BlenderShader::PrintDebugInfos(RAS_Rasterizer::DrawType drawtype)
+{
+	/* Refer to RAS_Rasterizer DrawType definition for the number of each DrawType */
+	char *drawTypeMsg[4] = { "m_shGroup nullptr", "m_depthShGroup nullptr", "m_depthClipShGroup nullptr", "hmmm, what happens here?" };
+	int index;
+	if (drawtype == RAS_Rasterizer::RAS_TEXTURED) {
+		index = 0;
+	}
+	else if (drawtype == RAS_Rasterizer::RAS_DEPTH_PASS) {
+		index = 1;
+	}
+	else if (drawtype == RAS_Rasterizer::RAS_DEPTH_PASS_CLIP) {
+		index = 2;
+	}
+	else {
+		index = 3;
+	}
+	CM_Debug("BL_BlenderShader::" << drawTypeMsg[index]);
+}
+
 void BL_BlenderShader::Activate(RAS_Rasterizer *rasty)
 {
-	if (IsValid(rasty->GetDrawingMode())) {
-		DRW_bind_shader_shgroup(GetDRWShadingGroup(rasty->GetDrawingMode()));
+	if (!IsValid(rasty->GetDrawingMode())) {
+		PrintDebugInfos(rasty->GetDrawingMode());
+		return;
 	}
+	DRW_bind_shader_shgroup(GetDRWShadingGroup(rasty->GetDrawingMode()));
 }
 
 void BL_BlenderShader::Desactivate()
