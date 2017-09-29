@@ -54,9 +54,6 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lig
 
 BL_BlenderShader::~BL_BlenderShader()
 {
-	if (m_gpuMat) {
-		GPU_material_unbind(m_gpuMat);
-	}
 }
 
 const RAS_Rasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const
