@@ -536,9 +536,9 @@ public:
 	void SetCullFace(bool enable);
 
 	/// Set and enable clip plane.
-	//void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
+	void EnableClipPlane(int numplanes);
 	/// Disable clip plane
-	//void DisableClipPlane(unsigned short index);
+	void DisableClipPlane(int numplanes);
 
 	/**
 	 * Sets wireframe mode.

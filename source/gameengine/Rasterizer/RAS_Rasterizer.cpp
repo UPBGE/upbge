@@ -1006,16 +1006,16 @@ void RAS_Rasterizer::SetCullFace(bool enable)
 	}
 }
 
-//void RAS_Rasterizer::EnableClipPlane(unsigned short index, const MT_Vector4& plane)
-//{
-//	m_impl->EnableClipPlane(index, plane);
-//}
-//
-//void RAS_Rasterizer::DisableClipPlane(unsigned short index)
-//{
-//	m_impl->DisableClipPlane(index);
-//}
-//
+void RAS_Rasterizer::EnableClipPlane(int numplanes)
+{
+	m_impl->EnableClipPlane(numplanes);
+}
+
+void RAS_Rasterizer::DisableClipPlane(int numplanes)
+{
+	m_impl->DisableClipPlane(numplanes);
+}
+
 void RAS_Rasterizer::SetLines(bool enable)
 {
 	m_impl->SetLines(enable);

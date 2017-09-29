@@ -114,8 +114,8 @@ public:
 
 	void SetPolygonOffset(float mult, float add);
 
-	/*void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
-	void DisableClipPlane(unsigned short index);*/
+	void EnableClipPlane(int numplanes);
+	void DisableClipPlane(int numplanes);
 
 	void SetFrontFace(bool ccw);
 

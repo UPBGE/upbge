@@ -1120,7 +1120,7 @@ static void render_scene_to_planar(
 
 	/* Be sure that cascaded shadow maps are updated. */
 	//EEVEE_draw_shadows(sldata, psl);//////////////////////////////////////////////////////
-
+	//rasty->EnableClipPlane(4);
 	DRW_state_clip_planes_add(clip_plane);
 
 	/* Attach depth here since it's a DRW_TEX_TEMP */
@@ -1155,6 +1155,7 @@ static void render_scene_to_planar(
 
 	/* Rebind Planar FB */
 	DRW_framebuffer_bind(fbl->planarref_fb);
+
 	inputofs->Bind();
 
 	/* Shading pass */
@@ -1170,6 +1171,7 @@ static void render_scene_to_planar(
 	scene->RenderBuckets(nodes, camtrans, rasty, nullptr);
 
 	DRW_state_invert_facing();
+	//rasty->DisableClipPlane(4);
 	DRW_state_clip_planes_reset();
 
 	/* Restore */

@@ -430,17 +430,19 @@ void RAS_OpenGLRasterizer::SetPolygonOffset(float mult, float add)
 	glPolygonOffset(mult, add);
 }
 
-//void RAS_OpenGLRasterizer::EnableClipPlane(unsigned short index, const MT_Vector4& plane)
-//{
-//	double planev[4] = {plane.x(), plane.y(), plane.z(), plane.w()};
-//	glClipPlane(GL_CLIP_PLANE0 + index, planev);
-//	glEnable(GL_CLIP_PLANE0 + index);
-//}
-//
-//void RAS_OpenGLRasterizer::DisableClipPlane(unsigned short index)
-//{
-//	glDisable(GL_CLIP_PLANE0 + index);
-//}
+void RAS_OpenGLRasterizer::EnableClipPlane(int numplanes)
+{
+	for (int i = 0; i < numplanes; ++i) {
+		glEnable(GL_CLIP_DISTANCE0 + i);
+	}
+}
+
+void RAS_OpenGLRasterizer::DisableClipPlane(int numplanes)
+{
+	for (int i = 0; i < numplanes; ++i) {
+		glDisable(GL_CLIP_DISTANCE0 + i);
+	}
+}
 
 void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)
 {
