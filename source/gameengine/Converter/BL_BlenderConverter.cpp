@@ -307,25 +307,20 @@ Main *BL_BlenderConverter::GetMainDynamicPath(const std::string& path) const
 
 void BL_BlenderConverter::MergeAsyncLoads()
 {
-	std::vector<KX_Scene *> *merge_scenes;
-
-	std::vector<KX_LibLoadStatus *>::iterator mit;
-	std::vector<KX_Scene *>::iterator sit;
-
 	m_threadinfo.m_mutex.Lock();
 
-	for (mit = m_mergequeue.begin(); mit != m_mergequeue.end(); ++mit) {
-		merge_scenes = (std::vector<KX_Scene *> *)(*mit)->GetData();
+	for (KX_LibLoadStatus *libload : m_mergequeue) {
+		std::vector<KX_Scene *> *mergeScenes = (std::vector<KX_Scene *> *)libload->GetData();
 
-		for (sit = merge_scenes->begin(); sit != merge_scenes->end(); ++sit) {
-			(*mit)->GetMergeScene()->MergeScene(*sit);
-			delete (*sit);
+		for (KX_Scene *scene : *mergeScenes) {
+			MergeScene(libload->GetMergeScene(), scene);
+			delete scene;
 		}
 
-		delete merge_scenes;
-		(*mit)->SetData(nullptr);
+		delete mergeScenes;
+		libload->SetData(nullptr);
 
-		(*mit)->Finish();
+		libload->Finish();
 	}
 
 	m_mergequeue.clear();
@@ -508,9 +503,8 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib, c
 			else {
 				// merge into the base  scene
 				KX_Scene *other = m_ketsjiEngine->CreateScene((Scene *)scene, true);
-				scene_merge->MergeScene(other);
+				MergeScene(scene_merge, other);
 
-				// RemoveScene(other); // Don't run this, it frees the entire scene converter data, just delete the scene
 				delete other;
 			}
 		}
@@ -737,9 +731,12 @@ bool BL_BlenderConverter::FreeBlendFile(const std::string& path)
 
 void BL_BlenderConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 {
+	to->MergeScene(from);
+
 	SceneSlot& sceneSlotFrom = m_sceneSlots[from];
 
 	for (std::unique_ptr<KX_BlenderMaterial>& mat : sceneSlotFrom.m_materials) {
+		// Do this after lights are merged so materials can use the lights in shaders.
 		mat->ReplaceScene(to);
 	}
 	for (std::unique_ptr<RAS_MeshObject>& meshobj : sceneSlotFrom.m_meshobjects) {

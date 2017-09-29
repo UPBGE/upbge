@@ -1862,11 +1862,6 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	GetFontList()->MergeList(other->GetFontList());
 	other->GetFontList()->ReleaseAndRemoveAll();
 
-	/* move materials across, assume they both use the same scene-converters
-	 * Do this after lights are merged so materials can use the lights in shaders
-	 */
-	KX_GetActiveEngine()->GetConverter()->MergeScene(this, other);
-
 	/* merge logic */
 	{
 		SCA_LogicManager *logicmgr=			GetLogicManager();
