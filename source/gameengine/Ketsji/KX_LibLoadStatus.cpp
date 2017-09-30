@@ -31,7 +31,6 @@ KX_LibLoadStatus::KX_LibLoadStatus(BL_BlenderConverter *converter, KX_KetsjiEngi
 	:m_converter(converter),
 	m_engine(engine),
 	m_mergescene(merge_scene),
-	m_data(nullptr),
 	m_libname(path),
 	m_progress(0.0f),
 	m_finished(false)
@@ -89,14 +88,24 @@ KX_Scene *KX_LibLoadStatus::GetMergeScene() const
 	return m_mergescene;
 }
 
-void KX_LibLoadStatus::SetData(void *data)
+const std::vector<Scene *>& KX_LibLoadStatus::GetBlenderScenes() const
 {
-	m_data = data;
+	return m_blenderScenes;
 }
 
-void *KX_LibLoadStatus::GetData() const
+void KX_LibLoadStatus::SetBlenderScenes(const std::vector<Scene *>& scenes)
 {
-	return m_data;
+	m_blenderScenes = scenes;
+}
+
+const std::vector<BL_BlenderSceneConverter>& KX_LibLoadStatus::GetSceneConverters() const
+{
+	return m_sceneConvertes;
+}
+
+void KX_LibLoadStatus::AddSceneConverter(BL_BlenderSceneConverter&& converter)
+{
+	m_sceneConvertes.push_back(std::move(converter));
 }
 
 bool KX_LibLoadStatus::IsFinished() const

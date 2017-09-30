@@ -99,7 +99,3 @@ const RAS_Rasterizer::AttribLayerList KX_TextMaterial::GetAttribLayers(const RAS
 	static const RAS_Rasterizer::AttribLayerList attribLayers;
 	return attribLayers;
 }
-
-void KX_TextMaterial::OnConstruction()
-{
-}

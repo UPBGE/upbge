@@ -37,7 +37,7 @@
 #include "KX_PhysicsEngineEnums.h"
 #include "SCA_IInputDevice.h"
 
-class RAS_MeshObject* BL_ConvertMesh(struct Mesh* mesh,struct Object* lightobj,class KX_Scene* scene, class BL_BlenderSceneConverter& converter, bool libloading);
+class RAS_MeshObject* BL_ConvertMesh(struct Mesh* mesh,struct Object* lightobj,class KX_Scene* scene, class BL_BlenderSceneConverter& converter);
 
 void BL_ConvertBlenderObjects(struct Main* maggie,
 							  class KX_Scene* kxscene,

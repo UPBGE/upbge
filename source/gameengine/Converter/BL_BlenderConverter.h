@@ -53,7 +53,6 @@ class BL_InterpolatorList;
 class SCA_IActuator;
 class SCA_IController;
 class RAS_MeshObject;
-class RAS_Rasterizer;
 struct Main;
 struct BlendHandle;
 struct Mesh;
@@ -108,11 +107,24 @@ public:
 	BL_BlenderConverter(Main *maggie, KX_KetsjiEngine *engine);
 	virtual ~BL_BlenderConverter();
 
-	/** \param Scenename name of the scene to be converted.
-	 * \param destinationscene pass an empty scene, everything goes into this
-	 * \param dictobj python dictionary (for pythoncontrollers)
+	void ConvertScene(BL_BlenderSceneConverter& converter, bool libloading);
+
+	/** Generate shaders and mesh attributes depending on.
+	 * This function is separated from ConvertScene to be synchronized when compiling shaders
+	 * and select a scene to generate shaders with. This last point is used for scene libload
+	 * merging.
+	 * \param converter The scene convert to finalize.
+	 * \param mergeScene The scene used to generate shaders.
 	 */
-	void ConvertScene(KX_Scene *destinationscene, RAS_Rasterizer *rasty, RAS_ICanvas *canvas, bool libloading);
+	void InitSceneShaders(const BL_BlenderSceneConverter& converter, KX_Scene *mergeScene);
+
+	/** This function removes all entities stored in the converter for that scene
+	 * It should be used instead of direct delete scene
+	 * Note that there was some provision for sharing entities (meshes...) between
+	 * scenes but that is now disabled so all scene will have their own copy
+	 * and we can delete them here.
+	 * \param scene The scene to clean.
+	 */
 	void RemoveScene(KX_Scene *scene);
 
 	void SetAlwaysUseExpandFraming(bool to_what);

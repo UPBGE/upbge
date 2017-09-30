@@ -133,11 +133,6 @@ public:
 	 * \return the equivalent drawing mode for the material settings (equivalent to old TexFace tface->mode).
 	 */
 	int ConvertFaceMode(struct GameSettings *game) const;
-
-	/*
-	 * PreCalculate texture gen
-	 */
-	virtual void OnConstruction() = 0;
 };
 
 #endif  /* __RAS_IPOLYGONMATERIAL_H__ */

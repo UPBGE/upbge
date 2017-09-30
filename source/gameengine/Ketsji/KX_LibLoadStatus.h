@@ -28,10 +28,12 @@
 #define __KX_LIBLOADSTATUS_H__
 
 #include "EXP_PyObjectPlus.h"
+#include "BL_BlenderSceneConverter.h"
 
 class BL_BlenderConverter;
 class KX_KetsjiEngine;
 class KX_Scene;
+struct Scene;
 
 class KX_LibLoadStatus : public PyObjectPlus
 {
@@ -40,7 +42,8 @@ private:
 	BL_BlenderConverter *m_converter;
 	KX_KetsjiEngine *m_engine;
 	KX_Scene *m_mergescene;
-	void *m_data;
+	std::vector<Scene *> m_blenderScenes;
+	std::vector<BL_BlenderSceneConverter> m_sceneConvertes;
 	std::string m_libname;
 
 	float m_progress;
@@ -67,8 +70,10 @@ public:
 	KX_KetsjiEngine *GetEngine() const;
 	KX_Scene *GetMergeScene() const;
 
-	void SetData(void *data);
-	void *GetData() const;
+	const std::vector<Scene *>& GetBlenderScenes() const;
+	void SetBlenderScenes(const std::vector<Scene *>& scenes);
+	const std::vector<BL_BlenderSceneConverter>& GetSceneConverters() const;
+	void AddSceneConverter(BL_BlenderSceneConverter&& converter);
 
 	bool IsFinished() const;
 

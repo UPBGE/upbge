@@ -482,7 +482,10 @@ public:
 	KX_DebugOption GetShowShadowFrustum() const;
 
 	KX_Scene *CreateScene(const std::string& scenename);
-	KX_Scene *CreateScene(Scene *scene, bool libloading);
+	KX_Scene *CreateScene(Scene *scene);
+
+	/// Fully convert a non-libloaded scene.
+	void ConvertScene(KX_Scene *scene);
 
 	GlobalSettings *GetGlobalSettings(void);
 	void SetGlobalSettings(GlobalSettings *gs);

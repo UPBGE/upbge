@@ -32,9 +32,18 @@
 #include "BL_BlenderSceneConverter.h"
 #include "KX_GameObject.h"
 
+BL_BlenderSceneConverter::BL_BlenderSceneConverter(KX_Scene *scene)
+	:m_scene(scene)
+{
+}
+
+KX_Scene *BL_BlenderSceneConverter::GetScene() const
+{
+	return m_scene;
+}
+
 void BL_BlenderSceneConverter::RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject)
 {
-// 	CM_FunctionDebug("object name: " << gameobject->GetName());
 	// only maintained while converting, freed during game runtime
 	m_map_blender_to_gameobject[for_blenderobject] = gameobject;
 }

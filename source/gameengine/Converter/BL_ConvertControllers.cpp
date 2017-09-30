@@ -216,7 +216,7 @@ void BL_ConvertControllers(
 			
 			converter.RegisterGameController(gamecontroller, bcontr);
 
-#ifdef WITH_PYTHON
+#ifdef WITH_PYTHON // TODO why ???
 			// When libloading, this is delayed to KX_Scene::MergeScene_LogicBrick to avoid GIL issues
 			if (!libloading && bcontr->type==CONT_PYTHON) {
 				SCA_PythonController *pyctrl= static_cast<SCA_PythonController*>(gamecontroller);

@@ -377,10 +377,7 @@ static void GetUvRgba(const RAS_MeshObject::LayerList& layers, unsigned int loop
 	}
 }
 
-static KX_BlenderMaterial *ConvertMaterial(
-	Material *mat,
-	int lightlayer,
-	KX_Scene *scene)
+static KX_BlenderMaterial *ConvertMaterial(Material *mat, int lightlayer)
 {
 	std::string name = mat->id.name;
 	// Always ensure that the name of a material start with "MA" prefix due to video texture name check.
@@ -388,7 +385,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 		name = "MA";
 	}
 
-	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, name, lightlayer);
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(mat, name, lightlayer);
 
 	return kx_blmat;
 }
@@ -398,7 +395,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_S
 	KX_BlenderMaterial* mat = converter.FindMaterial(ma);
 
 	if (!mat) {
-		mat = ConvertMaterial(ma, lightlayer, scene);
+		mat = ConvertMaterial(ma, lightlayer);
 		// this is needed to free up memory afterwards.
 		converter.RegisterMaterial(mat, ma);
 	}
@@ -412,7 +409,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_S
 }
 
 /* blenderobj can be nullptr, make sure its checked for */
-RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, BL_BlenderSceneConverter& converter, bool libloading)
+RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, BL_BlenderSceneConverter& converter)
 {
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
@@ -588,18 +585,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	// but this didnt save much ram. - Campbell
 	meshobj->EndConversion(scene->GetBoundingBoxManager());
 
-	// Finalize materials.
-	// However, we want to delay this if we're libloading so we can make sure we have the right scene.
-	if (!libloading) {
-		for (unsigned short i = 0, num = meshobj->NumMaterials(); i < num; ++i) {
-			RAS_MeshMaterial *mmat = meshobj->GetMeshMaterial(i);
-			mmat->GetBucket()->GetPolyMaterial()->OnConstruction();
-		}
-	}
-
-	// Find attributes layer by materials for this mesh.
-	meshobj->GenerateAttribLayers();
-
 	dm->release(dm);
 
 	converter.RegisterGameMesh(meshobj, mesh);
@@ -757,13 +742,13 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	}
 }
 
-static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter, bool libloading)
+static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter)
 {
 	if (BLI_listbase_count_ex(&ob->lodlevels, 2) <= 1) {
 		return nullptr;
 	}
 
-	KX_LodManager *lodManager = new KX_LodManager(ob, scene, converter, libloading);
+	KX_LodManager *lodManager = new KX_LodManager(ob, scene, converter);
 	// The lod manager is useless ?
 	if (lodManager->GetLevelCount() <= 1) {
 		lodManager->Release();
@@ -852,12 +837,8 @@ static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, BL_Blen
 	return gamecamera;
 }
 
-static KX_GameObject *gameobject_from_blenderobject(
-								Object *ob, 
-								KX_Scene *kxscene, 
-								RAS_Rasterizer *rendertools,
-								BL_BlenderSceneConverter& converter,
-								bool libloading) 
+static KX_GameObject *gameobject_from_blenderobject(Object *ob, KX_Scene *kxscene, RAS_Rasterizer *rendertools,
+		BL_BlenderSceneConverter &converter) 
 {
 	KX_GameObject *gameobj = nullptr;
 	Scene *blenderscene = kxscene->GetBlenderScene();
@@ -888,7 +869,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 	case OB_MESH:
 	{
 		Mesh* mesh = static_cast<Mesh*>(ob->data);
-		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter, libloading);
+		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter);
 		
 		// needed for python scripting
 		kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
@@ -906,7 +887,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		gameobj->AddMesh(meshobj);
 
 		// gather levels of detail
-		KX_LodManager *lodManager = lodmanager_from_blenderobject(ob, kxscene, converter, libloading);
+		KX_LodManager *lodManager = lodmanager_from_blenderobject(ob, kxscene, converter);
 		gameobj->SetLodManager(lodManager);
 		if (lodManager) {
 			lodManager->Release();
@@ -1401,12 +1382,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		Object* blenderobject = base->object;
 		allblobj.insert(blenderobject);
 
-		KX_GameObject* gameobj = gameobject_from_blenderobject(
-										base->object, 
-										kxscene, 
-										rendertools, 
-										converter,
-										libloading);
+		KX_GameObject* gameobj = gameobject_from_blenderobject(base->object, kxscene, rendertools, converter);
 
 		bool isInActiveLayer = (blenderobject->lay & activeLayerBitInfo) !=0;
 		if (gameobj)
@@ -1453,12 +1429,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 					{
 						allblobj.insert(blenderobject);
 						groupobj.insert(blenderobject);
-						KX_GameObject* gameobj = gameobject_from_blenderobject(
-														blenderobject, 
-														kxscene, 
-														rendertools, 
-														converter,
-														libloading);
+						KX_GameObject* gameobj = gameobject_from_blenderobject(blenderobject, kxscene, rendertools, converter);
 
 						bool isInActiveLayer = false;
 						if (gameobj) {

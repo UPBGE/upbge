@@ -53,8 +53,6 @@ public:
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha);
 
 	virtual const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
-
-	virtual void OnConstruction();
 };
 
 #endif  // __KX_TEXTMATERIAL_H__

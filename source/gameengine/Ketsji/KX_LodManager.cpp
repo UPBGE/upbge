@@ -92,7 +92,7 @@ inline bool KX_LodManager::LodLevelIterator::operator>(float distance2) const
 	return SQUARE(m_levels[m_index]->GetDistance() - GetHysteresis(m_index)) > distance2;
 }
 
-KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter, bool libloading)
+KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter)
 	:m_refcount(1),
 	m_distanceFactor(ob->lodfactor)
 {
@@ -120,7 +120,7 @@ KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, BL_BlenderSceneConvert
 				flag |= KX_LodLevel::USE_MATERIAL;
 			}
 			KX_LodLevel *lodLevel = new KX_LodLevel(lod->distance, lod->obhysteresis, level++,
-				BL_ConvertMesh(lodmesh, lodmatob, scene, converter, libloading), flag);
+				BL_ConvertMesh(lodmesh, lodmatob, scene, converter), flag);
 
 			m_levels.push_back(lodLevel);
 		}

@@ -67,7 +67,9 @@
 #include "KX_PythonInit.h" // for updatePythonJoysticks
 
 #include "KX_WorldInfo.h"
+
 #include "BL_BlenderConverter.h"
+#include "BL_BlenderSceneConverter.h"
 
 #include "RAS_FramingManager.h"
 #include "DNA_world_types.h"
@@ -1295,7 +1297,7 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 	}
 }
 
-KX_Scene *KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
+KX_Scene *KX_KetsjiEngine::CreateScene(Scene *scene)
 {
 	KX_Scene *tmpscene = new KX_Scene(m_inputDevice,
 	                                  scene->id.name + 2,
@@ -1303,18 +1305,25 @@ KX_Scene *KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
 	                                  m_canvas,
 									  m_networkMessageManager);
 
-	m_converter->ConvertScene(tmpscene, m_rasterizer, m_canvas, libloading);
-
 	return tmpscene;
 }
 
 KX_Scene *KX_KetsjiEngine::CreateScene(const std::string& scenename)
 {
 	Scene *scene = m_converter->GetBlenderSceneForName(scenename);
-	if (!scene)
+	if (!scene) {
 		return nullptr;
+	}
 
-	return CreateScene(scene, false);
+	return CreateScene(scene);
+}
+
+void KX_KetsjiEngine::ConvertScene(KX_Scene *scene)
+{
+	BL_BlenderSceneConverter sceneConverter(scene);
+	m_converter->ConvertScene(sceneConverter, false);
+	// Finalize material and mesh conversion.
+	m_converter->InitSceneShaders(sceneConverter, scene);
 }
 
 void KX_KetsjiEngine::AddScheduledScenes()
@@ -1328,6 +1337,8 @@ void KX_KetsjiEngine::AddScheduledScenes()
 		{
 			std::string scenename = *scenenameit;
 			KX_Scene *tmpscene = CreateScene(scenename);
+			ConvertScene(tmpscene);
+
 			if (tmpscene) {
 				m_scenes->Add(CM_AddRef(tmpscene));
 				PostProcessScene(tmpscene);
@@ -1347,6 +1358,8 @@ void KX_KetsjiEngine::AddScheduledScenes()
 		{
 			std::string scenename = *scenenameit;
 			KX_Scene *tmpscene = CreateScene(scenename);
+			ConvertScene(tmpscene);
+
 			if (tmpscene) {
 				m_scenes->Insert(0, CM_AddRef(tmpscene));
 				PostProcessScene(tmpscene);
@@ -1400,7 +1413,9 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 					if (blScene) {
 						m_converter->RemoveScene(scene);
 
-						KX_Scene *tmpscene = CreateScene(blScene, false);
+						KX_Scene *tmpscene = CreateScene(blScene);
+						ConvertScene(tmpscene);
+
 						m_scenes->SetValue(sce_idx, CM_AddRef(tmpscene));
 						PostProcessScene(tmpscene);
 						tmpscene->Release();

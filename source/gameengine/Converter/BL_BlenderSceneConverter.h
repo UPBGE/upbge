@@ -59,6 +59,8 @@ class BL_BlenderSceneConverter
 	friend BL_BlenderConverter;
 
 private:
+	KX_Scene *m_scene;
+
 	std::vector<KX_BlenderMaterial *> m_materials;
 	std::vector<RAS_MeshObject *> m_meshobjects;
 
@@ -69,11 +71,15 @@ private:
 	std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;
 
 public:
-	BL_BlenderSceneConverter() = default;
+	BL_BlenderSceneConverter(KX_Scene *scene);
 	~BL_BlenderSceneConverter() = default;
 
 	// Disable dangerous copy.
 	BL_BlenderSceneConverter(const BL_BlenderSceneConverter& other) = delete;
+
+	BL_BlenderSceneConverter(BL_BlenderSceneConverter&& other) = default;
+
+	KX_Scene *GetScene() const;
 
 	void RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject);
 	void UnregisterGameObject(KX_GameObject *gameobject);

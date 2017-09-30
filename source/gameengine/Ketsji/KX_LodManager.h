@@ -78,7 +78,7 @@ private:
 	float m_distanceFactor;
 
 public:
-	KX_LodManager(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter, bool libloading);
+	KX_LodManager(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter);
 	virtual ~KX_LodManager();
 
 	virtual std::string GetName();

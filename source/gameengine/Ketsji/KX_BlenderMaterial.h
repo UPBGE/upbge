@@ -29,11 +29,7 @@ class KX_BlenderMaterial : public CValue, public RAS_IPolyMaterial
 	Py_Header
 
 public:
-	KX_BlenderMaterial(
-			KX_Scene *scene,
-			Material *mat,
-			const std::string& name,
-			int lightlayer);
+	KX_BlenderMaterial(Material *mat, const std::string& name, int lightlayer);
 
 	virtual ~KX_BlenderMaterial();
 
@@ -56,6 +52,14 @@ public:
 	virtual SCA_IScene *GetScene() const;
 	virtual void ReleaseMaterial();
 
+	/** Set scene owning this material and generate blender shader using
+	 * scene lights.
+	 * \param scene The scene material owner.
+	 */
+	void InitScene(KX_Scene *scene);
+
+	static void EndFrame(RAS_Rasterizer *rasty);
+
 	unsigned int *GetBlendFunc()
 	{
 		return m_blendFunc;
@@ -65,8 +69,6 @@ public:
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha);
 
 	virtual const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
-
-	void ReplaceScene(KX_Scene *scene);
 
 	// Stuff for cvalue related things.
 	virtual std::string GetName();
@@ -104,11 +106,6 @@ public:
 
 #endif  // WITH_PYTHON
 
-	// pre calculate to avoid pops/lag at startup
-	virtual void OnConstruction();
-
-	static void EndFrame(RAS_Rasterizer *rasty);
-
 private:
 	Material *m_material;
 	BL_Shader *m_shader;
@@ -116,7 +113,6 @@ private:
 	KX_Scene *m_scene;
 	bool m_userDefBlend;
 	unsigned int m_blendFunc[2];
-	bool m_constructed; // if false, don't clean on exit
 	int m_lightLayer;
 
 	struct {
@@ -132,15 +128,10 @@ private:
 
 	void InitTextures();
 
-	void SetBlenderGLSLShader();
-
 	void ActivateGLMaterials(RAS_Rasterizer *rasty) const;
 
 	void SetBlenderShaderData(RAS_Rasterizer *ras);
 	void SetShaderData(RAS_Rasterizer *ras);
-
-	// cleanup stuff
-	void OnExit();
 };
 
 #ifdef WITH_PYTHON
