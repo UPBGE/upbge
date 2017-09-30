@@ -3535,6 +3535,12 @@ void DRW_draw_depth_loop(
 
 /***********************************GAME ENGINE*******************************************/
 
+void DRW_state_from_pass_set(DRWPass *pass)
+{
+	DRWState state = pass->state;
+	DRW_state_set(state);
+}
+
 static void bind_shader(DRWShadingGroup *shgroup)
 {
 	BLI_assert(shgroup->shader);

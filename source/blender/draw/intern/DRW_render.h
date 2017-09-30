@@ -381,6 +381,9 @@ void DRW_draw_callbacks_post_scene(void);
 int DRW_draw_region_engine_info_offset(void);
 void DRW_draw_region_engine_info(void);
 
+/* Game engine */
+void DRW_state_from_pass_set(DRWPass *pass);
+/* End of Game engine */
 void DRW_state_set(DRWState state);
 void DRW_state_reset_ex(DRWState state);
 void DRW_state_reset(void);
