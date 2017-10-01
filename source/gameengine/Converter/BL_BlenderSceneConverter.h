@@ -77,7 +77,7 @@ public:
 	// Disable dangerous copy.
 	BL_BlenderSceneConverter(const BL_BlenderSceneConverter& other) = delete;
 
-	BL_BlenderSceneConverter(BL_BlenderSceneConverter&& other) = default;
+	BL_BlenderSceneConverter(BL_BlenderSceneConverter&& other);
 
 	KX_Scene *GetScene() const;
 

@@ -37,6 +37,17 @@ BL_BlenderSceneConverter::BL_BlenderSceneConverter(KX_Scene *scene)
 {
 }
 
+BL_BlenderSceneConverter::BL_BlenderSceneConverter(BL_BlenderSceneConverter&& other)
+	: m_scene(std::move(other.m_scene)),
+	m_materials(std::move(other.m_materials)),
+	m_map_blender_to_gameobject(std::move(other.m_map_blender_to_gameobject)),
+	m_map_mesh_to_gamemesh(std::move(other.m_map_mesh_to_gamemesh)),
+	m_map_mesh_to_polyaterial(std::move(other.m_map_mesh_to_polyaterial)),
+	m_map_blender_to_gameactuator(std::move(m_map_blender_to_gameactuator)),
+	m_map_blender_to_gamecontroller(std::move(m_map_blender_to_gamecontroller))
+{
+}
+
 KX_Scene *BL_BlenderSceneConverter::GetScene() const
 {
 	return m_scene;
