@@ -50,7 +50,7 @@
 #include "RAS_BucketManager.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
-#include "RAS_OffScreen.h"
+#include "GPU_framebuffer.h"
 #include "RAS_ILightObject.h"
 #include "RAS_SceneLayerData.h"
 #include "MT_Vector3.h"
@@ -118,8 +118,8 @@ KX_KetsjiEngine::SceneRenderData::SceneRenderData(KX_Scene *scene)
 {
 }
 
-KX_KetsjiEngine::FrameRenderData::FrameRenderData(RAS_Rasterizer::OffScreenType ofsType)
-	:m_ofsType(ofsType)
+KX_KetsjiEngine::FrameRenderData::FrameRenderData(GPUFrameBufferType fbType)
+	:m_fbType(fbType)
 {
 }
 
@@ -539,9 +539,9 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 	const unsigned short numframes = (renderpereye) ? 2 : 1;
 
 	// The off screen corresponding to the frame.
-	static const RAS_Rasterizer::OffScreenType ofsType[] = {
-		RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0,
-		RAS_Rasterizer::RAS_OFFSCREEN_EYE_RIGHT0
+	static const GPUFrameBufferType fbType[] = {
+		GPU_FRAMEBUFFER_EYE_LEFT0,
+		GPU_FRAMEBUFFER_EYE_RIGHT0,
 	};
 
 	// Pre-compute the display area used for stereo or normal rendering.
@@ -569,7 +569,7 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 	}
 
 	for (unsigned short frame = 0; frame < numframes; ++frame) {
-		frameDataList.emplace_back(ofsType[frame]);
+		frameDataList.emplace_back(fbType[frame]);
 		FrameRenderData& frameData = frameDataList.back();
 
 		// Get the eyes managed per frame.
@@ -1096,7 +1096,7 @@ static void render_scene_to_probe(
 static void render_scene_to_planar(
 	EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata, int layer,
 	float(*viewmat)[4], float(*persmat)[4],
-	float clip_plane[4], KX_Scene *scene, RAS_Rasterizer *rasty, KX_Camera *cam, RAS_OffScreen *inputofs)
+	float clip_plane[4], KX_Scene *scene, RAS_Rasterizer *rasty, KX_Camera *cam, GPUFrameBuffer *inputfb)
 {
 	EEVEE_FramebufferList *fbl = vedata->fbl;
 	EEVEE_TextureList *txl = vedata->txl;
@@ -1156,7 +1156,7 @@ static void render_scene_to_planar(
 	/* Rebind Planar FB */
 	DRW_framebuffer_bind(fbl->planarref_fb);
 
-	inputofs->Bind();
+	//inputfb->Bind();
 
 	/* Shading pass */
 	//EEVEE_draw_default_passes(psl);
@@ -1251,7 +1251,7 @@ static void lightprobe_cell_location_get(EEVEE_LightGrid *egrid, int cell_idx, f
 }
 
 void KX_KetsjiEngine::EEVEE_lightprobes_refresh_bge(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
-	KX_Scene *scene, RAS_Rasterizer *rasty, KX_Camera *cam, RAS_OffScreen *inputofs)
+	KX_Scene *scene, RAS_Rasterizer *rasty, KX_Camera *cam, GPUFrameBuffer *inputfb)
 {
 	EEVEE_TextureList *txl = vedata->txl;
 	EEVEE_PassList *psl = vedata->psl;
@@ -1371,7 +1371,7 @@ update_planar:
 		int tmp_num_planar = pinfo->num_planar;
 		pinfo->num_planar = 0;
 
-		render_scene_to_planar(sldata, vedata, i, ped->viewmat, ped->persmat, ped->planer_eq_offset, scene, rasty, cam, inputofs);
+		render_scene_to_planar(sldata, vedata, i, ped->viewmat, ped->persmat, ped->planer_eq_offset, scene, rasty, cam, inputfb);
 
 		/* Restore */
 		pinfo->num_planar = tmp_num_planar;
@@ -1427,8 +1427,8 @@ void KX_KetsjiEngine::Render()
 
 	for (FrameRenderData& frameData : frameDataList) {
 		// Current bound off screen.
-		RAS_OffScreen *offScreen = m_rasterizer->GetOffScreen(frameData.m_ofsType);
-		offScreen->Bind();
+		GPUFrameBuffer *frameBuffer = m_rasterizer->GetFrameBuffer(frameData.m_fbType);
+		DRW_framebuffer_bind(frameBuffer);
 
 		// Clear off screen only before the first scene render.
 		m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT | RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
@@ -1449,7 +1449,7 @@ void KX_KetsjiEngine::Render()
 			// Draw the scene once for each camera with an enabled viewport or an active camera.
 			for (const CameraRenderData& cameraFrameData : sceneFrameData.m_cameraDataList) {
 				// do the rendering
-				RenderCamera(scene, cameraFrameData, offScreen, pass++, isfirstscene);
+				RenderCamera(scene, cameraFrameData, frameBuffer, pass++, isfirstscene);
 			}
 
 			/*****************************PROBES*****************************/
@@ -1461,50 +1461,50 @@ void KX_KetsjiEngine::Render()
 			DRW_uniformbuffer_update(sldata->probe_ubo, &sldata->probes->probe_data);
 			DRW_uniformbuffer_update(sldata->grid_ubo, &sldata->probes->grid_data);
 			DRW_uniformbuffer_update(sldata->planar_ubo, &sldata->probes->planar_data);
-			EEVEE_lightprobes_refresh_bge(sldata, vedata, scene, m_rasterizer, scene->GetActiveCamera(), offScreen);
+			EEVEE_lightprobes_refresh_bge(sldata, vedata, scene, m_rasterizer, scene->GetActiveCamera(), frameBuffer);
 			/*************************END OF PROBES**************************/
 
 
 			// Choose final render off screen target.
-			RAS_Rasterizer::OffScreenType target;
-			if (offScreen->GetSamples() > 0) {
-				/* If the last scene is rendered it's useless to specify a multisamples off screen, we use then
-				 * a non-multisamples off screen and avoid an extra off screen blit. */
-				if (islastscene) {
-					target = RAS_Rasterizer::NextRenderOffScreen(frameData.m_ofsType);
-				}
-				/* If the current off screen is using multisamples we are sure that it will be copied to a
-				 * non-multisamples off screen before render the filters.
-				 * In this case the targeted off screen is the same as the current off screen. */
-				else {
-					target = frameData.m_ofsType;
-				}
-			}
+			GPUFrameBufferType target;
+			//if (frameBuffer->GetSamples() > 0) {
+			//	/* If the last scene is rendered it's useless to specify a multisamples off screen, we use then
+			//	 * a non-multisamples off screen and avoid an extra off screen blit. */
+			//	if (islastscene) {
+			//		target = RAS_Rasterizer::NextRenderFb(frameData.m_fbType);
+			//	}
+			//	/* If the current off screen is using multisamples we are sure that it will be copied to a
+			//	 * non-multisamples off screen before render the filters.
+			//	 * In this case the targeted off screen is the same as the current off screen. */
+			//	else {
+			//		target = frameData.m_fbType;
+			//	}
+			//}
 			/* In case of non-multisamples a ping pong per scene render is made between a potentially multisamples
 			 * off screen and a non-multisamples off screen as the both doesn't use multisamples. */
-			else {
-				target = RAS_Rasterizer::NextRenderOffScreen(frameData.m_ofsType);
-			}
+			
+			target = RAS_Rasterizer::NextRenderFrameBuffer(frameData.m_fbType);
+			
 
 			// Render EEVEE effects before tonemapping and custom filters
 			scene->SetIsLastScene(scene == m_scenes->GetBack());
-			offScreen = PostRenderEevee(scene, offScreen);
-			target = RAS_Rasterizer::NextRenderOffScreen(offScreen->GetType());
+			frameBuffer = PostRenderEevee(scene, frameBuffer);
+			target = RAS_Rasterizer::NextRenderFrameBuffer(GPU_framebuffer_get_bge_type(frameBuffer));
 			// Render filters and get output off screen.
-			offScreen = PostRenderScene(scene, offScreen, m_rasterizer->GetOffScreen(target));
-			frameData.m_ofsType = offScreen->GetType();
+			frameBuffer = PostRenderScene(scene, frameBuffer, m_rasterizer->GetFrameBuffer(target));
+			frameData.m_fbType = GPU_framebuffer_get_bge_type(frameBuffer);
 		}
 	}
 
 	// Compositing per eye off screens to screen.
 	if (renderpereye) {
-		RAS_OffScreen *leftofs = m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType);
-		RAS_OffScreen *rightofs = m_rasterizer->GetOffScreen(frameDataList[1].m_ofsType);
-		m_rasterizer->DrawStereoOffScreen(m_canvas, leftofs, rightofs);
+		GPUFrameBuffer *leftfb = m_rasterizer->GetFrameBuffer(frameDataList[0].m_fbType);
+		GPUFrameBuffer *rightfb = m_rasterizer->GetFrameBuffer(frameDataList[1].m_fbType);
+		m_rasterizer->DrawStereoFrameBuffer(m_canvas, leftfb, rightfb);
 	}
 	// Else simply draw the off screen to screen.
 	else {
-		m_rasterizer->DrawOffScreen(m_canvas, m_rasterizer->GetOffScreen(frameDataList[0].m_ofsType));
+		m_rasterizer->DrawFrameBuffer(m_canvas, m_rasterizer->GetFrameBuffer(frameDataList[0].m_fbType));
 	}
 
 // 	m_rasterizer->BindViewport(m_canvas);
@@ -2313,7 +2313,7 @@ MT_Matrix4x4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Came
 }
 
 // update graphics
-void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, RAS_OffScreen *offScreen,
+void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, GPUFrameBuffer *frameBuffer,
 								  unsigned short pass, bool isFirstScene)
 {
 	KX_Camera *rendercam = cameraFrameData.m_renderCamera;
@@ -2326,7 +2326,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	/* Render texture probes depending of the the current viewport and area, these texture probes are commonly the planar map
 	 * which need to be recomputed by each view in case of multi-viewport or stereo.
 	 */
-// 	scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_DEPENDENT, m_rasterizer, offScreen, rendercam, viewport, area);
+// 	scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_DEPENDENT, m_rasterizer, frameBuffer, rendercam, viewport, area);
 
 	// set the viewport for this frame and scene
 	const int left = viewport.GetLeft();
@@ -2385,7 +2385,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, rendercam);
 #endif
 
-	scene->RenderBuckets(nodes, rendercam->GetWorldToCamera(), m_rasterizer, offScreen);
+	scene->RenderBuckets(nodes, rendercam->GetWorldToCamera(), m_rasterizer, frameBuffer);
 
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->DebugDrawWorld();
@@ -2394,7 +2394,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 /*
  * To run once per scene
  */
-RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+GPUFrameBuffer *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb)
 {
 	KX_SetActiveScene(scene);
 
@@ -2406,7 +2406,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 
-	RAS_OffScreen *offScreen = scene->Render2DFilters(m_rasterizer, m_canvas, inputofs, targetofs);
+	GPUFrameBuffer *frameBuffer = scene->Render2DFilters(m_rasterizer, m_canvas, inputfb, targetfb);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -2419,10 +2419,10 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 	m_rasterizer->FlushDebugDraw(scene, m_canvas);
 #endif
 
-	return offScreen;
+	return frameBuffer;
 }
 
-RAS_OffScreen *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, RAS_OffScreen *inputofs)
+GPUFrameBuffer *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, GPUFrameBuffer *inputfb)
 {
 	KX_SetActiveScene(scene);
 
@@ -2432,11 +2432,11 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, RAS_OffScreen *
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
-	RAS_OffScreen *offScreen = scene->RenderEeveeEffects(m_rasterizer, inputofs);
+	GPUFrameBuffer *frameBuffer = scene->RenderEeveeEffects(m_rasterizer, inputfb);
 
 	m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
-	return offScreen;
+	return frameBuffer;
 }
 
 void KX_KetsjiEngine::StopEngine()

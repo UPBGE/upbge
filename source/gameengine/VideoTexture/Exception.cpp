@@ -225,7 +225,7 @@ void registerAllExceptions(void)
 	MirrorTooSmallDesc.registerDesc();
 	SourceVideoEmptyDesc.registerDesc();
 	SourceVideoCreationDesc.registerDesc();
-	OffScreenInvalidDesc.registerDesc();
+	FrameBufferInvalidDesc.registerDesc();
 #ifdef WITH_GAMEENGINE_DECKLINK
 	AutoDetectionNotAvailDesc.registerDesc();
 	DeckLinkBadDisplayModeDesc.registerDesc();

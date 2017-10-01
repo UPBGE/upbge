@@ -35,7 +35,7 @@
 #include "RAS_DisplayArrayBucket.h"
 
 #include "RAS_ICanvas.h"
-#include "RAS_OffScreen.h"
+#include "GPU_framebuffer.h"
 #include "RAS_Rect.h"
 #include "RAS_TextUser.h"
 #include "RAS_Polygon.h"
@@ -61,6 +61,7 @@ extern "C" {
 #  include "GPU_uniformbuffer.h"
 #  include "DRW_engine.h"
 #  include "DRW_render.h"
+#  include "eevee_private.h"
 }
 
 #include "MEM_guardedalloc.h"
@@ -72,7 +73,7 @@ extern "C" {
 
 #include "CM_Message.h"
 
-RAS_Rasterizer::OffScreens::OffScreens()
+RAS_Rasterizer::FrameBuffers::FrameBuffers()
 	:m_width(0),
 	m_height(0),
 	m_samples(0),
@@ -80,11 +81,11 @@ RAS_Rasterizer::OffScreens::OffScreens()
 {
 }
 
-RAS_Rasterizer::OffScreens::~OffScreens()
+RAS_Rasterizer::FrameBuffers::~FrameBuffers()
 {
 }
 
-inline void RAS_Rasterizer::OffScreens::Update(RAS_ICanvas *canvas)
+inline void RAS_Rasterizer::FrameBuffers::Update(RAS_ICanvas *canvas)
 {
 	const unsigned int width = canvas->GetWidth() + 1;
 	const unsigned int height = canvas->GetHeight() + 1;
@@ -100,19 +101,19 @@ inline void RAS_Rasterizer::OffScreens::Update(RAS_ICanvas *canvas)
 	m_hdr = canvas->GetHdrType();
 
 	// Destruct all off screens.
-	for (unsigned short i = 0; i < RAS_Rasterizer::RAS_OFFSCREEN_MAX; ++i) {
-		m_offScreens[i].reset(nullptr);
+	for (unsigned short i = 0; i < GPU_FRAMEBUFFER_MAX; ++i) {
+		m_frameBuffers[i] = nullptr;
 	}
 }
 
-inline RAS_OffScreen *RAS_Rasterizer::OffScreens::GetOffScreen(OffScreenType type)
+inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBufferType type)
 {
-	if (!m_offScreens[type]) {
+	if (!m_frameBuffers[type]) {
 		// The offscreen need to be created now.
 
 		// Check if the off screen type can support samples.
-		const bool sampleofs = type == RAS_OFFSCREEN_EYE_LEFT0 ||
-							   type == RAS_OFFSCREEN_EYE_RIGHT0;
+		const bool sampleofs = type == GPU_FRAMEBUFFER_EYE_LEFT0 ||
+							   type == GPU_FRAMEBUFFER_EYE_RIGHT0;
 
 		/* Some GPUs doesn't support high multisample value with GL_RGBA16F or GL_RGBA32F.
 		 * To avoid crashing we check if the off screen was created and if not decremente
@@ -120,10 +121,10 @@ inline RAS_OffScreen *RAS_Rasterizer::OffScreens::GetOffScreen(OffScreenType typ
 		 */
 		for (int samples = m_samples; samples >= 0; --samples) {
 			// Get off screen mode : render buffer support for multisampled off screen.
-			GPUOffScreenMode mode = GPU_OFFSCREEN_MODE_NONE;
-			if (sampleofs && (samples > 0)) {
+			//GPUOffScreenMode mode = GPU_OFFSCREEN_MODE_NONE;
+			/*if (sampleofs && (samples > 0)) {
 				mode = (GPUOffScreenMode)(GPU_OFFSCREEN_RENDERBUFFER_COLOR | GPU_OFFSCREEN_RENDERBUFFER_DEPTH);
-			}
+			}*/
 
 			// WARNING: Always respect the order from RAS_Rasterizer::HdrType.
 			static const GPUTextureFormat dataTypeEnums[] = {
@@ -132,76 +133,81 @@ inline RAS_OffScreen *RAS_Rasterizer::OffScreens::GetOffScreen(OffScreenType typ
 				GPU_RGBA32F // RAS_HDR_FULL_FLOAT
 			};
 
-			RAS_OffScreen *ofs = new RAS_OffScreen(m_width, m_height, sampleofs ? samples : 0, dataTypeEnums[m_hdr], mode, nullptr, type);
+			GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);
+			DRWFboTexture fbtex = { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) };
+			DRW_framebuffer_init(&m_frameBuffers[type], &draw_engine_eevee_type,
+				m_width, m_height, &fbtex, 1);
+			GPU_framebuffer_set_bge_type(m_frameBuffers[type], GPU_FRAMEBUFFER_EYE_LEFT0);
+			/*GPUFrameBuffer *ofs = new GPUFrameBuffer(m_width, m_height, sampleofs ? samples : 0, dataTypeEnums[m_hdr], mode, nullptr, type);
 			if (!ofs->GetValid()) {
 				delete ofs;
 				continue;
-			}
+			}*/
 
-			m_offScreens[type].reset(ofs);
-			m_samples = samples;
+			//m_frameBuffers[type].reset(ofs);
+			m_samples = 0;// samples;
 			break;
 		}
 
 		/* Creating an off screen restore the default frame buffer object.
 		 * We have to rebind the last off screen. */
-		RAS_OffScreen *lastOffScreen = RAS_OffScreen::GetLastOffScreen();
-		if (lastOffScreen) {
-			lastOffScreen->Bind();
+		GPUFrameBuffer *lastFrameBuffer = LAST_GPU_FRAMEBUFFER;
+		if (lastFrameBuffer) {
+			DRW_framebuffer_bind(lastFrameBuffer);
 		}
 	}
 
-	return m_offScreens[type].get();
+	return m_frameBuffers[type];
 }
 
-RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextFilterOffScreen(RAS_Rasterizer::OffScreenType index)
+GPUFrameBufferType RAS_Rasterizer::NextFilterFrameBuffer(GPUFrameBufferType type)
 {
-	switch (index) {
-		case RAS_OFFSCREEN_FILTER0:
+	switch (type) {
+		case GPU_FRAMEBUFFER_FILTER0:
 		{
-			return RAS_OFFSCREEN_FILTER1;
+			return GPU_FRAMEBUFFER_FILTER1;
 		}
-		case RAS_OFFSCREEN_FILTER1:
+		case GPU_FRAMEBUFFER_FILTER1:
 		// Passing a non-filter frame buffer is allowed.
 		default:
 		{
-			return RAS_OFFSCREEN_FILTER0;
+			return GPU_FRAMEBUFFER_FILTER0;
 		}
 	}
 }
 
-RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextRenderOffScreen(RAS_Rasterizer::OffScreenType index)
+GPUFrameBufferType RAS_Rasterizer::NextRenderFrameBuffer(GPUFrameBufferType type)
 {
-	switch (index) {
-		case RAS_OFFSCREEN_EYE_LEFT0:
+	switch (type) {
+		case GPU_FRAMEBUFFER_EYE_LEFT0:
 		{
-			return RAS_OFFSCREEN_EYE_LEFT1;
+			return GPU_FRAMEBUFFER_EYE_LEFT1;
 		}
-		case RAS_OFFSCREEN_EYE_LEFT1:
+		case GPU_FRAMEBUFFER_EYE_LEFT1:
 		{
-			return RAS_OFFSCREEN_EYE_LEFT0;
+			return GPU_FRAMEBUFFER_EYE_LEFT0;
 		}
-		case RAS_OFFSCREEN_IMRENDER0:
+		case GPU_FRAMEBUFFER_IMRENDER0:
 		{
-			return RAS_OFFSCREEN_IMRENDER1;
+			return GPU_FRAMEBUFFER_IMRENDER1;
 		}
-		case RAS_OFFSCREEN_IMRENDER1:
+		case GPU_FRAMEBUFFER_IMRENDER1:
 		{
-			return RAS_OFFSCREEN_IMRENDER0;
+			return GPU_FRAMEBUFFER_IMRENDER0;
 		}
-		case RAS_OFFSCREEN_EYE_RIGHT0:
+		case GPU_FRAMEBUFFER_EYE_RIGHT0:
 		{
-			return RAS_OFFSCREEN_EYE_RIGHT1;
+			return GPU_FRAMEBUFFER_EYE_RIGHT1;
 		}
-		case RAS_OFFSCREEN_EYE_RIGHT1:
+		case GPU_FRAMEBUFFER_EYE_RIGHT1:
 		{
-			return RAS_OFFSCREEN_EYE_RIGHT0;
+			return GPU_FRAMEBUFFER_EYE_RIGHT0;
 		}
 		// Passing a non-eye frame buffer is disallowed.
 		default:
 		{
 			BLI_assert(false);
-			return RAS_OFFSCREEN_EYE_LEFT0;
+			return GPU_FRAMEBUFFER_EYE_LEFT0;
 		}
 	}
 }
@@ -505,35 +511,34 @@ void RAS_Rasterizer::FlushDebugDraw(SCA_IScene *scene, RAS_ICanvas *canvas)
 
 void RAS_Rasterizer::UpdateOffScreens(RAS_ICanvas *canvas)
 {
-	m_offScreens.Update(canvas);
+	m_frameBuffers.Update(canvas);
 }
 
-RAS_OffScreen *RAS_Rasterizer::GetOffScreen(OffScreenType type)
+GPUFrameBuffer *RAS_Rasterizer::GetFrameBuffer(GPUFrameBufferType type)
 {
-	return m_offScreens.GetOffScreen(type);
+	return m_frameBuffers.GetFrameBuffer(type);
 }
 
-void RAS_Rasterizer::DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *dstOffScreen)
+void RAS_Rasterizer::DrawFrameBuffer(GPUFrameBuffer *srcFrameBuffer, GPUFrameBuffer *dstFrameBuffer)
 {
-	if (srcOffScreen->GetSamples() > 0) {
+	/*if (srcOffScreen->GetSamples() > 0) {
 		srcOffScreen->Blit(dstOffScreen, true, true);
 	}
-	else {
-		srcOffScreen->BindColorTexture(0);
+	else {*/
+	GPU_texture_bind(GPU_framebuffer_color_texture(srcFrameBuffer), 0);
 
-		DRW_bind_shader_shgroup(m_screenShaders.normal/*, (DRWState)(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS)*/);
+	DRW_bind_shader_shgroup(m_screenShaders.normal/*, (DRWState)(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS)*/);
 
-		DrawOverlayPlane();
+	DrawOverlayPlane();
 
-		srcOffScreen->UnbindColorTexture();
-	}
+	GPU_texture_unbind(GPU_framebuffer_color_texture(srcFrameBuffer));
 }
 
-void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen)
+void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *frameBuffer)
 {
-	if (offScreen->GetSamples() > 0) {
-		offScreen = offScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_LEFT1), true, false);
-	}
+	/*if (frameBuffer->GetSamples() > 0) {
+		frameBuffer = frameBuffer->Blit(GetFrameBuffer(RAS_FrameBuffer_EYE_LEFT1), true, false);
+	}*/
 
 	const RAS_Rect& viewport = canvas->GetViewportArea();
 	SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
@@ -542,24 +547,25 @@ void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen
 // 	Disable(RAS_CULL_FACE);
 // 	SetDepthFunc(RAS_ALWAYS);
 
-	RAS_OffScreen::RestoreScreen();
-	DrawOffScreen(offScreen, nullptr);
+	GPU_framebuffer_restore();
+	LAST_GPU_FRAMEBUFFER = nullptr;
+	DrawFrameBuffer(frameBuffer, nullptr);
 
 // 	SetDepthFunc(RAS_LEQUAL);
 // 	Enable(RAS_CULL_FACE);
 }
 
-void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen)
+void RAS_Rasterizer::DrawStereoFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *leftFb, GPUFrameBuffer *rightFb)
 {
-	if (leftOffScreen->GetSamples() > 0) {
-		// Then leftOffScreen == RAS_OFFSCREEN_EYE_LEFT0.
-		leftOffScreen = leftOffScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_LEFT1), true, false);
-	}
+	//if (leftFb->GetSamples() > 0) {
+	//	// Then leftFb == RAS_FrameBuffer_EYE_LEFT0.
+	//	leftFb = leftFb->Blit(GetFrameBuffer(RAS_FrameBuffer_EYE_LEFT1), true, false);
+	//}
 
-	if (rightOffScreen->GetSamples() > 0) {
-		// Then rightOffScreen == RAS_OFFSCREEN_EYE_RIGHT0.
-		rightOffScreen = rightOffScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_RIGHT1), true, false);
-	}
+	//if (rightFb->GetSamples() > 0) {
+	//	// Then rightFb == RAS_FrameBuffer_EYE_RIGHT0.
+	//	rightFb = rightFb->Blit(GetFrameBuffer(RAS_FrameBuffer_EYE_RIGHT1), true, false);
+	//}
 
 	const RAS_Rect& viewport = canvas->GetViewportArea();
 	SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
@@ -568,10 +574,10 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 // 	Disable(RAS_CULL_FACE);
 // 	SetDepthFunc(RAS_ALWAYS);
 
-	RAS_OffScreen::RestoreScreen();
-
-	leftOffScreen->BindColorTexture(0);
-	rightOffScreen->BindColorTexture(1);
+	GPU_framebuffer_restore();
+	LAST_GPU_FRAMEBUFFER = nullptr;
+	GPU_texture_bind(GPU_framebuffer_color_texture(leftFb), 0);
+	GPU_texture_bind(GPU_framebuffer_color_texture(rightFb), 1);
 
 	switch (m_stereomode) {
 		case RAS_STEREO_INTERLACED:
@@ -597,8 +603,8 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 	
 	DrawOverlayPlane();
 
-	leftOffScreen->UnbindColorTexture();
-	rightOffScreen->UnbindColorTexture();
+	GPU_texture_unbind(GPU_framebuffer_color_texture(leftFb));
+	GPU_texture_unbind(GPU_framebuffer_color_texture(rightFb));
 
 // 	SetDepthFunc(RAS_LEQUAL);
 // 	Enable(RAS_CULL_FACE);
@@ -1431,19 +1437,19 @@ void RAS_Rasterizer::LoadIdentity()
 // 	m_impl->LoadIdentity();
 }
 
-void RAS_Rasterizer::UpdateGlobalDepthTexture(RAS_OffScreen *offScreen)
+void RAS_Rasterizer::UpdateGlobalDepthTexture(GPUFrameBuffer *frameBuffer)
 {
 	/* In case of multisamples the depth off screen must be blit to be used in shader.
 	 * But the original off screen must be kept bound after the blit. */
-	if (offScreen->GetSamples()) {
-		RAS_OffScreen *dstOffScreen = GetOffScreen(RAS_Rasterizer::RAS_OFFSCREEN_BLIT_DEPTH);
-		offScreen->Blit(dstOffScreen, false, true);
-		// Restore original off screen.
-		offScreen->Bind();
-		offScreen = dstOffScreen;
-	}
+	//if (frameBuffer->GetSamples()) {
+	//	GPUFrameBuffer *dstOffScreen = GetFrameBuffer(RAS_Rasterizer::RAS_FrameBuffer_BLIT_DEPTH);
+	//	frameBuffer->Blit(dstOffScreen, false, true);
+	//	// Restore original off screen.
+	//	frameBuffer->Bind();
+	//	frameBuffer = dstOffScreen;
+	//}
 
-	GPU_texture_set_global_depth(offScreen->GetDepthTexture());
+	GPU_texture_set_global_depth(GPU_framebuffer_depth_texture(frameBuffer));
 }
 
 void RAS_Rasterizer::ResetGlobalDepthTexture()

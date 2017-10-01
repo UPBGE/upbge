@@ -173,7 +173,7 @@ void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketMana
 	}
 }
 
-void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
+void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, GPUFrameBuffer *frameBuffer)
 {
 	RAS_Rasterizer::DrawType drawingMode = rasty->GetDrawingMode();
 
@@ -301,7 +301,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 
 			// Update depth transparency depth texture after rendering all solid materials.
 			if ((m_buckets[ALPHA_DEPTH_BUCKET].size() + m_buckets[ALPHA_DEPTH_INSTANCING_BUCKET].size()) > 0) {
-				rasty->UpdateGlobalDepthTexture(offScreen);
+				rasty->UpdateGlobalDepthTexture(frameBuffer);
 			}
 			RenderBasicBuckets(rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(rasty, ALPHA_BUCKET);
@@ -325,7 +325,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 
 			// Update depth transparency depth texture after rendering all solid materials.
 			if ((m_buckets[ALPHA_DEPTH_BUCKET].size() + m_buckets[ALPHA_DEPTH_INSTANCING_BUCKET].size()) > 0) {
-				rasty->UpdateGlobalDepthTexture(offScreen);
+				rasty->UpdateGlobalDepthTexture(frameBuffer);
 			}
 			RenderBasicBuckets(rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(rasty, ALPHA_BUCKET);
@@ -349,7 +349,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 
 			// Update depth transparency depth texture after rendering all solid materials.
 			if ((m_buckets[ALPHA_DEPTH_BUCKET].size() + m_buckets[ALPHA_DEPTH_INSTANCING_BUCKET].size()) > 0) {
-				rasty->UpdateGlobalDepthTexture(offScreen);
+				rasty->UpdateGlobalDepthTexture(frameBuffer);
 			}
 			RenderBasicBuckets(rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(rasty, ALPHA_BUCKET);

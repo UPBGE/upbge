@@ -42,7 +42,7 @@
 
 #include "KX_Globals.h"
 #include "DNA_scene_types.h"
-#include "RAS_OffScreen.h"
+#include "GPU_framebuffer.h"
 #include "RAS_CameraData.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
@@ -55,12 +55,17 @@
 #include "Exception.h"
 #include "Texture.h"
 
-ExceptionID SceneInvalid, CameraInvalid, ObserverInvalid, OffScreenInvalid;
+extern "C" {
+#  include "DRW_render.h"
+#  include "eevee_private.h"
+}
+
+ExceptionID SceneInvalid, CameraInvalid, ObserverInvalid, FrameBufferInvalid;
 ExceptionID MirrorInvalid, MirrorSizeInvalid, MirrorNormalInvalid, MirrorHorizontal, MirrorTooSmall;
 ExpDesc SceneInvalidDesc(SceneInvalid, "Scene object is invalid");
 ExpDesc CameraInvalidDesc(CameraInvalid, "Camera object is invalid");
 ExpDesc ObserverInvalidDesc(ObserverInvalid, "Observer object is invalid");
-ExpDesc OffScreenInvalidDesc(OffScreenInvalid, "Offscreen object is invalid");
+ExpDesc FrameBufferInvalidDesc(FrameBufferInvalid, "FrameBuffer object is invalid");
 ExpDesc MirrorInvalidDesc(MirrorInvalid, "Mirror object is invalid");
 ExpDesc MirrorSizeInvalidDesc(MirrorSizeInvalid, "Mirror has no vertex or no size");
 ExpDesc MirrorNormalInvalidDesc(MirrorNormalInvalid, "Cannot determine mirror plane");
@@ -77,7 +82,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_camera(camera),
     m_owncamera(false),
     m_samples(samples),
-    m_finalOffScreen(nullptr),
+    m_finalFb(nullptr),
     m_sync(nullptr),
     m_observer(nullptr),
     m_mirror(nullptr),
@@ -107,14 +112,18 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 		m_internalFormat = GL_RGBA8;
 	}
 
-	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_IMRENDER0));
-	if (m_samples > 0) {
-		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_IMRENDER0));
-		m_finalOffScreen = m_blitOffScreen.get();
+	GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);
+	DRWFboTexture fbtex = { &tex, type, DRWTextureFlag(DRW_TEX_FILTER) };
+	DRW_framebuffer_init(&m_frameBuffer, &draw_engine_eevee_type,
+		m_width, m_height, &fbtex, 1);
+	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_IMRENDER0);
+	/*if (m_samples > 0) {
+		m_bliFb.reset(new GPUFrameBuffer(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_FrameBuffer_IMRENDER0));
+		m_finalFb = m_bliFb.get();
 	}
-	else {
-		m_finalOffScreen = m_offScreen.get();
-	}
+	else {*/
+	m_finalFb = m_frameBuffer;
+	//}
 }
 
 // destructor
@@ -131,7 +140,7 @@ ImageRender::~ImageRender (void)
 
 int ImageRender::GetColorBindCode() const
 {
-	return m_finalOffScreen->GetColorBindCode();
+	return GPU_framebuffer_color_bindcode(m_finalFb);
 }
 
 // get update shadow buffer
@@ -208,7 +217,7 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 		}
 	}
 
-	m_finalOffScreen->Bind();
+	DRW_framebuffer_bind(m_finalFb);
 
 	// wait until all render operations are completed: TO DO: Remove sync and rename this MipMapTexture
 	WaitSync();
@@ -217,10 +226,11 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	ImageViewport::calcViewport(texId, ts, format);
 
 	// We need to tonemap the rendered texture so we post render the scene
-	RAS_Rasterizer::OffScreenType target = RAS_Rasterizer::NextRenderOffScreen(m_finalOffScreen->GetType());
-	m_finalOffScreen = m_engine->PostRenderScene(m_scene, m_offScreen.get(), m_rasterizer->GetOffScreen(target));
+	GPUFrameBufferType target = RAS_Rasterizer::NextRenderFrameBuffer(GPU_framebuffer_get_bge_type(m_finalFb));
+	m_finalFb = m_engine->PostRenderScene(m_scene, m_frameBuffer, m_rasterizer->GetFrameBuffer(target));
 
-	RAS_OffScreen::RestoreScreen();
+	GPU_framebuffer_restore();
+	LAST_GPU_FRAMEBUFFER = nullptr;
 }
 
 bool ImageRender::Render()
@@ -309,7 +319,7 @@ bool ImageRender::Render()
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	// bind the fbo and set the viewport to full size
-	m_offScreen->Bind();
+	DRW_framebuffer_bind(m_frameBuffer);
 
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 
@@ -420,14 +430,14 @@ bool ImageRender::Render()
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_scene->RenderBuckets(nodes, camtrans, m_rasterizer, m_offScreen.get());
+	m_scene->RenderBuckets(nodes, camtrans, m_rasterizer, m_frameBuffer);
 
 	m_canvas->EndFrame();
 
 	// In case multisample is active, blit the FBO
-	if (m_samples > 0) {
-		m_offScreen->Blit(m_blitOffScreen.get(), true, true);
-	}
+	/*if (m_samples > 0) {
+		m_frameBuffer->Blit(m_bliFb.get(), true, true);
+	}*/
 
 #ifdef WITH_GAMEENGINE_GPU_SYNC
 	// end of all render operations, let's create a sync object just in case
@@ -463,7 +473,7 @@ void ImageRender::WaitSync()
 #endif
 
 	// this is needed to finalize the image if the target is a texture
-	m_finalOffScreen->MipmapTexture();
+	GPU_framebuffer_mipmap_texture(m_finalFb);
 
 	// all rendered operation done and complete, invalidate render for next time
 	m_done = false;
@@ -872,7 +882,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
     m_done(false),
     m_scene(scene),
     m_samples(samples),
-    m_finalOffScreen(nullptr),
+    m_finalFb(nullptr),
     m_sync(nullptr),
     m_observer(observer),
     m_mirror(mirror),
@@ -892,14 +902,18 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 		m_internalFormat = GL_RGBA8;
 	}
 
-	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_IMRENDER0));
-	if (m_samples > 0) {
-		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_IMRENDER0));
-		m_finalOffScreen = m_blitOffScreen.get();
+	GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);
+	DRWFboTexture fbtex = { &tex, type, DRWTextureFlag(DRW_TEX_FILTER) };
+	DRW_framebuffer_init(&m_frameBuffer, &draw_engine_eevee_type,
+		GPU_texture_width(tex), GPU_texture_height(tex), &fbtex, 1);
+	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_IMRENDER0);
+	/*if (m_samples > 0) {
+	m_bliFb.reset(new GPUFrameBuffer(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_FrameBuffer_IMRENDER0));
+	m_finalFb = m_bliFb.get();
 	}
-	else {
-		m_finalOffScreen = m_offScreen.get();
-	}
+	else {*/
+	m_finalFb = m_frameBuffer;
+	//}
 
 	// this constructor is used for automatic planar mirror
 	// create a camera, take all data by default, in any case we will recompute the frustum on each frame

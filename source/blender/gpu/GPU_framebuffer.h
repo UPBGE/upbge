@@ -80,6 +80,33 @@ void GPU_framebuffer_blur(
         GPUFrameBuffer *fb, struct GPUTexture *tex,
         GPUFrameBuffer *blurfb, struct GPUTexture *blurtex, float sharpness);
 
+/********************Game engine*******************/
+typedef enum GPUFrameBufferType {
+	GPU_FRAMEBUFFER_FILTER0 = 0,
+	GPU_FRAMEBUFFER_FILTER1,
+	GPU_FRAMEBUFFER_IMRENDER0,
+	GPU_FRAMEBUFFER_IMRENDER1,
+	GPU_FRAMEBUFFER_EYE_LEFT0,
+	GPU_FRAMEBUFFER_EYE_RIGHT0,
+	GPU_FRAMEBUFFER_EYE_LEFT1,
+	GPU_FRAMEBUFFER_EYE_RIGHT1,
+	GPU_FRAMEBUFFER_BLIT_DEPTH,
+	GPU_FRAMEBUFFER_MAX,
+
+	GPU_FRAMEBUFFER_CUSTOM,
+} GPUFrameBufferType;
+
+int GPU_framebuffer_color_bindcode(const GPUFrameBuffer *fb);
+GPUTexture *GPU_framebuffer_color_texture(const GPUFrameBuffer *fb);
+GPUTexture *GPU_framebuffer_depth_texture(const GPUFrameBuffer *fb);
+void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb);
+void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb);
+GPUFrameBufferType GPU_framebuffer_get_bge_type(GPUFrameBuffer *fb);
+void GPU_framebuffer_set_bge_type(GPUFrameBuffer *fb, GPUFrameBufferType type);
+/****************End of Game engine****************/
+
+static GPUFrameBuffer *LAST_GPU_FRAMEBUFFER = { NULL };
+
 typedef enum GPURenderBufferType {
 	GPU_RENDERBUFFER_COLOR = 0,
 	GPU_RENDERBUFFER_DEPTH = 1,
@@ -124,10 +151,7 @@ void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels);
 void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs, bool color, bool depth);
 int GPU_offscreen_width(const GPUOffScreen *ofs);
 int GPU_offscreen_height(const GPUOffScreen *ofs);
-int GPU_offscreen_samples(const GPUOffScreen *ofs);
 int GPU_offscreen_color_texture(const GPUOffScreen *ofs);
-GPUTexture *GPU_offscreen_texture(const GPUOffScreen *ofs);
-GPUTexture *GPU_offscreen_depth_texture(const GPUOffScreen *ofs);
 
 void GPU_offscreen_viewport_data_get(
         GPUOffScreen *ofs,

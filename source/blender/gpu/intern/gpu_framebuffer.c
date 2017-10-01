@@ -54,6 +54,7 @@ struct GPUFrameBuffer {
 	GPUTexture *depthtex;
 	GPURenderBuffer *colorrb[GPU_FB_MAX_SLOTS];
 	GPURenderBuffer *depthrb;
+	int bgetype; //BGE
 };
 
 static void gpu_print_framebuffer_error(GLenum status, char err_out[256])
@@ -725,6 +726,48 @@ void GPU_framebuffer_recursive_downsample(
 	GPU_texture_unbind(tex);
 }
 
+/**************Game engine****************/
+
+int GPU_framebuffer_color_bindcode(const GPUFrameBuffer *fb)
+{
+	return GPU_texture_opengl_bindcode(fb->colortex);
+}
+
+GPUTexture *GPU_framebuffer_color_texture(const GPUFrameBuffer *fb)
+{
+	return fb->colortex;
+}
+
+GPUTexture *GPU_framebuffer_depth_texture(const GPUFrameBuffer *fb)
+{
+	return fb->depthtex;
+}
+
+void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb)
+{
+	GPUTexture *tex = GPU_framebuffer_color_texture(fb);
+	GPU_texture_mipmap_mode(tex, true, false);
+	GPU_texture_generate_mipmap(tex);
+}
+
+void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb)
+{
+	GPUTexture *tex = GPU_framebuffer_color_texture(fb);
+	GPU_texture_mipmap_mode(tex, false, false);
+}
+
+void GPU_framebuffer_set_bge_type(GPUFrameBuffer *fb, GPUFrameBufferType type)
+{
+	fb->bgetype = type;
+}
+
+GPUFrameBufferType GPU_framebuffer_get_bge_type(GPUFrameBuffer *fb)
+{
+	return fb->bgetype;
+}
+
+/************End of Game engine***********/
+
 /* GPURenderBuffer */
 
 struct GPURenderBuffer {
@@ -1137,24 +1180,9 @@ int GPU_offscreen_height(const GPUOffScreen *ofs)
 	return 0;
 }
 
-int GPU_offscreen_samples(const GPUOffScreen *ofs)
-{
-	return ofs->samples;
-}
-
 int GPU_offscreen_color_texture(const GPUOffScreen *ofs)
 {
 	return GPU_texture_opengl_bindcode(ofs->color);
-}
-
-GPUTexture *GPU_offscreen_texture(const GPUOffScreen *ofs)
-{
-	return ofs->color;
-}
-
-GPUTexture *GPU_offscreen_depth_texture(const GPUOffScreen *ofs)
-{
-	return ofs->depth;
 }
 
 /* only to be used by viewport code! */

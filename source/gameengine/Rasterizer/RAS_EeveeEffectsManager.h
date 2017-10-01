@@ -33,7 +33,7 @@ extern "C" {
 
 class RAS_ICanvas;
 class RAS_Rasterizer;
-class RAS_OffScreen;
+struct GPUFrameBuffer;
 class KX_Scene;
 struct DRWShadingGroup;
 struct IDProperty;
@@ -45,15 +45,15 @@ public:
 	RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas, IDProperty *props, KX_Scene *scene);
 	virtual ~RAS_EeveeEffectsManager();
 
-	RAS_OffScreen *RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
+	GPUFrameBuffer *RenderEeveeEffects(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb);
 
 	void InitDof();
 
-	RAS_OffScreen *RenderBloom(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
-	RAS_OffScreen *RenderMotionBlur(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
-	RAS_OffScreen *RenderDof(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
-	RAS_OffScreen *RenderVolumetrics(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs);
-	void UpdateAO(RAS_OffScreen *inputofs);
+	GPUFrameBuffer *RenderBloom(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb);
+	GPUFrameBuffer *RenderMotionBlur(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb);
+	GPUFrameBuffer *RenderDof(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb);
+	GPUFrameBuffer *RenderVolumetrics(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb);
+	void UpdateAO(GPUFrameBuffer *inputfb);
 
 private:
 	EEVEE_StorageList *m_stl;
@@ -71,9 +71,9 @@ private:
 	 * std::unique_ptr is used to avoid
 	 * to take care about offscreens deletion
 	 */
-	std::unique_ptr<RAS_OffScreen> m_bloomTarget;
-	std::unique_ptr<RAS_OffScreen> m_blurTarget;
-	std::unique_ptr<RAS_OffScreen> m_dofTarget;
+	GPUFrameBuffer *m_bloomTarget;
+	GPUFrameBuffer *m_blurTarget;
+	GPUFrameBuffer *m_dofTarget;
 
 	float m_shutter; // camera motion blur
 

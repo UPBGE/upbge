@@ -87,7 +87,6 @@ set(SRC
 	RAS_MeshObject.cpp
 	RAS_MeshSlot.cpp
 	RAS_MeshUser.cpp
-	RAS_OffScreen.cpp
 	RAS_OverrideShader.cpp
 	RAS_Polygon.cpp
 	RAS_Query.cpp
@@ -97,7 +96,7 @@ set(SRC
 	RAS_Texture.cpp
 	RAS_TextureRenderer.cpp
 	RAS_TextUser.cpp
- 
+ 	
 	RAS_2DFilterData.h
 	RAS_2DFilter.h
 	RAS_2DFilterManager.h
@@ -132,7 +131,6 @@ set(SRC
 	RAS_MeshObject.h
 	RAS_MeshSlot.h
 	RAS_MeshUser.h
-	RAS_OffScreen.h
 	RAS_OverrideShader.h
 	RAS_Polygon.h
 	RAS_Query.h

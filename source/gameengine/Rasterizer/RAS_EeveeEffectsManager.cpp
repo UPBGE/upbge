@@ -26,7 +26,7 @@
 
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
-#include "RAS_OffScreen.h"
+#include "GPU_framebuffer.h"
 #include "RAS_EeveeEffectsManager.h"
 #include "RAS_SceneLayerData.h"
 
@@ -59,18 +59,24 @@ m_dofInitialized(false)
 	};
 
 	// Bloom
-	m_bloomTarget.reset(new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, dataTypeEnums[m_canvas->GetHdrType()],
-		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
+	GPUTexture *bloomtex = DRW_texture_create_2D(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);
+	DRWFboTexture fbbloomtex = { &bloomtex, m_canvas->GetHdrType(), DRWTextureFlag(DRW_TEX_FILTER) };
+	DRW_framebuffer_init(&m_bloomTarget, &draw_engine_eevee_type,
+		m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, &fbbloomtex, 1);
 
 	// Camera Motion Blur
 	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 	m_effects->motion_blur_samples = BKE_collection_engine_property_value_get_int(m_props, "motion_blur_samples");
-	m_blurTarget.reset(new RAS_OffScreen(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, dataTypeEnums[m_canvas->GetHdrType()],
-		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
+	GPUTexture *blurtex = DRW_texture_create_2D(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);
+	DRWFboTexture fbblurtex = { &blurtex, m_canvas->GetHdrType(), DRWTextureFlag(DRW_TEX_FILTER) };
+	DRW_framebuffer_init(&m_blurTarget, &draw_engine_eevee_type,
+		m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, &fbblurtex, 1);
 
 	// Depth of field
-	m_dofTarget.reset(new RAS_OffScreen(int(m_canvas->GetWidth() / 2), int(m_canvas->GetHeight() / 2), 0, dataTypeEnums[m_canvas->GetHdrType()],
-		GPU_OFFSCREEN_DEPTH_COMPARE, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0));
+	GPUTexture *doftex = DRW_texture_create_2D(m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);;
+	DRWFboTexture fbdoftex = { &doftex, m_canvas->GetHdrType(), DRWTextureFlag(DRW_TEX_FILTER) };
+	DRW_framebuffer_init(&m_dofTarget, &draw_engine_eevee_type,
+		m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2, &fbdoftex, 1);
 
 	// Ambient occlusion
 	m_useAO = m_effects->use_ao;
@@ -97,13 +103,13 @@ void RAS_EeveeEffectsManager::InitDof()
 	}
 }
 
-RAS_OffScreen *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+GPUFrameBuffer *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
 {
 	/* Bloom */
 	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
 		struct GPUTexture *last;
 
-		m_effects->source_buffer = inputofs->GetColorTexture();
+		m_effects->source_buffer = GPU_framebuffer_depth_texture(inputfb);
 
 		/* Extract bright pixels */
 		copy_v2_v2(m_effects->unf_source_texel_size, m_effects->source_texel_size);
@@ -151,23 +157,23 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, RAS_O
 
 		rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
-		m_bloomTarget->Bind();
+		DRW_framebuffer_bind(m_bloomTarget);
 		DRW_draw_pass(m_psl->bloom_resolve);
 
-		return m_bloomTarget.get();
+		return m_bloomTarget;
 	}
-	return inputofs;
+	return inputfb;
 }
 
-RAS_OffScreen *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+GPUFrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
 {
 	/* Motion Blur */
 	if (BKE_collection_engine_property_value_get_bool(m_props, "motion_blur_enable")) {
 
 		KX_Camera *cam = m_scene->GetActiveCamera();
 
-		m_effects->source_buffer = inputofs->GetColorTexture();
-		DRW_viewport_texture_list_get()->depth = inputofs->GetDepthTexture();
+		m_effects->source_buffer = GPU_framebuffer_depth_texture(inputfb);
+		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb);
 		float camToWorld[4][4];
 		cam->GetCameraToWorld().getValue(&camToWorld[0][0]);
 		camToWorld[3][0] *= m_shutter;
@@ -177,7 +183,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, 
 
 		rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
-		m_blurTarget->Bind();
+		DRW_framebuffer_bind(m_blurTarget);
 		DRW_draw_pass(m_psl->motion_blur);
 
 		float worldToCam[4][4];
@@ -187,12 +193,12 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, 
 		worldToCam[3][2] *= m_shutter;
 		copy_m4_m4(m_effects->past_world_to_ndc, worldToCam);
 
-		return m_blurTarget.get();
+		return m_blurTarget;
 	}
-	return inputofs;
+	return inputfb;
 }
 
-RAS_OffScreen *RAS_EeveeEffectsManager::RenderDof(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+GPUFrameBuffer *RAS_EeveeEffectsManager::RenderDof(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
 {
 	/* Depth Of Field */
 	if ((m_effects->enabled_effects & EFFECT_DOF) != 0) {
@@ -207,8 +213,8 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderDof(RAS_Rasterizer *rasty, RAS_Off
 
 		float clear_col[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-		m_effects->source_buffer = inputofs->GetColorTexture();
-		DRW_viewport_texture_list_get()->depth = inputofs->GetDepthTexture();
+		m_effects->source_buffer = GPU_framebuffer_depth_texture(inputfb);
+		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb);
 
 		/* Downsample */
 		DRW_framebuffer_bind(m_fbl->dof_down_fb);
@@ -235,31 +241,31 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderDof(RAS_Rasterizer *rasty, RAS_Off
 		DRW_draw_pass(m_psl->dof_scatter);
 
 		/* Resolve */
-		m_dofTarget->Bind();
+		DRW_framebuffer_bind(m_dofTarget);
 		DRW_draw_pass(m_psl->dof_resolve);
 
-		return m_dofTarget.get();
+		return m_dofTarget;
 	}
-	return inputofs;
+	return inputfb;
 }
 
-void RAS_EeveeEffectsManager::UpdateAO(RAS_OffScreen *inputofs)
+void RAS_EeveeEffectsManager::UpdateAO(GPUFrameBuffer *inputfb)
 {
 	if (m_useAO) {
 		/* Create stl->g_data->minmaxz from our depth texture.
 		 * This texture is used as uniform if AO is enabled.
 		 * See: DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
 		 */
-		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), inputofs->GetDepthTexture(), -1);
+		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), GPU_framebuffer_depth_texture(inputfb), -1);
 	}
 }
 
-RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+GPUFrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
 {
 	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0 && m_useVolumetricNodes) {
 
-		DRW_viewport_texture_list_get()->depth = inputofs->GetDepthTexture();
-		EEVEE_effects_replace_e_data_depth(inputofs->GetDepthTexture());
+		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb);
+		EEVEE_effects_replace_e_data_depth(GPU_framebuffer_depth_texture(inputfb));
 
 		/* Compute volumetric integration at halfres. */
 		DRW_framebuffer_texture_attach(m_fbl->volumetric_fb, m_stl->g_data->volumetric, 0, 0);
@@ -272,7 +278,7 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty,
 
 		/* Resolve at fullres */
 		rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
-		inputofs->Bind();
+		DRW_framebuffer_bind(inputfb);
 		if (sldata->volumetrics->use_colored_transmit) {
 			DRW_draw_pass(m_psl->volumetric_resolve_transmit_ps);
 		}
@@ -284,27 +290,27 @@ RAS_OffScreen *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty,
 			DRW_framebuffer_texture_detach(m_stl->g_data->volumetric_transmit);
 		}
 
-		return inputofs;
+		return inputfb;
 	}
-	return inputofs;
+	return inputfb;
 }
 
 
-RAS_OffScreen *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+GPUFrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
 {
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
-	UpdateAO(inputofs);
+	UpdateAO(inputfb);
 
-	inputofs = RenderVolumetrics(rasty, inputofs);
+	inputfb = RenderVolumetrics(rasty, inputfb);
 
-	inputofs = RenderMotionBlur(rasty, inputofs);
+	inputfb = RenderMotionBlur(rasty, inputfb);
 
-	inputofs = RenderDof(rasty, inputofs);
+	inputfb = RenderDof(rasty, inputfb);
 
-	inputofs = RenderBloom(rasty, inputofs);
+	inputfb = RenderBloom(rasty, inputfb);
 
 	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	
-	return inputofs;
+	return inputfb;
 }

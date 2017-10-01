@@ -31,7 +31,7 @@
 class RAS_2DFilterManager;
 class RAS_Rasterizer;
 class RAS_ICanvas;
-class RAS_OffScreen;
+struct GPUFrameBuffer;
 class RAS_2DFilterOffScreen;
 class CValue;
 
@@ -67,13 +67,13 @@ protected:
 	unsigned int m_textures[8];
 
 	/// Custom off screen for special datas.
-	std::unique_ptr<RAS_2DFilterOffScreen> m_offScreen;
+	std::unique_ptr<RAS_2DFilterOffScreen> m_frameBuffer;
 
 	virtual bool LinkProgram();
 	void ParseShaderProgram();
 	void BindUniforms(RAS_ICanvas *canvas);
-	void BindTextures(RAS_OffScreen *detphofs, RAS_OffScreen *colorofs);
-	void UnbindTextures(RAS_OffScreen *detphofs, RAS_OffScreen *colorofs);
+	void BindTextures(GPUFrameBuffer *detphofs, GPUFrameBuffer *colorfb);
+	void UnbindTextures(GPUFrameBuffer *detphofs, GPUFrameBuffer *colorfb);
 	void ComputeTextureOffsets(RAS_ICanvas *canvas);
 
 public:
@@ -83,8 +83,8 @@ public:
 	bool GetMipmap() const;
 	void SetMipmap(bool mipmap);
 
-	RAS_2DFilterOffScreen *GetOffScreen() const;
-	void SetOffScreen(RAS_2DFilterOffScreen *offScreen);
+	RAS_2DFilterOffScreen *GetFrameBuffer() const;
+	void SetOffScreen(RAS_2DFilterOffScreen *frameBuffer);
 
 	/// Called by the filter manager when it has informations like the display size, a gl context...
 	void Initialize(RAS_ICanvas *canvas);
@@ -94,12 +94,12 @@ public:
 	 * \param canvas The canvas containing screen viewport.
 	 * \param detphofs The off screen used only for the depth texture input,
 	 * the same for all filters of a scene.
-	 * \param colorofs The off screen used only for the color texture input, unique per filters.
-	 * \param targetofs The off screen used to draw the filter to.
+	 * \param colorfb The off screen used only for the color texture input, unique per filters.
+	 * \param targetfb The off screen used to draw the filter to.
 	 * \return The off screen to use as input for the next filter.
 	 */
-	RAS_OffScreen *Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *detphofs,
-			   RAS_OffScreen *colorofs, RAS_OffScreen *targetofs);
+	GPUFrameBuffer *Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *detphofs,
+			   GPUFrameBuffer *colorfb, GPUFrameBuffer *targetfb);
 
 	/// Finalizes the execution stage of the filter.
 	void End();

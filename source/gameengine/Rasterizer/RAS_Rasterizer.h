@@ -47,9 +47,13 @@
 #include <vector>
 #include <memory>
 
+extern "C" {
+#  include "../gpu/GPU_framebuffer.h"
+}
+
 class RAS_OpenGLRasterizer;
 class RAS_ICanvas;
-class RAS_OffScreen;
+struct GPUFrameBuffer;
 class RAS_MeshSlot;
 class RAS_IDisplayArray;
 class SCA_IScene;
@@ -191,21 +195,6 @@ public:
 		RAS_STENCIL_BUFFER_BIT = 0x8
 	};
 
-	enum OffScreenType {
-		RAS_OFFSCREEN_FILTER0 = 0,
-		RAS_OFFSCREEN_FILTER1,
-		RAS_OFFSCREEN_IMRENDER0,
-		RAS_OFFSCREEN_IMRENDER1,
-		RAS_OFFSCREEN_EYE_LEFT0,
-		RAS_OFFSCREEN_EYE_RIGHT0,
-		RAS_OFFSCREEN_EYE_LEFT1,
-		RAS_OFFSCREEN_EYE_RIGHT1,
-		RAS_OFFSCREEN_BLIT_DEPTH,
-		RAS_OFFSCREEN_MAX,
-
-		RAS_OFFSCREEN_CUSTOM,
-	};
-
 	enum HdrType {
 		RAS_HDR_NONE = 0,
 		RAS_HDR_HALF_FLOAT,
@@ -218,31 +207,31 @@ public:
 	 * \param index The input frame buffer, can be a non-filter frame buffer.
 	 * \return The output filter frame buffer.
 	 */
-	static OffScreenType NextFilterOffScreen(OffScreenType index);
+	static GPUFrameBufferType NextFilterFrameBuffer(GPUFrameBufferType index);
 
 	/** Return the output frame buffer normally used for the input frame buffer
 	 * index in case of simple render.
 	 * \param index The input render frame buffer, can be a eye frame buffer.
 	 * \return The output render frame buffer.
 	 */
-	static OffScreenType NextRenderOffScreen(OffScreenType index);
+	static GPUFrameBufferType NextRenderFrameBuffer(GPUFrameBufferType index);
 
 private:
-	class OffScreens
+	class FrameBuffers
 	{
 	private:
-		std::unique_ptr<RAS_OffScreen> m_offScreens[RAS_OFFSCREEN_MAX];
+		GPUFrameBuffer *m_frameBuffers[GPU_FRAMEBUFFER_MAX];
 		unsigned int m_width;
 		unsigned int m_height;
 		int m_samples;
 		HdrType m_hdr;
 
 	public:
-		OffScreens();
-		~OffScreens();
+		FrameBuffers();
+		~FrameBuffers();
 
 		void Update(RAS_ICanvas *canvas);
-		RAS_OffScreen *GetOffScreen(RAS_Rasterizer::OffScreenType type);
+		GPUFrameBuffer *GetFrameBuffer(GPUFrameBufferType type);
 	};
 
 	// All info used to compute the ray cast transform matrix.
@@ -308,7 +297,7 @@ private:
 	unsigned int m_numgllights;
 
 	/// Class used to manage off screens used by the rasterizer.
-	OffScreens m_offScreens;
+	FrameBuffers m_frameBuffers;
 
 	DrawType m_drawingmode;
 	ShadowType m_shadowMode;
@@ -416,27 +405,27 @@ public:
 	/** Return the corresponding off screen to off screen type.
 	 * \param type The off screen type to return.
 	 */
-	RAS_OffScreen *GetOffScreen(OffScreenType type);
+	GPUFrameBuffer *GetFrameBuffer(GPUFrameBufferType type);
 
 	/** Draw off screen without set viewport.
 	 * Used to copy the frame buffer object to another.
 	 * \param srcindex The input off screen index.
 	 * \param dstindex The output off screen index.
 	 */
-	void DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *dstOffScreen);
+	void DrawFrameBuffer(GPUFrameBuffer *srcfb, GPUFrameBuffer *dstfb);
 
 	/** Draw off screen at the given index to screen.
 	 * \param canvas The canvas containing the screen viewport.
 	 * \param index The off screen index to read from.
 	 */
-	void DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen);
+	void DrawFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *frameBuffer);
 
 	/** Draw each stereo off screen to screen.
 	 * \param canvas The canvas containing the screen viewport.
 	 * \param lefteyeindex The left off screen index.
 	 * \param righteyeindex The right off screen index.
 	 */
-	void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen);
+	void DrawStereoFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *leftFb, GPUFrameBuffer *rightFb);
 
 	/**
 	 * GetRenderArea computes the render area from the 2d canvas.
@@ -667,9 +656,9 @@ public:
 	void LoadIdentity();
 
 	/** Set the current off screen depth to the global depth texture used by materials.
-	 * In case of mutlisample off screen a blit to RAS_OFFSCREEN_BLIT_DEPTH is procceed.
+	 * In case of mutlisample off screen a blit to RAS_FrameBuffer_BLIT_DEPTH is procceed.
 	 */
-	void UpdateGlobalDepthTexture(RAS_OffScreen *offScreen);
+	void UpdateGlobalDepthTexture(GPUFrameBuffer *frameBuffer);
 	/// Set the global depth texture to an empty texture.
 	void ResetGlobalDepthTexture();
 

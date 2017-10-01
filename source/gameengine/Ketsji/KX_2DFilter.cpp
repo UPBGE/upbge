@@ -77,7 +77,7 @@ PyMethodDef KX_2DFilter::Methods[] = {
 
 PyAttributeDef KX_2DFilter::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("mipmap", KX_2DFilter, pyattr_get_mipmap, pyattr_set_mipmap),
-	KX_PYATTRIBUTE_RO_FUNCTION("offScreen", KX_2DFilter, pyattr_get_offScreen),
+	KX_PYATTRIBUTE_RO_FUNCTION("frameBuffer", KX_2DFilter, pyattr_get_frameBuffer),
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
@@ -100,11 +100,11 @@ int KX_2DFilter::pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DE
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_2DFilter::pyattr_get_offScreen(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_2DFilter::pyattr_get_frameBuffer(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
-	RAS_2DFilterOffScreen *offScreen = self->GetOffScreen();
-	return offScreen ? static_cast<KX_2DFilterOffScreen *>(offScreen)->GetProxy() : Py_None;
+	RAS_2DFilterOffScreen *frameBuffer = self->GetFrameBuffer();
+	return frameBuffer ? static_cast<KX_2DFilterOffScreen *>(frameBuffer)->GetProxy() : Py_None;
 }
 
 KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, samplerName)")
@@ -165,7 +165,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, width
 		return nullptr;
 	}
 
-	if (GetOffScreen()) {
+	if (GetFrameBuffer()) {
 		PyErr_SetString(PyExc_TypeError, "filter.addOffScreen(...): KX_2DFilter, custom off screen already exists.");
 		return nullptr;
 	}
@@ -202,12 +202,12 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, width
 		flag |= RAS_2DFilterOffScreen::RAS_DEPTH;
 	}
 
-	KX_2DFilterOffScreen *offScreen = new KX_2DFilterOffScreen(slots, (RAS_2DFilterOffScreen::Flag)flag, width, height,
+	KX_2DFilterOffScreen *frameBuffer = new KX_2DFilterOffScreen(slots, (RAS_2DFilterOffScreen::Flag)flag, width, height,
 															   (RAS_Rasterizer::HdrType)hdr);
 
-	SetOffScreen(offScreen);
+	SetOffScreen(frameBuffer);
 
-	return offScreen->GetProxy();
+	return frameBuffer->GetProxy();
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_2DFilter, removeOffScreen, " removeOffScreen()")

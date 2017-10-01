@@ -70,7 +70,7 @@
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
 #include "RAS_SceneLayerData.h"
-#include "RAS_OffScreen.h"
+#include "GPU_framebuffer.h"
 
 #include "EXP_FloatValue.h"
 #include "SCA_IController.h"
@@ -1738,7 +1738,7 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 
 
 
-void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
+void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, GPUFrameBuffer *frameBuffer)
 {
 	for (KX_CullingNode *node : nodes) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
@@ -1746,15 +1746,15 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 		node->GetObject()->UpdateBuckets();
 	}
 
-	m_bucketmanager->Renderbuckets(cameratransform, rasty, offScreen);
+	m_bucketmanager->Renderbuckets(cameratransform, rasty, frameBuffer);
 
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen, KX_Camera *camera,
+void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, GPUFrameBuffer *frameBuffer, KX_Camera *camera,
 									  const RAS_Rect& viewport, const RAS_Rect& area)
 {
-	m_rendererManager->Render(category, rasty, offScreen, camera, viewport, area);
+	m_rendererManager->Render(category, rasty, frameBuffer, camera, viewport, area);
 }
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam, const KX_CullingNodeList& nodes)
@@ -2085,14 +2085,14 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 	return m_filterManager;
 }
 
-RAS_OffScreen *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+GPUFrameBuffer *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb)
 {
-	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs, this);
+	return m_filterManager->RenderFilters(rasty, canvas, inputfb, targetfb, this);
 }
 
-RAS_OffScreen *KX_Scene::RenderEeveeEffects(RAS_Rasterizer *rasty, RAS_OffScreen *inputofs)
+GPUFrameBuffer *KX_Scene::RenderEeveeEffects(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
 {
-	return m_effectsManager->RenderEeveeEffects(rasty, inputofs);
+	return m_effectsManager->RenderEeveeEffects(rasty, inputfb);
 }
 
 #ifdef WITH_PYTHON

@@ -32,7 +32,7 @@
 
 class RAS_ICanvas;
 class RAS_Rasterizer;
-class RAS_OffScreen;
+struct GPUFrameBuffer;
 class RAS_2DFilter;
 
 class KX_Scene;
@@ -68,12 +68,12 @@ public:
 	/** Applies the filters to the scene.
 	 * \param rasty The rasterizer used for draw commands.
 	 * \param canvas The canvas containing the screen viewport.
-	 * \param inputofs The off screen used as input of the first filter.
-	 * \param targetofs The off screen used as output of the last filter.
+	 * \param inputfb The off screen used as input of the first filter.
+	 * \param targetfb The off screen used as output of the last filter.
 	 * \return The last used off screen, if none filters were rendered it's the
-	 * same off screen than inputofs.
+	 * same off screen than inputfb.
 	 */
-	RAS_OffScreen *RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs, KX_Scene *scene);
+	GPUFrameBuffer *RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb, KX_Scene *scene);
 
 	/// Add a filter to the stack of filters managed by this object.
 	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);

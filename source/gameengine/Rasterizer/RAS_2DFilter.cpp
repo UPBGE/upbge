@@ -25,12 +25,16 @@
 #include "RAS_2DFilterOffScreen.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
-#include "RAS_OffScreen.h"
 #include "RAS_Rect.h"
 
 #include "EXP_Value.h"
 
 #include "GPU_glew.h"
+
+extern "C" {
+#  include "DRW_render.h"
+#  include "../gpu/GPU_framebuffer.h"
+}
 
 extern "C" {
 	extern char datatoc_RAS_VertexShader2DFilter_glsl[];
@@ -82,14 +86,14 @@ void RAS_2DFilter::SetMipmap(bool mipmap)
 	m_mipmap = mipmap;
 }
 
-RAS_2DFilterOffScreen *RAS_2DFilter::GetOffScreen() const
+RAS_2DFilterOffScreen *RAS_2DFilter::GetFrameBuffer() const
 {
-	return m_offScreen.get();
+	return m_frameBuffer.get();
 }
 
-void RAS_2DFilter::SetOffScreen(RAS_2DFilterOffScreen *offScreen)
+void RAS_2DFilter::SetOffScreen(RAS_2DFilterOffScreen *frameBuffer)
 {
-	m_offScreen.reset(offScreen);
+	m_frameBuffer.reset(frameBuffer);
 }
 
 void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
@@ -103,37 +107,37 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 	}
 }
 
-RAS_OffScreen *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *depthofs,
-						 RAS_OffScreen *colorofs, RAS_OffScreen *targetofs)
+GPUFrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *depthfb,
+						 GPUFrameBuffer *colorfb, GPUFrameBuffer *targetfb)
 {
 	/* The off screen the filter rendered to. If the filter is invalid or uses a custom
 	 * off screen the output off screen is the same as the input off screen. */
-	RAS_OffScreen *outputofs = colorofs;
+	GPUFrameBuffer *outpufb = colorfb;
 	if (!Ok()) {
-		return outputofs;
+		return outpufb;
 	}
 
 	/* The target off screen must be not the color input off screen, it can be the same as depth input
 	 * screen because depth is unchanged. */
-	BLI_assert(targetofs != colorofs);
+	BLI_assert(targetfb != colorfb);
 
-	if (m_offScreen) {
-		if (!m_offScreen->Update(canvas)) {
-			return outputofs;
+	if (m_frameBuffer) {
+		if (!m_frameBuffer->Update(canvas)) {
+			return outpufb;
 		}
 
-		m_offScreen->Bind(rasty);
+		m_frameBuffer->Bind(rasty);
 	}
 	else {
-		targetofs->Bind();
-		outputofs = targetofs;
+		DRW_framebuffer_bind(targetfb);
+		outpufb = targetfb;
 	}
 
 	Initialize(canvas);
 
 	SetProg(true);
 
-	BindTextures(depthofs, colorofs);
+	BindTextures(depthfb, colorfb);
 	BindUniforms(canvas);
 
 	Update(rasty, MT_Matrix4x4::Identity());
@@ -142,13 +146,13 @@ RAS_OffScreen *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, R
 
 	rasty->DrawOverlayPlane();
 
-	UnbindTextures(depthofs, colorofs);
+	UnbindTextures(depthfb, colorfb);
 
-	if (m_offScreen) {
-		m_offScreen->Unbind(rasty, canvas);
+	if (m_frameBuffer) {
+		m_frameBuffer->Unbind(rasty, canvas);
 	}
 
-	return outputofs;
+	return outpufb;
 }
 
 void RAS_2DFilter::End()
@@ -209,16 +213,16 @@ void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 	}
 }
 
-void RAS_2DFilter::BindTextures(RAS_OffScreen *depthofs, RAS_OffScreen *colorofs)
+void RAS_2DFilter::BindTextures(GPUFrameBuffer *depthfb, GPUFrameBuffer *colorfb)
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-		colorofs->BindColorTexture(8);
+		GPU_texture_bind(GPU_framebuffer_color_texture(colorfb), 8);
 		if (m_mipmap) {
-			colorofs->MipmapTexture();
+			GPU_framebuffer_mipmap_texture(colorfb);
 		}
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-		depthofs->BindDepthTexture(9);
+		GPU_texture_bind(GPU_framebuffer_depth_texture(depthfb), 9);
 	}
 
 	// Bind custom textures.
@@ -230,16 +234,16 @@ void RAS_2DFilter::BindTextures(RAS_OffScreen *depthofs, RAS_OffScreen *colorofs
 	}
 }
 
-void RAS_2DFilter::UnbindTextures(RAS_OffScreen *depthofs, RAS_OffScreen *colorofs)
+void RAS_2DFilter::UnbindTextures(GPUFrameBuffer *depthfb, GPUFrameBuffer *colorfb)
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-		colorofs->UnbindColorTexture();
+		GPU_texture_unbind(GPU_framebuffer_color_texture(colorfb));
 		if (m_mipmap) {
-			colorofs->UnmipmapTexture();
+			GPU_framebuffer_unmipmap_texture(colorfb);
 		}
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-		depthofs->UnbindDepthTexture();
+		GPU_texture_unbind(GPU_framebuffer_color_texture(depthfb));
 	}
 
 	// Bind custom textures.

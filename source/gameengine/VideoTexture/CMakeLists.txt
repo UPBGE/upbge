@@ -37,13 +37,18 @@ set(INC
 	../SceneGraph
 	../../blender/blenkernel
 	../../blender/blenlib
-	../../blender/draw/engines/eevee/
+	../../blender/blentranslation
+	../../blender/draw
+	../../blender/draw/intern
+	../../blender/draw/engines/eevee
 	../../blender/editors/include
 	../../blender/gpu
 	../../blender/imbuf
+	../../blender/makesrna
 	../../blender/makesdna
 	../../blender/python
 	../../blender/python/generic
+	../../blender/render/extern/include
 	../../../intern/ffmpeg
 	../../../intern/glew-mx
 	../../../intern/guardedalloc

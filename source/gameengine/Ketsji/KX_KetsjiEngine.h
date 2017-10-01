@@ -49,7 +49,7 @@ class KX_ISystem;
 class KX_BlenderConverter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
-class RAS_OffScreen;
+struct GPUFrameBuffer;
 class SCA_IInputDevice;
 
 enum class KX_ExitRequest
@@ -129,9 +129,9 @@ private:
 	/// Data used to render a frame.
 	struct FrameRenderData
 	{
-		FrameRenderData(RAS_Rasterizer::OffScreenType ofsType);
+		FrameRenderData(GPUFrameBufferType fbType);
 
-		RAS_Rasterizer::OffScreenType m_ofsType;
+		GPUFrameBufferType m_fbType;
 		std::vector<SceneRenderData> m_sceneDataList;
 	};
 
@@ -260,7 +260,7 @@ private:
 	/// Compute frame render data per eyes (in case of stereo), scenes and camera.
 	bool GetFrameRenderData(std::vector<FrameRenderData>& frameDataList);
 
-	void RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, RAS_OffScreen *offScreen, unsigned short pass, bool isFirstScene);
+	void RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, GPUFrameBuffer *frameBuffer, unsigned short pass, bool isFirstScene);
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
 	void DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const CameraRenderData& cameraFrameData);
@@ -290,10 +290,10 @@ public:
 	KX_KetsjiEngine(KX_ISystem *system);
 	virtual ~KX_KetsjiEngine();
 
-	RAS_OffScreen *PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
-	RAS_OffScreen *PostRenderEevee(KX_Scene *scene, RAS_OffScreen *inputofs);
+	GPUFrameBuffer *PostRenderScene(KX_Scene *scene, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb);
+	GPUFrameBuffer *PostRenderEevee(KX_Scene *scene, GPUFrameBuffer *inputfb);
 	void EEVEE_lightprobes_refresh_bge(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata, KX_Scene *scene,
-		RAS_Rasterizer *rasty, KX_Camera *cam, RAS_OffScreen *inputofs);
+		RAS_Rasterizer *rasty, KX_Camera *cam, GPUFrameBuffer *inputfb);
 
 	/// set the devices and stuff. the client must take care of creating these
 	void SetInputDevice(SCA_IInputDevice *inputDevice);

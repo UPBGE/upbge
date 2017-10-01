@@ -4,7 +4,7 @@
 #include "BLI_utildefines.h"
 
 extern "C" {
-#  include "DRW_render.h"
+#  include "../draw/intern/DRW_render.h"
 }
 
 RAS_OverrideShader::RAS_OverrideShader(GPUShader *shader)

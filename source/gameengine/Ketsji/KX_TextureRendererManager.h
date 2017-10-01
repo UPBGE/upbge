@@ -35,7 +35,7 @@ class KX_Scene;
 class KX_TextureRenderer;
 
 class RAS_Rasterizer;
-class RAS_OffScreen;
+struct GPUFrameBuffer;
 class RAS_Texture;
 class RAS_Rect;
 
@@ -79,13 +79,13 @@ public:
 
 	/** Execute all the texture renderer.
 	 * \param category The category of renderers to render.
-	 * \param offScreen The off screen bound before rendering the texture renderers.
+	 * \param frameBuffer The off screen bound before rendering the texture renderers.
 	 * \param sceneCamera The scene camera currently rendering the scene, used only in case of
 	 * VIEWPORT_DEPENDENT category.
 	 * \param viewport The viewport render area.
 	 * \param area The windows render area.
 	 */
-	void Render(RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
+	void Render(RendererCategory category, RAS_Rasterizer *rasty, GPUFrameBuffer *frameBuffer,
 				KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
 	/// Merge the content of an other renderer manager, used during lib loading.

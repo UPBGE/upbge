@@ -36,7 +36,7 @@ struct GPUFrameBuffer;
 struct GPUTexture;
 
 /** \brief This class manages an off screen with more than one color textures (sample-able)
- * and an optional depth texture (sample-able), contrary to RAS_OffScreen.
+ * and an optional depth texture (sample-able), contrary to GPUFrameBuffer.
  * This class is created, owned and unique per RAS_2DFilter to avoid implicit invalidation
  * of filter when the off screen is deleted or using an off screen in multiple filter or
  * different scenes.
