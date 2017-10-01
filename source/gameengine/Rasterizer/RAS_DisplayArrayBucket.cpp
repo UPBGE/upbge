@@ -186,7 +186,8 @@ void RAS_DisplayArrayBucket::DestructStorageInfo()
 
 void RAS_DisplayArrayBucket::GenerateAttribLayers()
 {
-	if (!m_mesh) {
+	// Avoid double generation and generation for text material which doesn't use a mesh.
+	if (m_attribLayers.size() > 0 || !m_mesh) {
 		return;
 	}
 

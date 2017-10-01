@@ -236,10 +236,9 @@ void BL_BlenderConverter::InitSceneShaders(const BL_BlenderSceneConverter& conve
 		// Do this after lights are available so materials can use the lights in shaders.
 		mat->InitScene(mergeScene);
 	}
-	for (RAS_MeshObject *meshobj : converter.m_meshobjects) {
-		// Generate mesh to material attribute's layers since the materials are constructed now.
-		meshobj->GenerateAttribLayers();
-	}
+
+	// Generate meshes to materials attribute's layers since the shaders are available.
+	mergeScene->GetBucketManager()->GenerateAttribLayers();
 }
 
 void BL_BlenderConverter::RemoveScene(KX_Scene *scene)
