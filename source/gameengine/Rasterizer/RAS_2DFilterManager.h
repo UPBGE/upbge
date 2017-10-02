@@ -84,6 +84,8 @@ public:
 	/// Get the existing filter for the given pass index.
 	RAS_2DFilter *GetFilterPass(unsigned int passIndex);
 
+	void ApplyToneMap(KX_Scene *scene);
+
 private:
 	RAS_PassTo2DFilter m_filters;
 	RAS_2DFilter *m_toneMapFilter;

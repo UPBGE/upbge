@@ -89,34 +89,57 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 	return (it != m_filters.end()) ? it->second : nullptr;
 }
 
-GPUFrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb, KX_Scene *scene)
+void RAS_2DFilterManager::ApplyToneMap(KX_Scene *scene)
 {
-	if (m_filters.size() == 0 || (scene->GetIsLastScene() && (!m_toneMapFilter || !m_toneMapFilter->GetEnabled())) ||
-		(!scene->GetIsLastScene() && m_toneMapFilter && m_toneMapFilter->GetEnabled())) {
-		/* It's a bit confusing because m_toneMapFilter belongs to
-		 * (RAS_2DFilterManager and the manager belongs) to the scene
-		 * so we had to find a way to add the filter only for
-		 * the last rendered scene (overlay scene) and next, remove
-		 * the other tonemap filter in the first scene */
-		if (!scene->GetIsLastScene() && m_toneMapFilter) {
-			m_toneMapFilter->SetEnabled(false);
-		}
-		if (scene->GetIsLastScene() && (!m_toneMapFilter || !m_toneMapFilter->GetEnabled())) {
-			if (!m_toneMapFilter) {
-				RAS_2DFilterData toneMapData;
-				toneMapData.filterMode = RAS_2DFilterManager::FILTER_TONEMAP;
-				toneMapData.filterPassIndex = m_filters.size() + 1;
-				toneMapData.mipmap = false;
-				m_toneMapFilter = AddFilter(toneMapData);
-			}
-			else {
+	/* We want to apply tonemap filter only to the last scene.
+	 * Else the tonemap is applied twice (or more) and rendered
+	 * color is wrong.
+	 */
+
+	/* First we check if tonemap filter exists */
+	if (m_toneMapFilter) {
+		/* Then we check if the scene is the last */
+		if (scene->GetIsLastScene()) {
+			/* We check also if the tonemap filter is not already enabled */
+			if (!m_toneMapFilter->GetEnabled()) {
+				/* We have to enable it */
 				m_toneMapFilter->SetEnabled(true);
 			}
 		}
+		/* In the case the tonemap filter exists, is enabled,
+		 * but if we are not in last scene, we have to disable it
+		 */
+		else {
+			if (m_toneMapFilter->GetEnabled()) {
+				m_toneMapFilter->SetEnabled(false);
+			}
+		}
+	}
+	/* If tonemap filter doesn't exist in this filter manager (filter manager belongs to KX_Scene) */
+	else if (!m_toneMapFilter) {
+		/* We check if we are in last scene */
+		if (scene->GetIsLastScene()) {
+			/* We create it (creation enables it) */
+			RAS_2DFilterData toneMapData;
+			toneMapData.filterMode = RAS_2DFilterManager::FILTER_TONEMAP;
+			toneMapData.filterPassIndex = m_filters.size() + 1;
+			toneMapData.mipmap = false;
+			m_toneMapFilter = AddFilter(toneMapData);
+		}
+	}
+}
+
+GPUFrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb, KX_Scene *scene)
+{
+	/* Apply tonemap filter only to the last scene */
+	ApplyToneMap(scene);
+
+	if (m_filters.size() == 0) {
 		// No filters, discard.
 		return inputfb;
 	}
 
+	/* Set ogl states */
 	rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_DISABLED);
