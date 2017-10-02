@@ -34,12 +34,45 @@
 
 #include "MT_Vector2.h"
 
+/* eevee utils (put this in master class so it
+ * can be used both in RAS_OpenGLLight and
+ * KX_KetsjiEngine
+ */
+#define LERP(t, a, b) ((a) + (t) * ((b) - (a)))
+#define MAX_CASCADE_NUM 4
+
+typedef struct EEVEE_LightData {
+	short light_id, shadow_id;
+} EEVEE_LightData;
+
+typedef struct EEVEE_ShadowCubeData {
+	short light_id, shadow_id, cube_id, layer_id;
+} EEVEE_ShadowCubeData;
+
+typedef struct EEVEE_ShadowCascadeData {
+	short light_id, shadow_id, cascade_id, layer_id;
+	float viewprojmat[MAX_CASCADE_NUM][4][4]; /* World->Lamp->NDC : used for rendering the shadow map. */
+	float radius[MAX_CASCADE_NUM];
+} EEVEE_ShadowCascadeData;
+/* end of eevee utils */
+
 class RAS_Rasterizer;
+class RAS_SceneLayerData;
+
 class MT_Vector3;
 class MT_Transform;
 class MT_Matrix4x4;
 class MT_Matrix3x3;
-class RAS_SceneLayerData;
+
+/* Note about these KX in RAS file:
+ * I don't think it's abnormal to keep
+ * KX here as RAS_ILightObject is used
+ * both in RAS_OpenGLLight and KX_KetsjiEngine
+ * (youle)
+ */
+class KX_LightObject;
+class KX_Scene;
+
 struct EEVEE_Light;
 struct EEVEE_LampsInfo;
 struct EEVEE_LampEngineData;
@@ -108,11 +141,10 @@ public:
 	virtual MT_Matrix4x4 GetViewMat() = 0;
 	virtual MT_Matrix4x4 GetWinMat() = 0;
 	virtual int GetShadowLayer() = 0;
-	virtual void BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, Object *ob, EEVEE_LampsInfo *linfo,
-		EEVEE_LampEngineData *led, RAS_SceneLayerData *layerData, int shadowid) = 0;
-	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerData *layerData, int shadowid) = 0;
+	virtual void UpdateLight(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led) = 0;
+	virtual void UpdateShadowsCube(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led) = 0;
+	virtual void UpdateShadowsCascade(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led, KX_Scene *scene) = 0;
 	virtual Image *GetTextureImage(short texslot) = 0;
-	virtual void Update(EEVEE_Light& lightData, int shadowid, const MT_Matrix3x3& rot, const MT_Vector3& pos, const MT_Vector3& scale) = 0;
 };
 
 #endif  /* __RAS_LIGHTOBJECT_H__ */

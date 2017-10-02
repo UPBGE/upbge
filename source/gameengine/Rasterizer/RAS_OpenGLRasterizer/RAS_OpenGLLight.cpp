@@ -34,6 +34,9 @@
 #include "RAS_Rasterizer.h"
 #include "RAS_SceneLayerData.h"
 
+#include "KX_Light.h"
+#include "KX_Camera.h"
+
 #include "BLI_math.h"
 
 extern "C" {
@@ -46,156 +49,71 @@ RAS_OpenGLLight::RAS_OpenGLLight()
 
 RAS_OpenGLLight::~RAS_OpenGLLight()
 {
-	/*GPULamp *lamp;
-	KX_LightObject *kxlight = (KX_LightObject *)m_light;
-	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
-
-	if ((lamp = GetGPULamp())) {
-		float obmat[4][4] = {{0}};
-		GPU_lamp_update(lamp, 0, 0, obmat);
-		GPU_lamp_update_distance(lamp, la->dist, la->att1, la->att2, la->coeff_const, la->coeff_lin, la->coeff_quad);
-		GPU_lamp_update_spot(lamp, la->spotsize, la->spotblend);
-	}*/
 }
 
-void RAS_OpenGLLight::Update(EEVEE_Light& lightData, int shadowid, const MT_Matrix3x3& rot, const MT_Vector3& pos, const MT_Vector3& scale)
+/***********************EEVEE SHADOWS SYSTEM************************/
+
+/* Update buffer with lamp data */
+static void eevee_light_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led)
 {
-#if 0
-	KX_Scene *lightscene = (KX_Scene *)m_scene;
-	KX_LightObject *kxlight = (KX_LightObject *)m_light;
-	float vec[4];
-	int scenelayer = +//0-0;
+	/* TODO only update if data changes */
+	EEVEE_LightData *evld = (EEVEE_LightData *)led->storage;
+	EEVEE_Light *evli = linfo->light_data + evld->light_id;
+	Object *ob = kxlight->GetBlenderObject();
+	Lamp *la = (Lamp *)ob->data;
+	float mat[4][4], scale[3], power, obmat[4][4];
 
-	if (kxscene && kxscene->GetBlenderScene())
-		scenelayer = kxscene->GetBlenderScene()->lay;
-
-	/* only use lights in the same layer as the object */
-	if (!(m_layer & oblayer))
-		return false;
-	/* only use lights in the same scene, and in a visible layer */
-	if (kxscene != lightscene || !(m_layer & scenelayer))
-		return false;
-
-	// lights don't get their openGL matrix updated, do it now
-	if (kxlight->GetSGNode()->IsDirty())
-		kxlight->GetOpenGLMatrix();
-
-	MT_CmMatrix4x4& worldmatrix = *kxlight->GetOpenGLMatrixPtr();
-
-	vec[0] = worldmatrix(0, 3);
-	vec[1] = worldmatrix(1, 3);
-	vec[2] = worldmatrix(2, 3);
-	vec[3] = 1.0f;
-
-	if (m_type == RAS_ILightObject::LIGHT_SUN) {
-
-		vec[0] = worldmatrix(0, 2);
-		vec[1] = worldmatrix(1, 2);
-		vec[2] = worldmatrix(2, 2);
-		//vec[0] = base->object->obmat[2][0];
-		//vec[1] = base->object->obmat[2][1];
-		//vec[2] = base->object->obmat[2][2];
-		vec[3] = 0.0f;
-		glLightfv((GLenum)(GL_LIGHT0 +//0 slot), GL_POSITION, vec);
-	}
-	else {
-		//vec[3] = 1.0;
-		glLightfv((GLenum)(GL_LIGHT0 +//0 slot), GL_POSITION, vec);
-		glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_CONSTANT_ATTENUATION, 1.0f);
-		glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_LINEAR_ATTENUATION, m_att1 / m_distance);
-		// without this next line it looks backward compatible.
-		//attennuation still is acceptable
-		glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_QUADRATIC_ATTENUATION, m_att2 / (m_distance * m_distance));
-
-		if (m_type == RAS_ILightObject::LIGHT_SPOT) {
-			vec[0] = -worldmatrix(0, 2);
-			vec[1] = -worldmatrix(1, 2);
-			vec[2] = -worldmatrix(2, 2);
-			//vec[0] = -base->object->obmat[2][0];
-			//vec[1] = -base->object->obmat[2][1];
-			//vec[2] = -base->object->obmat[2][2];
-			glLightfv((GLenum)(GL_LIGHT0 +//0 slot), GL_SPOT_DIRECTION, vec);
-			glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_SPOT_CUTOFF, m_spotsize / 2.0f);
-			glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_SPOT_EXPONENT, 128.0f * m_spotblend);
-		}
-		else {
-			glLightf((GLenum)(GL_LIGHT0 +//0 slot), GL_SPOT_CUTOFF, 180.0f);
-		}
-	}
-
-	if (m_nodiffuse) {
-		vec[0] = vec[1] = vec[2] = vec[3] = 0.0f;
-	}
-	else {
-		vec[0] = m_energy * m_color[0];
-		vec[1] = m_energy * m_color[1];
-		vec[2] = m_energy * m_color[2];
-		vec[3] = 1.0f;
-	}
-
-	glLightfv((GLenum)(GL_LIGHT0 +//0 slot), GL_DIFFUSE, vec);
-	if (m_nospecular) {
-		vec[0] = vec[1] = vec[2] = vec[3] = 0.0f;
-	}
-	else if (m_nodiffuse) {
-		vec[0] = m_energy * m_color[0];
-		vec[1] = m_energy * m_color[1];
-		vec[2] = m_energy * m_color[2];
-		vec[3] = 1.0f;
-	}
-
-	glLightfv((GLenum)(GL_LIGHT0 +//0 slot), GL_SPECULAR, vec);
-	glEnable((GLenum)(GL_LIGHT0 +//0 slot));
-#endif
-
-// 	GPULamp *lamp = GetGPULamp();
-// 	KX_LightObject *kxlight = (KX_LightObject *)m_light;
-
-// 	GPU_lamp_update(lamp, m_layer, hide, obmat);
+	kxlight->NodeGetWorldTransform().getValue(&obmat[0][0]);
 
 	/* Position */
-	pos.getValue(lightData.position);
+	copy_v3_v3(evli->position, obmat[3]);
 
 	/* Color */
-	copy_v3_v3(lightData.color, m_color);
+	copy_v3_v3(evli->color, &la->r);
 
 	/* Influence Radius */
-	lightData.dist = m_distance;
+	evli->dist = la->dist;
 
 	/* Vectors */
-	copy_v3_fl3(lightData.forwardvec, -rot[0][2], -rot[1][2], -rot[2][2]);
-	copy_v3_fl3(lightData.rightvec, rot[0][0], rot[1][0], rot[2][0]);
-	copy_v3_fl3(lightData.upvec, rot[0][1], rot[1][1], rot[2][1]);
+	normalize_m4_m4_ex(mat, obmat, scale);
+	copy_v3_v3(evli->forwardvec, mat[2]);
+	normalize_v3(evli->forwardvec);
+	negate_v3(evli->forwardvec);
+
+	copy_v3_v3(evli->rightvec, mat[0]);
+	normalize_v3(evli->rightvec);
+
+	copy_v3_v3(evli->upvec, mat[1]);
+	normalize_v3(evli->upvec);
 
 	/* Spot size & blend */
-	if (m_type == LIGHT_SPOT) {
-		lightData.sizex = scale[0] / scale[2];
-		lightData.sizey = scale[1] / scale[2];
-		lightData.spotsize = cosf(m_spotsize * 0.5f);
-		lightData.spotblend = (1.0f - lightData.spotsize) * m_spotblend;
-		lightData.radius = max_ff(0.001f, m_areaSize.x());
+	if (la->type == LA_SPOT) {
+		evli->sizex = scale[0] / scale[2];
+		evli->sizey = scale[1] / scale[2];
+		evli->spotsize = cosf(la->spotsize * 0.5f);
+		evli->spotblend = (1.0f - evli->spotsize) * la->spotblend;
+		evli->radius = max_ff(0.001f, la->area_size);
 	}
-	else if (m_type == LIGHT_AREA) {
-		lightData.sizex = max_ff(0.0001f, m_areaSize.x() * scale[0] * 0.5f);
-		if (m_areaShape == AREA_RECT) {
-			lightData.sizey = max_ff(0.0001f, m_areaSize.y() * scale[1] * 0.5f);
+	else if (la->type == LA_AREA) {
+		evli->sizex = max_ff(0.0001f, la->area_size * scale[0] * 0.5f);
+		if (la->area_shape == LA_AREA_RECT) {
+			evli->sizey = max_ff(0.0001f, la->area_sizey * scale[1] * 0.5f);
 		}
 		else {
-			lightData.sizey = max_ff(0.0001f, m_areaSize.x() * scale[1] * 0.5f);
+			evli->sizey = max_ff(0.0001f, la->area_size * scale[1] * 0.5f);
 		}
 	}
 	else {
-		lightData.radius = max_ff(0.001f, m_areaSize.x());
+		evli->radius = max_ff(0.001f, la->area_size);
 	}
 
 	/* Make illumination power constant */
-	float power;
-	if (m_type == LIGHT_AREA) {
-		power = 1.0f / (lightData.sizex * lightData.sizey * 4.0f * M_PI) /* 1/(w*h*Pi) */
+	if (la->type == LA_AREA) {
+		power = 1.0f / (evli->sizex * evli->sizey * 4.0f * M_PI) /* 1/(w*h*Pi) */
 			* 80.0f; /* XXX : Empirical, Fit cycles power */
 	}
-	else if (m_type == LIGHT_SPOT || m_type == LIGHT_NORMAL) {
-		power = 1.0f / (4.0f * lightData.radius * lightData.radius * M_PI * M_PI) /* 1/(4*r+//0*Pi+//0) */
+	else if (la->type == LA_SPOT || la->type == LA_LOCAL) {
+		power = 1.0f / (4.0f * evli->radius * evli->radius * M_PI * M_PI) /* 1/(4*r²*Pi²) */
 			* M_PI * M_PI * M_PI * 10.0; /* XXX : Empirical, Fit cycles power */
 
 		/* for point lights (a.k.a radius == 0.0) */
@@ -204,20 +122,316 @@ void RAS_OpenGLLight::Update(EEVEE_Light& lightData, int shadowid, const MT_Matr
 	else {
 		power = 1.0f;
 	}
-	mul_v3_fl(lightData.color, power * m_energy);
+	mul_v3_fl(evli->color, power * la->energy);
 
 	/* Lamp Type */
-	lightData.lamptype = (float)m_type;
+	evli->lamptype = (float)la->type;
 
-	lightData.shadowid = shadowid;
+	/* No shadow by default */
+	evli->shadowid = -1.0f;
 }
 
-/*GPULamp *RAS_OpenGLLight::GetGPULamp()
+static void eevee_shadow_cube_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led)
 {
-	KX_LightObject *kxlight = (KX_LightObject *)m_light;
+	EEVEE_ShadowCubeData *sh_data = (EEVEE_ShadowCubeData *)led->storage;
+	EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
+	EEVEE_Shadow *ubo_data = linfo->shadow_data + sh_data->shadow_id;
+	EEVEE_ShadowCube *cube_data = linfo->shadow_cube_data + sh_data->cube_id;
+	Object *ob = kxlight->GetBlenderObject();
+	Lamp *la = (Lamp *)ob->data;
 
-	return GPU_lamp_from_blender(kxlight->GetScene()->GetBlenderScene(), kxlight->GetBlenderObject(), kxlight->GetBlenderGroupObject());
-}*/
+	float obmat[4][4];
+	kxlight->NodeGetWorldTransform().getValue(&obmat[0][0]);
+
+	int sh_nbr = 1; /* TODO: MSM */
+
+	for (int i = 0; i < sh_nbr; ++i) {
+		/* TODO : choose MSM sample point here. */
+		copy_v3_v3(cube_data->position, obmat[3]);
+	}
+
+	ubo_data->bias = 0.05f * la->bias;
+	ubo_data->nearf = la->clipsta;
+	ubo_data->farf = la->clipend;
+	ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
+
+	evli->shadowid = (float)(sh_data->shadow_id);
+	ubo_data->shadow_start = (float)(sh_data->layer_id);
+	ubo_data->data_start = (float)(sh_data->cube_id);
+	ubo_data->multi_shadow_count = (float)(sh_nbr);
+}
+
+static void frustum_min_bounding_sphere(const float corners[8][4], float r_center[3], float *r_radius)
+{
+#if 0 /* Simple solution but waist too much space. */
+	float minvec[3], maxvec[3];
+
+	/* compute the bounding box */
+	INIT_MINMAX(minvec, maxvec);
+	for (int i = 0; i < 8; ++i)	{
+		minmax_v3v3_v3(minvec, maxvec, corners[i]);
+	}
+
+	/* compute the bounding sphere of this box */
+	r_radius = len_v3v3(minvec, maxvec) * 0.5f;
+	add_v3_v3v3(r_center, minvec, maxvec);
+	mul_v3_fl(r_center, 0.5f);
+#else
+	/* Make the bouding sphere always centered on the front diagonal */
+	add_v3_v3v3(r_center, corners[4], corners[7]);
+	mul_v3_fl(r_center, 0.5f);
+	*r_radius = len_v3v3(corners[0], r_center);
+
+	/* Search the largest distance between the sphere center
+	* and the front plane corners. */
+	for (int i = 0; i < 4; ++i) {
+		float rad = len_v3v3(corners[4 + i], r_center);
+		if (rad > *r_radius) {
+			*r_radius = rad;
+		}
+	}
+#endif
+}
+
+static void eevee_shadow_cascade_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led, KX_Scene *scene)
+{
+	Object *ob = kxlight->GetBlenderObject();
+	Lamp *la = (Lamp *)ob->data;
+
+	float obmat[4][4];
+	kxlight->NodeGetWorldTransform().getValue(&obmat[0][0]);
+
+	/* Camera Matrices */
+	float persmat[4][4], persinv[4][4];
+	float viewprojmat[4][4], projinv[4][4];
+	float view_near, view_far;
+	float near_v[4] = { 0.0f, 0.0f, -1.0f, 1.0f };
+	float far_v[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
+	bool is_persp = DRW_viewport_is_persp_get();
+
+	KX_Camera *cam = scene->GetActiveCamera();
+
+	MT_Matrix4x4 proj(cam->GetProjectionMatrix());
+	MT_Matrix4x4 mvp(proj * cam->GetModelviewMatrix());
+
+	proj.getValue(&persmat[0][0]);
+
+	invert_m4_m4(persinv, persmat);
+	/* FIXME : Get near / far from Draw manager? */
+
+	mvp.getValue(&viewprojmat[0][0]);
+
+	invert_m4_m4(projinv, viewprojmat);
+	mul_m4_v4(projinv, near_v);
+	mul_m4_v4(projinv, far_v);
+	view_near = near_v[2];
+	view_far = far_v[2]; /* TODO: Should be a shadow parameter */
+	if (is_persp) {
+		view_near /= near_v[3];
+		view_far /= far_v[3];
+	}
+
+	/* Lamps Matrices */
+	float viewmat[4][4], projmat[4][4];
+	int sh_nbr = 1; /* TODO : MSM */
+	int cascade_nbr = la->cascade_count;
+
+	EEVEE_ShadowCascadeData *sh_data = (EEVEE_ShadowCascadeData *)led->storage;
+	EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
+	EEVEE_Shadow *ubo_data = linfo->shadow_data + sh_data->shadow_id;
+	EEVEE_ShadowCascade *cascade_data = linfo->shadow_cascade_data + sh_data->cascade_id;
+
+	/* The technique consists into splitting
+	* the view frustum into several sub-frustum
+	* that are individually receiving one shadow map */
+
+	float csm_start, csm_end;
+
+	if (is_persp) {
+		csm_start = view_near;
+		csm_end = max_ff(view_far, -la->cascade_max_dist);
+		/* Avoid artifacts */
+		csm_end = min_ff(view_near, csm_end);
+	}
+	else {
+		csm_start = -view_far;
+		csm_end = view_far;
+	}
+
+	/* init near/far */
+	for (int c = 0; c < MAX_CASCADE_NUM; ++c) {
+		cascade_data->split_start[c] = csm_end;
+		cascade_data->split_end[c] = csm_end;
+	}
+
+	/* Compute split planes */
+	float splits_start_ndc[MAX_CASCADE_NUM];
+	float splits_end_ndc[MAX_CASCADE_NUM];
+
+	{
+		/* Nearest plane */
+		float p[4] = { 1.0f, 1.0f, csm_start, 1.0f };
+		/* TODO: we don't need full m4 multiply here */
+		mul_m4_v4(viewprojmat, p);
+		splits_start_ndc[0] = p[2];
+		if (is_persp) {
+			splits_start_ndc[0] /= p[3];
+		}
+	}
+
+	{
+		/* Farthest plane */
+		float p[4] = { 1.0f, 1.0f, csm_end, 1.0f };
+		/* TODO: we don't need full m4 multiply here */
+		mul_m4_v4(viewprojmat, p);
+		splits_end_ndc[cascade_nbr - 1] = p[2];
+		if (is_persp) {
+			splits_end_ndc[cascade_nbr - 1] /= p[3];
+		}
+	}
+
+	cascade_data->split_start[0] = csm_start;
+	cascade_data->split_end[cascade_nbr - 1] = csm_end;
+
+	for (int c = 1; c < cascade_nbr; ++c) {
+		/* View Space */
+		float linear_split = LERP(((float)(c) / (float)cascade_nbr), csm_start, csm_end);
+		float exp_split = csm_start * powf(csm_end / csm_start, (float)(c) / (float)cascade_nbr);
+
+		if (is_persp) {
+			cascade_data->split_start[c] = LERP(la->cascade_exponent, linear_split, exp_split);
+		}
+		else {
+			cascade_data->split_start[c] = linear_split;
+		}
+		cascade_data->split_end[c - 1] = cascade_data->split_start[c];
+
+		/* Add some overlap for smooth transition */
+		cascade_data->split_start[c] = LERP(la->cascade_fade, cascade_data->split_end[c - 1],
+			(c > 1) ? cascade_data->split_end[c - 2] : cascade_data->split_start[0]);
+
+		/* NDC Space */
+		{
+			float p[4] = { 1.0f, 1.0f, cascade_data->split_start[c], 1.0f };
+			/* TODO: we don't need full m4 multiply here */
+			mul_m4_v4(viewprojmat, p);
+			splits_start_ndc[c] = p[2];
+
+			if (is_persp) {
+				splits_start_ndc[c] /= p[3];
+			}
+		}
+
+		{
+			float p[4] = { 1.0f, 1.0f, cascade_data->split_end[c - 1], 1.0f };
+			/* TODO: we don't need full m4 multiply here */
+			mul_m4_v4(viewprojmat, p);
+			splits_end_ndc[c - 1] = p[2];
+
+			if (is_persp) {
+				splits_end_ndc[c - 1] /= p[3];
+			}
+		}
+	}
+
+	/* Set last cascade split fade distance into the first split_start. */
+	float prev_split = (cascade_nbr > 1) ? cascade_data->split_end[cascade_nbr - 2] : cascade_data->split_start[0];
+	cascade_data->split_start[0] = LERP(la->cascade_fade, cascade_data->split_end[cascade_nbr - 1], prev_split);
+
+	/* For each cascade */
+	for (int c = 0; c < cascade_nbr; ++c) {
+		/* Given 8 frustum corners */
+		float corners[8][4] = {
+			/* Near Cap */
+			{ -1.0f, -1.0f, splits_start_ndc[c], 1.0f },
+			{ 1.0f, -1.0f, splits_start_ndc[c], 1.0f },
+			{ -1.0f, 1.0f, splits_start_ndc[c], 1.0f },
+			{ 1.0f, 1.0f, splits_start_ndc[c], 1.0f },
+			/* Far Cap */
+			{ -1.0f, -1.0f, splits_end_ndc[c], 1.0f },
+			{ 1.0f, -1.0f, splits_end_ndc[c], 1.0f },
+			{ -1.0f, 1.0f, splits_end_ndc[c], 1.0f },
+			{ 1.0f, 1.0f, splits_end_ndc[c], 1.0f }
+		};
+
+		/* Transform them into world space */
+		for (int i = 0; i < 8; ++i)	{
+			mul_m4_v4(persinv, corners[i]);
+			mul_v3_fl(corners[i], 1.0f / corners[i][3]);
+			corners[i][3] = 1.0f;
+		}
+
+
+		/* Project them into light space */
+		invert_m4_m4(viewmat, obmat);
+		normalize_v3(viewmat[0]);
+		normalize_v3(viewmat[1]);
+		normalize_v3(viewmat[2]);
+
+		for (int i = 0; i < 8; ++i)	{
+			mul_m4_v4(viewmat, corners[i]);
+		}
+
+		float center[3];
+		frustum_min_bounding_sphere(corners, center, &(sh_data->radius[c]));
+
+		/* Snap projection center to nearest texel to cancel shimmering. */
+		float shadow_origin[2], shadow_texco[2];
+		mul_v2_v2fl(shadow_origin, center, linfo->shadow_size / (2.0f * sh_data->radius[c])); /* Light to texture space. */
+
+		/* Find the nearest texel. */
+		shadow_texco[0] = round(shadow_origin[0]);
+		shadow_texco[1] = round(shadow_origin[1]);
+
+		/* Compute offset. */
+		sub_v2_v2(shadow_texco, shadow_origin);
+		mul_v2_fl(shadow_texco, (2.0f * sh_data->radius[c]) / linfo->shadow_size); /* Texture to light space. */
+
+		/* Apply offset. */
+		add_v2_v2(center, shadow_texco);
+
+		/* Expand the projection to cover frustum range */
+		orthographic_m4(projmat,
+			center[0] - sh_data->radius[c],
+			center[0] + sh_data->radius[c],
+			center[1] - sh_data->radius[c],
+			center[1] + sh_data->radius[c],
+			la->clipsta, la->clipend);
+
+		mul_m4_m4m4(sh_data->viewprojmat[c], projmat, viewmat);
+		mul_m4_m4m4(cascade_data->shadowmat[c], texcomat, sh_data->viewprojmat[c]);
+	}
+
+	ubo_data->bias = 0.05f * la->bias;
+	ubo_data->nearf = la->clipsta;
+	ubo_data->farf = la->clipend;
+	ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
+
+	evli->shadowid = (float)(sh_data->shadow_id);
+	ubo_data->shadow_start = (float)(sh_data->layer_id);
+	ubo_data->data_start = (float)(sh_data->cascade_id);
+	ubo_data->multi_shadow_count = (float)(sh_nbr);
+}
+
+void RAS_OpenGLLight::UpdateLight(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led)
+{
+	eevee_light_setup(kxlight, linfo, led);
+}
+
+void RAS_OpenGLLight::UpdateShadowsCube(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led)
+{
+	eevee_shadow_cube_setup(kxlight, linfo, led);
+}
+
+void RAS_OpenGLLight::UpdateShadowsCascade(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led, KX_Scene *scene)
+{
+	eevee_shadow_cascade_setup(kxlight, linfo, led, scene);
+}
+
+RAS_OpenGLLight *RAS_OpenGLLight::Clone()
+{
+	return new RAS_OpenGLLight(*this);
+}
 
 bool RAS_OpenGLLight::HasShadow() const
 {
@@ -235,159 +449,31 @@ bool RAS_OpenGLLight::NeedShadowUpdate()
 
 int RAS_OpenGLLight::GetShadowBindCode()
 {
-	/*GPULamp *lamp;
-	
-	if ((lamp = GetGPULamp()))
-		return GPU_lamp_shadow_bind_code(lamp);*/
 	return -1;
 }
 
 MT_Matrix4x4 RAS_OpenGLLight::GetViewMat()
 {
-	/*GPULamp *lamp = GetGPULamp();
-	if (lamp) {
-		return MT_Matrix4x4(GPU_lamp_get_viewmat(lamp));
-	}*/
 	return MT_Matrix4x4::Identity();
 }
 
 MT_Matrix4x4 RAS_OpenGLLight::GetWinMat()
 {
-	/*GPULamp *lamp = GetGPULamp();
-	if (lamp) {
-		return MT_Matrix4x4(GPU_lamp_get_winmat(lamp));
-	}*/
 	return MT_Matrix4x4::Identity();
 }
 
 MT_Matrix4x4 RAS_OpenGLLight::GetShadowMatrix()
 {
-	/*GPULamp *lamp;
-
-	if ((lamp = GetGPULamp()))
-		return MT_Matrix4x4(GPU_lamp_dynpersmat(lamp));*/
 	return MT_Matrix4x4::Identity();
 }
 
 int RAS_OpenGLLight::GetShadowLayer()
 {
-	/*GPULamp *lamp;
-
-	if ((lamp = GetGPULamp()))
-		return GPU_lamp_shadow_layer(lamp);
-	else*/
-		return 0;
-}
-
-typedef struct EEVEE_ShadowCubeData {
-	short light_id, shadow_id, cube_id, layer_id;
-} EEVEE_ShadowCubeData;
-
-void RAS_OpenGLLight::BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, Object *ob, EEVEE_LampsInfo *linfo,
-	EEVEE_LampEngineData *led, RAS_SceneLayerData *layerData, int shadowid)
-{
-	/**********************************************************************************************/
-	Lamp *la = (Lamp *)ob->data;
-	EEVEE_ShadowRender& srd = layerData->GetShadowRender();
-
-	srd.clip_near = la->clipsta;
-	srd.clip_far = la->clipend;
-
-	float projmat[4][4];
-	perspective_m4(projmat, -m_shadowclipstart, m_shadowclipstart, -m_shadowclipstart, m_shadowclipstart,
-		m_shadowclipstart, m_shadowclipend);
-	const MT_Matrix4x4 proj = MT_Matrix4x4(&projmat[0][0]);
-
-	MT_Matrix4x4 view[6];
-	const MT_Matrix4x4 tmp(1.0f, 0.0f, 0.0f, -pos.x(),
-		0.0f, 1.0f, 0.0f, -pos.y(),
-		0.0f, 0.0f, 1.0f, -pos.z(),
-		0.0f, 0.0f, 0.0f, 1.0f);
-
-	for (int i = 0; i < 6; ++i) {
-		view[i] = MT_Matrix4x4(&cubefacemat[i][0][0]) * tmp;
-	}
-	pos.getValue(srd.position);
-	for (int j = 0; j < 6; j++) {
-		view[j].getValue(&srd.viewmat[j][0][0]);
-		(proj * view[j]).getValue(&srd.shadowmat[j][0][0]);
-	}
-
-	/*******************************************************************/
-	EEVEE_ShadowCubeData *sh_data = (EEVEE_ShadowCubeData *)led->storage;
-	EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
-	EEVEE_Shadow *ubo_data = linfo->shadow_data + sh_data->shadow_id;
-	EEVEE_ShadowCube *cube_data = &layerData->GetShadowCube(sh_data->shadow_id);
-
-	int sh_nbr = 1; /* TODO: MSM */
-
-	for (int i = 0; i < sh_nbr; ++i) {
-		/* TODO : choose MSM sample point here. */
-		pos.getValue(cube_data->position);// copy_v3_v3(cube_data->position, ob->obmat[3]);
-	}
-
-	ubo_data->bias = 0.05f * la->bias;
-	ubo_data->nearf = la->clipsta;
-	ubo_data->farf = la->clipend;
-	ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
-
-	evli->shadowid = (float)(sh_data->shadow_id);
-	ubo_data->shadow_start = (float)(sh_data->layer_id);
-	ubo_data->data_start = (float)(sh_data->cube_id);
-	ubo_data->multi_shadow_count = (float)(sh_nbr);
-
-	rasty->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-
-	layerData->PrepareShadowRender();
-}
-
-void RAS_OpenGLLight::UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerData *layerData, int shadowid)
-{
-	layerData->PrepareShadowStore(shadowid);
-
-	rasty->DrawOverlayPlane();
-
-	DRW_framebuffer_texture_detach(layerData->GetData().shadow_cube_target);
-
-// 	m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_NONE);
-
-	rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-
-	m_requestShadowUpdate = false;
+	return 0;
 }
 
 Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 {
-	/*KX_LightObject *kxlight = (KX_LightObject *)m_light;
-	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
-
-	if (texslot >= MAX_MTEX || texslot < 0) {
-		printf("KX_LightObject::GetTextureImage(): texslot exceeds slot bounds (0-%d)+//0-n", MAX_MTEX - 1);
-		return nullptr;
-	}
-
-	if (la->mtex[texslot])
-		return la->mtex[texslot]->tex->ima;*/
-
 	return nullptr;
 }
-
-/*void RAS_OpenGLLight::Update()
-{
-	GPULamp *lamp;
-	KX_LightObject *kxlight = (KX_LightObject *)m_light;
-
-	if ((lamp = GetGPULamp()) != nullptr && kxlight->GetSGNode()) {
-		float obmat[4][4];
-		const MT_Transform trans = kxlight->NodeGetWorldTransform();
-		trans.getValue(&obmat[0][0]);
-
-		int hide = kxlight->GetVisible() ? 0 : 1;
-		GPU_lamp_update(lamp, m_layer, hide, obmat);
-		GPU_lamp_update_colors(lamp, m_color[0], m_color[1],
-		                       m_color[2], m_energy);
-		GPU_lamp_update_distance(lamp, m_distance, m_att1, m_att2, m_coeff_const, m_coeff_lin, m_coeff_quad);
-		GPU_lamp_update_spot(lamp, m_spotsize, m_spotblend);
-	}
-}*/
 

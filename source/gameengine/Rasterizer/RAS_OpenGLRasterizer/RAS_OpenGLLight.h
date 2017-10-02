@@ -27,24 +27,14 @@
 
 #include "RAS_ILightObject.h"
 
-struct GPULamp;
-struct Image;
-struct DRWShadingGroup;
-
 class RAS_OpenGLLight : public RAS_ILightObject
 {
-// 	GPULamp *GetGPULamp();
-
-	DRWShadingGroup *m_shGroup;
 
 public:
 	RAS_OpenGLLight();
 	virtual ~RAS_OpenGLLight();
 
-	RAS_OpenGLLight *Clone()
-	{
-		return new RAS_OpenGLLight(*this);
-	}
+	RAS_OpenGLLight *Clone();
 
 	virtual bool HasShadow() const;
 	virtual bool NeedShadowUpdate();
@@ -53,10 +43,10 @@ public:
 	virtual MT_Matrix4x4 GetWinMat();
 	virtual MT_Matrix4x4 GetShadowMatrix();
 	virtual int GetShadowLayer();
-	virtual void BindShadowBuffer(RAS_Rasterizer *rasty, const MT_Vector3& pos, Object *ob, EEVEE_LampsInfo *linfo,
-		EEVEE_LampEngineData *led, RAS_SceneLayerData *layerData, int shadowid);
-	virtual void UnbindShadowBuffer(RAS_Rasterizer *rasty, RAS_SceneLayerData *layerData, int shadowid);
+	virtual void UpdateLight(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led);
+	virtual void UpdateShadowsCube(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led);
+	virtual void UpdateShadowsCascade(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led, KX_Scene *scene);
 	virtual Image *GetTextureImage(short texslot);
-	virtual void Update(EEVEE_Light& lightData, int shadowid, const MT_Matrix3x3& rot, const MT_Vector3& pos, const MT_Vector3& scale);
 	void SetShadowUpdateState(short state);
+
 };
