@@ -133,19 +133,21 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 				DRW_TEX_RGBA_32 // RAS_HDR_FULL_FLOAT
 			};
 
+			GPUFrameBuffer *fb = nullptr;
 			GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, dataTypeEnums[m_hdr], DRW_TEX_FILTER, nullptr);
 			DRWFboTexture fbtex = { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) };
-			DRW_framebuffer_init(&m_frameBuffers[type], &draw_engine_eevee_type,
+			DRW_framebuffer_init(&fb, &draw_engine_eevee_type,
 				m_width, m_height, &fbtex, 1);
-			GPU_framebuffer_set_bge_type(m_frameBuffers[type], GPU_FRAMEBUFFER_EYE_LEFT0);
-			/*GPUFrameBuffer *ofs = new GPUFrameBuffer(m_width, m_height, sampleofs ? samples : 0, dataTypeEnums[m_hdr], mode, nullptr, type);
-			if (!ofs->GetValid()) {
-				delete ofs;
+			GPU_framebuffer_set_bge_type(fb, GPU_FRAMEBUFFER_EYE_LEFT0);
+			
+			if (!fb) {
+				GPU_framebuffer_free(fb);
 				continue;
-			}*/
+			}
 
 			//m_frameBuffers[type].reset(ofs);
-			m_samples = 0;// samples;
+			m_frameBuffers[type] = fb;
+			m_samples = samples;
 			break;
 		}
 
@@ -155,8 +157,8 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 		if (lastFrameBuffer) {
 			DRW_framebuffer_bind(lastFrameBuffer);
 		}
+		
 	}
-
 	return m_frameBuffers[type];
 }
 
