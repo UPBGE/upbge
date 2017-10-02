@@ -82,6 +82,7 @@ RAS_Rasterizer::FrameBuffers::FrameBuffers()
 	for (int i = 0; i < GPU_FRAMEBUFFER_MAX; i++) {
 		m_colorTextureList[i] = nullptr;
 		m_depthTextureList[i] = nullptr;
+		m_frameBuffers[i] = nullptr;
 	}
 }
 

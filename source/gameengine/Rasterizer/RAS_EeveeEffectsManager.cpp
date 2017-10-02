@@ -44,7 +44,10 @@ RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas
 m_canvas(canvas),
 m_props(props),
 m_scene(scene),
-m_dofInitialized(false)
+m_dofInitialized(false),
+m_bloomTarget(nullptr),
+m_blurTarget(nullptr),
+m_dofTarget(nullptr)
 {
 	m_stl = vedata->stl;
 	m_psl = vedata->psl;

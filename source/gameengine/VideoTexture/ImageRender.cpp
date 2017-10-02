@@ -83,6 +83,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_owncamera(false),
     m_samples(samples),
     m_finalFb(nullptr),
+    m_frameBuffer(nullptr),
     m_sync(nullptr),
     m_observer(nullptr),
     m_mirror(nullptr),
