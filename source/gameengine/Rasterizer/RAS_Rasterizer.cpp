@@ -138,12 +138,12 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 			DRWFboTexture fbtex = { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) };
 			DRW_framebuffer_init(&fb, &draw_engine_eevee_type,
 				m_width, m_height, &fbtex, 1);
-			GPU_framebuffer_set_bge_type(fb, GPU_FRAMEBUFFER_EYE_LEFT0);
 			
 			if (!fb) {
 				GPU_framebuffer_free(fb);
 				continue;
 			}
+			GPU_framebuffer_set_bge_type(fb, GPU_FRAMEBUFFER_EYE_LEFT0);
 
 			//m_frameBuffers[type].reset(ofs);
 			m_frameBuffers[type] = fb;
@@ -157,7 +157,6 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 		if (lastFrameBuffer) {
 			DRW_framebuffer_bind(lastFrameBuffer);
 		}
-		
 	}
 	return m_frameBuffers[type];
 }

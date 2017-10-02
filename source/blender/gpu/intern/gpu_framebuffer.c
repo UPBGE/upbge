@@ -730,12 +730,12 @@ void GPU_framebuffer_recursive_downsample(
 
 int GPU_framebuffer_color_bindcode(const GPUFrameBuffer *fb)
 {
-	return GPU_texture_opengl_bindcode(fb->colortex);
+	return GPU_texture_opengl_bindcode(fb->colortex[0]);
 }
 
 GPUTexture *GPU_framebuffer_color_texture(const GPUFrameBuffer *fb)
 {
-	return fb->colortex;
+	return fb->colortex[0];
 }
 
 GPUTexture *GPU_framebuffer_depth_texture(const GPUFrameBuffer *fb)
