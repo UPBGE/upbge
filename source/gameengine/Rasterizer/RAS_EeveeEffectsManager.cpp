@@ -52,29 +52,29 @@ m_dofInitialized(false)
 	m_fbl = vedata->fbl;
 	m_effects = m_stl->effects;
 
-	static const GPUTextureFormat dataTypeEnums[] = {
-		GPU_R11F_G11F_B10F, // RAS_HDR_NONE
-		GPU_RGBA16F, // RAS_HDR_HALF_FLOAT
-		GPU_RGBA32F // RAS_HDR_FULL_FLOAT
+	static const DRWTextureFormat dataTypeEnums[] = {
+		DRW_TEX_RGB_11_11_10, // RAS_HDR_NONE
+		DRW_TEX_RGBA_16, // RAS_HDR_HALF_FLOAT
+		DRW_TEX_RGBA_32 // RAS_HDR_FULL_FLOAT
 	};
 
 	// Bloom
-	GPUTexture *bloomtex = DRW_texture_create_2D(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);
-	DRWFboTexture fbbloomtex = { &bloomtex, m_canvas->GetHdrType(), DRWTextureFlag(DRW_TEX_FILTER) };
+	GPUTexture *bloomtex = DRW_texture_create_2D(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, dataTypeEnums[m_canvas->GetHdrType()], DRW_TEX_FILTER, nullptr);
+	DRWFboTexture fbbloomtex = { &bloomtex, dataTypeEnums[m_canvas->GetHdrType()], DRWTextureFlag(DRW_TEX_FILTER) };
 	DRW_framebuffer_init(&m_bloomTarget, &draw_engine_eevee_type,
 		m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, &fbbloomtex, 1);
 
 	// Camera Motion Blur
 	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 	m_effects->motion_blur_samples = BKE_collection_engine_property_value_get_int(m_props, "motion_blur_samples");
-	GPUTexture *blurtex = DRW_texture_create_2D(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);
-	DRWFboTexture fbblurtex = { &blurtex, m_canvas->GetHdrType(), DRWTextureFlag(DRW_TEX_FILTER) };
+	GPUTexture *blurtex = DRW_texture_create_2D(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, dataTypeEnums[m_canvas->GetHdrType()], DRW_TEX_FILTER, nullptr);
+	DRWFboTexture fbblurtex = { &blurtex, dataTypeEnums[m_canvas->GetHdrType()], DRWTextureFlag(DRW_TEX_FILTER) };
 	DRW_framebuffer_init(&m_blurTarget, &draw_engine_eevee_type,
 		m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, &fbblurtex, 1);
 
 	// Depth of field
-	GPUTexture *doftex = DRW_texture_create_2D(m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);;
-	DRWFboTexture fbdoftex = { &doftex, m_canvas->GetHdrType(), DRWTextureFlag(DRW_TEX_FILTER) };
+	GPUTexture *doftex = DRW_texture_create_2D(m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2, dataTypeEnums[m_canvas->GetHdrType()], DRW_TEX_FILTER, nullptr);
+	DRWFboTexture fbdoftex = { &doftex, dataTypeEnums[m_canvas->GetHdrType()], DRWTextureFlag(DRW_TEX_FILTER) };
 	DRW_framebuffer_init(&m_dofTarget, &draw_engine_eevee_type,
 		m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2, &fbdoftex, 1);
 

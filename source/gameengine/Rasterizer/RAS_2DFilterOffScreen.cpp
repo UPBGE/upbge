@@ -30,6 +30,10 @@
 #include "GPU_framebuffer.h"
 #include "GPU_texture.h"
 
+extern "C" {
+#  include "DRW_render.h"
+}
+
 RAS_2DFilterOffScreen::RAS_2DFilterOffScreen(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height,
 											 RAS_Rasterizer::HdrType hdr)
 	:m_flag(flag),
@@ -74,13 +78,13 @@ void RAS_2DFilterOffScreen::Construct()
 
 		/* WARNING: Always respect the order from RAS_Rasterizer::HdrType.
 		 * RAS_HDR_NONE can use RGBA8 as the tonemapping is applied before the filters. */
-		static const GPUTextureFormat dataTypeEnums[] = {
-			GPU_R11F_G11F_B10F, // RAS_HDR_NONE
-			GPU_RGBA16F, // RAS_HDR_HALF_FLOAT
-			GPU_RGBA32F // RAS_HDR_FULL_FLOAT
+		static const DRWTextureFormat dataTypeEnums[] = {
+			DRW_TEX_RGB_11_11_10, // RAS_HDR_NONE
+			DRW_TEX_RGBA_16, // RAS_HDR_HALF_FLOAT
+			DRW_TEX_RGBA_32 // RAS_HDR_FULL_FLOAT
 		};
 
-		texture = GPU_texture_create_2D_custom(m_width, m_height, 4, dataTypeEnums[m_hdr], 0, nullptr, nullptr);
+		texture = DRW_texture_create_2D(m_width, m_height, dataTypeEnums[m_hdr], DRW_TEX_FILTER, nullptr);
 		if (!GPU_framebuffer_texture_attach(m_frameBuffer, texture, i, 0)) {
 			GPU_texture_free(texture);
 			texture = nullptr;

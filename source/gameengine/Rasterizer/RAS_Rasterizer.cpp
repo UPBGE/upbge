@@ -127,13 +127,13 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 			}*/
 
 			// WARNING: Always respect the order from RAS_Rasterizer::HdrType.
-			static const GPUTextureFormat dataTypeEnums[] = {
-				GPU_R11F_G11F_B10F, // RAS_HDR_NONE
-				GPU_RGBA16F, // RAS_HDR_HALF_FLOAT
-				GPU_RGBA32F // RAS_HDR_FULL_FLOAT
+			static const DRWTextureFormat dataTypeEnums[] = {
+				DRW_TEX_RGB_11_11_10, // RAS_HDR_NONE
+				DRW_TEX_RGBA_16, // RAS_HDR_HALF_FLOAT
+				DRW_TEX_RGBA_32 // RAS_HDR_FULL_FLOAT
 			};
 
-			GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);
+			GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, dataTypeEnums[m_hdr], DRW_TEX_FILTER, nullptr);
 			DRWFboTexture fbtex = { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) };
 			DRW_framebuffer_init(&m_frameBuffers[type], &draw_engine_eevee_type,
 				m_width, m_height, &fbtex, 1);

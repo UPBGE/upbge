@@ -98,22 +98,22 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 
-	GPUTextureFormat type;
+	DRWTextureFormat drwformat;
 	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
-		type = GPU_RGBA16F;
+		drwformat = DRW_TEX_RGBA_16;
 		m_internalFormat = GL_RGBA16F_ARB;
 	}
 	else if (hdr == RAS_Rasterizer::RAS_HDR_FULL_FLOAT) {
-		type = GPU_RGBA32F;
+		drwformat = DRW_TEX_RGBA_32;
 		m_internalFormat = GL_RGBA32F_ARB;
 	}
 	else {
-		type = GPU_RGBA8;
+		drwformat = DRW_TEX_RGBA_8;
 		m_internalFormat = GL_RGBA8;
 	}
 
-	GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);
-	DRWFboTexture fbtex = { &tex, type, DRWTextureFlag(DRW_TEX_FILTER) };
+	GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, drwformat, DRW_TEX_FILTER, nullptr);
+	DRWFboTexture fbtex = { &tex, drwformat, DRWTextureFlag(DRW_TEX_FILTER) };
 	DRW_framebuffer_init(&m_frameBuffer, &draw_engine_eevee_type,
 		m_width, m_height, &fbtex, 1);
 	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_IMRENDER0);
@@ -888,22 +888,22 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
     m_mirror(mirror),
     m_clip(100.f)
 {
-	GPUTextureFormat type;
+	DRWTextureFormat drwformat;
 	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
-		type = GPU_RGBA16F;
+		drwformat = DRW_TEX_RGBA_16;
 		m_internalFormat = GL_RGBA16F_ARB;
 	}
 	else if (hdr == RAS_Rasterizer::RAS_HDR_FULL_FLOAT) {
-		type = GPU_RGBA32F;
+		drwformat = DRW_TEX_RGBA_32;
 		m_internalFormat = GL_RGBA32F_ARB;
 	}
 	else {
-		type = GPU_RGBA8;
+		drwformat = DRW_TEX_RGBA_8;
 		m_internalFormat = GL_RGBA8;
 	}
 
-	GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER, NULL);
-	DRWFboTexture fbtex = { &tex, type, DRWTextureFlag(DRW_TEX_FILTER) };
+	GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, drwformat, DRW_TEX_FILTER, nullptr);
+	DRWFboTexture fbtex = { &tex, drwformat, DRWTextureFlag(DRW_TEX_FILTER) };
 	DRW_framebuffer_init(&m_frameBuffer, &draw_engine_eevee_type,
 		GPU_texture_width(tex), GPU_texture_height(tex), &fbtex, 1);
 	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_IMRENDER0);
