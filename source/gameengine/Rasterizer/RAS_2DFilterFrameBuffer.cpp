@@ -99,7 +99,7 @@ void RAS_2DFilterFrameBuffer::Construct()
 	/* TODO: Handle more than 1 color texture slot */
 	DRWFboTexture fbtex[2] = { { &m_colorTextures[0], dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) },
 							   { &depthtex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-	DRW_framebuffer_init(&m_frameBuffer, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
+	DRW_framebuffer_init_bge(&m_frameBuffer, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
 	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_FILTER0);
 
 	m_depthTexture = depthtex;
