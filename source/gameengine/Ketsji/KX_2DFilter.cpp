@@ -148,20 +148,19 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, sampler
 	Py_RETURN_NONE;
 }
 
-KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, width, height, hdr,  mipmap)")
+KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, width, height, hdr,  mipmap)")
 {
 	int slots;
-	int depth = 0;
 	int width = -1;
 	int height = -1;
 	int hdr = RAS_Rasterizer::RAS_HDR_NONE;
 	int mipmap = 0;
 	int flag = 0;
 
-	static const char *kwlist[] = {"slots", "depth", "width", "height", "hdr", "mipmap", nullptr};
+	static const char *kwlist[] = {"slots", "width", "height", "hdr", "mipmap", nullptr};
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "i|iiiii:addOffScreen", const_cast<char**>(kwlist),
-									 &slots, &depth, &width, &height, &hdr, &mipmap)) {
+									 &slots, &width, &height, &hdr, &mipmap)) {
 		return nullptr;
 	}
 
@@ -185,21 +184,12 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, width
 		return nullptr;
 	}
 
-	if (slots == 0 && !depth) {
-		PyErr_SetString(PyExc_TypeError, "filter.addOffScreen(...): KX_2DFilter, empty off screen, slots must be at least to 1 or depth to True.");
-		return nullptr;
-	}
-
 	if (width == -1 || height == -1) {
 		flag |= RAS_2DFilterFrameBuffer::RAS_VIEWPORT_SIZE;
 	}
 
 	if (mipmap) {
 		flag |= RAS_2DFilterFrameBuffer::RAS_MIPMAP;
-	}
-
-	if (depth) {
-		flag |= RAS_2DFilterFrameBuffer::RAS_DEPTH;
 	}
 
 	KX_2DFilterFrameBuffer *frameBuffer = new KX_2DFilterFrameBuffer(slots, (RAS_2DFilterFrameBuffer::Flag)flag, width, height,
