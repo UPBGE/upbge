@@ -135,9 +135,10 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 
 			GPUFrameBuffer *fb = nullptr;
 			GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, dataTypeEnums[m_hdr], DRW_TEX_FILTER, nullptr);
-			DRWFboTexture fbtex = { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) };
-			DRW_framebuffer_init(&fb, &draw_engine_eevee_type,
-				m_width, m_height, &fbtex, 1);
+			GPUTexture *texdepth = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
+			DRWFboTexture fbtex[2] = { { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) },
+										   { &texdepth, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
+			DRW_framebuffer_init(&fb, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
 			
 			if (!fb) {
 				GPU_framebuffer_free(fb);
