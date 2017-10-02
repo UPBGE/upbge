@@ -234,7 +234,6 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	m_finalFb = m_engine->PostRenderScene(m_scene, m_frameBuffer, m_rasterizer->GetFrameBuffer(target));
 
 	GPU_framebuffer_restore();
-	LAST_GPU_FRAMEBUFFER = nullptr;
 }
 
 bool ImageRender::Render()

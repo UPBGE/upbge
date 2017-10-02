@@ -165,13 +165,6 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 			m_samples = samples;
 			break;
 		}
-
-		/* Creating an off screen restore the default frame buffer object.
-		 * We have to rebind the last off screen. */
-		GPUFrameBuffer *lastFrameBuffer = LAST_GPU_FRAMEBUFFER;
-		if (lastFrameBuffer) {
-			DRW_framebuffer_bind(lastFrameBuffer);
-		}
 	}
 	return m_frameBuffers[type];
 }
@@ -564,7 +557,6 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *frameB
 // 	SetDepthFunc(RAS_ALWAYS);
 
 	GPU_framebuffer_restore();
-	LAST_GPU_FRAMEBUFFER = nullptr;
 	DrawFrameBuffer(frameBuffer, nullptr);
 
 // 	SetDepthFunc(RAS_LEQUAL);
@@ -591,7 +583,6 @@ void RAS_Rasterizer::DrawStereoFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *
 // 	SetDepthFunc(RAS_ALWAYS);
 
 	GPU_framebuffer_restore();
-	LAST_GPU_FRAMEBUFFER = nullptr;
 	GPU_texture_bind(GPU_framebuffer_color_texture(leftFb), 0);
 	GPU_texture_bind(GPU_framebuffer_color_texture(rightFb), 1);
 

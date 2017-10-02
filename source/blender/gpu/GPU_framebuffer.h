@@ -105,8 +105,6 @@ GPUFrameBufferType GPU_framebuffer_get_bge_type(GPUFrameBuffer *fb);
 void GPU_framebuffer_set_bge_type(GPUFrameBuffer *fb, GPUFrameBufferType type);
 /****************End of Game engine****************/
 
-static GPUFrameBuffer *LAST_GPU_FRAMEBUFFER = { NULL };
-
 typedef enum GPURenderBufferType {
 	GPU_RENDERBUFFER_COLOR = 0,
 	GPU_RENDERBUFFER_DEPTH = 1,
