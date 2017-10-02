@@ -20,11 +20,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Rasterizer/RAS_2DFilterOffScreen.cpp
+/** \file gameengine/Rasterizer/RAS_2DFilterFrameBuffer.cpp
  *  \ingroup bgerast
  */
 
-#include "RAS_2DFilterOffScreen.h"
+#include "RAS_2DFilterFrameBuffer.h"
 #include "RAS_ICanvas.h"
 
 #include "GPU_framebuffer.h"
@@ -34,7 +34,7 @@ extern "C" {
 #  include "DRW_render.h"
 }
 
-RAS_2DFilterOffScreen::RAS_2DFilterOffScreen(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height,
+RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height,
 											 RAS_Rasterizer::HdrType hdr)
 	:m_flag(flag),
 	m_colorSlots(colorSlots),
@@ -53,7 +53,7 @@ RAS_2DFilterOffScreen::RAS_2DFilterOffScreen(unsigned short colorSlots, Flag fla
 	}
 }
 
-RAS_2DFilterOffScreen::~RAS_2DFilterOffScreen()
+RAS_2DFilterFrameBuffer::~RAS_2DFilterFrameBuffer()
 {
 	GPU_framebuffer_free(m_frameBuffer);
 	for (unsigned short i = 0; i < NUM_COLOR_SLOTS; ++i) {
@@ -67,7 +67,7 @@ RAS_2DFilterOffScreen::~RAS_2DFilterOffScreen()
 	}
 }
 
-void RAS_2DFilterOffScreen::Construct()
+void RAS_2DFilterFrameBuffer::Construct()
 {
 	for (unsigned short i = 0; i < m_colorSlots; ++i) {
 		GPUTexture *texture = m_colorTextures[i];
@@ -108,7 +108,7 @@ void RAS_2DFilterOffScreen::Construct()
 	}
 }
 
-void RAS_2DFilterOffScreen::MipmapTexture()
+void RAS_2DFilterFrameBuffer::MipmapTexture()
 {
 	for (unsigned short i = 0; i < m_colorSlots; ++i) {
 		GPUTexture *texture = m_colorTextures[i];
@@ -120,7 +120,7 @@ void RAS_2DFilterOffScreen::MipmapTexture()
 	}
 }
 
-bool RAS_2DFilterOffScreen::Update(RAS_ICanvas *canvas)
+bool RAS_2DFilterFrameBuffer::Update(RAS_ICanvas *canvas)
 {
 	if (m_flag & RAS_VIEWPORT_SIZE) {
 		const unsigned int width = canvas->GetWidth() + 1;
@@ -136,7 +136,7 @@ bool RAS_2DFilterOffScreen::Update(RAS_ICanvas *canvas)
 	return GetValid();
 }
 
-void RAS_2DFilterOffScreen::Bind(RAS_Rasterizer *rasty)
+void RAS_2DFilterFrameBuffer::Bind(RAS_Rasterizer *rasty)
 {
 	GPU_framebuffer_bind_all_attachments(m_frameBuffer);
 
@@ -146,7 +146,7 @@ void RAS_2DFilterOffScreen::Bind(RAS_Rasterizer *rasty)
 	}
 }
 
-void RAS_2DFilterOffScreen::Unbind(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
+void RAS_2DFilterFrameBuffer::Unbind(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
 {
 	if (m_flag & RAS_MIPMAP) {
 		MipmapTexture();
@@ -160,12 +160,12 @@ void RAS_2DFilterOffScreen::Unbind(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
 	}
 }
 
-bool RAS_2DFilterOffScreen::GetValid() const
+bool RAS_2DFilterFrameBuffer::GetValid() const
 {
 	return GPU_framebuffer_check_valid(m_frameBuffer, nullptr);
 }
 
-int RAS_2DFilterOffScreen::GetColorBindCode(unsigned short index) const
+int RAS_2DFilterFrameBuffer::GetColorBindCode(unsigned short index) const
 {
 	if (!m_colorTextures[index]) {
 		return -1;
@@ -174,7 +174,7 @@ int RAS_2DFilterOffScreen::GetColorBindCode(unsigned short index) const
 	return GPU_texture_opengl_bindcode(m_colorTextures[index]);
 }
 
-int RAS_2DFilterOffScreen::GetDepthBindCode() const
+int RAS_2DFilterFrameBuffer::GetDepthBindCode() const
 {
 	if (!m_depthTexture) {
 		return -1;
@@ -183,12 +183,12 @@ int RAS_2DFilterOffScreen::GetDepthBindCode() const
 	return GPU_texture_opengl_bindcode(m_depthTexture);
 }
 
-unsigned int RAS_2DFilterOffScreen::GetWidth() const
+unsigned int RAS_2DFilterFrameBuffer::GetWidth() const
 {
 	return m_width;
 }
 
-unsigned int RAS_2DFilterOffScreen::GetHeight() const
+unsigned int RAS_2DFilterFrameBuffer::GetHeight() const
 {
 	return m_height;
 }

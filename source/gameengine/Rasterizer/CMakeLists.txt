@@ -62,7 +62,7 @@ set(SRC
 	RAS_2DFilter.cpp
 	RAS_2DFilterData.cpp
 	RAS_2DFilterManager.cpp
-	RAS_2DFilterOffScreen.cpp
+	RAS_2DFilterFrameBuffer.cpp
 	RAS_AttributeArray.cpp
 	RAS_AttributeArrayStorage.cpp
 	RAS_BatchGroup.cpp
@@ -100,7 +100,7 @@ set(SRC
 	RAS_2DFilterData.h
 	RAS_2DFilter.h
 	RAS_2DFilterManager.h
-	RAS_2DFilterOffScreen.h
+	RAS_2DFilterFrameBuffer.h
 	RAS_AttributeArray.h
 	RAS_AttributeArrayStorage.h
 	RAS_BatchDisplayArray.h

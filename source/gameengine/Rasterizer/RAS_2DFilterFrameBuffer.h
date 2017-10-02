@@ -20,12 +20,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file RAS_2DFilterOffScreen.h
+/** \file RAS_2DFilterFrameBuffer.h
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_2DFILTER_OFFSCREEN_H__
-#define __RAS_2DFILTER_OFFSCREEN_H__
+#ifndef __RAS_2DFILTER_FRAMEBUFFER_H__
+#define __RAS_2DFILTER_FRAMEBUFFER_H__
 
 #include "RAS_Rasterizer.h"
 
@@ -41,7 +41,7 @@ struct GPUTexture;
  * of filter when the off screen is deleted or using an off screen in multiple filter or
  * different scenes.
  */
-class RAS_2DFilterOffScreen
+class RAS_2DFilterFrameBuffer
 {
 public:
 	enum Flag {
@@ -72,8 +72,8 @@ private:
 	void MipmapTexture();
 
 public:
-	RAS_2DFilterOffScreen(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdr);
-	virtual ~RAS_2DFilterOffScreen();
+	RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdr);
+	virtual ~RAS_2DFilterFrameBuffer();
 
 	/** Update the off screen to the new canvas dimensions if allowed.
 	 * \return True if the off screen is valid.
@@ -93,4 +93,4 @@ public:
 	unsigned int GetHeight() const;
 };
 
-#endif  // __RAS_2DFILTER_OFFSCREEN_H__
+#endif  // __RAS_2DFILTER_FRAMEBUFFER_H__

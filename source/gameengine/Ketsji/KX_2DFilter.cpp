@@ -25,7 +25,7 @@
 */
 
 #include "KX_2DFilter.h"
-#include "KX_2DFilterOffScreen.h"
+#include "KX_2DFilterFrameBuffer.h"
 #include "RAS_Texture.h" // for RAS_Texture::MaxUnits
 
 #include "CM_Message.h"
@@ -103,8 +103,8 @@ int KX_2DFilter::pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DE
 PyObject *KX_2DFilter::pyattr_get_frameBuffer(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
-	RAS_2DFilterOffScreen *frameBuffer = self->GetFrameBuffer();
-	return frameBuffer ? static_cast<KX_2DFilterOffScreen *>(frameBuffer)->GetProxy() : Py_None;
+	RAS_2DFilterFrameBuffer *frameBuffer = self->GetFrameBuffer();
+	return frameBuffer ? static_cast<KX_2DFilterFrameBuffer *>(frameBuffer)->GetProxy() : Py_None;
 }
 
 KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, samplerName)")
@@ -191,18 +191,18 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, width
 	}
 
 	if (width == -1 || height == -1) {
-		flag |= RAS_2DFilterOffScreen::RAS_VIEWPORT_SIZE;
+		flag |= RAS_2DFilterFrameBuffer::RAS_VIEWPORT_SIZE;
 	}
 
 	if (mipmap) {
-		flag |= RAS_2DFilterOffScreen::RAS_MIPMAP;
+		flag |= RAS_2DFilterFrameBuffer::RAS_MIPMAP;
 	}
 
 	if (depth) {
-		flag |= RAS_2DFilterOffScreen::RAS_DEPTH;
+		flag |= RAS_2DFilterFrameBuffer::RAS_DEPTH;
 	}
 
-	KX_2DFilterOffScreen *frameBuffer = new KX_2DFilterOffScreen(slots, (RAS_2DFilterOffScreen::Flag)flag, width, height,
+	KX_2DFilterFrameBuffer *frameBuffer = new KX_2DFilterFrameBuffer(slots, (RAS_2DFilterFrameBuffer::Flag)flag, width, height,
 															   (RAS_Rasterizer::HdrType)hdr);
 
 	SetOffScreen(frameBuffer);

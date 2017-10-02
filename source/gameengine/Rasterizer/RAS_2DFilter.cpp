@@ -22,7 +22,7 @@
 
 #include "RAS_2DFilter.h"
 #include "RAS_2DFilterManager.h"
-#include "RAS_2DFilterOffScreen.h"
+#include "RAS_2DFilterFrameBuffer.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
@@ -86,12 +86,12 @@ void RAS_2DFilter::SetMipmap(bool mipmap)
 	m_mipmap = mipmap;
 }
 
-RAS_2DFilterOffScreen *RAS_2DFilter::GetFrameBuffer() const
+RAS_2DFilterFrameBuffer *RAS_2DFilter::GetFrameBuffer() const
 {
 	return m_frameBuffer.get();
 }
 
-void RAS_2DFilter::SetOffScreen(RAS_2DFilterOffScreen *frameBuffer)
+void RAS_2DFilter::SetOffScreen(RAS_2DFilterFrameBuffer *frameBuffer)
 {
 	m_frameBuffer.reset(frameBuffer);
 }

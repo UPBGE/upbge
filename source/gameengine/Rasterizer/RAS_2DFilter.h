@@ -32,7 +32,7 @@ class RAS_2DFilterManager;
 class RAS_Rasterizer;
 class RAS_ICanvas;
 struct GPUFrameBuffer;
-class RAS_2DFilterOffScreen;
+class RAS_2DFilterFrameBuffer;
 class CValue;
 
 class RAS_2DFilter : public virtual RAS_Shader
@@ -67,7 +67,7 @@ protected:
 	unsigned int m_textures[8];
 
 	/// Custom off screen for special datas.
-	std::unique_ptr<RAS_2DFilterOffScreen> m_frameBuffer;
+	std::unique_ptr<RAS_2DFilterFrameBuffer> m_frameBuffer;
 
 	virtual bool LinkProgram();
 	void ParseShaderProgram();
@@ -83,8 +83,8 @@ public:
 	bool GetMipmap() const;
 	void SetMipmap(bool mipmap);
 
-	RAS_2DFilterOffScreen *GetFrameBuffer() const;
-	void SetOffScreen(RAS_2DFilterOffScreen *frameBuffer);
+	RAS_2DFilterFrameBuffer *GetFrameBuffer() const;
+	void SetOffScreen(RAS_2DFilterFrameBuffer *frameBuffer);
 
 	/// Called by the filter manager when it has informations like the display size, a gl context...
 	void Initialize(RAS_ICanvas *canvas);

@@ -24,18 +24,18 @@
 *  \ingroup ketsji
 */
 
-#ifndef __KX_2DFILTER_OFFSCREEN_H__
-#define __KX_2DFILTER_OFFSCREEN_H__
+#ifndef __KX_2DFILTER_FRAMEBUFFER_H__
+#define __KX_2DFILTER_FRAMEBUFFER_H__
 
-#include "RAS_2DFilterOffScreen.h"
+#include "RAS_2DFilterFrameBuffer.h"
 #include "EXP_Value.h"
 
-class KX_2DFilterOffScreen : public CValue, public RAS_2DFilterOffScreen
+class KX_2DFilterFrameBuffer : public CValue, public RAS_2DFilterFrameBuffer
 {
 	Py_Header
 public:
-	KX_2DFilterOffScreen(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdr);
-	virtual ~KX_2DFilterOffScreen();
+	KX_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdr);
+	virtual ~KX_2DFilterFrameBuffer();
 
 	virtual std::string GetName();
 
@@ -49,4 +49,4 @@ public:
 #endif
 };
 
-#endif  // __KX_2DFILTER_OFFSCREEN_H__
+#endif  // __KX_2DFILTER_FRAMEBUFFER_H__
