@@ -144,7 +144,7 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 				GPU_framebuffer_free(fb);
 				continue;
 			}
-			GPU_framebuffer_set_bge_type(fb, GPU_FRAMEBUFFER_EYE_LEFT0);
+			GPU_framebuffer_set_bge_type(fb, type);
 
 			//m_frameBuffers[type].reset(ofs);
 			m_frameBuffers[type] = fb;
