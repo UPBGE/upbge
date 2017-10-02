@@ -3535,66 +3535,6 @@ void DRW_draw_depth_loop(
 
 /***********************************GAME ENGINE*******************************************/
 
-void DRW_framebuffer_init_bge(
-struct GPUFrameBuffer **fb, void *engine_type, int width, int height,
-	DRWFboTexture textures[MAX_FBO_TEX], int textures_len)
-{
-	BLI_assert(textures_len <= MAX_FBO_TEX);
-
-	bool create_fb = false;
-	int color_attachment = -1;
-
-	if (!*fb) {
-		*fb = GPU_framebuffer_create();
-		create_fb = true;
-	}
-
-	for (int i = 0; i < textures_len; ++i) {
-		int channels;
-		bool is_depth;
-
-		DRWFboTexture fbotex = textures[i];
-		bool is_temp = (fbotex.flag & DRW_TEX_TEMP) != 0;
-
-		GPUTextureFormat gpu_format = convert_tex_format(fbotex.format, &channels, &is_depth);
-
-		if (!*fbotex.tex || is_temp) {
-			/* Temp textures need to be queried each frame, others not. */
-			if (is_temp) {
-				*fbotex.tex = GPU_viewport_texture_pool_query(
-					DST.viewport, engine_type, width, height, channels, gpu_format);
-			}
-			else if (create_fb) {
-				*fbotex.tex = GPU_texture_create_2D_custom(
-					width, height, channels, gpu_format, 0, NULL, NULL);
-			}
-		}
-
-		if (create_fb) {
-			if (!is_depth) {
-				++color_attachment;
-			}
-			drw_texture_set_parameters(*fbotex.tex, fbotex.flag);
-			GPU_framebuffer_texture_attach(*fb, *fbotex.tex, color_attachment, 0);
-		}
-	}
-
-	if (create_fb) {
-		if (!GPU_framebuffer_check_valid(*fb, NULL)) {
-			printf("Error invalid framebuffer\n");
-		}
-
-		/* Detach temp textures */
-		for (int i = 0; i < textures_len; ++i) {
-			DRWFboTexture fbotex = textures[i];
-
-			if ((fbotex.flag & DRW_TEX_TEMP) != 0) {
-				GPU_framebuffer_texture_detach(*fbotex.tex);
-			}
-		}
-	}
-}
-
 void DRW_state_from_pass_set(DRWPass *pass)
 {
 	DRWState state = pass->state;
