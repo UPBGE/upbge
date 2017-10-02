@@ -112,10 +112,10 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 		m_internalFormat = GL_RGBA8;
 	}
 
-	GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, drwformat, DRW_TEX_FILTER, nullptr);
-	GPUTexture *texdepth = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
-	DRWFboTexture fbtex[2] = { { &tex, drwformat, DRWTextureFlag(DRW_TEX_FILTER) },
-							   { &texdepth, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
+	m_colorTex = DRW_texture_create_2D(m_width, m_height, drwformat, DRW_TEX_FILTER, nullptr);
+	m_depthTex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
+	DRWFboTexture fbtex[2] = { { &m_colorTex, drwformat, DRWTextureFlag(DRW_TEX_FILTER) },
+							   { &m_depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
 	DRW_framebuffer_init_bge(&m_frameBuffer, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
 	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_IMRENDER0);
 	/*if (m_samples > 0) {
@@ -130,8 +130,11 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 // destructor
 ImageRender::~ImageRender (void)
 {
-	if (m_owncamera)
+	if (m_owncamera) {
 		m_camera->Release();
+	}
+	DRW_TEXTURE_FREE_SAFE(m_colorTex);
+	DRW_TEXTURE_FREE_SAFE(m_depthTex);
 
 #ifdef WITH_GAMEENGINE_GPU_SYNC
 	if (m_sync)
@@ -903,10 +906,10 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 		m_internalFormat = GL_RGBA8;
 	}
 
-	GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, drwformat, DRW_TEX_FILTER, nullptr);
-	GPUTexture *texdepth = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
-	DRWFboTexture fbtex[2] = { { &tex, drwformat, DRWTextureFlag(DRW_TEX_FILTER) },
-							   { &texdepth, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
+	m_colorTex = DRW_texture_create_2D(m_width, m_height, drwformat, DRW_TEX_FILTER, nullptr);
+	m_depthTex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
+	DRWFboTexture fbtex[2] = { { &m_colorTex, drwformat, DRWTextureFlag(DRW_TEX_FILTER) },
+							   { &m_depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
 	DRW_framebuffer_init_bge(&m_frameBuffer, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
 	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_IMRENDER0);
 	/*if (m_samples > 0) {

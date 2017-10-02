@@ -220,7 +220,12 @@ private:
 	class FrameBuffers
 	{
 	private:
+
 		GPUFrameBuffer *m_frameBuffers[GPU_FRAMEBUFFER_MAX];
+
+		/* We need to free all textures at ge exit so we do member variables */
+		GPUTexture *m_colorTextureList[GPU_FRAMEBUFFER_MAX];
+		GPUTexture *m_depthTextureList[GPU_FRAMEBUFFER_MAX];
 		unsigned int m_width;
 		unsigned int m_height;
 		int m_samples;

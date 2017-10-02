@@ -79,10 +79,23 @@ RAS_Rasterizer::FrameBuffers::FrameBuffers()
 	m_samples(0),
 	m_hdr(RAS_HDR_NONE)
 {
+	for (int i = 0; i < GPU_FRAMEBUFFER_MAX; i++) {
+		m_colorTextureList[i] = nullptr;
+		m_depthTextureList[i] = nullptr;
+	}
 }
 
 RAS_Rasterizer::FrameBuffers::~FrameBuffers()
 {
+	/* Free FrameBuffer Textures Attachments */
+	for (int i = 0; i < GPU_FRAMEBUFFER_MAX; i++) {
+		if (m_colorTextureList[i]) {
+			DRW_TEXTURE_FREE_SAFE(m_colorTextureList[i]);
+		}
+		if (m_depthTextureList[i]) {
+			DRW_TEXTURE_FREE_SAFE(m_depthTextureList[i]);
+		}
+	}
 }
 
 inline void RAS_Rasterizer::FrameBuffers::Update(RAS_ICanvas *canvas)
@@ -135,9 +148,9 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 
 			GPUFrameBuffer *fb = nullptr;
 			GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, dataTypeEnums[m_hdr], DRW_TEX_FILTER, nullptr);
-			GPUTexture *texdepth = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
+			GPUTexture *depthTex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
 			DRWFboTexture fbtex[2] = { { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) },
-										   { &texdepth, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
+									   { &depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
 			DRW_framebuffer_init_bge(&fb, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
 			
 			if (!fb) {
@@ -146,7 +159,8 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 			}
 			GPU_framebuffer_set_bge_type(fb, type);
 
-			//m_frameBuffers[type].reset(ofs);
+			m_colorTextureList[type] = tex;
+			m_depthTextureList[type] = depthTex;
 			m_frameBuffers[type] = fb;
 			m_samples = samples;
 			break;

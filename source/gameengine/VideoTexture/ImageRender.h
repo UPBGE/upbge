@@ -113,6 +113,10 @@ protected:
 	 */
 	GPUFrameBuffer *m_finalFb;
 
+	/* We have to free all frame buffer attachments */
+	GPUTexture *m_colorTex;
+	GPUTexture *m_depthTex;
+
 	/// object to synchronize render even if no buffer transfer
 	RAS_ISync *m_sync;
 	/// for mirror operation

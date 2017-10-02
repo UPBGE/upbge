@@ -34,6 +34,7 @@ extern "C" {
 class RAS_ICanvas;
 class RAS_Rasterizer;
 struct GPUFrameBuffer;
+struct GPUTexture;
 class KX_Scene;
 struct DRWShadingGroup;
 struct IDProperty;
@@ -67,13 +68,17 @@ private:
 	RAS_ICanvas *m_canvas; // used to get viewport size
 	IDProperty *m_props; // eevee engine properties
 
-	/* eevee effects offscreen targets
-	 * std::unique_ptr is used to avoid
-	 * to take care about offscreens deletion
-	 */
 	GPUFrameBuffer *m_bloomTarget;
 	GPUFrameBuffer *m_blurTarget;
 	GPUFrameBuffer *m_dofTarget;
+
+	/* With eevee FrameBuffer system we have to free manually the textures at ge exit */
+	GPUTexture *m_bloomColorTex;
+	GPUTexture *m_bloomDepthTex;
+	GPUTexture *m_blurColorTex;
+	GPUTexture *m_blurDepthTex;
+	GPUTexture *m_dofColorTex;
+	GPUTexture *m_dofDepthTex;
 
 	float m_shutter; // camera motion blur
 
