@@ -116,7 +116,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_depthTex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
 	DRWFboTexture fbtex[2] = { { &m_colorTex, drwformat, DRWTextureFlag(DRW_TEX_FILTER) },
 							   { &m_depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-	DRW_framebuffer_init(&m_frameBuffer, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
+	DRW_framebuffer_init_bge(&m_frameBuffer, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
 	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_IMRENDER0);
 	/*if (m_samples > 0) {
 		m_bliFb.reset(new GPUFrameBuffer(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_FrameBuffer_IMRENDER0));
@@ -909,7 +909,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	m_depthTex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
 	DRWFboTexture fbtex[2] = { { &m_colorTex, drwformat, DRWTextureFlag(DRW_TEX_FILTER) },
 							   { &m_depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-	DRW_framebuffer_init(&m_frameBuffer, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
+	DRW_framebuffer_init_bge(&m_frameBuffer, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
 	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_IMRENDER0);
 	/*if (m_samples > 0) {
 	m_bliFb.reset(new GPUFrameBuffer(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_FrameBuffer_IMRENDER0));
