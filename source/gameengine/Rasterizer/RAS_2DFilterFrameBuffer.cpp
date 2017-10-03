@@ -36,10 +36,10 @@ extern "C" {
 }
 
 RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height,
-											 RAS_Rasterizer::HdrType hdr)
+											 RAS_Rasterizer *rasty)
 	:m_flag(flag),
 	m_colorSlots(colorSlots),
-	m_hdr(hdr),
+	m_rasterizer(rasty),
 	m_width(width),
 	m_height(height),
 	m_depthTexture(nullptr),
@@ -76,33 +76,10 @@ static const DRWTextureFormat dataTypeEnums[] = {
 
 void RAS_2DFilterFrameBuffer::Construct()
 {
-	GPUTexture *colorTex[NUM_COLOR_SLOTS];
-	for (unsigned short i = 0; i < m_colorSlots; ++i) {
-		colorTex[i] = m_colorTextures[i];
-		if (colorTex[i]) {
-			GPU_framebuffer_texture_detach(colorTex[i]);
-			GPU_texture_free(colorTex[i]);
-		}
-
-		colorTex[i] = DRW_texture_create_2D(m_width, m_height, dataTypeEnums[m_hdr], DRW_TEX_FILTER, nullptr);
-		m_colorTextures[i] = colorTex[i];
-	}
-
-	if (m_depthTexture) {
-		GPU_framebuffer_texture_detach(m_depthTexture);
-		GPU_texture_free(m_depthTexture);
-	}
-
-	GPUTexture *depthtex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRW_TEX_FILTER, nullptr);
-	GPU_texture_compare_mode(depthtex, false);
-
-	/* TODO: Handle more than 1 color texture slot */
-	DRWFboTexture fbtex[2] = { { &m_colorTextures[0], dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) },
-							   { &depthtex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-	DRW_framebuffer_init_bge(&m_frameBuffer, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
-	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_FILTER0);
-
-	m_depthTexture = depthtex;
+	m_frameBuffer = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_FILTER0);
+	/* TODO: RESTORE SUPPORT OF MULTIPLE COLOR ATTACHEMENTS IF NEEDED */
+	m_colorTextures[0] = GPU_framebuffer_color_texture(m_frameBuffer);
+	m_depthTexture = GPU_framebuffer_depth_texture(m_frameBuffer);
 }
 
 void RAS_2DFilterFrameBuffer::MipmapTexture()

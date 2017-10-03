@@ -49,9 +49,11 @@ struct GPUFrameBuffer;
 class ImageRender : public ImageViewport
 {
 public:
-	/// constructor
-	ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width, unsigned int height, unsigned short samples, int hrd);
-	ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial * mat, unsigned int width, unsigned int height, unsigned short samples, int hrd);
+	/// constructors
+	ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width, unsigned int height,
+		unsigned short samples);
+	ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial * mat,
+		unsigned int width, unsigned int height, unsigned short samples);
 
 	/// destructor
 	virtual ~ImageRender (void);
@@ -112,10 +114,6 @@ protected:
 	 * be m_frameBuffer or m_bliFb in case of mutlisamples.
 	 */
 	GPUFrameBuffer *m_finalFb;
-
-	/* We have to free all frame buffer attachments */
-	GPUTexture *m_colorTex;
-	GPUTexture *m_depthTex;
 
 	/// object to synchronize render even if no buffer transfer
 	RAS_ISync *m_sync;

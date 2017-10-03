@@ -73,9 +73,9 @@ extern "C" {
 
 #include "CM_Message.h"
 
-RAS_Rasterizer::FrameBuffers::FrameBuffers()
-	:m_width(0),
-	m_height(0),
+RAS_Rasterizer::FrameBuffers::FrameBuffers(RAS_ICanvas *canvas)
+	:m_width(canvas->GetWidth()),
+	m_height(canvas->GetHeight()),
 	m_samples(0),
 	m_hdr(RAS_HDR_NONE)
 {
@@ -129,6 +129,28 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 		const bool sampleofs = type == GPU_FRAMEBUFFER_EYE_LEFT0 ||
 							   type == GPU_FRAMEBUFFER_EYE_RIGHT0;
 
+		/* Set FrameBuffer Size according to FrameBuffer type */
+		int width, height;
+		switch (type)
+		{
+		case GPU_FRAMEBUFFER_DOF0:
+		{
+			width = int(m_width / 2);
+			height = int(m_height / 2);
+			break;
+		}
+		case GPU_FRAMEBUFFER_DOF1:
+		{
+			width = int(m_width / 2);
+			height = int(m_height / 2);
+			break;
+		}
+		default:
+			width = m_width;
+			height = m_height;
+			break;
+		}
+
 		/* Some GPUs doesn't support high multisample value with GL_RGBA16F or GL_RGBA32F.
 		 * To avoid crashing we check if the off screen was created and if not decremente
 		 * the multisample value and try to create the off screen to find a supported value.
@@ -148,11 +170,11 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 			};
 
 			GPUFrameBuffer *fb = nullptr;
-			GPUTexture *tex = DRW_texture_create_2D(m_width, m_height, dataTypeEnums[m_hdr], DRW_TEX_FILTER, nullptr);
-			GPUTexture *depthTex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
+			GPUTexture *tex = DRW_texture_create_2D(width, height, dataTypeEnums[m_hdr], DRW_TEX_FILTER, nullptr);
+			GPUTexture *depthTex = DRW_texture_create_2D(width, height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
 			DRWFboTexture fbtex[2] = { { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) },
 									   { &depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-			DRW_framebuffer_init_bge(&fb, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
+			DRW_framebuffer_init_bge(&fb, &draw_engine_eevee_type, width, height, fbtex, ARRAY_SIZE(fbtex));
 			
 			if (!fb) {
 				GPU_framebuffer_free(fb);
@@ -197,14 +219,6 @@ GPUFrameBufferType RAS_Rasterizer::NextRenderFrameBuffer(GPUFrameBufferType type
 		{
 			return GPU_FRAMEBUFFER_EYE_LEFT0;
 		}
-		case GPU_FRAMEBUFFER_IMRENDER0:
-		{
-			return GPU_FRAMEBUFFER_IMRENDER1;
-		}
-		case GPU_FRAMEBUFFER_IMRENDER1:
-		{
-			return GPU_FRAMEBUFFER_IMRENDER0;
-		}
 		case GPU_FRAMEBUFFER_EYE_RIGHT0:
 		{
 			return GPU_FRAMEBUFFER_EYE_RIGHT1;
@@ -212,6 +226,34 @@ GPUFrameBufferType RAS_Rasterizer::NextRenderFrameBuffer(GPUFrameBufferType type
 		case GPU_FRAMEBUFFER_EYE_RIGHT1:
 		{
 			return GPU_FRAMEBUFFER_EYE_RIGHT0;
+		}
+		case GPU_FRAMEBUFFER_BLOOM0:
+		{
+			return GPU_FRAMEBUFFER_BLOOM1;
+		}
+		case GPU_FRAMEBUFFER_BLOOM1:
+		{
+			return GPU_FRAMEBUFFER_BLOOM0;
+		}
+		case GPU_FRAMEBUFFER_BLUR0:
+		{
+			return GPU_FRAMEBUFFER_BLUR1;
+		}
+		case GPU_FRAMEBUFFER_DOF0:
+		{
+			return GPU_FRAMEBUFFER_DOF1;
+		}
+		case GPU_FRAMEBUFFER_DOF1:
+		{
+			return GPU_FRAMEBUFFER_DOF0;
+		}
+		case GPU_FRAMEBUFFER_IMRENDER0:
+		{
+			return GPU_FRAMEBUFFER_IMRENDER1;
+		}
+		case GPU_FRAMEBUFFER_IMRENDER1:
+		{
+			return GPU_FRAMEBUFFER_IMRENDER0;
 		}
 		// Passing a non-eye frame buffer is disallowed.
 		default:
@@ -222,7 +264,7 @@ GPUFrameBufferType RAS_Rasterizer::NextRenderFrameBuffer(GPUFrameBufferType type
 	}
 }
 
-RAS_Rasterizer::RAS_Rasterizer()
+RAS_Rasterizer::RAS_Rasterizer(RAS_ICanvas *canvas)
 	:m_fogenabled(false),
 	m_time(0.0f),
 	m_ambient(0.0f, 0.0f, 0.0f),
@@ -242,7 +284,9 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_invertFrontFace(false),
-	m_last_frontface(true)
+	m_last_frontface(true),
+	m_canvas(canvas),
+	m_frameBuffers(RAS_Rasterizer::FrameBuffers(canvas))
 {
 	m_impl.reset(new RAS_OpenGLRasterizer(this));
 

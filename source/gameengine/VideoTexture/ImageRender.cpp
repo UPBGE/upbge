@@ -73,7 +73,7 @@ ExpDesc MirrorHorizontalDesc(MirrorHorizontal, "Mirror is horizontal in local sp
 ExpDesc MirrorTooSmallDesc(MirrorTooSmall, "Mirror is too small");
 
 // constructor
-ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int width, unsigned int height, unsigned short samples, int hdr) :
+ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int width, unsigned int height, unsigned short samples) :
     ImageViewport(width, height),
     m_render(true),
     m_updateShadowBuffer(false),
@@ -99,26 +99,18 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 
-	DRWTextureFormat drwformat;
+	int hdr = m_canvas->GetHdrType();
 	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
-		drwformat = DRW_TEX_RGBA_16;
 		m_internalFormat = GL_RGBA16F_ARB;
 	}
 	else if (hdr == RAS_Rasterizer::RAS_HDR_FULL_FLOAT) {
-		drwformat = DRW_TEX_RGBA_32;
 		m_internalFormat = GL_RGBA32F_ARB;
 	}
 	else {
-		drwformat = DRW_TEX_RGBA_8;
-		m_internalFormat = GL_RGBA8;
+		m_internalFormat = GL_R11F_G11F_B10F;
 	}
 
-	m_colorTex = DRW_texture_create_2D(m_width, m_height, drwformat, DRW_TEX_FILTER, nullptr);
-	m_depthTex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
-	DRWFboTexture fbtex[2] = { { &m_colorTex, drwformat, DRWTextureFlag(DRW_TEX_FILTER) },
-							   { &m_depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-	DRW_framebuffer_init_bge(&m_frameBuffer, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
-	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_IMRENDER0);
+	m_frameBuffer = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_IMRENDER0);
 	/*if (m_samples > 0) {
 		m_bliFb.reset(new GPUFrameBuffer(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_FrameBuffer_IMRENDER0));
 		m_finalFb = m_bliFb.get();
@@ -134,8 +126,6 @@ ImageRender::~ImageRender (void)
 	if (m_owncamera) {
 		m_camera->Release();
 	}
-	DRW_TEXTURE_FREE_SAFE(m_colorTex);
-	DRW_TEXTURE_FREE_SAFE(m_depthTex);
 
 #ifdef WITH_GAMEENGINE_GPU_SYNC
 	if (m_sync)
@@ -502,12 +492,11 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	int width = canvas->GetWidth();
 	int height = canvas->GetHeight();
 	int samples = 0;
-	int hdr = 0;
 	// parameter keywords
-	static const char *kwlist[] = {"sceneObj", "cameraObj", "width", "height", "samples", "hdr", nullptr};
+	static const char *kwlist[] = {"sceneObj", "cameraObj", "width", "height", "samples", nullptr};
 	// get parameters
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iiii",
-		const_cast<char**>(kwlist), &scene, &camera, &width, &height, &samples, &hdr))
+		const_cast<char**>(kwlist), &scene, &camera, &width, &height, &samples))
 		return -1;
 	try
 	{
@@ -530,7 +519,7 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 		PyImage *self = reinterpret_cast<PyImage*>(pySelf);
 		// create source object
 		if (self->m_image != nullptr) delete self->m_image;
-		self->m_image = new ImageRender(scenePtr, cameraPtr, width, height, samples, hdr);
+		self->m_image = new ImageRender(scenePtr, cameraPtr, width, height, samples);
 	}
 	catch (Exception & exp)
 	{
@@ -766,14 +755,13 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	int width = canvas->GetWidth();
 	int height = canvas->GetHeight();
 	int samples = 0;
-	int hdr = 0;
 
 	// parameter keywords
-	static const char *kwlist[] = {"scene", "observer", "mirror", "material", "width", "height", "samples", "hdr", nullptr};
+	static const char *kwlist[] = {"scene", "observer", "mirror", "material", "width", "height", "samples", nullptr};
 	// get parameters
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|hiiii",
 	                                 const_cast<char**>(kwlist), &scene, &observer, &mirror, &materialID,
-									 &width, &height, &samples, &hdr))
+									 &width, &height, &samples))
 		return -1;
 	try
 	{
@@ -819,7 +807,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 			delete self->m_image;
 			self->m_image = nullptr;
 		}
-		self->m_image = new ImageRender(scenePtr, observerPtr, mirrorPtr, material, width, height, samples, hdr);
+		self->m_image = new ImageRender(scenePtr, observerPtr, mirrorPtr, material, width, height, samples);
 	}
 	catch (Exception & exp)
 	{
@@ -879,7 +867,7 @@ static PyGetSetDef imageMirrorGetSets[] =
 
 
 // constructor
-ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial *mat, unsigned int width, unsigned int height, unsigned short samples, int hdr) :
+ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial *mat, unsigned int width, unsigned int height, unsigned short samples) :
     ImageViewport(width, height),
     m_render(false),
     m_updateShadowBuffer(false),
@@ -892,26 +880,22 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
     m_mirror(mirror),
     m_clip(100.f)
 {
-	DRWTextureFormat drwformat;
+	m_engine = KX_GetActiveEngine();
+	m_rasterizer = m_engine->GetRasterizer();
+	m_canvas = m_engine->GetCanvas();
+
+	int hdr = m_canvas->GetHdrType();
 	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
-		drwformat = DRW_TEX_RGBA_16;
 		m_internalFormat = GL_RGBA16F_ARB;
 	}
 	else if (hdr == RAS_Rasterizer::RAS_HDR_FULL_FLOAT) {
-		drwformat = DRW_TEX_RGBA_32;
 		m_internalFormat = GL_RGBA32F_ARB;
 	}
 	else {
-		drwformat = DRW_TEX_RGBA_8;
-		m_internalFormat = GL_RGBA8;
+		m_internalFormat = GL_R11F_G11F_B10F;
 	}
 
-	m_colorTex = DRW_texture_create_2D(m_width, m_height, drwformat, DRW_TEX_FILTER, nullptr);
-	m_depthTex = DRW_texture_create_2D(m_width, m_height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
-	DRWFboTexture fbtex[2] = { { &m_colorTex, drwformat, DRWTextureFlag(DRW_TEX_FILTER) },
-							   { &m_depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-	DRW_framebuffer_init_bge(&m_frameBuffer, &draw_engine_eevee_type, m_width, m_height, fbtex, ARRAY_SIZE(fbtex));
-	GPU_framebuffer_set_bge_type(m_frameBuffer, GPU_FRAMEBUFFER_IMRENDER0);
+	m_frameBuffer = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_IMRENDER0);
 	/*if (m_samples > 0) {
 	m_bliFb.reset(new GPUFrameBuffer(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_FrameBuffer_IMRENDER0));
 	m_finalFb = m_bliFb.get();
@@ -938,10 +922,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	m_camera->SetName("__mirror__cam__");
 	// don't add the camera to the scene object list, it doesn't need to be accessible
 	m_owncamera = true;
-	// retrieve rendering objects
-	m_engine = KX_GetActiveEngine();
-	m_rasterizer = m_engine->GetRasterizer();
-	m_canvas = m_engine->GetCanvas();
 	// locate the vertex assigned to mat and do following calculation in mesh coordinates
 	for (int meshIndex = 0; meshIndex < mirror->GetMeshCount(); meshIndex++)
 	{

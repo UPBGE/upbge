@@ -35,6 +35,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "KX_KetsjiEngine.h"
+
 extern "C" {
 #  include "IMB_imbuf.h"
 #  include "IMB_imbuf_types.h"
@@ -63,13 +65,13 @@ struct ScreenshotTaskData {
 void save_screenshot_thread_func(TaskPool *__restrict pool, void *taskdata, int threadid);
 
 
-RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty)
+RAS_ICanvas::RAS_ICanvas(KX_KetsjiEngine *engine)
 	:m_samples(0),
-	m_hdrType(RAS_Rasterizer::RAS_HDR_NONE)
+	m_hdrType(RAS_Rasterizer::RAS_HDR_NONE),
+	m_engine(engine)
 {
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
 	m_taskpool = BLI_task_pool_create(m_taskscheduler, nullptr);
-	m_rasterizer = rasty;
 }
 
 RAS_ICanvas::~RAS_ICanvas()
@@ -178,7 +180,7 @@ void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskda
 
 void RAS_ICanvas::SaveScreeshot(const Screenshot& screenshot)
 {
-	unsigned int *pixels = m_rasterizer->MakeScreenshot(screenshot.x, screenshot.y, screenshot.width, screenshot.height);
+	unsigned int *pixels = m_engine->GetRasterizer()->MakeScreenshot(screenshot.x, screenshot.y, screenshot.width, screenshot.height);
 	if (!pixels) {
 		CM_Error("cannot allocate pixels array");
 		return;

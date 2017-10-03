@@ -28,9 +28,8 @@
 
 #include "EXP_ListWrapper.h"
 
-KX_2DFilterFrameBuffer::KX_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height,
-										   RAS_Rasterizer::HdrType hdr)
-	:RAS_2DFilterFrameBuffer(colorSlots, flag, width, height, hdr)
+KX_2DFilterFrameBuffer::KX_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer *rasty)
+	:RAS_2DFilterFrameBuffer(colorSlots, flag, width, height, rasty)
 {
 }
 

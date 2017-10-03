@@ -74,14 +74,6 @@ private:
 	GPUFrameBuffer *m_blurTarget;
 	GPUFrameBuffer *m_dofTarget;
 
-	/* With eevee FrameBuffer system we have to free manually the textures at ge exit */
-	GPUTexture *m_bloomColorTex;
-	GPUTexture *m_bloomDepthTex;
-	GPUTexture *m_blurColorTex;
-	GPUTexture *m_blurDepthTex;
-	GPUTexture *m_dofColorTex;
-	GPUTexture *m_dofDepthTex;
-
 	float m_shutter; // camera motion blur
 
 	bool m_dofInitialized; // see comment in RenderDof()

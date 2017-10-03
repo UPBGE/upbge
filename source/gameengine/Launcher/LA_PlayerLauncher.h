@@ -53,7 +53,7 @@ protected:
 	virtual void RunPythonMainLoop(const std::string& pythonCode);
 #endif  // WITH_PYTHON
 
-	virtual RAS_ICanvas *CreateCanvas(RAS_Rasterizer *rasty);
+	virtual RAS_ICanvas *CreateCanvas();
 	virtual RAS_Rasterizer::DrawType GetRasterizerDrawMode();
 	virtual bool GetUseAlwaysExpandFraming();
 	virtual void InitCamera();

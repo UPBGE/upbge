@@ -53,8 +53,8 @@ extern "C" {
 #  include "wm_window.h"
 }
 
-KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, rcti *viewport, struct ARegion *ar)
-	:RAS_ICanvas(rasty),
+KX_BlenderCanvas::KX_BlenderCanvas(wmWindowManager *wm, wmWindow *win, rcti *viewport, struct ARegion *ar)
+	:RAS_ICanvas(m_engine),
 	m_wm(wm),
 	m_win(win),
 	m_ar(ar)

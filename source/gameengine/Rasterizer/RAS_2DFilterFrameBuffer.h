@@ -57,10 +57,11 @@ public:
 private:
 	const Flag m_flag;
 	const unsigned short m_colorSlots;
-	const RAS_Rasterizer::HdrType m_hdr;
 
 	unsigned int m_width;
 	unsigned int m_height;
+
+	RAS_Rasterizer *m_rasterizer;
 
 	GPUFrameBuffer *m_frameBuffer;
 	GPUTexture *m_colorTextures[NUM_COLOR_SLOTS];
@@ -72,7 +73,7 @@ private:
 	void MipmapTexture();
 
 public:
-	RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdr);
+	RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer *rasty);
 	virtual ~RAS_2DFilterFrameBuffer();
 
 	/** Update the off screen to the new canvas dimensions if allowed.

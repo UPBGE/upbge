@@ -35,6 +35,7 @@
 #include "RAS_Rasterizer.h" // for RAS_Rasterizer::HdrType
 
 class RAS_Rect;
+class KX_KetsjiEngine;
 struct TaskScheduler;
 struct TaskPool;
 struct ImageFormatData;
@@ -52,7 +53,7 @@ public:
 		MOUSE_NORMAL
 	};
 
-	RAS_ICanvas(RAS_Rasterizer *rasty);
+	RAS_ICanvas(KX_KetsjiEngine *engine);
 	virtual ~RAS_ICanvas();
 
 	virtual void Init() = 0;
@@ -130,12 +131,10 @@ public:
 	virtual void SetFullScreen(bool enable) = 0;
 	virtual bool GetFullScreen() = 0;
 
-	RAS_Rasterizer *GetRasterizer()
-	{
-		return m_rasterizer;
-	}
-
 protected:
+
+	KX_KetsjiEngine *m_engine;
+
 	struct Screenshot
 	{
 		std::string path;
@@ -156,7 +155,6 @@ protected:
 	int m_frame;
 	TaskScheduler *m_taskscheduler;
 	TaskPool *m_taskpool;
-	RAS_Rasterizer *m_rasterizer;
 
 	RAS_Rect m_windowArea;
 	RAS_Rect m_viewportArea;

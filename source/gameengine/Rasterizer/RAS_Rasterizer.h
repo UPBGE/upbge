@@ -217,6 +217,9 @@ public:
 	static GPUFrameBufferType NextRenderFrameBuffer(GPUFrameBufferType index);
 
 private:
+
+	RAS_ICanvas *m_canvas;
+
 	class FrameBuffers
 	{
 	private:
@@ -232,7 +235,7 @@ private:
 		HdrType m_hdr;
 
 	public:
-		FrameBuffers();
+		FrameBuffers(RAS_ICanvas *canvas);
 		~FrameBuffers();
 
 		void Update(RAS_ICanvas *canvas);
@@ -319,7 +322,7 @@ private:
 	void DisableLights();*/
 
 public:
-	RAS_Rasterizer();
+	RAS_Rasterizer(RAS_ICanvas *canvas);
 	virtual ~RAS_Rasterizer();
 
 	/**

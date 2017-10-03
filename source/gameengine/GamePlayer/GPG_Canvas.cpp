@@ -35,6 +35,7 @@
 #include "KX_Globals.h"
 
 #include "RAS_Rasterizer.h"
+#include "KX_KetsjiEngine.h"
 
 #include "BLI_string.h"
 #include "BLI_path_util.h"
@@ -44,8 +45,8 @@
 #include "MEM_guardedalloc.h"
 #include "DNA_space_types.h"
 
-GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
-	: RAS_ICanvas(rasty),
+GPG_Canvas::GPG_Canvas(GHOST_IWindow *window)
+	: RAS_ICanvas(m_engine),
 	m_window(window),
 	m_width(0),
 	m_height(0)
@@ -104,7 +105,7 @@ void GPG_Canvas::MakeScreenShot(const std::string& filename)
 void GPG_Canvas::Init()
 {
 	if (m_window) {
-		m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT | RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
+		m_engine->GetRasterizer()->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT | RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 		m_window->setDrawingContextType(GHOST_kDrawingContextTypeOpenGL);
 		BLI_assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
 	}

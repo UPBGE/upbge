@@ -73,9 +73,9 @@ LA_BlenderLauncher::~LA_BlenderLauncher()
 {
 }
 
-RAS_ICanvas *LA_BlenderLauncher::CreateCanvas(RAS_Rasterizer *rasty)
+RAS_ICanvas *LA_BlenderLauncher::CreateCanvas()
 {
-	return (new KX_BlenderCanvas(rasty, m_windowManager, m_window, m_camFrame, m_ar));
+	return (new KX_BlenderCanvas(m_windowManager, m_window, m_camFrame, m_ar));
 }
 
 RAS_Rasterizer::DrawType LA_BlenderLauncher::GetRasterizerDrawMode()

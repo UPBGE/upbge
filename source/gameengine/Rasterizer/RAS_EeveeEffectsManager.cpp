@@ -64,30 +64,15 @@ m_dofTarget(nullptr)
 	};
 
 	// Bloom
-	m_bloomColorTex = DRW_texture_create_2D(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, dataTypeEnums[m_canvas->GetHdrType()], DRW_TEX_FILTER, nullptr);
-	m_bloomDepthTex = DRW_texture_create_2D(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
-	DRWFboTexture fbbloomtex[2] = { { &m_bloomColorTex, dataTypeEnums[m_canvas->GetHdrType()], DRWTextureFlag(DRW_TEX_FILTER) },
-									{ &m_bloomDepthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-	DRW_framebuffer_init_bge(&m_bloomTarget, &draw_engine_eevee_type,
-		m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, fbbloomtex, ARRAY_SIZE(fbbloomtex));
+	m_bloomTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_BLOOM0);
 
 	// Camera Motion Blur
 	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 	m_effects->motion_blur_samples = BKE_collection_engine_property_value_get_int(m_props, "motion_blur_samples");
-	m_blurColorTex = DRW_texture_create_2D(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, dataTypeEnums[m_canvas->GetHdrType()], DRW_TEX_FILTER, nullptr);
-	m_blurDepthTex = DRW_texture_create_2D(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
-	DRWFboTexture fbblurtex[2] = { { &m_blurColorTex, dataTypeEnums[m_canvas->GetHdrType()], DRWTextureFlag(DRW_TEX_FILTER) },
-									{ &m_blurDepthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-	DRW_framebuffer_init_bge(&m_blurTarget, &draw_engine_eevee_type,
-		m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, fbblurtex, ARRAY_SIZE(fbblurtex));
+	m_blurTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_BLUR0);
 
 	// Depth of field
-	m_dofColorTex = DRW_texture_create_2D(m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2, dataTypeEnums[m_canvas->GetHdrType()], DRW_TEX_FILTER, nullptr);
-	m_dofDepthTex = DRW_texture_create_2D(m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
-	DRWFboTexture fbdoftex[2] = { { &m_dofColorTex, dataTypeEnums[m_canvas->GetHdrType()], DRWTextureFlag(DRW_TEX_FILTER) },
-								  { &m_dofDepthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-	DRW_framebuffer_init_bge(&m_dofTarget, &draw_engine_eevee_type,
-		m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2, fbdoftex, ARRAY_SIZE(fbdoftex));
+	m_dofTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_DOF0);
 
 	// Ambient occlusion
 	m_useAO = m_effects->use_ao;
@@ -99,13 +84,6 @@ m_dofTarget(nullptr)
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 {
-	/* Free textures */
-	DRW_TEXTURE_FREE_SAFE(m_bloomColorTex);
-	DRW_TEXTURE_FREE_SAFE(m_bloomDepthTex);
-	DRW_TEXTURE_FREE_SAFE(m_blurColorTex);
-	DRW_TEXTURE_FREE_SAFE(m_blurDepthTex);
-	DRW_TEXTURE_FREE_SAFE(m_dofColorTex);
-	DRW_TEXTURE_FREE_SAFE(m_dofDepthTex);
 }
 
 void RAS_EeveeEffectsManager::InitDof()
@@ -127,7 +105,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderBloom(GPUFrameBuffer *inputfb)
 	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
 		struct GPUTexture *last;
 
-		m_effects->source_buffer = GPU_framebuffer_depth_texture(inputfb);
+		m_effects->source_buffer = GPU_framebuffer_color_texture(inputfb);
 
 		/* Extract bright pixels */
 		copy_v2_v2(m_effects->unf_source_texel_size, m_effects->source_texel_size);
@@ -190,7 +168,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(GPUFrameBuffer *inputf
 
 		KX_Camera *cam = m_scene->GetActiveCamera();
 
-		m_effects->source_buffer = GPU_framebuffer_depth_texture(inputfb);
+		m_effects->source_buffer = GPU_framebuffer_color_texture(inputfb);
 		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb);
 		float camToWorld[4][4];
 		cam->GetCameraToWorld().getValue(&camToWorld[0][0]);
@@ -231,7 +209,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderDof(GPUFrameBuffer *inputfb)
 
 		float clear_col[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-		m_effects->source_buffer = GPU_framebuffer_depth_texture(inputfb);
+		m_effects->source_buffer = GPU_framebuffer_color_texture(inputfb);
 		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb);
 
 		/* Downsample */
