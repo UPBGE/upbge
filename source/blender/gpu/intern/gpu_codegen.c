@@ -1579,9 +1579,8 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
 		/* uniform vector */
 		input->type = type;
 		input->source = GPU_SOURCE_VEC_UNIFORM;
-		if (type != GPU_CLOSURE) {
-			memcpy(input->vec, link->ptr1, type * sizeof(float));
-		}
+
+		memcpy(input->vec, link->ptr1, type * sizeof(float));
 		if (link->dynamic) {
 			input->dynamicvec = link->ptr1;
 			input->dynamictype = link->dynamictype;
