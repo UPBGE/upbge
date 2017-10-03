@@ -81,23 +81,23 @@ CValue *KX_LightObject::GetReplica()
 MT_Matrix4x4 KX_LightObject::GetShadowFrustumMatrix() const
 {
 	MT_Matrix4x4 matrix = MT_Matrix4x4::Identity();
-	const MT_Vector3& pos = NodeGetWorldPosition();
-
-	/*switch (m_lightobj->m_type) {
-		case RAS_ILightObject::LIGHT_NORMAL:
-		{*/
+	switch (m_lightobj->m_type) {
+		case RAS_ILightObject::LIGHT_SUN:
+		{
+			matrix[0][0] = matrix[1][1] = matrix[2][2] = 1000.0f;
+			break;
+		}
+		default:
+		{
+			const MT_Vector3& pos = NodeGetWorldPosition();
 			matrix[0][0] = matrix[1][1] = matrix[2][2] = m_lightobj->m_shadowclipend;
 
 			matrix[0][3] = pos.x();
 			matrix[1][3] = pos.y();
 			matrix[2][3] = pos.z();
-			/*break;
-		}
-		default:
-		{
 			break;
 		}
-	}*/
+	}
 
 	return matrix;
 }

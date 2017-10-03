@@ -212,14 +212,14 @@ static void eevee_shadow_cascade_setup(KX_LightObject *kxlight, EEVEE_LampsInfo 
 	KX_Camera *cam = scene->GetActiveCamera();
 
 	MT_Matrix4x4 proj(cam->GetProjectionMatrix());
-	MT_Matrix4x4 mvp(proj * cam->GetModelviewMatrix());
+	MT_Matrix4x4 pers(proj * cam->GetModelviewMatrix());
 
-	proj.getValue(&persmat[0][0]);
+	pers.getValue(&persmat[0][0]);
 
 	invert_m4_m4(persinv, persmat);
 	/* FIXME : Get near / far from Draw manager? */
 
-	mvp.getValue(&viewprojmat[0][0]);
+	proj.getValue(&viewprojmat[0][0]);
 
 	invert_m4_m4(projinv, viewprojmat);
 	mul_m4_v4(projinv, near_v);

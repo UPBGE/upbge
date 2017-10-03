@@ -875,7 +875,8 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 		Object *ob = light->GetBlenderObject();
 		EEVEE_LampsInfo *linfo = layerData->GetData().lamps;
 		EEVEE_LampEngineData *led = EEVEE_lamp_data_get(ob);
-		LightShadowType shadowtype = linfo->shadow_cascade_ref[linfo->cpu_cascade_ct] == ob ? SHADOW_CASCADE : SHADOW_CUBE;
+		Lamp *la = (Lamp *)ob->data;
+		LightShadowType shadowtype = la->type != LA_SUN ? SHADOW_CUBE : SHADOW_CASCADE;
 
 		raslight->UpdateLight(light, linfo, led);
 
@@ -895,8 +896,6 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cube_target, 0, 0);
 
 				raslight->UpdateShadowsCube(light, linfo, led);
-
-				Lamp *la = (Lamp *)ob->data;
 
 				float cube_projmat[4][4];
 				perspective_m4(cube_projmat, -la->clipsta, la->clipsta, -la->clipsta, la->clipsta, la->clipsta, la->clipend);
@@ -981,7 +980,6 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 				/* Cascaded Shadow Maps */
 				DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cascade_target, 0, 0);
-				Lamp *la = (Lamp *)ob->data;
 
 				EEVEE_ShadowCascadeData *evscd = (EEVEE_ShadowCascadeData *)led->storage;
 				EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
@@ -1005,9 +1003,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				/* render */
 				MT_Transform camtrans;
 				KX_CullingNodeList nodes;
-				const SG_Frustum frustum(light->GetShadowFrustumMatrix().inverse());
+				//const SG_Frustum frustum(light->GetShadowFrustumMatrix().inverse());
 				/* update scene */
-				scene->CalculateVisibleMeshes(nodes, frustum, raslight->GetShadowLayer());
+				scene->CalculateVisibleMeshes(nodes, scene->GetActiveCamera(), raslight->GetShadowLayer());
 				// Send a nullptr off screen because the viewport is binding it's using its own private one.
 				scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
 
