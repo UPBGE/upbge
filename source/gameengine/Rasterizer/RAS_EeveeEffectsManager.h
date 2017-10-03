@@ -43,17 +43,18 @@ class RAS_EeveeEffectsManager
 {
 
 public:
-	RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas, IDProperty *props, KX_Scene *scene);
+	RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas, IDProperty *props,
+		RAS_Rasterizer *rasty, KX_Scene *scene);
 	virtual ~RAS_EeveeEffectsManager();
 
-	GPUFrameBuffer *RenderEeveeEffects(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb);
+	GPUFrameBuffer *RenderEeveeEffects(GPUFrameBuffer *inputfb);
 
 	void InitDof();
 
-	GPUFrameBuffer *RenderBloom(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb);
-	GPUFrameBuffer *RenderMotionBlur(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb);
-	GPUFrameBuffer *RenderDof(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb);
-	GPUFrameBuffer *RenderVolumetrics(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb);
+	GPUFrameBuffer *RenderBloom(GPUFrameBuffer *inputfb);
+	GPUFrameBuffer *RenderMotionBlur(GPUFrameBuffer *inputfb);
+	GPUFrameBuffer *RenderDof(GPUFrameBuffer *inputfb);
+	GPUFrameBuffer *RenderVolumetrics(GPUFrameBuffer *inputfb);
 	void UpdateAO(GPUFrameBuffer *inputfb);
 
 private:
@@ -66,6 +67,7 @@ private:
 	KX_Scene *m_scene; // used for DOF and motion blur
 
 	RAS_ICanvas *m_canvas; // used to get viewport size
+	RAS_Rasterizer *m_rasterizer; // used to create FrameBuffers
 	IDProperty *m_props; // eevee engine properties
 
 	GPUFrameBuffer *m_bloomTarget;

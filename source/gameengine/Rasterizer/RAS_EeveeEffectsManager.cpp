@@ -40,9 +40,11 @@ extern "C" {
 #  include "DRW_render.h"
 }
 
-RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas, IDProperty *props, KX_Scene *scene):
+RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas,
+	IDProperty *props, RAS_Rasterizer *rasty, KX_Scene *scene):
 m_canvas(canvas),
 m_props(props),
+m_rasterizer(rasty),
 m_scene(scene),
 m_dofInitialized(false),
 m_bloomTarget(nullptr),
@@ -119,7 +121,7 @@ void RAS_EeveeEffectsManager::InitDof()
 	}
 }
 
-GPUFrameBuffer *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
+GPUFrameBuffer *RAS_EeveeEffectsManager::RenderBloom(GPUFrameBuffer *inputfb)
 {
 	/* Bloom */
 	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
@@ -171,7 +173,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, GPUF
 		m_effects->unf_source_buffer = last;
 		m_effects->unf_base_buffer = m_effects->source_buffer;
 
-		rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
 		DRW_framebuffer_bind(m_bloomTarget);
 		DRW_draw_pass(m_psl->bloom_resolve);
@@ -181,7 +183,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderBloom(RAS_Rasterizer *rasty, GPUF
 	return inputfb;
 }
 
-GPUFrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
+GPUFrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(GPUFrameBuffer *inputfb)
 {
 	/* Motion Blur */
 	if (BKE_collection_engine_property_value_get_bool(m_props, "motion_blur_enable")) {
@@ -197,7 +199,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty,
 		camToWorld[3][2] *= m_shutter;
 		copy_m4_m4(m_effects->current_ndc_to_world, camToWorld);
 
-		rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
 		DRW_framebuffer_bind(m_blurTarget);
 		DRW_draw_pass(m_psl->motion_blur);
@@ -214,7 +216,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_Rasterizer *rasty,
 	return inputfb;
 }
 
-GPUFrameBuffer *RAS_EeveeEffectsManager::RenderDof(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
+GPUFrameBuffer *RAS_EeveeEffectsManager::RenderDof(GPUFrameBuffer *inputfb)
 {
 	/* Depth Of Field */
 	if ((m_effects->enabled_effects & EFFECT_DOF) != 0) {
@@ -276,7 +278,7 @@ void RAS_EeveeEffectsManager::UpdateAO(GPUFrameBuffer *inputfb)
 	}
 }
 
-GPUFrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
+GPUFrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(GPUFrameBuffer *inputfb)
 {
 	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0 && m_useVolumetricNodes) {
 
@@ -293,7 +295,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty
 		DRW_draw_pass(m_psl->volumetric_integrate_ps);
 
 		/* Resolve at fullres */
-		rasty->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 		DRW_framebuffer_bind(inputfb);
 		if (sldata->volumetrics->use_colored_transmit) {
 			DRW_draw_pass(m_psl->volumetric_resolve_transmit_ps);
@@ -312,21 +314,21 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_Rasterizer *rasty
 }
 
 
-GPUFrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
+GPUFrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(GPUFrameBuffer *inputfb)
 {
-	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
+	m_rasterizer->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
 	UpdateAO(inputfb);
 
-	inputfb = RenderVolumetrics(rasty, inputfb);
+	inputfb = RenderVolumetrics(inputfb);
 
-	inputfb = RenderMotionBlur(rasty, inputfb);
+	inputfb = RenderMotionBlur(inputfb);
 
-	inputfb = RenderDof(rasty, inputfb);
+	inputfb = RenderDof(inputfb);
 
-	inputfb = RenderBloom(rasty, inputfb);
+	inputfb = RenderBloom(inputfb);
 
-	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
+	m_rasterizer->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	
 	return inputfb;
 }

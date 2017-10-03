@@ -558,7 +558,7 @@ public:
 	 */
 	RAS_2DFilterManager *Get2DFilterManager() const;
 	GPUFrameBuffer *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb);
-	GPUFrameBuffer *RenderEeveeEffects(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb);
+	GPUFrameBuffer *RenderEeveeEffects(GPUFrameBuffer *inputfb);
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 

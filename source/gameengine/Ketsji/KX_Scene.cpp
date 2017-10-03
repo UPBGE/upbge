@@ -280,7 +280,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	
 	m_eeveeData = EEVEE_engine_data_get();
 
-	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, this);
+	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, KX_GetActiveEngine()->GetRasterizer(), this);
 
 	/******************************************************************************************************************************/
 
@@ -2090,9 +2090,9 @@ GPUFrameBuffer *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *ca
 	return m_filterManager->RenderFilters(rasty, canvas, inputfb, targetfb, this);
 }
 
-GPUFrameBuffer *KX_Scene::RenderEeveeEffects(RAS_Rasterizer *rasty, GPUFrameBuffer *inputfb)
+GPUFrameBuffer *KX_Scene::RenderEeveeEffects(GPUFrameBuffer *inputfb)
 {
-	return m_effectsManager->RenderEeveeEffects(rasty, inputfb);
+	return m_effectsManager->RenderEeveeEffects(inputfb);
 }
 
 #ifdef WITH_PYTHON

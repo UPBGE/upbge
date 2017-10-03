@@ -1261,7 +1261,7 @@ GPUFrameBuffer *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, GPUFrameBuffer
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
-	GPUFrameBuffer *frameBuffer = scene->RenderEeveeEffects(m_rasterizer, inputfb);
+	GPUFrameBuffer *frameBuffer = scene->RenderEeveeEffects(inputfb);
 
 	m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
