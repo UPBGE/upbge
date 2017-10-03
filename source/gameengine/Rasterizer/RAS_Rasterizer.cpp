@@ -73,9 +73,9 @@ extern "C" {
 
 #include "CM_Message.h"
 
-RAS_Rasterizer::FrameBuffers::FrameBuffers(RAS_ICanvas *canvas)
-	:m_width(canvas->GetWidth()),
-	m_height(canvas->GetHeight()),
+RAS_Rasterizer::FrameBuffers::FrameBuffers()
+	:m_width(0),
+	m_height(0),
 	m_samples(0),
 	m_hdr(RAS_HDR_NONE)
 {
@@ -175,12 +175,12 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 			DRWFboTexture fbtex[2] = { { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) },
 									   { &depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
 			DRW_framebuffer_init_bge(&fb, &draw_engine_eevee_type, width, height, fbtex, ARRAY_SIZE(fbtex));
+			GPU_framebuffer_set_bge_type(fb, type);
 			
 			if (!fb) {
 				GPU_framebuffer_free(fb);
 				continue;
 			}
-			GPU_framebuffer_set_bge_type(fb, type);
 
 			m_colorTextureList[type] = tex;
 			m_depthTextureList[type] = depthTex;
@@ -264,7 +264,7 @@ GPUFrameBufferType RAS_Rasterizer::NextRenderFrameBuffer(GPUFrameBufferType type
 	}
 }
 
-RAS_Rasterizer::RAS_Rasterizer(RAS_ICanvas *canvas)
+RAS_Rasterizer::RAS_Rasterizer()
 	:m_fogenabled(false),
 	m_time(0.0f),
 	m_ambient(0.0f, 0.0f, 0.0f),
@@ -284,9 +284,7 @@ RAS_Rasterizer::RAS_Rasterizer(RAS_ICanvas *canvas)
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_invertFrontFace(false),
-	m_last_frontface(true),
-	m_canvas(canvas),
-	m_frameBuffers(RAS_Rasterizer::FrameBuffers(canvas))
+	m_last_frontface(true)
 {
 	m_impl.reset(new RAS_OpenGLRasterizer(this));
 

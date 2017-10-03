@@ -49,7 +49,8 @@ m_scene(scene),
 m_dofInitialized(false),
 m_bloomTarget(nullptr),
 m_blurTarget(nullptr),
-m_dofTarget(nullptr)
+m_dofTarget(nullptr),
+m_frameBuffersInitialized(false)
 {
 	m_stl = vedata->stl;
 	m_psl = vedata->psl;
@@ -57,22 +58,9 @@ m_dofTarget(nullptr)
 	m_fbl = vedata->fbl;
 	m_effects = m_stl->effects;
 
-	static const DRWTextureFormat dataTypeEnums[] = {
-		DRW_TEX_RGB_11_11_10, // RAS_HDR_NONE
-		DRW_TEX_RGBA_16, // RAS_HDR_HALF_FLOAT
-		DRW_TEX_RGBA_32 // RAS_HDR_FULL_FLOAT
-	};
-
-	// Bloom
-	m_bloomTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_BLOOM0);
-
 	// Camera Motion Blur
 	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 	m_effects->motion_blur_samples = BKE_collection_engine_property_value_get_int(m_props, "motion_blur_samples");
-	m_blurTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_BLUR0);
-
-	// Depth of field
-	m_dofTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_DOF0);
 
 	// Ambient occlusion
 	m_useAO = m_effects->use_ao;
@@ -84,6 +72,16 @@ m_dofTarget(nullptr)
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 {
+}
+
+void RAS_EeveeEffectsManager::InitFrameBuffers()
+{
+	// Bloom
+	m_bloomTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_BLOOM0);
+	// Camera Motion blur
+	m_blurTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_BLUR0);
+	// Depth of field
+	m_dofTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_DOF0);
 }
 
 void RAS_EeveeEffectsManager::InitDof()
@@ -294,6 +292,11 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(GPUFrameBuffer *input
 
 GPUFrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(GPUFrameBuffer *inputfb)
 {
+	if (!m_frameBuffersInitialized) {
+		InitFrameBuffers();
+		m_frameBuffersInitialized = true;
+	}
+
 	m_rasterizer->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
 	UpdateAO(inputfb);

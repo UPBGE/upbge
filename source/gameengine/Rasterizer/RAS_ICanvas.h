@@ -35,7 +35,6 @@
 #include "RAS_Rasterizer.h" // for RAS_Rasterizer::HdrType
 
 class RAS_Rect;
-class KX_KetsjiEngine;
 struct TaskScheduler;
 struct TaskPool;
 struct ImageFormatData;
@@ -53,7 +52,7 @@ public:
 		MOUSE_NORMAL
 	};
 
-	RAS_ICanvas(KX_KetsjiEngine *engine);
+	RAS_ICanvas(RAS_Rasterizer *rasty);
 	virtual ~RAS_ICanvas();
 
 	virtual void Init() = 0;
@@ -133,7 +132,7 @@ public:
 
 protected:
 
-	KX_KetsjiEngine *m_engine;
+	RAS_Rasterizer *m_rasterizer;
 
 	struct Screenshot
 	{

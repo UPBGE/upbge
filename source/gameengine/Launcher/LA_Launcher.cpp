@@ -168,10 +168,7 @@ void LA_Launcher::InitEngine()
 	}
 	m_pythonConsole.use = (gm.flag & GAME_PYTHON_CONSOLE);
 
-	// Create the canvas, rasterizer and rendertools.
-	m_canvas = CreateCanvas();
-
-	m_rasterizer = new RAS_Rasterizer(m_canvas);
+	m_rasterizer = new RAS_Rasterizer();
 
 	// Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI
 	m_rasterizer->SetStereoMode(m_stereoMode);
@@ -182,6 +179,9 @@ void LA_Launcher::InitEngine()
 	m_savedData.anisotropic = m_rasterizer->GetAnisotropicFiltering();
 	// Copy current mipmap mode to restore at the game end.
 	m_savedData.mipmap = m_rasterizer->GetMipmapping();
+
+	// Create the canvas, rasterizer and rendertools.
+	m_canvas = CreateCanvas();
 
 	// Copy current vsync mode to restore at the game end.
 	m_canvas->GetSwapInterval(m_savedData.vsync);

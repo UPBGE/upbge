@@ -218,8 +218,6 @@ public:
 
 private:
 
-	RAS_ICanvas *m_canvas;
-
 	class FrameBuffers
 	{
 	private:
@@ -235,7 +233,7 @@ private:
 		HdrType m_hdr;
 
 	public:
-		FrameBuffers(RAS_ICanvas *canvas);
+		FrameBuffers();
 		~FrameBuffers();
 
 		void Update(RAS_ICanvas *canvas);
@@ -322,7 +320,7 @@ private:
 	void DisableLights();*/
 
 public:
-	RAS_Rasterizer(RAS_ICanvas *canvas);
+	RAS_Rasterizer();
 	virtual ~RAS_Rasterizer();
 
 	/**

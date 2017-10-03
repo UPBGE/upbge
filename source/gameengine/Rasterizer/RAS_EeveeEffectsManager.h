@@ -47,6 +47,15 @@ public:
 		RAS_Rasterizer *rasty, KX_Scene *scene);
 	virtual ~RAS_EeveeEffectsManager();
 
+	/* FrameBuffers can't be initialized before the canvas size is available.
+	 * With the current launching process, canvas size is available after
+	 * the effects manager is created. So we can't initialize effects framebuffers
+	 * in effects manager constructor.
+	 * I'll initialize it in RenderEeveeEffects for now.
+	 */
+	void InitFrameBuffers();
+	bool m_frameBuffersInitialized;
+
 	GPUFrameBuffer *RenderEeveeEffects(GPUFrameBuffer *inputfb);
 
 	void InitDof();

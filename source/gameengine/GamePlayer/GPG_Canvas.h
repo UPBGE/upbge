@@ -60,7 +60,7 @@ protected:
 	int m_viewport[4];
 
 public:
-	GPG_Canvas(GHOST_IWindow *window);
+	GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window);
 	virtual ~GPG_Canvas();
 
 	/**
