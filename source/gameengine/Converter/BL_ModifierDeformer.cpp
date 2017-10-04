@@ -186,7 +186,7 @@ void BL_ModifierDeformer::UpdateBounds()
 
 void BL_ModifierDeformer::UpdateTransverts()
 {
-	if (!m_dm || m_displayArrayList.size() == 0) {
+	if (!m_dm) {
 		return;
 	}
 

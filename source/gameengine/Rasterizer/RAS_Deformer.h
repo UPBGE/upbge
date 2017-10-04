@@ -53,13 +53,7 @@ class SCA_IObject;
 class RAS_Deformer
 {
 public:
-	RAS_Deformer(RAS_MeshObject *mesh)
-		:m_mesh(mesh),
-		m_bDynamic(false),
-		m_boundingBox(nullptr)
-	{
-	}
-
+	RAS_Deformer(RAS_MeshObject *mesh);
 	virtual ~RAS_Deformer();
 
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map) = 0;
@@ -67,12 +61,7 @@ public:
 	virtual bool Update(void)=0;
 	virtual void UpdateBuckets(void)=0;
 	virtual RAS_Deformer *GetReplica()=0;
-	virtual void ProcessReplica()
-	{
-		m_displayArrayList.clear();
-		m_displayArrayBucketList.clear();
-		m_boundingBox = m_boundingBox->GetReplica();
-	}
+	virtual void ProcessReplica();
 	virtual bool SkipVertexTransform()
 	{
 		return false;
@@ -91,8 +80,8 @@ public:
 
 	RAS_MeshObject *GetMesh() const;
 
-	void AddDisplayArray(RAS_IDisplayArray *array, RAS_DisplayArrayBucket *arrayBucket);
 	RAS_IDisplayArray *GetDisplayArray(unsigned short index) const;
+	RAS_DisplayArrayBucket *GetDisplayArrayBucket(unsigned short index) const;
 
 protected:
 	RAS_MeshObject *m_mesh;

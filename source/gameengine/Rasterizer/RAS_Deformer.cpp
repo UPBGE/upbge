@@ -21,6 +21,29 @@
  */
 
 #include "RAS_Deformer.h"
+#include "RAS_MeshObject.h"
+
+RAS_Deformer::RAS_Deformer(RAS_MeshObject *mesh)
+	:m_mesh(mesh),
+	m_bDynamic(false),
+	m_boundingBox(nullptr)
+{
+	for (unsigned short i = 0, nummat = m_mesh->GetNumMaterials(); i < nummat; ++i) {
+		RAS_MeshMaterial *meshmat = m_mesh->GetMeshMaterial(i);
+
+		/* Duplicate the display array bucket and the display array if needed to store
+		 * the mesh slot on a unique list (= display array bucket) and use an unique vertex
+		 * array (=display array). */
+		RAS_IDisplayArray *array = meshmat->GetDisplayArray()->GetReplica();
+
+		RAS_DisplayArrayBucket *arrayBucket = new RAS_DisplayArrayBucket(meshmat->GetBucket(), array, m_mesh, meshmat, this);
+		// Generate attribute layers.
+		arrayBucket->GenerateAttribLayers();
+
+		m_displayArrayList.push_back(array);
+		m_displayArrayBucketList.push_back(arrayBucket);
+	}
+}
 
 RAS_Deformer::~RAS_Deformer()
 {
@@ -33,18 +56,30 @@ RAS_Deformer::~RAS_Deformer()
 	}
 }
 
+void RAS_Deformer::ProcessReplica()
+{
+	m_boundingBox = m_boundingBox->GetReplica();
+
+	for (unsigned short i = 0, size = m_displayArrayList.size(); i < size; ++i) {
+		RAS_IDisplayArray *array = m_displayArrayList[i] = m_displayArrayList[i]->GetReplica();
+		RAS_MeshMaterial *meshmat = m_displayArrayBucketList[i]->GetMeshMaterial();
+		RAS_DisplayArrayBucket *arrayBucket = m_displayArrayBucketList[i] = 
+				new RAS_DisplayArrayBucket(meshmat->GetBucket(), array, m_mesh, meshmat, this);
+		arrayBucket->GenerateAttribLayers();
+	}
+}
+
 RAS_MeshObject *RAS_Deformer::GetMesh() const
 {
 	return m_mesh;
 }
 
-void RAS_Deformer::AddDisplayArray(RAS_IDisplayArray *array, RAS_DisplayArrayBucket *arrayBucket)
-{
-	m_displayArrayList.push_back(array);
-	m_displayArrayBucketList.push_back(arrayBucket);
-}
-
 RAS_IDisplayArray *RAS_Deformer::GetDisplayArray(unsigned short index) const
 {
 	return m_displayArrayList[index];
+}
+
+RAS_DisplayArrayBucket *RAS_Deformer::GetDisplayArrayBucket(unsigned short index) const
+{
+	return m_displayArrayBucketList[index];
 }
