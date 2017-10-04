@@ -37,7 +37,7 @@
 
 #include <vector>
 
-struct GPUFrameBuffer;
+class RAS_FrameBuffer;
 class RAS_OverrideShader;
 class RAS_SceneLayerData;
 
@@ -123,7 +123,7 @@ public:
 
 	void InitOverrideShaders(RAS_SceneLayerData *layerData);
 
-	void Renderbuckets(const MT_Transform & cameratrans, RAS_Rasterizer *rasty, GPUFrameBuffer *frameBuffer);
+	void Renderbuckets(const MT_Transform & cameratrans, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer);
 
 	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 	RAS_DisplayArrayBucket *GetTextDisplayArrayBucket() const;

@@ -26,9 +26,11 @@
 
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
-#include "GPU_framebuffer.h"
+#include "RAS_FrameBuffer.h"
 #include "RAS_EeveeEffectsManager.h"
 #include "RAS_SceneLayerData.h"
+
+#include "GPU_framebuffer.h"
 
 #include "BLI_math.h"
 #include "DNA_world_types.h"
@@ -77,11 +79,11 @@ RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 void RAS_EeveeEffectsManager::InitFrameBuffers()
 {
 	// Bloom
-	m_bloomTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_BLOOM0);
+	m_bloomTarget = m_rasterizer->GetFrameBuffer(RAS_Rasterizer::RAS_FRAMEBUFFER_BLOOM0);
 	// Camera Motion blur
-	m_blurTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_BLUR0);
+	m_blurTarget = m_rasterizer->GetFrameBuffer(RAS_Rasterizer::RAS_FRAMEBUFFER_BLUR0);
 	// Depth of field
-	m_dofTarget = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_DOF0);
+	m_dofTarget = m_rasterizer->GetFrameBuffer(RAS_Rasterizer::RAS_FRAMEBUFFER_DOF0);
 }
 
 void RAS_EeveeEffectsManager::InitDof()
@@ -97,13 +99,13 @@ void RAS_EeveeEffectsManager::InitDof()
 	}
 }
 
-GPUFrameBuffer *RAS_EeveeEffectsManager::RenderBloom(GPUFrameBuffer *inputfb)
+RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderBloom(RAS_FrameBuffer *inputfb)
 {
 	/* Bloom */
 	if ((m_effects->enabled_effects & EFFECT_BLOOM) != 0) {
 		struct GPUTexture *last;
 
-		m_effects->source_buffer = GPU_framebuffer_color_texture(inputfb);
+		m_effects->source_buffer = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer());
 
 		/* Extract bright pixels */
 		copy_v2_v2(m_effects->unf_source_texel_size, m_effects->source_texel_size);
@@ -151,7 +153,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderBloom(GPUFrameBuffer *inputfb)
 
 		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
-		DRW_framebuffer_bind(m_bloomTarget);
+		DRW_framebuffer_bind(m_bloomTarget->GetFrameBuffer());
 		DRW_draw_pass(m_psl->bloom_resolve);
 
 		return m_bloomTarget;
@@ -159,15 +161,15 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderBloom(GPUFrameBuffer *inputfb)
 	return inputfb;
 }
 
-GPUFrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(GPUFrameBuffer *inputfb)
+RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_FrameBuffer *inputfb)
 {
 	/* Motion Blur */
 	if (BKE_collection_engine_property_value_get_bool(m_props, "motion_blur_enable")) {
 
 		KX_Camera *cam = m_scene->GetActiveCamera();
 
-		m_effects->source_buffer = GPU_framebuffer_color_texture(inputfb);
-		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb);
+		m_effects->source_buffer = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer());
+		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
 		float camToWorld[4][4];
 		cam->GetCameraToWorld().getValue(&camToWorld[0][0]);
 		camToWorld[3][0] *= m_shutter;
@@ -177,7 +179,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(GPUFrameBuffer *inputf
 
 		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
-		DRW_framebuffer_bind(m_blurTarget);
+		DRW_framebuffer_bind(m_blurTarget->GetFrameBuffer());
 		DRW_draw_pass(m_psl->motion_blur);
 
 		float worldToCam[4][4];
@@ -192,7 +194,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(GPUFrameBuffer *inputf
 	return inputfb;
 }
 
-GPUFrameBuffer *RAS_EeveeEffectsManager::RenderDof(GPUFrameBuffer *inputfb)
+RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderDof(RAS_FrameBuffer *inputfb)
 {
 	/* Depth Of Field */
 	if ((m_effects->enabled_effects & EFFECT_DOF) != 0) {
@@ -207,8 +209,8 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderDof(GPUFrameBuffer *inputfb)
 
 		float clear_col[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-		m_effects->source_buffer = GPU_framebuffer_color_texture(inputfb);
-		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb);
+		m_effects->source_buffer = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer());
+		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
 
 		/* Downsample */
 		DRW_framebuffer_bind(m_fbl->dof_down_fb);
@@ -235,7 +237,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderDof(GPUFrameBuffer *inputfb)
 		DRW_draw_pass(m_psl->dof_scatter);
 
 		/* Resolve */
-		DRW_framebuffer_bind(m_dofTarget);
+		DRW_framebuffer_bind(m_dofTarget->GetFrameBuffer());
 		DRW_draw_pass(m_psl->dof_resolve);
 
 		return m_dofTarget;
@@ -243,23 +245,23 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderDof(GPUFrameBuffer *inputfb)
 	return inputfb;
 }
 
-void RAS_EeveeEffectsManager::UpdateAO(GPUFrameBuffer *inputfb)
+void RAS_EeveeEffectsManager::UpdateAO(RAS_FrameBuffer *inputfb)
 {
 	if (m_useAO) {
 		/* Create stl->g_data->minmaxz from our depth texture.
 		 * This texture is used as uniform if AO is enabled.
 		 * See: DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
 		 */
-		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), GPU_framebuffer_depth_texture(inputfb), -1);
+		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer()), -1);
 	}
 }
 
-GPUFrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(GPUFrameBuffer *inputfb)
+RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_FrameBuffer *inputfb)
 {
 	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0 && m_useVolumetricNodes) {
 
-		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb);
-		EEVEE_effects_replace_e_data_depth(GPU_framebuffer_depth_texture(inputfb));
+		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
+		EEVEE_effects_replace_e_data_depth(GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer()));
 
 		/* Compute volumetric integration at halfres. */
 		DRW_framebuffer_texture_attach(m_fbl->volumetric_fb, m_stl->g_data->volumetric, 0, 0);
@@ -272,7 +274,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(GPUFrameBuffer *input
 
 		/* Resolve at fullres */
 		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
-		DRW_framebuffer_bind(inputfb);
+		DRW_framebuffer_bind(inputfb->GetFrameBuffer());
 		if (sldata->volumetrics->use_colored_transmit) {
 			DRW_draw_pass(m_psl->volumetric_resolve_transmit_ps);
 		}
@@ -290,7 +292,7 @@ GPUFrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(GPUFrameBuffer *input
 }
 
 
-GPUFrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(GPUFrameBuffer *inputfb)
+RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_FrameBuffer *inputfb)
 {
 	if (!m_frameBuffersInitialized) {
 		InitFrameBuffers();

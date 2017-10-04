@@ -42,7 +42,7 @@
 
 #include "KX_Globals.h"
 #include "DNA_scene_types.h"
-#include "GPU_framebuffer.h"
+#include "RAS_FrameBuffer.h"
 #include "RAS_CameraData.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
@@ -110,13 +110,24 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 		m_internalFormat = GL_R11F_G11F_B10F;
 	}
 
-	m_frameBuffer = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_IMRENDER0);
+	/* Temp solution for the ping pong between framebuffers
+	 * (as we use PostRenderScene in ImageRender to apply
+	 * tonemap to the rendered texture (temp because we
+	 * can't have several ImageRender when we use GetFrameBuffer
+	 * -> TODO: find a way to add these framebuffers to
+	 * RAS_Rasterizer::FrameBuffers::m_frameBuffers list
+	 * without limitation (The goal is to have all bge
+	 * framebuffers in the same list to make creation
+	 * and deletion easier.
+	 */
+	m_frameBuffer = m_rasterizer->GetFrameBufferCustom(RAS_Rasterizer::RAS_FRAMEBUFFER_IMRENDER0, m_width, m_height);
+	m_frameBuffer = m_rasterizer->GetFrameBufferCustom(RAS_Rasterizer::RAS_FRAMEBUFFER_IMRENDER1, m_width, m_height);
 	/*if (m_samples > 0) {
 		m_bliFb.reset(new GPUFrameBuffer(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_FrameBuffer_IMRENDER0));
 		m_finalFb = m_bliFb.get();
 	}
 	else {*/
-	m_finalFb = m_frameBuffer;
+	//m_finalFb = m_frameBuffer;
 	//}
 }
 
@@ -135,7 +146,7 @@ ImageRender::~ImageRender (void)
 
 int ImageRender::GetColorBindCode() const
 {
-	return GPU_framebuffer_color_bindcode(m_finalFb);
+	return GPU_framebuffer_color_bindcode(m_frameBuffer->GetFrameBuffer());
 }
 
 // get update shadow buffer
@@ -212,7 +223,7 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 		}
 	}
 
-	DRW_framebuffer_bind(m_finalFb);
+	DRW_framebuffer_bind(m_frameBuffer->GetFrameBuffer());
 
 	// wait until all render operations are completed: TO DO: Remove sync and rename this MipMapTexture
 	WaitSync();
@@ -221,8 +232,8 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	ImageViewport::calcViewport(texId, ts, format);
 
 	// We need to tonemap the rendered texture so we post render the scene
-	GPUFrameBufferType target = RAS_Rasterizer::NextRenderFrameBuffer(GPU_framebuffer_get_bge_type(m_finalFb));
-	m_finalFb = m_engine->PostRenderScene(m_scene, m_frameBuffer, m_rasterizer->GetFrameBuffer(target));
+	RAS_Rasterizer::FrameBufferType target = RAS_Rasterizer::NextRenderFrameBuffer(m_frameBuffer->GetType());
+	m_frameBuffer = m_engine->PostRenderScene(m_scene, m_frameBuffer, m_rasterizer->GetFrameBuffer(target));
 
 	GPU_framebuffer_restore();
 }
@@ -313,7 +324,7 @@ bool ImageRender::Render()
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	// bind the fbo and set the viewport to full size
-	DRW_framebuffer_bind(m_frameBuffer);
+	DRW_framebuffer_bind(m_frameBuffer->GetFrameBuffer());
 
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 
@@ -467,7 +478,7 @@ void ImageRender::WaitSync()
 #endif
 
 	// this is needed to finalize the image if the target is a texture
-	GPU_framebuffer_mipmap_texture(m_finalFb);
+	GPU_framebuffer_mipmap_texture(m_frameBuffer->GetFrameBuffer());
 
 	// all rendered operation done and complete, invalidate render for next time
 	m_done = false;
@@ -895,7 +906,8 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 		m_internalFormat = GL_R11F_G11F_B10F;
 	}
 
-	m_frameBuffer = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_IMRENDER0);
+	m_frameBuffer = m_rasterizer->GetFrameBufferCustom(RAS_Rasterizer::RAS_FRAMEBUFFER_IMRENDER0, m_width, m_height);
+	m_frameBuffer = m_rasterizer->GetFrameBufferCustom(RAS_Rasterizer::RAS_FRAMEBUFFER_IMRENDER1, m_width, m_height);
 	/*if (m_samples > 0) {
 	m_bliFb.reset(new GPUFrameBuffer(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_FrameBuffer_IMRENDER0));
 	m_finalFb = m_bliFb.get();

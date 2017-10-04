@@ -31,7 +31,7 @@
 class RAS_2DFilterManager;
 class RAS_Rasterizer;
 class RAS_ICanvas;
-struct GPUFrameBuffer;
+class RAS_FrameBuffer;
 class RAS_2DFilterFrameBuffer;
 class CValue;
 
@@ -72,8 +72,8 @@ protected:
 	virtual bool LinkProgram();
 	void ParseShaderProgram();
 	void BindUniforms(RAS_ICanvas *canvas);
-	void BindTextures(GPUFrameBuffer *detphofs, GPUFrameBuffer *colorfb);
-	void UnbindTextures(GPUFrameBuffer *detphofs, GPUFrameBuffer *colorfb);
+	void BindTextures(RAS_FrameBuffer *detphofs, RAS_FrameBuffer *colorfb);
+	void UnbindTextures(RAS_FrameBuffer *detphofs, RAS_FrameBuffer *colorfb);
 	void ComputeTextureOffsets(RAS_ICanvas *canvas);
 
 public:
@@ -98,8 +98,8 @@ public:
 	 * \param targetfb The off screen used to draw the filter to.
 	 * \return The off screen to use as input for the next filter.
 	 */
-	GPUFrameBuffer *Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *detphofs,
-			   GPUFrameBuffer *colorfb, GPUFrameBuffer *targetfb);
+	RAS_FrameBuffer *Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_FrameBuffer *detphofs,
+			   RAS_FrameBuffer *colorfb, RAS_FrameBuffer *targetfb);
 
 	/// Finalizes the execution stage of the filter.
 	void End();

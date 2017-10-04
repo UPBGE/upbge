@@ -33,7 +33,7 @@ extern "C" {
 
 class RAS_ICanvas;
 class RAS_Rasterizer;
-struct GPUFrameBuffer;
+class RAS_FrameBuffer;
 struct GPUTexture;
 class KX_Scene;
 struct DRWShadingGroup;
@@ -56,15 +56,15 @@ public:
 	void InitFrameBuffers();
 	bool m_frameBuffersInitialized;
 
-	GPUFrameBuffer *RenderEeveeEffects(GPUFrameBuffer *inputfb);
+	RAS_FrameBuffer *RenderEeveeEffects(RAS_FrameBuffer *inputfb);
 
 	void InitDof();
 
-	GPUFrameBuffer *RenderBloom(GPUFrameBuffer *inputfb);
-	GPUFrameBuffer *RenderMotionBlur(GPUFrameBuffer *inputfb);
-	GPUFrameBuffer *RenderDof(GPUFrameBuffer *inputfb);
-	GPUFrameBuffer *RenderVolumetrics(GPUFrameBuffer *inputfb);
-	void UpdateAO(GPUFrameBuffer *inputfb);
+	RAS_FrameBuffer *RenderBloom(RAS_FrameBuffer *inputfb);
+	RAS_FrameBuffer *RenderMotionBlur(RAS_FrameBuffer *inputfb);
+	RAS_FrameBuffer *RenderDof(RAS_FrameBuffer *inputfb);
+	RAS_FrameBuffer *RenderVolumetrics(RAS_FrameBuffer *inputfb);
+	void UpdateAO(RAS_FrameBuffer *inputfb);
 
 private:
 	EEVEE_StorageList *m_stl;
@@ -79,9 +79,9 @@ private:
 	RAS_Rasterizer *m_rasterizer; // used to create FrameBuffers
 	IDProperty *m_props; // eevee engine properties
 
-	GPUFrameBuffer *m_bloomTarget;
-	GPUFrameBuffer *m_blurTarget;
-	GPUFrameBuffer *m_dofTarget;
+	RAS_FrameBuffer *m_bloomTarget;
+	RAS_FrameBuffer *m_blurTarget;
+	RAS_FrameBuffer *m_dofTarget;
 
 	float m_shutter; // camera motion blur
 

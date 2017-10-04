@@ -34,8 +34,8 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArrayBucket.h"
 
+#include "RAS_FrameBuffer.h"
 #include "RAS_ICanvas.h"
-#include "GPU_framebuffer.h"
 #include "RAS_Rect.h"
 #include "RAS_TextUser.h"
 #include "RAS_Polygon.h"
@@ -79,7 +79,7 @@ RAS_Rasterizer::FrameBuffers::FrameBuffers()
 	m_samples(0),
 	m_hdr(RAS_HDR_NONE)
 {
-	for (int i = 0; i < GPU_FRAMEBUFFER_MAX; i++) {
+	for (int i = 0; i < RAS_FRAMEBUFFER_MAX; i++) {
 		m_colorTextureList[i] = nullptr;
 		m_depthTextureList[i] = nullptr;
 		m_frameBuffers[i] = nullptr;
@@ -89,12 +89,15 @@ RAS_Rasterizer::FrameBuffers::FrameBuffers()
 RAS_Rasterizer::FrameBuffers::~FrameBuffers()
 {
 	/* Free FrameBuffer Textures Attachments */
-	for (int i = 0; i < GPU_FRAMEBUFFER_MAX; i++) {
+	for (int i = 0; i < RAS_FRAMEBUFFER_MAX; i++) {
 		if (m_colorTextureList[i]) {
 			DRW_TEXTURE_FREE_SAFE(m_colorTextureList[i]);
 		}
 		if (m_depthTextureList[i]) {
 			DRW_TEXTURE_FREE_SAFE(m_depthTextureList[i]);
+		}
+		if (m_frameBuffers[i]) {
+			delete m_frameBuffers[i];
 		}
 	}
 }
@@ -115,31 +118,31 @@ inline void RAS_Rasterizer::FrameBuffers::Update(RAS_ICanvas *canvas)
 	m_hdr = canvas->GetHdrType();
 
 	// Destruct all off screens.
-	for (unsigned short i = 0; i < GPU_FRAMEBUFFER_MAX; ++i) {
+	for (unsigned short i = 0; i < RAS_FRAMEBUFFER_MAX; ++i) {
 		m_frameBuffers[i] = nullptr;
 	}
 }
 
-inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBufferType type)
+inline RAS_FrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(FrameBufferType type)
 {
 	if (!m_frameBuffers[type]) {
 		// The offscreen need to be created now.
 
 		// Check if the off screen type can support samples.
-		const bool sampleofs = type == GPU_FRAMEBUFFER_EYE_LEFT0 ||
-							   type == GPU_FRAMEBUFFER_EYE_RIGHT0;
+		const bool sampleofs = type == RAS_FRAMEBUFFER_EYE_LEFT0 ||
+							   type == RAS_FRAMEBUFFER_EYE_RIGHT0;
 
 		/* Set FrameBuffer Size according to FrameBuffer type */
 		int width, height;
 		switch (type)
 		{
-		case GPU_FRAMEBUFFER_DOF0:
+		case RAS_FRAMEBUFFER_DOF0:
 		{
 			width = int(m_width / 2);
 			height = int(m_height / 2);
 			break;
 		}
-		case GPU_FRAMEBUFFER_DOF1:
+		case RAS_FRAMEBUFFER_DOF1:
 		{
 			width = int(m_width / 2);
 			height = int(m_height / 2);
@@ -175,7 +178,6 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 			DRWFboTexture fbtex[2] = { { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) },
 									   { &depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
 			DRW_framebuffer_init_bge(&fb, &draw_engine_eevee_type, width, height, fbtex, ARRAY_SIZE(fbtex));
-			GPU_framebuffer_set_bge_type(fb, type);
 			
 			if (!fb) {
 				GPU_framebuffer_free(fb);
@@ -184,7 +186,7 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 
 			m_colorTextureList[type] = tex;
 			m_depthTextureList[type] = depthTex;
-			m_frameBuffers[type] = fb;
+			m_frameBuffers[type] = new RAS_FrameBuffer(fb, type);
 			m_samples = samples;
 			break;
 		}
@@ -192,74 +194,99 @@ inline GPUFrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(GPUFrameBuff
 	return m_frameBuffers[type];
 }
 
-GPUFrameBufferType RAS_Rasterizer::NextFilterFrameBuffer(GPUFrameBufferType type)
+inline RAS_FrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBufferCustom(FrameBufferType type, int width, int height)
+{
+	if (!m_frameBuffers[type]) {
+		
+		// WARNING: Always respect the order from RAS_Rasterizer::HdrType.
+		static const DRWTextureFormat dataTypeEnums[] = {
+			DRW_TEX_RGB_11_11_10, // RAS_HDR_NONE
+			DRW_TEX_RGBA_16, // RAS_HDR_HALF_FLOAT
+			DRW_TEX_RGBA_32 // RAS_HDR_FULL_FLOAT
+		};
+
+		GPUFrameBuffer *fb = nullptr;
+		GPUTexture *tex = DRW_texture_create_2D(width, height, dataTypeEnums[m_hdr], DRW_TEX_FILTER, nullptr);
+		GPUTexture *depthTex = DRW_texture_create_2D(width, height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
+		DRWFboTexture fbtex[2] = { { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) },
+		{ &depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
+		DRW_framebuffer_init_bge(&fb, &draw_engine_eevee_type, width, height, fbtex, ARRAY_SIZE(fbtex));
+
+		m_colorTextureList[type] = tex;
+		m_depthTextureList[type] = depthTex;
+		m_frameBuffers[type] = new RAS_FrameBuffer(fb, type);
+	}
+	return m_frameBuffers[type];
+}
+
+RAS_Rasterizer::FrameBufferType RAS_Rasterizer::NextFilterFrameBuffer(FrameBufferType type)
 {
 	switch (type) {
-		case GPU_FRAMEBUFFER_FILTER0:
+		case RAS_FRAMEBUFFER_FILTER0:
 		{
-			return GPU_FRAMEBUFFER_FILTER1;
+			return RAS_FRAMEBUFFER_FILTER1;
 		}
-		case GPU_FRAMEBUFFER_FILTER1:
+		case RAS_FRAMEBUFFER_FILTER1:
 		// Passing a non-filter frame buffer is allowed.
 		default:
 		{
-			return GPU_FRAMEBUFFER_FILTER0;
+			return RAS_FRAMEBUFFER_FILTER0;
 		}
 	}
 }
 
-GPUFrameBufferType RAS_Rasterizer::NextRenderFrameBuffer(GPUFrameBufferType type)
+RAS_Rasterizer::FrameBufferType RAS_Rasterizer::NextRenderFrameBuffer(FrameBufferType type)
 {
 	switch (type) {
-		case GPU_FRAMEBUFFER_EYE_LEFT0:
+		case RAS_FRAMEBUFFER_EYE_LEFT0:
 		{
-			return GPU_FRAMEBUFFER_EYE_LEFT1;
+			return RAS_FRAMEBUFFER_EYE_LEFT1;
 		}
-		case GPU_FRAMEBUFFER_EYE_LEFT1:
+		case RAS_FRAMEBUFFER_EYE_LEFT1:
 		{
-			return GPU_FRAMEBUFFER_EYE_LEFT0;
+			return RAS_FRAMEBUFFER_EYE_LEFT0;
 		}
-		case GPU_FRAMEBUFFER_EYE_RIGHT0:
+		case RAS_FRAMEBUFFER_EYE_RIGHT0:
 		{
-			return GPU_FRAMEBUFFER_EYE_RIGHT1;
+			return RAS_FRAMEBUFFER_EYE_RIGHT1;
 		}
-		case GPU_FRAMEBUFFER_EYE_RIGHT1:
+		case RAS_FRAMEBUFFER_EYE_RIGHT1:
 		{
-			return GPU_FRAMEBUFFER_EYE_RIGHT0;
+			return RAS_FRAMEBUFFER_EYE_RIGHT0;
 		}
-		case GPU_FRAMEBUFFER_BLOOM0:
+		case RAS_FRAMEBUFFER_BLOOM0:
 		{
-			return GPU_FRAMEBUFFER_BLOOM1;
+			return RAS_FRAMEBUFFER_BLOOM1;
 		}
-		case GPU_FRAMEBUFFER_BLOOM1:
+		case RAS_FRAMEBUFFER_BLOOM1:
 		{
-			return GPU_FRAMEBUFFER_BLOOM0;
+			return RAS_FRAMEBUFFER_BLOOM0;
 		}
-		case GPU_FRAMEBUFFER_BLUR0:
+		case RAS_FRAMEBUFFER_BLUR0:
 		{
-			return GPU_FRAMEBUFFER_BLUR1;
+			return RAS_FRAMEBUFFER_BLUR1;
 		}
-		case GPU_FRAMEBUFFER_DOF0:
+		case RAS_FRAMEBUFFER_DOF0:
 		{
-			return GPU_FRAMEBUFFER_DOF1;
+			return RAS_FRAMEBUFFER_DOF1;
 		}
-		case GPU_FRAMEBUFFER_DOF1:
+		case RAS_FRAMEBUFFER_DOF1:
 		{
-			return GPU_FRAMEBUFFER_DOF0;
+			return RAS_FRAMEBUFFER_DOF0;
 		}
-		case GPU_FRAMEBUFFER_IMRENDER0:
+		case RAS_FRAMEBUFFER_IMRENDER0:
 		{
-			return GPU_FRAMEBUFFER_IMRENDER1;
+			return RAS_FRAMEBUFFER_IMRENDER1;
 		}
-		case GPU_FRAMEBUFFER_IMRENDER1:
+		case RAS_FRAMEBUFFER_IMRENDER1:
 		{
-			return GPU_FRAMEBUFFER_IMRENDER0;
+			return RAS_FRAMEBUFFER_IMRENDER0;
 		}
 		// Passing a non-eye frame buffer is disallowed.
 		default:
 		{
 			BLI_assert(false);
-			return GPU_FRAMEBUFFER_EYE_LEFT0;
+			return RAS_FRAMEBUFFER_EYE_LEFT0;
 		}
 	}
 }
@@ -566,27 +593,32 @@ void RAS_Rasterizer::UpdateOffScreens(RAS_ICanvas *canvas)
 	m_frameBuffers.Update(canvas);
 }
 
-GPUFrameBuffer *RAS_Rasterizer::GetFrameBuffer(GPUFrameBufferType type)
+RAS_FrameBuffer *RAS_Rasterizer::GetFrameBuffer(FrameBufferType type)
 {
 	return m_frameBuffers.GetFrameBuffer(type);
 }
 
-void RAS_Rasterizer::DrawFrameBuffer(GPUFrameBuffer *srcFrameBuffer, GPUFrameBuffer *dstFrameBuffer)
+RAS_FrameBuffer *RAS_Rasterizer::GetFrameBufferCustom(FrameBufferType type, int width, int height)
+{
+	return m_frameBuffers.GetFrameBufferCustom(type, width, height);
+}
+
+void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer, RAS_FrameBuffer *dstFrameBuffer)
 {
 	/*if (srcOffScreen->GetSamples() > 0) {
 		srcOffScreen->Blit(dstOffScreen, true, true);
 	}
 	else {*/
-	GPU_texture_bind(GPU_framebuffer_color_texture(srcFrameBuffer), 0);
+	GPU_texture_bind(GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer()), 0);
 
 	DRW_bind_shader_shgroup(m_screenShaders.normal/*, (DRWState)(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS)*/);
 
 	DrawOverlayPlane();
 
-	GPU_texture_unbind(GPU_framebuffer_color_texture(srcFrameBuffer));
+	GPU_texture_unbind(GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer()));
 }
 
-void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *frameBuffer)
+void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frameBuffer)
 {
 	/*if (frameBuffer->GetSamples() > 0) {
 		frameBuffer = frameBuffer->Blit(GetFrameBuffer(RAS_FrameBuffer_EYE_LEFT1), true, false);
@@ -606,7 +638,7 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *frameB
 // 	Enable(RAS_CULL_FACE);
 }
 
-void RAS_Rasterizer::DrawStereoFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *leftFb, GPUFrameBuffer *rightFb)
+void RAS_Rasterizer::DrawStereoFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *leftFb, RAS_FrameBuffer *rightFb)
 {
 	//if (leftFb->GetSamples() > 0) {
 	//	// Then leftFb == RAS_FrameBuffer_EYE_LEFT0.
@@ -626,8 +658,8 @@ void RAS_Rasterizer::DrawStereoFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *
 // 	SetDepthFunc(RAS_ALWAYS);
 
 	GPU_framebuffer_restore();
-	GPU_texture_bind(GPU_framebuffer_color_texture(leftFb), 0);
-	GPU_texture_bind(GPU_framebuffer_color_texture(rightFb), 1);
+	GPU_texture_bind(GPU_framebuffer_color_texture(leftFb->GetFrameBuffer()), 0);
+	GPU_texture_bind(GPU_framebuffer_color_texture(rightFb->GetFrameBuffer()), 1);
 
 	switch (m_stereomode) {
 		case RAS_STEREO_INTERLACED:
@@ -653,8 +685,8 @@ void RAS_Rasterizer::DrawStereoFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *
 	
 	DrawOverlayPlane();
 
-	GPU_texture_unbind(GPU_framebuffer_color_texture(leftFb));
-	GPU_texture_unbind(GPU_framebuffer_color_texture(rightFb));
+	GPU_texture_unbind(GPU_framebuffer_color_texture(leftFb->GetFrameBuffer()));
+	GPU_texture_unbind(GPU_framebuffer_color_texture(rightFb->GetFrameBuffer()));
 
 // 	SetDepthFunc(RAS_LEQUAL);
 // 	Enable(RAS_CULL_FACE);
@@ -1487,7 +1519,7 @@ void RAS_Rasterizer::LoadIdentity()
 // 	m_impl->LoadIdentity();
 }
 
-void RAS_Rasterizer::UpdateGlobalDepthTexture(GPUFrameBuffer *frameBuffer)
+void RAS_Rasterizer::UpdateGlobalDepthTexture(RAS_FrameBuffer *frameBuffer)
 {
 	/* In case of multisamples the depth off screen must be blit to be used in shader.
 	 * But the original off screen must be kept bound after the blit. */
@@ -1499,7 +1531,7 @@ void RAS_Rasterizer::UpdateGlobalDepthTexture(GPUFrameBuffer *frameBuffer)
 	//	frameBuffer = dstOffScreen;
 	//}
 
-	GPU_texture_set_global_depth(GPU_framebuffer_depth_texture(frameBuffer));
+	GPU_texture_set_global_depth(GPU_framebuffer_depth_texture(frameBuffer->GetFrameBuffer()));
 }
 
 void RAS_Rasterizer::ResetGlobalDepthTexture()

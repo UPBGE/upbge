@@ -23,6 +23,7 @@
 #include "RAS_2DFilter.h"
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilterFrameBuffer.h"
+#include "RAS_FrameBuffer.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
@@ -107,12 +108,12 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 	}
 }
 
-GPUFrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *depthfb,
-						 GPUFrameBuffer *colorfb, GPUFrameBuffer *targetfb)
+RAS_FrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_FrameBuffer *depthfb,
+						 RAS_FrameBuffer *colorfb, RAS_FrameBuffer *targetfb)
 {
 	/* The off screen the filter rendered to. If the filter is invalid or uses a custom
 	 * off screen the output off screen is the same as the input off screen. */
-	GPUFrameBuffer *outpufb = colorfb;
+	RAS_FrameBuffer *outpufb = colorfb;
 	if (!Ok()) {
 		return outpufb;
 	}
@@ -129,7 +130,7 @@ GPUFrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, 
 		m_frameBuffer->Bind(rasty);
 	}
 	else {
-		DRW_framebuffer_bind(targetfb);
+		DRW_framebuffer_bind(targetfb->GetFrameBuffer());
 		outpufb = targetfb;
 	}
 
@@ -213,16 +214,16 @@ void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 	}
 }
 
-void RAS_2DFilter::BindTextures(GPUFrameBuffer *depthfb, GPUFrameBuffer *colorfb)
+void RAS_2DFilter::BindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *colorfb)
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-		GPU_texture_bind(GPU_framebuffer_color_texture(colorfb), 8);
+		GPU_texture_bind(GPU_framebuffer_color_texture(colorfb->GetFrameBuffer()), 8);
 		if (m_mipmap) {
-			GPU_framebuffer_mipmap_texture(colorfb);
+			GPU_framebuffer_mipmap_texture(colorfb->GetFrameBuffer());
 		}
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-		GPU_texture_bind(GPU_framebuffer_depth_texture(depthfb), 9);
+		GPU_texture_bind(GPU_framebuffer_depth_texture(depthfb->GetFrameBuffer()), 9);
 	}
 
 	// Bind custom textures.
@@ -234,16 +235,16 @@ void RAS_2DFilter::BindTextures(GPUFrameBuffer *depthfb, GPUFrameBuffer *colorfb
 	}
 }
 
-void RAS_2DFilter::UnbindTextures(GPUFrameBuffer *depthfb, GPUFrameBuffer *colorfb)
+void RAS_2DFilter::UnbindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *colorfb)
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-		GPU_texture_unbind(GPU_framebuffer_color_texture(colorfb));
+		GPU_texture_unbind(GPU_framebuffer_color_texture(colorfb->GetFrameBuffer()));
 		if (m_mipmap) {
-			GPU_framebuffer_unmipmap_texture(colorfb);
+			GPU_framebuffer_unmipmap_texture(colorfb->GetFrameBuffer());
 		}
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-		GPU_texture_unbind(GPU_framebuffer_color_texture(depthfb));
+		GPU_texture_unbind(GPU_framebuffer_color_texture(depthfb->GetFrameBuffer()));
 	}
 
 	// Bind custom textures.

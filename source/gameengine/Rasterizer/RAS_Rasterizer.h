@@ -47,13 +47,9 @@
 #include <vector>
 #include <memory>
 
-extern "C" {
-#  include "../gpu/GPU_framebuffer.h"
-}
-
 class RAS_OpenGLRasterizer;
+class RAS_FrameBuffer;
 class RAS_ICanvas;
-struct GPUFrameBuffer;
 class RAS_MeshSlot;
 class RAS_IDisplayArray;
 class SCA_IScene;
@@ -61,6 +57,7 @@ class RAS_ISync;
 struct KX_ClientObjectInfo;
 class KX_RayCast;
 struct GPUShader;
+struct GPUTexture;
 struct GPUViewport;
 struct DRWShadingGroup;
 struct EEVEE_SceneLayerData;
@@ -71,6 +68,28 @@ struct EEVEE_SceneLayerData;
 class RAS_Rasterizer
 {
 public:
+
+	enum FrameBufferType {
+		RAS_FRAMEBUFFER_FILTER0 = 0,
+		RAS_FRAMEBUFFER_FILTER1,
+		RAS_FRAMEBUFFER_EYE_LEFT0,
+		RAS_FRAMEBUFFER_EYE_RIGHT0,
+		RAS_FRAMEBUFFER_EYE_LEFT1,
+		RAS_FRAMEBUFFER_EYE_RIGHT1,
+		RAS_FRAMEBUFFER_IMRENDER0,
+		RAS_FRAMEBUFFER_IMRENDER1,
+		RAS_FRAMEBUFFER_BLOOM0,
+		RAS_FRAMEBUFFER_BLOOM1,
+		RAS_FRAMEBUFFER_BLUR0,
+		RAS_FRAMEBUFFER_BLUR1,
+		RAS_FRAMEBUFFER_DOF0,
+		RAS_FRAMEBUFFER_DOF1,
+		RAS_FRAMEBUFFER_BLIT_DEPTH,
+		RAS_FRAMEBUFFER_MAX,
+
+		RAS_FRAMEBUFFER_CUSTOM,
+	};
+
 	/**
 	 * Drawing types
 	 */
@@ -207,14 +226,14 @@ public:
 	 * \param index The input frame buffer, can be a non-filter frame buffer.
 	 * \return The output filter frame buffer.
 	 */
-	static GPUFrameBufferType NextFilterFrameBuffer(GPUFrameBufferType index);
+	static RAS_Rasterizer::FrameBufferType NextFilterFrameBuffer(FrameBufferType index);
 
 	/** Return the output frame buffer normally used for the input frame buffer
 	 * index in case of simple render.
 	 * \param index The input render frame buffer, can be a eye frame buffer.
 	 * \return The output render frame buffer.
 	 */
-	static GPUFrameBufferType NextRenderFrameBuffer(GPUFrameBufferType index);
+	static RAS_Rasterizer::FrameBufferType NextRenderFrameBuffer(FrameBufferType index);
 
 private:
 
@@ -222,11 +241,11 @@ private:
 	{
 	private:
 
-		GPUFrameBuffer *m_frameBuffers[GPU_FRAMEBUFFER_MAX];
+		RAS_FrameBuffer *m_frameBuffers[RAS_FRAMEBUFFER_MAX];
 
 		/* We need to free all textures at ge exit so we do member variables */
-		GPUTexture *m_colorTextureList[GPU_FRAMEBUFFER_MAX];
-		GPUTexture *m_depthTextureList[GPU_FRAMEBUFFER_MAX];
+		GPUTexture *m_colorTextureList[RAS_FRAMEBUFFER_MAX];
+		GPUTexture *m_depthTextureList[RAS_FRAMEBUFFER_MAX];
 		unsigned int m_width;
 		unsigned int m_height;
 		int m_samples;
@@ -237,7 +256,9 @@ private:
 		~FrameBuffers();
 
 		void Update(RAS_ICanvas *canvas);
-		GPUFrameBuffer *GetFrameBuffer(GPUFrameBufferType type);
+		RAS_FrameBuffer *GetFrameBuffer(FrameBufferType type);
+		/* In the case the framebuffer size is not based on canvas size (ImageRender) */
+		RAS_FrameBuffer *GetFrameBufferCustom(FrameBufferType type, int width, int height);
 	};
 
 	// All info used to compute the ray cast transform matrix.
@@ -411,27 +432,29 @@ public:
 	/** Return the corresponding off screen to off screen type.
 	 * \param type The off screen type to return.
 	 */
-	GPUFrameBuffer *GetFrameBuffer(GPUFrameBufferType type);
+	RAS_FrameBuffer *GetFrameBuffer(FrameBufferType type);
+	/* In the case the framebuffer size is not based on canvas size */
+	RAS_FrameBuffer *GetFrameBufferCustom(FrameBufferType type, int width, int height);
 
 	/** Draw off screen without set viewport.
 	 * Used to copy the frame buffer object to another.
 	 * \param srcindex The input off screen index.
 	 * \param dstindex The output off screen index.
 	 */
-	void DrawFrameBuffer(GPUFrameBuffer *srcfb, GPUFrameBuffer *dstfb);
+	void DrawFrameBuffer(RAS_FrameBuffer *srcfb, RAS_FrameBuffer *dstfb);
 
 	/** Draw off screen at the given index to screen.
 	 * \param canvas The canvas containing the screen viewport.
 	 * \param index The off screen index to read from.
 	 */
-	void DrawFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *frameBuffer);
+	void DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frameBuffer);
 
 	/** Draw each stereo off screen to screen.
 	 * \param canvas The canvas containing the screen viewport.
 	 * \param lefteyeindex The left off screen index.
 	 * \param righteyeindex The right off screen index.
 	 */
-	void DrawStereoFrameBuffer(RAS_ICanvas *canvas, GPUFrameBuffer *leftFb, GPUFrameBuffer *rightFb);
+	void DrawStereoFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *leftFb, RAS_FrameBuffer *rightFb);
 
 	/**
 	 * GetRenderArea computes the render area from the 2d canvas.
@@ -664,7 +687,7 @@ public:
 	/** Set the current off screen depth to the global depth texture used by materials.
 	 * In case of mutlisample off screen a blit to RAS_FrameBuffer_BLIT_DEPTH is procceed.
 	 */
-	void UpdateGlobalDepthTexture(GPUFrameBuffer *frameBuffer);
+	void UpdateGlobalDepthTexture(RAS_FrameBuffer *frameBuffer);
 	/// Set the global depth texture to an empty texture.
 	void ResetGlobalDepthTexture();
 

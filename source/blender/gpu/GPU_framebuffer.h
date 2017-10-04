@@ -81,34 +81,11 @@ void GPU_framebuffer_blur(
         GPUFrameBuffer *blurfb, struct GPUTexture *blurtex, float sharpness);
 
 /********************Game engine*******************/
-typedef enum GPUFrameBufferType {
-	GPU_FRAMEBUFFER_FILTER0 = 0,
-	GPU_FRAMEBUFFER_FILTER1,
-	GPU_FRAMEBUFFER_EYE_LEFT0,
-	GPU_FRAMEBUFFER_EYE_RIGHT0,
-	GPU_FRAMEBUFFER_EYE_LEFT1,
-	GPU_FRAMEBUFFER_EYE_RIGHT1,
-	GPU_FRAMEBUFFER_IMRENDER0,
-	GPU_FRAMEBUFFER_IMRENDER1,
-	GPU_FRAMEBUFFER_BLOOM0,
-	GPU_FRAMEBUFFER_BLOOM1,
-	GPU_FRAMEBUFFER_BLUR0,
-	GPU_FRAMEBUFFER_BLUR1,
-	GPU_FRAMEBUFFER_DOF0,
-	GPU_FRAMEBUFFER_DOF1,
-	GPU_FRAMEBUFFER_BLIT_DEPTH,
-	GPU_FRAMEBUFFER_MAX,
-
-	GPU_FRAMEBUFFER_CUSTOM,
-} GPUFrameBufferType;
-
 int GPU_framebuffer_color_bindcode(const GPUFrameBuffer *fb);
 GPUTexture *GPU_framebuffer_color_texture(const GPUFrameBuffer *fb);
 GPUTexture *GPU_framebuffer_depth_texture(const GPUFrameBuffer *fb);
 void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb);
 void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb);
-GPUFrameBufferType GPU_framebuffer_get_bge_type(GPUFrameBuffer *fb);
-void GPU_framebuffer_set_bge_type(GPUFrameBuffer *fb, GPUFrameBufferType type);
 /****************End of Game engine****************/
 
 typedef enum GPURenderBufferType {

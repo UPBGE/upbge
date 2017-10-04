@@ -25,10 +25,11 @@
  */
 
 #include "RAS_2DFilterFrameBuffer.h"
+#include "RAS_FrameBuffer.h"
 #include "RAS_ICanvas.h"
 
-#include "GPU_framebuffer.h"
 #include "GPU_texture.h"
+#include "GPU_framebuffer.h"
 
 extern "C" {
 #  include "DRW_render.h"
@@ -56,7 +57,7 @@ RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag
 
 RAS_2DFilterFrameBuffer::~RAS_2DFilterFrameBuffer()
 {
-	GPU_framebuffer_free(m_frameBuffer);
+	GPU_framebuffer_free(m_frameBuffer->GetFrameBuffer());
 	for (unsigned short i = 0; i < NUM_COLOR_SLOTS; ++i) {
 		GPUTexture *texture = m_colorTextures[i];
 		if (texture) {
@@ -76,10 +77,10 @@ static const DRWTextureFormat dataTypeEnums[] = {
 
 void RAS_2DFilterFrameBuffer::Construct()
 {
-	m_frameBuffer = m_rasterizer->GetFrameBuffer(GPU_FRAMEBUFFER_FILTER0);
+	m_frameBuffer = m_rasterizer->GetFrameBuffer(RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0);
 	/* TODO: RESTORE SUPPORT OF MULTIPLE COLOR ATTACHEMENTS IF NEEDED */
-	m_colorTextures[0] = GPU_framebuffer_color_texture(m_frameBuffer);
-	m_depthTexture = GPU_framebuffer_depth_texture(m_frameBuffer);
+	m_colorTextures[0] = GPU_framebuffer_color_texture(m_frameBuffer->GetFrameBuffer());
+	m_depthTexture = GPU_framebuffer_depth_texture(m_frameBuffer->GetFrameBuffer());
 }
 
 void RAS_2DFilterFrameBuffer::MipmapTexture()
@@ -112,7 +113,7 @@ bool RAS_2DFilterFrameBuffer::Update(RAS_ICanvas *canvas)
 
 void RAS_2DFilterFrameBuffer::Bind(RAS_Rasterizer *rasty)
 {
-	GPU_framebuffer_bind_all_attachments(m_frameBuffer);
+	GPU_framebuffer_bind_all_attachments(m_frameBuffer->GetFrameBuffer());
 
 	if (!(m_flag & RAS_VIEWPORT_SIZE)) {
 		rasty->SetViewport(0, 0, m_width + 1, m_height + 1);
@@ -136,7 +137,7 @@ void RAS_2DFilterFrameBuffer::Unbind(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
 
 bool RAS_2DFilterFrameBuffer::GetValid() const
 {
-	return GPU_framebuffer_check_valid(m_frameBuffer, nullptr);
+	return GPU_framebuffer_check_valid(m_frameBuffer->GetFrameBuffer(), nullptr);
 }
 
 int RAS_2DFilterFrameBuffer::GetColorBindCode(unsigned short index) const

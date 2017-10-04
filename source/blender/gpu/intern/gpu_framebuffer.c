@@ -54,7 +54,6 @@ struct GPUFrameBuffer {
 	GPUTexture *depthtex;
 	GPURenderBuffer *colorrb[GPU_FB_MAX_SLOTS];
 	GPURenderBuffer *depthrb;
-	int bgetype; //BGE
 };
 
 static void gpu_print_framebuffer_error(GLenum status, char err_out[256])
@@ -755,17 +754,6 @@ void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb)
 	GPUTexture *tex = GPU_framebuffer_color_texture(fb);
 	GPU_texture_mipmap_mode(tex, false, false);
 }
-
-void GPU_framebuffer_set_bge_type(GPUFrameBuffer *fb, GPUFrameBufferType type)
-{
-	fb->bgetype = type;
-}
-
-GPUFrameBufferType GPU_framebuffer_get_bge_type(GPUFrameBuffer *fb)
-{
-	return fb->bgetype;
-}
-
 /************End of Game engine***********/
 
 /* GPURenderBuffer */

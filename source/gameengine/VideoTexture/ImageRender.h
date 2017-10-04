@@ -43,7 +43,7 @@
 
 #include "ImageViewport.h"
 
-struct GPUFrameBuffer;
+class RAS_FrameBuffer;
 
 /// class for render 3d scene
 class ImageRender : public ImageViewport
@@ -107,13 +107,13 @@ protected:
 	int m_samples;
 
 	/// The rendered off screen, can be multisampled.
-	GPUFrameBuffer *m_frameBuffer;
+	RAS_FrameBuffer *m_frameBuffer;
 	/// The non multisampled off screen used when bliting, can be nullptr.
-	GPUFrameBuffer *m_bliFb;
+	RAS_FrameBuffer *m_bliFb;
 	/** The pointer to the final off screen without multisamples, can
 	 * be m_frameBuffer or m_bliFb in case of mutlisamples.
 	 */
-	GPUFrameBuffer *m_finalFb;
+	RAS_FrameBuffer *m_finalFb;
 
 	/// object to synchronize render even if no buffer transfer
 	RAS_ISync *m_sync;

@@ -32,7 +32,7 @@
 #include <memory>
 
 class RAS_ICanvas;
-struct GPUFrameBuffer;
+class RAS_FrameBuffer;
 struct GPUTexture;
 
 /** \brief This class manages an off screen with more than one color textures (sample-able)
@@ -63,7 +63,7 @@ private:
 
 	RAS_Rasterizer *m_rasterizer;
 
-	GPUFrameBuffer *m_frameBuffer;
+	RAS_FrameBuffer *m_frameBuffer;
 	GPUTexture *m_colorTextures[NUM_COLOR_SLOTS];
 	GPUTexture *m_depthTexture;
 

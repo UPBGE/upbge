@@ -1738,7 +1738,7 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 
 
 
-void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, GPUFrameBuffer *frameBuffer)
+void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer)
 {
 	for (KX_CullingNode *node : nodes) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
@@ -1751,7 +1751,7 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, GPUFrameBuffer *frameBuffer, KX_Camera *camera,
+void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer, KX_Camera *camera,
 									  const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	m_rendererManager->Render(category, rasty, frameBuffer, camera, viewport, area);
@@ -2085,12 +2085,12 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 	return m_filterManager;
 }
 
-GPUFrameBuffer *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb)
+RAS_FrameBuffer *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_FrameBuffer *inputfb, RAS_FrameBuffer *targetfb)
 {
 	return m_filterManager->RenderFilters(rasty, canvas, inputfb, targetfb, this);
 }
 
-GPUFrameBuffer *KX_Scene::RenderEeveeEffects(GPUFrameBuffer *inputfb)
+RAS_FrameBuffer *KX_Scene::RenderEeveeEffects(RAS_FrameBuffer *inputfb)
 {
 	return m_effectsManager->RenderEeveeEffects(inputfb);
 }

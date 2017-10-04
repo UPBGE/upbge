@@ -173,7 +173,7 @@ void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketMana
 	}
 }
 
-void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, GPUFrameBuffer *frameBuffer)
+void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer)
 {
 	RAS_Rasterizer::DrawType drawingMode = rasty->GetDrawingMode();
 

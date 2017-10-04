@@ -26,7 +26,7 @@
 
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
-#include "GPU_framebuffer.h"
+#include "RAS_FrameBuffer.h"
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilter.h"
 
@@ -129,7 +129,7 @@ void RAS_2DFilterManager::ApplyToneMap(KX_Scene *scene)
 	}
 }
 
-GPUFrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb, KX_Scene *scene)
+RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_FrameBuffer *inputfb, RAS_FrameBuffer *targetfb, KX_Scene *scene)
 {
 	/* Apply tonemap filter only to the last scene */
 	ApplyToneMap(scene);
@@ -148,7 +148,7 @@ GPUFrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_IC
 
 	rasty->SetLines(false);
 
-	GPUFrameBuffer *previousfb = inputfb;
+	RAS_FrameBuffer *previousfb = inputfb;
 
 	/* Set source off screen to RAS_FrameBuffer_FILTER0 in case of multisample and blit,
 	 * else keep the original source off screen. */
@@ -159,9 +159,9 @@ GPUFrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_IC
 	//}
 
 	// The filter color input off screen, changed for each filters.
-	GPUFrameBuffer *colorfb;
+	RAS_FrameBuffer *colorfb;
 	// The filter depth input off scree, unchanged for each filters.
-	GPUFrameBuffer *depthfb = previousfb;
+	RAS_FrameBuffer *depthfb = previousfb;
 
 	// Used to know if a filter is the last of the container.
 	RAS_PassTo2DFilter::const_iterator pend = std::prev(m_filters.end());
@@ -173,7 +173,7 @@ GPUFrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_IC
 		 * input off screen sent to RenderFilters. */
 		colorfb = previousfb;
 
-		GPUFrameBuffer *ftargetfb;
+		RAS_FrameBuffer *ftargetfb;
 		// Computing the filter targeted off screen.
 		if (it == pend) {
 			// Render to the targeted off screen for the last filter.
@@ -181,7 +181,7 @@ GPUFrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_IC
 		}
 		else {
 			// Else render to the next off screen compared to the input off screen.
-			ftargetfb = rasty->GetFrameBuffer(RAS_Rasterizer::NextFilterFrameBuffer(GPU_framebuffer_get_bge_type(colorfb)));
+			ftargetfb = rasty->GetFrameBuffer(RAS_Rasterizer::NextFilterFrameBuffer(colorfb->GetType()));
 		}
 
 		/* Get the output off screen of the filter, could be the same as the input off screen
@@ -194,7 +194,7 @@ GPUFrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_IC
 	// The last filter doesn't use its own off screen and didn't render to the targeted off screen ?
 	if (previousfb != targetfb) {
 		// Render manually to the targeted off screen as the last filter didn't do it for us.
-		DRW_framebuffer_bind(targetfb);
+		DRW_framebuffer_bind(targetfb->GetFrameBuffer());
 		rasty->DrawFrameBuffer(previousfb, targetfb);
 	}
 

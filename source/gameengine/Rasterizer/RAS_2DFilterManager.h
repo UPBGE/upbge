@@ -32,7 +32,7 @@
 
 class RAS_ICanvas;
 class RAS_Rasterizer;
-struct GPUFrameBuffer;
+class RAS_FrameBuffer;
 class RAS_2DFilter;
 
 class KX_Scene;
@@ -73,7 +73,7 @@ public:
 	 * \return The last used off screen, if none filters were rendered it's the
 	 * same off screen than inputfb.
 	 */
-	GPUFrameBuffer *RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb, KX_Scene *scene);
+	RAS_FrameBuffer *RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_FrameBuffer *inputfb, RAS_FrameBuffer *targetfb, KX_Scene *scene);
 
 	/// Add a filter to the stack of filters managed by this object.
 	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);

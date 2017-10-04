@@ -49,7 +49,7 @@ class KX_ISystem;
 class KX_BlenderConverter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
-struct GPUFrameBuffer;
+class RAS_FrameBuffer;
 class SCA_IInputDevice;
 
 enum class KX_ExitRequest
@@ -129,9 +129,9 @@ private:
 	/// Data used to render a frame.
 	struct FrameRenderData
 	{
-		FrameRenderData(GPUFrameBufferType fbType);
+		FrameRenderData(RAS_Rasterizer::FrameBufferType fbType);
 
-		GPUFrameBufferType m_fbType;
+		RAS_Rasterizer::FrameBufferType m_fbType;
 		std::vector<SceneRenderData> m_sceneDataList;
 	};
 
@@ -260,7 +260,7 @@ private:
 	/// Compute frame render data per eyes (in case of stereo), scenes and camera.
 	bool GetFrameRenderData(std::vector<FrameRenderData>& frameDataList);
 
-	void RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, GPUFrameBuffer *frameBuffer, unsigned short pass, bool isFirstScene);
+	void RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, RAS_FrameBuffer *frameBuffer, unsigned short pass, bool isFirstScene);
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
 	void DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const CameraRenderData& cameraFrameData);
@@ -290,10 +290,10 @@ public:
 	KX_KetsjiEngine(KX_ISystem *system);
 	virtual ~KX_KetsjiEngine();
 
-	GPUFrameBuffer *PostRenderScene(KX_Scene *scene, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb);
-	GPUFrameBuffer *PostRenderEevee(KX_Scene *scene, GPUFrameBuffer *inputfb);
+	RAS_FrameBuffer *PostRenderScene(KX_Scene *scene, RAS_FrameBuffer *inputfb, RAS_FrameBuffer *targetfb);
+	RAS_FrameBuffer *PostRenderEevee(KX_Scene *scene, RAS_FrameBuffer *inputfb);
 	void EEVEE_lightprobes_refresh_bge(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata, KX_Scene *scene,
-		RAS_Rasterizer *rasty, KX_Camera *cam, GPUFrameBuffer *inputfb);
+		RAS_Rasterizer *rasty, KX_Camera *cam, RAS_FrameBuffer *inputfb);
 
 	/// set the devices and stuff. the client must take care of creating these
 	void SetInputDevice(SCA_IInputDevice *inputDevice);

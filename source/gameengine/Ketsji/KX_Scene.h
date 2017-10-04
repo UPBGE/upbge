@@ -85,7 +85,7 @@ class RAS_MaterialBucket;
 class RAS_IPolyMaterial;
 class RAS_Rasterizer;
 class RAS_DebugDraw;
-struct GPUFrameBuffer;
+class RAS_FrameBuffer;
 class RAS_SceneLayerData;
 class RAS_2DFilter;
 class RAS_2DFilterManager;
@@ -352,8 +352,8 @@ public:
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 
-	void RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, GPUFrameBuffer *frameBuffer);
-	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, GPUFrameBuffer *frameBuffer,
+	void RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer);
+	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer,
 								KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
 	/**
@@ -557,8 +557,8 @@ public:
 	 * 2D Filters
 	 */
 	RAS_2DFilterManager *Get2DFilterManager() const;
-	GPUFrameBuffer *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, GPUFrameBuffer *inputfb, GPUFrameBuffer *targetfb);
-	GPUFrameBuffer *RenderEeveeEffects(GPUFrameBuffer *inputfb);
+	RAS_FrameBuffer *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_FrameBuffer *inputfb, RAS_FrameBuffer *targetfb);
+	RAS_FrameBuffer *RenderEeveeEffects(RAS_FrameBuffer *inputfb);
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 
