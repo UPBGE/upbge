@@ -558,9 +558,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 	# Sort libraries
 	set(BLENDER_SORTED_LIBS
 
-		audaspace
-		audaspace-py
-
 		bf_windowmanager
 
 		bf_editor_space_api
@@ -659,6 +656,8 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_intern_ghost
 		bf_intern_string
 		bf_intern_audaspace
+		audaspace
+		audaspace-py
 		bf_intern_mikktspace
 		bf_intern_dualcon
 		bf_intern_cycles

@@ -402,7 +402,7 @@ const struct ListBase *WM_manipulatormap_group_list(struct wmManipulatorMap *mma
 void WM_manipulator_calc_matrix_final(const struct wmManipulator *mpr, float r_mat[4][4]) RET_NONE
 struct wmManipulatorProperty *WM_manipulator_target_property_find(struct wmManipulator *mpr, const char *idname) RET_NULL
 bool WM_manipulator_target_property_is_valid(const struct wmManipulatorProperty *mpr_prop) RET_ZERO
-void WM_manipulatormap_draw(struct wmManipulatorMap *mmap, const struct bContext *C, const int drawstep) RET_NONE
+void WM_manipulatormap_draw(struct wmManipulatorMap *mmap, const struct bContext *C, const eWM_ManipulatorMapDrawStep drawstep) RET_NONE
 
 #ifdef WITH_INPUT_NDOF
     void WM_ndof_deadzone_set(float deadzone) RET_NONE
