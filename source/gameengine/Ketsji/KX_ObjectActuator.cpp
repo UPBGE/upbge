@@ -73,7 +73,6 @@ KX_ObjectActuator(
 	m_error_accumulator(0.0f,0.0f,0.0f),
 	m_bitLocalFlag (flag),
 	m_reference(refobj),
-	m_active_combined_velocity (false),
 	m_linear_damping_active(false),
 	m_angular_damping_active(false),
 	m_jumping(false)
@@ -117,21 +116,6 @@ bool KX_ObjectActuator::Update()
 	PHY_ICharacter *character = parent->GetScene()->GetPhysicsEnvironment()->GetCharacterController(parent);
 
 	if (bNegativeEvent) {
-		// If we previously set the linear velocity we now have to inform
-		// the physics controller that we no longer wish to apply it and that
-		// it should reconcile the externally set velocity with it's 
-		// own velocity.
-		if (m_active_combined_velocity) {
-			if (parent)
-				parent->ResolveCombinedVelocities(
-						m_linear_velocity,
-						m_angular_velocity,
-						(m_bitLocalFlag.LinearVelocity) != 0,
-						(m_bitLocalFlag.AngularVelocity) != 0
-					);
-			m_active_combined_velocity = false;
-		}
-
 		// Explicitly stop the movement if we're using character motion
 		if (m_bitLocalFlag.CharacterMotion) {
 			character->SetWalkDirection(MT_Vector3 (0.0f, 0.0f, 0.0f));
@@ -282,7 +266,6 @@ bool KX_ObjectActuator::Update()
 					parent->addLinearVelocity(m_linear_velocity,(m_bitLocalFlag.LinearVelocity) != 0);
 				}
 				else {
-					m_active_combined_velocity = true;
 					if (m_damping > 0) {
 						MT_Vector3 linV;
 						if (!m_linear_damping_active) {
@@ -306,7 +289,6 @@ bool KX_ObjectActuator::Update()
 			}
 			if (!m_bitLocalFlag.ZeroAngularVelocity)
 			{
-				m_active_combined_velocity = true;
 				if (m_damping > 0) {
 					MT_Vector3 angV;
 					if (!m_angular_damping_active) {

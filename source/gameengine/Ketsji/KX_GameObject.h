@@ -419,14 +419,6 @@ public:
 		const MT_Vector4&
 	GetObjectColor();
 
-		void 
-	ResolveCombinedVelocities(
-		const MT_Vector3 & lin_vel,
-		const MT_Vector3 & ang_vel,
-		bool lin_vel_local,
-		bool ang_vel_local
-	);
-
 	/**
 	 * \return a pointer to the physics controller owned by this class.
 	 */
