@@ -2321,10 +2321,7 @@ void DRW_framebuffer_init(
 				GPU_framebuffer_texture_detach(*fbotex.tex);
 			}
 		}
-
-		if (DRW_state_is_fbo()) {
-			GPU_framebuffer_bind(DST.default_framebuffer);
-		}
+		GPU_framebuffer_bind(DST.default_framebuffer);
 	}
 }
 
@@ -3535,70 +3532,32 @@ void DRW_draw_depth_loop(
 
 /***********************************GAME ENGINE*******************************************/
 
-void DRW_framebuffer_init_bge(
-struct GPUFrameBuffer **fb, void *engine_type, int width, int height,
-	DRWFboTexture textures[MAX_FBO_TEX], int textures_len)
+/* It also stores viewport variable to an immutable place: DST
+* This is because a cache uniform only store reference
+* to its value. And we don't want to invalidate the cache
+* if this value change per viewport */
+static void DRW_viewport_var_init_bge(void)
 {
-	BLI_assert(textures_len <= MAX_FBO_TEX);
+	RegionView3D *rv3d = DST.draw_ctx.rv3d;
 
-	bool create_fb = false;
-	int color_attachment = -1;
+	DRW_viewport_size_init();
 
-	if (!*fb) {
-		*fb = GPU_framebuffer_create();
-		create_fb = true;
-	}
+	/* Refresh DST.screenvecs */
+	copy_v3_v3(DST.screenvecs[0], rv3d->viewinv[0]);
+	copy_v3_v3(DST.screenvecs[1], rv3d->viewinv[1]);
+	normalize_v3(DST.screenvecs[0]);
+	normalize_v3(DST.screenvecs[1]);
 
-	for (int i = 0; i < textures_len; ++i) {
-		int channels;
-		bool is_depth;
+	/* Refresh DST.pixelsize */
+	DST.pixsize = rv3d->pixsize;
 
-		DRWFboTexture fbotex = textures[i];
-		bool is_temp = (fbotex.flag & DRW_TEX_TEMP) != 0;
+	/* Refresh DST.is_persp */
+	DST.is_persp = rv3d->is_persp;
 
-		GPUTextureFormat gpu_format = convert_tex_format(fbotex.format, &channels, &is_depth);
-
-		if (!*fbotex.tex || is_temp) {
-			/* Temp textures need to be queried each frame, others not. */
-			if (is_temp) {
-				*fbotex.tex = GPU_viewport_texture_pool_query(
-					DST.viewport, engine_type, width, height, channels, gpu_format);
-			}
-			else if (create_fb) {
-				*fbotex.tex = GPU_texture_create_2D_custom(
-					width, height, channels, gpu_format, 0, NULL, NULL);
-			}
-		}
-
-		if (create_fb) {
-			if (!is_depth) {
-				++color_attachment;
-			}
-			drw_texture_set_parameters(*fbotex.tex, fbotex.flag);
-			GPU_framebuffer_texture_attach(*fb, *fbotex.tex, color_attachment, 0);
-		}
-	}
-
-	if (create_fb) {
-		if (!GPU_framebuffer_check_valid(*fb, NULL)) {
-			printf("Error invalid framebuffer\n");
-		}
-
-		/* Detach temp textures */
-		for (int i = 0; i < textures_len; ++i) {
-			DRWFboTexture fbotex = textures[i];
-
-			if ((fbotex.flag & DRW_TEX_TEMP) != 0) {
-				GPU_framebuffer_texture_detach(*fbotex.tex);
-			}
-		}
-	}
-}
-
-void DRW_state_from_pass_set(DRWPass *pass)
-{
-	DRWState state = pass->state;
-	DRW_state_set(state);
+	/* Reset facing */
+	DST.frontface = GL_CCW;
+	DST.backface = GL_CW;
+	glFrontFace(DST.frontface);
 }
 
 static void bind_shader(DRWShadingGroup *shgroup)
@@ -3667,28 +3626,6 @@ static void bind_uniforms(DRWShadingGroup *shgroup)
 			GPU_shader_uniform_buffer(shgroup->shader, uni->location, ubo);
 			break;
 		}
-	}
-}
-
-void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup)
-{
-	bind_shader(shgroup);
-	bind_uniforms(shgroup);
-}
-
-void DRW_end_shgroup(void)
-{
-	/* Clear Bound textures */
-	for (int i = 0; i < GPU_max_textures(); i++) {
-		if (RST.bound_texs[i] != NULL) {
-			GPU_texture_unbind(RST.bound_texs[i]);
-			RST.bound_texs[i] = NULL;
-		}
-	}
-
-	if (DST.shader) {
-		GPU_shader_unbind();
-		DST.shader = NULL;
 	}
 }
 
@@ -3778,7 +3715,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph,
 		/* Setup viewport */
 		cache_is_dirty = GPU_viewport_cache_validate(DST.viewport, DRW_engines_get_hash());
 
-		DRW_viewport_var_init();
+		DRW_viewport_var_init_bge();
 
 		/* Init engines */
 		DRW_engines_init();
@@ -3817,6 +3754,94 @@ void DRW_game_render_loop_end()
 	release_ubo_slots();
 	draw_engine_eevee_type.engine_free();
 	memset(&DST, 0xFF, sizeof(DST));
+}
+
+void DRW_framebuffer_init_bge(
+struct GPUFrameBuffer **fb, void *engine_type, int width, int height,
+	DRWFboTexture textures[MAX_FBO_TEX], int textures_len)
+{
+	BLI_assert(textures_len <= MAX_FBO_TEX);
+
+	bool create_fb = false;
+	int color_attachment = -1;
+
+	if (!*fb) {
+		*fb = GPU_framebuffer_create();
+		create_fb = true;
+	}
+
+	for (int i = 0; i < textures_len; ++i) {
+		int channels;
+		bool is_depth;
+
+		DRWFboTexture fbotex = textures[i];
+		bool is_temp = (fbotex.flag & DRW_TEX_TEMP) != 0;
+
+		GPUTextureFormat gpu_format = convert_tex_format(fbotex.format, &channels, &is_depth);
+
+		if (!*fbotex.tex || is_temp) {
+			/* Temp textures need to be queried each frame, others not. */
+			if (is_temp) {
+				*fbotex.tex = GPU_viewport_texture_pool_query(
+					DST.viewport, engine_type, width, height, channels, gpu_format);
+			}
+			else if (create_fb) {
+				*fbotex.tex = GPU_texture_create_2D_custom(
+					width, height, channels, gpu_format, 0, NULL, NULL);
+			}
+		}
+
+		if (create_fb) {
+			if (!is_depth) {
+				++color_attachment;
+			}
+			drw_texture_set_parameters(*fbotex.tex, fbotex.flag);
+			GPU_framebuffer_texture_attach(*fb, *fbotex.tex, color_attachment, 0);
+		}
+	}
+
+	if (create_fb) {
+		if (!GPU_framebuffer_check_valid(*fb, NULL)) {
+			printf("Error invalid framebuffer\n");
+		}
+
+		/* Detach temp textures */
+		for (int i = 0; i < textures_len; ++i) {
+			DRWFboTexture fbotex = textures[i];
+
+			if ((fbotex.flag & DRW_TEX_TEMP) != 0) {
+				GPU_framebuffer_texture_detach(*fbotex.tex);
+			}
+		}
+	}
+}
+
+void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup)
+{
+	bind_shader(shgroup);
+	bind_uniforms(shgroup);
+}
+
+void DRW_end_shgroup(void)
+{
+	/* Clear Bound textures */
+	for (int i = 0; i < GPU_max_textures(); i++) {
+		if (RST.bound_texs[i] != NULL) {
+			GPU_texture_unbind(RST.bound_texs[i]);
+			RST.bound_texs[i] = NULL;
+		}
+	}
+
+	if (DST.shader) {
+		GPU_shader_unbind();
+		DST.shader = NULL;
+	}
+}
+
+void DRW_state_from_pass_set(DRWPass *pass)
+{
+	DRWState state = pass->state;
+	DRW_state_set(state);
 }
 
 /***************************END OF GAME ENGINE***************************/
