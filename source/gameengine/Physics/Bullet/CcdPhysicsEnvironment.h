@@ -102,7 +102,7 @@ protected:
 	void ProcessFhSprings(double curTime, float timeStep);
 
 public:
-	CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling, btDispatcher *dispatcher = nullptr, btOverlappingPairCache *pairCache = nullptr);
+	CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling);
 
 	virtual ~CcdPhysicsEnvironment();
 

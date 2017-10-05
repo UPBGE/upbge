@@ -393,7 +393,7 @@ void CcdPhysicsEnvironment::SetDebugDrawer(btIDebugDraw *debugDrawer)
 	m_debugDrawer = debugDrawer;
 }
 
-CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling, btDispatcher *dispatcher, btOverlappingPairCache *pairCache)
+CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling)
 	:m_debugDrawer(nullptr),
 	m_cullingCache(nullptr),
 	m_cullingTree(nullptr),
@@ -415,19 +415,12 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool use
 		m_triggerCallbacks[i] = nullptr;
 	}
 
-//	m_collisionConfiguration = new btDefaultCollisionConfiguration();
 	m_collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration();
-	//m_collisionConfiguration->setConvexConvexMultipointIterations();
 
-	if (!dispatcher) {
-		btCollisionDispatcher *disp = new btCollisionDispatcher(m_collisionConfiguration);
-		dispatcher = disp;
-		btGImpactCollisionAlgorithm::registerAlgorithm(disp);
-		m_ownDispatcher = dispatcher;
-	}
+	btCollisionDispatcher *dispatcher = new btCollisionDispatcher(m_collisionConfiguration);
+	btGImpactCollisionAlgorithm::registerAlgorithm(dispatcher);
+	m_ownDispatcher = dispatcher;
 
-	//m_broadphase = new btAxisSweep3(btVector3(-1000,-1000,-1000),btVector3(1000,1000,1000));
-	//m_broadphase = new btSimpleBroadphase();
 	m_broadphase = new btDbvtBroadphase();
 	// avoid any collision in the culling tree
 	if (useDbvtCulling) {
