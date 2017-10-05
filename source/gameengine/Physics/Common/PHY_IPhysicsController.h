@@ -125,7 +125,6 @@ public:
 		return nullptr;
 	}
 
-	virtual void CalcXform() = 0;
 	virtual void SetMargin(float margin) = 0;
 	virtual float GetMargin() const = 0;
 	virtual float GetRadius() const = 0;
