@@ -27,14 +27,42 @@
 #include "RAS_FrameBuffer.h"
 #include "GPU_framebuffer.h"
 
-RAS_FrameBuffer::RAS_FrameBuffer(GPUFrameBuffer *framebuffer, RAS_Rasterizer::FrameBufferType type)
-	:m_frameBuffer(framebuffer),
-	m_type(type)
+extern "C" {
+#  include "DRW_render.h"
+#  include "eevee_private.h"
+}
+
+// WARNING: Always respect the order from RAS_Rasterizer::HdrType.
+static const DRWTextureFormat dataTypeEnums[] = {
+	DRW_TEX_RGB_11_11_10, // RAS_HDR_NONE
+	DRW_TEX_RGBA_16, // RAS_HDR_HALF_FLOAT
+	DRW_TEX_RGBA_32 // RAS_HDR_FULL_FLOAT
+};
+
+RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdrtype, RAS_Rasterizer::FrameBufferType fbtype)
+	:m_frameBufferType(fbtype),
+	m_hdrType(hdrtype),
+	m_frameBuffer(nullptr)
 {
+	GPUFrameBuffer *fb = nullptr;
+	GPUTexture *tex = DRW_texture_create_2D(width, height, dataTypeEnums[hdrtype], DRW_TEX_FILTER, nullptr);
+	GPUTexture *depthTex = DRW_texture_create_2D(width, height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
+	DRWFboTexture fbtex[2] = { { &tex, dataTypeEnums[m_hdrType], DRWTextureFlag(DRW_TEX_FILTER) },
+							   { &depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
+	DRW_framebuffer_init_bge(&fb, &draw_engine_eevee_type, width, height, fbtex, ARRAY_SIZE(fbtex));
+	m_colorAttachment = tex;
+	m_depthAttachment = depthTex;
+	m_frameBuffer = fb;
 }
 
 RAS_FrameBuffer::~RAS_FrameBuffer()
 {
+	if (m_colorAttachment) {
+		DRW_TEXTURE_FREE_SAFE(m_colorAttachment);
+	}
+	if (m_depthAttachment) {
+		DRW_TEXTURE_FREE_SAFE(m_depthAttachment);
+	}
 	if (m_frameBuffer) {
 		GPU_framebuffer_free(m_frameBuffer);
 	}
@@ -47,15 +75,15 @@ GPUFrameBuffer *RAS_FrameBuffer::GetFrameBuffer()
 
 unsigned int RAS_FrameBuffer::GetWidth() const
 {
-	return GPU_texture_width(GPU_framebuffer_color_texture(m_frameBuffer));
+	return GPU_texture_width(m_colorAttachment);
 }
 
 unsigned int RAS_FrameBuffer::GetHeight() const
 {
-	return GPU_texture_height(GPU_framebuffer_color_texture(m_frameBuffer));
+	return GPU_texture_height(m_colorAttachment);
 }
 
 RAS_Rasterizer::FrameBufferType RAS_FrameBuffer::GetType() const
 {
-	return m_type;
+	return m_frameBufferType;
 }

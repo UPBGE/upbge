@@ -82,8 +82,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_camera(camera),
     m_owncamera(false),
     m_samples(samples),
-    m_finalFb(nullptr),
-    m_frameBuffer(nullptr),
+    m_finalFb(nullptr), // To restore for multisample
     m_sync(nullptr),
     m_observer(nullptr),
     m_mirror(nullptr),
@@ -99,7 +98,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 
-	int hdr = m_canvas->GetHdrType();
+	RAS_Rasterizer::HdrType hdr = m_canvas->GetHdrType();
 	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
 		m_internalFormat = GL_RGBA16F_ARB;
 	}
@@ -110,25 +109,8 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 		m_internalFormat = GL_R11F_G11F_B10F;
 	}
 
-	/* Temp solution for the ping pong between framebuffers
-	 * (as we use PostRenderScene in ImageRender to apply
-	 * tonemap to the rendered texture (temp because we
-	 * can't have several ImageRender when we use GetFrameBuffer
-	 * -> TODO: find a way to add these framebuffers to
-	 * RAS_Rasterizer::FrameBuffers::m_frameBuffers list
-	 * without limitation (The goal is to have all bge
-	 * framebuffers in the same list to make creation
-	 * and deletion easier.
-	 */
-	m_frameBuffer = m_rasterizer->GetFrameBufferCustom(RAS_Rasterizer::RAS_FRAMEBUFFER_IMRENDER0, m_width, m_height);
-	m_frameBuffer = m_rasterizer->GetFrameBufferCustom(RAS_Rasterizer::RAS_FRAMEBUFFER_IMRENDER1, m_width, m_height);
-	/*if (m_samples > 0) {
-		m_bliFb.reset(new GPUFrameBuffer(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_FrameBuffer_IMRENDER0));
-		m_finalFb = m_bliFb.get();
-	}
-	else {*/
-	//m_finalFb = m_frameBuffer;
-	//}
+	/* We need 2 framebuffers to do pingpong as we use PostRenderScene now in ImageRender TODO */
+	m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, hdr, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
 }
 
 // destructor
@@ -137,6 +119,7 @@ ImageRender::~ImageRender (void)
 	if (m_owncamera) {
 		m_camera->Release();
 	}
+	delete m_frameBuffer;
 
 #ifdef WITH_GAMEENGINE_GPU_SYNC
 	if (m_sync)
@@ -230,10 +213,6 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
-
-	// We need to tonemap the rendered texture so we post render the scene
-	RAS_Rasterizer::FrameBufferType target = RAS_Rasterizer::NextRenderFrameBuffer(m_frameBuffer->GetType());
-	m_frameBuffer = m_engine->PostRenderScene(m_scene, m_frameBuffer, m_rasterizer->GetFrameBuffer(target));
 
 	GPU_framebuffer_restore();
 }
@@ -895,7 +874,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 
-	int hdr = m_canvas->GetHdrType();
+	RAS_Rasterizer::HdrType hdr = m_canvas->GetHdrType();
 	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
 		m_internalFormat = GL_RGBA16F_ARB;
 	}
@@ -906,15 +885,8 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 		m_internalFormat = GL_R11F_G11F_B10F;
 	}
 
-	m_frameBuffer = m_rasterizer->GetFrameBufferCustom(RAS_Rasterizer::RAS_FRAMEBUFFER_IMRENDER0, m_width, m_height);
-	m_frameBuffer = m_rasterizer->GetFrameBufferCustom(RAS_Rasterizer::RAS_FRAMEBUFFER_IMRENDER1, m_width, m_height);
-	/*if (m_samples > 0) {
-	m_bliFb.reset(new GPUFrameBuffer(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_FrameBuffer_IMRENDER0));
-	m_finalFb = m_bliFb.get();
-	}
-	else {*/
-	m_finalFb = m_frameBuffer;
-	//}
+	/* We need 2 framebuffers to do pingpong as we use PostRenderScene now in ImageRender TODO */
+	m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, hdr, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
 
 	// this constructor is used for automatic planar mirror
 	// create a camera, take all data by default, in any case we will recompute the frustum on each frame

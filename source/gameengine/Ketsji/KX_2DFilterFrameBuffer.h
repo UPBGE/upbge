@@ -34,7 +34,7 @@ class KX_2DFilterFrameBuffer : public CValue, public RAS_2DFilterFrameBuffer
 {
 	Py_Header
 public:
-	KX_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer *rasty);
+	KX_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdrtype);
 	virtual ~KX_2DFilterFrameBuffer();
 
 	virtual std::string GetName();

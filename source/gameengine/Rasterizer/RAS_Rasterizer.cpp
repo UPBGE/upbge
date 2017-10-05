@@ -80,8 +80,6 @@ RAS_Rasterizer::FrameBuffers::FrameBuffers()
 	m_hdr(RAS_HDR_NONE)
 {
 	for (int i = 0; i < RAS_FRAMEBUFFER_MAX; i++) {
-		m_colorTextureList[i] = nullptr;
-		m_depthTextureList[i] = nullptr;
 		m_frameBuffers[i] = nullptr;
 	}
 }
@@ -90,12 +88,6 @@ RAS_Rasterizer::FrameBuffers::~FrameBuffers()
 {
 	/* Free FrameBuffer Textures Attachments */
 	for (int i = 0; i < RAS_FRAMEBUFFER_MAX; i++) {
-		if (m_colorTextureList[i]) {
-			DRW_TEXTURE_FREE_SAFE(m_colorTextureList[i]);
-		}
-		if (m_depthTextureList[i]) {
-			DRW_TEXTURE_FREE_SAFE(m_depthTextureList[i]);
-		}
 		if (m_frameBuffers[i]) {
 			delete m_frameBuffers[i];
 		}
@@ -123,36 +115,14 @@ inline void RAS_Rasterizer::FrameBuffers::Update(RAS_ICanvas *canvas)
 	}
 }
 
-inline RAS_FrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(FrameBufferType type)
+inline RAS_FrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(FrameBufferType fbtype)
 {
-	if (!m_frameBuffers[type]) {
+	if (!m_frameBuffers[fbtype]) {
 		// The offscreen need to be created now.
 
 		// Check if the off screen type can support samples.
-		const bool sampleofs = type == RAS_FRAMEBUFFER_EYE_LEFT0 ||
-							   type == RAS_FRAMEBUFFER_EYE_RIGHT0;
-
-		/* Set FrameBuffer Size according to FrameBuffer type */
-		int width, height;
-		switch (type)
-		{
-		case RAS_FRAMEBUFFER_DOF0:
-		{
-			width = int(m_width / 2);
-			height = int(m_height / 2);
-			break;
-		}
-		case RAS_FRAMEBUFFER_DOF1:
-		{
-			width = int(m_width / 2);
-			height = int(m_height / 2);
-			break;
-		}
-		default:
-			width = m_width;
-			height = m_height;
-			break;
-		}
+		const bool sampleofs = fbtype == RAS_FRAMEBUFFER_EYE_LEFT0 ||
+							   fbtype == RAS_FRAMEBUFFER_EYE_RIGHT0;
 
 		/* Some GPUs doesn't support high multisample value with GL_RGBA16F or GL_RGBA32F.
 		 * To avoid crashing we check if the off screen was created and if not decremente
@@ -165,58 +135,18 @@ inline RAS_FrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(FrameBuffer
 				mode = (GPUOffScreenMode)(GPU_OFFSCREEN_RENDERBUFFER_COLOR | GPU_OFFSCREEN_RENDERBUFFER_DEPTH);
 			}*/
 
-			// WARNING: Always respect the order from RAS_Rasterizer::HdrType.
-			static const DRWTextureFormat dataTypeEnums[] = {
-				DRW_TEX_RGB_11_11_10, // RAS_HDR_NONE
-				DRW_TEX_RGBA_16, // RAS_HDR_HALF_FLOAT
-				DRW_TEX_RGBA_32 // RAS_HDR_FULL_FLOAT
-			};
-
-			GPUFrameBuffer *fb = nullptr;
-			GPUTexture *tex = DRW_texture_create_2D(width, height, dataTypeEnums[m_hdr], DRW_TEX_FILTER, nullptr);
-			GPUTexture *depthTex = DRW_texture_create_2D(width, height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
-			DRWFboTexture fbtex[2] = { { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) },
-									   { &depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-			DRW_framebuffer_init_bge(&fb, &draw_engine_eevee_type, width, height, fbtex, ARRAY_SIZE(fbtex));
+			RAS_FrameBuffer *fb = new RAS_FrameBuffer(m_width, m_height, m_hdr, fbtype);
 			
-			if (!fb) {
-				GPU_framebuffer_free(fb);
+			if (!fb->GetFrameBuffer()) {
+				delete fb;
 				continue;
 			}
-
-			m_colorTextureList[type] = tex;
-			m_depthTextureList[type] = depthTex;
-			m_frameBuffers[type] = new RAS_FrameBuffer(fb, type);
+			m_frameBuffers[fbtype] = fb;
 			m_samples = samples;
 			break;
 		}
 	}
-	return m_frameBuffers[type];
-}
-
-inline RAS_FrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBufferCustom(FrameBufferType type, int width, int height)
-{
-	if (!m_frameBuffers[type]) {
-		
-		// WARNING: Always respect the order from RAS_Rasterizer::HdrType.
-		static const DRWTextureFormat dataTypeEnums[] = {
-			DRW_TEX_RGB_11_11_10, // RAS_HDR_NONE
-			DRW_TEX_RGBA_16, // RAS_HDR_HALF_FLOAT
-			DRW_TEX_RGBA_32 // RAS_HDR_FULL_FLOAT
-		};
-
-		GPUFrameBuffer *fb = nullptr;
-		GPUTexture *tex = DRW_texture_create_2D(width, height, dataTypeEnums[m_hdr], DRW_TEX_FILTER, nullptr);
-		GPUTexture *depthTex = DRW_texture_create_2D(width, height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
-		DRWFboTexture fbtex[2] = { { &tex, dataTypeEnums[m_hdr], DRWTextureFlag(DRW_TEX_FILTER) },
-		{ &depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-		DRW_framebuffer_init_bge(&fb, &draw_engine_eevee_type, width, height, fbtex, ARRAY_SIZE(fbtex));
-
-		m_colorTextureList[type] = tex;
-		m_depthTextureList[type] = depthTex;
-		m_frameBuffers[type] = new RAS_FrameBuffer(fb, type);
-	}
-	return m_frameBuffers[type];
+	return m_frameBuffers[fbtype];
 }
 
 RAS_Rasterizer::FrameBufferType RAS_Rasterizer::NextFilterFrameBuffer(FrameBufferType type)
@@ -253,34 +183,6 @@ RAS_Rasterizer::FrameBufferType RAS_Rasterizer::NextRenderFrameBuffer(FrameBuffe
 		case RAS_FRAMEBUFFER_EYE_RIGHT1:
 		{
 			return RAS_FRAMEBUFFER_EYE_RIGHT0;
-		}
-		case RAS_FRAMEBUFFER_BLOOM0:
-		{
-			return RAS_FRAMEBUFFER_BLOOM1;
-		}
-		case RAS_FRAMEBUFFER_BLOOM1:
-		{
-			return RAS_FRAMEBUFFER_BLOOM0;
-		}
-		case RAS_FRAMEBUFFER_BLUR0:
-		{
-			return RAS_FRAMEBUFFER_BLUR1;
-		}
-		case RAS_FRAMEBUFFER_DOF0:
-		{
-			return RAS_FRAMEBUFFER_DOF1;
-		}
-		case RAS_FRAMEBUFFER_DOF1:
-		{
-			return RAS_FRAMEBUFFER_DOF0;
-		}
-		case RAS_FRAMEBUFFER_IMRENDER0:
-		{
-			return RAS_FRAMEBUFFER_IMRENDER1;
-		}
-		case RAS_FRAMEBUFFER_IMRENDER1:
-		{
-			return RAS_FRAMEBUFFER_IMRENDER0;
 		}
 		// Passing a non-eye frame buffer is disallowed.
 		default:
@@ -596,11 +498,6 @@ void RAS_Rasterizer::UpdateOffScreens(RAS_ICanvas *canvas)
 RAS_FrameBuffer *RAS_Rasterizer::GetFrameBuffer(FrameBufferType type)
 {
 	return m_frameBuffers.GetFrameBuffer(type);
-}
-
-RAS_FrameBuffer *RAS_Rasterizer::GetFrameBufferCustom(FrameBufferType type, int width, int height)
-{
-	return m_frameBuffers.GetFrameBufferCustom(type, width, height);
 }
 
 void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer, RAS_FrameBuffer *dstFrameBuffer)

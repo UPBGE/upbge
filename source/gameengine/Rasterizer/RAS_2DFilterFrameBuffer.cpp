@@ -36,11 +36,11 @@ extern "C" {
 #  include "eevee_private.h"
 }
 
-RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height,
-											 RAS_Rasterizer *rasty)
+RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag,
+	unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdrtype)
 	:m_flag(flag),
+	m_hdrType(hdrtype),
 	m_colorSlots(colorSlots),
-	m_rasterizer(rasty),
 	m_width(width),
 	m_height(height),
 	m_depthTexture(nullptr),
@@ -52,6 +52,10 @@ RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag
 
 	if (!(m_flag & RAS_VIEWPORT_SIZE)) {
 		Construct();
+	}
+
+	if (m_frameBuffer) {
+		delete m_frameBuffer;
 	}
 }
 
@@ -77,7 +81,7 @@ static const DRWTextureFormat dataTypeEnums[] = {
 
 void RAS_2DFilterFrameBuffer::Construct()
 {
-	m_frameBuffer = m_rasterizer->GetFrameBuffer(RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0);
+	m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, m_hdrType, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
 	/* TODO: RESTORE SUPPORT OF MULTIPLE COLOR ATTACHEMENTS IF NEEDED */
 	m_colorTextures[0] = GPU_framebuffer_color_texture(m_frameBuffer->GetFrameBuffer());
 	m_depthTexture = GPU_framebuffer_depth_texture(m_frameBuffer->GetFrameBuffer());

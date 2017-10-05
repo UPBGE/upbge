@@ -152,9 +152,9 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, sampler
 
 KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, width, height, mipmap)")
 {
-	int slots;
-	int width = -1;
-	int height = -1;
+	unsigned short slots;
+	unsigned int width = -1;
+	unsigned int height = -1;
 	int mipmap = 0;
 	int flag = 0;
 
@@ -188,8 +188,8 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, width, heigh
 		flag |= RAS_2DFilterFrameBuffer::RAS_MIPMAP;
 	}
 
-	KX_2DFilterFrameBuffer *kxFrameBuffer = new KX_2DFilterFrameBuffer(slots, (RAS_2DFilterFrameBuffer::Flag)flag, width, height,
-															   KX_GetActiveEngine()->GetRasterizer());
+	/* TODO: Restore custom HdrType */
+	KX_2DFilterFrameBuffer *kxFrameBuffer = new KX_2DFilterFrameBuffer(slots, (RAS_2DFilterFrameBuffer::Flag)flag, width, height, RAS_Rasterizer::RAS_HDR_NONE);
 
 	SetOffScreen(kxFrameBuffer);
 

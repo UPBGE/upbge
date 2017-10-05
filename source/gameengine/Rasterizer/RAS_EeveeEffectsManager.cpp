@@ -44,15 +44,13 @@ extern "C" {
 
 RAS_EeveeEffectsManager::RAS_EeveeEffectsManager(EEVEE_Data *vedata, RAS_ICanvas *canvas,
 	IDProperty *props, RAS_Rasterizer *rasty, KX_Scene *scene):
-m_canvas(canvas),
 m_props(props),
 m_rasterizer(rasty),
 m_scene(scene),
 m_dofInitialized(false),
 m_bloomTarget(nullptr),
 m_blurTarget(nullptr),
-m_dofTarget(nullptr),
-m_frameBuffersInitialized(false)
+m_dofTarget(nullptr)
 {
 	m_stl = vedata->stl;
 	m_psl = vedata->psl;
@@ -60,9 +58,19 @@ m_frameBuffersInitialized(false)
 	m_fbl = vedata->fbl;
 	m_effects = m_stl->effects;
 
+	m_width = canvas->GetWidth() + 1;
+	m_height = canvas->GetHeight() + 1;
+
+	// Depth of field
+	m_dofTarget = new RAS_FrameBuffer(m_width / 2, m_height / 2, canvas->GetHdrType(), RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
+
+	// Bloom
+	m_bloomTarget = new RAS_FrameBuffer(m_width, m_height, canvas->GetHdrType(), RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
+
 	// Camera Motion Blur
 	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 	m_effects->motion_blur_samples = BKE_collection_engine_property_value_get_int(m_props, "motion_blur_samples");
+	m_blurTarget = new RAS_FrameBuffer(m_width, m_height, canvas->GetHdrType(), RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
 
 	// Ambient occlusion
 	m_useAO = m_effects->use_ao;
@@ -74,16 +82,9 @@ m_frameBuffersInitialized(false)
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
 {
-}
-
-void RAS_EeveeEffectsManager::InitFrameBuffers()
-{
-	// Bloom
-	m_bloomTarget = m_rasterizer->GetFrameBuffer(RAS_Rasterizer::RAS_FRAMEBUFFER_BLOOM0);
-	// Camera Motion blur
-	m_blurTarget = m_rasterizer->GetFrameBuffer(RAS_Rasterizer::RAS_FRAMEBUFFER_BLUR0);
-	// Depth of field
-	m_dofTarget = m_rasterizer->GetFrameBuffer(RAS_Rasterizer::RAS_FRAMEBUFFER_DOF0);
+	delete m_bloomTarget;
+	delete m_blurTarget;
+	delete m_dofTarget;
 }
 
 void RAS_EeveeEffectsManager::InitDof()
@@ -95,7 +96,7 @@ void RAS_EeveeEffectsManager::InitDof()
 		/* Only update params that needs to be updated */
 		float scaleCamera = 0.001f;
 		float sensorScaled = scaleCamera * sensorSize;
-		m_effects->dof_params[2] = m_canvas->GetWidth() / (1.0f * sensorScaled);
+		m_effects->dof_params[2] = m_width / (1.0f * sensorScaled);
 	}
 }
 
@@ -151,7 +152,7 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderBloom(RAS_FrameBuffer *inputfb)
 		m_effects->unf_source_buffer = last;
 		m_effects->unf_base_buffer = m_effects->source_buffer;
 
-		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+		m_rasterizer->SetViewport(0, 0, m_width, m_height);
 
 		DRW_framebuffer_bind(m_bloomTarget->GetFrameBuffer());
 		DRW_draw_pass(m_psl->bloom_resolve);
@@ -177,7 +178,7 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_FrameBuffer *inpu
 		camToWorld[3][2] *= m_shutter;
 		copy_m4_m4(m_effects->current_ndc_to_world, camToWorld);
 
-		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+		m_rasterizer->SetViewport(0, 0, m_width, m_height);
 
 		DRW_framebuffer_bind(m_blurTarget->GetFrameBuffer());
 		DRW_draw_pass(m_psl->motion_blur);
@@ -273,7 +274,7 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_FrameBuffer *inp
 		DRW_draw_pass(m_psl->volumetric_integrate_ps);
 
 		/* Resolve at fullres */
-		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+		m_rasterizer->SetViewport(0, 0, m_width, m_height);
 		DRW_framebuffer_bind(inputfb->GetFrameBuffer());
 		if (sldata->volumetrics->use_colored_transmit) {
 			DRW_draw_pass(m_psl->volumetric_resolve_transmit_ps);
@@ -294,11 +295,6 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_FrameBuffer *inp
 
 RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_FrameBuffer *inputfb)
 {
-	if (!m_frameBuffersInitialized) {
-		InitFrameBuffers();
-		m_frameBuffersInitialized = true;
-	}
-
 	m_rasterizer->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
 	UpdateAO(inputfb);

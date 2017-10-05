@@ -76,14 +76,6 @@ public:
 		RAS_FRAMEBUFFER_EYE_RIGHT0,
 		RAS_FRAMEBUFFER_EYE_LEFT1,
 		RAS_FRAMEBUFFER_EYE_RIGHT1,
-		RAS_FRAMEBUFFER_IMRENDER0,
-		RAS_FRAMEBUFFER_IMRENDER1,
-		RAS_FRAMEBUFFER_BLOOM0,
-		RAS_FRAMEBUFFER_BLOOM1,
-		RAS_FRAMEBUFFER_BLUR0,
-		RAS_FRAMEBUFFER_BLUR1,
-		RAS_FRAMEBUFFER_DOF0,
-		RAS_FRAMEBUFFER_DOF1,
 		RAS_FRAMEBUFFER_BLIT_DEPTH,
 		RAS_FRAMEBUFFER_MAX,
 
@@ -257,8 +249,6 @@ private:
 
 		void Update(RAS_ICanvas *canvas);
 		RAS_FrameBuffer *GetFrameBuffer(FrameBufferType type);
-		/* In the case the framebuffer size is not based on canvas size (ImageRender) */
-		RAS_FrameBuffer *GetFrameBufferCustom(FrameBufferType type, int width, int height);
 	};
 
 	// All info used to compute the ray cast transform matrix.
@@ -433,8 +423,6 @@ public:
 	 * \param type The off screen type to return.
 	 */
 	RAS_FrameBuffer *GetFrameBuffer(FrameBufferType type);
-	/* In the case the framebuffer size is not based on canvas size */
-	RAS_FrameBuffer *GetFrameBufferCustom(FrameBufferType type, int width, int height);
 
 	/** Draw off screen without set viewport.
 	 * Used to copy the frame buffer object to another.

@@ -106,7 +106,7 @@ protected:
 	// Number of samples used in FBO.
 	int m_samples;
 
-	/// The rendered off screen, can be multisampled.
+	/// The rendered framebuffer. TODO: Restore multisample
 	RAS_FrameBuffer *m_frameBuffer;
 	/// The non multisampled off screen used when bliting, can be nullptr.
 	RAS_FrameBuffer *m_bliFb;

@@ -47,15 +47,6 @@ public:
 		RAS_Rasterizer *rasty, KX_Scene *scene);
 	virtual ~RAS_EeveeEffectsManager();
 
-	/* FrameBuffers can't be initialized before the canvas size is available.
-	 * With the current launching process, canvas size is available after
-	 * the effects manager is created. So we can't initialize effects framebuffers
-	 * in effects manager constructor.
-	 * I'll initialize it in RenderEeveeEffects for now.
-	 */
-	void InitFrameBuffers();
-	bool m_frameBuffersInitialized;
-
 	RAS_FrameBuffer *RenderEeveeEffects(RAS_FrameBuffer *inputfb);
 
 	void InitDof();
@@ -75,13 +66,15 @@ private:
 
 	KX_Scene *m_scene; // used for DOF and motion blur
 
-	RAS_ICanvas *m_canvas; // used to get viewport size
 	RAS_Rasterizer *m_rasterizer; // used to create FrameBuffers
 	IDProperty *m_props; // eevee engine properties
 
 	RAS_FrameBuffer *m_bloomTarget;
 	RAS_FrameBuffer *m_blurTarget;
 	RAS_FrameBuffer *m_dofTarget;
+
+	unsigned int m_width; // Canvas width
+	unsigned int m_height; // Canvas height
 
 	float m_shutter; // camera motion blur
 
