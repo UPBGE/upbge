@@ -62,15 +62,15 @@ m_dofTarget(nullptr)
 	m_height = canvas->GetHeight() + 1;
 
 	// Depth of field
-	m_dofTarget = new RAS_FrameBuffer(m_width / 2, m_height / 2, canvas->GetHdrType(), RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
+	m_dofTarget = new RAS_FrameBuffer(m_width / 2, m_height / 2, canvas->GetHdrType(), RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0);
 
 	// Bloom
-	m_bloomTarget = new RAS_FrameBuffer(m_width, m_height, canvas->GetHdrType(), RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
+	m_bloomTarget = new RAS_FrameBuffer(m_width, m_height, canvas->GetHdrType(), RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0);
 
 	// Camera Motion Blur
 	m_shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 	m_effects->motion_blur_samples = BKE_collection_engine_property_value_get_int(m_props, "motion_blur_samples");
-	m_blurTarget = new RAS_FrameBuffer(m_width, m_height, canvas->GetHdrType(), RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
+	m_blurTarget = new RAS_FrameBuffer(m_width, m_height, canvas->GetHdrType(), RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0);
 
 	// Ambient occlusion
 	m_useAO = m_effects->use_ao;

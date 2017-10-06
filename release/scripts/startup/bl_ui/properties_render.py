@@ -410,37 +410,6 @@ class RENDER_PT_output(RenderButtonsPanel, Panel):
         if rd.use_multiview:
             layout.template_image_views(image_settings)
 
-        if file_format == 'QUICKTIME':
-            quicktime = rd.quicktime
-
-            split = layout.split()
-            col = split.column()
-            col.prop(quicktime, "codec_type", text="Video Codec")
-            col.prop(quicktime, "codec_spatial_quality", text="Quality")
-
-            # Audio
-            col.prop(quicktime, "audiocodec_type", text="Audio Codec")
-            if quicktime.audiocodec_type != 'No audio':
-                split = layout.split()
-                if quicktime.audiocodec_type == 'LPCM':
-                    split.prop(quicktime, "audio_bitdepth", text="")
-
-                split.prop(quicktime, "audio_samplerate", text="")
-
-                split = layout.split()
-                col = split.column()
-                if quicktime.audiocodec_type == 'AAC':
-                    col.prop(quicktime, "audio_bitrate")
-
-                subsplit = split.split()
-                col = subsplit.column()
-
-                if quicktime.audiocodec_type == 'AAC':
-                    col.prop(quicktime, "audio_codec_isvbr")
-
-                col = subsplit.column()
-                col.prop(quicktime, "audio_resampling_hq")
-
 
 class RENDER_PT_encoding(RenderButtonsPanel, Panel):
     bl_label = "Encoding"
@@ -618,8 +587,8 @@ class RENDER_PT_clay_collection_settings(RenderButtonsPanel, Panel):
         col.prop(props, "hair_brightness_randomness")
 
 
-class RENDER_PT_eevee_poststack_settings(RenderButtonsPanel, Panel):
-    bl_label = "Post Process Stack"
+class RENDER_PT_eevee_ambient_occlusion(RenderButtonsPanel, Panel):
+    bl_label = "Ambient Occlusion"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
 
@@ -628,35 +597,18 @@ class RENDER_PT_eevee_poststack_settings(RenderButtonsPanel, Panel):
         scene = context.scene
         return scene and (scene.render.engine in cls.COMPAT_ENGINES)
 
-    def draw(self, context):
-        layout = self.layout
+    def draw_header(self, context):
         scene = context.scene
         props = scene.layer_properties['BLENDER_EEVEE']
-
-        col = layout.column()
-        col.prop(props, "gtao_enable")
-        col.prop(props, "motion_blur_enable")
-        col.prop(props, "dof_enable")
-        col.prop(props, "bloom_enable")
-
-
-class RENDER_PT_eevee_postprocess_settings(RenderButtonsPanel, Panel):
-    bl_label = "Post Process Settings"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
-
-    @classmethod
-    def poll(cls, context):
-        scene = context.scene
-        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+        self.layout.prop(props, "gtao_enable", text="")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         props = scene.layer_properties['BLENDER_EEVEE']
 
+        layout.active = props.gtao_enable
         col = layout.column()
-
-        col.label("Ambient Occlusion:")
         col.prop(props, "gtao_use_bent_normals")
         col.prop(props, "gtao_denoise")
         col.prop(props, "gtao_bounce")
@@ -664,19 +616,82 @@ class RENDER_PT_eevee_postprocess_settings(RenderButtonsPanel, Panel):
         col.prop(props, "gtao_distance")
         col.prop(props, "gtao_factor")
         col.prop(props, "gtao_quality")
-        col.separator()
 
-        col.label("Motion Blur:")
+
+class RENDER_PT_eevee_motion_blur(RenderButtonsPanel, Panel):
+    bl_label = "Motion Blur"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+        self.layout.prop(props, "motion_blur_enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+
+        layout.active = props.motion_blur_enable
+        col = layout.column()
         col.prop(props, "motion_blur_samples")
         col.prop(props, "motion_blur_shutter")
-        col.separator()
 
-        col.label("Depth of Field:")
+
+class RENDER_PT_eevee_depth_of_field(RenderButtonsPanel, Panel):
+    bl_label = "Depth of Field"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+        self.layout.prop(props, "dof_enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+
+        layout.active = props.dof_enable
+        col = layout.column()
         col.prop(props, "bokeh_max_size")
         col.prop(props, "bokeh_threshold")
-        col.separator()
 
-        col.label("Bloom:")
+
+class RENDER_PT_eevee_bloom(RenderButtonsPanel, Panel):
+    bl_label = "Bloom"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+        self.layout.prop(props, "bloom_enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+
+        layout.active = props.bloom_enable
+        col = layout.column()
         col.prop(props, "bloom_threshold")
         col.prop(props, "bloom_knee")
         col.prop(props, "bloom_radius")
@@ -687,6 +702,7 @@ class RENDER_PT_eevee_postprocess_settings(RenderButtonsPanel, Panel):
 
 class RENDER_PT_eevee_volumetric(RenderButtonsPanel, Panel):
     bl_label = "Volumetric"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
 
     @classmethod
@@ -719,7 +735,8 @@ class RENDER_PT_eevee_volumetric(RenderButtonsPanel, Panel):
 
 class RENDER_PT_eevee_screen_space_reflections(RenderButtonsPanel, Panel):
     bl_label = "Screen Space Reflections"
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
 
     @classmethod
     def poll(cls, context):
@@ -737,6 +754,7 @@ class RENDER_PT_eevee_screen_space_reflections(RenderButtonsPanel, Panel):
         props = scene.layer_properties['BLENDER_EEVEE']
 
         col = layout.column()
+        col.active = props.ssr_enable
         col.prop(props, "ssr_refraction")
         col.prop(props, "ssr_halfres")
         col.prop(props, "ssr_ray_count")
@@ -749,7 +767,8 @@ class RENDER_PT_eevee_screen_space_reflections(RenderButtonsPanel, Panel):
 
 class RENDER_PT_eevee_shadows(RenderButtonsPanel, Panel):
     bl_label = "Shadows"
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
 
     @classmethod
     def poll(cls, context):
@@ -765,6 +784,44 @@ class RENDER_PT_eevee_shadows(RenderButtonsPanel, Panel):
         col.prop(props, "shadow_method")
         col.prop(props, "shadow_size")
         col.prop(props, "shadow_high_bitdepth")
+
+
+class RENDER_PT_eevee_sampling(RenderButtonsPanel, Panel):
+    bl_label = "Sampling"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+
+        col = layout.column()
+        col.prop(props, "taa_samples")
+
+
+class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
+    bl_label = "Indirect Lighting"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        props = scene.layer_properties['BLENDER_EEVEE']
+
+        col = layout.column()
+        col.prop(props, "gi_diffuse_bounces")
 
 
 classes = (
@@ -784,11 +841,15 @@ classes = (
     RENDER_PT_bake,
     RENDER_PT_clay_layer_settings,
     RENDER_PT_clay_collection_settings,
-    RENDER_PT_eevee_volumetric,
-    RENDER_PT_eevee_screen_space_reflections,
-    RENDER_PT_eevee_poststack_settings,
-    RENDER_PT_eevee_postprocess_settings,
+    RENDER_PT_eevee_sampling,
     RENDER_PT_eevee_shadows,
+    RENDER_PT_eevee_indirect_lighting,
+    RENDER_PT_eevee_screen_space_reflections,
+    RENDER_PT_eevee_ambient_occlusion,
+    RENDER_PT_eevee_volumetric,
+    RENDER_PT_eevee_motion_blur,
+    RENDER_PT_eevee_depth_of_field,
+    RENDER_PT_eevee_bloom,
 )
 
 if __name__ == "__main__":  # only for live edit.

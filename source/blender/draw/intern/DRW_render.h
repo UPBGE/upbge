@@ -90,6 +90,29 @@ typedef char DRWViewportEmptyList;
 	DRW_VIEWPORT_LIST_SIZE(*(((ty *)NULL)->stl)) \
 }
 
+/* Use of multisample framebuffers. */
+#define MULTISAMPLE_SYNC_ENABLE(dfbl) { \
+	if (dfbl->multisample_fb != NULL) { \
+		DRW_stats_query_start("Multisample Blit"); \
+		DRW_framebuffer_blit(dfbl->default_fb, dfbl->multisample_fb, false); \
+		DRW_framebuffer_blit(dfbl->default_fb, dfbl->multisample_fb, true); \
+		DRW_framebuffer_bind(dfbl->multisample_fb); \
+		DRW_stats_query_end(); \
+	} \
+}
+
+#define MULTISAMPLE_SYNC_DISABLE(dfbl) { \
+	if (dfbl->multisample_fb != NULL) { \
+		DRW_stats_query_start("Multisample Resolve"); \
+		DRW_framebuffer_blit(dfbl->multisample_fb, dfbl->default_fb, false); \
+		DRW_framebuffer_blit(dfbl->multisample_fb, dfbl->default_fb, true); \
+		DRW_framebuffer_bind(dfbl->default_fb); \
+		DRW_stats_query_end(); \
+	} \
+}
+
+
+
 typedef struct DrawEngineDataSize {
 	int fbl_len;
 	int txl_len;
@@ -113,17 +136,22 @@ typedef struct DrawEngineType {
 
 	void (*draw_background)(void *vedata);
 	void (*draw_scene)(void *vedata);
+
+	void (*view_update)(void *vedata);
 } DrawEngineType;
 
 #ifndef __DRW_ENGINE_H__
 /* Buffer and textures used by the viewport by default */
 typedef struct DefaultFramebufferList {
 	struct GPUFrameBuffer *default_fb;
+	struct GPUFrameBuffer *multisample_fb;
 } DefaultFramebufferList;
 
 typedef struct DefaultTextureList {
 	struct GPUTexture *color;
 	struct GPUTexture *depth;
+	struct GPUTexture *multisample_color;
+	struct GPUTexture *multisample_depth;
 } DefaultTextureList;
 #endif
 

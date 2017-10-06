@@ -86,6 +86,8 @@
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 
+// #define USE_AXIS_BOUNDS
+
 /* return codes for select, and drawing flags */
 
 #define MAN_TRANS_X		(1 << 0)
@@ -155,6 +157,16 @@ typedef struct ManipulatorGroup {
 	struct wmManipulator *manipulators[MAN_AXIS_LAST];
 } ManipulatorGroup;
 
+struct TransformBounds {
+	float center[3];		/* Center for transform widget. */
+	float min[3], max[3];	/* Boundbox of selection for transform widget. */
+
+#ifdef USE_AXIS_BOUNDS
+	/* Normalized axis */
+	float axis[3][3];
+	float axis_min[3], axis_max[3];
+#endif
+};
 
 /* **************** Utilities **************** */
 
@@ -414,14 +426,18 @@ static void manipulator_get_axis_constraint(const int axis_idx, int r_axis[3])
 /* **************** Preparation Stuff **************** */
 
 /* transform widget center calc helper for below */
-static void calc_tw_center(Scene *scene, const float co[3])
+static void calc_tw_center(struct TransformBounds *tbounds, const float co[3])
 {
-	float *twcent = scene->twcent;
-	float *min = scene->twmin;
-	float *max = scene->twmax;
+	minmax_v3v3_v3(tbounds->min, tbounds->max, co);
+	add_v3_v3(tbounds->center, co);
 
-	minmax_v3v3_v3(min, max, co);
-	add_v3_v3(twcent, co);
+#ifdef USE_AXIS_BOUNDS
+	for (int i = 0; i < 3; i++) {
+		const float d = dot_v3v3(tbounds->axis[i], co);
+		tbounds->axis_min[i] = min_ff(d, tbounds->axis_min[i]);
+		tbounds->axis_max[i] = max_ff(d, tbounds->axis_max[i]);
+	}
+#endif
 }
 
 static void protectflag_to_drawflags(short protectflag, short *drawflags)
@@ -566,7 +582,7 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
 
 /* centroid, boundbox, of selection */
 /* returns total items selected */
-static int calc_manipulator_stats(const bContext *C)
+static int calc_manipulator_stats(const bContext *C, struct TransformBounds *tbounds)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -586,331 +602,13 @@ static int calc_manipulator_stats(const bContext *C)
 
 	rv3d->twdrawflag = 0xFFFF;
 
-	/* transform widget centroid/center */
-	INIT_MINMAX(scene->twmin, scene->twmax);
-	zero_v3(scene->twcent);
-	
-	if (is_gp_edit) {
-		float diff_mat[4][4];
-		float fpt[3];
 
-		for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-			/* only editable and visible layers are considered */
-			if (gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL)) {
-
-				/* calculate difference matrix if parent object */
-				if (gpl->parent != NULL) {
-					ED_gpencil_parent_location(gpl, diff_mat);
-				}
-
-				for (bGPDstroke *gps = gpl->actframe->strokes.first; gps; gps = gps->next) {
-					/* skip strokes that are invalid for current view */
-					if (ED_gpencil_stroke_can_use(C, gps) == false) {
-						continue;
-					}
-
-					/* we're only interested in selected points here... */
-					if (gps->flag & GP_STROKE_SELECT) {
-						bGPDspoint *pt;
-						int i;
-
-						/* Change selection status of all points, then make the stroke match */
-						for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-							if (pt->flag & GP_SPOINT_SELECT) {
-								if (gpl->parent == NULL) {
-									calc_tw_center(scene, &pt->x);
-									totsel++;
-								}
-								else {
-									mul_v3_m4v3(fpt, diff_mat, &pt->x);
-									calc_tw_center(scene, fpt);
-									totsel++;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-
-		/* selection center */
-		if (totsel) {
-			mul_v3_fl(scene->twcent, 1.0f / (float)totsel);   /* centroid! */
-		}
-	}
-	else if (obedit) {
-		ob = obedit;
-		if (obedit->type == OB_MESH) {
-			BMEditMesh *em = BKE_editmesh_from_object(obedit);
-			BMEditSelection ese;
-			float vec[3] = {0, 0, 0};
-
-			/* USE LAST SELECTE WITH ACTIVE */
-			if ((v3d->around == V3D_AROUND_ACTIVE) && BM_select_history_active_get(em->bm, &ese)) {
-				BM_editselection_center(&ese, vec);
-				calc_tw_center(scene, vec);
-				totsel = 1;
-			}
-			else {
-				BMesh *bm = em->bm;
-				BMVert *eve;
-
-				BMIter iter;
-
-				BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
-					if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-						if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
-							totsel++;
-							calc_tw_center(scene, eve->co);
-						}
-					}
-				}
-			}
-		} /* end editmesh */
-		else if (obedit->type == OB_ARMATURE) {
-			bArmature *arm = obedit->data;
-			EditBone *ebo;
-
-			if ((v3d->around == V3D_AROUND_ACTIVE) && (ebo = arm->act_edbone)) {
-				/* doesn't check selection or visibility intentionally */
-				if (ebo->flag & BONE_TIPSEL) {
-					calc_tw_center(scene, ebo->tail);
-					totsel++;
-				}
-				if ((ebo->flag & BONE_ROOTSEL) ||
-				    ((ebo->flag & BONE_TIPSEL) == false))  /* ensure we get at least one point */
-				{
-					calc_tw_center(scene, ebo->head);
-					totsel++;
-				}
-				protectflag_to_drawflags_ebone(rv3d, ebo);
-			}
-			else {
-				for (ebo = arm->edbo->first; ebo; ebo = ebo->next) {
-					if (EBONE_VISIBLE(arm, ebo)) {
-						if (ebo->flag & BONE_TIPSEL) {
-							calc_tw_center(scene, ebo->tail);
-							totsel++;
-						}
-						if ((ebo->flag & BONE_ROOTSEL) &&
-						    /* don't include same point multiple times */
-						    ((ebo->flag & BONE_CONNECTED) &&
-						     (ebo->parent != NULL) &&
-						     (ebo->parent->flag & BONE_TIPSEL) &&
-						     EBONE_VISIBLE(arm, ebo->parent)) == 0)
-						{
-							calc_tw_center(scene, ebo->head);
-							totsel++;
-						}
-						if (ebo->flag & BONE_SELECTED) {
-							protectflag_to_drawflags_ebone(rv3d, ebo);
-						}
-					}
-				}
-			}
-		}
-		else if (ELEM(obedit->type, OB_CURVE, OB_SURF)) {
-			Curve *cu = obedit->data;
-			float center[3];
-
-			if (v3d->around == V3D_AROUND_ACTIVE && ED_curve_active_center(cu, center)) {
-				calc_tw_center(scene, center);
-				totsel++;
-			}
-			else {
-				Nurb *nu;
-				BezTriple *bezt;
-				BPoint *bp;
-				ListBase *nurbs = BKE_curve_editNurbs_get(cu);
-
-				nu = nurbs->first;
-				while (nu) {
-					if (nu->type == CU_BEZIER) {
-						bezt = nu->bezt;
-						a = nu->pntsu;
-						while (a--) {
-							/* exceptions
-							 * if handles are hidden then only check the center points.
-							 * If the center knot is selected then only use this as the center point.
-							 */
-							if (cu->drawflag & CU_HIDE_HANDLES) {
-								if (bezt->f2 & SELECT) {
-									calc_tw_center(scene, bezt->vec[1]);
-									totsel++;
-								}
-							}
-							else if (bezt->f2 & SELECT) {
-								calc_tw_center(scene, bezt->vec[1]);
-								totsel++;
-							}
-							else {
-								if (bezt->f1 & SELECT) {
-									calc_tw_center(scene, bezt->vec[(v3d->around == V3D_AROUND_LOCAL_ORIGINS) ? 1 : 0]);
-									totsel++;
-								}
-								if (bezt->f3 & SELECT) {
-									calc_tw_center(scene, bezt->vec[(v3d->around == V3D_AROUND_LOCAL_ORIGINS) ? 1 : 2]);
-									totsel++;
-								}
-							}
-							bezt++;
-						}
-					}
-					else {
-						bp = nu->bp;
-						a = nu->pntsu * nu->pntsv;
-						while (a--) {
-							if (bp->f1 & SELECT) {
-								calc_tw_center(scene, bp->vec);
-								totsel++;
-							}
-							bp++;
-						}
-					}
-					nu = nu->next;
-				}
-			}
-		}
-		else if (obedit->type == OB_MBALL) {
-			MetaBall *mb = (MetaBall *)obedit->data;
-			MetaElem *ml;
-
-			if ((v3d->around == V3D_AROUND_ACTIVE) && (ml = mb->lastelem)) {
-				calc_tw_center(scene, &ml->x);
-				totsel++;
-			}
-			else {
-				for (ml = mb->editelems->first; ml; ml = ml->next) {
-					if (ml->flag & SELECT) {
-						calc_tw_center(scene, &ml->x);
-						totsel++;
-					}
-				}
-			}
-		}
-		else if (obedit->type == OB_LATTICE) {
-			Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
-			BPoint *bp;
-
-			if ((v3d->around == V3D_AROUND_ACTIVE) && (bp = BKE_lattice_active_point_get(lt))) {
-				calc_tw_center(scene, bp->vec);
-				totsel++;
-			}
-			else {
-				bp = lt->def;
-				a = lt->pntsu * lt->pntsv * lt->pntsw;
-				while (a--) {
-					if (bp->f1 & SELECT) {
-						calc_tw_center(scene, bp->vec);
-						totsel++;
-					}
-					bp++;
-				}
-			}
-		}
-
-		/* selection center */
-		if (totsel) {
-			mul_v3_fl(scene->twcent, 1.0f / (float)totsel);   // centroid!
-			mul_m4_v3(obedit->obmat, scene->twcent);
-			mul_m4_v3(obedit->obmat, scene->twmin);
-			mul_m4_v3(obedit->obmat, scene->twmax);
-		}
-	}
-	else if (ob && (ob->mode & OB_MODE_POSE)) {
-		bPoseChannel *pchan;
-		int mode = TFM_ROTATION; // mislead counting bones... bah. We don't know the manipulator mode, could be mixed
-		bool ok = false;
-
-		if ((v3d->around == V3D_AROUND_ACTIVE) && (pchan = BKE_pose_channel_active(ob))) {
-			/* doesn't check selection or visibility intentionally */
-			Bone *bone = pchan->bone;
-			if (bone) {
-				calc_tw_center(scene, pchan->pose_head);
-				protectflag_to_drawflags_pchan(rv3d, pchan);
-				totsel = 1;
-				ok = true;
-			}
-		}
-		else {
-			totsel = count_set_pose_transflags(&mode, 0, ob);
-
-			if (totsel) {
-				/* use channels to get stats */
-				for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-					Bone *bone = pchan->bone;
-					if (bone && (bone->flag & BONE_TRANSFORM)) {
-						calc_tw_center(scene, pchan->pose_head);
-						protectflag_to_drawflags_pchan(rv3d, pchan);
-					}
-				}
-				ok = true;
-			}
-		}
-
-		if (ok) {
-			mul_v3_fl(scene->twcent, 1.0f / (float)totsel);   // centroid!
-			mul_m4_v3(ob->obmat, scene->twcent);
-			mul_m4_v3(ob->obmat, scene->twmin);
-			mul_m4_v3(ob->obmat, scene->twmax);
-		}
-	}
-	else if (ob && (ob->mode & OB_MODE_ALL_PAINT)) {
-		/* pass */
-	}
-	else if (ob && ob->mode & OB_MODE_PARTICLE_EDIT) {
-		PTCacheEdit *edit = PE_get_current(scene, sl, ob);
-		PTCacheEditPoint *point;
-		PTCacheEditKey *ek;
-		int k;
-
-		if (edit) {
-			point = edit->points;
-			for (a = 0; a < edit->totpoint; a++, point++) {
-				if (point->flag & PEP_HIDE) continue;
-
-				for (k = 0, ek = point->keys; k < point->totkey; k++, ek++) {
-					if (ek->flag & PEK_SELECT) {
-						calc_tw_center(scene, (ek->flag & PEK_USE_WCO) ? ek->world_co : ek->co);
-						totsel++;
-					}
-				}
-			}
-
-			/* selection center */
-			if (totsel)
-				mul_v3_fl(scene->twcent, 1.0f / (float)totsel);  // centroid!
-		}
-	}
-	else {
-
-		/* we need the one selected object, if its not active */
-		base = BASACT_NEW(sl);
-		ob = OBACT_NEW(sl);
-		if (base && ((base->flag & BASE_SELECTED) == 0)) ob = NULL;
-
-		for (base = sl->object_bases.first; base; base = base->next) {
-			if (TESTBASELIB_NEW(base)) {
-				if (ob == NULL)
-					ob = base->object;
-				calc_tw_center(scene, base->object->obmat[3]);
-				protectflag_to_drawflags(base->object->protectflag, &rv3d->twdrawflag);
-				totsel++;
-			}
-		}
-
-		/* selection center */
-		if (totsel) {
-			mul_v3_fl(scene->twcent, 1.0f / (float)totsel);   // centroid!
-		}
-	}
-
-	/* global, local or normal orientation? */
-	if (ob && totsel && !is_gp_edit) {
+	/* global, local or normal orientation?
+	 * if we could check 'totsel' now, this should be skipped with no selection. */
+	if (ob && !is_gp_edit) {
 
 		switch (v3d->twmode) {
-		
+
 			case V3D_MANIP_GLOBAL:
 			{
 				break; /* nothing to do */
@@ -963,7 +661,7 @@ static int calc_manipulator_stats(const bContext *C)
 			case V3D_MANIP_CUSTOM:
 			{
 				TransformOrientation *custom_orientation = BKE_workspace_transform_orientation_find(
-				                                               CTX_wm_workspace(C), v3d->custom_orientation_index);
+				        CTX_wm_workspace(C), v3d->custom_orientation_index);
 				float mat[3][3];
 
 				if (applyTransformOrientation(custom_orientation, mat, NULL)) {
@@ -972,7 +670,338 @@ static int calc_manipulator_stats(const bContext *C)
 				break;
 			}
 		}
+	}
 
+	/* transform widget centroid/center */
+	INIT_MINMAX(tbounds->min, tbounds->max);
+	zero_v3(tbounds->center);
+
+#ifdef USE_AXIS_BOUNDS
+	copy_m3_m4(tbounds->axis, rv3d->twmat);
+	for (int i = 0; i < 3; i++) {
+		tbounds->axis_min[i] = +FLT_MAX;
+		tbounds->axis_max[i] = -FLT_MAX;
+	}
+#endif
+
+	if (is_gp_edit) {
+		float diff_mat[4][4];
+		float fpt[3];
+
+		for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+			/* only editable and visible layers are considered */
+			if (gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL)) {
+
+				/* calculate difference matrix if parent object */
+				if (gpl->parent != NULL) {
+					ED_gpencil_parent_location(gpl, diff_mat);
+				}
+
+				for (bGPDstroke *gps = gpl->actframe->strokes.first; gps; gps = gps->next) {
+					/* skip strokes that are invalid for current view */
+					if (ED_gpencil_stroke_can_use(C, gps) == false) {
+						continue;
+					}
+
+					/* we're only interested in selected points here... */
+					if (gps->flag & GP_STROKE_SELECT) {
+						bGPDspoint *pt;
+						int i;
+
+						/* Change selection status of all points, then make the stroke match */
+						for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+							if (pt->flag & GP_SPOINT_SELECT) {
+								if (gpl->parent == NULL) {
+									calc_tw_center(tbounds, &pt->x);
+									totsel++;
+								}
+								else {
+									mul_v3_m4v3(fpt, diff_mat, &pt->x);
+									calc_tw_center(tbounds, fpt);
+									totsel++;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+
+		/* selection center */
+		if (totsel) {
+			mul_v3_fl(tbounds->center, 1.0f / (float)totsel);   /* centroid! */
+		}
+	}
+	else if (obedit) {
+		ob = obedit;
+		if (obedit->type == OB_MESH) {
+			BMEditMesh *em = BKE_editmesh_from_object(obedit);
+			BMEditSelection ese;
+			float vec[3] = {0, 0, 0};
+
+			/* USE LAST SELECTE WITH ACTIVE */
+			if ((v3d->around == V3D_AROUND_ACTIVE) && BM_select_history_active_get(em->bm, &ese)) {
+				BM_editselection_center(&ese, vec);
+				calc_tw_center(tbounds, vec);
+				totsel = 1;
+			}
+			else {
+				BMesh *bm = em->bm;
+				BMVert *eve;
+
+				BMIter iter;
+
+				BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+					if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
+						if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
+							totsel++;
+							calc_tw_center(tbounds, eve->co);
+						}
+					}
+				}
+			}
+		} /* end editmesh */
+		else if (obedit->type == OB_ARMATURE) {
+			bArmature *arm = obedit->data;
+			EditBone *ebo;
+
+			if ((v3d->around == V3D_AROUND_ACTIVE) && (ebo = arm->act_edbone)) {
+				/* doesn't check selection or visibility intentionally */
+				if (ebo->flag & BONE_TIPSEL) {
+					calc_tw_center(tbounds, ebo->tail);
+					totsel++;
+				}
+				if ((ebo->flag & BONE_ROOTSEL) ||
+				    ((ebo->flag & BONE_TIPSEL) == false))  /* ensure we get at least one point */
+				{
+					calc_tw_center(tbounds, ebo->head);
+					totsel++;
+				}
+				protectflag_to_drawflags_ebone(rv3d, ebo);
+			}
+			else {
+				for (ebo = arm->edbo->first; ebo; ebo = ebo->next) {
+					if (EBONE_VISIBLE(arm, ebo)) {
+						if (ebo->flag & BONE_TIPSEL) {
+							calc_tw_center(tbounds, ebo->tail);
+							totsel++;
+						}
+						if ((ebo->flag & BONE_ROOTSEL) &&
+						    /* don't include same point multiple times */
+						    ((ebo->flag & BONE_CONNECTED) &&
+						     (ebo->parent != NULL) &&
+						     (ebo->parent->flag & BONE_TIPSEL) &&
+						     EBONE_VISIBLE(arm, ebo->parent)) == 0)
+						{
+							calc_tw_center(tbounds, ebo->head);
+							totsel++;
+						}
+						if (ebo->flag & BONE_SELECTED) {
+							protectflag_to_drawflags_ebone(rv3d, ebo);
+						}
+					}
+				}
+			}
+		}
+		else if (ELEM(obedit->type, OB_CURVE, OB_SURF)) {
+			Curve *cu = obedit->data;
+			float center[3];
+
+			if (v3d->around == V3D_AROUND_ACTIVE && ED_curve_active_center(cu, center)) {
+				calc_tw_center(tbounds, center);
+				totsel++;
+			}
+			else {
+				Nurb *nu;
+				BezTriple *bezt;
+				BPoint *bp;
+				ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+
+				nu = nurbs->first;
+				while (nu) {
+					if (nu->type == CU_BEZIER) {
+						bezt = nu->bezt;
+						a = nu->pntsu;
+						while (a--) {
+							/* exceptions
+							 * if handles are hidden then only check the center points.
+							 * If the center knot is selected then only use this as the center point.
+							 */
+							if (cu->drawflag & CU_HIDE_HANDLES) {
+								if (bezt->f2 & SELECT) {
+									calc_tw_center(tbounds, bezt->vec[1]);
+									totsel++;
+								}
+							}
+							else if (bezt->f2 & SELECT) {
+								calc_tw_center(tbounds, bezt->vec[1]);
+								totsel++;
+							}
+							else {
+								if (bezt->f1 & SELECT) {
+									calc_tw_center(tbounds, bezt->vec[(v3d->around == V3D_AROUND_LOCAL_ORIGINS) ? 1 : 0]);
+									totsel++;
+								}
+								if (bezt->f3 & SELECT) {
+									calc_tw_center(tbounds, bezt->vec[(v3d->around == V3D_AROUND_LOCAL_ORIGINS) ? 1 : 2]);
+									totsel++;
+								}
+							}
+							bezt++;
+						}
+					}
+					else {
+						bp = nu->bp;
+						a = nu->pntsu * nu->pntsv;
+						while (a--) {
+							if (bp->f1 & SELECT) {
+								calc_tw_center(tbounds, bp->vec);
+								totsel++;
+							}
+							bp++;
+						}
+					}
+					nu = nu->next;
+				}
+			}
+		}
+		else if (obedit->type == OB_MBALL) {
+			MetaBall *mb = (MetaBall *)obedit->data;
+			MetaElem *ml;
+
+			if ((v3d->around == V3D_AROUND_ACTIVE) && (ml = mb->lastelem)) {
+				calc_tw_center(tbounds, &ml->x);
+				totsel++;
+			}
+			else {
+				for (ml = mb->editelems->first; ml; ml = ml->next) {
+					if (ml->flag & SELECT) {
+						calc_tw_center(tbounds, &ml->x);
+						totsel++;
+					}
+				}
+			}
+		}
+		else if (obedit->type == OB_LATTICE) {
+			Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
+			BPoint *bp;
+
+			if ((v3d->around == V3D_AROUND_ACTIVE) && (bp = BKE_lattice_active_point_get(lt))) {
+				calc_tw_center(tbounds, bp->vec);
+				totsel++;
+			}
+			else {
+				bp = lt->def;
+				a = lt->pntsu * lt->pntsv * lt->pntsw;
+				while (a--) {
+					if (bp->f1 & SELECT) {
+						calc_tw_center(tbounds, bp->vec);
+						totsel++;
+					}
+					bp++;
+				}
+			}
+		}
+
+		/* selection center */
+		if (totsel) {
+			mul_v3_fl(tbounds->center, 1.0f / (float)totsel);   // centroid!
+			mul_m4_v3(obedit->obmat, tbounds->center);
+			mul_m4_v3(obedit->obmat, tbounds->min);
+			mul_m4_v3(obedit->obmat, tbounds->max);
+		}
+	}
+	else if (ob && (ob->mode & OB_MODE_POSE)) {
+		bPoseChannel *pchan;
+		int mode = TFM_ROTATION; // mislead counting bones... bah. We don't know the manipulator mode, could be mixed
+		bool ok = false;
+
+		if ((v3d->around == V3D_AROUND_ACTIVE) && (pchan = BKE_pose_channel_active(ob))) {
+			/* doesn't check selection or visibility intentionally */
+			Bone *bone = pchan->bone;
+			if (bone) {
+				calc_tw_center(tbounds, pchan->pose_head);
+				protectflag_to_drawflags_pchan(rv3d, pchan);
+				totsel = 1;
+				ok = true;
+			}
+		}
+		else {
+			totsel = count_set_pose_transflags(&mode, 0, ob);
+
+			if (totsel) {
+				/* use channels to get stats */
+				for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+					Bone *bone = pchan->bone;
+					if (bone && (bone->flag & BONE_TRANSFORM)) {
+						calc_tw_center(tbounds, pchan->pose_head);
+						protectflag_to_drawflags_pchan(rv3d, pchan);
+					}
+				}
+				ok = true;
+			}
+		}
+
+		if (ok) {
+			mul_v3_fl(tbounds->center, 1.0f / (float)totsel);   // centroid!
+			mul_m4_v3(ob->obmat, tbounds->center);
+			mul_m4_v3(ob->obmat, tbounds->min);
+			mul_m4_v3(ob->obmat, tbounds->max);
+		}
+	}
+	else if (ob && (ob->mode & OB_MODE_ALL_PAINT)) {
+		/* pass */
+	}
+	else if (ob && ob->mode & OB_MODE_PARTICLE_EDIT) {
+		PTCacheEdit *edit = PE_get_current(scene, sl, ob);
+		PTCacheEditPoint *point;
+		PTCacheEditKey *ek;
+		int k;
+
+		if (edit) {
+			point = edit->points;
+			for (a = 0; a < edit->totpoint; a++, point++) {
+				if (point->flag & PEP_HIDE) continue;
+
+				for (k = 0, ek = point->keys; k < point->totkey; k++, ek++) {
+					if (ek->flag & PEK_SELECT) {
+						calc_tw_center(tbounds, (ek->flag & PEK_USE_WCO) ? ek->world_co : ek->co);
+						totsel++;
+					}
+				}
+			}
+
+			/* selection center */
+			if (totsel)
+				mul_v3_fl(tbounds->center, 1.0f / (float)totsel);  // centroid!
+		}
+	}
+	else {
+
+		/* we need the one selected object, if its not active */
+		base = BASACT_NEW(sl);
+		ob = OBACT_NEW(sl);
+		if (base && ((base->flag & BASE_SELECTED) == 0)) ob = NULL;
+
+		for (base = sl->object_bases.first; base; base = base->next) {
+			if (TESTBASELIB_NEW(base)) {
+				if (ob == NULL)
+					ob = base->object;
+				calc_tw_center(tbounds, base->object->obmat[3]);
+				protectflag_to_drawflags(base->object->protectflag, &rv3d->twdrawflag);
+				totsel++;
+			}
+		}
+
+		/* selection center */
+		if (totsel) {
+			mul_v3_fl(tbounds->center, 1.0f / (float)totsel);   // centroid!
+		}
+	}
+
+	if (totsel == 0) {
+		unit_m4(rv3d->twmat);
 	}
 
 	return totsel;
@@ -988,7 +1017,8 @@ static void manipulator_get_idot(RegionView3D *rv3d, float r_idot[3])
 	}
 }
 
-static void manipulator_prepare_mat(const bContext *C, View3D *v3d, RegionView3D *rv3d)
+static void manipulator_prepare_mat(
+        const bContext *C, View3D *v3d, RegionView3D *rv3d, const struct TransformBounds *tbounds)
 {
 	Scene *scene = CTX_data_scene(C);
 	SceneLayer *sl = CTX_data_scene_layer(C);
@@ -997,23 +1027,23 @@ static void manipulator_prepare_mat(const bContext *C, View3D *v3d, RegionView3D
 		case V3D_AROUND_CENTER_BOUNDS:
 		case V3D_AROUND_ACTIVE:
 		{
-				bGPdata *gpd = CTX_data_gpencil_data(C);
-				Object *ob = OBACT_NEW(sl);
+			bGPdata *gpd = CTX_data_gpencil_data(C);
+			Object *ob = OBACT_NEW(sl);
 
-				if (((v3d->around == V3D_AROUND_ACTIVE) && (scene->obedit == NULL)) &&
-				    ((gpd == NULL) || !(gpd->flag & GP_DATA_STROKE_EDITMODE)) &&
-				    (!(ob->mode & OB_MODE_POSE)))
-				{
-					copy_v3_v3(rv3d->twmat[3], ob->obmat[3]);
-				}
-				else {
-					mid_v3_v3v3(rv3d->twmat[3], scene->twmin, scene->twmax);
-				}
-				break;
+			if (((v3d->around == V3D_AROUND_ACTIVE) && (scene->obedit == NULL)) &&
+			    ((gpd == NULL) || !(gpd->flag & GP_DATA_STROKE_EDITMODE)) &&
+			    (!(ob->mode & OB_MODE_POSE)))
+			{
+				copy_v3_v3(rv3d->twmat[3], ob->obmat[3]);
+			}
+			else {
+				mid_v3_v3v3(rv3d->twmat[3], tbounds->min, tbounds->max);
+			}
+			break;
 		}
 		case V3D_AROUND_LOCAL_ORIGINS:
 		case V3D_AROUND_CENTER_MEAN:
-			copy_v3_v3(rv3d->twmat[3], scene->twcent);
+			copy_v3_v3(rv3d->twmat[3], tbounds->center);
 			break;
 		case V3D_AROUND_CURSOR:
 			copy_v3_v3(rv3d->twmat[3], ED_view3d_cursor3d_get(scene, v3d));
@@ -1120,9 +1150,11 @@ static int manipulator_modal(
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
+	struct TransformBounds tbounds;
 
-	if (calc_manipulator_stats(C)) {
-		manipulator_prepare_mat(C, v3d, rv3d);
+
+	if (calc_manipulator_stats(C, &tbounds)) {
+		manipulator_prepare_mat(C, v3d, rv3d, &tbounds);
 		WM_manipulator_set_matrix_location(widget, rv3d->twmat[3]);
 	}
 
@@ -1254,12 +1286,13 @@ static void WIDGETGROUP_manipulator_refresh(const bContext *C, wmManipulatorGrou
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
+	struct TransformBounds tbounds;
 
 	/* skip, we don't draw anything anyway */
-	if ((man->all_hidden = (calc_manipulator_stats(C) == 0)))
+	if ((man->all_hidden = (calc_manipulator_stats(C, &tbounds) == 0)))
 		return;
 
-	manipulator_prepare_mat(C, v3d, rv3d);
+	manipulator_prepare_mat(C, v3d, rv3d, &tbounds);
 
 	/* *** set properties for axes *** */
 

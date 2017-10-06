@@ -30,8 +30,12 @@
 #include "BLI_utildefines.h"
 #include "BLI_math_base.h"
 #include "BLI_math_vector.h"
+#include "BLI_path_util.h"
 
+#include "BKE_appdir.h"
 #include "BKE_global.h"
+
+#include "DNA_space_types.h"
 
 #include "GPU_compositing.h"
 #include "GPU_extensions.h"
@@ -39,7 +43,7 @@
 #include "GPU_shader.h"
 #include "GPU_texture.h"
 #include "GPU_uniformbuffer.h"
-#include "gpu_codegen.h"
+#include "gpu_codegen.h" // For Game engine
 
 #include "gpu_shader_private.h"
 
@@ -133,15 +137,9 @@ extern char datatoc_gpu_shader_text_frag_glsl[];
 extern char datatoc_gpu_shader_keyframe_diamond_vert_glsl[];
 extern char datatoc_gpu_shader_keyframe_diamond_frag_glsl[];
 
-extern char datatoc_gpu_shader_black_frag_glsl[];
-extern char datatoc_gpu_shader_black_vert_glsl[];
-extern char datatoc_gpu_shader_frame_buffer_frag_glsl[];
-extern char datatoc_gpu_shader_frame_buffer_vert_glsl[];
 extern char datatoc_gpu_shader_fire_frag_glsl[];
 extern char datatoc_gpu_shader_smoke_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_frag_glsl[];
-extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
-extern char datatoc_gpu_shader_vsm_store_frag_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_vert_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_frag_glsl[];
 extern char datatoc_gpu_shader_fullscreen_vert_glsl[];
@@ -153,6 +151,15 @@ extern char datatoc_gpu_shader_fx_dof_hq_vert_glsl[];
 extern char datatoc_gpu_shader_fx_dof_hq_geo_glsl[];
 extern char datatoc_gpu_shader_fx_depth_resolve_glsl[];
 extern char datatoc_gpu_shader_fx_lib_glsl[];
+
+/********************Game engine*********************/
+extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
+extern char datatoc_gpu_shader_vsm_store_frag_glsl[];
+extern char datatoc_gpu_shader_black_frag_glsl[];
+extern char datatoc_gpu_shader_black_vert_glsl[];
+extern char datatoc_gpu_shader_frame_buffer_frag_glsl[];
+extern char datatoc_gpu_shader_frame_buffer_vert_glsl[];
+/*****************End of Game engine*****************/
 
 /* cache of built-in shaders (each is created on first use) */
 static GPUShader *builtin_shaders[GPU_NUM_BUILTIN_SHADERS] = { NULL };
@@ -277,6 +284,53 @@ GPUShader *GPU_shader_create(const char *vertexcode,
 	                            GPU_SHADER_FLAGS_NONE);
 }
 
+#define DEBUG_SHADER_NONE ""
+#define DEBUG_SHADER_VERTEX "vert"
+#define DEBUG_SHADER_FRAGMENT "frag"
+#define DEBUG_SHADER_GEOMETRY "geom"
+
+/**
+ * Dump GLSL shaders to disk
+ *
+ * This is used for profiling shader performance externally and debug if shader code is correct.
+ * If called with no code, it simply bumps the shader index, so different shaders for the same
+ * program share the same index.
+ */
+static void gpu_dump_shaders(const char **code, const int num_shaders, const char *extension)
+{
+	if ((G.debug & G_DEBUG_GPU_SHADERS) == 0) {
+		return;
+	}
+
+	/* We use the same shader index for shaders in the same program.
+	 * So we call this function once before calling for the invidual shaders. */
+	static int shader_index = 0;
+	if (code == NULL) {
+		shader_index++;
+		BLI_assert(STREQ(DEBUG_SHADER_NONE, extension));
+		return;
+	}
+
+	/* Determine the full path of the new shader. */
+	char shader_path[FILE_MAX];
+
+	char file_name[512] = {'\0'};
+	sprintf(file_name, "%04d.%s", shader_index, extension);
+
+	BLI_join_dirfile(shader_path, sizeof(shader_path), BKE_tempdir_session(), file_name);
+
+	/* Write shader to disk. */
+	FILE *f = fopen(shader_path, "w");
+	if (f == NULL) {
+		printf("Error writing to file: %s\n", shader_path);
+	}
+	for (int j = 0; j < num_shaders; j++) {
+		fprintf(f, "%s", code[j]);
+	}
+	fclose(f);
+	printf("Shader file written to disk: %s\n", shader_path);
+}
+
 GPUShader *GPU_shader_create_ex(const char *vertexcode,
                                 const char *fragcode,
                                 const char *geocode,
@@ -291,7 +345,6 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	bool use_opensubdiv = false;
 #endif
 	bool use_instancing = (flags & GPU_SHADER_FLAGS_SPECIAL_INSTANCING) != 0;
-	bool use_custom_mat_shader = (flags & GPU_SHADER_FLAGS_CUSTOM_MAT_SHADER) != 0;
 	GLint status;
 	GLchar log[5000];
 	GLsizei length = 0;
@@ -300,6 +353,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	char standard_extensions[MAX_EXT_DEFINE_LENGTH] = "";
 
 	shader = MEM_callocN(sizeof(GPUShader), "GPUShader");
+	gpu_dump_shaders(NULL, 0, DEBUG_SHADER_NONE);
 
 	if (vertexcode)
 		shader->vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -331,14 +385,14 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		/* custom limit, may be too small, beware */
 		int num_source = 0;
 
-		if (!use_custom_mat_shader) {
-			source[num_source++] = gpu_shader_version();
-		}
+		source[num_source++] = gpu_shader_version();
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
 
 		if (defines) source[num_source++] = defines;
 		source[num_source++] = vertexcode;
+
+		gpu_dump_shaders(source, num_source, DEBUG_SHADER_VERTEX);
 
 		glAttachShader(shader->program, shader->vertex);
 		glShaderSource(shader->vertex, num_source, source, NULL);
@@ -359,9 +413,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		const char *source[7];
 		int num_source = 0;
 
-		if (!use_custom_mat_shader) {
-			source[num_source++] = gpu_shader_version();
-		}
+		source[num_source++] = gpu_shader_version();
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
 
@@ -381,6 +433,8 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		if (libcode) source[num_source++] = libcode;
 		source[num_source++] = fragcode;
 
+		gpu_dump_shaders(source, num_source, DEBUG_SHADER_FRAGMENT);
+
 		glAttachShader(shader->program, shader->fragment);
 		glShaderSource(shader->fragment, num_source, source, NULL);
 
@@ -397,17 +451,17 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	}
 
 	if (geocode) {
-		const char *source[5];
+		const char *source[6];
 		int num_source = 0;
 
-		if (!use_custom_mat_shader) {
-			source[num_source++] = gpu_shader_version();
-		}
+		source[num_source++] = gpu_shader_version();
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
 
 		if (defines) source[num_source++] = defines;
 		source[num_source++] = geocode;
+
+		gpu_dump_shaders(source, num_source, DEBUG_SHADER_GEOMETRY);
 
 		glAttachShader(shader->program, shader->geometry);
 		glShaderSource(shader->geometry, num_source, source, NULL);
@@ -471,6 +525,11 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	return shader;
 }
 
+#undef DEBUG_SHADER_GEOMETRY
+#undef DEBUG_SHADER_FRAGMENT
+#undef DEBUG_SHADER_VERTEX
+#undef DEBUG_SHADER_NONE
+
 char *GPU_shader_validate(GPUShader *shader)
 {
 	int stat = 0;
@@ -528,13 +587,6 @@ int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 	BLI_assert(shader && shader->program);
 	const Gwn_ShaderInput *uniform = GWN_shaderinterface_uniform(shader->interface, name);
 	return uniform ? uniform->location : -1;
-}
-
-int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
-{
-	BLI_assert(shader && shader->program);
-	int loc = glGetUniformLocation(shader->program, name);
-	return loc;
 }
 
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name)
@@ -597,14 +649,6 @@ void GPU_shader_uniform_int(GPUShader *UNUSED(shader), int location, int value)
 	glUniform1i(location, value);
 }
 
-void GPU_shader_uniform_float(GPUShader *UNUSED(shader), int location, float value)
-{
-	if (location == -1)
-		return;
-
-	glUniform1f(location, value);
-}
-
 void GPU_shader_uniform_buffer(GPUShader *shader, int location, GPUUniformBuffer *ubo)
 {
 	int bindpoint = GPU_uniformbuffer_bindpoint(ubo);
@@ -652,6 +696,15 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 	BLI_assert(shader && shader->program);
 	const Gwn_ShaderInput *attrib = GWN_shaderinterface_attr(shader->interface, name);
 	return attrib ? attrib->location : -1;
+}
+
+/**********************************Game engine************************************/
+void GPU_shader_uniform_float(GPUShader *UNUSED(shader), int location, float value)
+{
+	if (location == -1)
+		return;
+
+	glUniform1f(location, value);
 }
 
 void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len)
@@ -714,6 +767,14 @@ void GPU_shader_unbind_instancing_attrib(GPUShader *shader)
 		glVertexAttribDivisorARB(posloc, 0);
 	}
 }
+
+int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
+{
+	BLI_assert(shader && shader->program);
+	int loc = glGetUniformLocation(shader->program, name);
+	return loc;
+}
+/******************End of Game engine*************/
 
 GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 {
@@ -861,13 +922,14 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 		[GPU_SHADER_3D_INSTANCE_BONE_ENVELOPE_WIRE] = { datatoc_gpu_shader_instance_bone_envelope_wire_vert_glsl,
 		                                                datatoc_gpu_shader_flat_color_frag_glsl },
 
-/* Game Engine */
+		/****************************************************Game Engine********************************************************/
 		[GPU_SHADER_DRAW_FRAME_BUFFER] = { datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl },
 		[GPU_SHADER_VSM_STORE_INSTANCING] = { datatoc_gpu_shader_vsm_store_vert_glsl, datatoc_gpu_shader_vsm_store_frag_glsl },
 		[GPU_SHADER_BLACK] = { datatoc_gpu_shader_black_vert_glsl, datatoc_gpu_shader_black_frag_glsl },
 		[GPU_SHADER_BLACK_INSTANCING] = { datatoc_gpu_shader_black_vert_glsl, datatoc_gpu_shader_black_frag_glsl },
 		[GPU_SHADER_STEREO_STIPPLE] = { datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl },
 		[GPU_SHADER_STEREO_ANAGLYPH] = { datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl },
+		/*************************************************End of Game engine****************************************************/
 	};
 
 	if (builtin_shaders[shader] == NULL) {

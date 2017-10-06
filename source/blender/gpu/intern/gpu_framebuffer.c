@@ -361,6 +361,10 @@ void GPU_framebuffer_bind(GPUFrameBuffer *fb)
 		glReadBuffer(readattachement);
 	}
 
+	if (GPU_texture_target(tex) == GL_TEXTURE_2D_MULTISAMPLE) {
+		glEnable(GL_MULTISAMPLE);
+	}
+
 	glViewport(0, 0, GPU_texture_width(tex), GPU_texture_height(tex));
 	GG.currentfb = fb->object;
 }
@@ -644,16 +648,17 @@ void GPU_framebuffer_blit(GPUFrameBuffer *fb_read, int read_slot, GPUFrameBuffer
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, fb_read->object);
 	glFramebufferTexture2D(
 	        GL_READ_FRAMEBUFFER, read_attach,
-	        GL_TEXTURE_2D, read_bind, 0);
+	        GPU_texture_target(read_tex), read_bind, 0);
 	BLI_assert(glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 	/* write into new single-sample buffer */
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fb_write->object);
 	glFramebufferTexture2D(
 	        GL_DRAW_FRAMEBUFFER, write_attach,
-	        GL_TEXTURE_2D, write_bind, 0);
+	        GPU_texture_target(write_tex), write_bind, 0);
 	BLI_assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
+	glDrawBuffer((use_depth) ? GL_COLOR_ATTACHMENT0 : read_attach);
 	glBlitFramebuffer(0, 0, read_w, read_h, 0, 0, write_w, write_h, (use_depth) ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 	/* Restore previous framebuffer */

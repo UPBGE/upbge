@@ -38,11 +38,11 @@ static bNodeSocketTemplate sh_node_object_out[] = {
 	{	-1, 0, ""	}
 };
 
-static int gpu_shader_object(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_object(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
 	GPUNodeLink *obcolor = GPU_builtin(GPU_material_use_instancing(mat) ? GPU_INSTANCING_COLOR : GPU_OBCOLOR);
 
-	return GPU_stack_link(mat, "set_rgba", in, out, obcolor);
+	return GPU_stack_link(mat, node, "set_rgba", in, out, obcolor);
 }
 
 void register_node_type_sh_object(void)

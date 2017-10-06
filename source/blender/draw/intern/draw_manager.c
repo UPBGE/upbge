@@ -690,30 +690,31 @@ static DRWInterface *DRW_interface_duplicate(DRWInterface *interface_src)
 static void DRW_interface_uniform(DRWShadingGroup *shgroup, const char *name,
                                   DRWUniformType type, const void *value, int length, int arraysize)
 {
-	DRWUniform *uni = MEM_mallocN(sizeof(DRWUniform), "DRWUniform");
-
+	int location;
 	if (type == DRW_UNIFORM_BLOCK) {
-		uni->location = GPU_shader_get_uniform_block(shgroup->shader, name);
+		location = GPU_shader_get_uniform_block(shgroup->shader, name);
 	}
 	else {
-		uni->location = GPU_shader_get_uniform(shgroup->shader, name);
+		location = GPU_shader_get_uniform(shgroup->shader, name);
 	}
 
-	BLI_assert(arraysize > 0);
-
-	uni->type = type;
-	uni->value = value;
-	uni->length = length;
-	uni->arraysize = arraysize;
-
-	if (uni->location == -1) {
+	if (location == -1) {
 		if (G.debug & G_DEBUG)
 			fprintf(stderr, "Uniform '%s' not found!\n", name);
 		/* Nice to enable eventually, for now eevee uses uniforms that might not exist. */
 		// BLI_assert(0);
-		MEM_freeN(uni);
 		return;
 	}
+
+	DRWUniform *uni = MEM_mallocN(sizeof(DRWUniform), "DRWUniform");
+
+	BLI_assert(arraysize > 0);
+
+	uni->location = location;
+	uni->type = type;
+	uni->value = value;
+	uni->length = length;
+	uni->arraysize = arraysize;
 
 	BLI_addtail(&shgroup->interface->uniforms, uni);
 }
@@ -1736,12 +1737,10 @@ void DRW_draw_geometry_prepare(
 	          ? viewport_matrix_override.mat[DRW_MAT_VIEWINV] : rv3d->viewinv;
 	winmat = (viewport_matrix_override.override[DRW_MAT_WIN])
 	          ? viewport_matrix_override.mat[DRW_MAT_WIN] : rv3d->winmat;
+	wininv = viewport_matrix_override.mat[DRW_MAT_WININV];
 
 	if (do_pi) {
-		if (viewport_matrix_override.override[DRW_MAT_WININV]) {
-			wininv = viewport_matrix_override.mat[DRW_MAT_WININV];
-		}
-		else {
+		if (!viewport_matrix_override.override[DRW_MAT_WININV]) {
 			invert_m4_m4(pi, winmat);
 			wininv = pi;
 		}
@@ -1823,6 +1822,9 @@ static void draw_geometry_execute(DRWShadingGroup *shgroup, Gwn_Batch *geom)
 	else {
 		GWN_batch_draw_stupid(geom);
 	}
+	/* XXX this just tells gawain we are done with the shader.
+	 * This does not unbind the shader. */
+	GWN_batch_program_unset(geom);
 }
 
 static void draw_geometry(DRWShadingGroup *shgroup, Gwn_Batch *geom, const float (*obmat)[4], ID *ob_data)
@@ -2569,6 +2571,8 @@ void DRW_viewport_size_init(void)
 	if (RST.bound_tex_slots == NULL) {
 		RST.bound_tex_slots = MEM_callocN(sizeof(bool) * GPU_max_textures(), "Bound Texture Slots");
 	}
+
+	memset(viewport_matrix_override.override, 0x0, sizeof(viewport_matrix_override.override));
 }
 
 void DRW_viewport_matrix_get(float mat[4][4], DRWViewportMatrixType type)
@@ -2634,8 +2638,7 @@ DefaultTextureList *DRW_viewport_texture_list_get(void)
 
 void DRW_viewport_request_redraw(void)
 {
-	/* XXXXXXXXXXX HAAAAAAAACKKKK */
-	WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, NULL);
+	GPU_viewport_tag_update(DST.viewport);
 }
 
 /** \} */
@@ -3157,6 +3160,50 @@ static void DRW_debug_gpu_stats(void)
 	DRW_stats_draw(&rect);
 }
 
+/* -------------------------------------------------------------------- */
+
+/** \name View Update
+ * \{ */
+
+void DRW_notify_view_update(const bContext *C)
+{
+	struct Depsgraph *graph = CTX_data_depsgraph(C);
+	ARegion *ar = CTX_wm_region(C);
+	View3D *v3d = CTX_wm_view3d(C);
+	RegionView3D *rv3d = ar->regiondata;
+	Scene *scene = DEG_get_evaluated_scene(graph);
+	SceneLayer *sl = DEG_get_evaluated_scene_layer(graph);
+
+	if (rv3d->viewport == NULL) {
+		return;
+	}
+
+
+	/* Reset before using it. */
+	memset(&DST, 0x0, sizeof(DST));
+
+	DST.viewport = rv3d->viewport;
+	DST.draw_ctx = (DRWContextState){
+		ar, rv3d, v3d, scene, sl, OBACT_NEW(sl), C,
+	};
+
+	DRW_engines_enable(scene, sl);
+
+	for (LinkData *link = DST.enabled_engines.first; link; link = link->next) {
+		DrawEngineType *engine = link->data;
+		ViewportEngineData *data = DRW_viewport_engine_data_get(engine);
+
+		if (engine->view_update) {
+			engine->view_update(data);
+		}
+	}
+
+	DST.viewport = NULL;
+
+	DRW_engines_disable();
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 

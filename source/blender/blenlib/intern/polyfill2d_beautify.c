@@ -133,6 +133,8 @@ float BLI_polyfill_beautify_quad_rotate_calc_ex(
 {
 	/* not a loop (only to be able to break out) */
 	do {
+		/* Allow very small faces to be considered non-zero. */
+		const float eps_zero_area = 1e-12f;
 		const float area_2x_234 = cross_tri_v2(v2, v3, v4);
 		const float area_2x_241 = cross_tri_v2(v2, v4, v1);
 
@@ -143,28 +145,29 @@ float BLI_polyfill_beautify_quad_rotate_calc_ex(
 		           (ELEM(v2, v1, v3, v4) == false) &&
 		           (ELEM(v3, v1, v2, v4) == false) &&
 		           (ELEM(v4, v1, v2, v3) == false));
-
 		/*
 		 * Test for unusable (1-3) state.
 		 * - Area sign flipping to check faces aren't going to point in opposite directions.
 		 * - Area epsilon check that the one of the faces won't be zero area.
 		 */
-		if (((area_2x_123 >= 0.0f) != (area_2x_134 >= 0.0f)) ||
-		    (fabsf(area_2x_123) <= FLT_EPSILON) || (fabsf(area_2x_134) <= FLT_EPSILON))
-		{
+		if ((area_2x_123 >= 0.0f) != (area_2x_134 >= 0.0f)) {
+			break;
+		}
+		else if ((fabsf(area_2x_123) <= eps_zero_area) || (fabsf(area_2x_134) <= eps_zero_area)) {
 			break;
 		}
 
 		/* Test for unusable (2-4) state (same as above). */
-		if (((area_2x_234 >= 0.0f) != (area_2x_241 >= 0.0f)) ||
-		    ((fabsf(area_2x_234) <= FLT_EPSILON) || (fabsf(area_2x_241) <= FLT_EPSILON)))
-		{
+		if ((area_2x_234 >= 0.0f) != (area_2x_241 >= 0.0f)) {
 			if (lock_degenerate) {
 				break;
 			}
 			else {
 				return -FLT_MAX;  /* always rotate */
 			}
+		}
+		else if ((fabsf(area_2x_234) <= eps_zero_area) || (fabsf(area_2x_241) <= eps_zero_area)) {
+			return -FLT_MAX;  /* always rotate */
 		}
 
 		{

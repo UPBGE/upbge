@@ -34,6 +34,8 @@
  *  \ingroup bke
  */
 
+#include "atomic_ops.h"
+
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 #include "BLI_utildefines.h"
@@ -548,6 +550,11 @@ static void cdDM_drawMappedFaces(
 	GPUBuffer *findex_buffer = NULL;
 
 	const int *index_mp_to_orig  = dm->getPolyDataArray(dm, CD_ORIGINDEX);
+
+	if (cddm->pbvh) {
+		if (G.debug_value == 14)
+			BKE_pbvh_draw_BB(cddm->pbvh);
+	}
 
 	/* fist, setup common buffers */
 	GPU_vertex_setup(dm);
@@ -1398,8 +1405,8 @@ static void cdDM_buffer_copy_mcol(
 
 	for (i = 0; i < totpoly; i++, mpoly++) {
 		for (j = 0; j < mpoly->totloop; j++) {
-			copy_v3_v3_uchar(&varray[start], &mloopcol[mpoly->loopstart + j].r);
-			start += 3;
+			copy_v4_v4_uchar(&varray[start], &mloopcol[mpoly->loopstart + j].r);
+			start += 4;
 		}
 	}
 }
@@ -1808,7 +1815,8 @@ void CDDM_recalc_looptri(DerivedMesh *dm)
 	        cddm->dm.looptris.array_wip);
 
 	BLI_assert(cddm->dm.looptris.array == NULL);
-	SWAP(MLoopTri *, cddm->dm.looptris.array, cddm->dm.looptris.array_wip);
+	atomic_cas_ptr((void **)&cddm->dm.looptris.array, cddm->dm.looptris.array, cddm->dm.looptris.array_wip);
+	cddm->dm.looptris.array_wip = NULL;
 }
 
 static void cdDM_free_internal(CDDerivedMesh *cddm)

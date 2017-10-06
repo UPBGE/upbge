@@ -32,6 +32,7 @@
 #include "BKE_object.h"
 
 #include "BLI_dynstr.h"
+#include "BLI_rand.h"
 
 #include "ED_screen.h"
 
@@ -51,7 +52,27 @@
 #define PROBE_OCTAHEDRON_SIZE 1024
 #define IRRADIANCE_POOL_SIZE 1024
 
-static EEVEE_StaticProbeData e_data = {NULL}; /* Engine data */
+static struct {
+	struct GPUShader *probe_default_sh;
+	struct GPUShader *probe_filter_glossy_sh;
+	struct GPUShader *probe_filter_diffuse_sh;
+	struct GPUShader *probe_grid_fill_sh;
+	struct GPUShader *probe_grid_display_sh;
+	struct GPUShader *probe_planar_display_sh;
+	struct GPUShader *probe_planar_downsample_sh;
+	struct GPUShader *probe_cube_display_sh;
+
+	struct GPUTexture *hammersley;
+	struct GPUTexture *planar_minmaxz;
+	struct GPUTexture *planar_pool_placeholder;
+	struct GPUTexture *depth_placeholder;
+	struct GPUTexture *depth_array_placeholder;
+	struct GPUTexture *cube_face_depth;
+	struct GPUTexture *cube_face_minmaxz;
+
+	int update_world;
+	bool world_ready_to_shade;
+} e_data = {NULL}; /* Engine data */
 
 extern char datatoc_background_vert_glsl[];
 extern char datatoc_default_world_frag_glsl[];
@@ -68,6 +89,7 @@ extern char datatoc_lightprobe_cube_display_frag_glsl[];
 extern char datatoc_lightprobe_cube_display_vert_glsl[];
 extern char datatoc_lightprobe_grid_display_frag_glsl[];
 extern char datatoc_lightprobe_grid_display_vert_glsl[];
+extern char datatoc_lightprobe_grid_fill_frag_glsl[];
 extern char datatoc_irradiance_lib_glsl[];
 extern char datatoc_lightprobe_lib_glsl[];
 extern char datatoc_octahedron_lib_glsl[];
@@ -78,18 +100,6 @@ extern GlobalsUboStorage ts;
 
 /* *********** FUNCTIONS *********** */
 
-/* Van der Corput sequence */
- /* From http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html */
-static float radical_inverse(int i) {
-	unsigned int bits = (unsigned int)i;
-	bits = (bits << 16u) | (bits >> 16u);
-	bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
-	bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
-	bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
-	bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
-	return (float)bits * 2.3283064365386963e-10f;
-}
-
 static struct GPUTexture *create_hammersley_sample_texture(int samples)
 {
 	struct GPUTexture *tex;
@@ -97,7 +107,9 @@ static struct GPUTexture *create_hammersley_sample_texture(int samples)
 	int i;
 
 	for (i = 0; i < samples; i++) {
-		float phi = radical_inverse(i) * 2.0f * M_PI;
+		double dphi;
+		BLI_hammersley_1D(i, &dphi);
+		float phi = (float)dphi * 2.0f * M_PI;
 		texels[i][0] = cosf(phi);
 		texels[i][1] = sinf(phi);
 	}
@@ -154,6 +166,10 @@ static void planar_pool_ensure_alloc(EEVEE_Data *vedata, int num_planar_ref)
 
 void EEVEE_lightprobes_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *UNUSED(vedata))
 {
+	const DRWContextState *draw_ctx = DRW_context_state_get();
+	SceneLayer *scene_layer = draw_ctx->scene_layer;
+	IDProperty *props = BKE_scene_layer_engine_evaluated_get(scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+
 	/* Shaders */
 	if (!e_data.probe_filter_glossy_sh) {
 		char *shader_str = NULL;
@@ -218,6 +234,16 @@ void EEVEE_lightprobes_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *UNUSED(ved
 
 		MEM_freeN(shader_str);
 
+		e_data.probe_grid_fill_sh = DRW_shader_create_fullscreen(datatoc_lightprobe_grid_fill_frag_glsl,
+#if defined(IRRADIANCE_SH_L2)
+		        "#define IRRADIANCE_SH_L2\n"
+#elif defined(IRRADIANCE_CUBEMAP)
+		        "#define IRRADIANCE_CUBEMAP\n"
+#elif defined(IRRADIANCE_HL2)
+		        "#define IRRADIANCE_HL2\n"
+#endif
+		        );
+
 		ds_frag = BLI_dynstr_new();
 		BLI_dynstr_append(ds_frag, datatoc_octahedron_lib_glsl);
 		BLI_dynstr_append(ds_frag, datatoc_bsdf_common_lib_glsl);
@@ -231,19 +257,9 @@ void EEVEE_lightprobes_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *UNUSED(ved
 
 		MEM_freeN(shader_str);
 
-		ds_frag = BLI_dynstr_new();
-		BLI_dynstr_append(ds_frag, datatoc_octahedron_lib_glsl);
-		BLI_dynstr_append(ds_frag, datatoc_bsdf_common_lib_glsl);
-		BLI_dynstr_append(ds_frag, datatoc_lightprobe_lib_glsl);
-		BLI_dynstr_append(ds_frag, datatoc_lightprobe_planar_display_frag_glsl);
-		shader_str = BLI_dynstr_get_cstring(ds_frag);
-		BLI_dynstr_free(ds_frag);
-
 		e_data.probe_planar_display_sh = DRW_shader_create(
-		        datatoc_lightprobe_planar_display_vert_glsl, NULL, shader_str,
-		        "#define MAX_PLANAR " STRINGIFY(MAX_PLANAR) "\n");
-
-		MEM_freeN(shader_str);
+		        datatoc_lightprobe_planar_display_vert_glsl, NULL,
+		        datatoc_lightprobe_planar_display_frag_glsl, NULL);
 
 		e_data.probe_planar_downsample_sh = DRW_shader_create(
 		        datatoc_lightprobe_planar_downsample_vert_glsl,
@@ -258,10 +274,20 @@ void EEVEE_lightprobes_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *UNUSED(ved
 		sldata->probes = MEM_callocN(sizeof(EEVEE_LightProbesInfo), "EEVEE_LightProbesInfo");
 		sldata->probes->specular_toggle = true;
 		sldata->probes->ssr_toggle = true;
+		sldata->probes->grid_initialized = false;
 		sldata->probe_ubo = DRW_uniformbuffer_create(sizeof(EEVEE_LightProbe) * MAX_PROBE, NULL);
 		sldata->grid_ubo = DRW_uniformbuffer_create(sizeof(EEVEE_LightGrid) * MAX_GRID, NULL);
 		sldata->planar_ubo = DRW_uniformbuffer_create(sizeof(EEVEE_PlanarReflection) * MAX_PLANAR, NULL);
 	}
+
+	int prop_bounce_num = BKE_collection_engine_property_value_get_int(props, "gi_diffuse_bounces");
+	/* Update all probes if number of bounces mismatch. */
+	if (sldata->probes->num_bounce != prop_bounce_num) {
+		e_data.update_world |= PROBE_UPDATE_ALL;
+		sldata->probes->updated_bounce = 0;
+		sldata->probes->grid_initialized = false;
+	}
+	sldata->probes->num_bounce = prop_bounce_num;
 
 	/* Setup Render Target Cubemap */
 
@@ -327,7 +353,11 @@ void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *veda
 		float *col = ts.colorBackground;
 		if (wo) {
 			col = &wo->horr;
-			e_data.update_world = (wo->update_flag != 0);
+			if (wo->update_flag != 0) {
+				e_data.update_world |= PROBE_UPDATE_ALL;
+				pinfo->updated_bounce = 0;
+				pinfo->grid_initialized = false;
+			}
 			wo->update_flag = 0;
 
 			if (wo->use_nodes && wo->nodetree) {
@@ -397,6 +427,16 @@ void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *veda
 	}
 
 	{
+		psl->probe_grid_fill = DRW_pass_create("LightProbe Grid Floodfill", DRW_STATE_WRITE_COLOR);
+
+		DRWShadingGroup *grp = DRW_shgroup_create(e_data.probe_grid_fill_sh, psl->probe_grid_fill);
+		DRW_shgroup_uniform_buffer(grp, "gridTexture", &sldata->irradiance_pool);
+
+		struct Gwn_Batch *geom = DRW_cache_fullscreen_quad_get();
+		DRW_shgroup_call_add(grp, geom, NULL);
+	}
+
+	{
 		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS | DRW_STATE_CULL_BACK;
 		psl->probe_display = DRW_pass_create("LightProbe Display", state);
 
@@ -407,6 +447,12 @@ void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *veda
 		DRW_shgroup_attrib_float(grp, "sphere_size", 1);
 		DRW_shgroup_uniform_float(grp, "lodCubeMax", &sldata->probes->lod_cube_max, 1);
 		DRW_shgroup_uniform_buffer(grp, "probeCubes", &sldata->probe_pool);
+
+		geom = DRW_cache_quad_get();
+		grp = stl->g_data->planar_display_shgrp = DRW_shgroup_instance_create(e_data.probe_planar_display_sh, psl->probe_display, geom);
+		DRW_shgroup_attrib_float(grp, "probe_id", 1); /* XXX this works because we are still uploading 4bytes and using the right stride */
+		DRW_shgroup_attrib_float(grp, "probe_mat", 16);
+		DRW_shgroup_uniform_buffer(grp, "probePlanars", &txl->planar_pool);
 	}
 
 	{
@@ -443,15 +489,17 @@ void EEVEE_lightprobes_cache_add(EEVEE_SceneLayerData *sldata, Object *ob)
 
 		if (probe->type == LIGHTPROBE_TYPE_GRID) {
 			ped->updated_cells = 0;
+			ped->updated_lvl = 0;
 			pinfo->updated_bounce = 0;
+			pinfo->grid_initialized = false;
 		}
 	}
 
 	if (e_data.update_world) {
 		ped->need_update = true;
 		ped->updated_cells = 0;
+		ped->updated_lvl = 0;
 		ped->probe_id = 0;
-		pinfo->updated_bounce = 0;
 	}
 
 	if (probe->type == LIGHTPROBE_TYPE_CUBE) {
@@ -475,7 +523,7 @@ static void scale_m4_v3(float R[4][4], float v[3])
 		mul_v3_v3(R[i], v);
 }
 
-static void EEVEE_planar_reflections_updates(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl, EEVEE_TextureList *txl)
+static void EEVEE_planar_reflections_updates(EEVEE_SceneLayerData *sldata, EEVEE_StorageList *stl)
 {
 	EEVEE_LightProbesInfo *pinfo = sldata->probes;
 	Object *ob;
@@ -575,14 +623,7 @@ static void EEVEE_planar_reflections_updates(EEVEE_SceneLayerData *sldata, EEVEE
 		    DRW_state_draw_support() &&
 		    (probe->flag & LIGHTPROBE_FLAG_SHOW_DATA))
 		{
-			DRWShadingGroup *grp = DRW_shgroup_create(e_data.probe_planar_display_sh, psl->probe_display);
-
-			DRW_shgroup_uniform_int(grp, "probeIdx", &ped->probe_id, 1);
-			DRW_shgroup_uniform_buffer(grp, "probePlanars", &txl->planar_pool);
-			DRW_shgroup_uniform_block(grp, "planar_block", sldata->planar_ubo);
-
-			struct Gwn_Batch *geom = DRW_cache_fullscreen_quad_get();
-			DRW_shgroup_call_add(grp, geom, ob->obmat);
+			DRW_shgroup_call_dynamic_add(stl->g_data->planar_display_shgrp, &ped->probe_id, ob->obmat);
 		}
 	}
 }
@@ -631,8 +672,9 @@ static void EEVEE_lightprobes_updates(EEVEE_SceneLayerData *sldata, EEVEE_PassLi
 			DRW_state_draw_support() &&
 		    (probe->flag & LIGHTPROBE_FLAG_SHOW_DATA))
 		{
+			ped->probe_size = probe->data_draw_size * 0.1f;
 			DRW_shgroup_call_dynamic_add(
-			            stl->g_data->cube_display_shgrp, &ped->probe_id, ob->obmat[3], &probe->data_draw_size);
+			            stl->g_data->cube_display_shgrp, &ped->probe_id, ob->obmat[3], &ped->probe_size);
 		}
 	}
 
@@ -642,6 +684,11 @@ static void EEVEE_lightprobes_updates(EEVEE_SceneLayerData *sldata, EEVEE_PassLi
 		LightProbe *probe = (LightProbe *)ob->data;
 		EEVEE_LightGrid *egrid = &pinfo->grid_data[i];
 		EEVEE_LightProbeEngineData *ped = EEVEE_lightprobe_data_get(ob);
+
+		/* Add one for level 0 */
+		ped->max_lvl = 1.0f + floorf(log2f((float)MAX3(probe->grid_resolution_x,
+		                                               probe->grid_resolution_y,
+		                                               probe->grid_resolution_z)));
 
 		egrid->offset = offset;
 		float fac = 1.0f / max_ff(1e-8f, probe->falloff);
@@ -740,10 +787,9 @@ void EEVEE_lightprobes_cache_finish(EEVEE_SceneLayerData *sldata, EEVEE_Data *ve
 		}
 
 		/* Tag probes to refresh */
-		e_data.update_world = true;
+		e_data.update_world |= PROBE_UPDATE_CUBE;
 		e_data.world_ready_to_shade = false;
 		pinfo->num_render_cube = 0;
-		pinfo->update_flag |= PROBE_UPDATE_CUBE;
 		pinfo->cache_num_cube = pinfo->num_cube;
 
 		for (int i = 1; (ob = pinfo->probes_cube_ref[i]) && (i < MAX_PROBE); i++) {
@@ -767,22 +813,17 @@ void EEVEE_lightprobes_cache_finish(EEVEE_SceneLayerData *sldata, EEVEE_Data *ve
 #endif
 
 	/* TODO Allocate bigger storage if needed. */
-	if (!sldata->irradiance_pool) {
-		sldata->irradiance_pool = DRW_texture_create_2D(IRRADIANCE_POOL_SIZE, IRRADIANCE_POOL_SIZE, irradiance_format, DRW_TEX_FILTER, NULL);
-		pinfo->num_render_grid = 0;
-		pinfo->updated_bounce = 0;
-
-		for (int i = 1; (ob = pinfo->probes_grid_ref[i]) && (i < MAX_PROBE); i++) {
-			EEVEE_LightProbeEngineData *ped = EEVEE_lightprobe_data_get(ob);
-			ped->need_update = true;
-			ped->updated_cells = 0;
+	if (!sldata->irradiance_pool || !sldata->irradiance_rt) {
+		if (!sldata->irradiance_pool) {
+			sldata->irradiance_pool = DRW_texture_create_2D(IRRADIANCE_POOL_SIZE, IRRADIANCE_POOL_SIZE, irradiance_format, DRW_TEX_FILTER, NULL);
 		}
-	}
-
-	if (!sldata->irradiance_rt) {
-		sldata->irradiance_rt = DRW_texture_create_2D(IRRADIANCE_POOL_SIZE, IRRADIANCE_POOL_SIZE, irradiance_format, DRW_TEX_FILTER, NULL);
+		if (!sldata->irradiance_rt) {
+			sldata->irradiance_rt = DRW_texture_create_2D(IRRADIANCE_POOL_SIZE, IRRADIANCE_POOL_SIZE, irradiance_format, DRW_TEX_FILTER, NULL);
+		}
 		pinfo->num_render_grid = 0;
 		pinfo->updated_bounce = 0;
+		pinfo->grid_initialized = false;
+		e_data.update_world |= PROBE_UPDATE_GRID;
 
 		for (int i = 1; (ob = pinfo->probes_grid_ref[i]) && (i < MAX_PROBE); i++) {
 			EEVEE_LightProbeEngineData *ped = EEVEE_lightprobe_data_get(ob);
@@ -792,7 +833,7 @@ void EEVEE_lightprobes_cache_finish(EEVEE_SceneLayerData *sldata, EEVEE_Data *ve
 	}
 
 	EEVEE_lightprobes_updates(sldata, vedata->psl, vedata->stl);
-	EEVEE_planar_reflections_updates(sldata, vedata->psl, vedata->txl);
+	EEVEE_planar_reflections_updates(sldata, vedata->stl);
 
 	DRW_uniformbuffer_update(sldata->probe_ubo, &sldata->probes->probe_data);
 	DRW_uniformbuffer_update(sldata->grid_ubo, &sldata->probes->grid_data);
@@ -926,7 +967,6 @@ static void diffuse_filter_probe(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedat
 	DRW_framebuffer_bind(sldata->probe_filter_fb);
 	EEVEE_downsample_cube_buffer(vedata, sldata->probe_filter_fb, sldata->probe_rt, (int)(pinfo->lod_rt_max));
 
-	/* Bind the right texture layer (one layer per irradiance grid) */
 	DRW_framebuffer_texture_detach(sldata->probe_pool);
 	DRW_framebuffer_texture_attach(sldata->probe_filter_fb, sldata->irradiance_rt, 0, 0);
 
@@ -948,7 +988,7 @@ static void render_scene_to_probe(
 	EEVEE_StorageList *stl = vedata->stl;
 	EEVEE_LightProbesInfo *pinfo = sldata->probes;
 
-	float winmat[4][4], posmat[4][4], tmp_ao_dist, tmp_ao_samples, tmp_ao_settings;
+	float winmat[4][4], wininv[4][4], posmat[4][4], tmp_ao_dist, tmp_ao_samples, tmp_ao_settings;
 
 	unit_m4(posmat);
 
@@ -993,12 +1033,14 @@ static void render_scene_to_probe(
 		mul_m4_m4m4(persmat, winmat, viewmat);
 		invert_m4_m4(persinv, persmat);
 		invert_m4_m4(viewinv, viewmat);
+		invert_m4_m4(wininv, winmat);
 
 		DRW_viewport_matrix_override_set(persmat, DRW_MAT_PERS);
 		DRW_viewport_matrix_override_set(persinv, DRW_MAT_PERSINV);
 		DRW_viewport_matrix_override_set(viewmat, DRW_MAT_VIEW);
 		DRW_viewport_matrix_override_set(viewinv, DRW_MAT_VIEWINV);
 		DRW_viewport_matrix_override_set(winmat, DRW_MAT_WIN);
+		DRW_viewport_matrix_override_set(wininv, DRW_MAT_WININV);
 
 		/* Be sure that cascaded shadow maps are updated. */
 		EEVEE_draw_shadows(sldata, psl);
@@ -1033,6 +1075,7 @@ static void render_scene_to_probe(
 	DRW_viewport_matrix_override_unset(DRW_MAT_VIEW);
 	DRW_viewport_matrix_override_unset(DRW_MAT_VIEWINV);
 	DRW_viewport_matrix_override_unset(DRW_MAT_WIN);
+	DRW_viewport_matrix_override_unset(DRW_MAT_WININV);
 
 	/* Restore */
 	sldata->probes->specular_toggle = true;
@@ -1130,13 +1173,14 @@ static void render_scene_to_planar(
 static void render_world_to_probe(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl)
 {
 	EEVEE_LightProbesInfo *pinfo = sldata->probes;
-	float winmat[4][4];
+	float winmat[4][4], wininv[4][4];
 
 	/* 1 - Render to cubemap target using geometry shader. */
 	/* For world probe, we don't need to clear since we render the background directly. */
 	pinfo->layer = 0;
 
 	perspective_m4(winmat, -0.1f, 0.1f, -0.1f, 0.1f, 0.1f, 1.0f);
+	invert_m4_m4(wininv, winmat);
 
 	/* Detach to rebind the right cubeface. */
 	DRW_framebuffer_bind(sldata->probe_fb);
@@ -1159,6 +1203,7 @@ static void render_world_to_probe(EEVEE_SceneLayerData *sldata, EEVEE_PassList *
 		DRW_viewport_matrix_override_set(viewmat, DRW_MAT_VIEW);
 		DRW_viewport_matrix_override_set(viewinv, DRW_MAT_VIEWINV);
 		DRW_viewport_matrix_override_set(winmat, DRW_MAT_WIN);
+		DRW_viewport_matrix_override_set(wininv, DRW_MAT_WININV);
 
 		DRW_draw_pass(psl->probe_background);
 
@@ -1171,15 +1216,20 @@ static void render_world_to_probe(EEVEE_SceneLayerData *sldata, EEVEE_PassList *
 	DRW_viewport_matrix_override_unset(DRW_MAT_VIEW);
 	DRW_viewport_matrix_override_unset(DRW_MAT_VIEWINV);
 	DRW_viewport_matrix_override_unset(DRW_MAT_WIN);
+	DRW_viewport_matrix_override_unset(DRW_MAT_WININV);
 }
 
-static void lightprobe_cell_location_get(EEVEE_LightGrid *egrid, int cell_idx, float r_pos[3])
+static void lightprobe_cell_grid_location_get(EEVEE_LightGrid *egrid, int cell_idx, float r_local_cell[3])
 {
-	float tmp[3], local_cell[3];
 	/* Keep in sync with lightprobe_grid_display_vert */
-	local_cell[2] = (float)(cell_idx % egrid->resolution[2]);
-	local_cell[1] = (float)((cell_idx / egrid->resolution[2]) % egrid->resolution[1]);
-	local_cell[0] = (float)(cell_idx / (egrid->resolution[2] * egrid->resolution[1]));
+	r_local_cell[2] = (float)(cell_idx % egrid->resolution[2]);
+	r_local_cell[1] = (float)((cell_idx / egrid->resolution[2]) % egrid->resolution[1]);
+	r_local_cell[0] = (float)(cell_idx / (egrid->resolution[2] * egrid->resolution[1]));
+}
+
+static void lightprobe_cell_world_location_get(EEVEE_LightGrid *egrid, float local_cell[3], float r_pos[3])
+{
+	float tmp[3];
 
 	copy_v3_v3(r_pos, egrid->corner);
 	mul_v3_v3fl(tmp, egrid->increment_x, local_cell[0]);
@@ -1194,6 +1244,7 @@ void EEVEE_lightprobes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 {
 	EEVEE_TextureList *txl = vedata->txl;
 	EEVEE_PassList *psl = vedata->psl;
+	EEVEE_StorageList *stl = vedata->stl;
 	EEVEE_LightProbesInfo *pinfo = sldata->probes;
 	Object *ob;
 	const DRWContextState *draw_ctx = DRW_context_state_get();
@@ -1202,15 +1253,26 @@ void EEVEE_lightprobes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 	/* Render world in priority */
 	if (e_data.update_world) {
 		render_world_to_probe(sldata, psl);
-		glossy_filter_probe(sldata, vedata, psl, 0);
-		diffuse_filter_probe(sldata, vedata, psl, 0);
 
-		/* Swap and redo prefiltering for other rendertarget.
-		 * This way we have world lighting waiting for irradiance grids to catch up. */
-		SWAP(GPUTexture *, sldata->irradiance_pool, sldata->irradiance_rt);
-		diffuse_filter_probe(sldata, vedata, psl, 0);
+		if (e_data.update_world & PROBE_UPDATE_CUBE) {
+			glossy_filter_probe(sldata, vedata, psl, 0);
+		}
 
-		e_data.update_world = false;
+		if (e_data.update_world & PROBE_UPDATE_GRID) {
+			diffuse_filter_probe(sldata, vedata, psl, 0);
+
+			SWAP(GPUTexture *, sldata->irradiance_pool, sldata->irradiance_rt);
+
+			DRW_framebuffer_texture_detach(sldata->probe_pool);
+
+			DRW_framebuffer_texture_attach(sldata->probe_filter_fb, sldata->irradiance_rt, 0, 0);
+			DRW_draw_pass(psl->probe_grid_fill);
+			DRW_framebuffer_texture_detach(sldata->irradiance_rt);
+
+			DRW_framebuffer_texture_attach(sldata->probe_filter_fb, sldata->probe_pool, 0, 0);
+		}
+
+		e_data.update_world = 0;
 
 		if (!e_data.world_ready_to_shade) {
 			e_data.world_ready_to_shade = true;
@@ -1230,9 +1292,31 @@ void EEVEE_lightprobes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 			}
 		}
 
-		/* Reflection probes depend on diffuse lighting thus on irradiance grid */
-		const int max_bounce = 3;
-		while (pinfo->updated_bounce < max_bounce) {
+		if (!pinfo->grid_initialized) {
+			DRW_framebuffer_texture_detach(sldata->probe_pool);
+
+			/* Flood fill with world irradiance. */
+			DRW_framebuffer_texture_attach(sldata->probe_filter_fb, sldata->irradiance_rt, 0, 0);
+			DRW_draw_pass(psl->probe_grid_fill);
+			DRW_framebuffer_texture_detach(sldata->irradiance_rt);
+
+			SWAP(GPUTexture *, sldata->irradiance_pool, sldata->irradiance_rt);
+
+			DRW_framebuffer_texture_attach(sldata->probe_filter_fb, sldata->irradiance_rt, 0, 0);
+			DRW_draw_pass(psl->probe_grid_fill);
+			DRW_framebuffer_texture_detach(sldata->irradiance_rt);
+
+			SWAP(GPUTexture *, sldata->irradiance_pool, sldata->irradiance_rt);
+
+			/* reattach to have a valid framebuffer. */
+			DRW_framebuffer_texture_attach(sldata->probe_filter_fb, sldata->probe_pool, 0, 0);
+
+			pinfo->grid_initialized = true;
+		}
+
+		/* Reflection probes depend on diffuse lighting thus on irradiance grid,
+		 * so update them first. */
+		while (pinfo->updated_bounce < pinfo->num_bounce) {
 			pinfo->num_render_grid = pinfo->num_grid;
 
 			for (int i = 1; (ob = pinfo->probes_grid_ref[i]) && (i < MAX_GRID); i++) {
@@ -1241,7 +1325,43 @@ void EEVEE_lightprobes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 				if (ped->need_update) {
 					EEVEE_LightGrid *egrid = &pinfo->grid_data[i];
 					LightProbe *prb = (LightProbe *)ob->data;
+
+					/* Find the next cell corresponding to the current level. */
+					bool valid_cell = false;
 					int cell_id = ped->updated_cells;
+					float pos[3], grid_loc[3];
+
+					/* Other levels */
+					int current_stride = 1 << max_ii(0, ped->max_lvl - ped->updated_lvl);
+					int prev_stride = current_stride << 1;
+
+					while (!valid_cell) {
+						cell_id = ped->updated_cells;
+						lightprobe_cell_grid_location_get(egrid, cell_id, grid_loc);
+
+						if (ped->updated_lvl == 0 && cell_id == 0) {
+							valid_cell = true;
+							ped->updated_cells = ped->num_cell;
+							continue;
+						}
+						else if (((((int)grid_loc[0] % current_stride) == 0) &&
+						          (((int)grid_loc[1] % current_stride) == 0) &&
+						          (((int)grid_loc[2] % current_stride) == 0)) &&
+						        !((((int)grid_loc[0] % prev_stride) == 0) &&
+						          (((int)grid_loc[1] % prev_stride) == 0) &&
+						          (((int)grid_loc[2] % prev_stride) == 0)))
+						{
+							valid_cell = true;
+						}
+
+						ped->updated_cells++;
+
+						if (ped->updated_cells > ped->num_cell) {
+							goto skip_rendering;
+						}
+					}
+
+					lightprobe_cell_world_location_get(egrid, grid_loc, pos);
 
 					SWAP(GPUTexture *, sldata->irradiance_pool, sldata->irradiance_rt);
 
@@ -1257,30 +1377,39 @@ void EEVEE_lightprobes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 						pinfo->num_render_grid = 0;
 					}
 
-					float pos[3];
-					lightprobe_cell_location_get(egrid, cell_id, pos);
-
 					render_scene_to_probe(sldata, vedata, pos, prb->clipsta, prb->clipend);
 					diffuse_filter_probe(sldata, vedata, psl, egrid->offset + cell_id);
+
+					/* To see what is going on. */
+					SWAP(GPUTexture *, sldata->irradiance_pool, sldata->irradiance_rt);
 
 					/* Restore */
 					pinfo->num_render_grid = tmp_num_render_grid;
 					pinfo->num_render_cube = tmp_num_render_cube;
 					pinfo->num_planar = tmp_num_planar;
 
-					/* To see what is going on. */
-					SWAP(GPUTexture *, sldata->irradiance_pool, sldata->irradiance_rt);
+skip_rendering:
 
-					ped->updated_cells++;
 					if (ped->updated_cells >= ped->num_cell) {
-						ped->need_update = false;
+						ped->updated_lvl++;
+						ped->updated_cells = 0;
+
+						if (ped->updated_lvl > ped->max_lvl) {
+							ped->need_update = false;
+						}
+
+						egrid->level_bias = (float)(1 << max_ii(0, ped->max_lvl - ped->updated_lvl + 1));
+						DRW_uniformbuffer_update(sldata->grid_ubo, &sldata->probes->grid_data);
 					}
 #if 0
 					printf("Updated Grid %d : cell %d / %d, bounce %d / %d\n",
-						i, ped->updated_cells, ped->num_cell, pinfo->updated_bounce + 1, max_bounce);
+						i, ped->updated_cells, ped->num_cell, pinfo->updated_bounce + 1, pinfo->num_bounce);
 #endif
 					/* Only do one probe per frame */
 					DRW_viewport_request_redraw();
+					/* Do not let this frame accumulate. */
+					stl->effects->taa_current_sample = 1;
+
 					goto update_planar;
 				}
 			}
@@ -1288,14 +1417,25 @@ void EEVEE_lightprobes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 			pinfo->updated_bounce++;
 			pinfo->num_render_grid = pinfo->num_grid;
 
-			if (pinfo->updated_bounce < max_bounce) {
+			if (pinfo->updated_bounce < pinfo->num_bounce) {
 				/* Retag all grids to update for next bounce */
 				for (int i = 1; (ob = pinfo->probes_grid_ref[i]) && (i < MAX_GRID); i++) {
 					EEVEE_LightProbeEngineData *ped = EEVEE_lightprobe_data_get(ob);
 					ped->need_update = true;
 					ped->updated_cells = 0;
+					ped->updated_lvl = 0;
 				}
+
 				SWAP(GPUTexture *, sldata->irradiance_pool, sldata->irradiance_rt);
+
+				/* Reset the next buffer so we can see the progress. */
+				DRW_framebuffer_texture_detach(sldata->probe_pool);
+
+				DRW_framebuffer_texture_attach(sldata->probe_filter_fb, sldata->irradiance_rt, 0, 0);
+				DRW_draw_pass(psl->probe_grid_fill);
+				DRW_framebuffer_texture_detach(sldata->irradiance_rt);
+
+				DRW_framebuffer_texture_attach(sldata->probe_filter_fb, sldata->probe_pool, 0, 0);
 			}
 		}
 
@@ -1319,6 +1459,8 @@ void EEVEE_lightprobes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 				printf("Update Cubemap %d\n", i);
 #endif
 				DRW_viewport_request_redraw();
+				/* Do not let this frame accumulate. */
+				stl->effects->taa_current_sample = 1;
 
 				/* Only do one probe per frame */
 				goto update_planar;
@@ -1362,6 +1504,7 @@ void EEVEE_lightprobes_free(void)
 	DRW_SHADER_FREE_SAFE(e_data.probe_default_sh);
 	DRW_SHADER_FREE_SAFE(e_data.probe_filter_glossy_sh);
 	DRW_SHADER_FREE_SAFE(e_data.probe_filter_diffuse_sh);
+	DRW_SHADER_FREE_SAFE(e_data.probe_grid_fill_sh);
 	DRW_SHADER_FREE_SAFE(e_data.probe_grid_display_sh);
 	DRW_SHADER_FREE_SAFE(e_data.probe_planar_display_sh);
 	DRW_SHADER_FREE_SAFE(e_data.probe_planar_downsample_sh);
@@ -1372,7 +1515,3 @@ void EEVEE_lightprobes_free(void)
 	DRW_TEXTURE_FREE_SAFE(e_data.depth_array_placeholder);
 }
 
-EEVEE_StaticProbeData *EEVEE_static_probe_data_get()
-{
-	return &e_data;
-}

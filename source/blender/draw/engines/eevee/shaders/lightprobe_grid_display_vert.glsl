@@ -1,6 +1,5 @@
 
 in vec3 pos;
-in vec3 nor;
 
 uniform mat4 ViewProjectionMatrix;
 
@@ -31,5 +30,5 @@ void main()
 	     increment_z * ls_cell_location.z);
 
 	gl_Position = ViewProjectionMatrix * vec4(pos * 0.02 * sphere_size + ws_cell_location, 1.0);
-	worldNormal = normalize(nor);
+	worldNormal = normalize(pos);
 }

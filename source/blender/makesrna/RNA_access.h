@@ -501,7 +501,6 @@ extern StructRNA RNA_PropertySensor;
 extern StructRNA RNA_PythonComponent;
 extern StructRNA RNA_PythonConstraint;
 extern StructRNA RNA_PythonController;
-extern StructRNA RNA_QuickTimeSettings;
 extern StructRNA RNA_RadarSensor;
 extern StructRNA RNA_RandomSensor;
 extern StructRNA RNA_RaySensor;
@@ -1223,7 +1222,7 @@ StructRNA *ID_code_to_RNA_type(short idcode);
 } (void)0
 
 /* macro which inserts the function name */
-#if defined __GNUC__ || defined __sun
+#if defined __GNUC__
 #  define RNA_warning(format, args ...) _RNA_warning("%s: " format "\n", __func__, ##args)
 #else
 #  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, __VA_ARGS__)

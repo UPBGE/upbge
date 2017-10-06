@@ -49,11 +49,14 @@ struct GPUViewport;
 /* Buffer and textures used by the viewport by default */
 typedef struct DefaultFramebufferList {
 	struct GPUFrameBuffer *default_fb;
+	struct GPUFrameBuffer *multisample_fb;
 } DefaultFramebufferList;
 
 typedef struct DefaultTextureList {
 	struct GPUTexture *color;
 	struct GPUTexture *depth;
+	struct GPUTexture *multisample_color;
+	struct GPUTexture *multisample_depth;
 } DefaultTextureList;
 
 void DRW_engines_register(void);
@@ -64,6 +67,8 @@ void *DRW_viewport_engine_data_get(void *engine_type);
 void DRW_engine_viewport_data_size_get(
         const void *engine_type,
         int *r_fbl_len, int *r_txl_len, int *r_psl_len, int *r_stl_len);
+
+void DRW_notify_view_update(const struct bContext *C);
 
 void DRW_draw_view(const struct bContext *C);
 

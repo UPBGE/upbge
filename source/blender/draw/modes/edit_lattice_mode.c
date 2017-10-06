@@ -227,7 +227,9 @@ static void EDIT_LATTICE_draw_scene(void *vedata)
 	DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
-	UNUSED_VARS(fbl, dfbl, dtxl);
+	UNUSED_VARS(fbl, dtxl);
+
+	MULTISAMPLE_SYNC_ENABLE(dfbl)
 
 	/* Show / hide entire passes, swap framebuffers ... whatever you fancy */
 	/*
@@ -241,6 +243,8 @@ static void EDIT_LATTICE_draw_scene(void *vedata)
 	/* ... or just render passes on default framebuffer. */
 	DRW_draw_pass(psl->wire_pass);
 	DRW_draw_pass(psl->vert_pass);
+
+	MULTISAMPLE_SYNC_DISABLE(dfbl)
 
 	/* If you changed framebuffer, double check you rebind
 	 * the default one with its textures attached before finishing */
@@ -288,5 +292,6 @@ DrawEngineType draw_engine_edit_lattice_type = {
 	&EDIT_LATTICE_cache_populate,
 	&EDIT_LATTICE_cache_finish,
 	NULL, /* draw_background but not needed by mode engines */
-	&EDIT_LATTICE_draw_scene
+	&EDIT_LATTICE_draw_scene,
+	NULL,
 };

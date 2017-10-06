@@ -813,7 +813,7 @@ void GPU_texture_bind(GPUTexture *tex, int number)
 		glActiveTexture(GL_TEXTURE0 + number);
 
 	if (tex->bindcode != 0)
-		glBindTexture(tex->target_base, tex->bindcode);
+		glBindTexture(tex->target, tex->bindcode);
 	else
 		GPU_invalid_tex_bind(tex->target_base);
 
@@ -836,7 +836,7 @@ void GPU_texture_unbind(GPUTexture *tex)
 	if (tex->number != 0)
 		glActiveTexture(GL_TEXTURE0 + tex->number);
 
-	glBindTexture(tex->target_base, 0);
+	glBindTexture(tex->target, 0);
 
 	if (tex->number != 0)
 		glActiveTexture(GL_TEXTURE0);

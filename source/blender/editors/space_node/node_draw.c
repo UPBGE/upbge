@@ -716,7 +716,7 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 	unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 	immUniformThemeColorShadeAlpha(TH_BACK, -15, +100);
-	imm_draw_line_box_2d(pos, draw_rect.xmin, draw_rect.ymin, draw_rect.xmax, draw_rect.ymax);
+	imm_draw_box_wire_2d(pos, draw_rect.xmin, draw_rect.ymin, draw_rect.xmax, draw_rect.ymax);
 	immUnbindProgram();
 }
 
@@ -1090,7 +1090,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		//	BLI_snprintf(showname, sizeof(showname), "[%s]", showname); /* XXX - don't print into self! */
 
 		uiDefBut(node->block, UI_BTYPE_LABEL, 0, showname,
-		         iroundf(rct->xmin + NODE_MARGIN_X), iroundf(centy - NODE_DY * 0.5f),
+		         round_fl_to_int(rct->xmin + NODE_MARGIN_X), round_fl_to_int(centy - NODE_DY * 0.5f),
 		         (short)(BLI_rctf_size_x(rct) - 18.0f - 12.0f), (short)NODE_DY,
 		         NULL, 0, 0, 0, 0, "");
 	}

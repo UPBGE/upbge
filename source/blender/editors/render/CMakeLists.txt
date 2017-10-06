@@ -25,6 +25,7 @@ set(INC
 	../../blenloader
 	../../blentranslation
 	../../depsgraph
+	../../draw
 	../../gpu
 	../../imbuf
 	../../bmesh
@@ -51,16 +52,6 @@ set(SRC
 
 	render_intern.h
 )
-
-if(WITH_CODEC_QUICKTIME)
-	list(APPEND INC
-		../../quicktime
-	)
-	list(APPEND INC_SYS
-		${QUICKTIME_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_QUICKTIME)
-endif()
 
 if(WITH_HEADLESS)
 	add_definitions(-DWITH_HEADLESS)

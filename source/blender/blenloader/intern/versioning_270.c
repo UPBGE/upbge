@@ -60,6 +60,7 @@
 #include "DNA_genfile.h"
 
 #include "BKE_animsys.h"
+#include "BKE_brush.h"
 #include "BKE_colortools.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -1699,6 +1700,20 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
 				if(sa->full && sc->state == SCREENNORMAL) {
 					sa->full = NULL;
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "VPaint", "char", "falloff_shape")) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				ToolSettings *ts = scene->toolsettings;
+				for (int i = 0; i < 2; i++) {
+					VPaint *vp = i ? ts->vpaint : ts->wpaint;
+					if (vp != NULL) {
+						/* remove all other flags */
+						vp->flag &= (VP_FLAG_VGROUP_RESTRICT);
+						vp->normal_angle = 80;
+					}
 				}
 			}
 		}

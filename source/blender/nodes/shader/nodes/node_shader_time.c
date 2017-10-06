@@ -33,11 +33,11 @@ static bNodeSocketTemplate sh_node_time_out[] = {
 	{	-1, 0, ""	}
 };
 
-static int gpu_shader_time(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_time(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
 	GPUNodeLink *time = GPU_builtin(GPU_TIME);
 
-	return GPU_stack_link(mat, "set_value", in, out, time);
+	return GPU_stack_link(mat, node, "set_value", in, out, time);
 }
 
 void register_node_type_sh_time(void)

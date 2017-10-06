@@ -39,6 +39,7 @@
 #include "BLI_math_matrix.h"
 
 #include "DNA_vec_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_global.h"
 
@@ -75,6 +76,9 @@ struct GPUViewport {
 	GPUTexture *debug_depth;
 	int size[2];
 
+	int samples;
+	int flag;
+
 	ListBase data;  /* ViewportEngineData wrapped in LinkData */
 	unsigned int data_hash;  /* If hash mismatch we free all ViewportEngineData in this viewport */
 
@@ -84,10 +88,26 @@ struct GPUViewport {
 	ListBase tex_pool;  /* ViewportTempTexture list : Temporary textures shared across draw engines */
 };
 
+enum {
+	DO_UPDATE = (1 << 0),
+};
+
 static void gpu_viewport_buffers_free(FramebufferList *fbl, int fbl_len, TextureList *txl, int txl_len);
 static void gpu_viewport_storage_free(StorageList *stl, int stl_len);
 static void gpu_viewport_passes_free(PassList *psl, int psl_len);
 static void gpu_viewport_texture_pool_free(GPUViewport *viewport);
+
+void GPU_viewport_tag_update(GPUViewport *viewport)
+{
+	viewport->flag |= DO_UPDATE;
+}
+
+bool GPU_viewport_do_update(GPUViewport *viewport)
+{
+	bool ret = (viewport->flag & DO_UPDATE);
+	viewport->flag &= ~DO_UPDATE;
+	return ret;
+}
 
 GPUViewport *GPU_viewport_create(void)
 {
@@ -337,7 +357,7 @@ void GPU_viewport_bind(GPUViewport *viewport, const rcti *rect)
 	int rect_h = BLI_rcti_size_y(rect) + 1;
 
 	if (dfbl->default_fb) {
-		if (rect_w != viewport->size[0] || rect_h != viewport->size[1]) {
+		if (rect_w != viewport->size[0] || rect_h != viewport->size[1] || U.ogl_multisamples != viewport->samples) {
 			gpu_viewport_buffers_free(
 			        (FramebufferList *)viewport->fbl, default_fbl_len,
 			        (TextureList *)viewport->txl, default_txl_len);
@@ -354,6 +374,56 @@ void GPU_viewport_bind(GPUViewport *viewport, const rcti *rect)
 
 	gpu_viewport_texture_pool_clear_users(viewport);
 
+	/* Multisample Buffer */
+	if (U.ogl_multisamples > 0) {
+		if (!dfbl->default_fb) {
+			bool ok = true;
+			viewport->samples = U.ogl_multisamples;
+
+			dfbl->multisample_fb = GPU_framebuffer_create();
+			if (!dfbl->multisample_fb) {
+				ok = false;
+				goto cleanup_multisample;
+			}
+
+			/* Color */
+			dtxl->multisample_color = GPU_texture_create_2D_multisample(rect_w, rect_h, NULL, U.ogl_multisamples, NULL);
+			if (!dtxl->multisample_color) {
+				ok = false;
+				goto cleanup_multisample;
+			}
+
+			if (!GPU_framebuffer_texture_attach(dfbl->multisample_fb, dtxl->multisample_color, 0, 0)) {
+				ok = false;
+				goto cleanup_multisample;
+			}
+
+			/* Depth */
+			dtxl->multisample_depth = GPU_texture_create_depth_multisample(rect_w, rect_h, U.ogl_multisamples, NULL);
+
+			if (!dtxl->multisample_depth) {
+				ok = false;
+				goto cleanup_multisample;
+			}
+
+			if (!GPU_framebuffer_texture_attach(dfbl->multisample_fb, dtxl->multisample_depth, 0, 0)) {
+				ok = false;
+				goto cleanup_multisample;
+			}
+			else if (!GPU_framebuffer_check_valid(dfbl->multisample_fb, NULL)) {
+				ok = false;
+				goto cleanup_multisample;
+			}
+
+cleanup_multisample:
+			if (!ok) {
+				GPU_viewport_free(viewport);
+				MEM_freeN(viewport);
+				return;
+			}
+		}
+	}
+
 	if (!dfbl->default_fb) {
 		bool ok = true;
 		viewport->size[0] = rect_w;
@@ -366,7 +436,6 @@ void GPU_viewport_bind(GPUViewport *viewport, const rcti *rect)
 		}
 
 		/* Color */
-		/* No multi samples for now */
 		dtxl->color = GPU_texture_create_2D(rect_w, rect_h, NULL, NULL);
 		if (!dtxl->color) {
 			ok = false;
