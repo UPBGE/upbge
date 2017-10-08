@@ -56,8 +56,8 @@ public:
 	RAS_FrameBuffer *RenderMotionBlur(RAS_FrameBuffer *inputfb);
 	RAS_FrameBuffer *RenderDof(RAS_FrameBuffer *inputfb);
 	RAS_FrameBuffer *RenderVolumetrics(RAS_FrameBuffer *inputfb);
-	void UpdateAO(RAS_FrameBuffer *inputfb);
-	RAS_FrameBuffer *DoSSR(RAS_FrameBuffer *inputfb);
+	void CreateMinMaxDepth(RAS_FrameBuffer *inputfb);
+	void DoSSR(RAS_FrameBuffer *inputfb);
 
 private:
 	EEVEE_StorageList *m_stl;

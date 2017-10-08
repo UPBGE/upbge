@@ -248,16 +248,16 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderDof(RAS_FrameBuffer *inputfb)
 	return inputfb;
 }
 
-void RAS_EeveeEffectsManager::UpdateAO(RAS_FrameBuffer *inputfb)
+void RAS_EeveeEffectsManager::CreateMinMaxDepth(RAS_FrameBuffer *inputfb)
 {
-	//if (m_useAO) {
+	if (m_useAO || m_effects->enabled_effects & EFFECT_SSR) {
 		/* Create stl->g_data->minmaxz from our depth texture.
-		 * This texture is used as uniform if AO is enabled.
+		 * This texture is used as uniform if AO is enabled or some other effects...
 		 * See: DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
 		 */
-	m_dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
+		m_dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
 		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer()), -1);
-	//}
+	}
 }
 
 RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_FrameBuffer *inputfb)
@@ -295,7 +295,7 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_FrameBuffer *inp
 	return inputfb;
 }
 
-RAS_FrameBuffer *RAS_EeveeEffectsManager::DoSSR(RAS_FrameBuffer *inputfb)
+void RAS_EeveeEffectsManager::DoSSR(RAS_FrameBuffer *inputfb)
 {
 	if ((m_effects->enabled_effects & EFFECT_SSR) != 0) {
 
@@ -328,8 +328,6 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::DoSSR(RAS_FrameBuffer *inputfb)
 			DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_dtxl->depth, 0, 0);
 			DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_txl->ssr_normal_input, 1, 0);
 			DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_txl->ssr_specrough_input, 2, 0);
-
-			return inputfb;
 		}
 
 		m_txl->color_double_buffer = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer());
@@ -338,10 +336,7 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::DoSSR(RAS_FrameBuffer *inputfb)
 		KX_Camera *cam = m_scene->GetActiveCamera();
 		MT_Matrix4x4 prevpers(cam->GetProjectionMatrix() * cam->GetModelviewMatrix());
 		prevpers.getValue(&m_stl->g_data->prev_persmat[0][0]);
-
-		return inputfb;
 	}
-	return inputfb;
 }
 
 
@@ -349,7 +344,7 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_FrameBuffer *in
 {
 	m_rasterizer->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
-	UpdateAO(inputfb);
+	CreateMinMaxDepth(inputfb); // Used for AO and SSR and...?
 
 	DoSSR(inputfb);
 
