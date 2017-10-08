@@ -38,6 +38,7 @@ struct GPUTexture;
 class KX_Scene;
 struct DRWShadingGroup;
 struct IDProperty;
+struct DefaultTextureList;
 
 class RAS_EeveeEffectsManager
 {
@@ -56,6 +57,7 @@ public:
 	RAS_FrameBuffer *RenderDof(RAS_FrameBuffer *inputfb);
 	RAS_FrameBuffer *RenderVolumetrics(RAS_FrameBuffer *inputfb);
 	void UpdateAO(RAS_FrameBuffer *inputfb);
+	RAS_FrameBuffer *DoSSR(RAS_FrameBuffer *inputfb);
 
 private:
 	EEVEE_StorageList *m_stl;
@@ -63,6 +65,8 @@ private:
 	EEVEE_TextureList *m_txl;
 	EEVEE_FramebufferList *m_fbl;
 	EEVEE_EffectsInfo *m_effects;
+	DefaultTextureList *m_dtxl;
+	EEVEE_Data *m_vedata;
 
 	KX_Scene *m_scene; // used for DOF and motion blur
 

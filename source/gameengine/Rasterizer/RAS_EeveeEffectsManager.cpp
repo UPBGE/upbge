@@ -57,6 +57,8 @@ m_dofTarget(nullptr)
 	m_txl = vedata->txl;
 	m_fbl = vedata->fbl;
 	m_effects = m_stl->effects;
+	m_dtxl = DRW_viewport_texture_list_get();
+	m_vedata = vedata;
 
 	m_width = canvas->GetWidth() + 1;
 	m_height = canvas->GetHeight() + 1;
@@ -170,7 +172,7 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderMotionBlur(RAS_FrameBuffer *inpu
 		KX_Camera *cam = m_scene->GetActiveCamera();
 
 		m_effects->source_buffer = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer());
-		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
+		m_dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
 		float camToWorld[4][4];
 		cam->GetCameraToWorld().getValue(&camToWorld[0][0]);
 		camToWorld[3][0] *= m_shutter;
@@ -211,7 +213,7 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderDof(RAS_FrameBuffer *inputfb)
 		float clear_col[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		m_effects->source_buffer = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer());
-		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
+		m_dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
 
 		/* Downsample */
 		DRW_framebuffer_bind(m_fbl->dof_down_fb);
@@ -248,20 +250,21 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderDof(RAS_FrameBuffer *inputfb)
 
 void RAS_EeveeEffectsManager::UpdateAO(RAS_FrameBuffer *inputfb)
 {
-	if (m_useAO) {
+	//if (m_useAO) {
 		/* Create stl->g_data->minmaxz from our depth texture.
 		 * This texture is used as uniform if AO is enabled.
 		 * See: DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
 		 */
+	m_dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
 		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer()), -1);
-	}
+	//}
 }
 
 RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_FrameBuffer *inputfb)
 {
 	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0 && m_useVolumetricNodes) {
 
-		DRW_viewport_texture_list_get()->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
+		m_dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
 		EEVEE_effects_replace_e_data_depth(GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer()));
 
 		/* Compute volumetric integration at halfres. */
@@ -292,12 +295,63 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_FrameBuffer *inp
 	return inputfb;
 }
 
+RAS_FrameBuffer *RAS_EeveeEffectsManager::DoSSR(RAS_FrameBuffer *inputfb)
+{
+	if ((m_effects->enabled_effects & EFFECT_SSR) != 0) {
+
+		if (m_stl->g_data->valid_double_buffer) {
+
+			EEVEE_effects_replace_e_data_depth(m_dtxl->depth);
+
+			for (int i = 0; i < m_effects->ssr_ray_count; ++i) {
+				DRW_framebuffer_texture_attach(m_fbl->screen_tracing_fb, m_stl->g_data->ssr_hit_output[i], i, 0);
+			}
+			DRW_framebuffer_bind(m_fbl->screen_tracing_fb);
+
+			/* Raytrace. */
+			DRW_draw_pass(m_psl->ssr_raytrace);
+
+			for (int i = 0; i < m_effects->ssr_ray_count; ++i) {
+				DRW_framebuffer_texture_detach(m_stl->g_data->ssr_hit_output[i]);
+			}
+
+			EEVEE_downsample_buffer(m_vedata, m_fbl->downsample_fb, m_txl->color_double_buffer, 9);
+
+			/* Resolve at fullres */
+			DRW_framebuffer_texture_detach(m_dtxl->depth);
+			DRW_framebuffer_texture_detach(m_txl->ssr_normal_input);
+			DRW_framebuffer_texture_detach(m_txl->ssr_specrough_input);
+			DRW_framebuffer_bind(inputfb->GetFrameBuffer());
+			DRW_draw_pass(m_psl->ssr_resolve);
+
+			/* Restore */
+			DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_dtxl->depth, 0, 0);
+			DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_txl->ssr_normal_input, 1, 0);
+			DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_txl->ssr_specrough_input, 2, 0);
+
+			return inputfb;
+		}
+
+		m_txl->color_double_buffer = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer());
+		m_stl->g_data->valid_double_buffer = (m_txl->color_double_buffer != NULL);
+
+		KX_Camera *cam = m_scene->GetActiveCamera();
+		MT_Matrix4x4 prevpers(cam->GetProjectionMatrix() * cam->GetModelviewMatrix());
+		prevpers.getValue(&m_stl->g_data->prev_persmat[0][0]);
+
+		return inputfb;
+	}
+	return inputfb;
+}
+
 
 RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_FrameBuffer *inputfb)
 {
 	m_rasterizer->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
 	UpdateAO(inputfb);
+
+	DoSSR(inputfb);
 
 	inputfb = RenderVolumetrics(inputfb);
 
