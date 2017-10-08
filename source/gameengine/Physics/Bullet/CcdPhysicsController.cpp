@@ -1806,6 +1806,12 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 		curPolygonStartIndex += indicesCount / 3;
 	}
 
+	// Detect mesh without triangles.
+	if (numIndices == 0 && m_shapeType == PHY_SHAPE_MESH) {
+		m_displayArrayList.clear();
+		return false;
+	}
+
 	m_vertexArray.resize(numVertices * 3);
 	m_vertexRemap.resize(numVertices, -1);
 
