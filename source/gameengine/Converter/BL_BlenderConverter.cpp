@@ -688,6 +688,16 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
 		KX_Scene *scene = sit->first;
 		SceneSlot& sceneSlot = sit->second;
 
+		for (UniquePtrList<RAS_MeshObject>::iterator it =  sceneSlot.m_meshobjects.begin(); it !=  sceneSlot.m_meshobjects.end(); ) {
+			RAS_MeshObject *mesh = (*it).get();
+			if (IS_TAGGED(mesh->GetMesh())) {
+				it = sceneSlot.m_meshobjects.erase(it);
+			}
+			else {
+				++it;
+			}
+		}
+
 		for (UniquePtrList<KX_BlenderMaterial>::iterator it = sceneSlot.m_materials.begin(); it != sceneSlot.m_materials.end(); ) {
 			KX_BlenderMaterial *mat = (*it).get();
 			Material *bmat = mat->GetBlenderMaterial();
@@ -706,16 +716,6 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
 			if (IS_TAGGED(action)) {
 				sceneSlot.m_actionToInterp.erase(action);
 				it = sceneSlot.m_interpolators.erase(it);
-			}
-			else {
-				++it;
-			}
-		}
-
-		for (UniquePtrList<RAS_MeshObject>::iterator it =  sceneSlot.m_meshobjects.begin(); it !=  sceneSlot.m_meshobjects.end(); ) {
-			RAS_MeshObject *mesh = (*it).get();
-			if (IS_TAGGED(mesh->GetMesh())) {
-				it = sceneSlot.m_meshobjects.erase(it);
 			}
 			else {
 				++it;
