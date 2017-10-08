@@ -288,7 +288,7 @@ void BL_ActionActuator::DecLink()
 bool BL_ActionActuator::Play(KX_GameObject *obj, float start, float end, short mode)
 {
 	const short blendmode = (m_blendmode == ACT_ACTION_ADD) ? BL_Action::ACT_BLEND_ADD : BL_Action::ACT_BLEND_BLEND;
-	return obj->PlayAction(m_action->id.name + 2, start, end, m_layer, m_priority, 0, mode, m_layer_weight, m_ipo_flags, 1.f, blendmode);
+	return obj->PlayAction(m_action->id.name + 2, start, end, m_layer, m_priority, m_blendin, mode, m_layer_weight, m_ipo_flags, 1.0f, blendmode);
 }
 
 #ifdef WITH_PYTHON
