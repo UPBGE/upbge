@@ -28,9 +28,7 @@ RAS_Deformer::RAS_Deformer(RAS_MeshObject *mesh)
 	m_bDynamic(false),
 	m_boundingBox(nullptr)
 {
-	for (unsigned short i = 0, nummat = m_mesh->GetNumMaterials(); i < nummat; ++i) {
-		RAS_MeshMaterial *meshmat = m_mesh->GetMeshMaterial(i);
-
+	for (RAS_MeshMaterial *meshmat : m_mesh->GetMeshMaterialList()) {
 		/* Duplicate the display array bucket and the display array if needed to store
 		 * the mesh slot on a unique list (= display array bucket) and use an unique vertex
 		 * array (=display array). */

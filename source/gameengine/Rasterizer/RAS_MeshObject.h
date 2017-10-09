@@ -149,6 +149,7 @@ public:
 	std::string GetMaterialName(unsigned int matid) const;
 	std::string GetTextureName(unsigned int matid) const;
 
+	const RAS_MeshMaterialList& GetMeshMaterialList() const;
 	RAS_MeshMaterial *GetMeshMaterial(unsigned int matid) const;
 	RAS_MeshMaterial *GetMeshMaterialBlenderIndex(unsigned int index) const;
 	RAS_MeshMaterial *FindMaterialName(const std::string& name) const;

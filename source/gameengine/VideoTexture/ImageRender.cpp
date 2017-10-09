@@ -907,8 +907,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	for (int meshIndex = 0; meshIndex < mirror->GetMeshCount(); meshIndex++)
 	{
 		RAS_MeshObject*	mesh = mirror->GetMesh(meshIndex);
-		for (unsigned short i = 0, matCount = mesh->GetNumMaterials(); i < matCount; ++i) {
-			RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(i);
+		for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
 			if (meshmat->GetBucket()->GetPolyMaterial() == mat) {
 				RAS_IDisplayArray *array = meshmat->GetDisplayArray();
 				for (unsigned int j = 0, indexCount = array->GetTriangleIndexCount(); j < indexCount; j += 3) {

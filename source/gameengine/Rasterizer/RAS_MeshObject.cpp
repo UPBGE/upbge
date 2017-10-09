@@ -61,6 +61,11 @@ RAS_MeshObject::~RAS_MeshObject()
 	m_materials.clear();
 }
 
+const RAS_MeshMaterialList& RAS_MeshObject::GetMeshMaterialList() const
+{
+	return m_materials;
+}
+
 unsigned short RAS_MeshObject::GetNumMaterials() const
 {
 	return m_materials.size();

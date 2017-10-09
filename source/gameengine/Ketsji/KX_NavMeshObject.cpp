@@ -234,8 +234,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 		// Original (without split of normal or UV) vertex count.
 		unsigned int numvertices = 0;
 
-		for (unsigned int i = 0, nummat = meshobj->GetNumMaterials(); i < nummat; ++i) {
-			RAS_MeshMaterial *meshmat = meshobj->GetMeshMaterial(i);
+		for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
 			RAS_IDisplayArray *array = meshmat->GetDisplayArray();
 
 			numindices += array->GetTriangleIndexCount();
@@ -252,8 +251,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 		unsigned int curvert = 0;
 		// Current index written.
 		unsigned int curind = 0;
-		for (unsigned int i = 0, nummat = meshobj->GetNumMaterials(); i < nummat; ++i) {
-			RAS_MeshMaterial *meshmat = meshobj->GetMeshMaterial(i);
+		for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
 			RAS_IDisplayArray *array = meshmat->GetDisplayArray();
 			// Convert location of all vertices and remap if vertices weren't already converted.
 			for (unsigned int j = 0, numvert = array->GetVertexCount(); j < numvert; ++j) {

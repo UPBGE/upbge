@@ -1630,8 +1630,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		for (unsigned short i = 0, meshcount = gameobj->GetMeshCount(); i < meshcount; ++i) {
 			RAS_MeshObject *mesh = gameobj->GetMesh(i);
 
-			for (unsigned short j = 0, matcount = mesh->GetNumMaterials(); j < matcount; ++j) {
-				RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(j);
+			for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
 				RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
 
 				for (unsigned short k = 0; k < RAS_Texture::MaxUnits; ++k) {
