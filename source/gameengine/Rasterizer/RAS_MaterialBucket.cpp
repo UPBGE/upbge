@@ -115,7 +115,7 @@ void RAS_MaterialBucket::DesactivateMaterial(RAS_Rasterizer *rasty)
 void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
 									  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort)
 {
-	if (m_displayArrayBucketList.size() == 0) {
+	if (m_displayArrayBucketList.empty()) {
 		return;
 	}
 

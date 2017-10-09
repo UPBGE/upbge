@@ -110,7 +110,7 @@ RAS_TextureRenderer::~RAS_TextureRenderer()
 
 void RAS_TextureRenderer::GetValidTexture()
 {
-	BLI_assert(m_textureUsers.size() > 0);
+	BLI_assert(!m_textureUsers.empty());
 
 	/* The gpu texture returned by all material textures are the same.
 	* We can so use the first material texture user.

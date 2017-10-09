@@ -3701,7 +3701,7 @@ bool KX_GameObject::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayC
 
 	// if X-ray option is selected, the unwnted objects were not tested, so get here only with true hit
 	// if not, all objects were tested and the front one may not be the correct one.
-	if ((rayData->m_xray || rayData->m_prop.size() == 0 || hitKXObj->GetProperty(rayData->m_prop) != nullptr) && 
+	if ((rayData->m_xray || rayData->m_prop.empty() || hitKXObj->GetProperty(rayData->m_prop) != nullptr) && 
 		hitKXObj->GetUserCollisionGroup() & rayData->m_mask)
 	{
 		rayData->m_hitObject = hitKXObj;
@@ -3729,7 +3729,7 @@ bool KX_GameObject::NeedRayCast(KX_ClientObjectInfo *client, RayCastData *rayDat
 	
 	// if X-Ray option is selected, skip object that don't match the criteria as we see through them
 	// if not, test all objects because we don't know yet which one will be on front
-	if ((!rayData->m_xray || rayData->m_prop.size() == 0 || hitKXObj->GetProperty(rayData->m_prop) != nullptr) && 
+	if ((!rayData->m_xray || rayData->m_prop.size() || hitKXObj->GetProperty(rayData->m_prop) != nullptr) && 
 		hitKXObj->GetUserCollisionGroup() & rayData->m_mask)
 	{
 		return true;

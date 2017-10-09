@@ -109,7 +109,7 @@ void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketMan
 	if (m_downwardNode.GetValid()) {
 		m_downwardNode.Execute(RAS_DummyNodeTuple());
 	}
-	if (leafs.size() > 0) {
+	if (!leafs.empty()) {
 		/* Camera's near plane equation: pnorm.dot(point) + pval,
 		 * but we leave out pval since it's constant anyway */
 		const MT_Vector3 pnorm(m_nodeData.m_trans.getBasis()[2]);
@@ -160,7 +160,7 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 			 */
 
 			m_nodeData.m_shaderOverride = true;
-			if (m_buckets[SOLID_SHADOW_BUCKET].size() > 0) {
+			if (!m_buckets[SOLID_SHADOW_BUCKET].empty()) {
 				rasty->SetOverrideShader(isVarianceShadow ?
 				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE :
 				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_BLACK);
@@ -171,7 +171,7 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 			 * shader for variance and simple shadow.
 			 */
 
-			if (m_buckets[SOLID_SHADOW_INSTANCING_BUCKET].size() > 0) {
+			if (!m_buckets[SOLID_SHADOW_INSTANCING_BUCKET].empty()) {
 				rasty->SetOverrideShader(isVarianceShadow ?
 				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING :
 				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_BLACK_INSTANCING);
@@ -183,7 +183,7 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 				 * shader for variance shadow.
 				 */
 
-				if (m_buckets[ALPHA_SHADOW_INSTANCING_BUCKET].size() > 0) {
+				if (!m_buckets[ALPHA_SHADOW_INSTANCING_BUCKET].empty()) {
 					rasty->SetOverrideShader(RAS_Rasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING);
 				}
 				RenderBasicBuckets(rasty, ALPHA_SHADOW_INSTANCING_BUCKET);
@@ -192,7 +192,7 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 				 * shader for variance shadow and ordering.
 				 */
 
-				if (m_buckets[ALPHA_SHADOW_BUCKET].size() > 0) {
+				if (!m_buckets[ALPHA_SHADOW_BUCKET].empty()) {
 					rasty->SetOverrideShader(RAS_Rasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE);
 				}
 				RenderBasicBuckets(rasty, ALPHA_SHADOW_BUCKET);
@@ -220,7 +220,7 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 
 			// Rendering solid regular materials with an empty override shader.
 
-			if (m_buckets[SOLID_BUCKET].size() > 0) {
+			if (!m_buckets[SOLID_BUCKET].empty()) {
 				rasty->SetOverrideShader(RAS_Rasterizer::RAS_OVERRIDE_SHADER_BLACK);
 			}
 			RenderBasicBuckets(rasty, SOLID_BUCKET);
@@ -229,7 +229,7 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 			 * with an override shader.
 			 */
 
-			if ((m_buckets[SOLID_INSTANCING_BUCKET].size() + m_buckets[ALPHA_INSTANCING_BUCKET].size())) {
+			if ((m_buckets[SOLID_INSTANCING_BUCKET].size() + m_buckets[ALPHA_INSTANCING_BUCKET].size()) > 0) {
 				rasty->SetOverrideShader(RAS_Rasterizer::RAS_OVERRIDE_SHADER_BLACK_INSTANCING);
 			}
 			RenderBasicBuckets(rasty, SOLID_INSTANCING_BUCKET);
@@ -239,7 +239,7 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 			 * an empty shader and ordering.
 			 */
 
-			if ((m_buckets[ALPHA_BUCKET].size()) != 0) {
+			if (!m_buckets[ALPHA_BUCKET].empty()) {
 				rasty->SetOverrideShader(RAS_Rasterizer::RAS_OVERRIDE_SHADER_BLACK);
 			}
 			RenderSortedBuckets(rasty, ALPHA_BUCKET);

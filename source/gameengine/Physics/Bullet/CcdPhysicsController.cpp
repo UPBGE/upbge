@@ -1639,7 +1639,7 @@ void CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
 
 void CcdPhysicsController::ReplicateConstraints(KX_GameObject *replica, std::vector<KX_GameObject *> constobj)
 {
-	if (replica->GetConstraints().size() == 0 || !replica->GetPhysicsController())
+	if (replica->GetConstraints().empty() || !replica->GetPhysicsController())
 		return;
 
 	PHY_IPhysicsEnvironment *physEnv = GetPhysicsEnvironment();
@@ -2065,7 +2065,7 @@ btCollisionShape *CcdShapeConstructionInfo::CreateBulletShape(btScalar margin, b
 		}
 		case PHY_SHAPE_COMPOUND:
 		{
-			if (m_shapeArray.size() == 0) {
+			if (m_shapeArray.empty()) {
 				break;
 			}
 

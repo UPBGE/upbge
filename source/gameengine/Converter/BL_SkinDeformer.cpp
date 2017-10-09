@@ -194,7 +194,7 @@ void BL_SkinDeformer::BGEDeformVerts()
 
 	const unsigned short defbase_tot = BLI_listbase_count(&m_objMesh->defbase);
 
-	if (m_dfnrToPC.size() == 0) {
+	if (m_dfnrToPC.empty()) {
 		m_dfnrToPC.resize(defbase_tot);
 		int i;
 		bDeformGroup *dg;
@@ -272,55 +272,57 @@ void BL_SkinDeformer::BGEDeformVerts()
 
 void BL_SkinDeformer::UpdateTransverts()
 {
+	if (m_transverts.empty()) {
+		return;
+	}
+
 	bool first = true;
-	if (m_transverts.size() > 0) {
-		// AABB Box : min/max.
-		MT_Vector3 aabbMin;
-		MT_Vector3 aabbMax;
+	// AABB Box : min/max.
+	MT_Vector3 aabbMin;
+	MT_Vector3 aabbMax;
 
-		// the vertex cache is unique to this deformer, no need to update it
-		// if it wasn't updated! We must update all the materials at once
-		// because we will not get here again for the other material
-		for (RAS_IDisplayArray *array: m_displayArrayList) {
-			// for each vertex
-			// copy the untransformed data from the original mvert
-			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-				RAS_IVertex *v = array->GetVertex(i);
-				const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
-				v->SetXYZ(m_transverts[vinfo.getOrigIndex()].data());
-				if (m_copyNormals)
-					v->SetNormal(m_transnors[vinfo.getOrigIndex()].data());
+	// the vertex cache is unique to this deformer, no need to update it
+	// if it wasn't updated! We must update all the materials at once
+	// because we will not get here again for the other material
+	for (RAS_IDisplayArray *array: m_displayArrayList) {
+		// for each vertex
+		// copy the untransformed data from the original mvert
+		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+			RAS_IVertex *v = array->GetVertex(i);
+			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
+			v->SetXYZ(m_transverts[vinfo.getOrigIndex()].data());
+			if (m_copyNormals)
+				v->SetNormal(m_transnors[vinfo.getOrigIndex()].data());
 
-				MT_Vector3 vertpos = v->xyz();
+			MT_Vector3 vertpos = v->xyz();
 
-				if (!m_gameobj->GetAutoUpdateBounds()) {
-					continue;
-				}
-
-				// For the first vertex of the mesh, only initialize AABB.
-				if (first) {
-					aabbMin = aabbMax = vertpos;
-					first = false;
-				}
-				else {
-					aabbMin.x() = std::min(aabbMin.x(), vertpos.x());
-					aabbMin.y() = std::min(aabbMin.y(), vertpos.y());
-					aabbMin.z() = std::min(aabbMin.z(), vertpos.z());
-					aabbMax.x() = std::max(aabbMax.x(), vertpos.x());
-					aabbMax.y() = std::max(aabbMax.y(), vertpos.y());
-					aabbMax.z() = std::max(aabbMax.z(), vertpos.z());
-				}
+			if (!m_gameobj->GetAutoUpdateBounds()) {
+				continue;
 			}
 
-			array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
+			// For the first vertex of the mesh, only initialize AABB.
+			if (first) {
+				aabbMin = aabbMax = vertpos;
+				first = false;
+			}
+			else {
+				aabbMin.x() = std::min(aabbMin.x(), vertpos.x());
+				aabbMin.y() = std::min(aabbMin.y(), vertpos.y());
+				aabbMin.z() = std::min(aabbMin.z(), vertpos.z());
+				aabbMax.x() = std::max(aabbMax.x(), vertpos.x());
+				aabbMax.y() = std::max(aabbMax.y(), vertpos.y());
+				aabbMax.z() = std::max(aabbMax.z(), vertpos.z());
+			}
 		}
 
-		m_boundingBox->SetAabb(aabbMin, aabbMax);
-
-
-		if (m_copyNormals)
-			m_copyNormals = false;
+		array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
 	}
+
+	m_boundingBox->SetAabb(aabbMin, aabbMax);
+
+
+	if (m_copyNormals)
+		m_copyNormals = false;
 }
 
 bool BL_SkinDeformer::UpdateInternal(bool shape_applied)

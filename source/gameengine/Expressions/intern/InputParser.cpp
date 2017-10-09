@@ -658,7 +658,7 @@ CExpression *CParser::ProcessText(const std::string& intext)
 
 
 	chcount = 0;
-	if (text.size() == 0) {
+	if (text.empty()) {
 		return nullptr;
 	}
 

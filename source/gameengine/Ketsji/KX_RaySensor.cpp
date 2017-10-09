@@ -114,7 +114,7 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 	bool bFound = false;
 	bool hitMaterial = false;
 
-	if (m_propertyname.size() == 0)
+	if (m_propertyname.empty())
 	{
 		bFound = true;
 	}

@@ -117,11 +117,11 @@ PyObject *SCA_PythonKeyboard::pyattr_get_events(PyObjectPlus *self_v, const KX_P
 	{
 		SCA_InputEvent& input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 		int event = 0;
-		if (input.m_queue.size() > 0) {
-			event = input.m_queue[input.m_queue.size() - 1];
+		if (input.m_queue.empty()) {
+			event = input.m_status[input.m_status.size() - 1];
 		}
 		else {
-			event = input.m_status[input.m_status.size() - 1];
+			event = input.m_queue[input.m_queue.size() - 1];
 		}
 
 		PyObject *key = PyLong_FromLong(i);
@@ -189,11 +189,11 @@ PyObject *SCA_PythonKeyboard::pyattr_get_active_events(PyObjectPlus *self_v, con
 
 		if (input.Find(SCA_InputEvent::ACTIVE)) {
 			int event = 0;
-			if (input.m_queue.size() > 0) {
-				event = input.m_queue[input.m_queue.size() - 1];
+			if (input.m_queue.empty()) {
+				event = input.m_status[input.m_status.size() - 1];
 			}
 			else {
-				event = input.m_status[input.m_status.size() - 1];
+				event = input.m_queue[input.m_queue.size() - 1];
 			}
 
 			PyObject *key = PyLong_FromLong(i);

@@ -194,7 +194,7 @@ void RAS_DisplayArrayBucket::DestructStorageInfo()
 void RAS_DisplayArrayBucket::GenerateAttribLayers()
 {
 	// Avoid double generation and generation for text material which doesn't use a mesh.
-	if (m_attribLayers.size() > 0 || !m_mesh) {
+	if (!m_attribLayers.empty() || !m_mesh) {
 		return;
 	}
 
@@ -211,7 +211,7 @@ void RAS_DisplayArrayBucket::SetAttribLayers(RAS_Rasterizer *rasty) const
 void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
 										  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing)
 {
-	if (m_activeMeshSlots.size() == 0) {
+	if (m_activeMeshSlots.empty()) {
 		return;
 	}
 

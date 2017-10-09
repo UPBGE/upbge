@@ -192,7 +192,7 @@ void KX_TextureRendererManager::Render(RendererCategory category, RAS_Rasterizer
 									   KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	const std::vector<KX_TextureRenderer *>& renderers = m_renderers[category];
-	if (renderers.size() == 0 || rasty->GetDrawingMode() != RAS_Rasterizer::RAS_TEXTURED) {
+	if (renderers.empty() || rasty->GetDrawingMode() != RAS_Rasterizer::RAS_TEXTURED) {
 		return;
 	}
 

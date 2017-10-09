@@ -75,7 +75,7 @@ public:
 	inline bool GetValid() const
 	{
 		if (!Leaf()) {
-			return m_children.size() > 0;
+			return !m_children.empty();
 		}
 		return true;
 	}

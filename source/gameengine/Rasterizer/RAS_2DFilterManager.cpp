@@ -83,7 +83,7 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 
 RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
-	if (m_filters.size() == 0) {
+	if (m_filters.empty()) {
 		// No filters, discard.
 		return inputofs;
 	}

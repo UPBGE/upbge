@@ -160,7 +160,7 @@ bool KX_MouseFocusSensor::RayHit(KX_ClientObjectInfo *client_info, KX_RayCast *r
 
 	if ((m_focusmode == 2) || hitKXObj == thisObj)
 	{
-		if (m_propertyname.size() == 0)
+		if (m_propertyname.empty())
 		{
 			bFound = true;
 		}

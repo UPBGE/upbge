@@ -38,7 +38,7 @@ RAS_BoundingBoxManager::~RAS_BoundingBoxManager()
 		delete boundingBox;
 	}
 
-	BLI_assert(m_activeBoundingBoxList.size() == 0);
+	BLI_assert(m_activeBoundingBoxList.empty());
 }
 
 RAS_BoundingBox *RAS_BoundingBoxManager::CreateBoundingBox()

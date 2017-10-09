@@ -95,7 +95,7 @@ public:
 
 	bool IsUnused(void)
 	{
-		return (m_displayArrayList.size() == 0 && m_shapeArray.size() == 0 && m_shapeProxy == nullptr);
+		return (m_displayArrayList.empty() && m_shapeArray.empty() && m_shapeProxy == nullptr);
 	}
 
 	void AddShape(CcdShapeConstructionInfo *shapeInfo);
