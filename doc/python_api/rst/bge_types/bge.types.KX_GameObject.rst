@@ -602,8 +602,10 @@ base class --- :class:`SCA_IObject`
       :arg movement: movement vector.
       :type movement: 3D Vector
       :arg local:
-         * False: you get the "global" movement ie: relative to world orientation.
-         * True: you get the "local" movement ie: relative to object orientation.
+
+         * False: get the "global" movement ie: relative to world orientation.
+         * True: get the "local" movement ie: relative to object orientation.
+
          Default to False if not passed.
       :arg local: boolean
 
@@ -614,8 +616,10 @@ base class --- :class:`SCA_IObject`
       :arg rotation: rotation vector.
       :type rotation: 3D Vector
       :arg local:
-         * False: you get the "global" rotation ie: relative to world orientation.
-         * True: you get the "local" rotation ie: relative to object orientation.
+
+         * False: get the "global" rotation ie: relative to world orientation.
+         * True: get the "local" rotation ie: relative to object orientation.
+
          Default to False if not passed.
       :arg local: boolean
 
@@ -628,8 +632,10 @@ base class --- :class:`SCA_IObject`
       :arg force: force vector.
       :type force: 3D Vector
       :arg local:
-         * False: you get the "global" force ie: relative to world orientation.
-         * True: you get the "local" force ie: relative to object orientation.
+
+         * False: get the "global" force ie: relative to world orientation.
+         * True: get the "local" force ie: relative to object orientation.
+
          Default to False if not passed.
       :type local: boolean
 
@@ -642,8 +648,10 @@ base class --- :class:`SCA_IObject`
       :arg torque: torque vector.
       :type torque: 3D Vector
       :arg local:
-         * False: you get the "global" torque ie: relative to world orientation.
-         * True: you get the "local" torque ie: relative to object orientation.
+
+         * False: get the "global" torque ie: relative to world orientation.
+         * True: get the "local" torque ie: relative to object orientation.
+
          Default to False if not passed.
       :type local: boolean
 
@@ -654,8 +662,10 @@ base class --- :class:`SCA_IObject`
       This method returns the game object's velocity through it's center of mass, ie no angular velocity component.
 
       :arg local:
-         * False: you get the "global" velocity ie: relative to world orientation.
-         * True: you get the "local" velocity ie: relative to object orientation.
+
+         * False: get the "global" velocity ie: relative to world orientation.
+         * True: get the "local" velocity ie: relative to object orientation.
+
          Default to False if not passed.
       :type local: boolean
       :return: the object's linear velocity.
@@ -673,8 +683,10 @@ base class --- :class:`SCA_IObject`
       :arg velocity: linear velocity vector.
       :type velocity: 3D Vector
       :arg local:
-         * False: you get the "global" velocity ie: relative to world orientation.
-         * True: you get the "local" velocity ie: relative to object orientation.
+
+         * False: get the "global" velocity ie: relative to world orientation.
+         * True: get the "local" velocity ie: relative to object orientation.
+
          Default to False if not passed.
       :type local: boolean
 
@@ -683,8 +695,10 @@ base class --- :class:`SCA_IObject`
       Gets the game object's angular velocity.
 
       :arg local:
-         * False: you get the "global" velocity ie: relative to world orientation.
-         * True: you get the "local" velocity ie: relative to object orientation.
+
+         * False: get the "global" velocity ie: relative to world orientation.
+         * True: get the "local" velocity ie: relative to object orientation.
+
          Default to False if not passed.
       :type local: boolean
       :return: the object's angular velocity.
@@ -699,8 +713,10 @@ base class --- :class:`SCA_IObject`
       :arg velocity: angular velocity vector.
       :type velocity: boolean
       :arg local:
-         * False: you get the "global" velocity ie: relative to world orientation.
-         * True: you get the "local" velocity ie: relative to object orientation.
+
+         * False: get the "global" velocity ie: relative to world orientation.
+         * True: get the "local" velocity ie: relative to object orientation.
+
          Default to False if not passed.
 
    .. method:: getVelocity([point])
@@ -742,8 +758,10 @@ base class --- :class:`SCA_IObject`
       :arg impulse: impulse vector.
       :type impulse: 3D Vector
       :arg local:
-         * False: you get the "global" impulse ie: relative to world coordinates with world orientation.
-         * True: you get the "local" impulse ie: relative to local coordinates with object orientation.
+
+         * False: get the "global" impulse ie: relative to world coordinates with world orientation.
+         * True: get the "local" impulse ie: relative to local coordinates with object orientation.
+
          Default to False if not passed.
       :type local: boolean
 
