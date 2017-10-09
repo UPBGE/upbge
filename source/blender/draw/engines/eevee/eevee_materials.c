@@ -418,7 +418,9 @@ static void add_standard_uniforms(
 void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
 	int *ssr_id, float *refract_depth, bool use_ssrefraction)
 {
-	if (ssr_id == NULL || !vedata->stl->g_data->valid_double_buffer) {
+	if (ssr_id == NULL) { // WARNING HERE: For SSR eevee normally needs a valid vedata->stl->g_data->valid_double_buffer
+						  // but it is not valid yet when we add uniforms in BL_BlenderShader -> So we change this
+						  // condition: if (ssr_id == NULL || !vedata->stl->g_data->valid_double_buffer) {
 		static int no_ssr = -1.0f;
 		ssr_id = &no_ssr;
 	}
