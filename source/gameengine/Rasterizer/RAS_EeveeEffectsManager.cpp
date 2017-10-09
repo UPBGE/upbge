@@ -255,7 +255,6 @@ void RAS_EeveeEffectsManager::CreateMinMaxDepth(RAS_FrameBuffer *inputfb)
 		 * This texture is used as uniform if AO is enabled or some other effects...
 		 * See: DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
 		 */
-		m_dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
 		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer()), -1);
 	}
 }
@@ -299,43 +298,45 @@ void RAS_EeveeEffectsManager::DoSSR(RAS_FrameBuffer *inputfb)
 {
 	if ((m_effects->enabled_effects & EFFECT_SSR) != 0) {
 
-		if (m_stl->g_data->valid_double_buffer) {
-
-			EEVEE_effects_replace_e_data_depth(m_dtxl->depth);
-
-			for (int i = 0; i < m_effects->ssr_ray_count; ++i) {
-				DRW_framebuffer_texture_attach(m_fbl->screen_tracing_fb, m_stl->g_data->ssr_hit_output[i], i, 0);
-			}
-			DRW_framebuffer_bind(m_fbl->screen_tracing_fb);
-
-			/* Raytrace. */
-			DRW_draw_pass(m_psl->ssr_raytrace);
-
-			for (int i = 0; i < m_effects->ssr_ray_count; ++i) {
-				DRW_framebuffer_texture_detach(m_stl->g_data->ssr_hit_output[i]);
-			}
-
-			EEVEE_downsample_buffer(m_vedata, m_fbl->downsample_fb, m_txl->color_double_buffer, 9);
-
-			/* Resolve at fullres */
-			DRW_framebuffer_texture_detach(m_dtxl->depth);
-			DRW_framebuffer_texture_detach(m_txl->ssr_normal_input);
-			DRW_framebuffer_texture_detach(m_txl->ssr_specrough_input);
-			DRW_framebuffer_bind(inputfb->GetFrameBuffer());
-			DRW_draw_pass(m_psl->ssr_resolve);
-
-			/* Restore */
-			DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_dtxl->depth, 0, 0);
-			DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_txl->ssr_normal_input, 1, 0);
-			DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_txl->ssr_specrough_input, 2, 0);
-		}
-
-		m_txl->color_double_buffer = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer());
-		m_stl->g_data->valid_double_buffer = (m_txl->color_double_buffer != NULL);
-
+		m_txl->color_double_buffer = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer()); // Color uniform for SSR shader
+		m_dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
+		EEVEE_effects_replace_e_data_depth(m_dtxl->depth);                                     // Depth uniform for SSR shader
 		KX_Camera *cam = m_scene->GetActiveCamera();
 		MT_Matrix4x4 prevpers(cam->GetProjectionMatrix() * cam->GetModelviewMatrix());
-		prevpers.getValue(&m_stl->g_data->prev_persmat[0][0]);
+		/* Notes:
+		 * 1) In eevee the SSR is computed during several passes. I think stl->g_data->prev_persmat stores
+		 * persmat for the next passes to compute SSR. In upbge I named it prevpers but it's the current frame
+		 * product between cam proj and cam modelviewmat.
+		 * 2) When you look at blender code, they say that persmat is viewmat * projmat. In bge it seems that
+		 * we need the inverse -> proj * view.
+		 */
+		prevpers.getValue(&m_stl->g_data->prev_persmat[0][0]);                                 // Matrix uniform for SSR shader
+
+		for (int i = 0; i < m_effects->ssr_ray_count; ++i) {
+			DRW_framebuffer_texture_attach(m_fbl->screen_tracing_fb, m_stl->g_data->ssr_hit_output[i], i, 0);
+		}
+		DRW_framebuffer_bind(m_fbl->screen_tracing_fb);
+
+		/* Raytrace. */
+		DRW_draw_pass(m_psl->ssr_raytrace);
+
+		for (int i = 0; i < m_effects->ssr_ray_count; ++i) {
+			DRW_framebuffer_texture_detach(m_stl->g_data->ssr_hit_output[i]);
+		}
+
+		EEVEE_downsample_buffer(m_vedata, m_fbl->downsample_fb, m_txl->color_double_buffer, 9);
+
+		/* Resolve at fullres */
+		DRW_framebuffer_texture_detach(m_dtxl->depth);
+		DRW_framebuffer_texture_detach(m_txl->ssr_normal_input);
+		DRW_framebuffer_texture_detach(m_txl->ssr_specrough_input);
+		DRW_framebuffer_bind(inputfb->GetFrameBuffer());
+		DRW_draw_pass(m_psl->ssr_resolve);
+
+		/* Restore */
+		DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_dtxl->depth, 0, 0);
+		DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_txl->ssr_normal_input, 1, 0);
+		DRW_framebuffer_texture_attach(inputfb->GetFrameBuffer(), m_txl->ssr_specrough_input, 2, 0);
 	}
 }
 
