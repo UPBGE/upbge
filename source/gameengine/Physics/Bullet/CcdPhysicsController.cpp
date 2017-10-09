@@ -2103,11 +2103,8 @@ void CcdShapeConstructionInfo::AddShape(CcdShapeConstructionInfo *shapeInfo)
 
 CcdShapeConstructionInfo::~CcdShapeConstructionInfo()
 {
-	for (std::vector<CcdShapeConstructionInfo *>::iterator sit = m_shapeArray.begin();
-	     sit != m_shapeArray.end();
-	     sit++)
-	{
-		(*sit)->Release();
+	for (CcdShapeConstructionInfo *shapeInfo : m_shapeArray) {
+		shapeInfo->Release();
 	}
 	m_shapeArray.clear();
 

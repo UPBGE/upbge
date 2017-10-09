@@ -55,8 +55,7 @@ CListValue<KX_GameObject> *KX_BatchGroup::GetObjects() const
 
 void KX_BatchGroup::MergeObjects(const std::vector<KX_GameObject *>& objects)
 {
-	for (std::vector<KX_GameObject *>::const_iterator it = objects.begin(), end = objects.end(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : objects) {
 		RAS_MeshUser *meshUser = gameobj->GetMeshUser();
 
 		if (!meshUser) {
@@ -87,8 +86,7 @@ void KX_BatchGroup::SplitObjects(const std::vector<KX_GameObject *>& objects)
 	// Add a fake mesh user to avoid free the batch group while running the function.
 	AddMeshUser();
 
-	for (std::vector<KX_GameObject *>::const_iterator it = objects.begin(), end = objects.end(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : objects) {
 		RAS_MeshUser *meshUser = gameobj->GetMeshUser();
 
 		if (!meshUser) {
