@@ -1656,7 +1656,6 @@ void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
 	}
 	
 	for (; ima; ima = ima->id.next) {
-		ima->lastupdate = 0.0f;
 		ima->cache = newimaadr(fd, ima->cache);
 		if (ima->cache == NULL) {
 			ima->tpageflag &= ~IMA_GLBIND_IS_DATA;
@@ -3776,7 +3775,10 @@ static void direct_link_image(FileData *fd, Image *ima)
 	}
 
 	ima->repbind = NULL;
-	
+
+	ima->lastupdate = 0.0f;
+	ima->lastframe = 0;
+
 	/* undo system, try to restore render buffers */
 	if (fd->imamap) {
 		int a;
