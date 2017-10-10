@@ -202,14 +202,18 @@ void loadTexture(unsigned int texId, unsigned int *texture, short *size,
 RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID)
 {
 	// get pointer to texture image
-	if (gameObj->GetMeshCount() > 0)
-	{
-		// get material from mesh
-		RAS_MeshObject * mesh = gameObj->GetMesh(0);
-		RAS_MeshMaterial *meshMat = mesh->GetMeshMaterial(matID);
-		if (meshMat != nullptr && meshMat->GetBucket() != nullptr)
-			// return pointer to polygon or blender material
-			return meshMat->GetBucket()->GetPolyMaterial();
+	const std::vector<RAS_MeshObject *>& meshes = gameObj->GetMeshList();
+
+	if (meshes.empty()) {
+		return nullptr;
+	}
+
+	// get material from mesh
+	RAS_MeshObject *mesh = meshes.front();
+	RAS_MeshMaterial *meshMat = mesh->GetMeshMaterial(matID);
+	if (meshMat && meshMat->GetBucket()) {
+		// return pointer to polygon or blender material
+		return meshMat->GetBucket()->GetPolyMaterial();
 	}
 
 	// otherwise material was not found

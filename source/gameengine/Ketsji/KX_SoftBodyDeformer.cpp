@@ -71,7 +71,7 @@ void KX_SoftBodyDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 
 	if (obj) {
 		m_gameobj = obj;
-		m_mesh = m_gameobj->GetMesh(0);
+		m_mesh = m_gameobj->GetMeshList().front();
 	}
 	else {
 		m_gameobj = nullptr;

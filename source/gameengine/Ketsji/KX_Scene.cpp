@@ -1457,7 +1457,7 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 				break;
 			}
 
-			if (child->GetMeshCount() == 0)
+			if (child->GetMeshList().empty())
 				has_non_mesh = true;
 			else
 				has_mesh = true;
@@ -1761,8 +1761,7 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 	to->GetLogicManager()->RegisterGameObjectName(gameobj->GetName(), gameobj);
 	to->GetLogicManager()->RegisterGameObj(gameobj->GetBlenderObject(), gameobj);
 
-	for (int i = 0; i < gameobj->GetMeshCount(); ++i) {
-		RAS_MeshObject *meshobj = gameobj->GetMesh(i);
+	for (RAS_MeshObject *meshobj : gameobj->GetMeshList()) {
 		// Register the mesh object by name and blender object.
 		to->GetLogicManager()->RegisterGameMeshName(meshobj->GetName(), gameobj->GetBlenderObject());
 		to->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);

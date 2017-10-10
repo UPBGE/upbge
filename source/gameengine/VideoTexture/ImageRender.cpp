@@ -904,9 +904,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 	// locate the vertex assigned to mat and do following calculation in mesh coordinates
-	for (int meshIndex = 0; meshIndex < mirror->GetMeshCount(); meshIndex++)
-	{
-		RAS_MeshObject*	mesh = mirror->GetMesh(meshIndex);
+	for (RAS_MeshObject *mesh : mirror->GetMeshList()) {
 		for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
 			if (meshmat->GetBucket()->GetPolyMaterial() == mat) {
 				RAS_IDisplayArray *array = meshmat->GetDisplayArray();

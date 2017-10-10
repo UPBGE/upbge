@@ -1872,15 +1872,13 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 				m_ocb->SetModelMatrix(fl);
 				const float negative = gameobj->IsNegativeScaling();
 				// walk through the meshes and for each add to buffer
-				for (int i = 0; i < gameobj->GetMeshCount(); i++) {
-					RAS_MeshObject *meshobj = gameobj->GetMesh(i);
-
+				for (RAS_MeshObject *meshobj : gameobj->GetMeshList()) {
 					for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
 						RAS_IDisplayArray *array = meshmat->GetDisplayArray();
 						const bool twoside = meshmat->GetBucket()->GetPolyMaterial()->IsTwoSided();
 						const float face = (twoside) ? 0.0f : ((negative) ? -1.0f : 1.0f);
 
-						for (unsigned int j = 0, size = array->GetTriangleIndexCount(); i < size; i += 3) {
+						for (unsigned int j = 0, size = array->GetTriangleIndexCount(); j < size; j += 3) {
 							const unsigned int index = array->GetTriangleIndex(j);
 							m_ocb->appendOccluderM(array->GetVertex(index)->getXYZ(),
 												   array->GetVertex(index + 1)->getXYZ(),

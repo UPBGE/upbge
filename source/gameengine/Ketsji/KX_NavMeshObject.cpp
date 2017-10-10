@@ -226,7 +226,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 	else
 	{
 		//create from RAS_MeshObject (detailed mesh is fake)
-		RAS_MeshObject *meshobj = GetMesh(0);
+		RAS_MeshObject *meshobj = m_meshes.front();
 		vertsPerPoly = 3;
 
 		// Indices count.
@@ -301,7 +301,7 @@ bool KX_NavMeshObject::BuildNavMesh()
 		m_navMesh = nullptr;
 	}
 
-	if (GetMeshCount()==0)
+	if (m_meshes.empty())
 	{
 		CM_Error("can't find mesh for navmesh object: " << m_name);
 		return false;

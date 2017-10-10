@@ -740,6 +740,11 @@ void KX_GameObject::RemoveMeshes()
 	m_meshes.clear();
 }
 
+const std::vector<RAS_MeshObject *>& KX_GameObject::GetMeshList() const
+{
+	return m_meshes;
+}
+
 RAS_MeshUser *KX_GameObject::GetMeshUser() const
 {
 	return m_meshUser;

@@ -733,25 +733,7 @@ public:
 	 */
 	void UpdateLod(const MT_Vector3& cam_pos, float lodfactor);
 
-	/**
-	 * Pick out a mesh associated with the integer 'num'.
-	 */
-		RAS_MeshObject*
-	GetMesh(
-		int num
-	) const { 
-		return m_meshes[num]; 
-	}
-
-	/**
-	 * Return the number of meshes currently associated with this
-	 * game object.
-	 */
-		int
-	GetMeshCount(
-	) const { 
-		return m_meshes.size(); 
-	}
+	const std::vector<RAS_MeshObject *>& GetMeshList() const;
 
 	/// Return the mesh user of this game object.
 	RAS_MeshUser *GetMeshUser() const;

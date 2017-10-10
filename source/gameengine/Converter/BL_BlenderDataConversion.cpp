@@ -1226,9 +1226,8 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter& converter,
 	logicmgr->RegisterGameObjectName(gameobj->GetName(), gameobj);
 
 	// Needed for group duplication.
-	logicmgr->RegisterGameObj(blenderobject, gameobj);
-	for (int i = 0; i < gameobj->GetMeshCount(); i++) {
-		logicmgr->RegisterGameMeshName(gameobj->GetMesh(i)->GetName(), blenderobject);
+	for (RAS_MeshObject *meshobj : gameobj->GetMeshList()) {
+		logicmgr->RegisterGameMeshName(meshobj->GetName(), blenderobject);
 	}
 
 	converter.RegisterGameObject(gameobj, blenderobject);
@@ -1565,13 +1564,15 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	if (kxscene->GetDbvtCulling()) {
 		bool occlusion = false;
 		for (KX_GameObject *gameobj : sumolist) {
-			// The object can be culled ?
-			if (gameobj->GetMeshCount() || gameobj->GetGameObjectType() == SCA_IObject::OBJ_TEXT) {
-				bool isactive = objectlist->SearchValue(gameobj);
-				BL_CreateGraphicObjectNew(gameobj, kxscene, isactive, physics_engine);
-				if (gameobj->GetOccluder()) {
-					occlusion = true;
-				}
+			// The object can't be culled ?
+			if (gameobj->GetMeshList().empty() && gameobj->GetGameObjectType() != SCA_IObject::OBJ_TEXT) {
+				continue;
+			}
+
+			bool isactive = objectlist->SearchValue(gameobj);
+			BL_CreateGraphicObjectNew(gameobj, kxscene, isactive, physics_engine);
+			if (gameobj->GetOccluder()) {
+				occlusion = true;
 			}
 		}
 		if (occlusion) {
@@ -1615,11 +1616,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		const bool processCompoundChildren = (i == 1);
 		for (KX_GameObject *gameobj : sumolist) {
 			Object *blenderobject = gameobj->GetBlenderObject();
-			const unsigned short nummeshes = gameobj->GetMeshCount();
-			RAS_MeshObject *meshobj = nullptr;
-			if (nummeshes > 0) {
-				meshobj = gameobj->GetMesh(0);
-			}
+
+			const std::vector<RAS_MeshObject *>& meshes = gameobj->GetMeshList();
+			RAS_MeshObject *meshobj = (meshes.empty()) ? nullptr : meshes.front();
+
 			int layerMask = (groupobj.find(blenderobject) == groupobj.end()) ? activeLayerBitInfo : 0;
 			BL_CreatePhysicsObjectNew(gameobj, blenderobject, meshobj, kxscene, layerMask, converter, processCompoundChildren);
 		}
@@ -1627,9 +1627,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 	// Look at every material texture and ask to create realtime cube map.
 	for (KX_GameObject *gameobj : sumolist) {
-		for (unsigned short i = 0, meshcount = gameobj->GetMeshCount(); i < meshcount; ++i) {
-			RAS_MeshObject *mesh = gameobj->GetMesh(i);
-
+		for (RAS_MeshObject *mesh : gameobj->GetMeshList()) {
 			for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
 				RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
 

@@ -1754,9 +1754,12 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 		if (deformer) {
 			meshobj = deformer->GetMesh();
 		}
-		// Object mesh is last priority.
-		else if (gameobj->GetMeshCount() > 0) {
-			meshobj = gameobj->GetMesh(0);
+		else {
+			// Object mesh is last priority.
+			const std::vector<RAS_MeshObject *>& meshes = gameobj->GetMeshList();
+			if (!meshes.empty()) {
+				meshobj = meshes.front();
+			}
 		}
 	}
 

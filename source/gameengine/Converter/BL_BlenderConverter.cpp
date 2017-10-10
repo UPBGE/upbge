@@ -650,18 +650,16 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
 					else {
 						gameobj->RemoveTaggedActions();
 						// free the mesh, we could be referecing a linked one!
-						int mesh_index = gameobj->GetMeshCount();
-						while (mesh_index--) {
-							RAS_MeshObject *mesh = gameobj->GetMesh(mesh_index);
-							if (IS_TAGGED(mesh->GetMesh())) {
+						
+						for (RAS_MeshObject *meshobj : gameobj->GetMeshList()) {
+							if (IS_TAGGED(meshobj->GetMesh())) {
 								gameobj->RemoveMeshes(); /* XXX - slack, should only remove meshes that are library items but mostly objects only have 1 mesh */
 								break;
 							}
 							else {
 								// also free the mesh if it's using a tagged material
-								int mat_index = mesh->GetNumMaterials();
-								while (mat_index--) {
-									if (IS_TAGGED(mesh->GetMeshMaterial(mat_index)->GetBucket()->GetPolyMaterial()->GetBlenderMaterial())) {
+								for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
+									if (IS_TAGGED(meshmat->GetBucket()->GetPolyMaterial()->GetBlenderMaterial())) {
 										gameobj->RemoveMeshes(); // XXX - slack, same as above
 										break;
 									}

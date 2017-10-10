@@ -131,8 +131,7 @@ bool KX_ConstraintActuator::RayHit(KX_ClientObjectInfo *client, KX_RayCast *resu
 	else
 	{
 		if (m_option & KX_ACT_CONSTRAINT_MATERIAL) {
-			for (unsigned int i = 0; i < m_hitObject->GetMeshCount(); ++i) {
-				RAS_MeshObject *meshObj = m_hitObject->GetMesh(i);
+			for (RAS_MeshObject *meshObj : m_hitObject->GetMeshList()) {
 				bFound = (meshObj->FindMaterialName(m_property) != nullptr);
 				if (bFound) {
 					break;
