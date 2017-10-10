@@ -557,7 +557,6 @@ protected:
 
 	//some book keeping for replication
 	bool m_softBodyTransformInitialized;
-	bool m_prototypeTransformInitialized;
 	btTransform m_softbodyStartTrans;
 
 	/// Soft body indices for all original vertices.
@@ -605,8 +604,6 @@ protected:
 	void ForceWorldTransform(const btMatrix3x3& mat, const btVector3& pos);
 
 public:
-	int m_collisionDelay;
-
 	CcdPhysicsController(const CcdConstructionInfo& ci);
 
 	/**

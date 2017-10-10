@@ -170,8 +170,6 @@ bool CleanPairCallback::processOverlap(btBroadphasePair &pair)
 CcdPhysicsController::CcdPhysicsController(const CcdConstructionInfo& ci)
 	:m_cci(ci)
 {
-	m_prototypeTransformInitialized = false;
-	m_collisionDelay = 0;
 	m_newClientInfo = 0;
 	m_registerCount = 0;
 	m_softBodyTransformInitialized = false;
@@ -481,11 +479,8 @@ bool CcdPhysicsController::CreateSoftbody()
 	m_MotionState->SetWorldPosition(ToMoto(startTrans.getOrigin()));
 	m_MotionState->SetWorldOrientation(MT_Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
 
-	if (!m_prototypeTransformInitialized) {
-		m_prototypeTransformInitialized = true;
-		m_softBodyTransformInitialized = true;
-		psb->transform(startTrans);
-	}
+	psb->transform(startTrans);
+
 	m_object->setCollisionFlags(m_object->getCollisionFlags() | m_cci.m_collisionFlags);
 	if (m_cci.m_do_anisotropic)
 		m_object->setAnisotropicFriction(m_cci.m_anisotropicFriction);
@@ -646,7 +641,6 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 		delete m_object;
 		m_object = nullptr;
 		// force complete reinitialization
-		m_prototypeTransformInitialized = false;
 		m_softBodyTransformInitialized = false;
 
 		CreateSoftbody();
