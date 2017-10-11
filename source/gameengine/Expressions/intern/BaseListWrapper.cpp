@@ -371,8 +371,8 @@ PyMethodDef EXP_BaseListWrapper::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef EXP_BaseListWrapper::Attributes[] = {
-	EXP_PYATTRIBUTE_NULL // Sentinel
+EXP_Attribute EXP_BaseListWrapper::Attributes[] = {
+	EXP_ATTRIBUTE_NULL // Sentinel
 };
 
 // Matches python dict.get(key, [default]).

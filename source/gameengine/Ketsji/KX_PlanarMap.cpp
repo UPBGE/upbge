@@ -252,29 +252,9 @@ PyMethodDef KX_PlanarMap::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef KX_PlanarMap::Attributes[] = {
-	EXP_PYATTRIBUTE_RW_FUNCTION("normal", KX_PlanarMap, pyattr_get_normal, pyattr_set_normal),
-	EXP_PYATTRIBUTE_NULL // Sentinel
+EXP_Attribute KX_PlanarMap::Attributes[] = {
+	EXP_ATTRIBUTE_RW("normal", m_normal),
+	EXP_ATTRIBUTE_NULL // Sentinel
 };
-
-PyObject *KX_PlanarMap::pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_PlanarMap *self = static_cast<KX_PlanarMap *>(self_v);
-	return PyObjectFrom(self->GetNormal());
-}
-
-int KX_PlanarMap::pyattr_set_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_PlanarMap *self = static_cast<KX_PlanarMap *>(self_v);
-
-	mt::vec3 normal;
-	if (!PyVecTo(value, normal)) {
-		return PY_SET_ATTR_FAIL;
-	}
-
-	self->SetNormal(normal);
-
-	return PY_SET_ATTR_SUCCESS;
-}
 
 #endif  // WITH_PYTHON

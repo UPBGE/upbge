@@ -14,7 +14,7 @@ class PHY_ICharacter;
 ///Python interface to character physics
 class	KX_CharacterWrapper : public EXP_Value
 {
-	Py_Header
+	Py_Header(KX_CharacterWrapper)
 
 public:
 	KX_CharacterWrapper(PHY_ICharacter* character);
@@ -26,21 +26,21 @@ public:
 	EXP_PYMETHOD_DOC(KX_CharacterWrapper, setVelocity);
 	EXP_PYMETHOD_DOC_NOARGS(KX_CharacterWrapper, reset);
 
-	static PyObject* pyattr_get_onground(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	bool pyattr_get_onground();
 	
-	static PyObject*	pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_fallSpeed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_fallSpeed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_max_jumps(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_max_jumps(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_maxSlope(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_maxSlope(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_jump_count(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_jumpSpeed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_jumpSpeed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_walk_dir(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_walk_dir(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	mt::vec3 pyattr_get_gravity();
+	void pyattr_set_gravity(const mt::vec3& value);
+	float pyattr_get_fallSpeed();
+	void pyattr_set_fallSpeed(float value);
+	float pyattr_get_maxSlope();
+	void pyattr_set_maxSlope(float value);
+	int pyattr_get_max_jumps();
+	void pyattr_set_max_jumps(int value);
+	int pyattr_get_jump_count();
+	float pyattr_get_jumpSpeed();
+	void pyattr_set_jumpSpeed(float value);
+	mt::vec3 pyattr_get_walk_dir();
+	void pyattr_set_walk_dir(const mt::vec3& value);
 #endif // WITH_PYTHON
 
 private:

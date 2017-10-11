@@ -38,7 +38,7 @@ class PHY_IConstraint;
 
 class	KX_ConstraintWrapper : public EXP_Value
 {
-	Py_Header
+	Py_Header(KX_ConstraintWrapper)
 public:
 	KX_ConstraintWrapper(PHY_IConstraint *constraint);
 	virtual ~KX_ConstraintWrapper ();
@@ -50,12 +50,12 @@ public:
 	EXP_PYMETHOD(KX_ConstraintWrapper,SetParam);
 	EXP_PYMETHOD(KX_ConstraintWrapper,GetParam);
 
-	static PyObject *pyattr_get_constraintId(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_constraintType(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_breakingThreshold(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_breakingThreshold(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	int pyattr_get_constraintId();
+	int pyattr_get_constraintType();
+	float pyattr_get_breakingThreshold();
+	void pyattr_set_breakingThreshold(float value);
+	bool pyattr_get_enabled();
+	void pyattr_set_enabled(bool value);
 #endif
 
 private:

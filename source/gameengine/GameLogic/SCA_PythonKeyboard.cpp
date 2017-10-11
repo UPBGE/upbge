@@ -97,26 +97,24 @@ PyMethodDef SCA_PythonKeyboard::Methods[] = {
 	{nullptr, nullptr} //Sentinel
 };
 
-PyAttributeDef SCA_PythonKeyboard::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("events", SCA_PythonKeyboard, pyattr_get_events),
-	EXP_PYATTRIBUTE_RO_FUNCTION("inputs", SCA_PythonKeyboard, pyattr_get_inputs),
-	EXP_PYATTRIBUTE_RO_FUNCTION("active_events", SCA_PythonKeyboard, pyattr_get_active_events),
-	EXP_PYATTRIBUTE_RO_FUNCTION("activeInputs", SCA_PythonKeyboard, pyattr_get_active_inputs),
-	EXP_PYATTRIBUTE_RO_FUNCTION("text", SCA_PythonKeyboard, pyattr_get_text),
-	EXP_PYATTRIBUTE_NULL    //Sentinel
+EXP_Attribute SCA_PythonKeyboard::Attributes[] = {
+	EXP_ATTRIBUTE_RO_FUNCTION("events", pyattr_get_events),
+	EXP_ATTRIBUTE_RO_FUNCTION("inputs", pyattr_get_inputs),
+	EXP_ATTRIBUTE_RO_FUNCTION("active_events", pyattr_get_active_events),
+	EXP_ATTRIBUTE_RO_FUNCTION("activeInputs", pyattr_get_active_inputs),
+	EXP_ATTRIBUTE_RO_FUNCTION("text", pyattr_get_text),
+	EXP_ATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *SCA_PythonKeyboard::pyattr_get_events(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonKeyboard::pyattr_get_events()
 {
-	SCA_PythonKeyboard *self = static_cast<SCA_PythonKeyboard *>(self_v);
-
 	EXP_ShowDeprecationWarning("keyboard.events", "keyboard.inputs");
 
 	PyObject *dict = PyDict_New();
 
 	for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; i++)
 	{
-		SCA_InputEvent& input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+		SCA_InputEvent& input = m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 		int event = 0;
 		if (input.m_queue.empty()) {
 			event = input.m_status[input.m_status.size() - 1];
@@ -136,15 +134,13 @@ PyObject *SCA_PythonKeyboard::pyattr_get_events(EXP_PyObjectPlus *self_v, const 
 	return dict;
 }
 
-PyObject *SCA_PythonKeyboard::pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonKeyboard::pyattr_get_inputs()
 {
-	SCA_PythonKeyboard *self = static_cast<SCA_PythonKeyboard *>(self_v);
-
 	PyObject *dict = PyDict_New();
 
 	for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; i++)
 	{
-		SCA_InputEvent& input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+		SCA_InputEvent& input = m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
 		PyObject *key = PyLong_FromLong(i);
 
@@ -155,15 +151,13 @@ PyObject *SCA_PythonKeyboard::pyattr_get_inputs(EXP_PyObjectPlus *self_v, const 
 	return dict;
 }
 
-PyObject *SCA_PythonKeyboard::pyattr_get_active_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonKeyboard::pyattr_get_active_inputs()
 {
-	SCA_PythonKeyboard *self = static_cast<SCA_PythonKeyboard *>(self_v);
-
 	PyObject *dict = PyDict_New();
 
 	for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; i++)
 	{
-		SCA_InputEvent& input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+		SCA_InputEvent& input = m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
 		if (input.Find(SCA_InputEvent::ACTIVE)) {
 			PyObject *key = PyLong_FromLong(i);
@@ -176,17 +170,15 @@ PyObject *SCA_PythonKeyboard::pyattr_get_active_inputs(EXP_PyObjectPlus *self_v,
 	return dict;
 }
 
-PyObject *SCA_PythonKeyboard::pyattr_get_active_events(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonKeyboard::pyattr_get_active_events()
 {
-	SCA_PythonKeyboard *self = static_cast<SCA_PythonKeyboard *>(self_v);
-
 	EXP_ShowDeprecationWarning("keyboard.active_events", "keyboard.activeInputs");
 
 	PyObject *dict = PyDict_New();
 
 	for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; i++)
 	{
-		SCA_InputEvent& input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+		SCA_InputEvent& input = m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
 		if (input.Find(SCA_InputEvent::ACTIVE)) {
 			int event = 0;
@@ -209,11 +201,9 @@ PyObject *SCA_PythonKeyboard::pyattr_get_active_events(EXP_PyObjectPlus *self_v,
 	return dict;
 }
 
-PyObject *SCA_PythonKeyboard::pyattr_get_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+std::wstring SCA_PythonKeyboard::pyattr_get_text()
 {
-	SCA_PythonKeyboard *self = (SCA_PythonKeyboard *)self_v;
-
-	return PyUnicode_FromWideChar(self->m_keyboard->GetText().c_str(), self->m_keyboard->GetText().size());
+	return m_keyboard->GetText();
 }
 
 #endif

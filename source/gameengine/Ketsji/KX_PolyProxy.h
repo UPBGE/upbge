@@ -37,11 +37,13 @@
 #include "EXP_Value.h"
 #include "RAS_Mesh.h"
 
+class KX_BlenderMaterial;
+
 class KX_Mesh;
 
 class KX_PolyProxy : public EXP_Value
 {
-	Py_Header
+	Py_Header(KX_PolyProxy)
 protected:
 	KX_Mesh *m_mesh;
 	RAS_Mesh::PolygonInfo m_polygon;
@@ -56,17 +58,17 @@ public:
 	const RAS_Mesh::PolygonInfo& GetPolygon() const;
 
 	// stuff for python integration
-	static PyObject *pyattr_get_material_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_texture_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_material(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_material_id(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v1(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v2(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v3(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v4(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_collide(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_vertices(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	std::string pyattr_get_material_name();
+	std::string pyattr_get_texture_name();
+	KX_BlenderMaterial *pyattr_get_material();
+	int pyattr_get_material_id();
+	int pyattr_get_v1();
+	int pyattr_get_v2();
+	int pyattr_get_v3();
+	int pyattr_get_v4();
+	bool pyattr_get_visible();
+	bool pyattr_get_collide();
+	EXP_BaseListWrapper *pyattr_get_vertices();
 
 	unsigned int py_get_vertices_size();
 	PyObject *py_get_vertices_item(unsigned int index);

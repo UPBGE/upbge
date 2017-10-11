@@ -34,7 +34,7 @@ class KX_GameObject;
 
 class KX_BatchGroup : public EXP_Value, public RAS_BatchGroup
 {
-	Py_Header
+	Py_Header(KX_BatchGroup)
 private:
 	/// The objects currently merged in the batch group.
 	EXP_ListValue<KX_GameObject> m_objects;
@@ -58,8 +58,6 @@ public:
 	void SplitObjects(const std::vector<KX_GameObject *>& objects);
 
 #ifdef WITH_PYTHON
-
-	static PyObject *pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 	EXP_PYMETHOD_DOC(KX_BatchGroup, merge);
 	EXP_PYMETHOD_DOC(KX_BatchGroup, split);

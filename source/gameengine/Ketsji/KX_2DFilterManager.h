@@ -32,7 +32,7 @@
 
 class KX_2DFilterManager : public RAS_2DFilterManager, public EXP_PyObjectPlus
 {
-	Py_Header
+	Py_Header(KX_2DFilterManager)
 public:
 	KX_2DFilterManager();
 	virtual ~KX_2DFilterManager();

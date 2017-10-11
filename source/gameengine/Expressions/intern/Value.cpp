@@ -174,15 +174,14 @@ PyMethodDef EXP_Value::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef EXP_Value::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("name",  EXP_Value, pyattr_get_name),
-	EXP_PYATTRIBUTE_NULL // Sentinel
+EXP_Attribute EXP_Value::Attributes[] = {
+	EXP_ATTRIBUTE_RO_FUNCTION("name", pyattr_get_name),
+	EXP_ATTRIBUTE_NULL // Sentinel
 };
 
-PyObject *EXP_Value::pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+std::string EXP_Value::pyattr_get_name()
 {
-	EXP_Value *self = static_cast<EXP_Value *> (self_v);
-	return PyUnicode_FromStdString(self->GetName());
+	return GetName();
 }
 
 PyObject *EXP_Value::ConvertKeysToPython()

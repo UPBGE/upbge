@@ -35,17 +35,13 @@
 #include "mathfu.h"
 #include "EXP_Value.h"
 
-#ifdef USE_MATHUTILS
-void KX_WorldInfo_Mathutils_Callback_Init(void);
-#endif
-
 class RAS_Rasterizer;
 struct Scene;
 struct World;
 
 class KX_WorldInfo : public EXP_Value, public mt::SimdClassAllocator
 {
-	Py_Header
+	Py_Header(KX_WorldInfo)
 
 	std::string m_name;
 	Scene *m_scene;
@@ -102,18 +98,17 @@ public:
 	void RenderBackground(RAS_Rasterizer *rasty);
 
 #ifdef WITH_PYTHON
-	/* attributes */
-	static PyObject *pyattr_get_mist_typeconst(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_mist_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_mist_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_horizon_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_horizon_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_background_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_background_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_zenith_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_zenith_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_ambient_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_ambient_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	int pyattr_get_mist_typeconst(const EXP_Attribute *attrdef);
+	mt::vec3 pyattr_get_mist_color();
+	void pyattr_set_mist_color(const mt::vec3& value);
+	mt::vec4 pyattr_get_horizon_color();
+	void pyattr_set_horizon_color(const mt::vec4& value);
+	mt::vec3 pyattr_get_background_color();
+	void pyattr_set_background_color(const mt::vec3& value);
+	mt::vec4 pyattr_get_zenith_color();
+	void pyattr_set_zenith_color(const mt::vec4& value);
+	mt::vec3 pyattr_get_ambient_color();
+	void pyattr_set_ambient_color(const mt::vec3& value);
 #endif
 };
 

@@ -38,17 +38,10 @@ SCA_PythonMouse::SCA_PythonMouse(SCA_IInputDevice *mouse, RAS_ICanvas *canvas)
 	m_mouse(mouse),
 	m_canvas(canvas)
 {
-#ifdef WITH_PYTHON
-	m_event_dict = PyDict_New();
-#endif
 }
 
 SCA_PythonMouse::~SCA_PythonMouse()
 {
-#ifdef WITH_PYTHON
-	PyDict_Clear(m_event_dict);
-	Py_DECREF(m_event_dict);
-#endif
 }
 
 #ifdef WITH_PYTHON
@@ -84,25 +77,25 @@ PyMethodDef SCA_PythonMouse::Methods[] = {
 	{nullptr, nullptr} //Sentinel
 };
 
-PyAttributeDef SCA_PythonMouse::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("events", SCA_PythonMouse, pyattr_get_events),
-	EXP_PYATTRIBUTE_RO_FUNCTION("inputs", SCA_PythonMouse, pyattr_get_inputs),
-	EXP_PYATTRIBUTE_RO_FUNCTION("active_events", SCA_PythonMouse, pyattr_get_active_events),
-	EXP_PYATTRIBUTE_RO_FUNCTION("activeInputs", SCA_PythonMouse, pyattr_get_active_inputs),
-	EXP_PYATTRIBUTE_RW_FUNCTION("position", SCA_PythonMouse, pyattr_get_position, pyattr_set_position),
-	EXP_PYATTRIBUTE_RW_FUNCTION("visible", SCA_PythonMouse, pyattr_get_visible, pyattr_set_visible),
-	EXP_PYATTRIBUTE_NULL    //Sentinel
+EXP_Attribute SCA_PythonMouse::Attributes[] = {
+	EXP_ATTRIBUTE_RO_FUNCTION("events", pyattr_get_events),
+	EXP_ATTRIBUTE_RO_FUNCTION("inputs", pyattr_get_inputs),
+	EXP_ATTRIBUTE_RO_FUNCTION("active_events", pyattr_get_active_events),
+	EXP_ATTRIBUTE_RO_FUNCTION("activeInputs", pyattr_get_active_inputs),
+	EXP_ATTRIBUTE_RW_FUNCTION("position", pyattr_get_position, pyattr_set_position),
+	EXP_ATTRIBUTE_RW_FUNCTION("visible", pyattr_get_visible, pyattr_set_visible),
+	EXP_ATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *SCA_PythonMouse::pyattr_get_events(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonMouse::pyattr_get_events()
 {
-	SCA_PythonMouse *self = static_cast<SCA_PythonMouse *>(self_v);
-
 	EXP_ShowDeprecationWarning("mouse.events", "mouse.inputs");
+
+	PyObject *dict = PyDict_New();
 
 	for (int i = SCA_IInputDevice::BEGINMOUSE; i <= SCA_IInputDevice::ENDMOUSE; i++)
 	{
-		SCA_InputEvent& input = self->m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+		SCA_InputEvent& input = m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 		int event = 0;
 		if (input.m_queue.empty()) {
 			event = input.m_status[input.m_status.size() - 1];
@@ -114,44 +107,42 @@ PyObject *SCA_PythonMouse::pyattr_get_events(EXP_PyObjectPlus *self_v, const EXP
 		PyObject *key = PyLong_FromLong(i);
 		PyObject *value = PyLong_FromLong(event);
 
-		PyDict_SetItem(self->m_event_dict, key, value);
+		PyDict_SetItem(dict, key, value);
 
 		Py_DECREF(key);
 		Py_DECREF(value);
 	}
-	Py_INCREF(self->m_event_dict);
-	return self->m_event_dict;
+
+	return dict;
 }
 
-PyObject *SCA_PythonMouse::pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonMouse::pyattr_get_inputs()
 {
-	SCA_PythonMouse *self = static_cast<SCA_PythonMouse *>(self_v);
+	PyObject *dict = PyDict_New();
 
 	for (int i = SCA_IInputDevice::BEGINMOUSE; i <= SCA_IInputDevice::ENDMOUSE; i++)
 	{
-		SCA_InputEvent& input = self->m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+		SCA_InputEvent& input = m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
 		PyObject *key = PyLong_FromLong(i);
 
-		PyDict_SetItem(self->m_event_dict, key, input.GetProxy());
+		PyDict_SetItem(dict, key, input.GetProxy());
 
 		Py_DECREF(key);
 	}
-	Py_INCREF(self->m_event_dict);
-	return self->m_event_dict;
+
+	return dict;
 }
 
-PyObject *SCA_PythonMouse::pyattr_get_active_events(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonMouse::pyattr_get_active_events()
 {
-	SCA_PythonMouse *self = static_cast<SCA_PythonMouse *>(self_v);
-
 	EXP_ShowDeprecationWarning("mouse.active_events", "mouse.activeInputs");
 
-	PyDict_Clear(self->m_event_dict);
+	PyObject *dict = PyDict_New();
 
 	for (int i = SCA_IInputDevice::BEGINMOUSE; i <= SCA_IInputDevice::ENDMOUSE; i++)
 	{
-		SCA_InputEvent& input = self->m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+		SCA_InputEvent& input = m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
 		if (input.Find(SCA_InputEvent::ACTIVE)) {
 			int event = 0;
@@ -165,109 +156,65 @@ PyObject *SCA_PythonMouse::pyattr_get_active_events(EXP_PyObjectPlus *self_v, co
 			PyObject *key = PyLong_FromLong(i);
 			PyObject *value = PyLong_FromLong(event);
 
-			PyDict_SetItem(self->m_event_dict, key, value);
+			PyDict_SetItem(dict, key, value);
 
 			Py_DECREF(key);
 			Py_DECREF(value);
 		}
 	}
-	Py_INCREF(self->m_event_dict);
-	return self->m_event_dict;
+	Py_INCREF(dict);
+	return dict;
 }
 
-PyObject *SCA_PythonMouse::pyattr_get_active_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonMouse::pyattr_get_active_inputs()
 {
-	SCA_PythonMouse *self = static_cast<SCA_PythonMouse *>(self_v);
-
-	PyDict_Clear(self->m_event_dict);
+	PyObject *dict = PyDict_New();
 
 	for (int i = SCA_IInputDevice::BEGINMOUSE; i <= SCA_IInputDevice::ENDMOUSE; i++)
 	{
-		SCA_InputEvent& input = self->m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+		SCA_InputEvent& input = m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
 		if (input.Find(SCA_InputEvent::ACTIVE)) {
 			PyObject *key = PyLong_FromLong(i);
 
-			PyDict_SetItem(self->m_event_dict, key, input.GetProxy());
+			PyDict_SetItem(dict, key, input.GetProxy());
 
 			Py_DECREF(key);
 		}
 	}
-	Py_INCREF(self->m_event_dict);
-	return self->m_event_dict;
+	Py_INCREF(dict);
+	return dict;
 }
 
-PyObject *SCA_PythonMouse::pyattr_get_position(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+mt::vec2 SCA_PythonMouse::pyattr_get_position()
 {
-	SCA_PythonMouse *self = static_cast<SCA_PythonMouse *>(self_v);
-	const SCA_InputEvent& xevent = self->m_mouse->GetInput(SCA_IInputDevice::MOUSEX);
-	const SCA_InputEvent& yevent = self->m_mouse->GetInput(SCA_IInputDevice::MOUSEY);
+	const SCA_InputEvent& xevent = m_mouse->GetInput(SCA_IInputDevice::MOUSEX);
+	const SCA_InputEvent& yevent = m_mouse->GetInput(SCA_IInputDevice::MOUSEY);
 
 	float x_coord, y_coord;
 
-	x_coord = self->m_canvas->GetMouseNormalizedX(xevent.m_values[xevent.m_values.size() - 1]);
-	y_coord = self->m_canvas->GetMouseNormalizedY(yevent.m_values[yevent.m_values.size() - 1]);
+	x_coord = m_canvas->GetMouseNormalizedX(xevent.m_values[xevent.m_values.size() - 1]);
+	y_coord = m_canvas->GetMouseNormalizedY(yevent.m_values[yevent.m_values.size() - 1]);
 
-	PyObject *ret = PyTuple_New(2);
-
-	PyTuple_SET_ITEM(ret, 0, PyFloat_FromDouble(x_coord));
-	PyTuple_SET_ITEM(ret, 1, PyFloat_FromDouble(y_coord));
-
-	return ret;
+	return mt::vec2(x_coord, y_coord);
 }
 
-int SCA_PythonMouse::pyattr_set_position(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+void SCA_PythonMouse::pyattr_set_position(const mt::vec2& value)
 {
-	SCA_PythonMouse *self = static_cast<SCA_PythonMouse *>(self_v);
-	int x, y;
-	float pyx, pyy;
-	if (!PyArg_ParseTuple(value, "ff:position", &pyx, &pyy)) {
-		return PY_SET_ATTR_FAIL;
-	}
+	const int x = (int)(value.x * m_canvas->GetMaxX());
+	const int y = (int)(value.y * m_canvas->GetMaxY());
 
-	x = (int)(pyx * self->m_canvas->GetMaxX());
-	y = (int)(pyy * self->m_canvas->GetMaxY());
-
-	self->m_canvas->SetMousePosition(x, y);
-
-	return PY_SET_ATTR_SUCCESS;
+	m_canvas->SetMousePosition(x, y);
 }
 
-PyObject *SCA_PythonMouse::pyattr_get_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+bool SCA_PythonMouse::pyattr_get_visible()
 {
-	SCA_PythonMouse *self = static_cast<SCA_PythonMouse *>(self_v);
-
-	int visible;
-
-	if (self->m_canvas->GetMouseState() == RAS_ICanvas::MOUSE_INVISIBLE) {
-		visible = 0;
-	}
-	else {
-		visible = 1;
-	}
-
-	return PyBool_FromLong(visible);
+	return (m_canvas->GetMouseState() != RAS_ICanvas::MOUSE_INVISIBLE);
 }
 
-int SCA_PythonMouse::pyattr_set_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+void SCA_PythonMouse::pyattr_set_visible(bool value)
 {
-	SCA_PythonMouse *self = static_cast<SCA_PythonMouse *>(self_v);
-
-	int visible = PyObject_IsTrue(value);
-
-	if (visible == -1) {
-		PyErr_SetString(PyExc_AttributeError, "SCA_PythonMouse.visible = bool: SCA_PythonMouse, expected True or False");
-		return PY_SET_ATTR_FAIL;
-	}
-
-	if (visible) {
-		self->m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
-	}
-	else {
-		self->m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
-	}
-
-	return PY_SET_ATTR_SUCCESS;
+	m_canvas->SetMouseState(value ? RAS_ICanvas::MOUSE_NORMAL : RAS_ICanvas::MOUSE_INVISIBLE);
 }
 
 #endif

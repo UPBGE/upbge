@@ -118,13 +118,13 @@ PyMethodDef KX_Mesh::Methods[] = {
 	{nullptr, nullptr} //Sentinel
 };
 
-PyAttributeDef KX_Mesh::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("materials",     KX_Mesh, pyattr_get_materials),
-	EXP_PYATTRIBUTE_RO_FUNCTION("numPolygons",   KX_Mesh, pyattr_get_numPolygons),
-	EXP_PYATTRIBUTE_RO_FUNCTION("numMaterials",  KX_Mesh, pyattr_get_numMaterials),
-	EXP_PYATTRIBUTE_RO_FUNCTION("polygons",      KX_Mesh, pyattr_get_polygons),
+EXP_Attribute KX_Mesh::Attributes[] = {
+	EXP_ATTRIBUTE_RO_FUNCTION("materials", pyattr_get_materials),
+	EXP_ATTRIBUTE_RO_FUNCTION("numPolygons", pyattr_get_numPolygons),
+	EXP_ATTRIBUTE_RO_FUNCTION("numMaterials", pyattr_get_numMaterials),
+	EXP_ATTRIBUTE_RO_FUNCTION("polygons", pyattr_get_polygons),
 
-	EXP_PYATTRIBUTE_NULL    //Sentinel
+	EXP_ATTRIBUTE_NULL    //Sentinel
 };
 
 std::string KX_Mesh::GetName() const
@@ -464,32 +464,27 @@ PyObject *KX_Mesh::PyConstructBvh(PyObject *args, PyObject *kwds)
 		nullptr, nullptr);
 }
 
-PyObject *KX_Mesh::pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+std::vector<KX_BlenderMaterial *> KX_Mesh::pyattr_get_materials()
 {
-	KX_Mesh *self = static_cast<KX_Mesh *>(self_v);
-
-	const unsigned short tot = self->m_materials.size();
-
-	PyObject *materials = PyList_New(tot);
+	const unsigned short tot = m_materials.size();
+	std::vector<KX_BlenderMaterial *> list(tot);
 
 	for (unsigned short i = 0; i < tot; ++i) {
-		RAS_MeshMaterial *mmat = self->m_materials[i];
+		RAS_MeshMaterial *mmat = m_materials[i];
 		KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *>(mmat->GetBucket()->GetMaterial());
-		PyList_SET_ITEM(materials, i, mat->GetProxy());
+		list[i] = mat;
 	}
-	return materials;
+	return list;
 }
 
-PyObject *KX_Mesh::pyattr_get_numMaterials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+int KX_Mesh::pyattr_get_numMaterials()
 {
-	KX_Mesh *self = static_cast<KX_Mesh *> (self_v);
-	return PyLong_FromLong(self->m_materials.size());
+	return m_materials.size();
 }
 
-PyObject *KX_Mesh::pyattr_get_numPolygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+int KX_Mesh::pyattr_get_numPolygons()
 {
-	KX_Mesh *self = static_cast<KX_Mesh *> (self_v);
-	return PyLong_FromLong(self->m_numPolygons);
+	return m_numPolygons;
 }
 
 unsigned int KX_Mesh::py_get_polygons_size()
@@ -505,9 +500,9 @@ PyObject *KX_Mesh::py_get_polygons_item(unsigned int index)
 	return polyProxy->NewProxy(true);
 }
 
-PyObject *KX_Mesh::pyattr_get_polygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+EXP_BaseListWrapper *KX_Mesh::pyattr_get_polygons()
 {
-	return (new EXP_ListWrapper<KX_Mesh, &KX_Mesh::py_get_polygons_size, &KX_Mesh::py_get_polygons_item>(self_v))->NewProxy(true);
+	return (new EXP_ListWrapper<KX_Mesh, &KX_Mesh::py_get_polygons_size, &KX_Mesh::py_get_polygons_item>(this));
 }
 
 /* a close copy of ConvertPythonToGameObject but for meshes */

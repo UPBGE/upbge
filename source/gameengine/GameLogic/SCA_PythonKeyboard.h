@@ -31,7 +31,7 @@
 
 class SCA_PythonKeyboard : public EXP_PyObjectPlus
 {
-	Py_Header
+	Py_Header(SCA_PythonKeyboard)
 private:
 	class SCA_IInputDevice *m_keyboard;
 
@@ -40,11 +40,11 @@ public:
 	virtual ~SCA_PythonKeyboard();
 
 #ifdef WITH_PYTHON
-	static PyObject*	pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_events(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_active_events(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_active_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	PyObject *pyattr_get_inputs();
+	PyObject *pyattr_get_events();
+	PyObject *pyattr_get_active_events();
+	PyObject *pyattr_get_active_inputs();
+	std::wstring pyattr_get_text();
 #endif
 };
 

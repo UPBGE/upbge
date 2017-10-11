@@ -40,7 +40,7 @@ void KX_BoundingBox_Mathutils_Callback_Init();
  */
 class KX_BoundingBox : public EXP_Value
 {
-	Py_Header
+	Py_Header(KX_BoundingBox)
 protected:
 	/// The game object owner of this bounding box proxy.
 	KX_GameObject *m_owner;
@@ -68,18 +68,19 @@ public:
 	/// Return AABB radius.
 	float GetRadius() const;
 	/// Set AABB max, return false if the max is lesser than min.
-	bool SetMax(const mt::vec3 &max);
+	bool SetMax(const mt::vec3& max);
 	/// Set AABB min, return true if the max is greater than max.
-	bool SetMin(const mt::vec3 &min);
+	bool SetMin(const mt::vec3& min);
 
-	static PyObject *pyattr_get_min(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_min(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_max(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_max(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_center(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_radius(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_auto_update(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_auto_update(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	bool pyattr_check(const EXP_Attribute *attrdef);
+	mt::vec3 pyattr_get_min();
+	bool pyattr_set_min(const mt::vec3& value, const EXP_Attribute *attrdef);
+	mt::vec3 pyattr_get_max();
+	bool pyattr_set_max(const mt::vec3& value, const EXP_Attribute *attrdef);
+	mt::vec3 pyattr_get_center();
+	float pyattr_get_radius();
+	bool pyattr_get_auto_update();
+	void pyattr_set_auto_update(bool value);
 };
 
 #endif  // WITH_PYTHON

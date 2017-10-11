@@ -31,13 +31,11 @@
 
 class SCA_PythonMouse : public EXP_PyObjectPlus
 {
-	Py_Header
+	Py_Header(SCA_PythonMouse)
 private:
 	class SCA_IInputDevice *m_mouse;
 	class RAS_ICanvas *m_canvas;
-#ifdef WITH_PYTHON
-	PyObject *m_event_dict;
-#endif
+
 public:
 	SCA_PythonMouse(class SCA_IInputDevice* mouse, class RAS_ICanvas* canvas);
 	virtual ~SCA_PythonMouse();
@@ -47,14 +45,14 @@ public:
 #ifdef WITH_PYTHON
 	EXP_PYMETHOD_DOC(SCA_PythonMouse, show);
 
-	static PyObject *pyattr_get_events(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_active_events(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_active_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_position(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_position(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	PyObject *pyattr_get_events();
+	PyObject *pyattr_get_inputs();
+	PyObject *pyattr_get_active_events();
+	PyObject *pyattr_get_active_inputs();
+	mt::vec2 pyattr_get_position();
+	void pyattr_set_position(const mt::vec2& value);
+	bool pyattr_get_visible();
+	void pyattr_set_visible(bool value);
 #endif
 };
 

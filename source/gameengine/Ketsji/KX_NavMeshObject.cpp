@@ -669,8 +669,8 @@ PyTypeObject KX_NavMeshObject::Type = {
 	py_base_new
 };
 
-PyAttributeDef KX_NavMeshObject::Attributes[] = {
-	EXP_PYATTRIBUTE_NULL // Sentinel.
+EXP_Attribute KX_NavMeshObject::Attributes[] = {
+	EXP_ATTRIBUTE_NULL //Sentinel
 };
 
 PyMethodDef KX_NavMeshObject::Methods[] = {

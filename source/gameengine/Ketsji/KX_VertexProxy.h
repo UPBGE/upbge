@@ -40,7 +40,7 @@ class RAS_DisplayArray;
 
 class KX_VertexProxy : public EXP_Value
 {
-	Py_Header
+	Py_Header(KX_VertexProxy)
 
 protected:
 	unsigned int m_vertexIndex;
@@ -56,40 +56,40 @@ public:
 	// stuff for cvalue related things
 	virtual std::string GetName() const;
 
-	static PyObject *pyattr_get_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_z(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_r(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_g(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_b(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_a(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_u(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_u2(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v2(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_XYZ(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_UV(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_colors(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_uvs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_x(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_y(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_z(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_u(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_v(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_u2(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_v2(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_r(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_g(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_b(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_a(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_XYZ(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_UV(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_color(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_colors(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_normal(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_uvs(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	float pyattr_get_x();
+	float pyattr_get_y();
+	float pyattr_get_z();
+	float pyattr_get_r();
+	float pyattr_get_g();
+	float pyattr_get_b();
+	float pyattr_get_a();
+	float pyattr_get_u();
+	float pyattr_get_v();
+	float pyattr_get_u2();
+	float pyattr_get_v2();
+	mt::vec3_packed pyattr_get_XYZ();
+	mt::vec2_packed pyattr_get_UV();
+	mt::vec4 pyattr_get_color();
+	EXP_BaseListWrapper *pyattr_get_colors();
+	mt::vec3_packed pyattr_get_normal();
+	EXP_BaseListWrapper *pyattr_get_uvs();
+	void pyattr_set_x(float value);
+	void pyattr_set_y(float value);
+	void pyattr_set_z(float value);
+	void pyattr_set_u(float value);
+	void pyattr_set_v(float value);
+	bool pyattr_set_u2(float value);
+	bool pyattr_set_v2(float value);
+	void pyattr_set_r(float value);
+	void pyattr_set_g(float value);
+	void pyattr_set_b(float value);
+	void pyattr_set_a(float value);
+	void pyattr_set_XYZ(const mt::vec3_packed& value);
+	void pyattr_set_UV(const mt::vec2_packed& value);
+	void pyattr_set_color(const mt::vec4& value);
+	bool pyattr_set_colors(PyObject *value, const EXP_Attribute *attrdef);
+	void pyattr_set_normal(const mt::vec3_packed& value);
+	bool pyattr_set_uvs(PyObject *value, const EXP_Attribute *attrdef);
 
 	unsigned int py_get_uvs_size();
 	PyObject *py_get_uvs_item(unsigned int index);

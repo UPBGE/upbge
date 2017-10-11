@@ -40,7 +40,7 @@
 
 class KX_2DFilter : public RAS_2DFilter, public BL_Shader
 {
-	Py_Header
+	Py_Header(KX_2DFilter)
 public:
 	KX_2DFilter(RAS_2DFilterData& data);
 	virtual ~KX_2DFilter();
@@ -50,10 +50,6 @@ public:
 #ifdef WITH_PYTHON
 	bool CheckTexture(int index, int bindCode, const std::string& prefix) const;
 	bool SetTextureUniform(int index, const char *samplerName);
-
-	static PyObject *pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_offScreen(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 	EXP_PYMETHOD_DOC(KX_2DFilter, setTexture);
 	EXP_PYMETHOD_DOC(KX_2DFilter, setCubeMap);

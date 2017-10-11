@@ -33,7 +33,7 @@ class KX_Mesh;
 
 class KX_LodLevel : public EXP_Value
 {
-	Py_Header
+	Py_Header(KX_LodLevel)
 private:
 	float m_distance;
 	float m_hysteresis;
@@ -64,10 +64,10 @@ public:
 
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_use_hysteresis(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_use_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_use_material(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	KX_Mesh *pyattr_get_mesh();
+	bool pyattr_get_use_hysteresis();
+	bool pyattr_get_use_mesh();
+	bool pyattr_get_use_material();
 
 #endif // WITH_PYTHON
 

@@ -446,72 +446,30 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 	Py_RETURN_NONE;
 }
 
-// get OpenGL Bind Id
-PyObject *Texture::pyattr_get_bindId(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	Texture *self = (Texture *)self_v;
-
-	unsigned int id = self->m_actTex;
-	return Py_BuildValue("h", id);
-}
-
-// get mipmap value
-PyObject *Texture::pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	Texture *self = (Texture *)self_v;
-
-	// return true if flag is set, otherwise false
-	if (self->m_mipmap) {
-		Py_RETURN_TRUE;
-	}
-	else {
-		Py_RETURN_FALSE;
-	}
-}
-
-// set mipmap value
-int Texture::pyattr_set_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	Texture *self = (Texture *)self_v;
-
-	// check parameter, report failure
-	if (value == nullptr || !PyBool_Check(value)) {
-		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
-		return -1;
-	}
-	// set mipmap
-	self->m_mipmap = value == Py_True;
-	// success
-	return 0;
-}
-
 // get source object
-PyObject *Texture::pyattr_get_source(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *Texture::pyattr_get_source()
 {
-	Texture *self = (Texture *)self_v;
-
 	// if source exists
-	if (self->m_source != nullptr) {
-		Py_INCREF(self->m_source);
-		return reinterpret_cast<PyObject *>(self->m_source);
+	if (m_source) {
+		Py_INCREF(m_source);
+		return reinterpret_cast<PyObject *>(m_source);
 	}
 	// otherwise return None
 	Py_RETURN_NONE;
 }
 
 // set source object
-int Texture::pyattr_set_source(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+bool Texture::pyattr_set_source(PyObject *value, const EXP_Attribute *attrdef)
 {
-	Texture *self = (Texture *)self_v;
 	// check new value
-	if (value == nullptr || !pyImageTypes.in(Py_TYPE(value))) {
+	if (!value || !pyImageTypes.in(Py_TYPE(value))) {
 		// report value error
-		PyErr_SetString(PyExc_TypeError, "Invalid type of value");
-		return -1;
+		attrdef->PrintError(": Invalid type of value");
+		return false;
 	}
-	self->SetSource(reinterpret_cast<PyImage *>(value));
+	SetSource(reinterpret_cast<PyImage *>(value));
 	// return success
-	return 0;
+	return true;
 }
 
 // class Texture methods
@@ -522,13 +480,12 @@ PyMethodDef Texture::Methods[] = {
 };
 
 // class Texture attributes
-PyAttributeDef Texture::Attributes[] = {
-	EXP_PYATTRIBUTE_RW_FUNCTION("mipmap", Texture, pyattr_get_mipmap, pyattr_set_mipmap),
-	EXP_PYATTRIBUTE_RW_FUNCTION("source", Texture, pyattr_get_source, pyattr_set_source),
-	EXP_PYATTRIBUTE_RO_FUNCTION("bindId", Texture, pyattr_get_bindId),
-	EXP_PYATTRIBUTE_NULL
+EXP_Attribute Texture::Attributes[] = {
+	EXP_ATTRIBUTE_RW("mipmap", m_mipmap),
+	EXP_ATTRIBUTE_RW_FUNCTION("source", pyattr_get_source, pyattr_set_source),
+	EXP_ATTRIBUTE_RO("bindId", m_actTex),
+	EXP_ATTRIBUTE_NULL
 };
-
 
 // class Texture declaration
 PyTypeObject Texture::Type =

@@ -52,6 +52,7 @@ public:
 
 	virtual EXP_PropValue *GetReplica() = 0;
 
+#include "EXP_PythonUtils.h"
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython() = 0;
 #endif  // WITH_PYTHON
@@ -70,7 +71,7 @@ public:
  */
 class EXP_Value : public EXP_PyObjectPlus
 {
-	Py_Header
+	Py_Header(EXP_Value)
 public:
 	EXP_Value();
 	EXP_Value(const EXP_Value& other);
@@ -85,7 +86,7 @@ public:
 		return PyUnicode_FromStdString(GetText());
 	}
 
-	static PyObject *pyattr_get_name(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef);
+	std::string pyattr_get_name();
 
 	virtual PyObject *ConvertKeysToPython();
 #endif  // WITH_PYTHON

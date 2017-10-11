@@ -83,23 +83,6 @@ std::string BL_Shader::GetText() const
 	return "BL_Shader\n\tvertex shader:" + m_progs[VERTEX_PROGRAM] + "\n\n\tfragment shader" + m_progs[FRAGMENT_PROGRAM] + "\n\n";
 }
 
-
-#ifdef WITH_PYTHON
-
-PyObject *BL_Shader::GetCallbacks(BL_Shader::CallbacksType type)
-{
-	return m_callbacks[type];
-}
-
-void BL_Shader::SetCallbacks(BL_Shader::CallbacksType type, PyObject *callbacks)
-{
-	Py_XDECREF(m_callbacks[type]);
-	Py_INCREF(callbacks);
-	m_callbacks[type] = callbacks;
-}
-
-#endif  // WITH_PYTHON
-
 RAS_AttributeArray::AttribList BL_Shader::GetAttribs(const RAS_Mesh::LayersInfo& layersInfo,
                                                      RAS_Texture *const textures[RAS_Texture::MaxUnits]) const
 {
@@ -203,11 +186,11 @@ PyMethodDef BL_Shader::Methods[] = {
 	{nullptr, nullptr} //Sentinel
 };
 
-PyAttributeDef BL_Shader::Attributes[] = {
-	EXP_PYATTRIBUTE_RW_FUNCTION("enabled", BL_Shader, pyattr_get_enabled, pyattr_set_enabled),
-	EXP_PYATTRIBUTE_RW_FUNCTION("bindCallbacks", BL_Shader, pyattr_get_callbacks, pyattr_set_callbacks),
-	EXP_PYATTRIBUTE_RW_FUNCTION("objectCallbacks", BL_Shader, pyattr_get_callbacks, pyattr_set_callbacks),
-	EXP_PYATTRIBUTE_NULL //Sentinel
+EXP_Attribute BL_Shader::Attributes[] = {
+	EXP_ATTRIBUTE_RW_FUNCTION("enabled", pyattr_get_enabled, pyattr_set_enabled),
+	EXP_ATTRIBUTE_RW_FUNCTION("bindCallbacks", pyattr_get_callbacks, pyattr_set_callbacks),
+	EXP_ATTRIBUTE_RW_FUNCTION("objectCallbacks", pyattr_get_callbacks, pyattr_set_callbacks),
+	EXP_ATTRIBUTE_NULL //Sentinel
 };
 
 PyTypeObject BL_Shader::Type = {
@@ -232,48 +215,41 @@ PyTypeObject BL_Shader::Type = {
 	py_base_new
 };
 
-PyObject *BL_Shader::pyattr_get_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	BL_Shader *self = static_cast<BL_Shader *>(self_v);
-	return PyBool_FromLong(self->GetEnabled());
-}
-
-int BL_Shader::pyattr_set_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	BL_Shader *self = static_cast<BL_Shader *>(self_v);
-	int param = PyObject_IsTrue(value);
-	if (param == -1) {
-		PyErr_SetString(PyExc_AttributeError, "shader.enabled = bool: BL_Shader, expected True or False");
-		return PY_SET_ATTR_FAIL;
-	}
-
-	self->SetEnabled(param);
-	return PY_SET_ATTR_SUCCESS;
-}
-
-static std::map<const std::string, BL_Shader::CallbacksType> callbacksTable = {
+static const std::unordered_map<std::string, BL_Shader::CallbacksType> callbacksTable = {
 	{"bindCallbacks", BL_Shader::CALLBACKS_BIND},
 	{"objectCallbacks", BL_Shader::CALLBACKS_OBJECT}
 };
 
-PyObject *BL_Shader::pyattr_get_callbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+bool BL_Shader::pyattr_get_enabled()
 {
-	BL_Shader *self = static_cast<BL_Shader *>(self_v);
-	PyObject *callbacks = self->GetCallbacks(callbacksTable[attrdef->m_name]);
+	return GetEnabled();
+}
+
+void BL_Shader::pyattr_set_enabled(bool value)
+{
+	SetEnabled(value);
+}
+
+PyObject *BL_Shader::pyattr_get_callbacks(const EXP_Attribute *attrdef)
+{
+	PyObject *callbacks = m_callbacks[callbacksTable.at(attrdef->m_name)];
 	Py_INCREF(callbacks);
 	return callbacks;
 }
 
-int BL_Shader::pyattr_set_callbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+bool BL_Shader::pyattr_set_callbacks(PyObject *value, const EXP_Attribute *attrdef)
 {
-	BL_Shader *self = static_cast<BL_Shader *>(self_v);
 	if (!PyList_CheckExact(value)) {
 		PyErr_Format(PyExc_AttributeError, "shader.%s = bool: BL_Shader, expected a list", attrdef->m_name.c_str());
-		return PY_SET_ATTR_FAIL;
+		return false;
 	}
 
-	self->SetCallbacks(callbacksTable[attrdef->m_name], value);
-	return PY_SET_ATTR_SUCCESS;
+	CallbacksType type = callbacksTable.at(attrdef->m_name);
+	Py_XDECREF(m_callbacks[type]);
+	Py_INCREF(value);
+	m_callbacks[type] = value;
+
+	return true;
 }
 
 EXP_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProgram, apply)")

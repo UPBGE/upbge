@@ -39,15 +39,20 @@ set(INC_SYS
 )
 
 set(SRC
+	intern/Attribute.cpp
+	intern/AttributeDef.cpp
 	intern/BaseListValue.cpp
 	intern/BaseListWrapper.cpp
 	intern/PropBool.cpp
 	intern/PropFloat.cpp
 	intern/PropInt.cpp
 	intern/PyObjectPlus.cpp
+	intern/PythonUtils.cpp
 	intern/PropString.cpp
 	intern/Value.cpp
 
+	EXP_Attribute.h
+	EXP_AttributeDef.h
 	EXP_BaseListValue.h
 	EXP_BaseListWrapper.h
 	EXP_PropBool.h
@@ -55,6 +60,7 @@ set(SRC
 	EXP_PropInt.h
 	EXP_PyObjectPlus.h
 	EXP_Python.h
+	EXP_PythonUtils.h
 	EXP_PropString.h
 	EXP_Value.h
 	EXP_ListWrapper.h

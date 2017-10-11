@@ -38,6 +38,7 @@
 
 class KX_Mesh;
 class KX_Scene;
+class KX_BlenderMaterial;
 
 #ifdef WITH_PYTHON
 // utility conversion function
@@ -47,7 +48,7 @@ bool ConvertPythonToMesh(KX_Scene *scene, PyObject *value, KX_Mesh **object, boo
 
 class KX_Mesh : public EXP_Value, public RAS_Mesh
 {
-	Py_Header
+	Py_Header(KX_Mesh)
 
 private:
 	KX_Scene *m_scene;
@@ -77,10 +78,10 @@ public:
 	EXP_PYMETHOD_NOARGS(KX_Mesh, Copy);
 	EXP_PYMETHOD(KX_Mesh, ConstructBvh);
 
-	static PyObject *pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_numMaterials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_numPolygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_polygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	std::vector<KX_BlenderMaterial *> pyattr_get_materials();
+	int pyattr_get_numMaterials();
+	int pyattr_get_numPolygons();
+	EXP_BaseListWrapper *pyattr_get_polygons();
 
 	unsigned int py_get_polygons_size();
 	PyObject *py_get_polygons_item(unsigned int index);

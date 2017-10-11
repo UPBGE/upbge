@@ -54,7 +54,7 @@ public:
 		NUM_COLOR_SLOTS = 8
 	};
 
-private:
+protected:
 	const Flag m_flag;
 	const unsigned short m_colorSlots;
 	const RAS_Rasterizer::HdrType m_hdr;

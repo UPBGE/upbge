@@ -152,21 +152,9 @@ PyMethodDef KX_PythonComponent::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef KX_PythonComponent::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("object", KX_PythonComponent, pyattr_get_object),
-	EXP_PYATTRIBUTE_NULL // Sentinel
+EXP_Attribute KX_PythonComponent::Attributes[] = {
+	EXP_ATTRIBUTE_RO("object", m_gameobj),
+	EXP_ATTRIBUTE_NULL // Sentinel
 };
 
-PyObject *KX_PythonComponent::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_PythonComponent *self = static_cast<KX_PythonComponent *>(self_v);
-	KX_GameObject *gameobj = self->GetGameObject();
-
-	if (gameobj) {
-		return gameobj->GetProxy();
-	}
-	else {
-		Py_RETURN_NONE;
-	}
-}
 #endif

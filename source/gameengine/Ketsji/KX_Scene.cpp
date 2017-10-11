@@ -1746,111 +1746,38 @@ PySequenceMethods KX_Scene::Sequence = {
 	(ssizeargfunc)nullptr, // sq_inplace_repeat
 };
 
-PyObject *KX_Scene::pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+KX_Camera *KX_Scene::pyattr_get_active_camera()
 {
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return PyUnicode_FromStdString(self->GetName());
+	return m_activeCamera;
 }
 
-PyObject *KX_Scene::pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+bool KX_Scene::pyattr_set_active_camera(PyObject *value)
 {
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return self->GetObjectList().GetProxy();
-}
-
-PyObject *KX_Scene::pyattr_get_objects_inactive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return self->GetInactiveList().GetProxy();
-}
-
-PyObject *KX_Scene::pyattr_get_lights(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return self->GetLightList().GetProxy();
-}
-
-PyObject *KX_Scene::pyattr_get_filter_manager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	KX_2DFilterManager *filterManager = self->Get2DFilterManager();
-
-	return filterManager->GetProxy();
-}
-
-PyObject *KX_Scene::pyattr_get_world(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	KX_WorldInfo *world = self->GetWorldInfo();
-
-	if (world->GetName().empty()) {
-		Py_RETURN_NONE;
-	}
-	else {
-		return world->GetProxy();
-	}
-}
-
-PyObject *KX_Scene::pyattr_get_texts(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return self->GetFontList().GetProxy();
-}
-
-PyObject *KX_Scene::pyattr_get_cameras(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	return self->GetCameraList().GetProxy();
-}
-
-PyObject *KX_Scene::pyattr_get_active_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	KX_Camera *cam = self->GetActiveCamera();
-	if (cam) {
-		return cam->GetProxy();
-	}
-	else {
-		Py_RETURN_NONE;
-	}
-}
-
-int KX_Scene::pyattr_set_active_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
 	KX_Camera *camOb;
 
-	if (!ConvertPythonToCamera(self, value, &camOb, false, "scene.active_camera = value: KX_Scene")) {
-		return PY_SET_ATTR_FAIL;
+	if (!ConvertPythonToCamera(this, value, &camOb, false, "scene.active_camera = value: KX_Scene")) {
+		return false;
 	}
 
-	self->SetActiveCamera(camOb);
-	return PY_SET_ATTR_SUCCESS;
+	m_activeCamera = camOb;
+	return true;
 }
 
-PyObject *KX_Scene::pyattr_get_overrideCullingCamera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+KX_Camera *KX_Scene::pyattr_get_overrideCullingCamera()
 {
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-	KX_Camera *cam = self->GetOverrideCullingCamera();
-	if (cam) {
-		return cam->GetProxy();
-	}
-	else {
-		Py_RETURN_NONE;
-	}
+	return m_overrideCullingCamera;
 }
 
-int KX_Scene::pyattr_set_overrideCullingCamera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+bool KX_Scene::pyattr_set_overrideCullingCamera(PyObject *value)
 {
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
 	KX_Camera *cam;
 
-	if (!ConvertPythonToCamera(self, value, &cam, true, "scene.active_camera = value: KX_Scene")) {
-		return PY_SET_ATTR_FAIL;
+	if (!ConvertPythonToCamera(this, value, &cam, true, "scene.active_camera = value: KX_Scene")) {
+		return false;
 	}
 
-	self->SetOverrideCullingCamera(cam);
-	return PY_SET_ATTR_SUCCESS;
+	m_overrideCullingCamera = cam;
+	return true;
 }
 
 static std::map<const std::string, KX_Scene::DrawingCallbackType> callbacksTable = {
@@ -1859,109 +1786,91 @@ static std::map<const std::string, KX_Scene::DrawingCallbackType> callbacksTable
 	{"post_draw", KX_Scene::POST_DRAW}
 };
 
-PyObject *KX_Scene::pyattr_get_drawing_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Scene::pyattr_get_drawing_callback(const EXP_Attribute *attrdef)
 {
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-
 	const DrawingCallbackType type = callbacksTable[attrdef->m_name];
-	if (!self->m_drawCallbacks[type]) {
-		self->m_drawCallbacks[type] = PyList_New(0);
+	if (!m_drawCallbacks[type]) {
+		m_drawCallbacks[type] = PyList_New(0);
 	}
 
-	Py_INCREF(self->m_drawCallbacks[type]);
+	Py_INCREF(m_drawCallbacks[type]);
 
-	return self->m_drawCallbacks[type];
+	return m_drawCallbacks[type];
 }
 
-int KX_Scene::pyattr_set_drawing_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+bool KX_Scene::pyattr_set_drawing_callback(PyObject *value, const EXP_Attribute *attrdef)
 {
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-
 	if (!PyList_CheckExact(value)) {
-		PyErr_SetString(PyExc_ValueError, "Expected a list");
-		return PY_SET_ATTR_FAIL;
+		attrdef->PrintError(" = list: Expected a list.");
+		return false;
 	}
 
 	const DrawingCallbackType type = callbacksTable[attrdef->m_name];
 
-	Py_XDECREF(self->m_drawCallbacks[type]);
+	Py_XDECREF(m_drawCallbacks[type]);
 
 	Py_INCREF(value);
-	self->m_drawCallbacks[type] = value;
+	m_drawCallbacks[type] = value;
 
-	return PY_SET_ATTR_SUCCESS;
+	return true;
 }
 
-PyObject *KX_Scene::pyattr_get_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Scene::pyattr_get_remove_callback()
 {
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-
-	if (!self->m_removeCallbacks) {
-		self->m_removeCallbacks = PyList_New(0);
+	if (!m_removeCallbacks) {
+		m_removeCallbacks = PyList_New(0);
 	}
 
-	Py_INCREF(self->m_removeCallbacks);
+	Py_INCREF(m_removeCallbacks);
 
-	return self->m_removeCallbacks;
+	return m_removeCallbacks;
 }
 
-int KX_Scene::pyattr_set_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+bool KX_Scene::pyattr_set_remove_callback(PyObject *value)
 {
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-
 	if (!PyList_CheckExact(value)) {
 		PyErr_SetString(PyExc_ValueError, "Expected a list");
-		return PY_SET_ATTR_FAIL;
+		return false;
 	}
 
-	Py_XDECREF(self->m_removeCallbacks);
+	Py_XDECREF(m_removeCallbacks);
 
 	Py_INCREF(value);
-	self->m_removeCallbacks = value;
+	m_removeCallbacks = value;
 
-	return PY_SET_ATTR_SUCCESS;
+	return true;
 }
 
-PyObject *KX_Scene::pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+mt::vec3 KX_Scene::pyattr_get_gravity()
 {
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-
-	return PyObjectFrom(self->GetGravity());
+	return GetGravity();
 }
 
-int KX_Scene::pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+void KX_Scene::pyattr_set_gravity(const mt::vec3& value)
 {
-	KX_Scene *self = static_cast<KX_Scene *>(self_v);
-
-	mt::vec3 vec;
-	if (!PyVecTo(value, vec)) {
-		return PY_SET_ATTR_FAIL;
-	}
-
-	self->SetGravity(vec);
-	return PY_SET_ATTR_SUCCESS;
+	SetGravity(value);
 }
 
-PyAttributeDef KX_Scene::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("name", KX_Scene, pyattr_get_name),
-	EXP_PYATTRIBUTE_RO_FUNCTION("objects", KX_Scene, pyattr_get_objects),
-	EXP_PYATTRIBUTE_RO_FUNCTION("objectsInactive", KX_Scene, pyattr_get_objects_inactive),
-	EXP_PYATTRIBUTE_RO_FUNCTION("lights", KX_Scene, pyattr_get_lights),
-	EXP_PYATTRIBUTE_RO_FUNCTION("texts", KX_Scene, pyattr_get_texts),
-	EXP_PYATTRIBUTE_RO_FUNCTION("cameras", KX_Scene, pyattr_get_cameras),
-	EXP_PYATTRIBUTE_RO_FUNCTION("filterManager", KX_Scene, pyattr_get_filter_manager),
-	EXP_PYATTRIBUTE_RO_FUNCTION("world", KX_Scene, pyattr_get_world),
-	EXP_PYATTRIBUTE_RW_FUNCTION("active_camera", KX_Scene, pyattr_get_active_camera, pyattr_set_active_camera),
-	EXP_PYATTRIBUTE_RW_FUNCTION("overrideCullingCamera", KX_Scene, pyattr_get_overrideCullingCamera, pyattr_set_overrideCullingCamera),
-	EXP_PYATTRIBUTE_RW_FUNCTION("pre_draw", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
-	EXP_PYATTRIBUTE_RW_FUNCTION("post_draw", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
-	EXP_PYATTRIBUTE_RW_FUNCTION("pre_draw_setup", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
-	EXP_PYATTRIBUTE_RW_FUNCTION("onRemove", KX_Scene, pyattr_get_remove_callback, pyattr_set_remove_callback),
-	EXP_PYATTRIBUTE_RW_FUNCTION("gravity", KX_Scene, pyattr_get_gravity, pyattr_set_gravity),
-	EXP_PYATTRIBUTE_BOOL_RO("suspended", KX_Scene, m_suspend),
-	EXP_PYATTRIBUTE_BOOL_RO("activityCulling", KX_Scene, m_activityCulling),
-	EXP_PYATTRIBUTE_BOOL_RO("dbvt_culling", KX_Scene, m_dbvtCulling),
-	EXP_PYATTRIBUTE_NULL // Sentinel
+EXP_Attribute KX_Scene::Attributes[] = {
+	EXP_ATTRIBUTE_RO("name", m_name),
+	EXP_ATTRIBUTE_RO("objects", m_objectlist),
+	EXP_ATTRIBUTE_RO("objectsInactive", m_inactivelist),
+	EXP_ATTRIBUTE_RO("lights", m_lightlist),
+	EXP_ATTRIBUTE_RO("texts", m_fontlist),
+	EXP_ATTRIBUTE_RO("cameras", m_cameralist),
+	EXP_ATTRIBUTE_RO("filterManager", m_filterManager),
+	EXP_ATTRIBUTE_RO("world", m_worldinfo),
+	EXP_ATTRIBUTE_RW_FUNCTION("active_camera", pyattr_get_active_camera, pyattr_set_active_camera),
+	EXP_ATTRIBUTE_RW_FUNCTION("overrideCullingCamera", pyattr_get_overrideCullingCamera, pyattr_set_overrideCullingCamera),
+	EXP_ATTRIBUTE_RW_FUNCTION("pre_draw", pyattr_get_drawing_callback, pyattr_set_drawing_callback),
+	EXP_ATTRIBUTE_RW_FUNCTION("post_draw", pyattr_get_drawing_callback, pyattr_set_drawing_callback),
+	EXP_ATTRIBUTE_RW_FUNCTION("pre_draw_setup", pyattr_get_drawing_callback, pyattr_set_drawing_callback),
+	EXP_ATTRIBUTE_RW_FUNCTION("onRemove", pyattr_get_remove_callback, pyattr_set_remove_callback),
+	EXP_ATTRIBUTE_RW_FUNCTION("gravity", pyattr_get_gravity, pyattr_set_gravity),
+	EXP_ATTRIBUTE_RO("suspended", m_suspend),
+	EXP_ATTRIBUTE_RO("activityCulling", m_activityCulling),
+	EXP_ATTRIBUTE_RO("dbvt_culling", m_dbvtCulling),
+	EXP_ATTRIBUTE_NULL // Sentinel
 };
 
 EXP_PYMETHODDEF_DOC(KX_Scene, addObject,

@@ -46,7 +46,7 @@ bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object,
 
 class KX_Camera : public KX_GameObject
 {
-	Py_Header
+	Py_Header(KX_Camera)
 protected:
 	friend class KX_Scene;
 	/** Camera parameters (clips distances, focal length). These
@@ -246,37 +246,37 @@ public:
 	EXP_PYMETHOD_DOC_VARARGS(KX_Camera, getScreenVect);
 	EXP_PYMETHOD_DOC_VARARGS(KX_Camera, getScreenRay);
 	
-	static PyObject*	pyattr_get_perspective(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_perspective(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	bool pyattr_get_perspective();
+	void pyattr_set_perspective(bool value);
 
-	static PyObject*	pyattr_get_lens(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_lens(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_fov(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_fov(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_ortho_scale(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_ortho_scale(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_near(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_near(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_far(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_far(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_shift_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_shift_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_shift_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_shift_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	float pyattr_get_lens();
+	void pyattr_set_lens(float value);
+	float pyattr_get_fov();
+	void pyattr_set_fov(float value);
+	float pyattr_get_ortho_scale();
+	void pyattr_set_ortho_scale(float value);
+	float pyattr_get_near();
+	void pyattr_set_near(float value);
+	float pyattr_get_far();
+	void pyattr_set_far(float value);
+	float pyattr_get_shift_x();
+	void pyattr_set_shift_x(float value);
+	float pyattr_get_shift_y();
+	void pyattr_set_shift_y(float value);
 
-	static PyObject*	pyattr_get_use_viewport(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_use_viewport(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	bool pyattr_get_use_viewport();
+	void pyattr_set_use_viewport(bool value);
 	
-	static PyObject*	pyattr_get_projection_matrix(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_projection_matrix(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	mt::mat4 pyattr_get_projection_matrix();
+	void pyattr_set_projection_matrix(const mt::mat4& value);
 	
-	static PyObject*	pyattr_get_modelview_matrix(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_camera_to_world(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_world_to_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	mt::mat4 pyattr_get_modelview_matrix();
+	mt::mat4 pyattr_get_camera_to_world();
+	mt::mat4 pyattr_get_world_to_camera();
 	
-	static PyObject*	pyattr_get_INSIDE(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_OUTSIDE(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_INTERSECT(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	int pyattr_get_INSIDE();
+	int pyattr_get_OUTSIDE();
+	int pyattr_get_INTERSECT();
 #endif
 };
 

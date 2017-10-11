@@ -167,16 +167,10 @@ PyMethodDef KX_BatchGroup::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef KX_BatchGroup::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("objects", KX_BatchGroup, pyattr_get_objects),
-	EXP_PYATTRIBUTE_NULL // Sentinel
+EXP_Attribute KX_BatchGroup::Attributes[] = {
+	EXP_ATTRIBUTE_RO("objects", m_objects),
+	EXP_ATTRIBUTE_NULL // Sentinel
 };
-
-PyObject *KX_BatchGroup::pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_BatchGroup *self = static_cast<KX_BatchGroup *>(self_v);
-	return self->GetObjects().GetProxy();
-}
 
 EXP_PYMETHODDEF_DOC(KX_BatchGroup, merge, "merge(objects)")
 {

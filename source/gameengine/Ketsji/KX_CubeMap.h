@@ -31,7 +31,7 @@
 
 class KX_CubeMap : public KX_TextureRenderer, public mt::SimdClassAllocator
 {
-	Py_Header
+	Py_Header(KX_CubeMap)
 
 private:
 	/// The camera projection matrix depending on clip start/end.

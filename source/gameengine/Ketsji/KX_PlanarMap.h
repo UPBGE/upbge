@@ -33,7 +33,7 @@
 
 class KX_PlanarMap : public KX_TextureRenderer, public mt::SimdClassAllocator
 {
-	Py_Header
+	Py_Header(KX_PlanarMap)
 
 private:
 	/// Mirror normal vector.
@@ -68,11 +68,6 @@ public:
 
 	virtual bool SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera);
 	virtual bool SetupCameraFace(KX_Camera *camera, unsigned short index);
-
-#ifdef WITH_PYTHON
-	static PyObject *pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-#endif  // WITH_PYTHON
 };
 
 #endif  // __KX_PLANAR_H__

@@ -98,39 +98,35 @@ PyMethodDef KX_LodLevel::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef KX_LodLevel::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("mesh", KX_LodLevel, pyattr_get_mesh),
-	EXP_PYATTRIBUTE_SHORT_RO("level", KX_LodLevel, m_level),
-	EXP_PYATTRIBUTE_FLOAT_RO("distance", KX_LodLevel, m_distance),
-	EXP_PYATTRIBUTE_FLOAT_RO("hysteresis", KX_LodLevel, m_hysteresis),
-	EXP_PYATTRIBUTE_RO_FUNCTION("useHysteresis", KX_LodLevel, pyattr_get_use_hysteresis),
-	EXP_PYATTRIBUTE_RO_FUNCTION("useMesh", KX_LodLevel, pyattr_get_use_mesh),
-	EXP_PYATTRIBUTE_RO_FUNCTION("useMaterial", KX_LodLevel, pyattr_get_use_material),
-	EXP_PYATTRIBUTE_NULL  // Sentinel
+EXP_Attribute KX_LodLevel::Attributes[] = {
+	EXP_ATTRIBUTE_RO_FUNCTION("mesh", pyattr_get_mesh),
+	EXP_ATTRIBUTE_RO("level", m_level),
+	EXP_ATTRIBUTE_RO("distance", m_distance),
+	EXP_ATTRIBUTE_RO("hysteresis", m_hysteresis),
+	EXP_ATTRIBUTE_RO_FUNCTION("useHysteresis", pyattr_get_use_hysteresis),
+	EXP_ATTRIBUTE_RO_FUNCTION("useMesh", pyattr_get_use_mesh),
+	EXP_ATTRIBUTE_RO_FUNCTION("useMaterial", pyattr_get_use_material),
+	EXP_ATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *KX_LodLevel::pyattr_get_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+KX_Mesh *KX_LodLevel::pyattr_get_mesh()
 {
-	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
-	return self->GetMesh()->GetProxy();
+	return m_mesh;
 }
 
-PyObject *KX_LodLevel::pyattr_get_use_hysteresis(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+bool KX_LodLevel::pyattr_get_use_hysteresis()
 {
-	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
-	return PyBool_FromLong(self->GetFlag() & KX_LodLevel::USE_HYSTERESIS);
+	return m_flags & KX_LodLevel::USE_HYSTERESIS;
 }
 
-PyObject *KX_LodLevel::pyattr_get_use_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+bool KX_LodLevel::pyattr_get_use_mesh()
 {
-	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
-	return PyBool_FromLong(self->GetFlag() & KX_LodLevel::USE_MESH);
+	return m_flags & KX_LodLevel::USE_MESH;
 }
 
-PyObject *KX_LodLevel::pyattr_get_use_material(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+bool KX_LodLevel::pyattr_get_use_material()
 {
-	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
-	return PyBool_FromLong(self->GetFlag() & KX_LodLevel::USE_MATERIAL);
+	return m_flags & KX_LodLevel::USE_MATERIAL;
 }
 
 #endif //WITH_PYTHON

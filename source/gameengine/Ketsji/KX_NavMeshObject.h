@@ -33,7 +33,7 @@
 
 class KX_NavMeshObject : public KX_GameObject
 {
-	Py_Header
+	Py_Header(KX_NavMeshObject)
 
 protected:
 	dtStatNavMesh *m_navMesh;

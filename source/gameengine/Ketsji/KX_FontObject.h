@@ -39,7 +39,7 @@ class RAS_BoundingBox;
 class KX_FontObject : public KX_GameObject
 {
 public:
-	Py_Header
+	Py_Header(KX_FontObject)
 	KX_FontObject(void *sgReplicationInfo,
 	              SG_Callbacks callbacks,
 	              RAS_Rasterizer *rasterizer,
@@ -92,9 +92,9 @@ protected:
 	void GetTextAabb(mt::vec2& min, mt::vec2& max);
 
 #ifdef WITH_PYTHON
-	static PyObject *pyattr_get_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_dimensions(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	std::string pyattr_get_text();
+	void pyattr_set_text(const std::string& value);
+	mt::vec2 pyattr_get_dimensions();
 #endif
 };
 

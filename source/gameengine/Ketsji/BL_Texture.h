@@ -28,14 +28,11 @@
 #include "RAS_Texture.h"
 #include "EXP_Value.h"
 
-#ifdef USE_MATHUTILS
-/// Setup mathutils callbacks.
-void BL_Texture_Mathutils_Callback_Init();
-#endif
+class KX_TextureRenderer;
 
 class BL_Texture : public EXP_Value, public RAS_Texture
 {
-	Py_Header
+	Py_Header(BL_Texture)
 private:
 	bool m_isCubeMap;
 	MTex *m_mtex;
@@ -87,43 +84,43 @@ public:
 
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_diffuse_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_diffuse_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_diffuse_factor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_diffuse_factor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_alpha(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_alpha(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_specular_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_specular_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_specular_factor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_specular_factor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_hardness(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_hardness(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_emit(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_emit(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_mirror(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_mirror(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_parallax_bump(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_parallax_bump(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_parallax_step(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_parallax_step(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_lod_bias(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_lod_bias(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_bind_code(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_bind_code(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_renderer(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_ior(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_ior(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_refraction_ratio(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_refraction_ratio(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_uv_rotation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_uv_rotation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_uv_offset(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_uv_offset(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_uv_size(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_uv_size(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	float pyattr_get_diffuse_intensity();
+	void pyattr_set_diffuse_intensity(float value);
+	float pyattr_get_diffuse_factor();
+	void pyattr_set_diffuse_factor(float value);
+	float pyattr_get_alpha();
+	void pyattr_set_alpha(float value);
+	float pyattr_get_specular_intensity();
+	void pyattr_set_specular_intensity(float value);
+	float pyattr_get_specular_factor();
+	void pyattr_set_specular_factor(float value);
+	float pyattr_get_hardness();
+	void pyattr_set_hardness(float value);
+	float pyattr_get_emit();
+	void pyattr_set_emit(float value);
+	float pyattr_get_mirror();
+	void pyattr_set_mirror(float value);
+	float pyattr_get_normal();
+	void pyattr_set_normal(float value);
+	float pyattr_get_parallax_bump();
+	void pyattr_set_parallax_bump(float value);
+	float pyattr_get_parallax_step();
+	void pyattr_set_parallax_step(float value);
+	float pyattr_get_lod_bias();
+	void pyattr_set_lod_bias(float value);
+	int pyattr_get_bind_code();
+	void pyattr_set_bind_code(int value);
+	KX_TextureRenderer *pyattr_get_renderer();
+	float pyattr_get_ior();
+	void pyattr_set_ior(float value);
+	float pyattr_get_refraction_ratio();
+	void pyattr_set_refraction_ratio(float value);
+	float pyattr_get_uv_rotation();
+	void pyattr_set_uv_rotation(float value);
+	mt::vec3 pyattr_get_uv_offset();
+	void pyattr_set_uv_offset(const mt::vec3& value);
+	mt::vec3 pyattr_get_uv_size();
+	void pyattr_set_uv_size(const mt::vec3& value);
 
 #endif  // WITH_PYTHON
 };

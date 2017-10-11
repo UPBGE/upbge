@@ -39,7 +39,7 @@ struct EnvMap;
 
 class KX_TextureRenderer : public EXP_Value, public RAS_TextureRenderer
 {
-	Py_Header
+	Py_Header(KX_TextureRenderer)
 
 protected:
 	/// View clip start.
@@ -103,12 +103,12 @@ public:
 #ifdef WITH_PYTHON
 	EXP_PYMETHOD_DOC_NOARGS(KX_TextureRenderer, update);
 
-	static PyObject *pyattr_get_viewpoint_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_viewpoint_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_clip_start(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_clip_start(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_clip_end(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_clip_end(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	PyObject *pyattr_get_viewpoint_object();
+	bool pyattr_set_viewpoint_object(PyObject *value);
+	float pyattr_get_clip_start();
+	void pyattr_set_clip_start(float value);
+	float pyattr_get_clip_end();
+	void pyattr_set_clip_end(float value);
 #endif
 };
 

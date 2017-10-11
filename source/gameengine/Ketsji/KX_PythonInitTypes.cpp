@@ -68,59 +68,36 @@
 #include "EXP_ListWrapper.h"
 #include "Texture.h"
 
-static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
+static void PyType_Attr_Set(PyGetSetDef& attr_getset, EXP_Attribute &attr)
 {
-	attr_getset->name = (char *)attr->m_name.c_str();
-	attr_getset->doc = nullptr;
-
-	attr_getset->get = reinterpret_cast<getter>(EXP_PyObjectPlus::py_get_attrdef);
-
-	if (attr->m_access == EXP_PYATTRIBUTE_RO) {
-		attr_getset->set = nullptr;
-	}
-	else {
-		attr_getset->set = reinterpret_cast<setter>(EXP_PyObjectPlus::py_set_attrdef);
-	}
-
-	attr_getset->closure = reinterpret_cast<void *>(attr);
+	attr_getset.name = (char *)attr.m_name.c_str();
+	attr_getset.doc = nullptr;
+	attr_getset.get = attr.m_getter;
+	attr_getset.set = attr.m_setter;
+	attr_getset.closure = reinterpret_cast<void *>(&attr);
 }
 
-static void PyType_Ready_ADD(PyObject *dict, PyTypeObject *tp, PyAttributeDef *attributes, PyAttributeDef *attributesPtr, int init_getset)
+static void PyType_Ready_ADD(PyObject *dict, PyTypeObject *tp, EXP_Attribute *attributes, int init_getset)
 {
-	PyAttributeDef *attr;
-
 	if (init_getset) {
 		/* we need to do this for all types before calling PyType_Ready
 		 * since they will call the parents PyType_Ready and those might not have initialized vars yet */
 
-		if (tp->tp_getset == nullptr && ((attributes && !attributes->m_name.empty()) || (attributesPtr && !attributesPtr->m_name.empty()))) {
-			PyGetSetDef *attr_getset;
-			int attr_tot = 0;
+		if (!tp->tp_getset && (attributes && !attributes->m_name.empty())) {
 
-			if (attributes) {
-				for (attr = attributes; !attr->m_name.empty(); attr++, attr_tot++) {
-					attr->m_usePtr = false;
-				}
-			}
-			if (attributesPtr) {
-				for (attr = attributesPtr; !attr->m_name.empty(); attr++, attr_tot++) {
-					attr->m_usePtr = true;
-				}
+			// Compute the number of attributes when reaching the sentinel.
+			unsigned short attrCount = 0;
+			for (; !attributes[attrCount].m_name.empty(); ++attrCount) {
 			}
 
-			tp->tp_getset = attr_getset = reinterpret_cast<PyGetSetDef *>(PyMem_Malloc((attr_tot + 1) * sizeof(PyGetSetDef))); // XXX - Todo, free
+			tp->tp_getset = reinterpret_cast<PyGetSetDef *>(PyMem_Malloc((attrCount + 1) * sizeof(PyGetSetDef))); // TODO free
 
-			if (attributes) {
-				for (attr = attributes; !attr->m_name.empty(); attr++, attr_getset++) {
-					PyType_Attr_Set(attr_getset, attr);
-				}
+			for (unsigned short i = 0; i < attrCount; ++i) {
+				PyType_Attr_Set(tp->tp_getset[i], attributes[i]);
 			}
-			if (attributesPtr) {
-				for (attr = attributesPtr; !attr->m_name.empty(); attr++, attr_getset++) {
-					PyType_Attr_Set(attr_getset, attr);
-				}
-			}
-			memset(attr_getset, 0, sizeof(PyGetSetDef));
+
+			// Set the last getset to NULL.
+			memset(&tp->tp_getset[attrCount], 0, sizeof(PyGetSetDef));
 		}
 	}
 	else {
@@ -131,9 +108,7 @@ static void PyType_Ready_ADD(PyObject *dict, PyTypeObject *tp, PyAttributeDef *a
 }
 
 
-#define PyType_Ready_Attr(d, n, i)   PyType_Ready_ADD(d, &n::Type, n::Attributes, nullptr, i)
-#define PyType_Ready_AttrPtr(d, n, i)   PyType_Ready_ADD(d, &n::Type, n::Attributes, n::AttributesPtr, i)
-
+#define PyType_Ready_Attr(d, n, i)   PyType_Ready_ADD(d, &n::Type, n::Attributes, i)
 
 
 PyDoc_STRVAR(GameTypes_module_documentation,
@@ -154,13 +129,10 @@ static struct PyModuleDef GameTypes_module_def = {
 
 PyMODINIT_FUNC initGameTypesPythonBinding(void)
 {
-	PyObject *m;
-	PyObject *dict;
-
-	m = PyModule_Create(&GameTypes_module_def);
+	PyObject *m = PyModule_Create(&GameTypes_module_def);
 	PyDict_SetItemString(PySys_GetObject("modules"), GameTypes_module_def.m_name, m);
 
-	dict = PyModule_GetDict(m);
+	PyObject *dict = PyModule_GetDict(m);
 
 	for (int init_getset = 1; init_getset > -1; init_getset--) { /* run twice, once to init the getsets another to run PyType_Ready */
 		PyType_Ready_Attr(dict, BL_Shader, init_getset);
@@ -204,12 +176,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 	}
 
 #ifdef USE_MATHUTILS
-	/* Init mathutils callbacks */
-	KX_GameObject_Mathutils_Callback_Init();
-	KX_WorldInfo_Mathutils_Callback_Init();
-	KX_BlenderMaterial_Mathutils_Callback_Init();
-	KX_BoundingBox_Mathutils_Callback_Init();
-	BL_Texture_Mathutils_Callback_Init();
+	// TODO globally for all attributes
 #endif
 
 	return m;

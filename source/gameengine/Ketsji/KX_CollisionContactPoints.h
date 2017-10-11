@@ -34,7 +34,7 @@ class PHY_ICollData;
 
 class KX_CollisionContactPoint : public EXP_Value
 {
-	Py_Header
+	Py_Header(KX_CollisionContactPoint)
 protected:
 	/// All infos about contact position, normal, friction ect…
 	const PHY_ICollData *m_collData;
@@ -50,14 +50,14 @@ public:
 
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_local_point_a(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_local_point_b(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_world_point(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_combined_friction(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_combined_rolling_friction(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_combined_restitution(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_applied_impulse(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	mt::vec3 pyattr_get_local_point_a();
+	mt::vec3 pyattr_get_local_point_b();
+	mt::vec3 pyattr_get_world_point();
+	mt::vec3 pyattr_get_normal();
+	float pyattr_get_combined_friction();
+	float pyattr_get_combined_rolling_friction();
+	float pyattr_get_combined_restitution();
+	float pyattr_get_applied_impulse();
 
 #endif  // WITH_PYTHON
 };

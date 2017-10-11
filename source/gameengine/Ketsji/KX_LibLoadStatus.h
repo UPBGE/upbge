@@ -36,7 +36,7 @@ class KX_Scene;
 
 class KX_LibLoadStatus : public EXP_PyObjectPlus
 {
-	Py_Header
+	Py_Header(KX_LibLoadStatus)
 private:
 	BL_Converter *m_converter;
 	KX_KetsjiEngine *m_engine;
@@ -81,12 +81,12 @@ public:
 	void AddProgress(float progress);
 
 #ifdef WITH_PYTHON
-	static PyObject *pyattr_get_onfinish(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_onfinish(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_onprogress(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_onprogress(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	PyObject *pyattr_get_onfinish();
+	bool pyattr_set_onfinish(PyObject *value);
+	PyObject *pyattr_get_onprogress();
+	bool pyattr_set_onprogress(PyObject *value);
 
-	static PyObject *pyattr_get_timetaken(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	float pyattr_get_timetaken();
 #endif
 };
 

@@ -52,6 +52,7 @@ class KX_RayCast;
 class KX_LodManager;
 class KX_PythonComponent;
 class KX_Mesh;
+class KX_BatchGroup;
 class RAS_MeshUser;
 class RAS_Deformer;
 class PHY_IGraphicController;
@@ -69,16 +70,12 @@ struct bRigidBodyJointConstraint;
 bool ConvertPythonToGameObject(KX_Scene *scene, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix);
 #endif
 
-#ifdef USE_MATHUTILS
-void KX_GameObject_Mathutils_Callback_Init(void);
-#endif
-
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
 class KX_GameObject : public EXP_Value, public mt::SimdClassAllocator
 {
-	Py_Header
+	Py_Header(KX_GameObject)
 public:
 	struct ActivityCullingInfo
 	{
@@ -162,23 +159,7 @@ public:
 	static KX_GameObject* GetClientObject(KX_ClientObjectInfo* info);
 
 #ifdef WITH_PYTHON
-	// Python attributes that wont convert into EXP_Value
-	//
-	// there are 2 places attributes can be stored, in the EXP_Value,
-	// where attributes are converted into BGE's EXP_Value types
-	// these can be used with property actuators
-	//
-	// For the python API, For types that cannot be converted into EXP_Values (lists, dicts, GameObjects)
-	// these will be put into "m_attr_dict", logic bricks cannot access them.
-	//
-	// rules for setting attributes.
-	//
-	// * there should NEVER be a EXP_Value and a m_attr_dict attribute with matching names. get/sets make sure of this.
-	// * if EXP_Value conversion fails, use a PyObject in "m_attr_dict"
-	// * when assigning a value, first see if it can be a EXP_Value, if it can remove the "m_attr_dict" and set the EXP_Value
-	//
-	PyObject*							m_attr_dict;
-	PyObject*							m_collisionCallbacks;
+	PyObject *m_collisionCallbacks;
 #endif
 
 	/**
@@ -870,94 +851,91 @@ public:
 	EXP_PYMETHOD_VARARGS(KX_GameObject,get);
 	
 	/* attributes */
-	static PyObject*	pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_parent(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	bool pyattr_check_physics(const EXP_Attribute *attrdef);
+	std::string pyattr_get_name();
+	bool pyattr_set_name(const std::string& value);
+	KX_GameObject *pyattr_get_parent();
 
-	static PyObject*	pyattr_get_group_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_group_members(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_scene(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	KX_Scene *pyattr_get_scene();
 
-	static PyObject*	pyattr_get_life(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_mass(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_mass(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_is_suspend_dynamics(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_lin_vel_min(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_lin_vel_min(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_lin_vel_max(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_lin_vel_max(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_ang_vel_min(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_ang_vel_min(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_ang_vel_max(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_ang_vel_max(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_layer(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_layer(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_culled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_cullingBox(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_physicsCulling(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_physicsCulling(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_logicCulling(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_logicCulling(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_physicsCullingRadius(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_physicsCullingRadius(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_logicCullingRadius(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_logicCullingRadius(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_worldPosition(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_worldPosition(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_localPosition(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_localPosition(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_localInertia(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_localInertia(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_worldOrientation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_worldOrientation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_localOrientation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_localOrientation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_worldScaling(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_worldScaling(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_localScaling(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_localScaling(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_localTransform(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_localTransform(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_worldTransform(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_worldTransform(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_worldLinearVelocity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_worldLinearVelocity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_localLinearVelocity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_localLinearVelocity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_worldAngularVelocity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_worldAngularVelocity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_localAngularVelocity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_localAngularVelocity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_timeOffset(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_timeOffset(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_meshes(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_batchGroup(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_children(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_children_recursive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_obcolor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_obcolor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_components(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_collisionCallbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_collisionCallbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_collisionGroup(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_collisionGroup(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_collisionMask(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_collisionMask(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_debug(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_debug(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_debugRecursive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_debugRecursive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_linearDamping(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_linearDamping(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_angularDamping(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_angularDamping(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_lodManager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_lodManager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-
+	float pyattr_get_life();
+	float pyattr_get_mass();
+	void pyattr_set_mass(float value);
+	bool pyattr_get_is_suspend_dynamics();
+	float pyattr_get_lin_vel_min();
+	void pyattr_set_lin_vel_min(float value);
+	float pyattr_get_lin_vel_max();
+	void pyattr_set_lin_vel_max(float value);
+	float pyattr_get_ang_vel_min();
+	void pyattr_set_ang_vel_min(float value);
+	float pyattr_get_ang_vel_max();
+	void pyattr_set_ang_vel_max(float value);
+	int pyattr_get_layer();
+	void pyattr_set_layer(int value);
+	bool pyattr_get_visible();
+	void pyattr_set_visible(bool value);
+	bool pyattr_get_culled();
+	PyObject *pyattr_get_cullingBox();
+	bool pyattr_get_physicsCulling();
+	void pyattr_set_physicsCulling(bool value);
+	bool pyattr_get_logicCulling();
+	void pyattr_set_logicCulling(bool value);
+	float pyattr_get_physicsCullingRadius();
+	void pyattr_set_physicsCullingRadius(float value);
+	float pyattr_get_logicCullingRadius();
+	void pyattr_set_logicCullingRadius(float value);
+	mt::vec3 pyattr_get_worldPosition();
+	void pyattr_set_worldPosition(const mt::vec3& value);
+	mt::vec3 pyattr_get_localPosition();
+	void pyattr_set_localPosition(const mt::vec3& value);
+	mt::vec3 pyattr_get_localInertia();
+	void pyattr_set_localInertia(const mt::vec3& value);
+	mt::mat3 pyattr_get_worldOrientation();
+	void pyattr_set_worldOrientation(const mt::mat3& value);
+	mt::mat3 pyattr_get_localOrientation();
+	void pyattr_set_localOrientation(const mt::mat3& value);
+	mt::vec3 pyattr_get_worldScaling();
+	void pyattr_set_worldScaling(const mt::vec3& value);
+	mt::vec3 pyattr_get_localScaling();
+	void pyattr_set_localScaling(const mt::vec3& value);
+	mt::mat4 pyattr_get_localTransform();
+	void pyattr_set_localTransform(const mt::mat4& value);
+	mt::mat4 pyattr_get_worldTransform();
+	void pyattr_set_worldTransform(const mt::mat4& value);
+	mt::vec3 pyattr_get_worldLinearVelocity();
+	void pyattr_set_worldLinearVelocity(const mt::vec3& value);
+	mt::vec3 pyattr_get_localLinearVelocity();
+	void pyattr_set_localLinearVelocity(const mt::vec3& value);
+	mt::vec3 pyattr_get_worldAngularVelocity();
+	void pyattr_set_worldAngularVelocity(const mt::vec3& value);
+	mt::vec3 pyattr_get_localAngularVelocity();
+	void pyattr_set_localAngularVelocity(const mt::vec3& value);
+	mt::vec3 pyattr_get_gravity();
+	void pyattr_set_gravity(const mt::vec3& value);
+	float pyattr_get_timeOffset();
+	void pyattr_set_timeOffset(float value);
+	KX_BatchGroup *pyattr_get_batchGroup();
+	EXP_ListValue<KX_GameObject> *pyattr_get_children();
+	EXP_ListValue<KX_GameObject> *pyattr_get_children_recursive();
+	mt::vec4 pyattr_get_obcolor();
+	void pyattr_set_obcolor(const mt::vec4& value);
+	PyObject *pyattr_get_collisionCallbacks();
+	bool pyattr_set_collisionCallbacks(PyObject *value, const EXP_Attribute *attrdef);
+	int pyattr_get_collisionGroup();
+	void pyattr_set_collisionGroup(int value);
+	int pyattr_get_collisionMask();
+	void pyattr_set_collisionMask(int value);
+	bool pyattr_get_debug();
+	void pyattr_set_debug(bool value);
+	bool pyattr_get_debugRecursive();
+	void pyattr_set_debugRecursive(bool value);
+	float pyattr_get_linearDamping();
+	void pyattr_set_linearDamping(float value);
+	float pyattr_get_angularDamping();
+	void pyattr_set_angularDamping(float value);
+	PyObject *pyattr_get_lodManager();
+	bool pyattr_set_lodManager(PyObject *value);
+	
 	/* getitem/setitem */
 	static PyMappingMethods	Mapping;
 	static PySequenceMethods	Sequence;

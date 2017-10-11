@@ -148,8 +148,8 @@ PyMethodDef KX_CubeMap::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef KX_CubeMap::Attributes[] = {
-	EXP_PYATTRIBUTE_NULL // Sentinel
+EXP_Attribute KX_CubeMap::Attributes[] = {
+	EXP_ATTRIBUTE_NULL // Sentinel
 };
 
 #endif  // WITH_PYTHON

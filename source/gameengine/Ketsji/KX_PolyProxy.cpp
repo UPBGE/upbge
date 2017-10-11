@@ -78,19 +78,19 @@ PyMethodDef KX_PolyProxy::Methods[] = {
 	{nullptr, nullptr} //Sentinel
 };
 
-PyAttributeDef KX_PolyProxy::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("material_name", KX_PolyProxy, pyattr_get_material_name),
-	EXP_PYATTRIBUTE_RO_FUNCTION("texture_name", KX_PolyProxy, pyattr_get_texture_name),
-	EXP_PYATTRIBUTE_RO_FUNCTION("material", KX_PolyProxy, pyattr_get_material),
-	EXP_PYATTRIBUTE_RO_FUNCTION("material_id", KX_PolyProxy, pyattr_get_material_id),
-	EXP_PYATTRIBUTE_RO_FUNCTION("v1", KX_PolyProxy, pyattr_get_v1),
-	EXP_PYATTRIBUTE_RO_FUNCTION("v2", KX_PolyProxy, pyattr_get_v2),
-	EXP_PYATTRIBUTE_RO_FUNCTION("v3", KX_PolyProxy, pyattr_get_v3),
-	EXP_PYATTRIBUTE_RO_FUNCTION("v4", KX_PolyProxy, pyattr_get_v4),
-	EXP_PYATTRIBUTE_RO_FUNCTION("visible", KX_PolyProxy, pyattr_get_visible),
-	EXP_PYATTRIBUTE_RO_FUNCTION("collide", KX_PolyProxy, pyattr_get_collide),
-	EXP_PYATTRIBUTE_RO_FUNCTION("vertices", KX_PolyProxy, pyattr_get_vertices),
-	EXP_PYATTRIBUTE_NULL    //Sentinel
+EXP_Attribute KX_PolyProxy::Attributes[] = {
+	EXP_ATTRIBUTE_RO_FUNCTION("material_name", pyattr_get_material_name),
+	EXP_ATTRIBUTE_RO_FUNCTION("texture_name", pyattr_get_texture_name),
+	EXP_ATTRIBUTE_RO_FUNCTION("material", pyattr_get_material),
+	EXP_ATTRIBUTE_RO_FUNCTION("material_id", pyattr_get_material_id),
+	EXP_ATTRIBUTE_RO_FUNCTION("v1", pyattr_get_v1),
+	EXP_ATTRIBUTE_RO_FUNCTION("v2", pyattr_get_v2),
+	EXP_ATTRIBUTE_RO_FUNCTION("v3", pyattr_get_v3),
+	EXP_ATTRIBUTE_RO_FUNCTION("v4", pyattr_get_v4),
+	EXP_ATTRIBUTE_RO_FUNCTION("visible", pyattr_get_visible),
+	EXP_ATTRIBUTE_RO_FUNCTION("collide", pyattr_get_collide),
+	EXP_ATTRIBUTE_RO_FUNCTION("vertices", pyattr_get_vertices),
+	EXP_ATTRIBUTE_NULL	//Sentinel
 };
 
 KX_PolyProxy::KX_PolyProxy(KX_Mesh *mesh, const RAS_Mesh::PolygonInfo& polygon)
@@ -103,8 +103,6 @@ KX_PolyProxy::~KX_PolyProxy()
 {
 }
 
-
-// stuff for cvalue related things
 std::string KX_PolyProxy::GetName() const
 {
 	return "polygone";
@@ -115,68 +113,59 @@ const RAS_Mesh::PolygonInfo& KX_PolyProxy::GetPolygon() const
 	return m_polygon;
 }
 
-// stuff for python integration
-
-PyObject *KX_PolyProxy::pyattr_get_material_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+std::string KX_PolyProxy::pyattr_get_material_name()
 {
-	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-	return self->PygetMaterialName();
+	return m_mesh->GetMaterialName(m_polygon.matId);
 }
 
-PyObject *KX_PolyProxy::pyattr_get_texture_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+std::string KX_PolyProxy::pyattr_get_texture_name()
 {
-	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-	return self->PygetTextureName();
+	return m_mesh->GetTextureName(m_polygon.matId);
 }
 
-PyObject *KX_PolyProxy::pyattr_get_material(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+KX_BlenderMaterial *KX_PolyProxy::pyattr_get_material()
 {
-	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-	return self->PygetMaterial();
+	RAS_MeshMaterial *meshmat = m_mesh->GetMeshMaterial(m_polygon.matId);
+	RAS_IMaterial *mat = meshmat->GetBucket()->GetMaterial();
+	return static_cast<KX_BlenderMaterial *>(mat);
 }
 
-PyObject *KX_PolyProxy::pyattr_get_material_id(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+int KX_PolyProxy::pyattr_get_material_id()
 {
-	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-	return self->PygetMaterialIndex();
+	return m_polygon.matId;
 }
 
-PyObject *KX_PolyProxy::pyattr_get_v1(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+int KX_PolyProxy::pyattr_get_v1()
 {
-	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
 
-	return PyLong_FromLong(self->m_polygon.indices[0]);
+	return m_polygon.indices[0];
 }
 
-PyObject *KX_PolyProxy::pyattr_get_v2(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+int KX_PolyProxy::pyattr_get_v2()
 {
-	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
 
-	return PyLong_FromLong(self->m_polygon.indices[1]);
+	return m_polygon.indices[1];
 }
 
-PyObject *KX_PolyProxy::pyattr_get_v3(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+int KX_PolyProxy::pyattr_get_v3()
 {
-	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
 
-	return PyLong_FromLong(self->m_polygon.indices[2]);
+	return m_polygon.indices[2];
 }
 
-PyObject *KX_PolyProxy::pyattr_get_v4(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+int KX_PolyProxy::pyattr_get_v4()
 {
-	return PyLong_FromLong(0);
+	return 0;
 }
 
-PyObject *KX_PolyProxy::pyattr_get_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+bool KX_PolyProxy::pyattr_get_visible()
 {
-	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-	return self->PyisVisible();
+	return m_polygon.flags & RAS_Mesh::PolygonInfo::VISIBLE;
 }
 
-PyObject *KX_PolyProxy::pyattr_get_collide(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+bool KX_PolyProxy::pyattr_get_collide()
 {
-	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-	return self->PyisCollider();
+	return m_polygon.flags & RAS_Mesh::PolygonInfo::COLLIDER;
 }
 
 unsigned int KX_PolyProxy::py_get_vertices_size()
@@ -191,9 +180,9 @@ PyObject *KX_PolyProxy::py_get_vertices_item(unsigned int index)
 	return vert->NewProxy(true);
 }
 
-PyObject *KX_PolyProxy::pyattr_get_vertices(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+EXP_BaseListWrapper *KX_PolyProxy::pyattr_get_vertices()
 {
-	return (new EXP_ListWrapper<KX_PolyProxy, &KX_PolyProxy::py_get_vertices_size, &KX_PolyProxy::py_get_vertices_item>(self_v))->NewProxy(true);
+	return (new EXP_ListWrapper<KX_PolyProxy, &KX_PolyProxy::py_get_vertices_size, &KX_PolyProxy::py_get_vertices_item>(this));
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialIndex,

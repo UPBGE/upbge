@@ -115,37 +115,11 @@ PyMethodDef KX_2DFilter::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef KX_2DFilter::Attributes[] = {
-	EXP_PYATTRIBUTE_RW_FUNCTION("mipmap", KX_2DFilter, pyattr_get_mipmap, pyattr_set_mipmap),
-	EXP_PYATTRIBUTE_RO_FUNCTION("offScreen", KX_2DFilter, pyattr_get_offScreen),
-	EXP_PYATTRIBUTE_NULL // Sentinel
+EXP_Attribute KX_2DFilter::Attributes[] = {
+	EXP_ATTRIBUTE_RW("mipmap", m_mipmap),
+	EXP_ATTRIBUTE_RO("offScreen", m_offScreen),
+	EXP_ATTRIBUTE_NULL // Sentinel
 };
-
-PyObject *KX_2DFilter::pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
-	return PyBool_FromLong(self->GetMipmap());
-}
-
-int KX_2DFilter::pyattr_set_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
-	int param = PyObject_IsTrue(value);
-	if (param == -1) {
-		PyErr_SetString(PyExc_AttributeError, "shader.enabled = bool: BL_Shader, expected True or False");
-		return PY_SET_ATTR_FAIL;
-	}
-
-	self->SetMipmap(param);
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_2DFilter::pyattr_get_offScreen(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
-	RAS_2DFilterOffScreen *offScreen = self->GetOffScreen();
-	return offScreen ? static_cast<KX_2DFilterOffScreen *>(offScreen)->GetProxy() : Py_None;
-}
 
 EXP_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, samplerName)")
 {

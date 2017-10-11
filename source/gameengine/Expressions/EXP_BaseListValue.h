@@ -23,7 +23,7 @@
 
 class EXP_BaseListValue : public EXP_Value
 {
-	Py_Header
+	Py_Header(EXP_BaseListValue)
 
 public:
 	using VectorType = std::vector<EXP_Value *>;

@@ -331,45 +331,34 @@ PyMethodDef KX_FontObject::Methods[] = {
 	{nullptr, nullptr} //Sentinel
 };
 
-PyAttributeDef KX_FontObject::Attributes[] = {
-	EXP_PYATTRIBUTE_RW_FUNCTION("text", KX_FontObject, pyattr_get_text, pyattr_set_text),
-	EXP_PYATTRIBUTE_RO_FUNCTION("dimensions", KX_FontObject, pyattr_get_dimensions),
-	EXP_PYATTRIBUTE_FLOAT_RW("size", 0.0001f, 40.0f, KX_FontObject, m_fsize),
-	EXP_PYATTRIBUTE_FLOAT_RW("resolution", 0.1f, 50.0f, KX_FontObject, m_resolution),
-	/* EXP_PYATTRIBUTE_INT_RW("dpi", 0, 10000, false, KX_FontObject, m_dpi), */// no real need for expose this I think
-	EXP_PYATTRIBUTE_NULL    //Sentinel
+EXP_Attribute KX_FontObject::Attributes[] = {
+	EXP_ATTRIBUTE_RW_FUNCTION("text", pyattr_get_text, pyattr_set_text),
+	EXP_ATTRIBUTE_RO_FUNCTION("dimensions", pyattr_get_dimensions),
+	EXP_ATTRIBUTE_RW_RANGE("size", m_fsize, 0.0001f, 40.0f, false),
+	EXP_ATTRIBUTE_RW_RANGE("resolution", m_resolution, 0.1f, 50.0f, false),
+	EXP_ATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *KX_FontObject::pyattr_get_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+std::string KX_FontObject::pyattr_get_text()
 {
-	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
-	return PyUnicode_FromStdString(self->m_text);
+	return m_text;
 }
 
-int KX_FontObject::pyattr_set_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+void KX_FontObject::pyattr_set_text(const std::string& value)
 {
-	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
-	if (!PyUnicode_Check(value)) {
-		return PY_SET_ATTR_FAIL;
-	}
-	const char *chars = _PyUnicode_AsString(value);
-
 	/* Allow for some logic brick control */
-	EXP_PropValue *tprop = self->GetProperty("Text"); // TODO deprecate
+	EXP_PropValue *tprop = GetProperty("Text"); // TODO deprecate
 	if (tprop && tprop->GetValueType() == EXP_PropValue::TYPE_STRING) {
-		static_cast<EXP_PropString *>(tprop)->SetValue(std::string(chars));
+		static_cast<EXP_PropString *>(tprop)->SetValue(value);
 	}
 	else {
-		self->SetText(std::string(chars)); // TODO: Check unicode support
+		SetText(value); // TODO: Check unicode support
 	}
-
-	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_FontObject::pyattr_get_dimensions(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+mt::vec2 KX_FontObject::pyattr_get_dimensions()
 {
-	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
-	return PyObjectFrom(self->GetTextDimensions());
+	return GetTextDimensions();
 }
 
 #endif // WITH_PYTHON

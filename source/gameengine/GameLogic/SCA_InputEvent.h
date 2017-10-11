@@ -33,7 +33,7 @@
 
 class SCA_InputEvent : public EXP_Value
 {
-Py_Header
+Py_Header(SCA_InputEvent)
 public:
 	enum SCA_EnumInputs {
 		NONE = 0,
@@ -77,13 +77,13 @@ public:
 	unsigned int get_values_size();
 	PyObject *get_values_item(unsigned int index);
 
-	static PyObject *pyattr_get_status(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_queue(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_inactive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_active(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_activated(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_released(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	EXP_BaseListWrapper *pyattr_get_status();
+	EXP_BaseListWrapper *pyattr_get_queue();
+	EXP_BaseListWrapper *pyattr_get_values();
+	bool pyattr_get_inactive();
+	bool pyattr_get_active();
+	bool pyattr_get_activated();
+	bool pyattr_get_released();
 #endif
 };
 

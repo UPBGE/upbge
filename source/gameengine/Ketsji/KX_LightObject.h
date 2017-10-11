@@ -44,7 +44,7 @@ class RAS_ILightObject;
 
 class KX_LightObject : public KX_GameObject
 {
-	Py_Header
+	Py_Header(KX_LightObject)
 protected:
 	RAS_ILightObject *m_lightobj;
 	/// Needed for registering and replication of lightobj.
@@ -83,35 +83,35 @@ public:
 	EXP_PYMETHOD_DOC_NOARGS(KX_LightObject, updateShadow);
 
 	// attributes
-	static PyObject *pyattr_get_energy(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_energy(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_shadow_clip_start(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_shadow_clip_end(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_shadow_frustum_size(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_shadow_bind_code(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_shadow_bias(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_shadow_bleed_bias(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_shadow_map_type(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_shadow_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_shadow_active(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_shadow_matrix(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_distance(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_distance(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_lin_attenuation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_lin_attenuation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_quad_attenuation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_quad_attenuation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_spotsize(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_spotsize(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_spotblend(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_spotblend(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_typeconst(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_type(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_type(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_static_shadow(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_static_shadow(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	float pyattr_get_energy();
+	void pyattr_set_energy(float value);
+	float pyattr_get_shadow_clip_start();
+	float pyattr_get_shadow_clip_end();
+	float pyattr_get_shadow_frustum_size();
+	int pyattr_get_shadow_bind_code();
+	float pyattr_get_shadow_bias();
+	float pyattr_get_shadow_bleed_bias();
+	int pyattr_get_shadow_map_type();
+	mt::vec3 pyattr_get_shadow_color();
+	bool pyattr_get_shadow_active();
+	mt::mat4 pyattr_get_shadow_matrix();
+	float pyattr_get_distance();
+	void pyattr_set_distance(float value);
+	mt::vec3 pyattr_get_color();
+	void pyattr_set_color(const mt::vec3& value);
+	float pyattr_get_lin_attenuation();
+	void pyattr_set_lin_attenuation(float value);
+	float pyattr_get_quad_attenuation();
+	void pyattr_set_quad_attenuation(float value);
+	float pyattr_get_spotsize();
+	void pyattr_set_spotsize(float value);
+	float pyattr_get_spotblend();
+	void pyattr_set_spotblend(float value);
+	int pyattr_get_typeconst(const EXP_Attribute *attrdef);
+	int pyattr_get_type();
+	void pyattr_set_type(int value);
+	bool pyattr_get_static_shadow();
+	void pyattr_set_static_shadow(bool value);
 #endif
 };
 

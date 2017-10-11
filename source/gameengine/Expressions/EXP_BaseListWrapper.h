@@ -33,7 +33,7 @@
 
 class EXP_BaseListWrapper : public EXP_Value
 {
-	Py_Header
+	Py_Header(EXP_BaseListWrapper)
 public:
 
 	using GetItemFunction = PyObject *(*)(EXP_PyObjectPlus *, unsigned int);

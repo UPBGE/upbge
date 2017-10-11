@@ -352,49 +352,35 @@ PyMethodDef KX_VehicleWrapper::Methods[] = {
 	{nullptr, nullptr} //Sentinel
 };
 
-PyAttributeDef KX_VehicleWrapper::Attributes[] = {
-	EXP_PYATTRIBUTE_RW_FUNCTION("rayMask", KX_VehicleWrapper, pyattr_get_ray_mask, pyattr_set_ray_mask),
-	EXP_PYATTRIBUTE_RO_FUNCTION("constraint_id", KX_VehicleWrapper, pyattr_get_constraintId),
-	EXP_PYATTRIBUTE_RO_FUNCTION("constraint_type", KX_VehicleWrapper, pyattr_get_constraintType),
-	EXP_PYATTRIBUTE_NULL    //Sentinel
+#define MASK_MAX ((1 << OB_MAX_COL_MASKS) - 1)
+
+EXP_Attribute KX_VehicleWrapper::Attributes[] = {
+	EXP_ATTRIBUTE_RW_FUNCTION_RANGE("rayMask", pyattr_get_ray_mask, pyattr_set_ray_mask, 1, MASK_MAX, false),
+	EXP_ATTRIBUTE_RO_FUNCTION("constraint_id", pyattr_get_constraintId),
+	EXP_ATTRIBUTE_RO_FUNCTION("constraint_type", pyattr_get_constraintType),
+	EXP_ATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_VehicleWrapper::pyattr_get_constraintId(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+#undef MASK_MAX
+
+int KX_VehicleWrapper::pyattr_get_constraintId()
 {
-	KX_VehicleWrapper *self = static_cast<KX_VehicleWrapper *>(self_v);
-	return PyLong_FromLong(self->m_vehicle->GetUserConstraintId());
+	return m_vehicle->GetUserConstraintId();
 }
 
-PyObject *KX_VehicleWrapper::pyattr_get_constraintType(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+int KX_VehicleWrapper::pyattr_get_constraintType()
 {
-	return PyLong_FromLong(PHY_VEHICLE_CONSTRAINT);
+	return PHY_VEHICLE_CONSTRAINT;
 }
 
-PyObject *KX_VehicleWrapper::pyattr_get_ray_mask(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
+int KX_VehicleWrapper::pyattr_get_ray_mask()
 {
-	KX_VehicleWrapper *wrapper = static_cast<KX_VehicleWrapper *>(self);
-	return PyLong_FromLong(wrapper->m_vehicle->GetRayCastMask());
+	return m_vehicle->GetRayCastMask();
 }
 
-int KX_VehicleWrapper::pyattr_set_ray_mask(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+void KX_VehicleWrapper::pyattr_set_ray_mask(int value)
 {
-	KX_VehicleWrapper *wrapper = static_cast<KX_VehicleWrapper *>(self);
-
-	int mask = PyLong_AsLong(value);
-
-	if (mask == -1 && PyErr_Occurred()) {
-		PyErr_SetString(PyExc_TypeError, "rayMask = int: KX_VehicleWrapper, expected an int bit field");
-		return PY_SET_ATTR_FAIL;
-	}
-
-	if (mask == 0 || mask & ~((1 << OB_MAX_COL_MASKS) - 1)) {
-		PyErr_Format(PyExc_AttributeError, "rayMask = int: KX_VehicleWrapper, expected a int bit field, 0 < rayMask < %i", (1 << OB_MAX_COL_MASKS));
-		return PY_SET_ATTR_FAIL;
-	}
-
-	wrapper->m_vehicle->SetRayCastMask(mask);
-
-	return PY_SET_ATTR_SUCCESS;
+	m_vehicle->SetRayCastMask(value);
 }
 
 #endif // WITH_PYTHON

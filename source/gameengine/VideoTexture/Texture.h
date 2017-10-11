@@ -47,7 +47,7 @@ class KX_GameObject;
 // type Texture declaration
 class Texture : public EXP_Value
 {
-	Py_Header
+	Py_Header(Texture)
 protected:
 	virtual void DestructFromPython();
 
@@ -97,12 +97,8 @@ public:
 	EXP_PYMETHOD_DOC(Texture, close);
 	EXP_PYMETHOD_DOC(Texture, refresh);
 
-	static PyObject *pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_source(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_source(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_bindId(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_bindId(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	PyObject *pyattr_get_source();
+	bool pyattr_set_source(PyObject *value, const EXP_Attribute *attrdef);
 };
 
 // load texture

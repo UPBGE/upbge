@@ -17,13 +17,9 @@ class BL_BlenderShader;
 class BL_Shader;
 struct Material;
 
-#ifdef USE_MATHUTILS
-void KX_BlenderMaterial_Mathutils_Callback_Init(void);
-#endif
-
 class KX_BlenderMaterial : public EXP_Value, public RAS_IMaterial
 {
-	Py_Header
+	Py_Header(KX_BlenderMaterial)
 
 public:
 	KX_BlenderMaterial(Material *mat, const std::string& name, KX_Scene *scene);
@@ -67,29 +63,28 @@ public:
 
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_shader(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_materialIndex(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_blending(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_textures(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_blending(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_alpha(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_alpha(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_hardness(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_hardness(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_specular_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_specular_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_specular_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_specular_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_diffuse_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_diffuse_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_diffuse_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_diffuse_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_emit(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_emit(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_ambient(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_ambient(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_specular_alpha(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_specular_alpha(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	PyObject *pyattr_get_shader();
+	EXP_BaseListWrapper *pyattr_get_textures();
+	PyObject *pyattr_get_blending();
+	bool pyattr_set_blending(PyObject *value);
+	float pyattr_get_alpha();
+	void pyattr_set_alpha(float value);
+	int pyattr_get_hardness();
+	void pyattr_set_hardness(int value);
+	float pyattr_get_specular_intensity();
+	void pyattr_set_specular_intensity(float value);
+	mt::vec3 pyattr_get_specular_color();
+	void pyattr_set_specular_color(const mt::vec3& value);
+	float pyattr_get_diffuse_intensity();
+	void pyattr_set_diffuse_intensity(float value);
+	mt::vec3 pyattr_get_diffuse_color();
+	void pyattr_set_diffuse_color(const mt::vec3& value);
+	float pyattr_get_emit();
+	void pyattr_set_emit(float value);
+	float pyattr_get_ambient();
+	void pyattr_set_ambient(float value);
+	float pyattr_get_specular_alpha();
+	void pyattr_set_specular_alpha(float value);
 
 	unsigned int py_get_textures_size();
 	PyObject *py_get_textures_item(unsigned int index);

@@ -32,7 +32,7 @@ struct PythonComponent;
 
 class KX_PythonComponent : public EXP_Value
 {
-	Py_Header
+	Py_Header(KX_PythonComponent)
 
 private:
 	PythonComponent *m_pc;
@@ -59,9 +59,6 @@ public:
 	void Update();
 
 	static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
-
-	// Attributes
-	static PyObject *pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 };
 
 #endif // WITH_PYTHON

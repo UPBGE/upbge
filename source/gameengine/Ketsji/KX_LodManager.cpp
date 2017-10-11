@@ -198,10 +198,10 @@ PyMethodDef KX_LodManager::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef KX_LodManager::Attributes[] = {
-	EXP_PYATTRIBUTE_RO_FUNCTION("levels", KX_LodManager, pyattr_get_levels),
-	EXP_PYATTRIBUTE_FLOAT_RW("distanceFactor", 0.0f, FLT_MAX, KX_LodManager, m_distanceFactor),
-	EXP_PYATTRIBUTE_NULL
+EXP_Attribute KX_LodManager::Attributes[] = {
+	EXP_ATTRIBUTE_RO_FUNCTION("levels", pyattr_get_levels),
+	EXP_ATTRIBUTE_RW_RANGE("distanceFactor", m_distanceFactor, 0.0f, FLT_MAX, false),
+	EXP_ATTRIBUTE_NULL
 };
 
 unsigned int KX_LodManager::py_get_levels_size()
@@ -214,9 +214,9 @@ PyObject *KX_LodManager::py_get_levels_item(unsigned int index)
 	return m_levels[index].GetProxy();
 }
 
-PyObject *KX_LodManager::pyattr_get_levels(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+EXP_BaseListWrapper *KX_LodManager::pyattr_get_levels()
 {
-	return (new EXP_ListWrapper<KX_LodManager, &KX_LodManager::py_get_levels_size, &KX_LodManager::py_get_levels_item>(self_v))->NewProxy(true);
+	return (new EXP_ListWrapper<KX_LodManager, &KX_LodManager::py_get_levels_size, &KX_LodManager::py_get_levels_item>(this));
 }
 
 bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix)

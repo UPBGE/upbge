@@ -32,7 +32,7 @@
 
 class KX_2DFilterOffScreen : public EXP_Value, public RAS_2DFilterOffScreen
 {
-	Py_Header
+	Py_Header(KX_2DFilterOffScreen)
 public:
 	KX_2DFilterOffScreen(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdr);
 	virtual ~KX_2DFilterOffScreen();
@@ -41,10 +41,8 @@ public:
 
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_width(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_height(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_colorBindCodes(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_depthBindCode(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	EXP_BaseListWrapper *pyattr_get_colorBindCodes();
+	int pyattr_get_depthBindCode();
 
 	unsigned int py_get_textures_size();
 	PyObject *py_get_textures_item(unsigned int index);

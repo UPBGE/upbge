@@ -12,7 +12,7 @@ class PHY_IVehicle;
 ///Python interface to physics vehicles (primarily 4-wheel cars and 2wheel bikes)
 class	KX_VehicleWrapper : public EXP_Value
 {
-	Py_Header
+	Py_Header(KX_VehicleWrapper)
 
 public:
 	KX_VehicleWrapper(PHY_IVehicle* vehicle);
@@ -48,10 +48,10 @@ public:
 	
 	EXP_PYMETHOD_VARARGS(KX_VehicleWrapper,SetRollInfluence);
 
-	static PyObject *pyattr_get_ray_mask(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_ray_mask(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_constraintId(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_constraintType(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	int pyattr_get_ray_mask();
+	void pyattr_set_ray_mask(int value);
+	int pyattr_get_constraintId();
+	int pyattr_get_constraintType();
 
 #endif  /* WITH_PYTHON */
 

@@ -40,7 +40,7 @@ struct Object;
 
 class KX_LodManager : public EXP_Value, public CM_RefCount<KX_LodManager>
 {
-	Py_Header
+	Py_Header(KX_LodManager)
 
 private:
 	/** This class helps to compare the object distance to camera with the list of lod levels.
@@ -105,7 +105,7 @@ public:
 
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_levels(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	EXP_BaseListWrapper *pyattr_get_levels();
 
 	unsigned int py_get_levels_size();
 	PyObject *py_get_levels_item(unsigned int index);

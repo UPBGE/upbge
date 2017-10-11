@@ -20,7 +20,7 @@ class RAS_IMaterial;
 
 class BL_Shader : public EXP_Value, public virtual RAS_Shader
 {
-	Py_Header
+	Py_Header(BL_Shader)
 public:
 	enum CallbacksType {
 		CALLBACKS_BIND = 0,
@@ -50,11 +50,6 @@ public:
 	virtual std::string GetName() const;
 	virtual std::string GetText() const;
 
-#ifdef WITH_PYTHON
-	PyObject *GetCallbacks(CallbacksType type);
-	void SetCallbacks(CallbacksType type, PyObject *callbacks);
-#endif // WITH_PYTHON
-
 	RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo,
 			RAS_Texture *const textures[RAS_Texture::MaxUnits]) const;
 
@@ -69,10 +64,10 @@ public:
 	// Python interface
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_callbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_callbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	bool pyattr_get_enabled();
+	void pyattr_set_enabled(bool value);
+	PyObject *pyattr_get_callbacks(const EXP_Attribute *attrdef);
+	bool pyattr_set_callbacks(PyObject *value, const EXP_Attribute *attrdef);
 
 	// -----------------------------------
 	EXP_PYMETHOD_DOC(BL_Shader, setSource);

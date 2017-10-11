@@ -337,8 +337,8 @@ PyMethodDef EXP_BaseListValue::Methods[] = {
 	{nullptr, nullptr} // Sentinel
 };
 
-PyAttributeDef EXP_BaseListValue::Attributes[] = {
-	EXP_PYATTRIBUTE_NULL // Sentinel
+EXP_Attribute EXP_BaseListValue::Attributes[] = {
+	EXP_ATTRIBUTE_NULL // Sentinel
 };
 
 PyObject *EXP_BaseListValue::Pyindex(PyObject *pykey)
@@ -438,10 +438,10 @@ PyObject *EXP_BaseListValue::Pyfrom_id(PyObject *value)
 		return nullptr;
 	}
 
-	int numelem = GetCount();
-	for (int i = 0; i < numelem; i++) {
-		if (reinterpret_cast<uintptr_t>(m_valueArray[i]->m_proxy) == id) {
-			return GetValue(i)->GetProxy();
+	for (EXP_Value *item : m_valueArray) {
+		PyObject *proxy = item->GetProxy();
+		if (reinterpret_cast<uintptr_t>(proxy) == id) {
+			return proxy;
 		}
 	}
 
