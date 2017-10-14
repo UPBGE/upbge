@@ -72,16 +72,6 @@ extern char datatoc_concentric_samples_lib_glsl[];
 
 /* *********** FUNCTIONS *********** */
 
-struct GPUShader *EEVEE_shadow_shader_get()
-{
-	return e_data.shadow_sh;
-}
-
-struct GPUShader *EEVEE_shadow_store_shader_get()
-{
-	return e_data.shadow_store_cube_sh[SHADOW_ESM];
-}
-
 void EEVEE_lights_init(EEVEE_SceneLayerData *sldata)
 {
 	const unsigned int shadow_ubo_size = sizeof(EEVEE_Shadow) * MAX_SHADOW +
@@ -1065,3 +1055,15 @@ void EEVEE_lights_free(void)
 		DRW_SHADER_FREE_SAFE(e_data.shadow_copy_cascade_sh[i]);
 	}
 }
+
+/******************Game engine********************/
+struct GPUShader *EEVEE_shadow_shader_get()
+{
+	return e_data.shadow_sh;
+}
+
+struct GPUShader *EEVEE_shadow_store_shader_get()
+{
+	return e_data.shadow_store_cube_sh[SHADOW_ESM];
+}
+/**************Enf of Game engine*****************/

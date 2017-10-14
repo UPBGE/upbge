@@ -225,11 +225,6 @@ typedef struct DRWFboTexture {
 void DRW_framebuffer_init(
         struct GPUFrameBuffer **fb, void *engine_type, int width, int height,
         DRWFboTexture textures[MAX_FBO_TEX], int textures_len);
-/*****************************GAME ENGINE***********************************/
-void DRW_framebuffer_init_bge(
-		struct GPUFrameBuffer **fb, void *engine_type, int width, int height,
-		DRWFboTexture textures[MAX_FBO_TEX], int textures_len);
-/**************************END OF GAME ENGINE*******************************/
 void DRW_framebuffer_bind(struct GPUFrameBuffer *fb);
 void DRW_framebuffer_clear(bool color, bool depth, bool stencil, float clear_col[4], float clear_depth);
 void DRW_framebuffer_read_data(int x, int y, int w, int h, int channels, int slot, float *data);
@@ -309,8 +304,6 @@ DRWShadingGroup *DRW_shgroup_instance_create(struct GPUShader *shader, DRWPass *
 DRWShadingGroup *DRW_shgroup_point_batch_create(struct GPUShader *shader, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_line_batch_create(struct GPUShader *shader, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_empty_tri_batch_create(struct GPUShader *shader, DRWPass *pass, int size);
-
-struct GPUShader *DRW_shgroup_shader_get(DRWShadingGroup *shgroup);
 
 typedef void (DRWCallGenerateFn)(
         DRWShadingGroup *shgroup,
@@ -401,8 +394,6 @@ int  DRW_object_is_mode_shade(const struct Object *ob);
 
 /* Draw commands */
 void DRW_draw_geometry_prepare(DRWShadingGroup *shgroup, const float (*obmat)[4], const float *texcoloc, const float *texcosize);
-void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup);
-void DRW_end_shgroup(void);
 void DRW_draw_pass(DRWPass *pass);
 void DRW_draw_pass_subset(DRWPass *pass, DRWShadingGroup *start_group, DRWShadingGroup *end_group);
 
@@ -414,9 +405,6 @@ void DRW_draw_callbacks_post_scene(void);
 int DRW_draw_region_engine_info_offset(void);
 void DRW_draw_region_engine_info(void);
 
-/* Game engine */
-void DRW_state_from_pass_set(DRWPass *pass);
-/* End of Game engine */
 void DRW_state_set(DRWState state);
 void DRW_state_reset_ex(DRWState state);
 void DRW_state_reset(void);
@@ -459,5 +447,15 @@ typedef struct DRWContextState {
 } DRWContextState;
 
 const DRWContextState *DRW_context_state_get(void);
+
+/*****************************GAME ENGINE***********************************/
+void DRW_framebuffer_init_bge(
+	struct GPUFrameBuffer **fb, void *engine_type, int width, int height,
+	DRWFboTexture textures[MAX_FBO_TEX], int textures_len);
+struct GPUShader *DRW_shgroup_shader_get(DRWShadingGroup *shgroup);
+void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup);
+void DRW_end_shgroup(void);
+void DRW_state_from_pass_set(DRWPass *pass);
+/**************************END OF GAME ENGINE*******************************/
 
 #endif /* __DRW_RENDER_H__ */

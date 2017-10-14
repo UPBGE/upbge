@@ -415,60 +415,6 @@ static void add_standard_uniforms(
 	}
 }
 
-void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
-	int *ssr_id, float *refract_depth, bool use_ssrefraction)
-{
-	if (ssr_id == NULL) { // WARNING HERE: For SSR eevee normally needs a valid vedata->stl->g_data->valid_double_buffer
-						  // but it is not valid yet when we add uniforms in BL_BlenderShader -> So we change this
-						  // condition: if (ssr_id == NULL || !vedata->stl->g_data->valid_double_buffer) {
-		static int no_ssr = -1.0f;
-		ssr_id = &no_ssr;
-	}
-	DRW_shgroup_uniform_block(shgrp, "probe_block", sldata->probe_ubo);
-	DRW_shgroup_uniform_block(shgrp, "grid_block", sldata->grid_ubo);
-	DRW_shgroup_uniform_block(shgrp, "planar_block", sldata->planar_ubo);
-	DRW_shgroup_uniform_block(shgrp, "light_block", sldata->light_ubo);
-	DRW_shgroup_uniform_block(shgrp, "shadow_block", sldata->shadow_ubo);
-	DRW_shgroup_uniform_int(shgrp, "light_count", &sldata->lamps->num_light, 1);
-	DRW_shgroup_uniform_int(shgrp, "probe_count", &sldata->probes->num_render_cube, 1);
-	DRW_shgroup_uniform_int(shgrp, "grid_count", &sldata->probes->num_render_grid, 1);
-	DRW_shgroup_uniform_int(shgrp, "planar_count", &sldata->probes->num_planar, 1);
-	DRW_shgroup_uniform_bool(shgrp, "specToggle", &sldata->probes->specular_toggle, 1);
-	DRW_shgroup_uniform_bool(shgrp, "ssrToggle", &sldata->probes->ssr_toggle, 1);
-	DRW_shgroup_uniform_float(shgrp, "lodCubeMax", &sldata->probes->lod_cube_max, 1);
-	DRW_shgroup_uniform_float(shgrp, "lodPlanarMax", &sldata->probes->lod_planar_max, 1);
-	DRW_shgroup_uniform_texture(shgrp, "utilTex", e_data.util_tex);
-	DRW_shgroup_uniform_buffer(shgrp, "probeCubes", &sldata->probe_pool);
-	DRW_shgroup_uniform_buffer(shgrp, "probePlanars", &vedata->txl->planar_pool);
-	DRW_shgroup_uniform_buffer(shgrp, "irradianceGrid", &sldata->irradiance_pool);
-	DRW_shgroup_uniform_buffer(shgrp, "shadowTexture", &sldata->shadow_pool);
-	DRW_shgroup_uniform_int(shgrp, "outputSsrId", ssr_id, 1);
-	DRW_shgroup_uniform_vec4(shgrp, "aoParameters[0]", &vedata->stl->effects->ao_dist, 2);
-	if (refract_depth != NULL) {
-		DRW_shgroup_uniform_float(shgrp, "refractionDepth", refract_depth, 1);
-	}
-	if (vedata->stl->effects->use_ao || use_ssrefraction) {
-		DRW_shgroup_uniform_vec4(shgrp, "viewvecs[0]", (float *)vedata->stl->g_data->viewvecs, 2);
-		DRW_shgroup_uniform_buffer(shgrp, "maxzBuffer", &vedata->txl->maxzbuffer);
-		DRW_shgroup_uniform_vec2(shgrp, "mipRatio[0]", (float *)vedata->stl->g_data->mip_ratio, 10);
-	}
-	if (use_ssrefraction) {
-		DRW_shgroup_uniform_buffer(shgrp, "colorBuffer", &vedata->txl->refract_color);
-		DRW_shgroup_uniform_vec4(shgrp, "ssrParameters", &vedata->stl->effects->ssr_quality, 1);
-		DRW_shgroup_uniform_float(shgrp, "borderFadeFactor", &vedata->stl->effects->ssr_border_fac, 1);
-		DRW_shgroup_uniform_float(shgrp, "maxRoughness", &vedata->stl->effects->ssr_max_roughness, 1);
-		DRW_shgroup_uniform_int(shgrp, "rayCount", &vedata->stl->effects->ssr_ray_count, 1);
-	}
-	if (vedata->stl->effects->use_ao) {
-		DRW_shgroup_uniform_buffer(shgrp, "horizonBuffer", &vedata->txl->gtao_horizons);
-		DRW_shgroup_uniform_ivec2(shgrp, "aoHorizonTexSize", (int *)vedata->stl->effects->ao_texsize, 1);
-	}
-	else {
-		/* Use shadow_pool as fallback to avoid sampling problem on certain platform, see: T52593 */
-		DRW_shgroup_uniform_buffer(shgrp, "horizonBuffer", &sldata->shadow_pool);
-	}
-}
-
 static void create_default_shader(int options)
 {
 	DynStr *ds_frag = BLI_dynstr_new();
@@ -800,25 +746,6 @@ struct GPUMaterial *EEVEE_material_hair_get(
 	MEM_freeN(defines);
 
 	return mat;
-}
-
-struct DRWShadingGroup *EEVEE_default_shading_group_get_no_pass(bool is_hair, bool is_flat_normal, bool use_blend, bool use_ssr, int shadow_method)
-{
-	static int ssr_id;
-	ssr_id = (use_ssr) ? 0 : -1;
-	int options = VAR_MAT_MESH;
-
-	if (is_hair) options |= VAR_MAT_HAIR;
-	if (is_flat_normal) options |= VAR_MAT_FLAT;
-	if (use_blend) options |= VAR_MAT_BLEND;
-
-	options |= eevee_material_shadow_option(shadow_method);
-
-	if (e_data.default_lit[options] == NULL) {
-		create_default_shader(options);
-	}
-
-	return DRW_shgroup_create(e_data.default_lit[options], NULL);
 }
 
 /**
@@ -1443,3 +1370,78 @@ void EEVEE_draw_default_passes(EEVEE_PassList *psl)
 		}
 	}
 }
+
+/*************************************Game engine************************************/
+struct DRWShadingGroup *EEVEE_default_shading_group_get_no_pass(bool is_hair, bool is_flat_normal, bool use_blend, bool use_ssr, int shadow_method)
+{
+	static int ssr_id;
+	ssr_id = (use_ssr) ? 0 : -1;
+	int options = VAR_MAT_MESH;
+
+	if (is_hair) options |= VAR_MAT_HAIR;
+	if (is_flat_normal) options |= VAR_MAT_FLAT;
+	if (use_blend) options |= VAR_MAT_BLEND;
+
+	options |= eevee_material_shadow_option(shadow_method);
+
+	if (e_data.default_lit[options] == NULL) {
+		create_default_shader(options);
+	}
+
+	return DRW_shgroup_create(e_data.default_lit[options], NULL);
+}
+
+void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
+	int *ssr_id, float *refract_depth, bool use_ssrefraction)
+{
+	if (ssr_id == NULL) { // WARNING HERE: For SSR eevee normally needs a valid vedata->stl->g_data->valid_double_buffer
+		// but it is not valid yet when we add uniforms in BL_BlenderShader -> So we change this
+		// condition: if (ssr_id == NULL || !vedata->stl->g_data->valid_double_buffer) {
+		static int no_ssr = -1.0f;
+		ssr_id = &no_ssr;
+	}
+	DRW_shgroup_uniform_block(shgrp, "probe_block", sldata->probe_ubo);
+	DRW_shgroup_uniform_block(shgrp, "grid_block", sldata->grid_ubo);
+	DRW_shgroup_uniform_block(shgrp, "planar_block", sldata->planar_ubo);
+	DRW_shgroup_uniform_block(shgrp, "light_block", sldata->light_ubo);
+	DRW_shgroup_uniform_block(shgrp, "shadow_block", sldata->shadow_ubo);
+	DRW_shgroup_uniform_int(shgrp, "light_count", &sldata->lamps->num_light, 1);
+	DRW_shgroup_uniform_int(shgrp, "probe_count", &sldata->probes->num_render_cube, 1);
+	DRW_shgroup_uniform_int(shgrp, "grid_count", &sldata->probes->num_render_grid, 1);
+	DRW_shgroup_uniform_int(shgrp, "planar_count", &sldata->probes->num_planar, 1);
+	DRW_shgroup_uniform_bool(shgrp, "specToggle", &sldata->probes->specular_toggle, 1);
+	DRW_shgroup_uniform_bool(shgrp, "ssrToggle", &sldata->probes->ssr_toggle, 1);
+	DRW_shgroup_uniform_float(shgrp, "lodCubeMax", &sldata->probes->lod_cube_max, 1);
+	DRW_shgroup_uniform_float(shgrp, "lodPlanarMax", &sldata->probes->lod_planar_max, 1);
+	DRW_shgroup_uniform_texture(shgrp, "utilTex", e_data.util_tex);
+	DRW_shgroup_uniform_buffer(shgrp, "probeCubes", &sldata->probe_pool);
+	DRW_shgroup_uniform_buffer(shgrp, "probePlanars", &vedata->txl->planar_pool);
+	DRW_shgroup_uniform_buffer(shgrp, "irradianceGrid", &sldata->irradiance_pool);
+	DRW_shgroup_uniform_buffer(shgrp, "shadowTexture", &sldata->shadow_pool);
+	DRW_shgroup_uniform_int(shgrp, "outputSsrId", ssr_id, 1);
+	DRW_shgroup_uniform_vec4(shgrp, "aoParameters[0]", &vedata->stl->effects->ao_dist, 2);
+	if (refract_depth != NULL) {
+		DRW_shgroup_uniform_float(shgrp, "refractionDepth", refract_depth, 1);
+	}
+	if (vedata->stl->effects->use_ao || use_ssrefraction) {
+		DRW_shgroup_uniform_vec4(shgrp, "viewvecs[0]", (float *)vedata->stl->g_data->viewvecs, 2);
+		DRW_shgroup_uniform_buffer(shgrp, "maxzBuffer", &vedata->txl->maxzbuffer);
+		DRW_shgroup_uniform_vec2(shgrp, "mipRatio[0]", (float *)vedata->stl->g_data->mip_ratio, 10);
+	}
+	if (use_ssrefraction) {
+		DRW_shgroup_uniform_buffer(shgrp, "colorBuffer", &vedata->txl->refract_color);
+		DRW_shgroup_uniform_vec4(shgrp, "ssrParameters", &vedata->stl->effects->ssr_quality, 1);
+		DRW_shgroup_uniform_float(shgrp, "borderFadeFactor", &vedata->stl->effects->ssr_border_fac, 1);
+		DRW_shgroup_uniform_float(shgrp, "maxRoughness", &vedata->stl->effects->ssr_max_roughness, 1);
+		DRW_shgroup_uniform_int(shgrp, "rayCount", &vedata->stl->effects->ssr_ray_count, 1);
+	}
+	if (vedata->stl->effects->use_ao) {
+		DRW_shgroup_uniform_buffer(shgrp, "horizonBuffer", &vedata->txl->gtao_horizons);
+		DRW_shgroup_uniform_ivec2(shgrp, "aoHorizonTexSize", (int *)vedata->stl->effects->ao_texsize, 1);
+	}
+	else {
+		/* Use shadow_pool as fallback to avoid sampling problem on certain platform, see: T52593 */
+		DRW_shgroup_uniform_buffer(shgrp, "horizonBuffer", &sldata->shadow_pool);
+	}
+}
+/**********************************End of Game engine************************************/

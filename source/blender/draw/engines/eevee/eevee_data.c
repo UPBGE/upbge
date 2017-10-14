@@ -91,12 +91,6 @@ EEVEE_SceneLayerData *EEVEE_scene_layer_data_get(void)
 	return *sldata;
 }
 
-EEVEE_Data *EEVEE_engine_data_get(void)
-{
-	EEVEE_Data *data = (EEVEE_Data *)DRW_viewport_engine_data_get(&draw_engine_eevee_type);
-	return data;
-}
-
 EEVEE_ObjectEngineData *EEVEE_object_data_get(Object *ob)
 {
 	EEVEE_ObjectEngineData **oedata = (EEVEE_ObjectEngineData **)DRW_object_engine_data_get(ob, &draw_engine_eevee_type, NULL);
@@ -131,3 +125,11 @@ EEVEE_LampEngineData *EEVEE_lamp_data_get(Object *ob)
 
 	return *ledata;
 }
+
+/********************Game engine*************************/
+EEVEE_Data *EEVEE_engine_data_get(void)
+{
+	EEVEE_Data *data = (EEVEE_Data *)DRW_viewport_engine_data_get(&draw_engine_eevee_type);
+	return data;
+}
+/*****************End of Game engine*********************/
