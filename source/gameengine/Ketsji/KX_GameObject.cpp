@@ -89,7 +89,7 @@
 // This file defines relationships between parents and children
 // in the game engine.
 
-#include "KX_SG_NodeRelationships.h"
+#include "KX_NodeRelationships.h"
 
 #include "BLI_math.h"
 

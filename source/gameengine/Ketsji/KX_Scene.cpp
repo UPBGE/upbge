@@ -78,7 +78,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_property_types.h"
 
-#include "KX_SG_NodeRelationships.h"
+#include "KX_NodeRelationships.h"
 
 #include "KX_NetworkMessageScene.h"
 #include "PHY_IPhysicsEnvironment.h"
