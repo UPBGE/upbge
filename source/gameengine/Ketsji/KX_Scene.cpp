@@ -101,6 +101,9 @@
 #include "CM_Message.h"
 #include "CM_List.h"
 
+#include "tbb/parallel_for.h"
+#include "tbb/partitioner.h"
+
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
 	KX_GameObject *replica = ((KX_Scene *)scene)->AddNodeReplicaObject(node, (KX_GameObject *)gameobj);
@@ -191,8 +194,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_bucketmanager = new RAS_BucketManager(KX_TextMaterial::GetSingleton());
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
 
-	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
-
 #ifdef WITH_PYTHON
 	m_attrDict = nullptr;
 	m_removeCallbacks = nullptr;
@@ -218,10 +219,6 @@ KX_Scene::~KX_Scene()
 
 	if (m_obstacleSimulation) {
 		delete m_obstacleSimulation;
-	}
-
-	if (m_animationPool) {
-		BLI_task_pool_free(m_animationPool);
 	}
 
 	if (m_objectlist) {
@@ -526,7 +523,7 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 		}
 		case SCA_IObject::OBJ_ARMATURE:
 		{
-			AddAnimatedObject(newobj);
+			m_armatureList.push_back(static_cast<BL_ArmatureObject *>(newobj));
 			break;
 		}
 	}
@@ -1032,6 +1029,7 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 
 	// WARNING: 'gameobj' maybe be freed now, only compare, don't access.
 	CM_ListRemoveIfFound(m_animatedlist, gameobj);
+	CM_ListRemoveIfFound(m_armatureList, gameobj);
 	CM_ListRemoveIfFound(m_euthanasyobjects, gameobj);
 	CM_ListRemoveIfFound(m_tempObjectList, gameobj);
 
@@ -1261,92 +1259,205 @@ void KX_Scene::AddAnimatedObject(KX_GameObject *gameobj)
 	CM_ListAddIfNotFound(m_animatedlist, gameobj);
 }
 
-static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
+void KX_Scene::AddArmature(BL_ArmatureObject *armature)
 {
-	KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData *)BLI_task_pool_userdata(pool);
-	double curtime = data->curtime;
-
-	KX_GameObject *gameobj = (KX_GameObject *)taskdata;
-
-	// Non-armature updates are fast enough, so just update them
-	bool needs_update = gameobj->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE;
-
-	if (!needs_update) {
-		// If we got here, we're looking to update an armature, so check its children meshes
-		// to see if we need to bother with a more expensive pose update
-		const std::vector<KX_GameObject *> children = gameobj->GetChildren();
-
-		bool has_mesh = false, has_non_mesh = false;
-
-		// Check for meshes that haven't been culled
-		for (KX_GameObject *child : children) {
-			if (!child->GetCullingNode().GetCulled()) {
-				needs_update = true;
-				break;
-			}
-
-			if (child->GetMeshList().empty()) {
-				has_non_mesh = true;
-			}
-			else {
-				has_mesh = true;
-			}
-		}
-
-		// If we didn't find a non-culled mesh, check to see
-		// if we even have any meshes, and update if this
-		// armature has only non-mesh children.
-		if (!needs_update && !has_mesh && has_non_mesh) {
-			needs_update = true;
-		}
-	}
-
-	// If the object is a culled armature, then we manage only the animation time and end of its animations.
-	gameobj->UpdateActionManager(curtime, needs_update);
-
-	if (needs_update) {
-		const std::vector<KX_GameObject *> children = gameobj->GetChildren();
-		KX_GameObject *parent = gameobj->GetParent();
-
-		// Only do deformers here if they are not parented to an armature, otherwise the armature will
-		// handle updating its children
-		if (gameobj->GetDeformer() && (!parent || parent->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE)) {
-			gameobj->GetDeformer()->Update();
-		}
-
-		for (KX_GameObject *child : children) {
-			if (child->GetDeformer()) {
-				child->GetDeformer()->Update();
-			}
-		}
-	}
+	m_armatureList.push_back(armature);
 }
+
+struct AnimationTask
+{
+	std::vector<KX_GameObject *> m_animatedObjects;
+	double m_curtime;
+	bool m_redundant;
+
+	AnimationTask(const std::vector<KX_GameObject *>& animatedObjects, double curtime, bool redundant)
+		:m_curtime(curtime),
+		m_redundant(redundant)
+	{
+		m_animatedObjects.reserve(animatedObjects.size());
+		for (KX_GameObject *gameobj : animatedObjects) {
+			if (!gameobj->IsActionsSuspended()) {
+				m_animatedObjects.push_back(gameobj);
+			}
+		}
+	}
+
+	unsigned int Size() const
+	{
+		return m_animatedObjects.size();
+	}
+
+	void operator()(const tbb::blocked_range<size_t>& range) const
+	{
+		for (unsigned int i = range.begin(), end = range.end(); i < end; ++i) {
+			KX_GameObject *gameobj = m_animatedObjects[i];
+			// Non-armature updates are fast enough, so just update them
+			bool needs_update = gameobj->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE;
+
+			if (!needs_update) {
+				/* If we got here, we're looking to update an armature, so check its children meshes
+				 * to see if we need to bother with a more expensive pose update. */
+
+				bool has_mesh = false, has_non_mesh = false;
+
+				// Check for meshes that haven't been culled
+				for (SG_Node *childNode : gameobj->GetNode()->GetChildren()) {
+					// Skip inverse parent nodes.
+					while (!childNode->GetClientObject()) {
+						const NodeList& children = childNode->GetChildren();
+						if (children.empty()) {
+							childNode = nullptr;
+							break;
+						}
+						childNode = children.front();
+					}
+					if (!childNode) {
+						continue;
+					}
+
+					KX_GameObject *child = static_cast<KX_GameObject *>(childNode->GetClientObject());
+
+					if (!child->GetCullingNode().GetCulled()) {
+						needs_update = true;
+						break;
+					}
+
+					if (child->GetMeshList().empty()) {
+						has_non_mesh = true;
+					}
+					else {
+						has_mesh = true;
+					}
+				}
+
+				/* If we didn't find a non-culled mesh, check to see
+				 * if we even have any meshes, and update if this
+				 * armature has only non-mesh children. */
+				if (!needs_update && !has_mesh && has_non_mesh) {
+					needs_update = true;
+				}
+			}
+
+			// If the object is a culled armature, then we manage only the animation time and end of its animations.
+			gameobj->UpdateActionManager(m_curtime, needs_update, m_redundant);
+		}
+	}
+};
+
+struct ArmatureTask
+{
+	std::vector<BL_ArmatureObject *> m_armatures;
+
+	ArmatureTask() = default;
+
+	ArmatureTask(const std::vector<BL_ArmatureObject *>& armatures)
+	{
+		m_armatures.reserve(armatures.size());
+		for (BL_ArmatureObject *armature : armatures) {
+			if (armature->NeedApplyPose()) {
+				m_armatures.push_back(armature);
+			}
+		}
+	}
+
+	unsigned int Size() const
+	{
+		return m_armatures.size();
+	}
+
+	void operator()(const tbb::blocked_range<size_t>& range) const
+	{
+		for (unsigned int i = range.begin(), end = range.end(); i < end; ++i) {
+			m_armatures[i]->ApplyPose();
+		}
+	}
+};
+
+struct DeformerTask
+{
+	struct Deformer
+	{
+		unsigned short reason;
+		RAS_Deformer *deformer;
+	};
+
+	std::vector<Deformer> m_deformers;
+
+	DeformerTask() = default;
+
+	DeformerTask(EXP_ListValue<KX_GameObject> *objects)
+	{
+		m_deformers.reserve(objects->GetCount());
+		for (KX_GameObject *gameobj : objects) {
+			RAS_Deformer *deformer = gameobj->GetDeformer();
+			if (!deformer) {
+				continue;
+			}
+			const unsigned short reason = deformer->NeedUpdate();
+			if (reason != 0) {
+				m_deformers.push_back({reason, deformer});
+			}
+		}
+	}
+
+	unsigned int Size() const
+	{
+		return m_deformers.size();
+	}
+
+	void operator()(const tbb::blocked_range<size_t>& range) const
+	{
+		for (unsigned int i = range.begin(), end = range.end(); i < end; ++i) {
+			const Deformer &deformer = m_deformers[i];
+			deformer.deformer->Update(deformer.reason);
+		}
+	}
+};
 
 void KX_Scene::UpdateAnimations(double curtime, bool restrict)
 {
-	if (restrict) {
+	const double animTime = curtime - m_suspendedDelta;
+	const bool redundant = (animTime == m_previousAnimTime);
+
+	// Don't restrict redundant updates.
+	if (!redundant && restrict) {
 		const double animTimeStep = 1.0 / m_blenderScene->r.frs_sec;
 
-		/* Don't update if the time step is too small and if we are not asking for redundant
-		 * updates like for different culling passes. */
-		if ((curtime - m_previousAnimTime) < animTimeStep && curtime != m_previousAnimTime) {
+		// Don't update if the time step is too small.
+		if ((animTime - m_previousAnimTime) < animTimeStep) {
 			return;
 		}
 
 		// Sanity/debug print to make sure we're actually going at the fps we want (should be close to animTimeStep)
-		// CM_Debug("Anim fps: " << 1.0 / (curtime - m_previousAnimTime));
-		m_previousAnimTime = curtime;
+		// CM_Debug("Anim fps: " << 1.0 / (animTime - m_previousAnimTime));
 	}
 
-	m_animationPoolData.curtime = curtime;
+	m_previousAnimTime = animTime;
 
-	for (KX_GameObject *gameobj : m_animatedlist) {
-		if (!gameobj->IsActionsSuspended()) {
-			BLI_task_pool_push(m_animationPool, update_anim_thread_func, gameobj, false, TASK_PRIORITY_LOW);
+	/* Process animations in 3 stages :
+	 * - Update actions
+	 * - Update armature poses
+	 * - Update deformers
+	 */
+
+	if (!m_animatedlist.empty()) {
+		AnimationTask animationTask(m_animatedlist, animTime, redundant);
+		if (animationTask.Size()) {
+			tbb::parallel_for(tbb::blocked_range<size_t>(0, animationTask.Size()), animationTask);
 		}
 	}
 
-	BLI_task_pool_work_and_wait(m_animationPool);
+	if (!m_armatureList.empty()) {
+		ArmatureTask armatureTask(m_armatureList);
+		if (armatureTask.Size() > 0) {
+			tbb::parallel_for(tbb::blocked_range<size_t>(0, armatureTask.Size()), armatureTask);
+		}
+	}
+
+	DeformerTask deformTask(m_objectlist);
+	if (deformTask.Size() > 0) {
+		tbb::parallel_for(tbb::blocked_range<size_t>(0, deformTask.Size()), deformTask, tbb::static_partitioner());
+	}
 }
 
 void KX_Scene::LogicUpdateFrame(double curtime)

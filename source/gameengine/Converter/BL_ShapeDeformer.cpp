@@ -121,26 +121,27 @@ bool BL_ShapeDeformer::LoadShapeDrivers(KX_GameObject *parent)
 
 bool BL_ShapeDeformer::ExecuteShapeDrivers()
 {
-	if (m_useShapeDrivers && PoseUpdated()) {
+	if (m_useShapeDrivers) {
 		// We don't need an actual time, just use 0
 		BKE_animsys_evaluate_animdata(nullptr, &m_key->id, m_key->adt, 0.f, ADT_RECALC_DRIVERS);
 
-		ForceUpdate();
 		m_bDynamic = true;
 		return true;
 	}
 	return false;
 }
 
-bool BL_ShapeDeformer::Update()
+void BL_ShapeDeformer::Update(unsigned short reason)
 {
-	bool bShapeUpdate = false;
-	bool bSkinUpdate = false;
+	bool shapeUpdate = (reason & UPDATE_SHAPE);
+	bool skinUpdate = (reason & UPDATE_SKIN);
 
-	ExecuteShapeDrivers();
+	if (ExecuteShapeDrivers()) {
+		shapeUpdate = true;
+	}
 
 	/* See if the object shape has changed */
-	if (m_lastShapeUpdate != m_lastFrame) {
+	if (shapeUpdate) {
 		/* the key coefficient have been set already, we just need to blend the keys */
 		Object *blendobj = m_gameobj->GetBlenderObject();
 
@@ -169,20 +170,20 @@ bool BL_ShapeDeformer::Update()
 
 		// As we have changed, the mesh, the skin deformer must update as well.
 		// This will force the update
-		BL_SkinDeformer::ForceUpdate();
-		bShapeUpdate = true;
+		skinUpdate = (m_armobj != nullptr);
 	}
 	// check for armature deform
-	bSkinUpdate = BL_SkinDeformer::UpdateInternal(bShapeUpdate && m_bDynamic);
-
-	// non dynamic deformer = Modifer without armature and shape keys, no need to create storage
-	if (!bSkinUpdate && bShapeUpdate && m_bDynamic) {
-		// We also need to handle transverts now (used to be in BL_SkinDeformer::Apply())
-		UpdateTransverts();
-		bSkinUpdate = true;
+	if (skinUpdate) {
+		BL_SkinDeformer::UpdateInternal(shapeUpdate && m_bDynamic);
 	}
+	else if (shapeUpdate && m_bDynamic) {
+		UpdateTransverts();
+	}
+}
 
-	return bSkinUpdate;
+unsigned short BL_ShapeDeformer::NeedUpdate() const
+{
+	return (((m_lastShapeUpdate != m_lastFrame) ? UPDATE_SHAPE : 0) | BL_SkinDeformer::NeedUpdate());
 }
 
 Key *BL_ShapeDeformer::GetKey()

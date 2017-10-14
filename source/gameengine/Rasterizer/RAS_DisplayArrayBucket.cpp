@@ -135,10 +135,6 @@ bool RAS_DisplayArrayBucket::UseBatching() const
 
 void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode)
 {
-	if (m_deformer) {
-		m_deformer->Apply(m_displayArray);
-	}
-
 	if (m_displayArray) {
 		const unsigned int modifiedFlag = m_arrayUpdateClient.GetInvalidAndClear();
 		if (modifiedFlag != RAS_DisplayArray::NONE_MODIFIED) {

@@ -43,7 +43,6 @@ set(INC_SYS
 set(SRC
 	CM_Clock.cpp
 	CM_Message.cpp
-	CM_Thread.cpp
 
 	CM_Clock.h
 	CM_Format.h
@@ -51,7 +50,6 @@ set(SRC
 	CM_Message.h
 	CM_RefCount.h
 	CM_Template.h
-	CM_Thread.h
 	CM_Update.h
 )
 

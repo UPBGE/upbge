@@ -53,9 +53,13 @@ public:
 
 	void InitializeDisplayArrays();
 
-	virtual void Apply(RAS_DisplayArray *array) = 0;
-	virtual bool Update(void)=0;
-	virtual void UpdateBuckets(void)=0;
+	/// Update the deformer with the reason get from NeedUpdate. 
+	virtual void Update(unsigned short reason) = 0;
+	/** Return non-zero value if the deformer needs an update,
+	 * the return values is the reason of the update and is passed to
+	 * Update()
+	 */
+	virtual unsigned short NeedUpdate() const = 0;
 
 	// true when deformer produces varying vertex (shape or armature)
 	bool IsDynamic()

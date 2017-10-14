@@ -43,28 +43,13 @@ class KX_GameObject;
 class KX_SoftBodyDeformer : public RAS_Deformer
 {
 	KX_GameObject *m_gameobj;
-	/** Set to true to request an AABB update in Apply(mat).
-	 * Used to compute a fully AABB and not for only one material.
-	 */
-	bool m_needUpdateAabb;
 
 public:
 	KX_SoftBodyDeformer(RAS_Mesh *pMeshObject, KX_GameObject *gameobj);
 	virtual ~KX_SoftBodyDeformer();
 
-	virtual void Apply(RAS_DisplayArray *array);
-	virtual bool Update()
-	{
-		m_bDynamic = true;
-		return true;
-	}
-	virtual void UpdateBuckets()
-	{
-		// invalidate the AABB for each read acces.
-		m_needUpdateAabb = true;
-		// this is to update the mesh slots outside the rasterizer,
-		// no need to do it for this deformer, it's done in any case in Apply()
-	}
+	virtual void Update(unsigned short reason);
+	virtual unsigned short NeedUpdate() const;
 
 	virtual bool SkipVertexTransform()
 	{

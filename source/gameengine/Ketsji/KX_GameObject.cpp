@@ -499,12 +499,13 @@ bool KX_GameObject::IsActionDone(short layer)
 
 bool KX_GameObject::IsActionsSuspended()
 {
-	return GetActionManager()->IsSuspended();
+	// This function is called onyl when updating the animation, don't try to create an action manager.
+	return m_actionManager->IsSuspended();
 }
 
-void KX_GameObject::UpdateActionManager(float curtime, bool applyToObject)
+void KX_GameObject::UpdateActionManager(float curtime, bool applyToObject, bool redundant)
 {
-	GetActionManager()->Update(curtime, applyToObject);
+	m_actionManager->Update(curtime, applyToObject, redundant);
 }
 
 float KX_GameObject::GetActionFrame(short layer)
@@ -1371,15 +1372,6 @@ void KX_GameObject::UpdateBounds(bool force)
 	RAS_BoundingBox *boundingBox = m_meshUser->GetBoundingBox();
 	if (!boundingBox || (!boundingBox->GetModified() && !force)) {
 		return;
-	}
-
-	RAS_Deformer *deformer = GetDeformer();
-	if (deformer) {
-		/** Update all the deformer, not only per material.
-		 * One of the side effect is to clear some flags about AABB calculation.
-		 * like in KX_SoftBodyDeformer.
-		 */
-		deformer->UpdateBuckets();
 	}
 
 	// AABB Box : min/max.

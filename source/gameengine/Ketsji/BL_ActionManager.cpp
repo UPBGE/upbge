@@ -164,10 +164,10 @@ bool BL_ActionManager::IsSuspended() const
 	return m_suspended;
 }
 
-void BL_ActionManager::Update(float curtime, bool applyToObject)
+void BL_ActionManager::Update(float curtime, bool applyToObject, bool redundant)
 {
 	for (const auto& pair : m_layers) {
-		pair.second->Update(curtime, applyToObject);
+		pair.second->Update(curtime, applyToObject, redundant);
 	}
 
 	for (const auto& pair : m_layers) {

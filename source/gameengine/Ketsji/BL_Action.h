@@ -115,8 +115,9 @@ public:
 	 * \param curtime The current time used to compute the action's' frame.
 	 * \param applyToObject Set to true when the action must be applied to the object,
 	 * else it only manages action's' time/end.
+	 * \param redundant True if the action is update twice with the same current time.
 	 */
-	void Update(float curtime, bool applyToObject);
+	void Update(float curtime, bool applyToObject, bool redundant);
 	/**
 	 * Update object IPOs (note: not thread-safe!)
 	 */

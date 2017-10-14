@@ -59,7 +59,6 @@ extern "C" {
 	#include "BKE_deform.h"
 }
 
-
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 
@@ -99,21 +98,6 @@ BL_SkinDeformer::BL_SkinDeformer(KX_GameObject *gameobj,
 
 BL_SkinDeformer::~BL_SkinDeformer()
 {
-}
-
-void BL_SkinDeformer::Apply(RAS_DisplayArray *array)
-{
-	for (DisplayArraySlot& slot : m_slots) {
-		if (slot.m_displayArray == array) {
-			const short modifiedFlag = slot.m_arrayUpdateClient.GetInvalidAndClear();
-			if (modifiedFlag != RAS_DisplayArray::NONE_MODIFIED) {
-				/// Update vertex data from the original mesh.
-				array->UpdateFrom(slot.m_origDisplayArray, modifiedFlag);
-			}
-
-			break;
-		}
-	}
 }
 
 void BL_SkinDeformer::BlenderDeformVerts()
@@ -226,12 +210,6 @@ void BL_SkinDeformer::UpdateTransverts()
 		return;
 	}
 
-	// AABB Box : min/max.
-	mt::vec3 aabbMin(FLT_MAX);
-	mt::vec3 aabbMax(-FLT_MAX);
-
-	const bool autoUpdate = m_gameobj->GetAutoUpdateBounds();
-
 	// the vertex cache is unique to this deformer, no need to update it
 	// if it wasn't updated! We must update all the materials at once
 	// because we will not get here again for the other material
@@ -241,13 +219,7 @@ void BL_SkinDeformer::UpdateTransverts()
 		// copy the untransformed data from the original mvert
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
-			const mt::vec3 pos = mt::vec3(m_transverts[vinfo.GetOrigIndex()]);
-			array->SetPosition(i, pos);
-
-			if (autoUpdate) {
-				aabbMin = mt::vec3::Min(aabbMin, pos);
-				aabbMax = mt::vec3::Max(aabbMax, pos);
-			}
+			array->SetPosition(i, m_transverts[vinfo.GetOrigIndex()]);
 		}
 		if (m_copyNormals) {
 			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
@@ -259,47 +231,66 @@ void BL_SkinDeformer::UpdateTransverts()
 		array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED | RAS_DisplayArray::NORMAL_MODIFIED);
 	}
 
-	m_boundingBox->SetAabb(aabbMin, aabbMax);
+	if (m_gameobj->GetAutoUpdateBounds()) {
+		// AABB Box : min/max.
+		mt::vec3 aabbMin(FLT_MAX);
+		mt::vec3 aabbMax(-FLT_MAX);
+
+		for (const mt::vec3_packed& pos : m_transverts) {
+			const mt::vec3 vertpos(pos);
+			aabbMin = mt::vec3::Min(aabbMin, vertpos);
+			aabbMax = mt::vec3::Max(aabbMax, vertpos);
+		}
+
+		m_boundingBox->SetAabb(aabbMin, aabbMax);
+	}
 
 	if (m_copyNormals) {
 		m_copyNormals = false;
 	}
 }
 
-bool BL_SkinDeformer::UpdateInternal(bool shape_applied)
+void BL_SkinDeformer::UpdateDisplayArrays()
 {
-	/* See if the armature has been updated for this frame */
-	if (PoseUpdated()) {
-		if (!shape_applied) {
-			/* store verts locally */
-			VerifyStorage();
+	for (DisplayArraySlot& slot : m_slots) {
+		const short modifiedFlag = slot.m_arrayUpdateClient.GetInvalidAndClear() &
+				~(RAS_DisplayArray::POSITION_MODIFIED | RAS_DisplayArray::NORMAL_MODIFIED);
+		if (modifiedFlag != RAS_DisplayArray::NONE_MODIFIED) {
+			/// Update vertex data from the original mesh.
+			slot.m_displayArray->UpdateFrom(slot.m_origDisplayArray, modifiedFlag);
 		}
-
-		m_armobj->ApplyPose();
-
-		if (m_armobj->GetVertDeformType() == ARM_VDEF_BGE_CPU) {
-			BGEDeformVerts();
-		}
-		else {
-			BlenderDeformVerts();
-		}
-
-		/* Update the current frame */
-		m_lastArmaUpdate = m_armobj->GetLastFrame();
-
-		/* dynamic vertex, cannot use display list */
-		m_bDynamic = true;
-
-		UpdateTransverts();
-
-		/* indicate that the m_transverts and normals are up to date */
-		return true;
 	}
-
-	return false;
 }
 
-bool BL_SkinDeformer::Update(void)
+void BL_SkinDeformer::UpdateInternal(bool shape_applied)
 {
-	return UpdateInternal(false);
+	if (!shape_applied) {
+		/* store verts locally */
+		VerifyStorage();
+	}
+
+	if (m_armobj->GetVertDeformType() == ARM_VDEF_BGE_CPU) {
+		BGEDeformVerts();
+	}
+	else {
+		BlenderDeformVerts();
+	}
+
+	/* Update the current frame */
+	m_lastArmaUpdate = m_armobj->GetLastFrame();
+
+	UpdateTransverts();
+
+	UpdateDisplayArrays();
+}
+
+void BL_SkinDeformer::Update(unsigned short reason)
+{
+	UpdateInternal(false);
+}
+
+unsigned short BL_SkinDeformer::NeedUpdate() const
+{
+	// See if the armature has been updated for this frame.
+	return (((m_armobj && m_lastArmaUpdate != m_armobj->GetLastFrame()) ? UPDATE_SKIN : 0) | BL_MeshDeformer::NeedUpdate());
 }
