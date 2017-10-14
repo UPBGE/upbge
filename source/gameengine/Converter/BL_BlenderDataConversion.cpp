@@ -1226,6 +1226,7 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter& converter,
 	logicmgr->RegisterGameObjectName(gameobj->GetName(), gameobj);
 
 	// Needed for group duplication.
+	logicmgr->RegisterGameObj(blenderobject, gameobj);
 	for (RAS_MeshObject *meshobj : gameobj->GetMeshList()) {
 		logicmgr->RegisterGameMeshName(meshobj->GetName(), blenderobject);
 	}
