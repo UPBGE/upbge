@@ -485,8 +485,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(SG_Node* node, KX_GameObject *game
 		m_rootnode->SetLocalOrientation(orgnode->GetLocalOrientation());
 
 		// define the relationship between this node and it's parent.
-		KX_NormalParentRelation * parent_relation = 
-			KX_NormalParentRelation::New();
+		KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
 		m_rootnode->SetParentRelation(parent_relation);
 
 		newobj->SetSGNode(m_rootnode);

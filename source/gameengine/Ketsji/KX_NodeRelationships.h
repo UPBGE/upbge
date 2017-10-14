@@ -23,183 +23,60 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * 
+ *
  */
- 
+
 /** \file KX_NodeRelationships.h
  *  \ingroup ketsji
- *  \section KX_NodeRelationships   
- * This file provides common concrete implementations of 
+ *  \section KX_NodeRelationships
+ * This file provides common concrete implementations of
  * SG_ParentRelation used by the game engine. These are
  * KX_SlowParentRelation a slow parent relationship.
- * KX_NormalParentRelation a normal parent relationship where 
+ * KX_NormalParentRelation a normal parent relationship where
  * orientation and position are inherited from the parent by
  * the child.
- * KX_VertexParentRelation only location information is 
- * inherited by the child. 
+ * KX_VertexParentRelation only location information is
+ * inherited by the child.
  */
 
 #ifndef __KX_NODERELATIONSHIPS_H__
 #define __KX_NODERELATIONSHIPS_H__
 
-#include "SG_Node.h"
 #include "SG_ParentRelation.h"
 
 class KX_NormalParentRelation : public SG_ParentRelation
 {
+public:
+	KX_NormalParentRelation();
+	virtual ~KX_NormalParentRelation();
 
-public :
-	/**
-	 * Allocate and construct a new KX_NormalParentRelation
-	 * on the heap.
-	 */
+	/// Method inherited from KX_ParentRelation.
+	virtual bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated);
 
-	static 
-		KX_NormalParentRelation *
-	New(
-	);
-
-	/** 
-	 * Method inherited from KX_ParentRelation
-	 */
-
-		bool
-	UpdateChildCoordinates(
-		SG_Node * child,
-		const SG_Node * parent,
-		bool& parentUpdated
-	);
-
-	/** 
-	 * Method inherited from KX_ParentRelation
-	 */
-	
-		SG_ParentRelation *
-	NewCopy(
-	);
-
-	~KX_NormalParentRelation(
-	);
-
-private :
-
-	KX_NormalParentRelation(
-	);
+	/// Method inherited from KX_ParentRelation.
+	virtual SG_ParentRelation *NewCopy();
 };
-
 
 class KX_VertexParentRelation : public SG_ParentRelation
 {
+public:
+	KX_VertexParentRelation();
+	virtual ~KX_VertexParentRelation();
 
-public :
+	/// Method inherited from KX_ParentRelation.
+	virtual bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated);
 
-	/**
-	 * Allocate and construct a new KX_VertexParentRelation
-	 * on the heap.
-	 */
+	/// Method inherited from KX_ParentRelation.
+	virtual SG_ParentRelation *NewCopy();
 
-	static 
-		KX_VertexParentRelation *
-	New(
-	);
-
-	/** 
-	 * Method inherited from KX_ParentRelation
-	 */
-
-		bool
-	UpdateChildCoordinates(
-		SG_Node * child,
-		const SG_Node * parent,
-		bool& parentUpdated
-	);
-
-	/** 
-	 * Method inherited from KX_ParentRelation
-	 */
-	
-		SG_ParentRelation *
-	NewCopy(
-	);
-
-	~KX_VertexParentRelation(
-	);
-
-		bool
-	IsVertexRelation(
-	) { 
-		return true;
-	}
-
-private :
-
-	KX_VertexParentRelation(
-	);
+	virtual bool IsVertexRelation();
 };
-
 
 class KX_SlowParentRelation : public SG_ParentRelation
 {
-
-public :
-
-	/**
-	 * Allocate and construct a new KX_VertexParentRelation
-	 * on the heap.
-	 */
-
-	static 
-		KX_SlowParentRelation *
-	New(
-		MT_Scalar relaxation
-	);
-
-	/** 
-	 * Method inherited from KX_ParentRelation
-	 */
-
-		bool
-	UpdateChildCoordinates(
-		SG_Node * child,
-		const SG_Node * parent,
-		bool& parentUpdated
-	);
-
-	/** 
-	 * Method inherited from KX_ParentRelation
-	 */
-	
-		SG_ParentRelation *
-	NewCopy(
-	);
-
-		MT_Scalar
-	GetTimeOffset(
-	) { return m_relax; }
-	
-		void
-	SetTimeOffset(
-		MT_Scalar relaxation
-	) { m_relax = relaxation; }
-
-	~KX_SlowParentRelation(
-	);
-	
-		bool
-	IsSlowRelation(
-	) { 
-		return true;
-	}
-
-private :
-
-	KX_SlowParentRelation(
-		MT_Scalar relaxation
-	);
-
-	// the relaxation coefficient.
-
-	MT_Scalar m_relax;
+private:
+	/// The relaxation coefficient.
+	float m_relax;
 
 	/**
 	 * Looks like a hack flag to me.
@@ -207,10 +84,24 @@ private :
 	 * time we update spatial data of the child. This is done
 	 * by just doing a normal parent relation the first time
 	 * UpdateChildCoordinates is called and then doing the
-	 * slow parent relation 
+	 * slow parent relation
 	 */
-
 	bool m_initialized;
+
+public:
+	KX_SlowParentRelation(float relaxation);
+	virtual ~KX_SlowParentRelation();
+
+	/// Method inherited from KX_ParentRelation.
+	virtual bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated);
+
+	/// Method inherited from KX_ParentRelation.
+	virtual SG_ParentRelation *NewCopy();
+
+	float GetTimeOffset();
+	void SetTimeOffset(float relaxation);
+
+	virtual bool IsSlowRelation();
 };
 
-#endif
+#endif  // __KX_NODERELATIONSHIPS_H__

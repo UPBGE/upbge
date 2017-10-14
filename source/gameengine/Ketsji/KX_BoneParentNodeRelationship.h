@@ -23,7 +23,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * 
+ *
  */
 
 /** \file KX_BoneParentNodeRelationship.h
@@ -32,32 +32,23 @@
 
 #ifndef __KX_BONEPARENTNODERELATIONSHIP_H__
 #define __KX_BONEPARENTNODERELATIONSHIP_H__
- 
-#include "SG_Node.h"
+
 #include "SG_ParentRelation.h"
 
 struct Bone;
 
 /**
- *  Bone parent relationship parents a child SG_Node frame to a 
+ *  Bone parent relationship parents a child SG_Node frame to a
  *  bone in an armature object.
  */
 class KX_BoneParentRelation : public SG_ParentRelation
 {
+private:
+	Bone *m_bone;
 
-public :
-	/**
-	 * Allocate and construct a new KX_BoneParentRelation
-	 * on the heap.
-	 *
-	 * bone is the bone id to use.  Currently it is a pointer
-	 * to a Blender struct Bone - this should be fixed if
-	 */
-
-	static 
-		KX_BoneParentRelation *
-	New(Bone* bone
-	);
+public:
+	KX_BoneParentRelation(Bone *bone);
+	virtual ~KX_BoneParentRelation();
 
 	/**
 	 *  Updates the childs world coordinates relative to the parent's
@@ -65,27 +56,10 @@ public :
 	 *
 	 *  Parent should be a BL_ArmatureObject.
 	 */
-		bool
-	UpdateChildCoordinates(
-		SG_Node * child,
-		const SG_Node * parent,
-		bool& parentUpdated
-	);
+	virtual bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated);
 
-	/**
-	 *  Create a copy of this relationship
-	 */
-		SG_ParentRelation *
-	NewCopy(
-	);
-
-	~KX_BoneParentRelation(
-	);
-
-private :
-	Bone* m_bone;
-	KX_BoneParentRelation(Bone* bone
-	);
+	/// Create a copy of this relationship.
+	virtual SG_ParentRelation *NewCopy();
 };
 
-#endif
+#endif  // __KX_BONEPARENTNODERELATIONSHIP_H__

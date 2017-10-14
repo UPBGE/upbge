@@ -1184,7 +1184,7 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter& converter,
 		SG_Node *parentinversenode = new SG_Node(nullptr, kxscene, callback);
 
 		// Define a normal parent relationship for this node.
-		KX_NormalParentRelation *parent_relation = KX_NormalParentRelation::New();
+		KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
 		parentinversenode->SetParentRelation(parent_relation);
 
 		BL_ParentChildLink pclink;
@@ -1516,14 +1516,14 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			case PARVERT1:
 			{
 				// Create a new vertex parent relationship for this node.
-				KX_VertexParentRelation *vertex_parent_relation = KX_VertexParentRelation::New();
+				KX_VertexParentRelation *vertex_parent_relation = new KX_VertexParentRelation();
 				link.m_gamechildnode->SetParentRelation(vertex_parent_relation);
 				break;
 			}
 			case PARSLOW:
 			{
 				// Create a new slow parent relationship for this node.
-				KX_SlowParentRelation *slow_parent_relation = KX_SlowParentRelation::New(blenderchild->sf);
+				KX_SlowParentRelation *slow_parent_relation = new KX_SlowParentRelation(blenderchild->sf);
 				link.m_gamechildnode->SetParentRelation(slow_parent_relation);
 				break;
 			}
@@ -1534,7 +1534,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 				                                                blenderchild->parsubstr);
 
 				if (parent_bone) {
-					KX_BoneParentRelation *bone_parent_relation = KX_BoneParentRelation::New(parent_bone);
+					KX_BoneParentRelation *bone_parent_relation = new KX_BoneParentRelation(parent_bone);
 					link.m_gamechildnode->SetParentRelation(bone_parent_relation);
 				}
 

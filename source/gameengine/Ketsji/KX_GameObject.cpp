@@ -133,9 +133,7 @@ KX_GameObject::KX_GameObject(
 	m_pSGNode = new SG_Node(this,sgReplicationInfo,callbacks);
 
 	// define the relationship between this node and it's parent.
-	
-	KX_NormalParentRelation * parent_relation = 
-		KX_NormalParentRelation::New();
+	KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
 	m_pSGNode->SetParentRelation(parent_relation);
 };
 
