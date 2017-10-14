@@ -133,6 +133,7 @@ static void eevee_light_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, E
 
 static void eevee_shadow_cube_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led)
 {
+	/*****************Game engine*****************************/
 	EEVEE_ShadowCubeData *sh_data = (EEVEE_ShadowCubeData *)led->storage;
 	EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
 	EEVEE_Shadow *ubo_data = linfo->shadow_data + sh_data->shadow_id;
@@ -142,6 +143,7 @@ static void eevee_shadow_cube_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *li
 
 	float obmat[4][4];
 	kxlight->NodeGetWorldTransform().getValue(&obmat[0][0]);
+	/**************End of Game engine*************************/
 
 	int sh_nbr = 1; /* TODO: MSM */
 
@@ -159,6 +161,11 @@ static void eevee_shadow_cube_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *li
 	ubo_data->shadow_start = (float)(sh_data->layer_id);
 	ubo_data->data_start = (float)(sh_data->cube_id);
 	ubo_data->multi_shadow_count = (float)(sh_nbr);
+
+	ubo_data->contact_dist = (la->mode & LA_SHAD_CONTACT) ? la->contact_dist : 0.0f;
+	ubo_data->contact_bias = 0.05f * la->contact_bias;
+	ubo_data->contact_spread = la->contact_spread;
+	ubo_data->contact_thickness = la->contact_thickness;
 }
 
 static void frustum_min_bounding_sphere(const float corners[8][4], float r_center[3], float *r_radius)
@@ -195,6 +202,7 @@ static void frustum_min_bounding_sphere(const float corners[8][4], float r_cente
 
 static void eevee_shadow_cascade_setup(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led, KX_Scene *scene)
 {
+	/****************Game engine*********************/
 	Object *ob = kxlight->GetBlenderObject();
 	Lamp *la = (Lamp *)ob->data;
 
@@ -220,6 +228,7 @@ static void eevee_shadow_cascade_setup(KX_LightObject *kxlight, EEVEE_LampsInfo 
 	/* FIXME : Get near / far from Draw manager? */
 
 	proj.getValue(&viewprojmat[0][0]);
+	/**************End of Game engine******************/
 
 	invert_m4_m4(projinv, viewprojmat);
 	mul_m4_v4(projinv, near_v);
@@ -355,7 +364,7 @@ static void eevee_shadow_cascade_setup(KX_LightObject *kxlight, EEVEE_LampsInfo 
 		};
 
 		/* Transform them into world space */
-		for (int i = 0; i < 8; ++i)	{
+		for (int i = 0; i < 8; ++i) {
 			mul_m4_v4(persinv, corners[i]);
 			mul_v3_fl(corners[i], 1.0f / corners[i][3]);
 			corners[i][3] = 1.0f;
@@ -368,7 +377,7 @@ static void eevee_shadow_cascade_setup(KX_LightObject *kxlight, EEVEE_LampsInfo 
 		normalize_v3(viewmat[1]);
 		normalize_v3(viewmat[2]);
 
-		for (int i = 0; i < 8; ++i)	{
+		for (int i = 0; i < 8; ++i) {
 			mul_m4_v4(viewmat, corners[i]);
 		}
 
@@ -411,6 +420,11 @@ static void eevee_shadow_cascade_setup(KX_LightObject *kxlight, EEVEE_LampsInfo 
 	ubo_data->shadow_start = (float)(sh_data->layer_id);
 	ubo_data->data_start = (float)(sh_data->cascade_id);
 	ubo_data->multi_shadow_count = (float)(sh_nbr);
+
+	ubo_data->contact_dist = (la->mode & LA_SHAD_CONTACT) ? la->contact_dist : 0.0f;
+	ubo_data->contact_bias = 0.05f * la->contact_bias;
+	ubo_data->contact_spread = la->contact_spread;
+	ubo_data->contact_thickness = la->contact_thickness;
 }
 
 void RAS_OpenGLLight::UpdateLight(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led)

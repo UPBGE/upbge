@@ -76,7 +76,7 @@ class DATA_PT_preview(DataButtonsPanel, Panel):
 
 class DATA_PT_lamp(DataButtonsPanel, Panel):
     bl_label = "Lamp"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_CLAY', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_CLAY'}
 
     def draw(self, context):
         layout = self.layout
