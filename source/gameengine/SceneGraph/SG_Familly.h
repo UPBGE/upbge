@@ -35,18 +35,18 @@
 #ifndef __SG_FAMILLY_H__
 #define __SG_FAMILLY_H__
 
-#include "CM_Thread.h"
+#include <mutex>
 
 class SG_Familly
 {
 private:
-	CM_ThreadSpinLock m_mutex;
+	std::mutex m_mutex;
 
 public:
 	SG_Familly() = default;
 	~SG_Familly() = default;
 
-	CM_ThreadSpinLock& GetMutex();
+	std::mutex& GetMutex();
 
 };
 

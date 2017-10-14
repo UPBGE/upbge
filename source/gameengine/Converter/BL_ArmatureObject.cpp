@@ -417,20 +417,23 @@ bool BL_ArmatureObject::UnlinkObject(SCA_IObject *clientobj)
 	return res;
 }
 
-void BL_ArmatureObject::ApplyPose() // TODO: bouger dans SetPoseByAction ?
+bool BL_ArmatureObject::NeedApplyPose() const
 {
-	if (m_lastapplyframe != m_lastframe) {
-		// update the constraint if any, first put them all off so that only the active ones will be updated
-		for (BL_ArmatureConstraint *constraint : m_controlledConstraints) {
-			constraint->UpdateTarget();
-		}
-		// update ourself
-		UpdateBlenderObjectMatrix(m_objArma);
-		BKE_pose_where_is(m_scene, m_objArma);
-		// restore ourself
-		memcpy(m_objArma->obmat, m_obmat, sizeof(m_obmat)); // TODO: Pourquoi restorer ?
-		m_lastapplyframe = m_lastframe;
+	return (m_lastapplyframe != m_lastframe);
+}
+
+void BL_ArmatureObject::ApplyPose()
+{
+	// update the constraint if any, first put them all off so that only the active ones will be updated
+	for (BL_ArmatureConstraint *constraint : m_controlledConstraints) {
+		constraint->UpdateTarget();
 	}
+	// update ourself
+	UpdateBlenderObjectMatrix(m_objArma);
+	BKE_pose_where_is(m_scene, m_objArma);
+	// restore ourself
+	memcpy(m_objArma->obmat, m_obmat, sizeof(m_obmat));
+	m_lastapplyframe = m_lastframe;
 }
 
 void BL_ArmatureObject::SetPoseByAction(bAction *action, float localtime)
@@ -508,7 +511,6 @@ double BL_ArmatureObject::GetLastFrame()
 
 bool BL_ArmatureObject::GetBoneTransform(Bone *bone, mt::mat3x4& trans)
 {
-	ApplyPose();
 	bPoseChannel *pchan = BKE_pose_channel_find_name(m_objArma->pose, bone->name);
 	if (pchan) {
 		trans = mt::mat3x4(mt::vec3(pchan->pose_mat[0]), mt::vec3(pchan->pose_mat[1]),

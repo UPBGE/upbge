@@ -59,32 +59,15 @@ public:
 					BL_ArmatureObject *arma);
 
 	virtual ~BL_SkinDeformer();
-	bool Update();
-	bool UpdateInternal(bool shape_applied);
-	virtual void Apply(RAS_DisplayArray *array);
-	virtual void UpdateBuckets()
-	{
-		// update the deformer and all the mesh slots; Apply() does it well, so just call it.
-		Apply(nullptr);
-	}
-	bool PoseUpdated()
-	{
-		if (m_armobj && m_lastArmaUpdate != m_armobj->GetLastFrame()) {
-			return true;
-		}
-		return false;
-	}
-
-	void ForceUpdate()
-	{
-		m_lastArmaUpdate = -1.0;
-	}
+	virtual void Update(unsigned short reason);
+	virtual unsigned short NeedUpdate() const;
+	void UpdateInternal(bool shape_applied);
 
 protected:
 	BL_ArmatureObject *m_armobj; // Our parent object
 	double m_lastArmaUpdate;
 	float m_obmat[4][4]; // the reference matrix for skeleton deform
-	bool m_copyNormals; // dirty flag so we know if Apply() needs to copy normal information (used for BGEDeformVerts())
+	bool m_copyNormals; // dirty flag so we know if UpdateTransverts() needs to copy normal information (used for BGEDeformVerts())
 	std::vector<bPoseChannel *> m_dfnrToPC;
 	short m_deformflags;
 
@@ -92,6 +75,7 @@ protected:
 	void BGEDeformVerts();
 
 	virtual void UpdateTransverts();
+	void UpdateDisplayArrays();
 };
 
 #endif  /* __BL_SKINDEFORMER_H__ */

@@ -53,21 +53,27 @@
 
 KX_SoftBodyDeformer::KX_SoftBodyDeformer(RAS_Mesh *pMeshObject, KX_GameObject *gameobj)
 	:RAS_Deformer(pMeshObject),
-	m_gameobj(gameobj),
-	m_needUpdateAabb(true)
+	m_gameobj(gameobj)
 {
 	KX_Scene *scene = m_gameobj->GetScene();
 	RAS_BoundingBoxManager *boundingBoxManager = scene->GetBoundingBoxManager();
 	m_boundingBox = boundingBoxManager->CreateBoundingBox();
 	// Set AABB default to mesh bounding box AABB.
 	m_boundingBox->CopyAabb(m_mesh->GetBoundingBox());
+
+	m_bDynamic = true;
 }
 
 KX_SoftBodyDeformer::~KX_SoftBodyDeformer()
 {
 }
 
-void KX_SoftBodyDeformer::Apply(RAS_DisplayArray *array)
+unsigned short KX_SoftBodyDeformer::NeedUpdate() const
+{
+	return 1;
+}
+
+void KX_SoftBodyDeformer::Update(unsigned short reason)
 {
 	CcdPhysicsController *ctrl = (CcdPhysicsController *)m_gameobj->GetPhysicsController();
 	if (!ctrl) {
@@ -79,57 +85,47 @@ void KX_SoftBodyDeformer::Apply(RAS_DisplayArray *array)
 		return;
 	}
 
-	// update the vertex in m_transverts
-	Update();
-
 	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 	const std::vector<unsigned int>& indices = ctrl->GetSoftBodyIndices();
 
-	// AABB Box : min/max.
-	mt::vec3 aabbMin(FLT_MAX);
-	mt::vec3 aabbMax(-FLT_MAX);
+	for (DisplayArraySlot& slot : m_slots) {
+		RAS_DisplayArray *array = slot.m_displayArray;
+		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 
-	if (m_needUpdateAabb) {
-		m_boundingBox->SetAabb(aabbMin, aabbMax);
-		m_needUpdateAabb = false;
+			const unsigned int index = indices[vinfo.GetOrigIndex()];
+
+			array->SetPosition(i, ToMt(nodes[index].m_x));
+			array->SetNormal(i, ToMt(nodes[index].m_n));
+		}
+
+		const short modifiedFlag = slot.m_arrayUpdateClient.GetInvalidAndClear() &
+				~(RAS_DisplayArray::POSITION_MODIFIED | RAS_DisplayArray::NORMAL_MODIFIED);
+
+		if (modifiedFlag != RAS_DisplayArray::NONE_MODIFIED) {
+			/// Update vertex data from the original mesh.
+			array->UpdateFrom(slot.m_origDisplayArray, modifiedFlag);
+		}
+
+		array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED | RAS_DisplayArray::NORMAL_MODIFIED);
 	}
 
-	const mt::mat3x4 invtrans = m_gameobj->NodeGetWorldTransform().Inverse();
-	const bool autoUpdate = m_gameobj->GetAutoUpdateBounds();
+	if (m_gameobj->GetAutoUpdateBounds()) {
+		// AABB Box : min/max.
+		mt::vec3 aabbMin(FLT_MAX);
+		mt::vec3 aabbMax(-FLT_MAX);
 
-	for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-		const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
-
-		const unsigned int index = indices[vinfo.GetOrigIndex()];
-		const mt::vec3 pos = ToMt(nodes[index].m_x);
-
-		array->SetPosition(i, pos);
-		array->SetNormal(i, ToMt(nodes[index].m_n));
-
-		if (autoUpdate) {
+		const mt::mat3x4 invtrans = m_gameobj->NodeGetWorldTransform().Inverse();
+		for (unsigned int i = 0, size = nodes.size(); i < size; ++i) {
+			const btSoftBody::Node& node = nodes[i];
 			// Extract object transform from the vertex position.
-			const mt::vec3 ptWorld = invtrans * pos;
+			const mt::vec3 ptWorld = invtrans * ToMt(node.m_x);
+			// if the AABB need an update.
 			aabbMin = mt::vec3::Min(aabbMin, ptWorld);
 			aabbMax = mt::vec3::Max(aabbMax, ptWorld);
 		}
-	}
 
-	for (DisplayArraySlot& slot : m_slots) {
-		if (slot.m_displayArray == array) {
-			const short modifiedFlag = slot.m_arrayUpdateClient.GetInvalidAndClear();
-			if (modifiedFlag != RAS_DisplayArray::NONE_MODIFIED) {
-				/// Update vertex data from the original mesh.
-				array->UpdateFrom(slot.m_origDisplayArray, modifiedFlag);
-			}
-
-			break;
-		}
-	}
-
-	array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED | RAS_DisplayArray::NORMAL_MODIFIED);
-
-	if (autoUpdate) {
-		m_boundingBox->ExtendAabb(aabbMin, aabbMax);
+		m_boundingBox->SetAabb(aabbMin, aabbMax);
 	}
 }
 

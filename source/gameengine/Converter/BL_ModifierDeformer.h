@@ -63,8 +63,8 @@ public:
 
 	virtual ~BL_ModifierDeformer();
 
-	bool Update();
-	virtual void Apply(RAS_DisplayArray *array);
+	virtual void Update(unsigned short reason);
+	virtual unsigned short NeedUpdate() const;
 	void ForceUpdate()
 	{
 		m_lastModifierUpdate = -1.0;

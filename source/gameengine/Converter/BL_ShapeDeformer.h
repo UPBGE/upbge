@@ -54,17 +54,14 @@ public:
 
 	virtual ~BL_ShapeDeformer();
 
-	bool Update();
+	virtual void Update(unsigned short reason);
+	virtual unsigned short NeedUpdate() const;
+
 	bool LoadShapeDrivers(KX_GameObject *parent);
 	bool ExecuteShapeDrivers();
 
 	Key *GetKey();
 	bool GetShape(std::vector<float> &shape) const;
-
-	void ForceUpdate()
-	{
-		m_lastShapeUpdate = -1.0;
-	}
 
 protected:
 	bool m_useShapeDrivers;

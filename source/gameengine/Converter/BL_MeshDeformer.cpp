@@ -49,24 +49,35 @@
 #include <string>
 #include "BLI_math.h"
 
-void BL_MeshDeformer::Apply(RAS_DisplayArray *UNUSED(array))
+unsigned short BL_MeshDeformer::NeedUpdate() const
 {
-	// only apply once per frame if the mesh is actually modified
-	if (m_lastDeformUpdate != m_lastFrame) {
-		// For each display array
-		for (const DisplayArraySlot& slot : m_slots) {
-			RAS_DisplayArray *array = slot.m_displayArray;
+	for (const DisplayArraySlot& slot : m_slots) {
+		const short modifiedFlag = slot.m_arrayUpdateClient.GetInvalid() &
+				~(RAS_DisplayArray::POSITION_MODIFIED | RAS_DisplayArray::NORMAL_MODIFIED);
+		if (modifiedFlag != RAS_DisplayArray::NONE_MODIFIED) {
+			return UPDATE_DISPLAY_ARRAY;
+		}
+	}
 
-			//	For each vertex
-			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-				const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
-				array->SetPosition(i, mt::vec3_packed(m_bmesh->mvert[vinfo.GetOrigIndex()].co));
-			}
+	return 0;
+}
 
-			array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED);
+void BL_MeshDeformer::Update(unsigned short reason)
+{
+	if (!(reason & UPDATE_DISPLAY_ARRAY)) {
+		return;
+	}
+
+	// For each display array
+	for (const DisplayArraySlot& slot : m_slots) {
+		RAS_DisplayArray *array = slot.m_displayArray;
+
+		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
+			array->SetPosition(i, mt::vec3_packed(m_bmesh->mvert[vinfo.GetOrigIndex()].co));
 		}
 
-		m_lastDeformUpdate = m_lastFrame;
+		array->NotifyUpdate(RAS_DisplayArray::POSITION_MODIFIED);
 	}
 }
 

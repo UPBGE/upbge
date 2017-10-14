@@ -41,14 +41,12 @@ set(INC_SYS
 
 set(SRC
 	CM_Message.cpp
-	CM_Thread.cpp
 
 	CM_Format.h
 	CM_List.h
 	CM_Message.h
 	CM_RefCount.h
 	CM_Template.h
-	CM_Thread.h
 	CM_Update.h
 )
 

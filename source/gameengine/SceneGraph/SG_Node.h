@@ -37,10 +37,9 @@
 
 #include "mathfu.h"
 
-#include "CM_Thread.h"
-
 #include <vector>
 #include <memory>
+#include <mutex>
 
 class SG_Controller;
 class SG_Familly;
@@ -397,7 +396,7 @@ private:
 	std::unique_ptr<SG_ParentRelation> m_parent_relation;
 
 	std::shared_ptr<SG_Familly> m_familly;
-	CM_ThreadMutex m_mutex;
+	std::mutex m_mutex;
 
 	bool m_modified;
 	unsigned short m_dirty;

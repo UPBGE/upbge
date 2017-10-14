@@ -311,8 +311,9 @@ public:
 	 * Kick the object's action manager
 	 * \param curtime The current time used to compute the actions frame.
 	 * \param applyObject Set to true if the actions must transform this object, else it only manages actions' frames.
+	 * \param redundant True if the actions are update twice with the same current time.
 	 */
-	void UpdateActionManager(float curtime, bool applyObject);
+	void UpdateActionManager(float curtime, bool applyObject, bool redundant);
 
 	/*********************************
 	 * End Animation API

@@ -85,6 +85,7 @@ public:
 	void GetPose(bPose **pose) const;
 	/// Never edit this, only for accessing names.
 	bPose *GetPose() const;
+	bool NeedApplyPose() const;
 	void ApplyPose();
 	void SetPoseByAction(bAction *action, float localtime);
 	void BlendInPose(bPose *blend_pose, float weight, short mode);

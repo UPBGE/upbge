@@ -49,19 +49,22 @@ class RAS_IPolyMaterial;
 class BL_MeshDeformer : public RAS_Deformer
 {
 public:
+	enum UpdateReason {
+		UPDATE_DISPLAY_ARRAY = (1 << 0),
+		UPDATE_SKIN = (1 << 1),
+		UPDATE_SHAPE = (1 << 2),
+		UPDATE_MODIFIER = (1 << 3)
+	};
+
 	void VerifyStorage();
 	void RecalcNormals();
 
 	BL_MeshDeformer(KX_GameObject *gameobj, Object *obj, RAS_Mesh *meshobj);
 	virtual ~BL_MeshDeformer();
-	virtual void Apply(RAS_DisplayArray *array);
-	virtual bool Update()
-	{
-		return false;
-	}
-	virtual void UpdateBuckets()
-	{
-	}
+
+	virtual unsigned short NeedUpdate() const;
+	virtual void Update(unsigned short reason);
+
 	Mesh *GetMesh()
 	{
 		return m_bmesh;
