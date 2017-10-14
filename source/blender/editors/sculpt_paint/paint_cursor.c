@@ -42,6 +42,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_view3d_types.h"
 
 #include "BKE_brush.h"
 #include "BKE_context.h"
@@ -1002,14 +1003,18 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	 * mouse over too, not just during a stroke */
 	view3d_set_viewcontext(C, &vc);
 
-	get_imapaint_zoom(C, &zoomx, &zoomy);
-	zoomx = max_ff(zoomx, zoomy);
+	if (vc.rv3d && (vc.rv3d->rflag & RV3D_NAVIGATING)) {
+		return;
+	}
 
 	/* skip everything and draw brush here */
 	if (brush->flag & BRUSH_CURVE) {
 		paint_draw_curve_cursor(brush);
 		return;
 	}
+
+	get_imapaint_zoom(C, &zoomx, &zoomy);
+	zoomx = max_ff(zoomx, zoomy);
 
 	/* set various defaults */
 	translation[0] = x;
@@ -1043,11 +1048,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		/* check if brush is subtracting, use different color then */
 		/* TODO: no way currently to know state of pen flip or
 		 * invert key modifier without starting a stroke */
-		if (((ups->draw_inverted == 0) ^
-		     ((brush->flag & BRUSH_DIR_IN) == 0)) &&
-		    ELEM(brush->sculpt_tool, SCULPT_TOOL_DRAW,
-		          SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY,
-		          SCULPT_TOOL_PINCH, SCULPT_TOOL_CREASE))
+		if (((ups->draw_inverted == 0) ^ ((brush->flag & BRUSH_DIR_IN) == 0)) &&
+		    BKE_brush_sculpt_has_secondary_color(brush))
 		{
 			outline_col = brush->sub_col;
 		}

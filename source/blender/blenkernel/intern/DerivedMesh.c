@@ -94,7 +94,7 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
 #endif
 
 
-static ThreadMutex loops_cache_lock = BLI_MUTEX_INITIALIZER;
+static ThreadRWMutex loops_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 
 static void add_shapekey_layers(DerivedMesh *dm, Mesh *me, Object *ob);
@@ -241,19 +241,26 @@ static int dm_getNumLoopTri(DerivedMesh *dm)
 
 static const MLoopTri *dm_getLoopTriArray(DerivedMesh *dm)
 {
-	if (dm->looptris.array) {
+	MLoopTri *looptri;
+
+	BLI_rw_mutex_lock(&loops_cache_lock, THREAD_LOCK_READ);
+	looptri = dm->looptris.array;
+	BLI_rw_mutex_unlock(&loops_cache_lock);
+
+	if (looptri != NULL) {
 		BLI_assert(dm->getNumLoopTri(dm) == dm->looptris.num);
 	}
 	else {
-		BLI_mutex_lock(&loops_cache_lock);
+		BLI_rw_mutex_lock(&loops_cache_lock, THREAD_LOCK_WRITE);
 		/* We need to ensure array is still NULL inside mutex-protected code, some other thread might have already
 		 * recomputed those looptris. */
 		if (dm->looptris.array == NULL) {
 			dm->recalcLoopTri(dm);
 		}
-		BLI_mutex_unlock(&loops_cache_lock);
+		looptri = dm->looptris.array;
+		BLI_rw_mutex_unlock(&loops_cache_lock);
 	}
-	return dm->looptris.array;
+	return looptri;
 }
 
 static CustomData *dm_getVertCData(DerivedMesh *dm)
@@ -494,6 +501,8 @@ void DM_ensure_tessface(DerivedMesh *dm)
 
 /**
  * Ensure the array is large enough
+ *
+ * /note This function must always be thread-protected by caller. It should only be used by internal code.
  */
 void DM_ensure_looptri_data(DerivedMesh *dm)
 {
@@ -501,18 +510,22 @@ void DM_ensure_looptri_data(DerivedMesh *dm)
 	const unsigned int totloop = dm->numLoopData;
 	const int looptris_num = poly_to_tri_count(totpoly, totloop);
 
+	BLI_assert(dm->looptris.array_wip == NULL);
+
+	SWAP(MLoopTri *, dm->looptris.array, dm->looptris.array_wip);
+
 	if ((looptris_num > dm->looptris.num_alloc) ||
 	    (looptris_num < dm->looptris.num_alloc * 2) ||
 	    (totpoly == 0))
 	{
-		MEM_SAFE_FREE(dm->looptris.array);
+		MEM_SAFE_FREE(dm->looptris.array_wip);
 		dm->looptris.num_alloc = 0;
 		dm->looptris.num = 0;
 	}
 
 	if (totpoly) {
-		if (dm->looptris.array == NULL) {
-			dm->looptris.array = MEM_mallocN(sizeof(*dm->looptris.array) * looptris_num, __func__);
+		if (dm->looptris.array_wip == NULL) {
+			dm->looptris.array_wip = MEM_mallocN(sizeof(*dm->looptris.array_wip) * looptris_num, __func__);
 			dm->looptris.num_alloc = looptris_num;
 		}
 
@@ -2650,7 +2663,7 @@ static void mesh_build_data(
 	ob->lastDataMask = dataMask;
 	ob->lastNeedMapping = need_mapping;
 
-	if ((ob->mode & OB_MODE_SCULPT) && ob->sculpt) {
+	if ((ob->mode & OB_MODE_ALL_SCULPT) && ob->sculpt) {
 		/* create PBVH immediately (would be created on the fly too,
 		 * but this avoids waiting on first stroke) */
 

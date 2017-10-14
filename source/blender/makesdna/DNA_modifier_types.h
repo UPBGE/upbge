@@ -278,6 +278,7 @@ typedef struct MirrorModifierData {
 	short flag;
 	float tolerance;
 	float uv_offset[2];
+	float uv_offset_copy[2];
 	struct Object *mirror_ob;
 } MirrorModifierData;
 
@@ -654,7 +655,8 @@ typedef struct BooleanModifierData {
 	struct Object *object;
 	char operation;
 	char solver;
-	char pad[2];
+	char pad;
+	char bm_flag;
 	float double_threshold;
 } BooleanModifierData;
 
@@ -668,6 +670,13 @@ typedef enum {
 	eBooleanModifierSolver_Carve    = 0,
 	eBooleanModifierSolver_BMesh = 1,
 } BooleanSolver;
+
+/* bm_flag (only used when G_DEBUG) */
+enum {
+	eBooleanModifierBMeshFlag_BMesh_Separate            = (1 << 0),
+	eBooleanModifierBMeshFlag_BMesh_NoDissolve          = (1 << 1),
+	eBooleanModifierBMeshFlag_BMesh_NoConnectRegions    = (1 << 2),
+};
 
 typedef struct MDefInfluence {
 	int vertex;

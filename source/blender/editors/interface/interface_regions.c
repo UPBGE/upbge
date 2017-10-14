@@ -342,10 +342,12 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
 
 	/* Tip */
 	if (but_tip.strinfo) {
-		BLI_strncpy(data->header, but_tip.strinfo, sizeof(data->lines[0]));
 		if (enum_label.strinfo) {
 			BLI_snprintf(data->header, sizeof(data->header), "%s:  ", but_tip.strinfo);
 			BLI_strncpy(data->active_info, enum_label.strinfo, sizeof(data->lines[0]));
+		}
+		else {
+			BLI_snprintf(data->header, sizeof(data->header), "%s.", but_tip.strinfo);
 		}
 		data->format[data->totline].style = UI_TIP_STYLE_HEADER;
 		data->totline++;
@@ -1867,8 +1869,9 @@ uiBlock *ui_popup_block_refresh(
 	/* defer this until blocks are translated (below) */
 	block->oldblock = NULL;
 
-	if (!block->endblock)
-		UI_block_end_ex(C, block, handle->popup_create_vars.event_xy);
+	if (!block->endblock) {
+		UI_block_end_ex(C, block, handle->popup_create_vars.event_xy, handle->popup_create_vars.event_xy);
+	}
 
 	/* if this is being created from a button */
 	if (but) {

@@ -741,7 +741,7 @@ BezTriple *BKE_nurb_bezt_get_prev(Nurb *nu, BezTriple *bezt)
 	BezTriple *bezt_prev;
 
 	BLI_assert(ARRAY_HAS_ITEM(bezt, nu->bezt, nu->pntsu));
-	BLI_assert(nu->pntsv == 1);
+	BLI_assert(nu->pntsv <= 1);
 
 	if (bezt == nu->bezt) {
 		if (nu->flagu & CU_NURB_CYCLIC) {
@@ -4039,7 +4039,7 @@ bool BKE_nurb_check_valid_u(struct Nurb *nu)
 		return true;           /* not a nurb, lets assume its valid */
 
 	if (nu->pntsu < nu->orderu) return false;
-	if (((nu->flag & CU_NURB_CYCLIC) == 0) && (nu->flagu & CU_NURB_BEZIER)) { /* Bezier U Endpoints */
+	if (((nu->flagu & CU_NURB_CYCLIC) == 0) && (nu->flagu & CU_NURB_BEZIER)) { /* Bezier U Endpoints */
 		if (nu->orderu == 4) {
 			if (nu->pntsu < 5)
 				return false;  /* bezier with 4 orderu needs 5 points */
@@ -4060,7 +4060,7 @@ bool BKE_nurb_check_valid_v(struct Nurb *nu)
 
 	if (nu->pntsv < nu->orderv)
 		return false;
-	if (((nu->flag & CU_NURB_CYCLIC) == 0) && (nu->flagv & CU_NURB_BEZIER)) { /* Bezier V Endpoints */
+	if (((nu->flagv & CU_NURB_CYCLIC) == 0) && (nu->flagv & CU_NURB_BEZIER)) { /* Bezier V Endpoints */
 		if (nu->orderv == 4) {
 			if (nu->pntsv < 5)
 				return false;  /* bezier with 4 orderu needs 5 points */
@@ -4139,6 +4139,7 @@ bool BKE_nurb_type_convert(Nurb *nu, const short type, const bool use_handles)
 			MEM_freeN(nu->bp);
 			nu->bp = NULL;
 			nu->pntsu = nr;
+			nu->pntsv = 0;
 			nu->type = CU_BEZIER;
 			BKE_nurb_handles_calc(nu);
 		}

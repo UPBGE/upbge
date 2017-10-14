@@ -26,6 +26,7 @@
 #include "util/util_stats.h"
 #include "util/util_string.h"
 #include "util/util_thread.h"
+#include "util/util_texture.h"
 #include "util/util_types.h"
 #include "util/util_vector.h"
 
@@ -54,6 +55,8 @@ public:
 	bool display_device;
 	bool advanced_shading;
 	bool has_bindless_textures; /* flag for GPU and Multi device */
+	bool has_volume_decoupled;
+	bool has_qbvh;
 	bool use_split_kernel; /* Denotes if the device is going to run cycles using split-kernel */
 	vector<DeviceInfo> multi_devices;
 
@@ -65,6 +68,8 @@ public:
 		display_device = false;
 		advanced_shading = true;
 		has_bindless_textures = false;
+		has_volume_decoupled = false;
+		has_qbvh = false;
 		use_split_kernel = false;
 	}
 
@@ -349,6 +354,7 @@ public:
 private:
 	/* Indicted whether device types and devices lists were initialized. */
 	static bool need_types_update, need_devices_update;
+	static thread_mutex device_mutex;
 	static vector<DeviceType> types;
 	static vector<DeviceInfo> devices;
 };

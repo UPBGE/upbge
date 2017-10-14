@@ -41,6 +41,8 @@
  * is likely to be a little slow.
  */
 
+#include "atomic_ops.h"
+
 #include "BLI_math.h"
 #include "BLI_jitter.h"
 #include "BLI_bitmap.h"
@@ -641,8 +643,9 @@ static void emDM_recalcLoopTri(DerivedMesh *dm)
 	int i;
 
 	DM_ensure_looptri_data(dm);
-	mlooptri = dm->looptris.array;
+	mlooptri = dm->looptris.array_wip;
 
+	BLI_assert(tottri == 0 || mlooptri != NULL);
 	BLI_assert(poly_to_tri_count(dm->numPolyData, dm->numLoopData) == dm->looptris.num);
 	BLI_assert(tottri == dm->looptris.num);
 
@@ -659,6 +662,10 @@ static void emDM_recalcLoopTri(DerivedMesh *dm)
 		        BM_elem_index_get(ltri[2]));
 		lt->poly = BM_elem_index_get(ltri[0]->f);
 	}
+
+	BLI_assert(dm->looptris.array == NULL);
+	atomic_cas_ptr((void **)&dm->looptris.array, dm->looptris.array, dm->looptris.array_wip);
+	dm->looptris.array_wip = NULL;
 }
 
 static void emDM_foreachMappedVert(
@@ -1029,11 +1036,11 @@ static void emDM_drawMappedFaces(
 						if (poly_prev != GL_ZERO) glEnd();
 						glBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
 					}
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[0]->r));
 					glVertex3fv(vertexCos[BM_elem_index_get(ltri[0]->v)]);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[1]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[1]->r));
 					glVertex3fv(vertexCos[BM_elem_index_get(ltri[1]->v)]);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[2]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[2]->r));
 					glVertex3fv(vertexCos[BM_elem_index_get(ltri[2]->v)]);
 				}
 				else {
@@ -1050,23 +1057,23 @@ static void emDM_drawMappedFaces(
 
 					if (!drawSmooth) {
 						glNormal3fv(polyNos[BM_elem_index_get(efa)]);
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[0]->r));
 						glVertex3fv(vertexCos[BM_elem_index_get(ltri[0]->v)]);
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[1]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[1]->r));
 						glVertex3fv(vertexCos[BM_elem_index_get(ltri[1]->v)]);
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[2]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[2]->r));
 						glVertex3fv(vertexCos[BM_elem_index_get(ltri[2]->v)]);
 					}
 					else {
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[0]->r));
 						if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[0])]);
 						else glNormal3fv(vertexNos[BM_elem_index_get(ltri[0]->v)]);
 						glVertex3fv(vertexCos[BM_elem_index_get(ltri[0]->v)]);
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[1]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[1]->r));
 						if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[1])]);
 						else glNormal3fv(vertexNos[BM_elem_index_get(ltri[1]->v)]);
 						glVertex3fv(vertexCos[BM_elem_index_get(ltri[1]->v)]);
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[2]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[2]->r));
 						if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[2])]);
 						else glNormal3fv(vertexNos[BM_elem_index_get(ltri[2]->v)]);
 						glVertex3fv(vertexCos[BM_elem_index_get(ltri[2]->v)]);
@@ -1131,11 +1138,11 @@ static void emDM_drawMappedFaces(
 						if (poly_prev != GL_ZERO) glEnd();
 						glBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
 					}
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[0]->r));
 					glVertex3fv(ltri[0]->v->co);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[1]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[1]->r));
 					glVertex3fv(ltri[1]->v->co);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[2]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[2]->r));
 					glVertex3fv(ltri[2]->v->co);
 				}
 				else {
@@ -1152,23 +1159,23 @@ static void emDM_drawMappedFaces(
 
 					if (!drawSmooth) {
 						glNormal3fv(efa->no);
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[0]->r));
 						glVertex3fv(ltri[0]->v->co);
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[1]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[1]->r));
 						glVertex3fv(ltri[1]->v->co);
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[2]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[2]->r));
 						glVertex3fv(ltri[2]->v->co);
 					}
 					else {
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[0]->r));
 						if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[0])]);
 						else glNormal3fv(ltri[0]->v->no);
 						glVertex3fv(ltri[0]->v->co);
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[1]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[1]->r));
 						if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[1])]);
 						else glNormal3fv(ltri[1]->v->no);
 						glVertex3fv(ltri[1]->v->co);
-						if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[2]->r));
+						if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[2]->r));
 						if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[2])]);
 						else glNormal3fv(ltri[2]->v->no);
 						glVertex3fv(ltri[2]->v->co);
@@ -1291,32 +1298,32 @@ static void emDM_drawFacesTex_common(
 					glNormal3fv(polyNos[BM_elem_index_get(efa)]);
 
 					glTexCoord2fv(luv[0]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[0]->r));
 					glVertex3fv(vertexCos[BM_elem_index_get(ltri[0]->v)]);
 
 					glTexCoord2fv(luv[1]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[1]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[1]->r));
 					glVertex3fv(vertexCos[BM_elem_index_get(ltri[1]->v)]);
 
 					glTexCoord2fv(luv[2]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[2]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[2]->r));
 					glVertex3fv(vertexCos[BM_elem_index_get(ltri[2]->v)]);
 				}
 				else {
 					glTexCoord2fv(luv[0]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[0]->r));
 					if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[0])]);
 					else glNormal3fv(vertexNos[BM_elem_index_get(ltri[0]->v)]);
 					glVertex3fv(vertexCos[BM_elem_index_get(ltri[0]->v)]);
 
 					glTexCoord2fv(luv[1]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[1]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[1]->r));
 					if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[1])]);
 					else glNormal3fv(vertexNos[BM_elem_index_get(ltri[1]->v)]);
 					glVertex3fv(vertexCos[BM_elem_index_get(ltri[1]->v)]);
 
 					glTexCoord2fv(luv[2]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[2]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[2]->r));
 					if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[2])]);
 					else glNormal3fv(vertexNos[BM_elem_index_get(ltri[2]->v)]);
 					glVertex3fv(vertexCos[BM_elem_index_get(ltri[2]->v)]);
@@ -1355,32 +1362,32 @@ static void emDM_drawFacesTex_common(
 					glNormal3fv(efa->no);
 
 					glTexCoord2fv(luv[0]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[0]->r));
 					glVertex3fv(ltri[0]->v->co);
 
 					glTexCoord2fv(luv[1]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[1]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[1]->r));
 					glVertex3fv(ltri[1]->v->co);
 
 					glTexCoord2fv(luv[2]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[2]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[2]->r));
 					glVertex3fv(ltri[2]->v->co);
 				}
 				else {
 					glTexCoord2fv(luv[0]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[0]->r));
 					if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[0])]);
 					else glNormal3fv(ltri[0]->v->no);
 					glVertex3fv(ltri[0]->v->co);
 
 					glTexCoord2fv(luv[1]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[1]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[1]->r));
 					if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[1])]);
 					else glNormal3fv(ltri[1]->v->no);
 					glVertex3fv(ltri[1]->v->co);
 
 					glTexCoord2fv(luv[2]->uv);
-					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[2]->r));
+					if (has_vcol_any) glColor4ubv((const GLubyte *)&(lcol[2]->r));
 					if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[2])]);
 					else glNormal3fv(ltri[2]->v->no);
 					glVertex3fv(ltri[2]->v->co);

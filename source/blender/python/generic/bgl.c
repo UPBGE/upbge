@@ -472,6 +472,49 @@ int BGL_typeSize(int type)
 	return -1;
 }
 
+static int gl_buffer_type_from_py_format_char(char *typestr)
+{
+	if (ELEM(typestr[0], '<', '>', '|')) {
+		typestr += 1;
+	}
+	char format = typestr[0];
+	char byte_num = typestr[1];
+
+	switch (format) {
+		case 't':
+		case 'b':
+		case 'h':
+			if (!byte_num) return GL_BYTE;
+			ATTR_FALLTHROUGH;
+		case 'i':
+			if (!byte_num) return GL_SHORT;
+			ATTR_FALLTHROUGH;
+		case 'l':
+			if (!byte_num || byte_num == '4') return GL_INT;
+			if (byte_num == '1') return GL_BYTE;
+			if (byte_num == '2') return GL_SHORT;
+			break;
+		case 'f':
+			if (!byte_num) return GL_FLOAT;
+			ATTR_FALLTHROUGH;
+		case 'd':
+			if (!byte_num || byte_num == '8') return GL_DOUBLE;
+			if (byte_num == '4') return GL_FLOAT;
+			break;
+	}
+	return -1; /* UNKNOWN */
+}
+
+static bool compare_dimensions(int ndim, int *dim1, Py_ssize_t *dim2)
+{
+	for (int i = 0; i < ndim; i++) {
+		if (dim1[i] != dim2[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
 /** \} */
 
 
@@ -630,6 +673,22 @@ PyTypeObject BGL_bufferType = {
 	NULL                        /*tp_del*/
 };
 
+
+static Buffer *BGL_MakeBuffer_FromData(PyObject *parent, int type, int ndimensions, int *dimensions, void *buf)
+{
+	Buffer *buffer = (Buffer *)PyObject_NEW(Buffer, &BGL_bufferType);
+
+	Py_XINCREF(parent);
+	buffer->parent = parent;
+	buffer->ndimensions = ndimensions;
+	buffer->dimensions = MEM_mallocN(ndimensions * sizeof(int), "Buffer dimensions");
+	memcpy(buffer->dimensions, dimensions, ndimensions * sizeof(int));
+	buffer->type = type;
+	buffer->buf.asvoid = buf;
+
+	return buffer;
+}
+
 /**
  * Create a buffer object
  *
@@ -641,30 +700,21 @@ Buffer *BGL_MakeBuffer(int type, int ndimensions, int *dimensions, void *initbuf
 {
 	Buffer *buffer;
 	void *buf = NULL;
-	int i, size, length;
+	int i, size = BGL_typeSize(type);
 
-	length = 1;
 	for (i = 0; i < ndimensions; i++) {
-		length *= dimensions[i];
+		size *= dimensions[i];
 	}
 
-	size = BGL_typeSize(type);
+	buf = MEM_mallocN(size, "Buffer buffer");
 
-	buf = MEM_mallocN(length * size, "Buffer buffer");
-
-	buffer = (Buffer *)PyObject_NEW(Buffer, &BGL_bufferType);
-	buffer->parent = NULL;
-	buffer->ndimensions = ndimensions;
-	buffer->dimensions = MEM_mallocN(ndimensions * sizeof(int), "Buffer dimensions");
-	memcpy(buffer->dimensions, dimensions, ndimensions * sizeof(int));
-	buffer->type = type;
-	buffer->buf.asvoid = buf;
+	buffer = BGL_MakeBuffer_FromData(NULL, type, ndimensions, dimensions, buf);
 
 	if (initbuffer) {
-		memcpy(buffer->buf.asvoid, initbuffer, length * size);
+		memcpy(buffer->buf.asvoid, initbuffer, size);
 	}
 	else {
-		memset(buffer->buf.asvoid, 0, length * size);
+		memset(buffer->buf.asvoid, 0, size);
 	}
 	return buffer;
 }
@@ -674,7 +724,7 @@ Buffer *BGL_MakeBuffer(int type, int ndimensions, int *dimensions, void *initbuf
 static PyObject *Buffer_new(PyTypeObject *UNUSED(type), PyObject *args, PyObject *kwds)
 {
 	PyObject *length_ob = NULL, *init = NULL;
-	Buffer *buffer;
+	Buffer *buffer = NULL;
 	int dimensions[MAX_DIMENSIONS];
 
 	int type;
@@ -739,9 +789,32 @@ static PyObject *Buffer_new(PyTypeObject *UNUSED(type), PyObject *args, PyObject
 		return NULL;
 	}
 
-	buffer = BGL_MakeBuffer(type, ndimensions, dimensions, NULL);
-	if (init && ndimensions) {
-		if (Buffer_ass_slice(buffer, 0, dimensions[0], init)) {
+	if (init && PyObject_CheckBuffer(init)) {
+		Py_buffer pybuffer;
+
+		if (PyObject_GetBuffer(init, &pybuffer, PyBUF_ND | PyBUF_FORMAT) == -1) {
+			/* PyObject_GetBuffer raise a PyExc_BufferError */
+			return NULL;
+		}
+
+		if (type != gl_buffer_type_from_py_format_char(pybuffer.format)) {
+			PyErr_Format(PyExc_TypeError,
+			             "`GL_TYPE` and `typestr` of object with buffer interface do not match. '%s'", pybuffer.format);
+		}
+		else if (ndimensions != pybuffer.ndim ||
+		         !compare_dimensions(ndimensions, dimensions, pybuffer.shape))
+		{
+			PyErr_Format(PyExc_TypeError, "array size does not match");
+		}
+		else {
+			buffer = BGL_MakeBuffer_FromData(init, type, pybuffer.ndim, dimensions, pybuffer.buf);
+		}
+
+		PyBuffer_Release(&pybuffer);
+	}
+	else {
+		buffer = BGL_MakeBuffer(type, ndimensions, dimensions, NULL);
+		if (init && Buffer_ass_slice(buffer, 0, dimensions[0], init)) {
 			Py_DECREF(buffer);
 			return NULL;
 		}
@@ -774,27 +847,17 @@ static PyObject *Buffer_item(Buffer *self, int i)
 		}
 	}
 	else {
-		Buffer *newbuf;
-		int j, length, size;
+		int j, offset = i * BGL_typeSize(self->type);
 
-		length = 1;
 		for (j = 1; j < self->ndimensions; j++) {
-			length *= self->dimensions[j];
+			offset *= self->dimensions[j];
 		}
-		size = BGL_typeSize(self->type);
 
-		newbuf = (Buffer *)PyObject_NEW(Buffer, &BGL_bufferType);
-
-		Py_INCREF(self);
-		newbuf->parent = (PyObject *)self;
-
-		newbuf->ndimensions = self->ndimensions - 1;
-		newbuf->type = self->type;
-		newbuf->buf.asvoid = self->buf.asbyte + i * length * size;
-		newbuf->dimensions = MEM_mallocN(newbuf->ndimensions * sizeof(int), "Buffer dimensions");
-		memcpy(newbuf->dimensions, self->dimensions + 1, newbuf->ndimensions * sizeof(int));
-
-		return (PyObject *)newbuf;
+		return (PyObject *)BGL_MakeBuffer_FromData(
+		        (PyObject *)self, self->type,
+		        self->ndimensions - 1,
+		        self->dimensions + 1,
+		        self->buf.asbyte + offset);
 	}
 
 	return NULL;

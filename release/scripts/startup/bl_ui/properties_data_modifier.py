@@ -146,9 +146,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.row().prop(md, "offset_type", expand=True)
 
     def BOOLEAN(self, layout, ob, md):
+        solver = md.solver
         if not bpy.app.build_options.mod_boolean:
-            layout.label("Built without Boolean modifier")
-            return
+            if solver == 'CARVE':
+                layout.label("Built without Carve solver")
 
         split = layout.split()
 
@@ -164,8 +165,12 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         split.column().label(text="Solver:")
         split.column().prop(md, "solver", text="")
 
-        if md.solver == 'BMESH':
+        if solver == 'BMESH':
             layout.prop(md, "double_threshold")
+
+            if bpy.app.debug:
+                layout.prop(md, "debug_options")
+
 
     def BUILD(self, layout, ob, md):
         split = layout.split()
@@ -566,8 +571,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         col = split.column()
         col.label(text="Textures:")
-        col.prop(md, "use_mirror_u", text="U")
-        col.prop(md, "use_mirror_v", text="V")
+        col.prop(md, "use_mirror_u", text="Flip U")
+        col.prop(md, "use_mirror_v", text="Flip V")
 
         col = layout.column(align=True)
 
@@ -576,6 +581,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         if md.use_mirror_v:
             col.prop(md, "mirror_offset_v")
+
+        col = layout.column(align=True)
+        col.prop(md, "offset_u")
+        col.prop(md, "offset_v")
 
         col = layout.column()
 

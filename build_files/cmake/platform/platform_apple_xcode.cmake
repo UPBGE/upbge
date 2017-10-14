@@ -101,21 +101,14 @@ if(OSX_SYSTEM MATCHES 10.9)
 	set(CMAKE_FIND_ROOT_PATH ${CMAKE_OSX_SYSROOT})
 endif()
 
-if(WITH_CXX11)
-	# 10.9 is our min. target, if you use higher sdk, weak linking happens
-	if(CMAKE_OSX_DEPLOYMENT_TARGET)
-		if(${CMAKE_OSX_DEPLOYMENT_TARGET} VERSION_LESS 10.9)
-			message(STATUS "Setting deployment target to 10.9, lower versions are incompatible with WITH_CXX11")
-			set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "" FORCE)
-		endif()
-	else()
+# 10.9 is our min. target, if you use higher sdk, weak linking happens
+if(CMAKE_OSX_DEPLOYMENT_TARGET)
+	if(${CMAKE_OSX_DEPLOYMENT_TARGET} VERSION_LESS 10.9)
+		message(STATUS "Setting deployment target to 10.9, lower versions are incompatible with WITH_CXX11")
 		set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "" FORCE)
 	endif()
 else()
-	if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
-		# 10.6 is our min. target, if you use higher sdk, weak linking happens
-		set(CMAKE_OSX_DEPLOYMENT_TARGET "10.6" CACHE STRING "" FORCE)
-	endif()
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "" FORCE)
 endif()
 
 if(NOT ${CMAKE_GENERATOR} MATCHES "Xcode")
@@ -124,12 +117,3 @@ if(NOT ${CMAKE_GENERATOR} MATCHES "Xcode")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
 	add_definitions("-DMACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
 endif()
-
-macro(apple_check_quicktime)
-	# QuickTime framework is no longer available in SDK 10.12+
-	if(WITH_CODEC_QUICKTIME AND ${OSX_SYSTEM} VERSION_GREATER 10.11)
-		set(WITH_CODEC_QUICKTIME OFF CACHE BOOL "" FORCE)
-		message(STATUS "QuickTime not supported by SDK ${OSX_SYSTEM}, disabling WITH_CODEC_QUICKTIME")
-	endif()
-endmacro()
-

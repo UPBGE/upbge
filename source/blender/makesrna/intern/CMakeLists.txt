@@ -233,13 +233,6 @@ if(WITH_AUDASPACE)
 	)
 endif()
 
-if(WITH_CODEC_QUICKTIME)
-	list(APPEND INC
-		../../quicktime
-	)
-	add_definitions(-DWITH_QUICKTIME)
-endif()
-
 if(WITH_CODEC_FFMPEG)
 	list(APPEND INC
 		../../../../intern/ffmpeg

@@ -86,7 +86,6 @@ ccl_device_forceinline bool shadow_handle_transparent_isect(
 		shader_eval_surface(kg,
 		                    shadow_sd,
 		                    state,
-		                    0.0f,
 		                    PATH_RAY_SHADOW);
 		path_state_modify_bounce(state, false);
 		*throughput *= shader_bsdf_transparency(kg, shadow_sd);
@@ -541,6 +540,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg,
 #  else  /* __SHADOW_RECORD_ALL__ */
 	/* Fallback to a slowest version which works on all devices. */
 	return shadow_blocked_transparent_stepped(kg,
+	                                          sd,
 	                                          shadow_sd,
 	                                          state,
 	                                          visibility,

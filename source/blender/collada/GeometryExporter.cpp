@@ -396,7 +396,7 @@ void GeometryExporter::createPolylist(short material_index,
 		ostr << translate_id(material_id);
 		facelist->setMaterial(ostr.str());
 	}
-			
+
 	COLLADASW::InputList &til = facelist->getInputList();
 		
 	// creates <input> in <polylist> for vertices 
@@ -718,12 +718,13 @@ void GeometryExporter::createVertexColorSource(std::string geom_id, Mesh *me)
 
 		source.setArrayId(layer_id + ARRAY_ID_SUFFIX);
 		source.setAccessorCount(me->totloop);
-		source.setAccessorStride(3);
+		source.setAccessorStride(4);
 
 		COLLADASW::SourceBase::ParameterNameList &param = source.getParameterNameList();
 		param.push_back("R");
 		param.push_back("G");
 		param.push_back("B");
+		param.push_back("A");
 
 		source.prepareToAppendValues();
 
@@ -735,7 +736,8 @@ void GeometryExporter::createVertexColorSource(std::string geom_id, Mesh *me)
 				source.appendValues(
 						mlc->r / 255.0f,
 						mlc->g / 255.0f,
-						mlc->b / 255.0f
+						mlc->b / 255.0f,
+						mlc->a / 255.0f
 				);
 			}
 		}
