@@ -23,8 +23,6 @@
 #ifndef __RAS_BASIC_NODE__
 #define __RAS_BASIC_NODE__
 
-#include <functional>
-
 /** RAS_BaseNode is a class wrapping a rendering class by simulating it with a
  * binding and unbinding function.
  * \param NodeInfo The node information.
@@ -39,10 +37,9 @@ public:
 	using Leaf = typename NodeInfo::Leaf;
 
 	/** The type of function to call for binding and unbinding.
-	 * It takes as arguments the class the node is wrapping and the tuple
-	 * containing the data of the parent nodes.
+	 * It takes as arguments the tuple containing the data of the parent nodes.
 	 */
-	typedef std::function<void(OwnerType *, const TupleType&)> Function;
+	using Function = void (OwnerType::*)(const TupleType&);
 
 protected:
 	/// An instance of the wrapped class.
@@ -80,14 +77,14 @@ public:
 	inline void Bind(const TupleType& tuple)
 	{
 		if (m_bind) {
-			m_bind(m_owner, tuple);
+			(m_owner->*m_bind)(tuple);
 		}
 	}
 
 	inline void Unbind(const TupleType& tuple)
 	{
 		if (m_unbind) {
-			m_unbind(m_owner, tuple);
+			(m_owner->*m_unbind)(tuple);
 		}
 	}
 };

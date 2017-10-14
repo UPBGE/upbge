@@ -48,7 +48,7 @@ static RAS_DummyNodeData dummyNodeData;
 
 // mesh slot
 RAS_MeshSlot::RAS_MeshSlot(RAS_MeshUser *meshUser, RAS_DisplayArrayBucket *arrayBucket)
-	:m_node(this, &dummyNodeData, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
+	:m_node(this, &dummyNodeData, &RAS_MeshSlot::RunNode, nullptr),
 	m_displayArrayBucket(arrayBucket),
 	m_meshUser(meshUser),
 	m_batchPartIndex(-1)
