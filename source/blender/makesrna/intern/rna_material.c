@@ -892,7 +892,7 @@ static void rna_def_material_gamesettings(BlenderRNA *brna)
 		{GEMAT_SHADOW, "SHADOW", 0, "Shadow", "Faces are used for shadow"},
 		{0, NULL, 0, NULL, NULL}
 	};
-
+	
 	srna = RNA_def_struct(brna, "MaterialGameSettings", NULL);
 	RNA_def_struct_sdna(srna, "GameSettings");
 	RNA_def_struct_nested(brna, srna, "Material");
@@ -1828,6 +1828,53 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_enum_funcs(prop, NULL, "rna_Material_type_set", NULL);
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
+	prop = RNA_def_property(srna, "use_transparency", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", MA_TRANSP);
+	RNA_def_property_ui_text(prop, "Transparency", "Render material as transparent");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
+	prop = RNA_def_property(srna, "transparency_method", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "mode");
+	RNA_def_property_enum_items(prop, transparency_items);
+	RNA_def_property_ui_text(prop, "Transparency Method", "Method to use for rendering transparency");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	/* Blending (only Eevee for now) */
+	prop = RNA_def_property(srna, "blend_method", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, prop_eevee_blend_items);
+	RNA_def_property_ui_text(prop, "Blend Mode", "Blend Mode for Transparent Faces");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
+	prop = RNA_def_property(srna, "transparent_shadow_method", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "blend_shadow");
+	RNA_def_property_enum_items(prop, prop_eevee_blend_shadow_items);
+	RNA_def_property_ui_text(prop, "Transparent Shadow", "Shadow method for transparent material");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
+	prop = RNA_def_property(srna, "alpha_threshold", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_range(prop, 0, 1);
+	RNA_def_property_ui_text(prop, "Clip Threshold", "A pixel is rendered only if its alpha value is above this threshold");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
+	prop = RNA_def_property(srna, "transparent_hide_backside", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "blend_flag", MA_BL_HIDE_BACKSIDE);
+	RNA_def_property_ui_text(prop, "Hide Backside", "Limit transparency to a single layer "
+	                                                 "(avoids transparency sorting problems)");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
+	prop = RNA_def_property(srna, "use_screen_refraction", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "blend_flag", MA_BL_SS_REFRACTION);
+	RNA_def_property_ui_text(prop, "Screen Space Refraction", "Use raytraced screen space refractions");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
+	prop = RNA_def_property(srna, "refraction_depth", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_float_sdna(prop, NULL, "refract_depth");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_text(prop, "Refraction Depth", "Approximate the thickness of the object to compute two refraction "
+	                                                   "event (0 is disabled)");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
+	/***********Game engine (to remove)*************/
 	prop = RNA_def_property(srna, "use_constant_material", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_MATERIAL);
 	RNA_def_property_ui_text(prop, "Material", "Use constant values for material");
@@ -1857,6 +1904,7 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_MIST);
 	RNA_def_property_ui_text(prop, "Mist", "Use constant values for mist");
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+	/********End of game engine (to remove)********/
 
 	/* For Preview Render */
 	prop = RNA_def_property(srna, "preview_render_type", PROP_ENUM, PROP_NONE);

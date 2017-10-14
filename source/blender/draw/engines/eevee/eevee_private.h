@@ -163,7 +163,7 @@ typedef struct EEVEE_FramebufferList {
 	struct GPUFrameBuffer *effect_fb;
 	struct GPUFrameBuffer *bloom_blit_fb;
 	struct GPUFrameBuffer *bloom_down_fb[MAX_BLOOM_STEP];
-	struct GPUFrameBuffer *bloom_accum_fb[MAX_BLOOM_STEP-1];
+	struct GPUFrameBuffer *bloom_accum_fb[MAX_BLOOM_STEP - 1];
 	struct GPUFrameBuffer *dof_down_fb;
 	struct GPUFrameBuffer *dof_scatter_far_fb;
 	struct GPUFrameBuffer *dof_scatter_near_fb;
@@ -188,7 +188,7 @@ typedef struct EEVEE_TextureList {
 	struct GPUTexture *dof_far_blur; /* R16_G16_B16_A16 */
 	struct GPUTexture *bloom_blit; /* R16_G16_B16 */
 	struct GPUTexture *bloom_downsample[MAX_BLOOM_STEP]; /* R16_G16_B16 */
-	struct GPUTexture *bloom_upsample[MAX_BLOOM_STEP-1]; /* R16_G16_B16 */
+	struct GPUTexture *bloom_upsample[MAX_BLOOM_STEP - 1]; /* R16_G16_B16 */
 	struct GPUTexture *ssr_normal_input;
 	struct GPUTexture *ssr_specrough_input;
 	struct GPUTexture *refract_color;
@@ -225,6 +225,7 @@ typedef struct EEVEE_Light {
 typedef struct EEVEE_Shadow {
 	float nearf, farf, bias, exp;
 	float shadow_start, data_start, multi_shadow_count, pad;
+	float contact_dist, contact_bias, contact_spread, contact_thickness;
 } EEVEE_Shadow;
 
 typedef struct EEVEE_ShadowCube {
@@ -324,6 +325,8 @@ typedef struct EEVEE_LightProbesInfo {
 	int update_flag;
 	int updated_bounce;
 	int num_bounce;
+	int cubemap_res;
+	int target_size;
 	int grid_initialized;
 	/* Actual number of probes that have datas. */
 	int num_render_cube;

@@ -1158,7 +1158,7 @@ void GPU_create_smoke(SmokeModifierData *smd, int highres)
 			}
 			sds->tex_flame = (smoke_turbulence_has_fuel(sds->wt)) ?
 			                  GPU_texture_create_3D_custom(sds->res_wt[0], sds->res_wt[1], sds->res_wt[2], 1,
-			                                               GPU_R8, smoke_turbulence_get_flame(sds->wt), NULL):
+			                                               GPU_R8, smoke_turbulence_get_flame(sds->wt), NULL) :
 			                  NULL;
 		}
 
@@ -2304,7 +2304,8 @@ void gpuPushAttrib(eGPUAttribMask mask)
 	AttribStack.top++;
 }
 
-static void restore_mask(GLenum cap, const bool value) {
+static void restore_mask(GLenum cap, const bool value)
+{
 	if (value) {
 		glEnable(cap);
 	}

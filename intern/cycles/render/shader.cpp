@@ -33,7 +33,9 @@
 
 CCL_NAMESPACE_BEGIN
 
+thread_mutex ShaderManager::lookup_table_mutex;
 vector<float> ShaderManager::beckmann_table;
+bool ShaderManager::beckmann_table_ready = false;
 
 /* Beckmann sampling precomputed table, see bsdf_microfacet.h */
 
@@ -449,10 +451,12 @@ void ShaderManager::device_update_common(Device *device,
 			flag |= SD_HETEROGENEOUS_VOLUME;
 		if(shader->has_bssrdf_bump)
 			flag |= SD_HAS_BSSRDF_BUMP;
-		if(shader->volume_sampling_method == VOLUME_SAMPLING_EQUIANGULAR)
-			flag |= SD_VOLUME_EQUIANGULAR;
-		if(shader->volume_sampling_method == VOLUME_SAMPLING_MULTIPLE_IMPORTANCE)
-			flag |= SD_VOLUME_MIS;
+		if(device->info.has_volume_decoupled) {
+			if(shader->volume_sampling_method == VOLUME_SAMPLING_EQUIANGULAR)
+				flag |= SD_VOLUME_EQUIANGULAR;
+			if(shader->volume_sampling_method == VOLUME_SAMPLING_MULTIPLE_IMPORTANCE)
+				flag |= SD_VOLUME_MIS;
+		}
 		if(shader->volume_interpolation_method == VOLUME_INTERPOLATION_CUBIC)
 			flag |= SD_VOLUME_CUBIC;
 		if(shader->has_bump)
@@ -482,10 +486,11 @@ void ShaderManager::device_update_common(Device *device,
 
 	/* beckmann lookup table */
 	if(beckmann_table_offset == TABLE_OFFSET_INVALID) {
-		if(beckmann_table.size() == 0) {
+		if(!beckmann_table_ready) {
 			thread_scoped_lock lock(lookup_table_mutex);
-			if(beckmann_table.size() == 0) {
+			if(!beckmann_table_ready) {
 				beckmann_table_build(beckmann_table);
+				beckmann_table_ready = true;
 			}
 		}
 		beckmann_table_offset = scene->lookup_tables->add_table(dscene, beckmann_table);

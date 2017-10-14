@@ -163,6 +163,9 @@ public:
 	TaskPool task_pool;
 	KernelGlobals kernel_globals;
 
+	device_vector<TextureInfo> texture_info;
+	bool need_texture_info;
+
 #ifdef WITH_OSL
 	OSLGlobals osl_globals;
 #endif
@@ -171,15 +174,15 @@ public:
 
 	DeviceRequestedFeatures requested_features;
 
-	KernelFunctions<void(*)(KernelGlobals *, float *, unsigned int *, int, int, int, int, int)>   path_trace_kernel;
-	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_half_float_kernel;
-	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_byte_kernel;
-	KernelFunctions<void(*)(KernelGlobals *, uint4 *, float4 *, float*, int, int, int, int, int)> shader_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, float *, int, int, int, int, int)>             path_trace_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)> convert_to_half_float_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)> convert_to_byte_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uint4 *, float4 *, int, int, int, int, int)>   shader_kernel;
 
-	KernelFunctions<void(*)(int, TilesInfo*, int, int, float*, float*, float*, float*, float*, int*, int, int, bool)> filter_divide_shadow_kernel;
-	KernelFunctions<void(*)(int, TilesInfo*, int, int, int, int, float*, float*, int*, int, int, bool)>               filter_get_feature_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                     filter_detect_outliers_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                     filter_combine_halves_kernel;
+	KernelFunctions<void(*)(int, TilesInfo*, int, int, float*, float*, float*, float*, float*, int*, int, int)> filter_divide_shadow_kernel;
+	KernelFunctions<void(*)(int, TilesInfo*, int, int, int, int, float*, float*, int*, int, int)>               filter_get_feature_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                               filter_detect_outliers_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                               filter_combine_halves_kernel;
 
 	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)> filter_nlm_calc_difference_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                 filter_nlm_blur_kernel;
@@ -192,7 +195,7 @@ public:
 	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float3*, int*, int)>                       filter_finalize_kernel;
 
 	KernelFunctions<void(*)(KernelGlobals *, ccl_constant KernelData*, ccl_global void*, int, ccl_global char*,
-	                       ccl_global uint*, int, int, int, int, int, int, int, int, ccl_global int*, int,
+	                       int, int, int, int, int, int, int, int, ccl_global int*, int,
 	                       ccl_global char*, ccl_global unsigned int*, unsigned int, ccl_global float*)>        data_init_kernel;
 	unordered_map<string, KernelFunctions<void(*)(KernelGlobals*, KernelData*)> > split_kernels;
 
@@ -235,6 +238,8 @@ public:
 			VLOG(1) << "Will be using split kernel.";
 		}
 
+		need_texture_info = false;
+
 #define REGISTER_SPLIT_KERNEL(name) split_kernels[#name] = KernelFunctions<void(*)(KernelGlobals*, KernelData*)>(KERNEL_FUNCTIONS(name))
 		REGISTER_SPLIT_KERNEL(path_init);
 		REGISTER_SPLIT_KERNEL(scene_intersect);
@@ -261,11 +266,21 @@ public:
 	~CPUDevice()
 	{
 		task_pool.stop();
+		tex_free(texture_info);
 	}
 
 	virtual bool show_samples() const
 	{
 		return (TaskScheduler::num_threads() == 1);
+	}
+
+	void load_texture_info()
+	{
+		if(need_texture_info) {
+			tex_free(texture_info);
+			tex_alloc("__texture_info", texture_info, INTERPOLATION_NONE, EXTENSION_REPEAT);
+			need_texture_info = false;
+		}
 	}
 
 	void mem_alloc(const char *name, device_memory& mem, MemoryType /*type*/)
@@ -333,14 +348,47 @@ public:
 		VLOG(1) << "Texture allocate: " << name << ", "
 		        << string_human_readable_number(mem.memory_size()) << " bytes. ("
 		        << string_human_readable_size(mem.memory_size()) << ")";
-		kernel_tex_copy(&kernel_globals,
-		                name,
-		                mem.data_pointer,
-		                mem.data_width,
-		                mem.data_height,
-		                mem.data_depth,
-		                interpolation,
-		                extension);
+
+		if(interpolation == INTERPOLATION_NONE) {
+			/* Data texture. */
+			kernel_tex_copy(&kernel_globals,
+							name,
+							mem.data_pointer,
+							mem.data_width,
+							mem.data_height,
+							mem.data_depth,
+							interpolation,
+							extension);
+		}
+		else {
+			/* Image Texture. */
+			int flat_slot = 0;
+			if(string_startswith(name, "__tex_image")) {
+				int pos =  string(name).rfind("_");
+				flat_slot = atoi(name + pos + 1);
+			}
+			else {
+				assert(0);
+			}
+
+			if(flat_slot >= texture_info.size()) {
+				/* Allocate some slots in advance, to reduce amount
+				 * of re-allocations. */
+				texture_info.resize(flat_slot + 128);
+			}
+
+			TextureInfo& info = texture_info.get_data()[flat_slot];
+			info.data = (uint64_t)mem.data_pointer;
+			info.cl_buffer = 0;
+			info.interpolation = interpolation;
+			info.extension = extension;
+			info.width = mem.data_width;
+			info.height = mem.data_height;
+			info.depth = mem.data_depth;
+
+			need_texture_info = true;
+		}
+
 		mem.device_pointer = mem.data_pointer;
 		mem.device_size = mem.memory_size();
 		stats.mem_alloc(mem.device_size);
@@ -352,6 +400,7 @@ public:
 			mem.device_pointer = 0;
 			stats.mem_free(mem.device_size);
 			mem.device_size = 0;
+			need_texture_info = true;
 		}
 	}
 
@@ -563,8 +612,7 @@ public:
 				                              (float*) buffer_variance_ptr,
 				                              &task->rect.x,
 				                              task->render_buffer.pass_stride,
-				                              task->render_buffer.denoising_data_offset,
-				                              use_split_kernel);
+				                              task->render_buffer.denoising_data_offset);
 			}
 		}
 		return true;
@@ -587,8 +635,7 @@ public:
 				                            (float*) variance_ptr,
 				                            &task->rect.x,
 				                            task->render_buffer.pass_stride,
-				                            task->render_buffer.denoising_data_offset,
-				                            use_split_kernel);
+				                            task->render_buffer.denoising_data_offset);
 			}
 		}
 		return true;
@@ -617,7 +664,6 @@ public:
 	void path_trace(DeviceTask &task, RenderTile &tile, KernelGlobals *kg)
 	{
 		float *render_buffer = (float*)tile.buffer;
-		uint *rng_state = (uint*)tile.rng_state;
 		int start_sample = tile.start_sample;
 		int end_sample = tile.start_sample + tile.num_samples;
 
@@ -629,7 +675,7 @@ public:
 
 			for(int y = tile.y; y < tile.y + tile.h; y++) {
 				for(int x = tile.x; x < tile.x + tile.w; x++) {
-					path_trace_kernel()(kg, render_buffer, rng_state,
+					path_trace_kernel()(kg, render_buffer,
 					                    sample, x, y, tile.offset, tile.stride);
 				}
 			}
@@ -759,7 +805,6 @@ public:
 				shader_kernel()(&kg,
 				                (uint4*)task.shader_input,
 				                (float4*)task.shader_output,
-				                (float*)task.shader_output_luma,
 				                task.shader_eval_type,
 				                task.shader_filter,
 				                x,
@@ -788,6 +833,9 @@ public:
 
 	void task_add(DeviceTask& task)
 	{
+		/* Load texture info. */
+		load_texture_info();
+
 		/* split task into smaller ones */
 		list<DeviceTask> tasks;
 
@@ -913,7 +961,6 @@ bool CPUSplitKernel::enqueue_split_kernel_data_init(const KernelDimensions& dim,
 			                           (void*)split_data.device_pointer,
 			                           num_global_elements,
 			                           (char*)ray_state.device_pointer,
-			                           (uint*)rtile.rng_state,
 			                           rtile.start_sample,
 			                           rtile.start_sample + rtile.num_samples,
 			                           rtile.x,
@@ -977,6 +1024,8 @@ void device_cpu_info(vector<DeviceInfo>& devices)
 	info.id = "CPU";
 	info.num = 0;
 	info.advanced_shading = true;
+	info.has_qbvh = system_cpu_support_sse2();
+	info.has_volume_decoupled = true;
 
 	devices.insert(devices.begin(), info);
 }

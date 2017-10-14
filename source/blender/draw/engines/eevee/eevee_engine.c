@@ -59,7 +59,7 @@ static void EEVEE_engine_init(void *ved)
 	stl->g_data->background_alpha = 1.0f;
 	stl->g_data->valid_double_buffer = (txl->color_double_buffer != NULL);
 
-	DRWFboTexture tex = {&txl->color, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER | DRW_TEX_MIPMAP};
+	DRWFboTexture tex = {&txl->color, DRW_TEX_RGBA_16, DRW_TEX_FILTER | DRW_TEX_MIPMAP};
 
 	const float *viewport_size = DRW_viewport_size_get();
 	DRW_framebuffer_init(&fbl->main, &draw_engine_eevee_type,
@@ -313,6 +313,7 @@ static void EEVEE_scene_layer_settings_create(RenderEngine *UNUSED(engine), IDPr
 	           props->subtype == IDP_GROUP_SUB_ENGINE_RENDER);
 
 	BKE_collection_engine_property_add_int(props, "gi_diffuse_bounces", 3);
+	BKE_collection_engine_property_add_int(props, "gi_cubemap_resolution", 512);
 
 	BKE_collection_engine_property_add_int(props, "taa_samples", 8);
 

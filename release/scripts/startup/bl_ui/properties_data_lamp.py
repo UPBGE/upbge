@@ -76,7 +76,7 @@ class DATA_PT_preview(DataButtonsPanel, Panel):
 
 class DATA_PT_lamp(DataButtonsPanel, Panel):
     bl_label = "Lamp"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_CLAY'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_CLAY', 'BLENDER_GAME'}
 
     def draw(self, context):
         layout = self.layout
@@ -401,6 +401,19 @@ class DATA_PT_EEVEE_shadow(DataButtonsPanel, Panel):
             sub.prop(lamp, "shadow_cascade_max_distance", text="Max Distance")
             sub.prop(lamp, "shadow_cascade_exponent", text="Distribution")
 
+        layout.separator()
+
+        layout.prop(lamp, "use_contact_shadow")
+        split = layout.split()
+        split.active = lamp.use_contact_shadow
+        col = split.column()
+        col.prop(lamp, "contact_shadow_distance", text="Distance")
+        col.prop(lamp, "contact_shadow_soft_size", text="Soft")
+
+        col = split.column()
+        col.prop(lamp, "contact_shadow_bias", text="Bias")
+        col.prop(lamp, "contact_shadow_thickness", text="Thickness")
+
 class DATA_PT_GAME_shadow(DataButtonsPanel, Panel):
     bl_label = "Game Shadow"
     COMPAT_ENGINES = {'BLENDER_GAME'}
@@ -434,7 +447,7 @@ class DATA_PT_GAME_shadow(DataButtonsPanel, Panel):
 
 class DATA_PT_area(DataButtonsPanel, Panel):
     bl_label = "Area Shape"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_CLAY'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_CLAY', 'BLENDER_GAME'}
 
     @classmethod
     def poll(cls, context):
@@ -460,7 +473,7 @@ class DATA_PT_area(DataButtonsPanel, Panel):
 
 class DATA_PT_spot(DataButtonsPanel, Panel):
     bl_label = "Spot Shape"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_CLAY'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_CLAY', 'BLENDER_GAME'}
 
     @classmethod
     def poll(cls, context):

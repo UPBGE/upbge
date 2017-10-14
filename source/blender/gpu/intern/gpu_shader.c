@@ -589,11 +589,19 @@ int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 	return uniform ? uniform->location : -1;
 }
 
+int GPU_shader_get_builtin_uniform(GPUShader *shader, int builtin)
+{
+	BLI_assert(shader && shader->program);
+	const Gwn_ShaderInput *uniform = GWN_shaderinterface_uniform_builtin(shader->interface, builtin);
+	return uniform ? uniform->location : -1;
+}
+
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name)
 {
 	BLI_assert(shader && shader->program);
 
-	return glGetUniformBlockIndex(shader->program, name);
+	const Gwn_ShaderInput *ubo = GWN_shaderinterface_ubo(shader->interface, name);
+	return ubo ? ubo->location : -1;
 }
 
 void *GPU_fx_shader_get_interface(GPUShader *shader)
@@ -836,7 +844,7 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 		[GPU_SHADER_2D_IMAGE_SHUFFLE_COLOR] = { datatoc_gpu_shader_2D_image_vert_glsl,
 		                                        datatoc_gpu_shader_image_shuffle_color_frag_glsl },
 		[GPU_SHADER_3D_UNIFORM_COLOR] = { datatoc_gpu_shader_3D_vert_glsl, datatoc_gpu_shader_uniform_color_frag_glsl },
-	    [GPU_SHADER_3D_UNIFORM_COLOR_U32] = { datatoc_gpu_shader_3D_vert_glsl, datatoc_gpu_shader_uniform_color_frag_glsl },
+		[GPU_SHADER_3D_UNIFORM_COLOR_U32] = { datatoc_gpu_shader_3D_vert_glsl, datatoc_gpu_shader_uniform_color_frag_glsl },
 		[GPU_SHADER_3D_FLAT_COLOR] = { datatoc_gpu_shader_3D_flat_color_vert_glsl,
 		                               datatoc_gpu_shader_flat_color_frag_glsl },
 		[GPU_SHADER_3D_FLAT_COLOR_U32] = { datatoc_gpu_shader_3D_flat_color_vert_glsl,

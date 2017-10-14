@@ -105,6 +105,7 @@ struct NormalAnglePrecalc {
 static void view_angle_limits_init(
         struct NormalAnglePrecalc *a, float angle, bool do_mask_normal)
 {
+	angle = RAD2DEGF(angle);
 	a->do_mask_normal = do_mask_normal;
 	if (do_mask_normal) {
 		a->angle_inner = angle;
@@ -144,10 +145,14 @@ static float view_angle_limits_apply_falloff(
 
 static bool vwpaint_use_normal(const VPaint *vp)
 {
-	return ((vp->flag & VP_FLAG_PROJECT_BACKFACE) == 0) ||
-	       ((vp->flag & VP_FLAG_PROJECT_FLAT) == 0);
+	return ((vp->paint.brush->flag & BRUSH_FRONTFACE) != 0) ||
+	       ((vp->paint.brush->flag & BRUSH_FRONTFACE_FALLOFF) != 0);
 }
 
+static bool brush_use_accumulate(const Brush *brush)
+{
+	return (brush->flag & BRUSH_ACCUMULATE) != 0 || brush->vertexpaint_tool == PAINT_BLEND_SMEAR;
+}
 
 static MDeformVert *defweight_prev_init(MDeformVert *dvert_prev, MDeformVert *dvert_curr, int index)
 {
@@ -271,7 +276,7 @@ static uint vpaint_blend(
 	uint color_blend = ED_vpaint_blend_tool(tool, color_curr, color_paint, alpha_i);
 
 	/* if no accumulate, clip color adding with colorig & orig alpha */
-	if ((brush->flag & BRUSH_ACCUMULATE) == 0) {
+	if (!brush_use_accumulate(brush)) {
 		uint color_test, a;
 		char *cp, *ct, *co;
 
@@ -305,78 +310,29 @@ static uint vpaint_blend(
 	return color_blend;
 }
 
-
-/* whats _dl mean? */
-static float calc_vp_strength_col_dl(
+static void tex_color_alpha(
         VPaint *vp, const ViewContext *vc, const float co[3],
-        const float mval[2], const float brush_size_pressure, float rgba[4])
+        float r_rgba[4])
 {
-	float co_ss[2];  /* screenspace */
-
-	if (ED_view3d_project_float_object(
-	        vc->ar,
-	        co, co_ss,
-	        V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_NEAR) == V3D_PROJ_RET_OK)
-	{
-		const float dist_sq = len_squared_v2v2(mval, co_ss);
-
-		if (dist_sq <= SQUARE(brush_size_pressure)) {
-			Brush *brush = BKE_paint_brush(&vp->paint);
-			const float dist = sqrtf(dist_sq);
-			float factor;
-
-			if (brush->mtex.tex && rgba) {
-				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_3D) {
-					BKE_brush_sample_tex_3D(vc->scene, brush, co, rgba, 0, NULL);
-				}
-				else {
-					const float co_ss_3d[3] = {co_ss[0], co_ss[1], 0.0f};  /* we need a 3rd empty value */
-					BKE_brush_sample_tex_3D(vc->scene, brush, co_ss_3d, rgba, 0, NULL);
-				}
-				factor = rgba[3];
-			}
-			else {
-				factor = 1.0f;
-			}
-			return factor * BKE_brush_curve_strength_clamped(brush, dist, brush_size_pressure);
+	const Brush *brush = BKE_paint_brush(&vp->paint);
+	BLI_assert(brush->mtex.tex != NULL);
+	if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_3D) {
+		BKE_brush_sample_tex_3D(vc->scene, brush, co, r_rgba, 0, NULL);
+	}
+	else {
+		float co_ss[2];  /* screenspace */
+		if (ED_view3d_project_float_object(
+		        vc->ar,
+		        co, co_ss,
+		        V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_NEAR) == V3D_PROJ_RET_OK)
+		{
+			const float co_ss_3d[3] = {co_ss[0], co_ss[1], 0.0f};  /* we need a 3rd empty value */
+			BKE_brush_sample_tex_3D(vc->scene, brush, co_ss_3d, r_rgba, 0, NULL);
+		}
+		else {
+			zero_v4(r_rgba);
 		}
 	}
-	if (rgba)
-		zero_v4(rgba);
-	return 0.0f;
-}
-
-static float calc_vp_alpha_col_dl(
-        VPaint *vp, const ViewContext *vc,
-        float vpimat[3][3], const DMCoNo *v_co_no,
-        const float mval[2],
-        const float brush_size_pressure, const float brush_alpha_pressure, float rgba[4])
-{
-	float strength = calc_vp_strength_col_dl(vp, vc, v_co_no->co, mval, brush_size_pressure, rgba);
-
-	if (strength > 0.0f) {
-		float alpha = brush_alpha_pressure * strength;
-
-		if ((vp->flag & VP_FLAG_PROJECT_FLAT) == 0) {
-			float dvec[3];
-
-			/* transpose ! */
-			dvec[2] = dot_v3v3(vpimat[2], v_co_no->no);
-			if (dvec[2] > 0.0f) {
-				dvec[0] = dot_v3v3(vpimat[0], v_co_no->no);
-				dvec[1] = dot_v3v3(vpimat[1], v_co_no->no);
-
-				alpha *= dvec[2] / len_v3(dvec);
-			}
-			else {
-				return 0.0f;
-			}
-		}
-
-		return alpha;
-	}
-
-	return 0.0f;
 }
 
 /* vpaint has 'vpaint_blend' */
@@ -783,7 +739,7 @@ static void do_weight_paint_vertex_single(
 		dw_mirr = NULL;
 	}
 
-	if ((wp->paint.brush->flag & BRUSH_ACCUMULATE) == 0) {
+	if (!brush_use_accumulate(wp->paint.brush)) {
 		MDeformVert *dvert_prev = ob->sculpt->mode.wpaint.dvert_prev;
 		MDeformVert *dv_prev = defweight_prev_init(dvert_prev, me->dvert, index);
 		if (index_mirr != -1) {
@@ -899,7 +855,7 @@ static void do_weight_paint_vertex_multi(
 		return;
 	}
 
-	if ((wp->paint.brush->flag & BRUSH_ACCUMULATE) == 0) {
+	if (!brush_use_accumulate(wp->paint.brush)) {
 		MDeformVert *dvert_prev = ob->sculpt->mode.wpaint.dvert_prev;
 		MDeformVert *dv_prev = defweight_prev_init(dvert_prev, me->dvert, index);
 		if (index_mirr != -1) {
@@ -1030,7 +986,7 @@ static void vertex_paint_init_session_data(const ToolSettings *ts, Object *ob)
 
 	/* Create average brush arrays */
 	if (ob->mode == OB_MODE_VERTEX_PAINT) {
-		if ((brush->flag & BRUSH_ACCUMULATE) == 0) {
+		if (!brush_use_accumulate(brush)) {
 			if (ob->sculpt->mode.vpaint.previous_color == NULL) {
 				ob->sculpt->mode.vpaint.previous_color =
 				        MEM_callocN(me->totloop * sizeof(uint), __func__);
@@ -1041,7 +997,7 @@ static void vertex_paint_init_session_data(const ToolSettings *ts, Object *ob)
 		}
 	}
 	else if (ob->mode == OB_MODE_WEIGHT_PAINT) {
-		if ((brush->flag & BRUSH_ACCUMULATE) == 0) {
+		if (!brush_use_accumulate(brush)) {
 			if (ob->sculpt->mode.wpaint.alpha_weight == NULL) {
 				ob->sculpt->mode.wpaint.alpha_weight =
 				        MEM_callocN(me->totvert * sizeof(float), __func__);
@@ -1190,8 +1146,6 @@ struct WPaintData {
 
 	struct WeightPaintGroupData active, mirror;
 
-	float wpimat[3][3];
-
 	/* variables for auto normalize */
 	const bool *vgroup_validmap; /* stores if vgroups tie to deforming bones or not */
 	const bool *lock_flags;
@@ -1203,11 +1157,9 @@ struct WPaintData {
 
 	int defbase_tot;
 
-	/* Special storage for smear brush, avoid feedback loop - update each step and swap. */
-	struct {
-		float *weight_prev;
-		float *weight_curr;
-	} smear;
+	/* original weight values for use in blur/smear */
+	float *precomputed_weight;
+	bool precomputed_weight_ready;
 };
 
 /* Initialize the stroke cache invariants from operator properties */
@@ -1335,8 +1287,6 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
 	VPaint *vp = CTX_data_tool_settings(C)->wpaint;
 	EvaluationContext eval_ctx;
 
-	float mat[4][4], imat[4][4];
-
 	if (ED_wpaint_ensure_data(C, op->reports, WPAINT_ENSURE_MIRROR, &vgroup_index) == false) {
 		return false;
 	}
@@ -1390,7 +1340,8 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
 	wpd = MEM_callocN(sizeof(struct WPaintData), "WPaintData");
 	paint_stroke_set_mode_data(stroke, wpd);
 	view3d_set_viewcontext(C, &wpd->vc);
-	view_angle_limits_init(&wpd->normal_angle_precalc, vp->normal_angle, (vp->flag & VP_FLAG_PROJECT_FLAT) == 0);
+	view_angle_limits_init(&wpd->normal_angle_precalc, vp->paint.brush->falloff_angle,
+	                       (vp->paint.brush->flag & BRUSH_FRONTFACE_FALLOFF) != 0);
 
 	wpd->active.index = vgroup_index.active;
 	wpd->mirror.index = vgroup_index.mirror;
@@ -1435,30 +1386,9 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
 		wpd->mirror.lock = tmpflags;
 	}
 
-	if (vp->paint.brush->vertexpaint_tool == PAINT_BLEND_SMEAR) {
-		wpd->smear.weight_prev = MEM_mallocN(sizeof(float) * me->totvert, __func__);
-		const MDeformVert *dv = me->dvert;
-		if (wpd->do_multipaint) {
-			const bool do_auto_normalize = ((ts->auto_normalize != 0) && (wpd->vgroup_validmap != NULL));
-			for (int i = 0; i < me->totvert; i++, dv++) {
-				float weight = BKE_defvert_multipaint_collective_weight(
-				        dv, wpd->defbase_tot, wpd->defbase_sel, wpd->defbase_tot_sel, do_auto_normalize);
-				CLAMP(weight, 0.0f, 1.0f);
-				wpd->smear.weight_prev[i] = weight;
-			}
-		}
-		else {
-			for (int i = 0; i < me->totvert; i++, dv++) {
-				wpd->smear.weight_prev[i] = defvert_find_weight(dv, wpd->active.index);
-			}
-		}
-		wpd->smear.weight_curr = MEM_dupallocN(wpd->smear.weight_prev);
+	if (ELEM(vp->paint.brush->vertexpaint_tool, PAINT_BLEND_SMEAR, PAINT_BLEND_BLUR)) {
+		wpd->precomputed_weight = MEM_mallocN(sizeof(float) * me->totvert, __func__);
 	}
-
-	/* imat for normals */
-	mul_m4_m4m4(mat, wpd->vc.rv3d->viewmat, ob->obmat);
-	invert_m4_m4(imat, mat);
-	copy_m3_m4(wpd->wpimat, imat);
 
 	/* If not previously created, create vertex/weight paint mode session data */
 	vertex_paint_init_session(&eval_ctx, scene, ob);
@@ -1510,20 +1440,31 @@ static float wpaint_get_active_weight(const MDeformVert *dv, const WeightPaintIn
 	}
 }
 
-static SculptBrushTestFn sculpt_brush_test_init_with_falloff_shape(
-        SculptSession *ss, SculptBrushTest *test, char falloff_shape)
+static void do_wpaint_precompute_weight_cb_ex(
+        void *userdata, void *UNUSED(userdata_chunk), const int n, const int UNUSED(thread_id))
 {
-	sculpt_brush_test_init(ss, test);
-	SculptBrushTestFn sculpt_brush_test_sq_fn;
-	if (falloff_shape == VP_FALLOFF_SHAPE_SPHERE) {
-		sculpt_brush_test_sq_fn = sculpt_brush_test_sphere_sq;
-	}
-	else {
-		/* VP_FALLOFF_SHAPE_TUBE */
-		plane_from_point_normal_v3(test->plane, test->location, ss->cache->view_normal);
-		sculpt_brush_test_sq_fn = sculpt_brush_test_circle_sq;
-	}
-	return sculpt_brush_test_sq_fn;
+	SculptThreadedTaskData *data = userdata;
+	const MDeformVert *dv = &data->me->dvert[n];
+
+	data->wpd->precomputed_weight[n] = wpaint_get_active_weight(dv, data->wpi);
+}
+
+static void precompute_weight_values(
+        bContext *C, Object *ob, Brush *brush, struct WPaintData *wpd, WeightPaintInfo *wpi, Mesh *me)
+{
+	if (wpd->precomputed_weight_ready && !brush_use_accumulate(brush))
+		return;
+
+	/* threaded loop over vertices */
+	SculptThreadedTaskData data = {
+		.C = C, .ob = ob, .wpd = wpd, .wpi = wpi, .me = me,
+	};
+
+	BLI_task_parallel_range_ex(
+	        0, me->totvert, &data, NULL, 0, do_wpaint_precompute_weight_cb_ex,
+	        true, false);
+
+	wpd->precomputed_weight_ready = true;
 }
 
 static void do_wpaint_brush_blur_task_cb_ex(
@@ -1546,7 +1487,9 @@ static void do_wpaint_brush_blur_task_cb_ex(
 
 	SculptBrushTest test;
 	SculptBrushTestFn sculpt_brush_test_sq_fn =
-	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->vp->falloff_shape);
+	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->brush->falloff_shape);
+	const float *sculpt_normal_frontface =
+	        sculpt_brush_frontface_normal_from_falloff_shape(ss, data->brush->falloff_shape);
 
 	/* For each vertex */
 	PBVHVertexIter vd;
@@ -1572,8 +1515,7 @@ static void do_wpaint_brush_blur_task_cb_ex(
 					for (int k = 0; k < mp->totloop; k++) {
 						const int l_index = mp->loopstart + k;
 						const MLoop *ml = &data->me->mloop[l_index];
-						const MDeformVert *dv = &data->me->dvert[ml->v];
-						weight_final += wpaint_get_active_weight(dv, data->wpi);
+						weight_final += data->wpd->precomputed_weight[ml->v];
 					}
 				}
 
@@ -1581,10 +1523,10 @@ static void do_wpaint_brush_blur_task_cb_ex(
 				if (total_hit_loops != 0) {
 					float brush_strength = cache->bstrength;
 					const float angle_cos = (use_normal && vd.no) ?
-					        dot_vf3vs3(ss->cache->sculpt_normal_symm, vd.no) : 1.0f;
-					if (((data->vp->flag & VP_FLAG_PROJECT_BACKFACE) ||
+					        dot_vf3vs3(sculpt_normal_frontface, vd.no) : 1.0f;
+					if (((brush->flag & BRUSH_FRONTFACE) == 0 ||
 					     (angle_cos > 0.0f)) &&
-					    ((data->vp->flag & VP_FLAG_PROJECT_FLAT) ||
+					    ((brush->flag & BRUSH_FRONTFACE_FALLOFF) == 0 ||
 					     view_angle_limits_apply_falloff(&data->wpd->normal_angle_precalc, angle_cos, &brush_strength)))
 					{
 						const float brush_fade = BKE_brush_curve_strength(brush, sqrtf(test.dist), cache->radius);
@@ -1639,7 +1581,9 @@ static void do_wpaint_brush_smear_task_cb_ex(
 
 		SculptBrushTest test;
 		SculptBrushTestFn sculpt_brush_test_sq_fn =
-		        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->vp->falloff_shape);
+		        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->brush->falloff_shape);
+		const float *sculpt_normal_frontface =
+		        sculpt_brush_frontface_normal_from_falloff_shape(ss, data->brush->falloff_shape);
 
 		/* For each vertex */
 		PBVHVertexIter vd;
@@ -1657,10 +1601,10 @@ static void do_wpaint_brush_smear_task_cb_ex(
 				if (!(use_face_sel || use_vert_sel) || mv_curr->flag & SELECT) {
 					float brush_strength = cache->bstrength;
 					const float angle_cos = (use_normal && vd.no) ?
-					        dot_vf3vs3(ss->cache->sculpt_normal_symm, vd.no) : 1.0f;
-					if (((data->vp->flag & VP_FLAG_PROJECT_BACKFACE) ||
+					        dot_vf3vs3(sculpt_normal_frontface, vd.no) : 1.0f;
+					if (((brush->flag & BRUSH_FRONTFACE) == 0 ||
 					     (angle_cos > 0.0f)) &&
-					    ((data->vp->flag & VP_FLAG_PROJECT_FLAT) ||
+					    ((brush->flag & BRUSH_FRONTFACE_FALLOFF) == 0 ||
 					     view_angle_limits_apply_falloff(&data->wpd->normal_angle_precalc, angle_cos, &brush_strength)))
 					{
 						bool do_color = false;
@@ -1691,7 +1635,7 @@ static void do_wpaint_brush_smear_task_cb_ex(
 
 									if (stroke_dot > stroke_dot_max) {
 										stroke_dot_max = stroke_dot;
-										weight_final = data->wpd->smear.weight_prev[v_other_index];
+										weight_final = data->wpd->precomputed_weight[v_other_index];
 										do_color = true;
 									}
 								}
@@ -1703,12 +1647,13 @@ static void do_wpaint_brush_smear_task_cb_ex(
 							const float final_alpha =
 							        brush_fade * brush_strength *
 							        grid_alpha * brush_alpha_pressure;
+
+							if (final_alpha <= 0.0f)
+								continue;
+
 							do_weight_paint_vertex(
 							        data->vp, data->ob, data->wpi,
 							        v_index, final_alpha, (float)weight_final);
-							/* Access the weight again because it might not have been applied completely. */
-							data->wpd->smear.weight_curr[v_index] =
-							        wpaint_get_active_weight(&data->me->dvert[v_index], data->wpi);
 						}
 					}
 				}
@@ -1739,7 +1684,9 @@ static void do_wpaint_brush_draw_task_cb_ex(
 
 	SculptBrushTest test;
 	SculptBrushTestFn sculpt_brush_test_sq_fn =
-	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->vp->falloff_shape);
+	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->brush->falloff_shape);
+	const float *sculpt_normal_frontface =
+	        sculpt_brush_frontface_normal_from_falloff_shape(ss, data->brush->falloff_shape);
 
 	/* For each vertex */
 	PBVHVertexIter vd;
@@ -1758,10 +1705,10 @@ static void do_wpaint_brush_draw_task_cb_ex(
 			if (!(use_face_sel || use_vert_sel) || v_flag & SELECT) {
 				float brush_strength = cache->bstrength;
 				const float angle_cos = (use_normal && vd.no) ?
-				        dot_vf3vs3(ss->cache->sculpt_normal_symm, vd.no) : 1.0f;
-				if (((data->vp->flag & VP_FLAG_PROJECT_BACKFACE) ||
+				        dot_vf3vs3(sculpt_normal_frontface, vd.no) : 1.0f;
+				if (((brush->flag & BRUSH_FRONTFACE) == 0 ||
 				     (angle_cos > 0.0f)) &&
-				    ((data->vp->flag & VP_FLAG_PROJECT_FLAT) ||
+				    ((brush->flag & BRUSH_FRONTFACE_FALLOFF) == 0 ||
 				     view_angle_limits_apply_falloff(&data->wpd->normal_angle_precalc, angle_cos, &brush_strength)))
 				{
 					const float brush_fade = BKE_brush_curve_strength(brush, sqrtf(test.dist), cache->radius);
@@ -1804,7 +1751,9 @@ static void do_wpaint_brush_calc_average_weight_cb_ex(
 
 	SculptBrushTest test;
 	SculptBrushTestFn sculpt_brush_test_sq_fn =
-	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->vp->falloff_shape);
+	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->brush->falloff_shape);
+	const float *sculpt_normal_frontface =
+	        sculpt_brush_frontface_normal_from_falloff_shape(ss, data->brush->falloff_shape);
 
 	/* For each vertex */
 	PBVHVertexIter vd;
@@ -1813,7 +1762,7 @@ static void do_wpaint_brush_calc_average_weight_cb_ex(
 		/* Test to see if the vertex coordinates are within the spherical brush region. */
 		if (sculpt_brush_test_sq_fn(&test, vd.co)) {
 			const float angle_cos = (use_normal && vd.no) ?
-			        dot_vf3vs3(ss->cache->sculpt_normal_symm, vd.no) : 1.0f;
+			        dot_vf3vs3(sculpt_normal_frontface, vd.no) : 1.0f;
 			if (angle_cos > 0.0 && BKE_brush_curve_strength(data->brush, sqrtf(test.dist), cache->radius) > 0.0) {
 				const int v_index = ccgdm ? data->me->mloop[vd.grid_indices[vd.g]].v : vd.vert_indices[vd.i];
 				// const float grid_alpha = ccgdm ? 1.0f / vd.gridsize : 1.0f;
@@ -1906,7 +1855,7 @@ static PBVHNode **vwpaint_pbvh_gather_generic(
 	PBVHNode **nodes = NULL;
 
 	/* Build a list of all nodes that are potentially within the brush's area of influence */
-	if (wp->falloff_shape == VP_FALLOFF_SHAPE_SPHERE) {
+	if (brush->falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
 		SculptSearchSphereData data = {
 			.ss = ss,
 			.sd = sd,
@@ -1923,7 +1872,7 @@ static PBVHNode **vwpaint_pbvh_gather_generic(
 	}
 	else {
 		struct DistRayAABB_Precalc dist_ray_to_aabb_precalc;
-		dist_squared_ray_to_aabb_precalc(&dist_ray_to_aabb_precalc, ss->cache->location, ss->cache->view_normal);
+		dist_squared_ray_to_aabb_v3_precalc(&dist_ray_to_aabb_precalc, ss->cache->location, ss->cache->view_normal);
 		SculptSearchCircleData data = {
 			.ss = ss,
 			.sd = sd,
@@ -2070,13 +2019,13 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	wpi.brush_alpha_value =  brush_alpha_value;
 	/* *** done setting up WeightPaintInfo *** */
 
+	if (wpd->precomputed_weight) {
+		precompute_weight_values(C, ob, brush, wpd, &wpi, ob->data);
+	}
+
 	wpaint_do_symmetrical_brush_actions(C, ob, wp, sd, wpd, &wpi);
 
 	swap_m4m4(vc->rv3d->persmat, mat);
-
-	if (wp->paint.brush->vertexpaint_tool == PAINT_BLEND_SMEAR) {
-		SWAP(float *, wpd->smear.weight_curr, wpd->smear.weight_prev);
-	}
 
 	/* calculate pivot for rotation around seletion if needed */
 	/* also needed for "View Selected" on last stroke */
@@ -2127,10 +2076,8 @@ static void wpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 			MEM_freeN((void *)wpd->active.lock);
 		if (wpd->mirror.lock)
 			MEM_freeN((void *)wpd->mirror.lock);
-		if (wpd->smear.weight_prev)
-			MEM_freeN(wpd->smear.weight_prev);
-		if (wpd->smear.weight_curr)
-			MEM_freeN(wpd->smear.weight_curr);
+		if (wpd->precomputed_weight)
+			MEM_freeN(wpd->precomputed_weight);
 
 		MEM_freeN(wpd);
 	}
@@ -2356,8 +2303,6 @@ struct VPaintData {
 	struct VertProjHandle *vp_handle;
 	struct DMCoNo *vertexcosnos;
 
-	float vpimat[3][3];
-
 	/* modify 'me->mcol' directly, since the derived mesh is drawing from this
 	 * array, otherwise we need to refresh the modifier stack */
 	bool use_fast_update;
@@ -2368,7 +2313,7 @@ struct VPaintData {
 
 	bool is_texbrush;
 
-	/* Special storage for smear brush, avoid feedback loop - update each step and swap. */
+	/* Special storage for smear brush, avoid feedback loop - update each step. */
 	struct {
 		uint *color_prev;
 		uint *color_curr;
@@ -2385,7 +2330,6 @@ static bool vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const f
 	struct VPaintData *vpd;
 	Object *ob = CTX_data_active_object(C);
 	Mesh *me;
-	float mat[4][4], imat[4][4];
 	SculptSession *ss = ob->sculpt;
 	EvaluationContext eval_ctx;
 
@@ -2404,7 +2348,8 @@ static bool vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const f
 	vpd = MEM_callocN(sizeof(*vpd), "VPaintData");
 	paint_stroke_set_mode_data(stroke, vpd);
 	view3d_set_viewcontext(C, &vpd->vc);
-	view_angle_limits_init(&vpd->normal_angle_precalc, vp->normal_angle, (vp->flag & VP_FLAG_PROJECT_FLAT) == 0);
+	view_angle_limits_init(&vpd->normal_angle_precalc, vp->paint.brush->falloff_angle,
+	                       (vp->paint.brush->flag & BRUSH_FRONTFACE_FALLOFF) != 0);
 
 	vpd->paintcol = vpaint_get_current_col(scene, vp);
 
@@ -2440,11 +2385,6 @@ static bool vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const f
 		ob->sculpt->building_vp_handle = false;
 	}
 
-	/* some old cruft to sort out later */
-	mul_m4_m4m4(mat, vpd->vc.rv3d->viewmat, ob->obmat);
-	invert_m4_m4(imat, mat);
-	copy_m3_m4(vpd->vpimat, imat);
-
 	/* If not previously created, create vertex/weight paint mode session data */
 	vertex_paint_init_session(&eval_ctx, scene, ob);
 	vwpaint_update_cache_invariants(C, vp, ss, op, mouse);
@@ -2476,7 +2416,7 @@ static void do_vpaint_brush_calc_average_color_cb_ex(
 
 	SculptBrushTest test;
 	SculptBrushTestFn sculpt_brush_test_sq_fn =
-	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->vp->falloff_shape);
+	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->brush->falloff_shape);
 
 	/* For each vertex */
 	PBVHVertexIter vd;
@@ -2506,23 +2446,17 @@ static void do_vpaint_brush_calc_average_color_cb_ex(
 	BKE_pbvh_vertex_iter_end;
 }
 
-static void handle_texture_brush(
-        SculptThreadedTaskData *data, PBVHVertexIter vd, float size_pressure, float alpha_pressure,
-        float *r_alpha, uint *r_color)
+static float tex_color_alpha_ubyte(
+        SculptThreadedTaskData *data, const float v_co[3],
+        uint *r_color)
 {
-	SculptSession *ss = data->ob->sculpt;
-	CCGDerivedMesh *ccgdm = BKE_pbvh_get_ccgdm(ss->pbvh);
-	const int v_index = ccgdm ? data->me->mloop[vd.grid_indices[vd.g]].v : vd.vert_indices[vd.i];
-
 	float rgba[4];
 	float rgba_br[3];
-
-	*r_alpha = calc_vp_alpha_col_dl(
-	        data->vp, &data->vpd->vc, data->vpd->vpimat,
-	        &data->vpd->vertexcosnos[v_index], ss->cache->mouse, size_pressure, alpha_pressure, rgba);
+	tex_color_alpha(data->vp, &data->vpd->vc, v_co, rgba);
 	rgb_uchar_to_float(rgba_br, (const uchar *)&data->vpd->paintcol);
 	mul_v3_v3(rgba_br, rgba);
 	rgb_float_to_uchar((uchar *)r_color, rgba_br);
+	return rgba[3];
 }
 
 static void do_vpaint_brush_draw_task_cb_ex(
@@ -2545,7 +2479,9 @@ static void do_vpaint_brush_draw_task_cb_ex(
 
 	SculptBrushTest test;
 	SculptBrushTestFn sculpt_brush_test_sq_fn =
-	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->vp->falloff_shape);
+	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->brush->falloff_shape);
+	const float *sculpt_normal_frontface =
+	        sculpt_brush_frontface_normal_from_falloff_shape(ss, data->brush->falloff_shape);
 
 	/* For each vertex */
 	PBVHVertexIter vd;
@@ -2566,10 +2502,10 @@ static void do_vpaint_brush_draw_task_cb_ex(
 				 * (ie splash prevention factor), and only paint front facing verts. */
 				float brush_strength = cache->bstrength;
 				const float angle_cos = (use_normal && vd.no) ?
-				        dot_vf3vs3(ss->cache->sculpt_normal_symm, vd.no) : 1.0f;
-				if (((data->vp->flag & VP_FLAG_PROJECT_BACKFACE) ||
+				        dot_vf3vs3(sculpt_normal_frontface, vd.no) : 1.0f;
+				if (((brush->flag & BRUSH_FRONTFACE) == 0 ||
 				     (angle_cos > 0.0f)) &&
-				    ((data->vp->flag & VP_FLAG_PROJECT_FLAT) ||
+				    ((brush->flag & BRUSH_FRONTFACE_FALLOFF) == 0 ||
 				     view_angle_limits_apply_falloff(&data->vpd->normal_angle_precalc, angle_cos, &brush_strength)))
 				{
 					const float brush_fade = BKE_brush_curve_strength(brush, sqrtf(test.dist), cache->radius);
@@ -2578,9 +2514,10 @@ static void do_vpaint_brush_draw_task_cb_ex(
 					/* If we're painting with a texture, sample the texture color and alpha. */
 					float tex_alpha = 1.0;
 					if (data->vpd->is_texbrush) {
-						handle_texture_brush(
-						        data, vd, brush_size_pressure, brush_alpha_pressure,
-						        &tex_alpha, &color_final);
+						/* Note: we may want to paint alpha as vertex color alpha. */
+						tex_alpha = tex_color_alpha_ubyte(
+						        data, data->vpd->vertexcosnos[v_index].co,
+						        &color_final);
 					}
 					/* For each poly owning this vert, paint each loop belonging to this vert. */
 					for (int j = 0; j < gmap->vert_to_poly[v_index].count; j++) {
@@ -2634,7 +2571,9 @@ static void do_vpaint_brush_blur_task_cb_ex(
 
 	SculptBrushTest test;
 	SculptBrushTestFn sculpt_brush_test_sq_fn =
-	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->vp->falloff_shape);
+	        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->brush->falloff_shape);
+	const float *sculpt_normal_frontface =
+	        sculpt_brush_frontface_normal_from_falloff_shape(ss, data->brush->falloff_shape);
 
 	/* For each vertex */
 	PBVHVertexIter vd;
@@ -2652,10 +2591,10 @@ static void do_vpaint_brush_blur_task_cb_ex(
 			if (!use_vert_sel || mv->flag & SELECT) {
 				float brush_strength = cache->bstrength;
 				const float angle_cos = (use_normal && vd.no) ?
-				        dot_vf3vs3(ss->cache->sculpt_normal_symm, vd.no) : 1.0f;
-				if (((data->vp->flag & VP_FLAG_PROJECT_BACKFACE) ||
+				        dot_vf3vs3(sculpt_normal_frontface, vd.no) : 1.0f;
+				if (((brush->flag & BRUSH_FRONTFACE) == 0 ||
 				     (angle_cos > 0.0f)) &&
-				    ((data->vp->flag & VP_FLAG_PROJECT_FLAT) ||
+				    ((brush->flag & BRUSH_FRONTFACE_FALLOFF) == 0 ||
 				     view_angle_limits_apply_falloff(&data->vpd->normal_angle_precalc, angle_cos, &brush_strength)))
 				{
 					const float brush_fade = BKE_brush_curve_strength(brush, sqrtf(test.dist), cache->radius);
@@ -2747,7 +2686,9 @@ static void do_vpaint_brush_smear_task_cb_ex(
 
 		SculptBrushTest test;
 		SculptBrushTestFn sculpt_brush_test_sq_fn =
-		        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->vp->falloff_shape);
+		        sculpt_brush_test_init_with_falloff_shape(ss, &test, data->brush->falloff_shape);
+		const float *sculpt_normal_frontface =
+		        sculpt_brush_frontface_normal_from_falloff_shape(ss, data->brush->falloff_shape);
 
 		/* For each vertex */
 		PBVHVertexIter vd;
@@ -2767,10 +2708,10 @@ static void do_vpaint_brush_smear_task_cb_ex(
 					 * (ie splash prevention factor), and only paint front facing verts. */
 					float brush_strength = cache->bstrength;
 					const float angle_cos = (use_normal && vd.no) ?
-					        dot_vf3vs3(ss->cache->sculpt_normal_symm, vd.no) : 1.0f;
-					if (((data->vp->flag & VP_FLAG_PROJECT_BACKFACE) ||
+					        dot_vf3vs3(sculpt_normal_frontface, vd.no) : 1.0f;
+					if (((brush->flag & BRUSH_FRONTFACE) == 0 ||
 					     (angle_cos > 0.0f)) &&
-					    ((data->vp->flag & VP_FLAG_PROJECT_FLAT) ||
+					    ((brush->flag & BRUSH_FRONTFACE_FALLOFF) == 0 ||
 					     view_angle_limits_apply_falloff(&data->vpd->normal_angle_precalc, angle_cos, &brush_strength)))
 					{
 						const float brush_fade = BKE_brush_curve_strength(brush, sqrtf(test.dist), cache->radius);
@@ -3020,7 +2961,7 @@ static void vpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	BKE_mesh_batch_cache_dirty(ob->data, BKE_MESH_BATCH_DIRTY_ALL);
 
 	if (vp->paint.brush->vertexpaint_tool == PAINT_BLEND_SMEAR) {
-		SWAP(uint *, vpd->smear.color_curr, vpd->smear.color_prev);
+		memcpy(vpd->smear.color_prev, vpd->smear.color_curr, sizeof(uint) * ((Mesh *)ob->data)->totloop);
 	}
 
 	/* calculate pivot for rotation around seletion if needed */
@@ -3045,6 +2986,10 @@ static void vpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 	struct VPaintData *vpd = paint_stroke_mode_data(stroke);
 	ViewContext *vc = &vpd->vc;
 	Object *ob = vc->obact;
+
+	if (vpd->is_texbrush) {
+		ED_vpaint_proj_handle_free(vpd->vp_handle);
+	}
 
 	if (vpd->mlooptag)
 		MEM_freeN(vpd->mlooptag);

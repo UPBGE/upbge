@@ -233,7 +233,7 @@ static struct GPUTexture *create_ggx_refraction_lut_texture(int w, int h)
 
 		DRW_framebuffer_read_data(0, 0, w, h, 3, 0, data);
 
-	#if 1
+#if 1
 		fprintf(f, "\t{\n\t\t");
 		for (int i = 0; i < w*h * 3; i+=3) {
 			fprintf(f, "%ff,", data[i]);
@@ -241,7 +241,7 @@ static struct GPUTexture *create_ggx_refraction_lut_texture(int w, int h)
 			else fprintf(f, " ");
 		}
 		fprintf(f, "\n\t},\n");
-	#else
+#else
 		for (int i = 0; i < w*h * 3; i+=3) {
 			if (data[i] < 0.01) printf(" ");
 			else if (data[i] < 0.3) printf(".");
@@ -250,7 +250,7 @@ static struct GPUTexture *create_ggx_refraction_lut_texture(int w, int h)
 			else printf("#");
 			if ((i/3+1) % 64 == 0) printf("\n");
 		}
-	#endif
+#endif
 
 	} while (roughness < 1.0f);
 	fprintf(f, "\n};\n");
@@ -390,17 +390,15 @@ static void add_standard_uniforms(
 	DRW_shgroup_uniform_buffer(shgrp, "shadowTexture", &sldata->shadow_pool);
 	DRW_shgroup_uniform_int(shgrp, "outputSsrId", ssr_id, 1);
 	DRW_shgroup_uniform_vec4(shgrp, "aoParameters[0]", &vedata->stl->effects->ao_dist, 2);
+	DRW_shgroup_uniform_vec4(shgrp, "viewvecs[0]", (float *)vedata->stl->g_data->viewvecs, 2);
+	DRW_shgroup_uniform_buffer(shgrp, "maxzBuffer", &vedata->txl->maxzbuffer);
+	DRW_shgroup_uniform_vec2(shgrp, "mipRatio[0]", (float *)vedata->stl->g_data->mip_ratio, 10);
+	DRW_shgroup_uniform_vec4(shgrp, "ssrParameters", &vedata->stl->effects->ssr_quality, 1);
 	if (refract_depth != NULL) {
 		DRW_shgroup_uniform_float(shgrp, "refractionDepth", refract_depth, 1);
 	}
-	if (vedata->stl->effects->use_ao || use_ssrefraction) {
-		DRW_shgroup_uniform_vec4(shgrp, "viewvecs[0]", (float *)vedata->stl->g_data->viewvecs, 2);
-		DRW_shgroup_uniform_buffer(shgrp, "maxzBuffer", &vedata->txl->maxzbuffer);
-		DRW_shgroup_uniform_vec2(shgrp, "mipRatio[0]", (float *)vedata->stl->g_data->mip_ratio, 10);
-	}
 	if (use_ssrefraction) {
 		DRW_shgroup_uniform_buffer(shgrp, "colorBuffer", &vedata->txl->refract_color);
-		DRW_shgroup_uniform_vec4(shgrp, "ssrParameters", &vedata->stl->effects->ssr_quality, 1);
 		DRW_shgroup_uniform_float(shgrp, "borderFadeFactor", &vedata->stl->effects->ssr_border_fac, 1);
 		DRW_shgroup_uniform_float(shgrp, "maxRoughness", &vedata->stl->effects->ssr_max_roughness, 1);
 		DRW_shgroup_uniform_int(shgrp, "rayCount", &vedata->stl->effects->ssr_ray_count, 1);
@@ -447,8 +445,8 @@ void EEVEE_update_util_texture(float offset)
 	/* Copy bsdf_split_sum_ggx into 2nd layer red and green channels.
 	   Copy ltc_mag_ggx into 2nd layer blue channel. */
 	for (int i = 0; i < 64 * 64; i++) {
-		texels_layer[i][0] = bsdf_split_sum_ggx[i*2 + 0];
-		texels_layer[i][1] = bsdf_split_sum_ggx[i*2 + 1];
+		texels_layer[i][0] = bsdf_split_sum_ggx[i * 2 + 0];
+		texels_layer[i][1] = bsdf_split_sum_ggx[i * 2 + 1];
 		texels_layer[i][2] = ltc_mag_ggx[i];
 	}
 	texels_layer += 64 * 64;
@@ -469,10 +467,10 @@ void EEVEE_update_util_texture(float offset)
 	/* Copy Refraction GGX LUT in layer 4 - 20 */
 	for (int j = 0; j < 16; ++j) {
 		for (int i = 0; i < 64 * 64; i++) {
-			texels_layer[i][0] = btdf_split_sum_ggx[j*2][i];
-			texels_layer[i][1] = btdf_split_sum_ggx[j*2][i];
-			texels_layer[i][2] = btdf_split_sum_ggx[j*2][i];
-			texels_layer[i][3] = btdf_split_sum_ggx[j*2][i];
+			texels_layer[i][0] = btdf_split_sum_ggx[j * 2][i];
+			texels_layer[i][1] = btdf_split_sum_ggx[j * 2][i];
+			texels_layer[i][2] = btdf_split_sum_ggx[j * 2][i];
+			texels_layer[i][3] = btdf_split_sum_ggx[j * 2][i];
 		}
 		texels_layer += 64 * 64;
 	}
@@ -935,7 +933,7 @@ void EEVEE_materials_cache_init(EEVEE_Data *vedata)
 	} \
 } while (0)
 
-typedef struct EeveeMaterialShadingGroups{
+typedef struct EeveeMaterialShadingGroups {
 	struct DRWShadingGroup *shading_grp;
 	struct DRWShadingGroup *depth_grp;
 	struct DRWShadingGroup *depth_clip_grp;
@@ -1010,7 +1008,9 @@ static void material_opaque(
 				*shgrp_depth_clip = DRW_shgroup_material_create(*gpumat_depth, (do_cull) ? psl->depth_pass_clip_cull : psl->depth_pass_clip);
 			}
 
-			if (*shgrp != NULL) {
+			if (*shgrp_depth != NULL) {
+				add_standard_uniforms(*shgrp_depth, sldata, vedata, NULL, NULL, false);
+
 				if (ma->blend_method == MA_BM_CLIP) {
 					DRW_shgroup_uniform_float(*shgrp_depth, "alphaThreshold", &ma->alpha_threshold, 1);
 					DRW_shgroup_uniform_float(*shgrp_depth_clip, "alphaThreshold", &ma->alpha_threshold, 1);
@@ -1420,17 +1420,15 @@ void EEVEE_shgroup_add_standard_uniforms_game(DRWShadingGroup *shgrp, EEVEE_Scen
 	DRW_shgroup_uniform_buffer(shgrp, "shadowTexture", &sldata->shadow_pool);
 	DRW_shgroup_uniform_int(shgrp, "outputSsrId", ssr_id, 1);
 	DRW_shgroup_uniform_vec4(shgrp, "aoParameters[0]", &vedata->stl->effects->ao_dist, 2);
+	DRW_shgroup_uniform_vec4(shgrp, "viewvecs[0]", (float *)vedata->stl->g_data->viewvecs, 2);
+	DRW_shgroup_uniform_buffer(shgrp, "maxzBuffer", &vedata->txl->maxzbuffer);
+	DRW_shgroup_uniform_vec2(shgrp, "mipRatio[0]", (float *)vedata->stl->g_data->mip_ratio, 10);
+	DRW_shgroup_uniform_vec4(shgrp, "ssrParameters", &vedata->stl->effects->ssr_quality, 1);
 	if (refract_depth != NULL) {
 		DRW_shgroup_uniform_float(shgrp, "refractionDepth", refract_depth, 1);
 	}
-	if (vedata->stl->effects->use_ao || use_ssrefraction) {
-		DRW_shgroup_uniform_vec4(shgrp, "viewvecs[0]", (float *)vedata->stl->g_data->viewvecs, 2);
-		DRW_shgroup_uniform_buffer(shgrp, "maxzBuffer", &vedata->txl->maxzbuffer);
-		DRW_shgroup_uniform_vec2(shgrp, "mipRatio[0]", (float *)vedata->stl->g_data->mip_ratio, 10);
-	}
 	if (use_ssrefraction) {
 		DRW_shgroup_uniform_buffer(shgrp, "colorBuffer", &vedata->txl->refract_color);
-		DRW_shgroup_uniform_vec4(shgrp, "ssrParameters", &vedata->stl->effects->ssr_quality, 1);
 		DRW_shgroup_uniform_float(shgrp, "borderFadeFactor", &vedata->stl->effects->ssr_border_fac, 1);
 		DRW_shgroup_uniform_float(shgrp, "maxRoughness", &vedata->stl->effects->ssr_max_roughness, 1);
 		DRW_shgroup_uniform_int(shgrp, "rayCount", &vedata->stl->effects->ssr_ray_count, 1);

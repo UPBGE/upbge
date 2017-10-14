@@ -117,14 +117,8 @@ public:
 				ccl_constant KernelData *data;
 				ccl_global char *buffers[8];
 
-				typedef struct _tex_info_t {
-					uint buffer, padding;
-					uint64_t offset;
-					uint width, height, depth, options;
-				} _tex_info_t;
-
-#define KERNEL_TEX(type, ttype, name) \
-				_tex_info_t name;
+#define KERNEL_TEX(type, name) \
+				TextureInfo name;
 #include "kernel/kernel_textures.h"
 #undef KERNEL_TEX
 
@@ -192,7 +186,6 @@ struct CachedSplitMemory {
 	int id;
 	device_memory *split_data;
 	device_memory *ray_state;
-	device_ptr *rng_state;
 	device_memory *queue_index;
 	device_memory *use_queues_flag;
 	device_memory *work_pools;
@@ -225,8 +218,7 @@ public:
 					            kg,
 					            data,
 					            *cached_memory.split_data,
-					            *cached_memory.ray_state,
-					            *cached_memory.rng_state);
+					            *cached_memory.ray_state);
 
 				device->set_kernel_arg_buffers(program(), &start_arg_index);
 
@@ -356,8 +348,7 @@ public:
 			                kernel_data,
 			                split_data,
 			                num_global_elements,
-			                ray_state,
-			                rtile.rng_state);
+			                ray_state);
 
 			device->set_kernel_arg_buffers(device->program_data_init(), &start_arg_index);
 
@@ -401,7 +392,6 @@ public:
 
 		cached_memory.split_data = &split_data;
 		cached_memory.ray_state = &ray_state;
-		cached_memory.rng_state = &rtile.rng_state;
 		cached_memory.queue_index = &queue_index;
 		cached_memory.use_queues_flag = &use_queues_flag;
 		cached_memory.work_pools = &work_pool_wgs;

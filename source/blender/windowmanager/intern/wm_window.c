@@ -516,8 +516,12 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm, const char *title, wm
 		
 		/* store actual window size in blender window */
 		bounds = GHOST_GetClientBounds(win->ghostwin);
-		win->sizex = GHOST_GetWidthRectangle(bounds);
-		win->sizey = GHOST_GetHeightRectangle(bounds);
+
+		/* win32: gives undefined window size when minimized */
+		if (GHOST_GetWindowState(win->ghostwin) != GHOST_kWindowStateMinimized) {
+			win->sizex = GHOST_GetWidthRectangle(bounds);
+			win->sizey = GHOST_GetHeightRectangle(bounds);
+		}
 		GHOST_DisposeRectangle(bounds);
 		
 #ifndef __APPLE__
@@ -1970,7 +1974,7 @@ void WM_window_set_active_workspace(wmWindow *win, WorkSpace *workspace)
 WorkSpaceLayout *WM_window_get_active_layout(const wmWindow *win)
 {
 	const WorkSpace *workspace = WM_window_get_active_workspace(win);
-	return (LIKELY(workspace != NULL) ? BKE_workspace_active_layout_get(win->workspace_hook): NULL);
+	return (LIKELY(workspace != NULL) ? BKE_workspace_active_layout_get(win->workspace_hook) : NULL);
 }
 void WM_window_set_active_layout(wmWindow *win, WorkSpace *workspace, WorkSpaceLayout *layout)
 {

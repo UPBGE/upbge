@@ -35,6 +35,7 @@
 
 #include "GPU_batch.h"
 #include "GPU_draw.h"
+#include "GPU_extensions.h"
 #include "GPU_framebuffer.h"
 #include "GPU_matrix.h"
 #include "GPU_shader.h"
@@ -698,7 +699,20 @@ void GPU_framebuffer_recursive_downsample(
 		glReadBuffer(GL_COLOR_ATTACHMENT0);
 	}
 
-	for (i=1; i < num_iter+1 && (current_dim[0] > 4 && current_dim[1] > 4); i++) {
+	for (i = 1; i < num_iter + 1; i++) {
+
+		if (GPU_type_matches(GPU_DEVICE_AMD_VEGA, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
+			/* NOTE : here 16 is because of a bug on AMD Vega GPU + non-pro drivers, that prevents us
+			 * from sampling mipmaps that are smaller or equal to 16px. (9) */
+			if (current_dim[0] / 2 > 16 && current_dim[1] / 2 > 16) {
+				break;
+			}
+		}
+		else {
+			if (current_dim[0] / 2 > 1 && current_dim[1] / 2 > 1) {
+				break;
+			}
+		}
 
 		/* calculate next viewport size */
 		current_dim[0] /= 2;
@@ -712,8 +726,8 @@ void GPU_framebuffer_recursive_downsample(
 
 		/* bind next level for rendering but first restrict fetches only to previous level */
 		GPU_texture_bind(tex, 0);
-		glTexParameteri(GPU_texture_target(tex), GL_TEXTURE_BASE_LEVEL, i-1);
-		glTexParameteri(GPU_texture_target(tex), GL_TEXTURE_MAX_LEVEL, i-1);
+		glTexParameteri(GPU_texture_target(tex), GL_TEXTURE_BASE_LEVEL, i - 1);
+		glTexParameteri(GPU_texture_target(tex), GL_TEXTURE_MAX_LEVEL, i - 1);
 		GPU_texture_unbind(tex);
 
 		glFramebufferTexture(GL_FRAMEBUFFER, attachment, GPU_texture_opengl_bindcode(tex), i);
@@ -726,7 +740,7 @@ void GPU_framebuffer_recursive_downsample(
 	/* reset mipmap level range for the depth image */
 	GPU_texture_bind(tex, 0);
 	glTexParameteri(GPU_texture_target(tex), GL_TEXTURE_BASE_LEVEL, 0);
-	glTexParameteri(GPU_texture_target(tex), GL_TEXTURE_MAX_LEVEL, i-1);
+	glTexParameteri(GPU_texture_target(tex), GL_TEXTURE_MAX_LEVEL, i - 1);
 	GPU_texture_unbind(tex);
 }
 

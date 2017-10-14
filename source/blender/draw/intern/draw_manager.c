@@ -646,23 +646,23 @@ static DRWInterface *DRW_interface_create(GPUShader *shader)
 {
 	DRWInterface *interface = MEM_mallocN(sizeof(DRWInterface), "DRWInterface");
 
-	interface->model = GPU_shader_get_uniform(shader, "ModelMatrix");
-	interface->modelinverse = GPU_shader_get_uniform(shader, "ModelMatrixInverse");
-	interface->modelview = GPU_shader_get_uniform(shader, "ModelViewMatrix");
-	interface->modelviewinverse = GPU_shader_get_uniform(shader, "ModelViewMatrixInverse");
-	interface->projection = GPU_shader_get_uniform(shader, "ProjectionMatrix");
-	interface->projectioninverse = GPU_shader_get_uniform(shader, "ProjectionMatrixInverse");
-	interface->view = GPU_shader_get_uniform(shader, "ViewMatrix");
-	interface->viewinverse = GPU_shader_get_uniform(shader, "ViewMatrixInverse");
-	interface->viewprojection = GPU_shader_get_uniform(shader, "ViewProjectionMatrix");
-	interface->viewprojectioninverse = GPU_shader_get_uniform(shader, "ViewProjectionMatrixInverse");
-	interface->modelviewprojection = GPU_shader_get_uniform(shader, "ModelViewProjectionMatrix");
-	interface->normal = GPU_shader_get_uniform(shader, "NormalMatrix");
-	interface->worldnormal = GPU_shader_get_uniform(shader, "WorldNormalMatrix");
-	interface->camtexfac = GPU_shader_get_uniform(shader, "CameraTexCoFactors");
-	interface->orcotexfac = GPU_shader_get_uniform(shader, "OrcoTexCoFactors[0]");
-	interface->eye = GPU_shader_get_uniform(shader, "eye");
-	interface->clipplanes = GPU_shader_get_uniform(shader, "ClipPlanes[0]");
+	interface->model = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_MODEL);
+	interface->modelinverse = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_MODEL_INV);
+	interface->modelview = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_MODELVIEW);
+	interface->modelviewinverse = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_MODELVIEW_INV);
+	interface->projection = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_PROJECTION);
+	interface->projectioninverse = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_PROJECTION_INV);
+	interface->view = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_VIEW);
+	interface->viewinverse = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_VIEW_INV);
+	interface->viewprojection = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_VIEWPROJECTION);
+	interface->viewprojectioninverse = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_VIEWPROJECTION_INV);
+	interface->modelviewprojection = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_MVP);
+	interface->normal = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_NORMAL);
+	interface->worldnormal = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_WORLDNORMAL);
+	interface->camtexfac = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_CAMERATEXCO);
+	interface->orcotexfac = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_ORCO);
+	interface->clipplanes = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_CLIPPLANES);
+	interface->eye = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_EYE);
 	interface->instance_count = 0;
 	interface->attribs_count = 0;
 	interface->attribs_stride = 0;
@@ -2009,7 +2009,7 @@ void DRW_draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 		unit_m4(obmat);
 
 		if (shgroup->type == DRW_SHG_INSTANCE &&
-			(interface->instance_count > 0 || interface->instance_batch != NULL))
+		    (interface->instance_count > 0 || interface->instance_batch != NULL))
 		{
 			GPU_SELECT_LOAD_IF_PICKSEL_LIST(&shgroup->calls);
 			draw_geometry(shgroup, shgroup->instance_geom, obmat, shgroup->instance_data);

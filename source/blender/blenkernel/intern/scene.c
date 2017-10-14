@@ -171,7 +171,8 @@ static void scene_collection_copy(SceneCollection *sc_dst, SceneCollection *sc_s
 	BLI_duplicatelist(&sc_dst->scene_collections, &sc_src->scene_collections);
 	for (SceneCollection *nsc_src = sc_src->scene_collections.first, *nsc_dst = sc_dst->scene_collections.first;
 	     nsc_src;
-	     nsc_src = nsc_src->next, nsc_dst = nsc_dst->next) {
+	     nsc_src = nsc_src->next, nsc_dst = nsc_dst->next)
+	{
 		scene_collection_copy(nsc_dst, nsc_src, flag);
 	}
 }
@@ -421,7 +422,7 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 		ListBase rl, rv;
 
 		sce_copy = BKE_scene_add(bmain, sce->id.name + 2);
-		
+
 		rl = sce_copy->r.layers;
 		rv = sce_copy->r.views;
 		curvemapping_free_data(&sce_copy->r.mblur_shutter_curve);
@@ -518,6 +519,8 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 	}
 	else {
 		BKE_id_copy_ex(bmain, (ID *)sce, (ID **)&sce_copy, LIB_ID_COPY_ACTIONS, false);
+		id_us_min(&sce_copy->id);
+		id_us_ensure_real(&sce_copy->id);
 
 		/* Extra actions, most notably SCE_FULL_COPY also duplicates several 'children' datablocks... */
 
@@ -2018,7 +2021,7 @@ int BKE_scene_num_threads(const Scene *scene)
 int BKE_render_preview_pixel_size(const RenderData *r)
 {
 	if (r->preview_pixel_size == 0) {
-		return (U.pixelsize > 1.5f)? 2 : 1;
+		return (U.pixelsize > 1.5f) ? 2 : 1;
 	}
 	return r->preview_pixel_size;
 }
@@ -2329,7 +2332,7 @@ int BKE_scene_multiview_num_videos_get(const RenderData *rd)
 	}
 }
 
-Depsgraph* BKE_scene_get_depsgraph(Scene *scene, SceneLayer *scene_layer)
+Depsgraph *BKE_scene_get_depsgraph(Scene *scene, SceneLayer *scene_layer)
 {
 	(void) scene_layer;
 	return scene->depsgraph_legacy;

@@ -46,8 +46,9 @@
 #include "BLI_rand.h"
 
 #include "eevee_private.h"
-#include "GPU_texture.h"
+#include "GPU_extensions.h"
 #include "GPU_framebuffer.h"
+#include "GPU_texture.h"
 
 #define SHADER_DEFINES \
 	"#define EEVEE_ENGINE\n" \
@@ -403,8 +404,15 @@ void EEVEE_effects_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 		copy_v2_v2_int(texsize, blitsize);
 		for (int i = 0; i < effects->bloom_iteration_ct; ++i) {
 			texsize[0] /= 2; texsize[1] /= 2;
-			texsize[0] = MAX2(texsize[0], 2);
-			texsize[1] = MAX2(texsize[1], 2);
+
+			if (GPU_type_matches(GPU_DEVICE_AMD_VEGA, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
+				texsize[0] = MAX2(texsize[0], 17);
+				texsize[1] = MAX2(texsize[1], 17);
+			}
+			else {
+				texsize[0] = MAX2(texsize[0], 2);
+				texsize[1] = MAX2(texsize[1], 2);
+			}
 
 			effects->downsamp_texel_size[i][0] = 1.0f / (float)texsize[0];
 			effects->downsamp_texel_size[i][1] = 1.0f / (float)texsize[1];
@@ -419,8 +427,15 @@ void EEVEE_effects_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 		copy_v2_v2_int(texsize, blitsize);
 		for (int i = 0; i < effects->bloom_iteration_ct - 1; ++i) {
 			texsize[0] /= 2; texsize[1] /= 2;
-			texsize[0] = MAX2(texsize[0], 2);
-			texsize[1] = MAX2(texsize[1], 2);
+
+			if (GPU_type_matches(GPU_DEVICE_AMD_VEGA, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
+				texsize[0] = MAX2(texsize[0], 17);
+				texsize[1] = MAX2(texsize[1], 17);
+			}
+			else {
+				texsize[0] = MAX2(texsize[0], 2);
+				texsize[1] = MAX2(texsize[1], 2);
+			}
 
 			DRWFboTexture tex_bloom = {&txl->bloom_upsample[i], DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER};
 			DRW_framebuffer_init(&fbl->bloom_accum_fb[i], &draw_engine_eevee_type,
@@ -584,7 +599,7 @@ void EEVEE_effects_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 	/* Only allocate if at least one effect is activated */
 	if (effects->enabled_effects != 0) {
 		/* Ping Pong buffer */
-		DRWFboTexture tex = {&txl->color_post, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER};
+		DRWFboTexture tex = {&txl->color_post, DRW_TEX_RGBA_16, DRW_TEX_FILTER | DRW_TEX_MIPMAP};
 
 		DRW_framebuffer_init(&fbl->effect_fb, &draw_engine_eevee_type,
 		                    (int)viewport_size[0], (int)viewport_size[1],
@@ -749,6 +764,10 @@ void EEVEE_effects_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 		}
 	}
 
+	/* Compute pixel size, (shared with contact shadows) */
+	copy_v2_v2(effects->ssr_pixelsize, viewport_size);
+	invert_v2(effects->ssr_pixelsize);
+
 	if (BKE_collection_engine_property_value_get_bool(props, "ssr_enable")) {
 		effects->enabled_effects |= EFFECT_SSR;
 
@@ -803,10 +822,6 @@ void EEVEE_effects_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 		                               {&stl->g_data->ssr_hit_output[3], DRW_TEX_RGBA_16, DRW_TEX_TEMP}};
 
 		DRW_framebuffer_init(&fbl->screen_tracing_fb, &draw_engine_eevee_type, tracing_res[0], tracing_res[1], tex_output, effects->ssr_ray_count);
-
-		/* Compute pixel size */
-		copy_v2_v2(effects->ssr_pixelsize, viewport_size);
-		invert_v2(effects->ssr_pixelsize);
 	}
 	else {
 		/* Cleanup to release memory */
@@ -838,7 +853,7 @@ void EEVEE_effects_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 
 	/* Setup double buffer so we can access last frame as it was before post processes */
 	if ((effects->enabled_effects & EFFECT_DOUBLE_BUFFER) != 0) {
-		DRWFboTexture tex_double_buffer = {&txl->color_double_buffer, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER | DRW_TEX_MIPMAP};
+		DRWFboTexture tex_double_buffer = {&txl->color_double_buffer, DRW_TEX_RGBA_16, DRW_TEX_FILTER | DRW_TEX_MIPMAP};
 
 		DRW_framebuffer_init(&fbl->double_buffer, &draw_engine_eevee_type,
 		                    (int)viewport_size[0], (int)viewport_size[1],
@@ -1202,7 +1217,7 @@ void EEVEE_effects_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 		/* This create an empty batch of N triangles to be positioned
 		 * by the vertex shader 0.4ms against 6ms with instancing */
 		const float *viewport_size = DRW_viewport_size_get();
-		const int sprite_ct = ((int)viewport_size[0]/2) * ((int)viewport_size[1]/2); /* brackets matters */
+		const int sprite_ct = ((int)viewport_size[0] / 2) * ((int)viewport_size[1] / 2); /* brackets matters */
 		grp = DRW_shgroup_empty_tri_batch_create(e_data.dof_scatter_sh, psl->dof_scatter, sprite_ct);
 
 		DRW_shgroup_uniform_buffer(grp, "colorBuffer", &effects->unf_source_buffer);
@@ -1590,7 +1605,7 @@ void EEVEE_draw_effects(EEVEE_Data *vedata)
 		last = txl->bloom_downsample[0];
 
 		for (int i = 1; i < effects->bloom_iteration_ct; ++i) {
-			copy_v2_v2(effects->unf_source_texel_size, effects->downsamp_texel_size[i-1]);
+			copy_v2_v2(effects->unf_source_texel_size, effects->downsamp_texel_size[i - 1]);
 			effects->unf_source_buffer = last;
 
 			DRW_framebuffer_bind(fbl->bloom_down_fb[i]);
@@ -1659,8 +1674,8 @@ void EEVEE_draw_effects(EEVEE_Data *vedata)
 	SWAP_DOUBLE_BUFFERS();
 
 	if (!stl->g_data->valid_double_buffer &&
-		((effects->enabled_effects & EFFECT_DOUBLE_BUFFER) != 0) &&
-		(DRW_state_is_image_render() == false))
+	    ((effects->enabled_effects & EFFECT_DOUBLE_BUFFER) != 0) &&
+	    (DRW_state_is_image_render() == false))
 	{
 		/* If history buffer is not valid request another frame.
 		 * This fix black reflections on area resize. */
