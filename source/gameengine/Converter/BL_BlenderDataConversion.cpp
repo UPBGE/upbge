@@ -631,8 +631,6 @@ static PHY_ShapeProps BL_CreateShapePropsFromBlenderObject(struct Object *blende
 {
 	PHY_ShapeProps shapeProps;
 
-	BLI_assert(shapeProps);
-
 	shapeProps.m_mass = blenderobject->mass;
 
 	/* This needs to be fixed in blender. For now, we use:
