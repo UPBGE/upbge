@@ -535,7 +535,8 @@ public:
 	RAS_2DFilterManager *Get2DFilterManager() const;
 	RAS_OffScreen *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 
-	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
+	KX_ObstacleSimulation *GetObstacleSimulation();
+	void SetObstacleSimulation(KX_ObstacleSimulation *obstacleSimulation);
 
 	/**  Inherited from CValue -- returns the name of this object. */
 	virtual std::string GetName();

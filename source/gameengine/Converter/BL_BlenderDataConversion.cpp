@@ -1308,6 +1308,22 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	worldinfo->UpdateBackGround(rendertools);
 	kxscene->SetWorldInfo(worldinfo);
 
+	const bool showObstacleSimulation = (blenderscene->gm.flag & GAME_SHOW_OBSTACLE_SIMULATION) != 0;
+	KX_ObstacleSimulation *obstacleSimulation = nullptr;
+	switch (blenderscene->gm.obstacleSimulation) {
+		case OBSTSIMULATION_TOI_rays:
+		{
+			obstacleSimulation = new KX_ObstacleSimulationTOI_rays(blenderscene->gm.levelHeight, showObstacleSimulation);
+			break;
+		}
+		case OBSTSIMULATION_TOI_cells:
+		{
+			obstacleSimulation = new KX_ObstacleSimulationTOI_cells(blenderscene->gm.levelHeight, showObstacleSimulation);
+			break;
+		}
+	}
+	kxscene->SetObstacleSimulation(obstacleSimulation);
+
 	int activeLayerBitInfo = blenderscene->lay;
 
 	// List of all object converted, active and inactive.

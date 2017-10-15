@@ -197,19 +197,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	KX_TextMaterial *textMaterial = new KX_TextMaterial();
 	m_bucketmanager=new RAS_BucketManager(textMaterial);
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
-	
-	bool showObstacleSimulation = (scene->gm.flag & GAME_SHOW_OBSTACLE_SIMULATION) != 0;
-	switch (scene->gm.obstacleSimulation)
-	{
-	case OBSTSIMULATION_TOI_rays:
-		m_obstacleSimulation = new KX_ObstacleSimulationTOI_rays((MT_Scalar)scene->gm.levelHeight, showObstacleSimulation);
-		break;
-	case OBSTSIMULATION_TOI_cells:
-		m_obstacleSimulation = new KX_ObstacleSimulationTOI_cells((MT_Scalar)scene->gm.levelHeight, showObstacleSimulation);
-		break;
-	default:
-		m_obstacleSimulation = nullptr;
-	}
 
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
@@ -1770,6 +1757,16 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 RAS_OffScreen *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
 	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs);
+}
+
+KX_ObstacleSimulation *KX_Scene::GetObstacleSimulation()
+{
+	return m_obstacleSimulation;
+}
+
+void KX_Scene::SetObstacleSimulation(KX_ObstacleSimulation *obstacleSimulation)
+{
+	m_obstacleSimulation = obstacleSimulation;
 }
 
 #ifdef WITH_PYTHON
