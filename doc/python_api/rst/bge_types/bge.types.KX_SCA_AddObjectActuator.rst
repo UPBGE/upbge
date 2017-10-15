@@ -33,7 +33,7 @@ base class --- :class:`SCA_IActuator`
 
       the lifetime of added objects, in frames. Set to 0 to disable automatic deletion.
 
-      :type: float
+      :type: integer
 
    .. attribute:: linearVelocity
 

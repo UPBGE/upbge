@@ -54,37 +54,41 @@
 #ifndef MT_TRANSFORM_H
 #define MT_TRANSFORM_H
 
-#include "MT_Config.h"
-
-#include "MT_Vector3.h"
+#include "MT_Point3.h"
 #include "MT_Matrix3x3.h"
-
-class MT_Matrix4x4;
 
 class MT_Transform {
 public:
-	explicit MT_Transform() {}
-	explicit MT_Transform(const float *m) { setValue(m); }
-	explicit MT_Transform(const double *m) { setValue(m); }
-	explicit MT_Transform(const MT_Vector3& p, const MT_Quaternion& q)
+    MT_Transform() {}
+    MT_Transform(const float *m) { setValue(m); }
+    MT_Transform(const double *m) { setValue(m); }
+    MT_Transform(const MT_Point3& p, const MT_Quaternion& q)
     	: m_type(IDENTITY)
 	{ 
 		setOrigin(p);
 		setRotation(q);
 	}
 
-	explicit MT_Transform(const MT_Vector3& p, const MT_Matrix3x3& m) 
+    MT_Transform(const MT_Point3& p, const MT_Matrix3x3& m) 
     	: m_type(IDENTITY)
 	{ 
 		setOrigin(p);
 		setBasis(m);
 	}
 
-	static const MT_Transform& Identity()
+	static MT_Transform Identity()
 	{
-		return identity;
+		MT_Transform t;
+		t.setIdentity();
+		return t;
 	}
 
+
+    MT_Point3 operator()(const MT_Point3& p) const {
+        return MT_Point3(MT_dot(m_basis[0], p) + m_origin[0], 
+                         MT_dot(m_basis[1], p) + m_origin[1], 
+                         MT_dot(m_basis[2], p) + m_origin[2]);
+    }
 
     MT_Vector3 operator()(const MT_Vector3& p) const {
         return MT_Vector3(MT_dot(m_basis[0], p) + m_origin[0], 
@@ -92,6 +96,10 @@ public:
                          MT_dot(m_basis[2], p) + m_origin[2]);
     }
     
+    MT_Point3 operator*(const MT_Point3& p) const {
+        return (*this)(p);
+    }
+ 
     MT_Vector3 operator*(const MT_Vector3& p) const {
         return (*this)(p);
     }
@@ -99,16 +107,14 @@ public:
 
     MT_Matrix3x3&         getBasis()          { return m_basis; }
     const MT_Matrix3x3&   getBasis()    const { return m_basis; }
-    MT_Vector3&            getOrigin()         { return m_origin; }
-    const MT_Vector3&      getOrigin()   const { return m_origin; }
+    MT_Point3&            getOrigin()         { return m_origin; }
+    const MT_Point3&      getOrigin()   const { return m_origin; }
     MT_Quaternion         getRotation() const { return m_basis.getRotation(); }
-
-	MT_Matrix4x4 toMatrix() const;
-
+    
     void setValue(const float *m);
     void setValue(const double *m);
 
-    void setOrigin(const MT_Vector3& origin) { 
+    void setOrigin(const MT_Point3& origin) { 
         m_origin = origin;
 		m_type |= TRANSLATION;
     }
@@ -155,12 +161,12 @@ private:
         AFFINE      = TRANSLATION | LINEAR
     };
     
-    MT_Transform(const MT_Matrix3x3& basis, const MT_Vector3& origin,
+    MT_Transform(const MT_Matrix3x3& basis, const MT_Point3& origin,
                  unsigned int type) {
         setValue(basis, origin, type);
     }
     
-    void setValue(const MT_Matrix3x3& basis, const MT_Vector3& origin,
+    void setValue(const MT_Matrix3x3& basis, const MT_Point3& origin,
                   unsigned int type) {
         m_basis  = basis;
         m_origin = origin;
@@ -170,10 +176,8 @@ private:
     friend MT_Transform operator*(const MT_Transform& t1, const MT_Transform& t2);
 
     MT_Matrix3x3 m_basis;
-    MT_Vector3   m_origin;
+    MT_Point3    m_origin;
     unsigned int m_type;
-
-	static const MT_Transform identity;
 };
 
 inline MT_Transform operator*(const MT_Transform& t1, const MT_Transform& t2) {

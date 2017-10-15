@@ -312,7 +312,6 @@ tSDL_SetTextInputRect *SDL_SetTextInputRect;
 tSDL_HasScreenKeyboardSupport *SDL_HasScreenKeyboardSupport;
 tSDL_IsScreenKeyboardShown *SDL_IsScreenKeyboardShown;
 tSDL_GameControllerAddMapping *SDL_GameControllerAddMapping;
-tSDL_GameControllerAddMappingsFromRW *SDL_GameControllerAddMappingsFromRW;
 tSDL_GameControllerMappingForGUID *SDL_GameControllerMappingForGUID;
 tSDL_GameControllerMapping *SDL_GameControllerMapping;
 tSDL_IsGameController *SDL_IsGameController;
@@ -494,7 +493,6 @@ tSDL_HapticOpenFromMouse *SDL_HapticOpenFromMouse;
 tSDL_JoystickIsHaptic *SDL_JoystickIsHaptic;
 tSDL_HapticOpenFromJoystick *SDL_HapticOpenFromJoystick;
 tSDL_HapticClose *SDL_HapticClose;
-tSDL_HapticQuery *SDL_HapticQuery;
 tSDL_HapticNumEffects *SDL_HapticNumEffects;
 tSDL_HapticNumEffectsPlaying *SDL_HapticNumEffectsPlaying;
 tSDL_HapticNumAxes *SDL_HapticNumAxes;
@@ -857,7 +855,6 @@ int sdlewInit(void) {
   SDL_LIBRARY_FIND(SDL_HasScreenKeyboardSupport);
   SDL_LIBRARY_FIND(SDL_IsScreenKeyboardShown);
   SDL_LIBRARY_FIND(SDL_GameControllerAddMapping);
-  SDL_LIBRARY_FIND(SDL_GameControllerAddMappingsFromRW);
   SDL_LIBRARY_FIND(SDL_GameControllerMappingForGUID);
   SDL_LIBRARY_FIND(SDL_GameControllerMapping);
   SDL_LIBRARY_FIND(SDL_IsGameController);
@@ -1039,7 +1036,6 @@ int sdlewInit(void) {
   SDL_LIBRARY_FIND(SDL_JoystickIsHaptic);
   SDL_LIBRARY_FIND(SDL_HapticOpenFromJoystick);
   SDL_LIBRARY_FIND(SDL_HapticClose);
-  SDL_LIBRARY_FIND(SDL_HapticQuery)
   SDL_LIBRARY_FIND(SDL_HapticNumEffects);
   SDL_LIBRARY_FIND(SDL_HapticNumEffectsPlaying);
   SDL_LIBRARY_FIND(SDL_HapticNumAxes);

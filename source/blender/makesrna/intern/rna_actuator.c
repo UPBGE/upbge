@@ -65,7 +65,6 @@ static EnumPropertyItem actuator_type_items[] = {
 	{ACT_SOUND, "SOUND", 0, "Sound", ""},
 	{ACT_STATE, "STATE", 0, "State", ""},
 	{ACT_STEERING, "STEERING", 0, "Steering", ""},
-	{ACT_VIBRATION, "VIBRATION", 0, "Vibration", ""},
 	{ACT_VISIBILITY, "VISIBILITY", 0, "Visibility", ""},
 	{0, NULL, 0, NULL, NULL}
 };
@@ -101,8 +100,6 @@ static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
 			return &RNA_MessageActuator;
 		case ACT_GAME:
 			return &RNA_GameActuator;
-		case ACT_VIBRATION:
-			return &RNA_VibrationActuator;
 		case ACT_VISIBILITY:
 			return &RNA_VisibilityActuator;
 		case ACT_2DFILTER:
@@ -472,7 +469,6 @@ EnumPropertyItem *rna_Actuator_type_itemf(bContext *C, PointerRNA *ptr, Property
 
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_SOUND);
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_STATE);
-	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_VIBRATION);
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_VISIBILITY);
 	
 	RNA_enum_item_end(&item, &totitem);
@@ -1349,8 +1345,6 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 		{ACT_EDOB_ENABLE_RB, "ENABLERIGIDBODY", 0, "Enable Rigid Body", ""},
 		{ACT_EDOB_DISABLE_RB, "DISABLERIGIDBODY", 0, "Disable Rigid Body", ""},
 		{ACT_EDOB_SET_MASS, "SETMASS", 0, "Set Mass", ""},
-		{ACT_EDOB_RESTORE_PHY, "RESTOREPHY", 0, "Restore Physics", ""},
-		{ACT_EDOB_SUSPEND_PHY, "SUSPENDPHY", 0, "Suspend Physics", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -1432,8 +1426,8 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, NULL, "rna_Actuator_editobject_mesh_set", NULL, NULL);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop = RNA_def_property(srna, "time", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_ui_range(prop, 0.0f, FLT_MAX, 1, 2);
+	prop = RNA_def_property(srna, "time", PROP_INT, PROP_NONE);
+	RNA_def_property_ui_range(prop, 0, 2000, 1, 1);
 	RNA_def_property_ui_text(prop, "Time", "Duration the new Object lives or the track takes");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
@@ -1736,52 +1730,6 @@ static void rna_def_game_actuator(BlenderRNA *brna)
 	/*XXX to do: an operator that calls file_browse with relative_path on and blender filtering active */
 }
 
-static void rna_def_vibration_actuator(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-
-	static EnumPropertyItem prop_mode_items[] = {
-		{ACT_VIBRATION_PLAY, "PLAY", 0, "Play", ""},
-		{ACT_VIBRATION_STOP, "STOP", 0, "Stop", ""},
-		{0, NULL, 0, NULL, NULL}
-	};
-
-	srna = RNA_def_struct(brna, "VibrationActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Vibration Actuator", "Actuator to set vibration of a joystick");
-	RNA_def_struct_sdna_from(srna, "bVibrationActuator", "data");
-
-	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "mode");
-	RNA_def_property_enum_items(prop, prop_mode_items);
-	RNA_def_property_ui_text(prop, "Vibration Mode", "Joystick vibration mode");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "joy_index", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "joyindex");
-	RNA_def_property_range(prop, 0, 7);
-	RNA_def_property_ui_text(prop, "JoyIndex", "Joystick index");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "joy_duration", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "duration");
-	RNA_def_property_range(prop, 0, INT_MAX);
-	RNA_def_property_ui_text(prop, "Duration", "Joystick vibration duration");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "joy_strength_left", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "strength");
-	RNA_def_property_range(prop, 0.0, 1.0);
-	RNA_def_property_ui_text(prop, "Strength Low Freq", "Joystick vibration strength for low frequency motor");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "joy_strength_right", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "strength_right");
-	RNA_def_property_range(prop, 0.0, 1.0);
-	RNA_def_property_ui_text(prop, "Strength High Freq", "Joystick vibration strength for high frequency motor");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-}
-
 static void rna_def_visibility_actuator(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1858,11 +1806,6 @@ static void rna_def_twodfilter_actuator(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "int_arg");
 	RNA_def_property_ui_text(prop, "Pass Number", "Set filter order");
 	RNA_def_property_range(prop, 0, 99); /*MAX_RENDER_PASS-1 */
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "use_mipmap", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "mipmap", 1);
-	RNA_def_property_ui_text(prop, "Use MipMap", "Enable MipMap for rendered texture");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "motion_blur_factor", PROP_FLOAT, PROP_NONE);
@@ -2265,7 +2208,6 @@ void RNA_def_actuator(BlenderRNA *brna)
 	rna_def_random_actuator(brna);
 	rna_def_message_actuator(brna);
 	rna_def_game_actuator(brna);
-	rna_def_vibration_actuator(brna);
 	rna_def_visibility_actuator(brna);
 	rna_def_twodfilter_actuator(brna);
 	rna_def_parent_actuator(brna);

@@ -35,7 +35,6 @@
 #include "DNA_controller_types.h"
 #include "DNA_actuator_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_python_component_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_string_utils.h"
@@ -46,7 +45,6 @@
 #include "BKE_context.h"
 #include "BKE_main.h"
 #include "BKE_sca.h"
-#include "BKE_python_component.h"
 
 #include "ED_logic.h"
 #include "ED_object.h"
@@ -59,7 +57,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "UI_interface.h"
 #include "UI_view2d.h"
 
 #include "logic_intern.h"
@@ -739,144 +736,6 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 	ot->flag = 0;
 }
 
-/* Component operators */
-static int component_add_exec(bContext *C, wmOperator *op)
-{
-	PythonComponent *pycomp;
-	Object *ob = CTX_data_active_object(C);
-	char import[MAX_NAME];
-
-	if (!ob) {
-		return OPERATOR_CANCELLED;
-	}
-
-	RNA_string_get(op->ptr, "component_name", import);
-	pycomp = BKE_python_component_new(import, op->reports, C);
-
-	if(!pycomp) {
-		return OPERATOR_CANCELLED;
-	}
-
-	BLI_addtail(&ob->components, pycomp);
-	WM_event_add_notifier(C, NC_LOGIC, NULL);
-
-	return OPERATOR_FINISHED;
-}
-
-static int component_new_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
-{
-	/* Better for user feedback. */
-	return WM_operator_props_dialog_popup(C, op, 15 * UI_UNIT_X, UI_UNIT_Y);
-}
-
-static void LOGIC_OT_component_add(wmOperatorType *ot)
-{
-	ot->name = "Add Python Component";
-	ot->idname = "LOGIC_OT_add_python_component";
-	ot->description = "Add a python component to the selected object";
-
-	/* api callbacks */
-	ot->exec = component_add_exec;
-	ot->invoke = component_new_invoke;
-	ot->poll = ED_operator_object_active_editable;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-	PropertyRNA *parm;
-	parm = RNA_def_string(ot->srna, "component_name", "module.Component", 64, "Component", "The component class name with module (module.ComponentName)");
-	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
-}
-
-static int component_remove_exec(bContext *C, wmOperator *op)
-{
-	Object *ob = CTX_data_active_object(C);
-	PythonComponent *pc = NULL;
-	int index = RNA_int_get(op->ptr, "index");
-
-	if(!ob) {
-		return OPERATOR_CANCELLED;
-	}
-
-	pc = BLI_findlink(&ob->components, index);
-
-	if(!pc) {
-		return OPERATOR_CANCELLED;
-	}
-
-	BLI_remlink(&ob->components, pc);
-	BKE_python_component_free(pc);
-
-	WM_event_add_notifier(C, NC_LOGIC, NULL);
-
-	return OPERATOR_FINISHED;
-}
-
-static void LOGIC_OT_component_remove(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Remove Component";
-	ot->description = "Remove Component";
-	ot->idname = "LOGIC_OT_component_remove";
-
-	/* api callbacks */
-	ot->exec = component_remove_exec;
-	ot->poll = ED_operator_object_active_editable;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-	/* properties */
-	RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to remove", 0, INT_MAX);
-}
-
-static int component_reload_exec(bContext *C, wmOperator *op)
-{
-	Object *ob = CTX_data_active_object(C);
-	PythonComponent *pc = NULL, *prev_pc = NULL;
-	int index = RNA_int_get(op->ptr, "index");
-
-	if(!ob) {
-		return OPERATOR_CANCELLED;
-	}
-
-	if (index > 0) {
-		prev_pc = BLI_findlink(&ob->components, index-1);
-		pc = prev_pc->next;
-	}
-	else {
-		/* pc is at the head */
-		pc = BLI_findlink(&ob->components, index);
-	}
-
-	if(!pc) {
-		return OPERATOR_CANCELLED;
-	}
-
-	/* Try to create a new component */
-	BKE_python_component_reload(pc, op->reports, C);
-
-	return OPERATOR_FINISHED;
-}
-
-static void LOGIC_OT_component_reload(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Reload Component";
-	ot->description = "Reload Component";
-	ot->idname = "LOGIC_OT_component_reload";
-
-	/* api callbacks */
-	ot->exec = component_reload_exec;
-	ot->poll = ED_operator_object_active_editable;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-	/* properties */
-	RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to reload", 0, INT_MAX);
-}
-
 /* ************************* */
 
 void ED_operatortypes_logic(void)
@@ -890,10 +749,5 @@ void ED_operatortypes_logic(void)
 	WM_operatortype_append(LOGIC_OT_actuator_remove);
 	WM_operatortype_append(LOGIC_OT_actuator_add);
 	WM_operatortype_append(LOGIC_OT_actuator_move);
-
-	WM_operatortype_append(LOGIC_OT_component_add);
-	WM_operatortype_append(LOGIC_OT_component_remove);
-	WM_operatortype_append(LOGIC_OT_component_reload);
-
 	WM_operatortype_append(LOGIC_OT_view_all);
 }

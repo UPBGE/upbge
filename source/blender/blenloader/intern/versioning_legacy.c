@@ -3425,8 +3425,17 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 	}
 
 	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 4)) {
+		Scene *sce;
 		World *wrld;
 
+		/*  Dome (Fisheye) default parameters  */
+		for (sce = main->scene.first; sce; sce = sce->id.next) {
+			sce->r.domeangle = 180;
+			sce->r.domemode = 1;
+			sce->r.domeres = 4;
+			sce->r.domeresbuf = 1.0f;
+			sce->r.dometilt = 0;
+		}
 		/* DBVT culling by default */
 		for (wrld = main->world.first; wrld; wrld = wrld->id.next) {
 			wrld->mode |= WO_DBVT_CULLING;

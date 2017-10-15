@@ -109,7 +109,6 @@ void BKE_material_free(Material *ma)
 	MEM_SAFE_FREE(ma->texpaintslot);
 
 	GPU_material_free(&ma->gpumaterial);
-	GPU_material_free(&ma->gpumaterialinstancing);
 
 	BKE_icon_id_delete((ID *)ma);
 	BKE_previewimg_free(&ma->preview);
@@ -133,6 +132,7 @@ void BKE_material_init(Material *ma)
 	ma->flaresize = ma->subsize = 1.0;
 	ma->flareboost = 1;
 	ma->seed2 = 6;
+	ma->friction = 0.5;
 	ma->refrac = 4.0;
 	ma->roughness = 0.5;
 	ma->param[0] = 0.5;
@@ -202,17 +202,13 @@ void BKE_material_init(Material *ma)
 	ma->game.flag = GEMAT_BACKCULL;
 	ma->game.alpha_blend = 0;
 	ma->game.face_orientation = 0;
-
-	ma->depthtranspfactor = 1.0f;
-
+	
 	ma->mode = MA_TRACEBLE | MA_SHADBUF | MA_SHADOW | MA_RAYBIAS | MA_TANGENT_STR | MA_ZTRANSP;
 	ma->mode2 = MA_CASTSHADOW;
 	ma->shade_flag = MA_APPROX_OCCLUSION;
 	ma->preview = NULL;
 
 	ma->alpha_threshold = 0.5f;
-
-	ma->constflag = MA_CONSTANT_MATERIAL | MA_CONSTANT_LAMP | MA_CONSTANT_TEXTURE | MA_CONSTANT_TEXTURE_UV | MA_CONSTANT_WORLD | MA_CONSTANT_MIST;
 }
 
 Material *BKE_material_add(Main *bmain, const char *name)
@@ -262,7 +258,6 @@ void BKE_material_copy_data(Main *bmain, Material *ma_dst, const Material *ma_sr
 	}
 
 	BLI_listbase_clear(&ma_dst->gpumaterial);
-	BLI_listbase_clear(&ma_dst->gpumaterialinstancing);
 
 	/* TODO Duplicate Engine Settings and set runtime to NULL */
 }
@@ -309,8 +304,7 @@ Material *localize_material(Material *ma)
 	BLI_listbase_clear(&man->gpumaterial);
 
 	/* TODO Duplicate Engine Settings and set runtime to NULL */
-	BLI_listbase_clear(&man->gpumaterialinstancing);
-
+	
 	return man;
 }
 
@@ -1338,7 +1332,7 @@ void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma)
 	short index = 0, i;
 
 	bool use_nodes = BKE_scene_use_new_shading_nodes(scene);
-	bool is_bi = BKE_scene_uses_blender_internal(scene);
+	bool is_bi = BKE_scene_uses_blender_internal(scene) || BKE_scene_uses_blender_game(scene);
 
 	/* XXX, for 2.8 testing & development its useful to have non Cycles/BI engines use material nodes
 	 * In the future we may have some way to check this which each engine can define.

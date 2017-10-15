@@ -74,12 +74,6 @@ base class --- :class:`SCA_IObject`
 
       :type: integer
 
-   .. attribute:: vertices
-
-      Returns the list of vertices of this polygon.
-
-      :type: :class:`KX_VertexProxy` list (read only)
-
    .. method:: getMaterialName()
 
       Returns the polygon material name with MA prefix

@@ -28,7 +28,6 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_group_types.h"
-#include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
@@ -1873,54 +1872,6 @@ static void rna_GameSettings_exit_key_set(PointerRNA *ptr, int value)
 		gm->exitkey = value;
 }
 
-static void rna_GameSettings_python_key1_set(PointerRNA *ptr, int value)
-{
-	GameData *gm = (GameData *)ptr->data;
-
-	if (ISKEYBOARD(value)) {
-		gm->pythonkeys[0] = value;
-	}
-	else {
-		gm->pythonkeys[0] = EVENT_NONE;
-	}
-}
-
-static void rna_GameSettings_python_key2_set(PointerRNA *ptr, int value)
-{
-	GameData *gm = (GameData *)ptr->data;
-
-	if (ISKEYBOARD(value)) {
-		gm->pythonkeys[1] = value;
-	}
-	else {
-		gm->pythonkeys[1] = EVENT_NONE;
-	}
-}
-
-static void rna_GameSettings_python_key3_set(PointerRNA *ptr, int value)
-{
-	GameData *gm = (GameData *)ptr->data;
-
-	if (ISKEYBOARD(value)) {
-		gm->pythonkeys[2] = value;
-	}
-	else {
-		gm->pythonkeys[2] = EVENT_NONE;
-	}
-}
-
-static void rna_GameSettings_python_key4_set(PointerRNA *ptr, int value)
-{
-	GameData *gm = (GameData *)ptr->data;
-
-	if (ISKEYBOARD(value)) {
-		gm->pythonkeys[3] = value;
-	}
-	else {
-		gm->pythonkeys[3] = EVENT_NONE;
-	}
-}
-
 static StructRNA *rna_SceneLayerSettings_refine(PointerRNA *ptr)
 {
 	IDProperty *props = (IDProperty *)ptr->data;
@@ -3297,7 +3248,7 @@ static void rna_def_gpencil_brush(BlenderRNA *brna)
 	RNA_def_property_range(prop, -M_PI_2, M_PI_2);
 	RNA_def_property_ui_text(prop, "Angle",
 	                         "Direction of the stroke at which brush gives maximal thickness "
-	                         "(0?? for horizontal)");
+	                         "(0° for horizontal)");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
 
 	/* Factor to change brush size depending of angle */
@@ -5420,13 +5371,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem hdr_items[] = {
-		{GAME_HDR_NONE, "HDR_NONE", 0, "None", "8 bits per channel"},
-		{GAME_HDR_HALF_FLOAT, "HDR_HALF_FLOAT", 0, "Half", "16 bits per channel"},
-		{GAME_HDR_FULL_FLOAT, "HDR_FULL_FLOAT", 0, "Full", "32 bits per channel"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	static EnumPropertyItem framing_types_items[] = {
 		{SCE_GAMEFRAMING_BARS, "LETTERBOX", 0, "Letterbox",
 		                       "Show the entire viewport in the display window, using bar horizontally or vertically"},
@@ -5437,6 +5381,15 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem dome_modes_items[] = {
+		{DOME_FISHEYE, "FISHEYE", 0, "Fisheye", ""},
+		{DOME_TRUNCATED_FRONT, "TRUNCATED_FRONT", 0, "Front-Truncated", ""},
+		{DOME_TRUNCATED_REAR, "TRUNCATED_REAR", 0, "Rear-Truncated", ""},
+		{DOME_ENVMAP, "ENVMAP", 0, "Cube Map", ""},
+		{DOME_PANORAM_SPH, "PANORAM_SPH", 0, "Spherical Panoramic", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+		
 	static EnumPropertyItem stereo_modes_items[] = {
 		{STEREO_QUADBUFFERED, "QUADBUFFERED", 0, "Quad-Buffer", ""},
 		{STEREO_ABOVEBELOW, "ABOVEBELOW", 0, "Above-Below", ""},
@@ -5451,12 +5404,19 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	static EnumPropertyItem stereo_items[] = {
 		{STEREO_NOSTEREO, "NONE", 0, "None", "Disable Stereo and Dome environments"},
 		{STEREO_ENABLED, "STEREO", 0, "Stereo", "Enable Stereo environment"},
+		{STEREO_DOME, "DOME", 0, "Dome", "Enable Dome environment"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
 	static EnumPropertyItem physics_engine_items[] = {
 		{WOPHY_NONE, "NONE", 0, "None", "Don't use a physics engine"},
 		{WOPHY_BULLET, "BULLET", 0, "Bullet", "Use the Bullet physics engine"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem material_items[] = {
+		{GAME_MAT_MULTITEX, "MULTITEXTURE", 0, "Multitexture", "Multitexture materials"},
+		{GAME_MAT_GLSL, "GLSL", 0, "GLSL", "OpenGL shading language shaders"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -5474,12 +5434,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem debug_items[] = {
-		{GAME_DEBUG_DISABLE, "DISABLE", 0, "Disable", "Disable debugging"},
-		{GAME_DEBUG_FORCE, "FORCE", 0, "Force", "Force debugging"},
-		{GAME_DEBUG_ALLOW, "ALLOW", 0, "Allow", "Allow debugging from individual settings"},
-		{0, NULL, 0, NULL, NULL}
-	};
+	static EnumPropertyItem storage_items[] = {
+		{RAS_STORE_AUTO, "AUTO", 0, "Auto Select", "Choose the best supported mode"},
+		{RAS_STORE_VA, "VERTEX_ARRAY", 0, "Vertex Arrays", "Usually the best choice (good performance with display lists)"},
+		{RAS_STORE_VBO, "VERTEX_BUFFER_OBJECT", 0, "Vertex Buffer Objects",
+		                "Typically slower than vertex arrays with display lists, requires at least OpenGL 1.4"},
+		{0, NULL, 0, NULL, NULL}};
 
 	srna = RNA_def_struct(brna, "SceneGameData", NULL);
 	RNA_def_struct_sdna(srna, "GameData");
@@ -5509,12 +5469,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "aasamples");
 	RNA_def_property_enum_items(prop, aasamples_items);
 	RNA_def_property_ui_text(prop, "AA Samples", "The number of AA Samples to use for MSAA");
-
-	prop = RNA_def_property(srna, "hdr", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "hdr");
-	RNA_def_property_enum_items(prop, hdr_items);
-	RNA_def_property_ui_text(prop, "HDR", "The precision of screen display");
-
+	
 	prop = RNA_def_property(srna, "depth", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "depth");
 	RNA_def_property_range(prop, 8, 32);
@@ -5530,7 +5485,13 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
 	RNA_def_property_ui_text(prop, "Exit Key", "The key that exits the Game Engine");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
-
+	
+	prop = RNA_def_property(srna, "raster_storage", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "raster_storage");
+	RNA_def_property_enum_items(prop, storage_items);
+	RNA_def_property_ui_text(prop, "Storage", "Set the storage mode used by the rasterizer");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+	
 	/* Do we need it here ? (since we already have it in World */
 	prop = RNA_def_property(srna, "frequency", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "freqplay");
@@ -5584,7 +5545,48 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Eye Separation",
 	                         "Set the distance between the eyes - the camera focal distance/30 should be fine");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
-
+	
+	/* Dome */
+	prop = RNA_def_property(srna, "dome_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "dome.mode");
+	RNA_def_property_enum_items(prop, dome_modes_items);
+	RNA_def_property_ui_text(prop, "Dome Mode", "Dome physical configurations");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+	
+	prop = RNA_def_property(srna, "dome_tessellation", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "dome.res");
+	RNA_def_property_ui_range(prop, 1, 8, 1, 1);
+	RNA_def_property_int_default(prop, 4);
+	RNA_def_property_ui_text(prop, "Tessellation", "Tessellation level - check the generated mesh in wireframe mode");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+	
+	prop = RNA_def_property(srna, "dome_buffer_resolution", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "dome.resbuf");
+	RNA_def_property_ui_range(prop, 0.1, 1.0, 0.1, 2);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Buffer Resolution", "Buffer Resolution - decrease it to increase speed");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+	
+	prop = RNA_def_property(srna, "dome_angle", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "dome.angle");
+	RNA_def_property_ui_range(prop, 90, 250, 1, 1);
+	RNA_def_property_int_default(prop, 180);
+	RNA_def_property_ui_text(prop, "Angle", "Field of View of the Dome - it only works in mode Fisheye and Truncated");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+	
+	prop = RNA_def_property(srna, "dome_tilt", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "dome.tilt");
+	RNA_def_property_ui_range(prop, -180, 180, 1, 1);
+	RNA_def_property_ui_text(prop, "Tilt", "Camera rotation in horizontal axis");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+	
+	prop = RNA_def_property(srna, "dome_text", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "dome.warptext");
+	RNA_def_property_struct_type(prop, "Text");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Warp Data", "Custom Warp Mesh data file");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+	
 	/* physics */
 	prop = RNA_def_property(srna, "physics_engine", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "physicsEngine");
@@ -5648,15 +5650,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Physics Sub Steps",
 	                         "Number of simulation substep per physic timestep, "
 	                         "higher value give better physics precision");
-	RNA_def_property_update(prop, NC_SCENE, NULL);
-
-	prop = RNA_def_property(srna, "time_scale", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "timeScale");
-	RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
-	RNA_def_property_range(prop, 0.001, 10000.0);
-	RNA_def_property_float_default(prop, 1.0f);
-	RNA_def_property_ui_text(prop, "Time Scale",
-	                         "Time scale to slow down or speed up animations and physics in game");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
 	prop = RNA_def_property(srna, "deactivation_linear_threshold", PROP_FLOAT, PROP_NONE);
@@ -5738,6 +5731,10 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Deprecation Warnings",
 	                         "Print warnings when using deprecated features in the python API");
 
+	prop = RNA_def_property(srna, "use_animation_record", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_ENABLE_ANIMATION_RECORD);
+	RNA_def_property_ui_text(prop, "Record Animation", "Record animation to F-Curves");
+
 	prop = RNA_def_property(srna, "use_auto_start", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_GameSettings_auto_start_get", "rna_GameSettings_auto_start_set");
 	RNA_def_property_ui_text(prop, "Auto Start", "Automatically start game at load time");
@@ -5747,66 +5744,14 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Restrict Animation Updates",
 	                         "Restrict the number of animation updates to the animation FPS (this is "
 	                         "better for performance, but can cause issues with smooth playback)");
-
-
-	prop = RNA_def_property(srna, "show_bounding_box", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "showBoundingBox");
-	RNA_def_property_enum_items(prop, debug_items);
-	RNA_def_property_ui_text(prop, "Show Bounding Box", "Show a visualization of bounding volume box");
-
-	prop = RNA_def_property(srna, "show_armatures", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "showArmatures");
-	RNA_def_property_enum_items(prop, debug_items);
-	RNA_def_property_ui_text(prop, "Show Armatures", "Show a visualization of armatures");
-
-	prop = RNA_def_property(srna, "show_camera_frustum", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "showCameraFrustum");
-	RNA_def_property_enum_items(prop, debug_items);
-	RNA_def_property_ui_text(prop, "Show Camera Frustum", "Show a visualization of the camera frustum "
-							 "according to the current viewport dimensions");
-
-	prop = RNA_def_property(srna, "show_shadow_frustum", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "showShadowFrustum");
-	RNA_def_property_enum_items(prop, debug_items);
-	RNA_def_property_ui_text(prop, "Show Shadow Frustum", "Show a visualization of the light shadow frustum");
-
-	prop = RNA_def_property(srna, "use_python_console", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_PYTHON_CONSOLE);
-	RNA_def_property_ui_text(prop, "Python Console", "Create a python interpreter console in game");
-
-	prop = RNA_def_property(srna, "python_console_key1", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[0]");
-	RNA_def_property_enum_items(prop, rna_enum_event_type_items);
-	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key1_set", NULL);
-	RNA_def_property_enum_default(prop, LEFTCTRLKEY);
-	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
-	RNA_def_property_ui_text(prop, "Python Console Key", "First python console shortcut key");
-
-	prop = RNA_def_property(srna, "python_console_key2", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[1]");
-	RNA_def_property_enum_items(prop, rna_enum_event_type_items);
-	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key2_set", NULL);
-	RNA_def_property_enum_default(prop, LEFTSHIFTKEY);
-	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
-	RNA_def_property_ui_text(prop, "Python Console Key", "Second python console shortcut key");
-
-	prop = RNA_def_property(srna, "python_console_key3", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[2]");
-	RNA_def_property_enum_items(prop, rna_enum_event_type_items);
-	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key3_set", NULL);
-	RNA_def_property_enum_default(prop, LEFTALTKEY);
-	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
-	RNA_def_property_ui_text(prop, "Python Console Key", "Third python console shortcut key");
-
-	prop = RNA_def_property(srna, "python_console_key4", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[3]");
-	RNA_def_property_enum_items(prop, rna_enum_event_type_items);
-	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key4_set", NULL);
-	RNA_def_property_enum_default(prop, TKEY);
-	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
-	RNA_def_property_ui_text(prop, "Python Console Key", "Fourth python console shortcut key");
-
+	
 	/* materials */
+	prop = RNA_def_property(srna, "material_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "matmode");
+	RNA_def_property_enum_items(prop, material_items);
+	RNA_def_property_ui_text(prop, "Material Mode", "Material mode to use for rendering");
+	RNA_def_property_update(prop, NC_SCENE | NA_EDITED, NULL);
+
 	prop = RNA_def_property(srna, "use_glsl_lights", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_LIGHTS);
 	RNA_def_property_ui_text(prop, "GLSL Lights", "Use lights for GLSL rendering");
@@ -5847,6 +5792,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_ENV_LIGHTING);
 	RNA_def_property_ui_text(prop, "GLSL Environment Lighting", "Use environment lighting for GLSL rendering");
 	RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
+
+	prop = RNA_def_property(srna, "use_material_caching", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_NO_MATERIAL_CACHING);
+	RNA_def_property_ui_text(prop, "Use Material Caching",
+	                         "Cache materials in the converter (this is faster, but can cause problems with older "
+	                         "Singletexture and Multitexture games)");
 
 	/* obstacle simulation */
 	prop = RNA_def_property(srna, "obstacle_simulation", PROP_ENUM, PROP_NONE);

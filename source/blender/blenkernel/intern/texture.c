@@ -650,7 +650,6 @@ void BKE_texture_default(Tex *tex)
 		tex->env->clipend = 100;
 		tex->env->cuberes = 512;
 		tex->env->depth = 0;
-		tex->env->flag = ENVMAP_AUTO_UPDATE;
 	}
 
 	if (tex->pd) {
@@ -743,8 +742,6 @@ void BKE_texture_mtex_default(MTex *mtex)
 	mtex->blendtype = MTEX_BLEND;
 	mtex->colfac = 1.0;
 	mtex->norfac = 1.0;
-	mtex->parallaxbumpsc = 0.03f;
-	mtex->parallaxsteps = 10.0f;
 	mtex->varfac = 1.0;
 	mtex->dispfac = 0.2;
 	mtex->colspecfac = 1.0f;
@@ -784,8 +781,6 @@ void BKE_texture_mtex_default(MTex *mtex)
 	mtex->brush_map_mode = MTEX_MAP_MODE_TILED;
 	mtex->random_angle = 2.0f * (float)M_PI;
 	mtex->brush_angle_mode = 0;
-	mtex->ior = 1.0f;
-	mtex->refrratio = 0.0f;
 }
 
 
@@ -1294,9 +1289,7 @@ EnvMap *BKE_texture_envmap_add(void)
 	env->clipend = 100.0;
 	env->cuberes = 512;
 	env->viewscale = 0.5;
-	env->flag = ENVMAP_AUTO_UPDATE;
-	env->lodfactor = 1.0f;
-
+	
 	return env;
 } 
 

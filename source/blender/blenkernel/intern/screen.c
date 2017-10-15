@@ -395,18 +395,15 @@ void BKE_screen_area_free(ScrArea *sa)
 {
 	SpaceType *st = BKE_spacetype_from_id(sa->spacetype);
 	ARegion *ar;
+	
+	for (ar = sa->regionbase.first; ar; ar = ar->next)
+		BKE_area_region_free(st, ar);
 
-	if (st) {
-
-		for (ar = sa->regionbase.first; ar; ar = ar->next)
-			BKE_area_region_free(st, ar);
-
-		BLI_freelistN(&sa->regionbase);
-
-		BKE_spacedata_freelist(&sa->spacedata);
-
-		BLI_freelistN(&sa->actionzones);
-	}
+	BLI_freelistN(&sa->regionbase);
+	
+	BKE_spacedata_freelist(&sa->spacedata);
+	
+	BLI_freelistN(&sa->actionzones);
 }
 
 /** Free (or release) any data used by this screen (does not free the screen itself). */

@@ -359,8 +359,6 @@ static const char *sensor_name(int type)
 		return N_("Random");
 	case SENS_RAY:
 		return N_("Ray");
-	case SENS_MOVEMENT:
-		return N_("Movement");
 	case SENS_MESSAGE:
 		return N_("Message");
 	case SENS_JOYSTICK:
@@ -395,6 +393,8 @@ static const char *controller_name(int type)
 static const char *actuator_name(int type)
 {
 	switch (type) {
+	case ACT_SHAPEACTION:
+		return N_("Shape Action");
 	case ACT_ACTION:
 		return N_("Action");
 	case ACT_OBJECT:
@@ -423,8 +423,6 @@ static const char *actuator_name(int type)
 		return N_("Message");
 	case ACT_GAME:
 		return N_("Game");
-	case ACT_VIBRATION:
-		return N_("Vibration");
 	case ACT_VISIBILITY:
 		return N_("Visibility");
 	case ACT_2DFILTER:
@@ -868,10 +866,12 @@ static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *lo
 					         RNA_boolean_get(ptr, "active")));
 	uiItemR(sub, ptr, "pin", UI_ITEM_R_NO_BG, "", ICON_NONE);
 
-	sub = uiLayoutRow(row, true);
-	uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
-	uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_UP, "direction", 1); // up
-	uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_DOWN, "direction", 2); // down
+	if (RNA_boolean_get(ptr, "show_expanded")==0) {
+		sub = uiLayoutRow(row, true);
+		uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
+		uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_UP, "direction", 1); // up
+		uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_DOWN, "direction", 2); // down
+	}
 
 	sub = uiLayoutRow(row, false);
 	uiItemR(sub, ptr, "active", 0, "", ICON_NONE);
@@ -980,39 +980,41 @@ static void draw_sensor_delay(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_sensor_joystick(uiLayout *layout, PointerRNA *ptr)
 {
-	uiLayout *col, *row, *split;
+	uiLayout *col, *row;
 
 	uiItemR(layout, ptr, "joystick_index", 0, NULL, ICON_NONE);
-	split = uiLayoutSplit(layout, 0.75f, false);
-	row = uiLayoutRow(split, false);
-	uiItemR(row, ptr, "event_type", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "event_type", 0, NULL, ICON_NONE);
 
 	switch (RNA_enum_get(ptr, "event_type")) {
 		case SENS_JOY_BUTTON:
-			uiItemR(split, ptr, "use_all_events", 0, NULL, ICON_NONE);
+			uiItemR(layout, ptr, "use_all_events", 0, NULL, ICON_NONE);
 
 			col = uiLayoutColumn(layout, false);
 			uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_events") == false);
 			uiItemR(col, ptr, "button_number", 0, NULL, ICON_NONE);
 			break;
 		case SENS_JOY_AXIS:
-			uiItemR(split, ptr, "use_all_events", 0, NULL, ICON_NONE);
+			row = uiLayoutRow(layout, false);
+			uiItemR(row, ptr, "axis_number", 0, NULL, ICON_NONE);
+			uiItemR(row, ptr, "axis_threshold", 0, NULL, ICON_NONE);
 
+			uiItemR(layout, ptr, "use_all_events", 0, NULL, ICON_NONE);
 			col = uiLayoutColumn(layout, false);
-			uiItemR(col, ptr, "axis_number", 0, NULL, ICON_NONE);
 			uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_events") == false);
 			uiItemR(col, ptr, "axis_direction", 0, NULL, ICON_NONE);
-			uiItemR(col, ptr, "axis_threshold", 0, NULL, ICON_NONE);
+			break;
+		case SENS_JOY_HAT:
+			uiItemR(layout, ptr, "hat_number", 0, NULL, ICON_NONE);
+			uiItemR(layout, ptr, "use_all_events", 0, NULL, ICON_NONE);
+
+			col = uiLayoutColumn(layout, false);
+			uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_events") == false);
+			uiItemR(col, ptr, "hat_direction", 0, NULL, ICON_NONE);
 			break;
 		case SENS_JOY_AXIS_SINGLE:
-			col = uiLayoutColumn(layout, false);
-			uiItemR(col, ptr, "single_axis_number", 0, NULL, ICON_NONE);
-			uiItemR(col, ptr, "axis_threshold", 0, NULL, ICON_NONE);
-			break;
-		case SENS_JOY_SHOULDER_TRIGGER:
-			col = uiLayoutColumn(layout, false);
-			uiItemR(col, ptr, "axis_trigger_number", 0, NULL, ICON_NONE);
-			uiItemR(col, ptr, "axis_threshold", 0, NULL, ICON_NONE);
+			row = uiLayoutRow(layout, false);
+			uiItemR(row, ptr, "single_axis_number", 0, NULL, ICON_NONE);
+			uiItemR(row, ptr, "axis_threshold", 0, NULL, ICON_NONE);
 			break;
 	}
 }
@@ -1074,9 +1076,6 @@ static void draw_sensor_mouse(uiLayout *layout, PointerRNA *ptr, bContext *C)
 			uiItemPointerR(split2, ptr, "material", &main_ptr, "materials", "", ICON_MATERIAL_DATA);
 		}
 		uiItemR(split2, ptr, "use_x_ray", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-
-		split = uiLayoutSplit(layout, 0.3, false);
-		uiItemR(split, ptr, "mask", 0, NULL, ICON_NONE);
 	}
 }
 
@@ -1158,17 +1157,6 @@ static void draw_sensor_ray(uiLayout *layout, PointerRNA *ptr, bContext *C)
 	row = uiLayoutRow(split, false);
 	uiItemR(row, ptr, "range", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "use_x_ray", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-	split = uiLayoutSplit(layout, 0.3, false);
-	uiItemR(split, ptr, "mask", 0, NULL, ICON_NONE);
-}
-
-static void draw_sensor_movement(uiLayout *layout, PointerRNA *ptr)
-{
-	uiLayout *row;
-	uiItemR(layout, ptr, "axis", 0, NULL, ICON_NONE);
-	row = uiLayoutRow(layout, false);
-	uiItemR(row, ptr, "use_local", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-	uiItemR(row, ptr, "threshold", 0, NULL, ICON_NONE);
 }
 
 static void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)
@@ -1223,9 +1211,6 @@ static void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)
 		case SENS_RANDOM:
 			draw_sensor_random(box, ptr);
 			break;
-		case SENS_MOVEMENT:
-			draw_sensor_movement(box, ptr);
-			break;
 		case SENS_RAY:
 			draw_sensor_ray(box, ptr, C);
 			break;
@@ -1263,10 +1248,12 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
 	uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
 	uiItemR(sub, ptr, "use_priority", 0, "", ICON_NONE);
 
-	sub = uiLayoutRow(row, true);
-	uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
-	uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_UP, "direction", 1); // up
-	uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_DOWN, "direction", 2); // down
+	if (RNA_boolean_get(ptr, "show_expanded")==0) {
+		sub = uiLayoutRow(row, true);
+		uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
+		uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_UP, "direction", 1); // up
+		uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_DOWN, "direction", 2); // down
+	}
 
 	sub = uiLayoutRow(row, false);
 	uiItemR(sub, ptr, "active", 0, "", ICON_NONE);
@@ -1363,10 +1350,12 @@ static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *
 	                          RNA_boolean_get(ptr, "active")));
 	uiItemR(sub, ptr, "pin", UI_ITEM_R_NO_BG, "", ICON_NONE);
 
-	sub = uiLayoutRow(row, true);
-	uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
-	uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_UP, "direction", 1); // up
-	uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_DOWN, "direction", 2); // down
+	if (RNA_boolean_get(ptr, "show_expanded")==0) {
+		sub = uiLayoutRow(row, true);
+		uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
+		uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_UP, "direction", 1); // up
+		uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_DOWN, "direction", 2); // down
+	}
 
 	sub = uiLayoutRow(row, false);
 	uiItemR(sub, ptr, "active", 0, "", ICON_NONE);
@@ -1683,7 +1672,6 @@ static void draw_actuator_filter_2d(uiLayout *layout, PointerRNA *ptr)
 		case ACT_2DFILTER_CUSTOMFILTER:
 			uiItemR(layout, ptr, "filter_pass", 0, NULL, ICON_NONE);
 			uiItemR(layout, ptr, "glsl_shader", 0, NULL, ICON_NONE);
-			uiItemR(layout, ptr, "use_mipmap", 0, NULL, ICON_NONE);
 			break;
 		case ACT_2DFILTER_MOTIONBLUR:
 			split=uiLayoutSplit(layout, 0.75f, true);
@@ -1980,6 +1968,45 @@ static void draw_actuator_scene(uiLayout *layout, PointerRNA *ptr)
 	}
 }
 
+static void draw_actuator_shape_action(uiLayout *layout, PointerRNA *ptr)
+{
+	Object *ob = (Object *)ptr->id.data;
+	PointerRNA settings_ptr;
+	uiLayout *row;
+
+	if (ob->type != OB_MESH) {
+		uiItemL(layout, IFACE_("Actuator only available for mesh objects"), ICON_NONE);
+		return;
+	}
+
+	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
+
+	row = uiLayoutRow(layout, false);
+	uiItemR(row, ptr, "mode", 0, "", ICON_NONE);
+	uiItemR(row, ptr, "action", 0, "", ICON_NONE);
+	uiItemR(row, ptr, "use_continue_last_frame", 0, NULL, ICON_NONE);
+
+	row = uiLayoutRow(layout, false);
+	if ((RNA_enum_get(ptr, "mode") == ACT_ACTION_FROM_PROP))
+		uiItemPointerR(row, ptr, "property", &settings_ptr, "properties", NULL, ICON_NONE);
+
+	else {
+		uiItemR(row, ptr, "frame_start", 0, NULL, ICON_NONE);
+		uiItemR(row, ptr, "frame_end", 0, NULL, ICON_NONE);
+	}
+
+	row = uiLayoutRow(layout, false);
+	uiItemR(row, ptr, "frame_blend_in", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "priority", 0, NULL, ICON_NONE);
+
+	row = uiLayoutRow(layout, false);
+	uiItemPointerR(row, ptr, "frame_property", &settings_ptr, "properties", NULL, ICON_NONE);
+
+#ifdef __NLA_ACTION_BY_MOTION_ACTUATOR
+	uiItemR(row, "stride_length", 0, NULL, ICON_NONE);
+#endif
+}
+
 static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)
 {
 	uiLayout *row, *col;
@@ -2028,32 +2055,6 @@ static void draw_actuator_state(uiLayout *layout, PointerRNA *ptr)
 	uiItemR(split, ptr, "operation", 0, NULL, ICON_NONE);
 
 	uiTemplateLayers(split, ptr, "states", &settings_ptr, "used_states", 0);
-}
-
-static void draw_actuator_vibration(uiLayout *layout, PointerRNA *ptr)
-{
-	uiLayout *row;
-	row = uiLayoutRow(layout, false);
-
-	uiItemR(layout, ptr, "mode", 0, NULL, 0);
-
-	switch (RNA_enum_get(ptr, "mode")) {
-		case ACT_VIBRATION_PLAY:
-		{
-			uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
-			row = uiLayoutRow(layout, false);
-			uiItemR(row, ptr, "joy_strength_left", 0, NULL, ICON_NONE);
-			uiItemR(row, ptr, "joy_strength_right", 0, NULL, ICON_NONE);
-			row = uiLayoutRow(layout, false);
-			uiItemR(row, ptr, "joy_duration", 0, NULL, ICON_NONE);
-			break;
-		}
-		case ACT_VIBRATION_STOP:
-		{
-			uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
-			break;
-		}
-	}
 }
 
 static void draw_actuator_visibility(uiLayout *layout, PointerRNA *ptr)
@@ -2224,14 +2225,14 @@ static void draw_brick_actuator(uiLayout *layout, PointerRNA *ptr, bContext *C)
 		case ACT_SCENE:
 			draw_actuator_scene(box, ptr);
 			break;
+		case ACT_SHAPEACTION:
+			draw_actuator_shape_action(box, ptr);
+			break;
 		case ACT_SOUND:
 			draw_actuator_sound(box, ptr, C);
 			break;
 		case ACT_STATE:
 			draw_actuator_state(box, ptr);
-			break;
-		case ACT_VIBRATION:
-			draw_actuator_vibration(box, ptr);
 			break;
 		case ACT_VISIBILITY:
 			draw_actuator_visibility(box, ptr);

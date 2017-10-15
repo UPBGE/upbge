@@ -91,7 +91,6 @@
 #include "DNA_particle_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_property_types.h"
-#include "DNA_python_component_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_text_types.h"
 #include "DNA_view3d_types.h"
@@ -175,10 +174,6 @@
 
 
 #include <errno.h>
-
-#ifdef WITH_GAMEENGINE_BPPLAYER
-#  include "SpindleEncryption.h"
-#endif  // WITH_GAMEENGINE_BPPLAYER
 
 /**
  * READ
@@ -1142,38 +1137,25 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
 /* on each new library added, it now checks for the current FileData and expands relativeness */
 FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 {
-#ifdef WITH_GAMEENGINE_BPPLAYER
-	const int typeencryption = SPINDLE_CheckEncryptionFromFile(filepath);
-	if (typeencryption <= SPINDLE_NO_ENCRYPTION) {
-#endif
-		gzFile gzfile;
-		errno = 0;
-		gzfile = BLI_gzopen(filepath, "rb");
-
-		if (gzfile == (gzFile)Z_NULL) {
-			BKE_reportf(reports, RPT_WARNING, "Unable to open '%s': %s",
-						filepath, errno ? strerror(errno) : TIP_("unknown error reading file"));
-			return NULL;
-		}
-		else {
-			FileData *fd = filedata_new();
-			fd->gzfiledes = gzfile;
-			fd->read = fd_read_gzip_from_file;
-
-			/* needed for library_append and read_libraries */
-			BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
-
-			return blo_decode_and_check(fd, reports);
-		}
-#ifdef WITH_GAMEENGINE_BPPLAYER
+	gzFile gzfile;
+	errno = 0;
+	gzfile = BLI_gzopen(filepath, "rb");
+	
+	if (gzfile == (gzFile)Z_NULL) {
+		BKE_reportf(reports, RPT_WARNING, "Unable to open '%s': %s",
+		            filepath, errno ? strerror(errno) : TIP_("unknown error reading file"));
+		return NULL;
 	}
 	else {
-		int filesize = 0;
-		const char *decrypteddata = SPINDLE_DecryptFromFile(filepath, &filesize, NULL, typeencryption);
-		SPINDLE_SetFilePath(filepath);
-		return blo_openblendermemory(decrypteddata, filesize, reports);
+		FileData *fd = filedata_new();
+		fd->gzfiledes = gzfile;
+		fd->read = fd_read_gzip_from_file;
+		
+		/* needed for library_append and read_libraries */
+		BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
+		
+		return blo_decode_and_check(fd, reports);
 	}
-#endif
 }
 
 /**
@@ -1267,11 +1249,6 @@ FileData *blo_openblendermemory(const void *mem, int memsize, ReportList *report
 			fd->read = fd_read_from_memory;
 			
 		fd->flags |= FD_FLAGS_NOT_MY_BUFFER;
-
-#ifdef WITH_GAMEENGINE_BPPLAYER
-		// Set local path before calling blo_decode_and_check.
-		BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
-#endif
 
 		return blo_decode_and_check(fd, reports);
 	}
@@ -4122,7 +4099,6 @@ static void direct_link_material(FileData *fd, Material *ma)
 	
 	ma->preview = direct_link_preview_image(fd, ma->preview);
 	BLI_listbase_clear(&ma->gpumaterial);
-	BLI_listbase_clear(&ma->gpumaterialinstancing);
 }
 
 /* ************ READ PARTICLE SETTINGS ***************** */
@@ -5045,9 +5021,7 @@ static void lib_link_object(FileData *fd, Main *main)
 						break;
 				}
 			}
-
-			ob->gamePredefinedBound = newlibadr_us(fd, ob->id.lib, ob->gamePredefinedBound);
-
+			
 			{
 				FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(ob, eModifierType_Fluidsim);
 				
@@ -5474,8 +5448,6 @@ static void direct_link_object(FileData *fd, Object *ob)
 	bSensor *sens;
 	bController *cont;
 	bActuator *act;
-	PythonComponent *pc;
-	PythonComponentProperty *cprop;
 	
 	/* weak weak... this was only meant as draw flag, now is used in give_base_to_objects too */
 	ob->flag &= ~OB_FROMGROUP;
@@ -5646,9 +5618,6 @@ static void direct_link_object(FileData *fd, Object *ob)
 	else if (!ob->state) {
 		ob->state = 1;
 	}
-	else if (!ob->init_state) {
-		ob->init_state = 1;
-	}
 	for (cont = ob->controllers.first; cont; cont = cont->next) {
 		cont->data = newdataadr(fd, cont->data);
 		cont->links = newdataadr(fd, cont->links);
@@ -5660,21 +5629,6 @@ static void direct_link_object(FileData *fd, Object *ob)
 	link_glob_list(fd, &ob->actuators);
 	for (act = ob->actuators.first; act; act = act->next) {
 		act->data = newdataadr(fd, act->data);
-	}
-
-	link_glob_list(fd, &ob->components);
-	pc = ob->components.first;
-	while (pc) {
-		link_glob_list(fd, &pc->properties);
-		cprop = pc->properties.first;
-		while (cprop) {
-			link_list(fd, &cprop->enumval);
-			for (LinkData *link = cprop->enumval.first; link; link = link->next) {
-				link->data = newdataadr(fd, link->data);
-			}
-			cprop = cprop->next;
-		}
-		pc = pc->next;
 	}
 
 	link_list(fd, &ob->hooks);
@@ -5957,7 +5911,9 @@ static void lib_link_scene(FileData *fd, Main *main)
 					fls->group = newlibadr_us(fd, sce->id.lib, fls->group);
 				}
 			}
-
+			/*Game Settings: Dome Warp Text*/
+			sce->gm.dome.warptext = newlibadr(fd, sce->id.lib, sce->gm.dome.warptext);
+			
 			/* Motion Tracking */
 			sce->clip = newlibadr_us(fd, sce->id.lib, sce->clip);
 
@@ -9880,7 +9836,10 @@ static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
 			expand_doit(fd, mainvar, lineset->linestyle);
 		}
 	}
-
+	
+	if (sce->r.dometext)
+		expand_doit(fd, mainvar, sce->gm.dome.warptext);
+	
 	if (sce->gpd)
 		expand_doit(fd, mainvar, sce->gpd);
 		

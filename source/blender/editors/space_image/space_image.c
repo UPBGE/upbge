@@ -250,7 +250,6 @@ static void image_operatortypes(void)
 	WM_operatortype_append(IMAGE_OT_match_movie_length);
 	WM_operatortype_append(IMAGE_OT_replace);
 	WM_operatortype_append(IMAGE_OT_reload);
-	WM_operatortype_append(IMAGE_OT_resize_cube_map);
 	WM_operatortype_append(IMAGE_OT_save);
 	WM_operatortype_append(IMAGE_OT_save_as);
 	WM_operatortype_append(IMAGE_OT_save_sequence);

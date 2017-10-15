@@ -74,7 +74,6 @@ void IMAGE_OT_unlink(struct wmOperatorType *ot);
 void IMAGE_OT_match_movie_length(struct wmOperatorType *ot);
 void IMAGE_OT_replace(struct wmOperatorType *ot);
 void IMAGE_OT_reload(struct wmOperatorType *ot);
-void IMAGE_OT_resize_cube_map(struct wmOperatorType *ot);
 void IMAGE_OT_save(struct wmOperatorType *ot);
 void IMAGE_OT_save_as(struct wmOperatorType *ot);
 void IMAGE_OT_save_sequence(struct wmOperatorType *ot);

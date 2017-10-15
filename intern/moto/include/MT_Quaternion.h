@@ -47,32 +47,29 @@
 #ifndef MT_QUATERNION_H
 #define MT_QUATERNION_H
 
-#include "MT_Config.h"
-
-#include <BLI_utildefines.h>
+#include <MT_assert.h>
 
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
 
 class MT_Quaternion : public MT_Vector4 {
 public:
-	explicit MT_Quaternion() {}
-	explicit MT_Quaternion(const MT_Vector4& v) : MT_Vector4(v) {}
-	explicit MT_Quaternion(const float v[4]) : MT_Vector4(v) {}
-	explicit MT_Quaternion(const double v[4]) : MT_Vector4(v) {}
-	explicit MT_Quaternion(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz, MT_Scalar ww) :
+    MT_Quaternion() {}
+    MT_Quaternion(const MT_Vector4& v) : MT_Vector4(v) {}
+    MT_Quaternion(const float v[4]) : MT_Vector4(v) {}
+    MT_Quaternion(const double v[4]) : MT_Vector4(v) {}
+    MT_Quaternion(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz, MT_Scalar ww) :
         MT_Vector4(xx, yy, zz, ww) {}
-
-	explicit MT_Quaternion(const MT_Vector3& axis, MT_Scalar mt_angle) { 
+    MT_Quaternion(const MT_Vector3& axis, MT_Scalar mt_angle) { 
         setRotation(axis, mt_angle); 
     }
-    explicit MT_Quaternion(MT_Scalar yaw, MT_Scalar pitch, MT_Scalar roll) { 
+    MT_Quaternion(MT_Scalar yaw, MT_Scalar pitch, MT_Scalar roll) { 
         setEuler(yaw, pitch, roll); 
     }
 
     void setRotation(const MT_Vector3& axis, MT_Scalar mt_angle) {
         MT_Scalar d = axis.length();
-        BLI_assert(!MT_fuzzyZero(d));
+        MT_assert(!MT_fuzzyZero(d));
         MT_Scalar s = sinf(mt_angle * MT_Scalar(0.5f)) / d;
         setValue(axis[0] * s, axis[1] * s, axis[2] * s, 
                  cosf(mt_angle * MT_Scalar(0.5f)));

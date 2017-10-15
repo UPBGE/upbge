@@ -799,7 +799,6 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
 	RNA_def_boolean(func, "compact", false, "", "Use more compact layout");
 	RNA_def_boolean(func, "multiview", false, "", "Expose Multi-View options");
-	RNA_def_boolean(func, "cubemap", false, "", "Warn for invalid cube map size");
 
 	func = RNA_def_function(srna, "template_image_settings", "uiTemplateImageSettings");
 	RNA_def_function_ui_description(func, "User interface for setting image format options");

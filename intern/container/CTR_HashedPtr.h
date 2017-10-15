@@ -1,4 +1,4 @@
-/**
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -15,28 +15,48 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): Mitchell Stokes, Diego Lopes, Tristan Porteries.
+ * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
+ *
  */
 
-#ifndef __BKE_PYTHON_COMPONENT_H__
-#define __BKE_PYTHON_COMPONENT_H__
+/** \file container/CTR_HashedPtr.h
+ *  \ingroup ctr
+ */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef __CTR_HASHEDPTR_H__
+#define __CTR_HASHEDPTR_H__
 
-struct PythonComponent *BKE_python_component_new(char *import, struct ReportList *reports, struct bContext *context);
-void BKE_python_component_reload(struct PythonComponent *pc, struct ReportList *reports, struct bContext *context);
-void BKE_python_component_copy_list(struct ListBase *lbn, struct ListBase *lbo);
-void BKE_python_component_free(struct PythonComponent *pc);
-void BKE_python_component_free_list(struct ListBase *base);
+#include <stdlib.h>
 
-void *BKE_python_component_argument_dict_new(struct PythonComponent *pc);
-
-#ifdef __cplusplus
+inline unsigned int CTR_Hash(void *inDWord)
+{
+	size_t key = (size_t)inDWord;
+	return (unsigned int)(key ^ (key >> 4));
 }
-#endif
 
-#endif /* __BKE_PYTHON_COMPONENT_H__ */
+class CTR_HashedPtr
+{
+	void *m_valptr;
+public:
+	CTR_HashedPtr(void *val) : m_valptr(val) {
+	}
+	unsigned int hash() const {
+		return CTR_Hash(m_valptr);
+	}
+	inline friend bool operator ==(const CTR_HashedPtr & rhs, const CTR_HashedPtr & lhs) {
+		return rhs.m_valptr == lhs.m_valptr;
+	}
+	void *getValue() const {
+		return m_valptr;
+	}
+};
+
+#endif  /* __CTR_HASHEDPTR_H__ */
+

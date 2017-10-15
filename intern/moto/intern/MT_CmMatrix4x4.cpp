@@ -32,6 +32,7 @@
 
 #include "MT_CmMatrix4x4.h"
 #include "MT_Vector3.h"
+#include "MT_Point3.h"
 
 
 MT_CmMatrix4x4::MT_CmMatrix4x4()
@@ -67,7 +68,7 @@ MT_CmMatrix4x4::MT_CmMatrix4x4(const MT_CmMatrix4x4& other)
 
 
 
-MT_CmMatrix4x4::MT_CmMatrix4x4(const MT_Vector3& orig,
+MT_CmMatrix4x4::MT_CmMatrix4x4(const MT_Point3& orig,
 							 const MT_Vector3& dir,
 							 const MT_Vector3 up)
 {
@@ -121,9 +122,9 @@ MT_Vector3 MT_CmMatrix4x4::GetDir() const
 
 
 
-MT_Vector3 MT_CmMatrix4x4::GetPos() const
+MT_Point3 MT_CmMatrix4x4::GetPos() const
 {
-	return MT_Vector3(m_V[3][0], m_V[3][1], m_V[3][2]);
+	return MT_Point3(m_V[3][0], m_V[3][1], m_V[3][2]);
 }
 
 

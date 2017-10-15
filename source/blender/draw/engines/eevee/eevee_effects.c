@@ -116,7 +116,7 @@ static struct {
 
 	int depth_src_layer;
 	float cube_texel_size;
-} e_data = { NULL }; /* Engine data */
+} e_data = {NULL}; /* Engine data */
 
 extern char datatoc_ambient_occlusion_lib_glsl[];
 extern char datatoc_bsdf_common_lib_glsl[];
@@ -874,19 +874,6 @@ static DRWShadingGroup *eevee_create_bloom_pass(const char *name, EEVEE_EffectsI
 
 	DRWShadingGroup *grp = DRW_shgroup_create(sh, *pass);
 	DRW_shgroup_call_add(grp, quad, NULL);
-	DRW_shgroup_uniform_buffer(grp, "sourceBuffer", &effects->unf_source_buffer);
-	DRW_shgroup_uniform_vec2(grp, "sourceBufferTexelSize", effects->unf_source_texel_size, 1);
-	if (upsample) {
-		DRW_shgroup_uniform_buffer(grp, "baseBuffer", &effects->unf_base_buffer);
-		DRW_shgroup_uniform_float(grp, "sampleScale", &effects->bloom_sample_scale, 1);
-	}
-
-	return grp;
-}
-
-DRWShadingGroup *EEVEE_create_bloom_shgroup(EEVEE_EffectsInfo *effects, struct GPUShader *sh, bool upsample)
-{
-	DRWShadingGroup *grp = DRW_shgroup_create(sh, NULL);
 	DRW_shgroup_uniform_buffer(grp, "sourceBuffer", &effects->unf_source_buffer);
 	DRW_shgroup_uniform_vec2(grp, "sourceBufferTexelSize", effects->unf_source_texel_size, 1);
 	if (upsample) {
@@ -1729,11 +1716,3 @@ void EEVEE_effects_free(void)
 	DRW_SHADER_FREE_SAFE(e_data.bloom_upsample_sh[1]);
 	DRW_SHADER_FREE_SAFE(e_data.bloom_resolve_sh[1]);
 }
-
-/*************************Game engine**************************/
-void EEVEE_effects_replace_e_data_depth(GPUTexture *depth_src)
-{
-	e_data.depth_src = depth_src;
-}
-/*********************End of Game engine***********************/
-

@@ -40,8 +40,6 @@ typedef struct SDL_GameControllerButtonBind
 
 typedef int SDLCALL tSDL_GameControllerAddMapping( const char* mappingString );
 
-typedef int SDLCALL tSDL_GameControllerAddMappingsFromRW( SDL_RWops * rw, int freerw );
-
 typedef char * SDLCALL tSDL_GameControllerMappingForGUID( SDL_JoystickGUID guid );
 
 typedef char * SDLCALL tSDL_GameControllerMapping( SDL_GameController * gamecontroller );
@@ -121,8 +119,6 @@ typedef Uint8 SDLCALL tSDL_GameControllerGetButton(SDL_GameController *gamecontr
 typedef void SDLCALL tSDL_GameControllerClose(SDL_GameController *gamecontroller);
 
 extern tSDL_GameControllerAddMapping *SDL_GameControllerAddMapping;
-extern tSDL_GameControllerAddMappingsFromRW *SDL_GameControllerAddMappingsFromRW;
-#define SDL_GameControllerAddMappingsFromFile(file)   SDL_GameControllerAddMappingsFromRW(SDL_RWFromFile(file, "rb"), 1)
 extern tSDL_GameControllerMappingForGUID *SDL_GameControllerMappingForGUID;
 extern tSDL_GameControllerMapping *SDL_GameControllerMapping;
 extern tSDL_IsGameController *SDL_IsGameController;

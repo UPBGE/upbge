@@ -1196,8 +1196,6 @@ typedef struct SpaceLogic {
 	short flag, scaflag;
 	int pad;
 	
-	char import_string[64];
-
 	struct bGPdata *gpd;        /* grease-pencil data */
 } SpaceLogic;
 

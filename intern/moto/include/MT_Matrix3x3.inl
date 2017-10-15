@@ -79,7 +79,7 @@ GEN_INLINE MT_Matrix3x3 MT_Matrix3x3::adjoint() const {
 GEN_INLINE MT_Matrix3x3 MT_Matrix3x3::inverse() const {
     MT_Vector3 co(cofac(1, 1, 2, 2), cofac(1, 2, 2, 0), cofac(1, 0, 2, 1));
     MT_Scalar det = MT_dot((*this)[0], co);
-    BLI_assert(!MT_fuzzyZero2(det));
+    MT_assert(!MT_fuzzyZero2(det));
     MT_Scalar s = MT_Scalar(1.0f) / det;
     return 
         MT_Matrix3x3(co[0] * s, cofac(0, 2, 2, 1) * s, cofac(0, 1, 1, 2) * s,

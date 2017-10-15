@@ -2005,13 +2005,6 @@ static int game_physics_copy_exec(bContext *C, wmOperator *UNUSED(op))
 			ob_iter->max_angvel = ob->max_angvel;
 			ob_iter->obstacleRad = ob->obstacleRad;
 			ob_iter->mass = ob->mass;
-			ob_iter->friction = ob->friction;
-			ob_iter->rolling_friction = ob->rolling_friction;
-			ob_iter->fh = ob->fh;
-			ob_iter->reflect = ob->reflect;
-			ob_iter->fhdist = ob->fhdist;
-			ob_iter->xyfrict = ob->xyfrict;
-			ob_iter->dynamode = ob->dynamode;
 			copy_v3_v3(ob_iter->anisotropicFriction, ob->anisotropicFriction);
 			ob_iter->collision_boundtype = ob->collision_boundtype;
 			ob_iter->margin = ob->margin;

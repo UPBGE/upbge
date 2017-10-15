@@ -554,7 +554,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 
 	# Sort libraries
 	set(BLENDER_SORTED_LIBS
-
 		bf_windowmanager
 
 		bf_editor_space_api
@@ -599,24 +598,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_editor_mask
 		bf_editor_io
 
-		ge_blen_routines
-		ge_launcher
-		ge_blen_routines
-		ge_logic_ketsji
-		ge_converter
-		ge_phys_dummy
-		ge_phys_bullet
-		ge_logic_ketsji
-		ge_logic
-		ge_device
-		ge_rasterizer
-		ge_oglrasterizer
-		ge_common
-		ge_logic_expressions
-		ge_scenegraph
-		ge_logic_network
-		ge_videotex
-
 		bf_render
 		bf_python
 		bf_python_ext
@@ -637,48 +618,51 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_rna
 		bf_editor_manipulator_library  # rna -> manipulator bad-level calls
 		bf_python
-		bf_dna
 		bf_imbuf
 		bf_blenlib
 		bf_depsgraph
+		bf_intern_ghost
+		bf_intern_string
 		bf_avi
 		bf_imbuf_cineon
 		bf_imbuf_openexr
 		bf_imbuf_openimageio
 		bf_imbuf_dds
 		bf_collada
+		bf_intern_elbeem
+		bf_intern_memutil
+		bf_intern_guardedalloc
+		bf_intern_ctr
+		bf_intern_utfconv
+		ge_blen_routines
+		ge_converter
+		ge_phys_dummy
+		ge_phys_bullet
+		bf_intern_smoke
+		extern_lzma
+		extern_curve_fit_nd
+		ge_logic_ketsji
+		extern_recastnavigation
+		ge_logic
+		ge_rasterizer
+		ge_oglrasterizer
+		ge_logic_expressions
+		ge_scenegraph
+		ge_logic_network
+		ge_logic_ngnetwork
+		ge_logic_loopbacknetwork
+		bf_intern_moto
+		extern_openjpeg
+		ge_videotex
+		bf_dna
 		bf_blenfont
 		bf_blentranslation
-
-		bf_intern_ghost
-		bf_intern_string
 		bf_intern_audaspace
 		audaspace
 		audaspace-py
 		bf_intern_mikktspace
 		bf_intern_dualcon
 		bf_intern_cycles
-		bf_intern_elbeem
-		bf_intern_memutil
-		bf_intern_guardedalloc
-		bf_intern_ctr
-		bf_intern_utfconv
-		bf_intern_smoke
-		bf_intern_moto
-		bf_intern_opencolorio
-		bf_intern_gawain
-		bf_intern_eigen
-		bf_intern_libmv
-		bf_intern_glew_mx
-
-		extern_lzma
-		extern_curve_fit_nd
-		extern_recastnavigation
-		extern_openjpeg
-		extern_rangetree
-		extern_wcwidth
-		extern_sdlew
-
 		cycles_render
 		cycles_graph
 		cycles_bvh
@@ -686,6 +670,15 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		cycles_kernel
 		cycles_util
 		cycles_subd
+		bf_intern_opencolorio
+		bf_intern_gawain
+		bf_intern_eigen
+		extern_rangetree
+		extern_wcwidth
+		bf_intern_libmv
+		extern_sdlew
+
+		bf_intern_glew_mx
 	)
 
 	if(NOT WITH_SYSTEM_GLOG)
@@ -755,15 +748,11 @@ function(SETUP_BLENDER_SORTED_LIBS)
 	endif()
 
 	if(WITH_BULLET AND NOT WITH_SYSTEM_BULLET)
-		list(APPEND BLENDER_SORTED_LIBS extern_bullet)
+		list_insert_after(BLENDER_SORTED_LIBS "ge_logic_ngnetwork" "extern_bullet")
 	endif()
 
 	if(WITH_GAMEENGINE_DECKLINK)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_decklink)
-	endif()
-
-	if(WITH_GAMEENGINE_BPPLAYER)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_spindle)
 	endif()
 
 	if(WIN32)

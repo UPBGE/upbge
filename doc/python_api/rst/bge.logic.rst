@@ -42,7 +42,7 @@ See the sensor's reference for available methods:
    * :class:`~bge.types.KX_NetworkMessageSensor`
    * :class:`~bge.types.KX_RadarSensor`
    * :class:`~bge.types.KX_RaySensor`
-   * :class:`~bge.types.KX_CollisionSensor`
+   * :class:`~bge.types.KX_TouchSensor`
    * :class:`~bge.types.SCA_DelaySensor`
    * :class:`~bge.types.SCA_JoystickSensor`
    * :class:`~bge.types.SCA_KeyboardSensor`
@@ -156,12 +156,6 @@ General functions
    
    .. note:: Scenes in your blend file that have not been converted wont be in this list. This list will only contain scenes such as overlays scenes.
 
-.. function:: getInactiveSceneNames()
-
-   Gets a list of the scene's names not loaded in the game engine.
-
-   :rtype: list of string
-
 .. function:: loadGlobalDict()
 
    Loads bge.logic.globalDict from a file.
@@ -185,7 +179,7 @@ General functions
 
    Restarts the current game by reloading the .blend file (the last saved version, not what is currently running).
    
-.. function:: LibLoad(blend, type, data, load_actions=False, verbose=False, load_scripts=True, async=False, scene=None)
+.. function:: LibLoad(blend, type, data, load_actions=False, verbose=False, load_scripts=True, async=False)
    
    Converts the all of the datablocks of the given type from the given blend.
    
@@ -203,8 +197,6 @@ General functions
    :type load_scripts: bool   
    :arg async: Whether or not to do the loading asynchronously (in another thread). Only the "Scene" type is currently supported for this feature.
    :type async: bool
-   :arg scene: Scene to merge loaded data to, if `None` use the current scene.
-   :type scene: :class:`bge.types.KX_Scene` or string
    
    :rtype: :class:`bge.types.KX_LibLoadStatus`
 
@@ -269,7 +261,7 @@ General functions
    :arg gravity: gravity vector
    :type gravity: Vector((fx, fy, fz))
 
-.. function:: getSpectrum() (Deprecated)
+.. function:: getSpectrum()
 
    Returns a 512 point list from the sound card.
    This only works if the fmod sound driver is being used.
@@ -345,6 +337,28 @@ General functions
    :type ticrate: float
 
    .. warning: Not implimented yet
+
+.. function:: getAnimRecordFrame()
+
+    Gets the current frame number used for recording animations. This
+    number is incremented automatically by Blender when the "Record
+    animation" feature is turned on.
+
+    :rtype: int
+
+.. function:: setAnimRecordFrame(framenr)
+
+    Sets the current frame number used for recording animations. This
+    number is automatically incremented by Blender when the "Record
+    animation" feature is turned on.
+
+    The frame number Must be non-negative, unless Blender has
+    :attr:`bpy.types.UserPreferencesEdit.use_negative_frames` enabled
+    in its user preferences. Only use non-negative numbers to be on
+    the safe side, unless you know what you are doing.
+
+    :arg framenr: The new frame number.
+    :type framenr: int
 
 .. function:: getExitKey()
 
@@ -1305,8 +1319,6 @@ Navigation Mesh Draw Modes
 Shader
 ------
 
-.. _shader-defined-uniform:
-
 .. data:: VIEWMATRIX
 .. data:: VIEWMATRIX_INVERSE
 .. data:: VIEWMATRIX_INVERSETRANSPOSE
@@ -1324,8 +1336,6 @@ Shader
    Current camera position
 
 .. data:: CONSTANT_TIMER
-
-.. data:: EYE
 
    User a timer for the uniform value.
 

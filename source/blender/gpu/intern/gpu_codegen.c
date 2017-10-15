@@ -383,7 +383,7 @@ static int codegen_input_has_texture(GPUInput *input)
 	else if (input->ima || input->prv)
 		return 1;
 	else
-		return (input->tex != NULL || input->texptr != NULL);
+		return input->tex != NULL;
 }
 
 const char *GPU_builtin_name(GPUBuiltin builtin)
@@ -418,24 +418,6 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "unfparticlevel";
 	else if (builtin == GPU_PARTICLE_ANG_VELOCITY)
 		return "unfparticleangvel";
-	else if (builtin == GPU_INSTANCING_MATRIX)
-		return "varinstmat";
-	else if (builtin == GPU_INSTANCING_INVERSE_MATRIX)
-		return "varinstinvmat";
-	else if (builtin == GPU_INSTANCING_LOC_TO_VIEW_MATRIX)
-		return "varinstlocaltoviewmat";
-	else if (builtin == GPU_INSTANCING_INVERSE_LOC_TO_VIEW_MATRIX)
-		return "varinstinvlocaltoviewmat";
-	else if (builtin == GPU_INSTANCING_COLOR)
-		return "varinstcolor";
-	else if (builtin == GPU_INSTANCING_COLOR_ATTRIB)
-		return "ininstcolor";
-	else if (builtin == GPU_INSTANCING_MATRIX_ATTRIB)
-		return "ininstmatrix";
-	else if (builtin == GPU_INSTANCING_POSITION_ATTRIB)
-		return "ininstposition";
-	else if (builtin == GPU_TIME)
-		return "unftime";
 	else if (builtin == GPU_OBJECT_INFO)
 		return "unfobjectinfo";
 	else
@@ -497,10 +479,6 @@ static void codegen_set_unique_ids(ListBase *nodes)
 				else if (input->tex) {
 					/* input is user created texture, check tex pointer */
 					codegen_set_texid(bindhash, input, &texid, input->tex);
-				}
-				else if (input->texptr) {
-					/* input is user created texture, check tex pointer */
-					codegen_set_texid(bindhash, input, &texid, input->texptr);
 				}
 
 				/* make sure this pixel is defined exactly once */
@@ -941,7 +919,7 @@ static char *code_generate_vertex_new(ListBase *nodes, const char *vert_code, bo
 	return code;
 }
 
-static char *code_generate_vertex(ListBase *nodes, const GPUMatType type, bool use_instancing)
+static char *code_generate_vertex(ListBase *nodes, const GPUMatType type)
 {
 	DynStr *ds = BLI_dynstr_new();
 	GPUNode *node;
@@ -997,16 +975,9 @@ static char *code_generate_vertex(ListBase *nodes, const GPUMatType type, bool u
 #ifdef WITH_OPENSUBDIV
 					BLI_dynstr_appendf(ds, "#ifndef USE_OPENSUBDIV\n");
 #endif
-					if (use_instancing) {
-						BLI_dynstr_appendf(
-							ds, "\tvar%d.xyz = normalize(NormalMatrix * (att%d.xyz * %s));\n",
-							input->attribid, input->attribid, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
-					}
-					else {
-						BLI_dynstr_appendf(
-							ds, "\tvar%d.xyz = normalize(NormalMatrix * att%d.xyz);\n",
-							input->attribid, input->attribid);
-					}
+					BLI_dynstr_appendf(
+					        ds, "\tvar%d.xyz = normalize(NormalMatrix * att%d.xyz);\n",
+					        input->attribid, input->attribid);
 					BLI_dynstr_appendf(
 					        ds, "\tvar%d.w = att%d.w;\n",
 					        input->attribid, input->attribid);
@@ -1298,16 +1269,15 @@ static void gpu_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 				continue;
 			}
 
-			if (input->ima || input->tex || input->prv || input->texptr) {
+			if (input->ima || input->tex || input->prv)
 				BLI_snprintf(input->shadername, sizeof(input->shadername), "samp%d", input->texid);
-			}
 			else
 				BLI_snprintf(input->shadername, sizeof(input->shadername), "unf%d", input->id);
 
 			/* pass non-dynamic uniforms to opengl */
 			extract = 0;
 
-			if (input->ima || input->tex || input->prv || input->texptr) {
+			if (input->ima || input->tex || input->prv) {
 				if (input->bindtex)
 					extract = 1;
 			}
@@ -1362,10 +1332,6 @@ void GPU_pass_bind(GPUPass *pass, double time, int mipmap)
 			GPU_texture_bind(input->tex, input->texid);
 			GPU_shader_uniform_texture(shader, input->shaderloc, input->tex);
 		}
-		else if (input->texptr && *input->texptr && input->bindtex) {
-			GPU_texture_bind(*input->texptr, input->texid);
-			GPU_shader_uniform_texture(shader, input->shaderloc, *input->texptr);
-		}
 	}
 }
 
@@ -1380,9 +1346,16 @@ void GPU_pass_update_uniforms(GPUPass *pass)
 
 	/* pass dynamic inputs to opengl, others were removed */
 	for (input = inputs->first; input; input = input->next) {
-		if (!(input->ima || input->tex || input->prv || input->texptr)) {
-			GPU_shader_uniform_vector(shader, input->shaderloc, input->type, 1,
-				input->dynamicvec);
+		if (!(input->ima || input->tex || input->prv)) {
+			if (input->dynamictype == GPU_DYNAMIC_MAT_HARD) {
+				// The hardness is actually a short pointer, so we convert it here
+				float val = (float)(*(short *)input->dynamicvec);
+				GPU_shader_uniform_vector(shader, input->shaderloc, 1, 1, &val);
+			}
+			else {
+				GPU_shader_uniform_vector(shader, input->shaderloc, input->type, 1,
+					input->dynamicvec);
+			}
 		}
 	}
 }
@@ -1399,9 +1372,6 @@ void GPU_pass_unbind(GPUPass *pass)
 	for (input = inputs->first; input; input = input->next) {
 		if (input->tex && input->bindtex)
 			GPU_texture_unbind(input->tex);
-		if (input->texptr && *input->texptr && input->bindtex) {
-			GPU_texture_unbind(*input->texptr);
-		}
 
 		if (input->ima || input->prv)
 			input->tex = NULL;
@@ -1501,18 +1471,6 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
 		input->source = GPU_SOURCE_TEX;
 
 		input->tex = link->dynamictex;
-		input->textarget = GL_TEXTURE_2D;
-		input->textype = type;
-		input->dynamictex = true;
-		input->dynamicdata = link->ptr2;
-		MEM_freeN(link);
-	}
-	else if (link->dynamictexptr) {
-		/* dynamic texture, GPUTexture is updated/deleted externally */
-		input->type = type;
-		input->source = GPU_SOURCE_TEX;
-
-		input->texptr = link->dynamictexptr;
 		input->textarget = GL_TEXTURE_2D;
 		input->textype = type;
 		input->dynamictex = true;
@@ -1833,36 +1791,6 @@ GPUNodeLink *GPU_dynamic_uniform(float *num, GPUDynamicType dynamictype, void *d
 	return link;
 }
 
-GPUNodeLink *GPU_select_uniform(float *num, GPUDynamicType dynamictype, void *data, Material *material)
-{
-	bool dynamic = false;
-	if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_MAT) {
-		dynamic = !(material->constflag & MA_CONSTANT_MATERIAL);
-	}
-	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_LAMP) {
-		dynamic = !(material->constflag & MA_CONSTANT_LAMP);
-	}
-	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_TEX) {
-		dynamic = !(material->constflag & MA_CONSTANT_TEXTURE);
-	}
-	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_TEX_UV) {
-		dynamic = !(material->constflag & MA_CONSTANT_TEXTURE_UV);
-	}
-	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_WORLD) {
-		dynamic = !(material->constflag & MA_CONSTANT_WORLD);
-	}
-	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_MIST) {
-		dynamic = !(material->constflag & MA_CONSTANT_MIST);
-	}
-
-	if (dynamic) {
-		return GPU_dynamic_uniform(num, dynamictype, data);
-	}
-	else {
-		return GPU_uniform(num);
-	}
-}
-
 /**
  * Add uniform to UBO struct of GPUMaterial.
  */
@@ -1930,18 +1858,6 @@ GPUNodeLink *GPU_dynamic_texture(GPUTexture *tex, GPUDynamicType dynamictype, vo
 
 	link->dynamic = true;
 	link->dynamictex = tex;
-	link->dynamictype = dynamictype;
-	link->ptr2 = data;
-
-	return link;
-}
-
-GPUNodeLink *GPU_dynamic_texture_ptr(GPUTexture **tex, GPUDynamicType dynamictype, void *data)
-{
-	GPUNodeLink *link = GPU_node_link_create();
-
-	link->dynamic = true;
-	link->dynamictexptr = tex;
 	link->dynamictype = dynamictype;
 	link->ptr2 = data;
 
@@ -2203,7 +2119,6 @@ GPUPass *GPU_generate_pass(
         GPUVertexAttribs *attribs, int *builtins,
         const GPUMatType type, const char *UNUSED(name),
         const bool use_opensubdiv,
-		const bool use_instancing,
         const bool use_new_shading)
 {
 	GPUShader *shader;
@@ -2225,7 +2140,7 @@ GPUPass *GPU_generate_pass(
 
 	/* generate code and compile with opengl */
 	fragmentcode = code_generate_fragment(NULL, nodes, outlink->output, false);
-	vertexcode = code_generate_vertex(nodes, type, use_instancing);
+	vertexcode = code_generate_vertex(nodes, type);
 	geometrycode = code_generate_geometry(nodes, use_opensubdiv);
 
 	int flags = GPU_SHADER_FLAGS_NONE;
@@ -2234,9 +2149,6 @@ GPUPass *GPU_generate_pass(
 	}
 	if (use_new_shading) {
 		flags |= GPU_SHADER_FLAGS_NEW_SHADING;
-	}
-	if (use_instancing) {
-		flags |= GPU_SHADER_FLAGS_SPECIAL_INSTANCING;
 	}
 	shader = GPU_shader_create_ex(vertexcode,
 	                              fragmentcode,

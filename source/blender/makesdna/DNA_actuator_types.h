@@ -87,7 +87,7 @@ typedef struct bSoundActuator {
 } bSoundActuator;
 
 typedef struct bEditObjectActuator {
-	float time;
+	int time;
 	short type, flag;
 	struct Object *ob;
 	struct Mesh *me;
@@ -190,13 +190,6 @@ typedef struct bGameActuator {
 	char loadaniname[64];
 } bGameActuator;
 
-typedef struct bVibrationActuator {
-	int joyindex;
-	short mode, pad1; /* mode: 0 = Play, 1 = Stop */
-	float strength, strength_right; /* strength --> low frequency motor, strength_right --> high frequency motor */
-	int duration;
-} bVibrationActuator;
-
 typedef struct bVisibilityActuator {
 	/** bit 0: Is this object visible? 
 	 ** bit 1: Apply recursively  
@@ -205,13 +198,13 @@ typedef struct bVisibilityActuator {
 } bVisibilityActuator;
 
 typedef struct bTwoDFilterActuator {
+	char pad[4];
 	/* Tells what type of 2D Filter */
 	short type;
 	/* (flag == 0) means 2D filter is activate and
 	 * (flag != 0) means 2D filter is inactive */
 	short flag;
 	int   int_arg;
-	int mipmap;
 	/* a float argument */
 	float float_arg;
 	struct Text *text;
@@ -336,7 +329,6 @@ typedef struct bActuator {
 #define ACT_ARMATURE	23
 #define ACT_STEERING    24
 #define ACT_MOUSE		25
-#define ACT_VIBRATION	26
 
 /* actuator flag */
 #define ACT_SHOW		1
@@ -462,8 +454,7 @@ typedef struct bActuator {
 #define ACT_EDOB_ENABLE_RB		2
 #define ACT_EDOB_DISABLE_RB		3
 #define ACT_EDOB_SET_MASS		4
-#define ACT_EDOB_RESTORE_PHY	5
-#define ACT_EDOB_SUSPEND_PHY	6
+
 
 /* SceneActuator->type */
 #define ACT_SCENE_RESTART		0
@@ -588,9 +579,5 @@ typedef struct bActuator {
 #define ACT_MOUSE_OBJECT_AXIS_X	0
 #define ACT_MOUSE_OBJECT_AXIS_Y	1
 #define ACT_MOUSE_OBJECT_AXIS_Z	2
-
-/* vibrationactuator->mode */
-#define ACT_VIBRATION_PLAY		0
-#define ACT_VIBRATION_STOP		1
 
 #endif  /* __DNA_ACTUATOR_TYPES_H__ */

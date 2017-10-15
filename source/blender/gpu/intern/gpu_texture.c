@@ -46,8 +46,7 @@ static struct GPUTextureGlobal {
 	GPUTexture *invalid_tex_1D; /* texture used in place of invalid textures (not loaded correctly, missing) */
 	GPUTexture *invalid_tex_2D;
 	GPUTexture *invalid_tex_3D;
-	GPUTexture *depth_tex;
-} GG = {NULL, NULL, NULL, NULL};
+} GG = {NULL, NULL, NULL};
 
 /* GPUTexture */
 struct GPUTexture {
@@ -654,9 +653,9 @@ GPUTexture *GPU_texture_create_2D(int w, int h, const float *pixels, char err_ou
 }
 
 GPUTexture *GPU_texture_create_2D_custom(
-        int w, int h, int channels, GPUTextureFormat data_type, int samples, const float *pixels, char err_out[256])
+        int w, int h, int channels, GPUTextureFormat data_type, const float *pixels, char err_out[256])
 {
-	return GPU_texture_create_nD(w, h, 0, 2, pixels, data_type, channels, samples, false, err_out);
+	return GPU_texture_create_nD(w, h, 0, 2, pixels, data_type, channels, 0, false, err_out);
 }
 
 GPUTexture *GPU_texture_create_2D_multisample(int w, int h, const float *pixels, int samples, char err_out[256])
@@ -742,21 +741,6 @@ void GPU_texture_update(GPUTexture *tex, const float *pixels)
 	glBindTexture(tex->target, 0);
 }
 
-GPUTexture **GPU_texture_global_depth_ptr(void)
-{
-	return &GG.depth_tex;
-}
-
-void GPU_texture_set_global_depth(GPUTexture *depthtex)
-{
-	if (depthtex) {
-		GG.depth_tex = depthtex;
-	}
-	else {
-		GG.depth_tex = GG.invalid_tex_2D;
-	}
-}
-
 void GPU_invalid_tex_init(void)
 {
 	memory_usage = 0;
@@ -764,7 +748,6 @@ void GPU_invalid_tex_init(void)
 	GG.invalid_tex_1D = GPU_texture_create_1D(1, color, NULL);
 	GG.invalid_tex_2D = GPU_texture_create_2D(1, 1, color, NULL);
 	GG.invalid_tex_3D = GPU_texture_create_3D(1, 1, 1, color, NULL);
-	GG.depth_tex = GG.invalid_tex_2D;
 }
 
 void GPU_invalid_tex_bind(int mode)
@@ -983,11 +966,6 @@ void GPU_texture_ref(GPUTexture *tex)
 	tex->refcount++;
 }
 
-int GPU_texture_ref_count(GPUTexture *tex)
-{
-	return tex->refcount;
-}
-
 int GPU_texture_target(const GPUTexture *tex)
 {
 	return tex->target;
@@ -1021,11 +999,6 @@ bool GPU_texture_stencil(const GPUTexture *tex)
 int GPU_texture_opengl_bindcode(const GPUTexture *tex)
 {
 	return tex->bindcode;
-}
-
-void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode)
-{
-	tex->bindcode = bindcode;
 }
 
 GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex)

@@ -145,18 +145,12 @@ typedef enum GPUTextureFormat {
 
 unsigned int GPU_texture_memory_usage_get(void);
 
-typedef enum GPUTextureMode {
-	GPU_TEXTURE_MODE_NONE = 0,
-	GPU_TEXTURE_DEPTH = 1 << 0,
-	GPU_TEXTURE_DEPTH_COMPARE = 1 << 1,
-} GPUTextureMode;
-
 GPUTexture *GPU_texture_create_1D(int w, const float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_create_1D_custom(
         int w, int channels, GPUTextureFormat data_type, const float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_create_2D(int w, int h, const float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_create_2D_custom(
-        int w, int h, int channels, GPUTextureFormat data_type, int samples, const float *pixels, char err_out[256]);
+        int w, int h, int channels, GPUTextureFormat data_type, const float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_create_2D_multisample(int w, int h, const float *pixels, int samples, char err_out[256]);
 GPUTexture *GPU_texture_create_2D_array_custom(
         int w, int h, int d, int channels, GPUTextureFormat data_type, const float *pixels, char err_out[256]);
@@ -174,8 +168,7 @@ GPUTexture *GPU_texture_from_blender(
 GPUTexture *GPU_texture_from_preview(struct PreviewImage *prv, int mipmap);
 
 void GPU_texture_update(GPUTexture *tex, const float *pixels);
-GPUTexture **GPU_texture_global_depth_ptr(void);
-void GPU_texture_set_global_depth(GPUTexture *depthtex);
+
 void GPU_invalid_tex_init(void);
 void GPU_invalid_tex_bind(int mode);
 void GPU_invalid_tex_free(void);
@@ -183,7 +176,6 @@ void GPU_invalid_tex_free(void);
 void GPU_texture_free(GPUTexture *tex);
 
 void GPU_texture_ref(GPUTexture *tex);
-int GPU_texture_ref_count(GPUTexture *tex);
 void GPU_texture_bind(GPUTexture *tex, int number);
 void GPU_texture_unbind(GPUTexture *tex);
 int GPU_texture_bound_number(GPUTexture *tex);
@@ -205,9 +197,6 @@ int GPU_texture_format(const GPUTexture *tex);
 bool GPU_texture_depth(const GPUTexture *tex);
 bool GPU_texture_stencil(const GPUTexture *tex);
 int GPU_texture_opengl_bindcode(const GPUTexture *tex);
-
-void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode);
-
 
 #ifdef __cplusplus
 }

@@ -737,6 +737,13 @@ typedef struct RenderData {
 	short jp2_preset  DNA_DEPRECATED, jp2_depth  DNA_DEPRECATED;  /*deprecated*/
 	int rpad3;
 
+	/* Dome variables */ //  XXX deprecated since 2.5
+	short domeres  DNA_DEPRECATED, domemode  DNA_DEPRECATED;	//  XXX deprecated since 2.5
+	short domeangle  DNA_DEPRECATED, dometilt  DNA_DEPRECATED;	//  XXX deprecated since 2.5
+	float domeresbuf  DNA_DEPRECATED;	//  XXX deprecated since 2.5
+	float pad2;
+	struct Text *dometext  DNA_DEPRECATED;	//  XXX deprecated since 2.5
+
 	/* Freestyle line thickness options */
 	int line_thickness_mode;
 	float unit_line_thickness; /* in pixels */
@@ -783,6 +790,23 @@ typedef struct RenderProfile {
 } RenderProfile;
 
 /* *************************************************************** */
+/* Game Engine - Dome */
+
+typedef struct GameDome {
+	short res, mode;
+	short angle, tilt;
+	float resbuf, pad2;
+	struct Text *warptext;
+} GameDome;
+
+#define DOME_FISHEYE			1
+#define DOME_TRUNCATED_FRONT	2
+#define DOME_TRUNCATED_REAR		3
+#define DOME_ENVMAP				4
+#define DOME_PANORAM_SPH		5
+#define DOME_NUM_MODES			6
+
+/* *************************************************************** */
 /* Game Engine */
 
 typedef struct GameFraming {
@@ -823,10 +847,10 @@ typedef struct GameData {
 	struct GameFraming framing;
 	short playerflag, xplay, yplay, freqplay;
 	short depth, attrib, rt1, rt2;
-	short aasamples;
-	short hdr;
-	short pad4[2];
+	short aasamples, pad4[3];
 
+	/* stereo/dome mode */
+	struct GameDome dome;
 	short stereoflag, stereomode;
 	float eyeseparation;
 	RecastData recastData;
@@ -845,40 +869,35 @@ typedef struct GameData {
 	 * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
 	 */
 	int flag;
-	short mode;
+	short mode, matmode;
 	short occlusionRes;		/* resolution of occlusion Z buffer in pixel */
 	short physicsEngine;
 	short exitkey;
-	short pythonkeys[4];
 	short vsync; /* Controls vsync: off, on, or adaptive (if supported) */
-	short obstacleSimulation;
 	short ticrate, maxlogicstep, physubstep, maxphystep;
-	float timeScale;
+	short obstacleSimulation;
+	short raster_storage;
 	float levelHeight;
 	float deactivationtime, lineardeactthreshold, angulardeactthreshold;
 
-	/* Debug options */
-	short showBoundingBox;
-	short showArmatures;
-	short showCameraFrustum;
-	short showShadowFrustum;
-
 	/* Scene LoD */
 	short lodflag, pad2;
-	int scehysteresis;
-	int pad3;
+	int scehysteresis, pad5;
 
 } GameData;
 
 #define STEREO_NOSTEREO		1
 #define STEREO_ENABLED		2
+#define STEREO_DOME			3
 
+//#define STEREO_NOSTEREO		 1
 #define STEREO_QUADBUFFERED 2
 #define STEREO_ABOVEBELOW	 3
 #define STEREO_INTERLACED	 4
 #define STEREO_ANAGLYPH		5
 #define STEREO_SIDEBYSIDE	6
 #define STEREO_VINTERLACE	7
+//#define STEREO_DOME		8
 #define STEREO_3DTVTOPBOTTOM 9
 
 /* physicsEngine */
@@ -889,6 +908,12 @@ typedef struct GameData {
 #define OBSTSIMULATION_NONE		0
 #define OBSTSIMULATION_TOI_rays		1
 #define OBSTSIMULATION_TOI_cells	2
+
+/* Raster storage */
+#define RAS_STORE_AUTO		0
+#define RAS_STORE_IMMEDIATE	1
+#define RAS_STORE_VA		2
+#define RAS_STORE_VBO		3
 
 /* vsync */
 #define VSYNC_ON	0
@@ -901,6 +926,7 @@ typedef struct GameData {
 #define GAME_SHOW_DEBUG_PROPS				(1 << 2)
 #define GAME_SHOW_FRAMERATE					(1 << 3)
 #define GAME_SHOW_PHYSICS					(1 << 4)
+// #define GAME_DISPLAY_LISTS					(1 << 5)   /* deprecated */
 #define GAME_GLSL_NO_LIGHTS					(1 << 6)
 #define GAME_GLSL_NO_SHADERS				(1 << 7)
 #define GAME_GLSL_NO_SHADOWS				(1 << 8)
@@ -908,20 +934,13 @@ typedef struct GameData {
 #define GAME_GLSL_NO_NODES					(1 << 10)
 #define GAME_GLSL_NO_EXTRA_TEX				(1 << 11)
 #define GAME_IGNORE_DEPRECATION_WARNINGS	(1 << 12)
+#define GAME_ENABLE_ANIMATION_RECORD		(1 << 13)
 #define GAME_SHOW_MOUSE						(1 << 14)
 #define GAME_GLSL_NO_COLOR_MANAGEMENT		(1 << 15)
 #define GAME_SHOW_OBSTACLE_SIMULATION		(1 << 16)
-#ifdef DNA_DEPRECATED
-#  define GAME_SHOW_BOUNDING_BOX			(1 << 18)
-#  define GAME_SHOW_ARMATURES				(1 << 19)
-#endif
-#define GAME_PYTHON_CONSOLE					(1 << 20)
-#define GAME_GLSL_NO_ENV_LIGHTING			(1 << 21)
+#define GAME_NO_MATERIAL_CACHING			(1 << 17)
+#define GAME_GLSL_NO_ENV_LIGHTING			(1 << 18)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
-
-#define GAME_DEBUG_DISABLE	0
-#define GAME_DEBUG_FORCE	1
-#define GAME_DEBUG_ALLOW	2
 
 /* GameData.playerflag */
 #define GAME_PLAYER_FULLSCREEN				(1 << 0)
@@ -931,18 +950,13 @@ typedef struct GameData {
 enum {
 #ifdef DNA_DEPRECATED
 	GAME_MAT_TEXFACE    = 0, /* deprecated */
+#endif
 	GAME_MAT_MULTITEX   = 1,
 	GAME_MAT_GLSL       = 2,
-#endif
 };
 
 /* GameData.lodflag */
 #define SCE_LOD_USE_HYST		(1 << 0)
-
-/* GameData.hdr */
-#define GAME_HDR_NONE		0
-#define GAME_HDR_HALF_FLOAT	1
-#define GAME_HDR_FULL_FLOAT	2
 
 /* UV Paint */
 #define UV_SCULPT_LOCK_BORDERS				1

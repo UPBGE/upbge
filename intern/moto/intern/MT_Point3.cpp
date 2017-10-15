@@ -15,18 +15,24 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): Tristan Porteries.
+ * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file moto/include/MT_Frustum.cpp
+/** \file moto/intern/MT_Point3.cpp
  *  \ingroup moto
  */
 
 
-#include "MT_Frustum.h"
+#include "MT_Point3.h"
+
 
 #ifndef GEN_INLINED
-#  include "MT_Frustum.inl"
+#include "MT_Point3.inl"
 #endif

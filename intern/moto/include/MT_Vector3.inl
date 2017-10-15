@@ -1,36 +1,5 @@
 #include "MT_Optimize.h"
 
-GEN_INLINE MT_Vector3& MT_Vector3::operator=(const MT_Vector3& v) {
-    m_co[0] = v[0]; m_co[1] = v[1]; m_co[2] = v[2];
-    return *this;
-}
-
-GEN_INLINE MT_Scalar MT_Vector3::distance(const MT_Vector3& p) const {
-    return (p - *this).length();
-}
-
-GEN_INLINE MT_Scalar MT_Vector3::distance2(const MT_Vector3& p) const {
-    return (p - *this).length2();
-}
-
-GEN_INLINE MT_Vector3 MT_Vector3::lerp(const MT_Vector3& p, MT_Scalar t) const {
-    return MT_Vector3(m_co[0] + (p[0] - m_co[0]) * t,
-                     m_co[1] + (p[1] - m_co[1]) * t,
-                     m_co[2] + (p[2] - m_co[2]) * t);
-}
-
-GEN_INLINE MT_Scalar MT_distance(const MT_Vector3& p1, const MT_Vector3& p2) { 
-    return p1.distance(p2); 
-}
-
-GEN_INLINE MT_Scalar MT_distance2(const MT_Vector3& p1, const MT_Vector3& p2) { 
-    return p1.distance2(p2); 
-}
-
-GEN_INLINE MT_Vector3 MT_lerp(const MT_Vector3& p1, const MT_Vector3& p2, MT_Scalar t) {
-    return p1.lerp(p2, t);
-}
-
 GEN_INLINE MT_Vector3& MT_Vector3::operator+=(const MT_Vector3& v) {
     m_co[0] += v[0]; m_co[1] += v[1]; m_co[2] += v[2];
     return *this;
@@ -47,7 +16,7 @@ GEN_INLINE MT_Vector3& MT_Vector3::operator*=(MT_Scalar s) {
 }
 
 GEN_INLINE MT_Vector3& MT_Vector3::operator/=(MT_Scalar s) {
-    BLI_assert(!MT_fuzzyZero(s));
+    MT_assert(!MT_fuzzyZero(s));
     return *this *= MT_Scalar(1.0f) / s;
 }
 
@@ -70,7 +39,7 @@ GEN_INLINE MT_Vector3 operator*(const MT_Vector3& v, MT_Scalar s) {
 GEN_INLINE MT_Vector3 operator*(MT_Scalar s, const MT_Vector3& v) { return v * s; }
 
 GEN_INLINE MT_Vector3 operator/(const MT_Vector3& v, MT_Scalar s) {
-    BLI_assert(!MT_fuzzyZero(s));
+    MT_assert(!MT_fuzzyZero(s));
     return v * (MT_Scalar(1.0f) / s);
 }
 
@@ -125,7 +94,7 @@ GEN_INLINE MT_Vector3 MT_Vector3::scaled(MT_Scalar xx, MT_Scalar yy, MT_Scalar z
 
 GEN_INLINE MT_Scalar MT_Vector3::angle(const MT_Vector3& v) const {
     MT_Scalar s = sqrtf(length2() * v.length2());
-    BLI_assert(!MT_fuzzyZero(s));
+    MT_assert(!MT_fuzzyZero(s));
     return acosf(dot(v) / s);
 }
 
@@ -144,11 +113,6 @@ GEN_INLINE MT_Scalar MT_Vector3::triple(const MT_Vector3& v1, const MT_Vector3& 
 GEN_INLINE int MT_Vector3::closestAxis() const {
     MT_Vector3 a = absolute();
     return a[0] < a[1] ? (a[1] < a[2] ? 2 : 1) : (a[0] < a[2] ? 2 : 0);
-}
-
-GEN_INLINE MT_Vector2 MT_Vector3::to2d() const
-{
-	return MT_Vector2(m_co[0], m_co[1]);
 }
 
 GEN_INLINE MT_Vector3 MT_Vector3::random() {

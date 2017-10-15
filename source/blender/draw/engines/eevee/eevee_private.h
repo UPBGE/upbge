@@ -26,13 +26,9 @@
 #ifndef __EEVEE_PRIVATE_H__
 #define __EEVEE_PRIVATE_H__
 
-#include "BLI_listbase.h"
-
-struct Material;
 struct Object;
 
 extern struct DrawEngineType draw_engine_eevee_type;
-extern struct DrawEngineType draw_engine_game_type;
 
 /* Minimum UBO is 16384 bytes */
 #define MAX_PROBE 128 /* TODO : find size by dividing UBO max size by probe data size */
@@ -223,7 +219,7 @@ typedef struct EEVEE_Light {
 } EEVEE_Light;
 
 typedef struct EEVEE_Shadow {
-	float nearf, farf, bias, exp;
+	float near, far, bias, exp;
 	float shadow_start, data_start, multi_shadow_count, pad;
 	float contact_dist, contact_bias, contact_spread, contact_thickness;
 } EEVEE_Shadow;
@@ -600,7 +596,6 @@ void EEVEE_lightprobes_refresh(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
 void EEVEE_lightprobes_free(void);
 
 /* eevee_effects.c */
-DRWShadingGroup *EEVEE_create_bloom_shgroup(EEVEE_EffectsInfo *effects, struct GPUShader *sh, bool upsample);
 void EEVEE_effects_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_effects_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_create_minmax_buffer(EEVEE_Data *vedata, struct GPUTexture *depth_src, int layer);
@@ -654,18 +649,5 @@ static const float cubefacemat[6][4][4] = {
 	 {0.0f, 0.0f, 1.0f, 0.0f},
 	 {0.0f, 0.0f, 0.0f, 1.0f}},
 };
-
-/****************Game engine********************/
-struct GPUShader *EEVEE_shadow_shader_get();
-struct GPUShader *EEVEE_shadow_store_shader_get();
-void EEVEE_effects_replace_e_data_depth(struct GPUTexture *depth_src);
-struct DRWShadingGroup *EEVEE_default_shading_group_get_no_pass(bool is_hair,
-	bool is_flat_normal, bool use_blend, bool use_ssr, int shadow_method);
-void EEVEE_shgroup_add_standard_uniforms_game(struct DRWShadingGroup *shgrp,
-	EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
-	int *ssr_id, float *refract_depth, bool use_ssrefraction);
-EEVEE_Data *EEVEE_engine_data_get(void);
-/**************End of Game engine***************/
-
 
 #endif /* __EEVEE_PRIVATE_H__ */

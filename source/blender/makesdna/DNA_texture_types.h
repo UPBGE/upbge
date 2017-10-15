@@ -76,13 +76,11 @@ typedef struct MTex {
 	
 	/* material */
 	float norfac, dispfac, warpfac;
-	float parallaxsteps, parallaxbumpsc;
 	float colspecfac, mirrfac, alphafac;
 	float difffac, specfac, emitfac, hardfac;
 	float raymirrfac, translfac, ambfac;
 	float colemitfac, colreflfac, coltransfac;
 	float densfac, scatterfac, reflfac;
-	float ior, refrratio;
 
 	/* particles */
 	float timefac, lengthfac, clumpfac, dampfac;
@@ -95,11 +93,6 @@ typedef struct MTex {
 
 	/* world */
 	float zenupfac, zendownfac, blendfac;
-
-	float lodbias;
-
-	/* parallax */
-	short parflag, pad3;
 } MTex;
 
 #ifndef DNA_USHORT_FIX
@@ -141,9 +134,6 @@ typedef struct EnvMap {
 	short cuberes, depth;
 	int ok, lastframe;
 	short recalc, lastsize;
-	int flag, filtering;
-	int mode;
-	float lodfactor;
 } EnvMap;
 
 typedef struct PointDensity {
@@ -477,20 +467,6 @@ typedef struct ColorMapping {
 #define TEX_PR_OTHER	1
 #define TEX_PR_BOTH		2
 
-/* **************** ENVMAP ****************** */
-
-/* flag */
-#define ENVMAP_AUTO_UPDATE	(1 << 0)
-
-/* mode */
-#define ENVMAP_REFLECTION 0
-#define ENVMAP_REFRACTION 1
-
-/* filtering */
-#define ENVMAP_MIPMAP_NONE		0
-#define ENVMAP_MIPMAP_LINEAR	1
-#define ENVMAP_MIPMAP_MIPMAP	2
-
 /* **************** MTEX ********************* */
 
 /* proj */
@@ -516,10 +492,6 @@ typedef struct ColorMapping {
 #define MTEX_TIPS				4096  /* should use with_freestyle flag?  */
 #define MTEX_BICUBIC_BUMP		8192
 #define MTEX_MAPTO_BOUNDS		16384
-
-#define MTEX_PARALLAX_UV		32768 // texflag
-#define MTEX_DISCARD_AT_EDGES	1     // parflag
-
 
 /* blendtype */
 #define MTEX_BLEND		0
@@ -588,7 +560,6 @@ enum {
 #define ENV_STATIC	0
 #define ENV_ANIM	1
 #define ENV_LOAD	2
-#define ENV_REALT	3
 
 /* ok */
 #define ENV_NORMAL	1

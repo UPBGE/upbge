@@ -1035,6 +1035,15 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 				ts->vgroup_weight = 1.0f;
 			}
 
+			/* Game Settings */
+			/* Dome */
+			sce->gm.dome.angle = sce->r.domeangle;
+			sce->gm.dome.mode = sce->r.domemode;
+			sce->gm.dome.res = sce->r.domeres;
+			sce->gm.dome.resbuf = sce->r.domeresbuf;
+			sce->gm.dome.tilt = sce->r.dometilt;
+			sce->gm.dome.warptext = sce->r.dometext;
+
 			/* Stand Alone */
 			sce->gm.playerflag |= (sce->r.fullscreen ? GAME_PLAYER_FULLSCREEN : 0);
 			sce->gm.xplay = sce->r.xplay;
@@ -1045,9 +1054,13 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 
 			/* Stereo */
 			sce->gm.stereomode = sce->r.stereomode;
-			/* reassigning stereomode NO_STEREO to a separeted flag*/
+			/* reassigning stereomode NO_STEREO and DOME to a separeted flag*/
 			if (sce->gm.stereomode == 1) { // 1 = STEREO_NOSTEREO
 				sce->gm.stereoflag = STEREO_NOSTEREO;
+				sce->gm.stereomode = STEREO_ANAGLYPH;
+			}
+			else if (sce->gm.stereomode == 8) { // 8 = STEREO_DOME
+				sce->gm.stereoflag = STEREO_DOME;
 				sce->gm.stereomode = STEREO_ANAGLYPH;
 			}
 			else
@@ -1099,6 +1112,13 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 				sce->gm.flag |= GAME_GLSL_NO_ENV_LIGHTING;
 			if (fd->fileflags & G_FILE_IGNORE_DEPRECATION_WARNINGS)
 				sce->gm.flag |= GAME_IGNORE_DEPRECATION_WARNINGS;
+
+			if (fd->fileflags & G_FILE_GAME_MAT_GLSL)
+				sce->gm.matmode = GAME_MAT_GLSL;
+			else if (fd->fileflags & G_FILE_GAME_MAT)
+				sce->gm.matmode = GAME_MAT_MULTITEX;
+			else
+				sce->gm.matmode = GAME_MAT_TEXFACE;
 		}
 
 		for (ob = main->object.first; ob; ob = ob->id.next) {

@@ -212,11 +212,11 @@ typedef SDL_Haptic * SDLCALL tSDL_HapticOpenFromJoystick(SDL_Joystick *
 
 typedef void SDLCALL tSDL_HapticClose(SDL_Haptic * haptic);
 
-typedef unsigned int SDLCALL tSDL_HapticQuery(SDL_Haptic * haptic);
-
 typedef int SDLCALL tSDL_HapticNumEffects(SDL_Haptic * haptic);
 
 typedef int SDLCALL tSDL_HapticNumEffectsPlaying(SDL_Haptic * haptic);
+
+extern DECLSPEC unsigned int SDLCALL SDL_HapticQuery(SDL_Haptic * haptic);
 
 typedef int SDLCALL tSDL_HapticNumAxes(SDL_Haptic * haptic);
 
@@ -273,7 +273,6 @@ extern tSDL_HapticOpenFromMouse *SDL_HapticOpenFromMouse;
 extern tSDL_JoystickIsHaptic *SDL_JoystickIsHaptic;
 extern tSDL_HapticOpenFromJoystick *SDL_HapticOpenFromJoystick;
 extern tSDL_HapticClose *SDL_HapticClose;
-extern tSDL_HapticQuery *SDL_HapticQuery;
 extern tSDL_HapticNumEffects *SDL_HapticNumEffects;
 extern tSDL_HapticNumEffectsPlaying *SDL_HapticNumEffectsPlaying;
 extern tSDL_HapticNumAxes *SDL_HapticNumAxes;

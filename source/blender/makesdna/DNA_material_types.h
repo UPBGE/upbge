@@ -80,7 +80,7 @@ typedef struct GameSettings {
 	int flag;
 	int alpha_blend;
 	int face_orientation;
-	int pad;
+	int pad1;
 } GameSettings;
 
 typedef struct TexPaintSlot {
@@ -181,10 +181,9 @@ typedef struct Material {
 	struct PreviewImage *preview;
 
 	/* dynamic properties */
-	float friction DNA_DEPRECATED, rolling_friction DNA_DEPRECATED;
-	float fh DNA_DEPRECATED, reflect DNA_DEPRECATED;
-	float fhdist DNA_DEPRECATED, xyfrict DNA_DEPRECATED;
-	short dynamode DNA_DEPRECATED, pad2[3];
+	float friction, fh, reflect;
+	float fhdist, xyfrict;
+	short dynamode, pad2;
 
 	/* subsurface scattering */
 	float sss_radius[3], sss_col[3];
@@ -206,12 +205,7 @@ typedef struct Material {
 	short paint_active_slot;
 	short paint_clone_slot;
 	short tot_slots;
-
-	/* Constants settings */
-	short constflag;
-
-	/* Depth transparency settings */
-	float depthtranspfactor;
+	short pad4[3];
 
 	/* multiple tangent (Normal Map node) */
 	char nmap_tangent_names[9][64]; /* [MAX_MTFACE+1][MAX_NAME]; +1 for empty name */
@@ -232,8 +226,6 @@ typedef struct Material {
 	struct TexPaintSlot *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
 	                                    * with refresh_texpaint_image_cache */
 	ListBase gpumaterial;		/* runtime */
-	ListBase gpumaterialinstancing;		/* runtime */
-
 } Material;
 
 
@@ -249,7 +241,8 @@ typedef struct Material {
 // Game Options - flag
 #define GEMAT_BACKCULL 		16 /* KX_BACKCULL */
 #define GEMAT_SHADED		32 /* KX_LIGHT */
-#define GEMAT_NOPHYSICS		128
+#define GEMAT_TEXT		64 /* RAS_RENDER_3DPOLYGON_TEXT */
+#define	GEMAT_NOPHYSICS		128
 #define GEMAT_INVISIBLE 	256
 
 // Face Orientation Options - face_orientation
@@ -257,6 +250,10 @@ typedef struct Material {
 #define GEMAT_HALO		512  /* BILLBOARD_SCREENALIGNED  */
 #define GEMAT_BILLBOARD		1024 /* BILLBOARD_AXISALIGNED */
 #define GEMAT_SHADOW		2048 /* SHADOW */
+
+// Use Textures - not defined directly in the UI
+#define GEMAT_TEX		4096 /* KX_TEX */
+
 
 /* **************** MATERIAL ********************* */
 
@@ -271,14 +268,6 @@ typedef struct Material {
 #define MA_TYPE_HALO	1
 #define MA_TYPE_VOLUME	2
 #define MA_TYPE_WIRE	3
-
-/* constflag */
-#define MA_CONSTANT_MATERIAL	(1 << 0)
-#define MA_CONSTANT_LAMP		(1 << 1)
-#define MA_CONSTANT_TEXTURE		(1 << 2)
-#define MA_CONSTANT_WORLD		(1 << 3)
-#define MA_CONSTANT_MIST		(1 << 4)
-#define MA_CONSTANT_TEXTURE_UV	(1 << 5)
 
 /* flag */
 		/* for render */
@@ -343,7 +332,6 @@ typedef struct Material {
 #define MA_CASTSHADOW		(1 << 0)
 #define MA_MODE2_PIPELINE	(MA_CASTSHADOW)
 #define MA_TANGENT_CONCRETE	(1 << 1)
-#define MA_DEPTH_TRANSP		(1 << 2)
 
 /* mapflag */
 #define MA_MAPFLAG_UVPROJECT (1 << 0)
@@ -362,7 +350,6 @@ typedef struct Material {
 #define MA_OBCOLOR			2
 #define MA_APPROX_OCCLUSION	4
 #define MA_GROUP_LOCAL      8
-#define MA_INSTANCING		16
 
 /* diff_shader */
 #define MA_DIFF_LAMBERT		0
@@ -379,9 +366,8 @@ typedef struct Material {
 #define MA_SPEC_WARDISO		4
 
 /* dynamode */
-#ifdef DNA_DEPRECATED
-#  define MA_FH_NOR	        2
-#endif
+// #define MA_DRAW_DYNABUTS    1		/* deprecated */
+#define MA_FH_NOR	        2
 
 /* ramps */
 #define MA_RAMP_IN_SHADER	0
@@ -445,7 +431,6 @@ typedef struct Material {
 #define MAP_DISPLACE	4096
 #define MAP_WARP		8192
 // #define MAP_LAYER		16384		/* unused */
-#define MAP_PARALLAX	32768
 
 /* volume mapto - reuse definitions for now - a bit naughty! */
 #define MAP_DENSITY				128

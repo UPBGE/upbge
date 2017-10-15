@@ -45,13 +45,6 @@ base class --- :class:`CPropValue`
 
       :return: The key value or a default.
 
-   .. method:: filter(name, prop)
-
-      Return a list of items with name matching `name` regex and with a property matching `prop` regex.
-      If `name` is empty every items are checked, if `prop` is empty no property check is proceeded.
-
-      :return: The list of matching items.
-
    .. method:: from_id(id)
 
       This is a funtion especially for the game engine to return a value with a spesific id.

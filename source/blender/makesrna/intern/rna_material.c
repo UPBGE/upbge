@@ -149,6 +149,11 @@ static PointerRNA rna_Material_strand_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, &RNA_MaterialStrand, ptr->id.data);
 }
 
+static PointerRNA rna_Material_physics_get(PointerRNA *ptr)
+{
+	return rna_pointer_inherit_refine(ptr, &RNA_MaterialPhysics, ptr->id.data);
+}
+
 static void rna_Material_type_set(PointerRNA *ptr, int value)
 {
 	Material *ma = (Material *)ptr->data;
@@ -546,16 +551,6 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_NORM);
 	RNA_def_property_ui_text(prop, "Normal", "The texture affects the rendered normal");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
-
-	prop = RNA_def_property(srna, "use_map_parallax", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_PARALLAX);
-	RNA_def_property_ui_text(prop, "Parallax", "The texture affects the relief depth");
-	RNA_def_property_update(prop, 0, "rna_Material_update");
-
-	prop = RNA_def_property(srna, "use_parallax_uv", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "texflag", MTEX_PARALLAX_UV);
-	RNA_def_property_ui_text(prop, "Use Parallax UV", "This is necessary for proper use of the parallax mapping");
-	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
 	prop = RNA_def_property(srna, "use_map_color_spec", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_COLSPEC);
@@ -662,29 +657,6 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "warpfac");
 	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
 	RNA_def_property_ui_text(prop, "Warp Factor", "Amount texture affects texture coordinates of next channels");
-	RNA_def_property_update(prop, 0, "rna_Material_update");
-
-	prop = RNA_def_property(srna, "parallax_steps", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "parallaxsteps");
-	RNA_def_property_ui_range(prop, 0.0, 100.0, 1.0, 3);
-	RNA_def_property_ui_text(prop, "Parallax Steps", "Number of steps taken to achieve result");
-	RNA_def_property_update(prop, 0, "rna_Material_update");
-
-	prop = RNA_def_property(srna, "parallax_bump_scale", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "parallaxbumpsc");
-	RNA_def_property_ui_range(prop, 0.0, 0.5, 1.0, 3);
-	RNA_def_property_ui_text(prop, "Parallax Bump Scale", "Height of SPOM");
-	RNA_def_property_update(prop, 0, "rna_Material_update");
-
-	prop = RNA_def_property(srna, "parallax_uv_discard", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "parflag", MTEX_DISCARD_AT_EDGES);
-	RNA_def_property_ui_text(prop, "Parallax UV discard", "To discard parallax UV at edges");
-	RNA_def_property_update(prop, 0, "rna_Material_update");
-
-	prop = RNA_def_property(srna, "lod_bias", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "lodbias");
-	RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 10, 3);
-	RNA_def_property_ui_text(prop, "Lod Bias", "Amount bias on mipmapping");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
 	prop = RNA_def_property(srna, "specular_color_factor", PROP_FLOAT, PROP_NONE);
@@ -832,20 +804,6 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
 	RNA_def_property_ui_text(prop, "Reflection Factor", "Amount texture affects brightness of out-scattered light");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
-
-	prop = RNA_def_property(srna, "ior", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "ior");
-	RNA_def_property_range(prop, 1.0, 50.0);
-	RNA_def_property_ui_range(prop, 1.0, 50.0, 1, 2);
-	RNA_def_property_ui_text(prop, "Refraction Indice", "Indice of refraction");
-	RNA_def_property_update(prop, 0, "rna_Material_update");
-
-	prop = RNA_def_property(srna, "refraction_ratio", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "refrratio");
-	RNA_def_property_range(prop, 0.0, 1.0);
-	RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 2);
-	RNA_def_property_ui_text(prop, "Refraction Ratio", "Amount refraction mixed with reflection");
-	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
 	/* end volume material */
 	
@@ -903,6 +861,11 @@ static void rna_def_material_gamesettings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Backface Culling", "Hide Back of the face in Game Engine ");
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
+	prop = RNA_def_property(srna, "text", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GEMAT_TEXT); /* use bitflags */
+	RNA_def_property_ui_text(prop, "Text", "Use material as text in Game Engine ");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
 	prop = RNA_def_property(srna, "invisible", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GEMAT_INVISIBLE); /* use bitflags */
 	RNA_def_property_ui_text(prop, "Invisible", "Make face invisible");
@@ -919,8 +882,8 @@ static void rna_def_material_gamesettings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Face Orientations", "Especial face orientation options");
 
 	prop = RNA_def_property(srna, "physics", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GEMAT_NOPHYSICS);
-	RNA_def_property_ui_text(prop, "Physics", "Use physics for this materials");
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GEMAT_NOPHYSICS); /* use bitflags */
+	RNA_def_property_ui_text(prop, "Physics", "Use physics properties of materials ");
 }
 
 static void rna_def_material_colors(StructRNA *srna)
@@ -1760,6 +1723,50 @@ static void rna_def_material_strand(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 }
 
+static void rna_def_material_physics(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "MaterialPhysics", NULL);
+	RNA_def_struct_sdna(srna, "Material");
+	RNA_def_struct_nested(brna, srna, "Material");
+	RNA_def_struct_ui_text(srna, "Material Physics", "Physics settings for a Material data-block");
+	
+	prop = RNA_def_property(srna, "friction", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "friction");
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_text(prop, "Friction", "Coulomb friction coefficient, when inside the physics distance area");
+
+	prop = RNA_def_property(srna, "elasticity", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "reflect");
+	RNA_def_property_range(prop, 0, 1);
+	RNA_def_property_ui_text(prop, "Elasticity", "Elasticity of collisions");
+
+	/* FH/Force Field Settings */
+	prop = RNA_def_property(srna, "use_fh_normal", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "dynamode", MA_FH_NOR);
+	RNA_def_property_ui_text(prop, "Align to Normal",
+	                         "Align dynamic game objects along the surface normal, "
+	                         "when inside the physics distance area");
+
+	prop = RNA_def_property(srna, "fh_force", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "fh");
+	RNA_def_property_range(prop, 0, 1);
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 10, 2);
+	RNA_def_property_ui_text(prop, "Force", "Upward spring force, when inside the physics distance area");
+	
+	prop = RNA_def_property(srna, "fh_distance", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "fhdist");
+	RNA_def_property_range(prop, 0, 20);
+	RNA_def_property_ui_text(prop, "Distance", "Distance of the physics area");
+	
+	prop = RNA_def_property(srna, "fh_damping", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "xyfrict");
+	RNA_def_property_range(prop, 0, 1);
+	RNA_def_property_ui_text(prop, "Damping", "Damping of the spring force, when inside the physics distance area");
+}
+
 void RNA_def_material(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1874,38 +1881,6 @@ void RNA_def_material(BlenderRNA *brna)
 	                                                   "event (0 is disabled)");
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
-	/***********Game engine (to remove)*************/
-	prop = RNA_def_property(srna, "use_constant_material", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_MATERIAL);
-	RNA_def_property_ui_text(prop, "Material", "Use constant values for material");
-	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-	prop = RNA_def_property(srna, "use_constant_lamp", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_LAMP);
-	RNA_def_property_ui_text(prop, "Lamp", "Use constant values for lamps");
-	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-	prop = RNA_def_property(srna, "use_constant_texture", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_TEXTURE);
-	RNA_def_property_ui_text(prop, "Texture", "Use constant values for textures");
-	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-	prop = RNA_def_property(srna, "use_constant_texture_uv", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_TEXTURE_UV);
-	RNA_def_property_ui_text(prop, "Texture Uv", "Use constant values for textures uv transformation");
-	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-	prop = RNA_def_property(srna, "use_constant_world", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_WORLD);
-	RNA_def_property_ui_text(prop, "World", "Use constant values for world");
-	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-	prop = RNA_def_property(srna, "use_constant_mist", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_MIST);
-	RNA_def_property_ui_text(prop, "Mist", "Use constant values for mist");
-	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-	/********End of game engine (to remove)********/
-
 	/* For Preview Render */
 	prop = RNA_def_property(srna, "preview_render_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "pr_type");
@@ -1940,10 +1915,6 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "shade_flag", MA_OBCOLOR);
 	RNA_def_property_ui_text(prop, "Object Color", "Modulate the result with a per-object color");
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-	prop = RNA_def_property(srna, "use_instancing", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "shade_flag", MA_INSTANCING);
-	RNA_def_property_ui_text(prop, "Geometry Instancing", "Use special vertex shader for instancing rendering in game engine");
 
 	prop = RNA_def_property(srna, "shadow_ray_bias", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "sbias");
@@ -2150,6 +2121,12 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "MaterialStrand");
 	RNA_def_property_pointer_funcs(prop, "rna_Material_strand_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Strand", "Strand settings for the material");
+	
+	prop = RNA_def_property(srna, "physics", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "MaterialPhysics");
+	RNA_def_property_pointer_funcs(prop, "rna_Material_physics_get", NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Physics", "Game physics settings");
 
 	/* game settings */
 	prop = RNA_def_property(srna, "game_settings", PROP_POINTER, PROP_NONE);
@@ -2205,6 +2182,7 @@ void RNA_def_material(BlenderRNA *brna)
 	rna_def_material_sss(brna);
 	rna_def_material_mtex(brna);
 	rna_def_material_strand(brna);
+	rna_def_material_physics(brna);
 	rna_def_material_gamesettings(brna);
 
 	RNA_api_material(srna);

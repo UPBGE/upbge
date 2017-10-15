@@ -152,8 +152,6 @@ EnumPropertyItem rna_enum_node_vec_math_items[] = {
 	{3, "DOT_PRODUCT",   0, "Dot Product",   ""},
 	{4, "CROSS_PRODUCT", 0, "Cross Product", ""},
 	{5, "NORMALIZE",     0, "Normalize",     ""},
-	{6, "REFLECT",       0, "Reflect",       ""},
-	{7, "MULTIPLY",      0, "Multiply",      ""},
 	{0, NULL, 0, NULL, NULL}
 };
 

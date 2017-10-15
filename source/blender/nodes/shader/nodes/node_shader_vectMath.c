@@ -96,27 +96,6 @@ static void node_shader_exec_vect_math(void *UNUSED(data), int UNUSED(thread), b
 		
 		out[1]->vec[0] = normalize_v3(out[0]->vec);
 	}
-	else if (node->custom1 == 6) {	/* Reflect */
-		float dotNI = 2.0f * dot_v3v3(vec1, vec2);
-		float v[3] = { 0.0f, 0.0f, 0.0f };
-		mul_v3_v3fl(v, vec2, dotNI);
-
-		float fv[3] = { 0.0f, 0.0f, 0.0f };
-		sub_v3_v3v3(fv, vec1, v);
-
-		out[0]->vec[0] = fv[0];
-		out[0]->vec[1] = fv[1];
-		out[0]->vec[2] = fv[2];
-
-		out[1]->vec[0] = normalize_v3(out[0]->vec);
-	}
-	else if (node->custom1 == 7) {	/* Multiply */
-		out[0]->vec[0] = vec1[0] * vec2[0];
-		out[0]->vec[1] = vec1[1] * vec2[1];
-		out[0]->vec[2] = vec1[2] * vec2[2];
-
-		out[1]->vec[0] = (fabsf(out[0]->vec[0]) + fabsf(out[0]->vec[1]) + fabsf(out[0]->vec[2])) / 3.0f;
-	}
 	
 }
 
@@ -124,7 +103,7 @@ static int gpu_shader_vect_math(GPUMaterial *mat, bNode *node, bNodeExecData *UN
 {
 	static const char *names[] = {"vec_math_add", "vec_math_sub",
 		"vec_math_average", "vec_math_dot", "vec_math_cross",
-		"vec_math_normalize", "vec_math_reflect", "vec_math_mul"};
+		"vec_math_normalize"};
 
 	switch (node->custom1) {
 		case 0:
@@ -132,8 +111,6 @@ static int gpu_shader_vect_math(GPUMaterial *mat, bNode *node, bNodeExecData *UN
 		case 2:
 		case 3:
 		case 4:
-		case 6:
-		case 7:
 			GPU_stack_link(mat, node, names[node->custom1], in, out);
 			break;
 		case 5:

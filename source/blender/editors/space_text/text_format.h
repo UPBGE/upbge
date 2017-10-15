@@ -80,7 +80,6 @@ typedef struct TextFormatType {
 	void (*format_line)(SpaceText *st, TextLine *line, const bool do_next);
 
 	const char **ext;  /* NULL terminated extensions */
-	const char *comment_prefix; /* Language comment prefix. e.g: # */
 } TextFormatType;
 
 enum {
@@ -91,7 +90,7 @@ enum {
 	FMT_TYPE_STRING     = 'l',  /* String letters */
 	FMT_TYPE_DIRECTIVE  = 'd',  /* Decorator / Preprocessor directive */
 	FMT_TYPE_SPECIAL    = 'v',  /* Special variables (class, def) */
-	FMT_TYPE_RESERVED   = 'r',  /* Reserved keywords (OSL -> switch e.g.) */
+	FMT_TYPE_RESERVED   = 'r',  /* Reserved keywords currently not in use, but still prohibited (OSL -> switch e.g.) */
 	FMT_TYPE_KEYWORD    = 'b',  /* Built-in names (return, for, etc.) */
 	FMT_TYPE_DEFAULT    = 'q',  /* Regular text (identifiers, etc.) */
 };
@@ -105,7 +104,6 @@ void ED_text_format_register_osl(void);
 void ED_text_format_register_lua(void);
 void ED_text_format_register_pov(void);
 void ED_text_format_register_pov_ini(void);
-void ED_text_format_register_glsl(void);
 
 #define STR_LITERAL_STARTSWITH(str, str_literal, len_var) \
 	(strncmp(str, str_literal, len_var = (sizeof(str_literal) - 1)) == 0)

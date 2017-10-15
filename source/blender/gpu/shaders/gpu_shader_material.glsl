@@ -471,12 +471,6 @@ void vec_math_add(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 	outval = (abs(outvec[0]) + abs(outvec[1]) + abs(outvec[2])) * 0.333333;
 }
 
-void vec_math_mul(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
-{
-	outvec = v1 * v2;
-	outval = (abs(outvec[0]) + abs(outvec[1]) + abs(outvec[2])) / 3.0;
-}
-
 void vec_math_sub(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 {
 	outvec = v1 - v2;
@@ -503,13 +497,6 @@ void vec_math_dot(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 void vec_math_cross(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 {
 	outvec = cross(v1, v2);
-	outval = length(outvec);
-	outvec /= outval;
-}
-
-void vec_math_reflect(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
-{
-	outvec = reflect(v1, v2);
 	outval = length(outvec);
 	outvec /= outval;
 }
@@ -543,13 +530,6 @@ void normal_new_shading(vec3 dir, vec3 nor, out vec3 outnor, out float outdot)
 	outdot = dot(normalize(dir), nor);
 }
 
-void mat_math_rot(float rot, out mat3 mat)
-{
-	mat = mat3(cos(rot), -sin(rot), 0.0,
-			   sin(rot), cos(rot), 0.0,
-			   0.0, 0.0, 1.0);
-}
-
 void curves_vec(float fac, vec3 vec, sampler2D curvemap, out vec3 outvec)
 {
 	outvec.x = texture(curvemap, vec2((vec.x + 1.0) * 0.5, 0.0)).x;
@@ -576,37 +556,6 @@ void curves_rgb(float fac, vec4 col, sampler2D curvemap, out vec4 outcol)
 void set_value(float val, out float outval)
 {
 	outval = val;
-}
-
-float half_lambert(in vec3 vect1, in vec3 vect2)
-{
-	float product = dot(vect1, vect2);
-	return product * 0.5 + 0.5;
-}
-
-vec3 sub_scatter_fs(float brightness, float visifac, vec3 lightcol, float scale, vec3 radius, vec3 col, float i, vec3 view, vec3 lv, vec3 normal)
-{
-	vec3 extinctioncoefficient = radius * 0.1;
-	float attenuation = visifac * brightness;
-	vec3 evec = normalize(-view);
-
-	vec3 dotLN = vec3(half_lambert(lv, -normal) * attenuation);
-	dotLN *= col;
-
-	vec3 indirectlightcomponent = vec3(scale * max(0.0, dot(-normal, lv)));
-	indirectlightcomponent += scale * vec3(half_lambert(-evec, lv));
-	indirectlightcomponent *= attenuation;
-	indirectlightcomponent *= extinctioncoefficient;
-
-	vec3 finalcol = dotLN + vec3(indirectlightcomponent);
-
-	finalcol.rgb *= lightcol.rgb;
-	return finalcol;
-}
-
-void set_sss(float brightness, float visifac, vec3 lightcol, float scale, vec3 radius, vec3 col, float i, vec3 view, vec3 lv, vec3 normal, out vec4 outcol)
-{
-	outcol = vec4(sub_scatter_fs(brightness, visifac, lightcol, scale, radius, col, i, view, lv, normal), 1.0);
 }
 
 void set_rgb(vec3 col, out vec3 outcol)
@@ -1036,9 +985,9 @@ void texture_wood_sin(vec3 vec, out float value, out vec4 color, out vec3 normal
 	normal = vec3(0.0);
 }
 
-void texture_image(vec3 vec, float lodbias, sampler2D ima, out float value, out vec4 color, out vec3 normal)
+void texture_image(vec3 vec, sampler2D ima, out float value, out vec4 color, out vec3 normal)
 {
-	color = texture(ima, (vec.xy + vec2(1.0)) * 0.5, lodbias);
+	color = texture(ima, (vec.xy + vec2(1.0)) * 0.5);
 	value = color.a;
 
 	normal.x = 2.0 * (color.r - 0.5);
@@ -1435,11 +1384,6 @@ void mtex_mapping_size(vec3 texco, vec3 size, out vec3 outtexco)
 	outtexco = size * texco;
 }
 
-void mtex_mapping_transform(vec3 texco, mat3 mat, vec3 ofs, vec3 size, out vec3 outtexco)
-{
-	outtexco = (texco - vec3(0.5)) * mat * size + vec3(0.5) + ofs;
-}
-
 void mtex_2d_mapping(vec3 vec, out vec3 outvec)
 {
 	outvec = vec3(vec.xy * 0.5 + vec2(0.5), vec.z);
@@ -1450,94 +1394,44 @@ vec3 mtex_2d_mapping(vec3 vec)
 	return vec3(vec.xy * 0.5 + vec2(0.5), vec.z);
 }
 
-void mtex_cube_map(vec3 co, samplerCube ima, float lodbias, out float value, out vec4 color)
+void mtex_cube_map(vec3 co, samplerCube ima, out float value, out vec4 color)
 {
-	color = texture(ima, co, lodbias);
+	color = texture(ima, co);
 	value = 1.0;
 }
 
 void mtex_cube_map_refl_from_refldir(
-        samplerCube ima, vec3 reflecteddirection, float lodbias, out float value, out vec4 color)
+        samplerCube ima, vec3 reflecteddirection, out float value, out vec4 color)
 {
-        color = texture(ima, reflecteddirection, lodbias);
+        color = texture(ima, reflecteddirection);
         value = color.a;
 }
 
-vec4 mtex_cube_map_refl_color(samplerCube ima, mat4 viewmatrixinverse, float lodbias, vec3 vn, vec3 viewdirection)
-{
-	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
-	vec3 reflecteddirection = reflect(viewdirection, normaldirection);
-	vec4 col = texture(ima, reflecteddirection, lodbias);
-	return col;
-}
-
-vec4 mtex_cube_map_refr_color(samplerCube ima, mat4 viewmatrixinverse, float ior, float lodbias, vec3 vn, vec3 viewdirection)
-{
-	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vec3(vn.x, vn.y, -vn.z), 0.0)).xyz;
-	vec3 refracteddirection = refract(viewdirection, normaldirection, 1.0 / ior);
-	vec4 col = texture(ima, refracteddirection, lodbias);
-	return col;
-}
-
 void mtex_cube_map_refl(
-        samplerCube ima, vec3 vp, vec3 vn, float lodbias, mat4 viewmatrixinverse,
+        samplerCube ima, vec3 vp, vec3 vn, mat4 viewmatrixinverse, mat4 viewmatrix,
         out float value, out vec4 color)
 {
 	vec3 viewdirection = vec3(viewmatrixinverse * vec4(vp, 0.0));
-	color = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection);
+	vec3 normaldirection = normalize(vec3(vec4(vn, 0.0) * viewmatrix));
+	vec3 reflecteddirection = reflect(viewdirection, normaldirection);
+	color = texture(ima, reflecteddirection);
 	value = 1.0;
 }
 
-void mtex_cube_map_refl_refr(
-        samplerCube ima, vec3 vp, vec3 vn, float lodbias, mat4 viewmatrixinverse,
-        float ior, float ratio, out float value, out vec4 color)
+void mtex_image(vec3 texco, sampler2D ima, out float value, out vec4 color)
 {
-	vec3 viewdirection = vec3(viewmatrixinverse * vec4(vp, 0.0));
-
-	if (ratio <= 0.0) {
-		color = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection);
-	}
-	else if (ratio >= 1.0) {
-		color = mtex_cube_map_refr_color(ima, viewmatrixinverse, ior, lodbias, vn, viewdirection);
-	}
-	else {
-		vec4 refl = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection);
-		vec4 refr = mtex_cube_map_refr_color(ima, viewmatrixinverse, ior, lodbias, vn, viewdirection);
-		color = mix(refl, refr, ratio);
-	}
+	color = texture(ima, texco.xy);
 	value = 1.0;
 }
 
-void mtex_image(vec3 texco, sampler2D ima, float lodbias, out float value, out vec4 color)
-{
-	color = texture(ima, texco.xy, lodbias);
-	value = 1.0;
-}
-
-void mtex_image_refl(vec3 I, vec4 camerafac, sampler2D ima, float lodbias, mat4 objectmatrix, mat4 viewmatrix, vec3 vp, vec3 vn, out float value, out vec4 color)
-{
-	vec4 projvec = ProjectionMatrix * vec4(I, 1.0);
-	vec3 window = vec3(mtex_2d_mapping(projvec.xyz / projvec.w).xy * camerafac.xy + camerafac.zw, 0.0);
-
-	vec3 Z  = normalize(vec3(viewmatrix * objectmatrix * vec4( 0.0, 0.0, 1.0, 0.0)));
-
-	vec3 reflecteddirection = reflect(vp, vn) - reflect(vp, Z);
-
-	// 0.25 is an artistic constant, normal map distortion needs to be scaled down to give proper results
-	vec2 uv = window.xy + vec2(reflecteddirection.x, reflecteddirection.y) * 0.25;
-
-	color = texture(ima, uv, lodbias);
-	value = 1.0;
-}
-
-void mtex_normal(vec3 texco, sampler2D ima, float lodbias, out vec3 normal)
+void mtex_normal(vec3 texco, sampler2D ima, out vec3 normal)
 {
 	// The invert of the red channel is to make
 	// the normal map compliant with the outside world.
 	// It needs to be done because in Blender
 	// the normal used points inward.
 	// Should this ever change this negate must be removed.
-	vec4 color = texture(ima, texco.xy, lodbias);
+	vec4 color = texture(ima, texco.xy);
 	normal = 2.0 * (vec3(-color.r, color.g, color.b) - vec3(-0.5, 0.5, 0.5));
 }
 
@@ -1626,7 +1520,7 @@ void mtex_bump_init_viewspace(
 
 void mtex_bump_tap3(
         vec3 texco, sampler2D ima, float hScale,
-        float lodbias, out float dBs, out float dBt)
+        out float dBs, out float dBt)
 {
 	vec2 STll = texco.xy;
 	vec2 STlr = texco.xy + dFdx(texco.xy);
@@ -1645,7 +1539,7 @@ void mtex_bump_tap3(
 
 void mtex_bump_bicubic(
         vec3 texco, sampler2D ima, float hScale,
-        float lodbias, out float dBs, out float dBt )
+        out float dBs, out float dBt )
 {
 	float Hl;
 	float Hr;
@@ -1737,7 +1631,7 @@ void mtex_bump_bicubic(
 
 void mtex_bump_tap5(
         vec3 texco, sampler2D ima, float hScale,
-        float lodbias, out float dBs, out float dBt)
+        out float dBs, out float dBt)
 {
 	vec2 TexDx = dFdx(texco.xy);
 	vec2 TexDy = dFdy(texco.xy);
@@ -1761,7 +1655,7 @@ void mtex_bump_tap5(
 
 void mtex_bump_deriv(
         vec3 texco, sampler2D ima, float ima_x, float ima_y, float hScale,
-        float lodbias, out float dBs, out float dBt)
+        out float dBs, out float dBt)
 {
 	float s = 1.0;      // negate this if flipped texture coordinate
 	vec2 TexDx = dFdx(texco.xy);
@@ -1770,7 +1664,7 @@ void mtex_bump_deriv(
 	// this variant using a derivative map is described here
 	// http://mmikkelsen3d.blogspot.com/2011/07/derivative-maps.html
 	vec2 dim = vec2(ima_x, ima_y);
-	vec2 dBduv = hScale * dim * (2.0 * texture(ima, texco.xy, lodbias).xy - 1.0);
+	vec2 dBduv = hScale * dim * (2.0 * texture(ima, texco.xy).xy - 1.0);
 
 	dBs = dBduv.x * TexDx.x + s * dBduv.y * TexDx.y;
 	dBt = dBduv.x * TexDy.x + s * dBduv.y * TexDy.y;
@@ -1941,18 +1835,6 @@ void lamp_visibility_spot(float spotsi, float spotbl, float inpr, float visifac,
 void lamp_visibility_clamp(float visifac, out float outvisifac)
 {
 	outvisifac = (visifac < 0.001) ? 0.0 : visifac;
-}
-
-void shade_alpha_depth(vec3 vp, sampler2D ima, float alpha, float factor, out float outalpha)
-{
-	float depth = texelFetch(ima, ivec2(gl_FragCoord.xy), 0).x;
-
-	vec4 depthvp = ProjectionMatrix * vec4(vp.xy, vp.z - factor, 1.0);
-
-	float startfade = gl_FragCoord.z;
-	float endfade = (1.0 + depthvp.z / depthvp.w) * 0.5;
-
-	outalpha = alpha * smoothstep(startfade, endfade, depth);
 }
 
 void world_paper_view(vec3 vec, out vec3 outvec)
@@ -2198,26 +2080,6 @@ void shade_hemi_spec(vec3 vn, vec3 lv, vec3 view, float spec, float hard, float 
 	t = visifac * spec * pow(t, hard);
 }
 
-float InScatter(vec3 start, vec3 dir, vec3 lightPos, float d)
-{
-	// calculate quadratic coefficients a,b,c
-	vec3 q = start - lightPos;
-	float b = dot(dir, q);
-	float c = dot(q, q);
-
-	// evaluate integral
-	float s = 1.0 / sqrt(c - b*b);
-
-	float l = s * (atan( (d + b) * s) - atan( b*s ));
-
-	return l;	
-}
- 
-vec3 linePlaneIntersect(in vec3 lp, in vec3 lv, in vec3 pc, in vec3 pn)
-{
-   return lp+lv*(dot(pn,pc-lp)/dot(pn,lv));
-}
-
 void shade_phong_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)
 {
 	vec3 h = normalize(l + v);
@@ -2426,117 +2288,21 @@ void shade_clamp_positive(vec4 col, out vec4 outcol)
 	outcol = max(col, vec4(0.0));
 }
 
-bool shadow_visibility(vec4 co)
-{
-	return (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0);
-}
-
-vec4 shadow_proj_coord(vec3 rco, mat4 shadowpersmat)
-{
-	vec4 lco = shadowpersmat * vec4(rco, 1.0);
-	return lco;
-}
-
-vec4 shadow_proj_coord(vec3 rco, vec3 vn, mat4 shadowpersmat, float bias, float slopebias)
-{
-	vec4 lco = shadowpersmat * vec4(rco + vn * slopebias, 1.0);
-	lco.z -= bias * lco.w;
-	return lco;
-}
-
-float test_shadow_simple(sampler2DShadow shadowmap, vec4 co)
-{
-	return textureProj(shadowmap, co);
-}
-
-float texture_shadow_offset(sampler2DShadow shadowmap, vec4 co, vec2 offset)
-{
-	return textureProj(shadowmap, vec4(co.xy + offset, co.z, co.w));
-}
-
-float test_shadow_pcf_early_bail(sampler2DShadow shadowmap, vec4 co, float samples, float samplesize)
-{
-	float step = samplesize / samples;
-	float fullstep = samplesize - step * 0.95;
-	float halfsample = samplesize / 2.0 - step * 0.5 * 0.95;
-
-	float result = 0.0;
-	for (float y = -halfsample; y <= halfsample; y += fullstep) {
-		for (float x = -halfsample; x <= halfsample; x += fullstep) {
-			result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
-		}
-	}
-
-	if (result > 0.0 && result < 4.0) {
-		float sampleoffset = halfsample - step;
-		for (float y = -sampleoffset; y <= sampleoffset; y += step) {
-			for (float x = -halfsample; x <= halfsample; x += step) {
-				result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
-			}
-		}
-		for (float y = -halfsample; y <= halfsample; y += fullstep) {
-			for (float x = -sampleoffset; x <= sampleoffset; x += step) {
-				result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
-			}
-		}
-		result /= (samples * samples);
-	}
-	else {
-		result /= 4.0;
-	}
-
-	return result;
-}
-
-float test_shadow_pcf(sampler2DShadow shadowmap, vec4 co, float samples, float samplesize)
-{
-	float step = samplesize / samples;
-	float halfsample = samplesize / 2.0 - step * 0.5 * 0.95;
-
-	float result = 0.0;
-	for (float y = -halfsample; y <= halfsample; y += step) {
-		for (float x = -halfsample; x <= halfsample; x += step) {
-			result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
-		}
-	}
-	result /= (samples * samples);
-
-	return result;
-}
-
-float test_shadow_vsm(sampler2D shadowmap, vec4 co, float bias, float bleedbias)
-{
-	vec2 moments = textureProj(shadowmap, co).rg;
-	float dist = co.z / co.w;
-	float p = 0.0;
-
-	if (dist <= moments.x)
-		p = 1.0;
-
-	float variance = moments.y - (moments.x * moments.x);
-	variance = max(variance, bias / 10.0);
-
-	float d = moments.x - dist;
-	float p_max = variance / (variance + d * d);
-
-	// Now reduce light-bleeding by removing the [0, x] tail and linearly rescaling (x, 1]
-	p_max = clamp((p_max - bleedbias) / (1.0 - bleedbias), 0.0, 1.0);
-
-	return max(p, p_max);
-}
-
-void shadow_simple(
-        vec3 rco, vec3 vn, sampler2DShadow shadowmap, mat4 shadowpersmat, float bias, float slopebias, float inp,
+void test_shadowbuf(
+        vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat, float shadowbias, float inp,
         out float result)
 {
 	if (inp <= 0.0) {
 		result = 0.0;
 	}
 	else {
-		vec4 co = shadow_proj_coord(rco, vn, shadowpersmat, bias, slopebias);
+		vec4 co = shadowpersmat * vec4(rco, 1.0);
 
-		if (shadow_visibility(co)) {
-			result = test_shadow_simple(shadowmap, co);
+		//float bias = (1.5 - inp*inp)*shadowbias;
+		co.z -= shadowbias * co.w;
+
+		if (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0) {
+			result = textureProj(shadowmap, co);
 		}
 		else {
 			result = 1.0;
@@ -2544,19 +2310,33 @@ void shadow_simple(
 	}
 }
 
-void shadow_pcf(
-        vec3 rco, vec3 vn, sampler2DShadow shadowmap, mat4 shadowpersmat, float bias, float slopebias,
-        float samples, float samplesize, float inp,
+void test_shadowbuf_vsm(
+        vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float shadowbias, float bleedbias, float inp,
         out float result)
 {
 	if (inp <= 0.0) {
 		result = 0.0;
 	}
 	else {
-		vec4 co = shadow_proj_coord(rco, vn, shadowpersmat, bias, slopebias);
+		vec4 co = shadowpersmat * vec4(rco, 1.0);
+		if (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0) {
+			vec2 moments = textureProj(shadowmap, co).rg;
+			float dist = co.z / co.w;
+			float p = 0.0;
 
-		if (shadow_visibility(co)) {
-			result = test_shadow_pcf(shadowmap, co, samples, samplesize);
+			if (dist <= moments.x)
+				p = 1.0;
+
+			float variance = moments.y - (moments.x * moments.x);
+			variance = max(variance, shadowbias / 10.0);
+
+			float d = moments.x - dist;
+			float p_max = variance / (variance + d * d);
+
+			// Now reduce light-bleeding by removing the [0, x] tail and linearly rescaling (x, 1]
+			p_max = clamp((p_max - bleedbias) / (1.0 - bleedbias), 0.0, 1.0);
+
+			result = max(p, p_max);
 		}
 		else {
 			result = 1.0;
@@ -2564,60 +2344,42 @@ void shadow_pcf(
 	}
 }
 
-void shadow_pcf_early_bail(
-        vec3 rco, vec3 vn, sampler2DShadow shadowmap, mat4 shadowpersmat, float bias, float slopebias,
-        float samples, float samplesize, float inp,
-        out float result)
-{
-	if (inp <= 0.0) {
-		result = 0.0;
-	}
-	else {
-		vec4 co = shadow_proj_coord(rco, vn, shadowpersmat, bias, slopebias);
-
-		if (shadow_visibility(co)) {
-			result = test_shadow_pcf_early_bail(shadowmap, co, samples, samplesize);
-		}
-		else {
-			result = 1.0;
-		}
-	}
-}
-
-void shadow_vsm(
-        vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float bias, float bleedbias, float inp,
-        out float result)
-{
-	if (inp <= 0.0) {
-		result = 0.0;
-	}
-	else {
-		vec4 co = shadow_proj_coord(rco, shadowpersmat);
-
-		if (shadow_visibility(co)) {
-			result = test_shadow_vsm(shadowmap, co, bias, bleedbias);
-		}
-		else {
-			result = 1.0;
-		}
-	}
-}
-
-void shadows_only(float inp, float shadfac, vec3 shadowcolor, out vec3 result)
+void shadows_only(
+        vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat,
+        float shadowbias, vec3 shadowcolor, float inp,
+        out vec3 result)
 {
 	result = vec3(1.0);
 
 	if (inp > 0.0) {
+		float shadfac;
+
+		test_shadowbuf(rco, shadowmap, shadowpersmat, shadowbias, inp, shadfac);
 		result -= (1.0 - shadfac) * (vec3(1.0) - shadowcolor);
 	}
 }
 
-void shade_light_texture(vec3 rco, sampler2D cookie, vec3 scale, float lodbias, mat4 shadowpersmat, out vec4 result)
+void shadows_only_vsm(
+        vec3 rco, sampler2D shadowmap, mat4 shadowpersmat,
+        float shadowbias, float bleedbias, vec3 shadowcolor, float inp,
+        out vec3 result)
+{
+	result = vec3(1.0);
+
+	if (inp > 0.0) {
+		float shadfac;
+
+		test_shadowbuf_vsm(rco, shadowmap, shadowpersmat, shadowbias, bleedbias, inp, shadfac);
+		result -= (1.0 - shadfac) * (vec3(1.0) - shadowcolor);
+	}
+}
+
+void shade_light_texture(vec3 rco, sampler2D cookie, mat4 shadowpersmat, out vec4 result)
 {
 
 	vec4 co = shadowpersmat * vec4(rco, 1.0);
 
-	result = textureProj(cookie, co * vec4(scale, 1.0), lodbias);
+	result = textureProj(cookie, co);
 }
 
 void shade_exposure_correct(vec3 col, float linfac, float logfac, out vec3 outcol)
@@ -3579,7 +3341,7 @@ void node_tex_clouds(vec3 co, float size, out vec4 color, out float fac)
 	fac = 1.0;
 }
 
-void node_tex_environment_equirectangular(vec3 co, sampler2D ima, float lodbias, out vec4 color)
+void node_tex_environment_equirectangular(vec3 co, sampler2D ima, out vec4 color)
 {
 	vec3 nco = normalize(co);
 	float u = -atan(nco.y, nco.x) / (2.0 * M_PI) + 0.5;
@@ -3596,7 +3358,7 @@ void node_tex_environment_equirectangular(vec3 co, sampler2D ima, float lodbias,
 	color = textureLod(ima, vec2(u, v), 0.0);
 }
 
-void node_tex_environment_mirror_ball(vec3 co, sampler2D ima, float lodbias, out vec4 color)
+void node_tex_environment_mirror_ball(vec3 co, sampler2D ima, out vec4 color)
 {
 	vec3 nco = normalize(co);
 
@@ -3609,7 +3371,7 @@ void node_tex_environment_mirror_ball(vec3 co, sampler2D ima, float lodbias, out
 	float u = 0.5 * (nco.x + 1.0);
 	float v = 0.5 * (nco.z + 1.0);
 
-	color = texture(ima, vec2(u, v), lodbias);
+	color = texture(ima, vec2(u, v));
 }
 
 void node_tex_environment_empty(vec3 co, out vec4 color)
@@ -4307,76 +4069,6 @@ void node_output_world(Closure surface, Closure volume, out Closure result)
 #else
 	result = volume;
 #endif /* VOLUMETRICS */
-}
-
-void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 mat, sampler2D ima, float numsteps,
-				  float bumpscale, float discarduv, out vec3 ptexcoord)
-{
-	vec3 binormal = cross(-vn, tangent.xyz) * tangent.w;
-	vec3 vvec = vec3(dot(tangent.xyz, vp), dot(binormal, vp), dot(-vn, vp));
-	vec3 vv = normalize(vvec);
-
-	// The uv shift per depth step, multitply by rotation and after size.
-	vec2 delta = (vec3(-vv.x, gl_FrontFacing ? vv.y : -vv.y, 0.0) * mat * size * bumpscale / vv.z).xy;
-
-	float height = 0.0;
-
-	// The depth to start from, top to bottom.
-	float depth = 1.0;
-	float depthstep = 1.0 / numsteps;
-
-	/* Uv is computed with the current depth value using the formula:
-	 * uv = original_uv * delta_uv * (1.0 - depth)
-	 */
-
-	// Linear sample from top.
-	for (int i = 0; i < numsteps; ++i) {
-		height = textureLod(ima, texco.xy - delta * (1.0 - depth), 0).a;
-		// Stop if the texture height is greater than current depth.
-		if (height > depth) {
-			break;
-		}
-
-		depth -= depthstep;
-	}
-
-	vec2 texuv = texco.xy - delta * (1.0 - depth);
-
-	/* Interpolation.
-	 * Compare the distance of the height texture with current level and previous level.
-	 */
-
-	// Compute the depth before the last step, reverse operation.
-	float depthprelay = depth + depthstep;
-	// Compute the uv with the pre depth.
-	vec2 texuvprelay = texco.xy - delta * (1.0 - depthprelay);
-
-	// The shift between the texture height and the last depth.
-	float depthshiftcurlay = height - depth;
-	// The shift between the texture height with precedent uv computed with pre detph and the pre depth.
-	float depthshiftprelay = textureLod(ima, texuvprelay, 0).a - depthprelay;
-
-	float weight = 1.0;
-	// If the height is right in the middle of two step the difference of the two shifts will be null.
-	if ((depthshiftcurlay - depthshiftprelay) > 0.0) {
-		// Get shift ratio.
-		weight = depthshiftcurlay / (depthshiftcurlay - depthshiftprelay);
-	}
-
-	vec2 finaltexuv = mix(texuv, texuvprelay, weight);
-
-	// Discard if uv is out of the range 0 to 1.
-	const vec2 clampmin = vec2(-0.5);
-	const vec2 clampmax = vec2(0.5);
-
-	if ((discarduv == 1.0) &&
-		(finaltexuv.x - 0.5 < clampmin.x * size.x || finaltexuv.x - 0.5 > clampmax.x * size.x ||
-		finaltexuv.y - 0.5 < clampmin.y * size.y || finaltexuv.y - 0.5 > clampmax.y * size.y))
-	{
-		discard;
-	}
-
-	ptexcoord = vec3(finaltexuv, texco.z);
 }
 
 #ifndef VOLUMETRICS

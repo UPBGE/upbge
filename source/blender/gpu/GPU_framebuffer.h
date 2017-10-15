@@ -36,11 +36,9 @@
 extern "C" {
 #endif
 
-#include "GPU_texture.h"
-
 typedef struct GPUFrameBuffer GPUFrameBuffer;
-typedef struct GPURenderBuffer GPURenderBuffer;
 typedef struct GPUOffScreen GPUOffScreen;
+struct GPUTexture;
 
 /* GPU Framebuffer
  * - this is a wrapper for an OpenGL framebuffer object (FBO). in practice
@@ -57,52 +55,21 @@ bool GPU_framebuffer_texture_layer_attach(
         GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int layer, int mip);
 bool GPU_framebuffer_texture_cubeface_attach(
         GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int face, int mip);
-int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, struct GPUTexture *tex, int target, int slot, int mip, bool forcet2d);
 void GPU_framebuffer_texture_detach(struct GPUTexture *tex);
-void GPU_framebuffer_texture_detach_target(struct GPUTexture *tex, int target);
 void GPU_framebuffer_bind(GPUFrameBuffer *fb);
 void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot);
 void GPU_framebuffer_texture_unbind(GPUFrameBuffer *fb, struct GPUTexture *tex);
 void GPU_framebuffer_free(GPUFrameBuffer *fb);
 bool GPU_framebuffer_check_valid(GPUFrameBuffer *fb, char err_out[256]);
 
-int GPU_framebuffer_renderbuffer_attach(GPUFrameBuffer *fb, GPURenderBuffer *rb, int slot, char err_out[256]);
-void GPU_framebuffer_renderbuffer_detach(GPURenderBuffer *rb);
-
 void GPU_framebuffer_bind_no_save(GPUFrameBuffer *fb, int slot);
-void GPU_framebuffer_bind_simple(GPUFrameBuffer *fb);
-void GPU_framebuffer_bind_all_attachments(GPUFrameBuffer *fb);
 
 bool GPU_framebuffer_bound(GPUFrameBuffer *fb);
 
 void GPU_framebuffer_restore(void);
 void GPU_framebuffer_blur(
         GPUFrameBuffer *fb, struct GPUTexture *tex,
-        GPUFrameBuffer *blurfb, struct GPUTexture *blurtex, float sharpness);
-
-/********************Game engine*******************/
-int GPU_framebuffer_color_bindcode(const GPUFrameBuffer *fb);
-GPUTexture *GPU_framebuffer_color_texture(const GPUFrameBuffer *fb);
-GPUTexture *GPU_framebuffer_depth_texture(const GPUFrameBuffer *fb);
-void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb);
-void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb);
-/****************End of Game engine****************/
-
-typedef enum GPURenderBufferType {
-	GPU_RENDERBUFFER_COLOR = 0,
-	GPU_RENDERBUFFER_DEPTH = 1,
-} GPURenderBufferType;
-
-GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUTextureFormat data_type, GPURenderBufferType type, char err_out[256]);
-void GPU_renderbuffer_free(GPURenderBuffer *rb);
-GPUFrameBuffer *GPU_renderbuffer_framebuffer(GPURenderBuffer *rb);
-int GPU_renderbuffer_framebuffer_attachment(GPURenderBuffer *rb);
-void GPU_renderbuffer_framebuffer_set(GPURenderBuffer *rb, GPUFrameBuffer *fb, int attachement);
-int GPU_renderbuffer_bindcode(const GPURenderBuffer *rb);
-bool GPU_renderbuffer_depth(const GPURenderBuffer *rb);
-int GPU_renderbuffer_width(const GPURenderBuffer *rb);
-int GPU_renderbuffer_height(const GPURenderBuffer *rb);
-
+        GPUFrameBuffer *blurfb, struct GPUTexture *blurtex);
 
 void GPU_framebuffer_blit(
         GPUFrameBuffer *fb_read, int read_slot,
@@ -116,20 +83,11 @@ void GPU_framebuffer_recursive_downsample(
  * - wrapper around framebuffer and texture for simple offscreen drawing
  * - changes size if graphics card can't support it */
 
-typedef enum GPUOffScreenMode {
-	GPU_OFFSCREEN_MODE_NONE = 0,
-	GPU_OFFSCREEN_RENDERBUFFER_COLOR = 1 << 0,
-	GPU_OFFSCREEN_RENDERBUFFER_DEPTH = 1 << 1,
-	GPU_OFFSCREEN_DEPTH_COMPARE = 1 << 2,
-} GPUOffScreenMode;
-
-GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUTextureFormat data_type, int mode, char err_out[256]);
+GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, char err_out[256]);
 void GPU_offscreen_free(GPUOffScreen *ofs);
 void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
-void GPU_offscreen_bind_simple(GPUOffScreen *ofs);
 void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore);
 void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels);
-void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs, bool color, bool depth);
 int GPU_offscreen_width(const GPUOffScreen *ofs);
 int GPU_offscreen_height(const GPUOffScreen *ofs);
 int GPU_offscreen_color_texture(const GPUOffScreen *ofs);

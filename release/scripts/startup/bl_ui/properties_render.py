@@ -590,7 +590,7 @@ class RENDER_PT_clay_collection_settings(RenderButtonsPanel, Panel):
 class RENDER_PT_eevee_ambient_occlusion(RenderButtonsPanel, Panel):
     bl_label = "Ambient Occlusion"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -621,7 +621,7 @@ class RENDER_PT_eevee_ambient_occlusion(RenderButtonsPanel, Panel):
 class RENDER_PT_eevee_motion_blur(RenderButtonsPanel, Panel):
     bl_label = "Motion Blur"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -647,7 +647,7 @@ class RENDER_PT_eevee_motion_blur(RenderButtonsPanel, Panel):
 class RENDER_PT_eevee_depth_of_field(RenderButtonsPanel, Panel):
     bl_label = "Depth of Field"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -673,7 +673,7 @@ class RENDER_PT_eevee_depth_of_field(RenderButtonsPanel, Panel):
 class RENDER_PT_eevee_bloom(RenderButtonsPanel, Panel):
     bl_label = "Bloom"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -703,7 +703,7 @@ class RENDER_PT_eevee_bloom(RenderButtonsPanel, Panel):
 class RENDER_PT_eevee_volumetric(RenderButtonsPanel, Panel):
     bl_label = "Volumetric"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -736,7 +736,7 @@ class RENDER_PT_eevee_volumetric(RenderButtonsPanel, Panel):
 class RENDER_PT_eevee_screen_space_reflections(RenderButtonsPanel, Panel):
     bl_label = "Screen Space Reflections"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -768,7 +768,7 @@ class RENDER_PT_eevee_screen_space_reflections(RenderButtonsPanel, Panel):
 class RENDER_PT_eevee_shadows(RenderButtonsPanel, Panel):
     bl_label = "Shadows"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -789,7 +789,7 @@ class RENDER_PT_eevee_shadows(RenderButtonsPanel, Panel):
 class RENDER_PT_eevee_sampling(RenderButtonsPanel, Panel):
     bl_label = "Sampling"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -808,7 +808,7 @@ class RENDER_PT_eevee_sampling(RenderButtonsPanel, Panel):
 class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
     bl_label = "Indirect Lighting"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):

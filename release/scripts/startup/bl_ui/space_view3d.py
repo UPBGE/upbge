@@ -3273,7 +3273,6 @@ class VIEW3D_PT_view3d_display(Panel):
         col = layout.column()
         col.prop(view, "show_only_render")
         col.prop(view, "show_world")
-        col.prop(view, "show_mist")
 
         if context.mode in {'PAINT_WEIGHT', 'PAINT_VERTEX', 'PAINT_TEXTURE'}:
             col.prop(view, "show_mode_shade_override")

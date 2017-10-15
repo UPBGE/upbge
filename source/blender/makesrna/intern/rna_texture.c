@@ -677,11 +677,6 @@ static void rna_def_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Size", "Set scaling for the texture's X, Y and Z sizes");
 	RNA_def_property_update(prop, 0, "rna_TextureSlot_update");
 
-	prop = RNA_def_property(srna, "rotation", PROP_FLOAT, PROP_EULER);
-	RNA_def_property_float_sdna(prop, NULL, "rot");
-	RNA_def_property_ui_text(prop, "Rotation", "Set rotation for the texture");
-	RNA_def_property_update(prop, 0, "rna_TextureSlot_update");
-
 	prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "r");
 	RNA_def_property_array(prop, 3);
@@ -791,26 +786,12 @@ static void rna_def_environment_map(BlenderRNA *brna)
 		{ENV_STATIC, "STATIC", 0, "Static", "Calculate environment map only once"},
 		{ENV_ANIM, "ANIMATED", 0, "Animated", "Calculate environment map at each rendering"},
 		{ENV_LOAD, "IMAGE_FILE", 0, "Image File", "Load a saved environment map image from disk"},
-		{ENV_REALT, "REALTIME", 0, "Realtime", "Image generated for realtime reflections in the game engine"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	
 	static EnumPropertyItem prop_mapping_items[] = {
 		{ENV_CUBE, "CUBE", 0, "Cube", "Use environment map with six cube sides"},
 		{ENV_PLANE, "PLANE", 0, "Plane", "Only one side is rendered, with Z axis pointing in direction of image"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
-	static EnumPropertyItem prop_filtering_items[] = {
-		{ENVMAP_MIPMAP_NONE, "NONE", 0, "None", "None texture filtering"},
-		{ENVMAP_MIPMAP_LINEAR, "LINEAR", 0, "Linear Filtering", "Linear texture filtering"},
-		{ENVMAP_MIPMAP_MIPMAP, "MIPMAP", 0, "Mipmap Filtering", "Mipmap texture filtering"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
-	static EnumPropertyItem prop_mode_items[] = {
-		{ENVMAP_REFLECTION, "REFLECTION", 0, "Reflection", "Reflection rendering"},
-		{ENVMAP_REFRACTION, "REFRACTION", 0, "Refraction", "Refraction rendering"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -880,26 +861,6 @@ static void rna_def_environment_map(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "ok", 2);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Validity", "True if this map is ready for use, False if it needs rendering");
-
-	prop = RNA_def_property(srna, "auto_update", PROP_BOOLEAN, 0);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", ENVMAP_AUTO_UPDATE);
-	RNA_def_property_ui_text(prop, "Auto Update", "True if the cube map is updated every frame");
-
-	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "mode");
-	RNA_def_property_enum_items(prop, prop_mode_items);
-	RNA_def_property_ui_text(prop, "Rendering Mode", "Texture rendering method");
-
-	prop = RNA_def_property(srna, "lod_factor", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "lodfactor");
-	RNA_def_property_range(prop, 0.0f, FLT_MAX);
-	RNA_def_property_float_default(prop, 1.0f);
-	RNA_def_property_ui_text(prop, "Level of Detail Distance Factor", "The factor applied to distance computed in Lod");
-
-	prop = RNA_def_property(srna, "filtering", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "filtering");
-	RNA_def_property_enum_items(prop, prop_filtering_items);
-	RNA_def_property_ui_text(prop, "Filtering", "Texture filtering method");
 
 	RNA_api_environment_map(srna);
 }

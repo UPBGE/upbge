@@ -36,8 +36,3 @@
 #ifndef GEN_INLINED
 #include "MT_Matrix4x4.inl"
 #endif
-
-const MT_Matrix4x4 MT_Matrix4x4::identity = MT_Matrix4x4(1.0f, 0.0f, 0.0f, 0.0f,
-														 0.0f, 1.0f, 0.0f, 0.0f,
-														 0.0f, 0.0f, 1.0f, 0.0f,
-														 0.0f, 0.0f, 0.0f, 1.0f);

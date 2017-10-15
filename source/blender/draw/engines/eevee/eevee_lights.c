@@ -61,7 +61,7 @@ static struct {
 	struct GPUShader *shadow_store_cascade_sh[SHADOW_METHOD_MAX];
 	struct GPUShader *shadow_copy_cube_sh[SHADOW_METHOD_MAX];
 	struct GPUShader *shadow_copy_cascade_sh[SHADOW_METHOD_MAX];
-} e_data = { NULL }; /* Engine data */
+} e_data = {NULL}; /* Engine data */
 
 extern char datatoc_shadow_vert_glsl[];
 extern char datatoc_shadow_geom_glsl[];
@@ -501,8 +501,8 @@ static void eevee_shadow_cube_setup(Object *ob, EEVEE_LampsInfo *linfo, EEVEE_La
 	}
 
 	ubo_data->bias = 0.05f * la->bias;
-	ubo_data->nearf = la->clipsta;
-	ubo_data->farf = la->clipend;
+	ubo_data->near = la->clipsta;
+	ubo_data->far = la->clipend;
 	ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
 
 	evli->shadowid = (float)(sh_data->shadow_id);
@@ -747,8 +747,8 @@ static void eevee_shadow_cascade_setup(Object *ob, EEVEE_LampsInfo *linfo, EEVEE
 	}
 
 	ubo_data->bias = 0.05f * la->bias;
-	ubo_data->nearf = la->clipsta;
-	ubo_data->farf = la->clipend;
+	ubo_data->near = la->clipsta;
+	ubo_data->far = la->clipend;
 	ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
 
 	evli->shadowid = (float)(sh_data->shadow_id);
@@ -1065,15 +1065,3 @@ void EEVEE_lights_free(void)
 		DRW_SHADER_FREE_SAFE(e_data.shadow_copy_cascade_sh[i]);
 	}
 }
-
-/******************Game engine********************/
-struct GPUShader *EEVEE_shadow_shader_get()
-{
-	return e_data.shadow_sh;
-}
-
-struct GPUShader *EEVEE_shadow_store_shader_get()
-{
-	return e_data.shadow_store_cube_sh[SHADOW_ESM];
-}
-/**************Enf of Game engine*****************/

@@ -166,12 +166,6 @@ static void rna_def_world_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Zenith Down", "Affect the color of the zenith below");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
-	prop = RNA_def_property(srna, "lod_bias", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "lodbias");
-	RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 10, 3);
-	RNA_def_property_ui_text(prop, "Lod Bias", "Amount bias on mipmapping");
-	RNA_def_property_update(prop, 0, "rna_World_update");
-
 	prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "texco");
 	RNA_def_property_enum_items(prop, texco_items);

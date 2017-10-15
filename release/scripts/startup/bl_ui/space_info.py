@@ -254,29 +254,13 @@ class INFO_MT_game(Menu):
 
         layout.separator()
 
+        layout.prop(gs, "show_debug_properties")
         layout.prop(gs, "show_framerate_profile")
+        layout.prop(gs, "show_physics_visualization")
         layout.prop(gs, "use_deprecation_warnings")
-        layout.menu("INFO_MT_game_show_debug")
+        layout.prop(gs, "use_animation_record")
         layout.separator()
         layout.prop(gs, "use_auto_start")
-
-
-class INFO_MT_game_show_debug(Menu):
-    bl_label = "Show Debug"
-
-    def draw(self, context):
-        layout = self.layout
-
-        gs = context.scene.game_settings
-
-        layout.prop(gs, "show_debug_properties")
-        layout.prop(gs, "show_physics_visualization")
-
-        layout.separator()
-        layout.prop_menu_enum(gs, "show_bounding_box")
-        layout.prop_menu_enum(gs, "show_armatures")
-        layout.prop_menu_enum(gs, "show_camera_frustum")
-        layout.prop_menu_enum(gs, "show_shadow_frustum")
 
 
 class INFO_MT_render(Menu):
@@ -393,7 +377,6 @@ classes = (
     INFO_MT_file_external_data,
     INFO_MT_file_previews,
     INFO_MT_game,
-    INFO_MT_game_show_debug,
     INFO_MT_render,
     INFO_MT_opengl_render,
     INFO_MT_window,

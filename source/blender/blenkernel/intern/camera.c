@@ -72,7 +72,6 @@ void BKE_camera_init(Camera *cam)
 	cam->ortho_scale = 6.0;
 	cam->flag |= CAM_SHOWPASSEPARTOUT;
 	cam->passepartalpha = 0.5f;
-	cam->lodfactor = 1.0f;
 
 	GPU_fx_compositor_init_dof_settings(&cam->gpu_dof);
 

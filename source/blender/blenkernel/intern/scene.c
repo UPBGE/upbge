@@ -107,8 +107,6 @@
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 
-#include "wm_event_types.h"
-
 #include "bmesh.h"
 
 const char *RE_engine_id_BLENDER_RENDER = "BLENDER_RENDER";
@@ -936,6 +934,12 @@ void BKE_scene_init(Scene *sce)
 	sce->gm.stereomode = STEREO_ANAGLYPH;
 	sce->gm.eyeseparation = 0.10;
 
+	sce->gm.dome.angle = 180;
+	sce->gm.dome.mode = DOME_FISHEYE;
+	sce->gm.dome.res = 4;
+	sce->gm.dome.resbuf = 1.0f;
+	sce->gm.dome.tilt = 0;
+
 	sce->gm.xplay = 640;
 	sce->gm.yplay = 480;
 	sce->gm.freqplay = 60;
@@ -949,10 +953,12 @@ void BKE_scene_init(Scene *sce)
 	sce->gm.maxlogicstep = 5;
 	sce->gm.physubstep = 1;
 	sce->gm.maxphystep = 5;
-	sce->gm.timeScale = 1.0f;
 	sce->gm.lineardeactthreshold = 0.8f;
 	sce->gm.angulardeactthreshold = 1.0f;
 	sce->gm.deactivationtime = 0.0f;
+
+	sce->gm.flag = 0;
+	sce->gm.matmode = GAME_MAT_MULTITEX;
 
 	sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
 	sce->gm.levelHeight = 2.f;
@@ -975,11 +981,6 @@ void BKE_scene_init(Scene *sce)
 	sce->gm.scehysteresis = 10;
 
 	sce->gm.exitkey = 218; // Blender key code for ESC
-
-	sce->gm.pythonkeys[0] = LEFTCTRLKEY;
-	sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
-	sce->gm.pythonkeys[2] = LEFTALTKEY;
-	sce->gm.pythonkeys[3] = TKEY;
 
 	BKE_sound_create_scene(sce);
 

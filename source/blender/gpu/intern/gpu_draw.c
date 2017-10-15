@@ -100,6 +100,128 @@ extern Material defmaterial; /* from material.c */
 
 /* Text Rendering */
 
+static void gpu_mcol(unsigned int ucol)
+{
+	/* mcol order is swapped */
+	const char *cp = (char *)&ucol;
+	glColor3ub(cp[3], cp[2], cp[1]);
+}
+
+void GPU_render_text(
+        int mode, const char *textstr, int textlen, unsigned int *col,
+        const float *v_quad[4], const float *uv_quad[4],
+        int glattrib)
+{
+	/* XXX, 2.8 removes texface */
+#if 0
+	Image *ima = mtexpoly->tpage;
+#else
+	Image *ima = NULL;
+#endif
+	if ((mode & GEMAT_TEXT) && (textlen > 0) && ima) {
+		const float *v1 = v_quad[0];
+		const float *v2 = v_quad[1];
+		const float *v3 = v_quad[2];
+		const float *v4 = v_quad[3];
+		const size_t textlen_st = textlen;
+		float centerx, centery, sizex, sizey, transx, transy, movex, movey, advance;
+
+		/* multiline */
+		float line_start = 0.0f, line_height;
+
+		if (v4)
+			line_height = max_ffff(v1[1], v2[1], v3[1], v4[2]) - min_ffff(v1[1], v2[1], v3[1], v4[2]);
+		else
+			line_height = max_fff(v1[1], v2[1], v3[1]) - min_fff(v1[1], v2[1], v3[1]);
+		line_height *= 1.2f; /* could be an option? */
+		/* end multiline */
+
+
+		/* color has been set */
+		if (!col)
+			glColor3f(1.0f, 1.0f, 1.0f);
+
+		gpuPushMatrix();
+
+		/* get the tab width */
+		ImBuf *first_ibuf = BKE_image_get_first_ibuf(ima);
+		matrixGlyph(first_ibuf, ' ', &centerx, &centery,
+		    &sizex, &sizey, &transx, &transy, &movex, &movey, &advance);
+
+		float advance_tab = advance * 4; /* tab width could also be an option */
+
+
+		for (size_t index = 0; index < textlen_st; ) {
+			unsigned int character;
+			float uv[4][2];
+
+			/* lets calculate offset stuff */
+			character = BLI_str_utf8_as_unicode_and_size_safe(textstr + index, &index);
+
+			if (character == '\n') {
+				gpuTranslate2f(line_start, -line_height);
+				line_start = 0.0f;
+				continue;
+			}
+			else if (character == '\t') {
+				gpuTranslate2f(advance_tab, 0.0f);
+				line_start -= advance_tab; /* so we can go back to the start of the line */
+				continue;
+
+			}
+			else if (character > USHRT_MAX) {
+				/* not much we can do here bmfonts take ushort */
+				character = '?';
+			}
+
+			/* space starts at offset 1 */
+			/* character = character - ' ' + 1; */
+			matrixGlyph(first_ibuf, character, & centerx, &centery,
+			    &sizex, &sizey, &transx, &transy, &movex, &movey, &advance);
+
+			uv[0][0] = (uv_quad[0][0] - centerx) * sizex + transx;
+			uv[0][1] = (uv_quad[0][1] - centery) * sizey + transy;
+			uv[1][0] = (uv_quad[1][0] - centerx) * sizex + transx;
+			uv[1][1] = (uv_quad[1][1] - centery) * sizey + transy;
+			uv[2][0] = (uv_quad[2][0] - centerx) * sizex + transx;
+			uv[2][1] = (uv_quad[2][1] - centery) * sizey + transy;
+
+			glBegin(GL_POLYGON);
+			if (glattrib >= 0) glVertexAttrib2fv(glattrib, uv[0]);
+			else glTexCoord2fv(uv[0]);
+			if (col) gpu_mcol(col[0]);
+			glVertex3f(sizex * v1[0] + movex, sizey * v1[1] + movey, v1[2]);
+
+			if (glattrib >= 0) glVertexAttrib2fv(glattrib, uv[1]);
+			else glTexCoord2fv(uv[1]);
+			if (col) gpu_mcol(col[1]);
+			glVertex3f(sizex * v2[0] + movex, sizey * v2[1] + movey, v2[2]);
+
+			if (glattrib >= 0) glVertexAttrib2fv(glattrib, uv[2]);
+			else glTexCoord2fv(uv[2]);
+			if (col) gpu_mcol(col[2]);
+			glVertex3f(sizex * v3[0] + movex, sizey * v3[1] + movey, v3[2]);
+
+			if (v4) {
+				uv[3][0] = (uv_quad[3][0] - centerx) * sizex + transx;
+				uv[3][1] = (uv_quad[3][1] - centery) * sizey + transy;
+
+				if (glattrib >= 0) glVertexAttrib2fv(glattrib, uv[3]);
+				else glTexCoord2fv(uv[3]);
+				if (col) gpu_mcol(col[3]);
+				glVertex3f(sizex * v4[0] + movex, sizey * v4[1] + movey, v4[2]);
+			}
+			glEnd();
+
+			gpuTranslate2f(advance, 0.0f);
+			line_start -= advance; /* so we can go back to the start of the line */
+		}
+		gpuPopMatrix();
+
+		BKE_image_release_ibuf(ima, first_ibuf, NULL);
+	}
+}
+
 /* Checking powers of two for images since OpenGL ES requires it */
 #ifdef WITH_DDS
 static bool is_power_of_2_resolution(int w, int h)
@@ -1526,7 +1648,7 @@ void GPU_begin_object_materials(
 
 			if (glsl) {
 				GMS.gmatbuf[0] = &defmaterial;
-				GPU_material_from_blender(GMS.gscene, &defmaterial, GMS.is_opensubdiv, false);
+				GPU_material_from_blender(GMS.gscene, &defmaterial, GMS.is_opensubdiv);
 			}
 
 			GMS.alphablend[0] = GPU_BLEND_SOLID;
@@ -1540,7 +1662,7 @@ void GPU_begin_object_materials(
 			if (ma == NULL) ma = &defmaterial;
 
 			/* create glsl material if requested */
-			gpumat = glsl ? GPU_material_from_blender(GMS.gscene, ma, GMS.is_opensubdiv, false) : NULL;
+			gpumat = glsl ? GPU_material_from_blender(GMS.gscene, ma, GMS.is_opensubdiv) : NULL;
 
 			if (gpumat) {
 				/* do glsl only if creating it succeed, else fallback */
@@ -1654,7 +1776,7 @@ int GPU_object_material_bind(int nr, void *attribs)
 	/* unbind glsl material */
 	if (GMS.gboundmat) {
 		if (GMS.is_alpha_pass) glDepthMask(0);
-		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat, GMS.is_opensubdiv, false));
+		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat, GMS.is_opensubdiv));
 		GMS.gboundmat = NULL;
 	}
 
@@ -1682,7 +1804,7 @@ int GPU_object_material_bind(int nr, void *attribs)
 
 			float auto_bump_scale;
 
-			GPUMaterial *gpumat = GPU_material_from_blender(GMS.gscene, mat, GMS.is_opensubdiv, false);
+			GPUMaterial *gpumat = GPU_material_from_blender(GMS.gscene, mat, GMS.is_opensubdiv);
 			GPU_material_vertex_attributes(gpumat, gattribs);
 
 			if (GMS.dob) {
@@ -1786,7 +1908,7 @@ void GPU_object_material_unbind(void)
 			glDisable(GL_CULL_FACE);
 
 		if (GMS.is_alpha_pass) glDepthMask(0);
-		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat, GMS.is_opensubdiv, false));
+		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat, GMS.is_opensubdiv));
 		GMS.gboundmat = NULL;
 	}
 	else
@@ -2043,8 +2165,7 @@ void GPU_draw_update_fvar_offset(DerivedMesh *dm)
 
 		gpu_material = GPU_material_from_blender(GMS.gscene,
 		                                         material,
-		                                         GMS.is_opensubdiv,
-												 false);
+		                                         GMS.is_opensubdiv);
 
 		GPU_material_update_fvar_offset(gpu_material, dm);
 	}

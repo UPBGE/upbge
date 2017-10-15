@@ -376,10 +376,4 @@ void BPy_init_modules(void)
 
 	/* add our own modules dir, this is a python package */
 	bpy_package_py = bpy_import_test("bpy");
-	bpy_sys_module_backup = PyDict_Copy(PyImport_GetModuleDict());
-}
-
-void BPy_end_modules(void)
-{
-	Py_DECREF(bpy_sys_module_backup);
 }

@@ -69,8 +69,3 @@ base class --- :class:`SCA_IActuator`
 
       :type: int
 
-   .. attribute:: path
-
-      Path point list.
-
-      :type: list of :class:`mathutils.Vector`

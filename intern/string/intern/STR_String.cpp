@@ -172,15 +172,7 @@ STR_String::STR_String(const char *src1, int len1, const char *src2, int len2) :
 	this->m_data[len1 + len2] = 0;
 }
 
-STR_String::STR_String(const std::string& s) :
-	m_data(new char[s.size() + 8]),
-	m_len(s.size()),
-	m_max(s.size() + 8)
-{
-	assertd(this->m_data != NULL);
-	memcpy(this->m_data, s.c_str(), s.size());
-	this->m_data[s.size()] = 0;
-}
+
 
 //
 // Create a string with an integer value

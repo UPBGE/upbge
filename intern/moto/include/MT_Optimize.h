@@ -29,7 +29,6 @@
  *  \ingroup moto
  */
 
-#include "MT_Config.h"
 
 #ifndef GEN_OPTIMIZE_H
 #define GEN_OPTIMIZE_H

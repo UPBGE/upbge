@@ -224,12 +224,6 @@ static void rna_def_lamp_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
 	RNA_def_property_ui_text(prop, "Shadow Factor", "Amount texture affects shadow");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
-
-	prop = RNA_def_property(srna, "lod_bias", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "lodbias");
-	RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 10, 3);
-	RNA_def_property_ui_text(prop, "Lod Bias", "Amount bias on mipmapping");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 }
 
 static void rna_def_lamp_sky_settings(BlenderRNA *brna)
@@ -546,13 +540,6 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area, int sun)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem prop_shadow_filter_type_items[] = {
-		{LA_SHADOW_FILTER_NONE, "NONE", 0, "None", "None filtering"},
-		{LA_SHADOW_FILTER_PCF, "PCF", 0, "PCF", "Percentage Closer Filtering"},
-		{LA_SHADOW_FILTER_PCF_BAIL, "PCF_BAIL", 0, "PCF Early Bail", "Percentage Closer Filtering Early Bail"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	prop = RNA_def_property(srna, "use_shadow", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_use_shadow_get", "rna_use_shadow_set");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
@@ -570,11 +557,6 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area, int sun)
 	                         "but use more memory");
 	RNA_def_property_int_funcs(prop, NULL, "rna_Lamp_buffer_size_set", NULL);
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
-
-	prop = RNA_def_property(srna, "static_shadow", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_STATIC_SHADOW);
-	RNA_def_property_ui_text(prop, "Static Shadow",
-	                         "Enable static shadows");
 
 	prop = RNA_def_property(srna, "shadow_filter_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "filtertype");
@@ -610,12 +592,6 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area, int sun)
 	RNA_def_property_ui_text(prop, "Shadow Buffer Bias", "Bias for reducing self shadowing");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
-	prop = RNA_def_property(srna, "shadow_buffer_slope_bias", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "slopebias");
-	RNA_def_property_range(prop, 0.0f, 5.0f);
-	RNA_def_property_ui_text(prop, "Shadow Buffer Slope Bias", "Shadow buffer sampling slope bias");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
-
 	prop = RNA_def_property(srna, "shadow_buffer_bleed_bias", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "bleedbias");
 	RNA_def_property_range(prop, 0.f, 1.f);
@@ -632,12 +608,6 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area, int sun)
 	RNA_def_property_float_sdna(prop, NULL, "soft");
 	RNA_def_property_range(prop, 0.0f, 100.0f);
 	RNA_def_property_ui_text(prop, "Shadow Buffer Soft", "Size of shadow buffer sampling area");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
-
-	prop = RNA_def_property(srna, "shadow_buffer_sharp", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "bufsharp");
-	RNA_def_property_range(prop, -1.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Shadow Buffer Sharpness", "Sharpness of buffer sampling");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
 	prop = RNA_def_property(srna, "shadow_buffer_samples", PROP_INT, PROP_NONE);
@@ -658,11 +628,6 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area, int sun)
 	RNA_def_property_ui_text(prop, "Shadow Map Type", "The shadow mapping algorithm used");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
-	prop = RNA_def_property(srna, "shadow_filter", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "shadow_filter");
-	RNA_def_property_enum_items(prop, prop_shadow_filter_type_items);
-	RNA_def_property_ui_text(prop, "Shadow Map Filter Type", "The shadow mapping filtering algorithm used");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
 	prop = RNA_def_property(srna, "use_auto_clip_start", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bufflag", LA_SHADBUF_AUTO_START);
@@ -793,14 +758,6 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area, int sun)
 		RNA_def_property_range(prop, 0.0f, 1.0f);
 		RNA_def_property_ui_text(prop, "Cascade Fade", "How smooth is the transition between each cascade");
 		RNA_def_property_update(prop, 0, "rna_Lamp_update");
-
-		/******************************Game engine*********************************/
-		prop = RNA_def_property(srna, "show_shadow_box", PROP_BOOLEAN, PROP_NONE);
-		RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_SHOW_SHADOW_BOX);
-		RNA_def_property_ui_text(prop, "Show Shadow Box",
-			                 "Draw a box in 3D view to visualize which objects are contained in it");
-		RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
-		/**************************End of Game engine******************************/
 	}
 }
 
@@ -959,6 +916,12 @@ static void rna_def_sun_lamp(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "shadow_frustum_size");
 	RNA_def_property_ui_range(prop, 0.001, 100.0, 2, 1);
 	RNA_def_property_ui_text(prop, "Frustum Size", "Size of the frustum used for creating the shadow map");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
+
+	prop = RNA_def_property(srna, "show_shadow_box", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_SHOW_SHADOW_BOX);
+	RNA_def_property_ui_text(prop, "Show Shadow Box",
+	                         "Draw a box in 3D view to visualize which objects are contained in it");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 }
 

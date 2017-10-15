@@ -47,8 +47,6 @@
 #ifndef MT_SCALAR_H
 #define MT_SCALAR_H
 
-#include "MT_Config.h"
-
 #include <math.h>
 #include <float.h>
 

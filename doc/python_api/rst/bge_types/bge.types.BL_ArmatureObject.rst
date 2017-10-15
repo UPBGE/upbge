@@ -32,6 +32,3 @@ base class --- :class:`KX_GameObject`
       or if an action is playing. Use this function in other cases. It must be called
       on each frame to ensure that the armature is updated continously.
 
-   .. method:: draw()
-
-      Draw lines that represent armature to view it in real time.

@@ -29,7 +29,6 @@
 
 #include <string.h>
 #include <stdio.h>
-#include <math.h>
 
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
@@ -848,7 +847,7 @@ static void rna_update_cb(bContext *C, void *arg_cb, void *UNUSED(arg))
 	RNA_property_update(C, &cb->ptr, cb->prop);
 }
 
-void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *userptr, int compact, int multiview, int cubemap)
+void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *userptr, int compact, int multiview)
 {
 	PropertyRNA *prop;
 	PointerRNA imaptr;
@@ -1061,18 +1060,8 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 				split = uiLayoutSplit(layout, 0.0f, false);
 
 				col = uiLayoutColumn(split, true);
-				if (cubemap) {
-					bool invalid = ((ima->gen_x != ceil(ima->gen_y * 3 / 2)) || ((ima->gen_y & (ima->gen_y - 1)) != 0));
-					uiLayoutSetRedAlert(col, invalid);
-				}
-
 				uiItemR(col, &imaptr, "generated_width", 0, "X", ICON_NONE);
 				uiItemR(col, &imaptr, "generated_height", 0, "Y", ICON_NONE);
-				uiLayoutSetRedAlert(col, false);
-
-				if (cubemap) {
-					uiItemO(col, NULL, ICON_RECOVER_LAST, "IMAGE_OT_resize_cube_map");
-				}
 				
 				uiItemR(col, &imaptr, "use_generated_float", 0, NULL, ICON_NONE);
 

@@ -107,7 +107,6 @@ void init_sensor(bSensor *sens)
 	bMouseSensor *ms;
 	bJoystickSensor *js;
 	bRaySensor *rs;
-	bMovementSensor *movs;
 	
 	if (sens->data) MEM_freeN(sens->data);
 	sens->data= NULL;
@@ -140,7 +139,6 @@ void init_sensor(bSensor *sens)
 	case SENS_MOUSE:
 		ms=sens->data= MEM_callocN(sizeof(bMouseSensor), "mousesens");
 		ms->type= 1; // LEFTMOUSE workaround because Mouse Sensor types enum starts in 1
-		ms->mask = (1 << OB_MAX_COL_MASKS) - 1;
 		break;
 	case SENS_COLLISION:
 		sens->data= MEM_callocN(sizeof(bCollisionSensor), "colsens");
@@ -151,16 +149,10 @@ void init_sensor(bSensor *sens)
 	case SENS_RANDOM:
 		sens->data= MEM_callocN(sizeof(bRandomSensor), "randomsens");
 		break;
-	case SENS_MOVEMENT:
-		sens->data = MEM_callocN(sizeof(bMovementSensor), "movementsens");
-		movs = sens->data;
-		movs->threshold = 0.01f;
-		break;
 	case SENS_RAY:
 		sens->data= MEM_callocN(sizeof(bRaySensor), "raysens");
 		rs = sens->data;
 		rs->range = 0.01f;
-		rs->mask = (1 << OB_MAX_COL_MASKS) - 1;
 		break;
 	case SENS_MESSAGE:
 		sens->data= MEM_callocN(sizeof(bMessageSensor), "messagesens");
@@ -168,10 +160,9 @@ void init_sensor(bSensor *sens)
 	case SENS_JOYSTICK:
 		sens->data= MEM_callocN(sizeof(bJoystickSensor), "joysticksens");
 		js= sens->data;
-		js->type = SENS_JOY_AXIS;
-		js->axis = SENS_JOY_LEFT_STICK;
-		js->axis_single = SENS_JOY_LEFT_STICK_HORIZONTAL;
-		js->precision = 5000;
+		js->hatf = SENS_JOY_HAT_UP;
+		js->axis = 1;
+		js->hat = 1;
 		break;
 	default:
 		; /* this is very severe... I cannot make any memory for this        */
@@ -338,6 +329,7 @@ void free_actuator(bActuator *act)
 	if (act->data) {
 		switch (act->type) {
 			case ACT_ACTION:
+			case ACT_SHAPEACTION:
 			{
 				bActionActuator *aa = (bActionActuator *)act->data;
 				if (aa->act)
@@ -379,6 +371,7 @@ bActuator *copy_actuator(bActuator *act, const int flag)
 	
 	switch (act->type) {
 		case ACT_ACTION:
+		case ACT_SHAPEACTION:
 		{
 			bActionActuator *aa = (bActionActuator *)act->data;
 			if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
@@ -422,13 +415,13 @@ void init_actuator(bActuator *act)
 	bArmatureActuator *arma;
 	bMouseActuator *ma;
 	bEditObjectActuator *eoa;
-	bVibrationActuator *via;
 	
 	if (act->data) MEM_freeN(act->data);
 	act->data= NULL;
 	
 	switch (act->type) {
 	case ACT_ACTION:
+	case ACT_SHAPEACTION:
 		act->data= MEM_callocN(sizeof(bActionActuator), "actionact");
 		break;
 	case ACT_SOUND:
@@ -480,12 +473,6 @@ void init_actuator(bActuator *act)
 		break;
 	case ACT_GAME:
 		act->data= MEM_callocN(sizeof(bGameActuator), "game act");
-		break;
-	case ACT_VIBRATION:
-		act->data = MEM_callocN(sizeof(bVibrationActuator), "vibration act");
-		via = act->data;
-		via->duration = 500; //milliseconds
-		via->strength = 0.4;
 		break;
 	case ACT_VISIBILITY:
 		act->data= MEM_callocN(sizeof(bVisibilityActuator), "visibility act");
@@ -1031,7 +1018,6 @@ void BKE_sca_sensors_id_loop(ListBase *senslist, SCASensorIDFunc func, void *use
 			case SENS_RADAR:
 			case SENS_RANDOM:
 			case SENS_RAY:
-			case SENS_MOVEMENT:
 			case SENS_JOYSTICK:
 			case SENS_ACTUATOR:
 			case SENS_DELAY:
@@ -1165,7 +1151,6 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
 			case ACT_GROUP:
 			case ACT_RANDOM:
 			case ACT_GAME:
-			case ACT_VIBRATION:
 			case ACT_VISIBILITY:
 			case ACT_SHAPEACTION:
 			case ACT_STATE:

@@ -373,7 +373,7 @@ Image classes
 
       :type: bool
 
-.. class:: ImageMirror(scene, observer, mirror, material=0, width, height, samples, hdr)
+.. class:: ImageMirror(scene, observer, mirror, material=0)
 
    Image source from mirror.
 
@@ -386,14 +386,6 @@ Image classes
    :type mirror: :class:`~bge.types.KX_GameObject`
    :arg material: ID of the mirror's material to be used for mirroring. (optional)
    :type material: int
-   :arg width: Off-screen render buffer width (optional).
-   :type width: integer
-   :arg height: Off-screen render buffer height (optional).
-   :type height: integer
-   :arg samples: Off-screen render buffer samples (optional).
-   :type samples: integer
-   :arg hdr: Off-screen image format (optional).
-   :type hdr: One of :ref:`these constants<render-hdr>`
 
    .. attribute:: alpha
 
@@ -401,35 +393,11 @@ Image classes
 
       :type: bool
 
-   .. attribute:: horizon
-
-      Horizon color.
-
-      :type: float list [r, g, b, a] in [0.0, 1.0]
-
-   .. attribute:: zenith
-
-      Zenith color.
-      
-      :type: float list [r, g, b, a] in [0.0, 1.0]
-
    .. attribute:: background
 
-      :type: float list [r, g, b, a] in [0.0, 1.0]
+      Background color.
 
-      Deprecated use :py:meth:`bge.texture.ImageMirror.horizon` or :py:meth:`bge.texture.ImageMirror.zenith` instead.
-
-   .. attribute:: updateShadow
-
-      Choose to force shadow buffer update if there is a gap beetween image rendered and shadows.
-
-      :type: bool
-
-   .. attribute:: colorBindCode
-
-      Off-screen color texture bind code.
-
-      :type: integer
+      :type: int or float list [r, g, b, a] in [0.0, 255.0]
 
    .. attribute:: capsize
 
@@ -622,7 +590,7 @@ Image classes
 
       :type: bool
 
-.. class:: ImageRender(scene, camera, width, height, samples, hdr)
+.. class:: ImageRender(scene, camera)
 
    Image source from render.
    The render is done on a custom framebuffer object if fbo is specified,
@@ -632,14 +600,8 @@ Image classes
    :type scene: :class:`~bge.types.KX_Scene`
    :arg camera: Camera from which the image has to be taken.
    :type camera: :class:`~bge.types.KX_Camera`
-   :arg width: Off-screen render buffer width (optional).
-   :type width: integer
-   :arg height: Off-screen render buffer height (optional).
-   :type height: integer
-   :arg samples: Off-screen render buffer samples (optional).
-   :type samples: integer
-   :arg hdr: Off-screen image format (optional).
-   :type hdr: One of :ref:`these constants<render-hdr>`
+   :arg fbo: Off-screen render buffer object (optional)
+   :type fbo: :class:`~bge.render.RASOffScreen`
 
    .. attribute:: alpha
 
@@ -647,37 +609,11 @@ Image classes
 
       :type: bool
 
-   .. attribute:: horizon
-
-      Horizon color.
-      
-      :type: float list [r, g, b, a] in [0.0, 1.0]
-
-   .. attribute:: zenith
-
-      Zenith color.
-      
-      :type: float list [r, g, b, a] in [0.0, 1.0]
-
    .. attribute:: background
 
       Background color.
 
-      :type: float list [r, g, b, a] in [0.0, 1.0]
-
-      Deprecated use :py:meth:`bge.texture.ImageRender.horizon` or :py:meth:`bge.texture.ImageRender.zenith` instead.
-
-   .. attribute:: updateShadow
-
-      Choose to force shadow buffer update if there is a gap beetween image rendered and shadows.
-
-      :type: bool
-
-   .. attribute:: colorBindCode
-
-      Off-screen color texture bind code.
-
-      :type: integer
+      :type: int or float list [r, g, b, a] in [0.0, 255.0]
 
    .. attribute:: capsize
 
@@ -1062,7 +998,6 @@ Image classes
 
       :return: True if the capture could be stopped, False otherwise.
       :rtype: bool
-
 
 
 ***************

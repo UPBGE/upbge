@@ -1891,11 +1891,6 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "GameProperty"); /* rna_property.c */
 	RNA_def_property_ui_text(prop, "Properties", "Game engine properties");
 
-	prop = RNA_def_property(srna, "components", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_sdna(prop, NULL, "components", NULL);
-	RNA_def_property_struct_type(prop, "PythonComponent"); /* rna_python_component.c */
-	RNA_def_property_ui_text(prop, "Components", "Game engine components");
-
 	prop = RNA_def_property(srna, "show_sensors", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", OB_SHOWSENS);
 	RNA_def_property_ui_text(prop, "Show Sensors", "Shows sensors for this object in the user interface");
@@ -1919,6 +1914,10 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Physics Type", "Select the type of physical representation");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
+	prop = RNA_def_property(srna, "use_record_animation", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_RECORD_ANIMATION);
+	RNA_def_property_ui_text(prop, "Record Animation", "Record animation objects without physics");
+
 	prop = RNA_def_property(srna, "use_actor", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_ACTOR);
 	RNA_def_property_ui_text(prop, "Actor", "Object is detected by the Near and Radar sensor");
@@ -1928,7 +1927,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Ghost", "Object does not react to collisions, like a ghost");
 
 	prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.01, 1000000.0);
+	RNA_def_property_range(prop, 0.01, 10000.0);
 	RNA_def_property_float_default(prop, 1.0f);
 	RNA_def_property_ui_text(prop, "Mass", "Mass of the object");
 
@@ -2052,17 +2051,11 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_activity_culling", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "gameflag2", OB_NEVER_DO_ACTIVITY_CULLING);
 	RNA_def_property_ui_text(prop, "Lock Z Rotation Axis", "Disable simulation of angular motion along the Z axis");
+	
 
-	prop = RNA_def_property(srna, "predefined_bound", PROP_POINTER, PROP_NONE);
-	RNA_def_property_struct_type(prop, "Mesh");
-	RNA_def_property_pointer_sdna(prop, NULL, "gamePredefinedBound");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Predefined Bound", "Predefined mesh bounding volume used when Auto Update Bound is disable");
-
-
-	prop = RNA_def_property(srna, "use_physics_fh", PROP_BOOLEAN, PROP_NONE);
+	prop = RNA_def_property(srna, "use_material_physics_fh", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_DO_FH);
-	RNA_def_property_ui_text(prop, "Use Force Field", "React to force field physics settings");
+	RNA_def_property_ui_text(prop, "Use Material Force Field", "React to force field physics settings in materials");
 
 	prop = RNA_def_property(srna, "use_rotate_from_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_ROT_FH);
@@ -2108,8 +2101,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_float_default(prop, 0.04f);
 	RNA_def_property_ui_text(prop, "Collision Margin",
 	                         "Extra margin around object for collision detection, small amount required "
-	                         "for stability. In most cases margin can be set to 0.0 for static/not moving objects."
-							 "If you have jittering, decrease the margin");
+	                         "for stability");
 
 	prop = RNA_def_property(srna, "soft_body", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "bsoft");
@@ -2124,44 +2116,6 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0, 1000.0);
 	RNA_def_property_float_default(prop, 1.0f);
 	RNA_def_property_ui_text(prop, "Obstacle Radius", "Radius of object representation in obstacle simulation");
-
-	prop = RNA_def_property(srna, "friction", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "friction");
-	RNA_def_property_range(prop, 0, 100);
-	RNA_def_property_ui_text(prop, "Friction", "Coulomb friction coefficient, when inside the physics distance area");
-
-	prop = RNA_def_property(srna, "rolling_friction", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "rolling_friction");
-	RNA_def_property_range(prop, 0, 100);
-	RNA_def_property_ui_text(prop, "Rolling Friction", "Coulomb friction coefficient of rounded shapes");
-
-	prop = RNA_def_property(srna, "elasticity", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "reflect");
-	RNA_def_property_range(prop, 0, 1);
-	RNA_def_property_ui_text(prop, "Elasticity", "Elasticity of collisions");
-
-	/* FH/Force Field Settings */
-	prop = RNA_def_property(srna, "use_fh_normal", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "dynamode", OB_FH_NOR);
-	RNA_def_property_ui_text(prop, "Align to Normal",
-	                         "Align dynamic game objects along the surface normal, "
-	                         "when inside the physics distance area");
-
-	prop = RNA_def_property(srna, "fh_force", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "fh");
-	RNA_def_property_range(prop, 0, 1);
-	RNA_def_property_ui_range(prop, 0.0, 1.0, 10, 2);
-	RNA_def_property_ui_text(prop, "Force", "Upward spring force, when inside the physics distance area");
-	
-	prop = RNA_def_property(srna, "fh_distance", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "fhdist");
-	RNA_def_property_range(prop, 0, 20);
-	RNA_def_property_ui_text(prop, "Distance", "Distance of the physics area");
-	
-	prop = RNA_def_property(srna, "fh_damping", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "xyfrict");
-	RNA_def_property_range(prop, 0, 1);
-	RNA_def_property_ui_text(prop, "Damping", "Damping of the spring force, when inside the physics distance area");
 	
 	/* state */
 
@@ -3169,13 +3123,6 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_collection_sdna(prop, NULL, "lodlevels", NULL);
 	RNA_def_property_struct_type(prop, "LodLevel");
 	RNA_def_property_ui_text(prop, "Level of Detail Levels", "A collection of detail levels to automatically switch between");
-	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
-
-	prop = RNA_def_property(srna, "lod_factor", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "lodfactor");
-	RNA_def_property_range(prop, 0.0f, FLT_MAX);
-	RNA_def_property_float_default(prop, 1.0f);
-	RNA_def_property_ui_text(prop, "Level of Detail Distance Factor", "The factor applied to distance computed in Lod");
 	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
 
 	RNA_api_object(srna);

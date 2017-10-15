@@ -20,7 +20,7 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Brecht Van Lommel, Cl??ment Foucault.
+ * Contributor(s): Brecht Van Lommel, Clément Foucault.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -60,10 +60,7 @@ struct GPULamp {
 	float coeff_const, coeff_lin, coeff_quad;
 	float shadow_color[3];
 
-	float bias, slopebias, d, clipend;
-	float soft, compressthresh;
-	float bleedbias, pad;
-	float bufsharp;
+	float bias, d, clipend;
 	int size;
 
 	int falloff_type;

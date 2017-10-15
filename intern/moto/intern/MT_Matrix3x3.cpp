@@ -36,7 +36,3 @@
 #ifndef GEN_INLINED
 #include "MT_Matrix3x3.inl"
 #endif
-
-const MT_Matrix3x3 MT_Matrix3x3::identity = MT_Matrix3x3(1.0f, 0.0f, 0.0f,
-														 0.0f, 1.0f, 0.0f,
-														 0.0f, 0.0f, 1.0f);

@@ -264,7 +264,6 @@ typedef struct Object {
 	ListBase sensors;		/* game logic sensors */
 	ListBase controllers;	/* game logic controllers */
 	ListBase actuators;		/* game logic actuators */
-	ListBase components;	/* python components */
 
 	float sf; /* sf is time-offset */
 
@@ -283,11 +282,6 @@ typedef struct Object {
 	char recalc;			/* dependency flag */
 	short softflag;			/* softbody settings */
 	float anisotropicFriction[3];
-
-	/* dynamic properties */
-	float friction, rolling_friction, fh, reflect;
-	float fhdist, xyfrict;
-	short dynamode, pad1[3];
 
 	ListBase constraints;		/* object constraints */
 	ListBase nlastrips  DNA_DEPRECATED;			// XXX deprecated... old animation system
@@ -326,22 +320,19 @@ typedef struct Object {
 
 	ListBase lodlevels;		/* contains data for levels of detail */
 	LodLevel *currentlod;
-	float lodfactor, pad4;
 
 	struct PreviewImage *preview;
 
 	struct IDProperty *base_collection_properties; /* used by depsgraph, flushed from base */
-	struct Mesh *gamePredefinedBound;
 
 	ListBase drawdata;		/* runtime, ObjectEngineData */
 	int deg_update_flag; /* what has been updated in this object */
 	int select_color;
-	int pad3[2];
+
 	/* Mesh structure createrd during object evaluaiton.
 	 * It has all modifiers applied.
 	 */
 	struct Mesh *mesh_evaluated;
-
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */
@@ -383,9 +374,6 @@ typedef struct DupliObject {
 } DupliObject;
 
 /* **************** OBJECT ********************* */
-
-/* dynamode */
-#define OB_FH_NOR	        2
 
 /* used many places... should be specialized  */
 #define SELECT          1
@@ -610,6 +598,8 @@ enum {
 	OB_NAVMESH               = 1 << 20,
 	OB_HASOBSTACLE           = 1 << 21,
 	OB_CHARACTER             = 1 << 22,
+
+	OB_RECORD_ANIMATION      = 1 << 23,
 };
 
 /* ob->gameflag2 */

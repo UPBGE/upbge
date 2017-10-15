@@ -120,7 +120,6 @@
 #include "BKE_material.h"
 #include "BKE_camera.h"
 #include "BKE_image.h"
-#include "BKE_python_component.h"
 
 #include "DEG_depsgraph.h"
 
@@ -451,7 +450,6 @@ void BKE_object_free(Object *ob)
 	free_sensors(&ob->sensors);
 	free_controllers(&ob->controllers);
 	free_actuators(&ob->actuators);
-	BKE_python_component_free_list(&ob->components);
 	
 	BKE_constraints_free_ex(&ob->constraints, false);
 	
@@ -687,9 +685,7 @@ void BKE_object_init(Object *ob)
 	ob->anisotropicFriction[1] = 1.0f;
 	ob->anisotropicFriction[2] = 1.0f;
 	ob->gameflag = OB_PROP | OB_COLLISION;
-	ob->gameflag2 = 0;
 	ob->margin = 0.04f;
-	ob->friction = 0.5;
 	ob->init_state = 1;
 	ob->state = 1;
 	ob->obstacleRad = 1.0f;
@@ -699,7 +695,6 @@ void BKE_object_init(Object *ob)
 	ob->max_jumps = 1;
 	ob->col_group = 0x01;
 	ob->col_mask = 0xffff;
-	ob->lodfactor = 1.0f;
 	ob->preview = NULL;
 
 	/* NT fluid sim defaults */
@@ -1192,7 +1187,6 @@ void BKE_object_copy_data(Main *UNUSED(bmain), Object *ob_dst, const Object *ob_
 	BKE_bproperty_copy_list(&ob_dst->prop, &ob_src->prop);
 
 	BKE_sca_logic_copy(ob_dst, ob_src, flag_subdata);
-	BKE_python_component_copy_list(&ob_dst->components, &ob_src->components);
 
 	if (ob_src->pose) {
 		copy_object_pose(ob_dst, ob_src, flag_subdata);

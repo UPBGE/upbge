@@ -25,7 +25,6 @@
 
 set(INC
 	include
-	../../source/blender/blenlib
 )
 
 set(INC_SYS
@@ -33,10 +32,11 @@ set(INC_SYS
 )
 
 set(SRC
+	intern/MT_Assert.cpp
 	intern/MT_CmMatrix4x4.cpp
-	intern/MT_Frustum.cpp
 	intern/MT_Matrix3x3.cpp
 	intern/MT_Matrix4x4.cpp
+	intern/MT_Point3.cpp
 	intern/MT_Quaternion.cpp
 	intern/MT_Transform.cpp
 	intern/MT_Vector2.cpp
@@ -45,24 +45,29 @@ set(SRC
 	intern/MT_random.cpp
 
 	include/MT_CmMatrix4x4.h
-	include/MT_Config.h
-	include/MT_Frustum.h
 	include/MT_Matrix3x3.h
 	include/MT_Matrix4x4.h
 	include/MT_MinMax.h
 	include/MT_Optimize.h
+	include/MT_Point2.h
+	include/MT_Point3.h
 	include/MT_Quaternion.h
 	include/MT_Scalar.h
 	include/MT_Stream.h
 	include/MT_Transform.h
+	include/MT_Tuple2.h
+	include/MT_Tuple3.h
+	include/MT_Tuple4.h
 	include/MT_Vector2.h
 	include/MT_Vector3.h
 	include/MT_Vector4.h
+	include/MT_assert.h
 	include/MT_random.h
 
-	include/MT_Frustum.inl
 	include/MT_Matrix3x3.inl
 	include/MT_Matrix4x4.inl
+	include/MT_Point2.inl
+	include/MT_Point3.inl
 	include/MT_Quaternion.inl
 	include/MT_Vector2.inl
 	include/MT_Vector3.inl

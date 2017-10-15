@@ -66,20 +66,16 @@ typedef struct Camera {
 	char type; /* CAM_PERSP, CAM_ORTHO or CAM_PANO */
 	char dtx; /* draw type extra */
 	short flag;
-	short gameflag;
-	short pad2;
 	float passepartalpha;
 	float clipsta, clipend;
 	float lens, ortho_scale, drawsize;
 	float sensor_x, sensor_y;
 	float shiftx, shifty;
-	float lodfactor, pad;
 
 	/* yafray: dof params */
 	/* qdn: yafray var 'YF_dofdist' now enabled for defocus composite node as well.
 	 * The name was not changed so that no other files need to be modified */
 	float YF_dofdist;
-	int pad3;
 
 	struct Ipo *ipo  DNA_DEPRECATED; /* old animation system, deprecated for 2.5 */
 	
@@ -87,7 +83,7 @@ typedef struct Camera {
 	struct GPUDOFSettings gpu_dof;
 
 	char sensor_fit;
-	char pad4[7];
+	char pad[7];
 
 	/* runtime only, used for drawing */
 	float drwcorners[4][2];
@@ -135,12 +131,6 @@ enum {
 #endif
 	CAM_SHOWSENSOR          = (1 << 8),
 	CAM_SHOW_SAFE_CENTER    = (1 << 9),
-};
-
-/* gameflag */
-enum {
-	GAME_CAM_SHOW_FRUSTUM		= (1 << 0),
-	GAME_CAM_OVERRIDE_CULLING	= (1 << 1),
 };
 
 /* yafray: dof sampling switch */

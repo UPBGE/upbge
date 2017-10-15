@@ -252,7 +252,7 @@ class TEXTURE_PT_preview(TextureButtonsPanel, Panel):
 class TEXTURE_PT_colors(TextureButtonsPanel, Panel):
     bl_label = "Colors"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
         layout = self.layout
@@ -529,24 +529,29 @@ class TEXTURE_PT_image_sampling(TextureTypePanel, Panel):
         split = layout.split()
 
         col = split.column()
+        col.label(text="Alpha:")
+        col.prop(tex, "use_calculate_alpha", text="Calculate")
+        col.prop(tex, "invert_alpha", text="Invert")
+
+        col = split.column()
 
         # Only for Material based textures, not for Lamp/World...
         if slot and isinstance(idblock, Material):
             col.prop(tex, "use_normal_map")
-            sub = col.column()
-            sub.active = tex.use_normal_map
-            sub.prop(slot, "normal_map_space", text="")
+            row = col.row()
+            row.active = tex.use_normal_map
+            row.prop(slot, "normal_map_space", text="")
 
-            col = split.column()
-            col.active = not tex.use_normal_map
-            col.prop(tex, "use_derivative_map")
+            row = col.row()
+            row.active = not tex.use_normal_map
+            row.prop(tex, "use_derivative_map")
 
 
 class TEXTURE_PT_image_mapping(TextureTypePanel, Panel):
     bl_label = "Image Mapping"
     bl_options = {'DEFAULT_CLOSED'}
     tex_type = 'IMAGE'
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
         layout = self.layout
@@ -617,26 +622,17 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             layout.template_ID(tex, "image", open="image.open")
             layout.template_image(tex, "image", tex.image_user, compact=True)
         else:
-            if env.source == 'REALTIME':
-                layout.template_ID(tex, "image", new="image.new", open="image.open")
-                layout.template_image(tex, "image", tex.image_user, compact=True, cubemap=(env.mapping == 'CUBE'))
-                layout.prop(env, "filtering")
-                if env.mapping == 'PLANE':
-                    layout.prop(env, "mode")
             layout.prop(env, "mapping")
-
-            if env.source != 'REALTIME' and env.mapping == 'PLANE':
+            if env.mapping == 'PLANE':
                 layout.prop(env, "zoom")
-
             layout.prop(env, "viewpoint_object")
 
             split = layout.split()
 
             col = split.column()
             col.prop(env, "layers_ignore")
-            if env.source != 'REALTIME':
-                col.prop(env, "resolution")
-                col.prop(env, "depth")
+            col.prop(env, "resolution")
+            col.prop(env, "depth")
 
             col = split.column(align=True)
 
@@ -644,17 +640,12 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             col.prop(env, "clip_start", text="Start")
             col.prop(env, "clip_end", text="End")
 
-            if env.source == 'REALTIME':
-                row = layout.row()
-                row.prop(env, "lod_factor", text="LoD Distance Factor")
-                row.prop(env, "auto_update")
-
 
 class TEXTURE_PT_envmap_sampling(TextureTypePanel, Panel):
     bl_label = "Environment Map Sampling"
     bl_options = {'DEFAULT_CLOSED'}
     tex_type = 'ENVIRONMENT_MAP'
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
         layout = self.layout
@@ -929,80 +920,9 @@ class TEXTURE_PT_ocean(TextureTypePanel, Panel):
         col.prop(ot, "output")
 
 
-class TEXTURE_PT_game_mapping(TextureSlotPanel, Panel):
-    bl_label = "Mapping"
-    COMPAT_ENGINES = {'BLENDER_GAME'}
-
-    @classmethod
-    def poll(cls, context):
-        idblock = context_tex_datablock(context)
-        if isinstance(idblock, Brush) and not context.sculpt_object:
-            return False
-
-        if not getattr(context, "texture_slot", None):
-            return False
-
-        engine = context.scene.render.engine
-        return (engine in cls.COMPAT_ENGINES)
-
-    def draw(self, context):
-        layout = self.layout
-
-        idblock = context_tex_datablock(context)
-
-        tex = context.texture_slot
-
-        if not isinstance(idblock, Brush):
-            split = layout.split(percentage=0.3)
-            col = split.column()
-            col.label(text="Coordinates:")
-            col = split.column()
-            col.prop(tex, "texture_coords", text="")
-
-            if tex.texture_coords == 'ORCO':
-                """
-                ob = context.object
-                if ob and ob.type == 'MESH':
-                    split = layout.split(percentage=0.3)
-                    split.label(text="Mesh:")
-                    split.prop(ob.data, "texco_mesh", text="")
-                """
-            elif tex.texture_coords == 'UV':
-                split = layout.split(percentage=0.3)
-                split.label(text="Map:")
-                ob = context.object
-                if ob and ob.type == 'MESH':
-                    split.prop_search(tex, "uv_layer", ob.data, "uv_layers", text="")
-                else:
-                    split.prop(tex, "uv_layer", text="")
-
-            elif tex.texture_coords == 'OBJECT':
-                split = layout.split(percentage=0.3)
-                split.label(text="Object:")
-                split.prop(tex, "object", text="")
-
-            elif tex.texture_coords == 'ALONG_STROKE':
-                split = layout.split(percentage=0.3)
-                split.label(text="Use Tips:")
-                split.prop(tex, "use_tips", text="")
-
-        if isinstance(idblock, Brush):
-            if context.sculpt_object or context.image_paint_object:
-                brush_texture_settings(layout, idblock, context.sculpt_object)
-        else:
-            split = layout.split()
-
-            col = split.column()
-
-            row = layout.row()
-            row.column().prop(tex, "offset")
-            row.column().prop(tex, "scale")
-            row = layout.row()
-            row.prop(tex, "rotation")
-
 class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
     bl_label = "Mapping"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     @classmethod
     def poll(cls, context):
@@ -1102,183 +1022,10 @@ class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
             row.column().prop(tex, "offset")
             row.column().prop(tex, "scale")
 
-class TEXTURE_PT_game_parallax(TextureSlotPanel, Panel):
-    bl_label = "Parallax"
-    COMPAT_ENGINES = {'BLENDER_GAME'}
-
-    @classmethod
-    def poll(cls, context):
-        idblock = context_tex_datablock(context)
-        if isinstance(idblock, Brush) and not context.sculpt_object:
-            return False
-
-        if not getattr(context, "texture_slot", None):
-            return False
-
-        tex = context.texture_slot
-
-        engine = context.scene.render.engine
-        return (engine in cls.COMPAT_ENGINES and tex.texture_coords == 'UV')
-
-    def draw(self, context):
-        layout = self.layout
-
-        tex = context.texture_slot
-
-        split = layout.split()
-        col = split.column()
-        col.prop(tex, "use_map_parallax")
-        sub = col.column()
-        sub.active = not tex.use_map_parallax
-        sub.prop(tex, "use_parallax_uv")
-        sub = col.column()
-        sub.active = tex.use_map_parallax
-        sub.prop(tex, "parallax_uv_discard", text="Discard Edges")
-
-        col = split.column()
-        col.active = tex.use_map_parallax
-        col.prop(tex, "parallax_steps", text="Steps")
-        col.prop(tex, "parallax_bump_scale", text="Bump Scale")
-
-class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
-    bl_label = "Influence"
-    COMPAT_ENGINES = {'BLENDER_GAME'}
-
-    @classmethod
-    def poll(cls, context):
-        idblock = context_tex_datablock(context)
-        if isinstance(idblock, Brush):
-            return False
-
-        if not getattr(context, "texture_slot", None):
-            return False
-
-        engine = context.scene.render.engine
-        return (engine in cls.COMPAT_ENGINES)
-
-    def draw(self, context):
-
-        layout = self.layout
-
-        idblock = context_tex_datablock(context)
-
-        tex = context.texture_slot
-
-        def factor_but(layout, toggle, factor, name):
-            row = layout.row(align=True)
-            row.prop(tex, toggle, text="")
-            sub = row.row(align=True)
-            sub.active = getattr(tex, toggle)
-            sub.prop(tex, factor, text=name, slider=True)
-            return sub  # XXX, temp. use_map_normal needs to override.
-
-        if isinstance(idblock, Material):
-            split = layout.split()
-
-            col = split.column()
-            col.label(text="Diffuse:")
-            factor_but(col, "use_map_diffuse", "diffuse_factor", "Intensity")
-            factor_but(col, "use_map_color_diffuse", "diffuse_color_factor", "Color")
-            factor_but(col, "use_map_alpha", "alpha_factor", "Alpha")
-            factor_but(col, "use_map_translucency", "translucency_factor", "Translucency")
-
-            col.label(text="Specular:")
-            factor_but(col, "use_map_specular", "specular_factor", "Intensity")
-            factor_but(col, "use_map_color_spec", "specular_color_factor", "Color")
-            factor_but(col, "use_map_hardness", "hardness_factor", "Hardness")
-
-            col.label(text="Mipmapping:")
-            col.prop(tex, "lod_bias")
-
-            col = split.column()
-            col.label(text="Shading:")
-            factor_but(col, "use_map_ambient", "ambient_factor", "Ambient")
-            factor_but(col, "use_map_emit", "emit_factor", "Emit")
-            factor_but(col, "use_map_mirror", "mirror_factor", "Mirror")
-            factor_but(col, "use_map_raymir", "raymir_factor", "Ray Mirror")
-
-            col.label(text="Geometry:")
-            # XXX replace 'or' when displacement is fixed to not rely on normal influence value.
-            sub_tmp = factor_but(col, "use_map_normal", "normal_factor", "Normal")
-            sub_tmp.active = (tex.use_map_normal or tex.use_map_displacement)
-            # END XXX
-
-            sub = col.column()
-            if hasattr(context.texture, "environment_map"):
-                sub.active = (tex.texture_coords == "REFLECTION" and context.texture.environment_map.mapping == 'CUBE')
-            else:
-                sub.active = False
-
-            sub.label(text="Refraction:")
-            sub.prop(tex, "ior", text="IOR")
-            sub.prop(tex, "refraction_ratio", text="Ratio")
-
-        elif isinstance(idblock, Lamp):
-            split = layout.split()
-
-            col = split.column()
-            factor_but(col, "use_map_color", "color_factor", "Color")
-
-            col = split.column()
-            factor_but(col, "use_map_shadow", "shadow_factor", "Shadow")
-
-            split = layout.split()
-            col = split.column()
-            col.label(text="Mipmapping:")
-            col.prop(tex, "lod_bias")
-            col = split.column()
-
-        elif isinstance(idblock, World):
-            split = layout.split()
-
-            col = split.column()
-            factor_but(col, "use_map_blend", "blend_factor", "Blend")
-            factor_but(col, "use_map_horizon", "horizon_factor", "Horizon")
-
-            col = split.column()
-            factor_but(col, "use_map_zenith_up", "zenith_up_factor", "Zenith Up")
-            factor_but(col, "use_map_zenith_down", "zenith_down_factor", "Zenith Down")
-
-            split = layout.split()
-            col = split.column()
-            col.label(text="Mipmapping:")
-            col.prop(tex, "lod_bias")
-            col = split.column()
-
-        if not isinstance(idblock, ParticleSettings):
-            split = layout.split()
-
-            col = split.column()
-            col.prop(tex, "blend_type", text="Blend")
-            col.prop(tex, "use_rgb_to_intensity")
-            # color is used on gray-scale textures even when use_rgb_to_intensity is disabled.
-            col.prop(tex, "color", text="")
-
-            col = split.column()
-            col.prop(tex, "invert", text="Negative")
-            col.prop(tex, "use_stencil")
-
-        if isinstance(idblock, Material) or isinstance(idblock, World):
-            col.prop(tex, "default_value", text="DVar", slider=True)
-
-        if isinstance(idblock, Material):
-            layout.label(text="Bump Mapping:")
-
-            # only show bump settings if activated but not for normal-map images
-            row = layout.row()
-
-            sub = row.row()
-            sub.active = (tex.use_map_normal or tex.use_map_warp) and not (tex.texture.type == 'IMAGE' and (tex.texture.use_normal_map or tex.texture.use_derivative_map))
-            sub.prop(tex, "bump_method", text="Method")
-
-            # the space setting is supported for: derivative-maps + bump-maps (DEFAULT,BEST_QUALITY), not for normal-maps
-            sub = row.row()
-            sub.active = (tex.use_map_normal or tex.use_map_warp) and not (tex.texture.type == 'IMAGE' and tex.texture.use_normal_map) and ((tex.bump_method in {'BUMP_LOW_QUALITY', 'BUMP_MEDIUM_QUALITY', 'BUMP_BEST_QUALITY'}) or (tex.texture.type == 'IMAGE' and tex.texture.use_derivative_map))
-            sub.prop(tex, "bump_objectspace", text="Space")
 
 class TEXTURE_PT_influence(TextureSlotPanel, Panel):
     bl_label = "Influence"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     @classmethod
     def poll(cls, context):
@@ -1340,19 +1087,6 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
                 factor_but(col, "use_map_warp", "warp_factor", "Warp")
                 factor_but(col, "use_map_displacement", "displacement_factor", "Displace")
 
-                col.label(text="Mipmapping:")
-                col.prop(tex, "lod_bias")
-
-                sub = col.column()
-                if hasattr(context.texture, "environment_map"):
-                    sub.active = (tex.texture_coords == "REFLECTION" and context.texture.environment_map.mapping == 'CUBE')
-                else:
-                    sub.active = False
-
-                sub.label(text="Refraction:")
-                sub.prop(tex, "ior", text="IOR")
-                sub.prop(tex, "refraction_ratio", text="Ratio")
-
                 #~ sub = col.column()
                 #~ sub.active = tex.use_map_translucency or tex.map_emit or tex.map_alpha or tex.map_raymir or tex.map_hardness or tex.map_ambient or tex.map_specularity or tex.map_reflection or tex.map_mirror
                 #~ sub.prop(tex, "default_value", text="Amount", slider=True)
@@ -1405,9 +1139,6 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
             col = split.column()
             factor_but(col, "use_map_shadow", "shadow_factor", "Shadow")
 
-            col = split.column()
-            col.prop(tex, "lod_bias")
-
         elif isinstance(idblock, World):
             split = layout.split()
 
@@ -1418,9 +1149,6 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
             col = split.column()
             factor_but(col, "use_map_zenith_up", "zenith_up_factor", "Zenith Up")
             factor_but(col, "use_map_zenith_down", "zenith_down_factor", "Zenith Down")
-
-            col = split.column()
-            col.prop(tex, "lod_bias")
         elif isinstance(idblock, ParticleSettings):
             split = layout.split()
 
@@ -1534,10 +1262,7 @@ classes = (
     TEXTURE_PT_pointdensity,
     TEXTURE_PT_pointdensity_turbulence,
     TEXTURE_PT_ocean,
-    TEXTURE_PT_game_mapping,
     TEXTURE_PT_mapping,
-    TEXTURE_PT_game_parallax,
-    TEXTURE_PT_game_influence,
     TEXTURE_PT_influence,
     TEXTURE_PT_custom_props,
 )

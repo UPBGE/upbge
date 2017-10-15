@@ -36,7 +36,6 @@
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
-#include "BLI_math_matrix.h"
 
 #include "DNA_vec_types.h"
 #include "DNA_userdef_types.h"
@@ -48,8 +47,6 @@
 #include "GPU_immediate.h"
 #include "GPU_texture.h"
 #include "GPU_viewport.h"
-#include "GPU_matrix.h"
-#include "GPU_debug.h"
 
 #include "DRW_engine.h"
 
@@ -215,28 +212,6 @@ void *GPU_viewport_texture_list_get(GPUViewport *viewport)
 	return viewport->txl;
 }
 
-void *GPU_viewport_storage_list_get(GPUViewport *viewport, void *engine_type)
-{
-	for (LinkData *link = viewport->data.first; link; link = link->next) {
-		ViewportEngineData *vdata = link->data;
-		if (vdata->engine_type == engine_type) {
-			return vdata->stl;
-		}
-	}
-	return NULL;
-}
-
-void *GPU_viewport_pass_list_get(GPUViewport *viewport, void *engine_type)
-{
-	for (LinkData *link = viewport->data.first; link; link = link->next) {
-		ViewportEngineData *vdata = link->data;
-		if (vdata->engine_type == engine_type) {
-			return vdata->psl;
-		}
-	}
-	return NULL;
-}
-
 void GPU_viewport_size_get(const GPUViewport *viewport, int size[2])
 {
 	size[0] = viewport->size[0];
@@ -280,7 +255,7 @@ GPUTexture *GPU_viewport_texture_pool_query(GPUViewport *viewport, void *engine,
 		}
 	}
 
-	tex = GPU_texture_create_2D_custom(width, height, channels, format, 0, NULL, NULL);
+	tex = GPU_texture_create_2D_custom(width, height, channels, format, NULL, NULL);
 
 	ViewportTempTexture *tmp_tex = MEM_callocN(sizeof(ViewportTempTexture), "ViewportTempTexture");
 	tmp_tex->texture = tex;
@@ -501,7 +476,6 @@ static void draw_ofs_to_screen(GPUViewport *viewport)
 	GPU_texture_bind(color, 0);
 
 	immUniform1i("image", 0); /* default GL_TEXTURE0 unit */
-	immUniform1f("alpha", 1.0f);
 
 	immBegin(GWN_PRIM_TRI_STRIP, 4);
 
@@ -603,7 +577,7 @@ void GPU_viewport_free(GPUViewport *viewport)
 
 bool GPU_viewport_debug_depth_create(GPUViewport *viewport, int width, int height, char err_out[256])
 {
-	viewport->debug_depth = GPU_texture_create_2D_custom(width, height, 4, GPU_RGBA16F, 0, NULL, err_out);
+	viewport->debug_depth = GPU_texture_create_2D_custom(width, height, 4, GPU_RGBA16F, NULL, err_out);
 	return (viewport->debug_depth != NULL);
 }
 

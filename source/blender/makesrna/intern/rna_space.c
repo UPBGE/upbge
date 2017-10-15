@@ -518,14 +518,6 @@ static void rna_SpaceView3D_lock_camera_and_layers_set(PointerRNA *ptr, int valu
 	}
 }
 
-static void rna_SpaceView3D_material_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
-{
-	View3D *v3d = (View3D *)(ptr->data);
-	if (v3d->scenelock) {
-		DEG_id_tag_update(&scene->id, 0);
-	}
-}
-
 static void rna_View3D_CursorLocation_get(PointerRNA *ptr, float *values)
 {
 	View3D *v3d = (View3D *)(ptr->data);
@@ -2657,11 +2649,6 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "World Background", "Display world colors in the background");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "show_mist", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag3", V3D_SHOW_MIST);
-	RNA_def_property_ui_text(prop, "World Mist", "Display world mist");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_material_update");
-
 	prop = RNA_def_property(srna, "use_occlude_geometry", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", V3D_ZBUF_SELECT);
 	RNA_def_property_ui_text(prop, "Occlude Geometry", "Limit selection to visible (clipped with depth buffer)");
@@ -4518,11 +4505,6 @@ static void rna_def_space_logic(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "SpaceLogicEditor", "Space");
 	RNA_def_struct_sdna(srna, "SpaceLogic");
 	RNA_def_struct_ui_text(srna, "Space Logic Editor", "Logic editor space data");
-
-	/* Properties */
-	prop = RNA_def_property(srna, "import_string", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "import_string");
-	RNA_def_property_ui_text(prop, "Import String", "Import string used to find the component when adding a new component");
 
 	/* sensors */
 	prop = RNA_def_property(srna, "show_sensors_selected_objects", PROP_BOOLEAN, PROP_NONE);

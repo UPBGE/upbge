@@ -2511,6 +2511,10 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 			if (ts->sculpt)
 				ts->sculpt->flags |= SCULPT_DYNTOPO_SUBDIVIDE;
 
+			/* single texture mode removed from game engine */
+			if (scene->gm.matmode == GAME_MAT_TEXFACE)
+				scene->gm.matmode = GAME_MAT_MULTITEX;
+
 			/* 'Increment' mode disabled for nodes, use true grid snapping instead */
 			if (scene->toolsettings->snap_node_mode == SCE_SNAP_MODE_INCREMENT)
 				scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_GRID;

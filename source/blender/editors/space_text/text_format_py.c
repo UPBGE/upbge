@@ -87,7 +87,6 @@ static int txtfmt_py_find_builtinfunc(const char *string)
 	else if (STR_LITERAL_STARTSWITH(string, "while",    len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "with",     len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "yield",    len)) i = len;
-	else if (STR_LITERAL_STARTSWITH(string, "self",    len)) i = len;
 	else                                                      i = 0;
 
 	/* If next source char is an identifier (eg. 'i' in "definate") no match */
@@ -314,7 +313,6 @@ void ED_text_format_register_py(void)
 	tft.format_identifier = txtfmt_py_format_identifier;
 	tft.format_line       = txtfmt_py_format_line;
 	tft.ext = ext;
-	tft.comment_prefix = "#";
 
 	ED_text_format_register(&tft);
 }

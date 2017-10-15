@@ -76,7 +76,6 @@
 #include "GPU_matrix.h"
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
-#include "GPU_shader.h"
 #include "GPU_material.h"
 #include "GPU_viewport.h"
 #include "GPU_compositing.h"
@@ -2103,7 +2102,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 
 	if (own_ofs) {
 		/* bind */
-		ofs = GPU_offscreen_create(sizex, sizey, full_samples ? 0 : samples, GPU_RGBA8, GPU_OFFSCREEN_DEPTH_COMPARE, err_out);
+		ofs = GPU_offscreen_create(sizex, sizey, full_samples ? 0 : samples, err_out);
 		if (ofs == NULL) {
 			return NULL;
 		}

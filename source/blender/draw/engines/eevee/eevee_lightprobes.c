@@ -1528,4 +1528,3 @@ void EEVEE_lightprobes_free(void)
 	DRW_TEXTURE_FREE_SAFE(e_data.depth_placeholder);
 	DRW_TEXTURE_FREE_SAFE(e_data.depth_array_placeholder);
 }
-

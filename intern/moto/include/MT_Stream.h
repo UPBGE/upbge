@@ -33,8 +33,6 @@
 #ifndef GEN_STREAM_H
 #define GEN_STREAM_H
 
-#include "MT_Config.h"
-
 #ifdef __CUSTOM_STREAM
 
 class MT_OStream

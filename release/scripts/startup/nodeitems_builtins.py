@@ -146,8 +146,7 @@ def cycles_shader_nodes_poll(context):
 
 
 def eevee_shader_nodes_poll(context):
-    return (context.scene.render.engine == 'BLENDER_EEVEE' or
-            context.scene.render.engine == 'BLENDER_GAME')
+    return context.scene.render.engine == 'BLENDER_EEVEE'
 
 
 def eevee_cycles_shader_nodes_poll(context):
@@ -176,6 +175,7 @@ def volume_shader_nodes_poll(context):
            (eevee_shader_nodes_poll(context) and
             world_shader_nodes_poll(context)))
 
+
 # All standard node categories currently used in nodes.
 
 shader_node_categories = [
@@ -183,8 +183,6 @@ shader_node_categories = [
     ShaderOldNodeCategory("SH_INPUT", "Input", items=[
         NodeItem("ShaderNodeMaterial"),
         NodeItem("ShaderNodeCameraData"),
-        NodeItem("ShaderNodeObjectData"),
-        NodeItem("ShaderNodeTime"),
         NodeItem("ShaderNodeFresnel"),
         NodeItem("ShaderNodeLayerWeight"),
         NodeItem("ShaderNodeLampData"),

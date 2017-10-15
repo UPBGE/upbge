@@ -42,7 +42,6 @@ struct ViewportEngineData;
 struct View3D;
 struct rcti;
 struct GPUOffScreen;
-struct GPUViewport;
 
 #include "BLI_sys_types.h"  /* for bool */
 
@@ -63,7 +62,6 @@ void DRW_engines_register(void);
 void DRW_engines_free(void);
 
 void DRW_engine_register(struct DrawEngineType *draw_engine_type);
-void *DRW_viewport_engine_data_get(void *engine_type);
 void DRW_engine_viewport_data_size_get(
         const void *engine_type,
         int *r_fbl_len, int *r_txl_len, int *r_psl_len, int *r_stl_len);
@@ -100,11 +98,5 @@ void EDIT_MESH_collection_settings_create(struct IDProperty *properties);
 void EDIT_ARMATURE_collection_settings_create(struct IDProperty *properties);
 void PAINT_WEIGHT_collection_settings_create(struct IDProperty *properties);
 void PAINT_VERTEX_collection_settings_create(struct IDProperty *properties);
-
-/*************************************************Game engine************************************************/
-void DRW_game_render_loop_begin(struct GPUOffScreen *ofs, struct Depsgraph *graph,
-								struct Scene *scene, struct SceneLayer *sl, struct Object *maincam, int viewportsize[2], bool is_first_scene);
-void DRW_game_render_loop_end(void);
-/********************************************End of game engine**********************************************/
 
 #endif /* __DRW_ENGINE_H__ */

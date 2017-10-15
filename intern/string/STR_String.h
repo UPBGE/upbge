@@ -46,7 +46,6 @@
 #endif
 
 #include <vector>
-#include <string> // Compatibility
 #include <limits.h>
 
 #include <cstring>
@@ -82,7 +81,6 @@ public:
 	STR_String(const STR_String &str);
 	STR_String(const STR_String & str, int len);
 	STR_String(const char *src1, int src1_len, const char *src2, int src2_len);
-	STR_String(const std::string& s); // Compatibility
 	explicit STR_String(int val);
 	explicit STR_String(dword val);
 	explicit STR_String(float val);

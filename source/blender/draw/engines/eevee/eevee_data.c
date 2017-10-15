@@ -26,7 +26,6 @@
  *  \ingroup draw_engine
  */
 
-#include "DRW_engine.h"
 #include "DRW_render.h"
 
 #include "eevee_private.h"
@@ -125,11 +124,3 @@ EEVEE_LampEngineData *EEVEE_lamp_data_get(Object *ob)
 
 	return *ledata;
 }
-
-/********************Game engine*************************/
-EEVEE_Data *EEVEE_engine_data_get(void)
-{
-	EEVEE_Data *data = (EEVEE_Data *)DRW_viewport_engine_data_get(&draw_engine_eevee_type);
-	return data;
-}
-/*****************End of Game engine*********************/

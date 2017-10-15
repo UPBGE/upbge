@@ -38,7 +38,6 @@
 /* **************** TEXTURE ******************** */
 static bNodeSocketTemplate sh_node_texture_in[] = {
 	{	SOCK_VECTOR, 1, "Vector",	0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_NONE, SOCK_HIDE_VALUE},	/* no limit */
-	{	SOCK_FLOAT,	1, "Lod Bias",	0.0f, 0.0f, 0.0f, 0.0f, -99.0f, 99.0f, PROP_NONE, 0 },
 	{	-1, 0, ""	}
 };
 static bNodeSocketTemplate sh_node_texture_out[] = {
@@ -132,13 +131,10 @@ static int gpu_shader_texture(GPUMaterial *mat, bNode *node, bNodeExecData *UNUS
 		else { /* TEX_ENVMAP */
 			if (!in[0].link)
 				in[0].link = GPU_uniform(in[0].vec);
-			if (!in[1].link) {
-				in[1].link = GPU_uniform(&in[1].vec[0]);
-			}
 			if (!GPU_material_use_world_space_shading(mat))
 				GPU_link(mat, "direction_transform_m4v3", in[0].link, GPU_builtin(GPU_INVERSE_VIEW_MATRIX), &in[0].link);
 			GPU_link(mat, "mtex_cube_map_refl_from_refldir",
-				GPU_cube_map(tex->ima, &tex->iuser, false), in[0].link, in[1].link, &out[0].link, &out[1].link);
+				GPU_cube_map(tex->ima, &tex->iuser, false), in[0].link, &out[0].link, &out[1].link);
 			GPU_link(mat, "color_to_normal", out[1].link, &out[2].link);
 		}
 

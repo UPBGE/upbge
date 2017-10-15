@@ -82,7 +82,7 @@ endif()
 
 if(WITH_GAMEENGINE)
 	list(APPEND INC
-		../../../gameengine/Launcher
+		../../../gameengine/BlenderRoutines
 	)
 	add_definitions(-DWITH_GAMEENGINE)
 endif()

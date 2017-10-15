@@ -73,12 +73,6 @@ base class --- :class:`PyObjectPlus`
 
       :type: :class:`CListValue` of :class:`KX_Camera`
 
-   .. attribute:: texts
-
-      A list of texts in the scene, (read-only).
-
-      :type: :class:`CListValue` of :class:`KX_FontObject`
-
    .. attribute:: active_camera
 
       The current active camera.
@@ -89,23 +83,11 @@ base class --- :class:`PyObjectPlus`
          
          This can be set directly from python to avoid using the :class:`KX_SceneActuator`.
 
-   .. attribute:: overrideCullingCamera
-
-      The override camera used for scene culling, if set to None the culling is proceeded with the camera used to render.
-
-      :type: :class:`KX_Camera` or None
-
    .. attribute:: world
 
       The current active world, (read-only).
 
       :type: :class:`KX_WorldInfo`
-
-   .. attribute:: filterManager
-
-      The scene's 2D filter manager, (read-only).
-
-      :type: :class:`KX_2DFilterManager`
 
    .. attribute:: suspended
 
@@ -133,7 +115,7 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: pre_draw
 
-      A list of callables to be run before the render step. The callbacks can take as argument the rendered camera.
+      A list of callables to be run before the render step.
 
       :type: list
 
@@ -145,8 +127,7 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: pre_draw_setup
 
-      A list of callables to be run before the drawing setup (i.e., before the model view and projection matrices are computed). 
-      The callbacks can take as argument the rendered camera, the camera could be temporary in case of stereo rendering.
+      A list of callables to be run before the drawing setup (i.e., before the model view and projection matrices are computed).
 
       :type: list
 
@@ -156,7 +137,7 @@ base class --- :class:`PyObjectPlus`
 
       :type: Vector((gx, gy, gz))
 
-   .. method:: addObject(object, reference, time=0.0)
+   .. method:: addObject(object, reference, time=0)
 
       Adds an object to the scene like the Add Object Actuator would.
 
@@ -164,8 +145,8 @@ base class --- :class:`PyObjectPlus`
       :type object: :class:`KX_GameObject` or string
       :arg reference: The (name of the) object which position, orientation, and scale to copy (optional), if the object to add is a light and there is not reference the light's layer will be the same that the active layer in the blender scene.
       :type reference: :class:`KX_GameObject` or string
-      :arg time: The lifetime of the added object, in frames (assumes one frame is 1/50 second). A time of 0.0 means the object will last forever (optional).
-      :type time: float
+      :arg time: The lifetime of the added object, in frames. A time of 0 means the object will last forever (optional).
+      :type time: integer
       :return: The newly added object.
       :rtype: :class:`KX_GameObject`
 

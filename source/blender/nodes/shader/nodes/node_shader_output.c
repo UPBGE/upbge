@@ -76,7 +76,7 @@ static int gpu_shader_output(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSE
 		GPU_material_enable_alpha(mat);
 #endif
 
-	if (BKE_scene_uses_blender_eevee(GPU_material_scene(mat)) || BKE_scene_uses_blender_game(GPU_material_scene(mat))) {
+	if (BKE_scene_uses_blender_eevee(GPU_material_scene(mat))) {
 		return false;
 	}
 

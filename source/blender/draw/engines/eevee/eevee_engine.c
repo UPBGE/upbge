@@ -46,11 +46,10 @@ extern GlobalsUboStorage ts;
 static void EEVEE_engine_init(void *ved)
 {
 	EEVEE_Data *vedata = (EEVEE_Data *)ved;
-	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
-
 	EEVEE_TextureList *txl = vedata->txl;
 	EEVEE_FramebufferList *fbl = vedata->fbl;
 	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
+	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 
 	if (!stl->g_data) {
 		/* Alloc transient pointers */
@@ -396,18 +395,3 @@ RenderEngineType DRW_engine_viewport_eevee_type = {
 
 
 #undef EEVEE_ENGINE
-
-/***************************Game engine******************************/
-#define GAME_ENGINE "BLENDER_GAME"
-
-RenderEngineType DRW_engine_viewport_game_type = {
-	NULL, NULL,
-	GAME_ENGINE, N_("Blender Game"), RE_INTERNAL | RE_USE_SHADING_NODES,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-	&EEVEE_layer_collection_settings_create, &EEVEE_scene_layer_settings_create,
-	&draw_engine_eevee_type,
-	{ NULL, NULL, NULL }
-};
-
-#undef GAME_ENGINE
-/************************End of Game engine**************************/

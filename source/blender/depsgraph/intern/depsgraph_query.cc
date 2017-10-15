@@ -38,7 +38,6 @@ extern "C" {
 #include "BKE_idcode.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
-#include "BKE_scene.h"
 } /* extern "C" */
 
 #include "DNA_object_types.h"

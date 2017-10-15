@@ -284,7 +284,7 @@ static void backdrawview3d(const struct EvaluationContext *eval_ctx, Scene *scen
 		}
 
 		if (!rv3d->gpuoffscreen) {
-			rv3d->gpuoffscreen = GPU_offscreen_create(w, h, 0, GPU_RGBA8, GPU_OFFSCREEN_DEPTH_COMPARE, error);
+			rv3d->gpuoffscreen = GPU_offscreen_create(w, h, 0, error);
 
 			if (!rv3d->gpuoffscreen)
 				fprintf(stderr, "Failed to create offscreen selection buffer for multisample: %s\n", error);
@@ -1452,13 +1452,11 @@ static void gpu_update_lamps_shadows_world(const EvaluationContext *eval_ctx, Sc
 
 	/* update world values */
 	if (world) {
-		GPU_mist_update_enable(world->mode & WO_MIST && v3d->flag3 & V3D_SHOW_MIST);
+		GPU_mist_update_enable(world->mode & WO_MIST);
 		GPU_mist_update_values(world->mistype, world->miststa, world->mistdist, world->misi, &world->horr);
 		GPU_horizon_update_color(&world->horr);
 		GPU_ambient_update_color(&world->ambr);
 		GPU_zenith_update_color(&world->zenr);
-		GPU_update_exposure_range(world->exp, world->range);
-		GPU_update_envlight_energy(world->ao_env_energy);
 	}
 }
 
@@ -1479,7 +1477,9 @@ CustomDataMask ED_view3d_datamask(const Scene *scene, const View3D *v3d)
 				mask |= CD_MASK_ORCO;
 		}
 		else {
-			if (drawtype == OB_TEXTURE || drawtype == OB_MATERIAL) {
+			if ((scene->gm.matmode == GAME_MAT_GLSL && drawtype == OB_TEXTURE) || 
+			    (drawtype == OB_MATERIAL))
+			{
 				mask |= CD_MASK_ORCO;
 			}
 		}

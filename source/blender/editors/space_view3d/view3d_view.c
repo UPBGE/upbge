@@ -51,7 +51,6 @@
 #include "BKE_screen.h"
 
 #include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
 
 #include "BIF_glutil.h"
 
@@ -76,7 +75,7 @@
 
 #  include "GPU_draw.h"
 
-#  include "LA_SystemCommandLine.h"
+#  include "BL_System.h"
 #endif
 
 
@@ -1435,13 +1434,16 @@ static void game_set_commmandline_options(GameData *gm)
 		test = (gm->flag & GAME_ENABLE_ALL_FRAMES);
 		SYS_WriteCommandLineInt(syshandle, "fixedtime", test);
 
+		test = (gm->flag & GAME_ENABLE_ANIMATION_RECORD);
+		SYS_WriteCommandLineInt(syshandle, "animation_record", test);
+
 		test = (gm->flag & GAME_IGNORE_DEPRECATION_WARNINGS);
 		SYS_WriteCommandLineInt(syshandle, "ignore_deprecation_warnings", test);
 
-		SYS_WriteCommandLineInt(syshandle, "show_bounding_box", gm->showBoundingBox);
-		SYS_WriteCommandLineInt(syshandle, "show_armatures", gm->showArmatures);
-		SYS_WriteCommandLineInt(syshandle, "show_camera_frustum", gm->showCameraFrustum);
-		SYS_WriteCommandLineInt(syshandle, "show_shadow_frustum", gm->showShadowFrustum);
+		test = (gm->matmode == GAME_MAT_MULTITEX);
+		SYS_WriteCommandLineInt(syshandle, "blender_material", test);
+		test = (gm->matmode == GAME_MAT_GLSL);
+		SYS_WriteCommandLineInt(syshandle, "blender_glsl_material", test);
 	}
 }
 
@@ -1463,8 +1465,8 @@ static int game_engine_poll(bContext *C)
 	if (CTX_data_mode_enum(C) != CTX_MODE_OBJECT)
 		return 0;
 
-	/*if (!BKE_scene_uses_blender_game(screen->scene))
-		return 0;*/
+	if (!BKE_scene_uses_blender_game(scene))
+		return 0;
 
 	return 1;
 }
@@ -1512,10 +1514,6 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	/* bad context switch .. */
 	if (!ED_view3d_context_activate(C))
 		return OPERATOR_CANCELLED;
-
-	for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
-		DEG_scene_relations_rebuild(bmain, scene);
-	}
 	
 	/* redraw to hide any menus/popups, we don't go back to
 	 * the window manager until after this operator exits */
@@ -1532,7 +1530,8 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	game_set_commmandline_options(&startscene->gm);
 
 	if ((rv3d->persp == RV3D_CAMOB) &&
-	    (startscene->gm.framing.type == SCE_GAMEFRAMING_BARS))
+	    (startscene->gm.framing.type == SCE_GAMEFRAMING_BARS) &&
+	    (startscene->gm.stereoflag != STEREO_DOME))
 	{
 		/* Letterbox */
 		rctf cam_framef;

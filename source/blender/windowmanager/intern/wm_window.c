@@ -1546,13 +1546,6 @@ void wm_window_testbreak(void)
 	}
 }
 
-void wm_window_set_order(wmWindow *win, int order)
-{
-	if (win->ghostwin) {
-		GHOST_SetWindowOrder(win->ghostwin, (order == 0) ? GHOST_kWindowOrderBottom : GHOST_kWindowOrderTop);
-	}
-}
-
 /* **************** init ********************** */
 
 void wm_ghost_init(bContext *C)

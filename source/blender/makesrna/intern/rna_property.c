@@ -87,7 +87,7 @@ static float rna_GameFloatProperty_value_get(PointerRNA *ptr)
 static void rna_GameFloatProperty_value_set(PointerRNA *ptr, float value)
 {
 	bProperty *prop = (bProperty *)(ptr->data);
-	CLAMP(value, -FLT_MAX, FLT_MAX);
+	CLAMP(value, -10000.0f, 10000.0f);
 	*(float *)(&prop->data) = value;
 }
 
@@ -160,7 +160,7 @@ void RNA_def_gameproperty(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "value", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "data");
 	RNA_def_property_ui_text(prop, "Value", "Property value");
-	RNA_def_property_range(prop, -INT_MAX, INT_MAX);
+	RNA_def_property_range(prop, -10000, 10000);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	/* GameFloatProperty */
@@ -171,7 +171,7 @@ void RNA_def_gameproperty(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_NONE);
 	/* RNA_def_property_float_sdna(prop, NULL, "data"); */
 	RNA_def_property_ui_text(prop, "Value", "Property value");
-	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
+	RNA_def_property_range(prop, -10000, 10000);
 	RNA_def_property_float_funcs(prop, "rna_GameFloatProperty_value_get", "rna_GameFloatProperty_value_set", NULL);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
@@ -183,7 +183,7 @@ void RNA_def_gameproperty(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_NONE);
 	/* RNA_def_property_float_sdna(prop, NULL, "data"); */
 	RNA_def_property_ui_text(prop, "Value", "Property value");
-	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
+	RNA_def_property_range(prop, -10000, 10000);
 	RNA_def_property_float_funcs(prop, "rna_GameFloatProperty_value_get", "rna_GameFloatProperty_value_set", NULL);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 

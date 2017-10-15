@@ -1,11 +1,11 @@
-KX_NearSensor(KX_CollisionSensor)
-=================================
+KX_NearSensor(KX_TouchSensor)
+=============================
 
 .. module:: bge.types
 
-base class --- :class:`KX_CollisionSensor`
+base class --- :class:`KX_TouchSensor`
 
-.. class:: KX_NearSensor(KX_CollisionSensor)
+.. class:: KX_NearSensor(KX_TouchSensor)
 
    A near sensor is a specialised form of touch sensor.
 

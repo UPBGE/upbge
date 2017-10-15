@@ -47,8 +47,6 @@ void register_node_type_sh_group(void);
 void register_node_type_sh_output(void);
 void register_node_type_sh_material(void);
 void register_node_type_sh_camera(void);
-void register_node_type_sh_object(void);
-void register_node_type_sh_time(void);
 void register_node_type_sh_lamp(void);
 void register_node_type_sh_value(void);
 void register_node_type_sh_rgb(void);

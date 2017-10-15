@@ -20,40 +20,6 @@
 import bpy
 from bpy.types import Header, Menu, Panel
 
-class LOGIC_PT_components(bpy.types.Panel):
-    bl_space_type = 'LOGIC_EDITOR'
-    bl_region_type = 'UI'
-    bl_label = 'Components'
-
-    @classmethod
-    def poll(cls, context):
-        ob = context.active_object
-        return ob and ob.name
-
-    def draw(self, context):
-        layout = self.layout
-
-        ob = context.active_object
-        game = ob.game
-
-        st = context.space_data
-
-        row = layout.row()
-        row.operator("logic.add_python_component", text="Add Component", icon="ZOOMIN")
-
-        for i, c in enumerate(game.components):
-            box = layout.box()
-            row = box.row()
-            row.prop(c, "name", text="")
-            row.operator("logic.component_reload", text="", icon='RECOVER_LAST').index = i
-            row.operator("logic.component_remove", text="", icon='X').index = i
-
-            for prop in c.properties:
-                row = box.row()
-                row.label(text=prop.name)
-                col = row.column()
-                col.prop(prop, "value", text="")
-
 
 class LOGIC_PT_properties(Panel):
     bl_space_type = 'LOGIC_EDITOR'
@@ -166,7 +132,6 @@ class LOGIC_MT_view(Menu):
 
 
 classes = (
-    LOGIC_PT_components,
     LOGIC_PT_properties,
     LOGIC_MT_logicbricks_add,
     LOGIC_HT_header,

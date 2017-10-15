@@ -1,88 +1,55 @@
 #include "MT_Optimize.h"
 
+/*
+ * This is a supposedly faster inverter than the cofactor
+ * computation. It uses an LU decomposition sort of thing.  */
 GEN_INLINE void MT_Matrix4x4::invert()  {
-	//
-	// Inversion by Cramer's rule.  Code taken from an Intel publication
-	//
-	MT_Scalar tmp[12]; // temp array for pairs
-	MT_Scalar src[16]; // array of transpose source matrix
-	MT_Scalar det; // determinant
-	// transpose matrix
-	for (unsigned int i = 0; i < 4; i++) {
-		src[i + 0] = m_el[i][0];
-		src[i + 4] = m_el[i][1];
-		src[i + 8] = m_el[i][2];
-		src[i + 12] = m_el[i][3];
-	}
-	// calculate pairs for first 8 elements (cofactors)
-	tmp[0] = src[10] * src[15];
-	tmp[1] = src[11] * src[14];
-	tmp[2] = src[9] * src[15];
-	tmp[3] = src[11] * src[13];
-	tmp[4] = src[9] * src[14];
-	tmp[5] = src[10] * src[13];
-	tmp[6] = src[8] * src[15];
-	tmp[7] = src[11] * src[12];
-	tmp[8] = src[8] * src[14];
-	tmp[9] = src[10] * src[12];
-	tmp[10] = src[8] * src[13];
-	tmp[11] = src[9] * src[12];
-	// calculate first 8 elements (cofactors)
-	m_el[0][0] = tmp[0] * src[5] + tmp[3] * src[6] + tmp[4] * src[7];
-	m_el[0][0] -= tmp[1] * src[5] + tmp[2] * src[6] + tmp[5] * src[7];
-	m_el[0][1] = tmp[1] * src[4] + tmp[6] * src[6] + tmp[9] * src[7];
-	m_el[0][1] -= tmp[0] * src[4] + tmp[7] * src[6] + tmp[8] * src[7];
-	m_el[0][2] = tmp[2] * src[4] + tmp[7] * src[5] + tmp[10] * src[7];
-	m_el[0][2] -= tmp[3] * src[4] + tmp[6] * src[5] + tmp[11] * src[7];
-	m_el[0][3] = tmp[5] * src[4] + tmp[8] * src[5] + tmp[11] * src[6];
-	m_el[0][3] -= tmp[4] * src[4] + tmp[9] * src[5] + tmp[10] * src[6];
-	m_el[1][0] = tmp[1] * src[1] + tmp[2] * src[2] + tmp[5] * src[3];
-	m_el[1][0] -= tmp[0] * src[1] + tmp[3] * src[2] + tmp[4] * src[3];
-	m_el[1][1] = tmp[0] * src[0] + tmp[7] * src[2] + tmp[8] * src[3];
-	m_el[1][1] -= tmp[1] * src[0] + tmp[6] * src[2] + tmp[9] * src[3];
-	m_el[1][2] = tmp[3] * src[0] + tmp[6] * src[1] + tmp[11] * src[3];
-	m_el[1][2] -= tmp[2] * src[0] + tmp[7] * src[1] + tmp[10] * src[3];
-	m_el[1][3] = tmp[4] * src[0] + tmp[9] * src[1] + tmp[10] * src[2];
-	m_el[1][3] -= tmp[5] * src[0] + tmp[8] * src[1] + tmp[11] * src[2];
-	// calculate pairs for second 8 elements (cofactors)
-	tmp[0] = src[2] * src[7];
-	tmp[1] = src[3] * src[6];
-	tmp[2] = src[1] * src[7];
-	tmp[3] = src[3] * src[5];
-	tmp[4] = src[1] * src[6];
-	tmp[5] = src[2] * src[5];
+	/* normalize row 0 */
 
-	tmp[6] = src[0] * src[7];
-	tmp[7] = src[3] * src[4];
-	tmp[8] = src[0] * src[6];
-	tmp[9] = src[2] * src[4];
-	tmp[10] = src[0] * src[5];
-	tmp[11] = src[1] * src[4];
-	// calculate second 8 elements (cofactors)
-	m_el[2][0] = tmp[0] * src[13] + tmp[3] * src[14] + tmp[4] * src[15];
-	m_el[2][0] -= tmp[1] * src[13] + tmp[2] * src[14] + tmp[5] * src[15];
-	m_el[2][1] = tmp[1] * src[12] + tmp[6] * src[14] + tmp[9] * src[15];
-	m_el[2][1] -= tmp[0] * src[12] + tmp[7] * src[14] + tmp[8] * src[15];
-	m_el[2][2] = tmp[2] * src[12] + tmp[7] * src[13] + tmp[10] * src[15];
-	m_el[2][2] -= tmp[3] * src[12] + tmp[6] * src[13] + tmp[11] * src[15];
-	m_el[2][3] = tmp[5] * src[12] + tmp[8] * src[13] + tmp[11] * src[14];
-	m_el[2][3] -= tmp[4] * src[12] + tmp[9] * src[13] + tmp[10] * src[14];
-	m_el[3][0] = tmp[2] * src[10] + tmp[5] * src[11] + tmp[1] * src[9];
-	m_el[3][0] -= tmp[4] * src[11] + tmp[0] * src[9] + tmp[3] * src[10];
-	m_el[3][1] = tmp[8] * src[11] + tmp[0] * src[8] + tmp[7] * src[10];
-	m_el[3][1] -= tmp[6] * src[10] + tmp[9] * src[11] + tmp[1] * src[8];
-	m_el[3][2] = tmp[6] * src[9] + tmp[11] * src[11] + tmp[3] * src[8];
-	m_el[3][2] -= tmp[10] * src[11] + tmp[2] * src[8] + tmp[7] * src[9];
-	m_el[3][3] = tmp[10] * src[10] + tmp[4] * src[8] + tmp[9] * src[9];
-	m_el[3][3] -= tmp[8] * src[9] + tmp[11] * src[10] + tmp[5] * src[8];
-	// calculate determinant
-	det = 1.0f / (src[0] * m_el[0][0] + src[1] * m_el[0][1] + src[2] * m_el[0][2] + src[3] * m_el[0][3]);
+	int i,j,k;
 
-	for (unsigned int i = 0; i < 4; i++) {
-		for (unsigned int j = 0; j < 4; j++) {
-			m_el[i][j] = m_el[i][j] * det;
+	for (i=1; i < 4; i++) m_el[0][i] /= m_el[0][0];
+	for (i=1; i < 4; i++)  { 
+		for (j=i; j < 4; j++)  { // do a column of L
+			MT_Scalar sum = 0.0f;
+			for (k = 0; k < i; k++)  
+				sum += m_el[j][k] * m_el[k][i];
+			m_el[j][i] -= sum;
+		}
+		if (i == 3) continue;
+		for (j=i+1; j < 4; j++)  {  // do a row of U
+			MT_Scalar sum = 0.0f;
+			for (k = 0; k < i; k++)
+				sum += m_el[i][k]*m_el[k][j];
+			m_el[i][j] = 
+				(m_el[i][j]-sum) / m_el[i][i];
 		}
 	}
+	for (i = 0; i < 4; i++ )  // invert L
+		for (j = i; j < 4; j++ )  {
+			MT_Scalar x = 1.0f;
+			if ( i != j ) {
+				x = 0.0f;
+				for (k = i; k < j; k++ ) 
+					x -= m_el[j][k]*m_el[k][i];
+			}
+			m_el[j][i] = x / m_el[j][j];
+		}
+	for (i = 0; i < 4; i++ )   // invert U
+		for (j = i; j < 4; j++ )  {
+			if ( i == j ) continue;
+			MT_Scalar sum = 0.0f;
+			for (k = i; k < j; k++ )
+				sum += m_el[k][j]*( (i==k) ? 1.0f : m_el[i][k] );
+			m_el[i][j] = -sum;
+		}
+	for (i = 0; i < 4; i++ )   // final inversion
+		for (j = 0; j < 4; j++ )  {
+			MT_Scalar sum = 0.0f;
+			for (k = ((i>j)?i:j); k < 4; k++ )  
+				sum += ((j==k)?1.0f:m_el[j][k])*m_el[k][i];
+			m_el[j][i] = sum;
+		}
 }
 
 GEN_INLINE MT_Matrix4x4 MT_Matrix4x4::inverse() const

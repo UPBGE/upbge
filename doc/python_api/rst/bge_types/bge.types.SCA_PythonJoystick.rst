@@ -37,7 +37,7 @@ base class --- :class:`PyObjectPlus`
       * up:[0.0, -1.0, ...]
       * down:[0.0, 1.0, ...]
 
-   .. attribute:: hatValues (Deprecated. Use :data:`activeButtons` instead)
+   .. attribute:: hatValues
 
       The state of the joysticks hats as a list of values :data:`numHats` long. (read-only).
 
@@ -69,7 +69,7 @@ base class --- :class:`PyObjectPlus`
 
       :type: integer
 
-   .. attribute:: numHats (Deprecated. Use :data:`numButtons` instead)
+   .. attribute:: numHats
 
       The number of hats for the joystick at this index. (read-only).
 

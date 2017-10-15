@@ -14,10 +14,18 @@
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
+# The Original Code is Copyright (C) 2006, Blender Foundation
+# All rights reserved.
+#
+# The Original Code is: all of this file.
+#
+# Contributor(s): Jacques Beaurain.
+#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
 	.
+	../guardedalloc
 )
 
 set(INC_SYS
@@ -25,10 +33,9 @@ set(INC_SYS
 )
 
 set(SRC
-	SpindleEncryption.cpp
-
-	SpindleEncryption.h
+	CTR_HashedPtr.h
+	CTR_Map.h
 )
 
-
-blender_add_lib(bf_intern_spindle "${SRC}" "${INC}" "${INC_SYS}")
+# infact nothing to compile!
+blender_add_lib(bf_intern_ctr "${SRC}" "${INC}" "${INC_SYS}")

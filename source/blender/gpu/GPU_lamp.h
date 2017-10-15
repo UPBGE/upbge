@@ -20,7 +20,7 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Brecht Van Lommel, Cl??ment Foucault.
+ * Contributor(s): Brecht Van Lommel, Clément Foucault.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -61,9 +61,7 @@ void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[4][4], int *winsiz
 void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp);
 int GPU_lamp_shadow_buffer_type(GPULamp *lamp);
 int GPU_lamp_shadow_bind_code(GPULamp *lamp);
-const float *GPU_lamp_dynpersmat(GPULamp *lamp);
-const float *GPU_lamp_get_viewmat(GPULamp *lamp);
-const float *GPU_lamp_get_winmat(GPULamp *lamp);
+float *GPU_lamp_dynpersmat(GPULamp *lamp);
 
 void GPU_lamp_update(GPULamp *lamp, int lay, int hide, float obmat[4][4]);
 void GPU_lamp_update_colors(GPULamp *lamp, float r, float g, float b, float energy);

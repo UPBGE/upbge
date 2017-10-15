@@ -74,7 +74,6 @@ set(DEFSRC
 	rna_pose.c
 	rna_lightprobe.c
 	rna_property.c
-	rna_python_component.c
 	rna_render.c
 	rna_rigidbody.c
 	rna_rna.c

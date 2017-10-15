@@ -41,7 +41,6 @@ set(INC
 	../nodes
 	../physics
 	../render/extern/include
-	../windowmanager
 	../../../intern/ghost
 	../../../intern/guardedalloc
 	../../../intern/glew-mx
@@ -56,7 +55,6 @@ set(INC
 set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 	${ZLIB_INCLUDE_DIRS}
-	${PYTHON_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -162,7 +160,6 @@ set(SRC
 	intern/pbvh_bmesh.c
 	intern/pointcache.c
 	intern/property.c
-	intern/python_component.c
 	intern/layer.c
 	intern/lightprobe.c
 	intern/report.c
@@ -285,7 +282,6 @@ set(SRC
 	BKE_pbvh.h
 	BKE_pointcache.h
 	BKE_property.h
-	BKE_python_component.h
 	BKE_layer.h
 	BKE_lightprobe.h
 	BKE_report.h

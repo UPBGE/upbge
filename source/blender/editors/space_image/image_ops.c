@@ -2371,60 +2371,6 @@ void IMAGE_OT_reload(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER; /* no undo, image buffer is not handled by undo */
 }
 
-/******************** resize image cube map operator ********************/
-
-static int image_resize_cube_map_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	Image *ima = CTX_data_edit_image(C);
-	SpaceImage *sima = CTX_wm_space_image(C);
-	Tex *tex = CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
-
-	if (!ima || !tex)
-		return OPERATOR_CANCELLED;
-
-	if (tex->env && tex->env->type == ENV_CUBE) {
-		/* Here we control that envmap width = 3 / 2 * envmap height and that
-		 * envmap height is a power of 2 to be sure to have a supported envmap resolution.
-		 */
-		int width = tex->ima->gen_x;
-		int height = tex->ima->gen_y;
-		if (!(width == ceil(height * 3 / 2) && ((height & (height - 1)) == 0))) {
-			int previous = pow(2, ceil(log(height) / log(2))) / 2;
-			tex->ima->gen_y = previous;
-			tex->ima->gen_x = previous * 3 / 2;
-
-			DEG_id_tag_update(&tex->id, 0);
-			WM_main_add_notifier(NC_TEXTURE, tex);
-			WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, NULL);
-		}
-	}
-
-	/* XXX unpackImage frees image buffers */
-	ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
-
-	// XXX other users?
-	BKE_image_signal(ima, (sima) ? &sima->iuser : NULL, IMA_SIGNAL_RELOAD);
-	DEG_id_tag_update(&ima->id, 0);
-
-	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
-
-	return OPERATOR_FINISHED;
-}
-
-void IMAGE_OT_resize_cube_map(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Resize";
-	ot->idname = "IMAGE_OT_resize_cube_map";
-	ot->description = "Resize CubeMap texture to a compatible format";
-
-	/* api callbacks */
-	ot->exec = image_resize_cube_map_exec;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER; /* no undo, image buffer is not handled by undo */
-}
-
 /********************** new image operator *********************/
 #define IMA_DEF_NAME N_("Untitled")
 
@@ -2441,7 +2387,6 @@ static int image_new_exec(bContext *C, wmOperator *op)
 	Object *obedit;
 	Image *ima;
 	Main *bmain;
-	Tex *tex;
 	PointerRNA ptr, idptr;
 	PropertyRNA *prop;
 	char name_buffer[MAX_ID_NAME - 2];
@@ -2456,8 +2401,6 @@ static int image_new_exec(bContext *C, wmOperator *op)
 	scene = CTX_data_scene(C);
 	obedit = CTX_data_edit_object(C);
 	bmain = CTX_data_main(C);
-
-	tex = CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
 
 	prop = RNA_struct_find_property(op->ptr, "name");
 	RNA_property_string_get(op->ptr, prop, name_buffer);
@@ -2536,14 +2479,12 @@ static int image_new_exec(bContext *C, wmOperator *op)
 		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);		
 	}
 	else {
-		if (tex && (tex->type == TEX_IMAGE || tex->type == TEX_ENVMAP)) {
+		Tex *tex = CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
+		if (tex && tex->type == TEX_IMAGE) {
 			if (tex->ima)
 				id_us_min(&tex->ima->id);
 			tex->ima = ima;
 			ED_area_tag_redraw(CTX_wm_area(C));
-			DEG_id_tag_update(&tex->id, 0);
-			WM_main_add_notifier(NC_TEXTURE, tex);
-			WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, NULL);
 		}
 	}
 

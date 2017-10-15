@@ -242,13 +242,6 @@ elseif(WITH_X11)
 		)
 	endif()
 
-	if(WITH_X11_XINERAMA)
-		add_definitions(-DWITH_X11_XINERAMA)
-		list(APPEND INC_SYS
-			${X11_Xinerama_INCLUDE_PATH}
-		)
-	endif()
-
 	add_definitions(-DWITH_X11)
 
 elseif(WIN32)

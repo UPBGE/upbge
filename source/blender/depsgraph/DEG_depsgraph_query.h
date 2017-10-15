@@ -111,9 +111,10 @@ void DEG_objects_iterator_end(struct BLI_Iterator *iter);
 /* Temporary hacky solution waiting for cow depsgraph implementation. */
 #define DEG_OBJECT_ITER(graph_, instance_, flag_)                                 \
 	{                                                                             \
-		DEGObjectsIteratorData data_;                                             \
-		data_.graph = (graph_);                                                   \
-		data_.flag = (flag_);                                                     \
+		DEGObjectsIteratorData data_ = {                                          \
+			.graph = (graph_),                                                    \
+			.flag = (flag_),                                                      \
+		};                                                                        \
                                                                                   \
 		ITER_BEGIN(DEG_objects_iterator_begin,                                    \
 		           DEG_objects_iterator_next,                                     \

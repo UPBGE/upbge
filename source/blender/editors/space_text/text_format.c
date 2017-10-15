@@ -215,9 +215,13 @@ TextFormatType *ED_text_format_get(Text *text)
 				}
 			}
 		}
-	}
 
-	/* If we make it here we never found an extension that worked - return
-	* the "default" text format */
-	return tft_lb.first;
+		/* If we make it here we never found an extension that worked - return 
+		 * the "default" text format */
+		return tft_lb.first;
+	}
+	else {
+		/* Return the "default" text format */
+		return tft_lb.first;
+	}
 }

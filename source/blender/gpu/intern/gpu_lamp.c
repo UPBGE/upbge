@@ -179,11 +179,9 @@ static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *l
 
 	/* initshadowbuf */
 	lamp->bias = 0.02f * la->bias;
-	lamp->slopebias = la->slopebias;
 	lamp->size = la->bufsize;
 	lamp->d = la->clipsta;
 	lamp->clipend = la->clipend;
-	lamp->bufsharp = la->bufsharp;
 
 	/* arbitrary correction for the fact we do no soft transition */
 	lamp->bias *= 0.25f;
@@ -215,7 +213,7 @@ static void gpu_lamp_shadow_free(GPULamp *lamp)
 
 static GPUTexture *gpu_lamp_create_vsm_shadow_map(int size)
 {
-	return GPU_texture_create_2D_custom(size, size, 2, GPU_RG32F, 0, NULL, NULL);
+	return GPU_texture_create_2D_custom(size, size, 2, GPU_RG32F, NULL, NULL);
 }
 
 LampEngineData *GPU_lamp_engine_data_get(Scene *scene, Object *ob, Object *par, struct RenderEngineType *re)
@@ -340,8 +338,8 @@ GPULamp *GPU_lamp_from_blender(Scene *scene, Object *ob, Object *par)
 			GPU_framebuffer_texture_unbind(lamp->blurfb, lamp->blurtex);
 		}
 		else {
-			lamp->depthtex = GPU_texture_create_depth(lamp->size, lamp->size, NULL);
-			if (!lamp->depthtex) {
+			lamp->tex = GPU_texture_create_depth(lamp->size, lamp->size, NULL);
+			if (!lamp->tex) {
 				gpu_lamp_shadow_free(lamp);
 				return lamp;
 			}
@@ -350,7 +348,7 @@ GPULamp *GPU_lamp_from_blender(Scene *scene, Object *ob, Object *par)
 			GPU_texture_compare_mode(lamp->tex, true);
 			GPU_texture_unbind(lamp->tex);
 
-			if (!GPU_framebuffer_texture_attach(lamp->fb, lamp->depthtex, 0, 0)) {
+			if (!GPU_framebuffer_texture_attach(lamp->fb, lamp->tex, 0, 0)) {
 				gpu_lamp_shadow_free(lamp);
 				return lamp;
 			}
@@ -407,7 +405,7 @@ bool GPU_lamp_has_shadow_buffer(GPULamp *lamp)
 {
 	return (!(lamp->scene->gm.flag & GAME_GLSL_NO_SHADOWS) &&
 	        !(lamp->scene->gm.flag & GAME_GLSL_NO_LIGHTS) &&
-	        lamp->depthtex && lamp->fb);
+	        lamp->tex && lamp->fb);
 }
 
 void GPU_lamp_update_buffer_mats(GPULamp *lamp)
@@ -441,12 +439,9 @@ void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[4][4], int *winsiz
 
 	/* opengl */
 	glDisable(GL_SCISSOR_TEST);
-	if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE) {
-		GPU_texture_bind_as_framebuffer(lamp->tex);
-	}
-	else {
-		GPU_texture_bind_as_framebuffer(lamp->depthtex);
-	}
+	GPU_texture_bind_as_framebuffer(lamp->tex);
+	if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE)
+		GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE));
 
 	/* set matrices */
 	copy_m4_m4(viewmat, lamp->viewmat);
@@ -458,7 +453,7 @@ void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp)
 {
 	if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE) {
 		GPU_shader_unbind();
-		GPU_framebuffer_blur(lamp->fb, lamp->tex, lamp->blurfb, lamp->blurtex, lamp->bufsharp);
+		GPU_framebuffer_blur(lamp->fb, lamp->tex, lamp->blurfb, lamp->blurtex);
 	}
 
 	GPU_framebuffer_texture_unbind(lamp->fb, lamp->tex);
@@ -473,27 +468,17 @@ int GPU_lamp_shadow_buffer_type(GPULamp *lamp)
 
 int GPU_lamp_shadow_bind_code(GPULamp *lamp)
 {
-	return lamp->depthtex ? GPU_texture_opengl_bindcode(lamp->depthtex) : -1;
+	return lamp->tex ? GPU_texture_opengl_bindcode(lamp->tex) : -1;
 }
 
-const float *GPU_lamp_dynpersmat(GPULamp *lamp)
+float *GPU_lamp_dynpersmat(GPULamp *lamp)
 {
 	return &lamp->dynpersmat[0][0];
 }
 
-const float *GPU_lamp_get_viewmat(GPULamp *lamp)
-{
-	return &lamp->viewmat[0][0];
-}
-
-const float *GPU_lamp_get_winmat(GPULamp *lamp)
-{
-	return &lamp->winmat[0][0];
-}
-
 int GPU_lamp_shadow_layer(GPULamp *lamp)
 {
-	if (lamp->fb && lamp->depthtex && (lamp->mode & (LA_LAYER | LA_LAYER_SHADOW)))
+	if (lamp->fb && lamp->tex && (lamp->mode & (LA_LAYER | LA_LAYER_SHADOW)))
 		return lamp->lay;
 	else
 		return -1;

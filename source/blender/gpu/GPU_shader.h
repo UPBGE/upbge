@@ -48,7 +48,6 @@ enum {
 	GPU_SHADER_FLAGS_NONE = 0,
 	GPU_SHADER_FLAGS_SPECIAL_OPENSUBDIV = (1 << 0),
 	GPU_SHADER_FLAGS_NEW_SHADING        = (1 << 1),
-	GPU_SHADER_FLAGS_SPECIAL_INSTANCING = (1 << 2),
 };
 
 GPUShader *GPU_shader_create(
@@ -64,7 +63,6 @@ GPUShader *GPU_shader_create_ex(
         const char *libcode,
         const char *defines,
         const int flags);
-char *GPU_shader_validate(GPUShader *shader);
 void GPU_shader_free(GPUShader *shader);
 
 void GPU_shader_bind(GPUShader *shader);
@@ -88,18 +86,9 @@ void GPU_shader_uniform_vector_int(GPUShader *shader, int location, int length,
 void GPU_shader_uniform_buffer(GPUShader *shader, int location, struct GPUUniformBuffer *ubo);
 void GPU_shader_uniform_texture(GPUShader *shader, int location, struct GPUTexture *tex);
 void GPU_shader_uniform_int(GPUShader *shader, int location, int value);
-void GPU_shader_uniform_float(GPUShader *shader, int location, float value);
 void GPU_shader_geometry_stage_primitive_io(GPUShader *shader, int input, int output, int number);
 
 int GPU_shader_get_attribute(GPUShader *shader, const char *name);
-
-/******************************************Game engine*****************************************/
-void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len);
-void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, void *positionoffset, unsigned int stride);
-void GPU_shader_unbind_instancing_attrib(GPUShader *shader);
-// GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2 bgl_TextureCoordinateOffset[9];
-int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name);
-/****************************************End of Game engine************************************/
 
 /* Builtin/Non-generated shaders */
 typedef enum GPUBuiltinShader {
@@ -180,15 +169,6 @@ typedef enum GPUBuiltinShader {
 	GPU_SHADER_INSTANCE_VARIYING_COLOR_VARIYING_SIZE, /* Uniformly scaled */
 	GPU_SHADER_INSTANCE_VARIYING_COLOR_VARIYING_SCALE,
 	GPU_SHADER_INSTANCE_EDGES_VARIYING_COLOR,
-
-	/**********Game engine***********/
-	GPU_SHADER_DRAW_FRAME_BUFFER,
-	GPU_SHADER_VSM_STORE_INSTANCING,
-	GPU_SHADER_BLACK,
-	GPU_SHADER_BLACK_INSTANCING,
-	GPU_SHADER_STEREO_STIPPLE,
-	GPU_SHADER_STEREO_ANAGLYPH,
-	/*******End of Game engine*******/
 
 	GPU_SHADER_3D_INSTANCE_BONE_ENVELOPE_SOLID,
 	GPU_SHADER_3D_INSTANCE_BONE_ENVELOPE_WIRE,

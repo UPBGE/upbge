@@ -29,6 +29,7 @@
  *  \ingroup moto
  */
 
+
 /*
 
  * Copyright (c) 2000 Gino van den Bergen <gino@acm.org>
@@ -46,32 +47,30 @@
 #ifndef MT_MATRIX3X3_H
 #define MT_MATRIX3X3_H
 
-#include "MT_Config.h"
-
-#include <BLI_utildefines.h>
+#include <MT_assert.h>
 
 #include "MT_Vector3.h"
 #include "MT_Quaternion.h"
 
 class MT_Matrix3x3 {
 public:
-    explicit MT_Matrix3x3() {}
-    template <typename T>
-    explicit MT_Matrix3x3(const T *m) { setValue(m); }
-    explicit MT_Matrix3x3(const MT_Quaternion& q) { setRotation(q); }
+    MT_Matrix3x3() {}
+    MT_Matrix3x3(const float *m) { setValue(m); }
+    MT_Matrix3x3(const double *m) { setValue(m); }
+    MT_Matrix3x3(const MT_Quaternion& q) { setRotation(q); }
     
-    explicit MT_Matrix3x3(const MT_Quaternion& q, const MT_Vector3& s) { 
+	MT_Matrix3x3(const MT_Quaternion& q, const MT_Vector3& s) { 
 		setRotation(q); 
 		scale(s[0], s[1], s[2]);
 	}
 	
-	explicit MT_Matrix3x3(const MT_Vector3& euler) { setEuler(euler); }
-	explicit MT_Matrix3x3(const MT_Vector3& euler, const MT_Vector3& s) { 
+	MT_Matrix3x3(const MT_Vector3& euler) { setEuler(euler); }
+	MT_Matrix3x3(const MT_Vector3& euler, const MT_Vector3& s) { 
 		setEuler(euler); 
 		scale(s[0], s[1], s[2]);
 	}
 	
-	explicit MT_Matrix3x3(MT_Scalar xx, MT_Scalar xy, MT_Scalar xz,
+    MT_Matrix3x3(MT_Scalar xx, MT_Scalar xy, MT_Scalar xz,
                  MT_Scalar yx, MT_Scalar yy, MT_Scalar yz,
                  MT_Scalar zx, MT_Scalar zy, MT_Scalar zz) { 
         setValue(xx, xy, xz, 
@@ -98,15 +97,25 @@ public:
 		m_el[i][2] = v[2];
 	}
     
-    template <typename T>
-    void setValue(const T *m) {
-		m_el[0][0] = (MT_Scalar)*m++; m_el[1][0] = (MT_Scalar)*m++; m_el[2][0] = (MT_Scalar)*m++; m++;
-        m_el[0][1] = (MT_Scalar)*m++; m_el[1][1] = (MT_Scalar)*m++; m_el[2][1] = (MT_Scalar)*m++; m++;
-        m_el[0][2] = (MT_Scalar)*m++; m_el[1][2] = (MT_Scalar)*m++; m_el[2][2] = (MT_Scalar)*m;
+    void setValue(const float *m) {
+        m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++; m++;
+        m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++; m++;
+        m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m;
     }
 
-    template <typename T>
-    void setValue3x3(const T *m) {
+    void setValue(const double *m) {
+        m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++; m++;
+        m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++; m++;
+        m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m;
+    }
+
+    void setValue3x3(const float *m) {
+        m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++;
+        m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++;
+        m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m;
+    }
+
+    void setValue3x3(const double *m) {
         m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++;
         m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++;
         m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m;
@@ -122,7 +131,7 @@ public:
   
     void setRotation(const MT_Quaternion& q) {
         MT_Scalar d = q.length2();
-        BLI_assert(!MT_fuzzyZero2(d));
+        MT_assert(!MT_fuzzyZero2(d));
         MT_Scalar s = MT_Scalar(2.0f) / d;
         MT_Scalar xs = q[0] * s,   ys = q[1] * s,   zs = q[2] * s;
         MT_Scalar wx = q[3] * xs,  wy = q[3] * ys,  wz = q[3] * zs;
@@ -168,11 +177,11 @@ public:
 			else {
 				roll = MT_Scalar(0);
 				if (m_el[2][0] == -1.0f) {
-					pitch = (MT_Scalar)MT_PI / 2.0f;
+					pitch = (float)MT_PI / 2.0f;
 					yaw = MT_Scalar(atan2f(m_el[0][1], m_el[0][2]));
 				}
 				else {
-					pitch = (MT_Scalar)-MT_PI / 2.0f;
+					pitch = (float)-MT_PI / 2.0f;
 					yaw = MT_Scalar(atan2f(m_el[0][1], m_el[0][2]));
 				}
 			}
@@ -190,29 +199,34 @@ public:
                             m_el[2][0] * x, m_el[2][1] * y, m_el[2][2] * z);
     }
     
-	static const MT_Matrix3x3& Identity()
-	{
-		return identity;
-	}
-
     void setIdentity() { 
         setValue(MT_Scalar(1.0f), MT_Scalar(0.0f), MT_Scalar(0.0f), 
                  MT_Scalar(0.0f), MT_Scalar(1.0f), MT_Scalar(0.0f), 
                  MT_Scalar(0.0f), MT_Scalar(0.0f), MT_Scalar(1.0f)); 
     }
     
-    template <typename T>
-    void getValue(T *m) const {
-        *m++ = (T)m_el[0][0]; *m++ = (T)m_el[1][0]; *m++ = (T)m_el[2][0]; *m++ = (T)0.0f;
-        *m++ = (T)m_el[0][1]; *m++ = (T)m_el[1][1]; *m++ = (T)m_el[2][1]; *m++ = (T)0.0f;
-        *m++ = (T)m_el[0][2]; *m++ = (T)m_el[1][2]; *m++ = (T)m_el[2][2]; *m   = (T)0.0f;
+    void getValue(float *m) const {
+        *m++ = (float) m_el[0][0]; *m++ = (float) m_el[1][0]; *m++ = (float) m_el[2][0]; *m++ = (float) 0.0f;
+        *m++ = (float) m_el[0][1]; *m++ = (float) m_el[1][1]; *m++ = (float) m_el[2][1]; *m++ = (float) 0.0f;
+        *m++ = (float) m_el[0][2]; *m++ = (float) m_el[1][2]; *m++ = (float) m_el[2][2]; *m   = (float) 0.0f;
     }
 
-    template <typename T>
-    void getValue3x3(T *m) const {
-        *m++ = (T)m_el[0][0]; *m++ = (T)m_el[1][0]; *m++ = (T)m_el[2][0];
-        *m++ = (T)m_el[0][1]; *m++ = (T)m_el[1][1]; *m++ = (T)m_el[2][1];
-        *m++ = (T)m_el[0][2]; *m++ = (T)m_el[1][2]; *m++ = (T)m_el[2][2];
+    void getValue(double *m) const {
+        *m++ = m_el[0][0]; *m++ = m_el[1][0]; *m++ = m_el[2][0]; *m++ = 0.0;
+        *m++ = m_el[0][1]; *m++ = m_el[1][1]; *m++ = m_el[2][1]; *m++ = 0.0;
+        *m++ = m_el[0][2]; *m++ = m_el[1][2]; *m++ = m_el[2][2]; *m   = 0.0;
+    }
+
+    void getValue3x3(float *m) const {
+        *m++ = (float) m_el[0][0]; *m++ = (float) m_el[1][0]; *m++ = (float) m_el[2][0];
+        *m++ = (float) m_el[0][1]; *m++ = (float) m_el[1][1]; *m++ = (float) m_el[2][1];
+        *m++ = (float) m_el[0][2]; *m++ = (float) m_el[1][2]; *m++ = (float) m_el[2][2];
+    }
+
+    void getValue3x3(double *m) const {
+        *m++ = m_el[0][0]; *m++ = m_el[1][0]; *m++ = m_el[2][0];
+        *m++ = m_el[0][1]; *m++ = m_el[1][1]; *m++ = m_el[2][1];
+        *m++ = m_el[0][2]; *m++ = m_el[1][2]; *m++ = m_el[2][2];
     }
 
     MT_Quaternion getRotation() const;
@@ -241,8 +255,6 @@ public:
 protected:
 
     MT_Vector3 m_el[3];
-
-	static const MT_Matrix3x3 identity;
 };
 
 MT_Vector3   operator*(const MT_Matrix3x3& m, const MT_Vector3& v);

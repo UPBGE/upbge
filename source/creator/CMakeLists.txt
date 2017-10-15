@@ -76,7 +76,7 @@ if(WITH_HEADLESS)
 endif()
 
 if(WITH_GAMEENGINE)
-	blender_include_dirs(../gameengine/Launcher)
+	blender_include_dirs(../gameengine/BlenderRoutines)
 
 	add_definitions(-DWITH_GAMEENGINE)
 endif()

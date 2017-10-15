@@ -37,7 +37,7 @@ class WorldButtonsPanel:
 class WORLD_PT_context_world(WorldButtonsPanel, Panel):
     bl_label = ""
     bl_options = {'HIDE_HEADER'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -253,7 +253,7 @@ class WORLD_PT_custom_props(WorldButtonsPanel, PropertyPanel, Panel):
 class EEVEE_WORLD_PT_surface(WorldButtonsPanel, Panel):
     bl_label = "Surface"
     bl_context = "world"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):

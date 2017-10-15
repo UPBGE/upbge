@@ -316,8 +316,6 @@ static void material_changed(Main *bmain, Material *ma)
 			GPU_material_free(&ma->gpumaterial);
 		}
 	}
-	if (ma->gpumaterialinstancing.first)
-		GPU_material_free(&ma->gpumaterialinstancing);
 
 	/* find node materials using this */
 	for (parent = bmain->mat.first; parent; parent = parent->id.next) {
@@ -332,8 +330,6 @@ static void material_changed(Main *bmain, Material *ma)
 
 		if (parent->gpumaterial.first)
 			GPU_material_free(&parent->gpumaterial);
-		if (parent->gpumaterialinstancing.first)
-			GPU_material_free(&parent->gpumaterialinstancing);
 	}
 
 	/* find if we have a scene with textured display */
@@ -378,8 +374,6 @@ static void lamp_changed(Main *bmain, Lamp *la)
 
 	if (defmaterial.gpumaterial.first)
 		GPU_material_free(&defmaterial.gpumaterial);
-	if (defmaterial.gpumaterialinstancing.first)
-		GPU_material_free(&defmaterial.gpumaterialinstancing);
 }
 
 static int material_uses_texture(Material *ma, Tex *tex)
@@ -422,8 +416,6 @@ static void texture_changed(Main *bmain, Tex *tex)
 
 		if (ma->gpumaterial.first)
 			GPU_material_free(&ma->gpumaterial);
-		if (ma->gpumaterialinstancing.first)
-			GPU_material_free(&ma->gpumaterialinstancing);
 	}
 
 	/* find lamps */
@@ -538,19 +530,6 @@ static void scene_changed(Main *bmain, Scene *scene)
 			GPU_drawobject_free(ob->derivedFinal);
 		}
 	}
-
-#if 0 /* This was needed by old glsl where all lighting was statically linked into the shader. */
-	for (Material *ma = bmain->mat.first; ma; ma = ma->id.next)
-		if (ma->gpumaterial.first)
-			GPU_material_free(&ma->gpumaterial);
-
-	for (World *wo = bmain->world.first; wo; wo = wo->id.next)
-		if (wo->gpumaterial.first)
-			GPU_material_free(&wo->gpumaterial);
-	
-	if (defmaterial.gpumaterial.first)
-		GPU_material_free(&defmaterial.gpumaterial);
-#endif
 }
 
 void ED_render_id_flush_update(Main *bmain, ID *id)

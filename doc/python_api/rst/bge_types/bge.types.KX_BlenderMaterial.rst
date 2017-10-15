@@ -76,6 +76,12 @@ base class --- :class:`PyObjectPlus`
 
       :type: (integer, integer)
 
+   .. attribute:: material_index
+
+      The material's index.
+
+      :type: integer
+
    .. method:: getShader()
 
       Returns the material's shader.
@@ -86,8 +92,6 @@ base class --- :class:`PyObjectPlus`
    .. method:: getTextureBindcode(textureslot)
 
       Returns the material's texture OpenGL bind code/id/number/name.
-
-      .. deprecated:: use :py:meth:`bge.types.BL_Texture.bindCode`
 
       :arg textureslot: Specifies the texture slot number
       :type textureslot: integer
@@ -112,18 +116,6 @@ base class --- :class:`PyObjectPlus`
 
       :type: float between 0.0 and 2.0 inclusive
 
-   .. attribute:: ambient
-
-      Amount of ambient light on the material.
-
-      :type: float between 0.0 and 1.0 inclusive
-
-   .. attribute:: specularAlpha
-
-      Alpha transparency for specular areas.
-
-      :type: float between 0.0 and 1.0 inclusive (alpha must be < 1.0)
-
    .. attribute:: specularIntensity
 
       How intense (bright) the material's specular reflection is.
@@ -147,12 +139,6 @@ base class --- :class:`PyObjectPlus`
       The material's diffuse color.
 
       :type: :class:`mathutils.Color`
-
-   .. attribute:: textures
-
-      List of all material's textures.
-
-      :type: List of :class:`BL_Texture` (read only)
 
    .. method:: setBlending(src, dest)
 
@@ -189,3 +175,11 @@ base class --- :class:`PyObjectPlus`
          * :data:`~bgl.GL_SRC_ALPHA_SATURATE`
       
       :type dest: int
+
+   .. method:: getMaterialIndex()
+
+      Returns the material's index.
+
+      :return: the material's index
+      :rtype: integer
+
