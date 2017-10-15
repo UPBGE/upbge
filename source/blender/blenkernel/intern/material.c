@@ -1332,7 +1332,7 @@ void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma)
 	short index = 0, i;
 
 	bool use_nodes = BKE_scene_use_new_shading_nodes(scene);
-	bool is_bi = BKE_scene_uses_blender_internal(scene) || BKE_scene_uses_blender_game(scene);
+	bool is_bi = BKE_scene_uses_blender_internal(scene);
 
 	/* XXX, for 2.8 testing & development its useful to have non Cycles/BI engines use material nodes
 	 * In the future we may have some way to check this which each engine can define.

@@ -79,6 +79,15 @@ void GPU_framebuffer_recursive_downsample(
         GPUFrameBuffer *fb, struct GPUTexture *tex, int num_iter,
         void (*callback)(void *userData, int level), void *userData);
 
+/********************Game engine*******************/
+void GPU_framebuffer_bind_all_attachments(GPUFrameBuffer *fb);
+int GPU_framebuffer_color_bindcode(const GPUFrameBuffer *fb);
+struct GPUTexture *GPU_framebuffer_color_texture(const GPUFrameBuffer *fb);
+struct GPUTexture *GPU_framebuffer_depth_texture(const GPUFrameBuffer *fb);
+void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb);
+void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb);
+/****************End of Game engine****************/
+
 /* GPU OffScreen
  * - wrapper around framebuffer and texture for simple offscreen drawing
  * - changes size if graphics card can't support it */

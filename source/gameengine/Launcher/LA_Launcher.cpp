@@ -146,10 +146,6 @@ void LA_Launcher::InitEngine()
 	// WARNING: Fixed time is the opposite of fixed framerate.
 	bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm.flag & GAME_ENABLE_ALL_FRAMES)) == 0);
 	bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
-	short showBoundingBox = SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm.showBoundingBox);
-	short showArmatures = SYS_GetCommandLineInt(syshandle, "show_armatures", gm.showArmatures);
-	short showCameraFrustum = SYS_GetCommandLineInt(syshandle, "show_camera_frustum", gm.showCameraFrustum);
-	short showShadowFrustum = SYS_GetCommandLineInt(syshandle, "show_shadow_frustum", gm.showShadowFrustum);
 	bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 	bool restrictAnimFPS = (gm.flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
@@ -159,14 +155,6 @@ void LA_Launcher::InitEngine()
 		(restrictAnimFPS ? KX_KetsjiEngine::RESTRICT_ANIMATION : 0) |
 		(properties ? KX_KetsjiEngine::SHOW_DEBUG_PROPERTIES : 0) |
 		(profile ? KX_KetsjiEngine::SHOW_PROFILE : 0));
-
-	// Setup python console keys used as shortcut.
-	for (unsigned short i = 0; i < 4; ++i) {
-		if (gm.pythonkeys[i] != EVENT_NONE) {
-			m_pythonConsole.keys.push_back(ConvertKeyCode(gm.pythonkeys[i]));
-		}
-	}
-	m_pythonConsole.use = (gm.flag & GAME_PYTHON_CONSOLE);
 
 	m_rasterizer = new RAS_Rasterizer();
 
@@ -195,26 +183,7 @@ void LA_Launcher::InitEngine()
 
 	// Set canvas multisamples.
 	m_canvas->SetSamples(m_samples);
-
-	RAS_Rasterizer::HdrType hdrtype = RAS_Rasterizer::RAS_HDR_NONE;
-	switch (gm.hdr) {
-		case GAME_HDR_NONE:
-		{
-			hdrtype = RAS_Rasterizer::RAS_HDR_NONE;
-			break;
-		}
-		case GAME_HDR_HALF_FLOAT:
-		{
-			hdrtype = RAS_Rasterizer::RAS_HDR_HALF_FLOAT;
-			break;
-		}
-		case GAME_HDR_FULL_FLOAT:
-		{
-			hdrtype = RAS_Rasterizer::RAS_HDR_FULL_FLOAT;
-			break;
-		}
-	}
-	m_canvas->SetHdrType(hdrtype);
+	m_canvas->SetHdrType(RAS_Rasterizer::RAS_HDR_NONE);
 
 	m_canvas->Init();
 	if (gm.flag & GAME_SHOW_MOUSE) {
@@ -255,15 +224,10 @@ void LA_Launcher::InitEngine()
 
 	m_ketsjiEngine->SetFlag(flags, true);
 	m_ketsjiEngine->SetRender(true);
-	m_ketsjiEngine->SetShowBoundingBox((KX_DebugOption)showBoundingBox);
-	m_ketsjiEngine->SetShowArmatures((KX_DebugOption)showArmatures);
-	m_ketsjiEngine->SetShowCameraFrustum((KX_DebugOption)showCameraFrustum);
-	m_ketsjiEngine->SetShowShadowFrustum((KX_DebugOption)showShadowFrustum);
 
 	m_ketsjiEngine->SetTicRate(gm.ticrate);
 	m_ketsjiEngine->SetMaxLogicFrame(gm.maxlogicstep);
 	m_ketsjiEngine->SetMaxPhysicsFrame(gm.maxphystep);
-	m_ketsjiEngine->SetTimeScale(gm.timeScale);
 
 	// Set the global settings (carried over if restart/load new files).
 	m_ketsjiEngine->SetGlobalSettings(m_globalSettings);
@@ -422,9 +386,6 @@ void LA_Launcher::HandlePythonConsole()
 
 	// Hide the console window for windows.
 	m_system->toggleConsole(0);
-
-	// Set the game engine windows on top of all other and active.
-	SetWindowOrder(1);
 
 
 	/* As we show the console, the release events of the shortcut keys can be not handled by the engine.

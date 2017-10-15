@@ -95,7 +95,6 @@ set(SRC
 	RAS_Shader.cpp
 	RAS_ShadowShader.cpp
 	RAS_Texture.cpp
-	RAS_TextureRenderer.cpp
 	RAS_TextUser.cpp
  	
 	RAS_2DFilterData.h
@@ -141,7 +140,6 @@ set(SRC
 	RAS_Shader.h
 	RAS_ShadowShader.h
 	RAS_Texture.h
-	RAS_TextureRenderer.h
 	RAS_TextUser.h
 	RAS_TexVert.h
 )

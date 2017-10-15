@@ -55,7 +55,6 @@
 #include "KX_CharacterWrapper.h"
 #include "KX_ConstraintActuator.h"
 #include "KX_ConstraintWrapper.h"
-#include "KX_CubeMap.h"
 #include "KX_GameActuator.h"
 #include "KX_LibLoadStatus.h"
 #include "KX_Light.h"
@@ -68,9 +67,7 @@
 #include "KX_NetworkMessageSensor.h"
 #include "KX_ObjectActuator.h"
 #include "KX_ParentActuator.h"
-#include "KX_PlanarMap.h"
 #include "KX_PolyProxy.h"
-#include "KX_PythonComponent.h"
 #include "KX_SCA_AddObjectActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
 #include "KX_SCA_ReplaceMeshActuator.h"
@@ -101,7 +98,6 @@
 #include "KX_NearSensor.h"
 #include "KX_RadarSensor.h"
 #include "KX_RaySensor.h"
-#include "KX_MovementSensor.h"
 #include "KX_SCA_DynamicActuator.h"
 #include "KX_SoundActuator.h"
 #include "KX_CollisionSensor.h"
@@ -231,7 +227,6 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_CharacterWrapper, init_getset);
 		PyType_Ready_Attr(dict, KX_ConstraintActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_ConstraintWrapper, init_getset);
-		PyType_Ready_Attr(dict, KX_CubeMap, init_getset);
 		PyType_Ready_Attr(dict, KX_GameActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_GameObject, init_getset);
 		PyType_Ready_Attr(dict, KX_LibLoadStatus, init_getset);
@@ -241,15 +236,12 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_FontObject, init_getset);
 		PyType_Ready_Attr(dict, KX_MeshProxy, init_getset);
 		PyType_Ready_Attr(dict, KX_MouseFocusSensor, init_getset);
-		PyType_Ready_Attr(dict, KX_MovementSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_NearSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_NetworkMessageActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_NetworkMessageSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_ObjectActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_ParentActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_PlanarMap, init_getset);
 		PyType_Ready_Attr(dict, KX_PolyProxy, init_getset);
-		PyType_Ready_Attr(dict, KX_PythonComponent, init_getset);
 		PyType_Ready_Attr(dict, KX_RadarSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_RaySensor, init_getset);
 		PyType_Ready_Attr(dict, KX_SCA_AddObjectActuator, init_getset);
@@ -264,7 +256,6 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_StateActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_SteeringActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_CollisionSensor, init_getset);
-		PyType_Ready_Attr(dict, KX_TextureRenderer, init_getset);
 		PyType_Ready_Attr(dict, KX_TrackToActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_VehicleWrapper, init_getset);
 		PyType_Ready_Attr(dict, KX_VertexProxy, init_getset);

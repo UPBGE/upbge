@@ -619,6 +619,55 @@ void GPU_framebuffer_recursive_downsample(
 	GPU_texture_unbind(tex);
 }
 
+/**************Game engine****************/
+void GPU_framebuffer_bind_all_attachments(GPUFrameBuffer *fb)
+{
+	int slots = 0, i;
+	GLenum attachments[GPU_FB_MAX_SLOTS];
+
+	for (i = 0; i < GPU_FB_MAX_SLOTS; i++) {
+		if (fb->colortex[i]) {
+			attachments[slots] = GL_COLOR_ATTACHMENT0_EXT + i;
+			slots++;
+		}
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
+	glDrawBuffers(slots, attachments);
+	glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+	GG.currentfb = fb->object;
+}
+
+int GPU_framebuffer_color_bindcode(const GPUFrameBuffer *fb)
+{
+	return GPU_texture_opengl_bindcode(fb->colortex[0]);
+}
+
+GPUTexture *GPU_framebuffer_color_texture(const GPUFrameBuffer *fb)
+{
+	return fb->colortex[0];
+}
+
+GPUTexture *GPU_framebuffer_depth_texture(const GPUFrameBuffer *fb)
+{
+	return fb->depthtex;
+}
+
+void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb)
+{
+	GPUTexture *tex = GPU_framebuffer_color_texture(fb);
+	GPU_texture_mipmap_mode(tex, true, false);
+	GPU_texture_generate_mipmap(tex);
+}
+
+void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb)
+{
+	GPUTexture *tex = GPU_framebuffer_color_texture(fb);
+	GPU_texture_mipmap_mode(tex, false, false);
+}
+/************End of Game engine***********/
+
 /* GPUOffScreen */
 
 struct GPUOffScreen {

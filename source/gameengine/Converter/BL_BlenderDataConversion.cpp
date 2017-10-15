@@ -82,7 +82,6 @@
 #include "KX_EmptyObject.h"
 #include "KX_FontObject.h"
 #include "KX_LodManager.h"
-#include "KX_PythonComponent.h"
 
 #include "RAS_ICanvas.h"
 #include "RAS_Polygon.h"
@@ -91,13 +90,11 @@
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_IPolygonMaterial.h"
 #include "KX_BlenderMaterial.h"
-#include "KX_TextureRendererManager.h"
 #include "BL_Texture.h"
 
 #include "BKE_main.h"
 #include "BKE_global.h"
 #include "BKE_object.h"
-#include "BKE_python_component.h"
 #include "BL_ModifierDeformer.h"
 #include "BL_ShapeDeformer.h"
 #include "BL_SkinDeformer.h"
@@ -147,7 +144,6 @@
 #include "DNA_action_types.h"
 #include "DNA_object_force.h"
 #include "DNA_constraint_types.h"
-#include "DNA_python_component_types.h"
 #include "DNA_layer_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -775,14 +771,6 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 	shapeProps->m_fall_speed = blenderobject->fall_speed;
 	shapeProps->m_max_jumps = blenderobject->max_jumps;
 
-	shapeProps->m_restitution = blenderobject->reflect;
-	shapeProps->m_friction = blenderobject->friction;
-	shapeProps->m_rollingFriction = blenderobject->rolling_friction;
-	shapeProps->m_fh_spring = blenderobject->fh;
-	shapeProps->m_fh_damping = blenderobject->xyfrict;
-	shapeProps->m_fh_distance = blenderobject->fhdist;
-	shapeProps->m_fh_normal = (blenderobject->dynamode & OB_FH_NOR) != 0;
-
 	return shapeProps;
 }
 
@@ -932,7 +920,6 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	lightobj->m_layer = layerflag;
 	lightobj->m_spotblend = la->spotblend;
 	lightobj->m_spotsize = la->spotsize;
-	lightobj->m_staticShadow = la->mode & LA_STATIC_SHADOW;
 	// Set to true to make at least one shadow render in static mode.
 	lightobj->m_requestShadowUpdate = true;
 
@@ -974,18 +961,7 @@ static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene)
 	gamecamera= new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
 	gamecamera->SetName(ca->id.name + 2);
 
-	gamecamera->SetShowCameraFrustum(ca->gameflag & GAME_CAM_SHOW_FRUSTUM);
-	gamecamera->SetLodDistanceFactor(ca->lodfactor);
-
-	if (ca->gameflag & GAME_CAM_OVERRIDE_CULLING) {
-		if (kxscene->GetOverrideCullingCamera()) {
-			CM_Warning("\"" << gamecamera->GetName() << "\" sets for culling override whereas \""
-				<< kxscene->GetOverrideCullingCamera()->GetName() << "\" is already used for culling override.");
-		}
-		else {
-			kxscene->SetOverrideCullingCamera(gamecamera);
-		}
-	}
+	kxscene->SetOverrideCullingCamera(gamecamera);
 
 	return gamecamera;
 }
@@ -1220,86 +1196,6 @@ static void blenderSceneSetBackground(Scene *blenderscene)
 	for (SETLOOPER(blenderscene, it, base)) {
 		BKE_scene_base_flag_sync_from_base(base);
 	}
-}
-
-static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderobj)
-{
-#ifdef WITH_PYTHON
-	PythonComponent *pc = (PythonComponent *)blenderobj->components.first;
-	PyObject *arg_dict = nullptr, *args = nullptr, *mod = nullptr, *cls = nullptr, *pycomp = nullptr, *ret = nullptr;
-
-	if (!pc) {
-		return;
-	}
-
-	CListValue<KX_PythonComponent> *components = new CListValue<KX_PythonComponent>();
-
-	while (pc) {
-		// Make sure to clean out anything from previous loops
-		Py_XDECREF(args);
-		Py_XDECREF(arg_dict);
-		Py_XDECREF(mod);
-		Py_XDECREF(cls);
-		Py_XDECREF(ret);
-		Py_XDECREF(pycomp);
-		args = arg_dict = mod = cls = pycomp = ret = nullptr;
-
-		// Grab the module
-		mod = PyImport_ImportModule(pc->module);
-
-		if (mod == nullptr) {
-			if (PyErr_Occurred()) {
-				PyErr_Print();
-			}
-			CM_Error("coulding import the module '" << pc->module << "'");
-			pc = pc->next;
-			continue;
-		}
-
-		// Grab the class object
-		cls = PyObject_GetAttrString(mod, pc->name);
-		if (cls == nullptr) {
-			if (PyErr_Occurred()) {
-				PyErr_Print();
-			}
-			CM_Error("python module found, but failed to find the component '" << pc->name << "'");
-			pc = pc->next;
-			continue;
-		}
-
-		// Lastly make sure we have a class and it's an appropriate sub type
-		if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject*)&KX_PythonComponent::Type)) {
-			CM_Error(pc->module << "." << pc->name << " is not a KX_PythonComponent subclass");
-			pc = pc->next;
-			continue;
-		}
-
-		// Every thing checks out, now generate the args dictionary and init the component
-		args = PyTuple_Pack(1, gameobj->GetProxy());
-
-		pycomp = PyObject_Call(cls, args, nullptr);
-
-		if (PyErr_Occurred()) {
-			// The component is invalid, drop it
-			PyErr_Print();
-		}
-		else {
-			KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(BGE_PROXY_REF(pycomp));
-			comp->SetBlenderPythonComponent(pc);
-			comp->SetGameObject(gameobj);
-			components->Add(comp);
-		}
-
-		pc = pc->next;
-	}
-
-	Py_XDECREF(args);
-	Py_XDECREF(mod);
-	Py_XDECREF(cls);
-	Py_XDECREF(pycomp);
-
-	gameobj->SetComponents(components);
-#endif  // WITH_PYTHON
 }
 
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
@@ -1828,70 +1724,14 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		BL_CreatePhysicsObjectNew(gameobj,blenderobject,meshobj,kxscene,layerMask,converter,processCompoundChildren);
 	}
 
-	// Look at every material texture and ask to create realtime cube map.
-	/*for (KX_GameObject *gameobj : sumolist) {
-		for (unsigned short i = 0, meshcount = gameobj->GetMeshCount(); i < meshcount; ++i) {
-			RAS_MeshObject *mesh = gameobj->GetMesh(i);
-
-			for (unsigned short j = 0, matcount = mesh->NumMaterials(); j < matcount; ++j) {
-				RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(j);
-				RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
-
-				for (unsigned short k = 0; k < RAS_Texture::MaxUnits; ++k) {
-					RAS_Texture *tex = polymat->GetTexture(k);
-					if (!tex || !tex->Ok()) {
-						continue;
-					}
-
-					EnvMap *env = tex->GetTex()->env;
-					if (!env || env->stype != ENV_REALT) {
-						continue;
-					}
-
-					KX_GameObject *viewpoint = gameobj;
-					if (env->object) {
-						KX_GameObject *obj = converter.FindGameObject(env->object);
-						if (obj) {
-							viewpoint = obj;
-						}
-					}
-
-					KX_TextureRendererManager::RendererType type = tex->IsCubeMap() ? KX_TextureRendererManager::CUBE : KX_TextureRendererManager::PLANAR;
-					kxscene->GetTextureRendererManager()->AddRenderer(type, tex, viewpoint);
-				}
-			}
-		}
-	}*/
-
 	// Create and set bounding volume.
 	for (KX_GameObject *gameobj : sumolist) {
 		Object *blenderobject = gameobj->GetBlenderObject();
-		Mesh *predifinedBoundMesh = blenderobject->gamePredefinedBound;
 
-		if (predifinedBoundMesh) {
-			RAS_MeshObject *meshobj = converter.FindGameMesh(predifinedBoundMesh);
-			// In case of mesh taken in a other scene.
-			if (!meshobj) {
-				continue;
-			}
+		// The object allow AABB auto update only if there's no predefined bound.
+		gameobj->SetAutoUpdateBounds(true);
 
-			gameobj->SetAutoUpdateBounds(false);
-
-			// AABB Box : min/max.
-			MT_Vector3 aabbMin;
-			MT_Vector3 aabbMax;
-			// Get the mesh bounding box for none deformer.
-			RAS_BoundingBox *boundingBox = meshobj->GetBoundingBox();
-			// Get the AABB.
-			boundingBox->GetAabb(aabbMin, aabbMax);
-			gameobj->SetBoundsAabb(aabbMin, aabbMax);
-		}
-		else {
-			// The object allow AABB auto update only if there's no predefined bound.
-			gameobj->SetAutoUpdateBounds(true);
-
-			gameobj->UpdateBounds(true);
-		}
+		gameobj->UpdateBounds(true);
 	}
 
 	// create physics joints
@@ -1998,12 +1838,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	// apply the initial state to controllers, only on the active objects as this registers the sensors
 	for (KX_GameObject *gameobj : objectlist) {
 		gameobj->ResetState();
-	}
-
-	// Convert the python components of each object.
-	for (KX_GameObject *gameobj : sumolist) {
-		Object *blenderobj = gameobj->GetBlenderObject();
-		BL_ConvertComponentsObject(gameobj, blenderobj);
 	}
 
 	// cleanup converted set of group objects

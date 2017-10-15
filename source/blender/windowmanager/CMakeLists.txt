@@ -41,7 +41,7 @@ set(INC
 	../makesrna
 	../nodes
 	../render/extern/include
-	../../gameengine/BlenderRoutines
+	../../gameengine/Launcher
 	../../../intern/ghost
 	../../../intern/guardedalloc
 	../../../intern/glew-mx

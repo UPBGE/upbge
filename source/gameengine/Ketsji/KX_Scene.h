@@ -34,7 +34,6 @@
 
 
 #include "KX_PhysicsEngineEnums.h"
-#include "KX_TextureRendererManager.h" // For KX_TextureRendererManager::RendererCategory.
 #include "KX_CullingNode.h" // For KX_CullingNodeList.
 
 #include <vector>
@@ -148,7 +147,6 @@ protected:
 	IDProperty *m_props;
 	std::vector<KX_GameObject *>m_lightProbes;
 
-	KX_TextureRendererManager *m_rendererManager;
 	RAS_BucketManager*	m_bucketmanager;
 
 	/// Manager used to update all the mesh bounding box.
@@ -348,13 +346,10 @@ public:
 	/***************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;
-	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 
 	void RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer);
-	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer,
-								KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
 	/**
 	 * Update all transforms according to the scenegraph.

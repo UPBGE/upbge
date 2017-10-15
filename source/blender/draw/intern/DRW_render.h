@@ -445,4 +445,16 @@ typedef struct DRWContextState {
 
 const DRWContextState *DRW_context_state_get(void);
 
+/*****************************GAME ENGINE***********************************/
+void *DRW_viewport_engine_data_get(void *engine_type);
+void DRW_draw_geometry_prepare(DRWShadingGroup *shgroup, const float(*obmat)[4], const float *texcoloc, const float *texcosize);
+void DRW_framebuffer_init_bge(
+struct GPUFrameBuffer **fb, void *engine_type, int width, int height,
+	DRWFboTexture textures[MAX_FBO_TEX], int textures_len);
+struct GPUShader *DRW_shgroup_shader_get(DRWShadingGroup *shgroup);
+void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup);
+void DRW_end_shgroup(void);
+void DRW_state_from_pass_set(DRWPass *pass);
+/**************************END OF GAME ENGINE*******************************/
+
 #endif /* __DRW_RENDER_H__ */

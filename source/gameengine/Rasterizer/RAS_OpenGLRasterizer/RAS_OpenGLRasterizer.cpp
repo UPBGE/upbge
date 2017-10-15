@@ -356,7 +356,7 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::Dra
 		Material *blmat = material->GetBlenderMaterial();
 		Scene *blscene = material->GetBlenderScene();
 		if (!wireframe && blscene && blmat) {
-			GPU_material_vertex_attributes(GPU_material_from_blender(blscene, blmat, false, false), &current_gpu_attribs);
+			GPU_material_vertex_attributes(GPU_material_from_blender(blscene, blmat, false), &current_gpu_attribs);
 		}
 		else {
 			memset(&current_gpu_attribs, 0, sizeof(current_gpu_attribs));

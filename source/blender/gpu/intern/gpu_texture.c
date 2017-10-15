@@ -1017,3 +1017,10 @@ void GPU_texture_framebuffer_set(GPUTexture *tex, GPUFrameBuffer *fb, int attach
 	tex->fb_attachment = attachment;
 }
 
+/***********************Game engine**************************/
+void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode)
+{
+	tex->bindcode = bindcode;
+}
+/********************End of Game engine**********************/
+

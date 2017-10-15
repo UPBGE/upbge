@@ -37,7 +37,6 @@
 #endif
 
 #include "KX_GameObject.h"
-#include "KX_PythonComponent.h"
 #include "KX_Camera.h" // only for their ::Type
 #include "KX_Light.h"  // only for their ::Type
 #include "KX_FontObject.h"  // only for their ::Type
@@ -86,9 +85,6 @@
 #  include "python_utildefines.h"
 #endif
 
-// Component stuff
-#include "DNA_python_component_types.h"
-
 // This file defines relationships between parents and children
 // in the game engine.
 
@@ -122,7 +118,6 @@ KX_GameObject::KX_GameObject(
       m_pPhysicsController(nullptr),
       m_pGraphicController(nullptr),
       m_cullingNode(this),
-      m_components(nullptr),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
       m_actionManager(nullptr)
@@ -157,10 +152,6 @@ KX_GameObject::~KX_GameObject()
 	if (m_collisionCallbacks) {
 		UnregisterCollisionCallbacks();
 		Py_CLEAR(m_collisionCallbacks);
-	}
-
-	if (m_components) {
-		m_components->Release();
 	}
 #endif // WITH_PYTHON
 
@@ -529,13 +520,6 @@ void KX_GameObject::ProcessReplica()
 
 	if (m_attr_dict)
 		m_attr_dict= PyDict_Copy(m_attr_dict);
-
-	if (m_components) {
-		m_components = (CListValue<KX_PythonComponent> *)m_components->GetReplica();
-		for (KX_PythonComponent *component : m_components) {
-			component->SetGameObject(this);
-		}
-	}
 
 #endif
 }
@@ -1534,30 +1518,6 @@ CListValue<KX_GameObject> *KX_GameObject::GetChildrenRecursive()
 	return list;
 }
 
-CListValue<KX_PythonComponent> *KX_GameObject::GetComponents() const
-{
-	return m_components;
-}
-
-void KX_GameObject::SetComponents(CListValue<KX_PythonComponent> *components)
-{
-	m_components = components;
-}
-
-void KX_GameObject::UpdateComponents()
-{
-#ifdef WITH_PYTHON
-	if (!m_components) {
-		return;
-	}
-
-	for (KX_PythonComponent *comp : m_components) {
-		comp->Update();
-	}
-
-#endif // WITH_PYTHON
-}
-
 KX_Scene* KX_GameObject::GetScene()
 {
 	BLI_assert(m_pSGNode);
@@ -1920,7 +1880,6 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("attrDict",	KX_GameObject, pyattr_get_attrDict),
 	KX_PYATTRIBUTE_RW_FUNCTION("color", KX_GameObject, pyattr_get_obcolor, pyattr_set_obcolor),
 	KX_PYATTRIBUTE_RW_FUNCTION("debug",	KX_GameObject, pyattr_get_debug, pyattr_set_debug),
-	KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
 	KX_PYATTRIBUTE_RW_FUNCTION("debugRecursive",	KX_GameObject, pyattr_get_debugRecursive, pyattr_set_debugRecursive),
 
 	/* experimental, don't rely on these yet */
@@ -3023,13 +2982,6 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v, const KX_PYATTRIBUTE
 
 	self->SetObjectColor(obcolor);
 	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject* KX_GameObject::pyattr_get_components(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	CListValue<KX_PythonComponent> *components = self->GetComponents();
-	return components ? components->GetProxy() : (new CListValue<KX_PythonComponent>())->NewProxy(true);
 }
 
 static int kx_game_object_get_sensors_size_cb(void *self_v)

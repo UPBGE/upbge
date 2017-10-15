@@ -82,8 +82,7 @@ add_dependencies(blenderplayer makesdna)
 get_property(BLENDER_LINK_LIBS GLOBAL PROPERTY BLENDER_LINK_LIBS)
 
 list(APPEND BLENDER_LINK_LIBS
-	ge_player_common
-	ge_player_ghost
+	ge_player
 	blenkernel_blc
 )
 
@@ -100,12 +99,33 @@ endif()
 # if(UNIX)
 	# Sort libraries
 	set(BLENDER_SORTED_LIBS
-		ge_player_ghost 
-		ge_player_common 
-		bf_intern_string 
-		bf_intern_ghost
+		ge_player
+		ge_launcher
+		ge_player
+		ge_logic_ketsji
+		ge_converter
+		ge_logic_ketsji
+		ge_phys_bullet
+		ge_phys_dummy
+		ge_logic
+		ge_device
+		ge_rasterizer
+		ge_oglrasterizer
+		ge_logic_expressions
+		ge_common
+		ge_scenegraph
+		ge_logic_network
+		ge_videotex
+
+		bf_editor_datafiles
+
 		bf_rna
+		bf_blenloader
+		bf_modifiers
+		bf_draw
+		bf_gpu
 		bf_blenkernel
+		bf_physics
 		bf_depsgraph
 		bf_physics
 		bf_intern_rigidbody
@@ -131,19 +151,13 @@ endif()
 		bf_gpu
 		bf_intern_gawain
 		bf_imbuf
-		bf_avi 
-		ge_logic_network 
-		ge_logic_ngnetwork 
-		ge_logic_loopbacknetwork 
-		extern_bullet 
-		bf_intern_guardedalloc 
-		bf_intern_memutil 
+		bf_avi
 		bf_python_ext
 		bf_python_mathutils
 		bf_python_bmesh
 		bf_intern_utfconv
 		bf_imbuf_cineon
-		bf_imbuf_openexr 
+		bf_imbuf_openexr
 		bf_imbuf_openimageio
 		extern_openjpeg
 		bf_imbuf_dds
@@ -157,6 +171,17 @@ endif()
 		blenkernel_blc
 		bf_bmesh
 		bf_blenlib
+		blenkernel_blc
+
+		bf_intern_string
+		bf_intern_ghost
+		bf_intern_rigidbody
+		bf_intern_itasc
+		bf_intern_iksolver
+		bf_intern_smoke
+		bf_intern_moto
+		bf_intern_guardedalloc
+		bf_intern_memutil
 		bf_intern_utfconv
 		extern_binreloc
 		extern_minilzo
@@ -166,7 +191,15 @@ endif()
 		extern_recastnavigation
 		bf_intern_opencolorio
 		bf_intern_glew_mx
+		bf_intern_gawain
 		bf_intern_eigen
+		bf_intern_libmv
+
+		extern_bullet
+		extern_openjpeg
+		extern_binreloc
+		extern_minilzo
+		extern_recastnavigation
 		extern_rangetree
 		extern_wcwidth
 		bf_intern_libmv
@@ -215,6 +248,10 @@ endif()
 
 	if(WITH_GAMEENGINE_DECKLINK)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_decklink)
+	endif()
+
+	if(WITH_GAMEENGINE_BPPLAYER)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_spindle)
 	endif()
 
 	if(WIN32)

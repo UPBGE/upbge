@@ -153,6 +153,13 @@ extern char datatoc_gpu_shader_fx_dof_hq_geo_glsl[];
 extern char datatoc_gpu_shader_fx_depth_resolve_glsl[];
 extern char datatoc_gpu_shader_fx_lib_glsl[];
 
+/********************Game engine*********************/
+extern char datatoc_gpu_shader_black_frag_glsl[];
+extern char datatoc_gpu_shader_black_vert_glsl[];
+extern char datatoc_gpu_shader_frame_buffer_frag_glsl[];
+extern char datatoc_gpu_shader_frame_buffer_vert_glsl[];
+/*****************End of Game engine*****************/
+
 /* cache of built-in shaders (each is created on first use) */
 static GPUShader *builtin_shaders[GPU_NUM_BUILTIN_SHADERS] = { NULL };
 
@@ -674,6 +681,101 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 	return attrib ? attrib->location : -1;
 }
 
+/**********************************Game engine************************************/
+char *GPU_shader_validate(GPUShader *shader)
+{
+	int stat = 0;
+	glValidateProgram(shader->program);
+	glGetObjectParameterivARB(shader->program, GL_OBJECT_VALIDATE_STATUS_ARB, (GLint *)&stat);
+
+	if (stat > 0) {
+		int charlen = 0;
+		char *log = (char *)MEM_mallocN(stat, "GPU_shader_validate");
+
+		glGetInfoLogARB(shader->program, stat, (GLsizei *)&charlen, log);
+
+		return log;
+	}
+	return NULL;
+}
+
+void GPU_shader_uniform_float(GPUShader *UNUSED(shader), int location, float value)
+{
+	if (location == -1)
+		return;
+
+	glUniform1f(location, value);
+}
+
+void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len)
+{
+	GWN_shaderinterface_discard(shader->interface);
+	for (unsigned short i = 0; i < len; ++i) {
+		glBindAttribLocation(shader->program, locations[i], names[i]);
+	}
+	shader->interface = GWN_shaderinterface_create(shader->program);
+}
+
+// Used only for VSM shader with geometry instancing support.
+void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, void *positionoffset, unsigned int stride)
+{
+	//int posloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
+	//int matloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
+
+	//// Matrix
+	//if (matloc != -1) {
+	//	glEnableVertexAttribArrayARB(matloc);
+	//	glEnableVertexAttribArrayARB(matloc + 1);
+	//	glEnableVertexAttribArrayARB(matloc + 2);
+
+	//	glVertexAttribPointerARB(matloc, 3, GL_FLOAT, GL_FALSE, stride, matrixoffset);
+	//	glVertexAttribPointerARB(matloc + 1, 3, GL_FLOAT, GL_FALSE, stride, ((char *)matrixoffset) + 3 * sizeof(float));
+	//	glVertexAttribPointerARB(matloc + 2, 3, GL_FLOAT, GL_FALSE, stride, ((char *)matrixoffset) + 6 * sizeof(float));
+
+	//	glVertexAttribDivisorARB(matloc, 1);
+	//	glVertexAttribDivisorARB(matloc + 1, 1);
+	//	glVertexAttribDivisorARB(matloc + 2, 1);
+	//}
+
+	//// Position
+	//if (posloc != -1) {
+	//	glEnableVertexAttribArrayARB(posloc);
+	//	glVertexAttribPointerARB(posloc, 3, GL_FLOAT, GL_FALSE, stride, positionoffset);
+	//	glVertexAttribDivisorARB(posloc, 1);
+	//}
+}
+
+void GPU_shader_unbind_instancing_attrib(GPUShader *shader)
+{
+	//int posloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
+	//int matloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
+
+	//// Matrix
+	//if (matloc != -1) {
+	//	glDisableVertexAttribArrayARB(matloc);
+	//	glDisableVertexAttribArrayARB(matloc + 1);
+	//	glDisableVertexAttribArrayARB(matloc + 2);
+
+	//	glVertexAttribDivisorARB(matloc, 0);
+	//	glVertexAttribDivisorARB(matloc + 1, 0);
+	//	glVertexAttribDivisorARB(matloc + 2, 0);
+	//}
+
+	//// Position
+	//if (posloc != -1) {
+	//	glDisableVertexAttribArrayARB(posloc);
+	//	glVertexAttribDivisorARB(posloc, 0);
+	//}
+}
+
+int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
+{
+	BLI_assert(shader && shader->program);
+	int loc = glGetUniformLocation(shader->program, name);
+	return loc;
+}
+/******************End of Game engine*************/
+
 GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 {
 	BLI_assert(shader != GPU_NUM_BUILTIN_SHADERS); /* don't be a troll */
@@ -819,6 +921,15 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 		                                                 datatoc_gpu_shader_simple_lighting_frag_glsl },
 		[GPU_SHADER_3D_INSTANCE_BONE_ENVELOPE_WIRE] = { datatoc_gpu_shader_instance_bone_envelope_wire_vert_glsl,
 		                                                datatoc_gpu_shader_flat_color_frag_glsl },
+
+		/****************************************************Game Engine********************************************************/
+		[GPU_SHADER_DRAW_FRAME_BUFFER] = { datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl },
+		[GPU_SHADER_VSM_STORE_INSTANCING] = { datatoc_gpu_shader_vsm_store_vert_glsl, datatoc_gpu_shader_vsm_store_frag_glsl },
+		[GPU_SHADER_BLACK] = { datatoc_gpu_shader_black_vert_glsl, datatoc_gpu_shader_black_frag_glsl },
+		[GPU_SHADER_BLACK_INSTANCING] = { datatoc_gpu_shader_black_vert_glsl, datatoc_gpu_shader_black_frag_glsl },
+		[GPU_SHADER_STEREO_STIPPLE] = { datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl },
+		[GPU_SHADER_STEREO_ANAGLYPH] = { datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl },
+		/*************************************************End of Game engine****************************************************/
 	};
 
 	if (builtin_shaders[shader] == NULL) {

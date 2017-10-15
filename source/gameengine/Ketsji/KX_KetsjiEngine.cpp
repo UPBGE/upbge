@@ -619,8 +619,6 @@ void KX_KetsjiEngine::Render()
 	for (KX_Scene *scene : m_scenes) {
 		// shadow buffers
 		RenderShadowBuffers(scene);
-		// Render only independent texture renderers here.
-// 		scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_INDEPENDENT, m_rasterizer, nullptr, nullptr, RAS_Rect(), RAS_Rect());
 	}
 
 	std::vector<FrameRenderData> frameDataList;
@@ -1149,11 +1147,6 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	const RAS_Rect &viewport = cameraFrameData.m_viewport;
 
 	KX_SetActiveScene(scene);
-
-	/* Render texture probes depending of the the current viewport and area, these texture probes are commonly the planar map
-	 * which need to be recomputed by each view in case of multi-viewport or stereo.
-	 */
-// 	scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_DEPENDENT, m_rasterizer, frameBuffer, rendercam, viewport, area);
 
 	// set the viewport for this frame and scene
 	const int left = viewport.GetLeft();

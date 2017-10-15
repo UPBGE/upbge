@@ -55,7 +55,6 @@ struct KX_ClientObjectInfo;
 class KX_RayCast;
 class KX_LodManager;
 class KX_CullingNode;
-class KX_PythonComponent;
 class RAS_MeshObject;
 class RAS_MeshUser;
 class PHY_IGraphicController;
@@ -114,8 +113,6 @@ protected:
 
 	KX_CullingNode m_cullingNode;
 	SG_Node*							m_pSGNode;
-
-	CListValue<KX_PythonComponent> *m_components;
 
 	std::vector<bRigidBodyJointConstraint*>	m_constraints;
 
@@ -889,14 +886,6 @@ public:
 	CListValue<KX_GameObject> *GetChildren();
 	CListValue<KX_GameObject> *GetChildrenRecursive();
 
-	/// Returns the component list.
-	CListValue<KX_PythonComponent> *GetComponents() const;
-	/// Add a components.
-	void SetComponents(CListValue<KX_PythonComponent> *components);
-
-	/// Updates the components.
-	void UpdateComponents();
-
 	KX_Scene*	GetScene();
 
 #ifdef WITH_PYTHON
@@ -1031,7 +1020,6 @@ public:
 	static PyObject*	pyattr_get_attrDict(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_obcolor(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_obcolor(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_components(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_collisionCallbacks(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_collisionCallbacks(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_collisionGroup(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

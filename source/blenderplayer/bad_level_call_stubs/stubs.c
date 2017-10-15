@@ -151,8 +151,10 @@ struct wmManipulatorMap;
 #include "../../intern/elbeem/extern/elbeem.h"
 #include "../blender/blenkernel/BKE_modifier.h"
 #include "../blender/blenkernel/BKE_paint.h"
+#include "../blender/blenkernel/BKE_paint.h"
 #include "../blender/collada/collada.h"
 #include "../blender/compositor/COM_compositor.h"
+#include "../blender/editors/include/BIF_glutil.h"
 #include "../blender/editors/include/ED_armature.h"
 #include "../blender/editors/include/ED_anim_api.h"
 #include "../blender/editors/include/ED_buttons.h"
@@ -335,6 +337,7 @@ struct bScreen *WM_window_get_active_screen(const struct wmWindow *win) RET_NULL
 struct Scene *WM_window_get_active_scene(const struct wmWindow *win) RET_NULL
 void WM_window_change_active_scene(struct Main *bmain, struct bContext *C, struct wmWindow *win, struct Scene *scene_new) RET_NONE
 bool WM_window_is_temp_screen(const struct wmWindow *win) RET_ZERO
+void wmOrtho2_region_pixelspace(const struct ARegion *ar) RET_NONE
 
 void WM_autosave_init(wmWindowManager *wm) RET_NONE
 void WM_jobs_kill_all_except(struct wmWindowManager *wm, void *owner) RET_NONE
@@ -399,6 +402,7 @@ const struct ListBase *WM_manipulatormap_group_list(struct wmManipulatorMap *mma
 void WM_manipulator_calc_matrix_final(const struct wmManipulator *mpr, float r_mat[4][4]) RET_NONE
 struct wmManipulatorProperty *WM_manipulator_target_property_find(struct wmManipulator *mpr, const char *idname) RET_NULL
 bool WM_manipulator_target_property_is_valid(const struct wmManipulatorProperty *mpr_prop) RET_ZERO
+void WM_manipulatormap_draw(struct wmManipulatorMap *mmap, const struct bContext *C, const eWM_ManipulatorMapDrawStep drawstep) RET_NONE
 
 #ifdef WITH_INPUT_NDOF
     void WM_ndof_deadzone_set(float deadzone) RET_NONE
@@ -432,7 +436,10 @@ void ED_object_facemap_face_remove(struct Object *ob, struct bFaceMap *fmap, int
 void ED_node_composit_default(const struct bContext *C, struct Scene *scene) RET_NONE
 void *ED_region_draw_cb_activate(struct ARegionType *art, void(*draw)(const struct bContext *, struct ARegion *, void *), void *custumdata, int type) RET_ZERO /* XXX this one looks weird */
 void *ED_region_draw_cb_customdata(void *handle) RET_ZERO /* XXX This one looks wrong also */
+void ED_region_draw_cb_draw(const struct bContext *C, ARegion *ar, int type) RET_NONE
 void ED_region_draw_cb_exit(struct ARegionType *art, void *handle) RET_NONE
+void ED_region_visible_rect(ARegion *ar, rcti *rect) RET_NONE
+void ED_region_pixelspace(struct ARegion *ar) RET_NONE
 void ED_area_headerprint(struct ScrArea *sa, const char *str) RET_NONE
 void ED_gpencil_parent_location(struct bGPDlayer *gpl, float diff_mat[4][4]) RET_NONE
 void UI_view2d_region_to_view(struct View2D *v2d, float x, float y, float *viewx, float *viewy) RET_NONE
@@ -540,15 +547,23 @@ void ED_node_tree_pop(struct SpaceNode *snode) RET_NONE
 int ED_view3d_scene_layer_set(int lay, const int *values, int *active) RET_ZERO
 void ED_view3d_quadview_update(struct ScrArea *sa, struct ARegion *ar, bool do_clip) RET_NONE
 void ED_view3d_from_m4(float mat[4][4], float ofs[3], float quat[4], float *dist) RET_NONE
+eV3DProjStatus ED_view3d_project_short_ex(const struct ARegion *ar, float perspmat[4][4], const bool is_local,
+                                          const float co[3], short r_co[2], const eV3DProjTest flag) RET_ZERO
 struct BGpic *ED_view3D_background_image_new(struct View3D *v3d) RET_NULL
 void ED_view3D_background_image_remove(struct View3D *v3d, struct BGpic *bgpic) RET_NONE
 void ED_view3D_background_image_clear(struct View3D *v3d) RET_NONE
 void ED_view3d_update_viewmat(const struct EvaluationContext *eval_ctx, struct Scene *scene, struct View3D *v3d, struct ARegion *ar, float viewmat[4][4], float winmat[4][4], const struct rcti *rect) RET_NONE
 float ED_view3d_grid_scale(struct Scene *scene, struct View3D *v3d, const char **grid_unit) RET_ZERO
 void ED_view3d_shade_update(struct Main *bmain, struct Scene *scene, struct View3D *v3d, struct ScrArea *sa) RET_NONE
+void ED_view3d_clipping_disable(void) RET_NONE
+void ED_view3d_clipping_enable(void) RET_NONE
+void ED_region_info_draw_multiline(struct ARegion *ar, const char *text_array[], float fill_color[4], const bool full_redraw) RET_NONE
+void view3d_draw_region_info(const struct bContext *C, struct ARegion *ar, const int offset);
+void view3d_draw_region_info(const struct bContext *C, struct ARegion *ar, const int offset) RET_NONE
 void ED_node_shader_default(const struct bContext *C, struct ID *id) RET_NONE
 void ED_screen_animation_timer_update(struct bScreen *screen, int redraws, int refresh) RET_NONE
 struct bScreen *ED_screen_animation_playing(const struct wmWindowManager *wm) RET_NULL
+struct bScreen *ED_screen_animation_no_scrub(const struct wmWindowManager *wm) RET_NULL
 struct Scene *ED_screen_scene_find(const struct bScreen *screen, const struct wmWindowManager *wm) RET_NULL
 bool ED_scene_render_layer_delete(struct Main *bmain, Scene *scene, SceneLayer *layer, ReportList *reports) RET_ZERO
 void ED_base_object_select(struct BaseLegacy *base, short mode) RET_NONE
@@ -630,7 +645,6 @@ void ED_lattice_editlatt_load(struct Object *obedit) RET_NONE
 void ED_curve_editnurb_load(struct Object *obedit) RET_NONE
 void ED_curve_editnurb_make(struct Object *obedit) RET_NONE
 
-
 void uiItemR(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int flag, const char *name, int icon) RET_NONE
 
 struct PointerRNA uiItemFullO(uiLayout *layout, const char *idname, const char *name, int icon, struct IDProperty *properties, int context, int flag) RET_STRUCT(PointerRNA)
@@ -662,6 +676,10 @@ void uiLayoutSetContextPointer(uiLayout *layout, const char *name, struct Pointe
 const char *uiLayoutIntrospect(uiLayout *layout) RET_NULL
 void UI_reinit_font(void) RET_NONE
 int UI_rnaptr_icon_get(struct bContext *C, struct PointerRNA *ptr, int rnaicon, const bool big) RET_ZERO
+struct PreviewImage *UI_icon_to_preview(int icon_id) RET_NULL
+void UI_make_axis_color(const unsigned char src_col[3], unsigned char dst_col[3], const char axis) RET_NONE
+uiStyle *UI_style_get(void) RET_NULL
+void UI_FontThemeColor(int fontid, int colorid) RET_NONE
 struct bTheme *UI_GetTheme(void) RET_NULL
 void UI_GetThemeColor3fv(int colorid, float col[4]) RET_NONE
 void UI_GetThemeColor4fv(int colorid, float col[4]) RET_NONE
@@ -671,7 +689,16 @@ void UI_GetThemeColorBlendShade3fv(int colorid1, int colorid2, float fac, int of
 void UI_GetThemeColorBlendShade4fv(int colorid1, int colorid2, float fac, int offset, float col[4]) RET_NONE
 void UI_GetThemeColorBlend3ubv(int colorid1, int colorid2, float fac, unsigned char col[3]) RET_NONE
 void UI_GetThemeColorShadeAlpha4ubv(int colorid, int coloffset, int alphaoffset, unsigned char col[4]) RET_NONE
+float UI_GetThemeValuef(int colorid) RET_ZERO
+int UI_GetThemeValue(int colorid) RET_ZERO
+void UI_GetThemeColorShade3fv(int colorid, int offset, float col[3]) RET_NONE
+void UI_GetThemeColor3ubv(int colorid, unsigned char col[3]) RET_NONE
+void UI_GetThemeColor4ubv(int colorid, unsigned char col[4]) RET_NONE
+void UI_GetColorPtrShade3ubv(const unsigned char cp1[3], unsigned char col[3], int offset) RET_NONE
+void UI_ThemeClearColorAlpha(int colorid, float alpha) RET_NONE
 
+void setlinestyle(int nr) RET_NONE
+void set_inverted_drawing(int enable) RET_NONE
 /* rna template */
 void uiTemplateAnyID(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *proptypename, const char *text) RET_NONE
 void uiTemplatePathBuilder(uiLayout *layout, struct PointerRNA *ptr, const char *propname, struct PointerRNA *root_ptr, const char *text) RET_NONE
@@ -704,7 +731,7 @@ void uiTemplateRunningJobs(struct uiLayout *layout, struct bContext *C) RET_NONE
 void uiTemplateOperatorSearch(struct uiLayout *layout) RET_NONE
 void uiTemplateHeader3D(struct uiLayout *layout, struct bContext *C) RET_NONE
 void uiTemplateEditModeSelection(struct uiLayout *layout, struct bContext *C) RET_NONE
-void uiTemplateImage(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, struct PointerRNA *userptr, int compact, int multiview) RET_NONE
+void uiTemplateImage(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, struct PointerRNA *userptr, int compact, int multiview, int cubemap) RET_NONE
 void uiTemplateColorPicker(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int value_slider, int lock, int lock_luminosity, int cubic) RET_NONE
 void uiTemplateHistogram(uiLayout *layout, struct PointerRNA *ptr, const char *propname) RET_NONE
 void uiTemplateReportsBanner(uiLayout *layout, struct bContext *C) RET_NONE
@@ -731,6 +758,7 @@ void uiTemplateCacheFile(uiLayout *layout, struct bContext *C, struct PointerRNA
 
 /* rna render */
 struct RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, int h, const char *layername, const char *viewname) RET_NULL
+RenderEngine *RE_engine_create_ex(RenderEngineType *type, bool use_for_viewport) RET_NULL
 struct RenderResult *RE_AcquireResultRead(struct Render *re) RET_NULL
 struct RenderResult *RE_AcquireResultWrite(struct Render *re) RET_NULL
 struct RenderStats *RE_GetStats(struct Render *re) RET_NULL
@@ -767,13 +795,6 @@ void RE_FreeAllPersistentData(void) RET_NONE
 float RE_fresnel_dielectric(float incoming[3], float normal[3], float eta) RET_ZERO
 void RE_engine_register_pass(struct RenderEngine *engine, struct Scene *scene, struct SceneRenderLayer *srl, const char *name, int channels, const char *chanid, int type) RET_NONE
 struct SceneLayer *RE_engine_get_scene_layer(struct Render *re) RET_NULL
-
-/* Draw */
-void OBJECT_collection_settings_create(struct IDProperty *properties) RET_NONE
-void EDIT_MESH_collection_settings_create(struct IDProperty *properties) RET_NONE
-void EDIT_ARMATURE_collection_settings_create(struct IDProperty *properties) RET_NONE
-void PAINT_WEIGHT_collection_settings_create(struct IDProperty *properties) RET_NONE
-void PAINT_VERTEX_collection_settings_create(struct IDProperty *properties) RET_NONE
 
 /* python */
 struct wmOperatorType *WM_operatortype_find(const char *idname, bool quiet) RET_NULL

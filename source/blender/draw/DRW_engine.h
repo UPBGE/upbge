@@ -99,4 +99,10 @@ void EDIT_ARMATURE_collection_settings_create(struct IDProperty *properties);
 void PAINT_WEIGHT_collection_settings_create(struct IDProperty *properties);
 void PAINT_VERTEX_collection_settings_create(struct IDProperty *properties);
 
+/*************************************************Game engine************************************************/
+void DRW_game_render_loop_begin(struct GPUOffScreen *ofs, struct Depsgraph *graph,
+	struct Scene *scene, struct SceneLayer *sl, struct Object *maincam, int viewportsize[2], bool is_first_scene);
+void DRW_game_render_loop_end(void);
+/********************************************End of game engine**********************************************/
+
 #endif /* __DRW_ENGINE_H__ */

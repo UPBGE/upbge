@@ -142,8 +142,8 @@ typedef struct RenderEngine {
 	int last_winx, last_winy;
 } RenderEngine;
 
-RenderEngine *RE_engine_create(RenderEngineType *type);
-RenderEngine *RE_engine_create_ex(RenderEngineType *type, bool use_for_viewport);
+RenderEngine *RE_engine_create(struct RenderEngineType *type);
+RenderEngine *RE_engine_create_ex(struct RenderEngineType *type, bool use_for_viewport);
 void RE_engine_free(RenderEngine *engine);
 
 void RE_layer_load_from_file(struct RenderLayer *layer, struct ReportList *reports, const char *filename, int x, int y);

@@ -398,7 +398,7 @@ void ED_node_shader_default(const bContext *C, ID *id)
 			Material *ma = (Material *)id;
 			ma->nodetree = ntree;
 
-			if (BKE_scene_uses_blender_eevee(scene)) {
+			if (BKE_scene_uses_blender_eevee(scene) || BKE_scene_uses_blender_game(scene)) {
 				output_type = SH_NODE_OUTPUT_MATERIAL;
 				shader_type = SH_NODE_BSDF_PRINCIPLED;
 			}

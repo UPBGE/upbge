@@ -201,8 +201,6 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_Rasterizer *rasty)
 	if (m_hasworld) {
 		rasty->SetAmbientColor(m_con_ambientcolor);
 		GPU_ambient_update_color(m_ambientcolor.getValue());
-		GPU_update_exposure_range(m_exposure, m_range);
-		GPU_update_envlight_energy(m_envLightEnergy);
 
 		if (m_hasmist) {
 			/*rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor);

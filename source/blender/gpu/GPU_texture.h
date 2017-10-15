@@ -198,6 +198,10 @@ bool GPU_texture_depth(const GPUTexture *tex);
 bool GPU_texture_stencil(const GPUTexture *tex);
 int GPU_texture_opengl_bindcode(const GPUTexture *tex);
 
+/******************Game engine************************/
+void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode);
+/**************End of Game engine*********************/
+
 #ifdef __cplusplus
 }
 #endif

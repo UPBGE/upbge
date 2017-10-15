@@ -239,7 +239,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	
 	m_rootnode = nullptr;
 
-	m_rendererManager = new KX_TextureRendererManager(this);
 	KX_TextMaterial *textMaterial = new KX_TextMaterial();
 	m_bucketmanager=new RAS_BucketManager(textMaterial);
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
@@ -268,7 +267,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	Object *maincam = m_blenderScene->camera ? (Object *)m_blenderScene->camera : (Object *)KX_GetActiveEngine()->GetConverter()->GetMain()->camera.first;
 	bool isFirstScene = KX_GetActiveEngine()->CurrentScenes()->GetCount() == 0;
 	
-	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, GPU_R11F_G11F_B10F, GPU_OFFSCREEN_DEPTH_COMPARE, nullptr);
+	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, nullptr);
 	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
 	DRW_game_render_loop_begin(tempgpuofs, m_blenderScene->depsgraph_legacy, m_blenderScene,
 		sl, maincam, viewportsize, isFirstScene);
@@ -352,10 +351,6 @@ KX_Scene::~KX_Scene()
 	if (m_networkScene)
 		delete m_networkScene;
 
-	if (m_rendererManager) {
-		delete m_rendererManager;
-	}
-
 	if (m_bucketmanager)
 	{
 		delete m_bucketmanager;
@@ -419,11 +414,6 @@ EEVEE_Data *KX_Scene::GetEeveeData()
 RAS_BucketManager* KX_Scene::GetBucketManager() const
 {
 	return m_bucketmanager;
-}
-
-KX_TextureRendererManager *KX_Scene::GetTextureRendererManager() const
-{
-	return m_rendererManager;
 }
 
 RAS_BoundingBoxManager *KX_Scene::GetBoundingBoxManager() const
@@ -1159,8 +1149,6 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 
 	gameobj->RemoveMeshes();
 
-	m_rendererManager->InvalidateViewpoint(gameobj);
-
 	bool ret = true;
 	if (gameobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(static_cast<KX_LightObject *>(gameobj)))
 		ret = (gameobj->Release() != nullptr);
@@ -1681,10 +1669,6 @@ void KX_Scene::LogicUpdateFrame(double curtime)
 		objects.push_back(gameobj);
 	}
 
-	for (KX_GameObject *gameobj : objects) {
-		gameobj->UpdateComponents();
-	}
-
 	m_logicmgr->UpdateFrame(curtime);
 }
 
@@ -1749,12 +1733,6 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 	m_bucketmanager->Renderbuckets(cameratransform, rasty, frameBuffer);
 
 	KX_BlenderMaterial::EndFrame(rasty);
-}
-
-void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer, KX_Camera *camera,
-									  const RAS_Rect& viewport, const RAS_Rect& area)
-{
-	m_rendererManager->Render(category, rasty, frameBuffer, camera, viewport, area);
 }
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam, const KX_CullingNodeList& nodes)
@@ -1977,7 +1955,6 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 	GetBucketManager()->MergeBucketManager(other->GetBucketManager());
 	GetBoundingBoxManager()->Merge(other->GetBoundingBoxManager());
-	GetTextureRendererManager()->Merge(other->GetTextureRendererManager());
 
 	/* active + inactive == all ??? - lets hope so */
 	for (KX_GameObject *gameobj : *other->GetObjectList()) {

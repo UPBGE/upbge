@@ -863,35 +863,7 @@ void BL_ConvertActuators(const char* maggiename,
 				baseact = tmprandomact;
 			}
 			break;
-		case ACT_VIBRATION:
-		{
-			bVibrationActuator *vib_act = (bVibrationActuator *)bact->data;
-			SCA_VibrationActuator * tmp_vib_act = nullptr;
-			short mode = SCA_VibrationActuator::KX_ACT_VIBRATION_NONE;
 
-			switch (vib_act->mode) {
-				case ACT_VIBRATION_PLAY:
-				{
-					mode = SCA_VibrationActuator::KX_ACT_VIBRATION_PLAY;
-					break;
-				}
-				case ACT_VIBRATION_STOP:
-				{
-					mode = SCA_VibrationActuator::KX_ACT_VIBRATION_STOP;
-					break;
-				}
-			}
-
-			int joyindex = vib_act->joyindex;
-			float strengthLeft = vib_act->strength;
-			float strengthRight = vib_act->strength_right;
-			int duration = vib_act->duration;
-
-			tmp_vib_act = new SCA_VibrationActuator(gameobj, mode, joyindex, strengthLeft, strengthRight, duration);
-
-			baseact = tmp_vib_act;
-		}
-		break;
 		case ACT_VISIBILITY:
 		{
 			bVisibilityActuator *vis_act = (bVisibilityActuator *) bact->data;
@@ -976,7 +948,7 @@ void BL_ConvertActuators(const char* maggiename,
 			}
 
 			tmp = new SCA_2DFilterActuator(gameobj, filtermode,  _2dfilter->flag,
-			                               _2dfilter->float_arg, _2dfilter->int_arg, _2dfilter->mipmap,
+			                               _2dfilter->float_arg, _2dfilter->int_arg, false,
 			                               ketsjiEngine->GetRasterizer(), scene->Get2DFilterManager(), scene);
 
 			if (_2dfilter->text)

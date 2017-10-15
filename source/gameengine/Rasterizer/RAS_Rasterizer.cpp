@@ -1428,12 +1428,12 @@ void RAS_Rasterizer::UpdateGlobalDepthTexture(RAS_FrameBuffer *frameBuffer)
 	//	frameBuffer = dstOffScreen;
 	//}
 
-	GPU_texture_set_global_depth(GPU_framebuffer_depth_texture(frameBuffer->GetFrameBuffer()));
+	//GPU_texture_set_global_depth(GPU_framebuffer_depth_texture(frameBuffer->GetFrameBuffer()));
 }
 
 void RAS_Rasterizer::ResetGlobalDepthTexture()
 {
-	GPU_texture_set_global_depth(nullptr);
+	//GPU_texture_set_global_depth(nullptr);
 }
 
 //void RAS_Rasterizer::MotionBlur()

@@ -92,7 +92,6 @@ set(SRC
 	KX_CollisionSensor.cpp
 	KX_ConstraintActuator.cpp
 	KX_ConstraintWrapper.cpp
-	KX_CubeMap.cpp
 	KX_CullingHandler.cpp
 	KX_CullingNode.cpp
 	KX_EmptyObject.cpp
@@ -112,7 +111,6 @@ set(SRC
 	KX_MotionState.cpp
 	KX_MouseActuator.cpp
 	KX_MouseFocusSensor.cpp
-	KX_MovementSensor.cpp
 	KX_NavMeshObject.cpp
 	KX_NearSensor.cpp
 	KX_ObColorIpoSGController.cpp
@@ -120,12 +118,10 @@ set(SRC
 	KX_ObstacleSimulation.cpp
 	KX_OrientationInterpolator.cpp
 	KX_ParentActuator.cpp
-	KX_PlanarMap.cpp
 	KX_PolyProxy.cpp
 	KX_PositionInterpolator.cpp
 	KX_PyConstraintBinding.cpp
 	KX_PyMath.cpp
-	KX_PythonComponent.cpp
 	KX_PythonInit.cpp
 	KX_PythonInitTypes.cpp
 	KX_PythonMain.cpp
@@ -146,8 +142,6 @@ set(SRC
 	KX_StateActuator.cpp
 	KX_SteeringActuator.cpp
 	KX_TextMaterial.cpp
-	KX_TextureRenderer.cpp
-	KX_TextureRendererManager.cpp
 	KX_TimeCategoryLogger.cpp
 	KX_TimeLogger.cpp
 	KX_TrackToActuator.cpp
@@ -177,7 +171,6 @@ set(SRC
 	KX_ClientObjectInfo.h
 	KX_ConstraintActuator.h
 	KX_ConstraintWrapper.h
-	KX_CubeMap.h
 	KX_CullingHandler.h
 	KX_CullingNode.h
 	KX_EmptyObject.h
@@ -201,7 +194,6 @@ set(SRC
 	KX_MotionState.h
 	KX_MouseActuator.h
 	KX_MouseFocusSensor.h
-	KX_MovementSensor.h
 	KX_NavMeshObject.h
 	KX_NearSensor.h
 	KX_ObColorIpoSGController.h
@@ -210,12 +202,10 @@ set(SRC
 	KX_OrientationInterpolator.h
 	KX_ParentActuator.h
 	KX_PhysicsEngineEnums.h
-	KX_PlanarMap.h
 	KX_PolyProxy.h
 	KX_PositionInterpolator.h
 	KX_PyConstraintBinding.h
 	KX_PyMath.h
-	KX_PythonComponent.h
 	KX_PythonInit.h
 	KX_PythonInitTypes.h
 	KX_PythonMain.h
@@ -236,8 +226,6 @@ set(SRC
 	KX_StateActuator.h
 	KX_SteeringActuator.h
 	KX_TextMaterial.h
-	KX_TextureRenderer.h
-	KX_TextureRendererManager.h
 	KX_TimeCategoryLogger.h
 	KX_TimeLogger.h
 	KX_CollisionEventManager.h

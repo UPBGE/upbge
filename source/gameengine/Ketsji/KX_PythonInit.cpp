@@ -76,7 +76,6 @@ extern "C" {
 #include "KX_KetsjiEngine.h"
 #include "KX_RadarSensor.h"
 #include "KX_RaySensor.h"
-#include "KX_MovementSensor.h"
 #include "KX_ArmatureSensor.h"
 #include "KX_SceneActuator.h"
 #include "KX_GameActuator.h"
@@ -1621,15 +1620,6 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_X, KX_RaySensor::KX_RAY_AXIS_NEG_X);
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Y, KX_RaySensor::KX_RAY_AXIS_NEG_Y);
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Z, KX_RaySensor::KX_RAY_AXIS_NEG_Z);
-
-	/* Movement Sensor */
-	KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_POS_X, KX_MovementSensor::KX_MOVEMENT_AXIS_POS_X);
-	KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_POS_Y, KX_MovementSensor::KX_MOVEMENT_AXIS_POS_Y);
-	KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_POS_Z, KX_MovementSensor::KX_MOVEMENT_AXIS_POS_Z);
-	KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_NEG_X, KX_MovementSensor::KX_MOVEMENT_AXIS_NEG_X);
-	KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_NEG_Y, KX_MovementSensor::KX_MOVEMENT_AXIS_NEG_Y);
-	KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_NEG_Z, KX_MovementSensor::KX_MOVEMENT_AXIS_NEG_Z);
-	KX_MACRO_addTypesToDict(d, KX_MOVEMENT_ALL_AXIS, KX_MovementSensor::KX_MOVEMENT_ALL_AXIS);
 
 	/* TrackTo Actuator */
 	KX_MACRO_addTypesToDict(d, KX_TRACK_UPAXIS_POS_X, KX_TrackToActuator::KX_TRACK_UPAXIS_POS_X);

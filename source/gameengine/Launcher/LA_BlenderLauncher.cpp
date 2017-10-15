@@ -150,11 +150,6 @@ void LA_BlenderLauncher::ExitPython()
 #endif  // WITH_PYTHON
 }
 
-void LA_BlenderLauncher::SetWindowOrder(short order)
-{
-	wm_window_set_order(m_window, order);
-}
-
 void LA_BlenderLauncher::InitEngine()
 {
 	// Lock frame and camera enabled - storing global values.

@@ -28,8 +28,7 @@
 
 RAS_Texture::RAS_Texture()
 	:m_bindCode(-1),
-	m_name(""),
-	m_renderer(nullptr)
+	m_name("")
 {
 }
 
@@ -40,16 +39,6 @@ RAS_Texture::~RAS_Texture()
 std::string& RAS_Texture::GetName()
 {
 	return m_name;
-}
-
-void RAS_Texture::SetRenderer(RAS_TextureRenderer *renderer)
-{
-	m_renderer = renderer;
-}
-
-RAS_TextureRenderer *RAS_Texture::GetRenderer() const
-{
-	return m_renderer;
 }
 
 int RAS_Texture::GetCubeMapTextureType()

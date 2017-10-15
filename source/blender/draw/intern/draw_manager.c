@@ -32,6 +32,7 @@
 
 #include "BIF_glutil.h"
 
+#include "BKE_camera.h" // For bge
 #include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_object.h"
@@ -88,6 +89,8 @@
 #include "engines/eevee/eevee_engine.h"
 #include "engines/basic/basic_engine.h"
 #include "engines/external/external_engine.h"
+
+#include "engines/eevee/eevee_private.h" // For bge
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -756,7 +759,9 @@ static void DRW_interface_attrib(DRWShadingGroup *shgroup, const char *name, DRW
 DRWShadingGroup *DRW_shgroup_create(struct GPUShader *shader, DRWPass *pass)
 {
 	DRWShadingGroup *shgroup = MEM_mallocN(sizeof(DRWShadingGroup), "DRWShadingGroup");
-	BLI_addtail(&pass->shgroups, shgroup);
+	if (pass) { // Sometimes bge doesn't need pass
+		BLI_addtail(&pass->shgroups, shgroup);
+	}
 
 	shgroup->type = DRW_SHG_NORMAL;
 	shgroup->shader = shader;
@@ -1687,7 +1692,7 @@ typedef struct DRWBoundTexture {
 	GPUTexture *tex;
 } DRWBoundTexture;
 
-static void draw_geometry_prepare(
+void DRW_draw_geometry_prepare(
         DRWShadingGroup *shgroup, const float (*obmat)[4], const float *texcoloc, const float *texcosize)
 {
 	RegionView3D *rv3d = DST.draw_ctx.rv3d;
@@ -1831,7 +1836,7 @@ static void draw_geometry(DRWShadingGroup *shgroup, Gwn_Batch *geom, const float
 		}
 	}
 
-	draw_geometry_prepare(shgroup, obmat, texcoloc, texcosize);
+	DRW_draw_geometry_prepare(shgroup, obmat, texcoloc, texcosize);
 
 	draw_geometry_execute(shgroup, geom);
 }
@@ -2034,7 +2039,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 			else {
 				BLI_assert(call->head.type == DRW_CALL_GENERATE);
 				DRWCallGenerate *callgen = ((DRWCallGenerate *)call);
-				draw_geometry_prepare(shgroup, callgen->obmat, NULL, NULL);
+				DRW_draw_geometry_prepare(shgroup, callgen->obmat, NULL, NULL);
 				callgen->geometry_fn(shgroup, draw_geometry_execute, callgen->user_data);
 			}
 
@@ -2461,7 +2466,7 @@ void DRW_transform_to_display(GPUTexture *tex)
 /** \name Viewport (DRW_viewport)
  * \{ */
 
-static void *DRW_viewport_engine_data_get(void *engine_type)
+void *DRW_viewport_engine_data_get(void *engine_type)
 {
 	void *data = GPU_viewport_engine_data_get(DST.viewport, engine_type);
 
@@ -3559,6 +3564,354 @@ void DRW_draw_depth_loop(
 
 /** \} */
 
+/***********************************GAME ENGINE*******************************************/
+
+/* It also stores viewport variable to an immutable place: DST
+* This is because a cache uniform only store reference
+* to its value. And we don't want to invalidate the cache
+* if this value change per viewport */
+static void DRW_viewport_size_init_bge(void)
+{
+	/* Refresh DST.size */
+	if (DST.viewport) {
+		int size[2];
+		GPU_viewport_size_get(DST.viewport, size);
+		DST.size[0] = size[0];
+		DST.size[1] = size[1];
+
+		DefaultFramebufferList *fbl = (DefaultFramebufferList *)GPU_viewport_framebuffer_list_get(DST.viewport);
+		DST.default_framebuffer = fbl->default_fb;
+	}
+	else {
+		DST.size[0] = 0;
+		DST.size[1] = 0;
+
+		DST.default_framebuffer = NULL;
+	}
+
+	/* Alloc array of texture reference. */
+	if (RST.bound_texs == NULL) {
+		RST.bound_texs = MEM_callocN(sizeof(GPUTexture *) * GPU_max_textures(), "Bound GPUTexture refs");
+	}
+	if (RST.bound_tex_slots == NULL) {
+		RST.bound_tex_slots = MEM_callocN(sizeof(bool) * GPU_max_textures(), "Bound Texture Slots");
+	}
+
+	memset(viewport_matrix_override.override, 0x0, sizeof(viewport_matrix_override.override));
+}
+
+static void DRW_viewport_var_init_bge(void)
+{
+	RegionView3D *rv3d = DST.draw_ctx.rv3d;
+
+	DRW_viewport_size_init_bge();
+
+	/* Refresh DST.screenvecs */
+	copy_v3_v3(DST.screenvecs[0], rv3d->viewinv[0]);
+	copy_v3_v3(DST.screenvecs[1], rv3d->viewinv[1]);
+	normalize_v3(DST.screenvecs[0]);
+	normalize_v3(DST.screenvecs[1]);
+
+	/* Refresh DST.pixelsize */
+	DST.pixsize = rv3d->pixsize;
+
+	/* Reset facing */
+	DST.frontface = GL_CCW;
+	DST.backface = GL_CW;
+	glFrontFace(DST.frontface);
+}
+
+static void bind_shader(DRWShadingGroup *shgroup)
+{
+	BLI_assert(shgroup->shader);
+
+	if (DST.shader != shgroup->shader) {
+		if (DST.shader) GPU_shader_unbind();
+		GPU_shader_bind(shgroup->shader);
+		DST.shader = shgroup->shader;
+	}
+}
+
+static void bind_uniforms(DRWShadingGroup *shgroup)
+{
+	BLI_assert(shgroup->interface);
+	DRWInterface *interface = shgroup->interface;
+	GPUTexture *tex;
+	GPUUniformBuffer *ubo;
+	int val;
+	float fval;
+
+	/* Binding Uniform */
+	/* Don't check anything, Interface should already contain the least uniform as possible */
+	for (DRWUniform *uni = interface->uniforms.first; uni; uni = uni->next) {
+		switch (uni->type) {
+		case DRW_UNIFORM_SHORT_TO_INT:
+			val = (int)*((short *)uni->value);
+			GPU_shader_uniform_vector_int(
+				shgroup->shader, uni->location, uni->length, uni->arraysize, (int *)&val);
+			break;
+		case DRW_UNIFORM_SHORT_TO_FLOAT:
+			fval = (float)*((short *)uni->value);
+			GPU_shader_uniform_vector(
+				shgroup->shader, uni->location, uni->length, uni->arraysize, (float *)&fval);
+			break;
+		case DRW_UNIFORM_BOOL:
+		case DRW_UNIFORM_INT:
+			GPU_shader_uniform_vector_int(
+				shgroup->shader, uni->location, uni->length, uni->arraysize, (int *)uni->value);
+			break;
+		case DRW_UNIFORM_FLOAT:
+		case DRW_UNIFORM_MAT3:
+		case DRW_UNIFORM_MAT4:
+			GPU_shader_uniform_vector(
+				shgroup->shader, uni->location, uni->length, uni->arraysize, (float *)uni->value);
+			break;
+		case DRW_UNIFORM_TEXTURE:
+			tex = (GPUTexture *)uni->value;
+			BLI_assert(tex);
+			bind_texture(tex);
+			GPU_shader_uniform_texture(shgroup->shader, uni->location, tex);
+			break;
+		case DRW_UNIFORM_BUFFER:
+			if (!DRW_state_is_fbo()) {
+				break;
+			}
+			tex = *((GPUTexture **)uni->value);
+			BLI_assert(tex);
+			bind_texture(tex);
+			GPU_shader_uniform_texture(shgroup->shader, uni->location, tex);
+			break;
+		case DRW_UNIFORM_BLOCK:
+			ubo = (GPUUniformBuffer *)uni->value;
+			bind_ubo(ubo);
+			GPU_shader_uniform_buffer(shgroup->shader, uni->location, ubo);
+			break;
+		}
+	}
+}
+
+static void game_camera_border(
+	const Scene *scene, const ARegion *ar, const View3D *v3d, const RegionView3D *rv3d,
+	rctf *r_viewborder, const bool no_shift, const bool no_zoom)
+{
+	CameraParams params;
+	rctf rect_view, rect_camera;
+
+	/* get viewport viewplane */
+	BKE_camera_params_init(&params);
+	BKE_camera_params_from_view3d(&params, v3d, rv3d);
+	if (no_zoom)
+		params.zoom = 1.0f;
+	BKE_camera_params_compute_viewplane(&params, ar->winx, ar->winy, 1.0f, 1.0f);
+	rect_view = params.viewplane;
+
+	/* get camera viewplane */
+	BKE_camera_params_init(&params);
+	/* fallback for non camera objects */
+	params.clipsta = v3d->near;
+	params.clipend = v3d->far;
+	BKE_camera_params_from_object(&params, v3d->camera);
+	if (no_shift) {
+		params.shiftx = 0.0f;
+		params.shifty = 0.0f;
+	}
+	BKE_camera_params_compute_viewplane(&params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
+	rect_camera = params.viewplane;
+
+	/* get camera border within viewport */
+	r_viewborder->xmin = ((rect_camera.xmin - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
+	r_viewborder->xmax = ((rect_camera.xmax - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
+	r_viewborder->ymin = ((rect_camera.ymin - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
+	r_viewborder->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
+}
+
+void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph,
+	Scene *scene, SceneLayer *sl, Object *maincam, int viewportsize[2], bool is_first_scene)
+{
+	if (is_first_scene) {
+		memset(&DST, 0x0, sizeof(DST));
+		/*DRW_end_shgroup();
+		release_texture_slots();
+		release_ubo_slots();*/
+
+		use_drw_engine(&draw_engine_eevee_type);
+
+		DST.viewport = GPU_viewport_create_from_offscreen(ofs);
+
+		GPU_viewport_engine_data_create(DST.viewport, &draw_engine_eevee_type);
+
+		ARegion ar;
+		ar.winx = viewportsize[0];
+		ar.winy = viewportsize[1];
+
+		View3D v3d;
+		Object *obcam = maincam;
+		Camera *cam = (Camera *)obcam;
+		v3d.camera = obcam;
+		v3d.lens = cam->lens;
+		v3d.near = cam->clipsta;
+		v3d.far = cam->clipend;
+
+		RegionView3D rv3d;
+		rv3d.camdx = 0.0f;
+		rv3d.camdy = 0.0f;
+		rv3d.camzoom = 0.0f;
+		rv3d.persp = RV3D_CAMOB;
+		rv3d.is_persp = true; //temp
+		rctf cameraborder;
+		game_camera_border(scene, &ar, &v3d, &rv3d, &cameraborder, false, false);
+		rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
+
+		DST.draw_ctx.ar = &ar;
+		DST.draw_ctx.v3d = &v3d;
+		DST.draw_ctx.rv3d = &rv3d;
+
+		DST.draw_ctx.evil_C = NULL;
+		DST.draw_ctx.v3d->zbuf = true;
+		DST.draw_ctx.scene = scene;
+		DST.draw_ctx.scene_layer = sl;
+		DST.draw_ctx.obact = OBACT_NEW(sl);
+
+		bool cache_is_dirty;
+		/* Setup viewport */
+		cache_is_dirty = GPU_viewport_cache_validate(DST.viewport, DRW_engines_get_hash());
+
+		DRW_viewport_var_init_bge();
+
+		/* Init engines */
+		DRW_engines_init();
+
+		/* TODO : tag to refresh by the deps graph */
+		/* ideally only refresh when objects are added/removed */
+		/* or render properties / materials change */
+		if (cache_is_dirty) {
+			DRW_engines_cache_init();
+
+			DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL);
+			{
+				DRW_engines_cache_populate(ob);
+				/* XXX find a better place for this. maybe Depsgraph? */
+				ob->deg_update_flag = 0;
+			}
+			DEG_OBJECT_ITER_END
+
+				DRW_engines_cache_finish();
+		}
+
+		EEVEE_lightprobes_refresh(EEVEE_scene_layer_data_get(), EEVEE_engine_data_get());
+
+		/* Start Drawing */
+		DRW_state_reset();
+		DRW_engines_draw_background();
+
+		DRW_state_reset();
+		DRW_engines_disable();
+	}
+}
+
+void DRW_game_render_loop_end()
+{
+	release_texture_slots();
+	release_ubo_slots();
+	draw_engine_eevee_type.engine_free();
+	memset(&DST, 0xFF, sizeof(DST));
+}
+
+void DRW_framebuffer_init_bge(
+struct GPUFrameBuffer **fb, void *engine_type, int width, int height,
+	DRWFboTexture textures[MAX_FBO_TEX], int textures_len)
+{
+	BLI_assert(textures_len <= MAX_FBO_TEX);
+
+	bool create_fb = false;
+	int color_attachment = -1;
+
+	if (!*fb) {
+		*fb = GPU_framebuffer_create();
+		create_fb = true;
+	}
+
+	for (int i = 0; i < textures_len; ++i) {
+		int channels;
+		bool is_depth;
+
+		DRWFboTexture fbotex = textures[i];
+		bool is_temp = (fbotex.flag & DRW_TEX_TEMP) != 0;
+
+		GPUTextureFormat gpu_format = convert_tex_format(fbotex.format, &channels, &is_depth);
+
+		if (!*fbotex.tex || is_temp) {
+			/* Temp textures need to be queried each frame, others not. */
+			if (is_temp) {
+				*fbotex.tex = GPU_viewport_texture_pool_query(
+					DST.viewport, engine_type, width, height, channels, gpu_format);
+			}
+			else if (create_fb) {
+				*fbotex.tex = GPU_texture_create_2D_custom(
+					width, height, channels, gpu_format, NULL, NULL);
+			}
+		}
+
+		if (create_fb) {
+			if (!is_depth) {
+				++color_attachment;
+			}
+			drw_texture_set_parameters(*fbotex.tex, fbotex.flag);
+			GPU_framebuffer_texture_attach(*fb, *fbotex.tex, color_attachment, 0);
+		}
+	}
+
+	if (create_fb) {
+		if (!GPU_framebuffer_check_valid(*fb, NULL)) {
+			printf("Error invalid framebuffer\n");
+		}
+
+		/* Detach temp textures */
+		for (int i = 0; i < textures_len; ++i) {
+			DRWFboTexture fbotex = textures[i];
+
+			if ((fbotex.flag & DRW_TEX_TEMP) != 0) {
+				GPU_framebuffer_texture_detach(*fbotex.tex);
+			}
+		}
+	}
+}
+
+void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup)
+{
+	bind_shader(shgroup);
+	bind_uniforms(shgroup);
+}
+
+struct GPUShader *DRW_shgroup_shader_get(DRWShadingGroup *shgroup)
+{
+	return shgroup->shader;
+}
+
+void DRW_end_shgroup(void)
+{
+	/* Clear Bound textures */
+	for (int i = 0; i < GPU_max_textures(); i++) {
+		if (RST.bound_texs[i] != NULL) {
+			GPU_texture_unbind(RST.bound_texs[i]);
+			RST.bound_texs[i] = NULL;
+		}
+	}
+
+	if (DST.shader) {
+		GPU_shader_unbind();
+		DST.shader = NULL;
+	}
+}
+
+void DRW_state_from_pass_set(DRWPass *pass)
+{
+	DRWState state = pass->state;
+	DRW_state_set(state);
+}
+
+/***************************END OF GAME ENGINE***************************/
+
 
 /* -------------------------------------------------------------------- */
 
@@ -3665,6 +4018,7 @@ void DRW_engines_register(void)
 	RE_engines_register(NULL, &DRW_engine_viewport_clay_type);
 #endif
 	RE_engines_register(NULL, &DRW_engine_viewport_eevee_type);
+	RE_engines_register(NULL, &DRW_engine_viewport_game_type);
 
 	DRW_engine_register(&draw_engine_object_type);
 	DRW_engine_register(&draw_engine_edit_armature_type);

@@ -73,7 +73,6 @@
 #include "SCA_PropertySensor.h"
 #include "SCA_RandomSensor.h"
 #include "KX_RaySensor.h"
-#include "KX_MovementSensor.h"
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"
 #include "KX_Scene.h"
@@ -328,7 +327,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 							/* give us a focus-aware sensor */
 							bool bFindMaterial = (bmouse->mode & SENS_COLLISION_MATERIAL);
 							bool bXRay = (bmouse->flag & SENS_RAY_XRAY);
-							int mask = bmouse->mask;
+							int mask = (1 << 20) - 1;
 							std::string checkname = (bFindMaterial? bmouse->matname : bmouse->propname);
 
 							gamesensor = new KX_MouseFocusSensor(eventmgr,
@@ -486,7 +485,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						// don't want to get rays of length 0.0 or so
 						double distance = (blenderraysensor->range < 0.01f ? 0.01f : blenderraysensor->range);
 						int axis = blenderraysensor->axisflag;
-						int mask = blenderraysensor->mask;
+						int mask = (1 << 20) - 1;
 
 						gamesensor = new KX_RaySensor(eventmgr,
 													  gameobj,
@@ -522,23 +521,6 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					}
 					break;
 				}
-			case SENS_MOVEMENT:
-			{
-				bMovementSensor *blendermovsensor = (bMovementSensor *)sens->data;
-				// some files didn't write movementsensor, avoid crash now for nullptr ptr's
-				if (blendermovsensor)
-				{
-					SCA_EventManager *eventmgr = logicmgr->FindEventManager(SCA_EventManager::BASIC_EVENTMGR);
-					if (eventmgr)
-					{
-						bool localflag = (blendermovsensor->localflag & SENS_MOVEMENT_LOCAL);
-						int axis = blendermovsensor->axisflag;
-						float threshold = blendermovsensor->threshold;
-						gamesensor = new KX_MovementSensor(eventmgr, gameobj, axis, localflag, threshold);
-					}
-				}
-				break;
-			}
 			case SENS_JOYSTICK:
 				{
 					int joysticktype = SCA_JoystickSensor::KX_JOYSENSORMODE_NODEF;
@@ -569,11 +551,6 @@ void BL_ConvertSensors(struct Object* blenderobject,
 							axis	= bjoy->axis_single;
 							prec	= bjoy->precision;
 							joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_AXIS_SINGLE;
-							break;
-						case SENS_JOY_SHOULDER_TRIGGER:
-							axis	= bjoy->axis_single;
-							prec	= bjoy->precision;
-							joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_SHOULDER_TRIGGER;
 							break;
 						default:
 							CM_Error("bad case statement");

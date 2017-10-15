@@ -84,7 +84,7 @@
 #endif
 
 #ifdef WITH_GAMEENGINE
-#  include "BL_System.h"
+#  include "LA_SystemCommandLine.h"
 #endif
 #include "GHOST_Path-api.h"
 #include "GHOST_C-api.h"

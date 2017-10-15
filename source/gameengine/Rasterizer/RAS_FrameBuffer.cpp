@@ -25,9 +25,10 @@
  */
 
 #include "RAS_FrameBuffer.h"
-#include "GPU_framebuffer.h"
 
 extern "C" {
+#  include "GPU_framebuffer.h"
+#  include "GPU_texture.h"
 #  include "DRW_render.h"
 #  include "eevee_private.h"
 }

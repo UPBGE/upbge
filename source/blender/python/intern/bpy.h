@@ -28,6 +28,7 @@
 
 void BPy_init_modules(void);
 extern PyObject *bpy_package_py;
+PyObject *bpy_sys_module_backup; // For bge (KX_PythonInit Line 1829)
 
 /* bpy_interface_atexit.c */
 void BPY_atexit_register(void);

@@ -1716,3 +1716,10 @@ void EEVEE_effects_free(void)
 	DRW_SHADER_FREE_SAFE(e_data.bloom_upsample_sh[1]);
 	DRW_SHADER_FREE_SAFE(e_data.bloom_resolve_sh[1]);
 }
+
+/*************************Game engine**************************/
+void EEVEE_effects_replace_e_data_depth(GPUTexture *depth_src)
+{
+	e_data.depth_src = depth_src;
+}
+/*********************End of Game engine***********************/

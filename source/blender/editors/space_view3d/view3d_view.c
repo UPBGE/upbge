@@ -68,6 +68,8 @@
 
 #include "DRW_engine.h"
 
+#include "DEG_depsgraph_build.h" // For bge launch
+
 
 #ifdef WITH_GAMEENGINE
 #  include "BLI_listbase.h"
@@ -75,7 +77,7 @@
 
 #  include "GPU_draw.h"
 
-#  include "BL_System.h"
+#  include "LA_SystemCommandLine.h"
 #endif
 
 
@@ -1465,8 +1467,8 @@ static int game_engine_poll(bContext *C)
 	if (CTX_data_mode_enum(C) != CTX_MODE_OBJECT)
 		return 0;
 
-	if (!BKE_scene_uses_blender_game(scene))
-		return 0;
+	//if (!BKE_scene_uses_blender_game(scene))
+	//	return 0;
 
 	return 1;
 }
@@ -1514,6 +1516,10 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	/* bad context switch .. */
 	if (!ED_view3d_context_activate(C))
 		return OPERATOR_CANCELLED;
+
+	for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+		DEG_scene_relations_rebuild(bmain, scene);
+	}
 	
 	/* redraw to hide any menus/popups, we don't go back to
 	 * the window manager until after this operator exits */
