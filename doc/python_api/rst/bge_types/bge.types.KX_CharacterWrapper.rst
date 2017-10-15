@@ -21,6 +21,12 @@ base class --- :class:`PyObjectPlus`
 
       :type: float
 
+   .. attribute:: fallSpeed
+
+      The character falling speed.
+
+      :type: float
+
    .. attribute:: maxJumps
 
       The maximum number of jumps a character can perform before having to touch the ground. By default this is set to 1. 2 allows for a double jump, etc.
@@ -33,6 +39,12 @@ base class --- :class:`PyObjectPlus`
 
       :type: int
 
+   .. attribute:: jumpSpeed
+
+      The character jumping speed.
+
+      :type: float
+
    .. attribute:: walkDirection
 
       The speed and direction the character is traveling in using world coordinates. This should be used instead of applyMovement() to properly move the character.
@@ -43,3 +55,21 @@ base class --- :class:`PyObjectPlus`
 
       The character jumps based on it's jump speed.
 
+   .. method:: setVelocity(velocity, time, local=False)
+
+      Sets the character's linear velocity for a given period.
+
+      This method sets character's velocity through it's center of mass during a period.
+
+      :arg velocity: Linear velocity vector.
+      :type velocity: 3D Vector
+      :arg time: Period while applying linear velocity.
+      :type time: float
+      :arg local:
+         * False: you get the "global" velocity ie: relative to world orientation.
+         * True: you get the "local" velocity ie: relative to object orientation.
+      :type local: boolean
+
+   .. method:: reset()
+
+      Resets the character velocity and walk direction.

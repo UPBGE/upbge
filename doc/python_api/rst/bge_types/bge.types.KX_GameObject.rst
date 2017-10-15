@@ -64,7 +64,7 @@ base class --- :class:`SCA_IObject`
 
    .. attribute:: name
 
-      The object's name. (read-only).
+      The object's name.
 
       :type: string
 
@@ -204,13 +204,17 @@ base class --- :class:`SCA_IObject`
 
       :type: list of functions and/or methods
 
-      Callbacks should either accept one argument `(object)`, or three
-      arguments `(object, point, normal)`. For simplicity, per
-      colliding object only the first collision point is reported.
+      Callbacks should either accept one argument `(object)`, or four
+      arguments `(object, point, normal, points)`. For simplicity, per
+      colliding object the first collision point is reported in second
+      and third argument.
 
       .. code-block:: python
 
         # Function form
+        def callback_four(object, point, normal, points):
+            print('Hit by %r with %i contacts points' % (object.name, len(points)))
+
         def callback_three(object, point, normal):
             print('Hit by %r at %s with normal %s' % (object.name, point, normal))
 
@@ -218,6 +222,7 @@ base class --- :class:`SCA_IObject`
             print('Hit by %r' % object.name)
 
         def register_callback(controller):
+            controller.owner.collisionCallbacks.append(callback_four)
             controller.owner.collisionCallbacks.append(callback_three)
             controller.owner.collisionCallbacks.append(callback_one)
 
@@ -225,8 +230,12 @@ base class --- :class:`SCA_IObject`
         # Method form
         class YourGameEntity(bge.types.KX_GameObject):
             def __init__(self, old_owner):
+                self.collisionCallbacks.append(self.on_collision_four)
                 self.collisionCallbacks.append(self.on_collision_three)
                 self.collisionCallbacks.append(self.on_collision_one)
+
+            def on_collision_four(self, object, point, normal, points):
+                print('Hit by %r with %i contacts points' % (object.name, len(points)))
 
             def on_collision_three(self, object, point, normal):
                 print('Hit by %r at %s with normal %s' % (object.name, point, normal))
@@ -238,7 +247,7 @@ base class --- :class:`SCA_IObject`
         For backward compatibility, a callback with variable number of
         arguments (using `*args`) will be passed only the `object`
         argument. Only when there is more than one fixed argument (not
-        counting `self` for methods) will the three-argument form be
+        counting `self` for methods) will the four-argument form be
         used.
 
    .. attribute:: scene
@@ -257,11 +266,27 @@ base class --- :class:`SCA_IObject`
 
          Game logic will still run for invisible objects.
 
-   .. attribute:: record_animation
+   .. attribute:: layer
 
-      Record animation for this object.
+      The layer mask used for shadow and real-time cube map render.
 
-      :type: boolean
+      :type: bitfield
+
+   .. attribute:: cullingBox
+
+      The object's bounding volume box used for culling.
+
+      :type: :class:`KX_BoundingBox`
+
+   .. attribute:: culled
+
+      Returns True if the object is culled, else False.
+
+      .. warning::
+
+         This variable returns an invalid value if it is called outside the scene's callbacks :data:`KX_Scene.pre_draw` and :data:`KX_Scene.post_draw`.
+
+      :type: boolean (read only)
 
    .. attribute:: color
 
@@ -397,6 +422,12 @@ base class --- :class:`SCA_IObject`
 
          Changes to this list will not update the KX_GameObject.
 
+   .. attribute:: batchGroup
+
+      The object batch group containing the batched mesh.
+
+      :type: :class:`KX_BatchGroup`
+
    .. attribute:: sensors
 
       a sequence of :class:`SCA_ISensor` objects with string/index lookups and iterator support.
@@ -445,6 +476,12 @@ base class --- :class:`SCA_IObject`
 
       :type: dict
 
+   .. attribute:: components
+
+      All python components.
+
+      :type: :class:`CListValue` of :class:`KX_PythonComponent`'s
+
    .. attribute:: children
 
       direct children of this object, (read-only).
@@ -459,8 +496,7 @@ base class --- :class:`SCA_IObject`
 
    .. attribute:: life
 
-      The number of seconds until the object ends, assumes 50fps.
-      (when added with an add object actuator), (read-only).
+      The number of frames until the object ends, assumes one frame is 1/50 second (read-only).
 
       :type: float
 
@@ -481,6 +517,15 @@ base class --- :class:`SCA_IObject`
       The index of the level of detail (LOD) currently used by this object (read-only).
 
       :type: int
+
+   .. attribute:: lodManager
+
+      Return the lod manager of this object.
+      Needed to access to lod manager to set attributes of levels of detail of this object.
+      The lod manager is shared between instance objects and can be changed to use the lod levels of an other object.
+      If the lod manager is set to `None` the object's mesh backs to the mesh of the previous first lod level.
+
+      :type: :class:`KX_LodManager`
 
    .. method:: endObject()
 
@@ -696,9 +741,21 @@ base class --- :class:`SCA_IObject`
       :arg angular_damping: Angular ("rotational") damping factor.
       :type angular_damping: float ∈ [0, 1]
 
-   .. method:: suspendDynamics([ghost])
+   .. method:: suspendPhysics([freeConstraints])
 
       Suspends physics for this object.
+
+      :arg freeConstraints: When set to `True` physics constraints used by the object are deleted.
+          Else when `False` (the default) constraints are restored when restoring physics.
+      :type freeConstraints: bool
+
+   .. method:: restorePhysics()
+
+      Resumes physics for this object. Also reinstates collisions.
+
+   .. method:: suspendDynamics([ghost])
+
+      Suspends dynamics physics for this object.
 
       :arg ghost: When set to `True`, collisions with the object will be ignored, similar to the "ghost" checkbox in
           Blender. When `False` (the default), the object becomes static but still collide with other objects.
@@ -708,7 +765,7 @@ base class --- :class:`SCA_IObject`
 
    .. method:: restoreDynamics()
 
-      Resumes physics for this object. Also reinstates collisions; the object will no longer be a ghost.
+      Resumes dynamics physics for this object. Also reinstates collisions; the object will no longer be a ghost.
 
       .. note::
 
@@ -891,7 +948,7 @@ base class --- :class:`SCA_IObject`
       :arg to: The name of the object to send the message to (optional)
       :type to: string
 
-   .. method:: reinstancePhysicsMesh(gameObject, meshObject)
+   .. method:: reinstancePhysicsMesh(gameObject, meshObject, dupli)
 
       Updates the physics system with the changed mesh.
 
@@ -901,6 +958,8 @@ base class --- :class:`SCA_IObject`
       :type gameObject: string, :class:`KX_GameObject` or None
       :arg meshObject: optional argument, set the physics shape from this mesh.
       :type meshObject: string, :class:`MeshProxy` or None
+      :arg dupli: optional argument, duplicate the physics shape.
+      :type dupli: boolean
 
       :return: True if reinstance succeeded, False if it failed.
       :rtype: boolean
@@ -924,6 +983,17 @@ base class --- :class:`SCA_IObject`
       .. warning::
 
          Rebuilding the physics mesh can be slow, running many times per second will give a performance hit.
+
+      .. warning::
+
+         Duplicate the physics mesh can use much more memory, use this option only for duplicated meshes else use :py:meth:`replacePhysicsShape`.
+
+   .. method:: replacePhysicsShape(gameObject)
+
+      Replace the current physics shape.
+
+      :arg gameObject: set the physics shape from this gameObjets.
+      :type gameObject: string, :class:`KX_GameObject`
 
    .. method:: get(key, default=None)
 

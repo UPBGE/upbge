@@ -33,6 +33,8 @@
 #ifndef MT_RANDOM_H
 #define MT_RANDOM_H
 
+#include "MT_Config.h"
+
 #include <limits.h>
 
 #define MT_RAND_MAX UINT_MAX

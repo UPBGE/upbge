@@ -52,6 +52,20 @@
 */
 
 #include "MT_Transform.h"
+#include "MT_Matrix4x4.h"
+
+MT_Matrix4x4 MT_Transform::toMatrix() const
+{
+	return MT_Matrix4x4(m_basis[0][0], m_basis[0][1], m_basis[0][2], m_origin[0],
+						m_basis[1][0], m_basis[1][1], m_basis[1][2], m_origin[1],
+						m_basis[2][0], m_basis[2][1], m_basis[2][2], m_origin[2],
+						0.0f, 0.0f, 0.0f, 1.0f);
+}
+
+const MT_Transform MT_Transform::identity = MT_Transform(MT_Vector3(0.0f, 0.0f, 0.0f),
+														 MT_Matrix3x3(1.0f, 0.0f, 0.0f,
+																	  0.0f, 1.0f, 0.0f,
+																	  0.0f, 0.0f, 1.0f));
 
 void MT_Transform::setValue(const float *m) {
     m_basis.setValue(m);

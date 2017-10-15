@@ -60,6 +60,16 @@ Functions
    :return: A constraint wrapper.
    :rtype: :class:`~bge.types.KX_ConstraintWrapper`
 
+.. function:: createVehicle(physicsid)
+
+   Creates a vehicle constraint.
+
+   :arg physicsid: The physics id of the chassis object in constraint.
+   :type physicsid: int
+
+   :return: A vehicle constraint wrapper.
+   :rtype: :class:`~bge.types.KX_VehicleWrapper`
+
 .. function:: exportBulletFile(filename)
 
    Exports a file representing the dynamics world (usually using ``.bullet`` extension).

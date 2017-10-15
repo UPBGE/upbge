@@ -25,6 +25,12 @@ base class --- :class:`SCA_IObject`
 
       :type: Vector((u, v))
 
+   .. attribute:: uvs
+
+      The texture coordinates list of the vertex.
+
+      :type: list of Vector((u, v))
+
    .. attribute:: normal
 
       The normal of the vertex.
@@ -38,6 +44,12 @@ base class --- :class:`SCA_IObject`
       :type: Vector((r, g, b, a))
 
       Black = [0.0, 0.0, 0.0, 1.0], White = [1.0, 1.0, 1.0, 1.0]
+
+   .. attribute:: colors
+
+      The color list of the vertex.
+
+      :type: list of Vector((r, g, b, a))
 
    .. attribute:: x
 

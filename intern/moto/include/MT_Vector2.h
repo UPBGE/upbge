@@ -47,16 +47,58 @@
 #ifndef MT_VECTOR2_H
 #define MT_VECTOR2_H
 
-#include <MT_assert.h>
-#include "MT_Tuple2.h"
+#include "MT_Config.h"
 
-class MT_Vector2 : public MT_Tuple2 {
+#include <BLI_utildefines.h>
+#include "MT_Scalar.h"
+#include "MT_Stream.h"
+
+class MT_Vector2 
+{
 public:
-    MT_Vector2() {}
-    MT_Vector2(const float *v2) : MT_Tuple2(v2) {}
-    MT_Vector2(const double *v2) : MT_Tuple2(v2) {}
-    MT_Vector2(MT_Scalar xx, MT_Scalar yy) : MT_Tuple2(xx, yy) {}
-  
+    explicit MT_Vector2() {}
+    template <typename T>
+    explicit MT_Vector2(const T *vv) { setValue(vv); }
+    explicit MT_Vector2(MT_Scalar xx, MT_Scalar yy) { setValue(xx, yy); }
+    
+    MT_Scalar&       operator[](int i)       { return m_co[i]; }
+    const MT_Scalar& operator[](int i) const { return m_co[i]; }
+    
+    MT_Scalar&       x()       { return m_co[0]; } 
+    const MT_Scalar& x() const { return m_co[0]; } 
+
+    MT_Scalar&       y()       { return m_co[1]; }
+    const MT_Scalar& y() const { return m_co[1]; } 
+
+	MT_Scalar&       u()       { return m_co[0]; } 
+    const MT_Scalar& u() const { return m_co[0]; } 
+
+    MT_Scalar&       v()       { return m_co[1]; }
+    const MT_Scalar& v() const { return m_co[1]; } 
+
+    MT_Scalar       *getValue()       { return m_co; }
+    const MT_Scalar *getValue() const { return m_co; }
+
+    template <typename T>
+    void getValue(T *vv) const { 
+        vv[0] = (T)m_co[0]; vv[1] = (T)m_co[1];
+    }
+    
+    template <typename T>
+    void setValue(const T *vv) {
+        m_co[0] = (MT_Scalar)vv[0]; m_co[1] = (MT_Scalar)vv[1];
+    }
+    
+    void setValue(MT_Scalar xx, MT_Scalar yy) {
+        m_co[0] = xx; m_co[1] = yy; 
+    }
+
+    MT_Scalar  distance(const MT_Vector2& p) const;
+    MT_Scalar  distance2(const MT_Vector2& p) const;
+
+    MT_Vector2  lerp(const MT_Vector2& p, MT_Scalar t) const;
+
+    MT_Vector2& operator=(const MT_Vector2& v);
     MT_Vector2& operator+=(const MT_Vector2& v);
     MT_Vector2& operator-=(const MT_Vector2& v);
     MT_Vector2& operator*=(MT_Scalar s);
@@ -84,7 +126,23 @@ public:
     int         closestAxis() const;
 
     static MT_Vector2 random();
+    
+protected:
+    MT_Scalar m_co[2];                            
 };
+
+inline bool operator==(const MT_Vector2& t1, const MT_Vector2& t2) {
+    return t1[0] == t2[0] && t1[1] == t2[1];
+}
+
+inline MT_OStream& operator<<(MT_OStream& os, const MT_Vector2& t) {
+    return os << t[0] << ' ' << t[1];
+}
+
+MT_Scalar MT_distance(const MT_Vector2& p1, const MT_Vector2& p2);
+MT_Scalar MT_distance2(const MT_Vector2& p1, const MT_Vector2& p2);
+
+MT_Vector2 MT_lerp(const MT_Vector2& p1, const MT_Vector2& p2, MT_Scalar t);
 
 MT_Vector2 operator+(const MT_Vector2& v1, const MT_Vector2& v2);
 MT_Vector2 operator-(const MT_Vector2& v1, const MT_Vector2& v2);

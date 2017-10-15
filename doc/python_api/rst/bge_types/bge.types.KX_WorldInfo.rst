@@ -65,15 +65,53 @@ base class --- :class:`PyObjectPlus`
 
       :type: :class:`mathutils.Color`
 
-   .. attribute:: backgroundColor
+   .. attribute:: horizonColor
 
-      The color of the background. Black = [0.0, 0.0, 0.0], White = [1.0, 1.0, 1.0].
-      Mist and background color sould always set to the same color.
+      The horizon color. Black = [0.0, 0.0, 0.0, 1.0], White = [1.0, 1.0, 1.0, 1.0].
+      Mist and horizon color should always be set to the same color.
 
-      :type: :class:`mathutils.Color`
+      :type: :class:`mathutils.Vector`
+
+   .. attribute:: zenithColor
+
+      The zenith color. Black = [0.0, 0.0, 0.0, 1.0], White = [1.0, 1.0, 1.0, 1.0].
+
+      :type: :class:`mathutils.Vector`
 
    .. attribute:: ambientColor
 
       The color of the ambient light. Black = [0.0, 0.0, 0.0], White = [1.0, 1.0, 1.0].
 
       :type: :class:`mathutils.Color`
+
+   .. attribute:: exposure
+
+      Amount of exponential color correction for light.
+
+      :type: float between 0.0 and 1.0 inclusive
+
+   .. attribute:: range
+
+      The color range that will be mapped to 0 - 1.
+
+      :type: float between 0.2 and 5.0 inclusive
+
+   .. attribute:: envLightEnergy
+
+      The environment light energy.
+
+      :type: float from 0.0 to infinite
+
+   .. attribute:: envLightEnabled
+
+      Returns True if Environment Lighting is enabled. Else returns False
+
+      :type: bool (read only)
+
+   .. attribute:: envLightColor
+
+      White:       returns 0
+      SkyColor:    returns 1
+      SkyTexture:  returns 2
+
+      :type: int (read only)

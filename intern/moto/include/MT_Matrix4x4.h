@@ -39,7 +39,9 @@
 #ifndef MT_MATRIX4X4_H
 #define MT_MATRIX4X4_H
 
-#include <MT_assert.h>
+#include "MT_Config.h"
+
+#include <BLI_utildefines.h>
 
 #include "MT_Vector4.h"
 #include "MT_Transform.h"
@@ -51,20 +53,17 @@ public:
 	/**
 	 * Empty contructor.
 	 */
-    MT_Matrix4x4() {}
+	explicit MT_Matrix4x4() {}
 	/**
 	 * Initialize all fields with the values pointed at by m. A
 	 * contigous block of 16 values is read.  */
-    MT_Matrix4x4(const float *m) { setValue(m); }
-	/**
-	 * Initialize all fields with the values pointed at by m. A
-	 * contigous block of 16 values is read.  */
-    MT_Matrix4x4(const double *m) { setValue(m); }
+	template <typename T>
+	explicit MT_Matrix4x4(const T *m) { setValue(m); }
     
 	/**
 	 * Initialise with these 16 explicit values.
 	 */
-    MT_Matrix4x4(MT_Scalar xx, MT_Scalar xy, MT_Scalar xz, MT_Scalar xw,
+	explicit MT_Matrix4x4(MT_Scalar xx, MT_Scalar xy, MT_Scalar xz, MT_Scalar xw,
                  MT_Scalar yx, MT_Scalar yy, MT_Scalar yz, MT_Scalar yw,
                  MT_Scalar zx, MT_Scalar zy, MT_Scalar zz, MT_Scalar zw,
                  MT_Scalar wx, MT_Scalar wy, MT_Scalar wz, MT_Scalar ww) { 
@@ -77,7 +76,7 @@ public:
 	/** 
 	 * Initialize from an MT_Transform.
 	 */ 
-	MT_Matrix4x4(const MT_Transform &t) {
+	explicit MT_Matrix4x4(const MT_Transform &t) {
 
 		const MT_Matrix3x3 &basis = t.getBasis();
 		const MT_Vector3 &origin = t.getOrigin();  	
@@ -102,22 +101,12 @@ public:
     /**
 	 * Set the matrix to the values pointer at by m. A contiguous
 	 * block of 16 values is copied.  */
-    void setValue(const float *m) {
-        m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++; m_el[3][0] = *m++;
-        m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++; m_el[3][1] = *m++;
-        m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m++; m_el[3][2] = *m++;
-        m_el[0][3] = *m++; m_el[1][3] = *m++; m_el[2][3] = *m++; m_el[3][3] = *m;
-    }
-
-    /**
-	 * Set the matrix to the values pointer at by m. A contiguous
-	 * block of 16 values is copied.
-	 */
-    void setValue(const double *m) {
-        m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++; m_el[3][0] = *m++;
-        m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++; m_el[3][1] = *m++;
-        m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m++; m_el[3][2] = *m++;
-        m_el[0][3] = *m++; m_el[1][3] = *m++; m_el[2][3] = *m++; m_el[3][3] = *m;
+	template <typename T>
+    void setValue(const T *m) {
+		m_el[0][0] = (MT_Scalar)*m++; m_el[1][0] = (MT_Scalar)*m++; m_el[2][0] = (MT_Scalar)*m++; m_el[3][0] = (MT_Scalar)*m++;
+        m_el[0][1] = (MT_Scalar)*m++; m_el[1][1] = (MT_Scalar)*m++; m_el[2][1] = (MT_Scalar)*m++; m_el[3][1] = (MT_Scalar)*m++;
+        m_el[0][2] = (MT_Scalar)*m++; m_el[1][2] = (MT_Scalar)*m++; m_el[2][2] = (MT_Scalar)*m++; m_el[3][2] = (MT_Scalar)*m++;
+        m_el[0][3] = (MT_Scalar)*m++; m_el[1][3] = (MT_Scalar)*m++; m_el[2][3] = (MT_Scalar)*m++; m_el[3][3] = (MT_Scalar)*m;
     }
 
     /**
@@ -163,6 +152,11 @@ public:
                             m_el[3][0] * x, m_el[3][1] * y, m_el[3][2] * z, m_el[3][3] * w);
     }
 
+	static const MT_Matrix4x4& Identity()
+	{
+		return identity;
+	}
+
 	/**
 	 * Set this matrix to I.
 	 */
@@ -176,28 +170,19 @@ public:
 	/**
 	 * Read the element from row i, column j.
 	 */
-	float getElement(int i, int j) {
-		return (float) m_el[i][j];
+	MT_Scalar getElement(int i, int j) {
+		return (MT_Scalar)m_el[i][j];
 	}
 	
     /**
-	 * Copy the contents to a contiguous block of 16 floats.
+	 * Copy the contents to a contiguous block of 16 values.
 	 */
-    void getValue(float *m) const {
-        *m++ = (float) m_el[0][0]; *m++ = (float) m_el[1][0]; *m++ = (float) m_el[2][0]; *m++ = (float) m_el[3][0];
-        *m++ = (float) m_el[0][1]; *m++ = (float) m_el[1][1]; *m++ = (float) m_el[2][1]; *m++ = (float) m_el[3][1];
-        *m++ = (float) m_el[0][2]; *m++ = (float) m_el[1][2]; *m++ = (float) m_el[2][2]; *m++ = (float) m_el[3][2];
-        *m++ = (float) m_el[0][3]; *m++ = (float) m_el[1][3]; *m++ = (float) m_el[2][3]; *m = (float) m_el[3][3];
-    }
-
-    /**
-	 * Copy the contents to a contiguous block of 16 doubles.
-	 */
-    void getValue(double *m) const {
-        *m++ = m_el[0][0]; *m++ = m_el[1][0]; *m++ = m_el[2][0]; *m++ = m_el[3][0];
-        *m++ = m_el[0][1]; *m++ = m_el[1][1]; *m++ = m_el[2][1]; *m++ = m_el[3][1];
-        *m++ = m_el[0][2]; *m++ = m_el[1][2]; *m++ = m_el[2][2]; *m++ = m_el[3][2];
-        *m++ = m_el[0][3]; *m++ = m_el[1][3]; *m++ = m_el[2][3]; *m = m_el[3][3];
+	template <typename T>
+    void getValue(T *m) const {
+        *m++ = (T)m_el[0][0]; *m++ = (T)m_el[1][0]; *m++ = (T)m_el[2][0]; *m++ = (T)m_el[3][0];
+        *m++ = (T)m_el[0][1]; *m++ = (T)m_el[1][1]; *m++ = (T)m_el[2][1]; *m++ = (T)m_el[3][1];
+        *m++ = (T)m_el[0][2]; *m++ = (T)m_el[1][2]; *m++ = (T)m_el[2][2]; *m++ = (T)m_el[3][2];
+        *m++ = (T)m_el[0][3]; *m++ = (T)m_el[1][3]; *m++ = (T)m_el[2][3]; *m = (T)m_el[3][3];
     }
 
 	/** 
@@ -227,12 +212,22 @@ public:
 
 	MT_Matrix4x4 inverse() const;
 	void         invert();
+
+	MT_Transform toTransform() const
+	{
+		return MT_Transform(MT_Vector3(m_el[0][3], m_el[1][3], m_el[2][3]),
+							MT_Matrix3x3(m_el[0][0], m_el[0][1], m_el[0][2],
+										 m_el[1][0], m_el[1][1], m_el[1][2],
+										 m_el[2][0], m_el[2][1], m_el[2][2]));
+	}
   
 protected:
 	/**
 	 * Access with [row index][column index]
 	 */
     MT_Vector4 m_el[4];
+
+	static const MT_Matrix4x4 identity;
 };
 
 /* These multiplicators do exactly what you ask from them: they

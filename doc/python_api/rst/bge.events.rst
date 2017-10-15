@@ -20,7 +20,7 @@ This module holds key constants for the SCA_KeyboardSensor.
    sensor = co.sensors["Keyboard"]
    sensor.key = bge.events.F1KEY
 
-   code-block:: python
+.. code-block:: python
 
    # Do the all keys thing
    import bge
@@ -29,9 +29,9 @@ This module holds key constants for the SCA_KeyboardSensor.
    # 'Keyboard' is a keyboard sensor
    sensor = co.sensors["Keyboard"]
 
-   for key,status in sensor.events:
-   	# key[0] == bge.events.keycode, key[1] = status
-   	if status == bge.logic.KX_INPUT_JUST_ACTIVATED:
+   for key, input in sensor.inputs:
+   	# key[0] == bge.events.keycode = event.type, key[1] = input
+   	if bge.logic.KX_INPUT_JUST_ACTIVATED in input.queue:
    		if key == bge.events.WKEY:
    			# Activate Forward!
    		if key == bge.events.SKEY:
@@ -41,7 +41,7 @@ This module holds key constants for the SCA_KeyboardSensor.
    		if key == bge.events.DKEY:
    			# Activate Right!
 
-   code-block:: python
+.. code-block:: python
 
    # The all keys thing without a keyboard sensor (but you will
    # need an always sensor with pulse mode on)
@@ -51,13 +51,13 @@ This module holds key constants for the SCA_KeyboardSensor.
    keyboard = bge.logic.keyboard
    JUST_ACTIVATED = bge.logic.KX_INPUT_JUST_ACTIVATED
 
-   if keyboard.events[bge.events.WKEY] == JUST_ACTIVATED:
+   if JUST_ACTIVATED in keyboard.inputs[bge.events.WKEY].queue:
    	print("Activate Forward!")
-   if keyboard.events[bge.events.SKEY] == JUST_ACTIVATED:
+   if JUST_ACTIVATED in keyboard.inputs[bge.events.SKEY].queue:
    	print("Activate Backward!")
-   if keyboard.events[bge.events.AKEY] == JUST_ACTIVATED:
+   if JUST_ACTIVATED in keyboard.inputs[bge.events.AKEY].queue:
    	print("Activate Left!")
-   if keyboard.events[bge.events.DKEY] == JUST_ACTIVATED:
+   if JUST_ACTIVATED in keyboard.inputs[bge.events.DKEY].queue:
    	print("Activate Right!")
 
 

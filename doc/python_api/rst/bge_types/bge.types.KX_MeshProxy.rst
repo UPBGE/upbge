@@ -1,11 +1,11 @@
-KX_MeshProxy(SCA_IObject)
-=========================
+KX_MeshProxy(CValue)
+====================
 
 .. module:: bge.types
 
-base class --- :class:`SCA_IObject`
+base class --- :class:`CValue`
 
-.. class:: KX_MeshProxy(SCA_IObject)
+.. class:: KX_MeshProxy(CValue)
 
    A mesh object.
 
@@ -60,6 +60,12 @@ base class --- :class:`SCA_IObject`
    .. attribute:: numMaterials
 
       :type: integer
+
+   .. attribute:: polygons
+
+      Returns the list of polygons of this mesh.
+
+      :type: :class:`KX_PolyProxy` list (read only)
 
    .. method:: getMaterialName(matid)
 
@@ -131,4 +137,17 @@ base class --- :class:`SCA_IObject`
       :type uv_index: integer
       :arg uv_index_from: optional uv index to copy from, -1 to transform the current uv.
       :type uv_index_from: integer
+
+   .. method:: replaceMaterial(matid, material)
+
+      Replace the material in slot :data:`matid` by the material :data:`material`.
+
+      :arg matid: The material index.
+      :type matid: integer
+      :arg material: The material replacement.
+      :type material: :class:`KX_BlenderMaterial`
+
+      .. warning::
+
+         Changing the material of a mesh used by many objects can be slow. This function should be not called every frames
 

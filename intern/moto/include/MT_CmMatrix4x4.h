@@ -33,6 +33,8 @@
 #ifndef INCLUDED_MT_CmMatrix4x4
 #define INCLUDED_MT_CmMatrix4x4
 
+#include "MT_Config.h"
+
 /**
  * A 4x4 matrix. This is an OpenGl style matrix (column major) meaning
  * that the vector {m[0][0],m[0][1],m[0][2],m[0][3]} is the first column of
@@ -46,7 +48,6 @@
 
 #include "MT_Scalar.h"
 
-class MT_Point3;
 class MT_Vector3;
 
 class MT_CmMatrix4x4
@@ -71,7 +72,7 @@ public :
 	);
 
 	MT_CmMatrix4x4(
-		const MT_Point3& orig,
+		const MT_Vector3& orig,
 		const MT_Vector3& dir,
 		const MT_Vector3 up
 	);
@@ -112,7 +113,7 @@ public :
 	GetDir(
 	) const;
 
-		MT_Point3
+		MT_Vector3
 	GetPos(
 	) const;
 

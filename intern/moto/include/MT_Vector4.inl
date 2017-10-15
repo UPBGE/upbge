@@ -16,7 +16,7 @@ GEN_INLINE MT_Vector4& MT_Vector4::operator*=(MT_Scalar s) {
 }
 
 GEN_INLINE MT_Vector4& MT_Vector4::operator/=(MT_Scalar s) {
-    MT_assert(!MT_fuzzyZero(s));
+    BLI_assert(!MT_fuzzyZero(s));
     return *this *= MT_Scalar(1.0f) / s;
 }
 
@@ -39,12 +39,16 @@ GEN_INLINE MT_Vector4 operator*(const MT_Vector4& v, MT_Scalar s) {
 GEN_INLINE MT_Vector4 operator*(MT_Scalar s, const MT_Vector4& v) { return v * s; }
 
 GEN_INLINE MT_Vector4 operator/(const MT_Vector4& v, MT_Scalar s) {
-    MT_assert(!MT_fuzzyZero(s));
+    BLI_assert(!MT_fuzzyZero(s));
     return v * (MT_Scalar(1.0f) / s);
 }
 
 GEN_INLINE MT_Scalar MT_Vector4::dot(const MT_Vector4& v) const {
     return m_co[0] * v[0] + m_co[1] * v[1] + m_co[2] * v[2] + m_co[3] * v[3];
+}
+
+GEN_INLINE MT_Scalar MT_Vector4::dot(const MT_Vector3& v) const {
+    return m_co[0] * v[0] + m_co[1] * v[1] + m_co[2] * v[2] + m_co[3];
 }
 
 GEN_INLINE MT_Scalar MT_Vector4::length2() const { return MT_dot(*this, *this); }
@@ -64,10 +68,24 @@ GEN_INLINE MT_Vector4 MT_Vector4::scaled(MT_Scalar xx, MT_Scalar yy, MT_Scalar z
 
 GEN_INLINE bool MT_Vector4::fuzzyZero() const { return MT_fuzzyZero2(length2()); }
 
+GEN_INLINE MT_Vector2 MT_Vector4::to2d() const
+{
+	return MT_Vector2(m_co[0], m_co[1]);
+}
+
+GEN_INLINE MT_Vector3 MT_Vector4::to3d() const
+{
+	return MT_Vector3(m_co[0], m_co[1], m_co[2]);
+}
+
 GEN_INLINE void MT_Vector4::normalize() { *this /= length(); }
 GEN_INLINE MT_Vector4 MT_Vector4::normalized() const { return *this / length(); }
 
-GEN_INLINE MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector4& v2) { 
+GEN_INLINE MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector4& v2) {
+    return v1.dot(v2);
+}
+
+GEN_INLINE MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector3& v2) {
     return v1.dot(v2);
 }
 

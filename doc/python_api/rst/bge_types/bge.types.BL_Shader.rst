@@ -7,9 +7,33 @@ base class --- :class:`PyObjectPlus`
 
 .. class:: BL_Shader(PyObjectPlus)
 
-   BL_Shader GLSL shaders.
+   BL_Shader is a class used to compile and use custom shaders scripts. It supports vertex, fragment and geometry shader scripts.
+   The shader is compiled with a generated header for the three shaders scripts.
+   This header set the ``#version`` directive, so the user must not define his own `#version`.
 
-   TODO - Description
+   .. attribute:: enabled
+
+      Set shader enabled to use.
+
+      :type: boolean
+
+   .. attribute:: objectCallbacks
+
+      The list of python callbacks executed when the shader is used to render an object.
+      All the functions can expect as argument the object currently rendered.
+
+      .. code-block:: python
+
+         def callback(object):
+             print("render object %r" % object.name)
+
+      :type: list of functions and/or methods
+
+   .. attribute:: bindCallbacks
+
+      The list of python callbacks executed when the shader is begin used to render.
+
+      :type: list of functions and/or methods
 
    .. method:: setUniformfv(name, fList)
 
@@ -52,13 +76,6 @@ base class --- :class:`PyObjectPlus`
       :arg enum: attribute location value
       :type enum: integer
 
-   .. method:: setNumberOfPasses( max_pass )
-
-      Set the maximum number of passes. Not used a.t.m.
-
-      :arg max_pass: the maximum number of passes
-      :type max_pass: integer
-
    .. method:: setSampler(name, index)
 
       Set uniform texture sample index.
@@ -68,7 +85,7 @@ base class --- :class:`PyObjectPlus`
       :arg index: Texture sample index.
       :type index: integer
 
-   .. method:: setSource(vertexProgram, fragmentProgram)
+   .. method:: setSource(vertexProgram, fragmentProgram, apply)
 
       Set the vertex and fragment programs
 
@@ -76,6 +93,28 @@ base class --- :class:`PyObjectPlus`
       :type vertexProgram: string
       :arg fragmentProgram: Fragment program
       :type fragmentProgram: string
+      :arg apply: Enable the shader.
+      :type apply: boolean
+
+   .. method:: setSourceList(sources, apply)
+
+      Set the vertex, fragment and geometry shader programs.
+
+      :arg sources: Dictionary of all programs. The keys :data:`vertex`, :data:`fragment` and :data:`geometry` represent shader programs of the same name.
+          :data:`geometry` is an optional program.
+          This dictionary can be similar to:
+
+          .. code-block:: python
+
+             sources = {
+                 "vertex" : vertexProgram,
+                 "fragment" : fragmentProgram,
+                 "geometry" : geometryProgram
+             }
+
+      :type sources: dict
+      :arg apply: Enable the shader.
+      :type apply: boolean
 
    .. method:: setUniform1f(name, fx)
 
@@ -180,8 +219,8 @@ base class --- :class:`PyObjectPlus`
 
       :arg name: the uniform name
       :type name: string
-      :arg type: uniform type
-      :type type: UNI_NONE, UNI_INT, UNI_FLOAT, UNI_INT2, UNI_FLOAT2, UNI_INT3, UNI_FLOAT3, UNI_INT4, UNI_FLOAT4, UNI_MAT3, UNI_MAT4, UNI_MAX
+      :arg type: uniform type, one of :ref:`these constants <shader-defined-uniform>`
+      :type type: integer
 
    .. method:: setUniformMatrix3(name, mat, transpose)
 

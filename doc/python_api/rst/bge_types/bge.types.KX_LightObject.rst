@@ -32,15 +32,13 @@ base class --- :class:`KX_GameObject`
 
       A point light source. See attribute :data:`type`
 
+   .. data:: HEMI
+
+      A hemi light source. See attribute :data:`type`
+      
    .. attribute:: type
 
       The type of light - must be SPOT, SUN or NORMAL
-
-   .. attribute:: layer
-
-      The layer mask that this light affects object on.
-
-      :type: bitfield
 
    .. attribute:: energy
 
@@ -161,4 +159,14 @@ base class --- :class:`KX_GameObject`
       .. note::
          
          Higher values result in a more focused light source.
+
+   .. attribute:: staticShadow
+
+      Enables static shadows. By default (staticShadow=False) the shadow cast by the lamp is recalculated every frame. When this is not needed, set staticShadow=True. In that case, call :py:meth:`updateShadow` to request a shadow update.
+
+      :type: boolean.
+
+   .. method:: updateShadow()
+
+      Set the shadow to be updated next frame if the lamp uses a static shadow, see :data:`staticShadow`.
 
