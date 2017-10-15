@@ -151,8 +151,7 @@ bool KX_SCA_ReplaceMeshActuator::Update()
 	if (bNegativeEvent)
 		return false; // do nothing on negative events
 
-	if (m_mesh || m_use_phys) /* nullptr mesh is ok if were updating physics */
-		m_scene->ReplaceMesh(static_cast<KX_GameObject *>(GetParent()),m_mesh, m_use_gfx, m_use_phys);
+	InstantReplaceMesh();
 
 	return false;
 }
@@ -174,7 +173,10 @@ CValue* KX_SCA_ReplaceMeshActuator::GetReplica()
 
 void KX_SCA_ReplaceMeshActuator::InstantReplaceMesh()
 {
-	if (m_mesh) m_scene->ReplaceMesh(static_cast<KX_GameObject *>(GetParent()),m_mesh, m_use_gfx, m_use_phys);
+	if (m_mesh || m_use_phys) {
+		KX_GameObject *gameobj = static_cast<KX_GameObject *>(GetParent());
+		gameobj->ReplaceMesh(m_mesh, m_use_gfx, m_use_phys);
+	}
 }
 
 void KX_SCA_ReplaceMeshActuator::Replace_IScene(SCA_IScene *val)

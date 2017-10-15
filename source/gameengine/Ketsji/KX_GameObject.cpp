@@ -725,6 +725,26 @@ void KX_GameObject::UpdateBuckets()
 	m_meshUser->ActivateMeshSlots();
 }
 
+void KX_GameObject::ReplaceMesh(RAS_MeshObject *mesh, bool use_gfx, bool use_phys)
+{
+	if (use_gfx && mesh) {
+		RemoveMeshes();
+		AddMesh(mesh);
+		LoadDeformer();
+		AddMeshUser();
+	}
+
+	// Update the new assigned mesh with the physics mesh.
+	if (use_phys) {
+		if (m_pPhysicsController) {
+			m_pPhysicsController->ReinstancePhysicsShape(nullptr, use_gfx ? nullptr : mesh);
+		}
+	}
+	// Always make sure that the bounding box is updated to the new mesh.
+	UpdateBounds(true);
+}
+
+
 void KX_GameObject::RemoveMeshes()
 {
 	// Remove all mesh slots.
@@ -762,7 +782,7 @@ void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
 	if (!lodManager && m_lodManager && m_lodManager->GetLevelCount() > 0) {
 		KX_Scene *scene = GetScene();
 		RAS_MeshObject *origmesh = m_lodManager->GetLevel(0)->GetMesh();
-		scene->ReplaceMesh(this, origmesh, true, false);
+		ReplaceMesh(origmesh, true, false);
 	}
 
 	if (m_lodManager) {
@@ -793,8 +813,8 @@ void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 
 	if (lodLevel) {
 		RAS_MeshObject *mesh = lodLevel->GetMesh();
-		if (mesh != m_meshes[0]) {
-			scene->ReplaceMesh(this, mesh, true, false);
+		if (mesh != m_meshes.front()) {
+			ReplaceMesh(mesh, true, false);
 		}
 
 		m_currentLodLevel = lodLevel->GetLevel();
@@ -1945,7 +1965,7 @@ PyObject *KX_GameObject::PyReplaceMesh(PyObject *args, PyObject *kwds)
 	if (!ConvertPythonToMesh(logicmgr, value, &new_mesh, false, "gameOb.replaceMesh(value): KX_GameObject"))
 		return nullptr;
 	
-	GetScene()->ReplaceMesh(this, new_mesh, (bool)use_gfx, (bool)use_phys);
+	ReplaceMesh(new_mesh, (bool)use_gfx, (bool)use_phys);
 	Py_RETURN_NONE;
 }
 

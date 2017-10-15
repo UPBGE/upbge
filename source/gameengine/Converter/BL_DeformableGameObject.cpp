@@ -31,6 +31,15 @@
 
 #include "BL_DeformableGameObject.h"
 #include "BL_ShapeDeformer.h"
+#include "BL_ModifierDeformer.h"
+#include "BL_SkinDeformer.h"
+#include "BL_MeshDeformer.h"
+
+#include "KX_SoftBodyDeformer.h"
+
+#include "RAS_MeshObject.h"
+
+#include "CM_Message.h"
 
 BL_DeformableGameObject::BL_DeformableGameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
 	:KX_GameObject(sgReplicationInfo, callbacks),
@@ -128,3 +137,81 @@ bool BL_DeformableGameObject::IsDeformable() const
 {
 	return true;
 }
+
+void BL_DeformableGameObject::LoadDeformer()
+{
+	if (m_pDeformer) {
+		delete m_pDeformer;
+		m_pDeformer = nullptr;
+	}
+
+	if (m_meshes.empty()) {
+		return;
+	}
+
+	RAS_MeshObject *meshobj = m_meshes.front();
+	Mesh *mesh = meshobj->GetMesh();
+
+	if (!mesh) {
+		return;
+	}
+
+	KX_Scene *scene = GetScene();
+	Scene *blenderScene = scene->GetBlenderScene();
+	// We must create a new deformer but which one?
+	KX_GameObject *parentobj = GetParent();
+	// Object that owns the mesh.
+	Object *oldblendobj = static_cast<Object *>(scene->GetLogicManager()->FindBlendObjByGameMeshName(meshobj->GetName()));
+
+	bool bHasModifier = BL_ModifierDeformer::HasCompatibleDeformer(m_pBlenderObject);
+	bool bHasShapeKey = mesh->key && mesh->key->type==KEY_RELATIVE;
+	bool bHasDvert = mesh->dvert;
+	bool bHasArmature = BL_ModifierDeformer::HasArmatureDeformer(m_pBlenderObject) &&
+		parentobj && parentobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE && oldblendobj && bHasDvert;
+#ifdef WITH_BULLET
+	bool bHasSoftBody = (!parentobj && (m_pBlenderObject->gameflag & OB_SOFT_BODY));
+#endif
+
+	if (!oldblendobj) {
+		if (bHasModifier || bHasShapeKey || bHasDvert || bHasArmature) {
+			CM_FunctionWarning("new mesh is not used in an object from the current scene, you will get incorrect behavior.");
+			return;
+		}
+	}
+
+	if (bHasModifier) {
+		if (bHasShapeKey || bHasArmature) {
+			BL_ModifierDeformer *modifierDeformer = new BL_ModifierDeformer(this, blenderScene, oldblendobj, m_pBlenderObject,
+					meshobj, static_cast<BL_ArmatureObject *>(parentobj));
+			modifierDeformer->LoadShapeDrivers(parentobj);
+			m_pDeformer = modifierDeformer;
+		}
+		else {
+			m_pDeformer = new BL_ModifierDeformer(this, blenderScene, oldblendobj, m_pBlenderObject, meshobj, nullptr);
+		}
+	}
+	else if (bHasShapeKey) {
+		if (bHasArmature) {
+			BL_ShapeDeformer *shapeDeformer = new BL_ShapeDeformer(this, oldblendobj, m_pBlenderObject, meshobj,
+					static_cast<BL_ArmatureObject *>(parentobj));
+			shapeDeformer->LoadShapeDrivers(parentobj);
+			m_pDeformer = shapeDeformer;
+		}
+		else {
+			m_pDeformer = new BL_ShapeDeformer(this, oldblendobj, m_pBlenderObject, meshobj, nullptr);
+		}
+	}
+	else if (bHasArmature) {
+		m_pDeformer = new BL_SkinDeformer(this, oldblendobj, m_pBlenderObject, meshobj,
+				static_cast<BL_ArmatureObject *>(parentobj));
+	}
+	else if (bHasDvert) {
+		m_pDeformer = new BL_MeshDeformer(this, oldblendobj, meshobj);
+	}
+#ifdef WITH_BULLET
+	else if (bHasSoftBody) {
+		m_pDeformer = new KX_SoftBodyDeformer(meshobj, this);
+	}
+#endif
+}
+

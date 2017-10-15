@@ -434,14 +434,14 @@ public:
 	{
 		return 0;
 	}
-	virtual void	SetDeformer(class RAS_Deformer* deformer)
-	{
-
-	}
 	/// Return true when the game object is a BL_DeformableGameObject.
 	virtual bool IsDeformable() const
 	{
 		return false;
+	}
+
+	virtual void LoadDeformer()
+	{
 	}
 
 	/**
@@ -720,6 +720,7 @@ public:
 		m_meshes.push_back(mesh);
 	}
 
+	void ReplaceMesh(RAS_MeshObject *mesh, bool use_gfx, bool use_phys);
 
 	/** Set current lod manager, can be nullptr.
 	 * If nullptr the object's mesh backs to the mesh of the previous first lod level.
