@@ -2068,7 +2068,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 	if (!(ma->mode & MA_NOMIST)) {
 		GPU_link(mat, "shade_mist_factor", GPU_builtin(GPU_VIEW_POSITION),
-		         GPU_select_uniform(&GPUWorld.mistenabled, GPU_DYNAMIC_MIST_ENABLE, NULL, ma),
+		         GPU_dynamic_uniform(&GPUWorld.mistenabled, GPU_DYNAMIC_MIST_ENABLE, NULL),
 		         GPU_select_uniform(&GPUWorld.miststart, GPU_DYNAMIC_MIST_START, NULL, ma),
 		         GPU_select_uniform(&GPUWorld.mistdistance, GPU_DYNAMIC_MIST_DISTANCE, NULL, ma),
 		         GPU_select_uniform(&GPUWorld.mistype, GPU_DYNAMIC_MIST_TYPE, NULL, ma),
