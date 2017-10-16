@@ -925,7 +925,6 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 
 		case OB_ARMATURE:
 		{
-			bArmature *arm = (bArmature *)ob->data;
 			gameobj = new BL_ArmatureObject(kxscene, KX_Scene::m_callbacks, ob, kxscene->GetBlenderScene());
 
 			kxscene->AddAnimatedObject(gameobj);
@@ -1202,7 +1201,6 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter& converter,
 		objectlist->Add(CM_AddRef(gameobj));
 
 		gameobj->NodeUpdateGS(0);
-		gameobj->AddMeshUser();
 	}
 	else {
 		// We must store this object otherwise it will be deleted at the end of this function if it is not a root object.
@@ -1513,35 +1511,22 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	}
 	vec_parent_child.clear();
 
-	// Load deformers
-	for (KX_GameObject *gameobj : sumolist) {
-		gameobj->LoadDeformer();
-	}
-
-	// Set up armatures.
-	for (Object *blenderobj : allblobj) {
-		if (blenderobj->type == OB_MESH) {
-			Mesh *me = (Mesh *)blenderobj->data;
-
-			if (me->dvert) {
-				BL_DeformableGameObject *obj = static_cast<BL_DeformableGameObject *>(converter.FindGameObject(blenderobj));
-
-				if (obj && BL_ModifierDeformer::HasArmatureDeformer(blenderobj) && blenderobj->parent && blenderobj->parent->type == OB_ARMATURE) {
-					KX_GameObject *par = converter.FindGameObject(blenderobj->parent);
-					if (par && obj->GetDeformer()) {
-						((BL_SkinDeformer *)obj->GetDeformer())->SetArmature((BL_ArmatureObject *)par);
-					}
-				}
-			}
-		}
-	}
-
 	// Find 'root' parents (object that has not parents in SceneGraph).
 	for (KX_GameObject *gameobj : sumolist) {
 		if (!gameobj->GetSGNode()->GetSGParent()) {
 			parentlist->Add(CM_AddRef(gameobj));
 			gameobj->NodeUpdateGS(0.0);
 		}
+	}
+
+	// Load deformers
+	for (KX_GameObject *gameobj : sumolist) {
+		gameobj->LoadDeformer();
+	}
+
+	// Init mesh users and mesh slots once the deformers are available.
+	for (KX_GameObject *gameobj : objectlist) {
+		gameobj->AddMeshUser();
 	}
 
 	// Create graphic controller for culling.

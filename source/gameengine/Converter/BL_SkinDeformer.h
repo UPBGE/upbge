@@ -55,14 +55,7 @@ class BL_SkinDeformer : public BL_MeshDeformer
 {
 public:
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
-	void SetArmature(BL_ArmatureObject *armobj);
 
-	BL_SkinDeformer(BL_DeformableGameObject *gameobj,
-					Object *bmeshobj,
-					RAS_MeshObject *mesh,
-					BL_ArmatureObject *arma);
-
-	/* this second constructor is needed for making a mesh deformable on the fly. */
 	BL_SkinDeformer(BL_DeformableGameObject *gameobj,
 					Object *bmeshobj_old,
 					Object *bmeshobj_new,

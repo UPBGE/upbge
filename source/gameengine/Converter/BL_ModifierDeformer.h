@@ -52,18 +52,6 @@ public:
 
 	BL_ModifierDeformer(BL_DeformableGameObject *gameobj,
 						Scene *scene,
-						Object *bmeshobj,
-						RAS_MeshObject *mesh)
-		:BL_ShapeDeformer(gameobj, bmeshobj, mesh),
-		m_lastModifierUpdate(-1.0),
-		m_scene(scene),
-		m_dm(nullptr)
-	{
-	}
-
-	/* this second constructor is needed for making a mesh deformable on the fly. */
-	BL_ModifierDeformer(BL_DeformableGameObject *gameobj,
-						Scene *scene,
 						Object *bmeshobj_old,
 						Object *bmeshobj_new,
 						RAS_MeshObject *mesh,

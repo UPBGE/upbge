@@ -81,19 +81,6 @@ static short get_deformflags(Object *bmeshobj)
 	return flags;
 }
 
-BL_SkinDeformer::BL_SkinDeformer(BL_DeformableGameObject *gameobj,
-								 Object *bmeshobj,
-								 RAS_MeshObject *mesh,
-								 BL_ArmatureObject *arma)
-	:BL_MeshDeformer(gameobj, bmeshobj, mesh),
-	m_armobj(arma),
-	m_lastArmaUpdate(-1),
-	m_copyNormals(false)
-{
-	copy_m4_m4(m_obmat, bmeshobj->obmat);
-	m_deformflags = get_deformflags(bmeshobj);
-}
-
 BL_SkinDeformer::BL_SkinDeformer(
 	BL_DeformableGameObject *gameobj,
 	Object *bmeshobj_old, // Blender object that owns the new mesh
@@ -351,11 +338,4 @@ bool BL_SkinDeformer::UpdateInternal(bool shape_applied)
 bool BL_SkinDeformer::Update(void)
 {
 	return UpdateInternal(false);
-}
-
-/* XXX note: I propose to drop this function */
-void BL_SkinDeformer::SetArmature(BL_ArmatureObject *armobj)
-{
-	// only used to set the object now
-	m_armobj = armobj;
 }

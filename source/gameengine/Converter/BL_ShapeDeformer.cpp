@@ -64,17 +64,6 @@ extern "C" {
 #include "BLI_math.h"
 
 BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
-                                   Object *bmeshobj,
-                                   RAS_MeshObject *mesh)
-	:BL_SkinDeformer(gameobj, bmeshobj, mesh, nullptr),
-	m_useShapeDrivers(false),
-	m_lastShapeUpdate(-1)
-{
-	m_key = m_bmesh->key ? BKE_key_copy(G.main, m_bmesh->key) : nullptr;
-}
-
-/* this second constructor is needed for making a mesh deformable on the fly. */
-BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
                                    Object *bmeshobj_old,
                                    Object *bmeshobj_new,
                                    RAS_MeshObject *mesh,
@@ -120,8 +109,7 @@ bool BL_ShapeDeformer::LoadShapeDrivers(KX_GameObject *parent)
 	}
 
 	// Fix drivers since BL_ArmatureObject makes copies
-	if (parent->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE && GetKey()->adt) {
-		BL_ArmatureObject *arma = (BL_ArmatureObject *)parent;
+	if (m_armobj && GetKey()->adt) {
 		FCurve *fcu;
 
 		for (fcu = (FCurve *)GetKey()->adt->drivers.first; fcu; fcu = (FCurve *)fcu->next) {
@@ -131,8 +119,8 @@ bool BL_ShapeDeformer::LoadShapeDrivers(KX_GameObject *parent)
 				DRIVER_TARGETS_USED_LOOPER(dvar)
 				{
 					if (dtar->id) {
-						if ((Object *)dtar->id == arma->GetOrigArmatureObject())
-							dtar->id = (ID *)arma->GetArmatureObject();
+						if ((Object *)dtar->id == m_armobj->GetOrigArmatureObject())
+							dtar->id = (ID *)m_armobj->GetArmatureObject();
 					}
 				}
 				DRIVER_TARGETS_LOOPER_END

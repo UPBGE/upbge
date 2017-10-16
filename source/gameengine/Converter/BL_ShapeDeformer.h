@@ -48,11 +48,6 @@ class BL_ShapeDeformer : public BL_SkinDeformer
 {
 public:
 	BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
-	                 Object *bmeshobj,
-	                 RAS_MeshObject *mesh);
-
-	/* this second constructor is needed for making a mesh deformable on the fly. */
-	BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
 					 Object *bmeshobj_old,
 					 Object *bmeshobj_new,
 					 RAS_MeshObject *mesh,
