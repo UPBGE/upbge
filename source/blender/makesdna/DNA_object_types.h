@@ -283,6 +283,13 @@ typedef struct Object {
 	short softflag;			/* softbody settings */
 	float anisotropicFriction[3];
 
+	/************Game engine**************/
+	/* dynamic properties */
+	float friction, rolling_friction, fh, reflect;
+	float fhdist, xyfrict;
+	short dynamode, pad1[3];
+	/********End of Game engine***********/
+
 	ListBase constraints;		/* object constraints */
 	ListBase nlastrips  DNA_DEPRECATED;			// XXX deprecated... old animation system
 	ListBase hooks  DNA_DEPRECATED;				// XXX deprecated... old animation system
@@ -374,6 +381,11 @@ typedef struct DupliObject {
 } DupliObject;
 
 /* **************** OBJECT ********************* */
+
+/***********Game engine****************/
+/* dynamode */
+#define OB_FH_NOR	        2
+/********End of Game engine************/
 
 /* used many places... should be specialized  */
 #define SELECT          1

@@ -771,6 +771,14 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 	shapeProps->m_fall_speed = blenderobject->fall_speed;
 	shapeProps->m_max_jumps = blenderobject->max_jumps;
 
+	shapeProps->m_restitution = blenderobject->reflect;
+	shapeProps->m_friction = blenderobject->friction;
+	shapeProps->m_rollingFriction = blenderobject->rolling_friction;
+	shapeProps->m_fh_spring = blenderobject->fh;
+	shapeProps->m_fh_damping = blenderobject->xyfrict;
+	shapeProps->m_fh_distance = blenderobject->fhdist;
+	shapeProps->m_fh_normal = (blenderobject->dynamode & OB_FH_NOR) != 0;
+
 	return shapeProps;
 }
 

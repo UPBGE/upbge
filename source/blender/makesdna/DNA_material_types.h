@@ -181,9 +181,9 @@ typedef struct Material {
 	struct PreviewImage *preview;
 
 	/* dynamic properties */
-	float friction, fh, reflect;
-	float fhdist, xyfrict;
-	short dynamode, pad2;
+	float friction DNA_DEPRECATED, fh DNA_DEPRECATED, reflect DNA_DEPRECATED;
+	float fhdist DNA_DEPRECATED, xyfrict DNA_DEPRECATED;
+	short dynamode DNA_DEPRECATED, pad2;
 
 	/* subsurface scattering */
 	float sss_radius[3], sss_col[3];
