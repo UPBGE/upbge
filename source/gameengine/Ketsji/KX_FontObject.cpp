@@ -224,22 +224,16 @@ void KX_FontObject::GetTextAabb(MT_Vector2& min, MT_Vector2& max)
 
 	BLF_size(m_fontid, size, m_dpi);
 
+	min = MT_Vector2(FLT_MAX, FLT_MAX);
+	max = MT_Vector2(FLT_MIN, FLT_MIN);
 	for (unsigned short i = 0, size = m_texts.size(); i < size; ++i) {
 		rctf box;
 		const std::string& text = m_texts[i];
 		BLF_boundbox(m_fontid, text.c_str(), text.size(), &box);
-		if (i == 0) {
-			min.x() = box.xmin;
-			min.y() = box.ymin;
-			max.x() = box.xmax;
-			max.y() = box.ymax;
-		}
-		else {
-			min.x() = std::min(min.x(), box.xmin);
-			min.y() = std::min(min.y(), box.ymin - lineSpacing * i);
-			max.x() = std::max(max.x(), box.xmax);
-			max.y() = std::max(max.y(), box.ymax - lineSpacing * i);
-		}
+		min.x() = std::min(min.x(), box.xmin);
+		min.y() = std::min(min.y(), box.ymin - lineSpacing * i);
+		max.x() = std::max(max.x(), box.xmax);
+		max.y() = std::max(max.y(), box.ymax - lineSpacing * i);
 	}
 
 	min *= aspect;

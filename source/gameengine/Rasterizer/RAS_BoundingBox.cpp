@@ -161,18 +161,14 @@ void RAS_MeshBoundingBox::Update(bool force)
 		return;
 	}
 
-	for (unsigned short i = 0, size = m_displayArrayList.size(); i < size; ++i) {
-		RAS_IDisplayArray *displayArray = m_displayArrayList[i];
-		// For each vertex.
-		for (unsigned int j = 0, size = displayArray->GetVertexCount(); j < size; ++j) {
-			RAS_IVertex *vert = displayArray->GetVertex(j);
-			const MT_Vector3 vertPos = vert->xyz();
+	m_aabbMin = MT_Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
+	m_aabbMax = MT_Vector3(FLT_MIN, FLT_MIN, FLT_MIN);
 
-			// Initialize the AABB to the first vertex position.
-			if (j == 0 && i == 0) {
-				m_aabbMin = m_aabbMax = vertPos;
-				continue;
-			}
+	for (RAS_IDisplayArray *displayArray : m_displayArrayList) {
+		// For each vertex.
+		for (unsigned int i = 0, size = displayArray->GetVertexCount(); i < size; ++i) {
+			RAS_IVertex *vert = displayArray->GetVertex(i);
+			const MT_Vector3 vertPos = vert->xyz();
 
 			m_aabbMin.x() = std::min(m_aabbMin.x(), vertPos.x());
 			m_aabbMin.y() = std::min(m_aabbMin.y(), vertPos.y());

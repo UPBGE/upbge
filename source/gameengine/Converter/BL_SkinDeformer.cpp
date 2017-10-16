@@ -276,10 +276,9 @@ void BL_SkinDeformer::UpdateTransverts()
 		return;
 	}
 
-	bool first = true;
 	// AABB Box : min/max.
-	MT_Vector3 aabbMin;
-	MT_Vector3 aabbMax;
+	MT_Vector3 aabbMin(FLT_MAX, FLT_MAX, FLT_MAX);
+	MT_Vector3 aabbMax(FLT_MIN, FLT_MIN, FLT_MIN);
 
 	// the vertex cache is unique to this deformer, no need to update it
 	// if it wasn't updated! We must update all the materials at once
@@ -300,19 +299,12 @@ void BL_SkinDeformer::UpdateTransverts()
 				continue;
 			}
 
-			// For the first vertex of the mesh, only initialize AABB.
-			if (first) {
-				aabbMin = aabbMax = vertpos;
-				first = false;
-			}
-			else {
-				aabbMin.x() = std::min(aabbMin.x(), vertpos.x());
-				aabbMin.y() = std::min(aabbMin.y(), vertpos.y());
-				aabbMin.z() = std::min(aabbMin.z(), vertpos.z());
-				aabbMax.x() = std::max(aabbMax.x(), vertpos.x());
-				aabbMax.y() = std::max(aabbMax.y(), vertpos.y());
-				aabbMax.z() = std::max(aabbMax.z(), vertpos.z());
-			}
+			aabbMin.x() = std::min(aabbMin.x(), vertpos.x());
+			aabbMin.y() = std::min(aabbMin.y(), vertpos.y());
+			aabbMin.z() = std::min(aabbMin.z(), vertpos.z());
+			aabbMax.x() = std::max(aabbMax.x(), vertpos.x());
+			aabbMax.y() = std::max(aabbMax.y(), vertpos.y());
+			aabbMax.z() = std::max(aabbMax.z(), vertpos.z());
 		}
 
 		array->SetModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);

@@ -103,8 +103,8 @@ void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 	}
 
 	// AABB Box : min/max.
-	MT_Vector3 aabbMin;
-	MT_Vector3 aabbMax;
+	MT_Vector3 aabbMin(FLT_MAX, FLT_MAX, FLT_MAX);
+	MT_Vector3 aabbMax(FLT_MIN, FLT_MIN, FLT_MIN);
 
 	for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 		RAS_IVertex *v = array->GetVertex(i);
@@ -129,17 +129,12 @@ void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 		// Extract object transform from the vertex position.
 		const MT_Vector3 ptWorld = (pt - pos) * rot * invertscale;
 		// if the AABB need an update.
-		if (i == 0) {
-			aabbMin = aabbMax = ptWorld;
-		}
-		else {
-			aabbMin.x() = std::min(aabbMin.x(), ptWorld.x());
-			aabbMin.y() = std::min(aabbMin.y(), ptWorld.y());
-			aabbMin.z() = std::min(aabbMin.z(), ptWorld.z());
-			aabbMax.x() = std::max(aabbMax.x(), ptWorld.x());
-			aabbMax.y() = std::max(aabbMax.y(), ptWorld.y());
-			aabbMax.z() = std::max(aabbMax.z(), ptWorld.z());
-		}
+		aabbMin.x() = std::min(aabbMin.x(), ptWorld.x());
+		aabbMin.y() = std::min(aabbMin.y(), ptWorld.y());
+		aabbMin.z() = std::min(aabbMin.z(), ptWorld.z());
+		aabbMax.x() = std::max(aabbMax.x(), ptWorld.x());
+		aabbMax.y() = std::max(aabbMax.y(), ptWorld.y());
+		aabbMax.z() = std::max(aabbMax.z(), ptWorld.z());
 	}
 
 	array->UpdateFrom(origarray, origarray->GetModifiedFlag() &
