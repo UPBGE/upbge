@@ -969,7 +969,7 @@ static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene)
 	gamecamera= new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
 	gamecamera->SetName(ca->id.name + 2);
 
-	kxscene->SetOverrideCullingCamera(gamecamera);
+	//kxscene->SetOverrideCullingCamera(gamecamera);
 
 	return gamecamera;
 }
