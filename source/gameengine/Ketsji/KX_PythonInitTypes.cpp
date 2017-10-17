@@ -71,9 +71,9 @@
 #include "KX_PlanarMap.h"
 #include "KX_PolyProxy.h"
 #include "KX_PythonComponent.h"
-#include "KX_SCA_AddObjectActuator.h"
-#include "KX_SCA_EndObjectActuator.h"
-#include "KX_SCA_ReplaceMeshActuator.h"
+#include "KX_AddObjectActuator.h"
+#include "KX_EndObjectActuator.h"
+#include "KX_ReplaceMeshActuator.h"
 #include "KX_SceneActuator.h"
 #include "KX_StateActuator.h"
 #include "KX_SteeringActuator.h"
@@ -102,7 +102,7 @@
 #include "KX_RadarSensor.h"
 #include "KX_RaySensor.h"
 #include "KX_MovementSensor.h"
-#include "KX_SCA_DynamicActuator.h"
+#include "KX_DynamicActuator.h"
 #include "KX_SoundActuator.h"
 #include "KX_CollisionSensor.h"
 #include "KX_VisibilityActuator.h"
@@ -252,10 +252,10 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_PythonComponent, init_getset);
 		PyType_Ready_Attr(dict, KX_RadarSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_RaySensor, init_getset);
-		PyType_Ready_Attr(dict, KX_SCA_AddObjectActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_SCA_DynamicActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_SCA_EndObjectActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_SCA_ReplaceMeshActuator, init_getset);
+		PyType_Ready_Attr(dict, KX_AddObjectActuator, init_getset);
+		PyType_Ready_Attr(dict, KX_DynamicActuator, init_getset);
+		PyType_Ready_Attr(dict, KX_EndObjectActuator, init_getset);
+		PyType_Ready_Attr(dict, KX_ReplaceMeshActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_Scene, init_getset);
 		PyType_Ready_Attr(dict, KX_WorldInfo, init_getset);
 		PyType_Ready_Attr(dict, KX_NavMeshObject, init_getset);

@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_SCA_DynamicActuator.cpp
+/** \file gameengine/Ketsji/KX_DynamicActuator.cpp
  *  \ingroup ketsji
  * Adjust dynamics settings for this object
  */
@@ -34,7 +34,7 @@
  * \source\gameengine\GameLogic\SCA_DynamicActuator.cpp
  * Please look here for revision history. */
 
-#include "KX_SCA_DynamicActuator.h"
+#include "KX_DynamicActuator.h"
 #include "PHY_IPhysicsController.h"
 
 #ifdef WITH_PYTHON
@@ -45,9 +45,9 @@
 
 /* Integration hooks ------------------------------------------------------- */
 
-PyTypeObject KX_SCA_DynamicActuator::Type = {
+PyTypeObject KX_DynamicActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_SCA_DynamicActuator",
+	"KX_DynamicActuator",
 	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -67,13 +67,13 @@ PyTypeObject KX_SCA_DynamicActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_SCA_DynamicActuator::Methods[] = {
+PyMethodDef KX_DynamicActuator::Methods[] = {
 	{nullptr,nullptr} //Sentinel
 };
 
-PyAttributeDef KX_SCA_DynamicActuator::Attributes[] = {
-	EXP_PYATTRIBUTE_SHORT_RW("mode",0,4,false,KX_SCA_DynamicActuator,m_dyn_operation),
-	EXP_PYATTRIBUTE_FLOAT_RW("mass",0.0f,FLT_MAX,KX_SCA_DynamicActuator,m_setmass),
+PyAttributeDef KX_DynamicActuator::Attributes[] = {
+	EXP_PYATTRIBUTE_SHORT_RW("mode",0,4,false,KX_DynamicActuator,m_dyn_operation),
+	EXP_PYATTRIBUTE_FLOAT_RW("mass",0.0f,FLT_MAX,KX_DynamicActuator,m_setmass),
 	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
@@ -83,7 +83,7 @@ PyAttributeDef KX_SCA_DynamicActuator::Attributes[] = {
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_SCA_DynamicActuator::KX_SCA_DynamicActuator(SCA_IObject *gameobj,
+KX_DynamicActuator::KX_DynamicActuator(SCA_IObject *gameobj,
 													   short dyn_operation,
 													   float setmass) :
 
@@ -94,14 +94,14 @@ KX_SCA_DynamicActuator::KX_SCA_DynamicActuator(SCA_IObject *gameobj,
 } /* End of constructor */
 
 
-KX_SCA_DynamicActuator::~KX_SCA_DynamicActuator()
+KX_DynamicActuator::~KX_DynamicActuator()
 { 
 	// there's nothing to be done here, really....
 } /* end of destructor */
 
 
 
-bool KX_SCA_DynamicActuator::Update()
+bool KX_DynamicActuator::Update()
 {
 	// bool result = false;	/*unused*/
 	KX_GameObject *obj = (KX_GameObject*) GetParent();
@@ -154,10 +154,10 @@ bool KX_SCA_DynamicActuator::Update()
 
 
 
-EXP_Value* KX_SCA_DynamicActuator::GetReplica()
+EXP_Value* KX_DynamicActuator::GetReplica()
 {
-	KX_SCA_DynamicActuator* replica = 
-		new KX_SCA_DynamicActuator(*this);
+	KX_DynamicActuator* replica = 
+		new KX_DynamicActuator(*this);
 
 	if (replica == nullptr)
 		return nullptr;

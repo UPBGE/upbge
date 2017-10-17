@@ -25,14 +25,14 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_SCA_AddObjectActuator.h
+/** \file KX_AddObjectActuator.h
  *  \ingroup ketsji
  *  \attention Previously existed as: source/gameengine/GameLogic/SCA_AddObjectActuator.h
  * Please look here for revision history.
  */
 
-#ifndef __KX_SCA_ADDOBJECTACTUATOR_H__
-#define __KX_SCA_ADDOBJECTACTUATOR_H__
+#ifndef __KX_ADDOBJECTACTUATOR_H__
+#define __KX_ADDOBJECTACTUATOR_H__
 
 /* Actuator tree */
 #include "SCA_IActuator.h"
@@ -43,7 +43,7 @@
 class KX_Scene;
 class KX_GameObject;
 
-class KX_SCA_AddObjectActuator : public SCA_IActuator
+class KX_AddObjectActuator : public SCA_IActuator
 {
 	Py_Header
 
@@ -75,7 +75,7 @@ public:
 	 * available. Use with care!
 	 */
 
-	KX_SCA_AddObjectActuator(
+	KX_AddObjectActuator(
 		KX_GameObject *gameobj,
 		KX_GameObject *original,
 		float time,
@@ -86,7 +86,7 @@ public:
 		bool angv_local
 	);
 
-	~KX_SCA_AddObjectActuator(void);
+	~KX_AddObjectActuator(void);
 
 		EXP_Value* 
 	GetReplica(
@@ -114,7 +114,7 @@ public:
 
 #ifdef WITH_PYTHON
 
-	EXP_PYMETHOD_DOC_NOARGS(KX_SCA_AddObjectActuator,InstantAddObject);
+	EXP_PYMETHOD_DOC_NOARGS(KX_AddObjectActuator,InstantAddObject);
 
 	static PyObject *pyattr_get_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
@@ -122,6 +122,6 @@ public:
 	
 #endif  /* WITH_PYTHON */
 
-}; /* end of class KX_SCA_AddObjectActuator : public KX_EditObjectActuator */
+}; /* end of class KX_AddObjectActuator : public KX_EditObjectActuator */
 
-#endif  /* __KX_SCA_ADDOBJECTACTUATOR_H__ */
+#endif  /* __KX_ADDOBJECTACTUATOR_H__ */

@@ -25,33 +25,33 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_SCA_EndObjectActuator.h
+/** \file KX_EndObjectActuator.h
  *  \ingroup ketsji
  *  \brief Add object to the game world on action of this actuator
  *  \attention Previously existed as: source/gameengine/GameLogic/SCA_EndObjectActuator.h
  * Please look here for revision history.
  */
 
-#ifndef __KX_SCA_ENDOBJECTACTUATOR_H__
-#define __KX_SCA_ENDOBJECTACTUATOR_H__
+#ifndef __KX_ENDOBJECTACTUATOR_H__
+#define __KX_ENDOBJECTACTUATOR_H__
 
 #include "SCA_IActuator.h"
 
 class KX_Scene;
 class KX_GameObject;
 
-class KX_SCA_EndObjectActuator : public SCA_IActuator
+class KX_EndObjectActuator : public SCA_IActuator
 {
 	Py_Header
 	KX_Scene *m_scene;
 
  public:
-	KX_SCA_EndObjectActuator(
+	KX_EndObjectActuator(
 		KX_GameObject *gameobj,
 		KX_Scene *scene
 	);
 
-	~KX_SCA_EndObjectActuator();
+	~KX_EndObjectActuator();
 
 		EXP_Value* 
 	GetReplica(

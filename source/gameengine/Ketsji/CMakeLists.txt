@@ -126,10 +126,10 @@ set(SRC
 	KX_RadarSensor.cpp
 	KX_RayCast.cpp
 	KX_RaySensor.cpp
-	KX_SCA_AddObjectActuator.cpp
-	KX_SCA_DynamicActuator.cpp
-	KX_SCA_EndObjectActuator.cpp
-	KX_SCA_ReplaceMeshActuator.cpp
+	KX_AddObjectActuator.cpp
+	KX_DynamicActuator.cpp
+	KX_EndObjectActuator.cpp
+	KX_ReplaceMeshActuator.cpp
 	KX_BoneParentNodeRelationship.cpp
 	KX_NodeRelationships.cpp
 	KX_ScalarInterpolator.cpp
@@ -217,10 +217,10 @@ set(SRC
 	KX_RadarSensor.h
 	KX_RayCast.h
 	KX_RaySensor.h
-	KX_SCA_AddObjectActuator.h
-	KX_SCA_DynamicActuator.h
-	KX_SCA_EndObjectActuator.h
-	KX_SCA_ReplaceMeshActuator.h
+	KX_AddObjectActuator.h
+	KX_DynamicActuator.h
+	KX_EndObjectActuator.h
+	KX_ReplaceMeshActuator.h
 	KX_BoneParentNodeRelationship.h
 	KX_NodeRelationships.h
 	KX_ScalarInterpolator.h

@@ -25,15 +25,15 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_SCA_ReplaceMeshActuator.h
+/** \file KX_ReplaceMeshActuator.h
  *  \ingroup ketsji
  *  \brief Add object to the game world on action of this actuator
  *  \attention Previously existed as: source/gameengine/GameLogic/SCA_ReplaceMeshActuator.h
  *  Please look here for revision history.
  */
 
-#ifndef __KX_SCA_REPLACEMESHACTUATOR_H__
-#define __KX_SCA_REPLACEMESHACTUATOR_H__
+#ifndef __KX_REPLACEMESHACTUATOR_H__
+#define __KX_REPLACEMESHACTUATOR_H__
 
 #include "SCA_IActuator.h"
 #include "SCA_PropertyActuator.h"
@@ -44,7 +44,7 @@
 class KX_Scene;
 class KX_GameObject;
 
-class KX_SCA_ReplaceMeshActuator : public SCA_IActuator
+class KX_ReplaceMeshActuator : public SCA_IActuator
 {
 	Py_Header
 
@@ -55,7 +55,7 @@ class KX_SCA_ReplaceMeshActuator : public SCA_IActuator
 	bool m_use_phys;
 
  public:
-	KX_SCA_ReplaceMeshActuator(
+	KX_ReplaceMeshActuator(
 		KX_GameObject *gameobj, 
 		RAS_MeshObject *mesh, 
 		KX_Scene *scene,
@@ -63,7 +63,7 @@ class KX_SCA_ReplaceMeshActuator : public SCA_IActuator
 		bool use_phys
 	);
 
-	~KX_SCA_ReplaceMeshActuator(
+	~KX_ReplaceMeshActuator(
 	);
 
 		EXP_Value* 
@@ -86,10 +86,10 @@ class KX_SCA_ReplaceMeshActuator : public SCA_IActuator
 	static PyObject *pyattr_get_mesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_mesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	EXP_PYMETHOD_DOC(KX_SCA_ReplaceMeshActuator,instantReplaceMesh);
+	EXP_PYMETHOD_DOC(KX_ReplaceMeshActuator,instantReplaceMesh);
 
 #endif  /* WITH_PYTHON */
 
 }; 
 
-#endif  /* __KX_SCA_REPLACEMESHACTUATOR_H__ */
+#endif  /* __KX_REPLACEMESHACTUATOR_H__ */

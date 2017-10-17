@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_SCA_ReplaceMeshActuator.cpp
+/** \file gameengine/Ketsji/KX_ReplaceMeshActuator.cpp
  *  \ingroup ketsji
  *
  * Replace the mesh for this actuator's parent
@@ -38,7 +38,7 @@
 
 // Please look here for revision history.
 
-#include "KX_SCA_ReplaceMeshActuator.h"
+#include "KX_ReplaceMeshActuator.h"
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
 #include "KX_MeshProxy.h"
@@ -51,9 +51,9 @@
 
 /* Integration hooks ------------------------------------------------------- */
 
-PyTypeObject KX_SCA_ReplaceMeshActuator::Type = {
+PyTypeObject KX_ReplaceMeshActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_SCA_ReplaceMeshActuator",
+	"KX_ReplaceMeshActuator",
 	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -73,40 +73,40 @@ PyTypeObject KX_SCA_ReplaceMeshActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_SCA_ReplaceMeshActuator::Methods[] = {
-	EXP_PYMETHODTABLE(KX_SCA_ReplaceMeshActuator, instantReplaceMesh),
+PyMethodDef KX_ReplaceMeshActuator::Methods[] = {
+	EXP_PYMETHODTABLE(KX_ReplaceMeshActuator, instantReplaceMesh),
 	{nullptr,nullptr} //Sentinel
 };
 
-PyAttributeDef KX_SCA_ReplaceMeshActuator::Attributes[] = {
-	EXP_PYATTRIBUTE_RW_FUNCTION("mesh", KX_SCA_ReplaceMeshActuator, pyattr_get_mesh, pyattr_set_mesh),
-	EXP_PYATTRIBUTE_BOOL_RW    ("useDisplayMesh", KX_SCA_ReplaceMeshActuator, m_use_gfx),
-	EXP_PYATTRIBUTE_BOOL_RW    ("usePhysicsMesh", KX_SCA_ReplaceMeshActuator, m_use_phys),
+PyAttributeDef KX_ReplaceMeshActuator::Attributes[] = {
+	EXP_PYATTRIBUTE_RW_FUNCTION("mesh", KX_ReplaceMeshActuator, pyattr_get_mesh, pyattr_set_mesh),
+	EXP_PYATTRIBUTE_BOOL_RW    ("useDisplayMesh", KX_ReplaceMeshActuator, m_use_gfx),
+	EXP_PYATTRIBUTE_BOOL_RW    ("usePhysicsMesh", KX_ReplaceMeshActuator, m_use_phys),
 	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_SCA_ReplaceMeshActuator::pyattr_get_mesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ReplaceMeshActuator::pyattr_get_mesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_SCA_ReplaceMeshActuator* actuator = static_cast<KX_SCA_ReplaceMeshActuator*>(self);
+	KX_ReplaceMeshActuator* actuator = static_cast<KX_ReplaceMeshActuator*>(self);
 	if (!actuator->m_mesh)
 		Py_RETURN_NONE;
 	KX_MeshProxy* meshproxy = new KX_MeshProxy(actuator->m_mesh);
 	return meshproxy->NewProxy(true);
 }
 
-int KX_SCA_ReplaceMeshActuator::pyattr_set_mesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_ReplaceMeshActuator::pyattr_set_mesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_SCA_ReplaceMeshActuator* actuator = static_cast<KX_SCA_ReplaceMeshActuator*>(self);
+	KX_ReplaceMeshActuator* actuator = static_cast<KX_ReplaceMeshActuator*>(self);
 	RAS_MeshObject* new_mesh;
 	
-	if (!ConvertPythonToMesh(actuator->GetLogicManager(), value, &new_mesh, true, "actuator.mesh = value: KX_SCA_ReplaceMeshActuator"))
+	if (!ConvertPythonToMesh(actuator->GetLogicManager(), value, &new_mesh, true, "actuator.mesh = value: KX_ReplaceMeshActuator"))
 		return PY_SET_ATTR_FAIL;
 	
 	actuator->m_mesh = new_mesh;
 	return PY_SET_ATTR_SUCCESS;
 }
 
-EXP_PYMETHODDEF_DOC(KX_SCA_ReplaceMeshActuator, instantReplaceMesh,
+EXP_PYMETHODDEF_DOC(KX_ReplaceMeshActuator, instantReplaceMesh,
 "instantReplaceMesh() : immediately replace mesh without delay\n")
 {
 	InstantReplaceMesh();
@@ -119,7 +119,7 @@ EXP_PYMETHODDEF_DOC(KX_SCA_ReplaceMeshActuator, instantReplaceMesh,
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_SCA_ReplaceMeshActuator::KX_SCA_ReplaceMeshActuator(KX_GameObject *gameobj,
+KX_ReplaceMeshActuator::KX_ReplaceMeshActuator(KX_GameObject *gameobj,
 													   RAS_MeshObject *mesh,
 													   KX_Scene *scene,
 													   bool use_gfx,
@@ -135,14 +135,14 @@ KX_SCA_ReplaceMeshActuator::KX_SCA_ReplaceMeshActuator(KX_GameObject *gameobj,
 
 
 
-KX_SCA_ReplaceMeshActuator::~KX_SCA_ReplaceMeshActuator()
+KX_ReplaceMeshActuator::~KX_ReplaceMeshActuator()
 { 
 	// there's nothing to be done here, really....
 } /* end of destructor */
 
 
 
-bool KX_SCA_ReplaceMeshActuator::Update()
+bool KX_ReplaceMeshActuator::Update()
 {
 	// bool result = false;	/*unused*/
 	bool bNegativeEvent = IsNegativeEvent();
@@ -158,10 +158,10 @@ bool KX_SCA_ReplaceMeshActuator::Update()
 
 
 
-EXP_Value* KX_SCA_ReplaceMeshActuator::GetReplica()
+EXP_Value* KX_ReplaceMeshActuator::GetReplica()
 {
-	KX_SCA_ReplaceMeshActuator* replica = 
-		new KX_SCA_ReplaceMeshActuator(*this);
+	KX_ReplaceMeshActuator* replica = 
+		new KX_ReplaceMeshActuator(*this);
 
 	if (replica == nullptr)
 		return nullptr;
@@ -171,7 +171,7 @@ EXP_Value* KX_SCA_ReplaceMeshActuator::GetReplica()
 	return replica;
 };
 
-void KX_SCA_ReplaceMeshActuator::InstantReplaceMesh()
+void KX_ReplaceMeshActuator::InstantReplaceMesh()
 {
 	if (m_mesh || m_use_phys) {
 		KX_GameObject *gameobj = static_cast<KX_GameObject *>(GetParent());
@@ -179,7 +179,7 @@ void KX_SCA_ReplaceMeshActuator::InstantReplaceMesh()
 	}
 }
 
-void KX_SCA_ReplaceMeshActuator::Replace_IScene(SCA_IScene *val)
+void KX_ReplaceMeshActuator::Replace_IScene(SCA_IScene *val)
 {
 	m_scene = static_cast<KX_Scene *>(val);
 }

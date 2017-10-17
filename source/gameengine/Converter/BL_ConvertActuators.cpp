@@ -65,11 +65,11 @@
 #include "KX_GameActuator.h"
 #include "KX_StateActuator.h"
 #include "KX_VisibilityActuator.h"
-#include "KX_SCA_AddObjectActuator.h"
-#include "KX_SCA_EndObjectActuator.h"
-#include "KX_SCA_ReplaceMeshActuator.h"
+#include "KX_AddObjectActuator.h"
+#include "KX_EndObjectActuator.h"
+#include "KX_ReplaceMeshActuator.h"
 #include "KX_ParentActuator.h"
-#include "KX_SCA_DynamicActuator.h"
+#include "KX_DynamicActuator.h"
 #include "KX_SteeringActuator.h"
 #include "KX_MouseActuator.h"
 
@@ -439,7 +439,7 @@ void BL_ConvertActuators(const char* maggiename,
 							}
 						}
 						
-						KX_SCA_AddObjectActuator* tmpaddact = new KX_SCA_AddObjectActuator(
+						KX_AddObjectActuator* tmpaddact = new KX_AddObjectActuator(
 						            gameobj,
 						            originalval,
 						            editobact->time,
@@ -455,8 +455,8 @@ void BL_ConvertActuators(const char* maggiename,
 					break;
 				case ACT_EDOB_END_OBJECT:
 					{
-						KX_SCA_EndObjectActuator* tmpendact 
-							= new KX_SCA_EndObjectActuator(gameobj,scene);
+						KX_EndObjectActuator* tmpendact 
+							= new KX_EndObjectActuator(gameobj,scene);
 						baseact = tmpendact;
 					}
 					break;
@@ -469,7 +469,7 @@ void BL_ConvertActuators(const char* maggiename,
 								<< "\" uses a mesh not owned by an object in scene \"" << scene->GetName() << "\".");
 						}
 
-						KX_SCA_ReplaceMeshActuator* tmpreplaceact = new KX_SCA_ReplaceMeshActuator(
+						KX_ReplaceMeshActuator* tmpreplaceact = new KX_ReplaceMeshActuator(
 						            gameobj,
 						            tmpmesh,
 						            scene,
@@ -497,7 +497,7 @@ void BL_ConvertActuators(const char* maggiename,
 					}
 				case ACT_EDOB_DYNAMICS:
 					{
-						KX_SCA_DynamicActuator* tmpdynact = new KX_SCA_DynamicActuator(
+						KX_DynamicActuator* tmpdynact = new KX_DynamicActuator(
 						            gameobj,
 						            editobact->dyn_operation,
 						            editobact->mass);
