@@ -416,6 +416,9 @@ public:
 	 */
 	void DrawOverlayPlane();
 
+	/* ToneMap GPUTexture (ref: DRW_transform_to_display) */
+	void ToneMapGpuTex(GPUTexture *gputex);
+
 	/// Update dimensions of all off screens.
 	void UpdateOffScreens(RAS_ICanvas *canvas);
 

@@ -87,6 +87,7 @@ public:
 	void Init();
 	void Exit();
 	void DrawOverlayPlane();
+	void ToneMapGpuTex(GPUTexture *gputex);
 	void BeginFrame();
 	void Clear(int clearbit);
 	void SetClearColor(float r, float g, float b, float a=1.0f);

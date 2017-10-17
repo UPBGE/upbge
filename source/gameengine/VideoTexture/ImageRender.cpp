@@ -58,7 +58,6 @@
 extern "C" {
 #  include "DRW_render.h"
 #  include "eevee_private.h"
-#  include "GPU_immediate.h"
 }
 
 ExceptionID SceneInvalid, CameraInvalid, ObserverInvalid, FrameBufferInvalid;
@@ -216,39 +215,6 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	ImageViewport::calcViewport(texId, ts, format);
 
 	GPU_framebuffer_restore();
-}
-
-/* Use color management profile to draw texture to framebuffer */
-static void ToneMapGpuTex(GPUTexture *tex) // Code from DRW_transform_to_display
-{
-	Gwn_VertFormat *vert_format = immVertexFormat();
-	unsigned int pos = GWN_vertformat_attr_add(vert_format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-	unsigned int texco = GWN_vertformat_attr_add(vert_format, "texCoord", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-
-	immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB);
-	immUniform1i("image", 0);
-
-	GPU_texture_bind(tex, 0); /* OCIO texture bind point is 0 */
-
-	float mat[4][4];
-	unit_m4(mat);
-	immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
-
-	/* Full screen triangle */
-	immBegin(GWN_PRIM_TRIS, 3);
-	immAttrib2f(texco, 0.0f, 0.0f);
-	immVertex2f(pos, -1.0f, -1.0f);
-
-	immAttrib2f(texco, 2.0f, 0.0f);
-	immVertex2f(pos, 3.0f, -1.0f);
-
-	immAttrib2f(texco, 0.0f, 2.0f);
-	immVertex2f(pos, -1.0f, 3.0f);
-	immEnd();
-
-	GPU_texture_unbind(tex);
-
-	immUnbindProgram();
 }
 
 bool ImageRender::Render()
@@ -450,7 +416,7 @@ bool ImageRender::Render()
 
 	m_scene->RenderBuckets(nodes, camtrans, m_rasterizer, m_frameBuffer);
 
-	ToneMapGpuTex(GPU_framebuffer_color_texture(m_frameBuffer->GetFrameBuffer()));
+	m_rasterizer->ToneMapGpuTex(GPU_framebuffer_color_texture(m_frameBuffer->GetFrameBuffer()));
 
 	m_canvas->EndFrame();
 
