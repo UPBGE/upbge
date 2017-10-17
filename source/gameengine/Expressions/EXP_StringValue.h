@@ -1,5 +1,5 @@
 /*
- * StringValue.h: interface for the CStringValue class.
+ * StringValue.h: interface for the EXP_StringValue class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -21,25 +21,25 @@
 
 #include "EXP_Value.h"
 
-class CStringValue : public CPropValue
+class EXP_StringValue : public EXP_PropValue
 {
 public:
-	CStringValue();
-	CStringValue(const std::string& txt, const std::string& name);
-	virtual ~CStringValue()
+	EXP_StringValue();
+	EXP_StringValue(const std::string& txt, const std::string& name);
+	virtual ~EXP_StringValue()
 	{
 	}
 
-	/// CValue implementation
+	/// EXP_Value implementation
 	virtual bool IsEqual(const std::string & other);
 	virtual std::string GetText();
 	virtual double GetNumber();
 	virtual int GetValueType();
 
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual void SetValue(CValue *newval);
-	virtual CValue *GetReplica();
+	virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);
+	virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
+	virtual void SetValue(EXP_Value *newval);
+	virtual EXP_Value *GetReplica();
 
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython()

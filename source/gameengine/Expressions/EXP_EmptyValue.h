@@ -1,5 +1,5 @@
 /*
- * EmptyValue.h: interface for the CEmptyValue class.
+ * EmptyValue.h: interface for the EXP_EmptyValue class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -21,18 +21,18 @@
 
 #include "EXP_Value.h"
 
-class CEmptyValue : public CPropValue
+class EXP_EmptyValue : public EXP_PropValue
 {
 public:
-	CEmptyValue();
-	virtual ~CEmptyValue();
+	EXP_EmptyValue();
+	virtual ~EXP_EmptyValue();
 
 	virtual std::string GetText();
 	virtual double GetNumber();
 	virtual int GetValueType();
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual CValue *GetReplica();
+	virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);
+	virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
+	virtual EXP_Value *GetReplica();
 };
 
 #endif  // __EXP_EMPTYVALUE_H__

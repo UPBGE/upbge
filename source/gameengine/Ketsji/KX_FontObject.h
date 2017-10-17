@@ -53,11 +53,11 @@ public:
 	virtual void UpdateBuckets();
 
 	/**
-	 * Inherited from CValue -- return a new copy of this
+	 * Inherited from EXP_Value -- return a new copy of this
 	 * instance allocated on the heap. Ownership of the new
 	 * object belongs with the caller.
 	 */
-	virtual CValue *GetReplica();
+	virtual EXP_Value *GetReplica();
 	virtual void ProcessReplica();
 	virtual int GetGameObjectType() const
 	{
@@ -92,9 +92,9 @@ protected:
 	void GetTextAabb(MT_Vector2& min, MT_Vector2& max);
 
 #ifdef WITH_PYTHON
-	static PyObject *pyattr_get_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_dimensions(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_dimensions(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 

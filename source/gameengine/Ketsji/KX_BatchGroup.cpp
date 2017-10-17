@@ -33,7 +33,7 @@
 
 KX_BatchGroup::KX_BatchGroup()
 {
-	m_objects = new CListValue<KX_GameObject>();
+	m_objects = new EXP_ListValue<KX_GameObject>();
 	// The objects are not owned by the batching group, so not released on list releasing.
 	m_objects->SetReleaseOnDestruct(false);
 }
@@ -48,7 +48,7 @@ std::string KX_BatchGroup::GetName()
 	return "KX_BatchGroup";
 }
 
-CListValue<KX_GameObject> *KX_BatchGroup::GetObjects() const
+EXP_ListValue<KX_GameObject> *KX_BatchGroup::GetObjects() const
 {
 	return m_objects;
 }
@@ -147,7 +147,7 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 PyTypeObject KX_BatchGroup::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_BatchGroup",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -161,30 +161,30 @@ PyTypeObject KX_BatchGroup::Type = {
 	Methods,
 	0,
 	0,
-	&PyObjectPlus::Type,
+	&EXP_PyObjectPlus::Type,
 	0, 0, 0, 0, 0, 0,
 	py_new
 };
 
 PyMethodDef KX_BatchGroup::Methods[] = {
-	KX_PYMETHODTABLE(KX_BatchGroup, merge),
-	KX_PYMETHODTABLE(KX_BatchGroup, split),
-	KX_PYMETHODTABLE(KX_BatchGroup, destruct),
+	EXP_PYMETHODTABLE(KX_BatchGroup, merge),
+	EXP_PYMETHODTABLE(KX_BatchGroup, split),
+	EXP_PYMETHODTABLE(KX_BatchGroup, destruct),
 	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_BatchGroup::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("objects", KX_BatchGroup, pyattr_get_objects),
-	KX_PYATTRIBUTE_NULL // Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("objects", KX_BatchGroup, pyattr_get_objects),
+	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-PyObject *KX_BatchGroup::pyattr_get_objects(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_BatchGroup::pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BatchGroup *self = static_cast<KX_BatchGroup *>(self_v);
 	return self->GetObjects()->GetProxy();
 }
 
-KX_PYMETHODDEF_DOC(KX_BatchGroup, merge, "merge(objects)")
+EXP_PYMETHODDEF_DOC(KX_BatchGroup, merge, "merge(objects)")
 {
 	PyObject *pylist;
 	if (!PyArg_ParseTuple(args, "O:merge", &pylist)) {
@@ -214,7 +214,7 @@ KX_PYMETHODDEF_DOC(KX_BatchGroup, merge, "merge(objects)")
 	Py_RETURN_NONE;;
 }
 
-KX_PYMETHODDEF_DOC(KX_BatchGroup, split, "split(objects)")
+EXP_PYMETHODDEF_DOC(KX_BatchGroup, split, "split(objects)")
 {
 	PyObject *pylist;
 	if (!PyArg_ParseTuple(args, "O:split", &pylist)) {
@@ -244,7 +244,7 @@ KX_PYMETHODDEF_DOC(KX_BatchGroup, split, "split(objects)")
 	Py_RETURN_NONE;;
 }
 
-KX_PYMETHODDEF_DOC(KX_BatchGroup, destruct, "destruct()")
+EXP_PYMETHODDEF_DOC(KX_BatchGroup, destruct, "destruct()")
 {
 	Destruct();
 

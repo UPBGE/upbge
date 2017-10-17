@@ -189,7 +189,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
 
-	m_scenes = new CListValue<KX_Scene>();
+	m_scenes = new EXP_ListValue<KX_Scene>();
 }
 
 /**
@@ -856,7 +856,7 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
-	CListValue<KX_LightObject> *lightlist = scene->GetLightList();
+	EXP_ListValue<KX_LightObject> *lightlist = scene->GetLightList();
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
 
@@ -1292,7 +1292,7 @@ void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 	}
 }
 
-CListValue<KX_Scene> *KX_KetsjiEngine::CurrentScenes()
+EXP_ListValue<KX_Scene> *KX_KetsjiEngine::CurrentScenes()
 {
 	return m_scenes;
 }

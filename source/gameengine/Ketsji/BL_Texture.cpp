@@ -35,7 +35,7 @@
 #include "BLI_math.h"
 
 BL_Texture::BL_Texture(MTex *mtex)
-	:CValue(),
+	:EXP_Value(),
 	m_isCubeMap(false),
 	m_mtex(mtex),
 	m_gpuTex(nullptr)
@@ -205,7 +205,7 @@ std::string BL_Texture::GetName()
 PyTypeObject BL_Texture::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"BL_Texture",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -219,7 +219,7 @@ PyTypeObject BL_Texture::Type = {
 	Methods,
 	0,
 	0,
-	&CValue::Type,
+	&EXP_Value::Type,
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
@@ -229,35 +229,35 @@ PyMethodDef BL_Texture::Methods[] = {
 };
 
 PyAttributeDef BL_Texture::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("diffuseIntensity", BL_Texture, pyattr_get_diffuse_intensity, pyattr_set_diffuse_intensity),
-	KX_PYATTRIBUTE_RW_FUNCTION("diffuseFactor", BL_Texture, pyattr_get_diffuse_factor, pyattr_set_diffuse_factor),
-	KX_PYATTRIBUTE_RW_FUNCTION("alpha", BL_Texture, pyattr_get_alpha, pyattr_set_alpha),
-	KX_PYATTRIBUTE_RW_FUNCTION("specularIntensity", BL_Texture, pyattr_get_specular_intensity, pyattr_set_specular_intensity),
-	KX_PYATTRIBUTE_RW_FUNCTION("specularFactor", BL_Texture, pyattr_get_specular_factor, pyattr_set_specular_factor),
-	KX_PYATTRIBUTE_RW_FUNCTION("hardness", BL_Texture, pyattr_get_hardness, pyattr_set_hardness),
-	KX_PYATTRIBUTE_RW_FUNCTION("emit", BL_Texture, pyattr_get_emit, pyattr_set_emit),
-	KX_PYATTRIBUTE_RW_FUNCTION("mirror", BL_Texture, pyattr_get_mirror, pyattr_set_mirror),
-	KX_PYATTRIBUTE_RW_FUNCTION("normal", BL_Texture, pyattr_get_normal, pyattr_set_normal),
-	KX_PYATTRIBUTE_RW_FUNCTION("parallaxBump", BL_Texture, pyattr_get_parallax_bump, pyattr_set_parallax_bump),
-	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
-	KX_PYATTRIBUTE_RW_FUNCTION("lodBias", BL_Texture, pyattr_get_lod_bias, pyattr_set_lod_bias),
-	KX_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
-	KX_PYATTRIBUTE_RO_FUNCTION("renderer", BL_Texture, pyattr_get_renderer),
-	KX_PYATTRIBUTE_RW_FUNCTION("ior", BL_Texture, pyattr_get_ior, pyattr_set_ior),
-	KX_PYATTRIBUTE_RW_FUNCTION("refractionRatio", BL_Texture, pyattr_get_refraction_ratio, pyattr_set_refraction_ratio),
-	KX_PYATTRIBUTE_RW_FUNCTION("uvRotation", BL_Texture, pyattr_get_uv_rotation, pyattr_set_uv_rotation),
-	KX_PYATTRIBUTE_RW_FUNCTION("uvOffset", BL_Texture, pyattr_get_uv_offset, pyattr_set_uv_offset),
-	KX_PYATTRIBUTE_RW_FUNCTION("uvSize", BL_Texture, pyattr_get_uv_size, pyattr_set_uv_size),
-	KX_PYATTRIBUTE_NULL    //Sentinel
+	EXP_PYATTRIBUTE_RW_FUNCTION("diffuseIntensity", BL_Texture, pyattr_get_diffuse_intensity, pyattr_set_diffuse_intensity),
+	EXP_PYATTRIBUTE_RW_FUNCTION("diffuseFactor", BL_Texture, pyattr_get_diffuse_factor, pyattr_set_diffuse_factor),
+	EXP_PYATTRIBUTE_RW_FUNCTION("alpha", BL_Texture, pyattr_get_alpha, pyattr_set_alpha),
+	EXP_PYATTRIBUTE_RW_FUNCTION("specularIntensity", BL_Texture, pyattr_get_specular_intensity, pyattr_set_specular_intensity),
+	EXP_PYATTRIBUTE_RW_FUNCTION("specularFactor", BL_Texture, pyattr_get_specular_factor, pyattr_set_specular_factor),
+	EXP_PYATTRIBUTE_RW_FUNCTION("hardness", BL_Texture, pyattr_get_hardness, pyattr_set_hardness),
+	EXP_PYATTRIBUTE_RW_FUNCTION("emit", BL_Texture, pyattr_get_emit, pyattr_set_emit),
+	EXP_PYATTRIBUTE_RW_FUNCTION("mirror", BL_Texture, pyattr_get_mirror, pyattr_set_mirror),
+	EXP_PYATTRIBUTE_RW_FUNCTION("normal", BL_Texture, pyattr_get_normal, pyattr_set_normal),
+	EXP_PYATTRIBUTE_RW_FUNCTION("parallaxBump", BL_Texture, pyattr_get_parallax_bump, pyattr_set_parallax_bump),
+	EXP_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
+	EXP_PYATTRIBUTE_RW_FUNCTION("lodBias", BL_Texture, pyattr_get_lod_bias, pyattr_set_lod_bias),
+	EXP_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
+	EXP_PYATTRIBUTE_RO_FUNCTION("renderer", BL_Texture, pyattr_get_renderer),
+	EXP_PYATTRIBUTE_RW_FUNCTION("ior", BL_Texture, pyattr_get_ior, pyattr_set_ior),
+	EXP_PYATTRIBUTE_RW_FUNCTION("refractionRatio", BL_Texture, pyattr_get_refraction_ratio, pyattr_set_refraction_ratio),
+	EXP_PYATTRIBUTE_RW_FUNCTION("uvRotation", BL_Texture, pyattr_get_uv_rotation, pyattr_set_uv_rotation),
+	EXP_PYATTRIBUTE_RW_FUNCTION("uvOffset", BL_Texture, pyattr_get_uv_offset, pyattr_set_uv_offset),
+	EXP_PYATTRIBUTE_RW_FUNCTION("uvSize", BL_Texture, pyattr_get_uv_size, pyattr_set_uv_size),
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
-PyObject *BL_Texture::pyattr_get_diffuse_intensity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_diffuse_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->difffac);
 }
 
-int BL_Texture::pyattr_set_diffuse_intensity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_diffuse_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -271,13 +271,13 @@ int BL_Texture::pyattr_set_diffuse_intensity(PyObjectPlus *self_v, const KX_PYAT
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_diffuse_factor(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_diffuse_factor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->colfac);
 }
 
-int BL_Texture::pyattr_set_diffuse_factor(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_diffuse_factor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -291,13 +291,13 @@ int BL_Texture::pyattr_set_diffuse_factor(PyObjectPlus *self_v, const KX_PYATTRI
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_alpha(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_alpha(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->alphafac);
 }
 
-int BL_Texture::pyattr_set_alpha(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_alpha(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -311,13 +311,13 @@ int BL_Texture::pyattr_set_alpha(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF 
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_specular_intensity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_specular_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->specfac);
 }
 
-int BL_Texture::pyattr_set_specular_intensity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_specular_intensity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -331,13 +331,13 @@ int BL_Texture::pyattr_set_specular_intensity(PyObjectPlus *self_v, const KX_PYA
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_specular_factor(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_specular_factor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->colspecfac);
 }
 
-int BL_Texture::pyattr_set_specular_factor(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_specular_factor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -351,13 +351,13 @@ int BL_Texture::pyattr_set_specular_factor(PyObjectPlus *self_v, const KX_PYATTR
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_hardness(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_hardness(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->hardfac);
 }
 
-int BL_Texture::pyattr_set_hardness(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_hardness(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -371,13 +371,13 @@ int BL_Texture::pyattr_set_hardness(PyObjectPlus *self_v, const KX_PYATTRIBUTE_D
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_emit(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_emit(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->emitfac);
 }
 
-int BL_Texture::pyattr_set_emit(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_emit(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -391,13 +391,13 @@ int BL_Texture::pyattr_set_emit(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_mirror(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_mirror(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->mirrfac);
 }
 
-int BL_Texture::pyattr_set_mirror(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_mirror(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -411,13 +411,13 @@ int BL_Texture::pyattr_set_mirror(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->norfac);
 }
 
-int BL_Texture::pyattr_set_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -431,13 +431,13 @@ int BL_Texture::pyattr_set_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_parallax_bump(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_parallax_bump(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->parallaxbumpsc);
 }
 
-int BL_Texture::pyattr_set_parallax_bump(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_parallax_bump(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -451,13 +451,13 @@ int BL_Texture::pyattr_set_parallax_bump(PyObjectPlus *self_v, const KX_PYATTRIB
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_parallax_step(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_parallax_step(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->parallaxsteps);
 }
 
-int BL_Texture::pyattr_set_parallax_step(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_parallax_step(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -471,13 +471,13 @@ int BL_Texture::pyattr_set_parallax_step(PyObjectPlus *self_v, const KX_PYATTRIB
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_lod_bias(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_lod_bias(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->lodbias);
 }
 
-int BL_Texture::pyattr_set_lod_bias(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_lod_bias(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -491,14 +491,14 @@ int BL_Texture::pyattr_set_lod_bias(PyObjectPlus *self_v, const KX_PYATTRIBUTE_D
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_bind_code(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	self->CheckValidTexture();
 	return PyLong_FromLong(self->m_bindCode);
 }
 
-int BL_Texture::pyattr_set_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_bind_code(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	int val = PyLong_AsLong(value);
@@ -512,7 +512,7 @@ int BL_Texture::pyattr_set_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_renderer(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_renderer(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	KX_TextureRenderer *renderer = static_cast<KX_TextureRenderer *>(self->GetRenderer());
@@ -523,13 +523,13 @@ PyObject *BL_Texture::pyattr_get_renderer(PyObjectPlus *self_v, const KX_PYATTRI
 	Py_RETURN_NONE;
 }
 
-PyObject *BL_Texture::pyattr_get_ior(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_ior(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->ior);
 }
 
-int BL_Texture::pyattr_set_ior(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_ior(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -544,13 +544,13 @@ int BL_Texture::pyattr_set_ior(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *a
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_refraction_ratio(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_refraction_ratio(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->refrratio);
 }
 
-int BL_Texture::pyattr_set_refraction_ratio(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_refraction_ratio(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -564,13 +564,13 @@ int BL_Texture::pyattr_set_refraction_ratio(PyObjectPlus *self_v, const KX_PYATT
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_uv_rotation(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_uv_rotation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	return PyFloat_FromDouble(self->GetMTex()->rot);
 }
 
-int BL_Texture::pyattr_set_uv_rotation(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_uv_rotation(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	float val = PyFloat_AsDouble(value);
@@ -592,7 +592,7 @@ static unsigned char mathutils_bltexture_cb_index = -1; // Index for our callbac
 
 static int mathutils_bltexture_generic_check(BaseMathObject *bmo)
 {
-	BL_Texture *self = static_cast<BL_Texture *>BGE_PROXY_REF(bmo->cb_user);
+	BL_Texture *self = static_cast<BL_Texture *>EXP_PROXY_REF(bmo->cb_user);
 	if (!self) {
 		return -1;
 	}
@@ -602,7 +602,7 @@ static int mathutils_bltexture_generic_check(BaseMathObject *bmo)
 
 static int mathutils_bltexture_get(BaseMathObject *bmo, int subtype)
 {
-	BL_Texture *self = static_cast<BL_Texture *>BGE_PROXY_REF(bmo->cb_user);
+	BL_Texture *self = static_cast<BL_Texture *>EXP_PROXY_REF(bmo->cb_user);
 	if (!self) {
 		return -1;
 	}
@@ -625,7 +625,7 @@ static int mathutils_bltexture_get(BaseMathObject *bmo, int subtype)
 
 static int mathutils_bltexture_set(BaseMathObject *bmo, int subtype)
 {
-	BL_Texture *self = static_cast<BL_Texture *>BGE_PROXY_REF(bmo->cb_user);
+	BL_Texture *self = static_cast<BL_Texture *>EXP_PROXY_REF(bmo->cb_user);
 	if (!self) {
 		return -1;
 	}
@@ -683,10 +683,10 @@ void BL_Texture_Mathutils_Callback_Init()
 
 #endif  // USE_MATHUTILS
 
-PyObject *BL_Texture::pyattr_get_uv_offset(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_uv_offset(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 #ifdef USE_MATHUTILS
-	return Vector_CreatePyObject_cb(BGE_PROXY_FROM_REF(self_v), 3, mathutils_bltexture_cb_index, MATHUTILS_VEC_CB_TEXTURE_UV_OFFSET_VECTOR);
+	return Vector_CreatePyObject_cb(EXP_PROXY_FROM_REF(self_v), 3, mathutils_bltexture_cb_index, MATHUTILS_VEC_CB_TEXTURE_UV_OFFSET_VECTOR);
 #else
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 
@@ -694,7 +694,7 @@ PyObject *BL_Texture::pyattr_get_uv_offset(PyObjectPlus *self_v, const KX_PYATTR
 #endif
 }
 
-int BL_Texture::pyattr_set_uv_offset(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_uv_offset(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	MT_Vector3 offset;
@@ -707,10 +707,10 @@ int BL_Texture::pyattr_set_uv_offset(PyObjectPlus *self_v, const KX_PYATTRIBUTE_
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_uv_size(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_uv_size(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 #ifdef USE_MATHUTILS
-	return Vector_CreatePyObject_cb(BGE_PROXY_FROM_REF(self_v), 3, mathutils_bltexture_cb_index, MATHUTILS_VEC_CB_TEXTURE_UV_SIZE_VECTOR);
+	return Vector_CreatePyObject_cb(EXP_PROXY_FROM_REF(self_v), 3, mathutils_bltexture_cb_index, MATHUTILS_VEC_CB_TEXTURE_UV_SIZE_VECTOR);
 #else
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 
@@ -718,7 +718,7 @@ PyObject *BL_Texture::pyattr_get_uv_size(PyObjectPlus *self_v, const KX_PYATTRIB
 #endif
 }
 
-int BL_Texture::pyattr_set_uv_size(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_uv_size(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 	MT_Vector3 size;

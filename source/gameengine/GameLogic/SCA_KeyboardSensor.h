@@ -88,7 +88,7 @@ public:
 					   SCA_IObject* gameobj,
 					   short int exitKey);
 	virtual ~SCA_KeyboardSensor();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void Init();
 
 	virtual bool Evaluate();
@@ -100,12 +100,12 @@ public:
 	/* --------------------------------------------------------------------- */
 
 	// KeyEvents: 
-	KX_PYMETHOD_DOC_NOARGS(SCA_KeyboardSensor,getEventList);
+	EXP_PYMETHOD_DOC_NOARGS(SCA_KeyboardSensor,getEventList);
 	// KeyStatus: 
-	KX_PYMETHOD_DOC_O(SCA_KeyboardSensor,getKeyStatus);
+	EXP_PYMETHOD_DOC_O(SCA_KeyboardSensor,getKeyStatus);
 	
-	static PyObject*	pyattr_get_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_events(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 

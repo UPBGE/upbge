@@ -56,7 +56,7 @@ KX_StateActuator::~KX_StateActuator(
 // used to put state actuator to be executed before any other actuators
 SG_QList KX_StateActuator::m_stateActuatorHead;
 
-CValue*
+EXP_Value*
 KX_StateActuator::GetReplica(
 	void
 	)
@@ -139,7 +139,7 @@ void KX_StateActuator::Activate(SG_DList& head)
 PyTypeObject KX_StateActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_StateActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -163,9 +163,9 @@ PyMethodDef KX_StateActuator::Methods[] = {
 };
 
 PyAttributeDef KX_StateActuator::Attributes[] = {
-	KX_PYATTRIBUTE_INT_RW("operation",KX_StateActuator::OP_NOP+1,KX_StateActuator::OP_COUNT-1,false,KX_StateActuator,m_operation),
-	KX_PYATTRIBUTE_INT_RW("mask",0,0x3FFFFFFF,false,KX_StateActuator,m_mask),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_INT_RW("operation",KX_StateActuator::OP_NOP+1,KX_StateActuator::OP_COUNT-1,false,KX_StateActuator,m_operation),
+	EXP_PYATTRIBUTE_INT_RW("mask",0,0x3FFFFFFF,false,KX_StateActuator,m_mask),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

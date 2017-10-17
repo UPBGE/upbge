@@ -80,9 +80,9 @@ void SCA_XNORController::Trigger(SCA_LogicManager* logicmgr)
 
 
 
-CValue* SCA_XNORController::GetReplica()
+EXP_Value* SCA_XNORController::GetReplica()
 {
-	CValue* replica = new SCA_XNORController(*this);
+	EXP_Value* replica = new SCA_XNORController(*this);
 	// this will copy properties and so on...
 	replica->ProcessReplica();
 
@@ -99,7 +99,7 @@ CValue* SCA_XNORController::GetReplica()
 PyTypeObject SCA_XNORController::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_XNORController",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -123,7 +123,7 @@ PyMethodDef SCA_XNORController::Methods[] = {
 };
 
 PyAttributeDef SCA_XNORController::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

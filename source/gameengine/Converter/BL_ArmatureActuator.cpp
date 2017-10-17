@@ -193,7 +193,7 @@ bool BL_ArmatureActuator::Update(double curtime)
 PyTypeObject BL_ArmatureActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 		"BL_ArmatureActuator",
-		sizeof(PyObjectPlus_Proxy),
+		sizeof(EXP_PyObjectPlus_Proxy),
 		0,
 		py_base_dealloc,
 		0,
@@ -218,16 +218,16 @@ PyMethodDef BL_ArmatureActuator::Methods[] = {
 };
 
 PyAttributeDef BL_ArmatureActuator::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("constraint", BL_ArmatureActuator, pyattr_get_constraint),
-	KX_PYATTRIBUTE_RW_FUNCTION("target", BL_ArmatureActuator, pyattr_get_object, pyattr_set_object),
-	KX_PYATTRIBUTE_RW_FUNCTION("subtarget", BL_ArmatureActuator, pyattr_get_object, pyattr_set_object),
-	KX_PYATTRIBUTE_FLOAT_RW("weight",0.0f,1.0f,BL_ArmatureActuator,m_weight),
-	KX_PYATTRIBUTE_FLOAT_RW("influence",0.0f,1.0f,BL_ArmatureActuator,m_influence),
-	KX_PYATTRIBUTE_INT_RW("type",0,ACT_ARM_MAXTYPE,false,BL_ArmatureActuator,m_type),
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("constraint", BL_ArmatureActuator, pyattr_get_constraint),
+	EXP_PYATTRIBUTE_RW_FUNCTION("target", BL_ArmatureActuator, pyattr_get_object, pyattr_set_object),
+	EXP_PYATTRIBUTE_RW_FUNCTION("subtarget", BL_ArmatureActuator, pyattr_get_object, pyattr_set_object),
+	EXP_PYATTRIBUTE_FLOAT_RW("weight",0.0f,1.0f,BL_ArmatureActuator,m_weight),
+	EXP_PYATTRIBUTE_FLOAT_RW("influence",0.0f,1.0f,BL_ArmatureActuator,m_influence),
+	EXP_PYATTRIBUTE_INT_RW("type",0,ACT_ARM_MAXTYPE,false,BL_ArmatureActuator,m_type),
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *BL_ArmatureActuator::pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureActuator::pyattr_get_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureActuator* actuator = static_cast<BL_ArmatureActuator*>(self);
 	KX_GameObject *target = (attrdef->m_name == "target") ? actuator->m_gametarget : actuator->m_gamesubtarget;
@@ -237,7 +237,7 @@ PyObject *BL_ArmatureActuator::pyattr_get_object(PyObjectPlus *self, const struc
 		return target->GetProxy();
 }
 
-int BL_ArmatureActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_ArmatureActuator::pyattr_set_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_ArmatureActuator* actuator = static_cast<BL_ArmatureActuator*>(self);
 	KX_GameObject* &target = (attrdef->m_name == "target") ? actuator->m_gametarget : actuator->m_gamesubtarget;
@@ -257,7 +257,7 @@ int BL_ArmatureActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_P
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_ArmatureActuator::pyattr_get_constraint(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureActuator::pyattr_get_constraint(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureActuator* actuator = static_cast<BL_ArmatureActuator*>(self);
 	BL_ArmatureConstraint* constraint = actuator->m_constraint;

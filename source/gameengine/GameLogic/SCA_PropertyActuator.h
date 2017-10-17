@@ -67,7 +67,7 @@ public:
 
 	~SCA_PropertyActuator();
 
-		CValue* 
+		EXP_Value* 
 	GetReplica(
 	);
 

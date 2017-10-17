@@ -61,9 +61,9 @@ struct SM_ShapeProps;
 struct Scene;
 
 template <class T>
-class CListValue;
+class EXP_ListValue;
 
-class CValue;
+class EXP_Value;
 class SCA_LogicManager;
 class SCA_KeyboardManager;
 class SCA_TimeEventManager;
@@ -103,7 +103,7 @@ struct TaskPool;
  * The KX_Scene holds all data for an independent scene. It relates
  * KX_Objects to the specific objects in the modules.
  * */
-class KX_Scene : public CValue, public SCA_IScene
+class KX_Scene : public EXP_Value, public SCA_IScene
 {
 public:
 	enum DrawingCallbackType {
@@ -153,17 +153,17 @@ protected:
 	 */
 	std::vector<KX_GameObject *> m_euthanasyobjects;
 
-	CListValue<KX_GameObject> *m_objectlist;
-	CListValue<KX_GameObject> *m_parentlist; // all 'root' parents
-	CListValue<KX_LightObject> *m_lightlist;
-	CListValue<KX_GameObject> *m_inactivelist;	// all objects that are not in the active layer
-	/// All animated objects, no need of CListValue because the list isn't exposed in python.
+	EXP_ListValue<KX_GameObject> *m_objectlist;
+	EXP_ListValue<KX_GameObject> *m_parentlist; // all 'root' parents
+	EXP_ListValue<KX_LightObject> *m_lightlist;
+	EXP_ListValue<KX_GameObject> *m_inactivelist;	// all objects that are not in the active layer
+	/// All animated objects, no need of EXP_ListValue because the list isn't exposed in python.
 	std::vector<KX_GameObject *> m_animatedlist;
 
 	/// The set of cameras for this scene
-	CListValue<KX_Camera> *m_cameralist;
+	EXP_ListValue<KX_Camera> *m_cameralist;
 	/// The set of fonts for this scene
-	CListValue<KX_FontObject> *m_fontlist;
+	EXP_ListValue<KX_FontObject> *m_fontlist;
 	
 	SG_QList			m_sghead;		// list of nodes that needs scenegraph update
 										// the Dlist is not object that must be updated
@@ -369,17 +369,17 @@ public:
 	LogicEndFrame(
 	);
 
-	CListValue<KX_GameObject> *GetObjectList() const;
-	CListValue<KX_GameObject> *GetInactiveList() const;
-	CListValue<KX_GameObject> *GetRootParentList() const;
-	CListValue<KX_LightObject> *GetLightList() const;
+	EXP_ListValue<KX_GameObject> *GetObjectList() const;
+	EXP_ListValue<KX_GameObject> *GetInactiveList() const;
+	EXP_ListValue<KX_GameObject> *GetRootParentList() const;
+	EXP_ListValue<KX_LightObject> *GetLightList() const;
 
 	SCA_LogicManager *GetLogicManager() const;
 
 	SCA_TimeEventManager *GetTimeEventManager() const;
 
-	CListValue<KX_Camera> *GetCameraList() const;
-	CListValue<KX_FontObject> *GetFontList() const;
+	EXP_ListValue<KX_Camera> *GetCameraList() const;
+	EXP_ListValue<KX_FontObject> *GetFontList() const;
 
 	/** Find the currently active camera. */
 		KX_Camera*
@@ -538,10 +538,10 @@ public:
 	KX_ObstacleSimulation *GetObstacleSimulation();
 	void SetObstacleSimulation(KX_ObstacleSimulation *obstacleSimulation);
 
-	/**  Inherited from CValue -- returns the name of this object. */
+	/**  Inherited from EXP_Value -- returns the name of this object. */
 	virtual std::string GetName();
 
-	/** Inherited from CValue -- set the name of this object. */
+	/** Inherited from EXP_Value -- set the name of this object. */
 	virtual void SetName(const std::string& name);
 
 #ifdef WITH_PYTHON
@@ -549,33 +549,33 @@ public:
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 
-	KX_PYMETHOD_DOC(KX_Scene, addObject);
-	KX_PYMETHOD_DOC(KX_Scene, end);
-	KX_PYMETHOD_DOC(KX_Scene, restart);
-	KX_PYMETHOD_DOC(KX_Scene, replace);
-	KX_PYMETHOD_DOC(KX_Scene, suspend);
-	KX_PYMETHOD_DOC(KX_Scene, resume);
-	KX_PYMETHOD_DOC(KX_Scene, get);
-	KX_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
+	EXP_PYMETHOD_DOC(KX_Scene, addObject);
+	EXP_PYMETHOD_DOC(KX_Scene, end);
+	EXP_PYMETHOD_DOC(KX_Scene, restart);
+	EXP_PYMETHOD_DOC(KX_Scene, replace);
+	EXP_PYMETHOD_DOC(KX_Scene, suspend);
+	EXP_PYMETHOD_DOC(KX_Scene, resume);
+	EXP_PYMETHOD_DOC(KX_Scene, get);
+	EXP_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
 
 
 	/* attributes */
-	static PyObject*	pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_objects(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_objects_inactive(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_lights(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_texts(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_cameras(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_filter_manager(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_world(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_active_camera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_active_camera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_overrideCullingCamera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_overrideCullingCamera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_drawing_callback(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_drawing_callback(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_objects_inactive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_lights(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_texts(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_cameras(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_filter_manager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_world(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_active_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_active_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_overrideCullingCamera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_overrideCullingCamera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_drawing_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_drawing_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	
 	/* getitem/setitem */
 	static PyMappingMethods	Mapping;

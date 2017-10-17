@@ -53,7 +53,7 @@ typedef std::vector<SCA_IController *>   SCA_ControllerList;
 typedef std::vector<SCA_IActuator *>     SCA_ActuatorList;
 typedef std::vector<SCA_IObject *>		 SCA_ObjectList;
 
-class SCA_IObject :	public CValue
+class SCA_IObject :	public EXP_Value
 {
 	
 	Py_Header

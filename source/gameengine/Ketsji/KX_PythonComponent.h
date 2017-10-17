@@ -30,7 +30,7 @@
 class KX_GameObject;
 struct PythonComponent;
 
-class KX_PythonComponent : public CValue
+class KX_PythonComponent : public EXP_Value
 {
 	Py_Header
 
@@ -46,7 +46,7 @@ public:
 
 	// stuff for cvalue related things
 	virtual std::string GetName();
-	virtual CValue *GetReplica();
+	virtual EXP_Value *GetReplica();
 
 	void ProcessReplica();
 
@@ -61,7 +61,7 @@ public:
 	static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
 	// Attributes
-	static PyObject *pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 };
 
 #endif // WITH_PYTHON

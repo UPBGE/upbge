@@ -607,7 +607,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 				std::string uniquename = sens->name;
 				uniquename += "#SENS#";
 				uniqueint++;
-				CIntValue* uniqueval = new CIntValue(uniqueint);
+				EXP_IntValue* uniqueval = new EXP_IntValue(uniqueint);
 				uniquename += uniqueval->GetText();
 				uniqueval->Release();
 

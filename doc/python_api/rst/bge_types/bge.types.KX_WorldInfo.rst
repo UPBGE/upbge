@@ -1,11 +1,11 @@
-KX_WorldInfo(PyObjectPlus)
+KX_WorldInfo(EXP_PyObjectPlus)
 =============================
 
 .. module:: bge.types
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: KX_WorldInfo(PyObjectPlus)
+.. class:: KX_WorldInfo(EXP_PyObjectPlus)
 
    A world object.
 

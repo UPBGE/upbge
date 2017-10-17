@@ -259,7 +259,7 @@ void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 PyTypeObject KX_WorldInfo::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_WorldInfo",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -273,7 +273,7 @@ PyTypeObject KX_WorldInfo::Type = {
 	Methods,
 	0,
 	0,
-	&PyObjectPlus::Type,
+	&EXP_PyObjectPlus::Type,
 	0,0,0,0,0,0,
 	py_base_new
 };
@@ -283,25 +283,25 @@ PyMethodDef KX_WorldInfo::Methods[] = {
 };
 
 PyAttributeDef KX_WorldInfo::Attributes[] = {
-	KX_PYATTRIBUTE_BOOL_RW("mistEnable", KX_WorldInfo, m_hasmist),
-	KX_PYATTRIBUTE_FLOAT_RW("mistStart", 0.0f, 10000.0f, KX_WorldInfo, m_miststart),
-	KX_PYATTRIBUTE_FLOAT_RW("mistDistance", 0.001f, 10000.0f, KX_WorldInfo, m_mistdistance),
-	KX_PYATTRIBUTE_FLOAT_RW("mistIntensity", 0.0f, 1.0f, KX_WorldInfo, m_mistintensity),
-	KX_PYATTRIBUTE_SHORT_RW("mistType", 0, 2, true, KX_WorldInfo, m_misttype),
-	KX_PYATTRIBUTE_RO_FUNCTION("KX_MIST_QUADRATIC", KX_WorldInfo, pyattr_get_mist_typeconst),
-	KX_PYATTRIBUTE_RO_FUNCTION("KX_MIST_LINEAR", KX_WorldInfo, pyattr_get_mist_typeconst),
-	KX_PYATTRIBUTE_RO_FUNCTION("KX_MIST_INV_QUADRATIC", KX_WorldInfo, pyattr_get_mist_typeconst),
-	KX_PYATTRIBUTE_RW_FUNCTION("mistColor", KX_WorldInfo, pyattr_get_mist_color, pyattr_set_mist_color),
-	KX_PYATTRIBUTE_RW_FUNCTION("horizonColor", KX_WorldInfo, pyattr_get_horizon_color, pyattr_set_horizon_color),
-	KX_PYATTRIBUTE_RW_FUNCTION("backgroundColor", KX_WorldInfo, pyattr_get_background_color, pyattr_set_background_color),
-	KX_PYATTRIBUTE_RW_FUNCTION("zenithColor", KX_WorldInfo, pyattr_get_zenith_color, pyattr_set_zenith_color),
-	KX_PYATTRIBUTE_RW_FUNCTION("ambientColor", KX_WorldInfo, pyattr_get_ambient_color, pyattr_set_ambient_color),
-	KX_PYATTRIBUTE_FLOAT_RW("exposure", 0.0f, 1.0f, KX_WorldInfo, m_exposure),
-	KX_PYATTRIBUTE_FLOAT_RW("range", 0.2f, 5.0f, KX_WorldInfo, m_range),
-	KX_PYATTRIBUTE_FLOAT_RW("envLightEnergy", 0.0f, FLT_MAX, KX_WorldInfo, m_envLightEnergy),
-	KX_PYATTRIBUTE_BOOL_RO("envLightEnabled", KX_WorldInfo, m_hasEnvLight),
-	KX_PYATTRIBUTE_SHORT_RO("envLightColor", KX_WorldInfo, m_envLightColor),
-	KX_PYATTRIBUTE_NULL /* Sentinel */
+	EXP_PYATTRIBUTE_BOOL_RW("mistEnable", KX_WorldInfo, m_hasmist),
+	EXP_PYATTRIBUTE_FLOAT_RW("mistStart", 0.0f, 10000.0f, KX_WorldInfo, m_miststart),
+	EXP_PYATTRIBUTE_FLOAT_RW("mistDistance", 0.001f, 10000.0f, KX_WorldInfo, m_mistdistance),
+	EXP_PYATTRIBUTE_FLOAT_RW("mistIntensity", 0.0f, 1.0f, KX_WorldInfo, m_mistintensity),
+	EXP_PYATTRIBUTE_SHORT_RW("mistType", 0, 2, true, KX_WorldInfo, m_misttype),
+	EXP_PYATTRIBUTE_RO_FUNCTION("KX_MIST_QUADRATIC", KX_WorldInfo, pyattr_get_mist_typeconst),
+	EXP_PYATTRIBUTE_RO_FUNCTION("KX_MIST_LINEAR", KX_WorldInfo, pyattr_get_mist_typeconst),
+	EXP_PYATTRIBUTE_RO_FUNCTION("KX_MIST_INV_QUADRATIC", KX_WorldInfo, pyattr_get_mist_typeconst),
+	EXP_PYATTRIBUTE_RW_FUNCTION("mistColor", KX_WorldInfo, pyattr_get_mist_color, pyattr_set_mist_color),
+	EXP_PYATTRIBUTE_RW_FUNCTION("horizonColor", KX_WorldInfo, pyattr_get_horizon_color, pyattr_set_horizon_color),
+	EXP_PYATTRIBUTE_RW_FUNCTION("backgroundColor", KX_WorldInfo, pyattr_get_background_color, pyattr_set_background_color),
+	EXP_PYATTRIBUTE_RW_FUNCTION("zenithColor", KX_WorldInfo, pyattr_get_zenith_color, pyattr_set_zenith_color),
+	EXP_PYATTRIBUTE_RW_FUNCTION("ambientColor", KX_WorldInfo, pyattr_get_ambient_color, pyattr_set_ambient_color),
+	EXP_PYATTRIBUTE_FLOAT_RW("exposure", 0.0f, 1.0f, KX_WorldInfo, m_exposure),
+	EXP_PYATTRIBUTE_FLOAT_RW("range", 0.2f, 5.0f, KX_WorldInfo, m_range),
+	EXP_PYATTRIBUTE_FLOAT_RW("envLightEnergy", 0.0f, FLT_MAX, KX_WorldInfo, m_envLightEnergy),
+	EXP_PYATTRIBUTE_BOOL_RO("envLightEnabled", KX_WorldInfo, m_hasEnvLight),
+	EXP_PYATTRIBUTE_SHORT_RO("envLightColor", KX_WorldInfo, m_envLightColor),
+	EXP_PYATTRIBUTE_NULL /* Sentinel */
 };
 
 /* Attribute get/set functions */
@@ -321,7 +321,7 @@ static unsigned char mathutils_world_color_cb_index = -1; /* index for our callb
 
 static int mathutils_world_generic_check(BaseMathObject *bmo)
 {
-	KX_WorldInfo *self = static_cast<KX_WorldInfo*>BGE_PROXY_REF(bmo->cb_user);
+	KX_WorldInfo *self = static_cast<KX_WorldInfo*>EXP_PROXY_REF(bmo->cb_user);
 	if (self == nullptr)
 		return -1;
 		
@@ -330,7 +330,7 @@ static int mathutils_world_generic_check(BaseMathObject *bmo)
 
 static int mathutils_world_color_get(BaseMathObject *bmo, int subtype)
 {
-	KX_WorldInfo *self = static_cast<KX_WorldInfo*>BGE_PROXY_REF(bmo->cb_user);
+	KX_WorldInfo *self = static_cast<KX_WorldInfo*>EXP_PROXY_REF(bmo->cb_user);
 	if (self == nullptr)
 		return -1;
 
@@ -356,7 +356,7 @@ static int mathutils_world_color_get(BaseMathObject *bmo, int subtype)
 
 static int mathutils_world_color_set(BaseMathObject *bmo, int subtype)
 {
-	KX_WorldInfo *self = static_cast<KX_WorldInfo*>BGE_PROXY_REF(bmo->cb_user);
+	KX_WorldInfo *self = static_cast<KX_WorldInfo*>EXP_PROXY_REF(bmo->cb_user);
 
 	if (self == nullptr)
 		return -1;
@@ -385,7 +385,7 @@ static int mathutils_world_color_set(BaseMathObject *bmo, int subtype)
 
 static int mathutils_world_color_get_index(BaseMathObject *bmo, int subtype, int index)
 {
-	KX_WorldInfo *self = static_cast<KX_WorldInfo*>BGE_PROXY_REF(bmo->cb_user);
+	KX_WorldInfo *self = static_cast<KX_WorldInfo*>EXP_PROXY_REF(bmo->cb_user);
 
 	if (self == nullptr)
 		return -1;
@@ -420,7 +420,7 @@ static int mathutils_world_color_get_index(BaseMathObject *bmo, int subtype, int
 
 static int mathutils_world_color_set_index(BaseMathObject *bmo, int subtype, int index)
 {
-	KX_WorldInfo *self = static_cast<KX_WorldInfo*>BGE_PROXY_REF(bmo->cb_user);
+	KX_WorldInfo *self = static_cast<KX_WorldInfo*>EXP_PROXY_REF(bmo->cb_user);
 
 	if (self == nullptr)
 		return -1;
@@ -484,7 +484,7 @@ void KX_WorldInfo_Mathutils_Callback_Init()
 }
 #endif // USE_MATHUTILS
 
-PyObject *KX_WorldInfo::pyattr_get_mist_typeconst(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_WorldInfo::pyattr_get_mist_typeconst(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	PyObject *retvalue;
 
@@ -508,11 +508,11 @@ PyObject *KX_WorldInfo::pyattr_get_mist_typeconst(PyObjectPlus *self_v, const KX
 	return retvalue;
 }
 
-PyObject *KX_WorldInfo::pyattr_get_mist_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_WorldInfo::pyattr_get_mist_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 #ifdef USE_MATHUTILS
 	return Color_CreatePyObject_cb(
-	        BGE_PROXY_FROM_REF_BORROW(self_v),
+	        EXP_PROXY_FROM_REF_BORROW(self_v),
 	        mathutils_world_color_cb_index, MATHUTILS_COL_CB_MIST_COLOR);
 #else
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
@@ -520,7 +520,7 @@ PyObject *KX_WorldInfo::pyattr_get_mist_color(PyObjectPlus *self_v, const KX_PYA
 #endif
 }
 
-int KX_WorldInfo::pyattr_set_mist_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_WorldInfo::pyattr_set_mist_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
 
@@ -533,12 +533,12 @@ int KX_WorldInfo::pyattr_set_mist_color(PyObjectPlus *self_v, const KX_PYATTRIBU
 	return PY_SET_ATTR_FAIL;
 }
 
-PyObject *KX_WorldInfo::pyattr_get_horizon_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_WorldInfo::pyattr_get_horizon_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 
 #ifdef USE_MATHUTILS
 	return Vector_CreatePyObject_cb(
-	        BGE_PROXY_FROM_REF_BORROW(self_v), 4,
+	        EXP_PROXY_FROM_REF_BORROW(self_v), 4,
 	        mathutils_world_color_cb_index, MATHUTILS_COL_CB_HOR_COLOR);
 #else
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
@@ -546,7 +546,7 @@ PyObject *KX_WorldInfo::pyattr_get_horizon_color(PyObjectPlus *self_v, const KX_
 #endif
 }
 
-int KX_WorldInfo::pyattr_set_horizon_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_WorldInfo::pyattr_set_horizon_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
 
@@ -559,11 +559,11 @@ int KX_WorldInfo::pyattr_set_horizon_color(PyObjectPlus *self_v, const KX_PYATTR
 	return PY_SET_ATTR_FAIL;
 }
 
-PyObject *KX_WorldInfo::pyattr_get_background_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_WorldInfo::pyattr_get_background_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 #ifdef USE_MATHUTILS
 	return Color_CreatePyObject_cb(
-	        BGE_PROXY_FROM_REF_BORROW(self_v),
+	        EXP_PROXY_FROM_REF_BORROW(self_v),
 	        mathutils_world_color_cb_index, MATHUTILS_COL_CB_BACK_COLOR);
 #else
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
@@ -571,7 +571,7 @@ PyObject *KX_WorldInfo::pyattr_get_background_color(PyObjectPlus *self_v, const 
 #endif
 }
 
-int KX_WorldInfo::pyattr_set_background_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_WorldInfo::pyattr_set_background_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
 
@@ -583,12 +583,12 @@ int KX_WorldInfo::pyattr_set_background_color(PyObjectPlus *self_v, const KX_PYA
 	return PY_SET_ATTR_FAIL;
 }
 
-PyObject *KX_WorldInfo::pyattr_get_zenith_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_WorldInfo::pyattr_get_zenith_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 
 #ifdef USE_MATHUTILS
 	return Vector_CreatePyObject_cb(
-		BGE_PROXY_FROM_REF_BORROW(self_v), 4,
+		EXP_PROXY_FROM_REF_BORROW(self_v), 4,
 		mathutils_world_color_cb_index, MATHUTILS_COL_CB_ZEN_COLOR);
 #else
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
@@ -596,7 +596,7 @@ PyObject *KX_WorldInfo::pyattr_get_zenith_color(PyObjectPlus *self_v, const KX_P
 #endif
 }
 
-int KX_WorldInfo::pyattr_set_zenith_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_WorldInfo::pyattr_set_zenith_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
 
@@ -609,11 +609,11 @@ int KX_WorldInfo::pyattr_set_zenith_color(PyObjectPlus *self_v, const KX_PYATTRI
 	return PY_SET_ATTR_FAIL;
 }
 
-PyObject *KX_WorldInfo::pyattr_get_ambient_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_WorldInfo::pyattr_get_ambient_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 #ifdef USE_MATHUTILS
 	return Color_CreatePyObject_cb(
-	        BGE_PROXY_FROM_REF_BORROW(self_v),
+	        EXP_PROXY_FROM_REF_BORROW(self_v),
 	        mathutils_world_color_cb_index, MATHUTILS_COL_CB_AMBIENT_COLOR);
 #else
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
@@ -621,7 +621,7 @@ PyObject *KX_WorldInfo::pyattr_get_ambient_color(PyObjectPlus *self_v, const KX_
 #endif
 }
 
-int KX_WorldInfo::pyattr_set_ambient_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_WorldInfo::pyattr_set_ambient_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
 

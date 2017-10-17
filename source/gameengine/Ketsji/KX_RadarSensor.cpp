@@ -76,7 +76,7 @@ KX_RadarSensor::~KX_RadarSensor()
 	
 }
 
-CValue* KX_RadarSensor::GetReplica()
+EXP_Value* KX_RadarSensor::GetReplica()
 {
 	KX_RadarSensor* replica = new KX_RadarSensor(*this);
 	replica->ProcessReplica();
@@ -181,7 +181,7 @@ void KX_RadarSensor::SynchronizeTransform()
 PyTypeObject KX_RadarSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_RadarSensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -205,15 +205,15 @@ PyMethodDef KX_RadarSensor::Methods[] = {
 };
 
 PyAttributeDef KX_RadarSensor::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneOrigin", KX_RadarSensor, m_cone_origin, 3),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneTarget", KX_RadarSensor, m_cone_target, 3),
-	KX_PYATTRIBUTE_FLOAT_RO("distance", KX_RadarSensor, m_coneheight),
-	KX_PYATTRIBUTE_RO_FUNCTION("angle", KX_RadarSensor, pyattr_get_angle),
-	KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, KX_RadarSensor, m_axis),
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_FLOAT_ARRAY_RO("coneOrigin", KX_RadarSensor, m_cone_origin, 3),
+	EXP_PYATTRIBUTE_FLOAT_ARRAY_RO("coneTarget", KX_RadarSensor, m_cone_target, 3),
+	EXP_PYATTRIBUTE_FLOAT_RO("distance", KX_RadarSensor, m_coneheight),
+	EXP_PYATTRIBUTE_RO_FUNCTION("angle", KX_RadarSensor, pyattr_get_angle),
+	EXP_PYATTRIBUTE_INT_RW("axis", 0, 5, true, KX_RadarSensor, m_axis),
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *KX_RadarSensor::pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_RadarSensor::pyattr_get_angle(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_RadarSensor* self = static_cast<KX_RadarSensor*>(self_v);
 

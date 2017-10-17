@@ -1,11 +1,11 @@
-PyObjectPlus
+EXP_PyObjectPlus
 ============
 
 .. module:: bge.types
 
-.. class:: PyObjectPlus
+.. class:: EXP_PyObjectPlus
 
-   PyObjectPlus base class of most other types in the Game Engine.
+   EXP_PyObjectPlus base class of most other types in the Game Engine.
 
    .. attribute:: invalid
 

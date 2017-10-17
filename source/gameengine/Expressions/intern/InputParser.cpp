@@ -1,7 +1,7 @@
 /** \file gameengine/Expressions/InputParser.cpp
  *  \ingroup expressions
  */
-// Parser.cpp: implementation of the CParser class.
+// Parser.cpp: implementation of the EXP_Parser class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -53,24 +53,24 @@
 
 #define NUM_PRIORITY 6
 
-CParser::CParser() : m_identifierContext(nullptr)
+EXP_Parser::EXP_Parser() : m_identifierContext(nullptr)
 {
 }
 
-CParser::~CParser()
+EXP_Parser::~EXP_Parser()
 {
 	if (m_identifierContext) {
 		m_identifierContext->Release();
 	}
 }
 
-void CParser::ScanError(const std::string& str)
+void EXP_Parser::ScanError(const std::string& str)
 {
 	/* Sets the global variable errmsg to an errormessage with
 	 * contents str, appending if it already exists.
 	 */
 	if (errmsg) {
-		errmsg = new COperator2Expr(VALUE_ADD_OPERATOR, errmsg, Error(str));
+		errmsg = new EXP_Operator2Expr(VALUE_ADD_OPERATOR, errmsg, Error(str));
 	}
 	else {
 		errmsg = Error(str);
@@ -79,13 +79,13 @@ void CParser::ScanError(const std::string& str)
 	sym = errorsym;
 }
 
-CExpression *CParser::Error(const std::string& str)
+EXP_Expression *EXP_Parser::Error(const std::string& str)
 {
-	// Makes and returns a new CConstExpr filled with an CErrorValue with string str.
-	return new CConstExpr(new CErrorValue(str));
+	// Makes and returns a new EXP_ConstExpr filled with an EXP_ErrorValue with string str.
+	return new EXP_ConstExpr(new EXP_ErrorValue(str));
 }
 
-void CParser::NextCh()
+void EXP_Parser::NextCh()
 {
 	/* Sets the global variable ch to the next character, if it exists
 	 * and increases the global variable chcount
@@ -100,7 +100,7 @@ void CParser::NextCh()
 	}
 }
 
-void CParser::TermChar(char c)
+void EXP_Parser::TermChar(char c)
 {
 	/* Generates an error if the next char isn't the specified char c,
 	 * otherwise, skip the char.
@@ -113,7 +113,7 @@ void CParser::TermChar(char c)
 	}
 }
 
-void CParser::DigRep()
+void EXP_Parser::DigRep()
 {
 	// Changes the current character to the first character that isn't a decimal.
 	while ((ch >= '0') && (ch <= '9')) {
@@ -121,7 +121,7 @@ void CParser::DigRep()
 	}
 }
 
-void CParser::CharRep()
+void EXP_Parser::CharRep()
 {
 	// Changes the current character to the first character that isn't an alphanumeric character.
 	while (((ch >= '0') && (ch <= '9'))
@@ -133,7 +133,7 @@ void CParser::CharRep()
 	}
 }
 
-void CParser::GrabString(int start)
+void EXP_Parser::GrabString(int start)
 {
 	/* Puts part of the input string into the global variable
 	 * const_as_string, from position start, to position chchount.
@@ -141,7 +141,7 @@ void CParser::GrabString(int start)
 	const_as_string = text.substr(start, chcount - start);
 }
 
-void CParser::GrabRealString(int start)
+void EXP_Parser::GrabRealString(int start)
 {
 	/* Works like GrabString but converting \\n to \n
 	 * puts part of the input string into the global variable
@@ -159,7 +159,7 @@ void CParser::GrabRealString(int start)
 	}
 }
 
-void CParser::NextSym()
+void EXP_Parser::NextSym()
 {
 	/* Sets the global variable sym to the next symbol, and
 	 * if it is an operator
@@ -362,7 +362,7 @@ void CParser::NextSym()
 	}
 }
 
-const std::string CParser::Symbol2Str(int s)
+const std::string EXP_Parser::Symbol2Str(int s)
 {
 	// Returns a string representation of of symbol s, for use in Term when generating an error.
 	switch (s) {
@@ -414,7 +414,7 @@ const std::string CParser::Symbol2Str(int s)
 	return "unknown"; // should not happen
 }
 
-void CParser::Term(int s)
+void EXP_Parser::Term(int s)
 {
 	/* Generates an error if the next symbol isn't the specified symbol s
 	 * otherwise, skip the symbol.
@@ -427,7 +427,7 @@ void CParser::Term(int s)
 	}
 }
 
-int CParser::Priority(int optorkind)
+int EXP_Parser::Priority(int optorkind)
 {
 	// Returns the priority of an operator higher number means higher priority.
 	switch (optorkind) {
@@ -453,12 +453,12 @@ int CParser::Priority(int optorkind)
 	return 0; // should not happen
 }
 
-CExpression *CParser::Ex(int i)
+EXP_Expression *EXP_Parser::Ex(int i)
 {
 	/* Parses an expression in the imput, starting at priority i, and
-	 * returns an CExpression, containing the parsed input.
+	 * returns an EXP_Expression, containing the parsed input.
 	 */
-	CExpression *e1 = nullptr, *e2 = nullptr;
+	EXP_Expression *e1 = nullptr, *e2 = nullptr;
 
 	if (i < NUM_PRIORITY) {
 		e1 = Ex(i + 1);
@@ -468,43 +468,43 @@ CExpression *CParser::Ex(int i)
 			e2 = Ex(i + 1);
 			switch (opkind2) {
 				case OPmodulus:
-				{ e1 = new COperator2Expr(VALUE_MOD_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_MOD_OPERATOR, e1, e2);}
 				break;
 				case OPplus:
-				{ e1 = new COperator2Expr(VALUE_ADD_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_ADD_OPERATOR, e1, e2);}
 				break;
 				case OPminus:
-				{ e1 = new COperator2Expr(VALUE_SUB_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_SUB_OPERATOR, e1, e2);}
 				break;
 				case OPtimes:
-				{ e1 = new COperator2Expr(VALUE_MUL_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_MUL_OPERATOR, e1, e2);}
 				break;
 				case OPdivide:
-				{ e1 = new COperator2Expr(VALUE_DIV_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_DIV_OPERATOR, e1, e2);}
 				break;
 				case OPand:
-				{ e1 = new COperator2Expr(VALUE_AND_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_AND_OPERATOR, e1, e2);}
 				break;
 				case OPor:
-				{ e1 = new COperator2Expr(VALUE_OR_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_OR_OPERATOR, e1, e2);}
 				break;
 				case OPequal:
-				{ e1 = new COperator2Expr(VALUE_EQL_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_EQL_OPERATOR, e1, e2);}
 				break;
 				case OPunequal:
-				{ e1 = new COperator2Expr(VALUE_NEQ_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_NEQ_OPERATOR, e1, e2);}
 				break;
 				case OPgreater:
-				{ e1 = new COperator2Expr(VALUE_GRE_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_GRE_OPERATOR, e1, e2);}
 				break;
 				case OPless:
-				{ e1 = new COperator2Expr(VALUE_LES_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_LES_OPERATOR, e1, e2);}
 				break;
 				case OPgreaterequal:
-				{ e1 = new COperator2Expr(VALUE_GEQ_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_GEQ_OPERATOR, e1, e2);}
 				break;
 				case OPlessequal:
-				{ e1 = new COperator2Expr(VALUE_LEQ_OPERATOR, e1, e2);}
+				{ e1 = new EXP_Operator2Expr(VALUE_LEQ_OPERATOR, e1, e2);}
 				break;
 				default:
 				{ BLI_assert(false);}
@@ -520,13 +520,13 @@ CExpression *CParser::Ex(int i)
 			switch (opkind) {
 				/* +1 is also a valid number! */
 				case OPplus:
-				{ e1 = new COperator1Expr(VALUE_POS_OPERATOR, Ex(NUM_PRIORITY));}
+				{ e1 = new EXP_Operator1Expr(VALUE_POS_OPERATOR, Ex(NUM_PRIORITY));}
 				break;
 				case OPminus:
-				{ e1 = new COperator1Expr(VALUE_NEG_OPERATOR, Ex(NUM_PRIORITY));}
+				{ e1 = new EXP_Operator1Expr(VALUE_NEG_OPERATOR, Ex(NUM_PRIORITY));}
 				break;
 				case OPnot:
-				{ e1 = new COperator1Expr(VALUE_NOT_OPERATOR, Ex(NUM_PRIORITY));}
+				{ e1 = new EXP_Operator1Expr(VALUE_NOT_OPERATOR, Ex(NUM_PRIORITY));}
 				break;
 				default:
 				{
@@ -542,26 +542,26 @@ CExpression *CParser::Ex(int i)
 					switch (constkind) {
 						case booltype:
 						{
-							e1 = new CConstExpr(new CBoolValue(boolvalue));
+							e1 = new EXP_ConstExpr(new EXP_BoolValue(boolvalue));
 							break;
 						}
 						case inttype:
 						{
 							cInt temp;
 							temp = std::stol(const_as_string, nullptr, 10); /* atoi is for int only */
-							e1 = new CConstExpr(new CIntValue(temp));
+							e1 = new EXP_ConstExpr(new EXP_IntValue(temp));
 							break;
 						}
 						case floattype:
 						{
 							double temp;
 							temp = std::stof(const_as_string);
-							e1 = new CConstExpr(new CFloatValue(temp));
+							e1 = new EXP_ConstExpr(new EXP_FloatValue(temp));
 							break;
 						}
 						case stringtype:
 						{
-							e1 = new CConstExpr(new CStringValue(const_as_string, ""));
+							e1 = new EXP_ConstExpr(new EXP_StringValue(const_as_string, ""));
 							break;
 						}
 						default:
@@ -582,7 +582,7 @@ CExpression *CParser::Ex(int i)
 				}
 				case ifsym:
 				{
-					CExpression *e3;
+					EXP_Expression *e3;
 					NextSym();
 					Term(lbracksym);
 					e1 = Ex(1);
@@ -593,15 +593,15 @@ CExpression *CParser::Ex(int i)
 						e3 = Ex(1);
 					}
 					else {
-						e3 = new CConstExpr(new CEmptyValue());
+						e3 = new EXP_ConstExpr(new EXP_EmptyValue());
 					}
 					Term(rbracksym);
-					e1 = new CIfExpr(e1, e2, e3);
+					e1 = new EXP_IfExpr(e1, e2, e3);
 					break;
 				}
 				case idsym:
 				{
-					e1 = new CIdentifierExpr(const_as_string, m_identifierContext);
+					e1 = new EXP_IdentifierExpr(const_as_string, m_identifierContext);
 					NextSym();
 
 					break;
@@ -611,11 +611,11 @@ CExpression *CParser::Ex(int i)
 					BLI_assert(!e1);
 					std::string errtext = "[no info]";
 					if (errmsg) {
-						CValue *errmsgval = errmsg->Calculate();
+						EXP_Value *errmsgval = errmsg->Calculate();
 						errtext = errmsgval->GetText();
 						errmsgval->Release();
 
-						//e1 = Error(errmsg->Calculate()->GetText());//new CConstExpr(errmsg->Calculate());
+						//e1 = Error(errmsg->Calculate()->GetText());//new EXP_ConstExpr(errmsg->Calculate());
 
 						if (!(errmsg->Release()) ) {
 							errmsg = nullptr;
@@ -640,20 +640,20 @@ CExpression *CParser::Ex(int i)
 	return e1;
 }
 
-CExpression *CParser::Expr()
+EXP_Expression *EXP_Parser::Expr()
 {
 	// parses an expression in the imput, and
-	// returns an CExpression, containing the parsed input
+	// returns an EXP_Expression, containing the parsed input
 	return Ex(1);
 }
 
-CExpression *CParser::ProcessText(const std::string& intext)
+EXP_Expression *EXP_Parser::ProcessText(const std::string& intext)
 {
 
 	// and parses the string in intext and returns it.
 
 
-	CExpression *expr;
+	EXP_Expression *expr;
 	text = intext;
 
 
@@ -664,7 +664,7 @@ CExpression *CParser::ProcessText(const std::string& intext)
 
 	ch = text[0];
 	/* if (ch != '=') {
-	 * expr = new CConstExpr(new CStringValue(text));
+	 * expr = new EXP_ConstExpr(new EXP_StringValue(text));
 	 * *dependent = deplist;
 	 * return expr;
 	 * } else
@@ -673,9 +673,9 @@ CExpression *CParser::ProcessText(const std::string& intext)
 	NextSym();
 	expr = Expr();
 	if (sym != eolsym) {
-		CExpression *oldexpr = expr;
-		expr = new COperator2Expr(VALUE_ADD_OPERATOR,
-		                          oldexpr, Error("Extra characters after expression"));//new CConstExpr(new CErrorValue("Extra characters after expression")));
+		EXP_Expression *oldexpr = expr;
+		expr = new EXP_Operator2Expr(VALUE_ADD_OPERATOR,
+		                          oldexpr, Error("Extra characters after expression"));//new EXP_ConstExpr(new EXP_ErrorValue("Extra characters after expression")));
 	}
 	if (errmsg) {
 		errmsg->Release();
@@ -684,7 +684,7 @@ CExpression *CParser::ProcessText(const std::string& intext)
 	return expr;
 }
 
-void CParser::SetContext(CValue *context)
+void EXP_Parser::SetContext(EXP_Value *context)
 {
 	if (m_identifierContext) {
 		m_identifierContext->Release();

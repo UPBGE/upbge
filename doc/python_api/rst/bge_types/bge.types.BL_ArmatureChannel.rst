@@ -1,11 +1,11 @@
-BL_ArmatureChannel(PyObjectPlus)
+BL_ArmatureChannel(EXP_PyObjectPlus)
 ================================
 
 .. module:: bge.types
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: BL_ArmatureChannel(PyObjectPlus)
+.. class:: BL_ArmatureChannel(EXP_PyObjectPlus)
 
    Proxy to armature pose channel. Allows to read and set armature pose.
    The attributes are identical to RNA attributes, but mostly in read-only mode.

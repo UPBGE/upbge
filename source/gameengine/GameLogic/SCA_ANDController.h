@@ -44,7 +44,7 @@ class SCA_ANDController : public SCA_IController
 public:
 	SCA_ANDController(SCA_IObject* gameobj);
 	virtual ~SCA_ANDController();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void Trigger(SCA_LogicManager* logicmgr);
 };
 

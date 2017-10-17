@@ -1,7 +1,7 @@
 /** \file gameengine/Expressions/ConstExpr.cpp
  *  \ingroup expressions
  */
-// ConstExpr.cpp: implementation of the CConstExpr class.
+// ConstExpr.cpp: implementation of the EXP_ConstExpr class.
 
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
@@ -19,33 +19,33 @@
 #include "EXP_Value.h"
 #include "EXP_ConstExpr.h"
 
-CConstExpr::CConstExpr()
+EXP_ConstExpr::EXP_ConstExpr()
 {
 }
 
-CConstExpr::CConstExpr(CValue *constval)
+EXP_ConstExpr::EXP_ConstExpr(EXP_Value *constval)
 {
 	m_value = constval;
 }
 
-CConstExpr::~CConstExpr()
+EXP_ConstExpr::~EXP_ConstExpr()
 {
 	if (m_value) {
 		m_value->Release();
 	}
 }
 
-unsigned char CConstExpr::GetExpressionID()
+unsigned char EXP_ConstExpr::GetExpressionID()
 {
 	return CCONSTEXPRESSIONID;
 }
 
-CValue *CConstExpr::Calculate()
+EXP_Value *EXP_ConstExpr::Calculate()
 {
 	return m_value->AddRef();
 }
 
-double CConstExpr::GetNumber()
+double EXP_ConstExpr::GetNumber()
 {
 	return -1.0;
 }

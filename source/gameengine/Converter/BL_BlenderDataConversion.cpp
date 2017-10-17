@@ -1035,7 +1035,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 		return;
 	}
 
-	CListValue<KX_PythonComponent> *components = new CListValue<KX_PythonComponent>();
+	EXP_ListValue<KX_PythonComponent> *components = new EXP_ListValue<KX_PythonComponent>();
 
 	while (pc) {
 		// Make sure to clean out anything from previous loops
@@ -1087,7 +1087,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 			PyErr_Print();
 		}
 		else {
-			KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(BGE_PROXY_REF(pycomp));
+			KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(EXP_PROXY_REF(pycomp));
 			comp->SetBlenderPythonComponent(pc);
 			comp->SetGameObject(gameobj);
 			components->Add(comp);
@@ -1110,9 +1110,9 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter& converter,
                                            Object *blenderobject,
                                            std::vector<BL_ParentChildLink> &vec_parent_child,
-                                           CListValue<KX_GameObject> *logicbrick_conversionlist,
-                                           CListValue<KX_GameObject> *objectlist, CListValue<KX_GameObject> *inactivelist,
-                                           CListValue<KX_GameObject> *sumolist,
+                                           EXP_ListValue<KX_GameObject> *logicbrick_conversionlist,
+                                           EXP_ListValue<KX_GameObject> *objectlist, EXP_ListValue<KX_GameObject> *inactivelist,
+                                           EXP_ListValue<KX_GameObject> *sumolist,
                                            KX_Scene *kxscene, KX_GameObject *gameobj,
                                            SCA_LogicManager *logicmgr, SCA_TimeEventManager *timemgr,
                                            bool isInActiveLayer)
@@ -1247,7 +1247,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	 * push all converted group members to this set.
 	 * This will happen when a group instance is made from a linked group instance
 	 * and both are on the active layer. */
-	CListValue<KX_GameObject> *convertedlist = new CListValue<KX_GameObject>();
+	EXP_ListValue<KX_GameObject> *convertedlist = new EXP_ListValue<KX_GameObject>();
 
 
 	// Get the frame settings of the canvas.
@@ -1325,18 +1325,18 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	int activeLayerBitInfo = blenderscene->lay;
 
 	// List of all object converted, active and inactive.
-	CListValue<KX_GameObject> *sumolist = new CListValue<KX_GameObject>();
+	EXP_ListValue<KX_GameObject> *sumolist = new EXP_ListValue<KX_GameObject>();
 
 	std::vector<BL_ParentChildLink> vec_parent_child;
 
-	CListValue<KX_GameObject> *objectlist = kxscene->GetObjectList();
-	CListValue<KX_GameObject> *inactivelist = kxscene->GetInactiveList();
-	CListValue<KX_GameObject> *parentlist = kxscene->GetRootParentList();
+	EXP_ListValue<KX_GameObject> *objectlist = kxscene->GetObjectList();
+	EXP_ListValue<KX_GameObject> *inactivelist = kxscene->GetInactiveList();
+	EXP_ListValue<KX_GameObject> *parentlist = kxscene->GetRootParentList();
 
 	SCA_LogicManager *logicmgr = kxscene->GetLogicManager();
 	SCA_TimeEventManager *timemgr = kxscene->GetTimeEventManager();
 
-	CListValue<KX_GameObject> *logicbrick_conversionlist = new CListValue<KX_GameObject>();
+	EXP_ListValue<KX_GameObject> *logicbrick_conversionlist = new EXP_ListValue<KX_GameObject>();
 
 	// Convert actions to actionmap.
 	bAction *curAct;
@@ -1369,12 +1369,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			}
 
 			/* Note about memory leak issues:
-			 * When a CValue derived class is created, m_refcount is initialized to 1
+			 * When a EXP_Value derived class is created, m_refcount is initialized to 1
 			 * so the class must be released after being used to make sure that it won't
 			 * hang in memory. If the object needs to be stored for a long time,
 			 * use AddRef() so that this Release() does not free the object.
 			 * Make sure that for any AddRef() there is a Release()!!!!
-			 * Do the same for any object derived from CValue, CExpression and NG_NetworkMessage
+			 * Do the same for any object derived from EXP_Value, EXP_Expression and NG_NetworkMessage
 			 */
 			gameobj->Release();
 		}
@@ -1450,7 +1450,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			 * Note: there may be descendents already if the children of the child were processed
 			 * by this loop before the child. In that case, we must remove the children also
 			 */
-			CListValue<KX_GameObject> *childrenlist = childobj->GetChildrenRecursive();
+			EXP_ListValue<KX_GameObject> *childrenlist = childobj->GetChildrenRecursive();
 			// The returned list by GetChildrenRecursive is not owned by anyone and must not own items, so no AddRef().
 			childrenlist->Add(childobj);
 			for (KX_GameObject *obj : childrenlist) {
@@ -1568,7 +1568,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			BL_ArmatureObject *armobj = static_cast<BL_ArmatureObject *>(gameobj);
 			armobj->LoadConstraints(converter);
 
-			CListValue<KX_GameObject> *children = armobj->GetChildren();
+			EXP_ListValue<KX_GameObject> *children = armobj->GetChildren();
 			for (KX_GameObject *child : children) {
 				BL_ShapeDeformer *deformer = dynamic_cast<BL_ShapeDeformer *>(child->GetDeformer());
 				if (deformer) {

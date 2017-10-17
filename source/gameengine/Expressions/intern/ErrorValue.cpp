@@ -1,7 +1,7 @@
 /** \file gameengine/Expressions/ErrorValue.cpp
  *  \ingroup expressions
  */
-// ErrorValue.cpp: implementation of the CErrorValue class.
+// ErrorValue.cpp: implementation of the EXP_ErrorValue class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -17,13 +17,13 @@
 
 #include "EXP_ErrorValue.h"
 
-CErrorValue::CErrorValue()
+EXP_ErrorValue::EXP_ErrorValue()
 	:m_strErrorText("Error")
 {
 	SetError(true);
 }
 
-CErrorValue::CErrorValue(const std::string& errmsg)
+EXP_ErrorValue::EXP_ErrorValue(const std::string& errmsg)
 {
 	m_strErrorText = "[";
 	m_strErrorText += errmsg;
@@ -31,20 +31,20 @@ CErrorValue::CErrorValue(const std::string& errmsg)
 	SetError(true);
 }
 
-CErrorValue::~CErrorValue()
+EXP_ErrorValue::~EXP_ErrorValue()
 {
 }
 
-CValue *CErrorValue::Calc(VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_ErrorValue::Calc(VALUE_OPERATOR op, EXP_Value *val)
 {
-	CValue *errorval;
+	EXP_Value *errorval;
 
 	switch (op) {
 		case VALUE_POS_OPERATOR:
 		case VALUE_NEG_OPERATOR:
 		case VALUE_NOT_OPERATOR:
 		{
-			errorval = new CErrorValue(op2str(op) + GetText());
+			errorval = new EXP_ErrorValue(op2str(op) + GetText());
 			break;
 		}
 		default:
@@ -57,22 +57,22 @@ CValue *CErrorValue::Calc(VALUE_OPERATOR op, CValue *val)
 	return errorval;
 }
 
-CValue *CErrorValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_ErrorValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val)
 {
-	return new CErrorValue(val->GetText() + op2str(op) + GetText());
+	return new EXP_ErrorValue(val->GetText() + op2str(op) + GetText());
 }
 
-int CErrorValue::GetValueType()
+int EXP_ErrorValue::GetValueType()
 {
 	return VALUE_ERROR_TYPE;
 }
 
-std::string CErrorValue::GetText()
+std::string EXP_ErrorValue::GetText()
 {
 	return m_strErrorText;
 }
 
-CValue *CErrorValue::GetReplica()
+EXP_Value *EXP_ErrorValue::GetReplica()
 {
 	// Who would want a copy of an error ?
 	BLI_assert(false && "ErrorValue::GetReplica() not implemented yet");

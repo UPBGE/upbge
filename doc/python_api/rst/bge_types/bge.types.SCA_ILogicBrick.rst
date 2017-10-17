@@ -1,11 +1,11 @@
-SCA_ILogicBrick(CValue)
+SCA_ILogicBrick(EXP_Value)
 =======================
 
 .. module:: bge.types
 
-base class --- :class:`CValue`
+base class --- :class:`EXP_Value`
 
-.. class:: SCA_ILogicBrick(CValue)
+.. class:: SCA_ILogicBrick(EXP_Value)
 
    Base class for all logic bricks.
 

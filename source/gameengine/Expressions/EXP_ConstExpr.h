@@ -1,5 +1,5 @@
 /*
- * ConstExpr.h: interface for the CConstExpr class.
+ * ConstExpr.h: interface for the EXP_ConstExpr class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -22,19 +22,19 @@
 #include "EXP_Expression.h"
 #include "EXP_Value.h"
 
-class CConstExpr : public CExpression
+class EXP_ConstExpr : public EXP_Expression
 {
 public:
-	CConstExpr();
-	CConstExpr(CValue *constval);
-	virtual ~CConstExpr();
+	EXP_ConstExpr();
+	EXP_ConstExpr(EXP_Value *constval);
+	virtual ~EXP_ConstExpr();
 
 	virtual unsigned char GetExpressionID();
 	virtual double GetNumber();
-	virtual CValue *Calculate();
+	virtual EXP_Value *Calculate();
 
 private:
-	CValue *m_value;
+	EXP_Value *m_value;
 };
 
 #endif  // __EXP_CONSTEXPR_H__

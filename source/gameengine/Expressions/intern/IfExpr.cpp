@@ -1,7 +1,7 @@
 /** \file gameengine/Expressions/IfExpr.cpp
  *  \ingroup expressions
  */
-// IfExpr.cpp: implementation of the CIfExpr class.
+// IfExpr.cpp: implementation of the EXP_IfExpr class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -20,18 +20,18 @@
 #include "EXP_ErrorValue.h"
 #include "EXP_BoolValue.h"
 
-CIfExpr::CIfExpr()
+EXP_IfExpr::EXP_IfExpr()
 {
 }
 
-CIfExpr::CIfExpr(CExpression *guard, CExpression *e1, CExpression *e2)
+EXP_IfExpr::EXP_IfExpr(EXP_Expression *guard, EXP_Expression *e1, EXP_Expression *e2)
 	:m_guard(guard),
 	m_e1(e1),
 	m_e2(e2)
 {
 }
 
-CIfExpr::~CIfExpr()
+EXP_IfExpr::~EXP_IfExpr()
 {
 	if (m_guard) {
 		m_guard->Release();
@@ -46,24 +46,24 @@ CIfExpr::~CIfExpr()
 	}
 }
 
-CValue *CIfExpr::Calculate()
+EXP_Value *EXP_IfExpr::Calculate()
 {
-	CValue *guardval = m_guard->Calculate();
+	EXP_Value *guardval = m_guard->Calculate();
 	const std::string& text = guardval->GetText();
 	guardval->Release();
 
-	if (text == CBoolValue::sTrueString) {
+	if (text == EXP_BoolValue::sTrueString) {
 		return m_e1->Calculate();
 	}
-	else if (text == CBoolValue::sFalseString) {
+	else if (text == EXP_BoolValue::sFalseString) {
 		return m_e2->Calculate();
 	}
 	else {
-		return new CErrorValue("Guard should be of boolean type");
+		return new EXP_ErrorValue("Guard should be of boolean type");
 	}
 }
 
-unsigned char CIfExpr::GetExpressionID()
+unsigned char EXP_IfExpr::GetExpressionID()
 {
 	return CIFEXPRESSIONID;
 }

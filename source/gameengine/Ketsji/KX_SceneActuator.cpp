@@ -72,7 +72,7 @@ KX_SceneActuator::~KX_SceneActuator()
 
 
 
-CValue* KX_SceneActuator::GetReplica()
+EXP_Value* KX_SceneActuator::GetReplica()
 {
 	KX_SceneActuator* replica = new KX_SceneActuator(*this);
 	replica->ProcessReplica();
@@ -199,7 +199,7 @@ bool KX_SceneActuator::Update()
 PyTypeObject KX_SceneActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_SceneActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -224,14 +224,14 @@ PyMethodDef KX_SceneActuator::Methods[] =
 };
 
 PyAttributeDef KX_SceneActuator::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("scene",0,MAX_ID_NAME-2,true,KX_SceneActuator,m_nextSceneName),
-	KX_PYATTRIBUTE_RW_FUNCTION("camera",KX_SceneActuator,pyattr_get_camera,pyattr_set_camera),
-	KX_PYATTRIBUTE_BOOL_RW("useRestart", KX_SceneActuator, m_restart),
-	KX_PYATTRIBUTE_INT_RW("mode", KX_SCENE_NODEF+1, KX_SCENE_MAX-1, true, KX_SceneActuator, m_mode),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_STRING_RW("scene",0,MAX_ID_NAME-2,true,KX_SceneActuator,m_nextSceneName),
+	EXP_PYATTRIBUTE_RW_FUNCTION("camera",KX_SceneActuator,pyattr_get_camera,pyattr_set_camera),
+	EXP_PYATTRIBUTE_BOOL_RW("useRestart", KX_SceneActuator, m_restart),
+	EXP_PYATTRIBUTE_INT_RW("mode", KX_SCENE_NODEF+1, KX_SCENE_MAX-1, true, KX_SceneActuator, m_mode),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_SceneActuator::pyattr_get_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_SceneActuator::pyattr_get_camera(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SceneActuator* actuator = static_cast<KX_SceneActuator*>(self);
 	if (!actuator->m_camera)
@@ -240,7 +240,7 @@ PyObject *KX_SceneActuator::pyattr_get_camera(PyObjectPlus *self, const struct K
 	return actuator->m_camera->GetProxy();
 }
 
-int KX_SceneActuator::pyattr_set_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_SceneActuator::pyattr_set_camera(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_SceneActuator* actuator = static_cast<KX_SceneActuator*>(self);
 	KX_Camera *camOb;

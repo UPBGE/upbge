@@ -86,7 +86,7 @@ public:
 	KX_CameraActuator(
 
 		SCA_IObject *gameobj,
-		//const CValue *ob,
+		//const EXP_Value *ob,
 		SCA_IObject *ob,
 		float hght,
 		float minhght,
@@ -100,8 +100,8 @@ public:
 
 
 
-	/** Methods Inherited from  CValue */
-	CValue* GetReplica();
+	/** Methods Inherited from  EXP_Value */
+	EXP_Value* GetReplica();
 	virtual void ProcessReplica();
 	
 
@@ -119,8 +119,8 @@ public:
 	/* --------------------------------------------------------------------- */
 
 	/* set object to look at */
-	static PyObject*	pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 #endif  /* WITH_PYTHON */
 

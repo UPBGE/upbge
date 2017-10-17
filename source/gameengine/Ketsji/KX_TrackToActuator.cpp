@@ -364,7 +364,7 @@ bool KX_TrackToActuator::Update(double curtime)
 PyTypeObject KX_TrackToActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_TrackToActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -388,16 +388,16 @@ PyMethodDef KX_TrackToActuator::Methods[] = {
 };
 
 PyAttributeDef KX_TrackToActuator::Attributes[] = {
-	KX_PYATTRIBUTE_INT_RW("time",0,1000,true,KX_TrackToActuator,m_time),
-	KX_PYATTRIBUTE_BOOL_RW("use3D",KX_TrackToActuator,m_allow3D),
-	KX_PYATTRIBUTE_INT_RW("upAxis", 0, 2, true, KX_TrackToActuator,m_upflag),
-	KX_PYATTRIBUTE_INT_RW("trackAxis", 0, 5, true, KX_TrackToActuator,m_trackflag),
-	KX_PYATTRIBUTE_RW_FUNCTION("object", KX_TrackToActuator, pyattr_get_object, pyattr_set_object),
+	EXP_PYATTRIBUTE_INT_RW("time",0,1000,true,KX_TrackToActuator,m_time),
+	EXP_PYATTRIBUTE_BOOL_RW("use3D",KX_TrackToActuator,m_allow3D),
+	EXP_PYATTRIBUTE_INT_RW("upAxis", 0, 2, true, KX_TrackToActuator,m_upflag),
+	EXP_PYATTRIBUTE_INT_RW("trackAxis", 0, 5, true, KX_TrackToActuator,m_trackflag),
+	EXP_PYATTRIBUTE_RW_FUNCTION("object", KX_TrackToActuator, pyattr_get_object, pyattr_set_object),
 
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_TrackToActuator::pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_TrackToActuator::pyattr_get_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_TrackToActuator* actuator = static_cast<KX_TrackToActuator*>(self);
 	if (!actuator->m_object)
@@ -406,7 +406,7 @@ PyObject *KX_TrackToActuator::pyattr_get_object(PyObjectPlus *self, const struct
 		return actuator->m_object->GetProxy();
 }
 
-int KX_TrackToActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_TrackToActuator::pyattr_set_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_TrackToActuator* actuator = static_cast<KX_TrackToActuator*>(self);
 	KX_GameObject *gameobj;

@@ -56,7 +56,7 @@ class KX_SCA_DynamicActuator : public SCA_IActuator
 	~KX_SCA_DynamicActuator(
 	);
 
-		CValue* 
+		EXP_Value* 
 	GetReplica(
 	);
 

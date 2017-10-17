@@ -1,5 +1,5 @@
 /*
- * Operator2Expr.h: interface for the COperator2Expr class.
+ * Operator2Expr.h: interface for the EXP_Operator2Expr class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -22,19 +22,19 @@
 #include "EXP_Expression.h"
 #include "EXP_Value.h"
 
-class COperator2Expr : public CExpression
+class EXP_Operator2Expr : public EXP_Expression
 {
 public:
-	COperator2Expr();
-	COperator2Expr(VALUE_OPERATOR op, CExpression *lhs, CExpression *rhs);
-	virtual ~COperator2Expr();
+	EXP_Operator2Expr();
+	EXP_Operator2Expr(VALUE_OPERATOR op, EXP_Expression *lhs, EXP_Expression *rhs);
+	virtual ~EXP_Operator2Expr();
 
 	virtual unsigned char GetExpressionID();
-	virtual CValue *Calculate();
+	virtual EXP_Value *Calculate();
 
 protected:
-	CExpression *m_rhs;
-	CExpression *m_lhs;
+	EXP_Expression *m_rhs;
+	EXP_Expression *m_lhs;
 
 private:
 	VALUE_OPERATOR m_op;

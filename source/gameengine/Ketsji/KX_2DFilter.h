@@ -51,14 +51,14 @@ public:
 	bool CheckTexture(int index, int bindCode, const std::string& prefix) const;
 	bool SetTextureUniform(int index, const char *samplerName);
 
-	static PyObject *pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_offScreen(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_offScreen(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
-	KX_PYMETHOD_DOC(KX_2DFilter, setTexture);
-	KX_PYMETHOD_DOC(KX_2DFilter, setCubeMap);
-	KX_PYMETHOD_DOC(KX_2DFilter, addOffScreen);
-	KX_PYMETHOD_DOC_NOARGS(KX_2DFilter, removeOffScreen);
+	EXP_PYMETHOD_DOC(KX_2DFilter, setTexture);
+	EXP_PYMETHOD_DOC(KX_2DFilter, setCubeMap);
+	EXP_PYMETHOD_DOC(KX_2DFilter, addOffScreen);
+	EXP_PYMETHOD_DOC_NOARGS(KX_2DFilter, removeOffScreen);
 
 #endif
 };

@@ -1,5 +1,5 @@
 /*
- * IfExpr.h: interface for the CIfExpr class.
+ * IfExpr.h: interface for the EXP_IfExpr class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -21,20 +21,20 @@
 
 #include "EXP_Expression.h"
 
-class CIfExpr : public CExpression
+class EXP_IfExpr : public EXP_Expression
 {
 private:
-	CExpression *m_guard;
-	CExpression *m_e1;
-	CExpression *m_e2;
+	EXP_Expression *m_guard;
+	EXP_Expression *m_e1;
+	EXP_Expression *m_e2;
 
 public:
-	CIfExpr();
-	CIfExpr(CExpression *guard, CExpression *e1, CExpression *e2);
-	virtual ~CIfExpr();
+	EXP_IfExpr();
+	EXP_IfExpr(EXP_Expression *guard, EXP_Expression *e1, EXP_Expression *e2);
+	virtual ~EXP_IfExpr();
 
 	virtual unsigned char GetExpressionID();
-	virtual CValue *Calculate();
+	virtual EXP_Value *Calculate();
 };
 
 #endif  // __EXP_IFEXPR_H__

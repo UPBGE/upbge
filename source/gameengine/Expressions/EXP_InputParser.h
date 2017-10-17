@@ -1,5 +1,5 @@
 /*
- * Parser.h: interface for the CParser class.
+ * Parser.h: interface for the EXP_Parser class.
  * Eindhoven University of Technology 1997
  * OOPS team (Serge vd Boom, Erwin Coumans, Tom Geelen, Wynke Stuylemeier)
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
@@ -21,18 +21,18 @@
 #ifndef __EXP_INPUTPARSER_H__
 #define __EXP_INPUTPARSER_H__
 
-class CParser;
+class EXP_Parser;
 #include "EXP_Expression.h"
 
 
-class CParser
+class EXP_Parser
 {
 public:
-	CParser();
-	virtual				~CParser();
+	EXP_Parser();
+	virtual				~EXP_Parser();
 
-	CExpression*		ProcessText(const std::string& intext);
-	void				SetContext(CValue* context);
+	EXP_Expression*		ProcessText(const std::string& intext);
+	void				SetContext(EXP_Value* context);
 
 private:
 	enum symbols {
@@ -80,16 +80,16 @@ private:
 	
 	char ch;					// current character
 	int chcount;				// index to character in input string
-	CExpression *errmsg;		// contains a errormessage, if scanner error
+	EXP_Expression *errmsg;		// contains a errormessage, if scanner error
 	
 	std::string text,				// contains a copy of the original text
 		const_as_string;		// string representation of the symbol, if symbol is a constant
 	bool boolvalue;				// value of the boolean, if symbol is a constant of type boolean
-	CValue*	m_identifierContext;// context in which identifiers are looked up
+	EXP_Value*	m_identifierContext;// context in which identifiers are looked up
 	
 	
 	void ScanError(const std::string& str);
-	CExpression* Error(const std::string& str);
+	EXP_Expression* Error(const std::string& str);
 	void NextCh();
 	void TermChar(char c);
 	void DigRep();
@@ -100,8 +100,8 @@ private:
 	const std::string Symbol2Str(int s);
 	void Term(int s);
 	int Priority(int optor);
-	CExpression *Ex(int i);
-	CExpression *Expr();
+	EXP_Expression *Ex(int i);
+	EXP_Expression *Expr();
 };
 
 #endif /* __EXP_INPUTPARSER_H__ */

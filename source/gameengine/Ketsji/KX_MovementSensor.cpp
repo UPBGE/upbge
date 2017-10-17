@@ -75,7 +75,7 @@ MT_Vector3 KX_MovementSensor::GetOwnerPosition(bool local)
 	return owner->NodeGetLocalOrientation().inverse() * owner->NodeGetLocalPosition();
 }
 
-CValue *KX_MovementSensor::GetReplica()
+EXP_Value *KX_MovementSensor::GetReplica()
 {
 	KX_MovementSensor *replica = new KX_MovementSensor(*this);
 	replica->ProcessReplica();
@@ -194,7 +194,7 @@ bool KX_MovementSensor::Evaluate()
 PyTypeObject KX_MovementSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_MovementSensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -218,9 +218,9 @@ PyMethodDef KX_MovementSensor::Methods[] = {
 };
 
 PyAttributeDef KX_MovementSensor::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_RW("threshold", 0.001f, 10000.0f, KX_MovementSensor, m_threshold),
-	KX_PYATTRIBUTE_INT_RW("axis", 0, 6, true, KX_MovementSensor, m_axis),
-	KX_PYATTRIBUTE_NULL // Sentinel
+	EXP_PYATTRIBUTE_FLOAT_RW("threshold", 0.001f, 10000.0f, KX_MovementSensor, m_threshold),
+	EXP_PYATTRIBUTE_INT_RW("axis", 0, 6, true, KX_MovementSensor, m_axis),
+	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
 #endif

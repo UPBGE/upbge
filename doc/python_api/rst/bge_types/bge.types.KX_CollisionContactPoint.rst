@@ -1,11 +1,11 @@
-KX_CollisionContactPoint(CValue)
+KX_CollisionContactPoint(EXP_Value)
 ================================
 
 .. module:: bge.types
 
-base class --- :class:`CValue`
+base class --- :class:`EXP_Value`
 
-.. class:: KX_CollisionContactPoint(CValue)
+.. class:: KX_CollisionContactPoint(EXP_Value)
 
    A collision contact point passed to the collision callbacks.
 

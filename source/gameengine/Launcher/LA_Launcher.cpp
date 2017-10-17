@@ -251,7 +251,7 @@ void LA_Launcher::InitEngine()
 
 	m_ketsjiEngine->SetExitKey(BL_ConvertKeyCode(gm.exitkey));
 #ifdef WITH_PYTHON
-	CValue::SetDeprecationWarnings(nodepwarnings);
+	EXP_Value::SetDeprecationWarnings(nodepwarnings);
 #else
 	(void)nodepwarnings;
 #endif

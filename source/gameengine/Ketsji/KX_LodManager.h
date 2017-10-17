@@ -35,7 +35,7 @@ class BL_BlenderSceneConverter;
 class KX_LodLevel;
 struct Object;
 
-class KX_LodManager : public CValue
+class KX_LodManager : public EXP_Value
 {
 	Py_Header
 
@@ -101,7 +101,7 @@ public:
 
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_levels(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_levels(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif //WITH_PYTHON
 };

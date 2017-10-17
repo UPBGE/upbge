@@ -87,7 +87,7 @@ void KX_NearSensor::SynchronizeTransform()
 	}
 }
 
-CValue* KX_NearSensor::GetReplica()
+EXP_Value* KX_NearSensor::GetReplica()
 {
 	KX_NearSensor* replica = new KX_NearSensor(*this);
 	replica->ProcessReplica();
@@ -256,7 +256,7 @@ bool	KX_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollDat
 PyTypeObject KX_NearSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_NearSensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -281,9 +281,9 @@ PyMethodDef KX_NearSensor::Methods[] = {
 };
 
 PyAttributeDef KX_NearSensor::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_RW_CHECK("distance", 0, 10000, KX_NearSensor, m_Margin, CheckResetDistance),
-	KX_PYATTRIBUTE_FLOAT_RW_CHECK("resetDistance", 0, 10000, KX_NearSensor, m_ResetMargin, CheckResetDistance),
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_FLOAT_RW_CHECK("distance", 0, 10000, KX_NearSensor, m_Margin, CheckResetDistance),
+	EXP_PYATTRIBUTE_FLOAT_RW_CHECK("resetDistance", 0, 10000, KX_NearSensor, m_ResetMargin, CheckResetDistance),
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
 #endif // WITH_PYTHON

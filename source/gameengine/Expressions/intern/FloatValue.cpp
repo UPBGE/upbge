@@ -1,7 +1,7 @@
 /** \file gameengine/Expressions/FloatValue.cpp
  *  \ingroup expressions
  */
-// FloatValue.cpp: implementation of the CFloatValue class.
+// FloatValue.cpp: implementation of the EXP_FloatValue class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -23,47 +23,47 @@
 
 #include <boost/format.hpp>
 
-CFloatValue::CFloatValue()
+EXP_FloatValue::EXP_FloatValue()
 {
 }
 
-CFloatValue::CFloatValue(float fl)
+EXP_FloatValue::EXP_FloatValue(float fl)
 	:m_float(fl)
 {
 }
 
-CFloatValue::CFloatValue(float fl, const std::string& name)
+EXP_FloatValue::EXP_FloatValue(float fl, const std::string& name)
 	:m_float(fl)
 {
 	SetName(name);
 }
 
-CFloatValue::~CFloatValue()
+EXP_FloatValue::~EXP_FloatValue()
 {
 }
 
-CValue *CFloatValue::Calc(VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_FloatValue::Calc(VALUE_OPERATOR op, EXP_Value *val)
 {
 	switch (op) {
 		case VALUE_POS_OPERATOR:
 		{
-			return new CFloatValue(m_float);
+			return new EXP_FloatValue(m_float);
 			break;
 		}
 		case VALUE_NEG_OPERATOR:
 		{
-			return new CFloatValue(-m_float);
+			return new EXP_FloatValue(-m_float);
 			break;
 		}
 		case VALUE_NOT_OPERATOR:
 		{
-			return new CBoolValue(m_float == 0.0f);
+			return new EXP_BoolValue(m_float == 0.0f);
 			break;
 		}
 		case VALUE_AND_OPERATOR:
 		case VALUE_OR_OPERATOR:
 		{
-			return new CErrorValue(val->GetText() + op2str(op) + "only allowed on booleans");
+			return new EXP_ErrorValue(val->GetText() + op2str(op) + "only allowed on booleans");
 			break;
 		}
 		default:
@@ -74,9 +74,9 @@ CValue *CFloatValue::Calc(VALUE_OPERATOR op, CValue *val)
 	}
 }
 
-CValue *CFloatValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_FloatValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val)
 {
-	CValue *ret;
+	EXP_Value *ret;
 
 	switch (dtype) {
 		case VALUE_INT_TYPE:
@@ -84,72 +84,72 @@ CValue *CFloatValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue 
 			switch (op) {
 				case VALUE_MOD_OPERATOR:
 				{
-					ret = new CFloatValue(fmod(((CIntValue *)val)->GetInt(), m_float));
+					ret = new EXP_FloatValue(fmod(((EXP_IntValue *)val)->GetInt(), m_float));
 					break;
 				}
 				case VALUE_ADD_OPERATOR:
 				{
-					ret = new CFloatValue(((CIntValue *)val)->GetInt() + m_float);
+					ret = new EXP_FloatValue(((EXP_IntValue *)val)->GetInt() + m_float);
 					break;
 				}
 				case VALUE_SUB_OPERATOR:
 				{
-					ret = new CFloatValue(((CIntValue *)val)->GetInt() - m_float);
+					ret = new EXP_FloatValue(((EXP_IntValue *)val)->GetInt() - m_float);
 					break;
 				}
 				case VALUE_MUL_OPERATOR:
 				{
-					ret = new CFloatValue(((CIntValue *)val)->GetInt() * m_float);
+					ret = new EXP_FloatValue(((EXP_IntValue *)val)->GetInt() * m_float);
 					break;
 				}
 				case VALUE_DIV_OPERATOR:
 				{
 					if (m_float == 0) {
-						ret = new CErrorValue("Division by zero");
+						ret = new EXP_ErrorValue("Division by zero");
 					}
 					else {
-						ret = new CFloatValue(((CIntValue *)val)->GetInt() / m_float);
+						ret = new EXP_FloatValue(((EXP_IntValue *)val)->GetInt() / m_float);
 					}
 					break;
 				}
 				case VALUE_EQL_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() == m_float);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() == m_float);
 					break;
 				}
 				case VALUE_NEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() != m_float);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() != m_float);
 					break;
 				}
 				case VALUE_GRE_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() > m_float);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() > m_float);
 					break;
 				}
 				case VALUE_LES_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() < m_float);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() < m_float);
 					break;
 				}
 				case VALUE_GEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() >= m_float);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() >= m_float);
 					break;
 				}
 				case VALUE_LEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() <= m_float);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() <= m_float);
 					break;
 				}
 				case VALUE_NOT_OPERATOR:
 				{
-					ret = new CBoolValue(m_float == 0);
+					ret = new EXP_BoolValue(m_float == 0);
 					break;
 				}
 				default:
 				{
-					ret = new CErrorValue("illegal operator. please send a bug report.");
+					ret = new EXP_ErrorValue("illegal operator. please send a bug report.");
 					break;
 				}
 			}
@@ -161,82 +161,82 @@ CValue *CFloatValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue 
 			switch (op) {
 				case VALUE_MOD_OPERATOR:
 				{
-					ret = new CFloatValue(fmod(((CFloatValue *)val)->GetFloat(), m_float));
+					ret = new EXP_FloatValue(fmod(((EXP_FloatValue *)val)->GetFloat(), m_float));
 					break;
 				}
 				case VALUE_ADD_OPERATOR:
 				{
-					ret = new CFloatValue(((CFloatValue *)val)->GetFloat() + m_float);
+					ret = new EXP_FloatValue(((EXP_FloatValue *)val)->GetFloat() + m_float);
 					break;
 				}
 				case VALUE_SUB_OPERATOR:
 				{
-					ret = new CFloatValue(((CFloatValue *)val)->GetFloat() - m_float);
+					ret = new EXP_FloatValue(((EXP_FloatValue *)val)->GetFloat() - m_float);
 					break;
 				}
 				case VALUE_MUL_OPERATOR:
 				{
-					ret = new CFloatValue(((CFloatValue *)val)->GetFloat() * m_float);
+					ret = new EXP_FloatValue(((EXP_FloatValue *)val)->GetFloat() * m_float);
 					break;
 				}
 				case VALUE_DIV_OPERATOR:
 				{
 					if (m_float == 0) {
-						ret = new CErrorValue("Division by zero");
+						ret = new EXP_ErrorValue("Division by zero");
 					}
 					else {
-						ret = new CFloatValue(((CFloatValue *)val)->GetFloat() / m_float);
+						ret = new EXP_FloatValue(((EXP_FloatValue *)val)->GetFloat() / m_float);
 					}
 					break;
 				}
 				case VALUE_EQL_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() == m_float);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() == m_float);
 					break;
 				}
 				case VALUE_NEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() != m_float);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() != m_float);
 					break;
 				}
 				case VALUE_GRE_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() > m_float);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() > m_float);
 					break;
 				}
 				case VALUE_LES_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() < m_float);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() < m_float);
 					break;
 				}
 				case VALUE_GEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() >= m_float);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() >= m_float);
 					break;
 				}
 				case VALUE_LEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() <= m_float);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() <= m_float);
 					break;
 				}
 				case VALUE_NEG_OPERATOR:
 				{
-					ret = new CFloatValue(-m_float);
+					ret = new EXP_FloatValue(-m_float);
 					break;
 				}
 				case VALUE_POS_OPERATOR:
 				{
-					ret = new CFloatValue(m_float);
+					ret = new EXP_FloatValue(m_float);
 					break;
 				}
 				case VALUE_NOT_OPERATOR:
 				{
-					ret = new CBoolValue(m_float == 0);
+					ret = new EXP_BoolValue(m_float == 0);
 					break;
 				}
 				default:
 				{
-					ret = new CErrorValue("illegal operator. please send a bug report.");
+					ret = new EXP_ErrorValue("illegal operator. please send a bug report.");
 					break;
 				}
 			}
@@ -247,7 +247,7 @@ CValue *CFloatValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue 
 			switch (op) {
 				case VALUE_ADD_OPERATOR:
 				{
-					ret = new CStringValue(val->GetText() + GetText(), "");
+					ret = new EXP_StringValue(val->GetText() + GetText(), "");
 					break;
 				}
 				case VALUE_EQL_OPERATOR:
@@ -257,12 +257,12 @@ CValue *CFloatValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue 
 				case VALUE_GEQ_OPERATOR:
 				case VALUE_LEQ_OPERATOR:
 				{
-					ret = new CErrorValue("[Cannot compare string with float]" + op2str(op) + GetText());
+					ret = new EXP_ErrorValue("[Cannot compare string with float]" + op2str(op) + GetText());
 					break;
 				}
 				default:
 				{
-					ret =  new CErrorValue("[operator not allowed on strings]" + op2str(op) + GetText());
+					ret =  new EXP_ErrorValue("[operator not allowed on strings]" + op2str(op) + GetText());
 					break;
 				}
 			}
@@ -270,17 +270,17 @@ CValue *CFloatValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue 
 		}
 		case VALUE_BOOL_TYPE:
 		{
-			ret =  new CErrorValue("[operator not valid on boolean and float]" + op2str(op) + GetText());
+			ret =  new EXP_ErrorValue("[operator not valid on boolean and float]" + op2str(op) + GetText());
 			break;
 		}
 		case VALUE_ERROR_TYPE:
 		{
-			ret = new CErrorValue(val->GetText() + op2str(op) + GetText());
+			ret = new EXP_ErrorValue(val->GetText() + op2str(op) + GetText());
 			break;
 		}
 		default:
 		{
-			ret = new CErrorValue("illegal type. contact your dealer (if any)");
+			ret = new EXP_ErrorValue("illegal type. contact your dealer (if any)");
 			break;
 		}
 	}
@@ -289,46 +289,46 @@ CValue *CFloatValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue 
 
 
 
-void CFloatValue::SetFloat(float fl)
+void EXP_FloatValue::SetFloat(float fl)
 {
 	m_float = fl;
 }
 
-float CFloatValue::GetFloat()
+float EXP_FloatValue::GetFloat()
 {
 	return m_float;
 }
 
-double CFloatValue::GetNumber()
+double EXP_FloatValue::GetNumber()
 {
 	return m_float;
 }
 
-int CFloatValue::GetValueType()
+int EXP_FloatValue::GetValueType()
 {
 	return VALUE_FLOAT_TYPE;
 }
 
-void CFloatValue::SetValue(CValue *newval)
+void EXP_FloatValue::SetValue(EXP_Value *newval)
 {
 	m_float = (float)newval->GetNumber();
 }
 
-std::string CFloatValue::GetText()
+std::string EXP_FloatValue::GetText()
 {
 	return std::to_string(m_float);
 }
 
-CValue *CFloatValue::GetReplica()
+EXP_Value *EXP_FloatValue::GetReplica()
 {
-	CFloatValue *replica = new CFloatValue(*this);
+	EXP_FloatValue *replica = new EXP_FloatValue(*this);
 	replica->ProcessReplica();
 
 	return replica;
 }
 
 #ifdef WITH_PYTHON
-PyObject *CFloatValue::ConvertValueToPython()
+PyObject *EXP_FloatValue::ConvertValueToPython()
 {
 	return PyFloat_FromDouble(m_float);
 }

@@ -203,7 +203,7 @@ void SCA_IController::Activate(SG_DList& head)
 PyTypeObject SCA_IController::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_IController",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -227,14 +227,14 @@ PyMethodDef SCA_IController::Methods[] = {
 };
 
 PyAttributeDef SCA_IController::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("state", SCA_IController, pyattr_get_state),
-	KX_PYATTRIBUTE_RO_FUNCTION("sensors", SCA_IController, pyattr_get_sensors),
-	KX_PYATTRIBUTE_RO_FUNCTION("actuators", SCA_IController, pyattr_get_actuators),
-	KX_PYATTRIBUTE_BOOL_RW("useHighPriority", SCA_IController, m_bookmark),
-	KX_PYATTRIBUTE_NULL // Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("state", SCA_IController, pyattr_get_state),
+	EXP_PYATTRIBUTE_RO_FUNCTION("sensors", SCA_IController, pyattr_get_sensors),
+	EXP_PYATTRIBUTE_RO_FUNCTION("actuators", SCA_IController, pyattr_get_actuators),
+	EXP_PYATTRIBUTE_BOOL_RW("useHighPriority", SCA_IController, m_bookmark),
+	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-PyObject *SCA_IController::pyattr_get_state(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_IController::pyattr_get_state(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_IController *self = static_cast<SCA_IController *>(self_v);
 	return PyLong_FromLong(self->m_statemask);
@@ -255,9 +255,9 @@ static const std::string sca_icontroller_get_sensors_item_name_cb(void *self_v, 
 	return ((SCA_IController *)self_v)->GetLinkedSensors()[index]->GetName();
 }
 
-PyObject *SCA_IController::pyattr_get_sensors(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_IController::pyattr_get_sensors(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new CListWrapper(self_v,
+	return (new EXP_ListWrapper(self_v,
 	                         ((SCA_IController *)self_v)->GetProxy(),
 	                         nullptr,
 	                         sca_icontroller_get_sensors_size_cb,
@@ -281,9 +281,9 @@ static const std::string sca_icontroller_get_actuators_item_name_cb(void *self_v
 	return ((SCA_IController *)self_v)->GetLinkedActuators()[index]->GetName();
 }
 
-PyObject *SCA_IController::pyattr_get_actuators(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_IController::pyattr_get_actuators(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new CListWrapper(self_v,
+	return (new EXP_ListWrapper(self_v,
 	                         ((SCA_IController *)self_v)->GetProxy(),
 	                         nullptr,
 	                         sca_icontroller_get_actuators_size_cb,

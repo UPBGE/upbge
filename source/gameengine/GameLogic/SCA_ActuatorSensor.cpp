@@ -57,7 +57,7 @@ void SCA_ActuatorSensor::Init()
 	m_reset = true;
 }
 
-CValue* SCA_ActuatorSensor::GetReplica()
+EXP_Value* SCA_ActuatorSensor::GetReplica()
 {
 	SCA_ActuatorSensor* replica = new SCA_ActuatorSensor(*this);
 	// m_range_expr must be recalculated on replica!
@@ -126,7 +126,7 @@ void SCA_ActuatorSensor::Update()
 PyTypeObject SCA_ActuatorSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_ActuatorSensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -150,11 +150,11 @@ PyMethodDef SCA_ActuatorSensor::Methods[] = {
 };
 
 PyAttributeDef SCA_ActuatorSensor::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW_CHECK("actuator",0,MAX_PROP_NAME,false,SCA_ActuatorSensor,m_checkactname,CheckActuator),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_STRING_RW_CHECK("actuator",0,MAX_PROP_NAME,false,SCA_ActuatorSensor,m_checkactname,CheckActuator),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-int SCA_ActuatorSensor::CheckActuator(PyObjectPlus *self, const PyAttributeDef*)
+int SCA_ActuatorSensor::CheckActuator(EXP_PyObjectPlus *self, const PyAttributeDef*)
 {
 	SCA_ActuatorSensor* sensor = reinterpret_cast<SCA_ActuatorSensor*>(self);
 	SCA_IActuator* act = sensor->GetParent()->FindActuator(sensor->m_checkactname);

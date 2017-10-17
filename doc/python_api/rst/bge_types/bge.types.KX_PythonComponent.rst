@@ -1,11 +1,11 @@
-KX_PythonComponent(CValue)
+KX_PythonComponent(EXP_Value)
 ==========================
 
 .. module:: bge.types
 
-base class --- :class:`CValue`
+base class --- :class:`EXP_Value`
 
-.. class:: KX_PythonComponent(CValue)
+.. class:: KX_PythonComponent(EXP_Value)
 
    Python component can be compared to python logic bricks with parameters.
    The python component is a script loaded in the UI, this script defined a component class by inheriting from :class:`KX_PythonComponent`.

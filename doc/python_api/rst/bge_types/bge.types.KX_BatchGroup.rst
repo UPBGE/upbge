@@ -1,11 +1,11 @@
-KX_BatchGroup(CValue)
+KX_BatchGroup(EXP_Value)
 =====================
 
 .. module:: bge.types
 
-base class --- :class:`CValue`
+base class --- :class:`EXP_Value`
 
-.. class:: KX_BatchGroup(CValue)
+.. class:: KX_BatchGroup(EXP_Value)
 
    The batch group is class containing a mesh resulting of the merging of meshes used by objects.
    The meshes are merged with the transformation of the objects using it.
@@ -25,21 +25,21 @@ base class --- :class:`CValue`
 
       The list of the objects merged. (read only)
 
-      :type: :class:`CListValue` of :class:`KX_GameObject`
+      :type: :class:`EXP_ListValue` of :class:`KX_GameObject`
 
    .. method:: merge(objects)
 
       Merge meshes using the transformation of the objects using them.
 
       :arg objects: The objects to merge.
-      :type object: :class:`CListValue` of :class:`KX_GameObject`
+      :type object: :class:`EXP_ListValue` of :class:`KX_GameObject`
 
    .. method:: split(objects)
 
       Split the meshes of the objects using them and restore their original meshes.
 
       :arg objects: The objects to unmerge.
-      :type object: :class:`CListValue` of :class:`KX_GameObject`
+      :type object: :class:`EXP_ListValue` of :class:`KX_GameObject`
 
    .. method:: destruct()
 

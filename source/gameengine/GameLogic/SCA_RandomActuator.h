@@ -89,7 +89,7 @@ class SCA_RandomActuator : public SCA_IActuator
 	virtual ~SCA_RandomActuator();
 	virtual bool Update();
 	
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void ProcessReplica();
 
 #ifdef WITH_PYTHON
@@ -98,19 +98,19 @@ class SCA_RandomActuator : public SCA_IActuator
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 
-	static PyObject *pyattr_get_seed(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_seed(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_seed(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_seed(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setBoolConst);
-	KX_PYMETHOD_DOC_NOARGS(SCA_RandomActuator, setBoolUniform);
-	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setBoolBernouilli);
-	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setIntConst);
-	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setIntUniform);
-	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setIntPoisson);
-	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatConst);
-	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatUniform);
-	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatNormal);
-	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatNegativeExponential);
+	EXP_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setBoolConst);
+	EXP_PYMETHOD_DOC_NOARGS(SCA_RandomActuator, setBoolUniform);
+	EXP_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setBoolBernouilli);
+	EXP_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setIntConst);
+	EXP_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setIntUniform);
+	EXP_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setIntPoisson);
+	EXP_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatConst);
+	EXP_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatUniform);
+	EXP_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatNormal);
+	EXP_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatNegativeExponential);
 
 #endif  /* WITH_PYTHON */
 

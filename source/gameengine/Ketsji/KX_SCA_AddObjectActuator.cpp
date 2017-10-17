@@ -109,7 +109,7 @@ KX_GameObject *KX_SCA_AddObjectActuator::GetLastCreatedObject() const
 
 
 
-CValue* KX_SCA_AddObjectActuator::GetReplica() 
+EXP_Value* KX_SCA_AddObjectActuator::GetReplica() 
 {
 	KX_SCA_AddObjectActuator* replica = new KX_SCA_AddObjectActuator(*this);
 
@@ -173,7 +173,7 @@ void KX_SCA_AddObjectActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& ob
 PyTypeObject KX_SCA_AddObjectActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_SCA_AddObjectActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -198,15 +198,15 @@ PyMethodDef KX_SCA_AddObjectActuator::Methods[] = {
 };
 
 PyAttributeDef KX_SCA_AddObjectActuator::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("object",KX_SCA_AddObjectActuator,pyattr_get_object,pyattr_set_object),
-	KX_PYATTRIBUTE_RO_FUNCTION("objectLastCreated",KX_SCA_AddObjectActuator,pyattr_get_objectLastCreated),
-	KX_PYATTRIBUTE_FLOAT_RW("time", 0.0f, FLT_MAX, KX_SCA_AddObjectActuator, m_timeProp),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RW("linearVelocity",-FLT_MAX,FLT_MAX,KX_SCA_AddObjectActuator,m_linear_velocity,3),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RW("angularVelocity",-FLT_MAX,FLT_MAX,KX_SCA_AddObjectActuator,m_angular_velocity,3),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_RW_FUNCTION("object",KX_SCA_AddObjectActuator,pyattr_get_object,pyattr_set_object),
+	EXP_PYATTRIBUTE_RO_FUNCTION("objectLastCreated",KX_SCA_AddObjectActuator,pyattr_get_objectLastCreated),
+	EXP_PYATTRIBUTE_FLOAT_RW("time", 0.0f, FLT_MAX, KX_SCA_AddObjectActuator, m_timeProp),
+	EXP_PYATTRIBUTE_FLOAT_ARRAY_RW("linearVelocity",-FLT_MAX,FLT_MAX,KX_SCA_AddObjectActuator,m_linear_velocity,3),
+	EXP_PYATTRIBUTE_FLOAT_ARRAY_RW("angularVelocity",-FLT_MAX,FLT_MAX,KX_SCA_AddObjectActuator,m_angular_velocity,3),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_SCA_AddObjectActuator::pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_SCA_AddObjectActuator::pyattr_get_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SCA_AddObjectActuator* actuator = static_cast<KX_SCA_AddObjectActuator*>(self);
 	if (!actuator->m_OriginalObject)
@@ -215,7 +215,7 @@ PyObject *KX_SCA_AddObjectActuator::pyattr_get_object(PyObjectPlus *self, const 
 		return actuator->m_OriginalObject->GetProxy();
 }
 
-int KX_SCA_AddObjectActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_SCA_AddObjectActuator::pyattr_set_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_SCA_AddObjectActuator* actuator = static_cast<KX_SCA_AddObjectActuator*>(self);
 	KX_GameObject *gameobj;
@@ -234,7 +234,7 @@ int KX_SCA_AddObjectActuator::pyattr_set_object(PyObjectPlus *self, const struct
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_SCA_AddObjectActuator::pyattr_get_objectLastCreated(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_SCA_AddObjectActuator::pyattr_get_objectLastCreated(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SCA_AddObjectActuator* actuator = static_cast<KX_SCA_AddObjectActuator*>(self);
 	if (!actuator->m_lastCreatedObject)

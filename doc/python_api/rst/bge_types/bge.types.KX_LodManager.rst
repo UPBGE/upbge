@@ -1,11 +1,11 @@
-KX_LodManager(PyObjectPlus)
+KX_LodManager(EXP_PyObjectPlus)
 ===========================
 
 .. module:: bge.types
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: KX_LodManager(PyObjectPlus)
+.. class:: KX_LodManager(EXP_PyObjectPlus)
 
    This class contains a list of all levels of detail used by a game object.
 

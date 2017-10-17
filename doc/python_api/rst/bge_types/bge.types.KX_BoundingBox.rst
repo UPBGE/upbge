@@ -1,11 +1,11 @@
-KX_BoundingBox(PyObjectPlus)
+KX_BoundingBox(EXP_PyObjectPlus)
 =============================
 
 .. module:: bge.types
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: KX_BoundingBox(PyObjectPlus)
+.. class:: KX_BoundingBox(EXP_PyObjectPlus)
 
    A bounding volume box of a game object. Used to get and alterate the volume box or AABB.
 

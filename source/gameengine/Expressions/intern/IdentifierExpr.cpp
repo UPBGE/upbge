@@ -32,7 +32,7 @@
 
 #include "EXP_IdentifierExpr.h"
 
-CIdentifierExpr::CIdentifierExpr(const std::string& identifier, CValue *id_context)
+EXP_IdentifierExpr::EXP_IdentifierExpr(const std::string& identifier, EXP_Value *id_context)
 	:m_identifier(identifier)
 {
 	if (id_context) {
@@ -43,16 +43,16 @@ CIdentifierExpr::CIdentifierExpr(const std::string& identifier, CValue *id_conte
 	}
 }
 
-CIdentifierExpr::~CIdentifierExpr()
+EXP_IdentifierExpr::~EXP_IdentifierExpr()
 {
 	if (m_idContext) {
 		m_idContext->Release();
 	}
 }
 
-CValue *CIdentifierExpr::Calculate()
+EXP_Value *EXP_IdentifierExpr::Calculate()
 {
-	CValue *result = nullptr;
+	EXP_Value *result = nullptr;
 	if (m_idContext) {
 		result = m_idContext->FindIdentifier(m_identifier);
 	}
@@ -60,7 +60,7 @@ CValue *CIdentifierExpr::Calculate()
 	return result;
 }
 
-unsigned char CIdentifierExpr::GetExpressionID()
+unsigned char EXP_IdentifierExpr::GetExpressionID()
 {
 	return CIDENTIFIEREXPRESSIONID;
 }

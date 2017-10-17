@@ -48,7 +48,7 @@ std::string KX_PythonComponent::GetName()
 	return m_name;
 }
 
-CValue *KX_PythonComponent::GetReplica()
+EXP_Value *KX_PythonComponent::GetReplica()
 {
 	KX_PythonComponent *replica = new KX_PythonComponent(*this);
 	replica->ProcessReplica();
@@ -66,7 +66,7 @@ CValue *KX_PythonComponent::GetReplica()
 
 void KX_PythonComponent::ProcessReplica()
 {
-	CValue::ProcessReplica();
+	EXP_Value::ProcessReplica();
 	m_gameobj = nullptr;
 	m_init = false;
 }
@@ -129,7 +129,7 @@ PyObject *KX_PythonComponent::py_component_new(PyTypeObject *type, PyObject *arg
 PyTypeObject KX_PythonComponent::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_PythonComponent",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -143,7 +143,7 @@ PyTypeObject KX_PythonComponent::Type = {
 	Methods,
 	0,
 	0,
-	&PyObjectPlus::Type,
+	&EXP_PyObjectPlus::Type,
 	0,0,0,0,0,0,
 	py_component_new
 };
@@ -153,11 +153,11 @@ PyMethodDef KX_PythonComponent::Methods[] = {
 };
 
 PyAttributeDef KX_PythonComponent::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("object", KX_PythonComponent, pyattr_get_object),
-	KX_PYATTRIBUTE_NULL // Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("object", KX_PythonComponent, pyattr_get_object),
+	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-PyObject* KX_PythonComponent::pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* KX_PythonComponent::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_PythonComponent *self = static_cast<KX_PythonComponent *>(self_v);
 	KX_GameObject *gameobj = self->GetGameObject();

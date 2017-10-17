@@ -194,15 +194,15 @@ bool PyVecTo(PyObject *pyval, T& vec)
 		
 		return true;
 	}
-	else if (PyObject_TypeCheck(pyval, (PyTypeObject *)&PyObjectPlus::Type)) {
+	else if (PyObject_TypeCheck(pyval, (PyTypeObject *)&EXP_PyObjectPlus::Type)) {
 		/* note, include this check because PySequence_Check does too much introspection
 		 * on the PyObject (like getting its __class__, on a BGE type this means searching up
 		 * the parent list each time only to discover its not a sequence.
 		 * GameObjects are often used as an alternative to vectors so this is a common case
 		 * better to do a quick check for it, likely the error below will be ignored.
 		 * 
-		 * This is not 'correct' since we have proxy type CListValues's which could
-		 * contain floats/ints but there no cases of CValueLists being this way
+		 * This is not 'correct' since we have proxy type EXP_ListValues's which could
+		 * contain floats/ints but there no cases of EXP_ValueLists being this way
 		 */
 		PyErr_Format(PyExc_AttributeError, "expected a sequence type");
 		return false;

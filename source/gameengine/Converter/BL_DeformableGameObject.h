@@ -54,7 +54,7 @@ public:
 	BL_DeformableGameObject(void *sgReplicationInfo, SG_Callbacks callbacks);
 	virtual ~BL_DeformableGameObject();
 
-	virtual CValue *GetReplica();
+	virtual EXP_Value *GetReplica();
 	void ProcessReplica();
 
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);

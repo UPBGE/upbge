@@ -203,7 +203,7 @@ void BL_ConvertControllers(
 			std::string uniquename = bcontr->name;
 			uniquename += "#CONTR#";
 			uniqueint++;
-			CIntValue* uniqueval = new CIntValue(uniqueint);
+			EXP_IntValue* uniqueval = new EXP_IntValue(uniqueint);
 			uniquename += uniqueval->GetText();
 			uniqueval->Release();
 			//unique name was never implemented for sensors and actuators, only for controllers

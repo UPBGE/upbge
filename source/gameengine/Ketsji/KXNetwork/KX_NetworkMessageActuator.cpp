@@ -84,7 +84,7 @@ bool KX_NetworkMessageActuator::Update()
 	return false;
 }
 
-CValue *KX_NetworkMessageActuator::GetReplica()
+EXP_Value *KX_NetworkMessageActuator::GetReplica()
 {
 	KX_NetworkMessageActuator *replica = new KX_NetworkMessageActuator(*this);
 	replica->ProcessReplica();
@@ -102,7 +102,7 @@ CValue *KX_NetworkMessageActuator::GetReplica()
 PyTypeObject KX_NetworkMessageActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_NetworkMessageActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -126,11 +126,11 @@ PyMethodDef KX_NetworkMessageActuator::Methods[] = {
 };
 
 PyAttributeDef KX_NetworkMessageActuator::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_NetworkMessageActuator, m_toPropName),
-	KX_PYATTRIBUTE_STRING_RW("subject", 0, 100, false, KX_NetworkMessageActuator, m_subject),
-	KX_PYATTRIBUTE_BOOL_RW("usePropBody", KX_NetworkMessageActuator, m_bPropBody),
-	KX_PYATTRIBUTE_STRING_RW("body", 0, 16384, false, KX_NetworkMessageActuator, m_body),
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_NetworkMessageActuator, m_toPropName),
+	EXP_PYATTRIBUTE_STRING_RW("subject", 0, 100, false, KX_NetworkMessageActuator, m_subject),
+	EXP_PYATTRIBUTE_BOOL_RW("usePropBody", KX_NetworkMessageActuator, m_bPropBody),
+	EXP_PYATTRIBUTE_STRING_RW("body", 0, 16384, false, KX_NetworkMessageActuator, m_body),
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
 #endif // WITH_PYTHON

@@ -51,7 +51,7 @@ public:
 					SCA_IObject* gameobj,
 					int startseed);
 	virtual ~SCA_RandomSensor();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void ProcessReplica();
 	virtual bool Evaluate();
 	virtual bool IsPositiveTrigger();
@@ -63,8 +63,8 @@ public:
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 	
-	static PyObject*	pyattr_get_seed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_seed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_seed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_seed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 };
 

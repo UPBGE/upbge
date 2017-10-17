@@ -520,7 +520,7 @@ static PyObject *gPyCreateConstraint(PyObject *self,
 		PHY_IPhysicsController *physctrl2 = (PHY_IPhysicsController*)physicsid2;
 		if (physctrl) { //TODO:check for existence of this pointer!
 			if (constrainttype == PHY_VEHICLE_CONSTRAINT) {
-				ShowDeprecationWarning("bge.constraints.createConstraint(...)", "bge.constraints.createVehicle(chassis)");
+				EXP_ShowDeprecationWarning("bge.constraints.createConstraint(...)", "bge.constraints.createVehicle(chassis)");
 				PHY_IVehicle *vehicle = PHY_GetActiveEnvironment()->CreateVehicle(physctrl);
 
 				KX_VehicleWrapper *wrap = new KX_VehicleWrapper(vehicle);

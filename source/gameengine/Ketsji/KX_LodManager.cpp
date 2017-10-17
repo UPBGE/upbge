@@ -176,7 +176,7 @@ KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, short previouslod, float d
 PyTypeObject KX_LodManager::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_LodManager",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -190,7 +190,7 @@ PyTypeObject KX_LodManager::Type = {
 	Methods,
 	0,
 	0,
-	&CValue::Type,
+	&EXP_Value::Type,
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
@@ -200,9 +200,9 @@ PyMethodDef KX_LodManager::Methods[] = {
 };
 
 PyAttributeDef KX_LodManager::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("levels", KX_LodManager, pyattr_get_levels),
-	KX_PYATTRIBUTE_FLOAT_RW("distanceFactor", 0.0f, FLT_MAX, KX_LodManager, m_distanceFactor),
-	KX_PYATTRIBUTE_NULL
+	EXP_PYATTRIBUTE_RO_FUNCTION("levels", KX_LodManager, pyattr_get_levels),
+	EXP_PYATTRIBUTE_FLOAT_RW("distanceFactor", 0.0f, FLT_MAX, KX_LodManager, m_distanceFactor),
+	EXP_PYATTRIBUTE_NULL
 };
 
 static int kx_lod_manager_get_levels_size_cb(void *self_v)
@@ -215,9 +215,9 @@ static PyObject *kx_lod_manager_get_levels_item_cb(void *self_v, int index)
 	return ((KX_LodManager *)self_v)->GetLevel(index)->GetProxy();
 }
 
-PyObject *KX_LodManager::pyattr_get_levels(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_LodManager::pyattr_get_levels(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new CListWrapper(self_v,
+	return (new EXP_ListWrapper(self_v,
 							 ((KX_LodManager *)self_v)->GetProxy(),
 							 nullptr,
 							 kx_lod_manager_get_levels_size_cb,
@@ -247,11 +247,11 @@ bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_
 	}
 
 	if (PyObject_TypeCheck(value, &KX_LodManager::Type)) {
-		*object = static_cast<KX_LodManager *>BGE_PROXY_REF(value);
+		*object = static_cast<KX_LodManager *>EXP_PROXY_REF(value);
 
 		/* sets the error */
 		if (*object == nullptr) {
-			PyErr_Format(PyExc_SystemError, "%s, " BGE_PROXY_ERROR_MSG, error_prefix);
+			PyErr_Format(PyExc_SystemError, "%s, " EXP_PROXY_ERROR_MSG, error_prefix);
 			return false;
 		}
 

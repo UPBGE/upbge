@@ -32,14 +32,14 @@
 
 class KX_GameObject;
 template <class ItemType>
-class CListValue;
+class EXP_ListValue;
 
-class KX_BatchGroup : public CValue, public RAS_BatchGroup
+class KX_BatchGroup : public EXP_Value, public RAS_BatchGroup
 {
 	Py_Header
 private:
 	/// The objects currently merged in the batch group.
-	CListValue<KX_GameObject> *m_objects;
+	EXP_ListValue<KX_GameObject> *m_objects;
 
 public:
 	KX_BatchGroup();
@@ -47,7 +47,7 @@ public:
 
 	virtual std::string GetName();
 
-	CListValue<KX_GameObject> *GetObjects() const;
+	EXP_ListValue<KX_GameObject> *GetObjects() const;
 
 	/** Merge a list of objects using their mesh user and transformation.
 	 * \param objects The list of objects to merge.
@@ -61,11 +61,11 @@ public:
 
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_objects(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
-	KX_PYMETHOD_DOC(KX_BatchGroup, merge);
-	KX_PYMETHOD_DOC(KX_BatchGroup, split);
-	KX_PYMETHOD_DOC(KX_BatchGroup, destruct);
+	EXP_PYMETHOD_DOC(KX_BatchGroup, merge);
+	EXP_PYMETHOD_DOC(KX_BatchGroup, split);
+	EXP_PYMETHOD_DOC(KX_BatchGroup, destruct);
 
 #endif
 };

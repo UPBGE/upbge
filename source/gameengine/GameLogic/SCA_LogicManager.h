@@ -77,12 +77,12 @@ class SCA_LogicManager
 
 	// need to find better way for this
 	// also known as FactoryManager...
-	std::map<std::string, CValue *>	m_mapStringToGameObjects;
+	std::map<std::string, EXP_Value *>	m_mapStringToGameObjects;
 	std::map<std::string, void *>		m_mapStringToMeshes;
 	std::map<std::string, void *>		m_mapStringToActions;
 
 	std::map<std::string, void *>		m_map_gamemeshname_to_blendobj;
-	std::map<void *, CValue *>			m_map_blendobj_to_gameobj;
+	std::map<void *, EXP_Value *>			m_map_blendobj_to_gameobj;
 public:
 	SCA_LogicManager();
 	virtual ~SCA_LogicManager();
@@ -127,16 +127,16 @@ public:
 	void*	GetActionByName (const std::string& actname);
 	void*	GetMeshByName(const std::string& meshname);
 
-	void	RegisterGameObjectName(const std::string& gameobjname,CValue* gameobj);
+	void	RegisterGameObjectName(const std::string& gameobjname,EXP_Value* gameobj);
 	void	UnregisterGameObjectName(const std::string& gameobjname);
-	class CValue*	GetGameObjectByName(const std::string& gameobjname);
+	class EXP_Value*	GetGameObjectByName(const std::string& gameobjname);
 
 	void	RegisterGameMeshName(const std::string& gamemeshname, void* blendobj);
 	void*	FindBlendObjByGameMeshName(const std::string& gamemeshname);
 
-	void	RegisterGameObj(void* blendobj, CValue* gameobj);
-	void	UnregisterGameObj(void* blendobj, CValue* gameobj);
-	CValue*	FindGameObjByBlendObj(void* blendobj);
+	void	RegisterGameObj(void* blendobj, EXP_Value* gameobj);
+	void	UnregisterGameObj(void* blendobj, EXP_Value* gameobj);
+	EXP_Value*	FindGameObjByBlendObj(void* blendobj);
 };
 
 #endif  /* __SCA_LOGICMANAGER_H__ */

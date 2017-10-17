@@ -74,7 +74,7 @@ bool KX_SCA_EndObjectActuator::Update()
 
 
 
-CValue* KX_SCA_EndObjectActuator::GetReplica()
+EXP_Value* KX_SCA_EndObjectActuator::GetReplica()
 {
 	KX_SCA_EndObjectActuator* replica = 
 		new KX_SCA_EndObjectActuator(*this);
@@ -98,7 +98,7 @@ void KX_SCA_EndObjectActuator::Replace_IScene(SCA_IScene *val)
 PyTypeObject KX_SCA_EndObjectActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_SCA_EndObjectActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -122,7 +122,7 @@ PyMethodDef KX_SCA_EndObjectActuator::Methods[] = {
 };
 
 PyAttributeDef KX_SCA_EndObjectActuator::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

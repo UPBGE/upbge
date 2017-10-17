@@ -30,7 +30,7 @@
 #include "RAS_2DFilterManager.h"
 #include "EXP_PyObjectPlus.h"
 
-class KX_2DFilterManager : public RAS_2DFilterManager, public PyObjectPlus
+class KX_2DFilterManager : public RAS_2DFilterManager, public EXP_PyObjectPlus
 {
 	Py_Header
 public:
@@ -41,10 +41,10 @@ public:
 
 #ifdef WITH_PYTHON
 
-	KX_PYMETHOD_DOC(KX_2DFilterManager, getFilter);
-	KX_PYMETHOD_DOC(KX_2DFilterManager, addFilter);
-	KX_PYMETHOD_DOC(KX_2DFilterManager, removeFilter);
-	KX_PYMETHOD_DOC(KX_2DFilterManager, createOffScreen);
+	EXP_PYMETHOD_DOC(KX_2DFilterManager, getFilter);
+	EXP_PYMETHOD_DOC(KX_2DFilterManager, addFilter);
+	EXP_PYMETHOD_DOC(KX_2DFilterManager, removeFilter);
+	EXP_PYMETHOD_DOC(KX_2DFilterManager, createOffScreen);
 
 #endif  // WITH_PYTHON
 };

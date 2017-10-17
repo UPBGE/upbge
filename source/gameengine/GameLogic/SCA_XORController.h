@@ -41,7 +41,7 @@ class SCA_XORController : public SCA_IController
 public:
 	SCA_XORController(SCA_IObject* gameobj);
 	virtual ~SCA_XORController();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void Trigger(SCA_LogicManager* logicmgr);
 };
 

@@ -57,7 +57,7 @@ class KX_VisibilityActuator : public SCA_IActuator
 			void
 			);
 
-	virtual CValue*
+	virtual EXP_Value*
 		GetReplica(
 			void
 			);

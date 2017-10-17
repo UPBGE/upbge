@@ -39,7 +39,7 @@
 class RAS_IVertex;
 class RAS_IDisplayArray;
 
-class KX_VertexProxy : public CValue
+class KX_VertexProxy : public EXP_Value
 {
 	Py_Header
 
@@ -57,53 +57,53 @@ public:
 	// stuff for cvalue related things
 	std::string GetName();
 
-	static PyObject *pyattr_get_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_z(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_r(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_g(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_b(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_a(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_u(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_u2(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v2(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_XYZ(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_UV(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_colors(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_uvs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_x(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_y(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_z(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_u(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_v(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_u2(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_v2(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_r(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_g(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_b(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_a(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_XYZ(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_UV(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_color(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_colors(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_normal(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_uvs(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_z(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_r(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_g(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_b(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_a(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_u(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_v(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_u2(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_v2(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_XYZ(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_UV(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_color(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_colors(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_uvs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_x(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_y(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_z(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_u(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_v(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_u2(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_v2(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_r(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_g(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_b(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_a(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_XYZ(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_UV(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_color(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_colors(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_normal(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_uvs(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	KX_PYMETHOD_NOARGS(KX_VertexProxy, GetXYZ);
-	KX_PYMETHOD_O(KX_VertexProxy, SetXYZ);
-	KX_PYMETHOD_NOARGS(KX_VertexProxy, GetUV1);
-	KX_PYMETHOD_O(KX_VertexProxy, SetUV1);
+	EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetXYZ);
+	EXP_PYMETHOD_O(KX_VertexProxy, SetXYZ);
+	EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetUV1);
+	EXP_PYMETHOD_O(KX_VertexProxy, SetUV1);
 
-	KX_PYMETHOD_NOARGS(KX_VertexProxy, GetUV2);
-	KX_PYMETHOD_VARARGS(KX_VertexProxy, SetUV2);
+	EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetUV2);
+	EXP_PYMETHOD_VARARGS(KX_VertexProxy, SetUV2);
 
-	KX_PYMETHOD_NOARGS(KX_VertexProxy, GetRGBA);
-	KX_PYMETHOD_O(KX_VertexProxy, SetRGBA);
-	KX_PYMETHOD_NOARGS(KX_VertexProxy, GetNormal);
-	KX_PYMETHOD_O(KX_VertexProxy, SetNormal);
+	EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetRGBA);
+	EXP_PYMETHOD_O(KX_VertexProxy, SetRGBA);
+	EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetNormal);
+	EXP_PYMETHOD_O(KX_VertexProxy, SetNormal);
 };
 
 #endif  // WITH_PYTHON

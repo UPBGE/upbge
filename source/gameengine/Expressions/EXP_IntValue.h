@@ -1,5 +1,5 @@
 /*
- * IntValue.h: interface for the CIntValue class.
+ * IntValue.h: interface for the EXP_IntValue class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -24,13 +24,13 @@
 
 typedef long long cInt;
 
-class CIntValue : public CPropValue
+class EXP_IntValue : public EXP_PropValue
 {
 public:
-	CIntValue();
-	CIntValue(cInt innie);
-	CIntValue(cInt innie, const std::string& name);
-	virtual ~CIntValue();
+	EXP_IntValue();
+	EXP_IntValue(cInt innie);
+	EXP_IntValue(cInt innie, const std::string& name);
+	virtual ~EXP_IntValue();
 
 	virtual std::string GetText();
 	virtual double GetNumber();
@@ -38,12 +38,12 @@ public:
 
 	cInt GetInt();
 
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);
+	virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
 
-	virtual void SetValue(CValue *newval);
+	virtual void SetValue(EXP_Value *newval);
 
-	virtual CValue *GetReplica();
+	virtual EXP_Value *GetReplica();
 
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython();

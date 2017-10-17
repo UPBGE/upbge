@@ -77,7 +77,7 @@ KX_Camera::~KX_Camera()
 }
 
 
-CValue*	KX_Camera::GetReplica()
+EXP_Value*	KX_Camera::GetReplica()
 {
 	KX_Camera* replica = new KX_Camera(*this);
 	
@@ -320,52 +320,52 @@ int KX_Camera::GetViewportTop() const
 
 
 PyMethodDef KX_Camera::Methods[] = {
-	KX_PYMETHODTABLE(KX_Camera, sphereInsideFrustum),
-	KX_PYMETHODTABLE_O(KX_Camera, boxInsideFrustum),
-	KX_PYMETHODTABLE_O(KX_Camera, pointInsideFrustum),
-	KX_PYMETHODTABLE_NOARGS(KX_Camera, getCameraToWorld),
-	KX_PYMETHODTABLE_NOARGS(KX_Camera, getWorldToCamera),
-	KX_PYMETHODTABLE(KX_Camera, setViewport),
-	KX_PYMETHODTABLE_NOARGS(KX_Camera, setOnTop),
-	KX_PYMETHODTABLE_O(KX_Camera, getScreenPosition),
-	KX_PYMETHODTABLE(KX_Camera, getScreenVect),
-	KX_PYMETHODTABLE(KX_Camera, getScreenRay),
+	EXP_PYMETHODTABLE(KX_Camera, sphereInsideFrustum),
+	EXP_PYMETHODTABLE_O(KX_Camera, boxInsideFrustum),
+	EXP_PYMETHODTABLE_O(KX_Camera, pointInsideFrustum),
+	EXP_PYMETHODTABLE_NOARGS(KX_Camera, getCameraToWorld),
+	EXP_PYMETHODTABLE_NOARGS(KX_Camera, getWorldToCamera),
+	EXP_PYMETHODTABLE(KX_Camera, setViewport),
+	EXP_PYMETHODTABLE_NOARGS(KX_Camera, setOnTop),
+	EXP_PYMETHODTABLE_O(KX_Camera, getScreenPosition),
+	EXP_PYMETHODTABLE(KX_Camera, getScreenVect),
+	EXP_PYMETHODTABLE(KX_Camera, getScreenRay),
 	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_Camera::Attributes[] = {
 	
-	KX_PYATTRIBUTE_BOOL_RW("frustum_culling", KX_Camera, m_frustum_culling),
-	KX_PYATTRIBUTE_RW_FUNCTION("perspective", KX_Camera, pyattr_get_perspective, pyattr_set_perspective),
+	EXP_PYATTRIBUTE_BOOL_RW("frustum_culling", KX_Camera, m_frustum_culling),
+	EXP_PYATTRIBUTE_RW_FUNCTION("perspective", KX_Camera, pyattr_get_perspective, pyattr_set_perspective),
 	
-	KX_PYATTRIBUTE_RW_FUNCTION("lens",	KX_Camera,	pyattr_get_lens, pyattr_set_lens),
-	KX_PYATTRIBUTE_RW_FUNCTION("fov",	KX_Camera,	pyattr_get_fov,  pyattr_set_fov),
-	KX_PYATTRIBUTE_RW_FUNCTION("ortho_scale",	KX_Camera,	pyattr_get_ortho_scale, pyattr_set_ortho_scale),
-	KX_PYATTRIBUTE_RW_FUNCTION("near",	KX_Camera,	pyattr_get_near, pyattr_set_near),
-	KX_PYATTRIBUTE_RW_FUNCTION("far",	KX_Camera,	pyattr_get_far,  pyattr_set_far),
-	KX_PYATTRIBUTE_RW_FUNCTION("shift_x",	KX_Camera,	pyattr_get_shift_x, pyattr_set_shift_x),
-	KX_PYATTRIBUTE_RW_FUNCTION("shift_y",	KX_Camera,	pyattr_get_shift_y,  pyattr_set_shift_y),
-	KX_PYATTRIBUTE_FLOAT_RW("lodDistanceFactor", 0.0f, FLT_MAX, KX_Camera, m_lodDistanceFactor),
+	EXP_PYATTRIBUTE_RW_FUNCTION("lens",	KX_Camera,	pyattr_get_lens, pyattr_set_lens),
+	EXP_PYATTRIBUTE_RW_FUNCTION("fov",	KX_Camera,	pyattr_get_fov,  pyattr_set_fov),
+	EXP_PYATTRIBUTE_RW_FUNCTION("ortho_scale",	KX_Camera,	pyattr_get_ortho_scale, pyattr_set_ortho_scale),
+	EXP_PYATTRIBUTE_RW_FUNCTION("near",	KX_Camera,	pyattr_get_near, pyattr_set_near),
+	EXP_PYATTRIBUTE_RW_FUNCTION("far",	KX_Camera,	pyattr_get_far,  pyattr_set_far),
+	EXP_PYATTRIBUTE_RW_FUNCTION("shift_x",	KX_Camera,	pyattr_get_shift_x, pyattr_set_shift_x),
+	EXP_PYATTRIBUTE_RW_FUNCTION("shift_y",	KX_Camera,	pyattr_get_shift_y,  pyattr_set_shift_y),
+	EXP_PYATTRIBUTE_FLOAT_RW("lodDistanceFactor", 0.0f, FLT_MAX, KX_Camera, m_lodDistanceFactor),
 
-	KX_PYATTRIBUTE_RW_FUNCTION("useViewport",	KX_Camera,	pyattr_get_use_viewport,  pyattr_set_use_viewport),
+	EXP_PYATTRIBUTE_RW_FUNCTION("useViewport",	KX_Camera,	pyattr_get_use_viewport,  pyattr_set_use_viewport),
 	
-	KX_PYATTRIBUTE_RW_FUNCTION("projection_matrix",	KX_Camera,	pyattr_get_projection_matrix, pyattr_set_projection_matrix),
-	KX_PYATTRIBUTE_RO_FUNCTION("modelview_matrix",	KX_Camera,	pyattr_get_modelview_matrix),
-	KX_PYATTRIBUTE_RO_FUNCTION("camera_to_world",	KX_Camera,	pyattr_get_camera_to_world),
-	KX_PYATTRIBUTE_RO_FUNCTION("world_to_camera",	KX_Camera,	pyattr_get_world_to_camera),
+	EXP_PYATTRIBUTE_RW_FUNCTION("projection_matrix",	KX_Camera,	pyattr_get_projection_matrix, pyattr_set_projection_matrix),
+	EXP_PYATTRIBUTE_RO_FUNCTION("modelview_matrix",	KX_Camera,	pyattr_get_modelview_matrix),
+	EXP_PYATTRIBUTE_RO_FUNCTION("camera_to_world",	KX_Camera,	pyattr_get_camera_to_world),
+	EXP_PYATTRIBUTE_RO_FUNCTION("world_to_camera",	KX_Camera,	pyattr_get_world_to_camera),
 	
 	/* Grrr, functions for constants? */
-	KX_PYATTRIBUTE_RO_FUNCTION("INSIDE",	KX_Camera, pyattr_get_INSIDE),
-	KX_PYATTRIBUTE_RO_FUNCTION("OUTSIDE",	KX_Camera, pyattr_get_OUTSIDE),
-	KX_PYATTRIBUTE_RO_FUNCTION("INTERSECT",	KX_Camera, pyattr_get_INTERSECT),
+	EXP_PYATTRIBUTE_RO_FUNCTION("INSIDE",	KX_Camera, pyattr_get_INSIDE),
+	EXP_PYATTRIBUTE_RO_FUNCTION("OUTSIDE",	KX_Camera, pyattr_get_OUTSIDE),
+	EXP_PYATTRIBUTE_RO_FUNCTION("INTERSECT",	KX_Camera, pyattr_get_INTERSECT),
 	
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyTypeObject KX_Camera::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_Camera",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -390,7 +390,7 @@ PyTypeObject KX_Camera::Type = {
 	py_base_new
 };
 
-KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, sphereInsideFrustum,
+EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, sphereInsideFrustum,
 "sphereInsideFrustum(center, radius) -> Integer\n"
 "\treturns INSIDE, OUTSIDE or INTERSECT if the given sphere is\n"
 "\tinside/outside/intersects this camera's viewing frustum.\n\n"
@@ -424,7 +424,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, sphereInsideFrustum,
 	return nullptr;
 }
 
-KX_PYMETHODDEF_DOC_O(KX_Camera, boxInsideFrustum,
+EXP_PYMETHODDEF_DOC_O(KX_Camera, boxInsideFrustum,
 "boxInsideFrustum(box) -> Integer\n"
 "\treturns INSIDE, OUTSIDE or INTERSECT if the given box is\n"
 "\tinside/outside/intersects this camera's viewing frustum.\n\n"
@@ -469,7 +469,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, boxInsideFrustum,
 	return PyLong_FromLong(GetFrustum().BoxInsideFrustum(box)); /* new ref */
 }
 
-KX_PYMETHODDEF_DOC_O(KX_Camera, pointInsideFrustum,
+EXP_PYMETHODDEF_DOC_O(KX_Camera, pointInsideFrustum,
 "pointInsideFrustum(point) -> Bool\n"
 "\treturns 1 if the given point is inside this camera's viewing frustum.\n\n"
 "\tpoint = The point to test (in world coordinates.)\n\n"
@@ -495,7 +495,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, pointInsideFrustum,
 	return nullptr;
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, getCameraToWorld,
+EXP_PYMETHODDEF_DOC_NOARGS(KX_Camera, getCameraToWorld,
 "getCameraToWorld() -> Matrix4x4\n"
 "\treturns the camera to world transformation matrix, as a list of four lists of four values.\n\n"
 "\tie: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]])\n"
@@ -504,7 +504,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, getCameraToWorld,
 	return PyObjectFrom(MT_Matrix4x4(GetCameraToWorld())); /* new ref */
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, getWorldToCamera,
+EXP_PYMETHODDEF_DOC_NOARGS(KX_Camera, getWorldToCamera,
 "getWorldToCamera() -> Matrix4x4\n"
 "\treturns the world to camera transformation matrix, as a list of four lists of four values.\n\n"
 "\tie: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]])\n"
@@ -513,7 +513,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, getWorldToCamera,
 	return PyObjectFrom(MT_Matrix4x4(GetWorldToCamera())); /* new ref */
 }
 
-KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, setViewport,
+EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, setViewport,
 "setViewport(left, bottom, right, top)\n"
 "Sets this camera's viewport\n")
 {
@@ -525,7 +525,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, setViewport,
 	Py_RETURN_NONE;
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, setOnTop,
+EXP_PYMETHODDEF_DOC_NOARGS(KX_Camera, setOnTop,
 "setOnTop()\n"
 "Sets this camera's viewport on top\n")
 {
@@ -533,13 +533,13 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, setOnTop,
 	Py_RETURN_NONE;
 }
 
-PyObject *KX_Camera::pyattr_get_perspective(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_perspective(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyBool_FromLong(self->m_camdata.m_perspective);
 }
 
-int KX_Camera::pyattr_set_perspective(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Camera::pyattr_set_perspective(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	int param = PyObject_IsTrue( value );
@@ -553,13 +553,13 @@ int KX_Camera::pyattr_set_perspective(PyObjectPlus *self_v, const KX_PYATTRIBUTE
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Camera::pyattr_get_lens(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_lens(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyFloat_FromDouble(self->m_camdata.m_lens);
 }
 
-int KX_Camera::pyattr_set_lens(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Camera::pyattr_set_lens(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
@@ -573,7 +573,7 @@ int KX_Camera::pyattr_set_lens(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *a
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Camera::pyattr_get_fov(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_fov(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 
@@ -584,7 +584,7 @@ PyObject *KX_Camera::pyattr_get_fov(PyObjectPlus *self_v, const KX_PYATTRIBUTE_D
 	return PyFloat_FromDouble(fov * MT_DEGS_PER_RAD);
 }
 
-int KX_Camera::pyattr_set_fov(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Camera::pyattr_set_fov(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float fov = PyFloat_AsDouble(value);
@@ -602,13 +602,13 @@ int KX_Camera::pyattr_set_fov(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *at
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Camera::pyattr_get_ortho_scale(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_ortho_scale(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyFloat_FromDouble(self->m_camdata.m_scale);
 }
 
-int KX_Camera::pyattr_set_ortho_scale(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Camera::pyattr_set_ortho_scale(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
@@ -622,13 +622,13 @@ int KX_Camera::pyattr_set_ortho_scale(PyObjectPlus *self_v, const KX_PYATTRIBUTE
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Camera::pyattr_get_near(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_near(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyFloat_FromDouble(self->m_camdata.m_clipstart);
 }
 
-int KX_Camera::pyattr_set_near(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Camera::pyattr_set_near(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
@@ -642,13 +642,13 @@ int KX_Camera::pyattr_set_near(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *a
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Camera::pyattr_get_far(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_far(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyFloat_FromDouble(self->m_camdata.m_clipend);
 }
 
-int KX_Camera::pyattr_set_far(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Camera::pyattr_set_far(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
@@ -662,13 +662,13 @@ int KX_Camera::pyattr_set_far(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *at
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Camera::pyattr_get_shift_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_shift_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyFloat_FromDouble(self->m_camdata.m_shift_x);
 }
 
-int KX_Camera::pyattr_set_shift_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Camera::pyattr_set_shift_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
@@ -682,13 +682,13 @@ int KX_Camera::pyattr_set_shift_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Camera::pyattr_get_shift_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_shift_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyFloat_FromDouble(self->m_camdata.m_shift_y);
 }
 
-int KX_Camera::pyattr_set_shift_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Camera::pyattr_set_shift_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
@@ -702,13 +702,13 @@ int KX_Camera::pyattr_set_shift_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Camera::pyattr_get_use_viewport(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_use_viewport(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyBool_FromLong(self->GetViewport());
 }
 
-int KX_Camera::pyattr_set_use_viewport(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Camera::pyattr_set_use_viewport(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	int param = PyObject_IsTrue( value );
@@ -720,13 +720,13 @@ int KX_Camera::pyattr_set_use_viewport(PyObjectPlus *self_v, const KX_PYATTRIBUT
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Camera::pyattr_get_projection_matrix(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_projection_matrix(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyObjectFrom(self->GetProjectionMatrix()); 
 }
 
-int KX_Camera::pyattr_set_projection_matrix(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Camera::pyattr_set_projection_matrix(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	MT_Matrix4x4 mat;
@@ -737,30 +737,30 @@ int KX_Camera::pyattr_set_projection_matrix(PyObjectPlus *self_v, const KX_PYATT
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Camera::pyattr_get_modelview_matrix(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_modelview_matrix(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyObjectFrom(MT_Matrix4x4(self->GetWorldToCamera()));
 }
 
-PyObject *KX_Camera::pyattr_get_camera_to_world(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_camera_to_world(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyObjectFrom(MT_Matrix4x4(self->GetCameraToWorld()));
 }
 
-PyObject *KX_Camera::pyattr_get_world_to_camera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_world_to_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyObjectFrom(MT_Matrix4x4(self->GetWorldToCamera())); 
 }
 
 
-PyObject *KX_Camera::pyattr_get_INSIDE(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_INSIDE(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {	return PyLong_FromLong(INSIDE); }
-PyObject *KX_Camera::pyattr_get_OUTSIDE(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_OUTSIDE(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {	return PyLong_FromLong(OUTSIDE); }
-PyObject *KX_Camera::pyattr_get_INTERSECT(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_INTERSECT(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {	return PyLong_FromLong(INTERSECT); }
 
 
@@ -798,11 +798,11 @@ bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object,
 	}
 	
 	if (PyObject_TypeCheck(value, &KX_Camera::Type)) {
-		*object = static_cast<KX_Camera*>BGE_PROXY_REF(value);
+		*object = static_cast<KX_Camera*>EXP_PROXY_REF(value);
 		
 		/* sets the error */
 		if (*object==nullptr) {
-			PyErr_Format(PyExc_SystemError, "%s, " BGE_PROXY_ERROR_MSG, error_prefix);
+			PyErr_Format(PyExc_SystemError, "%s, " EXP_PROXY_ERROR_MSG, error_prefix);
 			return false;
 		}
 		
@@ -820,7 +820,7 @@ bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object,
 	return false;
 }
 
-KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
+EXP_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 "getScreenPosition()\n"
 )
 
@@ -874,7 +874,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	return nullptr;
 }
 
-KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
+EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 "getScreenVect()\n"
 )
 {
@@ -918,7 +918,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 	return PyObjectFrom(vect);
 }
 
-KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay,
+EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay,
 "getScreenRay()\n"
 )
 {

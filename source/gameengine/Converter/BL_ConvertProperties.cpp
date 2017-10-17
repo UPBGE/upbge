@@ -71,7 +71,7 @@ void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventMan
 {
 	
 	bProperty* prop = (bProperty*)object->prop.first;
-	CValue* propval;
+	EXP_Value* propval;
 	bool show_debug_info;
 
 	while (prop) {
@@ -81,14 +81,14 @@ void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventMan
 		switch (prop->type) {
 			case GPROP_BOOL:
 			{
-				propval = new CBoolValue((bool)(prop->data != 0));
+				propval = new EXP_BoolValue((bool)(prop->data != 0));
 				gameobj->SetProperty(prop->name,propval);
 				//promp->poin= &prop->data;
 				break;
 			}
 			case GPROP_INT:
 			{
-				propval = new CIntValue((int)prop->data);
+				propval = new EXP_IntValue((int)prop->data);
 				gameobj->SetProperty(prop->name,propval);
 				break;
 			}
@@ -96,14 +96,14 @@ void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventMan
 			{
 				//prop->poin= &prop->data;
 				float floatprop = *((float*)&prop->data);
-				propval = new CFloatValue(floatprop);
+				propval = new EXP_FloatValue(floatprop);
 				gameobj->SetProperty(prop->name,propval);
 			}
 			break;
 			case GPROP_STRING:
 			{
 				//prop->poin= callocN(MAX_PROPSTRING, "property string");
-				propval = new CStringValue((char*)prop->poin,"");
+				propval = new EXP_StringValue((char*)prop->poin,"");
 				gameobj->SetProperty(prop->name,propval);
 				break;
 			}
@@ -111,11 +111,11 @@ void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventMan
 			{
 				float floatprop = *((float*)&prop->data);
 
-				CValue* timeval = new CFloatValue(floatprop);
+				EXP_Value* timeval = new EXP_FloatValue(floatprop);
 				// set a subproperty called 'timer' so that 
 				// we can register the replica of this property 
 				// at the time a game object is replicated (AddObjectActuator triggers this)
-				CValue *bval = new CBoolValue(true);
+				EXP_Value *bval = new EXP_BoolValue(true);
 				timeval->SetProperty("timer",bval);
 				bval->Release();
 				if (isInActiveLayer)
@@ -180,7 +180,7 @@ void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventMan
 
 void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEventManager* timemgr,SCA_IScene* scene, bool isInActiveLayer)
 {
-	CValue* tprop = fontobj->GetProperty("Text");
+	EXP_Value* tprop = fontobj->GetProperty("Text");
 	if (!tprop) return;
 	bProperty* prop = BKE_bproperty_object_get(object, "Text");
 	if (!prop) return;
@@ -188,33 +188,33 @@ void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEvent
 	Curve *curve = static_cast<Curve *>(object->data);
 	const std::string str = curve->str;
 	std::stringstream stream(str);
-	CValue* propval = nullptr;
+	EXP_Value* propval = nullptr;
 
 	switch (prop->type) {
 		case GPROP_BOOL:
 		{
 			bool value;
 			stream >> value;
-			propval = new CBoolValue(value != 0);
+			propval = new EXP_BoolValue(value != 0);
 			break;
 		}
 		case GPROP_INT:
 		{
 			int value;
 			stream >> value;
-			propval = new CIntValue(value);
+			propval = new EXP_IntValue(value);
 			break;
 		}
 		case GPROP_FLOAT:
 		{
 			float floatprop;
 			stream >> floatprop;
-			propval = new CFloatValue(floatprop);
+			propval = new EXP_FloatValue(floatprop);
 			break;
 		}
 		case GPROP_STRING:
 		{
-			propval = new CStringValue(str, "");
+			propval = new EXP_StringValue(str, "");
 			break;
 		}
 		case GPROP_TIME:
@@ -222,11 +222,11 @@ void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEvent
 			float floatprop;
 			stream >> floatprop;
 
-			propval = new CFloatValue(floatprop);
+			propval = new EXP_FloatValue(floatprop);
 			// set a subproperty called 'timer' so that
 			// we can register the replica of this property
 			// at the time a game object is replicated (AddObjectActuator triggers this)
-			CValue *bval = new CBoolValue(true);
+			EXP_Value *bval = new EXP_BoolValue(true);
 			propval->SetProperty("timer",bval);
 			bval->Release();
 			if (isInActiveLayer)

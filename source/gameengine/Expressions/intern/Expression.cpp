@@ -1,7 +1,7 @@
 /** \file gameengine/Expressions/Expression.cpp
  *  \ingroup expressions
  */
-// Expression.cpp: implementation of the CExpression class.
+// Expression.cpp: implementation of the EXP_Expression class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -18,10 +18,10 @@
 #include "EXP_Expression.h"
 #include "EXP_ErrorValue.h"
 
-CExpression::CExpression()
+EXP_Expression::EXP_Expression()
 {
 }
 
-CExpression::~CExpression()
+EXP_Expression::~EXP_Expression()
 {
 }

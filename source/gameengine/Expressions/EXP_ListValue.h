@@ -1,5 +1,5 @@
 /*
- * ListValue.h: interface for the CListValue class.
+ * ListValue.h: interface for the EXP_ListValue class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -27,7 +27,7 @@
 #include <algorithm>
 
 template <class ItemType>
-class CListValue : public CBaseListValue
+class EXP_ListValue : public EXP_BaseListValue
 {
 public:
 	class const_iterator
@@ -51,16 +51,16 @@ public:
 		}
 	};
 
-	CListValue()
+	EXP_ListValue()
 	{
 	}
-	virtual ~CListValue()
+	virtual ~EXP_ListValue()
 	{
 	}
 
-	virtual CListValue<ItemType> *GetReplica()
+	virtual EXP_ListValue<ItemType> *GetReplica()
 	{
-		CListValue<ItemType> *replica = new CListValue<ItemType>(*this);
+		EXP_ListValue<ItemType> *replica = new EXP_ListValue<ItemType>(*this);
 
 		replica->ProcessReplica();
 
@@ -77,17 +77,17 @@ public:
 
 	void Add(ItemType *value)
 	{
-		CBaseListValue::Add(value);
+		EXP_BaseListValue::Add(value);
 	}
 
 	void Insert(unsigned int i, ItemType *value)
 	{
-		CBaseListValue::Insert(i, value);
+		EXP_BaseListValue::Insert(i, value);
 	}
 
 	ItemType *FindIf(std::function<bool (ItemType *)> function)
 	{
-		for (CValue *val : m_pValueArray) {
+		for (EXP_Value *val : m_pValueArray) {
 			ItemType *item = static_cast<ItemType *>(val);
 			if (function(item)) {
 				return item;
@@ -96,7 +96,7 @@ public:
 		return nullptr;
 	}
 
-	void MergeList(CListValue<ItemType> *otherlist)
+	void MergeList(EXP_ListValue<ItemType> *otherlist)
 	{
 		const unsigned int numelements = GetCount();
 		const unsigned int numotherelements = otherlist->GetCount();
@@ -109,34 +109,34 @@ public:
 	}
 	bool CheckEqual(ItemType *first, ItemType *second)
 	{
-		return CBaseListValue::CheckEqual(first, second);
+		return EXP_BaseListValue::CheckEqual(first, second);
 	}
 
 	bool SearchValue(ItemType *val) const
 	{
-		return CBaseListValue::SearchValue(val);
+		return EXP_BaseListValue::SearchValue(val);
 	}
 	ItemType *FindValue(const std::string& name) const
 	{
-		return static_cast<ItemType *>(CBaseListValue::FindValue(name));
+		return static_cast<ItemType *>(EXP_BaseListValue::FindValue(name));
 	}
 
 	/** \note Allow to remove by base class pointer as an upcast from this class type
 	 * to the item type could failed if the pointer is dangling, in example when it was
 	 * just deleted.
 	 */
-	bool RemoveValue(CValue *val)
+	bool RemoveValue(EXP_Value *val)
 	{
-		return CBaseListValue::RemoveValue(val);
+		return EXP_BaseListValue::RemoveValue(val);
 	}
 
 	void SetValue(int i, ItemType *val)
 	{
-		CBaseListValue::SetValue(i, val);
+		EXP_BaseListValue::SetValue(i, val);
 	}
 	ItemType *GetValue(int i)
 	{
-		return static_cast<ItemType *>(CBaseListValue::GetValue(i));
+		return static_cast<ItemType *>(EXP_BaseListValue::GetValue(i));
 	}
 
 	ItemType *GetFront()
@@ -159,13 +159,13 @@ public:
 };
 
 template<class ItemType>
-typename CListValue<ItemType>::const_iterator begin(CListValue<ItemType> *list)
+typename EXP_ListValue<ItemType>::const_iterator begin(EXP_ListValue<ItemType> *list)
 {
 	return list->begin();
 }
 
 template<class ItemType>
-typename CListValue<ItemType>::const_iterator end(CListValue<ItemType> *list)
+typename EXP_ListValue<ItemType>::const_iterator end(EXP_ListValue<ItemType> *list)
 {
 	return list->end();
 }

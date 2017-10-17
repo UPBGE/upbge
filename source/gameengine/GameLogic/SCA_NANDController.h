@@ -41,7 +41,7 @@ class SCA_NANDController : public SCA_IController
 public:
 	SCA_NANDController(SCA_IObject* gameobj);
 	virtual ~SCA_NANDController();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void Trigger(SCA_LogicManager* logicmgr);
 
 	/* --------------------------------------------------------------------- */

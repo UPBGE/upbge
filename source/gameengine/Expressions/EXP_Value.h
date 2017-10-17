@@ -1,5 +1,5 @@
 /*
- * Value.h: interface for the CValue class.
+ * Value.h: interface for the EXP_Value class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -74,9 +74,9 @@ enum VALUE_DATA_TYPE {
 #endif
 
 /**
- * Baseclass CValue
+ * Baseclass EXP_Value
  *
- * Together with CExpression, CValue and it's derived classes can be used to
+ * Together with EXP_Expression, EXP_Value and it's derived classes can be used to
  * parse expressions into a parsetree with error detecting/correcting capabilities
  * also expandable by a CFactory pluginsystem
  *
@@ -93,12 +93,12 @@ enum VALUE_DATA_TYPE {
  * - A helperclass CompressorArchive handles the serialization
  *
  */
-class CValue : public PyObjectPlus, public CM_RefCount<CValue>
+class EXP_Value : public EXP_PyObjectPlus, public CM_RefCount<EXP_Value>
 {
 	Py_Header
 public:
-	CValue();
-	virtual ~CValue();
+	EXP_Value();
+	virtual ~EXP_Value();
 
 #ifdef WITH_PYTHON
 	virtual PyObject *py_repr(void)
@@ -111,21 +111,21 @@ public:
 		return nullptr;
 	}
 
-	virtual CValue *ConvertPythonToValue(PyObject *pyobj, const bool do_type_exception, const char *error_prefix);
+	virtual EXP_Value *ConvertPythonToValue(PyObject *pyobj, const bool do_type_exception, const char *error_prefix);
 
-	static PyObject *pyattr_get_name(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_name(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 	virtual PyObject *ConvertKeysToPython(void);
 #endif  // WITH_PYTHON
 
 	/// Expression Calculation
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);
+	virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
 
 	/// Property Management
 	/// Set property <ioProperty>, overwrites and releases a previous property with the same name if needed.
-	virtual void SetProperty(const std::string& name, CValue *ioProperty);
-	virtual CValue *GetProperty(const std::string & inName);
+	virtual void SetProperty(const std::string& name, EXP_Value *ioProperty);
+	virtual EXP_Value *GetProperty(const std::string & inName);
 	/// Get text description of property with name <inName>, returns an empty string if there is no property named <inName>.
 	const std::string GetPropertyText(const std::string & inName);
 	float GetPropertyNumber(const std::string& inName, float defnumber);
@@ -136,11 +136,11 @@ public:
 	virtual void ClearProperties();
 
 	/// Get property number <inIndex>.
-	virtual CValue *GetProperty(int inIndex);
+	virtual EXP_Value *GetProperty(int inIndex);
 	/// Get the amount of properties assiocated with this value.
 	virtual int GetPropertyCount();
 
-	virtual CValue *FindIdentifier(const std::string& identifiername);
+	virtual EXP_Value *FindIdentifier(const std::string& identifiername);
 
 	virtual std::string GetText();
 	virtual double GetNumber();
@@ -154,8 +154,8 @@ public:
 	/** Sets the value to this cvalue.
 	 * \attention this particular function should never be called. Why not abstract?
 	 */
-	virtual void SetValue(CValue *newval);
-	virtual CValue *GetReplica();
+	virtual void SetValue(EXP_Value *newval);
+	virtual EXP_Value *GetReplica();
 	virtual void ProcessReplica();
 
 	std::string op2str(VALUE_OPERATOR op);
@@ -174,22 +174,22 @@ protected:
 
 private:
 	/// Properties for user/game etc.
-	std::map<std::string, CValue *> *m_pNamedPropertyArray;
+	std::map<std::string, EXP_Value *> *m_pNamedPropertyArray;
 	bool m_error;
 };
 
-/** CPropValue is a CValue derived class, that implements the identification (String name)
+/** EXP_PropValue is a EXP_Value derived class, that implements the identification (String name)
  * SetName() / GetName(),
- * normal classes should derive from CPropValue, real lightweight classes straight from CValue
+ * normal classes should derive from EXP_PropValue, real lightweight classes straight from EXP_Value
  */
-class CPropValue : public CValue
+class EXP_PropValue : public EXP_Value
 {
 public:
-	CPropValue()
+	EXP_PropValue()
 	{
 	}
 
-	virtual ~CPropValue()
+	virtual ~EXP_PropValue()
 	{
 	}
 

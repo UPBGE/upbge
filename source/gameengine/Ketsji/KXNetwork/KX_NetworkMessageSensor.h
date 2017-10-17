@@ -35,9 +35,9 @@
 #include "SCA_ISensor.h"
 
 class KX_NetworkMessageScene;
-class CStringValue;
+class EXP_StringValue;
 template <class ItemType>
-class CListValue;
+class EXP_ListValue;
 
 class KX_NetworkMessageSensor : public SCA_ISensor
 {
@@ -53,8 +53,8 @@ class KX_NetworkMessageSensor : public SCA_ISensor
 
 	bool m_IsUp;
 
-	CListValue<CStringValue> *m_BodyList;
-	CListValue<CStringValue> *m_SubjectList;
+	EXP_ListValue<EXP_StringValue> *m_BodyList;
+	EXP_ListValue<EXP_StringValue> *m_SubjectList;
 
 public:
 	KX_NetworkMessageSensor(
@@ -64,7 +64,7 @@ public:
 	    const std::string &subject);
 	virtual ~KX_NetworkMessageSensor();
 
-	virtual CValue *GetReplica();
+	virtual EXP_Value *GetReplica();
 	virtual bool Evaluate();
 	virtual bool IsPositiveTrigger();
 	virtual void Init();
@@ -82,8 +82,8 @@ public:
 	/* ------------------------------------------------------------- */
 
 	/* attributes */
-	static PyObject *pyattr_get_bodies(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_subjects(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_bodies(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_subjects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif  /* WITH_PYTHON */
 };

@@ -67,7 +67,7 @@ public:
 #endif
 	virtual ~KX_NearSensor(); 
 	virtual void SynchronizeTransform();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void ProcessReplica();
 	virtual void SetPhysCtrlRadius();
 	virtual bool Evaluate();
@@ -88,7 +88,7 @@ public:
 	//No methods
 
 	//This method is used to make sure the distance does not exceed the reset distance
-	static int CheckResetDistance(PyObjectPlus *self, const PyAttributeDef*)
+	static int CheckResetDistance(EXP_PyObjectPlus *self, const PyAttributeDef*)
 	{
 		KX_NearSensor* sensor = reinterpret_cast<KX_NearSensor*>(self);
 

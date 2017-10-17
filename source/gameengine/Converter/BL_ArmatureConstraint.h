@@ -45,7 +45,7 @@ struct bPoseChannel;
 struct Object;
 struct bPose;
 
-class BL_ArmatureConstraint : public CValue
+class BL_ArmatureConstraint : public EXP_Value
 {
 	Py_Header
 
@@ -67,7 +67,7 @@ public:
 						KX_GameObject* subtarget);
 	virtual ~BL_ArmatureConstraint();
 
-	virtual CValue *GetReplica();
+	virtual EXP_Value *GetReplica();
 	void CopyBlenderTargets();
 	void ReParent(BL_ArmatureObject* armature);
 	void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
@@ -106,8 +106,8 @@ public:
 #ifdef WITH_PYTHON
 
 	// Python access
-	static PyObject *py_attr_getattr(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int py_attr_setattr(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *py_attr_getattr(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+	static int py_attr_setattr(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif  /* WITH_PYTHON */
 };
 

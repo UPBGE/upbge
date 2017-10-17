@@ -104,7 +104,7 @@ KX_SteeringActuator::~KX_SteeringActuator()
 		m_target->UnregisterActuator(this);
 } 
 
-CValue* KX_SteeringActuator::GetReplica()
+EXP_Value* KX_SteeringActuator::GetReplica()
 {
 	KX_SteeringActuator* replica = new KX_SteeringActuator(*this);
 	// replication just copy the m_base pointer => common random generator
@@ -524,7 +524,7 @@ void KX_SteeringActuator::HandleActorFace(MT_Vector3& velocity)
 PyTypeObject KX_SteeringActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_SteeringActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -548,24 +548,24 @@ PyMethodDef KX_SteeringActuator::Methods[] = {
 };
 
 PyAttributeDef KX_SteeringActuator::Attributes[] = {
-	KX_PYATTRIBUTE_INT_RW("behavior", KX_STEERING_NODEF+1, KX_STEERING_MAX-1, true, KX_SteeringActuator, m_mode),
-	KX_PYATTRIBUTE_RW_FUNCTION("target", KX_SteeringActuator, pyattr_get_target, pyattr_set_target),
-	KX_PYATTRIBUTE_RW_FUNCTION("navmesh", KX_SteeringActuator, pyattr_get_navmesh, pyattr_set_navmesh),
-	KX_PYATTRIBUTE_FLOAT_RW("distance", 0.0f, 1000.0f, KX_SteeringActuator, m_distance),
-	KX_PYATTRIBUTE_FLOAT_RW("velocity", 0.0f, 1000.0f, KX_SteeringActuator, m_velocity),
-	KX_PYATTRIBUTE_FLOAT_RW("acceleration", 0.0f, 1000.0f, KX_SteeringActuator, m_acceleration),
-	KX_PYATTRIBUTE_FLOAT_RW("turnspeed", 0.0f, 720.0f, KX_SteeringActuator, m_turnspeed),
-	KX_PYATTRIBUTE_BOOL_RW("selfterminated", KX_SteeringActuator, m_isSelfTerminated),
-	KX_PYATTRIBUTE_BOOL_RW("enableVisualization", KX_SteeringActuator, m_enableVisualization),
-	KX_PYATTRIBUTE_RO_FUNCTION("steeringVec", KX_SteeringActuator, pyattr_get_steeringVec),
-	KX_PYATTRIBUTE_SHORT_RW("facingMode", 0, 6, true, KX_SteeringActuator, m_facingMode),
-	KX_PYATTRIBUTE_INT_RW("pathUpdatePeriod", -1, 100000, true, KX_SteeringActuator, m_pathUpdatePeriod),
-	KX_PYATTRIBUTE_BOOL_RW("lockZVelocity", KX_SteeringActuator, m_lockzvel),
-	KX_PYATTRIBUTE_RO_FUNCTION("path", KX_SteeringActuator, pyattr_get_path),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_INT_RW("behavior", KX_STEERING_NODEF+1, KX_STEERING_MAX-1, true, KX_SteeringActuator, m_mode),
+	EXP_PYATTRIBUTE_RW_FUNCTION("target", KX_SteeringActuator, pyattr_get_target, pyattr_set_target),
+	EXP_PYATTRIBUTE_RW_FUNCTION("navmesh", KX_SteeringActuator, pyattr_get_navmesh, pyattr_set_navmesh),
+	EXP_PYATTRIBUTE_FLOAT_RW("distance", 0.0f, 1000.0f, KX_SteeringActuator, m_distance),
+	EXP_PYATTRIBUTE_FLOAT_RW("velocity", 0.0f, 1000.0f, KX_SteeringActuator, m_velocity),
+	EXP_PYATTRIBUTE_FLOAT_RW("acceleration", 0.0f, 1000.0f, KX_SteeringActuator, m_acceleration),
+	EXP_PYATTRIBUTE_FLOAT_RW("turnspeed", 0.0f, 720.0f, KX_SteeringActuator, m_turnspeed),
+	EXP_PYATTRIBUTE_BOOL_RW("selfterminated", KX_SteeringActuator, m_isSelfTerminated),
+	EXP_PYATTRIBUTE_BOOL_RW("enableVisualization", KX_SteeringActuator, m_enableVisualization),
+	EXP_PYATTRIBUTE_RO_FUNCTION("steeringVec", KX_SteeringActuator, pyattr_get_steeringVec),
+	EXP_PYATTRIBUTE_SHORT_RW("facingMode", 0, 6, true, KX_SteeringActuator, m_facingMode),
+	EXP_PYATTRIBUTE_INT_RW("pathUpdatePeriod", -1, 100000, true, KX_SteeringActuator, m_pathUpdatePeriod),
+	EXP_PYATTRIBUTE_BOOL_RW("lockZVelocity", KX_SteeringActuator, m_lockzvel),
+	EXP_PYATTRIBUTE_RO_FUNCTION("path", KX_SteeringActuator, pyattr_get_path),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_SteeringActuator::pyattr_get_target(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_SteeringActuator::pyattr_get_target(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SteeringActuator* actuator = static_cast<KX_SteeringActuator*>(self);
 	if (!actuator->m_target)
@@ -574,7 +574,7 @@ PyObject *KX_SteeringActuator::pyattr_get_target(PyObjectPlus *self, const struc
 		return actuator->m_target->GetProxy();
 }
 
-int KX_SteeringActuator::pyattr_set_target(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_SteeringActuator::pyattr_set_target(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_SteeringActuator* actuator = static_cast<KX_SteeringActuator*>(self);
 	KX_GameObject *gameobj;
@@ -593,7 +593,7 @@ int KX_SteeringActuator::pyattr_set_target(PyObjectPlus *self, const struct KX_P
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_SteeringActuator::pyattr_get_navmesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_SteeringActuator::pyattr_get_navmesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SteeringActuator* actuator = static_cast<KX_SteeringActuator*>(self);
 	if (!actuator->m_navmesh)
@@ -602,7 +602,7 @@ PyObject *KX_SteeringActuator::pyattr_get_navmesh(PyObjectPlus *self, const stru
 		return actuator->m_navmesh->GetProxy();
 }
 
-int KX_SteeringActuator::pyattr_set_navmesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_SteeringActuator::pyattr_set_navmesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_SteeringActuator* actuator = static_cast<KX_SteeringActuator*>(self);
 	KX_GameObject *gameobj;
@@ -626,7 +626,7 @@ int KX_SteeringActuator::pyattr_set_navmesh(PyObjectPlus *self, const struct KX_
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_SteeringActuator::pyattr_get_steeringVec(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_SteeringActuator::pyattr_get_steeringVec(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SteeringActuator* actuator = static_cast<KX_SteeringActuator*>(self);
 	const MT_Vector3& steeringVec = actuator->GetSteeringVec();
@@ -645,9 +645,9 @@ static PyObject *kx_steering_actuator_get_path_item_cb(void *self, int index)
 	return PyObjectFrom(point);
 }
 
-PyObject *KX_SteeringActuator::pyattr_get_path(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_SteeringActuator::pyattr_get_path(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new CListWrapper(self,
+	return (new EXP_ListWrapper(self,
 							((KX_SteeringActuator *)self)->GetProxy(),
 							nullptr,
 							kx_steering_actuator_get_path_size_cb,

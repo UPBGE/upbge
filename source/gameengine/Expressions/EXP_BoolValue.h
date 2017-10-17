@@ -1,5 +1,5 @@
 /*
- * BoolValue.h: interface for the CBoolValue class.
+ * BoolValue.h: interface for the EXP_BoolValue class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -24,26 +24,26 @@
 /** Smart Boolean Value class.
  * Is used by parser when an expression tree is build containing booleans.
  */
-class CBoolValue : public CPropValue
+class EXP_BoolValue : public EXP_PropValue
 {
 public:
 	static const std::string sTrueString;
 	static const std::string sFalseString;
 
-	CBoolValue();
-	CBoolValue(bool inBool);
-	CBoolValue(bool innie, const std::string& name);
+	EXP_BoolValue();
+	EXP_BoolValue(bool inBool);
+	EXP_BoolValue(bool innie, const std::string& name);
 
 	virtual std::string GetText();
 	virtual double GetNumber();
 	virtual int GetValueType();
 	bool GetBool();
-	virtual void SetValue(CValue *newval);
+	virtual void SetValue(EXP_Value *newval);
 
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);
+	virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
 
-	virtual CValue *GetReplica();
+	virtual EXP_Value *GetReplica();
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython();
 #endif

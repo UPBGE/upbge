@@ -161,16 +161,16 @@ Scene *BL_BlenderConverter::GetBlenderSceneForName(const std::string &name)
 	return nullptr;
 }
 
-CListValue<CStringValue> *BL_BlenderConverter::GetInactiveSceneNames()
+EXP_ListValue<EXP_StringValue> *BL_BlenderConverter::GetInactiveSceneNames()
 {
-	CListValue<CStringValue> *list = new CListValue<CStringValue>();
+	EXP_ListValue<EXP_StringValue> *list = new EXP_ListValue<EXP_StringValue>();
 
 	for (Scene *sce = (Scene *)m_maggie->scene.first; sce; sce = (Scene *)sce->id.next) {
 		const char *name = sce->id.name + 2;
 		if (m_ketsjiEngine->CurrentScenes()->FindValue(name)) {
 			continue;
 		}
-		CStringValue *item = new CStringValue(name, name);
+		EXP_StringValue *item = new EXP_StringValue(name, name);
 		list->Add(item);
 	}
 
@@ -589,7 +589,7 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
 	}
 
 	// free all tagged objects
-	CListValue<KX_Scene> *scenes = m_ketsjiEngine->CurrentScenes();
+	EXP_ListValue<KX_Scene> *scenes = m_ketsjiEngine->CurrentScenes();
 	int numScenes = scenes->GetCount();
 
 	for (unsigned int sce_idx = 0; sce_idx < numScenes; ++sce_idx) {
@@ -626,10 +626,10 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
 			}
 
 			// removed tagged objects and meshes
-			CListValue<KX_GameObject> *obj_lists[] = {scene->GetObjectList(), scene->GetInactiveList(), nullptr};
+			EXP_ListValue<KX_GameObject> *obj_lists[] = {scene->GetObjectList(), scene->GetInactiveList(), nullptr};
 
 			for (int ob_ls_idx = 0; obj_lists[ob_ls_idx]; ob_ls_idx++) {
-				CListValue<KX_GameObject> *obs = obj_lists[ob_ls_idx];
+				EXP_ListValue<KX_GameObject> *obs = obj_lists[ob_ls_idx];
 
 				for (int ob_idx = 0; ob_idx < obs->GetCount(); ob_idx++) {
 					KX_GameObject *gameobj = obs->GetValue(ob_idx);

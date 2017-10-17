@@ -66,7 +66,7 @@ class KX_SCA_ReplaceMeshActuator : public SCA_IActuator
 	~KX_SCA_ReplaceMeshActuator(
 	);
 
-		CValue* 
+		EXP_Value* 
 	GetReplica(
 	);
 
@@ -83,10 +83,10 @@ class KX_SCA_ReplaceMeshActuator : public SCA_IActuator
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 
-	static PyObject *pyattr_get_mesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_mesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_mesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_mesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	KX_PYMETHOD_DOC(KX_SCA_ReplaceMeshActuator,instantReplaceMesh);
+	EXP_PYMETHOD_DOC(KX_SCA_ReplaceMeshActuator,instantReplaceMesh);
 
 #endif  /* WITH_PYTHON */
 

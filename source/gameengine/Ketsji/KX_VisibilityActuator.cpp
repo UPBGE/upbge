@@ -55,7 +55,7 @@ KX_VisibilityActuator::~KX_VisibilityActuator(
 	// intentionally empty
 }
 
-CValue*
+EXP_Value*
 KX_VisibilityActuator::GetReplica(
 	void
 	)
@@ -93,7 +93,7 @@ KX_VisibilityActuator::Update()
 PyTypeObject KX_VisibilityActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_VisibilityActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -117,10 +117,10 @@ PyMethodDef KX_VisibilityActuator::Methods[] = {
 };
 
 PyAttributeDef KX_VisibilityActuator::Attributes[] = {
-	KX_PYATTRIBUTE_BOOL_RW("visibility", KX_VisibilityActuator, m_visible),
-	KX_PYATTRIBUTE_BOOL_RW("useOcclusion", KX_VisibilityActuator, m_occlusion),
-	KX_PYATTRIBUTE_BOOL_RW("useRecursion", KX_VisibilityActuator, m_recursive),
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_BOOL_RW("visibility", KX_VisibilityActuator, m_visible),
+	EXP_PYATTRIBUTE_BOOL_RW("useOcclusion", KX_VisibilityActuator, m_occlusion),
+	EXP_PYATTRIBUTE_BOOL_RW("useRecursion", KX_VisibilityActuator, m_recursive),
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
 #endif // WITH_PYTHON

@@ -125,7 +125,7 @@ bool KX_CubeMap::SetupCameraFace(KX_Camera *camera, unsigned short index)
 PyTypeObject KX_CubeMap::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_CubeMap",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -149,7 +149,7 @@ PyMethodDef KX_CubeMap::Methods[] = {
 };
 
 PyAttributeDef KX_CubeMap::Attributes[] = {
-	KX_PYATTRIBUTE_NULL // Sentinel
+	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
 #endif  // WITH_PYTHON

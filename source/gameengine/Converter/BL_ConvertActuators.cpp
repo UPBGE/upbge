@@ -1133,7 +1133,7 @@ void BL_ConvertActuators(const char* maggiename,
 			baseact->SetExecutePriority(executePriority++);
 			uniquename += "#ACT#";
 			uniqueint++;
-			CIntValue* uniqueval = new CIntValue(uniqueint);
+			EXP_IntValue* uniqueval = new EXP_IntValue(uniqueint);
 			uniquename += uniqueval->GetText();
 			uniqueval->Release();
 			baseact->SetName(bact->name);

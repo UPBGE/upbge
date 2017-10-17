@@ -49,7 +49,7 @@ public:
 					  const std::string& actname);
 	
 	virtual ~SCA_ActuatorSensor();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void Init();
 	virtual bool Evaluate();
 	virtual bool	IsPositiveTrigger();
@@ -62,7 +62,7 @@ public:
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 
-	static int CheckActuator(PyObjectPlus *self, const PyAttributeDef*);
+	static int CheckActuator(EXP_PyObjectPlus *self, const PyAttributeDef*);
 	
 #endif  /* WITH_PYTHON */
 };

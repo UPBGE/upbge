@@ -90,7 +90,7 @@ RAS_Deformer *BL_ModifierDeformer::GetReplica()
 
 void BL_ModifierDeformer::ProcessReplica()
 {
-	/* Note! - This is not inherited from PyObjectPlus */
+	/* Note! - This is not inherited from EXP_PyObjectPlus */
 	BL_ShapeDeformer::ProcessReplica();
 	if (m_dm) {
 		// by default try to reuse mesh, deformedOnly is used as a user count

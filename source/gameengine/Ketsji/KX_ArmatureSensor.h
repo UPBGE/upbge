@@ -41,7 +41,7 @@ struct bConstraint;
 class KX_ArmatureSensor : public SCA_ISensor
 {
 	Py_Header
-	//class CExpression*	m_rightexpr;
+	//class EXP_Expression*	m_rightexpr;
 
 protected:
 
@@ -58,7 +58,7 @@ public:
 	 *  so that self references are removed before the sensor itself is released
 	 */
 	virtual ~KX_ArmatureSensor();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void ReParent(SCA_IObject* parent);
 	virtual void Init();
 	virtual bool Evaluate();
@@ -72,7 +72,7 @@ public:
 	/* --------------------------------------------------------------------- */
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
-	static PyObject *pyattr_get_constraint(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_constraint(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif  /* WITH_PYTHON */
 

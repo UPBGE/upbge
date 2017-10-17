@@ -56,7 +56,7 @@ BL_DeformableGameObject::~BL_DeformableGameObject()
 	}
 }
 
-CValue *BL_DeformableGameObject::GetReplica()
+EXP_Value *BL_DeformableGameObject::GetReplica()
 {
 	BL_DeformableGameObject *replica = new BL_DeformableGameObject(*this);
 	replica->ProcessReplica();

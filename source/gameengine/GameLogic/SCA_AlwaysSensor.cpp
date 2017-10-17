@@ -66,9 +66,9 @@ SCA_AlwaysSensor::~SCA_AlwaysSensor()
 
 
 
-CValue* SCA_AlwaysSensor::GetReplica()
+EXP_Value* SCA_AlwaysSensor::GetReplica()
 {
-	CValue* replica = new SCA_AlwaysSensor(*this);//m_float,GetName());
+	EXP_Value* replica = new SCA_AlwaysSensor(*this);//m_float,GetName());
 	// this will copy properties and so on...
 	replica->ProcessReplica();
 
@@ -107,7 +107,7 @@ bool SCA_AlwaysSensor::Evaluate()
 PyTypeObject SCA_AlwaysSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_AlwaysSensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -131,7 +131,7 @@ PyMethodDef SCA_AlwaysSensor::Methods[] = {
 };
 
 PyAttributeDef SCA_AlwaysSensor::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif

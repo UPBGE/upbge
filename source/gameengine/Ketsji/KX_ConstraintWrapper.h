@@ -36,7 +36,7 @@
 
 class PHY_IConstraint;
 
-class	KX_ConstraintWrapper : public CValue
+class	KX_ConstraintWrapper : public EXP_Value
 {
 	Py_Header
 public:
@@ -46,16 +46,16 @@ public:
 	virtual std::string GetName();
 	
 #ifdef WITH_PYTHON
-	KX_PYMETHOD_NOARGS(KX_ConstraintWrapper,GetConstraintId);
-	KX_PYMETHOD(KX_ConstraintWrapper,SetParam);
-	KX_PYMETHOD(KX_ConstraintWrapper,GetParam);
+	EXP_PYMETHOD_NOARGS(KX_ConstraintWrapper,GetConstraintId);
+	EXP_PYMETHOD(KX_ConstraintWrapper,SetParam);
+	EXP_PYMETHOD(KX_ConstraintWrapper,GetParam);
 
-	static PyObject *pyattr_get_constraintId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_constraintType(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_breakingThreshold(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_breakingThreshold(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_enabled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_enabled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_constraintId(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_constraintType(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_breakingThreshold(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_breakingThreshold(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 
 private:

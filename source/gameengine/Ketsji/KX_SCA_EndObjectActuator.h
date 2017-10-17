@@ -53,7 +53,7 @@ class KX_SCA_EndObjectActuator : public SCA_IActuator
 
 	~KX_SCA_EndObjectActuator();
 
-		CValue* 
+		EXP_Value* 
 	GetReplica(
 	);
 

@@ -590,7 +590,7 @@ PyDoc_STRVAR(gPyGetInactiveSceneNames_doc,
 );
 static PyObject *gPyGetInactiveSceneNames(PyObject *self)
 {
-	CListValue<CStringValue> *list = KX_GetActiveEngine()->GetConverter()->GetInactiveSceneNames();
+	EXP_ListValue<EXP_StringValue> *list = KX_GetActiveEngine()->GetConverter()->GetInactiveSceneNames();
 
 	return list->NewProxy(true);
 }
@@ -865,7 +865,7 @@ static PyObject *gPySetBackgroundColor(PyObject *, PyObject *value)
 		PyErr_SetString(PyExc_RuntimeError, "bge.render.SetBackgroundColor(color), World not available");
 		return nullptr;
 	}
-	ShowDeprecationWarning("setBackgroundColor()", "KX_WorldInfo.horizonColor/zenithColor");
+	EXP_ShowDeprecationWarning("setBackgroundColor()", "KX_WorldInfo.horizonColor/zenithColor");
 	wi->setHorizonColor(vec);
 	wi->setZenithColor(vec);
 	Py_RETURN_NONE;
@@ -1085,7 +1085,7 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
 	if (sceneflag != gs->glslflag) {
 		GPU_materials_free();
 		if (KX_GetActiveEngine()) {
-			CListValue<KX_Scene> *scenes = KX_GetActiveEngine()->CurrentScenes();
+			EXP_ListValue<KX_Scene> *scenes = KX_GetActiveEngine()->CurrentScenes();
 
 			for (KX_Scene *scene : scenes) {
 				// temporarily store the glsl settings in the scene for the GLSL materials
@@ -1130,14 +1130,14 @@ static PyObject *gPySetMaterialType(PyObject *,
                                     PyObject *args,
                                     PyObject *)
 {
-	ShowDeprecationWarning("setMaterialMode(mode)", "nothing");
+	EXP_ShowDeprecationWarning("setMaterialMode(mode)", "nothing");
 
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetMaterialType(PyObject *)
 {
-	ShowDeprecationWarning("getMaterialMode()", "nothing");
+	EXP_ShowDeprecationWarning("getMaterialMode()", "nothing");
 
 	return PyLong_FromLong(0);
 }
@@ -1426,7 +1426,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	PyObject *d;
 	PyObject *item; /* temp PyObject *storage */
 
-	PyObjectPlus::ClearDeprecationWarning(); /* Not that nice to call here but makes sure warnings are reset between loading scenes */
+	EXP_PyObjectPlus::ClearDeprecationWarning(); /* Not that nice to call here but makes sure warnings are reset between loading scenes */
 
 	m = PyModule_Create(&GameLogic_module_def);
 	PyDict_SetItemString(PySys_GetObject("modules"), GameLogic_module_def.m_name, m);
@@ -2063,7 +2063,7 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 
 	first_time = false;
 	
-	PyObjectPlus::ClearDeprecationWarning();
+	EXP_PyObjectPlus::ClearDeprecationWarning();
 }
 
 void exitGamePlayerPythonScripting()
@@ -2087,7 +2087,7 @@ void exitGamePlayerPythonScripting()
 	
 	Py_Finalize();
 	bpy_import_main_set(nullptr);
-	PyObjectPlus::ClearDeprecationWarning();
+	EXP_PyObjectPlus::ClearDeprecationWarning();
 }
 
 
@@ -2113,7 +2113,7 @@ void initGamePythonScripting(Main *maggie)
 
 	PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
 
-	PyObjectPlus::NullDeprecationWarning();
+	EXP_PyObjectPlus::NullDeprecationWarning();
 }
 
 void exitGamePythonScripting()
@@ -2134,7 +2134,7 @@ void exitGamePythonScripting()
 
 	restorePySysObjects(); /* get back the original sys.path and clear the backup */
 	bpy_import_main_set(nullptr);
-	PyObjectPlus::ClearDeprecationWarning();
+	EXP_PyObjectPlus::ClearDeprecationWarning();
 }
 
 /* similar to the above functions except it sets up the namespace

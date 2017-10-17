@@ -72,7 +72,7 @@ protected:
 	uint_ptr m_bLastColliderHash;
 
 	SCA_IObject *m_hitObject;
-	CListValue<KX_GameObject> *m_colliders;
+	EXP_ListValue<KX_GameObject> *m_colliders;
 	std::string m_hitMaterial;
 
 public:
@@ -83,7 +83,7 @@ public:
 	                   const std::string& touchedpropname);
 	virtual ~KX_CollisionSensor();
 
-	virtual CValue *GetReplica();
+	virtual EXP_Value *GetReplica();
 	virtual void ProcessReplica();
 	virtual void SynchronizeTransform();
 	virtual bool Evaluate();
@@ -133,8 +133,8 @@ public:
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 
-	static PyObject *pyattr_get_object_hit(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_object_hit_list(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_object_hit(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_object_hit_list(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif
 

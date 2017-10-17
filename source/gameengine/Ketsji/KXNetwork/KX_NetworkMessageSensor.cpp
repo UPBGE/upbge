@@ -68,11 +68,11 @@ KX_NetworkMessageSensor::~KX_NetworkMessageSensor()
 {
 }
 
-CValue *KX_NetworkMessageSensor::GetReplica()
+EXP_Value *KX_NetworkMessageSensor::GetReplica()
 {
 	// This is the standard sensor implementation of GetReplica
 	// There may be more network message sensor specific stuff to do here.
-	CValue *replica = new KX_NetworkMessageSensor(*this);
+	EXP_Value *replica = new KX_NetworkMessageSensor(*this);
 
 	if (replica == nullptr) {
 		return nullptr;
@@ -113,8 +113,8 @@ bool KX_NetworkMessageSensor::Evaluate()
 		std::cout << "KX_NetworkMessageSensor found one or more messages" << std::endl;
 #endif
 		m_IsUp = true;
-		m_BodyList = new CListValue<CStringValue>();
-		m_SubjectList = new CListValue<CStringValue>();
+		m_BodyList = new EXP_ListValue<EXP_StringValue>();
+		m_SubjectList = new EXP_ListValue<EXP_StringValue>();
 	}
 
 	std::vector<KX_NetworkMessageManager::Message>::const_iterator mesit;
@@ -128,9 +128,9 @@ bool KX_NetworkMessageSensor::Evaluate()
 			cout << "body [" << body << "]\n";
 		}
 #endif
-		m_BodyList->Add(new CStringValue(body, "body"));
+		m_BodyList->Add(new EXP_StringValue(body, "body"));
 		// Store Subject
-		m_SubjectList->Add(new CStringValue(messub, "subject"));
+		m_SubjectList->Add(new EXP_StringValue(messub, "subject"));
 	}
 
 	result = (WasUp != m_IsUp);
@@ -162,7 +162,7 @@ bool KX_NetworkMessageSensor::IsPositiveTrigger()
 PyTypeObject KX_NetworkMessageSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_NetworkMessageSensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -186,32 +186,32 @@ PyMethodDef KX_NetworkMessageSensor::Methods[] = {
 };
 
 PyAttributeDef KX_NetworkMessageSensor::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("subject", 0, 100, false, KX_NetworkMessageSensor, m_subject),
-	KX_PYATTRIBUTE_INT_RO("frameMessageCount", KX_NetworkMessageSensor, m_frame_message_count),
-	KX_PYATTRIBUTE_RO_FUNCTION("bodies", KX_NetworkMessageSensor, pyattr_get_bodies),
-	KX_PYATTRIBUTE_RO_FUNCTION("subjects", KX_NetworkMessageSensor, pyattr_get_subjects),
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_STRING_RW("subject", 0, 100, false, KX_NetworkMessageSensor, m_subject),
+	EXP_PYATTRIBUTE_INT_RO("frameMessageCount", KX_NetworkMessageSensor, m_frame_message_count),
+	EXP_PYATTRIBUTE_RO_FUNCTION("bodies", KX_NetworkMessageSensor, pyattr_get_bodies),
+	EXP_PYATTRIBUTE_RO_FUNCTION("subjects", KX_NetworkMessageSensor, pyattr_get_subjects),
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *KX_NetworkMessageSensor::pyattr_get_bodies(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_NetworkMessageSensor::pyattr_get_bodies(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_NetworkMessageSensor *self = static_cast<KX_NetworkMessageSensor *>(self_v);
 	if (self->m_BodyList) {
 		return self->m_BodyList->GetProxy();
 	}
 	else {
-		return (new CListValue<CStringValue>())->NewProxy(true);
+		return (new EXP_ListValue<EXP_StringValue>())->NewProxy(true);
 	}
 }
 
-PyObject *KX_NetworkMessageSensor::pyattr_get_subjects(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_NetworkMessageSensor::pyattr_get_subjects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_NetworkMessageSensor *self = static_cast<KX_NetworkMessageSensor *>(self_v);
 	if (self->m_SubjectList) {
 		return self->m_SubjectList->GetProxy();
 	}
 	else {
-		return (new CListValue<CStringValue>())->NewProxy(true);
+		return (new EXP_ListValue<EXP_StringValue>())->NewProxy(true);
 	}
 }
 

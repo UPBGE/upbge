@@ -1,5 +1,5 @@
 /*
- * ErrorValue.h: interface for the CErrorValue class.
+ * ErrorValue.h: interface for the EXP_ErrorValue class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -21,18 +21,18 @@
 
 #include "EXP_Value.h"
 
-class CErrorValue : public CPropValue
+class EXP_ErrorValue : public EXP_PropValue
 {
 public:
-	CErrorValue();
-	CErrorValue(const std::string& errmsg);
-	virtual ~CErrorValue();
+	EXP_ErrorValue();
+	EXP_ErrorValue(const std::string& errmsg);
+	virtual ~EXP_ErrorValue();
 
 	virtual std::string GetText();
 	virtual int GetValueType();
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual CValue *GetReplica();
+	virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);
+	virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
+	virtual EXP_Value *GetReplica();
 
 private:
 	std::string m_strErrorText;

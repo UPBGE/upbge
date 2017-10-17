@@ -108,7 +108,7 @@ KX_CollisionSensor::KX_CollisionSensor(SCA_EventManager *eventmgr, KX_GameObject
 	m_bCollisionPulse(bCollisionPulse),
 	m_hitMaterial("")
 {
-	m_colliders = new CListValue<KX_GameObject>();
+	m_colliders = new EXP_ListValue<KX_GameObject>();
 
 	KX_ClientObjectInfo *client_info = gameobj->getClientInfo();
 	client_info->m_sensors.push_back(this);
@@ -134,7 +134,7 @@ KX_CollisionSensor::~KX_CollisionSensor()
 	m_colliders->Release();
 }
 
-CValue *KX_CollisionSensor::GetReplica()
+EXP_Value *KX_CollisionSensor::GetReplica()
 {
 	KX_CollisionSensor *replica = new KX_CollisionSensor(*this);
 	replica->ProcessReplica();
@@ -144,7 +144,7 @@ CValue *KX_CollisionSensor::GetReplica()
 void KX_CollisionSensor::ProcessReplica()
 {
 	SCA_ISensor::ProcessReplica();
-	m_colliders = new CListValue<KX_GameObject>();
+	m_colliders = new EXP_ListValue<KX_GameObject>();
 	Init();
 }
 
@@ -287,7 +287,7 @@ bool KX_CollisionSensor::NewHandleCollision(void *object1, void *object2, const 
 PyTypeObject KX_CollisionSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_CollisionSensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -311,18 +311,18 @@ PyMethodDef KX_CollisionSensor::Methods[] = {
 };
 
 PyAttributeDef KX_CollisionSensor::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_CollisionSensor, m_touchedpropname),
-	KX_PYATTRIBUTE_BOOL_RW("useMaterial", KX_CollisionSensor, m_bFindMaterial),
-	KX_PYATTRIBUTE_BOOL_RW("usePulseCollision", KX_CollisionSensor, m_bCollisionPulse),
-	KX_PYATTRIBUTE_STRING_RO("hitMaterial", KX_CollisionSensor, m_hitMaterial),
-	KX_PYATTRIBUTE_RO_FUNCTION("hitObject", KX_CollisionSensor, pyattr_get_object_hit),
-	KX_PYATTRIBUTE_RO_FUNCTION("hitObjectList", KX_CollisionSensor, pyattr_get_object_hit_list),
-	KX_PYATTRIBUTE_NULL    //Sentinel
+	EXP_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_CollisionSensor, m_touchedpropname),
+	EXP_PYATTRIBUTE_BOOL_RW("useMaterial", KX_CollisionSensor, m_bFindMaterial),
+	EXP_PYATTRIBUTE_BOOL_RW("usePulseCollision", KX_CollisionSensor, m_bCollisionPulse),
+	EXP_PYATTRIBUTE_STRING_RO("hitMaterial", KX_CollisionSensor, m_hitMaterial),
+	EXP_PYATTRIBUTE_RO_FUNCTION("hitObject", KX_CollisionSensor, pyattr_get_object_hit),
+	EXP_PYATTRIBUTE_RO_FUNCTION("hitObjectList", KX_CollisionSensor, pyattr_get_object_hit_list),
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
 /* Python API */
 
-PyObject *KX_CollisionSensor::pyattr_get_object_hit(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CollisionSensor::pyattr_get_object_hit(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CollisionSensor *self = static_cast<KX_CollisionSensor *>(self_v);
 
@@ -334,7 +334,7 @@ PyObject *KX_CollisionSensor::pyattr_get_object_hit(PyObjectPlus *self_v, const 
 	}
 }
 
-PyObject *KX_CollisionSensor::pyattr_get_object_hit_list(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CollisionSensor::pyattr_get_object_hit_list(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CollisionSensor *self = static_cast<KX_CollisionSensor *>(self_v);
 	return self->m_colliders->GetProxy();

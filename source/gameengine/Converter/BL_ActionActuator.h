@@ -59,7 +59,7 @@ public:
 
 	virtual ~BL_ActionActuator();
 	virtual	bool Update(double curtime);
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void ProcessReplica();
 	
 	void SetLocalTime(float curtime);
@@ -74,14 +74,14 @@ public:
 
 #ifdef WITH_PYTHON
 
-	static PyObject*	pyattr_get_action(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_action(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_use_continue(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_use_continue(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_frame(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_frame(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_action(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_action(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_use_continue(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_use_continue(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_frame(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_frame(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	static int CheckBlendTime(PyObjectPlus *self, const PyAttributeDef*)
+	static int CheckBlendTime(EXP_PyObjectPlus *self, const PyAttributeDef*)
 	{
 		BL_ActionActuator* act = reinterpret_cast<BL_ActionActuator*>(self);
 
@@ -91,7 +91,7 @@ public:
 		return 0;
 	}
 
-	static int CheckType(PyObjectPlus *self, const PyAttributeDef*)
+	static int CheckType(EXP_PyObjectPlus *self, const PyAttributeDef*)
 	{
 		BL_ActionActuator* act = reinterpret_cast<BL_ActionActuator*>(self);
 

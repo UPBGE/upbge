@@ -1,7 +1,7 @@
 /** \file gameengine/Expressions/StringValue.cpp
  *  \ingroup expressions
  */
-// StringValue.cpp: implementation of the CStringValue class.
+// StringValue.cpp: implementation of the EXP_StringValue class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -19,32 +19,32 @@
 #include "EXP_BoolValue.h"
 #include "EXP_ErrorValue.h"
 
-CStringValue::CStringValue()
+EXP_StringValue::EXP_StringValue()
 	:m_strString("[Illegal String constructor call]")
 {
 }
 
-CStringValue::CStringValue(const std::string& txt, const std::string& name)
+EXP_StringValue::EXP_StringValue(const std::string& txt, const std::string& name)
 	:m_strString(txt)
 {
 	SetName(name);
 }
 
-CValue *CStringValue::Calc(VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_StringValue::Calc(VALUE_OPERATOR op, EXP_Value *val)
 {
 	return val->CalcFinal(VALUE_STRING_TYPE, op, this);
 }
 
-CValue *CStringValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_StringValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val)
 {
-	CValue *ret;
+	EXP_Value *ret;
 
 	if (op == VALUE_ADD_OPERATOR) {
 		if (dtype == VALUE_ERROR_TYPE) {
-			ret = new CErrorValue(val->GetText() + op2str(op) + GetText());
+			ret = new EXP_ErrorValue(val->GetText() + op2str(op) + GetText());
 		}
 		else {
-			ret = new CStringValue(val->GetText() + GetText(), "");
+			ret = new EXP_StringValue(val->GetText() + GetText(), "");
 		}
 	}
 	else {
@@ -52,76 +52,76 @@ CValue *CStringValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue
 			switch (op) {
 				case VALUE_EQL_OPERATOR:
 				{
-					ret = new CBoolValue(val->GetText() == GetText());
+					ret = new EXP_BoolValue(val->GetText() == GetText());
 					break;
 				}
 				case VALUE_NEQ_OPERATOR:
 				{
-					ret = new CBoolValue(val->GetText() != GetText());
+					ret = new EXP_BoolValue(val->GetText() != GetText());
 					break;
 				}
 				case VALUE_GRE_OPERATOR:
 				{
-					ret = new CBoolValue(val->GetText() > GetText());
+					ret = new EXP_BoolValue(val->GetText() > GetText());
 					break;
 				}
 				case VALUE_LES_OPERATOR:
 				{
-					ret = new CBoolValue(val->GetText() < GetText());
+					ret = new EXP_BoolValue(val->GetText() < GetText());
 					break;
 				}
 				case VALUE_GEQ_OPERATOR:
 				{
-					ret = new CBoolValue(val->GetText() >= GetText());
+					ret = new EXP_BoolValue(val->GetText() >= GetText());
 					break;
 				}
 				case VALUE_LEQ_OPERATOR:
 				{
-					ret = new CBoolValue(val->GetText() <= GetText());
+					ret = new EXP_BoolValue(val->GetText() <= GetText());
 					break;
 				}
 				default:
 				{
-					ret =  new CErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
+					ret =  new EXP_ErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
 					break;
 				}
 			}
 		}
 		else {
-			ret =  new CErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
+			ret =  new EXP_ErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
 		}
 	}
 	return ret;
 }
 
-void CStringValue::SetValue(CValue *newval)
+void EXP_StringValue::SetValue(EXP_Value *newval)
 {
 	m_strString = newval->GetText();
 }
 
-double CStringValue::GetNumber()
+double EXP_StringValue::GetNumber()
 {
 	return -1;
 }
 
-int CStringValue::GetValueType()
+int EXP_StringValue::GetValueType()
 {
 	return VALUE_STRING_TYPE;
 }
 
-std::string CStringValue::GetText()
+std::string EXP_StringValue::GetText()
 {
 	return m_strString;
 }
 
-bool CStringValue::IsEqual(const std::string & other)
+bool EXP_StringValue::IsEqual(const std::string & other)
 {
 	return (m_strString == other);
 }
 
-CValue *CStringValue::GetReplica()
+EXP_Value *EXP_StringValue::GetReplica()
 {
-	CStringValue *replica = new CStringValue(*this);
+	EXP_StringValue *replica = new EXP_StringValue(*this);
 	replica->ProcessReplica();
 	return replica;
 }

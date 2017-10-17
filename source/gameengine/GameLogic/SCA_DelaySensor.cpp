@@ -73,9 +73,9 @@ SCA_DelaySensor::~SCA_DelaySensor()
 	/* intentionally empty */
 }
 
-CValue* SCA_DelaySensor::GetReplica()
+EXP_Value* SCA_DelaySensor::GetReplica()
 {
-	CValue* replica = new SCA_DelaySensor(*this);
+	EXP_Value* replica = new SCA_DelaySensor(*this);
 	// this will copy properties and so on...
 	replica->ProcessReplica();
 
@@ -135,7 +135,7 @@ bool SCA_DelaySensor::Evaluate()
 PyTypeObject SCA_DelaySensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_DelaySensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -159,10 +159,10 @@ PyMethodDef SCA_DelaySensor::Methods[] = {
 };
 
 PyAttributeDef SCA_DelaySensor::Attributes[] = {
-	KX_PYATTRIBUTE_INT_RW("delay",0,100000,true,SCA_DelaySensor,m_delay),
-	KX_PYATTRIBUTE_INT_RW("duration",0,100000,true,SCA_DelaySensor,m_duration),
-	KX_PYATTRIBUTE_BOOL_RW("repeat",SCA_DelaySensor,m_repeat),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_INT_RW("delay",0,100000,true,SCA_DelaySensor,m_delay),
+	EXP_PYATTRIBUTE_INT_RW("duration",0,100000,true,SCA_DelaySensor,m_duration),
+	EXP_PYATTRIBUTE_BOOL_RW("repeat",SCA_DelaySensor,m_repeat),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

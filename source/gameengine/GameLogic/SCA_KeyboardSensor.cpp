@@ -88,7 +88,7 @@ void SCA_KeyboardSensor::Init()
 	m_reset = true;
 }
 
-CValue* SCA_KeyboardSensor::GetReplica()
+EXP_Value* SCA_KeyboardSensor::GetReplica()
 {
 	SCA_KeyboardSensor* replica = new SCA_KeyboardSensor(*this);
 	// this will copy properties and so on...
@@ -117,8 +117,8 @@ bool SCA_KeyboardSensor::Evaluate()
 
 	/* See if we need to do logging: togPropState exists and is
 	 * different from 0 */
-	CValue* myparent = GetParent();
-	CValue* togPropState = myparent->GetProperty(m_toggleprop);
+	EXP_Value* myparent = GetParent();
+	EXP_Value* togPropState = myparent->GetProperty(m_toggleprop);
 	if (togPropState &&
 		(((int)togPropState->GetNumber()) != 0) )
 	{
@@ -211,7 +211,7 @@ bool SCA_KeyboardSensor::Evaluate()
 
 void SCA_KeyboardSensor::LogKeystrokes()
 {
-	CValue *tprop = GetParent()->GetProperty(m_targetprop);
+	EXP_Value *tprop = GetParent()->GetProperty(m_targetprop);
 
 	SCA_IInputDevice *inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 
@@ -236,7 +236,7 @@ void SCA_KeyboardSensor::LogKeystrokes()
 		}
 	}
 
-	CStringValue *newstringprop = new CStringValue(converter.to_bytes(proptext), m_targetprop);
+	EXP_StringValue *newstringprop = new EXP_StringValue(converter.to_bytes(proptext), m_targetprop);
 	GetParent()->SetProperty(m_targetprop, newstringprop);
 	newstringprop->Release();
 }
@@ -247,11 +247,11 @@ void SCA_KeyboardSensor::LogKeystrokes()
 /* Python Functions						       */
 /* ------------------------------------------------------------------------- */
 
-KX_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
+EXP_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
 "getKeyStatus(keycode)\n"
 "\tGet the given key's status (NONE, JUSTACTIVATED, ACTIVE or JUSTRELEASED).\n")
 {
-	ShowDeprecationWarning("sensor.getKeyStatus(keycode)", "logic.keyboard.events[keycode]");
+	EXP_ShowDeprecationWarning("sensor.getKeyStatus(keycode)", "logic.keyboard.events[keycode]");
 
 	if (!PyLong_Check(value)) {
 		PyErr_SetString(PyExc_ValueError, "sensor.getKeyStatus(int): Keyboard Sensor, expected an int");
@@ -280,7 +280,7 @@ KX_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
 PyTypeObject SCA_KeyboardSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_KeyboardSensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -300,24 +300,24 @@ PyTypeObject SCA_KeyboardSensor::Type = {
 };
 
 PyMethodDef SCA_KeyboardSensor::Methods[] = {
-	KX_PYMETHODTABLE_O(SCA_KeyboardSensor, getKeyStatus),
+	EXP_PYMETHODTABLE_O(SCA_KeyboardSensor, getKeyStatus),
 	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_KeyboardSensor::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("events", SCA_KeyboardSensor, pyattr_get_events),
-	KX_PYATTRIBUTE_RO_FUNCTION("inputs", SCA_KeyboardSensor, pyattr_get_inputs),
-	KX_PYATTRIBUTE_BOOL_RW("useAllKeys",SCA_KeyboardSensor,m_bAllKeys),
-	KX_PYATTRIBUTE_INT_RW("key",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_hotkey),
-	KX_PYATTRIBUTE_SHORT_RW("hold1",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_qual),
-	KX_PYATTRIBUTE_SHORT_RW("hold2",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_qual2),
-	KX_PYATTRIBUTE_STRING_RW("toggleProperty",0,MAX_PROP_NAME,false,SCA_KeyboardSensor,m_toggleprop),
-	KX_PYATTRIBUTE_STRING_RW("targetProperty",0,MAX_PROP_NAME,false,SCA_KeyboardSensor,m_targetprop),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("events", SCA_KeyboardSensor, pyattr_get_events),
+	EXP_PYATTRIBUTE_RO_FUNCTION("inputs", SCA_KeyboardSensor, pyattr_get_inputs),
+	EXP_PYATTRIBUTE_BOOL_RW("useAllKeys",SCA_KeyboardSensor,m_bAllKeys),
+	EXP_PYATTRIBUTE_INT_RW("key",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_hotkey),
+	EXP_PYATTRIBUTE_SHORT_RW("hold1",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_qual),
+	EXP_PYATTRIBUTE_SHORT_RW("hold2",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_qual2),
+	EXP_PYATTRIBUTE_STRING_RW("toggleProperty",0,MAX_PROP_NAME,false,SCA_KeyboardSensor,m_toggleprop),
+	EXP_PYATTRIBUTE_STRING_RW("targetProperty",0,MAX_PROP_NAME,false,SCA_KeyboardSensor,m_targetprop),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 
-PyObject *SCA_KeyboardSensor::pyattr_get_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_KeyboardSensor::pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_KeyboardSensor* self = static_cast<SCA_KeyboardSensor*>(self_v);
 
@@ -340,11 +340,11 @@ PyObject *SCA_KeyboardSensor::pyattr_get_inputs(PyObjectPlus *self_v, const KX_P
 	return dict;
 }
 
-PyObject *SCA_KeyboardSensor::pyattr_get_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_KeyboardSensor::pyattr_get_events(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_KeyboardSensor* self = static_cast<SCA_KeyboardSensor*>(self_v);
 
-	ShowDeprecationWarning("sensor.events", "sensor.inputs");
+	EXP_ShowDeprecationWarning("sensor.events", "sensor.inputs");
 
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)self->m_eventmgr)->GetInputDevice();
 

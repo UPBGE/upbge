@@ -1,11 +1,11 @@
-SCA_IObject(EXP_Value)
-===================
+EXP_PropValue(EXP_Value)
+==================
 
 .. module:: bge.types
 
 base class --- :class:`EXP_Value`
 
-.. class:: SCA_IObject(EXP_Value)
+.. class:: EXP_PropValue(EXP_Value)
 
    This class has no python functions
 

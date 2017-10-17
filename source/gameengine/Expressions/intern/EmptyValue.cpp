@@ -2,7 +2,7 @@
  *  \ingroup expressions
  */
 
-// EmptyValue.cpp: implementation of the CEmptyValue class.
+// EmptyValue.cpp: implementation of the EXP_EmptyValue class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -18,42 +18,42 @@
 
 #include "EXP_EmptyValue.h"
 
-CEmptyValue::CEmptyValue()
+EXP_EmptyValue::EXP_EmptyValue()
 {
 }
 
-CEmptyValue::~CEmptyValue()
+EXP_EmptyValue::~EXP_EmptyValue()
 {
 }
 
-CValue *CEmptyValue::Calc(VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_EmptyValue::Calc(VALUE_OPERATOR op, EXP_Value *val)
 {
 	return val->CalcFinal(VALUE_EMPTY_TYPE, op, this);
 }
 
-CValue *CEmptyValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_EmptyValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val)
 {
 	return val->AddRef();
 }
 
-double CEmptyValue::GetNumber()
+double EXP_EmptyValue::GetNumber()
 {
 	return 0.0;
 }
 
-int CEmptyValue::GetValueType()
+int EXP_EmptyValue::GetValueType()
 {
 	return VALUE_EMPTY_TYPE;
 }
 
-std::string CEmptyValue::GetText()
+std::string EXP_EmptyValue::GetText()
 {
 	return "";
 }
 
-CValue *CEmptyValue::GetReplica()
+EXP_Value *EXP_EmptyValue::GetReplica()
 {
-	CEmptyValue *replica = new CEmptyValue(*this);
+	EXP_EmptyValue *replica = new EXP_EmptyValue(*this);
 	replica->ProcessReplica();
 	return replica;
 }

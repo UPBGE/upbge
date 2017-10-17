@@ -90,7 +90,7 @@ KX_NavMeshObject::~KX_NavMeshObject()
 		delete m_navMesh;
 }
 
-CValue* KX_NavMeshObject::GetReplica()
+EXP_Value* KX_NavMeshObject::GetReplica()
 {
 	KX_NavMeshObject* replica = new KX_NavMeshObject(*this);
 	replica->ProcessReplica();
@@ -658,7 +658,7 @@ void KX_NavMeshObject::DrawPath(const float *path, int pathLen, const MT_Vector4
 PyTypeObject KX_NavMeshObject::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_NavMeshObject",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -681,19 +681,19 @@ PyTypeObject KX_NavMeshObject::Type = {
 };
 
 PyAttributeDef KX_NavMeshObject::Attributes[] = {
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
-//KX_PYMETHODTABLE_NOARGS(KX_GameObject, getD),
+//EXP_PYMETHODTABLE_NOARGS(KX_GameObject, getD),
 PyMethodDef KX_NavMeshObject::Methods[] = {
-	KX_PYMETHODTABLE(KX_NavMeshObject, findPath),
-	KX_PYMETHODTABLE(KX_NavMeshObject, raycast),
-	KX_PYMETHODTABLE(KX_NavMeshObject, draw),
-	KX_PYMETHODTABLE(KX_NavMeshObject, rebuild),
+	EXP_PYMETHODTABLE(KX_NavMeshObject, findPath),
+	EXP_PYMETHODTABLE(KX_NavMeshObject, raycast),
+	EXP_PYMETHODTABLE(KX_NavMeshObject, draw),
+	EXP_PYMETHODTABLE(KX_NavMeshObject, rebuild),
 	{nullptr,nullptr} //Sentinel
 };
 
-KX_PYMETHODDEF_DOC(KX_NavMeshObject, findPath,
+EXP_PYMETHODDEF_DOC(KX_NavMeshObject, findPath,
 				   "findPath(start, goal): find path from start to goal points\n"
 				   "Returns a path as list of points)\n")
 {
@@ -716,7 +716,7 @@ KX_PYMETHODDEF_DOC(KX_NavMeshObject, findPath,
 	return pathList;
 }
 
-KX_PYMETHODDEF_DOC(KX_NavMeshObject, raycast,
+EXP_PYMETHODDEF_DOC(KX_NavMeshObject, raycast,
 				   "raycast(start, goal): raycast from start to goal points\n"
 				   "Returns hit factor)\n")
 {
@@ -730,7 +730,7 @@ KX_PYMETHODDEF_DOC(KX_NavMeshObject, raycast,
 	return PyFloat_FromDouble(hit);
 }
 
-KX_PYMETHODDEF_DOC(KX_NavMeshObject, draw,
+EXP_PYMETHODDEF_DOC(KX_NavMeshObject, draw,
 				   "draw(mode): navigation mesh debug drawing\n"
 				   "mode: WALLS, POLYS, TRIS\n")
 {
@@ -742,7 +742,7 @@ KX_PYMETHODDEF_DOC(KX_NavMeshObject, draw,
 	Py_RETURN_NONE;
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_NavMeshObject, rebuild,
+EXP_PYMETHODDEF_DOC_NOARGS(KX_NavMeshObject, rebuild,
 						  "rebuild(): rebuild navigation mesh\n")
 {
 	BuildNavMesh();

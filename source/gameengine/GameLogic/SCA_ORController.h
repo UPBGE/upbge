@@ -42,7 +42,7 @@ public:
 	SCA_ORController(SCA_IObject* gameobj);
 
 	virtual ~SCA_ORController();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void Trigger(SCA_LogicManager* logicmgr);
 };
 

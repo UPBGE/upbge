@@ -1,7 +1,7 @@
 /** \file gameengine/Expressions/Operator2Expr.cpp
  *  \ingroup expressions
  */
-// Operator2Expr.cpp: implementation of the COperator2Expr class.
+// Operator2Expr.cpp: implementation of the EXP_Operator2Expr class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -18,20 +18,20 @@
 #include "EXP_Operator2Expr.h"
 #include "EXP_StringValue.h"
 
-COperator2Expr::COperator2Expr(VALUE_OPERATOR op, CExpression *lhs, CExpression *rhs)
+EXP_Operator2Expr::EXP_Operator2Expr(VALUE_OPERATOR op, EXP_Expression *lhs, EXP_Expression *rhs)
 	:m_rhs(rhs),
 	m_lhs(lhs),
 	m_op(op)
 {
 }
 
-COperator2Expr::COperator2Expr() :
+EXP_Operator2Expr::EXP_Operator2Expr() :
 	m_rhs(nullptr),
 	m_lhs(nullptr)
 {
 }
 
-COperator2Expr::~COperator2Expr()
+EXP_Operator2Expr::~EXP_Operator2Expr()
 {
 	if (m_lhs) {
 		m_lhs->Release();
@@ -41,18 +41,18 @@ COperator2Expr::~COperator2Expr()
 	}
 }
 
-unsigned char COperator2Expr::GetExpressionID()
+unsigned char EXP_Operator2Expr::GetExpressionID()
 {
 	return COPERATOR2EXPRESSIONID;
 }
 
-CValue *COperator2Expr::Calculate()
+EXP_Value *EXP_Operator2Expr::Calculate()
 {
 
-	CValue *ffleft = m_lhs->Calculate();
-	CValue *ffright = m_rhs->Calculate();
+	EXP_Value *ffleft = m_lhs->Calculate();
+	EXP_Value *ffright = m_rhs->Calculate();
 
-	CValue *calculate = ffleft->Calc(m_op, ffright);
+	EXP_Value *calculate = ffleft->Calc(m_op, ffright);
 
 	ffleft->Release();
 	ffright->Release();

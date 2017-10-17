@@ -54,8 +54,8 @@ std::string KX_BoundingBox::GetText()
 
 bool KX_BoundingBox::IsValidOwner()
 {
-	if (!BGE_PROXY_REF(m_proxy)) {
-		PyErr_SetString(PyExc_SystemError, "KX_BoundingBox, " BGE_PROXY_ERROR_MSG);
+	if (!EXP_PROXY_REF(m_proxy)) {
+		PyErr_SetString(PyExc_SystemError, "KX_BoundingBox, " EXP_PROXY_ERROR_MSG);
 		return false;
 	}
 	return true;
@@ -127,7 +127,7 @@ static unsigned char mathutils_kxboundingbox_vector_cb_index = -1; /* index for 
 
 static int mathutils_kxboundingbox_generic_check(BaseMathObject *bmo)
 {
-	KX_BoundingBox *self = static_cast<KX_BoundingBox *>BGE_PROXY_REF(bmo->cb_user);
+	KX_BoundingBox *self = static_cast<KX_BoundingBox *>EXP_PROXY_REF(bmo->cb_user);
 	if (!self)
 		return -1;
 
@@ -136,7 +136,7 @@ static int mathutils_kxboundingbox_generic_check(BaseMathObject *bmo)
 
 static int mathutils_kxboundingbox_vector_get(BaseMathObject *bmo, int subtype)
 {
-	KX_BoundingBox *self = static_cast<KX_BoundingBox *>BGE_PROXY_REF(bmo->cb_user);
+	KX_BoundingBox *self = static_cast<KX_BoundingBox *>EXP_PROXY_REF(bmo->cb_user);
 	if (!self)
 		return -1;
 
@@ -158,7 +158,7 @@ static int mathutils_kxboundingbox_vector_get(BaseMathObject *bmo, int subtype)
 
 static int mathutils_kxboundingbox_vector_set(BaseMathObject *bmo, int subtype)
 {
-	KX_BoundingBox *self = static_cast<KX_BoundingBox *>BGE_PROXY_REF(bmo->cb_user);
+	KX_BoundingBox *self = static_cast<KX_BoundingBox *>EXP_PROXY_REF(bmo->cb_user);
 	if (!self)
 		return -1;
 
@@ -223,7 +223,7 @@ void KX_BoundingBox_Mathutils_Callback_Init()
 PyTypeObject KX_BoundingBox::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_BoundingBox",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -237,7 +237,7 @@ PyTypeObject KX_BoundingBox::Type = {
 	Methods,
 	0,
 	0,
-	&PyObjectPlus::Type,
+	&EXP_PyObjectPlus::Type,
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
@@ -247,15 +247,15 @@ PyMethodDef KX_BoundingBox::Methods[] = {
 };
 
 PyAttributeDef KX_BoundingBox::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("min", KX_BoundingBox, pyattr_get_min, pyattr_set_min),
-	KX_PYATTRIBUTE_RW_FUNCTION("max", KX_BoundingBox, pyattr_get_max, pyattr_set_max),
-	KX_PYATTRIBUTE_RO_FUNCTION("center", KX_BoundingBox, pyattr_get_center),
-	KX_PYATTRIBUTE_RO_FUNCTION("radius", KX_BoundingBox, pyattr_get_radius),
-	KX_PYATTRIBUTE_RW_FUNCTION("autoUpdate", KX_BoundingBox, pyattr_get_auto_update, pyattr_set_auto_update),
-	KX_PYATTRIBUTE_NULL // Sentinel
+	EXP_PYATTRIBUTE_RW_FUNCTION("min", KX_BoundingBox, pyattr_get_min, pyattr_set_min),
+	EXP_PYATTRIBUTE_RW_FUNCTION("max", KX_BoundingBox, pyattr_get_max, pyattr_set_max),
+	EXP_PYATTRIBUTE_RO_FUNCTION("center", KX_BoundingBox, pyattr_get_center),
+	EXP_PYATTRIBUTE_RO_FUNCTION("radius", KX_BoundingBox, pyattr_get_radius),
+	EXP_PYATTRIBUTE_RW_FUNCTION("autoUpdate", KX_BoundingBox, pyattr_get_auto_update, pyattr_set_auto_update),
+	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-PyObject *KX_BoundingBox::pyattr_get_min(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_BoundingBox::pyattr_get_min(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
@@ -264,14 +264,14 @@ PyObject *KX_BoundingBox::pyattr_get_min(PyObjectPlus *self_v, const KX_PYATTRIB
 
 #ifdef USE_MATHUTILS
 	return Vector_CreatePyObject_cb(
-	        BGE_PROXY_FROM_REF_BORROW(self_v), 3,
+	        EXP_PROXY_FROM_REF_BORROW(self_v), 3,
 	        mathutils_kxboundingbox_vector_cb_index, MATHUTILS_VEC_CB_BOX_MIN);
 #else
 	return PyObjectFrom(self->GetMin());
 #endif  // USE_MATHUTILS
 }
 
-int KX_BoundingBox::pyattr_set_min(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_BoundingBox::pyattr_set_min(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
@@ -290,7 +290,7 @@ int KX_BoundingBox::pyattr_set_min(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DE
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_BoundingBox::pyattr_get_max(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_BoundingBox::pyattr_get_max(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
@@ -299,14 +299,14 @@ PyObject *KX_BoundingBox::pyattr_get_max(PyObjectPlus *self_v, const KX_PYATTRIB
 
 #ifdef USE_MATHUTILS
 	return Vector_CreatePyObject_cb(
-	        BGE_PROXY_FROM_REF_BORROW(self_v), 3,
+	        EXP_PROXY_FROM_REF_BORROW(self_v), 3,
 	        mathutils_kxboundingbox_vector_cb_index, MATHUTILS_VEC_CB_BOX_MAX);
 #else
 	return PyObjectFrom(self->GetMax());
 #endif  // USE_MATHUTILS
 }
 
-int KX_BoundingBox::pyattr_set_max(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_BoundingBox::pyattr_set_max(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
@@ -325,7 +325,7 @@ int KX_BoundingBox::pyattr_set_max(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DE
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_BoundingBox::pyattr_get_center(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_BoundingBox::pyattr_get_center(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
@@ -335,7 +335,7 @@ PyObject *KX_BoundingBox::pyattr_get_center(PyObjectPlus *self_v, const KX_PYATT
 	return PyObjectFrom(self->GetCenter());
 }
 
-PyObject *KX_BoundingBox::pyattr_get_radius(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_BoundingBox::pyattr_get_radius(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
@@ -345,7 +345,7 @@ PyObject *KX_BoundingBox::pyattr_get_radius(PyObjectPlus *self_v, const KX_PYATT
 	return PyFloat_FromDouble(self->GetRadius());
 }
 
-PyObject *KX_BoundingBox::pyattr_get_auto_update(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_BoundingBox::pyattr_get_auto_update(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
@@ -355,7 +355,7 @@ PyObject *KX_BoundingBox::pyattr_get_auto_update(PyObjectPlus *self_v, const KX_
 	return PyBool_FromLong(self->m_owner->GetAutoUpdateBounds());
 }
 
-int KX_BoundingBox::pyattr_set_auto_update(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_BoundingBox::pyattr_set_auto_update(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {

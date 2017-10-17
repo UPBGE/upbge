@@ -71,6 +71,6 @@ public:
 
 	void SetScene(SCA_IScene *scene, RAS_2DFilterManager *filterManager);
 
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 };
 #endif

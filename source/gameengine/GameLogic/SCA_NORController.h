@@ -41,7 +41,7 @@ class SCA_NORController : public SCA_IController
 public:
 	SCA_NORController(SCA_IObject* gameobj);
 	virtual ~SCA_NORController();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void Trigger(SCA_LogicManager* logicmgr);
 };
 

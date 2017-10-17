@@ -112,7 +112,7 @@ KX_FontObject::~KX_FontObject()
 	//it's handled in KX_Scene::NewRemoveObject
 }
 
-CValue *KX_FontObject::GetReplica()
+EXP_Value *KX_FontObject::GetReplica()
 {
 	KX_FontObject *replica = new KX_FontObject(*this);
 	replica->ProcessReplica();
@@ -196,7 +196,7 @@ void KX_FontObject::SetText(const std::string& text)
 void KX_FontObject::UpdateTextFromProperty()
 {
 	// Allow for some logic brick control
-	CValue *prop = GetProperty("Text");
+	EXP_Value *prop = GetProperty("Text");
 	if (prop && prop->GetText() != m_text) {
 		SetText(prop->GetText());
 	}
@@ -297,7 +297,7 @@ int GetFontId(VFont *vfont)
 PyTypeObject KX_FontObject::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_FontObject",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -327,21 +327,21 @@ PyMethodDef KX_FontObject::Methods[] = {
 };
 
 PyAttributeDef KX_FontObject::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("text", KX_FontObject, pyattr_get_text, pyattr_set_text),
-	KX_PYATTRIBUTE_RO_FUNCTION("dimensions", KX_FontObject, pyattr_get_dimensions),
-	KX_PYATTRIBUTE_FLOAT_RW("size", 0.0001f, 40.0f, KX_FontObject, m_fsize),
-	KX_PYATTRIBUTE_FLOAT_RW("resolution", 0.1f, 50.0f, KX_FontObject, m_resolution),
-	/* KX_PYATTRIBUTE_INT_RW("dpi", 0, 10000, false, KX_FontObject, m_dpi), */// no real need for expose this I think
-	KX_PYATTRIBUTE_NULL    //Sentinel
+	EXP_PYATTRIBUTE_RW_FUNCTION("text", KX_FontObject, pyattr_get_text, pyattr_set_text),
+	EXP_PYATTRIBUTE_RO_FUNCTION("dimensions", KX_FontObject, pyattr_get_dimensions),
+	EXP_PYATTRIBUTE_FLOAT_RW("size", 0.0001f, 40.0f, KX_FontObject, m_fsize),
+	EXP_PYATTRIBUTE_FLOAT_RW("resolution", 0.1f, 50.0f, KX_FontObject, m_resolution),
+	/* EXP_PYATTRIBUTE_INT_RW("dpi", 0, 10000, false, KX_FontObject, m_dpi), */// no real need for expose this I think
+	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
-PyObject *KX_FontObject::pyattr_get_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_FontObject::pyattr_get_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
 	return PyUnicode_FromStdString(self->m_text);
 }
 
-int KX_FontObject::pyattr_set_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_FontObject::pyattr_set_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
 	if (!PyUnicode_Check(value))
@@ -349,9 +349,9 @@ int KX_FontObject::pyattr_set_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DE
 	const char *chars = _PyUnicode_AsString(value);
 
 	/* Allow for some logic brick control */
-	CValue *tprop = self->GetProperty("Text");
+	EXP_Value *tprop = self->GetProperty("Text");
 	if (tprop) {
-		CValue *newstringprop = new CStringValue(std::string(chars), "Text");
+		EXP_Value *newstringprop = new EXP_StringValue(std::string(chars), "Text");
 		self->SetProperty("Text", newstringprop);
 		newstringprop->Release();
 	}
@@ -362,7 +362,7 @@ int KX_FontObject::pyattr_set_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DE
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_FontObject::pyattr_get_dimensions(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_FontObject::pyattr_get_dimensions(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
 	return PyObjectFrom(self->GetTextDimensions());

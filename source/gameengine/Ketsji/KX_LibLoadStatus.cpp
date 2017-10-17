@@ -137,19 +137,19 @@ PyMethodDef KX_LibLoadStatus::Methods[] = {
 };
 
 PyAttributeDef KX_LibLoadStatus::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("onFinish", KX_LibLoadStatus, pyattr_get_onfinish, pyattr_set_onfinish),
-	// KX_PYATTRIBUTE_RW_FUNCTION("onProgress", KX_LibLoadStatus, pyattr_get_onprogress, pyattr_set_onprogress),
-	KX_PYATTRIBUTE_FLOAT_RO("progress", KX_LibLoadStatus, m_progress),
-	KX_PYATTRIBUTE_STRING_RO("libraryName", KX_LibLoadStatus, m_libname),
-	KX_PYATTRIBUTE_RO_FUNCTION("timeTaken", KX_LibLoadStatus, pyattr_get_timetaken),
-	KX_PYATTRIBUTE_BOOL_RO("finished", KX_LibLoadStatus, m_finished),
-	KX_PYATTRIBUTE_NULL // Sentinel
+	EXP_PYATTRIBUTE_RW_FUNCTION("onFinish", KX_LibLoadStatus, pyattr_get_onfinish, pyattr_set_onfinish),
+	// EXP_PYATTRIBUTE_RW_FUNCTION("onProgress", KX_LibLoadStatus, pyattr_get_onprogress, pyattr_set_onprogress),
+	EXP_PYATTRIBUTE_FLOAT_RO("progress", KX_LibLoadStatus, m_progress),
+	EXP_PYATTRIBUTE_STRING_RO("libraryName", KX_LibLoadStatus, m_libname),
+	EXP_PYATTRIBUTE_RO_FUNCTION("timeTaken", KX_LibLoadStatus, pyattr_get_timetaken),
+	EXP_PYATTRIBUTE_BOOL_RO("finished", KX_LibLoadStatus, m_finished),
+	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
 PyTypeObject KX_LibLoadStatus::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_LibLoadStatus",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -163,13 +163,13 @@ PyTypeObject KX_LibLoadStatus::Type = {
 	Methods,
 	0,
 	0,
-	&PyObjectPlus::Type,
+	&EXP_PyObjectPlus::Type,
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 
-PyObject *KX_LibLoadStatus::pyattr_get_onfinish(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_LibLoadStatus::pyattr_get_onfinish(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LibLoadStatus *self = static_cast<KX_LibLoadStatus *>(self_v);
 
@@ -181,7 +181,7 @@ PyObject *KX_LibLoadStatus::pyattr_get_onfinish(PyObjectPlus *self_v, const KX_P
 	Py_RETURN_NONE;
 }
 
-int KX_LibLoadStatus::pyattr_set_onfinish(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_LibLoadStatus::pyattr_set_onfinish(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_LibLoadStatus *self = static_cast<KX_LibLoadStatus *>(self_v);
 
@@ -200,7 +200,7 @@ int KX_LibLoadStatus::pyattr_set_onfinish(PyObjectPlus *self_v, const KX_PYATTRI
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_LibLoadStatus::pyattr_get_onprogress(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_LibLoadStatus::pyattr_get_onprogress(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LibLoadStatus *self = static_cast<KX_LibLoadStatus *>(self_v);
 
@@ -212,7 +212,7 @@ PyObject *KX_LibLoadStatus::pyattr_get_onprogress(PyObjectPlus *self_v, const KX
 	Py_RETURN_NONE;
 }
 
-int KX_LibLoadStatus::pyattr_set_onprogress(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_LibLoadStatus::pyattr_set_onprogress(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_LibLoadStatus *self = static_cast<KX_LibLoadStatus *>(self_v);
 
@@ -231,7 +231,7 @@ int KX_LibLoadStatus::pyattr_set_onprogress(PyObjectPlus *self_v, const KX_PYATT
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_LibLoadStatus::pyattr_get_timetaken(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_LibLoadStatus::pyattr_get_timetaken(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LibLoadStatus *self = static_cast<KX_LibLoadStatus *>(self_v);
 

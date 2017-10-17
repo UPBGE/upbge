@@ -96,7 +96,7 @@ void KX_ArmatureSensor::FindConstraint()
 }
 
 
-CValue* KX_ArmatureSensor::GetReplica()
+EXP_Value* KX_ArmatureSensor::GetReplica()
 {
 	KX_ArmatureSensor* replica = new KX_ArmatureSensor(*this);
 	// m_range_expr must be recalculated on replica!
@@ -163,7 +163,7 @@ bool KX_ArmatureSensor::Evaluate()
 PyTypeObject KX_ArmatureSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_ArmatureSensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -187,13 +187,13 @@ PyMethodDef KX_ArmatureSensor::Methods[] = {
 };
 
 PyAttributeDef KX_ArmatureSensor::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("constraint", KX_ArmatureSensor, pyattr_get_constraint),
-	KX_PYATTRIBUTE_FLOAT_RW("value",-FLT_MAX,FLT_MAX,KX_ArmatureSensor,m_value),
-	KX_PYATTRIBUTE_INT_RW("type",0,SENS_ARM_MAXTYPE,false,KX_ArmatureSensor,m_type),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("constraint", KX_ArmatureSensor, pyattr_get_constraint),
+	EXP_PYATTRIBUTE_FLOAT_RW("value",-FLT_MAX,FLT_MAX,KX_ArmatureSensor,m_value),
+	EXP_PYATTRIBUTE_INT_RW("type",0,SENS_ARM_MAXTYPE,false,KX_ArmatureSensor,m_type),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_ArmatureSensor::pyattr_get_constraint(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ArmatureSensor::pyattr_get_constraint(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ArmatureSensor* sensor = static_cast<KX_ArmatureSensor*>(self);
 	if (sensor->m_gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {

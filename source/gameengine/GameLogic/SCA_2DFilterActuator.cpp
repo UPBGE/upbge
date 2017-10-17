@@ -62,7 +62,7 @@ SCA_2DFilterActuator::~SCA_2DFilterActuator()
 {
 }
 
-CValue* SCA_2DFilterActuator::GetReplica()
+EXP_Value* SCA_2DFilterActuator::GetReplica()
 {
 	SCA_2DFilterActuator* replica = new SCA_2DFilterActuator(*this);
 	replica->ProcessReplica();
@@ -157,7 +157,7 @@ void SCA_2DFilterActuator::SetShaderText(const std::string& text)
 PyTypeObject SCA_2DFilterActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_2DFilterActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -182,12 +182,12 @@ PyMethodDef SCA_2DFilterActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_2DFilterActuator::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("shaderText", 0, 64000, false, SCA_2DFilterActuator, m_shaderText),
-	KX_PYATTRIBUTE_SHORT_RW("disableMotionBlur", 0, 1, true, SCA_2DFilterActuator, m_disableMotionBlur),
-	KX_PYATTRIBUTE_ENUM_RW("mode", RAS_2DFilterManager::FILTER_ENABLED, RAS_2DFilterManager::FILTER_NUMBER_OF_FILTERS, false, SCA_2DFilterActuator, m_type),
-KX_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
-	KX_PYATTRIBUTE_FLOAT_RW("value", 0.0, 100.0, SCA_2DFilterActuator, m_float_arg),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_STRING_RW("shaderText", 0, 64000, false, SCA_2DFilterActuator, m_shaderText),
+	EXP_PYATTRIBUTE_SHORT_RW("disableMotionBlur", 0, 1, true, SCA_2DFilterActuator, m_disableMotionBlur),
+	EXP_PYATTRIBUTE_ENUM_RW("mode", RAS_2DFilterManager::FILTER_ENABLED, RAS_2DFilterManager::FILTER_NUMBER_OF_FILTERS, false, SCA_2DFilterActuator, m_type),
+EXP_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
+	EXP_PYATTRIBUTE_FLOAT_RW("value", 0.0, 100.0, SCA_2DFilterActuator, m_float_arg),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif

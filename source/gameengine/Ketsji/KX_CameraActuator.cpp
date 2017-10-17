@@ -73,7 +73,7 @@ KX_CameraActuator::~KX_CameraActuator()
 		m_ob->UnregisterActuator(this);
 }
 
-	CValue* 
+	EXP_Value* 
 KX_CameraActuator::
 GetReplica(
 ) {
@@ -358,7 +358,7 @@ bool KX_CameraActuator::Update(double curtime)
 PyTypeObject KX_CameraActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_CameraActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -382,16 +382,16 @@ PyMethodDef KX_CameraActuator::Methods[] = {
 };
 
 PyAttributeDef KX_CameraActuator::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_RW("min",-FLT_MAX,FLT_MAX,KX_CameraActuator,m_minHeight),
-	KX_PYATTRIBUTE_FLOAT_RW("max",-FLT_MAX,FLT_MAX,KX_CameraActuator,m_maxHeight),
-	KX_PYATTRIBUTE_FLOAT_RW("height",-FLT_MAX,FLT_MAX,KX_CameraActuator,m_height),
-	KX_PYATTRIBUTE_SHORT_RW("axis", 0, 5, true, KX_CameraActuator, m_axis),
-	KX_PYATTRIBUTE_RW_FUNCTION("object", KX_CameraActuator, pyattr_get_object, pyattr_set_object),
-	KX_PYATTRIBUTE_FLOAT_RW("damping",0.f,10.f,KX_CameraActuator,m_damping),
-	KX_PYATTRIBUTE_NULL
+	EXP_PYATTRIBUTE_FLOAT_RW("min",-FLT_MAX,FLT_MAX,KX_CameraActuator,m_minHeight),
+	EXP_PYATTRIBUTE_FLOAT_RW("max",-FLT_MAX,FLT_MAX,KX_CameraActuator,m_maxHeight),
+	EXP_PYATTRIBUTE_FLOAT_RW("height",-FLT_MAX,FLT_MAX,KX_CameraActuator,m_height),
+	EXP_PYATTRIBUTE_SHORT_RW("axis", 0, 5, true, KX_CameraActuator, m_axis),
+	EXP_PYATTRIBUTE_RW_FUNCTION("object", KX_CameraActuator, pyattr_get_object, pyattr_set_object),
+	EXP_PYATTRIBUTE_FLOAT_RW("damping",0.f,10.f,KX_CameraActuator,m_damping),
+	EXP_PYATTRIBUTE_NULL
 };
 
-PyObject *KX_CameraActuator::pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CameraActuator::pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CameraActuator* self = static_cast<KX_CameraActuator*>(self_v);
 	if (self->m_ob==nullptr)
@@ -400,7 +400,7 @@ PyObject *KX_CameraActuator::pyattr_get_object(PyObjectPlus *self_v, const KX_PY
 		return self->m_ob->GetProxy();
 }
 
-int KX_CameraActuator::pyattr_set_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_CameraActuator::pyattr_set_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CameraActuator* self = static_cast<KX_CameraActuator*>(self_v);
 	KX_GameObject *gameobj;

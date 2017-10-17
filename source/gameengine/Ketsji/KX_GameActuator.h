@@ -72,7 +72,7 @@ protected:
 					 KX_KetsjiEngine* ketsjiEngine);
 	virtual ~KX_GameActuator();
 
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 
 	virtual bool Update();
 	

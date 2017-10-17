@@ -1,11 +1,11 @@
-KX_TextureRenderer(CValue)
+KX_TextureRenderer(EXP_Value)
 ==========================
 
 .. module:: bge.types
 
-base class --- :class:`CValue`
+base class --- :class:`EXP_Value`
 
-.. class:: KX_TextureRenderer(CValue)
+.. class:: KX_TextureRenderer(EXP_Value)
 
    Python API for object doing a render stored in a texture.
 

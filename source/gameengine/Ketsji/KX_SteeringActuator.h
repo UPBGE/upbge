@@ -95,7 +95,7 @@ public:
 	virtual ~KX_SteeringActuator();
 	virtual bool Update(double curtime);
 
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void ProcessReplica();
 	virtual void ReParent(SCA_IObject* parent);
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
@@ -109,12 +109,12 @@ public:
 	/* --------------------------------------------------------------------- */
 
 	/* These are used to get and set m_target */
-	static PyObject *pyattr_get_target(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_target(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_navmesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_navmesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_steeringVec(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_path(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_target(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+	static int       pyattr_set_target(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_navmesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+	static int       pyattr_set_navmesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_steeringVec(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_path(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif  /* WITH_PYTHON */
 

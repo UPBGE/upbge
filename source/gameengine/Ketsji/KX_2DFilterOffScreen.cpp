@@ -48,7 +48,7 @@ std::string KX_2DFilterOffScreen::GetName()
 PyTypeObject KX_2DFilterOffScreen::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_2DFilterOffScreen",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -62,7 +62,7 @@ PyTypeObject KX_2DFilterOffScreen::Type = {
 	Methods,
 	0,
 	0,
-	&CValue::Type,
+	&EXP_Value::Type,
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
@@ -72,20 +72,20 @@ PyMethodDef KX_2DFilterOffScreen::Methods[] = {
 };
 
 PyAttributeDef KX_2DFilterOffScreen::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("width", KX_2DFilterOffScreen, pyattr_get_width),
-	KX_PYATTRIBUTE_RO_FUNCTION("height", KX_2DFilterOffScreen, pyattr_get_height),
-	KX_PYATTRIBUTE_RO_FUNCTION("colorBindCodes", KX_2DFilterOffScreen, pyattr_get_colorBindCodes),
-	KX_PYATTRIBUTE_RO_FUNCTION("depthBindCode", KX_2DFilterOffScreen, pyattr_get_depthBindCode),
-	KX_PYATTRIBUTE_NULL // Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("width", KX_2DFilterOffScreen, pyattr_get_width),
+	EXP_PYATTRIBUTE_RO_FUNCTION("height", KX_2DFilterOffScreen, pyattr_get_height),
+	EXP_PYATTRIBUTE_RO_FUNCTION("colorBindCodes", KX_2DFilterOffScreen, pyattr_get_colorBindCodes),
+	EXP_PYATTRIBUTE_RO_FUNCTION("depthBindCode", KX_2DFilterOffScreen, pyattr_get_depthBindCode),
+	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-PyObject *KX_2DFilterOffScreen::pyattr_get_width(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_2DFilterOffScreen::pyattr_get_width(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_2DFilterOffScreen *self = static_cast<KX_2DFilterOffScreen *>(self_v);
 	return PyLong_FromLong(self->GetWidth());
 }
 
-PyObject *KX_2DFilterOffScreen::pyattr_get_height(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_2DFilterOffScreen::pyattr_get_height(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_2DFilterOffScreen *self = static_cast<KX_2DFilterOffScreen *>(self_v);
 	return PyLong_FromLong(self->GetHeight());
@@ -102,11 +102,11 @@ static PyObject *kx_2dfilter_offscreen_get_textures_item_cb(void *self_v, int in
 	return PyLong_FromLong(bindCode);
 }
 
-PyObject *KX_2DFilterOffScreen::pyattr_get_colorBindCodes(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_2DFilterOffScreen::pyattr_get_colorBindCodes(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_2DFilterOffScreen *self = static_cast<KX_2DFilterOffScreen *>(self_v);
 
-	return (new CListWrapper(self_v,
+	return (new EXP_ListWrapper(self_v,
 							 self->GetProxy(),
 							 nullptr,
 							 kx_2dfilter_offscreen_get_textures_size_cb,
@@ -115,7 +115,7 @@ PyObject *KX_2DFilterOffScreen::pyattr_get_colorBindCodes(PyObjectPlus *self_v, 
 							 nullptr))->NewProxy(true);
 }
 
-PyObject *KX_2DFilterOffScreen::pyattr_get_depthBindCode(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_2DFilterOffScreen::pyattr_get_depthBindCode(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_2DFilterOffScreen *self = static_cast<KX_2DFilterOffScreen *>(self_v);
 	return PyLong_FromLong(self->GetDepthBindCode());

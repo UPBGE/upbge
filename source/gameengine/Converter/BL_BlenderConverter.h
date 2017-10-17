@@ -44,7 +44,7 @@
 
 #include "CM_Thread.h"
 
-class CStringValue;
+class EXP_StringValue;
 class BL_BlenderSceneConverter;
 class KX_KetsjiEngine;
 class KX_LibLoadStatus;
@@ -133,7 +133,7 @@ public:
 	BL_InterpolatorList *FindInterpolatorList(KX_Scene *scene, bAction *for_act);
 
 	Scene *GetBlenderSceneForName(const std::string& name);
-	CListValue<CStringValue> *GetInactiveSceneNames();
+	EXP_ListValue<EXP_StringValue> *GetInactiveSceneNames();
 
 	Main *CreateMainDynamic(const std::string& path);
 	Main *GetMainDynamicPath(const std::string& path) const;

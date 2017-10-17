@@ -68,7 +68,7 @@ KX_ParentActuator::~KX_ParentActuator()
 
 
 
-CValue* KX_ParentActuator::GetReplica()
+EXP_Value* KX_ParentActuator::GetReplica()
 {
 	KX_ParentActuator* replica = new KX_ParentActuator(*this);
 	// replication just copy the m_base pointer => common random generator
@@ -140,7 +140,7 @@ bool KX_ParentActuator::Update()
 PyTypeObject KX_ParentActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_ParentActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -164,14 +164,14 @@ PyMethodDef KX_ParentActuator::Methods[] = {
 };
 
 PyAttributeDef KX_ParentActuator::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("object", KX_ParentActuator, pyattr_get_object, pyattr_set_object),
-	KX_PYATTRIBUTE_INT_RW("mode", KX_PARENT_NODEF+1, KX_PARENT_MAX-1, true, KX_ParentActuator, m_mode),
-	KX_PYATTRIBUTE_BOOL_RW("compound", KX_ParentActuator, m_addToCompound),
-	KX_PYATTRIBUTE_BOOL_RW("ghost", KX_ParentActuator, m_ghost),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_RW_FUNCTION("object", KX_ParentActuator, pyattr_get_object, pyattr_set_object),
+	EXP_PYATTRIBUTE_INT_RW("mode", KX_PARENT_NODEF+1, KX_PARENT_MAX-1, true, KX_ParentActuator, m_mode),
+	EXP_PYATTRIBUTE_BOOL_RW("compound", KX_ParentActuator, m_addToCompound),
+	EXP_PYATTRIBUTE_BOOL_RW("ghost", KX_ParentActuator, m_ghost),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_ParentActuator::pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ParentActuator::pyattr_get_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ParentActuator* actuator = static_cast<KX_ParentActuator*>(self);
 	if (!actuator->m_ob)
@@ -180,7 +180,7 @@ PyObject *KX_ParentActuator::pyattr_get_object(PyObjectPlus *self, const struct 
 		return actuator->m_ob->GetProxy();
 }
 
-int KX_ParentActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_ParentActuator::pyattr_set_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_ParentActuator* actuator = static_cast<KX_ParentActuator*>(self);
 	KX_GameObject *gameobj;

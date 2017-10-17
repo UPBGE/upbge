@@ -73,7 +73,7 @@ SCA_MouseSensor::~SCA_MouseSensor()
 	/* Nothing to be done here. */
 }
 
-CValue* SCA_MouseSensor::GetReplica()
+EXP_Value* SCA_MouseSensor::GetReplica()
 {
 	SCA_MouseSensor* replica = new SCA_MouseSensor(*this);
 	// this will copy properties and so on...
@@ -171,11 +171,11 @@ void SCA_MouseSensor::setY(short y)
 /* Python functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
+EXP_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 "getButtonStatus(button)\n"
 "\tGet the given button's status (KX_INPUT_NONE, KX_INPUT_NONE, KX_INPUT_JUST_ACTIVATED, KX_INPUT_ACTIVE, KX_INPUT_JUST_RELEASED).\n")
 {
-	ShowDeprecationWarning("sensor.getButtonStatus(button)", "logic.mouse.events[button]");
+	EXP_ShowDeprecationWarning("sensor.getButtonStatus(button)", "logic.mouse.events[button]");
 
 	if (PyLong_Check(value))
 	{
@@ -203,7 +203,7 @@ KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 PyTypeObject SCA_MouseSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_MouseSensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -223,14 +223,14 @@ PyTypeObject SCA_MouseSensor::Type = {
 };
 
 PyMethodDef SCA_MouseSensor::Methods[] = {
-	KX_PYMETHODTABLE_O(SCA_MouseSensor, getButtonStatus),
+	EXP_PYMETHODTABLE_O(SCA_MouseSensor, getButtonStatus),
 	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_MouseSensor::Attributes[] = {
-	KX_PYATTRIBUTE_SHORT_RW("mode",KX_MOUSESENSORMODE_NODEF,KX_MOUSESENSORMODE_MAX-1,true,SCA_MouseSensor,m_mousemode),
-	KX_PYATTRIBUTE_SHORT_LIST_RO("position",SCA_MouseSensor,m_x,2),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_SHORT_RW("mode",KX_MOUSESENSORMODE_NODEF,KX_MOUSESENSORMODE_MAX-1,true,SCA_MouseSensor,m_mousemode),
+	EXP_PYATTRIBUTE_SHORT_LIST_RO("position",SCA_MouseSensor,m_x,2),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

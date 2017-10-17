@@ -1,11 +1,11 @@
-BL_ArmatureBone(PyObjectPlus)
+BL_ArmatureBone(EXP_PyObjectPlus)
 =============================
 
 .. module:: bge.types
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: BL_ArmatureBone(PyObjectPlus)
+.. class:: BL_ArmatureBone(EXP_PyObjectPlus)
 
    Proxy to Blender bone structure. All fields are read-only and comply to RNA names.
    All space attribute correspond to the rest pose.

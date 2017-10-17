@@ -76,7 +76,7 @@ class KX_SceneActuator : public SCA_IActuator
 					 KX_Camera* camera);
 	virtual ~KX_SceneActuator();
 
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void ProcessReplica();
 	virtual bool UnlinkObject(SCA_IObject* clientobj);
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
@@ -94,8 +94,8 @@ class KX_SceneActuator : public SCA_IActuator
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 	
-	static PyObject *pyattr_get_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_camera(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_camera(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 #endif  /* WITH_PYTHON */
 

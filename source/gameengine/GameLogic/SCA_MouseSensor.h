@@ -88,7 +88,7 @@ class SCA_MouseSensor : public SCA_ISensor
 	                SCA_IObject* gameobj);
 
 	virtual ~SCA_MouseSensor();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual bool Evaluate();
 	virtual void Init();
 	virtual bool IsPositiveTrigger();
@@ -101,7 +101,7 @@ class SCA_MouseSensor : public SCA_ISensor
 	/* --------------------------------------------------------------------- */
 
 	// get button status
-	KX_PYMETHOD_DOC_O(SCA_MouseSensor,getButtonStatus);
+	EXP_PYMETHOD_DOC_O(SCA_MouseSensor,getButtonStatus);
 #endif
 };
 

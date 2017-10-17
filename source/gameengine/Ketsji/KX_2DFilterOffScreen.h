@@ -30,7 +30,7 @@
 #include "RAS_2DFilterOffScreen.h"
 #include "EXP_Value.h"
 
-class KX_2DFilterOffScreen : public CValue, public RAS_2DFilterOffScreen
+class KX_2DFilterOffScreen : public EXP_Value, public RAS_2DFilterOffScreen
 {
 	Py_Header
 public:
@@ -41,10 +41,10 @@ public:
 
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_width(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_height(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_colorBindCodes(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_depthBindCode(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_width(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_height(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_colorBindCodes(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_depthBindCode(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif
 };

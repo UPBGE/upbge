@@ -1,11 +1,11 @@
-BL_Texture(CValue)
+BL_Texture(EXP_Value)
 ==================
 
 .. module:: bge.types
 
-base class --- :class:`CValue`
+base class --- :class:`EXP_Value`
 
-.. class:: BL_Texture(CValue)
+.. class:: BL_Texture(EXP_Value)
 
    A texture object that contains attributes of a material texture.
 

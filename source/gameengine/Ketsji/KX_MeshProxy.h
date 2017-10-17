@@ -42,7 +42,7 @@ class SCA_LogicManager;
 // utility conversion function
 bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_MeshObject **object, bool py_none_ok, const char *error_prefix);
 
-class KX_MeshProxy : public CValue
+class KX_MeshProxy : public EXP_Value
 {
 	Py_Header
 
@@ -62,23 +62,23 @@ public:
 
 	// stuff for python integration
 
-	KX_PYMETHOD(KX_MeshProxy, GetNumMaterials);  // Deprecated
-	KX_PYMETHOD(KX_MeshProxy, GetMaterialName);
-	KX_PYMETHOD(KX_MeshProxy, GetTextureName);
-	KX_PYMETHOD_NOARGS(KX_MeshProxy, GetNumPolygons); // Deprecated
+	EXP_PYMETHOD(KX_MeshProxy, GetNumMaterials);  // Deprecated
+	EXP_PYMETHOD(KX_MeshProxy, GetMaterialName);
+	EXP_PYMETHOD(KX_MeshProxy, GetTextureName);
+	EXP_PYMETHOD_NOARGS(KX_MeshProxy, GetNumPolygons); // Deprecated
 
 	// both take materialid (int)
-	KX_PYMETHOD(KX_MeshProxy, GetVertexArrayLength);
-	KX_PYMETHOD(KX_MeshProxy, GetVertex);
-	KX_PYMETHOD(KX_MeshProxy, GetPolygon);
-	KX_PYMETHOD(KX_MeshProxy, Transform);
-	KX_PYMETHOD(KX_MeshProxy, TransformUV);
-	KX_PYMETHOD(KX_MeshProxy, ReplaceMaterial);
+	EXP_PYMETHOD(KX_MeshProxy, GetVertexArrayLength);
+	EXP_PYMETHOD(KX_MeshProxy, GetVertex);
+	EXP_PYMETHOD(KX_MeshProxy, GetPolygon);
+	EXP_PYMETHOD(KX_MeshProxy, Transform);
+	EXP_PYMETHOD(KX_MeshProxy, TransformUV);
+	EXP_PYMETHOD(KX_MeshProxy, ReplaceMaterial);
 
-	static PyObject *pyattr_get_materials(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_numMaterials(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_numPolygons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_polygons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_numMaterials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_numPolygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_polygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 };
 
 #endif  // WITH_PYTHON

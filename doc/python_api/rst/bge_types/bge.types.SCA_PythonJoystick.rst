@@ -1,11 +1,11 @@
-SCA_PythonJoystick(PyObjectPlus)
+SCA_PythonJoystick(EXP_PyObjectPlus)
 ================================
 
 .. module:: bge.types
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: SCA_PythonJoystick(PyObjectPlus)
+.. class:: SCA_PythonJoystick(EXP_PyObjectPlus)
 
    A Python interface to a joystick.
 

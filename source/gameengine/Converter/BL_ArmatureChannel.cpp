@@ -43,7 +43,7 @@
 PyTypeObject BL_ArmatureChannel::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"BL_ArmatureChannel",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -57,7 +57,7 @@ PyTypeObject BL_ArmatureChannel::Type = {
 	Methods,
 	0,
 	0,
-	&CValue::Type,
+	&EXP_Value::Type,
 	0,0,0,0,0,0,
 	py_base_new
 };
@@ -99,49 +99,49 @@ PyMethodDef BL_ArmatureChannel::Methods[] = {
 
 PyAttributeDef BL_ArmatureChannel::Attributes[] = {
 	// Keep these attributes in order of BCA_ defines!!! used by py_attr_getattr and py_attr_setattr
-	KX_PYATTRIBUTE_RO_FUNCTION("bone",BL_ArmatureChannel,py_attr_getattr),
-	KX_PYATTRIBUTE_RO_FUNCTION("parent",BL_ArmatureChannel,py_attr_getattr),
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("bone",BL_ArmatureChannel,py_attr_getattr),
+	EXP_PYATTRIBUTE_RO_FUNCTION("parent",BL_ArmatureChannel,py_attr_getattr),
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
 /* attributes directly taken from bPoseChannel */
 PyAttributeDef BL_ArmatureChannel::AttributesPtr[] = {
-	KX_PYATTRIBUTE_CHAR_RO("name",bPoseChannel,name),
-	KX_PYATTRIBUTE_FLAG_RO("has_ik",bPoseChannel,flag, POSE_CHAIN),
-	KX_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_x",bPoseChannel,ikflag, BONE_IK_NO_XDOF),
-	KX_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_y",bPoseChannel,ikflag, BONE_IK_NO_YDOF),
-	KX_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_z",bPoseChannel,ikflag, BONE_IK_NO_ZDOF),
-	KX_PYATTRIBUTE_FLAG_RO("ik_limit_x",bPoseChannel,ikflag, BONE_IK_XLIMIT),
-	KX_PYATTRIBUTE_FLAG_RO("ik_limit_y",bPoseChannel,ikflag, BONE_IK_YLIMIT),
-	KX_PYATTRIBUTE_FLAG_RO("ik_limit_z",bPoseChannel,ikflag, BONE_IK_ZLIMIT),
-	KX_PYATTRIBUTE_FLAG_RO("ik_rot_control",bPoseChannel,ikflag, BONE_IK_ROTCTL),
-	KX_PYATTRIBUTE_FLAG_RO("ik_lin_control",bPoseChannel,ikflag, BONE_IK_LINCTL),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("location",-FLT_MAX,FLT_MAX,bPoseChannel,loc,3),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("scale",-FLT_MAX,FLT_MAX,bPoseChannel,size,3),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_quaternion",-1.0f,1.0f,bPoseChannel,quat,4),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_euler",-10.f,10.f,bPoseChannel,eul,3),
-	KX_PYATTRIBUTE_SHORT_RW("rotation_mode",ROT_MODE_MIN,ROT_MODE_MAX,false,bPoseChannel,rotmode),
-	KX_PYATTRIBUTE_FLOAT_MATRIX_RO("channel_matrix",bPoseChannel,chan_mat,4),
-	KX_PYATTRIBUTE_FLOAT_MATRIX_RO("pose_matrix",bPoseChannel,pose_mat,4),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RO("pose_head",bPoseChannel,pose_head,3),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RO("pose_tail",bPoseChannel,pose_tail,3),
-	KX_PYATTRIBUTE_FLOAT_RO("ik_min_x",bPoseChannel,limitmin[0]),
-	KX_PYATTRIBUTE_FLOAT_RO("ik_max_x",bPoseChannel,limitmax[0]),
-	KX_PYATTRIBUTE_FLOAT_RO("ik_min_y",bPoseChannel,limitmin[1]),
-	KX_PYATTRIBUTE_FLOAT_RO("ik_max_y",bPoseChannel,limitmax[1]),
-	KX_PYATTRIBUTE_FLOAT_RO("ik_min_z",bPoseChannel,limitmin[2]),
-	KX_PYATTRIBUTE_FLOAT_RO("ik_max_z",bPoseChannel,limitmax[2]),
-	KX_PYATTRIBUTE_FLOAT_RO("ik_stiffness_x",bPoseChannel,stiffness[0]),
-	KX_PYATTRIBUTE_FLOAT_RO("ik_stiffness_y",bPoseChannel,stiffness[1]),
-	KX_PYATTRIBUTE_FLOAT_RO("ik_stiffness_z",bPoseChannel,stiffness[2]),
-	KX_PYATTRIBUTE_FLOAT_RO("ik_stretch",bPoseChannel,ikstretch),
-	KX_PYATTRIBUTE_FLOAT_RW("ik_rot_weight",0,1.0f,bPoseChannel,ikrotweight),
-	KX_PYATTRIBUTE_FLOAT_RW("ik_lin_weight",0,1.0f,bPoseChannel,iklinweight),
-	KX_PYATTRIBUTE_RW_FUNCTION("joint_rotation",BL_ArmatureChannel,py_attr_get_joint_rotation,py_attr_set_joint_rotation),
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_CHAR_RO("name",bPoseChannel,name),
+	EXP_PYATTRIBUTE_FLAG_RO("has_ik",bPoseChannel,flag, POSE_CHAIN),
+	EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_x",bPoseChannel,ikflag, BONE_IK_NO_XDOF),
+	EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_y",bPoseChannel,ikflag, BONE_IK_NO_YDOF),
+	EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("ik_dof_z",bPoseChannel,ikflag, BONE_IK_NO_ZDOF),
+	EXP_PYATTRIBUTE_FLAG_RO("ik_limit_x",bPoseChannel,ikflag, BONE_IK_XLIMIT),
+	EXP_PYATTRIBUTE_FLAG_RO("ik_limit_y",bPoseChannel,ikflag, BONE_IK_YLIMIT),
+	EXP_PYATTRIBUTE_FLAG_RO("ik_limit_z",bPoseChannel,ikflag, BONE_IK_ZLIMIT),
+	EXP_PYATTRIBUTE_FLAG_RO("ik_rot_control",bPoseChannel,ikflag, BONE_IK_ROTCTL),
+	EXP_PYATTRIBUTE_FLAG_RO("ik_lin_control",bPoseChannel,ikflag, BONE_IK_LINCTL),
+	EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("location",-FLT_MAX,FLT_MAX,bPoseChannel,loc,3),
+	EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("scale",-FLT_MAX,FLT_MAX,bPoseChannel,size,3),
+	EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_quaternion",-1.0f,1.0f,bPoseChannel,quat,4),
+	EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_euler",-10.f,10.f,bPoseChannel,eul,3),
+	EXP_PYATTRIBUTE_SHORT_RW("rotation_mode",ROT_MODE_MIN,ROT_MODE_MAX,false,bPoseChannel,rotmode),
+	EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("channel_matrix",bPoseChannel,chan_mat,4),
+	EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("pose_matrix",bPoseChannel,pose_mat,4),
+	EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("pose_head",bPoseChannel,pose_head,3),
+	EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("pose_tail",bPoseChannel,pose_tail,3),
+	EXP_PYATTRIBUTE_FLOAT_RO("ik_min_x",bPoseChannel,limitmin[0]),
+	EXP_PYATTRIBUTE_FLOAT_RO("ik_max_x",bPoseChannel,limitmax[0]),
+	EXP_PYATTRIBUTE_FLOAT_RO("ik_min_y",bPoseChannel,limitmin[1]),
+	EXP_PYATTRIBUTE_FLOAT_RO("ik_max_y",bPoseChannel,limitmax[1]),
+	EXP_PYATTRIBUTE_FLOAT_RO("ik_min_z",bPoseChannel,limitmin[2]),
+	EXP_PYATTRIBUTE_FLOAT_RO("ik_max_z",bPoseChannel,limitmax[2]),
+	EXP_PYATTRIBUTE_FLOAT_RO("ik_stiffness_x",bPoseChannel,stiffness[0]),
+	EXP_PYATTRIBUTE_FLOAT_RO("ik_stiffness_y",bPoseChannel,stiffness[1]),
+	EXP_PYATTRIBUTE_FLOAT_RO("ik_stiffness_z",bPoseChannel,stiffness[2]),
+	EXP_PYATTRIBUTE_FLOAT_RO("ik_stretch",bPoseChannel,ikstretch),
+	EXP_PYATTRIBUTE_FLOAT_RW("ik_rot_weight",0,1.0f,bPoseChannel,ikrotweight),
+	EXP_PYATTRIBUTE_FLOAT_RW("ik_lin_weight",0,1.0f,bPoseChannel,iklinweight),
+	EXP_PYATTRIBUTE_RW_FUNCTION("joint_rotation",BL_ArmatureChannel,py_attr_get_joint_rotation,py_attr_set_joint_rotation),
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *BL_ArmatureChannel::py_attr_getattr(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureChannel::py_attr_getattr(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureChannel* self = static_cast<BL_ArmatureChannel*>(self_v);
 	bPoseChannel* channel = self->m_posechannel;
@@ -169,7 +169,7 @@ PyObject *BL_ArmatureChannel::py_attr_getattr(PyObjectPlus *self_v, const struct
 	return nullptr;
 }
 
-int BL_ArmatureChannel::py_attr_setattr(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_ArmatureChannel::py_attr_setattr(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_ArmatureChannel* self = static_cast<BL_ArmatureChannel*>(self_v);
 	bPoseChannel* channel = self->m_posechannel;
@@ -194,7 +194,7 @@ int BL_ArmatureChannel::py_attr_setattr(PyObjectPlus *self_v, const struct KX_PY
 	return PY_SET_ATTR_FAIL;
 }
 
-PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureChannel* self = static_cast<BL_ArmatureChannel*>(self_v);
 	bPoseChannel* pchan = self->m_posechannel;
@@ -293,7 +293,7 @@ PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(PyObjectPlus *self_v, c
 	return Vector_CreatePyObject(joints, 3, nullptr);
 }
 
-int BL_ArmatureChannel::py_attr_set_joint_rotation(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_ArmatureChannel::py_attr_set_joint_rotation(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_ArmatureChannel* self = static_cast<BL_ArmatureChannel*>(self_v);
 	bPoseChannel* pchan = self->m_posechannel;
@@ -371,7 +371,7 @@ int BL_ArmatureChannel::py_attr_set_joint_rotation(PyObjectPlus *self_v, const s
 PyTypeObject BL_ArmatureBone::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"BL_ArmatureBone",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -385,7 +385,7 @@ PyTypeObject BL_ArmatureBone::Type = {
 	Methods,
 	0,
 	0,
-	&CValue::Type,
+	&EXP_Value::Type,
 	0,0,0,0,0,0,
 	py_base_new
 };
@@ -402,7 +402,7 @@ PyObject *BL_ArmatureBone::NewProxy(bool py_owns)
 
 PyObject *BL_ArmatureBone::py_bone_repr(PyObject *self)
 {
-	Bone* bone = static_cast<Bone*>BGE_PROXY_PTR(self);
+	Bone* bone = static_cast<Bone*>EXP_PROXY_PTR(self);
 	return PyUnicode_FromString(bone->name);
 }
 
@@ -412,30 +412,30 @@ PyMethodDef BL_ArmatureBone::Methods[] = {
 
 /* no attributes on C++ class since it is never instantiated */
 PyAttributeDef BL_ArmatureBone::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 // attributes that work on proxy ptr (points to a Bone structure)
 PyAttributeDef BL_ArmatureBone::AttributesPtr[] = {
-	KX_PYATTRIBUTE_CHAR_RO("name",Bone,name),
-	KX_PYATTRIBUTE_FLAG_RO("connected",Bone,flag, BONE_CONNECTED),
-	KX_PYATTRIBUTE_FLAG_RO("hinge",Bone,flag, BONE_HINGE),
-	KX_PYATTRIBUTE_FLAG_NEGATIVE_RO("inherit_scale",Bone,flag, BONE_NO_SCALE),
-	KX_PYATTRIBUTE_SHORT_RO("bbone_segments",Bone,segments),
-	KX_PYATTRIBUTE_FLOAT_RO("roll",Bone,roll),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RO("head",Bone,head,3),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RO("tail",Bone,tail,3),
-	KX_PYATTRIBUTE_FLOAT_RO("length",Bone,length),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RO("arm_head",Bone,arm_head,3),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RO("arm_tail",Bone,arm_tail,3),
-	KX_PYATTRIBUTE_FLOAT_MATRIX_RO("arm_mat",Bone,arm_mat,4),
-	KX_PYATTRIBUTE_FLOAT_MATRIX_RO("bone_mat",Bone,bone_mat,3),
-	KX_PYATTRIBUTE_RO_FUNCTION("parent",BL_ArmatureBone,py_bone_get_parent),
-	KX_PYATTRIBUTE_RO_FUNCTION("children",BL_ArmatureBone,py_bone_get_children),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_CHAR_RO("name",Bone,name),
+	EXP_PYATTRIBUTE_FLAG_RO("connected",Bone,flag, BONE_CONNECTED),
+	EXP_PYATTRIBUTE_FLAG_RO("hinge",Bone,flag, BONE_HINGE),
+	EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO("inherit_scale",Bone,flag, BONE_NO_SCALE),
+	EXP_PYATTRIBUTE_SHORT_RO("bbone_segments",Bone,segments),
+	EXP_PYATTRIBUTE_FLOAT_RO("roll",Bone,roll),
+	EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("head",Bone,head,3),
+	EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("tail",Bone,tail,3),
+	EXP_PYATTRIBUTE_FLOAT_RO("length",Bone,length),
+	EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("arm_head",Bone,arm_head,3),
+	EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("arm_tail",Bone,arm_tail,3),
+	EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("arm_mat",Bone,arm_mat,4),
+	EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("bone_mat",Bone,bone_mat,3),
+	EXP_PYATTRIBUTE_RO_FUNCTION("parent",BL_ArmatureBone,py_bone_get_parent),
+	EXP_PYATTRIBUTE_RO_FUNCTION("children",BL_ArmatureBone,py_bone_get_children),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *BL_ArmatureBone::py_bone_get_parent(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureBone::py_bone_get_parent(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	Bone* bone = reinterpret_cast<Bone*>(self);
 	if (bone->parent) {
@@ -445,7 +445,7 @@ PyObject *BL_ArmatureBone::py_bone_get_parent(PyObjectPlus *self, const struct K
 	Py_RETURN_NONE;
 }
 
-PyObject *BL_ArmatureBone::py_bone_get_children(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureBone::py_bone_get_children(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	Bone* bone = reinterpret_cast<Bone*>(self);
 	Bone* child;

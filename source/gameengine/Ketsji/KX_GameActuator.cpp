@@ -71,7 +71,7 @@ KX_GameActuator::~KX_GameActuator()
 
 
 
-CValue* KX_GameActuator::GetReplica()
+EXP_Value* KX_GameActuator::GetReplica()
 {
 	KX_GameActuator* replica = new KX_GameActuator(*this);
 	replica->ProcessReplica();
@@ -173,7 +173,7 @@ bool KX_GameActuator::Update()
 PyTypeObject KX_GameActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_GameActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -198,9 +198,9 @@ PyMethodDef KX_GameActuator::Methods[] =
 };
 
 PyAttributeDef KX_GameActuator::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("fileName",0,100,false,KX_GameActuator,m_filename),
-	KX_PYATTRIBUTE_INT_RW("mode", KX_GAME_NODEF+1, KX_GAME_MAX-1, true, KX_GameActuator, m_mode),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_STRING_RW("fileName",0,100,false,KX_GameActuator,m_filename),
+	EXP_PYATTRIBUTE_INT_RW("mode", KX_GAME_NODEF+1, KX_GAME_MAX-1, true, KX_GameActuator, m_mode),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

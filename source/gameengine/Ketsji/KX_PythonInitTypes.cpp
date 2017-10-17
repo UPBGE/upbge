@@ -122,12 +122,12 @@ static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
 	attr_getset->name = (char *)attr->m_name.c_str();
 	attr_getset->doc= nullptr;
 
-	attr_getset->get= reinterpret_cast<getter>(PyObjectPlus::py_get_attrdef);
+	attr_getset->get= reinterpret_cast<getter>(EXP_PyObjectPlus::py_get_attrdef);
 
-	if (attr->m_access==KX_PYATTRIBUTE_RO)
+	if (attr->m_access==EXP_PYATTRIBUTE_RO)
 		attr_getset->set= nullptr;
 	else
-		attr_getset->set= reinterpret_cast<setter>(PyObjectPlus::py_set_attrdef);
+		attr_getset->set= reinterpret_cast<setter>(EXP_PyObjectPlus::py_set_attrdef);
 
 	attr_getset->closure= reinterpret_cast<void *>(attr);
 }
@@ -215,10 +215,10 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_AttrPtr(dict, BL_ArmatureBone, init_getset);
 		PyType_Ready_AttrPtr(dict, BL_ArmatureChannel, init_getset);
 		PyType_Ready_Attr(dict, BL_Texture, init_getset);
-		// PyType_Ready_Attr(dict, CPropValue, init_getset);  // doesn't use Py_Header
-		PyType_Ready_Attr(dict, CBaseListValue, init_getset);
-		PyType_Ready_Attr(dict, CListWrapper, init_getset);
-		PyType_Ready_Attr(dict, CValue, init_getset);
+		// PyType_Ready_Attr(dict, EXP_PropValue, init_getset);  // doesn't use Py_Header
+		PyType_Ready_Attr(dict, EXP_BaseListValue, init_getset);
+		PyType_Ready_Attr(dict, EXP_ListWrapper, init_getset);
+		PyType_Ready_Attr(dict, EXP_Value, init_getset);
 		PyType_Ready_Attr(dict, KX_2DFilter, init_getset);
 		PyType_Ready_Attr(dict, KX_2DFilterManager, init_getset);
 		PyType_Ready_Attr(dict, KX_2DFilterOffScreen, init_getset);
@@ -271,7 +271,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_VisibilityActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_MouseActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_CollisionContactPoint, init_getset);
-		PyType_Ready_Attr(dict, PyObjectPlus, init_getset);
+		PyType_Ready_Attr(dict, EXP_PyObjectPlus, init_getset);
 		PyType_Ready_Attr(dict, SCA_2DFilterActuator, init_getset);
 		PyType_Ready_Attr(dict, SCA_ANDController, init_getset);
 		// PyType_Ready_Attr(dict, SCA_Actuator, init_getset);  // doesn't use Py_Header

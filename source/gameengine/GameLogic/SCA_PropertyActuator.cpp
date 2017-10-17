@@ -69,14 +69,14 @@ bool SCA_PropertyActuator::Update()
 
 	bool bNegativeEvent = IsNegativeEvent();
 	RemoveAllEvents();
-	CValue* propowner = GetParent();
+	EXP_Value* propowner = GetParent();
 
 	if (bNegativeEvent)
 	{
 		if (m_type==KX_ACT_PROP_LEVEL)
 		{
-			CValue* newval = new CBoolValue(false);
-			CValue* oldprop = propowner->GetProperty(m_propname);
+			EXP_Value* newval = new EXP_BoolValue(false);
+			EXP_Value* oldprop = propowner->GetProperty(m_propname);
 			if (oldprop)
 			{
 				oldprop->SetValue(newval);
@@ -87,31 +87,31 @@ bool SCA_PropertyActuator::Update()
 	}
 
 
-	CParser parser;
+	EXP_Parser parser;
 	parser.SetContext( propowner->AddRef());
 	
-	CExpression* userexpr= nullptr;
+	EXP_Expression* userexpr= nullptr;
 	
 	if (m_type==KX_ACT_PROP_TOGGLE)
 	{
 		/* don't use */
-		CValue* newval;
-		CValue* oldprop = propowner->GetProperty(m_propname);
+		EXP_Value* newval;
+		EXP_Value* oldprop = propowner->GetProperty(m_propname);
 		if (oldprop)
 		{
-			newval = new CBoolValue((oldprop->GetNumber()==0.0) ? true:false);
+			newval = new EXP_BoolValue((oldprop->GetNumber()==0.0) ? true:false);
 			oldprop->SetValue(newval);
 		} else
 		{	/* as not been assigned, evaluate as false, so assign true */
-			newval = new CBoolValue(true);
+			newval = new EXP_BoolValue(true);
 			propowner->SetProperty(m_propname,newval);
 		}
 		newval->Release();
 	}
 	else if (m_type==KX_ACT_PROP_LEVEL)
 	{
-		CValue* newval = new CBoolValue(true);
-		CValue* oldprop = propowner->GetProperty(m_propname);
+		EXP_Value* newval = new EXP_BoolValue(true);
+		EXP_Value* oldprop = propowner->GetProperty(m_propname);
 		if (oldprop)
 		{
 			oldprop->SetValue(newval);
@@ -128,8 +128,8 @@ bool SCA_PropertyActuator::Update()
 		case KX_ACT_PROP_ASSIGN:
 			{
 				
-				CValue* newval = userexpr->Calculate();
-				CValue* oldprop = propowner->GetProperty(m_propname);
+				EXP_Value* newval = userexpr->Calculate();
+				EXP_Value* oldprop = propowner->GetProperty(m_propname);
 				if (oldprop)
 				{
 					oldprop->SetValue(newval);
@@ -142,14 +142,14 @@ bool SCA_PropertyActuator::Update()
 			}
 		case KX_ACT_PROP_ADD:
 			{
-				CValue* oldprop = propowner->GetProperty(m_propname);
+				EXP_Value* oldprop = propowner->GetProperty(m_propname);
 				if (oldprop)
 				{
 					// int waarde = (int)oldprop->GetNumber();  /*unused*/
-					CExpression* expr = new COperator2Expr(VALUE_ADD_OPERATOR,new CConstExpr(oldprop->AddRef()),
+					EXP_Expression* expr = new EXP_Operator2Expr(VALUE_ADD_OPERATOR,new EXP_ConstExpr(oldprop->AddRef()),
 															userexpr->AddRef());
 
-					CValue* newprop = expr->Calculate();
+					EXP_Value* newprop = expr->Calculate();
 					oldprop->SetValue(newprop);
 					newprop->Release();
 					expr->Release();
@@ -162,10 +162,10 @@ bool SCA_PropertyActuator::Update()
 			{
 				if (m_sourceObj)
 				{
-					CValue* copyprop = m_sourceObj->GetProperty(m_exprtxt);
+					EXP_Value* copyprop = m_sourceObj->GetProperty(m_exprtxt);
 					if (copyprop)
 					{
-						CValue *val = copyprop->GetReplica();
+						EXP_Value *val = copyprop->GetReplica();
 						GetParent()->SetProperty(
 							 m_propname,
 							 val);
@@ -188,7 +188,7 @@ bool SCA_PropertyActuator::Update()
 	return result;
 }
 
-	CValue* 
+	EXP_Value* 
 
 SCA_PropertyActuator::
 
@@ -243,7 +243,7 @@ void SCA_PropertyActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_ma
 PyTypeObject SCA_PropertyActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_PropertyActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -267,10 +267,10 @@ PyMethodDef SCA_PropertyActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_PropertyActuator::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW_CHECK("propName",0,MAX_PROP_NAME,false,SCA_PropertyActuator,m_propname,CheckProperty),
-	KX_PYATTRIBUTE_STRING_RW("value",0,100,false,SCA_PropertyActuator,m_exprtxt),
-	KX_PYATTRIBUTE_INT_RW("mode", KX_ACT_PROP_NODEF+1, KX_ACT_PROP_MAX-1, false, SCA_PropertyActuator, m_type), /* ATTR_TODO add constents to game logic dict */
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_STRING_RW_CHECK("propName",0,MAX_PROP_NAME,false,SCA_PropertyActuator,m_propname,CheckProperty),
+	EXP_PYATTRIBUTE_STRING_RW("value",0,100,false,SCA_PropertyActuator,m_exprtxt),
+	EXP_PYATTRIBUTE_INT_RW("mode", KX_ACT_PROP_NODEF+1, KX_ACT_PROP_MAX-1, false, SCA_PropertyActuator, m_type), /* ATTR_TODO add constents to game logic dict */
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif

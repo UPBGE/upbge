@@ -57,7 +57,7 @@ public:
 	virtual ~KX_NetworkMessageActuator();
 
 	virtual bool Update();
-	virtual CValue *GetReplica();
+	virtual EXP_Value *GetReplica();
 	virtual void Replace_NetworkScene(KX_NetworkMessageScene *val)
 	{
 		m_networkscene = val;

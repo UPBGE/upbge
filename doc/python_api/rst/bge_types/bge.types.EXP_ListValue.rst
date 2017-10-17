@@ -1,15 +1,15 @@
-CListValue(CPropValue)
+EXP_ListValue(EXP_PropValue)
 ======================
 
 .. module:: bge.types
 
-base class --- :class:`CPropValue`
+base class --- :class:`EXP_PropValue`
 
-.. class:: CListValue(CPropValue)
+.. class:: EXP_ListValue(EXP_PropValue)
 
    This is a list like object used in the game engine internally that behaves similar to a python list in most ways.
 
-   As well as the normal index lookup (``val= clist[i]``), CListValue supports string lookups (``val= scene.objects["Cube"]``)
+   As well as the normal index lookup (``val= clist[i]``), EXP_ListValue supports string lookups (``val= scene.objects["Cube"]``)
 
    Other operations such as ``len(clist)``, ``list(clist)``, ``clist[0:10]`` are also supported.
 
@@ -56,7 +56,7 @@ base class --- :class:`CPropValue`
 
       This is a funtion especially for the game engine to return a value with a spesific id.
 
-      Since object names are not always unique, the id of an object can be used to get an object from the CValueList.
+      Since object names are not always unique, the id of an object can be used to get an object from the EXP_ValueList.
 
       Example:
 

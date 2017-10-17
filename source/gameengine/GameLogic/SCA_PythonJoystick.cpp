@@ -67,7 +67,7 @@ std::string SCA_PythonJoystick::GetName()
 PyTypeObject SCA_PythonJoystick::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_PythonJoystick",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -81,7 +81,7 @@ PyTypeObject SCA_PythonJoystick::Type = {
 	Methods,
 	0,
 	0,
-	&PyObjectPlus::Type,
+	&EXP_PyObjectPlus::Type,
 	0,0,0,0,0,0,
 	py_base_new
 };
@@ -91,18 +91,18 @@ PyMethodDef SCA_PythonJoystick::Methods[] = {
 };
 
 PyAttributeDef SCA_PythonJoystick::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("numButtons", SCA_PythonJoystick, pyattr_get_num_x),
-	KX_PYATTRIBUTE_RO_FUNCTION("numHats", SCA_PythonJoystick, pyattr_get_num_x),
-	KX_PYATTRIBUTE_RO_FUNCTION("numAxis", SCA_PythonJoystick, pyattr_get_num_x),
-	KX_PYATTRIBUTE_RO_FUNCTION("activeButtons", SCA_PythonJoystick, pyattr_get_active_buttons),
-	KX_PYATTRIBUTE_RO_FUNCTION("hatValues", SCA_PythonJoystick, pyattr_get_hat_values),
-	KX_PYATTRIBUTE_RO_FUNCTION("axisValues", SCA_PythonJoystick, pyattr_get_axis_values),
-	KX_PYATTRIBUTE_RO_FUNCTION("name", SCA_PythonJoystick, pyattr_get_name),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("numButtons", SCA_PythonJoystick, pyattr_get_num_x),
+	EXP_PYATTRIBUTE_RO_FUNCTION("numHats", SCA_PythonJoystick, pyattr_get_num_x),
+	EXP_PYATTRIBUTE_RO_FUNCTION("numAxis", SCA_PythonJoystick, pyattr_get_num_x),
+	EXP_PYATTRIBUTE_RO_FUNCTION("activeButtons", SCA_PythonJoystick, pyattr_get_active_buttons),
+	EXP_PYATTRIBUTE_RO_FUNCTION("hatValues", SCA_PythonJoystick, pyattr_get_hat_values),
+	EXP_PYATTRIBUTE_RO_FUNCTION("axisValues", SCA_PythonJoystick, pyattr_get_axis_values),
+	EXP_PYATTRIBUTE_RO_FUNCTION("name", SCA_PythonJoystick, pyattr_get_name),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 // Use one function for numAxis, numButtons, and numHats
-PyObject* SCA_PythonJoystick::pyattr_get_num_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_PythonJoystick::pyattr_get_num_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	if (attrdef->m_name == "numButtons") {
 		return PyLong_FromLong(JOYBUT_MAX);
@@ -111,7 +111,7 @@ PyObject* SCA_PythonJoystick::pyattr_get_num_x(PyObjectPlus *self_v, const KX_PY
 		return PyLong_FromLong(JOYAXIS_MAX);
 	}
 	else if (attrdef->m_name == "numHats") {
-		ShowDeprecationWarning("SCA_PythonJoystick.numHats", "SCA_PythonJoystick.numButtons");
+		EXP_ShowDeprecationWarning("SCA_PythonJoystick.numHats", "SCA_PythonJoystick.numButtons");
 		return PyLong_FromLong(0);
 	}
 
@@ -120,7 +120,7 @@ PyObject* SCA_PythonJoystick::pyattr_get_num_x(PyObjectPlus *self_v, const KX_PY
 	return nullptr;
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
 	
@@ -141,13 +141,13 @@ PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(PyObjectPlus *self_v, co
 	return list;
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_PythonJoystick::pyattr_get_hat_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	ShowDeprecationWarning("SCA_PythonJoystick.hatValues", "SCA_PythonJoystick.activeButtons");
+	EXP_ShowDeprecationWarning("SCA_PythonJoystick.hatValues", "SCA_PythonJoystick.activeButtons");
 	return PyList_New(0);
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_axis_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_PythonJoystick::pyattr_get_axis_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
 	
@@ -170,7 +170,7 @@ PyObject* SCA_PythonJoystick::pyattr_get_axis_values(PyObjectPlus *self_v, const
 	return list;
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_PythonJoystick::pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
 

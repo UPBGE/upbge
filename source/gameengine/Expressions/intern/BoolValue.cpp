@@ -2,7 +2,7 @@
  *  \ingroup expressions
  */
 
-// BoolValue.cpp: implementation of the CBoolValue class.
+// BoolValue.cpp: implementation of the EXP_BoolValue class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -20,42 +20,42 @@
 #include "EXP_StringValue.h"
 #include "EXP_ErrorValue.h"
 
-const std::string CBoolValue::sTrueString  = "TRUE";
-const std::string CBoolValue::sFalseString = "FALSE";
+const std::string EXP_BoolValue::sTrueString  = "TRUE";
+const std::string EXP_BoolValue::sFalseString = "FALSE";
 
-CBoolValue::CBoolValue()
+EXP_BoolValue::EXP_BoolValue()
 {
 	trace("Bool constructor error");
 }
 
-CBoolValue::CBoolValue(bool inBool)
+EXP_BoolValue::EXP_BoolValue(bool inBool)
 	:m_bool(inBool)
 {
 }
 
-CBoolValue::CBoolValue(bool innie, const std::string& name)
+EXP_BoolValue::EXP_BoolValue(bool innie, const std::string& name)
 	:m_bool(innie)
 {
 	SetName(name);
 }
 
-void CBoolValue::SetValue(CValue *newval)
+void EXP_BoolValue::SetValue(EXP_Value *newval)
 {
 	m_bool = (newval->GetNumber() != 0);
 }
 
-CValue *CBoolValue::Calc(VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_BoolValue::Calc(VALUE_OPERATOR op, EXP_Value *val)
 {
 	switch (op) {
 		case VALUE_POS_OPERATOR:
 		case VALUE_NEG_OPERATOR:
 		{
-			return new CErrorValue(op2str(op) + GetText());
+			return new EXP_ErrorValue(op2str(op) + GetText());
 			break;
 		}
 		case VALUE_NOT_OPERATOR:
 		{
-			return new CBoolValue(!m_bool);
+			return new EXP_BoolValue(!m_bool);
 			break;
 		}
 		default:
@@ -66,9 +66,9 @@ CValue *CBoolValue::Calc(VALUE_OPERATOR op, CValue *val)
 	}
 }
 
-CValue *CBoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_BoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val)
 {
-	CValue *ret;
+	EXP_Value *ret;
 
 	switch (dtype) {
 		case VALUE_EMPTY_TYPE:
@@ -78,32 +78,32 @@ CValue *CBoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *
 			{
 				case VALUE_AND_OPERATOR:
 				{
-					ret = new CBoolValue(((CBoolValue *)val)->GetBool() && m_bool);
+					ret = new EXP_BoolValue(((EXP_BoolValue *)val)->GetBool() && m_bool);
 					break;
 				}
 				case VALUE_OR_OPERATOR:
 				{
-					ret = new CBoolValue(((CBoolValue *)val)->GetBool() || m_bool);
+					ret = new EXP_BoolValue(((EXP_BoolValue *)val)->GetBool() || m_bool);
 					break;
 				}
 				case VALUE_EQL_OPERATOR:
 				{
-					ret = new CBoolValue(((CBoolValue *)val)->GetBool() == m_bool);
+					ret = new EXP_BoolValue(((EXP_BoolValue *)val)->GetBool() == m_bool);
 					break;
 				}
 				case VALUE_NEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CBoolValue *)val)->GetBool() != m_bool);
+					ret = new EXP_BoolValue(((EXP_BoolValue *)val)->GetBool() != m_bool);
 					break;
 				}
 				case VALUE_NOT_OPERATOR:
 				{
-					return new CBoolValue(!m_bool);
+					return new EXP_BoolValue(!m_bool);
 					break;
 				}
 				default:
 				{
-					ret =  new CErrorValue(val->GetText() + op2str(op) +
+					ret =  new EXP_ErrorValue(val->GetText() + op2str(op) +
 					                       "[operator not allowed on booleans]");
 					break;
 				}
@@ -116,54 +116,54 @@ CValue *CBoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *
 			{
 				case VALUE_ADD_OPERATOR:
 				{
-					ret = new CStringValue(val->GetText() + GetText(), "");
+					ret = new EXP_StringValue(val->GetText() + GetText(), "");
 					break;
 				}
 				default:
 				{
-					ret =  new CErrorValue(val->GetText() + op2str(op) + "[Only + allowed on boolean and string]");
+					ret =  new EXP_ErrorValue(val->GetText() + op2str(op) + "[Only + allowed on boolean and string]");
 					break;
 				}
 			}
 			break;
 		}
 		default:
-			ret =  new CErrorValue("[type mismatch]" + op2str(op) + GetText());
+			ret =  new EXP_ErrorValue("[type mismatch]" + op2str(op) + GetText());
 	}
 
 	return ret;
 }
 
-bool CBoolValue::GetBool()
+bool EXP_BoolValue::GetBool()
 {
 	return m_bool;
 }
 
-double CBoolValue::GetNumber()
+double EXP_BoolValue::GetNumber()
 {
 	return (double)m_bool;
 }
 
-int CBoolValue::GetValueType()
+int EXP_BoolValue::GetValueType()
 {
 	return VALUE_BOOL_TYPE;
 }
 
-std::string CBoolValue::GetText()
+std::string EXP_BoolValue::GetText()
 {
 	return m_bool ? sTrueString : sFalseString;
 }
 
-CValue *CBoolValue::GetReplica()
+EXP_Value *EXP_BoolValue::GetReplica()
 {
-	CBoolValue *replica = new CBoolValue(*this);
+	EXP_BoolValue *replica = new EXP_BoolValue(*this);
 	replica->ProcessReplica();
 
 	return replica;
 }
 
 #ifdef WITH_PYTHON
-PyObject *CBoolValue::ConvertValueToPython()
+PyObject *EXP_BoolValue::ConvertValueToPython()
 {
 	return PyBool_FromLong(m_bool != 0);
 }

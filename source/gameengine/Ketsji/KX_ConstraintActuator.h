@@ -131,7 +131,7 @@ protected:
 						  int option,
 						  char *property);
 	virtual ~KX_ConstraintActuator();
-	virtual CValue* GetReplica() {
+	virtual EXP_Value* GetReplica() {
 		KX_ConstraintActuator* replica = new KX_ConstraintActuator(*this);
 		replica->ProcessReplica();
 		return replica;
@@ -143,8 +143,8 @@ protected:
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 
-	static int pyattr_check_direction(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_check_min(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_check_direction(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_check_min(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef);
 
 };
 

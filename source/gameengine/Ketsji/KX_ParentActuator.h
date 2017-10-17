@@ -69,7 +69,7 @@ public:
 	virtual ~KX_ParentActuator();
 	virtual bool Update();
 	
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void ProcessReplica();
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
 	virtual bool UnlinkObject(SCA_IObject* clientobj);
@@ -81,8 +81,8 @@ public:
 	/* --------------------------------------------------------------------- */
 
 	/* These are used to get and set m_ob */
-	static PyObject *pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	
 #endif  /* WITH_PYTHON */
 

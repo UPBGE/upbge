@@ -559,7 +559,7 @@ void KX_ConstraintActuator::Clamp(MT_Scalar &var,
 PyTypeObject KX_ConstraintActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_ConstraintActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -583,21 +583,21 @@ PyMethodDef KX_ConstraintActuator::Methods[] = {
 };
 
 PyAttributeDef KX_ConstraintActuator::Attributes[] = {
-	KX_PYATTRIBUTE_INT_RW("damp",0,100,true,KX_ConstraintActuator,m_posDampTime),
-	KX_PYATTRIBUTE_INT_RW("rotDamp",0,100,true,KX_ConstraintActuator,m_rotDampTime),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RW_CHECK("direction",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_refDirection,3,pyattr_check_direction),
-	KX_PYATTRIBUTE_INT_RW("option",0,0xFFFF,false,KX_ConstraintActuator,m_option),
-	KX_PYATTRIBUTE_INT_RW("time",0,1000,true,KX_ConstraintActuator,m_activeTime),
-	KX_PYATTRIBUTE_STRING_RW("propName",0,MAX_PROP_NAME,true,KX_ConstraintActuator,m_property),
-	KX_PYATTRIBUTE_FLOAT_RW("min",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_minimumBound),
-	KX_PYATTRIBUTE_FLOAT_RW("distance",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_minimumBound),
-	KX_PYATTRIBUTE_FLOAT_RW("max",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_maximumBound),
-	KX_PYATTRIBUTE_FLOAT_RW("rayLength",0,2000.f,KX_ConstraintActuator,m_maximumBound),
-	KX_PYATTRIBUTE_INT_RW("limit",KX_ConstraintActuator::KX_ACT_CONSTRAINT_NODEF+1,KX_ConstraintActuator::KX_ACT_CONSTRAINT_MAX-1,false,KX_ConstraintActuator,m_locrot),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_INT_RW("damp",0,100,true,KX_ConstraintActuator,m_posDampTime),
+	EXP_PYATTRIBUTE_INT_RW("rotDamp",0,100,true,KX_ConstraintActuator,m_rotDampTime),
+	EXP_PYATTRIBUTE_FLOAT_ARRAY_RW_CHECK("direction",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_refDirection,3,pyattr_check_direction),
+	EXP_PYATTRIBUTE_INT_RW("option",0,0xFFFF,false,KX_ConstraintActuator,m_option),
+	EXP_PYATTRIBUTE_INT_RW("time",0,1000,true,KX_ConstraintActuator,m_activeTime),
+	EXP_PYATTRIBUTE_STRING_RW("propName",0,MAX_PROP_NAME,true,KX_ConstraintActuator,m_property),
+	EXP_PYATTRIBUTE_FLOAT_RW("min",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_minimumBound),
+	EXP_PYATTRIBUTE_FLOAT_RW("distance",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_minimumBound),
+	EXP_PYATTRIBUTE_FLOAT_RW("max",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_maximumBound),
+	EXP_PYATTRIBUTE_FLOAT_RW("rayLength",0,2000.f,KX_ConstraintActuator,m_maximumBound),
+	EXP_PYATTRIBUTE_INT_RW("limit",KX_ConstraintActuator::KX_ACT_CONSTRAINT_NODEF+1,KX_ConstraintActuator::KX_ACT_CONSTRAINT_MAX-1,false,KX_ConstraintActuator,m_locrot),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-int KX_ConstraintActuator::pyattr_check_direction(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+int KX_ConstraintActuator::pyattr_check_direction(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ConstraintActuator* act = static_cast<KX_ConstraintActuator*>(self_v);
 	MT_Vector3 dir(act->m_refDirection);

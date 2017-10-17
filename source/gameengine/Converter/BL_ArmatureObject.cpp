@@ -212,8 +212,8 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 	m_drawDebug(false),
 	m_lastapplyframe(0.0)
 {
-	m_controlledConstraints = new CListValue<BL_ArmatureConstraint>();
-	m_poseChannels = new CListValue<BL_ArmatureChannel>();
+	m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
+	m_poseChannels = new EXP_ListValue<BL_ArmatureChannel>();
 
 	// Keep a copy of the original armature so we can fix drivers later
 	m_origObjArma = armature;
@@ -367,7 +367,7 @@ BL_ArmatureChannel *BL_ArmatureObject::GetChannel(int index)
 	return static_cast<BL_ArmatureChannel *>(m_poseChannels->GetValue(index));
 }
 
-CValue *BL_ArmatureObject::GetReplica()
+EXP_Value *BL_ArmatureObject::GetReplica()
 {
 	BL_ArmatureObject *replica = new BL_ArmatureObject(*this);
 	replica->ProcessReplica();
@@ -379,7 +379,7 @@ void BL_ArmatureObject::ProcessReplica()
 	KX_GameObject::ProcessReplica();
 
 	// Replicate each constraints.
-	m_controlledConstraints = static_cast<CListValue<BL_ArmatureConstraint> *>(m_controlledConstraints->GetReplica());
+	m_controlledConstraints = static_cast<EXP_ListValue<BL_ArmatureConstraint> *>(m_controlledConstraints->GetReplica());
 	// Share pose channels.
 	m_poseChannels->AddRef();
 
@@ -550,7 +550,7 @@ float BL_ArmatureObject::GetBoneLength(Bone *bone) const
 PyTypeObject BL_ArmatureObject::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"BL_ArmatureObject",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -576,32 +576,32 @@ PyTypeObject BL_ArmatureObject::Type = {
 };
 
 PyMethodDef BL_ArmatureObject::Methods[] = {
-	KX_PYMETHODTABLE_NOARGS(BL_ArmatureObject, update),
-	KX_PYMETHODTABLE_NOARGS(BL_ArmatureObject, draw),
+	EXP_PYMETHODTABLE_NOARGS(BL_ArmatureObject, update),
+	EXP_PYMETHODTABLE_NOARGS(BL_ArmatureObject, draw),
 	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef BL_ArmatureObject::Attributes[] = {
 
-	KX_PYATTRIBUTE_RO_FUNCTION("constraints",       BL_ArmatureObject, pyattr_get_constraints),
-	KX_PYATTRIBUTE_RO_FUNCTION("channels",      BL_ArmatureObject, pyattr_get_channels),
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("constraints",       BL_ArmatureObject, pyattr_get_constraints),
+	EXP_PYATTRIBUTE_RO_FUNCTION("channels",      BL_ArmatureObject, pyattr_get_channels),
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *BL_ArmatureObject::pyattr_get_constraints(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureObject::pyattr_get_constraints(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureObject *self = static_cast<BL_ArmatureObject *>(self_v);
 	return self->m_controlledConstraints->GetProxy();
 }
 
-PyObject *BL_ArmatureObject::pyattr_get_channels(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureObject::pyattr_get_channels(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureObject *self = static_cast<BL_ArmatureObject *>(self_v);
 	self->LoadChannels(); // make sure we have the channels
 	return self->m_poseChannels->GetProxy();
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, update,
+EXP_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, update,
                           "update()\n"
                           "Make sure that the armature will be updated on next graphic frame.\n"
                           "This is automatically done if a KX_ArmatureActuator with mode run is active\n"
@@ -611,7 +611,7 @@ KX_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, update,
 	Py_RETURN_NONE;
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, draw,
+EXP_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, draw,
                           "Draw Debug Armature")
 {
 	/* Armature bones are updated later, so we only set to true a flag

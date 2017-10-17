@@ -115,7 +115,7 @@ bool KX_TextureRenderer::NeedUpdate()
 PyTypeObject KX_TextureRenderer::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_TextureRenderer",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -129,34 +129,34 @@ PyTypeObject KX_TextureRenderer::Type = {
 	Methods,
 	0,
 	0,
-	&CValue::Type,
+	&EXP_Value::Type,
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef KX_TextureRenderer::Methods[] = {
-	KX_PYMETHODTABLE_NOARGS(KX_TextureRenderer, update),
+	EXP_PYMETHODTABLE_NOARGS(KX_TextureRenderer, update),
 	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_TextureRenderer::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("viewpointObject", KX_TextureRenderer, pyattr_get_viewpoint_object, pyattr_set_viewpoint_object),
-	KX_PYATTRIBUTE_BOOL_RW("autoUpdate", KX_TextureRenderer, m_autoUpdate),
-	KX_PYATTRIBUTE_BOOL_RW("enabled", KX_TextureRenderer, m_enabled),
-	KX_PYATTRIBUTE_INT_RW("ignoreLayers", 0, (1 << 20) - 1, true, KX_TextureRenderer, m_ignoreLayers),
-	KX_PYATTRIBUTE_RW_FUNCTION("clipStart", KX_TextureRenderer, pyattr_get_clip_start, pyattr_set_clip_start),
-	KX_PYATTRIBUTE_RW_FUNCTION("clipEnd", KX_TextureRenderer, pyattr_get_clip_end, pyattr_set_clip_end),
-	KX_PYATTRIBUTE_FLOAT_RW("lodDistanceFactor", 0.0f, FLT_MAX, KX_TextureRenderer, m_lodDistanceFactor),
-	KX_PYATTRIBUTE_NULL // Sentinel
+	EXP_PYATTRIBUTE_RW_FUNCTION("viewpointObject", KX_TextureRenderer, pyattr_get_viewpoint_object, pyattr_set_viewpoint_object),
+	EXP_PYATTRIBUTE_BOOL_RW("autoUpdate", KX_TextureRenderer, m_autoUpdate),
+	EXP_PYATTRIBUTE_BOOL_RW("enabled", KX_TextureRenderer, m_enabled),
+	EXP_PYATTRIBUTE_INT_RW("ignoreLayers", 0, (1 << 20) - 1, true, KX_TextureRenderer, m_ignoreLayers),
+	EXP_PYATTRIBUTE_RW_FUNCTION("clipStart", KX_TextureRenderer, pyattr_get_clip_start, pyattr_set_clip_start),
+	EXP_PYATTRIBUTE_RW_FUNCTION("clipEnd", KX_TextureRenderer, pyattr_get_clip_end, pyattr_set_clip_end),
+	EXP_PYATTRIBUTE_FLOAT_RW("lodDistanceFactor", 0.0f, FLT_MAX, KX_TextureRenderer, m_lodDistanceFactor),
+	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_TextureRenderer, update, "update(): Set the texture rendered to be updated next frame.\n")
+EXP_PYMETHODDEF_DOC_NOARGS(KX_TextureRenderer, update, "update(): Set the texture rendered to be updated next frame.\n")
 {
 	m_forceUpdate = true;
 	Py_RETURN_NONE;
 }
 
-PyObject *KX_TextureRenderer::pyattr_get_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_TextureRenderer::pyattr_get_viewpoint_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_TextureRenderer *self = static_cast<KX_TextureRenderer *>(self_v);
 	KX_GameObject *gameobj = self->GetViewpointObject();
@@ -166,7 +166,7 @@ PyObject *KX_TextureRenderer::pyattr_get_viewpoint_object(PyObjectPlus *self_v, 
 	Py_RETURN_NONE;
 }
 
-int KX_TextureRenderer::pyattr_set_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_TextureRenderer::pyattr_set_viewpoint_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_TextureRenderer *self = static_cast<KX_TextureRenderer *>(self_v);
 	KX_GameObject *gameobj = nullptr;
@@ -181,13 +181,13 @@ int KX_TextureRenderer::pyattr_set_viewpoint_object(PyObjectPlus *self_v, const 
 }
 
 
-PyObject *KX_TextureRenderer::pyattr_get_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_TextureRenderer::pyattr_get_clip_start(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_TextureRenderer *self = static_cast<KX_TextureRenderer *>(self_v);
 	return PyFloat_FromDouble(self->GetClipStart());
 }
 
-int KX_TextureRenderer::pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_TextureRenderer::pyattr_set_clip_start(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_TextureRenderer *self = static_cast<KX_TextureRenderer *>(self_v);
 
@@ -204,13 +204,13 @@ int KX_TextureRenderer::pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYA
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_TextureRenderer::pyattr_get_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_TextureRenderer::pyattr_get_clip_end(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_TextureRenderer *self = static_cast<KX_TextureRenderer *>(self_v);
 	return PyFloat_FromDouble(self->GetClipEnd());
 }
 
-int KX_TextureRenderer::pyattr_set_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_TextureRenderer::pyattr_set_clip_end(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_TextureRenderer *self = static_cast<KX_TextureRenderer *>(self_v);
 

@@ -151,7 +151,7 @@ public:
 					   int axis, int axisf,int prec,
 					   int button, bool allevents);
 	virtual ~SCA_JoystickSensor();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	
 	virtual bool Evaluate();
 	virtual bool IsPositiveTrigger();
@@ -168,22 +168,22 @@ public:
 	/* --------------------------------------------------------------------- */
 
 	/* Joystick Index */
-	KX_PYMETHOD_DOC_NOARGS(SCA_JoystickSensor,GetButtonActiveList)
-	KX_PYMETHOD_DOC_VARARGS(SCA_JoystickSensor,GetButtonStatus)
+	EXP_PYMETHOD_DOC_NOARGS(SCA_JoystickSensor,GetButtonActiveList)
+	EXP_PYMETHOD_DOC_VARARGS(SCA_JoystickSensor,GetButtonStatus)
 
-	static PyObject*	pyattr_get_axis_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_axis_single(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_check_hat(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_hat_single(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_num_axis(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_num_buttons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_num_hats(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_connected(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_axis_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_axis_single(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_check_hat(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_hat_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_hat_single(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_num_axis(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_num_buttons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_num_hats(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_connected(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	
 
 	/* attribute check */
-	static int CheckAxis(PyObjectPlus *self, const PyAttributeDef*)
+	static int CheckAxis(EXP_PyObjectPlus *self, const PyAttributeDef*)
 	{
 		SCA_JoystickSensor* sensor = reinterpret_cast<SCA_JoystickSensor*>(self);
 		if (sensor->m_axis < 1)

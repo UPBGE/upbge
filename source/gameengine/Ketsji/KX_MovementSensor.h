@@ -73,7 +73,7 @@ public:
 					  int axis, bool localflag,
 					  float threshold);
 	virtual ~KX_MovementSensor();
-	virtual CValue *GetReplica();
+	virtual EXP_Value *GetReplica();
 	MT_Vector3 GetOwnerPosition(bool local);
 
 	virtual bool Evaluate();

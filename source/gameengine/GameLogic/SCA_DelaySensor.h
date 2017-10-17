@@ -52,7 +52,7 @@ public:
 					int duration,
 					bool repeat);
 	virtual ~SCA_DelaySensor();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual bool Evaluate();
 	virtual bool IsPositiveTrigger();
 	virtual void Init();

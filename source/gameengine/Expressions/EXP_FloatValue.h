@@ -1,5 +1,5 @@
 /*
- * FloatValue.h: interface for the CFloatValue class.
+ * FloatValue.h: interface for the EXP_FloatValue class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -21,24 +21,24 @@
 
 #include "EXP_Value.h"
 
-class CFloatValue : public CPropValue
+class EXP_FloatValue : public EXP_PropValue
 {
 public:
-	CFloatValue();
-	CFloatValue(float fl);
-	CFloatValue(float fl, const std::string& name);
+	EXP_FloatValue();
+	EXP_FloatValue(float fl);
+	EXP_FloatValue(float fl, const std::string& name);
 
 	virtual std::string GetText();
 
 	virtual double GetNumber();
 	virtual int GetValueType();
-	virtual void SetValue(CValue *newval);
+	virtual void SetValue(EXP_Value *newval);
 	float GetFloat();
 	void SetFloat(float fl);
-	virtual ~CFloatValue();
-	virtual CValue *GetReplica();
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	virtual ~EXP_FloatValue();
+	virtual EXP_Value *GetReplica();
+	virtual EXP_Value *Calc(VALUE_OPERATOR op, EXP_Value *val);
+	virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
 #ifdef WITH_PYTHON
 	virtual PyObject *ConvertValueToPython();
 #endif

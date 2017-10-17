@@ -43,7 +43,7 @@ MT_Vector3 SCA_IObject::m_sDummy=MT_Vector3(0,0,0);
 SG_QList SCA_IObject::m_activeBookmarkedControllers;
 
 SCA_IObject::SCA_IObject():
-	CValue(),
+	EXP_Value(),
 	m_initState(0),
 	m_state(0),
 	m_firstState(nullptr)
@@ -58,14 +58,14 @@ SCA_IObject::~SCA_IObject()
 	{
 		//Use Delete for sensor to ensure proper cleaning
 		(*its)->Delete();
-		//((CValue*)(*its))->Release();
+		//((EXP_Value*)(*its))->Release();
 	}
 	SCA_ControllerList::iterator itc; 
 	for (itc = m_controllers.begin(); !(itc == m_controllers.end()); ++itc)
 	{
 		//Use Delete for controller to ensure proper cleaning (expression controller)
 		(*itc)->Delete();
-		//((CValue*)(*itc))->Release();
+		//((EXP_Value*)(*itc))->Release();
 	}
 	SCA_ActuatorList::iterator ita;
 	for (ita = m_registeredActuators.begin(); !(ita==m_registeredActuators.end()); ++ita)
@@ -292,7 +292,7 @@ void SCA_IObject::SetState(unsigned int state)
 PyTypeObject SCA_IObject::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_IObject",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -306,7 +306,7 @@ PyTypeObject SCA_IObject::Type = {
 	Methods,
 	0,
 	0,
-	&CValue::Type,
+	&EXP_Value::Type,
 	0,0,0,0,0,0,
 	py_base_new
 };
@@ -318,7 +318,7 @@ PyMethodDef SCA_IObject::Methods[] = {
 };
 
 PyAttributeDef SCA_IObject::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

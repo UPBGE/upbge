@@ -50,7 +50,7 @@
 PyTypeObject BL_ArmatureConstraint::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"BL_ArmatureConstraint",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -64,7 +64,7 @@ PyTypeObject BL_ArmatureConstraint::Type = {
 	Methods,
 	0,
 	0,
-	&CValue::Type,
+	&EXP_Value::Type,
 	0,0,0,0,0,0,
 	py_base_new
 };
@@ -117,7 +117,7 @@ BL_ArmatureConstraint::~BL_ArmatureConstraint()
 	}
 }
 
-CValue *BL_ArmatureConstraint::GetReplica()
+EXP_Value *BL_ArmatureConstraint::GetReplica()
 {
 	BL_ArmatureConstraint *replica = new BL_ArmatureConstraint(*this);
 
@@ -297,25 +297,25 @@ PyMethodDef BL_ArmatureConstraint::Methods[] = {
 
 PyAttributeDef BL_ArmatureConstraint::Attributes[] = {
 	// Keep these attributes in order of BCA_ defines!!! used by py_attr_getattr and py_attr_setattr
-	KX_PYATTRIBUTE_RO_FUNCTION("type",BL_ArmatureConstraint,py_attr_getattr),
-	KX_PYATTRIBUTE_RO_FUNCTION("name",BL_ArmatureConstraint,py_attr_getattr),
-	KX_PYATTRIBUTE_RW_FUNCTION("enforce",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
-	KX_PYATTRIBUTE_RW_FUNCTION("headtail",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
-	KX_PYATTRIBUTE_RO_FUNCTION("lin_error",BL_ArmatureConstraint,py_attr_getattr),
-	KX_PYATTRIBUTE_RO_FUNCTION("rot_error",BL_ArmatureConstraint,py_attr_getattr),
-	KX_PYATTRIBUTE_RW_FUNCTION("target",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
-	KX_PYATTRIBUTE_RW_FUNCTION("subtarget",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
-	KX_PYATTRIBUTE_RW_FUNCTION("active",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
-	KX_PYATTRIBUTE_RW_FUNCTION("ik_weight",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
-	KX_PYATTRIBUTE_RO_FUNCTION("ik_type",BL_ArmatureConstraint,py_attr_getattr),
-	KX_PYATTRIBUTE_RO_FUNCTION("ik_flag",BL_ArmatureConstraint,py_attr_getattr),
-	KX_PYATTRIBUTE_RW_FUNCTION("ik_dist",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
-	KX_PYATTRIBUTE_RW_FUNCTION("ik_mode",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("type",BL_ArmatureConstraint,py_attr_getattr),
+	EXP_PYATTRIBUTE_RO_FUNCTION("name",BL_ArmatureConstraint,py_attr_getattr),
+	EXP_PYATTRIBUTE_RW_FUNCTION("enforce",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
+	EXP_PYATTRIBUTE_RW_FUNCTION("headtail",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
+	EXP_PYATTRIBUTE_RO_FUNCTION("lin_error",BL_ArmatureConstraint,py_attr_getattr),
+	EXP_PYATTRIBUTE_RO_FUNCTION("rot_error",BL_ArmatureConstraint,py_attr_getattr),
+	EXP_PYATTRIBUTE_RW_FUNCTION("target",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
+	EXP_PYATTRIBUTE_RW_FUNCTION("subtarget",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
+	EXP_PYATTRIBUTE_RW_FUNCTION("active",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
+	EXP_PYATTRIBUTE_RW_FUNCTION("ik_weight",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
+	EXP_PYATTRIBUTE_RO_FUNCTION("ik_type",BL_ArmatureConstraint,py_attr_getattr),
+	EXP_PYATTRIBUTE_RO_FUNCTION("ik_flag",BL_ArmatureConstraint,py_attr_getattr),
+	EXP_PYATTRIBUTE_RW_FUNCTION("ik_dist",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
+	EXP_PYATTRIBUTE_RW_FUNCTION("ik_mode",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
 
-PyObject *BL_ArmatureConstraint::py_attr_getattr(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureConstraint::py_attr_getattr(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureConstraint* self = static_cast<BL_ArmatureConstraint*>(self_v);
 	bConstraint* constraint = self->m_constraint;
@@ -380,7 +380,7 @@ PyObject *BL_ArmatureConstraint::py_attr_getattr(PyObjectPlus *self_v, const str
 	return nullptr;
 }
 
-int BL_ArmatureConstraint::py_attr_setattr(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_ArmatureConstraint::py_attr_setattr(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_ArmatureConstraint* self = static_cast<BL_ArmatureConstraint*>(self_v);
 	bConstraint* constraint = self->m_constraint;

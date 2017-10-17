@@ -34,7 +34,7 @@
 
 #include "KX_ObjectActuator.h"
 #include "KX_GameObject.h"
-#include "KX_PyMath.h" // For PyVecTo - should this include be put in PyObjectPlus?
+#include "KX_PyMath.h" // For PyVecTo - should this include be put in EXP_PyObjectPlus?
 #include "PHY_IPhysicsController.h"
 #include "PHY_ICharacter.h"
 #include "PHY_IPhysicsEnvironment.h"
@@ -316,7 +316,7 @@ bool KX_ObjectActuator::Update()
 
 
 
-CValue* KX_ObjectActuator::GetReplica()
+EXP_Value* KX_ObjectActuator::GetReplica()
 {
 	KX_ObjectActuator* replica = new KX_ObjectActuator(*this);//m_float,GetName());
 	replica->ProcessReplica();
@@ -363,7 +363,7 @@ void KX_ObjectActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 PyTypeObject KX_ObjectActuator::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_ObjectActuator",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -387,30 +387,30 @@ PyMethodDef KX_ObjectActuator::Methods[] = {
 };
 
 PyAttributeDef KX_ObjectActuator::Attributes[] = {
-	KX_PYATTRIBUTE_VECTOR_RW_CHECK("force", -1000, 1000, false, KX_ObjectActuator, m_force, PyUpdateFuzzyFlags),
-	KX_PYATTRIBUTE_BOOL_RW("useLocalForce", KX_ObjectActuator, m_bitLocalFlag.Force),
-	KX_PYATTRIBUTE_VECTOR_RW_CHECK("torque", -1000, 1000, false, KX_ObjectActuator, m_torque, PyUpdateFuzzyFlags),
-	KX_PYATTRIBUTE_BOOL_RW("useLocalTorque", KX_ObjectActuator, m_bitLocalFlag.Torque),
-	KX_PYATTRIBUTE_VECTOR_RW_CHECK("dLoc", -1000, 1000, false, KX_ObjectActuator, m_dloc, PyUpdateFuzzyFlags),
-	KX_PYATTRIBUTE_BOOL_RW("useLocalDLoc", KX_ObjectActuator, m_bitLocalFlag.DLoc),
-	KX_PYATTRIBUTE_VECTOR_RW_CHECK("dRot", -1000, 1000, false, KX_ObjectActuator, m_drot, PyUpdateFuzzyFlags),
-	KX_PYATTRIBUTE_BOOL_RW("useLocalDRot", KX_ObjectActuator, m_bitLocalFlag.DRot),
+	EXP_PYATTRIBUTE_VECTOR_RW_CHECK("force", -1000, 1000, false, KX_ObjectActuator, m_force, PyUpdateFuzzyFlags),
+	EXP_PYATTRIBUTE_BOOL_RW("useLocalForce", KX_ObjectActuator, m_bitLocalFlag.Force),
+	EXP_PYATTRIBUTE_VECTOR_RW_CHECK("torque", -1000, 1000, false, KX_ObjectActuator, m_torque, PyUpdateFuzzyFlags),
+	EXP_PYATTRIBUTE_BOOL_RW("useLocalTorque", KX_ObjectActuator, m_bitLocalFlag.Torque),
+	EXP_PYATTRIBUTE_VECTOR_RW_CHECK("dLoc", -1000, 1000, false, KX_ObjectActuator, m_dloc, PyUpdateFuzzyFlags),
+	EXP_PYATTRIBUTE_BOOL_RW("useLocalDLoc", KX_ObjectActuator, m_bitLocalFlag.DLoc),
+	EXP_PYATTRIBUTE_VECTOR_RW_CHECK("dRot", -1000, 1000, false, KX_ObjectActuator, m_drot, PyUpdateFuzzyFlags),
+	EXP_PYATTRIBUTE_BOOL_RW("useLocalDRot", KX_ObjectActuator, m_bitLocalFlag.DRot),
 #ifdef USE_MATHUTILS
-	KX_PYATTRIBUTE_RW_FUNCTION("linV", KX_ObjectActuator, pyattr_get_linV, pyattr_set_linV),
-	KX_PYATTRIBUTE_RW_FUNCTION("angV", KX_ObjectActuator, pyattr_get_angV, pyattr_set_angV),
+	EXP_PYATTRIBUTE_RW_FUNCTION("linV", KX_ObjectActuator, pyattr_get_linV, pyattr_set_linV),
+	EXP_PYATTRIBUTE_RW_FUNCTION("angV", KX_ObjectActuator, pyattr_get_angV, pyattr_set_angV),
 #else
-	KX_PYATTRIBUTE_VECTOR_RW_CHECK("linV", -1000, 1000, false, KX_ObjectActuator, m_linear_velocity, PyUpdateFuzzyFlags),
-	KX_PYATTRIBUTE_VECTOR_RW_CHECK("angV", -1000, 1000, false, KX_ObjectActuator, m_angular_velocity, PyUpdateFuzzyFlags),
+	EXP_PYATTRIBUTE_VECTOR_RW_CHECK("linV", -1000, 1000, false, KX_ObjectActuator, m_linear_velocity, PyUpdateFuzzyFlags),
+	EXP_PYATTRIBUTE_VECTOR_RW_CHECK("angV", -1000, 1000, false, KX_ObjectActuator, m_angular_velocity, PyUpdateFuzzyFlags),
 #endif
-	KX_PYATTRIBUTE_BOOL_RW("useLocalLinV", KX_ObjectActuator, m_bitLocalFlag.LinearVelocity),
-	KX_PYATTRIBUTE_BOOL_RW("useLocalAngV", KX_ObjectActuator, m_bitLocalFlag.AngularVelocity),
-	KX_PYATTRIBUTE_SHORT_RW("damping", 0, 1000, false, KX_ObjectActuator, m_damping),
-	KX_PYATTRIBUTE_RW_FUNCTION("forceLimitX", KX_ObjectActuator, pyattr_get_forceLimitX, pyattr_set_forceLimitX),
-	KX_PYATTRIBUTE_RW_FUNCTION("forceLimitY", KX_ObjectActuator, pyattr_get_forceLimitY, pyattr_set_forceLimitY),
-	KX_PYATTRIBUTE_RW_FUNCTION("forceLimitZ", KX_ObjectActuator, pyattr_get_forceLimitZ, pyattr_set_forceLimitZ),
-	KX_PYATTRIBUTE_VECTOR_RW_CHECK("pid", -100, 200, true, KX_ObjectActuator, m_pid, PyCheckPid),
-	KX_PYATTRIBUTE_RW_FUNCTION("reference", KX_ObjectActuator,pyattr_get_reference,pyattr_set_reference),
-	KX_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_BOOL_RW("useLocalLinV", KX_ObjectActuator, m_bitLocalFlag.LinearVelocity),
+	EXP_PYATTRIBUTE_BOOL_RW("useLocalAngV", KX_ObjectActuator, m_bitLocalFlag.AngularVelocity),
+	EXP_PYATTRIBUTE_SHORT_RW("damping", 0, 1000, false, KX_ObjectActuator, m_damping),
+	EXP_PYATTRIBUTE_RW_FUNCTION("forceLimitX", KX_ObjectActuator, pyattr_get_forceLimitX, pyattr_set_forceLimitX),
+	EXP_PYATTRIBUTE_RW_FUNCTION("forceLimitY", KX_ObjectActuator, pyattr_get_forceLimitY, pyattr_set_forceLimitY),
+	EXP_PYATTRIBUTE_RW_FUNCTION("forceLimitZ", KX_ObjectActuator, pyattr_get_forceLimitZ, pyattr_set_forceLimitZ),
+	EXP_PYATTRIBUTE_VECTOR_RW_CHECK("pid", -100, 200, true, KX_ObjectActuator, m_pid, PyCheckPid),
+	EXP_PYATTRIBUTE_RW_FUNCTION("reference", KX_ObjectActuator,pyattr_get_reference,pyattr_set_reference),
+	EXP_PYATTRIBUTE_NULL //Sentinel
 };
 
 /* Attribute get/set functions */
@@ -425,7 +425,7 @@ static unsigned char mathutils_kxobactu_vector_cb_index = -1; /* index for our c
 
 static int mathutils_obactu_generic_check(BaseMathObject *bmo)
 {
-	KX_ObjectActuator* self = static_cast<KX_ObjectActuator*>BGE_PROXY_REF(bmo->cb_user);
+	KX_ObjectActuator* self = static_cast<KX_ObjectActuator*>EXP_PROXY_REF(bmo->cb_user);
 	if (self == nullptr)
 		return -1;
 
@@ -434,7 +434,7 @@ static int mathutils_obactu_generic_check(BaseMathObject *bmo)
 
 static int mathutils_obactu_vector_get(BaseMathObject *bmo, int subtype)
 {
-	KX_ObjectActuator* self = static_cast<KX_ObjectActuator*>BGE_PROXY_REF(bmo->cb_user);
+	KX_ObjectActuator* self = static_cast<KX_ObjectActuator*>EXP_PROXY_REF(bmo->cb_user);
 	if (self == nullptr)
 		return -1;
 
@@ -452,7 +452,7 @@ static int mathutils_obactu_vector_get(BaseMathObject *bmo, int subtype)
 
 static int mathutils_obactu_vector_set(BaseMathObject *bmo, int subtype)
 {
-	KX_ObjectActuator* self = static_cast<KX_ObjectActuator*>BGE_PROXY_REF(bmo->cb_user);
+	KX_ObjectActuator* self = static_cast<KX_ObjectActuator*>EXP_PROXY_REF(bmo->cb_user);
 	if (self == nullptr)
 		return -1;
 
@@ -496,14 +496,14 @@ static Mathutils_Callback mathutils_obactu_vector_cb = {
 	mathutils_obactu_vector_set_index
 };
 
-PyObject *KX_ObjectActuator::pyattr_get_linV(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ObjectActuator::pyattr_get_linV(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	return Vector_CreatePyObject_cb(
-	        BGE_PROXY_FROM_REF_BORROW(self_v), 3,
+	        EXP_PROXY_FROM_REF_BORROW(self_v), 3,
 	        mathutils_kxobactu_vector_cb_index, MATHUTILS_VEC_CB_LINV);
 }
 
-int KX_ObjectActuator::pyattr_set_linV(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_ObjectActuator::pyattr_set_linV(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_ObjectActuator* self = static_cast<KX_ObjectActuator*>(self_v);
 	if (!PyVecTo(value, self->m_linear_velocity))
@@ -514,14 +514,14 @@ int KX_ObjectActuator::pyattr_set_linV(PyObjectPlus *self_v, const KX_PYATTRIBUT
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_ObjectActuator::pyattr_get_angV(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ObjectActuator::pyattr_get_angV(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	return Vector_CreatePyObject_cb(
-	        BGE_PROXY_FROM_REF_BORROW(self_v), 3,
+	        EXP_PROXY_FROM_REF_BORROW(self_v), 3,
 	        mathutils_kxobactu_vector_cb_index, MATHUTILS_VEC_CB_ANGV);
 }
 
-int KX_ObjectActuator::pyattr_set_angV(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_ObjectActuator::pyattr_set_angV(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_ObjectActuator* self = static_cast<KX_ObjectActuator*>(self_v);
 	if (!PyVecTo(value, self->m_angular_velocity))
@@ -541,7 +541,7 @@ void KX_ObjectActuator_Mathutils_Callback_Init(void)
 
 #endif // USE_MATHUTILS
 
-PyObject *KX_ObjectActuator::pyattr_get_forceLimitX(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ObjectActuator::pyattr_get_forceLimitX(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ObjectActuator* self = reinterpret_cast<KX_ObjectActuator*>(self_v);
 	PyObject *retVal = PyList_New(3);
@@ -553,7 +553,7 @@ PyObject *KX_ObjectActuator::pyattr_get_forceLimitX(PyObjectPlus *self_v, const 
 	return retVal;
 }
 
-int KX_ObjectActuator::pyattr_set_forceLimitX(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_ObjectActuator::pyattr_set_forceLimitX(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_ObjectActuator* self = reinterpret_cast<KX_ObjectActuator*>(self_v);
 
@@ -577,7 +577,7 @@ int KX_ObjectActuator::pyattr_set_forceLimitX(PyObjectPlus *self_v, const KX_PYA
 	return PY_SET_ATTR_FAIL;
 }
 
-PyObject *KX_ObjectActuator::pyattr_get_forceLimitY(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ObjectActuator::pyattr_get_forceLimitY(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ObjectActuator* self = reinterpret_cast<KX_ObjectActuator*>(self_v);
 	PyObject *retVal = PyList_New(3);
@@ -589,7 +589,7 @@ PyObject *KX_ObjectActuator::pyattr_get_forceLimitY(PyObjectPlus *self_v, const 
 	return retVal;
 }
 
-int	KX_ObjectActuator::pyattr_set_forceLimitY(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int	KX_ObjectActuator::pyattr_set_forceLimitY(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_ObjectActuator* self = reinterpret_cast<KX_ObjectActuator*>(self_v);
 
@@ -613,7 +613,7 @@ int	KX_ObjectActuator::pyattr_set_forceLimitY(PyObjectPlus *self_v, const KX_PYA
 	return PY_SET_ATTR_FAIL;
 }
 
-PyObject *KX_ObjectActuator::pyattr_get_forceLimitZ(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ObjectActuator::pyattr_get_forceLimitZ(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ObjectActuator* self = reinterpret_cast<KX_ObjectActuator*>(self_v);
 	PyObject *retVal = PyList_New(3);
@@ -625,7 +625,7 @@ PyObject *KX_ObjectActuator::pyattr_get_forceLimitZ(PyObjectPlus *self_v, const 
 	return retVal;
 }
 
-int	KX_ObjectActuator::pyattr_set_forceLimitZ(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int	KX_ObjectActuator::pyattr_set_forceLimitZ(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_ObjectActuator* self = reinterpret_cast<KX_ObjectActuator*>(self_v);
 
@@ -649,7 +649,7 @@ int	KX_ObjectActuator::pyattr_set_forceLimitZ(PyObjectPlus *self_v, const KX_PYA
 	return PY_SET_ATTR_FAIL;
 }
 
-PyObject *KX_ObjectActuator::pyattr_get_reference(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ObjectActuator::pyattr_get_reference(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ObjectActuator* actuator = static_cast<KX_ObjectActuator*>(self);
 	if (!actuator->m_reference)
@@ -658,7 +658,7 @@ PyObject *KX_ObjectActuator::pyattr_get_reference(PyObjectPlus *self, const stru
 	return actuator->m_reference->GetProxy();
 }
 
-int KX_ObjectActuator::pyattr_set_reference(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_ObjectActuator::pyattr_set_reference(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_ObjectActuator* actuator = static_cast<KX_ObjectActuator*>(self);
 	KX_GameObject *refOb;

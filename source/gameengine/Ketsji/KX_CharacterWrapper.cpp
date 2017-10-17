@@ -46,7 +46,7 @@ std::string KX_CharacterWrapper::GetName()
 PyTypeObject KX_CharacterWrapper::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_CharacterWrapper",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -60,37 +60,37 @@ PyTypeObject KX_CharacterWrapper::Type = {
 	Methods,
 	0,
 	0,
-	&PyObjectPlus::Type,
+	&EXP_PyObjectPlus::Type,
 	0,0,0,0,0,0,
 	py_base_new
 };
 
 PyAttributeDef KX_CharacterWrapper::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("onGround", KX_CharacterWrapper, pyattr_get_onground),
-	KX_PYATTRIBUTE_RW_FUNCTION("gravity", KX_CharacterWrapper, pyattr_get_gravity, pyattr_set_gravity),
-	KX_PYATTRIBUTE_RW_FUNCTION("fallSpeed", KX_CharacterWrapper, pyattr_get_fallSpeed, pyattr_set_fallSpeed),
-	KX_PYATTRIBUTE_RW_FUNCTION("maxJumps", KX_CharacterWrapper, pyattr_get_max_jumps, pyattr_set_max_jumps),
-	KX_PYATTRIBUTE_RO_FUNCTION("jumpCount", KX_CharacterWrapper, pyattr_get_jump_count),
-	KX_PYATTRIBUTE_RW_FUNCTION("jumpSpeed", KX_CharacterWrapper, pyattr_get_jumpSpeed, pyattr_set_jumpSpeed),
-	KX_PYATTRIBUTE_RW_FUNCTION("walkDirection", KX_CharacterWrapper, pyattr_get_walk_dir, pyattr_set_walk_dir),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_RO_FUNCTION("onGround", KX_CharacterWrapper, pyattr_get_onground),
+	EXP_PYATTRIBUTE_RW_FUNCTION("gravity", KX_CharacterWrapper, pyattr_get_gravity, pyattr_set_gravity),
+	EXP_PYATTRIBUTE_RW_FUNCTION("fallSpeed", KX_CharacterWrapper, pyattr_get_fallSpeed, pyattr_set_fallSpeed),
+	EXP_PYATTRIBUTE_RW_FUNCTION("maxJumps", KX_CharacterWrapper, pyattr_get_max_jumps, pyattr_set_max_jumps),
+	EXP_PYATTRIBUTE_RO_FUNCTION("jumpCount", KX_CharacterWrapper, pyattr_get_jump_count),
+	EXP_PYATTRIBUTE_RW_FUNCTION("jumpSpeed", KX_CharacterWrapper, pyattr_get_jumpSpeed, pyattr_set_jumpSpeed),
+	EXP_PYATTRIBUTE_RW_FUNCTION("walkDirection", KX_CharacterWrapper, pyattr_get_walk_dir, pyattr_set_walk_dir),
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_CharacterWrapper::pyattr_get_onground(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CharacterWrapper::pyattr_get_onground(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CharacterWrapper* self = static_cast<KX_CharacterWrapper*>(self_v);
 
 	return PyBool_FromLong(self->m_character->OnGround());
 }
 
-PyObject *KX_CharacterWrapper::pyattr_get_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CharacterWrapper::pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CharacterWrapper* self = static_cast<KX_CharacterWrapper*>(self_v);
 
 	return PyFloat_FromDouble(self->m_character->GetGravity());
 }
 
-int KX_CharacterWrapper::pyattr_set_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_CharacterWrapper::pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CharacterWrapper* self = static_cast<KX_CharacterWrapper*>(self_v);
 	double param = PyFloat_AsDouble(value);
@@ -105,13 +105,13 @@ int KX_CharacterWrapper::pyattr_set_gravity(PyObjectPlus *self_v, const KX_PYATT
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_CharacterWrapper::pyattr_get_fallSpeed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CharacterWrapper::pyattr_get_fallSpeed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CharacterWrapper *self = static_cast<KX_CharacterWrapper *>(self_v);
 	return PyFloat_FromDouble(self->m_character->GetFallSpeed());
 }
 
-int KX_CharacterWrapper::pyattr_set_fallSpeed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_CharacterWrapper::pyattr_set_fallSpeed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CharacterWrapper *self = static_cast<KX_CharacterWrapper *>(self_v);
 	const float param = PyFloat_AsDouble(value);
@@ -125,14 +125,14 @@ int KX_CharacterWrapper::pyattr_set_fallSpeed(PyObjectPlus *self_v, const KX_PYA
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_CharacterWrapper::pyattr_get_max_jumps(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CharacterWrapper::pyattr_get_max_jumps(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CharacterWrapper* self = static_cast<KX_CharacterWrapper*>(self_v);
 
 	return PyLong_FromLong(self->m_character->GetMaxJumps());
 }
 
-int KX_CharacterWrapper::pyattr_set_max_jumps(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_CharacterWrapper::pyattr_set_max_jumps(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CharacterWrapper* self = static_cast<KX_CharacterWrapper*>(self_v);
 	long param = PyLong_AsLong(value);
@@ -149,20 +149,20 @@ int KX_CharacterWrapper::pyattr_set_max_jumps(PyObjectPlus *self_v, const KX_PYA
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_CharacterWrapper::pyattr_get_jump_count(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CharacterWrapper::pyattr_get_jump_count(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CharacterWrapper* self = static_cast<KX_CharacterWrapper*>(self_v);
 
 	return PyLong_FromLong(self->m_character->GetJumpCount());
 }
 
-PyObject *KX_CharacterWrapper::pyattr_get_jumpSpeed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CharacterWrapper::pyattr_get_jumpSpeed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CharacterWrapper *self = static_cast<KX_CharacterWrapper *>(self_v);
 	return PyFloat_FromDouble(self->m_character->GetJumpSpeed());
 }
 
-int KX_CharacterWrapper::pyattr_set_jumpSpeed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_CharacterWrapper::pyattr_set_jumpSpeed(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CharacterWrapper *self = static_cast<KX_CharacterWrapper *>(self_v);
 	const float param = PyFloat_AsDouble(value);
@@ -176,14 +176,14 @@ int KX_CharacterWrapper::pyattr_set_jumpSpeed(PyObjectPlus *self_v, const KX_PYA
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_CharacterWrapper::pyattr_get_walk_dir(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CharacterWrapper::pyattr_get_walk_dir(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CharacterWrapper* self = static_cast<KX_CharacterWrapper*>(self_v);
 
 	return PyObjectFrom(self->m_character->GetWalkDirection());
 }
 
-int KX_CharacterWrapper::pyattr_set_walk_dir(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_CharacterWrapper::pyattr_set_walk_dir(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CharacterWrapper* self = static_cast<KX_CharacterWrapper*>(self_v);
 	MT_Vector3 dir;
@@ -197,13 +197,13 @@ int KX_CharacterWrapper::pyattr_set_walk_dir(PyObjectPlus *self_v, const KX_PYAT
 }
 
 PyMethodDef KX_CharacterWrapper::Methods[] = {
-	KX_PYMETHODTABLE_NOARGS(KX_CharacterWrapper, jump),
-	KX_PYMETHODTABLE(KX_CharacterWrapper, setVelocity),
-	KX_PYMETHODTABLE_NOARGS(KX_CharacterWrapper, reset),
+	EXP_PYMETHODTABLE_NOARGS(KX_CharacterWrapper, jump),
+	EXP_PYMETHODTABLE(KX_CharacterWrapper, setVelocity),
+	EXP_PYMETHODTABLE_NOARGS(KX_CharacterWrapper, reset),
 	{nullptr,nullptr} //Sentinel
 };
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_CharacterWrapper, jump,
+EXP_PYMETHODDEF_DOC_NOARGS(KX_CharacterWrapper, jump,
 	"jump()\n"
 	"makes the character jump.\n")
 {
@@ -212,7 +212,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_CharacterWrapper, jump,
 	Py_RETURN_NONE;
 }
 
-KX_PYMETHODDEF_DOC(KX_CharacterWrapper, setVelocity,
+EXP_PYMETHODDEF_DOC(KX_CharacterWrapper, setVelocity,
 	"setVelocity(velocity, time, local=False)\n"
 	"set the character velocity for time period.\n")
 {
@@ -234,7 +234,7 @@ KX_PYMETHODDEF_DOC(KX_CharacterWrapper, setVelocity,
 	Py_RETURN_NONE;
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_CharacterWrapper, reset,
+EXP_PYMETHODDEF_DOC_NOARGS(KX_CharacterWrapper, reset,
 	"reset()\n"
 	"reset the character velocity and walk direction.\n")
 {

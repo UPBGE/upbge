@@ -55,9 +55,9 @@ SCA_ORController::~SCA_ORController()
 
 
 
-CValue* SCA_ORController::GetReplica()
+EXP_Value* SCA_ORController::GetReplica()
 {
-	CValue* replica = new SCA_ORController(*this);
+	EXP_Value* replica = new SCA_ORController(*this);
 	// this will copy properties and so on...
 	replica->ProcessReplica();
 
@@ -91,7 +91,7 @@ void SCA_ORController::Trigger(SCA_LogicManager* logicmgr)
 PyTypeObject SCA_ORController::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_ORController",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -115,7 +115,7 @@ PyMethodDef SCA_ORController::Methods[] = {
 };
 
 PyAttributeDef SCA_ORController::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

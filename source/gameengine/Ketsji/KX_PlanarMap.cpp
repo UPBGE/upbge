@@ -231,7 +231,7 @@ bool KX_PlanarMap::SetupCameraFace(KX_Camera *camera, unsigned short index)
 PyTypeObject KX_PlanarMap::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_PlanarMap",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -255,17 +255,17 @@ PyMethodDef KX_PlanarMap::Methods[] = {
 };
 
 PyAttributeDef KX_PlanarMap::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("normal", KX_PlanarMap, pyattr_get_normal, pyattr_set_normal),
-	KX_PYATTRIBUTE_NULL // Sentinel
+	EXP_PYATTRIBUTE_RW_FUNCTION("normal", KX_PlanarMap, pyattr_get_normal, pyattr_set_normal),
+	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
-PyObject *KX_PlanarMap::pyattr_get_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PlanarMap::pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_PlanarMap *self = static_cast<KX_PlanarMap *>(self_v);
 	return PyObjectFrom(self->GetNormal());
 }
 
-int KX_PlanarMap::pyattr_set_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_PlanarMap::pyattr_set_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_PlanarMap *self = static_cast<KX_PlanarMap *>(self_v);
 

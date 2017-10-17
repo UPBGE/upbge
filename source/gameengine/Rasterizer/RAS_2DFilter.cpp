@@ -272,7 +272,7 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 		const std::string& prop = m_properties[i];
 		unsigned int uniformLoc = m_propertiesLoc[i];
 
-		CValue *property = m_gameObject->GetProperty(prop);
+		EXP_Value *property = m_gameObject->GetProperty(prop);
 
 		if (!property) {
 			continue;

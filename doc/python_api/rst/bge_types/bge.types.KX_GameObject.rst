@@ -178,7 +178,7 @@ base class --- :class:`SCA_IObject`
 
       Returns the list of group members if the object is a group object (dupli group instance), otherwise None is returned.
 
-      :type: :class:`CListValue` of :class:`KX_GameObject` or None
+      :type: :class:`EXP_ListValue` of :class:`KX_GameObject` or None
 
    .. attribute:: groupObject
 
@@ -486,19 +486,19 @@ base class --- :class:`SCA_IObject`
 
       All python components.
 
-      :type: :class:`CListValue` of :class:`KX_PythonComponent`'s
+      :type: :class:`EXP_ListValue` of :class:`KX_PythonComponent`'s
 
    .. attribute:: children
 
       direct children of this object, (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_GameObject`'s
+      :type: :class:`EXP_ListValue` of :class:`KX_GameObject`'s
 
    .. attribute:: childrenRecursive
 
       all children of this object including children's children, (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_GameObject`'s
+      :type: :class:`EXP_ListValue` of :class:`KX_GameObject`'s
 
    .. attribute:: life
 

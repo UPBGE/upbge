@@ -1,5 +1,5 @@
 /*
- * Expression.h: interface for the CExpression class.
+ * Expression.h: interface for the EXP_Expression class.
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -21,7 +21,7 @@
 
 #include "EXP_Value.h"
 
-class CExpression : public CM_RefCount<CExpression>
+class EXP_Expression : public CM_RefCount<EXP_Expression>
 {
 public:
 	enum {
@@ -34,12 +34,12 @@ public:
 	};
 
 protected:
-	virtual ~CExpression() = 0;
+	virtual ~EXP_Expression() = 0;
 
 public:
-	CExpression();
+	EXP_Expression();
 
-	virtual CValue *Calculate() = 0;
+	virtual EXP_Value *Calculate() = 0;
 	virtual unsigned char GetExpressionID() = 0;
 };
 

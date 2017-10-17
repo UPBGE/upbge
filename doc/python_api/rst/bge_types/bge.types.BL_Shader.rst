@@ -1,11 +1,11 @@
-BL_Shader(PyObjectPlus)
+BL_Shader(EXP_PyObjectPlus)
 =======================
 
 .. module:: bge.types
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: BL_Shader(PyObjectPlus)
+.. class:: BL_Shader(EXP_PyObjectPlus)
 
    BL_Shader is a class used to compile and use custom shaders scripts. It supports vertex, fragment and geometry shader scripts.
    The shader is compiled with a generated header for the three shaders scripts.

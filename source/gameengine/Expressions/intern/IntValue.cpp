@@ -1,7 +1,7 @@
 /** \file gameengine/Expressions/IntValue.cpp
  *  \ingroup expressions
  */
-// IntValue.cpp: implementation of the CIntValue class.
+// IntValue.cpp: implementation of the EXP_IntValue class.
 /*
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
@@ -25,47 +25,47 @@
 
 #include <boost/format.hpp>
 
-CIntValue::CIntValue()
+EXP_IntValue::EXP_IntValue()
 {
 }
 
-CIntValue::CIntValue(cInt innie)
+EXP_IntValue::EXP_IntValue(cInt innie)
 	:m_int(innie)
 {
 }
 
-CIntValue::CIntValue(cInt innie, const std::string& name)
+EXP_IntValue::EXP_IntValue(cInt innie, const std::string& name)
 	:m_int(innie)
 {
 	SetName(name);
 }
 
-CIntValue::~CIntValue()
+EXP_IntValue::~EXP_IntValue()
 {
 }
 
-CValue *CIntValue::Calc(VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_IntValue::Calc(VALUE_OPERATOR op, EXP_Value *val)
 {
 	switch (op) {
 		case VALUE_POS_OPERATOR:
 		{
-			return new CIntValue(m_int);
+			return new EXP_IntValue(m_int);
 			break;
 		}
 		case VALUE_NEG_OPERATOR:
 		{
-			return new CIntValue(-m_int);
+			return new EXP_IntValue(-m_int);
 			break;
 		}
 		case VALUE_NOT_OPERATOR:
 		{
-			return new CBoolValue(m_int == 0);
+			return new EXP_BoolValue(m_int == 0);
 			break;
 		}
 		case VALUE_AND_OPERATOR:
 		case VALUE_OR_OPERATOR:
 		{
-			return new CErrorValue(val->GetText() + op2str(op) + "only allowed on booleans");
+			return new EXP_ErrorValue(val->GetText() + op2str(op) + "only allowed on booleans");
 			break;
 		}
 		default:
@@ -76,9 +76,9 @@ CValue *CIntValue::Calc(VALUE_OPERATOR op, CValue *val)
 	}
 }
 
-CValue *CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+EXP_Value *EXP_IntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val)
 {
-	CValue *ret;
+	EXP_Value *ret;
 
 	switch (dtype) {
 		case VALUE_EMPTY_TYPE:
@@ -87,88 +87,88 @@ CValue *CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *v
 			switch (op) {
 				case VALUE_MOD_OPERATOR:
 				{
-					ret = new CIntValue(((CIntValue *)val)->GetInt() % m_int);
+					ret = new EXP_IntValue(((EXP_IntValue *)val)->GetInt() % m_int);
 					break;
 				}
 				case VALUE_ADD_OPERATOR:
 				{
-					ret = new CIntValue(((CIntValue *)val)->GetInt() + m_int);
+					ret = new EXP_IntValue(((EXP_IntValue *)val)->GetInt() + m_int);
 					break;
 				}
 				case VALUE_SUB_OPERATOR:
 				{
-					ret = new CIntValue(((CIntValue *)val)->GetInt() - m_int);
+					ret = new EXP_IntValue(((EXP_IntValue *)val)->GetInt() - m_int);
 					break;
 				}
 				case VALUE_MUL_OPERATOR:
 				{
-					ret = new CIntValue(((CIntValue *)val)->GetInt() * m_int);
+					ret = new EXP_IntValue(((EXP_IntValue *)val)->GetInt() * m_int);
 					break;
 				}
 				case VALUE_DIV_OPERATOR:
 				{
 					if (m_int == 0) {
 						if (val->GetNumber() == 0) {
-							ret = new CErrorValue("Not a Number");
+							ret = new EXP_ErrorValue("Not a Number");
 						}
 						else {
-							ret = new CErrorValue("Division by zero");
+							ret = new EXP_ErrorValue("Division by zero");
 						}
 					}
 					else {
-						ret = new CIntValue(((CIntValue *)val)->GetInt() / m_int);
+						ret = new EXP_IntValue(((EXP_IntValue *)val)->GetInt() / m_int);
 					}
 					break;
 				}
 				case VALUE_EQL_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() == m_int);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() == m_int);
 					break;
 				}
 				case VALUE_NEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() != m_int);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() != m_int);
 					break;
 				}
 				case VALUE_GRE_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() > m_int);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() > m_int);
 					break;
 				}
 				case VALUE_LES_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() < m_int);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() < m_int);
 					break;
 				}
 				case VALUE_GEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() >= m_int);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() >= m_int);
 					break;
 				}
 				case VALUE_LEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CIntValue *)val)->GetInt() <= m_int);
+					ret = new EXP_BoolValue(((EXP_IntValue *)val)->GetInt() <= m_int);
 					break;
 				}
 				case VALUE_NEG_OPERATOR:
 				{
-					ret = new CIntValue(-m_int);
+					ret = new EXP_IntValue(-m_int);
 					break;
 				}
 				case VALUE_POS_OPERATOR:
 				{
-					ret = new CIntValue(m_int);
+					ret = new EXP_IntValue(m_int);
 					break;
 				}
 				case VALUE_NOT_OPERATOR:
 				{
-					ret = new CBoolValue(m_int == 0);
+					ret = new EXP_BoolValue(m_int == 0);
 					break;
 				}
 				default:
 				{
 					CM_Error("found op: " << op);
-					ret = new CErrorValue("illegal operator. please send a bug report.");
+					ret = new EXP_ErrorValue("illegal operator. please send a bug report.");
 					break;
 				}
 			}
@@ -179,72 +179,72 @@ CValue *CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *v
 			switch (op) {
 				case VALUE_MOD_OPERATOR:
 				{
-					ret = new CFloatValue(fmod(((CFloatValue *)val)->GetFloat(), m_int));
+					ret = new EXP_FloatValue(fmod(((EXP_FloatValue *)val)->GetFloat(), m_int));
 					break;
 				}
 				case VALUE_ADD_OPERATOR:
 				{
-					ret = new CFloatValue(((CFloatValue *)val)->GetFloat() + m_int);
+					ret = new EXP_FloatValue(((EXP_FloatValue *)val)->GetFloat() + m_int);
 					break;
 				}
 				case VALUE_SUB_OPERATOR:
 				{
-					ret = new CFloatValue(((CFloatValue *)val)->GetFloat() - m_int);
+					ret = new EXP_FloatValue(((EXP_FloatValue *)val)->GetFloat() - m_int);
 					break;
 				}
 				case VALUE_MUL_OPERATOR:
 				{
-					ret = new CFloatValue(((CFloatValue *)val)->GetFloat() * m_int);
+					ret = new EXP_FloatValue(((EXP_FloatValue *)val)->GetFloat() * m_int);
 					break;
 				}
 				case VALUE_DIV_OPERATOR:
 				{
 					if (m_int == 0) {
-						ret = new CErrorValue("Division by zero");
+						ret = new EXP_ErrorValue("Division by zero");
 					}
 					else {
-						ret = new CFloatValue(((CFloatValue *)val)->GetFloat() / m_int);
+						ret = new EXP_FloatValue(((EXP_FloatValue *)val)->GetFloat() / m_int);
 					}
 					break;
 				}
 				case VALUE_EQL_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() == m_int);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() == m_int);
 					break;
 				}
 				case VALUE_NEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() != m_int);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() != m_int);
 					break;
 				}
 				case VALUE_GRE_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() > m_int);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() > m_int);
 					break;
 				}
 				case VALUE_LES_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() < m_int);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() < m_int);
 					break;
 				}
 				case VALUE_GEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() >= m_int);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() >= m_int);
 					break;
 				}
 				case VALUE_LEQ_OPERATOR:
 				{
-					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() <= m_int);
+					ret = new EXP_BoolValue(((EXP_FloatValue *)val)->GetFloat() <= m_int);
 					break;
 				}
 				case VALUE_NOT_OPERATOR:
 				{
-					ret = new CBoolValue(m_int == 0);
+					ret = new EXP_BoolValue(m_int == 0);
 					break;
 				}
 				default:
 				{
-					ret = new CErrorValue("illegal operator. please send a bug report.");
+					ret = new EXP_ErrorValue("illegal operator. please send a bug report.");
 					break;
 				}
 			}
@@ -255,7 +255,7 @@ CValue *CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *v
 			switch (op) {
 				case VALUE_ADD_OPERATOR:
 				{
-					ret = new CStringValue(val->GetText() + GetText(), "");
+					ret = new EXP_StringValue(val->GetText() + GetText(), "");
 					break;
 				}
 				case VALUE_EQL_OPERATOR:
@@ -265,12 +265,12 @@ CValue *CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *v
 				case VALUE_GEQ_OPERATOR:
 				case VALUE_LEQ_OPERATOR:
 				{
-					ret = new CErrorValue("[Cannot compare string with integer]" + op2str(op) + GetText());
+					ret = new EXP_ErrorValue("[Cannot compare string with integer]" + op2str(op) + GetText());
 					break;
 				}
 				default:
 				{
-					ret =  new CErrorValue("[operator not allowed on strings]" + op2str(op) + GetText());
+					ret =  new EXP_ErrorValue("[operator not allowed on strings]" + op2str(op) + GetText());
 					break;
 				}
 			}
@@ -278,58 +278,58 @@ CValue *CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *v
 		}
 		case VALUE_BOOL_TYPE:
 		{
-			ret =  new CErrorValue("[operator not valid on boolean and integer]" + op2str(op) + GetText());
+			ret =  new EXP_ErrorValue("[operator not valid on boolean and integer]" + op2str(op) + GetText());
 			break;
 		}
 		case VALUE_ERROR_TYPE:
 		{
-			ret = new CErrorValue(val->GetText() + op2str(op) + GetText());
+			ret = new EXP_ErrorValue(val->GetText() + op2str(op) + GetText());
 			break;
 		}
 		default:
 		{
-			ret = new CErrorValue("illegal type. contact your dealer (if any)");
+			ret = new EXP_ErrorValue("illegal type. contact your dealer (if any)");
 			break;
 		}
 	}
 	return ret;
 }
 
-cInt CIntValue::GetInt()
+cInt EXP_IntValue::GetInt()
 {
 	return m_int;
 }
 
-double CIntValue::GetNumber()
+double EXP_IntValue::GetNumber()
 {
 	return (double)m_int;
 }
 
-int CIntValue::GetValueType()
+int EXP_IntValue::GetValueType()
 {
 	return VALUE_INT_TYPE;
 }
 
-std::string CIntValue::GetText()
+std::string EXP_IntValue::GetText()
 {
 	return (boost::format("%lld") % m_int).str();
 }
 
-CValue *CIntValue::GetReplica()
+EXP_Value *EXP_IntValue::GetReplica()
 {
-	CIntValue *replica = new CIntValue(*this);
+	EXP_IntValue *replica = new EXP_IntValue(*this);
 	replica->ProcessReplica();
 
 	return replica;
 }
 
-void CIntValue::SetValue(CValue *newval)
+void EXP_IntValue::SetValue(EXP_Value *newval)
 {
 	m_int = (cInt)newval->GetNumber();
 }
 
 #ifdef WITH_PYTHON
-PyObject *CIntValue::ConvertValueToPython()
+PyObject *EXP_IntValue::ConvertValueToPython()
 {
 	return PyLong_FromLongLong(m_int);
 }

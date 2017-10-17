@@ -73,13 +73,13 @@ class SCA_PythonController : public SCA_IController
 	static SCA_PythonController* m_sCurrentController; // protected !!!
 
 	//for debugging
-	//virtual	CValue*		AddRef();
+	//virtual	EXP_Value*		AddRef();
 	//virtual int			Release();  // Release a reference to this value (when reference count reaches 0, the value is removed from the heap)
 
 	SCA_PythonController(SCA_IObject* gameobj, int mode);
 	virtual ~SCA_PythonController();
 
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void  Trigger(class SCA_LogicManager* logicmgr);
   
 	void	SetScriptText(const std::string& text);
@@ -101,14 +101,14 @@ class SCA_PythonController : public SCA_IController
 	static SCA_IActuator* LinkedActuatorFromPy(PyObject *value);
 
 		
-	KX_PYMETHOD_O(SCA_PythonController,Activate);
-	KX_PYMETHOD_O(SCA_PythonController,DeActivate);
-	KX_PYMETHOD_O(SCA_PythonController,SetScript);
-	KX_PYMETHOD_NOARGS(SCA_PythonController,GetScript);
+	EXP_PYMETHOD_O(SCA_PythonController,Activate);
+	EXP_PYMETHOD_O(SCA_PythonController,DeActivate);
+	EXP_PYMETHOD_O(SCA_PythonController,SetScript);
+	EXP_PYMETHOD_NOARGS(SCA_PythonController,GetScript);
 
 	
-	static PyObject*	pyattr_get_script(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_script(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_script(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_script(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 };
 

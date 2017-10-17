@@ -37,22 +37,22 @@
 
 #include "SCA_IController.h"
 
-class CExpression;
+class EXP_Expression;
 
 class SCA_ExpressionController : public SCA_IController
 {
 //	Py_Header
 	std::string			m_exprText;
-	CExpression*		m_exprCache;
+	EXP_Expression*		m_exprCache;
 
 public:
 	SCA_ExpressionController(SCA_IObject* gameobj,
 							 const std::string& exprtext);
 
 	virtual ~SCA_ExpressionController();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void Trigger(SCA_LogicManager* logicmgr);
-	virtual CValue*		FindIdentifier(const std::string& identifiername);
+	virtual EXP_Value*		FindIdentifier(const std::string& identifiername);
 	/** 
 	 *  used to release the expression cache
 	 *  so that self references are removed before the controller itself is released

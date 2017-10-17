@@ -38,7 +38,7 @@
 class SCA_PropertySensor : public SCA_ISensor
 {
 	Py_Header
-	//class CExpression*	m_rightexpr;
+	//class EXP_Expression*	m_rightexpr;
 	int				m_checktype;
 	std::string		m_checkpropval;
 	std::string		m_checkpropmaxval;
@@ -72,13 +72,13 @@ public:
 					  KX_PROPSENSOR_TYPE checktype);
 
 	virtual ~SCA_PropertySensor();
-	virtual CValue* GetReplica();
+	virtual EXP_Value* GetReplica();
 	virtual void Init();
 	bool	CheckPropertyCondition();
 
 	virtual bool Evaluate();
 	virtual bool	IsPositiveTrigger();
-	virtual CValue*		FindIdentifier(const std::string& identifiername);
+	virtual EXP_Value*		FindIdentifier(const std::string& identifiername);
 
 #ifdef WITH_PYTHON
 
@@ -89,7 +89,7 @@ public:
 	/**
 	 * Test whether this is a sensible value (type check)
 	 */
-	static int validValueForProperty(PyObjectPlus *self, const PyAttributeDef*);
+	static int validValueForProperty(EXP_PyObjectPlus *self, const PyAttributeDef*);
 
 #endif
 };
