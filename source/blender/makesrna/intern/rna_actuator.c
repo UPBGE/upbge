@@ -725,6 +725,12 @@ static void rna_def_object_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_servo_type_items[] = {
+		{ACT_SERVO_LINEAR, "SERVO_LINEAR", 0, "Linear", ""},
+		{ACT_SERVO_ANGULAR, "SERVO_ANGULAR", 0, "Angular", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "ObjectActuator", "Actuator");
 	RNA_def_struct_ui_text(srna, "Motion Actuator", "Actuator to control the object movement");
 	RNA_def_struct_sdna_from(srna, "bObjectActuator", "data");
@@ -736,6 +742,11 @@ static void rna_def_object_actuator(BlenderRNA *brna)
 	RNA_def_property_enum_funcs(prop, NULL, "rna_ObjectActuator_type_set", NULL);
 	RNA_def_property_ui_text(prop, "Motion Type", "Specify the motion system");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop = RNA_def_property(srna, "servo_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "servotype");
+	RNA_def_property_enum_items(prop, prop_servo_type_items);
+	RNA_def_property_ui_text(prop, "Servo Type", "Specify the servo control system");
 	
 	prop = RNA_def_property(srna, "reference_object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Object");
@@ -895,17 +906,17 @@ static void rna_def_object_actuator(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_servo_limit_x", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_SERVO_LIMIT_X);
-	RNA_def_property_ui_text(prop, "X", "Set limit to force along the X axis");
+	RNA_def_property_ui_text(prop, "X", "Set limit to force/torque along the X axis");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "use_servo_limit_y", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_SERVO_LIMIT_Y);
-	RNA_def_property_ui_text(prop, "Y", "Set limit to force along the Y axis");
+	RNA_def_property_ui_text(prop, "Y", "Set limit to force/torque along the Y axis");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "use_servo_limit_z", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_SERVO_LIMIT_Z);
-	RNA_def_property_ui_text(prop, "Z", "Set limit to force along the Z axis");
+	RNA_def_property_ui_text(prop, "Z", "Set limit to force/torque along the Z axis");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "use_character_jump", PROP_BOOLEAN, PROP_NONE);

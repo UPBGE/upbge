@@ -148,59 +148,75 @@ bool KX_ObjectActuator::Update()
 			if (mass < MT_EPSILON) {
 				return false;
 			}
-			MT_Vector3 v = parent->GetLinearVelocity(m_bitLocalFlag.LinearVelocity);
-			if (m_reference) {
-				const MT_Vector3& mypos = parent->NodeGetWorldPosition();
-				const MT_Vector3& refpos = m_reference->NodeGetWorldPosition();
-				MT_Vector3 relpos;
-				relpos = (mypos - refpos);
-				MT_Vector3 vel = m_reference->GetVelocity(relpos);
-				if (m_bitLocalFlag.LinearVelocity) {
-					// must convert in local space
-					vel = parent->NodeGetWorldOrientation().transposed() * vel;
-				}
-				v -= vel;
+
+			MT_Vector3 v;
+			if (m_bitLocalFlag.ServoControlAngular) {
+				v = parent->GetAngularVelocity(m_bitLocalFlag.AngularVelocity);
 			}
-			MT_Vector3 e = m_linear_velocity - v;
+			else {
+				v = parent->GetLinearVelocity(m_bitLocalFlag.LinearVelocity);
+			}
+
+			if (m_reference) {
+				if (m_bitLocalFlag.ServoControlAngular) {
+					const MT_Vector3 vel = m_reference->GetAngularVelocity(m_bitLocalFlag.AngularVelocity);
+					v -= vel;
+				}
+				else {
+					const MT_Vector3& mypos = parent->NodeGetWorldPosition();
+					const MT_Vector3& refpos = m_reference->NodeGetWorldPosition();
+					const MT_Vector3 relpos = (mypos - refpos);
+					MT_Vector3 vel = m_reference->GetVelocity(relpos);
+					if (m_bitLocalFlag.LinearVelocity) {
+						// must convert in local space
+						vel = parent->NodeGetWorldOrientation().transposed() * vel;
+					}
+					v -= vel;
+				}
+			}
+
+			MT_Vector3 e;
+			if (m_bitLocalFlag.ServoControlAngular) {
+				e = m_angular_velocity - v;
+			}
+			else {
+				e = m_linear_velocity - v;
+			}
+
 			MT_Vector3 dv = e - m_previous_error;
 			MT_Vector3 I = m_error_accumulator + e;
 
-			m_force = m_pid.x() * e + m_pid.y() * I + m_pid.z() * dv;
+			MT_Vector3& f = (m_bitLocalFlag.ServoControlAngular) ? m_force : m_torque;
+			f = m_pid.x() * e + m_pid.y() * I + m_pid.z() * dv;
 			// to automatically adapt the PID coefficient to mass;
-			m_force *= mass;
-			if (m_bitLocalFlag.Torque) {
-				if (m_force[0] > m_dloc[0]) {
-					m_force[0] = m_dloc[0];
-					I[0] = m_error_accumulator[0];
+			f *= mass;
+
+			const bool limits[3] = {m_bitLocalFlag.Torque, m_bitLocalFlag.DLoc, m_bitLocalFlag.DRot};
+
+			for (unsigned short i = 0; i <  3; ++i) {
+				if (!limits[i]) {
+					continue;
 				}
-				else if (m_force[0] < m_drot[0]) {
-					m_force[0] = m_drot[0];
-					I[0] = m_error_accumulator[0];
+
+				if (f[i] > m_dloc[i]) {
+					f[i] = m_dloc[i];
+					I[i] = m_error_accumulator[i];
 				}
-			}
-			if (m_bitLocalFlag.DLoc) {
-				if (m_force[1] > m_dloc[1]) {
-					m_force[1] = m_dloc[1];
-					I[1] = m_error_accumulator[1];
-				}
-				else if (m_force[1] < m_drot[1]) {
-					m_force[1] = m_drot[1];
-					I[1] = m_error_accumulator[1];
+				else if (f[i] < m_drot[i]) {
+					f[i] = m_drot[i];
+					I[i] = m_error_accumulator[i];
 				}
 			}
-			if (m_bitLocalFlag.DRot) {
-				if (m_force[2] > m_dloc[2]) {
-					m_force[2] = m_dloc[2];
-					I[2] = m_error_accumulator[2];
-				}
-				else if (m_force[2] < m_drot[2]) {
-					m_force[2] = m_drot[2];
-					I[2] = m_error_accumulator[2];
-				}
-			}
+
 			m_previous_error = e;
 			m_error_accumulator = I;
-			parent->ApplyForce(m_force, (m_bitLocalFlag.LinearVelocity) != 0);
+
+			if (m_bitLocalFlag.ServoControlAngular) {
+				parent->ApplyTorque(f, m_bitLocalFlag.AngularVelocity);
+			}
+			else {
+				parent->ApplyForce(f, m_bitLocalFlag.LinearVelocity);
+			}
 		}
 		else if (m_bitLocalFlag.CharacterMotion) {
 			MT_Vector3 dir = m_dloc;

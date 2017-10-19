@@ -185,6 +185,7 @@ void BL_ConvertActuators(const char* maggiename,
 				bitLocalFlag.CharacterJump = bool((obact->flag & ACT_CHAR_JUMP)!=0);
 				bitLocalFlag.AddOrSetLinV = bool((obact->flag & ACT_ADD_LIN_VEL)!=0);
 				bitLocalFlag.AddOrSetCharLoc = bool((obact->flag & ACT_ADD_CHAR_LOC)!=0);
+				bitLocalFlag.ServoControlAngular = (obact->servotype == ACT_SERVO_ANGULAR);
 				if (obact->reference && bitLocalFlag.ServoControl)
 				{
 					obref = converter.FindGameObject(obact->reference);

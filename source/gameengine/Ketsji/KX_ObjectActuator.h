@@ -81,6 +81,7 @@ struct KX_LocalFlags {
 	bool ZeroDLoc;
 	bool ZeroLinearVelocity;
 	bool ZeroAngularVelocity;
+	bool ServoControlAngular;
 };
 
 class KX_ObjectActuator : public SCA_IActuator

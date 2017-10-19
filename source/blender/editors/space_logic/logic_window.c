@@ -1741,11 +1741,13 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
 	PointerRNA settings_ptr;
 	uiLayout *split, *row, *col, *sub;
 	int physics_type;
+	bool angular;
 
 	ob = (Object *)ptr->id.data;
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 	physics_type = RNA_enum_get(&settings_ptr, "physics_type");
-	
+	angular = (RNA_enum_get(ptr, "servo_mode") == ACT_SERVO_ANGULAR);
+
 	uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
 	
 	switch (RNA_enum_get(ptr, "mode")) {
@@ -1790,10 +1792,18 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
 		case ACT_OBJECT_SERVO:
 			uiItemR(layout, ptr, "reference_object", 0, NULL, ICON_NONE);
 
+			uiItemR(layout, ptr, "servo_mode", 0, NULL, ICON_NONE);
+
 			split = uiLayoutSplit(layout, 0.9, false);
 			row = uiLayoutRow(split, false);
-			uiItemR(row, ptr, "linear_velocity", 0, NULL, ICON_NONE);
-			uiItemR(split, ptr, "use_local_linear_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
+			if (angular) {
+				uiItemR(row, ptr, "angular_velocity", 0, NULL, ICON_NONE);
+				uiItemR(split, ptr, "use_local_angular_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
+			}
+			else {
+				uiItemR(row, ptr, "linear_velocity", 0, NULL, ICON_NONE);
+				uiItemR(split, ptr, "use_local_linear_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
+			}
 
 			row = uiLayoutRow(layout, false);
 			col = uiLayoutColumn(row, false);
