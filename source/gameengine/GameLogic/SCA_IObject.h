@@ -83,9 +83,6 @@ protected:
 	 */
 	static SG_QList m_activeBookmarkedControllers;
 
-	/// Ignore activity culling requests?
-	bool m_ignore_activity_culling;
-
 	/// Ignore updates?
 	bool m_suspended;
 

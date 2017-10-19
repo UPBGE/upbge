@@ -916,9 +916,6 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 				lodManager->Release();
 			}
 
-			// For all objects: check whether they want to respond to updates.
-			bool ignoreActivityCulling = ((ob->gameflag2 & OB_NEVER_DO_ACTIVITY_CULLING) != 0);
-			gameobj->SetIgnoreActivityCulling(ignoreActivityCulling);
 			gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
 			break;
 		}
