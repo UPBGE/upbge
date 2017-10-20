@@ -42,11 +42,11 @@
 SG_QList SCA_IObject::m_activeBookmarkedControllers;
 
 SCA_IObject::SCA_IObject()
-	:m_initState(0),
+	:m_suspended(false),
+	m_initState(0),
 	m_state(0),
 	m_firstState(nullptr)
 {
-	m_suspended = false;
 }
 
 SCA_IObject::~SCA_IObject()
@@ -86,6 +86,11 @@ SCA_ActuatorList& SCA_IObject::GetActuators()
 SG_QList& SCA_IObject::GetActiveActuators()
 {
 	return m_activeActuators;
+}
+
+SG_QList& SCA_IObject::GetActiveControllers()
+{
+	return m_activeControllers;
 }
 
 SG_QList& SCA_IObject::GetActiveBookmarkedControllers()

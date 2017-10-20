@@ -103,6 +103,7 @@ public:
 	SCA_SensorList& GetSensors();
 	SCA_ActuatorList& GetActuators();
 	SG_QList& GetActiveActuators();
+	SG_QList& GetActiveControllers();
 	static SG_QList& GetActiveBookmarkedControllers();
 
 	void AddSensor(SCA_ISensor *act);

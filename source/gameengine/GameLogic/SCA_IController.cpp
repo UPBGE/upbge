@@ -191,7 +191,7 @@ void SCA_IController::Activate(SG_DList& head)
 			head.AddFront(&list);
 		}
 		else {
-			SG_QList& list = m_gameobj->GetActiveActuators();
+			SG_QList& list = m_gameobj->GetActiveControllers();
 			InsertActiveQList(list);
 			head.AddBack(&list);
 		}
