@@ -1447,9 +1447,9 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			 * Note: there may be descendents already if the children of the child were processed
 			 * by this loop before the child. In that case, we must remove the children also
 			 */
-			EXP_ListValue<KX_GameObject> *childrenlist = childobj->GetChildrenRecursive();
+			std::vector<KX_GameObject *> childrenlist = childobj->GetChildrenRecursive();
 			// The returned list by GetChildrenRecursive is not owned by anyone and must not own items, so no AddRef().
-			childrenlist->Add(childobj);
+			childrenlist.push_back(childobj);
 			for (KX_GameObject *obj : childrenlist) {
 				if (sumolist->RemoveValue(obj)) {
 					obj->Release();
@@ -1461,7 +1461,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 					obj->Release();
 				}
 			}
-			childrenlist->Release();
 
 			converter.UnregisterGameObject(childobj);
 			kxscene->RemoveObject(childobj);
@@ -1565,15 +1564,13 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			BL_ArmatureObject *armobj = static_cast<BL_ArmatureObject *>(gameobj);
 			armobj->LoadConstraints(converter);
 
-			EXP_ListValue<KX_GameObject> *children = armobj->GetChildren();
+			const std::vector<KX_GameObject *> children = armobj->GetChildren();
 			for (KX_GameObject *child : children) {
 				BL_ShapeDeformer *deformer = dynamic_cast<BL_ShapeDeformer *>(child->GetDeformer());
 				if (deformer) {
 					deformer->LoadShapeDrivers(armobj);
 				}
 			}
-
-			children->Release();
 		}
 	}
 

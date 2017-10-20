@@ -1498,18 +1498,18 @@ void KX_GameObject::Suspend()
 	}
 }
 
-static void walk_children(SG_Node* node, EXP_ListValue<KX_GameObject> *list, bool recursive)
+static void walk_children(const SG_Node* node, std::vector<KX_GameObject *>& list, bool recursive)
 {
 	if (!node)
 		return;
-	NodeList& children = node->GetSGChildren();
+	const NodeList& children = node->GetSGChildren();
 
 	for (SG_Node *childnode : children) {
 		KX_GameObject *childobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
 		if (childobj != nullptr) // This is a GameObject
 		{
 			// add to the list, no AddRef because the list doesn't own its items.
-			list->Add(childobj);
+			list.push_back(childobj);
 		}
 		
 		// if the childobj is nullptr then this may be an inverse parent link
@@ -1520,22 +1520,17 @@ static void walk_children(SG_Node* node, EXP_ListValue<KX_GameObject> *list, boo
 	}
 }
 
-EXP_ListValue<KX_GameObject> *KX_GameObject::GetChildren()
+std::vector<KX_GameObject *> KX_GameObject::GetChildren() const
 {
-	EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>();
-	/* The list must not own any data because is temporary and we can't
-	 * ensure that it will freed before item's in it (e.g python owner). */
-	list->SetReleaseOnDestruct(false);
-	walk_children(GetSGNode(), list, 0); /* GetSGNode() is always valid or it would have raised an exception before this */
+	std::vector<KX_GameObject *> list;
+	// GetSGNode() is always valid or it would have raised an exception before this.
+	walk_children(GetSGNode(), list, 0);
 	return list;
 }
 
-EXP_ListValue<KX_GameObject> *KX_GameObject::GetChildrenRecursive()
+std::vector<KX_GameObject *> KX_GameObject::GetChildrenRecursive() const
 {
-	EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>();
-	/* The list must not own any data because is temporary and we can't
-	 * ensure that it will freed before item's in it (e.g python owner). */
-	list->SetReleaseOnDestruct(false);
+	std::vector<KX_GameObject *> list;
 	walk_children(GetSGNode(), list, 1);
 	return list;
 }
@@ -3158,14 +3153,22 @@ PyObject *KX_GameObject::pyattr_get_actuators(EXP_PyObjectPlus *self_v, const EX
 
 PyObject *KX_GameObject::pyattr_get_children(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-	return self->GetChildren()->NewProxy(true);
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>(self->GetChildren());
+	/* The list must not own any data because is temporary and we can't
+	 * ensure that it will freed before item's in it (e.g python owner). */
+	list->SetReleaseOnDestruct(false);
+	return list->NewProxy(true);
 }
 
 PyObject *KX_GameObject::pyattr_get_children_recursive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-	return self->GetChildrenRecursive()->NewProxy(true);
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>(self->GetChildrenRecursive());
+	/* The list must not own any data because is temporary and we can't
+	 * ensure that it will freed before item's in it (e.g python owner). */
+	list->SetReleaseOnDestruct(false);
+	return list->NewProxy(true);
 }
 
 PyObject *KX_GameObject::pyattr_get_attrDict(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
