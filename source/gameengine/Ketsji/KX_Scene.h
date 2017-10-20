@@ -36,6 +36,7 @@
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_TextureRendererManager.h" // For KX_TextureRendererManager::RendererCategory.
 #include "KX_CullingNode.h" // For KX_CullingNodeList.
+#include "KX_PythonComponentManager.h"
 
 #include <vector>
 #include <set>
@@ -177,6 +178,8 @@ protected:
 	SCA_KeyboardManager*	m_keyboardmgr;
 	SCA_MouseManager*		m_mousemgr;
 	SCA_TimeEventManager*	m_timemgr;
+
+	KX_PythonComponentManager m_componentManager;
 
 	/**
 	 * physics engine abstraction
@@ -377,6 +380,8 @@ public:
 	SCA_LogicManager *GetLogicManager() const;
 
 	SCA_TimeEventManager *GetTimeEventManager() const;
+
+	KX_PythonComponentManager& GetPythonComponentManager();
 
 	EXP_ListValue<KX_Camera> *GetCameraList() const;
 	EXP_ListValue<KX_FontObject> *GetFontList() const;

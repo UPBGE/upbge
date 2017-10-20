@@ -120,6 +120,7 @@ set(SRC
 	KX_PyConstraintBinding.cpp
 	KX_PyMath.cpp
 	KX_PythonComponent.cpp
+	KX_PythonComponentManager.cpp
 	KX_PythonInit.cpp
 	KX_PythonInitTypes.cpp
 	KX_PythonMain.cpp
@@ -211,6 +212,7 @@ set(SRC
 	KX_PyConstraintBinding.h
 	KX_PyMath.h
 	KX_PythonComponent.h
+	KX_PythonComponentManager.h
 	KX_PythonInit.h
 	KX_PythonInitTypes.h
 	KX_PythonMain.h
