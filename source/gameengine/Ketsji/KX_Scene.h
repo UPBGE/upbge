@@ -414,40 +414,6 @@ public:
 	);
 
 	/**
-	 * Activates new desired canvas width set at design time.
-	 * \param width	The new desired width.
-	 */
-		void
-	SetCanvasDesignWidth(
-		unsigned int width
-	);
-	/**
-	 * Activates new desired canvas height set at design time.
-	 * \param width	The new desired height.
-	 */
-		void
-	SetCanvasDesignHeight(
-		unsigned int height
-	);
-	/**
-	 * Returns the current desired canvas width set at design time.
-	 * \return The desired width.
-	 */
-		unsigned int
-	GetCanvasDesignWidth(
-		void
-	) const;
-
-	/**
-	 * Returns the current desired canvas height set at design time.
-	 * \return The desired height.
-	 */
-		unsigned int
-	GetCanvasDesignHeight(
-		void
-	) const;
-
-	/**
 	 * Set the framing options for this scene
 	 */
 
