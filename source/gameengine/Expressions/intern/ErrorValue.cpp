@@ -20,15 +20,11 @@
 EXP_ErrorValue::EXP_ErrorValue()
 	:m_strErrorText("Error")
 {
-	SetError(true);
 }
 
 EXP_ErrorValue::EXP_ErrorValue(const std::string& errmsg)
+	:m_strErrorText("[" + errmsg + "]")
 {
-	m_strErrorText = "[";
-	m_strErrorText += errmsg;
-	m_strErrorText += "]";
-	SetError(true);
 }
 
 EXP_ErrorValue::~EXP_ErrorValue()
@@ -78,4 +74,9 @@ EXP_Value *EXP_ErrorValue::GetReplica()
 	BLI_assert(false && "ErrorValue::GetReplica() not implemented yet");
 
 	return nullptr;
+}
+
+bool EXP_ErrorValue::IsError() const
+{
+	return true;
 }

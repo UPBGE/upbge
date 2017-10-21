@@ -160,21 +160,14 @@ public:
 
 	std::string op2str(VALUE_OPERATOR op);
 
-	inline void SetError(bool err)
-	{
-		m_error = err;
-	}
-	inline bool IsError()
-	{
-		return m_error;
-	}
+	virtual bool IsError() const;
 
 protected:
 	virtual void DestructFromPython();
 
 private:
 	/// Properties for user/game etc.
-	std::map<std::string, EXP_Value *> *m_pNamedPropertyArray;
+	std::map<std::string, EXP_Value *> m_properties;
 	bool m_error;
 };
 

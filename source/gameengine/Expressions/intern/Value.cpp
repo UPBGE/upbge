@@ -59,8 +59,6 @@ PyMethodDef EXP_Value::Methods[] = {
 #endif  // WITH_PYTHON
 
 EXP_Value::EXP_Value()
-	:m_pNamedPropertyArray(nullptr),
-	m_error(false)
 {
 }
 
@@ -156,29 +154,21 @@ void EXP_Value::SetProperty(const std::string & name, EXP_Value *ioProperty)
 	}
 
 	// Try to replace property (if so -> exit as soon as we replaced it).
-	if (m_pNamedPropertyArray) {
-		EXP_Value *oldval = (*m_pNamedPropertyArray)[name];
-		if (oldval) {
-			oldval->Release();
-		}
-	}
-	// Make sure we have a property array.
-	else {
-		m_pNamedPropertyArray = new std::map<std::string, EXP_Value *>;
+	EXP_Value *oldval = m_properties[name];
+	if (oldval) {
+		oldval->Release();
 	}
 
 	// Add property at end of array.
-	(*m_pNamedPropertyArray)[name] = ioProperty->AddRef();
+	m_properties[name] = ioProperty->AddRef();
 }
 
 /// Get pointer to a property with name <inName>, returns nullptr if there is no property named <inName>.
 EXP_Value *EXP_Value::GetProperty(const std::string & inName)
 {
-	if (m_pNamedPropertyArray) {
-		std::map<std::string, EXP_Value *>::iterator it = m_pNamedPropertyArray->find(inName);
-		if (it != m_pNamedPropertyArray->end()) {
-			return (*it).second;
-		}
+	std::map<std::string, EXP_Value *>::iterator it = m_properties.find(inName);
+	if (it != m_properties.end()) {
+		return (*it).second;
 	}
 	return nullptr;
 }
@@ -209,14 +199,11 @@ float EXP_Value::GetPropertyNumber(const std::string& inName, float defnumber)
 /// Remove the property named <inName>, returns true if the property was succesfully removed, false if property was not found or could not be removed.
 bool EXP_Value::RemoveProperty(const std::string& inName)
 {
-	// Check if there are properties at all which can be removed.
-	if (m_pNamedPropertyArray) {
-		std::map<std::string, EXP_Value *>::iterator it = m_pNamedPropertyArray->find(inName);
-		if (it != m_pNamedPropertyArray->end()) {
-			((*it).second)->Release();
-			m_pNamedPropertyArray->erase(it);
-			return true;
-		}
+	std::map<std::string, EXP_Value *>::iterator it = m_properties.find(inName);
+	if (it != m_properties.end()) {
+		(*it).second->Release();
+		m_properties.erase(it);
+		return true;
 	}
 
 	return false;
@@ -225,16 +212,12 @@ bool EXP_Value::RemoveProperty(const std::string& inName)
 /// Get Property Names.
 std::vector<std::string> EXP_Value::GetPropertyNames()
 {
-	std::vector<std::string> result;
-	if (!m_pNamedPropertyArray) {
-		return result;
-	}
-	result.reserve(m_pNamedPropertyArray->size());
+	const unsigned short size = m_properties.size();
+	std::vector<std::string> result(size);
 
-	std::map<std::string, EXP_Value *>::iterator it;
-	for (it = m_pNamedPropertyArray->begin(); (it != m_pNamedPropertyArray->end()); it++)
-	{
-		result.push_back((*it).first);
+	unsigned short i = 0;
+	for (const auto& pair : m_properties) {
+		result[i++] = pair.first;
 	}
 	return result;
 }
@@ -242,51 +225,29 @@ std::vector<std::string> EXP_Value::GetPropertyNames()
 /// Clear all properties.
 void EXP_Value::ClearProperties()
 {
-	// Check if we have any properties.
-	if (m_pNamedPropertyArray == nullptr) {
-		return;
-	}
-
 	// Remove all properties.
-	std::map<std::string, EXP_Value *>::iterator it;
-	for (it = m_pNamedPropertyArray->begin(); (it != m_pNamedPropertyArray->end()); it++)
-	{
-		EXP_Value *tmpval = (*it).second;
-		tmpval->Release();
+	for (const auto& pair : m_properties) {
+		pair.second->Release();
 	}
-
-	// Delete property array.
-	delete m_pNamedPropertyArray;
-	m_pNamedPropertyArray = nullptr;
+	m_properties.clear();
 }
 
 /// Get property number <inIndex>.
 EXP_Value *EXP_Value::GetProperty(int inIndex)
 {
 	int count = 0;
-	EXP_Value *result = nullptr;
-
-	if (m_pNamedPropertyArray) {
-		std::map<std::string, EXP_Value *>::iterator it;
-		for (it = m_pNamedPropertyArray->begin(); (it != m_pNamedPropertyArray->end()); it++) {
-			if (count++ == inIndex) {
-				result = (*it).second;
-				break;
-			}
+	for (const auto& pair : m_properties) {
+		if (count++ == inIndex) {
+			return pair.second;
 		}
 	}
-	return result;
+	return nullptr;
 }
 
 /// Get the amount of properties assiocated with this value.
 int EXP_Value::GetPropertyCount()
 {
-	if (m_pNamedPropertyArray) {
-		return m_pNamedPropertyArray->size();
-	}
-	else {
-		return 0;
-	}
+	return m_properties.size();
 }
 
 void EXP_Value::DestructFromPython()
@@ -303,16 +264,10 @@ void EXP_Value::ProcessReplica()
 	EXP_PyObjectPlus::ProcessReplica();
 
 	// Copy all props.
-	if (m_pNamedPropertyArray) {
-		std::map<std::string, EXP_Value *> *pOldArray = m_pNamedPropertyArray;
-		m_pNamedPropertyArray = nullptr;
-		std::map<std::string, EXP_Value *>::iterator it;
-		for (it = pOldArray->begin(); (it != pOldArray->end()); it++)
-		{
-			EXP_Value *val = (*it).second->GetReplica();
-			SetProperty((*it).first, val);
-			val->Release();
-		}
+	for (auto& pair : m_properties) {
+		EXP_Value *val = pair.second->GetReplica();
+		val->Release();
+		pair.second = val;
 	}
 }
 
@@ -408,20 +363,14 @@ EXP_Value *EXP_Value::ConvertPythonToValue(PyObject *pyobj, const bool do_type_e
 
 PyObject *EXP_Value::ConvertKeysToPython(void)
 {
-	if (m_pNamedPropertyArray) {
-		PyObject *pylist = PyList_New(m_pNamedPropertyArray->size());
-		Py_ssize_t i = 0;
+	PyObject *pylist = PyList_New(m_properties.size());
 
-		std::map<std::string, EXP_Value *>::iterator it;
-		for (it = m_pNamedPropertyArray->begin(); (it != m_pNamedPropertyArray->end()); it++) {
-			PyList_SET_ITEM(pylist, i++, PyUnicode_FromStdString((*it).first));
-		}
+	Py_ssize_t i = 0;
+	for (const auto& pair : m_properties) {
+		PyList_SET_ITEM(pylist, i++, PyUnicode_FromStdString(pair.first));
+	}
 
-		return pylist;
-	}
-	else {
-		return PyList_New(0);
-	}
+	return pylist;
 }
 
 #endif  // WITH_PYTHON
@@ -459,4 +408,9 @@ void EXP_Value::SetName(const std::string& name)
 EXP_Value *EXP_Value::GetReplica()
 {
 	return nullptr;
+}
+
+bool EXP_Value::IsError() const
+{
+	return false;
 }
