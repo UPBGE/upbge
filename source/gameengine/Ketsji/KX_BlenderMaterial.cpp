@@ -78,32 +78,32 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_savedData.ambient = m_material->amb;
 	m_savedData.specularalpha = m_material->spectra;
 
-	m_alphablend = mat->game.alpha_blend;
+	m_alphablend = mat->blend_method;
 
 	// with ztransp enabled, enforce alpha blending mode
-	if ((mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (m_alphablend == GEMAT_SOLID)) {
-		m_alphablend = GEMAT_ALPHA;
-	}
+	//if ((mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (m_alphablend == GEMAT_SOLID)) {
+		//m_alphablend = GEMAT_ALPHA;
+	//}
 
 	m_zoffset = mat->zoffs;
 
 	m_rasMode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : RAS_TWOSIDED;
 	m_rasMode |= (mat->material_type == MA_TYPE_WIRE) ? RAS_WIRE : 0;
 
-	if (ELEM(m_alphablend, GEMAT_CLIP, GEMAT_ALPHA_TO_COVERAGE)) {
-		m_rasMode |= RAS_ALPHA_SHADOW;
-	}
+	//if (ELEM(m_alphablend, GEMAT_CLIP, GEMAT_ALPHA_TO_COVERAGE)) {
+		//m_rasMode |= RAS_ALPHA_SHADOW;
+	//}
 	// always zsort alpha + add
-	else if (ELEM(m_alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD)) {
+	if (ELEM(m_alphablend, MA_BM_ADD, MA_BM_MULTIPLY, MA_BM_BLEND)) {
 		m_rasMode |= RAS_ALPHA;
-		m_rasMode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? RAS_ZSORT : 0;
+		//m_rasMode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? RAS_ZSORT : 0;
 	}
 
 	// RAS_IPolyMaterial variables...
 	m_flag |= ((mat->mode & MA_SHLESS) != 0) ? 0 : RAS_MULTILIGHT;
 	m_flag |= RAS_BLENDERGLSL;
 	m_flag |= ((mat->mode2 & MA_CASTSHADOW) != 0) ? RAS_CASTSHADOW : 0;
-	m_flag |= ((mat->mode & MA_ONLYCAST) != 0) ? RAS_ONLYSHADOW : 0;
+	//m_flag |= ((mat->mode & MA_ONLYCAST) != 0) ? RAS_ONLYSHADOW : 0;
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()

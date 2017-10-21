@@ -72,6 +72,8 @@ public:
 
 	void PrintDebugInfos(RAS_Rasterizer::DrawType drawtype);
 
+	void SetAlphaBlendStates(RAS_Rasterizer *rasty);
+
 	virtual bool IsValid(RAS_Rasterizer::DrawType drawtype) const;
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate();

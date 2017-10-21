@@ -136,7 +136,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 
 	/* STANDARD MATERIAL */
 	if (m_mat->use_nodes && m_mat->nodetree) {
-		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, false, false, use_refract, SHADOW_ESM);
+		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, (m_mat->blend_method == MA_BM_MULTIPLY), false, use_refract, SHADOW_ESM);
 
 		m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
 	}
@@ -261,12 +261,41 @@ void BL_BlenderShader::PrintDebugInfos(RAS_Rasterizer::DrawType drawtype)
 	CM_Debug("BL_BlenderShader::" << drawTypeMsg[index]);
 }
 
+void BL_BlenderShader::SetAlphaBlendStates(RAS_Rasterizer *rasty)
+{
+	switch (m_mat->blend_method) {
+		case MA_BM_ADD:
+		{
+			rasty->Enable(RAS_Rasterizer::RAS_BLEND);
+			rasty->SetBlendFunc(RAS_Rasterizer::RAS_SRC_ALPHA, RAS_Rasterizer::RAS_ONE);
+			break;
+		}
+		case MA_BM_MULTIPLY:
+		{
+			rasty->Enable(RAS_Rasterizer::RAS_BLEND);
+			rasty->SetBlendFunc(RAS_Rasterizer::RAS_DST_COLOR, RAS_Rasterizer::RAS_ZERO);
+			break;
+		}
+		case MA_BM_BLEND:
+		{
+			rasty->Enable(RAS_Rasterizer::RAS_BLEND);
+			break;
+		}
+		default:
+		{
+			rasty->Disable(RAS_Rasterizer::RAS_BLEND);
+			break;
+		}
+	}
+}
+
 void BL_BlenderShader::Activate(RAS_Rasterizer *rasty)
 {
 	if (!IsValid(rasty->GetDrawingMode())) {
 		PrintDebugInfos(rasty->GetDrawingMode());
 		return;
 	}
+	SetAlphaBlendStates(rasty);
 	DRW_bind_shader_shgroup(GetDRWShadingGroup(rasty->GetDrawingMode()));
 }
 
