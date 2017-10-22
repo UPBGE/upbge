@@ -37,6 +37,7 @@
 
 #include "EXP_Python.h"
 #include <string>
+#include <initializer_list>
 #include "MT_Vector3.h"
 #include <stddef.h>
 
@@ -516,6 +517,13 @@ typedef struct EXP_PYATTRIBUTE_DEF {
 #define EXP_PYATTRIBUTE_ARRAY_RO_FUNCTION(name, object, length, getfunction) \
 	{ name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0, f, false, false, 0, 0, length, nullptr, nullptr, &object::getfunction, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
 
+template <class ... Args>
+inline bool EXP_ParseTupleArgsAndKeywords(PyObject *pyargs, PyObject *pykwds, const char *format, std::initializer_list<const char *> keyword, Args ... args)
+{
+	BLI_assert((keyword.size() - 1) == (sizeof...Args));
+	static _PyArg_Parser _parser = {format, keyword.begin(), 0};
+	return _PyArg_ParseTupleAndKeywordsFast(pyargs, pykwds, &_parser, args ...);
+}
 
 /*------------------------------
  * EXP_PyObjectPlus

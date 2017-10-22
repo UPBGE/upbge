@@ -628,11 +628,12 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 	short options=0;
 	int load_actions=0, verbose=0, load_scripts=1, async=0;
 
-	static const char *kwlist[] = {"path", "group", "buffer", "load_actions", "verbose", "load_scripts", "async", "scene", nullptr};
-	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|y*iiIiO:LibLoad", const_cast<char**>(kwlist),
-									&path, &group, &py_buffer, &load_actions, &verbose, &load_scripts, &async, &pyscene))
+	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "ss|y*iiIiO:LibLoad",
+			{"path", "group", "buffer", "load_actions", "verbose", "load_scripts", "async", "scene", 0},
+			&path, &group, &py_buffer, &load_actions, &verbose, &load_scripts, &async, &pyscene))
+	{
 		return nullptr;
+	}
 
 	if (!ConvertPythonToScene(pyscene, &kx_scene, true, "invalid scene")) {
 		return nullptr;

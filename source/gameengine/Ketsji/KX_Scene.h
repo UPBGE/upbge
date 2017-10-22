@@ -518,7 +518,6 @@ public:
 	EXP_PYMETHOD_DOC(KX_Scene, get);
 	EXP_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
 
-
 	/* attributes */
 	static PyObject*	pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

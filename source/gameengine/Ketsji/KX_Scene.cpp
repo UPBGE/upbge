@@ -1829,7 +1829,6 @@ PyMethodDef KX_Scene::Methods[] = {
 	EXP_PYMETHODTABLE(KX_Scene, suspend),
 	EXP_PYMETHODTABLE(KX_Scene, resume),
 	EXP_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
-
 	
 	/* dict style access */
 	EXP_PYMETHODTABLE(KX_Scene, get),

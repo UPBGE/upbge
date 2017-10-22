@@ -200,10 +200,10 @@ EXP_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, widt
 	int mipmap = 0;
 	int flag = 0;
 
-	static const char *kwlist[] = {"slots", "depth", "width", "height", "hdr", "mipmap", nullptr};
-
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "i|iiiii:addOffScreen", const_cast<char**>(kwlist),
-									 &slots, &depth, &width, &height, &hdr, &mipmap)) {
+	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "i|iiiii:addOffScreen",
+			{"slots", "depth", "width", "height", "hdr", "mipmap", 0},
+			&slots, &depth, &width, &height, &hdr, &mipmap))
+	{
 		return nullptr;
 	}
 
