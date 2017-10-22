@@ -65,11 +65,10 @@ public:
 		RAS_ALPHA = (1 << 1),
 		RAS_DEPTH_ALPHA = (1 << 2),
 		RAS_ALPHA_SHADOW = (1 << 3),
-		RAS_WIRE = (1 << 4),
-		RAS_TEXT = (1 << 5),
-		RAS_TWOSIDED = (1 << 6),
-		RAS_VISIBLE = (1 << 7),
-		RAS_COLLIDER = (1 << 8)
+		RAS_TEXT = (1 << 4),
+		RAS_TWOSIDED = (1 << 5),
+		RAS_VISIBLE = (1 << 6),
+		RAS_COLLIDER = (1 << 7)
 	};
 
 	enum DrawingModes
@@ -104,7 +103,6 @@ public:
 	bool IsAlpha() const;
 	bool IsAlphaDepth() const;
 	bool IsZSort() const;
-	bool IsWire() const;
 	bool IsText() const;
 	bool IsCullFace() const;
 	bool IsTwoSided() const;

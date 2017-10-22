@@ -19,6 +19,10 @@ out mat4 varinstinvmat;
 uniform mat4 unfviewmat;
 #endif
 
+#ifdef USE_POINT_SIZE
+uniform float unfpointsize;
+#endif
+
 out vec3 varposition;
 out vec3 varnormal;
 
@@ -138,4 +142,8 @@ void main()
 #ifdef USE_OPENSUBDIV
 	outpt.v.position = co;
 	outpt.v.normal = varnormal;
+#endif
+
+#ifdef USE_POINT_SIZE
+	gl_PointSize = unfpointsize;
 #endif

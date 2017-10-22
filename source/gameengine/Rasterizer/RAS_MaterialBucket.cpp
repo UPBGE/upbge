@@ -78,11 +78,6 @@ bool RAS_MaterialBucket::IsZSort() const
 	return (m_material->IsZSort());
 }
 
-bool RAS_MaterialBucket::IsWire() const
-{
-	return (m_material->IsWire());
-}
-
 bool RAS_MaterialBucket::UseInstancing() const
 {
 	return (m_material->UseInstancing());

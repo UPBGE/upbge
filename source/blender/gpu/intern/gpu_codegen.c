@@ -426,6 +426,8 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "unftime";
 	else if (builtin == GPU_OBJECT_INFO)
 		return "unfobjectinfo";
+	else if (builtin == GPU_POINT_SIZE)
+		return "unfpointsize";
 	else
 		return "";
 }
@@ -1733,6 +1735,7 @@ GPUPass *GPU_generate_pass(
         const GPUMatType type, const char *UNUSED(name),
         const bool use_opensubdiv,
 		const bool use_instancing,
+		const bool use_point_size,
         const bool use_new_shading)
 {
 	GPUShader *shader;
@@ -1766,6 +1769,9 @@ GPUPass *GPU_generate_pass(
 	}
 	if (use_instancing) {
 		flags |= GPU_SHADER_FLAGS_SPECIAL_INSTANCING;
+	}
+	if (use_point_size) {
+		flags |= GPU_SHADER_FLAGS_SPECIAL_POINT_SIZE;
 	}
 	shader = GPU_shader_create_ex(vertexcode,
 	                              fragmentcode,

@@ -204,7 +204,7 @@ class MATERIAL_PT_pipeline(MaterialButtonsPanel, Panel):
         layout = self. layout
 
         mat = context.material
-        mat_type = mat.type in {'SURFACE', 'WIRE'}
+        mat_type = mat.type in {'SURFACE', 'WIRE', 'HALO'}
 
         row = layout.row()
         row.active = mat_type
@@ -251,7 +251,7 @@ class MATERIAL_PT_diffuse(MaterialButtonsPanel, Panel):
     def poll(cls, context):
         mat = context.material
         engine = context.scene.render.engine
-        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE'}) and (engine in cls.COMPAT_ENGINES)
+        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE', 'HALO'}) and (engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -308,7 +308,7 @@ class MATERIAL_PT_specular(MaterialButtonsPanel, Panel):
     def poll(cls, context):
         mat = context.material
         engine = context.scene.render.engine
-        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE'}) and (engine in cls.COMPAT_ENGINES)
+        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE', 'HALO'}) and (engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -361,7 +361,7 @@ class MATERIAL_PT_shading(MaterialButtonsPanel, Panel):
     def poll(cls, context):
         mat = context.material
         engine = context.scene.render.engine
-        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE'}) and (engine in cls.COMPAT_ENGINES)
+        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE', 'HALO'}) and (engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -519,7 +519,7 @@ class MATERIAL_PT_sss(MaterialButtonsPanel, Panel):
     def poll(cls, context):
         mat = context.material
         engine = context.scene.render.engine
-        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE'}) and (engine in cls.COMPAT_ENGINES)
+        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE', 'HALO'}) and (engine in cls.COMPAT_ENGINES)
 
     def draw_header(self, context):
         mat = active_node_mat(context.material)
@@ -742,7 +742,7 @@ class MATERIAL_PT_options(MaterialButtonsPanel, Panel):
     def poll(cls, context):
         mat = context.material
         engine = context.scene.render.engine
-        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE'}) and (engine in cls.COMPAT_ENGINES)
+        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE', 'HALO'}) and (engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -792,7 +792,7 @@ class MATERIAL_PT_game_options(MaterialButtonsPanel, Panel):
     def poll(cls, context):
         mat = context.material
         engine = context.scene.render.engine
-        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE'}) and (engine in cls.COMPAT_ENGINES)
+        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE', 'HALO'}) and (engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -815,6 +815,10 @@ class MATERIAL_PT_game_options(MaterialButtonsPanel, Panel):
         row.active = bool(mat.light_group)
         row.prop(mat, "use_light_group_exclusive", text="Exclusive")
         row.prop(mat, "use_light_group_local", text="Local")
+
+        if mat.type == 'HALO':
+            row = sub.row()
+            row.prop(mat, "point_size")
 
         col = split.column()
         col.prop(mat, "use_mist")

@@ -326,6 +326,8 @@ void RAS_Rasterizer::BeginFrame(double time)
 
 	Enable(RAS_SCISSOR_TEST);
 
+	Enable(RAS_PROGRAM_POINT_SIZE);
+
 	SetDepthFunc(RAS_LEQUAL);
 
 	// Render Tools

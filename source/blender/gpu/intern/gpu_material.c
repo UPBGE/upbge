@@ -128,11 +128,14 @@ struct GPUMaterial {
 
 	int objectinfoloc;
 
+	int pointsizeloc;
+
 	int ininstposloc;
 	int ininstmatloc;
 	int ininstcolloc;
 
 	bool use_instancing;
+	bool use_point_size;
 
 	ListBase lamps;
 	bool bound;
@@ -248,6 +251,7 @@ static int gpu_material_construct_end(GPUMaterial *material, const char *passnam
 			passname,
 			material->is_opensubdiv,
 			material->use_instancing,
+			material->use_point_size,
 			GPU_material_use_new_shading_nodes(material));
 
 		if (!material->pass)
@@ -292,6 +296,9 @@ static int gpu_material_construct_end(GPUMaterial *material, const char *passnam
 		}
 		if (material->builtins & GPU_OBJECT_INFO)
 			material->objectinfoloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_OBJECT_INFO));
+		if (material->use_point_size) {
+			material->pointsizeloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_POINT_SIZE));
+		}
 		return 1;
 	}
 	else {
@@ -553,7 +560,9 @@ void GPU_material_bind_uniforms(
 		if (material->builtins & GPU_OBJECT_INFO) {
 			GPU_shader_uniform_vector(shader, material->objectinfoloc, 3, 1, object_info);
 		}
-
+		if (material->use_point_size) {
+			GPU_shader_uniform_vector(shader, material->pointsizeloc, 1, 1, &material->ma->pointsize);
+		}
 	}
 }
 
@@ -2434,6 +2443,7 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 	mat->scene = scene;
 	mat->type = GPU_MATERIAL_TYPE_MESH;
 	mat->use_instancing = is_instancing;
+	mat->use_point_size = (ma->material_type == MA_TYPE_HALO);
 	mat->is_opensubdiv = use_opensubdiv;
 	mat->har = ma->har;
 

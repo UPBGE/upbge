@@ -52,7 +52,6 @@ public:
 	RAS_IPolyMaterial *GetPolyMaterial() const;
 	bool IsAlpha() const;
 	bool IsZSort() const;
-	bool IsWire() const;
 	bool UseInstancing() const;
 
 	/// Regenerate shader dependent data.

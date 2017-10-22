@@ -164,7 +164,7 @@ public:
 	}
 
 	// mesh construction
-	RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format);
+	void AddMaterial(RAS_MeshMaterial *meshmat);
 
 	RAS_IDisplayArray *GetDisplayArray(unsigned int matid) const;
 	RAS_IVertex *GetVertex(unsigned int matid, unsigned int index) const;

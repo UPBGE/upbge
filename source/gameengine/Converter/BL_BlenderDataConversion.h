@@ -33,7 +33,10 @@
 #define __BL_BLENDERDATACONVERSION_H__
 
 #include "RAS_MeshObject.h"
+#include "RAS_IDisplayArray.h" // For RAS_IDisplayArray::PrimitiveType.
+
 #include "KX_PhysicsEngineEnums.h"
+
 #include "SCA_IInputDevice.h"
 
 class RAS_Rasterizer;
@@ -48,11 +51,8 @@ struct Main;
 
 struct BL_MeshMaterial {
 	RAS_IDisplayArray *array;
-	RAS_MaterialBucket *bucket;
 	bool visible;
-	bool twoside;
-	bool collider;
-	bool wire;
+	RAS_IDisplayArray::PrimitiveType primitiveType;
 };
 
 RAS_MeshObject *BL_ConvertMesh(Mesh *mesh, Object *lightobj, KX_Scene *scene, BL_BlenderSceneConverter& converter);

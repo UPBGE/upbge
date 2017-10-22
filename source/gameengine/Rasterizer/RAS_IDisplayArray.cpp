@@ -151,17 +151,14 @@ RAS_IDisplayArray::PrimitiveType RAS_IDisplayArray::GetPrimitiveType() const
 
 int RAS_IDisplayArray::GetOpenGLPrimitiveType() const
 {
-	switch (m_type) {
-		case LINES:
-		{
-			return GL_LINES;
-		}
-		case TRIANGLES:
-		{
-			return GL_TRIANGLES;
-		}
-	}
-	return 0;
+	// WARNING: Keep in order with PrimitiveType.
+	static const int translateTable[] = {
+		GL_TRIANGLES, // TRIANGLES
+		GL_LINES, // LINES
+		GL_POINTS // POINTS
+	};
+
+	return translateTable[m_type];
 }
 
 void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)

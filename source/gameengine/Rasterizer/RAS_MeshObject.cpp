@@ -161,17 +161,9 @@ std::string RAS_MeshObject::GetTextureName(unsigned int matid) const
 	return "";
 }
 
-RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format)
+void RAS_MeshObject::AddMaterial(RAS_MeshMaterial *meshmat)
 {
-	RAS_MeshMaterial *meshmat = GetMeshMaterialBlenderIndex(index);
-
-	// none found, create a new one
-	if (!meshmat) {
-		meshmat = new RAS_MeshMaterial(this, bucket, index, format);
-		m_materials.push_back(meshmat);
-	}
-
-	return meshmat;
+	m_materials.push_back(meshmat);
 }
 
 RAS_IDisplayArray *RAS_MeshObject::GetDisplayArray(unsigned int matid) const

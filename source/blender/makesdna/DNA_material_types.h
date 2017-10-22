@@ -199,6 +199,8 @@ typedef struct Material {
 
 	/* Constants settings */
 	short constflag;
+	float pointsize;
+	int pad1;
 
 	/* Depth transparency settings */
 	float depthtranspfactor;

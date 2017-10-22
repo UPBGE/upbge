@@ -25,12 +25,12 @@
 #include "RAS_IDisplayArray.h"
 #include "RAS_DisplayArrayBucket.h"
 
-RAS_MeshMaterial::RAS_MeshMaterial(RAS_MeshObject *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format)
+RAS_MeshMaterial::RAS_MeshMaterial(RAS_MeshObject *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& vertexFormat,
+		RAS_IDisplayArray::PrimitiveType primitiveType)
 	:m_bucket(bucket),
 	m_index(index)
 {
-	RAS_IDisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_IDisplayArray::LINES : RAS_IDisplayArray::TRIANGLES;
-	m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
+	m_displayArray = RAS_IDisplayArray::ConstructArray(primitiveType, vertexFormat);
 
 	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, mesh, this, nullptr);
 }

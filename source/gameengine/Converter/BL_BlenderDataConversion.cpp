@@ -480,11 +480,25 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL
 			ma = &defmaterial;
 		}
 
-		RAS_MaterialBucket *bucket = BL_ConvertMaterial(ma, lightlayer, scene, converter);
-		RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
-		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
+		// WARNING: Keep in order with material_type.
+		static const RAS_IDisplayArray::PrimitiveType primitiveTypeTable[] = {
+			RAS_IDisplayArray::TRIANGLES,
+			RAS_IDisplayArray::POINTS,
+			RAS_IDisplayArray::TRIANGLES,
+			RAS_IDisplayArray::LINES
+		};
 
-		mats[i] = {meshmat->GetDisplayArray(), bucket, mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
+		RAS_MaterialBucket *bucket = BL_ConvertMaterial(ma, lightlayer, scene, converter);
+
+		RAS_IDisplayArray::PrimitiveType primitiveType = primitiveTypeTable[ma->material_type];
+		// Create and register mesh material.
+		RAS_MeshMaterial *meshmat = new RAS_MeshMaterial(meshobj, bucket, i, vertformat, primitiveType);
+		meshobj->AddMaterial(meshmat);
+
+		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
+		RAS_IDisplayArray *array = meshmat->GetDisplayArray();
+
+		mats[i] = {array, mat->IsVisible(), primitiveType};
 	}
 
 	BL_ConvertDerivedMeshToArray(dm, me, mats, layersInfo);
@@ -598,7 +612,7 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 		const unsigned int lttot = ME_POLY_TRI_TOT(&mpoly);
 
 		if (mat.visible) {
-			if (mat.wire) {
+			if (mat.primitiveType == RAS_IDisplayArray::LINES) {
 				// Convert to edges if material is rendering wire.
 				for (unsigned int j = lpstart; j < (lpstart + totlp); ++j) {
 					const MLoop& mloop = mloops[j];

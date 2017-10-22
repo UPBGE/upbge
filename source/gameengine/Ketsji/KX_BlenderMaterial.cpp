@@ -79,7 +79,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(Material *mat, const std::string& name, i
 	m_rasMode |= (mat->game.flag & GEMAT_INVISIBLE) ? 0 : RAS_VISIBLE;
 	m_rasMode |= (mat->game.flag & GEMAT_NOPHYSICS) ? 0 : RAS_COLLIDER;
 	m_rasMode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : RAS_TWOSIDED;
-	m_rasMode |= (mat->material_type == MA_TYPE_WIRE) ? RAS_WIRE : 0;
 	m_rasMode |= (mat->mode2 & MA_DEPTH_TRANSP) ? RAS_DEPTH_ALPHA : 0;
 
 	if (ELEM(m_alphablend, GEMAT_CLIP, GEMAT_ALPHA_TO_COVERAGE)) {

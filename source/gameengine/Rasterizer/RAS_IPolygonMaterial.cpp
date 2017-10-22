@@ -59,11 +59,6 @@ bool RAS_IPolyMaterial::IsAlphaShadow() const
 	return (m_rasMode & RAS_ALPHA_SHADOW);
 }
 
-bool RAS_IPolyMaterial::IsWire() const
-{
-	return (m_rasMode & RAS_WIRE);
-}
-
 bool RAS_IPolyMaterial::IsText() const
 {
 	return (m_rasMode & RAS_TEXT);
@@ -71,7 +66,7 @@ bool RAS_IPolyMaterial::IsText() const
 
 bool RAS_IPolyMaterial::IsCullFace() const
 {
-	return !(m_rasMode & (RAS_TWOSIDED | RAS_WIRE));
+	return !(m_rasMode & RAS_TWOSIDED);
 }
 
 bool RAS_IPolyMaterial::IsTwoSided() const

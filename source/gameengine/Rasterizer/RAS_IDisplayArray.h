@@ -35,8 +35,9 @@ class RAS_IDisplayArray
 {
 public:
 	enum PrimitiveType {
-		TRIANGLES,
+		TRIANGLES = 0,
 		LINES,
+		POINTS
 	};
 
 	enum Type {
