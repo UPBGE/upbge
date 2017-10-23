@@ -168,7 +168,7 @@ EXP_Value *EXP_Value::GetProperty(const std::string & inName)
 {
 	std::map<std::string, EXP_Value *>::iterator it = m_properties.find(inName);
 	if (it != m_properties.end()) {
-		return (*it).second;
+		return it->second;
 	}
 	return nullptr;
 }
@@ -265,9 +265,7 @@ void EXP_Value::ProcessReplica()
 
 	// Copy all props.
 	for (auto& pair : m_properties) {
-		EXP_Value *val = pair.second->GetReplica();
-		val->Release();
-		pair.second = val;
+		pair.second = pair.second->GetReplica();
 	}
 }
 

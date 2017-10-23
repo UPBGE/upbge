@@ -168,7 +168,6 @@ protected:
 private:
 	/// Properties for user/game etc.
 	std::map<std::string, EXP_Value *> m_properties;
-	bool m_error;
 };
 
 /** EXP_PropValue is a EXP_Value derived class, that implements the identification (String name)
