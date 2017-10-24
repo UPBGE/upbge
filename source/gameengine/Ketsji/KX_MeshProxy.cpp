@@ -40,6 +40,9 @@
 #include "RAS_BucketManager.h"
 #include "SCA_LogicManager.h"
 
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
+
 #include "KX_VertexProxy.h"
 #include "KX_PolyProxy.h"
 
@@ -51,6 +54,7 @@
 
 #include "EXP_PyObjectPlus.h"
 #include "EXP_ListWrapper.h"
+
 
 PyTypeObject KX_MeshProxy::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
@@ -82,6 +86,7 @@ PyMethodDef KX_MeshProxy::Methods[] = {
 	{"getPolygon", (PyCFunction) KX_MeshProxy::sPyGetPolygon, METH_VARARGS},
 	{"transform", (PyCFunction) KX_MeshProxy::sPyTransform, METH_VARARGS},
 	{"transformUV", (PyCFunction) KX_MeshProxy::sPyTransformUV, METH_VARARGS},
+	{"recalcNormals", (PyCFunction)KX_MeshProxy::sPyRecalcNormals, METH_VARARGS},
 	{"replaceMaterial", (PyCFunction) KX_MeshProxy::sPyReplaceMaterial, METH_VARARGS},
 	{nullptr, nullptr} //Sentinel
 };
@@ -99,6 +104,15 @@ KX_MeshProxy::KX_MeshProxy(RAS_MeshObject *mesh)
 	:EXP_Value(),
 	m_meshobj(mesh)
 {
+	Mesh *bmesh = m_meshobj->GetMesh();
+	/* Ensure that we have the right number of verts assigned */
+	const unsigned int totvert = bmesh->totvert;
+	if (m_transnors.size() != totvert) {
+		m_transnors.resize(totvert);
+	}
+	for (unsigned int v = 0; v < totvert; ++v) {
+		normal_short_to_float_v3(m_transnors[v].data(), bmesh->mvert[v].no);
+	}
 }
 
 KX_MeshProxy::~KX_MeshProxy()
@@ -324,6 +338,74 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
+	Py_RETURN_NONE;
+}
+
+PyObject *KX_MeshProxy::PyRecalcNormals(PyObject *args, PyObject *kwds)
+{
+	int matid;
+	if (!PyArg_ParseTuple(args, "i:replaceMaterial", &matid)) {
+		return nullptr;
+	}
+	/* set vertex normals to zero */
+	for (std::array<float, 3>& normal : m_transnors) {
+		normal = { { 0.0f, 0.0f, 0.0f } };
+	}
+
+	/* transform mesh verts */
+	for (unsigned short k = 0, num = m_meshobj->GetNumMaterials(); k < num; ++k) {
+		if (matid == -1) {
+			/* always transform */
+		}
+		else if (matid == k) {
+			/* we found the right index! */
+		}
+		else {
+			continue;
+		}
+
+		RAS_IDisplayArray *array = m_meshobj->GetDisplayArray(k);
+		for (unsigned int i = 0, size = array->GetTriangleIndexCount(); i < size; i += 3) {
+			const float *co[3];
+			bool flat = false;
+
+			for (unsigned short j = 0; j < 3; ++j) {
+				const unsigned int index = array->GetTriangleIndex(i + j);
+				const RAS_VertexInfo& vinfo = array->GetVertexInfo(index);
+				const unsigned int origindex = vinfo.getOrigIndex();
+				RAS_IVertex *vert = array->GetVertex(index);
+
+				co[j] = vert->getXYZ();
+				flat |= (vinfo.getFlag() & RAS_VertexInfo::FLAT);
+			}
+
+			float pnorm[3];
+			normal_tri_v3(pnorm, co[0], co[1], co[2]);
+
+			for (unsigned short j = 0; j < 3; ++j) {
+				const unsigned int index = array->GetTriangleIndex(i + j);
+
+				if (flat) {
+					RAS_IVertex *vert = array->GetVertex(index);
+					vert->SetNormal(pnorm);
+				}
+				else {
+					const RAS_VertexInfo& vinfo = array->GetVertexInfo(index);
+					const unsigned int origindex = vinfo.getOrigIndex();
+					add_v3_v3(m_transnors[origindex].data(), pnorm);
+				}
+			}
+		}
+		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+			RAS_IVertex *v = array->GetVertex(i);
+			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
+
+			if (!(vinfo.getFlag() & RAS_VertexInfo::FLAT)) {
+				v->SetNormal(m_transnors[vinfo.getOrigIndex()].data());
+			}
+		}
+		array->AppendModifiedFlag(RAS_IDisplayArray::NORMAL_MODIFIED);
+	}
 	Py_RETURN_NONE;
 }
 

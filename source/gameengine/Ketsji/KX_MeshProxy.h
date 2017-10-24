@@ -35,6 +35,7 @@
 #ifdef WITH_PYTHON
 
 #include "EXP_Value.h"
+#include <array>
 
 class RAS_MeshObject;
 class SCA_LogicManager;
@@ -57,6 +58,9 @@ public:
 		return m_meshobj;
 	}
 
+	// used to recalculate normals
+	std::vector<std::array<float, 3> > m_transnors;
+
 	// stuff for cvalue related things
 	virtual std::string GetName();
 
@@ -73,6 +77,7 @@ public:
 	EXP_PYMETHOD(KX_MeshProxy, GetPolygon);
 	EXP_PYMETHOD(KX_MeshProxy, Transform);
 	EXP_PYMETHOD(KX_MeshProxy, TransformUV);
+	EXP_PYMETHOD(KX_MeshProxy, RecalcNormals);
 	EXP_PYMETHOD(KX_MeshProxy, ReplaceMaterial);
 
 	static PyObject *pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
