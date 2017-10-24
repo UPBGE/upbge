@@ -659,9 +659,6 @@ void KX_KetsjiEngine::Render()
 			const bool isfirstscene = (i == 0);
 			const bool islastscene = (i == (size - 1));
 
-			// pass the scene's worldsettings to the rasterizer
-			scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
-
 			m_rasterizer->SetAuxilaryClientInfo(scene);
 
 			// Draw the scene once for each camera with an enabled viewport or an active camera.
@@ -1170,8 +1167,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	if (isFirstScene) {
 		KX_WorldInfo *worldInfo = scene->GetWorldInfo();
 		// Update background and render it.
-		worldInfo->UpdateBackGround(m_rasterizer);
-		worldInfo->RenderBackground(m_rasterizer);
+		worldInfo->RenderBackground();
 	}
 
 	// The following actually reschedules all vertices to be

@@ -52,31 +52,6 @@ bool KX_WorldIpoController::Update(double currentTime)
 
 		KX_WorldInfo *world = KX_GetActiveScene()->GetWorldInfo();
 
-		if (m_modify_mist_start) {
-			world->setMistStart(m_mist_start);
-		}
-
-		if (m_modify_mist_dist) {
-			world->setMistDistance(m_mist_dist);
-		}
-
-		if (m_modify_mist_intensity) {
-			world->setMistIntensity(m_mist_intensity);
-		}
-
-		if (m_modify_horizon_color) {
-			world->setHorizonColor(MT_Vector4(m_hori_rgb[0], m_hori_rgb[1], m_hori_rgb[2], 1.0f));
-			world->setMistColor(m_hori_rgb);
-		}
-
-		if (m_modify_zenith_color) {
-			world->setZenithColor(MT_Vector4(m_zeni_rgb[0], m_zeni_rgb[1], m_zeni_rgb[2], 1.0f));
-		}
-
-		if (m_modify_ambient_color) {
-			world->setAmbientColor(m_ambi_rgb);
-		}
-
 		m_modified = false;
 	}
 	return false;

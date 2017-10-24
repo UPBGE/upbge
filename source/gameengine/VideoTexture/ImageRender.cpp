@@ -90,9 +90,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_mirrorHalfWidth(0.f),
     m_mirrorHalfHeight(0.f)
 {
-	// initialize background color to scene background color as default
-	setHorizonFromScene(m_scene);
-	setZenithFromScene(m_scene);
 	// retrieve rendering objects
 	m_engine = KX_GetActiveEngine();
 	m_rasterizer = m_engine->GetRasterizer();
@@ -142,58 +139,6 @@ bool ImageRender::getUpdateShadowBuffer()
 void ImageRender::setUpdateShadowBuffer(bool refresh)
 {
 	m_updateShadowBuffer = refresh;
-}
-
-// get horizon color
-float ImageRender::getHorizon(int idx)
-{
-	return (idx < 0 || idx > 3) ? 0.0f : m_horizon[idx];
-}
-
-// set horizon color
-void ImageRender::setHorizon(float red, float green, float blue, float alpha)
-{
-	m_horizon[0] = (red < 0.0f) ? 0.0f : (red > 1.0f) ? 1.0f : red;
-	m_horizon[1] = (green < 0.0f) ? 0.0f : (green > 1.0f) ? 1.0f : green;
-	m_horizon[2] = (blue < 0.0f) ? 0.0f : (blue > 1.0f) ? 1.0f : blue;
-	m_horizon[3] = (alpha < 0.0f) ? 0.0f : (alpha > 1.0f) ? 1.0f : alpha;
-}
-
-// get zenith color
-float ImageRender::getZenith(int idx)
-{
-	return (idx < 0 || idx > 3) ? 0.0f : m_zenith[idx];
-}
-
-// set zenith color
-void ImageRender::setZenith(float red, float green, float blue, float alpha)
-{
-	m_zenith[0] = (red < 0.0f) ? 0.0f : (red > 1.0f) ? 1.0f : red;
-	m_zenith[1] = (green < 0.0f) ? 0.0f : (green > 1.0f) ? 1.0f : green;
-	m_zenith[2] = (blue < 0.0f) ? 0.0f : (blue > 1.0f) ? 1.0f : blue;
-	m_zenith[3] = (alpha < 0.0f) ? 0.0f : (alpha > 1.0f) ? 1.0f : alpha;
-}
-
-// set horizon color from scene
-void ImageRender::setHorizonFromScene (KX_Scene *scene)
-{
-	if (scene) {
-		m_horizon = scene->GetWorldInfo()->m_horizoncolor;
-	}
-	else {
-		m_horizon = MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f);
-	}
-}
-
-// set zenith color from scene
-void ImageRender::setZenithFromScene(KX_Scene *scene)
-{
-	if (scene) {
-		m_zenith = scene->GetWorldInfo()->m_zenithcolor;
-	}
-	else {
-		m_zenith = MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f);
-	}
 }
 
 // capture image from viewport
@@ -312,7 +257,6 @@ bool ImageRender::Render()
 
 	m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 
-	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
 	//m_rasterizer->DisplayFog();
 	// matrix calculation, don't apply any of the stereo mode
@@ -399,14 +343,7 @@ bool ImageRender::Render()
 
 	// Render Background
 	if (m_scene->GetWorldInfo()) {
-		const MT_Vector4 hor = m_scene->GetWorldInfo()->m_horizoncolor;
-		const MT_Vector4 zen = m_scene->GetWorldInfo()->m_zenithcolor;
-		m_scene->GetWorldInfo()->setHorizonColor(m_horizon);
-		m_scene->GetWorldInfo()->setZenithColor(m_zenith);
-		m_scene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
-		m_scene->GetWorldInfo()->RenderBackground(m_rasterizer);
-		m_scene->GetWorldInfo()->setHorizonColor(hor);
-		m_scene->GetWorldInfo()->setZenithColor(zen);
+		m_scene->GetWorldInfo()->RenderBackground();
 	}
 
 	KX_CullingNodeList nodes;
@@ -571,73 +508,6 @@ static PyObject *ImageRender_render(PyImage *self)
 	Py_RETURN_TRUE;
 }
 
-
-// get horizon color /////////////TO DO
-static PyObject *getHorizon(PyImage *self, void *closure)
-{
-	return Py_BuildValue("[ffff]",
-	                     getImageRender(self)->getHorizon(0),
-	                     getImageRender(self)->getHorizon(1),
-	                     getImageRender(self)->getHorizon(2),
-	                     getImageRender(self)->getHorizon(3));
-}
-
-// set color
-static int setHorizon(PyImage *self, PyObject *value, void *closure)
-{
-	// check validity of parameter
-	if (value == nullptr || !PySequence_Check(value) || PySequence_Size(value) != 4
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 0)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 1)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 1)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 2)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 2)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 3)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 3)))) {
-
-		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 4 floats or ints between 0.0 and 1.0");
-		return -1;
-	}
-	// set horizon color
-	getImageRender(self)->setHorizon(
-	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 0)),
-	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 1)),
-	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 2)),
-	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 3)));
-	// success
-	return 0;
-}
-
-// get zenith color
-static PyObject *getZenith(PyImage *self, void *closure)
-{
-	return Py_BuildValue("[ffff]",
-		getImageRender(self)->getZenith(0),
-		getImageRender(self)->getZenith(1),
-		getImageRender(self)->getZenith(2),
-		getImageRender(self)->getZenith(3));
-}
-
-// set color
-static int setZenith(PyImage *self, PyObject *value, void *closure)
-{
-	// check validity of parameter
-	if (value == nullptr || !PySequence_Check(value) || PySequence_Size(value) != 4
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 0)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 1)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 1)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 2)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 2)))
-		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 3)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 3)))) {
-
-		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 4 floats or ints between 0.0 and 1.0");
-		return -1;
-	}
-	// set zenith color
-	getImageRender(self)->setZenith(
-		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 0)),
-		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 1)),
-		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 2)),
-		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 3)));
-	// success
-	return 0;
-}
-
 // get update shadow buffer
 static PyObject *getUpdateShadow(PyImage *self)
 {
@@ -666,10 +536,7 @@ static PyMethodDef imageRenderMethods[] =
 };
 // attributes structure
 static PyGetSetDef imageRenderGetSets[] =
-{ 
-	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", nullptr},
-	{(char*)"background", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", nullptr}, //DEPRECATED use horizon instead
-	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", nullptr},
+{
 	// attribute from ImageViewport
 	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of render area", nullptr},
 	{(char*)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char*)"use alpha in texture", nullptr},
@@ -836,10 +703,6 @@ static int setClip(PyImage *self, PyObject *value, void *closure)
 static PyGetSetDef imageMirrorGetSets[] =
 { 
 	{(char*)"clip", (getter)getClip, (setter)setClip, (char*)"clipping distance", nullptr},
-	// attribute from ImageRender
-	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", nullptr},
-	{(char*)"background", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", nullptr}, //DEPRECATED use horizon/zenith instead.
-	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", nullptr},
 	// attribute from ImageViewport
 	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of render area", nullptr},
 	{(char*)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char*)"use alpha in texture", nullptr},
@@ -1040,10 +903,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	m_mirrorY.setValue(mirrorUp[0], mirrorUp[1], mirrorUp[2]);
 	m_mirrorX = m_mirrorY.cross(m_mirrorZ);
 	m_render = true;
-
-	// set mirror background color to scene background color as default
-	setHorizonFromScene(m_scene);
-	setZenithFromScene(m_scene);
 }
 
 

@@ -58,16 +58,6 @@ public:
 	/// destructor
 	virtual ~ImageRender (void);
 
-	/// get horizon color
-	float getHorizon(int idx);
-	/// set horizon color
-	void setHorizon(float red, float green, float blue, float alpha);
-
-	/// get zenith color
-	float getZenith(int idx);
-	/// set zenith color
-	void setZenith(float red, float green, float blue, float alpha);
-
 	/// get update shadow buffer
 	bool getUpdateShadowBuffer();
 	/// set update shadow buffer
@@ -134,21 +124,11 @@ protected:
 	/// engine
 	KX_KetsjiEngine* m_engine;
 
-	/// horizon color
-	MT_Vector4 m_horizon;
-
-	/// zenith color
-	MT_Vector4 m_zenith;
-
 	/// render 3d scene to image
 	virtual void calcImage (unsigned int texId, double ts, unsigned int format) { calcViewport(texId, ts, format); }
 
 	/// render 3d scene to image
 	virtual void calcViewport (unsigned int texId, double ts, unsigned int format);
-
-	void setHorizonFromScene(KX_Scene *scene);
-	void setZenithFromScene(KX_Scene *scene);
-	void SetWorldSettings(KX_WorldInfo* wi);
 };
 
 
