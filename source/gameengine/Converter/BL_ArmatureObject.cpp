@@ -44,12 +44,14 @@
 
 extern "C" {
 #  include "BKE_animsys.h"
+#  include "BKE_main.h"
 }
 
 #include "BL_ArmatureObject.h"
 #include "BL_ActionActuator.h"
 #include "BL_Action.h"
 #include "KX_BlenderSceneConverter.h"
+#include "KX_BlenderConverter.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 
@@ -426,8 +428,6 @@ bool BL_ArmatureObject::UnlinkObject(SCA_IObject *clientobj)
 
 void BL_ArmatureObject::ApplyPose()
 {
-	/* TODO: This doesn't work currently because of eval_ctx. */
-#if 0
 	m_armpose = m_objArma->pose;
 	m_objArma->pose = m_pose;
 	// in the GE, we use ctime to store the timestep
@@ -440,12 +440,12 @@ void BL_ArmatureObject::ApplyPose()
 		}
 		// update ourself
 		UpdateBlenderObjectMatrix(m_objArma);
-		BKE_pose_where_is(m_scene, m_objArma);
+		EvaluationContext *eval_ctx = KX_GetActiveEngine()->GetConverter()->GetMain()->eval_ctx;
+		BKE_pose_where_is(eval_ctx, m_scene, m_objArma);
 		// restore ourself
 		memcpy(m_objArma->obmat, m_obmat, sizeof(m_obmat));
 		m_lastapplyframe = m_lastframe;
 	}
-#endif
 }
 
 void BL_ArmatureObject::RestorePose()
