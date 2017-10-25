@@ -476,34 +476,29 @@ int BGL_typeSize(int type)
 	return -1;
 }
 
-static int gl_buffer_type_from_py_format_char(char *typestr)
+static int gl_buffer_type_from_py_buffer(Py_buffer *pybuffer)
 {
+	char *typestr = pybuffer->format;
+	Py_ssize_t itemsize = pybuffer->itemsize;
+
 	if (ELEM(typestr[0], '<', '>', '|')) {
 		typestr += 1;
 	}
-	char format = typestr[0];
-	char byte_num = typestr[1];
 
-	switch (format) {
+	switch (typestr[0]) {
 		case 't':
 		case 'b':
 		case 'h':
-			if (!byte_num) return GL_BYTE;
-			ATTR_FALLTHROUGH;
 		case 'i':
-			if (!byte_num) return GL_SHORT;
-			ATTR_FALLTHROUGH;
 		case 'l':
-			if (!byte_num || byte_num == '4') return GL_INT;
-			if (byte_num == '1') return GL_BYTE;
-			if (byte_num == '2') return GL_SHORT;
+			if (itemsize == 1) return GL_BYTE;
+			if (itemsize == 2) return GL_SHORT;
+			if (itemsize == 4) return GL_INT;
 			break;
 		case 'f':
-			if (!byte_num) return GL_FLOAT;
-			ATTR_FALLTHROUGH;
 		case 'd':
-			if (!byte_num || byte_num == '8') return GL_DOUBLE;
-			if (byte_num == '4') return GL_FLOAT;
+			if (itemsize == 4) return GL_FLOAT;
+			if (itemsize == 8) return GL_DOUBLE;
 			break;
 	}
 	return -1; /* UNKNOWN */
@@ -801,7 +796,7 @@ static PyObject *Buffer_new(PyTypeObject *UNUSED(type), PyObject *args, PyObject
 			return NULL;
 		}
 
-		if (type != gl_buffer_type_from_py_format_char(pybuffer.format)) {
+		if (type != gl_buffer_type_from_py_buffer(&pybuffer)) {
 			PyErr_Format(PyExc_TypeError,
 			             "`GL_TYPE` and `typestr` of object with buffer interface do not match. '%s'", pybuffer.format);
 		}
@@ -1303,6 +1298,7 @@ BGL_Wrap(UniformMatrix4x3fv,        void,      (GLint, GLsizei, GLboolean, GLflo
 BGL_Wrap(BindVertexArray,           void,      (GLuint))
 BGL_Wrap(DeleteVertexArrays,        void,      (GLsizei, GLuintP))
 BGL_Wrap(GenVertexArrays,           void,      (GLsizei, GLuintP))
+BGL_Wrap(GetStringi,                GLstring,  (GLenum, GLuint))
 BGL_Wrap(IsVertexArray,             GLboolean, (GLuint))
 
 
@@ -1633,6 +1629,7 @@ PyObject *BPyInit_bgl(void)
 		PY_MOD_ADD_METHOD(BindVertexArray);
 		PY_MOD_ADD_METHOD(DeleteVertexArrays);
 		PY_MOD_ADD_METHOD(GenVertexArrays);
+		PY_MOD_ADD_METHOD(GetStringi);
 		PY_MOD_ADD_METHOD(IsVertexArray);
 	}
 

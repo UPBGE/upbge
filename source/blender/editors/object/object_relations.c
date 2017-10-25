@@ -341,7 +341,7 @@ static int make_proxy_exec(bContext *C, wmOperator *op)
 	Object *ob, *gob = ED_object_active_context(C);
 	GroupObject *go;
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
 
 	if (gob->dup_group != NULL) {
 		go = BLI_findlink(&gob->dup_group->gobject, RNA_enum_get(op->ptr, "object"));
@@ -354,16 +354,16 @@ static int make_proxy_exec(bContext *C, wmOperator *op)
 
 	if (ob) {
 		Object *newob;
-		BaseLegacy *newbase, *oldbase = BASACT_NEW(sl);
+		Base *newbase, *oldbase = BASACT_NEW(scene_layer);
 		char name[MAX_ID_NAME + 4];
 
 		BLI_snprintf(name, sizeof(name), "%s_proxy", ((ID *)(gob ? gob : ob))->name + 2);
 
 		/* Add new object for the proxy */
-		newob = BKE_object_add(bmain, scene, sl, OB_EMPTY, name);
+		newob = BKE_object_add_from(bmain, scene, scene_layer, OB_EMPTY, name, gob ? gob : ob);
 
 		/* set layers OK */
-		newbase = BASACT_NEW(sl);    /* BKE_object_add sets active... */
+		newbase = BASACT_NEW(scene_layer);    /* BKE_object_add sets active... */
 		newbase->lay = oldbase->lay;
 		newob->lay = newbase->lay;
 
@@ -374,6 +374,15 @@ static int make_proxy_exec(bContext *C, wmOperator *op)
 		}
 
 		BKE_object_make_proxy(newob, ob, gob);
+
+		/* Set back pointer immediately so dependency graph knows that this is
+		 * is a proxy and will act accordingly. Otherwise correctness of graph
+		 * will depend on order of bases.
+		 *
+		 * TODO(sergey): We really need to get rid of this bi-directional links
+		 * in proxies with something like static overrides.
+		 */
+		newob->proxy->proxy_from = newob;
 
 		/* depsgraph flushes are needed for the new data */
 		DEG_relations_tag_update(bmain);
@@ -389,7 +398,7 @@ static int make_proxy_exec(bContext *C, wmOperator *op)
 }
 
 /* Generic itemf's for operators that take library args */
-static EnumPropertyItem *proxy_group_object_itemf(bContext *C, PointerRNA *UNUSED(ptr),
+static const EnumPropertyItem *proxy_group_object_itemf(bContext *C, PointerRNA *UNUSED(ptr),
                                                   PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem item_tmp = {0}, *item = NULL;
@@ -650,7 +659,7 @@ bool ED_object_parent_set(ReportList *reports, const bContext *C, Scene *scene, 
 
 				/* setup dummy 'generator' modifier here to get 1-1 correspondence still working */
 				if (!fcu->bezt && !fcu->fpt && !fcu->modifiers.first)
-					add_fmodifier(&fcu->modifiers, FMODIFIER_TYPE_GENERATOR);
+					add_fmodifier(&fcu->modifiers, FMODIFIER_TYPE_GENERATOR, fcu);
 			}
 
 			/* fall back on regular parenting now (for follow only) */
@@ -1142,7 +1151,7 @@ enum {
 	CLEAR_TRACK_KEEP_TRANSFORM = 2,
 };
 
-static EnumPropertyItem prop_clear_track_types[] = {
+static const EnumPropertyItem prop_clear_track_types[] = {
 	{CLEAR_TRACK, "CLEAR", 0, "Clear Track", ""},
 	{CLEAR_TRACK_KEEP_TRANSFORM, "CLEAR_KEEP_TRANSFORM", 0, "Clear and Keep Transformation (Clear Track)", ""},
 	{0, NULL, 0, NULL, NULL}
@@ -1211,7 +1220,7 @@ enum {
 	CREATE_TRACK_LOCKTRACK = 3,
 };
 
-static EnumPropertyItem prop_make_track_types[] = {
+static const EnumPropertyItem prop_make_track_types[] = {
 	{CREATE_TRACK_DAMPTRACK, "DAMPTRACK", 0, "Damped Track Constraint", ""},
 	{CREATE_TRACK_TRACKTO, "TRACKTO", 0, "Track To Constraint", ""},
 	{CREATE_TRACK_LOCKTRACK, "LOCKTRACK", 0, "Lock Track Constraint", ""},
@@ -1596,7 +1605,7 @@ void OBJECT_OT_make_links_scene(wmOperatorType *ot)
 
 void OBJECT_OT_make_links_data(wmOperatorType *ot)
 {
-	static EnumPropertyItem make_links_items[] = {
+	static const EnumPropertyItem make_links_items[] = {
 		{MAKE_LINKS_OBDATA,     "OBDATA", 0, "Object Data", ""},
 		{MAKE_LINKS_MATERIALS,  "MATERIAL", 0, "Materials", ""},
 		{MAKE_LINKS_ANIMDATA,   "ANIMATION", 0, "Animation Data", ""},
@@ -2299,7 +2308,7 @@ static int make_local_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_make_local(wmOperatorType *ot)
 {
-	static EnumPropertyItem type_items[] = {
+	static const EnumPropertyItem type_items[] = {
 		{MAKE_LOCAL_SELECT_OB, "SELECT_OBJECT", 0, "Selected Objects", ""},
 		{MAKE_LOCAL_SELECT_OBDATA, "SELECT_OBDATA", 0, "Selected Objects and Data", ""},
 		{MAKE_LOCAL_SELECT_OBDATA_MATERIAL, "SELECT_OBDATA_MATERIAL", 0, "Selected Objects, Data and Materials", ""},
@@ -2381,7 +2390,7 @@ static int make_single_user_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_make_single_user(wmOperatorType *ot)
 {
-	static EnumPropertyItem type_items[] = {
+	static const EnumPropertyItem type_items[] = {
 		{MAKE_SINGLE_USER_SELECTED, "SELECTED_OBJECTS", 0, "Selected Objects", ""},
 		{MAKE_SINGLE_USER_ALL, "ALL", 0, "All", ""},
 		{0, NULL, 0, NULL, NULL}};

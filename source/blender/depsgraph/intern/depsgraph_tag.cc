@@ -269,16 +269,17 @@ void id_tag_update_shading(Depsgraph *graph, IDDepsNode *id_node)
 	shading_comp->tag_update(graph);
 }
 
-#ifdef WITH_COPY_ON_WRITE
 /* Tag corresponding to DEG_TAG_COPY_ON_WRITE. */
 void id_tag_update_copy_on_write(Depsgraph *graph, IDDepsNode *id_node)
 {
+	if (!DEG_depsgraph_use_copy_on_write()) {
+		return;
+	}
 	ComponentDepsNode *cow_comp =
 	        id_node->find_component(DEG_NODE_TYPE_COPY_ON_WRITE);
 	OperationDepsNode *cow_node = cow_comp->get_entry_operation();
 	cow_node->tag_update(graph);
 }
-#endif
 
 void id_tag_update_ntree_special(Main *bmain, Depsgraph *graph, ID *id, int flag)
 {
@@ -320,16 +321,16 @@ void deg_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id, int flag)
 	}
 	if (flag & OB_RECALC_DATA) {
 		id_tag_update_object_data(graph, id_node);
-#ifdef WITH_COPY_ON_WRITE
-		if (flag & DEG_TAG_COPY_ON_WRITE) {
-			const ID_Type id_type = GS(id_node->id_orig->name);
-			if (id_type == ID_OB) {
-				Object *object = (Object *)id_node->id_orig;
-				ID *ob_data = (ID *)object->data;
-				DEG_id_tag_update_ex(bmain, ob_data, flag);
+		if (DEG_depsgraph_use_copy_on_write()) {
+			if (flag & DEG_TAG_COPY_ON_WRITE) {
+				const ID_Type id_type = GS(id_node->id_orig->name);
+				if (id_type == ID_OB) {
+					Object *object = (Object *)id_node->id_orig;
+					ID *ob_data = (ID *)object->data;
+					DEG_id_tag_update_ex(bmain, ob_data, flag);
+				}
 			}
 		}
-#endif
 	}
 	if (flag & OB_RECALC_TIME) {
 		id_tag_update_object_time(graph, id_node);
@@ -340,11 +341,9 @@ void deg_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id, int flag)
 	if (flag & DEG_TAG_SHADING_UPDATE) {
 		id_tag_update_shading(graph, id_node);
 	}
-#ifdef WITH_COPY_ON_WRITE
 	if (flag & DEG_TAG_COPY_ON_WRITE) {
 		id_tag_update_copy_on_write(graph, id_node);
 	}
-#endif
 	id_tag_update_ntree_special(bmain, graph, id, flag);
 }
 
@@ -362,7 +361,7 @@ void deg_id_tag_update(Main *bmain, ID *id, int flag)
 	}
 }
 
-void deg_graph_on_visible_update(Main *bmain, Scene *scene, Depsgraph *graph)
+void deg_graph_on_visible_update(Main *bmain, Depsgraph *graph)
 {
 	/* Make sure objects are up to date. */
 	GHASH_FOREACH_BEGIN(DEG::IDDepsNode *, id_node, graph->id_hash)
@@ -390,7 +389,7 @@ void deg_graph_on_visible_update(Main *bmain, Scene *scene, Depsgraph *graph)
 	}
 	GHASH_FOREACH_END();
 	/* Make sure collection properties are up to date. */
-	IDDepsNode *scene_id_node = graph->find_id_node(&scene->id);
+	IDDepsNode *scene_id_node = graph->find_id_node(&graph->scene->id);
 	BLI_assert(scene_id_node != NULL);
 	scene_id_node->tag_update(graph);
 }
@@ -432,34 +431,19 @@ void DEG_id_type_tag(Main *bmain, short id_type)
 	bmain->id_tag_update[BKE_idcode_to_index(id_type)] = 1;
 }
 
-/* Recursively push updates out to all nodes dependent on this,
- * until all affected are tagged and/or scheduled up for eval
- */
-void DEG_ids_flush_tagged(Main *bmain)
+void DEG_graph_flush_update(Main *bmain, Depsgraph *depsgraph)
 {
-	for (Scene *scene = (Scene *)bmain->scene.first;
-	     scene != NULL;
-	     scene = (Scene *)scene->id.next)
-	{
-		DEG_scene_flush_update(bmain, scene);
-	}
-}
-
-void DEG_scene_flush_update(Main *bmain, Scene *scene)
-{
-	if (scene->depsgraph_legacy == NULL) {
+	if (depsgraph == NULL) {
 		return;
 	}
-	DEG::deg_graph_flush_updates(
-	        bmain,
-	        reinterpret_cast<DEG::Depsgraph *>(scene->depsgraph_legacy));
+	DEG::deg_graph_flush_updates(bmain, (DEG::Depsgraph *)depsgraph);
 }
 
 /* Update dependency graph when visible scenes/layers changes. */
-void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
+void DEG_graph_on_visible_update(Main *bmain, Depsgraph *depsgraph)
 {
-	DEG::Depsgraph *graph = (DEG::Depsgraph *)scene->depsgraph_legacy;
-	DEG::deg_graph_on_visible_update(bmain, scene, graph);
+	DEG::Depsgraph *graph = (DEG::Depsgraph *)depsgraph;
+	DEG::deg_graph_on_visible_update(bmain, graph);
 }
 
 void DEG_on_visible_update(Main *bmain, const bool UNUSED(do_time))
@@ -469,7 +453,7 @@ void DEG_on_visible_update(Main *bmain, const bool UNUSED(do_time))
 	     scene = (Scene *)scene->id.next)
 	{
 		if (scene->depsgraph_legacy != NULL) {
-			DEG_graph_on_visible_update(bmain, scene);
+			DEG_graph_on_visible_update(bmain, scene->depsgraph_legacy);
 		}
 	}
 }

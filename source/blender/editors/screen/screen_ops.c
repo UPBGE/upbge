@@ -1786,7 +1786,7 @@ static int area_split_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static EnumPropertyItem prop_direction_items[] = {
+static const EnumPropertyItem prop_direction_items[] = {
 	{'h', "HORIZONTAL", 0, "Horizontal", ""},
 	{'v', "VERTICAL", 0, "Vertical", ""},
 	{0, NULL, 0, NULL, NULL}
@@ -3804,9 +3804,9 @@ static void SCREEN_OT_border_select(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec = border_select_exec;
-	ot->invoke = WM_border_select_invoke;
-	ot->modal = WM_border_select_modal;
-	ot->cancel = WM_border_select_cancel;
+	ot->invoke = WM_gesture_border_invoke;
+	ot->modal = WM_gesture_border_modal;
+	ot->cancel = WM_gesture_border_cancel;
 	
 	ot->poll = ED_operator_areaactive;
 	
@@ -4081,7 +4081,7 @@ enum {
 	SPACE_CONTEXT_CYCLE_NEXT,
 };
 
-static EnumPropertyItem space_context_cycle_direction[] = {
+static const EnumPropertyItem space_context_cycle_direction[] = {
 	{SPACE_CONTEXT_CYCLE_PREV, "PREV", 0, "Previous", ""},
 	{SPACE_CONTEXT_CYCLE_NEXT, "NEXT", 0, "Next", ""},
 	{0, NULL, 0, NULL, NULL}
@@ -4220,7 +4220,7 @@ void ED_operatortypes_screen(void)
 
 static void keymap_modal_set(wmKeyConfig *keyconf)
 {
-	static EnumPropertyItem modal_items[] = {
+	static const EnumPropertyItem modal_items[] = {
 		{KM_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
 		{KM_MODAL_APPLY, "APPLY", 0, "Apply", ""},
 		{KM_MODAL_STEP10, "STEP10", 0, "Steps on", ""},

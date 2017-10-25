@@ -216,9 +216,9 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	DEG::DepsgraphRelationBuilder relation_builder(deg_graph);
 	relation_builder.begin_build(bmain);
 	relation_builder.build_scene(bmain, scene);
-#ifdef WITH_COPY_ON_WRITE
-	relation_builder.build_copy_on_write_relations();
-#endif
+	if (DEG_depsgraph_use_copy_on_write()) {
+		relation_builder.build_copy_on_write_relations();
+	}
 
 	/* Detect and solve cycles. */
 	DEG::deg_graph_detect_cycles(deg_graph);
@@ -233,7 +233,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	}
 
 	/* 4) Flush visibility layer and re-schedule nodes for update. */
-	DEG::deg_graph_build_finalize(deg_graph);
+	DEG::deg_graph_build_finalize(bmain, deg_graph);
 
 #if 0
 	if (!DEG_debug_consistency_check(deg_graph)) {
@@ -245,6 +245,9 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 #ifdef DEBUG_TIME
 	TIMEIT_END(DEG_graph_build_from_scene);
 #endif
+
+	/* Relations are up to date. */
+	deg_graph->need_update = false;
 }
 
 /* Tag graph relations for update. */
@@ -252,6 +255,17 @@ void DEG_graph_tag_relations_update(Depsgraph *graph)
 {
 	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(graph);
 	deg_graph->need_update = true;
+}
+
+/* Create or update relations in the specified graph. */
+void DEG_graph_relations_update(Depsgraph *graph, Main *bmain, Scene *scene)
+{
+	DEG::Depsgraph *deg_graph = (DEG::Depsgraph *)graph;
+	if (!deg_graph->need_update) {
+		/* Graph is up to date, nothing to do. */
+		return;
+	}
+	DEG_graph_build_from_scene(graph, bmain, scene);
 }
 
 /* Tag all relations for update. */
@@ -277,38 +291,14 @@ void DEG_scene_relations_update(Main *bmain, Scene *scene)
 		/* Rebuild graph from scratch and exit. */
 		scene->depsgraph_legacy = DEG_graph_new();
 		DEG_graph_build_from_scene(scene->depsgraph_legacy, bmain, scene);
+		/* TODO(sergey): When we first create dependency graph we consider
+		 * it is first time became visible. This is true for viewports, but
+		 * will fail when render engines will start having their own graphs.
+		 */
+		DEG_graph_on_visible_update(bmain, scene->depsgraph_legacy);
 		return;
 	}
-
-	DEG::Depsgraph *graph = reinterpret_cast<DEG::Depsgraph *>(scene->depsgraph_legacy);
-	if (!graph->need_update) {
-		/* Graph is up to date, nothing to do. */
-		return;
-	}
-
-	/* Build new nodes and relations. */
-	DEG_graph_build_from_scene(reinterpret_cast< ::Depsgraph * >(graph),
-	                           bmain,
-	                           scene);
-
-	graph->need_update = false;
-}
-
-/* Rebuild dependency graph only for a given scene. */
-void DEG_scene_relations_rebuild(Main *bmain, Scene *scene)
-{
-	if (scene->depsgraph_legacy != NULL) {
-		DEG_graph_tag_relations_update(scene->depsgraph_legacy);
-	}
-	DEG_scene_relations_update(bmain, scene);
-}
-
-void DEG_scene_graph_free(Scene *scene)
-{
-	if (scene->depsgraph_legacy) {
-		DEG_graph_free(scene->depsgraph_legacy);
-		scene->depsgraph_legacy = NULL;
-	}
+	DEG_graph_relations_update(scene->depsgraph_legacy, bmain, scene);
 }
 
 void DEG_add_collision_relations(DepsNodeHandle *handle,

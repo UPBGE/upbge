@@ -207,8 +207,9 @@ public:
 	      KERNEL_NAME_EVAL(cpu_avx, name), \
 	      KERNEL_NAME_EVAL(cpu_avx2, name)
 
-	CPUDevice(DeviceInfo& info, Stats &stats, bool background)
-	: Device(info, stats, background),
+	CPUDevice(DeviceInfo& info_, Stats &stats_, bool background_)
+	: Device(info_, stats_, background_),
+	  texture_info(this, "__texture_info", MEM_TEXTURE),
 #define REGISTER_KERNEL(name) name ## _kernel(KERNEL_FUNCTIONS(name))
 	  REGISTER_KERNEL(path_trace),
 	  REGISTER_KERNEL(convert_to_half_float),
@@ -229,6 +230,9 @@ public:
 	  REGISTER_KERNEL(data_init)
 #undef REGISTER_KERNEL
 	{
+		if(info.cpu_threads == 0) {
+			info.cpu_threads = TaskScheduler::num_threads();
+		}
 
 #ifdef WITH_OSL
 		kernel_globals.osl = &osl_globals;
@@ -237,7 +241,6 @@ public:
 		if(use_split_kernel) {
 			VLOG(1) << "Will be using split kernel.";
 		}
-
 		need_texture_info = false;
 
 #define REGISTER_SPLIT_KERNEL(name) split_kernels[#name] = KernelFunctions<void(*)(KernelGlobals*, KernelData*)>(KERNEL_FUNCTIONS(name))
@@ -266,44 +269,61 @@ public:
 	~CPUDevice()
 	{
 		task_pool.stop();
-		tex_free(texture_info);
+		texture_info.free();
 	}
 
 	virtual bool show_samples() const
 	{
-		return (TaskScheduler::num_threads() == 1);
+		return (info.cpu_threads == 1);
 	}
 
 	void load_texture_info()
 	{
 		if(need_texture_info) {
-			tex_free(texture_info);
-			tex_alloc("__texture_info", texture_info, INTERPOLATION_NONE, EXTENSION_REPEAT);
+			texture_info.copy_to_device();
 			need_texture_info = false;
 		}
 	}
 
-	void mem_alloc(const char *name, device_memory& mem, MemoryType /*type*/)
+	void mem_alloc(device_memory& mem)
 	{
-		if(name) {
-			VLOG(1) << "Buffer allocate: " << name << ", "
-			        << string_human_readable_number(mem.memory_size()) << " bytes. ("
-			        << string_human_readable_size(mem.memory_size()) << ")";
+		if(mem.type == MEM_TEXTURE) {
+			assert(!"mem_alloc not supported for textures.");
 		}
+		else {
+			if(mem.name) {
+				VLOG(1) << "Buffer allocate: " << mem.name << ", "
+						<< string_human_readable_number(mem.memory_size()) << " bytes. ("
+						<< string_human_readable_size(mem.memory_size()) << ")";
+			}
 
-		mem.device_pointer = mem.data_pointer;
+			mem.device_pointer = mem.data_pointer;
 
-		if(!mem.device_pointer) {
-			mem.device_pointer = (device_ptr)malloc(mem.memory_size());
+			if(!mem.device_pointer) {
+				mem.device_pointer = (device_ptr)malloc(mem.memory_size());
+			}
+
+			mem.device_size = mem.memory_size();
+			stats.mem_alloc(mem.device_size);
 		}
-
-		mem.device_size = mem.memory_size();
-		stats.mem_alloc(mem.device_size);
 	}
 
-	void mem_copy_to(device_memory& /*mem*/)
+	void mem_copy_to(device_memory& mem)
 	{
-		/* no-op */
+		if(mem.type == MEM_TEXTURE) {
+			tex_free(mem);
+			tex_alloc(mem);
+		}
+		else if(mem.type == MEM_PIXELS) {
+			assert(!"mem_copy_to not supported for pixels.");
+		}
+		else {
+			if(!mem.device_pointer) {
+				mem_alloc(mem);
+			}
+
+			/* copy is no-op */
+		}
 	}
 
 	void mem_copy_from(device_memory& /*mem*/,
@@ -315,12 +335,21 @@ public:
 
 	void mem_zero(device_memory& mem)
 	{
-		memset((void*)mem.device_pointer, 0, mem.memory_size());
+		if(!mem.device_pointer) {
+			mem_alloc(mem);
+		}
+
+		if(mem.device_pointer) {
+			memset((void*)mem.device_pointer, 0, mem.memory_size());
+		}
 	}
 
 	void mem_free(device_memory& mem)
 	{
-		if(mem.device_pointer) {
+		if(mem.type == MEM_TEXTURE) {
+			tex_free(mem);
+		}
+		else if(mem.device_pointer) {
 			if(!mem.data_pointer) {
 				free((void*)mem.device_pointer);
 			}
@@ -330,7 +359,7 @@ public:
 		}
 	}
 
-	virtual device_ptr mem_alloc_sub_ptr(device_memory& mem, int offset, int /*size*/, MemoryType /*type*/)
+	virtual device_ptr mem_alloc_sub_ptr(device_memory& mem, int offset, int /*size*/)
 	{
 		return (device_ptr) (((char*) mem.device_pointer) + mem.memory_elements_size(offset));
 	}
@@ -340,32 +369,25 @@ public:
 		kernel_const_copy(&kernel_globals, name, host, size);
 	}
 
-	void tex_alloc(const char *name,
-	               device_memory& mem,
-	               InterpolationType interpolation,
-	               ExtensionType extension)
+	void tex_alloc(device_memory& mem)
 	{
-		VLOG(1) << "Texture allocate: " << name << ", "
+		VLOG(1) << "Texture allocate: " << mem.name << ", "
 		        << string_human_readable_number(mem.memory_size()) << " bytes. ("
 		        << string_human_readable_size(mem.memory_size()) << ")";
 
-		if(interpolation == INTERPOLATION_NONE) {
+		if(mem.interpolation == INTERPOLATION_NONE) {
 			/* Data texture. */
 			kernel_tex_copy(&kernel_globals,
-							name,
+							mem.name,
 							mem.data_pointer,
-							mem.data_width,
-							mem.data_height,
-							mem.data_depth,
-							interpolation,
-							extension);
+							mem.data_size);
 		}
 		else {
 			/* Image Texture. */
 			int flat_slot = 0;
-			if(string_startswith(name, "__tex_image")) {
-				int pos =  string(name).rfind("_");
-				flat_slot = atoi(name + pos + 1);
+			if(string_startswith(mem.name, "__tex_image")) {
+				int pos =  string(mem.name).rfind("_");
+				flat_slot = atoi(mem.name + pos + 1);
 			}
 			else {
 				assert(0);
@@ -377,11 +399,11 @@ public:
 				texture_info.resize(flat_slot + 128);
 			}
 
-			TextureInfo& info = texture_info.get_data()[flat_slot];
+			TextureInfo& info = texture_info[flat_slot];
 			info.data = (uint64_t)mem.data_pointer;
 			info.cl_buffer = 0;
-			info.interpolation = interpolation;
-			info.extension = extension;
+			info.interpolation = mem.interpolation;
+			info.extension = mem.extension;
 			info.width = mem.data_width;
 			info.height = mem.data_height;
 			info.depth = mem.data_depth;
@@ -435,12 +457,12 @@ public:
 
 	bool denoising_set_tiles(device_ptr *buffers, DenoisingTask *task)
 	{
-		mem_alloc("Denoising Tile Info", task->tiles_mem, MEM_READ_ONLY);
-
 		TilesInfo *tiles = (TilesInfo*) task->tiles_mem.data_pointer;
 		for(int i = 0; i < 9; i++) {
 			tiles->buffers[i] = buffers[i];
 		}
+
+		task->tiles_mem.copy_to_device();
 
 		return true;
 	}
@@ -726,9 +748,8 @@ public:
 		}
 
 		/* allocate buffer for kernel globals */
-		device_only_memory<KernelGlobals> kgbuffer;
-		kgbuffer.resize(1);
-		mem_alloc("kernel_globals", kgbuffer, MEM_READ_WRITE);
+		device_only_memory<KernelGlobals> kgbuffer(this, "kernel_globals");
+		kgbuffer.alloc_to_device(1);
 
 		KernelGlobals *kg = new ((void*) kgbuffer.device_pointer) KernelGlobals(thread_kernel_globals_init());
 
@@ -738,8 +759,7 @@ public:
 			requested_features.max_closure = MAX_CLOSURE;
 			if(!split_kernel->load_kernels(requested_features)) {
 				thread_kernel_globals_free((KernelGlobals*)kgbuffer.device_pointer);
-				mem_free(kgbuffer);
-
+				kgbuffer.free();
 				delete split_kernel;
 				return;
 			}
@@ -749,8 +769,8 @@ public:
 		while(task.acquire_tile(this, tile)) {
 			if(tile.task == RenderTile::PATH_TRACE) {
 				if(use_split_kernel) {
-					device_memory data;
-					split_kernel->path_trace(&task, tile, kgbuffer, data);
+					device_only_memory<uchar> void_buffer(this, "void_buffer");
+					split_kernel->path_trace(&task, tile, kgbuffer, void_buffer);
 				}
 				else {
 					path_trace(task, tile, kg);
@@ -770,7 +790,7 @@ public:
 
 		thread_kernel_globals_free((KernelGlobals*)kgbuffer.device_pointer);
 		kg->~KernelGlobals();
-		mem_free(kgbuffer);
+		kgbuffer.free();
 		delete split_kernel;
 	}
 
@@ -826,9 +846,9 @@ public:
 	int get_split_task_count(DeviceTask& task)
 	{
 		if(task.type == DeviceTask::SHADER)
-			return task.get_subtask_count(TaskScheduler::num_threads(), 256);
+			return task.get_subtask_count(info.cpu_threads, 256);
 		else
-			return task.get_subtask_count(TaskScheduler::num_threads());
+			return task.get_subtask_count(info.cpu_threads);
 	}
 
 	void task_add(DeviceTask& task)
@@ -840,9 +860,9 @@ public:
 		list<DeviceTask> tasks;
 
 		if(task.type == DeviceTask::SHADER)
-			task.split(tasks, TaskScheduler::num_threads(), 256);
+			task.split(tasks, info.cpu_threads, 256);
 		else
-			task.split(tasks, TaskScheduler::num_threads());
+			task.split(tasks, info.cpu_threads);
 
 		foreach(DeviceTask& task, tasks)
 			task_pool.push(new CPUDeviceTask(this, task));
@@ -1026,6 +1046,7 @@ void device_cpu_info(vector<DeviceInfo>& devices)
 	info.advanced_shading = true;
 	info.has_qbvh = system_cpu_support_sse2();
 	info.has_volume_decoupled = true;
+	info.has_osl = true;
 
 	devices.insert(devices.begin(), info);
 }

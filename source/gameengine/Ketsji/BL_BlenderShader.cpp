@@ -146,7 +146,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 		float *spec_p = &m_mat->spec;
 		float *rough_p = &m_mat->gloss_mir;
 
-		m_shGroup = EEVEE_default_shading_group_get_no_pass(false, false, true, stl->effects->use_ssr, SHADOW_ESM);
+		m_shGroup = EEVEE_default_shading_group_get_no_pass(false, false, stl->effects->use_ssr, SHADOW_ESM);
 		DRW_shgroup_uniform_vec3(m_shGroup, "basecol", color_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "metallic", metal_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "specular", spec_p, 1);

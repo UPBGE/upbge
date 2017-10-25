@@ -125,7 +125,7 @@
 /* this is an exact copy of the define in rna_lamp.c
  * kept here because of linking order.
  * Icons are only defined here */
-EnumPropertyItem rna_enum_lamp_type_items[] = {
+const EnumPropertyItem rna_enum_lamp_type_items[] = {
 	{LA_LOCAL, "POINT", ICON_LAMP_POINT, "Point", "Omnidirectional point light source"},
 	{LA_SUN, "SUN", ICON_LAMP_SUN, "Sun", "Constant direction parallel ray light source"},
 	{LA_SPOT, "SPOT", ICON_LAMP_SPOT, "Spot", "Directional cone light source"},
@@ -135,7 +135,7 @@ EnumPropertyItem rna_enum_lamp_type_items[] = {
 };
 
 /* copy from rna_object_force.c */
-static EnumPropertyItem field_type_items[] = {
+static const EnumPropertyItem field_type_items[] = {
 	{PFIELD_FORCE, "FORCE", ICON_FORCE_FORCE, "Force", ""},
 	{PFIELD_WIND, "WIND", ICON_FORCE_WIND, "Wind", ""},
 	{PFIELD_VORTEX, "VORTEX", ICON_FORCE_VORTEX, "Vortex", ""},
@@ -1459,8 +1459,9 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 			ob_dst->totcol = 0;
 		}
 
-		BKE_collection_object_add_from(scene, ob_src, ob_dst);
+		BKE_collection_object_add_from(scene, base->object, ob_dst);
 		base_dst = BKE_scene_layer_base_find(sl, ob_dst);
+		BLI_assert(base_dst != NULL);
 
 		BKE_scene_object_base_flag_sync_from_base(base_dst);
 
@@ -1627,7 +1628,7 @@ void OBJECT_OT_duplicates_make_real(wmOperatorType *ot)
 
 /**************************** Convert **************************/
 
-static EnumPropertyItem convert_target_items[] = {
+static const EnumPropertyItem convert_target_items[] = {
 	{OB_CURVE, "CURVE", ICON_OUTLINER_OB_CURVE, "Curve from Mesh/Text", ""},
 	{OB_MESH, "MESH", ICON_OUTLINER_OB_MESH, "Mesh from Curve/Meta/Surf/Text", ""},
 	{0, NULL, 0, NULL, NULL}

@@ -1215,7 +1215,7 @@ int main(
 						Scene *scene = bfd->curscene;
 						G.main = maggie;
 						for (Scene *sc = (Scene *)maggie->scene.first; sc; sc = (Scene *)sc->id.next) {
-							DEG_scene_relations_rebuild(maggie, sc);
+							DEG_scene_relations_update(maggie, sc);
 						}
 						Depsgraph *depsgraph = scene->depsgraph_legacy;						
 

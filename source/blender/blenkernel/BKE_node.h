@@ -74,6 +74,7 @@ struct PointerRNA;
 struct RenderData;
 struct Scene;
 struct Tex;
+struct ViewRender;
 struct SpaceNode;
 struct ARegion;
 struct ColorManagedViewSettings;
@@ -251,9 +252,9 @@ typedef struct bNodeType {
 #define NODE_CLASS_LAYOUT			100
 
 /* nodetype->compatibility */
-#define NODE_OLD_SHADING	1
-#define NODE_NEW_SHADING	2
-#define NODE_NEWER_SHADING	3
+#define NODE_OLD_SHADING	(1 << 0)
+#define NODE_NEW_SHADING	(1 << 1)
+#define NODE_NEWER_SHADING	(1 << 2)
 
 /* node resize directions */
 #define NODE_RESIZE_TOP		1
@@ -282,7 +283,7 @@ typedef struct bNodeTreeType {
 	/* callbacks */
 	void (*free_cache)(struct bNodeTree *ntree);
 	void (*free_node_cache)(struct bNodeTree *ntree, struct bNode *node);
-	void (*foreach_nodeclass)(struct Scene *scene, void *calldata, bNodeClassCallback func);	/* iteration over all node classes */
+	void (*foreach_nodeclass)(struct ViewRender *view_render, void *calldata, bNodeClassCallback func);	/* iteration over all node classes */
 	/* Check visibility in the node editor */
 	int (*poll)(const struct bContext *C, struct bNodeTreeType *ntreetype);
 	/* Select a node tree from the context */

@@ -1630,7 +1630,7 @@ void PARTICLE_OT_select_tips(wmOperatorType *ot)
 
 enum { RAN_HAIR, RAN_POINTS };
 
-static EnumPropertyItem select_random_type_items[] = {
+static const EnumPropertyItem select_random_type_items[] = {
 	{RAN_HAIR, "HAIR", 0, "Hair", ""},
 	{RAN_POINTS, "POINTS", 0, "Points", ""},
 	{0, NULL, 0, NULL, NULL}
@@ -2771,7 +2771,7 @@ static void toggle_particle_cursor(bContext *C, int enable)
 
 enum { DEL_PARTICLE, DEL_KEY };
 
-static EnumPropertyItem delete_type_items[] = {
+static const EnumPropertyItem delete_type_items[] = {
 	{DEL_PARTICLE, "PARTICLE", 0, "Particle", ""},
 	{DEL_KEY, "KEY", 0, "Key", ""},
 	{0, NULL, 0, NULL, NULL}};
@@ -4127,7 +4127,9 @@ void PARTICLE_OT_brush_edit(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
 	/* properties */
-	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
+	PropertyRNA *prop;
+	prop = RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /*********************** cut shape ***************************/

@@ -72,6 +72,8 @@ public:
 		                    float3 r_verts[3]) const;
 
 		float3 compute_normal(const float3 *verts) const;
+
+		bool valid(const float3 *verts) const;
 	};
 
 	Triangle get_triangle(size_t i) const
@@ -319,8 +321,6 @@ public:
 
 class MeshManager {
 public:
-	BVH *bvh;
-
 	bool need_update;
 	bool need_flags_update;
 
@@ -366,7 +366,6 @@ protected:
 	                       Progress& progress);
 
 	void device_update_displacement_images(Device *device,
-	                                       DeviceScene *dscene,
 	                                       Scene *scene,
 	                                       Progress& progress);
 };

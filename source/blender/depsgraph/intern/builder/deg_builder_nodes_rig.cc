@@ -90,6 +90,9 @@ void DepsgraphNodeBuilder::build_ik_pose(Scene *scene,
 
 	/* Find the chain's root. */
 	bPoseChannel *rootchan = BKE_armature_ik_solver_find_root(pchan, data);
+	if (rootchan == NULL) {
+		return;
+	}
 
 	if (has_operation_node(&ob->id, DEG_NODE_TYPE_EVAL_POSE, rootchan->name,
 	                       DEG_OPCODE_POSE_IK_SOLVER))
@@ -135,18 +138,22 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *object)
 {
 	bArmature *armature = (bArmature *)object->data;
 	const short armature_tag = armature->id.tag;
-#ifdef WITH_COPY_ON_WRITE
-	/* NOTE: We need to expand both object and armature, so this way we can
-	 * safely create object level pose.
-	 */
-	Scene *scene_cow = get_cow_datablock(scene);
-	Object *object_cow = expand_cow_datablock(object);
-	bArmature *armature_cow = expand_cow_datablock(armature);
-#else
-	Scene *scene_cow = scene;
-	Object *object_cow = object;
-	bArmature *armature_cow = armature;
-#endif
+	Scene *scene_cow;
+	Object *object_cow;
+	bArmature *armature_cow;
+	if (DEG_depsgraph_use_copy_on_write()) {
+		/* NOTE: We need to expand both object and armature, so this way we can
+		 * safely create object level pose.
+		 */
+		scene_cow = get_cow_datablock(scene);
+		object_cow = expand_cow_datablock(object);
+		armature_cow = expand_cow_datablock(armature);
+	}
+	else {
+		scene_cow = scene;
+		object_cow = object;
+		armature_cow = armature;
+	}
 	OperationDepsNode *op_node;
 
 	/* Animation and/or drivers linking posebones to base-armature used to

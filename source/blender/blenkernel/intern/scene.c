@@ -49,6 +49,7 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_workspace_types.h"
 #include "DNA_gpencil_types.h"
 
 #include "BLI_math.h"
@@ -98,6 +99,7 @@
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph_debug.h"
 #include "DEG_depsgraph_query.h"
 
 #include "RE_engine.h"
@@ -236,8 +238,8 @@ void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, cons
 	const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
 
 	sce_dst->ed = NULL;
-	sce_dst->theDag = NULL;
 	sce_dst->depsgraph_legacy = NULL;
+	sce_dst->depsgraph_hash = NULL;
 	sce_dst->obedit = NULL;
 	sce_dst->fps_info = NULL;
 
@@ -310,6 +312,8 @@ void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, cons
 	BKE_keyingsets_copy(&(sce_dst->keyingsets), &(sce_src->keyingsets));
 
 	if (sce_src->nodetree) {
+		/* Note: nodetree is *not* in bmain, however this specific case is handled at lower level
+		 *       (see BKE_libblock_copy_ex()). */
 		BKE_id_copy_ex(bmain, (ID *)sce_src->nodetree, (ID **)&sce_dst->nodetree, flag, false);
 		BKE_libblock_relink_ex(bmain, sce_dst->nodetree, (void *)(&sce_src->id), &sce_dst->id, false);
 	}
@@ -659,9 +663,7 @@ void BKE_scene_free_ex(Scene *sce, const bool do_id_user)
 		sce->toolsettings = NULL;
 	}
 	
-	DEG_scene_graph_free(sce);
-	if (sce->depsgraph_legacy)
-		DEG_graph_free(sce->depsgraph_legacy);
+	BKE_scene_free_depsgraph_hash(sce);
 
 	MEM_SAFE_FREE(sce->fps_info);
 
@@ -905,7 +907,7 @@ void BKE_scene_init(Scene *sce)
 	sce->r.ffcodecdata.audio_bitrate = 192;
 	sce->r.ffcodecdata.audio_channels = 2;
 
-	BLI_strncpy(sce->r.engine, RE_engine_id_BLENDER_EEVEE, sizeof(sce->r.engine));
+	BKE_viewrender_init(&sce->view_render);
 
 	sce->audio.distance_model = 2.0f;
 	sce->audio.doppler_factor = 1.0f;
@@ -1105,7 +1107,6 @@ BaseLegacy *BKE_scene_base_find(Scene *scene, Object *ob)
  */
 void BKE_scene_set_background(Main *bmain, Scene *scene)
 {
-	Scene *sce;
 	BaseLegacy *base;
 	Object *ob;
 	Group *group;
@@ -1130,10 +1131,6 @@ void BKE_scene_set_background(Main *bmain, Scene *scene)
 			}
 		}
 	}
-
-	/* sort baselist for scene and sets */
-	for (sce = scene; sce; sce = sce->set)
-		DEG_scene_relations_rebuild(bmain, sce);
 
 	/* copy layers and flags from bases to objects */
 	for (base = scene->base.first; base; base = base->next) {
@@ -1541,9 +1538,11 @@ static bool check_rendered_viewport_visible(Main *bmain)
 	wmWindow *window;
 	for (window = wm->windows.first; window != NULL; window = window->next) {
 		const bScreen *screen = BKE_workspace_active_screen_get(window->workspace_hook);
+		WorkSpace *workspace = BKE_workspace_active_get(window->workspace_hook);
 		Scene *scene = window->scene;
+		ViewRender *view_render = BKE_viewrender_get(scene, workspace);
 		ScrArea *area;
-		RenderEngineType *type = RE_engines_find(scene->r.engine);
+		RenderEngineType *type = RE_engines_find(view_render->engine_id);
 		if ((type->draw_engine != NULL) || (type->render_to_view == NULL)) {
 			continue;
 		}
@@ -1588,109 +1587,106 @@ static void prepare_mesh_for_viewport_render(Main *bmain, Scene *scene)
 	}
 }
 
-void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *scene)
+void BKE_scene_graph_update_tagged(EvaluationContext *eval_ctx,
+                                   Depsgraph *depsgraph,
+                                   Main *bmain,
+                                   Scene *scene)
 {
-	Scene *sce_iter;
-
-	/* (re-)build dependency graph if needed */
-	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set) {
-		DEG_scene_relations_update(bmain, sce_iter);
-		/* Uncomment this to check if graph was properly tagged for update. */
-#if 0
-		DEG_scene_relations_validate(bmain, sce_iter);
-#endif
-	}
-
-	/* flush editing data if needed */
-	prepare_mesh_for_viewport_render(bmain, scene);
-
-	/* flush recalc flags to dependencies */
-	DEG_scene_flush_update(bmain, scene);
-
-	/* removed calls to quick_cache, see pointcache.c */
-	
-	/* clear "LIB_TAG_DOIT" flag from all materials, to prevent infinite recursion problems later
-	 * when trying to find materials with drivers that need evaluating [#32017] 
+	/* TODO(sergey): Some functions here are changing global state,
+	 * for example, clearing update tags from bmain.
 	 */
-	BKE_main_id_tag_idcode(bmain, ID_MA, LIB_TAG_DOIT, false);
-	BKE_main_id_tag_idcode(bmain, ID_LA, LIB_TAG_DOIT, false);
-
-	/* update all objects: drivers, matrices, displists, etc. flags set
-	 * by depgraph or manual, no layer check here, gets correct flushed
-	 *
-	 * in the future this should handle updates for all datablocks, not
-	 * only objects and scenes. - brecht */
-	DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph_legacy, scene);
-
-	/* update sound system animation (TODO, move to depsgraph) */
+	/* (Re-)build dependency graph if needed. */
+	DEG_graph_relations_update(depsgraph, bmain, scene);
+	/* Uncomment this to check if graph was properly tagged for update. */
+	// DEG_debug_graph_relations_validate(depsgraph, bmain, scene);
+	/* Flush editing data if needed. */
+	prepare_mesh_for_viewport_render(bmain, scene);
+	/* Flush recalc flags to dependencies. */
+	DEG_graph_flush_update(bmain, depsgraph);
+	/* Update all objects: drivers, matrices, displists, etc. flags set
+	 * by depgraph or manual, no layer check here, gets correct flushed.
+	 */
+	DEG_evaluate_on_refresh(eval_ctx, depsgraph);
+	/* Update sound system animation (TODO, move to depsgraph). */
 	BKE_sound_update_scene(bmain, scene);
-
-	/* extra call here to recalc scene animation (for sequencer) */
-	{
-		AnimData *adt = BKE_animdata_from_id(&scene->id);
-		float ctime = BKE_scene_frame_get(scene);
-		
-		if (adt && (adt->recalc & ADT_RECALC_ANIM))
-			BKE_animsys_evaluate_animdata(scene, &scene->id, adt, ctime, 0);
-	}
-
 	/* Inform editors about possible changes. */
 	DEG_ids_check_recalc(bmain, scene, false);
-
-	/* clear recalc flags */
+	/* Clear recalc flags. */
 	DEG_ids_clear_recalc(bmain);
 }
 
 /* applies changes right away, does all sets too */
-void BKE_scene_update_for_newframe(EvaluationContext *eval_ctx, Main *bmain, Scene *sce)
+void BKE_scene_graph_update_for_newframe(EvaluationContext *eval_ctx,
+                                         Depsgraph *depsgraph,
+                                         Main *bmain,
+                                         Scene *scene)
 {
-	float ctime = BKE_scene_frame_get(sce);
-	Scene *sce_iter;
-
-	DEG_editors_update_pre(bmain, sce, true);
-
-	/* keep this first */
-	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_PRE);
-
-	/* update animated image textures for particles, modifiers, gpu, etc,
-	 * call this at the start so modifiers with textures don't lag 1 frame */
-	BKE_image_update_frame(bmain, sce->r.cfra);
-
-	BKE_sound_set_cfra(sce->r.cfra);
-	
-	/* clear animation overrides */
-	/* XXX TODO... */
-
-	for (sce_iter = sce; sce_iter; sce_iter = sce_iter->set)
-		DEG_scene_relations_update(bmain, sce_iter);
-
-	/* Update animated cache files for modifiers. */
-	BKE_cachefile_update_frame(bmain, sce, ctime, (((double)sce->r.frs_sec) / (double)sce->r.frs_sec_base));
-
+	/* TODO(sergey): Some functions here are changing global state,
+	 * for example, clearing update tags from bmain.
+	 */
+	const float ctime = BKE_scene_frame_get(scene);
+	/* Inform editors we are starting scene update. */
+	DEG_editors_update_pre(bmain, scene, true);
+	/* Keep this first.
+	 * TODO(sergey): Should it be after the editors update?
+	 */
+	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_FRAME_CHANGE_PRE);
+	/* Update animated image textures for particles, modifiers, gpu, etc,
+	 * call this at the start so modifiers with textures don't lag 1 frame.
+	 */
+	BKE_image_update_frame(bmain, scene->r.cfra);
+	BKE_sound_set_cfra(scene->r.cfra);
+	DEG_graph_relations_update(depsgraph, bmain, scene);
+	/* Update animated cache files for modifiers.
+	 *
+	 * TODO(sergey): Make this a depsgraph node?
+	 */
+	BKE_cachefile_update_frame(bmain, scene, ctime,
+	                           (((double)scene->r.frs_sec) / (double)scene->r.frs_sec_base));
 #ifdef POSE_ANIMATION_WORKAROUND
 	scene_armature_depsgraph_workaround(bmain);
 #endif
-
-	/* clear "LIB_TAG_DOIT" flag from all materials, to prevent infinite recursion problems later
-	 * when trying to find materials with drivers that need evaluating [#32017] 
+	/* Update all objects: drivers, matrices, displists, etc. flags set
+	 * by depgraph or manual, no layer check here, gets correct flushed.
 	 */
-	BKE_main_id_tag_idcode(bmain, ID_MA, LIB_TAG_DOIT, false);
-	BKE_main_id_tag_idcode(bmain, ID_LA, LIB_TAG_DOIT, false);
-
-	/* BKE_object_handle_update() on all objects, groups and sets */
-	DEG_evaluate_on_framechange(eval_ctx, bmain, sce->depsgraph_legacy, ctime);
-
-	/* update sound system animation (TODO, move to depsgraph) */
-	BKE_sound_update_scene(bmain, sce);
-
-	/* notify editors and python about recalc */
-	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_POST);
-
+	DEG_evaluate_on_framechange(eval_ctx, bmain, depsgraph, ctime);
+	/* Update sound system animation (TODO, move to depsgraph). */
+	BKE_sound_update_scene(bmain, scene);
+	/* Notify editors and python about recalc. */
+	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_FRAME_CHANGE_POST);
 	/* Inform editors about possible changes. */
-	DEG_ids_check_recalc(bmain, sce, true);
-
+	DEG_ids_check_recalc(bmain, scene, true);
 	/* clear recalc flags */
 	DEG_ids_clear_recalc(bmain);
+}
+
+static void scene_ensure_legacy_depsgraph(Main *bmain, Scene *scene)
+{
+	if (scene->depsgraph_legacy == NULL) {
+		scene->depsgraph_legacy = DEG_graph_new();
+		DEG_graph_build_from_scene(scene->depsgraph_legacy, bmain, scene);
+		/* TODO(sergey): When we first create dependency graph we consider
+		 * it is first time became visible. This is true for viewports, but
+		 * will fail when render engines will start having their own graphs.
+		 */
+		DEG_graph_on_visible_update(bmain, scene->depsgraph_legacy);
+	}
+}
+
+void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *scene)
+{
+	/* Make sure graph is allocated. This is not always guaranteed now. */
+	scene_ensure_legacy_depsgraph(bmain, scene);
+	/* Do actual graph evaluation. */
+	BKE_scene_graph_update_tagged(eval_ctx, scene->depsgraph_legacy, bmain, scene);
+}
+
+void BKE_scene_update_for_newframe(EvaluationContext *eval_ctx, Main *bmain, Scene *scene)
+{
+	/* Make sure graph is allocated. This is not always guaranteed now. */
+	scene_ensure_legacy_depsgraph(bmain, scene);
+	/* Do actual graph evaluation. */
+	BKE_scene_graph_update_for_newframe(eval_ctx, scene->depsgraph_legacy, bmain, scene);
 }
 
 /* return default layer, also used to patch old files */
@@ -1833,38 +1829,32 @@ float get_render_aosss_error(const RenderData *r, float error)
 }
 
 /**
-  * Helper function for the SETLOOPER macro
+  * Helper function for the SETLOOPER and SETLOOPER_SCENE_LAYER macros
   *
   * It iterates over the bases of the active layer and then the bases
   * of the active layer of the background (set) scenes recursively.
   */
-Base *_setlooper_base_step(Scene **sce_iter, Base *base)
+Base *_setlooper_base_step(Scene **sce_iter, SceneLayer *scene_layer, Base *base)
 {
 	if (base && base->next) {
-		/* common case, step to the next */
+		/* Common case, step to the next. */
 		return base->next;
 	}
-	else if (base == NULL) {
-		/* first time looping, return the scenes first base */
-
-		/* for the first loop we should get the layer from context */
-		SceneLayer *sl = BKE_scene_layer_context_active_PLACEHOLDER((*sce_iter));
-		/* TODO For first scene (non-background set), we should pass the render layer as argument.
-		 * In some cases we want it to be the workspace one, in other the scene one. */
-		TODO_LAYER;
-
-		if (sl->object_bases.first) {
-			return (Base *)sl->object_bases.first;
+	else if ((base == NULL) && (scene_layer != NULL)) {
+		/* First time looping, return the scenes first base. */
+		/* For the first loop we should get the layer from workspace when available. */
+		if (scene_layer->object_bases.first) {
+			return (Base *)scene_layer->object_bases.first;
 		}
-		/* no base on this scene layer */
+		/* No base on this scene layer. */
 		goto next_set;
 	}
 	else {
 next_set:
-		/* reached the end, get the next base in the set */
+		/* Reached the end, get the next base in the set. */
 		while ((*sce_iter = (*sce_iter)->set)) {
-			SceneLayer *sl = BKE_scene_layer_from_scene_get((*sce_iter));
-			base = (Base *)sl->object_bases.first;
+			SceneLayer *scene_layer_set = BKE_scene_layer_from_scene_get((*sce_iter));
+			base = (Base *)scene_layer_set->object_bases.first;
 
 			if (base) {
 				return base;
@@ -1877,42 +1867,39 @@ next_set:
 
 bool BKE_scene_use_new_shading_nodes(const Scene *scene)
 {
-	const RenderEngineType *type = RE_engines_find(scene->r.engine);
-	return (type && type->flag & RE_USE_SHADING_NODES);
+	return BKE_viewrender_use_new_shading_nodes(&scene->view_render);
 }
 
 bool BKE_scene_use_shading_nodes_custom(Scene *scene)
 {
-	RenderEngineType *type = RE_engines_find(scene->r.engine);
-	return (type && type->flag & RE_USE_SHADING_NODES_CUSTOM);
+	return BKE_viewrender_use_shading_nodes_custom(&scene->view_render);
 }
 
 bool BKE_scene_use_world_space_shading(Scene *scene)
 {
-	const RenderEngineType *type = RE_engines_find(scene->r.engine);
+	RenderEngineType *type = RE_engines_find(scene->view_render.engine_id);
 	return ((scene->r.mode & R_USE_WS_SHADING) ||
 	        (type && (type->flag & RE_USE_SHADING_NODES)));
 }
 
 bool BKE_scene_use_spherical_stereo(Scene *scene)
 {
-	RenderEngineType *type = RE_engines_find(scene->r.engine);
-	return (type && type->flag & RE_USE_SPHERICAL_STEREO);
+	return BKE_viewrender_use_spherical_stereo(&scene->view_render);
 }
 
-bool BKE_scene_uses_blender_internal(const  Scene *scene)
+bool BKE_scene_uses_blender_internal(const Scene *scene)
 {
-	return STREQ(scene->r.engine, RE_engine_id_BLENDER_RENDER);
+	return BKE_viewrender_uses_blender_internal(&scene->view_render);
 }
 
 bool BKE_scene_uses_blender_game(const Scene *scene)
 {
-	return STREQ(scene->r.engine, RE_engine_id_BLENDER_GAME);
+	return BKE_viewrender_uses_blender_game(&scene->view_render);
 }
 
 bool BKE_scene_uses_blender_eevee(const Scene *scene)
 {
-	return STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
+	return BKE_viewrender_uses_blender_eevee(&scene->view_render);
 }
 
 void BKE_scene_base_flag_to_objects(SceneLayer *sl)
@@ -2026,6 +2013,81 @@ int BKE_render_preview_pixel_size(const RenderData *r)
 	}
 	return r->preview_pixel_size;
 }
+
+/* ***************************************************** */
+/* render engine settings */
+
+ViewRender *BKE_viewrender_get(Scene *scene, WorkSpace *workspace)
+{
+	if (workspace == NULL || BKE_workspace_use_scene_settings_get(workspace)) {
+		return &scene->view_render;
+	}
+	return BKE_workspace_view_render_get(workspace);
+}
+
+/**
+ * Initialize a static created struct for WorkSpace and Scene to store the viewport
+ * related drawing data.
+ */
+void BKE_viewrender_init(ViewRender *view_render)
+{
+	BLI_strncpy(view_render->engine_id, RE_engine_id_BLENDER_EEVEE, sizeof(view_render->engine_id));
+}
+
+/**
+ * Do not free ViewRender itself since it's not even allocated.
+ */
+void BKE_viewrender_free(ViewRender *UNUSED(view_render))
+{
+	/* Do nothing. */
+}
+
+/**
+ * Copy used by libblock copying.
+ */
+void BKE_viewrender_copy(ViewRender *to, const ViewRender *from)
+{
+	*to = *from;
+}
+
+bool BKE_viewrender_use_new_shading_nodes(const ViewRender *view_render)
+{
+	RenderEngineType *type = RE_engines_find(view_render->engine_id);
+	return (type && type->flag & RE_USE_SHADING_NODES);
+}
+
+bool BKE_viewrender_use_shading_nodes_custom(const ViewRender *view_render)
+{
+	RenderEngineType *type = RE_engines_find(view_render->engine_id);
+	return (type && type->flag & RE_USE_SHADING_NODES_CUSTOM);
+}
+
+bool BKE_viewrender_use_spherical_stereo(const ViewRender *view_render)
+{
+	const char *engine_id = view_render->engine_id;
+	RenderEngineType *type = RE_engines_find(engine_id);
+	return (type && type->flag & RE_USE_SPHERICAL_STEREO);
+}
+
+bool BKE_viewrender_uses_blender_internal(const ViewRender *view_render)
+{
+	const char *engine_id = view_render->engine_id;
+	return STREQ(engine_id, RE_engine_id_BLENDER_RENDER);
+}
+
+bool BKE_viewrender_uses_blender_game(const ViewRender *view_render)
+{
+	const char *engine_id = view_render->engine_id;
+	return STREQ(engine_id, RE_engine_id_BLENDER_GAME);
+}
+
+bool BKE_viewrender_uses_blender_eevee(const ViewRender *view_render)
+{
+	const char *engine_id = view_render->engine_id;
+	return STREQ(engine_id, RE_engine_id_BLENDER_EEVEE);
+}
+
+/* ***************************************************** */
 
 /* Apply the needed correction factor to value, based on unit_type (only length-related are affected currently)
  * and unit->scale_length.
@@ -2332,6 +2394,72 @@ int BKE_scene_multiview_num_videos_get(const RenderData *rd)
 		return BKE_scene_multiview_num_views_get(rd);
 	}
 }
+
+/* Manipulation of depsgraph storage. */
+
+/* This is a key which identifies depsgraph. */
+typedef struct DepsgraphKey {
+	SceneLayer *scene_layer;
+	/* TODO(sergey): Need to include window somehow (same layer might be in a
+	 * different states in different windows).
+	 */
+} DepsgraphKey;
+
+static unsigned int depsgraph_key_hash(const void *key_v)
+{
+	const DepsgraphKey *key = key_v;
+	unsigned int hash = BLI_ghashutil_ptrhash(key->scene_layer);
+	/* TODO(sergey): Include hash from other fields in the key. */
+	return hash;
+}
+
+static bool depsgraph_key_compare(const void *key_a_v, const void *key_b_v)
+{
+	const DepsgraphKey *key_a = key_a_v;
+	const DepsgraphKey *key_b = key_b_v;
+	/* TODO(sergey): Compare rest of  */
+	return !(key_a->scene_layer == key_b->scene_layer);
+}
+
+static void depsgraph_key_free(void *key_v)
+{
+	DepsgraphKey *key = key_v;
+	MEM_freeN(key);
+}
+
+static void depsgraph_key_value_free(void *value)
+{
+	Depsgraph *depsgraph = value;
+	DEG_graph_free(depsgraph);
+}
+
+void BKE_scene_allocate_depsgraph_hash(Scene *scene)
+{
+	scene->depsgraph_hash = BLI_ghash_new(depsgraph_key_hash,
+	                                      depsgraph_key_compare,
+	                                      "Scene Depsgraph Hash");
+}
+
+void BKE_scene_ensure_depsgraph_hash(Scene *scene)
+{
+	if (scene->depsgraph_hash == NULL) {
+		BKE_scene_allocate_depsgraph_hash(scene);
+	}
+}
+
+void BKE_scene_free_depsgraph_hash(Scene *scene)
+{
+	/* TODO(sergey): Keep this for until we get rid of depsgraph_legacy. */
+	DEG_graph_free(scene->depsgraph_legacy);
+	if (scene->depsgraph_hash == NULL) {
+		return;
+	}
+	BLI_ghash_free(scene->depsgraph_hash,
+	               depsgraph_key_free,
+	               depsgraph_key_value_free);
+}
+
+/* Query depsgraph for a specific contexts. */
 
 Depsgraph *BKE_scene_get_depsgraph(Scene *scene, SceneLayer *scene_layer)
 {

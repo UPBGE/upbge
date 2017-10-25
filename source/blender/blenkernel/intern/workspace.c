@@ -29,12 +29,14 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.h"
 #include "BLI_listbase.h"
 
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_workspace.h"
 
@@ -141,6 +143,12 @@ WorkSpace *BKE_workspace_add(Main *bmain, const char *name)
 	return new_workspace;
 }
 
+/**
+ * The function that actually frees the workspace data (not workspace itself). It shouldn't be called
+ * directly, instead #BKE_workspace_remove should be, which calls this through #BKE_libblock_free then.
+ *
+ * Should something like a bke_internal.h be added, this should go there!
+ */
 void BKE_workspace_free(WorkSpace *workspace)
 {
 	for (WorkSpaceDataRelation *relation = workspace->hook_layout_relations.first, *relation_next;
@@ -152,15 +160,22 @@ void BKE_workspace_free(WorkSpace *workspace)
 	}
 	BLI_freelistN(&workspace->layouts);
 	BLI_freelistN(&workspace->transform_orientations);
+	BKE_viewrender_free(&workspace->view_render);
 }
 
+/**
+ * Remove \a workspace by freeing itself and its data. This is a higher-level wrapper that
+ * calls #BKE_workspace_free (through #BKE_libblock_free) to free the workspace data, and frees
+ * other data-blocks owned by \a workspace and its layouts (currently that is screens only).
+ *
+ * Always use this to remove (and free) workspaces. Don't free non-ID workspace members here.
+ */
 void BKE_workspace_remove(Main *bmain, WorkSpace *workspace)
 {
 	for (WorkSpaceLayout *layout = workspace->layouts.first, *layout_next; layout; layout = layout_next) {
 		layout_next = layout->next;
 		BKE_workspace_layout_remove(bmain, workspace, layout);
 	}
-
 	BKE_libblock_free(bmain, workspace);
 }
 
@@ -371,11 +386,11 @@ void BKE_workspace_active_screen_set(WorkSpaceInstanceHook *hook, WorkSpace *wor
 }
 
 #ifdef USE_WORKSPACE_MODE
-ObjectMode BKE_workspace_object_mode_get(const WorkSpace *workspace)
+eObjectMode BKE_workspace_object_mode_get(const WorkSpace *workspace)
 {
 	return workspace->object_mode;
 }
-void BKE_workspace_object_mode_set(WorkSpace *workspace, const ObjectMode mode)
+void BKE_workspace_object_mode_set(WorkSpace *workspace, const eObjectMode mode)
 {
 	workspace->object_mode = mode;
 }
@@ -429,4 +444,28 @@ void BKE_workspace_hook_layout_for_workspace_set(
 {
 	hook->act_layout = layout;
 	workspace_relation_ensure_updated(&workspace->hook_layout_relations, hook, layout);
+}
+
+/**
+ * Get the render engine of a workspace, to be used in the viewport.
+ */
+ViewRender *BKE_workspace_view_render_get(WorkSpace *workspace)
+{
+	return &workspace->view_render;
+}
+
+/* Flags */
+bool BKE_workspace_use_scene_settings_get(const WorkSpace *workspace)
+{
+	return (workspace->flags & WORKSPACE_USE_SCENE_SETTINGS) != 0;
+}
+
+void BKE_workspace_use_scene_settings_set(WorkSpace *workspace, bool value)
+{
+	if (value) {
+		workspace->flags |= WORKSPACE_USE_SCENE_SETTINGS;
+	}
+	else {
+		workspace->flags &= ~WORKSPACE_USE_SCENE_SETTINGS;
+	}
 }

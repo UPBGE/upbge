@@ -145,6 +145,8 @@ void BKE_lamp_copy_data(Main *bmain, Lamp *la_dst, const Lamp *la_src, const int
 	la_dst->curfalloff = curvemapping_copy(la_src->curfalloff);
 
 	if (la_src->nodetree) {
+		/* Note: nodetree is *not* in bmain, however this specific case is handled at lower level
+		 *       (see BKE_libblock_copy_ex()). */
 		BKE_id_copy_ex(bmain, (ID *)la_src->nodetree, (ID **)&la_dst->nodetree, flag, false);
 	}
 
@@ -222,41 +224,3 @@ void BKE_lamp_free(Lamp *la)
 	BKE_icon_id_delete(&la->id);
 	la->id.icon_id = 0;
 }
-
-/* Calculate all drivers for lamps, see material_drivers_update for why this is a bad hack */
-
-static void lamp_node_drivers_update(Scene *scene, bNodeTree *ntree, float ctime)
-{
-	bNode *node;
-
-	/* nodetree itself */
-	if (ntree->adt && ntree->adt->drivers.first)
-		BKE_animsys_evaluate_animdata(scene, &ntree->id, ntree->adt, ctime, ADT_RECALC_DRIVERS);
-	
-	/* nodes */
-	for (node = ntree->nodes.first; node; node = node->next)
-		if (node->id && node->type == NODE_GROUP)
-			lamp_node_drivers_update(scene, (bNodeTree *)node->id, ctime);
-}
-
-void lamp_drivers_update(Scene *scene, Lamp *la, float ctime)
-{
-	/* Prevent infinite recursion by checking (and tagging the lamp) as having been visited already
-	 * (see BKE_scene_update_tagged()). This assumes la->id.tag & LIB_TAG_DOIT isn't set by anything else
-	 * in the meantime... [#32017] */
-	if (la->id.tag & LIB_TAG_DOIT)
-		return;
-
-	la->id.tag |= LIB_TAG_DOIT;
-	
-	/* lamp itself */
-	if (la->adt && la->adt->drivers.first)
-		BKE_animsys_evaluate_animdata(scene, &la->id, la->adt, ctime, ADT_RECALC_DRIVERS);
-	
-	/* nodes */
-	if (la->nodetree)
-		lamp_node_drivers_update(scene, la->nodetree, ctime);
-
-	la->id.tag &= ~LIB_TAG_DOIT;
-}
-

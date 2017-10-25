@@ -65,7 +65,7 @@ class DATA_PT_skeleton(ArmatureButtonsPanel, Panel):
         col.label(text="Protected Layers:")
         col.prop(arm, "layers_protected", text="")
 
-        if context.scene.render.engine == 'BLENDER_GAME':
+        if context.engine == 'BLENDER_GAME':
             col = layout.column()
             col.label(text="Deform:")
             col.prop(arm, "deform_method", expand=True)
@@ -285,10 +285,10 @@ class DATA_PT_iksolver_itasc(ArmatureButtonsPanel, Panel):
                 row.prop(itasc, "damping_max", text="Damp", slider=True)
                 row.prop(itasc, "damping_epsilon", text="Eps", slider=True)
 
-from bl_ui.properties_animviz import (
-        MotionPathButtonsPanel,
-        OnionSkinButtonsPanel,
-        )
+from .properties_animviz import (
+    MotionPathButtonsPanel,
+    OnionSkinButtonsPanel,
+)
 
 
 class DATA_PT_motion_paths(MotionPathButtonsPanel, Panel):

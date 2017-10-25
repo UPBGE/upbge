@@ -35,6 +35,25 @@ CCL_NAMESPACE_BEGIN
 
 class OpenCLSplitKernel;
 
+namespace {
+
+/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to
+ * fetch its size.
+ */
+typedef struct KernelGlobalsDummy {
+	ccl_constant KernelData *data;
+	ccl_global char *buffers[8];
+
+#define KERNEL_TEX(type, name) \
+	TextureInfo name;
+#  include "kernel/kernel_textures.h"
+#undef KERNEL_TEX
+	SplitData split_data;
+	SplitParams split_param_data;
+} KernelGlobalsDummy;
+
+}  // namespace
+
 static string get_build_options(OpenCLDeviceBase *device, const DeviceRequestedFeatures& requested_features)
 {
 	string build_options = "-D__SPLIT_KERNEL__ ";
@@ -110,26 +129,9 @@ public:
 		else if(task->type == DeviceTask::RENDER) {
 			RenderTile tile;
 
-			/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to
-			 * fetch its size.
-			 */
-			typedef struct KernelGlobals {
-				ccl_constant KernelData *data;
-				ccl_global char *buffers[8];
-
-#define KERNEL_TEX(type, name) \
-				TextureInfo name;
-#include "kernel/kernel_textures.h"
-#undef KERNEL_TEX
-
-				SplitData split_data;
-				SplitParams split_param_data;
-			} KernelGlobals;
-
 			/* Allocate buffer for kernel globals */
-			device_memory kgbuffer;
-			kgbuffer.resize(sizeof(KernelGlobals));
-			mem_alloc("kernel_globals", kgbuffer, MEM_READ_WRITE);
+			device_only_memory<KernelGlobalsDummy> kgbuffer(this, "kernel_globals");
+			kgbuffer.alloc_to_device(1);
 
 			/* Keep rendering tiles until done. */
 			while(task->acquire_tile(this, tile)) {
@@ -160,7 +162,7 @@ public:
 				task->release_tile(tile);
 			}
 
-			mem_free(kgbuffer);
+			kgbuffer.free();
 		}
 	}
 
@@ -288,9 +290,9 @@ public:
 
 	virtual uint64_t state_buffer_size(device_memory& kg, device_memory& data, size_t num_threads)
 	{
-		device_vector<uint64_t> size_buffer;
-		size_buffer.resize(1);
-		device->mem_alloc(NULL, size_buffer, MEM_READ_WRITE);
+		device_vector<uint64_t> size_buffer(device, "size_buffer", MEM_READ_WRITE);
+		size_buffer.alloc(1);
+		size_buffer.zero_to_device();
 
 		uint threads = num_threads;
 		device->kernel_set_args(device->program_state_buffer_size(), 0, kg, data, threads, size_buffer);
@@ -308,8 +310,9 @@ public:
 
 		device->opencl_assert_err(device->ciErr, "clEnqueueNDRangeKernel");
 
-		device->mem_copy_from(size_buffer, 0, 1, 1, sizeof(uint64_t));
-		device->mem_free(size_buffer);
+		size_buffer.copy_from_device(0, 1, 1);
+		size_t size = size_buffer[0];
+		size_buffer.free();
 
 		if(device->ciErr != CL_SUCCESS) {
 			string message = string_printf("OpenCL error: %s in clEnqueueNDRangeKernel()",
@@ -318,7 +321,7 @@ public:
 			return 0;
 		}
 
-		return *size_buffer.get_data();
+		return size;
 	}
 
 	virtual bool enqueue_split_kernel_data_init(const KernelDimensions& dim,

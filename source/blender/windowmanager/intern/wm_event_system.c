@@ -84,6 +84,9 @@
 
 #include "RNA_enum_types.h"
 
+/* Motion in pixels allowed before we don't consider single/double click. */
+#define WM_EVENT_CLICK_WIGGLE_ROOM 2
+
 static void wm_notifier_clear(wmNotifier *note);
 static void update_tablet_data(wmWindow *win, wmEvent *event);
 
@@ -406,12 +409,13 @@ void wm_event_do_notifiers(bContext *C)
 		for (win = wm->windows.first; win; win = win->next) {
 			Scene *scene = WM_window_get_active_scene(win);
 			bScreen *screen = WM_window_get_active_screen(win);
+			WorkSpace *workspace = WM_window_get_active_workspace(win);
 
 			/* filter out notifiers */
 			if (note->category == NC_SCREEN &&
 			    note->reference &&
 			    note->reference != screen &&
-			    note->reference != WM_window_get_active_workspace(win) &&
+			    note->reference != workspace &&
 			    note->reference != WM_window_get_active_layout(win))
 			{
 				/* pass */
@@ -434,7 +438,7 @@ void wm_event_do_notifiers(bContext *C)
 				}
 				
 				for (sa = screen->areabase.first; sa; sa = sa->next) {
-					ED_area_do_listen(screen, sa, note, scene);
+					ED_area_do_listen(screen, sa, note, scene, workspace);
 					for (ar = sa->regionbase.first; ar; ar = ar->next) {
 						ED_region_do_listen(screen, sa, ar, note, scene);
 					}
@@ -770,11 +774,15 @@ static bool wm_operator_register_check(wmWindowManager *wm, wmOperatorType *ot)
 	return wm && (wm->op_undo_depth == 0) && (ot->flag & (OPTYPE_REGISTER | OPTYPE_UNDO));
 }
 
-static void wm_operator_finished(bContext *C, wmOperator *op, const bool repeat)
+static void wm_operator_finished(bContext *C, wmOperator *op, const bool repeat, const bool store)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 
 	op->customdata = NULL;
+
+	if (store) {
+		WM_operator_last_properties_store(op);
+	}
 
 	/* we don't want to do undo pushes for operators that are being
 	 * called from operators that already do an undo push. usually
@@ -838,12 +846,7 @@ static int wm_operator_exec(bContext *C, wmOperator *op, const bool repeat, cons
 		wm_operator_reports(C, op, retval, false);
 	
 	if (retval & OPERATOR_FINISHED) {
-		if (store) {
-			if (wm->op_undo_depth == 0) { /* not called by py script */
-				WM_operator_last_properties_store(op);
-			}
-		}
-		wm_operator_finished(C, op, repeat);
+		wm_operator_finished(C, op, repeat, store && wm->op_undo_depth == 0);
 	}
 	else if (repeat == 0) {
 		/* warning: modal from exec is bad practice, but avoid crashing. */
@@ -1199,10 +1202,8 @@ static int wm_operator_invoke(
 			/* do nothing, wm_operator_exec() has been called somewhere */
 		}
 		else if (retval & OPERATOR_FINISHED) {
-			if (!is_nested_call) { /* not called by py script */
-				WM_operator_last_properties_store(op);
-			}
-			wm_operator_finished(C, op, 0);
+			const bool store = !is_nested_call;
+			wm_operator_finished(C, op, false, store);
 		}
 		else if (retval & OPERATOR_RUNNING_MODAL) {
 			/* take ownership of reports (in case python provided own) */
@@ -1808,7 +1809,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 
 				/* important to run 'wm_operator_finished' before NULLing the context members */
 				if (retval & OPERATOR_FINISHED) {
-					wm_operator_finished(C, op, 0);
+					wm_operator_finished(C, op, false, true);
 					handler->op = NULL;
 				}
 				else if (retval & (OPERATOR_CANCELLED | OPERATOR_FINISHED)) {
@@ -2397,7 +2398,9 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 				
 				if ((event->val == KM_RELEASE) &&
 				    (win->eventstate->prevval == KM_PRESS) &&
-				    (win->eventstate->check_click == true))
+				    (win->eventstate->check_click == true) &&
+				    ((abs(event->x - win->eventstate->prevclickx)) <= WM_EVENT_CLICK_WIGGLE_ROOM &&
+				     (abs(event->y - win->eventstate->prevclicky)) <= WM_EVENT_CLICK_WIGGLE_ROOM))
 				{
 					event->val = KM_CLICK;
 					
@@ -2719,8 +2722,41 @@ void wm_event_do_handlers(bContext *C)
 											wm_drags_check_ops(C, event);
 										}
 									}
-									
+
+#ifdef USE_WORKSPACE_TOOL
+									/* How to solve properly?
+									 *
+									 * Handlers are stored in each region,
+									 * however the tool-system swaps keymaps often and isn't stored
+									 * per region.
+									 *
+									 * Need to investigate how this could be done better.
+									 * We might need to add a more dynamic handler type that uses a callback
+									 * to fetch its current keymap.
+									 */
+									wmEventHandler sneaky_handler = {NULL};
+									if (ar->regiontype == RGN_TYPE_WINDOW) {
+										WorkSpace *workspace = WM_window_get_active_workspace(win);
+										if (workspace->tool.keymap[0] &&
+										    workspace->tool.spacetype == sa->spacetype)
+										{
+											wmKeyMap *km = WM_keymap_find_all(
+											        C, workspace->tool.keymap, sa->spacetype, RGN_TYPE_WINDOW);
+											if (km != NULL) {
+												sneaky_handler.keymap = km;
+												BLI_addhead(&ar->handlers, &sneaky_handler);
+											}
+										}
+									}
+#endif /* USE_WORKSPACE_TOOL */
+
 									action |= wm_handlers_do(C, event, &ar->handlers);
+
+#ifdef USE_WORKSPACE_TOOL
+									if (sneaky_handler.keymap) {
+										BLI_remlink(&ar->handlers, &sneaky_handler);
+									}
+#endif /* USE_WORKSPACE_TOOL */
 
 									/* fileread case (python), [#29489] */
 									if (CTX_wm_window(C) == NULL)
@@ -3394,8 +3430,9 @@ static bool wm_event_is_double_click(wmEvent *event, const wmEvent *event_state)
 	    (event_state->prevval == KM_RELEASE) &&
 	    (event->val == KM_PRESS))
 	{
-		if ((ISMOUSE(event->type) == false) || ((ABS(event->x - event_state->prevclickx)) <= 2 &&
-		                                        (ABS(event->y - event_state->prevclicky)) <= 2))
+		if ((ISMOUSE(event->type) == false) ||
+		    ((abs(event->x - event_state->prevclickx)) <= WM_EVENT_CLICK_WIGGLE_ROOM &&
+		     (abs(event->y - event_state->prevclicky)) <= WM_EVENT_CLICK_WIGGLE_ROOM))
 		{
 			if ((PIL_check_seconds_timer() - event_state->prevclicktime) * 1000 < U.dbl_click_time) {
 				return true;

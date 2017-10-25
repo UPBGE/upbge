@@ -332,25 +332,27 @@ static int graphkeys_borderselect_exec(bContext *C, wmOperator *op)
 	rctf rect_fl;
 	short mode = 0, selectmode = 0;
 	bool incl_handles;
-	bool extend;
+	const bool select = !RNA_boolean_get(op->ptr, "deselect");
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
 
 	/* clear all selection if not extending selection */
-	extend = RNA_boolean_get(op->ptr, "extend");
+
 	if (!extend)
 		deselect_graph_keys(&ac, 1, SELECT_SUBTRACT, true);
 
 	/* get select mode 
-	 *	- 'gesture_mode' from the operator specifies how to select
 	 *	- 'include_handles' from the operator specifies whether to include handles in the selection
 	 */
-	if (RNA_int_get(op->ptr, "gesture_mode") == GESTURE_MODAL_SELECT)
+	if (select) {
 		selectmode = SELECT_ADD;
-	else
+	}
+	else {
 		selectmode = SELECT_SUBTRACT;
+	}
 		
 	incl_handles = RNA_boolean_get(op->ptr, "include_handles");
 	
@@ -391,10 +393,10 @@ void GRAPH_OT_select_border(wmOperatorType *ot)
 	ot->description = "Select all keyframes within the specified region";
 	
 	/* api callbacks */
-	ot->invoke = WM_border_select_invoke;
+	ot->invoke = WM_gesture_border_invoke;
 	ot->exec = graphkeys_borderselect_exec;
-	ot->modal = WM_border_select_modal;
-	ot->cancel = WM_border_select_cancel;
+	ot->modal = WM_gesture_border_modal;
+	ot->cancel = WM_gesture_border_cancel;
 	
 	ot->poll = graphop_visible_keyframes_poll;
 	
@@ -402,7 +404,7 @@ void GRAPH_OT_select_border(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	/* rna */
-	WM_operator_properties_gesture_border(ot, true);
+	WM_operator_properties_gesture_border_select(ot);
 	
 	ot->prop = RNA_def_boolean(ot->srna, "axis_range", 0, "Axis Range", "");
 	RNA_def_boolean(ot->srna, "include_handles", 0, "Include Handles", "Are handles tested individually against the selection criteria");
@@ -486,9 +488,7 @@ void GRAPH_OT_select_lasso(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 	
 	/* properties */
-	RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
-	RNA_def_boolean(ot->srna, "deselect", false, "Deselect", "Deselect rather than select items");
-	RNA_def_boolean(ot->srna, "extend", true, "Extend", "Extend selection instead of deselecting everything first");
+	WM_operator_properties_gesture_lasso_select(ot);
 }
 
 /* ------------------- */
@@ -496,8 +496,8 @@ void GRAPH_OT_select_lasso(wmOperatorType *ot)
 static int graph_circle_select_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
-	const int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
-	const short selectmode = (gesture_mode == GESTURE_MODAL_SELECT) ? SELECT_ADD : SELECT_SUBTRACT;
+	const bool select = !RNA_boolean_get(op->ptr, "deselect");
+	const short selectmode = select ? SELECT_ADD : SELECT_SUBTRACT;
 	bool incl_handles = false;
 	
 	KeyframeEdit_CircleData data = {0};
@@ -555,11 +555,9 @@ void GRAPH_OT_select_circle(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
-	
-	RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "radius", 1, 1, INT_MAX, "Radius", "", 1, INT_MAX);
-	RNA_def_int(ot->srna, "gesture_mode", 0, INT_MIN, INT_MAX, "Event Type", "", INT_MIN, INT_MAX);
+
+	/* properties */
+	WM_operator_properties_gesture_circle_select(ot);
 }
 
 /* ******************** Column Select Operator **************************** */
@@ -571,7 +569,7 @@ void GRAPH_OT_select_circle(wmOperatorType *ot)
  */
 
 /* defines for column-select mode */
-static EnumPropertyItem prop_column_select_types[] = {
+static const EnumPropertyItem prop_column_select_types[] = {
 	{GRAPHKEYS_COLUMNSEL_KEYS, "KEYS", 0, "On Selected Keyframes", ""},
 	{GRAPHKEYS_COLUMNSEL_CFRA, "CFRA", 0, "On Current Frame", ""},
 	{GRAPHKEYS_COLUMNSEL_MARKERS_COLUMN, "MARKERS_COLUMN", 0, "On Selected Markers", ""},
@@ -916,7 +914,7 @@ void GRAPH_OT_select_less(wmOperatorType *ot)
 /* Select keyframes left/right of the current frame indicator */
 
 /* defines for left-right select tool */
-static EnumPropertyItem prop_graphkeys_leftright_select_types[] = {
+static const EnumPropertyItem prop_graphkeys_leftright_select_types[] = {
 	{GRAPHKEYS_LRSEL_TEST, "CHECK", 0, "Check if Select Left or Right", ""},
 	{GRAPHKEYS_LRSEL_LEFT, "LEFT", 0, "Before current frame", ""},
 	{GRAPHKEYS_LRSEL_RIGHT, "RIGHT", 0, "After current frame", ""},
@@ -1087,6 +1085,8 @@ typedef struct tNearestVertInfo {
 	int dist;           /* distance from mouse to vert */
 	
 	eAnim_ChannelType ctype; /* type of animation channel this FCurve comes from */
+	
+	float frame;        /* frame that point was on when it matched (global time) */
 } tNearestVertInfo;
 
 /* Tags for the type of graph vert that we have */
@@ -1152,6 +1152,8 @@ static void nearest_fcurve_vert_store(
 			nvi->bezt = bezt;
 			nvi->hpoint = hpoint;
 			nvi->dist = dist;
+			
+			nvi->frame = bezt->vec[1][0]; /* currently in global time... */
 			
 			nvi->sel = BEZT_ISSEL_ANY(bezt); // XXX... should this use the individual verts instead?
 			
@@ -1437,10 +1439,7 @@ static void graphkeys_mselect_column(bAnimContext *ac, const int mval[2], short 
 	
 	/* get frame number on which elements should be selected */
 	// TODO: should we restrict to integer frames only?
-	if (nvi->bezt)
-		selx = nvi->bezt->vec[1][0];
-	else if (nvi->fpt)
-		selx = nvi->fpt->vec[0];
+	selx = nvi->frame;
 	
 	/* if select mode is replace, deselect all keyframes first */
 	if (select_mode == SELECT_REPLACE) {

@@ -62,6 +62,18 @@ extern "C" {
 #include "intern/depsgraph_intern.h"
 #include "util/deg_util_foreach.h"
 
+static bool use_copy_on_write = false;
+
+bool DEG_depsgraph_use_copy_on_write(void)
+{
+	return use_copy_on_write;
+}
+
+void DEG_depsgraph_enable_copy_on_write(void)
+{
+	use_copy_on_write = true;
+}
+
 namespace DEG {
 
 static DEG_EditorUpdateIDCb deg_editor_update_id_cb = NULL;
@@ -70,7 +82,7 @@ static DEG_EditorUpdateScenePreCb deg_editor_update_scene_pre_cb = NULL;
 
 Depsgraph::Depsgraph()
   : time_source(NULL),
-    need_update(false)
+    need_update(true)
 {
 	BLI_spin_init(&lock);
 	id_hash = BLI_ghash_ptr_new("Depsgraph id hash");
@@ -252,14 +264,6 @@ DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr,
 
 /* Node Management ---------------------------- */
 
-#ifndef WITH_COPY_ON_WRITE
-static void id_node_deleter(void *value)
-{
-	IDDepsNode *id_node = reinterpret_cast<IDDepsNode *>(value);
-	OBJECT_GUARDED_DELETE(id_node, IDDepsNode);
-}
-#endif
-
 TimeSourceDepsNode *Depsgraph::add_time_source()
 {
 	if (time_source == NULL) {
@@ -305,33 +309,31 @@ IDDepsNode *Depsgraph::add_id_node(ID *id, bool do_tag, ID *id_cow_hint)
 
 void Depsgraph::clear_id_nodes()
 {
-#ifndef WITH_COPY_ON_WRITE
-	BLI_ghash_clear(id_hash, NULL, id_node_deleter);
-#else
-	/* Stupid workaround to ensure we free IDs in a proper order. */
-	GHASH_FOREACH_BEGIN(IDDepsNode *, id_node, id_hash)
-	{
-		if (id_node->id_cow == NULL) {
-			/* This means builder "stole" ownership of the copy-on-written
-			 * datablock for her own dirty needs.
-			 */
-			continue;
+	if (use_copy_on_write) {
+		/* Stupid workaround to ensure we free IDs in a proper order. */
+		GHASH_FOREACH_BEGIN(IDDepsNode *, id_node, id_hash)
+		{
+			if (id_node->id_cow == NULL) {
+				/* This means builder "stole" ownership of the copy-on-written
+				 * datablock for her own dirty needs.
+				 */
+				continue;
+			}
+			if (!deg_copy_on_write_is_expanded(id_node->id_cow)) {
+				continue;
+			}
+			const ID_Type id_type = GS(id_node->id_cow->name);
+			if (id_type != ID_PA) {
+				id_node->destroy();
+			}
 		}
-		if (!deg_copy_on_write_is_expanded(id_node->id_cow)) {
-			continue;
-		}
-		const ID_Type id_type = GS(id_node->id_cow->name);
-		if (id_type != ID_PA) {
-			id_node->destroy();
-		}
+		GHASH_FOREACH_END();
 	}
-	GHASH_FOREACH_END();
 	GHASH_FOREACH_BEGIN(IDDepsNode *, id_node, id_hash)
 	{
 		OBJECT_GUARDED_DELETE(id_node, IDDepsNode);
 	}
 	GHASH_FOREACH_END();
-#endif
 }
 
 /* Add new relationship between two nodes. */

@@ -150,12 +150,12 @@ typedef void(*IterSnapObjsCallback)(SnapObjectContext *sctx, bool is_obedit, Obj
  * Walks through all objects in the scene to create the list of objets to snap.
  *
  * \param sctx: Snap context to store data.
- * \param snap_select : from enum SnapSelect.
+ * \param snap_select : from enum eSnapSelect.
  * \param obedit : Object Edited to use its coordinates of BMesh(if any) to do the snapping.
  */
 static void iter_snap_objects(
         SnapObjectContext *sctx,
-        const SnapSelect snap_select,
+        const eSnapSelect snap_select,
         Object *obedit,
         IterSnapObjsCallback sob_callback,
         void *data)
@@ -799,7 +799,7 @@ static void raycast_obj_cb(SnapObjectContext *sctx, bool is_obedit, Object *ob, 
  *
  * \param sctx: Snap context to store data.
  * \param snapdata: struct generated in `set_snapdata`.
- * \param snap_select : from enum SnapSelect.
+ * \param snap_select : from enum eSnapSelect.
  * \param use_object_edit_cage : Uses the coordinates of BMesh(if any) to do the snapping.
  * \param obj_list: List with objects to snap (created in `create_object_list`).
  *
@@ -823,7 +823,7 @@ static void raycast_obj_cb(SnapObjectContext *sctx, bool is_obedit, Object *ob, 
 static bool raycastObjects(
         SnapObjectContext *sctx,
         const float ray_start[3], const float ray_dir[3],
-        const SnapSelect snap_select, const bool use_object_edit_cage,
+        const eSnapSelect snap_select, const bool use_object_edit_cage,
         /* read/write args */
         float *ray_depth,
         /* return args */
@@ -2040,7 +2040,7 @@ static void sanp_obj_cb(SnapObjectContext *sctx, bool is_obedit, Object *ob, flo
  *
  * \param sctx: Snap context to store data.
  * \param snapdata: struct generated in `get_snapdata`.
- * \param snap_select : from enum SnapSelect.
+ * \param snap_select : from enum eSnapSelect.
  * \param use_object_edit_cage : Uses the coordinates of BMesh(if any) to do the snapping.
  *
  * Read/Write Args
@@ -2062,7 +2062,7 @@ static void sanp_obj_cb(SnapObjectContext *sctx, bool is_obedit, Object *ob, flo
  */
 static bool snapObjectsRay(
         SnapObjectContext *sctx, SnapData *snapdata,
-        const SnapSelect snap_select, const bool use_object_edit_cage,
+        const eSnapSelect snap_select, const bool use_object_edit_cage,
         /* read/write args */
         float *ray_depth, float *dist_px,
         /* return args */
@@ -2096,7 +2096,7 @@ static bool snapObjectsRay(
  * \{ */
 
 SnapObjectContext *ED_transform_snap_object_context_create(
-        Main *bmain, Scene *scene, SceneLayer *sl, int flag)
+        Main *bmain, Scene *scene, SceneLayer *sl, RenderEngineType *engine, int flag)
 {
 	SnapObjectContext *sctx = MEM_callocN(sizeof(*sctx), __func__);
 
@@ -2105,7 +2105,7 @@ SnapObjectContext *ED_transform_snap_object_context_create(
 	sctx->bmain = bmain;
 	sctx->scene = scene;
 
-	DEG_evaluation_context_init_from_scene(&sctx->eval_ctx, scene, sl, DAG_EVAL_VIEWPORT);
+	DEG_evaluation_context_init_from_scene(&sctx->eval_ctx, scene, sl, engine, DAG_EVAL_VIEWPORT);
 
 	sctx->cache.object_map = BLI_ghash_ptr_new(__func__);
 	sctx->cache.mem_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
@@ -2114,11 +2114,11 @@ SnapObjectContext *ED_transform_snap_object_context_create(
 }
 
 SnapObjectContext *ED_transform_snap_object_context_create_view3d(
-        Main *bmain, Scene *scene, SceneLayer *sl, int flag,
+        Main *bmain, Scene *scene, SceneLayer *sl, RenderEngineType *engine, int flag,
         /* extra args for view3d */
         const ARegion *ar, const View3D *v3d)
 {
-	SnapObjectContext *sctx = ED_transform_snap_object_context_create(bmain, scene, sl, flag);
+	SnapObjectContext *sctx = ED_transform_snap_object_context_create(bmain, scene, sl, engine, flag);
 
 	sctx->use_v3d = true;
 	sctx->v3d_data.ar = ar;

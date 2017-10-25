@@ -548,7 +548,7 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, const wmEvent *e
 
 void SEQUENCER_OT_select(wmOperatorType *ot)
 {
-	static EnumPropertyItem sequencer_select_left_right_types[] = {
+	static const EnumPropertyItem sequencer_select_left_right_types[] = {
 		{SEQ_SELECT_LR_NONE, "NONE", 0, "None", "Don't do left-right selection"},
 		{SEQ_SELECT_LR_MOUSE, "MOUSE", 0, "Mouse", "Use mouse position for selection"},
 		{SEQ_SELECT_LR_LEFT, "LEFT", 0, "Left", "Select left"},
@@ -889,7 +889,7 @@ static int sequencer_borderselect_exec(bContext *C, wmOperator *op)
 	
 	Sequence *seq;
 	rctf rectf, rq;
-	const bool select = (RNA_int_get(op->ptr, "gesture_mode") == GESTURE_MODAL_SELECT);
+	const bool select = !RNA_boolean_get(op->ptr, "deselect");
 	const bool extend = RNA_boolean_get(op->ptr, "extend");
 
 	if (ed == NULL)
@@ -927,10 +927,10 @@ void SEQUENCER_OT_select_border(wmOperatorType *ot)
 	ot->description = "Select strips using border selection";
 	
 	/* api callbacks */
-	ot->invoke = WM_border_select_invoke;
+	ot->invoke = WM_gesture_border_invoke;
 	ot->exec = sequencer_borderselect_exec;
-	ot->modal = WM_border_select_modal;
-	ot->cancel = WM_border_select_cancel;
+	ot->modal = WM_gesture_border_modal;
+	ot->cancel = WM_gesture_border_cancel;
 	
 	ot->poll = ED_operator_sequencer_active;
 	
@@ -938,7 +938,7 @@ void SEQUENCER_OT_select_border(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	/* rna */
-	WM_operator_properties_gesture_border(ot, true);
+	WM_operator_properties_gesture_border_select(ot);
 }
 
 /* ****** Selected Grouped ****** */
@@ -953,7 +953,7 @@ enum {
 	SEQ_SELECT_GROUP_OVERLAP,
 };
 
-static EnumPropertyItem sequencer_prop_select_grouped_types[] = {
+static const EnumPropertyItem sequencer_prop_select_grouped_types[] = {
 	{SEQ_SELECT_GROUP_TYPE, "TYPE", 0, "Type", "Shared strip type"},
 	{SEQ_SELECT_GROUP_TYPE_BASIC, "TYPE_BASIC", 0, "Global Type", "All strips of same basic type (Graphical or Sound)"},
 	{SEQ_SELECT_GROUP_TYPE_EFFECT, "TYPE_EFFECT", 0, "Effect Type",

@@ -383,7 +383,7 @@ bool ED_node_is_texture(struct SpaceNode *snode)
 /* called from shading buttons or header */
 void ED_node_shader_default(const bContext *C, ID *id)
 {
-	Scene *scene = CTX_data_scene(C);
+	ViewRender *view_render = CTX_data_view_render(C);
 	bNode *in, *out;
 	bNodeSocket *fromsock, *tosock, *sock;
 	bNodeTree *ntree;
@@ -398,11 +398,11 @@ void ED_node_shader_default(const bContext *C, ID *id)
 			Material *ma = (Material *)id;
 			ma->nodetree = ntree;
 
-			if (BKE_scene_uses_blender_eevee(scene) || BKE_scene_uses_blender_game(scene)) {
+			if (BKE_viewrender_uses_blender_eevee(view_render) || BKE_viewrender_uses_blender_game(view_render)) {
 				output_type = SH_NODE_OUTPUT_MATERIAL;
 				shader_type = SH_NODE_BSDF_PRINCIPLED;
 			}
-			else if (BKE_scene_use_new_shading_nodes(scene)) {
+			else if (BKE_viewrender_use_new_shading_nodes(view_render)) {
 				output_type = SH_NODE_OUTPUT_MATERIAL;
 				shader_type = SH_NODE_BSDF_DIFFUSE;
 			}
@@ -460,7 +460,7 @@ void ED_node_shader_default(const bContext *C, ID *id)
 	nodeAddLink(ntree, in, fromsock, out, tosock);
 
 	/* default values */
-	if (BKE_scene_use_new_shading_nodes(scene)) {
+	if (BKE_viewrender_use_new_shading_nodes(view_render)) {
 		PointerRNA sockptr;
 		sock = in->inputs.first;
 		RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &sockptr);
@@ -1910,7 +1910,7 @@ static int node_output_file_move_active_socket_exec(bContext *C, wmOperator *op)
 
 void NODE_OT_output_file_move_active_socket(wmOperatorType *ot)
 {
-	static EnumPropertyItem direction_items[] = {
+	static const EnumPropertyItem direction_items[] = {
 		{1, "UP", 0, "Up", ""},
 		{2, "DOWN", 0, "Down", ""},
 		{ 0, NULL, 0, NULL, NULL }
@@ -2278,7 +2278,7 @@ void NODE_OT_tree_socket_remove(wmOperatorType *ot)
 
 /********************** Move interface socket operator *********************/
 
-static EnumPropertyItem move_direction_items[] = {
+static const EnumPropertyItem move_direction_items[] = {
 	{ 1, "UP", 0, "Up", "" },
 	{ 2, "DOWN", 0, "Down", "" },
 	{ 0, NULL, 0, NULL, NULL },
@@ -2353,7 +2353,7 @@ void NODE_OT_tree_socket_move(wmOperatorType *ot)
 static int node_shader_script_update_poll(bContext *C)
 {
 	Scene *scene = CTX_data_scene(C);
-	RenderEngineType *type = RE_engines_find(scene->r.engine);
+	RenderEngineType *type = RE_engines_find(scene->view_render.engine_id);
 	SpaceNode *snode = CTX_wm_space_node(C);
 	bNode *node;
 	Text *text;
@@ -2423,7 +2423,7 @@ static int node_shader_script_update_exec(bContext *C, wmOperator *op)
 	bool found = false;
 
 	/* setup render engine */
-	type = RE_engines_find(scene->r.engine);
+	type = RE_engines_find(scene->view_render.engine_id);
 	engine = RE_engine_create(type);
 	engine->reports = op->reports;
 
@@ -2568,17 +2568,17 @@ void NODE_OT_viewer_border(wmOperatorType *ot)
 	ot->idname = "NODE_OT_viewer_border";
 
 	/* api callbacks */
-	ot->invoke = WM_border_select_invoke;
+	ot->invoke = WM_gesture_border_invoke;
 	ot->exec = viewer_border_exec;
-	ot->modal = WM_border_select_modal;
-	ot->cancel = WM_border_select_cancel;
+	ot->modal = WM_gesture_border_modal;
+	ot->cancel = WM_gesture_border_cancel;
 	ot->poll = composite_node_active;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_gesture_border(ot, true);
+	WM_operator_properties_gesture_border_select(ot);
 }
 
 static int clear_viewer_border_exec(bContext *C, wmOperator *UNUSED(op))

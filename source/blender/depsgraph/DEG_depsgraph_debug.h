@@ -39,45 +39,11 @@
 extern "C" {
 #endif
 
-struct GHash;
-struct ID;
-
 struct Depsgraph;
-
-/* ************************************************ */
-/* Statistics */
-
-typedef struct DepsgraphStatsTimes {
-	float duration_last;
-} DepsgraphStatsTimes;
-
-typedef struct DepsgraphStatsComponent {
-	struct DepsgraphStatsComponent *next, *prev;
-	
-	char name[64];
-	DepsgraphStatsTimes times;
-} DepsgraphStatsComponent;
-
-typedef struct DepsgraphStatsID {
-	struct ID *id;
-	
-	DepsgraphStatsTimes times;
-	ListBase components;
-} DepsgraphStatsID;
-
-typedef struct DepsgraphStats {
-	struct GHash *id_stats;
-} DepsgraphStats;
-
-struct DepsgraphStats *DEG_stats(void);
-
-void DEG_stats_verify(void);
-
-struct DepsgraphStatsID *DEG_stats_id(struct ID *id);
 
 /* ------------------------------------------------ */
 
-void DEG_stats_simple(const struct Depsgraph *graph, 
+void DEG_stats_simple(const struct Depsgraph *graph,
                       size_t *r_outer,
                       size_t *r_operations,
                       size_t *r_relations);
@@ -94,7 +60,8 @@ bool DEG_debug_compare(const struct Depsgraph *graph1,
                        const struct Depsgraph *graph2);
 
 /* Check that dependnecies in the graph are really up to date. */
-bool DEG_debug_scene_relations_validate(struct Main *bmain,
+bool DEG_debug_graph_relations_validate(struct Depsgraph *graph,
+                                        struct Main *bmain,
                                         struct Scene *scene);
 
 

@@ -1518,7 +1518,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
-		DEG_scene_relations_rebuild(bmain, scene);
+		DEG_scene_relations_update(bmain, scene);
 	}
 	
 	/* redraw to hide any menus/popups, we don't go back to

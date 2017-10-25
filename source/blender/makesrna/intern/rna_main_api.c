@@ -86,6 +86,7 @@
 #include "BKE_linestyle.h"
 #include "BKE_workspace.h"
 
+#include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
 
 #include "DNA_armature_types.h"
@@ -266,7 +267,7 @@ static Material *rna_Main_materials_new(Main *bmain, const char *name)
 	return (Material *)id;
 }
 
-static EnumPropertyItem *rna_Main_nodetree_type_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
+static const EnumPropertyItem *rna_Main_nodetree_type_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	return rna_node_tree_type_itemf(NULL, NULL, r_free);
 }
@@ -556,9 +557,13 @@ static MovieClip *rna_Main_movieclip_load(Main *bmain, ReportList *reports, cons
 		clip = BKE_movieclip_file_add(bmain, filepath);
 	}
 
-	if (!clip)
+	if (clip != NULL) {
+		DEG_relations_tag_update(bmain);
+	}
+	else {
 		BKE_reportf(reports, RPT_ERROR, "Cannot read '%s': %s", filepath,
 		            errno ? strerror(errno) : TIP_("unable to load movie clip"));
+	}
 
 	id_us_min((ID *)clip);
 	return clip;
@@ -830,7 +835,7 @@ void RNA_def_main_node_groups(BlenderRNA *brna, PropertyRNA *cprop)
 	PropertyRNA *parm;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem dummy_items[] = {
+	static const EnumPropertyItem dummy_items[] = {
 		{0, "DUMMY", 0, "", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
@@ -878,7 +883,7 @@ void RNA_def_main_meshes(BlenderRNA *brna, PropertyRNA *cprop)
 	PropertyRNA *parm;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem mesh_type_items[] = {
+	static const EnumPropertyItem mesh_type_items[] = {
 		{eModifierMode_Realtime, "PREVIEW", 0, "Preview", "Apply modifier preview settings"},
 		{eModifierMode_Render, "RENDER", 0, "Render", "Apply modifier render settings"},
 		{0, NULL, 0, NULL, NULL}

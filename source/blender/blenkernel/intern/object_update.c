@@ -38,7 +38,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
-#include "BLI_threads.h"
 
 #include "BKE_global.h"
 #include "BKE_armature.h"
@@ -66,8 +65,6 @@
 #include "DEG_depsgraph.h"
 
 #define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
-
-static ThreadMutex material_lock = BLI_MUTEX_INITIALIZER;
 
 void BKE_object_eval_local_transform(const EvaluationContext *UNUSED(eval_ctx),
                                      Scene *UNUSED(scene),
@@ -225,28 +222,6 @@ void BKE_object_handle_data_update(
 			break;
 	}
 
-	/* related materials */
-	/* XXX: without depsgraph tagging, this will always need to be run, which will be slow!
-	 * However, not doing anything (or trying to hack around this lack) is not an option
-	 * anymore, especially due to Cycles [#31834]
-	 */
-	if (ob->totcol) {
-		int a;
-		if (ob->totcol != 0) {
-			BLI_mutex_lock(&material_lock);
-			for (a = 1; a <= ob->totcol; a++) {
-				Material *ma = give_current_material(ob, a);
-				if (ma) {
-					/* recursively update drivers for this material */
-					material_drivers_update(scene, ma, ctime);
-				}
-			}
-			BLI_mutex_unlock(&material_lock);
-		}
-	}
-	else if (ob->type == OB_LAMP)
-		lamp_drivers_update(scene, ob->data, ctime);
-
 	/* particles */
 	if (ob != scene->obedit && ob->particlesystem.first) {
 		ParticleSystem *tpsys, *psys;
@@ -349,55 +324,55 @@ void BKE_object_eval_uber_data(const EvaluationContext *eval_ctx,
 			break;
 	}
 
-#ifdef WITH_COPY_ON_WRITE
-	if (ob->type == OB_MESH) {
-		/* Quick hack to convert evaluated derivedMesh to Mesh. */
-		DerivedMesh *dm = ob->derivedFinal;
-		if (dm != NULL) {
-			Mesh *mesh = (Mesh *)ob->data;
-			Mesh *new_mesh = BKE_libblock_alloc_notest(ID_ME);
-			BKE_mesh_init(new_mesh);
-			/* Copy ID name so GS(new_mesh->id) works correct later on. */
-			BLI_strncpy(new_mesh->id.name, mesh->id.name, sizeof(new_mesh->id.name));
-			/* Copy materials so render engines can access them. */
-			new_mesh->mat = MEM_dupallocN(mesh->mat);
-			new_mesh->totcol = mesh->totcol;
-			DM_to_mesh(dm, new_mesh, ob, CD_MASK_MESH, true);
-			new_mesh->edit_btmesh = mesh->edit_btmesh;
-			/* Store result mesh as derived_mesh of object. This way we have
-			 * explicit  way to query final object evaluated data and know for sure
-			 * who owns the newly created mesh datablock.
-			 */
-			ob->mesh_evaluated = new_mesh;
-			/* TODO(sergey): This is kind of compatibility thing, so all render
-			 * engines can use object->data for mesh data for display. This is
-			 * something what we might want to change in the future.
-			 */
-			ob->data = new_mesh;
-			/* Save some memory by throwing DerivedMesh away. */
-			/* NOTE: Watch out, some tools might need it!
-			 * So keep around for now..
-			 */
-			/* Store original ID as a pointer in evaluated ID.
-			 * This way we can restore original object data when we are freeing
-			 * evaluated mesh.
-			 */
-			new_mesh->id.newid = &mesh->id;
-		}
+	if (DEG_depsgraph_use_copy_on_write()) {
+		if (ob->type == OB_MESH) {
+			/* Quick hack to convert evaluated derivedMesh to Mesh. */
+			DerivedMesh *dm = ob->derivedFinal;
+			if (dm != NULL) {
+				Mesh *mesh = (Mesh *)ob->data;
+				Mesh *new_mesh = BKE_libblock_alloc_notest(ID_ME);
+				BKE_mesh_init(new_mesh);
+				/* Copy ID name so GS(new_mesh->id) works correct later on. */
+				BLI_strncpy(new_mesh->id.name, mesh->id.name, sizeof(new_mesh->id.name));
+				/* Copy materials so render engines can access them. */
+				new_mesh->mat = MEM_dupallocN(mesh->mat);
+				new_mesh->totcol = mesh->totcol;
+				DM_to_mesh(dm, new_mesh, ob, CD_MASK_MESH, true);
+				new_mesh->edit_btmesh = mesh->edit_btmesh;
+				/* Store result mesh as derived_mesh of object. This way we have
+				 * explicit  way to query final object evaluated data and know for sure
+				 * who owns the newly created mesh datablock.
+				 */
+				ob->mesh_evaluated = new_mesh;
+				/* TODO(sergey): This is kind of compatibility thing, so all render
+				 * engines can use object->data for mesh data for display. This is
+				 * something what we might want to change in the future.
+				 */
+				ob->data = new_mesh;
+				/* Save some memory by throwing DerivedMesh away. */
+				/* NOTE: Watch out, some tools might need it!
+				 * So keep around for now..
+				 */
+				/* Store original ID as a pointer in evaluated ID.
+				 * This way we can restore original object data when we are freeing
+				 * evaluated mesh.
+				 */
+				new_mesh->id.newid = &mesh->id;
+			}
 #if 0
-		if (ob->derivedFinal != NULL) {
-			ob->derivedFinal->needsFree = 1;
-			ob->derivedFinal->release(ob->derivedFinal);
-			ob->derivedFinal = NULL;
-		}
-		if (ob->derivedDeform != NULL) {
-			ob->derivedDeform->needsFree = 1;
-			ob->derivedDeform->release(ob->derivedDeform);
-			ob->derivedDeform = NULL;
-		}
+			if (ob->derivedFinal != NULL) {
+				ob->derivedFinal->needsFree = 1;
+				ob->derivedFinal->release(ob->derivedFinal);
+				ob->derivedFinal = NULL;
+			}
+			if (ob->derivedDeform != NULL) {
+				ob->derivedDeform->needsFree = 1;
+				ob->derivedDeform->release(ob->derivedDeform);
+				ob->derivedDeform = NULL;
+			}
 #endif
+		}
 	}
-#endif
 
 	ob->recalc &= ~(OB_RECALC_DATA | OB_RECALC_TIME);
 }

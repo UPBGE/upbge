@@ -58,6 +58,8 @@
 
 #include "GPU_immediate.h"
 
+#include "RE_engine.h"
+
 #include "view3d_intern.h"  /* own include */
 
 #ifdef WITH_INPUT_NDOF
@@ -130,7 +132,7 @@ typedef enum eWalkGravityState {
 /* called in transform_ops.c, on each regeneration of keymaps  */
 void walk_modal_keymap(wmKeyConfig *keyconf)
 {
-	static EnumPropertyItem modal_items[] = {
+	static const EnumPropertyItem modal_items[] = {
 		{WALK_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
 		{WALK_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
 
@@ -249,6 +251,7 @@ typedef struct WalkInfo {
 	ARegion *ar;
 	Scene *scene;
 	SceneLayer *scene_layer;
+	RenderEngineType *engine;
 
 	wmTimer *timer; /* needed for redraws */
 
@@ -512,6 +515,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op)
 	walk->ar = CTX_wm_region(C);
 	walk->scene = CTX_data_scene(C);
 	walk->scene_layer = CTX_data_scene_layer(C);
+	walk->engine = CTX_data_engine(C);
 
 #ifdef NDOF_WALK_DEBUG
 	puts("\n-- walk begin --");
@@ -600,7 +604,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op)
 	walk->rv3d->rflag |= RV3D_NAVIGATING;
 
 	walk->snap_context = ED_transform_snap_object_context_create_view3d(
-	        CTX_data_main(C), walk->scene, walk->scene_layer, 0,
+	        CTX_data_main(C), walk->scene, walk->scene_layer, walk->engine, 0,
 	        walk->ar, walk->v3d);
 
 	walk->v3d_camera_control = ED_view3d_cameracontrol_acquire(

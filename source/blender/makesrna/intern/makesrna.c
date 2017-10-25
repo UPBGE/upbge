@@ -2872,7 +2872,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 			int i, defaultfound = 0, totflag = 0;
 
 			if (eprop->item) {
-				fprintf(f, "static EnumPropertyItem rna_%s%s_%s_items[%d] = {\n\t", srna->identifier,
+				fprintf(f, "static const EnumPropertyItem rna_%s%s_%s_items[%d] = {\n\t", srna->identifier,
 				        strnest, prop->identifier, eprop->totitem + 1);
 
 				for (i = 0; i < eprop->totitem; i++) {
@@ -3336,6 +3336,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_key.c", NULL, RNA_def_key},
 	{"rna_lamp.c", NULL, RNA_def_lamp},
 	{"rna_lattice.c", "rna_lattice_api.c", RNA_def_lattice},
+	{"rna_layer.c", NULL, RNA_def_scene_layer},
 	{"rna_linestyle.c", NULL, RNA_def_linestyle},
 	{"rna_main.c", "rna_main_api.c", RNA_def_main},
 	{"rna_material.c", "rna_material_api.c", RNA_def_material},

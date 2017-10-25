@@ -101,6 +101,7 @@ bool		WM_window_is_fullscreen	(struct wmWindow *win);
 
 void WM_windows_scene_data_sync(const ListBase *win_lb, struct Scene *scene) ATTR_NONNULL();
 struct Scene *WM_windows_scene_get_from_screen(const struct wmWindowManager *wm, const struct bScreen *screen) ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
+struct WorkSpace *WM_windows_workspace_get_from_screen(const wmWindowManager *wm, const struct bScreen *screen) ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
 
 struct Scene *WM_window_get_active_scene(const struct wmWindow *win) ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
 void          WM_window_change_active_scene(struct Main *bmain, struct bContext *C, struct wmWindow *win,
@@ -333,9 +334,18 @@ void        WM_operator_properties_filesel(
 void        WM_operator_properties_border(struct wmOperatorType *ot);
 void        WM_operator_properties_border_to_rcti(struct wmOperator *op, struct rcti *rect);
 void        WM_operator_properties_border_to_rctf(struct wmOperator *op, rctf *rect);
-void        WM_operator_properties_gesture_border(struct wmOperatorType *ot, bool extend);
-void        WM_operator_properties_mouse_select(struct wmOperatorType *ot);
+void        WM_operator_properties_gesture_border_ex(struct wmOperatorType *ot, bool deselect, bool extend);
+void        WM_operator_properties_gesture_border(struct wmOperatorType *ot);
+void        WM_operator_properties_gesture_border_select(struct wmOperatorType *ot);
+void        WM_operator_properties_gesture_border_zoom(struct wmOperatorType *ot);
+void        WM_operator_properties_gesture_lasso_ex(struct wmOperatorType *ot, bool deselect, bool extend);
+void        WM_operator_properties_gesture_lasso(struct wmOperatorType *ot);
+void        WM_operator_properties_gesture_lasso_select(struct wmOperatorType *ot);
 void        WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, int cursor);
+void        WM_operator_properties_gesture_circle_ex(struct wmOperatorType *ot, bool deselect);
+void        WM_operator_properties_gesture_circle(struct wmOperatorType *ot);
+void        WM_operator_properties_gesture_circle_select(struct wmOperatorType *ot);
+void        WM_operator_properties_mouse_select(struct wmOperatorType *ot);
 void        WM_operator_properties_select_all(struct wmOperatorType *ot);
 void        WM_operator_properties_select_action(struct wmOperatorType *ot, int default_action);
 void        WM_operator_properties_select_action_simple(struct wmOperatorType *ot, int default_action);
@@ -395,10 +405,10 @@ bool                WM_menutype_add(struct MenuType *mt);
 void                WM_menutype_freelink(struct MenuType *mt);
 void                WM_menutype_free(void);
 
-			/* default operator callbacks for border/circle/lasso */
-int			WM_border_select_invoke	(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
-int			WM_border_select_modal	(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
-void		WM_border_select_cancel(struct bContext *C, struct wmOperator *op);
+/* wm_gesture_ops.c */
+int			WM_gesture_border_invoke	(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
+int			WM_gesture_border_modal	(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
+void		WM_gesture_border_cancel(struct bContext *C, struct wmOperator *op);
 int			WM_gesture_circle_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
 int			WM_gesture_circle_modal(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
 void		WM_gesture_circle_cancel(struct bContext *C, struct wmOperator *op);

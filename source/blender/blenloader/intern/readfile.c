@@ -252,6 +252,7 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname);
 static void direct_link_modifiers(FileData *fd, ListBase *lb);
 static BHead *find_bhead_from_code_name(FileData *fd, const short idcode, const char *name);
 static BHead *find_bhead_from_idname(FileData *fd, const char *idname);
+static SceneCollection *get_scene_collection_active_or_create(struct Scene *scene, struct SceneLayer *sl, const short flag);
 
 /* this function ensures that reports are printed,
  * in the case of libraray linking errors this is important!
@@ -2453,13 +2454,14 @@ static void lib_link_fcurves(FileData *fd, ID *id, ListBase *list)
 
 
 /* NOTE: this assumes that link_list has already been called on the list */
-static void direct_link_fmodifiers(FileData *fd, ListBase *list)
+static void direct_link_fmodifiers(FileData *fd, ListBase *list, FCurve *curve)
 {
 	FModifier *fcm;
 	
 	for (fcm = list->first; fcm; fcm = fcm->next) {
 		/* relink general data */
 		fcm->data  = newdataadr(fd, fcm->data);
+		fcm->curve = curve;
 		
 		/* do relinking of data for specific types */
 		switch (fcm->type) {
@@ -2549,7 +2551,7 @@ static void direct_link_fcurves(FileData *fd, ListBase *list)
 		
 		/* modifiers */
 		link_list(fd, &fcu->modifiers);
-		direct_link_fmodifiers(fd, &fcu->modifiers);
+		direct_link_fmodifiers(fd, &fcu->modifiers, fcu);
 	}
 }
 
@@ -2654,7 +2656,7 @@ static void direct_link_nladata_strips(FileData *fd, ListBase *list)
 		
 		/* strip's F-Modifiers */
 		link_list(fd, &strip->modifiers);
-		direct_link_fmodifiers(fd, &strip->modifiers);
+		direct_link_fmodifiers(fd, &strip->modifiers, NULL);
 	}
 }
 
@@ -6093,8 +6095,8 @@ static void direct_link_scene(FileData *fd, Scene *sce, Main *bmain)
 	SceneLayer *sl;
 	SceneRenderLayer *srl;
 	
-	sce->theDag = NULL;
 	sce->depsgraph_legacy = NULL;
+	sce->depsgraph_hash = NULL;
 	sce->obedit = NULL;
 	sce->fps_info = NULL;
 	sce->customdata_mask_modal = 0;
@@ -10141,15 +10143,16 @@ static bool object_in_any_scene(Main *mainvar, Object *ob)
 }
 
 static void give_base_to_objects(
-        Main *mainvar, Scene *scene, SceneLayer *sl, SceneCollection *sc, Library *lib, const short flag)
+        Main *mainvar, Scene *scene, SceneLayer *scene_layer, Library *lib, const short flag)
 {
 	Object *ob;
 	Base *base;
+	SceneCollection *scene_collection = NULL;
 	const bool is_link = (flag & FILE_LINK) != 0;
 
 	BLI_assert(scene);
 
-	/* give all objects which are LIB_TAG_INDIRECT a base, or for a group when *lib has been set */
+	/* Give all objects which are LIB_TAG_INDIRECT a base, or for a group when *lib has been set. */
 	for (ob = mainvar->object.first; ob; ob = ob->id.next) {
 		if ((ob->id.tag & LIB_TAG_INDIRECT) && (ob->id.tag & LIB_TAG_PRE_EXISTING) == 0) {
 			bool do_it = false;
@@ -10166,8 +10169,12 @@ static void give_base_to_objects(
 			if (do_it) {
 				CLAMP_MIN(ob->id.us, 0);
 
-				BKE_collection_object_add(scene, sc, ob);
-				base = BKE_scene_layer_base_find(sl, ob);
+				if (scene_collection == NULL) {
+					scene_collection = get_scene_collection_active_or_create(scene, scene_layer, FILE_ACTIVE_COLLECTION);
+				}
+
+				BKE_collection_object_add(scene, scene_collection, ob);
+				base = BKE_scene_layer_base_find(scene_layer, ob);
 				BKE_scene_object_base_flag_sync_from_base(base);
 
 				if (flag & FILE_AUTOSELECT) {
@@ -10177,9 +10184,8 @@ static void give_base_to_objects(
 						base->flag |= BASE_SELECTED;
 						BKE_scene_base_flag_sync_from_base(base);
 					}
-					/* do NOT make base active here! screws up GUI stuff, if you want it do it on src/ level */
+					/* Do NOT make base active here! screws up GUI stuff, if you want it do it on src/ level. */
 				}
-
 
 				ob->id.tag &= ~LIB_TAG_INDIRECT;
 				ob->id.tag |= LIB_TAG_EXTERN;
@@ -10189,25 +10195,28 @@ static void give_base_to_objects(
 }
 
 static void give_base_to_groups(
-        Main *mainvar, Scene *scene, SceneLayer *sl, SceneCollection *sc,
-        Library *UNUSED(lib), const short UNUSED(flag))
+        Main *mainvar, Scene *scene, SceneLayer *scene_layer, Library *UNUSED(lib), const short UNUSED(flag))
 {
 	Group *group;
 	Base *base;
 	Object *ob;
+	SceneCollection *scene_collection;
 
-	/* give all objects which are tagged a base */
+	/* If the group is empty this function is not even called, so it's safe to ensure a collection at this point. */
+	scene_collection = get_scene_collection_active_or_create(scene, scene_layer, FILE_ACTIVE_COLLECTION);
+
+	/* Give all objects which are tagged a base. */
 	for (group = mainvar->group.first; group; group = group->id.next) {
 		if (group->id.tag & LIB_TAG_DOIT) {
-			/* any indirect group should not have been tagged */
+			/* Any indirect group should not have been tagged. */
 			BLI_assert((group->id.tag & LIB_TAG_INDIRECT) == 0);
 
-			/* BKE_object_add(...) messes with the selection */
+			/* BKE_object_add(...) messes with the selection. */
 			ob = BKE_object_add_only_object(mainvar, OB_EMPTY, group->id.name + 2);
 			ob->type = OB_EMPTY;
 
-			BKE_collection_object_add(scene, sc, ob);
-			base = BKE_scene_layer_base_find(sl, ob);
+			BKE_collection_object_add(scene, scene_collection, ob);
+			base = BKE_scene_layer_base_find(scene_layer, ob);
 
 			if (base->flag & BASE_SELECTABLED) {
 				base->flag |= BASE_SELECTED;
@@ -10215,9 +10224,9 @@ static void give_base_to_groups(
 
 			BKE_scene_object_base_flag_sync_from_base(base);
 			DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
-			sl->basact = base;
+			scene_layer->basact = base;
 
-			/* assign the group */
+			/* Assign the group. */
 			ob->dup_group = group;
 			ob->transflag |= OB_DUPLIGROUP;
 			copy_v3_v3(ob->loc, scene->cursor);
@@ -10592,11 +10601,10 @@ static void library_link_end(Main *mainl, FileData **fd, const short flag, Scene
 	 * Only directly linked objects & groups are instantiated by `BLO_library_link_named_part_ex()` & co,
 	 * here we handle indirect ones and other possible edge-cases. */
 	if (scene) {
-		SceneCollection *sc = get_scene_collection_active_or_create(scene, sl, FILE_ACTIVE_COLLECTION);
-		give_base_to_objects(mainvar, scene, sl, sc, curlib, flag);
+		give_base_to_objects(mainvar, scene, sl, curlib, flag);
 
 		if (flag & FILE_GROUP_INSTANCE) {
-			give_base_to_groups(mainvar, scene, sl, sc, curlib, flag);
+			give_base_to_groups(mainvar, scene, sl, curlib, flag);
 		}
 	}
 	else {

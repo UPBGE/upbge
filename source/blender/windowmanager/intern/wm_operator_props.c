@@ -49,7 +49,7 @@ void WM_operator_properties_filesel(
 {
 	PropertyRNA *prop;
 
-	static EnumPropertyItem file_display_items[] = {
+	static const EnumPropertyItem file_display_items[] = {
 		{FILE_DEFAULTDISPLAY, "DEFAULT", 0, "Default", "Automatically determine display type for files"},
 		{FILE_SHORTDISPLAY, "LIST_SHORT", ICON_SHORTDISPLAY, "Short List", "Display files as short list"},
 		{FILE_LONGDISPLAY, "LIST_LONG", ICON_LONGDISPLAY, "Long List", "Display files as a detailed list"},
@@ -135,7 +135,7 @@ static void wm_operator_properties_select_action_ex(wmOperatorType *ot, int defa
 
 void WM_operator_properties_select_action(wmOperatorType *ot, int default_action)
 {
-	static EnumPropertyItem select_actions[] = {
+	static const EnumPropertyItem select_actions[] = {
 		{SEL_TOGGLE, "TOGGLE", 0, "Toggle", "Toggle selection for all elements"},
 		{SEL_SELECT, "SELECT", 0, "Select", "Select all elements"},
 		{SEL_DESELECT, "DESELECT", 0, "Deselect", "Deselect all elements"},
@@ -151,7 +151,7 @@ void WM_operator_properties_select_action(wmOperatorType *ot, int default_action
  */
 void WM_operator_properties_select_action_simple(wmOperatorType *ot, int default_action)
 {
-	static EnumPropertyItem select_actions[] = {
+	static const EnumPropertyItem select_actions[] = {
 		{SEL_SELECT, "SELECT", 0, "Select", "Select all elements"},
 		{SEL_DESELECT, "DESELECT", 0, "Deselect", "Deselect all elements"},
 		{0, NULL, 0, NULL, NULL}
@@ -224,30 +224,69 @@ void WM_operator_properties_border_to_rctf(struct wmOperator *op, rctf *rect)
 	BLI_rctf_rcti_copy(rect, &rect_i);
 }
 
-void WM_operator_properties_gesture_border(wmOperatorType *ot, bool extend)
+/**
+ * Use with #WM_gesture_border_invoke
+ */
+void WM_operator_properties_gesture_border_ex(wmOperatorType *ot, bool deselect, bool extend)
 {
-	RNA_def_int(ot->srna, "gesture_mode", 0, INT_MIN, INT_MAX, "Gesture Mode", "", INT_MIN, INT_MAX);
-
 	WM_operator_properties_border(ot);
 
+	if (deselect) {
+		RNA_def_boolean(ot->srna, "deselect", false, "Deselect", "Deselect rather than select items");
+	}
 	if (extend) {
 		RNA_def_boolean(ot->srna, "extend", true, "Extend", "Extend selection instead of deselecting everything first");
 	}
 }
 
-void WM_operator_properties_mouse_select(wmOperatorType *ot)
+void WM_operator_properties_gesture_border_select(wmOperatorType *ot)
 {
-	PropertyRNA *prop;
-
-	prop = RNA_def_boolean(ot->srna, "extend", false, "Extend",
-	                       "Extend selection instead of deselecting everything first");
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "deselect", false, "Deselect", "Remove from selection");
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "toggle", false, "Toggle Selection", "Toggle the selection");
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	WM_operator_properties_gesture_border_ex(ot, true, true);
+}
+void WM_operator_properties_gesture_border(wmOperatorType *ot)
+{
+	WM_operator_properties_gesture_border_ex(ot, false, false);
 }
 
+void WM_operator_properties_gesture_border_zoom(wmOperatorType *ot)
+{
+	WM_operator_properties_border(ot);
+
+	PropertyRNA *prop;
+	prop = RNA_def_boolean(ot->srna, "zoom_out", false, "Zoom Out", "");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+}
+
+/**
+ * Use with #WM_gesture_lasso_invoke
+ */
+void WM_operator_properties_gesture_lasso_ex(wmOperatorType *ot, bool deselect, bool extend)
+{
+	PropertyRNA *prop;
+	prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+	if (deselect) {
+		RNA_def_boolean(ot->srna, "deselect", false, "Deselect", "Deselect rather than select items");
+	}
+	if (extend) {
+		RNA_def_boolean(ot->srna, "extend", true, "Extend", "Extend selection instead of deselecting everything first");
+	}
+}
+
+void WM_operator_properties_gesture_lasso(wmOperatorType *ot)
+{
+	WM_operator_properties_gesture_lasso_ex(ot, false, false);
+}
+
+void WM_operator_properties_gesture_lasso_select(wmOperatorType *ot)
+{
+	WM_operator_properties_gesture_lasso_ex(ot, true, true);
+}
+
+/**
+ * Use with #WM_gesture_straightline_invoke
+ */
 void WM_operator_properties_gesture_straightline(wmOperatorType *ot, int cursor)
 {
 	PropertyRNA *prop;
@@ -266,6 +305,48 @@ void WM_operator_properties_gesture_straightline(wmOperatorType *ot, int cursor)
 		                   "Cursor", "Mouse cursor style to use during the modal operator", 0, INT_MAX);
 		RNA_def_property_flag(prop, PROP_HIDDEN);
 	}
+}
+
+/**
+ * Use with #WM_gesture_circle_invoke
+ */
+void WM_operator_properties_gesture_circle_ex(wmOperatorType *ot, bool deselect)
+{
+	PropertyRNA *prop;
+	const int radius_default = 25;
+
+	prop = RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	prop = RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	RNA_def_int(ot->srna, "radius", radius_default, 1, INT_MAX, "Radius", "", 1, INT_MAX);
+
+	if (deselect) {
+		RNA_def_boolean(ot->srna, "deselect", false, "Deselect", "Deselect rather than select items");
+	}
+}
+
+void WM_operator_properties_gesture_circle(wmOperatorType *ot)
+{
+	WM_operator_properties_gesture_circle_ex(ot, false);
+}
+
+void WM_operator_properties_gesture_circle_select(wmOperatorType *ot)
+{
+	WM_operator_properties_gesture_circle_ex(ot, true);
+}
+
+void WM_operator_properties_mouse_select(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+
+	prop = RNA_def_boolean(ot->srna, "extend", false, "Extend",
+	                       "Extend selection instead of deselecting everything first");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "deselect", false, "Deselect", "Remove from selection");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "toggle", false, "Toggle Selection", "Toggle the selection");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /**

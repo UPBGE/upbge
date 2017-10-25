@@ -30,6 +30,7 @@ struct BMEdge;
 struct BMFace;
 
 struct ListBase;
+struct RenderEngineType;
 struct Scene;
 struct SceneLayer;
 struct Main;
@@ -42,11 +43,11 @@ struct bContext;
 
 /* ED_transform_snap_object_*** API */
 
-typedef enum SnapSelect {
+typedef enum eSnapSelect {
 	SNAP_ALL = 0,
 	SNAP_NOT_SELECTED = 1,
 	SNAP_NOT_ACTIVE = 2,
-} SnapSelect;
+} eSnapSelect;
 
 /** used for storing multiple hits */
 struct SnapObjectHitDepth {
@@ -75,9 +76,9 @@ struct SnapObjectParams {
 
 typedef struct SnapObjectContext SnapObjectContext;
 SnapObjectContext *ED_transform_snap_object_context_create(
-        struct Main *bmain, struct Scene *scene, struct SceneLayer *sl, int flag);
+        struct Main *bmain, struct Scene *scene, struct SceneLayer *sl, struct RenderEngineType *engine, int flag);
 SnapObjectContext *ED_transform_snap_object_context_create_view3d(
-        struct Main *bmain, struct Scene *scene, struct SceneLayer *sl, int flag,
+        struct Main *bmain, struct Scene *scene, struct SceneLayer *sl, struct RenderEngineType *engine, int flag,
         /* extra args for view3d */
         const struct ARegion *ar, const struct View3D *v3d);
 void ED_transform_snap_object_context_destroy(SnapObjectContext *sctx);

@@ -27,6 +27,7 @@
 #include "util/util_math.h"
 #include "util/util_opengl.h"
 #include "util/util_time.h"
+#include "util/util_system.h"
 #include "util/util_types.h"
 #include "util/util_vector.h"
 #include "util/util_string.h"
@@ -87,24 +88,6 @@ Device::~Device()
 			glDeleteProgram(fallback_shader_program);
 		}
 	}
-}
-
-void Device::pixels_alloc(device_memory& mem)
-{
-	mem_alloc("pixels", mem, MEM_READ_WRITE);
-}
-
-void Device::pixels_copy_from(device_memory& mem, int y, int w, int h)
-{
-	if(mem.data_type == TYPE_HALF)
-		mem_copy_from(mem, y, w, h, sizeof(half4));
-	else
-		mem_copy_from(mem, y, w, h, sizeof(uchar4));
-}
-
-void Device::pixels_free(device_memory& mem)
-{
-	mem_free(mem);
 }
 
 /* TODO move shaders to standalone .glsl file. */
@@ -256,7 +239,9 @@ void Device::draw_pixels(
     bool transparent, const DeviceDrawParams &draw_params)
 {
 	const bool use_fallback_shader = (draw_params.bind_display_space_shader_cb == NULL);
-	pixels_copy_from(rgba, y, w, h);
+
+	assert(rgba.type == MEM_PIXELS);
+	mem_copy_from(rgba, y, w, h, rgba.memory_elements_size(1));
 
 	GLuint texid;
 	glGenTextures(1, &texid);
@@ -512,7 +497,7 @@ string Device::device_capabilities()
 	return capabilities;
 }
 
-DeviceInfo Device::get_multi_device(vector<DeviceInfo> subdevices)
+DeviceInfo Device::get_multi_device(const vector<DeviceInfo>& subdevices, int threads, bool background)
 {
 	assert(subdevices.size() > 1);
 
@@ -520,18 +505,41 @@ DeviceInfo Device::get_multi_device(vector<DeviceInfo> subdevices)
 	info.type = DEVICE_MULTI;
 	info.id = "MULTI";
 	info.description = "Multi Device";
-	info.multi_devices = subdevices;
 	info.num = 0;
 
 	info.has_bindless_textures = true;
 	info.has_volume_decoupled = true;
 	info.has_qbvh = true;
-	foreach(DeviceInfo &device, subdevices) {
-		assert(device.type == info.multi_devices[0].type);
+	info.has_osl = true;
 
+	foreach(const DeviceInfo &device, subdevices) {
 		info.has_bindless_textures &= device.has_bindless_textures;
 		info.has_volume_decoupled &= device.has_volume_decoupled;
 		info.has_qbvh &= device.has_qbvh;
+		info.has_osl &= device.has_osl;
+
+		if(device.type == DEVICE_CPU && subdevices.size() > 1) {
+			if(background) {
+				int orig_cpu_threads = (threads)? threads: system_cpu_thread_count();
+				int cpu_threads = max(orig_cpu_threads - (subdevices.size() - 1), 0);
+
+				if(cpu_threads >= 1) {
+					DeviceInfo cpu_device = device;
+					cpu_device.cpu_threads = cpu_threads;
+					info.multi_devices.push_back(cpu_device);
+				}
+
+				VLOG(1) << "CPU render threads reduced from "
+						<< orig_cpu_threads << " to " << cpu_threads
+						<< ", to dedicate to GPU.";
+			}
+			else {
+				VLOG(1) << "CPU render threads disabled for interactive render.";
+			}
+		}
+		else {
+			info.multi_devices.push_back(device);
+		}
 	}
 
 	return info;
@@ -549,18 +557,6 @@ void Device::free_memory()
 	need_devices_update = true;
 	types.free_memory();
 	devices.free_memory();
-}
-
-
-device_sub_ptr::device_sub_ptr(Device *device, device_memory& mem, int offset, int size, MemoryType type)
- : device(device)
-{
-	ptr = device->mem_alloc_sub_ptr(mem, offset, size, type);
-}
-
-device_sub_ptr::~device_sub_ptr()
-{
-	device->mem_free_sub_ptr(ptr);
 }
 
 CCL_NAMESPACE_END

@@ -182,6 +182,7 @@ typedef enum eSpaceButtons_Context {
 	BCONTEXT_BONE_CONSTRAINT = 12,
 	BCONTEXT_RENDER_LAYER = 13,
 	BCONTEXT_COLLECTION = 14,
+	BCONTEXT_WORKSPACE = 15,
 
 	/* always as last... */
 	BCONTEXT_TOT
@@ -667,7 +668,7 @@ typedef struct FSMenuEntry {
 } FSMenuEntry;
 
 /* FileSelectParams.display */
-enum FileDisplayTypeE {
+enum eFileDisplayType {
 	FILE_DEFAULTDISPLAY = 0,
 	FILE_SHORTDISPLAY = 1,
 	FILE_LONGDISPLAY = 2,
@@ -675,7 +676,7 @@ enum FileDisplayTypeE {
 };
 
 /* FileSelectParams.sort */
-enum FileSortTypeE {
+enum eFileSortType {
 	FILE_SORT_NONE = 0,
 	FILE_SORT_ALPHA = 1,
 	FILE_SORT_EXTENSION = 2,

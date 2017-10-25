@@ -1372,7 +1372,7 @@ void EEVEE_draw_default_passes(EEVEE_PassList *psl)
 }
 
 /*************************************Game engine************************************/
-struct DRWShadingGroup *EEVEE_default_shading_group_get_no_pass(bool is_hair, bool is_flat_normal, bool use_blend, bool use_ssr, int shadow_method)
+struct DRWShadingGroup *EEVEE_default_shading_group_get_no_pass(bool is_hair, bool is_flat_normal, bool use_ssr, int shadow_method)
 {
 	static int ssr_id;
 	ssr_id = (use_ssr) ? 0 : -1;
@@ -1380,7 +1380,6 @@ struct DRWShadingGroup *EEVEE_default_shading_group_get_no_pass(bool is_hair, bo
 
 	if (is_hair) options |= VAR_MAT_HAIR;
 	if (is_flat_normal) options |= VAR_MAT_FLAT;
-	if (use_blend) options |= VAR_MAT_BLEND;
 
 	options |= eevee_material_shadow_option(shadow_method);
 

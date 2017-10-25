@@ -41,29 +41,8 @@ extern "C" {
 #include "DEG_depsgraph_debug.h"
 #include "DEG_depsgraph_build.h"
 
-#include "intern/eval/deg_eval_debug.h"
 #include "intern/depsgraph_intern.h"
 #include "util/deg_util_foreach.h"
-
-/* ************************************************ */
-
-DepsgraphStats *DEG_stats(void)
-{
-	return DEG::DepsgraphDebug::stats;
-}
-
-void DEG_stats_verify()
-{
-	DEG::DepsgraphDebug::verify_stats();
-}
-
-DepsgraphStatsID *DEG_stats_id(ID *id)
-{
-	if (!DEG::DepsgraphDebug::stats) {
-		return NULL;
-	}
-	return DEG::DepsgraphDebug::get_id_stats(id, false);
-}
 
 bool DEG_debug_compare(const struct Depsgraph *graph1,
                        const struct Depsgraph *graph2)
@@ -85,18 +64,19 @@ bool DEG_debug_compare(const struct Depsgraph *graph1,
 	return true;
 }
 
-bool DEG_debug_scene_relations_validate(Main *bmain,
+bool DEG_debug_graph_relations_validate(Depsgraph *graph,
+                                        Main *bmain,
                                         Scene *scene)
 {
-	Depsgraph *depsgraph = DEG_graph_new();
+	Depsgraph *temp_depsgraph = DEG_graph_new();
 	bool valid = true;
-	DEG_graph_build_from_scene(depsgraph, bmain, scene);
-	if (!DEG_debug_compare(depsgraph, scene->depsgraph_legacy)) {
+	DEG_graph_build_from_scene(temp_depsgraph, bmain, scene);
+	if (!DEG_debug_compare(temp_depsgraph, graph)) {
 		fprintf(stderr, "ERROR! Depsgraph wasn't tagged for update when it should have!\n");
 		BLI_assert(!"This should not happen!");
 		valid = false;
 	}
-	DEG_graph_free(depsgraph);
+	DEG_graph_free(temp_depsgraph);
 	return valid;
 }
 
