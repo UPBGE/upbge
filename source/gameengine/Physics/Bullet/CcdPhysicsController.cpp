@@ -1806,7 +1806,9 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 	}
 
 	m_vertexArray.resize(numVertices * 3);
-	m_vertexRemap.resize(numVertices, -1);
+	m_vertexRemap.resize(numVertices);
+	// resize() doesn't initialize all values if the vector wasn't empty before. Prefer fill explicitly.
+	std::fill(m_vertexRemap.begin(), m_vertexRemap.end(), -1);
 
 	// Current vertex written.
 	unsigned int curVert = 0;
