@@ -60,8 +60,6 @@ KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, w
 	m_area_rect(rect), // initialize area so that it's available for game logic on frame 1 (ImageViewport)
 	m_ar(ar)
 {
-	m_frame = 1;
-
 	m_rasterizer->GetViewport(m_viewport);
 }
 
