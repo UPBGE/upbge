@@ -64,11 +64,7 @@ EXP_Value *EXP_BaseListValue::FindValue(const std::string& name) const
 
 bool EXP_BaseListValue::SearchValue(EXP_Value *val) const
 {
-	const VectorTypeConstIterator it = std::find(m_pValueArray.begin(), m_pValueArray.end(), val);
-	if (it != m_pValueArray.end()) {
-		return true;
-	}
-	return false;
+	return (std::find(m_pValueArray.begin(), m_pValueArray.end(), val) != m_pValueArray.end());
 }
 
 void EXP_BaseListValue::Add(EXP_Value *value)

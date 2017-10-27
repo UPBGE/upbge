@@ -135,14 +135,7 @@ void SCA_PythonController::SetScriptName(const std::string& name)
 
 bool SCA_PythonController::IsTriggered(class SCA_ISensor* sensor)
 {
-	if (std::find(m_triggeredSensors.begin(), m_triggeredSensors.end(), sensor) != 
-		m_triggeredSensors.end())
-	{
-		return true;
-	}
-	else {
-		return false;
-	}
+	return (std::find(m_triggeredSensors.begin(), m_triggeredSensors.end(), sensor) != m_triggeredSensors.end());
 }
 
 #ifdef WITH_PYTHON

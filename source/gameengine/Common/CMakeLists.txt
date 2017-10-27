@@ -44,6 +44,7 @@ set(SRC
 	CM_Thread.cpp
 
 	CM_Format.h
+	CM_List.h
 	CM_Message.h
 	CM_RefCount.h
 	CM_Thread.h

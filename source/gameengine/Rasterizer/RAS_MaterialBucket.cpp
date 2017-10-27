@@ -36,7 +36,7 @@
 #include "RAS_MeshUser.h"
 #include "RAS_Deformer.h"
 
-#include <algorithm>
+#include "CM_List.h"
 
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)
@@ -158,10 +158,7 @@ void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
 
 void RAS_MaterialBucket::RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
 {
-	RAS_DisplayArrayBucketList::iterator it = std::find(m_displayArrayBucketList.begin(), m_displayArrayBucketList.end(), bucket);
-	if (it != m_displayArrayBucketList.end()) {
-		m_displayArrayBucketList.erase(it);
-	}
+	CM_ListRemoveIfFound(m_displayArrayBucketList, bucket);
 }
 
 RAS_DisplayArrayBucketList& RAS_MaterialBucket::GetDisplayArrayBucketList()

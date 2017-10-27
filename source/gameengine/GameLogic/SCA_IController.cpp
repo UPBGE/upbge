@@ -35,6 +35,7 @@
 #include "EXP_ListWrapper.h"
 
 #include "CM_Message.h"
+#include "CM_List.h"
 
 #include <algorithm>
 
@@ -91,9 +92,7 @@ void SCA_IController::LinkToActuator(SCA_IActuator *actua)
 
 void SCA_IController::UnlinkActuator(SCA_IActuator *actua)
 {
-	std::vector<SCA_IActuator *>::iterator it = std::find(m_linkedactuators.begin(), m_linkedactuators.end(), actua);
-	if (it != m_linkedactuators.end()) {
-		m_linkedactuators.erase(it);
+	if (CM_ListRemoveIfFound(m_linkedactuators, actua)) {
 		if (IsActive()) {
 			actua->DecLink();
 		}
@@ -114,9 +113,7 @@ void SCA_IController::LinkToSensor(SCA_ISensor *sensor)
 
 void SCA_IController::UnlinkSensor(SCA_ISensor *sensor)
 {
-	std::vector<SCA_ISensor *>::iterator it = std::find(m_linkedsensors.begin(), m_linkedsensors.end(), sensor);
-	if (it != m_linkedsensors.end()) {
-		m_linkedsensors.erase(it);
+	if (CM_ListRemoveIfFound(m_linkedsensors, sensor)) {
 		if (IsActive()) {
 			sensor->DecLink();
 		}

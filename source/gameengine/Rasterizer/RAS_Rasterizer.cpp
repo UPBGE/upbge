@@ -66,6 +66,7 @@ extern "C" {
 // >>>
 
 #include "CM_Message.h"
+#include "CM_List.h"
 
 RAS_Rasterizer::OffScreens::OffScreens()
 	:m_width(0),
@@ -1324,12 +1325,7 @@ void RAS_Rasterizer::RemoveLight(RAS_ILightObject *lightobject)
 	RAS_OpenGLLight *gllight = dynamic_cast<RAS_OpenGLLight *>(lightobject);
 	BLI_assert(gllight);
 
-	std::vector<RAS_OpenGLLight *>::iterator lit =
-	    std::find(m_lights.begin(), m_lights.end(), gllight);
-
-	if (lit != m_lights.end()) {
-		m_lights.erase(lit);
-	}
+	CM_ListRemoveIfFound(m_lights, gllight);
 }
 
 bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform)

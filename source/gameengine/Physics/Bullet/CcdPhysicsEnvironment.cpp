@@ -82,6 +82,7 @@ void DrawRasterizerLine(const float *from, const float *to, int color);
 #include "BulletDynamics/ConstraintSolver/btContactConstraint.h"
 
 #include "CM_Message.h"
+#include "CM_List.h"
 
 // This was copied from the old KX_ConvertPhysicsObjects
 #ifdef WIN32
@@ -529,7 +530,7 @@ void CcdPhysicsEnvironment::RemoveVehicle(WrapperVehicle *vehicle, bool free)
 {
 	m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
 	if (free) {
-		m_wrapperVehicles.erase(std::find(m_wrapperVehicles.begin(), m_wrapperVehicles.end(), vehicle));
+		CM_ListRemoveIfFound(m_wrapperVehicles, vehicle);
 		delete vehicle;
 	}
 }

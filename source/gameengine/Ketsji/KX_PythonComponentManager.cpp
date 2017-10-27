@@ -2,6 +2,8 @@
 #include "KX_PythonComponent.h"
 #include "KX_GameObject.h"
 
+#include "CM_List.h"
+
 KX_PythonComponentManager::KX_PythonComponentManager()
 {
 }
@@ -18,10 +20,7 @@ void KX_PythonComponentManager::RegisterObject(KX_GameObject *gameobj)
 
 void KX_PythonComponentManager::UnregisterObject(KX_GameObject *gameobj)
 {
-	std::vector<KX_GameObject *>::iterator it = std::find(m_objects.begin(), m_objects.end(), gameobj);
-	if (it != m_objects.end()) {
-		m_objects.erase(it);
-	}
+	CM_ListRemoveIfFound(m_objects, gameobj);
 }
 
 void KX_PythonComponentManager::UpdateComponents()

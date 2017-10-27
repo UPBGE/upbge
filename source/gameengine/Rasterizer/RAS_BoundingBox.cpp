@@ -26,7 +26,8 @@
 
 #include "RAS_BoundingBox.h"
 #include "RAS_BoundingBoxManager.h"
-#include <algorithm>
+
+#include "CM_List.h"
 
 RAS_BoundingBox::RAS_BoundingBox(RAS_BoundingBoxManager *manager)
 	:m_modified(false),
@@ -74,9 +75,7 @@ void RAS_BoundingBox::RemoveUser()
 	/* Some one was using this bounding box previously. Then remove it from the
 	 * active bounding box list. */
 	if (m_users == 0) {
-		RAS_BoundingBoxList::const_iterator it = std::find(m_manager->m_activeBoundingBoxList.begin(),
-														   m_manager->m_activeBoundingBoxList.end(), this);
-		m_manager->m_activeBoundingBoxList.erase(it);
+		CM_ListRemoveIfFound(m_manager->m_activeBoundingBoxList, this);
 	}
 }
 

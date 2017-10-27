@@ -31,9 +31,9 @@
 
 
 #include "SCA_IActuator.h"
-#include "CM_Message.h"
 
-#include <algorithm>
+#include "CM_Message.h"
+#include "CM_List.h"
 
 SCA_IActuator::SCA_IActuator(SCA_IObject *gameobj, KX_ACTUATOR_TYPE type) :
 	SCA_ILogicBrick(gameobj),
@@ -153,11 +153,7 @@ void SCA_IActuator::LinkToController(SCA_IController *controller)
 
 void SCA_IActuator::UnlinkController(SCA_IController *controller)
 {
-	std::vector<SCA_IController *>::iterator it = std::find(m_linkedcontrollers.begin(), m_linkedcontrollers.end(), controller);
-	if (it != m_linkedcontrollers.end()) {
-		m_linkedcontrollers.erase(it);
-	}
-	else {
+	if (!CM_ListRemoveIfFound(m_linkedcontrollers, controller)) {
 		CM_LogicBrickWarning(this, "Missing link from actuator " << m_gameobj->GetName() << ":"
 			<< GetName() << " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
 	}

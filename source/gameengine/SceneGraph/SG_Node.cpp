@@ -33,7 +33,7 @@
 #include "SG_Familly.h"
 #include "SG_Controller.h"
 
-#include <algorithm>
+#include "CM_List.h"
 
 static CM_ThreadMutex scheduleMutex;
 static CM_ThreadMutex transformMutex;
@@ -217,7 +217,7 @@ void SG_Node::AddChild(SG_Node *child)
 
 void SG_Node::RemoveChild(SG_Node *child)
 {
-	m_children.erase(std::find(m_children.begin(), m_children.end(), child));
+	CM_ListRemoveIfFound(m_children, child);
 }
 
 void SG_Node::UpdateWorldData(double time, bool parentUpdated)
@@ -340,7 +340,7 @@ void SG_Node::AddSGController(SG_Controller *cont)
 void SG_Node::RemoveSGController(SG_Controller *cont)
 {
 	m_mutex.Lock();
-	m_SGcontrollers.erase(std::find(m_SGcontrollers.begin(), m_SGcontrollers.end(), cont));
+	CM_ListRemoveIfFound(m_SGcontrollers, cont);
 	m_mutex.Unlock();
 }
 

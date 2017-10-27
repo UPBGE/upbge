@@ -39,6 +39,7 @@
 #include "SCA_PythonController.h"
 
 #include "CM_Message.h"
+#include "CM_List.h"
 
 void SCA_ISensor::ReParent(SCA_IObject *parent)
 {
@@ -218,11 +219,7 @@ void SCA_ISensor::LinkToController(SCA_IController *controller)
 
 void SCA_ISensor::UnlinkController(SCA_IController *controller)
 {
-	std::vector<SCA_IController *>::iterator it = std::find(m_linkedcontrollers.begin(), m_linkedcontrollers.end(), controller);
-	if (it != m_linkedcontrollers.end()) {
-		m_linkedcontrollers.erase(it);
-	}
-	else {
+	if (!CM_ListRemoveIfFound(m_linkedcontrollers, controller)) {
 		CM_LogicBrickWarning(this, "missing link from sensor " << m_gameobj->GetName() << ":" << GetName()
 			<< " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
 	}
