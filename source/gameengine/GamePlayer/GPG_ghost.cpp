@@ -249,7 +249,8 @@ static HWND findGhostWindowHWND(GHOST_IWindow* window)
 {
 	found_ghost_window_hwnd = nullptr;
 	ghost_window_to_find = window;
-	EnumWindows(findGhostWindowHWNDProc, nullptr);
+	LPARAM lParam = 0.0;
+	EnumWindows(findGhostWindowHWNDProc, lParam);
 	return found_ghost_window_hwnd;
 }
 
