@@ -340,12 +340,31 @@ void RAS_EeveeEffectsManager::DoSSR(RAS_FrameBuffer *inputfb)
 	}
 }
 
+void RAS_EeveeEffectsManager::DoGTAO(RAS_FrameBuffer *inputfb)
+{
+	if ((m_effects->enabled_effects & EFFECT_GTAO) != 0) {
+		DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+		EEVEE_effects_replace_e_data_depth(GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer()));
+
+		for (m_effects->ao_sample_nbr = 0.0; m_effects->ao_sample_nbr < m_effects->ao_samples; m_effects->ao_sample_nbr++) {
+
+			DRW_framebuffer_texture_detach(m_txl->gtao_horizons);
+			DRW_framebuffer_texture_layer_attach(m_fbl->gtao_fb, m_txl->gtao_horizons, 0, (int)m_effects->ao_sample_nbr, 0);
+			DRW_framebuffer_bind(m_fbl->gtao_fb);
+
+			DRW_draw_pass(m_psl->ao_horizon_search);
+		}
+	}
+}
+
 
 RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_FrameBuffer *inputfb)
 {
 	m_rasterizer->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
 	CreateMinMaxDepth(inputfb); // Used for AO and SSR and...?
+
+	DoGTAO(inputfb);
 
 	DoSSR(inputfb);
 
