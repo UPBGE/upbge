@@ -249,7 +249,7 @@ static HWND findGhostWindowHWND(GHOST_IWindow* window)
 {
 	found_ghost_window_hwnd = nullptr;
 	ghost_window_to_find = window;
-	EnumWindows(findGhostWindowHWNDProc, NULL);
+	EnumWindows(findGhostWindowHWNDProc, nullptr);
 	return found_ghost_window_hwnd;
 }
 
@@ -595,14 +595,14 @@ static bool quitGame(KX_ExitRequest exitcode)
 static BlendFileData *load_encrypted_game_data(const char *filename, std::string encryptKey)
 {
 	ReportList reports;
-	BlendFileData *bfd = NULL;
-	char *fileData = NULL;
+	BlendFileData *bfd = nullptr;
+	char *fileData = nullptr;
 	int fileSize;
 	std::string localPath(SPINDLE_GetFilePath());
 	BKE_reports_init(&reports, RPT_STORE);
 
-	if (filename == NULL) {
-		return NULL;
+	if (filename == nullptr) {
+		return nullptr;
 	}
 
 	if (!localPath.empty() && !encryptKey.empty()) {
@@ -1171,7 +1171,7 @@ int main(
 					{
 #ifdef WITH_GAMEENGINE_BPPLAYER
 						if (useLocalPath) {
-							bfd = load_encrypted_game_data(filename[0] ? filename : NULL, hexKey);
+							bfd = load_encrypted_game_data(filename[0] ? filename : nullptr, hexKey);
 
 							// The file is valid and it's the original file name.
 							if (bfd) {
@@ -1182,7 +1182,7 @@ int main(
 						else
 #endif  // WITH_GAMEENGINE_BPPLAYER
 						{
-							bfd = load_game_data(BKE_appdir_program_path(), filename[0] ? filename : NULL);
+							bfd = load_game_data(BKE_appdir_program_path(), filename[0] ? filename : nullptr);
 							// The file is valid and it's the original file name.
 							if (bfd)
 								KX_SetOrigPath(bfd->main->name);

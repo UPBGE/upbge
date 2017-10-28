@@ -59,7 +59,7 @@ EXP_Value *EXP_BaseListValue::FindValue(const std::string& name) const
 	if (it != m_pValueArray.end()) {
 		return *it;
 	}
-	return NULL;
+	return nullptr;
 }
 
 bool EXP_BaseListValue::SearchValue(EXP_Value *val) const
@@ -96,7 +96,7 @@ bool EXP_BaseListValue::CheckEqual(EXP_Value *first, EXP_Value *second)
 {
 	bool result = false;
 	EXP_Value *eqval = first->Calc(VALUE_EQL_OPERATOR, second);
-	if (eqval == NULL) {
+	if (eqval == nullptr) {
 		return false;
 	}
 	std::string text = eqval->GetText();
