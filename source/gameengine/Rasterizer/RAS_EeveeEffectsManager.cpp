@@ -250,11 +250,13 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderDof(RAS_FrameBuffer *inputfb)
 
 void RAS_EeveeEffectsManager::CreateMinMaxDepth(RAS_FrameBuffer *inputfb)
 {
-	/* Create stl->g_data->minmaxz from our depth texture.
-	 * This texture is used as uniform for some eevee features...
-	 * See: stl->g_data->minzbuffer and txl->maxzbuffer
-	 */
-	EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer()), -1);
+	if (m_useAO || m_effects->enabled_effects & EFFECT_SSR) {
+		/* Create stl->g_data->minmaxz from our depth texture.
+		 * This texture is used as uniform if AO is enabled or some other effects...
+		 * See: DRW_shgroup_uniform_buffer(shgrp, "minMaxDepthTex", &vedata->stl->g_data->minmaxz);
+		 */
+		EEVEE_create_minmax_buffer(m_scene->GetEeveeData(), GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer()), -1);
+	}
 }
 
 RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_FrameBuffer *inputfb)
@@ -360,7 +362,7 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_FrameBuffer *in
 {
 	m_rasterizer->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
-	CreateMinMaxDepth(inputfb);
+	CreateMinMaxDepth(inputfb); // Used for AO and SSR and...?
 
 	DoGTAO(inputfb);
 
