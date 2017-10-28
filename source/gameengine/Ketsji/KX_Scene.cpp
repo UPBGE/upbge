@@ -267,9 +267,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	Object *maincam = m_blenderScene->camera ? (Object *)m_blenderScene->camera : (Object *)KX_GetActiveEngine()->GetConverter()->GetMain()->camera.first;
 	bool isFirstScene = KX_GetActiveEngine()->CurrentScenes()->GetCount() == 0;
 	
-	int viewportsize[2] = { canvas->GetWidth() + 1, canvas->GetHeight() + 1 };
-	GPUOffScreen *tempgpuofs = GPU_offscreen_create(viewportsize[0], viewportsize[1], 0, nullptr);
-
+	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, nullptr);
+	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
 	DRW_game_render_loop_begin(tempgpuofs, m_blenderScene->depsgraph_legacy, m_blenderScene,
 		sl, maincam, viewportsize, isFirstScene);
 	GPU_offscreen_free(tempgpuofs);
