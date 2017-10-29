@@ -72,6 +72,7 @@ public:
 
 	void PrintDebugInfos(RAS_Rasterizer::DrawType drawtype);
 
+	bool IsTransparent();
 	void SetAlphaBlendStates(RAS_Rasterizer *rasty);
 
 	virtual bool IsValid(RAS_Rasterizer::DrawType drawtype) const;

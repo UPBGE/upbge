@@ -658,8 +658,8 @@ static const float cubefacemat[6][4][4] = {
 struct GPUShader *EEVEE_shadow_shader_get();
 struct GPUShader *EEVEE_shadow_store_shader_get();
 void EEVEE_effects_replace_e_data_depth(struct GPUTexture *depth_src);
-struct DRWShadingGroup *EEVEE_default_shading_group_get_no_pass(bool is_hair,
-	bool is_flat_normal, bool use_ssr, int shadow_method);
+struct DRWShadingGroup *EEVEE_default_shading_group_create_no_pass(bool is_hair,
+	bool is_flat_normal, bool use_blend, bool use_ssr, int shadow_method);
 void EEVEE_shgroup_add_standard_uniforms_game(struct DRWShadingGroup *shgrp,
 	EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
 	int *ssr_id, float *refract_depth, bool use_ssrefraction);

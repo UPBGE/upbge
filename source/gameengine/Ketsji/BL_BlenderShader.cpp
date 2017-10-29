@@ -136,7 +136,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 
 	/* STANDARD MATERIAL */
 	if (m_mat->use_nodes && m_mat->nodetree) {
-		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, (m_mat->blend_method == MA_BM_MULTIPLY), false, use_refract, SHADOW_ESM);
+		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, IsTransparent(), (m_mat->blend_method == MA_BM_MULTIPLY), use_refract, SHADOW_ESM);
 
 		m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
 	}
@@ -146,7 +146,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 		float *spec_p = &m_mat->spec;
 		float *rough_p = &m_mat->gloss_mir;
 
-		m_shGroup = EEVEE_default_shading_group_get_no_pass(false, false, stl->effects->use_ssr, SHADOW_ESM);
+		m_shGroup = EEVEE_default_shading_group_create_no_pass(false, false, IsTransparent(), stl->effects->use_ssr, SHADOW_ESM);
 		DRW_shgroup_uniform_vec3(m_shGroup, "basecol", color_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "metallic", metal_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "specular", spec_p, 1);
@@ -259,6 +259,11 @@ void BL_BlenderShader::PrintDebugInfos(RAS_Rasterizer::DrawType drawtype)
 		index = 3;
 	}
 	CM_Debug("BL_BlenderShader::" << drawTypeMsg[index]);
+}
+
+bool BL_BlenderShader::IsTransparent()
+{
+	return ELEM(m_mat->blend_method, MA_BM_ADD, MA_BM_MULTIPLY, MA_BM_BLEND);
 }
 
 void BL_BlenderShader::SetAlphaBlendStates(RAS_Rasterizer *rasty)
