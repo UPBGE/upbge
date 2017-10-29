@@ -362,6 +362,16 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderEeveeEffects(RAS_FrameBuffer *in
 {
 	m_rasterizer->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 
+	/* In the case the last draw material in material pass was transparent,
+	 * GL_BLEND is enabled and this can cause trouble when we we render
+	 * eevee effects (bloom accumulation) so I disable GL_BLEND here.
+	 * Not sure this is the better place but...
+	 * Maybe we can find common ogl states for PostRenderEevee and
+	 * PostRenderScene (filters2D) and set all these states in a function
+	 * called in KetsjiEngine.
+	 */
+	m_rasterizer->Disable(RAS_Rasterizer::RAS_BLEND);
+
 	CreateMinMaxDepth(inputfb); // Used for AO and SSR and...?
 
 	DoGTAO(inputfb);
