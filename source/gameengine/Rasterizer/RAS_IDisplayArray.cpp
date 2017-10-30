@@ -110,7 +110,7 @@ void RAS_IDisplayArray::SortPolygons(const MT_Transform& transform, unsigned int
 	const MT_Vector3 pnorm(transform.getBasis()[2]);
 
 	if (m_polygonCenters.size() != totpoly) {
-		m_polygonCenters.resize(totpoly);
+		m_polygonCenters.resize(totpoly, MT_Vector3(0.0f, 0.0f, 0.0f));
 		for (unsigned int i = 0; i < totpoly; ++i) {
 			// Compute polygon center.
 			MT_Vector3& center = m_polygonCenters[i];
