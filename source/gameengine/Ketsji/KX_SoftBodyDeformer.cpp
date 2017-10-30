@@ -104,7 +104,7 @@ void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 
 	// AABB Box : min/max.
 	MT_Vector3 aabbMin(FLT_MAX, FLT_MAX, FLT_MAX);
-	MT_Vector3 aabbMax(FLT_MIN, FLT_MIN, FLT_MIN);
+	MT_Vector3 aabbMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 	for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 		RAS_IVertex *v = array->GetVertex(i);

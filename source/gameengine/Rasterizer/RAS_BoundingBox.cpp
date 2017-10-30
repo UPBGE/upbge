@@ -161,7 +161,7 @@ void RAS_MeshBoundingBox::Update(bool force)
 	}
 
 	m_aabbMin = MT_Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
-	m_aabbMax = MT_Vector3(FLT_MIN, FLT_MIN, FLT_MIN);
+	m_aabbMax = MT_Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 	for (RAS_IDisplayArray *displayArray : m_displayArrayList) {
 		// For each vertex.
