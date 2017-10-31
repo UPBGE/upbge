@@ -217,8 +217,12 @@ PyObject *EXP_PyObjectPlus::py_base_new(PyTypeObject *type, PyObject *args, PyOb
 		 * there is no reference to the BGE data now so it will throw an error on access */
 		Py_DECREF(base);
 		if (ret->ref) {
-			ret->ref->m_proxy = (PyObject *)ret; // No need to add a ref because one is added when creating.
-			Py_INCREF(ret); // We return a new ref but m_proxy holds a ref so we need to add one.
+			ret->ref->m_proxy = (PyObject *)ret;
+
+			// Incref the proxy in case the python doesn't own the ref.
+			if (!ret->py_owns) {
+				Py_INCREF(ret);
+			}
 		}
 	}
 	else {
