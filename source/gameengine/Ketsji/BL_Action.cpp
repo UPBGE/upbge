@@ -493,7 +493,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 				BlendShape(key, m_layer_weight, m_blendshape);
 			}
 
-			obj->SetActiveAction(0, curtime);
+			obj->SetLastFrame(curtime);
 		}
 	}
 }
