@@ -170,13 +170,14 @@ void BL_DeformableGameObject::LoadDeformer()
 		meshblendobj = m_pBlenderObject;
 	}
 
-	bool bHasModifier = BL_ModifierDeformer::HasCompatibleDeformer(m_pBlenderObject);
-	bool bHasShapeKey = mesh->key && mesh->key->type == KEY_RELATIVE;
-	bool bHasDvert = mesh->dvert && m_pBlenderObject->defbase.first;
-	bool bHasArmature = BL_ModifierDeformer::HasArmatureDeformer(m_pBlenderObject) &&
-		parentobj && parentobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE && meshblendobj && bHasDvert;
+	const bool isParentArmature = parentobj && parentobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE;
+	const bool bHasModifier = BL_ModifierDeformer::HasCompatibleDeformer(m_pBlenderObject);
+	const bool bHasShapeKey = mesh->key && mesh->key->type == KEY_RELATIVE;
+	const bool bHasDvert = mesh->dvert && m_pBlenderObject->defbase.first;
+	const bool bHasArmature = BL_ModifierDeformer::HasArmatureDeformer(m_pBlenderObject) &&
+			isParentArmature && meshblendobj && bHasDvert;
 #ifdef WITH_BULLET
-	bool bHasSoftBody = (!parentobj && (m_pBlenderObject->gameflag & OB_SOFT_BODY));
+	const bool bHasSoftBody = (!parentobj && (m_pBlenderObject->gameflag & OB_SOFT_BODY));
 #endif
 
 	if (!meshblendobj) {
@@ -187,7 +188,7 @@ void BL_DeformableGameObject::LoadDeformer()
 	}
 
 	if (bHasModifier) {
-		if (bHasShapeKey || bHasArmature) {
+		if (isParentArmature) {
 			BL_ModifierDeformer *modifierDeformer = new BL_ModifierDeformer(this, blenderScene, meshblendobj, m_pBlenderObject,
 					meshobj, static_cast<BL_ArmatureObject *>(parentobj));
 			modifierDeformer->LoadShapeDrivers(parentobj);
@@ -198,7 +199,7 @@ void BL_DeformableGameObject::LoadDeformer()
 		}
 	}
 	else if (bHasShapeKey) {
-		if (bHasArmature) {
+		if (isParentArmature) {
 			BL_ShapeDeformer *shapeDeformer = new BL_ShapeDeformer(this, meshblendobj, m_pBlenderObject, meshobj,
 					static_cast<BL_ArmatureObject *>(parentobj));
 			shapeDeformer->LoadShapeDrivers(parentobj);
@@ -221,4 +222,3 @@ void BL_DeformableGameObject::LoadDeformer()
 	}
 #endif
 }
-
