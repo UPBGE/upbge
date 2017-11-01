@@ -735,7 +735,7 @@ void KX_GameObject::UpdateBuckets()
 	if (shgroups.size() > 0) {
 		for (DRWShadingGroup *sh : shgroups) {
 			for (Gwn_Batch *batch : m_materialBatches) {
-				DRW_shgroup_call_add(sh, batch, (float(*)[4])m_meshUser->GetMatrix());
+				DRW_calls_update_obmat(sh, batch, (float(*)[4])m_meshUser->GetMatrix());
 			}
 		}
 	}
