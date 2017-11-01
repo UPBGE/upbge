@@ -127,13 +127,3 @@ void RAS_MeshUser::ActivateMeshSlots()
 		ms->m_displayArrayBucket->ActivateMesh(ms);
 	}
 }
-
-void RAS_MeshUser::SetDrawShadingGroups(std::vector<DRWShadingGroup *>shgroups)
-{
-	m_shGroups = shgroups;
-}
-
-std::vector<DRWShadingGroup *> RAS_MeshUser::GetDrawShadingGroups()
-{
-	return m_shGroups;
-}

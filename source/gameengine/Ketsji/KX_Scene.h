@@ -99,6 +99,7 @@ struct TaskPool;
 struct EEVEE_Data;
 struct IDProperty;
 struct DefaultTextureList;
+struct DRWShadingGroup;
 
 /* for ID freeing */
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
@@ -144,7 +145,7 @@ private:
 protected:
 
 
-	bool m_shGroupsInitialized;
+	std::vector<DRWShadingGroup *>m_shGroups;
 
 
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
@@ -348,6 +349,7 @@ public:
 	bool GetIsLastScene();
 	void AppendProbeList(KX_GameObject *probe);
 	std::vector<KX_GameObject *>GetProbeList();
+	std::vector<DRWShadingGroup *>GetDrawShadingGroups();
 	/***************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;

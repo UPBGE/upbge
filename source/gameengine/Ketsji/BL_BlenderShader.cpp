@@ -65,9 +65,6 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer
 
 BL_BlenderShader::~BL_BlenderShader()
 {
-	if (m_shGroup) {
-		DRW_shgroup_free(m_shGroup);
-	}
 }
 
 const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
@@ -120,59 +117,6 @@ const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_Mesh
 
 void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 {
-	if (m_shGroup) {
-		DRW_shgroup_free(m_shGroup);
-	}
-	if (m_depthShGroup) {
-		DRW_shgroup_free(m_depthShGroup);
-	}
-	EEVEE_Data *vedata = scene->GetEeveeData();
-	EEVEE_StorageList *stl = vedata->stl;
-
-	const bool use_refract = ((m_mat->blend_flag & MA_BL_SS_REFRACTION) != 0) && ((stl->effects->enabled_effects & EFFECT_REFRACT) != 0);
-	static int no_ssr = -1;
-	static int first_ssr = 0;
-	int *ssr_id = (stl->effects->use_ssr && !use_refract) ? &first_ssr : &no_ssr;
-
-	/* STANDARD MATERIAL */
-	if (m_mat->use_nodes && m_mat->nodetree) {
-		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, IsTransparent(), (m_mat->blend_method == MA_BM_MULTIPLY), use_refract, SHADOW_ESM);
-
-		m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
-	}
-	else {
-		float *color_p = &m_mat->r;
-		float *metal_p = &m_mat->ray_mirror;
-		float *spec_p = &m_mat->spec;
-		float *rough_p = &m_mat->gloss_mir;
-
-		m_shGroup = EEVEE_default_shading_group_create_no_pass(false, false, IsTransparent(), stl->effects->use_ssr, SHADOW_ESM);
-		DRW_shgroup_uniform_vec3(m_shGroup, "basecol", color_p, 1);
-		DRW_shgroup_uniform_float(m_shGroup, "metallic", metal_p, 1);
-		DRW_shgroup_uniform_float(m_shGroup, "specular", spec_p, 1);
-		DRW_shgroup_uniform_float(m_shGroup, "roughness", rough_p, 1);
-	}
-	/* DEPTH MATERIAL */
-	if (m_mat->use_nodes && m_mat->nodetree) {
-		m_depthGpuMat = EEVEE_material_mesh_depth_get(m_blenderScene, m_mat, false, false);
-
-		m_depthShGroup = DRW_shgroup_material_create(m_depthGpuMat, nullptr);
-	}
-	else {
-		m_depthShGroup = stl->g_data->depth_shgrp;
-	}
-	/* DEPTH CLIP MATERIAL */
-	if (m_mat->use_nodes && m_mat->nodetree) {
-		m_depthGpuMat = EEVEE_material_mesh_depth_get(m_blenderScene, m_mat, false, false);
-
-		m_depthShGroup = DRW_shgroup_material_create(m_depthGpuMat, nullptr);
-	}
-	else {
-		m_depthShGroup = stl->g_data->depth_shgrp_clip;
-	}
-
-	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, (EEVEE_SceneLayerData *)&scene->GetSceneLayerData()->GetData(),
-		scene->GetEeveeData(), ssr_id, &m_mat->refract_depth, use_refract);
 }
 
 GPUMaterial *BL_BlenderShader::GetGpuMaterial(RAS_Rasterizer::DrawType drawtype)
@@ -297,11 +241,11 @@ void BL_BlenderShader::SetAlphaBlendStates(RAS_Rasterizer *rasty)
 void BL_BlenderShader::Activate(RAS_Rasterizer *rasty)
 {
 	if (!IsValid(rasty->GetDrawingMode())) {
-		PrintDebugInfos(rasty->GetDrawingMode());
+		//PrintDebugInfos(rasty->GetDrawingMode());
 		return;
 	}
-	SetAlphaBlendStates(rasty);
-	DRW_bind_shader_shgroup(GetDRWShadingGroup(rasty->GetDrawingMode()));
+	//SetAlphaBlendStates(rasty);
+	//DRW_bind_shader_shgroup(GetDRWShadingGroup(rasty->GetDrawingMode()));
 }
 
 void BL_BlenderShader::Desactivate()
@@ -311,15 +255,5 @@ void BL_BlenderShader::Desactivate()
 void BL_BlenderShader::Update(RAS_Rasterizer *UNUSED(rasty), RAS_MeshUser *meshUser)
 {
 	//DRW_draw_geometry_prepare(m_shGroup, (float(*)[4])meshUser->GetMatrix(), nullptr, nullptr);
-	std::vector<DRWShadingGroup *>shgroups;
-	if (m_shGroup) {
-		shgroups.push_back(m_shGroup);
-	}
-	if (m_depthShGroup) {
-		shgroups.push_back(m_depthShGroup);
-	}
-	if (m_depthClipShGroup) {
-		shgroups.push_back(m_depthClipShGroup);
-	}
-	meshUser->SetDrawShadingGroups(shgroups);
+	
 }

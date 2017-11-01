@@ -722,7 +722,7 @@ void KX_GameObject::UpdateBuckets()
 	m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
 	m_meshUser->ActivateMeshSlots();
 
-	std::vector<DRWShadingGroup *>shgroups = m_meshUser->GetDrawShadingGroups();
+	std::vector<DRWShadingGroup *>shgroups = GetScene()->GetDrawShadingGroups();
 	if (shgroups.size() > 0) {
 		for (DRWShadingGroup *sh : shgroups) {
 			DRW_calls_update_obmat(sh, (float(*)[4])m_meshUser->GetMatrix());

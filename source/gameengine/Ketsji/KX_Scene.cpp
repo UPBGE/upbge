@@ -202,8 +202,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_lodHysteresisValue(0),
 	m_effectsManager(nullptr),
 	m_eeveeData(nullptr),
-	m_isLastScene(false),
-	m_shGroupsInitialized(false)
+	m_isLastScene(false)
 {
 
 	m_dbvt_culling = false;
@@ -281,6 +280,31 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_eeveeData = EEVEE_engine_data_get();
 
 	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, KX_GetActiveEngine()->GetRasterizer(), this);
+
+
+	EEVEE_PassList *psl = m_eeveeData->psl;
+
+	DRWPass *matpass = psl->material_pass;
+	ListBase matsh = DRW_draw_shading_groups_from_pass_get(matpass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)matsh.first; s; s = DRW_draw_shgroup_next(s)) {
+		m_shGroups.push_back(s);
+	}
+	DRWPass *depthpass = psl->depth_pass;
+	ListBase depthsh = DRW_draw_shading_groups_from_pass_get(depthpass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)depthsh.first; s; s = DRW_draw_shgroup_next(s)) {
+		m_shGroups.push_back(s);
+	}
+	DRWPass *depthpasscull = psl->depth_pass_cull;
+	ListBase depthcsh = DRW_draw_shading_groups_from_pass_get(depthpasscull);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)depthcsh.first; s; s = DRW_draw_shgroup_next(s)) {
+		m_shGroups.push_back(s);
+	}
+	DRWPass *transparentpass = psl->transparent_pass;
+	ListBase trsh = DRW_draw_shading_groups_from_pass_get(transparentpass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)trsh.first; s; s = DRW_draw_shgroup_next(s)) {
+		m_shGroups.push_back(s);
+	}
+
 
 	/******************************************************************************************************************************/
 
@@ -394,6 +418,11 @@ void KX_Scene::AppendProbeList(KX_GameObject *probe)
 std::vector<KX_GameObject *>KX_Scene::GetProbeList()
 {
 	return m_lightProbes;
+}
+
+std::vector<DRWShadingGroup *>KX_Scene::GetDrawShadingGroups()
+{
+	return m_shGroups;
 }
 
 void KX_Scene::SetSceneLayerData(RAS_SceneLayerData *layerData)
@@ -1729,11 +1758,6 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
 		 * It's done just before the render to be sure of the object color and visibility. */
 		node->GetObject()->UpdateBuckets();
-	}
-
-	if (!m_shGroupsInitialized) {
-		m_bucketmanager->Renderbuckets(cameratransform, rasty, frameBuffer); //just to update set meshuser shadinggroups list at the first frame
-		m_shGroupsInitialized = true;
 	}
 
 	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;

@@ -3632,6 +3632,16 @@ static void DRW_viewport_var_init_bge(void)
 	glFrontFace(DST.frontface);
 }
 
+struct ListBase DRW_draw_shading_groups_from_pass_get(DRWPass *pass)
+{
+	return pass->shgroups;
+}
+
+DRWShadingGroup *DRW_draw_shgroup_next(DRWShadingGroup *current)
+{
+	return current->next;
+}
+
 void DRW_calls_update_obmat(DRWShadingGroup *shgroup, float obmat[4][4])
 {
 #ifdef USE_MEM_ITER

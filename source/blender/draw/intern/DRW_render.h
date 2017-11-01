@@ -458,6 +458,8 @@ void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup);
 void DRW_end_shgroup(void);
 void DRW_state_from_pass_set(DRWPass *pass);
 void DRW_calls_update_obmat(DRWShadingGroup *shgroup, float obmat[4][4]);
+struct ListBase DRW_draw_shading_groups_from_pass_get(DRWPass *pass);
+DRWShadingGroup *DRW_draw_shgroup_next(DRWShadingGroup *current);
 /**************************END OF GAME ENGINE*******************************/
 
 #endif /* __DRW_RENDER_H__ */
