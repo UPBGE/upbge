@@ -1760,6 +1760,7 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 		node->GetObject()->UpdateBuckets();
 	}
 
+	//rasty->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
 	DRW_draw_pass(psl->depth_pass);
 	DRW_draw_pass(psl->depth_pass_cull);

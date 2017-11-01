@@ -166,6 +166,8 @@ extern "C" {
 
 #  include "eevee_private.h"
 #  include "eevee_engine.h"
+#  include "draw/intern/DRW_render.h"
+#  include "BLI_alloca.h"
 
 extern Material defmaterial;	/* material.c */
 }
@@ -1312,6 +1314,19 @@ static void bl_ConvertBlenderObject_Single(
 
 		gameobj->NodeUpdateGS(0);
 		gameobj->AddMeshUser();
+
+		/////////////////////////////DIRT FLAG///////////////////////////////////////////////////////////////////
+		/* Get per-material split surface */
+		Object *ob = gameobj->GetBlenderObject();
+		int materials_len = ob->totcol;
+		struct GPUMaterial **gpumat_array = (GPUMaterial **)BLI_array_alloca(gpumat_array, materials_len);
+		struct Gwn_Batch **mat_geom = DRW_cache_object_surface_material_get(ob, gpumat_array, materials_len);
+		if (mat_geom) {
+			for (int i = 0; i < materials_len; ++i) {
+				gameobj->AddMaterialBatch(mat_geom[i]);
+			}
+		}
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////
 	}
 	else
 	{

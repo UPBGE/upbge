@@ -45,6 +45,7 @@ set(INC
 	../../blender/blenkernel
 	../../blender/blenlib
 	../../blender/blenloader
+	../../blender/blentranslation
 	../../blender/depsgraph
 	../../blender/draw/engines/eevee
 	../../blender/draw/engines/game
@@ -53,6 +54,7 @@ set(INC
 	../../blender/imbuf
 	../../blender/makesdna
 	../../blender/makesrna
+	../../blender/render/extern/include
 	../../blender/windowmanager
 	../../../intern/guardedalloc
 	../../../intern/termcolor

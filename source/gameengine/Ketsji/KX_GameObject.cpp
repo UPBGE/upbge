@@ -212,6 +212,15 @@ KX_GameObject::~KX_GameObject()
 	}
 }
 
+
+
+void KX_GameObject::AddMaterialBatch(Gwn_Batch *batch)
+{
+	m_materialBatches.push_back(batch);
+}
+
+
+
 KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
 {
 	if (!info)
@@ -725,7 +734,9 @@ void KX_GameObject::UpdateBuckets()
 	std::vector<DRWShadingGroup *>shgroups = GetScene()->GetDrawShadingGroups();
 	if (shgroups.size() > 0) {
 		for (DRWShadingGroup *sh : shgroups) {
-			DRW_calls_update_obmat(sh, (float(*)[4])m_meshUser->GetMatrix());
+			for (Gwn_Batch *batch : m_materialBatches) {
+				DRW_shgroup_call_add(sh, batch, (float(*)[4])m_meshUser->GetMatrix());
+			}
 		}
 	}
 }

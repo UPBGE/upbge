@@ -65,6 +65,7 @@ struct Object;
 class KX_ObstacleSimulation;
 class KX_CollisionContactPointList;
 struct bAction;
+struct Gwn_Batch;
 
 #ifdef WITH_PYTHON
 /* utility conversion function */
@@ -82,6 +83,14 @@ class KX_GameObject : public SCA_IObject
 {
 	Py_Header
 protected:
+
+
+
+
+	std::vector<Gwn_Batch *>m_materialBatches;
+
+
+
 
 	KX_ClientObjectInfo*				m_pClient_info;
 	std::string							m_name;
@@ -125,6 +134,20 @@ protected:
 	BL_ActionManager* GetActionManager();
 
 public:
+
+
+
+
+	void AddMaterialBatch(Gwn_Batch *batch); // material display array
+
+
+
+
+
+
+
+
+
 	/**
 	 * KX_GameObject custom infos for ray cast, it contains property name,
 	 * collision mask, xray flag and hited object.

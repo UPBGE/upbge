@@ -34,7 +34,6 @@
 
 class RAS_BoundingBox;
 class RAS_BatchGroup;
-struct DRWShadingGroup;
 
 class RAS_MeshUser
 {
