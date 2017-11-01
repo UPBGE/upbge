@@ -66,6 +66,7 @@ class KX_ObstacleSimulation;
 class KX_CollisionContactPointList;
 struct bAction;
 struct Gwn_Batch;
+struct DRWShadingGroup;
 
 #ifdef WITH_PYTHON
 /* utility conversion function */
@@ -88,6 +89,7 @@ protected:
 
 
 	std::vector<Gwn_Batch *>m_materialBatches;
+	std::vector<DRWShadingGroup *>m_shGroups;
 
 
 

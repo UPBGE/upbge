@@ -144,10 +144,6 @@ private:
 
 protected:
 
-
-	std::vector<DRWShadingGroup *>m_shGroups;
-
-
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
 	EEVEE_Data *m_eeveeData;
 	IDProperty *m_props;
@@ -349,7 +345,6 @@ public:
 	bool GetIsLastScene();
 	void AppendProbeList(KX_GameObject *probe);
 	std::vector<KX_GameObject *>GetProbeList();
-	std::vector<DRWShadingGroup *>GetDrawShadingGroups();
 	/***************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;
