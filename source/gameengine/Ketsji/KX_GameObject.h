@@ -88,7 +88,7 @@ protected:
 
 
 	std::vector<Gwn_Batch *>m_materialBatches;
-
+	std::vector<DRWShadingGroup *>m_gameobShGroups;
 
 
 
@@ -137,8 +137,10 @@ public:
 
 
 
-
+	void AddGraphicMaterials();
 	void AddMaterialBatch(Gwn_Batch *batch); // material display array
+	void AddMaterialsDrawCall(float obmat[4][4]);
+	std::vector<DRWShadingGroup *>GetMaterialShadingGroups();
 
 
 

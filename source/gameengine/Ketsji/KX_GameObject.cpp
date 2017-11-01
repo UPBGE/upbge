@@ -96,6 +96,8 @@
 
 extern "C" {
 #  include "DRW_render.h"
+#  include "BLI_alloca.h"
+#  include "GPU_immediate.h"
 }
 
 static MT_Vector3 dummy_point= MT_Vector3(0.0f, 0.0f, 0.0f);
@@ -217,6 +219,49 @@ KX_GameObject::~KX_GameObject()
 void KX_GameObject::AddMaterialBatch(Gwn_Batch *batch)
 {
 	m_materialBatches.push_back(batch);
+}
+
+void KX_GameObject::AddGraphicMaterials()
+{
+	/* Get per-material split surface */
+	Object *ob = GetBlenderObject();
+	int materials_len = ob->totcol;
+	struct GPUMaterial **gpumat_array = (GPUMaterial **)BLI_array_alloca(gpumat_array, materials_len);
+	struct Gwn_Batch **mat_geom = DRW_cache_object_surface_material_get(ob, gpumat_array, materials_len);
+	if (mat_geom) {
+		for (int i = 0; i < materials_len; ++i) {
+			AddMaterialBatch(mat_geom[i]);
+		}
+	}
+}
+
+/* Can be called only after we added batches with AddGraphicMaterials */
+/* GET + CREATE IF DOESN'T EXIST */
+std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
+{
+	if (m_gameobShGroups.size() > 0) {
+		return m_gameobShGroups;
+	}
+	KX_Scene *scene = GetScene();
+	std::vector<DRWShadingGroup *>allShGroups = scene->GetMaterialShadingGroups();
+	for (DRWShadingGroup *sh : allShGroups) {
+		for (Gwn_Batch *batch : m_materialBatches) {
+			if (DRW_draw_shading_group_belongs_to_gameobject(sh, batch)) {
+				m_gameobShGroups.push_back(sh);
+			}
+		}
+	}
+	return m_gameobShGroups;
+}
+
+/* Can be called only after we added batches with AddGraphicMaterials + GetMaterialShadingGroups() */
+void KX_GameObject::AddMaterialsDrawCall(float obmat[4][4])
+{
+	for (DRWShadingGroup *sh : m_gameobShGroups) {
+		for (Gwn_Batch *batch : m_materialBatches) {
+			DRW_shgroup_call_add(sh, batch, obmat);
+		}
+	}
 }
 
 

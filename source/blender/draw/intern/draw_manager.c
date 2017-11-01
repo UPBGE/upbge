@@ -3632,6 +3632,23 @@ static void DRW_viewport_var_init_bge(void)
 	glFrontFace(DST.frontface);
 }
 
+bool DRW_draw_shading_group_belongs_to_gameobject(DRWShadingGroup *shgroup, Gwn_Batch *batch)
+{
+#ifdef USE_MEM_ITER
+	BLI_memiter_handle calls_iter;
+	BLI_memiter_iter_init(shgroup->calls, &calls_iter);
+	for (DRWCall *call; (call = BLI_memiter_iter_step(&calls_iter));)
+#else
+	for (DRWCall *call = shgroup->calls.first; call; call = call->head.next)
+#endif
+	{
+		if (call->geometry == batch) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void DRW_calls_update_obmat(DRWShadingGroup *shgroup, Gwn_Batch *batch, float obmat[4][4])
 {
 #ifdef USE_MEM_ITER

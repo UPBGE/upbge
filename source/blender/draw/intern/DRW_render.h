@@ -460,6 +460,7 @@ void DRW_state_from_pass_set(DRWPass *pass);
 struct ListBase DRW_draw_shading_groups_from_pass_get(DRWPass *pass);
 DRWShadingGroup *DRW_draw_shgroup_next(DRWShadingGroup *current);
 void DRW_calls_update_obmat(DRWShadingGroup *shgroup, struct Gwn_Batch *batch, float obmat[4][4]);
+bool DRW_draw_shading_group_belongs_to_gameobject(DRWShadingGroup *shgroup, struct Gwn_Batch *batch);
 /**************************END OF GAME ENGINE*******************************/
 
 #endif /* __DRW_RENDER_H__ */
