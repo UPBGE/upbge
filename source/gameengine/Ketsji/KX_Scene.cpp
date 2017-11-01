@@ -202,7 +202,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_lodHysteresisValue(0),
 	m_effectsManager(nullptr),
 	m_eeveeData(nullptr),
-	m_isLastScene(false)
+	m_isLastScene(false),
+	m_shGroupsInitialized(false)
 {
 
 	m_dbvt_culling = false;
@@ -1730,7 +1731,17 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 		node->GetObject()->UpdateBuckets();
 	}
 
-	m_bucketmanager->Renderbuckets(cameratransform, rasty, frameBuffer);
+	if (!m_shGroupsInitialized) {
+		m_bucketmanager->Renderbuckets(cameratransform, rasty, frameBuffer); //just to update set meshuser shadinggroups list at the first frame
+		m_shGroupsInitialized = true;
+	}
+
+	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
+	DRW_draw_pass(psl->depth_pass);
+	DRW_draw_pass(psl->depth_pass_cull);
+	EEVEE_draw_default_passes(psl);
+	DRW_draw_pass(psl->material_pass);
+	DRW_draw_pass(psl->transparent_pass);
 
 	KX_BlenderMaterial::EndFrame(rasty);
 }

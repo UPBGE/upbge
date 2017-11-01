@@ -457,6 +457,7 @@ struct GPUShader *DRW_shgroup_shader_get(DRWShadingGroup *shgroup);
 void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup);
 void DRW_end_shgroup(void);
 void DRW_state_from_pass_set(DRWPass *pass);
+void DRW_calls_update_obmat(DRWShadingGroup *shgroup, float obmat[4][4]);
 /**************************END OF GAME ENGINE*******************************/
 
 #endif /* __DRW_RENDER_H__ */

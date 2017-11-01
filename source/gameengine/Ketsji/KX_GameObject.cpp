@@ -94,6 +94,10 @@
 
 #include "CM_Message.h"
 
+extern "C" {
+#  include "DRW_render.h"
+}
+
 static MT_Vector3 dummy_point= MT_Vector3(0.0f, 0.0f, 0.0f);
 static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);
 static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(1.0f, 0.0f, 0.0f,
@@ -717,6 +721,13 @@ void KX_GameObject::UpdateBuckets()
 	m_meshUser->SetColor(m_objectColor);
 	m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
 	m_meshUser->ActivateMeshSlots();
+
+	std::vector<DRWShadingGroup *>shgroups = m_meshUser->GetDrawShadingGroups();
+	if (shgroups.size() > 0) {
+		for (DRWShadingGroup *sh : shgroups) {
+			DRW_calls_update_obmat(sh, (float(*)[4])m_meshUser->GetMatrix());
+		}
+	}
 }
 
 void KX_GameObject::RemoveMeshes()

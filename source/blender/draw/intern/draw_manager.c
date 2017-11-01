@@ -3632,6 +3632,20 @@ static void DRW_viewport_var_init_bge(void)
 	glFrontFace(DST.frontface);
 }
 
+void DRW_calls_update_obmat(DRWShadingGroup *shgroup, float obmat[4][4])
+{
+#ifdef USE_MEM_ITER
+	BLI_memiter_handle calls_iter;
+	BLI_memiter_iter_init(shgroup->calls, &calls_iter);
+	for (DRWCall *call; (call = BLI_memiter_iter_step(&calls_iter));)
+#else
+	for (DRWCall *call = shgroup->calls.first; call; call = call->head.next)
+#endif
+	{
+		copy_m4_m4(call->obmat, obmat);
+	}
+}
+
 static void bind_shader(DRWShadingGroup *shgroup)
 {
 	BLI_assert(shgroup->shader);

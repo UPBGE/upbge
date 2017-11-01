@@ -34,6 +34,7 @@
 
 class RAS_BoundingBox;
 class RAS_BatchGroup;
+struct DRWShadingGroup;
 
 class RAS_MeshUser
 {
@@ -53,6 +54,9 @@ private:
 	/// Possible batching groups shared between mesh users.
 	RAS_BatchGroup *m_batchGroup;
 
+
+	std::vector<DRWShadingGroup *>m_shGroups;
+
 public:
 	RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox);
 	virtual ~RAS_MeshUser();
@@ -69,6 +73,9 @@ public:
 	void SetFrontFace(bool frontFace);
 	void SetColor(const MT_Vector4& color);
 	void SetBatchGroup(RAS_BatchGroup *batchGroup);
+
+	void SetDrawShadingGroups(std::vector<DRWShadingGroup *>drwshadinggroups);
+	std::vector<DRWShadingGroup *>GetDrawShadingGroups();
 
 	void ActivateMeshSlots();
 };

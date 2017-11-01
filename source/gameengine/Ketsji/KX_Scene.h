@@ -142,6 +142,11 @@ private:
 	};
 
 protected:
+
+
+	bool m_shGroupsInitialized;
+
+
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
 	EEVEE_Data *m_eeveeData;
 	IDProperty *m_props;

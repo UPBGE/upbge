@@ -310,5 +310,16 @@ void BL_BlenderShader::Desactivate()
 
 void BL_BlenderShader::Update(RAS_Rasterizer *UNUSED(rasty), RAS_MeshUser *meshUser)
 {
-	DRW_draw_geometry_prepare(m_shGroup, (float(*)[4])meshUser->GetMatrix(), nullptr, nullptr);
+	//DRW_draw_geometry_prepare(m_shGroup, (float(*)[4])meshUser->GetMatrix(), nullptr, nullptr);
+	std::vector<DRWShadingGroup *>shgroups;
+	if (m_shGroup) {
+		shgroups.push_back(m_shGroup);
+	}
+	if (m_depthShGroup) {
+		shgroups.push_back(m_depthShGroup);
+	}
+	if (m_depthClipShGroup) {
+		shgroups.push_back(m_depthClipShGroup);
+	}
+	meshUser->SetDrawShadingGroups(shgroups);
 }

@@ -157,7 +157,7 @@ void RAS_MeshSlot::RunNodeNormal(const RAS_MeshSlotNodeTuple& tuple)
 {
 	PrepareRunNode(tuple);
 
-	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	/*RAS_ManagerNodeData *managerData = tuple.m_managerData;
 	RAS_MaterialNodeData *materialData = tuple.m_materialData;
 	RAS_DisplayArrayNodeData *displayArrayData = tuple.m_displayArrayData;
 
@@ -168,5 +168,5 @@ void RAS_MeshSlot::RunNodeNormal(const RAS_MeshSlotNodeTuple& tuple)
 		storage->FlushIndexMap();
 	}
 
-	storage->IndexPrimitives();
+	storage->IndexPrimitives();*/
 }
