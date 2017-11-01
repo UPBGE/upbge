@@ -281,6 +281,31 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, KX_GetActiveEngine()->GetRasterizer(), this);
 
+
+	EEVEE_PassList *psl = m_eeveeData->psl;
+
+	DRWPass *matpass = psl->material_pass;
+	ListBase matsh = DRW_draw_shading_groups_from_pass_get(matpass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)matsh.first; s; s = DRW_draw_shgroup_next(s)) {
+		m_shGroups.push_back(s);
+	}
+	DRWPass *depthpass = psl->depth_pass;
+	ListBase depthsh = DRW_draw_shading_groups_from_pass_get(depthpass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)depthsh.first; s; s = DRW_draw_shgroup_next(s)) {
+		m_shGroups.push_back(s);
+	}
+	DRWPass *depthpasscull = psl->depth_pass_cull;
+	ListBase depthcsh = DRW_draw_shading_groups_from_pass_get(depthpasscull);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)depthcsh.first; s; s = DRW_draw_shgroup_next(s)) {
+		m_shGroups.push_back(s);
+	}
+	DRWPass *transparentpass = psl->transparent_pass;
+	ListBase trsh = DRW_draw_shading_groups_from_pass_get(transparentpass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)trsh.first; s; s = DRW_draw_shgroup_next(s)) {
+		m_shGroups.push_back(s);
+	}
+
+
 	/******************************************************************************************************************************/
 
 #ifdef WITH_PYTHON
@@ -393,6 +418,11 @@ void KX_Scene::AppendProbeList(KX_GameObject *probe)
 std::vector<KX_GameObject *>KX_Scene::GetProbeList()
 {
 	return m_lightProbes;
+}
+
+std::vector<DRWShadingGroup *>KX_Scene::GetDrawShadingGroups()
+{
+	return m_shGroups;
 }
 
 void KX_Scene::SetSceneLayerData(RAS_SceneLayerData *layerData)

@@ -96,7 +96,6 @@
 
 extern "C" {
 #  include "DRW_render.h"
-#  include "eevee_private.h"
 }
 
 static MT_Vector3 dummy_point= MT_Vector3(0.0f, 0.0f, 0.0f);
@@ -140,37 +139,6 @@ KX_GameObject::KX_GameObject(
 	KX_NormalParentRelation * parent_relation = 
 		KX_NormalParentRelation::New();
 	m_pSGNode->SetParentRelation(parent_relation);
-
-
-
-	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
-	
-	DRWPass *matpass = psl->material_pass;
-	ListBase matsh = DRW_draw_shading_groups_from_pass_get(matpass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)matsh.first; s; s = DRW_draw_shgroup_next(s)) {
-		m_shGroups.push_back(s);
-	}
-	DRWPass *depthpass = psl->depth_pass;
-	ListBase depthsh = DRW_draw_shading_groups_from_pass_get(depthpass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)depthsh.first; s; s = DRW_draw_shgroup_next(s)) {
-		m_shGroups.push_back(s);
-	}
-	DRWPass *depthpasscull = psl->depth_pass_cull;
-	ListBase depthcsh = DRW_draw_shading_groups_from_pass_get(depthpasscull);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)depthcsh.first; s; s = DRW_draw_shgroup_next(s)) {
-		m_shGroups.push_back(s);
-	}
-	DRWPass *transparentpass = psl->transparent_pass;
-	ListBase trsh = DRW_draw_shading_groups_from_pass_get(transparentpass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)trsh.first; s; s = DRW_draw_shgroup_next(s)) {
-		m_shGroups.push_back(s);
-	}
-
-
-
-
-
-
 };
 
 
@@ -763,10 +731,11 @@ void KX_GameObject::UpdateBuckets()
 	m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
 	m_meshUser->ActivateMeshSlots();
 
-	if (m_shGroups.size() > 0) {
-		for (DRWShadingGroup *sh : m_shGroups) {
+	std::vector<DRWShadingGroup *>shgroups = GetScene()->GetDrawShadingGroups();
+	if (shgroups.size() > 0) {
+		for (DRWShadingGroup *sh : shgroups) {
 			for (Gwn_Batch *batch : m_materialBatches) {
-				DRW_calls_update(sh, batch, (float(*)[4])m_meshUser->GetMatrix());
+				DRW_shgroup_call_add(sh, batch, (float(*)[4])m_meshUser->GetMatrix());
 			}
 		}
 	}
