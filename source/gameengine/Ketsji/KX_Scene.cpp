@@ -287,23 +287,23 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	/* MATERIALS SHADING GROUPS : OPAQUES + TRANSPARENT */
 
 	DRWPass *matpass = psl->material_pass;
-	ListBase matsh = DRW_draw_shading_groups_from_pass_get(matpass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)matsh.first; s; s = DRW_draw_shgroup_next(s)) {
+	ListBase matsh = DRW_shgroups_from_pass_get(matpass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)matsh.first; s; s = DRW_shgroup_next(s)) {
 		m_materialShGroups.push_back(s);
 	}
 	DRWPass *depthpass = psl->depth_pass;
-	ListBase depthsh = DRW_draw_shading_groups_from_pass_get(depthpass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)depthsh.first; s; s = DRW_draw_shgroup_next(s)) {
+	ListBase depthsh = DRW_shgroups_from_pass_get(depthpass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)depthsh.first; s; s = DRW_shgroup_next(s)) {
 		m_materialShGroups.push_back(s);
 	}
 	DRWPass *depthpasscull = psl->depth_pass_cull;
-	ListBase depthcsh = DRW_draw_shading_groups_from_pass_get(depthpasscull);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)depthcsh.first; s; s = DRW_draw_shgroup_next(s)) {
+	ListBase depthcsh = DRW_shgroups_from_pass_get(depthpasscull);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)depthcsh.first; s; s = DRW_shgroup_next(s)) {
 		m_materialShGroups.push_back(s);
 	}
 	DRWPass *transparentpass = psl->transparent_pass;
-	ListBase trsh = DRW_draw_shading_groups_from_pass_get(transparentpass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)trsh.first; s; s = DRW_draw_shgroup_next(s)) {
+	ListBase trsh = DRW_shgroups_from_pass_get(transparentpass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)trsh.first; s; s = DRW_shgroup_next(s)) {
 		m_materialShGroups.push_back(s);
 	}
 

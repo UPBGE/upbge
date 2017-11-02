@@ -139,8 +139,6 @@ public:
 
 	void AddGraphicMaterials();
 	void AddMaterialBatch(Gwn_Batch *batch); // material display array
-	void AddMaterialsDrawCalls(float obmat[4][4]);
-	void RemoveMaterialDrawCalls();
 	std::vector<DRWShadingGroup *>GetMaterialShadingGroups();
 
 

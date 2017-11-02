@@ -3632,7 +3632,7 @@ static void DRW_viewport_var_init_bge(void)
 	glFrontFace(DST.frontface);
 }
 
-bool DRW_draw_shading_group_belongs_to_gameobject(DRWShadingGroup *shgroup, Gwn_Batch *batch)
+bool DRW_shgroups_belongs_to_gameobject(DRWShadingGroup *shgroup, Gwn_Batch *batch)
 {
 #ifdef USE_MEM_ITER
 	BLI_memiter_handle calls_iter;
@@ -3649,7 +3649,7 @@ bool DRW_draw_shading_group_belongs_to_gameobject(DRWShadingGroup *shgroup, Gwn_
 	return false;
 }
 
-void DRW_calls_update_obmat(DRWShadingGroup *shgroup, Gwn_Batch *batch, float obmat[4][4])
+void DRW_shgroups_calls_update_obmat(DRWShadingGroup *shgroup, Gwn_Batch *batch, float obmat[4][4])
 {
 #ifdef USE_MEM_ITER
 	BLI_memiter_handle calls_iter;
@@ -3665,17 +3665,12 @@ void DRW_calls_update_obmat(DRWShadingGroup *shgroup, Gwn_Batch *batch, float ob
 	}
 }
 
-struct ListBase DRW_draw_shading_groups_from_pass_get(DRWPass *pass)
+struct ListBase DRW_shgroups_from_pass_get(DRWPass *pass)
 {
 	return pass->shgroups;
 }
 
-void DRW_draw_shading_groups_from_pass_set(DRWPass *pass, ListBase sh_list)
-{
-	pass->shgroups = sh_list;
-}
-
-DRWShadingGroup *DRW_draw_shgroup_next(DRWShadingGroup *current)
+DRWShadingGroup *DRW_shgroup_next(DRWShadingGroup *current)
 {
 	return current->next;
 }

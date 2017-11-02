@@ -256,26 +256,13 @@ std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 			continue;
 		}			
 		for (Gwn_Batch *batch : m_materialBatches) {
-			if (DRW_draw_shading_group_belongs_to_gameobject(sh, batch)) {
+			if (DRW_shgroups_belongs_to_gameobject(sh, batch)) {
 				m_gameobShGroups.push_back(sh);
 				break;
 			}
 		}
 	}
 	return m_gameobShGroups;
-}
-
-/* Can be called only after we added batches with AddGraphicMaterials + GetMaterialShadingGroups() */
-void KX_GameObject::AddMaterialsDrawCalls(float obmat[4][4])
-{
-	SetVisible(true, true);
-	SetCulled(false);
-}
-
-void KX_GameObject::RemoveMaterialDrawCalls()
-{
-	SetVisible(false, false);
-	SetCulled(true);
 }
 
 KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
@@ -792,7 +779,7 @@ void KX_GameObject::UpdateBuckets()
 	if (shgroups.size() > 0) {
 		for (DRWShadingGroup *sh : shgroups) {
 			for (Gwn_Batch *batch : m_materialBatches) {
-				DRW_calls_update_obmat(sh, batch, (float(*)[4])m_meshUser->GetMatrix());
+				DRW_shgroups_calls_update_obmat(sh, batch, (float(*)[4])m_meshUser->GetMatrix());
 			}
 		}
 	}
