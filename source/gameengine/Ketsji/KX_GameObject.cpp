@@ -239,26 +239,6 @@ void KX_GameObject::AddGraphicMaterials()
 			AddMaterialBatch(mat_geom[i]);
 		}
 	}
-	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
-	DRWPass *matpass = psl->material_pass;
-	ListBase matsh = DRW_draw_shading_groups_from_pass_get(matpass);
-	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-		if (BLI_findindex(&matsh, sh) == -1) {
-			BLI_addtail(&matsh, sh);
-		}
-	}
-	DRW_draw_shading_groups_from_pass_set(matpass, matsh);
-}
-
-void KX_GameObject::RemoveGraphicMaterials()
-{
-	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
-	DRWPass *matpass = psl->material_pass;
-	ListBase matsh = DRW_draw_shading_groups_from_pass_get(matpass);
-	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-		BLI_remlink_safe(&matsh, sh);
-	}
-	DRW_draw_shading_groups_from_pass_set(matpass, matsh);
 }
 
 /* Can be called only after we added batches with AddGraphicMaterials */
@@ -268,9 +248,6 @@ std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 	if (m_gameobShGroups.size() > 0) {
 		return m_gameobShGroups;
 	}
-	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
-	DRWPass *matpass = psl->material_pass;
-	ListBase matsh = DRW_draw_shading_groups_from_pass_get(matpass);
 	KX_Scene *scene = GetScene();
 	std::vector<DRWShadingGroup *>allShGroups = scene->GetMaterialShadingGroups();
 	for (DRWShadingGroup *sh : allShGroups) {
@@ -289,16 +266,17 @@ std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 }
 
 /* Can be called only after we added batches with AddGraphicMaterials + GetMaterialShadingGroups() */
-void KX_GameObject::AddMaterialsDrawCall(float obmat[4][4])
+void KX_GameObject::AddMaterialsDrawCalls(float obmat[4][4])
 {
-	for (DRWShadingGroup *sh : m_gameobShGroups) {
-		for (Gwn_Batch *batch : m_materialBatches) {
-			DRW_shgroup_call_add(sh, batch, obmat);
-		}
-	}
+	SetVisible(true, true);
+	SetCulled(false);
 }
 
-
+void KX_GameObject::RemoveMaterialDrawCalls()
+{
+	SetVisible(false, false);
+	SetCulled(true);
+}
 
 KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
 {

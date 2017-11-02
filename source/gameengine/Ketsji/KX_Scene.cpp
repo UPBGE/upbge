@@ -1066,14 +1066,6 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 		DupliGroupRecurse(gameobj, 0);
 	}
 
-	/* Add all gameobj's materials display arrays to draw with eevee */
-	replica->AddGraphicMaterials();
-	std::vector<DRWShadingGroup *>replicaShGroups = replica->GetMaterialShadingGroups(); // Call this here to create gameobj shgroups list
-	/* Add DRWCalls to draw the new added object (the replica) with the replica obmat */
-	float obmat[4][4];
-	replica->NodeGetWorldTransform().getValue(&obmat[0][0]);
-	replica->AddMaterialsDrawCall(obmat);
-
 	//	don't release replica here because we are returning it, not done with it...
 	return replica;
 }
