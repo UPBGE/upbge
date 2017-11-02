@@ -1307,6 +1307,9 @@ static void bl_ConvertBlenderObject_Single(
 
 	logicbrick_conversionlist->Add(CM_AddRef(gameobj));
 
+	/* This adds display arrays (Gwn_Batch) to draw with eevee code */
+	gameobj->AddGraphicMaterials();
+
 	if (isInActiveLayer)
 	{
 		objectlist->Add(CM_AddRef(gameobj));
@@ -1314,15 +1317,13 @@ static void bl_ConvertBlenderObject_Single(
 
 		gameobj->NodeUpdateGS(0);
 		gameobj->AddMeshUser();
-
-		/* This adds display arrays (Gwn_Batch) to draw with eevee code */
-		gameobj->AddGraphicMaterials();
 	}
 	else
 	{
 		//we must store this object otherwise it will be deleted
 		//at the end of this function if it is not a root object
 		inactivelist->Add(CM_AddRef(gameobj));
+		gameobj->RemoveGraphicMaterials();
 	}
 }
 

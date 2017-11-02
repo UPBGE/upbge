@@ -3670,6 +3670,11 @@ struct ListBase DRW_draw_shading_groups_from_pass_get(DRWPass *pass)
 	return pass->shgroups;
 }
 
+void DRW_draw_shading_groups_from_pass_set(DRWPass *pass, ListBase sh_list)
+{
+	pass->shgroups = sh_list;
+}
+
 DRWShadingGroup *DRW_draw_shgroup_next(DRWShadingGroup *current)
 {
 	return current->next;

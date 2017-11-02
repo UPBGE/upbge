@@ -98,6 +98,8 @@ extern "C" {
 #  include "DRW_render.h"
 #  include "BLI_alloca.h"
 #  include "GPU_immediate.h"
+#  include "eevee_private.h"
+#  include "BLI_listbase.h"
 }
 
 static MT_Vector3 dummy_point= MT_Vector3(0.0f, 0.0f, 0.0f);
@@ -218,6 +220,10 @@ KX_GameObject::~KX_GameObject()
 
 void KX_GameObject::AddMaterialBatch(Gwn_Batch *batch)
 {
+	std::vector<Gwn_Batch *>::iterator it = std::find(m_materialBatches.begin(), m_materialBatches.end(), batch);
+	if (it != m_materialBatches.end()) {
+		return;
+	}
 	m_materialBatches.push_back(batch);
 }
 
@@ -233,6 +239,26 @@ void KX_GameObject::AddGraphicMaterials()
 			AddMaterialBatch(mat_geom[i]);
 		}
 	}
+	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
+	DRWPass *matpass = psl->material_pass;
+	ListBase matsh = DRW_draw_shading_groups_from_pass_get(matpass);
+	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
+		if (BLI_findindex(&matsh, sh) == -1) {
+			BLI_addtail(&matsh, sh);
+		}
+	}
+	DRW_draw_shading_groups_from_pass_set(matpass, matsh);
+}
+
+void KX_GameObject::RemoveGraphicMaterials()
+{
+	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
+	DRWPass *matpass = psl->material_pass;
+	ListBase matsh = DRW_draw_shading_groups_from_pass_get(matpass);
+	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
+		BLI_remlink_safe(&matsh, sh);
+	}
+	DRW_draw_shading_groups_from_pass_set(matpass, matsh);
 }
 
 /* Can be called only after we added batches with AddGraphicMaterials */
@@ -242,12 +268,20 @@ std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 	if (m_gameobShGroups.size() > 0) {
 		return m_gameobShGroups;
 	}
+	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
+	DRWPass *matpass = psl->material_pass;
+	ListBase matsh = DRW_draw_shading_groups_from_pass_get(matpass);
 	KX_Scene *scene = GetScene();
 	std::vector<DRWShadingGroup *>allShGroups = scene->GetMaterialShadingGroups();
 	for (DRWShadingGroup *sh : allShGroups) {
+		std::vector<DRWShadingGroup *>::iterator it = std::find(m_gameobShGroups.begin(), m_gameobShGroups.end(), sh);
+		if (it != m_gameobShGroups.end()) {
+			continue;
+		}			
 		for (Gwn_Batch *batch : m_materialBatches) {
 			if (DRW_draw_shading_group_belongs_to_gameobject(sh, batch)) {
 				m_gameobShGroups.push_back(sh);
+				break;
 			}
 		}
 	}
