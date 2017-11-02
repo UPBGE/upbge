@@ -3843,13 +3843,23 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph,
 
 			DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL);
 			{
+				/* We want to populate cache even with objects in invisible layers.
+				 * (we'll remove them from psl->material_pass later).
+				 */
+				bool meshIsInvisible = (ob->base_flag & BASE_VISIBLED) == 0 && ob->type == OB_MESH;
+				if (meshIsInvisible) {
+					ob->base_flag |= BASE_VISIBLED;
+				}
 				DRW_engines_cache_populate(ob);
 				/* XXX find a better place for this. maybe Depsgraph? */
+				if (meshIsInvisible) {
+					ob->base_flag &= ~BASE_VISIBLED;
+				}
 				ob->deg_update_flag = 0;
 			}
 			DEG_OBJECT_ITER_END
 
-				DRW_engines_cache_finish();
+			DRW_engines_cache_finish();
 		}
 
 		EEVEE_lightprobes_refresh(EEVEE_scene_layer_data_get(), EEVEE_engine_data_get());
