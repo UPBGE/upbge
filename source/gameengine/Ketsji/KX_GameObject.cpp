@@ -227,6 +227,11 @@ void KX_GameObject::AddMaterialBatch(Gwn_Batch *batch)
 	m_materialBatches.push_back(batch);
 }
 
+std::vector<Gwn_Batch *>KX_GameObject::GetMaterialBatches()
+{
+	return m_materialBatches;
+}
+
 void KX_GameObject::AddGraphicMaterials()
 {
 	/* Get per-material split surface */
@@ -268,6 +273,34 @@ std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 		}
 	}
 	return m_gameobShGroups;
+}
+
+void KX_GameObject::DiscardGeometry()
+{
+	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
+	DRWPass *matpass = psl->material_pass;
+	ListBase *matsh = &DRW_shgroups_from_pass_get(matpass);
+	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
+		if (BLI_findindex(matsh, sh) != -1) {
+			for (Gwn_Batch *b : m_materialBatches) {
+				DRW_shgroups_discard_geometry(sh, b);
+			}
+		}
+	}
+}
+
+void KX_GameObject::RestoreGeometry()
+{
+	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
+	DRWPass *matpass = psl->material_pass;
+	ListBase *matsh = &DRW_shgroups_from_pass_get(matpass);
+	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
+		if (BLI_findindex(matsh, sh) != -1) {
+			for (Gwn_Batch *b : m_materialBatches) {
+				DRW_shgroups_restore_geometry(sh, b);
+			}
+		}
+	}
 }
 
 KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
@@ -784,7 +817,9 @@ void KX_GameObject::UpdateBuckets()
 	if (shgroups.size() > 0) {
 		for (DRWShadingGroup *sh : shgroups) {
 			for (Gwn_Batch *batch : m_materialBatches) {
-				DRW_shgroups_calls_update_obmat(sh, batch, (float(*)[4])m_meshUser->GetMatrix());
+				float obmat[4][4];
+				NodeGetWorldTransform().getValue(&obmat[0][0]);
+				DRW_shgroups_calls_update_obmat(sh, batch, obmat);
 			}
 		}
 	}

@@ -1323,6 +1323,7 @@ static void bl_ConvertBlenderObject_Single(
 		//we must store this object otherwise it will be deleted
 		//at the end of this function if it is not a root object
 		inactivelist->Add(CM_AddRef(gameobj));
+		gameobj->DiscardGeometry();
 	}
 }
 

@@ -1066,6 +1066,10 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 		DupliGroupRecurse(gameobj, 0);
 	}
 
+	if (replica->GetMaterialBatches().size() > 0) {
+		replica->RestoreGeometry();
+	}
+
 	//	don't release replica here because we are returning it, not done with it...
 	return replica;
 }

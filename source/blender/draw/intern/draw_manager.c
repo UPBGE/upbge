@@ -3665,9 +3665,46 @@ void DRW_shgroups_calls_update_obmat(DRWShadingGroup *shgroup, Gwn_Batch *batch,
 	}
 }
 
+void DRW_shgroups_discard_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch)
+{
+#ifdef USE_MEM_ITER
+	BLI_memiter_handle calls_iter;
+	BLI_memiter_iter_init(shgroup->calls, &calls_iter);
+	for (DRWCall *call; (call = BLI_memiter_iter_step(&calls_iter));)
+#else
+	for (DRWCall *call = shgroup->calls.first; call; call = call->head.next)
+#endif
+	{
+		if (call->geometry == batch) {
+			call->geometry = DRW_cache_single_vert_get();
+		}
+	}
+}
+
+void DRW_shgroups_restore_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch)
+{
+#ifdef USE_MEM_ITER
+	BLI_memiter_handle calls_iter;
+	BLI_memiter_iter_init(shgroup->calls, &calls_iter);
+	for (DRWCall *call; (call = BLI_memiter_iter_step(&calls_iter));)
+#else
+	for (DRWCall *call = shgroup->calls.first; call; call = call->head.next)
+#endif
+	{
+		if (call->geometry == DRW_cache_single_vert_get()) {
+			call->geometry = batch;
+		}
+	}
+}
+
 struct ListBase DRW_shgroups_from_pass_get(DRWPass *pass)
 {
 	return pass->shgroups;
+}
+
+void DRW_shgroups_from_pass_set(DRWPass *pass, ListBase *shgroups)
+{
+	pass->shgroups = *shgroups;
 }
 
 DRWShadingGroup *DRW_shgroup_next(DRWShadingGroup *current)
