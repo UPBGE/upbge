@@ -231,6 +231,11 @@ void KX_GameObject::AddGraphicMaterials()
 {
 	/* Get per-material split surface */
 	Object *ob = GetBlenderObject();
+
+	if (ob->type != OB_MESH) {
+		return;
+	}
+
 	int materials_len = ob->totcol;
 	struct GPUMaterial **gpumat_array = (GPUMaterial **)BLI_array_alloca(gpumat_array, materials_len);
 	struct Gwn_Batch **mat_geom = DRW_cache_object_surface_material_get(ob, gpumat_array, materials_len);
