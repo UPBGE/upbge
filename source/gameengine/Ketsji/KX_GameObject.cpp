@@ -303,6 +303,50 @@ void KX_GameObject::RestoreGeometry()
 	}
 }
 
+void KX_GameObject::DuplicateGeometry()
+{
+	std::vector<Gwn_Batch *>newBatches;
+	for (Gwn_Batch *b : m_materialBatches) {
+		Gwn_Batch *newBatch = GWN_batch_create_from_batch_ex(b);
+		newBatches.push_back(newBatch);
+	}
+	m_materialBatches.clear();
+	m_materialBatches = newBatches;
+}
+
+void KX_GameObject::AddNewGeometryToPasses()
+{
+	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
+	DRWPass *matpass = psl->material_pass;
+	ListBase *matsh = &DRW_shgroups_from_pass_get(matpass);
+	DRWPass *depthpass = psl->depth_pass;
+	ListBase *depthsh = &DRW_shgroups_from_pass_get(depthpass);
+	DRWPass *depthpasscull = psl->depth_pass_cull;
+	ListBase *depthcsh = &DRW_shgroups_from_pass_get(depthpasscull);
+	DRWPass *transparentpass = psl->transparent_pass;
+	ListBase *trsh = &DRW_shgroups_from_pass_get(transparentpass);
+
+	float obmat[4][4];
+	NodeGetWorldTransform().getValue(&obmat[0][0]);
+
+	for (Gwn_Batch *b : m_materialBatches) {
+		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
+			if (BLI_findindex(matsh, sh) != -1) {
+				DRW_shgroup_call_add(sh, b, obmat);
+			}
+			if (BLI_findindex(depthsh, sh) != -1) {
+				DRW_shgroup_call_add(sh, b, obmat);
+			}
+			if (BLI_findindex(depthcsh, sh) != -1) {
+				DRW_shgroup_call_add(sh, b, obmat);
+			}
+			if (BLI_findindex(trsh, sh) != -1) {
+				DRW_shgroup_call_add(sh, b, obmat);
+			}
+		}
+	}
+}
+
 KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
 {
 	if (!info)

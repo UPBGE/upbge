@@ -51,6 +51,7 @@ enum {
 
 Gwn_Batch* GWN_batch_create_ex(Gwn_PrimType, Gwn_VertBuf*, Gwn_IndexBuf*, unsigned owns_flag);
 void GWN_batch_init_ex(Gwn_Batch*, Gwn_PrimType, Gwn_VertBuf*, Gwn_IndexBuf*, unsigned owns_flag);
+Gwn_Batch* GWN_batch_create_from_batch_ex(Gwn_Batch *src);
 
 #define GWN_batch_create(prim, verts, elem) \
 	GWN_batch_create_ex(prim, verts, elem, 0)

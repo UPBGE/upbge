@@ -143,6 +143,8 @@ public:
 	std::vector<DRWShadingGroup *>GetMaterialShadingGroups();
 	void DiscardGeometry();
 	void RestoreGeometry();
+	void DuplicateGeometry();
+	void AddNewGeometryToPasses();
 
 
 

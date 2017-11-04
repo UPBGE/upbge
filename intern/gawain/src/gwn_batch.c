@@ -29,6 +29,27 @@ Gwn_Batch* GWN_batch_create_ex(
 	return batch;
 	}
 
+Gwn_Batch* GWN_batch_create_from_batch_ex(Gwn_Batch *src)
+{
+	Gwn_Batch* batch = calloc(1, sizeof(Gwn_Batch));
+
+	Gwn_PrimType prim_type = src->prim_type;
+	Gwn_VertBuf *verts = *src->verts;
+	Gwn_IndexBuf *elem = src->elem;
+	unsigned int owns_flag = src->owns_flag;
+
+	batch->verts[0] = verts;
+	for (int v = 1; v < GWN_BATCH_VBO_MAX_LEN; ++v)
+		batch->verts[v] = src->verts[v];
+	batch->elem = elem;
+	batch->prim_type = prim_type;
+	batch->gl_prim_type = convert_prim_type_to_gl(prim_type);
+	batch->phase = GWN_BATCH_READY_TO_DRAW;
+	batch->owns_flag = owns_flag;
+
+	return batch;
+}
+
 void GWN_batch_init_ex(
         Gwn_Batch* batch, Gwn_PrimType prim_type, Gwn_VertBuf* verts, Gwn_IndexBuf* elem,
         unsigned owns_flag)

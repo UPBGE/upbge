@@ -1068,6 +1068,8 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 
 	if (replica->GetMaterialBatches().size() > 0) {
 		replica->RestoreGeometry();
+		replica->DuplicateGeometry();
+		replica->AddNewGeometryToPasses();
 	}
 
 	//	don't release replica here because we are returning it, not done with it...
