@@ -314,7 +314,7 @@ void KX_GameObject::DuplicateGeometry()
 	m_materialBatches = newBatches;
 }
 
-void KX_GameObject::AddNewGeometryToPasses()
+void KX_GameObject::AddNewGeometryToPasses(float obmat[4][4])
 {
 	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
 	DRWPass *matpass = psl->material_pass;
@@ -325,9 +325,6 @@ void KX_GameObject::AddNewGeometryToPasses()
 	ListBase *depthcsh = &DRW_shgroups_from_pass_get(depthpasscull);
 	DRWPass *transparentpass = psl->transparent_pass;
 	ListBase *trsh = &DRW_shgroups_from_pass_get(transparentpass);
-
-	float obmat[4][4];
-	NodeGetWorldTransform().getValue(&obmat[0][0]);
 
 	for (Gwn_Batch *b : m_materialBatches) {
 		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {

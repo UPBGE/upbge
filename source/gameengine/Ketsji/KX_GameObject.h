@@ -144,7 +144,7 @@ public:
 	void DiscardGeometry();
 	void RestoreGeometry();
 	void DuplicateGeometry();
-	void AddNewGeometryToPasses();
+	void AddNewGeometryToPasses(float obmat[4][4]);
 
 
 

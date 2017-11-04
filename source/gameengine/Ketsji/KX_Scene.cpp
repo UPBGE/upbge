@@ -1067,9 +1067,10 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 	}
 
 	if (replica->GetMaterialBatches().size() > 0) {
-		replica->RestoreGeometry();
+		float obmat[4][4];
+		replica->NodeGetWorldTransform().getValue(&obmat[0][0]);
 		replica->DuplicateGeometry();
-		replica->AddNewGeometryToPasses();
+		replica->AddNewGeometryToPasses(obmat);
 	}
 
 	//	don't release replica here because we are returning it, not done with it...
