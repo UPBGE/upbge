@@ -279,9 +279,30 @@ void KX_GameObject::DiscardGeometry()
 {
 	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
 	DRWPass *matpass = psl->material_pass;
+	DRWPass *depthpass = psl->depth_pass;
+	ListBase *depthsh = &DRW_shgroups_from_pass_get(depthpass);
+	DRWPass *depthpasscull = psl->depth_pass_cull;
+	ListBase *depthcsh = &DRW_shgroups_from_pass_get(depthpasscull);
+	DRWPass *transparentpass = psl->transparent_pass;
+	ListBase *trsh = &DRW_shgroups_from_pass_get(transparentpass);
 	ListBase *matsh = &DRW_shgroups_from_pass_get(matpass);
 	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
 		if (BLI_findindex(matsh, sh) != -1) {
+			for (Gwn_Batch *b : m_materialBatches) {
+				DRW_shgroups_discard_geometry(sh, b);
+			}
+		}
+		if (BLI_findindex(depthsh, sh) != -1) {
+			for (Gwn_Batch *b : m_materialBatches) {
+				DRW_shgroups_discard_geometry(sh, b);
+			}
+		}
+		if (BLI_findindex(depthcsh, sh) != -1) {
+			for (Gwn_Batch *b : m_materialBatches) {
+				DRW_shgroups_discard_geometry(sh, b);
+			}
+		}
+		if (BLI_findindex(trsh, sh) != -1) {
 			for (Gwn_Batch *b : m_materialBatches) {
 				DRW_shgroups_discard_geometry(sh, b);
 			}
@@ -293,9 +314,30 @@ void KX_GameObject::RestoreGeometry()
 {
 	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
 	DRWPass *matpass = psl->material_pass;
+	DRWPass *depthpass = psl->depth_pass;
+	ListBase *depthsh = &DRW_shgroups_from_pass_get(depthpass);
+	DRWPass *depthpasscull = psl->depth_pass_cull;
+	ListBase *depthcsh = &DRW_shgroups_from_pass_get(depthpasscull);
+	DRWPass *transparentpass = psl->transparent_pass;
+	ListBase *trsh = &DRW_shgroups_from_pass_get(transparentpass);
 	ListBase *matsh = &DRW_shgroups_from_pass_get(matpass);
 	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
 		if (BLI_findindex(matsh, sh) != -1) {
+			for (Gwn_Batch *b : m_materialBatches) {
+				DRW_shgroups_restore_geometry(sh, b);
+			}
+		}
+		if (BLI_findindex(depthsh, sh) != -1) {
+			for (Gwn_Batch *b : m_materialBatches) {
+				DRW_shgroups_restore_geometry(sh, b);
+			}
+		}
+		if (BLI_findindex(depthcsh, sh) != -1) {
+			for (Gwn_Batch *b : m_materialBatches) {
+				DRW_shgroups_restore_geometry(sh, b);
+			}
+		}
+		if (BLI_findindex(trsh, sh) != -1) {
 			for (Gwn_Batch *b : m_materialBatches) {
 				DRW_shgroups_restore_geometry(sh, b);
 			}
