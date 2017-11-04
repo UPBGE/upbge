@@ -48,6 +48,7 @@ set(SRC
 	CM_Message.h
 	CM_RefCount.h
 	CM_Thread.h
+	CM_Update.h
 )
 
 blender_add_lib(ge_common "${SRC}" "${INC}" "${INC_SYS}")
