@@ -3676,7 +3676,7 @@ void DRW_shgroups_discard_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch)
 #endif
 	{
 		if (call->geometry == batch) {
-			call->geometry = DRW_cache_single_vert_get();
+			call->geometry = DRW_cache_single_vert_no_display_get();
 		}
 	}
 }

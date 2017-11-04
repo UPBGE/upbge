@@ -42,6 +42,7 @@
 
 /* Batch's only (free'd as an array) */
 static struct DRWShapeCache {
+	Gwn_Batch *drw_single_vertice_no_display;
 	Gwn_Batch *drw_single_vertice;
 	Gwn_Batch *drw_fullscreen_quad;
 	Gwn_Batch *drw_quad;
@@ -2097,6 +2098,31 @@ Gwn_Batch *DRW_cache_camera_tria_get(void)
 
 /** \name Object Mode Helpers
  * \{ */
+
+/* Temp hack to discard geometry with a single vert
+ * which will normally be not displayed on screen
+ */
+Gwn_Batch *DRW_cache_single_vert_no_display_get(void)
+{
+	if (!SHC.drw_single_vertice_no_display) {
+		float v1[3] = { FLT_MAX, FLT_MAX, FLT_MAX };
+
+		/* Position Only 3D format */
+		static Gwn_VertFormat format = { 0 };
+		static struct { uint pos; } attr_id;
+		if (format.attrib_ct == 0) {
+			attr_id.pos = GWN_vertformat_attr_add(&format, "pos", GWN_COMP_F32, 3, GWN_FETCH_FLOAT);
+		}
+
+		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(&format);
+		GWN_vertbuf_data_alloc(vbo, 1);
+
+		GWN_vertbuf_attr_set(vbo, attr_id.pos, 0, v1);
+
+		SHC.drw_single_vertice_no_display = GWN_batch_create_ex(GWN_PRIM_POINTS, vbo, NULL, GWN_BATCH_OWNS_VBO);
+	}
+	return SHC.drw_single_vertice_no_display;
+}
 
 /* Object Center */
 Gwn_Batch *DRW_cache_single_vert_get(void)
