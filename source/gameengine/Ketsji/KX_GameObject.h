@@ -137,7 +137,7 @@ public:
 
 
 
-	void AddGraphicMaterials();
+	void AddGeometry();
 	void AddMaterialBatch(Gwn_Batch *batch); // material display array
 	std::vector<Gwn_Batch *>GetMaterialBatches();
 	std::vector<DRWShadingGroup *>GetMaterialShadingGroups();

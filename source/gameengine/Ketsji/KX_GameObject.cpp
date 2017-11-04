@@ -232,7 +232,7 @@ std::vector<Gwn_Batch *>KX_GameObject::GetMaterialBatches()
 	return m_materialBatches;
 }
 
-void KX_GameObject::AddGraphicMaterials()
+void KX_GameObject::AddGeometry()
 {
 	/* Get per-material split surface */
 	Object *ob = GetBlenderObject();
@@ -251,7 +251,7 @@ void KX_GameObject::AddGraphicMaterials()
 	}
 }
 
-/* Can be called only after we added batches with AddGraphicMaterials */
+/* Can be called only after we added batches with AddGeometry */
 /* GET + CREATE IF DOESN'T EXIST */
 std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 {
@@ -813,14 +813,11 @@ void KX_GameObject::UpdateBuckets()
 	m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
 	m_meshUser->ActivateMeshSlots();
 
-	std::vector<DRWShadingGroup *>shgroups = GetScene()->GetMaterialShadingGroups();
-	if (shgroups.size() > 0) {
-		for (DRWShadingGroup *sh : shgroups) {
-			for (Gwn_Batch *batch : m_materialBatches) {
-				float obmat[4][4];
-				NodeGetWorldTransform().getValue(&obmat[0][0]);
-				DRW_shgroups_calls_update_obmat(sh, batch, obmat);
-			}
+	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
+		for (Gwn_Batch *batch : m_materialBatches) {
+			float obmat[4][4];
+			NodeGetWorldTransform().getValue(&obmat[0][0]);
+			DRW_shgroups_calls_update_obmat(sh, batch, obmat);
 		}
 	}
 }

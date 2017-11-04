@@ -1308,7 +1308,7 @@ static void bl_ConvertBlenderObject_Single(
 	logicbrick_conversionlist->Add(CM_AddRef(gameobj));
 
 	/* This adds display arrays (Gwn_Batch) to draw with eevee code */
-	gameobj->AddGraphicMaterials();
+	gameobj->AddGeometry();
 
 	if (isInActiveLayer)
 	{
