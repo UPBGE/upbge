@@ -895,12 +895,19 @@ void KX_GameObject::UpdateBuckets()
 	m_meshUser->SetColor(m_objectColor);
 	m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
 	m_meshUser->ActivateMeshSlots();
+}
+
+void KX_GameObject::UpdateBucketsNew()
+{
+	// Update datas and add mesh slot to be rendered only if the object is not culled.
+	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
+		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
+		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
+	}
 
 	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
 		for (Gwn_Batch *batch : m_materialBatches) {
-			float obmat[4][4];
-			NodeGetWorldTransform().getValue(&obmat[0][0]);
-			DRW_shgroups_calls_update_obmat(sh, batch, obmat);
+			DRW_shgroups_calls_update_obmat(sh, batch, (float(*)[4])m_meshUser->GetMatrix());
 		}
 	}
 }

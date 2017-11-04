@@ -136,11 +136,10 @@ protected:
 public:
 
 
-
-	void AddGeometry();
-	void AddMaterialBatch(Gwn_Batch *batch); // material display array
 	std::vector<Gwn_Batch *>GetMaterialBatches();
 	std::vector<DRWShadingGroup *>GetMaterialShadingGroups();
+	void AddGeometry();
+	void AddMaterialBatch(Gwn_Batch *batch); // material display array
 	void DiscardGeometry();
 	void RestoreGeometry();
 	void DuplicateGeometry();
@@ -721,6 +720,7 @@ public:
 	 * visibility, object color, .. .
 	 */
 	virtual void UpdateBuckets();
+	virtual void UpdateBucketsNew();
 
 	/**
 	 * Clear the meshes associated with this class

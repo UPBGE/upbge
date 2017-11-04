@@ -357,6 +357,7 @@ public:
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 
 	void RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer);
+	void RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty);
 
 	/**
 	 * Update all transforms according to the scenegraph.
