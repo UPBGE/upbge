@@ -34,6 +34,7 @@
 
 #include "BKE_camera.h" // For bge
 #include "BKE_global.h"
+#include "BKE_main.h" // For bge
 #include "BKE_mesh.h"
 #include "BKE_object.h"
 #include "BKE_pbvh.h"
@@ -3816,7 +3817,7 @@ static void game_camera_border(
 	r_viewborder->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
 }
 
-void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph,
+void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	Scene *scene, SceneLayer *sl, Object *maincam, int viewportsize[2], bool is_first_scene)
 {
 	if (is_first_scene) {
@@ -3877,24 +3878,26 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Depsgraph *graph,
 		/* or render properties / materials change */
 		if (cache_is_dirty) {
 			DRW_engines_cache_init();
-
-			DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL);
-			{
-				/* We want to populate cache even with objects in invisible layers.
-				 * (we'll remove them from psl->material_pass later).
-				 */
-				bool meshIsInvisible = (ob->base_flag & BASE_VISIBLED) == 0 && ob->type == OB_MESH;
-				if (meshIsInvisible) {
-					ob->base_flag |= BASE_VISIBLED;
+			for (Scene *sc = bmain->scene.first; sc; sc = sc->id.next) {
+				Depsgraph *graph = sc->depsgraph_legacy;
+				DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL);
+				{
+					/* We want to populate cache even with objects in invisible layers.
+					 * (we'll remove them from psl->material_pass later).
+					 */
+					bool meshIsInvisible = (ob->base_flag & BASE_VISIBLED) == 0 && ob->type == OB_MESH;
+					if (meshIsInvisible) {
+						ob->base_flag |= BASE_VISIBLED;
+					}
+					DRW_engines_cache_populate(ob);
+					/* XXX find a better place for this. maybe Depsgraph? */
+					if (meshIsInvisible) {
+						ob->base_flag &= ~BASE_VISIBLED;
+					}
+					ob->deg_update_flag = 0;
 				}
-				DRW_engines_cache_populate(ob);
-				/* XXX find a better place for this. maybe Depsgraph? */
-				if (meshIsInvisible) {
-					ob->base_flag &= ~BASE_VISIBLED;
-				}
-				ob->deg_update_flag = 0;
+				DEG_OBJECT_ITER_END
 			}
-			DEG_OBJECT_ITER_END
 
 			DRW_engines_cache_finish();
 		}
