@@ -188,8 +188,15 @@ bool KX_ObjectActuator::Update()
 
 			MT_Vector3& f = (m_bitLocalFlag.ServoControlAngular) ? m_force : m_torque;
 			f = m_pid.x() * e + m_pid.y() * I + m_pid.z() * dv;
-			// to automatically adapt the PID coefficient to mass;
-			f *= mass;
+
+			/* Make sure velocity is correct depending on how body react to force/torque.
+			 * See btRigidBody::integrateVelocities */
+			if (m_bitLocalFlag.ServoControlAngular) {
+				f = f * parent->GetLocalInertia();
+			}
+			else {
+				f *= mass;
+			}
 
 			const bool limits[3] = {m_bitLocalFlag.Torque, m_bitLocalFlag.DLoc, m_bitLocalFlag.DRot};
 
