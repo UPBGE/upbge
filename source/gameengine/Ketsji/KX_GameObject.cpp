@@ -905,11 +905,16 @@ void KX_GameObject::UpdateBucketsNew()
 		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
-	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-		for (Gwn_Batch *batch : m_materialBatches) {
-			DRW_shgroups_calls_update_obmat(sh, batch, (float(*)[4])m_meshUser->GetMatrix());
+	float obmat[4][4];
+	NodeGetWorldTransform().getValue(&obmat[0][0]);
+	for (Gwn_Batch *batch : m_materialBatches) {
+		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
+			DRW_shgroups_calls_update_obmat(sh, batch, obmat);
 		}
 	}
+	/*for (DRWShadingGroup *sh : GetScene()->GetShadowShadingGroups()) {
+		DRW_shgroup_uniform_mat4(sh, "ShadowModelMatrix", (float *)obmat);
+	}*/
 }
 
 void KX_GameObject::RemoveMeshes()

@@ -146,6 +146,7 @@ protected:
 
 
 	std::vector<DRWShadingGroup *>m_materialShGroups;
+	std::vector<DRWShadingGroup *>m_shadowShGroups;
 
 
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
@@ -350,6 +351,7 @@ public:
 	void AppendProbeList(KX_GameObject *probe);
 	std::vector<KX_GameObject *>GetProbeList();
 	std::vector<DRWShadingGroup *>GetMaterialShadingGroups();
+	std::vector<DRWShadingGroup *>GetShadowShadingGroups();
 	/***************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;
@@ -357,7 +359,7 @@ public:
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 
 	void RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer);
-	void RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty);
+	void RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer);
 
 	/**
 	 * Update all transforms according to the scenegraph.

@@ -616,10 +616,10 @@ void KX_KetsjiEngine::Render()
 
 	BeginFrame();
 
-	for (KX_Scene *scene : m_scenes) {
-		// shadow buffers
-		RenderShadowBuffers(scene);
-	}
+	//for (KX_Scene *scene : m_scenes) {
+	//	// shadow buffers
+	//	RenderShadowBuffers(scene);
+	//}
 
 	std::vector<FrameRenderData> frameDataList;
 	const bool renderpereye = GetFrameRenderData(frameDataList);
@@ -844,6 +844,23 @@ enum LightShadowType {
 	SHADOW_CASCADE
 };
 
+typedef struct ShadowCaster {
+	struct ShadowCaster *next, *prev;
+	void *ob;
+	bool prune;
+} ShadowCaster;
+
+static void delete_pruned_shadowcaster(EEVEE_LampEngineData *led)
+{
+	ShadowCaster *next;
+	for (ShadowCaster *ldata = (ShadowCaster *)led->shadow_caster_list.first; ldata; ldata = next) {
+		next = ldata->next;
+		
+		led->need_update = true;
+		BLI_freelinkN(&led->shadow_caster_list, ldata);
+	}
+}
+
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
 	CListValue<KX_LightObject> *lightlist = scene->GetLightList();
@@ -879,6 +896,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 		if (useShadow && raslight->NeedShadowUpdate()) {
 
+			float obmat[4][4];
+			light->NodeGetWorldTransform().getValue(&obmat[0][0]);
+
 			if (shadowtype == SHADOW_CUBE) {
 
 				EEVEE_ShadowCubeData *sh_data = (EEVEE_ShadowCubeData *)led->storage;
@@ -894,9 +914,6 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 				float cube_projmat[4][4];
 				perspective_m4(cube_projmat, -la->clipsta, la->clipsta, -la->clipsta, la->clipsta, la->clipsta, la->clipend);
-
-				float obmat[4][4];
-				light->NodeGetWorldTransform().getValue(&obmat[0][0]);
 
 				EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
 
@@ -918,13 +935,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				DRW_framebuffer_clear(true, true, false, clear_col, 1.0f);
 
 				/* render */
-				MT_Transform camtrans;
-				KX_CullingNodeList nodes;
-				const SG_Frustum frustum(light->GetShadowFrustumMatrix().inverse());
-				/* update scene */
-				scene->CalculateVisibleMeshes(nodes, frustum, raslight->GetShadowLayer());
-				// Send a nullptr off screen because the viewport is binding it's using its own private one.
-				scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
+				DRW_draw_pass(psl->shadow_cube_pass);
 
 				/* 0.001f is arbitrary, but it should be relatively small so that filter size is not too big. */
 				float filter_texture_size = la->soft * 0.001f;
@@ -996,13 +1007,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				DRW_framebuffer_clear(false, true, false, NULL, 1.0);
 
 				/* render */
-				MT_Transform camtrans;
-				KX_CullingNodeList nodes;
-				//const SG_Frustum frustum(light->GetShadowFrustumMatrix().inverse());
-				/* update scene */
-				scene->CalculateVisibleMeshes(nodes, scene->GetActiveCamera(), raslight->GetShadowLayer());
-				// Send a nullptr off screen because the viewport is binding it's using its own private one.
-				scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
+				DRW_draw_pass(psl->shadow_cascade_pass);
 
 				/* TODO: OPTI: Filter all cascade in one/two draw call */
 				for (linfo->current_shadow_cascade = 0;
@@ -1050,9 +1055,13 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				DRW_framebuffer_texture_detach(sldata->shadow_cascade_target);
 			}
 		}
+		//delete_pruned_shadowcaster(led);
 	}
 	DRW_uniformbuffer_update(sldata->light_ubo, &linfo->light_data);
 	DRW_uniformbuffer_update(sldata->shadow_ubo, &linfo->shadow_data);
+
+	
+
 	m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 }
 
@@ -1164,11 +1173,11 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	m_rasterizer->SetMatrix(rendercam->GetModelviewMatrix(), rendercam->GetProjectionMatrix(),
 							rendercam->NodeGetWorldPosition(), rendercam->NodeGetLocalScaling());
 
-	if (isFirstScene) {
-		KX_WorldInfo *worldInfo = scene->GetWorldInfo();
-		// Update background and render it.
-		worldInfo->RenderBackground();
-	}
+	//if (isFirstScene) {
+	//	KX_WorldInfo *worldInfo = scene->GetWorldInfo();
+	//	// Update background and render it.
+	//	worldInfo->RenderBackground();
+	//}
 
 	// The following actually reschedules all vertices to be
 	// redrawn. There is a cache between the actual rescheduling
@@ -1201,7 +1210,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, rendercam);
 #endif
 
-	scene->RenderBucketsNew(nodes, m_rasterizer);
+	scene->RenderBucketsNew(nodes, m_rasterizer, frameBuffer);
 
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->DebugDrawWorld();

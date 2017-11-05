@@ -113,6 +113,8 @@
 
 #include "CM_Message.h"
 
+#include "RAS_FrameBuffer.h"
+
 extern "C" {
 #  include "DRW_engine.h"
 #  include "DRW_render.h"
@@ -270,6 +272,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	Object *maincam = m_blenderScene->camera ? (Object *)m_blenderScene->camera : (Object *)KX_GetActiveEngine()->GetConverter()->GetMain()->camera.first;
 	bool isFirstScene = KX_GetActiveEngine()->CurrentScenes()->GetCount() == 0;
 	
+	/* TODO: Move this in LA_Launcher */
 	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, nullptr);
 	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
 	DRW_game_render_loop_begin(tempgpuofs, KX_GetActiveEngine()->GetConverter()->GetMain(), m_blenderScene,
@@ -311,6 +314,19 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	}
 
 	/* END OF MATERIALS SHADING GROUPS : OPAQUES + TRANSPARENT */
+
+	/* SHADOW SHADING GROUPS (INSTANCED BATCHES : JUST NEEDS TO UPDATE SHGROUP UNIFORM OBMAT) */
+	DRWPass *shadowcubepass = psl->shadow_cube_pass;
+	ListBase shcush = DRW_shgroups_from_pass_get(shadowcubepass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)shcush.first; s; s = DRW_shgroup_next(s)) {
+		m_shadowShGroups.push_back(s);
+	}
+	DRWPass *shadowcascadepass = psl->shadow_cascade_pass;
+	ListBase shcash = DRW_shgroups_from_pass_get(shadowcascadepass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)shcash.first; s; s = DRW_shgroup_next(s)) {
+		m_shadowShGroups.push_back(s);
+	}
+	/* END OF SHADOW SHADING GROUPS */
 	/******************************************************************************************************************************/
 
 #ifdef WITH_PYTHON
@@ -428,6 +444,11 @@ std::vector<KX_GameObject *>KX_Scene::GetProbeList()
 std::vector<DRWShadingGroup *>KX_Scene::GetMaterialShadingGroups()
 {
 	return m_materialShGroups;
+}
+
+std::vector<DRWShadingGroup *>KX_Scene::GetShadowShadingGroups()
+{
+	return m_shadowShGroups;
 }
 
 void KX_Scene::SetSceneLayerData(RAS_SceneLayerData *layerData)
@@ -1775,7 +1796,7 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty)
+void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer)
 {
 	for (KX_CullingNode *node : nodes) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
@@ -1783,10 +1804,18 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 		node->GetObject()->UpdateBucketsNew();
 	}
 
-	//rasty->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
+	KX_GetActiveEngine()->RenderShadowBuffers(this);
+
+	DRW_framebuffer_bind(frameBuffer->GetFrameBuffer());
+	DRW_framebuffer_clear(false, true, false, NULL, 1.0f);
+
 	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
+
 	DRW_draw_pass(psl->depth_pass);
 	DRW_draw_pass(psl->depth_pass_cull);
+
+	DRW_draw_pass(psl->background_pass);
+
 	EEVEE_draw_default_passes(psl);
 	DRW_draw_pass(psl->material_pass);
 	DRW_draw_pass(psl->transparent_pass);
