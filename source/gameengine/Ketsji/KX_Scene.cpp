@@ -109,6 +109,7 @@
 
 #include "KX_Light.h"
 
+#include "BLI_math.h"
 #include "BLI_task.h"
 
 #include "CM_Message.h"
@@ -1802,9 +1803,14 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
 		 * It's done just before the render to be sure of the object color and visibility. */
 		node->GetObject()->UpdateBucketsNew();
+		Object *ob = node->GetObject()->GetBlenderObject();
+		float obmat[4][4];
+		node->GetObject()->NodeGetWorldTransform().getValue(&obmat[0][0]);
+		copy_m4_m4(ob->obmat, obmat);
 	}
 
-	KX_GetActiveEngine()->RenderShadowBuffers(this);
+	KX_GetActiveEngine()->UpdateShadows(this);
+	EEVEE_draw_shadows_bge(EEVEE_scene_layer_data_get(), EEVEE_engine_data_get()->psl);
 
 	DRW_framebuffer_bind(frameBuffer->GetFrameBuffer());
 	DRW_framebuffer_clear(false, true, false, NULL, 1.0f);

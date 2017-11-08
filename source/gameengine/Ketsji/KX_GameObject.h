@@ -49,6 +49,7 @@
 #include "DNA_constraint_types.h" /* for constraint replication */
 #include "DNA_object_types.h"
 #include "SCA_LogicManager.h" /* for ConvertPythonToGameObject to search object names */
+#include "BLI_math.h"
 
 //Forward declarations.
 struct KX_ClientObjectInfo;
@@ -89,6 +90,8 @@ protected:
 
 	std::vector<Gwn_Batch *>m_materialBatches;
 	std::vector<DRWShadingGroup *>m_gameobShGroups;
+
+	float m_savedObmat[4][4];
 
 
 
@@ -558,6 +561,7 @@ public:
 	void SetBlenderObject(struct Object* obj)
 	{
 		m_pBlenderObject = obj;
+		copy_m4_m4(m_savedObmat, obj->obmat);
 	}
 
 	struct Object* GetBlenderGroupObject( )

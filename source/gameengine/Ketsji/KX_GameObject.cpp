@@ -163,6 +163,10 @@ KX_GameObject::~KX_GameObject()
 	}
 #endif // WITH_PYTHON
 
+	if (GetBlenderObject()) {
+		copy_m4_m4(GetBlenderObject()->obmat, m_savedObmat);
+	}
+
 	RemoveMeshes();
 
 	// is this delete somewhere ?
@@ -912,9 +916,6 @@ void KX_GameObject::UpdateBucketsNew()
 			DRW_shgroups_calls_update_obmat(sh, batch, obmat);
 		}
 	}
-	/*for (DRWShadingGroup *sh : GetScene()->GetShadowShadingGroups()) {
-		DRW_shgroup_uniform_mat4(sh, "ShadowModelMatrix", (float *)obmat);
-	}*/
 }
 
 void KX_GameObject::RemoveMeshes()

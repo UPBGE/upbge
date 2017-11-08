@@ -844,29 +844,11 @@ enum LightShadowType {
 	SHADOW_CASCADE
 };
 
-typedef struct ShadowCaster {
-	struct ShadowCaster *next, *prev;
-	void *ob;
-	bool prune;
-} ShadowCaster;
-
-static void delete_pruned_shadowcaster(EEVEE_LampEngineData *led)
-{
-	ShadowCaster *next;
-	for (ShadowCaster *ldata = (ShadowCaster *)led->shadow_caster_list.first; ldata; ldata = next) {
-		next = ldata->next;
-		
-		led->need_update = true;
-		BLI_freelinkN(&led->shadow_caster_list, ldata);
-	}
-}
-
-void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
+void KX_KetsjiEngine::UpdateShadows(KX_Scene *scene)
 {
 	CListValue<KX_LightObject> *lightlist = scene->GetLightList();
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
-	m_rasterizer->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
 	RAS_SceneLayerData *layerData = scene->GetSceneLayerData();
 	const EEVEE_SceneLayerData *sldata = &scene->GetSceneLayerData()->GetData();
@@ -896,173 +878,18 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 		if (useShadow && raslight->NeedShadowUpdate()) {
 
-			float obmat[4][4];
-			light->NodeGetWorldTransform().getValue(&obmat[0][0]);
-
 			if (shadowtype == SHADOW_CUBE) {
-
-				EEVEE_ShadowCubeData *sh_data = (EEVEE_ShadowCubeData *)led->storage;
-
-				/* switch drawmode for speed */
-				RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
-				m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
-
-				/* Cube Shadow Maps */
-				DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cube_target, 0, 0);
-
 				raslight->UpdateShadowsCube(light, linfo, led);
-
-				float cube_projmat[4][4];
-				perspective_m4(cube_projmat, -la->clipsta, la->clipsta, -la->clipsta, la->clipsta, la->clipsta, la->clipend);
-
-				EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
-
-				srd->clip_near = la->clipsta;
-				srd->clip_far = la->clipend;
-				copy_v3_v3(srd->position, obmat[3]);
-				for (int j = 0; j < 6; j++) {
-					float tmp[4][4];
-
-					unit_m4(tmp);
-					negate_v3_v3(tmp[3], obmat[3]);
-					mul_m4_m4m4(srd->viewmat[j], cubefacemat[j], tmp);
-
-					mul_m4_m4m4(srd->shadowmat[j], cube_projmat, srd->viewmat[j]);
-				}
-				DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
-
-				DRW_framebuffer_bind(sldata->shadow_target_fb);
-				DRW_framebuffer_clear(true, true, false, clear_col, 1.0f);
-
-				/* render */
-				DRW_draw_pass(psl->shadow_cube_pass);
-
-				/* 0.001f is arbitrary, but it should be relatively small so that filter size is not too big. */
-				float filter_texture_size = la->soft * 0.001f;
-				float filter_pixel_size = ceil(filter_texture_size / linfo->shadow_render_data.cube_texel_size);
-				linfo->filter_size = linfo->shadow_render_data.cube_texel_size * ((filter_pixel_size > 1.0f) ? 1.5f : 0.0f);
-
-				/* TODO: OPTI: Filter all faces in one/two draw call */
-				for (linfo->current_shadow_face = 0;
-					linfo->current_shadow_face < 6;
-					linfo->current_shadow_face++)
-				{
-					/* Copy using a small 3x3 box filter */
-					DRW_framebuffer_cubeface_attach(sldata->shadow_store_fb, sldata->shadow_cube_blur, 0, linfo->current_shadow_face, 0);
-					DRW_framebuffer_bind(sldata->shadow_store_fb);
-					DRW_draw_pass(psl->shadow_cube_copy_pass);
-					DRW_framebuffer_texture_detach(sldata->shadow_cube_blur);
-				}
-
-				/* Push it to shadowmap array */
-
-				/* Adjust constants if concentric samples change. */
-				const float max_filter_size = 7.5f;
-				const float previous_box_filter_size = 9.0f; /* Dunno why but that works. */
-				const int max_sample = 256;
-
-				if (filter_pixel_size > 2.0f) {
-					linfo->filter_size = linfo->shadow_render_data.cube_texel_size * max_filter_size * previous_box_filter_size;
-					filter_pixel_size = max_ff(0.0f, filter_pixel_size - 3.0f);
-					/* Compute number of concentric samples. Depends directly on filter size. */
-					float pix_size_sqr = filter_pixel_size * filter_pixel_size;
-					srd->shadow_samples_ct = min_ii(max_sample, 4 + 8 * (int)filter_pixel_size + 4 * (int)(pix_size_sqr));
-				}
-				else {
-					linfo->filter_size = 0.0f;
-					srd->shadow_samples_ct = 4;
-				}
-				srd->shadow_inv_samples_ct = 1.0f / (float)srd->shadow_samples_ct;
-				DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
-
-				DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_pool, 0, sh_data->layer_id, 0);
-				DRW_framebuffer_bind(sldata->shadow_store_fb);
-				DRW_draw_pass(psl->shadow_cube_store_pass);
-				m_rasterizer->SetDrawingMode(drawmode);
-				DRW_framebuffer_texture_detach(sldata->shadow_cube_target);
+				led->need_update = true;
 			}
 
 			else if (shadowtype == SHADOW_CASCADE) {
-
-				/* Cascaded Shadow Maps */
-				DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cascade_target, 0, 0);
-
-				EEVEE_ShadowCascadeData *evscd = (EEVEE_ShadowCascadeData *)led->storage;
-				EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
-
-				/* switch drawmode for speed */
-				RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
-				m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
-
 				raslight->UpdateShadowsCascade(light, linfo, led, scene);
-
-				srd->clip_near = la->clipsta;
-				srd->clip_far = la->clipend;
-				for (int j = 0; j < la->cascade_count; ++j) {
-					copy_m4_m4(srd->shadowmat[j], evscd->viewprojmat[j]);
-				}
-				DRW_uniformbuffer_update(sldata->shadow_render_ubo, &linfo->shadow_render_data);
-
-				DRW_framebuffer_bind(sldata->shadow_target_fb);
-				DRW_framebuffer_clear(false, true, false, NULL, 1.0);
-
-				/* render */
-				DRW_draw_pass(psl->shadow_cascade_pass);
-
-				/* TODO: OPTI: Filter all cascade in one/two draw call */
-				for (linfo->current_shadow_cascade = 0;
-					linfo->current_shadow_cascade < la->cascade_count;
-					++linfo->current_shadow_cascade)
-				{
-					/* 0.01f factor to convert to percentage */
-					float filter_texture_size = la->soft * 0.01f / evscd->radius[linfo->current_shadow_cascade];
-					float filter_pixel_size = ceil(linfo->shadow_size * filter_texture_size);
-
-					/* Copy using a small 3x3 box filter */
-					linfo->filter_size = linfo->shadow_render_data.stored_texel_size * ((filter_pixel_size > 1.0f) ? 1.0f : 0.0f);
-					DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_cascade_blur, 0, linfo->current_shadow_cascade, 0);
-					DRW_framebuffer_bind(sldata->shadow_store_fb);
-					DRW_draw_pass(psl->shadow_cascade_copy_pass);
-					DRW_framebuffer_texture_detach(sldata->shadow_cascade_blur);
-
-					/* Push it to shadowmap array and blur more */
-
-					/* Adjust constants if concentric samples change. */
-					const float max_filter_size = 7.5f;
-					const float previous_box_filter_size = 3.2f; /* Arbitrary: less banding */
-					const int max_sample = 256;
-
-					if (filter_pixel_size > 2.0f) {
-						linfo->filter_size = linfo->shadow_render_data.stored_texel_size * max_filter_size * previous_box_filter_size;
-						filter_pixel_size = max_ff(0.0f, filter_pixel_size - 3.0f);
-						/* Compute number of concentric samples. Depends directly on filter size. */
-						float pix_size_sqr = filter_pixel_size * filter_pixel_size;
-						srd->shadow_samples_ct = min_ii(max_sample, 4 + 8 * (int)filter_pixel_size + 4 * (int)(pix_size_sqr));
-					}
-					else {
-						linfo->filter_size = 0.0f;
-						srd->shadow_samples_ct = 4;
-					}
-					srd->shadow_inv_samples_ct = 1.0f / (float)srd->shadow_samples_ct;
-					DRW_uniformbuffer_update(sldata->shadow_render_ubo, &linfo->shadow_render_data);
-
-					int layer = evscd->layer_id + linfo->current_shadow_cascade;
-					DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_pool, 0, layer, 0);
-					DRW_framebuffer_bind(sldata->shadow_store_fb);
-					DRW_draw_pass(psl->shadow_cascade_store_pass);
-				}
-				m_rasterizer->SetDrawingMode(drawmode);
-				DRW_framebuffer_texture_detach(sldata->shadow_cascade_target);
 			}
 		}
-		//delete_pruned_shadowcaster(led);
 	}
 	DRW_uniformbuffer_update(sldata->light_ubo, &linfo->light_data);
 	DRW_uniformbuffer_update(sldata->shadow_ubo, &linfo->shadow_data);
-
-	
-
-	m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 }
 
 /***********************END OF EEVEE SHADOWS SYSTEM************************/

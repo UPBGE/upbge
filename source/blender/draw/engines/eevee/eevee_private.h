@@ -664,6 +664,7 @@ void EEVEE_shgroup_add_standard_uniforms_game(struct DRWShadingGroup *shgrp,
 	EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
 	int *ssr_id, float *refract_depth, bool use_ssrefraction);
 EEVEE_Data *EEVEE_engine_data_get(void);
+void EEVEE_draw_shadows_bge(struct EEVEE_SceneLayerData *sldata, struct EEVEE_PassList *psl);
 /**************End of Game engine***************/
 
 #endif /* __EEVEE_PRIVATE_H__ */

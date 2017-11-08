@@ -1076,4 +1076,169 @@ struct GPUShader *EEVEE_shadow_store_shader_get()
 {
 	return e_data.shadow_store_cube_sh[SHADOW_ESM];
 }
-/**************Enf of Game engine*****************/
+
+/* this refresh lamps shadow buffers */
+void EEVEE_draw_shadows_bge(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl)
+{
+	EEVEE_LampsInfo *linfo = sldata->lamps;
+	Object *ob;
+	int i;
+	float clear_col[4] = { FLT_MAX };
+
+	/* Cube Shadow Maps */
+	DRW_stats_group_start("Cube Shadow Maps");
+	DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cube_target, 0, 0);
+	/* Render each shadow to one layer of the array */
+	for (i = 0; (ob = linfo->shadow_cube_ref[i]) && (i < MAX_SHADOW_CUBE); i++) {
+		EEVEE_LampEngineData *led = EEVEE_lamp_data_get(ob);
+		Lamp *la = (Lamp *)ob->data;
+
+		float cube_projmat[4][4];
+		perspective_m4(cube_projmat, -la->clipsta, la->clipsta, -la->clipsta, la->clipsta, la->clipsta, la->clipend);
+
+		if (led->need_update) {
+			EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
+			EEVEE_ShadowCubeData *evscd = (EEVEE_ShadowCubeData *)led->storage;
+
+			srd->clip_near = la->clipsta;
+			srd->clip_far = la->clipend;
+			copy_v3_v3(srd->position, ob->obmat[3]);
+			for (int j = 0; j < 6; j++) {
+				float tmp[4][4];
+
+				unit_m4(tmp);
+				negate_v3_v3(tmp[3], ob->obmat[3]);
+				mul_m4_m4m4(srd->viewmat[j], cubefacemat[j], tmp);
+
+				mul_m4_m4m4(srd->shadowmat[j], cube_projmat, srd->viewmat[j]);
+			}
+			DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
+
+			DRW_framebuffer_bind(sldata->shadow_target_fb);
+			DRW_framebuffer_clear(true, true, false, clear_col, 1.0f);
+
+			/* Render shadow cube */
+			DRW_draw_pass(psl->shadow_cube_pass);
+
+			/* 0.001f is arbitrary, but it should be relatively small so that filter size is not too big. */
+			float filter_texture_size = la->soft * 0.001f;
+			float filter_pixel_size = ceil(filter_texture_size / linfo->shadow_render_data.cube_texel_size);
+			linfo->filter_size = linfo->shadow_render_data.cube_texel_size * ((filter_pixel_size > 1.0f) ? 1.5f : 0.0f);
+
+			/* TODO: OPTI: Filter all faces in one/two draw call */
+			for (linfo->current_shadow_face = 0;
+				linfo->current_shadow_face < 6;
+				linfo->current_shadow_face++)
+			{
+				/* Copy using a small 3x3 box filter */
+				DRW_framebuffer_cubeface_attach(sldata->shadow_store_fb, sldata->shadow_cube_blur, 0, linfo->current_shadow_face, 0);
+				DRW_framebuffer_bind(sldata->shadow_store_fb);
+				DRW_draw_pass(psl->shadow_cube_copy_pass);
+				DRW_framebuffer_texture_detach(sldata->shadow_cube_blur);
+			}
+
+			/* Push it to shadowmap array */
+
+			/* Adjust constants if concentric samples change. */
+			const float max_filter_size = 7.5f;
+			const float previous_box_filter_size = 9.0f; /* Dunno why but that works. */
+			const int max_sample = 256;
+
+			if (filter_pixel_size > 2.0f) {
+				linfo->filter_size = linfo->shadow_render_data.cube_texel_size * max_filter_size * previous_box_filter_size;
+				filter_pixel_size = max_ff(0.0f, filter_pixel_size - 3.0f);
+				/* Compute number of concentric samples. Depends directly on filter size. */
+				float pix_size_sqr = filter_pixel_size * filter_pixel_size;
+				srd->shadow_samples_ct = min_ii(max_sample, 4 + 8 * (int)filter_pixel_size + 4 * (int)(pix_size_sqr));
+			}
+			else {
+				linfo->filter_size = 0.0f;
+				srd->shadow_samples_ct = 4;
+			}
+			srd->shadow_inv_samples_ct = 1.0f / (float)srd->shadow_samples_ct;
+			DRW_uniformbuffer_update(sldata->shadow_render_ubo, srd);
+
+			DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_pool, 0, evscd->layer_id, 0);
+			DRW_framebuffer_bind(sldata->shadow_store_fb);
+			DRW_draw_pass(psl->shadow_cube_store_pass);
+
+			led->need_update = false;
+		}
+	}
+	//linfo->update_flag &= ~LIGHT_UPDATE_SHADOW_CUBE;
+
+	DRW_framebuffer_texture_detach(sldata->shadow_cube_target);
+	DRW_stats_group_end();
+
+	/* Cascaded Shadow Maps */
+	DRW_stats_group_start("Cascaded Shadow Maps");
+	DRW_framebuffer_texture_attach(sldata->shadow_target_fb, sldata->shadow_cascade_target, 0, 0);
+	for (i = 0; (ob = linfo->shadow_cascade_ref[i]) && (i < MAX_SHADOW_CASCADE); i++) {
+		EEVEE_LampEngineData *led = EEVEE_lamp_data_get(ob);
+		Lamp *la = (Lamp *)ob->data;
+
+		EEVEE_ShadowCascadeData *evscd = (EEVEE_ShadowCascadeData *)led->storage;
+		EEVEE_ShadowRender *srd = &linfo->shadow_render_data;
+
+		srd->clip_near = la->clipsta;
+		srd->clip_far = la->clipend;
+		for (int j = 0; j < la->cascade_count; ++j) {
+			copy_m4_m4(srd->shadowmat[j], evscd->viewprojmat[j]);
+		}
+		DRW_uniformbuffer_update(sldata->shadow_render_ubo, &linfo->shadow_render_data);
+
+		DRW_framebuffer_bind(sldata->shadow_target_fb);
+		DRW_framebuffer_clear(false, true, false, NULL, 1.0);
+
+		/* Render shadow cascades */
+		DRW_draw_pass(psl->shadow_cascade_pass);
+
+		/* TODO: OPTI: Filter all cascade in one/two draw call */
+		for (linfo->current_shadow_cascade = 0;
+			linfo->current_shadow_cascade < la->cascade_count;
+			++linfo->current_shadow_cascade)
+		{
+			/* 0.01f factor to convert to percentage */
+			float filter_texture_size = la->soft * 0.01f / evscd->radius[linfo->current_shadow_cascade];
+			float filter_pixel_size = ceil(linfo->shadow_size * filter_texture_size);
+
+			/* Copy using a small 3x3 box filter */
+			linfo->filter_size = linfo->shadow_render_data.stored_texel_size * ((filter_pixel_size > 1.0f) ? 1.0f : 0.0f);
+			DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_cascade_blur, 0, linfo->current_shadow_cascade, 0);
+			DRW_framebuffer_bind(sldata->shadow_store_fb);
+			DRW_draw_pass(psl->shadow_cascade_copy_pass);
+			DRW_framebuffer_texture_detach(sldata->shadow_cascade_blur);
+
+			/* Push it to shadowmap array and blur more */
+
+			/* Adjust constants if concentric samples change. */
+			const float max_filter_size = 7.5f;
+			const float previous_box_filter_size = 3.2f; /* Arbitrary: less banding */
+			const int max_sample = 256;
+
+			if (filter_pixel_size > 2.0f) {
+				linfo->filter_size = linfo->shadow_render_data.stored_texel_size * max_filter_size * previous_box_filter_size;
+				filter_pixel_size = max_ff(0.0f, filter_pixel_size - 3.0f);
+				/* Compute number of concentric samples. Depends directly on filter size. */
+				float pix_size_sqr = filter_pixel_size * filter_pixel_size;
+				srd->shadow_samples_ct = min_ii(max_sample, 4 + 8 * (int)filter_pixel_size + 4 * (int)(pix_size_sqr));
+			}
+			else {
+				linfo->filter_size = 0.0f;
+				srd->shadow_samples_ct = 4;
+			}
+			srd->shadow_inv_samples_ct = 1.0f / (float)srd->shadow_samples_ct;
+			DRW_uniformbuffer_update(sldata->shadow_render_ubo, &linfo->shadow_render_data);
+
+			int layer = evscd->layer_id + linfo->current_shadow_cascade;
+			DRW_framebuffer_texture_layer_attach(sldata->shadow_store_fb, sldata->shadow_pool, 0, layer, 0);
+			DRW_framebuffer_bind(sldata->shadow_store_fb);
+			DRW_draw_pass(psl->shadow_cascade_store_pass);
+		}
+	}
+
+	DRW_framebuffer_texture_detach(sldata->shadow_cascade_target);
+	DRW_stats_group_end();
+}
+
+/*****************************End of Game engine*********************************/

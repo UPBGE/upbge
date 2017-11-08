@@ -334,7 +334,7 @@ public:
 	/// returns true if an update happened to indicate -> Render
 	bool NextFrame();
 	void Render();
-	void RenderShadowBuffers(KX_Scene *scene);
+	void UpdateShadows(KX_Scene *scene);
 
 	void StartEngine();
 	void StopEngine();

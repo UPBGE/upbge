@@ -176,7 +176,7 @@ bool ImageRender::Render()
 	}
 
 	if (m_updateShadowBuffer) {
-		m_engine->RenderShadowBuffers(m_scene);
+		m_engine->UpdateShadows(m_scene);
 	}
 
 	if (m_mirror)
