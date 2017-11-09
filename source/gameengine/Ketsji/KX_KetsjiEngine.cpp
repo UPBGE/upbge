@@ -885,13 +885,18 @@ static ShadowCaster *search_object_in_list(ListBase *list, Object *ob)
 	return NULL;
 }
 
-static void light_tag_shadow_update(Object *lamp, KX_GameObject *gameobj)
+static void light_tag_shadow_update(KX_LightObject *light, KX_GameObject *gameobj)
 {
-	Lamp *la = (Lamp *)lamp->data;
+	Object *oblamp = light->GetBlenderObject();
+	Lamp *la = (Lamp *)oblamp->data;
 	Object *ob = gameobj->GetBlenderObject();
-	EEVEE_LampEngineData *led = EEVEE_lamp_data_get(lamp);
+	EEVEE_LampEngineData *led = EEVEE_lamp_data_get(oblamp);
 
-	bool is_inside_range = cube_bbox_intersect(lamp->obmat[3], la->clipend, BKE_object_boundbox_get(ob), ob->obmat);
+	float obmat[4][4], oblampmat[4][4];
+	gameobj->NodeGetWorldTransform().getValue(&obmat[0][0]);
+	light->NodeGetWorldTransform().getValue(&oblampmat[0][0]);
+
+	bool is_inside_range = cube_bbox_intersect(oblampmat[3], la->clipend, BKE_object_boundbox_get(ob), obmat);
 	ShadowCaster *ldata = search_object_in_list(&led->shadow_caster_list, ob);
 
 	if (is_inside_range) {
@@ -933,7 +938,7 @@ void KX_KetsjiEngine::UpdateShadows(KX_Scene *scene)
 		for (KX_GameObject *gameob : scene->GetObjectList()) {
 			Object *blenob = gameob->GetBlenderObject();
 			if (blenob && blenob->type == OB_MESH) {
-				light_tag_shadow_update(ob, gameob);
+				light_tag_shadow_update(light, gameob);
 			}
 		}
 
