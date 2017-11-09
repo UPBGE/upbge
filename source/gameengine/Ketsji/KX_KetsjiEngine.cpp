@@ -76,6 +76,8 @@
 
 #include "KX_NavMeshObject.h"
 
+#include "BKE_object.h"
+
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 
 #ifdef FREE_WINDOWS /* XXX mingw64 (gcc 4.7.0) defines a macro for DrawText that translates to DrawTextA. Not good */
@@ -844,6 +846,61 @@ enum LightShadowType {
 	SHADOW_CASCADE
 };
 
+typedef struct ShadowCaster {
+	struct ShadowCaster *next, *prev;
+	void *ob;
+	bool prune;
+} ShadowCaster;
+
+/* Used for checking if object is inside the shadow volume. */
+static bool cube_bbox_intersect(const float cube_center[3], float cube_half_dim, const BoundBox *bb, float(*obmat)[4])
+{
+	float min[3], max[4], tmp[4][4];
+	unit_m4(tmp);
+	translate_m4(tmp, -cube_center[0], -cube_center[1], -cube_center[2]);
+	mul_m4_m4m4(tmp, tmp, obmat);
+
+	/* Just simple AABB intersection test in world space. */
+	INIT_MINMAX(min, max);
+	for (int i = 0; i < 8; ++i) {
+		float vec[3];
+		copy_v3_v3(vec, bb->vec[i]);
+		mul_m4_v3(tmp, vec);
+		minmax_v3v3_v3(min, max, vec);
+	}
+
+	if (MAX3(max[0], max[1], max[2]) < -cube_half_dim) return false;
+	if (MIN3(min[0], min[1], min[2]) >  cube_half_dim) return false;
+
+	return true;
+}
+
+static ShadowCaster *search_object_in_list(ListBase *list, Object *ob)
+{
+	for (ShadowCaster *ldata = (ShadowCaster *)list->first; ldata; ldata = ldata->next) {
+		if (ldata->ob == ob)
+			return ldata;
+	}
+
+	return NULL;
+}
+
+static void light_tag_shadow_update(Object *lamp, KX_GameObject *gameobj)
+{
+	Lamp *la = (Lamp *)lamp->data;
+	Object *ob = gameobj->GetBlenderObject();
+	EEVEE_LampEngineData *led = EEVEE_lamp_data_get(lamp);
+
+	bool is_inside_range = cube_bbox_intersect(lamp->obmat[3], la->clipend, BKE_object_boundbox_get(ob), ob->obmat);
+	ShadowCaster *ldata = search_object_in_list(&led->shadow_caster_list, ob);
+
+	if (is_inside_range) {
+		if (gameobj->NeedsUpdate()) {
+			led->need_update = true;
+		}
+	}
+}
+
 void KX_KetsjiEngine::UpdateShadows(KX_Scene *scene)
 {
 	CListValue<KX_LightObject> *lightlist = scene->GetLightList();
@@ -872,6 +929,14 @@ void KX_KetsjiEngine::UpdateShadows(KX_Scene *scene)
 		Lamp *la = (Lamp *)ob->data;
 		LightShadowType shadowtype = la->type != LA_SUN ? SHADOW_CUBE : SHADOW_CASCADE;
 
+
+		for (KX_GameObject *gameob : scene->GetObjectList()) {
+			Object *blenob = gameob->GetBlenderObject();
+			if (blenob && blenob->type == OB_MESH) {
+				light_tag_shadow_update(ob, gameob);
+			}
+		}
+
 		raslight->UpdateLight(light, linfo, led);
 
 		const bool useShadow = (textured && raslight->HasShadow());
@@ -880,7 +945,7 @@ void KX_KetsjiEngine::UpdateShadows(KX_Scene *scene)
 
 			if (shadowtype == SHADOW_CUBE) {
 				raslight->UpdateShadowsCube(light, linfo, led);
-				led->need_update = true;
+				//led->need_update = true;
 			}
 
 			else if (shadowtype == SHADOW_CASCADE) {

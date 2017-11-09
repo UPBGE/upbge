@@ -128,6 +128,7 @@ KX_GameObject::KX_GameObject(
       m_cullingNode(this),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
+	  m_needsUpdate(true),
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
     , m_attr_dict(nullptr),
@@ -221,6 +222,20 @@ KX_GameObject::~KX_GameObject()
 }
 
 
+void KX_GameObject::TagForUpdate()
+{
+	if (compare_m4m4(m_prevObmat, m_currentObmat, FLT_MIN)) {
+		m_needsUpdate = false;
+	}
+	else {
+		m_needsUpdate = true;
+	}
+}
+
+bool KX_GameObject::NeedsUpdate()
+{
+	return m_needsUpdate;
+}
 
 void KX_GameObject::AddMaterialBatch(Gwn_Batch *batch)
 {
@@ -909,13 +924,15 @@ void KX_GameObject::UpdateBucketsNew()
 		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
-	float obmat[4][4];
-	NodeGetWorldTransform().getValue(&obmat[0][0]);
+
+	NodeGetWorldTransform().getValue(&m_currentObmat[0][0]);
 	for (Gwn_Batch *batch : m_materialBatches) {
 		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-			DRW_shgroups_calls_update_obmat(sh, batch, obmat);
+			DRW_shgroups_calls_update_obmat(sh, batch, m_currentObmat);
 		}
 	}
+	TagForUpdate();
+	copy_m4_m4(m_prevObmat, m_currentObmat);
 }
 
 void KX_GameObject::RemoveMeshes()

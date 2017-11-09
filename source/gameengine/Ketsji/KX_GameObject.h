@@ -92,6 +92,8 @@ protected:
 	std::vector<DRWShadingGroup *>m_gameobShGroups;
 
 	float m_savedObmat[4][4];
+	float m_currentObmat[4][4];
+	float m_prevObmat[4][4];
 
 
 
@@ -147,6 +149,10 @@ public:
 	void RestoreGeometry();
 	void DuplicateGeometry();
 	void AddNewGeometryToPasses(float obmat[4][4]);
+
+	void TagForUpdate();
+	bool NeedsUpdate();
+	bool m_needsUpdate;
 
 
 
