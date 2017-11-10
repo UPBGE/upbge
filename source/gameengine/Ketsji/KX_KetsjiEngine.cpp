@@ -78,6 +78,7 @@
 
 #include "BKE_object.h"
 
+
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 
 #ifdef FREE_WINDOWS /* XXX mingw64 (gcc 4.7.0) defines a macro for DrawText that translates to DrawTextA. Not good */
@@ -869,8 +870,12 @@ static bool cube_bbox_intersect(const float cube_center[3], float cube_half_dim,
 		minmax_v3v3_v3(min, max, vec);
 	}
 
-	if (MAX3(max[0], max[1], max[2]) < -cube_half_dim) return false;
-	if (MIN3(min[0], min[1], min[2]) >  cube_half_dim) return false;
+	if (MAX3(max[0], max[1], max[2]) < -cube_half_dim) {
+		return false;
+	}
+	if (MIN3(min[0], min[1], min[2]) > cube_half_dim) {
+		return false;
+	}
 
 	return true;
 }
@@ -896,13 +901,18 @@ static void light_tag_shadow_update(KX_LightObject *light, KX_GameObject *gameob
 	gameobj->NodeGetWorldTransform().getValue(&obmat[0][0]);
 	light->NodeGetWorldTransform().getValue(&oblampmat[0][0]);
 
-	bool is_inside_range = cube_bbox_intersect(oblampmat[3], la->clipend, BKE_object_boundbox_get(ob), obmat);
+	BoundBox *bb = ob->bb;
+
+	bool is_inside_range = cube_bbox_intersect(oblampmat[3], la->clipend, bb, obmat);
 	ShadowCaster *ldata = search_object_in_list(&led->shadow_caster_list, ob);
 
 	if (is_inside_range) {
 		if (gameobj->NeedsUpdate()) {
 			led->need_update = true;
 		}
+	}
+	else {
+		led->need_update = false;
 	}
 }
 

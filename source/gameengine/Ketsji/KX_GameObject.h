@@ -151,6 +151,7 @@ public:
 	void AddNewGeometryToPasses(float obmat[4][4]);
 
 	void TagForUpdate();
+	void UpdateMatrix();
 	bool NeedsUpdate();
 	bool m_needsUpdate;
 

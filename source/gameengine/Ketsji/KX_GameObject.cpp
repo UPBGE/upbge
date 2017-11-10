@@ -221,22 +221,6 @@ KX_GameObject::~KX_GameObject()
 	}
 }
 
-
-void KX_GameObject::TagForUpdate()
-{
-	if (compare_m4m4(m_prevObmat, m_currentObmat, FLT_MIN)) {
-		m_needsUpdate = false;
-	}
-	else {
-		m_needsUpdate = true;
-	}
-}
-
-bool KX_GameObject::NeedsUpdate()
-{
-	return m_needsUpdate;
-}
-
 void KX_GameObject::AddMaterialBatch(Gwn_Batch *batch)
 {
 	std::vector<Gwn_Batch *>::iterator it = std::find(m_materialBatches.begin(), m_materialBatches.end(), batch);
@@ -916,6 +900,32 @@ void KX_GameObject::UpdateBuckets()
 	m_meshUser->ActivateMeshSlots();
 }
 
+void KX_GameObject::TagForUpdate()
+{
+	if (compare_m4m4(m_prevObmat, m_currentObmat, FLT_MIN)) {
+		m_needsUpdate = false;
+	}
+	else {
+		m_needsUpdate = true;
+	}
+}
+
+bool KX_GameObject::NeedsUpdate()
+{
+	return m_needsUpdate;
+}
+
+void KX_GameObject::UpdateMatrix()
+{
+	Object *ob = GetBlenderObject();
+	if (ob) {
+		NodeGetWorldTransform().getValue(&m_currentObmat[0][0]);
+		copy_m4_m4(GetBlenderObject()->obmat, m_currentObmat);
+		TagForUpdate();
+		copy_m4_m4(m_prevObmat, m_currentObmat);
+	}
+}
+
 void KX_GameObject::UpdateBucketsNew()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
@@ -924,15 +934,13 @@ void KX_GameObject::UpdateBucketsNew()
 		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
-
-	NodeGetWorldTransform().getValue(&m_currentObmat[0][0]);
+	float obmat[4][4];
+	NodeGetWorldTransform().getValue(&obmat[0][0]);
 	for (Gwn_Batch *batch : m_materialBatches) {
 		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-			DRW_shgroups_calls_update_obmat(sh, batch, m_currentObmat);
+			DRW_shgroups_calls_update_obmat(sh, batch, obmat);
 		}
 	}
-	TagForUpdate();
-	copy_m4_m4(m_prevObmat, m_currentObmat);
 }
 
 void KX_GameObject::RemoveMeshes()

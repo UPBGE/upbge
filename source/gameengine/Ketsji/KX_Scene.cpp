@@ -1799,14 +1799,13 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 
 void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer)
 {
+	for (KX_GameObject *gameobj : GetObjectList()) {
+		gameobj->UpdateMatrix();
+	}
 	for (KX_CullingNode *node : nodes) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
 		 * It's done just before the render to be sure of the object color and visibility. */
 		node->GetObject()->UpdateBucketsNew();
-		Object *ob = node->GetObject()->GetBlenderObject();
-		float obmat[4][4];
-		node->GetObject()->NodeGetWorldTransform().getValue(&obmat[0][0]);
-		copy_m4_m4(ob->obmat, obmat);
 	}
 
 	KX_GetActiveEngine()->UpdateShadows(this);
