@@ -870,10 +870,11 @@ static bool cube_bbox_intersect(const float cube_center[3], float cube_half_dim,
 		minmax_v3v3_v3(min, max, vec);
 	}
 
-	if (MAX3(max[0], max[1], max[2]) < -cube_half_dim) {
+	float threshold = cube_half_dim / 10.0f;
+	if (MAX3(min[0], min[1], min[2]) > cube_half_dim + threshold) {
 		return false;
 	}
-	if (MIN3(min[0], min[1], min[2]) > cube_half_dim) {
+	if (MIN3(max[0], max[1], max[2]) < -cube_half_dim - threshold) {
 		return false;
 	}
 
@@ -897,14 +898,7 @@ static void light_tag_shadow_update(KX_LightObject *light, KX_GameObject *gameob
 	Object *ob = gameobj->GetBlenderObject();
 	EEVEE_LampEngineData *led = EEVEE_lamp_data_get(oblamp);
 
-	float obmat[4][4], oblampmat[4][4];
-	gameobj->NodeGetWorldTransform().getValue(&obmat[0][0]);
-	light->NodeGetWorldTransform().getValue(&oblampmat[0][0]);
-
-	BoundBox *bb = ob->bb;
-
-	bool is_inside_range = cube_bbox_intersect(oblampmat[3], la->clipend, bb, obmat);
-	ShadowCaster *ldata = search_object_in_list(&led->shadow_caster_list, ob);
+	bool is_inside_range = cube_bbox_intersect(oblamp->obmat[3], la->clipend, ob->bb, ob->obmat);
 
 	if (is_inside_range) {
 		if (gameobj->NeedsUpdate()) {
