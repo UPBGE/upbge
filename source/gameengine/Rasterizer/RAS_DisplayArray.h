@@ -143,6 +143,17 @@ public:
 		return RAS_Vertex(data, m_format);
 	}
 
+	virtual RAS_Vertex CreateVertex(
+				const float xyz[3],
+				const float (*uvs)[2],
+				const float tangent[4],
+				const unsigned int *rgba,
+				const float normal[3])
+	{
+		VertexData *data = new VertexData(xyz, uvs, tangent, rgba, normal);
+		return RAS_Vertex(data, m_format);
+	}
+
 	virtual void UpdateCache()
 	{
 		const unsigned int size = GetVertexCount();

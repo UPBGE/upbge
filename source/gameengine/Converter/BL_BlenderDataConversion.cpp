@@ -344,9 +344,9 @@ SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 	return gReverseKeyTranslateTable[key_code];
 }
 
-static void BL_GetUvRgba(const RAS_MeshObject::LayerList& layers, std::vector<MLoopUV *>& uvLayers, std::vector<MLoopCol *>& colorLayers,
-                      unsigned short uvCount, unsigned short colorCount,
-                      unsigned int loop, MT_Vector2 uvs[RAS_Texture::MaxUnits], unsigned int rgba[RAS_Vertex::MAX_UNIT])
+static void BL_GetUvRgba(const RAS_MeshObject::LayerList& layers, std::vector<MLoopUV *>& uvLayers,
+		std::vector<MLoopCol *>& colorLayers, unsigned short uvCount, unsigned short colorCount,
+		unsigned int loop, float uvs[RAS_Texture::MaxUnits][2], unsigned int rgba[RAS_Vertex::MAX_UNIT])
 {
 	// No need to initialize layers to zero as all the converted layer are all the layers needed.
 
@@ -371,7 +371,7 @@ static void BL_GetUvRgba(const RAS_MeshObject::LayerList& layers, std::vector<ML
 			case RAS_MeshObject::Layer::UV:
 			{
 				const MLoopUV& uv = uvLayers[index][loop];
-				uvs[index].setValue(uv.uv);
+				copy_v2_v2(uvs[index], uv.uv);
 				break;
 			}
 		}
@@ -382,7 +382,7 @@ static void BL_GetUvRgba(const RAS_MeshObject::LayerList& layers, std::vector<ML
 	 * when no uv or color layer exist.
 	 */
 	if (uvCount == 0) {
-		uvs[0] = MT_Vector2(0.0f, 0.0f);
+		zero_v2((uvs[0]));
 	}
 	if (colorCount == 0) {
 		rgba[0] = 0xFFFFFFFF;
@@ -564,15 +564,15 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 			const unsigned int vertid = mloop.v;
 			const MVert& mvert = mverts[vertid];
 
-			const MT_Vector3 pt(mvert.co);
-			const MT_Vector3 no(normals[j]);
-			const MT_Vector4 tan = tangent ? MT_Vector4(tangent[j]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
-			MT_Vector2 uvs[RAS_Texture::MaxUnits];
+			static const float dummyTangent[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+			const float (&tan)[4] = tangent ? tangent[j] : dummyTangent;
+
+			float uvs[RAS_Texture::MaxUnits][2];
 			unsigned int rgba[RAS_Texture::MaxUnits];
 
 			BL_GetUvRgba(layersInfo.layers, uvLayers, colorLayers, layersInfo.uvCount, layersInfo.colorCount, j, uvs, rgba);
 
-			RAS_Vertex vertex = array->CreateVertex(pt, uvs, tan, rgba, no);
+			RAS_Vertex vertex = array->CreateVertex(mvert.co, uvs, tan, rgba, normals[j]);
 
 			BL_SharedVertexList& sharedList = sharedMap[vertid];
 			BL_SharedVertexList::iterator it = std::find_if(sharedList.begin(), sharedList.end(),

@@ -175,6 +175,13 @@ public:
 				const unsigned int *rgba,
 				const MT_Vector3& normal) = 0;
 
+	virtual RAS_Vertex CreateVertex(
+				const float xyz[3],
+				const float (*uvs)[2],
+				const float tangent[4],
+				const unsigned int *rgba,
+				const float normal[3]) = 0;
+
 	/** Copy vertex data from an other display array. Different vertex type is allowed.
 	 * \param other The other display array to copy from.
 	 * \param flag The flag coresponding to datas to copy.
