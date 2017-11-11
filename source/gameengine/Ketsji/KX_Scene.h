@@ -89,17 +89,21 @@ class RAS_SceneLayerData;
 class RAS_2DFilter;
 class RAS_2DFilterManager;
 class KX_2DFilterManager;
-class RAS_EeveeEffectsManager;
 class SCA_JoystickManager;
 class btCollisionShape;
 class KX_BlenderSceneConverter;
 struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
 struct TaskPool;
+
+/*********EEVEE INTEGRATION************/
 struct EEVEE_Data;
-struct IDProperty;
+struct EEVEE_PassList;
 struct DefaultTextureList;
 struct DRWShadingGroup;
+struct IDProperty;
+class RAS_EeveeEffectsManager;
+/**************************************/
 
 /* for ID freeing */
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
@@ -144,6 +148,9 @@ private:
 
 protected:
 
+	/***************EEVEE INTEGRATION*****************/
+	// Used for Tonemap
+	bool m_isLastScene;
 
 	std::vector<DRWShadingGroup *>m_materialShGroups;
 
@@ -152,6 +159,7 @@ protected:
 	EEVEE_Data *m_eeveeData;
 	IDProperty *m_props;
 	std::vector<KX_GameObject *>m_lightProbes;
+	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
 
@@ -329,8 +337,6 @@ protected:
 	bool m_isActivedHysteresis;
 	int m_lodHysteresisValue;
 
-	bool m_isLastScene;
-
 public:
 	KX_Scene(SCA_IInputDevice *inputDevice,
 		const std::string& scenename,
@@ -341,7 +347,7 @@ public:
 	virtual
 	~KX_Scene();
 
-	/********************** EEVEE **********************/
+	/******************EEVEE INTEGRATION*******************/
 	void SetSceneLayerData(RAS_SceneLayerData *layerData);
 	RAS_SceneLayerData *GetSceneLayerData() const;
 	EEVEE_Data *GetEeveeData();
@@ -349,16 +355,19 @@ public:
 	bool GetIsLastScene();
 	void AppendProbeList(KX_GameObject *probe);
 	std::vector<KX_GameObject *>GetProbeList();
+	void InitSceneShadingGroups(EEVEE_PassList *psl);
 	std::vector<DRWShadingGroup *>GetMaterialShadingGroups();
-	std::vector<DRWShadingGroup *>GetShadowShadingGroups();
-	/***************************************************/
+	/******************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 
 	void RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer);
+
+	/*********************************************EEVEE EXPERIMENTAL********************************************/
 	void RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer);
+	/***********************************************************************************************************/
 
 	/**
 	 * Update all transforms according to the scenegraph.

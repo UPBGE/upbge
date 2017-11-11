@@ -267,18 +267,20 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 		SceneLayer *sl = BKE_scene_layer_from_scene_get(sc);
 		InitProperties(sl, m_blenderScene);
 	}
-	SceneLayer *firstSceneSl = BKE_scene_layer_from_scene_get(m_blenderScene);
-	m_props = BKE_scene_layer_engine_evaluated_get(firstSceneSl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+	SceneLayer *sl = BKE_scene_layer_from_scene_get(m_blenderScene);
+	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 
-	Object *maincam = m_blenderScene->camera ? (Object *)m_blenderScene->camera : (Object *)KX_GetActiveEngine()->GetConverter()->GetMain()->camera.first;
+	Object *maincam = m_blenderScene->camera ? (Object *)m_blenderScene->camera : (Object *)bmain->camera.first;
 	bool isFirstScene = KX_GetActiveEngine()->CurrentScenes()->GetCount() == 0;
 	
-	/* TODO: Move this in LA_Launcher */
+	/* TODO: Move this in LA_Launcher ?? For now the function is called only when the first scene is created */
+	/* INIT EEVEE DATA */
 	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, nullptr);
 	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
-	DRW_game_render_loop_begin(tempgpuofs, KX_GetActiveEngine()->GetConverter()->GetMain(), m_blenderScene,
-		firstSceneSl, maincam, viewportsize, isFirstScene);
+	DRW_game_render_loop_begin(tempgpuofs, bmain, m_blenderScene,
+		sl, maincam, viewportsize, isFirstScene);
 	GPU_offscreen_free(tempgpuofs);
+	/* END OF INIT EEVEE DATA */
 	
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 	RAS_SceneLayerData *layerData = new RAS_SceneLayerData(*sldata);
@@ -288,44 +290,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, KX_GetActiveEngine()->GetRasterizer(), this);
 
-
 	EEVEE_PassList *psl = m_eeveeData->psl;
 
-	/* MATERIALS SHADING GROUPS : OPAQUES + TRANSPARENT */
+	InitSceneShadingGroups(psl);
 
-	// Default materials passes
-	for (int i = 0; i < VAR_MAT_MAX; ++i) {
-		if (psl->default_pass[i]) {
-			DRWPass *defpass = psl->default_pass[i];
-			ListBase defsh = DRW_shgroups_from_pass_get(defpass);
-			for (DRWShadingGroup *s = (DRWShadingGroup *)defsh.first; s; s = DRW_shgroup_next(s)) {
-				m_materialShGroups.push_back(s);
-			}
-		}
-	}
-
-	DRWPass *matpass = psl->material_pass;
-	ListBase matsh = DRW_shgroups_from_pass_get(matpass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)matsh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
-	DRWPass *depthpass = psl->depth_pass;
-	ListBase depthsh = DRW_shgroups_from_pass_get(depthpass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)depthsh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
-	DRWPass *depthpasscull = psl->depth_pass_cull;
-	ListBase depthcsh = DRW_shgroups_from_pass_get(depthpasscull);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)depthcsh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
-	DRWPass *transparentpass = psl->transparent_pass;
-	ListBase trsh = DRW_shgroups_from_pass_get(transparentpass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)trsh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
-
-	/* END OF MATERIALS SHADING GROUPS : OPAQUES + TRANSPARENT */
 	/******************************************************************************************************************************/
 
 #ifdef WITH_PYTHON
@@ -419,31 +387,7 @@ KX_Scene::~KX_Scene()
 #endif
 }
 
-std::string KX_Scene::GetName()
-{
-	return m_sceneName;
-}
-
-/// Set the name of the value
-void KX_Scene::SetName(const std::string& name)
-{
-	m_sceneName = name;
-}
-
-void KX_Scene::AppendProbeList(KX_GameObject *probe)
-{
-	m_lightProbes.push_back(probe);
-}
-
-std::vector<KX_GameObject *>KX_Scene::GetProbeList()
-{
-	return m_lightProbes;
-}
-
-std::vector<DRWShadingGroup *>KX_Scene::GetMaterialShadingGroups()
-{
-	return m_materialShGroups;
-}
+/*******************EEVEE INTEGRATION******************/
 
 void KX_Scene::SetSceneLayerData(RAS_SceneLayerData *layerData)
 {
@@ -459,6 +403,112 @@ RAS_SceneLayerData *KX_Scene::GetSceneLayerData() const
 EEVEE_Data *KX_Scene::GetEeveeData()
 {
 	return m_eeveeData;
+}
+
+void KX_Scene::InitSceneShadingGroups(EEVEE_PassList *psl)
+{
+	/* MATERIALS SHADING GROUPS : OPAQUES + TRANSPARENT + DEPTH..... */
+
+	// Default materials passes
+	for (int i = 0; i < VAR_MAT_MAX; ++i) {
+		if (psl->default_pass[i]) {
+			DRWPass *defpass = psl->default_pass[i];
+			ListBase defsh = DRW_shgroups_from_pass_get(defpass);
+			for (DRWShadingGroup *s = (DRWShadingGroup *)defsh.first; s; s = DRW_shgroup_next(s)) {
+				m_materialShGroups.push_back(s);
+			}
+		}
+	}
+
+	DRWPass *matPass = psl->material_pass;
+	ListBase matSh = DRW_shgroups_from_pass_get(matPass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)matSh.first; s; s = DRW_shgroup_next(s)) {
+		m_materialShGroups.push_back(s);
+	}
+	DRWPass *transparentPass = psl->transparent_pass;
+	ListBase transparentSh = DRW_shgroups_from_pass_get(transparentPass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)transparentSh.first; s; s = DRW_shgroup_next(s)) {
+		m_materialShGroups.push_back(s);
+	}
+	DRWPass *depthPass = psl->depth_pass;
+	ListBase depthSh = DRW_shgroups_from_pass_get(depthPass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)depthSh.first; s; s = DRW_shgroup_next(s)) {
+		m_materialShGroups.push_back(s);
+	}
+	DRWPass *depthClipPass = psl->depth_pass_clip;
+	ListBase depthClipSh = DRW_shgroups_from_pass_get(depthClipPass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)depthClipSh.first; s; s = DRW_shgroup_next(s)) {
+		m_materialShGroups.push_back(s);
+	}
+	DRWPass *depthCullPass = psl->depth_pass_cull;
+	ListBase depthCullSh = DRW_shgroups_from_pass_get(depthCullPass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)depthCullSh.first; s; s = DRW_shgroup_next(s)) {
+		m_materialShGroups.push_back(s);
+	}
+	DRWPass *depthClipCullPass = psl->depth_pass_clip_cull;
+	ListBase depthClipCullSh = DRW_shgroups_from_pass_get(depthClipCullPass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)depthClipCullSh.first; s; s = DRW_shgroup_next(s)) {
+		m_materialShGroups.push_back(s);
+	}
+	DRWPass *refractDepthPass = psl->refract_depth_pass;
+	ListBase refractDepthSh = DRW_shgroups_from_pass_get(refractDepthPass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)refractDepthSh.first; s; s = DRW_shgroup_next(s)) {
+		m_materialShGroups.push_back(s);
+	}
+	DRWPass *refractDepthClipPass = psl->refract_depth_pass_clip;
+	ListBase refractDepthClipSh = DRW_shgroups_from_pass_get(refractDepthClipPass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)refractDepthClipSh.first; s; s = DRW_shgroup_next(s)) {
+		m_materialShGroups.push_back(s);
+	}
+	DRWPass *refractDepthCullPass = psl->refract_depth_pass_cull;
+	ListBase refractDepthCullSh = DRW_shgroups_from_pass_get(refractDepthCullPass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)refractDepthCullSh.first; s; s = DRW_shgroup_next(s)) {
+		m_materialShGroups.push_back(s);
+	}
+	DRWPass *refractDepthClipCullPass = psl->refract_depth_pass_clip_cull;
+	ListBase refractDepthClipCullSh = DRW_shgroups_from_pass_get(refractDepthClipCullPass);
+	for (DRWShadingGroup *s = (DRWShadingGroup *)refractDepthClipCullSh.first; s; s = DRW_shgroup_next(s)) {
+		m_materialShGroups.push_back(s);
+	}
+	/* END OF MATERIALS SHADING GROUPS */
+}
+
+std::vector<DRWShadingGroup *>KX_Scene::GetMaterialShadingGroups()
+{
+	return m_materialShGroups;
+}
+
+void KX_Scene::SetIsLastScene(bool isLastScene)
+{
+	m_isLastScene = isLastScene;
+}
+
+bool KX_Scene::GetIsLastScene()
+{
+	return m_isLastScene;
+}
+
+void KX_Scene::AppendProbeList(KX_GameObject *probe)
+{
+	m_lightProbes.push_back(probe);
+}
+
+std::vector<KX_GameObject *>KX_Scene::GetProbeList()
+{
+	return m_lightProbes;
+}
+
+/**************************************************************/
+
+std::string KX_Scene::GetName()
+{
+	return m_sceneName;
+}
+
+/// Set the name of the value
+void KX_Scene::SetName(const std::string& name)
+{
+	m_sceneName = name;
 }
 
 RAS_BucketManager* KX_Scene::GetBucketManager() const
@@ -2131,16 +2181,6 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		
 	}
 	return true;
-}
-
-void KX_Scene::SetIsLastScene(bool isLastScene)
-{
-	m_isLastScene = isLastScene;
-}
-
-bool KX_Scene::GetIsLastScene()
-{
-	return m_isLastScene;
 }
 
 RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
