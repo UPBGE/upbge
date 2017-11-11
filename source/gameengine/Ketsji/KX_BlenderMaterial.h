@@ -43,6 +43,7 @@ public:
 
 	void ActivateBlenderShaders(RAS_Rasterizer *rasty);
 
+	const RAS_Rasterizer::BlendFunc *GetBlendFunc() const;
 	virtual bool UseInstancing() const;
 	virtual const std::string GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
@@ -60,10 +61,6 @@ public:
 
 	static void EndFrame(RAS_Rasterizer *rasty);
 
-	unsigned int *GetBlendFunc()
-	{
-		return m_blendFunc;
-	}
 	// for ipos
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha);
@@ -112,7 +109,7 @@ private:
 	BL_BlenderShader *m_blenderShader;
 	KX_Scene *m_scene;
 	bool m_userDefBlend;
-	unsigned int m_blendFunc[2];
+	RAS_Rasterizer::BlendFunc m_blendFunc[2];
 	int m_lightLayer;
 
 	struct {

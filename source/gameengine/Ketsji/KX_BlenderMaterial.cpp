@@ -118,8 +118,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(Material *mat, const std::string& name, i
 	m_flag |= ((mat->mode2 & MA_CASTSHADOW) != 0) ? RAS_CASTSHADOW : 0;
 	m_flag |= ((mat->mode & MA_ONLYCAST) != 0) ? RAS_ONLYSHADOW : 0;
 
-	m_blendFunc[0] = 0;
-	m_blendFunc[1] = 0;
+	m_blendFunc[0] = RAS_Rasterizer::RAS_ZERO;
+	m_blendFunc[1] = RAS_Rasterizer::RAS_ZERO;
 
 	InitTextures();
 }
@@ -154,6 +154,11 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 	 * see: [#30493], so just call with nullptr, this is best since it clears
 	 * the 'lastface' pointer in GPU too - campbell */
 	GPU_set_tpage(nullptr, 1, m_alphablend);
+}
+
+const RAS_Rasterizer::BlendFunc *KX_BlenderMaterial::GetBlendFunc() const
+{
+	return m_blendFunc;
 }
 
 void KX_BlenderMaterial::GetRGBAColor(unsigned char *rgba) const
@@ -264,7 +269,7 @@ void KX_BlenderMaterial::SetShaderData(RAS_Rasterizer *ras)
 
 		// tested to be valid enums
 		ras->Enable(RAS_Rasterizer::RAS_BLEND);
-		ras->SetBlendFunc((RAS_Rasterizer::BlendFunc)m_blendFunc[0], (RAS_Rasterizer::BlendFunc)m_blendFunc[1]);
+		ras->SetBlendFunc(m_blendFunc[0], m_blendFunc[1]);
 	}
 }
 
@@ -636,7 +641,7 @@ PyObject *KX_BlenderMaterial::pyattr_get_textures(EXP_PyObjectPlus *self_v, cons
 PyObject *KX_BlenderMaterial::pyattr_get_blending(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	unsigned int *bfunc = self->GetBlendFunc();
+	const RAS_Rasterizer::BlendFunc *bfunc = self->GetBlendFunc();
 	return Py_BuildValue("(ll)", (long int)bfunc[0], (long int)bfunc[1]);
 }
 
@@ -904,11 +909,11 @@ EXP_PYMETHODDEF_DOC(KX_BlenderMaterial, setBlending, "setBlending(bge.logic.src,
 		for (int i = 0; i < 11; i++) {
 			if (b[0] == GL_array[i]) {
 				value_found[0] = true;
-				m_blendFunc[0] = b[0];
+				m_blendFunc[0] = (RAS_Rasterizer::BlendFunc)b[0];
 			}
 			if (b[1] == GL_array[i]) {
 				value_found[1] = true;
-				m_blendFunc[1] = b[1];
+				m_blendFunc[1] = (RAS_Rasterizer::BlendFunc)b[1];
 			}
 			if (value_found[0] && value_found[1]) {
 				break;
