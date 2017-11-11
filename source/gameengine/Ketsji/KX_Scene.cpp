@@ -326,19 +326,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	}
 
 	/* END OF MATERIALS SHADING GROUPS : OPAQUES + TRANSPARENT */
-
-	/* SHADOW SHADING GROUPS (INSTANCED BATCHES : JUST NEEDS TO UPDATE SHGROUP UNIFORM OBMAT) */
-	DRWPass *shadowcubepass = psl->shadow_cube_pass;
-	ListBase shcush = DRW_shgroups_from_pass_get(shadowcubepass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)shcush.first; s; s = DRW_shgroup_next(s)) {
-		m_shadowShGroups.push_back(s);
-	}
-	DRWPass *shadowcascadepass = psl->shadow_cascade_pass;
-	ListBase shcash = DRW_shgroups_from_pass_get(shadowcascadepass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)shcash.first; s; s = DRW_shgroup_next(s)) {
-		m_shadowShGroups.push_back(s);
-	}
-	/* END OF SHADOW SHADING GROUPS */
 	/******************************************************************************************************************************/
 
 #ifdef WITH_PYTHON
@@ -456,11 +443,6 @@ std::vector<KX_GameObject *>KX_Scene::GetProbeList()
 std::vector<DRWShadingGroup *>KX_Scene::GetMaterialShadingGroups()
 {
 	return m_materialShGroups;
-}
-
-std::vector<DRWShadingGroup *>KX_Scene::GetShadowShadingGroups()
-{
-	return m_shadowShGroups;
 }
 
 void KX_Scene::SetSceneLayerData(RAS_SceneLayerData *layerData)

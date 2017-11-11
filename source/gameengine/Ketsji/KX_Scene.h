@@ -146,7 +146,6 @@ protected:
 
 
 	std::vector<DRWShadingGroup *>m_materialShGroups;
-	std::vector<DRWShadingGroup *>m_shadowShGroups;
 
 
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
