@@ -66,7 +66,6 @@
 #include "RAS_2DFilterData.h"
 #include "RAS_2DFilter.h"
 #include "KX_2DFilterManager.h"
-#include "RAS_EeveeEffectsManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
 #include "RAS_SceneLayerData.h"
@@ -114,7 +113,10 @@
 
 #include "CM_Message.h"
 
+/*******************************EEVEE INTEGRATION********************************/
+#include "RAS_EeveeEffectsManager.h"
 #include "RAS_FrameBuffer.h"
+#include "RAS_LightProbesManager.h"
 
 extern "C" {
 #  include "DRW_engine.h"
@@ -151,6 +153,8 @@ static void InitProperties(SceneLayer *scene_layer, Scene *scene)
 	idproperty_reset(&scene_layer->properties_evaluated, scene->layer_properties);
 	IDP_MergeGroup(scene_layer->properties_evaluated, scene_layer->properties, true);
 }
+
+/************************************END OF EEVEE INTEGRATION*************************************/
 
 static void *KX_SceneReplicationFunc(SG_Node* node,void* gameobj,void* scene)
 {
@@ -289,6 +293,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_eeveeData = EEVEE_engine_data_get();
 
 	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, KX_GetActiveEngine()->GetRasterizer(), this);
+	m_probesManager = new RAS_LightProbesManager(m_eeveeData, canvas, m_props, KX_GetActiveEngine()->GetRasterizer(), this);
 
 	EEVEE_PassList *psl = m_eeveeData->psl;
 
@@ -351,9 +356,15 @@ KX_Scene::~KX_Scene()
 		delete m_filterManager;
 	}
 
+	/******EEVEE INTEGRATION*******/
 	if (m_effectsManager) {
 		delete m_effectsManager;
 	}
+
+	if (m_probesManager) {
+		delete m_probesManager;
+	}
+	/******************************/
 
 	if (m_logicmgr)
 		delete m_logicmgr;
@@ -1840,6 +1851,8 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
+/***********************************************EEVEE INTEGRATION****************************************************/
+
 void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer)
 {
 	for (KX_GameObject *gameobj : GetObjectList()) {
@@ -1870,6 +1883,8 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 
 	KX_BlenderMaterial::EndFrame(rasty);
 }
+
+/*********************************************************************************************************************/
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam, const KX_CullingNodeList& nodes)
 {

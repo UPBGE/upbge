@@ -103,6 +103,7 @@ struct DefaultTextureList;
 struct DRWShadingGroup;
 struct IDProperty;
 class RAS_EeveeEffectsManager;
+class RAS_LightProbesManager;
 /**************************************/
 
 /* for ID freeing */
@@ -158,6 +159,8 @@ protected:
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
 	EEVEE_Data *m_eeveeData;
 	IDProperty *m_props;
+	RAS_EeveeEffectsManager *m_effectsManager;
+	RAS_LightProbesManager *m_probesManager;
 	std::vector<KX_GameObject *>m_lightProbes;
 	/*************************************************/
 
@@ -324,7 +327,6 @@ protected:
 	struct Scene* m_blenderScene;
 
 	KX_2DFilterManager *m_filterManager;
-	RAS_EeveeEffectsManager *m_effectsManager;
 
 	KX_ObstacleSimulation* m_obstacleSimulation;
 

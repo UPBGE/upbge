@@ -83,6 +83,7 @@ set(SRC
 	RAS_IPolygonMaterial.cpp
 	RAS_Rasterizer.cpp
 	RAS_ITexVert.cpp
+	RAS_LightProbesManager.cpp
 	RAS_MaterialBucket.cpp
 	RAS_MeshMaterial.cpp
 	RAS_MeshObject.cpp
@@ -126,6 +127,7 @@ set(SRC
 	RAS_InstancingBuffer.h
 	RAS_ISync.h
 	RAS_ITexVert.h
+	RAS_LightProbesManager.h
 	RAS_MaterialBucket.h
 	RAS_MaterialShader.h
 	RAS_MeshMaterial.h
