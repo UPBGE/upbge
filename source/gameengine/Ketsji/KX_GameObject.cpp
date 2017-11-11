@@ -244,7 +244,7 @@ void KX_GameObject::AddGeometry()
 		return;
 	}
 
-	int materials_len = ob->totcol;
+	int materials_len = max_ii(1, ob->totcol);
 	struct GPUMaterial **gpumat_array = (GPUMaterial **)BLI_array_alloca(gpumat_array, materials_len);
 	struct Gwn_Batch **mat_geom = DRW_cache_object_surface_material_get(ob, gpumat_array, materials_len);
 	if (mat_geom) {

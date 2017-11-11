@@ -293,6 +293,17 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	/* MATERIALS SHADING GROUPS : OPAQUES + TRANSPARENT */
 
+	// Default materials passes
+	for (int i = 0; i < VAR_MAT_MAX; ++i) {
+		if (psl->default_pass[i]) {
+			DRWPass *defpass = psl->default_pass[i];
+			ListBase defsh = DRW_shgroups_from_pass_get(defpass);
+			for (DRWShadingGroup *s = (DRWShadingGroup *)defsh.first; s; s = DRW_shgroup_next(s)) {
+				m_materialShGroups.push_back(s);
+			}
+		}
+	}
+
 	DRWPass *matpass = psl->material_pass;
 	ListBase matsh = DRW_shgroups_from_pass_get(matpass);
 	for (DRWShadingGroup *s = (DRWShadingGroup *)matsh.first; s; s = DRW_shgroup_next(s)) {
