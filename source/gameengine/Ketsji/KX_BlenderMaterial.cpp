@@ -115,7 +115,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(Material *mat, const std::string& name, i
 	}
 
 	m_flag |= ((mat->mode & MA_SHLESS) != 0) ? 0 : RAS_MULTILIGHT;
-	m_flag |= RAS_BLENDERGLSL;
 	m_flag |= ((mat->mode2 & MA_CASTSHADOW) != 0) ? RAS_CASTSHADOW : 0;
 	m_flag |= ((mat->mode & MA_ONLYCAST) != 0) ? RAS_ONLYSHADOW : 0;
 
@@ -864,8 +863,6 @@ EXP_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 
 	if (!m_shader) {
 		m_shader = new BL_Shader();
-		// Set the material to use custom shader.
-		m_flag &= ~RAS_BLENDERGLSL;
 		m_shader->InitTexCo(m_textures);
 		m_scene->GetBucketManager()->UpdateShaders(this);
 	}

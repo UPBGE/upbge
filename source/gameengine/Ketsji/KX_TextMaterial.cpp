@@ -32,7 +32,6 @@ KX_TextMaterial::KX_TextMaterial()
 	:RAS_IPolyMaterial("__TextMaterial__")
 {
 	m_rasMode |= (RAS_ALPHA | RAS_TEXT);
-	m_flag |= RAS_BLENDERGLSL;
 	m_alphablend = GEMAT_ALPHA;
 }
 
