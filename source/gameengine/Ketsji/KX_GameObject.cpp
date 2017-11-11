@@ -1552,24 +1552,25 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionC
 #endif
 }
 
-static void walk_children(const SG_Node* node, std::vector<KX_GameObject *>& list, bool recursive)
+template <bool recursive>
+static void walk_children(const SG_Node* node, std::vector<KX_GameObject *>& list)
 {
-	if (!node)
+	if (!node) {
 		return;
+	}
+
 	const NodeList& children = node->GetSGChildren();
 
 	for (SG_Node *childnode : children) {
 		KX_GameObject *childobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
-		if (childobj != nullptr) // This is a GameObject
-		{
-			// add to the list, no AddRef because the list doesn't own its items.
+		if (childobj) {
 			list.push_back(childobj);
 		}
-		
-		// if the childobj is nullptr then this may be an inverse parent link
-		// so a non recursive search should still look down this node.
-		if (recursive || childobj==nullptr) {
-			walk_children(childnode, list, recursive);
+
+		/* If the childobj is nullptr then this may be an inverse parent link
+		 * so a non recursive search should still look down this node. */
+		if (recursive || !childobj) {
+			walk_children<recursive>(childnode, list);
 		}
 	}
 }
@@ -1577,15 +1578,14 @@ static void walk_children(const SG_Node* node, std::vector<KX_GameObject *>& lis
 std::vector<KX_GameObject *> KX_GameObject::GetChildren() const
 {
 	std::vector<KX_GameObject *> list;
-	// GetSGNode() is always valid or it would have raised an exception before this.
-	walk_children(GetSGNode(), list, 0);
+	walk_children<false>(GetSGNode(), list);
 	return list;
 }
 
 std::vector<KX_GameObject *> KX_GameObject::GetChildrenRecursive() const
 {
 	std::vector<KX_GameObject *> list;
-	walk_children(GetSGNode(), list, 1);
+	walk_children<true>(GetSGNode(), list);
 	return list;
 }
 
