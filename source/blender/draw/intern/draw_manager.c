@@ -3873,9 +3873,19 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 		/* Init engines */
 		DRW_engines_init();
 
+		/* When uniforms are passed to the shaders, there is a control if
+		 * stl->g_data->valid_double_buffer is true if we want to enable SSR
+		 * As there is no valid frame before game start, stl->g_data->valid_double_buffer
+		 * is set to false. This is causing issues with my simplified implementation of SSR
+		 * so I set it to true here before the uniforms are passed.
+		 */
+		EEVEE_StorageList *stl = EEVEE_engine_data_get()->stl;
+		stl->g_data->valid_double_buffer = true;
+
 		/* TODO : tag to refresh by the deps graph */
 		/* ideally only refresh when objects are added/removed */
 		/* or render properties / materials change */
+
 		if (cache_is_dirty) {
 			DRW_engines_cache_init();
 			for (Scene *sc = bmain->scene.first; sc; sc = sc->id.next) {
