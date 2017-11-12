@@ -565,7 +565,7 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 			const MVert& mvert = mverts[vertid];
 
 			static const float dummyTangent[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-			const float (&tan)[4] = tangent ? tangent[j] : dummyTangent;
+			const float *tan = tangent ? tangent[j] : dummyTangent;
 
 			float uvs[RAS_Texture::MaxUnits][2];
 			unsigned int rgba[RAS_Texture::MaxUnits];
