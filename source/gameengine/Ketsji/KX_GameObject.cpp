@@ -262,16 +262,18 @@ std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 		return m_gameobShGroups;
 	}
 	KX_Scene *scene = GetScene();
-	std::vector<DRWShadingGroup *>allShGroups = scene->GetMaterialShadingGroups();
-	for (DRWShadingGroup *sh : allShGroups) {
-		std::vector<DRWShadingGroup *>::iterator it = std::find(m_gameobShGroups.begin(), m_gameobShGroups.end(), sh);
-		if (it != m_gameobShGroups.end()) {
-			continue;
-		}			
-		for (Gwn_Batch *batch : m_materialBatches) {
-			if (DRW_shgroups_belongs_to_gameobject(sh, batch)) {
-				m_gameobShGroups.push_back(sh);
-				break;
+	std::vector<ListBase *>allShGroups = scene->GetMaterialShadingGroups();
+	for (ListBase *shgroups : allShGroups) {
+		for (DRWShadingGroup *shgroup = (DRWShadingGroup *)shgroups->first; shgroup; shgroup = DRW_shgroup_next(shgroup)) {
+			std::vector<DRWShadingGroup *>::iterator it = std::find(m_gameobShGroups.begin(), m_gameobShGroups.end(), shgroup);
+			if (it != m_gameobShGroups.end()) {
+				continue;
+			}
+			for (Gwn_Batch *batch : m_materialBatches) {
+				if (DRW_shgroups_belongs_to_gameobject(shgroup, batch)) {
+					m_gameobShGroups.push_back(shgroup);
+					break;
+				}
 			}
 		}
 	}
@@ -280,33 +282,9 @@ std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 
 void KX_GameObject::DiscardGeometry()
 {
-	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
-	DRWPass *matpass = psl->material_pass;
-	DRWPass *depthpass = psl->depth_pass;
-	ListBase *depthsh = &DRW_shgroups_from_pass_get(depthpass);
-	DRWPass *depthpasscull = psl->depth_pass_cull;
-	ListBase *depthcsh = &DRW_shgroups_from_pass_get(depthpasscull);
-	DRWPass *transparentpass = psl->transparent_pass;
-	ListBase *trsh = &DRW_shgroups_from_pass_get(transparentpass);
-	ListBase *matsh = &DRW_shgroups_from_pass_get(matpass);
-	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-		if (BLI_findindex(matsh, sh) != -1) {
-			for (Gwn_Batch *b : m_materialBatches) {
-				DRW_shgroups_discard_geometry(sh, b);
-			}
-		}
-		if (BLI_findindex(depthsh, sh) != -1) {
-			for (Gwn_Batch *b : m_materialBatches) {
-				DRW_shgroups_discard_geometry(sh, b);
-			}
-		}
-		if (BLI_findindex(depthcsh, sh) != -1) {
-			for (Gwn_Batch *b : m_materialBatches) {
-				DRW_shgroups_discard_geometry(sh, b);
-			}
-		}
-		if (BLI_findindex(trsh, sh) != -1) {
-			for (Gwn_Batch *b : m_materialBatches) {
+	for (Gwn_Batch *b : m_materialBatches) {
+		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
+			if (DRW_shgroups_belongs_to_gameobject(sh, b)) {
 				DRW_shgroups_discard_geometry(sh, b);
 			}
 		}
@@ -315,33 +293,9 @@ void KX_GameObject::DiscardGeometry()
 
 void KX_GameObject::RestoreGeometry()
 {
-	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
-	DRWPass *matpass = psl->material_pass;
-	DRWPass *depthpass = psl->depth_pass;
-	ListBase *depthsh = &DRW_shgroups_from_pass_get(depthpass);
-	DRWPass *depthpasscull = psl->depth_pass_cull;
-	ListBase *depthcsh = &DRW_shgroups_from_pass_get(depthpasscull);
-	DRWPass *transparentpass = psl->transparent_pass;
-	ListBase *trsh = &DRW_shgroups_from_pass_get(transparentpass);
-	ListBase *matsh = &DRW_shgroups_from_pass_get(matpass);
-	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-		if (BLI_findindex(matsh, sh) != -1) {
-			for (Gwn_Batch *b : m_materialBatches) {
-				DRW_shgroups_restore_geometry(sh, b);
-			}
-		}
-		if (BLI_findindex(depthsh, sh) != -1) {
-			for (Gwn_Batch *b : m_materialBatches) {
-				DRW_shgroups_restore_geometry(sh, b);
-			}
-		}
-		if (BLI_findindex(depthcsh, sh) != -1) {
-			for (Gwn_Batch *b : m_materialBatches) {
-				DRW_shgroups_restore_geometry(sh, b);
-			}
-		}
-		if (BLI_findindex(trsh, sh) != -1) {
-			for (Gwn_Batch *b : m_materialBatches) {
+	for (Gwn_Batch *b : m_materialBatches) {
+		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
+			if (DRW_shgroups_belongs_to_gameobject(sh, b)) {
 				DRW_shgroups_restore_geometry(sh, b);
 			}
 		}
@@ -361,29 +315,12 @@ void KX_GameObject::DuplicateGeometry()
 
 void KX_GameObject::AddNewGeometryToPasses(float obmat[4][4])
 {
-	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
-	DRWPass *matpass = psl->material_pass;
-	ListBase *matsh = &DRW_shgroups_from_pass_get(matpass);
-	DRWPass *depthpass = psl->depth_pass;
-	ListBase *depthsh = &DRW_shgroups_from_pass_get(depthpass);
-	DRWPass *depthpasscull = psl->depth_pass_cull;
-	ListBase *depthcsh = &DRW_shgroups_from_pass_get(depthpasscull);
-	DRWPass *transparentpass = psl->transparent_pass;
-	ListBase *trsh = &DRW_shgroups_from_pass_get(transparentpass);
-
 	for (Gwn_Batch *b : m_materialBatches) {
-		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-			if (BLI_findindex(matsh, sh) != -1) {
-				DRW_shgroup_call_add(sh, b, obmat);
-			}
-			if (BLI_findindex(depthsh, sh) != -1) {
-				DRW_shgroup_call_add(sh, b, obmat);
-			}
-			if (BLI_findindex(depthcsh, sh) != -1) {
-				DRW_shgroup_call_add(sh, b, obmat);
-			}
-			if (BLI_findindex(trsh, sh) != -1) {
-				DRW_shgroup_call_add(sh, b, obmat);
+		for (ListBase *shgroups : GetScene()->GetMaterialShadingGroups()) {
+			for (DRWShadingGroup *shgroup : GetMaterialShadingGroups()) {
+				if (BLI_findindex(shgroups, shgroup) != -1) {
+					DRW_shgroup_call_add(shgroup, b, obmat);
+				}
 			}
 		}
 	}

@@ -423,68 +423,55 @@ void KX_Scene::InitSceneShadingGroups(EEVEE_PassList *psl)
 	// Default materials passes
 	for (int i = 0; i < VAR_MAT_MAX; ++i) {
 		if (psl->default_pass[i]) {
-			DRWPass *defpass = psl->default_pass[i];
-			ListBase defsh = DRW_shgroups_from_pass_get(defpass);
-			for (DRWShadingGroup *s = (DRWShadingGroup *)defsh.first; s; s = DRW_shgroup_next(s)) {
-				m_materialShGroups.push_back(s);
-			}
+			DRWPass *defPass = psl->default_pass[i];
+			ListBase *defSh = DRW_shgroups_from_pass_get(defPass);
+			m_materialShGroups.push_back(defSh);
 		}
 	}
 
 	DRWPass *matPass = psl->material_pass;
-	ListBase matSh = DRW_shgroups_from_pass_get(matPass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)matSh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
+	ListBase *matSh = DRW_shgroups_from_pass_get(matPass);
+	m_materialShGroups.push_back(matSh);
+
 	DRWPass *transparentPass = psl->transparent_pass;
-	ListBase transparentSh = DRW_shgroups_from_pass_get(transparentPass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)transparentSh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
+	ListBase *transparentSh = DRW_shgroups_from_pass_get(transparentPass);
+	m_materialShGroups.push_back(transparentSh);
+
 	DRWPass *depthPass = psl->depth_pass;
-	ListBase depthSh = DRW_shgroups_from_pass_get(depthPass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)depthSh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
+	ListBase *depthSh = DRW_shgroups_from_pass_get(depthPass);
+	m_materialShGroups.push_back(depthSh);
+
 	DRWPass *depthClipPass = psl->depth_pass_clip;
-	ListBase depthClipSh = DRW_shgroups_from_pass_get(depthClipPass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)depthClipSh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
+	ListBase *depthClipSh = DRW_shgroups_from_pass_get(depthClipPass);
+	m_materialShGroups.push_back(depthClipSh);
+
 	DRWPass *depthCullPass = psl->depth_pass_cull;
-	ListBase depthCullSh = DRW_shgroups_from_pass_get(depthCullPass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)depthCullSh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
+	ListBase *depthCullSh = DRW_shgroups_from_pass_get(depthCullPass);
+	m_materialShGroups.push_back(depthCullSh);
+
 	DRWPass *depthClipCullPass = psl->depth_pass_clip_cull;
-	ListBase depthClipCullSh = DRW_shgroups_from_pass_get(depthClipCullPass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)depthClipCullSh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
+	ListBase *depthClipCullSh = DRW_shgroups_from_pass_get(depthClipCullPass);
+	m_materialShGroups.push_back(depthClipCullSh);
+
 	DRWPass *refractDepthPass = psl->refract_depth_pass;
-	ListBase refractDepthSh = DRW_shgroups_from_pass_get(refractDepthPass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)refractDepthSh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
+	ListBase *refractDepthSh = DRW_shgroups_from_pass_get(refractDepthPass);
+	m_materialShGroups.push_back(refractDepthSh);
+
 	DRWPass *refractDepthClipPass = psl->refract_depth_pass_clip;
-	ListBase refractDepthClipSh = DRW_shgroups_from_pass_get(refractDepthClipPass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)refractDepthClipSh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
+	ListBase *refractDepthClipSh = DRW_shgroups_from_pass_get(refractDepthClipPass);
+	m_materialShGroups.push_back(refractDepthClipSh);
+
 	DRWPass *refractDepthCullPass = psl->refract_depth_pass_cull;
-	ListBase refractDepthCullSh = DRW_shgroups_from_pass_get(refractDepthCullPass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)refractDepthCullSh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
+	ListBase *refractDepthCullSh = DRW_shgroups_from_pass_get(refractDepthCullPass);
+	m_materialShGroups.push_back(refractDepthCullSh);
+
 	DRWPass *refractDepthClipCullPass = psl->refract_depth_pass_clip_cull;
-	ListBase refractDepthClipCullSh = DRW_shgroups_from_pass_get(refractDepthClipCullPass);
-	for (DRWShadingGroup *s = (DRWShadingGroup *)refractDepthClipCullSh.first; s; s = DRW_shgroup_next(s)) {
-		m_materialShGroups.push_back(s);
-	}
+	ListBase *refractDepthClipCullSh = DRW_shgroups_from_pass_get(refractDepthClipCullPass);
+	m_materialShGroups.push_back(refractDepthClipCullSh);
 	/* END OF MATERIALS SHADING GROUPS */
 }
 
-std::vector<DRWShadingGroup *>KX_Scene::GetMaterialShadingGroups()
+std::vector<ListBase *>KX_Scene::GetMaterialShadingGroups()
 {
 	return m_materialShGroups;
 }

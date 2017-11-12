@@ -3698,9 +3698,9 @@ void DRW_shgroups_restore_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch)
 	}
 }
 
-struct ListBase DRW_shgroups_from_pass_get(DRWPass *pass)
+ListBase *DRW_shgroups_from_pass_get(DRWPass *pass)
 {
-	return pass->shgroups;
+	return &pass->shgroups;
 }
 
 void DRW_shgroups_from_pass_set(DRWPass *pass, ListBase *shgroups)

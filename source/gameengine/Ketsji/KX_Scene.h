@@ -153,7 +153,7 @@ protected:
 	// Used for Tonemap
 	bool m_isLastScene;
 
-	std::vector<DRWShadingGroup *>m_materialShGroups;
+	std::vector<ListBase *>m_materialShGroups;
 
 
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
@@ -358,7 +358,7 @@ public:
 	void AppendProbeList(KX_GameObject *probe);
 	std::vector<KX_GameObject *>GetProbeList();
 	void InitSceneShadingGroups(EEVEE_PassList *psl);
-	std::vector<DRWShadingGroup *>GetMaterialShadingGroups();
+	std::vector<ListBase *>GetMaterialShadingGroups();
 	/******************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;
