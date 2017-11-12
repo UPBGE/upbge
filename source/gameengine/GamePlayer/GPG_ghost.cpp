@@ -72,6 +72,8 @@ extern "C"
 #  include "BKE_layer.h"
 #  include "BKE_idprop.h"
 
+#  include "draw/DRW_engine.h"
+
 #  include "IMB_imbuf.h"
 #  include "IMB_moviecache.h"
 
@@ -1392,6 +1394,7 @@ int main(
 						}
 						launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
+						DRW_engines_register();
 
 						launcher.InitEngine();
 
@@ -1415,6 +1418,8 @@ int main(
 #endif
 						}
 						launcher.ExitEngine();
+
+						DRW_engines_free();
 
 						BLO_blendfiledata_free(bfd);
 						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */

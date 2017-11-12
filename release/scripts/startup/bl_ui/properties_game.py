@@ -285,15 +285,15 @@ class RENDER_PT_embedded(RenderButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
-        view_render = context.scene.view_render
+        view_render = context.scene.render # have to check what is context.scene.view_render
 
         row = layout.row()
         row.operator("view3d.game_start", text="Start")
         row = layout.row()
         row.label(text="Resolution:")
         row = layout.row(align=True)
-        row.prop(rd, "resolution_x", slider=False, text="X")
-        row.prop(rd, "resolution_y", slider=False, text="Y")
+        row.prop(view_render, "resolution_x", slider=False, text="X")
+        row.prop(view_render, "resolution_y", slider=False, text="Y")
 
 
 class RENDER_PT_game_player(RenderButtonsPanel, Panel):
