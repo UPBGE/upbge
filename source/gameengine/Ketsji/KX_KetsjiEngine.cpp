@@ -898,7 +898,7 @@ static void light_tag_shadow_update(KX_LightObject *light, KX_GameObject *gameob
 	Object *ob = gameobj->GetBlenderObject();
 	EEVEE_LampEngineData *led = EEVEE_lamp_data_get(oblamp);
 
-	bool is_inside_range = cube_bbox_intersect(oblamp->obmat[3], la->clipend, ob->bb, ob->obmat);
+	bool is_inside_range = cube_bbox_intersect(oblamp->obmat[3], la->clipend, BKE_object_boundbox_get(ob), ob->obmat);
 
 	if (is_inside_range) {
 		if (gameobj->NeedsUpdate()) {
