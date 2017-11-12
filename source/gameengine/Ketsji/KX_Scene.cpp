@@ -1853,8 +1853,15 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 		node->GetObject()->UpdateBucketsNew();
 	}
 
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+
+	rasty->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+
 	KX_GetActiveEngine()->UpdateShadows(this);
 	EEVEE_draw_shadows_bge(EEVEE_scene_layer_data_get(), EEVEE_engine_data_get()->psl);
+
+	rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+	rasty->SetScissor(0, 0, canvas->GetWidth() + 1, canvas->GetHeight() + 1);
 
 	DRW_framebuffer_bind(frameBuffer->GetFrameBuffer());
 	DRW_framebuffer_clear(false, true, false, NULL, 1.0f);
