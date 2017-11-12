@@ -1842,8 +1842,10 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 
 void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer)
 {
+	/* Update blenderobjects matrix as we use it for eevee's shadows */
 	for (KX_GameObject *gameobj : GetObjectList()) {
-		gameobj->UpdateMatrix();
+		gameobj->UpdateBlenderObjectMatrix(nullptr);
+		gameobj->TagForUpdate(); // used for shadow culling (call before sgnode->ClearDirty(DIRTY_RENDER))
 	}
 	for (KX_CullingNode *node : nodes) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.

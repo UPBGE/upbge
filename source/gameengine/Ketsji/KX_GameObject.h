@@ -92,8 +92,7 @@ protected:
 	std::vector<DRWShadingGroup *>m_gameobShGroups;
 
 	float m_savedObmat[4][4];
-	float m_currentObmat[4][4];
-	float m_prevObmat[4][4];
+	bool m_needsUpdate; // used for shadow culling
 
 
 
@@ -150,10 +149,9 @@ public:
 	void DuplicateGeometry();
 	void AddNewGeometryToPasses(float obmat[4][4]);
 
-	void TagForUpdate();
-	void UpdateMatrix();
-	bool NeedsUpdate();
-	bool m_needsUpdate;
+	/* Call before SG_Node::ClearDirty(SG_Node::DIRTY_RENDER) */
+	void TagForUpdate(); // used only for shadow culling for now
+	bool NeedsUpdate(); // used only for shadow culling for now
 
 
 

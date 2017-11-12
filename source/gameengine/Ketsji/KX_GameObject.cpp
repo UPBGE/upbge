@@ -802,14 +802,9 @@ void KX_GameObject::UpdateBlenderObjectMatrix(Object* blendobj)
 	if (!blendobj)
 		blendobj = m_pBlenderObject;
 	if (blendobj) {
-		const MT_Matrix3x3& rot = NodeGetWorldOrientation();
-		const MT_Vector3& scale = NodeGetWorldScaling();
-		const MT_Vector3& pos = NodeGetWorldPosition();
-		rot.getValue(blendobj->obmat[0]);
-		pos.getValue(blendobj->obmat[3]);
-		mul_v3_fl(blendobj->obmat[0], scale[0]);
-		mul_v3_fl(blendobj->obmat[1], scale[1]);
-		mul_v3_fl(blendobj->obmat[2], scale[2]);
+		float obmat[4][4];
+		NodeGetWorldTransform().getValue(&obmat[0][0]);
+		copy_m4_m4(blendobj->obmat, obmat);
 	}
 }
 
@@ -824,6 +819,24 @@ void KX_GameObject::AddMeshUser()
 	}
 }
 
+/************************Shadow culling**********************/
+/* Call before SG_Node::ClearDirty(SG_Node::DIRTY_RENDER) */
+void KX_GameObject::TagForUpdate()
+{
+	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
+		m_needsUpdate = true;
+	}
+	else {
+		m_needsUpdate = false;
+	}
+}
+
+bool KX_GameObject::NeedsUpdate()
+{
+	return m_needsUpdate;
+}
+/************************************************************/
+
 void KX_GameObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
@@ -835,32 +848,6 @@ void KX_GameObject::UpdateBuckets()
 	m_meshUser->SetColor(m_objectColor);
 	m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
 	m_meshUser->ActivateMeshSlots();
-}
-
-void KX_GameObject::TagForUpdate()
-{
-	if (compare_m4m4(m_prevObmat, m_currentObmat, FLT_MIN)) {
-		m_needsUpdate = false;
-	}
-	else {
-		m_needsUpdate = true;
-	}
-}
-
-bool KX_GameObject::NeedsUpdate()
-{
-	return m_needsUpdate;
-}
-
-void KX_GameObject::UpdateMatrix()
-{
-	Object *ob = GetBlenderObject();
-	if (ob) {
-		NodeGetWorldTransform().getValue(&m_currentObmat[0][0]);
-		copy_m4_m4(GetBlenderObject()->obmat, m_currentObmat);
-		TagForUpdate();
-		copy_m4_m4(m_prevObmat, m_currentObmat);
-	}
 }
 
 void KX_GameObject::UpdateBucketsNew()
