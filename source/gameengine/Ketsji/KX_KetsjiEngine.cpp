@@ -879,9 +879,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				/* binds framebuffer object, sets up camera .. */
 				raslight->BindShadowBuffer(m_canvas, cam, camtrans);
 
-				KX_CullingNodeList nodes;
+				std::vector<KX_GameObject *> objects;
 				/* update scene */
-				scene->CalculateVisibleMeshes(nodes, cam, raslight->GetShadowLayer());
+				scene->CalculateVisibleMeshes(objects, cam, raslight->GetShadowLayer());
 
 				m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds());
 				UpdateAnimations(scene);
@@ -890,7 +890,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				/* render */
 				m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT | RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
 				// Send a nullptr off screen because the viewport is binding it's using its own private one.
-				scene->RenderBuckets(nodes, RAS_Rasterizer::RAS_SHADOW, camtrans, m_rasterizer, nullptr);
+				scene->RenderBuckets(objects, RAS_Rasterizer::RAS_SHADOW, camtrans, m_rasterizer, nullptr);
 
 				/* unbind framebuffer object, restore drawmode, free camera */
 				raslight->UnbindShadowBuffer();
@@ -1025,11 +1025,11 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 
 	m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
 
-	KX_CullingNodeList nodes;
-	scene->CalculateVisibleMeshes(nodes, cullingcam, 0);
+	std::vector<KX_GameObject *> objects;
+	scene->CalculateVisibleMeshes(objects, cullingcam, 0);
 
 	// update levels of detail
-	scene->UpdateObjectLods(cullingcam, nodes);
+	scene->UpdateObjectLods(cullingcam, objects);
 
 	m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds());
 	UpdateAnimations(scene);
@@ -1038,7 +1038,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 
 	RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(scene);
 	// Draw debug infos like bouding box, armature ect.. if enabled.
-	scene->DrawDebug(debugDraw, nodes);
+	scene->DrawDebug(debugDraw, objects);
 	// Draw debug camera frustum.
 	DrawDebugCameraFrustum(scene, debugDraw, cameraFrameData);
 	DrawDebugShadowFrustum(scene, debugDraw);
@@ -1049,7 +1049,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, rendercam);
 #endif
 
-	scene->RenderBuckets(nodes, m_rasterizer->GetDrawingMode(), rendercam->GetWorldToCamera(), m_rasterizer, offScreen);
+	scene->RenderBuckets(objects, m_rasterizer->GetDrawingMode(), rendercam->GetWorldToCamera(), m_rasterizer, offScreen);
 
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->DebugDrawWorld();

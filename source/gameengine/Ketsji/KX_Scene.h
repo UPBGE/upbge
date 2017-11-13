@@ -35,7 +35,6 @@
 
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_TextureRendererManager.h" // For KX_TextureRendererManager::RendererCategory.
-#include "KX_CullingNode.h" // For KX_CullingNodeList.
 #include "KX_PythonComponentManager.h"
 
 #include <vector>
@@ -129,11 +128,11 @@ private:
 
 	struct CullingInfo {
 		int m_layer;
-		KX_CullingNodeList& m_nodes;
+		std::vector<KX_GameObject *>& m_objects;
 
-		CullingInfo(int layer, KX_CullingNodeList& nodes)
+		CullingInfo(int layer, std::vector<KX_GameObject *>& objects)
 			:m_layer(layer),
-			m_nodes(nodes)
+			m_objects(objects)
 		{
 		}
 	};
@@ -324,8 +323,8 @@ public:
 	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
-	void RenderBuckets(const KX_CullingNodeList& nodes, RAS_Rasterizer::DrawType drawingMode, const MT_Transform& cameratransform,
-			RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
+	void RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Rasterizer::DrawType drawingMode,
+			const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
 	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
 			KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
@@ -435,11 +434,11 @@ public:
 
 	void SetWorldInfo(class KX_WorldInfo* wi);
 	KX_WorldInfo* GetWorldInfo();
-	void CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer);
-	void CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustum& frustum, int layer);
+	void CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, KX_Camera *cam, int layer);
+	void CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, const SG_Frustum& frustum, int layer);
 
 	/// \section Debug draw.
-	void DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nodes);
+	void DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObject *>& objects);
 	void RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax);
 
 	/**
@@ -456,7 +455,7 @@ public:
 	void Resume();
 
 	/// Update the mesh for objects based on level of detail settings
-	void UpdateObjectLods(KX_Camera *cam, const KX_CullingNodeList& nodes);
+	void UpdateObjectLods(KX_Camera *cam, const std::vector<KX_GameObject *>& objects);
 
 	// LoD Hysteresis functions
 	void SetLodHysteresis(bool active);

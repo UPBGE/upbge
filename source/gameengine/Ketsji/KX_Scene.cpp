@@ -1118,24 +1118,23 @@ void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cul
 
 	// make object visible
 	gameobj->SetCulled(false);
-	info->m_nodes.push_back(gameobj->GetCullingNode());
+	info->m_objects.push_back(gameobj);
 }
 
-void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer)
+void KX_Scene::CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, KX_Camera *cam, int layer)
 {
 	if (!cam->GetFrustumCulling()) {
 		for (KX_GameObject *gameobj : m_objectlist) {
-			KX_CullingNode *node = gameobj->GetCullingNode();
-			nodes.push_back(gameobj->GetCullingNode());
-			node->SetCulled(false);
+			gameobj->GetCullingNode()->SetCulled(false);
+			objects.push_back(gameobj);
 		}
 		return;
 	}
 
-	CalculateVisibleMeshes(nodes, cam->GetFrustum(), layer);
+	CalculateVisibleMeshes(objects, cam->GetFrustum(), layer);
 }
 
-void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustum& frustum, int layer)
+void KX_Scene::CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, const SG_Frustum& frustum, int layer)
 {
 	m_boundingBoxManager->Update(false);
 
@@ -1162,12 +1161,12 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustu
 		const std::array<MT_Vector4, 6>& planes = frustum.GetPlanes();
 		const MT_Matrix4x4& matrix = frustum.GetMatrix();
 		const int *viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
-		CullingInfo info(layer, nodes);
+		CullingInfo info(layer, objects);
 
 		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback, &info, planes, m_dbvt_occlusion_res, viewport, matrix);
 	}
 	if (!dbvt_culling) {
-		KX_CullingHandler handler(nodes, frustum);
+		KX_CullingHandler handler(objects, frustum);
 		for (KX_GameObject *gameobj : m_objectlist) {
 			if (gameobj->UseCulling() && gameobj->GetVisible() && (layer == 0 || gameobj->GetLayer() & layer)) {
 				if (gameobj->GetDeformer()) {
@@ -1180,7 +1179,7 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustu
 				// Update the object bounding volume box.
 				gameobj->UpdateBounds(false);
 
-				handler.Process(gameobj->GetCullingNode());
+				handler.Process(gameobj);
 			}
 		}
 	}
@@ -1188,7 +1187,7 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, const SG_Frustu
 	m_boundingBoxManager->ClearModified();
 }
 
-void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nodes)
+void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObject *>& objects)
 {
 	const KX_DebugOption showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
 	if (showBoundingBox != KX_DebugOption::DISABLE) {
@@ -1440,13 +1439,13 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 
 
 
-void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, RAS_Rasterizer::DrawType drawingMode, const MT_Transform& cameratransform,
+void KX_Scene::RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Rasterizer::DrawType drawingMode, const MT_Transform& cameratransform,
 		RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
 {
-	for (KX_CullingNode *node : nodes) {
+	for (KX_GameObject *gameobj : objects) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
 		 * It's done just before the render to be sure of the object color and visibility. */
-		node->GetObject()->UpdateBuckets();
+		gameobj->UpdateBuckets();
 	}
 
 	m_bucketmanager->Renderbuckets(drawingMode, cameratransform, rasty, offScreen);
@@ -1459,13 +1458,13 @@ void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategor
 	m_rendererManager->Render(category, rasty, offScreen, camera, viewport, area);
 }
 
-void KX_Scene::UpdateObjectLods(KX_Camera *cam, const KX_CullingNodeList& nodes)
+void KX_Scene::UpdateObjectLods(KX_Camera *cam, const std::vector<KX_GameObject *>& objects)
 {
 	const MT_Vector3& cam_pos = cam->NodeGetWorldPosition();
 	const float lodfactor = cam->GetLodDistanceFactor();
 
-	for (KX_CullingNode *node : nodes) {
-		node->GetObject()->UpdateLod(cam_pos, lodfactor);
+	for (KX_GameObject *gameobj : objects) {
+		gameobj->UpdateLod(cam_pos, lodfactor);
 	}
 }
 

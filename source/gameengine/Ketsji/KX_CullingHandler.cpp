@@ -3,15 +3,17 @@
 
 #include "SG_Node.h"
 
-KX_CullingHandler::KX_CullingHandler(KX_CullingNodeList& nodes, const SG_Frustum& frustum)
-	:m_activeNodes(nodes),
+KX_CullingHandler::KX_CullingHandler(std::vector<KX_GameObject *>& objects, const SG_Frustum& frustum)
+	:m_activeObjects(objects),
 	m_frustum(frustum)
 {
 }
 
-void KX_CullingHandler::Process(KX_CullingNode *node)
+void KX_CullingHandler::Process(KX_GameObject *object)
 {
-	SG_Node *sgnode = node->GetObject()->GetSGNode();
+	SG_Node *sgnode = object->GetSGNode();
+	SG_CullingNode *node = object->GetCullingNode();
+
 	const MT_Transform trans = sgnode->GetWorldTransform();
 	const MT_Vector3 &scale = sgnode->GetWorldScaling();
 	const SG_BBox& aabb = node->GetAabb();
@@ -31,6 +33,6 @@ void KX_CullingHandler::Process(KX_CullingNode *node)
 
 	node->SetCulled(culled);
 	if (!culled) {
-		m_activeNodes.push_back(node);
+		m_activeObjects.push_back(object);
 	}
 }

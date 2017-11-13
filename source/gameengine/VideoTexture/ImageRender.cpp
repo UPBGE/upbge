@@ -394,12 +394,12 @@ bool ImageRender::Render()
 		m_scene->GetWorldInfo()->setZenithColor(zen);
 	}
 
-	KX_CullingNodeList nodes;
-	m_scene->CalculateVisibleMeshes(nodes, m_camera, 0);
+	std::vector<KX_GameObject *> objects;
+	m_scene->CalculateVisibleMeshes(objects, m_camera, 0);
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_scene->RenderBuckets(nodes, RAS_Rasterizer::RAS_TEXTURED, camtrans, m_rasterizer, m_offScreen.get());
+	m_scene->RenderBuckets(objects, RAS_Rasterizer::RAS_TEXTURED, camtrans, m_rasterizer, m_offScreen.get());
 
 	m_canvas->EndFrame();
 

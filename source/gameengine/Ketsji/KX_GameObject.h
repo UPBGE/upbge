@@ -43,6 +43,7 @@
 #include "EXP_ListValue.h"
 #include "SCA_IObject.h"
 #include "SG_Node.h"
+#include "SG_CullingNode.h"
 #include "MT_Transform.h"
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
@@ -54,7 +55,6 @@
 struct KX_ClientObjectInfo;
 class KX_RayCast;
 class KX_LodManager;
-class KX_CullingNode;
 class KX_PythonComponent;
 class RAS_MeshObject;
 class RAS_MeshUser;
@@ -131,7 +131,7 @@ protected:
 	PHY_IPhysicsController*				m_pPhysicsController;
 	PHY_IGraphicController*				m_pGraphicController;
 
-	KX_CullingNode m_cullingNode;
+	SG_CullingNode m_cullingNode;
 	SG_Node*							m_pSGNode;
 
 	EXP_ListValue<KX_PythonComponent> *m_components;
@@ -859,7 +859,7 @@ public:
 	void SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax);
 	void GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const;
 
-	KX_CullingNode *GetCullingNode();
+	SG_CullingNode *GetCullingNode();
 
 	ActivityCullingInfo& GetActivityCullingInfo();
 	void SetActivityCullingInfo(const ActivityCullingInfo& cullingInfo);

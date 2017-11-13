@@ -88,7 +88,6 @@ set(SRC
 	KX_ConstraintWrapper.cpp
 	KX_CubeMap.cpp
 	KX_CullingHandler.cpp
-	KX_CullingNode.cpp
 	KX_EmptyObject.cpp
 	KX_FontObject.cpp
 	KX_GameActuator.cpp
@@ -175,7 +174,6 @@ set(SRC
 	KX_ConstraintWrapper.h
 	KX_CubeMap.h
 	KX_CullingHandler.h
-	KX_CullingNode.h
 	KX_EmptyObject.h
 	KX_FontObject.h
 	KX_GameActuator.h

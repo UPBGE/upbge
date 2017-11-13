@@ -65,7 +65,7 @@
 #include "KX_LodLevel.h"
 #include "KX_LodManager.h"
 #include "KX_BoundingBox.h"
-#include "KX_CullingNode.h"
+#include "SG_CullingNode.h"
 #include "KX_BatchGroup.h"
 #include "KX_CollisionContactPoints.h"
 
@@ -125,7 +125,6 @@ KX_GameObject::KX_GameObject(
       m_autoUpdateBounds(false),
       m_pPhysicsController(nullptr),
       m_pGraphicController(nullptr),
-      m_cullingNode(this),
       m_components(nullptr),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
@@ -509,8 +508,6 @@ void KX_GameObject::ProcessReplica()
 	m_pGraphicController = nullptr;
 	m_pPhysicsController = nullptr;
 	m_pSGNode = nullptr;
-
-	m_cullingNode.SetObject(this);
 
 	/* Dupli group and instance list are set later in replication.
 	 * See KX_Scene::DupliGroupRecurse. */
@@ -1442,7 +1439,7 @@ void KX_GameObject::GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) cons
 	m_cullingNode.GetAabb().Get(aabbMin, aabbMax);
 }
 
-KX_CullingNode *KX_GameObject::GetCullingNode()
+SG_CullingNode *KX_GameObject::GetCullingNode()
 {
 	return &m_cullingNode;
 }
