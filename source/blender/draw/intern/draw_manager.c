@@ -3818,109 +3818,107 @@ static void game_camera_border(
 }
 
 void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
-	Scene *scene, SceneLayer *sl, Object *maincam, int viewportsize[2], bool is_first_scene)
+	Scene *scene, SceneLayer *sl, Object *maincam, int viewportsize[2])
 {
-	if (is_first_scene) {
-		memset(&DST, 0x0, sizeof(DST));
-		/*DRW_end_shgroup();
-		release_texture_slots();
-		release_ubo_slots();*/
+	memset(&DST, 0x0, sizeof(DST));
+	/*DRW_end_shgroup();
+	release_texture_slots();
+	release_ubo_slots();*/
 
-		use_drw_engine(&draw_engine_eevee_type);
+	use_drw_engine(&draw_engine_eevee_type);
 
-		DST.viewport = GPU_viewport_create_from_offscreen(ofs);
+	DST.viewport = GPU_viewport_create_from_offscreen(ofs);
 
-		GPU_viewport_engine_data_create(DST.viewport, &draw_engine_eevee_type);
+	GPU_viewport_engine_data_create(DST.viewport, &draw_engine_eevee_type);
 
-		ARegion ar;
-		ar.winx = viewportsize[0];
-		ar.winy = viewportsize[1];
+	ARegion ar;
+	ar.winx = viewportsize[0];
+	ar.winy = viewportsize[1];
 
-		View3D v3d;
-		Object *obcam = maincam;
-		Camera *cam = (Camera *)obcam;
-		v3d.camera = obcam;
-		v3d.lens = cam->lens;
-		v3d.near = cam->clipsta;
-		v3d.far = cam->clipend;
+	View3D v3d;
+	Object *obcam = maincam;
+	Camera *cam = (Camera *)obcam;
+	v3d.camera = obcam;
+	v3d.lens = cam->lens;
+	v3d.near = cam->clipsta;
+	v3d.far = cam->clipend;
 
-		RegionView3D rv3d;
-		rv3d.camdx = 0.0f;
-		rv3d.camdy = 0.0f;
-		rv3d.camzoom = 0.0f;
-		rv3d.persp = RV3D_CAMOB;
-		rv3d.is_persp = true; //temp
-		rctf cameraborder;
-		game_camera_border(scene, &ar, &v3d, &rv3d, &cameraborder, false, false);
-		rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
+	RegionView3D rv3d;
+	rv3d.camdx = 0.0f;
+	rv3d.camdy = 0.0f;
+	rv3d.camzoom = 0.0f;
+	rv3d.persp = RV3D_CAMOB;
+	rv3d.is_persp = true; //temp
+	rctf cameraborder;
+	game_camera_border(scene, &ar, &v3d, &rv3d, &cameraborder, false, false);
+	rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
 
-		DST.draw_ctx.ar = &ar;
-		DST.draw_ctx.v3d = &v3d;
-		DST.draw_ctx.rv3d = &rv3d;
+	DST.draw_ctx.ar = &ar;
+	DST.draw_ctx.v3d = &v3d;
+	DST.draw_ctx.rv3d = &rv3d;
 
-		DST.draw_ctx.evil_C = NULL;
-		DST.draw_ctx.v3d->zbuf = true;
-		DST.draw_ctx.scene = scene;
-		DST.draw_ctx.scene_layer = sl;
-		DST.draw_ctx.obact = OBACT_NEW(sl);
+	DST.draw_ctx.evil_C = NULL;
+	DST.draw_ctx.v3d->zbuf = true;
+	DST.draw_ctx.scene = scene;
+	DST.draw_ctx.scene_layer = sl;
+	DST.draw_ctx.obact = OBACT_NEW(sl);
 
-		bool cache_is_dirty;
-		/* Setup viewport */
-		cache_is_dirty = GPU_viewport_cache_validate(DST.viewport, DRW_engines_get_hash());
+	bool cache_is_dirty;
+	/* Setup viewport */
+	cache_is_dirty = GPU_viewport_cache_validate(DST.viewport, DRW_engines_get_hash());
 
-		DRW_viewport_var_init_bge();
+	DRW_viewport_var_init_bge();
 
-		/* Init engines */
-		DRW_engines_init();
+	/* Init engines */
+	DRW_engines_init();
 
-		/* When uniforms are passed to the shaders, there is a control if
-		 * stl->g_data->valid_double_buffer is true if we want to enable SSR
-		 * As there is no valid frame before game start, stl->g_data->valid_double_buffer
-		 * is set to false. This is causing issues with my simplified implementation of SSR
-		 * so I set it to true here before the uniforms are passed.
-		 */
-		EEVEE_StorageList *stl = EEVEE_engine_data_get()->stl;
-		stl->g_data->valid_double_buffer = true;
+	/* When uniforms are passed to the shaders, there is a control if
+		* stl->g_data->valid_double_buffer is true if we want to enable SSR
+		* As there is no valid frame before game start, stl->g_data->valid_double_buffer
+		* is set to false. This is causing issues with my simplified implementation of SSR
+		* so I set it to true here before the uniforms are passed.
+		*/
+	EEVEE_StorageList *stl = EEVEE_engine_data_get()->stl;
+	stl->g_data->valid_double_buffer = true;
 
-		/* TODO : tag to refresh by the deps graph */
-		/* ideally only refresh when objects are added/removed */
-		/* or render properties / materials change */
+	/* TODO : tag to refresh by the deps graph */
+	/* ideally only refresh when objects are added/removed */
+	/* or render properties / materials change */
 
-		if (cache_is_dirty) {
-			DRW_engines_cache_init();
-			for (Scene *sc = bmain->scene.first; sc; sc = sc->id.next) {
-				Depsgraph *graph = sc->depsgraph_legacy;
-				DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL);
-				{
-					/* We want to populate cache even with objects in invisible layers.
-					 * (we'll remove them from psl->material_pass later).
-					 */
-					bool meshIsInvisible = (ob->base_flag & BASE_VISIBLED) == 0 && ob->type == OB_MESH;
-					if (meshIsInvisible) {
-						ob->base_flag |= BASE_VISIBLED;
-					}
-					DRW_engines_cache_populate(ob);
-					/* XXX find a better place for this. maybe Depsgraph? */
-					if (meshIsInvisible) {
-						ob->base_flag &= ~BASE_VISIBLED;
-					}
-					ob->deg_update_flag = 0;
+	if (cache_is_dirty) {
+		DRW_engines_cache_init();
+		for (Scene *sc = bmain->scene.first; sc; sc = sc->id.next) {
+			Depsgraph *graph = sc->depsgraph_legacy;
+			DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL);
+			{
+				/* We want to populate cache even with objects in invisible layers.
+					* (we'll remove them from psl->material_pass later).
+					*/
+				bool meshIsInvisible = (ob->base_flag & BASE_VISIBLED) == 0 && ob->type == OB_MESH;
+				if (meshIsInvisible) {
+					ob->base_flag |= BASE_VISIBLED;
 				}
-				DEG_OBJECT_ITER_END
+				DRW_engines_cache_populate(ob);
+				/* XXX find a better place for this. maybe Depsgraph? */
+				if (meshIsInvisible) {
+					ob->base_flag &= ~BASE_VISIBLED;
+				}
+				ob->deg_update_flag = 0;
 			}
-
-			DRW_engines_cache_finish();
+			DEG_OBJECT_ITER_END
 		}
 
-		EEVEE_lightprobes_refresh(EEVEE_scene_layer_data_get(), EEVEE_engine_data_get());
-
-		/* Start Drawing */
-		DRW_state_reset();
-		DRW_engines_draw_background();
-
-		DRW_state_reset();
-		DRW_engines_disable();
+		DRW_engines_cache_finish();
 	}
+
+	EEVEE_lightprobes_refresh(EEVEE_scene_layer_data_get(), EEVEE_engine_data_get());
+
+	/* Start Drawing */
+	DRW_state_reset();
+	DRW_engines_draw_background();
+
+	DRW_state_reset();
+	DRW_engines_disable();
 }
 
 void DRW_game_render_loop_end()

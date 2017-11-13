@@ -266,29 +266,32 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
 	/*************************************************EEVEE INTEGRATION***********************************************************/
-	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-	for (Scene *sc = (Scene *)bmain->scene.first; sc; sc = (Scene *)sc->id.next) {
-		SceneLayer *sl = BKE_scene_layer_from_scene_get(sc);
-		InitProperties(sl, m_blenderScene);
-	}
-	SceneLayer *sl = BKE_scene_layer_from_scene_get(m_blenderScene);
-	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
-
-	Object *maincam = m_blenderScene->camera ? (Object *)m_blenderScene->camera : (Object *)bmain->camera.first;
 	bool isFirstScene = KX_GetActiveEngine()->CurrentScenes()->GetCount() == 0;
 	
 	/* TODO: Move this in LA_Launcher ?? For now the function is called only when the first scene is created */
+	SceneLayer *sl = BKE_scene_layer_from_scene_get(m_blenderScene);
+	
 	/* INIT EEVEE DATA */
-	GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, nullptr);
-	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
-	DRW_game_render_loop_begin(tempgpuofs, bmain, m_blenderScene,
-		sl, maincam, viewportsize, isFirstScene);
-	GPU_offscreen_free(tempgpuofs);
+	if (isFirstScene) {
+		Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+		for (Scene *sc = (Scene *)bmain->scene.first; sc; sc = (Scene *)sc->id.next) {
+			SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(sc);
+			InitProperties(scene_layer, m_blenderScene);
+		}
+		Object *maincam = m_blenderScene->camera ? (Object *)m_blenderScene->camera : (Object *)bmain->camera.first;
+		GPUOffScreen *tempgpuofs = GPU_offscreen_create(canvas->GetWidth(), canvas->GetHeight(), 0, nullptr);
+		int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
+		DRW_game_render_loop_begin(tempgpuofs, bmain, m_blenderScene,
+			sl, maincam, viewportsize);
+		GPU_offscreen_free(tempgpuofs);
+	}
 	/* END OF INIT EEVEE DATA */
 	
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 	RAS_SceneLayerData *layerData = new RAS_SceneLayerData(*sldata);
 	SetSceneLayerData(layerData);
+
+	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 	
 	m_eeveeData = EEVEE_engine_data_get();
 
@@ -770,12 +773,6 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(SG_Node* node, KX_GameObject *game
 	return newobj;
 }
 
-static void scale_m4_v3(float R[4][4], float v[3])
-{
-	for (int i = 0; i < 4; ++i)
-		mul_v3_v3(R[i], v);
-}
-
 // before calling this method KX_Scene::ReplicateLogic(), make sure to
 // have called 'GameObject::ReParentLogic' for each object this
 // hierarchy that's because first ALL bricks must exist in the new
@@ -1132,6 +1129,10 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 		DupliGroupRecurse(gameobj, 0);
 	}
 
+	/* This is to duplicate gaiwan batches and add it to eevee psl
+	 * Only useful if we choose to draw the scene with eevee render.
+	 * I think in this case we'd need to remove graphic controller.
+	 */
 	if (replica->GetMaterialBatches().size() > 0) {
 		float obmat[4][4];
 		replica->NodeGetWorldTransform().getValue(&obmat[0][0]);

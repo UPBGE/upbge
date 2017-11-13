@@ -105,7 +105,7 @@ void PAINT_VERTEX_collection_settings_create(struct IDProperty *properties);
 
 /*************************************************Game engine************************************************/
 void DRW_game_render_loop_begin(struct GPUOffScreen *ofs, struct Main *bmain,
-	struct Scene *scene, struct SceneLayer *sl, struct Object *maincam, int viewportsize[2], bool is_first_scene);
+	struct Scene *scene, struct SceneLayer *sl, struct Object *maincam, int viewportsize[2]);
 void DRW_game_render_loop_end(void);
 /********************************************End of game engine**********************************************/
 
