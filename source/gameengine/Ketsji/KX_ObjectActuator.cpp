@@ -186,7 +186,7 @@ bool KX_ObjectActuator::Update()
 			MT_Vector3 dv = e - m_previous_error;
 			MT_Vector3 I = m_error_accumulator + e;
 
-			MT_Vector3& f = (m_bitLocalFlag.ServoControlAngular) ? m_force : m_torque;
+			MT_Vector3& f = (m_bitLocalFlag.ServoControlAngular) ? m_torque : m_force;
 			f = m_pid.x() * e + m_pid.y() * I + m_pid.z() * dv;
 
 			/* Make sure velocity is correct depending on how body react to force/torque.
