@@ -101,6 +101,7 @@ struct EEVEE_Data;
 struct EEVEE_PassList;
 struct DefaultTextureList;
 struct DRWShadingGroup;
+struct DRWPass;
 struct IDProperty;
 class RAS_EeveeEffectsManager;
 class RAS_LightProbesManager;
@@ -153,7 +154,7 @@ protected:
 	// Used for Tonemap
 	bool m_isLastScene;
 
-	std::vector<ListBase *>m_materialShGroups;
+	std::vector<DRWPass *>m_materialPasses;
 
 
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
@@ -357,8 +358,8 @@ public:
 	bool GetIsLastScene();
 	void AppendProbeList(KX_GameObject *probe);
 	std::vector<KX_GameObject *>GetProbeList();
-	void InitSceneShadingGroups(EEVEE_PassList *psl);
-	std::vector<ListBase *>GetMaterialShadingGroups();
+	void InitScenePasses(EEVEE_PassList *psl);
+	std::vector<DRWPass *>GetMaterialPasses();
 	/******************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;

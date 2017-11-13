@@ -300,7 +300,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	EEVEE_PassList *psl = m_eeveeData->psl;
 
-	InitSceneShadingGroups(psl);
+	InitScenePasses(psl);
 
 	/******************************************************************************************************************************/
 
@@ -419,64 +419,34 @@ EEVEE_Data *KX_Scene::GetEeveeData()
 	return m_eeveeData;
 }
 
-void KX_Scene::InitSceneShadingGroups(EEVEE_PassList *psl)
+void KX_Scene::InitScenePasses(EEVEE_PassList *psl)
 {
-	/* MATERIALS SHADING GROUPS : OPAQUES + TRANSPARENT + DEPTH..... */
+	/* MATERIALS PASSES */
 
 	// Default materials passes
 	for (int i = 0; i < VAR_MAT_MAX; ++i) {
 		if (psl->default_pass[i]) {
 			DRWPass *defPass = psl->default_pass[i];
-			ListBase *defSh = DRW_shgroups_from_pass_get(defPass);
-			m_materialShGroups.push_back(defSh);
+			m_materialPasses.push_back(defPass);
 		}
 	}
 
-	DRWPass *matPass = psl->material_pass;
-	ListBase *matSh = DRW_shgroups_from_pass_get(matPass);
-	m_materialShGroups.push_back(matSh);
-
-	DRWPass *transparentPass = psl->transparent_pass;
-	ListBase *transparentSh = DRW_shgroups_from_pass_get(transparentPass);
-	m_materialShGroups.push_back(transparentSh);
-
-	DRWPass *depthPass = psl->depth_pass;
-	ListBase *depthSh = DRW_shgroups_from_pass_get(depthPass);
-	m_materialShGroups.push_back(depthSh);
-
-	DRWPass *depthClipPass = psl->depth_pass_clip;
-	ListBase *depthClipSh = DRW_shgroups_from_pass_get(depthClipPass);
-	m_materialShGroups.push_back(depthClipSh);
-
-	DRWPass *depthCullPass = psl->depth_pass_cull;
-	ListBase *depthCullSh = DRW_shgroups_from_pass_get(depthCullPass);
-	m_materialShGroups.push_back(depthCullSh);
-
-	DRWPass *depthClipCullPass = psl->depth_pass_clip_cull;
-	ListBase *depthClipCullSh = DRW_shgroups_from_pass_get(depthClipCullPass);
-	m_materialShGroups.push_back(depthClipCullSh);
-
-	DRWPass *refractDepthPass = psl->refract_depth_pass;
-	ListBase *refractDepthSh = DRW_shgroups_from_pass_get(refractDepthPass);
-	m_materialShGroups.push_back(refractDepthSh);
-
-	DRWPass *refractDepthClipPass = psl->refract_depth_pass_clip;
-	ListBase *refractDepthClipSh = DRW_shgroups_from_pass_get(refractDepthClipPass);
-	m_materialShGroups.push_back(refractDepthClipSh);
-
-	DRWPass *refractDepthCullPass = psl->refract_depth_pass_cull;
-	ListBase *refractDepthCullSh = DRW_shgroups_from_pass_get(refractDepthCullPass);
-	m_materialShGroups.push_back(refractDepthCullSh);
-
-	DRWPass *refractDepthClipCullPass = psl->refract_depth_pass_clip_cull;
-	ListBase *refractDepthClipCullSh = DRW_shgroups_from_pass_get(refractDepthClipCullPass);
-	m_materialShGroups.push_back(refractDepthClipCullSh);
-	/* END OF MATERIALS SHADING GROUPS */
+	m_materialPasses.push_back(psl->material_pass);
+	m_materialPasses.push_back(psl->transparent_pass);
+	m_materialPasses.push_back(psl->depth_pass);
+	m_materialPasses.push_back(psl->depth_pass_clip);
+	m_materialPasses.push_back(psl->depth_pass_cull);
+	m_materialPasses.push_back(psl->depth_pass_clip_cull);
+	m_materialPasses.push_back(psl->refract_depth_pass);
+	m_materialPasses.push_back(psl->refract_depth_pass_clip);
+	m_materialPasses.push_back(psl->refract_depth_pass_cull);
+	m_materialPasses.push_back(psl->refract_depth_pass_clip_cull);
+	/* END OF MATERIALS PASSES */
 }
 
-std::vector<ListBase *>KX_Scene::GetMaterialShadingGroups()
+std::vector<DRWPass *>KX_Scene::GetMaterialPasses()
 {
-	return m_materialShGroups;
+	return m_materialPasses;
 }
 
 void KX_Scene::SetIsLastScene(bool isLastScene)
