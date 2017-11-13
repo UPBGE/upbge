@@ -28,6 +28,21 @@ RAS_Deformer::RAS_Deformer(RAS_MeshObject *mesh)
 	m_bDynamic(false),
 	m_boundingBox(nullptr)
 {
+}
+
+RAS_Deformer::~RAS_Deformer()
+{
+	for (RAS_DisplayArrayBucket *arrayBucket : m_displayArrayBucketList) {
+		delete arrayBucket;
+	}
+
+	for (RAS_IDisplayArray *array : m_displayArrayList) {
+		delete array;
+	}
+}
+
+void RAS_Deformer::InitializeDisplayArrays()
+{
 	for (RAS_MeshMaterial *meshmat : m_mesh->GetMeshMaterialList()) {
 		/* Duplicate the display array bucket and the display array if needed to store
 		 * the mesh slot on a unique list (= display array bucket) and use an unique vertex
@@ -40,17 +55,6 @@ RAS_Deformer::RAS_Deformer(RAS_MeshObject *mesh)
 
 		m_displayArrayList.push_back(array);
 		m_displayArrayBucketList.push_back(arrayBucket);
-	}
-}
-
-RAS_Deformer::~RAS_Deformer()
-{
-	for (RAS_DisplayArrayBucket *arrayBucket : m_displayArrayBucketList) {
-		delete arrayBucket;
-	}
-
-	for (RAS_IDisplayArray *array : m_displayArrayList) {
-		delete array;
 	}
 }
 

@@ -78,6 +78,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 
 	// Initialize node arguments.
 	m_nodeData.m_array = m_displayArray;
+	m_nodeData.m_applyMatrix = (!m_deformer || !m_deformer->SkipVertexTransform());
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
@@ -180,7 +181,6 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 
 	// Update node data.
 	m_nodeData.m_storageInfo = m_storageInfo;
-	m_nodeData.m_applyMatrix = (!m_deformer || !m_deformer->SkipVertexTransform());
 }
 
 void RAS_DisplayArrayBucket::DestructStorageInfo()

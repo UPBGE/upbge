@@ -207,4 +207,8 @@ void BL_DeformableGameObject::LoadDeformer()
 		m_pDeformer = new KX_SoftBodyDeformer(meshobj, this);
 	}
 #endif
+
+	if (m_pDeformer) {
+		m_pDeformer->InitializeDisplayArrays();
+	}
 }
