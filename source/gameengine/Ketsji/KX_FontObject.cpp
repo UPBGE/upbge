@@ -226,7 +226,7 @@ void KX_FontObject::GetTextAabb(MT_Vector2& min, MT_Vector2& max)
 
 	min = MT_Vector2(FLT_MAX, FLT_MAX);
 	max = MT_Vector2(-FLT_MAX, -FLT_MAX);
-	for (unsigned short i = 0, size = m_texts.size(); i < size; ++i) {
+	for (unsigned short i = 0, count = m_texts.size(); i < count; ++i) {
 		rctf box;
 		const std::string& text = m_texts[i];
 		BLF_boundbox(m_fontid, text.c_str(), text.size(), &box);

@@ -186,8 +186,6 @@ PyObject *SCA_PythonMouse::pyattr_get_active_inputs(EXP_PyObjectPlus *self_v, co
 		SCA_InputEvent& input = self->m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
 		if (input.Find(SCA_InputEvent::ACTIVE)) {
-			SCA_InputEvent& input = self->m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
-
 			PyObject *key = PyLong_FromLong(i);
 
 			PyDict_SetItem(self->m_event_dict, key, input.GetProxy());

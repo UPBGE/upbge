@@ -682,11 +682,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 
 void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 {
-	KX_GameObject* replica;
-	KX_GameObject* gameobj;
 	Object* blgroupobj = groupobj->GetBlenderObject();
-	Group* group;
-	GroupObject *go;
 	std::vector<KX_GameObject*> duplilist;
 
 	if (!groupobj->GetSGNode() ||
@@ -703,15 +699,15 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 	// Again, this is match what Blender is doing (it doesn't care of parent relationship)
 	m_groupGameObjects.clear();
 
-	group = blgroupobj->dup_group;
-	for (go=(GroupObject*)group->gobject.first; go; go=(GroupObject*)go->next) 
+	Group *group = blgroupobj->dup_group;
+	for (GroupObject *go=(GroupObject*)group->gobject.first; go; go=(GroupObject*)go->next) 
 	{
 		Object* blenderobj = go->ob;
 		if (blgroupobj == blenderobj)
 			// this check is also in group_duplilist()
 			continue;
 
-		gameobj = (KX_GameObject*)m_logicmgr->FindGameObjByBlendObj(blenderobj);
+		KX_GameObject *gameobj = (KX_GameObject*)m_logicmgr->FindGameObjByBlendObj(blenderobj);
 		if (gameobj == nullptr) 
 		{
 			// this object has not been converted!!!
@@ -739,7 +735,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 			// is inconsistent, skip it anyway
 			continue;
 		}
-		replica = (KX_GameObject*) AddNodeReplicaObject(nullptr,gameobj);
+		KX_GameObject *replica = (KX_GameObject*) AddNodeReplicaObject(nullptr,gameobj);
 		// add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame)
 		m_parentlist->Add(CM_AddRef(replica));
 

@@ -63,13 +63,13 @@ struct RAS_IVertexData : RAS_VertexDataBasic
 {
 	inline RAS_IVertexData() = default;
 
-	inline RAS_IVertexData(const MT_Vector3& position, const MT_Vector3& normal, const MT_Vector4& tangent)
-		:RAS_VertexDataBasic(position, normal, tangent)
+	inline RAS_IVertexData(const MT_Vector3& _position, const MT_Vector3& _normal, const MT_Vector4& _tangent)
+		:RAS_VertexDataBasic(_position, _normal, _tangent)
 	{
 	}
 
-	inline RAS_IVertexData(const float position[3], const float normal[3], const float tangent[4])
-		:RAS_VertexDataBasic(position, normal, tangent)
+	inline RAS_IVertexData(const float _position[3], const float _normal[3], const float _tangent[4])
+		:RAS_VertexDataBasic(_position, _normal, _tangent)
 	{
 	}
 };
@@ -84,23 +84,23 @@ struct RAS_VertexData : RAS_IVertexData, RAS_VertexDataExtra<uvSize, colorSize>
 
 	inline RAS_VertexData() = default;
 
-	inline RAS_VertexData(const MT_Vector3& xyz,
-						  const MT_Vector2 uvs[uvSize],
-						  const MT_Vector4& tangent,
-						  const unsigned int rgba[colorSize],
-						  const MT_Vector3& normal)
-		:RAS_IVertexData(xyz, normal, tangent),
-		RAS_VertexDataExtra<uvSize, colorSize>(uvs, rgba)
+	inline RAS_VertexData(const MT_Vector3& _position,
+						  const MT_Vector2 _uvs[uvSize],
+						  const MT_Vector4& _tangent,
+						  const unsigned int _colors[colorSize],
+						  const MT_Vector3& _normal)
+		:RAS_IVertexData(_position, _normal, _tangent),
+		RAS_VertexDataExtra<uvSize, colorSize>(_uvs, _colors)
 	{
 	}
 
-	inline RAS_VertexData(const float xyz[3],
-						  const float uvs[uvSize][2],
-						  const float tangent[4],
-						  const unsigned int rgba[colorSize],
-						  const float normal[3])
-		:RAS_IVertexData(xyz, normal, tangent),
-		RAS_VertexDataExtra<uvSize, colorSize>(uvs, rgba)
+	inline RAS_VertexData(const float _position[3],
+						  const float _uvs[uvSize][2],
+						  const float _tangent[4],
+						  const unsigned int _colors[colorSize],
+						  const float _normal[3])
+		:RAS_IVertexData(_position, _normal, _tangent),
+		RAS_VertexDataExtra<uvSize, colorSize>(_uvs, _colors)
 	{
 	}
 };

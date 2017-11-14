@@ -304,8 +304,8 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 				vert.TransformUv(uvindex, transform);
 			}
 			else if (uvindex == -1) {
-				for (int i = 0; i < RAS_Texture::MaxUnits; ++i) {
-					vert.TransformUv(i, transform);
+				for (int k = 0; k < RAS_Texture::MaxUnits; ++k) {
+					vert.TransformUv(k, transform);
 				}
 			}
 		}
