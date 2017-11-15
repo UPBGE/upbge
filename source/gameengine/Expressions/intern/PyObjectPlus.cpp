@@ -930,7 +930,7 @@ UNDO_AND_ERROR:
 					}
 					for (int i = 0; i < attrdef->m_imin; i++)
 					{
-						PyObject *list = PySequence_GetItem(value, i); /* new ref */
+						list = PySequence_GetItem(value, i); /* new ref */
 						if (!PySequence_Check(list) || PySequence_Size(list) != attrdef->m_imax) {
 							PyErr_Format(PyExc_TypeError, "expected a sequence of [%d][%d] floats for attribute \"%s\"", attrdef->m_imin, attrdef->m_imax, attrdef->m_name.c_str());
 							goto RESTORE_AND_ERROR;

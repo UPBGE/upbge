@@ -233,12 +233,12 @@ void KX_CollisionEventManager::NextFrame()
 	RemoveNewCollisions();
 }
 
-KX_CollisionEventManager::NewCollision::NewCollision(PHY_IPhysicsController *first,
-                                                     PHY_IPhysicsController *second,
-                                                     const PHY_CollData *colldata)
-	:first(first),
-	second(second),
-	colldata(colldata)
+KX_CollisionEventManager::NewCollision::NewCollision(PHY_IPhysicsController *_first,
+                                                     PHY_IPhysicsController *_second,
+                                                     const PHY_CollData *_colldata)
+	:first(_first),
+	second(_second),
+	colldata(_colldata)
 {
 }
 
