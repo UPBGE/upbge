@@ -811,7 +811,7 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 		if (body && (ctrl->GetConstructionInfo().m_do_fh || ctrl->GetConstructionInfo().m_do_rot_fh)) {
 			//re-implement SM_FhObject.cpp using btCollisionWorld::rayTest and info from ctrl->getConstructionInfo()
 			//send a ray from {0.0, 0.0, 0.0} towards {0.0, 0.0, -10.0}, in local coordinates
-			CcdPhysicsController *parentCtrl = ctrl->GetParentCtrl();
+			CcdPhysicsController *parentCtrl = ctrl->GetParentRoot();
 			btRigidBody *parentBody = parentCtrl ? parentCtrl->GetRigidBody() : nullptr;
 			btRigidBody *cl_object = parentBody ? parentBody : body;
 
@@ -2692,21 +2692,34 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 	CcdConstructionInfo ci;
 	class CcdShapeConstructionInfo *shapeInfo = new CcdShapeConstructionInfo();
 
-	Object *blenderparent = blenderobject->parent;
-	Object *rootparent = nullptr;
-	// Find the upper parent object using compound shape.
-	while (blenderparent) {
-		if ((blenderparent->gameflag & OB_CHILD) && (blenderobject->gameflag & (OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY)) &&
-			!(blenderobject->gameflag & OB_SOFT_BODY))
-		{
-			rootparent = blenderparent;
+	Object *blenderRoot = blenderobject->parent;
+	Object *blenderCompoundRoot = nullptr;
+	// Iterate over all parents in the object tree.
+	{
+		Object *parentit = blenderobject->parent;
+		while (parentit) {
+			// If the parent is valid for compound parent shape, update blenderCompoundRoot.
+			if ((parentit->gameflag & OB_CHILD) && (blenderobject->gameflag & (OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY)) &&
+				!(blenderobject->gameflag & OB_SOFT_BODY))
+			{
+				blenderCompoundRoot = parentit;
+			}
+			// Continue looking for root parent.
+			blenderRoot = parentit;
+
+			parentit = parentit->parent;
 		}
-		blenderparent = blenderparent->parent;
 	}
 
-	KX_GameObject *parent = nullptr;
-	if (rootparent) {
-		parent = converter.FindGameObject(rootparent);
+	KX_GameObject *compoundParent = nullptr;
+	if (blenderCompoundRoot) {
+		compoundParent = converter.FindGameObject(blenderCompoundRoot);
+		isbulletsoftbody = false;
+	}
+
+	KX_GameObject *parentRoot = nullptr;
+	if (blenderRoot) {
+		parentRoot = converter.FindGameObject(blenderRoot);
 		isbulletsoftbody = false;
 	}
 
@@ -2982,7 +2995,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 	if (isCompoundChild) {
 		//find parent, compound shape and add to it
 		//take relative transform into account!
-		CcdPhysicsController *parentCtrl = (CcdPhysicsController *)parent->GetPhysicsController();
+		CcdPhysicsController *parentCtrl = (CcdPhysicsController *)compoundParent->GetPhysicsController();
 		BLI_assert(parentCtrl);
 
 		// only makes compound shape if parent has a physics controller (i.e not an empty, etc)
@@ -2995,7 +3008,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 
 			// compute the local transform from parent, this may include several node in the chain
 			SG_Node *gameNode = gameobj->GetSGNode();
-			SG_Node *parentNode = parent->GetSGNode();
+			SG_Node *parentNode = compoundParent->GetSGNode();
 			// relative transform
 			MT_Vector3 parentScale = parentNode->GetWorldScaling();
 			parentScale[0] = MT_Scalar(1.0f) / parentScale[0];
@@ -3136,11 +3149,12 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 		}
 	}
 
-	if (parent)
+	if (parentRoot) {
 		physicscontroller->SuspendDynamics(false);
+	}
 
-	CcdPhysicsController *parentCtrl = parent ? (CcdPhysicsController *)parent->GetPhysicsController() : 0;
-	physicscontroller->SetParentCtrl(parentCtrl);
+	CcdPhysicsController *parentCtrl = parentRoot ? static_cast<CcdPhysicsController *>(parentRoot->GetPhysicsController()) : nullptr;
+	physicscontroller->SetParentRoot(parentCtrl);
 }
 
 void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src, KX_GameObject *obj_dest,

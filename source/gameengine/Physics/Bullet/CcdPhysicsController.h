@@ -566,7 +566,7 @@ protected:
 	int m_registerCount;            // needed when multiple sensors use the same controller
 	CcdConstructionInfo m_cci;//needed for replication
 
-	CcdPhysicsController *m_parentCtrl;
+	CcdPhysicsController *m_parentRoot;
 
 	int m_savedCollisionFlags;
 	short m_savedCollisionFilterGroup;
@@ -823,19 +823,14 @@ public:
 		return m_cci.m_physicsEnv;
 	}
 
-	void SetParentCtrl(CcdPhysicsController *parentCtrl)
+	void SetParentRoot(CcdPhysicsController *parentCtrl)
 	{
-		m_parentCtrl = parentCtrl;
+		m_parentRoot = parentCtrl;
 	}
 
-	CcdPhysicsController *GetParentCtrl()
+	CcdPhysicsController *GetParentRoot() const
 	{
-		return m_parentCtrl;
-	}
-
-	const CcdPhysicsController *GetParentCtrl() const
-	{
-		return m_parentCtrl;
+		return m_parentRoot;
 	}
 
 	virtual bool IsDynamic()

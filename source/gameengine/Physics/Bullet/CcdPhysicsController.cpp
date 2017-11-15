@@ -173,7 +173,7 @@ CcdPhysicsController::CcdPhysicsController(const CcdConstructionInfo& ci)
 	m_newClientInfo = 0;
 	m_registerCount = 0;
 	m_softBodyTransformInitialized = false;
-	m_parentCtrl = 0;
+	m_parentRoot = nullptr;
 	// copy pointers locally to allow smart release
 	m_MotionState = ci.m_MotionState;
 	m_collisionShape = ci.m_collisionShape;
@@ -766,7 +766,7 @@ void CcdPhysicsController::WriteDynamicsToMotionState()
 // controller replication
 void CcdPhysicsController::PostProcessReplica(class PHY_IMotionState *motionstate, class PHY_IPhysicsController *parentctrl)
 {
-	SetParentCtrl((CcdPhysicsController *)parentctrl);
+	SetParentRoot((CcdPhysicsController *)parentctrl);
 	m_softBodyTransformInitialized = false;
 	m_MotionState = motionstate;
 	m_registerCount = 0;
