@@ -1819,6 +1819,18 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 	for (KX_GameObject *gameobj : GetObjectList()) {
 		gameobj->UpdateBlenderObjectMatrix(nullptr);
 		gameobj->TagForUpdate(); // used for shadow culling (call before sgnode->ClearDirty(DIRTY_RENDER))
+		if (gameobj->GetCulled()) {
+			gameobj->DiscardMaterialBatches();
+			gameobj->m_wasculled = true;
+		}
+		else {
+			if (gameobj->m_wasculled) {
+				float obmat[4][4];
+				gameobj->NodeGetWorldTransform().getValue(&obmat[0][0]);
+				gameobj->AddNewMaterialBatchesToPasses(obmat);
+				gameobj->m_wasculled = false;
+			}
+		}
 	}
 	for (KX_CullingNode *node : nodes) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.

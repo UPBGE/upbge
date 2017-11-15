@@ -128,6 +128,7 @@ KX_GameObject::KX_GameObject(
       m_cullingNode(this),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
+	  m_wasculled(false),
 	  m_needsUpdate(true),
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON

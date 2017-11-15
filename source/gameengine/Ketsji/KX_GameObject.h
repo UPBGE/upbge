@@ -152,6 +152,7 @@ public:
 	/* Call before SG_Node::ClearDirty(SG_Node::DIRTY_RENDER) */
 	void TagForUpdate(); // used only for shadow culling for now
 	bool NeedsUpdate(); // used only for shadow culling for now
+	bool m_wasculled;
 
 
 
