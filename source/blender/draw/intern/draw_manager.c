@@ -252,6 +252,7 @@ typedef struct DRWCall {
 
 	float obmat[4][4];
 	Gwn_Batch *geometry;
+	Gwn_Batch *culled_geometry;
 
 	Object *ob; /* Optional */
 	ID *ob_data; /* Optional. */
@@ -3678,6 +3679,24 @@ void DRW_shgroups_discard_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch)
 	{
 		if (call->geometry == batch) {
 			call->geometry = DRW_cache_single_vert_no_display_get();
+			call->culled_geometry = batch;
+		}
+	}
+}
+
+void DRW_shgroups_restore_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch, float obmat[4][4])
+{
+#ifdef USE_MEM_ITER
+	BLI_memiter_handle calls_iter;
+	BLI_memiter_iter_init(shgroup->calls, &calls_iter);
+	for (DRWCall *call; (call = BLI_memiter_iter_step(&calls_iter));)
+#else
+	for (DRWCall *call = shgroup->calls.first; call; call = call->head.next)
+#endif
+	{
+		if (call->culled_geometry == batch) {
+			call->geometry = batch;
+			call->culled_geometry = NULL;
 		}
 	}
 }

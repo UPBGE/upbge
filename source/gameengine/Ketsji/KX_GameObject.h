@@ -146,6 +146,7 @@ public:
 	std::vector<Gwn_Batch *>GetMaterialBatches();
 	
 	void DiscardMaterialBatches();
+	void RestoreMaterialBatches(float obmat[4][4]);
 	void DuplicateMaterialBatches();
 	void AddNewMaterialBatchesToPasses(float obmat[4][4]);
 

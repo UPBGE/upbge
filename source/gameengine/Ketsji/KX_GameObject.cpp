@@ -285,7 +285,7 @@ std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 	return m_materialShGroups;
 }
 
-/* Use for EndObject + to discard batches in inactive layers/scenes at BlenderDataConversion */
+/* Use for EndObject + to discard batches in inactive layers/scenes at BlenderDataConversion + for culling */
 void KX_GameObject::DiscardMaterialBatches()
 {
 	for (Gwn_Batch *b : m_materialBatches) {
@@ -293,6 +293,16 @@ void KX_GameObject::DiscardMaterialBatches()
 			if (DRW_shgroups_belongs_to_gameobject(sh, b)) {
 				DRW_shgroups_discard_geometry(sh, b);
 			}
+		}
+	}
+}
+
+/* Used to "uncull" discarded batches */
+void KX_GameObject::RestoreMaterialBatches(float obmat[4][4])
+{
+	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
+		for (int i = 0; i < m_materialBatches.size(); i++) {
+			DRW_shgroups_restore_geometry(sh, m_materialBatches[i], obmat);
 		}
 	}
 }

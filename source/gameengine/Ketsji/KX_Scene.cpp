@@ -1827,7 +1827,7 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 			if (gameobj->m_wasculled) {
 				float obmat[4][4];
 				gameobj->NodeGetWorldTransform().getValue(&obmat[0][0]);
-				gameobj->AddNewMaterialBatchesToPasses(obmat);
+				gameobj->RestoreMaterialBatches(obmat);
 				gameobj->m_wasculled = false;
 			}
 		}
