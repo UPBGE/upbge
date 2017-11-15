@@ -1307,8 +1307,10 @@ static void bl_ConvertBlenderObject_Single(
 
 	logicbrick_conversionlist->Add(CM_AddRef(gameobj));
 
-	/* This adds display arrays (Gwn_Batch) to draw with eevee code */
-	gameobj->AddGeometry();
+	/* This adds display arrays (Gwn_Batch) to draw with eevee code
+	 * Here we add batches for all game objects (active/inactive).
+	 */
+	gameobj->AddMaterialBatches();
 
 	if (isInActiveLayer)
 	{
@@ -1323,7 +1325,10 @@ static void bl_ConvertBlenderObject_Single(
 		//we must store this object otherwise it will be deleted
 		//at the end of this function if it is not a root object
 		inactivelist->Add(CM_AddRef(gameobj));
-		gameobj->DiscardGeometry();
+		// We replace batches with an unique single vertex in the cache
+		// Same vertex for all objects added. this vertex is not displayed on the screen
+		// See DRW_single_vertex_no_diplay_get()
+		gameobj->DiscardMaterialBatches();
 	}
 }
 

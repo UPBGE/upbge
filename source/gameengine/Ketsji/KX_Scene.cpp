@@ -1106,8 +1106,8 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 	if (replica->GetMaterialBatches().size() > 0) {
 		float obmat[4][4];
 		replica->NodeGetWorldTransform().getValue(&obmat[0][0]);
-		replica->DuplicateGeometry();
-		replica->AddNewGeometryToPasses(obmat);
+		replica->DuplicateMaterialBatches();
+		replica->AddNewMaterialBatchesToPasses(obmat);
 	}
 
 	//	don't release replica here because we are returning it, not done with it...
@@ -1118,6 +1118,8 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 
 void KX_Scene::RemoveObject(KX_GameObject *gameobj)
 {
+	// Discard geometry (gameobj gaiwan batches)
+	gameobj->DiscardMaterialBatches();
 	// disconnect child from parent
 	SG_Node* node = gameobj->GetSGNode();
 

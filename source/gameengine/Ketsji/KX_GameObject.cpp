@@ -221,21 +221,10 @@ KX_GameObject::~KX_GameObject()
 	}
 }
 
-void KX_GameObject::AddMaterialBatch(Gwn_Batch *batch)
-{
-	std::vector<Gwn_Batch *>::iterator it = std::find(m_materialBatches.begin(), m_materialBatches.end(), batch);
-	if (it != m_materialBatches.end()) {
-		return;
-	}
-	m_materialBatches.push_back(batch);
-}
+/*********************************EEVEE INTEGRATION**************************************/
 
-std::vector<Gwn_Batch *>KX_GameObject::GetMaterialBatches()
-{
-	return m_materialBatches;
-}
-
-void KX_GameObject::AddGeometry()
+/* This function adds all display arrays used for this gameobject */
+void KX_GameObject::AddMaterialBatches()
 {
 	/* Get per-material split surface */
 	Object *ob = GetBlenderObject();
@@ -249,39 +238,54 @@ void KX_GameObject::AddGeometry()
 	struct Gwn_Batch **mat_geom = DRW_cache_object_surface_material_get(ob, gpumat_array, materials_len);
 	if (mat_geom) {
 		for (int i = 0; i < materials_len; ++i) {
-			AddMaterialBatch(mat_geom[i]);
+			std::vector<Gwn_Batch *>::iterator it = std::find(m_materialBatches.begin(), m_materialBatches.end(), mat_geom[i]);
+			if (it != m_materialBatches.end()) {
+				continue;
+			}
+			m_materialBatches.push_back(mat_geom[i]);
 		}
 	}
 }
 
-/* Can be called only after we added batches with AddGeometry */
+/* GET + CREATE IF DOESN'T EXIST */
+std::vector<Gwn_Batch *>KX_GameObject::GetMaterialBatches()
+{
+	if (m_materialBatches.size() > 0) {
+		return m_materialBatches;
+	}
+	AddMaterialBatches();
+	return m_materialBatches;
+}
+
+/* Can be called only after we added batches with AddMaterialBatches */
 /* GET + CREATE IF DOESN'T EXIST */
 std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 {
-	if (m_gameobShGroups.size() > 0) {
-		return m_gameobShGroups;
+	if (m_materialShGroups.size() > 0) {
+		return m_materialShGroups;
 	}
 	KX_Scene *scene = GetScene();
 	std::vector<DRWPass *>allPasses = scene->GetMaterialPasses();
 	for (DRWPass *pass : allPasses) {
 		ListBase *shgroups = DRW_shgroups_from_pass_get(pass);
 		for (DRWShadingGroup *shgroup = (DRWShadingGroup *)shgroups->first; shgroup; shgroup = DRW_shgroup_next(shgroup)) {
-			std::vector<DRWShadingGroup *>::iterator it = std::find(m_gameobShGroups.begin(), m_gameobShGroups.end(), shgroup);
-			if (it != m_gameobShGroups.end()) {
+			std::vector<DRWShadingGroup *>::iterator it = std::find(m_materialShGroups.begin(), m_materialShGroups.end(), shgroup);
+			if (it != m_materialShGroups.end()) {
 				continue;
 			}
 			for (Gwn_Batch *batch : m_materialBatches) {
 				if (DRW_shgroups_belongs_to_gameobject(shgroup, batch)) {
-					m_gameobShGroups.push_back(shgroup);
+					m_materialShGroups.push_back(shgroup);
 					break;
 				}
 			}
 		}
 	}
-	return m_gameobShGroups;
+	return m_materialShGroups;
 }
 
-void KX_GameObject::DiscardGeometry()
+/* Use for EndObject + to discard batches in inactive layers/scenes at BlenderDataConversion */
+void KX_GameObject::DiscardMaterialBatches()
 {
 	for (Gwn_Batch *b : m_materialBatches) {
 		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
@@ -292,18 +296,8 @@ void KX_GameObject::DiscardGeometry()
 	}
 }
 
-void KX_GameObject::RestoreGeometry()
-{
-	for (Gwn_Batch *b : m_materialBatches) {
-		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-			if (DRW_shgroups_belongs_to_gameobject(sh, b)) {
-				DRW_shgroups_restore_geometry(sh, b);
-			}
-		}
-	}
-}
-
-void KX_GameObject::DuplicateGeometry()
+/* Use for AddObject */
+void KX_GameObject::DuplicateMaterialBatches()
 {
 	std::vector<Gwn_Batch *>newBatches;
 	for (Gwn_Batch *b : m_materialBatches) {
@@ -314,7 +308,8 @@ void KX_GameObject::DuplicateGeometry()
 	m_materialBatches = newBatches;
 }
 
-void KX_GameObject::AddNewGeometryToPasses(float obmat[4][4])
+/* Use for AddObject */
+void KX_GameObject::AddNewMaterialBatchesToPasses(float obmat[4][4])
 {
 	for (Gwn_Batch *b : m_materialBatches) {
 		for (DRWPass *pass : GetScene()->GetMaterialPasses()) {
@@ -327,6 +322,8 @@ void KX_GameObject::AddNewGeometryToPasses(float obmat[4][4])
 		}
 	}
 }
+
+/************************END OF EEVEE INTEGRATION******************************/
 
 KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
 {

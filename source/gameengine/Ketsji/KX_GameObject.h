@@ -89,7 +89,7 @@ protected:
 
 
 	std::vector<Gwn_Batch *>m_materialBatches;
-	std::vector<DRWShadingGroup *>m_gameobShGroups;
+	std::vector<DRWShadingGroup *>m_materialShGroups;
 
 	float m_savedObmat[4][4];
 	bool m_needsUpdate; // used for shadow culling
@@ -140,14 +140,14 @@ protected:
 public:
 
 
-	std::vector<Gwn_Batch *>GetMaterialBatches();
+	void AddMaterialShadingGroups();
 	std::vector<DRWShadingGroup *>GetMaterialShadingGroups();
-	void AddGeometry();
-	void AddMaterialBatch(Gwn_Batch *batch); // material display array
-	void DiscardGeometry();
-	void RestoreGeometry();
-	void DuplicateGeometry();
-	void AddNewGeometryToPasses(float obmat[4][4]);
+	void AddMaterialBatches();
+	std::vector<Gwn_Batch *>GetMaterialBatches();
+	
+	void DiscardMaterialBatches();
+	void DuplicateMaterialBatches();
+	void AddNewMaterialBatchesToPasses(float obmat[4][4]);
 
 	/* Call before SG_Node::ClearDirty(SG_Node::DIRTY_RENDER) */
 	void TagForUpdate(); // used only for shadow culling for now

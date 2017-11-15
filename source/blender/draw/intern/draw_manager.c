@@ -3682,30 +3682,9 @@ void DRW_shgroups_discard_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch)
 	}
 }
 
-void DRW_shgroups_restore_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch)
-{
-#ifdef USE_MEM_ITER
-	BLI_memiter_handle calls_iter;
-	BLI_memiter_iter_init(shgroup->calls, &calls_iter);
-	for (DRWCall *call; (call = BLI_memiter_iter_step(&calls_iter));)
-#else
-	for (DRWCall *call = shgroup->calls.first; call; call = call->head.next)
-#endif
-	{
-		if (call->geometry == DRW_cache_single_vert_get()) {
-			call->geometry = batch;
-		}
-	}
-}
-
 ListBase *DRW_shgroups_from_pass_get(DRWPass *pass)
 {
 	return &pass->shgroups;
-}
-
-void DRW_shgroups_from_pass_set(DRWPass *pass, ListBase *shgroups)
-{
-	pass->shgroups = *shgroups;
 }
 
 DRWShadingGroup *DRW_shgroup_next(DRWShadingGroup *current)
@@ -4014,12 +3993,6 @@ void DRW_end_shgroup(void)
 		GPU_shader_unbind();
 		DST.shader = NULL;
 	}
-}
-
-void DRW_state_from_pass_set(DRWPass *pass)
-{
-	DRWState state = pass->state;
-	DRW_state_set(state);
 }
 
 /***************************END OF GAME ENGINE***************************/
