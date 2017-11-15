@@ -29,6 +29,8 @@
 
 #include "RAS_IDisplayArray.h"
 
+#include "boost/pool/object_pool.hpp"
+
 template <class VertexData>
 class RAS_BatchDisplayArray;
 
@@ -40,6 +42,9 @@ friend class RAS_BatchDisplayArray<VertexData>;
 
 protected:
 	std::vector<VertexData> m_vertexes;
+
+	// Temporary vertex data storage.
+	static boost::object_pool<VertexData> m_vertexPool;
 
 public:
 	RAS_DisplayArray(PrimitiveType type, const RAS_VertexFormat& format)
@@ -109,12 +114,16 @@ public:
 		return m_vertexes.data();
 	}
 
-	virtual unsigned int AddVertex(RAS_Vertex& vert)
+	virtual unsigned int AddVertex(const RAS_Vertex& vert)
 	{
 		VertexData *data = static_cast<VertexData *>(vert.GetData());
 		m_vertexes.push_back(*data);
-		delete data;
 		return m_vertexes.size() - 1;
+	}
+
+	virtual void DeleteVertexData(const RAS_Vertex& vert)
+	{
+		m_vertexPool.destroy(static_cast<VertexData *>(vert.GetData()));
 	}
 
 	virtual void Clear()
@@ -139,7 +148,7 @@ public:
 				const unsigned int *rgba,
 				const MT_Vector3& normal)
 	{
-		VertexData *data = new VertexData(xyz, uvs, tangent, rgba, normal);
+		VertexData *data = new (m_vertexPool.malloc()) VertexData(xyz, uvs, tangent, rgba, normal);
 		return RAS_Vertex(data, m_format);
 	}
 
@@ -150,7 +159,7 @@ public:
 				const unsigned int *rgba,
 				const float normal[3])
 	{
-		VertexData *data = new VertexData(xyz, uvs, tangent, rgba, normal);
+		VertexData *data = new (m_vertexPool.malloc()) VertexData(xyz, uvs, tangent, rgba, normal);
 		return RAS_Vertex(data, m_format);
 	}
 
@@ -163,5 +172,8 @@ public:
 		}
 	}
 };
+
+template <class VertexData>
+boost::object_pool<VertexData> RAS_DisplayArray<VertexData>::m_vertexPool;
 
 #endif  // __RAS_DISPLAY_ARRAY_H__

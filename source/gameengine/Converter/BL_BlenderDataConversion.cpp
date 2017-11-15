@@ -589,6 +589,9 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 				sharedList.push_back({array, offset});
 			}
 
+			// Destruct the vertex data as it is copied or unused.
+			array->DeleteVertexData(vertex);
+
 			// Add tracked vertices by the mpoly.
 			vertices[vertid] = offset;
 		}

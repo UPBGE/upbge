@@ -121,7 +121,9 @@ public:
 		return m_vertexInfos[index];
 	}
 
-	virtual unsigned int AddVertex(RAS_Vertex& vert) = 0;
+	virtual unsigned int AddVertex(const RAS_Vertex& vert) = 0;
+
+	virtual void DeleteVertexData(const RAS_Vertex& vert) = 0;
 
 	inline void AddPrimitiveIndex(const unsigned int index)
 	{
