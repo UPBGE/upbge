@@ -1879,10 +1879,9 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 						const float face = (twoside) ? 0.0f : ((negative) ? -1.0f : 1.0f);
 
 						for (unsigned int j = 0, size = array->GetTriangleIndexCount(); j < size; j += 3) {
-							const unsigned int index = array->GetTriangleIndex(j);
-							m_ocb->appendOccluderM(array->GetVertex(index).GetXYZ(),
-												   array->GetVertex(index + 1).GetXYZ(),
-												   array->GetVertex(index + 2).GetXYZ(),
+							m_ocb->appendOccluderM(array->GetVertex(array->GetTriangleIndex(j)).GetXYZ(),
+												   array->GetVertex(array->GetTriangleIndex(j + 1)).GetXYZ(),
+												   array->GetVertex(array->GetTriangleIndex(j + 2)).GetXYZ(),
 												   face);
 						}
 					}
