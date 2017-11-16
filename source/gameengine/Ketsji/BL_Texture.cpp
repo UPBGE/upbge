@@ -690,7 +690,7 @@ PyObject *BL_Texture::pyattr_get_uv_offset(EXP_PyObjectPlus *self_v, const EXP_P
 #else
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 
-	return PyObjectFrom(MT_Vector3(self->GetMTex()->ofs));
+	return PyObjectFrom(self->GetMTex()->ofs);
 #endif
 }
 
@@ -714,7 +714,7 @@ PyObject *BL_Texture::pyattr_get_uv_size(EXP_PyObjectPlus *self_v, const EXP_PYA
 #else
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
 
-	return PyObjectFrom(MT_Vector3(self->GetMTex()->size));
+	return PyObjectFrom(self->GetMTex()->size);
 #endif
 }
 

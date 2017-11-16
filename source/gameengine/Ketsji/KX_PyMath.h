@@ -276,6 +276,20 @@ PyObject *PyObjectFrom(const MT_Vector4 &pos);
  */
 PyObject *PyColorFromVector(const MT_Vector3 &vec);
 
+template <unsigned short Size>
+PyObject *PyObjectFrom(const float (&vec)[Size])
+{
+#ifdef USE_MATHUTILS
+	return Vector_CreatePyObject(vec, Size, nullptr);
+#else
+	PyObject *list = PyList_New(Size);
+	for (unsigned short i = 0; i < Size; ++i) {
+		PyList_SET_ITEM(list, i, PyFloat_FromDouble(vec[i]));
+	}
+	return list;
+#endif
+}
+
 #endif  // WITH_PYTHON
 
 #endif  // __KX_PYMATH_H__

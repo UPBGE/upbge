@@ -176,13 +176,13 @@ PyObject *KX_VertexProxy::pyattr_get_v2(EXP_PyObjectPlus *self_v, const EXP_PYAT
 PyObject *KX_VertexProxy::pyattr_get_XYZ(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-	return PyObjectFrom(MT_Vector3(self->m_vertex.GetXYZ()));
+	return PyObjectFrom(self->m_vertex.GetXYZ());
 }
 
 PyObject *KX_VertexProxy::pyattr_get_UV(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-	return PyObjectFrom(MT_Vector2(self->m_vertex.GetUv(0)));
+	return PyObjectFrom(self->m_vertex.GetUv(0));
 }
 
 static int kx_vertex_proxy_get_uvs_size_cb(void *self_v)
@@ -270,7 +270,7 @@ PyObject *KX_VertexProxy::pyattr_get_color(EXP_PyObjectPlus *self_v, const EXP_P
 PyObject *KX_VertexProxy::pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-	return PyObjectFrom(MT_Vector3(self->m_vertex.GetNormal()));
+	return PyObjectFrom(self->m_vertex.GetNormal());
 }
 
 int KX_VertexProxy::pyattr_set_x(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -566,7 +566,7 @@ std::string KX_VertexProxy::GetName()
 // stuff for python integration
 PyObject *KX_VertexProxy::PyGetXYZ()
 {
-	return PyObjectFrom(m_vertex.xyz());
+	return PyObjectFrom(m_vertex.GetXYZ());
 }
 
 PyObject *KX_VertexProxy::PySetXYZ(PyObject *value)
@@ -582,7 +582,7 @@ PyObject *KX_VertexProxy::PySetXYZ(PyObject *value)
 
 PyObject *KX_VertexProxy::PyGetNormal()
 {
-	return PyObjectFrom(MT_Vector3(m_vertex.GetNormal()));
+	return PyObjectFrom(m_vertex.GetNormal());
 }
 
 PyObject *KX_VertexProxy::PySetNormal(PyObject *value)
@@ -625,7 +625,7 @@ PyObject *KX_VertexProxy::PySetRGBA(PyObject *value)
 
 PyObject *KX_VertexProxy::PyGetUV1()
 {
-	return PyObjectFrom(MT_Vector2(m_vertex.GetUv(0)));
+	return PyObjectFrom(m_vertex.GetUv(0));
 }
 
 PyObject *KX_VertexProxy::PySetUV1(PyObject *value)
@@ -641,7 +641,7 @@ PyObject *KX_VertexProxy::PySetUV1(PyObject *value)
 
 PyObject *KX_VertexProxy::PyGetUV2()
 {
-	return (m_vertex.GetFormat().uvSize > 1) ? PyObjectFrom(MT_Vector2(m_vertex.GetUv(1))) : PyObjectFrom(MT_Vector2(0.0f, 0.0f));
+	return (m_vertex.GetFormat().uvSize > 1) ? PyObjectFrom(m_vertex.GetUv(1)) : PyObjectFrom(MT_Vector2(0.0f, 0.0f));
 }
 
 PyObject *KX_VertexProxy::PySetUV2(PyObject *args)

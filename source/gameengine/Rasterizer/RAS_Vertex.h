@@ -128,17 +128,17 @@ public:
 		return m_format;
 	}
 
-	inline const float *GetXYZ() const
+	inline const float (&GetXYZ() const)[3]
 	{
 		return m_data->position;
 	}
 
-	inline const float *GetNormal() const
+	inline const float (&GetNormal() const)[3]
 	{
 		return m_data->normal;
 	}
 
-	inline const float *GetTangent() const
+	inline const float (&GetTangent() const)[4]
 	{
 		return m_data->tangent;
 	}
@@ -173,9 +173,9 @@ public:
 		tangent.getValue(m_data->tangent);
 	}
 
-	inline const float *GetUv(const int index) const
+	inline const float (&GetUv(const int index) const)[2]
 	{
-		return GetUvInternal(index);
+		return reinterpret_cast<float (&)[2]>(*GetUvInternal(index));
 	}
 
 	inline void SetUV(const int index, const MT_Vector2& uv)
@@ -188,9 +188,9 @@ public:
 		copy_v2_v2(GetUvInternal(index), uv);
 	}
 
-	inline const unsigned char *GetColor(const int index) const
+	inline const unsigned char (&GetColor(const int index) const)[4]
 	{
-		return (unsigned char *)GetColorInternal(index);
+		return reinterpret_cast<const unsigned char (&)[4]>(*GetColorInternal(index));
 	}
 
 	inline const unsigned int GetRawColor(const int index) const
