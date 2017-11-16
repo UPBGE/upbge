@@ -36,9 +36,13 @@
 #define USE_WEAKREFS
 
 #include "EXP_Python.h"
+
+#include "BLI_utildefines.h" // For BLI_assert.
+
+#include "MT_Vector3.h"
+
 #include <string>
 #include <initializer_list>
-#include "MT_Vector3.h"
 #include <stddef.h>
 
 #ifdef WITH_PYTHON

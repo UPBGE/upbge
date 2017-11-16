@@ -209,7 +209,7 @@ bool KX_MouseFocusSensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(
 	}
 
 	// The current object is not in the proper layer.
-	if (!(hitKXObj->GetUserCollisionGroup() & m_mask)) {
+	if (!(hitKXObj->GetCollisionGroup() & m_mask)) {
 		return false;
 	}
 

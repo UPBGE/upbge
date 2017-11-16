@@ -123,9 +123,8 @@ public:
 
 		btCollisionObject *object = (btCollisionObject *)proxy0->m_clientObject;
 		CcdPhysicsController *phyCtrl = static_cast<CcdPhysicsController *>(object->getUserPointer());
-		KX_GameObject *gameObj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)phyCtrl->GetNewClientInfo());
 
-		if (gameObj->GetUserCollisionGroup() & m_mask) {
+		if (phyCtrl->GetCollisionGroup() & m_mask) {
 			return true;
 		}
 
@@ -635,7 +634,7 @@ void CcdPhysicsEnvironment::UpdateCcdPhysicsController(CcdPhysicsController *ctr
 		if (body) {
 			if (newMass)
 				body->getCollisionShape()->calculateLocalInertia(newMass, inertia);
-			body->setMassProps(newMass, inertia);
+			body->setMassProps(newMass, inertia * ctrl->GetInertiaFactor());
 			m_dynamicsWorld->addRigidBody(body, newCollisionGroup, newCollisionMask);
 		}
 		else if (softBody) {
@@ -2115,53 +2114,41 @@ void CcdPhysicsEnvironment::CallbackTriggers()
 // Handy to remove objects that must be ignored by sensors
 bool CcdOverlapFilterCallBack::needBroadphaseCollision(btBroadphaseProxy *proxy0, btBroadphaseProxy *proxy1) const
 {
-	btCollisionObject *colObj0, *colObj1;
-	CcdPhysicsController *sensorCtrl, *objCtrl;
+	btCollisionObject *colObj0 = (btCollisionObject *)proxy0->m_clientObject;
+	btCollisionObject *colObj1 = (btCollisionObject *)proxy1->m_clientObject;
 
-	KX_GameObject *kxObj0 = KX_GameObject::GetClientObject(
-	    (KX_ClientObjectInfo *)
-	    ((CcdPhysicsController *)
-	     (((btCollisionObject *)proxy0->m_clientObject)->getUserPointer()))
-	    ->GetNewClientInfo());
-	KX_GameObject *kxObj1 = KX_GameObject::GetClientObject(
-	    (KX_ClientObjectInfo *)
-	    ((CcdPhysicsController *)
-	     (((btCollisionObject *)proxy1->m_clientObject)->getUserPointer()))
-	    ->GetNewClientInfo());
-
-	// First check the filters. Note that this is called during scene
-	// conversion, so we can't assume the KX_GameObject instances exist. This
-	// may make some objects erroneously collide on the first frame, but the
-	// alternative is to have them erroneously miss.
-	bool collides;
-	collides = (proxy0->m_collisionFilterGroup & proxy1->m_collisionFilterMask) != 0;
-	collides = collides && (proxy1->m_collisionFilterGroup & proxy0->m_collisionFilterMask);
-	if (kxObj0 && kxObj1) {
-		collides = collides && kxObj0->CheckCollision(kxObj1);
-		collides = collides && kxObj1->CheckCollision(kxObj0);
-	}
-	if (!collides)
+	if (!colObj0 || !colObj1) {
 		return false;
+	}
 
+	CcdPhysicsController *ctrl0 = static_cast<CcdPhysicsController *>(colObj0->getUserPointer());
+	CcdPhysicsController *ctrl1 = static_cast<CcdPhysicsController *>(colObj1->getUserPointer());
+
+	if (!((proxy0->m_collisionFilterGroup & proxy1->m_collisionFilterMask) &&
+		  (proxy1->m_collisionFilterGroup & proxy0->m_collisionFilterMask) &&
+		  (ctrl0->GetCollisionGroup() & ctrl1->GetCollisionMask()) &&
+		  (ctrl1->GetCollisionGroup() & ctrl0->GetCollisionMask())))
+	{
+		return false;
+	}
+
+	CcdPhysicsController *sensorCtrl, *objCtrl;
 	// additional check for sensor object
 	if (proxy0->m_collisionFilterGroup & btBroadphaseProxy::SensorTrigger) {
 		// this is a sensor object, the other one can't be a sensor object because
 		// they exclude each other in the above test
 		BLI_assert(!(proxy1->m_collisionFilterGroup & btBroadphaseProxy::SensorTrigger));
-		colObj0 = (btCollisionObject *)proxy0->m_clientObject;
-		colObj1 = (btCollisionObject *)proxy1->m_clientObject;
+		sensorCtrl = ctrl0;
+		objCtrl = ctrl1;
 	}
 	else if (proxy1->m_collisionFilterGroup & btBroadphaseProxy::SensorTrigger) {
-		colObj0 = (btCollisionObject *)proxy1->m_clientObject;
-		colObj1 = (btCollisionObject *)proxy0->m_clientObject;
+		sensorCtrl = ctrl1;
+		objCtrl = ctrl0;
 	}
 	else {
 		return true;
 	}
-	if (!colObj0 || !colObj1)
-		return false;
-	sensorCtrl = static_cast<CcdPhysicsController *>(colObj0->getUserPointer());
-	objCtrl = static_cast<CcdPhysicsController *>(colObj1->getUserPointer());
+
 	if (m_physEnv->m_triggerCallbacks[PHY_BROADPH_RESPONSE]) {
 		return m_physEnv->m_triggerCallbacks[PHY_BROADPH_RESPONSE](m_physEnv->m_triggerCallbacksUserPtrs[PHY_BROADPH_RESPONSE], sensorCtrl, objCtrl, 0);
 	}
@@ -2729,6 +2716,9 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 		ci.m_collisionFlags |= btCollisionObject::CF_NO_CONTACT_RESPONSE;
 	}
 
+	ci.m_collisionGroup = blenderobject->col_group;
+	ci.m_collisionMask = blenderobject->col_mask;
+
 	ci.m_MotionState = motionstate;
 	ci.m_gravity = btVector3(0.0f, 0.0f, 0.0f);
 	ci.m_linearFactor = btVector3(((blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_AXIS) != 0) ? 0.0f : 1.0f,
@@ -3025,13 +3015,13 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 
 			parentShapeInfo->AddShape(shapeInfo);
 			compoundShape->addChildShape(shapeInfo->m_childTrans, bm);
-			//do some recalc?
-			//recalc inertia for rigidbody
+
+			// Recalculate inertia for object owning compound shape.
 			if (!rigidbody->isStaticOrKinematicObject()) {
 				btVector3 localInertia;
-				float mass = 1.0f / rigidbody->getInvMass();
+				const float mass = 1.0f / rigidbody->getInvMass();
 				compoundShape->calculateLocalInertia(mass, localInertia);
-				rigidbody->setMassProps(mass, localInertia);
+				rigidbody->setMassProps(mass, localInertia * parentCtrl->GetInertiaFactor());
 			}
 			shapeInfo->Release();
 			// delete motionstate as it's not used

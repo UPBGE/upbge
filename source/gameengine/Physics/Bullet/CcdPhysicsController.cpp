@@ -1105,6 +1105,11 @@ void CcdPhysicsController::SetMass(MT_Scalar newmass)
 	}
 }
 
+float CcdPhysicsController::GetInertiaFactor() const
+{
+	return m_cci.m_inertiaFactor;
+}
+
 // physics methods
 void CcdPhysicsController::ApplyTorque(const MT_Vector3&  torquein, bool local)
 {
@@ -1268,6 +1273,26 @@ void CcdPhysicsController::Jump()
 
 void CcdPhysicsController::SetActive(bool active)
 {
+}
+
+unsigned short CcdPhysicsController::GetCollisionGroup() const
+{
+	return m_cci.m_collisionGroup;
+}
+
+unsigned short CcdPhysicsController::GetCollisionMask() const
+{
+	return m_cci.m_collisionMask;
+}
+
+void CcdPhysicsController::SetCollisionGroup(unsigned short group)
+{
+	m_cci.m_collisionGroup = group;
+}
+
+void CcdPhysicsController::SetCollisionMask(unsigned short mask)
+{
+	m_cci.m_collisionMask = mask;
 }
 
 float CcdPhysicsController::GetLinearDamping() const
@@ -1464,12 +1489,13 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 	proxyShapeInfo->Release();
 	// remember we created this shape
 	childCtrl->m_bulletChildShape = newChildShape;
-	// recompute inertia of parent
+
+	// Recalculate inertia for object owning compound shape.
 	if (!rootBody->isStaticOrKinematicObject()) {
 		btVector3 localInertia;
 		float mass = 1.0f / rootBody->getInvMass();
 		compoundShape->calculateLocalInertia(mass, localInertia);
-		rootBody->setMassProps(mass, localInertia);
+		rootBody->setMassProps(mass, localInertia * m_cci.m_inertiaFactor);
 	}
 	// must update the broadphase cache,
 	GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
@@ -1523,7 +1549,7 @@ void CcdPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
 		btVector3 localInertia;
 		float mass = 1.f / rootBody->getInvMass();
 		compoundShape->calculateLocalInertia(mass, localInertia);
-		rootBody->setMassProps(mass, localInertia);
+		rootBody->setMassProps(mass, localInertia * m_cci.m_inertiaFactor);
 	}
 	// must update the broadphase cache,
 	GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
