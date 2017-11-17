@@ -481,6 +481,6 @@ void EEVEE_effects_replace_e_data_depth(GPUTexture *depth_src)
 
 void EEVEE_effects_replace_e_data_color(GPUTexture *color_src)
 {
-	e_data.depth_src = color_src;
+	e_data.color_src = color_src;
 }
 /*********************End of Game engine***********************/

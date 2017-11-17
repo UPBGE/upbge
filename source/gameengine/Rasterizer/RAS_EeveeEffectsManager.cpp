@@ -287,8 +287,8 @@ RAS_FrameBuffer *RAS_EeveeEffectsManager::ResolveVolumetrics(RAS_FrameBuffer *in
 
 		m_dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
 		EEVEE_effects_replace_e_data_depth(m_dtxl->depth);
-		m_dtxl->color = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer());
-		EEVEE_effects_replace_e_data_color(m_dtxl->color);
+		m_txl->color = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer());
+		EEVEE_effects_replace_e_data_color(m_txl->color);
 
 		/* Step 4: Apply for opaque */
 		//DRW_framebuffer_bind(inputfb->GetFrameBuffer());
