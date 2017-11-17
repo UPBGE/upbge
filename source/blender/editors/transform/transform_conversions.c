@@ -292,7 +292,7 @@ static void createTransTexspace(TransInfo *t)
 	ID *id;
 	short *texflag;
 
-	ob = OBACT_NEW(sl);
+	ob = OBACT(sl);
 
 	if (ob == NULL) { // Shouldn't logically happen, but still...
 		t->total = 0;
@@ -2011,7 +2011,7 @@ void flushTransParticles(TransInfo *t)
 {
 	Scene *scene = t->scene;
 	SceneLayer *sl = t->scene_layer;
-	Object *ob = OBACT_NEW(sl);
+	Object *ob = OBACT(sl);
 	PTCacheEdit *edit = PE_get_current(scene, sl, ob);
 	ParticleSystem *psys = edit->psys;
 	ParticleSystemModifierData *psmd = NULL;
@@ -2053,7 +2053,7 @@ void flushTransParticles(TransInfo *t)
 
 	EvaluationContext eval_ctx;
 	CTX_data_eval_ctx(t->context, &eval_ctx);
-	PE_update_object(&eval_ctx, scene, sl, OBACT_NEW(sl), 1);
+	PE_update_object(&eval_ctx, scene, sl, OBACT(sl), 1);
 }
 
 /* ********************* mesh ****************** */
@@ -5536,7 +5536,14 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
 /* it deselects Bases, so we have to call the clear function always after */
 static void set_trans_object_base_flags(TransInfo *t)
 {
+	/* TODO(sergey): Get rid of global, use explicit main. */
+	Main *bmain = G.main;
 	SceneLayer *sl = t->scene_layer;
+	Scene *scene = t->scene;
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, sl, false);
+
+	/* Transform tool is expected to be executed from an evaluated scene. */
+	BLI_assert(depsgraph != NULL);
 
 	/*
 	 * if Base selected and has parent selected:
@@ -5552,7 +5559,7 @@ static void set_trans_object_base_flags(TransInfo *t)
 	BKE_scene_base_flag_to_objects(t->scene_layer);
 
 	/* Make sure depsgraph is here. */
-	DEG_scene_relations_update(G.main, t->scene);
+	DEG_graph_relations_update(depsgraph, bmain, scene, sl);
 
 	/* handle pending update events, otherwise they got copied below */
 	EvaluationContext eval_ctx;
@@ -5569,7 +5576,7 @@ static void set_trans_object_base_flags(TransInfo *t)
 	for (base = sl->object_bases.first; base; base = base->next) {
 		base->flag_legacy &= ~BA_WAS_SEL;
 
-		if (TESTBASELIB_BGMODE_NEW(base)) {
+		if (TESTBASELIB_BGMODE(base)) {
 			Object *ob = base->object;
 			Object *parsel = ob->parent;
 
@@ -5578,7 +5585,7 @@ static void set_trans_object_base_flags(TransInfo *t)
 				if (parsel->base_flag & BASE_SELECTED) {
 					Base *parbase = BKE_scene_layer_base_find(sl, parsel);
 					if (parbase) { /* in rare cases this can fail */
-						if (TESTBASELIB_BGMODE_NEW(parbase)) {
+						if (TESTBASELIB_BGMODE(parbase)) {
 							break;
 						}
 					}
@@ -5603,7 +5610,7 @@ static void set_trans_object_base_flags(TransInfo *t)
 	}
 
 	/* all recalc flags get flushed to all layers, so a layer flip later on works fine */
-	DEG_graph_flush_update(G.main, t->scene->depsgraph_legacy);
+	DEG_graph_flush_update(bmain, depsgraph);
 
 	/* and we store them temporal in base (only used for transform code) */
 	/* this because after doing updates, the object->recalc is cleared */
@@ -5633,8 +5640,15 @@ static bool mark_children(Object *ob)
 static int count_proportional_objects(TransInfo *t)
 {
 	int total = 0;
+	/* TODO(sergey): Get rid of global, use explicit main. */
+	Main *bmain = G.main;
 	SceneLayer *sl = t->scene_layer;
+	Scene *scene = t->scene;
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, sl, false);
 	Base *base;
+
+	/* Transform tool is expected to be executed from an evaluated scene. */
+	BLI_assert(depsgraph != NULL);
 
 	/* rotations around local centers are allowed to propagate, so we take all objects */
 	if (!((t->around == V3D_AROUND_LOCAL_ORIGINS) &&
@@ -5642,7 +5656,7 @@ static int count_proportional_objects(TransInfo *t)
 	{
 		/* mark all parents */
 		for (base = sl->object_bases.first; base; base = base->next) {
-			if (TESTBASELIB_BGMODE_NEW(base)) {
+			if (TESTBASELIB_BGMODE(base)) {
 				Object *parent = base->object->parent;
 	
 				/* flag all parents */
@@ -5658,7 +5672,7 @@ static int count_proportional_objects(TransInfo *t)
 			/* all base not already selected or marked that is editable */
 			if ((base->object->flag & (BA_TRANSFORM_CHILD | BA_TRANSFORM_PARENT)) == 0 &&
 			    (base->flag & BASE_SELECTED) == 0 &&
-			    (BASE_EDITABLE_BGMODE_NEW(base)))
+			    (BASE_EDITABLE_BGMODE(base)))
 			{
 				mark_children(base->object);
 			}
@@ -5671,7 +5685,7 @@ static int count_proportional_objects(TransInfo *t)
 		/* if base is not selected, not a parent of selection or not a child of selection and it is editable */
 		if ((ob->flag & (BA_TRANSFORM_CHILD | BA_TRANSFORM_PARENT)) == 0 &&
 		    (base->flag & BASE_SELECTED) == 0 &&
-		    (BASE_EDITABLE_BGMODE_NEW(base)))
+		    (BASE_EDITABLE_BGMODE(base)))
 		{
 
 			DEG_id_tag_update(&ob->id, OB_RECALC_OB);
@@ -5682,8 +5696,8 @@ static int count_proportional_objects(TransInfo *t)
 	
 
 	/* all recalc flags get flushed to all layers, so a layer flip later on works fine */
-	DEG_scene_relations_update(G.main, t->scene);
-	DEG_graph_flush_update(G.main, t->scene->depsgraph_legacy);
+	DEG_graph_relations_update(depsgraph, bmain, scene, sl);
+	DEG_graph_flush_update(bmain, depsgraph);
 
 	/* and we store them temporal in base (only used for transform code) */
 	/* this because after doing updates, the object->recalc is cleared */
@@ -5764,7 +5778,7 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, SceneLayer *sl, View3D *
 			}
 			else if (ELEM(tmode, TFM_ROTATION, TFM_TRACKBALL)) {
 				if (v3d->around == V3D_AROUND_ACTIVE) {
-					if (ob != OBACT_NEW(sl))
+					if (ob != OBACT(sl))
 						do_loc = true;
 				}
 				else if (v3d->around == V3D_AROUND_CURSOR)
@@ -5775,7 +5789,7 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, SceneLayer *sl, View3D *
 			}
 			else if (tmode == TFM_RESIZE) {
 				if (v3d->around == V3D_AROUND_ACTIVE) {
-					if (ob != OBACT_NEW(sl))
+					if (ob != OBACT(sl))
 						do_loc = true;
 				}
 				else if (v3d->around == V3D_AROUND_CURSOR)
@@ -6608,7 +6622,7 @@ static void createTransObject(bContext *C, TransInfo *t)
 		}
 		
 		/* select linked objects, but skip them later */
-		if (ID_IS_LINKED_DATABLOCK(ob)) {
+		if (ID_IS_LINKED(ob)) {
 			td->flag |= TD_SKIP;
 		}
 		
@@ -6629,7 +6643,7 @@ static void createTransObject(bContext *C, TransInfo *t)
 			/* if base is not selected, not a parent of selection or not a child of selection and it is editable */
 			if ((ob->flag & (BA_TRANSFORM_CHILD | BA_TRANSFORM_PARENT)) == 0 &&
 			    (base->flag & BASE_SELECTED) == 0 &&
-			    BASE_EDITABLE_BGMODE_NEW(base))
+			    BASE_EDITABLE_BGMODE(base))
 			{
 				td->protectflag = ob->protectflag;
 				td->ext = tx;
@@ -8077,7 +8091,7 @@ void createTransData(bContext *C, TransInfo *t)
 {
 	Scene *scene = t->scene;
 	SceneLayer *sl = t->scene_layer;
-	Object *ob = OBACT_NEW(sl);
+	Object *ob = OBACT(sl);
 
 	/* if tests must match recalcData for correct updates */
 	if (t->options & CTX_TEXTURE) {
@@ -8244,7 +8258,7 @@ void createTransData(bContext *C, TransInfo *t)
 		if (ob_armature && ob_armature->mode & OB_MODE_POSE) {
 			Base *base_arm = BKE_scene_layer_base_find(t->scene_layer, ob_armature);
 			if (base_arm) {
-				if (BASE_VISIBLE_NEW(base_arm)) {
+				if (BASE_VISIBLE(base_arm)) {
 					createTransPose(t, ob_armature);
 				}
 			}

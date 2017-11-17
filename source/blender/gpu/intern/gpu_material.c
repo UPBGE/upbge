@@ -135,7 +135,24 @@ struct GPUMaterial {
 	bool bound;
 
 	bool is_opensubdiv;
+
+	/* XXX: Should be in Material. But it depends on the output node
+	 * used and since the output selection is difference for GPUMaterial...
+	 */
+	int domain;
+
 	GPUUniformBuffer *ubo; /* UBOs for shader uniforms. */
+	GPUUniformBuffer *sss_profile; /* UBO containing SSS profile. */
+	float *sss_radii; /* UBO containing SSS profile. */
+	int sss_samples;
+	int *sss_falloff;
+	bool sss_dirty;
+};
+
+enum {
+	GPU_DOMAIN_SURFACE    = (1 << 0),
+	GPU_DOMAIN_VOLUME     = (1 << 1),
+	GPU_DOMAIN_SSS        = (1 << 2)
 };
 
 /* Forward declaration so shade_light_textures() can use this, while still keeping the code somewhat organized */
@@ -255,6 +272,10 @@ void GPU_material_free(ListBase *gpumaterial)
 
 		if (material->ubo != NULL) {
 			GPU_uniformbuffer_free(material->ubo);
+		}
+
+		if (material->sss_profile != NULL) {
+			GPU_uniformbuffer_free(material->sss_profile);
 		}
 
 		BLI_freelistN(&material->lamps);
@@ -457,7 +478,209 @@ void GPU_material_uniform_buffer_tag_dirty(ListBase *gpumaterials)
 		if (material->ubo != NULL) {
 			GPU_uniformbuffer_tag_dirty(material->ubo);
 		}
+		if (material->sss_profile != NULL) {
+			material->sss_dirty = true;
+		}
 	}
+}
+
+/* Eevee Subsurface scattering. */
+/* Based on Separable SSS. by Jorge Jimenez and Diego Gutierrez */
+
+#define SSS_SAMPLES 65
+#define SSS_EXPONENT 2.0f /* Importance sampling exponent */
+
+typedef struct GPUSssKernelData {
+	float kernel[SSS_SAMPLES][4];
+	float radii_n[3], max_radius;
+} GPUSssKernelData;
+
+static void sss_calculate_offsets(GPUSssKernelData *kd, int count)
+{
+	float step = 2.0f / (float)(count - 1);
+	for (int i = 0; i < count; i++) {
+		float o = ((float)i) * step - 1.0f;
+		float sign = (o < 0.0f) ? -1.0f : 1.0f;
+		float ofs = sign * fabsf(powf(o, SSS_EXPONENT));
+		kd->kernel[i][3] = ofs;
+	}
+}
+
+static float error_function(float x) {
+	/* Approximation of the error function by Abramowitz and Stegun
+	 * https://en.wikipedia.org/wiki/Error_function#Approximation_with_elementary_functions */
+	const float a1 = 0.254829592f;
+	const float a2 = -0.284496736f;
+	const float a3 = 1.421413741f;
+	const float a4 = -1.453152027f;
+	const float a5 = 1.061405429f;
+	const float p = 0.3275911f;
+
+	float sign = (x < 0.0f) ? -1.0f : 1.0f;
+	x = fabsf(x);
+
+	float t = 1.0f / (1.0f + p * x);
+	float y = 1.0f - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * expf(-(x * x));
+
+	return sign * y;
+}
+
+static float gaussian_primitive(float x) {
+	const float sigma = 0.3f; /* Contained mostly between -1..1 */
+	return 0.5f * error_function(x / ((float)M_SQRT2 * sigma));
+}
+
+static float gaussian_integral(float x0, float x1) {
+	return gaussian_primitive(x1) - gaussian_primitive(x0);
+}
+
+/* Resolution for each sample of the precomputed kernel profile */
+#define INTEGRAL_RESOLUTION 32
+#define BURLEY_TRUNCATE     16.0f
+
+static float burley_profile(float r, float d)
+{
+	float exp_r_3_d = expf(-r / (3.0f * d));
+	float exp_r_d = exp_r_3_d * exp_r_3_d * exp_r_3_d;
+	return (exp_r_d + exp_r_3_d) / (4.0f * d);
+}
+
+static float burley_integral(float x0, float x1, float d)
+{
+	const float range = x1 - x0;
+	const float step = range / INTEGRAL_RESOLUTION;
+	float integral = 0.0f;
+
+	for(int i = 0; i < INTEGRAL_RESOLUTION; ++i) {
+		float x = x0 + range * ((float)i + 0.5f) / (float)INTEGRAL_RESOLUTION;
+		float y = burley_profile(fabsf(x), d);
+		integral += y * step;
+	}
+
+	return integral;
+}
+
+static void compute_sss_kernel(GPUSssKernelData *kd, float *radii, int sample_ct, int falloff_type)
+{
+	for (int i = 0; i < 3; ++i) {
+		/* Minimum radius */
+		kd->radii_n[i] = MAX2(radii[i], 1e-15f);
+	}
+
+	/* Christensen-Burley fitting */
+	float l[3], d[3];
+
+	if (falloff_type == SHD_SUBSURFACE_BURLEY) {
+		mul_v3_v3fl(l, kd->radii_n, 0.25f * M_1_PI);
+		const float A = 1.0f;
+		const float s = 1.9f - A + 3.5f * (A - 0.8f) * (A - 0.8f);
+		/* XXX 0.6f Out of nowhere to match cycles! Empirical! Can be tweak better. */
+		mul_v3_v3fl(d, l, 0.6f / s);
+		mul_v3_v3fl(kd->radii_n, d, BURLEY_TRUNCATE);
+	}
+
+	/* Normalize size */
+	kd->max_radius = MAX3(kd->radii_n[0], kd->radii_n[1], kd->radii_n[2]);
+	kd->radii_n[0] /= kd->max_radius;
+	kd->radii_n[1] /= kd->max_radius;
+	kd->radii_n[2] /= kd->max_radius;
+
+	/* Compute samples locations on the 1d kernel [-1..1] */
+	sss_calculate_offsets(kd, sample_ct);
+
+	/* Weights sum for normalization */
+	float sum[3] = {0.0f, 0.0f, 0.0f};
+
+	/* Compute integral of each sample footprint */
+	for (int i = 0; i < sample_ct; i++) {
+		float x0, x1;
+
+		if (i == 0) {
+			x0 = kd->kernel[0][3] - abs(kd->kernel[0][3] - kd->kernel[1][3]) / 2.0f;
+		}
+		else {
+			x0 = (kd->kernel[i - 1][3] + kd->kernel[i][3]) / 2.0f;
+		}
+
+		if (i == sample_ct - 1) {
+			x1 = kd->kernel[sample_ct - 1][3] + abs(kd->kernel[sample_ct - 2][3] - kd->kernel[sample_ct - 1][3]) / 2.0f;
+		}
+		else {
+			x1 = (kd->kernel[i][3] + kd->kernel[i + 1][3]) / 2.0f;
+		}
+
+		if (falloff_type == SHD_SUBSURFACE_BURLEY) {
+			x0 *= kd->max_radius;
+			x1 *= kd->max_radius;
+			kd->kernel[i][0] = burley_integral(x0, x1, d[0]);
+			kd->kernel[i][1] = burley_integral(x0, x1, d[1]);
+			kd->kernel[i][2] = burley_integral(x0, x1, d[2]);
+		}
+		else {
+			kd->kernel[i][0] = gaussian_integral(x0 / kd->radii_n[0], x1 / kd->radii_n[0]);
+			kd->kernel[i][1] = gaussian_integral(x0 / kd->radii_n[1], x1 / kd->radii_n[1]);
+			kd->kernel[i][2] = gaussian_integral(x0 / kd->radii_n[2], x1 / kd->radii_n[2]);
+		}
+
+		sum[0] += kd->kernel[i][0];
+		sum[1] += kd->kernel[i][1];
+		sum[2] += kd->kernel[i][2];
+	}
+
+	for (int i = 0; i < 3; ++i) {
+		if (sum[i] > 0.0f) {
+			/* Normalize */
+			for (int j = 0; j < sample_ct; j++) {
+				 kd->kernel[j][i] /= sum[i];
+			}
+		}
+		else {
+			/* Avoid 0 kernel sum. */
+			kd->kernel[sample_ct / 2][i] = 1.0f;
+		}
+	}
+
+	/* Put center sample at the start of the array (to sample first) */
+	float tmpv[4];
+	copy_v4_v4(tmpv, kd->kernel[sample_ct / 2]);
+	for (int i = sample_ct / 2; i > 0; i--) {
+		copy_v4_v4(kd->kernel[i], kd->kernel[i - 1]);
+	}
+	copy_v4_v4(kd->kernel[0], tmpv);
+}
+
+void GPU_material_sss_profile_create(GPUMaterial *material, float *radii, int *falloff_type)
+{
+	material->sss_radii = radii;
+	material->sss_falloff = falloff_type;
+	material->sss_dirty = true;
+
+	/* Update / Create UBO */
+	if (material->sss_profile == NULL) {
+		material->sss_profile = GPU_uniformbuffer_create(sizeof(GPUSssKernelData), NULL, NULL);
+	}
+}
+
+#undef SSS_EXPONENT
+#undef SSS_SAMPLES
+
+struct GPUUniformBuffer *GPU_material_sss_profile_get(GPUMaterial *material, int sample_ct)
+{
+	if (material->sss_radii == NULL)
+		return NULL;
+
+	if (material->sss_dirty || (material->sss_samples != sample_ct)) {
+		GPUSssKernelData kd;
+
+		compute_sss_kernel(&kd, material->sss_radii, sample_ct, *material->sss_falloff);
+
+		/* Update / Create UBO */
+		GPU_uniformbuffer_update(material->sss_profile, &kd);
+
+		material->sss_samples = sample_ct;
+		material->sss_dirty = false;
+	}
+	return material->sss_profile;
 }
 
 void GPU_material_vertex_attributes(GPUMaterial *material, GPUVertexAttribs *attribs)
@@ -507,6 +730,16 @@ bool GPU_material_use_new_shading_nodes(GPUMaterial *mat)
 bool GPU_material_use_world_space_shading(GPUMaterial *mat)
 {
 	return BKE_scene_use_world_space_shading(mat->scene);
+}
+
+bool GPU_material_use_domain_surface(GPUMaterial *mat)
+{
+	return (mat->domain & GPU_DOMAIN_SURFACE);
+}
+
+bool GPU_material_use_domain_volume(GPUMaterial *mat)
+{
+	return (mat->domain & GPU_DOMAIN_VOLUME);
 }
 
 static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **lv, GPUNodeLink **dist)
@@ -2145,6 +2378,7 @@ GPUMaterial *GPU_material_from_nodetree(
 	GPUMaterial *mat;
 	GPUNodeLink *outlink;
 	LinkData *link;
+	bool has_volume_output, has_surface_output;
 
 	/* Caller must re-use materials. */
 	BLI_assert(GPU_material_from_nodetree_find(gpumaterials, engine_type, options) == NULL);
@@ -2156,6 +2390,14 @@ GPUMaterial *GPU_material_from_nodetree(
 	mat->options = options;
 
 	ntreeGPUMaterialNodes(ntree, mat, NODE_NEW_SHADING | NODE_NEWER_SHADING);
+	ntreeGPUMaterialDomain(ntree, &has_surface_output, &has_volume_output);
+
+	if (has_surface_output) {
+		mat->domain |= GPU_DOMAIN_SURFACE;
+	}
+	if (has_volume_output) {
+		mat->domain |= GPU_DOMAIN_VOLUME;
+	}
 
 	/* Let Draw manager finish the construction. */
 	if (mat->outlink) {
@@ -2371,6 +2613,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 						break;
 
 					case GPU_NONE:
+					case GPU_TEX3D:
 					case GPU_TEXCUBE:
 					case GPU_FLOAT:
 					case GPU_VEC2:
@@ -2409,6 +2652,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 					case GPU_NONE:
 					case GPU_CLOSURE:
 					case GPU_TEX2D:
+					case GPU_TEX3D:
 					case GPU_TEXCUBE:
 					case GPU_SHADOW2D:
 					case GPU_ATTRIB:

@@ -37,6 +37,7 @@
 
 struct ARegion;
 struct ARegionType;
+struct Base;
 struct BoundBox;
 struct Gwn_Batch;
 struct DerivedMesh;
@@ -49,9 +50,10 @@ struct bPoseChannel;
 struct Mesh;
 struct SceneLayer;
 struct wmOperatorType;
-struct wmWindowManager;
 struct wmKeyConfig;
 struct wmManipulatorGroupType;
+struct wmManipulatorType;
+struct wmWindowManager;
 
 /* drawing flags: */
 enum {
@@ -146,7 +148,7 @@ void draw_motion_paths_cleanup(View3D *v3d);
 /* drawobject.c */
 void draw_object(
         const struct EvaluationContext *eval_ctx, Scene *scene, struct SceneLayer *sl, struct ARegion *ar, View3D *v3d,
-        BaseLegacy *base, const short dflag);
+        struct Base *base, const short dflag);
 void draw_object_select(
         const struct EvaluationContext *eval_ctx, Scene *scene, struct SceneLayer *sl, struct ARegion *ar, View3D *v3d,
         Base *base, const short dflag);
@@ -231,7 +233,10 @@ void ED_view3d_draw_select_loop(
 void ED_view3d_draw_depth_loop(
         const struct EvaluationContext *eval_ctx, Scene *scene, ARegion *ar, View3D *v3d);
 
-void ED_view3d_after_add(ListBase *lb, BaseLegacy *base, const short dflag);
+void view3d_draw_bgpic_test(Scene *scene, ARegion *ar, View3D *v3d,
+                                   const bool do_foreground, const bool do_camera_frame);
+
+void ED_view3d_after_add(ListBase *lb, Base *base, const short dflag);
 
 void view3d_update_depths_rect(struct ARegion *ar, struct ViewDepths *d, struct rcti *rect);
 float view3d_depth_near(struct ViewDepths *d);
@@ -334,6 +339,10 @@ void VIEW3D_WGT_force_field(struct wmManipulatorGroupType *wgt);
 void VIEW3D_WGT_empty_image(struct wmManipulatorGroupType *wgt);
 void VIEW3D_WGT_armature_spline(struct wmManipulatorGroupType *wgt);
 
+void VIEW3D_WGT_ruler(struct wmManipulatorGroupType *wgt);
+void VIEW3D_WT_ruler_item(struct wmManipulatorType *wt);
+void VIEW3D_OT_ruler_add(struct wmOperatorType *ot);
+
 /* draw_volume.c */
 void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,
                        const float min[3], const float max[3],
@@ -362,7 +371,7 @@ void VP_legacy_drawfloor(Scene *scene, View3D *v3d, const char **grid_unit, bool
 void VP_legacy_view3d_main_region_setup_view(const struct EvaluationContext *eval_ctx, Scene *scene, View3D *v3d, ARegion *ar, float viewmat[4][4], float winmat[4][4]);
 bool VP_legacy_view3d_stereo3d_active(struct wmWindow *win, Scene *scene, View3D *v3d, RegionView3D *rv3d);
 void VP_legacy_view3d_stereo3d_setup(const struct EvaluationContext *eval_ctx, Scene *scene, View3D *v3d, ARegion *ar);
-void draw_dupli_objects(const struct EvaluationContext *eval_ctx, Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, BaseLegacy *base);
+void draw_dupli_objects(const struct EvaluationContext *eval_ctx, Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, Base *base);
 bool VP_legacy_use_depth(Scene *scene, View3D *v3d);
 void VP_drawviewborder(Scene *scene, ARegion *ar, View3D *v3d);
 void VP_drawrenderborder(ARegion *ar, View3D *v3d);

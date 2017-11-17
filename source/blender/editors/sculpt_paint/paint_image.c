@@ -766,7 +766,7 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
 	/* initialize from context */
 	if (CTX_wm_region_view3d(C)) {
 		SceneLayer *sl = CTX_data_scene_layer(C);
-		Object *ob = OBACT_NEW(sl);
+		Object *ob = OBACT(sl);
 		bool uvs, mat, tex, stencil;
 		if (!BKE_paint_proj_mesh_data_check(scene, ob, &uvs, &mat, &tex, &stencil)) {
 			BKE_paint_data_warning(op->reports, uvs, mat, tex, stencil);
@@ -1364,7 +1364,7 @@ static int texture_paint_toggle_poll(bContext *C)
 	Object *ob = CTX_data_active_object(C);
 	if (ob == NULL || ob->type != OB_MESH)
 		return 0;
-	if (!ob->data || ID_IS_LINKED_DATABLOCK(ob->data))
+	if (!ob->data || ID_IS_LINKED(ob->data))
 		return 0;
 	if (CTX_data_edit_object(C))
 		return 0;

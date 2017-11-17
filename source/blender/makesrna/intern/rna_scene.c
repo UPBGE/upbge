@@ -618,86 +618,38 @@ static void rna_SpaceImageEditor_uv_sculpt_update(Main *bmain, Scene *scene, Poi
 	ED_space_image_uv_sculpt_update(bmain->wm.first, scene);
 }
 
-static int rna_Scene_object_bases_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
+
+/* Read-only Iterator of all the scene objects. */
+
+static void rna_Scene_objects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	Scene *scene = (Scene *)ptr->data;
-	BaseLegacy *base;
+	iter->internal.custom = MEM_callocN(sizeof(BLI_Iterator), __func__);
 
-	for (base = scene->base.first; base; base = base->next) {
-		if (STREQLEN(base->object->id.name + 2, key, sizeof(base->object->id.name) - 2)) {
-			*r_ptr = rna_pointer_inherit_refine(ptr, &RNA_ObjectBaseLegacy, base);
-			return true;
-		}
-	}
+	((BLI_Iterator *)iter->internal.custom)->valid = true;
+	BKE_scene_objects_iterator_begin(iter->internal.custom, (void *)scene);
+	iter->valid = ((BLI_Iterator *)iter->internal.custom)->valid;
+}
 
-	return false;
+static void rna_Scene_objects_next(CollectionPropertyIterator *iter)
+{
+	BKE_scene_objects_iterator_next(iter->internal.custom);
+	iter->valid = ((BLI_Iterator *)iter->internal.custom)->valid;
+}
+
+static void rna_Scene_objects_end(CollectionPropertyIterator *iter)
+{
+	BKE_scene_objects_iterator_end(iter->internal.custom);
+	MEM_freeN(iter->internal.custom);
 }
 
 static PointerRNA rna_Scene_objects_get(CollectionPropertyIterator *iter)
 {
-	ListBaseIterator *internal = &iter->internal.listbase;
-
-	/* we are actually iterating a Base list, so override get */
-	return rna_pointer_inherit_refine(&iter->parent, &RNA_Object, ((BaseLegacy *)internal->link)->object);
+	Object *ob = ((BLI_Iterator *)iter->internal.custom)->current;
+	return rna_pointer_inherit_refine(&iter->parent, &RNA_Object, ob);
 }
 
-static BaseLegacy *rna_Scene_object_link(Scene *scene, bContext *C, ReportList *reports, Object *ob)
-{
-	Scene *scene_act = CTX_data_scene(C);
-	BaseLegacy *base;
-
-	if (BKE_scene_base_find(scene, ob)) {
-		BKE_reportf(reports, RPT_ERROR, "Object '%s' is already in scene '%s'", ob->id.name + 2, scene->id.name + 2);
-		return NULL;
-	}
-
-	base = BKE_scene_base_add(scene, ob);
-	id_us_plus(&ob->id);
-
-	/* this is similar to what object_add_type and BKE_object_add do */
-	base->lay = scene->lay;
-
-	/* when linking to an inactive scene don't touch the layer */
-	if (scene == scene_act)
-		ob->lay = base->lay;
-
-	/* TODO(sergey): Only update relations for the current scene. */
-	DEG_relations_tag_update(CTX_data_main(C));
-	DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
-
-	/* slows down importers too much, run scene.update() */
-	/* DEG_srelations_tag_update(G.main); */
-
-	WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
-
-	return base;
-}
-
-static void rna_Scene_object_unlink(Scene *scene, ReportList *reports, Object *ob)
-{
-	BaseLegacy *base = BKE_scene_base_find(scene, ob);
-	if (!base) {
-		BKE_reportf(reports, RPT_ERROR, "Object '%s' is not in this scene '%s'", ob->id.name + 2, scene->id.name + 2);
-		return;
-	}
-	if (base == scene->basact && ob->mode != OB_MODE_OBJECT) {
-		BKE_reportf(reports, RPT_ERROR, "Object '%s' must be in object mode to unlink", ob->id.name + 2);
-		return;
-	}
-	if (scene->basact == base) {
-		scene->basact = NULL;
-	}
-
-	BKE_scene_base_unlink(scene, base);
-	MEM_freeN(base);
-
-	id_us_min(&ob->id);
-
-	/* needed otherwise the depgraph will contain freed objects which can crash, see [#20958] */
-	DEG_relations_tag_update(G.main);
-
-	WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
-}
+/* End of read-only Iterator of all the scene objects. */
 
 static void rna_Scene_skgen_etch_template_set(PointerRNA *ptr, PointerRNA value)
 {
@@ -706,21 +658,6 @@ static void rna_Scene_skgen_etch_template_set(PointerRNA *ptr, PointerRNA value)
 		ts->skgen_template = value.data;
 	else
 		ts->skgen_template = NULL;
-}
-
-static PointerRNA rna_Scene_active_object_get(PointerRNA *ptr)
-{
-	Scene *scene = (Scene *)ptr->data;
-	return rna_pointer_inherit_refine(ptr, &RNA_Object, scene->basact ? scene->basact->object : NULL);
-}
-
-static void rna_Scene_active_object_set(PointerRNA *ptr, PointerRNA value)
-{
-	Scene *scene = (Scene *)ptr->data;
-	if (value.data)
-		scene->basact = BKE_scene_base_find(scene, (Object *)value.data);
-	else
-		scene->basact = NULL;
 }
 
 static void rna_Scene_set_set(PointerRNA *ptr, PointerRNA value)
@@ -1003,6 +940,11 @@ static void rna_RenderSettings_stereoViews_begin(CollectionPropertyIterator *ite
 static char *rna_RenderSettings_path(PointerRNA *UNUSED(ptr))
 {
 	return BLI_sprintfN("render");
+}
+
+static char *rna_BakeSettings_path(PointerRNA *UNUSED(ptr))
+{
+	return BLI_sprintfN("render.bake");
 }
 
 static char *rna_ImageFormatSettings_path(PointerRNA *ptr)
@@ -1624,15 +1566,15 @@ static void rna_Physics_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Pointe
 static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const int *value)
 {
 	Scene *scene = (Scene *)ptr->id.data;
-	SceneLayer *sl = BKE_scene_layer_context_active_PLACEHOLDER(scene);
+	SceneLayer *scene_layer = BKE_scene_layer_context_active_PLACEHOLDER(scene);
 	ToolSettings *ts = (ToolSettings *)ptr->data;
 	int flag = (value[0] ? SCE_SELECT_VERTEX : 0) | (value[1] ? SCE_SELECT_EDGE : 0) | (value[2] ? SCE_SELECT_FACE : 0);
 
 	if (flag) {
 		ts->selectmode = flag;
 
-		if (sl->basact) {
-			Mesh *me = BKE_mesh_from_object(sl->basact->object);
+		if (scene_layer->basact) {
+			Mesh *me = BKE_mesh_from_object(scene_layer->basact->object);
 			if (me && me->edit_btmesh && me->edit_btmesh->selectmode != flag) {
 				me->edit_btmesh->selectmode = flag;
 				EDBM_selectmode_set(me->edit_btmesh);
@@ -1643,11 +1585,11 @@ static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const int *value
 
 static void rna_Scene_editmesh_select_mode_update(Main *UNUSED(bmain), bContext *C, Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
 	Mesh *me = NULL;
 
-	if (sl->basact) {
-		me = BKE_mesh_from_object(sl->basact->object);
+	if (scene_layer->basact) {
+		me = BKE_mesh_from_object(scene_layer->basact->object);
 		if (me && me->edit_btmesh == NULL)
 			me = NULL;
 	}
@@ -1849,8 +1791,8 @@ static KeyingSet *rna_Scene_keying_set_new(Scene *sce, ReportList *reports, cons
 static void rna_UnifiedPaintSettings_update(bContext *C, PointerRNA *UNUSED(ptr))
 {
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Brush *br = BKE_paint_brush(BKE_paint_get_active(scene, sl));
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Brush *br = BKE_paint_brush(BKE_paint_get_active(scene, scene_layer));
 	WM_main_add_notifier(NC_BRUSH | NA_EDITED, br);
 }
 
@@ -1893,11 +1835,11 @@ static char *rna_CurvePaintSettings_path(PointerRNA *UNUSED(ptr))
 /* generic function to recalc geometry */
 static void rna_EditMesh_update(Main *UNUSED(bmain), bContext *C, Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
 	Mesh *me = NULL;
 
-	if (sl->basact) {
-		me = BKE_mesh_from_object(sl->basact->object);
+	if (scene_layer->basact) {
+		me = BKE_mesh_from_object(scene_layer->basact->object);
 		if (me && me->edit_btmesh == NULL)
 			me = NULL;
 	}
@@ -1920,8 +1862,8 @@ static char *rna_MeshStatVis_path(PointerRNA *UNUSED(ptr))
  * given its own notifier. */
 static void rna_Scene_update_active_object_data(bContext *C, PointerRNA *UNUSED(ptr))
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW(sl);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Object *ob = OBACT(scene_layer);
 
 	if (ob) {
 		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
@@ -2139,16 +2081,16 @@ static void rna_SceneLayer_active_layer_index_range(
 static PointerRNA rna_SceneLayer_active_layer_get(PointerRNA *ptr)
 {
 	Scene *scene = (Scene *)ptr->data;
-	SceneLayer *sl = BLI_findlink(&scene->render_layers, scene->active_layer);
+	SceneLayer *scene_layer = BLI_findlink(&scene->render_layers, scene->active_layer);
 
-	return rna_pointer_inherit_refine(ptr, &RNA_SceneLayer, sl);
+	return rna_pointer_inherit_refine(ptr, &RNA_SceneLayer, scene_layer);
 }
 
 static void rna_SceneLayer_active_layer_set(PointerRNA *ptr, PointerRNA value)
 {
 	Scene *scene = (Scene *)ptr->data;
-	SceneLayer *sl = (SceneLayer *)value.data;
-	const int index = BLI_findindex(&scene->render_layers, sl);
+	SceneLayer *scene_layer = (SceneLayer *)value.data;
+	const int index = BLI_findindex(&scene->render_layers, scene_layer);
 	if (index != -1) scene->active_layer = index;
 }
 
@@ -2156,25 +2098,26 @@ static SceneLayer *rna_SceneLayer_new(
         ID *id, Scene *UNUSED(sce), Main *bmain, const char *name)
 {
 	Scene *scene = (Scene *)id;
-	SceneLayer *sl = BKE_scene_layer_add(scene, name);
+	SceneLayer *scene_layer = BKE_scene_layer_add(scene, name);
 
 	DEG_id_tag_update(&scene->id, 0);
 	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 
-	return sl;
+	return scene_layer;
 }
 
 static void rna_SceneLayer_remove(
         ID *id, Scene *UNUSED(sce), Main *bmain, ReportList *reports, PointerRNA *sl_ptr)
 {
 	Scene *scene = (Scene *)id;
-	SceneLayer *sl = sl_ptr->data;
+	SceneLayer *scene_layer = sl_ptr->data;
 
-	if (ED_scene_render_layer_delete(bmain, scene, sl, reports)) {
+	if (ED_scene_render_layer_delete(bmain, scene, scene_layer, reports)) {
 		RNA_POINTER_INVALIDATE(sl_ptr);
 	}
 }
+
 #else
 
 /* Grease Pencil Interpolation tool settings */
@@ -4269,6 +4212,7 @@ static void rna_def_bake_data(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "BakeData");
 	RNA_def_struct_nested(brna, srna, "RenderSettings");
 	RNA_def_struct_ui_text(srna, "Bake Data", "Bake data for a Scene data-block");
+	RNA_def_struct_path_func(srna, "rna_BakeSettings_path");
 
 	prop = RNA_def_property(srna, "cage_object", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "cage");
@@ -6657,60 +6601,11 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 static void rna_def_scene_objects(BlenderRNA *brna, PropertyRNA *cprop)
 {
 	StructRNA *srna;
-	PropertyRNA *prop;
 
-	FunctionRNA *func;
-	PropertyRNA *parm;
-	
 	RNA_def_property_srna(cprop, "SceneObjects");
 	srna = RNA_def_struct(brna, "SceneObjects", NULL);
 	RNA_def_struct_sdna(srna, "Scene");
-	RNA_def_struct_ui_text(srna, "Scene Objects", "Collection of scene objects");
-
-	func = RNA_def_function(srna, "link", "rna_Scene_object_link");
-	RNA_def_function_ui_description(func, "Link object to scene, run scene.update() after");
-	RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
-	parm = RNA_def_pointer(func, "object", "Object", "", "Object to add to scene");
-	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
-	parm = RNA_def_pointer(func, "base", "ObjectBaseLegacy", "", "The newly created base");
-	RNA_def_function_return(func, parm);
-
-	func = RNA_def_function(srna, "unlink", "rna_Scene_object_unlink");
-	RNA_def_function_ui_description(func, "Unlink object from scene");
-	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	parm = RNA_def_pointer(func, "object", "Object", "", "Object to remove from scene");
-	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
-
-	prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
-	RNA_def_property_struct_type(prop, "Object");
-	RNA_def_property_pointer_funcs(prop, "rna_Scene_active_object_get", "rna_Scene_active_object_set", NULL, NULL);
-	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
-	RNA_def_property_ui_text(prop, "Active Object", "Active object for this scene");
-	/* Could call: ED_base_object_activate(C, scene->basact);
-	 * but would be a bad level call and it seems the notifier is enough */
-	RNA_def_property_update(prop, NC_SCENE | ND_OB_ACTIVE, NULL);
-}
-
-/* scene.bases.* */
-static void rna_def_scene_bases(BlenderRNA *brna, PropertyRNA *cprop)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-
-/*	FunctionRNA *func; */
-/*	PropertyRNA *parm; */
-
-	RNA_def_property_srna(cprop, "SceneBases");
-	srna = RNA_def_struct(brna, "SceneBases", NULL);
-	RNA_def_struct_sdna(srna, "Scene");
-	RNA_def_struct_ui_text(srna, "Scene Bases", "Collection of scene bases");
-
-	prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
-	RNA_def_property_struct_type(prop, "ObjectBaseLegacy");
-	RNA_def_property_pointer_sdna(prop, NULL, "basact");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Active Base", "Active object base in the scene");
-	RNA_def_property_update(prop, NC_SCENE | ND_OB_ACTIVE, NULL);
+	RNA_def_struct_ui_text(srna, "Scene Objects", "All the of scene objects");
 }
 
 /* scene.timeline_markers */
@@ -6945,21 +6840,16 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Cursor Location", "3D cursor location");
 	RNA_def_property_ui_range(prop, -10000.0, 10000.0, 10, 4);
 	RNA_def_property_update(prop, NC_WINDOW, NULL);
-	
-	/* Bases/Objects */
-	prop = RNA_def_property(srna, "object_bases", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_sdna(prop, NULL, "base", NULL);
-	RNA_def_property_struct_type(prop, "ObjectBaseLegacy");
-	RNA_def_property_ui_text(prop, "Bases", "");
-	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, NULL, NULL, NULL,
-	                                  "rna_Scene_object_bases_lookup_string", NULL);
-	rna_def_scene_bases(brna, prop);
 
 	prop = RNA_def_property(srna, "objects", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_sdna(prop, NULL, "base", NULL);
 	RNA_def_property_struct_type(prop, "Object");
 	RNA_def_property_ui_text(prop, "Objects", "");
-	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, "rna_Scene_objects_get", NULL, NULL, NULL, NULL);
+	RNA_def_property_collection_funcs(prop,
+	                                  "rna_Scene_objects_begin",
+	                                  "rna_Scene_objects_next",
+	                                  "rna_Scene_objects_end",
+	                                  "rna_Scene_objects_get",
+	                                  NULL, NULL, NULL, NULL);
 	rna_def_scene_objects(brna, prop);
 
 	/* Layers */
@@ -7323,12 +7213,6 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "sequencer_colorspace_settings");
 	RNA_def_property_struct_type(prop, "ColorManagedSequencerColorspaceSettings");
 	RNA_def_property_ui_text(prop, "Sequencer Color Space Settings", "Settings of color space sequencer is working in");
-
-	/* Dependency Graph */
-	prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "depsgraph_legacy");
-	RNA_def_property_struct_type(prop, "Depsgraph");
-	RNA_def_property_ui_text(prop, "Dependency Graph", "Dependencies in the scene data");
 
 	/* Layer and Collections */
 	prop = RNA_def_property(srna, "render_layers", PROP_COLLECTION, PROP_NONE);

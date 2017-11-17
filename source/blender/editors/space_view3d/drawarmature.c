@@ -2736,7 +2736,7 @@ static void draw_ghost_poses_range(
  */
 static void draw_ghost_poses_keys(
         const struct EvaluationContext *eval_ctx, Scene *scene, SceneLayer *sl,
-        View3D *v3d, ARegion *ar, BaseLegacy *base)
+        View3D *v3d, ARegion *ar, Base *base)
 {
 	Object *ob = base->object;
 	AnimData *adt = BKE_animdata_from_id(&ob->id);
@@ -2986,10 +2986,10 @@ bool draw_armature(
 							draw_ghost_poses(eval_ctx, scene, sl, v3d, ar, base);
 					}
 					if ((dflag & DRAW_SCENESET) == 0) {
-						if (ob == OBACT_NEW(sl))
+						if (ob == OBACT(sl))
 							arm->flag |= ARM_POSEMODE;
-						else if (OBACT_NEW(sl) && (OBACT_NEW(sl)->mode & OB_MODE_WEIGHT_PAINT)) {
-							if (ob == modifiers_isDeformedByArmature(OBACT_NEW(sl)))
+						else if (OBACT(sl) && (OBACT(sl)->mode & OB_MODE_WEIGHT_PAINT)) {
+							if (ob == modifiers_isDeformedByArmature(OBACT(sl)))
 								arm->flag |= ARM_POSEMODE;
 						}
 						draw_pose_paths(scene, v3d, ar, ob);

@@ -204,9 +204,11 @@ void BKE_nurb_bpoint_calc_normal(struct Nurb *nu, struct BPoint *bp, float r_nor
 void BKE_nurb_bpoint_calc_plane(struct Nurb *nu, struct BPoint *bp, float r_plane[3]);
 
 void BKE_nurb_handle_calc(struct BezTriple *bezt, struct BezTriple *prev,  struct BezTriple *next,
-                          const bool is_fcurve);
+                          const bool is_fcurve, const char smoothing);
 void BKE_nurb_handle_calc_simple(struct Nurb *nu, struct BezTriple *bezt);
 void BKE_nurb_handle_calc_simple_auto(struct Nurb *nu, struct BezTriple *bezt);
+
+void BKE_nurb_handle_smooth_fcurve(struct BezTriple *bezt, int total, bool cyclic);
 
 void BKE_nurb_handles_calc(struct Nurb *nu);
 void BKE_nurb_handles_autocalc(struct Nurb *nu, int flag);
@@ -226,5 +228,15 @@ enum {
 };
 void BKE_curve_batch_cache_dirty(struct Curve *cu, int mode);
 void BKE_curve_batch_cache_free(struct Curve *cu);
+
+/* curve_decimate.c */
+unsigned int BKE_curve_decimate_bezt_array(
+        struct BezTriple *bezt_array, const unsigned int bezt_array_len, const unsigned int resolu, const bool is_cyclic,
+        const char flag_test, const char flag_set,
+        const float error_sq_max, const unsigned int error_target_len);
+
+void BKE_curve_decimate_nurb(
+        struct Nurb *nu, const unsigned int resolu,
+        const float error_sq_max, const unsigned int error_target_len);
 
 #endif  /* __BKE_CURVE_H__ */

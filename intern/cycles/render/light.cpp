@@ -79,7 +79,7 @@ static void shade_background_pixels(Device *device, DeviceScene *dscene, int res
 
 	d_input.free();
 
-	float4 *d_output_data = reinterpret_cast<float4*>(d_output.data_pointer);
+	float4 *d_output_data = d_output.data();
 
 	pixels.resize(width*height);
 
@@ -134,6 +134,7 @@ NODE_DEFINE(Light)
 
 	SOCKET_INT(samples, "Samples", 1);
 	SOCKET_INT(max_bounces, "Max Bounces", 1024);
+	SOCKET_UINT(random_id, "Random ID", 0);
 
 	SOCKET_BOOLEAN(is_portal, "Is Portal", false);
 	SOCKET_BOOLEAN(is_enabled, "Is Enabled", true);
@@ -414,7 +415,6 @@ void LightManager::device_update_distribution(Device *, DeviceScene *dscene, Sce
 		/* precompute pdfs */
 		kintegrator->pdf_triangles = 0.0f;
 		kintegrator->pdf_lights = 0.0f;
-		kintegrator->inv_pdf_lights = 0.0f;
 
 		/* sample one, with 0.5 probability of light or triangle */
 		kintegrator->num_all_lights = num_lights;
@@ -429,8 +429,6 @@ void LightManager::device_update_distribution(Device *, DeviceScene *dscene, Sce
 			kintegrator->pdf_lights = 1.0f/num_lights;
 			if(trianglearea > 0.0f)
 				kintegrator->pdf_lights *= 0.5f;
-
-			kintegrator->inv_pdf_lights = 1.0f/kintegrator->pdf_lights;
 		}
 
 		kintegrator->use_lamp_mis = use_lamp_mis;
@@ -467,7 +465,6 @@ void LightManager::device_update_distribution(Device *, DeviceScene *dscene, Sce
 		kintegrator->num_all_lights = 0;
 		kintegrator->pdf_triangles = 0.0f;
 		kintegrator->pdf_lights = 0.0f;
-		kintegrator->inv_pdf_lights = 0.0f;
 		kintegrator->use_lamp_mis = false;
 		kintegrator->num_portals = 0;
 		kintegrator->portal_offset = 0;
@@ -642,6 +639,7 @@ void LightManager::device_update_points(Device *,
 		int shader_id = scene->shader_manager->get_shader_id(shader);
 		float samples = __int_as_float(light->samples);
 		float max_bounces = __int_as_float(light->max_bounces);
+		float random = (float)light->random_id * (1.0f/(float)0xFFFFFFFF);
 
 		if(!light->cast_shadow)
 			shader_id &= ~SHADER_CAST_SHADOW;
@@ -762,7 +760,7 @@ void LightManager::device_update_points(Device *,
 			light_data[light_index*LIGHT_SIZE + 3] = make_float4(samples, 0.0f, 0.0f, 0.0f);
 		}
 
-		light_data[light_index*LIGHT_SIZE + 4] = make_float4(max_bounces, 0.0f, 0.0f, 0.0f);
+		light_data[light_index*LIGHT_SIZE + 4] = make_float4(max_bounces, random, 0.0f, 0.0f);
 
 		Transform tfm = light->tfm;
 		Transform itfm = transform_inverse(tfm);

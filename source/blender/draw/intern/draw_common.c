@@ -352,6 +352,19 @@ DRWShadingGroup *shgroup_instance_bone_envelope_solid(DRWPass *pass, struct Gwn_
 	return grp;
 }
 
+DRWShadingGroup *shgroup_instance_mball_helpers(DRWPass *pass, struct Gwn_Batch *geom)
+{
+	GPUShader *sh = GPU_shader_get_builtin_shader(GPU_SHADER_3D_INSTANCE_MBALL_HELPERS);
+
+	DRWShadingGroup *grp = DRW_shgroup_instance_create(sh, pass, geom);
+	DRW_shgroup_attrib_float(grp, "ScaleTranslationMatrix", 12);
+	DRW_shgroup_attrib_float(grp, "radius", 1);
+	DRW_shgroup_attrib_float(grp, "color", 3);
+	DRW_shgroup_uniform_vec3(grp, "screen_vecs[0]", DRW_viewport_screenvecs_get(), 2);
+
+	return grp;
+}
+
 
 /* ******************************************** COLOR UTILS *********************************************** */
 
@@ -360,10 +373,10 @@ DRWShadingGroup *shgroup_instance_bone_envelope_solid(DRWPass *pass, struct Gwn_
  * Get the wire color theme_id of an object based on it's state
  * \a r_color is a way to get a pointer to the static color var associated
  */
-int DRW_object_wire_theme_get(Object *ob, SceneLayer *sl, float **r_color)
+int DRW_object_wire_theme_get(Object *ob, SceneLayer *scene_layer, float **r_color)
 {
 	const bool is_edit = (ob->mode & OB_MODE_EDIT) != 0;
-	const bool active = (sl->basact && sl->basact->object == ob);
+	const bool active = (scene_layer->basact && scene_layer->basact->object == ob);
 	/* confusing logic here, there are 2 methods of setting the color
 	 * 'colortab[colindex]' and 'theme_id', colindex overrides theme_id.
 	 *

@@ -1259,6 +1259,16 @@ void GPU_create_smoke(SmokeModifierData *smd, int highres)
 			else {
 				sds->tex = GPU_texture_create_3D_custom(sds->res[0], sds->res[1], sds->res[2], 1,
 				                                 GPU_R8, smoke_get_density(sds->fluid), NULL);
+
+				/* Swizzle the RGBA components to read the Red channel so
+				 * that the shader stay the same for colored and non color
+				 * density textures. */
+				GPU_texture_bind(sds->tex, 0);
+				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_SWIZZLE_R, GL_RED);
+				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_SWIZZLE_A, GL_RED);
+				GPU_texture_unbind(sds->tex);
 			}
 			sds->tex_flame = (smoke_has_fuel(sds->fluid)) ?
 			                  GPU_texture_create_3D_custom(sds->res[0], sds->res[1], sds->res[2], 1,
@@ -1277,6 +1287,16 @@ void GPU_create_smoke(SmokeModifierData *smd, int highres)
 			else {
 				sds->tex = GPU_texture_create_3D_custom(sds->res_wt[0], sds->res_wt[1], sds->res_wt[2], 1,
 				                                        GPU_R8, smoke_turbulence_get_density(sds->wt), NULL);
+
+				/* Swizzle the RGBA components to read the Red channel so
+				 * that the shader stay the same for colored and non color
+				 * density textures. */
+				GPU_texture_bind(sds->tex, 0);
+				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_SWIZZLE_R, GL_RED);
+				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_SWIZZLE_A, GL_RED);
+				GPU_texture_unbind(sds->tex);
 			}
 			sds->tex_flame = (smoke_turbulence_has_fuel(sds->wt)) ?
 			                  GPU_texture_create_3D_custom(sds->res_wt[0], sds->res_wt[1], sds->res_wt[2], 1,
@@ -1534,7 +1554,7 @@ void GPU_end_dupli_object(void)
 }
 
 void GPU_begin_object_materials(
-        View3D *v3d, RegionView3D *rv3d, Scene *scene, SceneLayer *sl, Object *ob,
+        View3D *v3d, RegionView3D *rv3d, Scene *scene, SceneLayer *scene_layer, Object *ob,
         bool glsl, bool *do_alpha_after)
 {
 	Material *ma;
@@ -1573,10 +1593,10 @@ void GPU_begin_object_materials(
 
 #ifdef WITH_GAMEENGINE
 	if (rv3d->rflag & RV3D_IS_GAME_ENGINE) {
-		ob = BKE_object_lod_matob_get(ob, sl);
+		ob = BKE_object_lod_matob_get(ob, scene_layer);
 	}
 #else
-	UNUSED_VARS(sl);
+	UNUSED_VARS(scene_layer);
 #endif
 
 	/* initialize state */
@@ -2011,19 +2031,19 @@ int GPU_default_lights(void)
 	return count;
 }
 
-int GPU_scene_object_lights(SceneLayer *sl, float viewmat[4][4], int ortho)
+int GPU_scene_object_lights(SceneLayer *scene_layer, float viewmat[4][4], int ortho)
 {
 	/* disable all lights */
 	for (int count = 0; count < 8; count++)
 		GPU_basic_shader_light_set(count, NULL);
 
 	/* view direction for specular is not computed correct by default in
-	 * opengl, so we set the settings ourselfs */
+	 * opengl, so we set the settings ourselves */
 	GPU_basic_shader_light_set_viewer(!ortho);
 
 	int count = 0;
 
-	for (Base *base = FIRSTBASE_NEW(sl); base; base = base->next) {
+	for (Base *base = FIRSTBASE(scene_layer); base; base = base->next) {
 		if (base->object->type != OB_LAMP)
 			continue;
 

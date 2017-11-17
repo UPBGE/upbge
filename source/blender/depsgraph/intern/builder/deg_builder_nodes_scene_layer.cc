@@ -24,25 +24,26 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/intern/builder/deg_builder_relations_scene.cc
+/** \file blender/depsgraph/intern/builder/deg_builder_nodes_scene.cc
  *  \ingroup depsgraph
  *
- * Methods for constructing depsgraph
+ * Methods for constructing depsgraph's nodes
  */
 
-#include "intern/builder/deg_builder_relations.h"
+#include "intern/builder/deg_builder_nodes.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <cstring>  /* required for STREQ later on. */
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
+#include "BLI_string.h"
 
 extern "C" {
 #include "DNA_node_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -55,36 +56,45 @@ extern "C" {
 #include "DEG_depsgraph_build.h"
 
 #include "intern/builder/deg_builder.h"
-#include "intern/builder/deg_builder_pchanmap.h"
-
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_component.h"
 #include "intern/nodes/deg_node_operation.h"
-
-#include "intern/depsgraph_intern.h"
 #include "intern/depsgraph_types.h"
-
+#include "intern/depsgraph_intern.h"
 #include "util/deg_util_foreach.h"
 
 namespace DEG {
 
-void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
+void DepsgraphNodeBuilder::build_scene_layer(Scene *scene,
+                                             SceneLayer *scene_layer,
+                                             eDepsNode_LinkedState_Type linked_state)
 {
-	if (scene->set) {
-		build_scene(bmain, scene->set);
+	/* scene ID block */
+	add_id_node(&scene->id);
+
+	/* timesource */
+	add_time_source();
+
+	/* build subgraph for set, and link this in... */
+	// XXX: depending on how this goes, that scene itself could probably store its
+	//      own little partial depsgraph?
+	if (scene->set != NULL) {
+		SceneLayer *set_scene_layer = BKE_scene_layer_from_scene_get(scene->set);
+		build_scene_layer(scene->set, set_scene_layer, DEG_ID_LINKED_VIA_SET);
 	}
 
-	/* XXX store scene to access from DAG_get_scene */
-	m_graph->scene = scene;
+	/* Setup currently building context. */
+	scene_ = scene;
 
 	/* scene objects */
-	for (SceneLayer *sl = (SceneLayer *)scene->render_layers.first; sl; sl = sl->next) {
-		for (Base *base = (Base *)sl->object_bases.first; base; base = base->next) {
-			build_object(bmain, scene, base->object);
-		}
+	int select_color = 1;
+	LINKLIST_FOREACH(Base *, base, &scene_layer->object_bases) {
+		/* object itself */
+		build_object(base->object, linked_state);
+		base->object->select_color = select_color++;
 	}
 	if (scene->camera != NULL) {
-		build_object(bmain, scene, scene->camera);
+		build_object(scene->camera, linked_state);
 	}
 
 	/* rigidbody */
@@ -107,37 +117,38 @@ void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 		build_compositor(scene);
 	}
 
+	/* sequencer */
+	// XXX...
+
 	/* grease pencil */
 	if (scene->gpd) {
 		build_gpencil(scene->gpd);
 	}
 
+	/* Cache file. */
+	LINKLIST_FOREACH (CacheFile *, cachefile, &bmain_->cachefiles) {
+		build_cachefile(cachefile);
+	}
+
 	/* Masks. */
-	LINKLIST_FOREACH (Mask *, mask, &bmain->mask) {
+	LINKLIST_FOREACH (Mask *, mask, &bmain_->mask) {
 		build_mask(mask);
 	}
 
 	/* Movie clips. */
-	LINKLIST_FOREACH (MovieClip *, clip, &bmain->movieclip) {
+	LINKLIST_FOREACH (MovieClip *, clip, &bmain_->movieclip) {
 		build_movieclip(clip);
 	}
 
 	/* Collections. */
-	build_scene_layer_collections(scene);
+	build_scene_layer_collections(scene_layer);
 
-	/* TODO(sergey): Do this flush on CoW object? */
-	for (Depsgraph::OperationNodes::const_iterator it_op = m_graph->operations.begin();
-	     it_op != m_graph->operations.end();
-	     ++it_op)
-	{
-		OperationDepsNode *node = *it_op;
-		IDDepsNode *id_node = node->owner->owner;
-		ID *id = id_node->id_orig;
-		if (GS(id->name) == ID_OB) {
-			Object *object = (Object *)id;
-			object->customdata_mask |= node->customdata_mask;
-		}
-	}
+	/* Parameters evaluation for scene relations mainly. */
+	add_operation_node(&scene->id,
+	                   DEG_NODE_TYPE_PARAMETERS,
+	                   NULL,
+	                   DEG_OPCODE_PLACEHOLDER,
+	                   "Scene Eval");
 }
 
 }  // namespace DEG

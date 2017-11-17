@@ -308,6 +308,7 @@ class RENDERLAYER_PT_eevee_volumetric(RenderLayerButtonsPanel, Panel):
         col = layout.column()
         col.template_override_property(layer_props, scene_props, "volumetric_start")
         col.template_override_property(layer_props, scene_props, "volumetric_end")
+        col.template_override_property(layer_props, scene_props, "volumetric_tile_size")
         col.template_override_property(layer_props, scene_props, "volumetric_samples")
         col.template_override_property(layer_props, scene_props, "volumetric_sample_distribution")
         col.template_override_property(layer_props, scene_props, "volumetric_lights")
@@ -315,6 +316,36 @@ class RENDERLAYER_PT_eevee_volumetric(RenderLayerButtonsPanel, Panel):
         col.template_override_property(layer_props, scene_props, "volumetric_shadows")
         col.template_override_property(layer_props, scene_props, "volumetric_shadow_samples")
         col.template_override_property(layer_props, scene_props, "volumetric_colored_transmittance")
+
+
+class RENDERLAYER_PT_eevee_subsurface_scattering(RenderLayerButtonsPanel, Panel):
+    bl_label = "Subsurface Scattering"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.view_render.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        scene = context.scene
+        scene_props = scene.layer_properties['BLENDER_EEVEE']
+        layer = bpy.context.render_layer
+        layer_props = layer.engine_overrides['BLENDER_EEVEE']
+
+        self.layout.template_override_property(layer_props, scene_props, "sss_enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        scene_props = scene.layer_properties['BLENDER_EEVEE']
+        layer = bpy.context.render_layer
+        layer_props = layer.engine_overrides['BLENDER_EEVEE']
+
+        col = layout.column()
+        col.template_override_property(layer_props, scene_props, "sss_samples")
+        col.template_override_property(layer_props, scene_props, "sss_jitter_threshold")
 
 
 class RENDERLAYER_PT_eevee_screen_space_reflections(RenderLayerButtonsPanel, Panel):
@@ -427,6 +458,7 @@ classes = (
     RENDERLAYER_PT_eevee_sampling,
     RENDERLAYER_PT_eevee_shadows,
     RENDERLAYER_PT_eevee_indirect_lighting,
+    RENDERLAYER_PT_eevee_subsurface_scattering,
     RENDERLAYER_PT_eevee_screen_space_reflections,
     RENDERLAYER_PT_eevee_ambient_occlusion,
     RENDERLAYER_PT_eevee_volumetric,

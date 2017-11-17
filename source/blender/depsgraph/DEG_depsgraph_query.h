@@ -81,9 +81,6 @@ typedef struct DEGObjectsIteratorData {
 	struct Scene *scene;
 	struct EvaluationContext eval_ctx;
 
-	/* TODO(sergey): Base should never be a thing coming FROM depsgraph. */
-	struct Base *base;
-	int base_flag;
 	int flag;
 
 	/* **** Iteration over dupli-list. *** */
@@ -102,13 +99,16 @@ typedef struct DEGObjectsIteratorData {
 	 * other users of the iterator.
 	 */
 	struct Object temp_dupli_object;
+
+	/* **** Iteration ober ID nodes **** */
+	size_t id_node_index;
+	size_t num_id_nodes;
 } DEGObjectsIteratorData;
 
 void DEG_objects_iterator_begin(struct BLI_Iterator *iter, DEGObjectsIteratorData *data);
 void DEG_objects_iterator_next(struct BLI_Iterator *iter);
 void DEG_objects_iterator_end(struct BLI_Iterator *iter);
 
-/* Temporary hacky solution waiting for cow depsgraph implementation. */
 #define DEG_OBJECT_ITER(graph_, instance_, flag_)                                 \
 	{                                                                             \
 		DEGObjectsIteratorData data_ = {                                          \

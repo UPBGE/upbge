@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 
+#include "BLI_utildefines.h"
+
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
@@ -46,7 +48,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "BLI_utildefines.h"
 #include "bmesh.h"
 
 static const EnumPropertyItem particle_edit_hair_brush_items[] = {
@@ -155,9 +156,9 @@ static PointerRNA rna_ParticleBrush_curve_get(PointerRNA *ptr)
 static void rna_ParticleEdit_redo(bContext *C, PointerRNA *UNUSED(ptr))
 {
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW(sl);
-	PTCacheEdit *edit = PE_get_current(scene, sl, ob);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Object *ob = OBACT(scene_layer);
+	PTCacheEdit *edit = PE_get_current(scene, scene_layer, ob);
 
 	if (!edit)
 		return;
@@ -167,8 +168,8 @@ static void rna_ParticleEdit_redo(bContext *C, PointerRNA *UNUSED(ptr))
 
 static void rna_ParticleEdit_update(Main *UNUSED(bmain), Scene *UNUSED(scene), bContext *C, PointerRNA *UNUSED(ptr))
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW(sl);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Object *ob = OBACT(scene_layer);
 
 	if (ob) DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 }
@@ -191,8 +192,8 @@ static void rna_ParticleEdit_tool_set(PointerRNA *ptr, int value)
 static const EnumPropertyItem *rna_ParticleEdit_tool_itemf(bContext *C, PointerRNA *UNUSED(ptr),
                                                      PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW(sl);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Object *ob = OBACT(scene_layer);
 #if 0
 	Scene *scene = CTX_data_scene(C);
 	PTCacheEdit *edit = PE_get_current(scene, ob);
@@ -265,8 +266,8 @@ static int rna_Brush_mode_poll(PointerRNA *ptr, PointerRNA value)
 static void rna_Sculpt_update(bContext *C, PointerRNA *UNUSED(ptr))
 {
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW(sl);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Object *ob = OBACT(scene_layer);
 
 	if (ob) {
 		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
@@ -281,8 +282,8 @@ static void rna_Sculpt_update(bContext *C, PointerRNA *UNUSED(ptr))
 
 static void rna_Sculpt_ShowDiffuseColor_update(bContext *C, Scene *scene, PointerRNA *UNUSED(ptr))
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW(sl);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Object *ob = OBACT(scene_layer);
 
 	if (ob && ob->sculpt) {
 		Sculpt *sd = scene->toolsettings->sculpt;
@@ -344,8 +345,8 @@ static void rna_ImaPaint_viewport_update(Main *UNUSED(bmain), Scene *UNUSED(scen
 static void rna_ImaPaint_mode_update(bContext *C, PointerRNA *UNUSED(ptr))
 {
 	Scene *scene = CTX_data_scene(C);\
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW(sl);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Object *ob = OBACT(scene_layer);
 
 	if (ob && ob->type == OB_MESH) {
 		/* of course we need to invalidate here */
@@ -361,8 +362,8 @@ static void rna_ImaPaint_mode_update(bContext *C, PointerRNA *UNUSED(ptr))
 static void rna_ImaPaint_stencil_update(bContext *C, PointerRNA *UNUSED(ptr))
 {
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW(sl);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Object *ob = OBACT(scene_layer);
 
 	if (ob && ob->type == OB_MESH) {
 		GPU_drawobject_free(ob->derivedFinal);
@@ -375,8 +376,8 @@ static void rna_ImaPaint_canvas_update(bContext *C, PointerRNA *UNUSED(ptr))
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW(sl);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Object *ob = OBACT(scene_layer);
 	bScreen *sc;
 	Image *ima = scene->toolsettings->imapaint.canvas;
 	

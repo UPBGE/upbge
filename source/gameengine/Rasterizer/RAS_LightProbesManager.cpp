@@ -120,16 +120,16 @@ static void planar_pool_ensure_alloc(EEVEE_Data *vedata, int num_planar_ref)
 		}
 	}
 
-	if (num_planar_ref > 0) {
-		/* NOTE : Depth buffer is 2D but the planar_pool tex is 2D array.
-		* DRW_framebuffer_init binds the whole texture making the framebuffer invalid.
-		* To overcome this, we bind the planar pool ourselves later */
+	//if (num_planar_ref > 0) {
+	//	/* NOTE : Depth buffer is 2D but the planar_pool tex is 2D array.
+	//	* DRW_framebuffer_init binds the whole texture making the framebuffer invalid.
+	//	* To overcome this, we bind the planar pool ourselves later */
 
-		/* XXX Do this one first so it gets it's mipmap done. */
-		DRWFboTexture tex_minmaxz = { &e_data->planar_minmaxz, DRW_TEX_RG_32, DRWTextureFlag(DRW_TEX_MIPMAP | DRW_TEX_TEMP) };
-		DRW_framebuffer_init(&fbl->planarref_fb, &draw_engine_eevee_type,
-			width / 2, height / 2, &tex_minmaxz, 1);
-	}
+	//	/* XXX Do this one first so it gets it's mipmap done. */
+	//	DRWFboTexture tex_minmaxz = { &e_data->planar_minmaxz, DRW_TEX_RG_32, DRWTextureFlag(DRW_TEX_MIPMAP | DRW_TEX_TEMP) };
+	//	DRW_framebuffer_init(&fbl->planarref_fb, &draw_engine_eevee_type,
+	//		width / 2, height / 2, &tex_minmaxz, 1);
+	//}
 }
 
 static void EEVEE_planar_reflections_updates(EEVEE_SceneLayerData *sldata, EEVEE_StorageList *stl, KX_Scene *scene)
@@ -706,7 +706,7 @@ static void render_scene_to_planar(
 	EEVEE_create_minmax_buffer(vedata, tmp_planar_depth, layer);
 
 	/* Compute GTAO Horizons */
-	EEVEE_effects_do_gtao(sldata, vedata);
+	//EEVEE_effects_do_gtao(sldata, vedata);
 
 	/* Rebind Planar FB */
 	DRW_framebuffer_bind(fbl->planarref_fb);

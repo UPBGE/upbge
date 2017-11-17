@@ -1216,10 +1216,12 @@ int main(
 						Main *maggie = bfd->main;
 						Scene *scene = bfd->curscene;
 						G.main = maggie;
-						for (Scene *sc = (Scene *)maggie->scene.first; sc; sc = (Scene *)sc->id.next) {
+						/*for (Scene *sc = (Scene *)maggie->scene.first; sc; sc = (Scene *)sc->id.next) {
 							DEG_scene_relations_update(maggie, sc);
-						}
-						Depsgraph *depsgraph = scene->depsgraph_legacy;						
+						}*/
+
+						SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(scene);
+						Depsgraph *graph = BKE_scene_get_depsgraph(scene, scene_layer, false);
 
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;

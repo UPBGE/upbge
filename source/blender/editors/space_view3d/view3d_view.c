@@ -516,7 +516,7 @@ static int view3d_camera_to_view_poll(bContext *C)
 
 	if (ED_view3d_context_user_region(C, &v3d, &ar)) {
 		RegionView3D *rv3d = ar->regiondata;
-		if (v3d && v3d->camera && !ID_IS_LINKED_DATABLOCK(v3d->camera)) {
+		if (v3d && v3d->camera && !ID_IS_LINKED(v3d->camera)) {
 			if (rv3d && (rv3d->viewlock & RV3D_LOCKED) == 0) {
 				if (rv3d->persp != RV3D_CAMOB) {
 					return 1;
@@ -1517,9 +1517,9 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	if (!ED_view3d_context_activate(C))
 		return OPERATOR_CANCELLED;
 
-	for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+	/*for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
 		DEG_scene_relations_update(bmain, scene);
-	}
+	}*/
 	
 	/* redraw to hide any menus/popups, we don't go back to
 	 * the window manager until after this operator exits */
@@ -1580,7 +1580,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 
 	//XXX restore_all_scene_cfra(scene_cfra_store);
 	BKE_scene_set_background(CTX_data_main(C), startscene);
-	//XXX BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene);
+	//XXX BKE_scene_graph_update_for_newframe(bmain->eval_ctx, bmain, scene, depsgraph);
 
 	BLI_callback_exec(bmain, &startscene->id, BLI_CB_EVT_GAME_POST);
 

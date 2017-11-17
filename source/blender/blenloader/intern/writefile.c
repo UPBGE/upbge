@@ -1992,6 +1992,10 @@ static void write_camera(WriteData *wd, Camera *cam)
 		if (cam->adt) {
 			write_animdata(wd, cam->adt);
 		}
+
+		for (CameraBGImage *bgpic = cam->bg_images.first; bgpic; bgpic = bgpic->next) {
+			writestruct(wd, DATA, CameraBGImage, 1, bgpic);
+		}
 	}
 }
 
@@ -2600,10 +2604,6 @@ static void write_scene(WriteData *wd, Scene *sce)
 	write_keyingsets(wd, &sce->keyingsets);
 
 	/* direct data */
-	for (BaseLegacy *base = sce->base.first; base; base = base->next) {
-		writestruct(wd, DATA, BaseLegacy, 1, base);
-	}
-
 	ToolSettings *tos = sce->toolsettings;
 	writestruct(wd, DATA, ToolSettings, 1, tos);
 	if (tos->vpaint) {
@@ -2784,13 +2784,13 @@ static void write_scene(WriteData *wd, Scene *sce)
 	write_curvemapping_curves(wd, &sce->r.mblur_shutter_curve);
 	write_scene_collection(wd, sce->collection);
 
-	for (SceneLayer *sl = sce->render_layers.first; sl; sl = sl->next) {
-		writestruct(wd, DATA, SceneLayer, 1, sl);
-		writelist(wd, DATA, Base, &sl->object_bases);
-		if (sl->properties) {
-			IDP_WriteProperty(sl->properties, wd);
+	for (SceneLayer *scene_layer = sce->render_layers.first; scene_layer; scene_layer = scene_layer->next) {
+		writestruct(wd, DATA, SceneLayer, 1, scene_layer);
+		writelist(wd, DATA, Base, &scene_layer->object_bases);
+		if (scene_layer->properties) {
+			IDP_WriteProperty(scene_layer->properties, wd);
 		}
-		write_layer_collections(wd, &sl->layer_collections);
+		write_layer_collections(wd, &scene_layer->layer_collections);
 	}
 
 	if (sce->layer_properties) {
@@ -2844,9 +2844,6 @@ static void write_windowmanager(WriteData *wd, wmWindowManager *wm)
 
 		/* update deprecated screen member (for so loading in 2.7x uses the correct screen) */
 		win->screen = BKE_workspace_active_screen_get(win->workspace_hook);
-		if (win->screen) {
-			BLI_strncpy(win->screenname, win->screen->id.name + 2, sizeof(win->screenname));
-		}
 
 		writestruct(wd, DATA, wmWindow, 1, win);
 		writestruct(wd, DATA, WorkSpaceInstanceHook, 1, win->workspace_hook);
@@ -2992,12 +2989,8 @@ static void write_screen(WriteData *wd, bScreen *sc)
 
 			if (sl->spacetype == SPACE_VIEW3D) {
 				View3D *v3d = (View3D *)sl;
-				BGpic *bgpic;
 				writestruct(wd, DATA, View3D, 1, v3d);
 
-				for (bgpic = v3d->bgpicbase.first; bgpic; bgpic = bgpic->next) {
-					writestruct(wd, DATA, BGpic, 1, bgpic);
-				}
 				if (v3d->localvd) {
 					writestruct(wd, DATA, View3D, 1, v3d->localvd);
 				}

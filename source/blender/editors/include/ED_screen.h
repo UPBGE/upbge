@@ -39,6 +39,7 @@
 
 #include "BLI_compiler_attrs.h"
 
+struct Depsgraph;
 struct wmWindowManager;
 struct wmWindow;
 struct wmNotifier;
@@ -48,6 +49,7 @@ struct WorkSpace;
 struct WorkSpaceInstanceHook;
 struct bContext;
 struct Scene;
+struct SceneLayer;
 struct bScreen;
 struct ARegion;
 struct uiBlock;
@@ -112,7 +114,10 @@ void    ED_screen_draw(struct wmWindow *win);
 void    ED_screen_refresh(struct wmWindowManager *wm, struct wmWindow *win);
 void    ED_screen_do_listen(struct bContext *C, struct wmNotifier *note);
 bool    ED_screen_change(struct bContext *C, struct bScreen *sc);
-void    ED_screen_update_after_scene_change(const struct bScreen *screen, struct Scene *scene_new);
+void    ED_screen_update_after_scene_change(
+        const struct bScreen *screen,
+        struct Scene *scene_new,
+        struct SceneLayer *scene_layer);
 void    ED_screen_set_subwinactive(struct bContext *C, const struct wmEvent *event);
 void    ED_screen_exit(struct bContext *C, struct wmWindow *window, struct bScreen *screen);
 void    ED_screen_animation_timer(struct bContext *C, int redraws, int refresh, int sync, int enable);
@@ -163,7 +168,7 @@ bool ED_workspace_layout_cycle(
         struct bContext *C) ATTR_NONNULL();
 
 /* anim */
-void    ED_update_for_newframe(struct Main *bmain, struct Scene *scene, int mute);
+void    ED_update_for_newframe(struct Main *bmain, struct Scene *scene, struct SceneLayer *scene_layer, struct Depsgraph *depsgraph);
 
 void    ED_refresh_viewport_fps(struct bContext *C);
 int		ED_screen_animation_play(struct bContext *C, int sync, int mode);
@@ -230,6 +235,7 @@ int     ED_operator_posemode_context(struct bContext *C);
 int     ED_operator_posemode(struct bContext *C);
 int     ED_operator_posemode_local(struct bContext *C);
 int     ED_operator_mask(struct bContext *C);
+int     ED_operator_camera(struct bContext *C);
 
 
 /* Cache display helpers */

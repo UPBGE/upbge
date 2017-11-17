@@ -788,7 +788,7 @@ static void do_view3d_vgroup_buttons(bContext *C, void *UNUSED(arg), int event)
 static int view3d_panel_vgroup_poll(const bContext *C, PanelType *UNUSED(pt))
 {
 	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW(sl);
+	Object *ob = OBACT(sl);
 	if (ob && (BKE_object_is_in_editmode_vgroup(ob) ||
 	           BKE_object_is_in_wpaint_select_vert(ob)))
 	{
@@ -881,12 +881,12 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
 
 					/* The weight group paste function */
 					icon = (locked) ? ICON_BLANK1 : ICON_PASTEDOWN;
-					op_ptr = uiItemFullO(row, "OBJECT_OT_vertex_weight_paste", "", icon, NULL, WM_OP_INVOKE_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+					uiItemFullO(row, "OBJECT_OT_vertex_weight_paste", "", icon, NULL, WM_OP_INVOKE_DEFAULT, 0, &op_ptr);
 					RNA_int_set(&op_ptr, "weight_group", i);
 
 					/* The weight entry delete function */
 					icon = (locked) ? ICON_LOCKED : ICON_X;
-					op_ptr = uiItemFullO(row, "OBJECT_OT_vertex_weight_delete", "", icon, NULL, WM_OP_INVOKE_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+					uiItemFullO(row, "OBJECT_OT_vertex_weight_delete", "", icon, NULL, WM_OP_INVOKE_DEFAULT, 0, &op_ptr);
 					RNA_int_set(&op_ptr, "weight_group", i);
 
 					yco -= UI_UNIT_Y;
@@ -1099,7 +1099,7 @@ static void do_view3d_region_buttons(bContext *C, void *UNUSED(index), int event
 {
 	SceneLayer *sl = CTX_data_scene_layer(C);
 	View3D *v3d = CTX_wm_view3d(C);
-	Object *ob = OBACT_NEW(sl);
+	Object *ob = OBACT(sl);
 
 	switch (event) {
 

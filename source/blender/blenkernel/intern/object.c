@@ -159,16 +159,6 @@ void BKE_object_workob_clear(Object *workob)
 	workob->rotmode = ROT_MODE_EUL;
 }
 
-void BKE_object_update_base_layer(struct Scene *scene, Object *ob)
-{
-	BaseLegacy *base = scene->base.first;
-
-	while (base) {
-		if (base->object == ob) base->lay = ob->lay;
-		base = base->next;
-	}
-}
-
 void BKE_object_free_particlesystems(Object *ob)
 {
 	ParticleSystem *psys;
@@ -876,7 +866,7 @@ static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
 
 bool BKE_object_lod_is_usable(Object *ob, SceneLayer *sl)
 {
-	bool active = (sl) ? ob == OBACT_NEW(sl) : false;
+	bool active = (sl) ? ob == OBACT(sl) : false;
 	return (ob->mode == OB_MODE_OBJECT || !active);
 }
 
@@ -1288,7 +1278,7 @@ void BKE_object_make_local_ex(Main *bmain, Object *ob, const bool lib_local, con
 	 * In case we make a whole lib's content local, we always want to localize, and we skip remapping (done later).
 	 */
 
-	if (!ID_IS_LINKED_DATABLOCK(ob)) {
+	if (!ID_IS_LINKED(ob)) {
 		return;
 	}
 
@@ -1330,15 +1320,15 @@ void BKE_object_make_local(Main *bmain, Object *ob, const bool lib_local)
 /* Returns true if the Object is from an external blend file (libdata) */
 bool BKE_object_is_libdata(Object *ob)
 {
-	return (ob && ID_IS_LINKED_DATABLOCK(ob));
+	return (ob && ID_IS_LINKED(ob));
 }
 
 /* Returns true if the Object data is from an external blend file (libdata) */
 bool BKE_object_obdata_is_libdata(Object *ob)
 {
 	/* Linked objects with local obdata are forbidden! */
-	BLI_assert(!ob || !ob->data || (ID_IS_LINKED_DATABLOCK(ob) ? ID_IS_LINKED_DATABLOCK(ob->data) : true));
-	return (ob && ob->data && ID_IS_LINKED_DATABLOCK(ob->data));
+	BLI_assert(!ob || !ob->data || (ID_IS_LINKED(ob) ? ID_IS_LINKED(ob->data) : true));
+	return (ob && ob->data && ID_IS_LINKED(ob->data));
 }
 
 /* *************** PROXY **************** */
@@ -1385,7 +1375,7 @@ void BKE_object_copy_proxy_drivers(Object *ob, Object *target)
 							/* only on local objects because this causes indirect links
 							 * 'a -> b -> c', blend to point directly to a.blend
 							 * when a.blend has a proxy thats linked into c.blend  */
-							if (!ID_IS_LINKED_DATABLOCK(ob))
+							if (!ID_IS_LINKED(ob))
 								id_lib_extern((ID *)dtar->id);
 						}
 					}
@@ -1403,7 +1393,7 @@ void BKE_object_copy_proxy_drivers(Object *ob, Object *target)
 void BKE_object_make_proxy(Object *ob, Object *target, Object *gob)
 {
 	/* paranoia checks */
-	if (ID_IS_LINKED_DATABLOCK(ob) || !ID_IS_LINKED_DATABLOCK(target)) {
+	if (ID_IS_LINKED(ob) || !ID_IS_LINKED(target)) {
 		printf("cannot make proxy\n");
 		return;
 	}
@@ -2582,7 +2572,7 @@ void BKE_scene_foreach_display_point(
 	Base *base;
 	Object *ob;
 
-	for (base = FIRSTBASE_NEW(sl); base; base = base->next) {
+	for (base = FIRSTBASE(sl); base; base = base->next) {
 		if (((base->flag & BASE_VISIBLED) != 0) && ((base->flag & BASE_SELECTED) != 0)) {
 			ob = base->object;
 
@@ -2715,7 +2705,7 @@ void BKE_object_handle_update_ex(const EvaluationContext *eval_ctx,
 				printf("recalcob %s\n", ob->id.name + 2);
 			
 			/* handle proxy copy for target */
-			if (ID_IS_LINKED_DATABLOCK(ob) && ob->proxy_from) {
+			if (ID_IS_LINKED(ob) && ob->proxy_from) {
 				// printf("ob proxy copy, lib ob %s proxy %s\n", ob->id.name, ob->proxy_from->id.name);
 				if (ob->proxy_from->proxy_group) { /* transform proxy into group space */
 					Object *obg = ob->proxy_from->proxy_group;
@@ -3399,8 +3389,8 @@ LinkNode *BKE_object_relational_superset(struct SceneLayer *scene_layer, eObject
 			obrel_list_add(&links, ob);
 		}
 		else {
-			if ((objectSet == OB_SET_SELECTED && TESTBASELIB_BGMODE_NEW(base)) ||
-			    (objectSet == OB_SET_VISIBLE  && BASE_EDITABLE_BGMODE_NEW(base)))
+			if ((objectSet == OB_SET_SELECTED && TESTBASELIB_BGMODE(base)) ||
+			    (objectSet == OB_SET_VISIBLE  && BASE_EDITABLE_BGMODE(base)))
 			{
 				Object *ob = base->object;
 
@@ -3430,7 +3420,7 @@ LinkNode *BKE_object_relational_superset(struct SceneLayer *scene_layer, eObject
 				if (includeFilter & (OB_REL_CHILDREN | OB_REL_CHILDREN_RECURSIVE)) {
 					Base *local_base;
 					for (local_base = scene_layer->object_bases.first; local_base; local_base = local_base->next) {
-						if (BASE_EDITABLE_BGMODE_NEW(local_base)) {
+						if (BASE_EDITABLE_BGMODE(local_base)) {
 
 							Object *child = local_base->object;
 							if (obrel_list_test(child)) {

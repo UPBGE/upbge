@@ -74,11 +74,13 @@ extern "C" {
 #  include "BLI_linklist.h"
 #  include "BLO_readfile.h"
 #  include "BKE_global.h"
+#  include "BKE_layer.h"
 #  include "BKE_library.h"
 #  include "BKE_material.h" // BKE_material_copy
 #  include "BKE_mesh.h" // BKE_mesh_copy
 #  include "BKE_idcode.h"
 #  include "BKE_report.h"
+#  include "BKE_scene.h"
 }
 
 #include "BLI_task.h"
@@ -221,9 +223,12 @@ void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_Rasterize
 
 	KX_BlenderSceneConverter sceneConverter;
 
+	SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(blenderscene);
+	Depsgraph *graph = BKE_scene_get_depsgraph(blenderscene, scene_layer, false);
+
 	BL_ConvertBlenderObjects(
 		m_maggie,
-		blenderscene->depsgraph_legacy,
+		graph,
 		destinationscene,
 		m_ketsjiEngine,
 		physics_engine,

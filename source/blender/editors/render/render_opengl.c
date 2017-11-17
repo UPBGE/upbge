@@ -96,6 +96,7 @@ typedef struct OGLRender {
 	Scene *scene;
 	WorkSpace *workspace;
 	SceneLayer *scene_layer;
+	Depsgraph *depsgraph;
 
 	View3D *v3d;
 	RegionView3D *rv3d;
@@ -666,6 +667,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 	oglrender->scene = scene;
 	oglrender->workspace = workspace;
 	oglrender->scene_layer = CTX_data_scene_layer(C);
+	oglrender->depsgraph = CTX_data_depsgraph(C);
 	oglrender->cfrao = scene->r.cfra;
 
 	oglrender->write_still = is_write_still && !is_animation;
@@ -810,8 +812,10 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 	}
 
 	if (oglrender->timer) { /* exec will not have a timer */
+		Depsgraph *depsgraph = oglrender->depsgraph;
+		SceneLayer *scene_layer = oglrender->scene_layer;
 		scene->r.cfra = oglrender->cfrao;
-		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene);
+		BKE_scene_graph_update_for_newframe(bmain->eval_ctx, depsgraph, bmain, scene, scene_layer);
 
 		WM_event_remove_timer(oglrender->wm, oglrender->win, oglrender->timer);
 	}
@@ -1011,6 +1015,8 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	OGLRender *oglrender = op->customdata;
 	Scene *scene = oglrender->scene;
+	SceneLayer *scene_layer = oglrender->scene_layer;
+	Depsgraph *depsgraph = oglrender->depsgraph;
 	char name[FILE_MAX];
 	bool ok = false;
 	const bool view_context = (oglrender->v3d != NULL);
@@ -1021,7 +1027,7 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 	if (CFRA < oglrender->nfra)
 		CFRA++;
 	while (CFRA < oglrender->nfra) {
-		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene);
+		BKE_scene_graph_update_for_newframe(bmain->eval_ctx, depsgraph, bmain, scene, scene_layer);
 		CFRA++;
 	}
 
@@ -1043,11 +1049,11 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 
 	WM_cursor_time(oglrender->win, scene->r.cfra);
 
-	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene);
+	BKE_scene_graph_update_for_newframe(bmain->eval_ctx, depsgraph, bmain, scene, scene_layer);
 
 	if (view_context) {
 		if (oglrender->rv3d->persp == RV3D_CAMOB && oglrender->v3d->camera && oglrender->v3d->scenelock) {
-			/* since BKE_scene_update_for_newframe() is used rather
+			/* since BKE_scene_graph_update_for_newframe() is used rather
 			 * then ED_update_for_newframe() the camera needs to be set */
 			if (BKE_scene_camera_switch_update(scene)) {
 				oglrender->v3d->camera = scene->camera;
@@ -1177,7 +1183,7 @@ static int screen_opengl_render_exec(bContext *C, wmOperator *op)
 	}
 
 	/* no redraw needed, we leave state as we entered it */
-//	ED_update_for_newframe(C, 1);
+//	ED_update_for_newframe(C);
 	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, CTX_data_scene(C));
 
 	return OPERATOR_FINISHED;

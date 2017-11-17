@@ -283,16 +283,7 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[FIRSTFILEBUFLG])
  * CocoaAppDelegate
  * ObjC object to capture applicationShouldTerminate, and send quit event
  **/
-#if defined(__clang_major__) && __clang_major__ <= 7
-/* FIXME(merwin & Juicyfruit): long-term fix for proper protocol to use
- * merwin thinks NSApplicationDelegate is the correct protocol here. Has been around since 10.6 so we should be good... what's the problem?
- * https://developer.apple.com/reference/appkit/nsapplicationdelegate?language=objc
- */
-@interface CocoaAppDelegate : NSObject <NSFileManagerDelegate> {
-#else
-/* for Xcode 8 */
 @interface CocoaAppDelegate : NSObject <NSApplicationDelegate> {
-#endif
 
 	GHOST_SystemCocoa *systemCocoa;
 }
@@ -1470,7 +1461,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 				GHOST_TInt32 x, y;
 				window->clientToScreenIntern(mousePos.x, mousePos.y, x, y);
 				pushEvent(new GHOST_EventTrackpad([event timestamp] * 1000, window, GHOST_kTrackpadEventRotate, x, y,
-				                                  [event rotation] * 5.0, 0));
+				                                  [event rotation] * -5.0, 0));
 			}
 		default:
 			return GHOST_kFailure;

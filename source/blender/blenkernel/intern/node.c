@@ -1325,7 +1325,7 @@ void ntreeUserDecrefID(bNodeTree *ntree)
 /* *************** Node Preview *********** */
 
 /* XXX this should be removed eventually ...
- * Currently BKE functions are modelled closely on previous code,
+ * Currently BKE functions are modeled closely on previous code,
  * using BKE_node_preview_init_tree to set up previews for a whole node tree in advance.
  * This should be left more to the individual node tree implementations.
  */
@@ -2630,7 +2630,7 @@ void BKE_node_clipboard_add_node(bNode *node)
 	node_info->id = node->id;
 	if (node->id) {
 		BLI_strncpy(node_info->id_name, node->id->name, sizeof(node_info->id_name));
-		if (ID_IS_LINKED_DATABLOCK(node->id)) {
+		if (ID_IS_LINKED(node->id)) {
 			BLI_strncpy(node_info->library_name, node->id->lib->filepath, sizeof(node_info->library_name));
 		}
 		else {
@@ -3564,6 +3564,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_hue_sat();
 
 	register_node_type_sh_attribute();
+	register_node_type_sh_bevel();
 	register_node_type_sh_geometry();
 	register_node_type_sh_light_path();
 	register_node_type_sh_light_falloff();

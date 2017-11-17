@@ -949,14 +949,8 @@ ViewRender *CTX_data_view_render(const bContext *C)
 
 RenderEngineType *CTX_data_engine(const bContext *C)
 {
-	const char *engine_id;
-
-	if (!ctx_data_pointer_verify(C, "engine", (void *)&engine_id)) {
-		ViewRender *view_render = CTX_data_view_render(C);
-		engine_id = view_render->engine_id;
-	}
-
-	return RE_engines_find(engine_id);
+	ViewRender *view_render = CTX_data_view_render(C);
+	return RE_engines_find(view_render->engine_id);
 }
 
 /**
@@ -1266,7 +1260,7 @@ Depsgraph *CTX_data_depsgraph(const bContext *C)
 {
 	Scene *scene = CTX_data_scene(C);
 	SceneLayer *scene_layer = CTX_data_scene_layer(C);
-	return BKE_scene_get_depsgraph(scene, scene_layer);
+	return BKE_scene_get_depsgraph(scene, scene_layer, true);
 }
 
 void CTX_data_eval_ctx(const bContext *C, EvaluationContext *eval_ctx)

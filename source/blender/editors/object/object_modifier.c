@@ -827,9 +827,9 @@ int edit_modifier_poll_generic(bContext *C, StructRNA *rna_type, int obtype_flag
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", rna_type);
 	Object *ob = (ptr.id.data) ? ptr.id.data : ED_object_active_context(C);
 	
-	if (!ob || ID_IS_LINKED_DATABLOCK(ob)) return 0;
+	if (!ob || ID_IS_LINKED(ob)) return 0;
 	if (obtype_flag && ((1 << ob->type) & obtype_flag) == 0) return 0;
-	if (ptr.id.data && ID_IS_LINKED_DATABLOCK(ptr.id.data)) return 0;
+	if (ptr.id.data && ID_IS_LINKED(ptr.id.data)) return 0;
 	
 	return 1;
 }
@@ -2193,7 +2193,7 @@ static int ocean_bake_exec(bContext *C, wmOperator *op)
 		 * this part of the process before a threaded job is created */
 		
 		//scene->r.cfra = f;
-		//ED_update_for_newframe(CTX_data_main(C), scene, 1);
+		//ED_update_for_newframe(CTX_data_main(C), scene);
 		
 		/* ok, this doesn't work with drivers, but is way faster. 
 		 * let's use this for now and hope nobody wants to drive the time value... */

@@ -49,6 +49,7 @@ extern "C" {
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_scene.h"
 #include "BKE_workspace.h"
 
 #define new new_
@@ -350,13 +351,15 @@ void deg_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id, int flag)
 void deg_id_tag_update(Main *bmain, ID *id, int flag)
 {
 	lib_id_recalc_tag_flag(bmain, id, flag);
-	for (Scene *scene = (Scene *)bmain->scene.first;
-	     scene != NULL;
-	     scene = (Scene *)scene->id.next)
-	{
-		if (scene->depsgraph_legacy != NULL) {
-			Depsgraph *graph = (Depsgraph *)scene->depsgraph_legacy;
-			deg_graph_id_tag_update(bmain, graph, id, flag);
+	LINKLIST_FOREACH(Scene *, scene, &bmain->scene) {
+		LINKLIST_FOREACH(SceneLayer *, scene_layer, &scene->render_layers) {
+			Depsgraph *depsgraph =
+			        (Depsgraph *)BKE_scene_get_depsgraph(scene,
+			                                             scene_layer,
+			                                             false);
+			if (depsgraph != NULL) {
+				deg_graph_id_tag_update(bmain, depsgraph, id, flag);
+			}
 		}
 	}
 }
@@ -364,8 +367,7 @@ void deg_id_tag_update(Main *bmain, ID *id, int flag)
 void deg_graph_on_visible_update(Main *bmain, Depsgraph *graph)
 {
 	/* Make sure objects are up to date. */
-	GHASH_FOREACH_BEGIN(DEG::IDDepsNode *, id_node, graph->id_hash)
-	{
+	foreach (DEG::IDDepsNode *id_node, graph->id_nodes) {
 		const ID_Type id_type = GS(id_node->id_orig->name);
 		/* TODO(sergey): Special exception for now. */
 		if (id_type == ID_MSK) {
@@ -387,11 +389,12 @@ void deg_graph_on_visible_update(Main *bmain, Depsgraph *graph)
 		}
 		deg_graph_id_tag_update(bmain, graph, id_node->id_orig, flag);
 	}
-	GHASH_FOREACH_END();
 	/* Make sure collection properties are up to date. */
-	IDDepsNode *scene_id_node = graph->find_id_node(&graph->scene->id);
-	BLI_assert(scene_id_node != NULL);
-	scene_id_node->tag_update(graph);
+	for (Scene *scene_iter = graph->scene; scene_iter != NULL; scene_iter = scene_iter->set) {
+		IDDepsNode *scene_id_node = graph->find_id_node(&scene_iter->id);
+		BLI_assert(scene_id_node != NULL);
+		scene_id_node->tag_update(graph);
+	}
 }
 
 }  /* namespace */
@@ -412,6 +415,15 @@ void DEG_id_tag_update_ex(Main *bmain, ID *id, int flag)
 	}
 	DEG_DEBUG_PRINTF("%s: id=%s flag=%d\n", __func__, id->name, flag);
 	DEG::deg_id_tag_update(bmain, id, flag);
+}
+
+void DEG_graph_id_tag_update(struct Main *bmain,
+                             struct Depsgraph *depsgraph,
+                             struct ID *id,
+                             int flag)
+{
+	DEG::Depsgraph *graph = (DEG::Depsgraph *)depsgraph;
+	DEG::deg_graph_id_tag_update(bmain, graph, id, flag);
 }
 
 /* Tag given ID type for update. */
@@ -448,12 +460,15 @@ void DEG_graph_on_visible_update(Main *bmain, Depsgraph *depsgraph)
 
 void DEG_on_visible_update(Main *bmain, const bool UNUSED(do_time))
 {
-	for (Scene *scene = (Scene *)bmain->scene.first;
-	     scene != NULL;
-	     scene = (Scene *)scene->id.next)
-	{
-		if (scene->depsgraph_legacy != NULL) {
-			DEG_graph_on_visible_update(bmain, scene->depsgraph_legacy);
+	LINKLIST_FOREACH(Scene *, scene, &bmain->scene) {
+		LINKLIST_FOREACH(SceneLayer *, scene_layer, &scene->render_layers) {
+			Depsgraph *depsgraph =
+			        (Depsgraph *)BKE_scene_get_depsgraph(scene,
+			                                             scene_layer,
+			                                             false);
+			if (depsgraph != NULL) {
+				DEG_graph_on_visible_update(bmain, depsgraph);
+			}
 		}
 	}
 }

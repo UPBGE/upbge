@@ -48,6 +48,7 @@
 #include "BKE_lattice.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_mball.h"
 #include "BKE_mesh.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
@@ -409,17 +410,6 @@ static SpaceLink *view3d_new(const bContext *C)
 static void view3d_free(SpaceLink *sl)
 {
 	View3D *vd = (View3D *) sl;
-	BGpic *bgpic;
-
-	for (bgpic = vd->bgpicbase.first; bgpic; bgpic = bgpic->next) {
-		if (bgpic->source == V3D_BGPIC_IMAGE) {
-			id_us_min((ID *)bgpic->ima);
-		}
-		else if (bgpic->source == V3D_BGPIC_MOVIE) {
-			id_us_min((ID *)bgpic->clip);
-		}
-	}
-	BLI_freelistN(&vd->bgpicbase);
 
 	if (vd->localvd) MEM_freeN(vd->localvd);
 	
@@ -450,7 +440,6 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 {
 	View3D *v3do = (View3D *)sl;
 	View3D *v3dn = MEM_dupallocN(sl);
-	BGpic *bgpic;
 	
 	/* clear or remove stuff from old */
 
@@ -466,16 +455,6 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 	/* copy or clear inside new stuff */
 
 	v3dn->defmaterial = NULL;
-
-	BLI_duplicatelist(&v3dn->bgpicbase, &v3do->bgpicbase);
-	for (bgpic = v3dn->bgpicbase.first; bgpic; bgpic = bgpic->next) {
-		if (bgpic->source == V3D_BGPIC_IMAGE) {
-			id_us_plus((ID *)bgpic->ima);
-		}
-		else if (bgpic->source == V3D_BGPIC_MOVIE) {
-			id_us_plus((ID *)bgpic->clip);
-		}
-	}
 
 	v3dn->properties_storage = NULL;
 	if (v3dn->fx_settings.dof)
@@ -659,7 +638,7 @@ static int view3d_ima_bg_drop_poll(bContext *C, wmDrag *drag, const wmEvent *eve
 
 static int view3d_ima_empty_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-	BaseLegacy *base = ED_view3d_give_base_under_cursor(C, event->mval);
+	Base *base = ED_view3d_give_base_under_cursor(C, event->mval);
 
 	/* either holding and ctrl and no object, or dropping to empty */
 	if (((base == NULL) && event->ctrl) ||
@@ -673,7 +652,7 @@ static int view3d_ima_empty_drop_poll(bContext *C, wmDrag *drag, const wmEvent *
 
 static int view3d_ima_mesh_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-	BaseLegacy *base = ED_view3d_give_base_under_cursor(C, event->mval);
+	Base *base = ED_view3d_give_base_under_cursor(C, event->mval);
 
 	if (base && base->object->type == OB_MESH)
 		return view3d_ima_drop_poll(C, drag, event);
@@ -746,6 +725,9 @@ static void view3d_widgets(void)
 	WM_manipulatorgrouptype_append_and_link(mmap_type, VIEW3D_WGT_armature_spline);
 
 	WM_manipulatorgrouptype_append(VIEW3D_WGT_xform_cage);
+
+	WM_manipulatorgrouptype_append(VIEW3D_WGT_ruler);
+	WM_manipulatortype_append(VIEW3D_WT_ruler_item);
 }
 
 
@@ -809,23 +791,12 @@ static void *view3d_main_region_duplicate(void *poin)
 	return NULL;
 }
 
-static void view3d_recalc_used_layers(ARegion *ar, wmNotifier *wmn, const Scene *scene)
+static void view3d_recalc_used_layers(ARegion *ar, wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	wmWindow *win = wmn->wm->winactive;
 	unsigned int lay_used = 0;
-	BaseLegacy *base;
 
 	if (!win) return;
-
-	base = scene->base.first;
-	while (base) {
-		lay_used |= base->lay & ((1 << 20) - 1); /* ignore localview */
-
-		if (lay_used == (1 << 20) - 1)
-			break;
-
-		base = base->next;
-	}
 
 	const bScreen *screen = WM_window_get_active_screen(win);
 	for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
@@ -1418,21 +1389,6 @@ static void view3d_id_remap(ScrArea *sa, SpaceLink *slink, ID *old_id, ID *new_i
 				/* Otherwise, bonename may remain valid... We could be smart and check this, too? */
 				if (new_id == NULL) {
 					v3d->ob_centre_bone[0] = '\0';
-				}
-			}
-
-			if (ELEM(GS(old_id->name), ID_IM, ID_MC)) {
-				for (BGpic *bgpic = v3d->bgpicbase.first; bgpic; bgpic = bgpic->next) {
-					if ((ID *)bgpic->ima == old_id) {
-						bgpic->ima = (Image *)new_id;
-						id_us_min(old_id);
-						id_us_plus(new_id);
-					}
-					if ((ID *)bgpic->clip == old_id) {
-						bgpic->clip = (MovieClip *)new_id;
-						id_us_min(old_id);
-						id_us_plus(new_id);
-					}
 				}
 			}
 		}

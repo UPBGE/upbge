@@ -28,15 +28,15 @@
 #ifndef __DRW_RENDER_H__
 #define __DRW_RENDER_H__
 
-#include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_material.h"
-#include "BKE_scene.h"
-
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+
+#include "BKE_context.h"
+#include "BKE_layer.h"
+#include "BKE_material.h"
+#include "BKE_scene.h"
 
 #include "BLT_translation.h"
 
@@ -94,8 +94,8 @@ typedef char DRWViewportEmptyList;
 #define MULTISAMPLE_SYNC_ENABLE(dfbl) { \
 	if (dfbl->multisample_fb != NULL) { \
 		DRW_stats_query_start("Multisample Blit"); \
-		DRW_framebuffer_blit(dfbl->default_fb, dfbl->multisample_fb, false); \
-		DRW_framebuffer_blit(dfbl->default_fb, dfbl->multisample_fb, true); \
+		DRW_framebuffer_blit(dfbl->default_fb, dfbl->multisample_fb, false, false); \
+		DRW_framebuffer_blit(dfbl->default_fb, dfbl->multisample_fb, true, false); \
 		DRW_framebuffer_bind(dfbl->multisample_fb); \
 		DRW_stats_query_end(); \
 	} \
@@ -104,8 +104,8 @@ typedef char DRWViewportEmptyList;
 #define MULTISAMPLE_SYNC_DISABLE(dfbl) { \
 	if (dfbl->multisample_fb != NULL) { \
 		DRW_stats_query_start("Multisample Resolve"); \
-		DRW_framebuffer_blit(dfbl->multisample_fb, dfbl->default_fb, false); \
-		DRW_framebuffer_blit(dfbl->multisample_fb, dfbl->default_fb, true); \
+		DRW_framebuffer_blit(dfbl->multisample_fb, dfbl->default_fb, false, false); \
+		DRW_framebuffer_blit(dfbl->multisample_fb, dfbl->default_fb, true, false); \
 		DRW_framebuffer_bind(dfbl->default_fb); \
 		DRW_stats_query_end(); \
 	} \
@@ -173,6 +173,7 @@ typedef enum {
 	DRW_TEX_R_32,
 	DRW_TEX_DEPTH_16,
 	DRW_TEX_DEPTH_24,
+	DRW_TEX_DEPTH_24_STENCIL_8,
 	DRW_TEX_DEPTH_32,
 } DRWTextureFormat;
 
@@ -189,6 +190,8 @@ struct GPUTexture *DRW_texture_create_1D(
 struct GPUTexture *DRW_texture_create_2D(
         int w, int h, DRWTextureFormat format, DRWTextureFlag flags, const float *fpixels);
 struct GPUTexture *DRW_texture_create_2D_array(
+        int w, int h, int d, DRWTextureFormat format, DRWTextureFlag flags, const float *fpixels);
+struct GPUTexture *DRW_texture_create_3D(
         int w, int h, int d, DRWTextureFormat format, DRWTextureFlag flags, const float *fpixels);
 struct GPUTexture *DRW_texture_create_cube(
         int w, DRWTextureFormat format, DRWTextureFlag flags, const float *fpixels);
@@ -232,7 +235,7 @@ void DRW_framebuffer_texture_attach(struct GPUFrameBuffer *fb, struct GPUTexture
 void DRW_framebuffer_texture_layer_attach(struct GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int layer, int mip);
 void DRW_framebuffer_cubeface_attach(struct GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int face, int mip);
 void DRW_framebuffer_texture_detach(struct GPUTexture *tex);
-void DRW_framebuffer_blit(struct GPUFrameBuffer *fb_read, struct GPUFrameBuffer *fb_write, bool depth);
+void DRW_framebuffer_blit(struct GPUFrameBuffer *fb_read, struct GPUFrameBuffer *fb_write, bool depth, bool stencil);
 void DRW_framebuffer_recursive_downsample(
         struct GPUFrameBuffer *fb, struct GPUTexture *tex, int num_iter,
         void (*callback)(void *userData, int level), void *userData);
@@ -287,10 +290,8 @@ typedef enum {
 	DRW_STATE_TRANSMISSION  = (1 << 17),
 	DRW_STATE_CLIP_PLANES   = (1 << 18),
 
-	DRW_STATE_WRITE_STENCIL_SELECT = (1 << 27),
-	DRW_STATE_WRITE_STENCIL_ACTIVE = (1 << 28),
-	DRW_STATE_TEST_STENCIL_SELECT  = (1 << 29),
-	DRW_STATE_TEST_STENCIL_ACTIVE  = (1 << 30),
+	DRW_STATE_WRITE_STENCIL    = (1 << 27),
+	DRW_STATE_STENCIL_EQUAL    = (1 << 28),
 } DRWState;
 
 #define DRW_STATE_DEFAULT (DRW_STATE_WRITE_DEPTH | DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS)
@@ -300,6 +301,7 @@ DRWShadingGroup *DRW_shgroup_create(struct GPUShader *shader, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_material_create(struct GPUMaterial *material, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_material_instance_create(
         struct GPUMaterial *material, DRWPass *pass, struct Gwn_Batch *geom, struct Object *ob);
+DRWShadingGroup *DRW_shgroup_material_empty_tri_batch_create(struct GPUMaterial *material, DRWPass *pass, int size);
 DRWShadingGroup *DRW_shgroup_instance_create(struct GPUShader *shader, DRWPass *pass, struct Gwn_Batch *geom);
 DRWShadingGroup *DRW_shgroup_point_batch_create(struct GPUShader *shader, DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_line_batch_create(struct GPUShader *shader, DRWPass *pass);
@@ -323,13 +325,16 @@ void DRW_shgroup_call_dynamic_add_array(DRWShadingGroup *shgroup, const void *at
 	const void *array[] = {__VA_ARGS__}; \
 	DRW_shgroup_call_dynamic_add_array(shgroup, array, (sizeof(array) / sizeof(*array))); \
 } while (0)
+/* Use this only to make your instances selectable. */
 #define DRW_shgroup_call_dynamic_add_empty(shgroup) do { \
 	DRW_shgroup_call_dynamic_add_array(shgroup, NULL, 0); \
 } while (0)
+/* Use this to set a high number of instances. */
 void DRW_shgroup_set_instance_count(DRWShadingGroup *shgroup, int count);
 
 void DRW_shgroup_state_enable(DRWShadingGroup *shgroup, DRWState state);
 void DRW_shgroup_state_disable(DRWShadingGroup *shgroup, DRWState state);
+void DRW_shgroup_stencil_mask(DRWShadingGroup *shgroup, unsigned int mask);
 void DRW_shgroup_attrib_float(DRWShadingGroup *shgroup, const char *name, int size);
 
 void DRW_shgroup_uniform_texture(DRWShadingGroup *shgroup, const char *name, const struct GPUTexture *tex);
@@ -436,7 +441,7 @@ typedef struct DRWContextState {
 	struct SceneLayer *scene_layer;  /* 'CTX_data_scene_layer(C)' */
 
 	/* Use 'scene->obedit' for edit-mode */
-	struct Object *obact;   /* 'OBACT_NEW' */
+	struct Object *obact;   /* 'OBACT' */
 
 	struct RenderEngineType *engine;
 
@@ -456,7 +461,7 @@ struct GPUFrameBuffer **fb, void *engine_type, int width, int height,
 struct GPUShader *DRW_shgroup_shader_get(DRWShadingGroup *shgroup);
 void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup);
 void DRW_end_shgroup(void);
-struct ListBase *DRW_shgroups_from_pass_get(DRWPass *pass);
+DRWShadingGroup *DRW_shgroups_from_pass_get(DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_next(DRWShadingGroup *current);
 void DRW_shgroups_calls_update_obmat(DRWShadingGroup *shgroup, struct Gwn_Batch *batch, float obmat[4][4]);
 void DRW_shgroups_discard_geometry(DRWShadingGroup *shgroup, struct Gwn_Batch *batch);

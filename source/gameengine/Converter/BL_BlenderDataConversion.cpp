@@ -1201,12 +1201,12 @@ static void UNUSED_FUNCTION(print_active_constraints2)(Object *ob) //not used, u
 // Copy base layer to object layer like in BKE_scene_set_background
 static void blenderSceneSetBackground(Scene *blenderscene)
 {
-	Scene *it;
+	/*Scene *it;
 	Base *base;
 
 	for (SETLOOPER(blenderscene, it, base)) {
 		BKE_scene_base_flag_sync_from_base(base);
-	}
+	}*/
 }
 
 /* helper for BL_ConvertBlenderObjects, avoids code duplication

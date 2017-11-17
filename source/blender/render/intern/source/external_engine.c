@@ -287,7 +287,7 @@ void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel
 		RenderPart *pa = get_part_from_result(re, result);
 
 		if (pa) {
-			pa->status = PART_STATUS_READY;
+			pa->status = (!cancel && merge_results)? PART_STATUS_MERGED: PART_STATUS_RENDERED;
 		}
 		else if (re->result->do_exr_tile) {
 			/* if written result does not match any tile and we are using save
@@ -298,7 +298,7 @@ void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel
 
 	if (!cancel || merge_results) {
 		if (re->result->do_exr_tile) {
-			if (!cancel) {
+			if (!cancel && merge_results) {
 				render_result_exr_file_merge(re->result, result, re->viewname);
 			}
 		}
@@ -315,6 +315,11 @@ void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel
 	/* free */
 	BLI_remlink(&engine->fullresult, result);
 	render_result_free(result);
+}
+
+RenderResult *RE_engine_get_result(RenderEngine *engine)
+{
+	return engine->re->result;
 }
 
 /* Cancel */
@@ -604,7 +609,7 @@ void RE_engine_frame_set(RenderEngine *engine, int frame, float subframe)
 	BPy_BEGIN_ALLOW_THREADS;
 #endif
 
-	BKE_scene_update_for_newframe(re->eval_ctx, re->main, scene);
+	BKE_scene_graph_update_for_newframe(re->eval_ctx, re->depsgraph, re->main, scene, NULL);
 
 #ifdef WITH_PYTHON
 	BPy_END_ALLOW_THREADS;
@@ -639,7 +644,7 @@ int RE_engine_render(Render *re, int do_all)
 	/* update animation here so any render layer animation is applied before
 	 * creating the render result */
 	if ((re->r.scemode & (R_NO_FRAME_UPDATE | R_BUTS_PREVIEW)) == 0) {
-		BKE_scene_update_for_newframe(re->eval_ctx, re->main, re->scene);
+		BKE_scene_graph_update_for_newframe(re->eval_ctx, re->depsgraph, re->main, re->scene, NULL);
 		render_update_anim_renderdata(re, &re->scene->r);
 	}
 

@@ -63,14 +63,21 @@
 
 extern "C" {
 #  include "GPU_extensions.h"
+#  include "GPU_framebuffer.h"
 
+#  include "BKE_idprop.h"
+#  include "BKE_layer.h"
 #  include "BKE_sound.h"
 #  include "BKE_main.h"
+
+#  include "../draw/DRW_engine.h"
 
 #  include "DNA_scene_types.h"
 #  include "DNA_material_types.h"
 
 #  include "wm_event_types.h"
+
+#  include "MEM_guardedalloc.h"
 }
 
 #ifdef WITH_AUDASPACE
@@ -129,6 +136,32 @@ GlobalSettings *LA_Launcher::GetGlobalSettings()
 const std::string& LA_Launcher::GetExitString()
 {
 	return m_exitString;
+}
+
+static void idproperty_reset(IDProperty **props, IDProperty *props_ref)
+{
+	IDPropertyTemplate val = { 0 };
+
+	if (*props) {
+		IDP_FreeProperty(*props);
+		MEM_freeN(*props);
+	}
+	*props = IDP_New(IDP_GROUP, &val, ROOT_PROP);
+
+	if (props_ref) {
+		IDP_MergeGroup(*props, props_ref, true);
+	}
+}
+
+static void InitProperties(SceneLayer *scene_layer, Scene *scene)
+{
+	for (Base *base = (Base *)scene_layer->object_bases.first; base != NULL; base = base->next) {
+		idproperty_reset(&base->collection_properties, scene->collection_properties);
+	}
+
+	/* Sync properties from scene to scene layer. */
+	idproperty_reset(&scene_layer->properties_evaluated, scene->layer_properties);
+	IDP_MergeGroup(scene_layer->properties_evaluated, scene_layer->properties, true);
 }
 
 void LA_Launcher::InitEngine()
@@ -231,6 +264,21 @@ void LA_Launcher::InitEngine()
 
 	// Set the global settings (carried over if restart/load new files).
 	m_ketsjiEngine->SetGlobalSettings(m_globalSettings);
+
+	/* INIT EEVEE DATA : CALL BEFORE m_rasterizer->Init() and after canvas creation */
+	SceneLayer *cur_scene_layer = BKE_scene_layer_from_scene_get(m_startScene);
+
+	for (Scene *sc = (Scene *)m_maggie->scene.first; sc; sc = (Scene *)sc->id.next) {
+		SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(sc);
+		InitProperties(scene_layer, sc);
+	}
+	Object *maincam = m_startScene->camera ? (Object *)m_startScene->camera : (Object *)m_maggie->camera.first;
+	GPUOffScreen *tempgpuofs = GPU_offscreen_create(m_canvas->GetWidth(), m_canvas->GetHeight(), 0, nullptr);
+	int viewportsize[2] = { m_canvas->GetWidth(), m_canvas->GetHeight() };
+	DRW_game_render_loop_begin(tempgpuofs, m_maggie, m_startScene,
+		cur_scene_layer, maincam, viewportsize);
+	GPU_offscreen_free(tempgpuofs);
+	/* END OF INIT EEVEE DATA */
 
 	m_rasterizer->Init();
 	InitCamera();

@@ -47,7 +47,6 @@ std::ostream& operator <<(std::ostream &os,
 {
 	os << "Experimental features: "
 	   << (requested_features.experimental ? "On" : "Off") << std::endl;
-	os << "Max closure count: " << requested_features.max_closure << std::endl;
 	os << "Max nodes group: " << requested_features.max_nodes_group << std::endl;
 	/* TODO(sergey): Decode bitflag into list of names. */
 	os << "Nodes features: " << requested_features.nodes_features << std::endl;
@@ -248,12 +247,12 @@ void Device::draw_pixels(
 	glBindTexture(GL_TEXTURE_2D, texid);
 
 	if(rgba.data_type == TYPE_HALF) {
-		GLhalf *data_pointer = (GLhalf*)rgba.data_pointer;
+		GLhalf *data_pointer = (GLhalf*)rgba.host_pointer;
 		data_pointer += 4 * y * w;
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F_ARB, w, h, 0, GL_RGBA, GL_HALF_FLOAT, data_pointer);
 	}
 	else {
-		uint8_t *data_pointer = (uint8_t*)rgba.data_pointer;
+		uint8_t *data_pointer = (uint8_t*)rgba.host_pointer;
 		data_pointer += 4 * y * w;
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data_pointer);
 	}
@@ -507,39 +506,48 @@ DeviceInfo Device::get_multi_device(const vector<DeviceInfo>& subdevices, int th
 	info.description = "Multi Device";
 	info.num = 0;
 
-	info.has_bindless_textures = true;
+	info.has_fermi_limits = false;
+	info.has_half_images = true;
 	info.has_volume_decoupled = true;
 	info.has_qbvh = true;
 	info.has_osl = true;
 
 	foreach(const DeviceInfo &device, subdevices) {
-		info.has_bindless_textures &= device.has_bindless_textures;
-		info.has_volume_decoupled &= device.has_volume_decoupled;
-		info.has_qbvh &= device.has_qbvh;
-		info.has_osl &= device.has_osl;
-
+		/* Ensure CPU device does not slow down GPU. */
 		if(device.type == DEVICE_CPU && subdevices.size() > 1) {
 			if(background) {
 				int orig_cpu_threads = (threads)? threads: system_cpu_thread_count();
 				int cpu_threads = max(orig_cpu_threads - (subdevices.size() - 1), 0);
+
+				VLOG(1) << "CPU render threads reduced from "
+						<< orig_cpu_threads << " to " << cpu_threads
+						<< ", to dedicate to GPU.";
 
 				if(cpu_threads >= 1) {
 					DeviceInfo cpu_device = device;
 					cpu_device.cpu_threads = cpu_threads;
 					info.multi_devices.push_back(cpu_device);
 				}
-
-				VLOG(1) << "CPU render threads reduced from "
-						<< orig_cpu_threads << " to " << cpu_threads
-						<< ", to dedicate to GPU.";
+				else {
+					continue;
+				}
 			}
 			else {
 				VLOG(1) << "CPU render threads disabled for interactive render.";
+				continue;
 			}
 		}
 		else {
 			info.multi_devices.push_back(device);
 		}
+
+		/* Accumulate device info. */
+		info.has_fermi_limits = info.has_fermi_limits ||
+		                        device.has_fermi_limits;
+		info.has_half_images &= device.has_half_images;
+		info.has_volume_decoupled &= device.has_volume_decoupled;
+		info.has_qbvh &= device.has_qbvh;
+		info.has_osl &= device.has_osl;
 	}
 
 	return info;

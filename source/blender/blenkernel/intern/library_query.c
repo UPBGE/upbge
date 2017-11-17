@@ -375,12 +375,12 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 
 	for (; id != NULL; id = (flag & IDWALK_RECURSE) ? BLI_LINKSTACK_POP(data.ids_todo) : NULL) {
 		data.self_id = id;
-		data.cb_flag = ID_IS_LINKED_DATABLOCK(id) ? IDWALK_CB_INDIRECT_USAGE : 0;
+		data.cb_flag = ID_IS_LINKED(id) ? IDWALK_CB_INDIRECT_USAGE : 0;
 
 		if (bmain != NULL && bmain->relations != NULL && (flag & IDWALK_READONLY)) {
 			/* Note that this is minor optimization, even in worst cases (like id being an object with lots of
 			 * drivers and constraints and modifiers, or material etc. with huge node tree),
-			 * but we might as well use it (Main->relations is always assumed valid, it's responsability of code
+			 * but we might as well use it (Main->relations is always assumed valid, it's responsibility of code
 			 * creating it to free it, especially if/when it starts modifying Main database). */
 			MainIDRelationsEntry *entry = BLI_ghash_lookup(bmain->relations->id_user_to_used, id);
 			for (; entry != NULL; entry = entry->next) {
@@ -408,7 +408,6 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				Scene *scene = (Scene *) id;
 				ToolSettings *toolsett = scene->toolsettings;
 				SceneRenderLayer *srl;
-				BaseLegacy *legacy_base;
 
 				CALLBACK_INVOKE(scene->camera, IDWALK_CB_NOP);
 				CALLBACK_INVOKE(scene->world, IDWALK_CB_USER);
@@ -465,10 +464,6 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				}
 
 				CALLBACK_INVOKE(scene->gpd, IDWALK_CB_USER);
-
-				for (legacy_base = scene->base.first; legacy_base; legacy_base = legacy_base->next) {
-					CALLBACK_INVOKE(legacy_base->object, IDWALK_CB_USER);
-				}
 
 				FOREACH_SCENE_COLLECTION(scene, sc)
 				{
@@ -563,7 +558,7 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				 * Since this field is set/owned by 'user' of this ID (and not ID itself), it is only indirect usage
 				 * if proxy object is linked... Twisted. */
 				if (object->proxy_from) {
-					data.cb_flag = ID_IS_LINKED_DATABLOCK(object->proxy_from) ? IDWALK_CB_INDIRECT_USAGE : 0;
+					data.cb_flag = ID_IS_LINKED(object->proxy_from) ? IDWALK_CB_INDIRECT_USAGE : 0;
 				}
 				CALLBACK_INVOKE(object->proxy_from, IDWALK_CB_LOOPBACK);
 				data.cb_flag = data_cb_flag;

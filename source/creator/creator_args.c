@@ -90,6 +90,8 @@
 #endif
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph_debug.h"
 
 #include "creator_intern.h"  /* own include */
 
@@ -426,6 +428,30 @@ static void arg_py_context_restore(
 
 /** \} */
 
+static void render_set_depgraph(bContext *C, Render *re)
+{
+	/* TODO(sergey): For until we make depsgraph to be created and
+	 * handled by render pipeline.
+	 */
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	/* NOTE: This is STUPID to use first layer, but is ok for now
+	 * (at least for until depsgraph becomes per-layer).
+	 * Apparently, CTX_data_layer is crashing here (context's layer
+	 * is NULL for old files, and there is no workspace).
+	 */
+	SceneLayer *scene_layer = scene->render_layers.first;
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, scene_layer, true);
+	DEG_graph_relations_update(depsgraph, bmain, scene, scene_layer);
+	{
+		FILE *stream = fopen("/home/sergey/deg.dot", "w");
+		DEG_debug_graphviz(depsgraph, stream, "", false);
+		fclose(stream);
+	}
+	DEG_graph_on_visible_update(bmain, depsgraph);
+
+	RE_SetDepsgraph(re, depsgraph);
+}
 
 /* -------------------------------------------------------------------- */
 
@@ -1354,8 +1380,8 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
 			re = RE_NewSceneRender(scene);
 			BLI_begin_threaded_malloc();
 			BKE_reports_init(&reports, RPT_STORE);
-
 			RE_SetReports(re, &reports);
+			render_set_depgraph(C, re);
 			for (int i = 0; i < frames_range_len; i++) {
 				/* We could pass in frame ranges,
 				 * but prefer having exact behavior as passing in multiple frames */
@@ -1398,6 +1424,7 @@ static int arg_handle_render_animation(int UNUSED(argc), const char **UNUSED(arg
 		BLI_begin_threaded_malloc();
 		BKE_reports_init(&reports, RPT_STORE);
 		RE_SetReports(re, &reports);
+		render_set_depgraph(C, re);
 		RE_BlenderAnim(re, bmain, scene, NULL, scene->lay, scene->r.sfra, scene->r.efra, scene->r.frame_step);
 		RE_SetReports(re, NULL);
 		BKE_reports_clear(&reports);

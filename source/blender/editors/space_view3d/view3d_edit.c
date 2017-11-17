@@ -34,6 +34,7 @@
 #include <float.h>
 
 #include "DNA_armature_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -51,6 +52,7 @@
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_font.h"
+#include "BKE_layer.h"
 #include "BKE_library.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
@@ -101,7 +103,7 @@ bool ED_view3d_offset_lock_check(const  View3D *v3d, const  RegionView3D *rv3d)
 bool ED_view3d_camera_lock_check(const View3D *v3d, const RegionView3D *rv3d)
 {
 	return ((v3d->camera) &&
-	        (!ID_IS_LINKED_DATABLOCK(v3d->camera)) &&
+	        (!ID_IS_LINKED(v3d->camera)) &&
 	        (v3d->flag2 & V3D_LOCK_CAMERA) &&
 	        (rv3d->persp == RV3D_CAMOB));
 }
@@ -623,7 +625,7 @@ static bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
 
 	Scene *scene = CTX_data_scene(C);
 	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob_act = OBACT_NEW(sl);
+	Object *ob_act = OBACT(sl);
 
 	if (ob_act && (ob_act->mode & OB_MODE_ALL_PAINT) &&
 	    /* with weight-paint + pose-mode, fall through to using calculateTransformCenter */
@@ -665,8 +667,8 @@ static bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
 		float select_center[3];
 
 		zero_v3(select_center);
-		for (base = FIRSTBASE_NEW(sl); base; base = base->next) {
-			if (TESTBASE_NEW(base)) {
+		for (base = FIRSTBASE(sl); base; base = base->next) {
+			if (TESTBASE(base)) {
 				/* use the boundbox if we can */
 				Object *ob = base->object;
 
@@ -3013,7 +3015,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op) /* was view3d_home() in 
 	}
 
 	for (base = sl->object_bases.first; base; base = base->next) {
-		if (BASE_VISIBLE_NEW(base)) {
+		if (BASE_VISIBLE(base)) {
 			changed = true;
 
 			if (skip_camera && base->object == v3d->camera) {
@@ -3078,7 +3080,7 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 	const bool is_gp_edit = ((gpd) && (gpd->flag & GP_DATA_STROKE_EDITMODE));
 	const bool is_face_map = ((is_gp_edit == false) && ar->manipulator_map &&
 	                          WM_manipulatormap_is_any_selected(ar->manipulator_map));
-	Object *ob = OBACT_NEW(sl);
+	Object *ob = OBACT(sl);
 	Object *obedit = CTX_data_edit_object(C);
 	float min[3], max[3];
 	bool ok = false, ok_dist = true;
@@ -3098,7 +3100,7 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 		/* this is weak code this way, we should make a generic active/selection callback interface once... */
 		Base *base;
 		for (base = sl->object_bases.first; base; base = base->next) {
-			if (TESTBASELIB_NEW(base)) {
+			if (TESTBASELIB(base)) {
 				if (base->object->type == OB_ARMATURE)
 					if (base->object->mode & OB_MODE_POSE)
 						break;
@@ -3146,8 +3148,8 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 	}
 	else {
 		Base *base;
-		for (base = FIRSTBASE_NEW(sl); base; base = base->next) {
-			if (TESTBASE_NEW(base)) {
+		for (base = FIRSTBASE(sl); base; base = base->next) {
+			if (TESTBASE(base)) {
 
 				if (skip_camera && base->object == v3d->camera) {
 					continue;
@@ -3913,7 +3915,7 @@ static int viewnumpad_exec(bContext *C, wmOperator *op)
 	ARegion *ar;
 	RegionView3D *rv3d;
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
 	static int perspo = RV3D_PERSP;
 	int viewnum, nextperspo;
 	bool align_active;
@@ -3948,7 +3950,7 @@ static int viewnumpad_exec(bContext *C, wmOperator *op)
 			/* lastview -  */
 
 			if (rv3d->persp != RV3D_CAMOB) {
-				Object *ob = OBACT_NEW(sl);
+				Object *ob = OBACT(scene_layer);
 
 				if (!rv3d->smooth_timer) {
 					/* store settings of current view before allowing overwriting with camera view
@@ -3983,7 +3985,7 @@ static int viewnumpad_exec(bContext *C, wmOperator *op)
 					v3d->camera = ob;
 
 				if (v3d->camera == NULL)
-					v3d->camera = BKE_scene_camera_find(scene);
+					v3d->camera = BKE_scene_layer_camera_find(scene_layer);
 
 				/* couldnt find any useful camera, bail out */
 				if (v3d->camera == NULL)
@@ -4515,11 +4517,11 @@ void VIEW3D_OT_navigate(wmOperatorType *ot)
 
 /* ******************** add background image operator **************** */
 
-static BGpic *background_image_add(bContext *C)
+static CameraBGImage *background_image_add(bContext *C)
 {
-	View3D *v3d = CTX_wm_view3d(C);
+	Camera *cam = CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data;
 
-	return ED_view3D_background_image_new(v3d);
+	return BKE_camera_background_image_new(cam);
 }
 
 static int background_image_add_exec(bContext *C, wmOperator *UNUSED(op))
@@ -4531,9 +4533,9 @@ static int background_image_add_exec(bContext *C, wmOperator *UNUSED(op))
 
 static int background_image_add_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-	View3D *v3d = CTX_wm_view3d(C);
+	Camera *cam = CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data;
 	Image *ima;
-	BGpic *bgpic;
+	CameraBGImage *bgpic;
 	
 	ima = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
 	/* may be NULL, continue anyway */
@@ -4541,10 +4543,10 @@ static int background_image_add_invoke(bContext *C, wmOperator *op, const wmEven
 	bgpic = background_image_add(C);
 	bgpic->ima = ima;
 
-	v3d->flag |= V3D_DISPBGPICS;
-	
-	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
-	
+	cam->flag |= CAM_SHOW_BG_IMAGE;
+
+	WM_event_add_notifier(C, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, cam);
+
 	return OPERATOR_FINISHED;
 }
 
@@ -4560,7 +4562,7 @@ void VIEW3D_OT_background_image_add(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = background_image_add_invoke;
 	ot->exec   = background_image_add_exec;
-	ot->poll   = ED_operator_view3d_active;
+	ot->poll   = ED_operator_camera;
 
 	/* flags */
 	ot->flag   = OPTYPE_UNDO;
@@ -4576,21 +4578,22 @@ void VIEW3D_OT_background_image_add(wmOperatorType *ot)
 /* ***** remove image operator ******* */
 static int background_image_remove_exec(bContext *C, wmOperator *op)
 {
-	View3D *v3d = CTX_wm_view3d(C);
+	Camera *cam = CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data;
 	const int index = RNA_int_get(op->ptr, "index");
-	BGpic *bgpic_rem = BLI_findlink(&v3d->bgpicbase, index);
+	CameraBGImage *bgpic_rem = BLI_findlink(&cam->bg_images, index);
 
 	if (bgpic_rem) {
-		if (bgpic_rem->source == V3D_BGPIC_IMAGE) {
+		if (bgpic_rem->source == CAM_BGIMG_SOURCE_IMAGE) {
 			id_us_min((ID *)bgpic_rem->ima);
 		}
-		else if (bgpic_rem->source == V3D_BGPIC_MOVIE) {
+		else if (bgpic_rem->source == CAM_BGIMG_SOURCE_MOVIE) {
 			id_us_min((ID *)bgpic_rem->clip);
 		}
 
-		ED_view3D_background_image_remove(v3d, bgpic_rem);
+		BKE_camera_background_image_remove(cam, bgpic_rem);
 
-		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
+		WM_event_add_notifier(C, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, cam);
+
 		return OPERATOR_FINISHED;
 	}
 	else {
@@ -4608,7 +4611,7 @@ void VIEW3D_OT_background_image_remove(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec   = background_image_remove_exec;
-	ot->poll   = ED_operator_view3d_active;
+	ot->poll   = ED_operator_camera;
 
 	/* flags */
 	ot->flag   = 0;
@@ -5183,43 +5186,6 @@ void ED_view3d_lastview_store(RegionView3D *rv3d)
 	rv3d->lview = rv3d->view;
 	if (rv3d->persp != RV3D_CAMOB) {
 		rv3d->lpersp = rv3d->persp;
-	}
-}
-
-BGpic *ED_view3D_background_image_new(View3D *v3d)
-{
-	BGpic *bgpic = MEM_callocN(sizeof(BGpic), "Background Image");
-
-	bgpic->rotation = 0.0f;
-	bgpic->size = 5.0f;
-	bgpic->blend = 0.5f;
-	bgpic->iuser.fie_ima = 2;
-	bgpic->iuser.ok = 1;
-	bgpic->view = 0; /* 0 for all */
-	bgpic->flag |= V3D_BGPIC_EXPANDED;
-
-	BLI_addtail(&v3d->bgpicbase, bgpic);
-
-	return bgpic;
-}
-
-void ED_view3D_background_image_remove(View3D *v3d, BGpic *bgpic)
-{
-	BLI_remlink(&v3d->bgpicbase, bgpic);
-
-	MEM_freeN(bgpic);
-}
-
-void ED_view3D_background_image_clear(View3D *v3d)
-{
-	BGpic *bgpic = v3d->bgpicbase.first;
-
-	while (bgpic) {
-		BGpic *next_bgpic = bgpic->next;
-
-		ED_view3D_background_image_remove(v3d, bgpic);
-
-		bgpic = next_bgpic;
 	}
 }
 

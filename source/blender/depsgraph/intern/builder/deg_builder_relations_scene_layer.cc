@@ -24,26 +24,25 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/intern/builder/deg_builder_nodes_scene.cc
+/** \file blender/depsgraph/intern/builder/deg_builder_relations_scene.cc
  *  \ingroup depsgraph
  *
- * Methods for constructing depsgraph's nodes
+ * Methods for constructing depsgraph
  */
 
-#include "intern/builder/deg_builder_nodes.h"
+#include "intern/builder/deg_builder_relations.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <cstring>  /* required for STREQ later on. */
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
-#include "BLI_string.h"
 
 extern "C" {
 #include "DNA_node_types.h"
-#include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -56,41 +55,38 @@ extern "C" {
 #include "DEG_depsgraph_build.h"
 
 #include "intern/builder/deg_builder.h"
+#include "intern/builder/deg_builder_pchanmap.h"
+
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_component.h"
 #include "intern/nodes/deg_node_operation.h"
-#include "intern/depsgraph_types.h"
+
 #include "intern/depsgraph_intern.h"
+#include "intern/depsgraph_types.h"
+
 #include "util/deg_util_foreach.h"
 
 namespace DEG {
 
-void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
+void DepsgraphRelationBuilder::build_scene_layer(Scene *scene, SceneLayer *scene_layer)
 {
-	/* scene ID block */
-	add_id_node(&scene->id);
-
-	/* timesource */
-	add_time_source();
-
-	/* build subgraph for set, and link this in... */
-	// XXX: depending on how this goes, that scene itself could probably store its
-	//      own little partial depsgraph?
-	if (scene->set) {
-		build_scene(bmain, scene->set);
+	if (scene->set != NULL) {
+		SceneLayer *set_scene_layer = BKE_scene_layer_from_scene_get(scene->set);
+		build_scene_layer(scene->set, set_scene_layer);
 	}
+
+	graph_->scene = scene;
+	graph_->scene_layer = scene_layer;
+
+	/* Setup currently building context. */
+	scene_ = scene;
 
 	/* scene objects */
-	int select_color = 1;
-	for (SceneLayer *sl = (SceneLayer *)scene->render_layers.first; sl; sl = sl->next) {
-		for (Base *base = (Base *)sl->object_bases.first; base; base = base->next) {
-			/* object itself */
-			build_object(scene, base->object);
-			base->object->select_color = select_color++;
-		}
+	LINKLIST_FOREACH(Base *, base, &scene_layer->object_bases) {
+		build_object(base->object);
 	}
 	if (scene->camera != NULL) {
-		build_object(scene, scene->camera);
+		build_object(scene->camera);
 	}
 
 	/* rigidbody */
@@ -113,38 +109,33 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 		build_compositor(scene);
 	}
 
-	/* sequencer */
-	// XXX...
-
 	/* grease pencil */
 	if (scene->gpd) {
 		build_gpencil(scene->gpd);
 	}
 
-	/* Cache file. */
-	LINKLIST_FOREACH (CacheFile *, cachefile, &bmain->cachefiles) {
-		build_cachefile(cachefile);
-	}
-
 	/* Masks. */
-	LINKLIST_FOREACH (Mask *, mask, &bmain->mask) {
+	LINKLIST_FOREACH (Mask *, mask, &bmain_->mask) {
 		build_mask(mask);
 	}
 
 	/* Movie clips. */
-	LINKLIST_FOREACH (MovieClip *, clip, &bmain->movieclip) {
+	LINKLIST_FOREACH (MovieClip *, clip, &bmain_->movieclip) {
 		build_movieclip(clip);
 	}
 
 	/* Collections. */
-	build_scene_layer_collections(scene);
+	build_scene_layer_collections(scene_layer);
 
-	/* Parameters evaluation for scene relations mainly. */
-	add_operation_node(&scene->id,
-	                   DEG_NODE_TYPE_PARAMETERS,
-	                   NULL,
-	                   DEG_OPCODE_PLACEHOLDER,
-	                   "Scene Eval");
+	/* TODO(sergey): Do this flush on CoW object? */
+	foreach (OperationDepsNode *node, graph_->operations) {
+		IDDepsNode *id_node = node->owner->owner;
+		ID *id = id_node->id_orig;
+		if (GS(id->name) == ID_OB) {
+			Object *object = (Object *)id;
+			object->customdata_mask |= node->customdata_mask;
+		}
+	}
 }
 
 }  // namespace DEG

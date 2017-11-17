@@ -171,7 +171,7 @@ int ED_operator_screen_mainwinactive(bContext *C)
 int ED_operator_scene_editable(bContext *C)
 {
 	Scene *scene = CTX_data_scene(C);
-	if (scene && !ID_IS_LINKED_DATABLOCK(scene))
+	if (scene && !ID_IS_LINKED(scene))
 		return 1;
 	return 0;
 }
@@ -181,7 +181,7 @@ int ED_operator_objectmode(bContext *C)
 	Scene *scene = CTX_data_scene(C);
 	Object *obact = CTX_data_active_object(C);
 
-	if (scene == NULL || ID_IS_LINKED_DATABLOCK(scene))
+	if (scene == NULL || ID_IS_LINKED(scene))
 		return 0;
 	if (CTX_data_edit_object(C))
 		return 0;
@@ -282,7 +282,7 @@ int ED_operator_node_editable(bContext *C)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 	
-	if (snode && snode->edittree && !ID_IS_LINKED_DATABLOCK(snode->edittree))
+	if (snode && snode->edittree && !ID_IS_LINKED(snode->edittree))
 		return 1;
 	
 	return 0;
@@ -344,20 +344,20 @@ int ED_operator_object_active(bContext *C)
 int ED_operator_object_active_editable(bContext *C)
 {
 	Object *ob = ED_object_active_context(C);
-	return ((ob != NULL) && !ID_IS_LINKED_DATABLOCK(ob) && !ed_object_hidden(ob));
+	return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob));
 }
 
 int ED_operator_object_active_editable_mesh(bContext *C)
 {
 	Object *ob = ED_object_active_context(C);
-	return ((ob != NULL) && !ID_IS_LINKED_DATABLOCK(ob) && !ed_object_hidden(ob) &&
-	        (ob->type == OB_MESH) && !ID_IS_LINKED_DATABLOCK(ob->data));
+	return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) &&
+	        (ob->type == OB_MESH) && !ID_IS_LINKED(ob->data));
 }
 
 int ED_operator_object_active_editable_font(bContext *C)
 {
 	Object *ob = ED_object_active_context(C);
-	return ((ob != NULL) && !ID_IS_LINKED_DATABLOCK(ob) && !ed_object_hidden(ob) &&
+	return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) &&
 	        (ob->type == OB_FONT));
 }
 
@@ -450,8 +450,8 @@ int ED_operator_posemode_local(bContext *C)
 	if (ED_operator_posemode(C)) {
 		Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
 		bArmature *arm = ob->data;
-		return !(ID_IS_LINKED_DATABLOCK(&ob->id) ||
-		         ID_IS_LINKED_DATABLOCK(&arm->id));
+		return !(ID_IS_LINKED(&ob->id) ||
+		         ID_IS_LINKED(&arm->id));
 	}
 	return false;
 }
@@ -581,6 +581,12 @@ int ED_operator_mask(bContext *C)
 	}
 
 	return false;
+}
+
+int ED_operator_camera(bContext *C)
+{
+	struct Camera *cam = CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data;
+	return (cam != NULL);
 }
 
 /* *************************** action zone operator ************************** */
@@ -2789,12 +2795,12 @@ static int screen_area_options_invoke(bContext *C, wmOperator *op, const wmEvent
 	pup = UI_popup_menu_begin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
 	layout = UI_popup_menu_layout(pup);
 	
-	ptr = uiItemFullO(layout, "SCREEN_OT_area_split", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+	uiItemFullO(layout, "SCREEN_OT_area_split", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0, &ptr);
 	/* store initial mouse cursor position */
 	RNA_int_set(&ptr, "mouse_x", event->x);
 	RNA_int_set(&ptr, "mouse_y", event->y);
 
-	ptr = uiItemFullO(layout, "SCREEN_OT_area_join", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+	uiItemFullO(layout, "SCREEN_OT_area_join", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0, &ptr);
 	/* mouse cursor on edge, '4' can fail on wide edges... */
 	RNA_int_set(&ptr, "min_x", event->x + 4);
 	RNA_int_set(&ptr, "min_y", event->y + 4);
@@ -3178,6 +3184,7 @@ static void SCREEN_OT_region_flip(wmOperatorType *ot)
 }
 
 /* ************** header operator ***************************** */
+
 static int header_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ARegion *ar = screen_find_region_type(C, RGN_TYPE_HEADER);
@@ -3205,50 +3212,6 @@ static void SCREEN_OT_header(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = header_exec;
 }
-
-/* ************** header flip operator ***************************** */
-
-/* flip a header region alignment */
-static int header_flip_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	ARegion *ar = screen_find_region_type(C, RGN_TYPE_HEADER);
-
-	if (ar == NULL) {
-		return OPERATOR_CANCELLED;
-	}
-	
-	/* copied from SCREEN_OT_region_flip */
-	if (ar->alignment == RGN_ALIGN_TOP)
-		ar->alignment = RGN_ALIGN_BOTTOM;
-	else if (ar->alignment == RGN_ALIGN_BOTTOM)
-		ar->alignment = RGN_ALIGN_TOP;
-	else if (ar->alignment == RGN_ALIGN_LEFT)
-		ar->alignment = RGN_ALIGN_RIGHT;
-	else if (ar->alignment == RGN_ALIGN_RIGHT)
-		ar->alignment = RGN_ALIGN_LEFT;
-
-	ED_area_tag_redraw(CTX_wm_area(C));
-
-	WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
-	
-	return OPERATOR_FINISHED;
-}
-
-
-static void SCREEN_OT_header_flip(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Flip Header Region";
-	ot->idname = "SCREEN_OT_header_flip";
-	ot->description = "Toggle the header over/below the main window area";
-	
-	/* api callbacks */
-	ot->exec = header_flip_exec;
-	
-	ot->poll = ED_operator_areaactive;
-	ot->flag = 0;
-}
-
 
 
 /* ************** show menus operator ***************************** */
@@ -3282,17 +3245,17 @@ static void SCREEN_OT_header_toggle_menus(wmOperatorType *ot)
 
 
 /* ************** header tools operator ***************************** */
+
 void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void *UNUSED(arg))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
+	const char *but_flip_str = (ar->alignment == RGN_ALIGN_TOP) ? IFACE_("Flip to Bottom") : IFACE_("Flip to Top");
 
-	/* XXX SCREEN_OT_region_flip doesn't work - gets wrong context for active region, so added custom operator. */
-	if (ar->alignment == RGN_ALIGN_TOP)
-		uiItemO(layout, IFACE_("Flip to Bottom"), ICON_NONE, "SCREEN_OT_header_flip");
-	else
-		uiItemO(layout, IFACE_("Flip to Top"), ICON_NONE, "SCREEN_OT_header_flip");
+	/* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
+	uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
 
+	uiItemO(layout, but_flip_str, ICON_NONE, "SCREEN_OT_region_flip");
 	uiItemO(layout, IFACE_("Collapse Menus"),
 	        (sa->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT,
 	        "SCREEN_OT_header_toggle_menus");
@@ -3445,6 +3408,8 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
 	if (screen->animtimer && screen->animtimer == event->customdata) {
 		Main *bmain = CTX_data_main(C);
 		Scene *scene = CTX_data_scene(C);
+		SceneLayer *scene_layer = CTX_data_scene_layer(C);
+		struct Depsgraph *depsgraph = CTX_data_depsgraph(C);
 		wmTimer *wt = screen->animtimer;
 		ScreenAnimData *sad = wt->customdata;
 		wmWindowManager *wm = CTX_wm_manager(C);
@@ -3555,7 +3520,7 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
 		}
 		
 		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
-		ED_update_for_newframe(bmain, scene, 1);
+		ED_update_for_newframe(bmain, scene, scene_layer, depsgraph);
 
 		for (window = wm->windows.first; window; window = window->next) {
 			const bScreen *win_screen = WM_window_get_active_screen(window);
@@ -4179,7 +4144,6 @@ void ED_operatortypes_screen(void)
 	WM_operatortype_append(SCREEN_OT_region_quadview);
 	WM_operatortype_append(SCREEN_OT_region_scale);
 	WM_operatortype_append(SCREEN_OT_region_flip);
-	WM_operatortype_append(SCREEN_OT_header_flip);
 	WM_operatortype_append(SCREEN_OT_header);
 	WM_operatortype_append(SCREEN_OT_header_toggle_menus);
 	WM_operatortype_append(SCREEN_OT_header_toolbox);

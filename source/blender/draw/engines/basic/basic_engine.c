@@ -136,7 +136,7 @@ static void BASIC_engine_init(void *vedata)
 #ifdef USE_DEPTH
 	if (DRW_state_is_fbo()) {
 		const float *viewport_size = DRW_viewport_size_get();
-		DRWFboTexture tex = {&txl->depth_dup, DRW_TEX_DEPTH_24, 0};
+		DRWFboTexture tex = {&txl->depth_dup, DRW_TEX_DEPTH_24_STENCIL_8, 0};
 		DRW_framebuffer_init(&fbl->dupli_depth, &draw_engine_basic_type,
 		                     (int)viewport_size[0], (int)viewport_size[1],
 		                     &tex, 1);
@@ -233,7 +233,7 @@ static void BASIC_draw_scene(void *vedata)
 	if (use_depth || use_depth_cull) {
 		/* Unless we go for deferred shading we need this to avoid manual depth test and artifacts */
 		if (DRW_state_is_fbo()) {
-			DRW_framebuffer_blit(dfbl->default_fb, fbl->dupli_depth, true);
+			DRW_framebuffer_blit(dfbl->default_fb, fbl->dupli_depth, true, false);
 		}
 	}
 #endif

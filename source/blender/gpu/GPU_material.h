@@ -82,11 +82,12 @@ typedef enum GPUType {
 
 	/* Values not in GPU_DATATYPE_STR */
 	GPU_TEX2D = 1002,
-	GPU_SHADOW2D = 1003,
-	GPU_TEXCUBE = 1004,
+	GPU_TEX3D = 1003,
+	GPU_SHADOW2D = 1004,
+	GPU_TEXCUBE = 1005,
 
 	/* GLSL Struct types */
-	GPU_CLOSURE = 1005,
+	GPU_CLOSURE = 1006,
 
 	/* Opengl Attributes */
 	GPU_ATTRIB = 3001
@@ -108,7 +109,9 @@ typedef enum GPUBuiltin {
 	GPU_PARTICLE_ANG_VELOCITY = (1 << 12),
 	GPU_LOC_TO_VIEW_MATRIX =    (1 << 13),
 	GPU_INVERSE_LOC_TO_VIEW_MATRIX = (1 << 14),
-	GPU_OBJECT_INFO =           (1 << 15)
+	GPU_OBJECT_INFO =           (1 << 15),
+	GPU_VOLUME_DENSITY =        (1 << 16),
+	GPU_VOLUME_FLAME =          (1 << 17)
 } GPUBuiltin;
 
 typedef enum GPUOpenGLBuiltin {
@@ -232,6 +235,9 @@ void GPU_material_enable_alpha(GPUMaterial *material);
 GPUBuiltin GPU_get_material_builtins(GPUMaterial *material);
 GPUBlendMode GPU_material_alpha_blend(GPUMaterial *material, float obcol[4]);
 
+void GPU_material_sss_profile_create(GPUMaterial *material, float *radii, int *falloff_type);
+struct GPUUniformBuffer *GPU_material_sss_profile_get(GPUMaterial *material, int sample_ct);
+
 /* High level functions to create and use GPU materials */
 GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo);
 GPUMaterial *GPU_material_from_nodetree_find(
@@ -267,6 +273,8 @@ void GPU_material_vertex_attributes(GPUMaterial *material,
 bool GPU_material_do_color_management(GPUMaterial *mat);
 bool GPU_material_use_new_shading_nodes(GPUMaterial *mat);
 bool GPU_material_use_world_space_shading(GPUMaterial *mat);
+bool GPU_material_use_domain_surface(GPUMaterial *mat);
+bool GPU_material_use_domain_volume(GPUMaterial *mat);
 
 /* Exported shading */
 

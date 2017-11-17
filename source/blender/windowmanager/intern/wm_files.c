@@ -177,21 +177,6 @@ static void wm_window_match_init(bContext *C, ListBase *wmlist)
 	CTX_wm_menu_set(C, NULL);
 
 	ED_editors_exit(C);
-
-	/* just had return; here from r12991, this code could just get removed?*/
-#if 0
-	if (wm == NULL) return;
-	if (G.fileflags & G_FILE_NO_UI) return;
-	
-	/* we take apart the used screens from non-active window */
-	for (win = wm->windows.first; win; win = win->next) {
-		BLI_strncpy(win->screenname, win->screen->id.name, MAX_ID_NAME);
-		if (win != wm->winactive) {
-			BLI_remlink(&G.main->screen, win->screen);
-			//BLI_addtail(screenbase, win->screen);
-		}
-	}
-#endif
 }
 
 static void wm_window_substitute_old(wmWindowManager *wm, wmWindow *oldwin, wmWindow *win)
@@ -218,109 +203,127 @@ static void wm_window_substitute_old(wmWindowManager *wm, wmWindow *oldwin, wmWi
 	win->posy = oldwin->posy;
 }
 
-/* match old WM with new, 4 cases:
- * 1- no current wm, no read wm: make new default
- * 2- no current wm, but read wm: that's OK, do nothing
- * 3- current wm, but not in file: try match screen names
- * 4- current wm, and wm in file: try match ghostwin
- */
-
-static void wm_window_match_do(bContext *C, ListBase *oldwmlist)
+static void wm_window_match_keep_current_wm(
+        const bContext *C, ListBase *current_wm_list,
+        const bool load_ui,
+        ListBase *r_new_wm_list)
 {
-	wmWindowManager *oldwm, *wm;
-	wmWindow *oldwin, *win;
-	
-	/* cases 1 and 2 */
-	if (BLI_listbase_is_empty(oldwmlist)) {
-		if (G.main->wm.first) {
-			/* nothing todo */
-		}
-		else {
-			wm_add_default(C);
+	wmWindowManager *wm = current_wm_list->first;
+	bScreen *screen = NULL;
+
+	/* match oldwm to new dbase, only old files */
+	wm->initialized &= ~WM_WINDOW_IS_INITIALIZED;
+
+	/* when loading without UI, no matching needed */
+	if (load_ui && (screen = CTX_wm_screen(C))) {
+		for (wmWindow *win = wm->windows.first; win; win = win->next) {
+			WorkSpace *workspace;
+
+			BKE_workspace_layout_find_global(G.main, screen, &workspace);
+			BKE_workspace_active_set(win->workspace_hook, workspace);
+			win->scene = CTX_data_scene(C);
+
+			/* all windows get active screen from file */
+			if (screen->winid == 0) {
+				WM_window_set_active_screen(win, workspace, screen);
+			}
+			else {
+				WorkSpaceLayout *layout_old = WM_window_get_active_layout(win);
+				WorkSpaceLayout *layout_new = ED_workspace_layout_duplicate(workspace, layout_old, win);
+
+				WM_window_set_active_layout(win, workspace, layout_new);
+			}
+
+			bScreen *win_screen = WM_window_get_active_screen(win);
+			win_screen->winid = win->winid;
 		}
 	}
-	else {
-		/* cases 3 and 4 */
-		
-		/* we've read file without wm..., keep current one entirely alive */
-		if (BLI_listbase_is_empty(&G.main->wm)) {
-			bScreen *screen = NULL;
 
-			/* when loading without UI, no matching needed */
-			if (!(G.fileflags & G_FILE_NO_UI) && (screen = CTX_wm_screen(C))) {
+	*r_new_wm_list = *current_wm_list;
+}
 
-				/* match oldwm to new dbase, only old files */
-				for (wm = oldwmlist->first; wm; wm = wm->id.next) {
-					for (win = wm->windows.first; win; win = win->next) {
-						WorkSpace *workspace = WM_window_get_active_workspace(win);
+static void wm_window_match_replace_by_file_wm(
+        bContext *C, ListBase *current_wm_list, ListBase *readfile_wm_list,
+        ListBase *r_new_wm_list)
+{
+	wmWindowManager *oldwm = current_wm_list->first;
+	wmWindowManager *wm = readfile_wm_list->first; /* will become our new WM */
+	bool has_match = false;
 
-						/* all windows get active screen from file */
-						if (screen->winid == 0) {
-							WM_window_set_active_screen(win, workspace, screen);
-						}
-						else {
-							WorkSpaceLayout *layout_old = WM_window_get_active_layout(win);
-							WorkSpaceLayout *layout_new = ED_workspace_layout_duplicate(workspace, layout_old, win);
+	/* this code could move to setup_appdata */
 
-							WM_window_set_active_layout(win, workspace, layout_new);
-						}
+	/* preserve key configurations in new wm, to preserve their keymaps */
+	wm->keyconfigs = oldwm->keyconfigs;
+	wm->addonconf = oldwm->addonconf;
+	wm->defaultconf = oldwm->defaultconf;
+	wm->userconf = oldwm->userconf;
 
-						bScreen *win_screen = WM_window_get_active_screen(win);
-						BLI_strncpy(win->screenname, win_screen->id.name + 2, sizeof(win->screenname));
-						win_screen->winid = win->winid;
-					}
-				}
-			}
-			
-			G.main->wm = *oldwmlist;
-			
-			/* screens were read from file! */
-			ED_screens_initialize(G.main->wm.first);
-		}
-		else {
-			bool has_match = false;
+	BLI_listbase_clear(&oldwm->keyconfigs);
+	oldwm->addonconf = NULL;
+	oldwm->defaultconf = NULL;
+	oldwm->userconf = NULL;
 
-			/* what if old was 3, and loaded 1? */
-			/* this code could move to setup_appdata */
-			oldwm = oldwmlist->first;
-			wm = G.main->wm.first;
+	/* ensure making new keymaps and set space types */
+	wm->initialized = 0;
+	wm->winactive = NULL;
 
-			/* preserve key configurations in new wm, to preserve their keymaps */
-			wm->keyconfigs = oldwm->keyconfigs;
-			wm->addonconf = oldwm->addonconf;
-			wm->defaultconf = oldwm->defaultconf;
-			wm->userconf = oldwm->userconf;
-
-			BLI_listbase_clear(&oldwm->keyconfigs);
-			oldwm->addonconf = NULL;
-			oldwm->defaultconf = NULL;
-			oldwm->userconf = NULL;
-
-			/* ensure making new keymaps and set space types */
-			wm->initialized = 0;
-			wm->winactive = NULL;
-
-			/* only first wm in list has ghostwins */
-			for (win = wm->windows.first; win; win = win->next) {
-				for (oldwin = oldwm->windows.first; oldwin; oldwin = oldwin->next) {
-
-					if (oldwin->winid == win->winid) {
-						has_match = true;
-
-						wm_window_substitute_old(wm, oldwin, win);
-					}
-				}
-			}
-
-			/* make sure at least one window is kept open so we don't lose the context, check T42303 */
-			if (!has_match) {
-				oldwin = oldwm->windows.first;
-				win = wm->windows.first;
+	/* only first wm in list has ghostwins */
+	for (wmWindow *win = wm->windows.first; win; win = win->next) {
+		for (wmWindow *oldwin = oldwm->windows.first; oldwin; oldwin = oldwin->next) {
+			if (oldwin->winid == win->winid) {
+				has_match = true;
 
 				wm_window_substitute_old(wm, oldwin, win);
 			}
+		}
+	}
+	/* make sure at least one window is kept open so we don't lose the context, check T42303 */
+	if (!has_match) {
+		wm_window_substitute_old(wm, oldwm->windows.first, wm->windows.first);
+	}
 
-			wm_close_and_free_all(C, oldwmlist);
+	wm_close_and_free_all(C, current_wm_list);
+
+	*r_new_wm_list = *readfile_wm_list;
+}
+
+/**
+ * Match old WM with new, 4 cases:
+ * 1) No current WM, no WM in file: Make new default.
+ * 2) No current WM, but WM in file: Keep current WM, do nothing else.
+ * 3) Current WM, but not in file: Keep current WM, update windows with screens from file.
+ * 4) Current WM, and WM in file: Try to keep current GHOST windows, use WM from file.
+ *
+ * \param r_new_wm_list: Return argument for the wm list to be used from now on.
+ */
+static void wm_window_match_do(
+        bContext *C,
+        ListBase *current_wm_list, ListBase *readfile_wm_list,
+        ListBase *r_new_wm_list)
+{
+	if (BLI_listbase_is_empty(current_wm_list)) {
+		/* case 1 */
+		if (BLI_listbase_is_empty(readfile_wm_list)) {
+			Main *bmain = CTX_data_main(C);
+			/* Neither current, no newly read file have a WM -> add the default one. */
+			wm_add_default(bmain, C);
+			*r_new_wm_list = bmain->wm;
+		}
+		/* case 2 */
+		else {
+			*r_new_wm_list = *readfile_wm_list;
+		}
+	}
+	else {
+		/* case 3 */
+		if (BLI_listbase_is_empty(readfile_wm_list)) {
+			/* We've read file without wm, keep current one entirely alive.
+			 * Happens when reading pre 2.5 files (no WM back then) */
+			wm_window_match_keep_current_wm(C, current_wm_list, (G.fileflags & G_FILE_NO_UI) == 0, r_new_wm_list);
+		}
+		/* case 4 */
+		else {
+			wm_window_match_replace_by_file_wm(C, current_wm_list, readfile_wm_list, r_new_wm_list);
 		}
 	}
 }
@@ -502,16 +505,6 @@ static void wm_file_read_post(bContext *C, const bool is_startup_file, const boo
 	BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_VERSION_UPDATE);
 	BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
 
-	/* Would otherwise be handled by event loop.
-	 *
-	 * Disabled for startup file, since it causes problems when PyDrivers are used in the startup file.
-	 * While its possible state of startup file may be wrong,
-	 * in this case users nearly always load a file to replace the startup file. */
-	if (G.background && (is_startup_file == false)) {
-		Main *bmain = CTX_data_main(C);
-		BKE_scene_update_tagged(bmain->eval_ctx, bmain, CTX_data_scene(C));
-	}
-
 	WM_event_add_notifier(C, NC_WM | ND_FILEREAD, NULL);
 
 	/* report any errors.
@@ -562,7 +555,7 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 
 		/* put aside screens to match with persistent windows later */
 		/* also exit screens and editors */
-		wm_window_match_init(C, &wmbase); 
+		wm_window_match_init(C, &wmbase);
 		
 		/* confusing this global... */
 		G.relbase_valid = 1;
@@ -584,7 +577,7 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 		}
 
 		/* match the read WM with current WM */
-		wm_window_match_do(C, &wmbase);
+		wm_window_match_do(C, &wmbase, &G.main->wm, &G.main->wm);
 		WM_check(C); /* opens window(s), checks keymaps */
 
 		if (retval == BKE_BLENDFILE_READ_OK_USERPREFS) {
@@ -855,7 +848,7 @@ int wm_homefile_read(
 	}
 	
 	/* match the read WM with current WM */
-	wm_window_match_do(C, &wmbase); 
+	wm_window_match_do(C, &wmbase, &G.main->wm, &G.main->wm);
 	WM_check(C); /* opens window(s), checks keymaps */
 
 	G.main->name[0] = '\0';

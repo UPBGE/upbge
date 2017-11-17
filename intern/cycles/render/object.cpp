@@ -264,7 +264,7 @@ bool Object::is_traceable()
 
 uint Object::visibility_for_tracing() const {
 	uint trace_visibility = visibility;
-	if (is_shadow_catcher) {
+	if(is_shadow_catcher) {
 		trace_visibility &= ~PATH_RAY_SHADOW_NON_CATCHER;
 	}
 	else {
@@ -420,6 +420,7 @@ void ObjectManager::device_update_object_transform(UpdateObejctTransformState *s
 
 	objects[offset+9] = make_float4(ob->dupli_generated[0], ob->dupli_generated[1], ob->dupli_generated[2], __int_as_float(numkeys));
 	objects[offset+10] = make_float4(ob->dupli_uv[0], ob->dupli_uv[1], __int_as_float(numsteps), __int_as_float(numverts));
+	objects[offset+11] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 
 	/* Object flag. */
 	if(ob->use_holdout) {
@@ -589,7 +590,7 @@ void ObjectManager::device_update_flags(Device *,
 		return;
 
 	/* object info flag */
-	uint *object_flag = dscene->object_flag.get_data();
+	uint *object_flag = dscene->object_flag.data();
 
 	vector<Object *> volume_objects;
 	bool has_volume_objects = false;
@@ -641,21 +642,20 @@ void ObjectManager::device_update_flags(Device *,
 	dscene->object_flag.copy_to_device();
 }
 
-void ObjectManager::device_update_patch_map_offsets(Device *, DeviceScene *dscene, Scene *scene)
+void ObjectManager::device_update_mesh_offsets(Device *, DeviceScene *dscene, Scene *scene)
 {
 	if(scene->objects.size() == 0) {
 		return;
 	}
 
-	uint4* objects = (uint4*)dscene->objects.get_data();
+	uint4* objects = (uint4*)dscene->objects.data();
 
 	bool update = false;
-
 	int object_index = 0;
-	foreach(Object *object, scene->objects) {
-		int offset = object_index*OBJECT_SIZE + 11;
 
+	foreach(Object *object, scene->objects) {
 		Mesh* mesh = object->mesh;
+		int offset = object_index*OBJECT_SIZE + 11;
 
 		if(mesh->patch_table) {
 			uint patch_map_offset = 2*(mesh->patch_table_offset + mesh->patch_table->total_size() -
@@ -665,6 +665,11 @@ void ObjectManager::device_update_patch_map_offsets(Device *, DeviceScene *dscen
 				objects[offset].x = patch_map_offset;
 				update = true;
 			}
+		}
+
+		if(objects[offset].y != mesh->attr_map_offset) {
+			objects[offset].y = mesh->attr_map_offset;
+			update = true;
 		}
 
 		object_index++;

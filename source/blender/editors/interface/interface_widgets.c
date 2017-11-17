@@ -66,6 +66,19 @@
 /* icons are 80% of height of button (16 pixels inside 20 height) */
 #define ICON_SIZE_FROM_BUTRECT(rect) (0.8f * BLI_rcti_size_y(rect))
 
+/* Button state argument shares bits with 'uiBut.flag'.
+ * reuse flags that aren't needed for drawing to avoid collision. */
+enum {
+	/* Show that holding the button opens a menu. */
+	UI_STATE_HOLD_ACTION = UI_BUT_UPDATE_DELAY,
+	UI_STATE_TEXT_INPUT  = UI_BUT_UNDO,
+
+	UI_STATE_FLAGS_ALL = (UI_STATE_HOLD_ACTION | UI_STATE_TEXT_INPUT),
+};
+/* Prevent accidental use. */
+#define UI_BUT_UPDATE_DELAY ((void)0)
+#define UI_BUT_UNDO ((void)0)
+
 /* ************** widget base functions ************** */
 /**
  * - in: roundbox codes for corner types and radius
@@ -145,44 +158,53 @@ static const float jit[WIDGET_AA_JITTER][2] = {
 	{-0.272855,  0.269918}, { 0.095909,  0.388710}
 };
 
-static const float num_tria_vert[3][2] = {
+/* -------------------------------------------------------------------- */
+/** \name Shape Preset Data
+ * \{ */
+
+static const float g_shape_preset_number_arrow_vert[3][2] = {
 	{-0.352077, 0.532607}, {-0.352077, -0.549313}, {0.330000, -0.008353}
 };
-
-static const unsigned int num_tria_face[1][3] = {
+static const uint g_shape_preset_number_arrow_face[1][3] = {
 	{0, 1, 2}
 };
 
-static const float scroll_circle_vert[16][2] = {
+static const float g_shape_preset_scroll_circle_vert[16][2] = {
 	{0.382684, 0.923879}, {0.000001, 1.000000}, {-0.382683, 0.923880}, {-0.707107, 0.707107},
 	{-0.923879, 0.382684}, {-1.000000, 0.000000}, {-0.923880, -0.382684}, {-0.707107, -0.707107},
 	{-0.382683, -0.923880}, {0.000000, -1.000000}, {0.382684, -0.923880}, {0.707107, -0.707107},
 	{0.923880, -0.382684}, {1.000000, -0.000000}, {0.923880, 0.382683}, {0.707107, 0.707107}
 };
-
-static const unsigned int scroll_circle_face[14][3] = {
+static const uint g_shape_preset_scroll_circle_face[14][3] = {
 	{0, 1, 2}, {2, 0, 3}, {3, 0, 15}, {3, 15, 4}, {4, 15, 14}, {4, 14, 5}, {5, 14, 13}, {5, 13, 6},
 	{6, 13, 12}, {6, 12, 7}, {7, 12, 11}, {7, 11, 8}, {8, 11, 10}, {8, 10, 9}
 };
 
-
-static const float menu_tria_vert[6][2] = {
+static const float g_shape_preset_menu_arrow_vert[6][2] = {
 	{-0.33, 0.16}, {0.33, 0.16}, {0, 0.82},
 	{0, -0.82}, {-0.33, -0.16}, {0.33, -0.16}
 };
+static const uint g_shape_preset_menu_arrow_face[2][3] = {{2, 0, 1}, {3, 5, 4}};
 
-
-
-static const unsigned int menu_tria_face[2][3] = {{2, 0, 1}, {3, 5, 4}};
-
-static const float check_tria_vert[6][2] = {
+static const float g_shape_preset_checkmark_vert[6][2] = {
 	{-0.578579, 0.253369},  {-0.392773, 0.412794},  {-0.004241, -0.328551},
 	{-0.003001, 0.034320},  {1.055313, 0.864744},   {0.866408, 1.026895}
 };
 
-static const unsigned int check_tria_face[4][3] = {
+static const uint g_shape_preset_checkmark_face[4][3] = {
 	{3, 2, 4}, {3, 4, 5}, {1, 0, 3}, {0, 2, 3}
 };
+
+#define OY -0.2 
+#define SC 0.35
+static const float g_shape_preset_hold_action_vert[6][2] = {
+	{-0.5 + SC, 1.0 + OY},  {0.5, 1.0 + OY},  {0.5, 0.0 + OY + SC},
+};
+static const uint g_shape_preset_hold_action_face[2][3] = {{2, 0, 1}, {3, 5, 4}};
+#undef OY
+#undef SC
+
+/** \} */
 
 /* ************************************************* */
 
@@ -490,9 +512,12 @@ static void round_box_edges(uiWidgetBase *wt, int roundboxalign, const rcti *rec
 	round_box__edges(wt, roundboxalign, rect, rad, rad - U.pixelsize);
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Shape Preset Mini API
+ * \{ */
 
 /* based on button rect, return scaled array of triangles */
-static void widget_draw_tria_ex(
+static void shape_preset_init_trias_ex(
         uiWidgetTrias *tria, const rcti *rect, float triasize, char where,
         /* input data */
         const float verts[][2], const int verts_tot,
@@ -531,23 +556,31 @@ static void widget_draw_tria_ex(
 	tria->index = tris;
 }
 
-static void widget_num_tria(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
+static void shape_preset_init_number_arrows(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
 {
-	widget_draw_tria_ex(
+	shape_preset_init_trias_ex(
 	        tria, rect, triasize, where,
-	        num_tria_vert, ARRAY_SIZE(num_tria_vert),
-	        num_tria_face, ARRAY_SIZE(num_tria_face));
+	        g_shape_preset_number_arrow_vert, ARRAY_SIZE(g_shape_preset_number_arrow_vert),
+	        g_shape_preset_number_arrow_face, ARRAY_SIZE(g_shape_preset_number_arrow_face));
 }
 
-static void widget_scroll_circle(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
+static void shape_preset_init_hold_action(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
 {
-	widget_draw_tria_ex(
+	shape_preset_init_trias_ex(
 	        tria, rect, triasize, where,
-	        scroll_circle_vert, ARRAY_SIZE(scroll_circle_vert),
-	        scroll_circle_face, ARRAY_SIZE(scroll_circle_face));
+	        g_shape_preset_hold_action_vert, ARRAY_SIZE(g_shape_preset_hold_action_vert),
+	        g_shape_preset_hold_action_face, ARRAY_SIZE(g_shape_preset_hold_action_face));
 }
 
-static void widget_trias_draw(uiWidgetTrias *tria, unsigned int pos)
+static void shape_preset_init_scroll_circle(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
+{
+	shape_preset_init_trias_ex(
+	        tria, rect, triasize, where,
+	        g_shape_preset_scroll_circle_vert, ARRAY_SIZE(g_shape_preset_scroll_circle_vert),
+	        g_shape_preset_scroll_circle_face, ARRAY_SIZE(g_shape_preset_scroll_circle_face));
+}
+
+static void shape_preset_draw_trias(uiWidgetTrias *tria, uint pos)
 {
 	immBegin(GWN_PRIM_TRIS, tria->tot * 3);
 	for (int i = 0; i < tria->tot; ++i)
@@ -570,7 +603,7 @@ static void widget_draw_vertex_buffer(unsigned int pos, unsigned int col, int mo
 	immEnd();
 }
 
-static void widget_menu_trias(uiWidgetTrias *tria, const rcti *rect)
+static void shape_preset_trias_from_rect_menu(uiWidgetTrias *tria, const rcti *rect)
 {
 	float centx, centy, size;
 	int a;
@@ -581,15 +614,15 @@ static void widget_menu_trias(uiWidgetTrias *tria, const rcti *rect)
 	size = 0.4f * BLI_rcti_size_y(rect);
 
 	for (a = 0; a < 6; a++) {
-		tria->vec[a][0] = size * menu_tria_vert[a][0] + centx;
-		tria->vec[a][1] = size * menu_tria_vert[a][1] + centy;
+		tria->vec[a][0] = size * g_shape_preset_menu_arrow_vert[a][0] + centx;
+		tria->vec[a][1] = size * g_shape_preset_menu_arrow_vert[a][1] + centy;
 	}
 
 	tria->tot = 2;
-	tria->index = menu_tria_face;
+	tria->index = g_shape_preset_menu_arrow_face;
 }
 
-static void widget_check_trias(uiWidgetTrias *tria, const rcti *rect)
+static void shape_preset_trias_from_rect_checkmark(uiWidgetTrias *tria, const rcti *rect)
 {
 	float centx, centy, size;
 	int a;
@@ -600,13 +633,15 @@ static void widget_check_trias(uiWidgetTrias *tria, const rcti *rect)
 	size = 0.5f * BLI_rcti_size_y(rect);
 	
 	for (a = 0; a < 6; a++) {
-		tria->vec[a][0] = size * check_tria_vert[a][0] + centx;
-		tria->vec[a][1] = size * check_tria_vert[a][1] + centy;
+		tria->vec[a][0] = size * g_shape_preset_checkmark_vert[a][0] + centx;
+		tria->vec[a][1] = size * g_shape_preset_checkmark_vert[a][1] + centy;
 	}
 	
 	tria->tot = 4;
-	tria->index = check_tria_face;
+	tria->index = g_shape_preset_checkmark_face;
 }
+
+/** \} */
 
 
 /* prepares shade colors */
@@ -805,11 +840,11 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 			gpuTranslate2fv(jit[j]);
 
 			if (wtb->tria1.tot)
-				widget_trias_draw(&wtb->tria1, pos);
+				shape_preset_draw_trias(&wtb->tria1, pos);
 
 			if (wtb->tria2.tot)
-				widget_trias_draw(&wtb->tria2, pos);
-		
+				shape_preset_draw_trias(&wtb->tria2, pos);
+
 			gpuTranslate2f(-jit[j][0], -jit[j][1]);
 		}
 
@@ -2006,7 +2041,7 @@ static void widget_state(uiWidgetType *wt, int state)
 {
 	uiWidgetStateColors *wcol_state = wt->wcol_state;
 
-	if ((state & UI_BUT_LIST_ITEM) && !(state & UI_TEXTINPUT)) {
+	if ((state & UI_BUT_LIST_ITEM) && !(state & UI_STATE_TEXT_INPUT)) {
 		/* Override default widget's colors. */
 		bTheme *btheme = UI_GetTheme();
 		wt->wcol_theme = &btheme->tui.wcol_list_item;
@@ -2741,14 +2776,14 @@ static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int 
 	}
 
 	/* decoration */
-	if (!(state & UI_TEXTINPUT)) {
-		widget_num_tria(&wtb.tria1, rect, 0.6f, 'l');
-		widget_num_tria(&wtb.tria2, rect, 0.6f, 'r');
+	if (!(state & UI_STATE_TEXT_INPUT)) {
+		shape_preset_init_number_arrows(&wtb.tria1, rect, 0.6f, 'l');
+		shape_preset_init_number_arrows(&wtb.tria2, rect, 0.6f, 'r');
 	}
 
 	widgetbase_draw(&wtb, wcol);
 	
-	if (!(state & UI_TEXTINPUT)) {
+	if (!(state & UI_STATE_TEXT_INPUT)) {
 		/* text space */
 		rect->xmin += textofs;
 		rect->xmax -= textofs;
@@ -2885,12 +2920,12 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 			wcol->item[3] = 255;
 			
 			if (horizontal) {
-				widget_scroll_circle(&wtb.tria1, slider, 0.6f, 'l');
-				widget_scroll_circle(&wtb.tria2, slider, 0.6f, 'r');
+				shape_preset_init_scroll_circle(&wtb.tria1, slider, 0.6f, 'l');
+				shape_preset_init_scroll_circle(&wtb.tria2, slider, 0.6f, 'r');
 			}
 			else {
-				widget_scroll_circle(&wtb.tria1, slider, 0.6f, 'b');
-				widget_scroll_circle(&wtb.tria2, slider, 0.6f, 't');
+				shape_preset_init_scroll_circle(&wtb.tria1, slider, 0.6f, 'b');
+				shape_preset_init_scroll_circle(&wtb.tria2, slider, 0.6f, 't');
 			}
 		}
 		widgetbase_draw(&wtb, wcol);
@@ -3035,7 +3070,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	widgetbase_draw(&wtb, wcol);
 	
 	/* draw left/right parts only when not in text editing */
-	if (!(state & UI_TEXTINPUT)) {
+	if (!(state & UI_STATE_TEXT_INPUT)) {
 		int roundboxalign_slider;
 		
 		/* slider part */
@@ -3086,7 +3121,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	widgetbase_draw(&wtb, wcol);
 
 	/* add space at either side of the button so text aligns with numbuttons (which have arrow icons) */
-	if (!(state & UI_TEXTINPUT)) {
+	if (!(state & UI_STATE_TEXT_INPUT)) {
 		rect->xmax -= toffs;
 		rect->xmin += toffs;
 	}
@@ -3233,7 +3268,7 @@ static void widget_menubut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), 
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 	
 	/* decoration */
-	widget_menu_trias(&wtb.tria1, rect);
+	shape_preset_trias_from_rect_menu(&wtb.tria1, rect);
 	
 	widgetbase_draw(&wtb, wcol);
 	
@@ -3372,7 +3407,7 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 	
 	/* decoration */
 	if (state & UI_SELECT) {
-		widget_check_trias(&wtb.tria1, &recttemp);
+		shape_preset_trias_from_rect_checkmark(&wtb.tria1, &recttemp);
 	}
 	
 	widgetbase_draw(&wtb, wcol);
@@ -3455,6 +3490,7 @@ static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int 
 	widgetbase_draw(&wtb, wcol);
 }
 
+#if 0
 static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	uiWidgetBase wtb;
@@ -3462,6 +3498,25 @@ static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state),
 	
 	widget_init(&wtb);
 	
+	/* half rounded */
+	round_box_edges(&wtb, roundboxalign, rect, rad);
+
+	widgetbase_draw(&wtb, wcol);
+}
+#endif
+
+static void widget_roundbut_exec(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+{
+	uiWidgetBase wtb;
+	const float rad = 0.25f * U.widget_unit;
+
+	widget_init(&wtb);
+
+	if (state & UI_STATE_HOLD_ACTION) {
+		/* Show that keeping pressed performs another action (typically a menu). */
+		shape_preset_init_hold_action(&wtb.tria1, rect, 0.75f, 'r');
+	}
+
 	/* half rounded */
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 
@@ -3590,7 +3645,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			
 		case UI_WTYPE_EXEC:
 			wt.wcol_theme = &btheme->tui.wcol_tool;
-			wt.draw = widget_roundbut;
+			wt.draw = widget_roundbut_exec;
 			break;
 
 		case UI_WTYPE_TAB:
@@ -3769,6 +3824,10 @@ static int widget_roundbox_set(uiBut *but, rcti *rect)
 
 	return roundbox;
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Public API
+ * \{ */
 
 /* conversion from old to new buttons, so still messy */
 void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rcti *rect)
@@ -4009,12 +4068,21 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 		
 		roundboxalign = widget_roundbox_set(but, rect);
 
-		state = but->flag;
+		/* Mask out flags re-used for local state. */
+		state = but->flag & ~UI_STATE_FLAGS_ALL;
+
+		if (state & UI_SELECT_DRAW) {
+			state |= UI_SELECT;
+		}
 
 		if ((but->editstr) ||
 		    (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI) && ui_but_drag_multi_edit_get(but)))
 		{
-			state |= UI_TEXTINPUT;
+			state |= UI_STATE_TEXT_INPUT;
+		}
+
+		if (but->hold_func) {
+			state |= UI_STATE_HOLD_ACTION;
 		}
 
 		if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE))
@@ -4343,3 +4411,5 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 		UI_fontstyle_draw(fstyle, &trect, drawstr, (unsigned char *)wt->wcol.text);
 	}
 }
+
+/** \} */

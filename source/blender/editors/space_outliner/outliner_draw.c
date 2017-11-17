@@ -362,7 +362,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 						BLI_strncpy(newname, ebone->name, sizeof(ebone->name));
 						BLI_strncpy(ebone->name, oldname, sizeof(ebone->name));
 						ED_armature_bone_rename(obedit->data, oldname, newname);
-						WM_event_add_notifier(C, NC_OBJECT | ND_POSE, OBACT_NEW(sl));
+						WM_event_add_notifier(C, NC_OBJECT | ND_POSE, OBACT(sl));
 					}
 					break;
 				}
@@ -375,7 +375,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					
 					/* always make current object active */
 					tree_element_active(C, scene, sl, soops, te, OL_SETSEL_NORMAL, true);
-					ob = OBACT_NEW(sl);
+					ob = OBACT(sl);
 					
 					/* restore bone name */
 					BLI_strncpy(newname, bone->name, sizeof(bone->name));
@@ -392,7 +392,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					
 					/* always make current pose-bone active */
 					tree_element_active(C, scene, sl, soops, te, OL_SETSEL_NORMAL, true);
-					ob = OBACT_NEW(sl);
+					ob = OBACT(sl);
 
 					BLI_assert(ob->type == OB_ARMATURE);
 					
@@ -446,6 +446,7 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 	TreeStoreElem *tselem;
 	Object *ob = NULL;
 
+#if 0
 	PropertyRNA *object_prop_hide, *object_prop_hide_select, *object_prop_hide_render;
 
 	/* get RNA properties (once) */
@@ -453,6 +454,7 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 	object_prop_hide_select = RNA_struct_type_find_property(&RNA_Object, "hide_select");
 	object_prop_hide_render = RNA_struct_type_find_property(&RNA_Object, "hide_render");
 	BLI_assert(object_prop_hide && object_prop_hide_select  && object_prop_hide_render);
+#endif
 
 
 	for (te = lb->first; te; te = te->next) {
@@ -634,7 +636,7 @@ static void outliner_draw_userbuts(uiBlock *block, ARegion *ar, SpaceOops *soops
 				char buf[16] = "";
 				int but_flag = UI_BUT_DRAG_LOCK;
 
-				if (ID_IS_LINKED_DATABLOCK(id))
+				if (ID_IS_LINKED(id))
 					but_flag |= UI_BUT_DISABLED;
 
 				UI_block_emboss_set(block, UI_EMBOSS_NONE);
@@ -805,7 +807,7 @@ static void tselem_draw_icon_uibut(struct DrawIconArg *arg, int icon)
 	else {
 		uiBut *but = uiDefIconBut(arg->block, UI_BTYPE_LABEL, 0, icon, arg->xb, arg->yb, UI_UNIT_X, UI_UNIT_Y, NULL,
 		                          0.0, 0.0, 1.0, arg->alpha,
-		                          (arg->id && ID_IS_LINKED_DATABLOCK(arg->id)) ? arg->id->lib->name : "");
+		                          (arg->id && ID_IS_LINKED(arg->id)) ? arg->id->lib->name : "");
 		
 		if (arg->id)
 			UI_but_drag_set_id(but, arg->id);
@@ -1257,7 +1259,7 @@ static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, Sce
 			/* active blocks get white circle */
 			if (tselem->type == 0) {
 				if (te->idcode == ID_OB) {
-					active = (OBACT_NEW(sl) == (Object *)tselem->id) ? OL_DRAWSEL_NORMAL : OL_DRAWSEL_NONE;
+					active = (OBACT(sl) == (Object *)tselem->id) ? OL_DRAWSEL_NORMAL : OL_DRAWSEL_NONE;
 				}
 				else if (scene->obedit && scene->obedit->data == tselem->id) {
 					active = OL_DRAWSEL_NORMAL;
@@ -1363,13 +1365,13 @@ static void outliner_draw_tree_element(
 			else if (te->idcode == ID_OB) {
 				Object *ob = (Object *)tselem->id;
 				
-				if (ob == OBACT_NEW(sl) || (ob->flag & SELECT)) {
+				if (ob == OBACT(sl) || (ob->flag & SELECT)) {
 					char col[4] = {0, 0, 0, 0};
 					
 					/* outliner active ob: always white text, circle color now similar to view3d */
 					
 					active = OL_DRAWSEL_ACTIVE;
-					if (ob == OBACT_NEW(sl)) {
+					if (ob == OBACT(sl)) {
 						if (ob->flag & SELECT) {
 							UI_GetThemeColorType4ubv(TH_ACTIVE, SPACE_VIEW3D, col);
 							col[3] = alpha;
@@ -1443,7 +1445,7 @@ static void outliner_draw_tree_element(
 		else
 			offsx += 2 * ufac;
 		
-		if (tselem->type == 0 && ID_IS_LINKED_DATABLOCK(tselem->id)) {
+		if (tselem->type == 0 && ID_IS_LINKED(tselem->id)) {
 			if (tselem->id->tag & LIB_TAG_MISSING) {
 				UI_icon_draw_alpha((float)startx + offsx + 2 * ufac, (float)*starty + 2 * ufac, ICON_LIBRARY_DATA_BROKEN,
 				                   alpha_fac);

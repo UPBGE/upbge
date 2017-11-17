@@ -93,11 +93,11 @@ static const EnumPropertyItem space_items[] = {
 
 static void rna_Object_select_set(Object *ob, bContext *C, ReportList *reports, int action)
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Base *base = BKE_scene_layer_base_find(sl, ob);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Base *base = BKE_scene_layer_base_find(scene_layer, ob);
 
 	if (!base) {
-		BKE_reportf(reports, RPT_ERROR, "Object '%s' not in Render Layer '%s'!", ob->id.name + 2, sl->name);
+		BKE_reportf(reports, RPT_ERROR, "Object '%s' not in Render Layer '%s'!", ob->id.name + 2, scene_layer->name);
 		return;
 	}
 
@@ -116,18 +116,18 @@ static void rna_Object_select_set(Object *ob, bContext *C, ReportList *reports, 
 			break;
 		case 0: /* SELECT */
 		default:
-			BKE_scene_layer_base_select(sl, base);
+			BKE_scene_layer_base_select(scene_layer, base);
 			break;
 	}
 }
 
 static int rna_Object_select_get(Object *ob, bContext *C, ReportList *reports)
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Base *base = BKE_scene_layer_base_find(sl, ob);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Base *base = BKE_scene_layer_base_find(scene_layer, ob);
 
 	if (!base) {
-		BKE_reportf(reports, RPT_ERROR, "Object '%s' not in Render Layer '%s'!", ob->id.name + 2, sl->name);
+		BKE_reportf(reports, RPT_ERROR, "Object '%s' not in Render Layer '%s'!", ob->id.name + 2, scene_layer->name);
 		return -1;
 	}
 
@@ -136,11 +136,11 @@ static int rna_Object_select_get(Object *ob, bContext *C, ReportList *reports)
 
 static int rna_Object_visible_get(Object *ob, bContext *C, ReportList *reports)
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Base *base = BKE_scene_layer_base_find(sl, ob);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Base *base = BKE_scene_layer_base_find(scene_layer, ob);
 
 	if (!base) {
-		BKE_reportf(reports, RPT_ERROR, "Object '%s' not in Render Layer '%s'!", ob->id.name + 2, sl->name);
+		BKE_reportf(reports, RPT_ERROR, "Object '%s' not in Render Layer '%s'!", ob->id.name + 2, scene_layer->name);
 		return -1;
 	}
 
@@ -197,12 +197,12 @@ static void rna_Object_camera_fit_coords(
 /* copied from Mesh_getFromObject and adapted to RNA interface */
 /* settings: 0 - preview, 1 - render */
 static Mesh *rna_Object_to_mesh(
-        Object *ob, bContext *C, ReportList *reports, Scene *sce, SceneLayer *sl,
+        Object *ob, bContext *C, ReportList *reports, Scene *sce, SceneLayer *scene_layer,
         int apply_modifiers, int settings, int calc_tessface, int calc_undeformed)
 {
 	Main *bmain = CTX_data_main(C);
 
-	return rna_Main_meshes_new_from_object(bmain, reports, sce, sl, ob, apply_modifiers, settings, calc_tessface, calc_undeformed);
+	return rna_Main_meshes_new_from_object(bmain, reports, sce, scene_layer, ob, apply_modifiers, settings, calc_tessface, calc_undeformed);
 }
 
 /* mostly a copy from convertblender.c */
@@ -474,13 +474,6 @@ static void rna_Object_closest_point_on_mesh(
 
 finally:
 	free_bvhtree_from_mesh(&treeData);
-}
-
-/* ObjectBaseLegacy */
-
-static void rna_ObjectBaseLegacy_layers_from_view(BaseLegacy *base, View3D *v3d)
-{
-	base->lay = base->object->lay = v3d->lay;
 }
 
 static int rna_Object_is_modified(Object *ob, Scene *scene, int settings)
@@ -789,19 +782,6 @@ void RNA_api_object(StructRNA *srna)
 
 	func = RNA_def_function(srna, "cache_release", "BKE_object_free_caches");
 	RNA_def_function_ui_description(func, "Release memory used by caches associated with this object. Intended to be used by render engines only");
-}
-
-
-void RNA_api_object_base_legacy(StructRNA *srna)
-{
-	FunctionRNA *func;
-	PropertyRNA *parm;
-
-	func = RNA_def_function(srna, "layers_from_view", "rna_ObjectBaseLegacy_layers_from_view");
-	RNA_def_function_ui_description(func,
-	                                "Sets the object layers from a 3D View (use when adding an object in local view)");
-	parm = RNA_def_pointer(func, "view", "SpaceView3D", "", "");
-	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 }
 
 #endif /* RNA_RUNTIME */

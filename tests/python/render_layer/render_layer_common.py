@@ -25,7 +25,7 @@ def get_layer_collection(layer_collection):
 
     data['is_visible'] = (flag & (1 << 0)) != 0
     data['is_selectable'] = (flag & (1 << 1)) != 0
-    data['is_folded'] = True
+    data['is_disabled'] = (flag & (1 << 2)) != 0
 
     scene_collection = layer_collection.get_pointer(b'scene_collection')
     if scene_collection is None:
@@ -50,12 +50,12 @@ def get_layer_collection(layer_collection):
     return name, data
 
 
-def get_layer(layer):
+def get_layer(scene, layer):
     data = {}
     name = layer.get(b'name')
 
     data['name'] = name
-    data['engine'] = layer.get(b'engine')
+    data['engine'] = scene.get((b'view_render', b'engine_id'))
 
     active_base = layer.get_pointer(b'basact')
     if active_base:
@@ -83,7 +83,7 @@ def get_layers(scene):
     """Return all the render layers and their data"""
     layers = {}
     for layer in linkdata_iter(scene, b'render_layers'):
-        name, data = get_layer(layer)
+        name, data = get_layer(scene, layer)
         layers[name] = data
     return layers
 
@@ -159,6 +159,7 @@ def dump(data):
 
 PDB = False
 DUMP_DIFF = True
+UPDATE_DIFF = False # HACK used to update tests when something change
 
 
 def compare_files(file_a, file_b):
@@ -171,6 +172,11 @@ def compare_files(file_a, file_b):
         if DUMP_DIFF:
             import subprocess
             subprocess.call(["diff", "-u", file_a, file_b])
+
+        if UPDATE_DIFF:
+            import subprocess
+            subprocess.call(["cp", "-u", file_a, file_b])
+
 
         if PDB:
             import pdb

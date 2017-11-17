@@ -47,7 +47,7 @@
 
 #define IRRADIANCE_POOL_SIZE 1024
 
-static EEVEE_LightProbeStaticData e_data = { NULL }; /* Engine data */
+static EEVEE_LightProbeStaticData e_data = {NULL}; /* Engine data */
 
 extern char datatoc_background_vert_glsl[];
 extern char datatoc_default_world_frag_glsl[];
@@ -106,7 +106,7 @@ static void planar_pool_ensure_alloc(EEVEE_Data *vedata, int num_planar_ref)
 
 	/* TODO get screen percentage from layer setting */
 	// const DRWContextState *draw_ctx = DRW_context_state_get();
-	// SceneLayer *sl = draw_ctx->sl;
+	// SceneLayer *scene_layer = draw_ctx->scene_layer;
 	float screen_percentage = 1.0f;
 
 	int width = (int)(viewport_size[0] * screen_percentage);
@@ -133,9 +133,7 @@ static void planar_pool_ensure_alloc(EEVEE_Data *vedata, int num_planar_ref)
 		 * To overcome this, we bind the planar pool ourselves later */
 
 		/* XXX Do this one first so it gets it's mipmap done. */
-		DRWFboTexture tex_minmaxz = {&e_data.planar_minmaxz, DRW_TEX_RG_32, DRW_TEX_MIPMAP | DRW_TEX_TEMP};
-		DRW_framebuffer_init(&fbl->planarref_fb, &draw_engine_eevee_type,
-		                     width / 2, height / 2, &tex_minmaxz, 1);
+		DRW_framebuffer_init(&fbl->planarref_fb, &draw_engine_eevee_type, 1, 1, NULL, 0);
 	}
 }
 
@@ -393,7 +391,7 @@ void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *veda
 		// DRW_shgroup_uniform_texture(grp, "texJitter", e_data.jitter);
 		DRW_shgroup_uniform_texture(grp, "probeHdr", sldata->probe_rt);
 
-		DRW_shgroup_call_dynamic_add_empty(grp);
+		DRW_shgroup_set_instance_count(grp, 1);
 	}
 
 	{
@@ -451,7 +449,6 @@ void EEVEE_lightprobes_cache_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *veda
 		DRWShadingGroup *grp = stl->g_data->planar_downsample = DRW_shgroup_instance_create(e_data.probe_planar_downsample_sh, psl->probe_planar_downsample_ps, geom);
 		DRW_shgroup_uniform_buffer(grp, "source", &txl->planar_pool);
 		DRW_shgroup_uniform_float(grp, "fireflyFactor", &stl->effects->ssr_firefly_fac, 1);
-		DRW_shgroup_uniform_vec2(grp, "texelSize", stl->g_data->texel_size, 1);
 	}
 }
 
@@ -1058,6 +1055,7 @@ static void render_scene_to_probe(
 		/* Shading pass */
 		EEVEE_draw_default_passes(psl);
 		DRW_draw_pass(psl->material_pass);
+		DRW_draw_pass(psl->sss_pass); /* Only output standard pass */
 
 		DRW_framebuffer_texture_detach(sldata->probe_rt);
 	}
@@ -1139,7 +1137,7 @@ static void render_scene_to_planar(
 	EEVEE_create_minmax_buffer(vedata, tmp_planar_depth, layer);
 
 	/* Compute GTAO Horizons */
-	EEVEE_effects_do_gtao(sldata, vedata);
+	EEVEE_occlusion_compute(sldata, vedata);
 
 	/* Rebind Planar FB */
 	DRW_framebuffer_bind(fbl->planarref_fb);
@@ -1147,6 +1145,7 @@ static void render_scene_to_planar(
 	/* Shading pass */
 	EEVEE_draw_default_passes(psl);
 	DRW_draw_pass(psl->material_pass);
+	DRW_draw_pass(psl->sss_pass); /* Only output standard pass */
 
 	DRW_state_invert_facing();
 	DRW_state_clip_planes_reset();
@@ -1509,9 +1508,9 @@ void EEVEE_lightprobes_free(void)
 	DRW_TEXTURE_FREE_SAFE(e_data.depth_array_placeholder);
 }
 
-/**************************Game engine************************/
+/***************Game engine**************/
 EEVEE_LightProbeStaticData *EEVEE_lightprobes_static_data_get()
 {
 	return &e_data;
 }
-/***********************End of Game engine********************/
+/***********End of Game engine***********/

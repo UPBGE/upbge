@@ -798,6 +798,7 @@ struct ShadeResult;
 #define SH_NODE_TEX_POINTDENSITY		192
 #define SH_NODE_BSDF_PRINCIPLED         193
 #define SH_NODE_EEVEE_SPECULAR			195
+#define SH_NODE_BEVEL                   197
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1
@@ -816,6 +817,7 @@ extern void (*node_shader_lamp_loop)(struct ShadeInput *, struct ShadeResult *);
 void            set_node_shader_lamp_loop(void (*lamp_loop_func)(struct ShadeInput *, struct ShadeResult *));
 
 void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat, short compatibility);
+void            ntreeGPUMaterialDomain(struct bNodeTree *ntree, bool *has_surface_output, bool *has_volume_output);
 
 /** \} */
 

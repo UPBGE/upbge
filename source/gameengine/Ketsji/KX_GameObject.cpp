@@ -268,8 +268,8 @@ std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 	KX_Scene *scene = GetScene();
 	std::vector<DRWPass *>allPasses = scene->GetMaterialPasses();
 	for (DRWPass *pass : allPasses) {
-		ListBase *shgroups = DRW_shgroups_from_pass_get(pass);
-		for (DRWShadingGroup *shgroup = (DRWShadingGroup *)shgroups->first; shgroup; shgroup = DRW_shgroup_next(shgroup)) {
+		DRWShadingGroup *shgroups = DRW_shgroups_from_pass_get(pass);
+		for (DRWShadingGroup *shgroup = DRW_shgroups_from_pass_get(pass); shgroup; shgroup = DRW_shgroup_next(shgroup)) {
 			std::vector<DRWShadingGroup *>::iterator it = std::find(m_materialShGroups.begin(), m_materialShGroups.end(), shgroup);
 			if (it != m_materialShGroups.end()) {
 				continue;
@@ -324,11 +324,12 @@ void KX_GameObject::AddNewMaterialBatchesToPasses(float obmat[4][4])
 {
 	for (Gwn_Batch *b : m_materialBatches) {
 		for (DRWPass *pass : GetScene()->GetMaterialPasses()) {
-			ListBase *shgroups = DRW_shgroups_from_pass_get(pass);
-			for (DRWShadingGroup *shgroup : GetMaterialShadingGroups()) {
-				if (BLI_findindex(shgroups, shgroup) != -1) {
-					DRW_shgroup_call_add(shgroup, b, obmat);
+			for (DRWShadingGroup *shgroup = DRW_shgroups_from_pass_get(pass); shgroup; shgroup = DRW_shgroup_next(shgroup)) {
+				std::vector<DRWShadingGroup *>::iterator it = std::find(m_materialShGroups.begin(), m_materialShGroups.end(), shgroup);
+				if (it != m_materialShGroups.end()) {
+					continue;
 				}
+				DRW_shgroup_call_add(shgroup, b, obmat);
 			}
 		}
 	}

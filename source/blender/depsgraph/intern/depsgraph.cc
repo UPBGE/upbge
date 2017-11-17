@@ -82,7 +82,9 @@ static DEG_EditorUpdateScenePreCb deg_editor_update_scene_pre_cb = NULL;
 
 Depsgraph::Depsgraph()
   : time_source(NULL),
-    need_update(true)
+    need_update(true),
+    scene(NULL),
+    scene_layer(NULL)
 {
 	BLI_spin_init(&lock);
 	id_hash = BLI_ghash_ptr_new("Depsgraph id hash");
@@ -300,6 +302,7 @@ IDDepsNode *Depsgraph::add_id_node(ID *id, bool do_tag, ID *id_cow_hint)
 		 * referencing to.
 		 */
 		BLI_ghash_insert(id_hash, id, id_node);
+		id_nodes.push_back(id_node);
 	}
 	else if (do_tag) {
 		id->tag |= LIB_TAG_DOIT;
@@ -309,10 +312,10 @@ IDDepsNode *Depsgraph::add_id_node(ID *id, bool do_tag, ID *id_cow_hint)
 
 void Depsgraph::clear_id_nodes()
 {
+	/* Free memory used by ID nodes. */
 	if (use_copy_on_write) {
 		/* Stupid workaround to ensure we free IDs in a proper order. */
-		GHASH_FOREACH_BEGIN(IDDepsNode *, id_node, id_hash)
-		{
+		foreach (IDDepsNode *id_node, id_nodes) {
 			if (id_node->id_cow == NULL) {
 				/* This means builder "stole" ownership of the copy-on-written
 				 * datablock for her own dirty needs.
@@ -327,13 +330,13 @@ void Depsgraph::clear_id_nodes()
 				id_node->destroy();
 			}
 		}
-		GHASH_FOREACH_END();
 	}
-	GHASH_FOREACH_BEGIN(IDDepsNode *, id_node, id_hash)
-	{
+	foreach (IDDepsNode *id_node, id_nodes) {
 		OBJECT_GUARDED_DELETE(id_node, IDDepsNode);
 	}
-	GHASH_FOREACH_END();
+	/* Clear containers. */
+	BLI_ghash_clear(id_hash, NULL, NULL);
+	id_nodes.clear();
 }
 
 /* Add new relationship between two nodes. */
@@ -440,7 +443,6 @@ void Depsgraph::add_entry_tag(OperationDepsNode *node)
 void Depsgraph::clear_all_nodes()
 {
 	clear_id_nodes();
-	BLI_ghash_clear(id_hash, NULL, NULL);
 	if (time_source != NULL) {
 		OBJECT_GUARDED_DELETE(time_source, TimeSourceDepsNode);
 		time_source = NULL;

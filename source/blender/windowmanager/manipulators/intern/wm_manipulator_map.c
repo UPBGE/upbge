@@ -31,6 +31,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
+#include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_ghash.h"
 
@@ -195,6 +196,30 @@ void wm_manipulatormap_remove(wmManipulatorMap *mmap)
 	MEM_freeN(mmap);
 }
 
+
+wmManipulatorGroup *WM_manipulatormap_group_find(
+        struct wmManipulatorMap *mmap,
+        const char *idname)
+{
+	wmManipulatorGroupType *wgt = WM_manipulatorgrouptype_find(idname, false);
+	if (wgt) {
+		return WM_manipulatormap_group_find_ptr(mmap, wgt);
+	}
+	return NULL;
+}
+
+wmManipulatorGroup *WM_manipulatormap_group_find_ptr(
+        struct wmManipulatorMap *mmap,
+        const struct wmManipulatorGroupType *wgt)
+{
+	for (wmManipulatorGroup *mgroup = mmap->groups.first; mgroup; mgroup = mgroup->next) {
+		if (mgroup->type == wgt) {
+			return mgroup;
+		}
+	}
+	return NULL;
+}
+
 const ListBase *WM_manipulatormap_group_list(wmManipulatorMap *mmap)
 {
 	return &mmap->groups;
@@ -327,13 +352,14 @@ static void manipulatormap_prepare_drawing(
 		}
 
 		/* needs to be initialized on first draw */
-		wm_manipulatorgroup_ensure_initialized(mgroup, C);
-		/* update data if needed */
 		/* XXX weak: Manipulator-group may skip refreshing if it's invisible (map gets untagged nevertheless) */
-		if ((mmap->update_flag[drawstep] & MANIPULATORMAP_IS_REFRESH_CALLBACK) && mgroup->type->refresh) {
-			mgroup->type->refresh(C, mgroup);
-			/* cleared below */
+		if (mmap->update_flag[drawstep] & MANIPULATORMAP_IS_REFRESH_CALLBACK) {
+			/* force refresh again. */
+			mgroup->init_flag &= ~WM_MANIPULATORGROUP_INIT_REFRESH;
 		}
+		/* Calls `setup`, `setup_keymap` and `refresh` if they're defined. */
+		wm_manipulatorgroup_ensure_initialized(mgroup, C);
+
 		/* prepare drawing */
 		if (mgroup->type->draw_prepare) {
 			mgroup->type->draw_prepare(C, mgroup);

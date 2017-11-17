@@ -58,7 +58,8 @@ typedef struct bToolDef {
 	char keymap[64];
 	char manipulator_group[64];
 	int  spacetype;
-	int  _pad;
+	/* index when a tool is a member of a group */
+	int  index;
 } bToolDef;
 
 /**
@@ -94,8 +95,6 @@ typedef struct WorkSpace {
 	bToolDef tool;
 
 	struct SceneLayer *render_layer DNA_PRIVATE_WORKSPACE;
-
-	char engine_id[32]; /* Render Engine. */
 	struct ViewRender view_render;
 } WorkSpace;
 

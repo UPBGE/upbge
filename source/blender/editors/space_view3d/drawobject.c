@@ -320,7 +320,7 @@ bool draw_glsl_material(Scene *scene, SceneLayer *sl, Object *ob, View3D *v3d, c
 		return false;
 	if (!check_object_draw_texture(scene, v3d, dt))
 		return false;
-	if (ob == OBACT_NEW(sl) && (ob && ob->mode & OB_MODE_WEIGHT_PAINT))
+	if (ob == OBACT(sl) && (ob && ob->mode & OB_MODE_WEIGHT_PAINT))
 		return false;
 	
 	if (v3d->flag2 & V3D_SHOW_SOLID_MATCAP)
@@ -1677,7 +1677,7 @@ bool view3d_camera_border_hack_test = false;
 /* ****************** draw clip data *************** */
 
 static void draw_viewport_object_reconstruction(
-        Scene *scene, BaseLegacy *base, const View3D *v3d, const RegionView3D *rv3d,
+        Scene *scene, Base *base, const View3D *v3d, const RegionView3D *rv3d,
         MovieClip *clip, MovieTrackingObject *tracking_object,
         const short dflag, const unsigned char ob_wire_col[4],
         int *global_track_index, bool draw_selected)
@@ -1864,7 +1864,7 @@ static void draw_viewport_object_reconstruction(
 }
 
 static void draw_viewport_reconstruction(
-        Scene *scene, BaseLegacy *base, const View3D *v3d, const RegionView3D *rv3d, MovieClip *clip,
+        Scene *scene, Base *base, const View3D *v3d, const RegionView3D *rv3d, MovieClip *clip,
         const short dflag, const unsigned char ob_wire_col[4],
         const bool draw_selected)
 {
@@ -4312,7 +4312,7 @@ static void draw_mesh_fancy(
 	eWireDrawMode draw_wire = OBDRAW_WIRE_OFF;
 	bool /* no_verts,*/ no_edges, no_faces;
 	DerivedMesh *dm = mesh_get_derived_final(eval_ctx, scene, ob, scene->customdata_mask);
-	const bool is_obact = (ob == OBACT_NEW(sl));
+	const bool is_obact = (ob == OBACT(sl));
 	int draw_flags = (is_obact && BKE_paint_select_face_test(ob)) ? DRAW_FACE_SELECT : 0;
 
 	if (!dm)
@@ -4565,7 +4565,7 @@ static void draw_mesh_fancy(
 
 /* returns true if nothing was drawn, for detecting to draw an object center */
 static bool draw_mesh_object(
-        const EvaluationContext *eval_ctx, Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, RegionView3D *rv3d, BaseLegacy *base,
+        const EvaluationContext *eval_ctx, Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
         const char dt, const unsigned char ob_wire_col[4], const short dflag)
 {
 	Object *ob = base->object;
@@ -4728,7 +4728,7 @@ static void draw_mesh_fancy_new(EvaluationContext *eval_ctx, Scene *scene, Scene
 	eWireDrawMode draw_wire = OBDRAW_WIRE_OFF; /* could be bool draw_wire_overlay */
 	bool no_edges, no_faces;
 	DerivedMesh *dm = mesh_get_derived_final(eval_ctx, scene, ob, scene->customdata_mask);
-	const bool is_obact = (ob == OBACT_NEW(sl));
+	const bool is_obact = (ob == OBACT(sl));
 	int draw_flags = (is_obact && BKE_paint_select_face_test(ob)) ? DRAW_FACE_SELECT : 0;
 
 	if (!dm)
@@ -4849,7 +4849,7 @@ static void draw_mesh_fancy_new(EvaluationContext *eval_ctx, Scene *scene, Scene
 		    !(G.f & G_PICKSEL || (draw_flags & DRAW_FACE_SELECT)) &&
 		    (draw_wire == OBDRAW_WIRE_OFF))
 		{
-			draw_mesh_object_outline_new(v3d, rv3d, ob, me, (ob == OBACT_NEW(sl)));
+			draw_mesh_object_outline_new(v3d, rv3d, ob, me, (ob == OBACT(sl)));
 		}
 
 		if (draw_glsl_material(scene, sl, ob, v3d, dt) && !(draw_flags & DRAW_MODIFIERS_PREVIEW)) {
@@ -4916,7 +4916,7 @@ static void draw_mesh_fancy_new(EvaluationContext *eval_ctx, Scene *scene, Scene
 				    (draw_wire == OBDRAW_WIRE_OFF) &&
 				    (ob->sculpt == NULL))
 				{
-					draw_mesh_object_outline_new(v3d, rv3d, ob, me, (ob == OBACT_NEW(sl)));
+					draw_mesh_object_outline_new(v3d, rv3d, ob, me, (ob == OBACT(sl)));
 				}
 
 				/* materials arent compatible with vertex colors */
@@ -4941,7 +4941,7 @@ static void draw_mesh_fancy_new(EvaluationContext *eval_ctx, Scene *scene, Scene
 			    (ob->sculpt == NULL))
 			{
 				/* TODO: move this into a separate pass */
-				draw_mesh_object_outline_new(v3d, rv3d, ob, me, (ob == OBACT_NEW(sl)));
+				draw_mesh_object_outline_new(v3d, rv3d, ob, me, (ob == OBACT(sl)));
 			}
 
 			glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
@@ -5027,7 +5027,7 @@ static void draw_mesh_fancy_new(EvaluationContext *eval_ctx, Scene *scene, Scene
 	dm->release(dm);
 }
 
-static bool UNUSED_FUNCTION(draw_mesh_object_new)(const bContext *C, Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, RegionView3D *rv3d, BaseLegacy *base,
+static bool UNUSED_FUNCTION(draw_mesh_object_new)(const bContext *C, Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
                                  const char dt, const unsigned char ob_wire_col[4], const short dflag)
 {
 	EvaluationContext eval_ctx;
@@ -5427,7 +5427,7 @@ static void drawCurveDMWired(Object *ob)
 }
 
 /* return true when nothing was drawn */
-static bool drawCurveDerivedMesh(Scene *scene, SceneLayer *sl, View3D *v3d, RegionView3D *rv3d, BaseLegacy *base, const char dt)
+static bool drawCurveDerivedMesh(Scene *scene, SceneLayer *sl, View3D *v3d, RegionView3D *rv3d, Base *base, const char dt)
 {
 	Object *ob = base->object;
 	DerivedMesh *dm = ob->derivedFinal;
@@ -5941,7 +5941,7 @@ static void draw_new_particle_system(
 	if (pars == NULL) return;
 
 	/* don't draw normal paths in edit mode */
-	if (psys_in_edit_mode(scene, psys) && (pset->flag & PE_DRAW_PART) == 0)
+	if (psys_in_edit_mode(eval_ctx->scene_layer, psys) && (pset->flag & PE_DRAW_PART) == 0)
 		return;
 
 	if (part->draw_as == PART_DRAW_REND)
@@ -8443,7 +8443,7 @@ void draw_object_wire_color(Scene *scene, SceneLayer *sl, Base *base, unsigned c
 	}
 	else {
 		/* Sets the 'colindex' */
-		if (ID_IS_LINKED_DATABLOCK(ob)) {
+		if (ID_IS_LINKED(ob)) {
 			colindex = ((base->flag & BASE_SELECTED) || (base->flag_legacy & BA_WAS_SEL)) ? 2 : 1;
 		}
 		/* Sets the 'theme_id' or fallback to wire */
@@ -8578,7 +8578,7 @@ void draw_object(
 	unsigned char _ob_wire_col[4];            /* dont initialize this */
 	const unsigned char *ob_wire_col = NULL;  /* dont initialize this, use NULL crashes as a way to find invalid use */
 	bool zbufoff = false, is_paint = false, empty_object = false;
-	const bool is_obact = (ob == OBACT_NEW(sl));
+	const bool is_obact = (ob == OBACT(sl));
 	const bool render_override = (v3d->flag2 & V3D_RENDER_OVERRIDE) != 0;
 	const bool is_picking = (G.f & G_PICKSEL) != 0;
 	const bool has_particles = (ob->particlesystem.first != NULL);
@@ -9196,7 +9196,7 @@ afterdraw:
 				    !(G.f & G_RENDER_OGL))
 				{
 					/* check > 0 otherwise grease pencil can draw into the circle select which is annoying. */
-					drawcentercircle(v3d, rv3d, ob->obmat[3], do_draw_center, ID_IS_LINKED_DATABLOCK(ob) || ob->id.us > 1);
+					drawcentercircle(v3d, rv3d, ob->obmat[3], do_draw_center, ID_IS_LINKED(ob) || ob->id.us > 1);
 				}
 			}
 		}

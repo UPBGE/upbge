@@ -59,6 +59,7 @@ set(SRC
 	intern/draw_cache_impl_displist.c
 	intern/draw_cache_impl_lattice.c
 	intern/draw_cache_impl_mesh.c
+	intern/draw_cache_impl_metaball.c
 	intern/draw_cache_impl_particles.c
 	intern/draw_common.c
 	intern/draw_manager.c
@@ -69,6 +70,7 @@ set(SRC
 	modes/edit_curve_mode.c
 	modes/edit_lattice_mode.c
 	modes/edit_mesh_mode.c
+	modes/edit_mesh_mode_text.c
 	modes/edit_metaball_mode.c
 	modes/edit_surface_mode.c
 	modes/edit_text_mode.c
@@ -81,12 +83,20 @@ set(SRC
 	modes/sculpt_mode.c
 	engines/basic/basic_engine.c
 	engines/clay/clay_engine.c
+	engines/eevee/eevee_bloom.c
 	engines/eevee/eevee_data.c
-	engines/eevee/eevee_engine.c
-	engines/eevee/eevee_lights.c
-	engines/eevee/eevee_lightprobes.c
-	engines/eevee/eevee_materials.c
+	engines/eevee/eevee_depth_of_field.c
 	engines/eevee/eevee_effects.c
+	engines/eevee/eevee_engine.c
+	engines/eevee/eevee_lightprobes.c
+	engines/eevee/eevee_lights.c
+	engines/eevee/eevee_materials.c
+	engines/eevee/eevee_motion_blur.c
+	engines/eevee/eevee_occlusion.c
+	engines/eevee/eevee_screen_raytrace.c
+	engines/eevee/eevee_subsurface.c
+	engines/eevee/eevee_temporal_sampling.c
+	engines/eevee/eevee_volumes.c
 	engines/external/external_engine.c
 
 	DRW_engine.h
@@ -98,6 +108,7 @@ set(SRC
 	intern/draw_manager_profiling.h
 	intern/draw_view.h
 	modes/draw_mode_engines.h
+	modes/edit_mesh_mode_intern.h
 	engines/basic/basic_engine.h
 	engines/clay/clay_engine.h
 	engines/eevee/eevee_engine.h
@@ -147,6 +158,7 @@ data_to_c_simple(engines/eevee/shaders/effect_gtao_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_minmaxz_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_motion_blur_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_ssr_frag.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/effect_subsurface_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_temporal_aa.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/lightprobe_planar_downsample_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/lightprobe_planar_downsample_geom.glsl SRC)
@@ -168,7 +180,13 @@ data_to_c_simple(engines/eevee/shaders/bsdf_sampling_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/raytrace_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/ltc_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/ssr_lib.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/volumetric_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/volumetric_frag.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/volumetric_geom.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/volumetric_vert.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/volumetric_resolve_frag.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/volumetric_scatter_frag.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/volumetric_integration_frag.glsl SRC)
 
 data_to_c_simple(modes/shaders/common_globals_lib.glsl SRC)
 data_to_c_simple(modes/shaders/common_fxaa_lib.glsl SRC)

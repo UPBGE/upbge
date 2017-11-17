@@ -424,7 +424,7 @@ static void object_delete_cb(
 		if (scene->obedit == ob)
 			ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);
 		
-		ED_base_object_free_and_unlink(CTX_data_main(C), scene, ob);
+		ED_object_base_free_and_unlink(CTX_data_main(C), scene, ob);
 		/* leave for ED_outliner_id_unref to handle */
 #if 0
 		te->directdata = NULL;
@@ -444,7 +444,7 @@ static void id_local_cb(
         bContext *C, ReportList *UNUSED(reports), Scene *UNUSED(scene), TreeElement *UNUSED(te),
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
-	if (ID_IS_LINKED_DATABLOCK(tselem->id) && (tselem->id->tag & LIB_TAG_EXTERN)) {
+	if (ID_IS_LINKED(tselem->id) && (tselem->id->tag & LIB_TAG_EXTERN)) {
 		Main *bmain = CTX_data_main(C);
 		/* if the ID type has no special local function,
 		 * just clear the lib */
@@ -928,7 +928,7 @@ static Base *outline_delete_hierarchy(bContext *C, ReportList *reports, Scene *s
 		            base->object->id.name + 2, scene->id.name + 2);
 		return base_next;
 	}
-	ED_base_object_free_and_unlink(CTX_data_main(C), scene, base->object);
+	ED_object_base_free_and_unlink(CTX_data_main(C), scene, base->object);
 	return base_next;
 }
 
@@ -1802,7 +1802,7 @@ static EnumPropertyItem prop_collection_op_types[] = {
     {OL_COLLECTION_OP_OBJECTS_REMOVE, "OBJECTS_REMOVE", ICON_X, "Remove Selected", "Remove selected objects from collection"},
     {OL_COLLECTION_OP_COLLECTION_NEW, "COLLECTION_NEW", ICON_NEW, "New Collection", "Add a new nested collection"},
     {OL_COLLECTION_OP_COLLECTION_UNLINK, "COLLECTION_UNLINK", ICON_UNLINKED, "Unlink", "Unlink collection"},
-    {OL_COLLECTION_OP_COLLECTION_DEL, "COLLECTION_NEW", ICON_X, "Delete Collection", "Delete the collection"},
+    {OL_COLLECTION_OP_COLLECTION_DEL, "COLLECTION_DEL", ICON_X, "Delete Collection", "Delete the collection"},
     {0, NULL, 0, NULL, NULL}
 };
 

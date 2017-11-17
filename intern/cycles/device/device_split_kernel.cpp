@@ -34,7 +34,6 @@ DeviceSplitKernel::DeviceSplitKernel(Device *device)
   use_queues_flag(device, "use_queues_flag"),
   work_pool_wgs(device, "work_pool_wgs")
 {
-	current_max_closure = -1;
 	first_tile = true;
 
 	avg_time_per_sample = 0.0;
@@ -92,6 +91,7 @@ bool DeviceSplitKernel::load_kernels(const DeviceRequestedFeatures& requested_fe
 #define LOAD_KERNEL(name) \
 		kernel_##name = get_split_kernel_function(#name, requested_features); \
 		if(!kernel_##name) { \
+			device->set_error(string("Split kernel error: failed to load kernel_") + #name); \
 			return false; \
 		}
 
@@ -115,8 +115,6 @@ bool DeviceSplitKernel::load_kernels(const DeviceRequestedFeatures& requested_fe
 	LOAD_KERNEL(buffer_update);
 
 #undef LOAD_KERNEL
-
-	current_max_closure = requested_features.max_closure;
 
 	return true;
 }
@@ -280,8 +278,8 @@ bool DeviceSplitKernel::path_trace(DeviceTask *task,
 			activeRaysAvailable = false;
 
 			for(int rayStateIter = 0; rayStateIter < global_size[0] * global_size[1]; ++rayStateIter) {
-				if(!IS_STATE(ray_state.get_data(), rayStateIter, RAY_INACTIVE)) {
-					if(IS_STATE(ray_state.get_data(), rayStateIter, RAY_INVALID)) {
+				if(!IS_STATE(ray_state.data(), rayStateIter, RAY_INACTIVE)) {
+					if(IS_STATE(ray_state.data(), rayStateIter, RAY_INVALID)) {
 						/* Something went wrong, abort to avoid looping endlessly. */
 						device->set_error("Split kernel error: invalid ray state");
 						return false;

@@ -501,7 +501,7 @@ static int layers_poll(bContext *C)
 {
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
-	return (ob && !ID_IS_LINKED_DATABLOCK(ob) && ob->type == OB_MESH && data && !ID_IS_LINKED_DATABLOCK(data));
+	return (ob && !ID_IS_LINKED(ob) && ob->type == OB_MESH && data && !ID_IS_LINKED(data));
 }
 
 static int mesh_uv_texture_add_exec(bContext *C, wmOperator *UNUSED(op))
@@ -541,7 +541,7 @@ static int drop_named_image_invoke(bContext *C, wmOperator *op, const wmEvent *e
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = CTX_wm_view3d(C);
-	BaseLegacy *base;
+	Base *base;
 	Image *ima = NULL;
 	Mesh *me;
 	Object *obedit;
@@ -749,7 +749,7 @@ static int mesh_customdata_mask_clear_poll(bContext *C)
 			return false;
 		}
 
-		if (!ID_IS_LINKED_DATABLOCK(me)) {
+		if (!ID_IS_LINKED(me)) {
 			CustomData *data = GET_CD_DATA(me, vdata);
 			if (CustomData_has_layer(data, CD_PAINT_MASK)) {
 				return true;
@@ -803,7 +803,7 @@ static int mesh_customdata_skin_state(bContext *C)
 
 	if (ob && ob->type == OB_MESH) {
 		Mesh *me = ob->data;
-		if (!ID_IS_LINKED_DATABLOCK(me)) {
+		if (!ID_IS_LINKED(me)) {
 			CustomData *data = GET_CD_DATA(me, vdata);
 			return CustomData_has_layer(data, CD_MVERT_SKIN);
 		}

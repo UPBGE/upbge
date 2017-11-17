@@ -336,20 +336,20 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 	BL::RenderLayer b_rlay = *b_single_rlay;
 
 	if(do_update_only) {
-		/* update only needed */
+		/* Sample would be zero at initial tile update, which is only needed
+		 * to tag tile form blender side as IN PROGRESS for proper highlight
+		 * no buffers should be sent to blender yet. For denoise we also
+		 * keep showing the noisy buffers until denoise is done. */
+		bool merge = (rtile.sample != 0) && (rtile.task != RenderTile::DENOISE);
 
-		if(rtile.sample != 0) {
-			/* sample would be zero at initial tile update, which is only needed
-			 * to tag tile form blender side as IN PROGRESS for proper highlight
-			 * no buffers should be sent to blender yet
-			 */
+		if(merge) {
 			update_render_result(b_rr, b_rlay, rtile);
 		}
 
-		end_render_result(b_engine, b_rr, true, highlight, true);
+		end_render_result(b_engine, b_rr, true, highlight, merge);
 	}
 	else {
-		/* write result */
+		/* Write final render result. */
 		write_render_result(b_rr, b_rlay, rtile);
 		end_render_result(b_engine, b_rr, false, false, true);
 	}
@@ -386,7 +386,10 @@ void BlenderSession::render()
 	BL::RenderSettings r = b_scene.render();
 	BL::RenderSettings::layers_iterator b_layer_iter;
 	BL::RenderResult::views_iterator b_view_iter;
-	
+
+	/* We do some special meta attributes when we only have single layer. */
+	const bool is_single_layer = (r.layers.length() == 1);
+
 	for(r.layers.begin(b_layer_iter); b_layer_iter != r.layers.end(); ++b_layer_iter) {
 		b_rlay_name = b_layer_iter->name();
 
@@ -479,6 +482,15 @@ void BlenderSession::render()
 
 			if(session->progress.get_cancel())
 				break;
+		}
+
+		if(is_single_layer) {
+			BL::RenderResult b_rr = b_engine.get_result();
+			string num_aa_samples = string_printf("%d", session->params.samples);
+			b_rr.stamp_data_add_field("Cycles Samples", num_aa_samples.c_str());
+			/* TODO(sergey): Report whether we're doing resumable render
+			 * and also start/end sample if so.
+			 */
 		}
 
 		/* free result without merging */

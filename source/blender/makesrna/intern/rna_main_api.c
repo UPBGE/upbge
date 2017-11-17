@@ -301,14 +301,25 @@ static Mesh *rna_Main_meshes_new(Main *bmain, const char *name)
 /* copied from Mesh_getFromObject and adapted to RNA interface */
 /* settings: 1 - preview, 2 - render */
 Mesh *rna_Main_meshes_new_from_object(
-        Main *bmain, ReportList *reports, Scene *sce, SceneLayer *sl,
+        Main *bmain, ReportList *reports, Scene *sce, SceneLayer *scene_layer,
         Object *ob, int apply_modifiers, int settings, int calc_tessface, int calc_undeformed)
 {
 	EvaluationContext eval_ctx;
 
+	/* XXX: This should never happen, but render pipeline is not ready to give
+	 * proper scene_layer, and will always pass NULL here. For until we port
+	 * pipeline form SceneRenderLayer to SceneLayer we have this stub to prevent
+	 * some obvious crashes.
+	 *                                                         - sergey -
+	 */
+	if (scene_layer == NULL) {
+		scene_layer = sce->render_layers.first;
+	}
+
 	DEG_evaluation_context_init(&eval_ctx, settings);
 	eval_ctx.ctime = (float)sce->r.cfra + sce->r.subframe;
-	eval_ctx.scene_layer = sl;
+	eval_ctx.scene_layer = scene_layer;
+	eval_ctx.depsgraph = BKE_scene_get_depsgraph(sce, scene_layer, false);
 
 	switch (ob->type) {
 		case OB_FONT:

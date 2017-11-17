@@ -3262,6 +3262,10 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 	// have_seq = (scene->r.scemode & R_DOSEQ) && scene->ed && scene->ed->seqbase.first);  /* UNUSED */
 	have_comp = (scene->r.scemode & R_DOCOMP) && scene->use_nodes && scene->nodetree;
 
+	/* Get depsgraph and scene layer for the strip. */
+	SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(scene);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, scene_layer, true);
+
 	orig_data.scemode = scene->r.scemode;
 	orig_data.cfra = scene->r.cfra;
 	orig_data.subframe = scene->r.subframe;
@@ -3311,10 +3315,10 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 
 		/* opengl offscreen render */
 		context->eval_ctx->engine = RE_engines_find(scene->view_render.engine_id);
-		BKE_scene_update_for_newframe(context->eval_ctx, context->bmain, scene);
+		BKE_scene_graph_update_for_newframe(context->eval_ctx, depsgraph, context->bmain, scene, scene_layer);
 		ibuf = sequencer_view3d_cb(
 		        /* set for OpenGL render (NULL when scrubbing) */
-		        context->eval_ctx, scene, BKE_scene_layer_from_scene_get(scene), camera, width, height, IB_rect,
+		        context->eval_ctx, scene, scene_layer, camera, width, height, IB_rect,
 		        context->scene->r.seq_prev_type,
 		        (context->scene->r.seq_flag & R_SEQ_SOLID_TEX) != 0,
 		        use_gpencil, use_background, scene->r.alphamode,
@@ -3344,7 +3348,14 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 			if (re == NULL)
 				re = RE_NewSceneRender(scene);
 
-			BKE_scene_update_for_newframe(context->eval_ctx, context->bmain, scene);
+			/* NOTE: Without this tag rendering from command line fails.
+			 * TODO(sergey): Need some proper solution with ported
+			 * BKE_scene_set_background() or DEG_on_visible_change() ?
+			 */
+			RE_SetDepsgraph(re, depsgraph);
+			DEG_graph_id_tag_update(context->bmain, depsgraph, &scene->id, 0);
+
+			BKE_scene_graph_update_for_newframe(context->eval_ctx, depsgraph, context->bmain, scene, scene_layer);
 			RE_BlenderFrame(re, context->bmain, scene, NULL, camera, scene->lay, frame, false);
 
 			/* restore previous state after it was toggled on & off by RE_BlenderFrame */
@@ -3404,7 +3415,7 @@ finally:
 	scene->r.subframe = orig_data.subframe;
 
 	if (is_frame_update) {
-		BKE_scene_update_for_newframe(context->eval_ctx, context->bmain, scene);
+		BKE_scene_graph_update_for_newframe(context->eval_ctx, depsgraph, context->bmain, scene, scene_layer);
 	}
 
 #ifdef DURIAN_CAMERA_SWITCH

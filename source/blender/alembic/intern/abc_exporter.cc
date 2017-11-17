@@ -28,6 +28,7 @@
 #include "abc_camera.h"
 #include "abc_curves.h"
 #include "abc_hair.h"
+#include "abc_mball.h"
 #include "abc_mesh.h"
 #include "abc_nurbs.h"
 #include "abc_points.h"
@@ -37,6 +38,7 @@
 extern "C" {
 #include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_meta_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -54,6 +56,7 @@ extern "C" {
 #include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_main.h"
+#include "BKE_mball.h"
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
@@ -108,7 +111,7 @@ static bool object_is_smoke_sim(Object *ob)
 	return false;
 }
 
-static bool object_type_is_exportable(Object *ob)
+static bool object_type_is_exportable(Scene *scene, Object *ob)
 {
 	switch (ob->type) {
 		case OB_MESH:
@@ -122,6 +125,8 @@ static bool object_type_is_exportable(Object *ob)
 		case OB_SURF:
 		case OB_CAMERA:
 			return true;
+		case OB_MBALL:
+			return AbcMBallWriter::isBasisBall(scene, ob);
 		default:
 			return false;
 	}
@@ -163,13 +168,18 @@ static bool export_object(const ExportSettings * const settings, const Base * co
 
 /* ************************************************************************** */
 
-AbcExporter::AbcExporter(EvaluationContext *eval_ctx, Scene *scene, const char *filename, ExportSettings &settings)
-    : m_settings(settings)
+AbcExporter::AbcExporter(Main *bmain, EvaluationContext *eval_ctx, Scene *scene, SceneLayer *scene_layer,
+                         Depsgraph *depsgraph,
+                         const char *filename, ExportSettings &settings)
+    : m_bmain(bmain)
+    , m_settings(settings)
     , m_filename(filename)
     , m_trans_sampling_index(0)
     , m_shape_sampling_index(0)
     , m_eval_ctx(eval_ctx)
     , m_scene(scene)
+    , m_scene_layer(scene_layer)
+    , m_depsgraph(depsgraph)
     , m_writer(NULL)
 {}
 
@@ -354,18 +364,16 @@ void AbcExporter::operator()(Main *bmain, float &progress, bool &was_canceled)
 
 void AbcExporter::createTransformWritersHierarchy(EvaluationContext *eval_ctx)
 {
-	for (Base *base = static_cast<Base *>(m_settings.sl->object_bases.first); base; base = base->next) {
+	for (Base *base = static_cast<Base *>(m_settings.scene_layer->object_bases.first); base; base = base->next) {
 		Object *ob = base->object;
 
 		if (export_object(&m_settings, base, false)) {
 			switch (ob->type) {
 				case OB_LAMP:
 				case OB_LATTICE:
-				case OB_MBALL:
 				case OB_SPEAKER:
 					/* We do not export transforms for objects of these classes. */
 					break;
-
 				default:
 					exploreTransform(eval_ctx, base, ob->parent, NULL);
 			}
@@ -383,7 +391,7 @@ void AbcExporter::exploreTransform(EvaluationContext *eval_ctx, Base *ob_base, O
 		return;
 	}
 
-	if (object_type_is_exportable(ob)) {
+	if (object_type_is_exportable(m_scene, ob)) {
 		createTransformWriter(eval_ctx, ob, parent, dupliObParent);
 	}
 
@@ -487,7 +495,7 @@ AbcTransformWriter * AbcExporter::createTransformWriter(EvaluationContext *eval_
 
 void AbcExporter::createShapeWriters(EvaluationContext *eval_ctx)
 {
-	for (Base *base = static_cast<Base *>(m_settings.sl->object_bases.first); base; base = base->next) {
+	for (Base *base = static_cast<Base *>(m_settings.scene_layer->object_bases.first); base; base = base->next) {
 		exploreObject(eval_ctx, base, NULL);
 	}
 }
@@ -553,7 +561,7 @@ void AbcExporter::createShapeWriter(Base *ob_base, Object *dupliObParent)
 {
 	Object *ob = ob_base->object;
 
-	if (!object_type_is_exportable(ob)) {
+	if (!object_type_is_exportable(m_scene, ob)) {
 		return;
 	}
 
@@ -619,6 +627,18 @@ void AbcExporter::createShapeWriter(Base *ob_base, Object *dupliObParent)
 
 			break;
 		}
+		case OB_MBALL:
+		{
+			MetaBall *mball = static_cast<MetaBall *>(ob->data);
+			if (!mball) {
+				return;
+			}
+
+			m_shapes.push_back(new AbcMBallWriter(
+			                       m_bmain, m_eval_ctx, m_scene, ob, xform,
+			                       m_shape_sampling_index, m_settings));
+			break;
+		}
 	}
 }
 
@@ -637,5 +657,5 @@ void AbcExporter::setCurrentFrame(Main *bmain, double t)
 {
 	m_scene->r.cfra = static_cast<int>(t);
 	m_scene->r.subframe = static_cast<float>(t) - m_scene->r.cfra;
-	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, m_scene);
+	BKE_scene_graph_update_for_newframe(bmain->eval_ctx, m_depsgraph, bmain, m_scene, m_scene_layer);
 }

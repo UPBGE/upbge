@@ -43,6 +43,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_threads.h"
+#include "BLI_string.h"
 
 #include "BKE_global.h"
 #include "BKE_layer.h"
@@ -111,17 +112,7 @@ void nested_id_hack_discard_pointers(ID *id_cow)
 		SPECIAL_CASE(ID_LS, FreestyleLineStyle, nodetree)
 		SPECIAL_CASE(ID_LA, Lamp, nodetree)
 		SPECIAL_CASE(ID_MA, Material, nodetree)
-#if 0
 		SPECIAL_CASE(ID_SCE, Scene, nodetree)
-#else
-		case ID_SCE:
-		{
-			Scene *scene_cow = (Scene *)id_cow;
-			scene_cow->nodetree = NULL;
-			BLI_listbase_clear(&scene_cow->base);
-			break;
-		}
-#endif
 		SPECIAL_CASE(ID_TE, Tex, nodetree)
 		SPECIAL_CASE(ID_WO, World, nodetree)
 
@@ -153,17 +144,7 @@ const ID *nested_id_hack_get_discarded_pointers(NestedIDHackTempStorage *storage
 		SPECIAL_CASE(ID_LS, FreestyleLineStyle, nodetree, linestyle)
 		SPECIAL_CASE(ID_LA, Lamp, nodetree, lamp)
 		SPECIAL_CASE(ID_MA, Material, nodetree, material)
-#if 0
 		SPECIAL_CASE(ID_SCE, Scene, nodetree, scene)
-#else
-		case ID_SCE:
-		{
-			storage->scene = *(Scene *)id;
-			storage->scene.nodetree = NULL;
-			BLI_listbase_clear(&storage->scene.base);
-			return &storage->scene.id;
-		}
-#endif
 		SPECIAL_CASE(ID_TE, Tex, nodetree, tex)
 		SPECIAL_CASE(ID_WO, World, nodetree, world)
 
@@ -496,31 +477,31 @@ void update_copy_on_write_scene(const Depsgraph *depsgraph,
 	scene_cow->r.cfra = scene_orig->r.cfra;
 	scene_cow->r.subframe = scene_orig->r.subframe;
 	// Update bases.
-	const SceneLayer *sl_orig = (SceneLayer *)scene_orig->render_layers.first;
-	SceneLayer *sl_cow = (SceneLayer *)scene_cow->render_layers.first;
-	while (sl_orig != NULL) {
+	const SceneLayer *scene_layer_orig = (SceneLayer *)scene_orig->render_layers.first;
+	SceneLayer *scene_layer_cow = (SceneLayer *)scene_cow->render_layers.first;
+	while (scene_layer_orig != NULL) {
 		// Update pointers to active base.
-		if (sl_orig->basact == NULL) {
-			sl_cow->basact = NULL;
+		if (scene_layer_orig->basact == NULL) {
+			scene_layer_cow->basact = NULL;
 		}
 		else {
-			const Object *obact_orig = sl_orig->basact->object;
+			const Object *obact_orig = scene_layer_orig->basact->object;
 			Object *obact_cow = (Object *)depsgraph->get_cow_id(&obact_orig->id);
-			sl_cow->basact = BKE_scene_layer_base_find(sl_cow, obact_cow);
+			scene_layer_cow->basact = BKE_scene_layer_base_find(scene_layer_cow, obact_cow);
 		}
 		// Update base flags.
 		//
 		// TODO(sergey): We should probably check visibled/selectabled
 		// flag here?
-		const Base *base_orig = (Base *)sl_orig->object_bases.first;
-		Base *base_cow = (Base *)sl_cow->object_bases.first;;
+		const Base *base_orig = (Base *)scene_layer_orig->object_bases.first;
+		Base *base_cow = (Base *)scene_layer_cow->object_bases.first;;
 		while (base_orig != NULL) {
 			base_cow->flag = base_orig->flag;
 			base_orig = base_orig->next;
 			base_cow = base_cow->next;
 		}
-		sl_orig = sl_orig->next;
-		sl_cow = sl_cow->next;
+		scene_layer_orig = scene_layer_orig->next;
+		scene_layer_cow = scene_layer_cow->next;
 	}
 	// Update edit object pointer.
 	if (scene_orig->obedit != NULL) {
@@ -530,9 +511,9 @@ void update_copy_on_write_scene(const Depsgraph *depsgraph,
 		scene_cow->obedit = NULL;
 	}
 	/* Synchronize active render engine. */
-	BLI_strncpy_utf8(scene_cow->view_render.engine_id,
-	                 scene_orig->view_render.engine_id,
-	                 sizeof(scene_cow->view_render.engine_id));
+	BLI_strncpy(scene_cow->view_render.engine_id,
+	            scene_orig->view_render.engine_id,
+	            sizeof(scene_cow->view_render.engine_id));
 	/* TODO(sergey): What else do we need here? */
 }
 

@@ -36,13 +36,12 @@ extern "C" {
 #endif
 
 struct bFaceMap;
-struct BaseLegacy;
+struct Base;
 struct EnumPropertyItem;
 struct ID;
 struct Main;
 struct ModifierData;
 struct Object;
-struct Base;
 struct ReportList;
 struct Scene;
 struct SceneLayer;
@@ -83,6 +82,12 @@ typedef enum eParentType {
 	PAR_VERTEX_TRI,
 } eParentType;
 
+typedef enum eObjectSelect_Mode{
+	BA_DESELECT = 0,
+	BA_SELECT = 1,
+	BA_INVERT = 2,
+} eObjectSelect_Mode;
+
 #ifdef __RNA_TYPES_H__
 extern struct EnumPropertyItem prop_clear_parent_types[];
 extern struct EnumPropertyItem prop_make_parent_types[];
@@ -99,18 +104,9 @@ void ED_keymap_proportional_maskmode(struct wmKeyConfig *keyconf, struct wmKeyMa
 void ED_keymap_proportional_editmode(struct wmKeyConfig *keyconf, struct wmKeyMap *keymap,
                                      const bool do_connected);
 
-/* send your own notifier for select! */
-void ED_base_object_select(struct BaseLegacy *base, short mode);
-/* includes notifier */
-void ED_base_object_activate(struct bContext *C, struct BaseLegacy *base);
-
-void ED_object_base_select(struct Base *base, short mode);
+void ED_object_base_select(struct Base *base, eObjectSelect_Mode mode);
 void ED_object_base_activate(struct bContext *C, struct Base *base);
-
-void ED_base_object_free_and_unlink(struct Main *bmain, struct Scene *scene, struct Object *ob);
-
-void ED_base_object_sync_from_base(struct BaseLegacy *base, struct Object *ob);
-void ED_base_object_sync_from_object(struct BaseLegacy *base, struct Object *ob);
+void ED_object_base_free_and_unlink(struct Main *bmain, struct Scene *scene, struct Object *ob);
 
 /* single object duplicate, if (dupflag == 0), fully linked, else it uses the flags given */
 struct Base *ED_object_add_duplicate(struct Main *bmain, struct Scene *scene, struct SceneLayer *sl, struct Base *base, int dupflag);

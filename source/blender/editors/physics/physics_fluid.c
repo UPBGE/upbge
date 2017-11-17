@@ -332,6 +332,7 @@ static void fluid_init_all_channels(bContext *C, Object *UNUSED(fsDomain), Fluid
 {
 	Scene *scene = CTX_data_scene(C);
 	SceneLayer *sl = CTX_data_scene_layer(C);
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	EvaluationContext eval_ctx;
 	Base *base;
 	int i;
@@ -349,7 +350,7 @@ static void fluid_init_all_channels(bContext *C, Object *UNUSED(fsDomain), Fluid
 	channels->DomainTime = MEM_callocN(length * (CHANNEL_FLOAT+1) * sizeof(float), "channel DomainTime");
 	
 	/* allocate fluid objects */
-	for (base = FIRSTBASE_NEW(sl); base; base = base->next) {
+	for (base = FIRSTBASE(sl); base; base = base->next) {
 		Object *ob = base->object;
 		FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(ob, eModifierType_Fluidsim);
 		
@@ -408,7 +409,7 @@ static void fluid_init_all_channels(bContext *C, Object *UNUSED(fsDomain), Fluid
 		/* Modifying the global scene isn't nice, but we can do it in 
 		 * this part of the process before a threaded job is created */
 		scene->r.cfra = (int)eval_time;
-		ED_update_for_newframe(CTX_data_main(C), scene, 1);
+		ED_update_for_newframe(CTX_data_main(C), scene, sl, depsgraph);
 		
 		/* now scene data should be current according to animation system, so we fill the channels */
 		
@@ -586,7 +587,7 @@ static int fluid_validate_scene(ReportList *reports, SceneLayer *sl, Object *fsD
 	int channelObjCount = 0;
 	int fluidInputCount = 0;
 
-	for (base = FIRSTBASE_NEW(sl); base; base = base->next) {
+	for (base = FIRSTBASE(sl); base; base = base->next) {
 		Object *ob = base->object;
 		FluidsimModifierData *fluidmdtmp = (FluidsimModifierData *)modifiers_findByType(ob, eModifierType_Fluidsim);
 
@@ -846,6 +847,7 @@ static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain, shor
 {
 	Scene *scene = CTX_data_scene(C);
 	SceneLayer *sl = CTX_data_scene_layer(C);
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	int i;
 	FluidsimSettings *domainSettings;
 
@@ -957,7 +959,7 @@ static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain, shor
 
 	/* reset to original current frame */
 	scene->r.cfra = origFrame;
-	ED_update_for_newframe(CTX_data_main(C), scene, 1);
+	ED_update_for_newframe(CTX_data_main(C), scene, sl, depsgraph);
 		
 	/* ******** init domain object's matrix ******** */
 	copy_m4_m4(domainMat, fsDomain->obmat);

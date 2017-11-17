@@ -204,6 +204,24 @@ static bool find_scene_collection_in_scene_collections(ListBase *lb, const Layer
 }
 
 /**
+ * Fallback for when a Scene has no camera to use
+ *
+ * \param scene_layer: in general you want to use the same SceneLayer that is used
+ * for depsgraph. If rendering you pass the scene active layer, when viewing in the viewport
+ * you want to get SceneLayer from context.
+ */
+Object *BKE_scene_layer_camera_find(SceneLayer *scene_layer)
+{
+	for (Base *base = scene_layer->object_bases.first; base; base = base->next) {
+		if (base->object->type == OB_CAMERA) {
+			return base->object;
+		}
+	}
+
+	return NULL;
+}
+
+/**
  * Find the SceneLayer a LayerCollection belongs to
  */
 SceneLayer *BKE_scene_layer_find_from_collection(const Scene *scene, LayerCollection *lc)
@@ -1674,7 +1692,6 @@ static void object_bases_iterator_begin(BLI_Iterator *iter, void *data_in, const
 		return;
 	}
 
-	iter->valid = true;
 	iter->data = base;
 
 	if ((base->flag & flag) == 0) {
@@ -1698,7 +1715,6 @@ static void object_bases_iterator_next(BLI_Iterator *iter, const int flag)
 		base = base->next;
 	}
 
-	iter->current = NULL;
 	iter->valid = false;
 }
 
@@ -1854,7 +1870,6 @@ void BKE_renderable_objects_iterator_next(BLI_Iterator *iter)
 		return;
 	}
 
-	iter->current = NULL;
 	iter->valid = false;
 }
 
@@ -1941,9 +1956,6 @@ void BKE_layer_eval_layer_collection(const struct EvaluationContext *UNUSED(eval
 		if (is_visible) {
 			IDP_MergeGroup(base->collection_properties, layer_collection->properties_evaluated, true);
 			base->flag |= BASE_VISIBLED;
-		}
-		else {
-			base->flag &= ~BASE_VISIBLED;
 		}
 
 		if (is_selectable) {

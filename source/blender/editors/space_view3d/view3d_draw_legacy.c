@@ -534,17 +534,18 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
                               const bool do_foreground, const bool do_camera_frame)
 {
 	RegionView3D *rv3d = ar->regiondata;
-	int fg_flag = do_foreground ? V3D_BGPIC_FOREGROUND : 0;
+	int fg_flag = do_foreground ? CAM_BGIMG_FLAG_FOREGROUND : 0;
+	if (v3d->camera == NULL || v3d->camera->type != OB_CAMERA) {
+		return;
+	}
+	Camera *cam = v3d->camera->data;
 
-	for (BGpic *bgpic = v3d->bgpicbase.first; bgpic; bgpic = bgpic->next) {
+	for (CameraBGImage *bgpic = cam->bg_images.first; bgpic; bgpic = bgpic->next) {
 		bgpic->iuser.scene = scene;  /* Needed for render results. */
 
-		if ((bgpic->flag & V3D_BGPIC_FOREGROUND) != fg_flag)
+		if ((bgpic->flag & CAM_BGIMG_FLAG_FOREGROUND) != fg_flag)
 			continue;
 
-		if ((bgpic->view == 0) || /* zero for any */
-		    (bgpic->view & (1 << rv3d->view)) || /* check agaist flags */
-		    (rv3d->persp == RV3D_CAMOB && bgpic->view == (1 << RV3D_VIEW_CAMERA)))
 		{
 			float image_aspect[2];
 			float x1, y1, x2, y2, centx, centy;
@@ -554,13 +555,13 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			Image *ima = NULL;
 
 			/* disable individual images */
-			if ((bgpic->flag & V3D_BGPIC_DISABLED))
+			if ((bgpic->flag & CAM_BGIMG_FLAG_DISABLED))
 				continue;
 
 			ImBuf *ibuf = NULL;
 			ImBuf *freeibuf = NULL;
 			ImBuf *releaseibuf = NULL;
-			if (bgpic->source == V3D_BGPIC_IMAGE) {
+			if (bgpic->source == CAM_BGIMG_SOURCE_IMAGE) {
 				ima = bgpic->ima;
 				if (ima == NULL)
 					continue;
@@ -577,11 +578,11 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 				image_aspect[0] = ima->aspx;
 				image_aspect[1] = ima->aspy;
 			}
-			else if (bgpic->source == V3D_BGPIC_MOVIE) {
+			else if (bgpic->source == CAM_BGIMG_SOURCE_MOVIE) {
 				/* TODO: skip drawing when out of frame range (as image sequences do above) */
 				MovieClip *clip = NULL;
 
-				if (bgpic->flag & V3D_BGPIC_CAMERACLIP) {
+				if (bgpic->flag & CAM_BGIMG_FLAG_CAMERACLIP) {
 					if (scene->camera)
 						clip = BKE_object_movieclip_get(scene, scene->camera, true);
 				}
@@ -624,8 +625,8 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			if (ibuf->rect == NULL)
 				IMB_rect_from_float(ibuf);
 
-			if (rv3d->persp == RV3D_CAMOB) {
-
+			BLI_assert(rv3d->persp == RV3D_CAMOB);
+			{
 				if (do_camera_frame) {
 					rctf vb;
 					ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &vb, false);
@@ -645,8 +646,8 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 				/* so this has some sane way of working - this matches camera's shift _exactly_ */
 				{
 					const float max_dim = max_ff(x2 - x1, y2 - y1);
-					const float xof_scale = bgpic->xof * max_dim;
-					const float yof_scale = bgpic->yof * max_dim;
+					const float xof_scale = bgpic->offset[0] * max_dim;
+					const float yof_scale = bgpic->offset[1] * max_dim;
 
 					x1 += xof_scale;
 					y1 += yof_scale;
@@ -658,7 +659,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 				centy = (y1 + y2) * 0.5f;
 
 				/* aspect correction */
-				if (bgpic->flag & V3D_BGPIC_CAMERA_ASPECT) {
+				if (bgpic->flag & CAM_BGIMG_FLAG_CAMERA_ASPECT) {
 					/* apply aspect from clip */
 					const float w_src = ibuf->x * image_aspect[0];
 					const float h_src = ibuf->y * image_aspect[1];
@@ -671,7 +672,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 					const float asp_dst = w_dst / h_dst;
 
 					if (fabsf(asp_src - asp_dst) >= FLT_EPSILON) {
-						if ((asp_src > asp_dst) == ((bgpic->flag & V3D_BGPIC_CAMERA_CROP) != 0)) {
+						if ((asp_src > asp_dst) == ((bgpic->flag & CAM_BGIMG_FLAG_CAMERA_CROP) != 0)) {
 							/* fit X */
 							const float div = asp_src / asp_dst;
 							x1 = ((x1 - centx) * div) + centx;
@@ -685,29 +686,6 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 						}
 					}
 				}
-			}
-			else {
-				float tvec[3];
-				float sco[2];
-				const float mval_f[2] = {1.0f, 0.0f};
-				const float co_zero[3] = {0};
-
-				/* calc window coord */
-				float zfac = ED_view3d_calc_zfac(rv3d, co_zero, NULL);
-				ED_view3d_win_to_delta(ar, mval_f, tvec, zfac);
-				float fac = 1.0f / max_ff(fabsf(tvec[0]), max_ff(fabsf(tvec[1]), fabsf(tvec[2]))); /* largest abs axis */
-				float asp = (float)ibuf->y / (float)ibuf->x;
-
-				zero_v3(tvec);
-				ED_view3d_project_float_v2_m4(ar, tvec, sco, rv3d->persmat);
-
-				x1 =  sco[0] + fac * (bgpic->xof - bgpic->size);
-				y1 =  sco[1] + asp * fac * (bgpic->yof - bgpic->size);
-				x2 =  sco[0] + fac * (bgpic->xof + bgpic->size);
-				y2 =  sco[1] + asp * fac * (bgpic->yof + bgpic->size);
-
-				centx = (x1 + x2) / 2.0f;
-				centy = (y1 + y2) / 2.0f;
 			}
 
 			/* complete clip? */
@@ -762,18 +740,19 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			ED_region_pixelspace(ar);
 
 			gpuTranslate2f(centx, centy);
+			gpuScaleUniform(bgpic->scale);
 			gpuRotate2D(RAD2DEGF(-bgpic->rotation));
 
-			if (bgpic->flag & V3D_BGPIC_FLIP_X) {
+			if (bgpic->flag & CAM_BGIMG_FLAG_FLIP_X) {
 				zoomx *= -1.0f;
 				x1 = x2;
 			}
-			if (bgpic->flag & V3D_BGPIC_FLIP_Y) {
+			if (bgpic->flag & CAM_BGIMG_FLAG_FLIP_Y) {
 				zoomy *= -1.0f;
 				y1 = y2;
 			}
 
-			float col[4] = {1.0f, 1.0f, 1.0f, 1.0f - bgpic->blend};
+			float col[4] = {1.0f, 1.0f, 1.0f, bgpic->alpha};
 			IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_COLOR);
 			immDrawPixelsTex(&state, x1 - centx, y1 - centy, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR, ibuf->rect,
 			                 zoomx, zoomy, col);
@@ -794,13 +773,20 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 	}
 }
 
-static void view3d_draw_bgpic_test(Scene *scene, ARegion *ar, View3D *v3d,
-                                   const bool do_foreground, const bool do_camera_frame)
+void view3d_draw_bgpic_test(Scene *scene, ARegion *ar, View3D *v3d,
+                            const bool do_foreground, const bool do_camera_frame)
 {
 	RegionView3D *rv3d = ar->regiondata;
 
-	if ((v3d->flag & V3D_DISPBGPICS) == 0)
+	if ((rv3d->persp == RV3D_CAMOB) && v3d->camera && (v3d->camera->type == OB_CAMERA)) {
+		Camera *cam = v3d->camera->data;
+		if ((cam->flag & CAM_SHOW_BG_IMAGE) == 0) {
+			return;
+		}
+	}
+	else {
 		return;
+	}
 
 	/* disabled - mango request, since footage /w only render is quite useful
 	 * and this option is easy to disable all background images at once */
@@ -823,12 +809,12 @@ static void view3d_draw_bgpic_test(Scene *scene, ARegion *ar, View3D *v3d,
 
 typedef struct View3DAfter {
 	struct View3DAfter *next, *prev;
-	struct BaseLegacy *base;
+	struct Base *base;
 	short dflag;
 } View3DAfter;
 
 /* temp storage of Objects that need to be drawn as last */
-void ED_view3d_after_add(ListBase *lb, BaseLegacy *base, const short dflag)
+void ED_view3d_after_add(ListBase *lb, Base *base, const short dflag)
 {
 	View3DAfter *v3da = MEM_callocN(sizeof(View3DAfter), "View 3d after");
 	BLI_assert((base->flag_legacy & OB_FROMDUPLI) == 0);
@@ -958,7 +944,7 @@ static DupliObject *dupli_step(DupliObject *dob)
 }
 
 static void draw_dupli_objects_color(
-        const EvaluationContext *eval_ctx, Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, BaseLegacy *base,
+        const EvaluationContext *eval_ctx, Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, Base *base,
         const short dflag, const int color)
 {
 	RegionView3D *rv3d = ar->regiondata;
@@ -1059,7 +1045,7 @@ static void draw_dupli_objects_color(
 	free_object_duplilist(lb);
 }
 
-void draw_dupli_objects(const EvaluationContext *eval_ctx, Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, BaseLegacy *base)
+void draw_dupli_objects(const EvaluationContext *eval_ctx, Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d, Base *base)
 {
 	/* define the color here so draw_dupli_objects_color can be called
 	 * from the set loop */
@@ -1196,7 +1182,7 @@ void ED_view3d_draw_depth_gpencil(
 	glEnable(GL_DEPTH_TEST);
 
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {
-		ED_gpencil_draw_view3d(NULL, scene, v3d, ar, true);
+		ED_gpencil_draw_view3d(NULL, scene, eval_ctx->scene_layer, v3d, ar, true);
 	}
 
 	v3d->zbuf = zbuf;
@@ -1299,12 +1285,12 @@ void ED_view3d_draw_select_loop(
 	UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
 	if (vc->obedit && vc->obedit->type == OB_MBALL) {
-		draw_object(eval_ctx, scene, sl, ar, v3d, BASACT_NEW(sl), dflag);
+		draw_object(eval_ctx, scene, sl, ar, v3d, BASACT(sl), dflag);
 	}
 	else if ((vc->obedit && vc->obedit->type == OB_ARMATURE)) {
 		/* if not drawing sketch, draw bones */
 		if (!BDR_drawSketchNames(vc)) {
-			draw_object(eval_ctx, scene, sl, ar, v3d, BASACT_NEW(sl), dflag);
+			draw_object(eval_ctx, scene, sl, ar, v3d, BASACT(sl), dflag);
 		}
 	}
 	else {
@@ -1516,7 +1502,7 @@ static void view3d_draw_objects(
         const char **grid_unit,
         const bool do_bgpic, const bool draw_offscreen, GPUFX *fx)
 {
-	SceneLayer *sl = C ? CTX_data_scene_layer(C) : BKE_scene_layer_from_scene_get(scene);
+	SceneLayer *scene_layer = C ? CTX_data_scene_layer(C) : BKE_scene_layer_from_scene_get(scene);
 	RegionView3D *rv3d = ar->regiondata;
 	Base *base;
 	const bool do_camera_frame = !draw_offscreen;
@@ -1575,10 +1561,10 @@ static void view3d_draw_objects(
 		for (SETLOOPER(scene->set, sce_iter, base)) {
 			if ((base->flag & BASE_VISIBLED) != 0) {
 				UI_ThemeColorBlend(TH_WIRE, TH_BACK, 0.6f);
-				draw_object(eval_ctx, scene, sl, ar, v3d, base, dflag);
+				draw_object(eval_ctx, scene, scene_layer, ar, v3d, base, dflag);
 
 				if (base->object->transflag & OB_DUPLI) {
-					draw_dupli_objects_color(eval_ctx, scene, sl, ar, v3d, base, dflag, TH_UNDEFINED);
+					draw_dupli_objects_color(eval_ctx, scene, scene_layer, ar, v3d, base, dflag, TH_UNDEFINED);
 				}
 			}
 		}
@@ -1587,14 +1573,14 @@ static void view3d_draw_objects(
 	}
 
 	if (draw_offscreen) {
-		for (base = sl->object_bases.first; base; base = base->next) {
+		for (base = scene_layer->object_bases.first; base; base = base->next) {
 			if ((base->flag & BASE_VISIBLED) != 0) {
 				/* dupli drawing */
 				if (base->object->transflag & OB_DUPLI) {
-					draw_dupli_objects(eval_ctx, scene, sl, ar, v3d, base);
+					draw_dupli_objects(eval_ctx, scene, scene_layer, ar, v3d, base);
 				}
 
-				draw_object(eval_ctx, scene, sl, ar, v3d, base, 0);
+				draw_object(eval_ctx, scene, scene_layer, ar, v3d, base, 0);
 			}
 		}
 	}
@@ -1602,18 +1588,18 @@ static void view3d_draw_objects(
 		unsigned int lay_used = 0;
 
 		/* then draw not selected and the duplis, but skip editmode object */
-		for (base = sl->object_bases.first; base; base = base->next) {
+		for (base = scene_layer->object_bases.first; base; base = base->next) {
 			lay_used |= base->lay;
 
 			if ((base->flag & BASE_VISIBLED) != 0) {
 
 				/* dupli drawing */
 				if (base->object->transflag & OB_DUPLI) {
-					draw_dupli_objects(eval_ctx, scene, sl, ar, v3d, base);
+					draw_dupli_objects(eval_ctx, scene, scene_layer, ar, v3d, base);
 				}
 				if ((base->flag & BASE_SELECTED) == 0) {
 					if (base->object != scene->obedit)
-						draw_object(eval_ctx, scene, sl, ar, v3d, base, 0);
+						draw_object(eval_ctx, scene, scene_layer, ar, v3d, base, 0);
 				}
 			}
 		}
@@ -1622,10 +1608,10 @@ static void view3d_draw_objects(
 		v3d->lay_used = lay_used & ((1 << 20) - 1);
 
 		/* draw selected and editmode */
-		for (base = sl->object_bases.first; base; base = base->next) {
+		for (base = scene_layer->object_bases.first; base; base = base->next) {
 			if ((base->flag & BASE_VISIBLED) != 0) {
 				if (base->object == scene->obedit || (base->flag & BASE_SELECTED)) {
-					draw_object(eval_ctx, scene, sl, ar, v3d, base, 0);
+					draw_object(eval_ctx, scene, scene_layer, ar, v3d, base, 0);
 				}
 			}
 		}
@@ -1642,12 +1628,12 @@ static void view3d_draw_objects(
 		
 		/* must be before xray draw which clears the depth buffer */
 		if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
-		ED_gpencil_draw_view3d(wm, scene, v3d, ar, true);
+		ED_gpencil_draw_view3d(wm, scene, scene_layer, v3d, ar, true);
 		if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 	}
 
 	/* transp and X-ray afterdraw stuff */
-	if (v3d->afterdraw_transp.first)     view3d_draw_transp(eval_ctx, scene, sl, ar, v3d);
+	if (v3d->afterdraw_transp.first)     view3d_draw_transp(eval_ctx, scene, scene_layer, ar, v3d);
 
 	/* always do that here to cleanup depth buffers if none needed */
 	if (fx) {
@@ -1655,8 +1641,8 @@ static void view3d_draw_objects(
 		GPU_fx_compositor_setup_XRay_pass(fx, do_composite_xray);
 	}
 
-	if (v3d->afterdraw_xray.first)       view3d_draw_xray(eval_ctx, scene, sl, ar, v3d, &xrayclear);
-	if (v3d->afterdraw_xraytransp.first) view3d_draw_xraytransp(eval_ctx, scene, sl, ar, v3d, xrayclear);
+	if (v3d->afterdraw_xray.first)       view3d_draw_xray(eval_ctx, scene, scene_layer, ar, v3d, &xrayclear);
+	if (v3d->afterdraw_xraytransp.first) view3d_draw_xraytransp(eval_ctx, scene, scene_layer, ar, v3d, xrayclear);
 
 	if (fx && do_composite_xray) {
 		GPU_fx_compositor_XRay_resolve(fx);
@@ -1884,17 +1870,32 @@ static bool view3d_main_region_draw_engine(
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	if (v3d->flag & V3D_DISPBGPICS)
+	bool show_image = false;
+	{
+		Camera *cam = ED_view3d_camera_data_get(v3d, rv3d);
+		if (cam->flag & CAM_SHOW_BG_IMAGE) {
+			show_image = true;
+			view3d_draw_bgpic_test(scene, ar, v3d, false, true);
+		}
+		else {
+			imm_draw_box_checker_2d(0, 0, ar->winx, ar->winy);
+		}
+	}
+
+	if (show_image) {
 		view3d_draw_bgpic_test(scene, ar, v3d, false, true);
-	else
+	}
+	else {
 		imm_draw_box_checker_2d(0, 0, ar->winx, ar->winy);
+	}
 
 	/* render result draw */
 	type = rv3d->render_engine->type;
 	type->render_to_view(rv3d->render_engine, C);
 
-	if (v3d->flag & V3D_DISPBGPICS)
+	if (show_image) {
 		view3d_draw_bgpic_test(scene, ar, v3d, true, true);
+	}
 
 	if (clip_border) {
 		/* restore scissor as it was before */
@@ -2040,7 +2041,7 @@ static void view3d_main_region_draw_info(const bContext *C, Scene *scene,
                                        ARegion *ar, View3D *v3d,
                                        const char *grid_unit, bool render_border)
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
 	wmWindowManager *wm = CTX_wm_manager(C);
 	RegionView3D *rv3d = ar->regiondata;
 	rcti rect;
@@ -2057,11 +2058,11 @@ static void view3d_main_region_draw_info(const bContext *C, Scene *scene,
 
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {
 		/* draw grease-pencil stuff - needed to get paint-buffer shown too (since it's 2D) */
-		ED_gpencil_draw_view3d(wm, scene, v3d, ar, false);
+		ED_gpencil_draw_view3d(wm, scene, scene_layer, v3d, ar, false);
 	}
 
 	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
-		VP_legacy_drawcursor(scene, sl, ar, v3d); /* 3D cursor */
+		VP_legacy_drawcursor(scene, scene_layer, ar, v3d); /* 3D cursor */
 
 		if (U.uiflag & USER_SHOW_ROTVIEWICON)
 			VP_legacy_draw_view_axis(rv3d, &rect);
@@ -2069,7 +2070,7 @@ static void view3d_main_region_draw_info(const bContext *C, Scene *scene,
 			draw_view_icon(rv3d, &rect);
 
 		if (U.uiflag & USER_DRAWVIEWINFO) {
-			Object *ob = OBACT_NEW(sl);
+			Object *ob = OBACT(scene_layer);
 			VP_legacy_draw_selected_name(scene, ob, &rect);
 		}
 	}

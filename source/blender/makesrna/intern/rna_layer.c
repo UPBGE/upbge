@@ -359,6 +359,7 @@ RNA_LAYER_ENGINE_EEVEE_GET_SET_FLOAT(motion_blur_shutter)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_BOOL(volumetric_enable)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_FLOAT(volumetric_start)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_FLOAT(volumetric_end)
+RNA_LAYER_ENGINE_EEVEE_GET_SET_INT(volumetric_tile_size)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_INT(volumetric_samples)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_FLOAT(volumetric_sample_distribution)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_BOOL(volumetric_lights)
@@ -366,6 +367,9 @@ RNA_LAYER_ENGINE_EEVEE_GET_SET_FLOAT(volumetric_light_clamp)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_BOOL(volumetric_shadows)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_INT(volumetric_shadow_samples)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_BOOL(volumetric_colored_transmittance)
+RNA_LAYER_ENGINE_EEVEE_GET_SET_BOOL(sss_enable)
+RNA_LAYER_ENGINE_EEVEE_GET_SET_INT(sss_samples)
+RNA_LAYER_ENGINE_EEVEE_GET_SET_FLOAT(sss_jitter_threshold)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_BOOL(ssr_refraction)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_BOOL(ssr_enable)
 RNA_LAYER_ENGINE_EEVEE_GET_SET_BOOL(ssr_halfres)
@@ -422,8 +426,8 @@ static void rna_LayerCollectionEngineSettings_update(bContext *C, PointerRNA *UN
 static void rna_LayerCollectionEngineSettings_wire_update(bContext *C, PointerRNA *UNUSED(ptr))
 {
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT_NEW(sl);
+	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	Object *ob = OBACT(scene_layer);
 
 	if (ob != NULL && ob->type == OB_MESH) {
 		BKE_mesh_batch_cache_dirty(ob->data, BKE_MESH_BATCH_DIRTY_ALL);
@@ -719,45 +723,45 @@ static void rna_LayerCollection_enable_set(
 
 static int rna_LayerCollections_active_collection_index_get(PointerRNA *ptr)
 {
-	SceneLayer *sl = (SceneLayer *)ptr->data;
-	return sl->active_collection;
+	SceneLayer *scene_layer = (SceneLayer *)ptr->data;
+	return scene_layer->active_collection;
 }
 
 static void rna_LayerCollections_active_collection_index_set(PointerRNA *ptr, int value)
 {
-	SceneLayer *sl = (SceneLayer *)ptr->data;
-	int num_collections = BKE_layer_collection_count(sl);
-	sl->active_collection = min_ff(value, num_collections - 1);
+	SceneLayer *scene_layer = (SceneLayer *)ptr->data;
+	int num_collections = BKE_layer_collection_count(scene_layer);
+	scene_layer->active_collection = min_ff(value, num_collections - 1);
 }
 
 static void rna_LayerCollections_active_collection_index_range(
         PointerRNA *ptr, int *min, int *max, int *UNUSED(softmin), int *UNUSED(softmax))
 {
-	SceneLayer *sl = (SceneLayer *)ptr->data;
+	SceneLayer *scene_layer = (SceneLayer *)ptr->data;
 	*min = 0;
-	*max = max_ii(0, BKE_layer_collection_count(sl) - 1);
+	*max = max_ii(0, BKE_layer_collection_count(scene_layer) - 1);
 }
 
 static PointerRNA rna_LayerCollections_active_collection_get(PointerRNA *ptr)
 {
-	SceneLayer *sl = (SceneLayer *)ptr->data;
-	LayerCollection *lc = BKE_layer_collection_get_active(sl);
+	SceneLayer *scene_layer = (SceneLayer *)ptr->data;
+	LayerCollection *lc = BKE_layer_collection_get_active(scene_layer);
 	return rna_pointer_inherit_refine(ptr, &RNA_LayerCollection, lc);
 }
 
 static void rna_LayerCollections_active_collection_set(PointerRNA *ptr, PointerRNA value)
 {
-	SceneLayer *sl = (SceneLayer *)ptr->data;
+	SceneLayer *scene_layer = (SceneLayer *)ptr->data;
 	LayerCollection *lc = (LayerCollection *)value.data;
-	const int index = BKE_layer_collection_findindex(sl, lc);
-	if (index != -1) sl->active_collection = index;
+	const int index = BKE_layer_collection_findindex(scene_layer, lc);
+	if (index != -1) scene_layer->active_collection = index;
 }
 
 LayerCollection * rna_SceneLayer_collection_link(
-        ID *id, SceneLayer *sl, Main *bmain, SceneCollection *sc)
+        ID *id, SceneLayer *scene_layer, Main *bmain, SceneCollection *sc)
 {
 	Scene *scene = (Scene *)id;
-	LayerCollection *lc = BKE_collection_link(sl, sc);
+	LayerCollection *lc = BKE_collection_link(scene_layer, sc);
 
 	DEG_relations_tag_update(bmain);
 	/* TODO(sergey): Use proper flag for tagging here. */
@@ -768,16 +772,17 @@ LayerCollection * rna_SceneLayer_collection_link(
 }
 
 static void rna_SceneLayer_collection_unlink(
-        ID *id, SceneLayer *sl, Main *bmain, ReportList *reports, LayerCollection *lc)
+        ID *id, SceneLayer *scene_layer, Main *bmain, ReportList *reports, LayerCollection *lc)
 {
 	Scene *scene = (Scene *)id;
 
-	if (BLI_findindex(&sl->layer_collections, lc) == -1) {
-		BKE_reportf(reports, RPT_ERROR, "Layer collection '%s' is not in '%s'", lc->scene_collection->name, sl->name);
+	if (BLI_findindex(&scene_layer->layer_collections, lc) == -1) {
+		BKE_reportf(reports, RPT_ERROR, "Layer collection '%s' is not in '%s'",
+		            lc->scene_collection->name, scene_layer->name);
 		return;
 	}
 
-	BKE_collection_unlink(sl, lc);
+	BKE_collection_unlink(scene_layer, lc);
 
 	DEG_relations_tag_update(bmain);
 	/* TODO(sergey): Use proper flag for tagging here. */
@@ -787,38 +792,38 @@ static void rna_SceneLayer_collection_unlink(
 
 static PointerRNA rna_LayerObjects_active_object_get(PointerRNA *ptr)
 {
-	SceneLayer *sl = (SceneLayer *)ptr->data;
-	return rna_pointer_inherit_refine(ptr, &RNA_Object, sl->basact ? sl->basact->object : NULL);
+	SceneLayer *scene_layer = (SceneLayer *)ptr->data;
+	return rna_pointer_inherit_refine(ptr, &RNA_Object, scene_layer->basact ? scene_layer->basact->object : NULL);
 }
 
 static void rna_LayerObjects_active_object_set(PointerRNA *ptr, PointerRNA value)
 {
-	SceneLayer *sl = (SceneLayer *)ptr->data;
+	SceneLayer *scene_layer = (SceneLayer *)ptr->data;
 	if (value.data)
-		sl->basact = BKE_scene_layer_base_find(sl, (Object *)value.data);
+		scene_layer->basact = BKE_scene_layer_base_find(scene_layer, (Object *)value.data);
 	else
-		sl->basact = NULL;
+		scene_layer->basact = NULL;
 }
 
 static void rna_SceneLayer_name_set(PointerRNA *ptr, const char *value)
 {
 	Scene *scene = (Scene *)ptr->id.data;
-	SceneLayer *sl = (SceneLayer *)ptr->data;
-	char oldname[sizeof(sl->name)];
+	SceneLayer *scene_layer = (SceneLayer *)ptr->data;
+	char oldname[sizeof(scene_layer->name)];
 
-	BLI_strncpy(oldname, sl->name, sizeof(sl->name));
+	BLI_strncpy(oldname, scene_layer->name, sizeof(scene_layer->name));
 
-	BLI_strncpy_utf8(sl->name, value, sizeof(sl->name));
-	BLI_uniquename(&scene->render_layers, sl, DATA_("SceneLayer"), '.', offsetof(SceneLayer, name), sizeof(sl->name));
+	BLI_strncpy_utf8(scene_layer->name, value, sizeof(scene_layer->name));
+	BLI_uniquename(&scene->render_layers, scene_layer, DATA_("SceneLayer"), '.', offsetof(SceneLayer, name), sizeof(scene_layer->name));
 
 	if (scene->nodetree) {
 		bNode *node;
-		int index = BLI_findindex(&scene->render_layers, sl);
+		int index = BLI_findindex(&scene->render_layers, scene_layer);
 
 		for (node = scene->nodetree->nodes.first; node; node = node->next) {
 			if (node->type == CMP_NODE_R_LAYERS && node->id == NULL) {
 				if (node->custom1 == index)
-					BLI_strncpy(node->name, sl->name, NODE_MAXSTR);
+					BLI_strncpy(node->name, scene_layer->name, NODE_MAXSTR);
 			}
 		}
 	}
@@ -845,13 +850,21 @@ static int rna_SceneLayer_objects_selected_skip(CollectionPropertyIterator *iter
 	return 1;
 };
 
-static void rna_LayerObjects_selected_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+static PointerRNA rna_SceneLayer_depsgraph_get(PointerRNA *ptr)
 {
-	SceneLayer *sl = (SceneLayer *)ptr->data;
-	rna_iterator_listbase_begin(iter, &sl->object_bases, rna_SceneLayer_objects_selected_skip);
+	Scene *scene = (Scene *)ptr->id.data;
+	SceneLayer *scene_layer = (SceneLayer *)ptr->data;
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, scene_layer, false);
+	return rna_pointer_inherit_refine(ptr, &RNA_Depsgraph, depsgraph);
 }
 
-static void rna_SceneLayer_update_tagged(SceneLayer *UNUSED(sl), bContext *C)
+static void rna_LayerObjects_selected_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	SceneLayer *scene_layer = (SceneLayer *)ptr->data;
+	rna_iterator_listbase_begin(iter, &scene_layer->object_bases, rna_SceneLayer_objects_selected_skip);
+}
+
+static void rna_SceneLayer_update_tagged(SceneLayer *UNUSED(scene_layer), bContext *C)
 {
 	Depsgraph *graph = CTX_data_depsgraph(C);
 	DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL)
@@ -953,6 +966,7 @@ static int rna_ViewRenderSettings_use_game_engine_get(PointerRNA *ptr)
 
 	return 0;
 }
+
 #else
 
 static void rna_def_scene_collections(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1142,6 +1156,14 @@ static void rna_def_scene_layer_engine_settings_eevee(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static const EnumPropertyItem eevee_volumetric_tile_size_items[] = {
+		{2, "2", 0, "2px", ""},
+		{4, "4", 0, "4px", ""},
+		{8, "8", 0, "8px", ""},
+		{16, "16", 0, "16px", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "SceneLayerEngineSettingsEevee", "SceneLayerSettings");
 	RNA_def_struct_ui_text(srna, "Eevee Scene Layer Settings", "Eevee Engine settings");
 
@@ -1173,6 +1195,30 @@ static void rna_def_scene_layer_engine_settings_eevee(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Viewport Samples", "Number of temporal samples, unlimited if 0, "
 	                                                   "disabled if 1");
 	RNA_def_property_range(prop, 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_SceneLayerEngineSettings_update");
+
+	/* Screen Space Subsurface Scattering */
+	prop = RNA_def_property(srna, "sss_enable", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_LayerEngineSettings_Eevee_sss_enable_get",
+	                               "rna_LayerEngineSettings_Eevee_sss_enable_set");
+	RNA_def_property_ui_text(prop, "Subsurface Scattering", "Enable screen space subsurface scattering");
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_SceneLayerEngineSettings_update");
+
+	prop = RNA_def_property(srna, "sss_samples", PROP_INT, PROP_NONE);
+	RNA_def_property_int_funcs(prop, "rna_LayerEngineSettings_Eevee_sss_samples_get",
+	                               "rna_LayerEngineSettings_Eevee_sss_samples_set", NULL);
+	RNA_def_property_ui_text(prop, "Samples", "Number of samples to compute the scattering effect");
+	RNA_def_property_range(prop, 1, 32);
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_SceneLayerEngineSettings_update");
+
+	prop = RNA_def_property(srna, "sss_jitter_threshold", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_funcs(prop, "rna_LayerEngineSettings_Eevee_sss_jitter_threshold_get",
+	                               "rna_LayerEngineSettings_Eevee_sss_jitter_threshold_set", NULL);
+	RNA_def_property_ui_text(prop, "Jitter Threshold", "Rotate samples that are below this threshold");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_SceneLayerEngineSettings_update");
 
@@ -1270,6 +1316,15 @@ static void rna_def_scene_layer_engine_settings_eevee(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "End", "End distance of the volumetric effect");
 	RNA_def_property_range(prop, 1e-6f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 10, 3);
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_SceneLayerEngineSettings_update");
+
+	prop = RNA_def_property(srna, "volumetric_tile_size", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_funcs(prop, "rna_LayerEngineSettings_Eevee_volumetric_tile_size_get",
+	                                  "rna_LayerEngineSettings_Eevee_volumetric_tile_size_set", NULL);
+	RNA_def_property_enum_items(prop, eevee_volumetric_tile_size_items);
+	RNA_def_property_ui_text(prop, "Tile Size", "Control the quality of the volumetric effects "
+	                                            "(lower size increase vram usage and quality)");
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_SceneLayerEngineSettings_update");
 
@@ -2019,7 +2074,7 @@ static void rna_def_layer_objects(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_pointer_funcs(prop, "rna_LayerObjects_active_object_get", "rna_LayerObjects_active_object_set", NULL, NULL);
 	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
 	RNA_def_property_ui_text(prop, "Active Object", "Active object for this layer");
-	/* Could call: ED_base_object_activate(C, rl->basact);
+	/* Could call: ED_object_base_activate(C, rl->basact);
 	 * but would be a bad level call and it seems the notifier is enough */
 	RNA_def_property_update(prop, NC_SCENE | ND_OB_ACTIVE, NULL);
 
@@ -2143,6 +2198,12 @@ void RNA_def_scene_layer(BlenderRNA *brna)
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	RNA_def_function_ui_description(func,
 	                                "Update data tagged to be updated from previous access to data or operators");
+
+	/* Dependency Graph */
+	prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "Depsgraph");
+	RNA_def_property_ui_text(prop, "Dependency Graph", "Dependencies in the scene data");
+	RNA_def_property_pointer_funcs(prop, "rna_SceneLayer_depsgraph_get", NULL, NULL, NULL);
 
 	/* Nested Data  */
 	/* *** Non-Animated *** */

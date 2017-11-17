@@ -78,8 +78,8 @@ m_dofTarget(nullptr)
 	m_useAO = m_effects->use_ao;
 
 	// Volumetrics
-	World *world = m_scene->GetBlenderScene()->world;
-	m_useVolumetricNodes = (world && world->use_nodes && world->nodetree);
+	//World *world = m_scene->GetBlenderScene()->world;
+	//m_useVolumetricNodes = (world && world->use_nodes && world->nodetree);
 }
 
 RAS_EeveeEffectsManager::~RAS_EeveeEffectsManager()
@@ -261,33 +261,51 @@ void RAS_EeveeEffectsManager::CreateMinMaxDepth(RAS_FrameBuffer *inputfb)
 
 RAS_FrameBuffer *RAS_EeveeEffectsManager::RenderVolumetrics(RAS_FrameBuffer *inputfb)
 {
-	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0 && m_useVolumetricNodes) {
+	if ((m_effects->enabled_effects & EFFECT_VOLUMETRIC) != 0) {
+
+		/* Step 1: Participating Media Properties */
+		DRW_framebuffer_bind(m_fbl->volumetric_fb);
+		DRW_draw_pass(m_psl->volumetric_world_ps);
+		DRW_draw_pass(m_psl->volumetric_objects_ps);
+
+		/* Step 2: Scatter Light */
+		DRW_framebuffer_bind(m_fbl->volumetric_scat_fb);
+		DRW_draw_pass(m_psl->volumetric_scatter_ps);
+
+		/* Step 3: Integration */
+		DRW_framebuffer_bind(m_fbl->volumetric_integ_fb);
+		DRW_draw_pass(m_psl->volumetric_integration_ps);
+
+		/* Swap volume history buffers */
+		//SWAP(struct GPUFrameBuffer *, m_fbl->volumetric_scat_fb, m_fbl->volumetric_integ_fb);
+		//SWAP(GPUTexture *, m_txl->volume_scatter, m_txl->volume_scatter_history);
+		//SWAP(GPUTexture *, m_txl->volume_transmittance, m_txl->volume_transmittance_history);
+
+		/* Restore */
+		DRW_framebuffer_bind(m_fbl->main);
+
+		
+
+		/*e_data.color_src = txl->color;
+		e_data.depth_src = dtxl->depth;*/
 
 		m_dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
-		EEVEE_effects_replace_e_data_depth(GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer()));
+		EEVEE_effects_replace_e_data_depth(m_dtxl->depth);
+		m_dtxl->color = GPU_framebuffer_color_texture(inputfb->GetFrameBuffer());
+		EEVEE_effects_replace_e_data_color(m_dtxl->color);
 
-		/* Compute volumetric integration at halfres. */
-		DRW_framebuffer_texture_attach(m_fbl->volumetric_fb, m_stl->g_data->volumetric, 0, 0);
-		EEVEE_SceneLayerData *sldata = (EEVEE_SceneLayerData *)(&m_scene->GetSceneLayerData()->GetData());
-		if (sldata->volumetrics->use_colored_transmit) {
-			DRW_framebuffer_texture_attach(m_fbl->volumetric_fb, m_stl->g_data->volumetric_transmit, 1, 0);
-		}
-		DRW_framebuffer_bind(m_fbl->volumetric_fb);
-		DRW_draw_pass(m_psl->volumetric_integrate_ps);
+		/* Step 4: Apply for opaque */
+		//DRW_framebuffer_bind(m_fbl->effect_fb);
 
-		/* Resolve at fullres */
-		m_rasterizer->SetViewport(0, 0, m_width, m_height);
 		DRW_framebuffer_bind(inputfb->GetFrameBuffer());
-		if (sldata->volumetrics->use_colored_transmit) {
-			DRW_draw_pass(m_psl->volumetric_resolve_transmit_ps);
-		}
-		DRW_draw_pass(m_psl->volumetric_resolve_ps);
+		m_rasterizer->SetViewport(0, 0, m_width, m_height);
+		//DRW_draw_pass(m_psl->volumetric_resolve_ps);
 
-		///* Restore */
-		DRW_framebuffer_texture_detach(m_stl->g_data->volumetric);
-		if (sldata->volumetrics->use_colored_transmit) {
-			DRW_framebuffer_texture_detach(m_stl->g_data->volumetric_transmit);
-		}
+		///* Swap the buffers and rebind depth to the current buffer */
+		//DRW_framebuffer_texture_detach(m_dtxl->depth);
+		//SWAP(struct GPUFrameBuffer *, m_fbl->main, m_fbl->effect_fb);
+		//SWAP(GPUTexture *, m_txl->color, m_txl->color_post);
+		//DRW_framebuffer_texture_attach(m_fbl->main, m_dtxl->depth, 0, 0);
 
 		return inputfb;
 	}

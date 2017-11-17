@@ -444,7 +444,7 @@ static void outliner_add_object_contents(SpaceOops *soops, TreeElement *te, Tree
 
 	outliner_add_element(soops, &te->subtree, ob->poselib, te, 0, 0); // XXX FIXME.. add a special type for this
 	
-	if (ob->proxy && !ID_IS_LINKED_DATABLOCK(ob))
+	if (ob->proxy && !ID_IS_LINKED(ob))
 		outliner_add_element(soops, &te->subtree, ob->proxy, te, TSE_PROXY, 0);
 		
 	outliner_add_element(soops, &te->subtree, ob->gpd, te, 0, 0);
@@ -1873,7 +1873,7 @@ void outliner_build_tree(Main *mainvar, Scene *scene, SceneLayer *sl, SpaceOops 
 		}
 	}
 	else if (soops->outlinevis == SO_SAME_TYPE) {
-		Object *ob_active = OBACT_NEW(sl);
+		Object *ob_active = OBACT(sl);
 		if (ob_active) {
 			FOREACH_SCENE_OBJECT(scene, ob)
 			{
@@ -1952,8 +1952,8 @@ void outliner_build_tree(Main *mainvar, Scene *scene, SceneLayer *sl, SpaceOops 
 		outliner_add_collections_master(soops, scene);
 	}
 	else {
-		ten = outliner_add_element(soops, &soops->tree, OBACT_NEW(sl), NULL, 0, 0);
-		ten->directdata = BASACT_NEW(sl);
+		ten = outliner_add_element(soops, &soops->tree, OBACT(sl), NULL, 0, 0);
+		ten->directdata = BASACT(sl);
 	}
 
 	if ((soops->flag & SO_SKIP_SORT_ALPHA) == 0) {

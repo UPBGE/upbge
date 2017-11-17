@@ -297,10 +297,14 @@ public:
 						<< string_human_readable_size(mem.memory_size()) << ")";
 			}
 
-			mem.device_pointer = mem.data_pointer;
-
-			if(!mem.device_pointer) {
-				mem.device_pointer = (device_ptr)malloc(mem.memory_size());
+			if(mem.type == MEM_DEVICE_ONLY) {
+				assert(!mem.host_pointer);
+				size_t alignment = mem_address_alignment();
+				void *data = util_aligned_malloc(mem.memory_size(), alignment);
+				mem.device_pointer = (device_ptr)data;
+			}
+			else {
+				mem.device_pointer = (device_ptr)mem.host_pointer;
 			}
 
 			mem.device_size = mem.memory_size();
@@ -350,8 +354,8 @@ public:
 			tex_free(mem);
 		}
 		else if(mem.device_pointer) {
-			if(!mem.data_pointer) {
-				free((void*)mem.device_pointer);
+			if(mem.type == MEM_DEVICE_ONLY) {
+				util_aligned_free((void*)mem.device_pointer);
 			}
 			mem.device_pointer = 0;
 			stats.mem_free(mem.device_size);
@@ -379,7 +383,7 @@ public:
 			/* Data texture. */
 			kernel_tex_copy(&kernel_globals,
 							mem.name,
-							mem.data_pointer,
+							mem.host_pointer,
 							mem.data_size);
 		}
 		else {
@@ -400,7 +404,7 @@ public:
 			}
 
 			TextureInfo& info = texture_info[flat_slot];
-			info.data = (uint64_t)mem.data_pointer;
+			info.data = (uint64_t)mem.host_pointer;
 			info.cl_buffer = 0;
 			info.interpolation = mem.interpolation;
 			info.extension = mem.extension;
@@ -411,7 +415,7 @@ public:
 			need_texture_info = true;
 		}
 
-		mem.device_pointer = mem.data_pointer;
+		mem.device_pointer = (device_ptr)mem.host_pointer;
 		mem.device_size = mem.memory_size();
 		stats.mem_alloc(mem.device_size);
 	}
@@ -457,7 +461,7 @@ public:
 
 	bool denoising_set_tiles(device_ptr *buffers, DenoisingTask *task)
 	{
-		TilesInfo *tiles = (TilesInfo*) task->tiles_mem.data_pointer;
+		TilesInfo *tiles = (TilesInfo*) task->tiles_mem.host_pointer;
 		for(int i = 0; i < 9; i++) {
 			tiles->buffers[i] = buffers[i];
 		}
@@ -708,11 +712,9 @@ public:
 		}
 	}
 
-	void denoise(DeviceTask &task, RenderTile &tile)
+	void denoise(DeviceTask &task, DenoisingTask& denoising, RenderTile &tile)
 	{
 		tile.sample = tile.start_sample + tile.num_samples;
-
-		DenoisingTask denoising(this);
 
 		denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
 		denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, &denoising);
@@ -756,7 +758,6 @@ public:
 		CPUSplitKernel *split_kernel = NULL;
 		if(use_split_kernel) {
 			split_kernel = new CPUSplitKernel(this);
-			requested_features.max_closure = MAX_CLOSURE;
 			if(!split_kernel->load_kernels(requested_features)) {
 				thread_kernel_globals_free((KernelGlobals*)kgbuffer.device_pointer);
 				kgbuffer.free();
@@ -766,6 +767,8 @@ public:
 		}
 
 		RenderTile tile;
+		DenoisingTask denoising(this);
+
 		while(task.acquire_tile(this, tile)) {
 			if(tile.task == RenderTile::PATH_TRACE) {
 				if(use_split_kernel) {
@@ -777,7 +780,7 @@ public:
 				}
 			}
 			else if(tile.task == RenderTile::DENOISE) {
-				denoise(task, tile);
+				denoise(task, denoising, tile);
 			}
 
 			task.release_tile(tile);
@@ -1047,6 +1050,7 @@ void device_cpu_info(vector<DeviceInfo>& devices)
 	info.has_qbvh = system_cpu_support_sse2();
 	info.has_volume_decoupled = true;
 	info.has_osl = true;
+	info.has_half_images = true;
 
 	devices.insert(devices.begin(), info);
 }

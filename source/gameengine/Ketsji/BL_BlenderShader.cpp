@@ -130,13 +130,16 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 	EEVEE_StorageList *stl = vedata->stl;
 
 	const bool use_refract = ((m_mat->blend_flag & MA_BL_SS_REFRACTION) != 0) && ((stl->effects->enabled_effects & EFFECT_REFRACT) != 0);
+	const bool use_sss = ((m_mat->blend_flag & MA_BL_SS_SUBSURFACE) != 0) && ((stl->effects->enabled_effects & EFFECT_SSS) != 0);
+	const bool use_blend = (m_mat->blend_method & MA_BM_BLEND) != 0;
 	static int no_ssr = -1;
 	static int first_ssr = 0;
 	int *ssr_id = (stl->effects->use_ssr && !use_refract) ? &first_ssr : &no_ssr;
 
 	/* STANDARD MATERIAL */
 	if (m_mat->use_nodes && m_mat->nodetree) {
-		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, IsTransparent(), (m_mat->blend_method == MA_BM_MULTIPLY), use_refract, SHADOW_ESM);
+		m_gpuMat = EEVEE_material_mesh_get(m_blenderScene, m_mat, vedata, IsTransparent(), (m_mat->blend_method == MA_BM_MULTIPLY),
+			use_sss, use_refract, SHADOW_ESM);
 
 		m_shGroup = DRW_shgroup_material_create(m_gpuMat, nullptr);
 	}
@@ -146,7 +149,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 		float *spec_p = &m_mat->spec;
 		float *rough_p = &m_mat->gloss_mir;
 
-		m_shGroup = EEVEE_default_shading_group_create_no_pass(false, false, IsTransparent(), stl->effects->use_ssr, SHADOW_ESM);
+		m_shGroup = EEVEE_default_shading_group_create_no_pass(vedata, false, false, IsTransparent(), stl->effects->use_ssr, SHADOW_ESM);
 		DRW_shgroup_uniform_vec3(m_shGroup, "basecol", color_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "metallic", metal_p, 1);
 		DRW_shgroup_uniform_float(m_shGroup, "specular", spec_p, 1);
@@ -172,7 +175,7 @@ void BL_BlenderShader::ReloadMaterial(KX_Scene *scene)
 	}
 
 	EEVEE_shgroup_add_standard_uniforms_game(m_shGroup, (EEVEE_SceneLayerData *)&scene->GetSceneLayerData()->GetData(),
-		scene->GetEeveeData(), ssr_id, &m_mat->refract_depth, use_refract);
+		scene->GetEeveeData(), ssr_id, &m_mat->refract_depth, use_refract, use_blend);
 }
 
 GPUMaterial *BL_BlenderShader::GetGpuMaterial(RAS_Rasterizer::DrawType drawtype)

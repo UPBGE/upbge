@@ -30,7 +30,7 @@ typedef enum VolumeIntegrateResult {
  * sigma_t = sigma_a + sigma_s */
 
 typedef struct VolumeShaderCoefficients {
-	float3 sigma_a;
+	float3 sigma_t;
 	float3 sigma_s;
 	float3 emission;
 } VolumeShaderCoefficients;
@@ -43,22 +43,15 @@ ccl_device_inline bool volume_shader_extinction_sample(KernelGlobals *kg,
                                                        float3 *extinction)
 {
 	sd->P = P;
-	shader_eval_volume(kg, sd, state, state->volume_stack, PATH_RAY_SHADOW);
+	shader_eval_volume(kg, sd, state, state->volume_stack, PATH_RAY_SHADOW, 0);
 
-	if(!(sd->flag & (SD_ABSORPTION|SD_SCATTER)))
-		return false;
-
-	float3 sigma_t = make_float3(0.0f, 0.0f, 0.0f);
-
-	for(int i = 0; i < sd->num_closure; i++) {
-		const ShaderClosure *sc = &sd->closure[i];
-
-		if(CLOSURE_IS_VOLUME(sc->type))
-			sigma_t += sc->weight;
+	if(sd->flag & SD_EXTINCTION) {
+		*extinction = sd->closure_transparent_extinction;
+		return true;
 	}
-
-	*extinction = sigma_t;
-	return true;
+	else {
+		return false;
+	}
 }
 
 /* evaluate shader to get absorption, scattering and emission at P */
@@ -69,33 +62,30 @@ ccl_device_inline bool volume_shader_sample(KernelGlobals *kg,
                                             VolumeShaderCoefficients *coeff)
 {
 	sd->P = P;
-	shader_eval_volume(kg, sd, state, state->volume_stack, state->flag);
+	shader_eval_volume(kg, sd, state, state->volume_stack, state->flag, kernel_data.integrator.max_closures);
 
-	if(!(sd->flag & (SD_ABSORPTION|SD_SCATTER|SD_EMISSION)))
+	if(!(sd->flag & (SD_EXTINCTION|SD_SCATTER|SD_EMISSION)))
 		return false;
 	
-	coeff->sigma_a = make_float3(0.0f, 0.0f, 0.0f);
 	coeff->sigma_s = make_float3(0.0f, 0.0f, 0.0f);
-	coeff->emission = make_float3(0.0f, 0.0f, 0.0f);
+	coeff->sigma_t = (sd->flag & SD_EXTINCTION)? sd->closure_transparent_extinction:
+	                                             make_float3(0.0f, 0.0f, 0.0f);
+	coeff->emission = (sd->flag & SD_EMISSION)? sd->closure_emission_background:
+	                                            make_float3(0.0f, 0.0f, 0.0f);
 
-	for(int i = 0; i < sd->num_closure; i++) {
-		const ShaderClosure *sc = &sd->closure[i];
-
-		if(sc->type == CLOSURE_VOLUME_ABSORPTION_ID)
-			coeff->sigma_a += sc->weight;
-		else if(sc->type == CLOSURE_EMISSION_ID)
-			coeff->emission += sc->weight;
-		else if(CLOSURE_IS_VOLUME(sc->type))
-			coeff->sigma_s += sc->weight;
-	}
-
-	/* when at the max number of bounces, treat scattering as absorption */
 	if(sd->flag & SD_SCATTER) {
-		if(state->volume_bounce >= kernel_data.integrator.max_volume_bounce) {
-			coeff->sigma_a += coeff->sigma_s;
-			coeff->sigma_s = make_float3(0.0f, 0.0f, 0.0f);
+		if(state->bounce < kernel_data.integrator.max_bounce &&
+		   state->volume_bounce < kernel_data.integrator.max_volume_bounce) {
+			for(int i = 0; i < sd->num_closure; i++) {
+				const ShaderClosure *sc = &sd->closure[i];
+
+				if(CLOSURE_IS_VOLUME(sc->type))
+					coeff->sigma_s += sc->weight;
+			}
+		}
+		else {
+			/* When at the max number of bounces, clear scattering. */
 			sd->flag &= ~SD_SCATTER;
-			sd->flag |= SD_ABSORPTION;
 		}
 	}
 
@@ -336,8 +326,8 @@ ccl_device float3 kernel_volume_emission_integrate(VolumeShaderCoefficients *coe
 	 * todo: we should use an epsilon to avoid precision issues near zero sigma_t */
 	float3 emission = coeff->emission;
 
-	if(closure_flag & SD_ABSORPTION) {
-		float3 sigma_t = coeff->sigma_a + coeff->sigma_s;
+	if(closure_flag & SD_EXTINCTION) {
+		float3 sigma_t = coeff->sigma_t;
 
 		emission.x *= (sigma_t.x > 0.0f)? (1.0f - transmittance.x)/sigma_t.x: t;
 		emission.y *= (sigma_t.y > 0.0f)? (1.0f - transmittance.y)/sigma_t.y: t;
@@ -350,6 +340,34 @@ ccl_device float3 kernel_volume_emission_integrate(VolumeShaderCoefficients *coe
 }
 
 /* Volume Path */
+
+ccl_device int kernel_volume_sample_channel(float3 albedo, float3 throughput, float rand, float3 *pdf)
+{
+	/* Sample color channel proportional to throughput and single scattering
+	 * albedo, to significantly reduce noise with many bounce, following:
+	 *
+	 * "Practical and Controllable Subsurface Scattering for Production Path
+	 *  Tracing". Matt Jen-Yuan Chiang, Peter Kutz, Brent Burley. SIGGRAPH 2016. */
+	float3 weights = fabs(throughput * albedo);
+	float sum_weights = weights.x + weights.y + weights.z;
+
+	if(sum_weights > 0.0f) {
+		*pdf = weights/sum_weights;
+	}
+	else {
+		*pdf = make_float3(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f);
+	}
+
+	if(rand < pdf->x) {
+		return 0;
+	}
+	else if(rand < pdf->x + pdf->y) {
+		return 1;
+	}
+	else {
+		return 2;
+	}
+}
 
 /* homogeneous volume: assume shader evaluation at the start gives
  * the volume shading coefficient for the entire line segment */
@@ -374,20 +392,18 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(
 #ifdef __VOLUME_SCATTER__
 	/* randomly scatter, and if we do t is shortened */
 	if(closure_flag & SD_SCATTER) {
-		/* extinction coefficient */
-		float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
-
-		/* pick random color channel, we use the Veach one-sample
-		 * model with balance heuristic for the channels */
+		/* Sample channel, use MIS with balance heuristic. */
 		float rphase = path_state_rng_1D(kg, state, PRNG_PHASE_CHANNEL);
-		int channel = (int)(rphase*3.0f);
+		float3 albedo = safe_divide_color(coeff.sigma_s, coeff.sigma_t);
+		float3 channel_pdf;
+		int channel = kernel_volume_sample_channel(albedo, *throughput, rphase, &channel_pdf);
 
 		/* decide if we will hit or miss */
 		bool scatter = true;
 		float xi = path_state_rng_1D(kg, state, PRNG_SCATTER_DISTANCE);
 
 		if(probalistic_scatter) {
-			float sample_sigma_t = kernel_volume_channel_get(sigma_t, channel);
+			float sample_sigma_t = kernel_volume_channel_get(coeff.sigma_t, channel);
 			float sample_transmittance = expf(-sample_sigma_t * t);
 
 			if(1.0f - xi >= sample_transmittance) {
@@ -408,40 +424,39 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(
 			float sample_t;
 
 			/* distance sampling */
-			sample_t = kernel_volume_distance_sample(ray->t, sigma_t, channel, xi, &transmittance, &pdf);
+			sample_t = kernel_volume_distance_sample(ray->t, coeff.sigma_t, channel, xi, &transmittance, &pdf);
 
 			/* modify pdf for hit/miss decision */
 			if(probalistic_scatter)
-				pdf *= make_float3(1.0f, 1.0f, 1.0f) - volume_color_transmittance(sigma_t, t);
+				pdf *= make_float3(1.0f, 1.0f, 1.0f) - volume_color_transmittance(coeff.sigma_t, t);
 
-			new_tp = *throughput * coeff.sigma_s * transmittance / average(pdf);
+			new_tp = *throughput * coeff.sigma_s * transmittance / dot(channel_pdf, pdf);
 			t = sample_t;
 		}
 		else {
 			/* no scattering */
-			float3 transmittance = volume_color_transmittance(sigma_t, t);
-			float pdf = average(transmittance);
+			float3 transmittance = volume_color_transmittance(coeff.sigma_t, t);
+			float pdf = dot(channel_pdf, transmittance);
 			new_tp = *throughput * transmittance / pdf;
 		}
 	}
 	else 
 #endif
-	if(closure_flag & SD_ABSORPTION) {
+	if(closure_flag & SD_EXTINCTION) {
 		/* absorption only, no sampling needed */
-		float3 transmittance = volume_color_transmittance(coeff.sigma_a, t);
+		float3 transmittance = volume_color_transmittance(coeff.sigma_t, t);
 		new_tp = *throughput * transmittance;
 	}
 
 	/* integrate emission attenuated by extinction */
 	if(L && (closure_flag & SD_EMISSION)) {
-		float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
-		float3 transmittance = volume_color_transmittance(sigma_t, ray->t);
+		float3 transmittance = volume_color_transmittance(coeff.sigma_t, ray->t);
 		float3 emission = kernel_volume_emission_integrate(&coeff, closure_flag, transmittance, ray->t);
 		path_radiance_accum_emission(L, state, *throughput, emission);
 	}
 
 	/* modify throughput */
-	if(closure_flag & (SD_ABSORPTION|SD_SCATTER)) {
+	if(closure_flag & SD_EXTINCTION) {
 		*throughput = new_tp;
 
 		/* prepare to scatter to new direction */
@@ -484,7 +499,6 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 	 * model with balance heuristic for the channels */
 	float xi = path_state_rng_1D(kg, state, PRNG_SCATTER_DISTANCE);
 	float rphase = path_state_rng_1D(kg, state, PRNG_PHASE_CHANNEL);
-	int channel = (int)(rphase*3.0f);
 	bool has_scatter = false;
 
 	for(int i = 0; i < max_steps; i++) {
@@ -508,35 +522,37 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 
 			/* distance sampling */
 #ifdef __VOLUME_SCATTER__
-			if((closure_flag & SD_SCATTER) || (has_scatter && (closure_flag & SD_ABSORPTION))) {
+			if((closure_flag & SD_SCATTER) || (has_scatter && (closure_flag & SD_EXTINCTION))) {
 				has_scatter = true;
 
-				float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
-				float3 sigma_s = coeff.sigma_s;
+				/* Sample channel, use MIS with balance heuristic. */
+				float3 albedo = safe_divide_color(coeff.sigma_s, coeff.sigma_t);
+				float3 channel_pdf;
+				int channel = kernel_volume_sample_channel(albedo, tp, rphase, &channel_pdf);
 
 				/* compute transmittance over full step */
-				transmittance = volume_color_transmittance(sigma_t, dt);
+				transmittance = volume_color_transmittance(coeff.sigma_t, dt);
 
 				/* decide if we will scatter or continue */
 				float sample_transmittance = kernel_volume_channel_get(transmittance, channel);
 
 				if(1.0f - xi >= sample_transmittance) {
 					/* compute sampling distance */
-					float sample_sigma_t = kernel_volume_channel_get(sigma_t, channel);
+					float sample_sigma_t = kernel_volume_channel_get(coeff.sigma_t, channel);
 					float new_dt = -logf(1.0f - xi)/sample_sigma_t;
 					new_t = t + new_dt;
 
 					/* transmittance and pdf */
-					float3 new_transmittance = volume_color_transmittance(sigma_t, new_dt);
-					float3 pdf = sigma_t * new_transmittance;
+					float3 new_transmittance = volume_color_transmittance(coeff.sigma_t, new_dt);
+					float3 pdf = coeff.sigma_t * new_transmittance;
 
 					/* throughput */
-					new_tp = tp * sigma_s * new_transmittance / average(pdf);
+					new_tp = tp * coeff.sigma_s * new_transmittance / dot(channel_pdf, pdf);
 					scatter = true;
 				}
 				else {
 					/* throughput */
-					float pdf = average(transmittance);
+					float pdf = dot(channel_pdf, transmittance);
 					new_tp = tp * transmittance / pdf;
 
 					/* remap xi so we can reuse it and keep thing stratified */
@@ -545,11 +561,9 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 			}
 			else 
 #endif
-			if(closure_flag & SD_ABSORPTION) {
+			if(closure_flag & SD_EXTINCTION) {
 				/* absorption only, no sampling needed */
-				float3 sigma_a = coeff.sigma_a;
-
-				transmittance = volume_color_transmittance(sigma_a, dt);
+				transmittance = volume_color_transmittance(coeff.sigma_t, dt);
 				new_tp = tp * transmittance;
 			}
 
@@ -560,7 +574,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 			}
 
 			/* modify throughput */
-			if(closure_flag & (SD_ABSORPTION|SD_SCATTER)) {
+			if(closure_flag & SD_EXTINCTION) {
 				tp = new_tp;
 
 				/* stop if nearly all light blocked */
@@ -645,6 +659,7 @@ typedef struct VolumeSegment {
 
 	float3 accum_emission;		/* accumulated emission at end of segment */
 	float3 accum_transmittance;	/* accumulated transmittance at end of segment */
+	float3 accum_albedo;        /* accumulated average albedo over segment */
 
 	int sampling_method;		/* volume sampling method */
 } VolumeSegment;
@@ -711,6 +726,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 	/* init accumulation variables */
 	float3 accum_emission = make_float3(0.0f, 0.0f, 0.0f);
 	float3 accum_transmittance = make_float3(1.0f, 1.0f, 1.0f);
+	float3 accum_albedo = make_float3(0.0f, 0.0f, 0.0f);
 	float3 cdf_distance = make_float3(0.0f, 0.0f, 0.0f);
 	float t = 0.0f;
 
@@ -735,7 +751,12 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 		/* compute segment */
 		if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
 			int closure_flag = sd->flag;
-			float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
+			float3 sigma_t = coeff.sigma_t;
+
+			/* compute average albedo for channel sampling */
+			if(closure_flag & SD_SCATTER) {
+				accum_albedo += dt * safe_divide_color(coeff.sigma_s, sigma_t);
+			}
 
 			/* compute accumulated transmittance */
 			float3 transmittance = volume_color_transmittance(sigma_t, dt);
@@ -796,6 +817,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 	/* store total emission and transmittance */
 	segment->accum_emission = accum_emission;
 	segment->accum_transmittance = accum_transmittance;
+	segment->accum_albedo = accum_albedo;
 
 	/* normalize cumulative density function for distance sampling */
 	VolumeStep *last_step = segment->steps + segment->numsteps - 1;
@@ -838,9 +860,13 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(
 {
 	kernel_assert(segment->closure_flag & SD_SCATTER);
 
-	/* pick random color channel, we use the Veach one-sample
-	 * model with balance heuristic for the channels */
-	int channel = (int)(rphase*3.0f);
+	/* Sample color channel, use MIS with balance heuristic. */
+	float3 channel_pdf;
+	int channel = kernel_volume_sample_channel(segment->accum_albedo,
+	                                           *throughput,
+	                                           rphase,
+	                                           &channel_pdf);
+
 	float xi = rscatter;
 
 	/* probabilistic scattering decision based on transmittance */
@@ -927,7 +953,7 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(
 		if(probalistic_scatter)
 			distance_pdf *= make_float3(1.0f, 1.0f, 1.0f) - segment->accum_transmittance;
 
-		pdf = average(distance_pdf * step_pdf_distance);
+		pdf = dot(channel_pdf, distance_pdf * step_pdf_distance);
 
 		/* multiple importance sampling */
 		if(use_mis) {
@@ -990,7 +1016,7 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(
 		/* multiple importance sampling */
 		if(use_mis) {
 			float3 distance_pdf3 = kernel_volume_distance_pdf(step_t, step->sigma_t, step_sample_t);
-			float distance_pdf = average(distance_pdf3 * step_pdf_distance);
+			float distance_pdf = dot(channel_pdf, distance_pdf3 * step_pdf_distance);
 			mis_weight = 2.0f*power_heuristic(pdf, distance_pdf);
 		}
 	}

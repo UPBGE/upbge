@@ -72,9 +72,6 @@ struct SceneCollection;
 /* ************************************************************* */
 /* Scene Data */
 
-/* Base - Wrapper for referencing Objects in a Scene */
-#define BaseLegacy Base
-
 /* ************************************************************* */
 /* Output Format Data */
 
@@ -1614,8 +1611,8 @@ typedef struct Scene {
 	
 	struct Scene *set;
 	
-	ListBase base;
-	struct BaseLegacy *basact;		/* active base */
+	ListBase base DNA_DEPRECATED;
+	struct Base  *basact DNA_DEPRECATED; /* active base */
 	struct Object *obedit;		/* name replaces old G.obedit */
 	
 	float cursor[3];			/* 3d cursor location */
@@ -1654,9 +1651,7 @@ typedef struct Scene {
 	void *fps_info;					/* (runtime) info/cache used for presenting playback framerate info to the user */
 	
 	/* none of the dependency graph  vars is mean to be saved */
-	struct Depsgraph *depsgraph_legacy;
 	struct GHash *depsgraph_hash;
-	void *pad3;
 	int pad7;
 
 	/* User-Defined KeyingSets */
@@ -1913,40 +1908,30 @@ extern const char *RE_engine_id_CYCLES;
 #define MINAFRAME	-1048574
 #define MINAFRAMEF	-1048574.0f
 
-/* depricate this! */
-#define TESTBASE(v3d, base)  (                                                \
-	((base)->flag_legacy & SELECT) &&                                         \
-	((base)->lay & v3d->lay) &&                                               \
-	(((base)->object->restrictflag & OB_RESTRICT_VIEW) == 0))
-
-#define TESTBASE_NEW(base)  (                                                 \
+/* deprecate this! */
+#define TESTBASE(base)  (                                                     \
 	(((base)->flag & BASE_SELECTED) != 0) &&                                  \
 	(((base)->flag & BASE_VISIBLED) != 0))
-#define TESTBASELIB_NEW(base)  (                                              \
+#define TESTBASELIB(base)  (                                                  \
 	(((base)->flag & BASE_SELECTED) != 0) &&                                  \
 	((base)->object->id.lib == NULL) &&                                       \
 	(((base)->flag & BASE_VISIBLED) != 0))
-#define TESTBASELIB_BGMODE_NEW(base)  (                                       \
+#define TESTBASELIB_BGMODE(base)  (                                           \
 	(((base)->flag & BASE_SELECTED) != 0) &&                                  \
 	((base)->object->id.lib == NULL) &&                                       \
 	(((base)->flag & BASE_VISIBLED) != 0))
-#define BASE_EDITABLE_BGMODE_NEW(base)  (                                     \
+#define BASE_EDITABLE_BGMODE(base)  (                                         \
 	((base)->object->id.lib == NULL) &&                                       \
 	(((base)->flag & BASE_VISIBLED) != 0))
-#define BASE_SELECTABLE_NEW(base)                                             \
+#define BASE_SELECTABLE(base)                                                 \
 	(((base)->flag & BASE_SELECTABLED) != 0)
-#define BASE_VISIBLE_NEW(base)  (                                             \
+#define BASE_VISIBLE(base)  (                                                 \
 	((base)->flag & BASE_VISIBLED) != 0)
 
-#define FIRSTBASE		scene->base.first
-#define LASTBASE		scene->base.last
-#define BASACT			(scene->basact)
-#define OBACT			(BASACT ? BASACT->object: NULL)
-
-#define FIRSTBASE_NEW(_sl)  ((_sl)->object_bases.first)
-#define LASTBASE_NEW(_sl)   ((_sl)->object_bases.last)
-#define BASACT_NEW(_sl)     ((_sl)->basact)
-#define OBACT_NEW(_sl)      (BASACT_NEW(_sl) ? BASACT_NEW(_sl)->object: NULL)
+#define FIRSTBASE(_sl)  ((_sl)->object_bases.first)
+#define LASTBASE(_sl)   ((_sl)->object_bases.last)
+#define BASACT(_sl)     ((_sl)->basact)
+#define OBACT(_sl)      (BASACT(_sl) ? BASACT(_sl)->object: NULL)
 
 #define V3D_CAMERA_LOCAL(v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : NULL)
 #define V3D_CAMERA_SCENE(scene, v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : (scene)->camera)

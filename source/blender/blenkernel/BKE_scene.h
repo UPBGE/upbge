@@ -38,7 +38,6 @@ extern "C" {
 #endif
 
 struct AviCodecData;
-struct BaseLegacy;
 struct Depsgraph;
 struct EvaluationContext;
 struct Main;
@@ -88,13 +87,8 @@ struct Scene *BKE_scene_add(struct Main *bmain, const char *name);
 
 void BKE_scene_remove_rigidbody_object(struct Scene *scene, struct Object *ob);
 
-/* base functions */
-struct BaseLegacy *BKE_scene_base_find_by_name(struct Scene *scene, const char *name);
-struct BaseLegacy *BKE_scene_base_find(struct Scene *scene, struct Object *ob);
-struct BaseLegacy *BKE_scene_base_add(struct Scene *sce, struct Object *ob);
-void         BKE_scene_base_unlink(struct Scene *sce, struct BaseLegacy *base);
-void         BKE_scene_base_deselect_all(struct Scene *sce);
-void         BKE_scene_base_select(struct Scene *sce, struct BaseLegacy *selbase);
+bool BKE_scene_object_find(struct Scene *scene, struct Object *ob);
+struct Object *BKE_scene_object_find_by_name(struct Scene *scene, const char *name);
 
 /* Scene base iteration function.
  * Define struct here, so no need to bother with alloc/free it.
@@ -109,12 +103,10 @@ typedef struct SceneBaseIter {
 
 int BKE_scene_base_iter_next(
         const struct EvaluationContext *eval_ctx, struct SceneBaseIter *iter,
-        struct Scene **scene, int val, struct BaseLegacy **base, struct Object **ob);
+        struct Scene **scene, int val, struct Base **base, struct Object **ob);
 
-void BKE_scene_base_flag_to_objects(struct SceneLayer *sl);
+void BKE_scene_base_flag_to_objects(struct SceneLayer *scene_layer);
 void BKE_scene_base_flag_from_objects(struct Scene *scene);
-void BKE_scene_base_flag_sync_from_base(struct BaseLegacy *base);
-void BKE_scene_base_flag_sync_from_object(struct BaseLegacy *base);
 void BKE_scene_object_base_flag_sync_from_base(struct Base *base);
 void BKE_scene_object_base_flag_sync_from_object(struct Base *base);
 
@@ -129,7 +121,6 @@ void BKE_scene_make_local(struct Main *bmain, struct Scene *sce, const bool lib_
 
 struct Scene *BKE_scene_find_from_collection(const struct Main *bmain, const struct SceneCollection *scene_collection);
 
-struct Object *BKE_scene_camera_find(struct Scene *sc);
 #ifdef DURIAN_CAMERA_SWITCH
 struct Object *BKE_scene_camera_switch_find(struct Scene *scene); // DURIAN_CAMERA_SWITCH
 #endif
@@ -150,16 +141,14 @@ void  BKE_scene_frame_set(struct Scene *scene, double cfra);
 void BKE_scene_graph_update_tagged(struct EvaluationContext *eval_ctx,
                                    struct Depsgraph *depsgraph,
                                    struct Main *bmain,
-                                   struct Scene *scene);
+                                   struct Scene *scene,
+                                   struct SceneLayer *scene_layer);
 
 void BKE_scene_graph_update_for_newframe(struct EvaluationContext *eval_ctx,
                                          struct Depsgraph *depsgraph,
                                          struct Main *bmain,
-                                         struct Scene *sce);
-
-/* NOTE: DO NOT USE THOSE IN NEW CODE! */
-void BKE_scene_update_tagged(struct EvaluationContext *eval_ctx, struct Main *bmain, struct Scene *sce);
-void BKE_scene_update_for_newframe(struct EvaluationContext *eval_ctx, struct Main *bmain, struct Scene *sce);
+                                         struct Scene *scene,
+                                         struct SceneLayer *scene_layer);
 
 struct SceneRenderLayer *BKE_scene_add_render_layer(struct Scene *sce, const char *name);
 bool BKE_scene_remove_render_layer(struct Main *main, struct Scene *scene, struct SceneRenderLayer *srl);
@@ -231,7 +220,7 @@ void BKE_scene_allocate_depsgraph_hash(struct Scene *scene);
 void BKE_scene_ensure_depsgraph_hash(struct Scene *scene);
 void BKE_scene_free_depsgraph_hash(struct Scene *scene);
 
-struct Depsgraph *BKE_scene_get_depsgraph(struct Scene *scene, struct SceneLayer *scene_layer);
+struct Depsgraph *BKE_scene_get_depsgraph(struct Scene *scene, struct SceneLayer *scene_layer, bool allocate);
 
 #ifdef __cplusplus
 }

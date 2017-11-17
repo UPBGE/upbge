@@ -303,6 +303,17 @@ float get_view_z_from_depth(float depth)
 	}
 }
 
+float get_depth_from_view_z(float z)
+{
+	if (ProjectionMatrix[3][3] == 0.0) {
+		float d = (-ProjectionMatrix[3][2] / z) - ProjectionMatrix[2][2];
+		return d * 0.5 + 0.5;
+	}
+	else {
+		return (z - viewvecs[0].z) / viewvecs[1].z;
+	}
+}
+
 vec2 get_uvs_from_view(vec3 view)
 {
 	vec3 ndc = project_point(ProjectionMatrix, view);
@@ -563,11 +574,15 @@ Closure closure_add(Closure cl1, Closure cl2)
 	cl.anisotropy = (cl1.anisotropy + cl2.anisotropy) / 2.0; /* Average phase (no multi lobe) */
 	return cl;
 }
-#else
+
+#else /* VOLUMETRICS */
 
 struct Closure {
 	vec3 radiance;
 	float opacity;
+#ifdef USE_SSS
+	vec4 sss_data;
+#endif
 	vec4 ssr_data;
 	vec2 ssr_normal;
 	int ssr_id;
@@ -577,19 +592,30 @@ struct Closure {
 #define TRANSPARENT_CLOSURE_FLAG -2
 #define REFRACT_CLOSURE_FLAG -3
 
+#ifdef USE_SSS
+#define CLOSURE_DEFAULT Closure(vec3(0.0), 1.0, vec4(0.0), vec4(0.0), vec2(0.0), -1)
+#else
 #define CLOSURE_DEFAULT Closure(vec3(0.0), 1.0, vec4(0.0), vec2(0.0), -1)
+#endif
 
 uniform int outputSsrId;
 
 Closure closure_mix(Closure cl1, Closure cl2, float fac)
 {
 	Closure cl;
+
+#ifdef USE_SSS
+	cl.sss_data.rgb = mix(cl1.sss_data.rgb, cl2.sss_data.rgb, fac);
+	cl.sss_data.a = (cl1.sss_data.a > 0.0) ? cl1.sss_data.a : cl2.sss_data.a;
+#endif
+
 	if (cl1.ssr_id == outputSsrId) {
 		cl.ssr_data = mix(cl1.ssr_data.xyzw, vec4(vec3(0.0), cl1.ssr_data.w), fac); /* do not blend roughness */
 		cl.ssr_normal = cl1.ssr_normal;
 		cl.ssr_id = cl1.ssr_id;
 	}
 	else {
+		cl.ssr_data = mix(vec4(vec3(0.0), cl2.ssr_data.w), cl2.ssr_data.xyzw, fac); /* do not blend roughness */
 		cl.ssr_data = mix(vec4(vec3(0.0), cl2.ssr_data.w), cl2.ssr_data.xyzw, fac); /* do not blend roughness */
 		cl.ssr_normal = cl2.ssr_normal;
 		cl.ssr_id = cl2.ssr_id;
@@ -608,6 +634,9 @@ Closure closure_mix(Closure cl1, Closure cl2, float fac)
 Closure closure_add(Closure cl1, Closure cl2)
 {
 	Closure cl = (cl1.ssr_id == outputSsrId) ? cl1 : cl2;
+#ifdef USE_SSS
+	cl.sss_data = (cl1.sss_data.a > 0.0) ? cl1.sss_data : cl2.sss_data;
+#endif
 	cl.radiance = cl1.radiance + cl2.radiance;
 	cl.opacity = cl1.opacity + cl2.opacity;
 	return cl;
@@ -615,18 +644,40 @@ Closure closure_add(Closure cl1, Closure cl2)
 
 #if defined(MESH_SHADER) && !defined(USE_ALPHA_HASH) && !defined(USE_ALPHA_CLIP) && !defined(SHADOW_SHADER) && !defined(USE_MULTIPLY)
 layout(location = 0) out vec4 fragColor;
+#ifdef USE_SSS
+layout(location = 1) out vec4 sssData;
+layout(location = 2) out vec4 ssrNormals;
+layout(location = 3) out vec4 ssrData;
+#else
 layout(location = 1) out vec4 ssrNormals;
 layout(location = 2) out vec4 ssrData;
+#endif
 
 Closure nodetree_exec(void); /* Prototype */
+
+#if defined(USE_ALPHA_BLEND_VOLUMETRICS)
+/* Prototype because this file is included before volumetric_lib.glsl */
+vec4 volumetric_resolve(vec4 scene_color, vec2 frag_uvs, float frag_depth);
+#endif
 
 #define NODETREE_EXEC
 void main()
 {
 	Closure cl = nodetree_exec();
+
+#if defined(USE_ALPHA_BLEND_VOLUMETRICS)
+	/* XXX fragile, better use real viewport resolution */
+	vec2 uvs = gl_FragCoord.xy / vec2(2 * textureSize(maxzBuffer, 0).xy);
+	fragColor = volumetric_resolve(vec4(cl.radiance, cl.opacity), uvs, gl_FragCoord.z);
+#else
 	fragColor = vec4(cl.radiance, cl.opacity);
+#endif
+
 	ssrNormals = cl.ssr_normal.xyyy;
 	ssrData = cl.ssr_data;
+#ifdef USE_SSS
+	sssData = cl.sss_data;
+#endif
 }
 
 #endif /* MESH_SHADER && !SHADOW_SHADER */
