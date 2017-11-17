@@ -55,7 +55,8 @@ public:
 	RAS_FrameBuffer *RenderBloom(RAS_FrameBuffer *inputfb);
 	RAS_FrameBuffer *RenderMotionBlur(RAS_FrameBuffer *inputfb);
 	RAS_FrameBuffer *RenderDof(RAS_FrameBuffer *inputfb);
-	RAS_FrameBuffer *RenderVolumetrics(RAS_FrameBuffer *inputfb);
+	RAS_FrameBuffer *ResolveVolumetrics(RAS_FrameBuffer *inputfb);
+	void ComputeVolumetrics();
 	void CreateMinMaxDepth(RAS_FrameBuffer *inputfb);
 	void DoSSR(RAS_FrameBuffer *inputfb);
 	void DoGTAO(RAS_FrameBuffer *inputfb);
@@ -86,8 +87,6 @@ private:
 	bool m_dofInitialized; // see comment in RenderDof()
 
 	bool m_useAO;
-
-	//bool m_useVolumetricNodes; // avoid rendering volumetrics when no background nodes
 };
 
 #endif // __RAS_EEVEEEFFECTSMANAGER_H__

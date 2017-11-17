@@ -1810,6 +1810,8 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 	DRW_draw_pass(psl->depth_pass);
 	DRW_draw_pass(psl->depth_pass_cull);
 
+	//m_effectsManager->ComputeVolumetrics();
+
 	DRW_draw_pass(psl->background_pass);
 
 	EEVEE_draw_default_passes(psl);
