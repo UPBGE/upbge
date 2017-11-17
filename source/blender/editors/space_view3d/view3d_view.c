@@ -45,6 +45,7 @@
 #include "BKE_context.h"
 #include "BKE_object.h"
 #include "BKE_global.h"
+#include "BKE_layer.h" // For bge
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -1517,9 +1518,11 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	if (!ED_view3d_context_activate(C))
 		return OPERATOR_CANCELLED;
 
-	/*for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
-		DEG_scene_relations_update(bmain, scene);
-	}*/
+	for (Scene *sc = (Scene *)bmain->scene.first; sc; sc = (Scene *)sc->id.next) {
+		SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(sc);
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, scene_layer, true);
+		DEG_graph_relations_update(depsgraph, bmain, sc, scene_layer);
+	}
 	
 	/* redraw to hide any menus/popups, we don't go back to
 	 * the window manager until after this operator exits */

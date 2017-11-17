@@ -3914,8 +3914,8 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	memset(&DST, 0x0, sizeof(DST));
 	/*DRW_end_shgroup();
 	
-	release_ubo_slots();*/
-	release_texture_slots();
+	release_ubo_slots();
+	release_texture_slots();*/
 
 	use_drw_engine(&draw_engine_eevee_type);
 
@@ -3972,7 +3972,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	DRW_engines_cache_init();
 	for (Scene *sc = bmain->scene.first; sc; sc = sc->id.next) {
 		SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(sc);
-		Depsgraph *graph = BKE_scene_get_depsgraph(scene, scene_layer, false);
+		Depsgraph *graph = BKE_scene_get_depsgraph(sc, scene_layer, false);
 		BLI_assert(graph != NULL);
 		DEG_OBJECT_ITER(graph, ob, DEG_OBJECT_ITER_FLAG_ALL);
 		{
