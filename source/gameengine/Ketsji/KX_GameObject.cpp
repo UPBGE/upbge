@@ -327,9 +327,8 @@ void KX_GameObject::AddNewMaterialBatchesToPasses(float obmat[4][4])
 			for (DRWShadingGroup *shgroup = DRW_shgroups_from_pass_get(pass); shgroup; shgroup = DRW_shgroup_next(shgroup)) {
 				std::vector<DRWShadingGroup *>::iterator it = std::find(m_materialShGroups.begin(), m_materialShGroups.end(), shgroup);
 				if (it != m_materialShGroups.end()) {
-					continue;
+					DRW_shgroup_call_add(shgroup, b, obmat);
 				}
-				DRW_shgroup_call_add(shgroup, b, obmat);
 			}
 		}
 	}
