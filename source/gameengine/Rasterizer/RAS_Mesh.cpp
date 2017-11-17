@@ -51,6 +51,14 @@ RAS_Mesh::RAS_Mesh(Mesh *mesh, const LayersInfo& layersInfo)
 {
 }
 
+RAS_Mesh::RAS_Mesh(const std::string& name, const LayersInfo& layersInfo)
+	:m_name(name),
+	m_layersInfo(layersInfo),
+	m_boundingBox(nullptr),
+	m_mesh(nullptr)
+{
+}
+
 RAS_Mesh::RAS_Mesh(const RAS_Mesh& other)
 	:m_name(other.m_name),
 	m_layersInfo(other.m_layersInfo),
@@ -178,9 +186,22 @@ RAS_MeshMaterial *RAS_Mesh::AddMaterial(RAS_MaterialBucket *bucket, unsigned int
 {
 	RAS_MeshMaterial *meshmat = GetMeshMaterialBlenderIndex(index);
 
-	// none found, create a new one
+	// None found, create a new one.
 	if (!meshmat) {
 		meshmat = new RAS_MeshMaterial(this, bucket, index, format);
+		m_materials.push_back(meshmat);
+	}
+
+	return meshmat;
+}
+
+RAS_MeshMaterial *RAS_Mesh::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, RAS_IDisplayArray *array)
+{
+	RAS_MeshMaterial *meshmat = GetMeshMaterialBlenderIndex(index);
+
+	// None found, create a new one.
+	if (!meshmat) {
+		meshmat = new RAS_MeshMaterial(this, bucket, index, array);
 		m_materials.push_back(meshmat);
 	}
 

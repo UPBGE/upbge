@@ -176,7 +176,7 @@ public:
 	 */
 	void RemoveScene(KX_Scene *scene);
 
-	/// Register a mesh object copy.
+	/// Dynamically register mesh created after conversion.
 	void RegisterMesh(KX_Scene *scene, KX_Mesh *mesh);
 
 	Scene *GetBlenderSceneForName(const std::string& name);

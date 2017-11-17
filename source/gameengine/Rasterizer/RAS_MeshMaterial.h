@@ -60,6 +60,7 @@ public:
 	 * \param mesh Owner of copied mesh material.
 	 */
 	RAS_MeshMaterial(const RAS_MeshMaterial& other, RAS_Mesh *mesh);
+	RAS_MeshMaterial(RAS_Mesh *mesh, RAS_MaterialBucket *bucket, unsigned int index, RAS_DisplayArray *array);
 	~RAS_MeshMaterial();
 
 

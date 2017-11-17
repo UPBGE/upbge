@@ -68,6 +68,12 @@ KX_Mesh::KX_Mesh(KX_Scene *scene, Mesh *mesh, const RAS_Mesh::LayersInfo& layers
 {
 }
 
+KX_Mesh::KX_Mesh(KX_Scene *scene, const std::string& name, const RAS_Mesh::LayersInfo& layersInfo)
+	:RAS_Mesh(name, layersInfo),
+	m_scene(scene)
+{
+}
+
 KX_Mesh::KX_Mesh(const KX_Mesh& other)
 	:RAS_Mesh(other),
 	m_scene(other.m_scene)

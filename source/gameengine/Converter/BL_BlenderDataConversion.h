@@ -38,6 +38,7 @@
 
 class RAS_Rasterizer;
 class RAS_ICanvas;
+class RAS_IVertexFactory;
 class KX_KetsjiEngine;
 class KX_Scene;
 class BL_SceneConverter;

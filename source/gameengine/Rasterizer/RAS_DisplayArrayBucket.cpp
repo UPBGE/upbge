@@ -57,7 +57,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_D
                                                RAS_Mesh *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer)
 	:m_bucket(bucket),
 	m_displayArray(array),
-	m_mesh(mesh),
+	m_mesh(mesh), // TODO remove
 	m_meshMaterial(meshmat),
 	m_deformer(deformer),
 	m_arrayStorage(nullptr),
