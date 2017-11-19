@@ -277,7 +277,7 @@ void LA_Launcher::InitEngine()
 	int viewportsize[2] = { m_canvas->GetWidth(), m_canvas->GetHeight() };
 	DRW_game_render_loop_begin(tempgpuofs, m_maggie, m_startScene,
 		cur_scene_layer, maincam, viewportsize);
-	GPU_offscreen_free(tempgpuofs);
+	//GPU_offscreen_free(tempgpuofs);
 	/* END OF INIT EEVEE DATA */
 
 	m_rasterizer->Init();

@@ -619,11 +619,6 @@ void KX_KetsjiEngine::Render()
 
 	BeginFrame();
 
-	//for (KX_Scene *scene : m_scenes) {
-	//	// shadow buffers
-	//	RenderShadowBuffers(scene);
-	//}
-
 	std::vector<FrameRenderData> frameDataList;
 	const bool renderpereye = GetFrameRenderData(frameDataList);
 
@@ -648,7 +643,6 @@ void KX_KetsjiEngine::Render()
 	for (FrameRenderData& frameData : frameDataList) {
 		// Current bound off screen.
 		RAS_FrameBuffer *frameBuffer = m_rasterizer->GetFrameBuffer(frameData.m_fbType);
-		DRW_framebuffer_bind(frameBuffer->GetFrameBuffer());
 
 		// Clear off screen only before the first scene render.
 		m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT | RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
@@ -668,47 +662,12 @@ void KX_KetsjiEngine::Render()
 				// do the rendering
 				RenderCamera(scene, cameraFrameData, frameBuffer, pass++, isfirstscene);
 			}
-
-			// Choose final render off screen target.
-			RAS_Rasterizer::FrameBufferType target;
-			//if (frameBuffer->GetSamples() > 0) {
-			//	/* If the last scene is rendered it's useless to specify a multisamples off screen, we use then
-			//	 * a non-multisamples off screen and avoid an extra off screen blit. */
-			//	if (islastscene) {
-			//		target = RAS_Rasterizer::NextRenderFb(frameData.m_fbType);
-			//	}
-			//	/* If the current off screen is using multisamples we are sure that it will be copied to a
-			//	 * non-multisamples off screen before render the filters.
-			//	 * In this case the targeted off screen is the same as the current off screen. */
-			//	else {
-			//		target = frameData.m_fbType;
-			//	}
-			//}
-			/* In case of non-multisamples a ping pong per scene render is made between a potentially multisamples
-			 * off screen and a non-multisamples off screen as the both doesn't use multisamples. */
-			
-			target = RAS_Rasterizer::NextRenderFrameBuffer(frameData.m_fbType);
-			
-
-			// Render EEVEE effects before tonemapping and custom filters
 			
 			frameData.m_fbType = frameBuffer->GetType();
 		}
 	}
 
-	// Compositing per eye off screens to screen.
-	if (renderpereye) {
-		RAS_FrameBuffer *leftfb = m_rasterizer->GetFrameBuffer(frameDataList[0].m_fbType);
-		RAS_FrameBuffer *rightfb = m_rasterizer->GetFrameBuffer(frameDataList[1].m_fbType);
-		m_rasterizer->DrawStereoFrameBuffer(m_canvas, leftfb, rightfb);
-	}
-	// Else simply draw the off screen to screen.
-	else {
-		m_rasterizer->DrawFrameBuffer(m_canvas, m_rasterizer->GetFrameBuffer(frameDataList[0].m_fbType));
-	}
-
-// 	m_rasterizer->BindViewport(m_canvas);
-// 	m_rasterizer->UnbindViewport(m_canvas);
+	m_rasterizer->DrawFrameBuffer(m_canvas, m_rasterizer->GetFrameBuffer(frameDataList[0].m_fbType));
 
 	EndFrame();
 }

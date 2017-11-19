@@ -508,40 +508,27 @@ RAS_FrameBuffer *RAS_Rasterizer::GetFrameBuffer(FrameBufferType type)
 
 void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer, RAS_FrameBuffer *dstFrameBuffer)
 {
-	/*if (srcOffScreen->GetSamples() > 0) {
-		srcOffScreen->Blit(dstOffScreen, true, true);
-	}
-	else {*/
-
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
 
-	GPU_texture_bind(vedata->txl->color, 0);
+	GPU_texture_bind(vedata->stl->effects->source_buffer, 0);
 
-	DRW_bind_shader_shgroup(m_screenShaders.normal/*, (DRWState)(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS)*/);
+	DRW_bind_shader_shgroup(m_screenShaders.normal);
 
 	DrawOverlayPlane();
 
-	GPU_texture_unbind(vedata->txl->color);
+	GPU_texture_unbind(vedata->stl->effects->source_buffer);
+
+	DRW_transform_to_display(vedata->stl->effects->source_buffer);
 }
 
 void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frameBuffer)
 {
-	/*if (frameBuffer->GetSamples() > 0) {
-		frameBuffer = frameBuffer->Blit(GetFrameBuffer(RAS_FrameBuffer_EYE_LEFT1), true, false);
-	}*/
-
 	const RAS_Rect& viewport = canvas->GetViewportArea();
 	SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 	SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 
-// 	Disable(RAS_CULL_FACE);
-// 	SetDepthFunc(RAS_ALWAYS);
-
 	GPU_framebuffer_restore();
 	DrawFrameBuffer(frameBuffer, nullptr);
-
-// 	SetDepthFunc(RAS_LEQUAL);
-// 	Enable(RAS_CULL_FACE);
 }
 
 void RAS_Rasterizer::DrawStereoFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *leftFb, RAS_FrameBuffer *rightFb)

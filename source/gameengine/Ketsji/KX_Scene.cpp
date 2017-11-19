@@ -256,6 +256,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	EEVEE_PassList *psl = m_eeveeData->psl;
 
 	InitScenePasses(psl);
+
 	/******************************************************************************************************************************/
 
 #ifdef WITH_PYTHON
@@ -1812,8 +1813,7 @@ static void EEVEE_draw_scene(RAS_FrameBuffer *inputfb)
 		DRW_stats_group_end();
 
 		/* Attach depth to the hdr buffer and bind it */
-		dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
-		//
+		DRW_framebuffer_texture_detach(dtxl->depth);
 		DRW_framebuffer_texture_attach(fbl->main, dtxl->depth, 0, 0);
 		DRW_framebuffer_bind(fbl->main);
 		DRW_framebuffer_clear(false, true, true, NULL, 1.0f);
@@ -1869,7 +1869,9 @@ static void EEVEE_draw_scene(RAS_FrameBuffer *inputfb)
 		DRW_draw_pass(psl->transparent_pass);
 
 		/* Post Process */
-		DRW_transform_to_display(vedata->txl->color);
+		DRW_stats_group_start("Post FX");
+		EEVEE_draw_effects(vedata);
+		DRW_stats_group_end();
 
 		if (stl->effects->taa_current_sample > 1) {
 			DRW_viewport_matrix_override_unset(DRW_MAT_PERS);
@@ -1880,8 +1882,6 @@ static void EEVEE_draw_scene(RAS_FrameBuffer *inputfb)
 	}
 
 	EEVEE_volumes_free_smoke_textures();
-
-	DRW_framebuffer_texture_detach(dtxl->depth);
 
 	stl->g_data->view_updated = false;
 }
