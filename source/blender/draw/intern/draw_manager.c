@@ -3912,10 +3912,6 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	Scene *scene, SceneLayer *cur_scene_layer, Object *maincam, int viewportsize[2])
 {
 	memset(&DST, 0x0, sizeof(DST));
-	/*DRW_end_shgroup();
-	
-	release_ubo_slots();
-	release_texture_slots();*/
 
 	use_drw_engine(&draw_engine_eevee_type);
 
@@ -4001,6 +3997,11 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	DRW_state_reset();
 	DRW_engines_disable();
+}
+
+RegionView3D *DRW_game_get_rv3d()
+{
+	return DST.draw_ctx.rv3d;
 }
 
 void DRW_game_render_loop_end()

@@ -62,6 +62,7 @@ extern "C" {
 #  include "DRW_engine.h"
 #  include "DRW_render.h"
 #  include "eevee_private.h"
+#  include "DNA_view3d_types.h"
 }
 
 #include "MEM_guardedalloc.h"
@@ -918,6 +919,15 @@ void RAS_Rasterizer::SetMatrix(const MT_Matrix4x4& viewmat, const MT_Matrix4x4& 
 	m_matrices.projinv = m_matrices.proj.inverse();
 	m_matrices.pers = m_matrices.proj * m_matrices.view;
 	m_matrices.persinv = m_matrices.pers.inverse();
+
+
+	/* RV3D -> If we use eevee render */
+	RegionView3D *rv3d = DRW_game_get_rv3d();
+	viewmat.getValue(&rv3d->viewmat[0][0]);
+	m_matrices.viewinv.getValue(&rv3d->viewinv[0][0]);
+	m_matrices.pers.getValue(&rv3d->persmat[0][0]);
+	m_matrices.persinv.getValue(&rv3d->persinv[0][0]);
+	projmat.getValue(&rv3d->winmat[0][0]);
 
 	// Don't making variable negX/negY/negZ allow drastic time saving.
 	if (scale[0] < 0.0f || scale[1] < 0.0f || scale[2] < 0.0f) {

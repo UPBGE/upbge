@@ -467,6 +467,7 @@ void DRW_shgroups_calls_update_obmat(DRWShadingGroup *shgroup, struct Gwn_Batch 
 void DRW_shgroups_discard_geometry(DRWShadingGroup *shgroup, struct Gwn_Batch *batch);
 void DRW_shgroups_restore_geometry(DRWShadingGroup *shgroup, struct Gwn_Batch *batch, float obmat[4][4]);
 bool DRW_shgroups_belongs_to_gameobject(DRWShadingGroup *shgroup, struct Gwn_Batch *batch);
+struct RegionView3D *DRW_game_get_rv3d();
 /**************************END OF GAME ENGINE*******************************/
 
 #endif /* __DRW_RENDER_H__ */
