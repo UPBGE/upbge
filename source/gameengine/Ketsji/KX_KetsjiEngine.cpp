@@ -691,11 +691,7 @@ void KX_KetsjiEngine::Render()
 			
 
 			// Render EEVEE effects before tonemapping and custom filters
-			scene->SetIsLastScene(scene == m_scenes->GetBack());
-			frameBuffer = PostRenderEevee(scene, frameBuffer);
-			target = RAS_Rasterizer::NextRenderFrameBuffer(frameBuffer->GetType());
-			// Render filters and get output off screen.
-			frameBuffer = PostRenderScene(scene, frameBuffer, m_rasterizer->GetFrameBuffer(target));
+			
 			frameData.m_fbType = frameBuffer->GetType();
 		}
 	}

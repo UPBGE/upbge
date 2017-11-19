@@ -3995,11 +3995,9 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	DRW_engines_cache_finish();
 
-	EEVEE_lightprobes_refresh(EEVEE_scene_layer_data_get(), EEVEE_engine_data_get());
-
 	/* Start Drawing */
 	DRW_state_reset();
-	DRW_engines_draw_background();
+	DRW_engines_draw_scene();
 
 	DRW_state_reset();
 	DRW_engines_disable();

@@ -126,6 +126,7 @@ extern "C" {
 #  include "BKE_main.h"
 #  include "BKE_idprop.h"
 #  include "MEM_guardedalloc.h"
+#  include "BLI_rand.h"
 }
 /************************************END OF EEVEE INTEGRATION********************/
 
@@ -1764,6 +1765,127 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
+static void EEVEE_draw_scene(RAS_FrameBuffer *inputfb)
+{
+	EEVEE_Data *vedata = EEVEE_engine_data_get();
+	EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
+	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
+	EEVEE_FramebufferList *fbl = ((EEVEE_Data *)vedata)->fbl;
+	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
+
+	/* Default framebuffer and texture */
+	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+
+	/* Number of iteration: needed for all temporal effect (SSR, TAA)
+	* when using opengl render. */
+	int loop_ct = DRW_state_is_image_render() ? 4 : 1;
+
+	static float rand = 0.0f;
+
+	/* XXX temp for denoising render. TODO plug number of samples here */
+	if (DRW_state_is_image_render()) {
+		rand += 1.0f / 16.0f;
+		rand = rand - floorf(rand);
+
+		/* Set jitter offset */
+		EEVEE_update_util_texture(rand);
+	}
+	else if (((stl->effects->enabled_effects & EFFECT_TAA) != 0) && (stl->effects->taa_current_sample > 1)) {
+		double r;
+		BLI_halton_1D(2, 0.0, stl->effects->taa_current_sample - 1, &r);
+
+		/* Set jitter offset */
+		/* PERF This is killing perf ! */
+		EEVEE_update_util_texture((float)r);
+	}
+
+	while (loop_ct--) {
+
+		/* Refresh Probes */
+		DRW_stats_group_start("Probes Refresh");
+		EEVEE_lightprobes_refresh(sldata, vedata);
+		DRW_stats_group_end();
+
+		/* Refresh shadows */
+		DRW_stats_group_start("Shadows");
+		EEVEE_draw_shadows(sldata, psl);
+		DRW_stats_group_end();
+
+		/* Attach depth to the hdr buffer and bind it */
+		dtxl->depth = GPU_framebuffer_depth_texture(inputfb->GetFrameBuffer());
+		//
+		DRW_framebuffer_texture_attach(fbl->main, dtxl->depth, 0, 0);
+		DRW_framebuffer_bind(fbl->main);
+		DRW_framebuffer_clear(false, true, true, NULL, 1.0f);
+
+		if (((stl->effects->enabled_effects & EFFECT_TAA) != 0) && stl->effects->taa_current_sample > 1) {
+			DRW_viewport_matrix_override_set(stl->effects->overide_persmat, DRW_MAT_PERS);
+			DRW_viewport_matrix_override_set(stl->effects->overide_persinv, DRW_MAT_PERSINV);
+			DRW_viewport_matrix_override_set(stl->effects->overide_winmat, DRW_MAT_WIN);
+			DRW_viewport_matrix_override_set(stl->effects->overide_wininv, DRW_MAT_WININV);
+		}
+
+		/* Depth prepass */
+		DRW_stats_group_start("Prepass");
+		DRW_draw_pass(psl->depth_pass);
+		DRW_draw_pass(psl->depth_pass_cull);
+		DRW_stats_group_end();
+
+		/* Create minmax texture */
+		DRW_stats_group_start("Main MinMax buffer");
+		EEVEE_create_minmax_buffer(vedata, dtxl->depth, -1);
+		DRW_stats_group_end();
+
+		EEVEE_occlusion_compute(sldata, vedata);
+		EEVEE_volumes_compute(sldata, vedata);
+
+		/* Shading pass */
+		DRW_stats_group_start("Shading");
+		DRW_draw_pass(psl->background_pass);
+		EEVEE_draw_default_passes(psl);
+		DRW_draw_pass(psl->material_pass);
+		EEVEE_subsurface_data_render(sldata, vedata);
+		DRW_stats_group_end();
+
+		/* Effects pre-transparency */
+		EEVEE_subsurface_compute(sldata, vedata);
+		EEVEE_reflection_compute(sldata, vedata);
+		EEVEE_occlusion_draw_debug(sldata, vedata);
+		DRW_draw_pass(psl->probe_display);
+		EEVEE_refraction_compute(sldata, vedata);
+
+		/* Opaque refraction */
+		DRW_stats_group_start("Opaque Refraction");
+		DRW_draw_pass(psl->refract_depth_pass);
+		DRW_draw_pass(psl->refract_depth_pass_cull);
+		DRW_draw_pass(psl->refract_pass);
+		DRW_stats_group_end();
+
+		/* Volumetrics Resolve Opaque */
+		EEVEE_volumes_resolve(sldata, vedata);
+
+		/* Transparent */
+		DRW_pass_sort_shgroup_z(psl->transparent_pass);
+		DRW_draw_pass(psl->transparent_pass);
+
+		/* Post Process */
+		DRW_transform_to_display(vedata->txl->color);
+
+		if (stl->effects->taa_current_sample > 1) {
+			DRW_viewport_matrix_override_unset(DRW_MAT_PERS);
+			DRW_viewport_matrix_override_unset(DRW_MAT_PERSINV);
+			DRW_viewport_matrix_override_unset(DRW_MAT_WIN);
+			DRW_viewport_matrix_override_unset(DRW_MAT_WININV);
+		}
+	}
+
+	EEVEE_volumes_free_smoke_textures();
+
+	DRW_framebuffer_texture_detach(dtxl->depth);
+
+	stl->g_data->view_updated = false;
+}
+
 /***********************************************EEVEE INTEGRATION****************************************************/
 
 void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer)
@@ -1790,33 +1912,9 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 		 * It's done just before the render to be sure of the object color and visibility. */
 		node->GetObject()->UpdateBucketsNew();
 	}
-
-	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-	EEVEE_Data *vedata = EEVEE_engine_data_get();
-	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
-	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
-
-	rasty->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-
-	KX_GetActiveEngine()->UpdateShadows(this);
-	EEVEE_draw_shadows_bge(sldata, psl);
-
-	rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-	rasty->SetScissor(0, 0, canvas->GetWidth() + 1, canvas->GetHeight() + 1);
-
-	DRW_framebuffer_bind(frameBuffer->GetFrameBuffer());
-	DRW_framebuffer_clear(false, true, false, NULL, 1.0f);
-
-	DRW_draw_pass(psl->depth_pass);
-	DRW_draw_pass(psl->depth_pass_cull);
-
-	//m_effectsManager->ComputeVolumetrics();
-
-	DRW_draw_pass(psl->background_pass);
-
-	EEVEE_draw_default_passes(psl);
-	DRW_draw_pass(psl->material_pass);
-	DRW_draw_pass(psl->transparent_pass);
+	/* Start Drawing */
+	DRW_state_reset();
+	EEVEE_draw_scene(frameBuffer);
 
 	KX_BlenderMaterial::EndFrame(rasty);
 }

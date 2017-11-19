@@ -64,9 +64,6 @@ RAS_FrameBuffer::~RAS_FrameBuffer()
 	if (m_depthAttachment) {
 		DRW_TEXTURE_FREE_SAFE(m_depthAttachment);
 	}
-	if (m_frameBuffer) {
-		GPU_framebuffer_free(m_frameBuffer);
-	}
 }
 
 GPUFrameBuffer *RAS_FrameBuffer::GetFrameBuffer()

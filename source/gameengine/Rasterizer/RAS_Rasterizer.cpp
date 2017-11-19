@@ -512,13 +512,16 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer, RAS_FrameB
 		srcOffScreen->Blit(dstOffScreen, true, true);
 	}
 	else {*/
-	GPU_texture_bind(GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer()), 0);
+
+	EEVEE_Data *vedata = EEVEE_engine_data_get();
+
+	GPU_texture_bind(vedata->txl->color, 0);
 
 	DRW_bind_shader_shgroup(m_screenShaders.normal/*, (DRWState)(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS)*/);
 
 	DrawOverlayPlane();
 
-	GPU_texture_unbind(GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer()));
+	GPU_texture_unbind(vedata->txl->color);
 }
 
 void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frameBuffer)
