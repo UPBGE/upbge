@@ -1809,7 +1809,7 @@ static void EEVEE_draw_scene(RAS_FrameBuffer *inputfb)
 
 		/* Refresh shadows */
 		DRW_stats_group_start("Shadows");
-		EEVEE_draw_shadows(sldata, psl);
+		EEVEE_draw_shadows_bge(sldata, psl);
 		DRW_stats_group_end();
 
 		/* Attach depth to the hdr buffer and bind it */
@@ -1912,6 +1912,9 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 		 * It's done just before the render to be sure of the object color and visibility. */
 		node->GetObject()->UpdateBucketsNew();
 	}
+
+	KX_GetActiveEngine()->UpdateShadows(this);
+
 	/* Start Drawing */
 	DRW_state_reset();
 	EEVEE_draw_scene(frameBuffer);
