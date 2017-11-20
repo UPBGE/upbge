@@ -213,21 +213,31 @@ void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 	for (RAS_MeshMaterial *meshmat : m_materials) {
 		RAS_IDisplayArray *array = meshmat->GetDisplayArray();
 		array->UpdateCache();
-		arrayList.push_back(array);
 
 		const std::string materialname = meshmat->GetBucket()->GetPolyMaterial()->GetName();
 		if (array->GetVertexCount() == 0) {
 			CM_Warning("mesh \"" << m_name << "\" has no vertices for material \"" << materialname
 				<< "\". It introduces performance decrease for empty render.");
 		}
-		else if (array->GetPrimitiveIndexCount() == 0) {
-			CM_Warning("mesh \"" << m_name << "\" has no polygons for material \"" << materialname
+		else {
+			// Generate bounding box only for non-empty display arrays.
+			arrayList.push_back(array);
+		}
+
+		if (array->GetPrimitiveIndexCount() == 0) {
+			CM_Warning("mesh \"" << m_name << "\" has no primitives for material \"" << materialname
 				<< "\". It introduces performance decrease for empty render.");
 		}
 	}
 
-	// Construct the bounding box of this mesh without deformers.
-	m_boundingBox = boundingBoxManager->CreateMeshBoundingBox(arrayList);
+	if (arrayList.empty()) {
+		// Use a dummy bounding box if there's no valid display arrays.
+		m_boundingBox = boundingBoxManager->CreateBoundingBox();
+	}
+	else {
+		// Construct the bounding box of this mesh without deformers.
+		m_boundingBox = boundingBoxManager->CreateMeshBoundingBox(arrayList);
+	}
 	m_boundingBox->Update(true);
 
 	// Construct polygon range info.
