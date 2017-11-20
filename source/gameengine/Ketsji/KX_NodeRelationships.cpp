@@ -171,8 +171,8 @@ bool KX_SlowParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node
 			child_w_scale = (m_relax * child_w_scale + child_n_scale) * weight;
 			child_w_pos = (m_relax * child_w_pos + child_n_pos) * weight;
 			// For rotation we must go through quaternion.
-			const mt::quat child_w_quat = mt::quat::FromMatrix(child_w_rotation);
-			const mt::quat child_n_quat = mt::quat::FromMatrix(child_n_rotation);
+			const mt::quat child_w_quat = mt::quat::FromMatrix(child_w_rotation).Normalized();
+			const mt::quat child_n_quat = mt::quat::FromMatrix(child_n_rotation).Normalized();
 			child_w_rotation = mt::quat::Slerp(child_w_quat, child_n_quat, weight).ToMatrix();
 		}
 		else {
