@@ -3953,19 +3953,28 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	DRW_viewport_var_init_bge();
 
+	/* Dont want to be annoyed with TAA for now (it breaks volumetrics at bge runtime)
+	 * so we save eevee taa_samples, disable taa setting taa_samples to 1 when we init
+	 * eevee data then restore saved taa_samples after eevee data init
+	 */
+	IDProperty *props = BKE_scene_layer_engine_evaluated_get(cur_scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+	int saved_taa_samples = BKE_collection_engine_property_value_get_int(props, "taa_samples");
+	BKE_collection_engine_property_value_set_int(props, "taa_samples", 1);
+
 	/* Init engines */
 	DRW_engines_init();
 
 	/* When uniforms are passed to the shaders, there is a control if
-		* stl->g_data->valid_double_buffer is true if we want to enable SSR
-		* As there is no valid frame before game start, stl->g_data->valid_double_buffer
-		* is set to false. This is causing issues with my simplified implementation of SSR
-		* so I set it to true here before the uniforms are passed.
-		*/
+	 * stl->g_data->valid_double_buffer is true if we want to enable SSR
+	 * As there is no valid frame before game start, stl->g_data->valid_double_buffer
+	 * is set to false. This is causing issues with my simplified implementation of SSR
+	 * so I set it to true here before the uniforms are passed.
+	 */
 	EEVEE_StorageList *stl = EEVEE_engine_data_get()->stl;
 	stl->g_data->valid_double_buffer = true;
 
 	DRW_engines_cache_init();
+
 	for (Scene *sc = bmain->scene.first; sc; sc = sc->id.next) {
 		SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(sc);
 		Depsgraph *graph = BKE_scene_get_depsgraph(sc, scene_layer, false);
@@ -3994,6 +4003,9 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	/* Start Drawing */
 	DRW_state_reset();
 	DRW_engines_draw_scene();
+
+	/* Restore taa_samples after eevee data init for bge */
+	BKE_collection_engine_property_value_set_int(props, "taa_samples", saved_taa_samples);
 
 	DRW_state_reset();
 	DRW_engines_disable();
