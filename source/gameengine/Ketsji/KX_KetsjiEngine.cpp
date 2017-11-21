@@ -662,6 +662,23 @@ void KX_KetsjiEngine::Render()
 				// do the rendering
 				RenderCamera(scene, cameraFrameData, frameBuffer, pass++, isfirstscene);
 			}
+
+
+			EEVEE_Data *vedata = EEVEE_engine_data_get();
+			DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+
+			DRW_framebuffer_texture_detach(dtxl->depth);
+
+			DRW_framebuffer_texture_attach(frameBuffer->GetFrameBuffer(), vedata->stl->effects->source_buffer, 0, 0);
+			DRW_framebuffer_texture_attach(frameBuffer->GetFrameBuffer(), dtxl->depth, 0, 0);
+
+			RAS_Rasterizer::FrameBufferType fbtype = m_rasterizer->NextRenderFrameBuffer(frameBuffer->GetType());
+
+			/* We apply tonemapping/dithering only to the last scene */
+			bool isLastScene = scene == m_scenes->GetBack();
+			scene->SetIsLastScene(isLastScene);
+
+			frameBuffer = PostRenderScene(scene, frameBuffer, m_rasterizer->GetFrameBuffer(fbtype));
 			
 			frameData.m_fbType = frameBuffer->GetType();
 		}

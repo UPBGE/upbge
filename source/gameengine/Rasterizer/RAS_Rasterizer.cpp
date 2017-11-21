@@ -509,17 +509,14 @@ RAS_FrameBuffer *RAS_Rasterizer::GetFrameBuffer(FrameBufferType type)
 
 void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer, RAS_FrameBuffer *dstFrameBuffer)
 {
-	EEVEE_Data *vedata = EEVEE_engine_data_get();
 
-	GPU_texture_bind(vedata->stl->effects->source_buffer, 0);
+	GPU_texture_bind(GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer()), 0);
 
 	DRW_bind_shader_shgroup(m_screenShaders.normal);
 
 	DrawOverlayPlane();
 
-	GPU_texture_unbind(vedata->stl->effects->source_buffer);
-
-	DRW_transform_to_display(vedata->stl->effects->source_buffer);
+	GPU_texture_unbind(GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer()));
 }
 
 void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frameBuffer)

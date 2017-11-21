@@ -58,12 +58,7 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width, unsigned int height, RAS_Ra
 
 RAS_FrameBuffer::~RAS_FrameBuffer()
 {
-	if (m_colorAttachment) {
-		DRW_TEXTURE_FREE_SAFE(m_colorAttachment);
-	}
-	if (m_depthAttachment) {
-		DRW_TEXTURE_FREE_SAFE(m_depthAttachment);
-	}
+	GPU_framebuffer_free(m_frameBuffer);
 }
 
 GPUFrameBuffer *RAS_FrameBuffer::GetFrameBuffer()
