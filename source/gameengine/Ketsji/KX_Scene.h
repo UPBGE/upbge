@@ -302,6 +302,7 @@ protected:
 
 	AnimationPoolData m_animationPoolData;
 	TaskPool *m_animationPool;
+	double m_previousAnimTime;
 
 	/**
 	 * LOD Hysteresis settings
@@ -358,7 +359,7 @@ public:
 	 */
 	void LogicBeginFrame(double curtime, double framestep);
 	void LogicUpdateFrame(double curtime);
-	void UpdateAnimations(double curtime);
+	void UpdateAnimations(double curtime, bool restrict);
 
 		void
 	LogicEndFrame(
@@ -486,8 +487,6 @@ public:
 
 	void	SetGravity(const MT_Vector3& gravity);
 	MT_Vector3 GetGravity();
-
-	short GetAnimationFPS();
 
 	/**
 	 * 2D Filters

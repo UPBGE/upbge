@@ -157,6 +157,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_suspendeddelta(0.0),
 	m_activityCulling(false),
 	m_blenderScene(scene),
+	m_previousAnimTime(0.0f),
 	m_isActivedHysteresis(false),
 	m_lodHysteresisValue(0)
 {
@@ -1360,8 +1361,22 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 	}
 }
 
-void KX_Scene::UpdateAnimations(double curtime)
+void KX_Scene::UpdateAnimations(double curtime, bool restrict)
 {
+	if (restrict) {
+		const double animTimeStep = 1.0 / m_blenderScene->r.frs_sec;
+
+		/* Don't update if the time step is too small and if we are not asking for redundant
+		 * updates like for different culling passes. */
+		if ((curtime - m_previousAnimTime) < animTimeStep && curtime != m_previousAnimTime) {
+			return;
+		}
+
+		// Sanity/debug print to make sure we're actually going at the fps we want (should be close to animTimeStep)
+		// CM_Debug("Anim fps: " << 1.0 / (curtime - m_previousAnimTime));
+		m_previousAnimTime = curtime;
+	}
+
 	m_animationPoolData.curtime = curtime;
 
 	for (KX_GameObject *gameobj : m_animatedlist) {
@@ -1560,11 +1575,6 @@ void KX_Scene::SetSuspendedDelta(double suspendeddelta)
 double KX_Scene::GetSuspendedDelta() const
 {
 	return m_suspendeddelta;
-}
-
-short KX_Scene::GetAnimationFPS()
-{
-	return m_blenderScene->r.frs_sec;
 }
 
 static void MergeScene_LogicBrick(SCA_ILogicBrick* brick, KX_Scene *from, KX_Scene *to)
