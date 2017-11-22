@@ -40,6 +40,7 @@
 #include "BKE_object.h"
 #include "BKE_pbvh.h"
 #include "BKE_paint.h"
+#include "BLI_rand.h" // For bge
 #include "BKE_workspace.h"
 
 #include "BLT_translation.h"
@@ -3953,6 +3954,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	DRW_viewport_var_init_bge();
 
+	// VOLUMETRICS HACK
 	/* Dont want to be annoyed with TAA for now (it breaks volumetrics at bge runtime)
 	 * so we save eevee taa_samples, disable taa setting taa_samples to 1 when we init
 	 * eevee data then restore saved taa_samples after eevee data init
@@ -3960,6 +3962,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	IDProperty *props = BKE_scene_layer_engine_evaluated_get(cur_scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 	int saved_taa_samples = BKE_collection_engine_property_value_get_int(props, "taa_samples");
 	BKE_collection_engine_property_value_set_int(props, "taa_samples", 1);
+	// END OF VOLUMETRICS HACK
 
 	/* Init engines */
 	DRW_engines_init();
@@ -4004,8 +4007,30 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	DRW_state_reset();
 	DRW_engines_draw_scene();
 
+	// VOLUMETRICS HACK
 	/* Restore taa_samples after eevee data init for bge */
 	BKE_collection_engine_property_value_set_int(props, "taa_samples", saved_taa_samples);
+	/* Still for volumetrics, as we don't use "temporal" volumetrics in bge
+	 * we consider the current sample is the max sample and set
+	 * jitter params according to this sample
+	 */
+	EEVEE_EffectsInfo *effects = stl->effects;
+	if (effects->enabled_effects & EFFECT_VOLUMETRIC) {
+		EEVEE_VolumetricsInfo *volumetrics = EEVEE_scene_layer_data_get()->volumetrics;
+		/* Temporal Super sampling jitter */
+		double ht_point[3];
+		double ht_offset[3] = { 0.0, 0.0 };
+		unsigned int ht_primes[3] = { 3, 7, 2 };
+		unsigned int current_sample = 0;
+		const unsigned int max_sample = (ht_primes[0] * ht_primes[1] * ht_primes[2]);
+		current_sample = effects->volume_current_sample = max_sample;
+		BLI_halton_3D(ht_primes, ht_offset, current_sample, ht_point);
+
+		volumetrics->jitter[0] = (float)ht_point[0];
+		volumetrics->jitter[1] = (float)ht_point[1];
+		volumetrics->jitter[2] = (float)ht_point[2];
+	}
+	// END OF VOLUMETRICS HACK
 
 	DRW_state_reset();
 	DRW_engines_disable();

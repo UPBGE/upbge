@@ -99,12 +99,12 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat, bNode *node, bNodeE
 	}
 
 	/* SSS Profile */
-	if (node->sss_id == 0) {
-		static int profile = SHD_SUBSURFACE_BURLEY;
+	if (node->sss_id == 1) {
+		static short profile = SHD_SUBSURFACE_BURLEY;
 		bNodeSocket *socket = BLI_findlink(&node->original->inputs, 2);
 		bNodeSocketValueRGBA *socket_data = socket->default_value;
 		/* For some reason it seems that the socket value is in ARGB format. */
-		GPU_material_sss_profile_create(mat, &socket_data->value[1], &profile);
+		GPU_material_sss_profile_create(mat, &socket_data->value[1], &profile, NULL);
 	}
 
 	return GPU_stack_link(mat, node, "node_bsdf_principled_clearcoat", in, out, GPU_builtin(GPU_VIEW_POSITION),

@@ -1088,6 +1088,7 @@ void EEVEE_lights_free(void)
 		DRW_SHADER_FREE_SAFE(e_data.shadow_copy_cascade_sh[i]);
 	}
 }
+<<<<<<< HEAD
 
 /******************Game engine********************/
 struct GPUShader *EEVEE_shadow_shader_get()
@@ -1265,3 +1266,5 @@ void EEVEE_draw_shadows_bge(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl)
 }
 
 /*****************************End of Game engine*********************************/
+=======
+>>>>>>> blender2.8/blender2.8

@@ -25,10 +25,6 @@
 
 #include "DRW_render.h"
 
-#include "DNA_world_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_view3d_types.h"
-
 #include "BLI_dynstr.h"
 #include "BLI_ghash.h"
 #include "BLI_alloca.h"
@@ -36,6 +32,10 @@
 #include "BKE_particle.h"
 #include "BKE_paint.h"
 #include "BKE_pbvh.h"
+
+#include "DNA_world_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_view3d_types.h"
 
 #include "GPU_material.h"
 
@@ -468,7 +468,8 @@ void EEVEE_update_util_texture(float offset)
 	}
 
 	if (e_data.util_tex == NULL) {
-		e_data.util_tex = DRW_texture_create_2D_array(64, 64, layers, DRW_TEX_RGBA_16, DRW_TEX_FILTER | DRW_TEX_WRAP, (float *)texels);
+		e_data.util_tex = DRW_texture_create_2D_array(
+		        64, 64, layers, DRW_TEX_RGBA_16, DRW_TEX_FILTER | DRW_TEX_WRAP, (float *)texels);
 	}
 	else {
 		DRW_texture_update(e_data.util_tex, (float *)texels);
@@ -763,7 +764,7 @@ static struct DRWShadingGroup *EEVEE_default_shading_group_create(
         bool is_hair, bool is_flat_normal, bool use_blend, bool use_ssr, int shadow_method)
 {
 	static int ssr_id;
-	ssr_id = (use_ssr) ? 0 : -1;
+	ssr_id = (use_ssr) ? 1 : -1;
 	int options = VAR_MAT_MESH;
 
 	if (is_hair) options |= VAR_MAT_HAIR;
@@ -791,7 +792,7 @@ static struct DRWShadingGroup *EEVEE_default_shading_group_get(
         bool is_hair, bool is_flat_normal, bool use_ssr, int shadow_method)
 {
 	static int ssr_id;
-	ssr_id = (use_ssr) ? 0 : -1;
+	ssr_id = (use_ssr) ? 1 : -1;
 	int options = VAR_MAT_MESH;
 
 	if (is_hair) options |= VAR_MAT_HAIR;

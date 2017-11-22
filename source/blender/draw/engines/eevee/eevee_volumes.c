@@ -19,14 +19,16 @@
  *
  */
 
-/* Volumetric effects rendering using frostbite approach.
- */
-
 /** \file eevee_volume.c
  *  \ingroup draw_engine
+ *
+ * Volumetric effects rendering using frostbite approach.
  */
 
 #include "DRW_render.h"
+
+#include "BLI_dynstr.h"
+#include "BLI_rand.h"
 
 #include "DNA_object_force.h"
 #include "DNA_smoke_types.h"
@@ -38,9 +40,6 @@
 #include "BKE_object.h"
 
 #include "ED_screen.h"
-
-#include "BLI_dynstr.h"
-#include "BLI_rand.h"
 
 #include "eevee_private.h"
 #include "GPU_draw.h"
@@ -94,26 +93,30 @@ static void eevee_create_shader_volumes(void)
 	e_data.volumetric_common_lamps_lib = BLI_dynstr_get_cstring(ds_frag);
 	BLI_dynstr_free(ds_frag);
 
-	e_data.volumetric_clear_sh = DRW_shader_create_with_lib(datatoc_volumetric_vert_glsl,
-	                                                        datatoc_volumetric_geom_glsl,
-	                                                        datatoc_volumetric_frag_glsl,
-	                                                        e_data.volumetric_common_lib,
-	                                                        "#define VOLUMETRICS\n"
-	                                                        "#define CLEAR\n");
-	e_data.volumetric_scatter_sh = DRW_shader_create_with_lib(datatoc_volumetric_vert_glsl,
-	                                                          datatoc_volumetric_geom_glsl,
-	                                                          datatoc_volumetric_scatter_frag_glsl,
-                                                              e_data.volumetric_common_lamps_lib,
-                                                              SHADER_DEFINES
-                                                              "#define VOLUMETRICS\n"
-                                                              "#define VOLUME_SHADOW\n");
-	e_data.volumetric_integration_sh = DRW_shader_create_with_lib(datatoc_volumetric_vert_glsl,
-	                                                              datatoc_volumetric_geom_glsl,
-	                                                              datatoc_volumetric_integration_frag_glsl,
-	                                                              e_data.volumetric_common_lib, NULL);
-	e_data.volumetric_resolve_sh = DRW_shader_create_with_lib(datatoc_gpu_shader_fullscreen_vert_glsl, NULL,
-	                                                          datatoc_volumetric_resolve_frag_glsl,
-	                                                          e_data.volumetric_common_lib, NULL);
+	e_data.volumetric_clear_sh = DRW_shader_create_with_lib(
+	        datatoc_volumetric_vert_glsl,
+	        datatoc_volumetric_geom_glsl,
+	        datatoc_volumetric_frag_glsl,
+	        e_data.volumetric_common_lib,
+	        "#define VOLUMETRICS\n"
+	        "#define CLEAR\n");
+	e_data.volumetric_scatter_sh = DRW_shader_create_with_lib(
+	        datatoc_volumetric_vert_glsl,
+	        datatoc_volumetric_geom_glsl,
+	        datatoc_volumetric_scatter_frag_glsl,
+	        e_data.volumetric_common_lamps_lib,
+	        SHADER_DEFINES
+	        "#define VOLUMETRICS\n"
+	        "#define VOLUME_SHADOW\n");
+	e_data.volumetric_integration_sh = DRW_shader_create_with_lib(
+	        datatoc_volumetric_vert_glsl,
+	        datatoc_volumetric_geom_glsl,
+	        datatoc_volumetric_integration_frag_glsl,
+	        e_data.volumetric_common_lib, NULL);
+	e_data.volumetric_resolve_sh = DRW_shader_create_with_lib(
+	        datatoc_gpu_shader_fullscreen_vert_glsl, NULL,
+	        datatoc_volumetric_resolve_frag_glsl,
+	        e_data.volumetric_common_lib, NULL);
 }
 
 int EEVEE_volumes_init(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata)
