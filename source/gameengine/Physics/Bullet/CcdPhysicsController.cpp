@@ -56,7 +56,7 @@ extern bool gDisableDeactivation;
 float gLinearSleepingTreshold;
 float gAngularSleepingTreshold;
 
-BlenderBulletCharacterController::BlenderBulletCharacterController(CcdPhysicsController *ctrl, btMotionState *motionState,
+CcdCharacter::CcdCharacter(CcdPhysicsController *ctrl, btMotionState *motionState,
 																   btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight)
 	:btKinematicCharacterController(ghost, shape, stepHeight, 2),
 	m_ctrl(ctrl),
@@ -66,7 +66,7 @@ BlenderBulletCharacterController::BlenderBulletCharacterController(CcdPhysicsCon
 {
 }
 
-void BlenderBulletCharacterController::updateAction(btCollisionWorld *collisionWorld, btScalar dt)
+void CcdCharacter::updateAction(btCollisionWorld *collisionWorld, btScalar dt)
 {
 	if (onGround())
 		m_jumps = 0;
@@ -75,27 +75,27 @@ void BlenderBulletCharacterController::updateAction(btCollisionWorld *collisionW
 	m_motionState->setWorldTransform(getGhostObject()->getWorldTransform());
 }
 
-unsigned char BlenderBulletCharacterController::getMaxJumps() const
+unsigned char CcdCharacter::getMaxJumps() const
 {
 	return m_maxJumps;
 }
 
-void BlenderBulletCharacterController::setMaxJumps(unsigned char maxJumps)
+void CcdCharacter::setMaxJumps(unsigned char maxJumps)
 {
 	m_maxJumps = maxJumps;
 }
 
-unsigned char BlenderBulletCharacterController::getJumpCount() const
+unsigned char CcdCharacter::getJumpCount() const
 {
 	return m_jumps;
 }
 
-bool BlenderBulletCharacterController::canJump() const
+bool CcdCharacter::canJump() const
 {
 	return (onGround() && m_maxJumps > 0) || m_jumps < m_maxJumps;
 }
 
-void BlenderBulletCharacterController::jump()
+void CcdCharacter::jump()
 {
 	if (!canJump())
 		return;
@@ -105,42 +105,42 @@ void BlenderBulletCharacterController::jump()
 	m_jumps++;
 }
 
-const btVector3& BlenderBulletCharacterController::getWalkDirection()
+const btVector3& CcdCharacter::getWalkDirection()
 {
 	return m_walkDirection;
 }
 
-float BlenderBulletCharacterController::GetFallSpeed() const
+float CcdCharacter::GetFallSpeed() const
 {
 	return m_fallSpeed;
 }
 
-void BlenderBulletCharacterController::SetFallSpeed(float fallSpeed)
+void CcdCharacter::SetFallSpeed(float fallSpeed)
 {
 	setFallSpeed(fallSpeed);
 }
 
-float BlenderBulletCharacterController::GetMaxSlope() const
+float CcdCharacter::GetMaxSlope() const
 {
 	return m_maxSlopeRadians;
 }
 
-void BlenderBulletCharacterController::SetMaxSlope(float maxSlope)
+void CcdCharacter::SetMaxSlope(float maxSlope)
 {
 	setMaxSlope(maxSlope);
 }
 
-float BlenderBulletCharacterController::GetJumpSpeed() const
+float CcdCharacter::GetJumpSpeed() const
 {
 	return m_jumpSpeed;
 }
 
-void BlenderBulletCharacterController::SetJumpSpeed(float jumpSpeed)
+void CcdCharacter::SetJumpSpeed(float jumpSpeed)
 {
 	setJumpSpeed(jumpSpeed);
 }
 
-void BlenderBulletCharacterController::SetVelocity(const btVector3& vel, float time, bool local)
+void CcdCharacter::SetVelocity(const btVector3& vel, float time, bool local)
 {
 	btVector3 v = vel;
 	if (local) {
@@ -154,12 +154,12 @@ void BlenderBulletCharacterController::SetVelocity(const btVector3& vel, float t
 	setVelocityForTimeInterval(v, time);
 }
 
-void BlenderBulletCharacterController::SetVelocity(const MT_Vector3& vel, float time, bool local)
+void CcdCharacter::SetVelocity(const MT_Vector3& vel, float time, bool local)
 {
 	SetVelocity(ToBullet(vel), time, local);
 }
 
-void BlenderBulletCharacterController::Reset()
+void CcdCharacter::Reset()
 {
 	btCollisionWorld *world = m_ctrl->GetPhysicsEnvironment()->GetDynamicsWorld();
 	reset(world);
@@ -510,7 +510,7 @@ bool CcdPhysicsController::CreateCharacterController()
 	m_bulletMotionState->getWorldTransform(trans);
 	m_object->setWorldTransform(trans);
 
-	m_characterController = new BlenderBulletCharacterController(this, m_bulletMotionState, (btPairCachingGhostObject *)m_object,
+	m_characterController = new CcdCharacter(this, m_bulletMotionState, (btPairCachingGhostObject *)m_object,
 																 (btConvexShape *)m_collisionShape, m_cci.m_stepHeight);
 
 	m_characterController->setJumpSpeed(m_cci.m_jumpSpeed);

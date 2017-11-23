@@ -449,7 +449,7 @@ class btCollisionObject;
 class btSoftBody;
 class btPairCachingGhostObject;
 
-class BlenderBulletCharacterController : public btKinematicCharacterController, public PHY_ICharacter
+class CcdCharacter : public btKinematicCharacterController, public PHY_ICharacter
 {
 private:
 	CcdPhysicsController *m_ctrl;
@@ -458,7 +458,7 @@ private:
 	unsigned char m_maxJumps;
 
 public:
-	BlenderBulletCharacterController(CcdPhysicsController *ctrl, btMotionState *motionState, btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight);
+	CcdCharacter(CcdPhysicsController *ctrl, btMotionState *motionState, btPairCachingGhostObject *ghost, btConvexShape *shape, float stepHeight);
 
 	virtual void updateAction(btCollisionWorld *collisionWorld, btScalar dt);
 
@@ -551,7 +551,7 @@ class CcdPhysicsController : public PHY_IPhysicsController
 {
 protected:
 	btCollisionObject *m_object;
-	BlenderBulletCharacterController *m_characterController;
+	CcdCharacter *m_characterController;
 
 	class PHY_IMotionState *m_MotionState;
 	btMotionState *m_bulletMotionState;
