@@ -51,8 +51,6 @@ class KX_GameObject;
 class KX_Scene;
 class BL_BlenderSceneConverter;
 
-struct PHY_ShapeProps;
-struct PHY_MaterialProps;
 class PHY_IMotionState;
 struct bRigidBodyJointConstraint;
 
@@ -243,7 +241,6 @@ public:
 							   KX_GameObject *gameobj,
 	                           RAS_MeshObject *meshobj,
 	                           KX_Scene *kxscene,
-	                           const PHY_ShapeProps& shapeprops,
 	                           PHY_IMotionState *motionstate,
 	                           int activeLayerBitInfo,
 	                           bool isCompoundChild,

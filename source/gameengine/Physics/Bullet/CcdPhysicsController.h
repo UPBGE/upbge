@@ -320,6 +320,7 @@ struct CcdConstructionInfo {
 	float m_stepHeight;
 	float m_jumpSpeed;
 	float m_fallSpeed;
+	float m_maxSlope;
 	unsigned char m_maxJumps;
 
 	int m_gamesoftFlag;
@@ -516,6 +517,9 @@ public:
 
 	virtual float GetFallSpeed() const;
 	virtual void SetFallSpeed(float fallSpeed);
+
+	virtual float GetMaxSlope() const;
+	virtual void SetMaxSlope(float maxSlope);
 
 	virtual float GetJumpSpeed() const;
 	virtual void SetJumpSpeed(float jumpSpeed);

@@ -120,6 +120,16 @@ void BlenderBulletCharacterController::SetFallSpeed(float fallSpeed)
 	setFallSpeed(fallSpeed);
 }
 
+float BlenderBulletCharacterController::GetMaxSlope() const
+{
+	return m_maxSlopeRadians;
+}
+
+void BlenderBulletCharacterController::SetMaxSlope(float maxSlope)
+{
+	setMaxSlope(maxSlope);
+}
+
 float BlenderBulletCharacterController::GetJumpSpeed() const
 {
 	return m_jumpSpeed;
@@ -506,6 +516,7 @@ bool CcdPhysicsController::CreateCharacterController()
 	m_characterController->setJumpSpeed(m_cci.m_jumpSpeed);
 	m_characterController->setFallSpeed(m_cci.m_fallSpeed);
 	m_characterController->setMaxJumps(m_cci.m_maxJumps);
+	m_characterController->setMaxSlope(m_cci.m_maxSlope);
 
 	return true;
 }

@@ -51,10 +51,18 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         if physics_type == 'CHARACTER':
             layout.prop(game, "use_actor")
             layout.prop(ob, "hide_render", text="Invisible")  # out of place but useful
-            layout.prop(game, "step_height", slider=True)
-            layout.prop(game, "jump_speed")
-            layout.prop(game, "fall_speed")
-            layout.prop(game, "jump_max")
+
+            layout.separator()
+
+            split = layout.split()
+
+            col = split.column()
+            col.prop(game, "step_height", slider=True)
+            col.prop(game, "fall_speed")
+            col.prop(game, "max_slope")
+            col = split.column()
+            col.prop(game, "jump_speed")
+            col.prop(game, "jump_max")
 
         elif physics_type in {'DYNAMIC', 'RIGID_BODY'}:
             split = layout.split()

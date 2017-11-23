@@ -55,7 +55,6 @@
 #include "MT_Transform.h"
 #include "MT_MinMax.h"
 
-#include "PHY_Pro.h"
 #include "PHY_IPhysicsEnvironment.h"
 
 #ifdef WITH_BULLET
@@ -629,53 +628,6 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 	}
 }
 
-static PHY_ShapeProps BL_CreateShapePropsFromBlenderObject(struct Object *blenderobject)
-{
-	PHY_ShapeProps shapeProps;
-
-	shapeProps.m_mass = blenderobject->mass;
-
-	/* This needs to be fixed in blender. For now, we use:
-	 * in Blender, inertia stands for the size value which is equivalent to
-	 * the sphere radius
-	 */
-	shapeProps.m_inertia = blenderobject->formfactor;
-
-	BLI_assert(0.0f <= blenderobject->damping && blenderobject->damping <= 1.0f);
-	BLI_assert(0.0f <= blenderobject->rdamping && blenderobject->rdamping <= 1.0f);
-
-	shapeProps.m_lin_drag = 1.0f - blenderobject->damping;
-	shapeProps.m_ang_drag = 1.0f - blenderobject->rdamping;
-
-	shapeProps.m_friction_scaling = MT_Vector3(blenderobject->anisotropicFriction);
-	shapeProps.m_do_anisotropic = ((blenderobject->gameflag & OB_ANISOTROPIC_FRICTION) != 0);
-
-	shapeProps.m_do_fh = (blenderobject->gameflag & OB_DO_FH) != 0;
-	shapeProps.m_do_rot_fh = (blenderobject->gameflag & OB_ROT_FH) != 0;
-
-	// Velocity clamping.
-	shapeProps.m_clamp_vel_min = blenderobject->min_vel;
-	shapeProps.m_clamp_vel_max = blenderobject->max_vel;
-	shapeProps.m_clamp_angvel_min = blenderobject->min_angvel;
-	shapeProps.m_clamp_angvel_max = blenderobject->max_angvel;
-
-	// Character physics properties.
-	shapeProps.m_step_height = blenderobject->step_height;
-	shapeProps.m_jump_speed = blenderobject->jump_speed;
-	shapeProps.m_fall_speed = blenderobject->fall_speed;
-	shapeProps.m_max_jumps = blenderobject->max_jumps;
-
-	shapeProps.m_restitution = blenderobject->reflect;
-	shapeProps.m_friction = blenderobject->friction;
-	shapeProps.m_rollingFriction = blenderobject->rolling_friction;
-	shapeProps.m_fh_spring = blenderobject->fh;
-	shapeProps.m_fh_damping = blenderobject->xyfrict;
-	shapeProps.m_fh_distance = blenderobject->fhdist;
-	shapeProps.m_fh_normal = (blenderobject->dynamode & OB_FH_NOR) != 0;
-
-	return shapeProps;
-}
-
 static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene, bool isActive, e_PhysicsEngine physics_engine)
 {
 	switch (physics_engine) {
@@ -740,12 +692,10 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobj
 		return;
 	}
 
-	const PHY_ShapeProps shapeprops = BL_CreateShapePropsFromBlenderObject(blenderobject);
-
 	PHY_IMotionState *motionstate = new KX_MotionState(gameobj->GetSGNode());
 
 	PHY_IPhysicsEnvironment *phyenv = kxscene->GetPhysicsEnvironment();
-	phyenv->ConvertObject(converter, gameobj, meshobj, kxscene, shapeprops, motionstate, activeLayerBitInfo,
+	phyenv->ConvertObject(converter, gameobj, meshobj, kxscene, motionstate, activeLayerBitInfo,
 			isCompoundChild, hasCompoundChildren);
 
 	bool isActor = (blenderobject->gameflag & OB_ACTOR) != 0;

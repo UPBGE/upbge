@@ -258,7 +258,6 @@ public:
 							   KX_GameObject *gameobj,
 	                           RAS_MeshObject *meshobj,
 	                           KX_Scene *kxscene,
-	                           const PHY_ShapeProps& shapeprops,
 	                           PHY_IMotionState *motionstate,
 	                           int activeLayerBitInfo,
 	                           bool isCompoundChild,

@@ -26,6 +26,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "DNA_action_types.h"
 #include "DNA_customdata_types.h"
@@ -1808,6 +1809,12 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0, 1000.0);
 	RNA_def_property_float_default(prop, 55.0f);
 	RNA_def_property_ui_text(prop, "Fall Speed Max", "Maximum speed at which the character will fall");
+
+	prop = RNA_def_property(srna, "max_slope", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "max_slope");
+	RNA_def_property_range(prop, 0.0, M_PI_2);
+	RNA_def_property_float_default(prop, M_PI_2);
+	RNA_def_property_ui_text(prop, "Max Slope", "Maximum slope angle which the character will climb");
 
 	prop = RNA_def_property(srna, "jump_max", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "max_jumps");

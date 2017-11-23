@@ -70,6 +70,7 @@ PyAttributeDef KX_CharacterWrapper::Attributes[] = {
 	EXP_PYATTRIBUTE_RW_FUNCTION("gravity", KX_CharacterWrapper, pyattr_get_gravity, pyattr_set_gravity),
 	EXP_PYATTRIBUTE_RW_FUNCTION("fallSpeed", KX_CharacterWrapper, pyattr_get_fallSpeed, pyattr_set_fallSpeed),
 	EXP_PYATTRIBUTE_RW_FUNCTION("maxJumps", KX_CharacterWrapper, pyattr_get_max_jumps, pyattr_set_max_jumps),
+	EXP_PYATTRIBUTE_RW_FUNCTION("maxSlope", KX_CharacterWrapper, pyattr_get_maxSlope, pyattr_set_maxSlope),
 	EXP_PYATTRIBUTE_RO_FUNCTION("jumpCount", KX_CharacterWrapper, pyattr_get_jump_count),
 	EXP_PYATTRIBUTE_RW_FUNCTION("jumpSpeed", KX_CharacterWrapper, pyattr_get_jumpSpeed, pyattr_set_jumpSpeed),
 	EXP_PYATTRIBUTE_RW_FUNCTION("walkDirection", KX_CharacterWrapper, pyattr_get_walk_dir, pyattr_set_walk_dir),
@@ -116,12 +117,32 @@ int KX_CharacterWrapper::pyattr_set_fallSpeed(EXP_PyObjectPlus *self_v, const EX
 	KX_CharacterWrapper *self = static_cast<KX_CharacterWrapper *>(self_v);
 	const float param = PyFloat_AsDouble(value);
 
-	if (param == -1) {
-		PyErr_SetString(PyExc_ValueError, "KX_CharacterWrapper.gravity: expected a float");
+	if (param == -1 || param < 0.0f) {
+		PyErr_SetString(PyExc_ValueError, "KX_CharacterWrapper.fallSpeed: expected a positive float");
 		return PY_SET_ATTR_FAIL;
 	}
 
 	self->m_character->SetFallSpeed(param);
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_CharacterWrapper::pyattr_get_maxSlope(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_CharacterWrapper *self = static_cast<KX_CharacterWrapper *>(self_v);
+	return PyFloat_FromDouble(self->m_character->GetMaxSlope());
+}
+
+int KX_CharacterWrapper::pyattr_set_maxSlope(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_CharacterWrapper *self = static_cast<KX_CharacterWrapper *>(self_v);
+	const float param = PyFloat_AsDouble(value);
+
+	if (param == -1 || param < 0.0f || param > M_PI_2) {
+		PyErr_SetString(PyExc_ValueError, "KX_CharacterWrapper.maxSlope: expected a float between 0 and half pi");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->m_character->SetMaxSlope(param);
 	return PY_SET_ATTR_SUCCESS;
 }
 

@@ -237,6 +237,8 @@ typedef struct Object {
 	float step_height;
 	float jump_speed;
 	float fall_speed;
+	float max_slope;
+	int pad5;
 	unsigned char max_jumps;
 	char pad2[3];
 

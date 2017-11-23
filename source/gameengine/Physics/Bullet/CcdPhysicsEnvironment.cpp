@@ -43,7 +43,6 @@
 
 #include "PHY_IMotionState.h"
 #include "PHY_ICharacter.h"
-#include "PHY_Pro.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h" // for KX_RasterizerDrawDebugLine
 #include "BL_BlenderSceneConverter.h"
@@ -2661,7 +2660,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 }
 
 void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, KX_GameObject *gameobj, RAS_MeshObject *meshobj,
-										  KX_Scene *kxscene, const PHY_ShapeProps& shapeprops, PHY_IMotionState *motionstate,
+										  KX_Scene *kxscene, PHY_IMotionState *motionstate,
 										  int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
 {
 	Object *blenderobject = gameobj->GetBlenderObject();
@@ -2725,15 +2724,16 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 	                               ((blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_ROT_AXIS) != 0) ? 0.0f : 1.0f,
 	                               ((blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_ROT_AXIS) != 0) ? 0.0f : 1.0f);
 	ci.m_localInertiaTensor = btVector3(0.0f, 0.0f, 0.0f);
-	ci.m_mass = isbulletdyna ? shapeprops.m_mass : 0.0f;
-	ci.m_clamp_vel_min = shapeprops.m_clamp_vel_min;
-	ci.m_clamp_vel_max = shapeprops.m_clamp_vel_max;
-	ci.m_clamp_angvel_min = shapeprops.m_clamp_angvel_min;
-	ci.m_clamp_angvel_max = shapeprops.m_clamp_angvel_max;
-	ci.m_stepHeight = isbulletchar ? shapeprops.m_step_height : 0.0f;
-	ci.m_jumpSpeed = isbulletchar ? shapeprops.m_jump_speed : 0.0f;
-	ci.m_fallSpeed = isbulletchar ? shapeprops.m_fall_speed : 0.0f;
-	ci.m_maxJumps = isbulletchar ? shapeprops.m_max_jumps : 0;
+	ci.m_mass = isbulletdyna ? blenderobject->mass : 0.0f;
+	ci.m_clamp_vel_min = blenderobject->min_vel;
+	ci.m_clamp_vel_max = blenderobject->max_vel;
+	ci.m_clamp_angvel_min = blenderobject->min_angvel;
+	ci.m_clamp_angvel_max = blenderobject->max_angvel;
+	ci.m_stepHeight = isbulletchar ? blenderobject->step_height : 0.0f;
+	ci.m_jumpSpeed = isbulletchar ? blenderobject->jump_speed : 0.0f;
+	ci.m_fallSpeed = isbulletchar ? blenderobject->fall_speed : 0.0f;
+	ci.m_maxSlope = isbulletchar ? blenderobject->max_slope : 0.0f;
+	ci.m_maxJumps = isbulletchar ? blenderobject->max_jumps : 0;
 
 	//mmm, for now, take this for the size of the dynamicobject
 	// Blender uses inertia for radius of dynamic object
@@ -3066,26 +3066,28 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 
 	ci.m_collisionShape = bm;
 	ci.m_shapeInfo = shapeInfo;
-	ci.m_friction = shapeprops.m_friction;//tweak the friction a bit, so the default 0.5 works nice
-	ci.m_rollingFriction = shapeprops.m_rollingFriction;
-	ci.m_restitution = shapeprops.m_restitution;
+	ci.m_friction = blenderobject->friction;
+	ci.m_rollingFriction = blenderobject->rolling_friction;
+	ci.m_restitution = blenderobject->reflect;
 	ci.m_physicsEnv = this;
-	// drag / damping is inverted
-	ci.m_linearDamping = 1.0f - shapeprops.m_lin_drag;
-	ci.m_angularDamping = 1.0f - shapeprops.m_ang_drag;
+	ci.m_linearDamping = blenderobject->damping;
+	ci.m_angularDamping = blenderobject->rdamping;
 	//need a bit of damping, else system doesn't behave well
-	ci.m_inertiaFactor = shapeprops.m_inertia / 0.4f;//defaults to 0.4, don't want to change behavior
+	ci.m_inertiaFactor = blenderobject->formfactor / 0.4f;//defaults to 0.4, don't want to change behavior
 
-	ci.m_do_anisotropic = shapeprops.m_do_anisotropic;
-	ci.m_anisotropicFriction = ToBullet(shapeprops.m_friction_scaling);
+	ci.m_do_anisotropic = (blenderobject->gameflag & OB_ANISOTROPIC_FRICTION);
+	ci.m_anisotropicFriction = btVector3(
+			blenderobject->anisotropicFriction[0],
+			blenderobject->anisotropicFriction[1],
+			blenderobject->anisotropicFriction[2]);
 
 	//do Fh, do Rot Fh
-	ci.m_do_fh = shapeprops.m_do_fh;
-	ci.m_do_rot_fh = shapeprops.m_do_rot_fh;
-	ci.m_fh_damping = shapeprops.m_fh_damping;
-	ci.m_fh_distance = shapeprops.m_fh_distance;
-	ci.m_fh_normal = shapeprops.m_fh_normal;
-	ci.m_fh_spring = shapeprops.m_fh_spring;
+	ci.m_do_fh = (blenderobject->gameflag & OB_DO_FH);
+	ci.m_do_rot_fh = (blenderobject->gameflag & OB_ROT_FH);
+	ci.m_fh_damping = blenderobject->xyfrict;
+	ci.m_fh_distance = blenderobject->fhdist;
+	ci.m_fh_normal = (blenderobject->dynamode & OB_FH_NOR);
+	ci.m_fh_spring = blenderobject->fh;
 
 	ci.m_collisionFilterGroup =
 	    (isbulletsensor) ? short(CcdConstructionInfo::SensorFilter) :

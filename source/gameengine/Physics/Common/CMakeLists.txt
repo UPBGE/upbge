@@ -41,7 +41,6 @@ set(SRC
 	PHY_IPhysicsController.h
 	PHY_IPhysicsEnvironment.h
 	PHY_IVehicle.h
-	PHY_Pro.h
 )
 
 blender_add_lib(ge_phys_dummy "${SRC}" "${INC}" "${INC_SYS}")
