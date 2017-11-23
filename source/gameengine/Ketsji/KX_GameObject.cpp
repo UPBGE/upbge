@@ -315,23 +315,22 @@ void KX_GameObject::DuplicateMaterialBatches()
 		Gwn_Batch *newBatch = GWN_batch_create_from_batch_ex(b);
 		newBatches.push_back(newBatch);
 	}
-	m_materialBatches.clear();
-	m_materialBatches = newBatches;
+	m_newBatches = newBatches;
 }
 
 /* Use for AddObject */
 void KX_GameObject::AddNewMaterialBatchesToPasses(float obmat[4][4])
 {
-	for (Gwn_Batch *b : m_materialBatches) {
-		for (DRWPass *pass : GetScene()->GetMaterialPasses()) {
-			for (DRWShadingGroup *shgroup = DRW_shgroups_from_pass_get(pass); shgroup; shgroup = DRW_shgroup_next(shgroup)) {
-				std::vector<DRWShadingGroup *>::iterator it = std::find(m_materialShGroups.begin(), m_materialShGroups.end(), shgroup);
-				if (it != m_materialShGroups.end()) {
-					DRW_shgroup_call_add(shgroup, b, obmat);
-				}
+	for (DRWShadingGroup *shgroup : m_materialShGroups) {
+		for (int i = 0; i < m_materialBatches.size(); i++) {
+			Gwn_Batch *oldBatch = m_materialBatches[i];
+			if (DRW_shgroups_belongs_to_culled_gameobject(shgroup, oldBatch)) {
+				DRW_shgroup_call_add(shgroup, m_newBatches[i], obmat);
 			}
 		}
 	}
+	m_materialBatches.clear();
+	m_materialBatches = m_newBatches;
 }
 
 /************************END OF EEVEE INTEGRATION******************************/

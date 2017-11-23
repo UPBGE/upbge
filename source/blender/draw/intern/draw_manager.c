@@ -3766,6 +3766,16 @@ bool DRW_shgroups_belongs_to_gameobject(DRWShadingGroup *shgroup, Gwn_Batch *bat
 	return false;
 }
 
+bool DRW_shgroups_belongs_to_culled_gameobject(DRWShadingGroup *shgroup, Gwn_Batch *batch)
+{
+	for (DRWCall *call = shgroup->calls_first; call; call = call->head.prev) {
+		if (call->culled_geometry == batch) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void DRW_shgroups_calls_update_obmat(DRWShadingGroup *shgroup, Gwn_Batch *batch, float obmat[4][4])
 {
 	for (DRWCall *call = shgroup->calls_first; call; call = call->head.prev) {
