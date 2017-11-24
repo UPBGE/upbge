@@ -662,6 +662,16 @@ void KX_KetsjiEngine::Render()
 				// do the rendering
 				RenderCamera(scene, cameraFrameData, frameBuffer, pass++, isfirstscene);
 			}
+
+			/* Hack for SSR : See eevee_screen_raytrace line 155 */
+			EEVEE_Data *vedata = EEVEE_engine_data_get();
+			if (vedata->stl->effects->enabled_effects & EFFECT_SSR) {
+				/* Reattach textures to the right buffer (because we are alternating between buffers) */
+				/* TODO multiple FBO per texture!!!! */
+				DRW_framebuffer_texture_detach(vedata->txl->ssr_specrough_input);
+				DRW_framebuffer_texture_attach(vedata->fbl->main, vedata->txl->ssr_normal_input, 1, 0);
+				DRW_framebuffer_texture_attach(vedata->fbl->main, vedata->txl->ssr_specrough_input, 2, 0);
+			}
 		}
 	}
 
