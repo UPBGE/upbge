@@ -360,6 +360,8 @@ public:
 	std::vector<KX_GameObject *>GetProbeList();
 	void InitScenePasses(EEVEE_PassList *psl);
 	std::vector<DRWPass *>GetMaterialPasses();
+	void EeveePostProcessingHackBegin();
+	void EeveePostProcessingHackEnd();
 	/******************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;

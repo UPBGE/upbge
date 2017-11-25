@@ -1888,6 +1888,23 @@ static void EEVEE_draw_scene(RAS_FrameBuffer *inputfb)
 
 /***********************************************EEVEE INTEGRATION****************************************************/
 
+void KX_Scene::EeveePostProcessingHackBegin()
+{
+}
+
+void KX_Scene::EeveePostProcessingHackEnd()
+{
+	/* Hack for SSR : See eevee_screen_raytrace line 155 */
+	EEVEE_Data *vedata = EEVEE_engine_data_get();
+	if (vedata->stl->effects->enabled_effects & EFFECT_SSR) {
+		/* Reattach textures to the right buffer (because we are alternating between buffers) */
+		/* TODO multiple FBO per texture!!!! */
+		DRW_framebuffer_texture_detach(vedata->txl->ssr_specrough_input);
+		DRW_framebuffer_texture_attach(vedata->fbl->main, vedata->txl->ssr_normal_input, 1, 0);
+		DRW_framebuffer_texture_attach(vedata->fbl->main, vedata->txl->ssr_specrough_input, 2, 0);
+	}
+}
+
 void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer)
 {
 	/* Update blenderobjects matrix as we use it for eevee's shadows */
@@ -1918,6 +1935,8 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 	/* Start Drawing */
 	DRW_state_reset();
 	EEVEE_draw_scene(frameBuffer);
+
+	EeveePostProcessingHackEnd();
 
 	KX_BlenderMaterial::EndFrame(rasty);
 }
