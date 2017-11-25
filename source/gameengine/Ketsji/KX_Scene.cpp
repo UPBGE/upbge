@@ -1890,13 +1890,37 @@ static void EEVEE_draw_scene(RAS_FrameBuffer *inputfb)
 
 void KX_Scene::EeveePostProcessingHackBegin()
 {
+	EEVEE_Data *vedata = EEVEE_engine_data_get();
+	EEVEE_EffectsInfo *effects = vedata->stl->effects;
+	if (effects->enabled_effects & EFFECT_MOTION_BLUR) {
+		float shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
+		float camToWorld[4][4];
+		GetActiveCamera()->GetCameraToWorld().getValue(&camToWorld[0][0]);
+		camToWorld[3][0] *= shutter;
+		camToWorld[3][1] *= shutter;
+		camToWorld[3][2] *= shutter;
+		copy_m4_m4(effects->current_ndc_to_world, camToWorld);
+	}
 }
 
 void KX_Scene::EeveePostProcessingHackEnd()
 {
-	/* Hack for SSR : See eevee_screen_raytrace line 155 */
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
-	if (vedata->stl->effects->enabled_effects & EFFECT_SSR) {
+	EEVEE_EffectsInfo *effects = vedata->stl->effects;
+
+	/* Hack for motion blur */
+	if (effects->enabled_effects & EFFECT_MOTION_BLUR) {
+		float shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
+		float worldToCam[4][4];
+		GetActiveCamera()->GetWorldToCamera().getValue(&worldToCam[0][0]);
+		worldToCam[3][0] *= shutter;
+		worldToCam[3][1] *= shutter;
+		worldToCam[3][2] *= shutter;
+		copy_m4_m4(effects->past_world_to_ndc, worldToCam);
+	}
+
+	/* Hack for SSR : See eevee_screen_raytrace line 155 */
+	if (effects->enabled_effects & EFFECT_SSR) {
 		/* Reattach textures to the right buffer (because we are alternating between buffers) */
 		/* TODO multiple FBO per texture!!!! */
 		DRW_framebuffer_texture_detach(vedata->txl->ssr_specrough_input);
@@ -1931,6 +1955,8 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 	}
 
 	KX_GetActiveEngine()->UpdateShadows(this);
+
+	EeveePostProcessingHackBegin();
 
 	/* Start Drawing */
 	DRW_state_reset();

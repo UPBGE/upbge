@@ -815,6 +815,7 @@ void EEVEE_shgroup_add_standard_uniforms_game(struct DRWShadingGroup *shgrp,
 	int *ssr_id, float *refract_depth, bool use_ssrefraction, bool use_alpha_blend);
 EEVEE_Data *EEVEE_engine_data_get(void);
 void EEVEE_draw_shadows_bge(struct EEVEE_SceneLayerData *sldata, struct EEVEE_PassList *psl);
+void EEVEE_create_shader_motion_blur();
 /**************End of Game engine***************/
 
 #endif /* __EEVEE_PRIVATE_H__ */

@@ -105,7 +105,7 @@ static void eevee_motion_blur_camera_get_matrix_at_time(
 	mul_m4_m4m4(r_mat, params.winmat, obmat);
 }
 
-static void eevee_create_shader_motion_blur(void)
+void EEVEE_create_shader_motion_blur()
 {
 	e_data.motion_blur_sh = DRW_shader_create_fullscreen(datatoc_effect_motion_blur_frag_glsl, NULL);
 }
@@ -151,7 +151,7 @@ int EEVEE_motion_blur_init(EEVEE_SceneLayerData *UNUSED(sldata), EEVEE_Data *ved
 				effects->motion_blur_samples = BKE_collection_engine_property_value_get_int(props, "motion_blur_samples");
 
 				if (!e_data.motion_blur_sh) {
-					eevee_create_shader_motion_blur();
+					EEVEE_create_shader_motion_blur();
 				}
 
 				return EFFECT_MOTION_BLUR | EFFECT_POST_BUFFER;

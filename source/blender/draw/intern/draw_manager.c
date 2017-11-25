@@ -3919,7 +3919,7 @@ static void game_camera_border(
 	r_viewborder->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
 }
 
-static void disable_double_buffer_ckeck()
+static void disable_double_buffer_check()
 {
 	/* When uniforms are passed to the shaders, there is a control if
 	* stl->g_data->valid_double_buffer is true if we want to enable SSR
@@ -3969,6 +3969,38 @@ static void volumetrics_hack_end(int saved_taa_samples, SceneLayer *scene_layer)
 		volumetrics->jitter[0] = (float)ht_point[0];
 		volumetrics->jitter[1] = (float)ht_point[1];
 		volumetrics->jitter[2] = (float)ht_point[2];
+	}
+}
+
+static void motion_blur_init()
+{
+	EEVEE_Data *vedata = EEVEE_engine_data_get();
+	EEVEE_StorageList *stl = vedata->stl;
+	EEVEE_EffectsInfo *effects = stl->effects;
+
+	const DRWContextState *draw_ctx = DRW_context_state_get();
+	SceneLayer *scene_layer = draw_ctx->scene_layer;
+	Scene *scene = draw_ctx->scene;
+	View3D *v3d = draw_ctx->v3d;
+	RegionView3D *rv3d = draw_ctx->rv3d;
+	ARegion *ar = draw_ctx->ar;
+	IDProperty *props = BKE_scene_layer_engine_evaluated_get(scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+
+	if (BKE_collection_engine_property_value_get_bool(props, "motion_blur_enable")) {
+
+		effects->motion_blur_samples = BKE_collection_engine_property_value_get_int(props, "motion_blur_samples");
+
+		EEVEE_create_shader_motion_blur();
+
+		if (!vedata->fbl->effect_fb) {
+			const float *viewport_size = DRW_viewport_size_get();
+			DRWFboTexture tex = { &vedata->txl->color_post, DRW_TEX_RGBA_16, DRW_TEX_FILTER | DRW_TEX_MIPMAP };
+			DRW_framebuffer_init(&vedata->fbl->effect_fb, &draw_engine_eevee_type,
+				(int)viewport_size[0], (int)viewport_size[1],
+				&tex, 1);
+		}
+
+		effects->enabled_effects |= (EFFECT_MOTION_BLUR | EFFECT_POST_BUFFER);
 	}
 }
 
@@ -4022,7 +4054,8 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	/* Init engines */
 	DRW_engines_init();
 
-	disable_double_buffer_ckeck();
+	disable_double_buffer_check();
+	motion_blur_init();
 
 	DRW_engines_cache_init();
 
@@ -4052,7 +4085,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	/* Start Drawing */
 	DRW_state_reset();
-	DRW_engines_draw_scene();
+	//DRW_engines_draw_scene();
 
 	volumetrics_hack_end(taa_samples_saved, cur_scene_layer);
 
