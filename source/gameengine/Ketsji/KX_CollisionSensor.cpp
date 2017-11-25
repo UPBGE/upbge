@@ -225,7 +225,7 @@ bool KX_CollisionSensor::BroadPhaseSensorFilterCollision(void *obj1, void *obj2)
 	return found;
 }
 
-bool KX_CollisionSensor::NewHandleCollision(void *object1, void *object2, const PHY_CollData *colldata)
+bool KX_CollisionSensor::NewHandleCollision(void *object1, void *object2, const PHY_ICollData *colldata)
 {
 	KX_GameObject *parent = (KX_GameObject *)GetParent();
 

@@ -941,6 +941,7 @@ public:
 	EXP_PYMETHOD_NOARGS(KX_GameObject,DisableRigidBody);
 	EXP_PYMETHOD_VARARGS(KX_GameObject,ApplyImpulse);
 	EXP_PYMETHOD_O(KX_GameObject,SetCollisionMargin);
+	EXP_PYMETHOD_O(KX_GameObject,Collide);
 	EXP_PYMETHOD_NOARGS(KX_GameObject,GetParent);
 	EXP_PYMETHOD(KX_GameObject,SetParent);
 	EXP_PYMETHOD_NOARGS(KX_GameObject,RemoveParent);

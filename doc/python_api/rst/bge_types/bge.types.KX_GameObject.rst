@@ -985,6 +985,19 @@ base class --- :class:`SCA_IObject`
 
          The ray ignores the object on which the method is called. It is casted from/to object center or explicit [x, y, z] points.
 
+   .. method:: collide(obj)
+
+      Test if this object collides object :data:`obj`.
+
+      :arg obj: the object to test collision with
+      :type obj: string or :class:`KX_GameObject`
+      :return: (collide, points)
+
+         * collide, True if this object collides object :data:`obj`
+         * points, contact point data of the collision or None
+
+      :rtype: 2-tuple (boolean, list of :class:`KX_CollisionContactPoint` or None)
+
    .. method:: setCollisionMargin(margin)
 
       Set the objects collision margin.

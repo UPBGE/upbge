@@ -1529,11 +1529,13 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionC
 		return;
 	}
 
-	EXP_ListWrapper *listWrapper = contactPointList.GetListWrapper();
+	const PHY_ICollData *collData = contactPointList.GetCollData();
+	const bool isFirstObject = contactPointList.GetFirstObject();
+
 	PyObject *args[] = {collider->GetProxy(),
-						PyObjectFrom(contactPointList.GetCollData()->GetWorldPoint(0, contactPointList.GetFirstObject())),
-						PyObjectFrom(contactPointList.GetCollData()->GetNormal(0, contactPointList.GetFirstObject())),
-						listWrapper->GetProxy()};
+						PyObjectFrom(collData->GetWorldPoint(0, isFirstObject)),
+						PyObjectFrom(collData->GetNormal(0, isFirstObject)),
+						contactPointList.GetProxy()};
 	EXP_RunPythonCallBackList(m_collisionCallbacks, args, 1, ARRAY_SIZE(args));
 
 	for (unsigned int i = 0; i < ARRAY_SIZE(args); ++i) {
@@ -1541,8 +1543,7 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionC
 	}
 
 	// Invalidate the collison contact point to avoid acces to it in next frame
-	listWrapper->InvalidateProxy();
-	delete listWrapper;
+	contactPointList.InvalidateProxy();
 #endif
 }
 
@@ -1892,6 +1893,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"disableRigidBody", (PyCFunction)KX_GameObject::sPyDisableRigidBody,METH_NOARGS},
 	{"applyImpulse", (PyCFunction) KX_GameObject::sPyApplyImpulse, METH_VARARGS},
 	{"setCollisionMargin", (PyCFunction) KX_GameObject::sPySetCollisionMargin, METH_O},
+	{"collide", (PyCFunction) KX_GameObject::sPyCollide, METH_O},
 	{"setParent", (PyCFunction)KX_GameObject::sPySetParent,METH_VARARGS | METH_KEYWORDS},
 	{"setVisible",(PyCFunction) KX_GameObject::sPySetVisible, METH_VARARGS},
 	{"setOcclusion",(PyCFunction) KX_GameObject::sPySetOcclusion, METH_VARARGS},
@@ -3618,6 +3620,43 @@ PyObject *KX_GameObject::PySetCollisionMargin(PyObject *value)
 	Py_RETURN_NONE;
 }
 
+
+PyObject *KX_GameObject::PyCollide(PyObject *value)
+{
+	KX_Scene *scene = GetScene();
+	KX_GameObject *other;
+
+	if (!ConvertPythonToGameObject(scene->GetLogicManager(), value, &other, false, "gameOb.collide(obj): KX_GameObject")) {
+		return nullptr;
+	}
+
+	if (!m_pPhysicsController || !other->GetPhysicsController()) {
+		PyErr_SetString(PyExc_TypeError, "expected objects with physics controller");
+		return nullptr;
+	}
+
+	PHY_IPhysicsEnvironment *env = scene->GetPhysicsEnvironment();
+	PHY_CollisionTestResult testResult = env->TestCollision(m_pPhysicsController, other->GetPhysicsController());
+
+	PyObject *result = PyTuple_New(2);
+	if (!testResult.collide) {
+		PyTuple_SET_ITEM(result, 0, Py_False);
+		PyTuple_SET_ITEM(result, 1, Py_None);
+	}
+	else {
+		PyTuple_SET_ITEM(result, 0, Py_True);
+
+		if (testResult.collData) {
+			KX_CollisionContactPointList *contactPointList = new KX_CollisionContactPointList(testResult.collData, testResult.isFirst);
+			PyTuple_SET_ITEM(result, 1, contactPointList->NewProxy(true));
+		}
+		else {
+			PyTuple_SET_ITEM(result, 1, Py_None);
+		}
+	}
+
+	return result;
+}
 
 
 PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)

@@ -37,7 +37,7 @@
 #include "KX_ClientObjectInfo.h"
 
 class KX_Scene;
-class PHY_CollData;
+class PHY_ICollData;
 
 class KX_NearSensor : public KX_CollisionSensor
 {
@@ -74,7 +74,7 @@ public:
 
 	virtual void ReParent(SCA_IObject* parent);
 	virtual bool	NewHandleCollision(void* obj1,void* obj2,
-	                                   const PHY_CollData * coll_data);
+	                                   const PHY_ICollData * coll_data);
 	virtual bool	BroadPhaseFilterCollision(void*obj1,void*obj2);
 	virtual bool	BroadPhaseSensorFilterCollision(void* obj1,void* obj2) { return false; }
 	virtual sensortype GetSensorType() { return ST_NEAR; }

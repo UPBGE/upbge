@@ -205,7 +205,7 @@ bool	KX_NearSensor::BroadPhaseFilterCollision(void*obj1,void*obj2)
 	return false;
 }
 
-bool	KX_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *coll_data)
+bool	KX_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_ICollData *coll_data)
 {
 //	KX_CollisionEventManager* toucheventmgr = static_cast<KX_CollisionEventManager*>(m_eventmgr);
 //	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());

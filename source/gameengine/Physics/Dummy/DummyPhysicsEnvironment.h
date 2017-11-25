@@ -104,6 +104,10 @@ public:
 	{
 		return false;
 	}
+	virtual PHY_CollisionTestResult TestCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1)
+	{
+		return {false, false, nullptr};
+	}
 	virtual PHY_IPhysicsController *CreateSphereController(float radius, const class MT_Vector3& position)
 	{
 		return nullptr;

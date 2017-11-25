@@ -36,7 +36,7 @@
 #include "SCA_ISensor.h"
 #include "EXP_ListValue.h"
 
-class PHY_CollData;
+class PHY_ICollData;
 
 #include "KX_ClientObjectInfo.h"
 
@@ -94,7 +94,7 @@ public:
 	virtual void UnregisterSumo(KX_CollisionEventManager *collisionman);
 	virtual void UnregisterToManager();
 
-	virtual bool NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *colldata);
+	virtual bool NewHandleCollision(void *obj1, void *obj2, const PHY_ICollData *colldata);
 
 	// Allows to do pre-filtering and save computation time
 	// obj1 = sensor physical controller, obj2 = physical controller of second object

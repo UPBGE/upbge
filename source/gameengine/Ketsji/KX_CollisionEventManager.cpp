@@ -63,12 +63,12 @@ void KX_CollisionEventManager::RemoveNewCollisions()
 	m_newCollisions.clear();
 }
 
-bool KX_CollisionEventManager::NewHandleCollision(void *object1, void *object2, const PHY_CollData *coll_data)
+bool KX_CollisionEventManager::NewHandleCollision(void *object1, void *object2, const PHY_ICollData *coll_data, bool first)
 {
 	PHY_IPhysicsController *obj1 = static_cast<PHY_IPhysicsController *>(object1);
 	PHY_IPhysicsController *obj2 = static_cast<PHY_IPhysicsController *>(object2);
 
-	m_newCollisions.insert(NewCollision(obj1, obj2, coll_data));
+	m_newCollisions.insert(NewCollision(obj1, obj2, coll_data, first));
 
 	return false;
 }
@@ -77,17 +77,19 @@ bool KX_CollisionEventManager::NewHandleCollision(void *object1, void *object2, 
 bool KX_CollisionEventManager::newCollisionResponse(void *client_data,
                                                     void *object1,
                                                     void *object2,
-                                                    const PHY_CollData *coll_data)
+                                                    const PHY_ICollData *coll_data,
+													bool first)
 {
 	KX_CollisionEventManager *collisionmgr = (KX_CollisionEventManager *)client_data;
-	collisionmgr->NewHandleCollision(object1, object2, coll_data);
+	collisionmgr->NewHandleCollision(object1, object2, coll_data, first);
 	return false;
 }
 
 bool KX_CollisionEventManager::newBroadphaseResponse(void *client_data,
                                                      void *object1,
                                                      void *object2,
-                                                     const PHY_CollData *coll_data)
+                                                     const PHY_ICollData *coll_data,
+													 bool first)
 {
 	PHY_IPhysicsController *ctrl1 = static_cast<PHY_IPhysicsController *>(object1);
 	PHY_IPhysicsController *ctrl2 = static_cast<PHY_IPhysicsController *>(object2);
@@ -219,9 +221,9 @@ void KX_CollisionEventManager::NextFrame()
 			}
 		}
 		// Run python callbacks
-		const PHY_CollData *colldata = collision.colldata;
-		KX_CollisionContactPointList contactPointList0 = KX_CollisionContactPointList(colldata, true);
-		KX_CollisionContactPointList contactPointList1 = KX_CollisionContactPointList(colldata, false);
+		const PHY_ICollData *colldata = collision.colldata;
+		KX_CollisionContactPointList contactPointList0 = KX_CollisionContactPointList(colldata, collision.isFirst);
+		KX_CollisionContactPointList contactPointList1 = KX_CollisionContactPointList(colldata, !collision.isFirst);
 		kxObj1->RunCollisionCallbacks(kxObj2, contactPointList0);
 		kxObj2->RunCollisionCallbacks(kxObj1, contactPointList1);
 	}
@@ -235,17 +237,20 @@ void KX_CollisionEventManager::NextFrame()
 
 KX_CollisionEventManager::NewCollision::NewCollision(PHY_IPhysicsController *_first,
                                                      PHY_IPhysicsController *_second,
-                                                     const PHY_CollData *_colldata)
+                                                     const PHY_ICollData *_colldata,
+													 bool _isfirst)
 	:first(_first),
 	second(_second),
-	colldata(_colldata)
+	colldata(_colldata),
+	isFirst(_isfirst)
 {
 }
 
 KX_CollisionEventManager::NewCollision::NewCollision(const NewCollision &to_copy)
 	:first(to_copy.first),
 	second(to_copy.second),
-	colldata(to_copy.colldata)
+	colldata(to_copy.colldata),
+	isFirst(to_copy.isFirst)
 {
 }
 
@@ -254,6 +259,9 @@ bool KX_CollisionEventManager::NewCollision::operator<(const NewCollision &other
 	//see strict weak ordering: https://support.microsoft.com/en-us/kb/949171
 	if (first == other.first) {
 		if (second == other.second) {
+			if (colldata == other.colldata) {
+				return isFirst < other.isFirst;
+			}
 			return colldata < other.colldata;
 		}
 		return second < other.second;

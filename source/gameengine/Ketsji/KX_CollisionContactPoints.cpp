@@ -28,7 +28,7 @@
 #include "PHY_DynamicTypes.h"
 #include "KX_PyMath.h"
 
-KX_CollisionContactPoint::KX_CollisionContactPoint(const PHY_CollData *collData, unsigned int index, bool firstObject)
+KX_CollisionContactPoint::KX_CollisionContactPoint(const PHY_ICollData *collData, unsigned int index, bool firstObject)
 	:m_collData(collData),
 	m_index(index),
 	m_firstObject(firstObject)
@@ -132,20 +132,6 @@ PyObject *KX_CollisionContactPoint::pyattr_get_applied_impulse(EXP_PyObjectPlus 
 	return PyFloat_FromDouble(self->m_collData->GetAppliedImpulse(self->m_index, self->m_firstObject));
 }
 
-#endif  // WITH_PYTHON
-
-KX_CollisionContactPointList::KX_CollisionContactPointList(const PHY_CollData *collData, bool firstObject)
-	:m_collData(collData),
-	m_firstObject(firstObject)
-{
-}
-
-KX_CollisionContactPointList::~KX_CollisionContactPointList()
-{
-}
-
-#ifdef WITH_PYTHON
-
 static int kx_collision_contact_point_list_get_sensors_size_cb(void *self_v)
 {
 	return ((KX_CollisionContactPointList *)self_v)->GetNumCollisionContactPoint();
@@ -156,18 +142,27 @@ static PyObject *kx_collision_contact_point_list_get_sensors_item_cb(void *self_
 	return ((KX_CollisionContactPointList *)self_v)->GetCollisionContactPoint(index)->NewProxy(true);
 }
 
-EXP_ListWrapper *KX_CollisionContactPointList::GetListWrapper()
+#endif  // WITH_PYTHON
+
+KX_CollisionContactPointList::KX_CollisionContactPointList(const PHY_ICollData *collData, bool firstObject)
+	:
+#ifdef WITH_PYTHON
+	EXP_ListWrapper(this, nullptr, nullptr, kx_collision_contact_point_list_get_sensors_size_cb,
+		kx_collision_contact_point_list_get_sensors_item_cb, nullptr, nullptr),
+#endif  // WITH_PYTHON
+	m_collData(collData),
+	m_firstObject(firstObject)
 {
-	return (new EXP_ListWrapper(this,
-							 nullptr, // No base python proxy.
-							 nullptr,
-							 kx_collision_contact_point_list_get_sensors_size_cb,
-							 kx_collision_contact_point_list_get_sensors_item_cb,
-							 nullptr,
-							 nullptr));
 }
 
-#endif  // WITH_PYTHON
+KX_CollisionContactPointList::~KX_CollisionContactPointList()
+{
+}
+
+std::string KX_CollisionContactPointList::GetName()
+{
+	return "KX_CollisionContactPointList";
+}
 
 KX_CollisionContactPoint *KX_CollisionContactPointList::GetCollisionContactPoint(unsigned int index)
 {
@@ -180,7 +175,7 @@ unsigned int KX_CollisionContactPointList::GetNumCollisionContactPoint()
 	return m_collData->GetNumContacts();
 }
 
-const PHY_CollData *KX_CollisionContactPointList::GetCollData()
+const PHY_ICollData *KX_CollisionContactPointList::GetCollData()
 {
 	return m_collData;
 }

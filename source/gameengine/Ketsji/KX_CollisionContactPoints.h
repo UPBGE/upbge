@@ -30,19 +30,19 @@
 #include "EXP_Value.h"
 #include "EXP_ListWrapper.h"
 
-class PHY_CollData;
+class PHY_ICollData;
 
 class KX_CollisionContactPoint : public EXP_Value
 {
 	Py_Header
 protected:
 	/// All infos about contact position, normal, friction ect…
-	const PHY_CollData *m_collData;
+	const PHY_ICollData *m_collData;
 	const unsigned int m_index;
 	const bool m_firstObject;
 
 public:
-	KX_CollisionContactPoint(const PHY_CollData *collData, unsigned int index, bool firstObject);
+	KX_CollisionContactPoint(const PHY_ICollData *collData, unsigned int index, bool firstObject);
 	virtual ~KX_CollisionContactPoint();
 
 	// stuff for cvalue related things
@@ -63,24 +63,25 @@ public:
 };
 
 class KX_CollisionContactPointList
+#ifdef WITH_PYTHON
+	: public EXP_ListWrapper
+#endif  // WITH_PYTHON
 {
 private:
 	/// The list of contact points for a pair of rigid bodies.
-	const PHY_CollData *m_collData;
+	const PHY_ICollData *m_collData;
 	/// The object is the first in the pair or the second ?
 	bool m_firstObject;
 
 public:
-	KX_CollisionContactPointList(const PHY_CollData *collData, bool firstObject);
+	KX_CollisionContactPointList(const PHY_ICollData *collData, bool firstObject);
 	virtual ~KX_CollisionContactPointList();
 
-#ifdef WITH_PYTHON
-	EXP_ListWrapper *GetListWrapper();
-#endif  // WITH_PYTHON
+	virtual std::string GetName();
 
 	KX_CollisionContactPoint *GetCollisionContactPoint(unsigned int index);
 	unsigned int GetNumCollisionContactPoint();
-	const PHY_CollData *GetCollData();
+	const PHY_ICollData *GetCollData();
 	bool GetFirstObject();
 };
 

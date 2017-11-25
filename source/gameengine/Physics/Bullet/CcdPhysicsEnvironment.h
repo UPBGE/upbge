@@ -197,6 +197,7 @@ public:
 	virtual void AddCollisionCallback(int response_class, PHY_ResponseCallback callback, void *user);
 	virtual bool RequestCollisionCallback(PHY_IPhysicsController *ctrl);
 	virtual bool RemoveCollisionCallback(PHY_IPhysicsController *ctrl);
+	virtual PHY_CollisionTestResult TestCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1);
 	//These two methods are used *solely* to create controllers for Near/Radar sensor! Don't use for anything else
 	virtual PHY_IPhysicsController *CreateSphereController(float radius, const MT_Vector3& position);
 	virtual PHY_IPhysicsController *CreateConeController(float coneradius, float coneheight);
@@ -286,8 +287,6 @@ protected:
 
 	class btConstraintSolver *m_solver;
 
-	class btOverlappingPairCache *m_ownPairCache;
-
 	class CcdOverlapFilterCallBack *m_filterCallback;
 
 	class btGhostPairCallback *m_ghostPairCallback;
@@ -297,7 +296,7 @@ protected:
 	virtual void ExportFile(const std::string& filename);
 };
 
-class CcdCollData : public PHY_CollData
+class CcdCollData : public PHY_ICollData
 {
 	const btPersistentManifold *m_manifoldPoint;
 public:

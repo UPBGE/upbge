@@ -36,14 +36,14 @@ enum
 	PHY_NUM_RESPONSE
 };
 
-class PHY_CollData
+class PHY_ICollData
 {
 public:
-	PHY_CollData()
+	PHY_ICollData()
 	{
 	}
 
-	virtual ~PHY_CollData()
+	virtual ~PHY_ICollData()
 	{
 	}
 
@@ -58,10 +58,18 @@ public:
 	virtual float GetAppliedImpulse(unsigned int index, bool first) const = 0;
 };
 
+struct PHY_CollisionTestResult
+{
+	bool collide;
+	bool isFirst;
+	PHY_ICollData *collData;
+};
+
 typedef bool (*PHY_ResponseCallback)(void *client_data,
                                      void *client_object1,
                                      void *client_object2,
-                                     const PHY_CollData *coll_data);
+                                     const PHY_ICollData *coll_data,
+									 bool first);
 typedef void (*PHY_CullingCallback)(KX_ClientObjectInfo *info, void *param);
 
 /// PHY_PhysicsType enumerates all possible Physics Entities.
