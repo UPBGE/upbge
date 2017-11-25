@@ -63,51 +63,33 @@ class KX_CollisionEventManager : public SCA_EventManager
 		 * This allows us to efficiently store NewCollision objects in a std::set without creating more
 		 * copies of colldata, as the NewCollision copy constructor reuses the pointer and doesn't clone
 		 * it again. */
-		NewCollision(PHY_IPhysicsController *first,
-		             PHY_IPhysicsController *second,
-		             const PHY_ICollData *colldata,
-					 bool isFirst);
+		NewCollision(PHY_IPhysicsController *first, PHY_IPhysicsController *second, const PHY_ICollData *colldata, bool isFirst);
 		NewCollision(const NewCollision &to_copy);
 		bool operator<(const NewCollision &other) const;
 	};
 
 	PHY_IPhysicsEnvironment *m_physEnv;
-
 	std::set<NewCollision> m_newCollisions;
 
-	static bool newCollisionResponse(void *client_data,
-	                                 void *object1,
-	                                 void *object2,
-	                                 const PHY_ICollData *coll_data,
-									 bool first);
+	static bool newCollisionResponse(void *client_data, PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2,
+									 const PHY_ICollData *coll_data, bool first);
+	static bool newBroadphaseResponse(void *client_data, PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2,
+									 const PHY_ICollData *coll_data, bool first);
 
-	static bool newBroadphaseResponse(void *client_data,
-	                                  void *object1,
-	                                  void *object2,
-	                                  const PHY_ICollData *coll_data,
-									  bool first);
-
-	bool NewHandleCollision(void *obj1, void *obj2, const PHY_ICollData *coll_data, bool first);
-
+	bool NewHandleCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2, const PHY_ICollData *coll_data, bool first);
 	void RemoveNewCollisions();
 
 public:
-	KX_CollisionEventManager(class SCA_LogicManager *logicmgr,
-	                         PHY_IPhysicsEnvironment *physEnv);
+	KX_CollisionEventManager(SCA_LogicManager *logicmgr, PHY_IPhysicsEnvironment *physEnv);
 	virtual ~KX_CollisionEventManager();
+
 	virtual void NextFrame();
 	virtual void EndFrame();
 	virtual bool RegisterSensor(SCA_ISensor *sensor);
 	virtual bool RemoveSensor(SCA_ISensor *sensor);
 
-	SCA_LogicManager *GetLogicManager()
-	{
-		return m_logicmgr;
-	}
-	PHY_IPhysicsEnvironment *GetPhysicsEnvironment()
-	{
-		return m_physEnv;
-	}
+	SCA_LogicManager *GetLogicManager();
+	PHY_IPhysicsEnvironment *GetPhysicsEnvironment();
 };
 
 #endif  // __KX_TOUCHEVENTMANAGER_H__
