@@ -183,6 +183,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_lodHysteresisValue(0),
 	m_effectsManager(nullptr),
 	m_eeveeData(nullptr),
+	m_dofInitialized(false),
 	m_isLastScene(false)
 {
 
@@ -1892,6 +1893,17 @@ void KX_Scene::EeveePostProcessingHackBegin()
 {
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
 	EEVEE_EffectsInfo *effects = vedata->stl->effects;
+
+	if (effects->enabled_effects & EFFECT_DOF) {
+		/* Depth Of Field */
+		KX_Camera *cam = GetActiveCamera();
+		float sensorSize = cam->GetCameraData()->m_sensor_x;
+		/* Only update params that needs to be updated */
+		float scaleCamera = 0.001f;
+		float sensorScaled = scaleCamera * sensorSize;
+		effects->dof_params[2] = (KX_GetActiveEngine()->GetCanvas()->GetWidth() + 1) / (1.0f * sensorScaled);
+	}
+
 	if (effects->enabled_effects & EFFECT_MOTION_BLUR) {
 		float shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 		float camToWorld[4][4];
@@ -1909,7 +1921,7 @@ void KX_Scene::EeveePostProcessingHackEnd()
 	EEVEE_EffectsInfo *effects = vedata->stl->effects;
 
 	/* Hack for motion blur */
-	if (effects->enabled_effects & EFFECT_MOTION_BLUR) {
+	if (effects->enabled_effects & EFFECT_MOTION_BLUR && !m_dofInitialized) {
 		float shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 		float worldToCam[4][4];
 		GetActiveCamera()->GetWorldToCamera().getValue(&worldToCam[0][0]);
@@ -1917,6 +1929,7 @@ void KX_Scene::EeveePostProcessingHackEnd()
 		worldToCam[3][1] *= shutter;
 		worldToCam[3][2] *= shutter;
 		copy_m4_m4(effects->past_world_to_ndc, worldToCam);
+		m_dofInitialized = true;
 	}
 
 	/* Hack for SSR : See eevee_screen_raytrace line 155 */

@@ -362,6 +362,7 @@ public:
 	std::vector<DRWPass *>GetMaterialPasses();
 	void EeveePostProcessingHackBegin();
 	void EeveePostProcessingHackEnd();
+	bool m_dofInitialized;
 	/******************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;
