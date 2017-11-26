@@ -1912,7 +1912,7 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 	KX_Camera *cam = GetActiveCamera();
 
 	bool doing_taa = false;
-	if (effects->enabled_effects & EFFECT_TAA && ComputeTAA(nodes)) {
+	if (effects->enabled_effects & EFFECT_TAA) {
 
 		const float *viewport_size = DRW_viewport_size_get();
 		float persmat[4][4], viewmat[4][4];
@@ -1946,7 +1946,7 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 		view_is_valid = view_is_valid && (effects->prev_drw_support == DRW_state_draw_support());
 		effects->prev_drw_support = DRW_state_draw_support();
 
-		if (view_is_valid) {
+		if (view_is_valid && ComputeTAA(nodes)) {
 
 			effects->taa_current_sample += 1;
 
