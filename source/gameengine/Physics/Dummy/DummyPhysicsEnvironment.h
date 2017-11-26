@@ -104,7 +104,7 @@ public:
 	{
 		return false;
 	}
-	virtual PHY_CollisionTestResult TestCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1)
+	virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1)
 	{
 		return {false, false, nullptr};
 	}

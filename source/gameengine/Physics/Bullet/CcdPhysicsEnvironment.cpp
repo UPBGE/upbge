@@ -2103,7 +2103,7 @@ void CcdPhysicsEnvironment::CallbackTriggers()
 	}
 }
 
-PHY_CollisionTestResult CcdPhysicsEnvironment::TestCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1)
+PHY_CollisionTestResult CcdPhysicsEnvironment::CheckCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1)
 {
 	PHY_CollisionTestResult result{false, false, nullptr};
 

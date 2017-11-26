@@ -3636,7 +3636,7 @@ PyObject *KX_GameObject::PyCollide(PyObject *value)
 	}
 
 	PHY_IPhysicsEnvironment *env = scene->GetPhysicsEnvironment();
-	PHY_CollisionTestResult testResult = env->TestCollision(m_pPhysicsController, other->GetPhysicsController());
+	PHY_CollisionTestResult testResult = env->CheckCollision(m_pPhysicsController, other->GetPhysicsController());
 
 	PyObject *result = PyTuple_New(2);
 	if (!testResult.collide) {
