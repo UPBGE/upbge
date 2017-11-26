@@ -1943,8 +1943,8 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 		copy_m4_m4(effects->prev_drw_persmat, persmat);
 
 		/* Prevent ghosting from probe data. */
-		//view_is_valid = view_is_valid && (effects->prev_drw_support == DRW_state_draw_support());
-		//effects->prev_drw_support = DRW_state_draw_support();
+		view_is_valid = view_is_valid && (effects->prev_drw_support == DRW_state_draw_support());
+		effects->prev_drw_support = DRW_state_draw_support();
 
 		if (view_is_valid) {
 
@@ -1974,7 +1974,7 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 
 			doing_taa = true;
 		}
-		else if (!view_not_changed) {
+		else {
 			effects->taa_current_sample = 1;
 
 			doing_taa = false;
