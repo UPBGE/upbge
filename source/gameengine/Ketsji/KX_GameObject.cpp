@@ -866,6 +866,9 @@ void KX_GameObject::UpdateBucketsNew()
 		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
 		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
+	else {
+		GetScene()->AppendToStaticObjectsInsideFrustum(this);
+	}
 
 	float obmat[4][4];
 	NodeGetWorldTransform().getValue(&obmat[0][0]);

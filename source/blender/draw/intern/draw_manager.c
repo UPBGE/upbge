@@ -3925,25 +3925,9 @@ static void disable_double_buffer_check()
 	stl->g_data->valid_double_buffer = true;
 }
 
-static int volumetrics_hack_begin(SceneLayer *scene_layer)
+static void volumetrics_hack(SceneLayer *scene_layer)
 {
 	// VOLUMETRICS HACK
-	/* Dont want to be annoyed with TAA for now (it breaks volumetrics at bge runtime)
-	* so we save eevee taa_samples, disable taa setting taa_samples to 1 when we init
-	* eevee data then restore saved taa_samples after eevee data init
-	*/
-	IDProperty *props = BKE_scene_layer_engine_evaluated_get(scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
-	int saved_taa_samples = BKE_collection_engine_property_value_get_int(props, "taa_samples");
-	BKE_collection_engine_property_value_set_int(props, "taa_samples", 1);
-	return saved_taa_samples;
-}
-
-static void volumetrics_hack_end(int saved_taa_samples, SceneLayer *scene_layer)
-{
-	// VOLUMETRICS HACK
-	IDProperty *props = BKE_scene_layer_engine_evaluated_get(scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
-	/* Restore taa_samples after eevee data init for bge */
-	BKE_collection_engine_property_value_set_int(props, "taa_samples", saved_taa_samples);
 	/* Still for volumetrics, as we don't use "temporal" volumetrics in bge
 	* we consider the current sample is the max sample and set
 	* jitter params according to this sample
@@ -4043,8 +4027,6 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	DRW_viewport_var_init_bge();
 
-	int taa_samples_saved = volumetrics_hack_begin(cur_scene_layer);
-
 	/* Init engines */
 	DRW_engines_init();
 
@@ -4079,9 +4061,8 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	/* Start Drawing */
 	DRW_state_reset();
-	//DRW_engines_draw_scene();
 
-	volumetrics_hack_end(taa_samples_saved, cur_scene_layer);
+	volumetrics_hack(cur_scene_layer);
 
 	DRW_state_reset();
 	DRW_engines_disable();

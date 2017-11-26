@@ -163,6 +163,8 @@ protected:
 	RAS_EeveeEffectsManager *m_effectsManager;
 	RAS_LightProbesManager *m_probesManager;
 	std::vector<KX_GameObject *>m_lightProbes;
+	bool m_dofInitialized;
+	std::vector<KX_GameObject *>m_staticObjectsInsideFrustum;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -360,9 +362,10 @@ public:
 	std::vector<KX_GameObject *>GetProbeList();
 	void InitScenePasses(EEVEE_PassList *psl);
 	std::vector<DRWPass *>GetMaterialPasses();
-	void EeveePostProcessingHackBegin();
+	void EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes);
 	void EeveePostProcessingHackEnd();
-	bool m_dofInitialized;
+	void AppendToStaticObjectsInsideFrustum(KX_GameObject *gameobj);
+	bool ComputeTAA(const KX_CullingNodeList& nodes);
 	/******************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;

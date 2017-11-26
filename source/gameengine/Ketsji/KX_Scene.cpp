@@ -1889,10 +1889,91 @@ static void EEVEE_draw_scene(RAS_FrameBuffer *inputfb)
 
 /***********************************************EEVEE INTEGRATION****************************************************/
 
-void KX_Scene::EeveePostProcessingHackBegin()
+void KX_Scene::AppendToStaticObjectsInsideFrustum(KX_GameObject *gameobj)
+{
+	m_staticObjectsInsideFrustum.push_back(gameobj);
+}
+
+bool KX_Scene::ComputeTAA(const KX_CullingNodeList& nodes)
+{
+	if (m_staticObjectsInsideFrustum.size() == nodes.size()) {
+		return true;
+	}
+	return false;
+}
+
+void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 {
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
 	EEVEE_EffectsInfo *effects = vedata->stl->effects;
+	EEVEE_StorageList *stl = vedata->stl;
+	SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(GetBlenderScene());
+	IDProperty *props = BKE_scene_layer_engine_evaluated_get(scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+	KX_Camera *cam = GetActiveCamera();
+
+	if (effects->enabled_effects & EFFECT_TAA && ComputeTAA(nodes) && (effects->enabled_effects & EFFECT_VOLUMETRIC) == 0) {
+		const float *viewport_size = DRW_viewport_size_get();
+		float persmat[4][4], viewmat[4][4];
+
+		/* Until we support reprojection, we need to make sure
+		* that the history buffer contains correct information. */
+		bool view_is_valid = stl->g_data->valid_double_buffer;
+
+		view_is_valid = view_is_valid && (stl->g_data->view_updated == false);
+
+		effects->taa_total_sample = BKE_collection_engine_property_value_get_int(props, "taa_samples");
+		MAX2(effects->taa_total_sample, 0);
+
+		/*DRW_viewport_matrix_get(persmat, DRW_MAT_PERS);
+		DRW_viewport_matrix_get(viewmat, DRW_MAT_VIEW);
+		DRW_viewport_matrix_get(effects->overide_winmat, DRW_MAT_WIN);*/
+		MT_Matrix4x4 view(cam->GetModelviewMatrix());
+		MT_Matrix4x4 proj(cam->GetProjectionMatrix());
+		MT_Matrix4x4 pers(proj * view);
+
+		view.getValue(&viewmat[0][0]);
+		pers.getValue(&persmat[0][0]);
+		proj.getValue(&effects->overide_winmat[0][0]);
+
+		bool view_not_changed = compare_m4m4(persmat, effects->prev_drw_persmat, FLT_MIN);
+
+		view_is_valid = view_is_valid && view_not_changed;
+		copy_m4_m4(effects->prev_drw_persmat, persmat);
+
+		/* Prevent ghosting from probe data. */
+		//view_is_valid = view_is_valid && (effects->prev_drw_support == DRW_state_draw_support());
+		//effects->prev_drw_support = DRW_state_draw_support();
+
+		if (view_is_valid) {
+
+			effects->taa_current_sample += 1;
+
+			effects->taa_alpha = 1.0f / (float)(effects->taa_current_sample);
+
+			double ht_point[2];
+			double ht_offset[2] = { 0.0, 0.0 };
+			unsigned int ht_primes[2] = { 2, 3 };
+
+			BLI_halton_2D(ht_primes, ht_offset, effects->taa_current_sample - 1, ht_point);
+
+			window_translate_m4(
+				effects->overide_winmat, persmat,
+				((float)(ht_point[0]) * 2.0f - 1.0f) / viewport_size[0],
+				((float)(ht_point[1]) * 2.0f - 1.0f) / viewport_size[1]);
+
+			mul_m4_m4m4(effects->overide_persmat, effects->overide_winmat, viewmat);
+			invert_m4_m4(effects->overide_persinv, effects->overide_persmat);
+			invert_m4_m4(effects->overide_wininv, effects->overide_winmat);
+
+			DRW_viewport_matrix_override_set(effects->overide_persmat, DRW_MAT_PERS);
+			DRW_viewport_matrix_override_set(effects->overide_persinv, DRW_MAT_PERSINV);
+			DRW_viewport_matrix_override_set(effects->overide_winmat, DRW_MAT_WIN);
+			DRW_viewport_matrix_override_set(effects->overide_wininv, DRW_MAT_WININV);
+		}
+		else if (!view_not_changed) {
+			effects->taa_current_sample = 1;
+		}
+	}
 
 	if (effects->enabled_effects & EFFECT_DOF) {
 		/* Depth Of Field */
@@ -1919,12 +2000,13 @@ void KX_Scene::EeveePostProcessingHackEnd()
 {
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
 	EEVEE_EffectsInfo *effects = vedata->stl->effects;
+	KX_Camera *cam = GetActiveCamera();
 
 	/* Hack for motion blur */
 	if (effects->enabled_effects & EFFECT_MOTION_BLUR && !m_dofInitialized) {
 		float shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 		float worldToCam[4][4];
-		GetActiveCamera()->GetWorldToCamera().getValue(&worldToCam[0][0]);
+		cam->GetWorldToCamera().getValue(&worldToCam[0][0]);
 		worldToCam[3][0] *= shutter;
 		worldToCam[3][1] *= shutter;
 		worldToCam[3][2] *= shutter;
@@ -1969,7 +2051,9 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 
 	KX_GetActiveEngine()->UpdateShadows(this);
 
-	EeveePostProcessingHackBegin();
+	EeveePostProcessingHackBegin(nodes);
+
+	m_staticObjectsInsideFrustum.clear();
 
 	/* Start Drawing */
 	DRW_state_reset();
