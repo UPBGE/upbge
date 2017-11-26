@@ -250,7 +250,7 @@ typedef struct DRWCall {
 
 	float obmat[4][4];
 	Gwn_Batch *geometry;
-	Gwn_Batch *culled_geometry;
+	bool culled;
 
 	Object *ob; /* Optional */
 	ID *ob_data; /* Optional. */
@@ -1011,6 +1011,8 @@ void DRW_shgroup_call_add(DRWShadingGroup *shgroup, Gwn_Batch *geom, float (*obm
 
 	call->geometry = geom;
 	call->ob_data = NULL;
+
+	call->culled = false;
 }
 
 void DRW_shgroup_call_object_add(DRWShadingGroup *shgroup, Gwn_Batch *geom, Object *ob)
@@ -1029,6 +1031,8 @@ void DRW_shgroup_call_object_add(DRWShadingGroup *shgroup, Gwn_Batch *geom, Obje
 	copy_m4_m4(call->obmat, ob->obmat);
 	call->geometry = geom;
 	call->ob_data = ob->data;
+
+	call->culled = false;
 }
 
 void DRW_shgroup_call_generate_add(
@@ -2066,7 +2070,9 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 			GPU_SELECT_LOAD_IF_PICKSEL(call);
 
 			if (call->head.type == DRW_CALL_SINGLE) {
-				draw_geometry(shgroup, call->geometry, call->obmat, call->ob_data);
+				if (!call->culled) {
+					draw_geometry(shgroup, call->geometry, call->obmat, call->ob_data);
+				}
 			}
 			else {
 				BLI_assert(call->head.type == DRW_CALL_GENERATE);
@@ -3766,16 +3772,6 @@ bool DRW_shgroups_belongs_to_gameobject(DRWShadingGroup *shgroup, Gwn_Batch *bat
 	return false;
 }
 
-bool DRW_shgroups_belongs_to_culled_gameobject(DRWShadingGroup *shgroup, Gwn_Batch *batch)
-{
-	for (DRWCall *call = shgroup->calls_first; call; call = call->head.prev) {
-		if (call->culled_geometry == batch) {
-			return true;
-		}
-	}
-	return false;
-}
-
 void DRW_shgroups_calls_update_obmat(DRWShadingGroup *shgroup, Gwn_Batch *batch, float obmat[4][4])
 {
 	for (DRWCall *call = shgroup->calls_first; call; call = call->head.prev) {
@@ -3789,8 +3785,7 @@ void DRW_shgroups_discard_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch)
 {
 	for (DRWCall *call = shgroup->calls_first; call; call = call->head.prev) {
 		if (call->geometry == batch) {
-			call->geometry = DRW_cache_single_vert_no_display_get();
-			call->culled_geometry = batch;
+			call->culled = true;
 		}
 	}
 }
@@ -3798,9 +3793,8 @@ void DRW_shgroups_discard_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch)
 void DRW_shgroups_restore_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch, float obmat[4][4])
 {
 	for (DRWCall *call = shgroup->calls_first; call; call = call->head.prev) {
-		if (call->culled_geometry == batch) {
-			call->geometry = batch;
-			call->culled_geometry = NULL;
+		if (call->geometry == batch) {
+			call->culled = false;
 		}
 	}
 }
@@ -4091,11 +4085,6 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	DRW_state_reset();
 	DRW_engines_disable();
-}
-
-RegionView3D *DRW_game_get_rv3d()
-{
-	return DST.draw_ctx.rv3d;
 }
 
 void DRW_game_render_loop_end()

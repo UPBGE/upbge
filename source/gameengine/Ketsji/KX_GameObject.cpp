@@ -324,7 +324,7 @@ void KX_GameObject::AddNewMaterialBatchesToPasses(float obmat[4][4])
 	for (DRWShadingGroup *shgroup : m_materialShGroups) {
 		for (int i = 0; i < m_materialBatches.size(); i++) {
 			Gwn_Batch *oldBatch = m_materialBatches[i];
-			if (DRW_shgroups_belongs_to_culled_gameobject(shgroup, oldBatch)) {
+			if (DRW_shgroups_belongs_to_gameobject(shgroup, oldBatch)) {
 				DRW_shgroup_call_add(shgroup, m_newBatches[i], obmat);
 			}
 		}
