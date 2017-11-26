@@ -3925,31 +3925,6 @@ static void disable_double_buffer_check()
 	stl->g_data->valid_double_buffer = true;
 }
 
-static void volumetrics_hack(SceneLayer *scene_layer)
-{
-	// VOLUMETRICS HACK
-	/* Still for volumetrics, as we don't use "temporal" volumetrics in bge
-	* we consider the current sample is the max sample and set
-	* jitter params according to this sample
-	*/
-	EEVEE_EffectsInfo *effects = EEVEE_engine_data_get()->stl->effects;
-	if (effects->enabled_effects & EFFECT_VOLUMETRIC) {
-		EEVEE_VolumetricsInfo *volumetrics = EEVEE_scene_layer_data_get()->volumetrics;
-		/* Temporal Super sampling jitter */
-		double ht_point[3];
-		double ht_offset[3] = { 0.0, 0.0 };
-		unsigned int ht_primes[3] = { 3, 7, 2 };
-		unsigned int current_sample = 0;
-		const unsigned int max_sample = (ht_primes[0] * ht_primes[1] * ht_primes[2]);
-		current_sample = effects->volume_current_sample = max_sample;
-		BLI_halton_3D(ht_primes, ht_offset, current_sample, ht_point);
-
-		volumetrics->jitter[0] = (float)ht_point[0];
-		volumetrics->jitter[1] = (float)ht_point[1];
-		volumetrics->jitter[2] = (float)ht_point[2];
-	}
-}
-
 static void motion_blur_init()
 {
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
@@ -4061,8 +4036,6 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	/* Start Drawing */
 	DRW_state_reset();
-
-	volumetrics_hack(cur_scene_layer);
 
 	DRW_state_reset();
 	DRW_engines_disable();

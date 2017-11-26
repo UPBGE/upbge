@@ -167,8 +167,8 @@ SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(
 KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 				   const std::string& sceneName,
 				   Scene *scene,
-				   class RAS_ICanvas* canvas,
-				   KX_NetworkMessageManager *messageManager) :
+    class RAS_ICanvas* canvas,
+	KX_NetworkMessageManager *messageManager) :
 	CValue(),
 	m_keyboardmgr(nullptr),
 	m_mousemgr(nullptr),
@@ -1911,7 +1911,9 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 	IDProperty *props = BKE_scene_layer_engine_evaluated_get(scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 	KX_Camera *cam = GetActiveCamera();
 
-	if (effects->enabled_effects & EFFECT_TAA && ComputeTAA(nodes) && (effects->enabled_effects & EFFECT_VOLUMETRIC) == 0) {
+	bool doing_taa = false;
+	if (effects->enabled_effects & EFFECT_TAA && ComputeTAA(nodes)) {
+
 		const float *viewport_size = DRW_viewport_size_get();
 		float persmat[4][4], viewmat[4][4];
 
@@ -1969,10 +1971,47 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 			DRW_viewport_matrix_override_set(effects->overide_persinv, DRW_MAT_PERSINV);
 			DRW_viewport_matrix_override_set(effects->overide_winmat, DRW_MAT_WIN);
 			DRW_viewport_matrix_override_set(effects->overide_wininv, DRW_MAT_WININV);
+
+			doing_taa = true;
 		}
 		else if (!view_not_changed) {
 			effects->taa_current_sample = 1;
+
+			doing_taa = false;
 		}
+	}
+
+	if (effects->enabled_effects & EFFECT_VOLUMETRIC) {
+
+		EEVEE_VolumetricsInfo *volumetrics = EEVEE_scene_layer_data_get()->volumetrics;
+
+		/* Temporal Super sampling jitter */
+		double ht_point[3];
+		double ht_offset[3] = { 0.0, 0.0 };
+		unsigned int ht_primes[3] = { 3, 7, 2 };
+		unsigned int current_sample = 0;
+
+		/* If TAA is in use do not use the history buffer. */
+		bool do_taa = ((effects->enabled_effects & EFFECT_TAA) != 0) && doing_taa;
+
+		if (do_taa) {
+			volumetrics->history_alpha = 0.0f;
+			current_sample = effects->taa_current_sample - 1;
+			effects->volume_current_sample = -1;
+		}
+		else {
+			const unsigned int max_sample = (ht_primes[0] * ht_primes[1] * ht_primes[2]);
+			current_sample = effects->volume_current_sample = max_sample; // Too much flickering in bge here if we keep eevee's code
+																		  // eevee_volumes line 234
+			if (current_sample != max_sample - 1) {
+				DRW_viewport_request_redraw();
+			}
+		}
+		BLI_halton_3D(ht_primes, ht_offset, current_sample, ht_point);
+
+		volumetrics->jitter[0] = (float)ht_point[0];
+		volumetrics->jitter[1] = (float)ht_point[1];
+		volumetrics->jitter[2] = (float)ht_point[2];
 	}
 
 	if (effects->enabled_effects & EFFECT_DOF) {
