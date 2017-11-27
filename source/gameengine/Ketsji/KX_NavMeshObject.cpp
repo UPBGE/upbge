@@ -37,6 +37,7 @@
 #include "DNA_meshdata_types.h"
 
 extern "C" {
+#include "BKE_main.h"
 #include "BKE_scene.h"
 #include "BKE_customdata.h"
 #include "BKE_cdderivedmesh.h"
@@ -44,6 +45,7 @@ extern "C" {
 #include "BKE_navmesh_conversion.h"
 }
 
+#include "KX_BlenderConverter.h"
 #include "KX_Globals.h"
 #include "KX_PyMath.h"
 #include "EXP_Value.h"
@@ -116,8 +118,9 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 									   int& ndtris, int &vertsPerPoly)
 {
 	/* TODO: This doesn't work currently because of eval_ctx. */
-#if 0
-    DerivedMesh* dm = mesh_create_derived_no_virtual(GetScene()->GetBlenderScene(), GetBlenderObject(),
+	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+	EvaluationContext *eval_ctx = bmain->eval_ctx;
+    DerivedMesh* dm = mesh_create_derived_no_virtual(eval_ctx, GetScene()->GetBlenderScene(), GetBlenderObject(),
 													nullptr, CD_MASK_MESH);
 	CustomData *pdata = dm->getPolyDataLayout(dm);
 	int* recastData = (int*) CustomData_get_layer(pdata, CD_RECAST);
@@ -284,8 +287,6 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 	dm->release(dm);
 	
 	return true;
-#endif
-	return false;
 }
 
 
