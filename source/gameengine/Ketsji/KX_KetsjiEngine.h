@@ -260,7 +260,8 @@ private:
 	/// Compute frame render data per eyes (in case of stereo), scenes and camera.
 	bool GetFrameRenderData(std::vector<FrameRenderData>& frameDataList);
 
-	void RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, RAS_FrameBuffer *frameBuffer, unsigned short pass, bool isFirstScene);
+	/// EEVEE scene rendering
+	void RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, unsigned short pass);
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
 	void DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const CameraRenderData& cameraFrameData);

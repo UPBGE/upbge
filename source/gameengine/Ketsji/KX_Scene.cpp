@@ -240,7 +240,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
-	/*************************************************EEVEE INTEGRATION***********************************************************/	
+	/*************************************************EEVEE INTEGRATION***********************************************************/
+
+	/* Normally we can remove that */
 	SceneLayer *sl = BKE_scene_layer_from_scene_get(m_blenderScene);
 	
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
@@ -253,6 +255,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, KX_GetActiveEngine()->GetRasterizer(), this);
 	m_probesManager = new RAS_LightProbesManager(m_eeveeData, canvas, m_props, KX_GetActiveEngine()->GetRasterizer(), this);
+
+	/* End of Normally we can remove that */
 
 	EEVEE_PassList *psl = m_eeveeData->psl;
 
@@ -317,11 +321,11 @@ KX_Scene::~KX_Scene()
 
 	/******EEVEE INTEGRATION*******/
 	if (m_effectsManager) {
-		delete m_effectsManager;
+		delete m_effectsManager; // Temp: to delete
 	}
 
 	if (m_probesManager) {
-		delete m_probesManager;
+		delete m_probesManager; // temp: To delete
 	}
 	/******************************/
 
@@ -359,6 +363,7 @@ KX_Scene::~KX_Scene()
 
 /*******************EEVEE INTEGRATION******************/
 
+/* Temp: see if we keep this */
 void KX_Scene::SetSceneLayerData(RAS_SceneLayerData *layerData)
 {
 	m_layerData.reset(layerData);
@@ -374,6 +379,8 @@ EEVEE_Data *KX_Scene::GetEeveeData()
 {
 	return m_eeveeData;
 }
+
+/* End of Temp: see if we keep this */
 
 void KX_Scene::InitScenePasses(EEVEE_PassList *psl)
 {
@@ -425,7 +432,7 @@ std::vector<KX_GameObject *>KX_Scene::GetProbeList()
 	return m_lightProbes;
 }
 
-/**************************************************************/
+/******************End of EEVEE INTEGRATION****************************/
 
 std::string KX_Scene::GetName()
 {
@@ -1767,7 +1774,10 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-static void EEVEE_draw_scene(RAS_FrameBuffer *inputfb)
+/***********************************************EEVEE INTEGRATION****************************************************/
+
+/* EEVEE's render main loop (see eevee_engine.c) */
+static void EEVEE_draw_scene()
 {
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
 	EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
@@ -1887,8 +1897,7 @@ static void EEVEE_draw_scene(RAS_FrameBuffer *inputfb)
 	stl->g_data->view_updated = false;
 }
 
-/***********************************************EEVEE INTEGRATION****************************************************/
-
+/* Utils for TAA to check if nothing is moving inside view frustum */
 void KX_Scene::AppendToStaticObjectsInsideFrustum(KX_GameObject *gameobj)
 {
 	m_staticObjectsInsideFrustum.push_back(gameobj);
@@ -1901,6 +1910,7 @@ bool KX_Scene::ComputeTAA(const KX_CullingNodeList& nodes)
 	}
 	return false;
 }
+/* End of utils for TAA */
 
 void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 {
@@ -1912,6 +1922,8 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 	KX_Camera *cam = GetActiveCamera();
 
 	bool doing_taa = false;
+
+	/* Update TAA when the view is not moving and nothing in the view frustum is moving */
 	if (effects->enabled_effects & EFFECT_TAA) {
 
 		const float *viewport_size = DRW_viewport_size_get();
@@ -2014,7 +2026,7 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 		volumetrics->jitter[2] = (float)ht_point[2];
 	}
 
-	if (effects->enabled_effects & EFFECT_DOF) {
+	if (effects->enabled_effects & EFFECT_DOF && !m_dofInitialized) {
 		/* Depth Of Field */
 		KX_Camera *cam = GetActiveCamera();
 		float sensorSize = cam->GetCameraData()->m_sensor_x;
@@ -2022,8 +2034,10 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 		float scaleCamera = 0.001f;
 		float sensorScaled = scaleCamera * sensorSize;
 		effects->dof_params[2] = (KX_GetActiveEngine()->GetCanvas()->GetWidth() + 1) / (1.0f * sensorScaled);
+		m_dofInitialized = true;
 	}
 
+	/* Hack for motion blur */
 	if (effects->enabled_effects & EFFECT_MOTION_BLUR) {
 		float shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 		float camToWorld[4][4];
@@ -2042,7 +2056,7 @@ void KX_Scene::EeveePostProcessingHackEnd()
 	KX_Camera *cam = GetActiveCamera();
 
 	/* Hack for motion blur */
-	if (effects->enabled_effects & EFFECT_MOTION_BLUR && !m_dofInitialized) {
+	if (effects->enabled_effects & EFFECT_MOTION_BLUR) {
 		float shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
 		float worldToCam[4][4];
 		cam->GetWorldToCamera().getValue(&worldToCam[0][0]);
@@ -2050,7 +2064,6 @@ void KX_Scene::EeveePostProcessingHackEnd()
 		worldToCam[3][1] *= shutter;
 		worldToCam[3][2] *= shutter;
 		copy_m4_m4(effects->past_world_to_ndc, worldToCam);
-		m_dofInitialized = true;
 	}
 
 	/* Hack for SSR : See eevee_screen_raytrace line 155 */
@@ -2063,7 +2076,7 @@ void KX_Scene::EeveePostProcessingHackEnd()
 	}
 }
 
-void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer)
+void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty)
 {
 	/* Update blenderobjects matrix as we use it for eevee's shadows */
 	for (KX_GameObject *gameobj : GetObjectList()) {
@@ -2071,7 +2084,7 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 		gameobj->TagForUpdate(); // used for shadow culling (call before sgnode->ClearDirty(DIRTY_RENDER))
 		if (gameobj->GetCulled()) {
 			gameobj->DiscardMaterialBatches();
-			gameobj->m_wasculled = true;
+			gameobj->m_wasculled = true; // TODO: replace with functions getter/setter
 		}
 		else {
 			if (gameobj->m_wasculled) {
@@ -2083,27 +2096,27 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 		}
 	}
 	for (KX_CullingNode *node : nodes) {
-		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
-		 * It's done just before the render to be sure of the object color and visibility. */
 		node->GetObject()->UpdateBucketsNew();
 	}
 
 	KX_GetActiveEngine()->UpdateShadows(this);
 
+	/* Update of eevee's post processing before scene rendering */
 	EeveePostProcessingHackBegin(nodes);
 
 	m_staticObjectsInsideFrustum.clear();
 
 	/* Start Drawing */
 	DRW_state_reset();
-	EEVEE_draw_scene(frameBuffer);
+	EEVEE_draw_scene();
 
+	/* Update of eevee's post processing before after rendering */
 	EeveePostProcessingHackEnd();
 
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-/*********************************************************************************************************************/
+/*************************************End of EEVEE INTEGRATION***********************************************/
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam, const KX_CullingNodeList& nodes)
 {

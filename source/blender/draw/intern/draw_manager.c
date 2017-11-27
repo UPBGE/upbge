@@ -4036,8 +4036,6 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	/* Start Drawing */
 	DRW_state_reset();
-
-	DRW_state_reset();
 	DRW_engines_disable();
 }
 

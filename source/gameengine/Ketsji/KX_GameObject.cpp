@@ -94,6 +94,7 @@
 
 #include "CM_Message.h"
 
+/* eevee integration */
 extern "C" {
 #  include "DRW_render.h"
 #  include "BLI_alloca.h"
@@ -101,6 +102,7 @@ extern "C" {
 #  include "eevee_private.h"
 #  include "BLI_listbase.h"
 }
+/* End of eevee integration */
 
 static MT_Vector3 dummy_point= MT_Vector3(0.0f, 0.0f, 0.0f);
 static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);
@@ -128,8 +130,8 @@ KX_GameObject::KX_GameObject(
       m_cullingNode(this),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
-	  m_wasculled(false),
-	  m_needsUpdate(true),
+	  m_wasculled(false), // eevee integration
+	  m_needsUpdate(true), // eevee integration
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
     , m_attr_dict(nullptr),
@@ -319,7 +321,7 @@ void KX_GameObject::DuplicateMaterialBatches()
 }
 
 /* Use for AddObject */
-void KX_GameObject::AddNewMaterialBatchesToPasses(float obmat[4][4])
+void KX_GameObject::AddNewMaterialBatchesToPasses(float obmat[4][4]) // works in pair with DuplicateMaterialBatches()
 {
 	for (DRWShadingGroup *shgroup : m_materialShGroups) {
 		for (int i = 0; i < m_materialBatches.size(); i++) {
@@ -828,24 +830,6 @@ void KX_GameObject::AddMeshUser()
 	}
 }
 
-/************************Shadow culling**********************/
-/* Call before SG_Node::ClearDirty(SG_Node::DIRTY_RENDER) */
-void KX_GameObject::TagForUpdate()
-{
-	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
-		m_needsUpdate = true;
-	}
-	else {
-		m_needsUpdate = false;
-	}
-}
-
-bool KX_GameObject::NeedsUpdate()
-{
-	return m_needsUpdate;
-}
-/************************************************************/
-
 void KX_GameObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
@@ -857,6 +841,23 @@ void KX_GameObject::UpdateBuckets()
 	m_meshUser->SetColor(m_objectColor);
 	m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
 	m_meshUser->ActivateMeshSlots();
+}
+
+/************************EEVEE_INTEGRATION**********************/
+/* Call before SG_Node::ClearDirty(SG_Node::DIRTY_RENDER) */
+void KX_GameObject::TagForUpdate() // Used for shadow culling
+{
+	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
+		m_needsUpdate = true;
+	}
+	else {
+		m_needsUpdate = false;
+	}
+}
+
+bool KX_GameObject::NeedsUpdate() // used for shadow culling
+{
+	return m_needsUpdate;
 }
 
 void KX_GameObject::UpdateBucketsNew()
@@ -878,6 +879,8 @@ void KX_GameObject::UpdateBucketsNew()
 		}
 	}
 }
+
+/********************End of EEVEE INTEGRATION*********************/
 
 void KX_GameObject::RemoveMeshes()
 {

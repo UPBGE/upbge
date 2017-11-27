@@ -89,6 +89,7 @@
 
 extern "C" {
 #  include "DRW_render.h"
+#  include "GPU_framebuffer.h"
 }
 
 KX_KetsjiEngine::CameraRenderData::CameraRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area, const RAS_Rect& viewport,
@@ -620,16 +621,12 @@ void KX_KetsjiEngine::Render()
 	BeginFrame();
 
 	std::vector<FrameRenderData> frameDataList;
-	const bool renderpereye = GetFrameRenderData(frameDataList);
-
-	// Update all off screen to the current canvas size.
-	m_rasterizer->UpdateOffScreens(m_canvas);
+	GetFrameRenderData(frameDataList);
 
 	const int width = m_canvas->GetWidth();
 	const int height = m_canvas->GetHeight();
 
 	// clear the entire game screen with the border color
-	// only once per frame
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 
 	KX_Scene *firstscene = m_scenes->GetFront();
@@ -641,8 +638,6 @@ void KX_KetsjiEngine::Render()
 	unsigned short pass = 0;
 
 	for (FrameRenderData& frameData : frameDataList) {
-		// Current bound off screen.
-		RAS_FrameBuffer *frameBuffer = m_rasterizer->GetFrameBuffer(frameData.m_fbType);
 
 		// Clear off screen only before the first scene render.
 		m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT | RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
@@ -652,20 +647,24 @@ void KX_KetsjiEngine::Render()
 			const SceneRenderData& sceneFrameData = frameData.m_sceneDataList[i];
 			KX_Scene *scene = sceneFrameData.m_scene;
 
-			const bool isfirstscene = (i == 0);
-			const bool islastscene = (i == (size - 1));
-
 			m_rasterizer->SetAuxilaryClientInfo(scene);
 
 			// Draw the scene once for each camera with an enabled viewport or an active camera.
 			for (const CameraRenderData& cameraFrameData : sceneFrameData.m_cameraDataList) {
 				// do the rendering
-				RenderCamera(scene, cameraFrameData, frameBuffer, pass++, isfirstscene);
+				RenderCamera(scene, cameraFrameData, pass++);
 			}
 		}
 	}
 
-	m_rasterizer->DrawFrameBuffer(m_canvas, m_rasterizer->GetFrameBuffer(frameDataList[0].m_fbType));
+	const RAS_Rect& viewport = m_canvas->GetViewportArea();
+	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+
+	GPU_framebuffer_restore();
+
+	EEVEE_Data *vedata = EEVEE_engine_data_get();
+	DRW_transform_to_display(vedata->stl->effects->source_buffer);
 
 	EndFrame();
 }
@@ -997,8 +996,7 @@ MT_Matrix4x4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Came
 }
 
 // update graphics
-void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, RAS_FrameBuffer *frameBuffer,
-								  unsigned short pass, bool isFirstScene)
+void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, unsigned short pass)
 {
 	KX_Camera *rendercam = cameraFrameData.m_renderCamera;
 	KX_Camera *cullingcam = cameraFrameData.m_cullingCamera;
@@ -1026,24 +1024,10 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	m_rasterizer->SetMatrix(rendercam->GetModelviewMatrix(), rendercam->GetProjectionMatrix(),
 							rendercam->NodeGetWorldPosition(), rendercam->NodeGetLocalScaling());
 
-	//if (isFirstScene) {
-	//	KX_WorldInfo *worldInfo = scene->GetWorldInfo();
-	//	// Update background and render it.
-	//	worldInfo->RenderBackground();
-	//}
-
-	// The following actually reschedules all vertices to be
-	// redrawn. There is a cache between the actual rescheduling
-	// and this call though. Visibility is imparted when this call
-	// runs through the individual objects.
-
 	m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
 
 	KX_CullingNodeList nodes;
 	scene->CalculateVisibleMeshes(nodes, cullingcam, 0);
-
-	// update levels of detail
-	scene->UpdateObjectLods(cullingcam, nodes);
 
 	m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds());
 	UpdateAnimations(scene);
@@ -1051,11 +1035,8 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
 
 	RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(scene);
-	// Draw debug infos like bouding box, armature ect.. if enabled.
+	// Draw debug infos.
 	scene->DrawDebug(debugDraw, nodes);
-	// Draw debug camera frustum.
-	DrawDebugCameraFrustum(scene, debugDraw, cameraFrameData);
-	DrawDebugShadowFrustum(scene, debugDraw);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -1063,7 +1044,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, rendercam);
 #endif
 
-	scene->RenderBucketsNew(nodes, m_rasterizer, frameBuffer);
+	scene->RenderBucketsNew(nodes, m_rasterizer);
 
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->DebugDrawWorld();
