@@ -867,12 +867,16 @@ void KX_GameObject::UpdateBucketsNew()
 		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
 		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
-	else {
-		GetScene()->AppendToStaticObjectsInsideFrustum(this);
-	}
 
 	float obmat[4][4];
 	NodeGetWorldTransform().getValue(&obmat[0][0]);
+
+	if (compare_m4m4(m_prevObmat, obmat, 0.0001)) {
+		GetScene()->AppendToStaticObjectsInsideFrustum(this);
+	}
+
+	copy_m4_m4(m_prevObmat, obmat);
+
 	for (Gwn_Batch *batch : m_materialBatches) {
 		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
 			DRW_shgroups_calls_update_obmat(sh, batch, obmat);

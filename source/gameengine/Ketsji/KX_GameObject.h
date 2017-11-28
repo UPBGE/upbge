@@ -93,6 +93,7 @@ protected:
 	std::vector<DRWShadingGroup *>m_materialShGroups;
 
 	float m_savedObmat[4][4];
+	float m_prevObmat[4][4];
 	bool m_needsUpdate; // used for shadow culling
 
 
