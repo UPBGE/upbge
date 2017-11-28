@@ -239,8 +239,8 @@ public:
 			PHY_IMotionState *motionState = (PHY_IMotionState *)info.m_clientInfo;
 			m_vehicle->updateWheelTransform(i, false);
 			const btTransform trans = m_vehicle->getWheelInfo(i).m_worldTransform;
-			motionState->SetWorldOrientation(ToMoto(trans.getBasis()));
-			motionState->SetWorldPosition(ToMoto(trans.getOrigin()));
+			motionState->SetWorldOrientation(ToMt(trans.getBasis()));
+			motionState->SetWorldPosition(ToMt(trans.getOrigin()));
 		}
 	}
 
@@ -253,7 +253,7 @@ public:
 	{
 		if ((wheelIndex >= 0) && (wheelIndex < m_vehicle->getNumWheels())) {
 			const btVector3 origin = m_vehicle->getWheelTransformWS(wheelIndex).getOrigin();
-			return ToMoto(origin);
+			return ToMt(origin);
 		}
 		return mt::zero3;
 	}
@@ -262,7 +262,7 @@ public:
 	{
 		if ((wheelIndex >= 0) && (wheelIndex < m_vehicle->getNumWheels())) {
 			const btQuaternion quat = m_vehicle->getWheelTransformWS(wheelIndex).getRotation();
-			return ToMoto(quat);
+			return ToMt(quat);
 		}
 		return mt::quat(0.0f, 0.0f, 0.0f, 0.0f);
 	}
@@ -2632,7 +2632,7 @@ struct BlenderDebugDraw : public btIDebugDraw
 	virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
 	{
 		if (m_debugMode > 0) {
-			KX_RasterizerDrawDebugLine(ToMoto(from), ToMoto(to), mt::vec4(color.x(), color.y(), color.z(), 1.0f));
+			KX_RasterizerDrawDebugLine(ToMt(from), ToMt(to), mt::vec4(color.x(), color.y(), color.z(), 1.0f));
 		}
 	}
 
@@ -3266,25 +3266,25 @@ unsigned int CcdCollData::GetNumContacts() const
 mt::vec3 CcdCollData::GetLocalPointA(unsigned int index, bool first) const
 {
 	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
-	return mt::vec3(first ? point.m_localPointA.m_floats : point.m_localPointB.m_floats);
+	return ToMt(first ? point.m_localPointA : point.m_localPointB);
 }
 
 mt::vec3 CcdCollData::GetLocalPointB(unsigned int index, bool first) const
 {
 	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
-	return mt::vec3(first ? point.m_localPointB.m_floats : point.m_localPointA.m_floats);
+	return ToMt(first ? point.m_localPointB : point.m_localPointA);
 }
 
 mt::vec3 CcdCollData::GetWorldPoint(unsigned int index, bool first) const
 {
 	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
-	return mt::vec3(point.m_positionWorldOnB.m_floats);
+	return ToMt(point.m_positionWorldOnB);
 }
 
 mt::vec3 CcdCollData::GetNormal(unsigned int index, bool first) const
 {
 	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
-	return mt::vec3(first ? (-point.m_normalWorldOnB).m_floats : point.m_normalWorldOnB.m_floats);
+	return ToMt(first ? -point.m_normalWorldOnB : point.m_normalWorldOnB);
 }
 
 float CcdCollData::GetCombinedFriction(unsigned int index, bool first) const

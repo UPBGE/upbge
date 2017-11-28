@@ -513,7 +513,7 @@ public:
 
 	virtual mt::vec3 GetWalkDirection()
 	{
-		return ToMoto(getWalkDirection());
+		return ToMt(getWalkDirection());
 	}
 
 	virtual float GetFallSpeed() const;

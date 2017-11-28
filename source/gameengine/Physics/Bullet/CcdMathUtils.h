@@ -7,24 +7,24 @@
 #include "LinearMath/btQuaternion.h"
 #include "LinearMath/btMatrix3x3.h"
 
-inline mt::vec3 ToMoto(const btVector3& vec)
+inline mt::vec3 ToMt(const btVector3& vec)
 {
 	return mt::vec3(vec.x(), vec.y(), vec.z());
 }
 
-inline mt::vec4 ToMoto(const btVector4& vec)
+inline mt::vec4 ToMt(const btVector4& vec)
 {
 	return mt::vec4(vec.x(), vec.y(), vec.z(), vec.w());
 }
 
-inline mt::mat3 ToMoto(const btMatrix3x3& mat)
+inline mt::mat3 ToMt(const btMatrix3x3& mat)
 {
 	return mt::mat3(mat[0][0], mat[1][0], mat[2][0],
 						mat[0][1], mat[1][1], mat[2][1],
 						mat[0][2], mat[1][2], mat[2][2]);
 }
 
-inline mt::quat ToMoto(const btQuaternion& quat)
+inline mt::quat ToMt(const btQuaternion& quat)
 {
 	return mt::quat(quat.w(), quat.x(), quat.y(), quat.z());
 }

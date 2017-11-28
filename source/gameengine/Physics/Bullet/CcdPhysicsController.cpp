@@ -260,8 +260,8 @@ public:
 
 	void setWorldTransform(const btTransform& worldTrans)
 	{
-		m_blenderMotionState->SetWorldPosition(ToMoto(worldTrans.getOrigin()));
-		m_blenderMotionState->SetWorldOrientation(ToMoto(worldTrans.getBasis()));
+		m_blenderMotionState->SetWorldPosition(ToMt(worldTrans.getOrigin()));
+		m_blenderMotionState->SetWorldOrientation(ToMt(worldTrans.getBasis()));
 		m_blenderMotionState->CalculateWorldTransformations();
 	}
 };
@@ -486,7 +486,7 @@ bool CcdPhysicsController::CreateSoftbody()
 	btTransform startTrans;
 	m_bulletMotionState->getWorldTransform(startTrans);
 
-	m_MotionState->SetWorldPosition(ToMoto(startTrans.getOrigin()));
+	m_MotionState->SetWorldPosition(ToMt(startTrans.getOrigin()));
 	m_MotionState->SetWorldOrientation(mt::mat3::Identity());
 
 	psb->transform(startTrans);
@@ -579,7 +579,7 @@ mt::vec3 CcdPhysicsController::GetGravity()
 {
 	btRigidBody *body = GetRigidBody();
 	if (body) {
-		return ToMoto(body->getGravity());
+		return ToMt(body->getGravity());
 	}
 	return mt::zero3;
 }
@@ -730,14 +730,14 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
 			btQuaternion worldquat;
 			btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
 			trs.getRotation(worldquat);
-			m_MotionState->SetWorldPosition(ToMoto(worldPos));
-			m_MotionState->SetWorldOrientation(ToMoto(worldquat));
+			m_MotionState->SetWorldPosition(ToMt(worldPos));
+			m_MotionState->SetWorldOrientation(ToMt(worldquat));
 		}
 		else {
 			btVector3 aabbMin, aabbMax;
 			sb->getAabb(aabbMin, aabbMax);
 			btVector3 worldPos  = (aabbMax + aabbMin) * 0.5f;
-			m_MotionState->SetWorldPosition(ToMoto(worldPos));
+			m_MotionState->SetWorldPosition(ToMt(worldPos));
 		}
 		m_MotionState->CalculateWorldTransformations();
 		return true;
@@ -749,8 +749,8 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
 		const btTransform& xform = body->getCenterOfMassTransform();
 		const btMatrix3x3& worldOri = xform.getBasis();
 		const btVector3& worldPos = xform.getOrigin();
-		m_MotionState->SetWorldOrientation(ToMoto(worldOri));
-		m_MotionState->SetWorldPosition(ToMoto(worldPos));
+		m_MotionState->SetWorldOrientation(ToMt(worldOri));
+		m_MotionState->SetWorldPosition(ToMt(worldPos));
 		m_MotionState->CalculateWorldTransformations();
 	}
 
@@ -922,7 +922,7 @@ void CcdPhysicsController::GetWorldOrientation(btMatrix3x3& mat)
 mt::mat3 CcdPhysicsController::GetOrientation()
 {
 	const btMatrix3x3 orn = m_object->getWorldTransform().getBasis();
-	return ToMoto(orn);
+	return ToMt(orn);
 }
 
 void CcdPhysicsController::SetOrientation(const mt::mat3& orn)
@@ -1052,7 +1052,7 @@ void CcdPhysicsController::RestoreDynamics()
 void CcdPhysicsController::GetPosition(mt::vec3& pos) const
 {
 	const btTransform& xform = m_object->getWorldTransform();
-	pos = ToMoto(xform.getOrigin());
+	pos = ToMt(xform.getOrigin());
 }
 
 void CcdPhysicsController::SetScaling(const mt::vec3& scale)
@@ -1346,7 +1346,7 @@ mt::vec3 CcdPhysicsController::GetLinearVelocity()
 	btRigidBody *body = GetRigidBody();
 	if (body) {
 		const btVector3& linvel = body->getLinearVelocity();
-		return ToMoto(linvel);
+		return ToMt(linvel);
 	}
 
 	return mt::zero3;
@@ -1357,7 +1357,7 @@ mt::vec3 CcdPhysicsController::GetAngularVelocity()
 	btRigidBody *body = GetRigidBody();
 	if (body) {
 		const btVector3& angvel = body->getAngularVelocity();
-		return ToMoto(angvel);
+		return ToMt(angvel);
 	}
 
 	return mt::zero3;
@@ -1368,7 +1368,7 @@ mt::vec3 CcdPhysicsController::GetVelocity(const mt::vec3 &posin)
 	btRigidBody *body = GetRigidBody();
 	if (body) {
 		btVector3 linvel = body->getVelocityInLocalPoint(ToBullet(posin));
-		return ToMoto(linvel);
+		return ToMt(linvel);
 	}
 
 	return mt::zero3;
@@ -1704,17 +1704,17 @@ DefaultMotionState::~DefaultMotionState()
 
 mt::vec3 DefaultMotionState::GetWorldPosition() const
 {
-	return ToMoto(m_worldTransform.getOrigin());
+	return ToMt(m_worldTransform.getOrigin());
 }
 
 mt::vec3 DefaultMotionState::GetWorldScaling() const
 {
-	return ToMoto(m_localScaling);
+	return ToMt(m_localScaling);
 }
 
 mt::mat3 DefaultMotionState::GetWorldOrientation() const
 {
-	return ToMoto(m_worldTransform.getBasis());
+	return ToMt(m_worldTransform.getBasis());
 }
 
 void DefaultMotionState::SetWorldOrientation(const mt::mat3& ori)

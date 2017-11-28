@@ -114,10 +114,10 @@ void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 		const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);
 
 		const unsigned int index = indices[vinfo.GetOrigIndex()];
-		const mt::vec3 pt(ToMoto(nodes[index].m_x));
+		const mt::vec3 pt(ToMt(nodes[index].m_x));
 		v.SetXYZ(pt);
 
-		const mt::vec3 normal(ToMoto(nodes[index].m_n));
+		const mt::vec3 normal(ToMt(nodes[index].m_n));
 		v.SetNormal(normal);
 
 		if (autoUpdate) {
