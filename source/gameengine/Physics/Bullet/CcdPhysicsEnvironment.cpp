@@ -709,8 +709,7 @@ void CcdPhysicsEnvironment::UpdateCcdPhysicsControllerShape(CcdShapeConstruction
 
 void CcdPhysicsEnvironment::DebugDrawWorld()
 {
-	if (m_dynamicsWorld->getDebugDrawer() &&  m_dynamicsWorld->getDebugDrawer()->getDebugMode() > 0)
-		m_dynamicsWorld->debugDrawWorld();
+	m_dynamicsWorld->debugDrawWorld();
 }
 
 void CcdPhysicsEnvironment::StaticSimulationSubtickCallback(btDynamicsWorld *world, btScalar timeStep)
@@ -752,11 +751,6 @@ bool CcdPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, flo
 	for (it = m_controllers.begin(); it != m_controllers.end(); it++) {
 		(*it)->SynchronizeMotionStates(timeStep);
 	}
-
-	//for (it=m_controllers.begin(); it!=m_controllers.end(); it++)
-	//{
-	//	(*it)->SynchronizeMotionStates(timeStep);
-	//}
 
 	for (i = 0; i < m_wrapperVehicles.size(); i++) {
 		WrapperVehicle *veh = m_wrapperVehicles[i];
@@ -2040,63 +2034,39 @@ bool CcdPhysicsEnvironment::RequestCollisionCallback(PHY_IPhysicsController *ctr
 
 void CcdPhysicsEnvironment::CallbackTriggers()
 {
-	bool draw_contact_points = m_debugDrawer && (m_debugDrawer->getDebugMode() & btIDebugDraw::DBG_DrawContactPoints);
-
-	if (!m_triggerCallbacks[PHY_OBJECT_RESPONSE] && !draw_contact_points)
+	if (!m_triggerCallbacks[PHY_OBJECT_RESPONSE]) {
 		return;
+	}
 
-	//walk over all overlapping pairs, and if one of the involved bodies is registered for trigger callback, perform callback
+	// Walk over all overlapping pairs, and if one of the involved bodies is registered for trigger callback, perform callback.
 	btDispatcher *dispatcher = m_dynamicsWorld->getDispatcher();
-	int numManifolds = dispatcher->getNumManifolds();
-	for (int i = 0; i < numManifolds; i++) {
-		bool colliding_ctrl0 = true;
+	for (unsigned int i = 0, numManifolds = dispatcher->getNumManifolds(); i < numManifolds; i++) {
 		btPersistentManifold *manifold = dispatcher->getManifoldByIndexInternal(i);
-		const int numContacts = manifold->getNumContacts();
-		if (!numContacts) {
+		if (manifold->getNumContacts() == 0) {
 			continue;
 		}
 
 		const btCollisionObject *col0 = manifold->getBody0();
 		const btCollisionObject *col1 = manifold->getBody1();
-		if (draw_contact_points) {
-			for (int j = 0; j < numContacts; j++) {
-				static const btVector3 color(1.0f, 1.0f, 0.0f);
-				const btManifoldPoint& cp = manifold->getContactPoint(j);
-				m_debugDrawer->drawContactPoint(cp.m_positionWorldOnB,
-				                                cp.m_normalWorldOnB,
-				                                cp.getDistance(),
-				                                cp.getLifeTime(),
-				                                color);
-			}
-		}
 
-		//m_internalOwner is set in 'addPhysicsController'
 		CcdPhysicsController *ctrl0 = static_cast<CcdPhysicsController *>(col0->getUserPointer());
 		CcdPhysicsController *ctrl1 = static_cast<CcdPhysicsController *>(col1->getUserPointer());
-		bool usecallback = false;
 
+		bool first;
 		// Test if one of the controller is registered and use collision callback.
-		if (ctrl0->Registered()) {
-			usecallback = true;
+		if (ctrl1->Registered()) {
+			first = true;
 		}
 		else if (ctrl1->Registered()) {
-			colliding_ctrl0 = false;
-			usecallback = true;
+			first = false;
+		}
+		else {
+			// No controllers registered for collision callbacks.
+			continue;
 		}
 
-		if (usecallback) {
-			const CcdCollData *coll_data = new CcdCollData(manifold);
-
-			m_triggerCallbacks[PHY_OBJECT_RESPONSE](m_triggerCallbacksUserPtrs[PHY_OBJECT_RESPONSE], ctrl0, ctrl1, coll_data, colliding_ctrl0);
-		}
-		// Bullet does not refresh the manifold contact point for object without contact response
-		// may need to remove this when a newer Bullet version is integrated
-		if (!dispatcher->needsResponse(col0, col1)) {
-			// Refresh algorithm fails sometimes when there is penetration
-			// (usuall the case with ghost and sensor objects)
-			// Let's just clear the manifold, in any case, it is recomputed on each frame.
-			manifold->clearManifold(); //refreshContactPoints(rb0->getCenterOfMassTransform(),rb1->getCenterOfMassTransform());
-		}
+		const CcdCollData *coll_data = new CcdCollData(manifold);
+		m_triggerCallbacks[PHY_OBJECT_RESPONSE](m_triggerCallbacksUserPtrs[PHY_OBJECT_RESPONSE], ctrl0, ctrl1, coll_data, first);
 	}
 }
 
