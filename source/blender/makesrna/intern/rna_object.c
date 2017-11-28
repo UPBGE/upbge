@@ -26,7 +26,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
 #include "DNA_action_types.h"
 #include "DNA_customdata_types.h"
@@ -56,6 +55,7 @@
 #include "rna_internal.h"
 
 #include "BLI_sys_types.h" /* needed for intptr_t used in ED_mesh.h */
+#include "BLI_math_base.h"
 #include "ED_mesh.h"
 
 #include "WM_api.h"
