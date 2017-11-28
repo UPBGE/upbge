@@ -644,13 +644,11 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_intern_dualcon
 		bf_intern_cycles
 		bf_intern_elbeem
-		bf_intern_mathfu
 		bf_intern_memutil
 		bf_intern_guardedalloc
 		bf_intern_ctr
 		bf_intern_utfconv
 		bf_intern_smoke
-		bf_intern_moto
 		bf_intern_opencolorio
 		bf_intern_eigen
 		bf_intern_libmv
