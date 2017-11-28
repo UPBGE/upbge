@@ -871,7 +871,7 @@ void KX_GameObject::UpdateBucketsNew()
 	float obmat[4][4];
 	NodeGetWorldTransform().getValue(&obmat[0][0]);
 
-	if (compare_m4m4(m_prevObmat, obmat, 0.0001)) {
+	if (compare_m4m4(m_prevObmat, obmat, FLT_MIN)) {
 		GetScene()->AppendToStaticObjectsInsideFrustum(this);
 	}
 
