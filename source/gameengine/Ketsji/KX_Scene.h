@@ -151,8 +151,16 @@ private:
 protected:
 
 	/***************EEVEE INTEGRATION*****************/
-	// Used for Tonemap
+	// Used for Tonemap (only if we use bge postrendering)
 	bool m_isLastScene;
+
+
+	bool m_dofInitialized;
+
+	bool m_doingTAA;
+	bool m_doingProbeUpdate;
+	std::vector<KX_GameObject *>m_staticObjectsInsideFrustum;
+
 
 	std::vector<DRWPass *>m_materialPasses;
 
@@ -163,8 +171,6 @@ protected:
 	RAS_EeveeEffectsManager *m_effectsManager;
 	RAS_LightProbesManager *m_probesManager;
 	std::vector<KX_GameObject *>m_lightProbes;
-	bool m_dofInitialized;
-	std::vector<KX_GameObject *>m_staticObjectsInsideFrustum;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -358,14 +364,20 @@ public:
 	EEVEE_Data *GetEeveeData();
 	void SetIsLastScene(bool isLastScene);
 	bool GetIsLastScene();
-	void AppendProbeList(KX_GameObject *probe);
-	std::vector<KX_GameObject *>GetProbeList();
+
 	void InitScenePasses(EEVEE_PassList *psl);
 	std::vector<DRWPass *>GetMaterialPasses();
+
 	void EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes);
 	void EeveePostProcessingHackEnd();
+
 	void AppendToStaticObjectsInsideFrustum(KX_GameObject *gameobj);
 	bool ComputeTAA(const KX_CullingNodeList& nodes);
+	void EEVEE_draw_scene();
+
+	void AppendProbeList(KX_GameObject *probe);
+	std::vector<KX_GameObject *>GetProbeList();
+	void UpdateProbes();
 	/******************************************************/
 
 	RAS_BucketManager* GetBucketManager() const;

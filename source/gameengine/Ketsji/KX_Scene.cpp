@@ -184,7 +184,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_effectsManager(nullptr),
 	m_eeveeData(nullptr),
 	m_dofInitialized(false),
-	m_isLastScene(false)
+	m_doingProbeUpdate(false),
+	m_isLastScene(false),
+	m_doingTAA(false)
 {
 
 	m_dbvt_culling = false;
@@ -1777,7 +1779,7 @@ void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform
 /***********************************************EEVEE INTEGRATION****************************************************/
 
 /* EEVEE's render main loop (see eevee_engine.c) */
-static void EEVEE_draw_scene()
+void KX_Scene::EEVEE_draw_scene()
 {
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
 	EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
@@ -1829,7 +1831,7 @@ static void EEVEE_draw_scene()
 		DRW_framebuffer_bind(fbl->main);
 		DRW_framebuffer_clear(false, true, true, NULL, 1.0f);
 
-		if (((stl->effects->enabled_effects & EFFECT_TAA) != 0) && stl->effects->taa_current_sample > 1) {
+		if ((((stl->effects->enabled_effects & EFFECT_TAA) != 0) && stl->effects->taa_current_sample > 1) || m_doingProbeUpdate) {
 			DRW_viewport_matrix_override_set(stl->effects->overide_persmat, DRW_MAT_PERS);
 			DRW_viewport_matrix_override_set(stl->effects->overide_persinv, DRW_MAT_PERSINV);
 			DRW_viewport_matrix_override_set(stl->effects->overide_winmat, DRW_MAT_WIN);
@@ -1884,7 +1886,7 @@ static void EEVEE_draw_scene()
 		EEVEE_draw_effects(vedata);
 		DRW_stats_group_end();
 
-		if (stl->effects->taa_current_sample > 1) {
+		if (stl->effects->taa_current_sample > 1 || m_doingProbeUpdate) {
 			DRW_viewport_matrix_override_unset(DRW_MAT_PERS);
 			DRW_viewport_matrix_override_unset(DRW_MAT_PERSINV);
 			DRW_viewport_matrix_override_unset(DRW_MAT_WIN);
@@ -1912,6 +1914,45 @@ bool KX_Scene::ComputeTAA(const KX_CullingNodeList& nodes)
 }
 /* End of utils for TAA */
 
+void KX_Scene::UpdateProbes()
+{
+	m_doingProbeUpdate = false;
+
+	if (m_lightProbes.size() == 0) {
+		return;
+	}
+
+	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
+	EEVEE_Data *vedata = EEVEE_engine_data_get();
+	EEVEE_EffectsInfo *effects = vedata->stl->effects;
+
+	if (!m_doingTAA) {
+
+		float persmat[4][4], viewmat[4][4];
+		KX_Camera *cam = GetActiveCamera();
+		MT_Matrix4x4 view(cam->GetModelviewMatrix());
+		MT_Matrix4x4 proj(cam->GetProjectionMatrix());
+		MT_Matrix4x4 pers(proj * view);
+
+		view.getValue(&viewmat[0][0]);
+		pers.getValue(&persmat[0][0]);
+		proj.getValue(&effects->overide_winmat[0][0]);
+		mul_m4_m4m4(effects->overide_persmat, effects->overide_winmat, viewmat);
+		invert_m4_m4(effects->overide_persinv, effects->overide_persmat);
+		invert_m4_m4(effects->overide_wininv, effects->overide_winmat);
+
+		DRW_viewport_matrix_override_set(effects->overide_persmat, DRW_MAT_PERS);
+		DRW_viewport_matrix_override_set(effects->overide_persinv, DRW_MAT_PERSINV);
+		DRW_viewport_matrix_override_set(effects->overide_winmat, DRW_MAT_WIN);
+		DRW_viewport_matrix_override_set(effects->overide_wininv, DRW_MAT_WININV);
+	}
+
+	if (effects->taa_current_sample == 1 || (m_doingTAA && effects->taa_current_sample < effects->taa_total_sample)) {
+		EEVEE_lightprobes_cache_finish(sldata, vedata);
+		m_doingProbeUpdate = true;
+	}
+}
+
 void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 {
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
@@ -1920,8 +1961,6 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 	SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(GetBlenderScene());
 	IDProperty *props = BKE_scene_layer_engine_evaluated_get(scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 	KX_Camera *cam = GetActiveCamera();
-
-	bool doing_taa = false;
 
 	/* Update TAA when the view is not moving and nothing in the view frustum is moving */
 	if (effects->enabled_effects & EFFECT_TAA) {
@@ -1984,12 +2023,12 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 			DRW_viewport_matrix_override_set(effects->overide_winmat, DRW_MAT_WIN);
 			DRW_viewport_matrix_override_set(effects->overide_wininv, DRW_MAT_WININV);
 
-			doing_taa = true;
+			m_doingTAA = true;
 		}
 		else {
 			effects->taa_current_sample = 1;
 
-			doing_taa = false;
+			m_doingTAA = false;
 		}
 	}
 
@@ -2004,7 +2043,7 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 		unsigned int current_sample = 0;
 
 		/* If TAA is in use do not use the history buffer. */
-		bool do_taa = ((effects->enabled_effects & EFFECT_TAA) != 0) && doing_taa;
+		bool do_taa = ((effects->enabled_effects & EFFECT_TAA) != 0) && m_doingTAA;
 
 		if (do_taa) {
 			volumetrics->history_alpha = 0.0f;
@@ -2103,6 +2142,8 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 
 	/* Update of eevee's post processing before scene rendering */
 	EeveePostProcessingHackBegin(nodes);
+
+	UpdateProbes();
 
 	m_staticObjectsInsideFrustum.clear();
 
