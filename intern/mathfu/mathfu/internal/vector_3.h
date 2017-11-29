@@ -93,6 +93,8 @@ class Vector<T, 3> {
 
   inline T Normalize() { return NormalizeHelper(*this); }
 
+  inline T SafeNormalize() { return SafeNormalizeHelper(*this); }
+
   inline Vector<T, 3> Normalized() const WARN_UNUSED_RESULT { return NormalizedHelper(*this); }
 
   inline Vector<T, 3> SafeNormalized(const Vector<T, 3>& v) const WARN_UNUSED_RESULT {

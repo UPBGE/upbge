@@ -403,6 +403,8 @@ class Vector {
   /// @return The length of this vector.
   inline T Normalize() { return NormalizeHelper(*this); }
 
+  inline T SafeNormalize() { return SafeNormalizeHelper(*this); }
+
   /// @brief Calculate the normalized version of this vector.
   ///
   /// @return The normalized vector.
@@ -818,6 +820,15 @@ template <class T, int d>
 inline T NormalizeHelper(Vector<T, d>& v) {
   const T length = LengthHelper(v);
   v *= (T(1) / length);
+  return length;
+}
+
+template <class T, int d>
+inline T SafeNormalizeHelper(Vector<T, d>& v) {
+  const T length = LengthHelper(v);
+  if (!FuzzyZero(length)) {
+    v *= (T(1) / length);
+  }
   return length;
 }
 

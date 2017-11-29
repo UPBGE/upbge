@@ -259,6 +259,14 @@ class Vector<float, 3> {
     return length;
   }
 
+  inline float SafeNormalize() {
+    const float length = Length();
+    if (!FuzzyZeroHelper(length)) {
+      *this = simd4f_mul(MATHFU_VECTOR3_LOAD3(*this), simd4f_splat(1 / length));
+    }
+    return length;
+  }
+
   inline Vector<float, 3> Normalized() const WARN_UNUSED_RESULT {
     return Vector<float, 3>(simd4f_normalize3(MATHFU_VECTOR3_LOAD3(*this)));
   }

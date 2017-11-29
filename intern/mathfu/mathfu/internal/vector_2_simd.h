@@ -181,6 +181,14 @@ class Vector<float, 2> {
     return length;
   }
 
+  inline float SafeNormalize() {
+    const float length = Length();
+    if (!FuzzyZero(length)) {
+      simd = simd2f_mul(simd, simd2f_splat(1 / length));
+    }
+    return length;
+  }
+
   inline Vector<float, 2> Normalized() const WARN_UNUSED_RESULT {
     return Vector<float, 2>(simd2f_normalize2(simd));
   }

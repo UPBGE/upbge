@@ -147,7 +147,7 @@ class Quaternion {
     ToAngleAxis(&angle, &axis);
     angle *= s1;
     return Quaternion<T>(cos(0.5f * angle),
-                         axis.Normalized() * static_cast<T>(sin(0.5f * angle)));
+                         axis * static_cast<T>(sin(0.5f * angle)));
   }
 
   /// @brief Multiply a Vector by this Quaternion.
@@ -191,8 +191,9 @@ class Quaternion {
   /// @param angle Receives the angle.
   /// @param axis Receives the normalized axis.
   inline void ToAngleAxis(T* angle, Vector<T, 3>* axis) const {
-    *axis = s_ > 0 ? v_ : -v_;
-    *angle = 2 * atan2(axis->Normalize(), s_ > 0 ? s_ : -s_);
+    *axis = (s_ > 0 ? v_ : -v_);
+    const float length = axis->SafeNormalize();
+    *angle = 2 * atan2(length, s_ > 0 ? s_ : -s_);
   }
 
   /// @brief Convert this Quaternion to 3 Euler Angles.
