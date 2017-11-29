@@ -272,7 +272,7 @@ void LA_Launcher::InitEngine()
 		SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(sc);
 		InitProperties(scene_layer, sc);
 	}
-	Object *maincam = m_startScene->camera ? (Object *)m_startScene->camera : (Object *)m_maggie->camera.first;
+	Object *maincam = BKE_scene_layer_camera_find(cur_scene_layer);
 	GPUOffScreen *tempgpuofs = GPU_offscreen_create(m_canvas->GetWidth(), m_canvas->GetHeight(), 0, nullptr);
 	int viewportsize[2] = { m_canvas->GetWidth(), m_canvas->GetHeight() };
 	DRW_game_render_loop_begin(tempgpuofs, m_maggie, m_startScene,
