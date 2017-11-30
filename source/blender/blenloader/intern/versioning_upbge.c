@@ -49,6 +49,8 @@
 
 #include "BKE_main.h"
 
+#include "BLI_math_base.h"
+
 #include "BLO_readfile.h"
 
 #include "wm_event_types.h"
@@ -264,6 +266,14 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 			camera->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
 			camera->gameviewport.rightratio = 1.0f;
 			camera->gameviewport.topratio = 1.0f;
+		}
+	}
+
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 2, 2)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "max_slope")) {
+			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+				ob->max_slope = M_PI_2;
+			}
 		}
 	}
 }
