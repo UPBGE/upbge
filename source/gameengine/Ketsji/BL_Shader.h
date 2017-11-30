@@ -55,7 +55,8 @@ public:
 	void SetCallbacks(CallbacksType type, PyObject *callbacks);
 #endif // WITH_PYTHON
 
-	RAS_AttributeArray::AttribList GetAttribs(RAS_Texture * const textures[RAS_Texture::MaxUnits]) const;
+	RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo,
+			RAS_Texture *const textures[RAS_Texture::MaxUnits]) const;
 
 	virtual void SetProg(bool enable);
 

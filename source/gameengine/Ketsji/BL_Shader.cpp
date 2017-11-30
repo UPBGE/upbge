@@ -102,7 +102,8 @@ void BL_Shader::SetCallbacks(BL_Shader::CallbacksType type, PyObject *callbacks)
 
 #endif  // WITH_PYTHON
 
-RAS_AttributeArray::AttribList BL_Shader::GetAttribs(RAS_Texture * const textures[RAS_Texture::MaxUnits]) const
+RAS_AttributeArray::AttribList BL_Shader::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo,
+		RAS_Texture *const textures[RAS_Texture::MaxUnits]) const
 {
 	RAS_AttributeArray::AttribList attribs;
 	// Initialize textures attributes.
@@ -121,7 +122,18 @@ RAS_AttributeArray::AttribList BL_Shader::GetAttribs(RAS_Texture * const texture
 				attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_POS, true, 0});
 			}
 			else if (mtex->texco & TEXCO_UV) {
-				attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_UV, true, i});
+				// UV layer not specified, use default layer.
+				if (strlen(mtex->uvname) == 0) {
+					attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_UV, true, layersInfo.activeUv});
+				}
+
+				// Search for the UV layer index used by the texture.
+				for (const RAS_MeshObject::Layer& layer : layersInfo.layers) {
+					if (layer.type == RAS_MeshObject::Layer::UV && layer.name == mtex->uvname) {
+						attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_UV, true, layer.index});
+						break;
+					}
+				}
 			}
 			else if (mtex->texco & TEXCO_NORM) {
 				attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_NORM, true, 0});

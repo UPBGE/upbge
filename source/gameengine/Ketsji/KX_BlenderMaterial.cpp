@@ -413,7 +413,7 @@ void KX_BlenderMaterial::UpdateIPO(
 const RAS_AttributeArray::AttribList KX_BlenderMaterial::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
 	if (m_shader && m_shader->Ok()) {
-		return m_shader->GetAttribs(m_textures);
+		return m_shader->GetAttribs(layersInfo, m_textures);
 	}
 	if (m_blenderShader && m_blenderShader->Ok()) {
 		return m_blenderShader->GetAttribs(layersInfo);
