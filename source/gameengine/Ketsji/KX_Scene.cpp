@@ -1815,14 +1815,15 @@ void KX_Scene::EEVEE_draw_scene()
 
 	while (loop_ct--) {
 
-		/* Refresh Probes */
-		DRW_stats_group_start("Probes Refresh");
-		EEVEE_lightprobes_refresh(sldata, vedata);
-		DRW_stats_group_end();
-
 		/* Refresh shadows */
 		DRW_stats_group_start("Shadows");
 		EEVEE_draw_shadows_bge(sldata, psl);
+		DRW_stats_group_end();
+
+		/* Refresh Probes */
+		DRW_stats_group_start("Probes Refresh");
+		UpdateProbes();
+		EEVEE_lightprobes_refresh(sldata, vedata);
 		DRW_stats_group_end();
 
 		/* Attach depth to the hdr buffer and bind it */
@@ -1915,40 +1916,43 @@ bool KX_Scene::ComputeTAA(const KX_CullingNodeList& nodes)
 /* End of utils for TAA */
 void KX_Scene::UpdateProbes()
 {
-	m_doingProbeUpdate = false;
-
 	if (m_lightProbes.size() == 0) {
 		return;
 	}
+
+	KX_Camera *cam = GetActiveCamera();
 
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
 	EEVEE_EffectsInfo *effects = vedata->stl->effects;
 
-	float persmat[4][4], viewmat[4][4];
-	KX_Camera *cam = GetActiveCamera();
-	MT_Matrix4x4 view(cam->GetModelviewMatrix());
-	MT_Matrix4x4 proj(cam->GetProjectionMatrix());
-	MT_Matrix4x4 pers(proj * view);
+	if (m_doingTAA) {
+		m_doingProbeUpdate = false;
+	}
+	else {
+		float persmat[4][4], viewmat[4][4];
+		MT_Matrix4x4 view(cam->GetModelviewMatrix());
+		MT_Matrix4x4 proj(cam->GetProjectionMatrix());
+		MT_Matrix4x4 pers(proj * view);
 
-	view.getValue(&viewmat[0][0]);
-	pers.getValue(&persmat[0][0]);
-	proj.getValue(&effects->overide_winmat[0][0]);
-	mul_m4_m4m4(effects->overide_persmat, effects->overide_winmat, viewmat);
-	invert_m4_m4(effects->overide_persinv, effects->overide_persmat);
-	invert_m4_m4(effects->overide_wininv, effects->overide_winmat);
+		view.getValue(&viewmat[0][0]);
+		pers.getValue(&persmat[0][0]);
+		proj.getValue(&effects->overide_winmat[0][0]);
+		mul_m4_m4m4(effects->overide_persmat, effects->overide_winmat, viewmat);
+		invert_m4_m4(effects->overide_persinv, effects->overide_persmat);
+		invert_m4_m4(effects->overide_wininv, effects->overide_winmat);
 
-	DRW_viewport_matrix_override_set(effects->overide_persmat, DRW_MAT_PERS);
-	DRW_viewport_matrix_override_set(effects->overide_persinv, DRW_MAT_PERSINV);
-	DRW_viewport_matrix_override_set(effects->overide_winmat, DRW_MAT_WIN);
-	DRW_viewport_matrix_override_set(effects->overide_wininv, DRW_MAT_WININV);
-
+		DRW_viewport_matrix_override_set(effects->overide_persmat, DRW_MAT_PERS);
+		DRW_viewport_matrix_override_set(effects->overide_persinv, DRW_MAT_PERSINV);
+		DRW_viewport_matrix_override_set(effects->overide_winmat, DRW_MAT_WIN);
+		DRW_viewport_matrix_override_set(effects->overide_wininv, DRW_MAT_WININV);
+		m_doingProbeUpdate = true;
+	}
 	EEVEE_lightprobes_cache_init(sldata, vedata);
 	for (KX_GameObject *kxprobe : GetProbeList()) {
 		EEVEE_lightprobes_cache_add(sldata, kxprobe->GetBlenderObject());
 	}
 	EEVEE_lightprobes_cache_finish(sldata, vedata);
-	m_doingProbeUpdate = true;
 }
 
 void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
@@ -2140,8 +2144,6 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 
 	/* Update of eevee's post processing before scene rendering */
 	EeveePostProcessingHackBegin(nodes);
-
-	UpdateProbes();
 
 	m_staticObjectsInsideFrustum.clear();
 
