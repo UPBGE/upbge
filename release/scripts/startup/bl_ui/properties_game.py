@@ -157,10 +157,15 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(soft, "dynamic_friction", slider=True)
             col.prop(soft, "collision_margin", slider=True)
             col.prop(soft, "use_bending_constraints", text="Bending Constraints")
+            col.prop(soft, "kvcf", text="Velocity Correction")
+            col.prop(soft, "kdp", text="Damping")
+            col.prop(soft, "kdg", text="Drag Coefficient")
+            col.prop(soft, "klf", text="Lift Coefficient")
+            col.prop(soft, "kpr", text="Pressure Coefficient")
+            col.prop(soft, "kvc", text="Volume Conservation")
             sub = col.column()
             sub.active = soft.use_bending_constraints
             sub.prop(soft, "bending_distance")
-
             col = split.column()
             col.prop(soft, "use_shape_match")
             sub = col.column()
@@ -178,9 +183,9 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             sub.prop(soft, "ksrhr_cl", text="Rigid Hardness")
             sub.prop(soft, "kskhr_cl", text="Kinetic Hardness")
             sub.prop(soft, "ksshr_cl", text="Soft Hardness")
-            sub.prop(soft, "ksr_split_cl", text="Rigid Impulse Split")
-            sub.prop(soft, "ksk_split_cl", text="Kinetic Impulse Split")
-            sub.prop(soft, "kss_split_cl", text="Soft Impulse Split")
+            sub.prop(soft, "ksr_split_cl", text="Rigid Impulse Split", slider=True)
+            sub.prop(soft, "ksk_split_cl", text="Kinetic Impulse Split", slider=True)
+            sub.prop(soft, "kss_split_cl", text="Soft Impulse Split", slider=True)
 
         elif physics_type == 'STATIC':
             col = layout.column()
