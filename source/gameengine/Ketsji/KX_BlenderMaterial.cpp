@@ -42,6 +42,7 @@
 #include "DNA_scene_types.h"
 
 extern "C" {
+#  include "eevee_private.h"
 #  include "DRW_render.h"
 #  include "../gpu/intern/gpu_codegen.h"
 }
@@ -80,19 +81,26 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 
 	m_alphablend = mat->blend_method;
 
-	// with ztransp enabled, enforce alpha blending mode
-	//if ((mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (m_alphablend == GEMAT_SOLID)) {
-		//m_alphablend = GEMAT_ALPHA;
-	//}
+	if (m_material->use_nodes && m_material->nodetree) {
+		EEVEE_Data *vedata = EEVEE_engine_data_get();
+		EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
+		EEVEE_LampsInfo *linfo = sldata->lamps;
+		EEVEE_StorageList *stl = EEVEE_engine_data_get()->stl;
+		const bool use_refract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) && ((stl->effects->enabled_effects & EFFECT_REFRACT) != 0);
+		const bool use_sss = ((m_material->blend_flag & MA_BL_SS_SUBSURFACE) != 0) && ((stl->effects->enabled_effects & EFFECT_SSS) != 0);
+		const bool use_blend = (m_material->blend_method & MA_BM_BLEND) != 0;
+		m_gpuMat = EEVEE_material_mesh_get(scene->GetBlenderScene(), m_material, vedata,
+			use_blend, (m_material->blend_method == MA_BM_MULTIPLY), use_refract, use_sss, linfo->shadow_method);
+	}
+	else {
+		m_gpuMat = nullptr;
+	}
 
 	m_zoffset = mat->zoffs;
 
 	m_rasMode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : RAS_TWOSIDED;
 	m_rasMode |= (mat->material_type == MA_TYPE_WIRE) ? RAS_WIRE : 0;
 
-	//if (ELEM(m_alphablend, GEMAT_CLIP, GEMAT_ALPHA_TO_COVERAGE)) {
-		//m_rasMode |= RAS_ALPHA_SHADOW;
-	//}
 	// always zsort alpha + add
 	if (ELEM(m_alphablend, MA_BM_ADD, MA_BM_MULTIPLY, MA_BM_BLEND)) {
 		m_rasMode |= RAS_ALPHA;
@@ -186,11 +194,10 @@ void KX_BlenderMaterial::ReleaseMaterial()
 
 void KX_BlenderMaterial::InitTextures()
 {
-	GPUMaterial *gpumat = m_blenderShader->GetGpuMaterial(m_rasterizer->GetDrawingMode());
-	if (!gpumat) {
+	if (!m_gpuMat) {
 		return;
 	}
-	GPUPass *gpupass = GPU_material_get_pass(gpumat);
+	GPUPass *gpupass = GPU_material_get_pass(m_gpuMat);
 
 	if (!gpupass) {
 		/* Shader compilation error */

@@ -20,6 +20,7 @@ class RAS_Rasterizer;
 class BL_BlenderShader;
 class KX_MaterialShader;
 struct Material;
+struct GPUMaterial;
 
 #ifdef USE_MATHUTILS
 void KX_BlenderMaterial_Mathutils_Callback_Init(void);
@@ -100,6 +101,10 @@ public:
 	static void EndFrame(RAS_Rasterizer *rasty);
 
 private:
+
+	GPUMaterial *m_gpuMat;
+
+
 	Material *m_material;
 	std::unique_ptr<KX_MaterialShader> m_shader;
 	std::unique_ptr<BL_BlenderShader> m_blenderShader;
