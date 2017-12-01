@@ -1529,6 +1529,12 @@ static void rna_def_game_softbody(BlenderRNA *brna)
 	                         "=> set to 0.0 to disable welding test and speed up scene loading "
 	                         "(ok if the mesh has no duplicates)");
 
+	prop = RNA_def_property(srna, "ksrhr_cl", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "kSRHR_CL");
+	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_ui_text(prop, "ksrhr_cl",
+														"Soft vs Rigid Hardness");
+
 	/* Integers */
 	
 	prop = RNA_def_property(srna, "location_iterations", PROP_INT, PROP_NONE);

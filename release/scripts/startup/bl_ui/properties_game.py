@@ -176,6 +176,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             sub.active = (soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody)
             sub.prop(soft, "cluster_iterations", text="Iterations")
 
+            sub.prop(soft, "ksrhr_cl", text="kSRHR_CL")
+
         elif physics_type == 'STATIC':
             col = layout.column()
             col.prop(game, "use_actor")
