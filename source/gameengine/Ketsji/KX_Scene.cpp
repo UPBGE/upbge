@@ -1931,21 +1931,12 @@ void KX_Scene::UpdateProbes()
 	}
 	else {
 		float persmat[4][4], viewmat[4][4];
-		MT_Matrix4x4 view(cam->GetModelviewMatrix());
-		MT_Matrix4x4 proj(cam->GetProjectionMatrix());
-		MT_Matrix4x4 pers(proj * view);
-
-		view.getValue(&viewmat[0][0]);
-		pers.getValue(&persmat[0][0]);
-		proj.getValue(&effects->overide_winmat[0][0]);
+		DRW_viewport_matrix_get(persmat, DRW_MAT_PERS);
+		DRW_viewport_matrix_get(viewmat, DRW_MAT_VIEW);
+		DRW_viewport_matrix_get(effects->overide_winmat, DRW_MAT_WIN);
 		mul_m4_m4m4(effects->overide_persmat, effects->overide_winmat, viewmat);
 		invert_m4_m4(effects->overide_persinv, effects->overide_persmat);
 		invert_m4_m4(effects->overide_wininv, effects->overide_winmat);
-
-		DRW_viewport_matrix_override_set(effects->overide_persmat, DRW_MAT_PERS);
-		DRW_viewport_matrix_override_set(effects->overide_persinv, DRW_MAT_PERSINV);
-		DRW_viewport_matrix_override_set(effects->overide_winmat, DRW_MAT_WIN);
-		DRW_viewport_matrix_override_set(effects->overide_wininv, DRW_MAT_WININV);
 		m_doingProbeUpdate = true;
 	}
 	EEVEE_lightprobes_cache_init(sldata, vedata);
@@ -1979,16 +1970,9 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 		effects->taa_total_sample = BKE_collection_engine_property_value_get_int(props, "taa_samples");
 		MAX2(effects->taa_total_sample, 0);
 
-		/*DRW_viewport_matrix_get(persmat, DRW_MAT_PERS);
+		DRW_viewport_matrix_get(persmat, DRW_MAT_PERS);
 		DRW_viewport_matrix_get(viewmat, DRW_MAT_VIEW);
-		DRW_viewport_matrix_get(effects->overide_winmat, DRW_MAT_WIN);*/
-		MT_Matrix4x4 view(cam->GetModelviewMatrix());
-		MT_Matrix4x4 proj(cam->GetProjectionMatrix());
-		MT_Matrix4x4 pers(proj * view);
-
-		view.getValue(&viewmat[0][0]);
-		pers.getValue(&persmat[0][0]);
-		proj.getValue(&effects->overide_winmat[0][0]);
+		DRW_viewport_matrix_get(effects->overide_winmat, DRW_MAT_WIN);
 
 		bool view_not_changed = compare_m4m4(persmat, effects->prev_drw_persmat, FLT_MIN);
 
