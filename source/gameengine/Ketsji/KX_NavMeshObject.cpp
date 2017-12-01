@@ -130,6 +130,12 @@ void KX_NavMeshObject::ProcessReplica()
 	}
 }
 
+int KX_NavMeshObject::GetGameObjectType() const
+{
+	return OBJ_NAVMESH;
+}
+
+
 bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
                                           unsigned short * &polys, int& npolys, unsigned short *&dmeshes,
                                           float *&dvertices, int &ndvertsuniq, unsigned short *&dtris,

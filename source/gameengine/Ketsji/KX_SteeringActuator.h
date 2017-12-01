@@ -41,24 +41,23 @@ class KX_SteeringActuator : public SCA_IActuator, public mt::SimdClassAllocator
 {
 	Py_Header
 
-	/** Target object */
 	KX_GameObject *m_target;
 	KX_NavMeshObject *m_navmesh;
-	int	m_mode;
+	int m_mode;
 	float m_distance;
 	float m_velocity;
 	float m_acceleration;
 	float m_turnspeed;
-	KX_ObstacleSimulation* m_simulation;
-	
+	KX_ObstacleSimulation *m_simulation;
+
 	double m_updateTime;
-	KX_Obstacle* m_obstacle;
+	KX_Obstacle *m_obstacle;
 	bool m_isActive;
 	bool m_isSelfTerminated;
 	bool m_enableVisualization;
 	short m_facingMode;
 	bool m_normalUp;
-	float m_path[MAX_PATH_LENGTH*3];
+	float m_path[MAX_PATH_LENGTH * 3];
 	int m_pathLen;
 	int m_pathUpdatePeriod;
 	double m_pathUpdateTime;
@@ -66,7 +65,9 @@ class KX_SteeringActuator : public SCA_IActuator, public mt::SimdClassAllocator
 	int m_wayPointIdx;
 	mt::mat3 m_parentlocalmat;
 	mt::vec3 m_steerVec;
-	void HandleActorFace(mt::vec3& velocity);
+
+	void HandleActorFace(const mt::vec3& velocity);
+
 public:
 	enum KX_STEERINGACT_MODE
 	{
@@ -77,47 +78,30 @@ public:
 		KX_STEERING_MAX
 	};
 
-	KX_SteeringActuator(class SCA_IObject* gameobj,
-						int mode,
-						KX_GameObject *target, 
-						KX_GameObject *navmesh,
-						float distance,
-						float velocity, 
-						float acceleration,
-						float turnspeed,
-						bool  isSelfTerminated,
-						int pathUpdatePeriod,
-						KX_ObstacleSimulation* simulation,
-						short facingmode,
-						bool normalup,
-						bool enableVisualization,
-	                    bool lockzvel);
+	KX_SteeringActuator(SCA_IObject *gameobj, int mode, KX_GameObject *target, KX_GameObject *navmesh, float distance,
+			float velocity, float acceleration, float turnspeed, bool isSelfTerminated, int pathUpdatePeriod,
+			KX_ObstacleSimulation *simulation, short facingmode, bool normalup, bool enableVisualization, bool lockzvel);
 	virtual ~KX_SteeringActuator();
+
 	virtual bool Update(double curtime);
 
-	virtual EXP_Value* GetReplica();
+	virtual EXP_Value *GetReplica();
 	virtual void ProcessReplica();
-	virtual void ReParent(SCA_IObject* parent);
+	virtual void ReParent(SCA_IObject *parent);
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
-	virtual bool UnlinkObject(SCA_IObject* clientobj);
-	const mt::vec3& GetSteeringVec();
+	virtual bool UnlinkObject(SCA_IObject *clientobj);
+	const mt::vec3& GetSteeringVec() const;
 
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
-
-	/* These are used to get and set m_target */
 	static PyObject *pyattr_get_target(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_target(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_target(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_navmesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_navmesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_navmesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_steeringVec(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_path(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
 
-#endif  /* WITH_PYTHON */
+#endif  // WITH_PYTHON
+};
 
-}; /* end of class KX_SteeringActuator : public SCA_PropertyActuator */
-
-#endif  /* __KX_STEERINGACTUATOR_H__ */
+#endif  // __KX_STEERINGACTUATOR_H__
