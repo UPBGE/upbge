@@ -269,7 +269,8 @@ void BL_SkinDeformer::UpdateTransverts()
 	// the vertex cache is unique to this deformer, no need to update it
 	// if it wasn't updated! We must update all the materials at once
 	// because we will not get here again for the other material
-	for (RAS_IDisplayArray *array: m_displayArrayList) {
+	for (const DisplayArraySlot& slot : m_slots) {
+		RAS_IDisplayArray *array = slot.m_displayArray;
 		// for each vertex
 		// copy the untransformed data from the original mvert
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {

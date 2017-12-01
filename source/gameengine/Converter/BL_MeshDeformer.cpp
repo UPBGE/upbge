@@ -54,7 +54,8 @@ void BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray
 	// only apply once per frame if the mesh is actually modified
 	if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
 		// For each display array
-		for (RAS_IDisplayArray *array: m_displayArrayList) {
+		for (const DisplayArraySlot& slot : m_slots) {
+			RAS_IDisplayArray *array = slot.m_displayArray;
 			if (array->GetModifiedFlag() == RAS_IDisplayArray::NONE_MODIFIED) {
 				continue;
 			}
@@ -120,7 +121,8 @@ void BL_MeshDeformer::RecalcNormals()
 		normal = {{0.0f, 0.0f, 0.0f}};
 	}
 
-	for (RAS_IDisplayArray *array : m_displayArrayList) {
+	for (const DisplayArraySlot& slot : m_slots) {
+		RAS_IDisplayArray *array = slot.m_displayArray;
 		for (unsigned int i = 0, size = array->GetTriangleIndexCount(); i < size; i += 3) {
 			const float *co[3];
 			bool flat = false;
@@ -154,7 +156,8 @@ void BL_MeshDeformer::RecalcNormals()
 	}
 
 	// Assign smooth vertex normals.
-	for (RAS_IDisplayArray *array: m_displayArrayList) {
+	for (const DisplayArraySlot& slot : m_slots) {
+		RAS_IDisplayArray *array = slot.m_displayArray;
 		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 			RAS_Vertex v = array->GetVertex(i);
 			const RAS_VertexInfo& vinfo = array->GetVertexInfo(i);

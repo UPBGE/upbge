@@ -42,11 +42,13 @@
 
 #include <map>
 
-struct DerivedMesh;
 class RAS_MeshObject;
 class RAS_IPolyMaterial;
 class RAS_MeshMaterial;
+
 class SCA_IObject;
+
+struct DerivedMesh;
 
 class RAS_Deformer
 {
@@ -85,11 +87,23 @@ public:
 	RAS_DisplayArrayBucket *GetDisplayArrayBucket(unsigned short index) const;
 
 protected:
+	/// Struct wrapping display arrays owned/used by the deformer.
+	struct DisplayArraySlot
+	{
+		/// The unique display array owned by the deformer.
+		RAS_IDisplayArray *m_displayArray;
+		/// The original display array used by the deformer to duplicate data.
+		RAS_IDisplayArray *m_origDisplayArray;
+		/// The mesh material of the owning the original display array.
+		RAS_MeshMaterial *m_meshMaterial;
+		/// The unique display array bucket using the display array of this deformer.
+		RAS_DisplayArrayBucket *m_displayArrayBucket;
+	};
+
+	std::vector<DisplayArraySlot> m_slots;
+
 	RAS_MeshObject *m_mesh;
 	bool m_bDynamic;
-
-	RAS_IDisplayArrayList m_displayArrayList;
-	RAS_DisplayArrayBucketList m_displayArrayBucketList;
 
 	/// Deformer bounding box.
 	RAS_BoundingBox *m_boundingBox;

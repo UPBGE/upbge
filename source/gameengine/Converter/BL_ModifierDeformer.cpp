@@ -189,12 +189,13 @@ void BL_ModifierDeformer::UpdateTransverts()
 		return;
 	}
 
-	const unsigned short nummat = m_mesh->GetNumMaterials();
+	const unsigned short nummat = m_slots.size();
 	std::vector<BL_MeshMaterial> mats(nummat);
 
 	for (unsigned short i = 0; i < nummat; ++i) {
-		RAS_MeshMaterial *meshmat = m_mesh->GetMeshMaterial(i);
-		RAS_IDisplayArray *array = m_displayArrayList[i];
+		const DisplayArraySlot& slot = m_slots[i];
+		RAS_MeshMaterial *meshmat = slot.m_meshMaterial;
+		RAS_IDisplayArray *array = slot.m_displayArray;
 		array->Clear();
 
 		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
@@ -203,7 +204,8 @@ void BL_ModifierDeformer::UpdateTransverts()
 
 	BL_ConvertDerivedMeshToArray(m_dm, m_bmesh, mats, m_mesh->GetLayersInfo());
 
-	for (RAS_IDisplayArray *array : m_displayArrayList) {
+	for (const DisplayArraySlot& slot : m_slots) {
+		RAS_IDisplayArray *array = slot.m_displayArray;
 		array->AppendModifiedFlag(RAS_IDisplayArray::SIZE_MODIFIED);
 		array->UpdateCache();
 	}

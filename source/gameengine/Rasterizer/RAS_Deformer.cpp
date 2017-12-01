@@ -32,27 +32,24 @@ RAS_Deformer::RAS_Deformer(RAS_MeshObject *mesh)
 
 RAS_Deformer::~RAS_Deformer()
 {
-	for (RAS_DisplayArrayBucket *arrayBucket : m_displayArrayBucketList) {
-		delete arrayBucket;
-	}
-
-	for (RAS_IDisplayArray *array : m_displayArrayList) {
-		delete array;
+	for (const DisplayArraySlot& slot : m_slots) {
+		delete slot.m_displayArray;
+		delete slot.m_displayArrayBucket;
 	}
 }
 
 void RAS_Deformer::InitializeDisplayArrays()
 {
 	for (RAS_MeshMaterial *meshmat : m_mesh->GetMeshMaterialList()) {
+		RAS_IDisplayArray *origArray = meshmat->GetDisplayArray();
 		/* Duplicate the display array bucket and the display array if needed to store
 		 * the mesh slot on a unique list (= display array bucket) and use an unique vertex
 		 * array (=display array). */
-		RAS_IDisplayArray *array = meshmat->GetDisplayArray()->GetReplica();
+		RAS_IDisplayArray *array = origArray->GetReplica();
 
 		RAS_DisplayArrayBucket *arrayBucket = new RAS_DisplayArrayBucket(meshmat->GetBucket(), array, m_mesh, meshmat, this);
 
-		m_displayArrayList.push_back(array);
-		m_displayArrayBucketList.push_back(arrayBucket);
+		m_slots.push_back({array, origArray, meshmat, arrayBucket});
 	}
 }
 
@@ -60,10 +57,10 @@ void RAS_Deformer::ProcessReplica()
 {
 	m_boundingBox = m_boundingBox->GetReplica();
 
-	for (unsigned short i = 0, size = m_displayArrayList.size(); i < size; ++i) {
-		RAS_IDisplayArray *array = m_displayArrayList[i] = m_displayArrayList[i]->GetReplica();
-		RAS_MeshMaterial *meshmat = m_displayArrayBucketList[i]->GetMeshMaterial();
-		m_displayArrayBucketList[i] = new RAS_DisplayArrayBucket(meshmat->GetBucket(), array, m_mesh, meshmat, this);
+	for (DisplayArraySlot& slot : m_slots) {
+		RAS_IDisplayArray *array = slot.m_displayArray = slot.m_displayArray->GetReplica();
+		RAS_MeshMaterial *meshmat = slot.m_meshMaterial;
+		slot.m_displayArrayBucket = new RAS_DisplayArrayBucket(meshmat->GetBucket(), array, m_mesh, meshmat, this);
 	}
 }
 
@@ -74,10 +71,10 @@ RAS_MeshObject *RAS_Deformer::GetMesh() const
 
 RAS_IDisplayArray *RAS_Deformer::GetDisplayArray(unsigned short index) const
 {
-	return m_displayArrayList[index];
+	return m_slots[index].m_displayArray;
 }
 
 RAS_DisplayArrayBucket *RAS_Deformer::GetDisplayArrayBucket(unsigned short index) const
 {
-	return m_displayArrayBucketList[index];
+	return m_slots[index].m_displayArrayBucket;
 }
