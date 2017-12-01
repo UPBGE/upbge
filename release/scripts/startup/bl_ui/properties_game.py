@@ -175,8 +175,12 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             sub = col.column()
             sub.active = (soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody)
             sub.prop(soft, "cluster_iterations", text="Iterations")
-
-            sub.prop(soft, "ksrhr_cl", text="kSRHR_CL")
+            sub.prop(soft, "ksrhr_cl", text="Rigid Hardness")
+            sub.prop(soft, "kskhr_cl", text="Kinetic Hardness")
+            sub.prop(soft, "ksshr_cl", text="Soft Hardness")
+            sub.prop(soft, "ksr_split_cl", text="Rigid Impulse Split")
+            sub.prop(soft, "ksk_split_cl", text="Kinetic Impulse Split")
+            sub.prop(soft, "kss_split_cl", text="Soft Impulse Split")
 
         elif physics_type == 'STATIC':
             col = layout.column()

@@ -1535,6 +1535,36 @@ static void rna_def_game_softbody(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "ksrhr_cl",
 														"Soft vs Rigid Hardness");
 
+	prop = RNA_def_property(srna, "kskhr_cl", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "kSKHR_CL");
+	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_ui_text(prop, "kskhr_cl",
+														"Soft vs Kinetic Hardness");
+	prop = RNA_def_property(srna, "ksshr_cl", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "kSSHR_CL");
+	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_ui_text(prop, "ksshr_cl",
+														"Soft vs Soft Hardness");
+
+	prop = RNA_def_property(srna, "ksr_split_cl", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "kSR_SPLT_CL");
+	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_ui_text(prop, "ksr_split_cl",
+														"Rigid Impulse Split");
+
+	prop = RNA_def_property(srna, "ksk_split_cl", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "kSK_SPLT_CL");
+	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_ui_text(prop, "ksk_split_cl",
+														"Kinetic Impulse Split");
+
+	prop = RNA_def_property(srna, "kss_split_cl", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "kSS_SPLT_CL");
+	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_ui_text(prop, "kss_split_cl",
+														"Soft Impulse Split");
+
+														
 	/* Integers */
 	
 	prop = RNA_def_property(srna, "location_iterations", PROP_INT, PROP_NONE);
