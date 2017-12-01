@@ -1600,7 +1600,30 @@ static void rna_def_game_softbody(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0f, 1000.0f);
 	RNA_def_property_ui_text(prop, "kvc",
 														"Volume Conservation Coefficient");
-														
+
+prop = RNA_def_property(srna, "kchr", PROP_FLOAT, PROP_NONE);
+RNA_def_property_float_sdna(prop, NULL, "kCHR");
+RNA_def_property_range(prop, 0.0f, 1.0f);
+RNA_def_property_ui_text(prop, "kchr",
+													"Rigid Contacts Hardness");
+
+prop = RNA_def_property(srna, "kkhr", PROP_FLOAT, PROP_NONE);
+RNA_def_property_float_sdna(prop, NULL, "kKHR");
+RNA_def_property_range(prop, 0.0f, 1.0f);
+RNA_def_property_ui_text(prop, "kkhr",
+													"Kinetic Contacts Hardness");
+
+prop = RNA_def_property(srna, "kshr", PROP_FLOAT, PROP_NONE);
+RNA_def_property_float_sdna(prop, NULL, "kSHR");
+RNA_def_property_range(prop, 0.0f, 1.0f);
+RNA_def_property_ui_text(prop, "kshr",
+													"Soft Contacts Hardness");
+
+prop = RNA_def_property(srna, "kahr", PROP_FLOAT, PROP_NONE);
+RNA_def_property_float_sdna(prop, NULL, "kAHR");
+RNA_def_property_range(prop, 0.0f, 1.0f);
+RNA_def_property_ui_text(prop, "kahr",
+													"Anchors Hardness");
 	/* Integers */
 	
 	prop = RNA_def_property(srna, "location_iterations", PROP_INT, PROP_NONE);

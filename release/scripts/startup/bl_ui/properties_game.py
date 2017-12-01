@@ -148,32 +148,46 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             split = layout.split()
 
             col = split.column()
-            col.label(text="Attributes:")
+            col.label(text="General Attributes:")
             col.prop(game, "mass")
             # disabled in the code
             # col.prop(soft, "weld_threshold")
             col.prop(soft, "location_iterations")
             col.prop(soft, "linear_stiffness", slider=True)
             col.prop(soft, "dynamic_friction", slider=True)
+            col.prop(soft, "kdp", text="Damping", slider=True)
             col.prop(soft, "collision_margin", slider=True)
-            col.prop(soft, "use_bending_constraints", text="Bending Constraints")
             col.prop(soft, "kvcf", text="Velocity Correction")
-            col.prop(soft, "kdp", text="Damping")
-            col.prop(soft, "kdg", text="Drag Coefficient")
-            col.prop(soft, "klf", text="Lift Coefficient")
-            col.prop(soft, "kpr", text="Pressure Coefficient")
-            col.prop(soft, "kvc", text="Volume Conservation")
+            col.prop(soft, "use_bending_constraints", text="Bending Constraints")
             sub = col.column()
             sub.active = soft.use_bending_constraints
             sub.prop(soft, "bending_distance")
-            col = split.column()
             col.prop(soft, "use_shape_match")
             sub = col.column()
             sub.active = soft.use_shape_match
             sub.prop(soft, "shape_threshold", slider=True)
 
-            col.separator()
 
+            col = split.column()
+            col.label(text="Hardness:")
+            col.prop(soft, "kchr", text="Rigid Contacts Hardness")
+            col.prop(soft, "kkhr", text="Kinetic Contacts Hardness")
+            col.prop(soft, "kshr", text="Soft Contacts Hardness")
+            col.prop(soft, "kahr", text="Anchors Hardness")
+
+
+            col = col.column()
+            col.label(text="Aerodynamics:")
+            col.prop(soft, "kdg", text="Drag Coefficient")
+            col.prop(soft, "klf", text="Lift Coefficient")
+
+            col = col.column()
+            col.label(text="Volume:")
+            col.prop(soft, "kpr", text="Pressure Coefficient")
+            col.prop(soft, "kvc", text="Volume Conservation")
+
+
+            col = split.column()
             col.label(text="Cluster Collision:")
             col.prop(soft, "use_cluster_rigid_to_softbody")
             col.prop(soft, "use_cluster_soft_to_softbody")
