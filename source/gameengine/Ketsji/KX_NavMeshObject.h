@@ -24,56 +24,60 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
 #ifndef __KX_NAVMESHOBJECT_H__
 #define __KX_NAVMESHOBJECT_H__
+
 #include "DetourStatNavMesh.h"
 #include "KX_GameObject.h"
-#include "EXP_PyObjectPlus.h"
-#include <vector>
 
-class RAS_MeshObject;
-
-class KX_NavMeshObject: public KX_GameObject
+class KX_NavMeshObject : public KX_GameObject
 {
 	Py_Header
 
 protected:
-	dtStatNavMesh* m_navMesh;
-	
+	dtStatNavMesh *m_navMesh;
+
 	bool BuildVertIndArrays(float *&vertices, int& nverts,
-							unsigned short* &polys, int& npolys, unsigned short *&dmeshes, 
-							float *&dvertices, int &ndvertsuniq, unsigned short* &dtris, 
-							int& ndtris, int &vertsPerPoly);
-	
+	                        unsigned short * &polys, int& npolys, unsigned short *&dmeshes,
+	                        float *&dvertices, int &ndvertsuniq, unsigned short * &dtris,
+	                        int& ndtris, int &vertsPerPoly);
+
 public:
-	KX_NavMeshObject(void* sgReplicationInfo, SG_Callbacks callbacks);
-	~KX_NavMeshObject();
+	enum NavMeshRenderMode
+	{
+		RM_WALLS,
+		RM_POLYS,
+		RM_TRIS,
+		RM_MAX
+	};
 
-	virtual	EXP_Value* GetReplica();
-	virtual	void ProcessReplica();
+	KX_NavMeshObject(void *sgReplicationInfo, SG_Callbacks callbacks);
+	virtual ~KX_NavMeshObject();
 
+	virtual EXP_Value *GetReplica();
+	virtual void ProcessReplica();
 
 	bool BuildNavMesh();
-	dtStatNavMesh* GetNavMesh();
-	int FindPath(const mt::vec3& from, const mt::vec3& to, float* path, int maxPathLen);
-	float Raycast(const mt::vec3& from, const mt::vec3& to);
+	dtStatNavMesh *GetNavMesh() const;
 
-	enum NavMeshRenderMode {RM_WALLS, RM_POLYS, RM_TRIS, RM_MAX};
-	void DrawNavMesh(NavMeshRenderMode mode);
-	void DrawPath(const float *path, int pathLen, const mt::vec4& color);
+	int FindPath(const mt::vec3& from, const mt::vec3& to, float *path, int maxPathLen) const;
+	float Raycast(const mt::vec3& from, const mt::vec3& to) const;
 
-	mt::vec3 TransformToLocalCoords(const mt::vec3& wpos);
-	mt::vec3 TransformToWorldCoords(const mt::vec3& lpos);
+	void DrawNavMesh(NavMeshRenderMode mode) const;
+	void DrawPath(const float *path, int pathLen, const mt::vec4& color) const;
+
+	mt::vec3 TransformToLocalCoords(const mt::vec3& wpos) const;
+	mt::vec3 TransformToWorldCoords(const mt::vec3& lpos) const;
+
 #ifdef WITH_PYTHON
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
 
 	EXP_PYMETHOD_DOC(KX_NavMeshObject, findPath);
 	EXP_PYMETHOD_DOC(KX_NavMeshObject, raycast);
 	EXP_PYMETHOD_DOC(KX_NavMeshObject, draw);
 	EXP_PYMETHOD_DOC_NOARGS(KX_NavMeshObject, rebuild);
-#endif  /* WITH_PYTHON */
+
+#endif  // WITH_PYTHON
 };
 
-#endif  /* __KX_NAVMESHOBJECT_H__ */
+#endif  // __KX_NAVMESHOBJECT_H__

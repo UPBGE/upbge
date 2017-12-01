@@ -56,43 +56,60 @@ extern "C" {
 #define MAX_PATH_LEN 256
 static const float polyPickExt[3] = {2, 4, 2};
 
-static void calcMeshBounds(const float* vert, int nverts, float* bmin, float* bmax)
+static void calcMeshBounds(const float *vert, int nverts, float *bmin, float *bmax)
 {
 	bmin[0] = bmax[0] = vert[0];
 	bmin[1] = bmax[1] = vert[1];
 	bmin[2] = bmax[2] = vert[2];
-	for (int i=1; i<nverts; i++)
-	{
-		if (bmin[0]>vert[3*i+0]) bmin[0] = vert[3*i+0];
-		if (bmin[1]>vert[3*i+1]) bmin[1] = vert[3*i+1];
-		if (bmin[2]>vert[3*i+2]) bmin[2] = vert[3*i+2];
+	for (int i = 1; i < nverts; i++) {
+		if (bmin[0] > vert[3 * i + 0]) {
+			bmin[0] = vert[3 * i + 0];
+		}
+		if (bmin[1] > vert[3 * i + 1]) {
+			bmin[1] = vert[3 * i + 1];
+		}
+		if (bmin[2] > vert[3 * i + 2]) {
+			bmin[2] = vert[3 * i + 2];
+		}
 
-		if (bmax[0]<vert[3*i+0]) bmax[0] = vert[3*i+0];
-		if (bmax[1]<vert[3*i+1]) bmax[1] = vert[3*i+1];
-		if (bmax[2]<vert[3*i+2]) bmax[2] = vert[3*i+2];
+		if (bmax[0] < vert[3 * i + 0]) {
+			bmax[0] = vert[3 * i + 0];
+		}
+		if (bmax[1] < vert[3 * i + 1]) {
+			bmax[1] = vert[3 * i + 1];
+		}
+		if (bmax[2] < vert[3 * i + 2]) {
+			bmax[2] = vert[3 * i + 2];
+		}
 	}
 }
 
-inline void flipAxes(float* vec)
+inline void flipAxes(mt::vec3& vec)
 {
-	std::swap(vec[1],vec[2]);
+	std::swap(vec.y, vec.z);
 }
-KX_NavMeshObject::KX_NavMeshObject(void* sgReplicationInfo, SG_Callbacks callbacks)
-:	KX_GameObject(sgReplicationInfo, callbacks)
-,	m_navMesh(nullptr)
+
+inline void flipAxes(float vec[3])
 {
-	
+	std::swap(vec[1], vec[2]);
+}
+
+KX_NavMeshObject::KX_NavMeshObject(void *sgReplicationInfo, SG_Callbacks callbacks)
+	:KX_GameObject(sgReplicationInfo, callbacks),
+	m_navMesh(nullptr)
+{
 }
 
 KX_NavMeshObject::~KX_NavMeshObject()
 {
-	if (m_navMesh)
+	if (m_navMesh) {
 		delete m_navMesh;
+	}
 }
 
-EXP_Value* KX_NavMeshObject::GetReplica()
+EXP_Value *KX_NavMeshObject::GetReplica()
 {
-	KX_NavMeshObject* replica = new KX_NavMeshObject(*this);
+	KX_NavMeshObject *replica = new KX_NavMeshObject(*this);
 	replica->ProcessReplica();
 	return replica;
 }
@@ -100,28 +117,30 @@ EXP_Value* KX_NavMeshObject::GetReplica()
 void KX_NavMeshObject::ProcessReplica()
 {
 	KX_GameObject::ProcessReplica();
-	m_navMesh = nullptr;  /* without this, building frees the navmesh we copied from */
+	m_navMesh = nullptr;
+
 	if (!BuildNavMesh()) {
 		CM_FunctionError("unable to build navigation mesh");
 		return;
 	}
-	KX_ObstacleSimulation* obssimulation = GetScene()->GetObstacleSimulation();
-	if (obssimulation)
+
+	KX_ObstacleSimulation *obssimulation = GetScene()->GetObstacleSimulation();
+	if (obssimulation) {
 		obssimulation->AddObstaclesForNavMesh(this);
+	}
 }
 
 bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
-									   unsigned short* &polys, int& npolys, unsigned short *&dmeshes,
-									   float *&dvertices, int &ndvertsuniq, unsigned short *&dtris, 
-									   int& ndtris, int &vertsPerPoly)
+                                          unsigned short * &polys, int& npolys, unsigned short *&dmeshes,
+                                          float *&dvertices, int &ndvertsuniq, unsigned short *&dtris,
+                                          int& ndtris, int &vertsPerPoly)
 {
-    DerivedMesh* dm = mesh_create_derived_no_virtual(GetScene()->GetBlenderScene(), GetBlenderObject(),
-													nullptr, CD_MASK_MESH);
+	DerivedMesh *dm = mesh_create_derived_no_virtual(GetScene()->GetBlenderScene(), GetBlenderObject(),
+	                                                 nullptr, CD_MASK_MESH);
 	CustomData *pdata = dm->getPolyDataLayout(dm);
-	int* recastData = (int*) CustomData_get_layer(pdata, CD_RECAST);
-	if (recastData)
-	{
-		int *dtrisToPolysMap=nullptr, *dtrisToTrisMap=nullptr, *trisToFacesMap=nullptr;
+	int *recastData = (int *)CustomData_get_layer(pdata, CD_RECAST);
+	if (recastData) {
+		int *dtrisToPolysMap = nullptr, *dtrisToTrisMap = nullptr, *trisToFacesMap = nullptr;
 		int nAllVerts = 0;
 		float *allVerts = nullptr;
 		buildNavMeshDataByDerivedMesh(dm, &vertsPerPoly, &nAllVerts, &allVerts, &ndtris, &dtris,
@@ -136,16 +155,14 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 		int curIdx = 0;
 		//vertices - mesh verts
 		//iterate over all polys and create map for their vertices first...
-		for (int polyidx=0; polyidx<npolys; polyidx++)
-		{
-			unsigned short* poly = &polys[polyidx*vertsPerPoly*2];
-			for (int i=0; i<vertsPerPoly; i++)
-			{
+		for (int polyidx = 0; polyidx < npolys; polyidx++) {
+			unsigned short *poly = &polys[polyidx * vertsPerPoly * 2];
+			for (int i = 0; i < vertsPerPoly; i++) {
 				unsigned short idx = poly[i];
-				if (idx==0xffff)
+				if (idx == 0xffff) {
 					break;
-				if (verticesMap[idx]==0xffff)
-				{
+				}
+				if (verticesMap[idx] == 0xffff) {
 					verticesMap[idx] = curIdx++;
 				}
 				poly[i] = verticesMap[idx];
@@ -154,67 +171,55 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 		nverts = curIdx;
 		//...then iterate over detailed meshes
 		//transform indices to local ones (for each navigation polygon)
-		for (int polyidx=0; polyidx<npolys; polyidx++)
-		{
-			unsigned short *poly = &polys[polyidx*vertsPerPoly*2];
+		for (int polyidx = 0; polyidx < npolys; polyidx++) {
+			unsigned short *poly = &polys[polyidx * vertsPerPoly * 2];
 			int nv = polyNumVerts(poly, vertsPerPoly);
-			unsigned short *dmesh = &dmeshes[4*polyidx];
+			unsigned short *dmesh = &dmeshes[4 * polyidx];
 			unsigned short tribase = dmesh[2];
 			unsigned short trinum = dmesh[3];
 			unsigned short vbase = curIdx;
-			for (int j=0; j<trinum; j++)
-			{
-				unsigned short* dtri = &dtris[(tribase+j)*3*2];
-				for (int k=0; k<3; k++)
-				{
+			for (int j = 0; j < trinum; j++) {
+				unsigned short *dtri = &dtris[(tribase + j) * 3 * 2];
+				for (int k = 0; k < 3; k++) {
 					int newVertexIdx = verticesMap[dtri[k]];
-					if (newVertexIdx==0xffff)
-					{
+					if (newVertexIdx == 0xffff) {
 						newVertexIdx = curIdx++;
 						verticesMap[dtri[k]] = newVertexIdx;
 					}
 
-					if (newVertexIdx<nverts)
-					{
+					if (newVertexIdx < nverts) {
 						//it's polygon vertex ("shared")
 						int idxInPoly = polyFindVertex(poly, vertsPerPoly, newVertexIdx);
-						if (idxInPoly==-1)
-						{
+						if (idxInPoly == -1) {
 							CM_Error("building NavMeshObject, can't find vertex in polygon\n");
 							return false;
 						}
 						dtri[k] = idxInPoly;
 					}
-					else
-					{
+					else {
 						dtri[k] = newVertexIdx - vbase + nv;
 					}
 				}
 			}
-			dmesh[0] = vbase-nverts; //verts base
-			dmesh[1] = curIdx-vbase; //verts num
+			dmesh[0] = vbase - nverts; //verts base
+			dmesh[1] = curIdx - vbase; //verts num
 		}
 
-		vertices = new float[nverts*3];
+		vertices = new float[nverts * 3];
 		ndvertsuniq = curIdx - nverts;
-		if (ndvertsuniq>0)
-		{
-			dvertices = new float[ndvertsuniq*3];
+		if (ndvertsuniq > 0) {
+			dvertices = new float[ndvertsuniq * 3];
 		}
-		for (int vi=0; vi<nAllVerts; vi++)
-		{
+		for (int vi = 0; vi < nAllVerts; vi++) {
 			int newIdx = verticesMap[vi];
-			if (newIdx!=0xffff)
-			{
-				if (newIdx<nverts)
-				{
+			if (newIdx != 0xffff) {
+				if (newIdx < nverts) {
 					//navigation mesh vertex
-					memcpy(vertices+3*newIdx, allVerts+3*vi, 3*sizeof(float));
+					memcpy(vertices + 3 * newIdx, allVerts + 3 * vi, 3 * sizeof(float));
 				}
-				else
-				{
+				else {
 					//detailed mesh vertex
-					memcpy(dvertices+3*(newIdx-nverts), allVerts+3*vi, 3*sizeof(float));
+					memcpy(dvertices + 3 * (newIdx - nverts), allVerts + 3 * vi, 3 * sizeof(float));
 				}
 			}
 		}
@@ -223,8 +228,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 
 		MEM_freeN(verticesMap);
 	}
-	else
-	{
+	else {
 		//create from RAS_MeshObject (detailed mesh is fake)
 		RAS_MeshObject *meshobj = m_meshes.front();
 		vertsPerPoly = 3;
@@ -258,8 +262,8 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 				const RAS_VertexInfo& info = array->GetVertexInfo(j);
 				const unsigned int origIndex = info.GetOrigIndex();
 				/* Avoid double conversion of two unique vertices using the same base:
-				* using the same original vertex and so the same position.
-				*/
+				 * using the same original vertex and so the same position.
+				 */
 				if (vertRemap[origIndex] != -1) {
 					continue;
 				}
@@ -288,20 +292,19 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 		ndtris = npolys;
 	}
 	dm->release(dm);
+
 	return true;
 }
 
 
 bool KX_NavMeshObject::BuildNavMesh()
 {
-	if (m_navMesh)
-	{
+	if (m_navMesh) {
 		delete m_navMesh;
 		m_navMesh = nullptr;
 	}
 
-	if (m_meshes.empty())
-	{
+	if (m_meshes.empty()) {
 		CM_Error("can't find mesh for navmesh object: " << m_name);
 		return false;
 	}
@@ -310,9 +313,8 @@ bool KX_NavMeshObject::BuildNavMesh()
 	unsigned short *polys = nullptr, *dtris = nullptr, *dmeshes = nullptr;
 	int nverts = 0, npolys = 0, ndvertsuniq = 0, ndtris = 0;
 	int vertsPerPoly = 0;
-	if (!BuildVertIndArrays(vertices, nverts, polys, npolys, 
-							dmeshes, dvertices, ndvertsuniq, dtris, ndtris, vertsPerPoly ) 
-			|| vertsPerPoly<3)
+	if (!BuildVertIndArrays(vertices, nverts, polys, npolys, dmeshes, dvertices, ndvertsuniq, dtris, ndtris, vertsPerPoly) ||
+		vertsPerPoly < 3)
 	{
 		CM_Error("can't build navigation mesh data for object: " << m_name);
 		if (vertices) {
@@ -323,17 +325,14 @@ bool KX_NavMeshObject::BuildNavMesh()
 		}
 		return false;
 	}
-	
+
 	mt::vec3 pos;
-	if (dmeshes==nullptr)
-	{
-		for (int i=0; i<nverts; i++)
-		{
-			flipAxes(&vertices[i*3]);
+	if (dmeshes == nullptr) {
+		for (int i = 0; i < nverts; i++) {
+			flipAxes(&vertices[i * 3]);
 		}
-		for (int i=0; i<ndvertsuniq; i++)
-		{
-			flipAxes(&dvertices[i*3]);
+		for (int i = 0; i < ndvertsuniq; i++) {
+			flipAxes(&dvertices[i * 3]);
 		}
 	}
 
@@ -342,50 +341,50 @@ bool KX_NavMeshObject::BuildNavMesh()
 		delete[] vertices;
 		return false;
 	}
-	
+
 	float cs = 0.2f;
 
-	if (!nverts || !npolys)
-	{
-		if (vertices) delete[] vertices;
+	if (!nverts || !npolys) {
+		if (vertices) {
+			delete[] vertices;
+		}
 		return false;
 	}
 
 	float bmin[3], bmax[3];
 	calcMeshBounds(vertices, nverts, bmin, bmax);
 	//quantize vertex pos
-	unsigned short* vertsi = new unsigned short[3*nverts];
-	float ics = 1.f/cs;
-	for (int i=0; i<nverts; i++)
-	{
-		vertsi[3*i+0] = static_cast<unsigned short>((vertices[3*i+0]-bmin[0])*ics);
-		vertsi[3*i+1] = static_cast<unsigned short>((vertices[3*i+1]-bmin[1])*ics);
-		vertsi[3*i+2] = static_cast<unsigned short>((vertices[3*i+2]-bmin[2])*ics);
+	unsigned short *vertsi = new unsigned short[3 * nverts];
+	float ics = 1.f / cs;
+	for (int i = 0; i < nverts; i++) {
+		vertsi[3 * i + 0] = static_cast<unsigned short>((vertices[3 * i + 0] - bmin[0]) * ics);
+		vertsi[3 * i + 1] = static_cast<unsigned short>((vertices[3 * i + 1] - bmin[1]) * ics);
+		vertsi[3 * i + 2] = static_cast<unsigned short>((vertices[3 * i + 2] - bmin[2]) * ics);
 	}
 
 	// Calculate data size
 	const int headerSize = sizeof(dtStatNavMeshHeader);
-	const int vertsSize = sizeof(float)*3*nverts;
-	const int polysSize = sizeof(dtStatPoly)*npolys;
-	const int nodesSize = sizeof(dtStatBVNode)*npolys*2;
-	const int detailMeshesSize = sizeof(dtStatPolyDetail)*npolys;
-	const int detailVertsSize = sizeof(float)*3*ndvertsuniq;
-	const int detailTrisSize = sizeof(unsigned char)*4*ndtris;
+	const int vertsSize = sizeof(float) * 3 * nverts;
+	const int polysSize = sizeof(dtStatPoly) * npolys;
+	const int nodesSize = sizeof(dtStatBVNode) * npolys * 2;
+	const int detailMeshesSize = sizeof(dtStatPolyDetail) * npolys;
+	const int detailVertsSize = sizeof(float) * 3 * ndvertsuniq;
+	const int detailTrisSize = sizeof(unsigned char) * 4 * ndtris;
 
 	const int dataSize = headerSize + vertsSize + polysSize + nodesSize +
-		detailMeshesSize + detailVertsSize + detailTrisSize;
-	unsigned char* data = new unsigned char[dataSize];
+	                     detailMeshesSize + detailVertsSize + detailTrisSize;
+	unsigned char *data = new unsigned char[dataSize];
 
 	memset(data, 0, dataSize);
 
-	unsigned char* d = data;
-	dtStatNavMeshHeader* header = (dtStatNavMeshHeader*)d; d += headerSize;
-	float* navVerts = (float*)d; d += vertsSize;
-	dtStatPoly* navPolys = (dtStatPoly*)d; d += polysSize;
-	dtStatBVNode* navNodes = (dtStatBVNode*)d; d += nodesSize;
-	dtStatPolyDetail* navDMeshes = (dtStatPolyDetail*)d; d += detailMeshesSize;
-	float* navDVerts = (float*)d; d += detailVertsSize;
-	unsigned char* navDTris = (unsigned char*)d; d += detailTrisSize;
+	unsigned char *d = data;
+	dtStatNavMeshHeader *header = (dtStatNavMeshHeader *)d; d += headerSize;
+	float *navVerts = (float *)d; d += vertsSize;
+	dtStatPoly *navPolys = (dtStatPoly *)d; d += polysSize;
+	dtStatBVNode *navNodes = (dtStatBVNode *)d; d += nodesSize;
+	dtStatPolyDetail *navDMeshes = (dtStatPolyDetail *)d; d += detailMeshesSize;
+	float *navDVerts = (float *)d; d += detailVertsSize;
+	unsigned char *navDTris = (unsigned char *)d; d += detailTrisSize;
 
 	// Store header
 	header->magic = DT_STAT_NAVMESH_MAGIC;
@@ -404,203 +403,204 @@ bool KX_NavMeshObject::BuildNavMesh()
 	header->ndtris = ndtris;
 
 	// Store vertices
-	for (int i = 0; i < nverts; ++i)
-	{
-		const unsigned short* iv = &vertsi[i*3];
-		float* v = &navVerts[i*3];
+	for (int i = 0; i < nverts; ++i) {
+		const unsigned short *iv = &vertsi[i * 3];
+		float *v = &navVerts[i * 3];
 		v[0] = bmin[0] + iv[0] * cs;
 		v[1] = bmin[1] + iv[1] * cs;
 		v[2] = bmin[2] + iv[2] * cs;
 	}
-	//memcpy(navVerts, vertices, nverts*3*sizeof(float));
 
-	// Store polygons
-	const unsigned short* src = polys;
-	for (int i = 0; i < npolys; ++i)
-	{
-		dtStatPoly* p = &navPolys[i];
+	// Store polygons.
+	const unsigned short *src = polys;
+	for (int i = 0; i < npolys; ++i) {
+		dtStatPoly *p = &navPolys[i];
 		p->nv = 0;
-		for (int j = 0; j < vertsPerPoly; ++j)
-		{
-			if (src[j] == 0xffff) break;
+		for (int j = 0; j < vertsPerPoly; ++j) {
+			if (src[j] == 0xffff) {
+				break;
+			}
 			p->v[j] = src[j];
-			p->n[j] = src[vertsPerPoly+j]+1;
+			p->n[j] = src[vertsPerPoly + j] + 1;
 			p->nv++;
 		}
-		src += vertsPerPoly*2;
+		src += vertsPerPoly * 2;
 	}
 
-	header->nnodes = createBVTree(vertsi, nverts, polys, npolys, vertsPerPoly,
-								cs, cs, npolys*2, navNodes);
-	
-	
-	if (dmeshes==nullptr)
-	{
-		//create fake detail meshes
-		for (int i = 0; i < npolys; ++i)
-		{
+	header->nnodes = createBVTree(vertsi, nverts, polys, npolys, vertsPerPoly, cs, cs, npolys * 2, navNodes);
+
+	if (!dmeshes) {
+		// Create fake detail meshes.
+		for (int i = 0; i < npolys; ++i) {
 			dtStatPolyDetail& dtl = navDMeshes[i];
 			dtl.vbase = 0;
 			dtl.nverts = 0;
 			dtl.tbase = i;
 			dtl.ntris = 1;
 		}
-		// setup triangles.
-		unsigned char* tri = navDTris;
-		for (size_t i=0; i<ndtris; i++)
-		{
-			for (size_t j=0; j<3; j++)
-				tri[4*i+j] = j;
+		// Setup triangles.
+		unsigned char *tri = navDTris;
+		for (unsigned int i = 0; i < ndtris; i++) {
+			for (unsigned int j = 0; j < 3; j++) {
+				tri[4 * i + j] = j;
+			}
 		}
 	}
-	else
-	{
-		//verts
-		memcpy(navDVerts, dvertices, ndvertsuniq*3*sizeof(float));
-		//tris
-		unsigned char* tri = navDTris;
-		for (size_t i=0; i<ndtris; i++)
-		{
-			for (size_t j=0; j<3; j++)
-				tri[4*i+j] = dtris[6*i+j];
+	else {
+		// Vertices.
+		memcpy(navDVerts, dvertices, ndvertsuniq * 3 * sizeof(float));
+		// Triangles.
+		unsigned char *tri = navDTris;
+		for (unsigned int i = 0; i < ndtris; i++) {
+			for (unsigned int j = 0; j < 3; j++) {
+				tri[4 * i + j] = dtris[6 * i + j];
+			}
 		}
-		//detailed meshes
-		for (int i = 0; i < npolys; ++i)
-		{
+		// Detailed meshes.
+		for (int i = 0; i < npolys; ++i) {
 			dtStatPolyDetail& dtl = navDMeshes[i];
-			dtl.vbase = dmeshes[i*4+0];
-			dtl.nverts = dmeshes[i*4+1];
-			dtl.tbase = dmeshes[i*4+2];
-			dtl.ntris = dmeshes[i*4+3];
+			dtl.vbase = dmeshes[i * 4 + 0];
+			dtl.nverts = dmeshes[i * 4 + 1];
+			dtl.tbase = dmeshes[i * 4 + 2];
+			dtl.ntris = dmeshes[i * 4 + 3];
 		}
 	}
 
-	m_navMesh = new dtStatNavMesh;
+	m_navMesh = new dtStatNavMesh();
 	m_navMesh->init(data, dataSize, true);
 
-	delete [] vertices;
+	delete[] vertices;
 
-	/* navmesh conversion is using C guarded alloc for memory allocaitons */
+	// Navmesh conversion is using C guarded alloc for memory allocaitons.
 	MEM_freeN(polys);
-	if (dmeshes) MEM_freeN(dmeshes);
-	if (dtris) MEM_freeN(dtris);
+	if (dmeshes) {
+		MEM_freeN(dmeshes);
+	}
+	if (dtris) {
+		MEM_freeN(dtris);
+	}
 
-	if (dvertices)
-		delete [] dvertices;
+	if (dvertices) {
+		delete[] dvertices;
+	}
 
-	if (vertsi)
-		delete [] vertsi;
+	if (vertsi) {
+		delete[] vertsi;
+	}
 
 	return true;
 }
 
-dtStatNavMesh* KX_NavMeshObject::GetNavMesh()
+dtStatNavMesh *KX_NavMeshObject::GetNavMesh() const
 {
 	return m_navMesh;
 }
 
-void KX_NavMeshObject::DrawNavMesh(NavMeshRenderMode renderMode)
+void KX_NavMeshObject::DrawNavMesh(NavMeshRenderMode renderMode) const
 {
-	if (!m_navMesh)
+	if (!m_navMesh) {
 		return;
-	mt::vec4 color(0.0f, 0.0f, 0.0f, 1.0f);
-	
-	switch (renderMode)
-	{
-	case RM_POLYS :
-	case RM_WALLS : 
-		for (int pi=0; pi<m_navMesh->getPolyCount(); pi++)
-		{
-			const dtStatPoly* poly = m_navMesh->getPoly(pi);
+	}
 
-			for (int i = 0, j = (int)poly->nv-1; i < (int)poly->nv; j = i++)
-			{
-				if (poly->n[j] && renderMode==RM_WALLS) 
-					continue;
-				const float* vif = m_navMesh->getVertex(poly->v[i]);
-				const float* vjf = m_navMesh->getVertex(poly->v[j]);
-				mt::vec3 vi(vif[0], vif[2], vif[1]);
-				mt::vec3 vj(vjf[0], vjf[2], vjf[1]);
-				vi = TransformToWorldCoords(vi);
-				vj = TransformToWorldCoords(vj);
-				KX_RasterizerDrawDebugLine(vi, vj, color);
-			}
-		}
-		break;
-	case RM_TRIS : 
-		for (int i = 0; i < m_navMesh->getPolyDetailCount(); ++i)
-		{
-			const dtStatPoly* p = m_navMesh->getPoly(i);
-			const dtStatPolyDetail* pd = m_navMesh->getPolyDetail(i);
+	const mt::vec4 color(0.0f, 0.0f, 0.0f, 1.0f);
 
-			for (int j = 0; j < pd->ntris; ++j)
-			{
-				const unsigned char* t = m_navMesh->getDetailTri(pd->tbase+j);
-				mt::vec3 tri[3];
-				for (int k = 0; k < 3; ++k)
-				{
-					const float* v;
-					if (t[k] < p->nv)
-						v = m_navMesh->getVertex(p->v[t[k]]);
-					else
-						v =  m_navMesh->getDetailVertex(pd->vbase+(t[k]-p->nv));
-					float pos[3];
-					rcVcopy(pos, v);
-					flipAxes(pos);
-					tri[k] = mt::vec3(pos);
+	switch (renderMode) {
+		case RM_POLYS:
+		case RM_WALLS:
+		{
+			for (int pi = 0; pi < m_navMesh->getPolyCount(); pi++) {
+				const dtStatPoly *poly = m_navMesh->getPoly(pi);
+
+				for (int i = 0, j = (int)poly->nv - 1; i < (int)poly->nv; j = i++) {
+					if (poly->n[j] && renderMode == RM_WALLS) {
+						continue;
+					}
+					const float *vif = m_navMesh->getVertex(poly->v[i]);
+					const float *vjf = m_navMesh->getVertex(poly->v[j]);
+					mt::vec3 vi(vif[0], vif[2], vif[1]);
+					mt::vec3 vj(vjf[0], vjf[2], vjf[1]);
+					vi = TransformToWorldCoords(vi);
+					vj = TransformToWorldCoords(vj);
+					KX_RasterizerDrawDebugLine(vi, vj, color);
 				}
-
-				for (int k=0; k<3; k++)
-					tri[k] = TransformToWorldCoords(tri[k]);
-
-				for (int k=0; k<3; k++)
-					KX_RasterizerDrawDebugLine(tri[k], tri[(k+1)%3], color);
 			}
+			break;
 		}
-		break;
-	default:
-		/* pass */
-		break;
+		case RM_TRIS:
+		{
+			for (int i = 0; i < m_navMesh->getPolyDetailCount(); ++i) {
+				const dtStatPoly *p = m_navMesh->getPoly(i);
+				const dtStatPolyDetail *pd = m_navMesh->getPolyDetail(i);
+
+				for (int j = 0; j < pd->ntris; ++j) {
+					const unsigned char *t = m_navMesh->getDetailTri(pd->tbase + j);
+					mt::vec3 tri[3];
+					for (int k = 0; k < 3; ++k) {
+						const float *v;
+						if (t[k] < p->nv) {
+							v = m_navMesh->getVertex(p->v[t[k]]);
+						}
+						else {
+							v =  m_navMesh->getDetailVertex(pd->vbase + (t[k] - p->nv));
+						}
+						float pos[3];
+						rcVcopy(pos, v);
+						flipAxes(pos);
+						tri[k] = mt::vec3(pos);
+					}
+
+					for (int k = 0; k < 3; k++) {
+						tri[k] = TransformToWorldCoords(tri[k]);
+					}
+
+					for (int k = 0; k < 3; k++) {
+						KX_RasterizerDrawDebugLine(tri[k], tri[(k + 1) % 3], color);
+					}
+				}
+			}
+			break;
+		}
+		default:
+		{
+			break;
+		}
 	}
 }
 
-mt::vec3 KX_NavMeshObject::TransformToLocalCoords(const mt::vec3& wpos)
+mt::vec3 KX_NavMeshObject::TransformToLocalCoords(const mt::vec3& wpos) const
 {
 	return (NodeGetWorldTransform().Inverse() * wpos);
 }
 
-mt::vec3 KX_NavMeshObject::TransformToWorldCoords(const mt::vec3& lpos)
+mt::vec3 KX_NavMeshObject::TransformToWorldCoords(const mt::vec3& lpos) const
 {
 	return (NodeGetWorldTransform() * lpos);
 }
 
-int KX_NavMeshObject::FindPath(const mt::vec3& from, const mt::vec3& to, float* path, int maxPathLen)
+int KX_NavMeshObject::FindPath(const mt::vec3& from, const mt::vec3& to, float *path, int maxPathLen) const
 {
-	if (!m_navMesh)
+	if (!m_navMesh) {
 		return 0;
+	}
+
 	mt::vec3 localfrom = TransformToLocalCoords(from);
 	mt::vec3 localto = TransformToLocalCoords(to);
-	float spos[3], epos[3];
-	localfrom.Pack(spos); flipAxes(spos);
-	localto.Pack(epos); flipAxes(epos);
-	dtStatPolyRef sPolyRef = m_navMesh->findNearestPoly(spos, polyPickExt);
-	dtStatPolyRef ePolyRef = m_navMesh->findNearestPoly(epos, polyPickExt);
+	flipAxes(localfrom);
+	flipAxes(localto);
+	dtStatPolyRef sPolyRef = m_navMesh->findNearestPoly(localfrom.Data(), polyPickExt);
+	dtStatPolyRef ePolyRef = m_navMesh->findNearestPoly(localto.Data(), polyPickExt);
 
 	int pathLen = 0;
-	if (sPolyRef && ePolyRef)
-	{
-		dtStatPolyRef* polys = new dtStatPolyRef[maxPathLen];
-		int npolys;
-		npolys = m_navMesh->findPath(sPolyRef, ePolyRef, spos, epos, polys, maxPathLen);
-		if (npolys)
-		{
-			pathLen = m_navMesh->findStraightPath(spos, epos, polys, npolys, path, maxPathLen);
-			for (int i=0; i<pathLen; i++)
-			{
-				flipAxes(&path[i*3]);
-				mt::vec3 waypoint(&path[i*3]);
+	if (sPolyRef && ePolyRef) {
+		dtStatPolyRef *polys = new dtStatPolyRef[maxPathLen];
+		int npolys = m_navMesh->findPath(sPolyRef, ePolyRef, localfrom.Data(), localto.Data(), polys, maxPathLen);
+		if (npolys) {
+			pathLen = m_navMesh->findStraightPath(localfrom.Data(), localto.Data(), polys, npolys, path, maxPathLen);
+			for (int i = 0; i < pathLen; ++i) {
+				mt::vec3 waypoint(&path[i * 3]);
+				flipAxes(waypoint);
 				waypoint = TransformToWorldCoords(waypoint);
-				waypoint.Pack(&path[i*3]);
+				waypoint.Pack(&path[i * 3]);
 			}
 		}
 
@@ -610,37 +610,35 @@ int KX_NavMeshObject::FindPath(const mt::vec3& from, const mt::vec3& to, float* 
 	return pathLen;
 }
 
-float KX_NavMeshObject::Raycast(const mt::vec3& from, const mt::vec3& to)
+float KX_NavMeshObject::Raycast(const mt::vec3& from, const mt::vec3& to) const
 {
-	if (!m_navMesh)
+	if (!m_navMesh) {
 		return 0.f;
+	}
+
 	mt::vec3 localfrom = TransformToLocalCoords(from);
 	mt::vec3 localto = TransformToLocalCoords(to);
-	float spos[3], epos[3];
-	localfrom.Pack(spos); flipAxes(spos);
-	localto.Pack(epos); flipAxes(epos);
-	dtStatPolyRef sPolyRef = m_navMesh->findNearestPoly(spos, polyPickExt);
-	float t=0;
+	flipAxes(localfrom);
+	flipAxes(localto);
+
+	dtStatPolyRef sPolyRef = m_navMesh->findNearestPoly(localfrom.Data(), polyPickExt);
+
+	float t = 0.0f;
 	static dtStatPolyRef polys[MAX_PATH_LEN];
-	m_navMesh->raycast(sPolyRef, spos, epos, t, polys, MAX_PATH_LEN);
+	m_navMesh->raycast(sPolyRef, localfrom.Data(), localto.Data(), t, polys, MAX_PATH_LEN);
 	return t;
 }
 
-void KX_NavMeshObject::DrawPath(const float *path, int pathLen, const mt::vec4& color)
+void KX_NavMeshObject::DrawPath(const float *path, int pathLen, const mt::vec4& color) const
 {
-	mt::vec3 a,b;
-	for (int i=0; i<pathLen-1; i++)
-	{
-		a = mt::vec3(&path[3*i]);
-		b = mt::vec3(&path[3*(i+1)]);
+	for (int i = 0; i < pathLen - 1; i++) {
+		mt::vec3 a = mt::vec3(&path[3 * i]);
+		mt::vec3 b = mt::vec3(&path[3 * (i + 1)]);
 		KX_RasterizerDrawDebugLine(a, b, color);
 	}
 }
 
-
 #ifdef WITH_PYTHON
-//----------------------------------------------------------------------------
-//Python
 
 PyTypeObject KX_NavMeshObject::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
@@ -656,47 +654,47 @@ PyTypeObject KX_NavMeshObject::Type = {
 	0,
 	0,
 	0,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&KX_GameObject::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyAttributeDef KX_NavMeshObject::Attributes[] = {
-	EXP_PYATTRIBUTE_NULL //Sentinel
+	EXP_PYATTRIBUTE_NULL // Sentinel.
 };
 
-//EXP_PYMETHODTABLE_NOARGS(KX_GameObject, getD),
 PyMethodDef KX_NavMeshObject::Methods[] = {
 	EXP_PYMETHODTABLE(KX_NavMeshObject, findPath),
 	EXP_PYMETHODTABLE(KX_NavMeshObject, raycast),
 	EXP_PYMETHODTABLE(KX_NavMeshObject, draw),
 	EXP_PYMETHODTABLE(KX_NavMeshObject, rebuild),
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} // Sentinel.
 };
 
 EXP_PYMETHODDEF_DOC(KX_NavMeshObject, findPath,
-				   "findPath(start, goal): find path from start to goal points\n"
-				   "Returns a path as list of points)\n")
+                    "findPath(start, goal): find path from start to goal points\n"
+                    "Returns a path as list of points)\n")
 {
 	PyObject *ob_from, *ob_to;
-	if (!PyArg_ParseTuple(args,"OO:getPath",&ob_from,&ob_to))
+	if (!PyArg_ParseTuple(args, "OO:getPath", &ob_from, &ob_to)) {
 		return nullptr;
+	}
 	mt::vec3 from, to;
-	if (!PyVecTo(ob_from, from) || !PyVecTo(ob_to, to))
+	if (!PyVecTo(ob_from, from) || !PyVecTo(ob_to, to)) {
 		return nullptr;
-	
-	float path[MAX_PATH_LEN*3];
+	}
+
+	float path[MAX_PATH_LEN * 3];
 	int pathLen = FindPath(from, to, path, MAX_PATH_LEN);
-	PyObject *pathList = PyList_New( pathLen );
-	for (int i=0; i<pathLen; i++)
-	{
-		mt::vec3 point(&path[3*i]);
+	PyObject *pathList = PyList_New(pathLen);
+	for (int i = 0; i < pathLen; i++) {
+		mt::vec3 point(&path[3 * i]);
 		PyList_SET_ITEM(pathList, i, PyObjectFrom(point));
 	}
 
@@ -704,36 +702,39 @@ EXP_PYMETHODDEF_DOC(KX_NavMeshObject, findPath,
 }
 
 EXP_PYMETHODDEF_DOC(KX_NavMeshObject, raycast,
-				   "raycast(start, goal): raycast from start to goal points\n"
-				   "Returns hit factor)\n")
+                    "raycast(start, goal): raycast from start to goal points\n"
+                    "Returns hit factor)\n")
 {
 	PyObject *ob_from, *ob_to;
-	if (!PyArg_ParseTuple(args,"OO:getPath",&ob_from,&ob_to))
+	if (!PyArg_ParseTuple(args, "OO:getPath", &ob_from, &ob_to)) {
 		return nullptr;
+	}
 	mt::vec3 from, to;
-	if (!PyVecTo(ob_from, from) || !PyVecTo(ob_to, to))
+	if (!PyVecTo(ob_from, from) || !PyVecTo(ob_to, to)) {
 		return nullptr;
+	}
 	float hit = Raycast(from, to);
 	return PyFloat_FromDouble(hit);
 }
 
 EXP_PYMETHODDEF_DOC(KX_NavMeshObject, draw,
-				   "draw(mode): navigation mesh debug drawing\n"
-				   "mode: WALLS, POLYS, TRIS\n")
+                    "draw(mode): navigation mesh debug drawing\n"
+                    "mode: WALLS, POLYS, TRIS\n")
 {
 	int arg;
 	NavMeshRenderMode renderMode = RM_TRIS;
-	if (PyArg_ParseTuple(args,"i:rebuild",&arg) && arg>=0 && arg<RM_MAX)
+	if (PyArg_ParseTuple(args, "i:rebuild", &arg) && arg >= 0 && arg < RM_MAX) {
 		renderMode = (NavMeshRenderMode)arg;
+	}
 	DrawNavMesh(renderMode);
 	Py_RETURN_NONE;
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(KX_NavMeshObject, rebuild,
-						  "rebuild(): rebuild navigation mesh\n")
+                           "rebuild(): rebuild navigation mesh\n")
 {
 	BuildNavMesh();
 	Py_RETURN_NONE;
 }
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON
