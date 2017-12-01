@@ -59,7 +59,8 @@
 #include "GPU_texture.h"
 
 extern "C" {
-	#include "IMB_imbuf.h"
+#  include "eevee_private.h"
+#  include "IMB_imbuf.h"
 }
 
 static std::vector<Texture *> textures;
@@ -409,6 +410,8 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 					}
 				}
 
+				EEVEE_EffectsInfo *effects = EEVEE_engine_data_get()->stl->effects;
+				effects->taa_current_sample = 1;
 				// get texture
 				unsigned int * texture = m_source->m_image->getImage(m_actTex, ts);
 				// if texture is available
