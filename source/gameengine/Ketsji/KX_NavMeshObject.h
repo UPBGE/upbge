@@ -44,6 +44,8 @@ protected:
 	                        int& ndtris, int &vertsPerPoly);
 
 public:
+	using PathType = std::vector<mt::vec3, mt::simd_allocator<mt::vec3> >;
+
 	enum NavMeshRenderMode
 	{
 		RM_WALLS,
@@ -62,11 +64,11 @@ public:
 	bool BuildNavMesh();
 	dtStatNavMesh *GetNavMesh() const;
 
-	int FindPath(const mt::vec3& from, const mt::vec3& to, float *path, int maxPathLen) const;
+	PathType FindPath(const mt::vec3& from, const mt::vec3& to, unsigned int maxPathLen) const;
 	float Raycast(const mt::vec3& from, const mt::vec3& to) const;
 
 	void DrawNavMesh(NavMeshRenderMode mode) const;
-	void DrawPath(const float *path, int pathLen, const mt::vec4& color) const;
+	void DrawPath(const PathType& path, const mt::vec4& color) const;
 
 	mt::vec3 TransformToLocalCoords(const mt::vec3& wpos) const;
 	mt::vec3 TransformToWorldCoords(const mt::vec3& lpos) const;

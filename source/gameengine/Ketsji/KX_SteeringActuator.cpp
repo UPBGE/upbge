@@ -57,7 +57,6 @@ KX_SteeringActuator::KX_SteeringActuator(SCA_IObject *gameobj, int mode, KX_Game
 	m_enableVisualization(enableVisualization),
 	m_facingMode(facingmode),
 	m_normalUp(normalup),
-	m_pathLen(0),
 	m_pathUpdatePeriod(pathUpdatePeriod),
 	m_lockzvel(lockzvel),
 	m_wayPointIdx(-1),
@@ -222,20 +221,20 @@ bool KX_SteeringActuator::Update(double curtime)
 					curtime - m_pathUpdateTime > ((double)m_pathUpdatePeriod / 1000.0)))
 				{
 					m_pathUpdateTime = curtime;
-					m_pathLen = m_navmesh->FindPath(mypos, targpos, m_path, MAX_PATH_LENGTH);
-					m_wayPointIdx = m_pathLen > 1 ? 1 : -1;
+					m_path = m_navmesh->FindPath(mypos, targpos, MAX_PATH_LENGTH);
+					m_wayPointIdx = m_path.size() > 1 ? 1 : -1;
 				}
 
 				if (m_wayPointIdx > 0) {
-					mt::vec3 waypoint(&m_path[3 * m_wayPointIdx]);
+					mt::vec3 waypoint = m_path[m_wayPointIdx];
 					if ((waypoint - mypos).LengthSquared() < WAYPOINT_RADIUS * WAYPOINT_RADIUS) {
 						m_wayPointIdx++;
-						if (m_wayPointIdx >= m_pathLen) {
+						if (m_wayPointIdx >= m_path.size()) {
 							m_wayPointIdx = -1;
 							terminate = true;
 						}
 						else {
-							waypoint = mt::vec3(&m_path[3 * m_wayPointIdx]);
+							waypoint = m_path[m_wayPointIdx];
 						}
 					}
 
@@ -245,7 +244,7 @@ bool KX_SteeringActuator::Update(double curtime)
 					if (m_enableVisualization) {
 						// Debug draw.
 						static const mt::vec4 PATH_COLOR(1.0f, 0.0f, 0.0f, 1.0f);
-						m_navmesh->DrawPath(m_path, m_pathLen, PATH_COLOR);
+						m_navmesh->DrawPath(m_path, PATH_COLOR);
 					}
 				}
 			}
@@ -623,13 +622,13 @@ PyObject *KX_SteeringActuator::pyattr_get_steeringVec(EXP_PyObjectPlus *self, co
 
 static int kx_steering_actuator_get_path_size_cb(void *self)
 {
-	return ((KX_SteeringActuator *)self)->m_pathLen;
+	return ((KX_SteeringActuator *)self)->m_path.size();
 }
 
 static PyObject *kx_steering_actuator_get_path_item_cb(void *self, int index)
 {
-	float *path = ((KX_SteeringActuator *)self)->m_path;
-	return PyObjectFrom(&path[3 * index]);
+	const mt::vec3& vec = ((KX_SteeringActuator *)self)->m_path[index];
+	return PyObjectFrom(vec);
 }
 
 PyObject *KX_SteeringActuator::pyattr_get_path(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef)

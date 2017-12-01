@@ -29,10 +29,12 @@
 
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
+
+#include "KX_NavMeshObject.h"
+
 #include "mathfu.h"
 
 class KX_GameObject;
-class KX_NavMeshObject;
 struct KX_Obstacle;
 class KX_ObstacleSimulation;
 const int MAX_PATH_LENGTH  = 128;
@@ -57,8 +59,7 @@ class KX_SteeringActuator : public SCA_IActuator, public mt::SimdClassAllocator
 	bool m_enableVisualization;
 	short m_facingMode;
 	bool m_normalUp;
-	float m_path[MAX_PATH_LENGTH * 3];
-	int m_pathLen;
+	KX_NavMeshObject::PathType m_path;
 	int m_pathUpdatePeriod;
 	double m_pathUpdateTime;
 	bool m_lockzvel;

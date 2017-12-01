@@ -583,10 +583,12 @@ mt::vec3 KX_NavMeshObject::TransformToWorldCoords(const mt::vec3& lpos) const
 	return (NodeGetWorldTransform() * lpos);
 }
 
-int KX_NavMeshObject::FindPath(const mt::vec3& from, const mt::vec3& to, float *path, int maxPathLen) const
+KX_NavMeshObject::PathType KX_NavMeshObject::FindPath(const mt::vec3& from, const mt::vec3& to, unsigned int maxPathLen) const
 {
+	PathType path;
+
 	if (!m_navMesh) {
-		return 0;
+		return path;
 	}
 
 	mt::vec3 localfrom = TransformToLocalCoords(from);
@@ -596,24 +598,24 @@ int KX_NavMeshObject::FindPath(const mt::vec3& from, const mt::vec3& to, float *
 	dtStatPolyRef sPolyRef = m_navMesh->findNearestPoly(localfrom.Data(), polyPickExt);
 	dtStatPolyRef ePolyRef = m_navMesh->findNearestPoly(localto.Data(), polyPickExt);
 
-	int pathLen = 0;
 	if (sPolyRef && ePolyRef) {
-		dtStatPolyRef *polys = new dtStatPolyRef[maxPathLen];
-		int npolys = m_navMesh->findPath(sPolyRef, ePolyRef, localfrom.Data(), localto.Data(), polys, maxPathLen);
-		if (npolys) {
-			pathLen = m_navMesh->findStraightPath(localfrom.Data(), localto.Data(), polys, npolys, path, maxPathLen);
-			for (int i = 0; i < pathLen; ++i) {
-				mt::vec3 waypoint(&path[i * 3]);
+		dtStatPolyRef polys[maxPathLen];
+		const unsigned int npolys = m_navMesh->findPath(sPolyRef, ePolyRef, localfrom.Data(), localto.Data(), polys, maxPathLen);
+		if (npolys > 0) {
+			float points[maxPathLen][3];
+			const unsigned int pathLen = m_navMesh->findStraightPath(localfrom.Data(), localto.Data(), polys, npolys,
+					&points[0][0], maxPathLen);
+
+			path.resize(pathLen);
+			for (unsigned int i = 0; i < pathLen; ++i) {
+				mt::vec3 waypoint(points[i]);
 				flipAxes(waypoint);
-				waypoint = TransformToWorldCoords(waypoint);
-				waypoint.Pack(&path[i * 3]);
+				path[i] = TransformToWorldCoords(waypoint);
 			}
 		}
-
-		delete[] polys;
 	}
 
-	return pathLen;
+	return path;
 }
 
 float KX_NavMeshObject::Raycast(const mt::vec3& from, const mt::vec3& to) const
@@ -635,12 +637,10 @@ float KX_NavMeshObject::Raycast(const mt::vec3& from, const mt::vec3& to) const
 	return t;
 }
 
-void KX_NavMeshObject::DrawPath(const float *path, int pathLen, const mt::vec4& color) const
+void KX_NavMeshObject::DrawPath(const PathType& path, const mt::vec4& color) const
 {
-	for (int i = 0; i < pathLen - 1; i++) {
-		mt::vec3 a = mt::vec3(&path[3 * i]);
-		mt::vec3 b = mt::vec3(&path[3 * (i + 1)]);
-		KX_RasterizerDrawDebugLine(a, b, color);
+	for (unsigned int i = 0, size = (path.size() - 1); i < size; ++i) {
+		KX_RasterizerDrawDebugLine(path[i], path[i + 1], color);
 	}
 }
 
@@ -696,12 +696,11 @@ EXP_PYMETHODDEF_DOC(KX_NavMeshObject, findPath,
 		return nullptr;
 	}
 
-	float path[MAX_PATH_LEN * 3];
-	int pathLen = FindPath(from, to, path, MAX_PATH_LEN);
+	const PathType path = FindPath(from, to, MAX_PATH_LEN);
+	const unsigned int pathLen = path.size();
 	PyObject *pathList = PyList_New(pathLen);
-	for (int i = 0; i < pathLen; i++) {
-		mt::vec3 point(&path[3 * i]);
-		PyList_SET_ITEM(pathList, i, PyObjectFrom(point));
+	for (unsigned int i = 0; i < pathLen; ++i) {
+		PyList_SET_ITEM(pathList, i, PyObjectFrom(path[i]));
 	}
 
 	return pathList;
