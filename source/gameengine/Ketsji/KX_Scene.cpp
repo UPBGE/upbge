@@ -2003,7 +2003,7 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 
 			effects->taa_current_sample += 1;
 
-			effects->taa_alpha = 1.0f / (float)(effects->taa_current_sample);
+			effects->taa_alpha = max_ff(0.1, 1.0f / (float)(effects->taa_current_sample));
 
 			double ht_point[2];
 			double ht_offset[2] = { 0.0, 0.0 };
