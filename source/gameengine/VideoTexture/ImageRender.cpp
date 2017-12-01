@@ -106,7 +106,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 		m_internalFormat = GL_R11F_G11F_B10F;
 	}
 
-	/* We need 2 framebuffers to do pingpong as we use PostRenderScene now in ImageRender TODO */
 	m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, hdr, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
 }
 
@@ -164,6 +163,9 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 
 bool ImageRender::Render()
 {
+
+	DRW_state_reset();
+
 	RAS_FrameFrustum frustum;
 
 	if (!m_render ||
