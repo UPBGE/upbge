@@ -158,6 +158,10 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
 
+	const RAS_Rect& viewport = m_canvas->GetViewportArea();
+	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+
 	GPU_framebuffer_restore();
 }
 
