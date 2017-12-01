@@ -1531,72 +1531,73 @@ static void rna_def_game_softbody(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "ksrhr_cl", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kSRHR_CL");
-	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "ksrhr_cl",
 														"Soft vs Rigid Hardness");
 
 	prop = RNA_def_property(srna, "kskhr_cl", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kSKHR_CL");
-	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "kskhr_cl",
 														"Soft vs Kinetic Hardness");
+
 	prop = RNA_def_property(srna, "ksshr_cl", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kSSHR_CL");
-	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "ksshr_cl",
 														"Soft vs Soft Hardness");
 
 	prop = RNA_def_property(srna, "ksr_split_cl", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kSR_SPLT_CL");
-	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "ksr_split_cl",
 														"Rigid Impulse Split");
 
 	prop = RNA_def_property(srna, "ksk_split_cl", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kSK_SPLT_CL");
-	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "ksk_split_cl",
 														"Kinetic Impulse Split");
 
 	prop = RNA_def_property(srna, "kss_split_cl", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kSS_SPLT_CL");
-	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "kss_split_cl",
 														"Soft Impulse Split");
 
 	prop = RNA_def_property(srna, "kvcf", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kVCF");
-	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "kvcf",
 														"Velocity Correction Factor");
 
 	prop = RNA_def_property(srna, "kdp", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kDP");
-	RNA_def_property_range(prop, 0.01f, 1.0f);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "kdp",
 														"Damping Coefficient");
 
 	prop = RNA_def_property(srna, "kdg", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kDG");
-	RNA_def_property_range(prop, 0.01f, 1000.0f);
+	RNA_def_property_range(prop, 0.0f, 1000.0f);
 	RNA_def_property_ui_text(prop, "kdg",
 														"Drag Coeffient");
 
 	prop = RNA_def_property(srna, "klf", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kLF");
-	RNA_def_property_range(prop, 0.01f, 1000.0f);
+	RNA_def_property_range(prop, 0.0f, 1000.0f);
 	RNA_def_property_ui_text(prop, "klf",
 														"Lift Coefficient");
 
 	prop = RNA_def_property(srna, "kpr", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kPR");
-	RNA_def_property_range(prop, 0.01f, 1000.0f);
+	RNA_def_property_range(prop, 0.0f, 1000.0f);
 	RNA_def_property_ui_text(prop, "kpr",
 														"Pressure Coefficient");
 
 	prop = RNA_def_property(srna, "kvc", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "kVC");
-	RNA_def_property_range(prop, 0.01f, 1000.0f);
+	RNA_def_property_range(prop, 0.0f, 1000.0f);
 	RNA_def_property_ui_text(prop, "kvc",
 														"Volume Conservation Coefficient");
 														
