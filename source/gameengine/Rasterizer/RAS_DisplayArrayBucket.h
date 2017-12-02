@@ -47,8 +47,6 @@ class RAS_MaterialShader;
 class RAS_MeshObject;
 class RAS_MeshMaterial;
 class RAS_Deformer;
-class RAS_IStorageInfo;
-class RAS_InstancingBuffer;
 
 class RAS_DisplayArrayBucket
 {
@@ -78,9 +76,6 @@ private:
 	RAS_MeshSlotList m_activeMeshSlots;
 	/// The deformer using this display array.
 	RAS_Deformer *m_deformer;
-
-	/// The vertex buffer object containing all the data used for the instancing rendering.
-	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer;
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,

@@ -39,7 +39,6 @@
 #include "DNA_screen_types.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
-#include "RAS_ISync.h"
 
 #include "ImageViewport.h"
 
@@ -84,8 +83,6 @@ protected:
 	/// do we own the camera?
 	bool m_owncamera;
 
-	/// object to synchronize render even if no buffer transfer
-	RAS_ISync *m_sync;
 	/// for mirror operation
 	KX_GameObject * m_observer;
 	KX_GameObject * m_mirror;

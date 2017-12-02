@@ -717,58 +717,6 @@ void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **
 	shader->interface = GWN_shaderinterface_create(shader->program);
 }
 
-// Used only for VSM shader with geometry instancing support.
-void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, void *positionoffset, unsigned int stride)
-{
-	//int posloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
-	//int matloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
-
-	//// Matrix
-	//if (matloc != -1) {
-	//	glEnableVertexAttribArrayARB(matloc);
-	//	glEnableVertexAttribArrayARB(matloc + 1);
-	//	glEnableVertexAttribArrayARB(matloc + 2);
-
-	//	glVertexAttribPointerARB(matloc, 3, GL_FLOAT, GL_FALSE, stride, matrixoffset);
-	//	glVertexAttribPointerARB(matloc + 1, 3, GL_FLOAT, GL_FALSE, stride, ((char *)matrixoffset) + 3 * sizeof(float));
-	//	glVertexAttribPointerARB(matloc + 2, 3, GL_FLOAT, GL_FALSE, stride, ((char *)matrixoffset) + 6 * sizeof(float));
-
-	//	glVertexAttribDivisorARB(matloc, 1);
-	//	glVertexAttribDivisorARB(matloc + 1, 1);
-	//	glVertexAttribDivisorARB(matloc + 2, 1);
-	//}
-
-	//// Position
-	//if (posloc != -1) {
-	//	glEnableVertexAttribArrayARB(posloc);
-	//	glVertexAttribPointerARB(posloc, 3, GL_FLOAT, GL_FALSE, stride, positionoffset);
-	//	glVertexAttribDivisorARB(posloc, 1);
-	//}
-}
-
-void GPU_shader_unbind_instancing_attrib(GPUShader *shader)
-{
-	//int posloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
-	//int matloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
-
-	//// Matrix
-	//if (matloc != -1) {
-	//	glDisableVertexAttribArrayARB(matloc);
-	//	glDisableVertexAttribArrayARB(matloc + 1);
-	//	glDisableVertexAttribArrayARB(matloc + 2);
-
-	//	glVertexAttribDivisorARB(matloc, 0);
-	//	glVertexAttribDivisorARB(matloc + 1, 0);
-	//	glVertexAttribDivisorARB(matloc + 2, 0);
-	//}
-
-	//// Position
-	//if (posloc != -1) {
-	//	glDisableVertexAttribArrayARB(posloc);
-	//	glVertexAttribDivisorARB(posloc, 0);
-	//}
-}
-
 int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
 {
 	BLI_assert(shader && shader->program);

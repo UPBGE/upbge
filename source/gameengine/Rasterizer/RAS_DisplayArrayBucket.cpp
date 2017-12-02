@@ -35,7 +35,6 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"
 #include "RAS_Rasterizer.h"
-#include "RAS_InstancingBuffer.h"
 #include "RAS_BucketManager.h"
 
 #include <algorithm>
@@ -54,8 +53,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_displayArray(array),
 	m_mesh(mesh),
 	m_meshMaterial(meshmat),
-	m_deformer(deformer),
-	m_instancingBuffer(nullptr)
+	m_deformer(deformer)
 {
 	m_bucket->AddDisplayArrayBucket(this);
 }

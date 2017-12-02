@@ -47,7 +47,6 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 #include "RAS_ITexVert.h"
-#include "RAS_ISync.h"
 #include "BLI_math.h"
 
 #include "ImageRender.h"
@@ -80,7 +79,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_scene(scene),
     m_camera(camera),
     m_owncamera(false),
-    m_sync(nullptr),
     m_observer(nullptr),
     m_mirror(nullptr),
     m_clip(100.f),
@@ -643,7 +641,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
     m_render(false),
     m_done(false),
     m_scene(scene),
-    m_sync(nullptr),
     m_observer(observer),
     m_mirror(mirror),
     m_clip(100.f)

@@ -53,14 +53,12 @@ class RAS_ICanvas;
 class RAS_MeshSlot;
 class RAS_IDisplayArray;
 class SCA_IScene;
-class RAS_ISync;
 struct KX_ClientObjectInfo;
 class KX_RayCast;
 struct GPUShader;
 struct GPUTexture;
 struct GPUViewport;
 struct DRWShadingGroup;
-struct EEVEE_SceneLayerData;
 
 /**
  * 3D rendering device context interface. 

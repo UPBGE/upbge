@@ -94,8 +94,6 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name);
 char *GPU_shader_validate(GPUShader *shader);
 void GPU_shader_uniform_float(GPUShader *UNUSED(shader), int location, float value);
 void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len);
-void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, void *positionoffset, unsigned int stride);
-void GPU_shader_unbind_instancing_attrib(GPUShader *shader);
 // GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2 bgl_TextureCoordinateOffset[9];
 int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name);
 /****************************************End of Game engine************************************/

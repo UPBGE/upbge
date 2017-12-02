@@ -51,6 +51,7 @@ class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class RAS_FrameBuffer;
 class SCA_IInputDevice;
+struct EEVEE_SceneLayerData;
 
 enum class KX_ExitRequest
 {
