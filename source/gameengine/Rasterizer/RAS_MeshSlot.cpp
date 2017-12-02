@@ -56,8 +56,6 @@ extern "C" {
 #  include <windows.h>
 #endif // WIN32
 
-static RAS_DummyNodeData dummyNodeData;
-
 // mesh slot
 RAS_MeshSlot::RAS_MeshSlot(RAS_MeshObject *mesh, RAS_MeshUser *meshUser, RAS_DisplayArrayBucket *arrayBucket)
 	:m_displayArrayBucket(arrayBucket),
@@ -66,16 +64,6 @@ RAS_MeshSlot::RAS_MeshSlot(RAS_MeshObject *mesh, RAS_MeshUser *meshUser, RAS_Dis
 	m_meshUser(meshUser),
 	m_batchPartIndex(-1)
 {
-	static const std::vector<RAS_RenderNodeDefine<RAS_MeshSlotUpwardNode> > nodeDefines = {
-		{NODE_NORMAL, RAS_NODE_FUNC(RAS_MeshSlot::RunNodeNormal), nullptr},
-// 		{NODE_DERIVED_MESH, RAS_NODE_FUNC(RAS_MeshSlot::RunNodeDerivedMesh), nullptr},
-		{NODE_CUBE_MAP, RAS_NODE_FUNC(RAS_MeshSlot::RunNodeCubeMap), nullptr},
-		{NODE_TEXT, RAS_NODE_FUNC(RAS_MeshSlot::RunNodeText), nullptr},
-	};
-
-	for (const RAS_RenderNodeDefine<RAS_MeshSlotUpwardNode>& define : nodeDefines) {
-		m_node[define.m_index] = define.Init(this, &dummyNodeData);
-	}
 }
 
 RAS_MeshSlot::~RAS_MeshSlot()
@@ -85,88 +73,4 @@ RAS_MeshSlot::~RAS_MeshSlot()
 void RAS_MeshSlot::SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket)
 {
 	m_displayArrayBucket = arrayBucket;
-}
-
-void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs, const RAS_MeshSlotNodeTuple& tuple)
-{
-	RAS_ManagerNodeData *managerData = tuple.m_managerData;
-	RAS_MaterialNodeData *materialData = tuple.m_materialData;
-
-	NodeType type = NODE_NORMAL;
-	if (materialData->m_text) {
-		type = NODE_TEXT;
-	}
-	else if (managerData->m_cubeMap) {
-		type = NODE_CUBE_MAP;
-	}
-	/*else if (m_pDerivedMesh) {
-		type = NODE_DERIVED_MESH;
-	}*/
-
-	RAS_MeshSlotUpwardNode& node = m_node[type];
-	node.SetParent(&root);
-	leafs.push_back(&node);
-}
-
-void RAS_MeshSlot::PrepareRunNode(const RAS_MeshSlotNodeTuple& tuple)
-{
-	RAS_ManagerNodeData *managerData = tuple.m_managerData;
-	RAS_MaterialNodeData *materialData = tuple.m_materialData;
-	RAS_Rasterizer *rasty = managerData->m_rasty;
-
-	rasty->SetClientObject(m_meshUser->GetClientObject());
-	rasty->SetFrontFace(m_meshUser->GetFrontFace());
-	/*
-		if (displayArrayData->m_applyMatrix) {
-			float mat[16];
-			rasty->GetTransform(m_meshUser->GetMatrix(), materialData->m_drawingMode, mat);
-			rasty->MultMatrix(mat);
-		}
-	*/
-	materialData->m_shader->Update(rasty, m_meshUser); // TODO sent the matrix with billboard/ray transform
-}
-
-/*void RAS_MeshSlot::RunNodeDerivedMesh(const RAS_MeshSlotNodeTuple& tuple)
-{
-	RAS_ManagerNodeData *managerData = tuple.m_managerData;
-
-	PrepareRunNode(tuple);
-
-	managerData->m_rasty->IndexPrimitivesDerivedMesh(this);
-}*/
-
-void RAS_MeshSlot::RunNodeText(const RAS_MeshSlotNodeTuple& tuple)
-{
-	RAS_ManagerNodeData *managerData = tuple.m_managerData;
-
-	PrepareRunNode(tuple);
-
-	managerData->m_rasty->IndexPrimitivesText(this);
-}
-
-void RAS_MeshSlot::RunNodeCubeMap(const RAS_MeshSlotNodeTuple& tuple)
-{
-	PrepareRunNode(tuple);
-
-	RAS_DisplayArrayNodeData *displayArrayData = tuple.m_displayArrayData;
-
-	displayArrayData->m_arrayStorage->IndexPrimitivesInstancing(6);
-}
-
-void RAS_MeshSlot::RunNodeNormal(const RAS_MeshSlotNodeTuple& tuple)
-{
-	PrepareRunNode(tuple);
-
-	RAS_ManagerNodeData *managerData = tuple.m_managerData;
-	RAS_MaterialNodeData *materialData = tuple.m_materialData;
-	RAS_DisplayArrayNodeData *displayArrayData = tuple.m_displayArrayData;
-
-	RAS_DisplayArrayStorage *storage = displayArrayData->m_arrayStorage;
-	if (materialData->m_zsort && storage) {
-		m_mesh->SortPolygons(displayArrayData->m_array, managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()),
-							 storage->GetIndexMap());
-		storage->FlushIndexMap();
-	}
-
-	storage->IndexPrimitives();
 }

@@ -46,24 +46,11 @@
 #include <algorithm>
 /* sorting */
 
-static const RAS_DummyNodeTuple dummyNodeTuple;
-
 RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlot *ms, const MT_Vector3& pnorm)
 	:m_ms(ms)
 {
 	// would be good to use the actual bounding box center instead
 	float *matrix = m_ms->m_meshUser->GetMatrix();
-	const MT_Vector3 pos(matrix[12], matrix[13], matrix[14]);
-
-	m_z = MT_dot(pnorm, pos);
-}
-
-RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlotUpwardNode *node, const MT_Vector3& pnorm)
-	:m_node(node)
-{
-	RAS_MeshSlot *ms = m_node->GetOwner();
-	// would be good to use the actual bounding box center instead
-	float *matrix = ms->m_meshUser->GetMatrix();
 	const MT_Vector3 pos(matrix[12], matrix[13], matrix[14]);
 
 	m_z = MT_dot(pnorm, pos);
@@ -80,8 +67,6 @@ bool RAS_BucketManager::fronttoback::operator()(const SortedMeshSlot &a, const S
 }
 
 RAS_BucketManager::RAS_BucketManager(RAS_IPolyMaterial *textMaterial)
-	:m_downwardNode(this, &m_nodeData, nullptr, nullptr),
-	m_upwardNode(this, &m_nodeData, nullptr, nullptr)
 {
 	m_text.m_material = textMaterial;
 	bool created;
@@ -99,57 +84,6 @@ RAS_BucketManager::~RAS_BucketManager()
 		delete *it;
 	}
 	buckets.clear();
-}
-
-void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
-{
-	m_nodeData.m_sort = true;
-
-	RAS_UpwardTreeLeafs leafs;
-	const RAS_MaterialNodeTuple matTuple(dummyNodeTuple, &m_nodeData);
-	for (RAS_MaterialBucket *bucket : m_buckets[bucketType]) {
-		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, matTuple);
-	}
-
-	if (m_downwardNode.GetValid()) {
-		m_downwardNode.Execute(dummyNodeTuple);
-	}
-	if (leafs.size() > 0) {
-		/* Camera's near plane equation: pnorm.dot(point) + pval,
-		 * but we leave out pval since it's constant anyway */
-		const MT_Vector3 pnorm(m_nodeData.m_trans.getBasis()[2]);
-		std::vector<SortedMeshSlot> sortedSlots(leafs.size());
-		// Generate all SortedMeshSlot corresponding to all the leafs nodes.
-		std::transform(leafs.begin(), leafs.end(), sortedSlots.begin(),
-				[&pnorm](RAS_MeshSlotUpwardNode *node) { return SortedMeshSlot(node, pnorm); });
-
-		std::sort(sortedSlots.begin(), sortedSlots.end(), backtofront());
-
-		std::vector<SortedMeshSlot>::const_iterator it = sortedSlots.begin();
-		RAS_MeshSlotUpwardNodeIterator iterator((it++)->m_node);
-		for (std::vector<SortedMeshSlot>::const_iterator end = sortedSlots.end(); it != end; ++it) {
-			iterator.NextNode(it->m_node);
-		}
-	}
-}
-
-void RAS_BucketManager::RenderBasicBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
-{
-	m_nodeData.m_sort = false;
-
-	RAS_UpwardTreeLeafs leafs;
-	const RAS_MaterialNodeTuple matTuple(dummyNodeTuple, &m_nodeData);
-	for (RAS_MaterialBucket *bucket : m_buckets[bucketType]) {
-		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, matTuple);
-	}
-
-	if (m_downwardNode.GetValid()) {
-		m_downwardNode.Execute(dummyNodeTuple);
-	}
-}
-
-void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer)
-{	
 }
 
 RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated)

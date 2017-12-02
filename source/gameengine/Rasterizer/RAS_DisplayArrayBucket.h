@@ -84,10 +84,6 @@ private:
 	/// The vertex buffer object containing all the data used for the instancing rendering.
 	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer;
 
-	RAS_DisplayArrayNodeData m_nodeData;
-	RAS_DisplayArrayDownwardNode m_downwardNode[NODE_DOWNWARD_TYPE_MAX];
-	RAS_DisplayArrayUpwardNode m_upwardNode[NODE_UPWARD_TYPE_MAX];
-
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
 						   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer);
@@ -109,17 +105,6 @@ public:
 
 	/// Update render infos.
 	void UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode, RAS_MaterialShader *shader);
-
-	void GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
-					  RAS_UpwardTreeLeafs& upwardLeafs, const RAS_DisplayArrayNodeTuple& tuple);
-	void BindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
-	void UnbindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
-	void RunDownwardNode(const RAS_DisplayArrayNodeTuple& tuple);
-	void RunDownwardNodeCubeMap(const RAS_DisplayArrayNodeTuple& tuple);
-// 	void RunDownwardNodeDerivedMesh(const RAS_DisplayArrayNodeTuple& tuple);
-	void RunDownwardNodeText(const RAS_DisplayArrayNodeTuple& tuple);
-	void RunInstancingNode(const RAS_DisplayArrayNodeTuple& tuple);
-	void RunBatchingNode(const RAS_DisplayArrayNodeTuple& tuple);
 
 	/// Replace the material bucket of this display array bucket by the one given.
 	void ChangeMaterialBucket(RAS_MaterialBucket *bucket);

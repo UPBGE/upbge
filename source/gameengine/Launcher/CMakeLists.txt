@@ -35,7 +35,6 @@ set(INC
 	../Ketsji
 	../Ketsji/KXNetwork
 	../Rasterizer
-	../Rasterizer/Node
 	../SceneGraph
 	../VideoTexture
 	../../blender/blenkernel

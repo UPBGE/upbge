@@ -60,12 +60,6 @@ public:
 	/// Set the shader after its conversion or when changing to custom shader.
 	void UpdateShader();
 
-	// Render nodes.
-	void GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-					  RAS_UpwardTreeLeafs& upwardLeafs, const RAS_MaterialNodeTuple& tuple);
-	void BindNode(const RAS_MaterialNodeTuple& tuple);
-	void UnbindNode(const RAS_MaterialNodeTuple& tuple);
-
 	void RemoveActiveMeshSlots();
 
 	void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
@@ -74,21 +68,10 @@ public:
 	void MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket);
 
 private:
-	enum NodeType {
-		NODE_DOWNWARD_NORMAL = 0,
-		NODE_DOWNWARD_TYPE_MAX,
-
-		NODE_UPWARD_NORMAL = 0,
-		NODE_UPWARD_TYPE_MAX
-	};
 
 	RAS_IPolyMaterial *m_material;
 	RAS_MaterialShader *m_shader;
 	RAS_DisplayArrayBucketList m_displayArrayBucketList;
-
-	RAS_MaterialNodeData m_nodeData;
-	RAS_MaterialDownwardNode m_downwardNode[NODE_DOWNWARD_TYPE_MAX];
-	RAS_MaterialUpwardNode m_upwardNode[NODE_UPWARD_TYPE_MAX];
 };
 
 #endif  // __RAS_MATERIAL_BUCKET_H__

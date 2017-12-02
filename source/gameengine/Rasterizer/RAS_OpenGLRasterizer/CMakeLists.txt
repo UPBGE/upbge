@@ -25,7 +25,6 @@
 
 set(INC
 	..
-	../Node
 	# XXX Remove these <<<
 	../../BlenderRoutines
 	../../Common

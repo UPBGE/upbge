@@ -32,7 +32,6 @@ set(INC
 	../GameLogic
 	../Ketsji
 	../Rasterizer
-	../Rasterizer/Node
 	../Rasterizer/RAS_OpenGLRasterizer
 	../SceneGraph
 	../../blender/blenkernel

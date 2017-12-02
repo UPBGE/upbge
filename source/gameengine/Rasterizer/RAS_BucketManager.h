@@ -51,12 +51,10 @@ public:
 
 		union {
 			RAS_MeshSlot *m_ms;
-			RAS_MeshSlotUpwardNode *m_node;
 		};
 
 		SortedMeshSlot() = default;
 		SortedMeshSlot(RAS_MeshSlot *ms, const MT_Vector3& pnorm);
-		SortedMeshSlot(RAS_MeshSlotUpwardNode *node, const MT_Vector3& pnorm);
 	};
 
 	struct backtofront
@@ -93,10 +91,6 @@ private:
 	};
 
 	BucketList m_buckets[NUM_BUCKET_TYPE];
-
-	RAS_ManagerNodeData m_nodeData;
-	RAS_ManagerDownwardNode m_downwardNode;
-	RAS_ManagerUpwardNode m_upwardNode;
 
 	struct TextMaterial
 	{

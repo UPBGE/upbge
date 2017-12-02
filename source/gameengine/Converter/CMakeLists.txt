@@ -37,7 +37,6 @@ set(INC
 	../Physics/Dummy
 	../Physics/Common
 	../Rasterizer
-	../Rasterizer/Node
 	../Rasterizer/RAS_OpenGLRasterizer
 	../SceneGraph
 	../VideoTexture

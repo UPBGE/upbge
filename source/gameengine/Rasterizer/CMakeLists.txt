@@ -25,7 +25,6 @@
 
 set(INC
 	.
-	Node
 	RAS_OpenGLRasterizer
 	../Common
 	../Expressions

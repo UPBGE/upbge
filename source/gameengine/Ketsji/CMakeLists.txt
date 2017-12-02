@@ -35,7 +35,6 @@ set(INC
 	../Launcher
 	../Physics/Common
 	../Rasterizer
-	../Rasterizer/Node
 	../Rasterizer/RAS_OpenGLRasterizer
 	../SceneGraph
 	../VideoTexture

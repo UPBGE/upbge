@@ -42,7 +42,6 @@ add_subdirectory(Ketsji/KXNetwork)
 add_subdirectory(Launcher)
 add_subdirectory(Physics/Dummy)
 add_subdirectory(Rasterizer)
-add_subdirectory(Rasterizer/Node)
 add_subdirectory(Rasterizer/RAS_OpenGLRasterizer)
 add_subdirectory(SceneGraph)
 

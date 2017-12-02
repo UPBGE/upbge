@@ -51,27 +51,6 @@ RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
 	:m_material(mat),
 	m_shader(nullptr)
 {
-	static const std::vector<RAS_RenderNodeDefine<RAS_MaterialDownwardNode> > downwardNodeDefines = {
-		{NODE_DOWNWARD_NORMAL, RAS_NODE_FUNC(RAS_MaterialBucket::BindNode), RAS_NODE_FUNC(RAS_MaterialBucket::UnbindNode)},
-	};
-
-	static const std::vector<RAS_RenderNodeDefine<RAS_MaterialUpwardNode> > upwardNodeDefines = {
-		{NODE_UPWARD_NORMAL, RAS_NODE_FUNC(RAS_MaterialBucket::BindNode), RAS_NODE_FUNC(RAS_MaterialBucket::UnbindNode)}
-	};
-
-	for (const RAS_RenderNodeDefine<RAS_MaterialDownwardNode>& define : downwardNodeDefines) {
-		m_downwardNode[define.m_index] = define.Init(this, &m_nodeData);
-	}
-	for (const RAS_RenderNodeDefine<RAS_MaterialUpwardNode>& define : upwardNodeDefines) {
-		m_upwardNode[define.m_index] = define.Init(this, &m_nodeData);
-	}
-
-	m_nodeData.m_material = m_material;
-	m_nodeData.m_drawingMode = m_material->GetDrawingMode();
-	m_nodeData.m_cullFace = m_material->IsCullFace();
-	m_nodeData.m_zsort = m_material->IsZSort();
-	m_nodeData.m_text = m_material->IsText();
-	m_nodeData.m_zoffset = m_material->GetZOffset();
 }
 
 RAS_MaterialBucket::~RAS_MaterialBucket()
@@ -120,47 +99,6 @@ void RAS_MaterialBucket::RemoveActiveMeshSlots()
 	{
 		(*it)->RemoveActiveMeshSlots();
 	}
-}
-
-void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
-									  RAS_UpwardTreeLeafs& upwardLeafs, const RAS_MaterialNodeTuple& tuple)
-{
-	if (m_displayArrayBucketList.size() == 0) {
-		return;
-	}
-
-	RAS_ManagerNodeData *managerData = tuple.m_managerData;
-
-	m_nodeData.m_shader = m_shader;
-	RAS_MaterialDownwardNode& downwardNode = m_downwardNode[NODE_DOWNWARD_NORMAL];
-
-	const RAS_DisplayArrayNodeTuple arrayTuple(tuple, &m_nodeData);
-	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
-		displayArrayBucket->GenerateTree(downwardNode, m_upwardNode[NODE_UPWARD_NORMAL], upwardLeafs, arrayTuple);
-	}
-
-	downwardRoot.AddChild(&downwardNode);
-
-	if (managerData->m_sort) {
-		m_upwardNode[NODE_UPWARD_NORMAL].SetParent(&upwardRoot);
-	}
-}
-
-void RAS_MaterialBucket::BindNode(const RAS_MaterialNodeTuple& tuple)
-{
-	RAS_ManagerNodeData *managerData = tuple.m_managerData;
-	RAS_Rasterizer *rasty = managerData->m_rasty;
-
-	
-	rasty->SetCullFace(m_nodeData.m_cullFace);
-	rasty->SetPolygonOffset(-m_nodeData.m_zoffset, 0.0f);
-
-	m_shader->Activate(rasty);
-}
-
-void RAS_MaterialBucket::UnbindNode(const RAS_MaterialNodeTuple& tuple)
-{
-	m_shader->Desactivate();
 }
 
 void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
