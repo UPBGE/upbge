@@ -45,7 +45,7 @@ protected:
 	std::vector<VertexData> m_vertexes;
 
 	// Temporary vertex data storage.
-	static boost::object_pool<VertexData> m_vertexPool;
+	boost::object_pool<VertexData> m_vertexPool;
 
 	RAS_DisplayArray(const RAS_DisplayArray& other)
 		:RAS_IDisplayArray(other),
@@ -140,8 +140,5 @@ public:
 		}
 	}
 };
-
-template <class VertexData>
-boost::object_pool<VertexData> RAS_DisplayArray<VertexData>::m_vertexPool;
 
 #endif  // __RAS_DISPLAY_ARRAY_H__
