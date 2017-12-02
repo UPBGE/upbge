@@ -193,10 +193,6 @@ bool BL_ShapeDeformer::Update()
 
 	// non dynamic deformer = Modifer without armature and shape keys, no need to create storage
 	if (!bSkinUpdate && bShapeUpdate && m_bDynamic) {
-		// this means that there is no armature, we still need to
-		// update the normal (was not done after shape key calculation)
-		RecalcNormals();
-
 		// We also need to handle transverts now (used to be in BL_SkinDeformer::Apply())
 		UpdateTransverts();
 		bSkinUpdate = true;
