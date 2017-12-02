@@ -32,8 +32,6 @@
 #include <vector>
 #include <memory>
 
-class RAS_DisplayArrayStorage;
-
 class RAS_IDisplayArray
 {
 public:
@@ -61,9 +59,6 @@ protected:
 	std::vector<RAS_ITexVert *> m_vertexPtrs;
 	/// The indices used for rendering.
 	std::vector<unsigned int> m_indices;
-
-	/// The data OpenGL storage used for rendering.
-	std::unique_ptr<RAS_DisplayArrayStorage> m_storage;
 
 	RAS_IDisplayArray(const RAS_IDisplayArray& other);
 
@@ -192,9 +187,6 @@ public:
 
 	/// Return the type of the display array.
 	virtual Type GetType() const;
-
-	RAS_DisplayArrayStorage *GetStorage() const;
-	void ConstructStorage();
 };
 
 typedef std::vector<RAS_IDisplayArray *> RAS_IDisplayArrayList;

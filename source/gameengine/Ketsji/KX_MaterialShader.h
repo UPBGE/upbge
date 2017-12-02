@@ -22,7 +22,6 @@ public:
 	virtual void Activate(RAS_Rasterizer *rasty);
 	virtual void Desactivate();
 	virtual void Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser);
-	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
 };
 

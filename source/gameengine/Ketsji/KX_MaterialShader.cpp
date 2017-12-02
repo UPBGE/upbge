@@ -37,7 +37,3 @@ void KX_MaterialShader::Update(RAS_Rasterizer *rasty, RAS_MeshUser *meshUser)
 	m_shader->Update(rasty, meshUser);
 }
 
-const RAS_AttributeArray::AttribList KX_MaterialShader::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
-{
-	return RAS_AttributeArray::AttribList(); // TODO
-}

@@ -62,21 +62,16 @@ set(SRC
 	RAS_2DFilterData.cpp
 	RAS_2DFilterManager.cpp
 	RAS_2DFilterFrameBuffer.cpp
-	RAS_AttributeArray.cpp
-	RAS_AttributeArrayStorage.cpp
-	RAS_BatchGroup.cpp
 	RAS_BoundingBox.cpp
 	RAS_BoundingBoxManager.cpp
 	RAS_BucketManager.cpp
 	RAS_DebugDraw.cpp
 	RAS_Deformer.cpp
 	RAS_DisplayArrayBucket.cpp
-	RAS_DisplayArrayStorage.cpp
 	RAS_FrameBuffer.cpp
 	RAS_FramingManager.cpp
 	RAS_ICanvas.cpp
 	RAS_IDisplayArray.cpp
-	RAS_IBatchDisplayArray.cpp
 	RAS_InstancingBuffer.cpp
 	RAS_IPolygonMaterial.cpp
 	RAS_Rasterizer.cpp
@@ -87,7 +82,6 @@ set(SRC
 	RAS_MeshSlot.cpp
 	RAS_MeshUser.cpp
 	RAS_Polygon.cpp
-	RAS_Query.cpp
 	RAS_Shader.cpp
 	RAS_Texture.cpp
 	RAS_TextUser.cpp
@@ -96,10 +90,6 @@ set(SRC
 	RAS_2DFilter.h
 	RAS_2DFilterManager.h
 	RAS_2DFilterFrameBuffer.h
-	RAS_AttributeArray.h
-	RAS_AttributeArrayStorage.h
-	RAS_BatchDisplayArray.h
-	RAS_BatchGroup.h
 	RAS_BoundingBox.h
 	RAS_BoundingBoxManager.h
 	RAS_BucketManager.h
@@ -108,12 +98,10 @@ set(SRC
 	RAS_Deformer.h
 	RAS_DisplayArray.h
 	RAS_DisplayArrayBucket.h
-	RAS_DisplayArrayStorage.h
 	RAS_FrameBuffer.h
 	RAS_FramingManager.h
 	RAS_ICanvas.h
 	RAS_IDisplayArray.h
-	RAS_IBatchDisplayArray.h
 	RAS_IPolygonMaterial.h
 	RAS_Rasterizer.h
 	RAS_ILightObject.h
@@ -127,7 +115,6 @@ set(SRC
 	RAS_MeshSlot.h
 	RAS_MeshUser.h
 	RAS_Polygon.h
-	RAS_Query.h
 	RAS_Rect.h
 	RAS_Shader.h
 	RAS_Texture.h

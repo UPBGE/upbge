@@ -34,7 +34,6 @@
 
 #include "RAS_Texture.h"
 #include "RAS_MeshObject.h"
-#include "RAS_AttributeArray.h"
 
 #include "MT_Vector4.h"
 

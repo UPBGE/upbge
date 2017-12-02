@@ -68,7 +68,6 @@
 #include "KX_LodManager.h"
 #include "KX_BoundingBox.h"
 #include "KX_CullingNode.h"
-#include "KX_BatchGroup.h"
 #include "KX_CollisionContactPoints.h"
 
 #include "BKE_object.h"
@@ -2025,7 +2024,6 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("collisionMask",				KX_GameObject, pyattr_get_collisionMask, pyattr_set_collisionMask),
 	KX_PYATTRIBUTE_RW_FUNCTION("state",		KX_GameObject, pyattr_get_state,	pyattr_set_state),
 	KX_PYATTRIBUTE_RO_FUNCTION("meshes",	KX_GameObject, pyattr_get_meshes),
-	KX_PYATTRIBUTE_RO_FUNCTION("batchGroup", KX_GameObject, pyattr_get_batchGroup),
 	KX_PYATTRIBUTE_RW_FUNCTION("localOrientation",KX_GameObject,pyattr_get_localOrientation,pyattr_set_localOrientation),
 	KX_PYATTRIBUTE_RW_FUNCTION("worldOrientation",KX_GameObject,pyattr_get_worldOrientation,pyattr_set_worldOrientation),
 	KX_PYATTRIBUTE_RW_FUNCTION("localPosition",	KX_GameObject, pyattr_get_localPosition,	pyattr_set_localPosition),
@@ -3110,22 +3108,6 @@ PyObject *KX_GameObject::pyattr_get_meshes(PyObjectPlus *self_v, const KX_PYATTR
 	}
 	
 	return meshes;
-}
-
-PyObject *KX_GameObject::pyattr_get_batchGroup(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	RAS_MeshUser *meshUser = self->GetMeshUser();
-	if (!meshUser) {
-		Py_RETURN_NONE;
-	}
-
-	KX_BatchGroup *batchGroup = (KX_BatchGroup *)meshUser->GetBatchGroup();
-	if (!batchGroup) {
-		Py_RETURN_NONE;
-	}
-
-	return batchGroup->GetProxy();
 }
 
 PyObject *KX_GameObject::pyattr_get_obcolor(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

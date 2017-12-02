@@ -483,14 +483,6 @@ public:
 	void SetFocalLength(const float focallength);
 	float GetFocalLength();
 
-	/**
-	 * Create a sync object
-	 * For use with offscreen render
-	 */
-	RAS_ISync *CreateSync(int type);
-
-	/// Render primitives using a derived mesh drawing.
-	void IndexPrimitivesDerivedMesh(RAS_MeshSlot *ms);
 	/// Render text mesh slot using BLF functions.
 	void IndexPrimitivesText(RAS_MeshSlot *ms);
  

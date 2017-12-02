@@ -50,9 +50,6 @@ public:
 	DerivedMesh *m_pDerivedMesh;
 	RAS_MeshUser *m_meshUser;
 
-	/// Batch index used for batching render.
-	short m_batchPartIndex;
-
 	RAS_MeshSlot(RAS_MeshObject *mesh, RAS_MeshUser *meshUser, RAS_DisplayArrayBucket *arrayBucket);
 	virtual ~RAS_MeshSlot();
 

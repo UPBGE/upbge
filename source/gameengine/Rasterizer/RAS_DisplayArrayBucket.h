@@ -35,7 +35,7 @@
 #include "CM_RefCount.h"
 
 #include "RAS_MeshSlot.h"
-#include "RAS_AttributeArray.h"
+#include "RAS_Rasterizer.h"
 
 #include "MT_Transform.h"
 
@@ -43,6 +43,7 @@
 
 class RAS_MaterialBucket;
 class RAS_IDisplayArray;
+class RAS_MaterialShader;
 class RAS_MeshObject;
 class RAS_MeshMaterial;
 class RAS_Deformer;
@@ -77,9 +78,6 @@ private:
 	RAS_MeshSlotList m_activeMeshSlots;
 	/// The deformer using this display array.
 	RAS_Deformer *m_deformer;
-
-	/// Attribute array used for each different render categories.
-	std::unique_ptr<RAS_AttributeArray> m_attribArray;
 
 	/// The vertex buffer object containing all the data used for the instancing rendering.
 	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer;

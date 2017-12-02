@@ -30,9 +30,6 @@
  */
 
 #include "RAS_DisplayArrayBucket.h"
-#include "RAS_BatchDisplayArray.h"
-#include "RAS_DisplayArrayStorage.h"
-#include "RAS_AttributeArrayStorage.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_MaterialShader.h"
 #include "RAS_MeshObject.h"
@@ -58,14 +55,9 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_mesh(mesh),
 	m_meshMaterial(meshmat),
 	m_deformer(deformer),
-	m_attribArray(nullptr),
 	m_instancingBuffer(nullptr)
 {
 	m_bucket->AddDisplayArrayBucket(this);
-
-	if (m_displayArray) {
-		m_attribArray.reset(new RAS_AttributeArray(m_displayArray));
-	}
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
@@ -121,21 +113,10 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType draw
 			arrayModified = true;
 			m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
 		}
-
-
-		RAS_AttributeArrayStorage *attribStorage = m_attribArray->GetStorage(shader);
-		if (!attribStorage) {
-			const RAS_MeshObject::LayersInfo& layersInfo = m_mesh->GetLayersInfo();
-			const RAS_AttributeArray::AttribList attribList = shader->GetAttribs(layersInfo);
-			attribStorage = m_attribArray->ConstructStorage(shader, attribList);
-		}
 	}
 }
 
 void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)
 {
 	m_bucket = bucket;
-
-	// Destruct the attributes storage to request regeneration.
-	m_attribArray->DestructStorages();
 }

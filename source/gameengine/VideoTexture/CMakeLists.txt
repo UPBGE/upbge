@@ -118,10 +118,6 @@ if(WITH_CODEC_FFMPEG)
 	)
 endif()
 
-if (WITH_GAMEENGINE_GPU_SYNC)
-	add_definitions(-DWITH_GAMEENGINE_GPU_SYNC)
-endif()
-
 if(WITH_GAMEENGINE_DECKLINK)
 	add_definitions(-DWITH_GAMEENGINE_DECKLINK)
 endif()

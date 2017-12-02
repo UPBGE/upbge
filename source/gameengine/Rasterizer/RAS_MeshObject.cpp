@@ -377,7 +377,6 @@ void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 		RAS_IDisplayArray *array = meshmat->GetDisplayArray();
 		if (array) {
 			array->UpdateCache();
-			array->ConstructStorage();
 			arrayList.push_back(array);
 
 			const std::string materialname = meshmat->GetBucket()->GetPolyMaterial()->GetName();

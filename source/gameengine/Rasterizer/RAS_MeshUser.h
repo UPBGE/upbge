@@ -33,7 +33,6 @@
 #include "MT_Vector4.h"
 
 class RAS_BoundingBox;
-class RAS_BatchGroup;
 
 class RAS_MeshUser
 {
@@ -50,8 +49,6 @@ private:
 	void *m_clientObject;
 	/// Unique mesh slots used for render of this object.
 	RAS_MeshSlotList m_meshSlots;
-	/// Possible batching groups shared between mesh users.
-	RAS_BatchGroup *m_batchGroup;
 
 public:
 	RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox);
@@ -64,11 +61,9 @@ public:
 	RAS_BoundingBox *GetBoundingBox() const;
 	void *GetClientObject() const;
 	RAS_MeshSlotList& GetMeshSlots();
-	RAS_BatchGroup *GetBatchGroup() const;
 
 	void SetFrontFace(bool frontFace);
 	void SetColor(const MT_Vector4& color);
-	void SetBatchGroup(RAS_BatchGroup *batchGroup);
 
 	void ActivateMeshSlots();
 };

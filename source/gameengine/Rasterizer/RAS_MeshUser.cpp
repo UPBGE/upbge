@@ -29,14 +29,12 @@
 #include "RAS_MeshUser.h"
 #include "RAS_DisplayArrayBucket.h"
 #include "RAS_BoundingBox.h"
-#include "RAS_BatchGroup.h"
 
 RAS_MeshUser::RAS_MeshUser(void *clientobj, RAS_BoundingBox *boundingBox)
 	:m_frontFace(true),
 	m_color(MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f)),
 	m_boundingBox(boundingBox),
-	m_clientObject(clientobj),
-	m_batchGroup(nullptr)
+	m_clientObject(clientobj)
 {
 	BLI_assert(m_boundingBox);
 	m_boundingBox->AddUser();
@@ -50,11 +48,6 @@ RAS_MeshUser::~RAS_MeshUser()
 	m_meshSlots.clear();
 
 	m_boundingBox->RemoveUser();
-
-	if (m_batchGroup) {
-		// Has the side effect to deference the batch group.
-		m_batchGroup->SplitMeshUser(this);
-	}
 }
 
 void RAS_MeshUser::AddMeshSlot(RAS_MeshSlot *meshSlot)
@@ -92,11 +85,6 @@ RAS_MeshSlotList& RAS_MeshUser::GetMeshSlots()
 	return m_meshSlots;
 }
 
-RAS_BatchGroup *RAS_MeshUser::GetBatchGroup() const
-{
-	return m_batchGroup;
-}
-
 void RAS_MeshUser::SetFrontFace(bool frontFace)
 {
 	m_frontFace = frontFace;
@@ -105,19 +93,6 @@ void RAS_MeshUser::SetFrontFace(bool frontFace)
 void RAS_MeshUser::SetColor(const MT_Vector4& color)
 {
 	m_color = color;
-}
-
-void RAS_MeshUser::SetBatchGroup(RAS_BatchGroup *batchGroup)
-{
-	if (m_batchGroup) {
-		m_batchGroup->RemoveMeshUser();
-	}
-
-	m_batchGroup = batchGroup;
-
-	if (m_batchGroup) {
-		m_batchGroup->AddMeshUser();
-	}
 }
 
 void RAS_MeshUser::ActivateMeshSlots()

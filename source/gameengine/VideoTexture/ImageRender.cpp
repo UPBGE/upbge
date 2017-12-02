@@ -110,11 +110,6 @@ ImageRender::~ImageRender (void)
 	if (m_owncamera) {
 		m_camera->Release();
 	}
-
-#ifdef WITH_GAMEENGINE_GPU_SYNC
-	if (m_sync)
-		delete m_sync;
-#endif
 }
 
 int ImageRender::GetColorBindCode() const
@@ -327,16 +322,6 @@ bool ImageRender::Render()
 	m_scene->RenderBucketsNew(nodes, m_rasterizer);
 
 	m_canvas->EndFrame();
-
-#ifdef WITH_GAMEENGINE_GPU_SYNC
-	// end of all render operations, let's create a sync object just in case
-	if (m_sync) {
-		// a sync from a previous render, should not happen
-		delete m_sync;
-		m_sync = nullptr;
-	}
-	m_sync = m_rasterizer->CreateSync(RAS_ISync::RAS_SYNC_TYPE_FENCE);
-#endif
 
 	// remember that we have done render
 	m_done = true;

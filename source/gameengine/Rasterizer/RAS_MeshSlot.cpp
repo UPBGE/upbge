@@ -33,7 +33,6 @@
 #include "RAS_MeshUser.h"
 #include "RAS_MaterialShader.h"
 #include "RAS_TexVert.h"
-#include "RAS_DisplayArrayStorage.h"
 #include "RAS_MeshObject.h"
 #include "GPU_material.h"
 #include "GPU_shader.h"
@@ -61,8 +60,7 @@ RAS_MeshSlot::RAS_MeshSlot(RAS_MeshObject *mesh, RAS_MeshUser *meshUser, RAS_Dis
 	:m_displayArrayBucket(arrayBucket),
 	m_mesh(mesh),
 	m_pDerivedMesh(nullptr),
-	m_meshUser(meshUser),
-	m_batchPartIndex(-1)
+	m_meshUser(meshUser)
 {
 }
 

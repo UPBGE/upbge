@@ -79,7 +79,6 @@ set(SRC
 	KX_2DFilterManager.cpp
 	KX_2DFilterFrameBuffer.cpp
 	KX_ArmatureSensor.cpp
-	KX_BatchGroup.cpp
 	KX_BlenderMaterial.cpp
 	KX_BoundingBox.cpp
 	KX_Camera.cpp
@@ -158,7 +157,6 @@ set(SRC
 	KX_2DFilterManager.h
 	KX_2DFilterFrameBuffer.h
 	KX_ArmatureSensor.h
-	KX_BatchGroup.h
 	KX_BlenderMaterial.h
 	KX_BoundingBox.h
 	KX_Camera.h

@@ -42,7 +42,6 @@
 #include "RAS_ILightObject.h"
 
 #include "RAS_OpenGLLight.h"
-#include "RAS_OpenGLSync.h"
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
@@ -723,17 +722,6 @@ float RAS_Rasterizer::GetFocalLength()
 	return m_focallength;
 }
 
-RAS_ISync *RAS_Rasterizer::CreateSync(int type)
-{
-	RAS_ISync *sync = new RAS_OpenGLSync();
-
-	if (!sync->Create((RAS_ISync::RAS_SYNC_TYPE)type)) {
-		delete sync;
-		return nullptr;
-	}
-	return sync;
-}
-
 const MT_Matrix4x4& RAS_Rasterizer::GetViewMatrix() const
 {
 	return m_matrices.view;
@@ -787,11 +775,6 @@ void RAS_Rasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 		RenderText3D(textUser->GetFontId(), textUser->GetTexts()[i], textUser->GetSize(), textUser->GetDpi(),
 					 textUser->GetColor().getValue(), mat, textUser->GetAspect());
 	}
-}
-
-void RAS_Rasterizer::IndexPrimitivesDerivedMesh(RAS_MeshSlot *ms)
-{
-	m_impl->DrawDerivedMesh(ms, m_drawingmode);
 }
 
 MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(
