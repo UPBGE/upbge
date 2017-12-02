@@ -1763,19 +1763,6 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 	return m_bucketmanager->FindBucket(polymat, bucketCreated);
 }
 
-void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer)
-{
-	for (KX_CullingNode *node : nodes) {
-		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
-		 * It's done just before the render to be sure of the object color and visibility. */
-		node->GetObject()->UpdateBuckets();
-	}
-
-	m_bucketmanager->Renderbuckets(cameratransform, rasty, frameBuffer);
-
-	KX_BlenderMaterial::EndFrame(rasty);
-}
-
 /***********************************************EEVEE INTEGRATION****************************************************/
 
 /* EEVEE's render main loop (see eevee_engine.c) */

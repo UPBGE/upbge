@@ -384,8 +384,6 @@ public:
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 
-	void RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer);
-
 	/*********************************************EEVEE EXPERIMENTAL********************************************/
 	void RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty);
 	/***********************************************************************************************************/
