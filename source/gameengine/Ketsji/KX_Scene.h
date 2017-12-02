@@ -85,7 +85,6 @@ class RAS_IPolyMaterial;
 class RAS_Rasterizer;
 class RAS_DebugDraw;
 class RAS_FrameBuffer;
-class RAS_SceneLayerData;
 class RAS_2DFilter;
 class RAS_2DFilterManager;
 class KX_2DFilterManager;
@@ -163,10 +162,6 @@ protected:
 
 
 	std::vector<DRWPass *>m_materialPasses;
-
-
-	std::unique_ptr<RAS_SceneLayerData> m_layerData;
-	EEVEE_Data *m_eeveeData;
 	IDProperty *m_props;
 	std::vector<KX_GameObject *>m_lightProbes;
 	/*************************************************/
@@ -357,9 +352,6 @@ public:
 	~KX_Scene();
 
 	/******************EEVEE INTEGRATION*******************/
-	void SetSceneLayerData(RAS_SceneLayerData *layerData);
-	RAS_SceneLayerData *GetSceneLayerData() const;
-	EEVEE_Data *GetEeveeData();
 	void SetIsLastScene(bool isLastScene);
 	bool GetIsLastScene();
 

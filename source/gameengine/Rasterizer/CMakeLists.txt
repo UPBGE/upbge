@@ -87,12 +87,9 @@ set(SRC
 	RAS_MeshObject.cpp
 	RAS_MeshSlot.cpp
 	RAS_MeshUser.cpp
-	RAS_OverrideShader.cpp
 	RAS_Polygon.cpp
 	RAS_Query.cpp
-	RAS_SceneLayerData.cpp
 	RAS_Shader.cpp
-	RAS_ShadowShader.cpp
 	RAS_Texture.cpp
 	RAS_TextUser.cpp
  	
@@ -130,13 +127,10 @@ set(SRC
 	RAS_MeshObject.h
 	RAS_MeshSlot.h
 	RAS_MeshUser.h
-	RAS_OverrideShader.h
 	RAS_Polygon.h
 	RAS_Query.h
 	RAS_Rect.h
-	RAS_SceneLayerData.h
 	RAS_Shader.h
-	RAS_ShadowShader.h
 	RAS_Texture.h
 	RAS_TextUser.h
 	RAS_TexVert.h

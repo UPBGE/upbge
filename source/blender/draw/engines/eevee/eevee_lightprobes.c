@@ -48,7 +48,26 @@
 
 #define IRRADIANCE_POOL_SIZE 1024
 
-static EEVEE_LightProbeStaticData e_data = {NULL}; /* Engine data */
+static struct {
+	struct GPUShader *probe_default_sh;
+	struct GPUShader *probe_filter_glossy_sh;
+	struct GPUShader *probe_filter_diffuse_sh;
+	struct GPUShader *probe_grid_fill_sh;
+	struct GPUShader *probe_grid_display_sh;
+	struct GPUShader *probe_planar_display_sh;
+	struct GPUShader *probe_planar_downsample_sh;
+	struct GPUShader *probe_cube_display_sh;
+
+	struct GPUTexture *hammersley;
+	struct GPUTexture *planar_pool_placeholder;
+	struct GPUTexture *depth_placeholder;
+	struct GPUTexture *depth_array_placeholder;
+	struct GPUTexture *cube_face_depth;
+	struct GPUTexture *cube_face_minmaxz;
+
+	int update_world;
+	bool world_ready_to_shade;
+} e_data = { NULL }; /* Engine data */
 
 extern char datatoc_background_vert_glsl[];
 extern char datatoc_default_world_frag_glsl[];
@@ -1509,9 +1528,3 @@ void EEVEE_lightprobes_free(void)
 	DRW_TEXTURE_FREE_SAFE(e_data.depth_array_placeholder);
 }
 
-/***************Game engine**************/
-EEVEE_LightProbeStaticData *EEVEE_lightprobes_static_data_get()
-{
-	return &e_data;
-}
-/***********End of Game engine***********/

@@ -32,7 +32,6 @@
 
 #include "RAS_OpenGLLight.h"
 #include "RAS_Rasterizer.h"
-#include "RAS_SceneLayerData.h"
 
 #include "KX_Light.h"
 #include "KX_Camera.h"
@@ -40,6 +39,7 @@
 #include "BLI_math.h"
 
 extern "C" {
+#  include "eevee_private.h"
 #  include "DRW_render.h"
 }
 

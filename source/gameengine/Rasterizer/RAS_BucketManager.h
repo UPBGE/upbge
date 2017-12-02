@@ -38,8 +38,6 @@
 #include <vector>
 
 class RAS_FrameBuffer;
-class RAS_OverrideShader;
-class RAS_SceneLayerData;
 
 class RAS_BucketManager
 {

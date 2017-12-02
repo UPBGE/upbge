@@ -27,7 +27,6 @@
 #include "KX_PyMath.h"
 
 #include "KX_MaterialShader.h"
-#include "BL_BlenderShader.h"
 #include "BL_Shader.h"
 
 #include "EXP_ListWrapper.h"
@@ -57,7 +56,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	:RAS_IPolyMaterial(name, game),
 	m_material(mat),
 	m_shader(nullptr),
-	m_blenderShader(nullptr),
 	m_rasterizer(rasty),
 	m_scene(scene),
 	m_userDefBlend(false),
@@ -143,9 +141,6 @@ RAS_MaterialShader *KX_BlenderMaterial::GetShader() const
 	if (m_shader && m_shader->IsValid(m_rasterizer->GetDrawingMode())) {
 		return m_shader.get();
 	}
-	else if (m_blenderShader && m_blenderShader->IsValid(m_rasterizer->GetDrawingMode())) {
-		return m_blenderShader.get();
-	}
 
 	// Should never happen.
 	BLI_assert(false);
@@ -187,9 +182,6 @@ SCA_IScene *KX_BlenderMaterial::GetScene() const
 
 void KX_BlenderMaterial::ReleaseMaterial()
 {
-	if (m_blenderShader) {
-		m_blenderShader->ReloadMaterial(m_scene);
-	}
 }
 
 void KX_BlenderMaterial::InitTextures()
@@ -227,7 +219,7 @@ void KX_BlenderMaterial::OnConstruction()
 		return;
 	}
 
-	SetBlenderGLSLShader();
+	InitTextures();
 	m_scene->GetBucketManager()->UpdateShaders(this);
 
 	m_blendFunc[0] = 0;
@@ -245,9 +237,6 @@ void KX_BlenderMaterial::OnExit()
 {
 	if (m_shader) {
 		m_shader.reset(nullptr);
-	}
-	if (m_blenderShader) {
-		m_blenderShader.reset(nullptr);
 	}
 }
 
@@ -306,12 +295,12 @@ bool KX_BlenderMaterial::UsesLighting() const
 	if (!RAS_IPolyMaterial::UsesLighting())
 		return false;
 
-	if (m_shader && m_shader->IsValid(m_rasterizer->GetDrawingMode()))
+	if (m_shader && m_shader->IsValid(m_rasterizer->GetDrawingMode())) {
 		return true;
-	else if (m_blenderShader && m_blenderShader->IsValid(m_rasterizer->GetDrawingMode()))
-		return false;
-	else
+	}
+	else {
 		return true;
+	}
 }
 
 void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
@@ -360,14 +349,6 @@ void KX_BlenderMaterial::UpdateIPO(
 void KX_BlenderMaterial::ReplaceScene(KX_Scene *scene)
 {
 	OnConstruction();
-}
-
-void KX_BlenderMaterial::SetBlenderGLSLShader()
-{
-	if (!m_blenderShader) {
-		m_blenderShader.reset(new BL_BlenderShader(m_scene, m_material, m_lightLayer));
-		InitTextures();
-	}
 }
 
 std::string KX_BlenderMaterial::GetName()

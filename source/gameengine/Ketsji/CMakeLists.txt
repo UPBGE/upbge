@@ -74,7 +74,6 @@ set(INC_SYS
 set(SRC
 	BL_Action.cpp
 	BL_ActionManager.cpp
-	BL_BlenderShader.cpp
 	BL_Shader.cpp
 	BL_Texture.cpp
 	KX_2DFilter.cpp
@@ -154,7 +153,6 @@ set(SRC
 
 	BL_Action.h
 	BL_ActionManager.h
-	BL_BlenderShader.h
 	BL_Shader.h
 	BL_Texture.h
 	KX_2DFilter.h

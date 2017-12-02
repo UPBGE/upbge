@@ -57,7 +57,6 @@ typedef struct EEVEE_ShadowCascadeData {
 /* end of eevee utils */
 
 class RAS_Rasterizer;
-class RAS_SceneLayerData;
 
 class MT_Vector3;
 class MT_Transform;

@@ -32,7 +32,6 @@
 #include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MaterialShader.h"
-#include "RAS_OverrideShader.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
@@ -54,7 +53,6 @@ RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
 {
 	static const std::vector<RAS_RenderNodeDefine<RAS_MaterialDownwardNode> > downwardNodeDefines = {
 		{NODE_DOWNWARD_NORMAL, RAS_NODE_FUNC(RAS_MaterialBucket::BindNode), RAS_NODE_FUNC(RAS_MaterialBucket::UnbindNode)},
-		{NODE_DOWNWARD_OVERRIDE, nullptr, nullptr},
 	};
 
 	static const std::vector<RAS_RenderNodeDefine<RAS_MaterialUpwardNode> > upwardNodeDefines = {
@@ -132,10 +130,9 @@ void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS
 	}
 
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
-	RAS_OverrideShader *overrideShader = managerData->m_overrideShader;
 
-	m_nodeData.m_shader = overrideShader ? overrideShader : m_shader;
-	RAS_MaterialDownwardNode& downwardNode = m_downwardNode[overrideShader ? NODE_DOWNWARD_OVERRIDE : NODE_DOWNWARD_NORMAL];
+	m_nodeData.m_shader = m_shader;
+	RAS_MaterialDownwardNode& downwardNode = m_downwardNode[NODE_DOWNWARD_NORMAL];
 
 	const RAS_DisplayArrayNodeTuple arrayTuple(tuple, &m_nodeData);
 	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {

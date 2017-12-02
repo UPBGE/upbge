@@ -782,37 +782,6 @@ static const float cubefacemat[6][4][4] = {
 };
 
 /****************Game engine********************/
-typedef struct EEVEE_LightProbeStaticData {
-	struct GPUShader *probe_default_sh;
-	struct GPUShader *probe_filter_glossy_sh;
-	struct GPUShader *probe_filter_diffuse_sh;
-	struct GPUShader *probe_grid_fill_sh;
-	struct GPUShader *probe_grid_display_sh;
-	struct GPUShader *probe_planar_display_sh;
-	struct GPUShader *probe_planar_downsample_sh;
-	struct GPUShader *probe_cube_display_sh;
-
-	struct GPUTexture *hammersley;
-	struct GPUTexture *planar_pool_placeholder;
-	struct GPUTexture *depth_placeholder;
-	struct GPUTexture *depth_array_placeholder;
-	struct GPUTexture *cube_face_depth;
-	struct GPUTexture *cube_face_minmaxz;
-
-	int update_world;
-	bool world_ready_to_shade;
-} EEVEE_LightProbeStaticData;
-
-EEVEE_LightProbeStaticData *EEVEE_lightprobes_static_data_get();
-struct GPUShader *EEVEE_shadow_shader_get();
-struct GPUShader *EEVEE_shadow_store_shader_get();
-void EEVEE_effects_replace_e_data_depth(struct GPUTexture *depth_src);
-void EEVEE_effects_replace_e_data_color(struct GPUTexture *color_src);
-struct DRWShadingGroup *EEVEE_default_shading_group_create_no_pass(EEVEE_Data *vedata, bool is_hair,
-	bool is_flat_normal, bool use_blend, bool use_ssr, int shadow_method);
-void EEVEE_shgroup_add_standard_uniforms_game(struct DRWShadingGroup *shgrp,
-	EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
-	int *ssr_id, float *refract_depth, bool use_ssrefraction, bool use_alpha_blend);
 EEVEE_Data *EEVEE_engine_data_get(void);
 void EEVEE_draw_shadows_bge(struct EEVEE_SceneLayerData *sldata, struct EEVEE_PassList *psl);
 void EEVEE_create_shader_motion_blur();

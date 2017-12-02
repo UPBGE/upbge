@@ -37,7 +37,6 @@
 
 class RAS_IPolyMaterial;
 class RAS_MaterialShader;
-class RAS_OverrideShader;
 class RAS_Rasterizer;
 
 /* Contains a list of display arrays with the same material,
@@ -77,7 +76,6 @@ public:
 private:
 	enum NodeType {
 		NODE_DOWNWARD_NORMAL = 0,
-		NODE_DOWNWARD_OVERRIDE,
 		NODE_DOWNWARD_TYPE_MAX,
 
 		NODE_UPWARD_NORMAL = 0,

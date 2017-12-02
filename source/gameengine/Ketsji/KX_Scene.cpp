@@ -68,7 +68,6 @@
 #include "KX_2DFilterManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
-#include "RAS_SceneLayerData.h"
 #include "GPU_framebuffer.h"
 
 #include "EXP_FloatValue.h"
@@ -179,7 +178,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_blenderScene(scene),
 	m_isActivedHysteresis(false),
 	m_lodHysteresisValue(0),
-	m_eeveeData(nullptr),
 	m_dofInitialized(false),
 	m_doingProbeUpdate(false),
 	m_isLastScene(false),
@@ -243,18 +241,12 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	/* Normally we can remove that */
 	SceneLayer *sl = BKE_scene_layer_from_scene_get(m_blenderScene);
-	
-	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
-	RAS_SceneLayerData *layerData = new RAS_SceneLayerData(*sldata);
-	SetSceneLayerData(layerData);
 
 	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
-	
-	m_eeveeData = EEVEE_engine_data_get();
 
 	/* End of Normally we can remove that */
 
-	EEVEE_PassList *psl = m_eeveeData->psl;
+	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
 
 	InitScenePasses(psl);
 
@@ -348,24 +340,6 @@ KX_Scene::~KX_Scene()
 }
 
 /*******************EEVEE INTEGRATION******************/
-
-/* Temp: see if we keep this */
-void KX_Scene::SetSceneLayerData(RAS_SceneLayerData *layerData)
-{
-	m_layerData.reset(layerData);
-}
-
-RAS_SceneLayerData *KX_Scene::GetSceneLayerData() const
-{
-	return m_layerData.get();
-}
-
-EEVEE_Data *KX_Scene::GetEeveeData()
-{
-	return m_eeveeData;
-}
-
-/* End of Temp: see if we keep this */
 
 void KX_Scene::InitScenePasses(EEVEE_PassList *psl)
 {

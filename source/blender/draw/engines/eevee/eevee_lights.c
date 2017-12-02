@@ -1090,15 +1090,6 @@ void EEVEE_lights_free(void)
 }
 
 /******************Game engine********************/
-struct GPUShader *EEVEE_shadow_shader_get()
-{
-	return e_data.shadow_sh;
-}
-
-struct GPUShader *EEVEE_shadow_store_shader_get()
-{
-	return e_data.shadow_store_cube_sh[SHADOW_ESM];
-}
 
 /* this refresh lamps shadow buffers */
 void EEVEE_draw_shadows_bge(EEVEE_SceneLayerData *sldata, EEVEE_PassList *psl)

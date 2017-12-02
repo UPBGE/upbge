@@ -17,7 +17,6 @@
 class SCA_IScene;
 class KX_Scene;
 class RAS_Rasterizer;
-class BL_BlenderShader;
 class KX_MaterialShader;
 struct Material;
 struct GPUMaterial;
@@ -107,7 +106,6 @@ private:
 
 	Material *m_material;
 	std::unique_ptr<KX_MaterialShader> m_shader;
-	std::unique_ptr<BL_BlenderShader> m_blenderShader;
 	RAS_Rasterizer *m_rasterizer;
 	KX_Scene *m_scene;
 	bool m_userDefBlend;
@@ -127,8 +125,6 @@ private:
 	} m_savedData;
 
 	void InitTextures();
-
-	void SetBlenderGLSLShader();
 
 	void ActivateGLMaterials(RAS_Rasterizer *rasty) const;
 

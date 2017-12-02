@@ -52,7 +52,6 @@
 #include "RAS_ICanvas.h"
 #include "RAS_FrameBuffer.h"
 #include "RAS_ILightObject.h"
-#include "RAS_SceneLayerData.h"
 #include "MT_Vector3.h"
 #include "MT_Transform.h"
 #include "SCA_IInputDevice.h"
@@ -596,7 +595,7 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 
 			KX_Camera *activecam = scene->GetActiveCamera();
 			/* TEMP -> needs to be optimised */
-			activecam->UpdateViewVecs(scene->GetEeveeData()->stl);
+			activecam->UpdateViewVecs(EEVEE_engine_data_get()->stl);
 
 			KX_Camera *overrideCullingCam = scene->GetOverrideCullingCamera();
 			for (KX_Camera *cam : scene->GetCameraList()) {
@@ -866,14 +865,12 @@ void KX_KetsjiEngine::UpdateShadows(KX_Scene *scene)
 	CListValue<KX_LightObject> *lightlist = scene->GetLightList();
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
-
-	RAS_SceneLayerData *layerData = scene->GetSceneLayerData();
-	const EEVEE_SceneLayerData *sldata = &scene->GetSceneLayerData()->GetData();
+	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
 
 	const bool textured = (m_rasterizer->GetDrawingMode() == RAS_Rasterizer::RAS_TEXTURED);
 
-	EEVEE_LampsInfo *linfo = scene->GetSceneLayerData()->GetData().lamps;
+	EEVEE_LampsInfo *linfo = sldata->lamps;
 	
 	float clear_col[4] = { FLT_MAX };
 
@@ -884,7 +881,6 @@ void KX_KetsjiEngine::UpdateShadows(KX_Scene *scene)
 
 		RAS_ILightObject *raslight = light->GetLightData();
 		Object *ob = light->GetBlenderObject();
-		EEVEE_LampsInfo *linfo = layerData->GetData().lamps;
 		EEVEE_LampEngineData *led = EEVEE_lamp_data_get(ob);
 		Lamp *la = (Lamp *)ob->data;
 		LightShadowType shadowtype = la->type != LA_SUN ? SHADOW_CUBE : SHADOW_CASCADE;
