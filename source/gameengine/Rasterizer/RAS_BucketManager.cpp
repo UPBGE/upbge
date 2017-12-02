@@ -82,21 +82,13 @@ bool RAS_BucketManager::fronttoback::operator()(const SortedMeshSlot &a, const S
 }
 
 RAS_BucketManager::RAS_BucketManager(RAS_IPolyMaterial *textMaterial)
-	:m_currentOverrideShader(nullptr),
-	m_downwardNode(this, &m_nodeData, nullptr, nullptr),
+	:m_downwardNode(this, &m_nodeData, nullptr, nullptr),
 	m_upwardNode(this, &m_nodeData, nullptr, nullptr)
 {
 	m_text.m_material = textMaterial;
 	bool created;
 	RAS_MaterialBucket *bucket = FindBucket(m_text.m_material, created);
 	m_text.m_arrayBucket = new RAS_DisplayArrayBucket(bucket, nullptr, nullptr, nullptr, nullptr);
-}
-
-void RAS_BucketManager::InitOverrideShaders(RAS_SceneLayerData *layerData)
-{
-	// Initialize the override shaders.
-	m_overrideShader[OVERRIDE_SHADER_BLACK].reset(new RAS_OverrideShader(GPU_SHADER_BLACK));
-	m_overrideShader[OVERRIDE_SHADER_SHADOW].reset(new RAS_ShadowShader(layerData));
 }
 
 RAS_BucketManager::~RAS_BucketManager()
@@ -109,21 +101,6 @@ RAS_BucketManager::~RAS_BucketManager()
 		delete *it;
 	}
 	buckets.clear();
-}
-
-void RAS_BucketManager::SetOverrideShader(RAS_BucketManager::OverrideShaderType shaderType)
-{
-	RAS_OverrideShader *shader = m_overrideShader[shaderType].get();
-	// Unbind previous override shader
-	if (m_currentOverrideShader) {
-		m_currentOverrideShader->Desactivate();
-	}
-	// Bind current override shader.
-	if (shader) {
-		shader->Activate(nullptr);
-	}
-
-	m_nodeData.m_overrideShader = m_currentOverrideShader = shader;
 }
 
 void RAS_BucketManager::RenderSortedBuckets(RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
@@ -199,7 +176,6 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 				                         RAS_Rasterizer::RAS_OVERRIDE_SHADER_SHADOW);*/
 // 			}
 			m_nodeData.m_cubeMap = true;
-			SetOverrideShader(OVERRIDE_SHADER_SHADOW);
 			RenderBasicBuckets(rasty, SOLID_SHADOW_BUCKET);
 
 			/* Rendering solid instancing materials with a different override
@@ -246,7 +222,6 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 				RenderBasicBuckets(rasty, ALPHA_SHADOW_BUCKET);
 			}
 #endif
-			SetOverrideShader(OVERRIDE_SHADER_NONE);
 
 			break;
 		}
@@ -254,34 +229,12 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 		{
 			rasty->SetLines(true);
 			rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
-
-			// Rendering solid regular materials with an empty override shader.
-
-// 			if (m_buckets[SOLID_BUCKET].size() > 0) {
-				SetOverrideShader(OVERRIDE_SHADER_BLACK);
-// 			}
 			RenderBasicBuckets(rasty, SOLID_BUCKET);
-
-			/* Rendering solid, alpha and alpha depth instancing materials
-			 * with an override shader.
-			 */
-
-			/*if ((m_buckets[SOLID_INSTANCING_BUCKET].size() + m_buckets[ALPHA_INSTANCING_BUCKET].size())) {
-				rasty->SetOverrideShader(RAS_Rasterizer::RAS_OVERRIDE_SHADER_BLACK_INSTANCING);
-			}
-			RenderBasicBuckets(rasty, SOLID_INSTANCING_BUCKET);
-			RenderSortedBuckets(rasty, ALPHA_INSTANCING_BUCKET);*/
-
-			/* Rendering alpha and alpha depth regular materials with
-			 * an empty shader and ordering.
-			 */
 
 			if ((m_buckets[ALPHA_BUCKET].size()) != 0) {
 // 				SetOverrideShader(RAS_Rasterizer::RAS_OVERRIDE_SHADER_BLACK);
 			}
 			RenderSortedBuckets(rasty, ALPHA_BUCKET);
-
-			SetOverrideShader(OVERRIDE_SHADER_NONE);
 
 			rasty->SetLines(false);
 			break;

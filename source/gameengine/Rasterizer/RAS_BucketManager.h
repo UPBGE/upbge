@@ -96,9 +96,6 @@ private:
 
 	BucketList m_buckets[NUM_BUCKET_TYPE];
 
-	std::unique_ptr<RAS_OverrideShader> m_overrideShader[OVERRIDE_SHADER_MAX];
-	RAS_OverrideShader *m_currentOverrideShader;
-
 	RAS_ManagerNodeData m_nodeData;
 	RAS_ManagerDownwardNode m_downwardNode;
 	RAS_ManagerUpwardNode m_upwardNode;
@@ -109,8 +106,6 @@ private:
 		RAS_DisplayArrayBucket *m_arrayBucket;
 	} m_text;
 
-	void SetOverrideShader(OverrideShaderType shaderType);
-
 	void RenderBasicBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 	void RenderSortedBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 
@@ -120,8 +115,6 @@ public:
 	 */
 	RAS_BucketManager(RAS_IPolyMaterial *textMaterial);
 	virtual ~RAS_BucketManager();
-
-	void InitOverrideShaders(RAS_SceneLayerData *layerData);
 
 	void Renderbuckets(const MT_Transform & cameratrans, RAS_Rasterizer *rasty, RAS_FrameBuffer *frameBuffer);
 

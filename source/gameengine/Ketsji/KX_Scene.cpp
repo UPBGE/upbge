@@ -369,7 +369,6 @@ KX_Scene::~KX_Scene()
 void KX_Scene::SetSceneLayerData(RAS_SceneLayerData *layerData)
 {
 	m_layerData.reset(layerData);
-	m_bucketmanager->InitOverrideShaders(m_layerData.get());
 }
 
 RAS_SceneLayerData *KX_Scene::GetSceneLayerData() const
