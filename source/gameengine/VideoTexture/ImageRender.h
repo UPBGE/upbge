@@ -58,11 +58,6 @@ public:
 	/// destructor
 	virtual ~ImageRender (void);
 
-	/// get update shadow buffer
-	bool getUpdateShadowBuffer();
-	/// set update shadow buffer
-	void setUpdateShadowBuffer(bool refresh);
-
 	/// Get color off screen bind code.
 	int GetColorBindCode() const;
 
@@ -76,14 +71,10 @@ public:
 	bool Render();
 	/// in case fbo is used, method to unbind
 	void Unbind();
-	/// wait for render to complete
-	void WaitSync();
 
 protected:
 	/// true if ready to render
 	bool m_render;
-	/// update shadow buffer?
-	bool m_updateShadowBuffer;
 	/// is render done already?
 	bool m_done;
 	/// rendered scene
@@ -92,18 +83,6 @@ protected:
 	KX_Camera * m_camera;
 	/// do we own the camera?
 	bool m_owncamera;
-
-	// Number of samples used in FBO.
-	int m_samples;
-
-	/// The rendered framebuffer. TODO: Restore multisample
-	RAS_FrameBuffer *m_frameBuffer;
-	/// The non multisampled off screen used when bliting, can be nullptr.
-	RAS_FrameBuffer *m_bliFb;
-	/** The pointer to the final off screen without multisamples, can
-	 * be m_frameBuffer or m_bliFb in case of mutlisamples.
-	 */
-	RAS_FrameBuffer *m_finalFb;
 
 	/// object to synchronize render even if no buffer transfer
 	RAS_ISync *m_sync;

@@ -76,13 +76,10 @@ ExpDesc MirrorTooSmallDesc(MirrorTooSmall, "Mirror is too small");
 ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int width, unsigned int height, unsigned short samples) :
     ImageViewport(width, height),
     m_render(true),
-    m_updateShadowBuffer(false),
     m_done(false),
     m_scene(scene),
     m_camera(camera),
     m_owncamera(false),
-    m_samples(samples),
-    m_finalFb(nullptr), // To restore for multisample
     m_sync(nullptr),
     m_observer(nullptr),
     m_mirror(nullptr),
@@ -105,8 +102,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	else {
 		m_internalFormat = GL_R11F_G11F_B10F;
 	}
-
-	m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, hdr, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
 }
 
 // destructor
@@ -115,7 +110,6 @@ ImageRender::~ImageRender (void)
 	if (m_owncamera) {
 		m_camera->Release();
 	}
-	delete m_frameBuffer;
 
 #ifdef WITH_GAMEENGINE_GPU_SYNC
 	if (m_sync)
@@ -125,19 +119,7 @@ ImageRender::~ImageRender (void)
 
 int ImageRender::GetColorBindCode() const
 {
-	return GPU_framebuffer_color_bindcode(m_frameBuffer->GetFrameBuffer());
-}
-
-// get update shadow buffer
-bool ImageRender::getUpdateShadowBuffer()
-{
-	return m_updateShadowBuffer;
-}
-
-// set update shadow buffer
-void ImageRender::setUpdateShadowBuffer(bool refresh)
-{
-	m_updateShadowBuffer = refresh;
+	return GPU_framebuffer_color_bindcode(DRW_viewport_framebuffer_list_get()->default_fb);
 }
 
 // capture image from viewport
@@ -149,11 +131,7 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 			return;
 		}
 	}
-
-	DRW_framebuffer_bind(m_frameBuffer->GetFrameBuffer());
-
-	// wait until all render operations are completed: TO DO: Remove sync and rename this MipMapTexture
-	WaitSync();
+	m_done = false;
 
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
@@ -163,6 +141,8 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 
 	GPU_framebuffer_restore();
+
+	DRW_transform_to_display(EEVEE_engine_data_get()->stl->effects->source_buffer);
 }
 
 bool ImageRender::Render()
@@ -179,10 +159,6 @@ bool ImageRender::Render()
 	{
 		// no need to compute texture in non texture rendering
 		return false;
-	}
-
-	if (m_updateShadowBuffer) {
-		m_engine->UpdateShadows(m_scene);
 	}
 
 	if (m_mirror)
@@ -251,10 +227,6 @@ bool ImageRender::Render()
 	}
 	// Store settings to be restored later
 	const RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
-
-	// The screen area that ImageViewport will copy is also the rendering zone
-	// bind the fbo and set the viewport to full size
-	DRW_framebuffer_bind(m_frameBuffer->GetFrameBuffer());
 
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 
@@ -347,26 +319,14 @@ bool ImageRender::Render()
 		glDisable(GL_POLYGON_STIPPLE);
 	}
 
-	// Render Background
-	if (m_scene->GetWorldInfo()) {
-		m_scene->GetWorldInfo()->RenderBackground();
-	}
-
 	KX_CullingNodeList nodes;
 	m_scene->CalculateVisibleMeshes(nodes, m_camera, 0);
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_scene->RenderBuckets(nodes, camtrans, m_rasterizer, m_frameBuffer);
-
-	m_rasterizer->ToneMapGpuTex(GPU_framebuffer_color_texture(m_frameBuffer->GetFrameBuffer()));
+	m_scene->RenderBucketsNew(nodes, m_rasterizer);
 
 	m_canvas->EndFrame();
-
-	// In case multisample is active, blit the FBO
-	/*if (m_samples > 0) {
-		m_frameBuffer->Blit(m_bliFb.get(), true, true);
-	}*/
 
 #ifdef WITH_GAMEENGINE_GPU_SYNC
 	// end of all render operations, let's create a sync object just in case
@@ -388,24 +348,6 @@ bool ImageRender::Render()
 void ImageRender::Unbind()
 {
 	GPU_framebuffer_restore();
-}
-
-void ImageRender::WaitSync()
-{
-#ifdef WITH_GAMEENGINE_GPU_SYNC
-	if (m_sync) {
-		m_sync->Wait();
-		// done with it, deleted it
-		delete m_sync;
-		m_sync = nullptr;
-	}
-#endif
-
-	// this is needed to finalize the image if the target is a texture
-	GPU_framebuffer_mipmap_texture(m_frameBuffer->GetFrameBuffer());
-
-	// all rendered operation done and complete, invalidate render for next time
-	m_done = false;
 }
 
 // cast Image pointer to ImageRender
@@ -487,7 +429,6 @@ static PyObject *ImageRender_refresh(PyImage *self, PyObject *args)
 		}
 		// wait until all render operations are completed
 		// this will also finalize the texture
-		imageRender->WaitSync();
 		Py_RETURN_TRUE;
 	}
 	else {
@@ -512,20 +453,6 @@ static PyObject *ImageRender_render(PyImage *self)
 	// we are not reading the pixels now, unbind
 	imageRender->Unbind();
 	Py_RETURN_TRUE;
-}
-
-// get update shadow buffer
-static PyObject *getUpdateShadow(PyImage *self)
-{
-	return PyBool_FromLong(getImageRender(self)->getUpdateShadowBuffer());
-}
-
-// set update shadow buffer
-static int setUpdateShadow(PyImage *self, PyObject *value)
-{
-	ImageRender *imageRender = getImageRender(self);
-	imageRender->setUpdateShadowBuffer(PyLong_AsLong(value));
-	return 0;
 }
 
 static PyObject *getColorBindCode(PyImage *self, void *closure)
@@ -556,7 +483,6 @@ static PyGetSetDef imageRenderGetSets[] =
 	{(char*)"zbuff", (getter)Image_getZbuff, (setter)Image_setZbuff, (char*)"use depth buffer as texture", nullptr},
 	{(char*)"depth", (getter)Image_getDepth, (setter)Image_setDepth, (char*)"get depth information from z-buffer using unsigned int precision", nullptr},
 	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
-	{(char*)"updateShadow", (getter)getUpdateShadow, (setter)setUpdateShadow, (char*)"update shadow buffers", nullptr},
 	{(char*)"colorBindCode", (getter)getColorBindCode, nullptr, (char*)"Off-screen color texture bind code", nullptr},
 	{nullptr}
 };
@@ -722,7 +648,6 @@ static PyGetSetDef imageMirrorGetSets[] =
 	{(char*)"zbuff", (getter)Image_getZbuff, (setter)Image_setZbuff, (char*)"use depth buffer as texture", nullptr},
 	{(char*)"depth", (getter)Image_getDepth, (setter)Image_setDepth, (char*)"get depth information from z-buffer using unsigned int precision", nullptr},
 	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
-	{(char*)"updateShadow", (getter)getUpdateShadow, (setter)setUpdateShadow, (char*)"update shadow buffers", nullptr},
 	{nullptr}
 };
 
@@ -731,11 +656,8 @@ static PyGetSetDef imageMirrorGetSets[] =
 ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial *mat, unsigned int width, unsigned int height, unsigned short samples) :
     ImageViewport(width, height),
     m_render(false),
-    m_updateShadowBuffer(false),
     m_done(false),
     m_scene(scene),
-    m_samples(samples),
-    m_finalFb(nullptr),
     m_sync(nullptr),
     m_observer(observer),
     m_mirror(mirror),
@@ -755,9 +677,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	else {
 		m_internalFormat = GL_R11F_G11F_B10F;
 	}
-
-	/* We need 2 framebuffers to do pingpong as we use PostRenderScene now in ImageRender TODO */
-	m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, hdr, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
 
 	// this constructor is used for automatic planar mirror
 	// create a camera, take all data by default, in any case we will recompute the frustum on each frame
