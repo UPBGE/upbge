@@ -168,8 +168,6 @@ protected:
 	std::unique_ptr<RAS_SceneLayerData> m_layerData;
 	EEVEE_Data *m_eeveeData;
 	IDProperty *m_props;
-	RAS_EeveeEffectsManager *m_effectsManager;
-	RAS_LightProbesManager *m_probesManager;
 	std::vector<KX_GameObject *>m_lightProbes;
 	/*************************************************/
 
@@ -590,7 +588,6 @@ public:
 	 */
 	RAS_2DFilterManager *Get2DFilterManager() const;
 	RAS_FrameBuffer *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_FrameBuffer *inputfb, RAS_FrameBuffer *targetfb);
-	RAS_FrameBuffer *RenderEeveeEffects(RAS_FrameBuffer *inputfb);
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 

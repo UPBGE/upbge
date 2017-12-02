@@ -114,9 +114,7 @@
 #include "CM_Message.h"
 
 /*******************************EEVEE INTEGRATION********************************/
-#include "RAS_EeveeEffectsManager.h"
 #include "RAS_FrameBuffer.h"
-#include "RAS_LightProbesManager.h"
 
 extern "C" {
 #  include "DRW_engine.h"
@@ -181,7 +179,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_blenderScene(scene),
 	m_isActivedHysteresis(false),
 	m_lodHysteresisValue(0),
-	m_effectsManager(nullptr),
 	m_eeveeData(nullptr),
 	m_dofInitialized(false),
 	m_doingProbeUpdate(false),
@@ -255,9 +252,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	
 	m_eeveeData = EEVEE_engine_data_get();
 
-	m_effectsManager = new RAS_EeveeEffectsManager(m_eeveeData, canvas, m_props, KX_GetActiveEngine()->GetRasterizer(), this);
-	m_probesManager = new RAS_LightProbesManager(m_eeveeData, canvas, m_props, KX_GetActiveEngine()->GetRasterizer(), this);
-
 	/* End of Normally we can remove that */
 
 	EEVEE_PassList *psl = m_eeveeData->psl;
@@ -320,16 +314,6 @@ KX_Scene::~KX_Scene()
 	if (m_filterManager) {
 		delete m_filterManager;
 	}
-
-	/******EEVEE INTEGRATION*******/
-	if (m_effectsManager) {
-		delete m_effectsManager; // Temp: to delete
-	}
-
-	if (m_probesManager) {
-		delete m_probesManager; // temp: To delete
-	}
-	/******************************/
 
 	if (m_logicmgr)
 		delete m_logicmgr;
@@ -2449,11 +2433,6 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 RAS_FrameBuffer *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_FrameBuffer *inputfb, RAS_FrameBuffer *targetfb)
 {
 	return m_filterManager->RenderFilters(rasty, canvas, inputfb, targetfb, this);
-}
-
-RAS_FrameBuffer *KX_Scene::RenderEeveeEffects(RAS_FrameBuffer *inputfb)
-{
-	return m_effectsManager->RenderEeveeEffects(inputfb);
 }
 
 #ifdef WITH_PYTHON

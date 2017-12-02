@@ -292,7 +292,6 @@ public:
 	virtual ~KX_KetsjiEngine();
 
 	RAS_FrameBuffer *PostRenderScene(KX_Scene *scene, RAS_FrameBuffer *inputfb, RAS_FrameBuffer *targetfb);
-	RAS_FrameBuffer *PostRenderEevee(KX_Scene *scene, RAS_FrameBuffer *inputfb);
 	void EEVEE_lightprobes_refresh_bge(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata, KX_Scene *scene,
 		RAS_Rasterizer *rasty, KX_Camera *cam, RAS_FrameBuffer *inputfb);
 

@@ -1081,23 +1081,6 @@ RAS_FrameBuffer *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_FrameBuff
 	return frameBuffer;
 }
 
-RAS_FrameBuffer *KX_KetsjiEngine::PostRenderEevee(KX_Scene *scene, RAS_FrameBuffer *inputfb)
-{
-	KX_SetActiveScene(scene);
-
-	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
-	const int width = m_canvas->GetWidth();
-	const int height = m_canvas->GetHeight();
-	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
-	m_rasterizer->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-
-	RAS_FrameBuffer *frameBuffer = scene->RenderEeveeEffects(inputfb);
-
-	m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-
-	return frameBuffer;
-}
-
 void KX_KetsjiEngine::StopEngine()
 {
 	if (m_bInitialized) {

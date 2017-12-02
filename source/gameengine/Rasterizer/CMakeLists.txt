@@ -73,7 +73,6 @@ set(SRC
 	RAS_Deformer.cpp
 	RAS_DisplayArrayBucket.cpp
 	RAS_DisplayArrayStorage.cpp
-	RAS_EeveeEffectsManager.cpp
 	RAS_FrameBuffer.cpp
 	RAS_FramingManager.cpp
 	RAS_ICanvas.cpp
@@ -83,7 +82,6 @@ set(SRC
 	RAS_IPolygonMaterial.cpp
 	RAS_Rasterizer.cpp
 	RAS_ITexVert.cpp
-	RAS_LightProbesManager.cpp
 	RAS_MaterialBucket.cpp
 	RAS_MeshMaterial.cpp
 	RAS_MeshObject.cpp
@@ -115,7 +113,6 @@ set(SRC
 	RAS_DisplayArray.h
 	RAS_DisplayArrayBucket.h
 	RAS_DisplayArrayStorage.h
-	RAS_EeveeEffectsManager.h
 	RAS_FrameBuffer.h
 	RAS_FramingManager.h
 	RAS_ICanvas.h
@@ -127,7 +124,6 @@ set(SRC
 	RAS_InstancingBuffer.h
 	RAS_ISync.h
 	RAS_ITexVert.h
-	RAS_LightProbesManager.h
 	RAS_MaterialBucket.h
 	RAS_MaterialShader.h
 	RAS_MeshMaterial.h
