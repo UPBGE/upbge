@@ -72,17 +72,13 @@ BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
 					short	layer,
 					float	layer_weight,
 					short	ipo_flags,
-					short	end_reset,
-					float	stride) 
-	: SCA_IActuator(gameobj, KX_ACT_ACTION),
-	m_blendframe(0),
+					short	end_reset)
+	:SCA_IActuator(gameobj, KX_ACT_ACTION),
 	m_flag(0),
-	m_startframe (starttime),
+	m_startframe(starttime),
 	m_endframe(endtime) ,
 	m_localtime(starttime),
 	m_blendin(blendin),
-	m_blendstart(0),
-	m_stridelength(stride),
 	m_layer_weight(layer_weight),
 	m_playtype(playtype),
 	m_blendmode(blend_mode),
@@ -105,7 +101,8 @@ void BL_ActionActuator::ProcessReplica()
 {
 	SCA_IActuator::ProcessReplica();
 
-	m_localtime = m_startframe;	
+	m_flag = m_flag & ACT_FLAG_CONTINUE;
+	m_localtime = m_startframe;
 }
 
 EXP_Value* BL_ActionActuator::GetReplica()
@@ -332,7 +329,6 @@ PyAttributeDef BL_ActionActuator::Attributes[] = {
 	EXP_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, BL_ActionActuator, m_propname),
 	EXP_PYATTRIBUTE_STRING_RW("framePropName", 0, MAX_PROP_NAME, false, BL_ActionActuator, m_framepropname),
 	EXP_PYATTRIBUTE_RW_FUNCTION("useContinue", BL_ActionActuator, pyattr_get_use_continue, pyattr_set_use_continue),
-	EXP_PYATTRIBUTE_FLOAT_RW_CHECK("blendTime", 0, MAXFRAMEF, BL_ActionActuator, m_blendframe, CheckBlendTime),
 	EXP_PYATTRIBUTE_SHORT_RW_CHECK("mode",0,100,false,BL_ActionActuator,m_playtype,CheckType),
 	EXP_PYATTRIBUTE_NULL //Sentinel
 };

@@ -51,12 +51,6 @@ base class --- :class:`SCA_IActuator`
 
       :type: string
 
-   .. attribute:: blendTime
-
-      Sets the internal frame timer. This property must be in the range from 0.0 to blendIn.
-
-      :type: float
-
    .. attribute:: mode
 
       The operation mode of the actuator. Can be one of :ref:`these constants<action-actuator>`.

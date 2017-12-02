@@ -60,8 +60,8 @@ typedef struct bActionActuator {
 	short   end_reset;      /* Ending the actuator (negative pulse) wont reset the action to its starting frame */
 	short   strideaxis;     /* Displacement axis */
 	short   blend_mode;		/* Layer blending mode */
-	float   stridelength;   /* Displacement incurred by cycle */ // not in use
 	float   layer_weight;   /* How much of the previous layer to use for blending. (<0 = disable, 0 = add mode) */
+	int pad;
 } bActionActuator;
 
 typedef struct Sound3D {

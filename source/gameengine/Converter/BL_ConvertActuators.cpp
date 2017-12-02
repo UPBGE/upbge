@@ -233,10 +233,7 @@ void BL_ConvertActuators(const char* maggiename,
 				            actact->layer,
 				            actact->layer_weight,
 				            ipo_flags,
-				            actact->end_reset,
-				            actact->stridelength
-				            // Ketsji at 1, because zero is reserved for "NoDef"
-				            );
+				            actact->end_reset);
 				baseact= tmpbaseact;
 				break;
 			}

@@ -53,8 +53,7 @@ public:
 						short	layer,
 						float	layer_weight,
 						short	ipo_flags,
-						short	end_reset,
-						float	stride);
+						short	end_reset);
 
 	virtual ~BL_ActionActuator();
 	virtual	bool Update(double curtime);
@@ -80,16 +79,6 @@ public:
 	static PyObject*	pyattr_get_frame(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_frame(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	static int CheckBlendTime(EXP_PyObjectPlus *self, const PyAttributeDef*)
-	{
-		BL_ActionActuator* act = reinterpret_cast<BL_ActionActuator*>(self);
-
-		if (act->m_blendframe > act->m_blendin)
-			act->m_blendframe = act->m_blendin;
-
-		return 0;
-	}
-
 	static int CheckType(EXP_PyObjectPlus *self, const PyAttributeDef*)
 	{
 		BL_ActionActuator* act = reinterpret_cast<BL_ActionActuator*>(self);
@@ -110,7 +99,6 @@ public:
 #endif  /* WITH_PYTHON */
 	
 protected:
-	float	m_blendframe;
 	int		m_flag;
 	/** The frame this action starts */
 	float	m_startframe;
@@ -118,11 +106,8 @@ protected:
 	float	m_endframe;
 	/** The current time of the action */
 	float	m_localtime;
-	
-	float	m_lastUpdate;
 	float	m_blendin;
 	float	m_blendstart;
-	float	m_stridelength;
 	float	m_layer_weight;
 	short	m_playtype;
 	short   m_blendmode;
