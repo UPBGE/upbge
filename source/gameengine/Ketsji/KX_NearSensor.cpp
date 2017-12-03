@@ -177,13 +177,13 @@ bool KX_NearSensor::Evaluate()
 // this function is called at broad phase stage to check if the two controller
 // need to interact at all. It is used for Near/Radar sensor that don't need to
 // check collision with object not included in filter
-bool	KX_NearSensor::BroadPhaseFilterCollision(void*obj1,void*obj2)
+bool	KX_NearSensor::BroadPhaseFilterCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2)
 {
 	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
 	
 	// need the mapping from PHY_IPhysicsController to gameobjects now
-	BLI_assert(obj1==m_physCtrl && obj2);
-	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*>((static_cast<PHY_IPhysicsController*>(obj2))->GetNewClientInfo());
+	BLI_assert(ctrl1 == m_physCtrl && ctrl2);
+	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*>(ctrl2->GetNewClientInfo());
 
 	KX_GameObject* gameobj = ( client_info ? 
 			client_info->m_gameobject :
@@ -205,16 +205,15 @@ bool	KX_NearSensor::BroadPhaseFilterCollision(void*obj1,void*obj2)
 	return false;
 }
 
-bool	KX_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_ICollData *coll_data)
+bool	KX_NearSensor::NewHandleCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2, const PHY_ICollData *coll_data)
 {
 //	KX_CollisionEventManager* toucheventmgr = static_cast<KX_CollisionEventManager*>(m_eventmgr);
 //	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
 	
 	// need the mapping from PHY_IPhysicsController to gameobjects now
 	
-	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*> (obj1 == m_physCtrl?
-					((PHY_IPhysicsController*)obj2)->GetNewClientInfo() :
-					((PHY_IPhysicsController*)obj1)->GetNewClientInfo());
+	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*> ((ctrl1 == m_physCtrl) ?
+			ctrl2->GetNewClientInfo() : ctrl1->GetNewClientInfo());
 
 	KX_GameObject* gameobj = ( client_info ? 
 			client_info->m_gameobject :

@@ -73,10 +73,14 @@ public:
 	virtual bool Evaluate();
 
 	virtual void ReParent(SCA_IObject* parent);
-	virtual bool	NewHandleCollision(void* obj1,void* obj2,
-	                                   const PHY_ICollData * coll_data);
-	virtual bool	BroadPhaseFilterCollision(void*obj1,void*obj2);
-	virtual bool	BroadPhaseSensorFilterCollision(void* obj1,void* obj2) { return false; }
+
+	virtual bool NewHandleCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2, const PHY_ICollData *colldata);
+	virtual bool BroadPhaseFilterCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2);
+	virtual bool BroadPhaseSensorFilterCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2)
+	{
+		return false;
+	}
+
 	virtual sensortype GetSensorType() { return ST_NEAR; }
 
 #ifdef WITH_PYTHON
