@@ -2054,7 +2054,7 @@ void CcdPhysicsEnvironment::CallbackTriggers()
 
 		bool first;
 		// Test if one of the controller is registered and use collision callback.
-		if (ctrl1->Registered()) {
+		if (ctrl0->Registered()) {
 			first = true;
 		}
 		else if (ctrl1->Registered()) {
