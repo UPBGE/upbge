@@ -463,10 +463,10 @@ void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup);
 void DRW_end_shgroup(void);
 DRWShadingGroup *DRW_shgroups_from_pass_get(DRWPass *pass);
 DRWShadingGroup *DRW_shgroup_next(DRWShadingGroup *current);
-void DRW_shgroups_calls_update_obmat(DRWShadingGroup *shgroup, struct Gwn_Batch *batch, float obmat[4][4]);
-void DRW_shgroups_discard_geometry(DRWShadingGroup *shgroup, struct Gwn_Batch *batch);
-void DRW_shgroups_restore_geometry(DRWShadingGroup *shgroup, struct Gwn_Batch *batch, float obmat[4][4]);
-bool DRW_shgroups_belongs_to_gameobject(DRWShadingGroup *shgroup, struct Gwn_Batch *batch);
+void DRW_call_update_obmat(DRWShadingGroup *shgroup, struct Gwn_Batch *batch, float obmat[4][4]);
+void DRW_call_discard_geometry(DRWShadingGroup *shgroup, struct Gwn_Batch *batch);
+void DRW_call_restore_geometry(DRWShadingGroup *shgroup, struct Gwn_Batch *batch, float obmat[4][4]);
+bool DRW_batch_belongs_to_gameobject(DRWShadingGroup *shgroup, struct Gwn_Batch *batch);
 /**************************END OF GAME ENGINE*******************************/
 
 #endif /* __DRW_RENDER_H__ */

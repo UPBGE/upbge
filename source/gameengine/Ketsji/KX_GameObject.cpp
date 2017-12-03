@@ -276,7 +276,7 @@ std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
 				continue;
 			}
 			for (Gwn_Batch *batch : m_materialBatches) {
-				if (DRW_shgroups_belongs_to_gameobject(shgroup, batch)) {
+				if (DRW_batch_belongs_to_gameobject(shgroup, batch)) {
 					m_materialShGroups.push_back(shgroup);
 					break;
 				}
@@ -291,8 +291,8 @@ void KX_GameObject::DiscardMaterialBatches()
 {
 	for (Gwn_Batch *b : m_materialBatches) {
 		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-			if (DRW_shgroups_belongs_to_gameobject(sh, b)) {
-				DRW_shgroups_discard_geometry(sh, b);
+			if (DRW_batch_belongs_to_gameobject(sh, b)) {
+				DRW_call_discard_geometry(sh, b);
 			}
 		}
 	}
@@ -303,7 +303,7 @@ void KX_GameObject::RestoreMaterialBatches(float obmat[4][4])
 {
 	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
 		for (int i = 0; i < m_materialBatches.size(); i++) {
-			DRW_shgroups_restore_geometry(sh, m_materialBatches[i], obmat);
+			DRW_call_restore_geometry(sh, m_materialBatches[i], obmat);
 		}
 	}
 }
@@ -325,7 +325,7 @@ void KX_GameObject::AddNewMaterialBatchesToPasses(float obmat[4][4]) // works in
 	for (DRWShadingGroup *shgroup : m_materialShGroups) {
 		for (int i = 0; i < m_materialBatches.size(); i++) {
 			Gwn_Batch *oldBatch = m_materialBatches[i];
-			if (DRW_shgroups_belongs_to_gameobject(shgroup, oldBatch)) {
+			if (DRW_batch_belongs_to_gameobject(shgroup, oldBatch)) {
 				DRW_shgroup_call_add(shgroup, m_newBatches[i], obmat);
 			}
 		}
@@ -878,7 +878,7 @@ void KX_GameObject::UpdateBucketsNew()
 
 	for (Gwn_Batch *batch : m_materialBatches) {
 		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-			DRW_shgroups_calls_update_obmat(sh, batch, obmat);
+			DRW_call_update_obmat(sh, batch, obmat);
 		}
 	}
 }
