@@ -155,10 +155,12 @@ protected:
 
 
 	bool m_dofInitialized;
+	bool m_taaInitialized;
 
 	bool m_doingTAA;
 	bool m_doingProbeUpdate;
 	std::vector<KX_GameObject *>m_staticObjectsInsideFrustum;
+	std::vector<KX_GameObject *>m_staticObjects;
 
 
 	std::vector<DRWPass *>m_materialPasses;
@@ -361,6 +363,7 @@ public:
 	void EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes);
 	void EeveePostProcessingHackEnd();
 
+	void AppendToStaticObjects(KX_GameObject *gameobj);
 	void AppendToStaticObjectsInsideFrustum(KX_GameObject *gameobj);
 	bool ComputeTAA(const KX_CullingNodeList& nodes);
 	void EEVEE_draw_scene();

@@ -181,7 +181,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_dofInitialized(false),
 	m_doingProbeUpdate(false),
 	m_isLastScene(false),
-	m_doingTAA(false)
+	m_doingTAA(false),
+	m_taaInitialized(false)
 {
 
 	m_dbvt_culling = false;
@@ -249,6 +250,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
 
 	InitScenePasses(psl);
+
+	m_staticObjects = {};
+	m_staticObjectsInsideFrustum = {};
 
 	/******************************************************************************************************************************/
 
@@ -1844,7 +1848,12 @@ void KX_Scene::EEVEE_draw_scene()
 	stl->g_data->view_updated = false;
 }
 
-/* Utils for TAA to check if nothing is moving inside view frustum */
+/* Utils for TAA to check if nothing is moving inside view frustum (or anywhere when using probes) */
+void KX_Scene::AppendToStaticObjects(KX_GameObject *gameobj)
+{
+	m_staticObjects.push_back(gameobj);
+}
+
 void KX_Scene::AppendToStaticObjectsInsideFrustum(KX_GameObject *gameobj)
 {
 	m_staticObjectsInsideFrustum.push_back(gameobj);
@@ -1852,10 +1861,15 @@ void KX_Scene::AppendToStaticObjectsInsideFrustum(KX_GameObject *gameobj)
 
 bool KX_Scene::ComputeTAA(const KX_CullingNodeList& nodes)
 {
-	if (m_staticObjectsInsideFrustum.size() == nodes.size()) {
-		return true;
+	if (m_lightProbes.size() > 0) {
+		if (m_staticObjects.size() != GetObjectList()->GetCount()) {
+			return false;
+		}
 	}
-	return false;
+	if (m_staticObjectsInsideFrustum.size() != nodes.size()) {
+		return false;
+	}
+	return true;
 }
 /* End of utils for TAA */
 void KX_Scene::UpdateProbes()
@@ -1927,7 +1941,7 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 		view_is_valid = view_is_valid && (effects->prev_drw_support == DRW_state_draw_support());
 		effects->prev_drw_support = DRW_state_draw_support();
 
-		if (view_is_valid && ComputeTAA(nodes)) {
+		if ((view_is_valid && ComputeTAA(nodes)) || !m_taaInitialized) {
 
 			effects->taa_current_sample += 1;
 
@@ -1953,6 +1967,7 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 			DRW_viewport_matrix_override_set(effects->overide_winmat, DRW_MAT_WIN);
 			DRW_viewport_matrix_override_set(effects->overide_wininv, DRW_MAT_WININV);
 
+			m_taaInitialized = true;
 			m_doingTAA = true;
 		}
 		else {
@@ -2050,7 +2065,7 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 	/* Update blenderobjects matrix as we use it for eevee's shadows */
 	for (KX_GameObject *gameobj : GetObjectList()) {
 		gameobj->UpdateBlenderObjectMatrix(nullptr);
-		gameobj->TagForUpdate(); // used for shadow culling (call before sgnode->ClearDirty(DIRTY_RENDER))
+		gameobj->TagForUpdate();
 		if (gameobj->GetCulled()) {
 			gameobj->DiscardMaterialBatches();
 			gameobj->m_wasculled = true; // TODO: replace with functions getter/setter
@@ -2064,15 +2079,13 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 			}
 		}
 	}
-	for (KX_CullingNode *node : nodes) {
-		node->GetObject()->UpdateBucketsNew();
-	}
 
 	KX_GetActiveEngine()->UpdateShadows(this);
 
 	/* Update of eevee's post processing before scene rendering */
 	EeveePostProcessingHackBegin(nodes);
 
+	m_staticObjects.clear();
 	m_staticObjectsInsideFrustum.clear();
 
 	/* Start Drawing */

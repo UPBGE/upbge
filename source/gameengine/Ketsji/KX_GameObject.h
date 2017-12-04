@@ -94,7 +94,7 @@ protected:
 
 	float m_savedObmat[4][4];
 	float m_prevObmat[4][4];
-	bool m_needsUpdate; // used for shadow culling
+	bool m_needShadowUpdate; // used for shadow culling
 
 
 
@@ -152,9 +152,8 @@ public:
 	void DuplicateMaterialBatches();
 	void AddNewMaterialBatchesToPasses(float obmat[4][4]);
 
-	/* Call before SG_Node::ClearDirty(SG_Node::DIRTY_RENDER) */
-	void TagForUpdate(); // used only for shadow culling for now
-	bool NeedsUpdate(); // used only for shadow culling for now
+	void TagForUpdate();
+	bool NeedShadowUpdate();
 	bool m_wasculled;
 
 
@@ -733,7 +732,6 @@ public:
 	 * visibility, object color, .. .
 	 */
 	virtual void UpdateBuckets();
-	virtual void UpdateBucketsNew();
 
 	/**
 	 * Clear the meshes associated with this class

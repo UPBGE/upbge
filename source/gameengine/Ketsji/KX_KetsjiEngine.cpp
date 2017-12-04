@@ -851,7 +851,7 @@ static void light_tag_shadow_update(KX_LightObject *light, KX_GameObject *gameob
 	bool is_inside_range = cube_bbox_intersect(oblamp->obmat[3], la->clipend, BKE_object_boundbox_get(ob), ob->obmat);
 
 	if (is_inside_range) {
-		if (gameobj->NeedsUpdate()) {
+		if (gameobj->NeedShadowUpdate()) {
 			led->need_update = true;
 		}
 	}

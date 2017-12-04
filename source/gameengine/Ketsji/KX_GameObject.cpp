@@ -130,7 +130,7 @@ KX_GameObject::KX_GameObject(
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
 	  m_wasculled(false), // eevee integration
-	  m_needsUpdate(true), // eevee integration
+	  m_needShadowUpdate(true), // eevee integration
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
     , m_attr_dict(nullptr),
@@ -146,6 +146,7 @@ KX_GameObject::KX_GameObject(
 	KX_NormalParentRelation * parent_relation = 
 		KX_NormalParentRelation::New();
 	m_pSGNode->SetParentRelation(parent_relation);
+	unit_m4(m_prevObmat);
 };
 
 
@@ -843,44 +844,33 @@ void KX_GameObject::UpdateBuckets()
 }
 
 /************************EEVEE_INTEGRATION**********************/
-/* Call before SG_Node::ClearDirty(SG_Node::DIRTY_RENDER) */
 void KX_GameObject::TagForUpdate() // Used for shadow culling
 {
-	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
-		m_needsUpdate = true;
-	}
-	else {
-		m_needsUpdate = false;
-	}
-}
-
-bool KX_GameObject::NeedsUpdate() // used for shadow culling
-{
-	return m_needsUpdate;
-}
-
-void KX_GameObject::UpdateBucketsNew()
-{
-	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
-		NodeGetWorldTransform().getValue(m_meshUser->GetMatrix());
-		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
-	}
-
 	float obmat[4][4];
 	NodeGetWorldTransform().getValue(&obmat[0][0]);
+	bool staticObject = compare_m4m4(m_prevObmat, obmat, FLT_MIN);
 
-	if (compare_m4m4(m_prevObmat, obmat, FLT_MIN)) {
-		GetScene()->AppendToStaticObjectsInsideFrustum(this);
-	}
-
-	copy_m4_m4(m_prevObmat, obmat);
-
-	for (Gwn_Batch *batch : m_materialBatches) {
-		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-			DRW_call_update_obmat(sh, batch, obmat);
+	m_needShadowUpdate = false;
+	if (staticObject) {
+		GetScene()->AppendToStaticObjects(this);
+		if (!GetCulled()) {
+			GetScene()->AppendToStaticObjectsInsideFrustum(this);
 		}
 	}
+	else {
+		for (Gwn_Batch *batch : m_materialBatches) {
+			for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
+				DRW_call_update_obmat(sh, batch, obmat);
+			}
+		}
+		m_needShadowUpdate = true;
+	}
+	copy_m4_m4(m_prevObmat, obmat);
+}
+
+bool KX_GameObject::NeedShadowUpdate() // used for shadow culling
+{
+	return m_needShadowUpdate;
 }
 
 /********************End of EEVEE INTEGRATION*********************/
