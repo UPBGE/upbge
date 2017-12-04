@@ -867,12 +867,7 @@ void KX_KetsjiEngine::UpdateShadows(KX_Scene *scene)
 	m_rasterizer->SetAuxilaryClientInfo(scene);
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
-
-	const bool textured = (m_rasterizer->GetDrawingMode() == RAS_Rasterizer::RAS_TEXTURED);
-
 	EEVEE_LampsInfo *linfo = sldata->lamps;
-	
-	float clear_col[4] = { FLT_MAX };
 
 	for (KX_LightObject *light : lightlist) {
 		if (!light->GetVisible()) {
@@ -885,32 +880,20 @@ void KX_KetsjiEngine::UpdateShadows(KX_Scene *scene)
 		Lamp *la = (Lamp *)ob->data;
 		LightShadowType shadowtype = la->type != LA_SUN ? SHADOW_CUBE : SHADOW_CASCADE;
 
-
-		for (KX_GameObject *gameob : scene->GetObjectList()) {
-			Object *blenob = gameob->GetBlenderObject();
-			if (blenob && blenob->type == OB_MESH) {
-				light_tag_shadow_update(light, gameob);
-			}
-		}
-
 		raslight->UpdateLight(light, linfo, led);
 
-		const bool useShadow = (textured && raslight->HasShadow());
-
-		if (useShadow && raslight->NeedShadowUpdate()) {
+		if (raslight->NeedShadowUpdate()) {
 
 			if (shadowtype == SHADOW_CUBE) {
-				raslight->UpdateShadowsCube(light, linfo, led);
-				//led->need_update = true;
-			}
-
-			else if (shadowtype == SHADOW_CASCADE) {
-				raslight->UpdateShadowsCascade(light, linfo, led, scene);
+				for (KX_GameObject *gameob : scene->GetObjectList()) {
+					Object *blenob = gameob->GetBlenderObject();
+					if (blenob && blenob->type == OB_MESH) {
+						light_tag_shadow_update(light, gameob);
+					}
+				}
 			}
 		}
 	}
-	DRW_uniformbuffer_update(sldata->light_ubo, &linfo->light_data);
-	DRW_uniformbuffer_update(sldata->shadow_ubo, &linfo->shadow_data);
 }
 
 /***********************END OF EEVEE SHADOWS SYSTEM************************/

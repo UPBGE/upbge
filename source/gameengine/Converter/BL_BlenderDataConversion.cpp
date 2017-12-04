@@ -932,6 +932,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	lightobj->m_spotblend = la->spotblend;
 	lightobj->m_spotsize = la->spotsize;
 	// Set to true to make at least one shadow render in static mode.
+	lightobj->m_staticShadow = false;
 	lightobj->m_requestShadowUpdate = true;
 
 	lightobj->m_nodiffuse = (la->mode & LA_NO_DIFF) != 0;

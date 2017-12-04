@@ -783,7 +783,6 @@ static const float cubefacemat[6][4][4] = {
 
 /****************Game engine********************/
 EEVEE_Data *EEVEE_engine_data_get(void);
-void EEVEE_draw_shadows_bge(struct EEVEE_SceneLayerData *sldata, struct EEVEE_PassList *psl);
 void EEVEE_create_shader_motion_blur();
 /**************End of Game engine***************/
 

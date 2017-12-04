@@ -44,8 +44,6 @@ public:
 	virtual MT_Matrix4x4 GetShadowMatrix();
 	virtual int GetShadowLayer();
 	virtual void UpdateLight(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led);
-	virtual void UpdateShadowsCube(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led);
-	virtual void UpdateShadowsCascade(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led, KX_Scene *scene);
 	virtual Image *GetTextureImage(short texslot);
 	void SetShadowUpdateState(short state);
 

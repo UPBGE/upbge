@@ -141,8 +141,6 @@ public:
 	virtual MT_Matrix4x4 GetWinMat() = 0;
 	virtual int GetShadowLayer() = 0;
 	virtual void UpdateLight(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led) = 0;
-	virtual void UpdateShadowsCube(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led) = 0;
-	virtual void UpdateShadowsCascade(KX_LightObject *kxlight, EEVEE_LampsInfo *linfo, EEVEE_LampEngineData *led, KX_Scene *scene) = 0;
 	virtual Image *GetTextureImage(short texslot) = 0;
 };
 

@@ -1765,7 +1765,7 @@ void KX_Scene::EEVEE_draw_scene()
 
 		/* Refresh shadows */
 		DRW_stats_group_start("Shadows");
-		EEVEE_draw_shadows_bge(sldata, psl);
+		EEVEE_draw_shadows(sldata, psl);
 		DRW_stats_group_end();
 
 		/* Refresh Probes */
@@ -1987,9 +1987,23 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 		unsigned int ht_primes[3] = { 3, 7, 2 };
 		unsigned int current_sample = 0;
 
-		const unsigned int max_sample = (ht_primes[0] * ht_primes[1] * ht_primes[2]);
-		current_sample = effects->volume_current_sample = max_sample; // Too much flickering in bge here if we keep eevee's code
-																	  // eevee_volumes line 234
+		/* If TAA is in use do not use the history buffer. */
+		bool do_taa = ((effects->enabled_effects & EFFECT_TAA) != 0) && m_doingTAA;
+
+		if (do_taa) {
+			volumetrics->history_alpha = 0.0f;
+			current_sample = effects->taa_current_sample - 1;
+			effects->volume_current_sample = -1;
+		}
+		else {
+			const unsigned int max_sample = (ht_primes[0] * ht_primes[1] * ht_primes[2]);
+			current_sample = effects->volume_current_sample = max_sample; // Too much flickering in bge here if we keep eevee's code
+																		  // eevee_volumes line 234
+
+			if (current_sample != max_sample - 1) {
+				DRW_viewport_request_redraw();
+			}
+		}
 		BLI_halton_3D(ht_primes, ht_offset, current_sample, ht_point);
 
 		volumetrics->jitter[0] = (float)ht_point[0];
