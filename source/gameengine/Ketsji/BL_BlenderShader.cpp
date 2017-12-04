@@ -80,13 +80,17 @@ const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_Mesh
 				continue;
 			}
 
-			for (const RAS_MeshObject::Layer& layer : layersInfo.layers) {
-				if (layer.name == attribname) {
-					if (type == CD_MTFACE && layer.type == RAS_MeshObject::Layer::UV) {
+			if (type == CD_MTFACE) {
+				for (const RAS_MeshObject::Layer& layer : layersInfo.uvLayers) {
+					if (layer.name == attribname) {
 						attribs.push_back({glindex, RAS_AttributeArray::RAS_ATTRIB_UV, false, layer.index});
 						break;
 					}
-					else if (type == CD_MCOL && layer.type == RAS_MeshObject::Layer::COLOR) {
+				}
+			}
+			else {
+				for (const RAS_MeshObject::Layer& layer : layersInfo.colorLayers) {
+					if (layer.name == attribname) {
 						attribs.push_back({glindex, RAS_AttributeArray::RAS_ATTRIB_COLOR, false, layer.index});
 						break;
 					}

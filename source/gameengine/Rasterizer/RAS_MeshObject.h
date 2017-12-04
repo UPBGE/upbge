@@ -62,11 +62,6 @@ public:
 	 * attribute's names in shader and names of the mesh layers here.
 	 */
 	struct Layer {
-		/// The type of the layer, uv or color.
-		enum Type {
-			UV,
-			COLOR
-		} type;
 		/// The index of the color or uv layer in the vertices.
 		unsigned short index;
 		/// The name of the color or uv layer used to find corresponding material attributes.
@@ -76,15 +71,14 @@ public:
 	typedef std::vector<Layer> LayerList;
 
 	struct LayersInfo {
-		LayerList layers;
-		// The active color layer index as default.
+		/// UV layers info.
+		LayerList uvLayers;
+		/// Color layers info.
+		LayerList colorLayers;
+		/// The active color layer index as default.
 		unsigned short activeColor;
-		// The active uv layer index as default.
+		/// The active uv layer index as default.
 		unsigned short activeUv;
-		// The number of uv layers.
-		unsigned short uvCount;
-		// The number of color layers.
-		unsigned short colorCount;
 	};
 
 	/** Polygon info generate when getting a polygon through

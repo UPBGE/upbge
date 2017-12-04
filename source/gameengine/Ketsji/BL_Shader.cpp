@@ -128,8 +128,8 @@ RAS_AttributeArray::AttribList BL_Shader::GetAttribs(const RAS_MeshObject::Layer
 				}
 
 				// Search for the UV layer index used by the texture.
-				for (const RAS_MeshObject::Layer& layer : layersInfo.layers) {
-					if (layer.type == RAS_MeshObject::Layer::UV && layer.name == mtex->uvname) {
+				for (const RAS_MeshObject::Layer& layer : layersInfo.uvLayers) {
+					if (layer.name == mtex->uvname) {
 						attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_UV, true, layer.index});
 						break;
 					}

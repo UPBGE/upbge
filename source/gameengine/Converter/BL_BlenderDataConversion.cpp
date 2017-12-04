@@ -342,47 +342,41 @@ SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 	return gReverseKeyTranslateTable[key_code];
 }
 
-static void BL_GetUvRgba(const RAS_MeshObject::LayerList& layers, std::vector<MLoopUV *>& uvLayers,
-		std::vector<MLoopCol *>& colorLayers, unsigned short uvCount, unsigned short colorCount,
-		unsigned int loop, float uvs[RAS_Texture::MaxUnits][2], unsigned int rgba[RAS_Vertex::MAX_UNIT])
+static void BL_GetUvRgba(const RAS_MeshObject::LayersInfo& layersInfo, std::vector<MLoopUV *>& uvLayers,
+		std::vector<MLoopCol *>& colorLayers, unsigned int loop, float uvs[RAS_Texture::MaxUnits][2],
+		unsigned int rgba[RAS_Vertex::MAX_UNIT])
 {
 	// No need to initialize layers to zero as all the converted layer are all the layers needed.
 
-	for (const RAS_MeshObject::Layer& layer : layers) {
+	for (const RAS_MeshObject::Layer& layer : layersInfo.colorLayers) {
 		const unsigned short index = layer.index;
-		switch (layer.type) {
-			case RAS_MeshObject::Layer::COLOR:
-			{
-				const MLoopCol& col = colorLayers[index][loop];
+		const MLoopCol& col = colorLayers[index][loop];
 
-				union Convert{
-					// Color isn't swapped in MLoopCol.
-					MLoopCol col;
-					unsigned int val;
-				};
-				Convert con;
-				con.col = col;
+		union Convert{
+			// Color isn't swapped in MLoopCol.
+			MLoopCol col;
+			unsigned int val;
+		};
+		Convert con;
+		con.col = col;
 
-				rgba[index] = con.val;
-				break;
-			}
-			case RAS_MeshObject::Layer::UV:
-			{
-				const MLoopUV& uv = uvLayers[index][loop];
-				copy_v2_v2(uvs[index], uv.uv);
-				break;
-			}
-		}
+		rgba[index] = con.val;
+	}
+
+	for (const RAS_MeshObject::Layer& layer : layersInfo.uvLayers) {
+		const unsigned short index = layer.index;
+		const MLoopUV& uv = uvLayers[index][loop];
+		copy_v2_v2(uvs[index], uv.uv);
 	}
 
 	/* All vertices have at least one uv and color layer accessible to the user
 	 * even if it they are not used in any shaders. Initialize this layer to zero
 	 * when no uv or color layer exist.
 	 */
-	if (uvCount == 0) {
+	if (layersInfo.uvLayers.empty()) {
 		zero_v2((uvs[0]));
 	}
-	if (colorCount == 0) {
+	if (layersInfo.colorLayers.empty()) {
 		rgba[0] = 0xFFFFFFFF;
 	}
 }
@@ -441,18 +435,16 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL
 	RAS_MeshObject::LayersInfo layersInfo;
 	layersInfo.activeUv = (activeUv == -1) ? 0 : activeUv;
 	layersInfo.activeColor = (activeColor == -1) ? 0 : activeColor;
-	layersInfo.uvCount = uvCount;
-	layersInfo.colorCount = colorCount;
 
 	// Extract UV loops.
 	for (unsigned short i = 0; i < uvCount; ++i) {
 		const std::string name = CustomData_get_layer_name(&dm->loopData, CD_MLOOPUV, i);
-		layersInfo.layers.push_back({RAS_MeshObject::Layer::UV, i, name});
+		layersInfo.uvLayers.push_back({i, name});
 	}
 	// Extract color loops.
 	for (unsigned short i = 0; i < colorCount; ++i) {
 		const std::string name = CustomData_get_layer_name(&dm->loopData, CD_MLOOPCOL, i);
-		layersInfo.layers.push_back({RAS_MeshObject::Layer::COLOR, i, name});
+		layersInfo.colorLayers.push_back({i, name});
 	}
 
 	// Initialize vertex format with used uv and color layers.
@@ -512,7 +504,7 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 	const float (*normals)[3] = (float(*)[3])dm->getLoopDataArray(dm, CD_NORMAL);
 
 	float (*tangent)[4] = nullptr;
-	if (layersInfo.uvCount > 0) {
+	if (!layersInfo.uvLayers.empty()) {
 		if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
 			DM_calc_loop_tangents(dm, true, nullptr, 0);
 		}
@@ -520,26 +512,18 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 	}
 
 	// List of MLoopUV per uv layer index.
-	std::vector<MLoopUV *> uvLayers(layersInfo.uvCount);
+	std::vector<MLoopUV *> uvLayers(layersInfo.uvLayers.size());
 	// List of MLoopCol per color layer index.
-	std::vector<MLoopCol *> colorLayers(layersInfo.colorCount);
+	std::vector<MLoopCol *> colorLayers(layersInfo.uvLayers.size());
 
-	for (const RAS_MeshObject::Layer& layer : layersInfo.layers) {
+	for (const RAS_MeshObject::Layer& layer : layersInfo.uvLayers) {
 		const unsigned short index = layer.index;
-		switch (layer.type) {
-			case RAS_MeshObject::Layer::UV:
-			{
-				uvLayers[index] = (MLoopUV *)CustomData_get_layer_n(&dm->loopData, CD_MLOOPUV, index);
-				break;
-			}
-			case RAS_MeshObject::Layer::COLOR:
-			{
-				colorLayers[index] = (MLoopCol *)CustomData_get_layer_n(&dm->loopData, CD_MLOOPCOL, index);
-				break;
-			}
-		}
+		uvLayers[index] = (MLoopUV *)CustomData_get_layer_n(&dm->loopData, CD_MLOOPUV, index);
 	}
-
+	for (const RAS_MeshObject::Layer& layer : layersInfo.colorLayers) {
+		const unsigned short index = layer.index;
+		colorLayers[index] = (MLoopCol *)CustomData_get_layer_n(&dm->loopData, CD_MLOOPCOL, index);
+	}
 
 	BL_SharedVertexMap sharedMap(totverts);
 
@@ -568,7 +552,7 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 			float uvs[RAS_Texture::MaxUnits][2];
 			unsigned int rgba[RAS_Texture::MaxUnits];
 
-			BL_GetUvRgba(layersInfo.layers, uvLayers, colorLayers, layersInfo.uvCount, layersInfo.colorCount, j, uvs, rgba);
+			BL_GetUvRgba(layersInfo, uvLayers, colorLayers, j, uvs, rgba);
 
 			RAS_Vertex vertex = array->CreateVertex(mvert.co, uvs, tan, rgba, normals[j]);
 
