@@ -1386,7 +1386,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		aspect_height = canvas->GetHeight();
 	} else {
 		if (blenderscene->gm.framing.type == SCE_GAMEFRAMING_BARS) {
-			frame_type = RAS_FrameSettings::e_frame_bars;
+			frame_type = RAS_FrameSettings::e_frame_extend;//RAS_FrameSettings::e_frame_bars;
 		} else if (blenderscene->gm.framing.type == SCE_GAMEFRAMING_EXTEND) {
 			frame_type = RAS_FrameSettings::e_frame_extend;
 		} else {
