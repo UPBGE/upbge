@@ -41,7 +41,6 @@ private:
 	int m_size;
 	int m_dpi;
 	float m_aspect;
-	float m_resolution;
 	mt::vec3 m_offset;
 	mt::vec3 m_spacing;
 

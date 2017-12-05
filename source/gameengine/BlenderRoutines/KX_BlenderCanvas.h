@@ -39,7 +39,6 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 
-struct ARegion;
 struct wmWindow;
 struct wmWindowManager;
 
@@ -56,14 +55,9 @@ private:
 	wmWindowManager *m_wm;
 	wmWindow *m_win;
 	RAS_Rect m_area_rect;
-	ARegion *m_ar;
 
 public:
-	/* Construct a new canvas.
-	 *
-	 * \param area The Blender ARegion to run the game within.
-	 */
-	KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, ARegion *ar);
+	KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, RAS_Rect &rect);
 	virtual ~KX_BlenderCanvas();
 
 	virtual void Init();

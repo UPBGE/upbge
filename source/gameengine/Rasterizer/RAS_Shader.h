@@ -35,7 +35,6 @@ public:
 		void *m_data; // Memory allocated for variable
 		bool m_dirty; // Caching variable
 		int m_type; // Enum UniformTypes
-		bool m_transpose; // Transpose matrices
 		const int m_dataLen; // Length of our data
 	public:
 		RAS_Uniform(int data_size);

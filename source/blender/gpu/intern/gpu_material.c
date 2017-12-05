@@ -1979,7 +1979,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 						}
 					}
 					else if (world->aocolor == WO_AOSKYTEX) {
-						if (world->mtex && world->mtex[0] && world->mtex[0]->tex && world->mtex[0]->tex->ima) {
+						if (world->mtex[0] && world->mtex[0]->tex && world->mtex[0]->tex->ima) {
 							GPUNodeLink *fcol, *f;
 							Tex* tex = world->mtex[0]->tex;
 							GPU_link(mat, "math_multiply", shi->amb, shi->refl, &f);

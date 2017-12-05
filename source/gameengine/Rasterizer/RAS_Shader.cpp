@@ -39,7 +39,6 @@ RAS_Shader::RAS_Uniform::RAS_Uniform(int data_size)
 	m_count(1),
 	m_dirty(true),
 	m_type(UNI_NONE),
-	m_transpose(0),
 	m_dataLen(data_size)
 {
 #ifdef SORT_UNIFORMS

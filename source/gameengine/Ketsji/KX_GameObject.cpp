@@ -2447,7 +2447,7 @@ PyObject *KX_GameObject::pyattr_get_is_suspend_dynamics(EXP_PyObjectPlus *self_v
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 
 	// Only objects with a physics controller can be suspended
-	PYTHON_CHECK_PHYSICS_CONTROLLER(self, attrdef->m_name, nullptr);
+	PYTHON_CHECK_PHYSICS_CONTROLLER(self, attrdef->m_name.c_str(), nullptr);
 
 	return PyBool_FromLong(self->IsDynamicsSuspended());
 }
