@@ -181,8 +181,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_dofInitialized(false),
 	m_doingProbeUpdate(false),
 	m_isLastScene(false),
-	m_doingTAA(false),
-	m_taaInitialized(false)
+	m_doingTAA(false)
 {
 
 	m_dbvt_culling = false;
@@ -1763,15 +1762,14 @@ void KX_Scene::EEVEE_draw_scene()
 
 	while (loop_ct--) {
 
+		/* Refresh Probes */
+		DRW_stats_group_start("Probes Refresh");
+		EEVEE_lightprobes_refresh(sldata, vedata);
+		DRW_stats_group_end();
+
 		/* Refresh shadows */
 		DRW_stats_group_start("Shadows");
 		EEVEE_draw_shadows(sldata, psl);
-		DRW_stats_group_end();
-
-		/* Refresh Probes */
-		DRW_stats_group_start("Probes Refresh");
-		UpdateProbes();
-		EEVEE_lightprobes_refresh(sldata, vedata);
 		DRW_stats_group_end();
 
 		/* Attach depth to the hdr buffer and bind it */
@@ -1878,29 +1876,16 @@ void KX_Scene::UpdateProbes()
 		return;
 	}
 
-	KX_Camera *cam = GetActiveCamera();
+	m_doingProbeUpdate = true;
 
 	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
-	EEVEE_EffectsInfo *effects = vedata->stl->effects;
 
-	if (m_doingTAA) {
-		m_doingProbeUpdate = false;
-	}
-	else {
-		float persmat[4][4], viewmat[4][4];
-		DRW_viewport_matrix_get(persmat, DRW_MAT_PERS);
-		DRW_viewport_matrix_get(viewmat, DRW_MAT_VIEW);
-		DRW_viewport_matrix_get(effects->overide_winmat, DRW_MAT_WIN);
-		mul_m4_m4m4(effects->overide_persmat, effects->overide_winmat, viewmat);
-		invert_m4_m4(effects->overide_persinv, effects->overide_persmat);
-		invert_m4_m4(effects->overide_wininv, effects->overide_winmat);
-		m_doingProbeUpdate = true;
-	}
 	EEVEE_lightprobes_cache_init(sldata, vedata);
 	for (KX_GameObject *kxprobe : GetProbeList()) {
 		EEVEE_lightprobes_cache_add(sldata, kxprobe->GetBlenderObject());
 	}
+
 	EEVEE_lightprobes_cache_finish(sldata, vedata);
 }
 
@@ -1941,22 +1926,29 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 		view_is_valid = view_is_valid && (effects->prev_drw_support == DRW_state_draw_support());
 		effects->prev_drw_support = DRW_state_draw_support();
 
-		if ((view_is_valid && ComputeTAA(nodes)) || !m_taaInitialized) {
+		//view_is_valid = view_is_valid && ComputeTAA(nodes); //TODO: Rewrite/Rename ComputeTAA and fix flickering
 
-			effects->taa_current_sample += 1;
+		if (view_is_valid || m_doingProbeUpdate) {
 
-			effects->taa_alpha = max_ff(0.1, 1.0f / (float)(effects->taa_current_sample));
+			if (view_is_valid) {
+				effects->taa_current_sample += 1;
 
-			double ht_point[2];
-			double ht_offset[2] = { 0.0, 0.0 };
-			unsigned int ht_primes[2] = { 2, 3 };
+				effects->taa_alpha = max_ff(0.1, 1.0f / (float)(effects->taa_current_sample));
 
-			BLI_halton_2D(ht_primes, ht_offset, effects->taa_current_sample - 1, ht_point);
+				double ht_point[2];
+				double ht_offset[2] = { 0.0, 0.0 };
+				unsigned int ht_primes[2] = { 2, 3 };
 
-			window_translate_m4(
-				effects->overide_winmat, persmat,
-				((float)(ht_point[0]) * 2.0f - 1.0f) / viewport_size[0],
-				((float)(ht_point[1]) * 2.0f - 1.0f) / viewport_size[1]);
+				BLI_halton_2D(ht_primes, ht_offset, effects->taa_current_sample - 1, ht_point);
+
+				window_translate_m4(
+					effects->overide_winmat, persmat,
+					((float)(ht_point[0]) * 2.0f - 1.0f) / viewport_size[0],
+					((float)(ht_point[1]) * 2.0f - 1.0f) / viewport_size[1]);
+			}
+			else {
+				effects->taa_current_sample = 1;
+			}
 
 			mul_m4_m4m4(effects->overide_persmat, effects->overide_winmat, viewmat);
 			invert_m4_m4(effects->overide_persinv, effects->overide_persmat);
@@ -1967,7 +1959,6 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 			DRW_viewport_matrix_override_set(effects->overide_winmat, DRW_MAT_WIN);
 			DRW_viewport_matrix_override_set(effects->overide_wininv, DRW_MAT_WININV);
 
-			m_taaInitialized = true;
 			m_doingTAA = true;
 		}
 		else {
@@ -2085,6 +2076,8 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 
 	/* Update of eevee's post processing before scene rendering */
 	EeveePostProcessingHackBegin(nodes);
+
+	UpdateProbes();
 
 	m_staticObjects.clear();
 	m_staticObjectsInsideFrustum.clear();
