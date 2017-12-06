@@ -155,6 +155,7 @@ protected:
 
 
 	bool m_dofInitialized;
+	bool m_taaInitialized;
 
 	bool m_doingTAA;
 	bool m_doingProbeUpdate;

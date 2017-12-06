@@ -181,7 +181,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_dofInitialized(false),
 	m_doingProbeUpdate(false),
 	m_isLastScene(false),
-	m_doingTAA(false)
+	m_doingTAA(false),
+	m_taaInitialized(false)
 {
 
 	m_dbvt_culling = false;
@@ -1926,31 +1927,28 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 		view_is_valid = view_is_valid && (effects->prev_drw_support == DRW_state_draw_support());
 		effects->prev_drw_support = DRW_state_draw_support();
 
-		//view_is_valid = view_is_valid && ComputeTAA(nodes); //TODO: Rewrite/Rename ComputeTAA and fix flickering
+		view_is_valid = view_is_valid && ComputeTAA(nodes);
 
-		if (view_is_valid || m_doingProbeUpdate) {
+		if (view_is_valid || !m_taaInitialized) {
 
-			if (view_is_valid) {
-				effects->taa_current_sample += 1;
+			m_taaInitialized = true;
 
-				if (effects->taa_current_sample < 50) {
-					effects->taa_alpha = 1.0f / (float)(effects->taa_current_sample);
-				}
+			effects->taa_current_sample += 1;
 
-				double ht_point[2];
-				double ht_offset[2] = { 0.0, 0.0 };
-				unsigned int ht_primes[2] = { 2, 3 };
-
-				BLI_halton_2D(ht_primes, ht_offset, effects->taa_current_sample - 1, ht_point);
-
-				window_translate_m4(
-					effects->overide_winmat, persmat,
-					((float)(ht_point[0]) * 2.0f - 1.0f) / viewport_size[0],
-					((float)(ht_point[1]) * 2.0f - 1.0f) / viewport_size[1]);
+			if (effects->taa_current_sample < 50) {
+				effects->taa_alpha = 1.0f / (float)(effects->taa_current_sample);
 			}
-			else {
-				effects->taa_current_sample = 1;
-			}
+
+			double ht_point[2];
+			double ht_offset[2] = { 0.0, 0.0 };
+			unsigned int ht_primes[2] = { 2, 3 };
+
+			BLI_halton_2D(ht_primes, ht_offset, effects->taa_current_sample - 1, ht_point);
+
+			window_translate_m4(
+				effects->overide_winmat, persmat,
+				((float)(ht_point[0]) * 2.0f - 1.0f) / viewport_size[0],
+				((float)(ht_point[1]) * 2.0f - 1.0f) / viewport_size[1]);
 
 			mul_m4_m4m4(effects->overide_persmat, effects->overide_winmat, viewmat);
 			invert_m4_m4(effects->overide_persinv, effects->overide_persmat);
@@ -1963,6 +1961,22 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 
 			m_doingTAA = true;
 		}
+		else if (!view_is_valid && m_doingProbeUpdate) {
+
+			effects->taa_current_sample = 1;
+
+			mul_m4_m4m4(effects->overide_persmat, effects->overide_winmat, viewmat);
+			invert_m4_m4(effects->overide_persinv, effects->overide_persmat);
+			invert_m4_m4(effects->overide_wininv, effects->overide_winmat);
+
+			DRW_viewport_matrix_override_set(effects->overide_persmat, DRW_MAT_PERS);
+			DRW_viewport_matrix_override_set(effects->overide_persinv, DRW_MAT_PERSINV);
+			DRW_viewport_matrix_override_set(effects->overide_winmat, DRW_MAT_WIN);
+			DRW_viewport_matrix_override_set(effects->overide_wininv, DRW_MAT_WININV);
+
+			m_doingTAA = false;
+		}
+
 		else {
 			effects->taa_current_sample = 1;
 
