@@ -221,7 +221,7 @@ void KX_BlenderMaterial::OnConstruction()
 	}
 
 	InitTextures();
-	m_scene->GetBucketManager()->UpdateShaders(this);
+	//m_scene->GetBucketManager()->UpdateShaders(this);
 
 	m_blendFunc[0] = 0;
 	m_blendFunc[1] = 0;
