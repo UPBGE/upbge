@@ -51,11 +51,9 @@ extern "C" {
 	extern char datatoc_RAS_GrayScale2DFilter_glsl[];
 	extern char datatoc_RAS_Sepia2DFilter_glsl[];
 	extern char datatoc_RAS_Invert2DFilter_glsl[];
-	extern char datatoc_RAS_ToneMapping2DFilter_glsl[];
 }
 
-RAS_2DFilterManager::RAS_2DFilterManager():
-m_toneMapFilter(nullptr)
+RAS_2DFilterManager::RAS_2DFilterManager()
 {
 }
 
@@ -89,51 +87,8 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 	return (it != m_filters.end()) ? it->second : nullptr;
 }
 
-void RAS_2DFilterManager::ApplyToneMap(KX_Scene *scene)
-{
-	/* We want to apply tonemap filter only to the last scene.
-	 * Else the tonemap is applied twice (or more) and rendered
-	 * color is wrong.
-	 */
-
-	/* First we check if tonemap filter exists */
-	if (m_toneMapFilter) {
-		/* Then we check if the scene is the last */
-		if (scene->GetIsLastScene()) {
-			/* We check also if the tonemap filter is not already enabled */
-			if (!m_toneMapFilter->GetEnabled()) {
-				/* We have to enable it */
-				m_toneMapFilter->SetEnabled(true);
-			}
-		}
-		/* In the case the tonemap filter exists, is enabled,
-		 * but if we are not in last scene, we have to disable it
-		 */
-		else {
-			if (m_toneMapFilter->GetEnabled()) {
-				m_toneMapFilter->SetEnabled(false);
-			}
-		}
-	}
-	/* If tonemap filter doesn't exist in this filter manager (filter manager belongs to KX_Scene) */
-	else if (!m_toneMapFilter) {
-		/* We check if we are in last scene */
-		if (scene->GetIsLastScene()) {
-			/* We create it (creation enables it) */
-			RAS_2DFilterData toneMapData;
-			toneMapData.filterMode = RAS_2DFilterManager::FILTER_TONEMAP;
-			toneMapData.filterPassIndex = m_filters.size() + 1;
-			toneMapData.mipmap = false;
-			m_toneMapFilter = AddFilter(toneMapData);
-		}
-	}
-}
-
 RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_FrameBuffer *inputfb, RAS_FrameBuffer *targetfb, KX_Scene *scene)
 {
-	/* Apply tonemap filter only to the last scene */
-	ApplyToneMap(scene);
-
 	if (m_filters.size() == 0) {
 		// No filters, discard.
 		return inputfb;
@@ -241,9 +196,6 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 			break;
 		case RAS_2DFilterManager::FILTER_INVERT:
 			shaderSource = datatoc_RAS_Invert2DFilter_glsl;
-			break;
-		case RAS_2DFilterManager::FILTER_TONEMAP:
-			shaderSource = datatoc_RAS_ToneMapping2DFilter_glsl;
 			break;
 	}
 	if (shaderSource.empty()) {

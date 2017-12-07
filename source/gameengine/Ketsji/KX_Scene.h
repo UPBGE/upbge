@@ -150,10 +150,6 @@ private:
 protected:
 
 	/***************EEVEE INTEGRATION*****************/
-	// Used for Tonemap (only if we use bge postrendering)
-	bool m_isLastScene;
-
-
 	bool m_dofInitialized;
 	bool m_taaInitialized;
 
@@ -354,9 +350,6 @@ public:
 	~KX_Scene();
 
 	/******************EEVEE INTEGRATION************************/
-	void SetIsLastScene(bool isLastScene); // temp (used for bge post process but disabled for now)
-	bool GetIsLastScene(); // temp (used for bge post process but disabled for now)
-
 	void InitScenePasses(EEVEE_PassList *psl);
 	std::vector<DRWPass *>GetMaterialPasses();
 

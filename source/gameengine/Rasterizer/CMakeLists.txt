@@ -129,7 +129,6 @@ data_to_c_simple(RAS_OpenGLFilters/RAS_Prewitt2DFilter.glsl SRC)
 data_to_c_simple(RAS_OpenGLFilters/RAS_Sepia2DFilter.glsl SRC)
 data_to_c_simple(RAS_OpenGLFilters/RAS_Sharpen2DFilter.glsl SRC)
 data_to_c_simple(RAS_OpenGLFilters/RAS_Sobel2DFilter.glsl SRC)
-data_to_c_simple(RAS_OpenGLFilters/RAS_ToneMapping2DFilter.glsl SRC)
 data_to_c_simple(RAS_OpenGLFilters/RAS_VertexShader2DFilter.glsl SRC)
 
 add_definitions(${GL_DEFINITIONS})

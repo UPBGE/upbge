@@ -181,7 +181,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_lodHysteresisValue(0),
 	m_dofInitialized(false),
 	m_doingProbeUpdate(false),
-	m_isLastScene(false),
 	m_doingTAA(false),
 	m_taaInitialized(false)
 {
@@ -375,16 +374,6 @@ void KX_Scene::InitScenePasses(EEVEE_PassList *psl)
 std::vector<DRWPass *>KX_Scene::GetMaterialPasses()
 {
 	return m_materialPasses;
-}
-
-void KX_Scene::SetIsLastScene(bool isLastScene)
-{
-	m_isLastScene = isLastScene;
-}
-
-bool KX_Scene::GetIsLastScene()
-{
-	return m_isLastScene;
 }
 
 void KX_Scene::AppendProbeList(KX_GameObject *probe)

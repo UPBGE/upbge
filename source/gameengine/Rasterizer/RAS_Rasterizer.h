@@ -418,7 +418,7 @@ public:
 	void ToneMapGpuTex(GPUTexture *gputex);
 
 	/// Update dimensions of all off screens.
-	void UpdateOffScreens(RAS_ICanvas *canvas);
+	void UpdateFrameBuffers(RAS_ICanvas *canvas);
 
 	/** Return the corresponding off screen to off screen type.
 	 * \param type The off screen type to return.

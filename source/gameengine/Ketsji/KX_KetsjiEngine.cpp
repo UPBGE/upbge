@@ -627,6 +627,11 @@ void KX_KetsjiEngine::Render()
 	// clear the entire game screen with the border color
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 
+	m_rasterizer->UpdateFrameBuffers(m_canvas);
+	EEVEE_Data *vedata = EEVEE_engine_data_get();
+	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+	RAS_FrameBuffer *lastfb;
+
 	KX_Scene *firstscene = m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 	// Use the framing bar color set in the Blender scenes
@@ -652,6 +657,18 @@ void KX_KetsjiEngine::Render()
 				// do the rendering
 				RenderCamera(scene, cameraFrameData, pass++);
 			}
+
+			RAS_FrameBuffer *fb = m_rasterizer->GetFrameBuffer(frameData.m_fbType);
+
+			DRW_framebuffer_texture_attach(fb->GetFrameBuffer(), vedata->stl->effects->source_buffer, 0, 0);
+			DRW_framebuffer_texture_attach(fb->GetFrameBuffer(), vedata->txl->maxzbuffer, 0, 0);
+
+			RAS_Rasterizer::FrameBufferType next = m_rasterizer->NextRenderFrameBuffer(fb->GetType());
+
+			fb = PostRenderScene(scene, fb, m_rasterizer->GetFrameBuffer(next));
+			lastfb = fb;
+
+			frameData.m_fbType = fb->GetType();
 		}
 	}
 
@@ -661,8 +678,7 @@ void KX_KetsjiEngine::Render()
 
 	GPU_framebuffer_restore();
 
-	EEVEE_Data *vedata = EEVEE_engine_data_get();
-	DRW_transform_to_display(vedata->stl->effects->source_buffer);
+	DRW_transform_to_display(GPU_framebuffer_color_texture(lastfb->GetFrameBuffer()));
 
 	EndFrame();
 }

@@ -496,7 +496,7 @@ void RAS_Rasterizer::FlushDebugDraw(SCA_IScene *scene, RAS_ICanvas *canvas)
 	m_debugDraws[scene].Flush(this, canvas);
 }
 
-void RAS_Rasterizer::UpdateOffScreens(RAS_ICanvas *canvas)
+void RAS_Rasterizer::UpdateFrameBuffers(RAS_ICanvas *canvas)
 {
 	m_frameBuffers.Update(canvas);
 }
