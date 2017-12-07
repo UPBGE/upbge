@@ -93,6 +93,7 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "WM_message.h"
 
 #include "wm_cursors.h"
 #include "wm_event_system.h"
@@ -178,8 +179,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	BKE_blender_callback_test_break_set(wm_window_testbreak); /* blender.c */
 	BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
 	DEG_editors_set_update_cb(ED_render_id_flush_update,
-	                          ED_render_scene_update,
-	                          ED_render_scene_update_pre);
+	                          ED_render_scene_update);
 	
 	ED_spacetypes_init();   /* editors/space_api/spacetype.c */
 	
@@ -192,6 +192,8 @@ void WM_init(bContext *C, int argc, const char **argv)
 	/* reports cant be initialized before the wm,
 	 * but keep before file reading, since that may report errors */
 	wm_init_reports(C);
+
+	WM_msgbus_types_init();
 
 	/* get the default database, plus a wm */
 	wm_homefile_read(C, NULL, G.factory_startup, false, true, NULL, NULL);
@@ -579,7 +581,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	ED_file_exit(); /* for fsmenu */
 
 	UI_exit();
-	BKE_blender_userdef_free_data(&U);
+	BKE_blender_userdef_data_free(&U, false);
 
 	RNA_exit(); /* should be after BPY_python_end so struct python slots are cleared */
 	

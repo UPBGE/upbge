@@ -65,6 +65,7 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "WM_message.h"
 
 #include "ED_armature.h"
 #include "ED_curve.h"
@@ -591,12 +592,12 @@ static int calc_manipulator_stats(
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Object *obedit = CTX_data_edit_object(C);
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
 	Base *base;
-	Object *ob = OBACT(sl);
+	Object *ob = OBACT(view_layer);
 	bGPdata *gpd = CTX_data_gpencil_data(C);
 	const bool is_gp_edit = ((gpd) && (gpd->flag & GP_DATA_STROKE_EDITMODE));
 	int a, totsel = 0;
@@ -972,7 +973,7 @@ static int calc_manipulator_stats(
 		/* pass */
 	}
 	else if (ob && ob->mode & OB_MODE_PARTICLE_EDIT) {
-		PTCacheEdit *edit = PE_get_current(scene, sl, ob);
+		PTCacheEdit *edit = PE_get_current(scene, view_layer, ob);
 		PTCacheEditPoint *point;
 		PTCacheEditKey *ek;
 		int k;
@@ -998,11 +999,11 @@ static int calc_manipulator_stats(
 	else {
 
 		/* we need the one selected object, if its not active */
-		base = BASACT(sl);
-		ob = OBACT(sl);
+		base = BASACT(view_layer);
+		ob = OBACT(view_layer);
 		if (base && ((base->flag & BASE_SELECTED) == 0)) ob = NULL;
 
-		for (base = sl->object_bases.first; base; base = base->next) {
+		for (base = view_layer->object_bases.first; base; base = base->next) {
 			if (TESTBASELIB(base)) {
 				if (ob == NULL)
 					ob = base->object;
@@ -1055,14 +1056,14 @@ static void manipulator_prepare_mat(
         const bContext *C, View3D *v3d, RegionView3D *rv3d, const struct TransformBounds *tbounds)
 {
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 
 	switch (v3d->around) {
 		case V3D_AROUND_CENTER_BOUNDS:
 		case V3D_AROUND_ACTIVE:
 		{
 			bGPdata *gpd = CTX_data_gpencil_data(C);
-			Object *ob = OBACT(sl);
+			Object *ob = OBACT(view_layer);
 
 			if (((v3d->around == V3D_AROUND_ACTIVE) && (scene->obedit == NULL)) &&
 			    ((gpd == NULL) || !(gpd->flag & GP_DATA_STROKE_EDITMODE)) &&
@@ -1113,6 +1114,47 @@ static void manipulator_line_range(const View3D *v3d, const short axis_type, flo
 	}
 
 	*r_len -= *r_start;
+}
+
+static void manipulator_xform_message_subscribe(
+        wmManipulatorGroup *mgroup, struct wmMsgBus *mbus,
+        bScreen *screen, ScrArea *sa, ARegion *ar, const void *type_fn)
+{
+	/* Subscribe to view properties */
+	wmMsgSubscribeValue msg_sub_value_mpr_tag_refresh = {
+		.owner = ar,
+		.user_data = mgroup->parent_mmap,
+		.notify = WM_manipulator_do_msg_notify_tag_refresh,
+	};
+
+	PointerRNA space_ptr;
+	RNA_pointer_create(&screen->id, &RNA_SpaceView3D, sa->spacedata.first, &space_ptr);
+
+	{
+		extern PropertyRNA rna_SpaceView3D_transform_orientation;
+		const PropertyRNA *props[] = {
+			&rna_SpaceView3D_transform_orientation,
+		};
+		for (int i = 0; i < ARRAY_SIZE(props); i++) {
+			WM_msg_subscribe_rna(mbus, &space_ptr, props[i], &msg_sub_value_mpr_tag_refresh, __func__);
+		}
+	}
+
+	if (type_fn == TRANSFORM_WGT_manipulator) {
+		extern PropertyRNA rna_SpaceView3D_pivot_point;
+		const PropertyRNA *props[] = {
+			&rna_SpaceView3D_pivot_point
+		};
+		for (int i = 0; i < ARRAY_SIZE(props); i++) {
+			WM_msg_subscribe_rna(mbus, &space_ptr, props[i], &msg_sub_value_mpr_tag_refresh, __func__);
+		}
+	}
+	else if (type_fn == VIEW3D_WGT_xform_cage) {
+		/* pass */
+	}
+	else {
+		BLI_assert(0);
+	}
 }
 
 /** \} */
@@ -1383,6 +1425,15 @@ static void WIDGETGROUP_manipulator_refresh(const bContext *C, wmManipulatorGrou
 	MAN_ITER_AXES_END;
 }
 
+static void WIDGETGROUP_manipulator_message_subscribe(
+        const bContext *C, wmManipulatorGroup *mgroup, struct wmMsgBus *mbus)
+{
+	bScreen *screen = CTX_wm_screen(C);
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+	manipulator_xform_message_subscribe(mgroup, mbus, screen, sa, ar, TRANSFORM_WGT_manipulator);
+}
+
 static void WIDGETGROUP_manipulator_draw_prepare(const bContext *C, wmManipulatorGroup *mgroup)
 {
 	ManipulatorGroup *man = mgroup->customdata;
@@ -1464,6 +1515,7 @@ void TRANSFORM_WGT_manipulator(wmManipulatorGroupType *wgt)
 	wgt->poll = WIDGETGROUP_manipulator_poll;
 	wgt->setup = WIDGETGROUP_manipulator_setup;
 	wgt->refresh = WIDGETGROUP_manipulator_refresh;
+	wgt->message_subscribe = WIDGETGROUP_manipulator_message_subscribe;
 	wgt->draw_prepare = WIDGETGROUP_manipulator_draw_prepare;
 }
 
@@ -1500,7 +1552,7 @@ static void WIDGETGROUP_xform_cage_setup(const bContext *UNUSED(C), wmManipulato
 	             ED_MANIPULATOR_CAGE2D_XFORM_FLAG_TRANSLATE);
 
 	mpr->color[0] = 1;
-	mpr->color_hi[0]=1;
+	mpr->color_hi[0] =1;
 
 	mgroup->customdata = xmgroup;
 
@@ -1585,13 +1637,22 @@ static void WIDGETGROUP_xform_cage_refresh(const bContext *C, wmManipulatorGroup
 	}
 }
 
+static void WIDGETGROUP_xform_cage_message_subscribe(
+        const bContext *C, wmManipulatorGroup *mgroup, struct wmMsgBus *mbus)
+{
+	bScreen *screen = CTX_wm_screen(C);
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+	manipulator_xform_message_subscribe(mgroup, mbus, screen, sa, ar, VIEW3D_WGT_xform_cage);
+}
+
 static void WIDGETGROUP_xform_cage_draw_prepare(const bContext *C, wmManipulatorGroup *mgroup)
 {
 	struct XFormCageWidgetGroup *xmgroup = mgroup->customdata;
 	wmManipulator *mpr = xmgroup->manipulator;
 
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	Object *ob = OBACT(sl);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	Object *ob = OBACT(view_layer);
 	if (ob && ob->mode & OB_MODE_EDIT) {
 		copy_m4_m4(mpr->matrix_space, ob->obmat);
 	}
@@ -1605,8 +1666,7 @@ void VIEW3D_WGT_xform_cage(wmManipulatorGroupType *wgt)
 	wgt->name = "Transform Cage";
 	wgt->idname = "VIEW3D_WGT_xform_cage";
 
-	wgt->flag |= (WM_MANIPULATORGROUPTYPE_3D |
-	              WM_MANIPULATORGROUPTYPE_DEPTH_3D);
+	wgt->flag |= WM_MANIPULATORGROUPTYPE_3D;
 
 	wgt->mmap_params.spaceid = SPACE_VIEW3D;
 	wgt->mmap_params.regionid = RGN_TYPE_WINDOW;
@@ -1614,6 +1674,7 @@ void VIEW3D_WGT_xform_cage(wmManipulatorGroupType *wgt)
 	wgt->poll = WIDGETGROUP_xform_cage_poll;
 	wgt->setup = WIDGETGROUP_xform_cage_setup;
 	wgt->refresh = WIDGETGROUP_xform_cage_refresh;
+	wgt->message_subscribe = WIDGETGROUP_xform_cage_message_subscribe;
 	wgt->draw_prepare = WIDGETGROUP_xform_cage_draw_prepare;
 }
 

@@ -111,11 +111,6 @@ void lib_id_recalc_tag_flag(Main *bmain, ID *id, int flag)
 	 * after relations update and after layer visibility changes.
 	 */
 	if (flag) {
-		ID_Type id_type = GS(id->name);
-		if (id_type == ID_OB) {
-			Object *object = (Object *)id;
-			object->recalc |= (flag & OB_RECALC_ALL);
-		}
 		if (flag & OB_RECALC_OB) {
 			lib_id_recalc_tag(bmain, id);
 		}
@@ -282,6 +277,89 @@ void id_tag_update_copy_on_write(Depsgraph *graph, IDDepsNode *id_node)
 	cow_node->tag_update(graph);
 }
 
+void id_tag_update_select_update(Depsgraph *graph, IDDepsNode *id_node)
+{
+	ComponentDepsNode *component;
+	OperationDepsNode *node = NULL;
+	const ID_Type id_type = GS(id_node->id_orig->name);
+	if (id_type == ID_SCE) {
+		/* We need to flush base flags to all objects in a scene since we
+		 * don't know which ones changed. However, we don't want to update
+		 * the whole scene, so pick up some operation which will do as less
+		 * as possible.
+		 *
+		 * TODO(sergey): We can introduce explicit exit operation which
+		 * does nothing and which is only used to cascade flush down the
+		 * road.
+		 */
+		component = id_node->find_component(DEG_NODE_TYPE_LAYER_COLLECTIONS);
+		BLI_assert(component != NULL);
+		if (component != NULL) {
+			node = component->find_operation(DEG_OPCODE_VIEW_LAYER_DONE);
+		}
+	}
+	else if (id_type == ID_OB) {
+		component = id_node->find_component(DEG_NODE_TYPE_LAYER_COLLECTIONS);
+		/* NOTE: This component might be missing for indirectly linked
+		 * objects.
+		 */
+		if (component != NULL) {
+			node = component->find_operation(DEG_OPCODE_OBJECT_BASE_FLAGS);
+		}
+	}
+	else {
+		component = id_node->find_component(DEG_NODE_TYPE_BATCH_CACHE);
+		BLI_assert(component != NULL);
+		if (component != NULL) {
+			node = component->find_operation(DEG_OPCODE_GEOMETRY_SELECT_UPDATE,
+			                                 "", -1);
+		}
+	}
+	if (node != NULL) {
+		node->tag_update(graph);
+	}
+}
+
+void id_tag_update_base_flags(Depsgraph *graph, IDDepsNode *id_node)
+{
+	ComponentDepsNode *component;
+	OperationDepsNode *node = NULL;
+	const ID_Type id_type = GS(id_node->id_orig->name);
+	if (id_type == ID_SCE) {
+		component = id_node->find_component(DEG_NODE_TYPE_LAYER_COLLECTIONS);
+		if (component == NULL) {
+			return;
+		}
+		node = component->find_operation(DEG_OPCODE_VIEW_LAYER_INIT);
+	}
+	else if (id_type == ID_OB) {
+		component = id_node->find_component(DEG_NODE_TYPE_LAYER_COLLECTIONS);
+		if (component == NULL) {
+			return;
+		}
+		node = component->find_operation(DEG_OPCODE_OBJECT_BASE_FLAGS);
+		if (node == NULL) {
+			return;
+		}
+	}
+	if (node != NULL) {
+		node->tag_update(graph);
+	}
+}
+
+void id_tag_update_editors_update(Main *bmain, Depsgraph *graph, ID *id)
+{
+	/* NOTE: We handle this immediately, without delaying anything, to be
+	 * sure we don't cause threading issues with OpenGL.
+	 */
+	/* TODO(sergey): Make sure this works for CoW-ed datablocks as well. */
+	DEGEditorUpdateContext update_ctx = {NULL};
+	update_ctx.bmain = bmain;
+	update_ctx.scene = graph->scene;
+	update_ctx.view_layer = graph->view_layer;
+	deg_editors_id_update(&update_ctx, id);
+}
+
 void id_tag_update_ntree_special(Main *bmain, Depsgraph *graph, ID *id, int flag)
 {
 	bNodeTree *ntree = NULL;
@@ -345,6 +423,15 @@ void deg_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id, int flag)
 	if (flag & DEG_TAG_COPY_ON_WRITE) {
 		id_tag_update_copy_on_write(graph, id_node);
 	}
+	if (flag & DEG_TAG_SELECT_UPDATE) {
+		id_tag_update_select_update(graph, id_node);
+	}
+	if (flag & DEG_TAG_BASE_FLAGS_UPDATE) {
+		id_tag_update_base_flags(graph, id_node);
+	}
+	if (flag & DEG_TAG_EDITORS_UPDATE) {
+		id_tag_update_editors_update(bmain, graph, id);
+	}
 	id_tag_update_ntree_special(bmain, graph, id, flag);
 }
 
@@ -352,10 +439,10 @@ void deg_id_tag_update(Main *bmain, ID *id, int flag)
 {
 	lib_id_recalc_tag_flag(bmain, id, flag);
 	LINKLIST_FOREACH(Scene *, scene, &bmain->scene) {
-		LINKLIST_FOREACH(SceneLayer *, scene_layer, &scene->render_layers) {
+		LINKLIST_FOREACH(ViewLayer *, view_layer, &scene->view_layers) {
 			Depsgraph *depsgraph =
 			        (Depsgraph *)BKE_scene_get_depsgraph(scene,
-			                                             scene_layer,
+			                                             view_layer,
 			                                             false);
 			if (depsgraph != NULL) {
 				deg_graph_id_tag_update(bmain, depsgraph, id, flag);
@@ -369,14 +456,6 @@ void deg_graph_on_visible_update(Main *bmain, Depsgraph *graph)
 	/* Make sure objects are up to date. */
 	foreach (DEG::IDDepsNode *id_node, graph->id_nodes) {
 		const ID_Type id_type = GS(id_node->id_orig->name);
-		/* TODO(sergey): Special exception for now. */
-		if (id_type == ID_MSK) {
-			deg_graph_id_tag_update(bmain, graph, id_node->id_orig, 0);
-		}
-		if (id_type != ID_OB) {
-			/* Ignore non-object nodes on visibility changes. */
-			continue;
-		}
 		int flag = 0;
 		/* We only tag components which needs an update. Tagging everything is
 		 * not a good idea because that might reset particles cache (or any
@@ -426,7 +505,7 @@ void DEG_graph_id_tag_update(struct Main *bmain,
 	DEG::deg_graph_id_tag_update(bmain, graph, id, flag);
 }
 
-/* Tag given ID type for update. */
+/* Mark a particular datablock type as having changing. */
 void DEG_id_type_tag(Main *bmain, short id_type)
 {
 	if (id_type == ID_NT) {
@@ -461,10 +540,10 @@ void DEG_graph_on_visible_update(Main *bmain, Depsgraph *depsgraph)
 void DEG_on_visible_update(Main *bmain, const bool UNUSED(do_time))
 {
 	LINKLIST_FOREACH(Scene *, scene, &bmain->scene) {
-		LINKLIST_FOREACH(SceneLayer *, scene_layer, &scene->render_layers) {
+		LINKLIST_FOREACH(ViewLayer *, view_layer, &scene->view_layers) {
 			Depsgraph *depsgraph =
 			        (Depsgraph *)BKE_scene_get_depsgraph(scene,
-			                                             scene_layer,
+			                                             view_layer,
 			                                             false);
 			if (depsgraph != NULL) {
 				DEG_graph_on_visible_update(bmain, depsgraph);
@@ -476,7 +555,10 @@ void DEG_on_visible_update(Main *bmain, const bool UNUSED(do_time))
 /* Check if something was changed in the database and inform
  * editors about this.
  */
-void DEG_ids_check_recalc(Main *bmain, Scene *scene, bool time)
+void DEG_ids_check_recalc(Main *bmain,
+                          Scene *scene,
+                          ViewLayer *view_layer,
+                          bool time)
 {
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a;
@@ -494,7 +576,11 @@ void DEG_ids_check_recalc(Main *bmain, Scene *scene, bool time)
 		}
 	}
 
-	DEG::deg_editors_scene_update(bmain, scene, (updated || time));
+	DEGEditorUpdateContext update_ctx = {NULL};
+	update_ctx.bmain = bmain;
+	update_ctx.scene = scene;
+	update_ctx.view_layer = view_layer;
+	DEG::deg_editors_scene_update(&update_ctx, (updated || time));
 }
 
 void DEG_ids_clear_recalc(Main *bmain)

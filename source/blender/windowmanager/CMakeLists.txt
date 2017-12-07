@@ -72,12 +72,16 @@ set(SRC
 	intern/wm_subwindow.c
 	intern/wm_window.c
 	intern/wm_stereo.c
+	intern/wm_toolsystem.c
 	manipulators/intern/wm_manipulator.c
 	manipulators/intern/wm_manipulator_group.c
 	manipulators/intern/wm_manipulator_group_type.c
 	manipulators/intern/wm_manipulator_map.c
 	manipulators/intern/wm_manipulator_target_props.c
 	manipulators/intern/wm_manipulator_type.c
+	message_bus/intern/wm_message_bus.c
+	message_bus/intern/wm_message_bus_rna.c
+	message_bus/intern/wm_message_bus_static.c
 
 	WM_api.h
 	WM_keymap.h
@@ -95,6 +99,8 @@ set(SRC
 	manipulators/wm_manipulator_fn.h
 	manipulators/wm_manipulator_wmapi.h
 	manipulators/intern/wm_manipulator_intern.h
+	message_bus/intern/wm_message_bus_intern.h
+	message_bus/wm_message_bus.h
 )
 
 if(WITH_AUDASPACE)

@@ -42,7 +42,7 @@ struct TreeStoreElem;
 struct Main;
 struct bContext;
 struct Scene;
-struct SceneLayer;
+struct ViewLayer;
 struct ID;
 struct Object;
 struct bPoseChannel;
@@ -67,9 +67,8 @@ typedef enum TreeTraversalAction {
 
 /**
  * Callback type for reinserting elements at a different position, used to allow user customizable element order.
- * Passing scene right now, may be better to allow some custom data.
  */
-typedef void (*TreeElementReinsertFunc)(struct Main *bmain, const struct Scene *scene,
+typedef void (*TreeElementReinsertFunc)(struct Main *bmain,
                                         struct TreeElement *insert_element,
                                         struct TreeElement *insert_handle, TreeElementInsertType action);
 /**
@@ -77,7 +76,7 @@ typedef void (*TreeElementReinsertFunc)(struct Main *bmain, const struct Scene *
  * if reinserting insert_element before/after/into insert_handle would be allowed.
  * It's allowed to change the reinsert info here for non const pointers.
  */
-typedef bool (*TreeElementReinsertPollFunc)(const struct Scene *scene, const struct TreeElement *insert_element,
+typedef bool (*TreeElementReinsertPollFunc)(const struct TreeElement *insert_element,
                                             struct TreeElement **io_insert_handle, TreeElementInsertType *io_action);
 typedef TreeTraversalAction (*TreeTraversalFunc)(struct TreeElement *te, void *customdata);
 
@@ -183,7 +182,7 @@ void outliner_free_tree(ListBase *lb);
 void outliner_cleanup_tree(struct SpaceOops *soops);
 void outliner_remove_treestore_element(struct SpaceOops *soops, TreeStoreElem *tselem);
 
-void outliner_build_tree(struct Main *mainvar, struct Scene *scene, struct SceneLayer *sl, struct SpaceOops *soops);
+void outliner_build_tree(struct Main *mainvar, struct Scene *scene, struct ViewLayer *view_layer, struct SpaceOops *soops);
 
 /* outliner_draw.c ---------------------------------------------- */
 
@@ -192,9 +191,9 @@ void restrictbutton_gr_restrict_flag(void *poin, void *poin2, int flag);
 
 /* outliner_select.c -------------------------------------------- */
 eOLDrawState tree_element_type_active(
-        struct bContext *C, struct Scene *scene, struct SceneLayer *sl, struct SpaceOops *soops,
+        struct bContext *C, struct Scene *scene, struct ViewLayer *view_layer, struct SpaceOops *soops,
         TreeElement *te, TreeStoreElem *tselem, const eOLSetState set, bool recursive);
-eOLDrawState tree_element_active(struct bContext *C, struct Scene *scene, struct SceneLayer *sl, SpaceOops *soops,
+eOLDrawState tree_element_active(struct bContext *C, struct Scene *scene, struct ViewLayer *view_layer, SpaceOops *soops,
                                  TreeElement *te, const eOLSetState set, const bool handle_all_types);
 
 void outliner_item_do_activate_from_tree_element(

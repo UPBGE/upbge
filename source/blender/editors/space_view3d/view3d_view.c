@@ -69,7 +69,7 @@
 
 #include "DRW_engine.h"
 
-#include "DEG_depsgraph_build.h" // For bge launch
+#include "DEG_depsgraph_build.h" // Game engine transition
 
 
 #ifdef WITH_GAMEENGINE
@@ -549,7 +549,7 @@ void VIEW3D_OT_camera_to_view(wmOperatorType *ot)
 static int view3d_camera_to_view_selected_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	View3D *v3d = CTX_wm_view3d(C);  /* can be NULL */
 	Object *camera_ob = v3d ? v3d->camera : scene->camera;
 
@@ -562,7 +562,7 @@ static int view3d_camera_to_view_selected_exec(bContext *C, wmOperator *op)
 	}
 
 	/* this function does all the important stuff */
-	if (BKE_camera_view_frame_fit_to_scene(scene, sl, camera_ob, r_co, &r_scale)) {
+	if (BKE_camera_view_frame_fit_to_scene(scene, view_layer, camera_ob, r_co, &r_scale)) {
 		ObjectTfmProtectedChannels obtfm;
 		float obmat_new[4][4];
 
@@ -1329,7 +1329,7 @@ finally:
 	return hits;
 }
 
-int ED_view3d_scene_layer_set(int lay, const int *values, int *active)
+int ED_view3d_view_layer_set(int lay, const int *values, int *active)
 {
 	int i, tot = 0;
 	
@@ -1518,11 +1518,12 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	if (!ED_view3d_context_activate(C))
 		return OPERATOR_CANCELLED;
 
-	for (Scene *sc = (Scene *)bmain->scene.first; sc; sc = (Scene *)sc->id.next) {
-		SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(sc);
-		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, scene_layer, true);
-		DEG_graph_relations_update(depsgraph, bmain, sc, scene_layer);
-	}
+
+	ViewLayer *view_layer = BKE_view_layer_from_scene_get(startscene);
+	
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(startscene, view_layer, true);
+	//DEG_graph_build_from_view_layer(depsgraph, bmain, startscene, view_layer);
+	DEG_graph_relations_update(depsgraph, bmain, startscene, view_layer);
 	
 	/* redraw to hide any menus/popups, we don't go back to
 	 * the window manager until after this operator exits */

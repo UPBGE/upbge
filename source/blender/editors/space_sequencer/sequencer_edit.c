@@ -95,6 +95,7 @@ EnumPropertyItem sequencer_prop_effect_types[] = {
 	{SEQ_TYPE_ADJUSTMENT, "ADJUSTMENT", 0, "Adjustment Layer", ""},
 	{SEQ_TYPE_GAUSSIAN_BLUR, "GAUSSIAN_BLUR", 0, "Gaussian Blur", ""},
 	{SEQ_TYPE_TEXT, "TEXT", 0, "Text", ""},
+	{SEQ_TYPE_COLORMIX, "COLORMIX", 0, "Color Mix", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -694,7 +695,7 @@ static Sequence *cut_seq_hard(Scene *scene, Sequence *seq, int cutframe)
 		BKE_sequence_calc(scene, seq);
 	}
 
-	if ((seq->startstill) && (cutframe < seq->start)) {
+	if ((seq->startstill) && (cutframe <= seq->start)) {
 		/* don't do funny things with METAs ... */
 		if (seq->type == SEQ_TYPE_META) {
 			skip_dup = true;
@@ -708,13 +709,15 @@ static Sequence *cut_seq_hard(Scene *scene, Sequence *seq, int cutframe)
 		}
 	}
 	/* normal strip */
-	else if ((cutframe >= seq->start) && (cutframe <= (seq->start + seq->len))) {
+	else if ((cutframe >= seq->start) && (cutframe < (seq->start + seq->len))) {
 		seq->endofs = 0;
 		seq->endstill = 0;
 		seq->anim_endofs += (seq->start + seq->len) - cutframe;
 	}
 	/* strips with extended stillframes after */
-	else if (((seq->start + seq->len) < cutframe) && (seq->endstill)) {
+	else if (((seq->start + seq->len) == cutframe) ||
+	         (((seq->start + seq->len) < cutframe) && (seq->endstill)))
+	{
 		seq->endstill -= seq->enddisp - cutframe;
 		/* don't do funny things with METAs ... */
 		if (seq->type == SEQ_TYPE_META) {
@@ -743,7 +746,7 @@ static Sequence *cut_seq_hard(Scene *scene, Sequence *seq, int cutframe)
 		}
 		
 		/* normal strip */
-		else if ((cutframe >= seqn->start) && (cutframe <= (seqn->start + seqn->len))) {
+		else if ((cutframe >= seqn->start) && (cutframe < (seqn->start + seqn->len))) {
 			seqn->start = cutframe;
 			seqn->startstill = 0;
 			seqn->startofs = 0;
@@ -754,7 +757,9 @@ static Sequence *cut_seq_hard(Scene *scene, Sequence *seq, int cutframe)
 		}
 		
 		/* strips with extended stillframes after */
-		else if (((seqn->start + seqn->len) < cutframe) && (seqn->endstill)) {
+		else if (((seqn->start + seqn->len) == cutframe) ||
+		         (((seqn->start + seqn->len) < cutframe) && (seqn->endstill)))
+		{
 			seqn->start = cutframe;
 			seqn->startofs = 0;
 			seqn->anim_startofs += ts.len - 1;
@@ -790,7 +795,7 @@ static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
 	/* First Strip! */
 	/* strips with extended stillfames before */
 	
-	if ((seq->startstill) && (cutframe < seq->start)) {
+	if ((seq->startstill) && (cutframe <= seq->start)) {
 		/* don't do funny things with METAs ... */
 		if (seq->type == SEQ_TYPE_META) {
 			skip_dup = true;
@@ -804,11 +809,13 @@ static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
 		}
 	}
 	/* normal strip */
-	else if ((cutframe >= seq->start) && (cutframe <= (seq->start + seq->len))) {
+	else if ((cutframe >= seq->start) && (cutframe < (seq->start + seq->len))) {
 		seq->endofs = (seq->start + seq->len) - cutframe;
 	}
 	/* strips with extended stillframes after */
-	else if (((seq->start + seq->len) < cutframe) && (seq->endstill)) {
+	else if (((seq->start + seq->len) == cutframe) ||
+	         (((seq->start + seq->len) < cutframe) && (seq->endstill)))
+	{
 		seq->endstill -= seq->enddisp - cutframe;
 		/* don't do funny things with METAs ... */
 		if (seq->type == SEQ_TYPE_META) {
@@ -834,9 +841,9 @@ static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
 			seqn->endofs = ts.endofs;
 			seqn->endstill = ts.endstill;
 		}
-		
+
 		/* normal strip */
-		else if ((cutframe >= seqn->start) && (cutframe <= (seqn->start + seqn->len))) {
+		if ((cutframe >= seqn->start) && (cutframe < (seqn->start + seqn->len))) {
 			seqn->startstill = 0;
 			seqn->startofs = cutframe - ts.start;
 			seqn->endofs = ts.endofs;
@@ -844,7 +851,9 @@ static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
 		}
 		
 		/* strips with extended stillframes after */
-		else if (((seqn->start + seqn->len) < cutframe) && (seqn->endstill)) {
+		else if (((seqn->start + seqn->len) == cutframe) ||
+		         (((seqn->start + seqn->len) < cutframe) && (seqn->endstill)))
+		{
 			seqn->start = cutframe - ts.len + 1;
 			seqn->startofs = ts.len - 1;
 			seqn->endstill = ts.enddisp - cutframe - 1;

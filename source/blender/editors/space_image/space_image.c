@@ -269,7 +269,7 @@ static void image_operatortypes(void)
 
 	WM_operatortype_append(IMAGE_OT_change_frame);
 
-	WM_operatortype_append(IMAGE_OT_read_renderlayers);
+	WM_operatortype_append(IMAGE_OT_read_viewlayers);
 	WM_operatortype_append(IMAGE_OT_render_border);
 	WM_operatortype_append(IMAGE_OT_clear_render_border);
 }
@@ -283,7 +283,7 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "IMAGE_OT_new", NKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_open", OKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_reload", RKEY, KM_PRESS, KM_ALT, 0);
-	WM_keymap_add_item(keymap, "IMAGE_OT_read_renderlayers", RKEY, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "IMAGE_OT_read_viewlayers", RKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_save", SKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_save_as", F3KEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_properties", NKEY, KM_PRESS, 0, 0);
@@ -537,8 +537,8 @@ static void image_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn, Sc
 				case ND_TRANSFORM:
 				case ND_MODIFIER:
 				{
-					SceneLayer *sl = BKE_scene_layer_from_workspace_get(scene, workspace);
-					Object *ob = OBACT(sl);
+					ViewLayer *view_layer = BKE_view_layer_from_workspace_get(scene, workspace);
+					Object *ob = OBACT(view_layer);
 					if (ob && (ob == wmn->reference) && (ob->mode & OB_MODE_EDIT)) {
 						if (sima->lock && (sima->flag & SI_DRAWSHADOW)) {
 							ED_area_tag_refresh(sa);
@@ -721,7 +721,7 @@ static void image_main_region_draw(const bContext *C, ARegion *ar)
 	Mask *mask = NULL;
 	bool curve = false;
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	View2D *v2d = &ar->v2d;
 	//View2DScrollers *scrollers;
 	float col[3];
@@ -757,7 +757,7 @@ static void image_main_region_draw(const bContext *C, ARegion *ar)
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
 
-	ED_uvedit_draw_main(sima, ar, scene, sl, obedit, obact, depsgraph);
+	ED_uvedit_draw_main(sima, ar, scene, view_layer, obedit, obact, depsgraph);
 
 	/* check for mask (delay draw) */
 	if (ED_space_image_show_uvedit(sima, obedit)) {

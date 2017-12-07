@@ -74,6 +74,7 @@ variables on the UI for now
 #include "BKE_curve.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
+#include "BKE_group.h"
 #include "BKE_modifier.h"
 #include "BKE_softbody.h"
 #include "BKE_pointcache.h"
@@ -514,35 +515,26 @@ static void ccd_build_deflector_hash_single(GHash *hash, Object *ob)
 /**
  * \note group overrides scene when not NULL.
  */
-static void ccd_build_deflector_hash(SceneLayer *sl, Group *group, Object *vertexowner, GHash *hash)
+static void ccd_build_deflector_hash(ViewLayer *view_layer, Group *group, Object *vertexowner, GHash *hash)
 {
 	Object *ob;
 
 	if (!hash) return;
 
+	/* Explicit collision group. */
 	if (group) {
-		/* Explicit collision group */
-		for (GroupObject *go = group->gobject.first; go; go = go->next) {
-			ob = go->ob;
-
-			if (ob == vertexowner || ob->type != OB_MESH)
-				continue;
-
-			ccd_build_deflector_hash_single(hash, ob);
-		}
+		view_layer = group->view_layer;
 	}
-	else {
-		for (Base *base = FIRSTBASE(sl); base; base = base->next) {
-			/*Only proceed for mesh object in same layer */
-			if (base->object->type == OB_MESH) {
-				ob = base->object;
-				if ((vertexowner) && (ob == vertexowner)) {
-					/* if vertexowner is given  we don't want to check collision with owner object */
-					continue;
-				}
 
-				ccd_build_deflector_hash_single(hash, ob);
+	for (Base *base = FIRSTBASE(view_layer); base; base = base->next) {
+		/* Only proceed for mesh object in same layer. */
+		if (base->object->type == OB_MESH) {
+			ob = base->object;
+			if (ob == vertexowner) {
+				/* If vertexowner is given  we don't want to check collision with owner object. */
+				continue;
 			}
+			ccd_build_deflector_hash_single(hash, ob);
 		}
 	}
 }
@@ -560,35 +552,27 @@ static void ccd_update_deflector_hash_single(GHash *hash, Object *ob)
 /**
  * \note group overrides scene when not NULL.
  */
-static void ccd_update_deflector_hash(SceneLayer *sl, Group *group, Object *vertexowner, GHash *hash)
+static void ccd_update_deflector_hash(ViewLayer *view_layer, Group *group, Object *vertexowner, GHash *hash)
 {
 	Object *ob;
 
 	if ((!hash) || (!vertexowner)) return;
 
+	/* Explicit collision group. */
 	if (group) {
-		/* Explicit collision group */
-		for (GroupObject *go = group->gobject.first; go; go = go->next) {
-			ob = go->ob;
+		view_layer = group->view_layer;
+	}
 
-			if (ob == vertexowner || ob->type != OB_MESH)
+	for (Base *base = FIRSTBASE(view_layer); base; base = base->next) {
+		/* Only proceed for mesh object in same layer. */
+		if (base->object->type == OB_MESH) {
+			ob = base->object;
+			if (ob == vertexowner) {
+				/* If vertexowner is given  we don't want to check collision with owner object. */
 				continue;
+			}
 
 			ccd_update_deflector_hash_single(hash, ob);
-		}
-	}
-	else {
-		for (Base *base = FIRSTBASE(sl); base; base = base->next) {
-			/*Only proceed for mesh object in same layer */
-			if (base->object->type == OB_MESH) {
-				ob = base->object;
-				if (ob == vertexowner) {
-					/* if vertexowner is given  we don't want to check collision with owner object */
-					continue;
-				}
-
-				ccd_update_deflector_hash_single(hash, ob);
-			}
 		}
 	}
 }
@@ -979,29 +963,21 @@ static void free_softbody_intern(SoftBody *sb)
 /**
  * \note group overrides scene when not NULL.
  */
-static bool are_there_deflectors(SceneLayer *sl, Group *group)
+static bool are_there_deflectors(ViewLayer *view_layer)
 {
-	if (group) {
-		for (GroupObject *go = group->gobject.first; go; go = go->next) {
-			if (go->ob->pd && go->ob->pd->deflect)
+	for (Base *base = FIRSTBASE(view_layer); base; base = base->next) {
+		if (base->object->pd) {
+			if (base->object->pd->deflect)
 				return 1;
-		}
-	}
-	else {
-		for (Base *base = FIRSTBASE(sl); base; base = base->next) {
-			if (base->object->pd) {
-				if (base->object->pd->deflect)
-					return 1;
-			}
 		}
 	}
 
 	return 0;
 }
 
-static int query_external_colliders(SceneLayer *sl, Group *group)
+static int query_external_colliders(ViewLayer *view_layer, Group *group)
 {
-	return(are_there_deflectors(sl, group));
+	return(are_there_deflectors(group != NULL ? group->view_layer : view_layer));
 }
 /* --- dependency information functions*/
 
@@ -2251,7 +2227,7 @@ static void softbody_calc_forcesEx(const struct EvaluationContext *eval_ctx, Sce
 	/* gravity = sb->grav * sb_grav_force_scale(ob); */ /* UNUSED */
 
 	/* check conditions for various options */
-	do_deflector= query_external_colliders(eval_ctx->scene_layer, sb->collision_group);
+	do_deflector= query_external_colliders(eval_ctx->view_layer, sb->collision_group);
 	/* do_selfcollision=((ob->softflag & OB_SB_EDGES) && (sb->bspring)&& (ob->softflag & OB_SB_SELF)); */ /* UNUSED */
 	do_springcollision=do_deflector && (ob->softflag & OB_SB_EDGES) &&(ob->softflag & OB_SB_EDGECOLL);
 	do_aero=((sb->aeroedge)&& (ob->softflag & OB_SB_EDGES));
@@ -2315,7 +2291,7 @@ static void softbody_calc_forces(const struct EvaluationContext *eval_ctx, Scene
 		}
 
 		/* check conditions for various options */
-		do_deflector= query_external_colliders(eval_ctx->scene_layer, sb->collision_group);
+		do_deflector= query_external_colliders(eval_ctx->view_layer, sb->collision_group);
 		do_selfcollision=((ob->softflag & OB_SB_EDGES) && (sb->bspring)&& (ob->softflag & OB_SB_SELF));
 		do_springcollision=do_deflector && (ob->softflag & OB_SB_EDGES) &&(ob->softflag & OB_SB_EDGECOLL);
 		do_aero=((sb->aeroedge)&& (ob->softflag & OB_SB_EDGES));
@@ -3526,11 +3502,11 @@ static void softbody_step(const struct EvaluationContext *eval_ctx, Scene *scene
 	 */
 	if (dtime < 0 || dtime > 10.5f) return;
 
-	ccd_update_deflector_hash(eval_ctx->scene_layer, sb->collision_group, ob, sb->scratch->colliderhash);
+	ccd_update_deflector_hash(eval_ctx->view_layer, sb->collision_group, ob, sb->scratch->colliderhash);
 
 	if (sb->scratch->needstobuildcollider) {
-		if (query_external_colliders(eval_ctx->scene_layer, sb->collision_group)) {
-			ccd_build_deflector_hash(eval_ctx->scene_layer, sb->collision_group, ob, sb->scratch->colliderhash);
+		if (query_external_colliders(eval_ctx->view_layer, sb->collision_group)) {
+			ccd_build_deflector_hash(eval_ctx->view_layer, sb->collision_group, ob, sb->scratch->colliderhash);
 		}
 		sb->scratch->needstobuildcollider=0;
 	}

@@ -307,6 +307,12 @@ static char *eevee_get_defines(int options)
 	if ((options & VAR_MAT_SSS) != 0) {
 		BLI_dynstr_appendf(ds, "#define USE_SSS\n");
 	}
+	if ((options & VAR_MAT_SSSALBED) != 0) {
+		BLI_dynstr_appendf(ds, "#define USE_SSS_ALBEDO\n");
+	}
+	if ((options & VAR_MAT_TRANSLUC) != 0) {
+		BLI_dynstr_appendf(ds, "#define USE_TRANSLUCENCY\n");
+	}
 	if ((options & VAR_MAT_VSM) != 0) {
 		BLI_dynstr_appendf(ds, "#define SHADOW_VSM\n");
 	}
@@ -345,8 +351,8 @@ static char *eevee_get_volume_defines(int options)
  * ssr_id can be null to disable ssr contribution.
  **/
 static void add_standard_uniforms(
-        DRWShadingGroup *shgrp, EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
-        int *ssr_id, float *refract_depth, bool use_ssrefraction, bool use_alpha_blend)
+        DRWShadingGroup *shgrp, EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata,
+        int *ssr_id, float *refract_depth, bool use_ssrefraction, bool use_alpha_blend, bool use_sss)
 {
 	if (ssr_id == NULL || !vedata->stl->g_data->valid_double_buffer) {
 		static int no_ssr = -1.0f;
@@ -368,6 +374,7 @@ static void add_standard_uniforms(
 	DRW_shgroup_uniform_buffer(shgrp, "probeCubes", &sldata->probe_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "probePlanars", &vedata->txl->planar_pool);
 	DRW_shgroup_uniform_buffer(shgrp, "irradianceGrid", &sldata->irradiance_pool);
+	DRW_shgroup_uniform_int(shgrp, "irradianceVisibilitySize", &sldata->probes->irradiance_vis_size, 1);
 	DRW_shgroup_uniform_buffer(shgrp, "shadowTexture", &sldata->shadow_pool);
 	DRW_shgroup_uniform_int(shgrp, "outputSsrId", ssr_id, 1);
 	DRW_shgroup_uniform_vec4(shgrp, "aoParameters[0]", &vedata->stl->effects->ao_dist, 2);
@@ -402,6 +409,10 @@ static void add_standard_uniforms(
 		DRW_shgroup_uniform_buffer(shgrp, "inTransmittance", &vedata->txl->volume_transmittance);
 		DRW_shgroup_uniform_vec2(shgrp, "volume_uv_ratio", (float *)sldata->volumetrics->volume_coord_scale, 1);
 		DRW_shgroup_uniform_vec3(shgrp, "volume_param", (float *)sldata->volumetrics->depth_param, 1);
+	}
+
+	if (use_sss) {
+		DRW_shgroup_uniform_bool(shgrp, "sssToggle", &sldata->probes->sss_toggle, 1);
 	}
 }
 
@@ -496,7 +507,10 @@ void EEVEE_materials_init(EEVEE_StorageList *stl)
 		BLI_dynstr_append(ds_frag, datatoc_ltc_lib_glsl);
 		BLI_dynstr_append(ds_frag, datatoc_bsdf_direct_lib_glsl);
 		BLI_dynstr_append(ds_frag, datatoc_lamps_lib_glsl);
-		BLI_dynstr_append(ds_frag, datatoc_lit_surface_frag_glsl);
+		for (int i = 0; i < 7; ++i) {
+			/* Add one for each Closure */
+			BLI_dynstr_append(ds_frag, datatoc_lit_surface_frag_glsl);
+		}
 		BLI_dynstr_append(ds_frag, datatoc_volumetric_lib_glsl);
 		e_data.frag_shader_lib = BLI_dynstr_get_cstring(ds_frag);
 		BLI_dynstr_free(ds_frag);
@@ -636,7 +650,7 @@ struct GPUMaterial *EEVEE_material_world_volume_get(struct Scene *scene, World *
 
 struct GPUMaterial *EEVEE_material_mesh_get(
         struct Scene *scene, Material *ma, EEVEE_Data *vedata,
-        bool use_blend, bool use_multiply, bool use_refract, bool use_sss, int shadow_method)
+        bool use_blend, bool use_multiply, bool use_refract, bool use_sss, bool use_translucency, int shadow_method)
 {
 	const void *engine = &DRW_engine_viewport_eevee_type;
 	int options = VAR_MAT_MESH;
@@ -645,6 +659,8 @@ struct GPUMaterial *EEVEE_material_mesh_get(
 	if (use_multiply) options |= VAR_MAT_MULT;
 	if (use_refract) options |= VAR_MAT_REFRACT;
 	if (use_sss) options |= VAR_MAT_SSS;
+	if (use_sss && vedata->stl->effects->sss_separate_albedo) options |= VAR_MAT_SSSALBED;
+	if (use_translucency) options |= VAR_MAT_TRANSLUC;
 	if (vedata->stl->effects->use_volumetrics && use_blend) options |= VAR_MAT_VOLUME;
 
 	options |= eevee_material_shadow_option(shadow_method);
@@ -760,7 +776,7 @@ struct GPUMaterial *EEVEE_material_hair_get(
  * Create a default shading group inside the given pass.
  **/
 static struct DRWShadingGroup *EEVEE_default_shading_group_create(
-        EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata, DRWPass *pass,
+        EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, DRWPass *pass,
         bool is_hair, bool is_flat_normal, bool use_blend, bool use_ssr, int shadow_method)
 {
 	static int ssr_id;
@@ -779,7 +795,7 @@ static struct DRWShadingGroup *EEVEE_default_shading_group_create(
 	}
 
 	DRWShadingGroup *shgrp = DRW_shgroup_create(e_data.default_lit[options], pass);
-	add_standard_uniforms(shgrp, sldata, vedata, &ssr_id, NULL, false, use_blend);
+	add_standard_uniforms(shgrp, sldata, vedata, &ssr_id, NULL, false, use_blend, false);
 
 	return shgrp;
 }
@@ -788,7 +804,7 @@ static struct DRWShadingGroup *EEVEE_default_shading_group_create(
  * Create a default shading group inside the default pass without standard uniforms.
  **/
 static struct DRWShadingGroup *EEVEE_default_shading_group_get(
-        EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
+        EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata,
         bool is_hair, bool is_flat_normal, bool use_ssr, int shadow_method)
 {
 	static int ssr_id;
@@ -809,7 +825,7 @@ static struct DRWShadingGroup *EEVEE_default_shading_group_get(
 		vedata->psl->default_pass[options] = DRW_pass_create("Default Lit Pass", state);
 
 		DRWShadingGroup *shgrp = DRW_shgroup_create(e_data.default_lit[options], vedata->psl->default_pass[options]);
-		add_standard_uniforms(shgrp, sldata, vedata, &ssr_id, NULL, false, false);
+		add_standard_uniforms(shgrp, sldata, vedata, &ssr_id, NULL, false, false, false);
 	}
 
 	return DRW_shgroup_create(e_data.default_lit[options], vedata->psl->default_pass[options]);
@@ -822,8 +838,8 @@ void EEVEE_materials_cache_init(EEVEE_Data *vedata)
 
 	{
 		const DRWContextState *draw_ctx = DRW_context_state_get();
-		SceneLayer *scene_layer = draw_ctx->scene_layer;
-		IDProperty *props = BKE_scene_layer_engine_evaluated_get(scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+		ViewLayer *view_layer = draw_ctx->view_layer;
+		IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 		/* Global AO Switch*/
 		stl->effects->use_ao = BKE_collection_engine_property_value_get_bool(props, "gtao_enable");
 		stl->effects->use_bent_normals = BKE_collection_engine_property_value_get_bool(props, "gtao_use_bent_normals");
@@ -959,7 +975,7 @@ typedef struct EeveeMaterialShadingGroups {
 } EeveeMaterialShadingGroups;
 
 static void material_opaque(
-        Material *ma, GHash *material_hash, EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
+        Material *ma, GHash *material_hash, EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata,
         bool do_cull, bool use_flat_nor, struct GPUMaterial **gpumat, struct GPUMaterial **gpumat_depth,
         struct DRWShadingGroup **shgrp, struct DRWShadingGroup **shgrp_depth, struct DRWShadingGroup **shgrp_depth_clip)
 {
@@ -977,6 +993,7 @@ static void material_opaque(
 	const bool use_gpumat = (ma->use_nodes && ma->nodetree);
 	const bool use_refract = ((ma->blend_flag & MA_BL_SS_REFRACTION) != 0) && ((stl->effects->enabled_effects & EFFECT_REFRACT) != 0);
 	const bool use_sss = ((ma->blend_flag & MA_BL_SS_SUBSURFACE) != 0) && ((stl->effects->enabled_effects & EFFECT_SSS) != 0);
+	const bool use_translucency = ((ma->blend_flag & MA_BL_TRANSLUCENCY) != 0) && ((stl->effects->enabled_effects & EFFECT_SSS) != 0);
 
 	EeveeMaterialShadingGroups *emsg = BLI_ghash_lookup(material_hash, (const void *)ma);
 
@@ -987,7 +1004,7 @@ static void material_opaque(
 
 		/* This will have been created already, just perform a lookup. */
 		*gpumat = (use_gpumat) ? EEVEE_material_mesh_get(
-		        scene, ma, vedata, false, false, use_refract, use_sss, linfo->shadow_method) : NULL;
+		        scene, ma, vedata, false, false, use_refract, use_sss, use_translucency, linfo->shadow_method) : NULL;
 		*gpumat_depth = (use_gpumat) ? EEVEE_material_mesh_depth_get(
 		        scene, ma, (ma->blend_method == MA_BM_HASHED), false) : NULL;
 		return;
@@ -995,21 +1012,30 @@ static void material_opaque(
 
 	if (use_gpumat) {
 		/* Shading */
-		*gpumat = EEVEE_material_mesh_get(scene, ma, vedata, false, false, use_refract, use_sss, linfo->shadow_method);
+		*gpumat = EEVEE_material_mesh_get(scene, ma, vedata, false, false, use_refract,
+		                                  use_sss, use_translucency, linfo->shadow_method);
 
 		*shgrp = DRW_shgroup_material_create(*gpumat,
 		                                     (use_refract) ? psl->refract_pass :
 		                                     (use_sss) ? psl->sss_pass : psl->material_pass);
 		if (*shgrp) {
 			static int no_ssr = -1;
-			static int first_ssr = 0;
+			static int first_ssr = 1;
 			int *ssr_id = (stl->effects->use_ssr && !use_refract) ? &first_ssr : &no_ssr;
-			add_standard_uniforms(*shgrp, sldata, vedata, ssr_id, &ma->refract_depth, use_refract, false);
+			add_standard_uniforms(*shgrp, sldata, vedata, ssr_id, &ma->refract_depth, use_refract, false, use_sss);
 
 			if (use_sss) {
+				struct GPUTexture *sss_tex_profile = NULL;
 				struct GPUUniformBuffer *sss_profile = GPU_material_sss_profile_get(*gpumat,
-				                                                                    stl->effects->sss_sample_count);
+				                                                                    stl->effects->sss_sample_count,
+				                                                                    &sss_tex_profile);
+
 				if (sss_profile) {
+					if (use_translucency) {
+						DRW_shgroup_uniform_block(*shgrp, "sssProfile", sss_profile);
+						DRW_shgroup_uniform_texture(*shgrp, "sssTexProfile", sss_tex_profile);
+					}
+
 					DRW_shgroup_stencil_mask(*shgrp, e_data.sss_count + 1);
 					EEVEE_subsurface_add_pass(vedata, e_data.sss_count + 1, sss_profile);
 					e_data.sss_count++;
@@ -1041,7 +1067,7 @@ static void material_opaque(
 			}
 
 			if (*shgrp_depth != NULL) {
-				add_standard_uniforms(*shgrp_depth, sldata, vedata, NULL, NULL, false, false);
+				add_standard_uniforms(*shgrp_depth, sldata, vedata, NULL, NULL, false, false, false);
 
 				if (ma->blend_method == MA_BM_CLIP) {
 					DRW_shgroup_uniform_float(*shgrp_depth, "alphaThreshold", &ma->alpha_threshold, 1);
@@ -1080,7 +1106,7 @@ static void material_opaque(
 }
 
 static void material_transparent(
-        Material *ma, EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata,
+        Material *ma, EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata,
         bool do_cull, bool use_flat_nor, struct GPUMaterial **gpumat, struct DRWShadingGroup **shgrp, struct DRWShadingGroup **shgrp_depth)
 {
 	const DRWContextState *draw_ctx = DRW_context_state_get();
@@ -1099,13 +1125,13 @@ static void material_transparent(
 	if (ma->use_nodes && ma->nodetree) {
 		/* Shading */
 		*gpumat = EEVEE_material_mesh_get(scene, ma, vedata, true, (ma->blend_method == MA_BM_MULTIPLY), use_refract,
-		                                  false, linfo->shadow_method);
+		                                  false, false, linfo->shadow_method);
 
 		*shgrp = DRW_shgroup_material_create(*gpumat, psl->transparent_pass);
 		if (*shgrp) {
 			static int ssr_id = -1; /* TODO transparent SSR */
 			bool use_blend = (ma->blend_method & MA_BM_BLEND) != 0;
-			add_standard_uniforms(*shgrp, sldata, vedata, &ssr_id, &ma->refract_depth, use_refract, use_blend);
+			add_standard_uniforms(*shgrp, sldata, vedata, &ssr_id, &ma->refract_depth, use_refract, use_blend, false);
 		}
 		else {
 			/* Shader failed : pink color */
@@ -1168,7 +1194,7 @@ static void material_transparent(
 	}
 }
 
-void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_SceneLayerData *sldata, Object *ob)
+void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_ViewLayerData *sldata, Object *ob)
 {
 	EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
 	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
@@ -1270,7 +1296,7 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_SceneLayerData *sl
 				/* Do not render surface if we are rendering a volume object
 				 * and do not have a surface closure. */
 				if (use_volume_material &&
-					(gpumat_array[i] && !GPU_material_use_domain_surface(gpumat_array[i])))
+				    (gpumat_array[i] && !GPU_material_use_domain_surface(gpumat_array[i])))
 				{
 					continue;
 				}
@@ -1357,7 +1383,7 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_SceneLayerData *sl
 
 									shgrp = DRW_shgroup_material_create(gpumat, psl->material_pass);
 									if (shgrp) {
-										add_standard_uniforms(shgrp, sldata, vedata, NULL, NULL, false, false);
+										add_standard_uniforms(shgrp, sldata, vedata, NULL, NULL, false, false, false);
 
 										BLI_ghash_insert(material_hash, ma, shgrp);
 

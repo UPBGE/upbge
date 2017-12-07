@@ -68,6 +68,7 @@
 #include "BKE_displist.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
+#include "BKE_group.h"
 #include "BKE_key.h"
 #include "BKE_image.h"
 #include "BKE_lattice.h"
@@ -3979,28 +3980,32 @@ static bool is_object_hidden(Render *re, Object *ob)
 /* layflag: allows material group to ignore layerflag */
 static void add_lightgroup(Render *re, Group *group, int exclusive)
 {
-	GroupObject *go, *gol;
-	
 	group->id.tag &= ~LIB_TAG_DOIT;
 
+#if 0
 	/* it's a bit too many loops in loops... but will survive */
 	/* note that 'exclusive' will remove it from the global list */
-	for (go= group->gobject.first; go; go= go->next) {
-		go->lampren= NULL;
+	FOREACH_GROUP_BASE(group, base)
+	{
+		Object *object = base->object;
 
-		if (is_object_hidden(re, go->ob))
+		if (is_object_hidden(re, object)) {
 			continue;
-		
-		if (go->ob->lay & re->lay) {
-			if (go->ob && go->ob->type==OB_LAMP) {
-				for (gol= re->lights.first; gol; gol= gol->next) {
-					if (gol->ob==go->ob) {
-						go->lampren= gol->lampren;
+		}
+
+		if (base->flag & BASE_VISIBLED) {
+			if (object && object->type == OB_LAMP) {
+				for (GroupObject *gol = re->lights.first; gol; gol = gol->next) {
+					if (gol->ob == object) {
+						go->lampren = gol->lampren;
 						break;
 					}
 				}
-				if (go->lampren==NULL)
-					gol= add_render_lamp(re, go->ob);
+
+				if (go->lampren == NULL) {
+					gol= add_render_lamp(re, object);
+				}
+
 				if (gol && exclusive) {
 					BLI_remlink(&re->lights, gol);
 					MEM_freeN(gol);
@@ -4008,6 +4013,10 @@ static void add_lightgroup(Render *re, Group *group, int exclusive)
 			}
 		}
 	}
+	FOREACH_GROUP_BASE_END
+#else
+	UNUSED_VARS(re, exclusive);
+#endif
 }
 
 static void set_material_lightgroups(Render *re)
@@ -4027,16 +4036,6 @@ static void set_material_lightgroups(Render *re)
 	for (ma= re->main->mat.first; ma; ma=ma->id.next) {
 		if (ma->group && (ma->group->id.tag & LIB_TAG_DOIT))
 			add_lightgroup(re, ma->group, ma->mode & MA_GROUP_NOLAY);
-	}
-}
-
-static void set_renderlayer_lightgroups(Render *re, Scene *sce)
-{
-	SceneRenderLayer *srl;
-	
-	for (srl= sce->r.layers.first; srl; srl= srl->next) {
-		if (srl->light_override)
-			add_lightgroup(re, srl->light_override, 0);
 	}
 }
 
@@ -4909,8 +4908,6 @@ static void dupli_render_particle_set(Render *re, Object *ob, int timeoffset, in
 {
 	/* ugly function, but we need to set particle systems to their render
 	 * settings before calling object_duplilist, to get render level duplis */
-	Group *group;
-	GroupObject *go;
 	ParticleSystem *psys;
 	DerivedMesh *dm;
 
@@ -4942,50 +4939,43 @@ static void dupli_render_particle_set(Render *re, Object *ob, int timeoffset, in
 		}
 	}
 
-	if (ob->dup_group==NULL) return;
-	group= ob->dup_group;
+	if (ob->dup_group == NULL) return;
 
-	for (go= group->gobject.first; go; go= go->next)
-		dupli_render_particle_set(re, go->ob, timeoffset, level+1, enable);
+	FOREACH_GROUP_OBJECT(ob->dup_group, object)
+	{
+		dupli_render_particle_set(re, object, timeoffset, level+1, enable);
+	}
+	FOREACH_GROUP_OBJECT_END
 }
 
-static int get_vector_renderlayers(Scene *sce)
+static int get_vector_viewlayers(Scene *UNUSED(sce))
 {
-	SceneRenderLayer *srl;
-	unsigned int lay= 0;
-
-	for (srl= sce->r.layers.first; srl; srl= srl->next)
-		if (srl->passflag & SCE_PASS_VECTOR)
-			lay |= srl->lay;
-
-	return lay;
+	return 0;
 }
 
 static void add_group_render_dupli_obs(Render *re, Group *group, int nolamps, int onlyselected, Object *actob, int timeoffset, int level)
 {
-	GroupObject *go;
-	Object *ob;
+	/* Simple preventing of too deep nested groups. */
+	if (level > MAX_DUPLI_RECUR) return;
 
-	/* simple preventing of too deep nested groups */
-	if (level>MAX_DUPLI_RECUR) return;
-
-	/* recursively go into dupligroups to find objects with OB_RENDER_DUPLI
-	 * that were not created yet */
-	for (go= group->gobject.first; go; go= go->next) {
-		ob= go->ob;
-
+	/* Recursively go into dupligroups to find objects with OB_RENDER_DUPLI
+	 * that were not created yet. */
+	FOREACH_GROUP_OBJECT(group, ob)
+	{
 		if (ob->flag & OB_DONE) {
 			if (ob->transflag & OB_RENDER_DUPLI) {
 				if (allow_render_object(re, ob, nolamps, onlyselected, actob)) {
 					init_render_object(re, ob, NULL, NULL, NULL, timeoffset);
 					ob->transflag &= ~OB_RENDER_DUPLI;
 
-					if (ob->dup_group)
+					if (ob->dup_group) {
 						add_group_render_dupli_obs(re, ob->dup_group, nolamps, onlyselected, actob, timeoffset, level+1);
+					}
 				}
 			}
 		}
 	}
+	FOREACH_GROUP_OBJECT_END
 }
 
 static void database_init_objects(Render *re, unsigned int UNUSED(renderlay), int nolamps, int onlyselected, Object *actob, int timeoffset)
@@ -5027,7 +5017,7 @@ static void database_init_objects(Render *re, unsigned int UNUSED(renderlay), in
 		/* in the prev/next pass for making speed vectors, avoid creating
 		 * objects that are not on a renderlayer with a vector pass, can
 		 * save a lot of time in complex scenes */
-		vectorlay= get_vector_renderlayers(re->scene);
+		vectorlay= get_vector_viewlayers(re->scene);
 #endif
 
 		/* if the object is not visible, ignore it */
@@ -5184,7 +5174,6 @@ static void database_init_objects(Render *re, unsigned int UNUSED(renderlay), in
 /* used to be 'rotate scene' */
 void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int lay, int use_camera_view)
 {
-	Scene *sce;
 	Object *camera;
 	float mat[4][4];
 	float amb[3];
@@ -5221,7 +5210,7 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 	/* applies changes fully */
 	if ((re->r.scemode & (R_NO_FRAME_UPDATE|R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW))==0) {
 		BKE_scene_graph_update_for_newframe(re->eval_ctx, re->depsgraph, re->main, re->scene, NULL);
-		render_update_anim_renderdata(re, &re->scene->r);
+		render_update_anim_renderdata(re, &re->scene->r, &re->scene->view_layers);
 	}
 	
 	/* if no camera, viewmat should have been set! */
@@ -5261,8 +5250,6 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 	
 	if (!re->test_break(re->tbh)) {
 		set_material_lightgroups(re);
-		for (sce= re->scene; sce; sce= sce->set)
-			set_renderlayer_lightgroups(re, sce);
 		
 		/* for now some clumsy copying still */
 		re->i.totvert= re->totvert;
@@ -5809,7 +5796,7 @@ void RE_Database_FromScene_Vectors(Render *re, Main *bmain, Scene *sce, unsigned
 	}
 	
 	if (!re->test_break(re->tbh)) {
-		int vectorlay= get_vector_renderlayers(re->scene);
+		int vectorlay= get_vector_viewlayers(re->scene);
 
 		for (step= 0; step<2; step++) {
 			

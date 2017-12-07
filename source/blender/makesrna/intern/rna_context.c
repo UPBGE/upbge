@@ -129,10 +129,10 @@ static PointerRNA rna_Context_scene_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, &RNA_Scene, CTX_data_scene(C));
 }
 
-static PointerRNA rna_Context_scene_layer_get(PointerRNA *ptr)
+static PointerRNA rna_Context_view_layer_get(PointerRNA *ptr)
 {
 	bContext *C = (bContext *)ptr->data;
-	return rna_pointer_inherit_refine(ptr, &RNA_SceneLayer, CTX_data_scene_layer(C));
+	return rna_pointer_inherit_refine(ptr, &RNA_ViewLayer, CTX_data_view_layer(C));
 }
 
 static PointerRNA rna_Context_view_render_get(PointerRNA *ptr)
@@ -144,15 +144,15 @@ static PointerRNA rna_Context_view_render_get(PointerRNA *ptr)
 static void rna_Context_engine_get(PointerRNA *ptr, char *value)
  {
 	bContext *C = (bContext *)ptr->data;
-	RenderEngineType *engine = CTX_data_engine(C);
-	strcpy(value, engine->idname);
+	RenderEngineType *engine_type = CTX_data_engine_type(C);
+	strcpy(value, engine_type->idname);
 }
 
 static int rna_Context_engine_length(PointerRNA *ptr)
 {
 	bContext *C = (bContext *)ptr->data;
-	RenderEngineType *engine = CTX_data_engine(C);
-	return strlen(engine->idname);
+	RenderEngineType *engine_type = CTX_data_engine_type(C);
+	return strlen(engine_type->idname);
 }
 
 static PointerRNA rna_Context_scene_collection_get(PointerRNA *ptr)
@@ -280,10 +280,10 @@ void RNA_def_context(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "Scene");
 	RNA_def_property_pointer_funcs(prop, "rna_Context_scene_get", NULL, NULL, NULL);
 
-	prop = RNA_def_property(srna, "render_layer", PROP_POINTER, PROP_NONE);
+	prop = RNA_def_property(srna, "view_layer", PROP_POINTER, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_struct_type(prop, "SceneLayer");
-	RNA_def_property_pointer_funcs(prop, "rna_Context_scene_layer_get", NULL, NULL, NULL);
+	RNA_def_property_struct_type(prop, "ViewLayer");
+	RNA_def_property_pointer_funcs(prop, "rna_Context_view_layer_get", NULL, NULL, NULL);
 
 	prop = RNA_def_property(srna, "view_render", PROP_POINTER, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

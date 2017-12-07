@@ -134,7 +134,7 @@ bool DocumentImporter::import()
 	loader.registerExtraDataCallbackHandler(ehandler);
 
 	// deselect all to select new objects
-	BKE_scene_layer_base_deselect_all(CTX_data_scene_layer(mContext));
+	BKE_view_layer_base_deselect_all(CTX_data_view_layer(mContext));
 
 	std::string mFilename = std::string(this->import_settings->filepath);
 	const std::string encodedFilename = bc_url_encode(mFilename);
@@ -267,7 +267,7 @@ void DocumentImporter::finish()
 		std::vector<Object *>::iterator it;
 		for (it = libnode_ob.begin(); it != libnode_ob.end(); it++) {
 			Object *ob = *it;
-			BKE_collections_object_remove(G.main, sce, ob, true);
+			BKE_collections_object_remove(G.main, &sce->id, ob, true);
 		}
 		libnode_ob.clear();
 

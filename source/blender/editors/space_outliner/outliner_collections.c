@@ -36,6 +36,8 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
+#include "DNA_group_types.h"
+
 #include "ED_screen.h"
 
 #include "WM_api.h"
@@ -109,8 +111,8 @@ static SceneCollection *scene_collection_from_index(ListBase *lb, const int numb
 static int collection_link_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	SceneCollection *sc_master = BKE_collection_master(scene);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	SceneCollection *sc_master = BKE_collection_master(&scene->id);
 	SceneCollection *sc;
 
 	int scene_collection_index = RNA_enum_get(op->ptr, "scene_collection");
@@ -123,7 +125,7 @@ static int collection_link_exec(bContext *C, wmOperator *op)
 		BLI_assert(sc);
 	}
 
-	BKE_collection_link(sl, sc);
+	BKE_collection_link(view_layer, sc);
 
 	DEG_relations_tag_update(CTX_data_main(C));
 
@@ -136,7 +138,9 @@ static int collection_link_exec(bContext *C, wmOperator *op)
 
 static int collection_link_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	if (BKE_collection_master(CTX_data_scene(C))->scene_collections.first == NULL) {
+	Scene *scene = CTX_data_scene(C);
+	SceneCollection *master_collection = BKE_collection_master(&scene->id);
+	if (master_collection->scene_collections.first == NULL) {
 		RNA_enum_set(op->ptr, "scene_collection", 0);
 		return collection_link_exec(C, op);
 	}
@@ -169,7 +173,7 @@ static const EnumPropertyItem *collection_scene_collection_itemf(
 	int value = 0, totitem = 0;
 
 	Scene *scene = CTX_data_scene(C);
-	SceneCollection *sc = BKE_collection_master(scene);
+	SceneCollection *sc = BKE_collection_master(&scene->id);
 
 	collection_scene_collection_itemf_recursive(&tmp, &item, &totitem, &value, sc);
 	RNA_enum_item_end(&item, &totitem);
@@ -202,7 +206,7 @@ void OUTLINER_OT_collection_link(wmOperatorType *ot)
 
 /**
  * Returns true if selected element is a collection directly
- * linked to the active SceneLayer (not a nested collection)
+ * linked to the active ViewLayer (not a nested collection)
  */
 static int collection_unlink_poll(bContext *C)
 {
@@ -212,8 +216,8 @@ static int collection_unlink_poll(bContext *C)
 		return 0;
 	}
 
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	return BLI_findindex(&sl->layer_collections, lc) != -1 ? 1 : 0;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	return BLI_findindex(&view_layer->layer_collections, lc) != -1 ? 1 : 0;
 }
 
 static int collection_unlink_exec(bContext *C, wmOperator *op)
@@ -226,8 +230,8 @@ static int collection_unlink_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	SceneLayer *sl = CTX_data_scene_layer(C);
-	BKE_collection_unlink(sl, lc);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	BKE_collection_unlink(view_layer, lc);
 
 	if (soops) {
 		outliner_cleanup_tree(soops);
@@ -257,15 +261,18 @@ void OUTLINER_OT_collection_unlink(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/**********************************************************************************/
+/* Add new collection. */
+
 static int collection_new_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	SceneCollection *scene_collection = BKE_collection_add(&scene->id, NULL, COLLECTION_TYPE_NONE, NULL);
+	BKE_collection_link(view_layer, scene_collection);
 
-	SceneCollection *sc = BKE_collection_add(scene, NULL, NULL);
-	BKE_collection_link(sl, sc);
-
-	DEG_relations_tag_update(CTX_data_main(C));
+	DEG_relations_tag_update(bmain);
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 	return OPERATOR_FINISHED;
 }
@@ -275,7 +282,7 @@ void OUTLINER_OT_collection_new(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "New Collection";
 	ot->idname = "OUTLINER_OT_collection_new";
-	ot->description = "Add a new collection to the scene, and link it to the active layer";
+	ot->description = "Add a new collection to the scene";
 
 	/* api callbacks */
 	ot->exec = collection_new_exec;
@@ -283,6 +290,8 @@ void OUTLINER_OT_collection_new(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+/**********************************************************************************/
 
 /**
  * Returns true is selected element is a collection
@@ -325,9 +334,10 @@ void OUTLINER_OT_collection_override_new(wmOperatorType *ot)
 struct CollectionDeleteData {
 	Scene *scene;
 	SpaceOops *soops;
+	GSet *collections_to_delete;
 };
 
-static TreeTraversalAction collection_delete_cb(TreeElement *te, void *customdata)
+static TreeTraversalAction collection_find_data_to_delete(TreeElement *te, void *customdata)
 {
 	struct CollectionDeleteData *data = customdata;
 	SceneCollection *scene_collection = outliner_scene_collection_from_tree_element(te);
@@ -336,12 +346,12 @@ static TreeTraversalAction collection_delete_cb(TreeElement *te, void *customdat
 		return TRAVERSE_SKIP_CHILDS;
 	}
 
-	if (scene_collection == BKE_collection_master(data->scene)) {
+	if (scene_collection == BKE_collection_master(&data->scene->id)) {
 		/* skip - showing warning/error message might be missleading
 		 * when deleting multiple collections, so just do nothing */
 	}
 	else {
-		BKE_collection_remove(data->scene, scene_collection);
+		BLI_gset_add(data->collections_to_delete, scene_collection);
 	}
 
 	return TRAVERSE_CONTINUE;
@@ -353,8 +363,22 @@ static int collection_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	struct CollectionDeleteData data = {.scene = scene, .soops = soops};
 
+	data.collections_to_delete = BLI_gset_ptr_new(__func__);
+
 	TODO_LAYER_OVERRIDE; /* handle overrides */
-	outliner_tree_traverse(soops, &soops->tree, 0, TSE_SELECTED, collection_delete_cb, &data);
+
+	/* We first walk over and find the SceneCollections we actually want to delete (ignoring duplicates). */
+	outliner_tree_traverse(soops, &soops->tree, 0, TSE_SELECTED, collection_find_data_to_delete, &data);
+
+	/* Effectively delete the collections. */
+	GSetIterator collections_to_delete_iter;
+	GSET_ITER(collections_to_delete_iter, data.collections_to_delete) {
+
+		SceneCollection *sc = BLI_gsetIterator_getKey(&collections_to_delete_iter);
+		BKE_collection_remove(&data.scene->id, sc);
+	}
+
+	BLI_gset_free(data.collections_to_delete, NULL);
 
 	DEG_relations_tag_update(CTX_data_main(C));
 
@@ -382,9 +406,9 @@ void OUTLINER_OT_collections_delete(wmOperatorType *ot)
 
 static int collection_select_exec(bContext *C, wmOperator *op)
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	const int collection_index = RNA_int_get(op->ptr, "collection_index");
-	sl->active_collection = collection_index;
+	view_layer->active_collection = collection_index;
 	WM_main_add_notifier(NC_SCENE | ND_LAYER, NULL);
 	return OPERATOR_FINISHED;
 }
@@ -414,13 +438,13 @@ static int collection_toggle_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	int action = RNA_enum_get(op->ptr, "action");
 	LayerCollection *layer_collection = CTX_data_layer_collection(C);
 
 	if (layer_collection->flag & COLLECTION_DISABLED) {
 		if (ELEM(action, ACTION_TOGGLE, ACTION_ENABLE)) {
-			BKE_collection_enable(scene_layer, layer_collection);
+			BKE_collection_enable(view_layer, layer_collection);
 		}
 		else { /* ACTION_DISABLE */
 			BKE_reportf(op->reports, RPT_ERROR, "Layer collection %s already disabled",
@@ -430,7 +454,7 @@ static int collection_toggle_exec(bContext *C, wmOperator *op)
 	}
 	else {
 		if (ELEM(action, ACTION_TOGGLE, ACTION_DISABLE)) {
-			BKE_collection_disable(scene_layer, layer_collection);
+			BKE_collection_disable(view_layer, layer_collection);
 		}
 		else { /* ACTION_ENABLE */
 			BKE_reportf(op->reports, RPT_ERROR, "Layer collection %s already enabled",

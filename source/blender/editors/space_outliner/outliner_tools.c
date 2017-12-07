@@ -366,9 +366,9 @@ static void object_select_cb(
         bContext *C, ReportList *UNUSED(reports), Scene *UNUSED(scene), TreeElement *UNUSED(te),
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Object *ob = (Object *)tselem->id;
-	Base *base = BKE_scene_layer_base_find(sl, ob);
+	Base *base = BKE_view_layer_base_find(view_layer, ob);
 
 	if (base && ((base->flag & BASE_VISIBLED) != 0)) {
 		base->flag |= BASE_SELECTED;
@@ -388,9 +388,9 @@ static void object_deselect_cb(
         bContext *C, ReportList *UNUSED(reports), Scene *UNUSED(scene), TreeElement *UNUSED(te),
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Object *ob = (Object *)tselem->id;
-	Base *base = BKE_scene_layer_base_find(sl, ob);
+	Base *base = BKE_view_layer_base_find(view_layer, ob);
 
 	if (base) {
 		base->flag &= ~BASE_SELECTED;
@@ -522,23 +522,24 @@ static void group_linkobs2scene_cb(
         bContext *C, ReportList *UNUSED(reports), Scene *scene, TreeElement *UNUSED(te),
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	SceneCollection *sc = CTX_data_scene_collection(C);
 	Group *group = (Group *)tselem->id;
-	GroupObject *gob;
 	Base *base;
 
-	for (gob = group->gobject.first; gob; gob = gob->next) {
-		base = BKE_scene_layer_base_find(sl, gob->ob);
+	FOREACH_GROUP_OBJECT(group, object)
+	{
+		base = BKE_view_layer_base_find(view_layer, object);
 		if (!base) {
 			/* link to scene */
-			BKE_collection_object_add(scene, sc, gob->ob);
-			base = BKE_scene_layer_base_find(sl, gob->ob);
-			id_us_plus(&gob->ob->id);
+			BKE_collection_object_add(&scene->id, sc, object);
+			base = BKE_view_layer_base_find(view_layer, object);
+			id_us_plus(&object->id);
 		}
 
 		base->flag |= BASE_SELECTED;
 	}
+	FOREACH_GROUP_OBJECT_END
 }
 
 static void group_instance_cb(
@@ -663,6 +664,7 @@ typedef enum eOutliner_PropCollectionOps {
 	OL_COLLECTION_OP_COLLECTION_NEW,
 	OL_COLLECTION_OP_COLLECTION_DEL,
 	OL_COLLECTION_OP_COLLECTION_UNLINK,
+	OL_COLLECTION_OP_GROUP_CREATE,
 } eOutliner_PropCollectionOps;
 
 static void pchan_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem), void *UNUSED(arg))
@@ -820,12 +822,13 @@ static void collection_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tsel
 	bContext *C = (bContext *)Carg;
 	Scene *scene = CTX_data_scene(C);
 	LayerCollection *lc = te->directdata;
+	ID *id = te->store_elem->id;
 	SceneCollection *sc = lc->scene_collection;
 
 	if (event == OL_COLLECTION_OP_OBJECTS_ADD) {
 		CTX_DATA_BEGIN (C, Object *, ob, selected_objects)
 		{
-			BKE_collection_object_add(scene, sc, ob);
+			BKE_collection_object_add(id, sc, ob);
 		}
 		CTX_DATA_END;
 
@@ -836,7 +839,7 @@ static void collection_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tsel
 
 		CTX_DATA_BEGIN (C, Object *, ob, selected_objects)
 		{
-			BKE_collection_object_remove(bmain, scene, sc, ob, true);
+			BKE_collection_object_remove(bmain, id, sc, ob, true);
 		}
 		CTX_DATA_END;
 
@@ -844,24 +847,30 @@ static void collection_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tsel
 		te->store_elem->flag &= ~TSE_SELECTED;
 	}
 	else if (event == OL_COLLECTION_OP_COLLECTION_NEW) {
-		BKE_collection_add(scene, sc, NULL);
+		if (GS(id->name) == ID_GR) {
+			BKE_collection_add(id, sc, COLLECTION_TYPE_GROUP_INTERNAL, NULL);
+		}
+		else {
+			BLI_assert(GS(id->name) == ID_SCE);
+			BKE_collection_add(id, sc, COLLECTION_TYPE_NONE, NULL);
+		}
 		WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 	}
 	else if (event == OL_COLLECTION_OP_COLLECTION_UNLINK) {
-		SceneLayer *sl = CTX_data_scene_layer(C);
+		ViewLayer *view_layer = CTX_data_view_layer(C);
 
-		if (BLI_findindex(&sl->layer_collections, lc) == -1) {
+		if (BLI_findindex(&view_layer->layer_collections, lc) == -1) {
 			/* we can't unlink if the layer collection wasn't directly linked */
 			TODO_LAYER_OPERATORS; /* this shouldn't be in the menu in those cases */
 		}
 		else {
-			BKE_collection_unlink(sl, lc);
+			BKE_collection_unlink(view_layer, lc);
 			DEG_relations_tag_update(CTX_data_main(C));
 			WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 		}
 	}
 	else if (event == OL_COLLECTION_OP_COLLECTION_DEL) {
-		if (BKE_collection_remove(scene, sc)) {
+		if (BKE_collection_remove(id, sc)) {
 			DEG_relations_tag_update(CTX_data_main(C));
 			WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 		}
@@ -869,6 +878,17 @@ static void collection_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tsel
 			/* we can't remove the master collection */
 			TODO_LAYER_OPERATORS; /* this shouldn't be in the menu in those cases */
 		}
+	}
+	else if (event == OL_COLLECTION_OP_GROUP_CREATE) {
+		Main *bmain = CTX_data_main(C);
+		BKE_collection_group_create(bmain, scene, lc);
+		DEG_relations_tag_update(bmain);
+		/* TODO(sergey): Use proper flag for tagging here. */
+		DEG_id_tag_update(&scene->id, 0);
+		WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
+	}
+	else {
+		BLI_assert(!"Collection operation not fully implemented!");
 	}
 }
 
@@ -896,13 +916,13 @@ static Base *outline_delete_hierarchy(bContext *C, ReportList *reports, Scene *s
 {
 	Base *child_base, *base_next;
 	Object *parent;
-	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 
 	if (!base) {
 		return NULL;
 	}
 
-	for (child_base = scene_layer->object_bases.first; child_base; child_base = base_next) {
+	for (child_base = view_layer->object_bases.first; child_base; child_base = base_next) {
 		base_next = child_base->next;
 		for (parent = child_base->object->parent; parent && (parent != base->object); parent = parent->parent);
 		if (parent) {
@@ -933,12 +953,12 @@ static void object_delete_hierarchy_cb(
         bContext *C, ReportList *reports, Scene *scene,
         TreeElement *te, TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Base *base = (Base *)te->directdata;
 	Object *obedit = scene->obedit;
 
 	if (!base) {
-		base = BKE_scene_layer_base_find(sl, (Object *)tselem->id);
+		base = BKE_view_layer_base_find(view_layer, (Object *)tselem->id);
 	}
 	if (base) {
 		/* Check also library later. */
@@ -1794,14 +1814,38 @@ void OUTLINER_OT_modifier_operation(wmOperatorType *ot)
 
 /* ******************** */
 
-static EnumPropertyItem prop_collection_op_types[] = {
-    {OL_COLLECTION_OP_OBJECTS_ADD, "OBJECTS_ADD", ICON_ZOOMIN, "Add Selected", "Add selected objects to collection"},
-    {OL_COLLECTION_OP_OBJECTS_REMOVE, "OBJECTS_REMOVE", ICON_X, "Remove Selected", "Remove selected objects from collection"},
-    {OL_COLLECTION_OP_COLLECTION_NEW, "COLLECTION_NEW", ICON_NEW, "New Collection", "Add a new nested collection"},
-    {OL_COLLECTION_OP_COLLECTION_UNLINK, "COLLECTION_UNLINK", ICON_UNLINKED, "Unlink", "Unlink collection"},
-    {OL_COLLECTION_OP_COLLECTION_DEL, "COLLECTION_DEL", ICON_X, "Delete Collection", "Delete the collection"},
-    {0, NULL, 0, NULL, NULL}
+static EnumPropertyItem prop_collection_op_none_types[] = {
+	{OL_COLLECTION_OP_OBJECTS_ADD, "OBJECTS_ADD", ICON_ZOOMIN, "Add Selected", "Add selected objects to collection"},
+	{OL_COLLECTION_OP_OBJECTS_REMOVE, "OBJECTS_REMOVE", ICON_X, "Remove Selected", "Remove selected objects from collection"},
+	{OL_COLLECTION_OP_COLLECTION_NEW, "COLLECTION_NEW", ICON_NEW, "New Collection", "Add a new nested collection"},
+	{OL_COLLECTION_OP_COLLECTION_UNLINK, "COLLECTION_UNLINK", ICON_UNLINKED, "Unlink", "Unlink collection"},
+	{OL_COLLECTION_OP_COLLECTION_DEL, "COLLECTION_DEL", ICON_X, "Delete Collection", "Delete the collection"},
+	{OL_COLLECTION_OP_GROUP_CREATE, "GROUP_CREATE", ICON_GROUP, "Create Group", "Turn the collection into a group collection"},
+	{0, NULL, 0, NULL, NULL}
 };
+
+static EnumPropertyItem prop_collection_op_group_internal_types[] = {
+	{OL_COLLECTION_OP_OBJECTS_ADD, "OBJECTS_ADD", ICON_ZOOMIN, "Add Selected", "Add selected objects to collection"},
+	{OL_COLLECTION_OP_OBJECTS_REMOVE, "OBJECTS_REMOVE", ICON_X, "Remove Selected", "Remove selected objects from collection"},
+	{OL_COLLECTION_OP_COLLECTION_NEW, "COLLECTION_NEW", ICON_NEW, "New Collection", "Add a new nested collection"},
+	{OL_COLLECTION_OP_COLLECTION_DEL, "COLLECTION_DEL", ICON_X, "Delete Collection", "Delete the collection"},
+	{0, NULL, 0, NULL, NULL}
+};
+
+static const EnumPropertyItem *outliner_collection_operation_type_itemf(
+        bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	*r_free = false;
+	SpaceOops *soops = CTX_wm_space_outliner(C);
+
+	switch (soops->outlinevis) {
+		case SO_GROUPS:
+			return prop_collection_op_group_internal_types;
+		case SO_ACT_LAYER:
+			return prop_collection_op_none_types;
+	}
+	return NULL;
+}
 
 static int outliner_collection_operation_exec(bContext *C, wmOperator *op)
 {
@@ -1823,6 +1867,8 @@ static int outliner_collection_operation_exec(bContext *C, wmOperator *op)
 
 void OUTLINER_OT_collection_operation(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "Outliner Collection Operation";
 	ot->idname = "OUTLINER_OT_collection_operation";
@@ -1835,7 +1881,10 @@ void OUTLINER_OT_collection_operation(wmOperatorType *ot)
 
 	ot->flag = 0;
 
-	ot->prop = RNA_def_enum(ot->srna, "type", prop_collection_op_types, 0, "Collection Operation", "");
+	prop = RNA_def_enum(ot->srna, "type", DummyRNA_NULL_items, 0, "Collection Operation", "");
+	RNA_def_enum_funcs(prop, outliner_collection_operation_type_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
+	ot->prop = prop;
 }
 
 /* ******************** */

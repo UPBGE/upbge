@@ -138,6 +138,7 @@ typedef struct DrawEngineType {
 	void (*draw_scene)(void *vedata);
 
 	void (*view_update)(void *vedata);
+	void (*id_update)(void *vedata, struct ID *id);
 } DrawEngineType;
 
 #ifndef __DRW_ENGINE_H__
@@ -382,13 +383,15 @@ struct DefaultTextureList     *DRW_viewport_texture_list_get(void);
 
 void DRW_viewport_request_redraw(void);
 
-/* SceneLayers */
-void **DRW_scene_layer_engine_data_get(DrawEngineType *engine_type, void (*callback)(void *storage));
+/* ViewLayers */
+void *DRW_view_layer_engine_data_get(DrawEngineType *engine_type);
+void **DRW_view_layer_engine_data_ensure(DrawEngineType *engine_type, void (*callback)(void *storage));
 
 /* Objects */
-void **DRW_object_engine_data_get(
+void *DRW_object_engine_data_get(Object *ob, DrawEngineType *engine_type);
+void **DRW_object_engine_data_ensure(
         Object *ob, DrawEngineType *engine_type, void (*callback)(void *storage));
-struct LampEngineData *DRW_lamp_engine_data_get(Object *ob, struct RenderEngineType *engine_type);
+struct LampEngineData *DRW_lamp_engine_data_ensure(Object *ob, struct RenderEngineType *engine_type);
 void DRW_lamp_engine_data_free(struct LampEngineData *led);
 
 /* Settings */
@@ -438,12 +441,12 @@ typedef struct DRWContextState {
 	struct View3D *v3d;     /* 'CTX_wm_view3d(C)' */
 
 	struct Scene *scene;    /* 'CTX_data_scene(C)' */
-	struct SceneLayer *scene_layer;  /* 'CTX_data_scene_layer(C)' */
+	struct ViewLayer *view_layer;  /* 'CTX_data_view_layer(C)' */
 
 	/* Use 'scene->obedit' for edit-mode */
 	struct Object *obact;   /* 'OBACT' */
 
-	struct RenderEngineType *engine;
+	struct RenderEngineType *engine_type;
 
 	/* Last resort (some functions take this as an arg so we can't easily avoid).
 	 * May be NULL when used for selection or depth buffer. */
@@ -453,8 +456,7 @@ typedef struct DRWContextState {
 const DRWContextState *DRW_context_state_get(void);
 
 /*****************************GAME ENGINE***********************************/
-void *DRW_viewport_engine_data_get(void *engine_type);
-void DRW_draw_geometry_prepare(DRWShadingGroup *shgroup, const float(*obmat)[4], const float *texcoloc, const float *texcosize);
+void *DRW_viewport_engine_data_ensure(void *engine_type);
 void DRW_framebuffer_init_bge(
 struct GPUFrameBuffer **fb, void *engine_type, int width, int height,
 	DRWFboTexture textures[MAX_FBO_TEX], int textures_len);

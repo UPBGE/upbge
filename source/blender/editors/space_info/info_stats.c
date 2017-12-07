@@ -270,6 +270,39 @@ static void stats_object_sculpt_dynamic_topology(Object *ob, SceneStats *stats)
 	stats->tottri = ob->sculpt->bm->totface;
 }
 
+static void stats_dupli_object_group_count(SceneCollection *scene_collection, int *count)
+{
+	for (LinkData *link = scene_collection->objects.first; link; link = link->next) {
+		(*count)++;
+	}
+
+	SceneCollection *scene_collection_nested;
+	for (scene_collection_nested = scene_collection->scene_collections.first;
+	     scene_collection_nested;
+	     scene_collection_nested = scene_collection_nested->next)
+	{
+		stats_dupli_object_group_count(scene_collection_nested, count);
+	}
+}
+
+static void stats_dupli_object_group_doit(SceneCollection *scene_collection, SceneStats *stats, ParticleSystem *psys,
+                                          const int totgroup, int *cur)
+{
+	for (LinkData *link = scene_collection->objects.first; link; link = link->next) {
+		int tot = count_particles_mod(psys, totgroup, *cur);
+		stats_object(link->data, 0, tot, stats);
+		(*cur)++;
+	}
+
+	SceneCollection *scene_collection_nested;
+	for (scene_collection_nested = scene_collection->scene_collections.first;
+	     scene_collection_nested;
+	     scene_collection_nested = scene_collection_nested->next)
+	{
+		stats_dupli_object_group_doit(scene_collection_nested, stats, psys, totgroup, cur);
+	}
+}
+
 static void stats_dupli_object(Base *base, Object *ob, SceneStats *stats)
 {
 	if (base->flag & BASE_SELECTED) stats->totobjsel++;
@@ -287,17 +320,11 @@ static void stats_dupli_object(Base *base, Object *ob, SceneStats *stats)
 				stats_object(part->dup_ob, 0, tot, stats);
 			}
 			else if (part->draw_as == PART_DRAW_GR && part->dup_group) {
-				GroupObject *go;
-				int tot, totgroup = 0, cur = 0;
-				
-				for (go = part->dup_group->gobject.first; go; go = go->next)
-					totgroup++;
+				int totgroup = 0, cur = 0;
 
-				for (go = part->dup_group->gobject.first; go; go = go->next) {
-					tot = count_particles_mod(psys, totgroup, cur);
-					stats_object(go->ob, 0, tot, stats);
-					cur++;
-				}
+				SceneCollection *scene_collection = part->dup_group->collection;
+				stats_dupli_object_group_count(scene_collection, &totgroup);
+				stats_dupli_object_group_doit(scene_collection, stats, psys, totgroup, &cur);
 			}
 		}
 		
@@ -345,10 +372,10 @@ static bool stats_is_object_dynamic_topology_sculpt(Object *ob)
 }
 
 /* Statistics displayed in info header. Called regularly on scene changes. */
-static void stats_update(Scene *scene, SceneLayer *sl)
+static void stats_update(Scene *scene, ViewLayer *view_layer)
 {
 	SceneStats stats = {0};
-	Object *ob = (sl->basact) ? sl->basact->object : NULL;
+	Object *ob = (view_layer->basact) ? view_layer->basact->object : NULL;
 	Base *base;
 	
 	if (scene->obedit) {
@@ -365,25 +392,25 @@ static void stats_update(Scene *scene, SceneLayer *sl)
 	}
 	else {
 		/* Objects */
-		for (base = sl->object_bases.first; base; base = base->next)
+		for (base = view_layer->object_bases.first; base; base = base->next)
 			if (base->flag & BASE_VISIBLED) {
 				stats_dupli_object(base, base->object, &stats);
 			}
 	}
 
-	if (!sl->stats) {
-		sl->stats = MEM_callocN(sizeof(SceneStats), "SceneStats");
+	if (!view_layer->stats) {
+		view_layer->stats = MEM_callocN(sizeof(SceneStats), "SceneStats");
 	}
 
-	*(sl->stats) = stats;
+	*(view_layer->stats) = stats;
 }
 
-static void stats_string(Scene *scene, SceneLayer *sl)
+static void stats_string(Scene *scene, ViewLayer *view_layer)
 {
 #define MAX_INFO_MEM_LEN  64
-	SceneStats *stats = sl->stats;
+	SceneStats *stats = view_layer->stats;
 	SceneStatsFmt stats_fmt;
-	Object *ob = (sl->basact) ? sl->basact->object : NULL;
+	Object *ob = (view_layer->basact) ? view_layer->basact->object : NULL;
 	uintptr_t mem_in_use, mmap_in_use;
 	char memstr[MAX_INFO_MEM_LEN];
 	char gpumemstr[MAX_INFO_MEM_LEN] = "";
@@ -490,20 +517,20 @@ static void stats_string(Scene *scene, SceneLayer *sl)
 
 #undef MAX_INFO_LEN
 
-void ED_info_stats_clear(SceneLayer *sl)
+void ED_info_stats_clear(ViewLayer *view_layer)
 {
-	if (sl->stats) {
-		MEM_freeN(sl->stats);
-		sl->stats = NULL;
+	if (view_layer->stats) {
+		MEM_freeN(view_layer->stats);
+		view_layer->stats = NULL;
 	}
 }
 
-const char *ED_info_stats_string(Scene *scene, SceneLayer *sl)
+const char *ED_info_stats_string(Scene *scene, ViewLayer *view_layer)
 {
-	if (!sl->stats) {
-		stats_update(scene, sl);
+	if (!view_layer->stats) {
+		stats_update(scene, view_layer);
 	}
-	stats_string(scene, sl);
+	stats_string(scene, view_layer);
 
-	return sl->stats->infostr;
+	return view_layer->stats->infostr;
 }

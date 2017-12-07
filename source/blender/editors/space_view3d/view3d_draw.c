@@ -90,6 +90,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "RNA_access.h"
+
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
@@ -793,13 +795,13 @@ static void view3d_draw_background_none(void)
 	glClear(GL_COLOR_BUFFER_BIT);
 }
 
-static void view3d_draw_background_world(Scene *scene, View3D *v3d, RegionView3D *rv3d)
+static void view3d_draw_background_world(Scene *scene, RegionView3D *rv3d)
 {
 	if (scene->world) {
 		GPUMaterial *gpumat = GPU_material_world(scene, scene->world);
 
 		/* calculate full shader for background */
-		GPU_material_bind(gpumat, 1, 1, 1.0f, false, rv3d->viewmat, rv3d->viewinv, rv3d->viewcamtexcofac, (v3d->scenelock != 0));
+		GPU_material_bind(gpumat, 1, 1, 1.0f, false, rv3d->viewmat, rv3d->viewinv, rv3d->viewcamtexcofac);
 
 		if (GPU_material_bound(gpumat)) {
 			/* TODO viewport (dfelinto): GPU_material_bind relies on immediate mode,
@@ -1314,9 +1316,9 @@ float ED_view3d_grid_scale(Scene *scene, View3D *v3d, const char **grid_unit)
 	return v3d->grid * ED_scene_grid_scale(scene, grid_unit);
 }
 
-static bool is_cursor_visible(Scene *scene, SceneLayer *sl)
+static bool is_cursor_visible(Scene *scene, ViewLayer *view_layer)
 {
-	Object *ob = OBACT(sl);
+	Object *ob = OBACT(view_layer);
 
 	/* don't draw cursor in paint modes, but with a few exceptions */
 	if (ob && ob->mode & OB_MODE_ALL_PAINT) {
@@ -1328,7 +1330,7 @@ static bool is_cursor_visible(Scene *scene, SceneLayer *sl)
 		}
 		/* exception: object in texture paint mode, clone brush, use_clone_layer disabled */
 		else if (ob->mode & OB_MODE_TEXTURE_PAINT) {
-			const Paint *p = BKE_paint_get_active(scene, sl);
+			const Paint *p = BKE_paint_get_active(scene, view_layer);
 
 			if (p && p->brush && p->brush->imagepaint_tool == PAINT_TOOL_CLONE) {
 				if ((scene->toolsettings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_CLONE) == 0) {
@@ -1611,7 +1613,6 @@ static void view3d_draw_grease_pencil(const bContext *UNUSED(C))
 	/* TODO viewport */
 }
 
-
 /**
 * Viewport Name
 */
@@ -1846,8 +1847,8 @@ void view3d_draw_region_info(const bContext *C, ARegion *ar, const int offset)
 	}
 
 	if (U.uiflag & USER_DRAWVIEWINFO) {
-		SceneLayer *sl = CTX_data_scene_layer(C);
-		Object *ob = OBACT(sl);
+		ViewLayer *view_layer = CTX_data_view_layer(C);
+		Object *ob = OBACT(view_layer);
 		draw_selected_name(scene, ob, &rect);
 	}
 #if 0 /* TODO */
@@ -1930,12 +1931,12 @@ static void view3d_stereo3d_setup_offscreen(
 	}
 }
 
-void ED_view3d_draw_offscreen_init(const EvaluationContext *eval_ctx, Scene *scene, SceneLayer *sl, View3D *v3d)
+void ED_view3d_draw_offscreen_init(const EvaluationContext *eval_ctx, Scene *scene, ViewLayer *view_layer, View3D *v3d)
 {
-	RenderEngineType *type = eval_ctx->engine;
-	if (type->flag & RE_USE_LEGACY_PIPELINE) {
+	RenderEngineType *engine_type = eval_ctx->engine_type;
+	if (engine_type->flag & RE_USE_LEGACY_PIPELINE) {
 		/* shadow buffers, before we setup matrices */
-		if (draw_glsl_material(scene, sl, NULL, v3d, v3d->drawtype)) {
+		if (draw_glsl_material(scene, view_layer, NULL, v3d, v3d->drawtype)) {
 			VP_deprecated_gpu_update_lamps_shadows_world(eval_ctx, scene, v3d);
 		}
 	}
@@ -1949,7 +1950,7 @@ static void view3d_main_region_clear(Scene *scene, View3D *v3d, ARegion *ar)
 	glClear(GL_DEPTH_BUFFER_BIT);
 
 	if (scene->world && (v3d->flag3 & V3D_SHOW_WORLD)) {
-		VP_view3d_draw_background_world(scene, v3d, ar->regiondata);
+		VP_view3d_draw_background_world(scene, ar->regiondata);
 	}
 	else {
 		VP_view3d_draw_background_none();
@@ -1960,7 +1961,7 @@ static void view3d_main_region_clear(Scene *scene, View3D *v3d, ARegion *ar)
  * stuff like shadow buffers
  */
 void ED_view3d_draw_offscreen(
-        const EvaluationContext *eval_ctx, Scene *scene, SceneLayer *scene_layer,
+        const EvaluationContext *eval_ctx, Scene *scene, ViewLayer *view_layer,
         View3D *v3d, ARegion *ar, int winx, int winy,
         float viewmat[4][4], float winmat[4][4],
         bool do_bgpic, bool do_sky, bool is_persp, const char *viewname,
@@ -2015,8 +2016,8 @@ void ED_view3d_draw_offscreen(
 		view3d_main_region_setup_view(eval_ctx, scene, v3d, ar, viewmat, winmat, NULL);
 
 	/* main drawing call */
-	RenderEngineType *type = eval_ctx->engine;
-	if (type->flag & RE_USE_LEGACY_PIPELINE) {
+	RenderEngineType *engine_type = eval_ctx->engine_type;
+	if (engine_type->flag & RE_USE_LEGACY_PIPELINE) {
 
 		/* framebuffer fx needed, we need to draw offscreen first */
 		if (v3d->fx_settings.fx_flag && fx) {
@@ -2048,7 +2049,7 @@ void ED_view3d_draw_offscreen(
 
 			if (v3d->flag2 & V3D_SHOW_GPENCIL) {
 				/* draw grease-pencil stuff - needed to get paint-buffer shown too (since it's 2D) */
-				ED_gpencil_draw_view3d(NULL, scene, scene_layer, v3d, ar, false);
+				ED_gpencil_draw_view3d(NULL, scene, view_layer, v3d, ar, false);
 			}
 
 			/* freeing the images again here could be done after the operator runs, leaving for now */
@@ -2057,9 +2058,9 @@ void ED_view3d_draw_offscreen(
 	}
 	else {
 		/* XXX, should take depsgraph as arg */
-		Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, scene_layer, false);
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
 		BLI_assert(depsgraph != NULL);
-		DRW_draw_render_loop_offscreen(depsgraph, eval_ctx->engine, ar, v3d, ofs);
+		DRW_draw_render_loop_offscreen(depsgraph, eval_ctx->engine_type, ar, v3d, ofs);
 	}
 
 	/* restore size */
@@ -2082,15 +2083,17 @@ void ED_view3d_draw_offscreen(
  * (avoids re-creating when doing multiple GL renders).
  */
 ImBuf *ED_view3d_draw_offscreen_imbuf(
-        const EvaluationContext *eval_ctx, Scene *scene, SceneLayer *scene_layer,
+        const EvaluationContext *eval_ctx, Scene *scene, ViewLayer *view_layer,
         View3D *v3d, ARegion *ar, int sizex, int sizey,
-        unsigned int flag, bool draw_background,
-        int alpha_mode, int samples, bool full_samples, const char *viewname,
+        unsigned int flag, unsigned int draw_flags,
+        int alpha_mode, int samples, const char *viewname,
         /* output vars */
         GPUFX *fx, GPUOffScreen *ofs, char err_out[256])
 {
 	RegionView3D *rv3d = ar->regiondata;
 	const bool draw_sky = (alpha_mode == R_ADDSKY);
+	const bool draw_background = (draw_flags & V3D_OFSDRAW_USE_BACKGROUND);
+	const bool use_full_sample = (draw_flags & V3D_OFSDRAW_USE_FULL_SAMPLE);
 
 	/* view state */
 	GPUFXSettings fx_settings = v3d->fx_settings;
@@ -2106,13 +2109,13 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 
 	if (own_ofs) {
 		/* bind */
-		ofs = GPU_offscreen_create(sizex, sizey, full_samples ? 0 : samples, err_out);
+		ofs = GPU_offscreen_create(sizex, sizey, use_full_sample ? 0 : samples, err_out);
 		if (ofs == NULL) {
 			return NULL;
 		}
 	}
 
-	ED_view3d_draw_offscreen_init(eval_ctx, scene, scene_layer, v3d);
+	ED_view3d_draw_offscreen_init(eval_ctx, scene, view_layer, v3d);
 
 	GPU_offscreen_bind(ofs, true);
 
@@ -2151,10 +2154,10 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 		}
 	}
 
-	if ((samples && full_samples) == 0) {
+	if ((samples && use_full_sample) == 0) {
 		/* Single-pass render, common case */
 		ED_view3d_draw_offscreen(
-		        eval_ctx, scene, scene_layer, v3d, ar, sizex, sizey, NULL, winmat,
+		        eval_ctx, scene, view_layer, v3d, ar, sizex, sizey, NULL, winmat,
 		        draw_background, draw_sky, !is_ortho, viewname,
 		        fx, &fx_settings, ofs);
 
@@ -2178,7 +2181,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 
 		/* first sample buffer, also initializes 'rv3d->persmat' */
 		ED_view3d_draw_offscreen(
-		        eval_ctx, scene, scene_layer, v3d, ar, sizex, sizey, NULL, winmat,
+		        eval_ctx, scene, view_layer, v3d, ar, sizex, sizey, NULL, winmat,
 		        draw_background, draw_sky, !is_ortho, viewname,
 		        fx, &fx_settings, ofs);
 		GPU_offscreen_read_pixels(ofs, GL_UNSIGNED_BYTE, rect_temp);
@@ -2197,7 +2200,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 			        (jit_ofs[j][1] * 2.0f) / sizey);
 
 			ED_view3d_draw_offscreen(
-			        eval_ctx, scene, scene_layer, v3d, ar, sizex, sizey, NULL, winmat_jitter,
+			        eval_ctx, scene, view_layer, v3d, ar, sizex, sizey, NULL, winmat_jitter,
 			        draw_background, draw_sky, !is_ortho, viewname,
 			        fx, &fx_settings, ofs);
 			GPU_offscreen_read_pixels(ofs, GL_UNSIGNED_BYTE, rect_temp);
@@ -2248,10 +2251,10 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
  * \note used by the sequencer
  */
 ImBuf *ED_view3d_draw_offscreen_imbuf_simple(
-        const EvaluationContext *eval_ctx, Scene *scene, SceneLayer *scene_layer,
+        const EvaluationContext *eval_ctx, Scene *scene, ViewLayer *view_layer,
         Object *camera, int width, int height,
-        unsigned int flag, int drawtype, bool use_solid_tex, bool use_gpencil, bool draw_background,
-        int alpha_mode, int samples, bool full_samples, const char *viewname,
+        unsigned int flag, unsigned int draw_flags, int drawtype,
+        int alpha_mode, int samples, const char *viewname,
         GPUFX *fx, GPUOffScreen *ofs, char err_out[256])
 {
 	View3D v3d = {NULL};
@@ -2268,14 +2271,21 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(
 	v3d.drawtype = drawtype;
 	v3d.flag2 = V3D_RENDER_OVERRIDE;
 
-	if (use_gpencil)
+	if (draw_flags & V3D_OFSDRAW_USE_GPENCIL) {
 		v3d.flag2 |= V3D_SHOW_GPENCIL;
-
-	if (use_solid_tex)
+	}
+	if (draw_flags & V3D_OFSDRAW_USE_SOLID_TEX) {
 		v3d.flag2 |= V3D_SOLID_TEX;
-
-	if (draw_background)
+	}
+	if (draw_flags & V3D_OFSDRAW_USE_BACKGROUND) {
 		v3d.flag3 |= V3D_SHOW_WORLD;
+	}
+	if (draw_flags & V3D_OFSDRAW_USE_CAMERA_DOF) {
+		if (camera->type == OB_CAMERA) {
+			v3d.fx_settings.dof = &((Camera *)camera->data)->gpu_dof;
+			v3d.fx_settings.fx_flag |= GPU_FX_FLAG_DOF;
+		}
+	}
 
 	rv3d.persp = RV3D_CAMOB;
 
@@ -2303,9 +2313,8 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(
 	invert_m4_m4(rv3d.persinv, rv3d.viewinv);
 
 	return ED_view3d_draw_offscreen_imbuf(
-	        eval_ctx, scene, scene_layer, &v3d, &ar, width, height, flag,
-	        draw_background, alpha_mode, samples, full_samples, viewname,
-	        fx, ofs, err_out);
+	        eval_ctx, scene, view_layer, &v3d, &ar, width, height, flag,
+	        draw_flags, alpha_mode, samples, viewname, fx, ofs, err_out);
 }
 
 /** \} */
@@ -2320,9 +2329,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(
  *
  * \{ */
 
-void VP_legacy_drawcursor(Scene *scene, SceneLayer *sl, ARegion *ar, View3D *v3d)
+void VP_legacy_drawcursor(Scene *scene, ViewLayer *view_layer, ARegion *ar, View3D *v3d)
 {
-	if (is_cursor_visible(scene, sl)) {
+	if (is_cursor_visible(scene, view_layer)) {
 		drawcursor(scene, ar, v3d);
 	}
 }
@@ -2394,9 +2403,9 @@ void VP_view3d_draw_background_none(void)
 	}
 }
 
-void VP_view3d_draw_background_world(Scene *scene, View3D *v3d, RegionView3D *rv3d)
+void VP_view3d_draw_background_world(Scene *scene, RegionView3D *rv3d)
 {
-	view3d_draw_background_world(scene, v3d, rv3d);
+	view3d_draw_background_world(scene, rv3d);
 }
 
 void VP_view3d_main_region_clear(Scene *scene, View3D *v3d, ARegion *ar)

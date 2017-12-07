@@ -74,17 +74,25 @@ struct ComponentDepsNode : public DepsNode {
 
 	string identifier() const;
 
-	/* Find an existing operation, will throw an assert() if it does not exist. */
+	/* Find an existing operation, if requested operation does not exist
+	 * NULL will be returned.
+	 */
 	OperationDepsNode *find_operation(OperationIDKey key) const;
 	OperationDepsNode *find_operation(eDepsOperation_Code opcode,
-	                                  const char *name,
-	                                  int name_tag) const;
-
-	/* Check operation exists and return it. */
-	OperationDepsNode *has_operation(OperationIDKey key) const;
-	OperationDepsNode *has_operation(eDepsOperation_Code opcode,
 	                                 const char *name,
 	                                 int name_tag) const;
+
+	/* Find an existing operation, will throw an assert() if it does not exist. */
+	OperationDepsNode *get_operation(OperationIDKey key) const;
+	OperationDepsNode *get_operation(eDepsOperation_Code opcode,
+	                                 const char *name,
+	                                 int name_tag) const;
+
+	/* Check operation exists and return it. */
+	bool has_operation(OperationIDKey key) const;
+	bool has_operation(eDepsOperation_Code opcode,
+	                   const char *name,
+	                   int name_tag) const;
 
 	/**
 	 * Create a new node for representing an operation and add this to graph
@@ -156,33 +164,25 @@ struct ComponentDepsNode : public DepsNode {
 
 /* ---------------------------------------- */
 
-struct ParametersComponentDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
+#define DEG_COMPONENT_DECLARE_GENERIC(name)                        \
+	struct name ## ComponentDepsNode : public ComponentDepsNode {  \
+		DEG_DEPSNODE_DECLARE;                                      \
+	}
 
-struct AnimationComponentDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct TransformComponentDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct ProxyComponentDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct GeometryComponentDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct SequencerComponentDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct PoseComponentDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
+DEG_COMPONENT_DECLARE_GENERIC(Animation);
+DEG_COMPONENT_DECLARE_GENERIC(BatchCache);
+DEG_COMPONENT_DECLARE_GENERIC(Cache);
+DEG_COMPONENT_DECLARE_GENERIC(CopyOnWrite);
+DEG_COMPONENT_DECLARE_GENERIC(Geometry);
+DEG_COMPONENT_DECLARE_GENERIC(LayerCollections);
+DEG_COMPONENT_DECLARE_GENERIC(Parameters);
+DEG_COMPONENT_DECLARE_GENERIC(Particles);
+DEG_COMPONENT_DECLARE_GENERIC(Proxy);
+DEG_COMPONENT_DECLARE_GENERIC(Pose);
+DEG_COMPONENT_DECLARE_GENERIC(Sequencer);
+DEG_COMPONENT_DECLARE_GENERIC(Shading);
+DEG_COMPONENT_DECLARE_GENERIC(ShadingParameters);
+DEG_COMPONENT_DECLARE_GENERIC(Transform);
 
 /* Bone Component */
 struct BoneComponentDepsNode : public ComponentDepsNode {
@@ -192,34 +192,6 @@ struct BoneComponentDepsNode : public ComponentDepsNode {
 
 	DEG_DEPSNODE_DECLARE;
 };
-
-struct ParticlesComponentDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct ShadingComponentDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct ShadingParametersComponentDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-	virtual bool depends_on_cow() { return false; }
-};
-
-struct CacheComponentDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct LayerCollectionsDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct CopyOnWriteDepsNode : public ComponentDepsNode {
-	DEG_DEPSNODE_DECLARE;
-
-	virtual bool depends_on_cow() { return false; }
-};
-
 
 void deg_register_component_depsnodes();
 

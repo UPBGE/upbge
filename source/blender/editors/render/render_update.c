@@ -70,6 +70,8 @@
 #include "ED_render.h"
 #include "ED_view3d.h"
 
+#include "DEG_depsgraph.h"
+
 #include "WM_api.h"
 
 #include "render_intern.h"  // own include
@@ -78,10 +80,13 @@ extern Material defmaterial;
 
 /***************************** Render Engines ********************************/
 
-void ED_render_scene_update(Main *bmain, Scene *scene, int updated)
+void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, int updated)
 {
 	/* viewport rendering update on data changes, happens after depsgraph
 	 * updates if there was any change. context is set to the 3d view */
+	Main *bmain = update_ctx->bmain;
+	Scene *scene = update_ctx->scene;
+	ViewLayer *view_layer = update_ctx->view_layer;
 	bContext *C;
 	wmWindowManager *wm;
 	wmWindow *win;
@@ -123,15 +128,11 @@ void ED_render_scene_update(Main *bmain, Scene *scene, int updated)
 				continue;
 
 			for (ar = sa->regionbase.first; ar; ar = ar->next) {
-				RegionView3D *rv3d;
-				RenderEngine *engine;
-
-				if (ar->regiontype != RGN_TYPE_WINDOW)
+				if (ar->regiontype != RGN_TYPE_WINDOW) {
 					continue;
-
-				rv3d = ar->regiondata;
-				engine = rv3d->render_engine;
-
+				}
+				RegionView3D *rv3d = ar->regiondata;
+				RenderEngine *engine = rv3d->render_engine;
 				/* call update if the scene changed, or if the render engine
 				 * tagged itself for update (e.g. because it was busy at the
 				 * time of the last update) */
@@ -145,13 +146,20 @@ void ED_render_scene_update(Main *bmain, Scene *scene, int updated)
 					engine->type->view_update(engine, C);
 
 				}
-				else if ((RE_engines_find(view_render->engine_id)->flag & RE_USE_LEGACY_PIPELINE) == 0) {
-					if (updated) {
-						CTX_wm_screen_set(C, sc);
-						CTX_wm_area_set(C, sa);
-						CTX_wm_region_set(C, ar);
-
-						DRW_notify_view_update(C);
+				else {
+					RenderEngineType *engine_type = RE_engines_find(view_render->engine_id);
+					if ((engine_type->flag & RE_USE_LEGACY_PIPELINE) == 0) {
+						if (updated) {
+							DRW_notify_view_update(
+							        (&(DRWUpdateContext){
+							            .bmain = bmain,
+							            .scene = scene,
+							            .view_layer = view_layer,
+							            .ar = ar,
+							            .v3d = (View3D *)sa->spacedata.first,
+							            .engine_type = engine_type
+							        }));
+						}
 					}
 				}
 			}
@@ -161,23 +169,6 @@ void ED_render_scene_update(Main *bmain, Scene *scene, int updated)
 	CTX_free(C);
 
 	recursive_check = false;
-}
-
-void ED_render_scene_update_pre(Main *bmain, Scene *scene, bool time)
-{
-	/* Blender internal might access to the data which is gonna to be freed
-	 * by the scene update functions. This applies for example to simulation
-	 * data like smoke and fire.
-	 */
-	if (time && !BKE_scene_use_new_shading_nodes(scene)) {
-		bScreen *sc;
-		ScrArea *sa;
-		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
-			for (sa = sc->areabase.first; sa; sa = sa->next) {
-				ED_render_engine_area_exit(bmain, sa);
-			}
-		}
-	}
 }
 
 void ED_render_engine_area_exit(Main *bmain, ScrArea *sa)
@@ -199,18 +190,21 @@ void ED_render_engine_area_exit(Main *bmain, ScrArea *sa)
 void ED_render_engine_changed(Main *bmain)
 {
 	/* on changing the render engine type, clear all running render engines */
-	bScreen *sc;
-	ScrArea *sa;
-	Scene *scene;
-
-	for (sc = bmain->screen.first; sc; sc = sc->id.next)
-		for (sa = sc->areabase.first; sa; sa = sa->next)
+	for (bScreen *sc = bmain->screen.first; sc; sc = sc->id.next) {
+		for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
 			ED_render_engine_area_exit(bmain, sa);
-
+		}
+	}
 	RE_FreePersistentData();
-
-	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
-		ED_render_id_flush_update(bmain, &scene->id);
+	/* Inform all render engines and draw managers. */
+	DEGEditorUpdateContext update_ctx = {NULL};
+	update_ctx.bmain = bmain;
+	for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
+		update_ctx.scene = scene;
+		LINKLIST_FOREACH(ViewLayer *, view_layer, &scene->view_layers) {
+			update_ctx.view_layer = view_layer;
+			ED_render_id_flush_update(&update_ctx, &scene->id);
+		}
 		if (scene->nodetree) {
 			ntreeCompositUpdateRLayers(scene->nodetree);
 		}
@@ -396,7 +390,7 @@ static void texture_changed(Main *bmain, Tex *tex)
 	Lamp *la;
 	World *wo;
 	Scene *scene;
-	SceneLayer *sl;
+	ViewLayer *view_layer;
 	Object *ob;
 	bNode *node;
 	bool texture_draw = false;
@@ -406,8 +400,8 @@ static void texture_changed(Main *bmain, Tex *tex)
 
 	/* paint overlays */
 	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
-		for (sl = scene->render_layers.first; sl; sl = sl->next) {
-			BKE_paint_invalidate_overlay_tex(scene, sl, tex);
+		for (view_layer = scene->view_layers.first; view_layer; view_layer = view_layer->next) {
+			BKE_paint_invalidate_overlay_tex(scene, view_layer, tex);
 		}
 	}
 
@@ -536,14 +530,18 @@ static void scene_changed(Main *bmain, Scene *scene)
 	}
 }
 
-void ED_render_id_flush_update(Main *bmain, ID *id)
+void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
 {
 	/* this can be called from render or baking thread when a python script makes
 	 * changes, in that case we don't want to do any editor updates, and making
 	 * GPU changes is not possible because OpenGL only works in the main thread */
-	if (!BLI_thread_is_main())
+	if (!BLI_thread_is_main()) {
 		return;
-
+	}
+	Main *bmain = update_ctx->bmain;
+	Scene *scene = update_ctx->scene;
+	ViewLayer *view_layer = update_ctx->view_layer;
+	/* Internal ID update handlers. */
 	switch (GS(id->name)) {
 		case ID_MA:
 			material_changed(bmain, (Material *)id);
@@ -569,7 +567,42 @@ void ED_render_id_flush_update(Main *bmain, ID *id)
 			render_engine_flag_changed(bmain, RE_ENGINE_UPDATE_OTHER);
 			break;
 	}
-	
+	/* Inform all draw managers about changes.
+	 *
+	 * TODO(sergey): This code is run for every updated ID, via flushing
+	 * mechanism. How can we avoid iterating over the whole interface for
+	 * every of those IDs? One of the ideas would be to call draw manager's
+	 * ID update which is not bound to any of contexts.
+	 */
+	{
+		wmWindowManager *wm = bmain->wm.first;
+		for (wmWindow *win = wm->windows.first; win; win = win->next) {
+			bScreen *sc = WM_window_get_active_screen(win);
+			WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
+			ViewRender *view_render = BKE_viewrender_get(win->scene, workspace);
+			for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
+				if (sa->spacetype != SPACE_VIEW3D) {
+					continue;
+				}
+				for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
+					if (ar->regiontype != RGN_TYPE_WINDOW) {
+						continue;
+					}
+					RenderEngineType *engine_type = RE_engines_find(view_render->engine_id);
+					DRW_notify_id_update(
+					        (&(DRWUpdateContext){
+					            .bmain = bmain,
+					            .scene = scene,
+					            .view_layer = view_layer,
+					            .ar = ar,
+					            .v3d = (View3D *)sa->spacedata.first,
+					            .engine_type = engine_type
+					        }),
+					        id);
+				}
+			}
+		}
+	}
 }
 
 

@@ -75,6 +75,7 @@
 #include "BKE_collection.h"
 #include "BKE_constraint.h"
 #include "BKE_fcurve.h"
+#include "BKE_group.h"
 #include "BKE_idprop.h"
 #include "BKE_library.h"
 #include "BKE_library_query.h"
@@ -373,6 +374,10 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 #define CALLBACK_INVOKE(check_id_super, cb_flag) \
 	FOREACH_CALLBACK_INVOKE(&data, check_id_super, cb_flag)
 
+	if (id->override_static != NULL) {
+		CALLBACK_INVOKE_ID(id->override_static->reference, IDWALK_CB_USER | IDWALK_CB_STATIC_OVERRIDE_REFERENCE);
+	}
+
 	for (; id != NULL; id = (flag & IDWALK_RECURSE) ? BLI_LINKSTACK_POP(data.ids_todo) : NULL) {
 		data.self_id = id;
 		data.cb_flag = ID_IS_LINKED(id) ? IDWALK_CB_INDIRECT_USAGE : 0;
@@ -407,7 +412,6 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 			{
 				Scene *scene = (Scene *) id;
 				ToolSettings *toolsett = scene->toolsettings;
-				SceneRenderLayer *srl;
 
 				CALLBACK_INVOKE(scene->camera, IDWALK_CB_NOP);
 				CALLBACK_INVOKE(scene->world, IDWALK_CB_USER);
@@ -420,31 +424,6 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				/* DO NOT handle scene->basact here, it's doubling with the loop over whole scene->base later,
 				 * since basact is just a pointer to one of those items. */
 				CALLBACK_INVOKE(scene->obedit, IDWALK_CB_NOP);
-
-				for (srl = scene->r.layers.first; srl; srl = srl->next) {
-					FreestyleModuleConfig *fmc;
-					FreestyleLineSet *fls;
-
-					if (srl->mat_override) {
-						CALLBACK_INVOKE(srl->mat_override, IDWALK_CB_USER);
-					}
-					if (srl->light_override) {
-						CALLBACK_INVOKE(srl->light_override, IDWALK_CB_USER);
-					}
-					for (fmc = srl->freestyleConfig.modules.first; fmc; fmc = fmc->next) {
-						if (fmc->script) {
-							CALLBACK_INVOKE(fmc->script, IDWALK_CB_NOP);
-						}
-					}
-					for (fls = srl->freestyleConfig.linesets.first; fls; fls = fls->next) {
-						if (fls->group) {
-							CALLBACK_INVOKE(fls->group, IDWALK_CB_USER);
-						}
-						if (fls->linestyle) {
-							CALLBACK_INVOKE(fls->linestyle, IDWALK_CB_USER);
-						}
-					}
-				}
 
 				if (scene->ed) {
 					Sequence *seq;
@@ -477,10 +456,26 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				}
 				FOREACH_SCENE_COLLECTION_END
 
-				SceneLayer *sl;
-				for (sl = scene->render_layers.first; sl; sl = sl->next) {
-					for (Base *base = sl->object_bases.first; base; base = base->next) {
+				ViewLayer *view_layer;
+				for (view_layer = scene->view_layers.first; view_layer; view_layer = view_layer->next) {
+					for (Base *base = view_layer->object_bases.first; base; base = base->next) {
 						CALLBACK_INVOKE(base->object, IDWALK_NOP);
+					}
+
+					for (FreestyleModuleConfig  *fmc = view_layer->freestyle_config.modules.first; fmc; fmc = fmc->next) {
+						if (fmc->script) {
+							CALLBACK_INVOKE(fmc->script, IDWALK_CB_NOP);
+						}
+					}
+
+					for (FreestyleLineSet *fls = view_layer->freestyle_config.linesets.first; fls; fls = fls->next) {
+						if (fls->group) {
+							CALLBACK_INVOKE(fls->group, IDWALK_CB_USER);
+						}
+
+						if (fls->linestyle) {
+							CALLBACK_INVOKE(fls->linestyle, IDWALK_CB_USER);
+						}
 					}
 				}
 
@@ -778,10 +773,11 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 			case ID_GR:
 			{
 				Group *group = (Group *) id;
-				GroupObject *gob;
-				for (gob = group->gobject.first; gob; gob = gob->next) {
-					CALLBACK_INVOKE(gob->ob, IDWALK_CB_USER_ONE);
+				FOREACH_GROUP_OBJECT(group, object)
+				{
+					CALLBACK_INVOKE(object, IDWALK_CB_USER_ONE);
 				}
+				FOREACH_GROUP_OBJECT_END
 				break;
 			}
 

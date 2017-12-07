@@ -1463,7 +1463,6 @@ static struct GPUMaterialState {
 	DupliObject *dob;
 	Scene *gscene;
 	int glay;
-	bool gscenelock;
 	float (*gviewmat)[4];
 	float (*gviewinv)[4];
 	float (*gviewcamtexcofac);
@@ -1554,7 +1553,7 @@ void GPU_end_dupli_object(void)
 }
 
 void GPU_begin_object_materials(
-        View3D *v3d, RegionView3D *rv3d, Scene *scene, SceneLayer *scene_layer, Object *ob,
+        View3D *v3d, RegionView3D *rv3d, Scene *scene, ViewLayer *view_layer, Object *ob,
         bool glsl, bool *do_alpha_after)
 {
 	Material *ma;
@@ -1593,10 +1592,10 @@ void GPU_begin_object_materials(
 
 #ifdef WITH_GAMEENGINE
 	if (rv3d->rflag & RV3D_IS_GAME_ENGINE) {
-		ob = BKE_object_lod_matob_get(ob, scene_layer);
+		ob = BKE_object_lod_matob_get(ob, view_layer);
 	}
 #else
-	UNUSED_VARS(scene_layer);
+	UNUSED_VARS(view_layer);
 #endif
 
 	/* initialize state */
@@ -1621,7 +1620,6 @@ void GPU_begin_object_materials(
 	GMS.is_opensubdiv = use_opensubdiv;
 	GMS.totmat = use_matcap ? 1 : ob->totcol + 1;  /* materials start from 1, default material is 0 */
 	GMS.glay = (v3d->localvd) ? v3d->localvd->lay : v3d->lay; /* keep lamps visible in local view */
-	GMS.gscenelock = (v3d->scenelock != 0);
 	GMS.gviewmat = rv3d->viewmat;
 	GMS.gviewinv = rv3d->viewinv;
 	GMS.gviewcamtexcofac = rv3d->viewcamtexcofac;
@@ -1837,7 +1835,7 @@ int GPU_object_material_bind(int nr, void *attribs)
 
 			GPU_material_bind(
 			        gpumat, GMS.gob->lay, GMS.glay, 1.0, !(GMS.gob->mode & OB_MODE_TEXTURE_PAINT),
-			        GMS.gviewmat, GMS.gviewinv, GMS.gviewcamtexcofac, GMS.gscenelock);
+			        GMS.gviewmat, GMS.gviewinv, GMS.gviewcamtexcofac);
 
 			auto_bump_scale = GMS.gob->derivedFinal != NULL ? GMS.gob->derivedFinal->auto_bump_scale : 1.0f;
 			GPU_material_bind_uniforms(gpumat, GMS.gob->obmat, GMS.gviewmat, GMS.gob->col, auto_bump_scale, &partile_info, object_info);
@@ -2031,7 +2029,7 @@ int GPU_default_lights(void)
 	return count;
 }
 
-int GPU_scene_object_lights(SceneLayer *scene_layer, float viewmat[4][4], int ortho)
+int GPU_scene_object_lights(ViewLayer *view_layer, float viewmat[4][4], int ortho)
 {
 	/* disable all lights */
 	for (int count = 0; count < 8; count++)
@@ -2043,7 +2041,7 @@ int GPU_scene_object_lights(SceneLayer *scene_layer, float viewmat[4][4], int or
 
 	int count = 0;
 
-	for (Base *base = FIRSTBASE(scene_layer); base; base = base->next) {
+	for (Base *base = FIRSTBASE(view_layer); base; base = base->next) {
 		if (base->object->type != OB_LAMP)
 			continue;
 

@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+#include "DNA_freestyle_types.h"
 #include "DNA_listBase.h"
 
 typedef struct Base {
@@ -50,12 +51,12 @@ typedef struct CollectionOverride {
 	/* TODO proper data */
 } CollectionOverride;
 
-typedef struct SceneLayerEngineData {
-	struct SceneLayerEngineData *next, *prev;
+typedef struct ViewLayerEngineData {
+	struct ViewLayerEngineData *next, *prev;
 	struct DrawEngineType *engine_type;
 	void *storage;
 	void (*free)(void *storage);
-} SceneLayerEngineData;
+} ViewLayerEngineData;
 
 typedef struct LayerCollection {
 	struct LayerCollection *next, *prev;
@@ -71,8 +72,8 @@ typedef struct LayerCollection {
 	struct IDProperty *properties_evaluated;
 } LayerCollection;
 
-typedef struct SceneLayer {
-	struct SceneLayer *next, *prev;
+typedef struct ViewLayer {
+	struct ViewLayer *next, *prev;
 	char name[64]; /* MAX_NAME */
 	short active_collection;
 	short flag;
@@ -84,16 +85,27 @@ typedef struct SceneLayer {
 	struct IDProperty *properties;  /* overrides */
 	struct IDProperty *properties_evaluated;
 
+	/* Old SceneRenderLayer data. */
+	int layflag;
+	int passflag;			/* pass_xor has to be after passflag */
+	int pass_xor;
+	float pass_alpha_threshold;
+
+	struct IDProperty *id_properties; /* Equivalent to datablocks ID properties. */
+
+	struct FreestyleConfig freestyle_config;
+
 	/* Runtime data */
-	ListBase drawdata;    /* SceneLayerEngineData */
-} SceneLayer;
+	ListBase drawdata;    /* ViewLayerEngineData */
+} ViewLayer;
 
 typedef struct SceneCollection {
 	struct SceneCollection *next, *prev;
 	char name[64]; /* MAX_NAME */
 	char filter[64]; /* MAX_NAME */
 	int active_object_index; /* for UI */
-	int pad;
+	char type;
+	char pad[3];
 	ListBase objects;           /* (Object *)LinkData->data */
 	ListBase filter_objects;    /* (Object *)LinkData->data */
 	ListBase scene_collections; /* nested collections */
@@ -116,12 +128,18 @@ enum {
 	COLLECTION_DISABLED   = (1 << 2),
 };
 
-/* SceneLayer->flag */
+/* ViewLayer->flag */
 enum {
-	SCENE_LAYER_RENDER = (1 << 0),
-	SCENE_LAYER_ENGINE_DIRTY  = (1 << 1),
+	VIEW_LAYER_RENDER = (1 << 0),
+	VIEW_LAYER_ENGINE_DIRTY  = (1 << 1),
+	VIEW_LAYER_FREESTYLE = (1 << 2),
 };
 
+/* SceneCollection->type */
+enum {
+	COLLECTION_TYPE_NONE =  0,
+	COLLECTION_TYPE_GROUP_INTERNAL = 1,
+};
 
 /* *************************************************************** */
 /* Engine Settings */

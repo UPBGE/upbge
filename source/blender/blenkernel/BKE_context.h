@@ -50,7 +50,7 @@ struct PointerRNA;
 struct ReportList;
 struct Scene;
 struct SceneCollection;
-struct SceneLayer;
+struct ViewLayer;
 struct ScrArea;
 struct SpaceLink;
 struct View3D;
@@ -156,6 +156,7 @@ struct ARegion *CTX_wm_region(const bContext *C);
 void *CTX_wm_region_data(const bContext *C);
 struct ARegion *CTX_wm_menu(const bContext *C);
 struct wmManipulatorGroup *CTX_wm_manipulator_group(const bContext *C);
+struct wmMsgBus *CTX_wm_message_bus(const bContext *C);
 struct ReportList *CTX_wm_reports(const bContext *C);
 
 struct View3D *CTX_wm_view3d(const bContext *C);
@@ -252,9 +253,9 @@ struct Main *CTX_data_main(const bContext *C);
 struct Scene *CTX_data_scene(const bContext *C);
 struct LayerCollection *CTX_data_layer_collection(const bContext *C);
 struct SceneCollection *CTX_data_scene_collection(const bContext *C);
-struct SceneLayer *CTX_data_scene_layer(const bContext *C);
+struct ViewLayer *CTX_data_view_layer(const bContext *C);
 struct ViewRender *CTX_data_view_render(const bContext *C);
-struct RenderEngineType *CTX_data_engine(const bContext *C);
+struct RenderEngineType *CTX_data_engine_type(const bContext *C);
 struct ToolSettings *CTX_data_tool_settings(const bContext *C);
 
 const char *CTX_data_mode_string(const bContext *C);

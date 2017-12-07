@@ -67,7 +67,7 @@ struct PointerRNA;
 struct PropertyRNA;
 struct RenderEngineType;
 struct Scene;
-struct SceneLayer;
+struct ViewLayer;
 
 typedef enum eEvaluationMode {
 	DAG_EVAL_VIEWPORT       = 0,    /* evaluate for OpenGL viewport */
@@ -85,8 +85,8 @@ typedef struct EvaluationContext {
 	float ctime;
 
 	struct Depsgraph *depsgraph;
-	struct SceneLayer *scene_layer;
-	struct RenderEngineType *engine;
+	struct ViewLayer *view_layer;
+	struct RenderEngineType *engine_type;
 } EvaluationContext;
 
 /* DagNode->eval_flags */
@@ -151,9 +151,9 @@ enum {
 	DEG_TAG_TIME        = (1 << 2),
 
 	/* Particle system changed. */
-	DEG_TAG_PSYSC_REDO  =  (1 << 3),
-	DEG_TAG_PSYS_RESET  =  (1 << 4),
-	DEG_TAG_PSYS_TYPE   =  (1 << 5),
+	DEG_TAG_PSYSC_REDO  = (1 << 3),
+	DEG_TAG_PSYS_RESET  = (1 << 4),
+	DEG_TAG_PSYS_TYPE   = (1 << 5),
 	DEG_TAG_PSYS_CHILD  = (1 << 6),
 	DEG_TAG_PSYS_PHYS   = (1 << 7),
 	DEG_TAG_PSYS        = ((1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7)),
@@ -165,6 +165,11 @@ enum {
 	 * Only parameters of material changed).
 	 */
 	DEG_TAG_SHADING_UPDATE  = (1 << 9),
+	DEG_TAG_SELECT_UPDATE   = (1 << 10),
+	DEG_TAG_BASE_FLAGS_UPDATE = (1 << 11),
+
+	/* Only inform editors about the change. Don't modify datablock itself. */
+	DEG_TAG_EDITORS_UPDATE = (1 << 12),
 };
 void DEG_id_tag_update(struct ID *id, int flag);
 void DEG_id_tag_update_ex(struct Main *bmain, struct ID *id, int flag);
@@ -174,10 +179,9 @@ void DEG_graph_id_tag_update(struct Main *bmain,
                              struct ID *id,
                              int flag);
 
-/* Tag given ID type for update.
- *
- * Used by all sort of render engines to quickly check if
- * IDs of a given type need to be checked for update.
+/* Mark a particular datablock type as having changing. This does
+ * not cause any updates but is used by external render engines to detect if for
+ * example a datablock was removed.
  */
 void DEG_id_type_tag(struct Main *bmain, short id_type);
 
@@ -193,6 +197,7 @@ void DEG_graph_flush_update(struct Main *bmain, Depsgraph *depsgraph);
  */
 void DEG_ids_check_recalc(struct Main *bmain,
                           struct Scene *scene,
+                          struct ViewLayer *view_layer,
                           bool time);
 
 /* ************************************************ */
@@ -211,8 +216,8 @@ void DEG_evaluation_context_init(struct EvaluationContext *eval_ctx,
                                  eEvaluationMode mode);
 void DEG_evaluation_context_init_from_scene(struct EvaluationContext *eval_ctx,
                                             struct Scene *scene,
-                                            struct SceneLayer *scene_layer,
-                                            struct RenderEngineType *engine,
+                                            struct ViewLayer *view_layer,
+                                            struct RenderEngineType *engine_type,
                                             eEvaluationMode mode);
 
 /* Free evaluation context. */
@@ -243,20 +248,21 @@ bool DEG_needs_eval(Depsgraph *graph);
  * to do their own updates based on changes.
  */
 
-typedef void (*DEG_EditorUpdateIDCb)(struct Main *bmain, struct ID *id);
-typedef void (*DEG_EditorUpdateSceneCb)(struct Main *bmain,
-                                        struct Scene *scene,
-                                        int updated);
-typedef void (*DEG_EditorUpdateScenePreCb)(struct Main *bmain,
-                                           struct Scene *scene,
-                                           bool time);
+typedef struct DEGEditorUpdateContext {
+	struct Main *bmain;
+	struct Scene *scene;
+	struct ViewLayer *view_layer;
+} DEGEditorUpdateContext;
+
+typedef void (*DEG_EditorUpdateIDCb)(
+        const DEGEditorUpdateContext *update_ctx,
+        struct ID *id);
+typedef void (*DEG_EditorUpdateSceneCb)(
+        const DEGEditorUpdateContext *update_ctx, int updated);
 
 /* Set callbacks which are being called when depsgraph changes. */
 void DEG_editors_set_update_cb(DEG_EditorUpdateIDCb id_func,
-                               DEG_EditorUpdateSceneCb scene_func,
-                               DEG_EditorUpdateScenePreCb scene_pre_func);
-
-void DEG_editors_update_pre(struct Main *bmain, struct Scene *scene, bool time);
+                               DEG_EditorUpdateSceneCb scene_func);
 
 #ifdef __cplusplus
 } /* extern "C" */

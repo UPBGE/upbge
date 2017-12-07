@@ -104,6 +104,7 @@
 #include "BKE_lamp.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
+#include "BKE_library_override.h"
 #include "BKE_library_query.h"
 #include "BKE_library_remap.h"
 #include "BKE_linestyle.h"
@@ -674,7 +675,11 @@ bool BKE_id_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int flag, con
 	/* Do not make new copy local in case we are copying outside of main...
 	 * XXX TODO: is this behavior OK, or should we need own flag to control that? */
 	if ((flag & LIB_ID_CREATE_NO_MAIN) == 0) {
+		BLI_assert((flag & LIB_ID_COPY_KEEP_LIB) == 0);
 		BKE_id_copy_ensure_local(bmain, id, *r_newid);
+	}
+	else {
+		(*r_newid)->lib = id->lib;
 	}
 
 	return true;
@@ -687,6 +692,75 @@ bool BKE_id_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int flag, con
 bool id_copy(Main *bmain, const ID *id, ID **newid, bool test)
 {
 	return BKE_id_copy_ex(bmain, id, newid, 0, test);
+}
+
+/** Does a mere memory swap over the whole IDs data (including type-specific memory).
+ *  \note Most internal ID data itself is not swapped (only IDProperties are). */
+void BKE_id_swap(Main *bmain, ID *id_a, ID *id_b)
+{
+	BLI_assert(GS(id_a->name) == GS(id_b->name));
+
+	const ID id_a_back = *id_a;
+	const ID id_b_back = *id_b;
+
+#define CASE_SWAP(_gs, _type) \
+	case _gs: \
+		SWAP(_type, *(_type *)id_a, *(_type *)id_b); \
+		break
+
+	switch ((ID_Type)GS(id_a->name)) {
+		CASE_SWAP(ID_SCE, Scene);
+		CASE_SWAP(ID_LI, Library);
+		CASE_SWAP(ID_OB, Object);
+		CASE_SWAP(ID_ME, Mesh);
+		CASE_SWAP(ID_CU, Curve);
+		CASE_SWAP(ID_MB, MetaBall);
+		CASE_SWAP(ID_MA, Material);
+		CASE_SWAP(ID_TE, Tex);
+		CASE_SWAP(ID_IM, Image);
+		CASE_SWAP(ID_LT, Lattice);
+		CASE_SWAP(ID_LA, Lamp);
+		CASE_SWAP(ID_LP, LightProbe);
+		CASE_SWAP(ID_CA, Camera);
+		CASE_SWAP(ID_KE, Key);
+		CASE_SWAP(ID_WO, World);
+		CASE_SWAP(ID_SCR, bScreen);
+		CASE_SWAP(ID_VF, VFont);
+		CASE_SWAP(ID_TXT, Text);
+		CASE_SWAP(ID_SPK, Speaker);
+		CASE_SWAP(ID_SO, bSound);
+		CASE_SWAP(ID_GR, Group);
+		CASE_SWAP(ID_AR, bArmature);
+		CASE_SWAP(ID_AC, bAction);
+		CASE_SWAP(ID_NT, bNodeTree);
+		CASE_SWAP(ID_BR, Brush);
+		CASE_SWAP(ID_PA, ParticleSettings);
+		CASE_SWAP(ID_WM, wmWindowManager);
+		CASE_SWAP(ID_WS, WorkSpace);
+		CASE_SWAP(ID_GD, bGPdata);
+		CASE_SWAP(ID_MC, MovieClip);
+		CASE_SWAP(ID_MSK, Mask);
+		CASE_SWAP(ID_LS, FreestyleLineStyle);
+		CASE_SWAP(ID_PAL, Palette);
+		CASE_SWAP(ID_PC, PaintCurve);
+		CASE_SWAP(ID_CF, CacheFile);
+		case ID_IP:
+			break;  /* Deprecated. */
+	}
+
+#undef CASE_SWAP
+
+	/* Restore original ID's internal data. */
+	*id_a = id_a_back;
+	*id_b = id_b_back;
+
+	/* Exception: IDProperties. */
+	id_a->properties = id_b_back.properties;
+	id_b->properties = id_a_back.properties;
+
+	/* Swap will have broken internal references to itself, restore them. */
+	BKE_libblock_relink_ex(bmain, id_a, id_b, id_a, false);
+	BKE_libblock_relink_ex(bmain, id_b, id_a, id_b, false);
 }
 
 /** Does *not* set ID->newid pointer. */
@@ -1341,6 +1415,15 @@ void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int fla
 	if (id->properties) {
 		new_id->properties = IDP_CopyProperty_ex(id->properties, flag);
 	}
+
+	/* XXX Again... We need a way to control what we copy in a much more refined way.
+	 * We cannot always copy this, some internal copying will die on it! */
+	/* For now, upper level code will have to do that itself when required. */
+#if 0
+	if (id->override != NULL) {
+		BKE_override_copy(new_id, id);
+	}
+#endif
 
 	/* the duplicate should get a copy of the animdata */
 	id_copy_animdata(bmain, new_id, (flag & LIB_ID_COPY_ACTIONS) != 0 && (flag & LIB_ID_CREATE_NO_MAIN) == 0);
@@ -2407,10 +2490,10 @@ void BKE_library_filepath_set(Library *lib, const char *filepath)
 
 void BKE_id_tag_set_atomic(ID *id, int tag)
 {
-	atomic_fetch_and_or_uint32((uint32_t *)&id->tag, tag);
+	atomic_fetch_and_or_int32(&id->tag, tag);
 }
 
 void BKE_id_tag_clear_atomic(ID *id, int tag)
 {
-	atomic_fetch_and_and_uint32((uint32_t *)&id->tag, ~tag);
+	atomic_fetch_and_and_int32(&id->tag, ~tag);
 }

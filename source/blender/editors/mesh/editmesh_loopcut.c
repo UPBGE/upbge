@@ -534,9 +534,6 @@ static int ringsel_init(bContext *C, wmOperator *op, bool do_cut)
 	lcd->num.unit_type[0] = B_UNIT_NONE;
 	lcd->num.unit_type[1] = B_UNIT_NONE;
 
-	/* XXX, temp, workaround for [#	] */
-	EDBM_mesh_ensure_valid_dm_hack(scene, lcd->em);
-
 	em_setup_viewcontext(C, &lcd->vc);
 
 	ED_region_tag_redraw(lcd->ar);
@@ -871,6 +868,8 @@ void MESH_OT_loopcut(wmOperatorType *ot)
 	prop = RNA_def_float(ot->srna, "smoothness", 0.0f, -1e3f, 1e3f,
 	                     "Smoothness", "Smoothness factor", -SUBD_SMOOTH_MAX, SUBD_SMOOTH_MAX);
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+	WM_operatortype_props_advanced_begin(ot);
 
 	prop = RNA_def_property(ot->srna, "falloff", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, rna_enum_proportional_falloff_curve_only_items);

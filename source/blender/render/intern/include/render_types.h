@@ -192,6 +192,8 @@ struct Render {
 	struct Main *main;
 	Scene *scene;
 	RenderData r;
+	ListBase view_layers;
+	int active_view_layer;
 	World wrld;
 	ViewRender view_render;
 	struct Object *camera_override;

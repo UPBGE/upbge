@@ -168,8 +168,10 @@
 #include "BKE_curve.h"
 #include "BKE_constraint.h"
 #include "BKE_global.h" // for G
+#include "BKE_group.h"
 #include "BKE_idcode.h"
 #include "BKE_library.h" // for  set_listbasepointers
+#include "BKE_library_override.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
@@ -683,6 +685,25 @@ static void write_iddata(void *wd, const ID *id)
 	if (id->properties && !ELEM(GS(id->name), ID_WM)) {
 		IDP_WriteProperty(id->properties, wd);
 	}
+
+	if (id->override_static) {
+		writestruct(wd, DATA, IDOverrideStatic, 1, id->override_static);
+
+		writelist(wd, DATA, IDOverrideStaticProperty, &id->override_static->properties);
+		for (IDOverrideStaticProperty *op = id->override_static->properties.first; op; op = op->next) {
+			writedata(wd, DATA, strlen(op->rna_path) + 1, op->rna_path);
+
+			writelist(wd, DATA, IDOverrideStaticPropertyOperation, &op->operations);
+			for (IDOverrideStaticPropertyOperation *opop = op->operations.first; opop; opop = opop->next) {
+				if (opop->subitem_reference_name) {
+					writedata(wd, DATA, strlen(opop->subitem_reference_name) + 1, opop->subitem_reference_name);
+				}
+				if (opop->subitem_local_name) {
+					writedata(wd, DATA, strlen(opop->subitem_local_name) + 1, opop->subitem_local_name);
+				}
+			}
+		}
+	}
 }
 
 static void write_previews(WriteData *wd, const PreviewImage *prv_orig)
@@ -1086,7 +1107,7 @@ static void write_nodetree_nolib(WriteData *wd, bNodeTree *ntree)
  */
 static void current_screen_compat(
         Main *mainvar, bool use_active_win,
-        bScreen **r_screen, Scene **r_scene, SceneLayer **r_render_layer)
+        bScreen **r_screen, Scene **r_scene, ViewLayer **r_render_layer)
 {
 	wmWindowManager *wm;
 	wmWindow *window = NULL;
@@ -1118,7 +1139,7 @@ static void current_screen_compat(
 
 	*r_screen = (window) ? BKE_workspace_active_screen_get(window->workspace_hook) : NULL;
 	*r_scene = (window) ? window->scene : NULL;
-	*r_render_layer = (window) ? BKE_workspace_render_layer_get(workspace) : NULL;
+	*r_render_layer = (window) ? BKE_workspace_view_layer_get(workspace, *r_scene) : NULL;
 }
 
 typedef struct RenderInfo {
@@ -1134,7 +1155,7 @@ static void write_renderinfo(WriteData *wd, Main *mainvar)
 {
 	bScreen *curscreen;
 	Scene *sce, *curscene = NULL;
-	SceneLayer *render_layer;
+	ViewLayer *render_layer;
 	RenderInfo data;
 
 	/* XXX in future, handle multiple windows with multiple screens? */
@@ -1328,9 +1349,13 @@ static void write_particlesettings(WriteData *wd, ParticleSettings *part)
 			if (dw->ob != NULL) {
 				dw->index = 0;
 				if (part->dup_group) { /* can be NULL if lining fails or set to None */
-					for (GroupObject *go = part->dup_group->gobject.first;
-					     go && go->ob != dw->ob;
-					     go = go->next, dw->index++);
+					FOREACH_GROUP_OBJECT(part->dup_group, object)
+					{
+						if (object != dw->ob) {
+							dw->index++;
+						}
+					}
+					FOREACH_GROUP_OBJECT_END
 				}
 			}
 			writestruct(wd, DATA, ParticleDupliWeight, 1, dw);
@@ -2592,6 +2617,28 @@ static void write_layer_collections(WriteData *wd, ListBase *lb)
 	}
 }
 
+static void write_view_layer(WriteData *wd, ViewLayer *view_layer)
+{
+	writestruct(wd, DATA, ViewLayer, 1, view_layer);
+	writelist(wd, DATA, Base, &view_layer->object_bases);
+	if (view_layer->properties) {
+		IDP_WriteProperty(view_layer->properties, wd);
+	}
+
+	if (view_layer->id_properties) {
+		IDP_WriteProperty(view_layer->id_properties, wd);
+	}
+
+	for (FreestyleModuleConfig *fmc = view_layer->freestyle_config.modules.first; fmc; fmc = fmc->next) {
+		writestruct(wd, DATA, FreestyleModuleConfig, 1, fmc);
+	}
+
+	for (FreestyleLineSet *fls = view_layer->freestyle_config.linesets.first; fls; fls = fls->next) {
+		writestruct(wd, DATA, FreestyleLineSet, 1, fls);
+	}
+	write_layer_collections(wd, &view_layer->layer_collections);
+}
+
 static void write_scene(WriteData *wd, Scene *sce)
 {
 	/* write LibData */
@@ -2688,6 +2735,9 @@ static void write_scene(WriteData *wd, Scene *sce)
 						case SEQ_TYPE_TEXT:
 							writestruct(wd, DATA, TextVars, 1, seq->effectdata);
 							break;
+						case SEQ_TYPE_COLORMIX:
+							writestruct(wd, DATA, ColorMixVars, 1, seq->effectdata);
+							break;
 					}
 				}
 
@@ -2748,19 +2798,6 @@ static void write_scene(WriteData *wd, Scene *sce)
 		writestruct(wd, DATA, TimeMarker, 1, marker);
 	}
 
-	for (SceneRenderLayer *srl = sce->r.layers.first; srl; srl = srl->next) {
-		writestruct(wd, DATA, SceneRenderLayer, 1, srl);
-		if (srl->prop) {
-			IDP_WriteProperty(srl->prop, wd);
-		}
-		for (FreestyleModuleConfig *fmc = srl->freestyleConfig.modules.first; fmc; fmc = fmc->next) {
-			writestruct(wd, DATA, FreestyleModuleConfig, 1, fmc);
-		}
-		for (FreestyleLineSet *fls = srl->freestyleConfig.linesets.first; fls; fls = fls->next) {
-			writestruct(wd, DATA, FreestyleLineSet, 1, fls);
-		}
-	}
-
 	/* writing MultiView to the blend file */
 	for (SceneRenderView *srv = sce->r.views.first; srv; srv = srv->next) {
 		writestruct(wd, DATA, SceneRenderView, 1, srv);
@@ -2784,13 +2821,8 @@ static void write_scene(WriteData *wd, Scene *sce)
 	write_curvemapping_curves(wd, &sce->r.mblur_shutter_curve);
 	write_scene_collection(wd, sce->collection);
 
-	for (SceneLayer *scene_layer = sce->render_layers.first; scene_layer; scene_layer = scene_layer->next) {
-		writestruct(wd, DATA, SceneLayer, 1, scene_layer);
-		writelist(wd, DATA, Base, &scene_layer->object_bases);
-		if (scene_layer->properties) {
-			IDP_WriteProperty(scene_layer->properties, wd);
-		}
-		write_layer_collections(wd, &scene_layer->layer_collections);
+	for (ViewLayer *view_layer = sce->view_layers.first; view_layer; view_layer = view_layer->next) {
+		write_view_layer(wd, view_layer);
 	}
 
 	if (sce->layer_properties) {
@@ -3209,10 +3241,8 @@ static void write_group(WriteData *wd, Group *group)
 		write_iddata(wd, &group->id);
 
 		write_previews(wd, group->preview);
-
-		for (GroupObject *go = group->gobject.first; go; go = go->next) {
-			writestruct(wd, DATA, GroupObject, 1, go);
-		}
+		write_scene_collection(wd, group->collection);
+		write_view_layer(wd, group->view_layer);
 	}
 }
 
@@ -3754,6 +3784,7 @@ static void write_workspace(WriteData *wd, WorkSpace *workspace)
 	writestruct(wd, ID_WS, WorkSpace, 1, workspace);
 	writelist(wd, DATA, WorkSpaceLayout, layouts);
 	writelist(wd, DATA, WorkSpaceDataRelation, &workspace->hook_layout_relations);
+	writelist(wd, DATA, WorkSpaceDataRelation, &workspace->scene_viewlayer_relations);
 	writelist(wd, DATA, TransformOrientation, transform_orientations);
 }
 
@@ -3788,6 +3819,8 @@ static void write_libraries(WriteData *wd, Main *main)
 		/* XXX needs rethink, just like save UI in undo files now - would be nice to append things only for the]
 		 * quit.blend and temp saves */
 		if (found_one) {
+			/* Not overridable. */
+
 			writestruct(wd, ID_LI, Library, 1, main->curlib);
 			write_iddata(wd, &main->curlib->id);
 
@@ -3827,7 +3860,7 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 	FileGlobal fg;
 	bScreen *screen;
 	Scene *scene;
-	SceneLayer *render_layer;
+	ViewLayer *render_layer;
 	char subvstr[8];
 
 	/* prevent mem checkers from complaining */
@@ -3840,7 +3873,7 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 	/* XXX still remap G */
 	fg.curscreen = screen;
 	fg.curscene = scene;
-	fg.cur_render_layer = render_layer;
+	fg.cur_view_layer = render_layer;
 
 	/* prevent to save this, is not good convention, and feature with concerns... */
 	fg.fileflags = (fileflags & ~G_FILE_FLAGS_RUNTIME);
@@ -3922,137 +3955,159 @@ static bool write_file_handle(
 	 * avoid thumbnail detecting changes because of this. */
 	mywrite_flush(wd);
 
-	ListBase *lbarray[MAX_LIBARRAY];
-	int a = set_listbasepointers(mainvar, lbarray);
-	while (a--) {
-		ID *id = lbarray[a]->first;
+	OverrideStaticStorage *override_storage = !wd->current ? BKE_override_static_operations_store_initialize() : NULL;
 
-		if (id && GS(id->name) == ID_LI) {
-			continue;  /* Libraries are handled separately below. */
-		}
+	/* This outer loop allows to save first datablocks from real mainvar, then the temp ones from override process,
+	 * if needed, without duplicating whole code. */
+	Main *bmain = mainvar;
+	do {
+		ListBase *lbarray[MAX_LIBARRAY];
+		int a = set_listbasepointers(bmain, lbarray);
+		while (a--) {
+			ID *id = lbarray[a]->first;
 
-		for (; id; id = id->next) {
-			/* We should never attempt to write non-regular IDs (i.e. all kind of temp/runtime ones). */
-			BLI_assert((id->tag & (LIB_TAG_NO_MAIN | LIB_TAG_NO_USER_REFCOUNT | LIB_TAG_NOT_ALLOCATED)) == 0);
-
-			switch ((ID_Type)GS(id->name)) {
-				case ID_WM:
-					write_windowmanager(wd, (wmWindowManager *)id);
-					break;
-				case ID_WS:
-					write_workspace(wd, (WorkSpace *)id);
-					break;
-				case ID_SCR:
-					write_screen(wd, (bScreen *)id);
-					break;
-				case ID_MC:
-					write_movieclip(wd, (MovieClip *)id);
-					break;
-				case ID_MSK:
-					write_mask(wd, (Mask *)id);
-					break;
-				case ID_SCE:
-					write_scene(wd, (Scene *)id);
-					break;
-				case ID_CU:
-					write_curve(wd, (Curve *)id);
-					break;
-				case ID_MB:
-					write_mball(wd, (MetaBall *)id);
-					break;
-				case ID_IM:
-					write_image(wd, (Image *)id);
-					break;
-				case ID_CA:
-					write_camera(wd, (Camera *)id);
-					break;
-				case ID_LA:
-					write_lamp(wd, (Lamp *)id);
-					break;
-				case ID_LT:
-					write_lattice(wd, (Lattice *)id);
-					break;
-				case ID_VF:
-					write_vfont(wd, (VFont *)id);
-					break;
-				case ID_KE:
-					write_key(wd, (Key *)id);
-					break;
-				case ID_WO:
-					write_world(wd, (World *)id);
-					break;
-				case ID_TXT:
-					write_text(wd, (Text *)id);
-					break;
-				case ID_SPK:
-					write_speaker(wd, (Speaker *)id);
-					break;
-				case ID_LP:
-					write_probe(wd, (LightProbe *)id);
-					break;
-				case ID_SO:
-					write_sound(wd, (bSound *)id);
-					break;
-				case ID_GR:
-					write_group(wd, (Group *)id);
-					break;
-				case ID_AR:
-					write_armature(wd, (bArmature *)id);
-					break;
-				case ID_AC:
-					write_action(wd, (bAction *)id);
-					break;
-				case ID_OB:
-					write_object(wd, (Object *)id);
-					break;
-				case ID_MA:
-					write_material(wd, (Material *)id);
-					break;
-				case ID_TE:
-					write_texture(wd, (Tex *)id);
-					break;
-				case ID_ME:
-					write_mesh(wd, (Mesh *)id);
-					break;
-				case ID_PA:
-					write_particlesettings(wd, (ParticleSettings *)id);
-					break;
-				case ID_NT:
-					write_nodetree(wd, (bNodeTree *)id);
-					break;
-				case ID_BR:
-					write_brush(wd, (Brush *)id);
-					break;
-				case ID_PAL:
-					write_palette(wd, (Palette *)id);
-					break;
-				case ID_PC:
-					write_paintcurve(wd, (PaintCurve *)id);
-					break;
-				case ID_GD:
-					write_gpencil(wd, (bGPdata *)id);
-					break;
-				case ID_LS:
-					write_linestyle(wd, (FreestyleLineStyle *)id);
-					break;
-				case ID_CF:
-					write_cachefile(wd, (CacheFile *)id);
-					break;
-				case ID_LI:
-					/* Do nothing, handled below - and should never be reached. */
-					BLI_assert(0);
-					break;
-				case ID_IP:
-					/* Do nothing, deprecated. */
-					break;
-				default:
-					/* Should never be reached. */
-					BLI_assert(0);
-					break;
+			if (id && GS(id->name) == ID_LI) {
+				continue;  /* Libraries are handled separately below. */
 			}
-		}
 
-		mywrite_flush(wd);
+			for (; id; id = id->next) {
+				/* We should never attempt to write non-regular IDs (i.e. all kind of temp/runtime ones). */
+				BLI_assert((id->tag & (LIB_TAG_NO_MAIN | LIB_TAG_NO_USER_REFCOUNT | LIB_TAG_NOT_ALLOCATED)) == 0);
+
+				const bool do_override = !ELEM(override_storage, NULL, bmain) && id->override_static;
+
+				if (do_override) {
+					BKE_override_static_operations_store_start(override_storage, id);
+				}
+
+				switch ((ID_Type)GS(id->name)) {
+					case ID_WM:
+						write_windowmanager(wd, (wmWindowManager *)id);
+						break;
+					case ID_WS:
+						write_workspace(wd, (WorkSpace *)id);
+						break;
+					case ID_SCR:
+						write_screen(wd, (bScreen *)id);
+						break;
+					case ID_MC:
+						write_movieclip(wd, (MovieClip *)id);
+						break;
+					case ID_MSK:
+						write_mask(wd, (Mask *)id);
+						break;
+					case ID_SCE:
+						write_scene(wd, (Scene *)id);
+						break;
+					case ID_CU:
+						write_curve(wd, (Curve *)id);
+						break;
+					case ID_MB:
+						write_mball(wd, (MetaBall *)id);
+						break;
+					case ID_IM:
+						write_image(wd, (Image *)id);
+						break;
+					case ID_CA:
+						write_camera(wd, (Camera *)id);
+						break;
+					case ID_LA:
+						write_lamp(wd, (Lamp *)id);
+						break;
+					case ID_LT:
+						write_lattice(wd, (Lattice *)id);
+						break;
+					case ID_VF:
+						write_vfont(wd, (VFont *)id);
+						break;
+					case ID_KE:
+						write_key(wd, (Key *)id);
+						break;
+					case ID_WO:
+						write_world(wd, (World *)id);
+						break;
+					case ID_TXT:
+						write_text(wd, (Text *)id);
+						break;
+					case ID_SPK:
+						write_speaker(wd, (Speaker *)id);
+						break;
+					case ID_LP:
+						write_probe(wd, (LightProbe *)id);
+						break;
+					case ID_SO:
+						write_sound(wd, (bSound *)id);
+						break;
+					case ID_GR:
+						write_group(wd, (Group *)id);
+						break;
+					case ID_AR:
+						write_armature(wd, (bArmature *)id);
+						break;
+					case ID_AC:
+						write_action(wd, (bAction *)id);
+						break;
+					case ID_OB:
+						write_object(wd, (Object *)id);
+						break;
+					case ID_MA:
+						write_material(wd, (Material *)id);
+						break;
+					case ID_TE:
+						write_texture(wd, (Tex *)id);
+						break;
+					case ID_ME:
+						write_mesh(wd, (Mesh *)id);
+						break;
+					case ID_PA:
+						write_particlesettings(wd, (ParticleSettings *)id);
+						break;
+					case ID_NT:
+						write_nodetree(wd, (bNodeTree *)id);
+						break;
+					case ID_BR:
+						write_brush(wd, (Brush *)id);
+						break;
+					case ID_PAL:
+						write_palette(wd, (Palette *)id);
+						break;
+					case ID_PC:
+						write_paintcurve(wd, (PaintCurve *)id);
+						break;
+					case ID_GD:
+						write_gpencil(wd, (bGPdata *)id);
+						break;
+					case ID_LS:
+						write_linestyle(wd, (FreestyleLineStyle *)id);
+						break;
+					case ID_CF:
+						write_cachefile(wd, (CacheFile *)id);
+						break;
+					case ID_LI:
+						/* Do nothing, handled below - and should never be reached. */
+						BLI_assert(0);
+						break;
+					case ID_IP:
+						/* Do nothing, deprecated. */
+						break;
+					default:
+						/* Should never be reached. */
+						BLI_assert(0);
+						break;
+				}
+
+				if (do_override) {
+					BKE_override_static_operations_store_end(override_storage, id);
+				}
+			}
+
+			mywrite_flush(wd);
+		}
+	} while ((bmain != override_storage) && (bmain = override_storage));
+
+	if (override_storage) {
+		BKE_override_static_operations_store_finalize(override_storage);
+		override_storage = NULL;
 	}
 
 	/* Special handling, operating over split Mains... */

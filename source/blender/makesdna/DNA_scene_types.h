@@ -172,25 +172,24 @@ typedef struct AudioData {
 typedef struct SceneRenderLayer {
 	struct SceneRenderLayer *next, *prev;
 	
-	char name[64];	/* MAX_NAME */
+	char name[64] DNA_DEPRECATED;	/* MAX_NAME */
 	
-	struct Material *mat_override;
-	struct Group *light_override;
+	struct Material *mat_override DNA_DEPRECATED; /* Converted to ViewLayer override. */
 	
-	unsigned int lay;		  /* scene->lay itself has priority over this */
-	unsigned int lay_zmask;	  /* has to be after lay, this is for Z-masking */
-	unsigned int lay_exclude; /* not used by internal, exclude */
-	int layflag;
+	unsigned int lay DNA_DEPRECATED; /* Converted to LayerCollection cycles camera visibility override. */
+	unsigned int lay_zmask DNA_DEPRECATED; /* Converted to LayerCollection cycles holdout override. */
+	unsigned int lay_exclude DNA_DEPRECATED;
+	int layflag DNA_DEPRECATED; /* Converted to ViewLayer layflag and flag. */
 	
-	int passflag;			/* pass_xor has to be after passflag */
-	int pass_xor;
+	int passflag DNA_DEPRECATED; /* pass_xor has to be after passflag */
+	int pass_xor DNA_DEPRECATED; /* Converted to ViewLayer passflag and flag. */
 
-	int samples;
-	float pass_alpha_threshold;
+	int samples DNA_DEPRECATED; /* Converted to ViewLayer override. */
+	float pass_alpha_threshold DNA_DEPRECATED; /* Converted to ViewLayer pass_alpha_threshold. */
 
-	IDProperty *prop;
+	IDProperty *prop DNA_DEPRECATED; /* Converted to ViewLayer id_properties. */
 
-	struct FreestyleConfig freestyleConfig;
+	struct FreestyleConfig freestyleConfig DNA_DEPRECATED; /* Converted to ViewLayer freestyleConfig. */
 } SceneRenderLayer;
 
 /* srl->layflag */
@@ -663,8 +662,8 @@ typedef struct RenderData {
 	rcti disprect;
 	
 	/* information on different layers to be rendered */
-	ListBase layers;
-	short actlay;
+	ListBase layers DNA_DEPRECATED; /* Converted to Scene->view_layers. */
+	short actlay DNA_DEPRECATED; /* Converted to Scene->active_layer. */
 	
 	/* number of mblur samples */
 	short mblur_samples;
@@ -1076,7 +1075,7 @@ typedef struct ParticleEditSettings {
 	int draw_step, fade_frames;
 
 	struct Scene *scene;
-	struct SceneLayer *scene_layer;
+	struct ViewLayer *view_layer;
 	struct Object *object;
 	struct Object *shape_object;
 } ParticleEditSettings;
@@ -1689,9 +1688,9 @@ typedef struct Scene {
 
 	struct PreviewImage *preview;
 
-	ListBase render_layers;
+	ListBase view_layers;
 	struct SceneCollection *collection;
-	int active_layer;
+	int active_view_layer;
 	int pad4;
 
 	IDProperty *collection_properties;  /* settings to be overriden by layer collections */
@@ -1748,9 +1747,12 @@ typedef struct Scene {
 #define R_USE_WS_SHADING	0x8000000 /* use world space interpretation of lighting data */
 
 /* seq_flag */
-// #define R_SEQ_GL_PREV 1  // UNUSED, we just use setting from seq_prev_type now.
-// #define R_SEQ_GL_REND 2  // UNUSED, opengl render has its own operator now.
-#define R_SEQ_SOLID_TEX 4
+enum {
+	// R_SEQ_GL_PREV = (1 << 1),  // UNUSED, we just use setting from seq_prev_type now.
+	// R_SEQ_GL_REND = (1 << 2),  // UNUSED, opengl render has its own operator now.
+	R_SEQ_SOLID_TEX  = (1 << 3),
+	R_SEQ_CAMERA_DOF = (1 << 4),
+};
 
 /* displaymode */
 
@@ -1928,10 +1930,10 @@ extern const char *RE_engine_id_CYCLES;
 #define BASE_VISIBLE(base)  (                                                 \
 	((base)->flag & BASE_VISIBLED) != 0)
 
-#define FIRSTBASE(_sl)  ((_sl)->object_bases.first)
-#define LASTBASE(_sl)   ((_sl)->object_bases.last)
-#define BASACT(_sl)     ((_sl)->basact)
-#define OBACT(_sl)      (BASACT(_sl) ? BASACT(_sl)->object: NULL)
+#define FIRSTBASE(_view_layer)  ((_view_layer)->object_bases.first)
+#define LASTBASE(_view_layer)   ((_view_layer)->object_bases.last)
+#define BASACT(_view_layer)     ((_view_layer)->basact)
+#define OBACT(_view_layer)      (BASACT(_view_layer) ? BASACT(_view_layer)->object: NULL)
 
 #define V3D_CAMERA_LOCAL(v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : NULL)
 #define V3D_CAMERA_SCENE(scene, v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : (scene)->camera)

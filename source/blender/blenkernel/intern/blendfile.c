@@ -168,7 +168,7 @@ static void setup_app_data(
 		 */
 		wmWindow *win;
 		bScreen *curscreen = NULL;
-		SceneLayer *cur_render_layer;
+		ViewLayer *cur_view_layer;
 		bool track_undo_scene;
 
 		/* comes from readfile.c */
@@ -181,7 +181,7 @@ static void setup_app_data(
 		curscreen = CTX_wm_screen(C);
 		/* but use Scene pointer from new file */
 		curscene = bfd->curscene;
-		cur_render_layer = bfd->cur_render_layer;
+		cur_view_layer = bfd->cur_view_layer;
 
 		track_undo_scene = (mode == LOAD_UNDO && curscreen && curscene && bfd->main->wm.first);
 
@@ -192,9 +192,9 @@ static void setup_app_data(
 		if (curscene == NULL) {
 			curscene = BKE_scene_add(bfd->main, "Empty");
 		}
-		if (cur_render_layer == NULL) {
+		if (cur_view_layer == NULL) {
 			/* fallback to scene layer */
-			cur_render_layer = BKE_scene_layer_from_scene_get(curscene);
+			cur_view_layer = BKE_view_layer_from_scene_get(curscene);
 		}
 
 		if (track_undo_scene) {
@@ -207,7 +207,7 @@ static void setup_app_data(
 		}
 
 		/* BKE_blender_globals_clear will free G.main, here we can still restore pointers */
-		blo_lib_link_restore(bfd->main, CTX_wm_manager(C), curscene, cur_render_layer);
+		blo_lib_link_restore(bfd->main, CTX_wm_manager(C), curscene, cur_view_layer);
 		if (win) {
 			curscene = win->scene;
 		}
@@ -243,9 +243,8 @@ static void setup_app_data(
 	if (bfd->user) {
 
 		/* only here free userdef themes... */
-		BKE_blender_userdef_free_data(&U);
-
-		U = *bfd->user;
+		BKE_blender_userdef_data_set_and_free(bfd->user);
+		bfd->user = NULL;
 
 		/* Security issue: any blend file could include a USER block.
 		 *
@@ -256,8 +255,6 @@ static void setup_app_data(
 		 * enable scripts auto-execution by loading a '.blend' file.
 		 */
 		U.flag |= USER_SCRIPT_AUTOEXEC_DISABLE;
-
-		MEM_freeN(bfd->user);
 	}
 
 	/* case G_FILE_NO_UI or no screens in file */
@@ -521,19 +518,45 @@ UserDef *BKE_blendfile_userdef_read_from_memory(
 }
 
 
-/* only write the userdef in a .blend */
-int BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
+/**
+ * Only write the userdef in a .blend
+ * \return success
+ */
+bool BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
 {
 	Main *mainb = MEM_callocN(sizeof(Main), "empty main");
-	int retval = 0;
+	bool ok = false;
 
 	if (BLO_write_file(mainb, filepath, G_FILE_USERPREFS, reports, NULL)) {
-		retval = 1;
+		ok = true;
 	}
 
 	MEM_freeN(mainb);
 
-	return retval;
+	return ok;
+}
+
+/**
+ * Only write the userdef in a .blend, merging with the existing blend file.
+ * \return success
+ *
+ * \note In the future we should re-evaluate user preferences,
+ * possibly splitting out system/hardware specific prefs.
+ */
+bool BKE_blendfile_userdef_write_app_template(const char *filepath, ReportList *reports)
+{
+	/* if it fails, overwrite is OK. */
+	UserDef *userdef_default = BKE_blendfile_userdef_read(filepath, NULL);
+	if (userdef_default == NULL) {
+		return BKE_blendfile_userdef_write(filepath, reports);
+	}
+
+	BKE_blender_userdef_app_template_data_swap(&U, userdef_default);
+	bool ok = BKE_blendfile_userdef_write(filepath, reports);
+	BKE_blender_userdef_app_template_data_swap(&U, userdef_default);
+	BKE_blender_userdef_data_free(userdef_default, false);
+	MEM_freeN(userdef_default);
+	return ok;
 }
 
 WorkspaceConfigFileData *BKE_blendfile_workspace_config_read(const char *filepath, ReportList *reports)

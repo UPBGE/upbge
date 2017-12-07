@@ -327,14 +327,14 @@ void BKE_object_free_derived_caches(Object *ob)
 		Mesh *me = ob->data;
 
 		if (me && me->bb) {
-			atomic_fetch_and_or_uint32((uint *)&me->bb->flag, BOUNDBOX_DIRTY);
+			atomic_fetch_and_or_int32(&me->bb->flag, BOUNDBOX_DIRTY);
 		}
 	}
 	else if (ELEM(ob->type, OB_SURF, OB_CURVE, OB_FONT)) {
 		Curve *cu = ob->data;
 
 		if (cu && cu->bb) {
-			atomic_fetch_and_or_uint32((uint *)&cu->bb->flag, BOUNDBOX_DIRTY);
+			atomic_fetch_and_or_int32(&cu->bb->flag, BOUNDBOX_DIRTY);
 		}
 	}
 
@@ -466,8 +466,6 @@ void BKE_object_free(Object *ob)
 		}
 	}
 	BLI_freelistN(&ob->drawdata);
-
-	ob->deg_update_flag = 0;
 
 	BKE_sculptsession_free(ob);
 
@@ -706,6 +704,9 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 
 	ob = BKE_libblock_alloc(bmain, ID_OB, name, 0);
 
+	/* We increase object user count when linking to SceneCollections. */
+	id_us_min(&ob->id);
+
 	/* default object vars */
 	ob->type = type;
 
@@ -715,13 +716,13 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 }
 
 
-static Object *object_add_common(Main *bmain, SceneLayer *scene_layer, int type, const char *name)
+static Object *object_add_common(Main *bmain, ViewLayer *view_layer, int type, const char *name)
 {
 	Object *ob;
 
 	ob = BKE_object_add_only_object(bmain, type, name);
 	ob->data = BKE_object_obdata_add_from_type(bmain, type, name);
-	BKE_scene_layer_base_deselect_all(scene_layer);
+	BKE_view_layer_base_deselect_all(view_layer);
 
 	DEG_id_tag_update_ex(bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 	return ob;
@@ -731,24 +732,24 @@ static Object *object_add_common(Main *bmain, SceneLayer *scene_layer, int type,
  * General add: to scene, with layer from area and default name
  *
  * Object is added to the active SceneCollection.
- * If there is no linked collection to the active SceneLayer we create a new one.
+ * If there is no linked collection to the active ViewLayer we create a new one.
  */
 /* creates minimum required data, but without vertices etc. */
 Object *BKE_object_add(
-        Main *bmain, Scene *scene, SceneLayer *scene_layer,
+        Main *bmain, Scene *scene, ViewLayer *view_layer,
         int type, const char *name)
 {
 	Object *ob;
 	Base *base;
 	LayerCollection *layer_collection;
 
-	ob = object_add_common(bmain, scene_layer, type, name);
+	ob = object_add_common(bmain, view_layer, type, name);
 
-	layer_collection = BKE_layer_collection_get_active_ensure(scene, scene_layer);
-	BKE_collection_object_add(scene, layer_collection->scene_collection, ob);
+	layer_collection = BKE_layer_collection_get_active_ensure(scene, view_layer);
+	BKE_collection_object_add(&scene->id, layer_collection->scene_collection, ob);
 
-	base = BKE_scene_layer_base_find(scene_layer, ob);
-	BKE_scene_layer_base_select(scene_layer, base);
+	base = BKE_view_layer_base_find(view_layer, ob);
+	BKE_view_layer_base_select(view_layer, base);
 
 	return ob;
 }
@@ -759,17 +760,17 @@ Object *BKE_object_add(
  * /param ob_src object to use to determine the collections of the new object.
  */
 Object *BKE_object_add_from(
-        Main *bmain, Scene *scene, SceneLayer *scene_layer,
+        Main *bmain, Scene *scene, ViewLayer *view_layer,
         int type, const char *name, Object *ob_src)
 {
 	Object *ob;
 	Base *base;
 
-	ob = object_add_common(bmain, scene_layer, type, name);
+	ob = object_add_common(bmain, view_layer, type, name);
 	BKE_collection_object_add_from(scene, ob_src, ob);
 
-	base = BKE_scene_layer_base_find(scene_layer, ob);
-	BKE_scene_layer_base_select(scene_layer, base);
+	base = BKE_view_layer_base_find(view_layer, ob);
+	BKE_view_layer_base_select(view_layer, base);
 
 	return ob;
 }
@@ -864,9 +865,9 @@ static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
 	return current;
 }
 
-bool BKE_object_lod_is_usable(Object *ob, SceneLayer *sl)
+bool BKE_object_lod_is_usable(Object *ob, ViewLayer *view_layer)
 {
-	bool active = (sl) ? ob == OBACT(sl) : false;
+	bool active = (view_layer) ? ob == OBACT(view_layer) : false;
 	return (ob->mode == OB_MODE_OBJECT || !active);
 }
 
@@ -880,11 +881,11 @@ void BKE_object_lod_update(Object *ob, const float camera_position[3])
 	}
 }
 
-static Object *lod_ob_get(Object *ob, SceneLayer *sl, int flag)
+static Object *lod_ob_get(Object *ob, ViewLayer *view_layer, int flag)
 {
 	LodLevel *current = ob->currentlod;
 
-	if (!current || !BKE_object_lod_is_usable(ob, sl))
+	if (!current || !BKE_object_lod_is_usable(ob, view_layer))
 		return ob;
 
 	while (current->prev && (!(current->flags & flag) || !current->source || current->source->type != OB_MESH)) {
@@ -894,14 +895,14 @@ static Object *lod_ob_get(Object *ob, SceneLayer *sl, int flag)
 	return current->source;
 }
 
-struct Object *BKE_object_lod_meshob_get(Object *ob, SceneLayer *sl)
+struct Object *BKE_object_lod_meshob_get(Object *ob, ViewLayer *view_layer)
 {
-	return lod_ob_get(ob, sl, OB_LOD_USE_MESH);
+	return lod_ob_get(ob, view_layer, OB_LOD_USE_MESH);
 }
 
-struct Object *BKE_object_lod_matob_get(Object *ob, SceneLayer *sl)
+struct Object *BKE_object_lod_matob_get(Object *ob, ViewLayer *view_layer)
 {
-	return lod_ob_get(ob, sl, OB_LOD_USE_MAT);
+	return lod_ob_get(ob, view_layer, OB_LOD_USE_MAT);
 }
 
 #endif  /* WITH_GAMEENGINE */
@@ -2566,13 +2567,13 @@ void BKE_object_foreach_display_point(
 }
 
 void BKE_scene_foreach_display_point(
-        Scene *scene, SceneLayer *sl,
+        Scene *scene, ViewLayer *view_layer,
         void (*func_cb)(const float[3], void *), void *user_data)
 {
 	Base *base;
 	Object *ob;
 
-	for (base = FIRSTBASE(sl); base; base = base->next) {
+	for (base = FIRSTBASE(view_layer); base; base = base->next) {
 		if (((base->flag & BASE_VISIBLED) != 0) && ((base->flag & BASE_SELECTED) != 0)) {
 			ob = base->object;
 
@@ -2663,6 +2664,28 @@ bool BKE_object_parent_loop_check(const Object *par, const Object *ob)
 	return BKE_object_parent_loop_check(par->parent, ob);
 }
 
+static void object_handle_update_proxy(const EvaluationContext *eval_ctx,
+                                       Scene *scene,
+                                       Object *object,
+                                       const bool do_proxy_update)
+{
+	/* The case when this is a group proxy, object_update is called in group.c */
+	if (object->proxy == NULL) {
+		return;
+	}
+	/* set pointer in library proxy target, for copying, but restore it */
+	object->proxy->proxy_from = object;
+	// printf("set proxy pointer for later group stuff %s\n", ob->id.name);
+
+	/* the no-group proxy case, we call update */
+	if (object->proxy_group == NULL) {
+		if (do_proxy_update) {
+			// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
+			BKE_object_handle_update(eval_ctx, scene, object->proxy);
+		}
+	}
+}
+
 /* proxy rule: lib_object->proxy_from == the one we borrow from, only set temporal and cleared here */
 /*           local_object->proxy      == pointer to library object, saved in files and read */
 
@@ -2676,75 +2699,51 @@ void BKE_object_handle_update_ex(const EvaluationContext *eval_ctx,
                                  RigidBodyWorld *rbw,
                                  const bool do_proxy_update)
 {
-	if (ob->recalc & OB_RECALC_ALL) {
-		/* speed optimization for animation lookups */
-		if (ob->pose) {
-			BKE_pose_channels_hash_make(ob->pose);
-			if (ob->pose->flag & POSE_CONSTRAINTS_NEED_UPDATE_FLAGS) {
-				BKE_pose_update_constraint_flags(ob->pose);
-			}
-		}
-
-		if (ob->recalc & OB_RECALC_DATA) {
-			if (ob->type == OB_ARMATURE) {
-				/* this happens for reading old files and to match library armatures
-				 * with poses we do it ahead of BKE_object_where_is_calc to ensure animation
-				 * is evaluated on the rebuilt pose, otherwise we get incorrect poses
-				 * on file load */
-				if (ob->pose == NULL || (ob->pose->flag & POSE_RECALC))
-					BKE_pose_rebuild(ob, ob->data);
-			}
-		}
-
-		/* XXX new animsys warning: depsgraph tag OB_RECALC_DATA should not skip drivers, 
-		 * which is only in BKE_object_where_is_calc now */
-		/* XXX: should this case be OB_RECALC_OB instead? */
-		if (ob->recalc & OB_RECALC_ALL) {
-			
-			if (G.debug & G_DEBUG_DEPSGRAPH)
-				printf("recalcob %s\n", ob->id.name + 2);
-			
-			/* handle proxy copy for target */
-			if (ID_IS_LINKED(ob) && ob->proxy_from) {
-				// printf("ob proxy copy, lib ob %s proxy %s\n", ob->id.name, ob->proxy_from->id.name);
-				if (ob->proxy_from->proxy_group) { /* transform proxy into group space */
-					Object *obg = ob->proxy_from->proxy_group;
-					float imat[4][4];
-					invert_m4_m4(imat, obg->obmat);
-					mul_m4_m4m4(ob->obmat, imat, ob->proxy_from->obmat);
-					if (obg->dup_group) { /* should always be true */
-						add_v3_v3(ob->obmat[3], obg->dup_group->dupli_ofs);
-					}
-				}
-				else
-					copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
-			}
-			else
-				BKE_object_where_is_calc_ex(eval_ctx, scene, rbw, ob, NULL);
-		}
-		
-		if (ob->recalc & OB_RECALC_DATA) {
-			BKE_object_handle_data_update(eval_ctx, scene, ob);
-		}
-
-		ob->recalc &= ~OB_RECALC_ALL;
+	const bool recalc_object = (ob->id.tag & LIB_TAG_ID_RECALC) != 0;
+	const bool recalc_data = (ob->id.tag & LIB_TAG_ID_RECALC_DATA) != 0;
+	if (!recalc_object && ! recalc_data) {
+		object_handle_update_proxy(eval_ctx, scene, ob, do_proxy_update);
+		return;
 	}
-
-	/* the case when this is a group proxy, object_update is called in group.c */
-	if (ob->proxy) {
-		/* set pointer in library proxy target, for copying, but restore it */
-		ob->proxy->proxy_from = ob;
-		// printf("set proxy pointer for later group stuff %s\n", ob->id.name);
-
-		/* the no-group proxy case, we call update */
-		if (ob->proxy_group == NULL) {
-			if (do_proxy_update) {
-				// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
-				BKE_object_handle_update(eval_ctx, scene, ob->proxy);
-			}
+	/* Speed optimization for animation lookups. */
+	if (ob->pose != NULL) {
+		BKE_pose_channels_hash_make(ob->pose);
+		if (ob->pose->flag & POSE_CONSTRAINTS_NEED_UPDATE_FLAGS) {
+			BKE_pose_update_constraint_flags(ob->pose);
 		}
 	}
+	if (recalc_data) {
+		if (ob->type == OB_ARMATURE) {
+			/* this happens for reading old files and to match library armatures
+			 * with poses we do it ahead of BKE_object_where_is_calc to ensure animation
+			 * is evaluated on the rebuilt pose, otherwise we get incorrect poses
+			 * on file load */
+			if (ob->pose == NULL || (ob->pose->flag & POSE_RECALC))
+				BKE_pose_rebuild(ob, ob->data);
+		}
+	}
+	/* XXX new animsys warning: depsgraph tag OB_RECALC_DATA should not skip drivers,
+	 * which is only in BKE_object_where_is_calc now */
+	/* XXX: should this case be OB_RECALC_OB instead? */
+	if (recalc_object || recalc_data) {
+		if (G.debug & G_DEBUG_DEPSGRAPH) {
+			printf("recalcob %s\n", ob->id.name + 2);
+		}
+		/* Handle proxy copy for target. */
+		if (!BKE_object_eval_proxy_copy(eval_ctx, ob)) {
+			BKE_object_where_is_calc_ex(eval_ctx, scene, rbw, ob, NULL);
+		}
+	}
+
+	if (recalc_data) {
+		BKE_object_handle_data_update(eval_ctx, scene, ob);
+	}
+
+	ob->id.tag &= ~LIB_TAG_ID_RECALC_ALL;
+
+	object_handle_update_proxy(eval_ctx, scene, ob, do_proxy_update);
 }
+
 /* WARNING: "scene" here may not be the scene object actually resides in. 
  * When dealing with background-sets, "scene" is actually the active scene.
  * e.g. "scene" <-- set 1 <-- set 2 ("ob" lives here) <-- set 3 <-- ... <-- set n
@@ -3370,19 +3369,19 @@ static void obrel_list_add(LinkNode **links, Object *ob)
  * If OB_SET_VISIBLE or OB_SET_SELECTED are collected, 
  * then also add related objects according to the given includeFilters.
  */
-LinkNode *BKE_object_relational_superset(struct SceneLayer *scene_layer, eObjectSet objectSet, eObRelationTypes includeFilter)
+LinkNode *BKE_object_relational_superset(struct ViewLayer *view_layer, eObjectSet objectSet, eObRelationTypes includeFilter)
 {
 	LinkNode *links = NULL;
 
 	Base *base;
 
 	/* Remove markers from all objects */
-	for (base = scene_layer->object_bases.first; base; base = base->next) {
+	for (base = view_layer->object_bases.first; base; base = base->next) {
 		base->object->id.tag &= ~LIB_TAG_DOIT;
 	}
 
 	/* iterate over all selected and visible objects */
-	for (base = scene_layer->object_bases.first; base; base = base->next) {
+	for (base = view_layer->object_bases.first; base; base = base->next) {
 		if (objectSet == OB_SET_ALL) {
 			/* as we get all anyways just add it */
 			Object *ob = base->object;
@@ -3419,7 +3418,7 @@ LinkNode *BKE_object_relational_superset(struct SceneLayer *scene_layer, eObject
 				/* child relationship */
 				if (includeFilter & (OB_REL_CHILDREN | OB_REL_CHILDREN_RECURSIVE)) {
 					Base *local_base;
-					for (local_base = scene_layer->object_bases.first; local_base; local_base = local_base->next) {
+					for (local_base = view_layer->object_bases.first; local_base; local_base = local_base->next) {
 						if (BASE_EDITABLE_BGMODE(local_base)) {
 
 							Object *child = local_base->object;
@@ -3722,7 +3721,8 @@ bool BKE_object_modifier_update_subframe(
 	}
 
 	/* was originally OB_RECALC_ALL - TODO - which flags are really needed??? */
-	ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+	/* TODO(sergey): What about animation? */
+	ob->id.tag |= LIB_TAG_ID_RECALC_ALL;
 	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, frame, ADT_RECALC_ANIM);
 	if (update_mesh) {
 		/* ignore cache clear during subframe updates

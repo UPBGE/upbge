@@ -126,7 +126,9 @@ typedef struct SpaceButs {
 	short preview;                  /* preview is signal to refresh */
 	/* texture context selector (material, lamp, particles, world, other) */
 	short texture_context, texture_context_prev;
-	char flag, pad[7];
+	char flag;
+	char collection_context;
+	char pad[6];
 	
 	void *path;                     /* runtime */
 	int pathflag, dataicon;         /* runtime */
@@ -180,7 +182,7 @@ typedef enum eSpaceButtons_Context {
 	BCONTEXT_MODIFIER = 10,
 	BCONTEXT_CONSTRAINT = 11,
 	BCONTEXT_BONE_CONSTRAINT = 12,
-	BCONTEXT_RENDER_LAYER = 13,
+	BCONTEXT_VIEW_LAYER = 13,
 	BCONTEXT_COLLECTION = 14,
 	BCONTEXT_WORKSPACE = 15,
 
@@ -207,6 +209,12 @@ typedef enum eSpaceButtons_Texture_Context {
 	SB_TEXC_OTHER = 4,
 	SB_TEXC_LINESTYLE = 5,
 } eSpaceButtons_Texture_Context;
+
+/* sbuts->collection_context */
+typedef enum eSpaceButtons_Collection_Context {
+	SB_COLLECTION_CTX_VIEW_LAYER = 0,
+	SB_COLLECTION_CTX_GROUP = 1,
+} eSpaceButtons_Collection_Context;
 
 /* sbuts->align */
 typedef enum eSpaceButtons_Align {
@@ -516,6 +524,9 @@ typedef struct SpaceSeq {
 
 	char multiview_eye;				/* multiview current eye - for internal use */
 	char pad2[7];
+
+	struct GPUFX *compositor;
+	void *pad3;
 } SpaceSeq;
 
 
@@ -708,6 +719,8 @@ typedef enum eFileSel_Action {
 } eFileSel_Action;
 
 /* sfile->params->flag and simasel->flag */
+/* Note: short flag, also used as 16 lower bits of flags in link/append code
+ *       (WM and BLO code area, see BLO_LibLinkFlags in BLO_readfile.h). */
 typedef enum eFileSel_Params_Flag {
 	FILE_SHOWSHORT      = (1 << 0),
 	FILE_RELPATH        = (1 << 1), /* was FILE_STRINGCODE */

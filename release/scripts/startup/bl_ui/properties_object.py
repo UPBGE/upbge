@@ -40,7 +40,7 @@ class OBJECT_PT_context_object(ObjectButtonsPanel, Panel):
             layout.template_ID(space, "pin_id")
         else:
             row = layout.row()
-            row.template_ID(context.render_layer.objects, "active")
+            row.template_ID(context.view_layer.objects, "active")
 
 
 class OBJECT_PT_transform(ObjectButtonsPanel, Panel):
@@ -219,13 +219,8 @@ class OBJECT_PT_groups(ObjectButtonsPanel, Panel):
                 row.operator("object.group_remove", text="", icon='X', emboss=False)
                 row.menu("GROUP_MT_specials", icon='DOWNARROW_HLT', text="")
 
-                split = col.box().split()
-
-                col = split.column()
-                col.prop(group, "layers", text="Dupli Visibility")
-
-                col = split.column()
-                col.prop(group, "dupli_offset", text="")
+                row = col.box().row()
+                row.prop(group, "dupli_offset", text="")
 
 
 class OBJECT_PT_display(ObjectButtonsPanel, Panel):

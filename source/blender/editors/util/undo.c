@@ -45,6 +45,7 @@
 #include "BKE_blender_undo.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_library_override.h"
 #include "BKE_main.h"
 #include "BKE_screen.h"
 
@@ -82,6 +83,9 @@ void ED_undo_push(bContext *C, const char *str)
 	if (G.debug & G_DEBUG)
 		printf("%s: %s\n", __func__, str);
 
+	/* Always do it for now, this might need to be refined... */
+	BKE_main_override_static_operations_create(CTX_data_main(C));
+
 	if (obedit) {
 		if (U.undosteps == 0) return;
 		
@@ -101,7 +105,7 @@ void ED_undo_push(bContext *C, const char *str)
 	else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
 		if (U.undosteps == 0) return;
 
-		PE_undo_push(CTX_data_scene(C), CTX_data_scene_layer(C), str);
+		PE_undo_push(CTX_data_scene(C), CTX_data_view_layer(C), str);
 	}
 	else if (obact && obact->mode & OB_MODE_SCULPT) {
 		/* do nothing for now */
@@ -120,7 +124,7 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 	wmWindow *win = CTX_wm_window(C);
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Object *obedit = CTX_data_edit_object(C);
 	Object *obact = CTX_data_active_object(C);
 	ScrArea *sa = CTX_wm_area(C);
@@ -181,9 +185,9 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 		}
 		else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
 			if (step == 1)
-				PE_undo(scene, sl);
+				PE_undo(scene, view_layer);
 			else
-				PE_redo(scene, sl);
+				PE_redo(scene, view_layer);
 		}
 		else if (U.uiflag & USER_GLOBALUNDO) {
 			// note python defines not valid here anymore.
@@ -298,7 +302,7 @@ bool ED_undo_is_valid(const bContext *C, const char *undoname)
 				return 1;
 		}
 		else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
-			return PE_undo_is_valid(CTX_data_scene(C), CTX_data_scene_layer(C));
+			return PE_undo_is_valid(CTX_data_scene(C), CTX_data_view_layer(C));
 		}
 		
 		if (U.uiflag & USER_GLOBALUNDO) {
@@ -543,7 +547,7 @@ static const EnumPropertyItem *rna_undo_itemf(bContext *C, int undosys, int *tot
 		const char *name = NULL;
 		
 		if (undosys == UNDOSYSTEM_PARTICLE) {
-			name = PE_undo_get_name(CTX_data_scene(C), CTX_data_scene_layer(C), i, &active);
+			name = PE_undo_get_name(CTX_data_scene(C), CTX_data_view_layer(C), i, &active);
 		}
 		else if (undosys == UNDOSYSTEM_EDITMODE) {
 			name = undo_editmode_get_name(C, i, &active);
@@ -626,7 +630,7 @@ static int undo_history_exec(bContext *C, wmOperator *op)
 		int item = RNA_int_get(op->ptr, "item");
 		
 		if (undosys == UNDOSYSTEM_PARTICLE) {
-			PE_undo_number(CTX_data_scene(C), CTX_data_scene_layer(C), item);
+			PE_undo_number(CTX_data_scene(C), CTX_data_view_layer(C), item);
 		}
 		else if (undosys == UNDOSYSTEM_EDITMODE) {
 			undo_editmode_number(C, item + 1);

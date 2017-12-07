@@ -123,6 +123,7 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "WM_message.h"
 #include "wm.h"
 #include "wm_files.h"
 #include "wm_window.h"
@@ -504,7 +505,11 @@ static void wm_file_read_post(bContext *C, const bool is_startup_file, const boo
 	BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_VERSION_UPDATE);
 	BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
 
+#if 1
 	WM_event_add_notifier(C, NC_WM | ND_FILEREAD, NULL);
+#else
+	WM_msg_publish_static(CTX_wm_message_bus(C), WM_MSG_STATICTYPE_FILE_READ);
+#endif
 
 	/* report any errors.
 	 * currently disabled if addons aren't yet loaded */
@@ -517,6 +522,9 @@ static void wm_file_read_post(bContext *C, const bool is_startup_file, const boo
 		 * a blend file and do anything since the screen
 		 * won't be set to a valid value again */
 		CTX_wm_window_set(C, NULL); /* exits queues */
+
+		/* Ensure tools are registered. */
+		WM_toolsystem_init(C);
 	}
 
 	if (!G.background) {
@@ -715,8 +723,8 @@ int wm_homefile_read(
 		if (!use_factory_settings && BLI_exists(filepath_userdef)) {
 			UserDef *userdef = BKE_blendfile_userdef_read(filepath_userdef, NULL);
 			if (userdef != NULL) {
-				BKE_blender_userdef_set_data(userdef);
-				MEM_freeN(userdef);
+				BKE_blender_userdef_data_set_and_free(userdef);
+				userdef = NULL;
 
 				skip_flags |= BLO_READ_SKIP_USERDEF;
 				printf("Read prefs: %s\n", filepath_userdef);
@@ -826,9 +834,8 @@ int wm_homefile_read(
 				read_userdef_from_memory = true;
 			}
 			if (userdef_template) {
-				BKE_blender_userdef_set_app_template(userdef_template);
-				BKE_blender_userdef_free_data(userdef_template);
-				MEM_freeN(userdef_template);
+				BKE_blender_userdef_app_template_data_set_and_free(userdef_template);
+				userdef_template = NULL;
 			}
 		}
 	}
@@ -993,7 +1000,7 @@ static void wm_history_file_update(void)
 
 
 /* screen can be NULL */
-static ImBuf *blend_file_thumb(const bContext *C, Scene *scene, SceneLayer *scene_layer, bScreen *screen, BlendThumbnail **thumb_pt)
+static ImBuf *blend_file_thumb(const bContext *C, Scene *scene, ViewLayer *view_layer, bScreen *screen, BlendThumbnail **thumb_pt)
 {
 	/* will be scaled down, but gives some nice oversampling */
 	ImBuf *ibuf;
@@ -1034,16 +1041,16 @@ static ImBuf *blend_file_thumb(const bContext *C, Scene *scene, SceneLayer *scen
 	/* gets scaled to BLEN_THUMB_SIZE */
 	if (scene->camera) {
 		ibuf = ED_view3d_draw_offscreen_imbuf_simple(
-		        &eval_ctx, scene, scene_layer, scene->camera,
+		        &eval_ctx, scene, view_layer, scene->camera,
 		        BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
-		        IB_rect, OB_SOLID, false, false, false, R_ALPHAPREMUL, 0, false, NULL,
+		        IB_rect, OB_SOLID, V3D_OFSDRAW_NONE, R_ALPHAPREMUL, 0, NULL,
 		        NULL, NULL, err_out);
 	}
 	else {
 		ibuf = ED_view3d_draw_offscreen_imbuf(
-		        &eval_ctx, scene, scene_layer, v3d, ar,
+		        &eval_ctx, scene, view_layer, v3d, ar,
 		        BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
-		        IB_rect, false, R_ALPHAPREMUL, 0, false, NULL,
+		        IB_rect, V3D_OFSDRAW_NONE, R_ALPHAPREMUL, 0, NULL,
 		        NULL, NULL, err_out);
 	}
 
@@ -1137,7 +1144,7 @@ static int wm_file_write(bContext *C, const char *filepath, int fileflags, Repor
 	/* Main now can store a .blend thumbnail, usefull for background mode or thumbnail customization. */
 	main_thumb = thumb = CTX_data_main(C)->blen_thumb;
 	if ((U.flag & USER_SAVE_PREVIEWS) && BLI_thread_is_main()) {
-		ibuf_thumb = blend_file_thumb(C, CTX_data_scene(C), CTX_data_scene_layer(C), CTX_wm_screen(C), &thumb);
+		ibuf_thumb = blend_file_thumb(C, CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_screen(C), &thumb);
 	}
 
 	/* operator now handles overwrite checks */
@@ -1478,40 +1485,52 @@ static int wm_userpref_write_exec(bContext *C, wmOperator *op)
 	wmWindowManager *wm = CTX_wm_manager(C);
 	char filepath[FILE_MAX];
 	const char *cfgdir;
-	bool ok = false;
+	bool ok = true;
 
 	/* update keymaps in user preferences */
 	WM_keyconfig_update(wm);
 
 	if ((cfgdir = BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL))) {
+		bool ok_write;
 		BLI_path_join(filepath, sizeof(filepath), cfgdir, BLENDER_USERPREF_FILE, NULL);
 		printf("trying to save userpref at %s ", filepath);
-		if (BKE_blendfile_userdef_write(filepath, op->reports) != 0) {
+
+		if (U.app_template[0]) {
+			ok_write = BKE_blendfile_userdef_write_app_template(filepath, op->reports);
+		}
+		else {
+			ok_write = BKE_blendfile_userdef_write(filepath, op->reports);
+		}
+
+		if (ok_write) {
 			printf("ok\n");
-			ok = true;
 		}
 		else {
 			printf("fail\n");
+			ok = false;
 		}
 	}
 	else {
 		BKE_report(op->reports, RPT_ERROR, "Unable to create userpref path");
 	}
 
-	if (U.app_template[0] && (cfgdir = BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, U.app_template))) {
-		/* Also save app-template prefs */
-		BLI_path_join(filepath, sizeof(filepath), cfgdir, BLENDER_USERPREF_FILE, NULL);
-		printf("trying to save app-template userpref at %s ", filepath);
-		if (BKE_blendfile_userdef_write(filepath, op->reports) == 0) {
-			printf("fail\n");
-			ok = true;
+	if (U.app_template[0]) {
+		if ((cfgdir = BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, U.app_template))) {
+			/* Also save app-template prefs */
+			BLI_path_join(filepath, sizeof(filepath), cfgdir, BLENDER_USERPREF_FILE, NULL);
+			printf("trying to save app-template userpref at %s ", filepath);
+			if (BKE_blendfile_userdef_write(filepath, op->reports) != 0) {
+				printf("ok\n");
+			}
+			else {
+				printf("fail\n");
+				ok = false;
+			}
 		}
 		else {
-			printf("ok\n");
+			BKE_report(op->reports, RPT_ERROR, "Unable to create app-template userpref path");
+			ok = false;
 		}
-	}
-	else if (U.app_template[0]) {
-		BKE_report(op->reports, RPT_ERROR, "Unable to create app-template userpref path");
 	}
 
 	return ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;

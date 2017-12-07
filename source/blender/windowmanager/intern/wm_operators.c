@@ -119,6 +119,8 @@
 #include "wm_window.h"
 
 static GHash *global_ops_hash = NULL;
+/** Counter for operator-properties that should not be tagged with #OP_PROP_TAG_ADVANCED. */
+static int ot_prop_basic_count = -1;
 
 #define UNDOCUMENTED_OPERATOR_TIP N_("(undocumented operator)")
 
@@ -164,10 +166,15 @@ void WM_operatortype_iter(GHashIterator *ghi)
 static wmOperatorType *wm_operatortype_append__begin(void)
 {
 	wmOperatorType *ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
+
+	BLI_assert(ot_prop_basic_count == -1);
+
 	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
+	RNA_def_struct_property_tags(ot->srna, rna_enum_operator_property_tags);
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
 	RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 	ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
+
 	return ot;
 }
 static void wm_operatortype_append__end(wmOperatorType *ot)
@@ -176,6 +183,9 @@ static void wm_operatortype_append__end(wmOperatorType *ot)
 		fprintf(stderr, "ERROR: Operator %s has no name property!\n", ot->idname);
 		ot->name = N_("Dummy Name");
 	}
+
+	/* Allow calling _begin without _end in operatortype creation. */
+	WM_operatortype_props_advanced_end(ot);
 
 	/* XXX All ops should have a description but for now allow them not to. */
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
@@ -529,6 +539,55 @@ void WM_operatortype_last_properties_clear_all(void)
 			ot->last_properties = NULL;
 		}
 	}
+}
+
+/**
+ * Tag all operator-properties of \a ot defined after calling this, until
+ * the next #WM_operatortype_props_advanced_end call (if available), with
+ * #OP_PROP_TAG_ADVANCED. Previously defined ones properties not touched.
+ *
+ * Calling this multiple times without a call to #WM_operatortype_props_advanced_end,
+ * all calls after the first one are ignored. Meaning all propereties defined after the
+ * first call are tagged as advanced.
+ *
+ * This doesn't do the actual tagging, #WM_operatortype_props_advanced_end does which is
+ * called for all operators during registration (see #wm_operatortype_append__end).
+ */
+void WM_operatortype_props_advanced_begin(wmOperatorType *ot)
+{
+	if (ot_prop_basic_count == -1) { /* Don't do anything if _begin was called before, but not _end  */
+		ot_prop_basic_count = RNA_struct_count_properties(ot->srna);
+	}
+}
+
+/**
+ * Tags all operator-properties of \ot defined since the first #WM_operatortype_props_advanced_begin
+ * call, or the last #WM_operatortype_props_advanced_end call, with #OP_PROP_TAG_ADVANCED.
+ * Note that this is called for all operators during registration (see #wm_operatortype_append__end).
+ * So it does not need to be explicitly called in operator-type definition.
+ */
+void WM_operatortype_props_advanced_end(wmOperatorType *ot)
+{
+	PointerRNA struct_ptr;
+	int counter = 0;
+
+	if (ot_prop_basic_count == -1) {
+		/* WM_operatortype_props_advanced_begin was not called. Don't do anything. */
+		return;
+	}
+
+	RNA_pointer_create(NULL, ot->srna, NULL, &struct_ptr);
+
+	RNA_STRUCT_BEGIN (&struct_ptr, prop)
+	{
+		counter++;
+		if (counter > ot_prop_basic_count) {
+			WM_operatortype_prop_tag(prop, OP_PROP_TAG_ADVANCED);
+		}
+	}
+	RNA_STRUCT_END;
+
+	ot_prop_basic_count = -1;
 }
 
 /* SOME_OT_op -> some.op */
@@ -1753,35 +1812,16 @@ static void WM_OT_operator_defaults(wmOperatorType *ot)
 
 static int wm_operator_tool_set_exec(bContext *C, wmOperator *op)
 {
-	Main *bmain = CTX_data_main(C);
-	WorkSpace *workspace = CTX_wm_workspace(C);
 	ScrArea *sa = CTX_wm_area(C);
-	char id_keymap[sizeof(workspace->tool.keymap)];
-	char id_manipulator_group[sizeof(workspace->tool.manipulator_group)];
-	RNA_string_get(op->ptr, "keymap", id_keymap);
-	RNA_string_get(op->ptr, "manipulator_group", id_manipulator_group);
-	int index = RNA_int_get(op->ptr, "index");
 
-	workspace->tool.index = index;
+	bToolDef tool_def = {0};
 
-	if (workspace->tool.manipulator_group[0]) {
-		wmManipulatorGroupType *wgt = WM_manipulatorgrouptype_find(workspace->tool.manipulator_group, false);
-		if (wgt != NULL) {
-			wmManipulatorMapType *mmap_type = WM_manipulatormaptype_ensure(&wgt->mmap_params);
-			WM_manipulatormaptype_group_unlink(C, bmain, mmap_type, wgt);
-		}
-	}
+	tool_def.index = RNA_int_get(op->ptr, "index");
+	tool_def.spacetype = sa->spacetype;
+	RNA_string_get(op->ptr, "keymap", tool_def.keymap);
+	RNA_string_get(op->ptr, "manipulator_group", tool_def.manipulator_group);
 
-	/* NOTE: we may want to move this logic into a function. */
-	{
-		BLI_strncpy(workspace->tool.keymap, id_keymap, sizeof(workspace->tool.keymap));
-		BLI_strncpy(workspace->tool.manipulator_group, id_manipulator_group, sizeof(workspace->tool.manipulator_group));
-		workspace->tool.spacetype = sa->spacetype;
-	}
-
-	if (workspace->tool.manipulator_group[0]) {
-		WM_manipulator_group_type_ensure(workspace->tool.manipulator_group);
-	}
+	WM_toolsystem_set(C, &tool_def);
 
 	/* For some reason redraw fails with menus (even though 'ar' isn't the menu's region). */
 	ED_area_tag_redraw(sa);
@@ -3240,7 +3280,7 @@ static const EnumPropertyItem redraw_timer_type_items[] = {
 
 
 static void redraw_timer_step(
-        bContext *C, Main *bmain, Scene *scene, SceneLayer *scene_layer,
+        bContext *C, Main *bmain, Scene *scene, ViewLayer *view_layer,
         struct Depsgraph *depsgraph,
         wmWindow *win, ScrArea *sa, ARegion *ar,
         const int type, const int cfra)
@@ -3288,7 +3328,7 @@ static void redraw_timer_step(
 	}
 	else if (type == eRTAnimationStep) {
 		scene->r.cfra += (cfra == scene->r.cfra) ? 1 : -1;
-		BKE_scene_graph_update_for_newframe(bmain->eval_ctx, depsgraph, bmain, scene, scene_layer);
+		BKE_scene_graph_update_for_newframe(bmain->eval_ctx, depsgraph, bmain, scene, view_layer);
 	}
 	else if (type == eRTAnimationPlay) {
 		/* play anim, return on same frame as started with */
@@ -3300,7 +3340,7 @@ static void redraw_timer_step(
 			if (scene->r.cfra > scene->r.efra)
 				scene->r.cfra = scene->r.sfra;
 
-			BKE_scene_graph_update_for_newframe(bmain->eval_ctx, depsgraph, bmain, scene, scene_layer);
+			BKE_scene_graph_update_for_newframe(bmain->eval_ctx, depsgraph, bmain, scene, view_layer);
 			redraw_timer_window_swap(C);
 		}
 	}
@@ -3314,7 +3354,7 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	SceneLayer *scene_layer = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	wmWindow *win = CTX_wm_window(C);
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -3332,7 +3372,7 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
 	time_start = PIL_check_seconds_timer();
 
 	for (a = 0; a < iter; a++) {
-		redraw_timer_step(C, bmain, scene, scene_layer, depsgraph, win, sa, ar, type, cfra);
+		redraw_timer_step(C, bmain, scene, view_layer, depsgraph, win, sa, ar, type, cfra);
 		iter_steps += 1;
 
 		if (time_limit != 0.0) {
@@ -3993,14 +4033,29 @@ void wm_window_keymap(wmKeyConfig *keyconf)
 	gesture_straightline_modal_keymap(keyconf);
 }
 
+/**
+ * Filter functions that can be used with rna_id_itemf() below.
+ * Should return false if 'id' should be excluded.
+ */
+static bool rna_id_enum_filter_single(ID *id, void *user_data)
+{
+	return (id != user_data);
+}
+
 /* Generic itemf's for operators that take library args */
-static const EnumPropertyItem *rna_id_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), bool *r_free, ID *id, bool local)
+static const EnumPropertyItem *rna_id_itemf(
+        bContext *UNUSED(C), PointerRNA *UNUSED(ptr),
+        bool *r_free, ID *id, bool local,
+        bool (*filter_ids)(ID *id, void *user_data), void *user_data)
 {
 	EnumPropertyItem item_tmp = {0}, *item = NULL;
 	int totitem = 0;
 	int i = 0;
 
 	for (; id; id = id->next) {
+		if ((filter_ids != NULL) && filter_ids(user_data, id) == false) {
+			continue;
+		}
 		if (local == false || !ID_IS_LINKED(id)) {
 			item_tmp.identifier = item_tmp.name = id->name + 2;
 			item_tmp.value = i++;
@@ -4017,7 +4072,7 @@ static const EnumPropertyItem *rna_id_itemf(bContext *UNUSED(C), PointerRNA *UNU
 /* can add more as needed */
 const EnumPropertyItem *RNA_action_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->action.first : NULL, false);
+	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->action.first : NULL, false, NULL, NULL);
 }
 #if 0 /* UNUSED */
 const EnumPropertyItem *RNA_action_local_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
@@ -4028,45 +4083,51 @@ const EnumPropertyItem *RNA_action_local_itemf(bContext *C, PointerRNA *ptr, Pro
 
 const EnumPropertyItem *RNA_group_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->group.first : NULL, false);
+	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->group.first : NULL, false, NULL, NULL);
 }
 const EnumPropertyItem *RNA_group_local_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->group.first : NULL, true);
+	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->group.first : NULL, true, NULL, NULL);
 }
 
 const EnumPropertyItem *RNA_image_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->image.first : NULL, false);
+	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->image.first : NULL, false, NULL, NULL);
 }
 const EnumPropertyItem *RNA_image_local_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->image.first : NULL, true);
+	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->image.first : NULL, true, NULL, NULL);
 }
 
 const EnumPropertyItem *RNA_scene_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->scene.first : NULL, false);
+	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->scene.first : NULL, false, NULL, NULL);
 }
 const EnumPropertyItem *RNA_scene_local_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->scene.first : NULL, true);
+	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->scene.first : NULL, true, NULL, NULL);
 }
-
+const EnumPropertyItem *RNA_scene_without_active_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	Scene *scene_active = C ? CTX_data_scene(C) : NULL;
+	return rna_id_itemf(
+	        C, ptr, r_free, C ? (ID *)CTX_data_main(C)->scene.first : NULL, true,
+	        rna_id_enum_filter_single, scene_active);
+}
 const EnumPropertyItem *RNA_movieclip_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->movieclip.first : NULL, false);
+	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->movieclip.first : NULL, false, NULL, NULL);
 }
 const EnumPropertyItem *RNA_movieclip_local_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->movieclip.first : NULL, true);
+	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->movieclip.first : NULL, true, NULL, NULL);
 }
 
 const EnumPropertyItem *RNA_mask_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->mask.first : NULL, false);
+	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->mask.first : NULL, false, NULL, NULL);
 }
 const EnumPropertyItem *RNA_mask_local_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->mask.first : NULL, true);
+	return rna_id_itemf(C, ptr, r_free, C ? (ID *)CTX_data_main(C)->mask.first : NULL, true, NULL, NULL);
 }

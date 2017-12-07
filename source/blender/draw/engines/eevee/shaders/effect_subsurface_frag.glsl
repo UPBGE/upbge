@@ -5,12 +5,13 @@
 layout(std140) uniform sssProfile {
 	vec4 kernel[MAX_SSS_SAMPLES];
 	vec4 radii_max_radius;
+	int sss_samples;
 };
 
-uniform int sampleCount;
 uniform float jitterThreshold;
 uniform sampler2D depthBuffer;
 uniform sampler2D sssData;
+uniform sampler2D sssAlbedo;
 uniform sampler2DArray utilTex;
 
 out vec4 FragColor;
@@ -59,7 +60,7 @@ void main(void)
 	/* Center sample */
 	vec3 accum = sss_data.rgb * kernel[0].rgb;
 
-	for (int i = 1; i < sampleCount && i < MAX_SSS_SAMPLES; i++) {
+	for (int i = 1; i < sss_samples && i < MAX_SSS_SAMPLES; i++) {
 		vec2 sample_uv = uvs + kernel[i].a * finalStep * ((abs(kernel[i].a) > jitterThreshold) ? dir : dir_rand);
 		vec3 color = texture(sssData, sample_uv).rgb;
 		float sample_depth = texture(depthBuffer, sample_uv).r;
@@ -80,6 +81,10 @@ void main(void)
 #ifdef FIRST_PASS
 	FragColor = vec4(accum, sss_data.a);
 #else /* SECOND_PASS */
+	#ifdef USE_SEP_ALBEDO
+	FragColor = vec4(accum * texture(sssAlbedo, uvs).rgb, 1.0);
+	#else
 	FragColor = vec4(accum, 1.0);
+	#endif
 #endif
 }

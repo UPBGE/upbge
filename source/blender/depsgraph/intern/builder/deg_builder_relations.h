@@ -31,6 +31,7 @@
 #pragma once
 
 #include <cstdio>
+#include <cstring>
 
 #include "intern/depsgraph_types.h"
 
@@ -43,8 +44,10 @@
 #include "BLI_string.h"
 
 #include "intern/nodes/deg_node.h"
+#include "intern/nodes/deg_node_component.h"
 #include "intern/nodes/deg_node_operation.h"
 
+struct Base;
 struct bGPdata;
 struct CacheFile;
 struct ListBase;
@@ -65,7 +68,7 @@ struct Object;
 struct bPoseChannel;
 struct bConstraint;
 struct Scene;
-struct SceneLayer;
+struct ViewLayer;
 struct Tex;
 struct World;
 struct EffectorWeights;
@@ -174,48 +177,58 @@ struct DepsgraphRelationBuilder
 	template <typename KeyFrom, typename KeyTo>
 	void add_relation(const KeyFrom& key_from,
 	                  const KeyTo& key_to,
-	                  const char *description);
+	                  const char *description,
+	                  bool check_unique = false);
 
 	template <typename KeyTo>
 	void add_relation(const TimeSourceKey& key_from,
 	                  const KeyTo& key_to,
-	                  const char *description);
+	                  const char *description,
+	                  bool check_unique = false);
 
 	template <typename KeyType>
 	void add_node_handle_relation(const KeyType& key_from,
 	                              const DepsNodeHandle *handle,
-	                              const char *description);
+	                              const char *description,
+	                              bool check_unique = false);
 
-	void build_scene_layer(Scene *scene, SceneLayer *scene_layer);
+	void build_view_layer(Scene *scene, ViewLayer *view_layer);
 	void build_group(Object *object, Group *group);
-	void build_object(Object *ob);
-	void build_object_parent(Object *ob);
+	void build_object(Base *base, Object *object);
+	void build_object_flags(Base *base, Object *object);
+	void build_object_data(Object *object);
+	void build_object_parent(Object *object);
 	void build_constraints(ID *id,
 	                       eDepsNode_Type component_type,
 	                       const char *component_subdata,
 	                       ListBase *constraints,
 	                       RootPChanMap *root_map);
 	void build_animdata(ID *id);
+	void build_animdata_curves(ID *id);
+	void build_animdata_curves_targets(ID *id);
+	void build_animdata_drievrs(ID *id);
 	void build_driver(ID *id, FCurve *fcurve);
+	void build_driver_data(ID *id, FCurve *fcurve);
+	void build_driver_variables(ID *id, FCurve *fcurve);
 	void build_world(World *world);
 	void build_rigidbody(Scene *scene);
-	void build_particles(Object *ob);
+	void build_particles(Object *object);
 	void build_particle_settings(ParticleSettings *part);
 	void build_cloth(Object *object, ModifierData *md);
-	void build_ik_pose(Object *ob,
+	void build_ik_pose(Object *object,
 	                   bPoseChannel *pchan,
 	                   bConstraint *con,
 	                   RootPChanMap *root_map);
-	void build_splineik_pose(Object *ob,
+	void build_splineik_pose(Object *object,
 	                         bPoseChannel *pchan,
 	                         bConstraint *con,
 	                         RootPChanMap *root_map);
-	void build_rig(Object *ob);
-	void build_proxy_rig(Object *ob);
+	void build_rig(Object *object);
+	void build_proxy_rig(Object *object);
 	void build_shapekeys(ID *obdata, Key *key);
-	void build_obdata_geom(Object *ob);
-	void build_camera(Object *ob);
-	void build_lamp(Object *ob);
+	void build_obdata_geom(Object *object);
+	void build_camera(Object *object);
+	void build_lamp(Object *object);
 	void build_nodetree(bNodeTree *ntree);
 	void build_material(Material *ma);
 	void build_texture(Tex *tex);
@@ -229,13 +242,13 @@ struct DepsgraphRelationBuilder
 
 	void add_collision_relations(const OperationKey &key,
 	                             Scene *scene,
-	                             Object *ob,
+	                             Object *object,
 	                             Group *group,
 	                             bool dupli,
 	                             const char *name);
 	void add_forcefield_relations(const OperationKey &key,
 	                              Scene *scene,
-	                              Object *ob,
+	                              Object *object,
 	                              ParticleSystem *psys,
 	                              EffectorWeights *eff,
 	                              bool add_absorption, const char *name);
@@ -246,11 +259,13 @@ struct DepsgraphRelationBuilder
 		OperationKey done_key;
 		OperationKey prev_key;
 	};
-	void build_layer_collection(LayerCollection *layer_collection,
+	void build_layer_collection(ID *owner_id,
+	                            LayerCollection *layer_collection,
 	                            LayerCollectionState *state);
-	void build_layer_collections(ListBase *layer_collections,
+	void build_layer_collections(ID *owner_id,
+	                             ListBase *layer_collections,
 	                             LayerCollectionState *state);
-	void build_scene_layer_collections(SceneLayer *scene_layer);
+	void build_view_layer_collections(struct ID *owner_id, ViewLayer *view_layer);
 
 	void build_copy_on_write_relations();
 	void build_copy_on_write_relations(IDDepsNode *id_node);
@@ -261,24 +276,29 @@ struct DepsgraphRelationBuilder
 	Depsgraph *getGraph();
 
 protected:
-	TimeSourceDepsNode *find_node(const TimeSourceKey &key) const;
-	ComponentDepsNode *find_node(const ComponentKey &key) const;
+	TimeSourceDepsNode *get_node(const TimeSourceKey &key) const;
+	ComponentDepsNode *get_node(const ComponentKey &key) const;
+	OperationDepsNode *get_node(const OperationKey &key) const;
+	DepsNode *get_node(const RNAPathKey &key) const;
+
 	OperationDepsNode *find_node(const OperationKey &key) const;
-	DepsNode *find_node(const RNAPathKey &key) const;
-	OperationDepsNode *has_node(const OperationKey &key) const;
+	bool has_node(const OperationKey &key) const;
 
 	void add_time_relation(TimeSourceDepsNode *timesrc,
 	                       DepsNode *node_to,
-	                       const char *description);
+	                       const char *description,
+	                       bool check_unique = false);
 	void add_operation_relation(OperationDepsNode *node_from,
 	                            OperationDepsNode *node_to,
-	                            const char *description);
+	                            const char *description,
+	                            bool check_unique = false);
 
 	template <typename KeyType>
 	DepsNodeHandle create_node_handle(const KeyType& key,
 	                                  const char *default_name = "");
 
-	bool needs_animdata_node(ID *id);
+	template <typename KeyFrom, typename KeyTo>
+	bool is_same_bone_dependency(const KeyFrom& key_from, const KeyTo& key_to);
 
 private:
 	/* State which never changes, same for the whole builder time. */
@@ -291,10 +311,12 @@ private:
 
 struct DepsNodeHandle
 {
-	DepsNodeHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const char *default_name = "") :
-	    builder(builder),
-	    node(node),
-	    default_name(default_name)
+	DepsNodeHandle(DepsgraphRelationBuilder *builder,
+	               OperationDepsNode *node,
+	               const char *default_name = "")
+	        : builder(builder),
+	          node(node),
+	          default_name(default_name)
 	{
 		BLI_assert(node != NULL);
 	}
@@ -304,95 +326,7 @@ struct DepsNodeHandle
 	const char *default_name;
 };
 
-/* Utilities for Builders ----------------------------------------------------- */
-
-template <typename KeyType>
-OperationDepsNode *DepsgraphRelationBuilder::find_operation_node(const KeyType& key)
-{
-	DepsNode *node = find_node(key);
-	return node != NULL ? node->get_exit_operation() : NULL;
-}
-
-template <typename KeyFrom, typename KeyTo>
-void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from,
-                                            const KeyTo &key_to,
-                                            const char *description)
-{
-	DepsNode *node_from = find_node(key_from);
-	DepsNode *node_to = find_node(key_to);
-	OperationDepsNode *op_from = node_from ? node_from->get_exit_operation() : NULL;
-	OperationDepsNode *op_to = node_to ? node_to->get_entry_operation() : NULL;
-	if (op_from && op_to) {
-		add_operation_relation(op_from, op_to, description);
-	}
-	else {
-		if (!op_from) {
-			/* XXX TODO handle as error or report if needed */
-			node_from = find_node(key_from);
-			fprintf(stderr, "add_relation(%s) - Could not find op_from (%s)\n",
-			        description, key_from.identifier().c_str());
-		}
-		else {
-			fprintf(stderr, "add_relation(%s) - Failed, but op_from (%s) was ok\n",
-			        description, key_from.identifier().c_str());
-		}
-		if (!op_to) {
-			/* XXX TODO handle as error or report if needed */
-			fprintf(stderr, "add_relation(%s) - Could not find op_to (%s)\n",
-			        description, key_to.identifier().c_str());
-		}
-		else {
-			fprintf(stderr, "add_relation(%s) - Failed, but op_to (%s) was ok\n",
-			        description, key_to.identifier().c_str());
-		}
-	}
-}
-
-template <typename KeyTo>
-void DepsgraphRelationBuilder::add_relation(const TimeSourceKey &key_from,
-                                            const KeyTo &key_to,
-                                            const char *description)
-{
-	TimeSourceDepsNode *time_from = find_node(key_from);
-	DepsNode *node_to = find_node(key_to);
-	OperationDepsNode *op_to = node_to ? node_to->get_entry_operation() : NULL;
-	if (time_from && op_to) {
-		add_time_relation(time_from, op_to, description);
-	}
-	else {
-	}
-}
-
-template <typename KeyType>
-void DepsgraphRelationBuilder::add_node_handle_relation(
-        const KeyType &key_from,
-        const DepsNodeHandle *handle,
-        const char *description)
-{
-	DepsNode *node_from = find_node(key_from);
-	OperationDepsNode *op_from = node_from ? node_from->get_exit_operation() : NULL;
-	OperationDepsNode *op_to = handle->node->get_entry_operation();
-	if (op_from && op_to) {
-		add_operation_relation(op_from, op_to, description);
-	}
-	else {
-		if (!op_from) {
-			fprintf(stderr, "add_node_handle_relation(%s) - Could not find op_from (%s)\n",
-			        description, key_from.identifier().c_str());
-		}
-		if (!op_to) {
-			fprintf(stderr, "add_node_handle_relation(%s) - Could not find op_to (%s)\n",
-			        description, key_from.identifier().c_str());
-		}
-	}
-}
-
-template <typename KeyType>
-DepsNodeHandle DepsgraphRelationBuilder::create_node_handle(
-        const KeyType &key,
-        const char *default_name)
-{
-	return DepsNodeHandle(this, find_node(key), default_name);
-}
-
 }  // namespace DEG
+
+
+#include "intern/builder/deg_builder_relations_impl.h"

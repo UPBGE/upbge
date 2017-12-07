@@ -109,6 +109,7 @@ extern "C" {
 struct bContext;
 struct wmEvent;
 struct wmWindowManager;
+struct wmMsgBus;
 struct wmOperator;
 struct ImBuf;
 
@@ -163,6 +164,12 @@ enum {
 	WM_OP_EXEC_AREA,
 	WM_OP_EXEC_SCREEN
 };
+
+/* property tags for RNA_OperatorProperties */
+typedef enum eOperatorPropTags {
+	OP_PROP_TAG_ADVANCED = (1 << 0),
+} eOperatorPropTags;
+#define OP_PROP_TAG_ADVANCED ((eOperatorPropTags)OP_PROP_TAG_ADVANCED)
 
 /* ************** wmKeyMap ************************ */
 

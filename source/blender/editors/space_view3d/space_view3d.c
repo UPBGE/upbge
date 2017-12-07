@@ -67,6 +67,7 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "WM_message.h"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -860,7 +861,7 @@ static void view3d_main_region_listener(
 					break;
 				case ND_OB_ACTIVE:
 				case ND_OB_SELECT:
-					DEG_id_tag_update((ID *)&scene->id, DEG_TAG_COPY_ON_WRITE);
+					DEG_id_tag_update((ID *)&scene->id, DEG_TAG_SELECT_UPDATE);
 					ATTR_FALLTHROUGH;
 				case ND_FRAME:
 				case ND_TRANSFORM:
@@ -915,22 +916,10 @@ static void view3d_main_region_listener(
 				case ND_SELECT:
 				{
 					WM_manipulatormap_tag_refresh(mmap);
-
 					if (scene->obedit) {
 						Object *ob = scene->obedit;
-						switch (ob->type) {
-							case OB_MESH:
-								BKE_mesh_batch_cache_dirty(ob->data, BKE_CURVE_BATCH_DIRTY_SELECT);
-								break;
-							// case OB_FONT:  /* handled by text_update_edited */
-							case OB_CURVE:
-							case OB_SURF:
-								BKE_curve_batch_cache_dirty(ob->data, BKE_CURVE_BATCH_DIRTY_SELECT);
-								break;
-							case OB_LATTICE:
-								BKE_lattice_batch_cache_dirty(ob->data, BKE_CURVE_BATCH_DIRTY_SELECT);
-								break;
-						}
+						/* TODO(sergey): Notifiers shouldn't really be doing DEG tags. */
+						DEG_id_tag_update((ID *)ob->data, DEG_TAG_SELECT_UPDATE);
 					}
 					ATTR_FALLTHROUGH;
 				}
@@ -1065,6 +1054,75 @@ static void view3d_main_region_listener(
 				ED_region_tag_redraw(ar);
 			}
 			break;
+	}
+}
+
+static void view3d_main_region_message_subscribe(
+        const struct bContext *UNUSED(C),
+        struct WorkSpace *workspace, struct Scene *scene,
+        struct bScreen *UNUSED(screen), struct ScrArea *UNUSED(sa), struct ARegion *ar,
+        struct wmMsgBus *mbus)
+{
+	/* Developer note: there are many properties that impact 3D view drawing,
+	 * so instead of subscribing to individual properties, just subscribe to types
+	 * accepting some redundant redraws.
+	 *
+	 * For other space types we might try avoid this, keep the 3D view as an exceptional case! */
+	ViewRender *view_render = BKE_viewrender_get(scene, workspace);
+	wmMsgParams_RNA msg_key_params = {0};
+
+	/* Only subscribe to types. */
+	StructRNA *type_array[] = {
+		/* These object have properties that impact drawing. */
+		&RNA_AreaLamp,
+		&RNA_Camera,
+		&RNA_Lamp,
+		&RNA_Speaker,
+		&RNA_SunLamp,
+
+		/* General types the 3D view depends on. */
+		&RNA_Object,
+		&RNA_UnitSettings,  /* grid-floor */
+
+		&RNA_ViewRenderSettings,
+		&RNA_World,
+	};
+
+	wmMsgSubscribeValue msg_sub_value_region_tag_redraw = {
+		.owner = ar,
+		.user_data = ar,
+		.notify = ED_region_do_msg_notify_tag_redraw,
+	};
+
+	for (int i = 0; i < ARRAY_SIZE(type_array); i++) {
+		msg_key_params.ptr.type = type_array[i];
+		WM_msg_subscribe_rna_params(
+		        mbus,
+		        &msg_key_params,
+		        &msg_sub_value_region_tag_redraw,
+		        __func__);
+	}
+
+	/* Subscribe to a handful of other properties. */
+	RegionView3D *rv3d = ar->regiondata;
+
+	WM_msg_subscribe_rna_anon_prop(mbus, RenderSettings, resolution_x, &msg_sub_value_region_tag_redraw);
+	WM_msg_subscribe_rna_anon_prop(mbus, RenderSettings, resolution_y, &msg_sub_value_region_tag_redraw);
+	WM_msg_subscribe_rna_anon_prop(mbus, RenderSettings, pixel_aspect_x, &msg_sub_value_region_tag_redraw);
+	WM_msg_subscribe_rna_anon_prop(mbus, RenderSettings, pixel_aspect_y, &msg_sub_value_region_tag_redraw);
+	if (rv3d->persp == RV3D_CAMOB) {
+		WM_msg_subscribe_rna_anon_prop(mbus, RenderSettings, use_border, &msg_sub_value_region_tag_redraw);
+	}
+
+	/* Each engine could be responsible for its own engine data types.
+	 * For now this is simplest. */
+	if (STREQ(view_render->engine_id, RE_engine_id_BLENDER_EEVEE)) {
+		extern StructRNA RNA_ViewLayerEngineSettingsEevee;
+		WM_msg_subscribe_rna_anon_type(mbus, ViewLayerEngineSettingsEevee, &msg_sub_value_region_tag_redraw);
+	}
+	else if (STREQ(view_render->engine_id, RE_engine_id_BLENDER_CLAY)) {
+		extern StructRNA RNA_ViewLayerEngineSettingsClay;
+		WM_msg_subscribe_rna_anon_type(mbus, ViewLayerEngineSettingsClay, &msg_sub_value_region_tag_redraw);
 	}
 }
 
@@ -1323,23 +1381,23 @@ static int view3d_context(const bContext *C, const char *member, bContextDataRes
 	}
 	else if (CTX_data_equals(member, "active_base")) {
 		Scene *scene = CTX_data_scene(C);
-		SceneLayer *sl = CTX_data_scene_layer(C);
-		if (sl->basact) {
-			Object *ob = sl->basact->object;
+		ViewLayer *view_layer = CTX_data_view_layer(C);
+		if (view_layer->basact) {
+			Object *ob = view_layer->basact->object;
 			/* if hidden but in edit mode, we still display, can happen with animation */
-			if ((sl->basact->flag & BASE_VISIBLED) != 0 || (ob->mode & OB_MODE_EDIT)) {
-				CTX_data_pointer_set(result, &scene->id, &RNA_ObjectBase, sl->basact);
+			if ((view_layer->basact->flag & BASE_VISIBLED) != 0 || (ob->mode & OB_MODE_EDIT)) {
+				CTX_data_pointer_set(result, &scene->id, &RNA_ObjectBase, view_layer->basact);
 			}
 		}
 		
 		return 1;
 	}
 	else if (CTX_data_equals(member, "active_object")) {
-		SceneLayer *sl = CTX_data_scene_layer(C);
-		if (sl->basact) {
-			Object *ob = sl->basact->object;
+		ViewLayer *view_layer = CTX_data_view_layer(C);
+		if (view_layer->basact) {
+			Object *ob = view_layer->basact->object;
 			/* if hidden but in edit mode, we still display, can happen with animation */
-			if ((sl->basact->flag & BASE_VISIBLED) != 0 || (ob->mode & OB_MODE_EDIT) != 0) {
+			if ((view_layer->basact->flag & BASE_VISIBLED) != 0 || (ob->mode & OB_MODE_EDIT) != 0) {
 				CTX_data_id_pointer_set(result, &ob->id);
 			}
 		}
@@ -1430,6 +1488,7 @@ void ED_spacetype_view3d(void)
 	art->free = view3d_main_region_free;
 	art->duplicate = view3d_main_region_duplicate;
 	art->listener = view3d_main_region_listener;
+	art->message_subscribe = view3d_main_region_message_subscribe;
 	art->cursor = view3d_main_region_cursor;
 	art->lock = 1;   /* can become flag, see BKE_spacedata_draw_locks */
 	BLI_addhead(&st->regiontypes, art);

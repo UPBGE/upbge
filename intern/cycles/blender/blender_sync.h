@@ -43,7 +43,7 @@ class Mesh;
 class Object;
 class ParticleSystem;
 class Scene;
-class SceneLayer;
+class ViewLayer;
 class Shader;
 class ShaderGraph;
 class ShaderNode;
@@ -67,9 +67,9 @@ public:
 	               int width, int height,
 	               void **python_thread_state,
 	               const char *layer = 0);
-	void sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer);
-	array<Pass> sync_render_passes(BL::RenderLayer& b_rlay,
-	                               BL::SceneRenderLayer& b_srlay,
+	void sync_view_layers(BL::SpaceView3D& b_v3d, const char *layer);
+	array<Pass> sync_render_passes(BL::RenderLayer& b_render_layer,
+	                               BL::ViewLayer& b_view_layer,
 	                               const SessionParams &session_params);
 	void sync_integrator();
 	void sync_camera(BL::RenderSettings& b_render,
@@ -79,8 +79,8 @@ public:
 	void sync_view(BL::SpaceView3D& b_v3d,
 	               BL::RegionView3D& b_rv3d,
 	               int width, int height);
-	inline int get_layer_samples() { return render_layer.samples; }
-	inline int get_layer_bound_samples() { return render_layer.bound_samples; }
+	inline int get_layer_samples() { return view_layer.samples; }
+	inline int get_layer_bound_samples() { return view_layer.bound_samples; }
 
 	/* get parameters */
 	static SceneParams get_scene_params(BL::Scene& b_scene,
@@ -165,7 +165,7 @@ private:
 	BL::BlendData b_data;
 	BL::Depsgraph b_depsgraph;
 	BL::Scene b_scene;
-	BL::SceneLayer b_scene_layer;
+	BL::ViewLayer b_view_layer;
 
 	id_map<void*, Shader> shader_map;
 	id_map<ObjectKey, Object> object_map;
@@ -187,7 +187,7 @@ private:
 
 	struct RenderLayerInfo {
 		RenderLayerInfo()
-		: scene_layer(0), layer(0),
+		: view_layer(0), layer(0),
 		  holdout_layer(0), exclude_layer(0),
 		  material_override(PointerRNA_NULL),
 		  use_background_shader(true),
@@ -198,18 +198,18 @@ private:
 		{}
 
 		string name;
-		uint scene_layer;
-		uint layer;
-		uint holdout_layer;
-		uint exclude_layer;
-		BL::Material material_override;
+		uint view_layer;
+		uint layer; /* This can be safely removed from Cycles. */
+		uint holdout_layer; /* This can be safely removed from Cycles. */
+		uint exclude_layer; /* This can be safely removed from Cycles. */
+		BL::Material material_override; /* This can be safely removed from Cycles. */
 		bool use_background_shader;
 		bool use_background_ao;
 		bool use_surfaces;
 		bool use_hair;
-		int samples;
-		bool bound_samples;
-	} render_layer;
+		int samples; /* This can be safely removed from Cycles. */
+		bool bound_samples; /* This can be safely removed from Cycles. */
+	} view_layer;
 
 	Progress &progress;
 };

@@ -66,6 +66,7 @@ struct ImageFormatData;
 struct ARegion;
 struct ScrArea;
 struct Main;
+struct bToolDef;
 
 #ifdef WITH_INPUT_NDOF
 struct wmNDOFMotionData;
@@ -293,6 +294,14 @@ void		WM_operatortype_append_macro_ptr(void (*opfunc)(struct wmOperatorType *, v
 void        WM_operatortype_remove_ptr(struct wmOperatorType *ot);
 bool        WM_operatortype_remove(const char *idname);
 void        WM_operatortype_last_properties_clear_all(void);
+void        WM_operatortype_props_advanced_begin(struct wmOperatorType *ot);
+void        WM_operatortype_props_advanced_end(struct wmOperatorType *ot);
+
+#define WM_operatortype_prop_tag(property, tags) \
+	{ \
+		CHECK_TYPE(tags, eOperatorPropTags); \
+		RNA_def_property_tags(prop, tags); \
+	} (void)0
 
 struct wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *name, const char *description, int flag);
 struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *ot, const char *idname);
@@ -554,6 +563,13 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 #ifdef WITH_INPUT_IME
 bool        WM_event_is_ime_switch(const struct wmEvent *event);
 #endif
+
+/* wm_toolsystem.c  */
+void WM_toolsystem_unlink(struct bContext *C, struct WorkSpace *workspace);
+void WM_toolsystem_link(struct bContext *C, struct WorkSpace *workspace);
+
+void WM_toolsystem_set(struct bContext *C, const struct bToolDef *tool);
+void WM_toolsystem_init(struct bContext *C);
 
 #ifdef __cplusplus
 }

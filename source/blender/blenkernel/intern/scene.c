@@ -151,79 +151,6 @@ static void remove_sequencer_fcurves(Scene *sce)
 	}
 }
 
-/* copy SceneCollection tree but keep pointing to the same objects */
-static void scene_collection_copy(SceneCollection *sc_dst, SceneCollection *sc_src, const int flag)
-{
-	BLI_duplicatelist(&sc_dst->objects, &sc_src->objects);
-	if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-		for (LinkData *link = sc_dst->objects.first; link; link = link->next) {
-			id_us_plus(link->data);
-		}
-	}
-
-	BLI_duplicatelist(&sc_dst->filter_objects, &sc_src->filter_objects);
-	if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-		for (LinkData *link = sc_dst->filter_objects.first; link; link = link->next) {
-			id_us_plus(link->data);
-		}
-	}
-
-	BLI_duplicatelist(&sc_dst->scene_collections, &sc_src->scene_collections);
-	for (SceneCollection *nsc_src = sc_src->scene_collections.first, *nsc_dst = sc_dst->scene_collections.first;
-	     nsc_src;
-	     nsc_src = nsc_src->next, nsc_dst = nsc_dst->next)
-	{
-		scene_collection_copy(nsc_dst, nsc_src, flag);
-	}
-}
-
-/* Find the equivalent SceneCollection in the new tree */
-static SceneCollection *scene_collection_from_new_tree(SceneCollection *sc_reference, SceneCollection *sc_dst, SceneCollection *sc_src)
-{
-	if (sc_src == sc_reference) {
-		return sc_dst;
-	}
-
-	for (SceneCollection *nsc_src = sc_src->scene_collections.first, *nsc_dst = sc_dst->scene_collections.first;
-	     nsc_src;
-	     nsc_src = nsc_src->next, nsc_dst = nsc_dst->next)
-	{
-		SceneCollection *found = scene_collection_from_new_tree(sc_reference, nsc_dst, nsc_src);
-		if (found != NULL) {
-			return found;
-		}
-	}
-	return NULL;
-}
-
-static void layer_collections_sync_flags(ListBase *layer_collections_dst, const ListBase *layer_collections_src)
-{
-	LayerCollection *layer_collection_dst = (LayerCollection *)layer_collections_dst->first;
-	const LayerCollection *layer_collection_src = (const LayerCollection *)layer_collections_src->first;
-	while (layer_collection_dst != NULL) {
-		layer_collection_dst->flag = layer_collection_src->flag;
-		layer_collections_sync_flags(&layer_collection_dst->layer_collections,
-		                             &layer_collection_src->layer_collections);
-		/* TODO(sergey/dfelinto): Overrides. */
-		layer_collection_dst = layer_collection_dst->next;
-		layer_collection_src = layer_collection_src->next;
-	}
-}
-
-
-/* recreate the LayerCollection tree */
-static void layer_collections_recreate(
-        SceneLayer *sl_dst, ListBase *lb_src, SceneCollection *mc_dst, SceneCollection *mc_src)
-{
-	for (LayerCollection *lc_src = lb_src->first; lc_src; lc_src = lc_src->next) {
-		SceneCollection *sc_dst = scene_collection_from_new_tree(lc_src->scene_collection, mc_dst, mc_src);
-		BLI_assert(sc_dst);
-
-		/* instead of synchronizing both trees we simply re-create it */
-		BKE_collection_link(sl_dst, sc_dst);
-	}
-}
-
 /**
  * Only copy internal data of Scene ID from source to already allocated/initialized destination.
  * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
@@ -244,46 +171,19 @@ void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, cons
 
 	/* layers and collections */
 	sce_dst->collection = MEM_dupallocN(sce_src->collection);
-	SceneCollection *mc_src = BKE_collection_master(sce_src);
-	SceneCollection *mc_dst = BKE_collection_master(sce_dst);
+	SceneCollection *mc_src = BKE_collection_master(&sce_src->id);
+	SceneCollection *mc_dst = BKE_collection_master(&sce_dst->id);
 
-	/* recursively creates a new SceneCollection tree */
-	scene_collection_copy(mc_dst, mc_src, flag_subdata);
+	/* Recursively creates a new SceneCollection tree. */
+	BKE_collection_copy_data(mc_dst, mc_src, flag_subdata);
 
 	IDPropertyTemplate val = {0};
-	BLI_duplicatelist(&sce_dst->render_layers, &sce_src->render_layers);
-	for (SceneLayer *sl_src = sce_src->render_layers.first, *sl_dst = sce_dst->render_layers.first;
-	     sl_src;
-	     sl_src = sl_src->next, sl_dst = sl_dst->next)
+	BLI_duplicatelist(&sce_dst->view_layers, &sce_src->view_layers);
+	for (ViewLayer *view_layer_src = sce_src->view_layers.first, *view_layer_dst = sce_dst->view_layers.first;
+	     view_layer_src;
+	     view_layer_src = view_layer_src->next, view_layer_dst = view_layer_dst->next)
 	{
-		sl_dst->stats = NULL;
-		sl_dst->properties_evaluated = NULL;
-		sl_dst->properties = IDP_New(IDP_GROUP, &val, ROOT_PROP);
-		IDP_MergeGroup_ex(sl_dst->properties, sl_src->properties, true, flag_subdata);
-
-		/* we start fresh with no overrides and no visibility flags set
-		 * instead of syncing both trees we simply unlink and relink the scene collection */
-		BLI_listbase_clear(&sl_dst->layer_collections);
-		BLI_listbase_clear(&sl_dst->object_bases);
-		BLI_listbase_clear(&sl_dst->drawdata);
-
-		layer_collections_recreate(sl_dst, &sl_src->layer_collections, mc_dst, mc_src);
-
-		/* Now we handle the syncing for visibility, selectability, ... */
-		layer_collections_sync_flags(&sl_dst->layer_collections, &sl_src->layer_collections);
-
-		Object *active_ob = OBACT(sl_src);
-		for (Base *base_src = sl_src->object_bases.first, *base_dst = sl_dst->object_bases.first;
-		     base_src;
-		     base_src = base_src->next, base_dst = base_dst->next)
-		{
-			base_dst->flag = base_src->flag;
-			base_dst->flag_legacy = base_src->flag_legacy;
-
-			if (base_dst->object == active_ob) {
-				sl_dst->basact = base_dst;
-			}
-		}
+		BKE_view_layer_copy_data(view_layer_dst, view_layer_src, mc_dst, mc_src, flag_subdata);
 	}
 
 	sce_dst->collection_properties = IDP_New(IDP_GROUP, &val, ROOT_PROP);
@@ -296,7 +196,6 @@ void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, cons
 	}
 
 	BLI_duplicatelist(&(sce_dst->markers), &(sce_src->markers));
-	BLI_duplicatelist(&(sce_dst->r.layers), &(sce_src->r.layers));
 	BLI_duplicatelist(&(sce_dst->r.views), &(sce_src->r.views));
 	BKE_keyingsets_copy(&(sce_dst->keyingsets), &(sce_src->keyingsets));
 
@@ -309,17 +208,6 @@ void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, cons
 
 	if (sce_src->rigidbody_world) {
 		sce_dst->rigidbody_world = BKE_rigidbody_world_copy(sce_src->rigidbody_world, flag_subdata);
-	}
-
-	/* copy Freestyle settings */
-	for (SceneRenderLayer *srl_dst = sce_dst->r.layers.first, *srl_src = sce_src->r.layers.first;
-	     srl_src;
-	     srl_dst = srl_dst->next, srl_src = srl_src->next)
-	{
-		if (srl_dst->prop != NULL) {
-			srl_dst->prop = IDP_CopyProperty_ex(srl_dst->prop, flag_subdata);
-		}
-		BKE_freestyle_config_copy(&srl_dst->freestyleConfig, &srl_src->freestyleConfig, flag_subdata);
 	}
 
 	/* copy color management settings */
@@ -410,16 +298,14 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 	 * But for now, let's keep it well isolated here. */
 	if (type == SCE_COPY_EMPTY) {
 		ToolSettings *ts;
-		ListBase rl, rv;
+		ListBase rv;
 
 		sce_copy = BKE_scene_add(bmain, sce->id.name + 2);
 
-		rl = sce_copy->r.layers;
 		rv = sce_copy->r.views;
 		curvemapping_free_data(&sce_copy->r.mblur_shutter_curve);
 		sce_copy->r = sce->r;
-		sce_copy->r.layers = rl;
-		sce_copy->r.actlay = 0;
+		sce_copy->active_view_layer = 0;
 		sce_copy->r.views = rv;
 		sce_copy->unit = sce->unit;
 		sce_copy->physics_settings = sce->physics_settings;
@@ -517,8 +403,8 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 
 		if (type == SCE_COPY_FULL) {
 			/* Copy Freestyle LineStyle datablocks. */
-			for (SceneRenderLayer *srl_dst = sce_copy->r.layers.first; srl_dst; srl_dst = srl_dst->next) {
-				for (FreestyleLineSet *lineset = srl_dst->freestyleConfig.linesets.first; lineset; lineset = lineset->next) {
+			for (ViewLayer *view_layer_dst = sce_copy->view_layers.first; view_layer_dst; view_layer_dst = view_layer_dst->next) {
+				for (FreestyleLineSet *lineset = view_layer_dst->freestyle_config.linesets.first; lineset; lineset = lineset->next) {
 					if (lineset->linestyle) {
 						/* XXX Not copying anim/actions here? */
 						BKE_id_copy_ex(bmain, (ID *)lineset->linestyle, (ID **)&lineset->linestyle, 0, false);
@@ -572,8 +458,6 @@ void BKE_scene_make_local(Main *bmain, Scene *sce, const bool lib_local)
 /** Free (or release) any data used by this scene (does not free the scene itself). */
 void BKE_scene_free_ex(Scene *sce, const bool do_id_user)
 {
-	SceneRenderLayer *srl;
-
 	BKE_animdata_free((ID *)sce, false);
 
 	/* check all sequences */
@@ -606,16 +490,7 @@ void BKE_scene_free_ex(Scene *sce, const bool do_id_user)
 		sce->r.ffcodecdata.properties = NULL;
 	}
 
-	for (srl = sce->r.layers.first; srl; srl = srl->next) {
-		if (srl->prop != NULL) {
-			IDP_FreeProperty(srl->prop);
-			MEM_freeN(srl->prop);
-		}
-		BKE_freestyle_config_free(&srl->freestyleConfig);
-	}
-
 	BLI_freelistN(&sce->markers);
-	BLI_freelistN(&sce->r.layers);
 	BLI_freelistN(&sce->r.views);
 	
 	if (sce->toolsettings) {
@@ -661,15 +536,15 @@ void BKE_scene_free_ex(Scene *sce, const bool do_id_user)
 	BKE_previewimg_free(&sce->preview);
 	curvemapping_free_data(&sce->r.mblur_shutter_curve);
 
-	for (SceneLayer *sl = sce->render_layers.first, *sl_next; sl; sl = sl_next) {
-		sl_next = sl->next;
+	for (ViewLayer *view_layer = sce->view_layers.first, *view_layer_next; view_layer; view_layer = view_layer_next) {
+		view_layer_next = view_layer->next;
 
-		BLI_remlink(&sce->render_layers, sl);
-		BKE_scene_layer_free(sl);
+		BLI_remlink(&sce->view_layers, view_layer);
+		BKE_view_layer_free(view_layer);
 	}
 
 	/* Master Collection */
-	BKE_collection_master_free(sce, do_id_user);
+	BKE_collection_master_free(&sce->id, do_id_user);
 	MEM_freeN(sce->collection);
 	sce->collection = NULL;
 
@@ -907,7 +782,6 @@ void BKE_scene_init(Scene *sce)
 	sce->r.osa = 8;
 
 	/* note; in header_info.c the scene copy happens..., if you add more to renderdata it has to be checked there */
-	BKE_scene_add_render_layer(sce, NULL);
 
 	/* multiview - stereo */
 	BKE_scene_add_render_view(sce, STEREO_LEFT_NAME);
@@ -1051,9 +925,9 @@ void BKE_scene_init(Scene *sce)
 	BKE_layer_collection_engine_settings_create(sce->collection_properties);
 
 	sce->layer_properties = IDP_New(IDP_GROUP, &val, ROOT_PROP);
-	BKE_scene_layer_engine_settings_create(sce->layer_properties);
+	BKE_view_layer_engine_settings_create(sce->layer_properties);
 
-	BKE_scene_layer_add(sce, "Render Layer");
+	BKE_view_layer_add(sce, "View Layer");
 }
 
 Scene *BKE_scene_add(Main *bmain, const char *name)
@@ -1074,8 +948,8 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
  */
 bool BKE_scene_object_find(Scene *scene, Object *ob)
 {
-	for (SceneLayer *scene_layer = scene->render_layers.first; scene_layer; scene_layer = scene_layer->next) {
-		if (BLI_findptr(&scene_layer->object_bases, ob, offsetof(Base, object))) {
+	for (ViewLayer *view_layer = scene->view_layers.first; view_layer; view_layer = view_layer->next) {
+		if (BLI_findptr(&view_layer->object_bases, ob, offsetof(Base, object))) {
 		    return true;
 		}
 	}
@@ -1084,8 +958,8 @@ bool BKE_scene_object_find(Scene *scene, Object *ob)
 
 Object *BKE_scene_object_find_by_name(Scene *scene, const char *name)
 {
-	for (SceneLayer *scene_layer = scene->render_layers.first; scene_layer; scene_layer = scene_layer->next) {
-		for (Base *base = scene_layer->object_bases.first; base; base = base->next) {
+	for (ViewLayer *view_layer = scene->view_layers.first; view_layer; view_layer = view_layer->next) {
+		for (Base *base = view_layer->object_bases.first; base; base = base->next) {
 			if (STREQ(base->object->id.name + 2, name)) {
 				return base->object;
 			}
@@ -1103,7 +977,6 @@ void BKE_scene_set_background(Main *bmain, Scene *scene)
 {
 	Object *ob;
 	Group *group;
-	GroupObject *go;
 	
 	/* check for cyclic sets, for reading old files but also for definite security (py?) */
 	BKE_scene_validate_setscene(bmain, scene);
@@ -1118,16 +991,16 @@ void BKE_scene_set_background(Main *bmain, Scene *scene)
 
 	/* group flags again */
 	for (group = bmain->group.first; group; group = group->id.next) {
-		for (go = group->gobject.first; go; go = go->next) {
-			if (go->ob) {
-				go->ob->flag |= OB_FROMGROUP;
-			}
+		FOREACH_GROUP_OBJECT(group, object)
+		{
+			object->flag |= OB_FROMGROUP;
 		}
+		FOREACH_GROUP_OBJECT_END
 	}
 
 	/* copy layers and flags from bases to objects */
-	for (SceneLayer *scene_layer = scene->render_layers.first; scene_layer; scene_layer = scene_layer->next) {
-		for (Base *base = scene_layer->object_bases.first; base; base = base->next) {
+	for (ViewLayer *view_layer = scene->view_layers.first; view_layer; view_layer = view_layer->next) {
+		for (Base *base = view_layer->object_bases.first; base; base = base->next) {
 			ob = base->object;
 			/* group patch... */
 			BKE_scene_object_base_flag_sync_from_base(base);
@@ -1171,8 +1044,8 @@ int BKE_scene_base_iter_next(
 
 			/* the first base */
 			if (iter->phase == F_START) {
-				SceneLayer *scene_layer = eval_ctx->scene_layer;
-				*base = scene_layer->object_bases.first;
+				ViewLayer *view_layer = eval_ctx->view_layer;
+				*base = view_layer->object_bases.first;
 				if (*base) {
 					*ob = (*base)->object;
 					iter->phase = F_SCENE;
@@ -1181,9 +1054,9 @@ int BKE_scene_base_iter_next(
 					/* exception: empty scene layer */
 					while ((*scene)->set) {
 						(*scene) = (*scene)->set;
-						SceneLayer *scene_layer_set = BKE_scene_layer_from_scene_get((*scene));
-						if (scene_layer_set->object_bases.first) {
-							*base = scene_layer_set->object_bases.first;
+						ViewLayer *view_layer_set = BKE_view_layer_from_scene_get((*scene));
+						if (view_layer_set->object_bases.first) {
+							*base = view_layer_set->object_bases.first;
 							*ob = (*base)->object;
 							iter->phase = F_SCENE;
 							break;
@@ -1202,9 +1075,9 @@ int BKE_scene_base_iter_next(
 							/* (*scene) is finished, now do the set */
 							while ((*scene)->set) {
 								(*scene) = (*scene)->set;
-								SceneLayer *scene_layer_set = BKE_scene_layer_from_scene_get((*scene));
-								if (scene_layer_set->object_bases.first) {
-									*base = scene_layer_set->object_bases.first;
+								ViewLayer *view_layer_set = BKE_view_layer_from_scene_get((*scene));
+								if (view_layer_set->object_bases.first) {
+									*base = view_layer_set->object_bases.first;
 									*ob = (*base)->object;
 									break;
 								}
@@ -1285,8 +1158,8 @@ int BKE_scene_base_iter_next(
 Scene *BKE_scene_find_from_collection(const Main *bmain, const SceneCollection *scene_collection)
 {
 	for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
-		for (SceneLayer *layer = scene->render_layers.first; layer; layer = layer->next) {
-			if (BKE_scene_layer_has_collection(layer, scene_collection)) {
+		for (ViewLayer *layer = scene->view_layers.first; layer; layer = layer->next) {
+			if (BKE_view_layer_has_collection(layer, scene_collection)) {
 				return scene;
 			}
 		}
@@ -1530,25 +1403,25 @@ static void prepare_mesh_for_viewport_render(Main *bmain, Scene *scene)
 	}
 }
 
-/* TODO(sergey): This actually should become scene_layer_graph or so.
+/* TODO(sergey): This actually should become view_layer_graph or so.
  * Same applies to update_for_newframe.
  */
 void BKE_scene_graph_update_tagged(EvaluationContext *eval_ctx,
                                    Depsgraph *depsgraph,
                                    Main *bmain,
                                    Scene *scene,
-                                   SceneLayer *scene_layer)
+                                   ViewLayer *view_layer)
 {
 	/* TODO(sergey): Temporary solution for until pipeline.c is ported. */
-	if (scene_layer == NULL) {
-		scene_layer = DEG_get_evaluated_scene_layer(depsgraph);
-		BLI_assert(scene_layer != NULL);
+	if (view_layer == NULL) {
+		view_layer = DEG_get_evaluated_view_layer(depsgraph);
+		BLI_assert(view_layer != NULL);
 	}
 	/* TODO(sergey): Some functions here are changing global state,
 	 * for example, clearing update tags from bmain.
 	 */
 	/* (Re-)build dependency graph if needed. */
-	DEG_graph_relations_update(depsgraph, bmain, scene, scene_layer);
+	DEG_graph_relations_update(depsgraph, bmain, scene, view_layer);
 	/* Uncomment this to check if graph was properly tagged for update. */
 	// DEG_debug_graph_relations_validate(depsgraph, bmain, scene);
 	/* Flush editing data if needed. */
@@ -1562,7 +1435,7 @@ void BKE_scene_graph_update_tagged(EvaluationContext *eval_ctx,
 	/* Update sound system animation (TODO, move to depsgraph). */
 	BKE_sound_update_scene(bmain, scene);
 	/* Inform editors about possible changes. */
-	DEG_ids_check_recalc(bmain, scene, false);
+	DEG_ids_check_recalc(bmain, scene, view_layer, false);
 	/* Clear recalc flags. */
 	DEG_ids_clear_recalc(bmain);
 }
@@ -1572,29 +1445,25 @@ void BKE_scene_graph_update_for_newframe(EvaluationContext *eval_ctx,
                                          Depsgraph *depsgraph,
                                          Main *bmain,
                                          Scene *scene,
-                                         SceneLayer *scene_layer)
+                                         ViewLayer *view_layer)
 {
 	/* TODO(sergey): Temporary solution for until pipeline.c is ported. */
-	if (scene_layer == NULL) {
-		scene_layer = DEG_get_evaluated_scene_layer(depsgraph);
-		BLI_assert(scene_layer != NULL);
+	if (view_layer == NULL) {
+		view_layer = DEG_get_evaluated_view_layer(depsgraph);
+		BLI_assert(view_layer != NULL);
 	}
 	/* TODO(sergey): Some functions here are changing global state,
 	 * for example, clearing update tags from bmain.
 	 */
 	const float ctime = BKE_scene_frame_get(scene);
-	/* Inform editors we are starting scene update. */
-	DEG_editors_update_pre(bmain, scene, true);
-	/* Keep this first.
-	 * TODO(sergey): Should it be after the editors update?
-	 */
+	/* Keep this first. */
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_FRAME_CHANGE_PRE);
 	/* Update animated image textures for particles, modifiers, gpu, etc,
 	 * call this at the start so modifiers with textures don't lag 1 frame.
 	 */
 	BKE_image_update_frame(bmain, scene->r.cfra);
 	BKE_sound_set_cfra(scene->r.cfra);
-	DEG_graph_relations_update(depsgraph, bmain, scene, scene_layer);
+	DEG_graph_relations_update(depsgraph, bmain, scene, view_layer);
 	/* Update animated cache files for modifiers.
 	 *
 	 * TODO(sergey): Make this a depsgraph node?
@@ -1613,68 +1482,9 @@ void BKE_scene_graph_update_for_newframe(EvaluationContext *eval_ctx,
 	/* Notify editors and python about recalc. */
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_FRAME_CHANGE_POST);
 	/* Inform editors about possible changes. */
-	DEG_ids_check_recalc(bmain, scene, true);
+	DEG_ids_check_recalc(bmain, scene, view_layer, true);
 	/* clear recalc flags */
 	DEG_ids_clear_recalc(bmain);
-}
-
-/* return default layer, also used to patch old files */
-SceneRenderLayer *BKE_scene_add_render_layer(Scene *sce, const char *name)
-{
-	SceneRenderLayer *srl;
-
-	if (!name)
-		name = DATA_("RenderLayer");
-
-	srl = MEM_callocN(sizeof(SceneRenderLayer), "new render layer");
-	BLI_strncpy(srl->name, name, sizeof(srl->name));
-	BLI_uniquename(&sce->r.layers, srl, DATA_("RenderLayer"), '.', offsetof(SceneRenderLayer, name), sizeof(srl->name));
-	BLI_addtail(&sce->r.layers, srl);
-
-	/* note, this is also in render, pipeline.c, to make layer when scenedata doesnt have it */
-	srl->lay = (1 << 20) - 1;
-	srl->layflag = 0x7FFF;   /* solid ztra halo edge strand */
-	srl->passflag = SCE_PASS_COMBINED | SCE_PASS_Z;
-	srl->pass_alpha_threshold = 0.5f;
-	BKE_freestyle_config_init(&srl->freestyleConfig);
-
-	return srl;
-}
-
-bool BKE_scene_remove_render_layer(Main *bmain, Scene *scene, SceneRenderLayer *srl)
-{
-	const int act = BLI_findindex(&scene->r.layers, srl);
-	Scene *sce;
-
-	if (act == -1) {
-		return false;
-	}
-	else if ( (scene->r.layers.first == scene->r.layers.last) &&
-	          (scene->r.layers.first == srl))
-	{
-		/* ensure 1 layer is kept */
-		return false;
-	}
-
-	BKE_freestyle_config_free(&srl->freestyleConfig);
-
-	if (srl->prop) {
-		IDP_FreeProperty(srl->prop);
-		MEM_freeN(srl->prop);
-	}
-
-	BLI_remlink(&scene->r.layers, srl);
-	MEM_freeN(srl);
-
-	scene->r.actlay = 0;
-
-	for (sce = bmain->scene.first; sce; sce = sce->id.next) {
-		if (sce->nodetree) {
-			BKE_nodetree_remove_layer_n(sce->nodetree, scene, act);
-		}
-	}
-
-	return true;
 }
 
 /* return default view */
@@ -1758,22 +1568,22 @@ float get_render_aosss_error(const RenderData *r, float error)
 }
 
 /**
-  * Helper function for the SETLOOPER and SETLOOPER_SCENE_LAYER macros
+  * Helper function for the SETLOOPER and SETLOOPER_VIEW_LAYER macros
   *
   * It iterates over the bases of the active layer and then the bases
   * of the active layer of the background (set) scenes recursively.
   */
-Base *_setlooper_base_step(Scene **sce_iter, SceneLayer *scene_layer, Base *base)
+Base *_setlooper_base_step(Scene **sce_iter, ViewLayer *view_layer, Base *base)
 {
 	if (base && base->next) {
 		/* Common case, step to the next. */
 		return base->next;
 	}
-	else if ((base == NULL) && (scene_layer != NULL)) {
+	else if ((base == NULL) && (view_layer != NULL)) {
 		/* First time looping, return the scenes first base. */
 		/* For the first loop we should get the layer from workspace when available. */
-		if (scene_layer->object_bases.first) {
-			return (Base *)scene_layer->object_bases.first;
+		if (view_layer->object_bases.first) {
+			return (Base *)view_layer->object_bases.first;
 		}
 		/* No base on this scene layer. */
 		goto next_set;
@@ -1782,8 +1592,8 @@ Base *_setlooper_base_step(Scene **sce_iter, SceneLayer *scene_layer, Base *base
 next_set:
 		/* Reached the end, get the next base in the set. */
 		while ((*sce_iter = (*sce_iter)->set)) {
-			SceneLayer *scene_layer_set = BKE_scene_layer_from_scene_get((*sce_iter));
-			base = (Base *)scene_layer_set->object_bases.first;
+			ViewLayer *view_layer_set = BKE_view_layer_from_scene_get((*sce_iter));
+			base = (Base *)view_layer_set->object_bases.first;
 
 			if (base) {
 				return base;
@@ -1831,9 +1641,9 @@ bool BKE_scene_uses_blender_eevee(const Scene *scene)
 	return BKE_viewrender_uses_blender_eevee(&scene->view_render);
 }
 
-void BKE_scene_base_flag_to_objects(SceneLayer *scene_layer)
+void BKE_scene_base_flag_to_objects(ViewLayer *view_layer)
 {
-	Base *base = scene_layer->object_bases.first;
+	Base *base = view_layer->object_bases.first;
 
 	while (base) {
 		BKE_scene_object_base_flag_sync_from_base(base);
@@ -2318,7 +2128,7 @@ int BKE_scene_multiview_num_videos_get(const RenderData *rd)
 
 /* This is a key which identifies depsgraph. */
 typedef struct DepsgraphKey {
-	SceneLayer *scene_layer;
+	ViewLayer *view_layer;
 	/* TODO(sergey): Need to include window somehow (same layer might be in a
 	 * different states in different windows).
 	 */
@@ -2327,7 +2137,7 @@ typedef struct DepsgraphKey {
 static unsigned int depsgraph_key_hash(const void *key_v)
 {
 	const DepsgraphKey *key = key_v;
-	unsigned int hash = BLI_ghashutil_ptrhash(key->scene_layer);
+	unsigned int hash = BLI_ghashutil_ptrhash(key->view_layer);
 	/* TODO(sergey): Include hash from other fields in the key. */
 	return hash;
 }
@@ -2337,7 +2147,7 @@ static bool depsgraph_key_compare(const void *key_a_v, const void *key_b_v)
 	const DepsgraphKey *key_a = key_a_v;
 	const DepsgraphKey *key_b = key_b_v;
 	/* TODO(sergey): Compare rest of  */
-	return !(key_a->scene_layer == key_b->scene_layer);
+	return !(key_a->view_layer == key_b->view_layer);
 }
 
 static void depsgraph_key_free(void *key_v)
@@ -2379,11 +2189,11 @@ void BKE_scene_free_depsgraph_hash(Scene *scene)
 /* Query depsgraph for a specific contexts. */
 
 Depsgraph *BKE_scene_get_depsgraph(Scene *scene,
-                                   SceneLayer *scene_layer,
+                                   ViewLayer *view_layer,
                                    bool allocate)
 {
 	BLI_assert(scene != NULL);
-	BLI_assert(scene_layer != NULL);
+	BLI_assert(view_layer != NULL);
 	/* Make sure hash itself exists. */
 	if (allocate) {
 		BKE_scene_ensure_depsgraph_hash(scene);
@@ -2395,15 +2205,15 @@ Depsgraph *BKE_scene_get_depsgraph(Scene *scene,
 	 * depending on whether caller wants us to create depsgraph or not.
 	 */
 	DepsgraphKey key;
-	key.scene_layer = scene_layer;
+	key.view_layer = view_layer;
 	Depsgraph *depsgraph;
 	if (allocate) {
 		DepsgraphKey **key_ptr;
 		Depsgraph **depsgraph_ptr;
 		if (!BLI_ghash_ensure_p_ex(scene->depsgraph_hash,
 		                           &key,
-		                           (void***)&key_ptr,
-		                           (void***)&depsgraph_ptr))
+		                           (void ***)&key_ptr,
+		                           (void ***)&depsgraph_ptr))
 		{
 			*key_ptr = MEM_mallocN(sizeof(DepsgraphKey), __func__);
 			**key_ptr = key;

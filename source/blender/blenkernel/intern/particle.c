@@ -252,7 +252,7 @@ struct LatticeDeformData *psys_create_lattice_deform_data(ParticleSimulationData
 {
 	struct LatticeDeformData *lattice_deform_data = NULL;
 
-	if (psys_in_edit_mode(sim->eval_ctx->scene_layer, sim->psys) == 0) {
+	if (psys_in_edit_mode(sim->eval_ctx->view_layer, sim->psys) == 0) {
 		Object *lattice = NULL;
 		ModifierData *md = (ModifierData *)psys_get_modifier(sim->ob, sim->psys);
 		int mode = G.is_rendering ? eModifierMode_Render : eModifierMode_Realtime;
@@ -289,11 +289,11 @@ void psys_enable_all(Object *ob)
 		psys->flag &= ~PSYS_DISABLED;
 }
 
-bool psys_in_edit_mode(SceneLayer *scene_layer, ParticleSystem *psys)
+bool psys_in_edit_mode(ViewLayer *view_layer, ParticleSystem *psys)
 {
-	return (scene_layer->basact &&
-	        (scene_layer->basact->object->mode & OB_MODE_PARTICLE_EDIT) &&
-	        psys == psys_get_current((scene_layer->basact)->object) &&
+	return (view_layer->basact &&
+	        (view_layer->basact->object->mode & OB_MODE_PARTICLE_EDIT) &&
+	        psys == psys_get_current((view_layer->basact)->object) &&
 	        (psys->edit || psys->pointcache->edit) &&
 	        !psys->renderdata);
 }
@@ -327,18 +327,17 @@ bool psys_check_edited(ParticleSystem *psys)
 void psys_check_group_weights(ParticleSettings *part)
 {
 	ParticleDupliWeight *dw, *tdw;
-	GroupObject *go;
 	int current = 0;
 
-	if (part->ren_as == PART_DRAW_GR && part->dup_group && part->dup_group->gobject.first) {
+	if (part->ren_as == PART_DRAW_GR && part->dup_group && part->dup_group->view_layer->object_bases.first) {
 		/* First try to find NULL objects from their index,
 		 * and remove all weights that don't have an object in the group. */
 		dw = part->dupliweights.first;
 		while (dw) {
 			if (dw->ob == NULL || !BKE_group_object_exists(part->dup_group, dw->ob)) {
-				go = (GroupObject *)BLI_findlink(&part->dup_group->gobject, dw->index);
-				if (go) {
-					dw->ob = go->ob;
+				Base *base = BLI_findlink(&part->dup_group->view_layer->object_bases, dw->index);
+				if (base != NULL) {
+					dw->ob = base->object;
 				}
 				else {
 					tdw = dw->next;
@@ -352,21 +351,21 @@ void psys_check_group_weights(ParticleSettings *part)
 		}
 
 		/* then add objects in the group to new list */
-		go = part->dup_group->gobject.first;
-		while (go) {
+		FOREACH_GROUP_OBJECT(part->dup_group, object)
+		{
 			dw = part->dupliweights.first;
-			while (dw && dw->ob != go->ob)
+			while (dw && dw->ob != object) {
 				dw = dw->next;
-			
+			}
+
 			if (!dw) {
 				dw = MEM_callocN(sizeof(ParticleDupliWeight), "ParticleDupliWeight");
-				dw->ob = go->ob;
+				dw->ob = object;
 				dw->count = 1;
 				BLI_addtail(&part->dupliweights, dw);
 			}
-
-			go = go->next;
 		}
+		FOREACH_GROUP_OBJECT_END
 
 		dw = part->dupliweights.first;
 		for (; dw; dw = dw->next) {
@@ -2097,7 +2096,7 @@ static bool psys_thread_context_init_path(
 	psys_thread_context_init(ctx, sim);
 
 	/*---start figuring out what is actually wanted---*/
-	if (psys_in_edit_mode(sim->eval_ctx->scene_layer, psys)) {
+	if (psys_in_edit_mode(sim->eval_ctx->view_layer, psys)) {
 		ParticleEditSettings *pset = &scene->toolsettings->particle;
 
 		if ((psys->renderdata == 0 && use_render_params == 0) && (psys->edit == NULL || pset->flag & PE_DRAW_PART) == 0)
@@ -2186,7 +2185,7 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 	ParticleSystem *psys = ctx->sim.psys;
 	ParticleSettings *part = psys->part;
 	ParticleCacheKey **cache = psys->childcache;
-	ParticleCacheKey **pcache = psys_in_edit_mode(ctx->sim.eval_ctx->scene_layer, psys) && psys->edit ? psys->edit->pathcache : psys->pathcache;
+	ParticleCacheKey **pcache = psys_in_edit_mode(ctx->sim.eval_ctx->view_layer, psys) && psys->edit ? psys->edit->pathcache : psys->pathcache;
 	ParticleCacheKey *child, *key[4];
 	ParticleTexture ptex;
 	float *cpa_fuv = 0, *par_rot = 0, rot[4];
@@ -2595,7 +2594,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra, const bool use_re
 	if ((psys->flag & PSYS_HAIR_DONE || psys->flag & PSYS_KEYED || psys->pointcache) == 0)
 		return;
 
-	if (psys_in_edit_mode(sim->eval_ctx->scene_layer, psys))
+	if (psys_in_edit_mode(sim->eval_ctx->view_layer, psys))
 		if (psys->renderdata == 0 && (psys->edit == NULL || pset->flag & PE_DRAW_PART) == 0)
 			return;
 
@@ -3778,7 +3777,7 @@ void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *
 			pind.bspline = (psys->part->flag & PART_HAIR_BSPLINE);
 			/* pind.dm disabled in editmode means we don't get effectors taken into
 			 * account when subdividing for instance */
-			pind.dm = psys_in_edit_mode(sim->eval_ctx->scene_layer, psys) ? NULL : psys->hair_out_dm;
+			pind.dm = psys_in_edit_mode(sim->eval_ctx->view_layer, psys) ? NULL : psys->hair_out_dm;
 			init_particle_interpolation(sim->ob, psys, pa, &pind);
 			do_particle_interpolation(psys, p, pa, t, &pind, state);
 

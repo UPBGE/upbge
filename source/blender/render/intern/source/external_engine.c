@@ -94,7 +94,7 @@ void RE_engines_exit(void)
 	DRW_engines_free();
 
 	BKE_layer_collection_engine_settings_callback_free();
-	BKE_scene_layer_engine_settings_callback_free();
+	BKE_view_layer_engine_settings_callback_free();
 
 	for (type = R_engines.first; type; type = next) {
 		next = type->next;
@@ -120,7 +120,7 @@ void RE_engines_register(Main *bmain, RenderEngineType *render_type)
 		            bmain, render_type->idname, render_type->collection_settings_create);
 	}
 	if (render_type->render_settings_create) {
-		BKE_scene_layer_engine_settings_callback_register(
+		BKE_view_layer_engine_settings_callback_register(
 		            bmain, render_type->idname, render_type->render_settings_create);
 	}
 	BLI_addtail(&R_engines, render_type);
@@ -645,7 +645,7 @@ int RE_engine_render(Render *re, int do_all)
 	 * creating the render result */
 	if ((re->r.scemode & (R_NO_FRAME_UPDATE | R_BUTS_PREVIEW)) == 0) {
 		BKE_scene_graph_update_for_newframe(re->eval_ctx, re->depsgraph, re->main, re->scene, NULL);
-		render_update_anim_renderdata(re, &re->scene->r);
+		render_update_anim_renderdata(re, &re->scene->r, &re->scene->view_layers);
 	}
 
 	/* create render result */
@@ -764,12 +764,12 @@ int RE_engine_render(Render *re, int do_all)
 	return 1;
 }
 
-void RE_engine_register_pass(struct RenderEngine *engine, struct Scene *scene, struct SceneRenderLayer *srl,
+void RE_engine_register_pass(struct RenderEngine *engine, struct Scene *scene, struct ViewLayer *view_layer,
                              const char *name, int UNUSED(channels), const char *UNUSED(chanid), int type)
 {
 	/* The channel information is currently not used, but is part of the API in case it's needed in the future. */
 
-	if (!(scene && srl && engine)) {
+	if (!(scene && view_layer && engine)) {
 		return;
 	}
 
@@ -779,12 +779,12 @@ void RE_engine_register_pass(struct RenderEngine *engine, struct Scene *scene, s
 	Scene *sce;
 	for (sce = G.main->scene.first; sce; sce = sce->id.next) {
 		if (sce->nodetree) {
-			ntreeCompositRegisterPass(sce->nodetree, scene, srl, name, type);
+			ntreeCompositRegisterPass(sce->nodetree, scene, view_layer, name, type);
 		}
 	}
 }
 
-SceneLayer *RE_engine_get_scene_layer(Render *re)
+ViewLayer *RE_engine_get_view_layer(Render *re)
 {
-	return re->eval_ctx->scene_layer;
+	return re->eval_ctx->view_layer;
 }

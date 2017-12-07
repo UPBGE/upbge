@@ -48,7 +48,7 @@ struct Main;
 struct ModifierData;
 struct Object;
 struct Scene;
-struct SceneLayer;
+struct ViewLayer;
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,10 +59,10 @@ extern "C" {
 /* Build depsgraph for the given scene, and dump results in given
  * graph container.
  */
-void DEG_graph_build_from_scene_layer(struct Depsgraph *graph,
+void DEG_graph_build_from_view_layer(struct Depsgraph *graph,
                                       struct Main *bmain,
                                       struct Scene *scene,
-                                      struct SceneLayer *scene_layer);
+                                      struct ViewLayer *view_layer);
 
 /* Tag relations from the given graph for update. */
 void DEG_graph_tag_relations_update(struct Depsgraph *graph);
@@ -71,7 +71,7 @@ void DEG_graph_tag_relations_update(struct Depsgraph *graph);
 void DEG_graph_relations_update(struct Depsgraph *graph,
                                 struct Main *bmain,
                                 struct Scene *scene,
-                                struct SceneLayer *scene_layer);
+                                struct ViewLayer *view_layer);
 
 /* Tag all relations in the database for update.*/
 void DEG_relations_tag_update(struct Main *bmain);
@@ -136,12 +136,12 @@ void DEG_add_scene_relation(struct DepsNodeHandle *node,
                             struct Scene *scene,
                             eDepsSceneComponentType component,
                             const char *description);
-void DEG_add_object_relation(struct DepsNodeHandle *node, struct
-                             Object *ob,
+void DEG_add_object_relation(struct DepsNodeHandle *node,
+                             struct Object *object,
                              eDepsObjectComponentType component,
                              const char *description);
 void DEG_add_bone_relation(struct DepsNodeHandle *handle,
-                           struct Object *ob,
+                           struct Object *object,
                            const char *bone_name,
                            eDepsObjectComponentType component,
                            const char *description);
@@ -159,7 +159,7 @@ typedef bool (*DEG_CollobjFilterFunction)(struct Object *obj, struct ModifierDat
 
 void DEG_add_collision_relations(struct DepsNodeHandle *handle,
                                  struct Scene *scene,
-                                 struct Object *ob,
+                                 struct Object *object,
                                  struct Group *group,
                                  unsigned int modifier_type,
                                  DEG_CollobjFilterFunction fn,
@@ -167,7 +167,7 @@ void DEG_add_collision_relations(struct DepsNodeHandle *handle,
                                  const char *name);
 void DEG_add_forcefield_relations(struct DepsNodeHandle *handle,
                                   struct Scene *scene,
-                                  struct Object *ob,
+                                  struct Object *object,
                                   struct EffectorWeights *eff,
                                   bool add_absorption,
                                   int skip_forcefield,

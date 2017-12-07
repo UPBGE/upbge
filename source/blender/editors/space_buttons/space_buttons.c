@@ -44,6 +44,7 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "WM_message.h"
 
 #include "RNA_access.h"
 
@@ -147,8 +148,8 @@ static void buttons_main_region_draw(const bContext *C, ARegion *ar)
 		ED_region_panels(C, ar, "scene", sbuts->mainb, vertical);
 	else if (sbuts->mainb == BCONTEXT_RENDER)
 		ED_region_panels(C, ar, "render", sbuts->mainb, vertical);
-	else if (sbuts->mainb == BCONTEXT_RENDER_LAYER)
-		ED_region_panels(C, ar, "render_layer", sbuts->mainb, vertical);
+	else if (sbuts->mainb == BCONTEXT_VIEW_LAYER)
+		ED_region_panels(C, ar, "view_layer", sbuts->mainb, vertical);
 	else if (sbuts->mainb == BCONTEXT_WORLD)
 		ED_region_panels(C, ar, "world", sbuts->mainb, vertical);
 	else if (sbuts->mainb == BCONTEXT_WORKSPACE)
@@ -248,7 +249,7 @@ static void buttons_area_listener(
 			switch (wmn->data) {
 				case ND_RENDER_OPTIONS:
 					buttons_area_redraw(sa, BCONTEXT_RENDER);
-					buttons_area_redraw(sa, BCONTEXT_RENDER_LAYER);
+					buttons_area_redraw(sa, BCONTEXT_VIEW_LAYER);
 					break;
 				case ND_WORLD:
 					buttons_area_redraw(sa, BCONTEXT_WORLD);

@@ -147,6 +147,8 @@ typedef enum eDepsNode_Type {
 	DEG_NODE_TYPE_SHADING_PARAMETERS,
 	/* Cache Component */
 	DEG_NODE_TYPE_CACHE,
+	/* Batch Cache Component */
+	DEG_NODE_TYPE_BATCH_CACHE,
 } eDepsNode_Type;
 
 /* Identifiers for common operations (as an enum). */
@@ -167,6 +169,9 @@ typedef enum eDepsOperation_Code {
 	DEG_OPCODE_ANIMATION,
 	/* Driver */
 	DEG_OPCODE_DRIVER,
+
+	/* Object related. --------------------------------- */
+	DEG_OPCODE_OBJECT_BASE_FLAGS,
 
 	/* Transform. -------------------------------------- */
 	/* Transform entry point - local transforms only */
@@ -233,9 +238,9 @@ typedef enum eDepsOperation_Code {
 	DEG_OPCODE_PARTICLE_SETTINGS_RECALC_CLEAR,
 
 	/* Collections. ------------------------------------- */
-	DEG_OPCODE_SCENE_LAYER_INIT,
-	DEG_OPCODE_SCENE_LAYER_EVAL,
-	DEG_OPCODE_SCENE_LAYER_DONE,
+	DEG_OPCODE_VIEW_LAYER_INIT,
+	DEG_OPCODE_VIEW_LAYER_EVAL,
+	DEG_OPCODE_VIEW_LAYER_DONE,
 
 	/* Copy on Write. ------------------------------------ */
 	DEG_OPCODE_COPY_ON_WRITE,
@@ -244,6 +249,9 @@ typedef enum eDepsOperation_Code {
 	DEG_OPCODE_SHADING,
 	DEG_OPCODE_MATERIAL_UPDATE,
 	DEG_OPCODE_WORLD_UPDATE,
+
+	/* Batch caches. -------------------------------------- */
+	DEG_OPCODE_GEOMETRY_SELECT_UPDATE,
 
 	/* Masks. ------------------------------------------ */
 	DEG_OPCODE_MASK_ANIMATION,

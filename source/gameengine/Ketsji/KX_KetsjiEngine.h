@@ -51,7 +51,7 @@ class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class RAS_FrameBuffer;
 class SCA_IInputDevice;
-struct EEVEE_SceneLayerData;
+struct EEVEE_ViewLayerData;
 
 enum class KX_ExitRequest
 {
@@ -293,8 +293,6 @@ public:
 	virtual ~KX_KetsjiEngine();
 
 	RAS_FrameBuffer *PostRenderScene(KX_Scene *scene, RAS_FrameBuffer *inputfb, RAS_FrameBuffer *targetfb);
-	void EEVEE_lightprobes_refresh_bge(EEVEE_SceneLayerData *sldata, EEVEE_Data *vedata, KX_Scene *scene,
-		RAS_Rasterizer *rasty, KX_Camera *cam, RAS_FrameBuffer *inputfb);
 
 	/// set the devices and stuff. the client must take care of creating these
 	void SetInputDevice(SCA_IInputDevice *inputDevice);
@@ -339,7 +337,6 @@ public:
 
 	void StartEngine();
 	void StopEngine();
-	void Export(const std::string& filename);
 
 	void RequestExit(KX_ExitRequest exitrequestmode);
 	void SetNameNextGame(const std::string& nextgame);

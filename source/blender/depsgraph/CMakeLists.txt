@@ -45,13 +45,13 @@ set(SRC
 	intern/builder/deg_builder_nodes.cc
 	intern/builder/deg_builder_nodes_layer_collection.cc
 	intern/builder/deg_builder_nodes_rig.cc
-	intern/builder/deg_builder_nodes_scene_layer.cc
+	intern/builder/deg_builder_nodes_view_layer.cc
 	intern/builder/deg_builder_pchanmap.cc
 	intern/builder/deg_builder_relations.cc
 	intern/builder/deg_builder_relations_keys.cc
 	intern/builder/deg_builder_relations_layer_collection.cc
 	intern/builder/deg_builder_relations_rig.cc
-	intern/builder/deg_builder_relations_scene_layer.cc
+	intern/builder/deg_builder_relations_view_layer.cc
 	intern/builder/deg_builder_transitive.cc
 	intern/debug/deg_debug_graphviz.cc
 	intern/eval/deg_eval.cc
@@ -65,6 +65,8 @@ set(SRC
 	intern/depsgraph_debug.cc
 	intern/depsgraph_eval.cc
 	intern/depsgraph_query.cc
+	intern/depsgraph_query_foreach.cc
+	intern/depsgraph_query_iter.cc
 	intern/depsgraph_tag.cc
 	intern/depsgraph_type_defines.cc
 
@@ -78,6 +80,7 @@ set(SRC
 	intern/builder/deg_builder_nodes.h
 	intern/builder/deg_builder_pchanmap.h
 	intern/builder/deg_builder_relations.h
+	intern/builder/deg_builder_relations_impl.h
 	intern/builder/deg_builder_transitive.h
 	intern/eval/deg_eval.h
 	intern/eval/deg_eval_copy_on_write.h

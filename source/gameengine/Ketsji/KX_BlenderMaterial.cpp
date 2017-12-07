@@ -81,14 +81,15 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 
 	if (m_material->use_nodes && m_material->nodetree) {
 		EEVEE_Data *vedata = EEVEE_engine_data_get();
-		EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
+		EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_get();
 		EEVEE_LampsInfo *linfo = sldata->lamps;
 		EEVEE_StorageList *stl = EEVEE_engine_data_get()->stl;
 		const bool use_refract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) && ((stl->effects->enabled_effects & EFFECT_REFRACT) != 0);
 		const bool use_sss = ((m_material->blend_flag & MA_BL_SS_SUBSURFACE) != 0) && ((stl->effects->enabled_effects & EFFECT_SSS) != 0);
 		const bool use_blend = (m_material->blend_method & MA_BM_BLEND) != 0;
+		const bool use_translucency = ((m_material->blend_flag & MA_BL_TRANSLUCENCY) != 0) && ((stl->effects->enabled_effects & EFFECT_SSS) != 0);
 		m_gpuMat = EEVEE_material_mesh_get(scene->GetBlenderScene(), m_material, vedata,
-			use_blend, (m_material->blend_method == MA_BM_MULTIPLY), use_refract, use_sss, linfo->shadow_method);
+			use_blend, (m_material->blend_method == MA_BM_MULTIPLY), use_refract, use_sss, use_translucency, linfo->shadow_method);
 	}
 	else {
 		m_gpuMat = nullptr;

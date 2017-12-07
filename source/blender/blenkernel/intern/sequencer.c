@@ -1164,6 +1164,7 @@ static const char *give_seqname_by_type(int type)
 		case SEQ_TYPE_ALPHAOVER:     return "Alpha Over";
 		case SEQ_TYPE_ALPHAUNDER:    return "Alpha Under";
 		case SEQ_TYPE_OVERDROP:      return "Over Drop";
+		case SEQ_TYPE_COLORMIX:      return "Color Mix";
 		case SEQ_TYPE_WIPE:          return "Wipe";
 		case SEQ_TYPE_GLOW:          return "Glow";
 		case SEQ_TYPE_TRANSFORM:     return "Transform";
@@ -3263,8 +3264,8 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 	have_comp = (scene->r.scemode & R_DOCOMP) && scene->use_nodes && scene->nodetree;
 
 	/* Get depsgraph and scene layer for the strip. */
-	SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(scene);
-	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, scene_layer, true);
+	ViewLayer *view_layer = BKE_view_layer_from_scene_get(scene);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, true);
 
 	orig_data.scemode = scene->r.scemode;
 	orig_data.cfra = scene->r.cfra;
@@ -3303,10 +3304,17 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 
 	if ((sequencer_view3d_cb && do_seq_gl && camera) && is_thread_main) {
 		char err_out[256] = "unknown";
-		int width = (scene->r.xsch * scene->r.size) / 100;
-		int height = (scene->r.ysch * scene->r.size) / 100;
+		const int width = (scene->r.xsch * scene->r.size) / 100;
+		const int height = (scene->r.ysch * scene->r.size) / 100;
 		const bool use_background = (scene->r.alphamode == R_ADDSKY);
 		const char *viewname = BKE_scene_multiview_render_view_name_get(&scene->r, context->view_id);
+
+		unsigned int draw_flags = SEQ_OFSDRAW_NONE;
+		draw_flags |= (use_gpencil) ? SEQ_OFSDRAW_USE_GPENCIL : 0;
+		draw_flags |= (use_background) ? SEQ_OFSDRAW_USE_BACKGROUND : 0;
+		draw_flags |= (context->gpu_full_samples) ? SEQ_OFSDRAW_USE_FULL_SAMPLE : 0;
+		draw_flags |= (context->scene->r.seq_flag & R_SEQ_SOLID_TEX) ? SEQ_OFSDRAW_USE_SOLID_TEX : 0;
+		draw_flags |= (context->scene->r.seq_flag & R_SEQ_CAMERA_DOF) ? SEQ_OFSDRAW_USE_CAMERA_DOF : 0;
 
 		/* for old scene this can be uninitialized,
 		 * should probably be added to do_versions at some point if the functionality stays */
@@ -3314,15 +3322,13 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 			context->scene->r.seq_prev_type = 3 /* == OB_SOLID */;
 
 		/* opengl offscreen render */
-		context->eval_ctx->engine = RE_engines_find(scene->view_render.engine_id);
-		BKE_scene_graph_update_for_newframe(context->eval_ctx, depsgraph, context->bmain, scene, scene_layer);
+		context->eval_ctx->engine_type = RE_engines_find(scene->view_render.engine_id);
+		BKE_scene_graph_update_for_newframe(context->eval_ctx, depsgraph, context->bmain, scene, view_layer);
 		ibuf = sequencer_view3d_cb(
 		        /* set for OpenGL render (NULL when scrubbing) */
-		        context->eval_ctx, scene, scene_layer, camera, width, height, IB_rect,
-		        context->scene->r.seq_prev_type,
-		        (context->scene->r.seq_flag & R_SEQ_SOLID_TEX) != 0,
-		        use_gpencil, use_background, scene->r.alphamode,
-		        context->gpu_samples, context->gpu_full_samples, viewname,
+		        context->eval_ctx, scene, view_layer, camera, width, height, IB_rect,
+		        draw_flags, context->scene->r.seq_prev_type,
+		        scene->r.alphamode, context->gpu_samples, viewname,
 		        context->gpu_fx, context->gpu_offscreen, err_out);
 		if (ibuf == NULL) {
 			fprintf(stderr, "seq_render_scene_strip failed to get opengl buffer: %s\n", err_out);
@@ -3355,7 +3361,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 			RE_SetDepsgraph(re, depsgraph);
 			DEG_graph_id_tag_update(context->bmain, depsgraph, &scene->id, 0);
 
-			BKE_scene_graph_update_for_newframe(context->eval_ctx, depsgraph, context->bmain, scene, scene_layer);
+			BKE_scene_graph_update_for_newframe(context->eval_ctx, depsgraph, context->bmain, scene, view_layer);
 			RE_BlenderFrame(re, context->bmain, scene, NULL, camera, scene->lay, frame, false);
 
 			/* restore previous state after it was toggled on & off by RE_BlenderFrame */
@@ -3415,7 +3421,7 @@ finally:
 	scene->r.subframe = orig_data.subframe;
 
 	if (is_frame_update) {
-		BKE_scene_graph_update_for_newframe(context->eval_ctx, depsgraph, context->bmain, scene, scene_layer);
+		BKE_scene_graph_update_for_newframe(context->eval_ctx, depsgraph, context->bmain, scene, view_layer);
 	}
 
 #ifdef DURIAN_CAMERA_SWITCH

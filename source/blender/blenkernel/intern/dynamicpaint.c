@@ -488,36 +488,27 @@ static void scene_setSubframe(Scene *scene, float subframe)
 	scene->r.subframe = subframe;
 }
 
-static int surface_getBrushFlags(DynamicPaintSurface *surface, const SceneLayer *sl)
+static int surface_getBrushFlags(DynamicPaintSurface *surface, const ViewLayer *view_layer)
 {
 	Base *base = NULL;
-	GroupObject *go = NULL;
 	Object *brushObj = NULL;
 	ModifierData *md = NULL;
 
 	int flags = 0;
 
 	if (surface->brush_group)
-		go = surface->brush_group->gobject.first;
+		base = FIRSTBASE(surface->brush_group->view_layer);
 	else
-		base = FIRSTBASE(sl);
+		base = FIRSTBASE(view_layer);
 
-	while (base || go) {
+	while (base) {
 		brushObj = NULL;
 
 		/* select object */
-		if (surface->brush_group) {
-			if (go->ob)
-				brushObj = go->ob;
-		}
-		else {
-			brushObj = base->object;
-		}
+		brushObj = base->object;
 
-		if (surface->brush_group)
-			go = go->next;
-		else
-			base = base->next;
+		/* next item */
+		base = base->next;
 
 		if (!brushObj) {
 			continue;
@@ -5639,7 +5630,7 @@ static void dynamic_paint_generate_bake_data_cb(void *userdata, const int index)
 	}
 }
 
-static int dynamicPaint_generateBakeData(DynamicPaintSurface *surface, const SceneLayer *sl, Object *ob)
+static int dynamicPaint_generateBakeData(DynamicPaintSurface *surface, const ViewLayer *view_layer, Object *ob)
 {
 	PaintSurfaceData *sData = surface->data;
 	PaintBakeData *bData = sData->bData;
@@ -5647,7 +5638,7 @@ static int dynamicPaint_generateBakeData(DynamicPaintSurface *surface, const Sce
 	int index;
 	bool new_bdata = false;
 	const bool do_velocity_data = ((surface->effect & MOD_DPAINT_EFFECT_DO_DRIP) ||
-	                               (surface_getBrushFlags(surface, sl) & BRUSH_USES_VELOCITY));
+	                               (surface_getBrushFlags(surface, view_layer) & BRUSH_USES_VELOCITY));
 	const bool do_accel_data = (surface->effect & MOD_DPAINT_EFFECT_DO_DRIP) != 0;
 
 	int canvasNumOfVerts = dm->getNumVerts(dm);
@@ -5780,10 +5771,9 @@ static int dynamicPaint_doStep(const struct EvaluationContext *eval_ctx, Scene *
 	 */
 	{
 		Base *base = NULL;
-		GroupObject *go = NULL;
 		Object *brushObj = NULL;
 		ModifierData *md = NULL;
-		SceneLayer *sl = eval_ctx->scene_layer;
+		ViewLayer *view_layer = eval_ctx->view_layer;
 
 		/* backup current scene frame */
 		int scene_frame = scene->r.cfra;
@@ -5791,25 +5781,17 @@ static int dynamicPaint_doStep(const struct EvaluationContext *eval_ctx, Scene *
 
 		/* either from group or from all objects */
 		if (surface->brush_group)
-			go = surface->brush_group->gobject.first;
+			base = FIRSTBASE(surface->brush_group->view_layer);
 		else
-			base = FIRSTBASE(sl);
+			base = FIRSTBASE(view_layer);
 
-		while (base || go) {
+		while (base) {
 			brushObj = NULL;
 			/* select object */
-			if (surface->brush_group) {
-				if (go->ob)
-					brushObj = go->ob;
-			}
-			else
-				brushObj = base->object;
+			brushObj = base->object;
 
 			/* next item */
-			if (surface->brush_group)
-				go = go->next;
-			else
-				base = base->next;
+			base = base->next;
 
 			if (!brushObj) {
 				/* skip item */
@@ -5941,7 +5923,7 @@ int dynamicPaint_calculateFrame(
 		dynamicPaint_applySurfaceDisplace(surface, surface->canvas->dm);
 
 	/* update bake data */
-	dynamicPaint_generateBakeData(surface, eval_ctx->scene_layer, cObject);
+	dynamicPaint_generateBakeData(surface, eval_ctx->view_layer, cObject);
 
 	/* don't do substeps for first frame */
 	if (surface->substeps && (frame != surface->start_frame)) {

@@ -43,7 +43,7 @@ struct Depsgraph;
 struct DupliObject;
 struct ListBase;
 struct Scene;
-struct SceneLayer;
+struct ViewLayer;
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,7 +59,7 @@ short DEG_get_eval_flags_for_id(struct Depsgraph *graph, struct ID *id);
 struct Scene *DEG_get_evaluated_scene(struct Depsgraph *graph);
 
 /* Get scene layer the despgraph is created for. */
-struct SceneLayer *DEG_get_evaluated_scene_layer(struct Depsgraph *graph);
+struct ViewLayer *DEG_get_evaluated_view_layer(struct Depsgraph *graph);
 
 /* Get evaluated version of object for given original one. */
 struct Object *DEG_get_evaluated_object(struct Depsgraph *depsgraph, struct Object *object);
@@ -67,16 +67,16 @@ struct Object *DEG_get_evaluated_object(struct Depsgraph *depsgraph, struct Obje
 /* Get evaluated version of given ID datablock. */
 struct ID *DEG_get_evaluated_id(struct Depsgraph *depsgraph, struct ID *id);
 
-/* ************************ DAG iterators ********************* */
+/* ************************ DEG iterators ********************* */
 
 enum {
-	DEG_OBJECT_ITER_FLAG_SET = (1 << 0),
-	DEG_OBJECT_ITER_FLAG_DUPLI = (1 << 1),
+	DEG_ITER_OBJECT_FLAG_SET = (1 << 0),
+	DEG_ITER_OBJECT_FLAG_DUPLI = (1 << 1),
+
+	DEG_ITER_OBJECT_FLAG_ALL = (DEG_ITER_OBJECT_FLAG_SET | DEG_ITER_OBJECT_FLAG_DUPLI),
 };
 
-#define DEG_OBJECT_ITER_FLAG_ALL (DEG_OBJECT_ITER_FLAG_SET | DEG_OBJECT_ITER_FLAG_DUPLI)
-
-typedef struct DEGObjectsIteratorData {
+typedef struct DEGOIterObjectData {
 	struct Depsgraph *graph;
 	struct Scene *scene;
 	struct EvaluationContext eval_ctx;
@@ -103,27 +103,39 @@ typedef struct DEGObjectsIteratorData {
 	/* **** Iteration ober ID nodes **** */
 	size_t id_node_index;
 	size_t num_id_nodes;
-} DEGObjectsIteratorData;
+} DEGOIterObjectData;
 
-void DEG_objects_iterator_begin(struct BLI_Iterator *iter, DEGObjectsIteratorData *data);
-void DEG_objects_iterator_next(struct BLI_Iterator *iter);
-void DEG_objects_iterator_end(struct BLI_Iterator *iter);
+void DEG_iterator_objects_begin(struct BLI_Iterator *iter, DEGOIterObjectData *data);
+void DEG_iterator_objects_next(struct BLI_Iterator *iter);
+void DEG_iterator_objects_end(struct BLI_Iterator *iter);
 
 #define DEG_OBJECT_ITER(graph_, instance_, flag_)                                 \
 	{                                                                             \
-		DEGObjectsIteratorData data_ = {                                          \
+		DEGOIterObjectData data_ = {                                          \
 			.graph = (graph_),                                                    \
 			.flag = (flag_),                                                      \
 		};                                                                        \
                                                                                   \
-		ITER_BEGIN(DEG_objects_iterator_begin,                                    \
-		           DEG_objects_iterator_next,                                     \
-		           DEG_objects_iterator_end,                                      \
+		ITER_BEGIN(DEG_iterator_objects_begin,                                    \
+		           DEG_iterator_objects_next,                                     \
+		           DEG_iterator_objects_end,                                      \
 		           &data_, Object *, instance_)
 
 #define DEG_OBJECT_ITER_END                                                       \
 		ITER_END                                                                  \
 	}
+
+/* ************************ DEG traversal ********************* */
+
+typedef void (*DEGForeachIDCallback)(ID *id, void *user_data);
+
+/* NOTE: Modifies runtime flags in depsgraph nodes, so can not be used in
+ * parallel. Keep an eye on that!
+ */
+void DEG_foreach_dependent_ID(const Depsgraph *depsgraph,
+                              const ID *id,
+                              DEGForeachIDCallback callback, void *user_data);
+
 
 #ifdef __cplusplus
 } /* extern "C" */

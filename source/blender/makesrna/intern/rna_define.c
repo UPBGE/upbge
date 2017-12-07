@@ -966,6 +966,11 @@ void RNA_def_struct_clear_flag(StructRNA *srna, int flag)
 	srna->flag &= ~flag;
 }
 
+void RNA_def_struct_property_tags(StructRNA *srna, const EnumPropertyItem *prop_tag_defines)
+{
+	srna->prop_tag_defines = prop_tag_defines;
+}
+
 void RNA_def_struct_refine_func(StructRNA *srna, const char *refine)
 {
 	if (!DefRNA.preprocess) {
@@ -1265,6 +1270,14 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_, const char *identifier
 #endif
 	}
 
+	/* Override handling. */
+	if (DefRNA.preprocess) {
+		prop->override_diff = (RNAPropOverrideDiff)"rna_property_override_diff_default";
+		prop->override_store = (RNAPropOverrideStore)"rna_property_override_store_default";
+		prop->override_apply = (RNAPropOverrideApply)"rna_property_override_apply_default";
+	}
+	/* TODO: do we want that for runtime-defined stuff too? I’d say no, but... maybe yes :/ */
+
 	rna_addtail(&cont->properties, prop);
 
 	return prop;
@@ -1278,6 +1291,18 @@ void RNA_def_property_flag(PropertyRNA *prop, PropertyFlag flag)
 void RNA_def_property_clear_flag(PropertyRNA *prop, PropertyFlag flag)
 {
 	prop->flag &= ~flag;
+}
+
+/**
+ * Add the property-tags passed as \a tags to \a prop (if valid).
+ *
+ * \note Multiple tags can be set by passing them within \a tags (using bitflags).
+ * \note Doesn't do any type-checking with the tags defined in the parent StructRNA
+ *       of \a prop. This should be done before (e.g. see #WM_operatortype_prop_tag).
+ */
+void RNA_def_property_tags(PropertyRNA *prop, int tags)
+{
+	prop->tags |= tags;
 }
 
 void RNA_def_parameter_flags(PropertyRNA *prop, PropertyFlag flag_property, ParameterFlag flag_parameter)
@@ -2203,6 +2228,29 @@ void RNA_def_property_editable_array_func(PropertyRNA *prop, const char *editabl
 	}
 
 	if (editable) prop->itemeditable = (ItemEditableFunc)editable;
+}
+
+/**
+ * Set custom callbacks for override operations handling.
+ *
+ * \note \a diff callback will also be used by RNA comparison/equality functions.
+ */
+void RNA_def_property_override_funcs(PropertyRNA *prop, const char *diff, const char *store, const char *apply)
+{
+	if (!DefRNA.preprocess) {
+		fprintf(stderr, "%s: only during preprocessing.\n", __func__);
+		return;
+	}
+
+	if (diff) {
+		prop->override_diff = (RNAPropOverrideDiff)diff;
+	}
+	if (store) {
+		prop->override_store = (RNAPropOverrideStore)store;
+	}
+	if (apply) {
+		prop->override_apply = (RNAPropOverrideApply)apply;
+	}
 }
 
 void RNA_def_property_update(PropertyRNA *prop, int noteflag, const char *func)

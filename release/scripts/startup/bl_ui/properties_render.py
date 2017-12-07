@@ -480,19 +480,19 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
         pbox.prop(ffmpeg, "max_b_frames", text="")
         pbox.enabled = ffmpeg.use_max_b_frames
 
-        split = layout.split()
-        split.enabled = ffmpeg.constant_rate_factor == 'NONE'
-        col = split.column()
-        col.label(text="Rate:")
-        col.prop(ffmpeg, "video_bitrate")
-        col.prop(ffmpeg, "minrate", text="Minimum")
-        col.prop(ffmpeg, "maxrate", text="Maximum")
-        col.prop(ffmpeg, "buffersize", text="Buffer")
+        if ffmpeg.constant_rate_factor == 'NONE':
+            split = layout.split()
+            col = split.column()
+            col.label(text="Rate:")
+            col.prop(ffmpeg, "video_bitrate")
+            col.prop(ffmpeg, "minrate", text="Minimum")
+            col.prop(ffmpeg, "maxrate", text="Maximum")
+            col.prop(ffmpeg, "buffersize", text="Buffer")
 
-        col = split.column()
-        col.label(text="Mux:")
-        col.prop(ffmpeg, "muxrate", text="Rate")
-        col.prop(ffmpeg, "packetsize", text="Packet Size")
+            col = split.column()
+            col.label(text="Mux:")
+            col.prop(ffmpeg, "muxrate", text="Rate")
+            col.prop(ffmpeg, "packetsize", text="Packet Size")
 
         layout.separator()
 
@@ -500,10 +500,10 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
         if ffmpeg.format != 'MP3':
             layout.prop(ffmpeg, "audio_codec", text="Audio Codec")
 
-        row = layout.row()
-        row.enabled = ffmpeg.audio_codec != 'NONE'
-        row.prop(ffmpeg, "audio_bitrate")
-        row.prop(ffmpeg, "audio_volume", slider=True)
+        if ffmpeg.audio_codec != 'NONE':
+            row = layout.row()
+            row.prop(ffmpeg, "audio_bitrate")
+            row.prop(ffmpeg, "audio_volume", slider=True)
 
 
 class RENDER_PT_bake(RenderButtonsPanel, Panel):
@@ -780,6 +780,7 @@ class RENDER_PT_eevee_subsurface_scattering(RenderButtonsPanel, Panel):
         col = layout.column()
         col.prop(props, "sss_samples")
         col.prop(props, "sss_jitter_threshold")
+        col.prop(props, "sss_separate_albedo")
 
 
 class RENDER_PT_eevee_screen_space_reflections(RenderButtonsPanel, Panel):
@@ -872,6 +873,7 @@ class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
         col = layout.column()
         col.prop(props, "gi_diffuse_bounces")
         col.prop(props, "gi_cubemap_resolution")
+        col.prop(props, "gi_visibility_resolution")
 
 
 classes = (

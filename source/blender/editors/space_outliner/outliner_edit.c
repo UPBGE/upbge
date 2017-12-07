@@ -274,7 +274,7 @@ static void do_item_rename(const Scene *scene, ARegion *ar, TreeElement *te, Tre
 		BKE_report(reports, RPT_WARNING, "Cannot edit sequence name");
 	}
 	else if (ELEM(tselem->type, TSE_LAYER_COLLECTION, TSE_SCENE_COLLECTION)) {
-		SceneCollection *master = BKE_collection_master(scene);
+		SceneCollection *master = BKE_collection_master(&scene->id);
 
 		if ((tselem->type == TSE_SCENE_COLLECTION && te->directdata == master) ||
 		    (((LayerCollection *)te->directdata)->scene_collection == master))
@@ -978,14 +978,14 @@ static int outliner_open_back(TreeElement *te)
 static int outliner_show_active_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SpaceOops *so = CTX_wm_space_outliner(C);
-	SceneLayer *sl = CTX_data_scene_layer(C);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	ARegion *ar = CTX_wm_region(C);
 	View2D *v2d = &ar->v2d;
 	
 	TreeElement *te;
 	int xdelta, ytop;
 
-	Object *obact = OBACT(sl);
+	Object *obact = OBACT(view_layer);
 
 	if (!obact)
 		return OPERATOR_CANCELLED;
@@ -1940,7 +1940,7 @@ static int parent_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		BLI_assert(scene);
 		RNA_string_get(op->ptr, "child", childname);
 		ob = (Object *)BKE_libblock_find_name(ID_OB, childname);
-		BKE_collection_object_add(scene, sc, ob);
+		BKE_collection_object_add(&scene->id, sc, ob);
 
 		DEG_relations_tag_update(bmain);
 		WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
@@ -2166,16 +2166,16 @@ static int scene_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		SceneCollection *sc;
 		if (scene != CTX_data_scene(C)) {
 			/* when linking to an inactive scene link to the master collection */
-			sc = BKE_collection_master(scene);
+			sc = BKE_collection_master(&scene->id);
 		}
 		else {
 			sc = CTX_data_scene_collection(C);
 		}
 
-		BKE_collection_object_add(scene, sc, ob);
+		BKE_collection_object_add(&scene->id, sc, ob);
 
-		for (SceneLayer *sl = scene->render_layers.first; sl; sl = sl->next) {
-			Base *base = BKE_scene_layer_base_find(sl, ob);
+		for (ViewLayer *view_layer = scene->view_layers.first; view_layer; view_layer = view_layer->next) {
+			Base *base = BKE_view_layer_base_find(view_layer, ob);
 			if (base) {
 				ED_object_base_select(base, BA_SELECT);
 			}

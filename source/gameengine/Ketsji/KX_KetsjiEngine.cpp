@@ -865,7 +865,7 @@ void KX_KetsjiEngine::UpdateShadows(KX_Scene *scene)
 	CListValue<KX_LightObject> *lightlist = scene->GetLightList();
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
-	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
+	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_get();
 	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
 	EEVEE_LampsInfo *linfo = sldata->lamps;
 

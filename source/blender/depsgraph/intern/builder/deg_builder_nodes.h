@@ -34,6 +34,7 @@
 
 #include "DEG_depsgraph.h"  /* used for DEG_depsgraph_use_copy_on_write() */
 
+struct Base;
 struct CacheFile;
 struct bGPdata;
 struct ListBase;
@@ -109,6 +110,7 @@ struct DepsgraphNodeBuilder {
 	}
 
 	void begin_build();
+	void end_build();
 
 	IDDepsNode *add_id_node(ID *id, bool do_tag = true);
 	IDDepsNode *find_id_node(ID *id);
@@ -157,33 +159,38 @@ struct DepsgraphNodeBuilder {
 	                                       const char *name = "",
 	                                       int name_tag = -1);
 
-	void build_scene_layer(Scene *scene,
-	                       SceneLayer *scene_layer,
+	void build_view_layer(Scene *scene,
+	                       ViewLayer *view_layer,
 	                       eDepsNode_LinkedState_Type linked_state);
 	void build_group(Group *group);
-	void build_object(Object *ob,
+	void build_object(Base *base,
+	                  Object *object,
 	                  eDepsNode_LinkedState_Type linked_state);
-	void build_object_transform(Object *ob);
-	void build_object_constraints(Object *ob);
-	void build_pose_constraints(Object *ob, bPoseChannel *pchan);
+	void build_object_flags(Base *base,
+	                        Object *object,
+	                        eDepsNode_LinkedState_Type linked_state);
+	void build_object_data(Object *object);
+	void build_object_transform(Object *object);
+	void build_object_constraints(Object *object);
+	void build_pose_constraints(Object *object, bPoseChannel *pchan);
 	void build_rigidbody(Scene *scene);
-	void build_particles(Object *ob);
+	void build_particles(Object *object);
 	void build_particle_settings(ParticleSettings *part);
 	void build_cloth(Object *object);
 	void build_animdata(ID *id);
 	OperationDepsNode *build_driver(ID *id, FCurve *fcurve);
-	void build_ik_pose(Object *ob,
+	void build_ik_pose(Object *object,
 	                   bPoseChannel *pchan,
 	                   bConstraint *con);
-	void build_splineik_pose(Object *ob,
+	void build_splineik_pose(Object *object,
 	                         bPoseChannel *pchan,
 	                         bConstraint *con);
-	void build_rig(Object *ob);
-	void build_proxy_rig(Object *ob);
+	void build_rig(Object *object);
+	void build_proxy_rig(Object *object);
 	void build_shapekeys(Key *key);
-	void build_obdata_geom(Object *ob);
-	void build_camera(Object *ob);
-	void build_lamp(Object *ob);
+	void build_obdata_geom(Object *object);
+	void build_camera(Object *object);
+	void build_lamp(Object *object);
 	void build_nodetree(bNodeTree *ntree);
 	void build_material(Material *ma);
 	void build_texture(Tex *tex);
@@ -201,12 +208,21 @@ struct DepsgraphNodeBuilder {
 		int index;
 		LayerCollection *parent;
 	};
-	void build_layer_collection(LayerCollection *layer_collection,
+	void build_layer_collection(ID *owner_id,
+	                            LayerCollection *layer_collection,
 	                            LayerCollectionState *state);
-	void build_layer_collections(ListBase *layer_collections,
+	void build_layer_collections(ID *owner_id,
+	                             ListBase *layer_collections,
 	                             LayerCollectionState *state);
-	void build_scene_layer_collections(SceneLayer *scene_layer);
+	void build_view_layer_collections(ID *owner_id, ViewLayer *view_layer);
 protected:
+	struct SavedEntryTag {
+		ID *id;
+		eDepsNode_Type component_type;
+		eDepsOperation_Code opcode;
+	};
+	vector<SavedEntryTag> saved_entry_tags_;
+
 	/* State which never changes, same for the whole builder time. */
 	Main *bmain_;
 	Depsgraph *graph_;

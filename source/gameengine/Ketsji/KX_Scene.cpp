@@ -241,9 +241,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	/*************************************************EEVEE INTEGRATION***********************************************************/
 
 	/* Normally we can remove that */
-	SceneLayer *sl = BKE_scene_layer_from_scene_get(m_blenderScene);
+	ViewLayer *view_layer = BKE_view_layer_from_scene_get(m_blenderScene);
 
-	m_props = BKE_scene_layer_engine_evaluated_get(sl, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+	m_props = BKE_view_layer_engine_evaluated_get(view_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 
 	/* End of Normally we can remove that */
 
@@ -1733,7 +1733,7 @@ void KX_Scene::EEVEE_draw_scene()
 	EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
 	EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
 	EEVEE_FramebufferList *fbl = ((EEVEE_Data *)vedata)->fbl;
-	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
+	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
 
 	/* Default framebuffer and texture */
 	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
@@ -1879,7 +1879,7 @@ void KX_Scene::UpdateProbes()
 
 	m_doingProbeUpdate = true;
 
-	EEVEE_SceneLayerData *sldata = EEVEE_scene_layer_data_get();
+	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_get();
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
 
 	EEVEE_lightprobes_cache_init(sldata, vedata);
@@ -1895,8 +1895,8 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 	EEVEE_Data *vedata = EEVEE_engine_data_get();
 	EEVEE_EffectsInfo *effects = vedata->stl->effects;
 	EEVEE_StorageList *stl = vedata->stl;
-	SceneLayer *scene_layer = BKE_scene_layer_from_scene_get(GetBlenderScene());
-	IDProperty *props = BKE_scene_layer_engine_evaluated_get(scene_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+	ViewLayer *view_layer = BKE_view_layer_from_scene_get(GetBlenderScene());
+	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 	KX_Camera *cam = GetActiveCamera();
 
 	/* Update TAA when the view is not moving and nothing in the view frustum is moving */
@@ -1986,7 +1986,7 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 
 	if (effects->enabled_effects & EFFECT_VOLUMETRIC) {
 
-		EEVEE_VolumetricsInfo *volumetrics = EEVEE_scene_layer_data_get()->volumetrics;
+		EEVEE_VolumetricsInfo *volumetrics = EEVEE_view_layer_data_get()->volumetrics;
 
 		/* Temporal Super sampling jitter */
 		double ht_point[3];

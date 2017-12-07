@@ -47,7 +47,6 @@ struct ListBase;
 struct Material;
 struct Object;
 struct Scene;
-struct SceneRenderLayer;
 struct GPUVertexAttribs;
 struct GPUNode;
 struct GPUNodeLink;
@@ -235,8 +234,9 @@ void GPU_material_enable_alpha(GPUMaterial *material);
 GPUBuiltin GPU_get_material_builtins(GPUMaterial *material);
 GPUBlendMode GPU_material_alpha_blend(GPUMaterial *material, float obcol[4]);
 
-void GPU_material_sss_profile_create(GPUMaterial *material, float *radii, short int *falloff_type, float *sharpness);
-struct GPUUniformBuffer *GPU_material_sss_profile_get(GPUMaterial *material, int sample_ct);
+void GPU_material_sss_profile_create(GPUMaterial *material, float *radii, short *falloff_type, float *sharpness);
+struct GPUUniformBuffer *GPU_material_sss_profile_get(
+        GPUMaterial *material, int sample_ct, struct GPUTexture **tex_profile);
 
 /* High level functions to create and use GPU materials */
 GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo);
@@ -253,7 +253,7 @@ void GPU_materials_free(void);
 
 void GPU_material_bind(
         GPUMaterial *material, int oblay, int viewlay, double time, int mipmap,
-        float viewmat[4][4], float viewinv[4][4], float cameraborder[4], bool scenelock);
+        float viewmat[4][4], float viewinv[4][4], float cameraborder[4]);
 void GPU_material_bind_uniforms(
         GPUMaterial *material, float obmat[4][4], float viewmat[4][4], float obcol[4],
         float autobumpscale, GPUParticleInfo *pi, float object_info[3]);

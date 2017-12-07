@@ -46,6 +46,14 @@
 #  endif
 #endif
 
+/**
+ * Variable to control debug output of makesrna.
+ * debugSRNA:
+ *  - 0 = no output, except errors
+ *  - 1 = detail actions
+ */
+static int debugSRNA = 0;
+
 /* stub for BLI_abort() */
 #ifndef NDEBUG
 void BLI_system_backtrace(FILE *fp)
@@ -62,7 +70,9 @@ void BLI_system_backtrace(FILE *fp)
 static int file_older(const char *file1, const char *file2)
 {
 	struct stat st1, st2;
-	/* printf("compare: %s %s\n", file1, file2); */
+	if (debugSRNA > 0) {
+		printf("compare: %s %s\n", file1, file2);
+	}
 
 	if (stat(file1, &st1)) return 0;
 	if (stat(file2, &st2)) return 0;
@@ -3000,7 +3010,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 	else fprintf(f, "NULL,\n");
 	fprintf(f, "\t%d, ", prop->magic);
 	rna_print_c_string(f, prop->identifier);
-	fprintf(f, ", %d, %d, %d, ", prop->flag, prop->flag_parameter, prop->flag_internal);
+	fprintf(f, ", %d, %d, %d, %d, ", prop->flag, prop->flag_parameter, prop->flag_internal, prop->tags);
 	rna_print_c_string(f, prop->name); fprintf(f, ",\n\t");
 	rna_print_c_string(f, prop->description); fprintf(f, ",\n\t");
 	fprintf(f, "%d, ", prop->icon);
@@ -3015,12 +3025,15 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 	        prop->arraylength[1],
 	        prop->arraylength[2],
 	        prop->totarraylength);
-	fprintf(f, "\t%s%s, %d, %s, %s,\n",
+	fprintf(f, "\t%s%s, %d, %s, %s, %s, %s, %s,\n",
 	        (prop->flag & PROP_CONTEXT_UPDATE) ? "(UpdateFunc)" : "",
 	        rna_function_string(prop->update),
 	        prop->noteflag,
 	        rna_function_string(prop->editable),
-	        rna_function_string(prop->itemeditable));
+	        rna_function_string(prop->itemeditable),
+	        rna_function_string(prop->override_diff),
+	        rna_function_string(prop->override_store),
+	        rna_function_string(prop->override_apply));
 
 	if (prop->flag_internal & PROP_INTERN_RAW_ACCESS) rna_set_raw_offset(f, srna, prop);
 	else fprintf(f, "\t0, -1");
@@ -3244,7 +3257,7 @@ static void rna_generate_struct(BlenderRNA *UNUSED(brna), StructRNA *srna, FILE 
 	fprintf(f, "\t");
 	rna_print_c_string(f, srna->identifier);
 	fprintf(f, ", NULL, NULL"); /* PyType - Cant initialize here */
-	fprintf(f, ", %d, ", srna->flag);
+	fprintf(f, ", %d, NULL, ", srna->flag);
 	rna_print_c_string(f, srna->name);
 	fprintf(f, ",\n\t");
 	rna_print_c_string(f, srna->description);
@@ -3336,7 +3349,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_key.c", NULL, RNA_def_key},
 	{"rna_lamp.c", NULL, RNA_def_lamp},
 	{"rna_lattice.c", "rna_lattice_api.c", RNA_def_lattice},
-	{"rna_layer.c", NULL, RNA_def_scene_layer},
+	{"rna_layer.c", NULL, RNA_def_view_layer},
 	{"rna_linestyle.c", NULL, RNA_def_linestyle},
 	{"rna_main.c", "rna_main_api.c", RNA_def_main},
 	{"rna_material.c", "rna_material_api.c", RNA_def_material},
@@ -4141,7 +4154,9 @@ int main(int argc, char **argv)
 		return_status = 1;
 	}
 	else {
-		fprintf(stderr, "Running makesrna\n");
+		if (debugSRNA > 0) {
+			fprintf(stderr, "Running makesrna\n");
+		}
 		makesrna_path = argv[0];
 		return_status = rna_preprocess(argv[1]);
 	}

@@ -31,7 +31,7 @@ class INFO_HT_header(Header):
         workspace = context.workspace
         screen = context.screen
         scene = context.scene
-        layer = context.render_layer
+        layer = context.view_layer
         view_render = workspace.view_render
 
         row = layout.row(align=True)
@@ -48,15 +48,16 @@ class INFO_HT_header(Header):
             layout.template_ID(window, "workspace", new="workspace.workspace_add_menu", unlink="workspace.workspace_delete")
             layout.template_search_preview(window, "screen", workspace, "screens", new="screen.new", unlink="screen.delete", rows=2, cols=6)
 
-        if hasattr(workspace, 'object_mode'):
-            act_mode_item = bpy.types.Object.bl_rna.properties['mode'].enum_items[workspace.object_mode]
+        if hasattr(window, 'object_mode'):
+            act_mode_item = bpy.types.Object.bl_rna.properties['mode'].enum_items[window.object_mode]
         else:
             act_mode_item = bpy.types.Object.bl_rna.properties['mode'].enum_items[layer.objects.active.mode]
         layout.operator_menu_enum("object.mode_set", "mode", text=act_mode_item.name, icon=act_mode_item.icon)
 
         row = layout.row()
         row.active = not workspace.use_scene_settings
-        row.template_search(workspace, "render_layer", scene, "render_layers")
+        # Active workspace view-layer is retrieved through window, not through workspace.
+        row.template_search(window, "view_layer", scene, "view_layers")
 
         if view_render.has_multiple_engines:
             row.prop(view_render, "engine", text="")
@@ -86,7 +87,7 @@ class INFO_HT_header(Header):
             return
 
         row.operator("wm.splash", text="", icon='BLENDER', emboss=False)
-        row.label(text=scene.statistics(context.render_layer), translate=False)
+        row.label(text=scene.statistics(context.view_layer), translate=False)
 
 
 class INFO_MT_editor_menus(Menu):
