@@ -68,6 +68,8 @@
 #include "KX_2DFilterManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
+#include "RAS_ILightObject.h"
+
 #include "GPU_framebuffer.h"
 
 #include "EXP_FloatValue.h"
@@ -112,20 +114,19 @@
 
 #include "CM_Message.h"
 
-/*******************************EEVEE INTEGRATION********************************/
-#include "RAS_FrameBuffer.h"
-
+/**************************EEVEE INTEGRATION*****************************/
 extern "C" {
+#  include "BKE_camera.h"
+#  include "BKE_idprop.h"
+#  include "BKE_layer.h"
+#  include "BKE_main.h"
+#  include "BKE_object.h"
+#  include "BLI_rand.h"
 #  include "DRW_engine.h"
 #  include "DRW_render.h"
-#  include "BKE_layer.h"
-#  include "BKE_camera.h"
-#  include "BKE_main.h"
-#  include "BKE_idprop.h"
 #  include "MEM_guardedalloc.h"
-#  include "BLI_rand.h"
 }
-/************************************END OF EEVEE INTEGRATION********************/
+/*********************END OF EEVEE INTEGRATION***************************/
 
 static void *KX_SceneReplicationFunc(SG_Node* node,void* gameobj,void* scene)
 {
@@ -1726,6 +1727,7 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 
 /***********************************************EEVEE INTEGRATION****************************************************/
 
+/**********************EEVEE SCENE DRAWING*****************************/
 /* EEVEE's render main loop (see eevee_engine.c) */
 void KX_Scene::EEVEE_draw_scene()
 {
@@ -1846,7 +1848,9 @@ void KX_Scene::EEVEE_draw_scene()
 
 	stl->g_data->view_updated = false;
 }
+/*************************End of EEVEE SCENE DRAWING*********************/
 
+/*****************************TAA UTILS**********************************/
 /* Utils for TAA to check if nothing is moving inside view frustum (or anywhere when using probes) */
 void KX_Scene::AppendToStaticObjects(KX_GameObject *gameobj)
 {
@@ -1870,7 +1874,120 @@ bool KX_Scene::ComputeTAA(const KX_CullingNodeList& nodes)
 	}
 	return true;
 }
-/* End of utils for TAA */
+/************************End of TAA UTILS**************************/
+
+/***********************EEVEE SHADOWS******************************/
+
+/* Shadows utils */
+enum LightShadowType {
+	SHADOW_CUBE = 0,
+	SHADOW_CASCADE
+};
+
+typedef struct ShadowCaster {
+	struct ShadowCaster *next, *prev;
+	void *ob;
+	bool prune;
+} ShadowCaster;
+
+/* Used for checking if object is inside the shadow volume. */
+static bool cube_bbox_intersect(const float cube_center[3], float cube_half_dim, const BoundBox *bb, float(*obmat)[4])
+{
+	float min[3], max[4], tmp[4][4];
+	unit_m4(tmp);
+	translate_m4(tmp, -cube_center[0], -cube_center[1], -cube_center[2]);
+	mul_m4_m4m4(tmp, tmp, obmat);
+
+	/* Just simple AABB intersection test in world space. */
+	INIT_MINMAX(min, max);
+	for (int i = 0; i < 8; ++i) {
+		float vec[3];
+		copy_v3_v3(vec, bb->vec[i]);
+		mul_m4_v3(tmp, vec);
+		minmax_v3v3_v3(min, max, vec);
+	}
+
+	float threshold = cube_half_dim / 10.0f;
+	if (MAX3(min[0], min[1], min[2]) > cube_half_dim + threshold) {
+		return false;
+	}
+	if (MIN3(max[0], max[1], max[2]) < -cube_half_dim - threshold) {
+		return false;
+	}
+
+	return true;
+}
+
+static ShadowCaster *search_object_in_list(ListBase *list, Object *ob)
+{
+	for (ShadowCaster *ldata = (ShadowCaster *)list->first; ldata; ldata = ldata->next) {
+		if (ldata->ob == ob)
+			return ldata;
+	}
+
+	return NULL;
+}
+
+static void light_tag_shadow_update(KX_LightObject *light, KX_GameObject *gameobj)
+{
+	Object *oblamp = light->GetBlenderObject();
+	Lamp *la = (Lamp *)oblamp->data;
+	Object *ob = gameobj->GetBlenderObject();
+	EEVEE_LampEngineData *led = EEVEE_lamp_data_get(oblamp);
+
+	bool is_inside_range = cube_bbox_intersect(oblamp->obmat[3], la->clipend, BKE_object_boundbox_get(ob), ob->obmat);
+
+	if (is_inside_range) {
+		if (gameobj->NeedShadowUpdate()) {
+			led->need_update = true;
+		}
+	}
+	else {
+		led->need_update = false;
+	}
+}
+
+/* End of Shadows utils */
+
+/* Update shadows (update light position and tag shadow cubes for update (led->needs_update) */
+void KX_Scene::UpdateShadows(RAS_Rasterizer *rasty)
+{
+	CListValue<KX_LightObject> *lightlist = GetLightList();
+
+	rasty->SetAuxilaryClientInfo(this);
+	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_get();
+	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
+	EEVEE_LampsInfo *linfo = sldata->lamps;
+
+	for (KX_LightObject *light : lightlist) {
+		if (!light->GetVisible()) {
+			continue;
+		}
+
+		RAS_ILightObject *raslight = light->GetLightData();
+		Object *ob = light->GetBlenderObject();
+		EEVEE_LampEngineData *led = EEVEE_lamp_data_get(ob);
+		Lamp *la = (Lamp *)ob->data;
+		LightShadowType shadowtype = la->type != LA_SUN ? SHADOW_CUBE : SHADOW_CASCADE;
+
+		if (raslight->NeedShadowUpdate()) {
+
+			if (shadowtype == SHADOW_CUBE) {
+				for (KX_GameObject *gameob : GetObjectList()) {
+					Object *blenob = gameob->GetBlenderObject();
+					if (blenob && blenob->type == OB_MESH) {
+						light_tag_shadow_update(light, gameob);
+					}
+				}
+			}
+		}
+	}
+	EEVEE_lights_cache_finish(sldata);
+}
+
+/***********************End of EEVEE SHADOWS*****************************/
+
+/****************************PROBES**************************************/
 void KX_Scene::UpdateProbes()
 {
 	if (m_lightProbes.size() == 0) {
@@ -1889,6 +2006,9 @@ void KX_Scene::UpdateProbes()
 
 	EEVEE_lightprobes_cache_finish(sldata, vedata);
 }
+/*********************End of PROBES**************************************/
+
+/********************EEVEE'S POST PROCESSING*****************************/
 
 void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 {
@@ -2068,6 +2188,9 @@ void KX_Scene::EeveePostProcessingHackEnd()
 	}
 }
 
+/******************End of EEVEE'S POST PROCESSING***************************/
+
+/****ACTIVITY CULLING, CULLING, MATRIX UPDATE, CALL RENDER MAINLOOP*********/
 void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty)
 {
 	/* Update blenderobjects matrix as we use it for eevee's shadows */
@@ -2088,7 +2211,7 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 		}
 	}
 
-	KX_GetActiveEngine()->UpdateShadows(this);
+	UpdateShadows(rasty);
 
 	/* Update of eevee's post processing before scene rendering */
 	EeveePostProcessingHackBegin(nodes);
@@ -2108,7 +2231,9 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-/*************************************End of EEVEE INTEGRATION***********************************************/
+/**End of ACTIVITY CULLING, CULLING, MATRIX UPDATE, CALL RENDER MAINLOOP**/
+
+/*************************************End of EEVEE INTEGRATION*********************************************/
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam, const KX_CullingNodeList& nodes)
 {

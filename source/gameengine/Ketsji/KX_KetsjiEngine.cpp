@@ -51,7 +51,6 @@
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_FrameBuffer.h"
-#include "RAS_ILightObject.h"
 #include "MT_Vector3.h"
 #include "MT_Transform.h"
 #include "SCA_IInputDevice.h"
@@ -75,8 +74,6 @@
 
 #include "KX_NavMeshObject.h"
 
-#include "BKE_object.h"
-
 
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 
@@ -86,10 +83,12 @@
 #  endif
 #endif
 
+/* EEVEE INTEGRATION */
 extern "C" {
 #  include "DRW_render.h"
 #  include "GPU_framebuffer.h"
 }
+/* End of EEVEE INTEGRATION */
 
 KX_KetsjiEngine::CameraRenderData::CameraRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area, const RAS_Rect& viewport,
 															  RAS_Rasterizer::StereoEye eye)
@@ -791,112 +790,6 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 	else
 		scene->UpdateAnimations(m_frameTime);
 }
-
-enum LightShadowType {
-	SHADOW_CUBE = 0,
-	SHADOW_CASCADE
-};
-
-typedef struct ShadowCaster {
-	struct ShadowCaster *next, *prev;
-	void *ob;
-	bool prune;
-} ShadowCaster;
-
-/* Used for checking if object is inside the shadow volume. */
-static bool cube_bbox_intersect(const float cube_center[3], float cube_half_dim, const BoundBox *bb, float(*obmat)[4])
-{
-	float min[3], max[4], tmp[4][4];
-	unit_m4(tmp);
-	translate_m4(tmp, -cube_center[0], -cube_center[1], -cube_center[2]);
-	mul_m4_m4m4(tmp, tmp, obmat);
-
-	/* Just simple AABB intersection test in world space. */
-	INIT_MINMAX(min, max);
-	for (int i = 0; i < 8; ++i) {
-		float vec[3];
-		copy_v3_v3(vec, bb->vec[i]);
-		mul_m4_v3(tmp, vec);
-		minmax_v3v3_v3(min, max, vec);
-	}
-
-	float threshold = cube_half_dim / 10.0f;
-	if (MAX3(min[0], min[1], min[2]) > cube_half_dim + threshold) {
-		return false;
-	}
-	if (MIN3(max[0], max[1], max[2]) < -cube_half_dim - threshold) {
-		return false;
-	}
-
-	return true;
-}
-
-static ShadowCaster *search_object_in_list(ListBase *list, Object *ob)
-{
-	for (ShadowCaster *ldata = (ShadowCaster *)list->first; ldata; ldata = ldata->next) {
-		if (ldata->ob == ob)
-			return ldata;
-	}
-
-	return NULL;
-}
-
-static void light_tag_shadow_update(KX_LightObject *light, KX_GameObject *gameobj)
-{
-	Object *oblamp = light->GetBlenderObject();
-	Lamp *la = (Lamp *)oblamp->data;
-	Object *ob = gameobj->GetBlenderObject();
-	EEVEE_LampEngineData *led = EEVEE_lamp_data_get(oblamp);
-
-	bool is_inside_range = cube_bbox_intersect(oblamp->obmat[3], la->clipend, BKE_object_boundbox_get(ob), ob->obmat);
-
-	if (is_inside_range) {
-		if (gameobj->NeedShadowUpdate()) {
-			led->need_update = true;
-		}
-	}
-	else {
-		led->need_update = false;
-	}
-}
-
-void KX_KetsjiEngine::UpdateShadows(KX_Scene *scene)
-{
-	CListValue<KX_LightObject> *lightlist = scene->GetLightList();
-
-	m_rasterizer->SetAuxilaryClientInfo(scene);
-	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_get();
-	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
-	EEVEE_LampsInfo *linfo = sldata->lamps;
-
-	for (KX_LightObject *light : lightlist) {
-		if (!light->GetVisible()) {
-			continue;
-		}
-
-		RAS_ILightObject *raslight = light->GetLightData();
-		Object *ob = light->GetBlenderObject();
-		EEVEE_LampEngineData *led = EEVEE_lamp_data_get(ob);
-		Lamp *la = (Lamp *)ob->data;
-		LightShadowType shadowtype = la->type != LA_SUN ? SHADOW_CUBE : SHADOW_CASCADE;
-
-		raslight->UpdateLight(light, linfo, led);
-
-		if (raslight->NeedShadowUpdate()) {
-
-			if (shadowtype == SHADOW_CUBE) {
-				for (KX_GameObject *gameob : scene->GetObjectList()) {
-					Object *blenob = gameob->GetBlenderObject();
-					if (blenob && blenob->type == OB_MESH) {
-						light_tag_shadow_update(light, gameob);
-					}
-				}
-			}
-		}
-	}
-}
-
-/***********************END OF EEVEE SHADOWS SYSTEM************************/
 
 MT_Matrix4x4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoEye eye,
 											const RAS_Rect& viewport, const RAS_Rect& area) const

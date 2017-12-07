@@ -353,33 +353,33 @@ public:
 	virtual
 	~KX_Scene();
 
-	/******************EEVEE INTEGRATION*******************/
-	void SetIsLastScene(bool isLastScene);
-	bool GetIsLastScene();
+	/******************EEVEE INTEGRATION************************/
+	void SetIsLastScene(bool isLastScene); // temp (used for bge post process but disabled for now)
+	bool GetIsLastScene(); // temp (used for bge post process but disabled for now)
 
 	void InitScenePasses(EEVEE_PassList *psl);
 	std::vector<DRWPass *>GetMaterialPasses();
 
-	void EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes);
-	void EeveePostProcessingHackEnd();
-
 	void AppendToStaticObjects(KX_GameObject *gameobj);
 	void AppendToStaticObjectsInsideFrustum(KX_GameObject *gameobj);
-	bool ComputeTAA(const KX_CullingNodeList& nodes);
-	void EEVEE_draw_scene();
+
+	void UpdateShadows(RAS_Rasterizer *rasty);
 
 	void AppendProbeList(KX_GameObject *probe);
 	std::vector<KX_GameObject *>GetProbeList();
 	void UpdateProbes();
-	/******************************************************/
+
+	bool ComputeTAA(const KX_CullingNodeList& nodes);
+	void EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes);
+	void EeveePostProcessingHackEnd();
+
+	void EEVEE_draw_scene(); /* We need a minimal control on eevee render pipe */
+	void RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty);
+	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
-
-	/*********************************************EEVEE EXPERIMENTAL********************************************/
-	void RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty);
-	/***********************************************************************************************************/
 
 	/**
 	 * Update all transforms according to the scenegraph.
