@@ -3736,7 +3736,7 @@ void DRW_draw_depth_loop(
 
 /** \} */
 
-/***********************************GAME ENGINE*******************************************/
+/***********************************Game engine transition*******************************************/
 
 /* It also stores viewport variable to an immutable place: DST
 * This is because a cache uniform only store reference
@@ -4070,6 +4070,9 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	BLI_assert(graph != NULL);
 	DEG_OBJECT_ITER(graph, ob, DEG_ITER_OBJECT_FLAG_ALL);
 	{
+		Base *base = BKE_view_layer_base_find(view_layer, ob);
+		BKE_object_eval_flush_base_flags(bmain->eval_ctx, ob, base, true);
+
 		/* We want to populate cache even with objects in invisible layers.
 		 * (we'll remove them from psl->material_pass later).
 		 */
