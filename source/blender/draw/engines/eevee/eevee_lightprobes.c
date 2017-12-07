@@ -1667,3 +1667,11 @@ void EEVEE_lightprobes_free(void)
 	DRW_TEXTURE_FREE_SAFE(e_data.depth_array_placeholder);
 }
 
+/****************Game engine transition***************/
+/* We need that to refresh planars even if we don't use bContext */
+void EEVEE_lightprobes_render_planars(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
+{
+	lightprobes_refresh_planar(sldata, vedata);
+}
+/**********End of Game engine transition**************/
+
