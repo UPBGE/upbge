@@ -368,6 +368,7 @@ void KX_Scene::InitScenePasses(EEVEE_PassList *psl)
 	m_materialPasses.push_back(psl->refract_depth_pass_clip);
 	m_materialPasses.push_back(psl->refract_depth_pass_cull);
 	m_materialPasses.push_back(psl->refract_depth_pass_clip_cull);
+	m_materialPasses.push_back(psl->sss_pass);
 	/* END OF MATERIALS PASSES */
 }
 
