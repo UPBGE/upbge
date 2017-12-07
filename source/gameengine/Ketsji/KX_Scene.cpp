@@ -1772,7 +1772,7 @@ void KX_Scene::EEVEE_draw_scene()
 		//TEMP
 		EEVEE_lightprobes_render_planars(sldata, vedata);
 
-		//EEVEE_lightprobes_refresh(sldata, vedata);
+		EEVEE_lightprobes_refresh(sldata, vedata);
 		DRW_stats_group_end();
 
 		/* Refresh shadows */
