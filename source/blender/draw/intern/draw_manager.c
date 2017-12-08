@@ -4093,6 +4093,9 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 void DRW_game_render_loop_end()
 {
+	/* Cleanup for selection state */
+	GPU_viewport_free(DST.viewport);
+	MEM_freeN(DST.viewport);
 	release_ubo_slots();
 	release_texture_slots();
 	draw_engine_eevee_type.engine_free();

@@ -676,9 +676,14 @@ void KX_KetsjiEngine::Render()
 	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 
+	GPUTexture *lasttex = GPU_framebuffer_color_texture(lastfb->GetFrameBuffer());
+
+	DRW_framebuffer_texture_detach(vedata->stl->effects->source_buffer);
+	DRW_framebuffer_texture_detach(vedata->txl->maxzbuffer);
+
 	GPU_framebuffer_restore();
 
-	DRW_transform_to_display(GPU_framebuffer_color_texture(lastfb->GetFrameBuffer()));
+	DRW_transform_to_display(lasttex);
 
 	EndFrame();
 }
