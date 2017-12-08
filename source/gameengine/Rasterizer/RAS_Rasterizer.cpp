@@ -480,12 +480,6 @@ void RAS_Rasterizer::DrawOverlayPlane()
 	m_impl->DrawOverlayPlane();
 }
 
-/* Use color management profile to draw texture to framebuffer */
-void RAS_Rasterizer::ToneMapGpuTex(GPUTexture *tex) // Code from DRW_transform_to_display
-{
-	m_impl->ToneMapGpuTex(tex);
-}
-
 RAS_DebugDraw& RAS_Rasterizer::GetDebugDraw(SCA_IScene *scene)
 {
 	return m_debugDraws[scene];
