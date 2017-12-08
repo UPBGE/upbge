@@ -1167,6 +1167,12 @@ KX_Scene *KX_KetsjiEngine::FindScene(const std::string& scenename)
 
 void KX_KetsjiEngine::ConvertAndAddScene(const std::string& scenename, bool overlay)
 {
+	/****************EEVEE INTEGRATION*****************/
+	// DISABLE OVERLAY AND BACKGROUND SCENES FOR NOW
+	std::cout << "KX_KetsjiEngine::ConvertAndAddScene: Overlay and Background Scenes are temporarly disabled during eevee integration" << std::endl;
+	return;
+	/**************************************************/
+
 	// only add scene when it doesn't exist!
 	if (FindScene(scenename)) {
 		CM_Warning("scene " << scenename << " already exists, not added!");
@@ -1183,6 +1189,11 @@ void KX_KetsjiEngine::ConvertAndAddScene(const std::string& scenename, bool over
 
 void KX_KetsjiEngine::RemoveScene(const std::string& scenename)
 {
+	/****************EEVEE INTEGRATION*****************/
+	// DISABLE REMOVE SCENES FOR NOW
+	std::cout << "KX_KetsjiEngine::RemoveScene: Remove Scenes is temporarly disabled during eevee integration" << std::endl;
+	return;
+	/**************************************************/
 	if (FindScene(scenename)) {
 		m_removingScenes.push_back(scenename);
 	}
@@ -1275,6 +1286,11 @@ void KX_KetsjiEngine::AddScheduledScenes()
 
 bool KX_KetsjiEngine::ReplaceScene(const std::string& oldscene, const std::string& newscene)
 {
+	/****************EEVEE INTEGRATION*****************/
+	// DISABLE REPLACE SCENES FOR NOW
+	std::cout << "KX_KetsjiEngine::ReplaceScene: Replace Scene is temporarly disabled during eevee integration" << std::endl;
+	return false;
+	/**************************************************/
 	// Don't allow replacement if the new scene doesn't exist.
 	// Allows smarter game design (used to have no check here).
 	// Note that it creates a small backward compatbility issue
