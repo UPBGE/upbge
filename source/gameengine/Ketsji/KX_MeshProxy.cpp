@@ -230,9 +230,9 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 			vert.Transform(transform, ntransform);
 		}
 
-		array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED |
-								  RAS_IDisplayArray::NORMAL_MODIFIED |
-								  RAS_IDisplayArray::TANGENT_MODIFIED);
+		array->NotifyUpdate(RAS_IDisplayArray::POSITION_MODIFIED |
+							RAS_IDisplayArray::NORMAL_MODIFIED |
+							RAS_IDisplayArray::TANGENT_MODIFIED);
 
 		/* if we set a material index, quit when done */
 		if (matindex != -1) {
@@ -310,7 +310,7 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 			}
 		}
 
-		array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
+		array->NotifyUpdate(RAS_IDisplayArray::UVS_MODIFIED);
 
 		/* if we set a material index, quit when done */
 		if (matindex != -1) {

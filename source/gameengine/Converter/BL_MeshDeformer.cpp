@@ -49,16 +49,13 @@
 #include <string>
 #include "BLI_math.h"
 
-void BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray *UNUSED(array))
+void BL_MeshDeformer::Apply(RAS_IDisplayArray *UNUSED(array))
 {
 	// only apply once per frame if the mesh is actually modified
 	if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
 		// For each display array
 		for (const DisplayArraySlot& slot : m_slots) {
 			RAS_IDisplayArray *array = slot.m_displayArray;
-			if (array->GetModifiedFlag() == RAS_IDisplayArray::NONE_MODIFIED) {
-				continue;
-			}
 
 			//	For each vertex
 			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
@@ -67,7 +64,7 @@ void BL_MeshDeformer::Apply(RAS_MeshMaterial *UNUSED(meshmat), RAS_IDisplayArray
 				v.SetXYZ(m_bmesh->mvert[vinfo.GetOrigIndex()].co);
 			}
 
-			array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED);
+			array->NotifyUpdate(RAS_IDisplayArray::POSITION_MODIFIED);
 		}
 
 		m_lastDeformUpdate = m_gameobj->GetLastFrame();

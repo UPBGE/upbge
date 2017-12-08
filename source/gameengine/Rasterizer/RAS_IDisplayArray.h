@@ -31,11 +31,13 @@
 #include "RAS_VertexData.h"
 #include "RAS_Vertex.h"
 
+#include "CM_Update.h"
+
 #include <vector>
 #include <algorithm>
 #include <memory>
 
-class RAS_IDisplayArray
+class RAS_IDisplayArray : public CM_UpdateServer<RAS_IDisplayArray>
 {
 public:
 	enum PrimitiveType {
@@ -48,11 +50,25 @@ public:
 		BATCHING
 	};
 
+	/// Modification categories.
+	enum {
+		NONE_MODIFIED = 0,
+		POSITION_MODIFIED = 1 << 0, // Vertex position modified.
+		NORMAL_MODIFIED = 1 << 1, // Vertex normal modified.
+		UVS_MODIFIED = 1 << 2, // Vertex UVs modified.
+		COLORS_MODIFIED = 1 << 3, // Vertex colors modified.
+		TANGENT_MODIFIED = 1 << 4, // Vertex tangent modified.
+		SIZE_MODIFIED = 1 << 5, // Vertex and index array changed of size.
+		STORAGE_INVALID = 1 << 6, // Storage not yet created.
+		AABB_MODIFIED = POSITION_MODIFIED,
+		MESH_MODIFIED = POSITION_MODIFIED | NORMAL_MODIFIED | UVS_MODIFIED |
+						COLORS_MODIFIED | TANGENT_MODIFIED,
+		ANY_MODIFIED = MESH_MODIFIED | SIZE_MODIFIED | STORAGE_INVALID
+	};
+
 protected:
 	/// The display array primitive type.
 	PrimitiveType m_type;
-	/// Modification flag.
-	unsigned short m_modifiedFlag;
 	/// The vertex format used.
 	RAS_VertexFormat m_format;
 	/// The vertex memory format used.
@@ -199,30 +215,6 @@ public:
 	PrimitiveType GetPrimitiveType() const;
 	/// Return the primitive type used for indices in OpenGL value.
 	int GetOpenGLPrimitiveType() const;
-
-	/// Modification categories.
-	enum {
-		NONE_MODIFIED = 0,
-		POSITION_MODIFIED = 1 << 0, // Vertex position modified.
-		NORMAL_MODIFIED = 1 << 1, // Vertex normal modified.
-		UVS_MODIFIED = 1 << 2, // Vertex UVs modified.
-		COLORS_MODIFIED = 1 << 3, // Vertex colors modified.
-		TANGENT_MODIFIED = 1 << 4, // Vertex tangent modified.
-		SIZE_MODIFIED = 1 << 5, // Vertex and index array changed of size.
-		STORAGE_INVALID = 1 << 6, // Storage not yet created.
-		AABB_MODIFIED = POSITION_MODIFIED,
-		MESH_MODIFIED = POSITION_MODIFIED | NORMAL_MODIFIED | UVS_MODIFIED |
-						COLORS_MODIFIED | TANGENT_MODIFIED
-	};
-
-	/// Return display array modified flag.
-	unsigned short GetModifiedFlag() const;
-	/** Mix display array modified flag with a new flag.
-	 * \param flag The flag to mix.
-	 */
-	void AppendModifiedFlag(unsigned short flag);
-	/// Set the display array modified flag.
-	void SetModifiedFlag(unsigned short flag);
 
 	/// Return the vertex format used.
 	const RAS_VertexFormat& GetFormat() const;

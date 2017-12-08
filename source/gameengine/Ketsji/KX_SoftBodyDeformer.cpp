@@ -79,7 +79,7 @@ void KX_SoftBodyDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 	}
 }
 
-void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
+void KX_SoftBodyDeformer::Apply(RAS_IDisplayArray *array)
 {
 	CcdPhysicsController *ctrl = (CcdPhysicsController *)m_gameobj->GetPhysicsController();
 	if (!ctrl)
@@ -91,8 +91,6 @@ void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 
 	// update the vertex in m_transverts
 	Update();
-
-	RAS_IDisplayArray *origarray = meshmat->GetDisplayArray();
 
 	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 	const std::vector<unsigned int>& indices = ctrl->GetSoftBodyIndices();
@@ -128,16 +126,23 @@ void KX_SoftBodyDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *ar
 		}
 	}
 
-	array->UpdateFrom(origarray, origarray->GetModifiedFlag() &
-					 (RAS_IDisplayArray::TANGENT_MODIFIED |
-					  RAS_IDisplayArray::UVS_MODIFIED |
-					  RAS_IDisplayArray::COLORS_MODIFIED));
+	for (DisplayArraySlot& slot : m_slots) {
+		if (slot.m_displayArray == array) {
+			const short modifiedFlag = slot.m_arrayUpdateClient.GetInvalidAndClear();
+			if (modifiedFlag != RAS_IDisplayArray::NONE_MODIFIED) {
+				/// Update vertex data from the original mesh.
+				array->UpdateFrom(slot.m_origDisplayArray, modifiedFlag);
+			}
+
+			break;
+		}
+	}
+
+	array->NotifyUpdate(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
 
 	if (autoUpdate) {
 		m_boundingBox->ExtendAabb(aabbMin, aabbMax);
 	}
-
-	array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
 }
 
 #endif

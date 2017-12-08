@@ -61,7 +61,8 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_arrayStorage(nullptr),
 	m_attribArray(m_displayArray),
 	m_instancingBuffer(nullptr),
-	m_materialUpdateClient(RAS_IPolyMaterial::ATTRIBUTES_MODIFIED | RAS_IPolyMaterial::SHADER_MODIFIED, true),
+	m_materialUpdateClient(RAS_IPolyMaterial::ATTRIBUTES_MODIFIED, RAS_IPolyMaterial::ATTRIBUTES_MODIFIED),
+	m_arrayUpdateClient(RAS_IDisplayArray::ANY_MODIFIED, RAS_IDisplayArray::STORAGE_INVALID),
 	m_instancingNode(this, &m_nodeData, &RAS_DisplayArrayBucket::RunInstancingNode, nullptr),
 	m_batchingNode(this, &m_nodeData, &RAS_DisplayArrayBucket::RunBatchingNode, nullptr)
 {
@@ -74,6 +75,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 				&RAS_DisplayArrayBucket::UnbindUpwardNode);
 
 		m_arrayStorage = m_displayArray->GetStorage();
+		m_displayArray->AddUpdateClient(&m_arrayUpdateClient);
 	}
 	else {
 		// If there's no display array then we draw using text, in this case the display array bind/unbind should be avoid.
@@ -134,14 +136,12 @@ bool RAS_DisplayArrayBucket::UseBatching() const
 void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer::DrawType drawingMode)
 {
 	if (m_deformer) {
-		m_deformer->Apply(m_meshMaterial, m_displayArray);
+		m_deformer->Apply(m_displayArray);
 	}
 
 	if (m_displayArray) {
-		const unsigned short modifiedFlag = m_displayArray->GetModifiedFlag();
+		const unsigned int modifiedFlag = m_arrayUpdateClient.GetInvalidAndClear();
 		if (modifiedFlag != RAS_IDisplayArray::NONE_MODIFIED) {
-			m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
-
 			if (modifiedFlag & RAS_IDisplayArray::STORAGE_INVALID) {
 				m_displayArray->ConstructStorage();
 			}

@@ -125,9 +125,15 @@ void RAS_BoundingBox::Update(bool force)
 }
 
 RAS_MeshBoundingBox::RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const RAS_IDisplayArrayList& displayArrayList)
-	:RAS_BoundingBox(manager),
-	m_displayArrayList(displayArrayList)
+	:RAS_BoundingBox(manager)
 {
+	for (RAS_IDisplayArray *array : displayArrayList) {
+		m_slots.push_back({array, {RAS_IDisplayArray::POSITION_MODIFIED, RAS_IDisplayArray::NONE_MODIFIED}});
+	}
+
+	for (DisplayArraySlot& slot : m_slots) {
+		slot.m_displayArray->AddUpdateClient(&slot.m_arrayUpdateClient);
+	}
 }
 
 RAS_MeshBoundingBox::~RAS_MeshBoundingBox()
@@ -137,36 +143,43 @@ RAS_MeshBoundingBox::~RAS_MeshBoundingBox()
 RAS_BoundingBox *RAS_MeshBoundingBox::GetReplica()
 {
 	RAS_MeshBoundingBox *boundingBox = new RAS_MeshBoundingBox(*this);
+
 	boundingBox->m_users = 0;
+	for (DisplayArraySlot& slot : boundingBox->m_slots) {
+		slot.m_displayArray->AddUpdateClient(&slot.m_arrayUpdateClient);
+	}
+
 	return boundingBox;
 }
 
 void RAS_MeshBoundingBox::Update(bool force)
 {
 	bool modified = false;
-	// Detect if a display array was modified.
-	for (RAS_IDisplayArray *array : m_displayArrayList) {
-		if (array->GetModifiedFlag() & RAS_IDisplayArray::AABB_MODIFIED) {
-			modified = true;
-			break;
+	for (DisplayArraySlot& slot : m_slots) {
+		RAS_IDisplayArray *array = slot.m_displayArray;
+		// Select modified display array or all if the update is forced.
+		if (!slot.m_arrayUpdateClient.GetInvalidAndClear() && !force) {
+			continue;
+		}
+		modified = true;
+
+		// For each vertex.
+		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+			RAS_Vertex vert = array->GetVertex(i);
+			const mt::vec3 vertPos = vert.xyz();
+
+			slot.m_aabbMin = mt::vec3::Min(slot.m_aabbMin, vertPos);
+			slot.m_aabbMax = mt::vec3::Max(slot.m_aabbMax, vertPos);
 		}
 	}
 
-	if (!modified && !force) {
-		return;
-	}
+	if (modified) {
+		m_aabbMin = mt::vec3(FLT_MAX);
+		m_aabbMax = mt::vec3(-FLT_MAX);
 
-	m_aabbMin = mt::vec3(FLT_MAX);
-	m_aabbMax = mt::vec3(-FLT_MAX);
-
-	for (RAS_IDisplayArray *displayArray : m_displayArrayList) {
-		// For each vertex.
-		for (unsigned int i = 0, size = displayArray->GetVertexCount(); i < size; ++i) {
-			RAS_Vertex vert = displayArray->GetVertex(i);
-			const mt::vec3 vertPos = vert.xyz();
-
-			m_aabbMin = mt::vec3::Min(m_aabbMin, vertPos);
-			m_aabbMax = mt::vec3::Max(m_aabbMax, vertPos);
+		for (const DisplayArraySlot& slot : m_slots) {
+			m_aabbMin = mt::vec3::Min(m_aabbMin, slot.m_aabbMin);
+			m_aabbMax = mt::vec3::Max(m_aabbMax, slot.m_aabbMax);
 		}
 	}
 

@@ -206,7 +206,7 @@ void BL_ModifierDeformer::UpdateTransverts()
 
 	for (const DisplayArraySlot& slot : m_slots) {
 		RAS_IDisplayArray *array = slot.m_displayArray;
-		array->AppendModifiedFlag(RAS_IDisplayArray::SIZE_MODIFIED);
+		array->NotifyUpdate(RAS_IDisplayArray::SIZE_MODIFIED);
 		array->UpdateCache();
 	}
 
@@ -216,7 +216,7 @@ void BL_ModifierDeformer::UpdateTransverts()
 	}
 }
 
-void BL_ModifierDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
+void BL_ModifierDeformer::Apply(RAS_IDisplayArray *array)
 {
 	Update();
 }

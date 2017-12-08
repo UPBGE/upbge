@@ -14,12 +14,12 @@ class CM_UpdateClient
 friend class CM_UpdateServer<Category>;
 
 private:
-	bool m_invalid;
+	unsigned int m_invalid;
 	unsigned int m_filter;
 	CM_UpdateServer<Category> *m_server;
 
 public:
-	CM_UpdateClient(unsigned int filter, bool invalid)
+	CM_UpdateClient(unsigned int filter, unsigned int invalid)
 		:m_invalid(invalid),
 		m_filter(filter),
 		m_server(nullptr)
@@ -31,7 +31,6 @@ public:
 	{
 	}
 
-
 	~CM_UpdateClient()
 	{
 		if (m_server) {
@@ -39,20 +38,20 @@ public:
 		}
 	}
 
-	bool GetInvalid() const
+	unsigned int GetInvalid() const
 	{
 		return m_invalid;
 	}
 
 	void ClearInvalid()
 	{
-		m_invalid = false;
+		m_invalid = 0;
 	}
 
-	bool GetInvalidAndClear()
+	unsigned int GetInvalidAndClear()
 	{
-		const bool invalid = m_invalid;
-		m_invalid = false;
+		const unsigned int invalid = m_invalid;
+		m_invalid = 0;
 		return invalid;
 	}
 };
@@ -100,7 +99,7 @@ public:
 	void NotifyUpdate(unsigned int flag)
 	{
 		for (ClientType *client : m_clients) {
-			client->m_invalid |= (bool)(flag & client->m_filter);
+			client->m_invalid |= (flag & client->m_filter);
 		}
 	}
 };

@@ -68,7 +68,7 @@ public:
 	virtual ~BL_ModifierDeformer();
 
 	bool Update();
-	virtual void Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
+	virtual void Apply(RAS_IDisplayArray *array);
 	void ForceUpdate()
 	{
 		m_lastModifierUpdate = -1.0;

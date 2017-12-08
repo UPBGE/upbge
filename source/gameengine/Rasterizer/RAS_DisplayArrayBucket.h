@@ -71,6 +71,7 @@ private:
 	std::unique_ptr<RAS_InstancingBuffer> m_instancingBuffer;
 
 	CM_UpdateClient<RAS_IPolyMaterial> m_materialUpdateClient;
+	CM_UpdateClient<RAS_IDisplayArray> m_arrayUpdateClient;
 
 	RAS_DisplayArrayNodeData m_nodeData;
 	RAS_DisplayArrayDownwardNode m_downwardNode;

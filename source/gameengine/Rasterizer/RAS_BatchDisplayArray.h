@@ -121,7 +121,7 @@ public:
 		// Update the cache to avoid accessing dangling vertex pointer from GetVertex().
 		UpdateCache();
 		// Request storage update.
-		m_modifiedFlag |= SIZE_MODIFIED;
+		NotifyUpdate(SIZE_MODIFIED);
 
 		return (m_parts.size() - 1);
 	}
@@ -171,7 +171,7 @@ public:
 		// Update the cache to avoid accessing dangling vertex pointer from GetVertex().
 		UpdateCache();
 		// Request storage update.
-		m_modifiedFlag |= SIZE_MODIFIED;
+		NotifyUpdate(SIZE_MODIFIED);
 	}
 };
 

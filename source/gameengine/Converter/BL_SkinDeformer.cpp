@@ -113,25 +113,19 @@ void BL_SkinDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 	BL_MeshDeformer::Relink(map);
 }
 
-void BL_SkinDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
+void BL_SkinDeformer::Apply(RAS_IDisplayArray *array)
 {
-	if (!meshmat) {
-		return;
+	for (DisplayArraySlot& slot : m_slots) {
+		if (slot.m_displayArray == array) {
+			const short modifiedFlag = slot.m_arrayUpdateClient.GetInvalidAndClear();
+			if (modifiedFlag != RAS_IDisplayArray::NONE_MODIFIED) {
+				/// Update vertex data from the original mesh.
+				array->UpdateFrom(slot.m_origDisplayArray, modifiedFlag);
+			}
+
+			break;
+		}
 	}
-
-	RAS_IDisplayArray *origarray = meshmat->GetDisplayArray();
-
-	const short modifiedFlag = origarray->GetModifiedFlag();
-	// No modifications ?
-	if (modifiedFlag == RAS_IDisplayArray::NONE_MODIFIED) {
-		return;
-	}
-
-	/// Update vertex data from the original mesh.
-	array->UpdateFrom(origarray, modifiedFlag &
-					 (RAS_IDisplayArray::TANGENT_MODIFIED |
-					  RAS_IDisplayArray::UVS_MODIFIED |
-					  RAS_IDisplayArray::COLORS_MODIFIED));
 }
 
 RAS_Deformer *BL_SkinDeformer::GetReplica()
@@ -266,6 +260,8 @@ void BL_SkinDeformer::UpdateTransverts()
 	mt::vec3 aabbMin(FLT_MAX);
 	mt::vec3 aabbMax(-FLT_MAX);
 
+	const bool autoUpdate = m_gameobj->GetAutoUpdateBounds();
+
 	// the vertex cache is unique to this deformer, no need to update it
 	// if it wasn't updated! We must update all the materials at once
 	// because we will not get here again for the other material
@@ -281,14 +277,14 @@ void BL_SkinDeformer::UpdateTransverts()
 				v.SetNormal(m_transnors[vinfo.GetOrigIndex()].data());
 			}
 
-			if (m_gameobj->GetAutoUpdateBounds()) {
+			if (autoUpdate) {
 				const mt::vec3 vertpos = v.xyz();
 				aabbMin = mt::vec3::Min(aabbMin, vertpos);
 				aabbMax = mt::vec3::Max(aabbMax, vertpos);
 			}
 		}
 
-		array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
+		array->NotifyUpdate(RAS_IDisplayArray::POSITION_MODIFIED | RAS_IDisplayArray::NORMAL_MODIFIED);
 	}
 
 	m_boundingBox->SetAabb(aabbMin, aabbMax);

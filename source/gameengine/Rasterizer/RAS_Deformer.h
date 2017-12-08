@@ -43,12 +43,7 @@
 #include <map>
 
 class RAS_MeshObject;
-class RAS_IPolyMaterial;
-class RAS_MeshMaterial;
-
 class SCA_IObject;
-
-struct DerivedMesh;
 
 class RAS_Deformer
 {
@@ -59,7 +54,7 @@ public:
 	void InitializeDisplayArrays();
 
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map) = 0;
-	virtual void Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array) = 0;
+	virtual void Apply(RAS_IDisplayArray *array) = 0;
 	virtual bool Update(void)=0;
 	virtual void UpdateBuckets(void)=0;
 	virtual RAS_Deformer *GetReplica()=0;
@@ -98,6 +93,8 @@ protected:
 		RAS_MeshMaterial *m_meshMaterial;
 		/// The unique display array bucket using the display array of this deformer.
 		RAS_DisplayArrayBucket *m_displayArrayBucket;
+		/// Update client of the orignal display array.
+		CM_UpdateClient<RAS_IDisplayArray> m_arrayUpdateClient;
 	};
 
 	std::vector<DisplayArraySlot> m_slots;

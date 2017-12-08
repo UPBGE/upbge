@@ -67,8 +67,8 @@ bool BL_Shader::LinkProgram()
 {
 	// Can be null in case of filter shaders.
 	if (m_materialUpdateServer) {
-		// Notify all clients tracking this shader that shader is recompiled.
-		m_materialUpdateServer->NotifyUpdate(RAS_IPolyMaterial::SHADER_MODIFIED);
+		// Notify all clients tracking this shader that shader is recompiled and attributes are invalidated.
+		m_materialUpdateServer->NotifyUpdate(RAS_IPolyMaterial::SHADER_MODIFIED | RAS_IPolyMaterial::ATTRIBUTES_MODIFIED);
 	}
 
 	return RAS_Shader::LinkProgram();

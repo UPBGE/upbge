@@ -82,8 +82,18 @@ public:
 class RAS_MeshBoundingBox : public RAS_BoundingBox
 {
 private:
-	/// The display arrays used to compute the AABB.
-	RAS_IDisplayArrayList m_displayArrayList;
+	/// Display arrays used to compute the AABB.
+	struct DisplayArraySlot
+	{
+		RAS_IDisplayArray *m_displayArray;
+		CM_UpdateClient<RAS_IDisplayArray> m_arrayUpdateClient;
+		/// AABB minimum of only this display array.
+		mt::vec3 m_aabbMin;
+		/// AABB maximum of only this display array.
+		mt::vec3 m_aabbMax;
+	};
+
+	std::vector<DisplayArraySlot> m_slots;
 
 public:
 	RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const RAS_IDisplayArrayList& displayArrayList);

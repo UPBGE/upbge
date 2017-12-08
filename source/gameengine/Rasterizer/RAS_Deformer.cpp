@@ -49,7 +49,14 @@ void RAS_Deformer::InitializeDisplayArrays()
 
 		RAS_DisplayArrayBucket *arrayBucket = new RAS_DisplayArrayBucket(meshmat->GetBucket(), array, m_mesh, meshmat, this);
 
-		m_slots.push_back({array, origArray, meshmat, arrayBucket});
+		m_slots.push_back(
+			{array, origArray, meshmat, arrayBucket,
+			{RAS_IDisplayArray::TANGENT_MODIFIED | RAS_IDisplayArray::UVS_MODIFIED | RAS_IDisplayArray::COLORS_MODIFIED,
+			 RAS_IDisplayArray::NONE_MODIFIED}});
+	}
+
+	for (DisplayArraySlot& slot : m_slots) {
+		slot.m_origDisplayArray->AddUpdateClient(&slot.m_arrayUpdateClient);
 	}
 }
 
@@ -61,6 +68,7 @@ void RAS_Deformer::ProcessReplica()
 		RAS_IDisplayArray *array = slot.m_displayArray = slot.m_displayArray->GetReplica();
 		RAS_MeshMaterial *meshmat = slot.m_meshMaterial;
 		slot.m_displayArrayBucket = new RAS_DisplayArrayBucket(meshmat->GetBucket(), array, m_mesh, meshmat, this);
+		slot.m_origDisplayArray->AddUpdateClient(&slot.m_arrayUpdateClient);
 	}
 }
 

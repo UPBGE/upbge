@@ -58,7 +58,6 @@ struct PolygonSort
 
 RAS_IDisplayArray::RAS_IDisplayArray(const RAS_IDisplayArray& other)
 	:m_type(other.m_type),
-	m_modifiedFlag(STORAGE_INVALID),
 	m_format(other.m_format),
 	m_memoryFormat(other.m_memoryFormat),
 	m_vertexInfos(other.m_vertexInfos),
@@ -73,7 +72,6 @@ RAS_IDisplayArray::RAS_IDisplayArray(const RAS_IDisplayArray& other)
 RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat& format,
 		const RAS_VertexDataMemoryFormat& memoryFormat)
 	:m_type(type),
-	m_modifiedFlag(STORAGE_INVALID),
 	m_format(format),
 	m_memoryFormat(memoryFormat),
 	m_maxOrigIndex(0)
@@ -216,21 +214,6 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 			}
 		}
 	}
-}
-
-unsigned short RAS_IDisplayArray::GetModifiedFlag() const
-{
-	return m_modifiedFlag;
-}
-
-void RAS_IDisplayArray::AppendModifiedFlag(unsigned short flag)
-{
-	SetModifiedFlag(m_modifiedFlag | flag);
-}
-
-void RAS_IDisplayArray::SetModifiedFlag(unsigned short flag)
-{
-	m_modifiedFlag = flag;
 }
 
 const RAS_VertexFormat& RAS_IDisplayArray::GetFormat() const

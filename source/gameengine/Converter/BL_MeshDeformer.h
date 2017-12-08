@@ -56,7 +56,7 @@ public:
 
 	BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_MeshObject *meshobj);
 	virtual ~BL_MeshDeformer();
-	virtual void Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);
+	virtual void Apply(RAS_IDisplayArray *array);
 	virtual bool Update()
 	{
 		return false;
