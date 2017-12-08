@@ -4070,9 +4070,6 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	BLI_assert(graph != NULL);
 	DEG_OBJECT_ITER(graph, ob, DEG_ITER_OBJECT_FLAG_ALL);
 	{
-		Base *base = BKE_view_layer_base_find(view_layer, ob);
-		BKE_object_eval_flush_base_flags(bmain->eval_ctx, ob, base, true);
-
 		/* We want to populate cache even with objects in invisible layers.
 		 * (we'll remove them from psl->material_pass later).
 		 */
@@ -4096,6 +4093,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 void DRW_game_render_loop_end()
 {
+	release_ubo_slots();
 	release_texture_slots();
 	draw_engine_eevee_type.engine_free();
 	memset(&DST, 0xFF, sizeof(DST));

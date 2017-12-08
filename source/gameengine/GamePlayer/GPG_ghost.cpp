@@ -49,6 +49,7 @@ extern "C"
 #  include "BLI_mempool.h"
 #  include "BLI_blenlib.h"
 
+#  include "DNA_object_types.h"
 #  include "DNA_scene_types.h"
 #  include "DNA_genfile.h"
 
@@ -66,6 +67,7 @@ extern "C"
 #  include "BKE_library_remap.h"
 #  include "BKE_modifier.h"
 #  include "BKE_material.h"
+#  include "BKE_object.h"
 #  include "BKE_text.h"
 #  include "BKE_sound.h"
 #  include "BKE_scene.h"
@@ -77,8 +79,9 @@ extern "C"
 #  include "IMB_imbuf.h"
 #  include "IMB_moviecache.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph.h"
+#  include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph_query.h"
 
 #  ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
@@ -1248,9 +1251,13 @@ int main(
 
 						ViewLayer *view_layer = BKE_view_layer_from_scene_get(scene);
 						Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, true);
-						//DEG_graph_build_from_view_layer(depsgraph, bmain, startscene, view_layer);
 						DEG_graph_relations_update(depsgraph, maggie, scene, view_layer);
 						InitProperties(view_layer, scene);
+
+						for (Object *ob = (Object *)maggie->object.first; ob; ob = (Object *)ob->id.next) {
+							Base *base = BKE_view_layer_base_find(view_layer, ob);
+							BKE_object_eval_flush_base_flags(maggie->eval_ctx, ob, base, true);
+						}
 
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;
