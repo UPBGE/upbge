@@ -96,14 +96,9 @@ class KX_ObstacleSimulation;
 struct TaskPool;
 
 /*********EEVEE INTEGRATION************/
-struct EEVEE_Data;
-struct EEVEE_PassList;
-struct DefaultTextureList;
-struct DRWShadingGroup;
 struct DRWPass;
+struct EEVEE_PassList;
 struct IDProperty;
-class RAS_EeveeEffectsManager;
-class RAS_LightProbesManager;
 /**************************************/
 
 /* for ID freeing */
@@ -155,12 +150,12 @@ protected:
 
 	bool m_doingTAA;
 	bool m_doingProbeUpdate;
-	std::vector<KX_GameObject *>m_staticObjectsInsideFrustum;
-	std::vector<KX_GameObject *>m_staticObjects;
 
+	std::vector<KX_GameObject *>m_staticObjects;
+	std::vector<KX_GameObject *>m_staticObjectsInsideFrustum;
 
 	std::vector<DRWPass *>m_materialPasses;
-	IDProperty *m_props;
+	IDProperty *m_idProperty;
 	std::vector<KX_GameObject *>m_lightProbes;
 	/*************************************************/
 

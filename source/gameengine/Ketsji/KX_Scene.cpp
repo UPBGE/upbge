@@ -117,7 +117,6 @@
 /**************************EEVEE INTEGRATION*****************************/
 extern "C" {
 #  include "BKE_camera.h"
-#  include "BKE_idprop.h"
 #  include "BKE_layer.h"
 #  include "BKE_main.h"
 #  include "BKE_object.h"
@@ -239,13 +238,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
 
 	/*************************************************EEVEE INTEGRATION***********************************************************/
-
-	/* Normally we can remove that */
 	ViewLayer *view_layer = BKE_view_layer_from_scene_get(m_blenderScene);
-
-	m_props = BKE_view_layer_engine_evaluated_get(view_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
-
-	/* End of Normally we can remove that */
+	m_idProperty = BKE_view_layer_engine_evaluated_get(view_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 
 	EEVEE_PassList *psl = EEVEE_engine_data_get()->psl;
 
@@ -253,7 +247,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_staticObjects = {};
 	m_staticObjectsInsideFrustum = {};
-
 	/******************************************************************************************************************************/
 
 #ifdef WITH_PYTHON
@@ -2145,7 +2138,7 @@ void KX_Scene::EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes)
 
 	/* Hack for motion blur */
 	if (effects->enabled_effects & EFFECT_MOTION_BLUR) {
-		float shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
+		float shutter = BKE_collection_engine_property_value_get_float(m_idProperty, "motion_blur_shutter");
 		float camToWorld[4][4];
 		GetActiveCamera()->GetCameraToWorld().getValue(&camToWorld[0][0]);
 		camToWorld[3][0] *= shutter;
@@ -2163,7 +2156,7 @@ void KX_Scene::EeveePostProcessingHackEnd()
 
 	/* Hack for motion blur */
 	if (effects->enabled_effects & EFFECT_MOTION_BLUR) {
-		float shutter = BKE_collection_engine_property_value_get_float(m_props, "motion_blur_shutter");
+		float shutter = BKE_collection_engine_property_value_get_float(m_idProperty, "motion_blur_shutter");
 		float worldToCam[4][4];
 		cam->GetWorldToCamera().getValue(&worldToCam[0][0]);
 		worldToCam[3][0] *= shutter;
