@@ -4012,42 +4012,6 @@ static void motion_blur_init()
 	}
 }
 
-/* Code copied from eevee_data.c (didn't want to touch the code so I duplicate) */
-static void eevee_view_layer_data_free()
-{
-	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
-
-	/* Lights */
-	MEM_SAFE_FREE(sldata->lamps);
-	DRW_UBO_FREE_SAFE(sldata->light_ubo);
-	DRW_UBO_FREE_SAFE(sldata->shadow_ubo);
-	DRW_UBO_FREE_SAFE(sldata->shadow_render_ubo);
-	DRW_FRAMEBUFFER_FREE_SAFE(sldata->shadow_target_fb);
-	DRW_FRAMEBUFFER_FREE_SAFE(sldata->shadow_store_fb);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_target);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_blur);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_target);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_blur);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_pool);
-	BLI_freelistN(&sldata->shadow_casters);
-
-	/* Probes */
-	MEM_SAFE_FREE(sldata->probes);
-	DRW_UBO_FREE_SAFE(sldata->probe_ubo);
-	DRW_UBO_FREE_SAFE(sldata->grid_ubo);
-	DRW_UBO_FREE_SAFE(sldata->planar_ubo);
-	DRW_FRAMEBUFFER_FREE_SAFE(sldata->probe_fb);
-	DRW_FRAMEBUFFER_FREE_SAFE(sldata->probe_filter_fb);
-	DRW_TEXTURE_FREE_SAFE(sldata->probe_rt);
-	DRW_TEXTURE_FREE_SAFE(sldata->probe_depth_rt);
-	DRW_TEXTURE_FREE_SAFE(sldata->probe_pool);
-	DRW_TEXTURE_FREE_SAFE(sldata->irradiance_pool);
-	DRW_TEXTURE_FREE_SAFE(sldata->irradiance_rt);
-
-	/* Volumetrics */
-	MEM_SAFE_FREE(sldata->volumetrics);
-}
-
 void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	Scene *scene, ViewLayer *cur_view_layer, Object *maincam, int viewportsize[2])
 {
@@ -4096,13 +4060,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	DST.draw_ctx.view_layer = cur_view_layer;
 	DST.draw_ctx.obact = OBACT(cur_view_layer);
 
-	/* Free sldata (view_layer data) before ge start
-	 * to fill the cache with new fresh data.
-	 * It prevents when we start in embedded.
-	 */
-	eevee_view_layer_data_free();
-
-	drw_viewport_var_init_bge();
+	drw_viewport_var_init();
 
 	/* Init engines */
 	drw_engines_init();
@@ -4139,8 +4097,6 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 void DRW_game_render_loop_end()
 {
-	eevee_view_layer_data_free();
-
 	GPU_viewport_free(DST.viewport);
 	MEM_freeN(DST.viewport);
 

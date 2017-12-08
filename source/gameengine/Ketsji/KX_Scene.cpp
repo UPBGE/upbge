@@ -2218,6 +2218,7 @@ void KX_Scene::RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer 
 	/* Start Drawing */
 	DRW_state_reset();
 	EEVEE_draw_scene();
+	DRW_state_reset();
 
 	/* Update of eevee's post processing before after rendering */
 	EeveePostProcessingHackEnd();
