@@ -457,9 +457,6 @@ const DRWContextState *DRW_context_state_get(void);
 
 /*****************************GAME ENGINE***********************************/
 void *DRW_viewport_engine_data_ensure(void *engine_type);
-void DRW_framebuffer_init_bge(
-struct GPUFrameBuffer **fb, void *engine_type, int width, int height,
-	DRWFboTexture textures[MAX_FBO_TEX], int textures_len);
 struct GPUShader *DRW_shgroup_shader_get(DRWShadingGroup *shgroup);
 void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup);
 void DRW_end_shgroup(void);
