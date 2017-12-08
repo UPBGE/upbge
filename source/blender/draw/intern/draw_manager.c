@@ -3772,7 +3772,7 @@ static void DRW_viewport_size_init_bge(void)
 	memset(viewport_matrix_override.override, 0x0, sizeof(viewport_matrix_override.override));
 }
 
-static void DRW_viewport_var_init_bge(void)
+static void drw_viewport_var_init_bge(void)
 {
 	RegionView3D *rv3d = DST.draw_ctx.rv3d;
 
@@ -4012,6 +4012,7 @@ static void motion_blur_init()
 	}
 }
 
+/* Code copied from eevee_data.c (didn't want to touch the code so I duplicate) */
 static void eevee_view_layer_data_free()
 {
 	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
@@ -4075,7 +4076,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	rv3d.camdy = 0.0f;
 	rv3d.camzoom = 0.0f;
 	rv3d.persp = RV3D_CAMOB;
-	rv3d.is_persp = true; //temp
+	rv3d.is_persp = true;
 	rctf cameraborder;
 	game_camera_border(scene, &ar, &v3d, &rv3d, &cameraborder, false, false);
 	rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
@@ -4084,13 +4085,24 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	DST.draw_ctx.v3d = &v3d;
 	DST.draw_ctx.rv3d = &rv3d;
 
+	/* We don't use bContext in bge
+	 * (not possible or very difficult
+	 * with blenderplayer I guess
+	 */
 	DST.draw_ctx.evil_C = NULL;
+
 	DST.draw_ctx.v3d->zbuf = true;
 	DST.draw_ctx.scene = scene;
 	DST.draw_ctx.view_layer = cur_view_layer;
 	DST.draw_ctx.obact = OBACT(cur_view_layer);
 
-	DRW_viewport_var_init_bge();
+	/* Free sldata (view_layer data) before ge start
+	 * to fill the cache with new fresh data.
+	 * It prevents when we start in embedded.
+	 */
+	eevee_view_layer_data_free();
+
+	drw_viewport_var_init_bge();
 
 	/* Init engines */
 	drw_engines_init();
@@ -4100,9 +4112,8 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	drw_engines_cache_init();
 
-	ViewLayer *view_layer = BKE_view_layer_from_scene_get(scene);
-	Depsgraph *graph = BKE_scene_get_depsgraph(scene, view_layer, false);
-	BLI_assert(graph != NULL);
+	Depsgraph *graph = BKE_scene_get_depsgraph(scene, cur_view_layer, false);
+
 	DEG_OBJECT_ITER(graph, ob, DEG_ITER_OBJECT_FLAG_ALL);
 	{
 		/* We want to populate cache even with objects in invisible layers.
@@ -4128,13 +4139,16 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 void DRW_game_render_loop_end()
 {
-	/* Cleanup for selection state */
 	eevee_view_layer_data_free();
+
 	GPU_viewport_free(DST.viewport);
 	MEM_freeN(DST.viewport);
+
 	release_ubo_slots();
 	release_texture_slots();
+
 	draw_engine_eevee_type.engine_free();
+
 	memset(&DST, 0xFF, sizeof(DST));
 }
 

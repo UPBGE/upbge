@@ -240,14 +240,18 @@ void LA_Launcher::InitEngine()
 	m_ketsjiEngine->SetGlobalSettings(m_globalSettings);
 
 	/* INIT EEVEE DATA : CALL BEFORE m_rasterizer->Init() and after canvas creation */
+
 	ViewLayer *cur_view_layer = BKE_view_layer_from_scene_get(m_startScene);
-	//InitProperties(cur_view_layer, m_startScene);
+
 	Object *maincam = BKE_view_layer_camera_find(cur_view_layer);
+
 	GPUOffScreen *tempgpuofs = GPU_offscreen_create(m_canvas->GetWidth(), m_canvas->GetHeight(), 0, nullptr);
+
 	int viewportsize[2] = { m_canvas->GetWidth(), m_canvas->GetHeight() };
+
 	DRW_game_render_loop_begin(tempgpuofs, m_maggie, m_startScene,
 		cur_view_layer, maincam, viewportsize);
-	//GPU_offscreen_free(tempgpuofs);
+
 	/* END OF INIT EEVEE DATA */
 
 	m_rasterizer->Init();
