@@ -988,34 +988,6 @@ static PyObject *gPyMakeScreenshot(PyObject *, PyObject *args)
 	Py_RETURN_NONE;
 }
 
-//static PyObject *gPyEnableMotionBlur(PyObject *, PyObject *args)
-//{
-//	float motionblurvalue;
-//	if (!PyArg_ParseTuple(args,"f:enableMotionBlur",&motionblurvalue))
-//		return nullptr;
-//	
-//	if (!KX_GetActiveEngine()->GetRasterizer()) {
-//		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.enableMotionBlur(float), Rasterizer not available");
-//		return nullptr;
-//	}
-//	
-//	KX_GetActiveEngine()->GetRasterizer()->EnableMotionBlur(motionblurvalue);
-//	
-//	Py_RETURN_NONE;
-//}
-//
-//static PyObject *gPyDisableMotionBlur(PyObject *)
-//{
-//	if (!KX_GetActiveEngine()->GetRasterizer()) {
-//		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.disableMotionBlur(), Rasterizer not available");
-//		return nullptr;
-//	}
-//	
-//	KX_GetActiveEngine()->GetRasterizer()->DisableMotionBlur();
-//	
-//	Py_RETURN_NONE;
-//}
-
 static int getGLSLSettingFlag(const std::string& setting)
 {
 	if (setting == "lights") {
@@ -1347,8 +1319,6 @@ static struct PyMethodDef rasterizer_methods[] = {
 	 METH_VARARGS, "showMouse(bool visible)"},
 	{"setMousePosition",(PyCFunction) gPySetMousePosition,
 	 METH_VARARGS, "setMousePosition(int x,int y)"},
-	/*{"enableMotionBlur",(PyCFunction)gPyEnableMotionBlur,METH_VARARGS,"enable motion blur"},
-	{"disableMotionBlur",(PyCFunction)gPyDisableMotionBlur,METH_NOARGS,"disable motion blur"},*/
 
 	{"setEyeSeparation", (PyCFunction) gPySetEyeSeparation, METH_VARARGS, "set the eye separation for stereo mode"},
 	{"getEyeSeparation", (PyCFunction) gPyGetEyeSeparation, METH_NOARGS, "get the eye separation for stereo mode"},

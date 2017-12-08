@@ -102,12 +102,7 @@ bool SCA_2DFilterActuator::Update()
 		}
 		case RAS_2DFilterManager::FILTER_MOTIONBLUR:
 		{
-			/*if (m_disableMotionBlur) {
-				m_rasterizer->DisableMotionBlur();
-			}
-			else {
-				m_rasterizer->EnableMotionBlur(m_float_arg);
-			}*/
+			std::cout << "SCA_2DFilterActuator: Motion blur 2D Filter is disabled during eevee integration" << std::endl;
 			break;
 		}
 		default:

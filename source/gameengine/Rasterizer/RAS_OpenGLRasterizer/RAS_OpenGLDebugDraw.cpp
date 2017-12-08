@@ -213,8 +213,8 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 			(float)min[0], (float)max[1], (float)max[2]
 		};
 
-		rasty->PushMatrix();
-		rasty->MultMatrix(mat);
+		//rasty->PushMatrix();
+		//rasty->MultMatrix(mat);
 		
 		float c[4];
 		aabb.m_color.getValue(c);
@@ -228,7 +228,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 		glDrawElements(GL_LINES, 24, GL_UNSIGNED_BYTE, 0);
 		UnbindVBO();
 
-		rasty->PopMatrix();
+		//rasty->PopMatrix();
 	}
 
 	float mvp[16];
@@ -262,47 +262,8 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 		UnbindVBO();
 	}
 
-	// What is the purpose of the following code? I comment for now.
-
-	//// draw circles
-	//for (const RAS_DebugDraw::Circle& circle : debugDraw->m_circles) {
-	//	glBegin(GL_LINE_LOOP);
-	//	glColor4fv(circle.m_color.getValue());
-
-	//	static const MT_Vector3 worldUp(0.0f, 0.0f, 1.0f);
-	//	const MT_Vector3& norm = circle.m_normal;
-	//	MT_Matrix3x3 tr;
-	//	if (norm.fuzzyZero() || norm == worldUp) {
-	//		tr.setIdentity();
-	//	}
-	//	else {
-	//		const MT_Vector3 xaxis = MT_cross(norm, worldUp);
-	//		const MT_Vector3 yaxis = MT_cross(xaxis, norm);
-	//		tr.setValue(xaxis.x(), xaxis.y(), xaxis.z(),
-	//					yaxis.x(), yaxis.y(), yaxis.z(),
-	//					norm.x(), norm.y(), norm.z());
-	//	}
-	//	const MT_Scalar rad = circle.m_radius;
-	//	const int n = circle.m_sector;
-	//	for (int j = 0; j < n; ++j) {
-	//		const MT_Scalar theta = j * MT_2_PI / n;
-	//		MT_Vector3 pos(cosf(theta) * rad, sinf(theta) * rad, 0.0f);
-	//		pos = pos * tr;
-	//		pos += circle.m_center;
-	//		glVertex3fv(pos.getValue());
-	//	}
-	//	glEnd();
-	//}
-
 	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	rasty->DisableForText();
-
-	rasty->PushMatrix();
-	rasty->LoadIdentity();
-
-	rasty->SetMatrixMode(RAS_Rasterizer::RAS_PROJECTION);
-	rasty->PushMatrix();
-	rasty->LoadIdentity();
 
 	const unsigned int width = canvas->GetWidth();
 	const unsigned int height = canvas->GetHeight();
@@ -343,11 +304,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 		BLF_draw(blf_mono_font, text.c_str(), text.size());
 	}
 	BLF_disable(blf_mono_font, BLF_SHADOW);
-
-	rasty->PopMatrix();
-	rasty->SetMatrixMode(RAS_Rasterizer::RAS_MODELVIEW);
-
-	rasty->PopMatrix();
 
 	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
 }

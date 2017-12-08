@@ -129,11 +129,6 @@ inline RAS_FrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(FrameBuffer
 		 * the multisample value and try to create the off screen to find a supported value.
 		 */
 		for (int samples = m_samples; samples >= 0; --samples) {
-			// Get off screen mode : render buffer support for multisampled off screen.
-			//GPUOffScreenMode mode = GPU_OFFSCREEN_MODE_NONE;
-			/*if (sampleofs && (samples > 0)) {
-				mode = (GPUOffScreenMode)(GPU_OFFSCREEN_RENDERBUFFER_COLOR | GPU_OFFSCREEN_RENDERBUFFER_DEPTH);
-			}*/
 
 			RAS_FrameBuffer *fb = new RAS_FrameBuffer(m_width, m_height, m_hdr, fbtype);
 			
@@ -206,8 +201,6 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_focallength(0.0f),
 	m_setfocallength(false),
 	m_noOfScanlines(32),
-	m_motionblur(0),
-	m_motionblurvalue(-1.0f),
 	m_clientobject(nullptr),
 	m_auxilaryClientInfo(nullptr),
 	m_drawingmode(RAS_TEXTURED),
@@ -295,31 +288,6 @@ void RAS_Rasterizer::SetAmbientColor(const MT_Vector3& color)
 {
 	m_ambient = color;
 }
-//
-//void RAS_Rasterizer::SetAmbient(float factor)
-//{
-//	m_impl->SetAmbient(m_ambient, factor);
-//}
-
-//void RAS_Rasterizer::SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color)
-//{
-//	m_impl->SetFog(type, start, dist, intensity, color);
-//}
-//
-//void RAS_Rasterizer::EnableFog(bool enable)
-//{
-//	m_fogenabled = enable;
-//}
-//
-//void RAS_Rasterizer::DisplayFog()
-//{
-//	if ((m_drawingmode >= RAS_SOLID) && m_fogenabled) {
-//		Enable(RAS_FOG);
-//	}
-//	else {
-//		Disable(RAS_FOG);
-//	}
-//}
 
 void RAS_Rasterizer::Init()
 {
@@ -327,39 +295,23 @@ void RAS_Rasterizer::Init()
 
 	Disable(RAS_BLEND);
 	Disable(RAS_ALPHA_TEST);
-	//m_last_alphablend = GPU_BLEND_SOLID;
 	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
 
 	SetFrontFace(true);
 
 	SetColorMask(true, true, true, true);
 
-	//m_impl->Init();
-
 	InitScreenShaders();
 }
 
 void RAS_Rasterizer::Exit()
 {
-// 	Enable(RAS_CULL_FACE);
-// 	Enable(RAS_DEPTH_TEST);
-
 	SetClearDepth(1.0f);
 	SetColorMask(true, true, true, true);
 
 	SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
-// 	SetDepthMask(RAS_DEPTHMASK_ENABLED);
-// 	SetDepthFunc(RAS_LEQUAL);
-// 	SetBlendFunc(RAS_ONE, RAS_ZERO);
-
-// 	Disable(RAS_POLYGON_STIPPLE);
-
-// 	Disable(RAS_LIGHTING);
-	//m_impl->Exit();
-
-	ResetGlobalDepthTexture();
 
 	ExitScreenShaders();
 
@@ -379,39 +331,15 @@ void RAS_Rasterizer::BeginFrame(double time)
 
 	gpuMatrixReset();
 
-	// Blender camera routine destroys the settings
-	/*if (m_drawingmode < RAS_SOLID) {
-		Disable(RAS_CULL_FACE);
-		Disable(RAS_DEPTH_TEST);
-	}
-	else {
-		Enable(RAS_CULL_FACE);
-		Enable(RAS_DEPTH_TEST);
-	}
-
-	Disable(RAS_BLEND);
-	Disable(RAS_ALPHA_TEST);
-	//m_last_alphablend = GPU_BLEND_SOLID;
-	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);*/
-
 	SetFrontFace(true);
 
 	m_impl->BeginFrame();
-
-	/*Enable(RAS_MULTISAMPLE);
-
-	Enable(RAS_SCISSOR_TEST);
-
-	Enable(RAS_DEPTH_TEST);
-	SetDepthFunc(RAS_LEQUAL);*/
 
 	// Render Tools
 	m_clientobject = nullptr;
 	m_lastlightlayer = -1;
 	m_lastauxinfo = nullptr;
 	m_lastlighting = true; /* force disable in DisableLights() */
-
-	//DisableLights();
 }
 
 void RAS_Rasterizer::EndFrame()
@@ -419,10 +347,6 @@ void RAS_Rasterizer::EndFrame()
 	SetColorMask(true, true, true, true);
 
 	Disable(RAS_MULTISAMPLE);
-
-	//DRW_end_shgroup();
-
-	//Disable(RAS_FOG);
 }
 
 void RAS_Rasterizer::SetDrawingMode(RAS_Rasterizer::DrawType drawingmode)
@@ -979,29 +903,6 @@ void RAS_Rasterizer::SetLines(bool enable)
 {
 	m_impl->SetLines(enable);
 }
-//
-//void RAS_Rasterizer::SetSpecularity(float specX,
-//                                          float specY,
-//                                          float specZ,
-//                                          float specval)
-//{
-//	m_impl->SetSpecularity(specX, specY, specZ, specval);
-//}
-//
-//void RAS_Rasterizer::SetShinyness(float shiny)
-//{
-//	m_impl->SetShinyness(shiny);
-//}
-//
-//void RAS_Rasterizer::SetDiffuse(float difX, float difY, float difZ, float diffuse)
-//{
-//	m_impl->SetDiffuse(difX, difY, difZ, diffuse);
-//}
-//
-//void RAS_Rasterizer::SetEmissive(float eX, float eY, float eZ, float e)
-//{
-//	m_impl->SetEmissive(eX, eY, eZ, e);
-//}
 
 double RAS_Rasterizer::GetTime()
 {
@@ -1022,27 +923,6 @@ void RAS_Rasterizer::SetPolygonOffset(float mult, float add)
 		Disable(mode);
 	}
 }
-
-//void RAS_Rasterizer::EnableMotionBlur(float motionblurvalue)
-//{
-//	/* don't just set m_motionblur to 1, but check if it is 0 so
-//	 * we don't reset a motion blur that is already enabled */
-//	if (m_motionblur == 0) {
-//		m_motionblur = 1;
-//	}
-//	m_motionblurvalue = motionblurvalue;
-//}
-//
-//void RAS_Rasterizer::DisableMotionBlur()
-//{
-//	m_motionblur = 0;
-//	m_motionblurvalue = -1.0f;
-//}
-//
-//void RAS_Rasterizer::SetMotionBlur(unsigned short state)
-//{
-//	m_motionblur = state;
-//}
 
 void RAS_Rasterizer::SetAlphaBlend(int alphablend)
 {
@@ -1108,103 +988,6 @@ RAS_Rasterizer::MipmapOption RAS_Rasterizer::GetMipmapping()
 		return RAS_Rasterizer::RAS_MIPMAP_NONE;
 	}
 }
-
-/**
- * Render Tools
- */
-
-/* ProcessLighting performs lighting on objects. the layer is a bitfield that
- * contains layer information. There are 20 'official' layers in blender. A
- * light is applied on an object only when they are in the same layer. OpenGL
- * has a maximum of 8 lights (simultaneous), so 20 * 8 lights are possible in
- * a scene. */
-
-void RAS_Rasterizer::ProcessLighting(bool uselights, const MT_Transform& viewmat, GPUShader *shader)
-{
-#if 0
-	//bool enable = false;
-	//int layer = -1;
-
-	///* find the layer */
-	//if (uselights) {
-	//	if (m_clientobject) {
-	//		layer = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject)->GetLayer();
-	//	}
-	//}
-
-	///* avoid state switching */
-	//if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo) {
-	//	return;
-	//}
-
-	//m_lastlightlayer = layer;
-	//m_lastauxinfo = m_auxilaryClientInfo;
-
-	/* enable/disable lights as needed */
-	if (1) { //TEEEEEEEEEEEEMP layer >= 0 was replaced by 1
-		//enable = ApplyLights(layer, viewmat);
-		// taken from blender source, incompatibility between Blender Object / GameObject
-		KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
-		//float glviewmat[16];
-		unsigned int count;
-		std::vector<RAS_OpenGLLight *>::iterator lit = m_lights.begin();
-
-		//viewmat.getValue(glviewmat);
-
-		//PushMatrix();
-		//LoadMatrix(glviewmat);
-		RAS_OpenGLLight *light;
-
-		for (lit = m_lights.begin(), count = 0; !(lit == m_lights.end()) && count < m_numgllights; ++lit) {
-			light = (*lit);
-
-			if (light->ApplyFixedFunctionLighting(kxscene, 1, count)) { // second arg layer was replaced with 1
-				count++;
-			}
-		}
-		// GET EEVEE SCENE LIGHT DATA
-		EEVEE_Light *lightsData = kxscene->GetEeveeLightsData();
-		GPUUniformBuffer *lightsUbo = kxscene->GetLightsUbo();
-
-		// UPDATE/BIND EEVEE LIGHT DATA
-		GPU_uniformbuffer_update(lightsUbo , (const void *)lightsData);
-		GPU_uniformbuffer_bind(lightsUbo, 0);
-
-		// light_count EEVEE uniform
-		int lightcountloc = GPU_shader_get_uniform(shader, "light_count");
-		GPU_shader_uniform_int(shader, lightcountloc, count);
-
-		//PopMatrix();
-
-		//enable = count > 0;
-	}
-#endif
-}
-
-//void RAS_Rasterizer::EnableLights()ok :)
-//{
-//	if (m_lastlighting == true) {
-//		return;
-//	}
-//
-//	Enable(RAS_Rasterizer::RAS_LIGHTING);
-//	Enable(RAS_Rasterizer::RAS_COLOR_MATERIAL);
-//
-//	m_impl->EnableLights();
-//
-//	m_lastlighting = true;
-//}
-//
-//void RAS_Rasterizer::DisableLights()
-//{
-//	if (m_lastlighting == false)
-//		return;
-//
-//	Disable(RAS_Rasterizer::RAS_LIGHTING);
-//	Disable(RAS_Rasterizer::RAS_COLOR_MATERIAL);
-//
-//	m_lastlighting = false;
-//}
 
 bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform)
 {
@@ -1359,61 +1142,6 @@ void RAS_Rasterizer::RenderText3D(
 	/* TEMP: DISABLE TEXT DRAWING in 2.8 WAITING FOR REFACTOR */
 	m_impl->RenderText3D(fontid, text, size, dpi, color, mat, aspect);
 }
-
-void RAS_Rasterizer::PushMatrix()
-{
-// 	m_impl->PushMatrix();
-}
-
-void RAS_Rasterizer::PopMatrix()
-{
-// 	m_impl->PopMatrix();
-}
-
-void RAS_Rasterizer::SetMatrixMode(RAS_Rasterizer::MatrixMode mode)
-{
-// 	m_impl->SetMatrixMode(mode);
-}
-
-void RAS_Rasterizer::MultMatrix(const float mat[16])
-{
-// 	m_impl->MultMatrix(mat);
-}
-
-void RAS_Rasterizer::LoadMatrix(const float mat[16])
-{
-// 	m_impl->LoadMatrix(mat);
-}
-
-void RAS_Rasterizer::LoadIdentity()
-{
-// 	m_impl->LoadIdentity();
-}
-
-void RAS_Rasterizer::UpdateGlobalDepthTexture(RAS_FrameBuffer *frameBuffer)
-{
-	/* In case of multisamples the depth off screen must be blit to be used in shader.
-	 * But the original off screen must be kept bound after the blit. */
-	//if (frameBuffer->GetSamples()) {
-	//	GPUFrameBuffer *dstOffScreen = GetFrameBuffer(RAS_Rasterizer::RAS_FrameBuffer_BLIT_DEPTH);
-	//	frameBuffer->Blit(dstOffScreen, false, true);
-	//	// Restore original off screen.
-	//	frameBuffer->Bind();
-	//	frameBuffer = dstOffScreen;
-	//}
-
-	//GPU_texture_set_global_depth(GPU_framebuffer_depth_texture(frameBuffer->GetFrameBuffer()));
-}
-
-void RAS_Rasterizer::ResetGlobalDepthTexture()
-{
-	//GPU_texture_set_global_depth(nullptr);
-}
-
-//void RAS_Rasterizer::MotionBlur()
-//{
-//	m_impl->MotionBlur(m_motionblur, m_motionblurvalue);
-//}
 
 void RAS_Rasterizer::SetClientObject(void *obj)
 {

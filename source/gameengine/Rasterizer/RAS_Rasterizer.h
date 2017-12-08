@@ -299,10 +299,6 @@ private:
 	bool m_setfocallength;
 	int m_noOfScanlines;
 
-	/* motion blur */
-	unsigned short m_motionblur;
-	float m_motionblurvalue;
-
 	/* Render tools */
 	void *m_clientobject;
 	void *m_auxilaryClientInfo;
@@ -324,9 +320,6 @@ private:
 
 	void InitScreenShaders();
 	void ExitScreenShaders();
-
-	/*void EnableLights();
-	void DisableLights();*/
 
 public:
 	RAS_Rasterizer();
@@ -502,13 +495,6 @@ public:
 	 */
 	const MT_Vector3& GetCameraPosition();
 	bool GetCameraOrtho();
-
-	/**
-	 * Fog
-	 */
-	/*void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
-	void DisplayFog();
-	void EnableFog(bool enable);*/
 	
 	/**
 	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW or RAS_TEXTURED.
@@ -575,28 +561,7 @@ public:
 	        float left, float right, float bottom, float top,
 	        float frustnear, float frustfar);
 
-	///**
-	// * Sets the specular color component of the lighting equation.
-	// */
-	//void SetSpecularity(float specX, float specY, float specZ, float specval);
-	//
-	///**
-	// * Sets the specular exponent component of the lighting equation.
-	// */
-	//void SetShinyness(float shiny);
-
-	///**
-	// * Sets the diffuse color component of the lighting equation.
-	// */
-	//void SetDiffuse(float difX,float difY, float difZ, float diffuse);
-
-	///**
-	// * Sets the emissive color component of the lighting equation.
-	// */ 
-	//void SetEmissive(float eX, float eY, float eZ, float e);
-	//
 	void SetAmbientColor(const MT_Vector3& color);
-	//void SetAmbient(float factor);
 
 	/**
 	 * Sets a polygon offset.  z depth will be: z1 = mult*z0 + add
@@ -612,10 +577,6 @@ public:
 	const MT_Matrix4x4& GetProjInvMatrix() const;
 	const MT_Matrix4x4& GetPersMatrix() const;
 	const MT_Matrix4x4& GetPersInvMatrix() const;
-
-	/*void EnableMotionBlur(float motionblurvalue);
-	void DisableMotionBlur();
-	void SetMotionBlur(unsigned short state);*/
 
 	void SetAlphaBlend(int alphablend);
 	void SetFrontFace(bool ccw);
@@ -652,24 +613,6 @@ public:
 	void RenderText3D(
 	        int fontid, const std::string& text, int size, int dpi,
 	        const float color[4], const float mat[16], float aspect);
-
-	void ProcessLighting(bool uselights, const MT_Transform &trans, GPUShader *shader);
-
-	void PushMatrix();
-	void PopMatrix();
-	void MultMatrix(const float mat[16]);
-	void SetMatrixMode(MatrixMode mode);
-	void LoadMatrix(const float mat[16]);
-	void LoadIdentity();
-
-	/** Set the current off screen depth to the global depth texture used by materials.
-	 * In case of mutlisample off screen a blit to RAS_FrameBuffer_BLIT_DEPTH is procceed.
-	 */
-	void UpdateGlobalDepthTexture(RAS_FrameBuffer *frameBuffer);
-	/// Set the global depth texture to an empty texture.
-	void ResetGlobalDepthTexture();
-
-	//void MotionBlur();
 
 	void SetClientObject(void *obj);
 
