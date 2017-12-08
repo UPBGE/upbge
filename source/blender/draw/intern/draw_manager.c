@@ -251,7 +251,7 @@ typedef struct DRWCall {
 
 	float obmat[4][4];
 	Gwn_Batch *geometry;
-	bool culled;
+	bool culled; // Game engine transition
 
 	Object *ob; /* Optional */
 	ID *ob_data; /* Optional. */
@@ -1013,7 +1013,7 @@ void DRW_shgroup_call_add(DRWShadingGroup *shgroup, Gwn_Batch *geom, float (*obm
 	call->geometry = geom;
 	call->ob_data = NULL;
 
-	call->culled = false;
+	call->culled = false; // Game engine transition
 }
 
 void DRW_shgroup_call_object_add(DRWShadingGroup *shgroup, Gwn_Batch *geom, Object *ob)
@@ -1033,7 +1033,7 @@ void DRW_shgroup_call_object_add(DRWShadingGroup *shgroup, Gwn_Batch *geom, Obje
 	call->geometry = geom;
 	call->ob_data = ob->data;
 
-	call->culled = false;
+	call->culled = false; // Game engine transition
 }
 
 void DRW_shgroup_call_generate_add(
@@ -2070,7 +2070,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 			GPU_SELECT_LOAD_IF_PICKSEL(call);
 
 			if (call->head.type == DRW_CALL_SINGLE) {
-				if (!call->culled) {
+				if (!call->culled) { // Game engine transition
 					draw_geometry(shgroup, call->geometry, call->obmat, call->ob_data);
 				}
 			}
@@ -3736,6 +3736,196 @@ void DRW_draw_depth_loop(
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+
+/** \name Draw Manager State (DRW_state)
+ * \{ */
+
+void DRW_state_dfdy_factors_get(float dfdyfac[2])
+{
+	GPU_get_dfdy_factors(dfdyfac);
+}
+
+/**
+ * When false, drawing doesn't output to a pixel buffer
+ * eg: Occlusion queries, or when we have setup a context to draw in already.
+ */
+bool DRW_state_is_fbo(void)
+{
+	return (DST.default_framebuffer != NULL);
+}
+
+/**
+ * For when engines need to know if this is drawing for selection or not.
+ */
+bool DRW_state_is_select(void)
+{
+	return DST.options.is_select;
+}
+
+bool DRW_state_is_depth(void)
+{
+	return DST.options.is_depth;
+}
+
+/**
+ * Whether we are rendering for an image
+ */
+bool DRW_state_is_image_render(void)
+{
+	return DST.options.is_image_render;
+}
+
+/**
+ * Whether we are rendering only the render engine,
+ * or if we should also render the mode engines.
+ */
+bool DRW_state_is_scene_render(void)
+{
+	BLI_assert(DST.options.is_scene_render ?
+	           DST.options.is_image_render : true);
+	return DST.options.is_scene_render;
+}
+
+/**
+ * Should text draw in this mode?
+ */
+bool DRW_state_show_text(void)
+{
+	return (DST.options.is_select) == 0 &&
+	       (DST.options.is_depth) == 0 &&
+	       (DST.options.is_scene_render) == 0;
+}
+
+/**
+ * Should draw support elements
+ * Objects center, selection outline, probe data, ...
+ */
+bool DRW_state_draw_support(void)
+{
+	View3D *v3d = DST.draw_ctx.v3d;
+	return (DRW_state_is_scene_render() == false) &&
+	        (v3d != NULL) &&
+	        ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0);
+}
+
+/** \} */
+
+
+/* -------------------------------------------------------------------- */
+
+/** \name Context State (DRW_context_state)
+ * \{ */
+
+const DRWContextState *DRW_context_state_get(void)
+{
+	return &DST.draw_ctx;
+}
+
+/** \} */
+
+
+/* -------------------------------------------------------------------- */
+
+/** \name Init/Exit (DRW_engines)
+ * \{ */
+
+void DRW_engine_register(DrawEngineType *draw_engine_type)
+{
+	BLI_addtail(&DRW_engines, draw_engine_type);
+}
+
+void DRW_engines_register(void)
+{
+#ifdef WITH_CLAY_ENGINE
+	RE_engines_register(NULL, &DRW_engine_viewport_clay_type);
+#endif
+	RE_engines_register(NULL, &DRW_engine_viewport_eevee_type);
+	RE_engines_register(NULL, &DRW_engine_viewport_game_type);
+
+	DRW_engine_register(&draw_engine_object_type);
+	DRW_engine_register(&draw_engine_edit_armature_type);
+	DRW_engine_register(&draw_engine_edit_curve_type);
+	DRW_engine_register(&draw_engine_edit_lattice_type);
+	DRW_engine_register(&draw_engine_edit_mesh_type);
+	DRW_engine_register(&draw_engine_edit_metaball_type);
+	DRW_engine_register(&draw_engine_edit_surface_type);
+	DRW_engine_register(&draw_engine_edit_text_type);
+	DRW_engine_register(&draw_engine_paint_texture_type);
+	DRW_engine_register(&draw_engine_paint_vertex_type);
+	DRW_engine_register(&draw_engine_paint_weight_type);
+	DRW_engine_register(&draw_engine_particle_type);
+	DRW_engine_register(&draw_engine_pose_type);
+	DRW_engine_register(&draw_engine_sculpt_type);
+
+	/* setup callbacks */
+	{
+		/* BKE: mball.c */
+		extern void *BKE_mball_batch_cache_dirty_cb;
+		extern void *BKE_mball_batch_cache_free_cb;
+		/* BKE: curve.c */
+		extern void *BKE_curve_batch_cache_dirty_cb;
+		extern void *BKE_curve_batch_cache_free_cb;
+		/* BKE: mesh.c */
+		extern void *BKE_mesh_batch_cache_dirty_cb;
+		extern void *BKE_mesh_batch_cache_free_cb;
+		/* BKE: lattice.c */
+		extern void *BKE_lattice_batch_cache_dirty_cb;
+		extern void *BKE_lattice_batch_cache_free_cb;
+		/* BKE: particle.c */
+		extern void *BKE_particle_batch_cache_dirty_cb;
+		extern void *BKE_particle_batch_cache_free_cb;
+
+		BKE_mball_batch_cache_dirty_cb = DRW_mball_batch_cache_dirty;
+		BKE_mball_batch_cache_free_cb = DRW_mball_batch_cache_free;
+
+		BKE_curve_batch_cache_dirty_cb = DRW_curve_batch_cache_dirty;
+		BKE_curve_batch_cache_free_cb = DRW_curve_batch_cache_free;
+
+		BKE_mesh_batch_cache_dirty_cb = DRW_mesh_batch_cache_dirty;
+		BKE_mesh_batch_cache_free_cb = DRW_mesh_batch_cache_free;
+
+		BKE_lattice_batch_cache_dirty_cb = DRW_lattice_batch_cache_dirty;
+		BKE_lattice_batch_cache_free_cb = DRW_lattice_batch_cache_free;
+
+		BKE_particle_batch_cache_dirty_cb = DRW_particle_batch_cache_dirty;
+		BKE_particle_batch_cache_free_cb = DRW_particle_batch_cache_free;
+	}
+}
+
+extern struct GPUUniformBuffer *globals_ubo; /* draw_common.c */
+extern struct GPUTexture *globals_ramp; /* draw_common.c */
+void DRW_engines_free(void)
+{
+	DRW_shape_cache_free();
+	DRW_stats_free();
+
+	DrawEngineType *next;
+	for (DrawEngineType *type = DRW_engines.first; type; type = next) {
+		next = type->next;
+		BLI_remlink(&R_engines, type);
+
+		if (type->engine_free) {
+			type->engine_free();
+		}
+	}
+
+	if (globals_ubo)
+		GPU_uniformbuffer_free(globals_ubo);
+
+	if (globals_ramp)
+		GPU_texture_free(globals_ramp);
+
+	MEM_SAFE_FREE(RST.bound_texs);
+	MEM_SAFE_FREE(RST.bound_tex_slots);
+
+#ifdef WITH_CLAY_ENGINE
+	BLI_remlink(&R_engines, &DRW_engine_viewport_clay_type);
+#endif
+}
+
+/** \} */
+
 /***********************************Game engine transition*******************************************/
 
 bool DRW_batch_belongs_to_gameobject(DRWShadingGroup *shgroup, Gwn_Batch *batch)
@@ -3971,9 +4161,9 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	DST.draw_ctx.rv3d = &rv3d;
 
 	/* We don't use bContext in bge
-	 * (not possible or very difficult
-	 * with blenderplayer I guess
-	 */
+	* (not possible or very difficult
+	* with blenderplayer I guess
+	*/
 	DST.draw_ctx.evil_C = NULL;
 
 	DST.draw_ctx.v3d->zbuf = true;
@@ -3996,8 +4186,8 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	DEG_OBJECT_ITER(graph, ob, DEG_ITER_OBJECT_FLAG_ALL);
 	{
 		/* We want to populate cache even with objects in invisible layers.
-		 * (we'll remove them from psl->material_pass later).
-		 */
+		* (we'll remove them from psl->material_pass later).
+		*/
 		bool mesh_is_invisible = (ob->base_flag & BASE_VISIBLED) == 0 && ob->type == OB_MESH;
 		if (mesh_is_invisible) {
 			ob->base_flag |= BASE_VISIBLED;
@@ -4056,195 +4246,4 @@ void DRW_end_shgroup(void)
 	}
 }
 
-/***************************END OF GAME ENGINE***************************/
-
-
-/* -------------------------------------------------------------------- */
-
-/** \name Draw Manager State (DRW_state)
- * \{ */
-
-void DRW_state_dfdy_factors_get(float dfdyfac[2])
-{
-	GPU_get_dfdy_factors(dfdyfac);
-}
-
-/**
- * When false, drawing doesn't output to a pixel buffer
- * eg: Occlusion queries, or when we have setup a context to draw in already.
- */
-bool DRW_state_is_fbo(void)
-{
-	return (DST.default_framebuffer != NULL);
-}
-
-/**
- * For when engines need to know if this is drawing for selection or not.
- */
-bool DRW_state_is_select(void)
-{
-	return DST.options.is_select;
-}
-
-bool DRW_state_is_depth(void)
-{
-	return DST.options.is_depth;
-}
-
-/**
- * Whether we are rendering for an image
- */
-bool DRW_state_is_image_render(void)
-{
-	return DST.options.is_image_render;
-}
-
-/**
- * Whether we are rendering only the render engine,
- * or if we should also render the mode engines.
- */
-bool DRW_state_is_scene_render(void)
-{
-	BLI_assert(DST.options.is_scene_render ?
-	           DST.options.is_image_render : true);
-	return DST.options.is_scene_render;
-}
-
-/**
- * Should text draw in this mode?
- */
-bool DRW_state_show_text(void)
-{
-	return (DST.options.is_select) == 0 &&
-	       (DST.options.is_depth) == 0 &&
-	       (DST.options.is_scene_render) == 0;
-}
-
-/**
- * Should draw support elements
- * Objects center, selection outline, probe data, ...
- */
-bool DRW_state_draw_support(void)
-{
-	View3D *v3d = DST.draw_ctx.v3d;
-	return (DRW_state_is_scene_render() == false) &&
-	        (v3d != NULL) &&
-	        ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0);
-}
-
-/** \} */
-
-
-/* -------------------------------------------------------------------- */
-
-/** \name Context State (DRW_context_state)
- * \{ */
-
-const DRWContextState *DRW_context_state_get(void)
-{
-	return &DST.draw_ctx;
-}
-
-/** \} */
-
-
-/* -------------------------------------------------------------------- */
-
-/** \name Init/Exit (DRW_engines)
- * \{ */
-
-void DRW_engine_register(DrawEngineType *draw_engine_type)
-{
-	BLI_addtail(&DRW_engines, draw_engine_type);
-}
-
-void DRW_engines_register(void)
-{
-#ifdef WITH_CLAY_ENGINE
-	RE_engines_register(NULL, &DRW_engine_viewport_clay_type);
-#endif
-	RE_engines_register(NULL, &DRW_engine_viewport_eevee_type);
-	RE_engines_register(NULL, &DRW_engine_viewport_game_type);
-
-	DRW_engine_register(&draw_engine_object_type);
-	DRW_engine_register(&draw_engine_edit_armature_type);
-	DRW_engine_register(&draw_engine_edit_curve_type);
-	DRW_engine_register(&draw_engine_edit_lattice_type);
-	DRW_engine_register(&draw_engine_edit_mesh_type);
-	DRW_engine_register(&draw_engine_edit_metaball_type);
-	DRW_engine_register(&draw_engine_edit_surface_type);
-	DRW_engine_register(&draw_engine_edit_text_type);
-	DRW_engine_register(&draw_engine_paint_texture_type);
-	DRW_engine_register(&draw_engine_paint_vertex_type);
-	DRW_engine_register(&draw_engine_paint_weight_type);
-	DRW_engine_register(&draw_engine_particle_type);
-	DRW_engine_register(&draw_engine_pose_type);
-	DRW_engine_register(&draw_engine_sculpt_type);
-
-	/* setup callbacks */
-	{
-		/* BKE: mball.c */
-		extern void *BKE_mball_batch_cache_dirty_cb;
-		extern void *BKE_mball_batch_cache_free_cb;
-		/* BKE: curve.c */
-		extern void *BKE_curve_batch_cache_dirty_cb;
-		extern void *BKE_curve_batch_cache_free_cb;
-		/* BKE: mesh.c */
-		extern void *BKE_mesh_batch_cache_dirty_cb;
-		extern void *BKE_mesh_batch_cache_free_cb;
-		/* BKE: lattice.c */
-		extern void *BKE_lattice_batch_cache_dirty_cb;
-		extern void *BKE_lattice_batch_cache_free_cb;
-		/* BKE: particle.c */
-		extern void *BKE_particle_batch_cache_dirty_cb;
-		extern void *BKE_particle_batch_cache_free_cb;
-
-		BKE_mball_batch_cache_dirty_cb = DRW_mball_batch_cache_dirty;
-		BKE_mball_batch_cache_free_cb = DRW_mball_batch_cache_free;
-
-		BKE_curve_batch_cache_dirty_cb = DRW_curve_batch_cache_dirty;
-		BKE_curve_batch_cache_free_cb = DRW_curve_batch_cache_free;
-
-		BKE_mesh_batch_cache_dirty_cb = DRW_mesh_batch_cache_dirty;
-		BKE_mesh_batch_cache_free_cb = DRW_mesh_batch_cache_free;
-
-		BKE_lattice_batch_cache_dirty_cb = DRW_lattice_batch_cache_dirty;
-		BKE_lattice_batch_cache_free_cb = DRW_lattice_batch_cache_free;
-
-		BKE_particle_batch_cache_dirty_cb = DRW_particle_batch_cache_dirty;
-		BKE_particle_batch_cache_free_cb = DRW_particle_batch_cache_free;
-	}
-}
-
-extern struct GPUUniformBuffer *globals_ubo; /* draw_common.c */
-extern struct GPUTexture *globals_ramp; /* draw_common.c */
-void DRW_engines_free(void)
-{
-	DRW_shape_cache_free();
-	DRW_stats_free();
-
-	DrawEngineType *next;
-	for (DrawEngineType *type = DRW_engines.first; type; type = next) {
-		next = type->next;
-		BLI_remlink(&R_engines, type);
-
-		if (type->engine_free) {
-			type->engine_free();
-		}
-	}
-
-	if (globals_ubo)
-		GPU_uniformbuffer_free(globals_ubo);
-
-	if (globals_ramp)
-		GPU_texture_free(globals_ramp);
-
-	MEM_SAFE_FREE(RST.bound_texs);
-	MEM_SAFE_FREE(RST.bound_tex_slots);
-
-#ifdef WITH_CLAY_ENGINE
-	BLI_remlink(&R_engines, &DRW_engine_viewport_clay_type);
-#endif
-}
-
-/** \} */
+/***************************Enf of Game engine transition***************************/
