@@ -379,5 +379,5 @@ void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)
 
 	// Change of material update looking.
 	RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
-	material->MoveUpdateClient(&m_materialUpdateClient, true);
+	material->MoveUpdateClient(&m_materialUpdateClient, RAS_IPolyMaterial::ATTRIBUTES_MODIFIED);
 }

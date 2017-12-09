@@ -74,7 +74,7 @@ public:
 		}
 	}
 
-	void MoveUpdateClient(ClientType *client, bool invalid)
+	void MoveUpdateClient(ClientType *client, unsigned int invalid)
 	{
 		if (client->m_server) {
 			client->m_server->RemoveUpdateClient(client);
