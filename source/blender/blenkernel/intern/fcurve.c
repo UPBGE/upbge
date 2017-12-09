@@ -61,6 +61,7 @@
 #include "BKE_curve.h" 
 #include "BKE_global.h"
 #include "BKE_object.h"
+#include "BKE_nla.h"
 
 #include "RNA_access.h"
 
@@ -86,12 +87,11 @@ void free_fcurve(FCurve *fcu)
 		return;
 
 	/* free curve data */
-	if (fcu->bezt) MEM_freeN(fcu->bezt);
-	if (fcu->fpt)  MEM_freeN(fcu->fpt);
+	MEM_SAFE_FREE(fcu->bezt);
+	MEM_SAFE_FREE(fcu->fpt);
 	
 	/* free RNA-path, as this were allocated when getting the path string */
-	if (fcu->rna_path)
-		MEM_freeN(fcu->rna_path);
+	MEM_SAFE_FREE(fcu->rna_path);
 	
 	/* free extra data - i.e. modifiers, and driver */
 	fcurve_free_driver(fcu);
@@ -336,7 +336,7 @@ FCurve *rna_get_fcurve_context_ui(
 	if (r_action) *r_action = NULL;
 	
 	/* Special case for NLA Control Curves... */
-	if (ptr->type == &RNA_NlaStrip) {
+	if (BKE_nlastrip_has_curves_for_property(ptr, prop)) {
 		NlaStrip *strip = (NlaStrip *)ptr->data;
 		
 		/* Set the special flag, since it cannot be a normal action/driver
@@ -882,6 +882,46 @@ void fcurve_store_samples(FCurve *fcu, void *data, int start, int end, FcuSample
  * that the handles are correctly 
  */
 
+/* Checks if the F-Curve has a Cycles modifier with simple settings that warrant transition smoothing */
+bool BKE_fcurve_is_cyclic(FCurve *fcu)
+{
+	FModifier *fcm = fcu->modifiers.first;
+
+	if (!fcm || fcm->type != FMODIFIER_TYPE_CYCLES)
+		return false;
+
+	if (fcm->flag & (FMODIFIER_FLAG_DISABLED | FMODIFIER_FLAG_MUTED))
+		return false;
+
+	if (fcm->flag & (FMODIFIER_FLAG_RANGERESTRICT | FMODIFIER_FLAG_USEINFLUENCE))
+		return false;
+
+	FMod_Cycles *data = (FMod_Cycles *)fcm->data;
+
+	return data && data->after_cycles == 0 && data->before_cycles == 0 &&
+	    ELEM(data->before_mode, FCM_EXTRAPOLATE_CYCLIC, FCM_EXTRAPOLATE_CYCLIC_OFFSET) &&
+	    ELEM(data->after_mode, FCM_EXTRAPOLATE_CYCLIC, FCM_EXTRAPOLATE_CYCLIC_OFFSET);
+}
+
+/* Shifts 'in' by the difference in coordinates between 'to' and 'from', using 'out' as the output buffer.
+ * When 'to' and 'from' are end points of the loop, this moves the 'in' point one loop cycle.
+ */
+static BezTriple *cycle_offset_triple(bool cycle, BezTriple *out, const BezTriple *in, const BezTriple *from, const BezTriple *to)
+{
+	if (!cycle)
+		return NULL;
+
+	memcpy(out, in, sizeof(BezTriple));
+
+	float delta[3];
+	sub_v3_v3v3(delta, to->vec[1], from->vec[1]);
+
+	for (int i = 0; i < 3; i++)
+		add_v3_v3(out->vec[i], delta);
+
+	return out;
+}
+
 /* This function recalculates the handles of an F-Curve 
  * If the BezTriples have been rearranged, sort them first before using this.
  */
@@ -897,10 +937,16 @@ void calchandles_fcurve(FCurve *fcu)
 	 */
 	if (ELEM(NULL, fcu, fcu->bezt) || (a < 2) /*|| ELEM(fcu->ipo, BEZT_IPO_CONST, BEZT_IPO_LIN)*/) 
 		return;
-	
+
+	/* if the first modifier is Cycles, smooth the curve through the cycle */
+	BezTriple *first = &fcu->bezt[0], *last = &fcu->bezt[fcu->totvert - 1];
+	BezTriple tmp;
+
+	bool cycle = BKE_fcurve_is_cyclic(fcu) && BEZT_IS_AUTOH(first) && BEZT_IS_AUTOH(last);
+
 	/* get initial pointers */
 	bezt = fcu->bezt;
-	prev = NULL;
+	prev = cycle_offset_triple(cycle, &tmp, &fcu->bezt[fcu->totvert - 2], last, first);
 	next = (bezt + 1);
 	
 	/* loop over all beztriples, adjusting handles */
@@ -910,24 +956,49 @@ void calchandles_fcurve(FCurve *fcu)
 		if (bezt->vec[2][0] < bezt->vec[1][0]) bezt->vec[2][0] = bezt->vec[1][0];
 		
 		/* calculate auto-handles */
-		BKE_nurb_handle_calc(bezt, prev, next, true);
+		BKE_nurb_handle_calc(bezt, prev, next, true, fcu->auto_smoothing);
 		
 		/* for automatic ease in and out */
-		if (ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM) && ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM)) {
+		if (BEZT_IS_AUTOH(bezt) && !cycle) {
 			/* only do this on first or last beztriple */
 			if ((a == 0) || (a == fcu->totvert - 1)) {
 				/* set both handles to have same horizontal value as keyframe */
 				if (fcu->extend == FCURVE_EXTRAPOLATE_CONSTANT) {
 					bezt->vec[0][1] = bezt->vec[2][1] = bezt->vec[1][1];
+					/* remember that these keyframes are special, they don't need to be adjusted */
+					bezt->f5 = HD_AUTOTYPE_SPECIAL;
 				}
 			}
+		}
+
+		/* avoid total smoothing failure on duplicate keyframes (can happen during grab) */
+		if (prev && prev->vec[1][0] >= bezt->vec[1][0])	{
+			prev->f5 = bezt->f5 = HD_AUTOTYPE_SPECIAL;
 		}
 		
 		/* advance pointers for next iteration */
 		prev = bezt;
-		if (a == 1) next = NULL;
-		else next++;
+
+		if (a == 1) {
+			next = cycle_offset_triple(cycle, &tmp, &fcu->bezt[1], first, last);
+		}
+		else {
+			next++;
+		}
+
 		bezt++;
+	}
+
+	/* if cyclic extrapolation and Auto Clamp has triggered, ensure it is symmetric */
+	if (cycle && (first->f5 != HD_AUTOTYPE_NORMAL || last->f5 != HD_AUTOTYPE_NORMAL)) {
+		first->vec[0][1] = first->vec[2][1] = first->vec[1][1];
+		last->vec[0][1] = last->vec[2][1] = last->vec[1][1];
+		first->f5 = last->f5 = HD_AUTOTYPE_SPECIAL;
+	}
+
+	/* do a second pass for auto handle: compute the handle to have 0 accelaration step */
+	if (fcu->auto_smoothing != FCURVE_SMOOTH_NONE) {
+		BKE_nurb_handle_smooth_fcurve(fcu->bezt, fcu->totvert, cycle);
 	}
 }
 
@@ -1704,7 +1775,7 @@ void driver_variable_name_validate(DriverVar *dvar)
 	
 	/* 1) Must start with a letter */
 	/* XXX: We assume that valid unicode letters in other languages are ok too, hence the blacklisting */
-	if (ELEM(dvar->name[0], '0', '1', '2', '3', '4', '5', '6', '7', '8', '9')) {
+	if (IN_RANGE_INCL(dvar->name[0], '0', '9')) {
 		dvar->flag |= DVAR_FLAG_INVALID_START_NUM;
 	}
 	else if (dvar->name[0] == '_') {

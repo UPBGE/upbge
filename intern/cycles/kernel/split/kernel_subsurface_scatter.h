@@ -37,9 +37,9 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
 {
 	SplitBranchedState *branched_state = &kernel_split_state.branched_state[ray_index];
 
-	ShaderData *sd = &branched_state->sd;
+	ShaderData *sd = kernel_split_sd(branched_state_sd, ray_index);
 	PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
-	ShaderData *emission_sd = &kernel_split_state.sd_DL_shadow[ray_index];
+	ShaderData *emission_sd = AS_SHADER_DATA(&kernel_split_state.sd_DL_shadow[ray_index]);
 
 	for(int i = branched_state->ss_next_closure; i < sd->num_closure; i++) {
 		ShaderClosure *sc = &sd->closure[i];
@@ -61,7 +61,7 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
 		/* do subsurface scatter step with copy of shader data, this will
 		 * replace the BSSRDF with a diffuse BSDF closure */
 		for(int j = branched_state->ss_next_sample; j < num_samples; j++) {
-			ccl_global SubsurfaceIntersection *ss_isect = &branched_state->ss_isect;
+			ccl_global LocalIntersection *ss_isect = &branched_state->ss_isect;
 			float bssrdf_u, bssrdf_v;
 			path_branched_rng_2D(kg,
 			                     bssrdf_rng_hash,
@@ -75,7 +75,7 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
 			/* intersection is expensive so avoid doing multiple times for the same input */
 			if(branched_state->next_hit == 0 && branched_state->next_closure == 0 && branched_state->next_sample == 0) {
 				uint lcg_state = branched_state->lcg_state;
-				SubsurfaceIntersection ss_isect_private;
+				LocalIntersection ss_isect_private;
 
 				branched_state->num_hits = subsurface_scatter_multi_intersect(kg,
 				                                                              &ss_isect_private,
@@ -98,11 +98,11 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
 
 			/* compute lighting with the BSDF closure */
 			for(int hit = branched_state->next_hit; hit < branched_state->num_hits; hit++) {
-				ShaderData *bssrdf_sd = &kernel_split_state.sd[ray_index];
+				ShaderData *bssrdf_sd = kernel_split_sd(sd, ray_index);
 				*bssrdf_sd = *sd; /* note: copy happens each iteration of inner loop, this is
 				                   * important as the indirect path will write into bssrdf_sd */
 
-				SubsurfaceIntersection ss_isect_private = *ss_isect;
+				LocalIntersection ss_isect_private = *ss_isect;
 				subsurface_scatter_multi_setup(kg,
 				                               &ss_isect_private,
 				                               hit,
@@ -228,8 +228,8 @@ ccl_device void kernel_subsurface_scatter(KernelGlobals *kg)
 		ccl_global Ray *ray = &kernel_split_state.ray[ray_index];
 		ccl_global float3 *throughput = &kernel_split_state.throughput[ray_index];
 		ccl_global SubsurfaceIndirectRays *ss_indirect = &kernel_split_state.ss_rays[ray_index];
-		ShaderData *sd = &kernel_split_state.sd[ray_index];
-		ShaderData *emission_sd = &kernel_split_state.sd_DL_shadow[ray_index];
+		ShaderData *sd = kernel_split_sd(sd, ray_index);
+		ShaderData *emission_sd = AS_SHADER_DATA(&kernel_split_state.sd_DL_shadow[ray_index]);
 
 		if(sd->flag & SD_BSSRDF) {
 

@@ -791,6 +791,7 @@ struct ShadeResult;
 #define SH_NODE_OBJECT			194
 #define SH_NODE_TIME			195
 #define SH_NODE_PARALLAX		196
+#define SH_NODE_BEVEL                   197
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

@@ -77,19 +77,20 @@ EditBone *ED_armature_edit_bone_add(bArmature *arm, const char *name)
 	bone->dist = 0.25f;
 	bone->xwidth = 0.1f;
 	bone->zwidth = 0.1f;
-	bone->ease1 = 1.0f;
-	bone->ease2 = 1.0f;
 	bone->rad_head = 0.10f;
 	bone->rad_tail = 0.05f;
 	bone->segments = 1;
 	bone->layer = arm->layer;
 	
+	/* Bendy-Bone parameters */
 	bone->roll1 = 0.0f;
 	bone->roll2 = 0.0f;
 	bone->curveInX = 0.0f;
 	bone->curveInY = 0.0f;
 	bone->curveOutX = 0.0f;
 	bone->curveOutY = 0.0f;
+	bone->ease1 = 1.0f;
+	bone->ease2 = 1.0f;
 	bone->scaleIn = 1.0f;
 	bone->scaleOut = 1.0f;
 
@@ -778,7 +779,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
 void ARMATURE_OT_symmetrize(wmOperatorType *ot)
 {
 	/* subset of 'rna_enum_symmetrize_direction_items' */
-	static EnumPropertyItem arm_symmetrize_direction_items[] = {
+	static const EnumPropertyItem arm_symmetrize_direction_items[] = {
 		{-1, "NEGATIVE_X", 0, "-X to +X", ""},
 		{+1, "POSITIVE_X", 0, "+X to -X", ""},
 		{0, NULL, 0, NULL, NULL}
@@ -899,19 +900,20 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 					newbone->dist = ebone->dist;
 					newbone->xwidth = ebone->xwidth;
 					newbone->zwidth = ebone->zwidth;
-					newbone->ease1 = ebone->ease1;
-					newbone->ease2 = ebone->ease2;
 					newbone->rad_head = ebone->rad_tail; // don't copy entire bone...
 					newbone->rad_tail = ebone->rad_tail;
 					newbone->segments = 1;
 					newbone->layer = ebone->layer;
 					
+					/* Bendy-Bone parameters */
 					newbone->roll1 = ebone->roll1;
 					newbone->roll2 = ebone->roll2;
 					newbone->curveInX = ebone->curveInX;
 					newbone->curveInY = ebone->curveInY;
 					newbone->curveOutX = ebone->curveOutX;
 					newbone->curveOutY = ebone->curveOutY;
+					newbone->ease1 = ebone->ease1;
+					newbone->ease2 = ebone->ease2;
 					newbone->scaleIn = ebone->scaleIn;
 					newbone->scaleOut = ebone->scaleOut;
 
@@ -942,9 +944,16 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 		}
 	}
 	/* if only one bone, make this one active */
-	if (totbone == 1 && first) arm->act_edbone = first;
+	if (totbone == 1 && first) {
+		arm->act_edbone = first;
+	}
+	else {
+		arm->act_edbone = newbone;
+	}
 
-	if (totbone == 0) return OPERATOR_CANCELLED;
+	if (totbone == 0) {
+		return OPERATOR_CANCELLED;
+	}
 
 	/* Transform the endpoints */
 	ED_armature_sync_selection(arm->edbo);

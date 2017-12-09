@@ -95,6 +95,7 @@ EnumPropertyItem sequencer_prop_effect_types[] = {
 	{SEQ_TYPE_ADJUSTMENT, "ADJUSTMENT", 0, "Adjustment Layer", ""},
 	{SEQ_TYPE_GAUSSIAN_BLUR, "GAUSSIAN_BLUR", 0, "Gaussian Blur", ""},
 	{SEQ_TYPE_TEXT, "TEXT", 0, "Text", ""},
+	{SEQ_TYPE_COLORMIX, "COLORMIX", 0, "Color Mix", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -107,7 +108,7 @@ EnumPropertyItem prop_side_types[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-static EnumPropertyItem prop_side_lr_types[] = {
+static const EnumPropertyItem prop_side_lr_types[] = {
 	{SEQ_SIDE_LEFT, "LEFT", 0, "Left", ""},
 	{SEQ_SIDE_RIGHT, "RIGHT", 0, "Right", ""},
 	{0, NULL, 0, NULL, NULL}
@@ -694,7 +695,7 @@ static Sequence *cut_seq_hard(Scene *scene, Sequence *seq, int cutframe)
 		BKE_sequence_calc(scene, seq);
 	}
 
-	if ((seq->startstill) && (cutframe < seq->start)) {
+	if ((seq->startstill) && (cutframe <= seq->start)) {
 		/* don't do funny things with METAs ... */
 		if (seq->type == SEQ_TYPE_META) {
 			skip_dup = true;
@@ -708,13 +709,15 @@ static Sequence *cut_seq_hard(Scene *scene, Sequence *seq, int cutframe)
 		}
 	}
 	/* normal strip */
-	else if ((cutframe >= seq->start) && (cutframe <= (seq->start + seq->len))) {
+	else if ((cutframe >= seq->start) && (cutframe < (seq->start + seq->len))) {
 		seq->endofs = 0;
 		seq->endstill = 0;
 		seq->anim_endofs += (seq->start + seq->len) - cutframe;
 	}
 	/* strips with extended stillframes after */
-	else if (((seq->start + seq->len) < cutframe) && (seq->endstill)) {
+	else if (((seq->start + seq->len) == cutframe) ||
+	         (((seq->start + seq->len) < cutframe) && (seq->endstill)))
+	{
 		seq->endstill -= seq->enddisp - cutframe;
 		/* don't do funny things with METAs ... */
 		if (seq->type == SEQ_TYPE_META) {
@@ -743,7 +746,7 @@ static Sequence *cut_seq_hard(Scene *scene, Sequence *seq, int cutframe)
 		}
 		
 		/* normal strip */
-		else if ((cutframe >= seqn->start) && (cutframe <= (seqn->start + seqn->len))) {
+		else if ((cutframe >= seqn->start) && (cutframe < (seqn->start + seqn->len))) {
 			seqn->start = cutframe;
 			seqn->startstill = 0;
 			seqn->startofs = 0;
@@ -754,7 +757,9 @@ static Sequence *cut_seq_hard(Scene *scene, Sequence *seq, int cutframe)
 		}
 		
 		/* strips with extended stillframes after */
-		else if (((seqn->start + seqn->len) < cutframe) && (seqn->endstill)) {
+		else if (((seqn->start + seqn->len) == cutframe) ||
+		         (((seqn->start + seqn->len) < cutframe) && (seqn->endstill)))
+		{
 			seqn->start = cutframe;
 			seqn->startofs = 0;
 			seqn->anim_startofs += ts.len - 1;
@@ -790,7 +795,7 @@ static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
 	/* First Strip! */
 	/* strips with extended stillfames before */
 	
-	if ((seq->startstill) && (cutframe < seq->start)) {
+	if ((seq->startstill) && (cutframe <= seq->start)) {
 		/* don't do funny things with METAs ... */
 		if (seq->type == SEQ_TYPE_META) {
 			skip_dup = true;
@@ -804,11 +809,13 @@ static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
 		}
 	}
 	/* normal strip */
-	else if ((cutframe >= seq->start) && (cutframe <= (seq->start + seq->len))) {
+	else if ((cutframe >= seq->start) && (cutframe < (seq->start + seq->len))) {
 		seq->endofs = (seq->start + seq->len) - cutframe;
 	}
 	/* strips with extended stillframes after */
-	else if (((seq->start + seq->len) < cutframe) && (seq->endstill)) {
+	else if (((seq->start + seq->len) == cutframe) ||
+	         (((seq->start + seq->len) < cutframe) && (seq->endstill)))
+	{
 		seq->endstill -= seq->enddisp - cutframe;
 		/* don't do funny things with METAs ... */
 		if (seq->type == SEQ_TYPE_META) {
@@ -834,9 +841,9 @@ static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
 			seqn->endofs = ts.endofs;
 			seqn->endstill = ts.endstill;
 		}
-		
+
 		/* normal strip */
-		else if ((cutframe >= seqn->start) && (cutframe <= (seqn->start + seqn->len))) {
+		if ((cutframe >= seqn->start) && (cutframe < (seqn->start + seqn->len))) {
 			seqn->startstill = 0;
 			seqn->startofs = cutframe - ts.start;
 			seqn->endofs = ts.endofs;
@@ -844,7 +851,9 @@ static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
 		}
 		
 		/* strips with extended stillframes after */
-		else if (((seqn->start + seqn->len) < cutframe) && (seqn->endstill)) {
+		else if (((seqn->start + seqn->len) == cutframe) ||
+		         (((seqn->start + seqn->len) < cutframe) && (seqn->endstill)))
+		{
 			seqn->start = cutframe - ts.len + 1;
 			seqn->startofs = ts.len - 1;
 			seqn->endstill = ts.enddisp - cutframe - 1;
@@ -2033,7 +2042,7 @@ void SEQUENCER_OT_swap_inputs(struct wmOperatorType *ot)
 
 
 /* cut operator */
-static EnumPropertyItem prop_cut_types[] = {
+static const EnumPropertyItem prop_cut_types[] = {
 	{SEQ_CUT_SOFT, "SOFT", 0, "Soft", ""},
 	{SEQ_CUT_HARD, "HARD", 0, "Hard", ""},
 	{0, NULL, 0, NULL, NULL}
@@ -2823,7 +2832,7 @@ void SEQUENCER_OT_view_zoom_ratio(wmOperatorType *ot)
 
 
 #if 0
-static EnumPropertyItem view_type_items[] = {
+static const EnumPropertyItem view_type_items[] = {
 	{SEQ_VIEW_SEQUENCE, "SEQUENCER", ICON_SEQ_SEQUENCER, "Sequencer", ""},
 	{SEQ_VIEW_PREVIEW,  "PREVIEW", ICON_SEQ_PREVIEW, "Image Preview", ""},
 	{SEQ_VIEW_SEQUENCE_PREVIEW,  "SEQUENCER_PREVIEW", ICON_SEQ_SEQUENCER, "Sequencer and Image Preview", ""},
@@ -3421,17 +3430,17 @@ void SEQUENCER_OT_view_ghost_border(wmOperatorType *ot)
 	ot->description = "Set the boundaries of the border used for offset-view";
 
 	/* api callbacks */
-	ot->invoke = WM_border_select_invoke;
+	ot->invoke = WM_gesture_border_invoke;
 	ot->exec = view_ghost_border_exec;
-	ot->modal = WM_border_select_modal;
+	ot->modal = WM_gesture_border_modal;
 	ot->poll = sequencer_view_preview_poll;
-	ot->cancel = WM_border_select_cancel;
+	ot->cancel = WM_gesture_border_cancel;
 
 	/* flags */
 	ot->flag = 0;
 
 	/* rna */
-	WM_operator_properties_gesture_border(ot, false);
+	WM_operator_properties_gesture_border(ot);
 }
 
 /* rebuild_proxy operator */
@@ -3585,7 +3594,7 @@ void SEQUENCER_OT_enable_proxies(wmOperatorType *ot)
 
 /* change ops */
 
-static EnumPropertyItem prop_change_effect_input_types[] = {
+static const EnumPropertyItem prop_change_effect_input_types[] = {
 	{0, "A_B", 0, "A -> B", ""},
 	{1, "B_C", 0, "B -> C", ""},
 	{2, "A_C", 0, "A -> C", ""},

@@ -254,6 +254,7 @@ typedef struct bPoseChannel {
 	float roll1, roll2;
 	float curveInX, curveInY;
 	float curveOutX, curveOutY;
+	float ease1, ease2;
 	float scaleIn, scaleOut;
 	
 	struct bPoseChannel *bbone_prev; /* next/prev bones to use as handle references when calculating bbones (optional) */
@@ -749,7 +750,7 @@ typedef struct bActionChannel {
 } bActionChannel;
 
 /* Action Channel flags (ONLY USED FOR DO_VERSIONS...) */
-typedef enum ACHAN_FLAG {
+typedef enum eActionChannelFlag {
 	ACHAN_SELECTED  = (1 << 0),
 	ACHAN_HIGHLIGHTED = (1 << 1),
 	ACHAN_HIDDEN    = (1 << 2),
@@ -758,6 +759,6 @@ typedef enum ACHAN_FLAG {
 	ACHAN_SHOWIPO   = (1 << 5),
 	ACHAN_SHOWCONS  = (1 << 6),
 	ACHAN_MOVED     = (1u << 31)
-} ACHAN_FLAG; 
+} eActionChannelFlag;
 
 #endif  /* __DNA_ACTION_TYPES_H__ */

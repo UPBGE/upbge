@@ -52,12 +52,15 @@ public:
 	string description;
 	string id; /* used for user preferences, should stay fixed with changing hardware config */
 	int num;
-	bool display_device;
-	bool advanced_shading;
-	bool has_bindless_textures; /* flag for GPU and Multi device */
-	bool has_volume_decoupled;
-	bool has_qbvh;
-	bool use_split_kernel; /* Denotes if the device is going to run cycles using split-kernel */
+	bool display_device;         /* GPU is used as a display device. */
+	bool advanced_shading;       /* Supports full shading system. */
+	bool has_fermi_limits;       /* Fixed number of textures limit. */
+	bool has_half_images;        /* Support half-float textures. */
+	bool has_volume_decoupled;   /* Decoupled volume shading. */
+	bool has_qbvh;               /* Supports both BVH2 and BVH4 raytracing. */
+	bool has_osl;                /* Support Open Shading Language. */
+	bool use_split_kernel;       /* Use split or mega kernel. */
+	int cpu_threads;
 	vector<DeviceInfo> multi_devices;
 
 	DeviceInfo()
@@ -65,11 +68,14 @@ public:
 		type = DEVICE_CPU;
 		id = "CPU";
 		num = 0;
+		cpu_threads = 0;
 		display_device = false;
 		advanced_shading = true;
-		has_bindless_textures = false;
+		has_fermi_limits = false;
+		has_half_images = false;
 		has_volume_decoupled = false;
 		has_qbvh = false;
+		has_osl = false;
 		use_split_kernel = false;
 	}
 
@@ -84,9 +90,6 @@ class DeviceRequestedFeatures {
 public:
 	/* Use experimental feature set. */
 	bool experimental;
-
-	/* Maximum number of closures in shader trees. */
-	int max_closure;
 
 	/* Selective nodes compilation. */
 
@@ -133,11 +136,13 @@ public:
 	/* Denoising features. */
 	bool use_denoising;
 
+	/* Use raytracing in shaders. */
+	bool use_shader_raytrace;
+
 	DeviceRequestedFeatures()
 	{
 		/* TODO(sergey): Find more meaningful defaults. */
 		experimental = false;
-		max_closure = 0;
 		max_nodes_group = 0;
 		nodes_features = 0;
 		use_hair = false;
@@ -152,12 +157,12 @@ public:
 		use_shadow_tricks = false;
 		use_principled = false;
 		use_denoising = false;
+		use_shader_raytrace = false;
 	}
 
 	bool modified(const DeviceRequestedFeatures& requested_features)
 	{
 		return !(experimental == requested_features.experimental &&
-		         max_closure == requested_features.max_closure &&
 		         max_nodes_group == requested_features.max_nodes_group &&
 		         nodes_features == requested_features.nodes_features &&
 		         use_hair == requested_features.use_hair &&
@@ -171,7 +176,8 @@ public:
 		         use_transparent == requested_features.use_transparent &&
 		         use_shadow_tricks == requested_features.use_shadow_tricks &&
 		         use_principled == requested_features.use_principled &&
-		         use_denoising == requested_features.use_denoising);
+		         use_denoising == requested_features.use_denoising &&
+		         use_shader_raytrace == requested_features.use_shader_raytrace);
 	}
 
 	/* Convert the requested features structure to a build options,
@@ -187,7 +193,6 @@ public:
 			string_printf("%d", max_nodes_group);
 		build_options += " -D__NODES_FEATURES__=" +
 			string_printf("%d", nodes_features);
-		build_options += string_printf(" -D__MAX_CLOSURE__=%d", max_closure);
 		if(!use_hair) {
 			build_options += " -D__NO_HAIR__";
 		}
@@ -224,6 +229,9 @@ public:
 		if(!use_denoising) {
 			build_options += " -D__NO_DENOISING__";
 		}
+		if(!use_shader_raytrace) {
+			build_options += " -D__NO_SHADER_RAYTRACE__";
+		}
 		return build_options;
 	}
 };
@@ -249,7 +257,7 @@ protected:
 	/* used for real time display */
 	unsigned int vertex_buffer;
 
-	virtual device_ptr mem_alloc_sub_ptr(device_memory& /*mem*/, int /*offset*/, int /*size*/, MemoryType /*type*/)
+	virtual device_ptr mem_alloc_sub_ptr(device_memory& /*mem*/, int /*offset*/, int /*size*/)
 	{
 		/* Only required for devices that implement denoising. */
 		assert(false);
@@ -277,35 +285,11 @@ public:
 	/* statistics */
 	Stats &stats;
 
-	/* regular memory */
-	virtual void mem_alloc(const char *name, device_memory& mem, MemoryType type) = 0;
-	virtual void mem_copy_to(device_memory& mem) = 0;
-	virtual void mem_copy_from(device_memory& mem,
-		int y, int w, int h, int elem) = 0;
-	virtual void mem_zero(device_memory& mem) = 0;
-	virtual void mem_free(device_memory& mem) = 0;
-
+	/* memory alignment */
 	virtual int mem_address_alignment() { return 16; }
 
 	/* constant memory */
 	virtual void const_copy_to(const char *name, void *host, size_t size) = 0;
-
-	/* texture memory */
-	virtual void tex_alloc(const char * /*name*/,
-	                       device_memory& /*mem*/,
-	                       InterpolationType interpolation = INTERPOLATION_NONE,
-	                       ExtensionType extension = EXTENSION_REPEAT)
-	{
-		(void)interpolation;  /* Ignored. */
-		(void)extension;  /* Ignored. */
-	};
-
-	virtual void tex_free(device_memory& /*mem*/) {};
-
-	/* pixel memory */
-	virtual void pixels_alloc(device_memory& mem);
-	virtual void pixels_copy_from(device_memory& mem, int y, int w, int h);
-	virtual void pixels_free(device_memory& mem);
 
 	/* open shading language, only for CPU device */
 	virtual void *osl_memory() { return NULL; }
@@ -345,12 +329,28 @@ public:
 	static vector<DeviceType>& available_types();
 	static vector<DeviceInfo>& available_devices();
 	static string device_capabilities();
-	static DeviceInfo get_multi_device(vector<DeviceInfo> subdevices);
+	static DeviceInfo get_multi_device(const vector<DeviceInfo>& subdevices,
+	                                   int threads,
+	                                   bool background);
 
 	/* Tag devices lists for update. */
 	static void tag_update();
 
 	static void free_memory();
+
+protected:
+	/* Memory allocation, only accessed through device_memory. */
+	friend class MultiDevice;
+	friend class DeviceServer;
+	friend class device_memory;
+
+	virtual void mem_alloc(device_memory& mem) = 0;
+	virtual void mem_copy_to(device_memory& mem) = 0;
+	virtual void mem_copy_from(device_memory& mem,
+		int y, int w, int h, int elem) = 0;
+	virtual void mem_zero(device_memory& mem) = 0;
+	virtual void mem_free(device_memory& mem) = 0;
+
 private:
 	/* Indicted whether device types and devices lists were initialized. */
 	static bool need_types_update, need_devices_update;

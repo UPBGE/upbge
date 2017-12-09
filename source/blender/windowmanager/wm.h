@@ -57,13 +57,13 @@ void wm_operatortype_free(void);
 void wm_operatortype_init(void);
 void wm_window_keymap(wmKeyConfig *keyconf);
 
-void wm_tweakevent_test(bContext *C, const wmEvent *event, int action);
-
 /* wm_gesture.c */
-#define WM_LASSO_MIN_POINTS		1024
 void wm_gesture_draw(struct wmWindow *win);
 int wm_gesture_evaluate(wmGesture *gesture);
 void wm_gesture_tag_redraw(bContext *C);
+
+/* wm_gesture_ops.c */
+void wm_tweakevent_test(bContext *C, const wmEvent *event, int action);
 
 /* wm_jobs.c */
 void wm_jobs_timer(const bContext *C, wmWindowManager *wm, wmTimer *wt);
@@ -89,12 +89,4 @@ void wm_stereo3d_set_cancel(bContext *C, wmOperator *op);
 void wm_open_init_load_ui(wmOperator *op, bool use_prefs);
 void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 
-/* hack to store circle select size - campbell, must replace with nice operator memory */
-#define GESTURE_MEMORY
-
-#ifdef GESTURE_MEMORY
-extern int circle_select_size;
-#endif
-
 #endif /* __WM_H__ */
-

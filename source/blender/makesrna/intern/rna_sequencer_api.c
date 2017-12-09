@@ -457,7 +457,7 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop)
 	PropertyRNA *parm;
 	FunctionRNA *func;
 
-	static EnumPropertyItem seq_effect_items[] = {
+	static const EnumPropertyItem seq_effect_items[] = {
 		{SEQ_TYPE_CROSS, "CROSS", 0, "Cross", ""},
 		{SEQ_TYPE_ADD, "ADD", 0, "Add", ""},
 		{SEQ_TYPE_SUB, "SUBTRACT", 0, "Subtract", ""},
@@ -475,6 +475,7 @@ void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop)
 		{SEQ_TYPE_ADJUSTMENT, "ADJUSTMENT", 0, "Adjustment Layer", ""},
 		{SEQ_TYPE_GAUSSIAN_BLUR, "GAUSSIAN_BLUR", 0, "Gaussian Blur", ""},
 		{SEQ_TYPE_TEXT, "TEXT", 0, "Text", ""},
+		{SEQ_TYPE_COLORMIX, "COLORMIX", 0, "Color Mix", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 

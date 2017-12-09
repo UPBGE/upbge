@@ -448,6 +448,18 @@ void sample_fcurve(FCurve *fcu)
 		/* check if selected, and which end this is */
 		if (BEZT_ISSEL_ANY(bezt)) {
 			if (start) {
+				/* If next bezt is also selected, don't start sampling yet,
+				 * but instead wait for that one to reconsider, to avoid
+				 * changing the curve when sampling consecutive segments
+				 * (T53229)
+				 */
+				if (i < fcu->totvert - 1) {
+					BezTriple *next = &fcu->bezt[i + 1];
+					if (BEZT_ISSEL_ANY(next)) {
+						continue;
+					}
+				}
+				
 				/* set end */
 				end = bezt;
 				
@@ -480,8 +492,8 @@ void sample_fcurve(FCurve *fcu)
 					i += (range - 1);
 				}
 				
-				/* bezt was selected, so it now marks the start of a whole new chain to search */
-				start = bezt;
+				/* the current selection island has ended, so start again from scratch */
+				start = NULL;
 				end = NULL;
 			}
 			else {
@@ -885,14 +897,14 @@ static void paste_animedit_keys_fcurve(FCurve *fcu, tAnimCopybufItem *aci, float
 
 /* ------------------- */
 
-EnumPropertyItem rna_enum_keyframe_paste_offset_items[] = {
+const EnumPropertyItem rna_enum_keyframe_paste_offset_items[] = {
 	{KEYFRAME_PASTE_OFFSET_CFRA_START, "START", 0, "Frame Start", "Paste keys starting at current frame"},
 	{KEYFRAME_PASTE_OFFSET_CFRA_END, "END", 0, "Frame End", "Paste keys ending at current frame"},
 	{KEYFRAME_PASTE_OFFSET_CFRA_RELATIVE, "RELATIVE", 0, "Frame Relative", "Paste keys relative to the current frame when copying"},
 	{KEYFRAME_PASTE_OFFSET_NONE, "NONE", 0, "No Offset", "Paste keys from original time"},
 	{0, NULL, 0, NULL, NULL}};
 
-EnumPropertyItem rna_enum_keyframe_paste_merge_items[] = {
+const EnumPropertyItem rna_enum_keyframe_paste_merge_items[] = {
 	{KEYFRAME_PASTE_MERGE_MIX, "MIX", 0, "Mix", "Overlay existing with new keys"},
 	{KEYFRAME_PASTE_MERGE_OVER, "OVER_ALL", 0, "Overwrite All", "Replace all keys"},
 	{KEYFRAME_PASTE_MERGE_OVER_RANGE, "OVER_RANGE", 0, "Overwrite Range", "Overwrite keys in pasted range"},

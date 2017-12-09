@@ -179,7 +179,6 @@ void BKE_object_tfm_protected_restore(struct Object *ob,
 
 /* Dependency graph evaluation callbacks. */
 void BKE_object_eval_local_transform(struct EvaluationContext *eval_ctx,
-                                     struct Scene *scene,
                                      struct Object *ob);
 void BKE_object_eval_parent(struct EvaluationContext *eval_ctx,
                             struct Scene *scene,
@@ -189,8 +188,9 @@ void BKE_object_eval_constraints(struct EvaluationContext *eval_ctx,
                                  struct Object *ob);
 void BKE_object_eval_done(struct EvaluationContext *eval_ctx, struct Object *ob);
 
+bool BKE_object_eval_proxy_copy(struct EvaluationContext *eval_ctx,
+                                struct Object *object);
 void BKE_object_eval_uber_transform(struct EvaluationContext *eval_ctx,
-                                    struct Scene *scene,
                                     struct Object *ob);
 void BKE_object_eval_uber_data(struct EvaluationContext *eval_ctx,
                                struct Scene *scene,
@@ -200,6 +200,10 @@ void BKE_object_eval_cloth(struct EvaluationContext *eval_ctx,
                            struct Scene *scene,
                            struct Object *object);
 
+
+void BKE_object_eval_transform_all(struct EvaluationContext *eval_ctx,
+                                   struct Scene *scene,
+                                   struct Object *object);
 
 void BKE_object_handle_data_update(struct EvaluationContext *eval_ctx,
                                    struct Scene *scene,

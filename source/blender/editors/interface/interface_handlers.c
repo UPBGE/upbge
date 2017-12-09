@@ -61,6 +61,7 @@
 
 #include "PIL_time.h"
 
+#include "BKE_colorband.h"
 #include "BKE_blender_undo.h"
 #include "BKE_brush.h"
 #include "BKE_colortools.h"
@@ -68,7 +69,6 @@
 #include "BKE_idprop.h"
 #include "BKE_report.h"
 #include "BKE_screen.h"
-#include "BKE_texture.h"
 #include "BKE_tracking.h"
 #include "BKE_unit.h"
 #include "BKE_paint.h"
@@ -303,6 +303,9 @@ typedef struct uiHandleButtonData {
 	/* auto open */
 	bool used_mouse;
 	wmTimer *autoopentimer;
+
+	/* auto open (hold) */
+	wmTimer *hold_action_timer;
 
 	/* text selection/editing */
 	/* size of 'str' (including terminator) */
@@ -1287,7 +1290,7 @@ static bool ui_drag_toggle_set_xy_xy(
 		}
 	}
 	if (changed) {
-		/* apply now, not on release (or if handlers are cancelled for whatever reason) */
+		/* apply now, not on release (or if handlers are canceled for whatever reason) */
 		ui_apply_but_funcs_after(C);
 	}
 
@@ -2816,8 +2819,8 @@ static bool ui_textedit_insert_ascii(uiBut *but, uiHandleButtonData *data, char 
 }
 
 static void ui_textedit_move(
-        uiBut *but, uiHandleButtonData *data, strCursorJumpDirection direction,
-        const bool select, strCursorJumpType jump)
+        uiBut *but, uiHandleButtonData *data, eStrCursorJumpDirection direction,
+        const bool select, eStrCursorJumpType jump)
 {
 	const char *str = data->str;
 	const int len = strlen(str);
@@ -2893,7 +2896,7 @@ static void ui_textedit_move(
 	}
 }
 
-static bool ui_textedit_delete(uiBut *but, uiHandleButtonData *data, int direction, strCursorJumpType jump)
+static bool ui_textedit_delete(uiBut *but, uiHandleButtonData *data, int direction, eStrCursorJumpType jump)
 {
 	char *str = data->str;
 	const int len = strlen(str);
@@ -5930,7 +5933,7 @@ static bool ui_numedit_but_COLORBAND(uiBut *but, uiHandleButtonData *data, int m
 	data->dragcbd->pos += dx;
 	CLAMP(data->dragcbd->pos, 0.0f, 1.0f);
 	
-	colorband_update_sort(data->coba);
+	BKE_colorband_update_sort(data->coba);
 	data->dragcbd = data->coba->data + data->coba->cur;  /* because qsort */
 	
 	data->draglastx = mx;
@@ -5960,7 +5963,7 @@ static int ui_do_but_COLORBAND(
 			if (event->ctrl) {
 				/* insert new key on mouse location */
 				float pos = ((float)(mx - but->rect.xmin)) / BLI_rctf_size_x(&but->rect);
-				colorband_element_add(coba, pos);
+				BKE_colorband_element_add(coba, pos);
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 			}
 			else {
@@ -6541,8 +6544,9 @@ static void but_shortcut_name_func(bContext *C, void *arg1, int UNUSED(event))
 		IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
 		
 		/* complex code to change name of button */
-		if (WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, true,
-		                                 sizeof(shortcut_str), shortcut_str))
+		if (WM_key_event_operator_string(
+		        C, but->optype->idname, but->opcontext, prop, true,
+		        shortcut_str, sizeof(shortcut_str)))
 		{
 			ui_but_add_shortcut(but, shortcut_str, true);
 		}
@@ -6738,16 +6742,15 @@ static void ui_but_menu_add_path_operators(uiLayout *layout, PointerRNA *ptr, Pr
 
 	if (file[0]) {
 		BLI_assert(subtype == PROP_FILEPATH);
-
-		props_ptr = uiItemFullO_ptr(
-		                layout, ot, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Open File Externally"),
-		                ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+		uiItemFullO_ptr(
+		        layout, ot, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Open File Externally"),
+		        ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0, &props_ptr);
 		RNA_string_set(&props_ptr, "filepath", filepath);
 	}
 
-	props_ptr = uiItemFullO_ptr(
-	                layout, ot, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Open Location Externally"),
-	                ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+	uiItemFullO_ptr(
+	        layout, ot, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Open Location Externally"),
+	        ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0, &props_ptr);
 	RNA_string_set(&props_ptr, "filepath", dir);
 }
 
@@ -6787,11 +6790,8 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		/*bool is_idprop = RNA_property_is_idprop(prop);*/ /* XXX does not work as expected, not strictly needed */
 		bool is_set = RNA_property_is_set(ptr, prop);
 
-		/* set the prop and pointer data for python access to the hovered ui element; TODO, index could be supported as well*/
-		PointerRNA temp_ptr;
-		RNA_pointer_create(NULL, &RNA_Property, but->rnaprop, &temp_ptr);
-		uiLayoutSetContextPointer(layout, "button_prop", &temp_ptr);
-		uiLayoutSetContextPointer(layout, "button_pointer", ptr);
+		/* Set the (button_pointer, button_prop) and pointer data for Python access to the hovered ui element. */
+		uiLayoutSetContextFromBut(layout, but);
 
 		/* second slower test, saved people finding keyframe items in menus when its not possible */
 		if (is_anim)
@@ -7010,9 +7010,7 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		}
 
 		/* Set the operator pointer for python access */
-		if (but->opptr) {
-			uiLayoutSetContextPointer(layout, "button_operator", but->opptr);
-		}
+		uiLayoutSetContextFromBut(layout, but);
 
 		uiItemS(layout);
 	}
@@ -7028,21 +7026,23 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 
 	{   /* Docs */
 		char buf[512];
-		PointerRNA ptr_props;
 
 		if (UI_but_online_manual_id(but, buf, sizeof(buf))) {
+			PointerRNA ptr_props;
 			uiItemO(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Online Manual"),
 			        ICON_URL, "WM_OT_doc_view_manual_ui_context");
 
-			ptr_props = uiItemFullO(layout, "WM_OT_doc_view",
-			                            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Online Python Reference"),
-			                            ICON_NONE, NULL, WM_OP_EXEC_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+			uiItemFullO(
+			        layout, "WM_OT_doc_view",
+			        CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Online Python Reference"),
+			        ICON_NONE, NULL, WM_OP_EXEC_DEFAULT, 0, &ptr_props);
 			RNA_string_set(&ptr_props, "doc_id", buf);
 
 			/* XXX inactive option, not for public! */
 #if 0
-			ptr_props = uiItemFullO(layout, "WM_OT_doc_edit",
-			                            "Submit Description", ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+			uiItemFullO(
+			        layout, "WM_OT_doc_edit", "Submit Description", ICON_NONE,
+			        NULL, WM_OP_INVOKE_DEFAULT, 0, &ptr_props);
 			RNA_string_set(&ptr_props, "doc_id", buf);
 			RNA_string_set(&ptr_props, "doc_new", RNA_property_description(but->rnaprop));
 #endif
@@ -7056,16 +7056,13 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 
 	/* perhaps we should move this into (G.debug & G_DEBUG) - campbell */
 	if (ui_block_is_menu(but->block) == false) {
-		uiItemFullO(layout, "UI_OT_editsource", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0);
+		uiItemFullO(layout, "UI_OT_editsource", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0, NULL);
 	}
-	uiItemFullO(layout, "UI_OT_edittranslation_init", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0);
+	uiItemFullO(layout, "UI_OT_edittranslation_init", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0, NULL);
 
 	mt = WM_menutype_find("WM_MT_button_context", true);
 	if (mt) {
-		Menu menu = {NULL};
-		menu.layout = uiLayoutColumn(layout, false);
-		menu.type = mt;
-		mt->draw(C, &menu);
+		UI_menutype_draw(C, mt, uiLayoutColumn(layout, false));
 	}
 
 	UI_popup_menu_end(C, pup);
@@ -7807,6 +7804,15 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 		data->flashtimer = NULL;
 	}
 
+	/* add hold timer if it's used */
+	if (state == BUTTON_STATE_WAIT_RELEASE && (but->hold_func != NULL)) {
+		data->hold_action_timer = WM_event_add_timer(data->wm, data->window, TIMER, BUTTON_AUTO_OPEN_THRESH);
+	}
+	else if (data->hold_action_timer) {
+		WM_event_remove_timer(data->wm, data->window, data->hold_action_timer);
+		data->hold_action_timer = NULL;
+	}
+
 	/* add a blocking ui handler at the window handler for blocking, modal states
 	 * but not for popups, because we already have a window level handler*/
 	if (!(but->block->handle && but->block->handle->popup)) {
@@ -8025,7 +8031,7 @@ static void button_activate_exit(
 		ui_but_update(but);
 
 	/* adds empty mousemove in queue for re-init handler, in case mouse is
-	 * still over a button. we cannot just check for this ourselfs because
+	 * still over a button. We cannot just check for this ourselves because
 	 * at this point the mouse may be over a button in another region */
 	if (mousemove)
 		WM_event_add_mousemove(C);
@@ -8421,6 +8427,25 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 				break;
 
+			case TIMER:
+			{
+				if (event->customdata == data->hold_action_timer) {
+					if (true) {
+						data->cancel = true;
+						button_activate_state(C, but, BUTTON_STATE_EXIT);
+					}
+					else {
+						/* Do this so we can still mouse-up, closing the menu and running the button.
+						 * This is nice to support but there are times when the button gets left pressed.
+						 * Keep disavled for now. */
+						WM_event_remove_timer(data->wm, data->window, data->hold_action_timer);
+						data->hold_action_timer = NULL;
+					}
+					retval = WM_UI_HANDLER_CONTINUE;
+					but->hold_func(C, data->region, but);
+				}
+				break;
+			}
 			case MOUSEMOVE:
 				if (ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK)) {
 					but->flag |= UI_SELECT;
@@ -9347,21 +9372,29 @@ static int ui_handle_menu_event(
 			if (inside == 0) {
 				uiSafetyRct *saferct = block->saferct.first;
 
-				if (ELEM(event->type, LEFTMOUSE, MIDDLEMOUSE, RIGHTMOUSE) &&
-				    ELEM(event->val, KM_PRESS, KM_DBL_CLICK))
-				{
-					if ((is_parent_menu == false) && (U.uiflag & USER_MENUOPENAUTO) == 0) {
-						/* for root menus, allow clicking to close */
-						if (block->flag & (UI_BLOCK_OUT_1))
-							menu->menuretval = UI_RETURN_OK;
-						else
-							menu->menuretval = UI_RETURN_OUT;
+				if (ELEM(event->type, LEFTMOUSE, MIDDLEMOUSE, RIGHTMOUSE)) {
+					if (ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
+						if ((is_parent_menu == false) && (U.uiflag & USER_MENUOPENAUTO) == 0) {
+							/* for root menus, allow clicking to close */
+							if (block->flag & (UI_BLOCK_OUT_1))
+								menu->menuretval = UI_RETURN_OK;
+							else
+								menu->menuretval = UI_RETURN_OUT;
+						}
+						else if (saferct && !BLI_rctf_isect_pt(&saferct->parent, event->x, event->y)) {
+							if (block->flag & (UI_BLOCK_OUT_1))
+								menu->menuretval = UI_RETURN_OK;
+							else
+								menu->menuretval = UI_RETURN_OUT;
+						}
 					}
-					else if (saferct && !BLI_rctf_isect_pt(&saferct->parent, event->x, event->y)) {
-						if (block->flag & (UI_BLOCK_OUT_1))
-							menu->menuretval = UI_RETURN_OK;
-						else
-							menu->menuretval = UI_RETURN_OUT;
+					else if (ELEM(event->val, KM_RELEASE, KM_CLICK)) {
+						/* For buttons that use a hold function, exit when mouse-up outside the menu. */
+						if (block->flag & UI_BLOCK_POPUP_HOLD) {
+							/* Note, we could check the cursor is over the parent button. */
+							menu->menuretval = UI_RETURN_CANCEL;
+							retval = WM_UI_HANDLER_CONTINUE;
+						}
 					}
 				}
 			}

@@ -70,8 +70,6 @@
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
 #include "BKE_tracking.h"
-#include "BKE_utildefines.h"
-
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -726,7 +724,7 @@ static void do_lasso_select_meshobject__doSelectVert(void *userData, MVert *mv, 
 	if (BLI_rctf_isect_pt_v(data->rect_fl, screen_co) &&
 	    BLI_lasso_is_point_inside(data->mcords, data->moves, screen_co[0], screen_co[1], IS_CLIPPED))
 	{
-		BKE_BIT_TEST_SET(mv->flag, data->select, SELECT);
+		SET_FLAG_FROM_TEST(mv->flag, data->select, SELECT);
 	}
 }
 static void do_lasso_select_paintvert(ViewContext *vc, const int mcords[][2], short moves, bool extend, bool select)
@@ -914,9 +912,8 @@ void VIEW3D_OT_select_lasso(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
 	
-	RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
-	RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Deselect rather than select items");
-	RNA_def_boolean(ot->srna, "extend", 1, "Extend", "Extend selection instead of deselecting everything first");
+	/* properties */
+	WM_operator_properties_gesture_lasso_select(ot);
 }
 
 
@@ -984,7 +981,7 @@ typedef struct SelMenuItemF {
 static SelMenuItemF object_mouse_select_menu_data[SEL_MENU_SIZE];
 
 /* special (crappy) operator only for menu select */
-static EnumPropertyItem *object_select_menu_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
+static const EnumPropertyItem *object_select_menu_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem *item = NULL, item_tmp = {0};
 	int totitem = 0;
@@ -1673,7 +1670,7 @@ static void do_paintvert_box_select__doSelectVert(void *userData, MVert *mv, con
 	BoxSelectUserData *data = userData;
 
 	if (BLI_rctf_isect_pt_v(data->rect_fl, screen_co)) {
-		BKE_BIT_TEST_SET(mv->flag, data->select, SELECT);
+		SET_FLAG_FROM_TEST(mv->flag, data->select, SELECT);
 	}
 }
 static int do_paintvert_box_select(ViewContext *vc, rcti *rect, bool select, bool extend)
@@ -2138,9 +2135,9 @@ static int view3d_borderselect_exec(bContext *C, wmOperator *op)
 	/* setup view context for argument to callbacks */
 	view3d_set_viewcontext(C, &vc);
 	
-	select = (RNA_int_get(op->ptr, "gesture_mode") == GESTURE_MODAL_SELECT);
-	WM_operator_properties_border_to_rcti(op, &rect);
+	select = !RNA_boolean_get(op->ptr, "deselect");
 	extend = RNA_boolean_get(op->ptr, "extend");
+	WM_operator_properties_border_to_rcti(op, &rect);
 
 	if (vc.obedit) {
 		switch (vc.obedit->type) {
@@ -2215,17 +2212,17 @@ void VIEW3D_OT_select_border(wmOperatorType *ot)
 	ot->idname = "VIEW3D_OT_select_border";
 	
 	/* api callbacks */
-	ot->invoke = WM_border_select_invoke;
+	ot->invoke = WM_gesture_border_invoke;
 	ot->exec = view3d_borderselect_exec;
-	ot->modal = WM_border_select_modal;
+	ot->modal = WM_gesture_border_modal;
 	ot->poll = view3d_selectable_data;
-	ot->cancel = WM_border_select_cancel;
+	ot->cancel = WM_gesture_border_cancel;
 	
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
 	
 	/* rna */
-	WM_operator_properties_gesture_border(ot, true);
+	WM_operator_properties_gesture_border_select(ot);
 }
 
 
@@ -2499,7 +2496,7 @@ static void paint_vertsel_circle_select_doSelectVert(void *userData, MVert *mv, 
 	CircleSelectUserData *data = userData;
 
 	if (len_squared_v2v2(data->mval_fl, screen_co) <= data->radius_squared) {
-		BKE_BIT_TEST_SET(mv->flag, data->select, SELECT);
+		SET_FLAG_FROM_TEST(mv->flag, data->select, SELECT);
 	}
 }
 static void paint_vertsel_circle_select(ViewContext *vc, const bool select, const int mval[2], float rad)
@@ -2836,8 +2833,7 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Object *obact = CTX_data_active_object(C);
 	const int radius = RNA_int_get(op->ptr, "radius");
-	const int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
-	const bool select = (gesture_mode == GESTURE_MODAL_SELECT);
+	const bool select = !RNA_boolean_get(op->ptr, "deselect");
 	const int mval[2] = {RNA_int_get(op->ptr, "x"),
 	                     RNA_int_get(op->ptr, "y")};
 
@@ -2896,9 +2892,7 @@ void VIEW3D_OT_select_circle(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
-	
-	RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "radius", 1, 1, INT_MAX, "Radius", "", 1, INT_MAX);
-	RNA_def_int(ot->srna, "gesture_mode", 0, INT_MIN, INT_MAX, "Event Type", "", INT_MIN, INT_MAX);
+
+	/* properties */
+	WM_operator_properties_gesture_circle_select(ot);
 }

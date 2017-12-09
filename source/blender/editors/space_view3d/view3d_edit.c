@@ -100,7 +100,7 @@ bool ED_view3d_offset_lock_check(const  View3D *v3d, const  RegionView3D *rv3d)
 bool ED_view3d_camera_lock_check(const View3D *v3d, const RegionView3D *rv3d)
 {
 	return ((v3d->camera) &&
-	        (!ID_IS_LINKED_DATABLOCK(v3d->camera)) &&
+	        (!ID_IS_LINKED(v3d->camera)) &&
 	        (v3d->flag2 & V3D_LOCK_CAMERA) &&
 	        (rv3d->persp == RV3D_CAMOB));
 }
@@ -908,7 +908,7 @@ enum {
 /* called in transform_ops.c, on each regeneration of keymaps  */
 void viewrotate_modal_keymap(wmKeyConfig *keyconf)
 {
-	static EnumPropertyItem modal_items[] = {
+	static const EnumPropertyItem modal_items[] = {
 		{VIEW_MODAL_CONFIRM,    "CONFIRM", 0, "Confirm", ""},
 
 		{VIEWROT_MODAL_AXIS_SNAP_ENABLE,    "AXIS_SNAP_ENABLE", 0, "Enable Axis Snap", ""},
@@ -1932,7 +1932,7 @@ void VIEW3D_OT_ndof_all(struct wmOperatorType *ot)
 /* called in transform_ops.c, on each regeneration of keymaps  */
 void viewmove_modal_keymap(wmKeyConfig *keyconf)
 {
-	static EnumPropertyItem modal_items[] = {
+	static const EnumPropertyItem modal_items[] = {
 		{VIEW_MODAL_CONFIRM,    "CONFIRM", 0, "Confirm", ""},
 		
 		{VIEWROT_MODAL_SWITCH_ZOOM, "SWITCH_TO_ZOOM", 0, "Switch to Zoom"},
@@ -2111,7 +2111,7 @@ void VIEW3D_OT_move(wmOperatorType *ot)
 /* called in transform_ops.c, on each regeneration of keymaps  */
 void viewzoom_modal_keymap(wmKeyConfig *keyconf)
 {
-	static EnumPropertyItem modal_items[] = {
+	static const EnumPropertyItem modal_items[] = {
 		{VIEW_MODAL_CONFIRM,    "CONFIRM", 0, "Confirm", ""},
 		
 		{VIEWROT_MODAL_SWITCH_ROTATE, "SWITCH_TO_ROTATE", 0, "Switch to Rotate"},
@@ -2503,7 +2503,7 @@ static int viewzoom_exec(bContext *C, wmOperator *op)
 /* called in transform_ops.c, on each regeneration of keymaps  */
 void viewdolly_modal_keymap(wmKeyConfig *keyconf)
 {
-	static EnumPropertyItem modal_items[] = {
+	static const EnumPropertyItem modal_items[] = {
 		{VIEW_MODAL_CONFIRM,    "CONFIRM", 0, "Confirm", ""},
 
 		{VIEWROT_MODAL_SWITCH_ROTATE, "SWITCH_TO_ROTATE", 0, "Switch to Rotate"},
@@ -3507,10 +3507,10 @@ void VIEW3D_OT_render_border(wmOperatorType *ot)
 	ot->idname = "VIEW3D_OT_render_border";
 
 	/* api callbacks */
-	ot->invoke = WM_border_select_invoke;
+	ot->invoke = WM_gesture_border_invoke;
 	ot->exec = render_border_exec;
-	ot->modal = WM_border_select_modal;
-	ot->cancel = WM_border_select_cancel;
+	ot->modal = WM_gesture_border_modal;
+	ot->cancel = WM_gesture_border_cancel;
 
 	ot->poll = ED_operator_view3d_active;
 
@@ -3580,7 +3580,6 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	Scene *scene = CTX_data_scene(C);
-	int gesture_mode;
 	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
 	/* Zooms in on a border drawn by the user */
@@ -3604,7 +3603,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 	WM_operator_properties_border_to_rcti(op, &rect);
 
 	/* check if zooming in/out view */
-	gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
+	const bool zoom_in = !RNA_boolean_get(op->ptr, "zoom_out");
 
 	ED_view3d_dist_range_get(v3d, dist_range);
 
@@ -3702,7 +3701,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 		new_dist *= max_ff(xscale, yscale);
 	}
 
-	if (gesture_mode == GESTURE_MODAL_OUT) {
+	if (!zoom_in) {
 		sub_v3_v3v3(dvec, new_ofs, rv3d->ofs);
 		new_dist = rv3d->dist * (rv3d->dist / new_dist);
 		add_v3_v3v3(new_ofs, rv3d->ofs, dvec);
@@ -3728,7 +3727,7 @@ static int view3d_zoom_border_invoke(bContext *C, wmOperator *op, const wmEvent 
 
 	/* if in camera view do not exec the operator so we do not conflict with set render border*/
 	if ((rv3d->persp != RV3D_CAMOB) || ED_view3d_camera_lock_check(v3d, rv3d))
-		return WM_border_select_invoke(C, op, event);
+		return WM_gesture_border_invoke(C, op, event);
 	else
 		return OPERATOR_PASS_THROUGH;
 }
@@ -3743,8 +3742,8 @@ void VIEW3D_OT_zoom_border(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = view3d_zoom_border_invoke;
 	ot->exec = view3d_zoom_border_exec;
-	ot->modal = WM_border_select_modal;
-	ot->cancel = WM_border_select_cancel;
+	ot->modal = WM_gesture_border_modal;
+	ot->cancel = WM_gesture_border_cancel;
 
 	ot->poll = ED_operator_region_view3d_active;
 
@@ -3752,7 +3751,7 @@ void VIEW3D_OT_zoom_border(wmOperatorType *ot)
 	ot->flag = 0;
 
 	/* rna */
-	WM_operator_properties_gesture_border(ot, false);
+	WM_operator_properties_gesture_border_zoom(ot);
 }
 
 /* sets the view to 1:1 camera/render-pixel */
@@ -3802,7 +3801,7 @@ void VIEW3D_OT_zoom_camera_1_to_1(wmOperatorType *ot)
 
 /* ********************* Changing view operator ****************** */
 
-static EnumPropertyItem prop_view_items[] = {
+static const EnumPropertyItem prop_view_items[] = {
 	{RV3D_VIEW_LEFT, "LEFT", ICON_TRIA_LEFT, "Left", "View From the Left"},
 	{RV3D_VIEW_RIGHT, "RIGHT", ICON_TRIA_RIGHT, "Right", "View From the Right"},
 	{RV3D_VIEW_BOTTOM, "BOTTOM", ICON_TRIA_DOWN, "Bottom", "View From the Bottom"},
@@ -4038,7 +4037,7 @@ void VIEW3D_OT_viewnumpad(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static EnumPropertyItem prop_view_orbit_items[] = {
+static const EnumPropertyItem prop_view_orbit_items[] = {
 	{V3D_VIEW_STEPLEFT, "ORBITLEFT", 0, "Orbit Left", "Orbit the view around to the Left"},
 	{V3D_VIEW_STEPRIGHT, "ORBITRIGHT", 0, "Orbit Right", "Orbit the view around to the Right"},
 	{V3D_VIEW_STEPUP, "ORBITUP", 0, "Orbit Up", "Orbit the view Up"},
@@ -4261,7 +4260,7 @@ static int viewroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return ret;
 }
 
-static EnumPropertyItem prop_view_roll_items[] = {
+static const EnumPropertyItem prop_view_roll_items[] = {
 	{0, "ANGLE", 0, "Roll Angle", "Roll the view using an angle value"},
 	{V3D_VIEW_STEPLEFT, "LEFT", 0, "Roll Left", "Roll the view around to the Left"},
 	{V3D_VIEW_STEPRIGHT, "RIGHT", 0, "Roll Right", "Roll the view around to the Right"},
@@ -4396,7 +4395,7 @@ void VIEW3D_OT_view_roll(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static EnumPropertyItem prop_view_pan_items[] = {
+static const EnumPropertyItem prop_view_pan_items[] = {
 	{V3D_VIEW_PANLEFT, "PANLEFT", 0, "Pan Left", "Pan the view to the Left"},
 	{V3D_VIEW_PANRIGHT, "PANRIGHT", 0, "Pan Right", "Pan the view to the Right"},
 	{V3D_VIEW_PANUP, "PANUP", 0, "Pan Up", "Pan the view Up"},
@@ -4672,7 +4671,7 @@ static int view3d_clipping_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 		return OPERATOR_FINISHED;
 	}
 	else {
-		return WM_border_select_invoke(C, op, event);
+		return WM_gesture_border_invoke(C, op, event);
 	}
 }
 
@@ -4688,8 +4687,8 @@ void VIEW3D_OT_clip_border(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = view3d_clipping_invoke;
 	ot->exec = view3d_clipping_exec;
-	ot->modal = WM_border_select_modal;
-	ot->cancel = WM_border_select_cancel;
+	ot->modal = WM_gesture_border_modal;
+	ot->cancel = WM_gesture_border_cancel;
 
 	ot->poll = ED_operator_region_view3d_active;
 

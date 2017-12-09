@@ -15,7 +15,12 @@
  */
 
 #include "render/bake.h"
+#include "render/mesh.h"
+#include "render/object.h"
+#include "render/shader.h"
 #include "render/integrator.h"
+
+#include "util/util_foreach.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -135,7 +140,7 @@ bool BakeManager::bake(Device *device, DeviceScene *dscene, Scene *scene, Progre
 {
 	size_t num_pixels = bake_data->size();
 
-	int num_samples = is_aa_pass(shader_type)? scene->integrator->aa_samples : 1;
+	int num_samples = aa_samples(scene, bake_data, shader_type);
 
 	/* calculate the total pixel samples for the progress bar */
 	total_pixel_samples = 0;
@@ -150,8 +155,8 @@ bool BakeManager::bake(Device *device, DeviceScene *dscene, Scene *scene, Progre
 		size_t shader_size = (size_t)fminf(num_pixels - shader_offset, m_shader_limit);
 
 		/* setup input for device task */
-		device_vector<uint4> d_input;
-		uint4 *d_input_data = d_input.resize(shader_size * 2);
+		device_vector<uint4> d_input(device, "bake_input", MEM_READ_ONLY);
+		uint4 *d_input_data = d_input.alloc(shader_size * 2);
 		size_t d_input_size = 0;
 
 		for(size_t i = shader_offset; i < (shader_offset + shader_size); i++) {
@@ -165,16 +170,13 @@ bool BakeManager::bake(Device *device, DeviceScene *dscene, Scene *scene, Progre
 		}
 
 		/* run device task */
-		device_vector<float4> d_output;
-		d_output.resize(shader_size);
+		device_vector<float4> d_output(device, "bake_output", MEM_READ_WRITE);
+		d_output.alloc(shader_size);
+		d_output.zero_to_device();
+		d_input.copy_to_device();
 
 		/* needs to be up to data for attribute access */
 		device->const_copy_to("__data", &dscene->data, sizeof(dscene->data));
-
-		device->mem_alloc("bake_input", d_input, MEM_READ_ONLY);
-		device->mem_copy_to(d_input);
-		device->mem_alloc("bake_output", d_output, MEM_READ_WRITE);
-		device->mem_zero(d_output);
 
 		DeviceTask task(DeviceTask::SHADER);
 		task.shader_input = d_input.device_pointer;
@@ -192,20 +194,19 @@ bool BakeManager::bake(Device *device, DeviceScene *dscene, Scene *scene, Progre
 		device->task_wait();
 
 		if(progress.get_cancel()) {
-			device->mem_free(d_input);
-			device->mem_free(d_output);
+			d_input.free();
+			d_output.free();
 			m_is_baking = false;
 			return false;
 		}
 
-		device->mem_copy_from(d_output, 0, 1, d_output.size(), sizeof(float4));
-		device->mem_free(d_input);
-		device->mem_free(d_output);
+		d_output.copy_from_device(0, 1, d_output.size());
+		d_input.free();
 
 		/* read result */
 		int k = 0;
 
-		float4 *offset = (float4*)d_output.data_pointer;
+		float4 *offset = d_output.data();
 
 		size_t depth = 4;
 		for(size_t i=shader_offset; i < (shader_offset + shader_size); i++) {
@@ -218,6 +219,8 @@ bool BakeManager::bake(Device *device, DeviceScene *dscene, Scene *scene, Progre
 				}
 			}
 		}
+
+		d_output.free();
 	}
 
 	m_is_baking = false;
@@ -241,14 +244,27 @@ void BakeManager::device_free(Device * /*device*/, DeviceScene * /*dscene*/)
 {
 }
 
-bool BakeManager::is_aa_pass(ShaderEvalType type)
+int BakeManager::aa_samples(Scene *scene, BakeData *bake_data, ShaderEvalType type)
 {
-	switch(type) {
-		case SHADER_EVAL_UV:
-		case SHADER_EVAL_NORMAL:
-			return false;
-		default:
-			return true;
+	if(type == SHADER_EVAL_UV) {
+		return 1;
+	}
+	else if(type == SHADER_EVAL_NORMAL) {
+		/* Only antialias normal if mesh has bump mapping. */
+		Object *object = scene->objects[bake_data->object()];
+
+		if(object->mesh) {
+			foreach(Shader *shader, object->mesh->used_shaders) {
+				if(shader->has_bump) {
+					return scene->integrator->aa_samples;
+				}
+			}
+		}
+
+		return 1;
+	}
+	else {
+		return scene->integrator->aa_samples;
 	}
 }
 

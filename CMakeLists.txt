@@ -195,7 +195,7 @@ endif()
 # Options
 
 # First platform specific non-cached vars
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT (APPLE OR HAIKU))
 	set(WITH_X11 ON)
 endif()
 
@@ -297,6 +297,7 @@ if(WITH_X11)
 	option(WITH_X11_XINPUT    "Enable X11 Xinput (tablet support and unicode input)"  ON)
 	option(WITH_X11_XINERAMA  "Enable multi-monitor support"                          ON)
 	option(WITH_X11_XF86VMODE "Enable X11 video mode switching"                       ON)
+	option(WITH_X11_XFIXES    "Enable X11 XWayland cursor warping workaround"         ON)
 	option(WITH_X11_ALPHA     "Enable X11 transparent background"                     ON)
 endif()
 
@@ -714,6 +715,7 @@ if(WITH_GHOST_SDL OR WITH_HEADLESS)
 	set(WITH_X11_XINPUT    OFF)
 	set(WITH_X11_XINERAMA  OFF)
 	set(WITH_X11_XF86VMODE OFF)
+	set(WITH_X11_XFIXES    OFF)
 	set(WITH_X11_ALPHA     OFF)
 	set(WITH_GHOST_XDND    OFF)
 	set(WITH_INPUT_IME     OFF)
@@ -785,7 +787,7 @@ if(WITH_INTERNATIONAL)
 endif()
 
 if(WITH_PYTHON)
-	# While we have this as an '#error' in bpy_util.h,
+	# While we have this as an '#error' in 'bpy_capi_utils.h',
 	# upgrading Python tends to cause confusion for users who build.
 	# Give the error message early to make this more obvious.
 	#
@@ -873,6 +875,14 @@ if(WITH_X11)
 			list(APPEND PLATFORM_LINKLIBS ${X11_Xxf86vmode_LIB})
 		else()
 			set(WITH_X11_XF86VMODE OFF)
+		endif()
+	endif()
+
+	if(WITH_X11_XFIXES)
+		if(X11_Xfixes_LIB)
+			list(APPEND PLATFORM_LINKLIBS ${X11_Xfixes_LIB})
+		else()
+			set(WITH_X11_XFIXES OFF)
 		endif()
 	endif()
 
@@ -1450,10 +1460,6 @@ if(CMAKE_COMPILER_IS_GNUCC)
 
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
 
-	if(APPLE AND WITH_OPENMP) # we need the Intel omp lib linked here to not fail all tests due presence of -fopenmp !
-		set(CMAKE_REQUIRED_FLAGS "-L${LIBDIR}/openmp/lib -liomp5") # these are only used for the checks
-	endif()
-
 	# strange, clang complains these are not supported, but then uses them.
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ALL -Wall)
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ERROR_IMPLICIT_FUNCTION_DECLARATION -Werror=implicit-function-declaration)
@@ -1684,10 +1690,10 @@ include(build_files/cmake/packaging.cmake)
 # Use dynamic loading for OpenMP
 if(WITH_BLENDER)
 	openmp_delayload(blender)
-endif(WITH_BLENDER)
+endif()
 if(WITH_PLAYER)
 	openmp_delayload(blenderplayer)
-endif(WITH_PLAYER)
+endif()
 
 #-----------------------------------------------------------------------------
 # Print Final Configuration
@@ -1747,6 +1753,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_INSTALL_PORTABLE)
 	info_cfg_option(WITH_X11_ALPHA)
 	info_cfg_option(WITH_X11_XF86VMODE)
+	info_cfg_option(WITH_X11_XFIXES)
 	info_cfg_option(WITH_X11_XINPUT)
 	info_cfg_option(WITH_X11_XINERAMA)
 	info_cfg_option(WITH_MEM_JEMALLOC)

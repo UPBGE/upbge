@@ -983,7 +983,9 @@ void ui_but_add_shortcut(uiBut *but, const char *shortcut_str, const bool do_str
 	}
 }
 
-static bool ui_but_event_operator_string(const bContext *C, uiBut *but, char *buf, const size_t buf_len)
+static bool ui_but_event_operator_string(
+        const bContext *C, uiBut *but,
+        char *buf, const size_t buf_len)
 {
 	MenuType *mt;
 	bool found = false;
@@ -991,7 +993,10 @@ static bool ui_but_event_operator_string(const bContext *C, uiBut *but, char *bu
 	if (but->optype) {
 		IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
 
-		if (WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, true, buf_len, buf)) {
+		if (WM_key_event_operator_string(
+		        C, but->optype->idname, but->opcontext, prop, true,
+		        buf, buf_len))
+		{
 			found = true;
 		}
 	}
@@ -1006,8 +1011,9 @@ static bool ui_but_event_operator_string(const bContext *C, uiBut *but, char *bu
 
 		IDP_AssignString(prop_menu_name, mt->idname, sizeof(mt->idname));
 
-		if (WM_key_event_operator_string(C, "WM_OT_call_menu", WM_OP_INVOKE_REGION_WIN, prop_menu,
-		                                 true, buf_len, buf))
+		if (WM_key_event_operator_string(
+		        C, "WM_OT_call_menu", WM_OP_INVOKE_REGION_WIN, prop_menu, true,
+		        buf, buf_len))
 		{
 			found = true;
 		}
@@ -1019,8 +1025,10 @@ static bool ui_but_event_operator_string(const bContext *C, uiBut *but, char *bu
 	return found;
 }
 
-static bool ui_but_event_property_operator_string(const bContext *C, uiBut *but, char *buf, const size_t buf_len)
-{	
+static bool ui_but_event_property_operator_string(
+        const bContext *C, uiBut *but,
+        char *buf, const size_t buf_len)
+{
 	/* context toggle operator names to check... */
 	const char *ctx_toggle_opnames[] = {
 		"WM_OT_context_toggle",
@@ -1114,8 +1122,9 @@ static bool ui_but_event_property_operator_string(const bContext *C, uiBut *but,
 			
 			/* check each until one works... */
 			for (i = 0; (i < num_ops) && (ctx_toggle_opnames[i]); i++) {
-				if (WM_key_event_operator_string(C, ctx_toggle_opnames[i], WM_OP_INVOKE_REGION_WIN, prop_path, false,
-				                                 buf_len, buf))
+				if (WM_key_event_operator_string(
+				        C, ctx_toggle_opnames[i], WM_OP_INVOKE_REGION_WIN, prop_path, false,
+				        buf, buf_len))
 				{
 					found = true;
 					break;
@@ -2672,6 +2681,10 @@ static void ui_but_free(const bContext *C, uiBut *but)
 		MEM_freeN(but->tip_argN);
 	}
 
+	if (but->hold_argN) {
+		MEM_freeN(but->hold_argN);
+	}
+
 	if (but->active) {
 		/* XXX solve later, buttons should be free-able without context ideally,
 		 * however they may have open tooltips or popup windows, which need to
@@ -3290,7 +3303,7 @@ static void ui_def_but_rna__menu(bContext *UNUSED(C), uiLayout *layout, void *bu
 	uiBut *but = (uiBut *)but_p;
 
 	/* see comment in ui_item_enum_expand, re: uiname  */
-	EnumPropertyItem *item, *item_array;
+	const EnumPropertyItem *item, *item_array;
 	bool free;
 
 	uiLayout *split, *column = NULL;
@@ -3400,9 +3413,8 @@ static void ui_def_but_rna__menu(bContext *UNUSED(C), uiLayout *layout, void *bu
 	UI_block_layout_set_current(block, layout);
 
 	if (free) {
-		MEM_freeN(item_array);
+		MEM_freeN((void *)item_array);
 	}
-
 	BLI_assert((block->flag & UI_BLOCK_IS_FLIP) == 0);
 	block->flag |= UI_BLOCK_IS_FLIP;
 }
@@ -3433,7 +3445,7 @@ static uiBut *ui_def_but_rna(
 	/* use rna values if parameters are not specified */
 	if ((proptype == PROP_ENUM) && ELEM(type, UI_BTYPE_MENU, UI_BTYPE_ROW, UI_BTYPE_LISTROW)) {
 		/* UI_BTYPE_MENU is handled a little differently here */
-		EnumPropertyItem *item;
+		const EnumPropertyItem *item;
 		int value;
 		bool free;
 		int i;
@@ -3475,7 +3487,7 @@ static uiBut *ui_def_but_rna(
 		}
 
 		if (free) {
-			MEM_freeN(item);
+			MEM_freeN((void *)item);
 		}
 	}
 	else {
@@ -4437,7 +4449,7 @@ static void operator_enum_search_cb(const struct bContext *C, void *but, const c
 	}
 	else {
 		PointerRNA *ptr = UI_but_operator_ptr_get(but);  /* Will create it if needed! */
-		EnumPropertyItem *item, *item_array;
+		const EnumPropertyItem *item, *item_array;
 		bool do_free;
 
 		RNA_property_enum_items_gettexted((bContext *)C, ptr, prop, &item_array, NULL, &do_free);
@@ -4450,8 +4462,9 @@ static void operator_enum_search_cb(const struct bContext *C, void *but, const c
 			}
 		}
 
-		if (do_free)
-			MEM_freeN(item_array);
+		if (do_free) {
+			MEM_freeN((void *)item_array);
+		}
 	}
 }
 
@@ -4520,12 +4533,18 @@ void UI_but_focus_on_enter_event(wmWindow *win, uiBut *but)
 	wm_event_add(win, &event);
 }
 
+void UI_but_func_hold_set(uiBut *but, uiButHandleHoldFunc func, void *argN)
+{
+	but->hold_func = func;
+	but->hold_argN = argN;
+}
+
 void UI_but_string_info_get(bContext *C, uiBut *but, ...)
 {
 	va_list args;
 	uiStringInfo *si;
 
-	EnumPropertyItem *items = NULL, *item = NULL;
+	const EnumPropertyItem *items = NULL, *item = NULL;
 	int totitems;
 	bool free_items = false;
 
@@ -4701,8 +4720,9 @@ void UI_but_string_info_get(bContext *C, uiBut *but, ...)
 	}
 	va_end(args);
 
-	if (free_items && items)
-		MEM_freeN(items);
+	if (free_items && items) {
+		MEM_freeN((void *)items);
+	}
 }
 
 /* Program Init/Exit */

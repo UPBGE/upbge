@@ -1387,6 +1387,7 @@ void BKE_nlastrip_validate_fcurves(NlaStrip *strip)
 			
 			/* set default flags */
 			fcu->flag = (FCURVE_VISIBLE | FCURVE_SELECTED);
+			fcu->auto_smoothing = FCURVE_SMOOTH_CONT_ACCEL;
 			
 			/* store path - make copy, and store that */
 			fcu->rna_path = BLI_strdupn("influence", 9);
@@ -1408,6 +1409,7 @@ void BKE_nlastrip_validate_fcurves(NlaStrip *strip)
 			
 			/* set default flags */
 			fcu->flag = (FCURVE_VISIBLE | FCURVE_SELECTED);
+			fcu->auto_smoothing = FCURVE_SMOOTH_CONT_ACCEL;
 			
 			/* store path - make copy, and store that */
 			fcu->rna_path = BLI_strdupn("strip_time", 10);
@@ -1415,6 +1417,40 @@ void BKE_nlastrip_validate_fcurves(NlaStrip *strip)
 			/* TODO: insert a few keyframes to ensure default behavior? */
 		}
 	}
+}
+
+/* Check if the given RNA pointer + property combo should be handled by
+ * NLA strip curves or not.
+ */
+bool BKE_nlastrip_has_curves_for_property(const PointerRNA *ptr, const PropertyRNA *prop)
+{
+	/* sanity checks */
+	if (ELEM(NULL, ptr, prop))
+		return false;
+	
+	/* 1) Must be NLA strip */
+	if (ptr->type == &RNA_NlaStrip) {
+		/* 2) Must be one of the predefined properties */
+		static PropertyRNA *prop_influence = NULL; 
+		static PropertyRNA *prop_time = NULL;
+		static bool needs_init = true;
+		
+		/* Init the properties on first use */
+		if (needs_init) {
+			prop_influence = RNA_struct_type_find_property(&RNA_NlaStrip, "influence");
+			prop_time = RNA_struct_type_find_property(&RNA_NlaStrip, "strip_time");
+			
+			needs_init = false;
+		}
+		
+		/* Check if match */
+		if (ELEM(prop, prop_influence, prop_time)) {
+			return true;
+		}
+	}
+	
+	/* No criteria met */
+	return false;
 }
 
 /* Sanity Validation ------------------------------------ */

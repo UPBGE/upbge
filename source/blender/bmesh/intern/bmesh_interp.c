@@ -36,12 +36,13 @@
 #include "DNA_meshdata_types.h"
 
 #include "BLI_alloca.h"
+#include "BLI_linklist.h"
 #include "BLI_math.h"
+#include "BLI_memarena.h"
+#include "BLI_task.h"
 
 #include "BKE_customdata.h"
 #include "BKE_multires.h"
-#include "BLI_memarena.h"
-#include "BLI_linklist.h"
 
 #include "bmesh.h"
 #include "intern/bmesh_private.h"
@@ -401,13 +402,78 @@ static void bm_loop_flip_disp(
 	disp[1] = (mat[0][0] * b[1] - b[0] * mat[1][0]) / d;
 }
 
+
+typedef struct BMLoopInterpMultiresData {
+	BMLoop *l_dst;
+	BMLoop *l_src_first;
+	int cd_loop_mdisp_offset;
+
+	MDisps *md_dst;
+	const float *f_src_center;
+
+	float *axis_x, *axis_y;
+	float *v1, *v4;
+	float *e1, *e2;
+
+	int res;
+	float d;
+} BMLoopInterpMultiresData;
+
+static void loop_interp_multires_cb(void *userdata, int ix)
+{
+	BMLoopInterpMultiresData *data = userdata;
+
+	BMLoop *l_first = data->l_src_first;
+	BMLoop *l_dst = data->l_dst;
+	const int cd_loop_mdisp_offset = data->cd_loop_mdisp_offset;
+
+	MDisps *md_dst = data->md_dst;
+	const float *f_src_center = data->f_src_center;
+
+	float *axis_x = data->axis_x;
+	float *axis_y = data->axis_y;
+
+	float *v1 = data->v1;
+	float *v4 = data->v4;
+	float *e1 = data->e1;
+	float *e2 = data->e2;
+
+	const int res = data->res;
+	const float d = data->d;
+
+	float x = d * ix, y;
+	int iy;
+	for (y = 0.0f, iy = 0; iy < res; y += d, iy++) {
+		BMLoop *l_iter = l_first;
+		float co1[3], co2[3], co[3];
+
+		madd_v3_v3v3fl(co1, v1, e1, y);
+		madd_v3_v3v3fl(co2, v4, e2, y);
+		interp_v3_v3v3(co, co1, co2, x);
+
+		do {
+			MDisps *md_src;
+			float src_axis_x[3], src_axis_y[3];
+			float uv[2];
+
+			md_src = BM_ELEM_CD_GET_VOID_P(l_iter, cd_loop_mdisp_offset);
+
+			if (mdisp_in_mdispquad(l_dst, l_iter, f_src_center, co, res, src_axis_x, src_axis_y, uv)) {
+				old_mdisps_bilinear(md_dst->disps[iy * res + ix], md_src->disps, res, uv[0], uv[1]);
+				bm_loop_flip_disp(src_axis_x, src_axis_y, axis_x, axis_y, md_dst->disps[iy * res + ix]);
+
+				break;
+			}
+		} while ((l_iter = l_iter->next) != l_first);
+	}
+}
+
 void BM_loop_interp_multires_ex(
         BMesh *UNUSED(bm), BMLoop *l_dst, const BMFace *f_src,
         const float f_dst_center[3], const float f_src_center[3], const int cd_loop_mdisp_offset)
 {
 	MDisps *md_dst;
-	float d, v1[3], v2[3], v3[3], v4[3] = {0.0f, 0.0f, 0.0f}, e1[3], e2[3];
-	int ix, res;
+	float v1[3], v2[3], v3[3], v4[3] = {0.0f, 0.0f, 0.0f}, e1[3], e2[3];
 	float axis_x[3], axis_y[3];
 	
 	/* ignore 2-edged faces */
@@ -433,38 +499,15 @@ void BM_loop_interp_multires_ex(
 	
 	mdisp_axis_from_quad(v1, v2, v3, v4, axis_x, axis_y);
 
-	res = (int)sqrt(md_dst->totdisp);
-	d = 1.0f / (float)(res - 1);
-#pragma omp parallel for if (res > 3)
-	for (ix = 0; ix < res; ix++) {
-		float x = d * ix, y;
-		int iy;
-		for (y = 0.0f, iy = 0; iy < res; y += d, iy++) {
-			BMLoop *l_iter;
-			BMLoop *l_first;
-			float co1[3], co2[3], co[3];
-
-			madd_v3_v3v3fl(co1, v1, e1, y);
-			madd_v3_v3v3fl(co2, v4, e2, y);
-			interp_v3_v3v3(co, co1, co2, x);
-			
-			l_iter = l_first = BM_FACE_FIRST_LOOP(f_src);
-			do {
-				MDisps *md_src;
-				float src_axis_x[3], src_axis_y[3];
-				float uv[2];
-
-				md_src = BM_ELEM_CD_GET_VOID_P(l_iter, cd_loop_mdisp_offset);
-				
-				if (mdisp_in_mdispquad(l_dst, l_iter, f_src_center, co, res, src_axis_x, src_axis_y, uv)) {
-					old_mdisps_bilinear(md_dst->disps[iy * res + ix], md_src->disps, res, uv[0], uv[1]);
-					bm_loop_flip_disp(src_axis_x, src_axis_y, axis_x, axis_y, md_dst->disps[iy * res + ix]);
-
-					break;
-				}
-			} while ((l_iter = l_iter->next) != l_first);
-		}
-	}
+	const int res = (int)sqrt(md_dst->totdisp);
+	BMLoopInterpMultiresData data = {
+		.l_dst = l_dst, .l_src_first = BM_FACE_FIRST_LOOP(f_src),
+		.cd_loop_mdisp_offset = cd_loop_mdisp_offset,
+		.md_dst = md_dst, .f_src_center = f_src_center,
+		.axis_x = axis_x, .axis_y = axis_y, .v1 = v1, .v4 = v4, .e1 = e1, .e2 = e2,
+		.res = res, .d = 1.0f / (float)(res - 1)
+	};
+	BLI_task_parallel_range(0, res, &data, loop_interp_multires_cb, res > 5);
 }
 
 /**
@@ -957,7 +1000,7 @@ static void bm_loop_walk_add(struct LoopWalkCtx *lwc, BMLoop *l)
 {
 	const int i = BM_elem_index_get(l);
 	const float w = lwc->loop_weights[i];
-	BM_elem_flag_enable(l, BM_ELEM_INTERNAL_TAG);
+	BM_elem_flag_disable(l, BM_ELEM_INTERNAL_TAG);
 	lwc->data_array[lwc->data_len] = BM_ELEM_CD_GET_VOID_P(l, lwc->cd_layer_offset);
 	lwc->data_index_array[lwc->data_len] = i;
 	lwc->weight_array[lwc->data_len] = w;
@@ -976,7 +1019,7 @@ static void bm_loop_walk_data(struct LoopWalkCtx *lwc, BMLoop *l_walk)
 	int i;
 
 	BLI_assert(CustomData_data_equals(lwc->type, lwc->data_ref, BM_ELEM_CD_GET_VOID_P(l_walk, lwc->cd_layer_offset)));
-	BLI_assert(BM_elem_flag_test(l_walk, BM_ELEM_INTERNAL_TAG) == false);
+	BLI_assert(BM_elem_flag_test(l_walk, BM_ELEM_INTERNAL_TAG));
 
 	bm_loop_walk_add(lwc, l_walk);
 
@@ -988,7 +1031,7 @@ static void bm_loop_walk_data(struct LoopWalkCtx *lwc, BMLoop *l_walk)
 				l_other = l_other->next;
 			}
 			BLI_assert(l_other->v == l_walk->v);
-			if (!BM_elem_flag_test(l_other, BM_ELEM_INTERNAL_TAG)) {
+			if (BM_elem_flag_test(l_other, BM_ELEM_INTERNAL_TAG)) {
 				if (CustomData_data_equals(lwc->type, lwc->data_ref, BM_ELEM_CD_GET_VOID_P(l_other, lwc->cd_layer_offset))) {
 					bm_loop_walk_data(lwc, l_other);
 				}
@@ -1012,9 +1055,10 @@ LinkNode *BM_vert_loop_groups_data_layer_create(
 	lwc.loop_weights = loop_weights;
 	lwc.arena = arena;
 
+	/* Enable 'BM_ELEM_INTERNAL_TAG', leaving the flag clean on completion. */
 	loop_num = 0;
 	BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
-		BM_elem_flag_disable(l, BM_ELEM_INTERNAL_TAG);
+		BM_elem_flag_enable(l, BM_ELEM_INTERNAL_TAG);
 		BM_elem_index_set(l, loop_num);  /* set_dirty! */
 		loop_num++;
 	}
@@ -1026,7 +1070,7 @@ LinkNode *BM_vert_loop_groups_data_layer_create(
 	lwc.weight_array = BLI_memarena_alloc(lwc.arena, sizeof(float) * loop_num);
 
 	BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
-		if (!BM_elem_flag_test(l, BM_ELEM_INTERNAL_TAG)) {
+		if (BM_elem_flag_test(l, BM_ELEM_INTERNAL_TAG)) {
 			struct LoopGroupCD *lf = BLI_memarena_alloc(lwc.arena, sizeof(*lf));
 			int len_prev = lwc.data_len;
 

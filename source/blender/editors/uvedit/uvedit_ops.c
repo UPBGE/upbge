@@ -1716,7 +1716,7 @@ static int uv_align_exec(bContext *C, wmOperator *op)
 
 static void UV_OT_align(wmOperatorType *ot)
 {
-	static EnumPropertyItem axis_items[] = {
+	static const EnumPropertyItem axis_items[] = {
 		{'s', "ALIGN_S", 0, "Straighten", "Align UVs along the line defined by the endpoints"},
 		{'t', "ALIGN_T", 0, "Straighten X", "Align UVs along the line defined by the endpoints along the X axis"},
 		{'u', "ALIGN_U", 0, "Straighten Y", "Align UVs along the line defined by the endpoints along the Y axis"},
@@ -2875,9 +2875,9 @@ static int uv_border_select_exec(bContext *C, wmOperator *op)
 	UI_view2d_region_to_view_rctf(&ar->v2d, &rectf, &rectf);
 
 	/* figure out what to select/deselect */
-	select = (RNA_int_get(op->ptr, "gesture_mode") == GESTURE_MODAL_SELECT);
-	pinned = RNA_boolean_get(op->ptr, "pinned");
+	select = !RNA_boolean_get(op->ptr, "deselect");
 	extend = RNA_boolean_get(op->ptr, "extend");
+	pinned = RNA_boolean_get(op->ptr, "pinned");
 
 	if (!extend)
 		uv_select_all_perform(scene, ima, em, SEL_DESELECT);
@@ -2956,11 +2956,11 @@ static void UV_OT_select_border(wmOperatorType *ot)
 	ot->idname = "UV_OT_select_border";
 	
 	/* api callbacks */
-	ot->invoke = WM_border_select_invoke;
+	ot->invoke = WM_gesture_border_invoke;
 	ot->exec = uv_border_select_exec;
-	ot->modal = WM_border_select_modal;
+	ot->modal = WM_gesture_border_modal;
 	ot->poll = ED_operator_uvedit_space_image; /* requires space image */;
-	ot->cancel = WM_border_select_cancel;
+	ot->cancel = WM_gesture_border_cancel;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2968,7 +2968,7 @@ static void UV_OT_select_border(wmOperatorType *ot)
 	/* properties */
 	RNA_def_boolean(ot->srna, "pinned", 0, "Pinned", "Border select pinned UVs only");
 
-	WM_operator_properties_gesture_border(ot, true);
+	WM_operator_properties_gesture_border_select(ot);
 }
 
 /* ******************** circle select operator **************** */
@@ -3009,8 +3009,7 @@ static int uv_circle_select_exec(bContext *C, wmOperator *op)
 	MLoopUV *luv;
 	int x, y, radius, width, height;
 	float zoomx, zoomy, offset[2], ellipse[2];
-	int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
-	const bool select = (gesture_mode == GESTURE_MODAL_SELECT);
+	const bool select = !RNA_boolean_get(op->ptr, "deselect");
 	bool changed = false;
 	const bool use_face_center = (ts->uv_flag & UV_SYNC_SELECTION) ?
 	                             (ts->selectmode == SCE_SELECT_FACE) :
@@ -3088,12 +3087,9 @@ static void UV_OT_circle_select(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-	
+
 	/* properties */
-	RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "radius", 1, 1, INT_MAX, "Radius", "", 1, INT_MAX);
-	RNA_def_int(ot->srna, "gesture_mode", 0, INT_MIN, INT_MAX, "Gesture Mode", "", INT_MIN, INT_MAX);
+	WM_operator_properties_gesture_circle_select(ot);
 }
 
 
@@ -3224,9 +3220,8 @@ static void UV_OT_select_lasso(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
 
-	RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
-	RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Deselect rather than select items");
-	RNA_def_boolean(ot->srna, "extend", 1, "Extend", "Extend selection instead of deselecting everything first");
+	/* properties */
+	WM_operator_properties_gesture_lasso_select(ot);
 }
 
 
@@ -3280,7 +3275,7 @@ static int uv_snap_cursor_exec(bContext *C, wmOperator *op)
 
 static void UV_OT_snap_cursor(wmOperatorType *ot)
 {
-	static EnumPropertyItem target_items[] = {
+	static const EnumPropertyItem target_items[] = {
 		{0, "PIXELS", 0, "Pixels", ""},
 		{1, "SELECTED", 0, "Selected", ""},
 		{0, NULL, 0, NULL, NULL}};
@@ -3499,7 +3494,7 @@ static int uv_snap_selection_exec(bContext *C, wmOperator *op)
 
 static void UV_OT_snap_selected(wmOperatorType *ot)
 {
-	static EnumPropertyItem target_items[] = {
+	static const EnumPropertyItem target_items[] = {
 		{0, "PIXELS", 0, "Pixels", ""},
 		{1, "CURSOR", 0, "Cursor", ""},
 		{2, "CURSOR_OFFSET", 0, "Cursor (Offset)", ""},
@@ -3766,7 +3761,7 @@ static void UV_OT_hide(wmOperatorType *ot)
 
 /****************** reveal operator ******************/
 
-static int uv_reveal_exec(bContext *C, wmOperator *UNUSED(op))
+static int uv_reveal_exec(bContext *C, wmOperator *op)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Object *obedit = CTX_data_edit_object(C);
@@ -3782,12 +3777,14 @@ static int uv_reveal_exec(bContext *C, wmOperator *UNUSED(op))
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 
+	const bool select = RNA_boolean_get(op->ptr, "select");
+
 	/* note on tagging, selecting faces needs to be delayed so it doesn't select the verts and
 	 * confuse our checks on selected verts. */
 
 	/* call the mesh function if we are in mesh sync sel */
 	if (ts->uv_flag & UV_SYNC_SELECTION) {
-		EDBM_mesh_reveal(em);
+		EDBM_mesh_reveal(em, select);
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
 		return OPERATOR_FINISHED;
@@ -3799,7 +3796,7 @@ static int uv_reveal_exec(bContext *C, wmOperator *UNUSED(op))
 				if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN) && !BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
 					BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-						luv->flag |= MLOOPUV_VERTSEL;
+						SET_FLAG_FROM_TEST(luv->flag, select, MLOOPUV_VERTSEL);
 					}
 					/* BM_face_select_set(em->bm, efa, true); */
 					BM_elem_flag_enable(efa, BM_ELEM_TAG);
@@ -3820,7 +3817,7 @@ static int uv_reveal_exec(bContext *C, wmOperator *UNUSED(op))
 						if (!totsel) {
 							BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 								luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-								luv->flag |= MLOOPUV_VERTSEL;
+								SET_FLAG_FROM_TEST(luv->flag, select, MLOOPUV_VERTSEL);
 							}
 							/* BM_face_select_set(em->bm, efa, true); */
 							BM_elem_flag_enable(efa, BM_ELEM_TAG);
@@ -3835,7 +3832,7 @@ static int uv_reveal_exec(bContext *C, wmOperator *UNUSED(op))
 						BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 							if (BM_elem_flag_test(l->v, BM_ELEM_SELECT) == 0) {
 								luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-								luv->flag |= MLOOPUV_VERTSEL;
+								SET_FLAG_FROM_TEST(luv->flag, select, MLOOPUV_VERTSEL);
 							}
 						}
 						/* BM_face_select_set(em->bm, efa, true); */
@@ -3851,7 +3848,7 @@ static int uv_reveal_exec(bContext *C, wmOperator *UNUSED(op))
 			if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN) && !BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
 				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 					luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-					luv->flag |= MLOOPUV_VERTSEL;
+					SET_FLAG_FROM_TEST(luv->flag, select, MLOOPUV_VERTSEL);
 				}
 				/* BM_face_select_set(em->bm, efa, true); */
 				BM_elem_flag_enable(efa, BM_ELEM_TAG);
@@ -3865,7 +3862,7 @@ static int uv_reveal_exec(bContext *C, wmOperator *UNUSED(op))
 				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 					if (BM_elem_flag_test(l->v, BM_ELEM_SELECT) == 0) {
 						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-						luv->flag |= MLOOPUV_VERTSEL;
+						SET_FLAG_FROM_TEST(luv->flag, select, MLOOPUV_VERTSEL);
 					}
 				}
 				/* BM_face_select_set(em->bm, efa, true); */
@@ -3893,6 +3890,8 @@ static void UV_OT_reveal(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = uv_reveal_exec;
 	ot->poll = ED_operator_uvedit;
+
+	RNA_def_boolean(ot->srna, "select", true, "Select", "");
 }
 
 /******************** set 3d cursor operator ********************/

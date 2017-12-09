@@ -177,6 +177,14 @@ public:
 		}
 	}
 
+	T *steal_pointer()
+	{
+		T *ptr = data_;
+		data_ = NULL;
+		clear();
+		return ptr;
+	}
+
 	T* resize(size_t newsize)
 	{
 		if(newsize == 0) {
@@ -271,6 +279,15 @@ public:
 	{
 		assert(datasize_ < capacity_);
 		push_back_slow(t);
+	}
+
+	void append(const array<T>& from)
+	{
+		if(from.size()) {
+			size_t old_size = size();
+			resize(old_size + from.size());
+			memcpy(data_ + old_size, from.data(), sizeof(T) * from.size());
+		}
 	}
 
 protected:

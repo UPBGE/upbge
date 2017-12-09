@@ -70,7 +70,7 @@ struct DepsgraphNodeBuilder {
 	DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph);
 	~DepsgraphNodeBuilder();
 
-	void begin_build(Main *bmain);
+	void begin_build();
 
 	IDDepsNode *add_id_node(ID *id);
 	TimeSourceDepsNode *add_time_source();
@@ -118,31 +118,30 @@ struct DepsgraphNodeBuilder {
 	                                       const char *name = "",
 	                                       int name_tag = -1);
 
-	void build_scene(Main *bmain, Scene *scene);
-	void build_group(Scene *scene, Base *base, Group *group);
-	void build_object(Scene *scene, Base *base, Object *ob);
-	void build_object_transform(Scene *scene, Object *ob);
-	void build_object_constraints(Scene *scene, Object *ob);
-	void build_pose_constraints(Scene *scene, Object *ob, bPoseChannel *pchan);
+	void build_scene(Scene *scene);
+	void build_group(Base *base, Group *group);
+	void build_object(Base *base, Object *object);
+	void build_object_data(Object *object);
+	void build_object_transform(Object *object);
+	void build_object_constraints(Object *object);
+	void build_pose_constraints(Object *object, bPoseChannel *pchan);
 	void build_rigidbody(Scene *scene);
-	void build_particles(Scene *scene, Object *ob);
-	void build_cloth(Scene *scene, Object *object);
+	void build_particles(Object *object);
+	void build_cloth(Object *object);
 	void build_animdata(ID *id);
 	OperationDepsNode *build_driver(ID *id, FCurve *fcurve);
-	void build_ik_pose(Scene *scene,
-	                   Object *ob,
+	void build_ik_pose(Object *object,
 	                   bPoseChannel *pchan,
 	                   bConstraint *con);
-	void build_splineik_pose(Scene *scene,
-	                         Object *ob,
+	void build_splineik_pose(Object *object,
 	                         bPoseChannel *pchan,
 	                         bConstraint *con);
-	void build_rig(Scene *scene, Object *ob);
-	void build_proxy_rig(Object *ob);
+	void build_rig(Object *object);
+	void build_proxy_rig(Object *object);
 	void build_shapekeys(Key *key);
-	void build_obdata_geom(Scene *scene, Object *ob);
-	void build_camera(Object *ob);
-	void build_lamp(Object *ob);
+	void build_obdata_geom(Object *object);
+	void build_camera(Object *object);
+	void build_lamp(Object *object);
 	void build_nodetree(bNodeTree *ntree);
 	void build_material(Material *ma);
 	void build_texture(Tex *tex);
@@ -156,8 +155,12 @@ struct DepsgraphNodeBuilder {
 	void build_movieclip(MovieClip *clip);
 
 protected:
-	Main *m_bmain;
-	Depsgraph *m_graph;
+	/* State which never changes, same for the whole builder time. */
+	Main *bmain_;
+	Depsgraph *graph_;
+
+	/* State which demotes currently built entities. */
+	Scene *scene_;
 };
 
 }  // namespace DEG

@@ -59,6 +59,11 @@ ccl_device_forceinline bool kernel_path_scene_intersect(
 {
 	uint visibility = path_state_ray_visibility(kg, state);
 
+	if(path_state_ao_bounce(kg, state)) {
+		visibility = PATH_RAY_SHADOW;
+		ray->t = kernel_data.background.ao_distance;
+	}
+
 #ifdef __HAIR__
 	float difl = 0.0f, extmax = 0.0f;
 	uint lcg_state = 0;
@@ -72,11 +77,6 @@ ccl_device_forceinline bool kernel_path_scene_intersect(
 
 		extmax = kernel_data.curve.maximum_width;
 		lcg_state = lcg_state_init_addrspace(state, 0x51633e2d);
-	}
-
-	if(path_state_ao_bounce(kg, state)) {
-		visibility = PATH_RAY_SHADOW;
-		ray->t = kernel_data.background.ao_distance;
 	}
 
 	bool hit = scene_intersect(kg, *ray, visibility, isect, &lcg_state, difl, extmax);
@@ -132,7 +132,7 @@ ccl_device_forceinline void kernel_path_background(
 	ccl_addr_space PathState *state,
 	ccl_addr_space Ray *ray,
 	float3 throughput,
-	ShaderData *emission_sd,
+	ShaderData *sd,
 	PathRadiance *L)
 {
 	/* eval background shader if nothing hit */
@@ -140,14 +140,20 @@ ccl_device_forceinline void kernel_path_background(
 		L->transparent += average(throughput);
 
 #ifdef __PASSES__
-		if(!(kernel_data.film.pass_flag & PASS_BACKGROUND))
+		if(!(kernel_data.film.light_pass_flag & PASSMASK(BACKGROUND)))
 #endif  /* __PASSES__ */
 			return;
 	}
 
+	/* When using the ao bounces approximation, adjust background
+	 * shader intensity with ao factor. */
+	if(path_state_ao_bounce(kg, state)) {
+		throughput *= kernel_data.background.ao_bounces_factor;
+	}
+
 #ifdef __BACKGROUND__
 	/* sample background shader */
-	float3 L_background = indirect_background(kg, emission_sd, state, ray);
+	float3 L_background = indirect_background(kg, sd, state, ray);
 	path_radiance_accum_background(L, state, throughput, L_background);
 #endif  /* __BACKGROUND__ */
 }
@@ -401,7 +407,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 		bool hit = kernel_path_scene_intersect(kg, state, ray, &isect, L);
 
 		/* Find intersection with lamps and compute emission for MIS. */
-		kernel_path_lamp_emission(kg, state, ray, throughput, &isect, emission_sd, L);
+		kernel_path_lamp_emission(kg, state, ray, throughput, &isect, sd, L);
 
 #ifdef __VOLUME__
 		/* Volume integration. */
@@ -425,7 +431,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 
 		/* Shade background. */
 		if(!hit) {
-			kernel_path_background(kg, state, ray, throughput, emission_sd, L);
+			kernel_path_background(kg, state, ray, throughput, sd, L);
 			break;
 		}
 		else if(path_state_ao_bounce(kg, state)) {
@@ -437,7 +443,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 		                      sd,
 		                      &isect,
 		                      ray);
-		shader_eval_surface(kg, sd, state, state->flag);
+		shader_eval_surface(kg, sd, state, state->flag, kernel_data.integrator.max_closures);
 		shader_prepare_closures(sd, state);
 
 		/* Apply shadow catcher, holdout, emission. */
@@ -555,7 +561,7 @@ ccl_device_forceinline void kernel_path_integrate(
 		bool hit = kernel_path_scene_intersect(kg, state, ray, &isect, L);
 
 		/* Find intersection with lamps and compute emission for MIS. */
-		kernel_path_lamp_emission(kg, state, ray, throughput, &isect, emission_sd, L);
+		kernel_path_lamp_emission(kg, state, ray, throughput, &isect, &sd, L);
 
 #ifdef __VOLUME__
 		/* Volume integration. */
@@ -579,7 +585,7 @@ ccl_device_forceinline void kernel_path_integrate(
 
 		/* Shade background. */
 		if(!hit) {
-			kernel_path_background(kg, state, ray, throughput, emission_sd, L);
+			kernel_path_background(kg, state, ray, throughput, &sd, L);
 			break;
 		}
 		else if(path_state_ao_bounce(kg, state)) {
@@ -588,7 +594,7 @@ ccl_device_forceinline void kernel_path_integrate(
 
 		/* Setup and evaluate shader. */
 		shader_setup_from_ray(kg, &sd, &isect, ray);
-		shader_eval_surface(kg, &sd, state, state->flag);
+		shader_eval_surface(kg, &sd, state, state->flag, kernel_data.integrator.max_closures);
 		shader_prepare_closures(&sd, state);
 
 		/* Apply shadow catcher, holdout, emission. */
@@ -700,9 +706,11 @@ ccl_device void kernel_path_trace(KernelGlobals *kg,
 	PathRadiance L;
 	path_radiance_init(&L, kernel_data.film.use_light_pass);
 
-	ShaderData emission_sd;
+	ShaderDataTinyStorage emission_sd_storage;
+	ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
+
 	PathState state;
-	path_state_init(kg, &emission_sd, &state, rng_hash, sample, &ray);
+	path_state_init(kg, emission_sd, &state, rng_hash, sample, &ray);
 
 	/* Integrate. */
 	kernel_path_integrate(kg,
@@ -711,7 +719,7 @@ ccl_device void kernel_path_trace(KernelGlobals *kg,
 	                      &ray,
 	                      &L,
 	                      buffer,
-	                      &emission_sd);
+	                      emission_sd);
 
 	kernel_write_result(kg, buffer, sample, &L);
 }

@@ -570,7 +570,7 @@ static void object_test_constraint(Object *owner, bConstraint *con)
 #define EDIT_CONSTRAINT_OWNER_OBJECT    0
 #define EDIT_CONSTRAINT_OWNER_BONE      1
 
-static EnumPropertyItem constraint_owner_items[] = {
+static const EnumPropertyItem constraint_owner_items[] = {
 	{EDIT_CONSTRAINT_OWNER_OBJECT, "OBJECT", 0, "Object", "Edit a constraint on the active object"},
 	{EDIT_CONSTRAINT_OWNER_BONE, "BONE", 0, "Bone", "Edit a constraint on the active bone"},
 	{0, NULL, 0, NULL, NULL}};
@@ -591,7 +591,7 @@ static int edit_constraint_poll_generic(bContext *C, StructRNA *rna_type)
 		return 0;
 	}
 
-	if (ID_IS_LINKED_DATABLOCK(ob) || (ptr.id.data && ID_IS_LINKED_DATABLOCK(ptr.id.data))) {
+	if (ID_IS_LINKED(ob) || (ptr.id.data && ID_IS_LINKED(ptr.id.data))) {
 		CTX_wm_operator_poll_msg_set(C, "Cannot edit library data");
 		return 0;
 	}
@@ -1025,7 +1025,7 @@ static int followpath_path_animate_exec(bContext *C, wmOperator *op)
 	 * and define basic slope of this curve based on the properties
 	 */
 	if (!fcu->bezt && !fcu->fpt && !fcu->modifiers.first) {
-		FModifier *fcm = add_fmodifier(&fcu->modifiers, FMODIFIER_TYPE_GENERATOR);
+		FModifier *fcm = add_fmodifier(&fcu->modifiers, FMODIFIER_TYPE_GENERATOR, fcu);
 		FMod_Generator *gen = fcm->data;
 		
 		/* Assume that we have the following equation:

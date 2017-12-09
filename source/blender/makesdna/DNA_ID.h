@@ -282,7 +282,7 @@ typedef enum ID_Type {
 
 #define ID_MISSING(_id) (((_id)->tag & LIB_TAG_MISSING) != 0)
 
-#define ID_IS_LINKED_DATABLOCK(_id) (((ID *)(_id))->lib != NULL)
+#define ID_IS_LINKED(_id) (((ID *)(_id))->lib != NULL)
 
 #ifdef GS
 #  undef GS
@@ -339,7 +339,7 @@ enum {
 	 * Also used internally in readfile.c to mark datablocks needing do_versions. */
 	LIB_TAG_NEW             = 1 << 8,
 	/* RESET_BEFORE_USE free test flag.
-     * TODO make it a RESET_AFTER_USE too. */
+	 * TODO make it a RESET_AFTER_USE too. */
 	LIB_TAG_DOIT            = 1 << 10,
 	/* RESET_AFTER_USE tag existing data before linking so we know what is new. */
 	LIB_TAG_PRE_EXISTING    = 1 << 11,

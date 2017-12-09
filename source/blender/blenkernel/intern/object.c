@@ -331,14 +331,14 @@ void BKE_object_free_derived_caches(Object *ob)
 		Mesh *me = ob->data;
 
 		if (me && me->bb) {
-			atomic_fetch_and_or_uint32((uint *)&me->bb->flag, BOUNDBOX_DIRTY);
+			atomic_fetch_and_or_int32(&me->bb->flag, BOUNDBOX_DIRTY);
 		}
 	}
 	else if (ELEM(ob->type, OB_SURF, OB_CURVE, OB_FONT)) {
 		Curve *cu = ob->data;
 
 		if (cu && cu->bb) {
-			atomic_fetch_and_or_uint32((uint *)&cu->bb->flag, BOUNDBOX_DIRTY);
+			atomic_fetch_and_or_int32(&cu->bb->flag, BOUNDBOX_DIRTY);
 		}
 	}
 
@@ -1212,7 +1212,7 @@ void BKE_object_make_local_ex(Main *bmain, Object *ob, const bool lib_local, con
 	 * In case we make a whole lib's content local, we always want to localize, and we skip remapping (done later).
 	 */
 
-	if (!ID_IS_LINKED_DATABLOCK(ob)) {
+	if (!ID_IS_LINKED(ob)) {
 		return;
 	}
 
@@ -1254,15 +1254,15 @@ void BKE_object_make_local(Main *bmain, Object *ob, const bool lib_local)
 /* Returns true if the Object is from an external blend file (libdata) */
 bool BKE_object_is_libdata(Object *ob)
 {
-	return (ob && ID_IS_LINKED_DATABLOCK(ob));
+	return (ob && ID_IS_LINKED(ob));
 }
 
 /* Returns true if the Object data is from an external blend file (libdata) */
 bool BKE_object_obdata_is_libdata(Object *ob)
 {
 	/* Linked objects with local obdata are forbidden! */
-	BLI_assert(!ob || !ob->data || (ID_IS_LINKED_DATABLOCK(ob) ? ID_IS_LINKED_DATABLOCK(ob->data) : true));
-	return (ob && ob->data && ID_IS_LINKED_DATABLOCK(ob->data));
+	BLI_assert(!ob || !ob->data || (ID_IS_LINKED(ob) ? ID_IS_LINKED(ob->data) : true));
+	return (ob && ob->data && ID_IS_LINKED(ob->data));
 }
 
 /* *************** PROXY **************** */
@@ -1309,7 +1309,7 @@ void BKE_object_copy_proxy_drivers(Object *ob, Object *target)
 							/* only on local objects because this causes indirect links
 							 * 'a -> b -> c', blend to point directly to a.blend
 							 * when a.blend has a proxy thats linked into c.blend  */
-							if (!ID_IS_LINKED_DATABLOCK(ob))
+							if (!ID_IS_LINKED(ob))
 								id_lib_extern((ID *)dtar->id);
 						}
 					}
@@ -1327,7 +1327,7 @@ void BKE_object_copy_proxy_drivers(Object *ob, Object *target)
 void BKE_object_make_proxy(Object *ob, Object *target, Object *gob)
 {
 	/* paranoia checks */
-	if (ID_IS_LINKED_DATABLOCK(ob) || !ID_IS_LINKED_DATABLOCK(target)) {
+	if (ID_IS_LINKED(ob) || !ID_IS_LINKED(target)) {
 		printf("cannot make proxy\n");
 		return;
 	}
@@ -2593,6 +2593,28 @@ bool BKE_object_parent_loop_check(const Object *par, const Object *ob)
 	return BKE_object_parent_loop_check(par->parent, ob);
 }
 
+static void object_handle_update_proxy(EvaluationContext *eval_ctx,
+                                       Scene *scene,
+                                       Object *object,
+                                       const bool do_proxy_update)
+{
+	/* The case when this is a group proxy, object_update is called in group.c */
+	if (object->proxy == NULL) {
+		return;
+	}
+	/* set pointer in library proxy target, for copying, but restore it */
+	object->proxy->proxy_from = object;
+	// printf("set proxy pointer for later group stuff %s\n", ob->id.name);
+
+	/* the no-group proxy case, we call update */
+	if (object->proxy_group == NULL) {
+		if (do_proxy_update) {
+			// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
+			BKE_object_handle_update(eval_ctx, scene, object->proxy);
+		}
+	}
+}
+
 /* proxy rule: lib_object->proxy_from == the one we borrow from, only set temporal and cleared here */
 /*           local_object->proxy      == pointer to library object, saved in files and read */
 
@@ -2606,75 +2628,49 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
                                  RigidBodyWorld *rbw,
                                  const bool do_proxy_update)
 {
+	if ((ob->recalc & OB_RECALC_ALL) == 0) {
+		object_handle_update_proxy(eval_ctx, scene, ob, do_proxy_update);
+		return;
+	}
+	/* Speed optimization for animation lookups. */
+	if (ob->pose != NULL) {
+		BKE_pose_channels_hash_make(ob->pose);
+		if (ob->pose->flag & POSE_CONSTRAINTS_NEED_UPDATE_FLAGS) {
+			BKE_pose_update_constraint_flags(ob->pose);
+		}
+	}
+	if (ob->recalc & OB_RECALC_DATA) {
+		if (ob->type == OB_ARMATURE) {
+			/* this happens for reading old files and to match library armatures
+			 * with poses we do it ahead of BKE_object_where_is_calc to ensure animation
+			 * is evaluated on the rebuilt pose, otherwise we get incorrect poses
+			 * on file load */
+			if (ob->pose == NULL || (ob->pose->flag & POSE_RECALC))
+				BKE_pose_rebuild(ob, ob->data);
+		}
+	}
+	/* XXX new animsys warning: depsgraph tag OB_RECALC_DATA should not skip drivers,
+	 * which is only in BKE_object_where_is_calc now */
+	/* XXX: should this case be OB_RECALC_OB instead? */
 	if (ob->recalc & OB_RECALC_ALL) {
-		/* speed optimization for animation lookups */
-		if (ob->pose) {
-			BKE_pose_channels_hash_make(ob->pose);
-			if (ob->pose->flag & POSE_CONSTRAINTS_NEED_UPDATE_FLAGS) {
-				BKE_pose_update_constraint_flags(ob->pose);
-			}
+		if (G.debug & G_DEBUG_DEPSGRAPH) {
+			printf("recalcob %s\n", ob->id.name + 2);
 		}
-
-		if (ob->recalc & OB_RECALC_DATA) {
-			if (ob->type == OB_ARMATURE) {
-				/* this happens for reading old files and to match library armatures
-				 * with poses we do it ahead of BKE_object_where_is_calc to ensure animation
-				 * is evaluated on the rebuilt pose, otherwise we get incorrect poses
-				 * on file load */
-				if (ob->pose == NULL || (ob->pose->flag & POSE_RECALC))
-					BKE_pose_rebuild(ob, ob->data);
-			}
-		}
-
-		/* XXX new animsys warning: depsgraph tag OB_RECALC_DATA should not skip drivers, 
-		 * which is only in BKE_object_where_is_calc now */
-		/* XXX: should this case be OB_RECALC_OB instead? */
-		if (ob->recalc & OB_RECALC_ALL) {
-			
-			if (G.debug & G_DEBUG_DEPSGRAPH)
-				printf("recalcob %s\n", ob->id.name + 2);
-			
-			/* handle proxy copy for target */
-			if (ID_IS_LINKED_DATABLOCK(ob) && ob->proxy_from) {
-				// printf("ob proxy copy, lib ob %s proxy %s\n", ob->id.name, ob->proxy_from->id.name);
-				if (ob->proxy_from->proxy_group) { /* transform proxy into group space */
-					Object *obg = ob->proxy_from->proxy_group;
-					float imat[4][4];
-					invert_m4_m4(imat, obg->obmat);
-					mul_m4_m4m4(ob->obmat, imat, ob->proxy_from->obmat);
-					if (obg->dup_group) { /* should always be true */
-						add_v3_v3(ob->obmat[3], obg->dup_group->dupli_ofs);
-					}
-				}
-				else
-					copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
-			}
-			else
-				BKE_object_where_is_calc_ex(scene, rbw, ob, NULL);
-		}
-		
-		if (ob->recalc & OB_RECALC_DATA) {
-			BKE_object_handle_data_update(eval_ctx, scene, ob);
-		}
-
-		ob->recalc &= ~OB_RECALC_ALL;
-	}
-
-	/* the case when this is a group proxy, object_update is called in group.c */
-	if (ob->proxy) {
-		/* set pointer in library proxy target, for copying, but restore it */
-		ob->proxy->proxy_from = ob;
-		// printf("set proxy pointer for later group stuff %s\n", ob->id.name);
-
-		/* the no-group proxy case, we call update */
-		if (ob->proxy_group == NULL) {
-			if (do_proxy_update) {
-				// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
-				BKE_object_handle_update(eval_ctx, scene, ob->proxy);
-			}
+		/* Handle proxy copy for target. */
+		if (!BKE_object_eval_proxy_copy(eval_ctx, ob)) {
+			BKE_object_where_is_calc_ex(scene, rbw, ob, NULL);
 		}
 	}
+
+	if (ob->recalc & OB_RECALC_DATA) {
+		BKE_object_handle_data_update(eval_ctx, scene, ob);
+	}
+
+	ob->recalc &= ~OB_RECALC_ALL;
+
+	object_handle_update_proxy(eval_ctx, scene, ob, do_proxy_update);
 }
+
 /* WARNING: "scene" here may not be the scene object actually resides in. 
  * When dealing with background-sets, "scene" is actually the active scene.
  * e.g. "scene" <-- set 1 <-- set 2 ("ob" lives here) <-- set 3 <-- ... <-- set n

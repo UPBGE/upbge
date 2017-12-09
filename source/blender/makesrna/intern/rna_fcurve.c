@@ -50,7 +50,7 @@
 #include "ED_keyframing.h"
 #include "ED_keyframes_edit.h"
 
-EnumPropertyItem rna_enum_fmodifier_type_items[] = {
+const EnumPropertyItem rna_enum_fmodifier_type_items[] = {
 	{FMODIFIER_TYPE_NULL, "NULL", 0, "Invalid", ""},
 	{FMODIFIER_TYPE_GENERATOR, "GENERATOR", 0, "Generator",
 	                           "Generate a curve using a factorized or expanded polynomial"},
@@ -71,7 +71,7 @@ EnumPropertyItem rna_enum_fmodifier_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem rna_enum_beztriple_keyframe_type_items[] = {
+const EnumPropertyItem rna_enum_beztriple_keyframe_type_items[] = {
 	{BEZT_KEYTYPE_KEYFRAME, "KEYFRAME", VICO_KEYTYPE_KEYFRAME_VEC, "Keyframe", "Normal keyframe - e.g. for key poses"},
 	{BEZT_KEYTYPE_BREAKDOWN, "BREAKDOWN", VICO_KEYTYPE_BREAKDOWN_VEC, "Breakdown", "A breakdown pose - e.g. for transitions between key poses"},
 	{BEZT_KEYTYPE_MOVEHOLD, "MOVING_HOLD", VICO_KEYTYPE_MOVING_HOLD_VEC, "Moving Hold", "A keyframe that is part of a moving hold"},
@@ -80,7 +80,7 @@ EnumPropertyItem rna_enum_beztriple_keyframe_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem rna_enum_beztriple_interpolation_easing_items[] =  {
+const EnumPropertyItem rna_enum_beztriple_interpolation_easing_items[] =  {
 	/* XXX: auto-easing is currently using a placeholder icon... */
 	{BEZT_IPO_EASE_AUTO, "AUTO", ICON_IPO_EASE_IN_OUT, "Automatic Easing",
 	                     "Easing type is chosen automatically based on what the type of interpolation used "
@@ -495,7 +495,7 @@ static void rna_FCurve_active_modifier_set(PointerRNA *ptr, PointerRNA value)
 
 static FModifier *rna_FCurve_modifiers_new(FCurve *fcu, int type)
 {
-	return add_fmodifier(&fcu->modifiers, type);
+	return add_fmodifier(&fcu->modifiers, type, fcu);
 }
 
 static void rna_FCurve_modifiers_remove(FCurve *fcu, ReportList *reports, PointerRNA *fcm_ptr)
@@ -586,10 +586,14 @@ static void rna_FModifier_blending_range(PointerRNA *ptr, float *min, float *max
 static void rna_FModifier_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	ID *id = ptr->id.data;
+	FModifier *fcm = (FModifier *)ptr->data;
 	AnimData *adt = BKE_animdata_from_id(id);
 	DAG_id_tag_update(id, (GS(id->name) == ID_OB) ? OB_RECALC_OB : OB_RECALC_DATA);
 	if (adt != NULL) {
 		adt->recalc |= ADT_RECALC_ANIM;
+	}
+	if (fcm->curve && fcm->type == FMODIFIER_TYPE_CYCLES) {
+		calchandles_fcurve(fcm->curve);
 	}
 }
 
@@ -917,7 +921,7 @@ static void rna_def_fmodifier_generator(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
-	static EnumPropertyItem generator_mode_items[] = {
+	static const EnumPropertyItem generator_mode_items[] = {
 		{FCM_GENERATOR_POLYNOMIAL, "POLYNOMIAL", 0, "Expanded Polynomial", ""},
 		{FCM_GENERATOR_POLYNOMIAL_FACTORISED, "POLYNOMIAL_FACTORISED", 0, "Factorized Polynomial", ""},
 		{0, NULL, 0, NULL, NULL}
@@ -964,7 +968,7 @@ static void rna_def_fmodifier_function_generator(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
-	static EnumPropertyItem prop_type_items[] = {
+	static const EnumPropertyItem prop_type_items[] = {
 		{0, "SIN", 0, "Sine", ""},
 		{1, "COS", 0, "Cosine", ""},
 		{2, "TAN", 0, "Tangent", ""},
@@ -1115,7 +1119,7 @@ static void rna_def_fmodifier_cycles(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
-	static EnumPropertyItem prop_type_items[] = {
+	static const EnumPropertyItem prop_type_items[] = {
 		{FCM_EXTRAPOLATE_NONE, "NONE", 0, "No Cycles", "Don't do anything"},
 		{FCM_EXTRAPOLATE_CYCLIC, "REPEAT", 0, "Repeat Motion", "Repeat keyframe range as-is"},
 		{FCM_EXTRAPOLATE_CYCLIC_OFFSET, "REPEAT_OFFSET", 0, "Repeat with Offset",
@@ -1232,7 +1236,7 @@ static void rna_def_fmodifier_noise(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
-	static EnumPropertyItem prop_modification_items[] = {
+	static const EnumPropertyItem prop_modification_items[] = {
 		{FCM_NOISE_MODIF_REPLACE, "REPLACE", 0, "Replace", ""},
 		{FCM_NOISE_MODIF_ADD, "ADD", 0, "Add", ""},
 		{FCM_NOISE_MODIF_SUBTRACT, "SUBTRACT", 0, "Subtract", ""},
@@ -1437,7 +1441,7 @@ static void rna_def_drivertarget(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
-	static EnumPropertyItem prop_trans_chan_items[] = {
+	static const EnumPropertyItem prop_trans_chan_items[] = {
 		{DTAR_TRANSCHAN_LOCX, "LOC_X", 0, "X Location", ""},
 		{DTAR_TRANSCHAN_LOCY, "LOC_Y", 0, "Y Location", ""},
 		{DTAR_TRANSCHAN_LOCZ, "LOC_Z", 0, "Z Location", ""},
@@ -1450,7 +1454,7 @@ static void rna_def_drivertarget(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 		
-	static EnumPropertyItem prop_local_space_items[] = {
+	static const EnumPropertyItem prop_local_space_items[] = {
 		{0, "WORLD_SPACE", 0, "World Space", "Transforms include effects of parenting/restpose and constraints"},
 		{DTAR_FLAG_LOCALSPACE, "TRANSFORM_SPACE", 0, "Transform Space",
 		                       "Transforms don't include parenting/restpose or constraints"},
@@ -1515,7 +1519,7 @@ static void rna_def_drivervar(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
-	static EnumPropertyItem prop_type_items[] = {
+	static const EnumPropertyItem prop_type_items[] = {
 		{DVAR_TYPE_SINGLE_PROP, "SINGLE_PROP", ICON_RNA, "Single Property", "Use the value from some RNA property (Default)"},
 		{DVAR_TYPE_TRANSFORM_CHAN, "TRANSFORMS", ICON_MANIPUL, "Transform Channel",
 		                           "Final transformation value of object or bone"},
@@ -1598,7 +1602,7 @@ static void rna_def_channeldriver(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
-	static EnumPropertyItem prop_type_items[] = {
+	static const EnumPropertyItem prop_type_items[] = {
 		{DRIVER_TYPE_AVERAGE, "AVERAGE", 0, "Averaged Value", ""},
 		{DRIVER_TYPE_SUM, "SUM", 0, "Sum Values", ""},
 		{DRIVER_TYPE_PYTHON, "SCRIPTED", 0, "Scripted Expression", ""},
@@ -1828,7 +1832,7 @@ static void rna_def_fcurve_keyframe_points(BlenderRNA *brna, PropertyRNA *cprop)
 	FunctionRNA *func;
 	PropertyRNA *parm;
 
-	static EnumPropertyItem keyframe_flag_items[] = {
+	static const EnumPropertyItem keyframe_flag_items[] = {
 		{INSERTKEY_REPLACE, "REPLACE", 0, "Replace", "Don't add any new keyframes, but just replace existing ones"},
 		{INSERTKEY_NEEDED, "NEEDED", 0, "Needed", "Only adds keyframes that are needed"},
 		{INSERTKEY_FAST, "FAST", 0, "Fast", "Fast keyframe insertion to avoid recalculating the curve each time"},
@@ -1875,12 +1879,12 @@ static void rna_def_fcurve(BlenderRNA *brna)
 	FunctionRNA *func;
 	PropertyRNA *parm;
 
-	static EnumPropertyItem prop_mode_extend_items[] = {
+	static const EnumPropertyItem prop_mode_extend_items[] = {
 		{FCURVE_EXTRAPOLATE_CONSTANT, "CONSTANT", 0, "Constant", "Hold values of endpoint keyframes"},
 		{FCURVE_EXTRAPOLATE_LINEAR, "LINEAR", 0, "Linear", "Use slope of curve leading in/out of endpoint keyframes"},
 		{0, NULL, 0, NULL, NULL}
 	};
-	static EnumPropertyItem prop_mode_color_items[] = {
+	static const EnumPropertyItem prop_mode_color_items[] = {
 		{FCURVE_COLOR_AUTO_RAINBOW, "AUTO_RAINBOW", 0, "Auto Rainbow",
 		                            "Cycle through the rainbow, trying to give each curve a unique color"},
 		{FCURVE_COLOR_AUTO_RGB, "AUTO_RGB", 0, "Auto XYZ to RGB",
@@ -1889,6 +1893,11 @@ static void rna_def_fcurve(BlenderRNA *brna)
 		                         "Use axis colors for XYZ parts of transform, and yellow for the 'W' channel"},
 		{FCURVE_COLOR_CUSTOM, "CUSTOM", 0, "User Defined",
 		                      "Use custom hand-picked color for F-Curve"},
+		{0, NULL, 0, NULL, NULL}
+	};
+	static EnumPropertyItem prop_mode_smoothing_items[] = {
+		{FCURVE_SMOOTH_NONE, "NONE", 0, "None", "Auto handles only take adjacent keys into account (legacy mode)"},
+		{FCURVE_SMOOTH_CONT_ACCEL, "CONT_ACCEL", 0, "Continuous Acceleration", "Auto handles are placed to avoid jumps in acceleration"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -1963,6 +1972,11 @@ static void rna_def_fcurve(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", FCURVE_VISIBLE);
 	RNA_def_property_ui_text(prop, "Hide", "F-Curve and its keyframes are hidden in the Graph Editor graphs");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, NULL);
+
+	prop = RNA_def_property(srna, "auto_smoothing", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, prop_mode_smoothing_items);
+	RNA_def_property_ui_text(prop, "Auto Handle Smoothing", "Algorithm used to compute automatic handles");
+	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FCurve_update_data");
 
 	/* State Info (for Debugging) */
 	prop = RNA_def_property(srna, "is_valid", PROP_BOOLEAN, PROP_NONE);

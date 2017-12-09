@@ -52,6 +52,7 @@ extern "C" {
 typedef struct FModifier {
 	struct FModifier *next, *prev;
 	
+	struct FCurve *curve;  /* containing curve, only used for updates to CYCLES */
 	void *data;			/* pointer to modifier data */
 	
 	char name[64];		/* user-defined description for the modifier - MAX_ID_NAME-2 */
@@ -489,7 +490,10 @@ typedef struct FCurve {
 	float curval;			/* value stored from last time curve was evaluated (not threadsafe, debug display only!) */
 	short flag;				/* user-editable settings for this curve */
 	short extend;			/* value-extending mode for this curve (does not cover  */
+	char auto_smoothing;	/* auto-handle smoothing mode */
 	
+	char pad[7];
+
 		/* RNA - data link */
 	int array_index;		/* if applicable, the index of the RNA-array item to get */
 	char *rna_path;			/* RNA-path to resolve data-access */
@@ -543,6 +547,12 @@ typedef enum eFCurve_Coloring {
 	FCURVE_COLOR_AUTO_YRGB    = 3,		/* automatically determine color where XYZ <-> RGB, but index(X) != 0 */
 	FCURVE_COLOR_CUSTOM       = 2,		/* custom color */
 } eFCurve_Coloring;
+
+/* curve smoothing modes */
+typedef enum eFCurve_Smoothing {
+	FCURVE_SMOOTH_NONE             = 0,	/* legacy mode: auto handles only consider adjacent points */
+	FCURVE_SMOOTH_CONT_ACCEL       = 1,	/* maintain continuity of the acceleration */
+} eFCurve_Smoothing;
 
 /* ************************************************ */
 /* 'Action' Datatypes */

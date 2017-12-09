@@ -184,7 +184,7 @@ static int has_poselib_pose_data_poll(bContext *C)
 static int has_poselib_pose_data_for_editing_poll(bContext *C)
 {
 	Object *ob = get_poselib_object(C);
-	return (ob && ob->poselib && !ID_IS_LINKED_DATABLOCK(ob->poselib));
+	return (ob && ob->poselib && !ID_IS_LINKED(ob->poselib));
 }
 
 /* ----------------------------------- */
@@ -386,7 +386,7 @@ static int poselib_add_poll(bContext *C)
 	if (ED_operator_posemode(C)) {
 		Object *ob = get_poselib_object(C);
 		if (ob) {
-			if ((ob->poselib == NULL) || !ID_IS_LINKED_DATABLOCK(ob->poselib)) {
+			if ((ob->poselib == NULL) || !ID_IS_LINKED(ob->poselib)) {
 				return true;
 			}
 		}
@@ -410,11 +410,10 @@ static void poselib_add_menu_invoke__replacemenu(bContext *C, uiLayout *layout, 
 	/* add each marker to this menu */
 	for (marker = act->markers.first; marker; marker = marker->next) {
 		PointerRNA props_ptr;
-		
-		props_ptr = uiItemFullO_ptr(layout, ot,
-		                            marker->name, ICON_ARMATURE_DATA, NULL,
-		                            WM_OP_EXEC_DEFAULT, UI_ITEM_O_RETURN_PROPS);
-		
+		uiItemFullO_ptr(
+		        layout, ot,
+		        marker->name, ICON_ARMATURE_DATA, NULL,
+		        WM_OP_EXEC_DEFAULT, 0, &props_ptr);
 		RNA_int_set(&props_ptr, "frame", marker->frame);
 		RNA_string_set(&props_ptr, "name", marker->name);
 	}
@@ -529,7 +528,7 @@ void POSELIB_OT_pose_add(wmOperatorType *ot)
 /* ----- */
 
 /* can be called with C == NULL */
-static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
+static const EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Object *ob = get_poselib_object(C);
 	bAction *act = (ob) ? ob->poselib : NULL;
@@ -785,7 +784,7 @@ static int poselib_move_exec(bContext *C, wmOperator *op)
 void POSELIB_OT_pose_move(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
-	static EnumPropertyItem pose_lib_pose_move[] = {
+	static const EnumPropertyItem pose_lib_pose_move[] = {
 		{-1, "UP", 0, "Up", ""},
 		{1, "DOWN", 0, "Down", ""},
 		{0, NULL, 0, NULL, NULL}

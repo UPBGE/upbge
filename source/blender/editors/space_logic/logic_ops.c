@@ -69,7 +69,7 @@ static int edit_sensor_poll(bContext *C)
 {
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "sensor", &RNA_Sensor);
 
-	if (ptr.data && ID_IS_LINKED_DATABLOCK(ptr.id.data)) return 0;
+	if (ptr.data && ID_IS_LINKED(ptr.id.data)) return 0;
 	return 1;
 }
 
@@ -77,7 +77,7 @@ static int edit_controller_poll(bContext *C)
 {
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "controller", &RNA_Controller);
 
-	if (ptr.data && ID_IS_LINKED_DATABLOCK(ptr.id.data)) return 0;
+	if (ptr.data && ID_IS_LINKED(ptr.id.data)) return 0;
 	return 1;
 }
 
@@ -85,7 +85,7 @@ static int edit_actuator_poll(bContext *C)
 {
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "actuator", &RNA_Actuator);
 
-	if (ptr.data && ID_IS_LINKED_DATABLOCK(ptr.id.data)) return 0;
+	if (ptr.data && ID_IS_LINKED(ptr.id.data)) return 0;
 	return 1;
 }
 
@@ -565,7 +565,7 @@ static void LOGIC_OT_actuator_add(wmOperatorType *ot)
 }
 
 /* ************* Move Logic Bricks Operator ************* */
-static EnumPropertyItem logicbricks_move_direction[] = {
+static const EnumPropertyItem logicbricks_move_direction[] = {
 	{1, "UP", 0, "Move Up", ""},
 	{2, "DOWN", 0, "Move Down", ""},
 	{0, NULL, 0, NULL, NULL}

@@ -186,6 +186,7 @@ FCurve *verify_fcurve(bAction *act, const char group[], PointerRNA *ptr,
 		fcu = MEM_callocN(sizeof(FCurve), "FCurve");
 		
 		fcu->flag = (FCURVE_VISIBLE | FCURVE_SELECTED);
+		fcu->auto_smoothing = FCURVE_SMOOTH_CONT_ACCEL;
 		if (BLI_listbase_is_empty(&act->curves))
 			fcu->flag |= FCURVE_ACTIVE;  /* first one added active */
 			
@@ -1789,6 +1790,10 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
 			if (fcu) {
 				success = insert_keyframe_direct(op->reports, ptr, prop, fcu, cfra, ts->keyframe_type, 0);
 			}
+			else {
+				BKE_report(op->reports, RPT_ERROR,
+				           "This property cannot be animated as it will not get updated correctly");
+			}
 		}
 		else if (UI_but_flag_is_set(but, UI_BUT_DRIVEN)) {
 			/* Driven property - Find driver */
@@ -1884,7 +1889,7 @@ static int delete_key_button_exec(bContext *C, wmOperator *op)
 	}
 
 	if (ptr.id.data && ptr.data && prop) {
-		if (ptr.type == &RNA_NlaStrip) {
+		if (BKE_nlastrip_has_curves_for_property(&ptr, prop)) {
 			/* Handle special properties for NLA Strips, whose F-Curves are stored on the
 			 * strips themselves. These are stored separately or else the properties will
 			 * not have any effect.

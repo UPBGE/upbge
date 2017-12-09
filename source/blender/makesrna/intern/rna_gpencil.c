@@ -46,7 +46,7 @@
 #include "ED_gpencil.h"
 
 /* parent type */
-static EnumPropertyItem parent_type_items[] = {
+static const EnumPropertyItem parent_type_items[] = {
 	{PAROBJECT, "OBJECT", 0, "Object", "The layer is parented to an object"},
 	{PARSKEL, "ARMATURE", 0, "Armature", ""},
 	{PARBONE, "BONE", 0, "Bone", "The layer is parented to a bone"},
@@ -249,7 +249,7 @@ static void rna_GPencilLayer_parent_bone_set(PointerRNA *ptr, const char *value)
 
 
 /* parent types enum */
-static EnumPropertyItem *rna_Object_parent_type_itemf(
+static const EnumPropertyItem *rna_Object_parent_type_itemf(
         bContext *UNUSED(C), PointerRNA *ptr,
         PropertyRNA *UNUSED(prop), bool *r_free)
 {
@@ -959,19 +959,19 @@ static void rna_def_gpencil_triangle(BlenderRNA *brna)
 
 	/* point v1 */
 	prop = RNA_def_property(srna, "v1", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "v1");
+	RNA_def_property_int_sdna(prop, NULL, "verts[0]");
 	RNA_def_property_ui_text(prop, "v1", "First triangle vertex index");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	/* point v2 */
 	prop = RNA_def_property(srna, "v2", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "v2");
+	RNA_def_property_int_sdna(prop, NULL, "verts[1]");
 	RNA_def_property_ui_text(prop, "v2", "Second triangle vertex index");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	/* point v3 */
 	prop = RNA_def_property(srna, "v3", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "v3");
+	RNA_def_property_int_sdna(prop, NULL, "verts[2]");
 	RNA_def_property_ui_text(prop, "v3", "Third triangle vertex index");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
@@ -981,7 +981,7 @@ static void rna_def_gpencil_stroke(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem stroke_draw_mode_items[] = {
+	static const EnumPropertyItem stroke_draw_mode_items[] = {
 		{0, "SCREEN", 0, "Screen", "Stroke is in screen-space"},
 		{GP_STROKE_3DSPACE, "3DSPACE", 0, "3D Space", "Stroke is in 3D-space"},
 		{GP_STROKE_2DSPACE, "2DSPACE", 0, "2D Space", "Stroke is in 2D-space"},

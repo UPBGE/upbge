@@ -59,6 +59,8 @@ public:
 
 	void path_trace(RenderTile& rtile, int sample)
 	{
+		scoped_timer timer(&rtile.buffers->render_time);
+
 		/* Cast arguments to cl types. */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
 		cl_mem d_buffer = CL_MEM_PTR(rtile.buffer);
@@ -105,6 +107,8 @@ public:
 		}
 		else if(task->type == DeviceTask::RENDER) {
 			RenderTile tile;
+			DenoisingTask denoising(this);
+
 			/* Keep rendering tiles until done. */
 			while(task->acquire_tile(this, tile)) {
 				if(tile.task == RenderTile::PATH_TRACE) {
@@ -137,7 +141,7 @@ public:
 				}
 				else if(tile.task == RenderTile::DENOISE) {
 					tile.sample = tile.start_sample + tile.num_samples;
-					denoise(tile, *task);
+					denoise(tile, denoising, *task);
 					task->update_progress(&tile, tile.w*tile.h);
 				}
 

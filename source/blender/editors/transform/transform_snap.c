@@ -105,7 +105,7 @@ static float ResizeBetween(TransInfo *t, const float p1[3], const float p2[3]);
 
 /****************** IMPLEMENTATIONS *********************/
 
-static bool snapNodeTest(View2D *v2d, bNode *node, SnapSelect snap_select);
+static bool snapNodeTest(View2D *v2d, bNode *node, eSnapSelect snap_select);
 static NodeBorder snapNodeBorder(int snap_node_mode);
 
 #if 0
@@ -316,9 +316,7 @@ void applyProject(TransInfo *t)
 				mul_m4_v3(ob->obmat, iloc);
 			}
 			else if (t->flag & T_OBJECT) {
-				/* TODO(sergey): Ideally force update is not needed here. */
-				td->ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
-				BKE_object_handle_update(G.main->eval_ctx, t->scene, td->ob);
+				BKE_object_eval_transform_all(G.main->eval_ctx, t->scene, td->ob);
 				copy_v3_v3(iloc, td->ob->obmat[3]);
 			}
 			
@@ -407,8 +405,7 @@ void applyGridAbsolute(TransInfo *t)
 			mul_m4_v3(obmat, iloc);
 		}
 		else if (t->flag & T_OBJECT) {
-			td->ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
-			BKE_object_handle_update(G.main->eval_ctx, t->scene, td->ob);
+			BKE_object_eval_transform_all(G.main->eval_ctx, t->scene, td->ob);
 			copy_v3_v3(iloc, td->ob->obmat[3]);
 		}
 		
@@ -1315,7 +1312,7 @@ bool peelObjectsTransform(
 
 /******************** NODES ***********************************/
 
-static bool snapNodeTest(View2D *v2d, bNode *node, SnapSelect snap_select)
+static bool snapNodeTest(View2D *v2d, bNode *node, eSnapSelect snap_select)
 {
 	/* node is use for snapping only if a) snap mode matches and b) node is inside the view */
 	return ((snap_select == SNAP_NOT_SELECTED && !(node->flag & NODE_SELECT)) ||
@@ -1394,7 +1391,7 @@ static bool snapNode(
 
 static bool snapNodes(
         ToolSettings *ts, SpaceNode *snode, ARegion *ar,
-        const int mval[2], SnapSelect snap_select,
+        const int mval[2], eSnapSelect snap_select,
         float r_loc[2], float *r_dist_px, char *r_node_border)
 {
 	bNodeTree *ntree = snode->edittree;

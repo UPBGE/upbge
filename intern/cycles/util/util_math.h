@@ -320,6 +320,8 @@ CCL_NAMESPACE_END
 #include "util/util_math_float3.h"
 #include "util/util_math_float4.h"
 
+#include "util/util_rect.h"
+
 CCL_NAMESPACE_BEGIN
 
 #ifndef __KERNEL_OPENCL__
@@ -516,6 +518,11 @@ ccl_device float safe_logf(float a, float b)
 ccl_device float safe_modulo(float a, float b)
 {
 	return (b != 0.0f)? fmodf(a, b): 0.0f;
+}
+
+ccl_device_inline float sqr(float a)
+{
+	return a * a;
 }
 
 ccl_device_inline float beta(float x, float y)

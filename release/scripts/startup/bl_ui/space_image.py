@@ -20,21 +20,21 @@
 import bpy
 import math
 from bpy.types import Header, Menu, Panel
-from bl_ui.properties_paint_common import (
-        UnifiedPaintPanel,
-        brush_texture_settings,
-        brush_texpaint_common,
-        brush_mask_texture_settings,
-        )
-from bl_ui.properties_grease_pencil_common import (
-        GreasePencilDrawingToolsPanel,
-        GreasePencilStrokeEditPanel,
-        GreasePencilStrokeSculptPanel,
-        GreasePencilBrushPanel,
-        GreasePencilBrushCurvesPanel,
-        GreasePencilDataPanel,
-        GreasePencilPaletteColorPanel
-        )
+from .properties_paint_common import (
+    UnifiedPaintPanel,
+    brush_texture_settings,
+    brush_texpaint_common,
+    brush_mask_texture_settings,
+)
+from .properties_grease_pencil_common import (
+    GreasePencilDrawingToolsPanel,
+    GreasePencilStrokeEditPanel,
+    GreasePencilStrokeSculptPanel,
+    GreasePencilBrushPanel,
+    GreasePencilBrushCurvesPanel,
+    GreasePencilDataPanel,
+    GreasePencilPaletteColorPanel,
+)
 from bpy.app.translations import pgettext_iface as iface_
 
 
@@ -545,14 +545,15 @@ class MASK_MT_editor_menus(Menu):
 # Mask (similar code in space_clip.py, keep in sync)
 # note! - panel placement does _not_ fit well with image panels... need to fix
 
-from bl_ui.properties_mask_common import (
-        MASK_PT_mask,
-        MASK_PT_layers,
-        MASK_PT_spline,
-        MASK_PT_point,
-        MASK_PT_display,
-        MASK_PT_tools,
-        )
+from .properties_mask_common import (
+    MASK_PT_mask,
+    MASK_PT_layers,
+    MASK_PT_spline,
+    MASK_PT_point,
+    MASK_PT_display,
+    MASK_PT_tools,
+    MASK_PT_add,
+)
 
 
 class IMAGE_PT_mask(MASK_PT_mask, Panel):
@@ -578,6 +579,20 @@ class IMAGE_PT_active_mask_spline(MASK_PT_spline, Panel):
 class IMAGE_PT_active_mask_point(MASK_PT_point, Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
+
+
+class IMAGE_PT_tools_mask(MASK_PT_tools, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_category = 'Mask'
+
+class IMAGE_PT_tools_mask_add(MASK_PT_add, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_category = 'Mask'
+
+
+# --- end mask ---
 
 
 class IMAGE_PT_image_properties(Panel):
@@ -1158,12 +1173,6 @@ class IMAGE_PT_uv_sculpt(Panel, ImagePaintPanel):
         col.prop(uvsculpt, "show_brush")
 
 
-class IMAGE_PT_tools_mask(MASK_PT_tools, Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'TOOLS'
-    bl_category = 'Mask'
-
-# --- end mask ---
 
 
 class IMAGE_PT_options_uvs(Panel, UVToolsPanel):
@@ -1348,6 +1357,7 @@ classes = (
     IMAGE_HT_header,
     MASK_MT_editor_menus,
     IMAGE_PT_mask,
+    IMAGE_PT_tools_mask_add,
     IMAGE_PT_mask_layers,
     IMAGE_PT_mask_display,
     IMAGE_PT_active_mask_spline,

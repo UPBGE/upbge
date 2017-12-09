@@ -44,14 +44,14 @@
 #include "WM_types.h"
 #include "WM_api.h"
 
-EnumPropertyItem rna_enum_image_generated_type_items[] = {
+const EnumPropertyItem rna_enum_image_generated_type_items[] = {
 	{IMA_GENTYPE_BLANK, "BLANK", 0, "Blank", "Generate a blank image"},
 	{IMA_GENTYPE_GRID, "UV_GRID", 0, "UV Grid", "Generated grid to test UV mappings"},
 	{IMA_GENTYPE_GRID_COLOR, "COLOR_GRID", 0, "Color Grid", "Generated improved UV grid to test UV mappings"},
 	{0, NULL, 0, NULL, NULL}
 };
 
-static EnumPropertyItem image_source_items[] = {
+static const EnumPropertyItem image_source_items[] = {
 	{IMA_SRC_FILE, "FILE", 0, "Single Image", "Single image file"},
 	{IMA_SRC_SEQUENCE, "SEQUENCE", 0, "Image Sequence", "Multiple image files, as a sequence"},
 	{IMA_SRC_MOVIE, "MOVIE", 0, "Movie", "Movie file"},
@@ -174,6 +174,11 @@ static void rna_ImageUser_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *
 	ImageUser *iuser = ptr->data;
 
 	BKE_image_user_frame_calc(iuser, scene->r.cfra, 0);
+
+	if (ptr->id.data) {
+		/* Update material or texture for render preview. */
+		DAG_id_tag_update(ptr->id.data, 0);
+	}
 }
 
 
@@ -200,7 +205,7 @@ static char *rna_ImageUser_path(PointerRNA *ptr)
 	return BLI_strdup("");
 }
 
-static EnumPropertyItem *rna_Image_source_itemf(bContext *UNUSED(C), PointerRNA *ptr,
+static const EnumPropertyItem *rna_Image_source_itemf(bContext *UNUSED(C), PointerRNA *ptr,
                                                 PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Image *ima = (Image *)ptr->data;

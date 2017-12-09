@@ -90,7 +90,7 @@ enum {
 
 wmKeyMap *eyedropper_modal_keymap(wmKeyConfig *keyconf)
 {
-	static EnumPropertyItem modal_items[] = {
+	static const EnumPropertyItem modal_items[] = {
 		{EYE_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
 		{EYE_MODAL_SAMPLE_CONFIRM, "SAMPLE_CONFIRM", 0, "Confirm Sampling", ""},
 		{EYE_MODAL_SAMPLE_BEGIN, "SAMPLE_BEGIN", 0, "Start Sampling", ""},
@@ -840,7 +840,7 @@ static int depthdropper_init(bContext *C, wmOperator *op)
 		RegionView3D *rv3d = CTX_wm_region_view3d(C);
 		if (rv3d && rv3d->persp == RV3D_CAMOB) {
 			View3D *v3d = CTX_wm_view3d(C);
-			if (v3d->camera && v3d->camera->data && !ID_IS_LINKED_DATABLOCK(v3d->camera->data)) {
+			if (v3d->camera && v3d->camera->data && !ID_IS_LINKED(v3d->camera->data)) {
 				RNA_id_pointer_create(v3d->camera->data, &ddr->ptr);
 				ddr->prop = RNA_struct_find_property(&ddr->ptr, "dof_distance");
 			}
@@ -1090,7 +1090,7 @@ static int depthdropper_poll(bContext *C)
 		RegionView3D *rv3d = CTX_wm_region_view3d(C);
 		if (rv3d && rv3d->persp == RV3D_CAMOB) {
 			View3D *v3d = CTX_wm_view3d(C);
-			if (v3d->camera && v3d->camera->data && !ID_IS_LINKED_DATABLOCK(v3d->camera->data)) {
+			if (v3d->camera && v3d->camera->data && !ID_IS_LINKED(v3d->camera->data)) {
 				return 1;
 			}
 		}

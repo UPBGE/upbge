@@ -87,8 +87,8 @@ bool ComponentDepsNode::OperationIDKey::operator==(
         const OperationIDKey &other) const
 {
 	return (opcode == other.opcode) &&
-		(STREQ(name, other.name)) &&
-		(name_tag == other.name_tag);
+	       (STREQ(name, other.name)) &&
+	       (name_tag == other.name_tag);
 }
 
 static unsigned int comp_node_hash_key(const void *key_v)
@@ -165,34 +165,60 @@ string ComponentDepsNode::identifier() const
 
 OperationDepsNode *ComponentDepsNode::find_operation(OperationIDKey key) const
 {
-	OperationDepsNode *node = reinterpret_cast<OperationDepsNode *>(BLI_ghash_lookup(operations_map, &key));
-	if (node != NULL) {
-		return node;
+	OperationDepsNode *node;
+	if (operations_map != NULL) {
+		node = (OperationDepsNode *)BLI_ghash_lookup(operations_map, &key);
 	}
 	else {
-		fprintf(stderr, "%s: find_operation(%s) failed\n",
-		        this->identifier().c_str(), key.identifier().c_str());
-		BLI_assert(!"Request for non-existing operation, should not happen");
-		return NULL;
+		BLI_assert(key.name_tag == -1);
+		foreach (OperationDepsNode *op_node, operations) {
+			if (op_node->opcode == key.opcode &&
+			    STREQ(op_node->name, key.name))
+			{
+				node = op_node;
+				break;
+			}
+		}
 	}
+	return node;
 }
 
 OperationDepsNode *ComponentDepsNode::find_operation(eDepsOperation_Code opcode,
-                                                     const char *name,
-                                                     int name_tag) const
+                                                    const char *name,
+                                                    int name_tag) const
 {
 	OperationIDKey key(opcode, name, name_tag);
 	return find_operation(key);
 }
 
-OperationDepsNode *ComponentDepsNode::has_operation(OperationIDKey key) const
+OperationDepsNode *ComponentDepsNode::get_operation(OperationIDKey key) const
 {
-	return reinterpret_cast<OperationDepsNode *>(BLI_ghash_lookup(operations_map, &key));
+	OperationDepsNode *node = find_operation(key);
+	if (node == NULL) {
+		fprintf(stderr, "%s: find_operation(%s) failed\n",
+		        this->identifier().c_str(), key.identifier().c_str());
+		BLI_assert(!"Request for non-existing operation, should not happen");
+		return NULL;
+	}
+	return node;
 }
 
-OperationDepsNode *ComponentDepsNode::has_operation(eDepsOperation_Code opcode,
+OperationDepsNode *ComponentDepsNode::get_operation(eDepsOperation_Code opcode,
                                                     const char *name,
                                                     int name_tag) const
+{
+	OperationIDKey key(opcode, name, name_tag);
+	return get_operation(key);
+}
+
+bool ComponentDepsNode::has_operation(OperationIDKey key) const
+{
+	return find_operation(key) != NULL;
+}
+
+bool ComponentDepsNode::has_operation(eDepsOperation_Code opcode,
+                                      const char *name,
+                                      int name_tag) const
 {
 	OperationIDKey key(opcode, name, name_tag);
 	return has_operation(key);
@@ -203,7 +229,7 @@ OperationDepsNode *ComponentDepsNode::add_operation(const DepsEvalOperationCb& o
                                                     const char *name,
                                                     int name_tag)
 {
-	OperationDepsNode *op_node = has_operation(opcode, name, name_tag);
+	OperationDepsNode *op_node = find_operation(opcode, name, name_tag);
 	if (!op_node) {
 		DepsNodeFactory *factory = deg_get_node_factory(DEG_NODE_TYPE_OPERATION);
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
@@ -333,40 +359,25 @@ void ComponentDepsNode::finalize_build()
 	operations_map = NULL;
 }
 
-/* Parameter Component Defines ============================ */
+/* Register all components. =============================== */
 
-DEG_DEPSNODE_DEFINE(ParametersComponentDepsNode, DEG_NODE_TYPE_PARAMETERS, "Parameters Component");
-static DepsNodeFactoryImpl<ParametersComponentDepsNode> DNTI_PARAMETERS;
+#define DEG_COMPONENT_DEFINE(name, NAME)                             \
+  DEG_DEPSNODE_DEFINE(name ## ComponentDepsNode,                     \
+                      DEG_NODE_TYPE_ ## NAME,                        \
+                      #name  " Component");                          \
+static DepsNodeFactoryImpl<name ## ComponentDepsNode> DNTI_ ## NAME
 
-/* Animation Component Defines ============================ */
 
-DEG_DEPSNODE_DEFINE(AnimationComponentDepsNode, DEG_NODE_TYPE_ANIMATION, "Animation Component");
-static DepsNodeFactoryImpl<AnimationComponentDepsNode> DNTI_ANIMATION;
-
-/* Transform Component Defines ============================ */
-
-DEG_DEPSNODE_DEFINE(TransformComponentDepsNode, DEG_NODE_TYPE_TRANSFORM, "Transform Component");
-static DepsNodeFactoryImpl<TransformComponentDepsNode> DNTI_TRANSFORM;
-
-/* Proxy Component Defines ================================ */
-
-DEG_DEPSNODE_DEFINE(ProxyComponentDepsNode, DEG_NODE_TYPE_PROXY, "Proxy Component");
-static DepsNodeFactoryImpl<ProxyComponentDepsNode> DNTI_PROXY;
-
-/* Geometry Component Defines ============================= */
-
-DEG_DEPSNODE_DEFINE(GeometryComponentDepsNode, DEG_NODE_TYPE_GEOMETRY, "Geometry Component");
-static DepsNodeFactoryImpl<GeometryComponentDepsNode> DNTI_GEOMETRY;
-
-/* Sequencer Component Defines ============================ */
-
-DEG_DEPSNODE_DEFINE(SequencerComponentDepsNode, DEG_NODE_TYPE_SEQUENCER, "Sequencer Component");
-static DepsNodeFactoryImpl<SequencerComponentDepsNode> DNTI_SEQUENCER;
-
-/* Pose Component ========================================= */
-
-DEG_DEPSNODE_DEFINE(PoseComponentDepsNode, DEG_NODE_TYPE_EVAL_POSE, "Pose Eval Component");
-static DepsNodeFactoryImpl<PoseComponentDepsNode> DNTI_EVAL_POSE;
+DEG_COMPONENT_DEFINE(Animation, ANIMATION);
+DEG_COMPONENT_DEFINE(Cache, CACHE);
+DEG_COMPONENT_DEFINE(Geometry, GEOMETRY);
+DEG_COMPONENT_DEFINE(Parameters, PARAMETERS);
+DEG_COMPONENT_DEFINE(Particles, EVAL_PARTICLES);
+DEG_COMPONENT_DEFINE(Proxy, PROXY);
+DEG_COMPONENT_DEFINE(Pose, EVAL_POSE);
+DEG_COMPONENT_DEFINE(Sequencer, SEQUENCER);
+DEG_COMPONENT_DEFINE(Shading, SHADING);
+DEG_COMPONENT_DEFINE(Transform, TRANSFORM);
 
 /* Bone Component ========================================= */
 
@@ -383,28 +394,11 @@ void BoneComponentDepsNode::init(const ID *id, const char *subdata)
 	//this->name = subdata;
 
 	/* bone-specific node data */
-	Object *ob = (Object *)id;
-	this->pchan = BKE_pose_channel_find_name(ob->pose, subdata);
+	Object *object = (Object *)id;
+	this->pchan = BKE_pose_channel_find_name(object->pose, subdata);
 }
 
-DEG_DEPSNODE_DEFINE(BoneComponentDepsNode, DEG_NODE_TYPE_BONE, "Bone Component");
-static DepsNodeFactoryImpl<BoneComponentDepsNode> DNTI_BONE;
-
-/* Particles Component Defines ============================ */
-
-DEG_DEPSNODE_DEFINE(ParticlesComponentDepsNode, DEG_NODE_TYPE_EVAL_PARTICLES, "Particles Component");
-static DepsNodeFactoryImpl<ParticlesComponentDepsNode> DNTI_EVAL_PARTICLES;
-
-/* Shading Component Defines ============================ */
-
-DEG_DEPSNODE_DEFINE(ShadingComponentDepsNode, DEG_NODE_TYPE_SHADING, "Shading Component");
-static DepsNodeFactoryImpl<ShadingComponentDepsNode> DNTI_SHADING;
-
-/* Cache Component Defines ============================ */
-
-DEG_DEPSNODE_DEFINE(CacheComponentDepsNode, DEG_NODE_TYPE_CACHE, "Cache Component");
-static DepsNodeFactoryImpl<CacheComponentDepsNode> DNTI_CACHE;
-
+DEG_COMPONENT_DEFINE(Bone, BONE);
 
 /* Node Types Register =================================== */
 

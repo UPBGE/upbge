@@ -97,7 +97,7 @@ typedef enum eFlyPanState {
 /* called in transform_ops.c, on each regeneration of keymaps  */
 void fly_modal_keymap(wmKeyConfig *keyconf)
 {
-	static EnumPropertyItem modal_items[] = {
+	static const EnumPropertyItem modal_items[] = {
 		{FLY_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
 		{FLY_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
 		{FLY_MODAL_ACCELERATE, "ACCELERATE", 0, "Accelerate", ""},
@@ -351,7 +351,7 @@ static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent
 		fly->rv3d->persp = RV3D_PERSP;
 	}
 
-	if (fly->rv3d->persp == RV3D_CAMOB && ID_IS_LINKED_DATABLOCK(fly->v3d->camera)) {
+	if (fly->rv3d->persp == RV3D_CAMOB && ID_IS_LINKED(fly->v3d->camera)) {
 		BKE_report(op->reports, RPT_ERROR, "Cannot fly a camera from an external library");
 		return false;
 	}

@@ -36,7 +36,7 @@
 
 #include "rna_internal.h"
 
-EnumPropertyItem rna_enum_property_type_items[] = {
+const EnumPropertyItem rna_enum_property_type_items[] = {
 	{PROP_BOOLEAN, "BOOLEAN", 0, "Boolean", ""},
 	{PROP_INT, "INT", 0, "Integer", ""},
 	{PROP_FLOAT, "FLOAT", 0, "Float", ""},
@@ -50,7 +50,7 @@ EnumPropertyItem rna_enum_property_type_items[] = {
 /* XXX Keep in sync with bpy_props.c's property_subtype_xxx_items ???
  *     Currently it is not...
  */
-EnumPropertyItem rna_enum_property_subtype_items[] = {
+const EnumPropertyItem rna_enum_property_subtype_items[] = {
 	{PROP_NONE, "NONE", 0, "None", ""},
 
 	/* strings */
@@ -90,7 +90,7 @@ EnumPropertyItem rna_enum_property_subtype_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem rna_enum_property_unit_items[] = {
+const EnumPropertyItem rna_enum_property_unit_items[] = {
 	{PROP_UNIT_NONE, "NONE", 0, "None", ""},
 	{PROP_UNIT_LENGTH, "LENGTH", 0, "Length", ""},
 	{PROP_UNIT_AREA, "AREA", 0, "Area", ""},
@@ -328,6 +328,16 @@ static PointerRNA rna_Struct_functions_get(CollectionPropertyIterator *iter)
 	/* we return either PropertyRNA* or IDProperty*, the rna_access.c
 	 * functions can handle both as PropertyRNA* with some tricks */
 	return rna_pointer_inherit_refine(&iter->parent, &RNA_Function, internal->link);
+}
+
+static void rna_Struct_property_tags_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	/* here ptr->data should always be the same as iter->parent.type */
+	StructRNA *srna = (StructRNA *)ptr->data;
+	const EnumPropertyItem *tag_defines = RNA_struct_property_tag_defines(srna);
+	unsigned int tag_count = RNA_enum_items_count(tag_defines);
+
+	rna_iterator_array_begin(iter, (void *)tag_defines, sizeof(EnumPropertyItem), tag_count, 0, NULL);
 }
 
 /* Builtin properties iterator re-uses the Struct properties iterator, only
@@ -603,6 +613,34 @@ static int rna_Property_is_library_editable_flag_get(PointerRNA *ptr)
 	return (prop->flag & PROP_LIB_EXCEPTION) != 0;
 }
 
+static int rna_Property_tags_get(PointerRNA *ptr)
+{
+	return RNA_property_tags(ptr->data);
+}
+
+static const EnumPropertyItem *rna_Property_tags_itemf(
+        bContext *UNUSED(C), PointerRNA *ptr,
+        PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	PropertyRNA *this_prop = (PropertyRNA *)ptr->data;
+	const StructRNA *srna = RNA_property_pointer_type(ptr, this_prop);
+	EnumPropertyItem *prop_tags;
+	EnumPropertyItem tmp = {0, "", 0, "", ""};
+	int totitem = 0;
+
+	for (const EnumPropertyItem *struct_tags = RNA_struct_property_tag_defines(srna);
+	     struct_tags->identifier;
+	     struct_tags++)
+	{
+		memcpy(&tmp, struct_tags, sizeof(tmp));
+		RNA_enum_item_add(&prop_tags, &totitem, &tmp);
+	}
+	RNA_enum_item_end(&prop_tags, &totitem);
+	*r_free = true;
+
+	return prop_tags;
+}
+
 static int rna_Property_array_length_get(PointerRNA *ptr)
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
@@ -824,7 +862,7 @@ static int rna_StringProperty_max_length_get(PointerRNA *ptr)
 	return ((StringPropertyRNA *)prop)->maxlength;
 }
 
-static EnumPropertyItem *rna_EnumProperty_default_itemf(bContext *C, PointerRNA *ptr,
+static const EnumPropertyItem *rna_EnumProperty_default_itemf(bContext *C, PointerRNA *ptr,
                                                         PropertyRNA *prop_parent, bool *r_free)
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
@@ -870,7 +908,7 @@ static void rna_EnumProperty_items_begin(CollectionPropertyIterator *iter, Point
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
 	/* EnumPropertyRNA *eprop;  *//* UNUSED */
-	EnumPropertyItem *item = NULL;
+	const EnumPropertyItem *item = NULL;
 	int totitem;
 	bool free;
 	
@@ -1112,13 +1150,21 @@ static void rna_def_struct(BlenderRNA *brna)
 	                                  "rna_iterator_listbase_end", "rna_Struct_functions_get",
 	                                  NULL, NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Functions", "");
+
+	prop = RNA_def_property(srna, "property_tags", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_struct_type(prop, "EnumPropertyItem");
+	RNA_def_property_collection_funcs(prop, "rna_Struct_property_tags_begin", "rna_iterator_array_next",
+	                                  "rna_iterator_array_end", "rna_iterator_array_get",
+	                                  NULL, NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Property Tags", "Tags that properties can use to influence behavior");
 }
 
 static void rna_def_property(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	static EnumPropertyItem subtype_items[] = {
+	static const EnumPropertyItem subtype_items[] = {
 		{PROP_NONE, "NONE", 0, "None", ""},
 		{PROP_FILEPATH, "FILE_PATH", 0, "File Path", ""},
 		{PROP_DIRPATH, "DIR_PATH", 0, "Directory Path", ""},
@@ -1140,6 +1186,9 @@ static void rna_def_property(BlenderRNA *brna)
 		{PROP_COORDS, "COORDINATES", 0, "Vector Coordinates", ""},
 		{PROP_LAYER, "LAYER", 0, "Layer", ""},
 		{PROP_LAYER_MEMBER, "LAYER_MEMBERSHIP", 0, "Layer Membership", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+	EnumPropertyItem dummy_prop_tags[] = {
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -1266,6 +1315,13 @@ static void rna_def_property(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_Property_is_library_editable_flag_get", NULL);
 	RNA_def_property_ui_text(prop, "Library Editable", "Property is editable from linked instances (changes not saved)");
+
+	prop = RNA_def_property(srna, "tags", PROP_ENUM, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_enum_items(prop, dummy_prop_tags);
+	RNA_def_property_enum_funcs(prop, "rna_Property_tags_get", NULL, "rna_Property_tags_itemf");
+	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
+	RNA_def_property_ui_text(prop, "Tags", "Subset of tags (defined in parent struct) that are set for this property");
 }
 
 static void rna_def_function(BlenderRNA *brna)
@@ -1442,7 +1498,7 @@ static void rna_def_enum_property(BlenderRNA *brna, StructRNA *srna)
 	PropertyRNA *prop;
 
 	/* the itemf func is used instead, keep blender happy */
-	static EnumPropertyItem default_dummy_items[] = {
+	static const EnumPropertyItem default_dummy_items[] = {
 		{PROP_NONE, "DUMMY", 0, "Dummy", ""},
 		{0, NULL, 0, NULL, NULL}
 	};

@@ -58,8 +58,7 @@
 
 #define MVAL_PIXEL_MARGIN  5.0f
 
-/* until implement profile = 0 case, need to clamp somewhat above zero */
-#define PROFILE_HARD_MIN 0.15f
+#define PROFILE_HARD_MIN 0.0f
 
 #define SEGMENTS_HARD_MAX 1000
 
@@ -335,10 +334,11 @@ static int edbm_bevel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		 * ideally this will never happen and should be checked for above */
 		opdata->mcenter[0] = opdata->mcenter[1] = 0;
 	}
-	edbm_bevel_calc_initial_length(op, event, false);
 
 	/* for OFFSET_VALUE only, the scale is the size of a pixel under the mouse in 3d space */
 	opdata->scale[OFFSET_VALUE] = rv3d ? ED_view3d_pixel_size(rv3d, center_3d) : 1.0f;
+
+	edbm_bevel_calc_initial_length(op, event, false);
 
 	edbm_bevel_update_header(C, op);
 
@@ -596,7 +596,7 @@ void MESH_OT_bevel(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
 
-	static EnumPropertyItem offset_type_items[] = {
+	static const EnumPropertyItem offset_type_items[] = {
 		{BEVEL_AMT_OFFSET, "OFFSET", 0, "Offset", "Amount is offset of new edges from original"},
 		{BEVEL_AMT_WIDTH, "WIDTH", 0, "Width", "Amount is width of new face"},
 		{BEVEL_AMT_DEPTH, "DEPTH", 0, "Depth", "Amount is perpendicular distance from original edge to bevel face"},
@@ -622,6 +622,7 @@ void MESH_OT_bevel(wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "offset_type", offset_type_items, 0, "Amount Type", "What distance Amount measures");
 	prop = RNA_def_float(ot->srna, "offset", 0.0f, -1e6f, 1e6f, "Amount", "", 0.0f, 1.0f);
 	RNA_def_property_float_array_funcs_runtime(prop, NULL, NULL, mesh_ot_bevel_offset_range_func);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 	RNA_def_int(ot->srna, "segments", 1, 1, SEGMENTS_HARD_MAX, "Segments", "Segments for curved edge", 1, 8);
 	RNA_def_float(ot->srna, "profile", 0.5f, PROFILE_HARD_MIN, 1.0f, "Profile",
 		"Controls profile shape (0.5 = round)", PROFILE_HARD_MIN, 1.0f);

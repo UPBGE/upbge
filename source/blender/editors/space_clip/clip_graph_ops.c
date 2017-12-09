@@ -331,8 +331,7 @@ void CLIP_OT_graph_select(wmOperatorType *ot)
 
 typedef struct BorderSelectuserData {
 	rctf rect;
-	int mode;
-	bool changed, extend;
+	bool select, extend, changed;
 } BorderSelectuserData;
 
 static void border_select_cb(void *userdata, MovieTrackingTrack *UNUSED(track),
@@ -348,11 +347,12 @@ static void border_select_cb(void *userdata, MovieTrackingTrack *UNUSED(track),
 		else
 			flag = MARKER_GRAPH_SEL_Y;
 
-		if (data->mode == GESTURE_MODAL_SELECT)
+		if (data->select) {
 			marker->flag |= flag;
-		else
+		}
+		else {
 			marker->flag &= ~flag;
-
+		}
 		data->changed = true;
 	}
 	else if (!data->extend) {
@@ -380,7 +380,7 @@ static int border_select_graph_exec(bContext *C, wmOperator *op)
 	UI_view2d_region_to_view_rctf(&ar->v2d, &rect, &userdata.rect);
 
 	userdata.changed = false;
-	userdata.mode = RNA_int_get(op->ptr, "gesture_mode");
+	userdata.select = !RNA_boolean_get(op->ptr, "deselect");
 	userdata.extend = RNA_boolean_get(op->ptr, "extend");
 
 	clip_graph_tracking_values_iterate_track(sc, act_track, &userdata, border_select_cb, NULL, NULL);
@@ -402,16 +402,16 @@ void CLIP_OT_graph_select_border(wmOperatorType *ot)
 	ot->idname = "CLIP_OT_graph_select_border";
 
 	/* api callbacks */
-	ot->invoke = WM_border_select_invoke;
+	ot->invoke = WM_gesture_border_invoke;
 	ot->exec = border_select_graph_exec;
-	ot->modal = WM_border_select_modal;
+	ot->modal = WM_gesture_border_modal;
 	ot->poll = clip_graph_knots_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_gesture_border(ot, true);
+	WM_operator_properties_gesture_border_select(ot);
 }
 
 /********************** select all operator *********************/
@@ -700,7 +700,7 @@ static int graph_disable_markers_exec(bContext *C, wmOperator *op)
 
 void CLIP_OT_graph_disable_markers(wmOperatorType *ot)
 {
-	static EnumPropertyItem actions_items[] = {
+	static const EnumPropertyItem actions_items[] = {
 		{0, "DISABLE", 0, "Disable", "Disable selected markers"},
 		{1, "ENABLE", 0, "Enable", "Enable selected markers"},
 		{2, "TOGGLE", 0, "Toggle", "Toggle disabled flag for selected markers"},

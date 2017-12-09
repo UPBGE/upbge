@@ -210,6 +210,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeTangent"),
         NodeItem("ShaderNodeNewGeometry"),
         NodeItem("ShaderNodeWireframe"),
+        NodeItem("ShaderNodeBevel"),
         NodeItem("ShaderNodeObjectInfo"),
         NodeItem("ShaderNodeHairInfo"),
         NodeItem("ShaderNodeParticleInfo"),

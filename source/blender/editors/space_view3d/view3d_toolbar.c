@@ -67,7 +67,7 @@
 
 static void view3d_panel_operator_redo_buts(const bContext *C, Panel *pa, wmOperator *op)
 {
-	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'V', 0);
+	uiTemplateOperatorPropertyButs(C, pa->layout, op, NULL, 'V', 0);
 }
 
 static void view3d_panel_operator_redo_header(const bContext *C, Panel *pa)
@@ -218,7 +218,7 @@ static void view3d_panel_tool_shelf(const bContext *C, Panel *pa)
 		for (ct = st->toolshelf.first; ct; ct = ct->next) {
 			if (STREQLEN(context, ct->context, OP_MAX_TYPENAME)) {
 				col = uiLayoutColumn(pa->layout, true);
-				uiItemFullO(col, ct->opname, NULL, ICON_NONE, NULL, WM_OP_INVOKE_REGION_WIN, 0);
+				uiItemFullO(col, ct->opname, NULL, ICON_NONE, NULL, WM_OP_INVOKE_REGION_WIN, 0, NULL);
 			}
 		}
 	}

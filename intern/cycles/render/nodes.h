@@ -476,7 +476,6 @@ class EmissionNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(EmissionNode)
 	void constant_fold(const ConstantFolder& folder);
-	virtual ClosureType get_closure_type() { return CLOSURE_EMISSION_ID; }
 
 	bool has_surface_emission() { return true; }
 	bool has_volume_support() { return true; }
@@ -490,7 +489,6 @@ class BackgroundNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(BackgroundNode)
 	void constant_fold(const ConstantFolder& folder);
-	virtual ClosureType get_closure_type() { return CLOSURE_BACKGROUND_ID; }
 
 	float3 color;
 	float strength;
@@ -1015,6 +1013,18 @@ public:
 	NodeTangentAxis axis;
 	ustring attribute;
 	float3 normal_osl;
+};
+
+class BevelNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(BevelNode)
+	bool has_spatial_varying() { return true; }
+	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
+	virtual bool has_raytrace() { return true; }
+
+	float radius;
+	float3 normal;
+	int samples;
 };
 
 CCL_NAMESPACE_END

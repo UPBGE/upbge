@@ -744,10 +744,12 @@ static int modifier_add_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static EnumPropertyItem *modifier_add_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
+static const EnumPropertyItem *modifier_add_itemf(
+        bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {	
 	Object *ob = ED_object_active_context(C);
-	EnumPropertyItem *item = NULL, *md_item, *group_item = NULL;
+	EnumPropertyItem *item = NULL;
+	const EnumPropertyItem *md_item, *group_item = NULL;
 	const ModifierTypeInfo *mti;
 	int totitem = 0, a;
 	
@@ -817,9 +819,9 @@ int edit_modifier_poll_generic(bContext *C, StructRNA *rna_type, int obtype_flag
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", rna_type);
 	Object *ob = (ptr.id.data) ? ptr.id.data : ED_object_active_context(C);
 	
-	if (!ob || ID_IS_LINKED_DATABLOCK(ob)) return 0;
+	if (!ob || ID_IS_LINKED(ob)) return 0;
 	if (obtype_flag && ((1 << ob->type) & obtype_flag) == 0) return 0;
-	if (ptr.id.data && ID_IS_LINKED_DATABLOCK(ptr.id.data)) return 0;
+	if (ptr.id.data && ID_IS_LINKED(ptr.id.data)) return 0;
 	
 	return 1;
 }
@@ -1019,7 +1021,7 @@ static int modifier_apply_invoke(bContext *C, wmOperator *op, const wmEvent *UNU
 		return OPERATOR_CANCELLED;
 }
 
-static EnumPropertyItem modifier_apply_as_items[] = {
+static const EnumPropertyItem modifier_apply_as_items[] = {
 	{MODIFIER_APPLY_DATA, "DATA", 0, "Object Data", "Apply modifier to the object's data"},
 	{MODIFIER_APPLY_SHAPE, "SHAPE", 0, "New Shape", "Apply deform-only modifier to a new shape on this object"},
 	{0, NULL, 0, NULL, NULL}
@@ -1573,7 +1575,7 @@ static int skin_loose_mark_clear_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_skin_loose_mark_clear(wmOperatorType *ot)
 {
-	static EnumPropertyItem action_items[] = {
+	static const EnumPropertyItem action_items[] = {
 		{SKIN_LOOSE_MARK, "MARK", 0, "Mark", "Mark selected vertices as loose"},
 		{SKIN_LOOSE_CLEAR, "CLEAR", 0, "Clear", "Set selected vertices as not loose"},
 		{0, NULL, 0, NULL, NULL}

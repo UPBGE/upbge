@@ -358,6 +358,11 @@ bool AbcMeshWriter::isAnimated() const
 	return me->adt != NULL;
 }
 
+void AbcMeshWriter::setIsAnimated(bool is_animated)
+{
+	m_is_animated = is_animated;
+}
+
 void AbcMeshWriter::do_write()
 {
 	/* We have already stored a sample for this object. */
@@ -1082,7 +1087,10 @@ DerivedMesh *AbcMeshReader::read_derivedmesh(DerivedMesh *dm,
 	ImportSettings settings;
 	settings.read_flag |= read_flag;
 
-	if (dm->getNumVerts(dm) != positions->size()) {
+	bool topology_changed =  positions->size() != dm->getNumVerts(dm) ||
+	                         face_counts->size() != dm->getNumPolys(dm) ||
+	                         face_indices->size() != dm->getNumLoops(dm);
+	if (topology_changed) {
 		new_dm = CDDM_from_template(dm,
 		                            positions->size(),
 		                            0,

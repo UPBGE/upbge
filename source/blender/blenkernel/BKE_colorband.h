@@ -15,31 +15,36 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * All rights reserved.
+ *
  * ***** END GPL LICENSE BLOCK *****
  */
+#ifndef __BKE_COLORBAND_H__
+#define __BKE_COLORBAND_H__
 
-/** \file BKE_utildefines.h
- *  \ingroup bke
- *  \brief blender format specific macros
- *  \note generic defines should go in BLI_utildefines.h
+/** \file BKE_colorband.h
  */
-
-
-#ifndef __BKE_UTILDEFINES_H__
-#define __BKE_UTILDEFINES_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define BKE_BIT_TEST_SET(value, test, flag) \
-{                                           \
-	if (test) (value) |=  flag;             \
-	else      (value) &= ~flag;             \
-} (void)0
+struct ColorBand;
+
+/*  in ColorBand struct */
+#define MAXCOLORBAND 32
+
+void              BKE_colorband_init(struct ColorBand *coba, bool rangetype);
+struct ColorBand *BKE_colorband_add(bool rangetype);
+bool              BKE_colorband_evaluate(const struct ColorBand *coba, float in, float out[4]);
+void              BKE_colorband_evaluate_table_rgba(const struct ColorBand *coba, float **array, int *size);
+struct CBData    *BKE_colorband_element_add(struct ColorBand *coba, float position);
+int               BKE_colorband_element_remove(struct ColorBand *coba, int index);
+void              BKE_colorband_update_sort(struct ColorBand *coba);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  /* __BKE_UTILDEFINES_H__ */
+#endif /* __BKE_COLORBAND_H__ */

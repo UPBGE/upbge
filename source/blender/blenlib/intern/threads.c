@@ -472,8 +472,10 @@ void BLI_mutex_free(ThreadMutex *mutex)
 
 void BLI_spin_init(SpinLock *spin)
 {
-#ifdef __APPLE__
+#if defined(__APPLE__)
 	*spin = OS_SPINLOCK_INIT;
+#elif defined(_MSC_VER)
+	*spin = 0;
 #else
 	pthread_spin_init(spin, 0);
 #endif
@@ -481,8 +483,14 @@ void BLI_spin_init(SpinLock *spin)
 
 void BLI_spin_lock(SpinLock *spin)
 {
-#ifdef __APPLE__
+#if defined(__APPLE__)
 	OSSpinLockLock(spin);
+#elif defined(_MSC_VER)
+	while (InterlockedExchangeAcquire(spin, 1)) {
+		while (*spin) {
+			/* pass */
+		}
+	}
 #else
 	pthread_spin_lock(spin);
 #endif
@@ -490,21 +498,24 @@ void BLI_spin_lock(SpinLock *spin)
 
 void BLI_spin_unlock(SpinLock *spin)
 {
-#ifdef __APPLE__
+#if defined(__APPLE__)
 	OSSpinLockUnlock(spin);
+#elif defined(_MSC_VER)
+	_ReadWriteBarrier();
+	*spin = 0;
 #else
 	pthread_spin_unlock(spin);
 #endif
 }
 
-#ifndef __APPLE__
+#if defined(__APPLE__) || defined(_MSC_VER)
+void BLI_spin_end(SpinLock *UNUSED(spin))
+{
+}
+#else
 void BLI_spin_end(SpinLock *spin)
 {
 	pthread_spin_destroy(spin);
-}
-#else
-void BLI_spin_end(SpinLock *UNUSED(spin))
-{
 }
 #endif
 

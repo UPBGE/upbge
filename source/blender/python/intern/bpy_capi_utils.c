@@ -20,11 +20,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/python/intern/bpy_util.c
+/** \file blender/python/intern/bpy_capi_utils.c
  *  \ingroup pythonintern
  *
- * This file contains blender/python utility functions for the api's internal
- * use (unrelated to 'bpy.utils')
+ * This file contains Blender/Python utility functions to help implementing API's.
+ * This is not related to a particular module.
  */
 
 #include <Python.h>
@@ -32,7 +32,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_dynstr.h"
 
-#include "bpy_util.h"
+#include "bpy_capi_utils.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -47,10 +47,10 @@ static bContext *__py_context = NULL;
 bContext   *BPy_GetContext(void) { return __py_context; }
 void        BPy_SetContext(bContext *C) { __py_context = C; }
 
-char *BPy_enum_as_string(EnumPropertyItem *item)
+char *BPy_enum_as_string(const EnumPropertyItem *item)
 {
 	DynStr *dynstr = BLI_dynstr_new();
-	EnumPropertyItem *e;
+	const EnumPropertyItem *e;
 	char *cstring;
 
 	for (e = item; item->identifier; item++) {

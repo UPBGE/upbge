@@ -178,7 +178,7 @@ void BM_face_calc_tessellation(
 		} while ((l_iter = l_iter->next) != l_first);
 
 		/* complete the loop */
-		BLI_polyfill_calc((const float (*)[2])projverts, f->len, -1, r_index);
+		BLI_polyfill_calc(projverts, f->len, -1, r_index);
 	}
 }
 
@@ -507,6 +507,18 @@ void BM_face_calc_tangent_auto(const BMFace *f, float r_tangent[3])
 		/* longest edge of an ngon */
 		BM_face_calc_tangent_edge((BMFace *)f, r_tangent);
 	}
+}
+
+/**
+ * expands bounds (min/max must be initialized).
+ */
+void BM_face_calc_bounds_expand(const BMFace *f, float min[3], float max[3])
+{
+	const BMLoop *l_iter, *l_first;
+	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+	do {
+		minmax_v3v3_v3(min, max, l_iter->v->co);
+	} while ((l_iter = l_iter->next) != l_first);
 }
 
 /**
@@ -885,7 +897,7 @@ bool BM_face_point_inside_test(const BMFace *f, const float co[3])
 		mul_v2_m3v3(projverts[i], axis_mat, l_iter->v->co);
 	}
 
-	return isect_point_poly_v2(co_2d, (const float (*)[2])projverts, f->len, false);
+	return isect_point_poly_v2(co_2d, projverts, f->len, false);
 }
 
 /**
@@ -925,7 +937,7 @@ void BM_face_triangulate(
         MemArena *pf_arena,
 
         /* use for MOD_TRIANGULATE_NGON_BEAUTY only! */
-        struct Heap *pf_heap, struct EdgeHash *pf_ehash)
+        struct Heap *pf_heap)
 {
 	const int cd_loop_mdisp_offset = CustomData_get_offset(&bm->ldata, CD_MDISPS);
 	const bool use_beauty = (ngon_method == MOD_TRIANGULATE_NGON_BEAUTY);
@@ -1035,13 +1047,13 @@ void BM_face_triangulate(
 				mul_v2_m3v3(projverts[i], axis_mat, l_iter->v->co);
 			}
 
-			BLI_polyfill_calc_arena((const float (*)[2])projverts, f->len, 1, tris,
+			BLI_polyfill_calc_arena(projverts, f->len, 1, tris,
 			                        pf_arena);
 
 			if (use_beauty) {
 				BLI_polyfill_beautify(
-				        (const float (*)[2])projverts, f->len, tris,
-				        pf_arena, pf_heap, pf_ehash);
+				        projverts, f->len, tris,
+				        pf_arena, pf_heap);
 			}
 
 			BLI_memarena_clear(pf_arena);
@@ -1171,7 +1183,7 @@ void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int l
 	}
 
 	/* first test for completely convex face */
-	if (is_poly_convex_v2((const float (*)[2])projverts, f->len)) {
+	if (is_poly_convex_v2(projverts, f->len)) {
 		return;
 	}
 
@@ -1449,7 +1461,7 @@ void BM_mesh_calc_tessellation(BMesh *bm, BMLoop *(*looptris)[3], int *r_looptri
 				j++;
 			} while ((l_iter = l_iter->next) != l_first);
 
-			BLI_polyfill_calc_arena((const float (*)[2])projverts, efa->len, 1, tris, arena);
+			BLI_polyfill_calc_arena(projverts, efa->len, 1, tris, arena);
 
 			for (j = 0; j < totfilltri; j++) {
 				BMLoop **l_ptr = looptris[i++];
@@ -1497,7 +1509,6 @@ void BM_mesh_calc_tessellation_beauty(BMesh *bm, BMLoop *(*looptris)[3], int *r_
 
 	/* use_beauty */
 	Heap *pf_heap = NULL;
-	EdgeHash *pf_ehash = NULL;
 
 	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 		/* don't consider two-edged faces */
@@ -1574,7 +1585,6 @@ void BM_mesh_calc_tessellation_beauty(BMesh *bm, BMLoop *(*looptris)[3], int *r_
 			if (UNLIKELY(pf_arena == NULL)) {
 				pf_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
 				pf_heap = BLI_heap_new_ex(BLI_POLYFILL_ALLOC_NGON_RESERVE);
-				pf_ehash = BLI_edgehash_new_ex(__func__, BLI_POLYFILL_ALLOC_NGON_RESERVE);
 			}
 
 			tris = BLI_memarena_alloc(pf_arena, sizeof(*tris) * totfilltri);
@@ -1591,9 +1601,9 @@ void BM_mesh_calc_tessellation_beauty(BMesh *bm, BMLoop *(*looptris)[3], int *r_
 				j++;
 			} while ((l_iter = l_iter->next) != l_first);
 
-			BLI_polyfill_calc_arena((const float (*)[2])projverts, efa->len, 1, tris, pf_arena);
+			BLI_polyfill_calc_arena(projverts, efa->len, 1, tris, pf_arena);
 
-			BLI_polyfill_beautify((const float (*)[2])projverts, efa->len, tris, pf_arena, pf_heap, pf_ehash);
+			BLI_polyfill_beautify(projverts, efa->len, tris, pf_arena, pf_heap);
 
 			for (j = 0; j < totfilltri; j++) {
 				BMLoop **l_ptr = looptris[i++];
@@ -1612,7 +1622,6 @@ void BM_mesh_calc_tessellation_beauty(BMesh *bm, BMLoop *(*looptris)[3], int *r_
 		BLI_memarena_free(pf_arena);
 
 		BLI_heap_free(pf_heap, NULL);
-		BLI_edgehash_free(pf_ehash, NULL);
 	}
 
 	*r_looptris_tot = i;

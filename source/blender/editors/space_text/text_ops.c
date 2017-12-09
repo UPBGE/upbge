@@ -92,7 +92,7 @@ static int text_edit_poll(bContext *C)
 	if (!text)
 		return 0;
 
-	if (ID_IS_LINKED_DATABLOCK(text)) {
+	if (ID_IS_LINKED(text)) {
 		// BKE_report(op->reports, RPT_ERROR, "Cannot edit external libdata");
 		return 0;
 	}
@@ -108,7 +108,7 @@ int text_space_edit_poll(bContext *C)
 	if (!st || !text)
 		return 0;
 
-	if (ID_IS_LINKED_DATABLOCK(text)) {
+	if (ID_IS_LINKED(text)) {
 		// BKE_report(op->reports, RPT_ERROR, "Cannot edit external libdata");
 		return 0;
 	}
@@ -128,7 +128,7 @@ static int text_region_edit_poll(bContext *C)
 	if (!ar || ar->regiontype != RGN_TYPE_WINDOW)
 		return 0;
 
-	if (ID_IS_LINKED_DATABLOCK(text)) {
+	if (ID_IS_LINKED(text)) {
 		// BKE_report(op->reports, RPT_ERROR, "Cannot edit external libdata");
 		return 0;
 	}
@@ -1052,7 +1052,7 @@ void TEXT_OT_uncomment(wmOperatorType *ot)
 /******************* convert whitespace operator *********************/
 
 enum { TO_SPACES, TO_TABS };
-static EnumPropertyItem whitespace_type_items[] = {
+static const EnumPropertyItem whitespace_type_items[] = {
 	{TO_SPACES, "SPACES", 0, "To Spaces", NULL},
 	{TO_TABS, "TABS", 0, "To Tabs", NULL},
 	{0, NULL, 0, NULL, NULL}};
@@ -1286,7 +1286,7 @@ static int move_lines_exec(bContext *C, wmOperator *op)
 
 void TEXT_OT_move_lines(wmOperatorType *ot)
 {
-	static EnumPropertyItem direction_items[] = {
+	static const EnumPropertyItem direction_items[] = {
 		{TXT_MOVE_LINE_UP, "UP", 0, "Up", ""},
 		{TXT_MOVE_LINE_DOWN, "DOWN", 0, "Down", ""},
 		{0, NULL, 0, NULL, NULL}
@@ -1307,7 +1307,7 @@ void TEXT_OT_move_lines(wmOperatorType *ot)
 
 /************************ move operator ************************/
 
-static EnumPropertyItem move_type_items[] = {
+static const EnumPropertyItem move_type_items[] = {
 	{LINE_BEGIN, "LINE_BEGIN", 0, "Line Begin", ""},
 	{LINE_END, "LINE_END", 0, "Line End", ""},
 	{FILE_TOP, "FILE_TOP", 0, "File Top", ""},
@@ -1929,7 +1929,7 @@ void TEXT_OT_jump(wmOperatorType *ot)
 
 /******************* delete operator **********************/
 
-static EnumPropertyItem delete_type_items[] = {
+static const EnumPropertyItem delete_type_items[] = {
 	{DEL_NEXT_CHAR, "NEXT_CHARACTER", 0, "Next Character", ""},
 	{DEL_PREV_CHAR, "PREVIOUS_CHARACTER", 0, "Previous Character", ""},
 	{DEL_NEXT_WORD, "NEXT_WORD", 0, "Next Word", ""},
@@ -3092,7 +3092,7 @@ void TEXT_OT_replace_set_selected(wmOperatorType *ot)
 /****************** resolve conflict operator ******************/
 
 enum { RESOLVE_IGNORE, RESOLVE_RELOAD, RESOLVE_SAVE, RESOLVE_MAKE_INTERNAL };
-static EnumPropertyItem resolution_items[] = {
+static const EnumPropertyItem resolution_items[] = {
 	{RESOLVE_IGNORE, "IGNORE", 0, "Ignore", ""},
 	{RESOLVE_RELOAD, "RELOAD", 0, "Reload", ""},
 	{RESOLVE_SAVE, "SAVE", 0, "Save", ""},

@@ -34,11 +34,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_depsgraph.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
-#include "BKE_library.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
@@ -52,11 +50,13 @@
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
+#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_gpencil.h"
 #include "BKE_context.h"
 #include "BKE_mask.h"
 #include "BKE_global.h"
+#include "BKE_library.h"
 
 #include "UI_view2d.h"
 
@@ -680,7 +680,7 @@ typedef enum eRearrangeAnimChan_Mode {
 } eRearrangeAnimChan_Mode;
 
 /* defines for rearranging channels */
-static EnumPropertyItem prop_animchannel_rearrange_types[] = {
+static const EnumPropertyItem prop_animchannel_rearrange_types[] = {
 	{REARRANGE_ANIMCHAN_TOP, "TOP", 0, "To Top", ""},
 	{REARRANGE_ANIMCHAN_UP, "UP", 0, "Up", ""},
 	{REARRANGE_ANIMCHAN_DOWN, "DOWN", 0, "Down", ""},
@@ -1743,7 +1743,7 @@ static void ANIM_OT_channels_delete(wmOperatorType *ot)
 /* ********************** Set Flags Operator *********************** */
 
 /* defines for setting animation-channel flags */
-static EnumPropertyItem prop_animchannel_setflag_types[] = {
+static const EnumPropertyItem prop_animchannel_setflag_types[] = {
 	{ACHANNEL_SETFLAG_TOGGLE, "TOGGLE", 0, "Toggle", ""},
 	{ACHANNEL_SETFLAG_CLEAR, "DISABLE", 0, "Disable", ""},
 	{ACHANNEL_SETFLAG_ADD, "ENABLE", 0, "Enable", ""},
@@ -1753,7 +1753,7 @@ static EnumPropertyItem prop_animchannel_setflag_types[] = {
 
 /* defines for set animation-channel settings */
 // TODO: could add some more types, but those are really quite dependent on the mode...
-static EnumPropertyItem prop_animchannel_settings_types[] = {
+static const EnumPropertyItem prop_animchannel_settings_types[] = {
 	{ACHANNEL_SETTING_PROTECT, "PROTECT", 0, "Protect", ""},
 	{ACHANNEL_SETTING_MUTE, "MUTE", 0, "Mute", ""},
 	{0, NULL, 0, NULL, NULL}
@@ -2455,8 +2455,8 @@ static int animchannels_borderselect_exec(bContext *C, wmOperator *op)
 	bAnimContext ac;
 	rcti rect;
 	short selectmode = 0;
-	int gesture_mode;
-	bool extend;
+	const bool select = !RNA_boolean_get(op->ptr, "deselect");
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -2464,17 +2464,17 @@ static int animchannels_borderselect_exec(bContext *C, wmOperator *op)
 	
 	/* get settings from operator */
 	WM_operator_properties_border_to_rcti(op, &rect);
-	
-	gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
-	extend = RNA_boolean_get(op->ptr, "extend");
 
-	if (!extend)
+	if (!extend) {
 		ANIM_deselect_anim_channels(&ac, ac.data, ac.datatype, true, ACHANNEL_SETFLAG_CLEAR);
+	}
 
-	if (gesture_mode == GESTURE_MODAL_SELECT)
+	if (select) {
 		selectmode = ACHANNEL_SETFLAG_ADD;
-	else
+	}
+	else {
 		selectmode = ACHANNEL_SETFLAG_CLEAR;
+	}
 	
 	/* apply borderselect animation channels */
 	borderselect_anim_channels(&ac, &rect, selectmode);
@@ -2493,10 +2493,10 @@ static void ANIM_OT_channels_select_border(wmOperatorType *ot)
 	ot->description = "Select all animation channels within the specified region";
 	
 	/* api callbacks */
-	ot->invoke = WM_border_select_invoke;
+	ot->invoke = WM_gesture_border_invoke;
 	ot->exec = animchannels_borderselect_exec;
-	ot->modal = WM_border_select_modal;
-	ot->cancel = WM_border_select_cancel;
+	ot->modal = WM_gesture_border_modal;
+	ot->cancel = WM_gesture_border_cancel;
 	
 	ot->poll = animedit_poll_channels_nla_tweakmode_off;
 	
@@ -2504,7 +2504,7 @@ static void ANIM_OT_channels_select_border(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	/* rna */
-	WM_operator_properties_gesture_border(ot, true);
+	WM_operator_properties_gesture_border_select(ot);
 }
 
 /* ******************* Rename Operator ***************************** */
@@ -2687,41 +2687,43 @@ static int mouse_anim_channels(bContext *C, bAnimContext *ac, int channel_index,
 			AnimData *adt = ob->adt;
 			
 			/* set selection status */
-			if (selectmode == SELECT_INVERT) {
-				/* swap select */
-				base->flag ^= SELECT;
-				ob->flag = base->flag;
-				
-				if (adt) adt->flag ^= ADT_UI_SELECTED;
-			}
-			else {
-				Base *b;
-				
-				/* deselect all */
-				/* TODO: should this deselect all other types of channels too? */
-				for (b = sce->base.first; b; b = b->next) {
-					b->flag &= ~SELECT;
-					b->object->flag = b->flag;
-					if (b->object->adt) b->object->adt->flag &= ~(ADT_UI_SELECTED | ADT_UI_ACTIVE);
+			if ((ob->restrictflag & OB_RESTRICT_SELECT) == 0) {
+				if (selectmode == SELECT_INVERT) {
+					/* swap select */
+					base->flag ^= SELECT;
+					ob->flag = base->flag;
+
+					if (adt) adt->flag ^= ADT_UI_SELECTED;
 				}
-				
-				/* select object now */
-				base->flag |= SELECT;
-				ob->flag |= SELECT;
-				if (adt) adt->flag |= ADT_UI_SELECTED;
+				else {
+					Base *b;
+
+					/* deselect all */
+					/* TODO: should this deselect all other types of channels too? */
+					for (b = sce->base.first; b; b = b->next) {
+						b->flag &= ~SELECT;
+						b->object->flag = b->flag;
+						if (b->object->adt) b->object->adt->flag &= ~(ADT_UI_SELECTED | ADT_UI_ACTIVE);
+					}
+
+					/* select object now */
+					base->flag |= SELECT;
+					ob->flag |= SELECT;
+					if (adt) adt->flag |= ADT_UI_SELECTED;
+				}
+
+				/* change active object - regardless of whether it is now selected [T37883] */
+				ED_base_object_activate(C, base); /* adds notifier */
+
+				if ((adt) && (adt->flag & ADT_UI_SELECTED))
+					adt->flag |= ADT_UI_ACTIVE;
+
+				/* ensure we exit editmode on whatever object was active before to avoid getting stuck there - T48747 */
+				if (ob != sce->obedit)
+					ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);
+
+				notifierFlags |= (ND_ANIMCHAN | NA_SELECTED);
 			}
-			
-			/* change active object - regardless of whether it is now selected [T37883] */
-			ED_base_object_activate(C, base); /* adds notifier */
-			
-			if ((adt) && (adt->flag & ADT_UI_SELECTED))
-				adt->flag |= ADT_UI_ACTIVE;
-			
-			/* ensure we exit editmode on whatever object was active before to avoid getting stuck there - T48747 */
-			if (ob != sce->obedit)
-				ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);
-			
-			notifierFlags |= (ND_ANIMCHAN | NA_SELECTED);
 			break;
 		}
 		case ANIMTYPE_FILLACTD: /* Action Expander */

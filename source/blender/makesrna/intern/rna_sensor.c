@@ -45,7 +45,7 @@
 #include "WM_types.h"
 
 /* Always keep in alphabetical order */
-static EnumPropertyItem sensor_type_items[] = {
+static const EnumPropertyItem sensor_type_items[] = {
 	{SENS_ACTUATOR, "ACTUATOR", 0, "Actuator", ""},
 	{SENS_ALWAYS, "ALWAYS", 0, "Always", ""},
 	{SENS_ARMATURE, "ARMATURE", 0, "Armature", ""},
@@ -140,7 +140,7 @@ static int rna_Sensor_controllers_length(PointerRNA *ptr)
 	return (int) sens->totlinks;
 }
 
-EnumPropertyItem *rna_Sensor_type_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
+const EnumPropertyItem *rna_Sensor_type_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem *item = NULL;
 	Object *ob = NULL;
@@ -396,7 +396,7 @@ static void rna_def_mouse_sensor(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem mouse_event_items[] = {
+	static const EnumPropertyItem mouse_event_items[] = {
 		{BL_SENS_MOUSE_LEFT_BUTTON, "LEFTCLICK", 0, "Left Button", ""},
 		{BL_SENS_MOUSE_MIDDLE_BUTTON, "MIDDLECLICK", 0, "Middle Button", ""},
 		{BL_SENS_MOUSE_RIGHT_BUTTON, "RIGHTCLICK", 0, "Right Button", ""},
@@ -511,7 +511,7 @@ static void rna_def_property_sensor(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	static EnumPropertyItem prop_type_items[] = {
+	static const EnumPropertyItem prop_type_items[] = {
 		{SENS_PROP_EQUAL, "PROPEQUAL", 0, "Equal", ""},
 		{SENS_PROP_NEQUAL, "PROPNEQUAL", 0, "Not Equal", ""},
 		{SENS_PROP_INTERVAL, "PROPINTERVAL", 0, "Interval", ""},
@@ -557,7 +557,7 @@ static void rna_def_armature_sensor(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	static EnumPropertyItem prop_type_items[] = {
+	static const EnumPropertyItem prop_type_items[] = {
 		{SENS_ARM_STATE_CHANGED, "STATECHG", 0, "State Changed", ""},
 		{SENS_ARM_LIN_ERROR_BELOW, "LINERRORBELOW", 0, "Lin error below", ""},
 		{SENS_ARM_LIN_ERROR_ABOVE, "LINERRORABOVE", 0, "Lin error above", ""},
@@ -685,7 +685,7 @@ static void rna_def_radar_sensor(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	static EnumPropertyItem axis_items[] = {
+	static const EnumPropertyItem axis_items[] = {
 		{SENS_RADAR_X_AXIS, "XAXIS", 0, "+X axis", ""},
 		{SENS_RADAR_Y_AXIS, "YAXIS", 0, "+Y axis", ""},
 		{SENS_RADAR_Z_AXIS, "ZAXIS", 0, "+Z axis", ""},
@@ -741,7 +741,7 @@ static void rna_def_ray_sensor(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	static EnumPropertyItem axis_items[] = {
+	static const EnumPropertyItem axis_items[] = {
 		{SENS_RAY_X_AXIS, "XAXIS", 0, "+X axis", ""},
 		{SENS_RAY_Y_AXIS, "YAXIS", 0, "+Y axis", ""},
 		{SENS_RAY_Z_AXIS, "ZAXIS", 0, "+Z axis", ""},
@@ -816,7 +816,7 @@ static void rna_def_movement_sensor(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	static EnumPropertyItem axis_items[] = {
+	static const EnumPropertyItem axis_items[] = {
 		{ SENS_MOVEMENT_X_AXIS, "XAXIS", 0, "+X axis", "" },
 		{ SENS_MOVEMENT_Y_AXIS, "YAXIS", 0, "+Y axis", "" },
 		{ SENS_MOVEMENT_Z_AXIS, "ZAXIS", 0, "+Z axis", "" },
@@ -873,7 +873,7 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem event_type_joystick_items[] = {
+	static const EnumPropertyItem event_type_joystick_items[] = {
 		{SENS_JOY_AXIS, "STICK_DIRECTIONS", 0, "Stick Directions", ""},
 		{SENS_JOY_AXIS_SINGLE, "STICK_AXIS", 0, "Stick Axis", ""},
 		{SENS_JOY_SHOULDER_TRIGGER, "SHOULDER_TRIGGERS", 0, "Shoulder Triggers", ""},
@@ -887,7 +887,7 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem axis_direction_items[] = {
+	static const EnumPropertyItem axis_direction_items[] = {
 		{SENS_JOY_X_AXIS, "RIGHTAXIS", 0, "Right", ""},
 		{SENS_JOY_Y_AXIS, "UPAXIS", 0, "Up", ""},
 		{SENS_JOY_NEG_X_AXIS, "LEFTAXIS", 0, "Left", ""},
@@ -895,7 +895,7 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem axis_trigger_items[] = {
+	static const EnumPropertyItem axis_trigger_items[] = {
 		{SENS_JOY_LEFT_SHOULDER_TRIGGER, "LEFT_SHOULDER_TRIGGER", 0, "Left Shoulder Trigger", ""},
 		{SENS_JOY_RIGHT_SHOULDER_TRIGGER, "RIGHT_SHOULDER_TRIGGER", 0, "Right Shoulder Trigger", ""},
 		{0, NULL, 0, NULL, NULL}

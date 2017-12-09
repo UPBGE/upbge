@@ -112,6 +112,7 @@ static uint object_ray_visibility(BL::Object& b_ob)
 void BlenderSync::sync_light(BL::Object& b_parent,
                              int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
                              BL::Object& b_ob,
+                             BL::DupliObject& b_dupli_ob,
                              Transform& tfm,
                              bool *use_portal)
 {
@@ -193,6 +194,13 @@ void BlenderSync::sync_light(BL::Object& b_parent,
 
 	light->max_bounces = get_int(clamp, "max_bounces");
 
+	if(b_dupli_ob) {
+		light->random_id = b_dupli_ob.random_id();
+	}
+	else {
+		light->random_id = hash_int_2d(hash_string(b_ob.name().c_str()), 0);
+	}
+
 	if(light->type == LIGHT_AREA)
 		light->is_portal = get_boolean(clamp, "is_portal");
 	else
@@ -271,7 +279,7 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 	if(object_is_light(b_ob)) {
 		/* don't use lamps for excluded layers used as mask layer */
 		if(!motion && !((layer_flag & render_layer.holdout_layer) && (layer_flag & render_layer.exclude_layer)))
-			sync_light(b_parent, persistent_id, b_ob, tfm, use_portal);
+			sync_light(b_parent, persistent_id, b_ob, b_dupli_ob, tfm, use_portal);
 
 		return NULL;
 	}
@@ -287,7 +295,9 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 	}
 
 	/* Visibility flags for both parent and child. */
-	bool use_holdout = (layer_flag & render_layer.holdout_layer) != 0;
+	PointerRNA cobject = RNA_pointer_get(&b_ob.ptr, "cycles");
+	bool use_holdout = (layer_flag & render_layer.holdout_layer) != 0 ||
+	                   get_boolean(cobject, "is_holdout");
 	uint visibility = object_ray_visibility(b_ob) & PATH_RAY_ALL_VISIBILITY;
 
 	if(b_parent.ptr.data != b_ob.ptr.data) {
@@ -366,7 +376,6 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 		object_updated = true;
 	}
 
-	PointerRNA cobject = RNA_pointer_get(&b_ob.ptr, "cycles");
 	bool is_shadow_catcher = get_boolean(cobject, "is_shadow_catcher");
 	if(is_shadow_catcher != object->is_shadow_catcher) {
 		object->is_shadow_catcher = is_shadow_catcher;

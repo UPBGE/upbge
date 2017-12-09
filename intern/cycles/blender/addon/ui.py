@@ -405,7 +405,12 @@ class CYCLES_RENDER_PT_performance(CyclesButtonsPanel, Panel):
         sub.prop(rd, "tile_x", text="X")
         sub.prop(rd, "tile_y", text="Y")
 
-        sub.prop(cscene, "use_progressive_refine")
+        subsub = sub.column()
+        subsub.active = not rd.use_save_buffers
+        for rl in rd.layers:
+            if rl.cycles.use_denoising:
+                subsub.active = False
+        subsub.prop(cscene, "use_progressive_refine")
 
         col = split.column()
 
@@ -521,6 +526,10 @@ class CYCLES_RENDER_PT_layer_passes(CyclesButtonsPanel, Panel):
         row.prop(rl, "use_pass_subsurface_direct", text="Direct", toggle=True)
         row.prop(rl, "use_pass_subsurface_indirect", text="Indirect", toggle=True)
         row.prop(rl, "use_pass_subsurface_color", text="Color", toggle=True)
+        col.label(text="Volume:")
+        row = col.row(align=True)
+        row.prop(crl, "use_pass_volume_direct", text="Direct", toggle=True)
+        row.prop(crl, "use_pass_volume_indirect", text="Indirect", toggle=True)
 
         col.separator()
         col.prop(rl, "use_pass_emit", text="Emission")
@@ -532,8 +541,9 @@ class CYCLES_RENDER_PT_layer_passes(CyclesButtonsPanel, Panel):
             sub.active = crl.use_denoising
             sub.prop(crl, "denoising_store_passes", text="Denoising")
 
+        col = layout.column()
+        col.prop(crl, "pass_debug_render_time")
         if _cycles.with_cycles_debug:
-            col = layout.column()
             col.prop(crl, "pass_debug_bvh_traversed_nodes")
             col.prop(crl, "pass_debug_bvh_traversed_instances")
             col.prop(crl, "pass_debug_bvh_intersections")
@@ -595,7 +605,6 @@ class CYCLES_RENDER_PT_denoising(CyclesButtonsPanel, Panel):
         cscene = context.scene.cycles
         layout = self.layout
 
-        layout.active = not cscene.use_progressive_refine
         layout.prop(crl, "use_denoising", text="")
 
     def draw(self, context):
@@ -607,7 +616,7 @@ class CYCLES_RENDER_PT_denoising(CyclesButtonsPanel, Panel):
         rl = rd.layers.active
         crl = rl.cycles
 
-        layout.active = crl.use_denoising and not cscene.use_progressive_refine
+        layout.active = crl.use_denoising
 
         split = layout.split()
 
@@ -859,7 +868,9 @@ class CYCLES_OBJECT_PT_cycles_settings(CyclesButtonsPanel, Panel):
         if ob.type != 'LAMP':
             flow.prop(visibility, "shadow")
 
-        layout.prop(cob, "is_shadow_catcher")
+        row = layout.row()
+        row.prop(cob, "is_shadow_catcher")
+        row.prop(cob, "is_holdout")
 
         col = layout.column()
         col.label(text="Performance:")

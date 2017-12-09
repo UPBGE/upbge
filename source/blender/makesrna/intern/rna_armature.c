@@ -542,7 +542,22 @@ void rna_def_bone_curved_common(StructRNA *srna, bool is_posebone)
 	RNA_def_property_range(prop, -5.0f, 5.0f);
 	RNA_def_property_ui_text(prop, "Out Y", "Y-axis handle offset for end of the B-Bone's curve, adjusts curvature");
 	RNA_DEF_CURVEBONE_UPDATE(prop, is_posebone);
+
+	/* Ease In/Out */
+	prop = RNA_def_property(srna, "bbone_easein", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "ease1");
+	RNA_def_property_range(prop, -5.0f, 5.0f);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Ease In", "Length of first Bezier Handle (for B-Bones only)");
+	RNA_DEF_CURVEBONE_UPDATE(prop, is_posebone);
 	
+	prop = RNA_def_property(srna, "bbone_easeout", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "ease2");
+	RNA_def_property_range(prop, -5.0f, 5.0f);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Ease Out", "Length of second Bezier Handle (for B-Bones only)");
+	RNA_DEF_CURVEBONE_UPDATE(prop, is_posebone);
+
 	/* Scale In/Out */
 	prop = RNA_def_property(srna, "bbone_scalein", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "scaleIn");
@@ -680,18 +695,6 @@ static void rna_def_bone_common(StructRNA *srna, int editbone)
 	RNA_def_property_ui_text(prop, "B-Bone Segments", "Number of subdivisions of bone (for B-Bones only)");
 	RNA_def_property_update(prop, 0, "rna_Armature_update_data");
 	
-	prop = RNA_def_property(srna, "bbone_in", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "ease1");
-	RNA_def_property_range(prop, 0.0f, 2.0f);
-	RNA_def_property_ui_text(prop, "B-Bone Ease In", "Length of first Bezier Handle (for B-Bones only)");
-	RNA_def_property_update(prop, 0, "rna_Armature_update_data");
-	
-	prop = RNA_def_property(srna, "bbone_out", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "ease2");
-	RNA_def_property_range(prop, 0.0f, 2.0f);
-	RNA_def_property_ui_text(prop, "B-Bone Ease Out", "Length of second Bezier Handle (for B-Bones only)");
-	RNA_def_property_update(prop, 0, "rna_Armature_update_data");
-
 	prop = RNA_def_property(srna, "bbone_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "xwidth");
 	RNA_def_property_range(prop, 0.0f, 1000.0f);
@@ -974,7 +977,7 @@ static void rna_def_armature(BlenderRNA *brna)
 	FunctionRNA *func;
 	PropertyRNA *parm;
 
-	static EnumPropertyItem prop_drawtype_items[] = {
+	static const EnumPropertyItem prop_drawtype_items[] = {
 		{ARM_OCTA, "OCTAHEDRAL", 0, "Octahedral", "Display bones as octahedral shape (default)"},
 		{ARM_LINE, "STICK", 0, "Stick", "Display bones as simple 2D lines with dots"},
 		{ARM_B_BONE, "BBONE", 0, "B-Bone", "Display bones as boxes, showing subdivision and B-Splines"},
@@ -983,12 +986,12 @@ static void rna_def_armature(BlenderRNA *brna)
 		{ARM_WIRE, "WIRE", 0, "Wire", "Display bones as thin wires, showing subdivision and B-Splines"},
 		{0, NULL, 0, NULL, NULL}
 	};
-	static EnumPropertyItem prop_vdeformer[] = {
+	static const EnumPropertyItem prop_vdeformer[] = {
 		{ARM_VDEF_BLENDER, "BLENDER", 0, "Blender", "Use Blender's armature vertex deformation"},
 		{ARM_VDEF_BGE_CPU, "BGE_CPU", 0, "BGE", "Use vertex deformation code optimized for the BGE"},
 		{0, NULL, 0, NULL, NULL}
 	};
-	static EnumPropertyItem prop_ghost_type_items[] = {
+	static const EnumPropertyItem prop_ghost_type_items[] = {
 		{ARM_GHOST_CUR, "CURRENT_FRAME", 0, "Around Frame",
 		                "Display Ghosts of poses within a fixed number of frames around the current frame"},
 		{ARM_GHOST_RANGE, "RANGE", 0, "In Range", "Display Ghosts of poses within specified range"},

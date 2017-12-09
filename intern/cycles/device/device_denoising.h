@@ -94,7 +94,7 @@ public:
 		device_ptr temporary_1_ptr; /* There two images are used as temporary storage. */
 		device_ptr temporary_2_ptr;
 
-		int4 filter_rect;
+		int4 filter_window;
 		int4 buffer_params;
 
 		int source_w;
@@ -121,11 +121,25 @@ public:
 		device_only_memory<int>    rank;
 		device_only_memory<float>  XtWX;
 		device_only_memory<float3> XtWY;
+		device_only_memory<float>  temporary_1;
+		device_only_memory<float>  temporary_2;
+		device_only_memory<float>  temporary_color;
 		int w;
 		int h;
+
+		Storage(Device *device)
+		: transform(device, "denoising transform"),
+		  rank(device, "denoising rank"),
+		  XtWX(device, "denoising XtWX"),
+		  XtWY(device, "denoising XtWY"),
+		  temporary_1(device, "denoising NLM temporary 1"),
+		  temporary_2(device, "denoising NLM temporary 2"),
+		  temporary_color(device, "denoising temporary color")
+		{}
 	} storage;
 
-	DenoisingTask(Device *device) : device(device) {}
+	DenoisingTask(Device *device);
+	~DenoisingTask();
 
 	void init_from_devicetask(const DeviceTask &task);
 
@@ -134,9 +148,14 @@ public:
 	struct DenoiseBuffers {
 		int pass_stride;
 		int passes;
-		int w;
+		int stride;
 		int h;
+		int width;
 		device_only_memory<float> mem;
+
+		DenoiseBuffers(Device *device)
+		: mem(device, "denoising pixel buffer")
+	    {}
 	} buffer;
 
 protected:

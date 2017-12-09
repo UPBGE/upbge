@@ -1087,6 +1087,15 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
                 default=False,
                 )
 
+        cls.is_holdout = BoolProperty(
+                name="Holdout",
+                description="Render objects as a holdout or matte, creating a "
+                            "hole in the image with zero alpha, to fill out in "
+                            "compositing with real footange or another render",
+                default=False,
+                )
+
+
     @classmethod
     def unregister(cls):
         del bpy.types.Object.cycles
@@ -1186,6 +1195,24 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
         cls.pass_debug_ray_bounces = BoolProperty(
                 name="Debug Ray Bounces",
                 description="Store Debug Ray Bounces pass",
+                default=False,
+                update=update_render_passes,
+                )
+        cls.pass_debug_render_time = BoolProperty(
+                name="Debug Render Time",
+                description="Render time in milliseconds per sample and pixel",
+                default=False,
+                update=update_render_passes,
+                )
+        cls.use_pass_volume_direct = BoolProperty(
+                name="Volume Direct",
+                description="Deliver direct volumetric scattering pass",
+                default=False,
+                update=update_render_passes,
+                )
+        cls.use_pass_volume_indirect = BoolProperty(
+                name="Volume Indirect",
+                description="Deliver indirect volumetric scattering pass",
                 default=False,
                 update=update_render_passes,
                 )
@@ -1351,8 +1378,9 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
         cuda_devices = []
         opencl_devices = []
+        cpu_devices = []
         for device in device_list:
-            if not device[1] in {'CUDA', 'OPENCL'}:
+            if not device[1] in {'CUDA', 'OPENCL', 'CPU'}:
                 continue
 
             entry = None
@@ -1361,18 +1389,28 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 if dev.id == device[2] and dev.type == device[1]:
                     entry = dev
                     break
-            # Create new entry if no existing one was found
             if not entry:
+                # Create new entry if no existing one was found
                 entry = self.devices.add()
                 entry.id   = device[2]
                 entry.name = device[0]
                 entry.type = device[1]
+                entry.use  = entry.type != 'CPU'
+            elif entry.name != device[0]:
+                # Update name in case it changed
+                entry.name = device[0]
 
             # Sort entries into lists
             if entry.type == 'CUDA':
                 cuda_devices.append(entry)
             elif entry.type == 'OPENCL':
                 opencl_devices.append(entry)
+            else:
+                cpu_devices.append(entry)
+
+        cuda_devices.extend(cpu_devices)
+        opencl_devices.extend(cpu_devices)
+
         return cuda_devices, opencl_devices
 
 

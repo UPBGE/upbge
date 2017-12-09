@@ -34,10 +34,10 @@
 
 #ifdef RNA_RUNTIME
 
+#include "BLI_string.h"
+
 #include "BKE_cachefile.h"
 #include "BKE_depsgraph.h"
-
-#include "BLI_string.h"
 
 #include "DEG_depsgraph.h"
 
@@ -146,6 +146,15 @@ static void rna_def_cachefile(BlenderRNA *brna)
 	RNA_def_property_range(prop, -MAXFRAME, MAXFRAME);
 	RNA_def_property_ui_text(prop, "Frame", "The time to use for looking up the data in the cache file,"
 	                                        " or to determine which file to use in a file sequence");
+	RNA_def_property_update(prop, 0, "rna_CacheFile_update");
+
+	prop = RNA_def_property(srna, "frame_offset", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "frame_offset");
+	RNA_def_property_range(prop, -MAXFRAME, MAXFRAME);
+	RNA_def_property_ui_text(prop, "Frame Offset",
+	                         "Subtracted from the current frame to use for "
+	                         "looking up the data in the cache file, or to "
+	                         "determine which file to use in a file sequence");
 	RNA_def_property_update(prop, 0, "rna_CacheFile_update");
 
 	/* ----------------- Axis Conversion ----------------- */

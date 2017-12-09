@@ -50,6 +50,7 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_colorband.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
@@ -59,7 +60,6 @@
 #include "BKE_material.h"
 #include "BKE_node.h"
 #include "BKE_paint.h"
-#include "BKE_texture.h"
 
 #include "UI_interface.h"
 #include "UI_view2d.h"
@@ -510,7 +510,7 @@ BlurKernel *paint_new_blur_kernel(Brush *br, bool proj)
 	BlurKernel *kernel = MEM_mallocN(sizeof(BlurKernel), "blur kernel");
 	float radius;
 	int side;
-	BlurKernelType type = br->blur_mode;
+	eBlurKernelType type = br->blur_mode;
 
 	if (proj) {
 		radius = 0.5f;
@@ -624,13 +624,13 @@ static int image_paint_2d_clone_poll(bContext *C)
 }
 
 /************************ paint operator ************************/
-typedef enum TexPaintMode {
+typedef enum eTexPaintMode {
 	PAINT_MODE_2D,
 	PAINT_MODE_3D_PROJECT
-} TexPaintMode;
+} eTexPaintMode;
 
 typedef struct PaintOperation {
-	TexPaintMode mode;
+	eTexPaintMode mode;
 
 	void *custom_paint;
 
@@ -665,17 +665,17 @@ void paint_brush_color_get(struct Scene *scene, struct Brush *br, bool color_cor
 			float color_gr[4];
 			switch (br->gradient_stroke_mode) {
 				case BRUSH_GRADIENT_PRESSURE:
-					do_colorband(br->gradient, pressure, color_gr);
+					BKE_colorband_evaluate(br->gradient, pressure, color_gr);
 					break;
 				case BRUSH_GRADIENT_SPACING_REPEAT:
 				{
 					float coord = fmod(distance / br->gradient_spacing, 1.0);
-					do_colorband(br->gradient, coord, color_gr);
+					BKE_colorband_evaluate(br->gradient, coord, color_gr);
 					break;
 				}
 				case BRUSH_GRADIENT_SPACING_CLAMP:
 				{
-					do_colorband(br->gradient, distance / br->gradient_spacing, color_gr);
+					BKE_colorband_evaluate(br->gradient, distance / br->gradient_spacing, color_gr);
 					break;
 				}
 			}
@@ -1186,7 +1186,7 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	Brush *brush = BKE_paint_brush(paint);
-	PaintMode mode = BKE_paintmode_get_active_from_context(C);
+	ePaintMode mode = BKE_paintmode_get_active_from_context(C);
 	ARegion *ar = CTX_wm_region(C);
 	wmWindow *win = CTX_wm_window(C);
 	const bool show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
@@ -1238,7 +1238,7 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 	RNA_int_set_array(op->ptr, "location", event->mval);
 
-	PaintMode mode = BKE_paintmode_get_active_from_context(C);
+	ePaintMode mode = BKE_paintmode_get_active_from_context(C);
 	const bool use_sample_texture = (mode == ePaintTextureProjective) && !RNA_boolean_get(op->ptr, "merged");
 
 	paint_sample_color(C, ar, event->mval[0], event->mval[1], use_sample_texture, false);
@@ -1274,7 +1274,7 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		return OPERATOR_FINISHED;
 	}
 
-	PaintMode mode = BKE_paintmode_get_active_from_context(C);
+	ePaintMode mode = BKE_paintmode_get_active_from_context(C);
 	const bool use_sample_texture = (mode == ePaintTextureProjective) && !RNA_boolean_get(op->ptr, "merged");
 
 	switch (event->type) {
@@ -1342,7 +1342,7 @@ static int texture_paint_toggle_poll(bContext *C)
 	Object *ob = CTX_data_active_object(C);
 	if (ob == NULL || ob->type != OB_MESH)
 		return 0;
-	if (!ob->data || ID_IS_LINKED_DATABLOCK(ob->data))
+	if (!ob->data || ID_IS_LINKED(ob->data))
 		return 0;
 	if (CTX_data_edit_object(C))
 		return 0;

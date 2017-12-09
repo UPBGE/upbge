@@ -34,7 +34,6 @@ SET(_openimageio_SEARCH_DIRS
   /usr/local
   /sw # Fink
   /opt/local # DarwinPorts
-  /opt/csw # Blastwave
   /opt/lib/oiio
 )
 
@@ -76,6 +75,8 @@ IF(OPENIMAGEIO_FOUND)
   SET(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO_INCLUDE_DIR})
   IF(EXISTS ${OPENIMAGEIO_INCLUDE_DIR}/OpenImageIO/pugixml.hpp)
     SET(OPENIMAGEIO_PUGIXML_FOUND TRUE)
+  ELSE()
+    SET(OPENIMAGEIO_PUGIXML_FOUND FALSE)
   ENDIF()
 ELSE()
   SET(OPENIMAGEIO_PUGIXML_FOUND FALSE)

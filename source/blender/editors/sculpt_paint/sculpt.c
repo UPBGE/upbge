@@ -3916,7 +3916,7 @@ static const char *sculpt_tool_name(Sculpt *sd)
 {
 	Brush *brush = BKE_paint_brush(&sd->paint);
 
-	switch ((BrushSculptTool)brush->sculpt_tool) {
+	switch ((eBrushSculptTool)brush->sculpt_tool) {
 		case SCULPT_TOOL_DRAW:
 			return "Draw Brush";
 		case SCULPT_TOOL_SMOOTH:
@@ -5221,7 +5221,7 @@ static int dyntopo_warning_popup(bContext *C, wmOperatorType *ot, enum eDynTopoW
 		uiItemS(layout);
 	}
 
-	uiItemFullO_ptr(layout, ot, IFACE_("OK"), ICON_NONE, NULL, WM_OP_EXEC_DEFAULT, 0);
+	uiItemFullO_ptr(layout, ot, IFACE_("OK"), ICON_NONE, NULL, WM_OP_EXEC_DEFAULT, 0, NULL);
 
 	UI_popup_menu_end(C, pup);
 

@@ -34,7 +34,6 @@ SET(_sdl2_SEARCH_DIRS
   /usr
   /sw # Fink
   /opt/local # DarwinPorts
-  /opt/csw # Blastwave
 )
 
 FIND_PATH(SDL2_INCLUDE_DIR
@@ -43,7 +42,7 @@ FIND_PATH(SDL2_INCLUDE_DIR
   HINTS
     ${_sdl2_SEARCH_DIRS}
   PATH_SUFFIXES
-    include/SDL2 include
+    include/SDL2 include SDL2
 )
 
 FIND_LIBRARY(SDL2_LIBRARY

@@ -51,7 +51,7 @@ ccl_device_inline void compute_light_pass(KernelGlobals *kg,
 	path_state_init(kg, &emission_sd, &state, rng_hash, sample, NULL);
 
 	/* evaluate surface shader */
-	shader_eval_surface(kg, sd, &state, state.flag);
+	shader_eval_surface(kg, sd, &state, state.flag, kernel_data.integrator.max_closures);
 
 	/* TODO, disable more closures we don't need besides transparent */
 	shader_bsdf_disable_transparency(kg, sd);
@@ -172,17 +172,6 @@ ccl_device_inline void compute_light_pass(KernelGlobals *kg,
 	path_radiance_accum_sample(L, &L_sample);
 }
 
-ccl_device bool is_aa_pass(ShaderEvalType type)
-{
-	switch(type) {
-		case SHADER_EVAL_UV:
-		case SHADER_EVAL_NORMAL:
-			return false;
-		default:
-			return true;
-	}
-}
-
 /* this helps with AA but it's not the real solution as it does not AA the geometry
  *  but it's better than nothing, thus committed */
 ccl_device_inline float bake_clamp_mirror_repeat(float u, float max)
@@ -239,12 +228,12 @@ ccl_device float3 kernel_bake_evaluate_direct_indirect(KernelGlobals *kg,
 		}
 		else {
 			/* surface color of the pass only */
-			shader_eval_surface(kg, sd, state, 0);
+			shader_eval_surface(kg, sd, state, 0, kernel_data.integrator.max_closures);
 			return kernel_bake_shader_bsdf(kg, sd, type);
 		}
 	}
 	else {
-		shader_eval_surface(kg, sd, state, 0);
+		shader_eval_surface(kg, sd, state, 0, kernel_data.integrator.max_closures);
 		color = kernel_bake_shader_bsdf(kg, sd, type);
 	}
 
@@ -327,6 +316,13 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 	sd.dv.dx = dvdx;
 	sd.dv.dy = dvdy;
 
+	/* set RNG state for shaders that use sampling */
+	state.rng_hash = rng_hash;
+	state.rng_offset = 0;
+	state.sample = sample;
+	state.num_samples = num_samples;
+	state.min_ray_pdf = FLT_MAX;
+
 	/* light passes if we need more than color */
 	if(pass_filter & ~BAKE_FILTER_COLOR)
 		compute_light_pass(kg, &sd, &L, rng_hash, pass_filter, sample);
@@ -337,7 +333,7 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 		{
 			float3 N = sd.N;
 			if((sd.flag & SD_HAS_BUMP)) {
-				shader_eval_surface(kg, &sd, &state, 0);
+				shader_eval_surface(kg, &sd, &state, 0, kernel_data.integrator.max_closures);
 				N = shader_bsdf_average_normal(kg, &sd);
 			}
 
@@ -352,7 +348,7 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 		}
 		case SHADER_EVAL_EMISSION:
 		{
-			shader_eval_surface(kg, &sd, &state, 0);
+			shader_eval_surface(kg, &sd, &state, 0, 0);
 			out = shader_emissive_eval(kg, &sd);
 			break;
 		}
@@ -485,10 +481,10 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 	}
 
 	/* write output */
-	const float output_fac = is_aa_pass(type)? 1.0f/num_samples: 1.0f;
+	const float output_fac = 1.0f/num_samples;
 	const float4 scaled_result = make_float4(out.x, out.y, out.z, 1.0f) * output_fac;
 
-	output[i] = (sample == 0)?  scaled_result: output[i] + scaled_result;
+	output[i] = (sample == 0)? scaled_result: output[i] + scaled_result;
 }
 
 #endif  /* __BAKING__ */

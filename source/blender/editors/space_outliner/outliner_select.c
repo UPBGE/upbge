@@ -816,7 +816,7 @@ eOLDrawState tree_element_active(bContext *C, Scene *scene, SpaceOops *soops, Tr
 {
 	switch (te->idcode) {
 		/* Note: ID_OB only if handle_all_type is true, else objects are handled specially to allow multiple
-		 * selection. See do_outliner_item_activate. */
+		 * selection. See do_outliner_item_activate_from_cursor. */
 		case ID_OB:
 			if (handle_all_types) {
 				return tree_element_set_active_object(C, scene, soops, te, set, false);
@@ -892,10 +892,85 @@ eOLDrawState tree_element_type_active(
 
 /* ================================================ */
 
-static bool do_outliner_item_activate(bContext *C, Scene *scene, ARegion *ar, SpaceOops *soops,
-                                      TreeElement *te, bool extend, bool recursive, const float mval[2])
+/**
+ * Action when clicking to activate an item (typically under the mouse cursor),
+ * but don't do any cursor intersection checks.
+ *
+ * Needed to run from operators accessed from a menu.
+ */
+static void do_outliner_item_activate_tree_element(
+        bContext *C, Scene *scene, SpaceOops *soops,
+        TreeElement *te, TreeStoreElem *tselem,
+        bool extend, bool recursive)
 {
-	
+	/* always makes active object, except for some specific types.
+	 * Note about TSE_EBONE: In case of a same ID_AR datablock shared among several objects, we do not want
+	 * to switch out of edit mode (see T48328 for details). */
+	if (!ELEM(tselem->type, TSE_SEQUENCE, TSE_SEQ_STRIP, TSE_SEQUENCE_DUP, TSE_EBONE)) {
+		tree_element_set_active_object(
+		        C, scene, soops, te,
+		        (extend && tselem->type == 0) ? OL_SETSEL_EXTEND : OL_SETSEL_NORMAL,
+		        recursive && tselem->type == 0);
+	}
+
+	if (tselem->type == 0) { // the lib blocks
+		/* editmode? */
+		if (te->idcode == ID_SCE) {
+			if (scene != (Scene *)tselem->id) {
+				ED_screen_set_scene(C, CTX_wm_screen(C), (Scene *)tselem->id);
+			}
+		}
+		else if (te->idcode == ID_GR) {
+			Group *gr = (Group *)tselem->id;
+			GroupObject *gob;
+
+			if (extend) {
+				int sel = BA_SELECT;
+				for (gob = gr->gobject.first; gob; gob = gob->next) {
+					if (gob->ob->flag & SELECT) {
+						sel = BA_DESELECT;
+						break;
+					}
+				}
+
+				for (gob = gr->gobject.first; gob; gob = gob->next) {
+					ED_base_object_select(BKE_scene_base_find(scene, gob->ob), sel);
+				}
+			}
+			else {
+				BKE_scene_base_deselect_all(scene);
+
+				for (gob = gr->gobject.first; gob; gob = gob->next) {
+					if ((gob->ob->flag & SELECT) == 0)
+						ED_base_object_select(BKE_scene_base_find(scene, gob->ob), BA_SELECT);
+				}
+			}
+
+			WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+		}
+		else if (ELEM(te->idcode, ID_ME, ID_CU, ID_MB, ID_LT, ID_AR)) {
+			WM_operator_name_call(C, "OBJECT_OT_editmode_toggle", WM_OP_INVOKE_REGION_WIN, NULL);
+		}
+		else {  // rest of types
+			tree_element_active(C, scene, soops, te, OL_SETSEL_NORMAL, false);
+		}
+
+	}
+	else {
+		tree_element_type_active(
+		        C, scene, soops, te, tselem,
+		        extend ? OL_SETSEL_EXTEND : OL_SETSEL_NORMAL,
+		        recursive);
+	}
+}
+
+/**
+ * Activates tree items, also handles clicking on arrows.
+ */
+static bool do_outliner_item_activate_from_cursor(
+        bContext *C, Scene *scene, ARegion *ar, SpaceOops *soops,
+        TreeElement *te, bool extend, bool recursive, const float mval[2])
+{
 	if (mval[1] > te->ys && mval[1] < te->ys + UI_UNIT_Y) {
 		TreeStoreElem *tselem = TREESTORE(te);
 		bool openclose = false;
@@ -922,78 +997,49 @@ static bool do_outliner_item_activate(bContext *C, Scene *scene, ARegion *ar, Sp
 		}
 		/* name and first icon */
 		else if (mval[0] > te->xs + UI_UNIT_X && mval[0] < te->xend) {
-			
-			/* always makes active object, except for some specific types.
-			 * Note about TSE_EBONE: In case of a same ID_AR datablock shared among several objects, we do not want
-			 * to switch out of edit mode (see T48328 for details). */
-			if (!ELEM(tselem->type, TSE_SEQUENCE, TSE_SEQ_STRIP, TSE_SEQUENCE_DUP, TSE_EBONE)) {
-				tree_element_set_active_object(C, scene, soops, te,
-				                               (extend && tselem->type == 0) ? OL_SETSEL_EXTEND : OL_SETSEL_NORMAL,
-				                               recursive && tselem->type == 0);
-			}
-			
-			if (tselem->type == 0) { // the lib blocks
-				/* editmode? */
-				if (te->idcode == ID_SCE) {
-					if (scene != (Scene *)tselem->id) {
-						ED_screen_set_scene(C, CTX_wm_screen(C), (Scene *)tselem->id);
-					}
-				}
-				else if (te->idcode == ID_GR) {
-					Group *gr = (Group *)tselem->id;
-					GroupObject *gob;
-					
-					if (extend) {
-						int sel = BA_SELECT;
-						for (gob = gr->gobject.first; gob; gob = gob->next) {
-							if (gob->ob->flag & SELECT) {
-								sel = BA_DESELECT;
-								break;
-							}
-						}
-						
-						for (gob = gr->gobject.first; gob; gob = gob->next) {
-							ED_base_object_select(BKE_scene_base_find(scene, gob->ob), sel);
-						}
-					}
-					else {
-						BKE_scene_base_deselect_all(scene);
-						
-						for (gob = gr->gobject.first; gob; gob = gob->next) {
-							if ((gob->ob->flag & SELECT) == 0)
-								ED_base_object_select(BKE_scene_base_find(scene, gob->ob), BA_SELECT);
-						}
-					}
-					
-					WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-				}
-				else if (ELEM(te->idcode, ID_ME, ID_CU, ID_MB, ID_LT, ID_AR)) {
-					WM_operator_name_call(C, "OBJECT_OT_editmode_toggle", WM_OP_INVOKE_REGION_WIN, NULL);
-				}
-				else {  // rest of types
-					tree_element_active(C, scene, soops, te, OL_SETSEL_NORMAL, false);
-				}
-
-			}
-			else {
-				tree_element_type_active(C, scene, soops, te, tselem,
-				                         extend ? OL_SETSEL_EXTEND : OL_SETSEL_NORMAL,
-				                         recursive);
-			}
-			
+			do_outliner_item_activate_tree_element(
+			        C, scene, soops,
+			        te, tselem,
+			        extend, recursive);
 			return true;
 		}
 	}
 	
 	for (te = te->subtree.first; te; te = te->next) {
-		if (do_outliner_item_activate(C, scene, ar, soops, te, extend, recursive, mval)) {
+		if (do_outliner_item_activate_from_cursor(C, scene, ar, soops, te, extend, recursive, mval)) {
 			return true;
 		}
 	}
 	return false;
 }
 
-int outliner_item_do_activate(bContext *C, int x, int y, bool extend, bool recursive)
+/**
+ * A version of #outliner_item_do_acticate_from_cursor that takes the tree element directly.
+ * and doesn't depend on the pointer position.
+ *
+ * This allows us to simulate clicking on an item without dealing with the mouse cursor.
+ */
+void outliner_item_do_activate_from_tree_element(
+        bContext *C, TreeElement *te, TreeStoreElem *tselem,
+        bool extend, bool recursive)
+{
+	Scene *scene = CTX_data_scene(C);
+	SpaceOops *soops = CTX_wm_space_outliner(C);
+
+	do_outliner_item_activate_tree_element(
+	        C, scene, soops,
+	        te, tselem,
+	        extend, recursive);
+}
+
+/**
+ * Action to run when clicking in the outliner,
+ *
+ * May expend/collapse branches or activate items.
+ * */
+int outliner_item_do_activate_from_cursor(
+        bContext *C, const int mval[2],
+        bool extend, bool recursive)
 {
 	Scene *scene = CTX_data_scene(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -1001,7 +1047,7 @@ int outliner_item_do_activate(bContext *C, int x, int y, bool extend, bool recur
 	TreeElement *te;
 	float fmval[2];
 
-	UI_view2d_region_to_view(&ar->v2d, x, y, &fmval[0], &fmval[1]);
+	UI_view2d_region_to_view(&ar->v2d, mval[0], mval[1], &fmval[0], &fmval[1]);
 
 	if (!ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF) &&
 	    !(soops->flag & SO_HIDE_RESTRICTCOLS) &&
@@ -1011,7 +1057,9 @@ int outliner_item_do_activate(bContext *C, int x, int y, bool extend, bool recur
 	}
 
 	for (te = soops->tree.first; te; te = te->next) {
-		if (do_outliner_item_activate(C, scene, ar, soops, te, extend, recursive, fmval)) break;
+		if (do_outliner_item_activate_from_cursor(C, scene, ar, soops, te, extend, recursive, fmval)) {
+			break;
+		}
 	}
 	
 	if (te) {
@@ -1046,9 +1094,7 @@ static int outliner_item_activate(bContext *C, wmOperator *op, const wmEvent *ev
 {
 	bool extend    = RNA_boolean_get(op->ptr, "extend");
 	bool recursive = RNA_boolean_get(op->ptr, "recursive");
-	int x = event->mval[0];
-	int y = event->mval[1];
-	return outliner_item_do_activate(C, x, y, extend, recursive);
+	return outliner_item_do_activate_from_cursor(C, event->mval, extend, recursive);
 }
 
 void OUTLINER_OT_item_activate(wmOperatorType *ot)
@@ -1068,12 +1114,12 @@ void OUTLINER_OT_item_activate(wmOperatorType *ot)
 /* ****************************************************** */
 
 /* **************** Border Select Tool ****************** */
-static void outliner_item_border_select(Scene *scene, rctf *rectf, TreeElement *te, int gesture_mode)
+static void outliner_item_border_select(Scene *scene, rctf *rectf, TreeElement *te, bool select)
 {
 	TreeStoreElem *tselem = TREESTORE(te);
 
 	if (te->ys <= rectf->ymax && te->ys + UI_UNIT_Y >= rectf->ymin) {
-		if (gesture_mode == GESTURE_MODAL_SELECT) {
+		if (select) {
 			tselem->flag |= TSE_SELECTED;
 		}
 		else {
@@ -1084,7 +1130,7 @@ static void outliner_item_border_select(Scene *scene, rctf *rectf, TreeElement *
 	/* Look at its children. */
 	if ((tselem->flag & TSE_CLOSED) == 0) {
 		for (te = te->subtree.first; te; te = te->next) {
-			outliner_item_border_select(scene, rectf, te, gesture_mode);
+			outliner_item_border_select(scene, rectf, te, select);
 		}
 	}
 }
@@ -1096,13 +1142,13 @@ static int outliner_border_select_exec(bContext *C, wmOperator *op)
 	ARegion *ar = CTX_wm_region(C);
 	TreeElement *te;
 	rctf rectf;
-	int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
+	bool select = !RNA_boolean_get(op->ptr, "deselect");
 
 	WM_operator_properties_border_to_rctf(op, &rectf);
 	UI_view2d_region_to_view_rctf(&ar->v2d, &rectf, &rectf);
 
 	for (te = soops->tree.first; te; te = te->next) {
-		outliner_item_border_select(scene, &rectf, te, gesture_mode);
+		outliner_item_border_select(scene, &rectf, te, select);
 	}
 
 	WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
@@ -1119,10 +1165,10 @@ void OUTLINER_OT_select_border(wmOperatorType *ot)
 	ot->description = "Use box selection to select tree elements";
 
 	/* api callbacks */
-	ot->invoke = WM_border_select_invoke;
+	ot->invoke = WM_gesture_border_invoke;
 	ot->exec = outliner_border_select_exec;
-	ot->modal = WM_border_select_modal;
-	ot->cancel = WM_border_select_cancel;
+	ot->modal = WM_gesture_border_modal;
+	ot->cancel = WM_gesture_border_cancel;
 
 	ot->poll = ED_operator_outliner_active;
 
@@ -1130,7 +1176,7 @@ void OUTLINER_OT_select_border(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* rna */
-	WM_operator_properties_gesture_border(ot, false);
+	WM_operator_properties_gesture_border_ex(ot, true, false);
 }
 
 /* ****************************************************** */

@@ -278,7 +278,7 @@ typedef enum eOutliner_PropSceneOps {
 	OL_SCENE_OP_DELETE = 1
 } eOutliner_PropSceneOps;
 
-static EnumPropertyItem prop_scene_op_types[] = {
+static const EnumPropertyItem prop_scene_op_types[] = {
 	{OL_SCENE_OP_DELETE, "DELETE", ICON_X, "Delete", ""},
 	{0, NULL, 0, NULL, NULL}
 };
@@ -372,16 +372,13 @@ static void object_select_cb(
 }
 
 static void object_select_hierarchy_cb(
-        bContext *C, ReportList *UNUSED(reports), Scene *UNUSED(scene), TreeElement *UNUSED(te),
-        TreeStoreElem *UNUSED(tsep), TreeStoreElem *UNUSED(tselem), void *UNUSED(user_data))
+        bContext *C, ReportList *UNUSED(reports), Scene *UNUSED(scene), TreeElement *te,
+        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
-	/* From where do i get the x,y coordinate of the mouse event ? */
-	wmWindow *win = CTX_wm_window(C);
-	int x = win->eventstate->mval[0];
-	int y = win->eventstate->mval[1];
-	outliner_item_do_activate(C, x, y, true, true);
+	/* Don't extend because this toggles, which is nice for Ctrl-Click but not for a menu item.
+	 * it's especially confusing when multiple items are selected since some toggle on/off. */
+	outliner_item_do_activate_from_tree_element(C, te, tselem, false, true);
 }
-
 
 static void object_deselect_cb(
         bContext *UNUSED(C), ReportList *UNUSED(reports), Scene *scene, TreeElement *te,
@@ -443,7 +440,7 @@ static void id_local_cb(
         bContext *C, ReportList *UNUSED(reports), Scene *UNUSED(scene), TreeElement *UNUSED(te),
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
-	if (ID_IS_LINKED_DATABLOCK(tselem->id) && (tselem->id->tag & LIB_TAG_EXTERN)) {
+	if (ID_IS_LINKED(tselem->id) && (tselem->id->tag & LIB_TAG_EXTERN)) {
 		Main *bmain = CTX_data_main(C);
 		/* if the ID type has no special local function,
 		 * just clear the lib */
@@ -906,7 +903,7 @@ enum {
 	OL_OP_RENAME,
 };
 
-static EnumPropertyItem prop_object_op_types[] = {
+static const EnumPropertyItem prop_object_op_types[] = {
 	{OL_OP_SELECT, "SELECT", 0, "Select", ""},
 	{OL_OP_DESELECT, "DESELECT", 0, "Deselect", ""},
 	{OL_OP_SELECT_HIERARCHY, "SELECT_HIERARCHY", 0, "Select Hierarchy", ""},
@@ -1053,7 +1050,7 @@ typedef enum eOutliner_PropGroupOps {
 	OL_GROUPOP_RENAME,
 } eOutliner_PropGroupOps;
 
-static EnumPropertyItem prop_group_op_types[] = {
+static const EnumPropertyItem prop_group_op_types[] = {
 	{OL_GROUPOP_UNLINK, "UNLINK",     0, "Unlink Group", ""},
 	{OL_GROUPOP_LOCAL, "LOCAL",       0, "Make Local Group", ""},
 	{OL_GROUPOP_LINK, "LINK",         0, "Link Group Objects to Scene", ""},
@@ -1160,7 +1157,7 @@ typedef enum eOutlinerIdOpTypes {
 } eOutlinerIdOpTypes;
 
 // TODO: implement support for changing the ID-block used
-static EnumPropertyItem prop_id_op_types[] = {
+static const EnumPropertyItem prop_id_op_types[] = {
 	{OUTLINER_IDOP_UNLINK, "UNLINK", 0, "Unlink", ""},
 	{OUTLINER_IDOP_LOCAL, "LOCAL", 0, "Make Local", ""},
 	{OUTLINER_IDOP_SINGLE, "SINGLE", 0, "Make Single User", ""},
@@ -1347,7 +1344,7 @@ typedef enum eOutlinerLibOpTypes {
 	OL_LIB_RELOAD,
 } eOutlinerLibOpTypes;
 
-static EnumPropertyItem outliner_lib_op_type_items[] = {
+static const EnumPropertyItem outliner_lib_op_type_items[] = {
 	{OL_LIB_RENAME, "RENAME", 0, "Rename", ""},
 	{OL_LIB_DELETE, "DELETE", 0, "Delete", "Delete this library and all its item from Blender - WARNING: no undo"},
 	{OL_LIB_RELOCATE, "RELOCATE", 0, "Relocate", "Select a new path for this library, and reload all its data"},
@@ -1557,7 +1554,7 @@ typedef enum eOutliner_AnimDataOps {
 	//OUTLINER_ANIMOP_PASTE_DRIVERS
 } eOutliner_AnimDataOps;
 
-static EnumPropertyItem prop_animdata_op_types[] = {
+static const EnumPropertyItem prop_animdata_op_types[] = {
 	{OUTLINER_ANIMOP_CLEAR_ADT, "CLEAR_ANIMDATA", 0, "Clear Animation Data", "Remove this animation data container"},
 	{OUTLINER_ANIMOP_SET_ACT, "SET_ACT", 0, "Set Action", ""},
 	{OUTLINER_ANIMOP_CLEAR_ACT, "CLEAR_ACT", 0, "Unlink Action", ""},
@@ -1657,7 +1654,7 @@ void OUTLINER_OT_animdata_operation(wmOperatorType *ot)
 
 /* **************************************** */
 
-static EnumPropertyItem prop_constraint_op_types[] = {
+static const EnumPropertyItem prop_constraint_op_types[] = {
 	{OL_CONSTRAINTOP_ENABLE, "ENABLE", ICON_RESTRICT_VIEW_OFF, "Enable", ""},
 	{OL_CONSTRAINTOP_DISABLE, "DISABLE", ICON_RESTRICT_VIEW_ON, "Disable", ""},
 	{OL_CONSTRAINTOP_DELETE, "DELETE", ICON_X, "Delete", ""},
@@ -1703,7 +1700,7 @@ void OUTLINER_OT_constraint_operation(wmOperatorType *ot)
 
 /* ******************** */
 
-static EnumPropertyItem prop_modifier_op_types[] = {
+static const EnumPropertyItem prop_modifier_op_types[] = {
 	{OL_MODIFIER_OP_TOGVIS, "TOGVIS", ICON_RESTRICT_VIEW_OFF, "Toggle viewport use", ""},
 	{OL_MODIFIER_OP_TOGREN, "TOGREN", ICON_RESTRICT_RENDER_OFF, "Toggle render use", ""},
 	{OL_MODIFIER_OP_DELETE, "DELETE", ICON_X, "Delete", ""},
@@ -1750,7 +1747,7 @@ void OUTLINER_OT_modifier_operation(wmOperatorType *ot)
 /* ******************** */
 
 // XXX: select linked is for RNA structs only
-static EnumPropertyItem prop_data_op_types[] = {
+static const EnumPropertyItem prop_data_op_types[] = {
 	{OL_DOP_SELECT, "SELECT", 0, "Select", ""},
 	{OL_DOP_DESELECT, "DESELECT", 0, "Deselect", ""},
 	{OL_DOP_HIDE, "HIDE", 0, "Hide", ""},

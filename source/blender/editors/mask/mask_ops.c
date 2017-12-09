@@ -1909,7 +1909,7 @@ static int set_handle_type_exec(bContext *C, wmOperator *op)
 
 void MASK_OT_handle_type_set(wmOperatorType *ot)
 {
-	static EnumPropertyItem editcurve_handle_type_items[] = {
+	static const EnumPropertyItem editcurve_handle_type_items[] = {
 		{HD_AUTO, "AUTO", 0, "Auto", ""},
 		{HD_VECT, "VECTOR", 0, "Vector", ""},
 		{HD_ALIGN, "ALIGNED", 0, "Aligned Single", ""},
@@ -1937,16 +1937,17 @@ void MASK_OT_handle_type_set(wmOperatorType *ot)
 
 
 /* ********* clear/set restrict view *********/
-static int mask_hide_view_clear_exec(bContext *C, wmOperator *UNUSED(op))
+static int mask_hide_view_clear_exec(bContext *C, wmOperator *op)
 {
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *masklay;
 	bool changed = false;
+	const bool select = RNA_boolean_get(op->ptr, "select");
 
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 
 		if (masklay->restrictflag & OB_RESTRICT_VIEW) {
-			ED_mask_layer_select_set(masklay, true);
+			ED_mask_layer_select_set(masklay, select);
 			masklay->restrictflag &= ~OB_RESTRICT_VIEW;
 			changed = true;
 		}
@@ -1977,6 +1978,8 @@ void MASK_OT_hide_view_clear(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "select", true, "Select", "");
 }
 
 static int mask_hide_view_set_exec(bContext *C, wmOperator *op)
@@ -2151,7 +2154,7 @@ static int mask_layer_move_exec(bContext *C, wmOperator *op)
 
 void MASK_OT_layer_move(wmOperatorType *ot)
 {
-	static EnumPropertyItem direction_items[] = {
+	static const EnumPropertyItem direction_items[] = {
 		{-1, "UP", 0, "Up", ""},
 		{1, "DOWN", 0, "Down", ""},
 		{0, NULL, 0, NULL, NULL}

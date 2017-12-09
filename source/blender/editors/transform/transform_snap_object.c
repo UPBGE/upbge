@@ -145,29 +145,20 @@ typedef void(*IterSnapObjsCallback)(SnapObjectContext *sctx, bool is_obedit, Obj
  * Walks through all objects in the scene to create the list of objets to snap.
  *
  * \param sctx: Snap context to store data.
- * \param snap_select : from enum SnapSelect.
+ * \param snap_select : from enum eSnapSelect.
  * \param obedit : Object Edited to use its coordinates of BMesh(if any) to do the snapping.
  */
 static void iter_snap_objects(
         SnapObjectContext *sctx,
-        const SnapSelect snap_select,
+        const eSnapSelect snap_select,
         Object *obedit,
         IterSnapObjsCallback sob_callback,
         void *data)
 {
 	Base *base_act = sctx->scene->basact;
-	/* Need an exception for particle edit because the base is flagged with BA_HAS_RECALC_DATA
-	 * which makes the loop skip it, even the derived mesh will never change
-	 *
-	 * To solve that problem, we do it first as an exception.
-	 * */
-	if (base_act && base_act->object && base_act->object->mode & OB_MODE_PARTICLE_EDIT) {
-		sob_callback(sctx, false, base_act->object, base_act->object->obmat, data);
-	}
-
 	for (Base *base = sctx->scene->base.first; base != NULL; base = base->next) {
 		if ((BASE_VISIBLE_BGMODE(sctx->v3d_data.v3d, sctx->scene, base)) &&
-		    (base->flag & (BA_HAS_RECALC_OB | BA_HAS_RECALC_DATA)) == 0 &&
+		    (base->flag & BA_SNAP_FIX_DEPS_FIASCO) == 0 &&
 		    !((snap_select == SNAP_NOT_SELECTED && (base->flag & (SELECT | BA_WAS_SEL))) ||
 		      (snap_select == SNAP_NOT_ACTIVE && base == base_act)))
 		{
@@ -795,7 +786,7 @@ static void raycast_obj_cb(SnapObjectContext *sctx, bool is_obedit, Object *ob, 
  *
  * \param sctx: Snap context to store data.
  * \param snapdata: struct generated in `set_snapdata`.
- * \param snap_select : from enum SnapSelect.
+ * \param snap_select : from enum eSnapSelect.
  * \param use_object_edit_cage : Uses the coordinates of BMesh(if any) to do the snapping.
  * \param obj_list: List with objects to snap (created in `create_object_list`).
  *
@@ -819,7 +810,7 @@ static void raycast_obj_cb(SnapObjectContext *sctx, bool is_obedit, Object *ob, 
 static bool raycastObjects(
         SnapObjectContext *sctx,
         const float ray_start[3], const float ray_dir[3],
-        const SnapSelect snap_select, const bool use_object_edit_cage,
+        const eSnapSelect snap_select, const bool use_object_edit_cage,
         /* read/write args */
         float *ray_depth,
         /* return args */
@@ -2036,7 +2027,7 @@ static void sanp_obj_cb(SnapObjectContext *sctx, bool is_obedit, Object *ob, flo
  *
  * \param sctx: Snap context to store data.
  * \param snapdata: struct generated in `get_snapdata`.
- * \param snap_select : from enum SnapSelect.
+ * \param snap_select : from enum eSnapSelect.
  * \param use_object_edit_cage : Uses the coordinates of BMesh(if any) to do the snapping.
  *
  * Read/Write Args
@@ -2058,7 +2049,7 @@ static void sanp_obj_cb(SnapObjectContext *sctx, bool is_obedit, Object *ob, flo
  */
 static bool snapObjectsRay(
         SnapObjectContext *sctx, SnapData *snapdata,
-        const SnapSelect snap_select, const bool use_object_edit_cage,
+        const eSnapSelect snap_select, const bool use_object_edit_cage,
         /* read/write args */
         float *ray_depth, float *dist_px,
         /* return args */

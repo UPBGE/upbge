@@ -20,7 +20,7 @@
 import bpy
 from bpy.types import Header, Menu, Panel
 from rna_prop_ui import PropertyPanel
-from bl_ui.properties_grease_pencil_common import (
+from .properties_grease_pencil_common import (
     GreasePencilDataPanel,
     GreasePencilPaletteColorPanel,
     GreasePencilToolsPanel,
@@ -276,7 +276,7 @@ class SEQUENCER_MT_marker(Menu):
     def draw(self, context):
         layout = self.layout
 
-        from bl_ui.space_time import marker_menu_generic
+        from .space_time import marker_menu_generic
         marker_menu_generic(layout)
 
 
@@ -361,6 +361,7 @@ class SEQUENCER_MT_add_effect(Menu):
         layout.operator("sequencer.effect_strip_add", text="Wipe").type = 'WIPE'
         layout.operator("sequencer.effect_strip_add", text="Glow").type = 'GLOW'
         layout.operator("sequencer.effect_strip_add", text="Text").type = 'TEXT'
+        layout.operator("sequencer.effect_strip_add", text="Color Mix").type = 'COLORMIX'
         layout.operator("sequencer.effect_strip_add", text="Transform").type = 'TRANSFORM'
         layout.operator("sequencer.effect_strip_add", text="Color").type = 'COLOR'
         layout.operator("sequencer.effect_strip_add", text="Speed Control").type = 'SPEED'
@@ -602,7 +603,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
             'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
             'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP',
             'WIPE', 'GLOW', 'TRANSFORM', 'COLOR', 'SPEED',
-            'MULTICAM', 'GAUSSIAN_BLUR', 'TEXT',
+            'MULTICAM', 'GAUSSIAN_BLUR', 'TEXT', 'COLORMIX'
         }
 
     def draw(self, context):
@@ -750,6 +751,12 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
             row = col.row(align=True)
             row.prop(strip, "size_x")
             row.prop(strip, "size_y")
+        elif strip.type == 'COLORMIX':
+            split = layout.split(percentage=0.35)
+            split.label(text="Blend Mode:")
+            split.prop(strip, "blend_effect", text="")
+            row = layout.row(align=True)
+            row.prop(strip, "factor", slider=True)
 
 
 class SEQUENCER_PT_input(SequencerButtonsPanel, Panel):
@@ -770,7 +777,7 @@ class SEQUENCER_PT_input(SequencerButtonsPanel, Panel):
             'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
             'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP',
             'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
-            'MULTICAM', 'SPEED', 'ADJUSTMENT',
+            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX'
         }
 
     def draw(self, context):
@@ -1009,7 +1016,7 @@ class SEQUENCER_PT_filter(SequencerButtonsPanel, Panel):
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
             'OVER_DROP', 'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
-            'MULTICAM', 'SPEED', 'ADJUSTMENT',
+            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX'
         }
 
     def draw(self, context):
@@ -1128,6 +1135,8 @@ class SEQUENCER_PT_preview(SequencerButtonsPanel_Output, Panel):
         row.active = render.sequencer_gl_preview == 'SOLID'
         row.prop(render, "use_sequencer_gl_textured_solid")
 
+        col.prop(render, "use_sequencer_gl_dof")
+
 
 class SEQUENCER_PT_view(SequencerButtonsPanel_Output, Panel):
     bl_label = "View Settings"
@@ -1166,7 +1175,7 @@ class SEQUENCER_PT_view_safe_areas(SequencerButtonsPanel_Output, Panel):
         self.layout.prop(st, "show_safe_areas", text="")
 
     def draw(self, context):
-        from bl_ui.properties_data_camera import draw_display_safe_settings
+        from .properties_data_camera import draw_display_safe_settings
 
         layout = self.layout
         st = context.space_data

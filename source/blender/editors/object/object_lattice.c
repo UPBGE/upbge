@@ -57,7 +57,6 @@
 #include "BKE_lattice.h"
 #include "BKE_deform.h"
 #include "BKE_report.h"
-#include "BKE_utildefines.h"
 
 #include "ED_lattice.h"
 #include "ED_object.h"
@@ -369,7 +368,7 @@ static int lattice_select_more_less(bContext *C, const bool select)
 					    lattice_test_bitmap_uvw(lt, selpoints, u, v, w + 1, select) ||
 					    lattice_test_bitmap_uvw(lt, selpoints, u, v, w - 1, select))
 					{
-						BKE_BIT_TEST_SET(bp->f1, select, SELECT);
+						SET_FLAG_FROM_TEST(bp->f1, select, SELECT);
 					}
 				}
 				bp++;
@@ -819,7 +818,7 @@ static int lattice_flip_exec(bContext *C, wmOperator *op)
 
 void LATTICE_OT_flip(wmOperatorType *ot)
 {
-	static EnumPropertyItem flip_items[] = {
+	static const EnumPropertyItem flip_items[] = {
 		{LATTICE_FLIP_U, "U", 0, "U (X) Axis", ""},
 		{LATTICE_FLIP_V, "V", 0, "V (Y) Axis", ""},
 		{LATTICE_FLIP_W, "W", 0, "W (Z) Axis", ""},

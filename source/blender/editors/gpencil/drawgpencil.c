@@ -426,7 +426,7 @@ static void gp_triangulate_stroke_fill(bGPDstroke *gps)
 	
 	/* convert to 2d and triangulate */
 	gp_stroke_2d_flat(gps->points, gps->totpoints, points2d, &direction);
-	BLI_polyfill_calc((const float(*)[2])points2d, (unsigned int)gps->totpoints, direction, (unsigned int(*)[3])tmp_triangles);
+	BLI_polyfill_calc(points2d, (unsigned int)gps->totpoints, direction, tmp_triangles);
 
 	/* Number of triangles */
 	gps->tot_triangles = gps->totpoints - 2;
@@ -441,9 +441,7 @@ static void gp_triangulate_stroke_fill(bGPDstroke *gps)
 		
 		for (int i = 0; i < gps->tot_triangles; i++) {
 			bGPDtriangle *stroke_triangle = &gps->triangles[i];
-			stroke_triangle->v1 = tmp_triangles[i][0];
-			stroke_triangle->v2 = tmp_triangles[i][1];
-			stroke_triangle->v3 = tmp_triangles[i][2];
+			memcpy(stroke_triangle->verts, tmp_triangles[i], sizeof(uint[3]));
 		}
 	}
 	else {
@@ -490,38 +488,24 @@ static void gp_draw_stroke_fill(
 		/* Draw all triangles for filling the polygon (cache must be calculated before) */
 		BLI_assert(gps->tot_triangles >= 1);
 		glBegin(GL_TRIANGLES);
-		for (i = 0, stroke_triangle = gps->triangles; i < gps->tot_triangles; i++, stroke_triangle++) {
-			if (gps->flag & GP_STROKE_3DSPACE) {
-				/* vertex 1 */
-				pt = &gps->points[stroke_triangle->v1];
-				mul_v3_m4v3(fpt, diff_mat, &pt->x);
-				glVertex3fv(fpt);
-				/* vertex 2 */
-				pt = &gps->points[stroke_triangle->v2];
-				mul_v3_m4v3(fpt, diff_mat, &pt->x);
-				glVertex3fv(fpt);
-				/* vertex 3 */
-				pt = &gps->points[stroke_triangle->v3];
-				mul_v3_m4v3(fpt, diff_mat, &pt->x);
-				glVertex3fv(fpt);
+		if (gps->flag & GP_STROKE_3DSPACE) {
+			for (i = 0, stroke_triangle = gps->triangles; i < gps->tot_triangles; i++, stroke_triangle++) {
+				for (int j = 0; j < 3; j++) {
+					pt = &gps->points[stroke_triangle->verts[j]];
+					mul_v3_m4v3(fpt, diff_mat, &pt->x);
+					glVertex3fv(fpt);
+				}
 			}
-			else {
-				float co[2];
-				/* vertex 1 */
-				pt = &gps->points[stroke_triangle->v1];
-				mul_v3_m4v3(fpt, diff_mat, &pt->x);
-				gp_calc_2d_stroke_fxy(fpt, gps->flag, offsx, offsy, winx, winy, co);
-				glVertex2fv(co);
-				/* vertex 2 */
-				pt = &gps->points[stroke_triangle->v2];
-				mul_v3_m4v3(fpt, diff_mat, &pt->x);
-				gp_calc_2d_stroke_fxy(fpt, gps->flag, offsx, offsy, winx, winy, co);
-				glVertex2fv(co);
-				/* vertex 3 */
-				pt = &gps->points[stroke_triangle->v3];
-				mul_v3_m4v3(fpt, diff_mat, &pt->x);
-				gp_calc_2d_stroke_fxy(fpt, gps->flag, offsx, offsy, winx, winy, co);
-				glVertex2fv(co);
+		}
+		else {
+			for (i = 0, stroke_triangle = gps->triangles; i < gps->tot_triangles; i++, stroke_triangle++) {
+				for (int j = 0; j < 3; j++) {
+					float co[2];
+					pt = &gps->points[stroke_triangle->verts[j]];
+					mul_v3_m4v3(fpt, diff_mat, &pt->x);
+					gp_calc_2d_stroke_fxy(fpt, gps->flag, offsx, offsy, winx, winy, co);
+					glVertex2fv(co);
+				}
 			}
 		}
 		glEnd();

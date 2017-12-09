@@ -666,7 +666,7 @@ static void vgroup_copy_active_to_sel(Object *ob, eVGroupSelect subset_type)
 
 /***********************Start weight transfer (WT)*********************************/
 
-static EnumPropertyItem WT_vertex_group_select_item[] = {
+static const EnumPropertyItem WT_vertex_group_select_item[] = {
 	{WT_VGROUP_ACTIVE,
 	 "ACTIVE", 0, "Active Group", "The active Vertex Group"},
 	{WT_VGROUP_BONE_SELECT,
@@ -678,7 +678,7 @@ static EnumPropertyItem WT_vertex_group_select_item[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem *ED_object_vgroup_selection_itemf_helper(
+const EnumPropertyItem *ED_object_vgroup_selection_itemf_helper(
         const bContext *C, PointerRNA *UNUSED(ptr),
         PropertyRNA *UNUSED(prop), bool *r_free, const unsigned int selection_mask)
 {
@@ -686,9 +686,10 @@ EnumPropertyItem *ED_object_vgroup_selection_itemf_helper(
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
 
-
-	if (!C) /* needed for docs and i18n tools */
+	if (C == NULL) {
+		/* needed for docs and i18n tools */
 		return WT_vertex_group_select_item;
+	}
 
 	ob = CTX_data_active_object(C);
 	if (selection_mask & (1 << WT_VGROUP_ACTIVE))
@@ -710,13 +711,13 @@ EnumPropertyItem *ED_object_vgroup_selection_itemf_helper(
 	return item;
 }
 
-static EnumPropertyItem *rna_vertex_group_with_single_itemf(bContext *C, PointerRNA *ptr,
+static const EnumPropertyItem *rna_vertex_group_with_single_itemf(bContext *C, PointerRNA *ptr,
                                                             PropertyRNA *prop, bool *r_free)
 {
 	return ED_object_vgroup_selection_itemf_helper(C, ptr, prop, r_free, WT_VGROUP_MASK_ALL);
 }
 
-static EnumPropertyItem *rna_vertex_group_select_itemf(bContext *C, PointerRNA *ptr,
+static const EnumPropertyItem *rna_vertex_group_select_itemf(bContext *C, PointerRNA *ptr,
                                                        PropertyRNA *prop, bool *r_free)
 {
 	return ED_object_vgroup_selection_itemf_helper(C, ptr, prop, r_free, WT_VGROUP_MASK_ALL & ~(1 << WT_VGROUP_ACTIVE));
@@ -1623,7 +1624,7 @@ enum {
 	VGROUP_INVERT
 };
 
-static EnumPropertyItem vgroup_lock_actions[] = {
+static const EnumPropertyItem vgroup_lock_actions[] = {
 	{VGROUP_TOGGLE, "TOGGLE", 0, "Toggle", "Unlock all vertex groups if there is at least one locked group, lock all in other case"},
 	{VGROUP_LOCK, "LOCK", 0, "Lock", "Lock all vertex groups"},
 	{VGROUP_UNLOCK, "UNLOCK", 0, "Unlock", "Unlock all vertex groups"},
@@ -2458,8 +2459,8 @@ static int vertex_group_poll(bContext *C)
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	return (ob && !ID_IS_LINKED_DATABLOCK(ob) &&
-	        data && !ID_IS_LINKED_DATABLOCK(data) &&
+	return (ob && !ID_IS_LINKED(ob) &&
+	        data && !ID_IS_LINKED(data) &&
 	        OB_TYPE_SUPPORT_VGROUP(ob->type) &&
 	        ob->defbase.first);
 }
@@ -2468,8 +2469,8 @@ static int vertex_group_supported_poll(bContext *C)
 {
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
-	return (ob && !ID_IS_LINKED_DATABLOCK(ob) && OB_TYPE_SUPPORT_VGROUP(ob->type) &&
-	        data && !ID_IS_LINKED_DATABLOCK(data));
+	return (ob && !ID_IS_LINKED(ob) && OB_TYPE_SUPPORT_VGROUP(ob->type) &&
+	        data && !ID_IS_LINKED(data));
 }
 
 static int vertex_group_mesh_poll(bContext *C)
@@ -2477,8 +2478,8 @@ static int vertex_group_mesh_poll(bContext *C)
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	return (ob && !ID_IS_LINKED_DATABLOCK(ob) &&
-	        data && !ID_IS_LINKED_DATABLOCK(data) &&
+	return (ob && !ID_IS_LINKED(ob) &&
+	        data && !ID_IS_LINKED(data) &&
 	        ob->type == OB_MESH &&
 	        ob->defbase.first);
 }
@@ -2487,7 +2488,7 @@ static int UNUSED_FUNCTION(vertex_group_mesh_supported_poll)(bContext *C)
 {
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
-	return (ob && !ID_IS_LINKED_DATABLOCK(ob) && ob->type == OB_MESH && data && !ID_IS_LINKED_DATABLOCK(data));
+	return (ob && !ID_IS_LINKED(ob) && ob->type == OB_MESH && data && !ID_IS_LINKED(data));
 }
 
 
@@ -2496,7 +2497,7 @@ static int UNUSED_FUNCTION(vertex_group_poll_edit) (bContext *C)
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	if (!(ob && !ID_IS_LINKED_DATABLOCK(ob) && data && !ID_IS_LINKED_DATABLOCK(data)))
+	if (!(ob && !ID_IS_LINKED(ob) && data && !ID_IS_LINKED(data)))
 		return 0;
 
 	return BKE_object_is_in_editmode_vgroup(ob);
@@ -2508,7 +2509,7 @@ static int vertex_group_vert_poll_ex(bContext *C, const bool needs_select, const
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	if (!(ob && !ID_IS_LINKED_DATABLOCK(ob) && data && !ID_IS_LINKED_DATABLOCK(data)))
+	if (!(ob && !ID_IS_LINKED(ob) && data && !ID_IS_LINKED(data)))
 		return false;
 
 	if (ob_type_flag && (((1 << ob->type) & ob_type_flag)) == 0) {
@@ -2569,7 +2570,7 @@ static int vertex_group_vert_select_unlocked_poll(bContext *C)
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	if (!(ob && !ID_IS_LINKED_DATABLOCK(ob) && data && !ID_IS_LINKED_DATABLOCK(data)))
+	if (!(ob && !ID_IS_LINKED(ob) && data && !ID_IS_LINKED(data)))
 		return 0;
 
 	if (!(BKE_object_is_in_editmode_vgroup(ob) ||
@@ -2592,7 +2593,7 @@ static int vertex_group_vert_select_mesh_poll(bContext *C)
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	if (!(ob && !ID_IS_LINKED_DATABLOCK(ob) && data && !ID_IS_LINKED_DATABLOCK(data)))
+	if (!(ob && !ID_IS_LINKED(ob) && data && !ID_IS_LINKED(data)))
 		return 0;
 
 	/* only difference to #vertex_group_vert_select_poll */
@@ -2784,7 +2785,7 @@ static int vertex_group_select_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = ED_object_context(C);
 
-	if (!ob || ID_IS_LINKED_DATABLOCK(ob))
+	if (!ob || ID_IS_LINKED(ob))
 		return OPERATOR_CANCELLED;
 
 	vgroup_select_verts(ob, 1);
@@ -3415,7 +3416,7 @@ static int set_active_group_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static EnumPropertyItem *vgroup_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
+static const EnumPropertyItem *vgroup_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {	
 	Object *ob = ED_object_context(C);
 	EnumPropertyItem tmp = {0, "", 0, "", ""};
@@ -3634,7 +3635,7 @@ static int vertex_group_sort_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_vertex_group_sort(wmOperatorType *ot)
 {
-	static EnumPropertyItem vgroup_sort_type[] = {
+	static const EnumPropertyItem vgroup_sort_type[] = {
 		{SORT_TYPE_NAME, "NAME", 0, "Name", ""},
 		{SORT_TYPE_BONEHIERARCHY, "BONE_HIERARCHY", 0, "Bone Hierarchy", ""},
 		{0, NULL, 0, NULL, NULL}
@@ -3685,7 +3686,7 @@ static int vgroup_move_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_vertex_group_move(wmOperatorType *ot)
 {
-	static EnumPropertyItem vgroup_slot_move[] = {
+	static const EnumPropertyItem vgroup_slot_move[] = {
 		{-1, "UP", 0, "Up", ""},
 		{1, "DOWN", 0, "Down", ""},
 		{0, NULL, 0, NULL, NULL}

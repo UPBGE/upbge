@@ -512,6 +512,9 @@ typedef struct SpaceSeq {
 
 	char multiview_eye;				/* multiview current eye - for internal use */
 	char pad2[7];
+
+	struct GPUFX *compositor;
+	void *pad3;
 } SpaceSeq;
 
 
@@ -664,7 +667,7 @@ typedef struct FSMenuEntry {
 } FSMenuEntry;
 
 /* FileSelectParams.display */
-enum FileDisplayTypeE {
+enum eFileDisplayType {
 	FILE_DEFAULTDISPLAY = 0,
 	FILE_SHORTDISPLAY = 1,
 	FILE_LONGDISPLAY = 2,
@@ -672,7 +675,7 @@ enum FileDisplayTypeE {
 };
 
 /* FileSelectParams.sort */
-enum FileSortTypeE {
+enum eFileSortType {
 	FILE_SORT_NONE = 0,
 	FILE_SORT_ALPHA = 1,
 	FILE_SORT_EXTENSION = 2,
@@ -704,6 +707,8 @@ typedef enum eFileSel_Action {
 } eFileSel_Action;
 
 /* sfile->params->flag and simasel->flag */
+/* Note: short flag, also used as 16 lower bits of flags in link/append code
+ *       (WM and BLO code area, see BLO_LibLinkFlags in BLO_readfile.h). */
 typedef enum eFileSel_Params_Flag {
 	FILE_SHOWSHORT      = (1 << 0),
 	FILE_RELPATH        = (1 << 1), /* was FILE_STRINGCODE */

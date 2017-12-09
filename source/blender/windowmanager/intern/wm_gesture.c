@@ -72,6 +72,7 @@ wmGesture *WM_gesture_new(bContext *C, const wmEvent *event, int type)
 	gesture->event_type = event->type;
 	gesture->swinid = ar->swinid;    /* means only in area-region context! */
 	gesture->userdata_free = true;   /* Free if userdata is set. */
+	gesture->modal_state = GESTURE_MODAL_NOP;
 	
 	wm_subwindow_origin_get(window, gesture->swinid, &sx, &sy);
 	
@@ -84,11 +85,7 @@ wmGesture *WM_gesture_new(bContext *C, const wmEvent *event, int type)
 		rect->xmin = event->x - sx;
 		rect->ymin = event->y - sy;
 		if (type == WM_GESTURE_CIRCLE) {
-#ifdef GESTURE_MEMORY
-			rect->xmax = circle_select_size;
-#else
-			rect->xmax = 25;    // XXX temp
-#endif
+			/* caller is responsible for initializing 'xmax' to radius. */
 		}
 		else {
 			rect->xmax = event->x - sx;
@@ -97,11 +94,11 @@ wmGesture *WM_gesture_new(bContext *C, const wmEvent *event, int type)
 	}
 	else if (ELEM(type, WM_GESTURE_LINES, WM_GESTURE_LASSO)) {
 		short *lasso;
-		gesture->customdata = lasso = MEM_callocN(2 * sizeof(short) * WM_LASSO_MIN_POINTS, "lasso points");
+		gesture->points_alloc = 1024;
+		gesture->customdata = lasso = MEM_mallocN(sizeof(short[2]) * gesture->points_alloc, "lasso points");
 		lasso[0] = event->x - sx;
 		lasso[1] = event->y - sy;
 		gesture->points = 1;
-		gesture->size = WM_LASSO_MIN_POINTS;
 	}
 	
 	return gesture;
@@ -377,10 +374,12 @@ void wm_gesture_draw(wmWindow *win)
 		else if (gt->type == WM_GESTURE_CIRCLE)
 			wm_gesture_draw_circle(gt);
 		else if (gt->type == WM_GESTURE_CROSS_RECT) {
-			if (gt->mode == 1)
+			if (gt->is_active) {
 				wm_gesture_draw_rect(gt);
-			else
+			}
+			else {
 				wm_gesture_draw_cross(win, gt);
+			}
 		}
 		else if (gt->type == WM_GESTURE_LINES)
 			wm_gesture_draw_lasso(win, gt, false);

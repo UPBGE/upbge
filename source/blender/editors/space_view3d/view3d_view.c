@@ -509,7 +509,7 @@ static int view3d_camera_to_view_poll(bContext *C)
 
 	if (ED_view3d_context_user_region(C, &v3d, &ar)) {
 		RegionView3D *rv3d = ar->regiondata;
-		if (v3d && v3d->camera && !ID_IS_LINKED_DATABLOCK(v3d->camera)) {
+		if (v3d && v3d->camera && !ID_IS_LINKED(v3d->camera)) {
 			if (rv3d && (rv3d->viewlock & RV3D_LOCKED) == 0) {
 				if (rv3d->persp != RV3D_CAMOB) {
 					return 1;
@@ -1520,8 +1520,6 @@ static void restore_localviewdata(wmWindowManager *wm, wmWindow *win, Main *bmai
 	camera_old = v3d->camera;
 	camera_new = v3d->localvd->camera;
 
-	v3d->near = v3d->localvd->near;
-	v3d->far = v3d->localvd->far;
 	v3d->lay = v3d->localvd->lay;
 	v3d->layact = v3d->localvd->layact;
 	v3d->drawtype = v3d->localvd->drawtype;

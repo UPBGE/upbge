@@ -128,7 +128,7 @@ typedef enum eWalkGravityState {
 /* called in transform_ops.c, on each regeneration of keymaps  */
 void walk_modal_keymap(wmKeyConfig *keyconf)
 {
-	static EnumPropertyItem modal_items[] = {
+	static const EnumPropertyItem modal_items[] = {
 		{WALK_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
 		{WALK_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
 
@@ -509,7 +509,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op)
 		walk->rv3d->persp = RV3D_PERSP;
 	}
 
-	if (walk->rv3d->persp == RV3D_CAMOB && ID_IS_LINKED_DATABLOCK(walk->v3d->camera)) {
+	if (walk->rv3d->persp == RV3D_CAMOB && ID_IS_LINKED(walk->v3d->camera)) {
 		BKE_report(op->reports, RPT_ERROR, "Cannot navigate a camera from an external library");
 		return false;
 	}

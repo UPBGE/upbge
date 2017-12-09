@@ -188,18 +188,13 @@ class BONE_PT_curved(BoneButtonsPanel, Panel):
         row = col.row()
         sub = row.column(align=True)
         sub.label(text="Scale:")
-        sub.prop(bbone, "bbone_scalein", text="Scale In")
-        sub.prop(bbone, "bbone_scaleout", text="Scale Out")
+        sub.prop(bbone, "bbone_scalein", text="In")
+        sub.prop(bbone, "bbone_scaleout", text="Out")
 
         sub = row.column(align=True)
         sub.label("Easing:")
-        if pchan:
-            # XXX: have these also be an overlay?
-            sub.prop(bbone.bone, "bbone_in", text="Ease In")
-            sub.prop(bbone.bone, "bbone_out", text="Ease Out")
-        else:
-            sub.prop(bone, "bbone_in", text="Ease In")
-            sub.prop(bone, "bbone_out", text="Ease Out")
+        sub.prop(bbone, "bbone_easein", text="In")
+        sub.prop(bbone, "bbone_easeout", text="Out")
 
         if pchan:
             layout.separator()

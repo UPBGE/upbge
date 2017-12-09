@@ -265,7 +265,7 @@ typedef enum eCalcRollTypes {
 	CALC_ROLL_CURSOR,
 } eCalcRollTypes;
 
-static EnumPropertyItem prop_calc_roll_types[] = {
+static const EnumPropertyItem prop_calc_roll_types[] = {
 	{0, "", 0, N_("Positive"), ""},
 	{CALC_ROLL_TAN_POS_X, "POS_X", 0, "Local +X Tangent", ""},
 	{CALC_ROLL_TAN_POS_Z, "POS_Z", 0, "Local +Z Tangent", ""},
@@ -967,7 +967,7 @@ static int armature_merge_exec(bContext *C, wmOperator *op)
 
 void ARMATURE_OT_merge(wmOperatorType *ot)
 {
-	static EnumPropertyItem merge_types[] = {
+	static const EnumPropertyItem merge_types[] = {
 		{1, "WITHIN_CHAIN", 0, "Within Chains", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
@@ -1564,17 +1564,18 @@ void ARMATURE_OT_hide(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "Hide unselected rather than selected");
 }
 
-static int armature_reveal_exec(bContext *C, wmOperator *UNUSED(op))
+static int armature_reveal_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	bArmature *arm = obedit->data;
 	EditBone *ebone;
+	const bool select = RNA_boolean_get(op->ptr, "select");
 	
 	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
 		if (arm->layer & ebone->layer) {
 			if (ebone->flag & BONE_HIDDEN_A) {
 				if (!(ebone->flag & BONE_UNSELECTABLE)) {
-					ebone->flag |= (BONE_TIPSEL | BONE_SELECTED | BONE_ROOTSEL);
+					SET_FLAG_FROM_TEST(ebone->flag, select, (BONE_TIPSEL | BONE_SELECTED | BONE_ROOTSEL));
 				}
 				ebone->flag &= ~BONE_HIDDEN_A;
 			}
@@ -1593,7 +1594,7 @@ void ARMATURE_OT_reveal(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Reveal Bones";
 	ot->idname = "ARMATURE_OT_reveal";
-	ot->description = "Unhide all bones that have been tagged to be hidden in Edit Mode";
+	ot->description = "Reveal all bones hidden in Edit Mode";
 	
 	/* api callbacks */
 	ot->exec = armature_reveal_exec;
@@ -1602,4 +1603,5 @@ void ARMATURE_OT_reveal(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
+	RNA_def_boolean(ot->srna, "select", true, "Select", "");
 }

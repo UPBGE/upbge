@@ -39,8 +39,11 @@
 #ifdef RNA_RUNTIME
 
 #include "BKE_camera.h"
-#include "BKE_object.h"
 #include "BKE_depsgraph.h"
+#include "BKE_object.h"
+#include "BKE_sequencer.h"
+
+#include "WM_api.h"
 
 static float rna_Camera_angle_get(PointerRNA *ptr)
 {
@@ -94,6 +97,14 @@ static void rna_Camera_dependency_update(Main *bmain, Scene *UNUSED(scene), Poin
 	DAG_id_tag_update(&camera->id, 0);
 }
 
+static void rna_Camera_dof_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
+{
+	/* TODO(sergey): Can be more selective here. */
+	BKE_sequencer_cache_cleanup();
+	BKE_sequencer_preprocessed_cache_cleanup();
+	WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
+}
+
 #else
 
 static void rna_def_camera_stereo_data(BlenderRNA *brna)
@@ -101,14 +112,14 @@ static void rna_def_camera_stereo_data(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem convergence_mode_items[] = {
+	static const EnumPropertyItem convergence_mode_items[] = {
 		{CAM_S3D_OFFAXIS, "OFFAXIS", 0, "Off-Axis", "Off-axis frustums converging in a plane"},
 		{CAM_S3D_PARALLEL, "PARALLEL", 0, "Parallel", "Parallel cameras with no convergence"},
 		{CAM_S3D_TOE, "TOE", 0, "Toe-in", "Rotated cameras, looking at the convergence distance"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem pivot_items[] = {
+	static const EnumPropertyItem pivot_items[] = {
 		{CAM_S3D_PIVOT_LEFT, "LEFT", 0, "Left", ""},
 		{CAM_S3D_PIVOT_RIGHT, "RIGHT", 0, "Right", ""},
 		{CAM_S3D_PIVOT_CENTER, "CENTER", 0, "Center", ""},
@@ -204,13 +215,13 @@ void RNA_def_camera(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	static EnumPropertyItem prop_type_items[] = {
+	static const EnumPropertyItem prop_type_items[] = {
 		{CAM_PERSP, "PERSP", 0, "Perspective", ""},
 		{CAM_ORTHO, "ORTHO", 0, "Orthographic", ""},
 		{CAM_PANO, "PANO", 0, "Panoramic", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
-	static EnumPropertyItem prop_draw_type_extra_items[] = {
+	static const EnumPropertyItem prop_draw_type_extra_items[] = {
 		{CAM_DTX_CENTER, "CENTER", 0, "Center", ""},
 		{CAM_DTX_CENTER_DIAG, "CENTER_DIAGONAL", 0, "Center Diagonal", ""},
 		{CAM_DTX_THIRDS, "THIRDS", 0, "Thirds", ""},
@@ -221,12 +232,12 @@ void RNA_def_camera(BlenderRNA *brna)
 		{CAM_DTX_HARMONY_TRI_B, "HARMONY_TRIANGLE_B", 0, "Harmonious Triangle B", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
-	static EnumPropertyItem prop_lens_unit_items[] = {
+	static const EnumPropertyItem prop_lens_unit_items[] = {
 		{0, "MILLIMETERS", 0, "Millimeters", "Specify the lens in millimeters"},
 		{CAM_ANGLETOGGLE, "FOV", 0, "Field of View", "Specify the lens as the field of view's angle"},
 		{0, NULL, 0, NULL, NULL}
 	};
-	static EnumPropertyItem sensor_fit_items[] = {
+	static const EnumPropertyItem sensor_fit_items[] = {
 		{CAMERA_SENSOR_FIT_AUTO, "AUTO", 0, "Auto", "Fit to the sensor width or height depending on image resolution"},
 		{CAMERA_SENSOR_FIT_HOR, "HORIZONTAL", 0, "Horizontal", "Fit to the sensor width"},
 		{CAMERA_SENSOR_FIT_VERT, "VERTICAL", 0, "Vertical", "Fit to the sensor height"},
@@ -352,7 +363,7 @@ void RNA_def_camera(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.0f, 5000.0f, 1, 2);
 	RNA_def_property_ui_text(prop, "DOF Distance", "Distance to the focus point for depth of field");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_dof_update");
 
 	prop = RNA_def_property(srna, "lod_factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "lodfactor");
