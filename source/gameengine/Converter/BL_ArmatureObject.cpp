@@ -211,7 +211,6 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 	m_lastapplyframe(0.0)
 {
 	m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
-	m_poseChannels = new EXP_ListValue<BL_ArmatureChannel>();
 
 	// Keep a copy of the original armature so we can fix drivers later
 	m_origObjArma = armature;
@@ -222,6 +221,8 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 	// need this to get iTaSC working ok in the BGE
 	m_objArma->pose->flag |= POSE_GAME_ENGINE;
 	memcpy(m_obmat, m_objArma->obmat, sizeof(m_obmat));
+
+	LoadChannels();
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -331,11 +332,10 @@ BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(int index)
 /* this function is called to populate the m_poseChannels list */
 void BL_ArmatureObject::LoadChannels()
 {
-	if (m_poseChannels->GetCount() == 0) {
-		for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan; pchan = (bPoseChannel *)pchan->next) {
-			BL_ArmatureChannel *proxy = new BL_ArmatureChannel(this, pchan);
-			m_poseChannels->Add(proxy);
-		}
+	m_poseChannels = new EXP_ListValue<BL_ArmatureChannel>();
+	for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan; pchan = (bPoseChannel *)pchan->next) {
+		BL_ArmatureChannel *channel = new BL_ArmatureChannel(this, pchan);
+		m_poseChannels->Add(channel);
 	}
 }
 
@@ -346,19 +346,16 @@ size_t BL_ArmatureObject::GetChannelNumber() const
 
 BL_ArmatureChannel *BL_ArmatureObject::GetChannel(bPoseChannel *pchan)
 {
-	LoadChannels();
 	return m_poseChannels->FindIf([&pchan](BL_ArmatureChannel *channel) { return channel->m_posechannel == pchan; });
 }
 
 BL_ArmatureChannel *BL_ArmatureObject::GetChannel(const std::string& str)
 {
-	LoadChannels();
 	return static_cast<BL_ArmatureChannel *>(m_poseChannels->FindValue(str));
 }
 
 BL_ArmatureChannel *BL_ArmatureObject::GetChannel(int index)
 {
-	LoadChannels();
 	if (index < 0 || index >= m_poseChannels->GetCount()) {
 		return nullptr;
 	}
@@ -378,12 +375,12 @@ void BL_ArmatureObject::ProcessReplica()
 
 	// Replicate each constraints.
 	m_controlledConstraints = static_cast<EXP_ListValue<BL_ArmatureConstraint> *>(m_controlledConstraints->GetReplica());
-	// Share pose channels.
-	m_poseChannels->AddRef();
 
 	bArmature *tmp = (bArmature *)m_objArma->data;
 	m_objArma = BKE_object_copy(G.main, m_objArma);
 	m_objArma->data = BKE_armature_copy(G.main, tmp);
+
+	LoadChannels();
 }
 
 int BL_ArmatureObject::GetGameObjectType() const
@@ -596,7 +593,6 @@ PyObject *BL_ArmatureObject::pyattr_get_constraints(EXP_PyObjectPlus *self_v, co
 PyObject *BL_ArmatureObject::pyattr_get_channels(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureObject *self = static_cast<BL_ArmatureObject *>(self_v);
-	self->LoadChannels(); // make sure we have the channels
 	return self->m_poseChannels->GetProxy();
 }
 
