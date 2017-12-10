@@ -37,10 +37,6 @@
 #include "KX_TextureRendererManager.h" // For KX_TextureRendererManager::RendererCategory.
 #include "KX_PythonComponentManager.h"
 
-#include <vector>
-#include <set>
-#include <list>
-
 #include "SG_Node.h"
 #include "SG_Frustum.h"
 #include "SCA_IScene.h"
@@ -52,32 +48,30 @@
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 
-/**
- * \section Forward declarations
- */
-struct SM_MaterialProps;
-struct SM_ShapeProps;
-struct Scene;
+#include <set>
 
 template <class T>
 class EXP_ListValue;
-
 class EXP_Value;
 class SCA_LogicManager;
 class SCA_KeyboardManager;
 class SCA_TimeEventManager;
 class SCA_MouseManager;
-class SCA_ISystem;
 class SCA_IInputDevice;
+class SCA_JoystickManager;
 class KX_NetworkMessageScene;
 class KX_NetworkMessageManager;
-class SG_Node;
-class SG_Node;
+class KX_2DFilterManager;
+class KX_ObstacleSimulation;
 class KX_WorldInfo;
 class KX_Camera;
 class KX_FontObject;
 class KX_GameObject;
 class KX_LightObject;
+struct KX_ClientObjectInfo;
+class BL_BlenderSceneConverter;
+class SG_Node;
+class PHY_IPhysicsEnvironment;
 class RAS_MeshObject;
 class RAS_BoundingBoxManager;
 class RAS_BucketManager;
@@ -87,21 +81,10 @@ class RAS_Rasterizer;
 class RAS_DebugDraw;
 class RAS_OffScreen;
 class RAS_2DFilterManager;
-class KX_2DFilterManager;
-class SCA_JoystickManager;
-class btCollisionShape;
-class BL_BlenderSceneConverter;
-struct KX_ClientObjectInfo;
-class KX_ObstacleSimulation;
+
+struct Scene;
 struct TaskPool;
 
-/* for ID freeing */
-#define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
-
-/**
- * The KX_Scene holds all data for an independent scene. It relates
- * KX_Objects to the specific objects in the modules.
- * */
 class KX_Scene : public EXP_Value, public SCA_IScene
 {
 public:
@@ -117,15 +100,18 @@ public:
 		double curtime;
 	};
 
+	static SG_Callbacks m_callbacks;
+
 private:
 	Py_Header
 
 #ifdef WITH_PYTHON
-	PyObject*	m_attr_dict;
-	PyObject*	m_drawCallbacks[MAX_DRAW_CALLBACK];
+	PyObject *m_attrDict;
+	PyObject *m_drawCallbacks[MAX_DRAW_CALLBACK];
 #endif
 
-	struct CullingInfo {
+	struct CullingInfo
+	{
 		int m_layer;
 		std::vector<KX_GameObject *>& m_objects;
 
@@ -136,9 +122,8 @@ private:
 		}
 	};
 
-protected:
 	KX_TextureRendererManager *m_rendererManager;
-	RAS_BucketManager*	m_bucketmanager;
+	RAS_BucketManager *m_bucketmanager;
 
 	/// Manager used to update all the mesh bounding box.
 	RAS_BoundingBoxManager *m_boundingBoxManager;
@@ -147,61 +132,51 @@ protected:
 
 	/**
 	 * The list of objects which have been removed during the
-	 * course of one frame. They are actually destroyed in 
+	 * course of one frame. They are actually destroyed in
 	 * LogicEndFrame() via a call to RemoveObject().
 	 */
 	std::vector<KX_GameObject *> m_euthanasyobjects;
 
 	EXP_ListValue<KX_GameObject> *m_objectlist;
-	EXP_ListValue<KX_GameObject> *m_parentlist; // all 'root' parents
+	/// All 'root' parents.
+	EXP_ListValue<KX_GameObject> *m_parentlist;
 	EXP_ListValue<KX_LightObject> *m_lightlist;
-	EXP_ListValue<KX_GameObject> *m_inactivelist;	// all objects that are not in the active layer
+	/// All objects that are not in the active layer.
+	EXP_ListValue<KX_GameObject> *m_inactivelist;
 	/// All animated objects, no need of EXP_ListValue because the list isn't exposed in python.
 	std::vector<KX_GameObject *> m_animatedlist;
 
-	/// The set of cameras for this scene
+	/// The list of cameras for this scene.
 	EXP_ListValue<KX_Camera> *m_cameralist;
-	/// The set of fonts for this scene
+	/// The list of fonts for this scene.
 	EXP_ListValue<KX_FontObject> *m_fontlist;
-	
-	SG_QList			m_sghead;		// list of nodes that needs scenegraph update
-										// the Dlist is not object that must be updated
-										// the Qlist is for objects that needs to be rescheduled
-										// for updates after udpate is over (slow parent, bone parent)
 
 	/**
-	 * Various SCA managers used by the scene
+	 * List of nodes that needs scenegraph update
+	 * the Dlist is not object that must be updated
+	 * the Qlist is for objects that needs to be rescheduled
+	 * for updates after udpate is over (slow parent, bone parent).
 	 */
-	SCA_LogicManager*		m_logicmgr;
-	SCA_KeyboardManager*	m_keyboardmgr;
-	SCA_MouseManager*		m_mousemgr;
-	SCA_TimeEventManager*	m_timemgr;
+	SG_QList m_sghead;
+
+	/// Various SCA managers used by the scene
+	SCA_LogicManager *m_logicmgr;
+	SCA_KeyboardManager *m_keyboardmgr;
+	SCA_MouseManager *m_mousemgr;
+	SCA_TimeEventManager *m_timemgr;
 
 	KX_PythonComponentManager m_componentManager;
 
-	/**
-	 * physics engine abstraction
-	 */
-	//e_PhysicsEngine m_physicsEngine; //who needs this ?
-	class PHY_IPhysicsEnvironment*		m_physicsEnvironment;
+	/// Physics engine abstraction.
+	PHY_IPhysicsEnvironment *m_physicsEnvironment;
 
-	/**
-	 * The name of the scene
-	 */
-	std::string	m_sceneName;
-	
-	/**
-	 * stores the world-settings for a scene
-	 */
-	KX_WorldInfo* m_worldinfo;
+	/// The name of the scene.
+	std::string m_sceneName;
 
-	/**
-	 * \section Different scenes, linked to ketsji scene
-	 */
+	/// Stores the world-settings for a scene.
+	KX_WorldInfo *m_worldinfo;
 
-	/**
-	 * Network scene.
-	 */
+	/// Network scene.
 	KX_NetworkMessageScene *m_networkScene;
 
 	/**
@@ -209,12 +184,10 @@ protected:
 	 * replication. Don't get confused by the name it is not
 	 * the scene's root node!
 	 */
-	SG_Node* m_rootnode;
+	SG_Node *m_rootnode;
 
-	/**
-	 * The active camera for the scene
-	 */
-	KX_Camera* m_active_camera;
+	/// The active camera for the scene.
+	KX_Camera *m_activeCamera;
 	/// The active camera for scene culling.
 	KX_Camera *m_overrideCullingCamera;
 
@@ -227,127 +200,100 @@ protected:
 
 	/**
 	 * Another temporary variable outstaying its welcome
-	 * used in AddReplicaObject to keep a record of all added 
-	 * objects. Logic can only be updated when all objects 
+	 * used in AddReplicaObject to keep a record of all added
+	 * objects. Logic can only be updated when all objects
 	 * have been updated. This stores a list of the new objects.
 	 */
-	std::vector<KX_GameObject*>	m_logicHierarchicalGameObjects;
-	
+	std::vector<KX_GameObject *> m_logicHierarchicalGameObjects;
+
 	/**
-	 * This temporary variable will contain the list of 
+	 * This temporary variable will contain the list of
 	 * object that can be added during group instantiation.
-	 * objects outside this list will not be added (can 
+	 * objects outside this list will not be added (can
 	 * happen with children that are outside the group).
 	 * Used in AddReplicaObject. If the list is empty, it
 	 * means don't care.
 	 */
 	std::set<KX_GameObject *> m_groupGameObjects;
-	
-	/** 
-	 * Pointer to system variable passed in in constructor
-	 * only used in constructor so we do not need to keep it
-	 * around in this class.
-	 */
 
-	SCA_ISystem* m_kxsystem;
-
-	/**
-	 * The execution priority of replicated object actuators?
-	 */
-	int	m_ueberExecutionPriority;
+	/// The execution priority of replicated object actuators.
+	int m_ueberExecutionPriority;
 
 	/**
 	 * Activity 'bubble' settings :
 	 * Suspend (freeze) the entire scene.
 	 */
 	bool m_suspend;
-	double m_suspendeddelta;
+	double m_suspendedDelta;
 
 	/// Toggle to enable or disable object activity culling.
 	bool m_activityCulling;
-	
-	/**
-	 * Toggle to enable or disable culling via DBVT broadphase of Bullet.
-	 */
-	bool m_dbvt_culling;
-	
-	/**
-	 * Occlusion culling resolution
-	 */ 
-	int m_dbvt_occlusion_res;
+
+	/// Toggle to enable or disable culling via DBVT broadphase of Bullet.
+	bool m_dbvtCulling;
+
+	/// Occlusion culling resolution.
+	int m_dbvtOcclusionRes;
+
+	/// The framing settings used by this scene
+	RAS_FrameSettings m_frameSettings;
 
 	/**
-	 * The framing settings used by this scene
-	 */
-
-	RAS_FrameSettings m_frame_settings;
-
-	/** 
 	 * This scenes viewport into the game engine
 	 * canvas.Maintained externally, initially [0,0] -> [0,0]
 	 */
 	RAS_Rect m_viewport;
-	
-	/**
-	 * Visibility testing functions.
-	 */
-	static void PhysicsCullingCallback(KX_ClientObjectInfo* objectInfo, void* cullingInfo);
 
-	struct Scene* m_blenderScene;
+	/// Visibility testing functions.
+	static void PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cullingInfo);
+
+	Scene *m_blenderScene;
 
 	KX_2DFilterManager *m_filterManager;
 
-	KX_ObstacleSimulation* m_obstacleSimulation;
+	KX_ObstacleSimulation *m_obstacleSimulation;
 
 	AnimationPoolData m_animationPoolData;
 	TaskPool *m_animationPool;
 	double m_previousAnimTime;
 
-	/**
-	 * LOD Hysteresis settings
-	 */
+	/// LOD Hysteresis settings.
 	bool m_isActivedHysteresis;
 	int m_lodHysteresisValue;
 
 public:
 	KX_Scene(SCA_IInputDevice *inputDevice,
-		const std::string& scenename,
-		struct Scene* scene,
-		class RAS_ICanvas* canvas,
-		KX_NetworkMessageManager *messageManager);
+	         const std::string& scenename,
+	         Scene *scene,
+			 RAS_ICanvas *canvas,
+			 KX_NetworkMessageManager *messageManager);
+	virtual ~KX_Scene();
 
-	virtual
-	~KX_Scene();
-
-	RAS_BucketManager* GetBucketManager() const;
+	RAS_BucketManager *GetBucketManager() const;
 	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
-	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
+	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *polymat, bool &bucketCreated);
 	void RenderBuckets(const std::vector<KX_GameObject *>& objects, RAS_Rasterizer::DrawType drawingMode,
-			const mt::mat3x4& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
+	                   const mt::mat3x4& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
 	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
-			KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
+	                            KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
-	/**
-	 * Update all transforms according to the scenegraph.
-	 */
-	static bool KX_ScenegraphUpdateFunc(SG_Node* node,void* gameobj,void* scene);
-	static bool KX_ScenegraphRescheduleFunc(SG_Node* node,void* gameobj,void* scene);
+	/// Update all transforms according to the scenegraph.
+	static bool KX_ScenegraphUpdateFunc(SG_Node *node, void *gameobj, void *scene);
+	static bool KX_ScenegraphRescheduleFunc(SG_Node *node, void *gameobj, void *scene);
+	/// SceneGraph transformation update.
 	void UpdateParents(double curtime);
+
 	void DupliGroupRecurse(KX_GameObject *groupobj, int level);
-	bool IsObjectInGroup(KX_GameObject* gameobj)
-	{ 
-		return (m_groupGameObjects.empty() || 
-				m_groupGameObjects.find(gameobj) != m_groupGameObjects.end());
-	}
+	bool IsObjectInGroup(KX_GameObject *gameobj) const;
 	void AddObjectDebugProperties(KX_GameObject *gameobj);
-	KX_GameObject* AddReplicaObject(KX_GameObject *gameobj, KX_GameObject *locationobj, float lifespan=0.0f);
-	KX_GameObject* AddNodeReplicaObject(SG_Node* node, KX_GameObject *gameobj);
+	KX_GameObject *AddReplicaObject(KX_GameObject *gameobj, KX_GameObject *locationobj, float lifespan = 0.0f);
+	KX_GameObject *AddNodeReplicaObject(SG_Node *node, KX_GameObject *gameobj);
+
 	void RemoveNodeDestructObject(SG_Node *node, KX_GameObject *gameobj);
 	void RemoveObject(KX_GameObject *gameobj);
 	void RemoveDupliGroup(KX_GameObject *gameobj);
 	void DelayedRemoveObject(KX_GameObject *gameobj);
-
 	bool NewRemoveObject(KX_GameObject *gameobj);
 
 	void AddAnimatedObject(KX_GameObject *gameobj);
@@ -360,38 +306,27 @@ public:
 	void LogicUpdateFrame(double curtime);
 	void UpdateAnimations(double curtime, bool restrict);
 
-		void
-	LogicEndFrame(
-	);
+	void LogicEndFrame();
 
 	EXP_ListValue<KX_GameObject> *GetObjectList() const;
 	EXP_ListValue<KX_GameObject> *GetInactiveList() const;
 	EXP_ListValue<KX_GameObject> *GetRootParentList() const;
 	EXP_ListValue<KX_LightObject> *GetLightList() const;
-
-	SCA_LogicManager *GetLogicManager() const;
-
-	SCA_TimeEventManager *GetTimeEventManager() const;
-
-	KX_PythonComponentManager& GetPythonComponentManager();
-
 	EXP_ListValue<KX_Camera> *GetCameraList() const;
 	EXP_ListValue<KX_FontObject> *GetFontList() const;
 
-	/** Find the currently active camera. */
-		KX_Camera*
-	GetActiveCamera(
-	);
+	SCA_LogicManager *GetLogicManager() const;
+	SCA_TimeEventManager *GetTimeEventManager() const;
+	KX_PythonComponentManager& GetPythonComponentManager();
 
-	/** 
+	/// Return the currently active camera.
+	KX_Camera *GetActiveCamera();
+
+	/**
 	 * Set this camera to be the active camera in the scene. If the
 	 * camera is not present in the camera list, it will be added
 	 */
-
-		void
-	SetActiveCamera(
-		class KX_Camera*
-	);
+	void SetActiveCamera(KX_Camera *camera);
 
 	KX_Camera *GetOverrideCullingCamera() const;
 	void SetOverrideCullingCamera(KX_Camera *cam);
@@ -400,40 +335,28 @@ public:
 	 * Move this camera to the end of the list so that it is rendered last.
 	 * If the camera is not on the list, it will be added
 	 */
-		void
-	SetCameraOnTop(
-		class KX_Camera*
-	);
+	void SetCameraOnTop(KX_Camera *camera);
+
+	/// Set the framing options for this scene.
+	void SetFramingType(const RAS_FrameSettings& frameSettings);
 
 	/**
-	 * Set the framing options for this scene
-	 */
-
-		void
-	SetFramingType(
-		RAS_FrameSettings & frame_settings
-	);
-
-	/**
-	 * Return a const reference to the framing 
+	 * Return a const reference to the framing
 	 * type set by the above call.
 	 * The contents are not guaranteed to be sensible
 	 * if you don't call the above function.
 	 */
-
-	const
-		RAS_FrameSettings &
-	GetFramingType(
-	) const;
+	const RAS_FrameSettings &GetFramingType() const;
 
 	/**
 	 * \section Accessors to different scenes of this scene
 	 */
-	void SetNetworkMessageScene(KX_NetworkMessageScene *newScene);
-	KX_NetworkMessageScene *GetNetworkMessageScene();
+	void SetNetworkMessageScene(KX_NetworkMessageScene *netScene);
+	KX_NetworkMessageScene *GetNetworkMessageScene() const;
 
-	void SetWorldInfo(class KX_WorldInfo* wi);
-	KX_WorldInfo* GetWorldInfo();
+	void SetWorldInfo(KX_WorldInfo *wi);
+	KX_WorldInfo *GetWorldInfo() const;
+
 	void CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, KX_Camera *cam, int layer);
 	void CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, const SG_Frustum& frustum, int layer);
 
@@ -441,12 +364,8 @@ public:
 	void DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObject *>& objects);
 	void RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax);
 
-	/**
-	 * Replicate the logic bricks associated to this object.
-	 */
-
-	void ReplicateLogic(class KX_GameObject* newobj);
-	static SG_Callbacks	m_callbacks;
+	/// Replicate the logic bricks associated to this object.
+	void ReplicateLogic(KX_GameObject *newobj);
 
 	// Suspend the entire scene.
 	void Suspend();
@@ -459,53 +378,58 @@ public:
 
 	// LoD Hysteresis functions
 	void SetLodHysteresis(bool active);
-	bool IsActivedLodHysteresis();
+	bool IsActivedLodHysteresis() const;
 	void SetLodHysteresisValue(int hysteresisvalue);
-	int GetLodHysteresisValue();
-	
+	int GetLodHysteresisValue() const;
+
 	/// Update the activity culling of objects in this scene, if needed.
 	void UpdateObjectActivity();
 	/// Enable/disable activity culling.
 	void SetActivityCulling(bool b);
 
-	bool IsSuspended();
-	// use of DBVT tree for camera culling
-	void SetDbvtCulling(bool b) { m_dbvt_culling = b; }
-	bool GetDbvtCulling() { return m_dbvt_culling; }
-	void SetDbvtOcclusionRes(int i) { m_dbvt_occlusion_res = i; }
-	int GetDbvtOcclusionRes() { return m_dbvt_occlusion_res; }
-	
-	void SetSceneConverter(class BL_BlenderSceneConverter* sceneConverter);
+	bool IsSuspended() const;
 
-	class PHY_IPhysicsEnvironment*		GetPhysicsEnvironment()
-	{
-		return m_physicsEnvironment;
-	}
+	/// Use of DBVT tree for camera culling
+	void SetDbvtCulling(bool b);
+	bool GetDbvtCulling() const;
+	void SetDbvtOcclusionRes(int i);
+	int GetDbvtOcclusionRes() const;
 
-	void SetPhysicsEnvironment(class PHY_IPhysicsEnvironment*	physEnv);
+	void SetSceneConverter(BL_BlenderSceneConverter *sceneConverter);
 
-	void	SetGravity(const mt::vec3& gravity);
-	mt::vec3 GetGravity();
+	PHY_IPhysicsEnvironment *GetPhysicsEnvironment() const;
+	void SetPhysicsEnvironment(PHY_IPhysicsEnvironment *physEnv);
+
+	void SetGravity(const mt::vec3& gravity);
+	mt::vec3 GetGravity() const;
 
 	/**
-	 * 2D Filters
+	 * Sets the difference between the local time of the scene (when it
+	 * was running and not suspended) and the "curtime"
 	 */
-	RAS_2DFilterManager *Get2DFilterManager() const;
+	void SetSuspendedDelta(double suspendeddelta);
+	/**
+	 * Returns the difference between the local time of the scene (when it
+	 * was running and not suspended) and the "curtime"
+	 */
+	double GetSuspendedDelta() const;
+
+	/// Returns the Blender scene this was made from.
+	Scene *GetBlenderScene() const;
+
+	bool MergeScene(KX_Scene *other);
+
+	/// 2D Filters.
+	KX_2DFilterManager *Get2DFilterManager() const;
 	RAS_OffScreen *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 
 	KX_ObstacleSimulation *GetObstacleSimulation();
 	void SetObstacleSimulation(KX_ObstacleSimulation *obstacleSimulation);
 
-	/**  Inherited from EXP_Value -- returns the name of this object. */
 	virtual std::string GetName();
-
-	/** Inherited from EXP_Value -- set the name of this object. */
 	virtual void SetName(const std::string& name);
 
 #ifdef WITH_PYTHON
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
 
 	EXP_PYMETHOD_DOC(KX_Scene, addObject);
 	EXP_PYMETHOD_DOC(KX_Scene, end);
@@ -516,61 +440,35 @@ public:
 	EXP_PYMETHOD_DOC(KX_Scene, get);
 	EXP_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
 
-	/* attributes */
-	static PyObject*	pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_objects_inactive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_lights(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_texts(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_cameras(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_filter_manager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_world(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_active_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_active_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_overrideCullingCamera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_overrideCullingCamera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_drawing_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_drawing_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	
-	/* getitem/setitem */
-	static PyMappingMethods	Mapping;
-	static PySequenceMethods	Sequence;
+	// Attributes.
+	static PyObject *pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_objects_inactive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_lights(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_texts(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_cameras(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_filter_manager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_world(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_active_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_active_camera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_overrideCullingCamera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_overrideCullingCamera(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_drawing_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_drawing_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	/**
-	 * Run the registered python drawing functions.
-	 */
+	// getitem/setitem
+	static PyMappingMethods Mapping;
+	static PySequenceMethods Sequence;
+
+	/// Run the registered python drawing functions.
 	void RunDrawingCallbacks(DrawingCallbackType callbackType, KX_Camera *camera);
 #endif
-
-	/**
-	 * Sets the difference between the local time of the scene (when it
-	 * was running and not suspended) and the "curtime"
-	 */ 
-	void SetSuspendedDelta(double suspendeddelta);
-	/**
-	 * Returns the difference between the local time of the scene (when it
-	 * was running and not suspended) and the "curtime"
-	 */
-	double GetSuspendedDelta() const;
-	/**
-	 * Returns the Blender scene this was made from
-	 */
-	struct Scene *GetBlenderScene() { return m_blenderScene; }
-
-	bool MergeScene(KX_Scene *other);
-
-
-	//void PrintStats(int verbose_level) {
-	//	m_bucketmanager->PrintStats(verbose_level)
-	//}
 };
 
 #ifdef WITH_PYTHON
 bool ConvertPythonToScene(PyObject *value, KX_Scene **scene, bool py_none_ok, const char *error_prefix);
 #endif
 
-typedef std::vector<KX_Scene*> KX_SceneList;
-
-#endif  /* __KX_SCENE_H__ */
+#endif  // __KX_SCENE_H__

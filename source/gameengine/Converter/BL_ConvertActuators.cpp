@@ -74,6 +74,7 @@
 #include "KX_MouseActuator.h"
 
 #include "KX_Scene.h"
+#include "KX_2DFilterManager.h"
 #include "KX_KetsjiEngine.h"
 
 #include "EXP_IntValue.h"
