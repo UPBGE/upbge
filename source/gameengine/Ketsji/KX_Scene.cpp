@@ -1005,7 +1005,7 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 		}
 	}
 
-	/* If the object is the dupligroup proxy, you have to cleanup all m_pDupliGroupObject's in all
+	/* If the object is the dupligroup proxy, you have to cleanup all m_dupliGroupObject's in all
 	 * instances refering to this group. */
 	if (gameobj->GetInstanceObjects()) {
 		for (KX_GameObject *instance : gameobj->GetInstanceObjects()) {

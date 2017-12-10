@@ -31,7 +31,7 @@ public:
 	typedef VectorType::const_iterator VectorTypeConstIterator;
 
 protected:
-	VectorType m_pValueArray;
+	VectorType m_valueArray;
 	bool m_bReleaseContents;
 
 	void SetValue(int i, EXP_Value *val);

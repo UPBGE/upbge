@@ -35,7 +35,7 @@ EXP_BaseListValue::EXP_BaseListValue()
 EXP_BaseListValue::~EXP_BaseListValue()
 {
 	if (m_bReleaseContents) {
-		for (EXP_Value *item : m_pValueArray) {
+		for (EXP_Value *item : m_valueArray) {
 			item->Release();
 		}
 	}
@@ -43,20 +43,20 @@ EXP_BaseListValue::~EXP_BaseListValue()
 
 void EXP_BaseListValue::SetValue(int i, EXP_Value *val)
 {
-	m_pValueArray[i] = val;
+	m_valueArray[i] = val;
 }
 
 EXP_Value *EXP_BaseListValue::GetValue(int i)
 {
-	return m_pValueArray[i];
+	return m_valueArray[i];
 }
 
 EXP_Value *EXP_BaseListValue::FindValue(const std::string& name) const
 {
-	const VectorTypeConstIterator it = std::find_if(m_pValueArray.begin(), m_pValueArray.end(),
+	const VectorTypeConstIterator it = std::find_if(m_valueArray.begin(), m_valueArray.end(),
 										 [&name](EXP_Value *item) { return item->GetName() == name; });
 	
-	if (it != m_pValueArray.end()) {
+	if (it != m_valueArray.end()) {
 		return *it;
 	}
 	return nullptr;
@@ -64,25 +64,25 @@ EXP_Value *EXP_BaseListValue::FindValue(const std::string& name) const
 
 bool EXP_BaseListValue::SearchValue(EXP_Value *val) const
 {
-	return (std::find(m_pValueArray.begin(), m_pValueArray.end(), val) != m_pValueArray.end());
+	return (std::find(m_valueArray.begin(), m_valueArray.end(), val) != m_valueArray.end());
 }
 
 void EXP_BaseListValue::Add(EXP_Value *value)
 {
-	m_pValueArray.push_back(value);
+	m_valueArray.push_back(value);
 }
 
 void EXP_BaseListValue::Insert(unsigned int i, EXP_Value *value)
 {
-	m_pValueArray.insert(m_pValueArray.begin() + i, value);
+	m_valueArray.insert(m_valueArray.begin() + i, value);
 }
 
 bool EXP_BaseListValue::RemoveValue(EXP_Value *val)
 {
 	bool result = false;
-	for (VectorTypeIterator it = m_pValueArray.begin(); it != m_pValueArray.end();) {
+	for (VectorTypeIterator it = m_valueArray.begin(); it != m_valueArray.end();) {
 		if (*it == val) {
-			it = m_pValueArray.erase(it);
+			it = m_valueArray.erase(it);
 			result = true;
 		}
 		else {
@@ -112,7 +112,7 @@ std::string EXP_BaseListValue::GetText()
 	std::string strListRep = "[";
 	std::string commastr = "";
 
-	for (EXP_Value *item : m_pValueArray) {
+	for (EXP_Value *item : m_valueArray) {
 		strListRep += commastr;
 		strListRep += item->GetText();
 		commastr = ", ";
@@ -134,25 +134,25 @@ void EXP_BaseListValue::SetReleaseOnDestruct(bool bReleaseContents)
 
 void EXP_BaseListValue::Remove(int i)
 {
-	m_pValueArray.erase(m_pValueArray.begin() + i);
+	m_valueArray.erase(m_valueArray.begin() + i);
 }
 
 void EXP_BaseListValue::Resize(int num)
 {
-	m_pValueArray.resize(num);
+	m_valueArray.resize(num);
 }
 
 void EXP_BaseListValue::ReleaseAndRemoveAll()
 {
-	for (EXP_Value *item : m_pValueArray) {
+	for (EXP_Value *item : m_valueArray) {
 		item->Release();
 	}
-	m_pValueArray.clear();
+	m_valueArray.clear();
 }
 
 int EXP_BaseListValue::GetCount() const
 {
-	return m_pValueArray.size();
+	return m_valueArray.size();
 }
 
 #ifdef WITH_PYTHON
@@ -462,7 +462,7 @@ PyObject *EXP_BaseListValue::Pyreverse()
 		return nullptr;
 	}
 
-	std::reverse(m_pValueArray.begin(), m_pValueArray.end());
+	std::reverse(m_valueArray.begin(), m_valueArray.end());
 	Py_RETURN_NONE;
 }
 
@@ -568,7 +568,7 @@ PyObject *EXP_BaseListValue::Pyfilter(PyObject *args)
 	EXP_ListValue<EXP_Value> *result = new EXP_ListValue<EXP_Value>();
 	result->SetReleaseOnDestruct(false);
 
-	for (EXP_Value *item : m_pValueArray) {
+	for (EXP_Value *item : m_valueArray) {
 		if (strlen(namestr) == 0 || std::regex_match(item->GetName(), namereg)) {
 			if (strlen(propstr) == 0) {
 				result->Add(item);
@@ -598,7 +598,7 @@ PyObject *EXP_BaseListValue::Pyfrom_id(PyObject *value)
 
 	int numelem = GetCount();
 	for (int i = 0; i < numelem; i++) {
-		if (reinterpret_cast<uintptr_t>(m_pValueArray[i]->m_proxy) == id) {
+		if (reinterpret_cast<uintptr_t>(m_valueArray[i]->m_proxy) == id) {
 			return GetValue(i)->GetProxy();
 		}
 	}

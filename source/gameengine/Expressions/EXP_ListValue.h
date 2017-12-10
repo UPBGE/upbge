@@ -58,9 +58,9 @@ public:
 	EXP_ListValue(const std::vector<ItemType *>& rawList)
 	{
 		const unsigned int size = rawList.size();
-		m_pValueArray.resize(size);
+		m_valueArray.resize(size);
 		for (unsigned int i = 0; i < size; ++i) {
-			m_pValueArray[i] = rawList[i];
+			m_valueArray[i] = rawList[i];
 		}
 	}
 
@@ -76,10 +76,10 @@ public:
 
 		replica->m_bReleaseContents = true; // For copy, complete array is copied for now...
 		// Copy all values.
-		const int numelements = m_pValueArray.size();
-		replica->m_pValueArray.resize(numelements);
+		const int numelements = m_valueArray.size();
+		replica->m_valueArray.resize(numelements);
 		for (unsigned int i = 0; i < numelements; i++) {
-			replica->m_pValueArray[i] = m_pValueArray[i]->GetReplica();
+			replica->m_valueArray[i] = m_valueArray[i]->GetReplica();
 		}
 
 		return replica;
@@ -97,7 +97,7 @@ public:
 
 	ItemType *FindIf(std::function<bool (ItemType *)> function)
 	{
-		for (EXP_Value *val : m_pValueArray) {
+		for (EXP_Value *val : m_valueArray) {
 			ItemType *item = static_cast<ItemType *>(val);
 			if (function(item)) {
 				return item;
@@ -151,20 +151,20 @@ public:
 
 	ItemType *GetFront()
 	{
-		return static_cast<ItemType *>(m_pValueArray.front());
+		return static_cast<ItemType *>(m_valueArray.front());
 	}
 	ItemType *GetBack()
 	{
-		return static_cast<ItemType *>(m_pValueArray.back());
+		return static_cast<ItemType *>(m_valueArray.back());
 	}
 
 	const_iterator begin()
 	{
-		return const_iterator(m_pValueArray.begin());
+		return const_iterator(m_valueArray.begin());
 	}
 	const_iterator end()
 	{
-		return const_iterator(m_pValueArray.end());
+		return const_iterator(m_valueArray.end());
 	}
 };
 

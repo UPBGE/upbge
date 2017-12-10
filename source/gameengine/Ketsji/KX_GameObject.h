@@ -101,15 +101,15 @@ public:
 
 protected:
 
-	KX_ClientObjectInfo*				m_pClient_info;
+	KX_ClientObjectInfo*				m_client_info;
 	std::string							m_name;
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
 	KX_LodManager						*m_lodManager;
 	short								m_currentLodLevel;
 	RAS_MeshUser						*m_meshUser;
-	struct Object*						m_pBlenderObject;
-	struct Object*						m_pBlenderGroupObject;
+	struct Object*						m_blenderObject;
+	struct Object*						m_blenderGroupObject;
 	
 	bool								m_bIsNegativeScaling;
 	mt::vec4							m_objectColor;
@@ -124,18 +124,18 @@ protected:
 
 	bool								m_autoUpdateBounds;
 
-	PHY_IPhysicsController*				m_pPhysicsController;
-	PHY_IGraphicController*				m_pGraphicController;
+	PHY_IPhysicsController*				m_physicsController;
+	PHY_IGraphicController*				m_graphicController;
 
 	SG_CullingNode m_cullingNode;
-	SG_Node*							m_pSGNode;
+	SG_Node*							m_sgNode;
 
 	EXP_ListValue<KX_PythonComponent> *m_components;
 
 	std::vector<bRigidBodyJointConstraint*>	m_constraints;
 
-	EXP_ListValue<KX_GameObject> *m_pInstanceObjects;
-	KX_GameObject*						m_pDupliGroupObject;
+	EXP_ListValue<KX_GameObject> *m_instanceObjects;
+	KX_GameObject*						m_dupliGroupObject;
 
 	// The action manager is used to play/stop/update actions
 	BL_ActionManager*					m_actionManager;
@@ -183,7 +183,7 @@ public:
 
 	/**
 	 * Update the blender object obmat field from the object world position
-	 * if blendobj is nullptr, update the object pointed by m_pBlenderObject
+	 * if blendobj is nullptr, update the object pointed by m_blenderObject
 	 * The user must take action to restore the matrix before leaving the GE.
 	 * Used in Armature evaluation
 	 */
@@ -442,7 +442,7 @@ public:
 
 	void SetPhysicsController(PHY_IPhysicsController *physicscontroller)
 	{ 
-		m_pPhysicsController = physicscontroller;
+		m_physicsController = physicscontroller;
 	}
 
 	virtual class RAS_Deformer* GetDeformer()
@@ -464,12 +464,12 @@ public:
 	 */
 	PHY_IGraphicController* GetGraphicController()
 	{
-		return m_pGraphicController;
+		return m_graphicController;
 	}
 
 	void SetGraphicController(PHY_IGraphicController* graphiccontroller) 
 	{ 
-		m_pGraphicController = graphiccontroller;
+		m_graphicController = graphiccontroller;
 	}
 	/*
 	 * @add/remove the graphic controller to the physic system
@@ -526,12 +526,12 @@ public:
 
 	SG_Node*	GetSGNode(	) 
 	{ 
-		return m_pSGNode;
+		return m_sgNode;
 	}
 
 	const 	SG_Node* GetSGNode(	) const
 	{ 
-		return m_pSGNode;
+		return m_sgNode;
 	}
 
 	/**
@@ -540,29 +540,29 @@ public:
 
 	struct Object* GetBlenderObject( )
 	{
-		return m_pBlenderObject;
+		return m_blenderObject;
 	}
 
 	void SetBlenderObject(struct Object* obj)
 	{
-		m_pBlenderObject = obj;
+		m_blenderObject = obj;
 	}
 
 	struct Object* GetBlenderGroupObject( )
 	{
-		return m_pBlenderGroupObject;
+		return m_blenderGroupObject;
 	}
 
 	void SetBlenderGroupObject(struct Object* obj)
 	{
-		m_pBlenderGroupObject = obj;
+		m_blenderGroupObject = obj;
 	}
 	
 	bool IsDupliGroup()
 	{ 
-		return (m_pBlenderObject &&
-				(m_pBlenderObject->transflag & OB_DUPLIGROUP) &&
-				m_pBlenderObject->dup_group != nullptr) ? true : false;
+		return (m_blenderObject &&
+				(m_blenderObject->transflag & OB_DUPLIGROUP) &&
+				m_blenderObject->dup_group != nullptr) ? true : false;
 	}
 
 	/**
@@ -575,7 +575,7 @@ public:
 	 */
 		void	SetSGNode(SG_Node* node	)
 		{ 
-			m_pSGNode = node; 
+			m_sgNode = node; 
 		}
 	
 	/// Is it a dynamic/physics object ?
@@ -588,7 +588,7 @@ public:
 	 */
 	bool IsVertexParent( )
 	{
-		return (m_pSGNode && m_pSGNode->GetSGParent() && m_pSGNode->GetSGParent()->IsVertexParent());
+		return (m_sgNode && m_sgNode->GetSGParent() && m_sgNode->GetSGParent()->IsVertexParent());
 	}
 
 	/// \see KX_RayCast
@@ -888,7 +888,7 @@ public:
 	 */
 	void SetUseDebugProperties(bool debug, bool recursive);
 
-	KX_ClientObjectInfo* getClientInfo() { return m_pClient_info; }
+	KX_ClientObjectInfo* getClientInfo() { return m_client_info; }
 	
 	std::vector<KX_GameObject *> GetChildren() const;
 	std::vector<KX_GameObject *> GetChildrenRecursive() const;

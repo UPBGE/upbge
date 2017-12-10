@@ -68,11 +68,11 @@ KX_Camera::KX_Camera(void* sgReplicationInfo,
 
 KX_Camera::~KX_Camera()
 {
-	if (m_delete_node && m_pSGNode)
+	if (m_delete_node && m_sgNode)
 	{
 		// for shadow camera, avoids memleak
-		delete m_pSGNode;
-		m_pSGNode = nullptr;
+		delete m_sgNode;
+		m_sgNode = nullptr;
 	}
 }
 

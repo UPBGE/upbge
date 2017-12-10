@@ -128,7 +128,7 @@ void KX_FontObject::ProcessReplica()
 
 void KX_FontObject::AddMeshUser()
 {
-	m_meshUser = new RAS_TextUser(m_pClient_info, m_boundingBox);
+	m_meshUser = new RAS_TextUser(m_client_info, m_boundingBox);
 
 	// Make sure the mesh user get the matrix even if the object doesn't move.
 	NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
@@ -143,9 +143,9 @@ void KX_FontObject::AddMeshUser()
 void KX_FontObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
+	if (m_sgNode->IsDirty(SG_Node::DIRTY_RENDER)) {
 		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
-		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
+		m_sgNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
 	// Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl

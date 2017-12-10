@@ -45,7 +45,7 @@ struct Key;
 class BL_DeformableGameObject : public KX_GameObject
 {
 private:
-	RAS_Deformer *m_pDeformer;
+	RAS_Deformer *m_deformer;
 
 	double m_lastframe;
 

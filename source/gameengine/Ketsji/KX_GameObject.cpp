@@ -110,30 +110,30 @@ KX_GameObject::KX_GameObject(
       m_lodManager(nullptr),
       m_currentLodLevel(0),
       m_meshUser(nullptr),
-      m_pBlenderObject(nullptr),
-      m_pBlenderGroupObject(nullptr),
+      m_blenderObject(nullptr),
+      m_blenderGroupObject(nullptr),
       m_bIsNegativeScaling(false),
       m_objectColor(mt::one4),
       m_bVisible(true),
       m_bOccluder(false),
       m_autoUpdateBounds(false),
-      m_pPhysicsController(nullptr),
-      m_pGraphicController(nullptr),
+      m_physicsController(nullptr),
+      m_graphicController(nullptr),
       m_components(nullptr),
-      m_pInstanceObjects(nullptr),
-      m_pDupliGroupObject(nullptr),
+      m_instanceObjects(nullptr),
+      m_dupliGroupObject(nullptr),
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
     , m_attr_dict(nullptr),
     m_collisionCallbacks(nullptr)
 #endif
 {
-	m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
-	m_pSGNode = new SG_Node(this,sgReplicationInfo,callbacks);
+	m_client_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
+	m_sgNode = new SG_Node(this,sgReplicationInfo,callbacks);
 
 	// define the relationship between this node and it's parent.
 	KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
-	m_pSGNode->SetParentRelation(parent_relation);
+	m_sgNode->SetParentRelation(parent_relation);
 };
 
 
@@ -147,7 +147,7 @@ KX_GameObject::~KX_GameObject()
 		Py_CLEAR(m_attr_dict);
 	}
 	// Unregister collision callbacks
-	// Do this before we start freeing physics information like m_pClient_info
+	// Do this before we start freeing physics information like m_client_info
 	if (m_collisionCallbacks) {
 		UnregisterCollisionCallbacks();
 		Py_CLEAR(m_collisionCallbacks);
@@ -163,33 +163,33 @@ KX_GameObject::~KX_GameObject()
 	// is this delete somewhere ?
 	//if (m_sumoObj)
 	//	delete m_sumoObj;
-	delete m_pClient_info;
+	delete m_client_info;
 
-	//if (m_pSGNode)
-	//	delete m_pSGNode;
-	if (m_pSGNode)
+	//if (m_sgNode)
+	//	delete m_sgNode;
+	if (m_sgNode)
 	{
 		// must go through controllers and make sure they will not use us anymore
 		// This is important for KX_BulletPhysicsControllers that unregister themselves
 		// from the object when they are deleted.
 		SGControllerList::iterator contit;
-		SGControllerList& controllers = m_pSGNode->GetSGControllerList();
+		SGControllerList& controllers = m_sgNode->GetSGControllerList();
 		for (contit = controllers.begin();contit!=controllers.end();++contit)
 		{
 			(*contit)->ClearNode();
 		}
-		m_pSGNode->SetSGClientObject(nullptr);
+		m_sgNode->SetSGClientObject(nullptr);
 
-		/* m_pSGNode is freed in KX_Scene::RemoveNodeDestructObject */
+		/* m_sgNode is freed in KX_Scene::RemoveNodeDestructObject */
 	}
-	if (m_pGraphicController)
+	if (m_graphicController)
 	{
-		delete m_pGraphicController;
+		delete m_graphicController;
 	}
 
-	if (m_pPhysicsController)
+	if (m_physicsController)
 	{
-		delete m_pPhysicsController;
+		delete m_physicsController;
 	}
 
 	if (m_actionManager)
@@ -197,14 +197,14 @@ KX_GameObject::~KX_GameObject()
 		delete m_actionManager;
 	}
 
-	if (m_pDupliGroupObject)
+	if (m_dupliGroupObject)
 	{
-		m_pDupliGroupObject->Release();
+		m_dupliGroupObject->Release();
 	}
 
-	if (m_pInstanceObjects)
+	if (m_instanceObjects)
 	{
-		m_pInstanceObjects->Release();
+		m_instanceObjects->Release();
 	}
 	if (m_lodManager) {
 		m_lodManager->Release();
@@ -231,47 +231,47 @@ void KX_GameObject::SetName(const std::string& name)
 
 PHY_IPhysicsController* KX_GameObject::GetPhysicsController()
 {
-	return m_pPhysicsController;
+	return m_physicsController;
 }
 
 KX_GameObject* KX_GameObject::GetDupliGroupObject()
 { 
-	return m_pDupliGroupObject;
+	return m_dupliGroupObject;
 }
 
 EXP_ListValue<KX_GameObject> *KX_GameObject::GetInstanceObjects()
 { 
-	return m_pInstanceObjects;
+	return m_instanceObjects;
 }
 
 void KX_GameObject::AddInstanceObjects(KX_GameObject* obj)
 {
-	if (!m_pInstanceObjects)
-		m_pInstanceObjects = new EXP_ListValue<KX_GameObject>();
+	if (!m_instanceObjects)
+		m_instanceObjects = new EXP_ListValue<KX_GameObject>();
 
 	obj->AddRef();
-	m_pInstanceObjects->Add(obj);
+	m_instanceObjects->Add(obj);
 }
 
 void KX_GameObject::RemoveInstanceObject(KX_GameObject* obj)
 {
-	BLI_assert(m_pInstanceObjects);
-	m_pInstanceObjects->RemoveValue(obj);
+	BLI_assert(m_instanceObjects);
+	m_instanceObjects->RemoveValue(obj);
 	obj->Release();
 }
 
 void KX_GameObject::RemoveDupliGroupObject()
 {
-	if (m_pDupliGroupObject) {
-		m_pDupliGroupObject->Release();
-		m_pDupliGroupObject = nullptr;
+	if (m_dupliGroupObject) {
+		m_dupliGroupObject->Release();
+		m_dupliGroupObject = nullptr;
 	}
 }
 
 void KX_GameObject::SetDupliGroupObject(KX_GameObject* obj)
 {
 	obj->AddRef();
-	m_pDupliGroupObject = obj;
+	m_dupliGroupObject = obj;
 }
 
 void KX_GameObject::AddConstraint(bRigidBodyJointConstraint *cons)
@@ -292,7 +292,7 @@ void KX_GameObject::ClearConstraints()
 KX_GameObject* KX_GameObject::GetParent()
 {
 	KX_GameObject* result = nullptr;
-	SG_Node* node = m_pSGNode;
+	SG_Node* node = m_sgNode;
 	
 	while (node && !result)
 	{
@@ -332,9 +332,9 @@ void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost
 		RemoveParent();
 		obj->GetSGNode()->AddChild(GetSGNode());
 
-		if (m_pPhysicsController)
+		if (m_physicsController)
 		{
-			m_pPhysicsController->SuspendDynamics(ghost);
+			m_physicsController->SuspendDynamics(ghost);
 		}
 		// Set us to our new scale, position, and orientation
 		scale2[0] = 1.0f/scale2[0];
@@ -355,19 +355,19 @@ void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost
 			Release();
 		// if the new parent is a compound object, add this object shape to the compound shape.
 		// step 0: verify this object has physical controller
-		if (m_pPhysicsController && addToCompound)
+		if (m_physicsController && addToCompound)
 		{
 			// step 1: find the top parent (not necessarily obj)
 			KX_GameObject* rootobj = (KX_GameObject*)obj->GetSGNode()->GetRootSGParent()->GetSGClientObject();
 			// step 2: verify it has a physical controller and compound shape
 			if (rootobj != nullptr && 
-				rootobj->m_pPhysicsController != nullptr &&
-				rootobj->m_pPhysicsController->IsCompound())
+				rootobj->m_physicsController != nullptr &&
+				rootobj->m_physicsController->IsCompound())
 			{
-				rootobj->m_pPhysicsController->AddCompoundChild(m_pPhysicsController);
+				rootobj->m_physicsController->AddCompoundChild(m_physicsController);
 			}
 		}
-		// graphically, the object hasn't change place, no need to update m_pGraphicController
+		// graphically, the object hasn't change place, no need to update m_graphicController
 	}
 }
 
@@ -393,30 +393,30 @@ void KX_GameObject::RemoveParent()
 		if (!rootlist->SearchValue(this))
 			// object was not in root list, add it now and increment ref count
 			rootlist->Add(CM_AddRef(this));
-		if (m_pPhysicsController)
+		if (m_physicsController)
 		{
 			// in case this controller was added as a child shape to the parent
 			if (rootobj != nullptr && 
-				rootobj->m_pPhysicsController != nullptr &&
-				rootobj->m_pPhysicsController->IsCompound())
+				rootobj->m_physicsController != nullptr &&
+				rootobj->m_physicsController->IsCompound())
 			{
-				rootobj->m_pPhysicsController->RemoveCompoundChild(m_pPhysicsController);
+				rootobj->m_physicsController->RemoveCompoundChild(m_physicsController);
 			}
-			m_pPhysicsController->RestoreDynamics();
-			if (m_pPhysicsController->IsDynamic() && (rootobj != nullptr && rootobj->m_pPhysicsController))
+			m_physicsController->RestoreDynamics();
+			if (m_physicsController->IsDynamic() && (rootobj != nullptr && rootobj->m_physicsController))
 			{
 				// dynamic object should remember the velocity they had while being parented
 				mt::vec3 childPoint = GetSGNode()->GetWorldPosition();
 				mt::vec3 rootPoint = rootobj->GetSGNode()->GetWorldPosition();
 				mt::vec3 relPoint;
 				relPoint = (childPoint-rootPoint);
-				mt::vec3 linVel = rootobj->m_pPhysicsController->GetVelocity(relPoint);
-				mt::vec3 angVel = rootobj->m_pPhysicsController->GetAngularVelocity();
-				m_pPhysicsController->SetLinearVelocity(linVel, false);
-				m_pPhysicsController->SetAngularVelocity(angVel, false);
+				mt::vec3 linVel = rootobj->m_physicsController->GetVelocity(relPoint);
+				mt::vec3 angVel = rootobj->m_physicsController->GetAngularVelocity();
+				m_physicsController->SetLinearVelocity(linVel, false);
+				m_physicsController->SetAngularVelocity(angVel, false);
 			}
 		}
-		// graphically, the object hasn't change place, no need to update m_pGraphicController
+		// graphically, the object hasn't change place, no need to update m_graphicController
 	}
 }
 
@@ -499,16 +499,16 @@ void KX_GameObject::ProcessReplica()
 {
 	SCA_IObject::ProcessReplica();
 
-	m_pGraphicController = nullptr;
-	m_pPhysicsController = nullptr;
-	m_pSGNode = nullptr;
+	m_graphicController = nullptr;
+	m_physicsController = nullptr;
+	m_sgNode = nullptr;
 
 	/* Dupli group and instance list are set later in replication.
 	 * See KX_Scene::DupliGroupRecurse. */
-	m_pDupliGroupObject = nullptr;
-	m_pInstanceObjects = nullptr;
-	m_pClient_info = new KX_ClientObjectInfo(*m_pClient_info);
-	m_pClient_info->m_gameobject = this;
+	m_dupliGroupObject = nullptr;
+	m_instanceObjects = nullptr;
+	m_client_info = new KX_ClientObjectInfo(*m_client_info);
+	m_client_info->m_gameobject = this;
 	m_actionManager = nullptr;
 	m_state = 0;
 
@@ -550,9 +550,9 @@ static void setGraphicController_recursive(SG_Node* node)
 
 void KX_GameObject::ActivateGraphicController(bool recurse)
 {
-	if (m_pGraphicController)
+	if (m_graphicController)
 	{
-		m_pGraphicController->Activate(m_bVisible);
+		m_graphicController->Activate(m_bVisible);
 	}
 	if (recurse)
 	{
@@ -562,26 +562,26 @@ void KX_GameObject::ActivateGraphicController(bool recurse)
 
 void KX_GameObject::SetCollisionGroup(unsigned short group)
 {
-	if (m_pPhysicsController) {
-		m_pPhysicsController->SetCollisionGroup(group);
-		m_pPhysicsController->RefreshCollisions();
+	if (m_physicsController) {
+		m_physicsController->SetCollisionGroup(group);
+		m_physicsController->RefreshCollisions();
 	}
 }
 void KX_GameObject::SetCollisionMask(unsigned short mask)
 {
-	if (m_pPhysicsController) {
-		m_pPhysicsController->SetCollisionMask(mask);
-		m_pPhysicsController->RefreshCollisions();
+	if (m_physicsController) {
+		m_physicsController->SetCollisionMask(mask);
+		m_physicsController->RefreshCollisions();
 	}
 }
 
 unsigned short KX_GameObject::GetCollisionGroup() const
 {
-	return m_pPhysicsController ? m_pPhysicsController->GetCollisionGroup() : 0;
+	return m_physicsController ? m_physicsController->GetCollisionGroup() : 0;
 }
 unsigned short KX_GameObject::GetCollisionMask() const
 {
-	return m_pPhysicsController ? m_pPhysicsController->GetCollisionMask() : 0;
+	return m_physicsController ? m_physicsController->GetCollisionMask() : 0;
 }
 
 EXP_Value* KX_GameObject::GetReplica()
@@ -596,75 +596,75 @@ EXP_Value* KX_GameObject::GetReplica()
 
 bool KX_GameObject::IsDynamic() const
 {
-	if (m_pPhysicsController) {
-		return m_pPhysicsController->IsDynamic();
+	if (m_physicsController) {
+		return m_physicsController->IsDynamic();
 	}
 	return false;
 }
 
 bool KX_GameObject::IsDynamicsSuspended() const
 {
-	if (m_pPhysicsController)
-		return m_pPhysicsController->IsDynamicsSuspended();
+	if (m_physicsController)
+		return m_physicsController->IsDynamicsSuspended();
 	return false;
 }
 
 float KX_GameObject::getLinearDamping() const
 {
-	if (m_pPhysicsController)
-		return m_pPhysicsController->GetLinearDamping();
+	if (m_physicsController)
+		return m_physicsController->GetLinearDamping();
 	return 0;
 }
 
 float KX_GameObject::getAngularDamping() const
 {
-	if (m_pPhysicsController)
-		return m_pPhysicsController->GetAngularDamping();
+	if (m_physicsController)
+		return m_physicsController->GetAngularDamping();
 	return 0;
 }
 
 void KX_GameObject::setLinearDamping(float damping)
 {
-	if (m_pPhysicsController)
-		m_pPhysicsController->SetLinearDamping(damping);
+	if (m_physicsController)
+		m_physicsController->SetLinearDamping(damping);
 }
 
 
 void KX_GameObject::setAngularDamping(float damping)
 {
-	if (m_pPhysicsController)
-		m_pPhysicsController->SetAngularDamping(damping);
+	if (m_physicsController)
+		m_physicsController->SetAngularDamping(damping);
 }
 
 
 void KX_GameObject::setDamping(float linear, float angular)
 {
-	if (m_pPhysicsController)
-		m_pPhysicsController->SetDamping(linear, angular);
+	if (m_physicsController)
+		m_physicsController->SetDamping(linear, angular);
 }
 
 
 void KX_GameObject::ApplyForce(const mt::vec3& force,bool local)
 {
-	if (m_pPhysicsController)
-		m_pPhysicsController->ApplyForce(force,local);
+	if (m_physicsController)
+		m_physicsController->ApplyForce(force,local);
 }
 
 
 
 void KX_GameObject::ApplyTorque(const mt::vec3& torque,bool local)
 {
-	if (m_pPhysicsController)
-		m_pPhysicsController->ApplyTorque(torque,local);
+	if (m_physicsController)
+		m_physicsController->ApplyTorque(torque,local);
 }
 
 
 
 void KX_GameObject::ApplyMovement(const mt::vec3& dloc,bool local)
 {
-	if (m_pPhysicsController) // (IsDynamic())
+	if (m_physicsController) // (IsDynamic())
 	{
-		m_pPhysicsController->RelativeTranslate(dloc,local);
+		m_physicsController->RelativeTranslate(dloc,local);
 	}
 	GetSGNode()->RelativeTranslate(dloc,GetSGNode()->GetSGParent(),local);
 	NodeUpdateGS(0.0f);
@@ -676,8 +676,8 @@ void KX_GameObject::ApplyRotation(const mt::vec3& drot,bool local)
 
 	GetSGNode()->RelativeRotate(rotmat,local);
 
-	if (m_pPhysicsController) { // (IsDynamic())
-		m_pPhysicsController->RelativeRotate(rotmat,local);
+	if (m_physicsController) { // (IsDynamic())
+		m_physicsController->RelativeRotate(rotmat,local);
 	}
 	NodeUpdateGS(0.0f);
 }
@@ -685,7 +685,7 @@ void KX_GameObject::ApplyRotation(const mt::vec3& drot,bool local)
 void KX_GameObject::UpdateBlenderObjectMatrix(Object* blendobj)
 {
 	if (!blendobj)
-		blendobj = m_pBlenderObject;
+		blendobj = m_blenderObject;
 	if (blendobj) {
 		const mt::mat3x4 trans = NodeGetWorldTransform();
 		trans.PackFromAffineTransform(blendobj->obmat);
@@ -695,7 +695,7 @@ void KX_GameObject::UpdateBlenderObjectMatrix(Object* blendobj)
 void KX_GameObject::AddMeshUser()
 {
 	for (size_t i = 0; i < m_meshes.size(); ++i) {
-		m_meshUser = m_meshes[i]->AddMeshUser(m_pClient_info, GetDeformer());
+		m_meshUser = m_meshes[i]->AddMeshUser(m_client_info, GetDeformer());
 		// Make sure the mesh user get the matrix even if the object doesn't move.
 		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
 	}
@@ -704,9 +704,9 @@ void KX_GameObject::AddMeshUser()
 void KX_GameObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_pSGNode->IsDirty(SG_Node::DIRTY_RENDER)) {
+	if (m_sgNode->IsDirty(SG_Node::DIRTY_RENDER)) {
 		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
-		m_pSGNode->ClearDirty(SG_Node::DIRTY_RENDER);
+		m_sgNode->ClearDirty(SG_Node::DIRTY_RENDER);
 	}
 
 	m_meshUser->SetColor(m_objectColor);
@@ -725,8 +725,8 @@ void KX_GameObject::ReplaceMesh(RAS_MeshObject *mesh, bool use_gfx, bool use_phy
 
 	// Update the new assigned mesh with the physics mesh.
 	if (use_phys) {
-		if (m_pPhysicsController) {
-			m_pPhysicsController->ReinstancePhysicsShape(nullptr, use_gfx ? nullptr : mesh);
+		if (m_physicsController) {
+			m_physicsController->ReinstancePhysicsShape(nullptr, use_gfx ? nullptr : mesh);
 		}
 	}
 	// Always make sure that the bounding box is updated to the new mesh.
@@ -841,11 +841,11 @@ void KX_GameObject::UpdateActivity(float distance)
 void KX_GameObject::UpdateTransform()
 {
 	// HACK: saves function call for dynamic object, they are handled differently
-	if (m_pPhysicsController && !m_pPhysicsController->IsDynamic())
-		m_pPhysicsController->SetTransform();
-	if (m_pGraphicController)
+	if (m_physicsController && !m_physicsController->IsDynamic())
+		m_physicsController->SetTransform();
+	if (m_graphicController)
 		// update the culling tree
-		m_pGraphicController->SetGraphicTransform();
+		m_graphicController->SetGraphicTransform();
 
 }
 
@@ -857,10 +857,10 @@ void KX_GameObject::UpdateTransformFunc(SG_Node* node, void* gameobj, void* scen
 void KX_GameObject::SynchronizeTransform()
 {
 	// only used for sensor object, do full synchronization as bullet doesn't do it
-	if (m_pPhysicsController)
-		m_pPhysicsController->SetTransform();
-	if (m_pGraphicController)
-		m_pGraphicController->SetGraphicTransform();
+	if (m_physicsController)
+		m_physicsController->SetTransform();
+	if (m_graphicController)
+		m_graphicController->SetGraphicTransform();
 }
 
 void KX_GameObject::SynchronizeTransformFunc(SG_Node* node, void* gameobj, void* scene)
@@ -922,8 +922,8 @@ KX_GameObject::SetVisible(
 	)
 {
 	m_bVisible = v;
-	if (m_pGraphicController)
-		m_pGraphicController->Activate(m_bVisible);
+	if (m_graphicController)
+		m_graphicController->Activate(m_bVisible);
 	if (recursive)
 		setVisible_recursive(GetSGNode(), v);
 }
@@ -1008,10 +1008,10 @@ KX_GameObject::GetLayer(
 
 void KX_GameObject::addLinearVelocity(const mt::vec3& lin_vel,bool local)
 {
-	if (m_pPhysicsController)
+	if (m_physicsController)
 	{
 		mt::vec3 lv = local ? NodeGetWorldOrientation() * lin_vel : lin_vel;
-		m_pPhysicsController->SetLinearVelocity(lv + m_pPhysicsController->GetLinearVelocity(), 0);
+		m_physicsController->SetLinearVelocity(lv + m_physicsController->GetLinearVelocity(), 0);
 	}
 }
 
@@ -1019,16 +1019,16 @@ void KX_GameObject::addLinearVelocity(const mt::vec3& lin_vel,bool local)
 
 void KX_GameObject::setLinearVelocity(const mt::vec3& lin_vel,bool local)
 {
-	if (m_pPhysicsController)
-		m_pPhysicsController->SetLinearVelocity(lin_vel,local);
+	if (m_physicsController)
+		m_physicsController->SetLinearVelocity(lin_vel,local);
 }
 
 
 
 void KX_GameObject::setAngularVelocity(const mt::vec3& ang_vel,bool local)
 {
-	if (m_pPhysicsController)
-		m_pPhysicsController->SetAngularVelocity(ang_vel,local);
+	if (m_physicsController)
+		m_physicsController->SetAngularVelocity(ang_vel,local);
 }
 
 void KX_GameObject::SetObjectColor(const mt::vec4& rgbavec)
@@ -1138,9 +1138,9 @@ void KX_GameObject::AlignAxisToVect(const mt::vec3& dir, int axis, float fac)
 
 float KX_GameObject::GetMass()
 {
-	if (m_pPhysicsController)
+	if (m_physicsController)
 	{
-		return m_pPhysicsController->GetMass();
+		return m_physicsController->GetMass();
 	}
 	return 0.0f;
 }
@@ -1148,9 +1148,9 @@ float KX_GameObject::GetMass()
 mt::vec3 KX_GameObject::GetLocalInertia()
 {
 	mt::vec3 local_inertia = mt::zero3;
-	if (m_pPhysicsController)
+	if (m_physicsController)
 	{
-		local_inertia = m_pPhysicsController->GetLocalInertia();
+		local_inertia = m_physicsController->GetLocalInertia();
 	}
 	return local_inertia;
 }
@@ -1159,9 +1159,9 @@ mt::vec3 KX_GameObject::GetLinearVelocity(bool local)
 {
 	mt::vec3 velocity = mt::zero3, locvel;
 	mt::mat3 ori;
-	if (m_pPhysicsController)
+	if (m_physicsController)
 	{
-		velocity = m_pPhysicsController->GetLinearVelocity();
+		velocity = m_physicsController->GetLinearVelocity();
 		
 		if (local)
 		{
@@ -1178,9 +1178,9 @@ mt::vec3 KX_GameObject::GetAngularVelocity(bool local)
 {
 	mt::vec3 velocity = mt::zero3, locvel;
 	mt::mat3 ori;
-	if (m_pPhysicsController)
+	if (m_physicsController)
 	{
-		velocity = m_pPhysicsController->GetAngularVelocity();
+		velocity = m_physicsController->GetAngularVelocity();
 		
 		if (local)
 		{
@@ -1195,25 +1195,25 @@ mt::vec3 KX_GameObject::GetAngularVelocity(bool local)
 
 mt::vec3 KX_GameObject::GetGravity() const
 {
-	if (!m_pPhysicsController) {
+	if (!m_physicsController) {
 		return mt::zero3;
 	}
 
-	return m_pPhysicsController->GetGravity();
+	return m_physicsController->GetGravity();
 }
 
 void KX_GameObject::SetGravity(const mt::vec3 &gravity)
 {
-	if (m_pPhysicsController) {
-		m_pPhysicsController->SetGravity(gravity);
+	if (m_physicsController) {
+		m_physicsController->SetGravity(gravity);
 	}
 }
 
 mt::vec3 KX_GameObject::GetVelocity(const mt::vec3& point)
 {
-	if (m_pPhysicsController)
+	if (m_physicsController)
 	{
-		return m_pPhysicsController->GetVelocity(point);
+		return m_physicsController->GetVelocity(point);
 	}
 	return mt::zero3;
 }
@@ -1222,13 +1222,13 @@ mt::vec3 KX_GameObject::GetVelocity(const mt::vec3& point)
 
 void KX_GameObject::NodeSetLocalPosition(const mt::vec3& trans)
 {
-	if (m_pPhysicsController && !GetSGNode()->GetSGParent())
+	if (m_physicsController && !GetSGNode()->GetSGParent())
 	{
 		// don't update physic controller if the object is a child:
 		// 1) the transformation will not be right
 		// 2) in this case, the physic controller is necessarily a static object
 		//    that is updated from the normal kinematic synchronization
-		m_pPhysicsController->SetPosition(trans);
+		m_physicsController->SetPosition(trans);
 	}
 
 	GetSGNode()->SetLocalPosition(trans);
@@ -1239,10 +1239,10 @@ void KX_GameObject::NodeSetLocalPosition(const mt::vec3& trans)
 
 void KX_GameObject::NodeSetLocalOrientation(const mt::mat3& rot)
 {
-	if (m_pPhysicsController && !GetSGNode()->GetSGParent())
+	if (m_physicsController && !GetSGNode()->GetSGParent())
 	{
 		// see note above
-		m_pPhysicsController->SetOrientation(rot);
+		m_physicsController->SetOrientation(rot);
 	}
 	GetSGNode()->SetLocalOrientation(rot);
 }
@@ -1257,10 +1257,10 @@ void KX_GameObject::NodeSetGlobalOrientation(const mt::mat3& rot)
 
 void KX_GameObject::NodeSetLocalScale(const mt::vec3& scale)
 {
-	if (m_pPhysicsController && !GetSGNode()->GetSGParent())
+	if (m_physicsController && !GetSGNode()->GetSGParent())
 	{
 		// see note above
-		m_pPhysicsController->SetScaling(scale);
+		m_physicsController->SetScaling(scale);
 	}
 	GetSGNode()->SetLocalScale(scale);
 }
@@ -1270,13 +1270,13 @@ void KX_GameObject::NodeSetLocalScale(const mt::vec3& scale)
 void KX_GameObject::NodeSetRelativeScale(const mt::vec3& scale)
 {
 	GetSGNode()->RelativeScale(scale);
-	if (m_pPhysicsController && (!GetSGNode()->GetSGParent()))
+	if (m_physicsController && (!GetSGNode()->GetSGParent()))
 	{
 		// see note above
 		// we can use the local scale: it's the same thing for a root object 
 		// and the world scale is not yet updated
 		mt::vec3 newscale = GetSGNode()->GetLocalScale();
-		m_pPhysicsController->SetScaling(newscale);
+		m_physicsController->SetScaling(newscale);
 	}
 }
 
@@ -1308,7 +1308,7 @@ void KX_GameObject::NodeSetWorldScale(const mt::vec3& scale)
 
 void KX_GameObject::NodeSetWorldPosition(const mt::vec3& trans)
 {
-	SG_Node* parent = m_pSGNode->GetSGParent();
+	SG_Node* parent = m_sgNode->GetSGParent();
 	if (parent != nullptr)
 	{
 		// Make sure the objects have some scale
@@ -1335,47 +1335,47 @@ void KX_GameObject::NodeSetWorldPosition(const mt::vec3& trans)
 
 void KX_GameObject::NodeUpdateGS(double time)
 {
-	m_pSGNode->UpdateWorldData(time);
+	m_sgNode->UpdateWorldData(time);
 }
 
 const mt::mat3& KX_GameObject::NodeGetWorldOrientation() const
 {
-	return m_pSGNode->GetWorldOrientation();
+	return m_sgNode->GetWorldOrientation();
 }
 
 const mt::mat3& KX_GameObject::NodeGetLocalOrientation() const
 {
-	return m_pSGNode->GetLocalOrientation();
+	return m_sgNode->GetLocalOrientation();
 }
 
 const mt::vec3& KX_GameObject::NodeGetWorldScaling() const
 {
-	return m_pSGNode->GetWorldScaling();
+	return m_sgNode->GetWorldScaling();
 }
 
 const mt::vec3& KX_GameObject::NodeGetLocalScaling() const
 {
-	return m_pSGNode->GetLocalScale();
+	return m_sgNode->GetLocalScale();
 }
 
 const mt::vec3& KX_GameObject::NodeGetWorldPosition() const
 {
-	return m_pSGNode->GetWorldPosition();
+	return m_sgNode->GetWorldPosition();
 }
 
 const mt::vec3& KX_GameObject::NodeGetLocalPosition() const
 {
-	return m_pSGNode->GetLocalPosition();
+	return m_sgNode->GetLocalPosition();
 }
 
 mt::mat3x4 KX_GameObject::NodeGetWorldTransform() const
 {
-	return m_pSGNode->GetWorldTransform();
+	return m_sgNode->GetWorldTransform();
 }
 
 mt::mat3x4 KX_GameObject::NodeGetLocalTransform() const
 {
-	return m_pSGNode->GetLocalTransform();
+	return m_sgNode->GetLocalTransform();
 }
 
 void KX_GameObject::UpdateBounds(bool force)
@@ -1404,8 +1404,8 @@ void KX_GameObject::SetBoundsAabb(const mt::vec3 &aabbMin, const mt::vec3 &aabbM
 	m_cullingNode.GetAabb().Set(aabbMin, aabbMax);
 
 	// Synchronize the AABB with the graphic controller.
-	if (m_pGraphicController) {
-		m_pGraphicController->SetLocalAabb(aabbMin, aabbMax);
+	if (m_graphicController) {
+		m_graphicController->SetLocalAabb(aabbMin, aabbMax);
 	}
 }
 
@@ -1476,7 +1476,7 @@ void KX_GameObject::UnregisterCollisionCallbacks()
 	// If we are the last to unregister on this physics controller
 	if (pe->RemoveCollisionCallback(spc)) {
 		// If we are a sensor object
-		if (m_pClient_info->isSensor())
+		if (m_client_info->isSensor())
 			// Remove sensor body from physics world
 			pe->RemoveSensor(spc);
 	}
@@ -1496,7 +1496,7 @@ void KX_GameObject::RegisterCollisionCallbacks()
 	// If we are the first to register on this physics controller
 	if (pe->RequestCollisionCallback(spc)) {
 		// If we are a sensor object
-		if (m_pClient_info->isSensor())
+		if (m_client_info->isSensor())
 			// Add sensor body to physics world
 			pe->AddSensor(spc);
 	}
@@ -1589,8 +1589,8 @@ void KX_GameObject::UpdateComponents()
 
 KX_Scene* KX_GameObject::GetScene()
 {
-	BLI_assert(m_pSGNode);
-	return static_cast<KX_Scene *>(m_pSGNode->GetSGClientInfo());
+	BLI_assert(m_sgNode);
+	return static_cast<KX_Scene *>(m_sgNode->GetSGClientInfo());
 }
 
 /* ---------------------------------------------------------------------
@@ -3569,7 +3569,7 @@ PyObject *KX_GameObject::PySetCollisionMargin(PyObject *value)
 
 	PYTHON_CHECK_PHYSICS_CONTROLLER(this, "setCollisionMargin", nullptr);
 
-	m_pPhysicsController->SetMargin(collisionMargin);
+	m_physicsController->SetMargin(collisionMargin);
 	Py_RETURN_NONE;
 }
 
@@ -3583,13 +3583,13 @@ PyObject *KX_GameObject::PyCollide(PyObject *value)
 		return nullptr;
 	}
 
-	if (!m_pPhysicsController || !other->GetPhysicsController()) {
+	if (!m_physicsController || !other->GetPhysicsController()) {
 		PyErr_SetString(PyExc_TypeError, "expected objects with physics controller");
 		return nullptr;
 	}
 
 	PHY_IPhysicsEnvironment *env = scene->GetPhysicsEnvironment();
-	PHY_CollisionTestResult testResult = env->CheckCollision(m_pPhysicsController, other->GetPhysicsController());
+	PHY_CollisionTestResult testResult = env->CheckCollision(m_physicsController, other->GetPhysicsController());
 
 	PyObject *result = PyTuple_New(2);
 	if (!testResult.collide) {
@@ -3624,7 +3624,7 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
 		mt::vec3 impulse;
 		if (PyVecTo(pyattach, attach) && PyVecTo(pyimpulse, impulse))
 		{
-			m_pPhysicsController->ApplyImpulse(attach, impulse, (local!=0));
+			m_physicsController->ApplyImpulse(attach, impulse, (local!=0));
 			Py_RETURN_NONE;
 		}
 
