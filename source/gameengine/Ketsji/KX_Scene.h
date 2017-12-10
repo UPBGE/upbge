@@ -179,13 +179,6 @@ private:
 	/// Network scene.
 	KX_NetworkMessageScene *m_networkScene;
 
-	/**
-	 * A temporary variable used to parent objects together on
-	 * replication. Don't get confused by the name it is not
-	 * the scene's root node!
-	 */
-	SG_Node *m_rootnode;
-
 	/// The active camera for the scene.
 	KX_Camera *m_activeCamera;
 	/// The active camera for scene culling.

@@ -151,7 +151,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_mousemgr(nullptr),
 	m_physicsEnvironment(0),
 	m_sceneName(sceneName),
-	m_rootnode(nullptr),
 	m_activeCamera(nullptr),
 	m_overrideCullingCamera(nullptr),
 	m_ueberExecutionPriority(0),
@@ -481,19 +480,19 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 		newobj->SetSGNode(node);
 	}
 	else {
-		m_rootnode = new SG_Node(newobj, this, KX_Scene::m_callbacks);
+		SG_Node *rootnode = new SG_Node(newobj, this, KX_Scene::m_callbacks);
 
 		// This fixes part of the scaling-added object bug.
 		SG_Node *orgnode = gameobj->GetSGNode();
-		m_rootnode->SetLocalScale(orgnode->GetLocalScale());
-		m_rootnode->SetLocalPosition(orgnode->GetLocalPosition());
-		m_rootnode->SetLocalOrientation(orgnode->GetLocalOrientation());
+		rootnode->SetLocalScale(orgnode->GetLocalScale());
+		rootnode->SetLocalPosition(orgnode->GetLocalPosition());
+		rootnode->SetLocalOrientation(orgnode->GetLocalOrientation());
 
 		// Define the relationship between this node and it's parent.
 		KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
-		m_rootnode->SetParentRelation(parent_relation);
+		rootnode->SetParentRelation(parent_relation);
 
-		newobj->SetSGNode(m_rootnode);
+		newobj->SetSGNode(rootnode);
 	}
 
 	SG_Node *replicanode = newobj->GetSGNode();
