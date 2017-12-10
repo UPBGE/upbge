@@ -53,9 +53,6 @@ KX_CollisionEventManager::~KX_CollisionEventManager()
 
 void KX_CollisionEventManager::RemoveNewCollisions()
 {
-	for (const NewCollision& collision : m_newCollisions) {
-		delete collision.colldata;
-	}
 	m_newCollisions.clear();
 }
 
