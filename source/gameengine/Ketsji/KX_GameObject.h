@@ -109,7 +109,6 @@ protected:
 	short								m_currentLodLevel;
 	RAS_MeshUser						*m_meshUser;
 	struct Object*						m_blenderObject;
-	struct Object*						m_blenderGroupObject;
 	
 	bool								m_bIsNegativeScaling;
 	mt::vec4							m_objectColor;
@@ -548,16 +547,6 @@ public:
 		m_blenderObject = obj;
 	}
 
-	struct Object* GetBlenderGroupObject( )
-	{
-		return m_blenderGroupObject;
-	}
-
-	void SetBlenderGroupObject(struct Object* obj)
-	{
-		m_blenderGroupObject = obj;
-	}
-	
 	bool IsDupliGroup()
 	{ 
 		return (m_blenderObject &&

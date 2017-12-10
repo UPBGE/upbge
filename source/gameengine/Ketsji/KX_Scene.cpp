@@ -716,8 +716,6 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 			continue;
 		}
 
-		gameobj->SetBlenderGroupObject(blgroupobj);
-
 		if ((blenderobj->lay & group->layer) == 0) {
 			// Object is not visible in the 3D view, will not be instantiated.
 			continue;
@@ -739,8 +737,15 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		// Add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame).
 		m_parentlist->Add(CM_AddRef(replica));
 
+		/* Set references for dupli-group
+		 * groupobj holds a list of all objects, that belongs to this group. */
+		groupobj->AddInstanceObjects(replica);
+
+		// Every object gets the reference to its dupli-group object.
+		replica->SetDupliGroupObject(groupobj);
+
 		// Recurse replication into children nodes.
-		const NodeList children = gameobj->GetSGNode()->GetSGChildren();
+		const NodeList& children = gameobj->GetSGNode()->GetSGChildren();
 
 		replica->GetSGNode()->ClearSGChildren();
 		for (SG_Node *orgnode : children) {
@@ -807,15 +812,6 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		if (gameobj != groupobj && gameobj->IsDupliGroup()) {
 			// Can't instantiate group immediately as it destroys m_logicHierarchicalGameObjects.
 			duplilist.push_back(gameobj);
-		}
-
-		if (gameobj->GetBlenderGroupObject() == blgroupobj) {
-			/* Set references for dupli-group
-			 * groupobj holds a list of all objects, that belongs to this group. */
-			groupobj->AddInstanceObjects(gameobj);
-
-			// Every object gets the reference to its dupli-group object.
-			gameobj->SetDupliGroupObject(groupobj);
 		}
 	}
 

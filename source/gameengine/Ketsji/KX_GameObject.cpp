@@ -111,7 +111,6 @@ KX_GameObject::KX_GameObject(
       m_currentLodLevel(0),
       m_meshUser(nullptr),
       m_blenderObject(nullptr),
-      m_blenderGroupObject(nullptr),
       m_bIsNegativeScaling(false),
       m_objectColor(mt::one4),
       m_bVisible(true),

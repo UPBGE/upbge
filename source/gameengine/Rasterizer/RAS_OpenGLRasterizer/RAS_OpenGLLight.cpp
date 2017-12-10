@@ -154,7 +154,9 @@ GPULamp *RAS_OpenGLLight::GetGPULamp()
 {
 	KX_LightObject *kxlight = (KX_LightObject *)m_light;
 
-	return GPU_lamp_from_blender(kxlight->GetScene()->GetBlenderScene(), kxlight->GetBlenderObject(), kxlight->GetBlenderGroupObject());
+	KX_GameObject *groupObj = kxlight->GetDupliGroupObject();
+	Object *blenderGroup = groupObj ? groupObj->GetBlenderObject() : nullptr;
+	return GPU_lamp_from_blender(kxlight->GetScene()->GetBlenderScene(), kxlight->GetBlenderObject(), blenderGroup);
 }
 
 bool RAS_OpenGLLight::HasShadowBuffer()
