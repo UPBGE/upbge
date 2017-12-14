@@ -84,7 +84,7 @@ RAS_IDisplayArray::~RAS_IDisplayArray()
 
 #define NEW_DISPLAY_ARRAY_UV(vertformat, uv, color, primtype) \
 	if (vertformat.uvSize == uv && vertformat.colorSize == color) { \
-		return new RAS_DisplayArray<RAS_VertexData<uv, color> >(primtype, vertformat); \
+		return new RAS_DisplayArray<RAS_VertexData<RAS_VertexFormatType<uv, color> > >(primtype, vertformat); \
 	}
 
 #define NEW_DISPLAY_ARRAY_COLOR(vertformat, color, primtype) \

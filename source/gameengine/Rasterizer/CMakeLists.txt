@@ -126,6 +126,7 @@ set(SRC
 	RAS_TextUser.h
 	RAS_Vertex.h
 	RAS_VertexData.h
+	RAS_VertexFormat.h
 )
 
 data_to_c_simple(RAS_OpenGLFilters/RAS_Blur2DFilter.glsl SRC)

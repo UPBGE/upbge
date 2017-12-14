@@ -3,6 +3,8 @@
 
 #include "mathfu.h"
 
+#include "RAS_VertexFormat.h"
+
 #include "BLI_math_vector.h"
 
 struct RAS_VertexDataBasic
@@ -28,32 +30,32 @@ struct RAS_VertexDataBasic
 	}
 };
 
-template <unsigned short uvSize, unsigned short colorSize>
+template <class Format>
 struct RAS_VertexDataExtra
 {
-	float uvs[uvSize][2];
-	unsigned int colors[colorSize];
+	float uvs[Format::UvSize][2];
+	unsigned int colors[Format::ColorSize];
 
 	inline RAS_VertexDataExtra() = default;
 
-	inline RAS_VertexDataExtra(const mt::vec2 _uvs[uvSize], const unsigned int _colors[colorSize])
+	inline RAS_VertexDataExtra(const mt::vec2 _uvs[Format::UvSize], const unsigned int _colors[Format::ColorSize])
 	{
-		for (unsigned short i = 0; i < uvSize; ++i) {
+		for (unsigned short i = 0; i < Format::UvSize; ++i) {
 			_uvs[i].Pack(uvs[i]);
 		}
 
-		for (unsigned short i = 0; i < colorSize; ++i) {
+		for (unsigned short i = 0; i < Format::ColorSize; ++i) {
 			colors[i] = _colors[i];
 		}
 	}
 
-	inline RAS_VertexDataExtra(const float _uvs[uvSize][2], const unsigned int _colors[colorSize])
+	inline RAS_VertexDataExtra(const float _uvs[Format::UvSize][2], const unsigned int _colors[Format::ColorSize])
 	{
-		for (unsigned short i = 0; i < uvSize; ++i) {
+		for (unsigned short i = 0; i < Format::UvSize; ++i) {
 			copy_v2_v2(uvs[i], _uvs[i]);
 		}
 
-		for (unsigned short i = 0; i < colorSize; ++i) {
+		for (unsigned short i = 0; i < Format::ColorSize; ++i) {
 			colors[i] = _colors[i];
 		}
 	}
@@ -86,33 +88,28 @@ struct RAS_VertexDataMemoryFormat
 	uint8_t size;
 };
 
-template <unsigned short uvSize, unsigned short colorSize>
-struct RAS_VertexData : RAS_IVertexData, RAS_VertexDataExtra<uvSize, colorSize>
+template <class Format>
+struct RAS_VertexData : RAS_IVertexData, RAS_VertexDataExtra<Format>
 {
-	enum {
-		UvSize = uvSize,
-		ColorSize = colorSize
-	};
-
 	inline RAS_VertexData() = default;
 
 	inline RAS_VertexData(const mt::vec3& _position,
-						  const mt::vec2 _uvs[uvSize],
+						  const mt::vec2 _uvs[Format::UvSize],
 						  const mt::vec4& _tangent,
-						  const unsigned int _colors[colorSize],
+						  const unsigned int _colors[Format::ColorSize],
 						  const mt::vec3& _normal)
 		:RAS_IVertexData(_position, _normal, _tangent),
-		RAS_VertexDataExtra<uvSize, colorSize>(_uvs, _colors)
+		RAS_VertexDataExtra<Format>(_uvs, _colors)
 	{
 	}
 
 	inline RAS_VertexData(const float _position[3],
-						  const float _uvs[uvSize][2],
+						  const float _uvs[Format::UvSize][2],
 						  const float _tangent[4],
-						  const unsigned int _colors[colorSize],
+						  const unsigned int _colors[Format::ColorSize],
 						  const float _normal[3])
 		:RAS_IVertexData(_position, _normal, _tangent),
-		RAS_VertexDataExtra<uvSize, colorSize>(_uvs, _colors)
+		RAS_VertexDataExtra<Format>(_uvs, _colors)
 	{
 	}
 

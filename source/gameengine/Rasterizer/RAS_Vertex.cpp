@@ -31,16 +31,6 @@
 
 #include "RAS_Vertex.h"
 
-bool operator== (const RAS_VertexFormat& format1, const RAS_VertexFormat& format2)
-{
-	return (format1.uvSize == format2.uvSize && format1.colorSize == format2.colorSize);
-}
-
-bool operator!= (const RAS_VertexFormat& format1, const RAS_VertexFormat& format2)
-{
-	return !(format1 == format2);
-}
-
 RAS_VertexInfo::RAS_VertexInfo(unsigned int origindex, bool flat)
 	:m_origindex(origindex)
 {

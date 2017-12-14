@@ -33,17 +33,6 @@
 
 #include "BLI_math_vector.h"
 
-/// Struct used to pass the vertex format to functions.
-struct RAS_VertexFormat
-{
-	uint8_t uvSize;
-	uint8_t colorSize;
-};
-
-/// Operators used to compare the contents (uv size, color size, ...) of two vertex formats.
-bool operator== (const RAS_VertexFormat& format1, const RAS_VertexFormat& format2);
-bool operator!= (const RAS_VertexFormat& format1, const RAS_VertexFormat& format2);
-
 class RAS_VertexInfo
 {
 public:
