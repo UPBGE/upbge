@@ -47,6 +47,7 @@ set(SRC
 	CM_List.h
 	CM_Message.h
 	CM_RefCount.h
+	CM_Template.h
 	CM_Thread.h
 	CM_Update.h
 )

@@ -29,19 +29,22 @@
 
 #include "RAS_IDisplayArray.h"
 #include "RAS_DisplayArrayStorage.h"
+#include "RAS_VertexData.h"
 
 #include "boost/pool/object_pool.hpp"
 
-template <class VertexData>
+template <class FormatType>
 class RAS_BatchDisplayArray;
 
 /// An array with data used for OpenGL drawing.
-template <class VertexData>
+template <class FormatType>
 class RAS_DisplayArray : public virtual RAS_IDisplayArray
 {
-friend class RAS_BatchDisplayArray<VertexData>;
+friend class RAS_BatchDisplayArray<FormatType>;
 
 protected:
+	using VertexData = RAS_VertexData<FormatType>;
+
 	std::vector<VertexData> m_vertexes;
 
 	// Temporary vertex data storage.
@@ -66,7 +69,7 @@ public:
 
 	virtual RAS_IDisplayArray *GetReplica()
 	{
-		RAS_DisplayArray<VertexData> *replica = new RAS_DisplayArray<VertexData>(*this);
+		RAS_DisplayArray<FormatType> *replica = new RAS_DisplayArray<FormatType>(*this);
 		replica->UpdateCache();
 
 		return replica;

@@ -28,6 +28,8 @@
 #include "RAS_DisplayArrayStorage.h"
 #include "RAS_MeshObject.h"
 
+#include "CM_Template.h"
+
 #include "GPU_glew.h"
 
 #include <algorithm>
@@ -82,36 +84,10 @@ RAS_IDisplayArray::~RAS_IDisplayArray()
 {
 }
 
-#define NEW_DISPLAY_ARRAY_UV(vertformat, uv, color, primtype) \
-	if (vertformat.uvSize == uv && vertformat.colorSize == color) { \
-		return new RAS_DisplayArray<RAS_VertexData<RAS_VertexFormatType<uv, color> > >(primtype, vertformat); \
-	}
-
-#define NEW_DISPLAY_ARRAY_COLOR(vertformat, color, primtype) \
-	NEW_DISPLAY_ARRAY_UV(format, 1, color, type); \
-	NEW_DISPLAY_ARRAY_UV(format, 2, color, type); \
-	NEW_DISPLAY_ARRAY_UV(format, 3, color, type); \
-	NEW_DISPLAY_ARRAY_UV(format, 4, color, type); \
-	NEW_DISPLAY_ARRAY_UV(format, 5, color, type); \
-	NEW_DISPLAY_ARRAY_UV(format, 6, color, type); \
-	NEW_DISPLAY_ARRAY_UV(format, 7, color, type); \
-	NEW_DISPLAY_ARRAY_UV(format, 8, color, type);
-
 RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::PrimitiveType type, const RAS_VertexFormat &format)
 {
-	NEW_DISPLAY_ARRAY_COLOR(format, 1, type);
-	NEW_DISPLAY_ARRAY_COLOR(format, 2, type);
-	NEW_DISPLAY_ARRAY_COLOR(format, 3, type);
-	NEW_DISPLAY_ARRAY_COLOR(format, 4, type);
-	NEW_DISPLAY_ARRAY_COLOR(format, 5, type);
-	NEW_DISPLAY_ARRAY_COLOR(format, 6, type);
-	NEW_DISPLAY_ARRAY_COLOR(format, 7, type);
-	NEW_DISPLAY_ARRAY_COLOR(format, 8, type);
-
-	return nullptr;
+	return CM_InstantiateTemplateSwitch<RAS_IDisplayArray, RAS_DisplayArray, RAS_VertexFormatTuple>(format, type, format);
 }
-#undef NEW_DISPLAY_ARRAY_UV
-#undef NEW_DISPLAY_ARRAY_COLOR
 
 void RAS_IDisplayArray::SortPolygons(const mt::mat3x4& transform, unsigned int *indexmap)
 {

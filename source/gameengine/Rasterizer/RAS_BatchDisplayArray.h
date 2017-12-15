@@ -39,17 +39,18 @@
 #  pragma warning (disable:4250)
 #endif
 
-template <class VertexData>
-class RAS_BatchDisplayArray : public RAS_DisplayArray<VertexData>, public RAS_IBatchDisplayArray
+template <class FormatType>
+class RAS_BatchDisplayArray : public RAS_DisplayArray<FormatType>, public RAS_IBatchDisplayArray
 {
 protected:
-	using RAS_DisplayArray<VertexData>::m_vertexes;
-	using RAS_DisplayArray<VertexData>::m_primitiveIndices;
+	using RAS_DisplayArray<FormatType>::m_vertexes;
+	using RAS_DisplayArray<FormatType>::m_primitiveIndices;
+	using typename RAS_DisplayArray<FormatType>::VertexData;
 
 public:
 	RAS_BatchDisplayArray(RAS_IDisplayArray::PrimitiveType type, const RAS_VertexFormat& format)
 		:RAS_IDisplayArray(type, format, VertexData::GetMemoryFormat()),
-		RAS_DisplayArray<VertexData>(type, format),
+		RAS_DisplayArray<FormatType>(type, format),
 		RAS_IBatchDisplayArray(type, format, VertexData::GetMemoryFormat())
 	{
 	}
@@ -75,7 +76,7 @@ public:
 	 */
 	virtual unsigned int Merge(RAS_IDisplayArray *iarray, const mt::mat4& mat)
 	{
-		RAS_DisplayArray<VertexData> *array = dynamic_cast<RAS_DisplayArray<VertexData> *>(iarray);
+		RAS_DisplayArray<FormatType> *array = dynamic_cast<RAS_DisplayArray<FormatType> *>(iarray);
 		const unsigned int vertexcount = iarray->GetVertexCount();
 		const unsigned int indexcount = iarray->GetPrimitiveIndexCount();
 
