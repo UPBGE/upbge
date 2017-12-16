@@ -152,54 +152,60 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "mass")
             # disabled in the code
             # col.prop(soft, "weld_threshold")
-            col.prop(soft, "location_iterations")
             col.prop(soft, "linear_stiffness", slider=True)
             col.prop(soft, "dynamic_friction", slider=True)
             col.prop(soft, "kdp", text="Damping", slider=True)
             col.prop(soft, "collision_margin", slider=True)
-            col.prop(soft, "kvcf", text="Velocity Correction")
+            col.prop(soft, "kvcf", text="Velocity Correction", slider=True)
             col.prop(soft, "use_bending_constraints", text="Bending Constraints")
+
             sub = col.column()
             sub.active = soft.use_bending_constraints
             sub.prop(soft, "bending_distance")
+
             col.prop(soft, "use_shape_match")
+
             sub = col.column()
             sub.active = soft.use_shape_match
             sub.prop(soft, "shape_threshold", slider=True)
 
+            col.label(text="Solver Iterations:")
+            col.prop(soft, "position_solver_iterations", text="Position Solver")
+            col.prop(soft, "velocity_solver_iterations", text="Velocity Solver")
+            col.prop(soft, "cluster_solver_iterations", text="Cluster Solver")
+            col.prop(soft, "drift_solver_iterations", text="Drift Solver")
 
             col = split.column()
             col.label(text="Hardness:")
-            col.prop(soft, "kchr", text="Rigid Contacts Hardness")
-            col.prop(soft, "kkhr", text="Kinetic Contacts Hardness")
-            col.prop(soft, "kshr", text="Soft Contacts Hardness")
-            col.prop(soft, "kahr", text="Anchors Hardness")
+            col.prop(soft, "kchr", text="Rigid Contacts", slider=True)
+            col.prop(soft, "kkhr", text="Kinetic Contacts", slider=True)
+            col.prop(soft, "kshr", text="Soft Contacts", slider=True)
+            col.prop(soft, "kahr", text="Anchors", slider=True)
 
-
-            col = col.column()
-            col.label(text="Aerodynamics:")
-            col.prop(soft, "kdg", text="Drag Coefficient")
-            col.prop(soft, "klf", text="Lift Coefficient")
-
-            col = col.column()
-            col.label(text="Volume:")
-            col.prop(soft, "kpr", text="Pressure Coefficient")
-            col.prop(soft, "kvc", text="Volume Conservation")
-
-
-            col = split.column()
             col.label(text="Cluster Collision:")
             col.prop(soft, "use_cluster_rigid_to_softbody")
             col.prop(soft, "use_cluster_soft_to_softbody")
             sub = col.column()
             sub.active = (soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody)
             sub.prop(soft, "cluster_iterations", text="Iterations")
-            sub.prop(soft, "ksrhr_cl", text="Rigid Hardness")
-            sub.prop(soft, "kskhr_cl", text="Kinetic Hardness")
-            sub.prop(soft, "ksshr_cl", text="Soft Hardness")
+            sub.prop(soft, "ksrhr_cl", text="Rigid Hardness", slider=True)
+            sub.prop(soft, "kskhr_cl", text="Kinetic Hardness", slider=True)
+            sub.prop(soft, "ksshr_cl", text="Soft Hardness", slider=True)
             sub.prop(soft, "ksr_split_cl", text="Rigid Impulse Split", slider=True)
             sub.prop(soft, "ksk_split_cl", text="Kinetic Impulse Split", slider=True)
             sub.prop(soft, "kss_split_cl", text="Soft Impulse Split", slider=True)
+
+            split = layout.split()
+
+            col = split.column()
+            col.label(text="Volume:")
+            col.prop(soft, "kpr", text="Pressure Coefficient")
+            col.prop(soft, "kvc", text="Volume Conservation")
+
+            col = split.column()
+            col.label(text="Aerodynamics:")
+            col.prop(soft, "kdg", text="Drag Coefficient")
+            col.prop(soft, "klf", text="Lift Coefficient")
 
         elif physics_type == 'STATIC':
             col = layout.column()
