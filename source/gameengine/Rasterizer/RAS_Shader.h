@@ -145,7 +145,9 @@ public:
 	GPUShader *GetGPUShader();
 
 	unsigned int GetProg();
-	virtual void SetProg(bool enable);
+
+	void BindProg();
+	void UnbindProg();
 
 	void SetEnabled(bool enabled);
 	bool GetEnabled() const;

@@ -66,7 +66,9 @@ public:
 	virtual ~BL_BlenderShader();
 
 	bool Ok() const;
-	void SetProg(bool enable, double time = 0.0, RAS_Rasterizer *rasty = nullptr);
+
+	void BindProg(RAS_Rasterizer *rasty);
+	void UnbindProg();
 
 	/** Return a map of the corresponding attribut layer for a given attribut index.
 	 * \param layers The list of the mesh layers used to link with uv and color material attributes.

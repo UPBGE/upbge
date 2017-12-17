@@ -135,8 +135,7 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 		/* Get the output off screen of the filter, could be the same as the input off screen
 		 * if no modifications were made or the targeted off screen.
 		 * This output off screen is used for the next filter as input off screen */
-		previousofs = filter->Start(rasty, canvas, depthofs, colorofs, ftargetofs);
-		filter->End();
+		previousofs = filter->Render(rasty, canvas, depthofs, colorofs, ftargetofs);
 	}
 
 	// The last filter doesn't use its own off screen and didn't render to the targeted off screen ?

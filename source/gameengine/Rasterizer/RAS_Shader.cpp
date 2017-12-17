@@ -341,14 +341,14 @@ void RAS_Shader::SetSampler(int loc, int unit)
 	GPU_shader_uniform_int(m_shader, loc, unit);
 }
 
-void RAS_Shader::SetProg(bool enable)
+void RAS_Shader::BindProg()
 {
-	if (m_shader && enable) {
-		GPU_shader_bind(m_shader);
-	}
-	else {
-		GPU_shader_unbind();
-	}
+	GPU_shader_bind(m_shader);
+}
+
+void RAS_Shader::UnbindProg()
+{
+	GPU_shader_unbind();
 }
 
 void RAS_Shader::SetEnabled(bool enabled)

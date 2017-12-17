@@ -234,11 +234,7 @@ void KX_BlenderMaterial::EndFrame(RAS_Rasterizer *rasty)
 
 void KX_BlenderMaterial::SetShaderData(RAS_Rasterizer *ras)
 {
-	BLI_assert(m_shader);
-
-	int i;
-
-	m_shader->SetProg(true);
+	m_shader->BindProg();
 
 	m_shader->ApplyShader();
 
@@ -246,14 +242,14 @@ void KX_BlenderMaterial::SetShaderData(RAS_Rasterizer *ras)
 	 * than in gpu material. This is dones in a separated loop because the texture
 	 * regeneration can overide bind settings of the previous texture.
 	 */
-	for (i = 0; i < RAS_Texture::MaxUnits; i++) {
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
 		if (m_textures[i] && m_textures[i]->Ok()) {
 			m_textures[i]->CheckValidTexture();
 		}
 	}
 
 	// for each enabled unit
-	for (i = 0; i < RAS_Texture::MaxUnits; i++) {
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
 		if (m_textures[i] && m_textures[i]->Ok()) {
 			m_textures[i]->ActivateTexture(i);
 		}
@@ -275,7 +271,7 @@ void KX_BlenderMaterial::SetShaderData(RAS_Rasterizer *ras)
 void KX_BlenderMaterial::SetBlenderShaderData(RAS_Rasterizer *ras)
 {
 	// Don't set the alpha blend here because ActivateMeshSlot do it.
-	m_blenderShader->SetProg(true, ras->GetTime(), ras);
+	m_blenderShader->BindProg(ras);
 }
 
 void KX_BlenderMaterial::ActivateShaders(RAS_Rasterizer *rasty)
@@ -302,7 +298,7 @@ void KX_BlenderMaterial::Activate(RAS_Rasterizer *rasty)
 void KX_BlenderMaterial::Desactivate(RAS_Rasterizer *rasty)
 {
 	if (m_shader && m_shader->Ok()) {
-		m_shader->SetProg(false);
+		m_shader->UnbindProg();
 		for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
 			if (m_textures[i] && m_textures[i]->Ok()) {
 				m_textures[i]->DisableTexture();
@@ -310,7 +306,7 @@ void KX_BlenderMaterial::Desactivate(RAS_Rasterizer *rasty)
 		}
 	}
 	else if (m_blenderShader && m_blenderShader->Ok()) {
-		m_blenderShader->SetProg(false);
+		m_blenderShader->UnbindProg();
 	}
 }
 

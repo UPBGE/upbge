@@ -101,7 +101,7 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 	}
 }
 
-RAS_OffScreen *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *depthofs,
+RAS_OffScreen *RAS_2DFilter::Render(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *depthofs,
 						 RAS_OffScreen *colorofs, RAS_OffScreen *targetofs)
 {
 	/* The off screen the filter rendered to. If the filter is invalid or uses a custom
@@ -129,7 +129,7 @@ RAS_OffScreen *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, R
 
 	Initialize(canvas);
 
-	SetProg(true);
+	BindProg();
 
 	BindTextures(depthofs, colorofs);
 	BindUniforms(canvas);
@@ -146,14 +146,9 @@ RAS_OffScreen *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, R
 		m_offScreen->Unbind(rasty, canvas);
 	}
 
-	return outputofs;
-}
+	UnbindProg();
 
-void RAS_2DFilter::End()
-{
-	if(Ok()) {
-		SetProg(false);
-	}
+	return outputofs;
 }
 
 bool RAS_2DFilter::LinkProgram()

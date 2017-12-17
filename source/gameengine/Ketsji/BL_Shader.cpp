@@ -151,15 +151,15 @@ RAS_AttributeArray::AttribList BL_Shader::GetAttribs(const RAS_MeshObject::Layer
 	return attribs;
 }
 
-void BL_Shader::SetProg(bool enable)
+void BL_Shader::BindProg()
 {
 #ifdef WITH_PYTHON
-	if (enable && PyList_GET_SIZE(m_callbacks[CALLBACKS_BIND]) > 0) {
+	if (PyList_GET_SIZE(m_callbacks[CALLBACKS_BIND]) > 0) {
 		EXP_RunPythonCallBackList(m_callbacks[CALLBACKS_BIND], nullptr, 0, 0);
 	}
 #endif  // WITH_PYTHON
 
-	RAS_Shader::SetProg(enable);
+	RAS_Shader::BindProg();
 }
 
 void BL_Shader::Update(RAS_Rasterizer *rasty, RAS_MeshSlot *ms)
@@ -294,7 +294,6 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentPro
 		m_progs[GEOMETRY_PROGRAM] = "";
 
 		if (LinkProgram()) {
-			SetProg(true);
 			m_use = apply != 0;
 			Py_RETURN_NONE;
 		}
@@ -353,7 +352,6 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
 	}
 
 	if (LinkProgram()) {
-		SetProg(true);
 		m_use = apply != 0;
 	}
 

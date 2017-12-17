@@ -129,24 +129,20 @@ void BL_BlenderShader::ReloadMaterial()
 	m_materialUpdateServer->NotifyUpdate(RAS_IPolyMaterial::SHADER_MODIFIED);
 }
 
-void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
+void BL_BlenderShader::BindProg(RAS_Rasterizer *rasty)
 {
-	if (Ok()) {
-		if (enable) {
-			BLI_assert(rasty != nullptr); // XXX Kinda hacky, but SetProg() should always have the rasterizer if enable is true
+	GPU_material_bind(m_gpuMat, m_lightLayer, m_blenderScene->lay, rasty->GetTime(), 1,
+			rasty->GetViewMatrix().Data(), rasty->GetViewInvMatrix().Data(), nullptr, false);
+}
 
-			GPU_material_bind(m_gpuMat, m_lightLayer, m_blenderScene->lay, time, 1,
-							  rasty->GetViewMatrix().Data(), rasty->GetViewInvMatrix().Data(), nullptr, false);
-		}
-		else {
-			GPU_material_unbind(m_gpuMat);
-		}
-	}
+void BL_BlenderShader::UnbindProg()
+{
+	GPU_material_unbind(m_gpuMat);
 }
 
 void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 {
-	if (!m_gpuMat || !GPU_material_bound(m_gpuMat)) {
+	if (!GPU_material_bound(m_gpuMat)) {
 		return;
 	}
 
@@ -165,9 +161,7 @@ bool BL_BlenderShader::UseInstancing() const
 
 void BL_BlenderShader::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
 {
-	if (Ok()) {
-		GPU_material_bind_instancing_attrib(m_gpuMat, matrixoffset, positionoffset, coloroffset, stride);
-	}
+	GPU_material_bind_instancing_attrib(m_gpuMat, matrixoffset, positionoffset, coloroffset, stride);
 }
 
 int BL_BlenderShader::GetAlphaBlend()

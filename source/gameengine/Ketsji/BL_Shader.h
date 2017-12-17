@@ -58,7 +58,7 @@ public:
 	RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo,
 			RAS_Texture *const textures[RAS_Texture::MaxUnits]) const;
 
-	virtual void SetProg(bool enable);
+	void BindProg();
 
 	/** Update the uniform shader for the current rendered mesh slot.
 	 * The python callbacks are executed in this function and at the end
