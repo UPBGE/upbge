@@ -111,6 +111,7 @@ KX_GameObject::KX_GameObject(
       m_lodManager(nullptr),
       m_currentLodLevel(0),
       m_meshUser(nullptr),
+      m_convertInfo(nullptr),
       m_bIsNegativeScaling(false),
       m_objectColor(mt::one4),
       m_bVisible(true),
