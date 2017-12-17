@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_Light.h
+/** \file KX_LightObject.h
  *  \ingroup ketsji
  */
 

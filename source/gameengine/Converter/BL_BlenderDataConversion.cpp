@@ -81,7 +81,7 @@
 #include "KX_ClientObjectInfo.h"
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
-#include "KX_Light.h"
+#include "KX_LightObject.h"
 #include "KX_Camera.h"
 #include "KX_EmptyObject.h"
 #include "KX_FontObject.h"

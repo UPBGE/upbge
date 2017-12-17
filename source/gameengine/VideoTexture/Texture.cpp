@@ -34,7 +34,7 @@
 #include <structmember.h>
 
 #include "KX_GameObject.h"
-#include "KX_Light.h"
+#include "KX_LightObject.h"
 #include "RAS_MeshObject.h"
 #include "RAS_ILightObject.h"
 #include "DNA_mesh_types.h"

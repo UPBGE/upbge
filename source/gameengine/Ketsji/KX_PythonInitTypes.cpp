@@ -58,7 +58,7 @@
 #include "KX_CubeMap.h"
 #include "KX_GameActuator.h"
 #include "KX_LibLoadStatus.h"
-#include "KX_Light.h"
+#include "KX_LightObject.h"
 #include "KX_LodLevel.h"
 #include "KX_LodManager.h"
 #include "KX_FontObject.h"

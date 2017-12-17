@@ -35,7 +35,7 @@
 #include "RAS_ICanvas.h"
 
 #include "KX_Camera.h"
-#include "KX_Light.h"
+#include "KX_LightObject.h"
 #include "KX_Scene.h"
 
 #include "DNA_lamp_types.h"

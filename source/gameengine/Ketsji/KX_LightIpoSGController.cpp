@@ -32,7 +32,7 @@
 
 #include "KX_LightIpoSGController.h"
 #include "KX_ScalarInterpolator.h"
-#include "KX_Light.h"
+#include "KX_LightObject.h"
 #include "RAS_ILightObject.h"
 
 #if defined(_WIN64)

@@ -96,7 +96,7 @@ set(SRC
 	KX_IPO_SGController.cpp
 	KX_KetsjiEngine.cpp
 	KX_LibLoadStatus.cpp
-	KX_Light.cpp
+	KX_LightObject.cpp
 	KX_LightIpoSGController.cpp
 	KX_LodLevel.cpp
 	KX_LodManager.cpp
@@ -186,7 +186,7 @@ set(SRC
 	KX_ISystem.h
 	KX_KetsjiEngine.h
 	KX_LibLoadStatus.h
-	KX_Light.h
+	KX_LightObject.h
 	KX_LightIpoSGController.h
 	KX_LodLevel.h
 	KX_LodManager.h

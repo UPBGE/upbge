@@ -39,7 +39,7 @@
 #include "KX_GameObject.h"
 #include "KX_PythonComponent.h"
 #include "KX_Camera.h" // only for their ::Type
-#include "KX_Light.h"  // only for their ::Type
+#include "KX_LightObject.h"  // only for their ::Type
 #include "KX_FontObject.h"  // only for their ::Type
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"

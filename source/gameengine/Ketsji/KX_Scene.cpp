@@ -100,7 +100,7 @@
 #  include "EXP_PythonCallBack.h"
 #endif
 
-#include "KX_Light.h"
+#include "KX_LightObject.h"
 
 #include "BLI_task.h"
 

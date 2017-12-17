@@ -55,7 +55,7 @@
 #include "RAS_ILightObject.h"
 #include "SCA_IInputDevice.h"
 #include "KX_Camera.h"
-#include "KX_Light.h"
+#include "KX_LightObject.h"
 #include "KX_Globals.h"
 #include "KX_PyConstraintBinding.h"
 #include "PHY_IPhysicsEnvironment.h"
@@ -845,7 +845,6 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 	m_rasterizer->SetAuxilaryClientInfo(scene);
 
 	for (KX_LightObject *light : lightlist) {
-		RAS_ILightObject *raslight = light->GetLightData();
 		light->Update();
 	}
 

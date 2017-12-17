@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_Light.cpp
+/** \file gameengine/Ketsji/KX_LightObject.cpp
  *  \ingroup ketsji
  */
 
@@ -35,7 +35,7 @@
 
 #include <stdio.h>
 
-#include "KX_Light.h"
+#include "KX_LightObject.h"
 #include "KX_Camera.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
