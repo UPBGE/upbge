@@ -804,9 +804,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 	// Now look if object in the hierarchy have dupli group and recurse.
 	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
 		// Replicate all constraints.
-		if (gameobj->GetPhysicsController()) {
-			gameobj->GetPhysicsController()->ReplicateConstraints(gameobj, m_logicHierarchicalGameObjects);
-		}
+		gameobj->ReplicateConstraints(m_physicsEnvironment, m_logicHierarchicalGameObjects);
 
 		if (gameobj != groupobj && gameobj->IsDupliGroup()) {
 			// Can't instantiate group immediately as it destroys m_logicHierarchicalGameObjects.
@@ -1687,16 +1685,15 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 		// List of all physics objects to merge (needed by ReplicateConstraints).
 		std::vector<KX_GameObject *> physicsObjects;
-		for (KX_GameObject *gameobj : *otherObjects) {
+		for (KX_GameObject *gameobj : otherObjects) {
 			if (gameobj->GetPhysicsController()) {
 				physicsObjects.push_back(gameobj);
 			}
 		}
 
-		for (unsigned int i = 0; i < physicsObjects.size(); ++i) {
-			KX_GameObject *gameobj = physicsObjects[i];
+		for (KX_GameObject *gameobj : physicsObjects) {
 			// Replicate all constraints in the right physics environment.
-			gameobj->GetPhysicsController()->ReplicateConstraints(gameobj, physicsObjects);
+			gameobj->ReplicateConstraints(m_physicsEnvironment, physicsObjects);
 		}
 	}
 

@@ -195,6 +195,9 @@ public:
 	 */
 	const std::vector<bRigidBodyJointConstraint*>& GetConstraints();
 
+	void ReplicateConstraints(PHY_IPhysicsEnvironment *physEnv, const std::vector<KX_GameObject *>& constobj);
+
+
 	/** 
 	 * Get a pointer to the game object that is the parent of 
 	 * this object. Or nullptr if there is no parent. The returned

@@ -278,6 +278,24 @@ const std::vector<bRigidBodyJointConstraint *>& KX_GameObject::GetConstraints()
 	return m_convertInfo->m_constraints;
 }
 
+void KX_GameObject::ReplicateConstraints(PHY_IPhysicsEnvironment *physEnv, const std::vector<KX_GameObject *>& constobj)
+{
+	if (!m_physicsController || m_convertInfo->m_constraints.empty()) {
+		return;
+	}
+
+	// Object could have some constraints, iterate over all of theme to ensure that every constraint is recreated.
+	for (bRigidBodyJointConstraint *dat : m_convertInfo->m_constraints) {
+		// Try to find the constraint targets in the list of group objects.
+		for (KX_GameObject *member : constobj) {
+			// If the group member is the actual target for the constraint.
+			if ((dat->tar->id.name + 2) == member->GetName() && member->GetPhysicsController()) {
+				physEnv->SetupObjectConstraints(this, member, dat);
+			}
+		}
+	}
+}
+
 KX_GameObject* KX_GameObject::GetParent()
 {
 	KX_GameObject* result = nullptr;
