@@ -71,6 +71,7 @@
 
 #include "BKE_object.h"
 
+#include "BL_ConvertObjectInfo.h"
 #include "BL_ActionManager.h"
 #include "BL_Action.h"
 
@@ -110,7 +111,6 @@ KX_GameObject::KX_GameObject(
       m_lodManager(nullptr),
       m_currentLodLevel(0),
       m_meshUser(nullptr),
-      m_blenderObject(nullptr),
       m_bIsNegativeScaling(false),
       m_objectColor(mt::one4),
       m_bVisible(true),
@@ -273,19 +273,9 @@ void KX_GameObject::SetDupliGroupObject(KX_GameObject* obj)
 	m_dupliGroupObject = obj;
 }
 
-void KX_GameObject::AddConstraint(bRigidBodyJointConstraint *cons)
+const std::vector<bRigidBodyJointConstraint *>& KX_GameObject::GetConstraints()
 {
-	m_constraints.push_back(cons);
-}
-
-std::vector<bRigidBodyJointConstraint*> KX_GameObject::GetConstraints()
-{
-	return m_constraints;
-}
-
-void KX_GameObject::ClearConstraints()
-{
-	m_constraints.clear();
+	return m_convertInfo->m_constraints;
 }
 
 KX_GameObject* KX_GameObject::GetParent()
@@ -684,7 +674,7 @@ void KX_GameObject::ApplyRotation(const mt::vec3& drot,bool local)
 void KX_GameObject::UpdateBlenderObjectMatrix(Object* blendobj)
 {
 	if (!blendobj)
-		blendobj = m_blenderObject;
+		blendobj = m_convertInfo->m_blenderObject;
 	if (blendobj) {
 		const mt::mat3x4 trans = NodeGetWorldTransform();
 		trans.PackFromAffineTransform(blendobj->obmat);
@@ -1375,6 +1365,22 @@ mt::mat3x4 KX_GameObject::NodeGetWorldTransform() const
 mt::mat3x4 KX_GameObject::NodeGetLocalTransform() const
 {
 	return m_sgNode->GetLocalTransform();
+}
+
+Object *KX_GameObject::GetBlenderObject() const
+{
+	// Non converted objects has default camera doesn't have convert info.
+	return (m_convertInfo) ? m_convertInfo->m_blenderObject : nullptr;
+}
+
+BL_ConvertObjectInfo *KX_GameObject::GetConvertObjectInfo() const
+{
+	return m_convertInfo;
+}
+
+void KX_GameObject::SetConvertObjectInfo(BL_ConvertObjectInfo *info)
+{
+	m_convertInfo = info;
 }
 
 void KX_GameObject::UpdateBounds(bool force)

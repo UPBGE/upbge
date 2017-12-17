@@ -42,6 +42,7 @@ class SCA_IController;
 class RAS_MeshObject;
 class KX_BlenderMaterial;
 class BL_BlenderConverter;
+class BL_ConvertObjectInfo;
 class KX_GameObject;
 class KX_Scene;
 class KX_LibLoadStatus;
@@ -63,7 +64,9 @@ private:
 
 	std::vector<KX_BlenderMaterial *> m_materials;
 	std::vector<RAS_MeshObject *> m_meshobjects;
+	std::vector<BL_ConvertObjectInfo *> m_objectInfos;
 
+	std::map<Object *, BL_ConvertObjectInfo *> m_blenderToObjectInfos;
 	std::map<Object *, KX_GameObject *> m_map_blender_to_gameobject;
 	std::map<Mesh *, RAS_MeshObject *> m_map_mesh_to_gamemesh;
 	std::map<Material *, KX_BlenderMaterial *> m_map_mesh_to_polyaterial;
@@ -96,6 +99,8 @@ public:
 
 	void RegisterGameController(SCA_IController *cont, bController *for_controller);
 	SCA_IController *FindGameController(bController *for_controller);
+
+	BL_ConvertObjectInfo *GetObjectInfo(Object *blenderobj);
 };
 
 #endif  // __KX_BLENDERSCENECONVERTER_H__

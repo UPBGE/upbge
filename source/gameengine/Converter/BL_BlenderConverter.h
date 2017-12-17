@@ -38,7 +38,7 @@
 #ifdef _MSC_VER // MSVC doesn't support incomplete type in std::unique_ptr.
 #  include "KX_BlenderMaterial.h"
 #  include "RAS_MeshObject.h"
-
+#  include "BL_ConvertObjectInfo.h"
 #  include "BL_BlenderScalarInterpolator.h"
 #endif
 
@@ -46,6 +46,7 @@
 
 class EXP_StringValue;
 class BL_BlenderSceneConverter;
+class BL_ConvertObjectInfo;
 class KX_KetsjiEngine;
 class KX_LibLoadStatus;
 class KX_BlenderMaterial;
@@ -75,6 +76,7 @@ private:
 		UniquePtrList<KX_BlenderMaterial> m_materials;
 		UniquePtrList<RAS_MeshObject> m_meshobjects;
 		UniquePtrList<BL_InterpolatorList> m_interpolators;
+		UniquePtrList<BL_ConvertObjectInfo> m_objectInfos;
 
 		std::map<bAction *, BL_InterpolatorList *> m_actionToInterp;
 

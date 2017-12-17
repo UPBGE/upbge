@@ -806,7 +806,6 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		// Replicate all constraints.
 		if (gameobj->GetPhysicsController()) {
 			gameobj->GetPhysicsController()->ReplicateConstraints(gameobj, m_logicHierarchicalGameObjects);
-			gameobj->ClearConstraints();
 		}
 
 		if (gameobj != groupobj && gameobj->IsDupliGroup()) {
@@ -1698,7 +1697,6 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 			KX_GameObject *gameobj = physicsObjects[i];
 			// Replicate all constraints in the right physics environment.
 			gameobj->GetPhysicsController()->ReplicateConstraints(gameobj, physicsObjects);
-			gameobj->ClearConstraints();
 		}
 	}
 

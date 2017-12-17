@@ -100,6 +100,7 @@ set(SRC
 	BL_BlenderSceneConverter.h
 	BL_ConvertActuators.h
 	BL_ConvertControllers.h
+	BL_ConvertObjectInfo.h
 	BL_ConvertProperties.h
 	BL_ConvertSensors.h
 	BL_IpoConvert.h

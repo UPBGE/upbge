@@ -30,6 +30,7 @@
  */
 
 #include "BL_BlenderSceneConverter.h"
+#include "BL_ConvertObjectInfo.h"
 #include "KX_GameObject.h"
 
 BL_BlenderSceneConverter::BL_BlenderSceneConverter(KX_Scene *scene)
@@ -40,6 +41,9 @@ BL_BlenderSceneConverter::BL_BlenderSceneConverter(KX_Scene *scene)
 BL_BlenderSceneConverter::BL_BlenderSceneConverter(BL_BlenderSceneConverter&& other)
 	:m_scene(other.m_scene),
 	m_materials(std::move(other.m_materials)),
+	m_meshobjects(std::move(other.m_meshobjects)),
+	m_objectInfos(std::move(other.m_objectInfos)),
+	m_blenderToObjectInfos(std::move(other.m_blenderToObjectInfos)),
 	m_map_blender_to_gameobject(std::move(other.m_map_blender_to_gameobject)),
 	m_map_mesh_to_gamemesh(std::move(other.m_map_mesh_to_gamemesh)),
 	m_map_mesh_to_polyaterial(std::move(other.m_map_mesh_to_polyaterial)),
@@ -123,4 +127,16 @@ void BL_BlenderSceneConverter::RegisterGameController(SCA_IController *cont, bCo
 SCA_IController *BL_BlenderSceneConverter::FindGameController(bController *for_controller)
 {
 	return m_map_blender_to_gamecontroller[for_controller];
+}
+
+BL_ConvertObjectInfo *BL_BlenderSceneConverter::GetObjectInfo(Object *blenderobj)
+{
+	const auto& it = m_blenderToObjectInfos.find(blenderobj);
+	if (it == m_blenderToObjectInfos.end()) {
+		BL_ConvertObjectInfo *info = m_blenderToObjectInfos[blenderobj] = new BL_ConvertObjectInfo{blenderobj, {}};
+		m_objectInfos.push_back(info);
+		return info;
+	}
+
+	return it->second;
 }

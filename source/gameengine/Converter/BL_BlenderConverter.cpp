@@ -46,6 +46,7 @@
 #include "BL_BlenderConverter.h"
 #include "BL_BlenderSceneConverter.h"
 #include "BL_BlenderDataConversion.h"
+#include "BL_ConvertObjectInfo.h"
 #include "BL_ActionActuator.h"
 #include "KX_BlenderMaterial.h"
 
@@ -106,6 +107,9 @@ void BL_BlenderConverter::SceneSlot::Merge(BL_BlenderConverter::SceneSlot& other
 	m_meshobjects.insert(m_meshobjects.begin(),
 						 std::make_move_iterator(other.m_meshobjects.begin()),
 						 std::make_move_iterator(other.m_meshobjects.end()));
+	m_objectInfos.insert(m_objectInfos.begin(),
+						 std::make_move_iterator(other.m_objectInfos.begin()),
+						 std::make_move_iterator(other.m_objectInfos.end()));
 	m_actionToInterp.insert(other.m_actionToInterp.begin(), other.m_actionToInterp.end());
 }
 
@@ -116,6 +120,9 @@ void BL_BlenderConverter::SceneSlot::Merge(const BL_BlenderSceneConverter& conve
 	}
 	for (RAS_MeshObject *meshobj : converter.m_meshobjects) {
 		m_meshobjects.emplace_back(meshobj);
+	}
+	for (BL_ConvertObjectInfo *info : converter.m_objectInfos) {
+		m_objectInfos.emplace_back(info);
 	}
 }
 

@@ -62,6 +62,7 @@ class PHY_IGraphicController;
 class PHY_IPhysicsEnvironment;
 class PHY_IPhysicsController;
 class BL_ActionManager;
+class BL_ConvertObjectInfo;
 struct Object;
 class KX_ObstacleSimulation;
 class KX_CollisionContactPointList;
@@ -108,8 +109,9 @@ protected:
 	KX_LodManager						*m_lodManager;
 	short								m_currentLodLevel;
 	RAS_MeshUser						*m_meshUser;
-	struct Object*						m_blenderObject;
-	
+	/// Info about blender object convert from.
+	BL_ConvertObjectInfo *m_convertInfo;
+
 	bool								m_bIsNegativeScaling;
 	mt::vec4							m_objectColor;
 
@@ -130,8 +132,6 @@ protected:
 	SG_Node*							m_sgNode;
 
 	EXP_ListValue<KX_PythonComponent> *m_components;
-
-	std::vector<bRigidBodyJointConstraint*>	m_constraints;
 
 	EXP_ListValue<KX_GameObject> *m_instanceObjects;
 	KX_GameObject*						m_dupliGroupObject;
@@ -193,9 +193,7 @@ public:
 	 * Used for constraint replication for group instances.
 	 * The list of constraints is filled during data conversion.
 	 */
-	void AddConstraint(bRigidBodyJointConstraint *cons);
-	std::vector<bRigidBodyJointConstraint*> GetConstraints();
-	void ClearConstraints();
+	const std::vector<bRigidBodyJointConstraint*>& GetConstraints();
 
 	/** 
 	 * Get a pointer to the game object that is the parent of 
@@ -533,25 +531,17 @@ public:
 		return m_sgNode;
 	}
 
-	/**
-	 * \section blender object accessor functions.
-	 */
+	Object *GetBlenderObject() const;
 
-	struct Object* GetBlenderObject( )
-	{
-		return m_blenderObject;
-	}
-
-	void SetBlenderObject(struct Object* obj)
-	{
-		m_blenderObject = obj;
-	}
+	BL_ConvertObjectInfo *GetConvertObjectInfo() const;
+	void SetConvertObjectInfo(BL_ConvertObjectInfo *info);
 
 	bool IsDupliGroup()
 	{ 
-		return (m_blenderObject &&
-				(m_blenderObject->transflag & OB_DUPLIGROUP) &&
-				m_blenderObject->dup_group != nullptr) ? true : false;
+		Object *blenderobj = GetBlenderObject();
+		return (blenderobj &&
+				(blenderobj->transflag & OB_DUPLIGROUP) &&
+				blenderobj->dup_group != nullptr) ? true : false;
 	}
 
 	/**

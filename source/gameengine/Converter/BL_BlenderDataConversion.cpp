@@ -110,6 +110,7 @@
 #include "BL_ConvertControllers.h"
 #include "BL_ConvertSensors.h"
 #include "BL_ConvertProperties.h"
+#include "BL_ConvertObjectInfo.h"
 #include "BL_ArmatureObject.h"
 #include "BL_DeformableGameObject.h"
 
@@ -933,7 +934,8 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 	}
 	if (gameobj) {
 		gameobj->SetLayer(ob->lay);
-		gameobj->SetBlenderObject(ob);
+		BL_ConvertObjectInfo *info = converter.GetObjectInfo(ob);
+		gameobj->SetConvertObjectInfo(info);
 		gameobj->SetObjectColor(mt::vec4(ob->col));
 		// Set the visibility state based on the objects render option in the outliner.
 		if (ob->restrictflag & OB_RESTRICT_RENDER) {
@@ -1617,6 +1619,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			continue;
 		}
 
+		BL_ConvertObjectInfo *info = gameobj->GetConvertObjectInfo();
+
 		for (bConstraint *curcon = (bConstraint *)conlist->first; curcon; curcon = (bConstraint *)curcon->next) {
 			if (curcon->type != CONSTRAINT_TYPE_RIGIDBODYJOINT) {
 				continue;
@@ -1630,7 +1634,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			}
 
 			// Store constraints of grouped and instanced objects for all layers.
-			gameobj->AddConstraint(dat);
+			info->m_constraints.push_back(dat);
 
 			/** if it's during libload we only add constraints in the object but
 			 * doesn't create it. Constraint will be replicated later in scene->MergeScene
