@@ -37,11 +37,13 @@
 #include "DNA_meshdata_types.h"
 
 extern "C" {
-#include "BKE_scene.h"
-#include "BKE_customdata.h"
-#include "BKE_cdderivedmesh.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_navmesh_conversion.h"
+#  include "BKE_scene.h"
+#  include "BKE_customdata.h"
+#  include "BKE_cdderivedmesh.h"
+#  include "BKE_DerivedMesh.h"
+#  include "BKE_navmesh_conversion.h"
+
+#  include "BLI_alloca.h"
 }
 
 #include "KX_Globals.h"
@@ -599,10 +601,10 @@ KX_NavMeshObject::PathType KX_NavMeshObject::FindPath(const mt::vec3& from, cons
 	dtStatPolyRef ePolyRef = m_navMesh->findNearestPoly(localto.Data(), polyPickExt);
 
 	if (sPolyRef && ePolyRef) {
-		dtStatPolyRef polys[maxPathLen];
+		dtStatPolyRef *polys = (dtStatPolyRef *)BLI_array_alloca(polys, maxPathLen);
 		const unsigned int npolys = m_navMesh->findPath(sPolyRef, ePolyRef, localfrom.Data(), localto.Data(), polys, maxPathLen);
 		if (npolys > 0) {
-			float points[maxPathLen][3];
+			float(*points)[3] = (float(*)[3])BLI_array_alloca(points, maxPathLen);
 			const unsigned int pathLen = m_navMesh->findStraightPath(localfrom.Data(), localto.Data(), polys, npolys,
 					&points[0][0], maxPathLen);
 
