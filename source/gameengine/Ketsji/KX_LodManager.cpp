@@ -34,7 +34,7 @@
 #include "DNA_object_types.h"
 #include "BLI_listbase.h"
 
-KX_LodManager::LodLevelIterator::LodLevelIterator(const std::vector<KX_LodLevel *>& levels, unsigned short index, KX_Scene *scene)
+KX_LodManager::LodLevelIterator::LodLevelIterator(const std::vector<KX_LodLevel>& levels, unsigned short index, KX_Scene *scene)
 	:m_levels(levels),
 	m_index(index),
 	m_scene(scene)
@@ -47,19 +47,19 @@ inline float KX_LodManager::LodLevelIterator::GetHysteresis(unsigned short level
 		return 0.0f;
 	}
 	
-	KX_LodLevel *lod = m_levels[level];
-	KX_LodLevel *prelod = m_levels[level - 1];
+	const KX_LodLevel& lod = m_levels[level];
+	const KX_LodLevel& prelod = m_levels[level - 1];
 	
 	float hysteresis = 0.0f;
 	// if exists, LoD level hysteresis will override scene hysteresis
-	if (lod->GetFlag() & KX_LodLevel::USE_HYSTERESIS) {
-		hysteresis = lod->GetHysteresis() / 100.0f;
+	if (lod.GetFlag() & KX_LodLevel::USE_HYSTERESIS) {
+		hysteresis = lod.GetHysteresis() / 100.0f;
 	}
 	else {
 		hysteresis = m_scene->GetLodHysteresisValue() / 100.0f;
 	}
 	
-	return std::abs(prelod->GetDistance() - lod->GetDistance()) * hysteresis;
+	return std::abs(prelod.GetDistance() - lod.GetDistance()) * hysteresis;
 }
 
 inline int KX_LodManager::LodLevelIterator::operator++()
@@ -84,12 +84,12 @@ inline bool KX_LodManager::LodLevelIterator::operator<=(float distance2) const
 		return false;
 	}
 	
-	return SQUARE(m_levels[m_index + 1]->GetDistance() + GetHysteresis(m_index + 1)) <= distance2;
+	return SQUARE(m_levels[m_index + 1].GetDistance() + GetHysteresis(m_index + 1)) <= distance2;
 }
 
 inline bool KX_LodManager::LodLevelIterator::operator>(float distance2) const
 {
-	return SQUARE(m_levels[m_index]->GetDistance() - GetHysteresis(m_index)) > distance2;
+	return SQUARE(m_levels[m_index].GetDistance() - GetHysteresis(m_index)) > distance2;
 }
 
 KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter)
@@ -119,19 +119,15 @@ KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, BL_BlenderSceneConvert
 				lodmatob = lod->source;
 				flag |= KX_LodLevel::USE_MATERIAL;
 			}
-			KX_LodLevel *lodLevel = new KX_LodLevel(lod->distance, lod->obhysteresis, level++,
-				BL_ConvertMesh(lodmesh, lodmatob, scene, converter), flag);
 
-			m_levels.push_back(lodLevel);
+			m_levels.emplace_back(lod->distance, lod->obhysteresis, level++,
+				BL_ConvertMesh(lodmesh, lodmatob, scene, converter), flag);
 		}
 	}
 }
 
 KX_LodManager::~KX_LodManager()
 {
-	for (KX_LodLevel *lodLevel : m_levels) {
-		delete lodLevel;
-	}
 }
 
 std::string KX_LodManager::GetName()
@@ -144,12 +140,17 @@ unsigned int KX_LodManager::GetLevelCount() const
 	return m_levels.size();
 }
 
-KX_LodLevel *KX_LodManager::GetLevel(unsigned int index) const
+const KX_LodLevel& KX_LodManager::GetLevel(unsigned int index) const
 {
 	return m_levels[index];
 }
 
-KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, short previouslod, float distance2)
+KX_LodLevel& KX_LodManager::GetLevel(unsigned int index)
+{
+	return m_levels[index];
+}
+
+const KX_LodLevel& KX_LodManager::GetLevel(KX_Scene *scene, short previouslod, float distance2)
 {
 	distance2 *= (m_distanceFactor * m_distanceFactor);
 
@@ -168,7 +169,7 @@ KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, short previouslod, float d
 	}
 
 	const unsigned short level = *it;
-	return (level == previouslod) ? nullptr : m_levels[level];
+	return m_levels[level];
 }
 
 #ifdef WITH_PYTHON
@@ -207,12 +208,12 @@ PyAttributeDef KX_LodManager::Attributes[] = {
 
 static int kx_lod_manager_get_levels_size_cb(void *self_v)
 {
-	return ((KX_LodManager *)self_v)->GetLevelCount();
+	return static_cast<KX_LodManager *>(self_v)->GetLevelCount();
 }
 
 static PyObject *kx_lod_manager_get_levels_item_cb(void *self_v, int index)
 {
-	return ((KX_LodManager *)self_v)->GetLevel(index)->GetProxy();
+	return static_cast<KX_LodManager *>(self_v)->GetLevel(index).GetProxy();
 }
 
 PyObject *KX_LodManager::pyattr_get_levels(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)

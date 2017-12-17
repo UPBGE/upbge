@@ -47,13 +47,13 @@ private:
 	class LodLevelIterator
 	{
 	private:
-		const std::vector<KX_LodLevel *>& m_levels;
+		const std::vector<KX_LodLevel>& m_levels;
 		short m_index;
 		KX_Scene *m_scene;
 		float GetHysteresis(unsigned short level) const;
 
 	public:
-		LodLevelIterator(const std::vector<KX_LodLevel *>& levels, unsigned short index, KX_Scene *scene);
+		LodLevelIterator(const std::vector<KX_LodLevel>& levels, unsigned short index, KX_Scene *scene);
 
 		int operator++();
 		int operator--();
@@ -64,7 +64,7 @@ private:
 		bool operator>(float distance2) const;
 	};
 
-	std::vector<KX_LodLevel *> m_levels;
+	std::vector<KX_LodLevel> m_levels;
 
 	/** Get the hysteresis from the level or the scene.
 	 * \param scene Scene used to get default hysteresis.
@@ -89,7 +89,8 @@ public:
 	/** Get lod level by index.
 	 * \param index The lod level index.
 	 */
-	KX_LodLevel *GetLevel(unsigned int index) const;
+	const KX_LodLevel& GetLevel(unsigned int index) const;
+	KX_LodLevel& GetLevel(unsigned int index);
 
 	/** Get lod level cooresponding to distance and previous level.
 	 * \param scene Scene used to get default hysteresis.
@@ -97,7 +98,7 @@ public:
 	 *   Use -1 to disable the hysteresis when the lod manager has changed.
 	 * \param distance2 Squared distance object to the camera.
 	 */
-	KX_LodLevel *GetLevel(KX_Scene *scene, short previouslod, float distance);
+	const KX_LodLevel& GetLevel(KX_Scene *scene, short previouslod, float distance);
 
 #ifdef WITH_PYTHON
 

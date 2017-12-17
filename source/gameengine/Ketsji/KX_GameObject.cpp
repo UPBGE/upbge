@@ -776,7 +776,7 @@ void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
 
 	// Restore object original mesh.
 	if (!lodManager && m_lodManager && m_lodManager->GetLevelCount() > 0) {
-		RAS_MeshObject *origmesh = m_lodManager->GetLevel(0)->GetMesh();
+		RAS_MeshObject *origmesh = m_lodManager->GetLevel(0).GetMesh();
 		ReplaceMesh(origmesh, true, false);
 	}
 
@@ -796,24 +796,21 @@ KX_LodManager *KX_GameObject::GetLodManager() const
 	return m_lodManager;
 }
 
-void KX_GameObject::UpdateLod(const mt::vec3& cam_pos, float lodfactor)
+void KX_GameObject::UpdateLod(KX_Scene *scene, const mt::vec3& cam_pos, float lodfactor)
 {
 	if (!m_lodManager) {
 		return;
 	}
 
-	KX_Scene *scene = GetScene();
 	const float distance2 = (NodeGetWorldPosition() - cam_pos).LengthSquared() * (lodfactor * lodfactor);
-	KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
+	const KX_LodLevel& lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
 
-	if (lodLevel) {
-		RAS_MeshObject *mesh = lodLevel->GetMesh();
-		if (mesh != m_meshes.front()) {
-			ReplaceMesh(mesh, true, false);
-		}
-
-		m_currentLodLevel = lodLevel->GetLevel();
+	RAS_MeshObject *mesh = lodLevel.GetMesh();
+	if (mesh != m_meshes.front()) {
+		ReplaceMesh(mesh, true, false);
 	}
+
+	m_currentLodLevel = lodLevel.GetLevel();
 }
 
 void KX_GameObject::UpdateActivity(float distance)

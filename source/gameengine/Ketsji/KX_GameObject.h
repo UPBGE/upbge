@@ -725,7 +725,7 @@ public:
 	/**
 	 * Updates the current lod level based on distance from camera.
 	 */
-	void UpdateLod(const mt::vec3& cam_pos, float lodfactor);
+	void UpdateLod(KX_Scene *scene, const mt::vec3& cam_pos, float lodfactor);
 
 	/** Update the activity culling of the object.
 	 * \param distance Squared nearest distance to the cameras of this object.

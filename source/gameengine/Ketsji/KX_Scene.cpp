@@ -1452,7 +1452,7 @@ void KX_Scene::UpdateObjectLods(KX_Camera *cam, const std::vector<KX_GameObject 
 	const float lodfactor = cam->GetLodDistanceFactor();
 
 	for (KX_GameObject *gameobj : objects) {
-		gameobj->UpdateLod(cam_pos, lodfactor);
+		gameobj->UpdateLod(this, cam_pos, lodfactor);
 	}
 }
 
