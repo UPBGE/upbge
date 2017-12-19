@@ -93,7 +93,9 @@ private:
 		mt::vec3 m_aabbMax;
 	};
 
-	std::vector<DisplayArraySlot> m_slots;
+	/// The sub AABB per display array.
+	// Use aligned allocator because DisplayArraySlot use aligned members.
+	std::vector<DisplayArraySlot, mt::simd_allocator<DisplayArraySlot> > m_slots;
 
 public:
 	RAS_MeshBoundingBox(RAS_BoundingBoxManager *manager, const RAS_IDisplayArrayList& displayArrayList);
