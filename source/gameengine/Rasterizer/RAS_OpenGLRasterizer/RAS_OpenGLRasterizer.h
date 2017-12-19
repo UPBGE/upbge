@@ -49,6 +49,7 @@ private:
 	private:
 		unsigned int m_vbo;
 		unsigned int m_ibo;
+		unsigned int m_vao;
 
 	public:
 		ScreenPlane();
