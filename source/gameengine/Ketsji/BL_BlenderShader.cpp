@@ -32,7 +32,7 @@
 #include "BL_BlenderShader.h"
 
 #include "RAS_BucketManager.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_IPolygonMaterial.h"
@@ -57,7 +57,7 @@ BL_BlenderShader::~BL_BlenderShader()
 {
 }
 
-const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
+const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const
 {
 	RAS_AttributeArray::AttribList attribs;
 	GPUVertexAttribs gpuAttribs;
@@ -81,7 +81,7 @@ const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_Mesh
 			}
 
 			if (type == CD_MTFACE) {
-				for (const RAS_MeshObject::Layer& layer : layersInfo.uvLayers) {
+				for (const RAS_Mesh::Layer& layer : layersInfo.uvLayers) {
 					if (layer.name == attribname) {
 						attribs.push_back({glindex, RAS_AttributeArray::RAS_ATTRIB_UV, false, layer.index});
 						break;
@@ -89,7 +89,7 @@ const RAS_AttributeArray::AttribList BL_BlenderShader::GetAttribs(const RAS_Mesh
 				}
 			}
 			else {
-				for (const RAS_MeshObject::Layer& layer : layersInfo.colorLayers) {
+				for (const RAS_Mesh::Layer& layer : layersInfo.colorLayers) {
 					if (layer.name == attribname) {
 						attribs.push_back({glindex, RAS_AttributeArray::RAS_ATTRIB_COLOR, false, layer.index});
 						break;

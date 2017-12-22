@@ -31,7 +31,7 @@
 #include "PHY_IMotionState.h"
 #include "CcdPhysicsEnvironment.h"
 
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_Deformer.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MaterialBucket.h"
@@ -1620,13 +1620,13 @@ bool CcdPhysicsController::IsPhysicsSuspended()
  * from_gameobj and from_meshobj can be nullptr
  *
  * when setting the mesh, the following vars get priority
- * 1) from_meshobj - creates the phys mesh from RAS_MeshObject
- * 2) from_gameobj - creates the phys mesh from the DerivedMesh where possible, else the RAS_MeshObject
- * 3) this - update the phys mesh from DerivedMesh or RAS_MeshObject
+ * 1) from_meshobj - creates the phys mesh from RAS_Mesh
+ * 2) from_gameobj - creates the phys mesh from the DerivedMesh where possible, else the RAS_Mesh
+ * 3) this - update the phys mesh from DerivedMesh or RAS_Mesh
  *
  * Most of the logic behind this is in m_shapeInfo->UpdateMesh(...)
  */
-bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_MeshObject *from_meshobj, bool dupli)
+bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_Mesh *from_meshobj, bool dupli)
 {
 	if (m_shapeInfo->m_shapeType != PHY_SHAPE_MESH)
 		return false;
@@ -1714,7 +1714,7 @@ void DefaultMotionState::CalculateWorldTransformations()
 // Shape constructor
 CcdShapeConstructionInfo::MeshShapeMap CcdShapeConstructionInfo::m_meshShapeMap;
 
-CcdShapeConstructionInfo *CcdShapeConstructionInfo::FindMesh(RAS_MeshObject *mesh, RAS_Deformer *deformer, PHY_ShapeType shapeType)
+CcdShapeConstructionInfo *CcdShapeConstructionInfo::FindMesh(RAS_Mesh *mesh, RAS_Deformer *deformer, PHY_ShapeType shapeType)
 {
 	MeshShapeMap::const_iterator mit = m_meshShapeMap.find(MeshShapeKey(mesh, deformer, shapeType));
 	if (mit != m_meshShapeMap.end()) {
@@ -1747,7 +1747,7 @@ void CcdShapeConstructionInfo::ProcessReplica()
 /* Updates the arrays used by CreateBulletShape(),
  * take care that recalcLocalAabb() runs after CreateBulletShape is called.
  * */
-bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject *meshobj)
+bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *meshobj)
 {
 	if (!gameobj && !meshobj) {
 		return false;
@@ -1768,7 +1768,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 		}
 		else {
 			// Object mesh is last priority.
-			const std::vector<RAS_MeshObject *>& meshes = gameobj->GetMeshList();
+			const std::vector<RAS_Mesh *>& meshes = gameobj->GetMeshList();
 			if (!meshes.empty()) {
 				meshobj = meshes.front();
 			}
@@ -1863,7 +1863,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 
 			// Convert triangles using remaped vertices index.
 			for (unsigned int j = 0, numind = array->GetTriangleIndexCount(); j < numind; j += 3) {
-				// Should match polygon access index with RAS_MeshObject::GetPolygon.
+				// Should match polygon access index with RAS_Mesh::GetPolygon.
 				m_polygonIndexArray[curTri] = polygonStartIndex + j / 3;
 
 				for (unsigned short k = 0; k < 3; ++k) {
@@ -1933,7 +1933,7 @@ bool CcdShapeConstructionInfo::SetProxy(CcdShapeConstructionInfo *shapeInfo)
 	return true;
 }
 
-RAS_MeshObject *CcdShapeConstructionInfo::GetMesh() const
+RAS_Mesh *CcdShapeConstructionInfo::GetMesh() const
 {
 	return m_mesh;
 }

@@ -29,7 +29,7 @@
 
 #include "BLI_math_vector.h"
 #include "KX_NavMeshObject.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_IDisplayArray.h"
 #include "RAS_Vertex.h"
 
@@ -237,8 +237,8 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 		MEM_freeN(verticesMap);
 	}
 	else {
-		//create from RAS_MeshObject (detailed mesh is fake)
-		RAS_MeshObject *meshobj = m_meshes.front();
+		//create from RAS_Mesh (detailed mesh is fake)
+		RAS_Mesh *meshobj = m_meshes.front();
 		vertsPerPoly = 3;
 
 		// Indices count.

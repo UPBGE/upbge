@@ -93,7 +93,7 @@ void KX_TextMaterial::UpdateIPO(const mt::vec4 &rgba, const mt::vec3 &specrgb, f
 {
 }
 
-const RAS_AttributeArray::AttribList KX_TextMaterial::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
+const RAS_AttributeArray::AttribList KX_TextMaterial::GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const
 {
 	return {};
 }

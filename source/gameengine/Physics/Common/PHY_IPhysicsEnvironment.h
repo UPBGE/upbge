@@ -39,10 +39,10 @@
 class PHY_IConstraint;
 class PHY_IVehicle;
 class PHY_ICharacter;
-class RAS_MeshObject;
+class RAS_Mesh;
 class PHY_IPhysicsController;
 
-class RAS_MeshObject;
+class RAS_Mesh;
 class KX_GameObject;
 class KX_Scene;
 class BL_BlenderSceneConverter;
@@ -57,7 +57,7 @@ struct PHY_RayCastResult {
 	PHY_IPhysicsController *m_controller;
 	mt::vec3 m_hitPoint;
 	mt::vec3 m_hitNormal;
-	RAS_MeshObject *m_meshObject; // !=nullptr for mesh object (only for Bullet controllers)
+	RAS_Mesh *m_meshObject; // !=nullptr for mesh object (only for Bullet controllers)
 	int m_polygon; // index of the polygon hit by the ray, only if m_meshObject != nullptr
 	int m_hitUVOK; // !=0 if UV coordinate in m_hitUV is valid
 	mt::vec2 m_hitUV; // UV coordinates of hit point
@@ -236,7 +236,7 @@ public:
 
 	virtual void ConvertObject(BL_BlenderSceneConverter& converter,
 							   KX_GameObject *gameobj,
-	                           RAS_MeshObject *meshobj,
+	                           RAS_Mesh *meshobj,
 	                           KX_Scene *kxscene,
 	                           PHY_IMotionState *motionstate,
 	                           int activeLayerBitInfo,

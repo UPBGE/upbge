@@ -55,7 +55,7 @@
 #include "RAS_IPolygonMaterial.h"
 // Sensors
 #include "KX_GameObject.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "SCA_KeyboardSensor.h"
 #include "SCA_MouseSensor.h"
 #include "SCA_AlwaysSensor.h"

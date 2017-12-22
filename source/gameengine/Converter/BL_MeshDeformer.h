@@ -44,7 +44,7 @@
 struct Object;
 struct Mesh;
 class BL_DeformableGameObject;
-class RAS_MeshObject;
+class RAS_Mesh;
 class RAS_IPolyMaterial;
 
 class BL_MeshDeformer : public RAS_Deformer
@@ -54,7 +54,7 @@ public:
 	void RecalcNormals();
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
 
-	BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_MeshObject *meshobj);
+	BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_Mesh *meshobj);
 	virtual ~BL_MeshDeformer();
 	virtual void Apply(RAS_IDisplayArray *array);
 	virtual bool Update()

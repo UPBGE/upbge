@@ -461,7 +461,7 @@ void BL_ConvertActuators(const char* maggiename,
 					break;
 				case ACT_EDOB_REPLACE_MESH:
 					{
-						RAS_MeshObject *tmpmesh = converter.FindGameMesh(editobact->me);
+						RAS_Mesh *tmpmesh = converter.FindGameMesh(editobact->me);
 
 						if (!tmpmesh) {
 							CM_Warning("object \"" << objectname << "\" from ReplaceMesh actuator \"" << uniquename

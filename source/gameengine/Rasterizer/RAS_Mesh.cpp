@@ -25,13 +25,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Rasterizer/RAS_MeshObject.cpp
+/** \file gameengine/Rasterizer/RAS_Mesh.cpp
  *  \ingroup bgerast
  */
 
 #include "DNA_mesh_types.h"
 
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_IPolygonMaterial.h"
@@ -43,7 +43,7 @@
 
 #include "CM_Message.h"
 
-RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
+RAS_Mesh::RAS_Mesh(Mesh *mesh, const LayersInfo& layersInfo)
 	:m_name(mesh->id.name + 2),
 	m_layersInfo(layersInfo),
 	m_boundingBox(nullptr),
@@ -51,7 +51,7 @@ RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
 {
 }
 
-RAS_MeshObject::~RAS_MeshObject()
+RAS_Mesh::~RAS_Mesh()
 {
 	for (RAS_MeshMaterial *meshmat : m_materials) {
 		delete meshmat;
@@ -59,17 +59,17 @@ RAS_MeshObject::~RAS_MeshObject()
 	m_materials.clear();
 }
 
-const RAS_MeshMaterialList& RAS_MeshObject::GetMeshMaterialList() const
+const RAS_MeshMaterialList& RAS_Mesh::GetMeshMaterialList() const
 {
 	return m_materials;
 }
 
-unsigned short RAS_MeshObject::GetNumMaterials() const
+unsigned short RAS_Mesh::GetNumMaterials() const
 {
 	return m_materials.size();
 }
 
-std::string RAS_MeshObject::GetMaterialName(unsigned int matid) const
+std::string RAS_Mesh::GetMaterialName(unsigned int matid) const
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
@@ -79,7 +79,7 @@ std::string RAS_MeshObject::GetMaterialName(unsigned int matid) const
 	return "";
 }
 
-RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid) const
+RAS_MeshMaterial *RAS_Mesh::GetMeshMaterial(unsigned int matid) const
 {
 	if (m_materials.size() > matid) {
 		return m_materials[matid];
@@ -88,7 +88,7 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid) const
 	return nullptr;
 }
 
-RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterialBlenderIndex(unsigned int index) const
+RAS_MeshMaterial *RAS_Mesh::GetMeshMaterialBlenderIndex(unsigned int index) const
 {
 	for (RAS_MeshMaterial *meshmat : m_materials) {
 		if (meshmat->GetIndex() == index) {
@@ -99,7 +99,7 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterialBlenderIndex(unsigned int index
 	return nullptr;
 }
 
-RAS_MeshMaterial *RAS_MeshObject::FindMaterialName(const std::string& name) const
+RAS_MeshMaterial *RAS_Mesh::FindMaterialName(const std::string& name) const
 {
 	for (RAS_MeshMaterial *meshmat : m_materials) {
 		// Check without the MA prefix.
@@ -111,12 +111,12 @@ RAS_MeshMaterial *RAS_MeshObject::FindMaterialName(const std::string& name) cons
 	return nullptr;
 }
 
-unsigned int RAS_MeshObject::GetNumPolygons() const
+unsigned int RAS_Mesh::GetNumPolygons() const
 {
 	return m_numPolygons;
 }
 
-RAS_MeshObject::PolygonInfo RAS_MeshObject::GetPolygon(unsigned int index) const
+RAS_Mesh::PolygonInfo RAS_Mesh::GetPolygon(unsigned int index) const
 {
 	// Convert triangle index to triangle vertex index.
 	index *= 3;
@@ -144,12 +144,12 @@ RAS_MeshObject::PolygonInfo RAS_MeshObject::GetPolygon(unsigned int index) const
 	return PolygonInfo();
 }
 
-const std::string& RAS_MeshObject::GetName() const
+const std::string& RAS_Mesh::GetName() const
 {
 	return m_name;
 }
 
-std::string RAS_MeshObject::GetTextureName(unsigned int matid) const
+std::string RAS_Mesh::GetTextureName(unsigned int matid) const
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
@@ -159,7 +159,7 @@ std::string RAS_MeshObject::GetTextureName(unsigned int matid) const
 	return "";
 }
 
-RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format)
+RAS_MeshMaterial *RAS_Mesh::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format)
 {
 	RAS_MeshMaterial *meshmat = GetMeshMaterialBlenderIndex(index);
 
@@ -172,7 +172,7 @@ RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsign
 	return meshmat;
 }
 
-RAS_IDisplayArray *RAS_MeshObject::GetDisplayArray(unsigned int matid) const
+RAS_IDisplayArray *RAS_Mesh::GetDisplayArray(unsigned int matid) const
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
@@ -184,12 +184,12 @@ RAS_IDisplayArray *RAS_MeshObject::GetDisplayArray(unsigned int matid) const
 	return array;
 }
 
-RAS_BoundingBox *RAS_MeshObject::GetBoundingBox() const
+RAS_BoundingBox *RAS_Mesh::GetBoundingBox() const
 {
 	return m_boundingBox;
 }
 
-RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
+RAS_MeshUser* RAS_Mesh::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
 {
 	RAS_BoundingBox *boundingBox = (deformer) ? deformer->GetBoundingBox() : m_boundingBox;
 	RAS_MeshUser *meshUser = new RAS_MeshUser(clientobj, boundingBox);
@@ -203,7 +203,7 @@ RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deforme
 	return meshUser;
 }
 
-void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
+void RAS_Mesh::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 {
 	RAS_IDisplayArrayList arrayList;
 
@@ -266,7 +266,7 @@ void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 	m_numPolygons = startIndex;
 }
 
-const RAS_MeshObject::LayersInfo& RAS_MeshObject::GetLayersInfo() const
+const RAS_Mesh::LayersInfo& RAS_Mesh::GetLayersInfo() const
 {
 	return m_layersInfo;
 }

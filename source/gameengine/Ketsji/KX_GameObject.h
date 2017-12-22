@@ -56,7 +56,7 @@ struct KX_ClientObjectInfo;
 class KX_RayCast;
 class KX_LodManager;
 class KX_PythonComponent;
-class RAS_MeshObject;
+class RAS_Mesh;
 class RAS_MeshUser;
 class PHY_IGraphicController;
 class PHY_IPhysicsEnvironment;
@@ -105,7 +105,7 @@ protected:
 	KX_ClientObjectInfo*				m_client_info;
 	std::string							m_name;
 	int									m_layer;
-	std::vector<RAS_MeshObject*>		m_meshes;
+	std::vector<RAS_Mesh*>		m_meshes;
 	KX_LodManager						*m_lodManager;
 	short								m_currentLodLevel;
 	RAS_MeshUser						*m_meshUser;
@@ -708,12 +708,12 @@ public:
 	 */
 		void
 	AddMesh(
-		RAS_MeshObject* mesh
+		RAS_Mesh* mesh
 	) {
 		m_meshes.push_back(mesh);
 	}
 
-	void ReplaceMesh(RAS_MeshObject *mesh, bool use_gfx, bool use_phys);
+	void ReplaceMesh(RAS_Mesh *mesh, bool use_gfx, bool use_phys);
 
 	/** Set current lod manager, can be nullptr.
 	 * If nullptr the object's mesh backs to the mesh of the previous first lod level.
@@ -732,7 +732,7 @@ public:
 	 */
 	void UpdateActivity(float distance);
 
-	const std::vector<RAS_MeshObject *>& GetMeshList() const;
+	const std::vector<RAS_Mesh *>& GetMeshList() const;
 
 	/// Return the mesh user of this game object.
 	RAS_MeshUser *GetMeshUser() const;

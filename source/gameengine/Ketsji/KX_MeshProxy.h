@@ -36,23 +36,23 @@
 
 #include "EXP_Value.h"
 
-class RAS_MeshObject;
+class RAS_Mesh;
 class SCA_LogicManager;
 
 // utility conversion function
-bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_MeshObject **object, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_Mesh **object, bool py_none_ok, const char *error_prefix);
 
 class KX_MeshProxy : public EXP_Value
 {
 	Py_Header
 
-	RAS_MeshObject *m_meshobj;
+	RAS_Mesh *m_meshobj;
 
 public:
-	KX_MeshProxy(RAS_MeshObject *mesh);
+	KX_MeshProxy(RAS_Mesh *mesh);
 	virtual ~KX_MeshProxy();
 
-	virtual RAS_MeshObject *GetMesh()
+	virtual RAS_Mesh *GetMesh()
 	{
 		return m_meshobj;
 	}

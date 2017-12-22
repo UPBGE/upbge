@@ -41,7 +41,7 @@
 #include "BL_DeformableGameObject.h"
 #include "BL_MeshDeformer.h"
 #include "RAS_BoundingBoxManager.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -71,7 +71,7 @@ void BL_MeshDeformer::Apply(RAS_IDisplayArray *UNUSED(array))
 	}
 }
 
-BL_MeshDeformer::BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_MeshObject *meshobj)
+BL_MeshDeformer::BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_Mesh *meshobj)
 	:RAS_Deformer(meshobj),
 	m_bmesh((Mesh *)(obj->data)),
 	m_objMesh(obj),

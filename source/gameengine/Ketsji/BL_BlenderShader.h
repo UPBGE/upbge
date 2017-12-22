@@ -33,7 +33,7 @@
 #define __BL_BLENDERSHADER_H__
 
 #include "RAS_AttributeArray.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_Texture.h" // for MaxUnits
 
 #include "CM_Update.h"
@@ -74,7 +74,7 @@ public:
 	 * \param layers The list of the mesh layers used to link with uv and color material attributes.
 	 * \return The map of attributes layers.
 	 */
-	const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;
+	const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const;
 
 	void Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty);
 

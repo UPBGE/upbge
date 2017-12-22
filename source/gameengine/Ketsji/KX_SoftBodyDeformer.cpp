@@ -37,7 +37,7 @@
 #include "BLI_utildefines.h"
 
 #include "KX_SoftBodyDeformer.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_BoundingBoxManager.h"
 
@@ -49,7 +49,7 @@
 
 #include "btBulletDynamicsCommon.h"
 
-KX_SoftBodyDeformer::KX_SoftBodyDeformer(RAS_MeshObject *pMeshObject, BL_DeformableGameObject *gameobj)
+KX_SoftBodyDeformer::KX_SoftBodyDeformer(RAS_Mesh *pMeshObject, BL_DeformableGameObject *gameobj)
 	:RAS_Deformer(pMeshObject),
 	m_gameobj(gameobj),
 	m_needUpdateAabb(true)

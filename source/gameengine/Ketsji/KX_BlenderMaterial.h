@@ -61,7 +61,7 @@ public:
 	virtual void UpdateIPO(const mt::vec4 &rgba, const mt::vec3 &specrgb, float hard, float spec, float ref,
 						   float emit, float ambient, float alpha, float specalpha);
 
-	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const;
+	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const;
 
 	// Stuff for cvalue related things.
 	virtual std::string GetName();

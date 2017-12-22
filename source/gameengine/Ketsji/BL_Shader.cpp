@@ -102,7 +102,7 @@ void BL_Shader::SetCallbacks(BL_Shader::CallbacksType type, PyObject *callbacks)
 
 #endif  // WITH_PYTHON
 
-RAS_AttributeArray::AttribList BL_Shader::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo,
+RAS_AttributeArray::AttribList BL_Shader::GetAttribs(const RAS_Mesh::LayersInfo& layersInfo,
 		RAS_Texture *const textures[RAS_Texture::MaxUnits]) const
 {
 	RAS_AttributeArray::AttribList attribs;
@@ -128,7 +128,7 @@ RAS_AttributeArray::AttribList BL_Shader::GetAttribs(const RAS_MeshObject::Layer
 				}
 
 				// Search for the UV layer index used by the texture.
-				for (const RAS_MeshObject::Layer& layer : layersInfo.uvLayers) {
+				for (const RAS_Mesh::Layer& layer : layersInfo.uvLayers) {
 					if (layer.name == mtex->uvname) {
 						attribs.push_back({i, RAS_AttributeArray::RAS_ATTRIB_UV, true, layer.index});
 						break;

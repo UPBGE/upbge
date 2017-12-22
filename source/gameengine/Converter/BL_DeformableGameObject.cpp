@@ -37,7 +37,7 @@
 
 #include "KX_SoftBodyDeformer.h"
 
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 
 #include "CM_Message.h"
 
@@ -135,7 +135,7 @@ void BL_DeformableGameObject::LoadDeformer()
 		return;
 	}
 
-	RAS_MeshObject *meshobj = m_meshes.front();
+	RAS_Mesh *meshobj = m_meshes.front();
 	Mesh *mesh = meshobj->GetMesh();
 
 	if (!mesh) {

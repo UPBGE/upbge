@@ -48,7 +48,7 @@
 
 struct Object;
 struct bPoseChannel;
-class RAS_MeshObject;
+class RAS_Mesh;
 class RAS_IPolyMaterial;
 
 class BL_SkinDeformer : public BL_MeshDeformer
@@ -59,7 +59,7 @@ public:
 	BL_SkinDeformer(BL_DeformableGameObject *gameobj,
 					Object *bmeshobj_old,
 					Object *bmeshobj_new,
-					RAS_MeshObject *mesh,
+					RAS_Mesh *mesh,
 					BL_ArmatureObject *arma);
 
 	virtual RAS_Deformer *GetReplica();

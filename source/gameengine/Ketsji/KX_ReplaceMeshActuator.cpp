@@ -97,7 +97,7 @@ PyObject *KX_ReplaceMeshActuator::pyattr_get_mesh(EXP_PyObjectPlus *self, const 
 int KX_ReplaceMeshActuator::pyattr_set_mesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_ReplaceMeshActuator* actuator = static_cast<KX_ReplaceMeshActuator*>(self);
-	RAS_MeshObject* new_mesh;
+	RAS_Mesh* new_mesh;
 	
 	if (!ConvertPythonToMesh(actuator->GetLogicManager(), value, &new_mesh, true, "actuator.mesh = value: KX_ReplaceMeshActuator"))
 		return PY_SET_ATTR_FAIL;
@@ -120,7 +120,7 @@ EXP_PYMETHODDEF_DOC(KX_ReplaceMeshActuator, instantReplaceMesh,
 /* ------------------------------------------------------------------------- */
 
 KX_ReplaceMeshActuator::KX_ReplaceMeshActuator(KX_GameObject *gameobj,
-													   RAS_MeshObject *mesh,
+													   RAS_Mesh *mesh,
 													   KX_Scene *scene,
 													   bool use_gfx,
 													   bool use_phys) :

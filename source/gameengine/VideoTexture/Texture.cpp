@@ -35,7 +35,7 @@
 
 #include "KX_GameObject.h"
 #include "KX_LightObject.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_ILightObject.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -202,14 +202,14 @@ void loadTexture(unsigned int texId, unsigned int *texture, short *size,
 RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID)
 {
 	// get pointer to texture image
-	const std::vector<RAS_MeshObject *>& meshes = gameObj->GetMeshList();
+	const std::vector<RAS_Mesh *>& meshes = gameObj->GetMeshList();
 
 	if (meshes.empty()) {
 		return nullptr;
 	}
 
 	// get material from mesh
-	RAS_MeshObject *mesh = meshes.front();
+	RAS_Mesh *mesh = meshes.front();
 	RAS_MeshMaterial *meshMat = mesh->GetMeshMaterial(matID);
 	if (meshMat && meshMat->GetBucket()) {
 		// return pointer to polygon or blender material

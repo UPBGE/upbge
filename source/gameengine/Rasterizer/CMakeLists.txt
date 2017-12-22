@@ -75,7 +75,7 @@ set(SRC
 	RAS_Rasterizer.cpp
 	RAS_MaterialBucket.cpp
 	RAS_MeshMaterial.cpp
-	RAS_MeshObject.cpp
+	RAS_Mesh.cpp
 	RAS_MeshSlot.cpp
 	RAS_MeshUser.cpp
 	RAS_OffScreen.cpp
@@ -114,7 +114,7 @@ set(SRC
 	RAS_ISync.h
 	RAS_MaterialBucket.h
 	RAS_MeshMaterial.h
-	RAS_MeshObject.h
+	RAS_Mesh.h
 	RAS_MeshSlot.h
 	RAS_MeshUser.h
 	RAS_OffScreen.h

@@ -34,7 +34,7 @@
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_MaterialBucket.h"
 
 #include "SG_Controller.h"
@@ -186,7 +186,7 @@ bool BL_Action::Play(const std::string& name,
 	}
 
 	// Now try materials
-	for (RAS_MeshObject *mesh : m_obj->GetMeshList()) {
+	for (RAS_Mesh *mesh : m_obj->GetMeshList()) {
 		for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
 			RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
 

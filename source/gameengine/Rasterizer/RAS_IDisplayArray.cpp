@@ -26,7 +26,7 @@
 
 #include "RAS_DisplayArray.h"
 #include "RAS_DisplayArrayStorage.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 
 #include "CM_Template.h"
 

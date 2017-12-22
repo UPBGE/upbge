@@ -21,9 +21,9 @@
  */
 
 #include "RAS_Deformer.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 
-RAS_Deformer::RAS_Deformer(RAS_MeshObject *mesh)
+RAS_Deformer::RAS_Deformer(RAS_Mesh *mesh)
 	:m_mesh(mesh),
 	m_bDynamic(false),
 	m_boundingBox(nullptr)
@@ -72,7 +72,7 @@ void RAS_Deformer::ProcessReplica()
 	}
 }
 
-RAS_MeshObject *RAS_Deformer::GetMesh() const
+RAS_Mesh *RAS_Deformer::GetMesh() const
 {
 	return m_mesh;
 }

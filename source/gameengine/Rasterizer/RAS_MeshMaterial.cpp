@@ -25,7 +25,7 @@
 #include "RAS_IDisplayArray.h"
 #include "RAS_DisplayArrayBucket.h"
 
-RAS_MeshMaterial::RAS_MeshMaterial(RAS_MeshObject *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format)
+RAS_MeshMaterial::RAS_MeshMaterial(RAS_Mesh *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format)
 	:m_bucket(bucket),
 	m_index(index)
 {

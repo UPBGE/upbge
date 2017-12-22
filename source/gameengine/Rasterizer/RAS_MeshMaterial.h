@@ -34,7 +34,7 @@
 
 #include <vector>
 
-class RAS_MeshObject;
+class RAS_Mesh;
 class RAS_IDisplayArray;
 class RAS_DisplayArrayBucket;
 class RAS_MaterialBucket;
@@ -55,7 +55,7 @@ private:
 	RAS_DisplayArrayBucket *m_displayArrayBucket;
 
 public:
-	RAS_MeshMaterial(RAS_MeshObject *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format);
+	RAS_MeshMaterial(RAS_Mesh *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_VertexFormat& format);
 	~RAS_MeshMaterial();
 
 	unsigned int GetIndex() const;

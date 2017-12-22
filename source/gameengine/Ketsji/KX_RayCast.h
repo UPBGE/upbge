@@ -38,7 +38,7 @@
 #include "PHY_IPhysicsController.h"
 #include "mathfu.h"
 
-class RAS_MeshObject; 
+class RAS_Mesh; 
 struct KX_ClientObjectInfo;
 
 /**
@@ -62,7 +62,7 @@ public:
 	bool					m_hitFound;
 	mt::vec3				m_hitPoint;
 	mt::vec3				m_hitNormal;
-	RAS_MeshObject *m_hitMesh;
+	RAS_Mesh *m_hitMesh;
 	int						m_hitPolygon;
 	int                     m_hitUVOK;		// !=0 if UV coordinate in m_hitUV is valid
 	mt::vec2				m_hitUV;

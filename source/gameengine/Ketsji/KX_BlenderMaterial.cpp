@@ -406,7 +406,7 @@ void KX_BlenderMaterial::UpdateIPO(
 	m_material->spectra = (float)specalpha;
 }
 
-const RAS_AttributeArray::AttribList KX_BlenderMaterial::GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const
+const RAS_AttributeArray::AttribList KX_BlenderMaterial::GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const
 {
 	if (m_shader && m_shader->Ok()) {
 		return m_shader->GetAttribs(layersInfo, m_textures);

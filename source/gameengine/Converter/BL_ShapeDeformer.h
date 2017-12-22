@@ -42,7 +42,7 @@
 
 struct Object;
 struct Key;
-class RAS_MeshObject;
+class RAS_Mesh;
 
 class BL_ShapeDeformer : public BL_SkinDeformer
 {
@@ -50,7 +50,7 @@ public:
 	BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
 					 Object *bmeshobj_old,
 					 Object *bmeshobj_new,
-					 RAS_MeshObject *mesh,
+					 RAS_Mesh *mesh,
 					 BL_ArmatureObject *arma);
 
 	virtual RAS_Deformer *GetReplica();

@@ -9,7 +9,7 @@
 #include "RAS_Shader.h"
 #include "RAS_Texture.h" // For RAS_Texture::MaxUnits.
 #include "RAS_AttributeArray.h" // For RAS_AttributeArray::AttribList.
-#include "RAS_MeshObject.h" // For RAS_MeshObject::LayersInfo.
+#include "RAS_Mesh.h" // For RAS_Mesh::LayersInfo.
 
 #include "EXP_Value.h"
 
@@ -55,7 +55,7 @@ public:
 	void SetCallbacks(CallbacksType type, PyObject *callbacks);
 #endif // WITH_PYTHON
 
-	RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo,
+	RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo,
 			RAS_Texture *const textures[RAS_Texture::MaxUnits]) const;
 
 	void BindProg();

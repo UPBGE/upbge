@@ -35,7 +35,7 @@
 #include "RAS_Vertex.h"
 #include "RAS_IDisplayArray.h"
 #include "RAS_DisplayArrayStorage.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)

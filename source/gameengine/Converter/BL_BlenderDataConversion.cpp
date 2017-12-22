@@ -61,7 +61,7 @@
 #  include "CcdGraphicController.h"
 #endif
 
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_ILightObject.h"
 
@@ -343,13 +343,13 @@ SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 	return gReverseKeyTranslateTable[key_code];
 }
 
-static void BL_GetUvRgba(const RAS_MeshObject::LayersInfo& layersInfo, std::vector<MLoopUV *>& uvLayers,
+static void BL_GetUvRgba(const RAS_Mesh::LayersInfo& layersInfo, std::vector<MLoopUV *>& uvLayers,
 		std::vector<MLoopCol *>& colorLayers, unsigned int loop, float uvs[RAS_Texture::MaxUnits][2],
 		unsigned int rgba[RAS_Vertex::MAX_UNIT])
 {
 	// No need to initialize layers to zero as all the converted layer are all the layers needed.
 
-	for (const RAS_MeshObject::Layer& layer : layersInfo.colorLayers) {
+	for (const RAS_Mesh::Layer& layer : layersInfo.colorLayers) {
 		const unsigned short index = layer.index;
 		const MLoopCol& col = colorLayers[index][loop];
 
@@ -364,7 +364,7 @@ static void BL_GetUvRgba(const RAS_MeshObject::LayersInfo& layersInfo, std::vect
 		rgba[index] = con.val;
 	}
 
-	for (const RAS_MeshObject::Layer& layer : layersInfo.uvLayers) {
+	for (const RAS_Mesh::Layer& layer : layersInfo.uvLayers) {
 		const unsigned short index = layer.index;
 		const MLoopUV& uv = uvLayers[index][loop];
 		copy_v2_v2(uvs[index], uv.uv);
@@ -408,9 +408,9 @@ static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, int lightlayer, KX_S
 }
 
 /* blenderobj can be nullptr, make sure its checked for */
-RAS_MeshObject *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_BlenderSceneConverter& converter)
+RAS_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_BlenderSceneConverter& converter)
 {
-	RAS_MeshObject *meshobj;
+	RAS_Mesh *meshobj;
 	const int lightlayer = blenderobj ? blenderobj->lay : (1 << 20) - 1; // all layers if no object.
 
 	// Without checking names, we get some reuse we don't want that can cause
@@ -433,7 +433,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL
 	const unsigned short uvCount = CustomData_number_of_layers(&dm->loopData, CD_MLOOPUV);
 	const unsigned short colorCount = CustomData_number_of_layers(&dm->loopData, CD_MLOOPCOL);
 
-	RAS_MeshObject::LayersInfo layersInfo;
+	RAS_Mesh::LayersInfo layersInfo;
 	layersInfo.activeUv = (activeUv == -1) ? 0 : activeUv;
 	layersInfo.activeColor = (activeColor == -1) ? 0 : activeColor;
 
@@ -453,7 +453,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL
 	vertformat.uvSize = max_ii(1, uvCount);
 	vertformat.colorSize = max_ii(1, colorCount);
 
-	meshobj = new RAS_MeshObject(me, layersInfo);
+	meshobj = new RAS_Mesh(me, layersInfo);
 
 	const unsigned short totmat = max_ii(me->totcol, 1);
 	std::vector<BL_MeshMaterial> mats(totmat);
@@ -489,7 +489,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL
 }
 
 void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<BL_MeshMaterial>& mats,
-                                  const RAS_MeshObject::LayersInfo& layersInfo)
+                                  const RAS_Mesh::LayersInfo& layersInfo)
 {
 	const MVert *mverts = dm->getVertArray(dm);
 	const int totverts = dm->getNumVerts(dm);
@@ -517,11 +517,11 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 	// List of MLoopCol per color layer index.
 	std::vector<MLoopCol *> colorLayers(layersInfo.uvLayers.size());
 
-	for (const RAS_MeshObject::Layer& layer : layersInfo.uvLayers) {
+	for (const RAS_Mesh::Layer& layer : layersInfo.uvLayers) {
 		const unsigned short index = layer.index;
 		uvLayers[index] = (MLoopUV *)CustomData_get_layer_n(&dm->loopData, CD_MLOOPUV, index);
 	}
-	for (const RAS_MeshObject::Layer& layer : layersInfo.colorLayers) {
+	for (const RAS_Mesh::Layer& layer : layersInfo.colorLayers) {
 		const unsigned short index = layer.index;
 		colorLayers[index] = (MLoopCol *)CustomData_get_layer_n(&dm->loopData, CD_MLOOPCOL, index);
 	}
@@ -640,7 +640,7 @@ static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene,
 	}
 }
 
-static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobject, RAS_MeshObject *meshobj,
+static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobject, RAS_Mesh *meshobj,
 		KX_Scene *kxscene, int activeLayerBitInfo, BL_BlenderSceneConverter& converter, bool processCompoundChildren)
 
 {
@@ -864,7 +864,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 		case OB_MESH:
 		{
 			Mesh *mesh = static_cast<Mesh *>(ob->data);
-			RAS_MeshObject *meshobj = BL_ConvertMesh(mesh, ob, kxscene, converter);
+			RAS_Mesh *meshobj = BL_ConvertMesh(mesh, ob, kxscene, converter);
 
 			// needed for python scripting
 			kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
@@ -1144,7 +1144,7 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter& converter,
 
 	// Needed for group duplication.
 	logicmgr->RegisterGameObj(blenderobject, gameobj);
-	for (RAS_MeshObject *meshobj : gameobj->GetMeshList()) {
+	for (RAS_Mesh *meshobj : gameobj->GetMeshList()) {
 		logicmgr->RegisterGameMeshName(meshobj->GetName(), blenderobject);
 	}
 
@@ -1538,8 +1538,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		for (KX_GameObject *gameobj : sumolist) {
 			Object *blenderobject = gameobj->GetBlenderObject();
 
-			const std::vector<RAS_MeshObject *>& meshes = gameobj->GetMeshList();
-			RAS_MeshObject *meshobj = (meshes.empty()) ? nullptr : meshes.front();
+			const std::vector<RAS_Mesh *>& meshes = gameobj->GetMeshList();
+			RAS_Mesh *meshobj = (meshes.empty()) ? nullptr : meshes.front();
 
 			int layerMask = (groupobj.find(blenderobject) == groupobj.end()) ? activeLayerBitInfo : 0;
 			BL_CreatePhysicsObjectNew(gameobj, blenderobject, meshobj, kxscene, layerMask, converter, processCompoundChildren);
@@ -1548,7 +1548,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 	// Look at every material texture and ask to create realtime cube map.
 	for (KX_GameObject *gameobj : sumolist) {
-		for (RAS_MeshObject *mesh : gameobj->GetMeshList()) {
+		for (RAS_Mesh *mesh : gameobj->GetMeshList()) {
 			for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
 				RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
 
@@ -1584,7 +1584,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		Mesh *predifinedBoundMesh = blenderobject->gamePredefinedBound;
 
 		if (predifinedBoundMesh) {
-			RAS_MeshObject *meshobj = converter.FindGameMesh(predifinedBoundMesh);
+			RAS_Mesh *meshobj = converter.FindGameMesh(predifinedBoundMesh);
 			// In case of mesh taken in a other scene.
 			if (!meshobj) {
 				continue;

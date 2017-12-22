@@ -39,7 +39,7 @@
 #include "RAS_FramingManager.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "SCA_IScene.h"
 #include "KX_Scene.h"
 #include "KX_Camera.h"
@@ -166,7 +166,7 @@ bool KX_MouseFocusSensor::RayHit(KX_ClientObjectInfo *client_info, KX_RayCast *r
 		else
 		{
 			if (m_bFindMaterial) {
-				for (RAS_MeshObject *meshObj : hitKXObj->GetMeshList()) {
+				for (RAS_Mesh *meshObj : hitKXObj->GetMeshList()) {
 					bFound = (meshObj->FindMaterialName(m_propertyname) != nullptr);
 					if (bFound) {
 						break;
@@ -217,7 +217,7 @@ bool KX_MouseFocusSensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(
 		if (m_bFindMaterial)
 		{
 			bool found = false;
-			for (RAS_MeshObject *meshObj : hitKXObj->GetMeshList()) {
+			for (RAS_Mesh *meshObj : hitKXObj->GetMeshList()) {
 				found = (meshObj->FindMaterialName(m_propertyname) != nullptr);
 				if (found) {
 					break;

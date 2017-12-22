@@ -33,7 +33,7 @@
 #define __RAS_IPOLYGONMATERIAL_H__
 
 #include "RAS_Texture.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_AttributeArray.h"
 
 #include "CM_Update.h"
@@ -137,7 +137,7 @@ public:
 	virtual void UpdateIPO(const mt::vec4 &rgba, const mt::vec3 &specrgb, float hard, float spec, float ref,
 						   float emit, float ambient, float alpha, float specalpha) = 0;
 
-	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_MeshObject::LayersInfo& layersInfo) const = 0;
+	virtual const RAS_AttributeArray::AttribList GetAttribs(const RAS_Mesh::LayersInfo& layersInfo) const = 0;
 
 	/**
 	 * \return the equivalent drawing mode for the material settings (equivalent to old TexFace tface->mode).

@@ -45,7 +45,7 @@
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
 #include "DNA_sensor_types.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 
 #include "CM_Message.h"
 
@@ -121,7 +121,7 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 	else
 	{
 		if (m_bFindMaterial) {
-			for (RAS_MeshObject *meshObj : hitKXObj->GetMeshList()) {
+			for (RAS_Mesh *meshObj : hitKXObj->GetMeshList()) {
 				bFound = (meshObj->FindMaterialName(m_propertyname) != nullptr);
 				if (bFound) {
 					hitMaterial = true;
@@ -176,7 +176,7 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 	{
 		if (m_bFindMaterial) {
 			bool found = false;
-			for (RAS_MeshObject *meshObj : hitKXObj->GetMeshList()) {
+			for (RAS_Mesh *meshObj : hitKXObj->GetMeshList()) {
 				found = (meshObj->FindMaterialName(m_propertyname) != nullptr);
 				if (found) {
 					break;

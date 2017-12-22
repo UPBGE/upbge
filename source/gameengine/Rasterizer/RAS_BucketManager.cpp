@@ -35,7 +35,7 @@
 #endif
 
 #include "RAS_MaterialBucket.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_Rasterizer.h"

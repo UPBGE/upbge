@@ -42,13 +42,13 @@
 
 #include <map>
 
-class RAS_MeshObject;
+class RAS_Mesh;
 class SCA_IObject;
 
 class RAS_Deformer
 {
 public:
-	RAS_Deformer(RAS_MeshObject *mesh);
+	RAS_Deformer(RAS_Mesh *mesh);
 	virtual ~RAS_Deformer();
 
 	void InitializeDisplayArrays();
@@ -76,7 +76,7 @@ public:
 		return m_boundingBox;
 	}
 
-	RAS_MeshObject *GetMesh() const;
+	RAS_Mesh *GetMesh() const;
 
 	RAS_IDisplayArray *GetDisplayArray(unsigned short index) const;
 	RAS_DisplayArrayBucket *GetDisplayArrayBucket(unsigned short index) const;
@@ -99,7 +99,7 @@ protected:
 
 	std::vector<DisplayArraySlot> m_slots;
 
-	RAS_MeshObject *m_mesh;
+	RAS_Mesh *m_mesh;
 	bool m_bDynamic;
 
 	/// Deformer bounding box.

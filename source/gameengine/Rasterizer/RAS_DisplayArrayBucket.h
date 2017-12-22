@@ -41,7 +41,7 @@
 
 class RAS_MaterialBucket;
 class RAS_IDisplayArray;
-class RAS_MeshObject;
+class RAS_Mesh;
 class RAS_MeshMaterial;
 class RAS_Deformer;
 class RAS_IStorageInfo;
@@ -55,7 +55,7 @@ private:
 	/// The display array = list of vertexes and indexes.
 	RAS_IDisplayArray *m_displayArray;
 	/// The parent mesh object, it can be nullptr for text objects.
-	RAS_MeshObject *m_mesh;
+	RAS_Mesh *m_mesh;
 	/// The material mesh.
 	RAS_MeshMaterial *m_meshMaterial;
 	/// The list of all visible mesh slots to render this frame.
@@ -82,13 +82,13 @@ private:
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
-						   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer);
+						   RAS_Mesh *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer);
 	~RAS_DisplayArrayBucket();
 
 	/// \section Accesor
 	RAS_MaterialBucket *GetBucket() const;
 	RAS_IDisplayArray *GetDisplayArray() const;
-	RAS_MeshObject *GetMesh() const;
+	RAS_Mesh *GetMesh() const;
 	RAS_MeshMaterial *GetMeshMaterial() const;
 
 	/// \section Active Mesh Slots Management.

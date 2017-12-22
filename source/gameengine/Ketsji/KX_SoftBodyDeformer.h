@@ -40,7 +40,7 @@
 #include "BL_DeformableGameObject.h"
 #include <vector>
 
-class RAS_MeshObject;
+class RAS_Mesh;
 
 class KX_SoftBodyDeformer : public RAS_Deformer
 {
@@ -51,7 +51,7 @@ class KX_SoftBodyDeformer : public RAS_Deformer
 	bool m_needUpdateAabb;
 
 public:
-	KX_SoftBodyDeformer(RAS_MeshObject *pMeshObject, BL_DeformableGameObject *gameobj);
+	KX_SoftBodyDeformer(RAS_Mesh *pMeshObject, BL_DeformableGameObject *gameobj);
 	virtual ~KX_SoftBodyDeformer();
 
 	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);

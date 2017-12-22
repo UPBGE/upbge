@@ -35,7 +35,7 @@
 #ifdef WITH_PYTHON
 
 #include "EXP_Value.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 
 class KX_MeshProxy;
 
@@ -44,17 +44,17 @@ class KX_PolyProxy : public EXP_Value
 	Py_Header
 protected:
 	KX_MeshProxy *m_meshProxy;
-	RAS_MeshObject::PolygonInfo m_polygon;
-	RAS_MeshObject *m_mesh;
+	RAS_Mesh::PolygonInfo m_polygon;
+	RAS_Mesh *m_mesh;
 
 public:
-	KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_MeshObject *mesh, const RAS_MeshObject::PolygonInfo& polygon);
+	KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_Mesh *mesh, const RAS_Mesh::PolygonInfo& polygon);
 	virtual ~KX_PolyProxy();
 
 	// stuff for cvalue related things
 	virtual std::string GetName();
 
-	const RAS_MeshObject::PolygonInfo& GetPolygon() const;
+	const RAS_Mesh::PolygonInfo& GetPolygon() const;
 
 	// stuff for python integration
 	static PyObject *pyattr_get_material_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

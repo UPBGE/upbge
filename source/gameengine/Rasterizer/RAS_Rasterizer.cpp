@@ -1242,8 +1242,8 @@ void RAS_Rasterizer::RemoveLight(RAS_ILightObject *lightobject)
 bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform)
 {
 	if (result->m_hitMesh) {
-		const RAS_MeshObject::PolygonInfo poly = result->m_hitMesh->GetPolygon(result->m_hitPolygon);
-		if (!(poly.flags & RAS_MeshObject::PolygonInfo::VISIBLE)) {
+		const RAS_Mesh::PolygonInfo poly = result->m_hitMesh->GetPolygon(result->m_hitPolygon);
+		if (!(poly.flags & RAS_Mesh::PolygonInfo::VISIBLE)) {
 			return false;
 		}
 

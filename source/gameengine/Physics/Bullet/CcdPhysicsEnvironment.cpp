@@ -46,7 +46,7 @@
 #include "KX_GameObject.h"
 #include "KX_Globals.h" // for KX_RasterizerDrawDebugLine
 #include "BL_BlenderSceneConverter.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_IDisplayArray.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
@@ -1861,7 +1861,7 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 				m_ocb->SetModelMatrix(fl);
 				const float negative = gameobj->IsNegativeScaling();
 				// walk through the meshes and for each add to buffer
-				for (RAS_MeshObject *meshobj : gameobj->GetMeshList()) {
+				for (RAS_Mesh *meshobj : gameobj->GetMeshList()) {
 					for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
 						RAS_IDisplayArray *array = meshmat->GetDisplayArray();
 						const bool twoside = meshmat->GetBucket()->GetPolyMaterial()->IsTwoSided();
@@ -2655,7 +2655,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 	return ccdPhysEnv;
 }
 
-void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, KX_GameObject *gameobj, RAS_MeshObject *meshobj,
+void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, KX_GameObject *gameobj, RAS_Mesh *meshobj,
 										  KX_Scene *kxscene, PHY_IMotionState *motionstate,
 										  int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
 {

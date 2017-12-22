@@ -34,7 +34,7 @@
 
 #include "KX_PolyProxy.h"
 #include "KX_MeshProxy.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IDisplayArray.h"
 #include "KX_VertexProxy.h"
@@ -93,7 +93,7 @@ PyAttributeDef KX_PolyProxy::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-KX_PolyProxy::KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_MeshObject *mesh, const RAS_MeshObject::PolygonInfo& polygon)
+KX_PolyProxy::KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_Mesh *mesh, const RAS_Mesh::PolygonInfo& polygon)
 	:m_meshProxy(meshProxy),
 	m_polygon(polygon),
 	m_mesh(mesh)
@@ -113,7 +113,7 @@ std::string KX_PolyProxy::GetName()
 	return "polygone";
 }
 
-const RAS_MeshObject::PolygonInfo& KX_PolyProxy::GetPolygon() const
+const RAS_Mesh::PolygonInfo& KX_PolyProxy::GetPolygon() const
 {
 	return m_polygon;
 }
@@ -190,7 +190,7 @@ static int kx_poly_proxy_get_vertices_size_cb(void *self_v)
 static PyObject *kx_poly_proxy_get_vertices_item_cb(void *self_v, int index)
 {
 	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-	const RAS_MeshObject::PolygonInfo& polygon = self->GetPolygon();
+	const RAS_Mesh::PolygonInfo& polygon = self->GetPolygon();
 	RAS_IDisplayArray *array = polygon.array;
 	KX_VertexProxy *vert = new KX_VertexProxy(array, array->GetVertex(polygon.indices[index]));
 
@@ -223,13 +223,13 @@ EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getNumVertex,
 EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, isVisible,
 "isVisible() : returns whether the polygon is visible or not\n")
 {
-	return PyLong_FromLong(m_polygon.flags & RAS_MeshObject::PolygonInfo::VISIBLE);
+	return PyLong_FromLong(m_polygon.flags & RAS_Mesh::PolygonInfo::VISIBLE);
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, isCollider,
 "isCollider() : returns whether the polygon is receives collision or not\n")
 {
-	return PyLong_FromLong(m_polygon.flags & RAS_MeshObject::PolygonInfo::COLLIDER);
+	return PyLong_FromLong(m_polygon.flags & RAS_Mesh::PolygonInfo::COLLIDER);
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialName,

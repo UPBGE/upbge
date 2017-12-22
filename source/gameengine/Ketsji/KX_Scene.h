@@ -72,7 +72,7 @@ struct KX_ClientObjectInfo;
 class BL_BlenderSceneConverter;
 class SG_Node;
 class PHY_IPhysicsEnvironment;
-class RAS_MeshObject;
+class RAS_Mesh;
 class RAS_BoundingBoxManager;
 class RAS_BucketManager;
 class RAS_MaterialBucket;

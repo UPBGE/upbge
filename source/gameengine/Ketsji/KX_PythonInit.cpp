@@ -716,7 +716,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 		for (Py_ssize_t i= 0; i < PyList_GET_SIZE(names); i++) {
 			name= _PyUnicode_AsString(PyList_GET_ITEM(names, i));
 			if (name) {
-				RAS_MeshObject *meshobj= converter->ConvertMeshSpecial(kx_scene, maggie, name);
+				RAS_Mesh *meshobj= converter->ConvertMeshSpecial(kx_scene, maggie, name);
 				if (meshobj) {
 					KX_MeshProxy* meshproxy = new KX_MeshProxy(meshobj);
 					item= meshproxy->NewProxy(true);

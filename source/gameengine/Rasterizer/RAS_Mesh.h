@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file RAS_MeshObject.h
+/** \file RAS_Mesh.h
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_MESHOBJECT_H__
-#define __RAS_MESHOBJECT_H__
+#ifndef __RAS_MESH_H__
+#define __RAS_MESH_H__
 
 #ifdef _MSC_VER
 /* disable the STL warnings ("debug information length > 255") */
@@ -50,11 +50,11 @@ class RAS_BoundingBox;
 class RAS_BoundingBoxManager;
 struct Mesh;
 
-/* RAS_MeshObject is a mesh used for rendering. It stores polygons,
+/* RAS_Mesh is a mesh used for rendering. It stores polygons,
  * but the actual vertices and index arrays are stored in material
  * buckets, referenced by the list of RAS_MeshMaterials. */
 
-class RAS_MeshObject
+class RAS_Mesh
 {
 public:
 	/** Additionals data stored in mesh layers. These datas can be the colors layer or the
@@ -82,7 +82,7 @@ public:
 	};
 
 	/** Polygon info generate when getting a polygon through
-	 * RAS_MeshObject::GetPolygon. */
+	 * RAS_Mesh::GetPolygon. */
 	struct PolygonInfo {
 		enum Flags {
 			NONE = 0,
@@ -133,8 +133,8 @@ protected:
 
 public:
 	// for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
-	RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo);
-	virtual ~RAS_MeshObject();
+	RAS_Mesh(Mesh *mesh, const LayersInfo& layersInfo);
+	virtual ~RAS_Mesh();
 
 	// materials
 	unsigned short GetNumMaterials() const;
@@ -173,4 +173,4 @@ public:
 	const LayersInfo& GetLayersInfo() const;
 };
 
-#endif  // __RAS_MESHOBJECT_H__
+#endif  // __RAS_MESH_H__

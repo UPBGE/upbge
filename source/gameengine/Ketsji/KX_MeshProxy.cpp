@@ -36,7 +36,7 @@
 #include "KX_Scene.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
-#include "RAS_MeshObject.h"
+#include "RAS_Mesh.h"
 #include "RAS_BucketManager.h"
 #include "SCA_LogicManager.h"
 
@@ -95,7 +95,7 @@ PyAttributeDef KX_MeshProxy::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 
-KX_MeshProxy::KX_MeshProxy(RAS_MeshObject *mesh)
+KX_MeshProxy::KX_MeshProxy(RAS_Mesh *mesh)
 	:EXP_Value(),
 	m_meshobj(mesh)
 {
@@ -188,7 +188,7 @@ PyObject *KX_MeshProxy::PyGetPolygon(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	const RAS_MeshObject::PolygonInfo polygon = m_meshobj->GetPolygon(polyindex);
+	const RAS_Mesh::PolygonInfo polygon = m_meshobj->GetPolygon(polyindex);
 	KX_PolyProxy *polyProxy = new KX_PolyProxy(this, m_meshobj, polygon);
 	return polyProxy->NewProxy(true);
 }
@@ -400,8 +400,8 @@ static int kx_mesh_proxy_get_polygons_size_cb(void *self_v)
 static PyObject *kx_mesh_proxy_get_polygons_item_cb(void *self_v, int index)
 {
 	KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
-	RAS_MeshObject *mesh = self->GetMesh();
-	const RAS_MeshObject::PolygonInfo polygon = mesh->GetPolygon(index);
+	RAS_Mesh *mesh = self->GetMesh();
+	const RAS_Mesh::PolygonInfo polygon = mesh->GetPolygon(index);
 
 	KX_PolyProxy *polyProxy = new KX_PolyProxy(self, mesh, polygon);
 	return polyProxy->NewProxy(true);
@@ -419,7 +419,7 @@ PyObject *KX_MeshProxy::pyattr_get_polygons(EXP_PyObjectPlus *self_v, const EXP_
 }
 
 /* a close copy of ConvertPythonToGameObject but for meshes */
-bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_MeshObject **object, bool py_none_ok, const char *error_prefix)
+bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_Mesh **object, bool py_none_ok, const char *error_prefix)
 {
 	if (value == nullptr) {
 		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
@@ -440,7 +440,7 @@ bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_MeshOb
 	}
 
 	if (PyUnicode_Check(value)) {
-		*object = (RAS_MeshObject*)logicmgr->GetMeshByName(std::string(_PyUnicode_AsString(value)));
+		*object = (RAS_Mesh*)logicmgr->GetMeshByName(std::string(_PyUnicode_AsString(value)));
 		
 		if (*object) {
 			return true;

@@ -48,7 +48,7 @@ extern bool gDisableDeactivation;
 class CcdPhysicsEnvironment;
 class CcdPhysicsController;
 class btMotionState;
-class RAS_MeshObject;
+class RAS_Mesh;
 class RAS_Deformer;
 class btCollisionShape;
 
@@ -74,7 +74,7 @@ public:
 		float uv[2];
 	};
 
-	static CcdShapeConstructionInfo *FindMesh(RAS_MeshObject *mesh, RAS_Deformer *deformer, PHY_ShapeType shapeType);
+	static CcdShapeConstructionInfo *FindMesh(RAS_Mesh *mesh, RAS_Deformer *deformer, PHY_ShapeType shapeType);
 
 	CcdShapeConstructionInfo() 
 		:m_shapeType(PHY_SHAPE_NONE),
@@ -141,7 +141,7 @@ public:
 		return true;
 	}
 
-	bool UpdateMesh(class KX_GameObject *gameobj, class RAS_MeshObject *mesh);
+	bool UpdateMesh(class KX_GameObject *gameobj, class RAS_Mesh *mesh);
 
 	CcdShapeConstructionInfo *GetReplica();
 
@@ -153,7 +153,7 @@ public:
 		return m_shapeProxy;
 	}
 
-	RAS_MeshObject *GetMesh() const;
+	RAS_Mesh *GetMesh() const;
 	RAS_IDisplayArrayList& GetDisplayArrayList();
 
 	btCollisionShape *CreateBulletShape(btScalar margin, bool useGimpact = false, bool useBvh = true);
@@ -190,12 +190,12 @@ public:
 		m_weldingThreshold1  = threshold * threshold;
 	}
 protected:
-	using MeshShapeKey = std::tuple<RAS_MeshObject *, RAS_Deformer *, PHY_ShapeType>;
+	using MeshShapeKey = std::tuple<RAS_Mesh *, RAS_Deformer *, PHY_ShapeType>;
 	using MeshShapeMap = std::map<MeshShapeKey, CcdShapeConstructionInfo *>;
 
 	static MeshShapeMap m_meshShapeMap;
 	/// Converted original mesh.
-	RAS_MeshObject *m_mesh;
+	RAS_Mesh *m_mesh;
 	/// Hold pointer to display arrays.
 	RAS_IDisplayArrayList m_displayArrayList;
 	/// The list of vertexes and indexes for the triangle mesh, shared between Bullet shape.
@@ -866,7 +866,7 @@ public:
 		return GetConstructionInfo().m_shapeInfo->m_shapeType == PHY_SHAPE_COMPOUND;
 	}
 
-	virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_MeshObject *from_meshobj, bool dupli = false);
+	virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_Mesh *from_meshobj, bool dupli = false);
 	virtual void ReplacePhysicsShape(PHY_IPhysicsController *phyctrl);
 };
 
