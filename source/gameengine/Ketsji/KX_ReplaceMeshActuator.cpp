@@ -41,7 +41,7 @@
 #include "KX_ReplaceMeshActuator.h"
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
-#include "KX_MeshProxy.h"
+#include "KX_Mesh.h"
 
 #ifdef WITH_PYTHON
 
@@ -90,14 +90,13 @@ PyObject *KX_ReplaceMeshActuator::pyattr_get_mesh(EXP_PyObjectPlus *self, const 
 	KX_ReplaceMeshActuator* actuator = static_cast<KX_ReplaceMeshActuator*>(self);
 	if (!actuator->m_mesh)
 		Py_RETURN_NONE;
-	KX_MeshProxy* meshproxy = new KX_MeshProxy(actuator->m_mesh);
-	return meshproxy->NewProxy(true);
+	return actuator->m_mesh->GetProxy();
 }
 
 int KX_ReplaceMeshActuator::pyattr_set_mesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_ReplaceMeshActuator* actuator = static_cast<KX_ReplaceMeshActuator*>(self);
-	RAS_Mesh* new_mesh;
+	KX_Mesh *new_mesh;
 	
 	if (!ConvertPythonToMesh(actuator->GetLogicManager(), value, &new_mesh, true, "actuator.mesh = value: KX_ReplaceMeshActuator"))
 		return PY_SET_ATTR_FAIL;
@@ -120,14 +119,12 @@ EXP_PYMETHODDEF_DOC(KX_ReplaceMeshActuator, instantReplaceMesh,
 /* ------------------------------------------------------------------------- */
 
 KX_ReplaceMeshActuator::KX_ReplaceMeshActuator(KX_GameObject *gameobj,
-													   RAS_Mesh *mesh,
-													   KX_Scene *scene,
+													   KX_Mesh *mesh,
 													   bool use_gfx,
 													   bool use_phys) :
 
 	SCA_IActuator(gameobj, KX_ACT_REPLACE_MESH),
 	m_mesh(mesh),
-	m_scene(scene),
 	m_use_gfx(use_gfx),
 	m_use_phys(use_phys)
 {
@@ -178,10 +175,3 @@ void KX_ReplaceMeshActuator::InstantReplaceMesh()
 		gameobj->ReplaceMesh(m_mesh, m_use_gfx, m_use_phys);
 	}
 }
-
-void KX_ReplaceMeshActuator::Replace_IScene(SCA_IScene *val)
-{
-	m_scene = static_cast<KX_Scene *>(val);
-}
-
-/* eof */

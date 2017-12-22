@@ -28,7 +28,8 @@
 #define __KX_LOD_LEVEL_H__
 
 #include "EXP_Value.h"
-#include "RAS_Mesh.h"
+
+class KX_Mesh;
 
 class KX_LodLevel : public EXP_Value
 {
@@ -38,10 +39,10 @@ private:
 	float m_hysteresis;
 	short m_level;
 	unsigned short m_flags;
-	RAS_Mesh *m_meshobj;
+	KX_Mesh *m_mesh;
 
 public:
-	KX_LodLevel(float distance, float hysteresis, unsigned short level, RAS_Mesh *meshobj, unsigned short flag);
+	KX_LodLevel(float distance, float hysteresis, unsigned short level, KX_Mesh *mesh, unsigned short flag);
 	virtual ~KX_LodLevel();
 
 	virtual std::string GetName();
@@ -50,7 +51,7 @@ public:
 	float GetHysteresis() const;
 	unsigned short GetLevel() const;
 	unsigned short GetFlag() const;
-	RAS_Mesh *GetMesh() const;
+	KX_Mesh *GetMesh() const;
 
 	enum {
 		/// Use custom hysteresis for this level.

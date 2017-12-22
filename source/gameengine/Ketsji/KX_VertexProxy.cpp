@@ -32,7 +32,7 @@
 #ifdef WITH_PYTHON
 
 #include "KX_VertexProxy.h"
-#include "KX_MeshProxy.h"
+#include "KX_Mesh.h"
 #include "RAS_Vertex.h"
 #include "RAS_IDisplayArray.h"
 

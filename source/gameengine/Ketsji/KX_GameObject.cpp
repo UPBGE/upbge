@@ -45,7 +45,7 @@
 #include "RAS_MeshUser.h"
 #include "RAS_BoundingBoxManager.h"
 #include "KX_NavMeshObject.h"
-#include "KX_MeshProxy.h"
+#include "KX_Mesh.h"
 #include "KX_PolyProxy.h"
 #include "SG_Controller.h"
 #include "PHY_IGraphicController.h"
@@ -722,7 +722,7 @@ void KX_GameObject::UpdateBuckets()
 	m_meshUser->ActivateMeshSlots();
 }
 
-void KX_GameObject::ReplaceMesh(RAS_Mesh *mesh, bool use_gfx, bool use_phys)
+void KX_GameObject::ReplaceMesh(KX_Mesh *mesh, bool use_gfx, bool use_phys)
 {
 	if (use_gfx && mesh) {
 		RemoveMeshes();
@@ -755,7 +755,7 @@ void KX_GameObject::RemoveMeshes()
 	m_meshes.clear();
 }
 
-const std::vector<RAS_Mesh *>& KX_GameObject::GetMeshList() const
+const std::vector<KX_Mesh *>& KX_GameObject::GetMeshList() const
 {
 	return m_meshes;
 }
@@ -777,7 +777,7 @@ void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
 
 	// Restore object original mesh.
 	if (!lodManager && m_lodManager && m_lodManager->GetLevelCount() > 0) {
-		RAS_Mesh *origmesh = m_lodManager->GetLevel(0).GetMesh();
+		KX_Mesh *origmesh = m_lodManager->GetLevel(0).GetMesh();
 		ReplaceMesh(origmesh, true, false);
 	}
 
@@ -806,7 +806,7 @@ void KX_GameObject::UpdateLod(KX_Scene *scene, const mt::vec3& cam_pos, float lo
 	const float distance2 = (NodeGetWorldPosition() - cam_pos).LengthSquared() * (lodfactor * lodfactor);
 	const KX_LodLevel& lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
 
-	RAS_Mesh *mesh = lodLevel.GetMesh();
+	KX_Mesh *mesh = lodLevel.GetMesh();
 	if (mesh != m_meshes.front()) {
 		ReplaceMesh(mesh, true, false);
 	}
@@ -2000,7 +2000,7 @@ PyObject *KX_GameObject::PyReplaceMesh(PyObject *args, PyObject *kwds)
 
 	PyObject *value;
 	int use_gfx= 1, use_phys= 0;
-	RAS_Mesh *new_mesh;
+	KX_Mesh *new_mesh;
 
 	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "O|ii:replaceMesh",
 			{"mesh", "useDisplayMesh", "usePhysicsMesh", 0}, &value, &use_gfx, &use_phys))
@@ -2025,7 +2025,7 @@ PyObject *KX_GameObject::PyEndObject()
 PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
 {
 	KX_GameObject *gameobj= nullptr;
-	RAS_Mesh *mesh= nullptr;
+	KX_Mesh *mesh= nullptr;
 	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 	int dupli = 0;
 
@@ -3123,8 +3123,9 @@ PyObject *KX_GameObject::pyattr_get_meshes(EXP_PyObjectPlus *self_v, const EXP_P
 	
 	for (i=0; i < (int)self->m_meshes.size(); i++)
 	{
-		KX_MeshProxy* meshproxy = new KX_MeshProxy(self->m_meshes[i]);
-		PyList_SET_ITEM(meshes, i, meshproxy->NewProxy(true));
+		PyObject *item = self->m_meshes[i]->GetProxy();
+		Py_INCREF(item);
+		PyList_SET_ITEM(meshes, i, item);
 	}
 	
 	return meshes;
@@ -4092,10 +4093,10 @@ EXP_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 			{
 				if (callback.m_hitMesh)
 				{
-					KX_MeshProxy *meshProxy = new KX_MeshProxy(callback.m_hitMesh);
+					KX_Mesh *mesh = static_cast<KX_Mesh *>(callback.m_hitMesh);
 					// if this field is set, then we can trust that m_hitPolygon is a valid polygon
-					const RAS_Mesh::PolygonInfo polygon = callback.m_hitMesh->GetPolygon(callback.m_hitPolygon);
-					KX_PolyProxy *polyproxy = new KX_PolyProxy(meshProxy, callback.m_hitMesh, polygon);
+					const RAS_Mesh::PolygonInfo polygon = mesh->GetPolygon(callback.m_hitPolygon);
+					KX_PolyProxy *polyproxy = new KX_PolyProxy(mesh, polygon);
 					PyTuple_SET_ITEM(returnValue, 3, polyproxy->NewProxy(true));
 					if (poly == 2)
 					{

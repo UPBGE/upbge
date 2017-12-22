@@ -36,7 +36,7 @@
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
 #include "KX_WorldInfo.h"
-#include "RAS_Mesh.h"
+#include "KX_Mesh.h"
 #include "RAS_BucketManager.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_KetsjiEngine.h"
@@ -118,7 +118,7 @@ void BL_BlenderConverter::SceneSlot::Merge(const BL_BlenderSceneConverter& conve
 	for (KX_BlenderMaterial *mat : converter.m_materials) {
 		m_materials.emplace_back(mat);
 	}
-	for (RAS_Mesh *meshobj : converter.m_meshobjects) {
+	for (KX_Mesh *meshobj : converter.m_meshobjects) {
 		m_meshobjects.emplace_back(meshobj);
 	}
 	for (BL_ConvertObjectInfo *info : converter.m_objectInfos) {
@@ -474,7 +474,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *blendlib, cons
 			if (options & LIB_LOAD_VERBOSE) {
 				CM_Debug("mesh name: " << mesh->name + 2);
 			}
-			RAS_Mesh *meshobj = BL_ConvertMesh((Mesh *)mesh, nullptr, scene_merge, sceneConverter);
+			KX_Mesh *meshobj = BL_ConvertMesh((Mesh *)mesh, nullptr, scene_merge, sceneConverter);
 			scene_merge->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 		}
 
@@ -608,7 +608,7 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
 			// in case the mesh might be refered to later
 			std::map<std::string, void *> &mapStringToMeshes = scene->GetLogicManager()->GetMeshMap();
 			for (std::map<std::string, void *>::iterator it = mapStringToMeshes.begin(), end = mapStringToMeshes.end(); it != end;) {
-				RAS_Mesh *meshobj = (RAS_Mesh *)it->second;
+				KX_Mesh *meshobj = (KX_Mesh *)it->second;
 				if (meshobj && IS_TAGGED(meshobj->GetMesh())) {
 					it = mapStringToMeshes.erase(it);
 				}
@@ -655,7 +655,7 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
 						gameobj->RemoveTaggedActions();
 						// free the mesh, we could be referecing a linked one!
 						
-						for (RAS_Mesh *meshobj : gameobj->GetMeshList()) {
+						for (KX_Mesh *meshobj : gameobj->GetMeshList()) {
 							if (IS_TAGGED(meshobj->GetMesh())) {
 								gameobj->RemoveMeshes(); /* XXX - slack, should only remove meshes that are library items but mostly objects only have 1 mesh */
 								break;
@@ -690,8 +690,8 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
 		KX_Scene *scene = sit->first;
 		SceneSlot& sceneSlot = sit->second;
 
-		for (UniquePtrList<RAS_Mesh>::iterator it =  sceneSlot.m_meshobjects.begin(); it !=  sceneSlot.m_meshobjects.end(); ) {
-			RAS_Mesh *mesh = (*it).get();
+		for (UniquePtrList<KX_Mesh>::iterator it =  sceneSlot.m_meshobjects.begin(); it !=  sceneSlot.m_meshobjects.end(); ) {
+			KX_Mesh *mesh = (*it).get();
 			if (IS_TAGGED(mesh->GetMesh())) {
 				it = sceneSlot.m_meshobjects.erase(it);
 			}
@@ -758,7 +758,7 @@ void BL_BlenderConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 
 /** This function merges a mesh from the current scene into another main
  * it does not convert */
-RAS_Mesh *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const std::string& name)
+KX_Mesh *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const std::string& name)
 {
 	// Find a mesh in the current main */
 	ID *me = static_cast<ID *>(BLI_findstring(&m_maggie->mesh, name.c_str(), offsetof(ID, name) + 2));
@@ -832,7 +832,7 @@ RAS_Mesh *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main *magg
 
 	BL_BlenderSceneConverter sceneConverter(kx_scene);
 
-	RAS_Mesh *meshobj = BL_ConvertMesh((Mesh *)me, nullptr, kx_scene, sceneConverter);
+	KX_Mesh *meshobj = BL_ConvertMesh((Mesh *)me, nullptr, kx_scene, sceneConverter);
 	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 
 	// Finalize material and mesh conversion.

@@ -39,9 +39,7 @@
 #include "SCA_PropertyActuator.h"
 #include "SCA_LogicManager.h"
 
-#include "RAS_Mesh.h"
-
-class KX_Scene;
+class KX_Mesh;
 class KX_GameObject;
 
 class KX_ReplaceMeshActuator : public SCA_IActuator
@@ -49,16 +47,14 @@ class KX_ReplaceMeshActuator : public SCA_IActuator
 	Py_Header
 
 	// mesh reference (mesh to replace)
-	RAS_Mesh* m_mesh;
-	KX_Scene *m_scene;
+	KX_Mesh *m_mesh;
 	bool m_use_gfx; 
 	bool m_use_phys;
 
  public:
 	KX_ReplaceMeshActuator(
 		KX_GameObject *gameobj, 
-		RAS_Mesh *mesh, 
-		KX_Scene *scene,
+		KX_Mesh *mesh, 
 		bool use_gfx,
 		bool use_phys
 	);
@@ -74,8 +70,6 @@ class KX_ReplaceMeshActuator : public SCA_IActuator
 	Update();
 
 	void	InstantReplaceMesh();
-
-	virtual void Replace_IScene(SCA_IScene *val);
 
 #ifdef WITH_PYTHON
 

@@ -56,7 +56,7 @@
 #include "KX_Camera.h"
 #include "SCA_JoystickManager.h"
 #include "KX_PyMath.h"
-#include "RAS_Mesh.h"
+#include "KX_Mesh.h"
 #include "SCA_IScene.h"
 #include "KX_LodManager.h"
 #include "KX_CullingHandler.h"
@@ -1644,7 +1644,7 @@ static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene
 	to->GetLogicManager()->RegisterGameObjectName(gameobj->GetName(), gameobj);
 	to->GetLogicManager()->RegisterGameObj(gameobj->GetBlenderObject(), gameobj);
 
-	for (RAS_Mesh *meshobj : gameobj->GetMeshList()) {
+	for (KX_Mesh *meshobj : gameobj->GetMeshList()) {
 		// Register the mesh object by name and blender object.
 		to->GetLogicManager()->RegisterGameMeshName(meshobj->GetName(), gameobj->GetBlenderObject());
 		to->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);

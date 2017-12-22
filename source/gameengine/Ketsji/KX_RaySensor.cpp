@@ -42,10 +42,10 @@
 #include "KX_Scene.h"
 #include "KX_RayCast.h"
 #include "KX_PyMath.h"
+#include "KX_Mesh.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
 #include "DNA_sensor_types.h"
-#include "RAS_Mesh.h"
 
 #include "CM_Message.h"
 
@@ -176,7 +176,7 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 	{
 		if (m_bFindMaterial) {
 			bool found = false;
-			for (RAS_Mesh *meshObj : hitKXObj->GetMeshList()) {
+			for (KX_Mesh *meshObj : hitKXObj->GetMeshList()) {
 				found = (meshObj->FindMaterialName(m_propertyname) != nullptr);
 				if (found) {
 					break;

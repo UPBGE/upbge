@@ -45,8 +45,8 @@
 #include "PHY_ICharacter.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h" // for KX_RasterizerDrawDebugLine
+#include "KX_Mesh.h"
 #include "BL_BlenderSceneConverter.h"
-#include "RAS_Mesh.h"
 #include "RAS_IDisplayArray.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
@@ -1861,7 +1861,7 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 				m_ocb->SetModelMatrix(fl);
 				const float negative = gameobj->IsNegativeScaling();
 				// walk through the meshes and for each add to buffer
-				for (RAS_Mesh *meshobj : gameobj->GetMeshList()) {
+				for (KX_Mesh *meshobj : gameobj->GetMeshList()) {
 					for (RAS_MeshMaterial *meshmat : meshobj->GetMeshMaterialList()) {
 						RAS_IDisplayArray *array = meshmat->GetDisplayArray();
 						const bool twoside = meshmat->GetBucket()->GetPolyMaterial()->IsTwoSided();

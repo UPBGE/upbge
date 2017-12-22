@@ -83,7 +83,7 @@ KX_GameObject *BL_BlenderSceneConverter::FindGameObject(Object *for_blenderobjec
 	return m_map_blender_to_gameobject[for_blenderobject];
 }
 
-void BL_BlenderSceneConverter::RegisterGameMesh(RAS_Mesh *gamemesh, Mesh *for_blendermesh)
+void BL_BlenderSceneConverter::RegisterGameMesh(KX_Mesh *gamemesh, Mesh *for_blendermesh)
 {
 	if (for_blendermesh) { // dynamically loaded meshes we don't want to keep lookups for
 		m_map_mesh_to_gamemesh[for_blendermesh] = gamemesh;
@@ -91,7 +91,7 @@ void BL_BlenderSceneConverter::RegisterGameMesh(RAS_Mesh *gamemesh, Mesh *for_bl
 	m_meshobjects.push_back(gamemesh);
 }
 
-RAS_Mesh *BL_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
+KX_Mesh *BL_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
 {
 	return m_map_mesh_to_gamemesh[for_blendermesh];
 }

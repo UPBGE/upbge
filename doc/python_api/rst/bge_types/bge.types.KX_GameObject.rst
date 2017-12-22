@@ -444,7 +444,7 @@ base class --- :class:`SCA_IObject`
 
       a list meshes for this object.
 
-      :type: list of :class:`KX_MeshProxy`
+      :type: list of :class:`KX_Mesh`
 
       .. note::
 

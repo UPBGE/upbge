@@ -38,10 +38,9 @@
 #include "SCA_LogicManager.h"
 #include "KX_GameObject.h"
 #include "KX_CollisionEventManager.h"
+#include "KX_Mesh.h"
 
 #include "PHY_IPhysicsController.h"
-
-#include "RAS_Mesh.h"
 
 #include <iostream>
 #include "BLI_utildefines.h"
@@ -211,7 +210,7 @@ bool KX_CollisionSensor::BroadPhaseSensorFilterCollision(PHY_IPhysicsController 
 	bool found = m_touchedpropname.empty();
 	if (!found) {
 		if (m_bFindMaterial) {
-			for (RAS_Mesh *meshObj : otherobj->GetMeshList()) {
+			for (KX_Mesh *meshObj : otherobj->GetMeshList()) {
 				found = (meshObj->FindMaterialName(m_touchedpropname) != nullptr);
 				if (found) {
 					break;
@@ -248,7 +247,7 @@ bool KX_CollisionSensor::NewHandleCollision(PHY_IPhysicsController *ctrl1, PHY_I
 		bool hitMaterial = false;
 		if (!found) {
 			if (m_bFindMaterial) {
-				for (RAS_Mesh *meshObj : gameobj->GetMeshList()) {
+				for (KX_Mesh *meshObj : gameobj->GetMeshList()) {
 					found = (meshObj->FindMaterialName(m_touchedpropname) != nullptr);
 					if (found) {
 						hitMaterial = true;

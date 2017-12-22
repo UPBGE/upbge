@@ -142,7 +142,7 @@ extern "C" {
 /* for converting new scenes */
 #include "BL_BlenderConverter.h"
 #include "KX_LibLoadStatus.h"
-#include "KX_MeshProxy.h" /* for creating a new library of mesh objects */
+#include "KX_Mesh.h" /* for creating a new library of mesh objects */
 extern "C" {
 	#include "BKE_idcode.h"
 }
@@ -712,16 +712,12 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 	/* Copy the object into main */
 	if (idcode==ID_ME) {
 		PyObject *ret= PyList_New(0);
-		PyObject *item;
 		for (Py_ssize_t i= 0; i < PyList_GET_SIZE(names); i++) {
 			name= _PyUnicode_AsString(PyList_GET_ITEM(names, i));
 			if (name) {
-				RAS_Mesh *meshobj= converter->ConvertMeshSpecial(kx_scene, maggie, name);
-				if (meshobj) {
-					KX_MeshProxy* meshproxy = new KX_MeshProxy(meshobj);
-					item= meshproxy->NewProxy(true);
-					PyList_Append(ret, item);
-					Py_DECREF(item);
+				KX_Mesh *mesh = converter->ConvertMeshSpecial(kx_scene, maggie, name);
+				if (mesh) {
+					PyList_Append(ret, mesh->GetProxy());
 				}
 			}
 			else {

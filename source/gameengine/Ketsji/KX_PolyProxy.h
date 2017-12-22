@@ -37,18 +37,17 @@
 #include "EXP_Value.h"
 #include "RAS_Mesh.h"
 
-class KX_MeshProxy;
+class KX_Mesh;
 
 class KX_PolyProxy : public EXP_Value
 {
 	Py_Header
 protected:
-	KX_MeshProxy *m_meshProxy;
+	KX_Mesh *m_mesh;
 	RAS_Mesh::PolygonInfo m_polygon;
-	RAS_Mesh *m_mesh;
 
 public:
-	KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_Mesh *mesh, const RAS_Mesh::PolygonInfo& polygon);
+	KX_PolyProxy(KX_Mesh *mesh, const RAS_Mesh::PolygonInfo& polygon);
 	virtual ~KX_PolyProxy();
 
 	// stuff for cvalue related things

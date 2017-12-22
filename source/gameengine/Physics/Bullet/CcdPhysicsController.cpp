@@ -31,11 +31,12 @@
 #include "PHY_IMotionState.h"
 #include "CcdPhysicsEnvironment.h"
 
-#include "RAS_Mesh.h"
 #include "RAS_Deformer.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MaterialBucket.h"
+
 #include "KX_GameObject.h"
+#include "KX_Mesh.h"
 
 #include "BulletSoftBody/btSoftBody.h"
 #include "BulletSoftBody/btSoftBodyInternals.h"
@@ -1768,7 +1769,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_Mesh *mesh
 		}
 		else {
 			// Object mesh is last priority.
-			const std::vector<RAS_Mesh *>& meshes = gameobj->GetMeshList();
+			const std::vector<KX_Mesh *>& meshes = gameobj->GetMeshList();
 			if (!meshes.empty()) {
 				meshobj = meshes.front();
 			}

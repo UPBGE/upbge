@@ -101,7 +101,7 @@ public:
 		unsigned short matId;
 	};
 
-private:
+protected:
 	/** Polygon info per range depending of display array stored to generate
 	 * the individual polygon info. */
 	struct PolygonRangeInfo {
@@ -127,7 +127,6 @@ private:
 	/// The mesh bounding box.
 	RAS_BoundingBox *m_boundingBox;
 
-protected:
 	RAS_MeshMaterialList m_materials;
 	Mesh *m_mesh;
 

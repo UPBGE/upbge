@@ -37,7 +37,8 @@
 #include "BLI_utildefines.h"
 
 #include "KX_SoftBodyDeformer.h"
-#include "RAS_Mesh.h"
+#include "KX_Mesh.h"
+
 #include "RAS_DisplayArray.h"
 #include "RAS_BoundingBoxManager.h"
 

@@ -25,14 +25,14 @@
  */
 
 #include "KX_LodLevel.h"
-#include "KX_MeshProxy.h"
+#include "KX_Mesh.h"
 
-KX_LodLevel::KX_LodLevel(float distance, float hysteresis, unsigned short level, RAS_Mesh *meshobj, unsigned short flag)
+KX_LodLevel::KX_LodLevel(float distance, float hysteresis, unsigned short level, KX_Mesh *mesh, unsigned short flag)
 	:m_distance(distance),
 	m_hysteresis(hysteresis),
 	m_level(level),
 	m_flags(flag),
-	m_meshobj(meshobj)
+	m_mesh(mesh)
 {
 }
 
@@ -42,7 +42,7 @@ KX_LodLevel::~KX_LodLevel()
 
 std::string KX_LodLevel::GetName()
 {
-	return m_meshobj->GetName();
+	return m_mesh->GetName();
 }
 
 float KX_LodLevel::GetDistance() const
@@ -65,9 +65,9 @@ unsigned short KX_LodLevel::GetFlag() const
 	return m_flags;
 }
 
-RAS_Mesh *KX_LodLevel::GetMesh() const
+KX_Mesh *KX_LodLevel::GetMesh() const
 {
-	return m_meshobj;
+	return m_mesh;
 }
 
 #ifdef WITH_PYTHON
@@ -112,8 +112,7 @@ PyAttributeDef KX_LodLevel::Attributes[] = {
 PyObject *KX_LodLevel::pyattr_get_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
-	KX_MeshProxy *meshproxy = new KX_MeshProxy(self->GetMesh());
-	return meshproxy->NewProxy(true);
+	return self->GetMesh()->GetProxy();
 }
 
 PyObject *KX_LodLevel::pyattr_get_use_hysteresis(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)

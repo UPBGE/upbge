@@ -33,7 +33,7 @@
 #ifdef WITH_PYTHON
 
 #include "KX_PolyProxy.h"
-#include "KX_MeshProxy.h"
+#include "KX_Mesh.h"
 #include "RAS_Mesh.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IDisplayArray.h"
@@ -93,17 +93,14 @@ PyAttributeDef KX_PolyProxy::Attributes[] = {
 	EXP_PYATTRIBUTE_NULL	//Sentinel
 };
 
-KX_PolyProxy::KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_Mesh *mesh, const RAS_Mesh::PolygonInfo& polygon)
-	:m_meshProxy(meshProxy),
-	m_polygon(polygon),
-	m_mesh(mesh)
+KX_PolyProxy::KX_PolyProxy(KX_Mesh *mesh, const RAS_Mesh::PolygonInfo& polygon)
+	:m_mesh(mesh),
+	m_polygon(polygon)
 {
-	Py_INCREF(m_meshProxy->GetProxy());
 }
 
 KX_PolyProxy::~KX_PolyProxy()
 {
-	Py_DECREF(m_meshProxy->GetProxy());
 }
 
 
@@ -235,13 +232,13 @@ EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, isCollider,
 EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialName,
 "getMaterialName() : returns the polygon material name, \"\" if no material\n")
 {
-	return PyUnicode_FromStdString(m_meshProxy->GetMesh()->GetMaterialName(m_polygon.matId));
+	return PyUnicode_FromStdString(m_mesh->GetMaterialName(m_polygon.matId));
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getTextureName,
 "getTexturelName() : returns the polygon texture name, \"\" if no texture\n")
 {
-	return PyUnicode_FromStdString(m_meshProxy->GetMesh()->GetTextureName(m_polygon.matId));
+	return PyUnicode_FromStdString(m_mesh->GetTextureName(m_polygon.matId));
 }
 
 EXP_PYMETHODDEF_DOC(KX_PolyProxy, getVertexIndex,
@@ -269,13 +266,13 @@ EXP_PYMETHODDEF_DOC(KX_PolyProxy, getVertexIndex,
 EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMesh,
 "getMesh() : returns a mesh proxy\n")
 {
-	return m_meshProxy->GetProxy();
+	return m_mesh->GetProxy();
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterial,
 "getMaterial() : returns a material\n")
 {
-	RAS_MeshMaterial *meshmat = m_meshProxy->GetMesh()->GetMeshMaterial(m_polygon.matId);
+	RAS_MeshMaterial *meshmat = m_mesh->GetMeshMaterial(m_polygon.matId);
 	RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
 	KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *>(polymat);
 	return mat->GetProxy();

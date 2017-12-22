@@ -61,7 +61,6 @@
 #  include "CcdGraphicController.h"
 #endif
 
-#include "RAS_Mesh.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_ILightObject.h"
 
@@ -88,6 +87,7 @@
 #include "KX_LodManager.h"
 #include "KX_PythonComponent.h"
 #include "KX_WorldInfo.h"
+#include "KX_Mesh.h"
 #include "KX_BlenderMaterial.h"
 #include "KX_TextureRendererManager.h"
 #include "KX_Globals.h"
@@ -408,9 +408,9 @@ static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, int lightlayer, KX_S
 }
 
 /* blenderobj can be nullptr, make sure its checked for */
-RAS_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_BlenderSceneConverter& converter)
+KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_BlenderSceneConverter& converter)
 {
-	RAS_Mesh *meshobj;
+	KX_Mesh *meshobj;
 	const int lightlayer = blenderobj ? blenderobj->lay : (1 << 20) - 1; // all layers if no object.
 
 	// Without checking names, we get some reuse we don't want that can cause
@@ -453,7 +453,7 @@ RAS_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_Blend
 	vertformat.uvSize = max_ii(1, uvCount);
 	vertformat.colorSize = max_ii(1, colorCount);
 
-	meshobj = new RAS_Mesh(me, layersInfo);
+	meshobj = new KX_Mesh(me, layersInfo);
 
 	const unsigned short totmat = max_ii(me->totcol, 1);
 	std::vector<BL_MeshMaterial> mats(totmat);
@@ -640,7 +640,7 @@ static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene,
 	}
 }
 
-static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobject, RAS_Mesh *meshobj,
+static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobject, KX_Mesh *meshobj,
 		KX_Scene *kxscene, int activeLayerBitInfo, BL_BlenderSceneConverter& converter, bool processCompoundChildren)
 
 {
@@ -864,7 +864,7 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 		case OB_MESH:
 		{
 			Mesh *mesh = static_cast<Mesh *>(ob->data);
-			RAS_Mesh *meshobj = BL_ConvertMesh(mesh, ob, kxscene, converter);
+			KX_Mesh *meshobj = BL_ConvertMesh(mesh, ob, kxscene, converter);
 
 			// needed for python scripting
 			kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
@@ -1538,8 +1538,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		for (KX_GameObject *gameobj : sumolist) {
 			Object *blenderobject = gameobj->GetBlenderObject();
 
-			const std::vector<RAS_Mesh *>& meshes = gameobj->GetMeshList();
-			RAS_Mesh *meshobj = (meshes.empty()) ? nullptr : meshes.front();
+			const std::vector<KX_Mesh *>& meshes = gameobj->GetMeshList();
+			KX_Mesh *meshobj = (meshes.empty()) ? nullptr : meshes.front();
 
 			int layerMask = (groupobj.find(blenderobject) == groupobj.end()) ? activeLayerBitInfo : 0;
 			BL_CreatePhysicsObjectNew(gameobj, blenderobject, meshobj, kxscene, layerMask, converter, processCompoundChildren);
@@ -1548,7 +1548,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 	// Look at every material texture and ask to create realtime cube map.
 	for (KX_GameObject *gameobj : sumolist) {
-		for (RAS_Mesh *mesh : gameobj->GetMeshList()) {
+		for (KX_Mesh *mesh : gameobj->GetMeshList()) {
 			for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
 				RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
 
@@ -1584,7 +1584,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 		Mesh *predifinedBoundMesh = blenderobject->gamePredefinedBound;
 
 		if (predifinedBoundMesh) {
-			RAS_Mesh *meshobj = converter.FindGameMesh(predifinedBoundMesh);
+			KX_Mesh *meshobj = converter.FindGameMesh(predifinedBoundMesh);
 			// In case of mesh taken in a other scene.
 			if (!meshobj) {
 				continue;

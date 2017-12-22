@@ -41,10 +41,10 @@
 #include "GPU_glew.h"
 
 #include "KX_Globals.h"
+#include "KX_Mesh.h"
 #include "DNA_scene_types.h"
 #include "RAS_OffScreen.h"
 #include "RAS_CameraData.h"
-#include "RAS_Mesh.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IDisplayArray.h"
 #include "RAS_ISync.h"
@@ -903,7 +903,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 	// locate the vertex assigned to mat and do following calculation in mesh coordinates
-	for (RAS_Mesh *mesh : mirror->GetMeshList()) {
+	for (KX_Mesh *mesh : mirror->GetMeshList()) {
 		for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
 			if (meshmat->GetBucket()->GetPolyMaterial() == mat) {
 				RAS_IDisplayArray *array = meshmat->GetDisplayArray();

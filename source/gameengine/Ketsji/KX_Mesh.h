@@ -25,62 +25,56 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_MeshProxy.h
+/** \file KX_Mesh.h
  *  \ingroup ketsji
  */
 
-#ifndef __KX_MESHPROXY_H__
-#define __KX_MESHPROXY_H__
+#ifndef __KX_MESH_H__
+#define __KX_MESH_H__
 
-#ifdef WITH_PYTHON
+#include "RAS_Mesh.h"
 
 #include "EXP_Value.h"
 
-class RAS_Mesh;
+class KX_Mesh;
 class SCA_LogicManager;
 
+#ifdef WITH_PYTHON
 // utility conversion function
-bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_Mesh **object, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, KX_Mesh **object, bool py_none_ok, const char *error_prefix);
 
-class KX_MeshProxy : public EXP_Value
+#endif  // WITH_PYTHON
+
+class KX_Mesh : public EXP_Value, public RAS_Mesh
 {
 	Py_Header
 
-	RAS_Mesh *m_meshobj;
-
 public:
-	KX_MeshProxy(RAS_Mesh *mesh);
-	virtual ~KX_MeshProxy();
-
-	virtual RAS_Mesh *GetMesh()
-	{
-		return m_meshobj;
-	}
+	KX_Mesh(Mesh *mesh, const LayersInfo& layersInfo);
+	virtual ~KX_Mesh();
 
 	// stuff for cvalue related things
 	virtual std::string GetName();
 
-	// stuff for python integration
+#ifdef WITH_PYTHON
 
-	EXP_PYMETHOD(KX_MeshProxy, GetNumMaterials);  // Deprecated
-	EXP_PYMETHOD(KX_MeshProxy, GetMaterialName);
-	EXP_PYMETHOD(KX_MeshProxy, GetTextureName);
-	EXP_PYMETHOD_NOARGS(KX_MeshProxy, GetNumPolygons); // Deprecated
+	EXP_PYMETHOD(KX_Mesh, GetMaterialName);
+	EXP_PYMETHOD(KX_Mesh, GetTextureName);
 
 	// both take materialid (int)
-	EXP_PYMETHOD(KX_MeshProxy, GetVertexArrayLength);
-	EXP_PYMETHOD(KX_MeshProxy, GetVertex);
-	EXP_PYMETHOD(KX_MeshProxy, GetPolygon);
-	EXP_PYMETHOD(KX_MeshProxy, Transform);
-	EXP_PYMETHOD(KX_MeshProxy, TransformUV);
-	EXP_PYMETHOD(KX_MeshProxy, ReplaceMaterial);
+	EXP_PYMETHOD(KX_Mesh, GetVertexArrayLength);
+	EXP_PYMETHOD(KX_Mesh, GetVertex);
+	EXP_PYMETHOD(KX_Mesh, GetPolygon);
+	EXP_PYMETHOD(KX_Mesh, Transform);
+	EXP_PYMETHOD(KX_Mesh, TransformUV);
+	EXP_PYMETHOD(KX_Mesh, ReplaceMaterial);
 
 	static PyObject *pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_numMaterials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_numPolygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_polygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-};
 
 #endif  // WITH_PYTHON
+};
 
-#endif  // __KX_MESHPROXY_H__
+#endif  // __KX_MESH_H__
