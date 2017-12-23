@@ -54,9 +54,6 @@ void appendPythonPath(const std::string& path);
 void initPlayerPython(int argc, char **argv);
 void exitPlayerPython();
 
-void initBlenderPython();
-void exitBlenderPython();
-
 void initGamePython(Main *main, PyObject *pyGlobalDict);
 void exitGamePython();
 

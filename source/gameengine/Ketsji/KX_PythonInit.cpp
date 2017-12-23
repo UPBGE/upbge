@@ -2066,19 +2066,11 @@ void exitGamePython()
 		gp_PythonJoysticks[i].reset(nullptr);
 	}
 
-	bpy_import_main_set(nullptr);
-	EXP_PyObjectPlus::ClearDeprecationWarning();
-}
-
-void initBlenderPython()
-{
-	
-}
-
-void exitBlenderPython()
-{
 	// Get back the original sys.path and clear the backup.
 	restorePySysObjects();
+
+	bpy_import_main_set(nullptr);
+	EXP_PyObjectPlus::ClearDeprecationWarning();
 }
 
 void createPythonConsole()
