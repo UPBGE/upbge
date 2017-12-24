@@ -47,9 +47,7 @@ bool KX_MeshBuilderSlot::Invalid() const
 	};
 
 	const unsigned short count = itemsCount[m_array->GetPrimitiveType()];
-	return ((m_array->GetVertexCount() % count) != 0 ||
-			(m_array->GetPrimitiveIndexCount() % count) != 0 ||
-			(m_array->GetTriangleIndexCount() % count) != 0);
+	return ((m_array->GetPrimitiveIndexCount() % count) != 0 || (m_array->GetTriangleIndexCount() % count) != 0);
 }
 
 RAS_DisplayArray *KX_MeshBuilderSlot::GetDisplayArray() const
@@ -438,13 +436,13 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	}
 
 	KX_Scene *scene;
-	if (!ConvertPythonToScene(pyscene, &scene, false, "KX_MeshBuilder(scene, uvs, colors): scene must be KX_Scene")) {
+	if (!ConvertPythonToScene(pyscene, &scene, false, "KX_MeshBuilder(name, scene, uvs, colors): scene must be KX_Scene")) {
 		return nullptr;
 	}
 
 	KX_Mesh::LayersInfo layersInfo;
-	if (!convertPythonListToLayers(pyuvs, layersInfo.uvLayers, "KX_MeshBuilder(scene, uvs, colors): uvs:") ||
-		!convertPythonListToLayers(pycolors, layersInfo.colorLayers, "KX_MeshBuilder(scene, uvs, colors): colors:"))
+	if (!convertPythonListToLayers(pyuvs, layersInfo.uvLayers, "KX_MeshBuilder(name, scene, uvs, colors): uvs:") ||
+		!convertPythonListToLayers(pycolors, layersInfo.colorLayers, "KX_MeshBuilder(name, scene, uvs, colors): colors:"))
 	{
 		return nullptr;
 	}
@@ -529,7 +527,7 @@ PyObject *KX_MeshBuilder::PyFinish()
 
 	for (KX_MeshBuilderSlot *slot : m_slots) {
 		if (slot->Invalid()) {
-			PyErr_Format(PyExc_TypeError, "meshBuilder.finish(): slot (%s) has an invalid number of vertices or indices",
+			PyErr_Format(PyExc_TypeError, "meshBuilder.finish(): slot (%s) has an invalid number of indices",
 					slot->GetName().c_str());
 			return nullptr;
 		}
