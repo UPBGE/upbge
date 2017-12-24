@@ -233,6 +233,32 @@ void BL_Converter::RegisterMesh(KX_Scene *scene, KX_Mesh *mesh)
 	m_sceneSlots[scene].m_meshobjects.emplace_back(mesh);
 }
 
+void BL_Converter::UnregisterMesh(KX_Scene *scene, KX_Mesh *mesh)
+{
+	scene->GetLogicManager()->UnregisterMeshName(mesh->GetName(), mesh);
+
+	std::array<EXP_ListValue<KX_GameObject> *, 2> objLists{{scene->GetObjectList(), scene->GetInactiveList()}};
+
+	for (EXP_ListValue<KX_GameObject> *list : objLists) {
+		for (KX_GameObject *gameobj : list) {
+			for (KX_Mesh *objmesh : gameobj->GetMeshList()) {
+				if (objmesh == mesh) {
+					gameobj->RemoveMeshes();
+					break;
+				}
+			}
+		}
+	}
+
+	UniquePtrList<KX_Mesh>& meshes = m_sceneSlots[scene].m_meshobjects;
+	UniquePtrList<KX_Mesh>::iterator it = std::find_if(meshes.begin(), meshes.end(),
+			[mesh](std::unique_ptr<KX_Mesh>& item){ return (mesh == item.get()); });
+
+	if (it != meshes.end()) {
+		meshes.erase(it);
+	}
+}
+
 Main *BL_Converter::CreateLibrary(const std::string& path)
 {
 	Main *maggie = BKE_main_new();

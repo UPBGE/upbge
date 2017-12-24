@@ -80,6 +80,7 @@ public:
 	EXP_PYMETHOD(KX_Mesh, ReplaceMaterial);
 	EXP_PYMETHOD_NOARGS(KX_Mesh, Copy);
 	EXP_PYMETHOD(KX_Mesh, ConstructBvh);
+	EXP_PYMETHOD_NOARGS(KX_Mesh, Destruct);
 
 	static PyObject *pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_numMaterials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

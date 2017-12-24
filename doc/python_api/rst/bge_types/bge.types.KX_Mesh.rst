@@ -165,3 +165,7 @@ base class --- :class:`EXP_Value`
       :type epsilon: float
       :return: A BVH tree based on mesh geometry.
       :rtype: :class:`mathutils.bvhtree.BVHTree`
+
+   .. method:: destruct()
+
+      Destruct the mesh.

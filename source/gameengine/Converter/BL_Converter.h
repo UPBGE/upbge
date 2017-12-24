@@ -176,8 +176,10 @@ public:
 	 */
 	void RemoveScene(KX_Scene *scene);
 
+
 	/// Dynamically register mesh created after conversion.
 	void RegisterMesh(KX_Scene *scene, KX_Mesh *mesh);
+	void UnregisterMesh(KX_Scene *scene, KX_Mesh *mesh);
 
 	Scene *GetBlenderSceneForName(const std::string& name);
 	EXP_ListValue<EXP_StringValue> *GetInactiveSceneNames();
