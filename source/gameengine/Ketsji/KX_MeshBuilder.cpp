@@ -514,7 +514,7 @@ PyTypeObject KX_MeshBuilder::Type = {
 };
 
 PyMethodDef KX_MeshBuilder::Methods[] = {
-	{"addMaterial", (PyCFunction)KX_MeshBuilder::sPyAddMaterial, METH_VARARGS | METH_KEYWORDS}, // TODO slot/material ?
+	{"addSlot", (PyCFunction)KX_MeshBuilder::sPyAddSlot, METH_VARARGS | METH_KEYWORDS},
 	{"finish", (PyCFunction)KX_MeshBuilder::sPyFinish, METH_NOARGS},
 	{nullptr, nullptr} // Sentinel
 };
@@ -530,22 +530,22 @@ PyObject *KX_MeshBuilder::pyattr_get_slots(EXP_PyObjectPlus *self_v, const EXP_P
 	return self->GetSlots().GetProxy();
 }
 
-PyObject *KX_MeshBuilder::PyAddMaterial(PyObject *args, PyObject *kwds)
+PyObject *KX_MeshBuilder::PyAddSlot(PyObject *args, PyObject *kwds)
 {
 	PyObject *pymat;
 	int primitive;
 
-	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "O|i:addMaterial", {"material", "primitive", 0}, &pymat, &primitive)) {
+	if (!EXP_ParseTupleArgsAndKeywords(args, kwds, "O|i:addSlot", {"material", "primitive", 0}, &pymat, &primitive)) {
 		return nullptr;
 	}
 
 	KX_BlenderMaterial *material;
-	if (!ConvertPythonToMaterial(pymat, &material, false, "meshBuilder.addMaterial(...): material must be a KX_BlenderMaterial")) {
+	if (!ConvertPythonToMaterial(pymat, &material, false, "meshBuilder.addSlot(...): material must be a KX_BlenderMaterial")) {
 		return nullptr;
 	}
 
 	if (!ELEM(primitive, RAS_DisplayArray::LINES, RAS_DisplayArray::TRIANGLES)) {
-		PyErr_SetString(PyExc_TypeError, "meshBuilder.addMaterial(...): primitive value invalid");
+		PyErr_SetString(PyExc_TypeError, "meshBuilder.addSlot(...): primitive value invalid");
 		return nullptr;
 	}
 

@@ -8,13 +8,19 @@
 
 class KX_BlenderMaterial;
 
+/** \brief Helper python class used to register vertices and indices
+ * along a material into a mesh.
+ */
 class KX_MeshBuilderSlot : public EXP_Value
 {
 	Py_Header
 
 private:
+	/// The material used by this slot.
 	KX_BlenderMaterial *m_material;
+	/// Array owning vertices and indices data.
 	RAS_DisplayArray *m_array;
+	/// Counter used to compute the original index of new added vertices.
 	unsigned int& m_origIndexCounter;
 
 public:
@@ -27,7 +33,7 @@ public:
 	KX_BlenderMaterial *GetMaterial() const;
 	void SetMaterial(KX_BlenderMaterial *material);
 
-	/// Return true if the number of vertices or indices doesn't match the primitive type used.
+	/// Return true if the number of indices doesn't match the primitive type used.
 	bool Invalid() const;
 
 	RAS_DisplayArray *GetDisplayArray() const;
@@ -64,6 +70,9 @@ public:
 #endif  // WITH_PYTHON
 };
 
+/** \brief Helper python class used to construct meshes.
+ * The user instantiate it, add data and call conversion to mesh at the end.
+ */
 class KX_MeshBuilder : public EXP_Value
 {
 	Py_Header
@@ -71,10 +80,14 @@ class KX_MeshBuilder : public EXP_Value
 private:
 	std::string m_name;
 
+	/// Mesh data partitioned per slot/material.
 	EXP_ListValue<KX_MeshBuilderSlot> m_slots;
+	/// The uv and color layers used by the mesh, should match with the one used in the materials.
 	RAS_Mesh::LayersInfo m_layersInfo;
+	/// Vertex format, deduced from the layers info.
 	RAS_DisplayArray::Format m_format;
 
+	/// The scene to register along the new mesh.
 	KX_Scene *m_scene;
 
 	/// Counter shared by all the slots to compute the original index of a new added vertex.
@@ -93,7 +106,7 @@ public:
 
 	static PyObject *pyattr_get_slots(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
-	EXP_PYMETHOD(KX_MeshBuilder, AddMaterial);
+	EXP_PYMETHOD(KX_MeshBuilder, AddSlot);
 	EXP_PYMETHOD_NOARGS(KX_MeshBuilder, Finish);
 
 #endif  // WITH_PYTHON
