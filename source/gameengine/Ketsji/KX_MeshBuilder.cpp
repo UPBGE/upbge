@@ -13,9 +13,10 @@
 #include "RAS_BucketManager.h"
 
 KX_MeshBuilderSlot::KX_MeshBuilderSlot(KX_BlenderMaterial *material, RAS_DisplayArray::PrimitiveType primitiveType,
-		const RAS_DisplayArray::Format& format)
+		const RAS_DisplayArray::Format& format, unsigned int& origIndexCounter)
 	:m_material(material),
-	m_array(new RAS_DisplayArray(primitiveType, format))
+	m_array(new RAS_DisplayArray(primitiveType, format)),
+	m_origIndexCounter(origIndexCounter)
 {
 }
 
@@ -241,6 +242,7 @@ PyObject *KX_MeshBuilderSlot::PyAddVertex(PyObject *args, PyObject *kwds)
 	}
 
 	const unsigned index = m_array->AddVertex(pos, normal, tangent, uvs, colors);
+	m_vertexInfos.emplace_back(m_origIndexCounter++, false);
 
 	return PyLong_FromLong(index);
 }
@@ -373,7 +375,8 @@ KX_MeshBuilder::KX_MeshBuilder(const std::string& name, KX_Scene *scene, const R
 	:m_name(name),
 	m_layersInfo(layersInfo),
 	m_format(format),
-	m_scene(scene)
+	m_scene(scene),
+	m_origIndexCounter(0)
 {
 }
 
@@ -512,7 +515,7 @@ PyObject *KX_MeshBuilder::PyAddMaterial(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	KX_MeshBuilderSlot *slot = new KX_MeshBuilderSlot(material, (RAS_DisplayArray::PrimitiveType)primitive, m_format);
+	KX_MeshBuilderSlot *slot = new KX_MeshBuilderSlot(material, (RAS_DisplayArray::PrimitiveType)primitive, m_format, m_origIndexCounter);
 	m_slots.Add(slot);
 
 	return slot->GetProxy();

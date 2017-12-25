@@ -15,10 +15,11 @@ class KX_MeshBuilderSlot : public EXP_Value
 private:
 	KX_BlenderMaterial *m_material;
 	RAS_DisplayArray *m_array;
+	unsigned int& m_origIndexCounter;
 
 public:
 	KX_MeshBuilderSlot(KX_BlenderMaterial *material, RAS_DisplayArray::PrimitiveType primitiveType,
-			const RAS_DisplayArray::Format& format);
+			const RAS_DisplayArray::Format& format, unsigned int& origIndexCounter);
 	~KX_MeshBuilderSlot();
 
 	virtual std::string GetName();
@@ -74,6 +75,9 @@ private:
 	RAS_DisplayArray::Format m_format;
 
 	KX_Scene *m_scene;
+
+	/// Counter shared by all the slots to compute the original index of a new added vertex.
+	unsigned int m_origIndexCounter;
 
 public:
 	KX_MeshBuilder(const std::string& name, KX_Scene *scene, const RAS_Mesh::LayersInfo& layersInfo,
