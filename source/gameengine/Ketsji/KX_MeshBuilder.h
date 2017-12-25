@@ -59,6 +59,7 @@ public:
 	EXP_PYMETHOD_VARARGS(KX_MeshBuilderSlot, RemovePrimitiveIndex);
 	EXP_PYMETHOD_O(KX_MeshBuilderSlot, AddTriangleIndex);
 	EXP_PYMETHOD_VARARGS(KX_MeshBuilderSlot, RemoveTriangleIndex);
+	EXP_PYMETHOD_NOARGS(KX_MeshBuilderSlot, RecalculateNormals);
 
 #endif  // WITH_PYTHON
 };

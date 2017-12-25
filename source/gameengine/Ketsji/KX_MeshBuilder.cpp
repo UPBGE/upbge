@@ -12,6 +12,9 @@
 
 #include "RAS_BucketManager.h"
 
+#include "BLI_math_vector.h"
+#include "BLI_math_geom.h"
+
 KX_MeshBuilderSlot::KX_MeshBuilderSlot(KX_BlenderMaterial *material, RAS_DisplayArray::PrimitiveType primitiveType,
 		const RAS_DisplayArray::Format& format, unsigned int& origIndexCounter)
 	:m_material(material),
@@ -86,6 +89,7 @@ PyMethodDef KX_MeshBuilderSlot::Methods[] = {
 	{"removePrimitiveIndex", (PyCFunction)KX_MeshBuilderSlot::sPyRemovePrimitiveIndex, METH_VARARGS},
 	{"addTriangleIndex", (PyCFunction)KX_MeshBuilderSlot::sPyAddTriangleIndex, METH_O},
 	{"removeTriangleIndex", (PyCFunction)KX_MeshBuilderSlot::sPyRemoveTriangleIndex, METH_VARARGS},
+	{"recalculateNormals", (PyCFunction)KX_MeshBuilderSlot::sPyRecalculateNormals, METH_NOARGS},
 	{nullptr, nullptr} // Sentinel
 };
 
@@ -368,6 +372,36 @@ PyObject *KX_MeshBuilderSlot::PyRemoveTriangleIndex(PyObject *args)
 	}
 
 	return removeDataCheck(m_vertices, start, end, "slot.removeTriangleIndex(start, end)");
+}
+
+PyObject *KX_MeshBuilderSlot::PyRecalculateNormals()
+{
+	if (Invalid()) {
+		PyErr_SetString(PyExc_TypeError, "slot.recalculateNormals(): slot has an invalid number of indices");
+		return nullptr;
+	}
+
+	for (RAS_IVertexData *data : m_vertices) {
+		zero_v3(data->normal);
+	}
+
+	for (unsigned int i = 0, size = m_primitiveIndices.size(); i < size; i += 3) {
+		float normal[3];
+		normal_tri_v3(normal,
+				m_vertices[m_primitiveIndices[i]]->position,
+				m_vertices[m_primitiveIndices[i + 1]]->position,
+				m_vertices[m_primitiveIndices[i + 2]]->position);
+
+		for (unsigned short j = 0; j < 3; ++j) {
+			add_v3_v3(m_vertices[m_primitiveIndices[i + j]]->normal, normal);
+		}
+	}
+
+	for (RAS_IVertexData *data : m_vertices) {
+		normalize_v3(data->normal);
+	}
+
+	Py_RETURN_NONE;
 }
 
 KX_MeshBuilder::KX_MeshBuilder(const std::string& name, KX_Scene *scene, const RAS_Mesh::LayersInfo& layersInfo,
