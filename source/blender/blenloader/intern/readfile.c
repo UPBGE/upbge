@@ -2233,6 +2233,7 @@ static void direct_link_id(FileData *fd, ID *id)
 		/* this case means the data was written incorrectly, it should not happen */
 		IDP_DirectLinkGroup_OrFree(&id->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 	}
+	id->py_instance = NULL;
 }
 
 /* ************ READ CurveMapping *************** */
@@ -3099,7 +3100,7 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 	ntree->adt = newdataadr(fd, ntree->adt);
 	direct_link_animdata(fd, ntree->adt);
 	
-	ntree->id.tag &= ~(LIB_TAG_ID_RECALC|LIB_TAG_ID_RECALC_DATA);
+	ntree->id.recalc &= ~ID_RECALC_ALL;
 
 	link_list(fd, &ntree->nodes);
 	for (node = ntree->nodes.first; node; node = node->next) {

@@ -82,9 +82,9 @@ typedef enum eDepsNode_Class {
 /* Types of Nodes */
 typedef enum eDepsNode_Type {
 	/* Fallback type for invalid return value */
-	DEG_NODE_TYPE_UNDEFINED        = -1,
+	DEG_NODE_TYPE_UNDEFINED        = 0,
 	/* Inner Node (Operation) */
-	DEG_NODE_TYPE_OPERATION        = 0,
+	DEG_NODE_TYPE_OPERATION,
 
 	/* **** Generic Types **** */
 
@@ -124,6 +124,9 @@ typedef enum eDepsNode_Type {
 	DEG_NODE_TYPE_SHADING,
 	/* Cache Component */
 	DEG_NODE_TYPE_CACHE,
+
+	/* Total number of meaningful node types. */
+	NUM_DEG_NODE_TYPES,
 } eDepsNode_Type;
 
 /* Identifiers for common operations (as an enum). */

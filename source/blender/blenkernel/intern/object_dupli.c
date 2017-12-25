@@ -379,7 +379,7 @@ static void make_duplis_frames(const DupliContext *ctx)
 
 	/* special flag to avoid setting recalc flags to notify the depsgraph of
 	 * updates, as this is not a permanent change to the object */
-	ob->id.tag |= LIB_TAG_ANIM_NO_RECALC;
+	ob->id.recalc |= ID_RECALC_SKIP_ANIM_TAG;
 
 	for (scene->r.cfra = ob->dupsta; scene->r.cfra <= dupend; scene->r.cfra++) {
 		int ok = 1;
@@ -630,7 +630,7 @@ static void make_duplis_font(const DupliContext *ctx)
 
 	/* in par the family name is stored, use this to find the other objects */
 
-	BKE_vfont_to_curve_ex(G.main, par, FO_DUPLI, NULL,
+	BKE_vfont_to_curve_ex(G.main, par, par->data, FO_DUPLI, NULL,
 	                      &text, &text_len, &text_free, &chartransdata);
 
 	if (text == NULL || chartransdata == NULL) {

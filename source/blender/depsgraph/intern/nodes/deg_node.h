@@ -51,22 +51,24 @@ struct OperationDepsNode;
 struct DepsNode {
 	/* Helper class for static typeinfo in subclasses. */
 	struct TypeInfo {
-		TypeInfo(eDepsNode_Type type, const char *tname);
-
+		TypeInfo(eDepsNode_Type type, const char *tname, int id_recalc_tag = 0);
 		eDepsNode_Type type;
-		eDepsNode_Class tclass;
 		const char *tname;
+		int id_recalc_tag;
 	};
-
-	/* Identifier - mainly for debugging purposes. */
-	const char *name;
-
-	/* Structural type of node. */
-	eDepsNode_Type type;
-
-	/* Type of data/behaviour represented by node... */
-	eDepsNode_Class tclass;
-
+	struct Stats {
+		Stats();
+		/* Reset all the counters. Including all stats needed for average
+		 * evaluation time calculation.
+		 */
+		void reset();
+		/* Reset counters needed for the current graph evaluation, does not
+		 * touch averaging accumulators.
+		 */
+		void reset_current();
+		/* Time spend on this node during current graph evaluation. */
+		double current_time;
+	};
 	/* Relationships between nodes
 	 * The reason why all depsgraph nodes are descended from this type (apart
 	 * from basic serialization benefits - from the typeinfo) is that we can have
@@ -74,23 +76,18 @@ struct DepsNode {
 	 */
 	typedef vector<DepsRelation *> Relations;
 
-	/* Nodes which this one depends on. */
-	Relations inlinks;
-
-	/* Nodes which depend on this one. */
-	Relations outlinks;
-
-	/* Generic tags for traversal algorithms. */
-	int done;
-	int tag;
+	const char *name;     /* Identifier - mainly for debugging purposes. */
+	eDepsNode_Type type;  /* Structural type of node. */
+	Relations inlinks;    /* Nodes which this one depends on. */
+	Relations outlinks;   /* Nodes which depend on this one. */
+	int done;     /* Generic tags for traversal algorithms. */
+	Stats stats;  /* Evaluation statistics. */
 
 	/* Methods. */
-
 	DepsNode();
 	virtual ~DepsNode();
 
 	virtual string identifier() const;
-	string full_identifier() const;
 
 	virtual void init(const ID * /*id*/,
 	                  const char * /*subdata*/) {}
@@ -99,6 +96,8 @@ struct DepsNode {
 
 	virtual OperationDepsNode *get_entry_operation() { return NULL; }
 	virtual OperationDepsNode *get_exit_operation() { return NULL; }
+
+	virtual eDepsNode_Class get_class() const;
 };
 
 /* Macros for common static typeinfo. */
@@ -106,66 +105,6 @@ struct DepsNode {
 	static const DepsNode::TypeInfo typeinfo
 #define DEG_DEPSNODE_DEFINE(NodeType, type_, tname_) \
 	const DepsNode::TypeInfo NodeType::typeinfo = DepsNode::TypeInfo(type_, tname_)
-
-/* Generic Nodes ======================= */
-
-struct ComponentDepsNode;
-struct IDDepsNode;
-
-/* Time Source Node. */
-struct TimeSourceDepsNode : public DepsNode {
-	/* New "current time". */
-	float cfra;
-
-	/* time-offset relative to the "official" time source that this one has. */
-	float offset;
-
-	// TODO: evaluate() operation needed
-
-	void tag_update(Depsgraph *graph);
-
-	DEG_DEPSNODE_DECLARE;
-};
-
-/* ID-Block Reference */
-struct IDDepsNode : public DepsNode {
-	struct ComponentIDKey {
-		ComponentIDKey(eDepsNode_Type type, const char *name = "");
-		bool operator==(const ComponentIDKey &other) const;
-
-		eDepsNode_Type type;
-		const char *name;
-	};
-
-	void init(const ID *id, const char *subdata);
-	~IDDepsNode();
-
-	ComponentDepsNode *find_component(eDepsNode_Type type,
-	                                  const char *name = "") const;
-	ComponentDepsNode *add_component(eDepsNode_Type type,
-	                                 const char *name = "");
-
-	void tag_update(Depsgraph *graph);
-
-	void finalize_build();
-
-	/* ID Block referenced. */
-	ID *id;
-
-	/* Hash to make it faster to look up components. */
-	GHash *components;
-
-	/* Layers of this node with accumulated layers of it's output relations. */
-	unsigned int layers;
-
-	/* Additional flags needed for scene evaluation.
-	 * TODO(sergey): Only needed for until really granular updates
-	 * of all the entities.
-	 */
-	int eval_flags;
-
-	DEG_DEPSNODE_DECLARE;
-};
 
 void deg_register_base_depsnodes();
 

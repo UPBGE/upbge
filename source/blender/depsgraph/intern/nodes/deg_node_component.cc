@@ -42,6 +42,7 @@ extern "C" {
 #include "BKE_action.h"
 } /* extern "C" */
 
+#include "intern/nodes/deg_node_id.h"
 #include "intern/nodes/deg_node_operation.h"
 #include "intern/depsgraph_intern.h"
 #include "util/deg_util_foreach.h"
@@ -231,7 +232,7 @@ OperationDepsNode *ComponentDepsNode::add_operation(const DepsEvalOperationCb& o
 {
 	OperationDepsNode *op_node = find_operation(opcode, name, name_tag);
 	if (!op_node) {
-		DepsNodeFactory *factory = deg_get_node_factory(DEG_NODE_TYPE_OPERATION);
+		DepsNodeFactory *factory = deg_type_get_factory(DEG_NODE_TYPE_OPERATION);
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
 
 		/* register opnode in this component's operation set */
@@ -359,26 +360,6 @@ void ComponentDepsNode::finalize_build()
 	operations_map = NULL;
 }
 
-/* Register all components. =============================== */
-
-#define DEG_COMPONENT_DEFINE(name, NAME)                             \
-  DEG_DEPSNODE_DEFINE(name ## ComponentDepsNode,                     \
-                      DEG_NODE_TYPE_ ## NAME,                        \
-                      #name  " Component");                          \
-static DepsNodeFactoryImpl<name ## ComponentDepsNode> DNTI_ ## NAME
-
-
-DEG_COMPONENT_DEFINE(Animation, ANIMATION);
-DEG_COMPONENT_DEFINE(Cache, CACHE);
-DEG_COMPONENT_DEFINE(Geometry, GEOMETRY);
-DEG_COMPONENT_DEFINE(Parameters, PARAMETERS);
-DEG_COMPONENT_DEFINE(Particles, EVAL_PARTICLES);
-DEG_COMPONENT_DEFINE(Proxy, PROXY);
-DEG_COMPONENT_DEFINE(Pose, EVAL_POSE);
-DEG_COMPONENT_DEFINE(Sequencer, SEQUENCER);
-DEG_COMPONENT_DEFINE(Shading, SHADING);
-DEG_COMPONENT_DEFINE(Transform, TRANSFORM);
-
 /* Bone Component ========================================= */
 
 /* Initialize 'bone component' node - from pointer data given */
@@ -398,7 +379,19 @@ void BoneComponentDepsNode::init(const ID *id, const char *subdata)
 	this->pchan = BKE_pose_channel_find_name(object->pose, subdata);
 }
 
-DEG_COMPONENT_DEFINE(Bone, BONE);
+/* Register all components. =============================== */
+
+DEG_COMPONENT_NODE_DEFINE(Animation,         ANIMATION,          ID_RECALC_NONE);
+DEG_COMPONENT_NODE_DEFINE(Bone,              BONE,               ID_RECALC_NONE);
+DEG_COMPONENT_NODE_DEFINE(Cache,             CACHE,              ID_RECALC_NONE);
+DEG_COMPONENT_NODE_DEFINE(Geometry,          GEOMETRY,           ID_RECALC_NONE);
+DEG_COMPONENT_NODE_DEFINE(Parameters,        PARAMETERS,         ID_RECALC_NONE);
+DEG_COMPONENT_NODE_DEFINE(Particles,         EVAL_PARTICLES,     ID_RECALC_NONE);
+DEG_COMPONENT_NODE_DEFINE(Proxy,             PROXY,              ID_RECALC_NONE);
+DEG_COMPONENT_NODE_DEFINE(Pose,              EVAL_POSE,          ID_RECALC_NONE);
+DEG_COMPONENT_NODE_DEFINE(Sequencer,         SEQUENCER,          ID_RECALC_NONE);
+DEG_COMPONENT_NODE_DEFINE(Shading,           SHADING,            ID_RECALC_NONE);
+DEG_COMPONENT_NODE_DEFINE(Transform,         TRANSFORM,          ID_RECALC_NONE);
 
 /* Node Types Register =================================== */
 

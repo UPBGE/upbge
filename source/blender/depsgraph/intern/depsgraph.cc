@@ -51,13 +51,16 @@ extern "C" {
 #include "RNA_access.h"
 }
 
+#include <algorithm>
 #include <cstring>
 
 #include "DEG_depsgraph.h"
 
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_component.h"
+#include "intern/nodes/deg_node_id.h"
 #include "intern/nodes/deg_node_operation.h"
+#include "intern/nodes/deg_node_time.h"
 
 #include "intern/depsgraph_intern.h"
 #include "util/deg_util_foreach.h"
@@ -67,6 +70,14 @@ namespace DEG {
 static DEG_EditorUpdateIDCb deg_editor_update_id_cb = NULL;
 static DEG_EditorUpdateSceneCb deg_editor_update_scene_cb = NULL;
 static DEG_EditorUpdateScenePreCb deg_editor_update_scene_pre_cb = NULL;
+
+/* TODO(sergey): Find a better place for this. */
+template <typename T>
+static void remove_from_vector(vector<T> *vector, const T& value)
+{
+	vector->erase(std::remove(vector->begin(), vector->end(), value),
+	              vector->end());
+}
 
 Depsgraph::Depsgraph()
   : time_source(NULL),
@@ -257,7 +268,7 @@ static void id_node_deleter(void *value)
 TimeSourceDepsNode *Depsgraph::add_time_source()
 {
 	if (time_source == NULL) {
-		DepsNodeFactory *factory = deg_get_node_factory(DEG_NODE_TYPE_TIMESOURCE);
+		DepsNodeFactory *factory = deg_type_get_factory(DEG_NODE_TYPE_TIMESOURCE);
 		time_source = (TimeSourceDepsNode *)factory->create_node(NULL, "", "Time Source");
 	}
 	return time_source;
@@ -277,11 +288,12 @@ IDDepsNode *Depsgraph::add_id_node(ID *id, const char *name)
 {
 	IDDepsNode *id_node = find_id_node(id);
 	if (!id_node) {
-		DepsNodeFactory *factory = deg_get_node_factory(DEG_NODE_TYPE_ID_REF);
+		DepsNodeFactory *factory = deg_type_get_factory(DEG_NODE_TYPE_ID_REF);
 		id_node = (IDDepsNode *)factory->create_node(id, "", name);
 		id->tag |= LIB_TAG_DOIT;
 		/* register */
 		BLI_ghash_insert(id_hash, id, id_node);
+		id_nodes.push_back(id_node);
 	}
 	return id_node;
 }
@@ -289,6 +301,7 @@ IDDepsNode *Depsgraph::add_id_node(ID *id, const char *name)
 void Depsgraph::clear_id_nodes()
 {
 	BLI_ghash_clear(id_hash, NULL, id_node_deleter);
+	id_nodes.clear();
 }
 
 /* Add new relationship between two nodes. */
@@ -312,7 +325,7 @@ DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from,
 	if (comp_node->type == DEG_NODE_TYPE_GEOMETRY) {
 		IDDepsNode *id_to = to->owner->owner;
 		IDDepsNode *id_from = from->owner->owner;
-		if (id_to != id_from && (id_to->id->tag & LIB_TAG_ID_RECALC_ALL)) {
+		if (id_to != id_from && (id_to->id->recalc & ID_RECALC_ALL)) {
 			if ((id_from->eval_flags & DAG_EVAL_NEED_CPU) == 0) {
 				id_from->tag_update(this);
 				id_from->eval_flags |= DAG_EVAL_NEED_CPU;
@@ -389,7 +402,15 @@ DepsRelation::DepsRelation(DepsNode *from,
 DepsRelation::~DepsRelation()
 {
 	/* Sanity check. */
-	BLI_assert(this->from && this->to);
+	BLI_assert(from != NULL && to != NULL);
+}
+
+void DepsRelation::unlink()
+{
+	/* Sanity check. */
+	BLI_assert(from != NULL && to != NULL);
+	remove_from_vector(&from->outlinks, this);
+	remove_from_vector(&to->inlinks, this);
 }
 
 /* Low level tagging -------------------------------------- */
@@ -410,7 +431,6 @@ void Depsgraph::add_entry_tag(OperationDepsNode *node)
 void Depsgraph::clear_all_nodes()
 {
 	clear_id_nodes();
-	BLI_ghash_clear(id_hash, NULL, NULL);
 	if (time_source != NULL) {
 		OBJECT_GUARDED_DELETE(time_source, TimeSourceDepsNode);
 		time_source = NULL;

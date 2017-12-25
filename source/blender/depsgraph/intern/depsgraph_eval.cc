@@ -49,15 +49,13 @@ extern "C" {
 
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_operation.h"
+#include "intern/nodes/deg_node_time.h"
 
 #include "intern/depsgraph.h"
 
 #ifdef WITH_LEGACY_DEPSGRAPH
 static bool use_legacy_depsgraph = true;
 #endif
-
-/* Unfinished and unused, and takes quite some pre-processing time. */
-#undef USE_EVAL_PRIORITY
 
 bool DEG_depsgraph_use_legacy(void)
 {

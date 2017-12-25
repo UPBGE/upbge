@@ -387,6 +387,14 @@ static void rna_ID_animation_data_free(ID *id, Main *bmain)
 	DAG_relations_tag_update(bmain);
 }
 
+#ifdef WITH_PYTHON
+void **rna_ID_instance(PointerRNA *ptr)
+{
+	ID *id = (ID *)ptr->data;
+	return &id->py_instance;
+}
+#endif
+
 static void rna_IDPArray_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	IDProperty *prop = (IDProperty *)ptr->data;
@@ -989,12 +997,12 @@ static void rna_def_ID(BlenderRNA *brna)
 	                         "(initial state is undefined)");
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "tag", LIB_TAG_ID_RECALC);
+	RNA_def_property_boolean_sdna(prop, NULL, "recalc", ID_RECALC);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Is Updated", "Data-block is tagged for recalculation");
 
 	prop = RNA_def_property(srna, "is_updated_data", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "tag", LIB_TAG_ID_RECALC_DATA);
+	RNA_def_property_boolean_sdna(prop, NULL, "recalc", ID_RECALC_DATA);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Is Updated Data", "Data-block data is tagged for recalculation");
 
@@ -1064,6 +1072,10 @@ static void rna_def_ID(BlenderRNA *brna)
 	                                "Tag the ID to update its display data, "
 	                                "e.g. when calling :class:`bpy.types.Scene.update`");
 	RNA_def_enum_flag(func, "refresh", update_flag_items, 0, "", "Type of updates to perform");
+
+#ifdef WITH_PYTHON
+	RNA_def_struct_register_funcs(srna, NULL, NULL, "rna_ID_instance");
+#endif
 }
 
 static void rna_def_library(BlenderRNA *brna)

@@ -61,6 +61,7 @@ extern "C" {
 #include "intern/eval/deg_eval_flush.h"
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_component.h"
+#include "intern/nodes/deg_node_id.h"
 #include "intern/nodes/deg_node_operation.h"
 
 #include "intern/depsgraph_intern.h"
@@ -83,13 +84,13 @@ namespace {
 
 void lib_id_recalc_tag(Main *bmain, ID *id)
 {
-	id->tag |= LIB_TAG_ID_RECALC;
+	id->recalc |= ID_RECALC;
 	DEG_id_type_tag(bmain, GS(id->name));
 }
 
 void lib_id_recalc_data_tag(Main *bmain, ID *id)
 {
-	id->tag |= LIB_TAG_ID_RECALC_DATA;
+	id->recalc |= ID_RECALC_DATA;
 	DEG_id_type_tag(bmain, GS(id->name));
 }
 
@@ -292,10 +293,9 @@ void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 		 * This is mainly needed on file load only, after that updates of invisible objects
 		 * will be stored in the pending list.
 		 */
-		GHASH_FOREACH_BEGIN(DEG::IDDepsNode *, id_node, graph->id_hash)
-		{
+		foreach (DEG::IDDepsNode *id_node, graph->id_nodes) {
 			ID *id = id_node->id;
-			if ((id->tag & LIB_TAG_ID_RECALC_ALL) != 0 ||
+			if ((id->recalc & ID_RECALC_ALL) != 0 ||
 			    (id_node->layers & scene->lay_updated) == 0)
 			{
 				id_node->tag_update(graph);
@@ -307,7 +307,7 @@ void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 			 */
 			if (GS(id->name) == ID_OB) {
 				Object *object = (Object *)id;
-				if ((id->tag & LIB_TAG_ID_RECALC_ALL) == 0 &&
+				if ((id->recalc & ID_RECALC_ALL) == 0 &&
 				    (object->recalc & OB_RECALC_ALL) != 0)
 				{
 					id_node->tag_update(graph);
@@ -319,7 +319,6 @@ void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 				}
 			}
 		}
-		GHASH_FOREACH_END();
 	}
 	scene->lay_updated |= graph->layers;
 	/* If graph is tagged for update, we don't need to bother with updates here,
@@ -409,12 +408,12 @@ void DEG_ids_clear_recalc(Main *bmain)
 
 		if (id && bmain->id_tag_update[BKE_idcode_to_index(GS(id->name))]) {
 			for (; id; id = (ID *)id->next) {
-				id->tag &= ~(LIB_TAG_ID_RECALC | LIB_TAG_ID_RECALC_DATA);
+				id->recalc &= ~ID_RECALC_ALL;
 
 				/* Some ID's contain semi-datablock nodetree */
 				ntree = ntreeFromID(id);
 				if (ntree != NULL) {
-					ntree->id.tag &= ~(LIB_TAG_ID_RECALC | LIB_TAG_ID_RECALC_DATA);
+					ntree->id.recalc &= ~ID_RECALC_ALL;
 				}
 			}
 		}
