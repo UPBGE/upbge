@@ -26,6 +26,7 @@ private:
 public:
 	KX_MeshBuilderSlot(KX_BlenderMaterial *material, RAS_DisplayArray::PrimitiveType primitiveType,
 			const RAS_DisplayArray::Format& format, unsigned int& origIndexCounter);
+	KX_MeshBuilderSlot(RAS_MeshMaterial *meshmat, const RAS_VertexFormat& format, unsigned int& origIndexCounter);
 	~KX_MeshBuilderSlot();
 
 	virtual std::string GetName();
@@ -96,6 +97,7 @@ private:
 public:
 	KX_MeshBuilder(const std::string& name, KX_Scene *scene, const RAS_Mesh::LayersInfo& layersInfo,
 			const RAS_DisplayArray::Format& format);
+	KX_MeshBuilder(const std::string& name, KX_Mesh *mesh);
 	~KX_MeshBuilder();
 
 	virtual std::string GetName();

@@ -23,6 +23,29 @@ KX_MeshBuilderSlot::KX_MeshBuilderSlot(KX_BlenderMaterial *material, RAS_Display
 {
 }
 
+KX_MeshBuilderSlot::KX_MeshBuilderSlot(RAS_MeshMaterial *meshmat, const RAS_VertexFormat& format, unsigned int& origIndexCounter)
+	:m_format(format),
+	m_factory(RAS_IVertexFactory::Construct(m_format)),
+	m_origIndexCounter(origIndexCounter)
+{
+	RAS_MaterialBucket *bucket = meshmat->GetBucket();
+	m_material = static_cast<KX_BlenderMaterial *>(bucket->GetPolyMaterial());
+
+	RAS_IDisplayArray *array = meshmat->GetDisplayArray();
+	m_primitive = array->GetPrimitiveType();
+
+	m_vertexInfos = array->GetVertexInfoList();
+	m_primitiveIndices = array->GetPrimitiveIndexList();
+	m_triangleIndices = array->GetTriangleIndexList();
+
+	for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+		m_vertices.push_back(m_factory->CopyVertex(array->GetVertexData(i)));
+	}
+
+	// Compute the maximum original index from the arrays.
+	m_origIndexCounter = std::max(m_origIndexCounter, array->GetMaxOrigIndex());
+}
+
 KX_MeshBuilderSlot::~KX_MeshBuilderSlot()
 {
 }
@@ -414,6 +437,19 @@ KX_MeshBuilder::KX_MeshBuilder(const std::string& name, KX_Scene *scene, const R
 {
 }
 
+KX_MeshBuilder::KX_MeshBuilder(const std::string& name, KX_Mesh *mesh)
+	:m_name(name),
+	m_layersInfo(mesh->GetLayersInfo()),
+	m_scene(mesh->GetScene())
+{
+	m_format = {(uint8_t)max_ii(m_layersInfo.uvLayers.size(), 1), (uint8_t)max_ii(m_layersInfo.colorLayers.size(), 1)};
+
+	for (RAS_MeshMaterial *meshmat : mesh->GetMeshMaterialList()) {
+		KX_MeshBuilderSlot *slot = new KX_MeshBuilderSlot(meshmat, m_format, m_origIndexCounter);
+		m_slots.Add(slot);
+	}
+}
+
 KX_MeshBuilder::~KX_MeshBuilder()
 {
 }
@@ -491,6 +527,25 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	return builder->NewProxy(true);
 }
 
+static PyObject *py_new_from_mesh(PyObject *UNUSED(self), PyObject *args)
+{
+	PyObject *pymesh;
+	const char *name;
+
+	if (!PyArg_ParseTuple(args, "sO:FromMesh", &name, &pymesh)) {
+		return nullptr;
+	}
+
+	KX_Mesh *mesh;
+	if (!ConvertPythonToMesh(KX_GetActiveScene()->GetLogicManager(), pymesh, &mesh, false, "KX_MeshBuilder.FromMesh")) {
+		return nullptr;
+	}
+
+	KX_MeshBuilder *builder = new KX_MeshBuilder(name, mesh);
+
+	return builder->NewProxy(true);
+}
+
 PyTypeObject KX_MeshBuilder::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_MeshBuilder",
@@ -514,6 +569,7 @@ PyTypeObject KX_MeshBuilder::Type = {
 };
 
 PyMethodDef KX_MeshBuilder::Methods[] = {
+	{"FromMesh", (PyCFunction)py_new_from_mesh, METH_STATIC | METH_VARARGS},
 	{"addSlot", (PyCFunction)KX_MeshBuilder::sPyAddSlot, METH_VARARGS | METH_KEYWORDS},
 	{"finish", (PyCFunction)KX_MeshBuilder::sPyFinish, METH_NOARGS},
 	{nullptr, nullptr} // Sentinel

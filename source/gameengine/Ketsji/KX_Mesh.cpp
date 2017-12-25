@@ -84,6 +84,11 @@ KX_Mesh::~KX_Mesh()
 {
 }
 
+KX_Scene *KX_Mesh::GetScene() const
+{
+	return m_scene;
+}
+
 void KX_Mesh::ReplaceScene(KX_Scene *scene)
 {
 	m_scene = scene;
