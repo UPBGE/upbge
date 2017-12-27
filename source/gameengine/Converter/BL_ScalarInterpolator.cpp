@@ -29,33 +29,39 @@
  *  \ingroup bgeconv
  */
 
-
 #include "BL_ScalarInterpolator.h"
 
-#include <cstring>
-
 extern "C" {
-#include "DNA_action_types.h"
-#include "DNA_anim_types.h"
-#include "BKE_fcurve.h"
+#  include "DNA_action_types.h"
+#  include "DNA_anim_types.h"
+#  include "BKE_fcurve.h"
+}
+
+BL_ScalarInterpolator::BL_ScalarInterpolator(FCurve *fcu)
+	:m_fcu(fcu)
+{
 }
 
 float BL_ScalarInterpolator::GetValue(float currentTime) const
 {
-	// XXX 2.4x IPO_GetFloatValue(m_blender_adt, m_channel, currentTime);
 	return evaluate_fcurve(m_fcu, currentTime);
+}
+
+FCurve *BL_ScalarInterpolator::GetFCurve() const
+{
+	return m_fcu;
 }
 
 BL_InterpolatorList::BL_InterpolatorList(bAction *action)
 	:m_action(action)
 {
-	if (action==nullptr)
+	if (!action) {
 		return;
-	
+	}
+
 	for (FCurve *fcu = (FCurve *)action->curves.first; fcu; fcu = fcu->next) {
 		if (fcu->rna_path) {
-			BL_ScalarInterpolator *new_ipo = new BL_ScalarInterpolator(fcu); 
-			//assert(new_ipo);
+			BL_ScalarInterpolator *new_ipo = new BL_ScalarInterpolator(fcu);
 			m_interpolators.push_back(new_ipo);
 		}
 	}
@@ -73,12 +79,13 @@ bAction *BL_InterpolatorList::GetAction() const
 	return m_action;
 }
 
-BL_ScalarInterpolator *BL_InterpolatorList::GetScalarInterpolator(const char *rna_path, int array_index)
+BL_ScalarInterpolator *BL_InterpolatorList::GetScalarInterpolator(const std::string& rna_path, int array_index)
 {
 	for (BL_ScalarInterpolator *interp : m_interpolators) {
-		FCurve *fcu= interp->GetFCurve();
-		if (array_index==fcu->array_index && strcmp(rna_path, fcu->rna_path)==0)
+		FCurve *fcu = interp->GetFCurve();
+		if (array_index == fcu->array_index && rna_path == fcu->rna_path) {
 			return interp;
+		}
 	}
 	return nullptr;
 }

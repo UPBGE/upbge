@@ -32,30 +32,26 @@
 #ifndef __KX_BLENDERSCALARINTERPOLATOR_H__
 #define __KX_BLENDERSCALARINTERPOLATOR_H__
 
-#include <vector>
-
 #include "KX_IScalarInterpolator.h"
 
+#include <vector>
+#include <string>
+
 struct bAction;
+struct FCurve;
 
-typedef unsigned short BL_IpoChannel;
-
-class BL_ScalarInterpolator : public KX_IScalarInterpolator {
-public:
-	BL_ScalarInterpolator() {} // required for use in STL list
-	BL_ScalarInterpolator(struct FCurve* fcu) :
-		m_fcu(fcu)
-		{}
-
-	virtual ~BL_ScalarInterpolator() {}
-	
-	virtual float GetValue(float currentTime) const;
-	struct FCurve *GetFCurve() { return m_fcu; }
-
+class BL_ScalarInterpolator : public KX_IScalarInterpolator
+{
 private:
-	struct FCurve *m_fcu;
-};
+	FCurve *m_fcu;
 
+public:
+	BL_ScalarInterpolator(FCurve *fcu);
+	virtual ~BL_ScalarInterpolator() = default;
+
+	virtual float GetValue(float currentTime) const;
+	FCurve *GetFCurve() const;
+};
 
 class BL_InterpolatorList
 {
@@ -64,12 +60,12 @@ private:
 	std::vector<BL_ScalarInterpolator *> m_interpolators;
 
 public:
-	BL_InterpolatorList(struct bAction *action);
+	BL_InterpolatorList(bAction *action);
 	~BL_InterpolatorList();
 
 	bAction *GetAction() const;
 
-	BL_ScalarInterpolator *GetScalarInterpolator(const char *rna_path, int array_index);
+	BL_ScalarInterpolator *GetScalarInterpolator(const std::string& rna_path, int array_index);
 };
 
 #endif  /* __KX_BLENDERSCALARINTERPOLATOR_H__ */
