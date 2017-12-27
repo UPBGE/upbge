@@ -41,7 +41,7 @@
 #include "KX_IInterpolator.h"
 #include "KX_ScalarInterpolator.h"
 
-#include "BL_BlenderScalarInterpolator.h"
+#include "BL_ScalarInterpolator.h"
 #include "BL_Converter.h"
 #include "KX_Globals.h"
 

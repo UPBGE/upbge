@@ -42,7 +42,7 @@
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h" // So we can handle adding new text datablocks for Python to import
 #include "KX_LibLoadStatus.h"
-#include "BL_BlenderScalarInterpolator.h"
+#include "BL_ScalarInterpolator.h"
 #include "BL_Converter.h"
 #include "BL_SceneConverter.h"
 #include "BL_BlenderDataConversion.h"

@@ -39,7 +39,7 @@
 #  include "KX_BlenderMaterial.h"
 #  include "KX_Mesh.h"
 #  include "BL_ConvertObjectInfo.h"
-#  include "BL_BlenderScalarInterpolator.h"
+#  include "BL_ScalarInterpolator.h"
 #endif
 
 #include "CM_Thread.h"
