@@ -515,7 +515,7 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 	// List of MLoopUV per uv layer index.
 	std::vector<MLoopUV *> uvLayers(layersInfo.uvLayers.size());
 	// List of MLoopCol per color layer index.
-	std::vector<MLoopCol *> colorLayers(layersInfo.uvLayers.size());
+	std::vector<MLoopCol *> colorLayers(layersInfo.colorLayers.size());
 
 	for (const RAS_Mesh::Layer& layer : layersInfo.uvLayers) {
 		const unsigned short index = layer.index;
