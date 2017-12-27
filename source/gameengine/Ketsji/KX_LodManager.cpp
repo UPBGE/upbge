@@ -92,7 +92,7 @@ inline bool KX_LodManager::LodLevelIterator::operator>(float distance2) const
 	return SQUARE(m_levels[m_index].GetDistance() - GetHysteresis(m_index)) > distance2;
 }
 
-KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter)
+KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, BL_SceneConverter& converter)
 	:m_refcount(1),
 	m_distanceFactor(ob->lodfactor)
 {

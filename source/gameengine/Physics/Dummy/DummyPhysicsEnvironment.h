@@ -122,7 +122,7 @@ public:
 		// Dummy, nothing to do here
 	}
 
-	virtual void ConvertObject(BL_BlenderSceneConverter& converter,
+	virtual void ConvertObject(BL_SceneConverter& converter,
 							   KX_GameObject *gameobj,
 	                           RAS_Mesh *meshobj,
 	                           KX_Scene *kxscene,

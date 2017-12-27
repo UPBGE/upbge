@@ -36,7 +36,7 @@
 #endif
 
 #include "wm_event_types.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_SceneConverter.h"
 #include "BL_ConvertSensors.h"
 
 /* This little block needed for linking to Blender... */
@@ -95,7 +95,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					   int activeLayerBitInfo,
 					   bool isInActiveLayer,
 					   RAS_ICanvas* canvas,
-					   BL_BlenderSceneConverter& converter
+					   BL_SceneConverter& converter
 					   )
 {
 

@@ -41,7 +41,7 @@
 
 // These three are for getting the action from the logic manager
 #include "KX_Scene.h"
-#include "BL_BlenderConverter.h"
+#include "BL_Converter.h"
 #include "SCA_LogicManager.h"
 
 extern "C" {

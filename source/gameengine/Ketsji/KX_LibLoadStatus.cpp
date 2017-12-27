@@ -27,7 +27,7 @@
 #include "KX_LibLoadStatus.h"
 #include "PIL_time.h"
 
-KX_LibLoadStatus::KX_LibLoadStatus(BL_BlenderConverter *converter, KX_KetsjiEngine *engine, KX_Scene *merge_scene, const std::string& path)
+KX_LibLoadStatus::KX_LibLoadStatus(BL_Converter *converter, KX_KetsjiEngine *engine, KX_Scene *merge_scene, const std::string& path)
 	:m_converter(converter),
 	m_engine(engine),
 	m_mergescene(merge_scene),
@@ -73,7 +73,7 @@ void KX_LibLoadStatus::RunProgressCallback()
 {
 }
 
-BL_BlenderConverter *KX_LibLoadStatus::GetConverter() const
+BL_Converter *KX_LibLoadStatus::GetConverter() const
 {
 	return m_converter;
 }
@@ -98,12 +98,12 @@ void KX_LibLoadStatus::SetBlenderScenes(const std::vector<Scene *>& scenes)
 	m_blenderScenes = scenes;
 }
 
-const std::vector<BL_BlenderSceneConverter>& KX_LibLoadStatus::GetSceneConverters() const
+const std::vector<BL_SceneConverter>& KX_LibLoadStatus::GetSceneConverters() const
 {
 	return m_sceneConvertes;
 }
 
-void KX_LibLoadStatus::AddSceneConverter(BL_BlenderSceneConverter&& converter)
+void KX_LibLoadStatus::AddSceneConverter(BL_SceneConverter&& converter)
 {
 	m_sceneConvertes.push_back(std::move(converter));
 }

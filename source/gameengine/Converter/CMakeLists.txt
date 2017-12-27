@@ -75,9 +75,9 @@ set(SRC
 	BL_ModifierDeformer.cpp
 	BL_ShapeDeformer.cpp
 	BL_SkinDeformer.cpp
-	BL_BlenderConverter.cpp
+	BL_Converter.cpp
 	BL_BlenderScalarInterpolator.cpp
-	BL_BlenderSceneConverter.cpp
+	BL_SceneConverter.cpp
 	BL_ConvertActuators.cpp
 	BL_ConvertControllers.cpp
 	BL_ConvertProperties.cpp
@@ -95,9 +95,9 @@ set(SRC
 	BL_ModifierDeformer.h
 	BL_ShapeDeformer.h
 	BL_SkinDeformer.h
-	BL_BlenderConverter.h
+	BL_Converter.h
 	BL_BlenderScalarInterpolator.h
-	BL_BlenderSceneConverter.h
+	BL_SceneConverter.h
 	BL_ConvertActuators.h
 	BL_ConvertControllers.h
 	BL_ConvertObjectInfo.h

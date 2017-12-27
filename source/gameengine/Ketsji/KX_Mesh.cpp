@@ -34,7 +34,7 @@
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 
-#include "BL_BlenderConverter.h"
+#include "BL_Converter.h"
 
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"

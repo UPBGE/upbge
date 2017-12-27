@@ -67,8 +67,8 @@
 
 #include "KX_WorldInfo.h"
 
-#include "BL_BlenderConverter.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_Converter.h"
+#include "BL_SceneConverter.h"
 
 #include "RAS_FramingManager.h"
 #include "DNA_world_types.h"
@@ -235,7 +235,7 @@ PyObject *KX_KetsjiEngine::GetPyProfileDict()
 }
 #endif
 
-void KX_KetsjiEngine::SetConverter(BL_BlenderConverter *converter)
+void KX_KetsjiEngine::SetConverter(BL_Converter *converter)
 {
 	BLI_assert(converter);
 	m_converter = converter;
@@ -1350,7 +1350,7 @@ KX_Scene *KX_KetsjiEngine::CreateScene(const std::string& scenename)
 
 void KX_KetsjiEngine::ConvertScene(KX_Scene *scene)
 {
-	BL_BlenderSceneConverter sceneConverter(scene);
+	BL_SceneConverter sceneConverter(scene);
 	m_converter->ConvertScene(sceneConverter, false);
 	// Finalize material and mesh conversion.
 	m_converter->FinalizeSceneData(sceneConverter, scene);

@@ -42,7 +42,7 @@
 #include "KX_ScalarInterpolator.h"
 
 #include "BL_BlenderScalarInterpolator.h"
-#include "BL_BlenderConverter.h"
+#include "BL_Converter.h"
 #include "KX_Globals.h"
 
 #include "RAS_IPolygonMaterial.h"
@@ -68,7 +68,7 @@
 
 static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 {
-	BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+	BL_Converter *converter = KX_GetActiveEngine()->GetConverter();
 	BL_InterpolatorList *adtList= converter->FindInterpolatorList(scene, for_act);
 
 	if (!adtList) {

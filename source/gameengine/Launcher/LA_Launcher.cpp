@@ -42,8 +42,8 @@
 #include "KX_PythonMain.h"
 #include "KX_PyConstraintBinding.h"
 
-#include "BL_BlenderConverter.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_Converter.h"
+#include "BL_SceneConverter.h"
 #include "BL_BlenderDataConversion.h"
 
 #include "KX_NetworkMessageManager.h"
@@ -279,7 +279,7 @@ void LA_Launcher::InitEngine()
 #endif  // WITH_PYTHON
 
 	// Create a scene converter, create and convert the stratingscene.
-	m_converter = new BL_BlenderConverter(m_maggie, m_ketsjiEngine);
+	m_converter = new BL_Converter(m_maggie, m_ketsjiEngine);
 	m_ketsjiEngine->SetConverter(m_converter);
 
 	m_kxStartScene = m_ketsjiEngine->CreateScene(m_startScene);

@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file BL_BlenderConverter.h
+/** \file BL_Converter.h
  *  \ingroup bgeconv
  */
 
@@ -45,7 +45,7 @@
 #include "CM_Thread.h"
 
 class EXP_StringValue;
-class BL_BlenderSceneConverter;
+class BL_SceneConverter;
 class BL_ConvertObjectInfo;
 class KX_KetsjiEngine;
 class KX_LibLoadStatus;
@@ -67,7 +67,7 @@ struct TaskPool;
 template<class Value>
 using UniquePtrList = std::vector<std::unique_ptr<Value> >;
 
-class BL_BlenderConverter
+class BL_Converter
 {
 private:
 	class SceneSlot
@@ -81,11 +81,11 @@ private:
 		std::map<bAction *, BL_InterpolatorList *> m_actionToInterp;
 
 		SceneSlot();
-		SceneSlot(const BL_BlenderSceneConverter& converter);
+		SceneSlot(const BL_SceneConverter& converter);
 		~SceneSlot();
 
 		void Merge(SceneSlot& other);
-		void Merge(const BL_BlenderSceneConverter& converter);
+		void Merge(const BL_SceneConverter& converter);
 	};
 
 	std::map<KX_Scene *, SceneSlot> m_sceneSlots;
@@ -106,10 +106,10 @@ private:
 	bool m_alwaysUseExpandFraming;
 
 public:
-	BL_BlenderConverter(Main *maggie, KX_KetsjiEngine *engine);
-	virtual ~BL_BlenderConverter();
+	BL_Converter(Main *maggie, KX_KetsjiEngine *engine);
+	virtual ~BL_Converter();
 
-	void ConvertScene(BL_BlenderSceneConverter& converter, bool libloading);
+	void ConvertScene(BL_SceneConverter& converter, bool libloading);
 
 	/** Generate shaders and mesh attributes depending on.
 	 * This function is separated from ConvertScene to be synchronized when compiling shaders
@@ -118,7 +118,7 @@ public:
 	 * \param converter The scene convert to finalize.
 	 * \param mergeScene The scene used to generate shaders.
 	 */
-	void FinalizeSceneData(const BL_BlenderSceneConverter& converter, KX_Scene *mergeScene);
+	void FinalizeSceneData(const BL_SceneConverter& converter, KX_Scene *mergeScene);
 
 	/** This function removes all entities stored in the converter for that scene
 	 * It should be used instead of direct delete scene

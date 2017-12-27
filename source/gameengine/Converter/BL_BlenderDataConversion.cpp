@@ -105,7 +105,7 @@
 #include "BL_SkinDeformer.h"
 #include "BL_MeshDeformer.h"
 #include "BL_Texture.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_SceneConverter.h"
 #include "BL_ConvertActuators.h"
 #include "BL_ConvertControllers.h"
 #include "BL_ConvertSensors.h"
@@ -382,7 +382,7 @@ static void BL_GetUvRgba(const RAS_Mesh::LayersInfo& layersInfo, std::vector<MLo
 	}
 }
 
-static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, int lightlayer, KX_Scene *scene, BL_BlenderSceneConverter& converter)
+static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, int lightlayer, KX_Scene *scene, BL_SceneConverter& converter)
 {
 	KX_BlenderMaterial *mat = converter.FindMaterial(ma);
 
@@ -408,7 +408,7 @@ static RAS_MaterialBucket *BL_ConvertMaterial(Material *ma, int lightlayer, KX_S
 }
 
 /* blenderobj can be nullptr, make sure its checked for */
-KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_BlenderSceneConverter& converter)
+KX_Mesh *BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_SceneConverter& converter)
 {
 	KX_Mesh *meshobj;
 	const int lightlayer = blenderobj ? blenderobj->lay : (1 << 20) - 1; // all layers if no object.
@@ -641,7 +641,7 @@ static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene,
 }
 
 static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobject, KX_Mesh *meshobj,
-		KX_Scene *kxscene, int activeLayerBitInfo, BL_BlenderSceneConverter& converter, bool processCompoundChildren)
+		KX_Scene *kxscene, int activeLayerBitInfo, BL_SceneConverter& converter, bool processCompoundChildren)
 
 {
 	// Object has physics representation?
@@ -689,7 +689,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobj
 		(isActor) ? KX_ClientObjectInfo::ACTOR : KX_ClientObjectInfo::STATIC;
 }
 
-static KX_LodManager *BL_LodManagerFromBlenderObject(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter)
+static KX_LodManager *BL_LodManagerFromBlenderObject(Object *ob, KX_Scene *scene, BL_SceneConverter& converter)
 {
 	if (BLI_listbase_count_ex(&ob->lodlevels, 2) <= 1) {
 		return nullptr;
@@ -835,7 +835,7 @@ static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene, 
 }
 
 static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxscene, RAS_Rasterizer *rendertools,
-                                                    RAS_ICanvas *canvas, BL_BlenderSceneConverter &converter)
+                                                    RAS_ICanvas *canvas, BL_SceneConverter &converter)
 {
 	KX_GameObject *gameobj = nullptr;
 	Scene *blenderscene = kxscene->GetBlenderScene();
@@ -1079,7 +1079,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
-static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter& converter,
+static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
                                            Object *blenderobject,
                                            std::vector<BL_ParentChildLink> &vec_parent_child,
                                            EXP_ListValue<KX_GameObject> *logicbrick_conversionlist,
@@ -1172,7 +1172,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                               e_PhysicsEngine physics_engine,
                               RAS_Rasterizer *rendertools,
                               RAS_ICanvas *canvas,
-                              BL_BlenderSceneConverter& converter,
+                              BL_SceneConverter& converter,
                               bool alwaysUseExpandFraming,
                               bool libloading)
 {

@@ -32,7 +32,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BL_BlenderSceneConverter.h"
+#include "BL_SceneConverter.h"
 #include "BL_ConvertControllers.h"
 #include "EXP_Python.h"
 
@@ -73,7 +73,7 @@ LinkControllerToActuators(
 	SCA_IController *game_controller,
 	bController* bcontr,
 	SCA_LogicManager* logicmgr,
-	BL_BlenderSceneConverter& converter
+	BL_SceneConverter& converter
 ) {
 	// Iterate through the actuators of the game blender
 	// controller and find the corresponding ketsji actuator.
@@ -95,7 +95,7 @@ void BL_ConvertControllers(
 	SCA_LogicManager* logicmgr,
 	int activeLayerBitInfo,
 	bool isInActiveLayer,
-	BL_BlenderSceneConverter& converter,
+	BL_SceneConverter& converter,
 	bool libloading
 ) {
 	int uniqueint=0;

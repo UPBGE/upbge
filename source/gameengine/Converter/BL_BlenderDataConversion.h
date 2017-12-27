@@ -40,7 +40,7 @@ class RAS_Rasterizer;
 class RAS_ICanvas;
 class KX_KetsjiEngine;
 class KX_Scene;
-class BL_BlenderSceneConverter;
+class BL_SceneConverter;
 struct Mesh;
 struct DerivedMesh;
 struct Object;
@@ -55,12 +55,12 @@ struct BL_MeshMaterial {
 	bool wire;
 };
 
-KX_Mesh *BL_ConvertMesh(Mesh *mesh, Object *lightobj, KX_Scene *scene, BL_BlenderSceneConverter& converter);
+KX_Mesh *BL_ConvertMesh(Mesh *mesh, Object *lightobj, KX_Scene *scene, BL_SceneConverter& converter);
 void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<BL_MeshMaterial>& mats,
                                   const RAS_Mesh::LayersInfo& layersInfo);
 
 void BL_ConvertBlenderObjects(Main *maggie, KX_Scene *kxscene, KX_KetsjiEngine *ketsjiEngine, e_PhysicsEngine physics_engine,
-							  RAS_Rasterizer *rendertools, RAS_ICanvas *canvas, BL_BlenderSceneConverter& sceneconverter,
+							  RAS_Rasterizer *rendertools, RAS_ICanvas *canvas, BL_SceneConverter& sceneconverter,
                               bool alwaysUseExpandFraming, bool libloading);
 
 SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code);

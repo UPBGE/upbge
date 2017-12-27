@@ -25,20 +25,20 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Converter/BL_BlenderSceneConverter.cpp
+/** \file gameengine/Converter/BL_SceneConverter.cpp
  *  \ingroup bgeconv
  */
 
-#include "BL_BlenderSceneConverter.h"
+#include "BL_SceneConverter.h"
 #include "BL_ConvertObjectInfo.h"
 #include "KX_GameObject.h"
 
-BL_BlenderSceneConverter::BL_BlenderSceneConverter(KX_Scene *scene)
+BL_SceneConverter::BL_SceneConverter(KX_Scene *scene)
 	:m_scene(scene)
 {
 }
 
-BL_BlenderSceneConverter::BL_BlenderSceneConverter(BL_BlenderSceneConverter&& other)
+BL_SceneConverter::BL_SceneConverter(BL_SceneConverter&& other)
 	:m_scene(other.m_scene),
 	m_materials(std::move(other.m_materials)),
 	m_meshobjects(std::move(other.m_meshobjects)),
@@ -52,12 +52,12 @@ BL_BlenderSceneConverter::BL_BlenderSceneConverter(BL_BlenderSceneConverter&& ot
 {
 }
 
-KX_Scene *BL_BlenderSceneConverter::GetScene() const
+KX_Scene *BL_SceneConverter::GetScene() const
 {
 	return m_scene;
 }
 
-void BL_BlenderSceneConverter::RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject)
+void BL_SceneConverter::RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject)
 {
 	// only maintained while converting, freed during game runtime
 	m_map_blender_to_gameobject[for_blenderobject] = gameobject;
@@ -65,7 +65,7 @@ void BL_BlenderSceneConverter::RegisterGameObject(KX_GameObject *gameobject, Obj
 
 /** only need to run this during conversion since
  * m_map_blender_to_gameobject is freed after conversion */
-void BL_BlenderSceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
+void BL_SceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
 {
 	Object *bobp = gameobject->GetBlenderObject();
 	if (bobp) {
@@ -78,12 +78,12 @@ void BL_BlenderSceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
 	}
 }
 
-KX_GameObject *BL_BlenderSceneConverter::FindGameObject(Object *for_blenderobject)
+KX_GameObject *BL_SceneConverter::FindGameObject(Object *for_blenderobject)
 {
 	return m_map_blender_to_gameobject[for_blenderobject];
 }
 
-void BL_BlenderSceneConverter::RegisterGameMesh(KX_Mesh *gamemesh, Mesh *for_blendermesh)
+void BL_SceneConverter::RegisterGameMesh(KX_Mesh *gamemesh, Mesh *for_blendermesh)
 {
 	if (for_blendermesh) { // dynamically loaded meshes we don't want to keep lookups for
 		m_map_mesh_to_gamemesh[for_blendermesh] = gamemesh;
@@ -91,12 +91,12 @@ void BL_BlenderSceneConverter::RegisterGameMesh(KX_Mesh *gamemesh, Mesh *for_ble
 	m_meshobjects.push_back(gamemesh);
 }
 
-KX_Mesh *BL_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
+KX_Mesh *BL_SceneConverter::FindGameMesh(Mesh *for_blendermesh)
 {
 	return m_map_mesh_to_gamemesh[for_blendermesh];
 }
 
-void BL_BlenderSceneConverter::RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat)
+void BL_SceneConverter::RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat)
 {
 	if (mat) {
 		m_map_mesh_to_polyaterial[mat] = blmat;
@@ -104,32 +104,32 @@ void BL_BlenderSceneConverter::RegisterMaterial(KX_BlenderMaterial *blmat, Mater
 	m_materials.push_back(blmat);
 }
 
-KX_BlenderMaterial *BL_BlenderSceneConverter::FindMaterial(Material *mat)
+KX_BlenderMaterial *BL_SceneConverter::FindMaterial(Material *mat)
 {
 	return m_map_mesh_to_polyaterial[mat];
 }
 
-void BL_BlenderSceneConverter::RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator)
+void BL_SceneConverter::RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator)
 {
 	m_map_blender_to_gameactuator[for_actuator] = act;
 }
 
-SCA_IActuator *BL_BlenderSceneConverter::FindGameActuator(bActuator *for_actuator)
+SCA_IActuator *BL_SceneConverter::FindGameActuator(bActuator *for_actuator)
 {
 	return m_map_blender_to_gameactuator[for_actuator];
 }
 
-void BL_BlenderSceneConverter::RegisterGameController(SCA_IController *cont, bController *for_controller)
+void BL_SceneConverter::RegisterGameController(SCA_IController *cont, bController *for_controller)
 {
 	m_map_blender_to_gamecontroller[for_controller] = cont;
 }
 
-SCA_IController *BL_BlenderSceneConverter::FindGameController(bController *for_controller)
+SCA_IController *BL_SceneConverter::FindGameController(bController *for_controller)
 {
 	return m_map_blender_to_gamecontroller[for_controller];
 }
 
-BL_ConvertObjectInfo *BL_BlenderSceneConverter::GetObjectInfo(Object *blenderobj)
+BL_ConvertObjectInfo *BL_SceneConverter::GetObjectInfo(Object *blenderobj)
 {
 	const auto& it = m_blenderToObjectInfos.find(blenderobj);
 	if (it == m_blenderToObjectInfos.end()) {

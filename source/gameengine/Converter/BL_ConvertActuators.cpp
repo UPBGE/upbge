@@ -38,7 +38,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BL_BlenderSceneConverter.h"
+#include "BL_SceneConverter.h"
 #include "BL_ConvertActuators.h"
 
 #ifdef WITH_AUDASPACE
@@ -124,7 +124,7 @@ void BL_ConvertActuators(const char* maggiename,
                          KX_KetsjiEngine* ketsjiEngine,
                          int activeLayerBitInfo,
                          bool isInActiveLayer,
-                         BL_BlenderSceneConverter& converter
+                         BL_SceneConverter& converter
                          )
 {
 	

@@ -69,7 +69,7 @@ class KX_FontObject;
 class KX_GameObject;
 class KX_LightObject;
 struct KX_ClientObjectInfo;
-class BL_BlenderSceneConverter;
+class BL_SceneConverter;
 class SG_Node;
 class PHY_IPhysicsEnvironment;
 class RAS_Mesh;
@@ -388,7 +388,7 @@ public:
 	void SetDbvtOcclusionRes(int i);
 	int GetDbvtOcclusionRes() const;
 
-	void SetSceneConverter(BL_BlenderSceneConverter *sceneConverter);
+	void SetSceneConverter(BL_SceneConverter *sceneConverter);
 
 	PHY_IPhysicsEnvironment *GetPhysicsEnvironment() const;
 	void SetPhysicsEnvironment(PHY_IPhysicsEnvironment *physEnv);

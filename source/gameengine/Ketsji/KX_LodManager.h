@@ -31,7 +31,7 @@
 #include <vector>
 
 class KX_Scene;
-class BL_BlenderSceneConverter;
+class BL_SceneConverter;
 class KX_LodLevel;
 struct Object;
 
@@ -78,7 +78,7 @@ private:
 	float m_distanceFactor;
 
 public:
-	KX_LodManager(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter);
+	KX_LodManager(Object *ob, KX_Scene *scene, BL_SceneConverter& converter);
 	virtual ~KX_LodManager();
 
 	virtual std::string GetName();

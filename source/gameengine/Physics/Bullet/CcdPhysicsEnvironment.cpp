@@ -46,7 +46,7 @@
 #include "KX_GameObject.h"
 #include "KX_Globals.h" // for KX_RasterizerDrawDebugLine
 #include "KX_Mesh.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_SceneConverter.h"
 #include "RAS_IDisplayArray.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
@@ -2655,7 +2655,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 	return ccdPhysEnv;
 }
 
-void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, KX_GameObject *gameobj, RAS_Mesh *meshobj,
+void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameObject *gameobj, RAS_Mesh *meshobj,
 										  KX_Scene *kxscene, PHY_IMotionState *motionstate,
 										  int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
 {
