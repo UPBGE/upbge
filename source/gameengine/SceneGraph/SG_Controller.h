@@ -45,15 +45,25 @@ class SG_Node;
 class SG_Controller
 {
 public:
+	/**
+	 * Option-identifiers: SG_CONTR_<controller-type>_<option>.
+	 * Options only apply to a specific controller type. The
+	 * semantics are defined by whoever uses the setting.
+	 */
+	enum SG_ControllerOption {
+		SG_CONTR_NODEF = 0,
+		SG_CONTR_IPO_IPO_AS_FORCE,
+		SG_CONTR_IPO_IPO_ADD,
+		SG_CONTR_IPO_LOCAL,
+		SG_CONTR_IPO_RESET,
+		SG_CONTR_CAMIPO_LENS,
+		SG_CONTR_CAMIPO_CLIPEND,
+		SG_CONTR_CAMIPO_CLIPSTART,
+		SG_CONTR_MAX
+	};
 
-	SG_Controller()
-		:m_node(nullptr)
-	{
-	}
-
-	virtual ~SG_Controller()
-	{
-	}
+	SG_Controller();
+	virtual ~SG_Controller() = default;
 
 	virtual bool Update(double time) = 0;
 
@@ -61,7 +71,7 @@ public:
 
 	void ClearNode();
 
-	virtual void SetSimulatedTime(double time) = 0;
+	void SetSimulatedTime(double time);
 
 	virtual SG_Controller *GetReplica(SG_Node *destnode) = 0;
 
@@ -74,27 +84,15 @@ public:
 	 * \attention necessary because the identity of the controller
 	 * \attention is lost on the way here.
 	 */
-	virtual void SetOption(int option, int value) = 0;
-
-	/**
-	 * Option-identifiers: SG_CONTR_<controller-type>_<option>.
-	 * Options only apply to a specific controller type. The
-	 * semantics are defined by whoever uses the setting.
-	 */
-	enum SG_Controller_option {
-		SG_CONTR_NODEF = 0,
-		SG_CONTR_IPO_IPO_AS_FORCE,
-		SG_CONTR_IPO_IPO_ADD,
-		SG_CONTR_IPO_LOCAL,
-		SG_CONTR_IPO_RESET,
-		SG_CONTR_CAMIPO_LENS,
-		SG_CONTR_CAMIPO_CLIPEND,
-		SG_CONTR_CAMIPO_CLIPSTART,
-		SG_CONTR_MAX
-	};
+	virtual void SetOption(SG_ControllerOption option, bool value);
 
 protected:
 	SG_Node *m_node;
+	/// Were settings altered since the last update?
+	bool m_modified;
+	/// Local time of this ipo.
+	double m_ipotime;
+
 };
 
 #endif  /* __SG_CONTROLLER_H__ */

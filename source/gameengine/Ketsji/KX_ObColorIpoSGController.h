@@ -45,30 +45,13 @@ public:
 
 private:
 	T_InterpolatorList	m_interpolators;
-	bool				m_modified;
 
-	double		        m_ipotime;
 public:
-	KX_ObColorIpoSGController() : 
-				m_modified(true),
-				m_ipotime(0.0)
+	KX_ObColorIpoSGController()
 		{}
 	virtual ~KX_ObColorIpoSGController();
 	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
 	virtual bool Update(double time);
-	virtual void SetSimulatedTime(double time) {
-		m_ipotime = time;
-		m_modified = true;
-	}
-	
-		void
-	SetOption(
-		int option,
-		int value
-	) {
-		// intentionally empty
-	};
-
 
 	void	AddInterpolator(KX_IInterpolator* interp);
 };

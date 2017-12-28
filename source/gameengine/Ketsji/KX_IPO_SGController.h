@@ -56,12 +56,6 @@ class KX_IpoSGController : public SG_Controller, public mt::SimdClassAllocator
 
 	/** Ipo must be applied in local coordinate rather than in global coordinates (used for force and Add mode)*/
 	bool m_ipo_local;
-	
-	/** Were settings altered since the last update? */
-	bool m_modified;
-
-	/** Local time of this ipo.*/
-	double m_ipotime;
 
 	/** Location of the object when the IPO is first fired (for local transformations) */
 	mt::vec3 m_ipo_start_point;
@@ -90,7 +84,7 @@ public:
 
 	virtual SG_Controller *GetReplica(class SG_Node *destnode);
 
-	void SetOption(int option, int value);
+	virtual void SetOption(SG_ControllerOption option, bool value);
 
 	/** Set reference to the corresponding game object. */
 	void SetGameObject(class KX_GameObject *go);
@@ -107,11 +101,6 @@ public:
 
 	void AddInterpolator(KX_IInterpolator *interp);
 	virtual bool Update(double time);
-	virtual void SetSimulatedTime(double time)
-	{
-		m_ipotime = time;
-		m_modified = true;
-	}
 };
 
 #endif  /* __KX_IPO_SGCONTROLLER_H__ */

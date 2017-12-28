@@ -51,27 +51,17 @@ private:
 	unsigned short  	m_modify_lens 	 : 1;
 	unsigned short	    m_modify_clipstart       : 1;
 	unsigned short		m_modify_clipend    	 : 1;
-	bool				m_modified;
 
-	double		        m_ipotime;
 public:
 	KX_CameraIpoSGController() : 
 				m_modify_lens(false),
 				m_modify_clipstart(false),
-				m_modify_clipend(false),
-				m_modified(true),
-				m_ipotime(0.0)
+				m_modify_clipend(false)
 		{}
 
 	~KX_CameraIpoSGController();
 	SG_Controller*	GetReplica(class SG_Node* destnode);
 	bool Update(double time);
-
-		void
-	SetOption(
-		int option,
-		int value
-	);
 
 	void SetSimulatedTime(double time) {
 		m_ipotime = time;

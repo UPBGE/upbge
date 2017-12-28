@@ -54,9 +54,6 @@ private:
 	unsigned short		m_modify_horizon_color	: 1;
 	unsigned short		m_modify_zenith_color : 1;
 	unsigned short		m_modify_ambient_color	: 1;
-	bool				m_modified;
-
-	double		        m_ipotime;
 
 public:
 	KX_WorldIpoController() : 
@@ -65,9 +62,7 @@ public:
 				m_modify_mist_intensity(false),
 				m_modify_horizon_color(false),
 				m_modify_zenith_color(false),
-				m_modify_ambient_color(false),
-				m_modified(true),
-				m_ipotime(0.0)
+				m_modify_ambient_color(false)
 		{}
 
 	virtual ~KX_WorldIpoController();
@@ -75,11 +70,6 @@ public:
 	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
 
 	virtual bool Update(double time);
-	
-	virtual void SetSimulatedTime(double time) {
-		m_ipotime = time;
-		m_modified = true;
-	}
 
 	void	SetModifyMistStart(bool modify) {
 		m_modify_mist_start = modify;
@@ -104,14 +94,6 @@ public:
 	void	SetModifyAmbientColor(bool modify) {
 		m_modify_ambient_color = modify;
 	}
-
-		void
-	SetOption(
-		int option,
-		int value
-	) {
-		// intentionally empty
-	};
 
 	void	AddInterpolator(KX_IInterpolator* interp);
 };

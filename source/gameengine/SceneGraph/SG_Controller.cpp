@@ -31,12 +31,29 @@
 
 #include "SG_Controller.h"
 
+SG_Controller::SG_Controller()
+	:m_node(nullptr),
+	m_modified(true),
+	m_ipotime(0.0)
+{
+}
+
 void SG_Controller::SetNode(SG_Node *node)
 {
-	m_node = node; // no checks yet ?
+	m_node = node;
 }
 
 void SG_Controller::ClearNode()
 {
 	m_node = nullptr;
+}
+
+void SG_Controller::SetSimulatedTime(double time)
+{
+	m_ipotime = time;
+	m_modified = true;
+}
+
+void SG_Controller::SetOption(SG_Controller::SG_ControllerOption option, bool value)
+{
 }

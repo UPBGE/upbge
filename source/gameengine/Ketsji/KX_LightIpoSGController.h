@@ -51,16 +51,12 @@ private:
 	unsigned short  	m_modify_energy 	 : 1;
 	unsigned short	    m_modify_color       : 1;
 	unsigned short		m_modify_dist    	 : 1;
-	bool				m_modified;
 
-	double		        m_ipotime;
 public:
 	KX_LightIpoSGController() : 
 				m_modify_energy(false),
 				m_modify_color(false),
-				m_modify_dist(false),
-				m_modified(true),
-				m_ipotime(0.0)
+				m_modify_dist(false)
 		{}
 
 	virtual ~KX_LightIpoSGController();
@@ -68,11 +64,6 @@ public:
 	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
 
 	virtual bool Update(double time);
-	
-	virtual void SetSimulatedTime(double time) {
-		m_ipotime = time;
-		m_modified = true;
-	}
 
 	void	SetModifyEnergy(bool modify) {
 		m_modify_energy = modify;
@@ -85,14 +76,6 @@ public:
 	void	SetModifyDist(bool modify) {
 		m_modify_dist = modify;
 	}
-
-			void
-	SetOption(
-		int option,
-		int value
-	) {
-		// intentionally empty
-	};
 
 	void	AddInterpolator(KX_IInterpolator* interp);
 };

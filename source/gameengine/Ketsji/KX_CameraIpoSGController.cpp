@@ -115,12 +115,3 @@ KX_CameraIpoSGController::~KX_CameraIpoSGController()
 	}
 	
 }
-
-	void
-KX_CameraIpoSGController::SetOption(
-	int option,
-	int value) 
-{
-	/* Setting options */
-
-}
