@@ -38,7 +38,7 @@
 
 #include "KX_GameObject.h"
 #include "BL_IpoConvert.h"
-#include "KX_IInterpolator.h"
+#include "SG_IInterpolator.h"
 #include "KX_ScalarInterpolator.h"
 
 #include "BL_ScalarInterpolator.h"
@@ -112,7 +112,7 @@ SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_S
 	// For each active channel in the adtList add an
 	// interpolator to the game object.
 		
-	KX_IInterpolator *interpolator;
+	SG_IInterpolator *interpolator;
 	BL_ScalarInterpolator *interp;
 		
 	for (int i=0; i<3; i++) {
@@ -166,7 +166,7 @@ SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_S
 SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject* gameobj, KX_Scene *scene)
 {
 	KX_ObColorIpoSGController* ipocontr_obcol=nullptr;
-	KX_IInterpolator *interpolator;
+	SG_IInterpolator *interpolator;
 	BL_ScalarInterpolator *interp;
 	BL_InterpolatorList *adtList= GetAdtList(action, scene);
 
@@ -200,7 +200,7 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj
 	// For each active channel in the adtList add an
 	// interpolator to the game object.
 		
-	KX_IInterpolator *interpolator;
+	SG_IInterpolator *interpolator;
 	BL_ScalarInterpolator *interp;
 		
 	if ((interp= adtList->GetScalarInterpolator("energy", 0))) {
@@ -241,7 +241,7 @@ SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject*  camera
 	// For each active channel in the adtList add an
 	// interpolator to the game object.
 		
-	KX_IInterpolator *interpolator;
+	SG_IInterpolator *interpolator;
 	BL_ScalarInterpolator *interp;
 		
 	if ((interp = adtList->GetScalarInterpolator("lens", 0))) {
@@ -274,7 +274,7 @@ SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, 
 		BL_InterpolatorList *adtList = GetAdtList(action, scene);
 
 		// For each active channel in the adtList add an interpolator to the game object.
-		KX_IInterpolator *interpolator;
+		SG_IInterpolator *interpolator;
 		BL_ScalarInterpolator *interp;
 
 		for (int i=0; i<3; i++) {
@@ -362,7 +362,7 @@ SG_Controller *BL_CreateMaterialIpo(
 	KX_MaterialIpoController* ipocontr = nullptr;
 
 	BL_InterpolatorList *adtList= GetAdtList(action, scene);
-	KX_IInterpolator *interpolator;
+	SG_IInterpolator *interpolator;
 	BL_ScalarInterpolator *sinterp;
 
 	// --

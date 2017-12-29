@@ -355,7 +355,7 @@ void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost
 		NodeSetLocalScale(scale1);
 		NodeSetLocalPosition(mt::vec3(newpos[0],newpos[1],newpos[2]));
 		NodeSetLocalOrientation(invori*NodeGetWorldOrientation());
-		NodeUpdateGS(0.f);
+		NodeUpdateGS();
 		// object will now be a child, it must be removed from the parent list
 		EXP_ListValue<KX_GameObject> *rootlist = scene->GetRootParentList();
 		if (rootlist->RemoveValue(this))
@@ -393,7 +393,7 @@ void KX_GameObject::RemoveParent()
 
 		// Remove us from our parent
 		GetSGNode()->DisconnectFromParent();
-		NodeUpdateGS(0.f);
+		NodeUpdateGS();
 
 		KX_Scene *scene = GetScene();
 		// the object is now a root object, add it to the parentlist
@@ -675,7 +675,7 @@ void KX_GameObject::ApplyMovement(const mt::vec3& dloc,bool local)
 		m_physicsController->RelativeTranslate(dloc,local);
 	}
 	GetSGNode()->RelativeTranslate(dloc,GetSGNode()->GetSGParent(),local);
-	NodeUpdateGS(0.0f);
+	NodeUpdateGS();
 }
 
 void KX_GameObject::ApplyRotation(const mt::vec3& drot,bool local)
@@ -687,7 +687,7 @@ void KX_GameObject::ApplyRotation(const mt::vec3& drot,bool local)
 	if (m_physicsController) { // (IsDynamic())
 		m_physicsController->RelativeRotate(rotmat,local);
 	}
-	NodeUpdateGS(0.0f);
+	NodeUpdateGS();
 }
 
 void KX_GameObject::UpdateBlenderObjectMatrix(Object* blendobj)
@@ -877,14 +877,11 @@ void KX_GameObject::InitIPO(bool ipo_as_force,
                             bool ipo_add,
                             bool ipo_local)
 {
-	SGControllerList::iterator it = GetSGNode()->GetSGControllerList().begin();
-
-	while (it != GetSGNode()->GetSGControllerList().end()) {
-		(*it)->SetOption(SG_Controller::SG_CONTR_IPO_RESET, true);
-		(*it)->SetOption(SG_Controller::SG_CONTR_IPO_IPO_AS_FORCE, ipo_as_force);
-		(*it)->SetOption(SG_Controller::SG_CONTR_IPO_IPO_ADD, ipo_add);
-		(*it)->SetOption(SG_Controller::SG_CONTR_IPO_LOCAL, ipo_local);
-		it++;
+	for (SG_Controller *cont : m_sgNode->GetSGControllerList()) {
+		cont->SetOption(SG_Controller::SG_CONTR_IPO_RESET, true);
+		cont->SetOption(SG_Controller::SG_CONTR_IPO_IPO_AS_FORCE, ipo_as_force);
+		cont->SetOption(SG_Controller::SG_CONTR_IPO_IPO_ADD, ipo_add);
+		cont->SetOption(SG_Controller::SG_CONTR_IPO_LOCAL, ipo_local);
 	}
 } 
 
@@ -892,8 +889,8 @@ void KX_GameObject::UpdateIPO(float curframetime,
 							  bool recurse) 
 {
 	// just the 'normal' update procedure.
-	GetSGNode()->SetSimulatedTimeThread(curframetime,recurse);
-	GetSGNode()->UpdateWorldDataThread(curframetime);
+	GetSGNode()->SetSimulatedTimeThread(curframetime, recurse);
+	GetSGNode()->UpdateWorldDataThread();
 }
 
 bool
@@ -1337,10 +1334,9 @@ void KX_GameObject::NodeSetWorldPosition(const mt::vec3& trans)
 	}
 }
 
-
-void KX_GameObject::NodeUpdateGS(double time)
+void KX_GameObject::NodeUpdateGS()
 {
-	m_sgNode->UpdateWorldData(time);
+	m_sgNode->UpdateWorldData();
 }
 
 const mt::mat3& KX_GameObject::NodeGetWorldOrientation() const
@@ -1735,19 +1731,19 @@ static int mathutils_kxgameob_vector_set(BaseMathObject *bmo, int subtype)
 	switch (subtype) {
 		case MATHUTILS_VEC_CB_POS_LOCAL:
 			self->NodeSetLocalPosition(mt::vec3(bmo->data));
-			self->NodeUpdateGS(0.f);
+			self->NodeUpdateGS();
 			break;
 		case MATHUTILS_VEC_CB_POS_GLOBAL:
 			self->NodeSetWorldPosition(mt::vec3(bmo->data));
-			self->NodeUpdateGS(0.f);
+			self->NodeUpdateGS();
 			break;
 		case MATHUTILS_VEC_CB_SCALE_LOCAL:
 			self->NodeSetLocalScale(mt::vec3(bmo->data));
-			self->NodeUpdateGS(0.f);
+			self->NodeUpdateGS();
 			break;
 		case MATHUTILS_VEC_CB_SCALE_GLOBAL:
 			self->NodeSetWorldScale(mt::vec3(bmo->data));
-			self->NodeUpdateGS(0.0f);
+			self->NodeUpdateGS();
 			break;
 		case MATHUTILS_VEC_CB_INERTIA_LOCAL:
 			/* read only */
@@ -1839,12 +1835,12 @@ static int mathutils_kxgameob_matrix_set(BaseMathObject *bmo, int subtype)
 		case MATHUTILS_MAT_CB_ORI_LOCAL:
 			mat3x3 = mt::mat3(bmo->data);
 			self->NodeSetLocalOrientation(mat3x3);
-			self->NodeUpdateGS(0.f);
+			self->NodeUpdateGS();
 			break;
 		case MATHUTILS_MAT_CB_ORI_GLOBAL:
 			mat3x3 = mt::mat3(bmo->data);
 			self->NodeSetLocalOrientation(mat3x3);
-			self->NodeUpdateGS(0.f);
+			self->NodeUpdateGS();
 			break;
 	}
 	
@@ -2728,7 +2724,7 @@ int KX_GameObject::pyattr_set_worldPosition(EXP_PyObjectPlus *self_v, const EXP_
 		return PY_SET_ATTR_FAIL;
 	
 	self->NodeSetWorldPosition(pos);
-	self->NodeUpdateGS(0.f);
+	self->NodeUpdateGS();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2752,7 +2748,7 @@ int KX_GameObject::pyattr_set_localPosition(EXP_PyObjectPlus *self_v, const EXP_
 		return PY_SET_ATTR_FAIL;
 	
 	self->NodeSetLocalPosition(pos);
-	self->NodeUpdateGS(0.f);
+	self->NodeUpdateGS();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2793,7 +2789,7 @@ int KX_GameObject::pyattr_set_worldOrientation(EXP_PyObjectPlus *self_v, const E
 
 	self->NodeSetGlobalOrientation(rot);
 	
-	self->NodeUpdateGS(0.f);
+	self->NodeUpdateGS();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2819,7 +2815,7 @@ int KX_GameObject::pyattr_set_localOrientation(EXP_PyObjectPlus *self_v, const E
 		return PY_SET_ATTR_FAIL;
 
 	self->NodeSetLocalOrientation(rot);
-	self->NodeUpdateGS(0.f);
+	self->NodeUpdateGS();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2843,7 +2839,7 @@ int KX_GameObject::pyattr_set_worldScaling(EXP_PyObjectPlus *self_v, const EXP_P
 		return PY_SET_ATTR_FAIL;
 
 	self->NodeSetWorldScale(scale);
-	self->NodeUpdateGS(0.f);
+	self->NodeUpdateGS();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2867,7 +2863,7 @@ int KX_GameObject::pyattr_set_localScaling(EXP_PyObjectPlus *self_v, const EXP_P
 		return PY_SET_ATTR_FAIL;
 
 	self->NodeSetLocalScale(scale);
-	self->NodeUpdateGS(0.f);
+	self->NodeUpdateGS();
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -3715,7 +3711,7 @@ PyObject *KX_GameObject::PyAlignAxisToVect(PyObject *args, PyObject *kwds)
 				if (fac> 1.0f) fac = 1.0f;
 
 				AlignAxisToVect(vect, axis, fac);
-				NodeUpdateGS(0.f);
+				NodeUpdateGS();
 			}
 			Py_RETURN_NONE;
 		}

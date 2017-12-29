@@ -275,7 +275,7 @@ public:
 	static bool KX_ScenegraphUpdateFunc(SG_Node *node, void *gameobj, void *scene);
 	static bool KX_ScenegraphRescheduleFunc(SG_Node *node, void *gameobj, void *scene);
 	/// SceneGraph transformation update.
-	void UpdateParents(double curtime);
+	void UpdateParents();
 
 	void DupliGroupRecurse(KX_GameObject *groupobj, int level);
 	bool IsObjectInGroup(KX_GameObject *gameobj) const;

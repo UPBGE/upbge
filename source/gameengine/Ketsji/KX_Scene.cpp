@@ -774,7 +774,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 		const mt::mat3 newori = groupobj->NodeGetWorldOrientation() * gameobj->NodeGetWorldOrientation();
 		replica->NodeSetLocalOrientation(newori);
 		// Update scenegraph for entire tree of children.
-		replica->GetSGNode()->UpdateWorldData(0.0);
+		replica->GetSGNode()->UpdateWorldData();
 		// We can now add the graphic controller to the physic engine.
 		replica->ActivateGraphicController(true);
 
@@ -875,7 +875,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobj, KX_GameObj
 		replica->NodeSetRelativeScale(newscale);
 	}
 
-	replica->GetSGNode()->UpdateWorldData(0.0);
+	replica->GetSGNode()->UpdateWorldData();
 	// The size is correct, we can add the graphic controller to the physic engine.
 	replica->ActivateGraphicController(true);
 
@@ -1405,13 +1405,13 @@ void KX_Scene::LogicEndFrame()
 	}
 }
 
-void KX_Scene::UpdateParents(double curtime)
+void KX_Scene::UpdateParents()
 {
 	// We use the SG dynamic list
 	SG_Node *node;
 
 	while ((node = SG_Node::GetNextScheduled(m_sghead))) {
-		node->UpdateWorldData(curtime);
+		node->UpdateWorldData();
 	}
 
 	// The list must be empty here

@@ -32,12 +32,12 @@
 #ifndef __KX_ORIENTATIONINTERPOLATOR_H__
 #define __KX_ORIENTATIONINTERPOLATOR_H__
 
-#include "KX_IInterpolator.h"
+#include "SG_IInterpolator.h"
 #include "mathfu.h"
 
 class KX_IScalarInterpolator;
 
-class KX_OrientationInterpolator : public KX_IInterpolator {
+class KX_OrientationInterpolator : public SG_IInterpolator {
 public:
 	KX_OrientationInterpolator(mt::mat3& target,
 	                           KX_IScalarInterpolator **ipos)

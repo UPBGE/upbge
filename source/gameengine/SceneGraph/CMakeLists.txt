@@ -47,6 +47,7 @@ set(SRC
 	SG_DList.h
 	SG_Familly.h
 	SG_Frustum.h
+	SG_IInterpolator.h
 	SG_Node.h
 	SG_ParentRelation.h
 	SG_QList.h

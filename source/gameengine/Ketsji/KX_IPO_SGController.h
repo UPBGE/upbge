@@ -36,14 +36,13 @@
 #include "SG_Node.h"
 
 #include "KX_IPOTransform.h"
-#include "KX_IInterpolator.h"
+#include "SG_IInterpolator.h"
 
 #define KX_MAX_IPO_CHANNELS 19	//note- [0] is not used
 
 class KX_IpoSGController : public SG_Controller, public mt::SimdClassAllocator
 {
 	KX_IPOTransform m_ipo_xform;
-	T_InterpolatorList m_interpolators;
 
 	/** Flag for each IPO channel that can be applied to a game object */
 	bool m_ipo_channels_active[KX_MAX_IPO_CHANNELS];
@@ -80,7 +79,7 @@ class KX_IpoSGController : public SG_Controller, public mt::SimdClassAllocator
 
 public:
 	KX_IpoSGController();
-	virtual ~KX_IpoSGController();
+	virtual ~KX_IpoSGController() = default;
 
 	virtual SG_Controller *GetReplica(class SG_Node *destnode);
 
@@ -99,8 +98,7 @@ public:
 		return m_ipo_xform;
 	}
 
-	void AddInterpolator(KX_IInterpolator *interp);
-	virtual bool Update(double time);
+	virtual bool Update();
 };
 
 #endif  /* __KX_IPO_SGCONTROLLER_H__ */

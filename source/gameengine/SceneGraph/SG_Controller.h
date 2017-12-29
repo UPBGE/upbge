@@ -35,7 +35,7 @@
 #ifndef __SG_CONTROLLER_H__
 #define __SG_CONTROLLER_H__
 
-#include <stddef.h>
+#include "SG_IInterpolator.h"
 
 class SG_Node;
 
@@ -63,11 +63,12 @@ public:
 	};
 
 	SG_Controller();
-	virtual ~SG_Controller() = default;
+	virtual ~SG_Controller();
 
-	virtual bool Update(double time) = 0;
+	/// Perform an update, returns true when the update was performed.
+	virtual bool Update();
 
-	virtual void SetNode(SG_Node *node);
+	void SetNode(SG_Node *node);
 
 	void ClearNode();
 
@@ -86,10 +87,15 @@ public:
 	 */
 	virtual void SetOption(SG_ControllerOption option, bool value);
 
+	void AddInterpolator(SG_IInterpolator *interp);
+
+
 protected:
-	SG_Node *m_node;
+	SG_IInterpolatorList m_interpolators;
 	/// Were settings altered since the last update?
 	bool m_modified;
+
+	SG_Node *m_node;
 	/// Local time of this ipo.
 	double m_ipotime;
 

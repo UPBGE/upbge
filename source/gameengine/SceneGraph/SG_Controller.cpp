@@ -32,10 +32,32 @@
 #include "SG_Controller.h"
 
 SG_Controller::SG_Controller()
-	:m_node(nullptr),
-	m_modified(true),
+	:m_modified(true),
+	m_node(nullptr),
 	m_ipotime(0.0)
 {
+}
+
+SG_Controller::~SG_Controller()
+{
+	for (SG_IInterpolator *interp : m_interpolators) {
+		delete interp;
+	}
+}
+
+bool SG_Controller::Update()
+{
+	if (!m_modified) {
+		return false;
+	}
+
+	m_modified = false;
+
+	for (SG_IInterpolator *interp : m_interpolators) {
+		interp->Execute(m_ipotime);
+	}
+
+	return true;
 }
 
 void SG_Controller::SetNode(SG_Node *node)
@@ -56,4 +78,9 @@ void SG_Controller::SetSimulatedTime(double time)
 
 void SG_Controller::SetOption(SG_Controller::SG_ControllerOption option, bool value)
 {
+}
+
+void SG_Controller::AddInterpolator(SG_IInterpolator *interp)
+{
+	m_interpolators.push_back(interp);
 }

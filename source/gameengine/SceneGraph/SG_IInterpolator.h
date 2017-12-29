@@ -25,23 +25,25 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_IInterpolator.h
- *  \ingroup ketsji
+/** \file SG_IInterpolator.h
+ *  \ingroup scenegraph
  */
 
-#ifndef __KX_IINTERPOLATOR_H__
-#define __KX_IINTERPOLATOR_H__
+#ifndef __SG_IINTERPOLATOR_H__
+#define __SG_IINTERPOLATOR_H__
 
 #include <vector>
 
-class KX_IInterpolator {
+class SG_IInterpolator
+{
 public:
-	virtual ~KX_IInterpolator() {}
+	SG_IInterpolator() = default;
+	virtual ~SG_IInterpolator() = default;
 	
 	virtual void Execute(float currentTime) const = 0; 
 };
 
-typedef std::vector<KX_IInterpolator *> T_InterpolatorList;
+using SG_IInterpolatorList = std::vector<SG_IInterpolator *>;
 
-#endif
+#endif  // __SG_IINTERPOLATOR_H__
 

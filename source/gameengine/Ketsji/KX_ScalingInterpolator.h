@@ -32,12 +32,12 @@
 #ifndef __KX_SCALINGINTERPOLATOR_H__
 #define __KX_SCALINGINTERPOLATOR_H__
 
-#include "KX_IInterpolator.h"
+#include "SG_IInterpolator.h"
 #include "mathfu.h"
 
 class KX_IScalarInterpolator;
 
-class KX_ScalingInterpolator : public KX_IInterpolator {
+class KX_ScalingInterpolator : public SG_IInterpolator {
 public:
 	KX_ScalingInterpolator(mt::vec3& target,
 						   KX_IScalarInterpolator *ipos[])

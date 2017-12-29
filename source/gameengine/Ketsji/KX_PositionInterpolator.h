@@ -32,12 +32,12 @@
 #ifndef __KX_POSITIONINTERPOLATOR_H__
 #define __KX_POSITIONINTERPOLATOR_H__
 
-#include "KX_IInterpolator.h"
+#include "SG_IInterpolator.h"
 #include "mathfu.h"
 
 class KX_IScalarInterpolator;
 
-class KX_PositionInterpolator : public KX_IInterpolator {
+class KX_PositionInterpolator : public SG_IInterpolator {
 public:
 	KX_PositionInterpolator(mt::vec3& target, 
 							KX_IScalarInterpolator *ipos[]) :

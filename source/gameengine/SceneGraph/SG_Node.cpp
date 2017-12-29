@@ -222,38 +222,36 @@ void SG_Node::RemoveChild(SG_Node *child)
 	CM_ListRemoveIfFound(m_children, child);
 }
 
-void SG_Node::UpdateWorldData(double time, bool parentUpdated)
+void SG_Node::UpdateWorldData(bool parentUpdated)
 {
-	if (UpdateSpatialData(GetSGParent(), time, parentUpdated)) {
-		// to update the
-		ActivateUpdateTransformCallback();
-	}
+	UpdateSpatialData(m_SGparent, parentUpdated);
+
+	ActivateUpdateTransformCallback();
 
 	// The node is updated, remove it from the update list
 	Delink();
 
 	// update children's worlddata
 	for (SG_Node *childnode : m_children) {
-		childnode->UpdateWorldData(time, parentUpdated);
+		childnode->UpdateWorldData(parentUpdated);
 	}
 }
 
-void SG_Node::UpdateWorldDataThread(double time, bool parentUpdated)
+void SG_Node::UpdateWorldDataThread(bool parentUpdated)
 {
 	CM_ThreadSpinLock& famillyMutex = m_familly->GetMutex();
 	famillyMutex.Lock();
 
-	UpdateWorldDataThreadSchedule(time, parentUpdated);
+	UpdateWorldDataThreadSchedule(parentUpdated);
 
 	famillyMutex.Unlock();
 }
 
-void SG_Node::UpdateWorldDataThreadSchedule(double time, bool parentUpdated)
+void SG_Node::UpdateWorldDataThreadSchedule(bool parentUpdated)
 {
-	if (UpdateSpatialData(GetSGParent(), time, parentUpdated)) {
-		// to update the
-		ActivateUpdateTransformCallback();
-	}
+	UpdateSpatialData(m_SGparent, parentUpdated);
+
+	ActivateUpdateTransformCallback();
 
 	scheduleMutex.Lock();
 	// The node is updated, remove it from the update list
@@ -262,7 +260,7 @@ void SG_Node::UpdateWorldDataThreadSchedule(double time, bool parentUpdated)
 
 	// update children's worlddata
 	for (SG_Node *childnode : m_children) {
-		childnode->UpdateWorldDataThreadSchedule(time, parentUpdated);
+		childnode->UpdateWorldDataThreadSchedule(parentUpdated);
 	}
 }
 
@@ -419,26 +417,15 @@ SG_ParentRelation *SG_Node::GetParentRelation()
  * Update Spatial Data.
  * Calculates WorldTransform., (either doing its self or using the linked SGControllers)
  */
-bool SG_Node::UpdateSpatialData(const SG_Node *parent, double time, bool& parentUpdated)
+void SG_Node::UpdateSpatialData(const SG_Node *parent, bool& parentUpdated)
 {
-	bool bComputesWorldTransform = false;
-
 	// update spatial controllers
 	for (SG_Controller *cont : m_SGcontrollers) {
-		if (cont->Update(time)) {
-			bComputesWorldTransform = true;
-		}
+		cont->Update();
 	}
 
-	// If none of the objects updated our values then we ask the
-	// parent_relation object owned by this class to update
-	// our world coordinates.
-
-	if (!bComputesWorldTransform) {
-		bComputesWorldTransform = ComputeWorldTransforms(parent, parentUpdated);
-	}
-
-	return bComputesWorldTransform;
+	// Ask the parent_relation object owned by this class to update our world coordinates.
+	ComputeWorldTransforms(parent, parentUpdated);
 }
 
 /**

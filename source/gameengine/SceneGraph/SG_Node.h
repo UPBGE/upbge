@@ -187,8 +187,8 @@ public:
 	 * Update the spatial data of this node. Iterate through
 	 * the children of this node and update their world data.
 	 */
-	void UpdateWorldData(double time, bool parentUpdated = false);
-	void UpdateWorldDataThread(double time, bool parentUpdated = false);
+	void UpdateWorldData(bool parentUpdated = false);
+	void UpdateWorldDataThread(bool parentUpdated = false);
 
 	/**
 	 * Update the simulation time of this node. Iterate through
@@ -363,10 +363,10 @@ protected:
 	 * Update the world coordinates of this spatial node. This also informs
 	 * any controllers to update this object.
 	 */
-	bool UpdateSpatialData(const SG_Node *parent, double time, bool& parentUpdated);
+	void UpdateSpatialData(const SG_Node *parent, bool& parentUpdated);
 
 private:
-	void UpdateWorldDataThreadSchedule(double time, bool parentUpdated = false);
+	void UpdateWorldDataThreadSchedule(bool parentUpdated = false);
 
 	void ProcessSGReplica(SG_Node **replica);
 

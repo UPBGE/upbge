@@ -34,7 +34,7 @@
 
 #include "SG_Controller.h"
 #include "SG_Node.h"
-#include "KX_IInterpolator.h"
+#include "SG_IInterpolator.h"
 
 class KX_WorldIpoController : public SG_Controller, public mt::SimdClassAllocator
 {
@@ -47,7 +47,6 @@ public:
 	mt::vec3 m_ambi_rgb;
 
 private:
-	T_InterpolatorList	m_interpolators;
 	unsigned short		m_modify_mist_start	 : 1;
 	unsigned short  	m_modify_mist_dist 	 : 1;
 	unsigned short		m_modify_mist_intensity	: 1;
@@ -65,11 +64,11 @@ public:
 				m_modify_ambient_color(false)
 		{}
 
-	virtual ~KX_WorldIpoController();
+	virtual ~KX_WorldIpoController() = default;
 
 	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
 
-	virtual bool Update(double time);
+	virtual bool Update();
 
 	void	SetModifyMistStart(bool modify) {
 		m_modify_mist_start = modify;
@@ -94,8 +93,6 @@ public:
 	void	SetModifyAmbientColor(bool modify) {
 		m_modify_ambient_color = modify;
 	}
-
-	void	AddInterpolator(KX_IInterpolator* interp);
 };
 
 #endif  /* __KX_WORLDIPOCONTROLLER_H__ */

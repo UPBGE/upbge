@@ -32,11 +32,11 @@
 #ifndef __KX_SCALARINTERPOLATOR_H__
 #define __KX_SCALARINTERPOLATOR_H__
 
-#include "KX_IInterpolator.h"
+#include "SG_IInterpolator.h"
 
 class KX_IScalarInterpolator;
 
-class KX_ScalarInterpolator : public KX_IInterpolator {
+class KX_ScalarInterpolator : public SG_IInterpolator {
 public:
 	KX_ScalarInterpolator(float* target, 
 						  KX_IScalarInterpolator *ipo) :

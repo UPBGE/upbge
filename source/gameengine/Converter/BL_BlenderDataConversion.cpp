@@ -1106,7 +1106,7 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 	gameobj->NodeSetLocalPosition(pos);
 	gameobj->NodeSetLocalOrientation(rotation);
 	gameobj->NodeSetLocalScale(scale);
-	gameobj->NodeUpdateGS(0);
+	gameobj->NodeUpdateGS();
 
 	sumolist->Add(CM_AddRef(gameobj));
 
@@ -1156,7 +1156,7 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 	if (isInActiveLayer) {
 		objectlist->Add(CM_AddRef(gameobj));
 
-		gameobj->NodeUpdateGS(0);
+		gameobj->NodeUpdateGS();
 	}
 	else {
 		// We must store this object otherwise it will be deleted at the end of this function if it is not a root object.
@@ -1469,7 +1469,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	for (KX_GameObject *gameobj : sumolist) {
 		if (!gameobj->GetSGNode()->GetSGParent()) {
 			parentlist->Add(CM_AddRef(gameobj));
-			gameobj->NodeUpdateGS(0.0);
+			gameobj->NodeUpdateGS();
 		}
 	}
 

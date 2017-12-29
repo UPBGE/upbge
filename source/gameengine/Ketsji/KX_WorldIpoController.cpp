@@ -42,52 +42,41 @@ typedef unsigned __int64 uint_ptr;
 typedef unsigned long uint_ptr;
 #endif
 
-bool KX_WorldIpoController::Update(double currentTime)
+bool KX_WorldIpoController::Update()
 {
-	if (m_modified) {
-		T_InterpolatorList::iterator i;
-		for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
-			(*i)->Execute(m_ipotime);
-		}
-
-		KX_WorldInfo *world = KX_GetActiveScene()->GetWorldInfo();
-
-		if (m_modify_mist_start) {
-			world->setMistStart(m_mist_start);
-		}
-
-		if (m_modify_mist_dist) {
-			world->setMistDistance(m_mist_dist);
-		}
-
-		if (m_modify_mist_intensity) {
-			world->setMistIntensity(m_mist_intensity);
-		}
-
-		if (m_modify_horizon_color) {
-			world->setHorizonColor(mt::vec4(m_hori_rgb[0], m_hori_rgb[1], m_hori_rgb[2], 1.0f));
-			world->setMistColor(m_hori_rgb);
-		}
-
-		if (m_modify_zenith_color) {
-			world->setZenithColor(mt::vec4(m_zeni_rgb[0], m_zeni_rgb[1], m_zeni_rgb[2], 1.0f));
-		}
-
-		if (m_modify_ambient_color) {
-			world->setAmbientColor(m_ambi_rgb);
-		}
-
-		m_modified = false;
+	if (!SG_Controller::Update()) {
+		return false;
 	}
-	return false;
+
+	KX_WorldInfo *world = KX_GetActiveScene()->GetWorldInfo();
+
+	if (m_modify_mist_start) {
+		world->setMistStart(m_mist_start);
+	}
+
+	if (m_modify_mist_dist) {
+		world->setMistDistance(m_mist_dist);
+	}
+
+	if (m_modify_mist_intensity) {
+		world->setMistIntensity(m_mist_intensity);
+	}
+
+	if (m_modify_horizon_color) {
+		world->setHorizonColor(mt::vec4(m_hori_rgb[0], m_hori_rgb[1], m_hori_rgb[2], 1.0f));
+		world->setMistColor(m_hori_rgb);
+	}
+
+	if (m_modify_zenith_color) {
+		world->setZenithColor(mt::vec4(m_zeni_rgb[0], m_zeni_rgb[1], m_zeni_rgb[2], 1.0f));
+	}
+
+	if (m_modify_ambient_color) {
+		world->setAmbientColor(m_ambi_rgb);
+	}
+
+	return true;
 }
-
-
-void KX_WorldIpoController::AddInterpolator(KX_IInterpolator* interp)
-{
-	this->m_interpolators.push_back(interp);
-}
-
 
 SG_Controller*	KX_WorldIpoController::GetReplica(class SG_Node* destnode)
 {
@@ -98,10 +87,10 @@ SG_Controller*	KX_WorldIpoController::GetReplica(class SG_Node* destnode)
 	// dirty hack, ask Gino for a better solution in the ipo implementation
 	// hacken en zagen, in what we call datahiding, not written for replication :(
 
-	T_InterpolatorList oldlist = m_interpolators;
+	SG_IInterpolatorList oldlist = m_interpolators;
 	iporeplica->m_interpolators.clear();
 
-	T_InterpolatorList::iterator i;
+	SG_IInterpolatorList::iterator i;
 	for (i = oldlist.begin(); !(i == oldlist.end()); ++i) {
 		KX_ScalarInterpolator* copyipo = new KX_ScalarInterpolator(*((KX_ScalarInterpolator*)*i));
 		iporeplica->AddInterpolator(copyipo);
@@ -118,12 +107,3 @@ SG_Controller*	KX_WorldIpoController::GetReplica(class SG_Node* destnode)
 	return iporeplica;
 }
 
-KX_WorldIpoController::~KX_WorldIpoController()
-{
-
-	T_InterpolatorList::iterator i;
-	for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
-		delete (*i);
-	}
-	
-}

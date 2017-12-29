@@ -505,10 +505,7 @@ public:
 	// adapt local position so that world position is set to desired position
 	void	NodeSetWorldPosition(const mt::vec3& trans);
 
-		void
-	NodeUpdateGS(
-		double time
-	);
+	void NodeUpdateGS();
 
 	const mt::mat3& NodeGetWorldOrientation(  ) const;
 	const mt::vec3& NodeGetWorldScaling(  ) const;

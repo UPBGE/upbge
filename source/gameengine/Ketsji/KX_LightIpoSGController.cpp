@@ -41,45 +41,30 @@ typedef unsigned __int64 uint_ptr;
 typedef unsigned long uint_ptr;
 #endif
 
-bool KX_LightIpoSGController::Update(double currentTime)
+bool KX_LightIpoSGController::Update()
 {
-	if (m_modified)
-	{
-		T_InterpolatorList::iterator i;
-		for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
-			(*i)->Execute(m_ipotime);//currentTime);
-		}
-		
-		RAS_ILightObject *lightobj;
-
-		SG_Node* ob = (SG_Node*)m_node;
-		KX_LightObject* kxlight = (KX_LightObject*) ob->GetSGClientObject();
-		lightobj = kxlight->GetLightData();
-		//lightobj = (KX_Light*) 
-
-		if (m_modify_energy) {
-			lightobj->m_energy = m_energy;
-		}
-
-		if (m_modify_color) {
-			lightobj->m_color[0]   = m_col_rgb[0];
-			lightobj->m_color[1] = m_col_rgb[1];
-			lightobj->m_color[2]  = m_col_rgb[2];
-		}
-
-		if (m_modify_dist) {
-			lightobj->m_distance = m_dist;
-		}
-
-		m_modified=false;
+	if (!SG_Controller::Update()) {
+		return false;
 	}
-	return false;
-}
 
+	KX_LightObject *kxlight = (KX_LightObject *)m_node->GetSGClientObject();
+	RAS_ILightObject *lightobj = kxlight->GetLightData();
 
-void KX_LightIpoSGController::AddInterpolator(KX_IInterpolator* interp)
-{
-	this->m_interpolators.push_back(interp);
+	if (m_modify_energy) {
+		lightobj->m_energy = m_energy;
+	}
+
+	if (m_modify_color) {
+		lightobj->m_color[0] = m_col_rgb[0];
+		lightobj->m_color[1] = m_col_rgb[1];
+		lightobj->m_color[2] = m_col_rgb[2];
+	}
+
+	if (m_modify_dist) {
+		lightobj->m_distance = m_dist;
+	}
+
+	return true;
 }
 
 SG_Controller*	KX_LightIpoSGController::GetReplica(class SG_Node* destnode)
@@ -91,10 +76,10 @@ SG_Controller*	KX_LightIpoSGController::GetReplica(class SG_Node* destnode)
 	// dirty hack, ask Gino for a better solution in the ipo implementation
 	// hacken en zagen, in what we call datahiding, not written for replication :(
 
-	T_InterpolatorList oldlist = m_interpolators;
+	SG_IInterpolatorList oldlist = m_interpolators;
 	iporeplica->m_interpolators.clear();
 
-	T_InterpolatorList::iterator i;
+	SG_IInterpolatorList::iterator i;
 	for (i = oldlist.begin(); !(i == oldlist.end()); ++i) {
 		KX_ScalarInterpolator* copyipo = new KX_ScalarInterpolator(*((KX_ScalarInterpolator*)*i));
 		iporeplica->AddInterpolator(copyipo);
@@ -109,14 +94,4 @@ SG_Controller*	KX_LightIpoSGController::GetReplica(class SG_Node* destnode)
 	}
 	
 	return iporeplica;
-}
-
-KX_LightIpoSGController::~KX_LightIpoSGController()
-{
-
-	T_InterpolatorList::iterator i;
-	for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
-		delete (*i);
-	}
-	
 }

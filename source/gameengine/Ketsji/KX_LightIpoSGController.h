@@ -35,7 +35,7 @@
 #include "SG_Controller.h"
 #include "SG_Node.h"
 
-#include "KX_IInterpolator.h"
+#include "SG_IInterpolator.h"
 
 class RAS_ILightObject;
 
@@ -47,7 +47,6 @@ public:
 	float           m_dist;
 
 private:
-	T_InterpolatorList	m_interpolators;
 	unsigned short  	m_modify_energy 	 : 1;
 	unsigned short	    m_modify_color       : 1;
 	unsigned short		m_modify_dist    	 : 1;
@@ -59,11 +58,11 @@ public:
 				m_modify_dist(false)
 		{}
 
-	virtual ~KX_LightIpoSGController();
+	virtual ~KX_LightIpoSGController() = default;
 
 	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
 
-	virtual bool Update(double time);
+	virtual bool Update();
 
 	void	SetModifyEnergy(bool modify) {
 		m_modify_energy = modify;
@@ -76,8 +75,6 @@ public:
 	void	SetModifyDist(bool modify) {
 		m_modify_dist = modify;
 	}
-
-	void	AddInterpolator(KX_IInterpolator* interp);
 };
 
 #endif  /* __KX_LIGHTIPOSGCONTROLLER_H__ */

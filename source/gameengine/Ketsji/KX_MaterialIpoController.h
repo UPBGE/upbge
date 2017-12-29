@@ -10,7 +10,7 @@
 
 #include "SG_Controller.h"
 #include "SG_Node.h"
-#include "KX_IInterpolator.h"
+#include "SG_IInterpolator.h"
 #include "mathfu.h"
 
 class RAS_IPolyMaterial;
@@ -29,19 +29,15 @@ public:
 	float			m_specAlpha;
 
 private:
-	T_InterpolatorList	m_interpolators;
-
 	RAS_IPolyMaterial *m_material;
 
 public:
 	KX_MaterialIpoController(RAS_IPolyMaterial *polymat) : 
 				m_material(polymat)
 		{}
-	virtual ~KX_MaterialIpoController();
+	virtual ~KX_MaterialIpoController() = default;
 	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
-	virtual bool Update(double time);
-
-	void	AddInterpolator(KX_IInterpolator* interp);
+	virtual bool Update();
 };
 
 #endif /* __KX_MATERIALIPOCONTROLLER_H__ */

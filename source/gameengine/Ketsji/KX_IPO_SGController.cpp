@@ -103,14 +103,10 @@ void KX_IpoSGController::SetGameObject(KX_GameObject *go)
 	m_game_object = go;
 }
 
-bool KX_IpoSGController::Update(double currentTime)
+bool KX_IpoSGController::Update()
 {
-	if (!m_modified) {
+	if (!SG_Controller::Update()) {
 		return false;
-	}
-
-	for (KX_IInterpolator *interp : m_interpolators) {
-		interp->Execute(m_ipotime);
 	}
 
 	//initialization on the first frame of the IPO
@@ -316,14 +312,7 @@ bool KX_IpoSGController::Update(double currentTime)
 			m_game_object->NodeSetLocalScale(newScale);
 	}
 
-	m_modified = false;
-
-	return false;
-}
-
-void KX_IpoSGController::AddInterpolator(KX_IInterpolator *interp)
-{
-	m_interpolators.push_back(interp);
+	return true;
 }
 
 SG_Controller *KX_IpoSGController::GetReplica(SG_Node *destnode)
@@ -336,10 +325,10 @@ SG_Controller *KX_IpoSGController::GetReplica(SG_Node *destnode)
 	// dirty hack, ask Gino for a better solution in the ipo implementation
 	// hacken en zagen, in what we call datahiding, not written for replication :(
 
-	T_InterpolatorList oldlist = m_interpolators;
+	SG_IInterpolatorList oldlist = m_interpolators;
 	iporeplica->m_interpolators.clear();
 
-	T_InterpolatorList::iterator i;
+	SG_IInterpolatorList::iterator i;
 	for (i = oldlist.begin(); i != oldlist.end(); ++i) {
 		KX_ScalarInterpolator *copyipo = new KX_ScalarInterpolator(*((KX_ScalarInterpolator *)*i));
 		iporeplica->AddInterpolator(copyipo);
@@ -355,12 +344,4 @@ SG_Controller *KX_IpoSGController::GetReplica(SG_Node *destnode)
 	}
 
 	return iporeplica;
-}
-
-KX_IpoSGController::~KX_IpoSGController()
-{
-	T_InterpolatorList::iterator i;
-	for (i = m_interpolators.begin(); i != m_interpolators.end(); ++i) {
-		delete (*i);
-	}
 }

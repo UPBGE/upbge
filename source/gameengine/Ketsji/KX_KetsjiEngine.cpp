@@ -433,7 +433,7 @@ bool KX_KetsjiEngine::NextFrame()
 				// Scenegraph needs to be updated again, because Logic Controllers
 				// can affect the local matrices.
 				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-				scene->UpdateParents(m_frameTime);
+				scene->UpdateParents();
 
 				// Process actuators
 
@@ -445,7 +445,7 @@ bool KX_KetsjiEngine::NextFrame()
 
 				// Actuators can affect the scenegraph
 				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-				scene->UpdateParents(m_frameTime);
+				scene->UpdateParents();
 
 				m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
 
@@ -454,7 +454,7 @@ bool KX_KetsjiEngine::NextFrame()
 				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_frameTime, timestep, framestep);//m_deltatimerealDeltaTime);
 
 				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-				scene->UpdateParents(m_frameTime);
+				scene->UpdateParents();
 			}
 
 			m_logger.StartLog(tc_services, m_kxsystem->GetTimeInSeconds());
@@ -504,7 +504,7 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(KX_Scene 
 		rendercam->NodeSetGlobalOrientation(camera->NodeGetWorldOrientation());
 		rendercam->NodeSetWorldPosition(camera->NodeGetWorldPosition());
 		rendercam->NodeSetWorldScale(camera->NodeGetWorldScaling());
-		rendercam->NodeUpdateGS(0.0);
+		rendercam->NodeUpdateGS();
 	}
 	// Else use the native camera.
 	else {
@@ -1113,13 +1113,13 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 
 			activecam->NodeSetLocalPosition(camtrans.TranslationVector3D());
 			activecam->NodeSetLocalOrientation(camtrans.RotationMatrix());
-			activecam->NodeUpdateGS(0.0f);
 		}
 		else {
 			activecam->NodeSetLocalPosition(mt::zero3);
 			activecam->NodeSetLocalOrientation(mt::mat3::Identity());
-			activecam->NodeUpdateGS(0.0f);
 		}
+
+		activecam->NodeUpdateGS();
 
 		scene->GetCameraList()->Add(CM_AddRef(activecam));
 		scene->SetActiveCamera(activecam);
@@ -1129,7 +1129,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 		activecam->Release();
 	}
 
-	scene->UpdateParents(0.0f);
+	scene->UpdateParents();
 }
 
 void KX_KetsjiEngine::RenderDebugProperties()

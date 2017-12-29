@@ -256,7 +256,7 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, mt::
 
 	cam->NodeSetLocalPosition(camtrans.TranslationVector3D());
 	cam->NodeSetLocalOrientation(camtrans.RotationMatrix());
-	cam->NodeUpdateGS(0);
+	cam->NodeUpdateGS();
 
 	/* setup rasterizer transformations */
 	m_rasterizer->SetProjectionMatrix(projectionmat);
