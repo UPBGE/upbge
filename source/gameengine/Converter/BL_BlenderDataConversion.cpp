@@ -623,7 +623,7 @@ static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene,
 			PHY_IMotionState *motionstate = new KX_MotionState(gameobj->GetSGNode());
 			CcdGraphicController *ctrl = new CcdGraphicController(env, motionstate);
 			gameobj->SetGraphicController(ctrl);
-			ctrl->SetNewClientInfo(gameobj->getClientInfo());
+			ctrl->SetNewClientInfo(&gameobj->GetClientInfo());
 			if (isActive) {
 				// add first, this will create the proxy handle, only if the object is visible
 				if (gameobj->GetVisible()) {
@@ -684,7 +684,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobj
 
 	bool isActor = (blenderobject->gameflag & OB_ACTOR) != 0;
 	bool isSensor = (blenderobject->gameflag & OB_SENSOR) != 0;
-	gameobj->getClientInfo()->m_type =
+	gameobj->GetClientInfo().m_type =
 		(isSensor) ? ((isActor) ? KX_ClientObjectInfo::OBACTORSENSOR : KX_ClientObjectInfo::OBSENSOR) :
 		(isActor) ? KX_ClientObjectInfo::ACTOR : KX_ClientObjectInfo::STATIC;
 }

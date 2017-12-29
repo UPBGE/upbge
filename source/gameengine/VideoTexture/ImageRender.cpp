@@ -894,7 +894,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	float mirrorMat[3][3];
 	float left, right, top, bottom, back;
 	// make sure this camera will delete its node
-	m_camera= new KX_Camera(scene, KX_Scene::m_callbacks, camdata, true, true);
+	m_camera= new KX_Camera(scene, KX_Scene::m_callbacks, camdata, true);
 	m_camera->SetName("__mirror__cam__");
 	// don't add the camera to the scene object list, it doesn't need to be accessible
 	m_owncamera = true;

@@ -283,7 +283,7 @@ public:
 	KX_GameObject *AddReplicaObject(KX_GameObject *gameobj, KX_GameObject *locationobj, float lifespan = 0.0f);
 	KX_GameObject *AddNodeReplicaObject(SG_Node *node, KX_GameObject *gameobj);
 
-	void RemoveNodeDestructObject(SG_Node *node, KX_GameObject *gameobj);
+	void RemoveNodeDestructObject(KX_GameObject *gameobj);
 	void RemoveObject(KX_GameObject *gameobj);
 	void RemoveDupliGroup(KX_GameObject *gameobj);
 	void DelayedRemoveObject(KX_GameObject *gameobj);

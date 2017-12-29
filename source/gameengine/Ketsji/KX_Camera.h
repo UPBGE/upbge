@@ -93,12 +93,6 @@ protected:
 	 */
 	bool         m_set_projection_matrix;
 
-	/**
-	 * whether the camera should delete the node itself (only for shadow camera)
-	 */
-	bool         m_delete_node;
-
-
 	/** Distance factor for level of detail*/
 	float m_lodDistanceFactor;
 
@@ -118,7 +112,7 @@ public:
 
 	enum { INSIDE, INTERSECT, OUTSIDE };
 
-	KX_Camera(void* sgReplicationInfo,SG_Callbacks callbacks,const RAS_CameraData& camdata, bool frustum_culling = true, bool delete_node = false);
+	KX_Camera(void* sgReplicationInfo,SG_Callbacks callbacks,const RAS_CameraData& camdata, bool frustum_culling = true);
 	virtual ~KX_Camera();
 	
 	/** 

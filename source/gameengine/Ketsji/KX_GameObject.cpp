@@ -106,37 +106,82 @@ KX_GameObject::ActivityCullingInfo::ActivityCullingInfo()
 KX_GameObject::KX_GameObject(
         void* sgReplicationInfo,
         SG_Callbacks callbacks)
-    : SCA_IObject(),
-      m_layer(0),
-      m_lodManager(nullptr),
-      m_currentLodLevel(0),
-      m_meshUser(nullptr),
-      m_convertInfo(nullptr),
-      m_bIsNegativeScaling(false),
-      m_objectColor(mt::one4),
-      m_bVisible(true),
-      m_bOccluder(false),
-      m_autoUpdateBounds(false),
-      m_physicsController(nullptr),
-      m_graphicController(nullptr),
-      m_components(nullptr),
-      m_instanceObjects(nullptr),
-      m_dupliGroupObject(nullptr),
-      m_actionManager(nullptr)
+	:m_clientInfo(this, KX_ClientObjectInfo::ACTOR),
+	m_layer(0),
+	m_lodManager(nullptr),
+	m_currentLodLevel(0),
+	m_meshUser(nullptr),
+	m_convertInfo(nullptr),
+	m_bIsNegativeScaling(false),
+	m_objectColor(mt::one4),
+	m_bVisible(true),
+	m_bOccluder(false),
+	m_autoUpdateBounds(false),
+	m_physicsController(nullptr),
+	m_graphicController(nullptr),
+	m_sgNode(new SG_Node(this,sgReplicationInfo,callbacks)),
+	m_components(nullptr),
+	m_instanceObjects(nullptr),
+	m_dupliGroupObject(nullptr),
+	m_actionManager(nullptr)
 #ifdef WITH_PYTHON
-    , m_attr_dict(nullptr),
-    m_collisionCallbacks(nullptr)
+	, m_attr_dict(nullptr),
+	m_collisionCallbacks(nullptr)
 #endif
 {
-	m_client_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
-	m_sgNode = new SG_Node(this,sgReplicationInfo,callbacks);
-
 	// define the relationship between this node and it's parent.
 	KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
 	m_sgNode->SetParentRelation(parent_relation);
-};
+}
 
+KX_GameObject::KX_GameObject(const KX_GameObject& other)
+	:SCA_IObject(other),
+	m_clientInfo(this, other.m_clientInfo.m_type),
+	m_name(other.m_name),
+	m_layer(other.m_layer),
+	m_meshes(other.m_meshes),
+	m_lodManager(other.m_lodManager),
+	m_currentLodLevel(0),
+	m_meshUser(nullptr),
+	m_convertInfo(other.m_convertInfo),
+	m_bIsNegativeScaling(other.m_bIsNegativeScaling),
+	m_objectColor(other.m_objectColor),
+	m_bVisible(other.m_bVisible),
+	m_bOccluder(other.m_bOccluder),
+	m_activityCullingInfo(other.m_activityCullingInfo),
+	m_autoUpdateBounds(other.m_autoUpdateBounds),
+	m_physicsController(nullptr),
+	m_graphicController(nullptr),
+	m_sgNode(nullptr),
+	m_components(nullptr),
+	m_instanceObjects(nullptr),
+	m_dupliGroupObject(nullptr),
+	m_actionManager(nullptr)
+#ifdef WITH_PYTHON
+	, m_attr_dict(other.m_attr_dict),
+	m_collisionCallbacks(other.m_collisionCallbacks)
+#endif  // WITH_PYTHON
+{
+	if (m_lodManager) {
+		m_lodManager->AddRef();
+	}
 
+#ifdef WITH_PYTHON
+	if (m_attr_dict) {
+		m_attr_dict = PyDict_Copy(m_attr_dict);
+	}
+
+	Py_XINCREF(m_collisionCallbacks);
+
+	if (other.m_components) {
+		m_components = static_cast<EXP_ListValue<KX_PythonComponent> *>(other.m_components->GetReplica());
+
+		for (KX_PythonComponent *component : m_components) {
+			component->SetGameObject(this);
+		}
+	}
+#endif  // WITH_PYTHON
+}
 
 KX_GameObject::~KX_GameObject()
 {
@@ -147,7 +192,7 @@ KX_GameObject::~KX_GameObject()
 		Py_CLEAR(m_attr_dict);
 	}
 	// Unregister collision callbacks
-	// Do this before we start freeing physics information like m_client_info
+	// Do this before we start freeing physics information like m_clientInfo
 	if (m_collisionCallbacks) {
 		UnregisterCollisionCallbacks();
 		Py_CLEAR(m_collisionCallbacks);
@@ -160,50 +205,11 @@ KX_GameObject::~KX_GameObject()
 
 	RemoveMeshes();
 
-	// is this delete somewhere ?
-	//if (m_sumoObj)
-	//	delete m_sumoObj;
-	delete m_client_info;
-
-	//if (m_sgNode)
-	//	delete m_sgNode;
-	if (m_sgNode)
-	{
-		// must go through controllers and make sure they will not use us anymore
-		// This is important for KX_BulletPhysicsControllers that unregister themselves
-		// from the object when they are deleted.
-		SGControllerList::iterator contit;
-		SGControllerList& controllers = m_sgNode->GetSGControllerList();
-		for (contit = controllers.begin();contit!=controllers.end();++contit)
-		{
-			(*contit)->ClearNode();
-		}
-		m_sgNode->SetSGClientObject(nullptr);
-
-		/* m_sgNode is freed in KX_Scene::RemoveNodeDestructObject */
-	}
-	if (m_graphicController)
-	{
-		delete m_graphicController;
-	}
-
-	if (m_physicsController)
-	{
-		delete m_physicsController;
-	}
-
-	if (m_actionManager)
-	{
-		delete m_actionManager;
-	}
-
-	if (m_dupliGroupObject)
-	{
+	if (m_dupliGroupObject) {
 		m_dupliGroupObject->Release();
 	}
 
-	if (m_instanceObjects)
-	{
+	if (m_instanceObjects) {
 		m_instanceObjects->Release();
 	}
 	if (m_lodManager) {
@@ -231,11 +237,26 @@ void KX_GameObject::SetName(const std::string& name)
 
 PHY_IPhysicsController* KX_GameObject::GetPhysicsController()
 {
-	return m_physicsController;
+	return m_physicsController.get();
+}
+
+void KX_GameObject::SetPhysicsController(PHY_IPhysicsController *physicscontroller)
+{ 
+	m_physicsController.reset(physicscontroller);
+}
+
+PHY_IGraphicController *KX_GameObject::GetGraphicController()
+{
+	return m_graphicController.get();
+}
+
+void KX_GameObject::SetGraphicController(PHY_IGraphicController *graphiccontroller)
+{
+	m_graphicController.reset(graphiccontroller);
 }
 
 KX_GameObject* KX_GameObject::GetDupliGroupObject()
-{ 
+{
 	return m_dupliGroupObject;
 }
 
@@ -300,7 +321,7 @@ void KX_GameObject::ReplicateConstraints(PHY_IPhysicsEnvironment *physEnv, const
 KX_GameObject* KX_GameObject::GetParent()
 {
 	KX_GameObject* result = nullptr;
-	SG_Node* node = m_sgNode;
+	SG_Node* node = m_sgNode.get();
 	
 	while (node && !result)
 	{
@@ -372,7 +393,7 @@ void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost
 				rootobj->m_physicsController != nullptr &&
 				rootobj->m_physicsController->IsCompound())
 			{
-				rootobj->m_physicsController->AddCompoundChild(m_physicsController);
+				rootobj->m_physicsController->AddCompoundChild(m_physicsController.get());
 			}
 		}
 		// graphically, the object hasn't change place, no need to update m_graphicController
@@ -408,7 +429,7 @@ void KX_GameObject::RemoveParent()
 				rootobj->m_physicsController != nullptr &&
 				rootobj->m_physicsController->IsCompound())
 			{
-				rootobj->m_physicsController->RemoveCompoundChild(m_physicsController);
+				rootobj->m_physicsController->RemoveCompoundChild(m_physicsController.get());
 			}
 			m_physicsController->RestoreDynamics();
 			if (m_physicsController->IsDynamic() && (rootobj != nullptr && rootobj->m_physicsController))
@@ -433,9 +454,9 @@ BL_ActionManager* KX_GameObject::GetActionManager()
 	// We only want to create an action manager if we need it
 	if (!m_actionManager) {
 		GetScene()->AddAnimatedObject(this);
-		m_actionManager = new BL_ActionManager(this);
+		m_actionManager.reset(new BL_ActionManager(this));
 	}
-	return m_actionManager;
+	return m_actionManager.get();
 }
 
 bool KX_GameObject::PlayAction(const std::string& name,
@@ -501,43 +522,6 @@ bAction *KX_GameObject::GetCurrentAction(short layer)
 void KX_GameObject::SetPlayMode(short layer, short mode)
 {
 	GetActionManager()->SetPlayMode(layer, mode);
-}
-
-void KX_GameObject::ProcessReplica()
-{
-	SCA_IObject::ProcessReplica();
-
-	m_graphicController = nullptr;
-	m_physicsController = nullptr;
-	m_sgNode = nullptr;
-
-	/* Dupli group and instance list are set later in replication.
-	 * See KX_Scene::DupliGroupRecurse. */
-	m_dupliGroupObject = nullptr;
-	m_instanceObjects = nullptr;
-	m_client_info = new KX_ClientObjectInfo(*m_client_info);
-	m_client_info->m_gameobject = this;
-	m_actionManager = nullptr;
-	m_state = 0;
-
-	m_meshUser = nullptr;
-	if (m_lodManager) {
-		m_lodManager->AddRef();
-	}
-
-#ifdef WITH_PYTHON
-
-	if (m_attr_dict)
-		m_attr_dict= PyDict_Copy(m_attr_dict);
-
-	if (m_components) {
-		m_components = (EXP_ListValue<KX_PythonComponent> *)m_components->GetReplica();
-		for (KX_PythonComponent *component : m_components) {
-			component->SetGameObject(this);
-		}
-	}
-
-#endif
 }
 
 static void setGraphicController_recursive(SG_Node* node)
@@ -703,7 +687,7 @@ void KX_GameObject::UpdateBlenderObjectMatrix(Object* blendobj)
 void KX_GameObject::AddMeshUser()
 {
 	for (size_t i = 0; i < m_meshes.size(); ++i) {
-		m_meshUser = m_meshes[i]->AddMeshUser(m_client_info, GetDeformer());
+		m_meshUser = m_meshes[i]->AddMeshUser(&m_clientInfo, GetDeformer());
 		// Make sure the mesh user get the matrix even if the object doesn't move.
 		NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());
 	}
@@ -1395,6 +1379,11 @@ void KX_GameObject::SetConvertObjectInfo(BL_ConvertObjectInfo *info)
 	m_convertInfo = info;
 }
 
+void KX_GameObject::SetSGNode(SG_Node *node)
+{
+	m_sgNode.reset(node);
+}
+
 void KX_GameObject::UpdateBounds(bool force)
 {
 	if ((!m_autoUpdateBounds && !force) || !m_meshUser) {
@@ -1493,7 +1482,7 @@ void KX_GameObject::UnregisterCollisionCallbacks()
 	// If we are the last to unregister on this physics controller
 	if (pe->RemoveCollisionCallback(spc)) {
 		// If we are a sensor object
-		if (m_client_info->isSensor())
+		if (m_clientInfo.isSensor())
 			// Remove sensor body from physics world
 			pe->RemoveSensor(spc);
 	}
@@ -1513,7 +1502,7 @@ void KX_GameObject::RegisterCollisionCallbacks()
 	// If we are the first to register on this physics controller
 	if (pe->RequestCollisionCallback(spc)) {
 		// If we are a sensor object
-		if (m_client_info->isSensor())
+		if (m_clientInfo.isSensor())
 			// Add sensor body to physics world
 			pe->AddSensor(spc);
 	}
@@ -3607,7 +3596,7 @@ PyObject *KX_GameObject::PyCollide(PyObject *value)
 	}
 
 	PHY_IPhysicsEnvironment *env = scene->GetPhysicsEnvironment();
-	PHY_CollisionTestResult testResult = env->CheckCollision(m_physicsController, other->GetPhysicsController());
+	PHY_CollisionTestResult testResult = env->CheckCollision(m_physicsController.get(), other->GetPhysicsController());
 
 	PyObject *result = PyTuple_New(2);
 	if (!testResult.collide) {

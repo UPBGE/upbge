@@ -47,12 +47,11 @@
 #include "mathfu.h"
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
+#include "KX_ClientObjectInfo.h"
 #include "DNA_constraint_types.h" /* for constraint replication */
 #include "DNA_object_types.h"
 #include "SCA_LogicManager.h" /* for ConvertPythonToGameObject to search object names */
 
-//Forward declarations.
-struct KX_ClientObjectInfo;
 class KX_RayCast;
 class KX_LodManager;
 class KX_PythonComponent;
@@ -102,7 +101,7 @@ public:
 
 protected:
 
-	KX_ClientObjectInfo*				m_client_info;
+	KX_ClientObjectInfo m_clientInfo;
 	std::string							m_name;
 	int									m_layer;
 	std::vector<KX_Mesh *>		m_meshes;
@@ -125,11 +124,11 @@ protected:
 
 	bool								m_autoUpdateBounds;
 
-	PHY_IPhysicsController*				m_physicsController;
-	PHY_IGraphicController*				m_graphicController;
+	std::unique_ptr<PHY_IPhysicsController> m_physicsController;
+	std::unique_ptr<PHY_IGraphicController> m_graphicController;
 
 	SG_CullingNode m_cullingNode;
-	SG_Node*							m_sgNode;
+	std::unique_ptr<SG_Node> m_sgNode;
 
 	EXP_ListValue<KX_PythonComponent> *m_components;
 
@@ -137,7 +136,7 @@ protected:
 	KX_GameObject*						m_dupliGroupObject;
 
 	// The action manager is used to play/stop/update actions
-	BL_ActionManager*					m_actionManager;
+	std::unique_ptr<BL_ActionManager> m_actionManager;
 
 	BL_ActionManager* GetActionManager();
 
@@ -328,6 +327,8 @@ public:
 		SG_Callbacks callbacks
 	);
 
+	KX_GameObject(const KX_GameObject& other);
+
 	virtual 
 	~KX_GameObject(
 	);
@@ -360,12 +361,6 @@ public:
 	 */
 	virtual EXP_Value *GetReplica();
 	
-	/**
-	 * Makes sure any internal 
-	 * data owned by this class is deep copied. Called internally
-	 */
-	virtual void ProcessReplica();
-
 	/** 
 	 * Return the linear velocity of the game object.
 	 */
@@ -439,11 +434,7 @@ public:
 	 */
 
 	PHY_IPhysicsController* GetPhysicsController();
-
-	void SetPhysicsController(PHY_IPhysicsController *physicscontroller)
-	{ 
-		m_physicsController = physicscontroller;
-	}
+	void SetPhysicsController(PHY_IPhysicsController *physicscontroller);
 
 	virtual class RAS_Deformer* GetDeformer()
 	{
@@ -462,15 +453,9 @@ public:
 	/**
 	 * \return a pointer to the graphic controller owner by this class 
 	 */
-	PHY_IGraphicController* GetGraphicController()
-	{
-		return m_graphicController;
-	}
+	PHY_IGraphicController* GetGraphicController();
+	void SetGraphicController(PHY_IGraphicController* graphiccontroller);
 
-	void SetGraphicController(PHY_IGraphicController* graphiccontroller) 
-	{ 
-		m_graphicController = graphiccontroller;
-	}
 	/*
 	 * @add/remove the graphic controller to the physic system
 	 */
@@ -482,7 +467,7 @@ public:
 	void SetCollisionGroup(unsigned short filter);
 
 	/** Set the object's collison mask
-	 * \param filter The mask bitfield
+	 * \param mask The mask bitfield
 	 */
 	void SetCollisionMask(unsigned short mask);
 	unsigned short GetCollisionGroup() const;
@@ -523,12 +508,12 @@ public:
 
 	SG_Node*	GetSGNode(	) 
 	{ 
-		return m_sgNode;
+		return m_sgNode.get();
 	}
 
 	const 	SG_Node* GetSGNode(	) const
 	{ 
-		return m_sgNode;
+		return m_sgNode.get();
 	}
 
 	Object *GetBlenderObject() const;
@@ -552,10 +537,7 @@ public:
 	 * old node. This class takes ownership of the new
 	 * node.
 	 */
-		void	SetSGNode(SG_Node* node	)
-		{ 
-			m_sgNode = node; 
-		}
+	void SetSGNode(SG_Node *node);
 	
 	/// Is it a dynamic/physics object ?
 	bool IsDynamic() const;
@@ -867,7 +849,7 @@ public:
 	 */
 	void SetUseDebugProperties(bool debug, bool recursive);
 
-	KX_ClientObjectInfo* getClientInfo() { return m_client_info; }
+	KX_ClientObjectInfo& GetClientInfo() { return m_clientInfo; }
 	
 	std::vector<KX_GameObject *> GetChildren() const;
 	std::vector<KX_GameObject *> GetChildrenRecursive() const;

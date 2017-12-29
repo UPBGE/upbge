@@ -48,6 +48,20 @@ SCA_IObject::SCA_IObject()
 {
 }
 
+SCA_IObject::SCA_IObject(const SCA_IObject& other)
+	:EXP_Value(other),
+	m_sensors(other.m_sensors),
+	m_controllers(other.m_controllers),
+	m_actuators(other.m_actuators),
+	m_suspended(other.m_suspended),
+	m_initState(other.m_initState),
+	m_state(0),
+	m_firstState(other.m_firstState)
+{
+	/* Registered objects and actuator are intentionally left empty.
+	 * A new object cannot be client of any actuator. */
+}
+
 SCA_IObject::~SCA_IObject()
 {
 	for (SCA_ISensor *sensor : m_sensors) {
@@ -201,10 +215,6 @@ void SCA_IObject::ReParentLogic()
 		newsensor->ClrLink();
 		oldsensors[i] = newsensor;
 	}
-
-	// A new object cannot be client of any actuator.
-	m_registeredActuators.clear();
-	m_registeredObjects.clear();
 }
 
 SCA_ISensor *SCA_IObject::FindSensor(const std::string& sensorname)

@@ -120,7 +120,7 @@ static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 
 static void *KX_SceneDestructionFunc(SG_Node *node, void *gameobj, void *scene)
 {
-	((KX_Scene *)scene)->RemoveNodeDestructObject(node, (KX_GameObject *)gameobj);
+	((KX_Scene *)scene)->RemoveNodeDestructObject((KX_GameObject *)gameobj);
 
 	return nullptr;
 }
@@ -443,16 +443,13 @@ void KX_Scene::AddObjectDebugProperties(KX_GameObject *gameobj)
 	}
 }
 
-void KX_Scene::RemoveNodeDestructObject(SG_Node *node, KX_GameObject *gameobj)
+void KX_Scene::RemoveNodeDestructObject(KX_GameObject *gameobj)
 {
 	if (NewRemoveObject(gameobj)) {
 		/* Object is not yet deleted because a reference is hanging somewhere.
 		 * This should not happen anymore since we use proxy object for Python. */
 		CM_Error("zombie object! name=" << gameobj->GetName());
 		BLI_assert(false);
-	}
-	if (node) {
-		delete node;
 	}
 }
 
@@ -555,7 +552,7 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 	if (gameobj->GetGraphicController()) {
 		PHY_IMotionState *motionstate = new KX_MotionState(newobj->GetSGNode());
 		PHY_IGraphicController *newctrl = gameobj->GetGraphicController()->GetReplica(motionstate);
-		newctrl->SetNewClientInfo(newobj->getClientInfo());
+		newctrl->SetNewClientInfo(&newobj->GetClientInfo());
 		newobj->SetGraphicController(newctrl);
 	}
 
@@ -567,7 +564,7 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 		KX_GameObject *parent = newobj->GetParent();
 		PHY_IPhysicsController *parentctrl = (parent) ? parent->GetPhysicsController() : nullptr;
 
-		newctrl->SetNewClientInfo(newobj->getClientInfo());
+		newctrl->SetNewClientInfo(&newobj->GetClientInfo());
 		newobj->SetPhysicsController(newctrl);
 		newctrl->PostProcessReplica(motionstate, parentctrl);
 

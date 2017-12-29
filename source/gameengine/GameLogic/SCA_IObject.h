@@ -97,6 +97,7 @@ protected:
 
 public:
 	SCA_IObject();
+	SCA_IObject(const SCA_IObject& other);
 	virtual ~SCA_IObject();
 
 	SCA_ControllerList& GetControllers();

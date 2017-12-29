@@ -43,7 +43,7 @@ KX_TextureRendererManager::KX_TextureRendererManager(KX_Scene *scene)
 	:m_scene(scene)
 {
 	const RAS_CameraData& camdata = RAS_CameraData();
-	m_camera = new KX_Camera(m_scene, KX_Scene::m_callbacks, camdata, true, true);
+	m_camera = new KX_Camera(m_scene, KX_Scene::m_callbacks, camdata, true);
 	m_camera->SetName("__renderer_cam__");
 }
 

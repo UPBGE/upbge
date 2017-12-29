@@ -109,8 +109,8 @@ KX_CollisionSensor::KX_CollisionSensor(SCA_EventManager *eventmgr, KX_GameObject
 {
 	m_colliders = new EXP_ListValue<KX_GameObject>();
 
-	KX_ClientObjectInfo *client_info = gameobj->getClientInfo();
-	client_info->m_sensors.push_back(this);
+	KX_ClientObjectInfo& clientInfo = gameobj->GetClientInfo();
+	clientInfo.m_sensors.push_back(this);
 
 	m_physCtrl = gameobj->GetPhysicsController();
 	BLI_assert(!gameobj->GetPhysicsController() || m_physCtrl);
@@ -155,9 +155,9 @@ void KX_CollisionSensor::ReParent(SCA_IObject *parent)
 		m_physCtrl = sphy;
 	}
 
-	KX_ClientObjectInfo *client_info = gameobj->getClientInfo();
+	KX_ClientObjectInfo& clientInfo = gameobj->GetClientInfo();
 
-	client_info->m_sensors.push_back(this);
+	clientInfo.m_sensors.push_back(this);
 	SCA_ISensor::ReParent(parent);
 }
 

@@ -128,7 +128,7 @@ void KX_FontObject::ProcessReplica()
 
 void KX_FontObject::AddMeshUser()
 {
-	m_meshUser = new RAS_TextUser(m_client_info, m_boundingBox);
+	m_meshUser = new RAS_TextUser(&m_clientInfo, m_boundingBox);
 
 	// Make sure the mesh user get the matrix even if the object doesn't move.
 	NodeGetWorldTransform().PackFromAffineTransform(m_meshUser->GetMatrix());

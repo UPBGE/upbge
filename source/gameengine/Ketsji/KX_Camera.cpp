@@ -45,8 +45,7 @@
 KX_Camera::KX_Camera(void* sgReplicationInfo,
                      SG_Callbacks callbacks,
                      const RAS_CameraData& camdata,
-                     bool frustum_culling,
-                     bool delete_node)
+                     bool frustum_culling)
     :
       KX_GameObject(sgReplicationInfo,callbacks),
       m_camdata(camdata),
@@ -56,7 +55,6 @@ KX_Camera::KX_Camera(void* sgReplicationInfo,
       m_normalized(false),
       m_frustum_culling(frustum_culling),
       m_set_projection_matrix(false),
-      m_delete_node(delete_node),
 	  m_lodDistanceFactor(1.0f),
 	  m_activityCulling(false),
 	  m_showDebugCameraFrustum(false)
@@ -68,12 +66,6 @@ KX_Camera::KX_Camera(void* sgReplicationInfo,
 
 KX_Camera::~KX_Camera()
 {
-	if (m_delete_node && m_sgNode)
-	{
-		// for shadow camera, avoids memleak
-		delete m_sgNode;
-		m_sgNode = nullptr;
-	}
 }
 
 
@@ -90,8 +82,6 @@ EXP_Value*	KX_Camera::GetReplica()
 void KX_Camera::ProcessReplica()
 {
 	KX_GameObject::ProcessReplica();
-	// replicated camera are always registered in the scene
-	m_delete_node = false;
 }
 
 mt::mat3x4 KX_Camera::GetWorldToCamera() const

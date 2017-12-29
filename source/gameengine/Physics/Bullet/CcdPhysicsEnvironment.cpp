@@ -3110,7 +3110,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter& converter, KX_GameO
 
 	gameobj->SetPhysicsController(physicscontroller);
 
-	physicscontroller->SetNewClientInfo(gameobj->getClientInfo());
+	physicscontroller->SetNewClientInfo(&gameobj->GetClientInfo());
 
 	// don't add automatically sensor object, they are added when a collision sensor is registered
 	if (!isbulletsensor && (blenderobject->lay & activeLayerBitInfo) != 0) {

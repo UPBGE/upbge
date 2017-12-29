@@ -59,7 +59,7 @@ KX_NearSensor::KX_NearSensor(SCA_EventManager* eventmgr,
 
 {
 
-	gameobj->getClientInfo()->m_sensors.remove(this);
+	gameobj->GetClientInfo().m_sensors.remove(this);
 	m_client_info = new KX_ClientObjectInfo(gameobj, KX_ClientObjectInfo::SENSOR);
 	m_client_info->m_sensors.push_back(this);
 	
