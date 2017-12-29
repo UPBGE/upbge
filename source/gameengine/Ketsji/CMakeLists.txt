@@ -111,11 +111,9 @@ set(SRC
 	KX_ObColorIpoSGController.cpp
 	KX_ObjectActuator.cpp
 	KX_ObstacleSimulation.cpp
-	KX_OrientationInterpolator.cpp
 	KX_ParentActuator.cpp
 	KX_PlanarMap.cpp
 	KX_PolyProxy.cpp
-	KX_PositionInterpolator.cpp
 	KX_PyConstraintBinding.cpp
 	KX_PyMath.cpp
 	KX_PythonComponent.cpp
@@ -133,7 +131,6 @@ set(SRC
 	KX_BoneParentNodeRelationship.cpp
 	KX_NodeRelationships.cpp
 	KX_ScalarInterpolator.cpp
-	KX_ScalingInterpolator.cpp
 	KX_Scene.cpp
 	KX_SceneActuator.cpp
 	KX_SoftBodyDeformer.cpp
@@ -200,12 +197,10 @@ set(SRC
 	KX_ObColorIpoSGController.h
 	KX_ObjectActuator.h
 	KX_ObstacleSimulation.h
-	KX_OrientationInterpolator.h
 	KX_ParentActuator.h
 	KX_PhysicsEngineEnums.h
 	KX_PlanarMap.h
 	KX_PolyProxy.h
-	KX_PositionInterpolator.h
 	KX_PyConstraintBinding.h
 	KX_PyMath.h
 	KX_PythonComponent.h
@@ -223,7 +218,6 @@ set(SRC
 	KX_BoneParentNodeRelationship.h
 	KX_NodeRelationships.h
 	KX_ScalarInterpolator.h
-	KX_ScalingInterpolator.h
 	KX_Scene.h
 	KX_SceneActuator.h
 	KX_SoftBodyDeformer.h
