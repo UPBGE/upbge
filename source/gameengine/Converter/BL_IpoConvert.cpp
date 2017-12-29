@@ -57,7 +57,7 @@
 #include "DNA_material_types.h"
 /* end of blender include block */
 
-#include "KX_IPO_SGController.h"
+#include "KX_IpoController.h"
 #include "KX_LightIpoSGController.h"
 #include "KX_CameraIpoSGController.h"
 #include "KX_WorldIpoController.h"
@@ -81,7 +81,7 @@ static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 
 SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_Scene *scene)
 {
-	KX_IpoSGController* ipocontr = new KX_IpoSGController();
+	KX_IpoController* ipocontr = new KX_IpoController();
 	ipocontr->SetGameObject(gameobj);
 
 	Object* blenderobject = gameobj->GetBlenderObject();

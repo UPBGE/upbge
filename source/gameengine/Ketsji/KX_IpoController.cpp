@@ -26,7 +26,7 @@
  * Scenegraph controller for ipos.
  */
 
-/** \file gameengine/Ketsji/KX_IPO_SGController.cpp
+/** \file gameengine/Ketsji/KX_IpoController.cpp
  *  \ingroup ketsji
  */
 
@@ -43,7 +43,7 @@ typedef unsigned long uint_ptr;
 #  pragma warning(disable:4786)
 #endif
 
-#include "KX_IPO_SGController.h"
+#include "KX_IpoController.h"
 #include "KX_ScalarInterpolator.h"
 #include "KX_GameObject.h"
 #include "PHY_IPhysicsController.h"
@@ -52,7 +52,7 @@ typedef unsigned long uint_ptr;
 
 // All objects should start on frame 1! Will we ever need an m_nodeject to 
 // start on another frame, the 1.0 should change.
-KX_IpoSGController::KX_IpoSGController()
+KX_IpoController::KX_IpoController()
 : m_ipo_as_force(false),
   m_ipo_add(false),
   m_ipo_local(false),
@@ -66,7 +66,7 @@ KX_IpoSGController::KX_IpoSGController()
 }
 
 
-void KX_IpoSGController::SetOption(SG_ControllerOption option, bool value)
+void KX_IpoController::SetOption(SG_ControllerOption option, bool value)
 {
 	m_modified = true;
 
@@ -98,12 +98,12 @@ void KX_IpoSGController::SetOption(SG_ControllerOption option, bool value)
 	}
 }
 
-void KX_IpoSGController::SetGameObject(KX_GameObject *go)
+void KX_IpoController::SetGameObject(KX_GameObject *go)
 {
 	m_game_object = go;
 }
 
-bool KX_IpoSGController::Update()
+bool KX_IpoController::Update()
 {
 	if (!SG_Controller::Update()) {
 		return false;
@@ -275,9 +275,9 @@ bool KX_IpoSGController::Update()
 	return true;
 }
 
-SG_Controller *KX_IpoSGController::GetReplica(SG_Node *destnode)
+SG_Controller *KX_IpoController::GetReplica(SG_Node *destnode)
 {
-	KX_IpoSGController *iporeplica = new KX_IpoSGController(*this);
+	KX_IpoController *iporeplica = new KX_IpoController(*this);
 	// clear object that ipo acts on in the replica.
 	iporeplica->ClearNode();
 	iporeplica->SetGameObject((KX_GameObject *)destnode->GetSGClientObject());
