@@ -30,6 +30,9 @@
  */
 
 #include "SG_Controller.h"
+#include "SG_Interpolator.h"
+
+#include <stdint.h> // For intptr_t.
 
 SG_Controller::SG_Controller()
 	:m_modified(true),
@@ -40,8 +43,28 @@ SG_Controller::SG_Controller()
 
 SG_Controller::~SG_Controller()
 {
-	for (SG_IInterpolator *interp : m_interpolators) {
+	for (SG_Interpolator *interp : m_interpolators) {
 		delete interp;
+	}
+}
+
+void SG_Controller::ProcessReplica()
+{
+	// Clear object that ipo acts on.
+	ClearNode();
+
+	for (unsigned short i = 0, size = m_interpolators.size(); i < size; ++i) {
+		SG_Interpolator *oldinterp = m_interpolators[i];
+		SG_Interpolator *newinterp = new SG_Interpolator(*oldinterp);
+
+		m_interpolators[i] = newinterp;
+
+		const intptr_t orgbase = (intptr_t)oldinterp;
+		const intptr_t orgloc = (intptr_t)oldinterp->GetTarget();
+		const intptr_t offset = orgloc - orgbase;
+		const intptr_t newaddrbase = ((intptr_t)this) + offset;
+
+		newinterp->SetTarget((float *)newaddrbase);
 	}
 }
 
@@ -53,7 +76,7 @@ bool SG_Controller::Update()
 
 	m_modified = false;
 
-	for (SG_IInterpolator *interp : m_interpolators) {
+	for (SG_Interpolator *interp : m_interpolators) {
 		interp->Execute(m_ipotime);
 	}
 
@@ -80,7 +103,7 @@ void SG_Controller::SetOption(SG_Controller::SG_ControllerOption option, bool va
 {
 }
 
-void SG_Controller::AddInterpolator(SG_IInterpolator *interp)
+void SG_Controller::AddInterpolator(SG_Interpolator *interp)
 {
 	m_interpolators.push_back(interp);
 }

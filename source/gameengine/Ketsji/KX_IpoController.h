@@ -36,7 +36,7 @@
 #include "SG_Node.h"
 
 #include "KX_IpoTransform.h"
-#include "SG_IInterpolator.h"
+#include "SG_Interpolator.h"
 
 #define KX_MAX_IPO_CHANNELS 19	//note- [0] is not used
 

@@ -31,15 +31,8 @@
 
 
 #include "KX_CameraIpoSGController.h"
-#include "KX_ScalarInterpolator.h"
 #include "KX_Camera.h"
 #include "RAS_CameraData.h"
-
-#if defined(_WIN64)
-typedef unsigned __int64 uint_ptr;
-#else
-typedef unsigned long uint_ptr;
-#endif
 
 bool KX_CameraIpoSGController::Update()
 {
@@ -65,31 +58,11 @@ bool KX_CameraIpoSGController::Update()
 	return true;
 }
 
-SG_Controller*	KX_CameraIpoSGController::GetReplica(class SG_Node* destnode)
+SG_Controller*	KX_CameraIpoSGController::GetReplica(SG_Node* destnode)
 {
 	KX_CameraIpoSGController* iporeplica = new KX_CameraIpoSGController(*this);
-	// clear object that ipo acts on
-	iporeplica->ClearNode();
 
-	// dirty hack, ask Gino for a better solution in the ipo implementation
-	// hacken en zagen, in what we call datahiding, not written for replication :(
+	iporeplica->ProcessReplica();
 
-	SG_IInterpolatorList oldlist = m_interpolators;
-	iporeplica->m_interpolators.clear();
-
-	SG_IInterpolatorList::iterator i;
-	for (i = oldlist.begin(); !(i == oldlist.end()); ++i) {
-		KX_ScalarInterpolator* copyipo = new KX_ScalarInterpolator(*((KX_ScalarInterpolator*)*i));
-		iporeplica->AddInterpolator(copyipo);
-
-		float* scaal = ((KX_ScalarInterpolator*)*i)->GetTarget();
-		uint_ptr orgbase = (uint_ptr)this;
-		uint_ptr orgloc = (uint_ptr)scaal;
-		uint_ptr offset = orgloc-orgbase;
-		uint_ptr newaddrbase = (uint_ptr)iporeplica + offset;
-		float* blaptr = (float*) newaddrbase;
-		copyipo->SetTarget((float*)blaptr);
-	}
-	
 	return iporeplica;
 }

@@ -32,7 +32,7 @@
 #ifndef __KX_BLENDERSCALARINTERPOLATOR_H__
 #define __KX_BLENDERSCALARINTERPOLATOR_H__
 
-#include "KX_IScalarInterpolator.h"
+#include "SG_ScalarInterpolator.h"
 
 #include <vector>
 #include <string>
@@ -40,7 +40,7 @@
 struct bAction;
 struct FCurve;
 
-class BL_ScalarInterpolator : public KX_IScalarInterpolator
+class BL_ScalarInterpolator : public SG_ScalarInterpolator
 {
 private:
 	FCurve *m_fcu;

@@ -39,6 +39,7 @@ set(SRC
 	SG_CullingNode.cpp
 	SG_Familly.cpp
 	SG_Frustum.cpp
+	SG_Interpolator.cpp
 	SG_Node.cpp
 
 	SG_BBox.h
@@ -47,9 +48,10 @@ set(SRC
 	SG_DList.h
 	SG_Familly.h
 	SG_Frustum.h
-	SG_IInterpolator.h
+	SG_Interpolator.h
 	SG_Node.h
 	SG_ParentRelation.h
+	SG_ScalarInterpolator.h
 	SG_QList.h
 )
 

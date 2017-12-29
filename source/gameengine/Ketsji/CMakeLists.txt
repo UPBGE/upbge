@@ -130,7 +130,6 @@ set(SRC
 	KX_ReplaceMeshActuator.cpp
 	KX_BoneParentNodeRelationship.cpp
 	KX_NodeRelationships.cpp
-	KX_ScalarInterpolator.cpp
 	KX_Scene.cpp
 	KX_SceneActuator.cpp
 	KX_SoftBodyDeformer.cpp
@@ -178,7 +177,6 @@ set(SRC
 	KX_Globals.h
 	KX_IpoTransform.h
 	KX_IpoController.h
-	KX_IScalarInterpolator.h
 	KX_ISystem.h
 	KX_KetsjiEngine.h
 	KX_LibLoadStatus.h
@@ -217,7 +215,6 @@ set(SRC
 	KX_ReplaceMeshActuator.h
 	KX_BoneParentNodeRelationship.h
 	KX_NodeRelationships.h
-	KX_ScalarInterpolator.h
 	KX_Scene.h
 	KX_SceneActuator.h
 	KX_SoftBodyDeformer.h

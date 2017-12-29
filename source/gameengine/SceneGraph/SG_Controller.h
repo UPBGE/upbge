@@ -35,7 +35,7 @@
 #ifndef __SG_CONTROLLER_H__
 #define __SG_CONTROLLER_H__
 
-#include "SG_IInterpolator.h"
+#include "SG_Interpolator.h"
 
 class SG_Node;
 
@@ -65,6 +65,9 @@ public:
 	SG_Controller();
 	virtual ~SG_Controller();
 
+	virtual SG_Controller *GetReplica(SG_Node *destnode) = 0;
+	void ProcessReplica();
+
 	/// Perform an update, returns true when the update was performed.
 	virtual bool Update();
 
@@ -73,8 +76,6 @@ public:
 	void ClearNode();
 
 	void SetSimulatedTime(double time);
-
-	virtual SG_Controller *GetReplica(SG_Node *destnode) = 0;
 
 	/**
 	 * Hacky way of passing options to specific controllers
@@ -87,11 +88,11 @@ public:
 	 */
 	virtual void SetOption(SG_ControllerOption option, bool value);
 
-	void AddInterpolator(SG_IInterpolator *interp);
+	void AddInterpolator(SG_Interpolator *interp);
 
 
 protected:
-	SG_IInterpolatorList m_interpolators;
+	SG_InterpolatorList m_interpolators;
 	/// Were settings altered since the last update?
 	bool m_modified;
 

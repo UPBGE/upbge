@@ -25,39 +25,30 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_ScalarInterpolator.h
- *  \ingroup ketsji
+/** \file gameengine/SceneGraph/SG_Interpolator.cpp
+ *  \ingroup scenegraph
  */
 
-#ifndef __KX_SCALARINTERPOLATOR_H__
-#define __KX_SCALARINTERPOLATOR_H__
+#include "SG_Interpolator.h"
+#include "SG_ScalarInterpolator.h"
 
-#include "SG_IInterpolator.h"
+SG_Interpolator::SG_Interpolator(float *target, SG_ScalarInterpolator *interp)
+	:m_target(target),
+	m_interp(interp)
+{
+}
 
-class KX_IScalarInterpolator;
+void SG_Interpolator::Execute(float currentTime) const
+{
+	*m_target = m_interp->GetValue(currentTime);
+}
 
-class KX_ScalarInterpolator : public SG_IInterpolator {
-public:
-	KX_ScalarInterpolator(float* target, 
-						  KX_IScalarInterpolator *ipo) :
-		m_target(target),
-		m_ipo(ipo)
-		{}
-	
-	virtual ~KX_ScalarInterpolator() {}
-	virtual void Execute(float currentTime) const;
-	void		SetTarget(float* target)
-	{
-		m_target = target;
-	}
-	float*	GetTarget()
-	{
-		return m_target;
-	}
-private:
-	float*               m_target;
-	KX_IScalarInterpolator *m_ipo;
-};
+void SG_Interpolator::SetTarget(float *target)
+{
+	m_target = target;
+}
 
-#endif
-
+float *SG_Interpolator::GetTarget() const
+{
+	return m_target;
+}

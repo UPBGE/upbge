@@ -25,25 +25,21 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file SG_IInterpolator.h
+/** \file SG_ScalarInterpolator.h
  *  \ingroup scenegraph
  */
 
-#ifndef __SG_IINTERPOLATOR_H__
-#define __SG_IINTERPOLATOR_H__
+#ifndef __SG_SCALAR_INTERPOLATOR_H__
+#define __SG_SCALAR_INTERPOLATOR_H__
 
-#include <vector>
-
-class SG_IInterpolator
+class SG_ScalarInterpolator
 {
 public:
-	SG_IInterpolator() = default;
-	virtual ~SG_IInterpolator() = default;
-	
-	virtual void Execute(float currentTime) const = 0; 
+	SG_ScalarInterpolator() = default;
+	virtual ~SG_ScalarInterpolator() = default;
+
+	virtual float GetValue(float currentTime) const = 0; 
 };
 
-using SG_IInterpolatorList = std::vector<SG_IInterpolator *>;
-
-#endif  // __SG_IINTERPOLATOR_H__
+#endif  // __SG_SCALAR_INTERPOLATOR_H__
 

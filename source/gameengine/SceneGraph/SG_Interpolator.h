@@ -25,15 +25,36 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_ScalarInterpolator.cpp
- *  \ingroup ketsji
+/** \file SG_Interpolator.h
+ *  \ingroup scenegraph
  */
 
+#ifndef __SG_INTERPOLATOR_H__
+#define __SG_INTERPOLATOR_H__
 
-#include "KX_ScalarInterpolator.h"
-#include "KX_IScalarInterpolator.h"
+#include <vector>
 
-void KX_ScalarInterpolator::Execute(float currentTime) const
+class SG_ScalarInterpolator;
+
+class SG_Interpolator
 {
-	*m_target = m_ipo->GetValue(currentTime);
-}
+private:
+	/// Pointer to data to update.
+	float *m_target;
+	/// Class hiding animation curve data.
+	SG_ScalarInterpolator *m_interp;
+
+public:
+	SG_Interpolator(float *target, SG_ScalarInterpolator *interp);
+	virtual ~SG_Interpolator() = default;
+	
+	void Execute(float currentTime) const;
+
+	void SetTarget(float *target);
+	float *GetTarget() const;
+};
+
+using SG_InterpolatorList = std::vector<SG_Interpolator *>;
+
+#endif  // __SG_INTERPOLATOR_H__
+

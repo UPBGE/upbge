@@ -23,12 +23,9 @@
  */
 
 #include "KX_MaterialIpoController.h"
-#include "KX_ScalarInterpolator.h"
 #include "KX_GameObject.h"
 
 #include "RAS_IPolygonMaterial.h"
-
-#include "BLI_sys_types.h" // for intptr_t support
 
 bool KX_MaterialIpoController::Update()
 {
@@ -41,32 +38,12 @@ bool KX_MaterialIpoController::Update()
 	return true;
 }
 
-SG_Controller*	KX_MaterialIpoController::GetReplica(class SG_Node* destnode)
+SG_Controller*	KX_MaterialIpoController::GetReplica(SG_Node* destnode)
 {
 	KX_MaterialIpoController* iporeplica = new KX_MaterialIpoController(*this);
-	// clear object that ipo acts on
-	iporeplica->ClearNode();
 
-	// dirty hack, ask Gino for a better solution in the ipo implementation
-	// hacken en zagen, in what we call datahiding, not written for replication :(
+	iporeplica->ProcessReplica();
 
-	SG_IInterpolatorList oldlist = m_interpolators;
-	iporeplica->m_interpolators.clear();
-
-	SG_IInterpolatorList::iterator i;
-	for (i = oldlist.begin(); !(i == oldlist.end()); ++i) {
-		KX_ScalarInterpolator* copyipo = new KX_ScalarInterpolator(*((KX_ScalarInterpolator*)*i));
-		iporeplica->AddInterpolator(copyipo);
-
-		float* scaal = ((KX_ScalarInterpolator*)*i)->GetTarget();
-		intptr_t orgbase = (intptr_t)this;
-		intptr_t orgloc = (intptr_t)scaal;
-		intptr_t offset = orgloc-orgbase;
-		intptr_t newaddrbase = (intptr_t)iporeplica + offset;
-		float* blaptr = (float*) newaddrbase;
-		copyipo->SetTarget((float*)blaptr);
-	}
-	
 	return iporeplica;
 }
 

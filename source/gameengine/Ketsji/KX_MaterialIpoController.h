@@ -10,7 +10,7 @@
 
 #include "SG_Controller.h"
 #include "SG_Node.h"
-#include "SG_IInterpolator.h"
+#include "SG_Interpolator.h"
 #include "mathfu.h"
 
 class RAS_IPolyMaterial;
