@@ -294,11 +294,10 @@ SG_Controller *KX_IpoSGController::GetReplica(SG_Node *destnode)
 		iporeplica->AddInterpolator(copyipo);
 
 		float *scaal = ((KX_ScalarInterpolator *)*i)->GetTarget();
-		uint_ptr orgbase = (uint_ptr)&m_ipo_xform;
+		uint_ptr orgbase = (uint_ptr)this;
 		uint_ptr orgloc = (uint_ptr)scaal;
 		uint_ptr offset = orgloc - orgbase;
-		uint_ptr newaddrbase = (uint_ptr)&iporeplica->m_ipo_xform;
-		newaddrbase += offset;
+		uint_ptr newaddrbase = (uint_ptr)iporeplica + offset;
 		float *blaptr = (float *) newaddrbase;
 		copyipo->SetNewTarget((float *)blaptr);
 	}

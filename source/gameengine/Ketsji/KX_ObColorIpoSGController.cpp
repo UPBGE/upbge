@@ -49,7 +49,7 @@ bool KX_ObColorIpoSGController::Update()
 
 	KX_GameObject* kxgameobj= (KX_GameObject *)m_node->GetSGClientObject();
 
-	kxgameobj->SetObjectColor(m_rgba); // TODO test
+	kxgameobj->SetObjectColor(m_rgba);
 
 	return true;
 }
