@@ -126,9 +126,9 @@ bool KX_IpoSGController::Update()
 	if (m_ipo_channels_active[OB_LOC_X]  || m_ipo_channels_active[OB_LOC_Y]  || m_ipo_channels_active[OB_LOC_Z] ||
 	    m_ipo_channels_active[OB_DLOC_X] || m_ipo_channels_active[OB_DLOC_Y] || m_ipo_channels_active[OB_DLOC_Z])
 	{
-		if (m_ipo_as_force == true) {
+		if (m_ipo_as_force) {
 			if (m_game_object && m_node && m_game_object->GetPhysicsController()) {
-				mt::vec3 vec = m_ipo_local ?
+				const mt::vec3 vec = m_ipo_local ?
 				                     m_node->GetWorldOrientation() * m_ipo_xform.GetPosition() :
 									 m_ipo_xform.GetPosition();
 				m_game_object->GetPhysicsController()->ApplyForce(vec, false);
@@ -143,27 +143,20 @@ bool KX_IpoSGController::Update()
 				newPosition = m_node->GetLocalPosition();
 			//apply separate IPO channels if there is any data in them
 			//Loc and dLoc act by themselves or are additive
-			//LocX and dLocX
-			if (m_ipo_channels_active[OB_LOC_X]) {
-				newPosition[0] = (m_ipo_channels_active[OB_DLOC_X] ? m_ipo_xform.GetPosition()[0] + m_ipo_xform.GetDeltaPosition()[0] : m_ipo_xform.GetPosition()[0]);
+			for (unsigned short i = 0; i < 3; ++i) {
+				const mt::vec3& loc = m_ipo_xform.GetPosition();
+				const mt::vec3& dloc = m_ipo_xform.GetDeltaPosition();
+
+				const bool dactive = m_ipo_channels_active[OB_DLOC_X + i];
+
+				if (m_ipo_channels_active[OB_LOC_X + i]) {
+					newPosition[i] = (dactive ? loc[i] + dloc[i] : loc[i]);
+				}
+				else if (dactive && m_ipo_start_initialized) {
+					newPosition[i] = (((!m_ipo_add) ? m_ipo_start_point[i] : 0.0f) + dloc[i]);
+				}
 			}
-			else if (m_ipo_channels_active[OB_DLOC_X] && m_ipo_start_initialized) {
-				newPosition[0] = (((!m_ipo_add) ? m_ipo_start_point[0] : 0.0f) + m_ipo_xform.GetDeltaPosition()[0]);
-			}
-			//LocY and dLocY
-			if (m_ipo_channels_active[OB_LOC_Y]) {
-				newPosition[1] = (m_ipo_channels_active[OB_DLOC_Y] ? m_ipo_xform.GetPosition()[1] + m_ipo_xform.GetDeltaPosition()[1] : m_ipo_xform.GetPosition()[1]);
-			}
-			else if (m_ipo_channels_active[OB_DLOC_Y] && m_ipo_start_initialized) {
-				newPosition[1] = (((!m_ipo_add) ? m_ipo_start_point[1] : 0.0f) + m_ipo_xform.GetDeltaPosition()[1]);
-			}
-			//LocZ and dLocZ
-			if (m_ipo_channels_active[OB_LOC_Z]) {
-				newPosition[2] = (m_ipo_channels_active[OB_DLOC_Z] ? m_ipo_xform.GetPosition()[2] + m_ipo_xform.GetDeltaPosition()[2] : m_ipo_xform.GetPosition()[2]);
-			}
-			else if (m_ipo_channels_active[OB_DLOC_Z] && m_ipo_start_initialized) {
-				newPosition[2] = (((!m_ipo_add) ? m_ipo_start_point[2] : 0.0f) + m_ipo_xform.GetDeltaPosition()[2]);
-			}
+
 			if (m_ipo_add) {
 				if (m_ipo_local)
 					newPosition = m_ipo_start_point + m_ipo_start_scale*(m_ipo_start_orient*newPosition);
@@ -187,27 +180,19 @@ bool KX_IpoSGController::Update()
 		}
 		else if (m_ipo_add) {
 			if (m_ipo_start_initialized) {
-				double yaw = 0.0, pitch = 0.0, roll = 0.0; //delta Euler angles
+				// Delta euler angles.
+				mt::vec3 angles = mt::zero3;
 
-				//RotX and dRotX
-				if (m_ipo_channels_active[OB_ROT_X])
-					yaw += m_ipo_xform.GetEulerAngles()[0];
-				if (m_ipo_channels_active[OB_DROT_X])
-					yaw += m_ipo_xform.GetDeltaEulerAngles()[0];
+				for (unsigned short i = 0; i < 3; ++i) {
+					if (m_ipo_channels_active[OB_ROT_X + i]) {
+						angles[i] += m_ipo_xform.GetEulerAngles()[i];
+					}
+					if (m_ipo_channels_active[OB_DROT_X + i]) {
+						angles[i] += m_ipo_xform.GetDeltaEulerAngles()[i];
+					}
+				}
 
-				//RotY dRotY
-				if (m_ipo_channels_active[OB_ROT_Y])
-					pitch += m_ipo_xform.GetEulerAngles()[1];
-				if (m_ipo_channels_active[OB_DROT_Y])
-					pitch += m_ipo_xform.GetDeltaEulerAngles()[1];
-
-				//RotZ and dRotZ
-				if (m_ipo_channels_active[OB_ROT_Z])
-					roll += m_ipo_xform.GetEulerAngles()[2];
-				if (m_ipo_channels_active[OB_DROT_Z])
-					roll += m_ipo_xform.GetDeltaEulerAngles()[2];
-
-				mt::mat3 rotation(mt::vec3(yaw, pitch, roll));
+				mt::mat3 rotation(angles);
 				if (m_ipo_local)
 					rotation = m_ipo_start_orient * rotation;
 				else
@@ -221,53 +206,37 @@ bool KX_IpoSGController::Update()
 				// assume all channel absolute
 				// All 3 channels should be specified but if they are not, we will take 
 				// the value at the start of the game to avoid angle sign reversal 
-				double yaw = m_ipo_start_euler[0], pitch = m_ipo_start_euler[1], roll = m_ipo_start_euler[2];
+				mt::vec3 angles(m_ipo_start_euler);
 
-				//RotX and dRotX
-				if (m_ipo_channels_active[OB_ROT_X]) {
-					yaw = (m_ipo_channels_active[OB_DROT_X] ? (m_ipo_xform.GetEulerAngles()[0] + m_ipo_xform.GetDeltaEulerAngles()[0]) : m_ipo_xform.GetEulerAngles()[0] );
-				}
-				else if (m_ipo_channels_active[OB_DROT_X]) {
-					yaw += m_ipo_xform.GetDeltaEulerAngles()[0];
+				for (unsigned short i = 0; i < 3; ++i) {
+					const mt::vec3& eul = m_ipo_xform.GetEulerAngles();
+					const mt::vec3& deul = m_ipo_xform.GetDeltaEulerAngles();
+
+					const bool dactive = m_ipo_channels_active[OB_DROT_X + i];
+
+					if (m_ipo_channels_active[OB_ROT_X + i]) {
+						angles[i] = (dactive ? (eul[i] + deul[i]) : eul[i] );
+					}
+					else if (dactive) {
+						angles[i] += deul[i];
+					}
 				}
 
-				//RotY dRotY
-				if (m_ipo_channels_active[OB_ROT_Y]) {
-					pitch = (m_ipo_channels_active[OB_DROT_Y] ? (m_ipo_xform.GetEulerAngles()[1] + m_ipo_xform.GetDeltaEulerAngles()[1]) : m_ipo_xform.GetEulerAngles()[1] );
-				}
-				else if (m_ipo_channels_active[OB_DROT_Y]) {
-					pitch += m_ipo_xform.GetDeltaEulerAngles()[1];
-				}
-				
-				//RotZ and dRotZ
-				if (m_ipo_channels_active[OB_ROT_Z]) {
-					roll = (m_ipo_channels_active[OB_DROT_Z] ? (m_ipo_xform.GetEulerAngles()[2] + m_ipo_xform.GetDeltaEulerAngles()[2]) : m_ipo_xform.GetEulerAngles()[2] );
-				}
-				else if (m_ipo_channels_active[OB_DROT_Z]) {
-					roll += m_ipo_xform.GetDeltaEulerAngles()[2];
-				}
 				if (m_game_object)
-					m_game_object->NodeSetLocalOrientation(mt::mat3(mt::vec3(yaw, pitch, roll)));
+					m_game_object->NodeSetLocalOrientation(mt::mat3(angles));
 			}
 		}
 		else if (m_ipo_start_initialized) {
-			// only DROT, treat as Add
-			double yaw = 0.0, pitch = 0.0, roll = 0.0; //delta Euler angles
+			mt::vec3 angles = mt::zero3;
 
-			//dRotX
-			if (m_ipo_channels_active[OB_DROT_X])
-				yaw = m_ipo_xform.GetDeltaEulerAngles()[0];
-
-			//dRotY
-			if (m_ipo_channels_active[OB_DROT_Y])
-				pitch = m_ipo_xform.GetDeltaEulerAngles()[1];
-
-			//dRotZ
-			if (m_ipo_channels_active[OB_DROT_Z])
-				roll = m_ipo_xform.GetDeltaEulerAngles()[2];
+			for (unsigned short i = 0; i < 3; ++i) {
+				if (m_ipo_channels_active[OB_DROT_X + i]) {
+					angles[i] = m_ipo_xform.GetDeltaEulerAngles()[i];
+				}
+			}
 
 			// dRot are always local
-			mt::mat3 rotation(mt::vec3(yaw, pitch, roll));
+			mt::mat3 rotation(angles);
 			rotation = m_ipo_start_orient * rotation;
 			if (m_game_object)
 				m_game_object->NodeSetLocalOrientation(rotation);
@@ -282,27 +251,18 @@ bool KX_IpoSGController::Update()
 		if (!m_ipo_add)
 			newScale = m_node->GetLocalScale();
 
-		if (m_ipo_channels_active[OB_SIZE_X]) {
-			newScale[0] = (m_ipo_channels_active[OB_DSIZE_X] ? (m_ipo_xform.GetScaling()[0] + m_ipo_xform.GetDeltaScaling()[0]) : m_ipo_xform.GetScaling()[0]);
-		}
-		else if (m_ipo_channels_active[OB_DSIZE_X] && m_ipo_start_initialized) {
-			newScale[0] = (m_ipo_xform.GetDeltaScaling()[0] + ((!m_ipo_add) ? m_ipo_start_scale[0] : 0.0f));
-		}
+		for (unsigned short i = 0; i < 3; ++i) {
+			const mt::vec3& scale = m_ipo_xform.GetScaling();
+			const mt::vec3& dscale = m_ipo_xform.GetDeltaScaling();
 
-		//RotY dRotY
-		if (m_ipo_channels_active[OB_SIZE_Y]) {
-			newScale[1] = (m_ipo_channels_active[OB_DSIZE_Y] ? (m_ipo_xform.GetScaling()[1] + m_ipo_xform.GetDeltaScaling()[1]): m_ipo_xform.GetScaling()[1]);
-		}
-		else if (m_ipo_channels_active[OB_DSIZE_Y] && m_ipo_start_initialized) {
-			newScale[1] = (m_ipo_xform.GetDeltaScaling()[1] + ((!m_ipo_add)?m_ipo_start_scale[1] : 0.0f));
-		}
-		
-		//RotZ and dRotZ
-		if (m_ipo_channels_active[OB_SIZE_Z]) {
-			newScale[2] = (m_ipo_channels_active[OB_DSIZE_Z] ? (m_ipo_xform.GetScaling()[2] + m_ipo_xform.GetDeltaScaling()[2]) : m_ipo_xform.GetScaling()[2]);
-		}
-		else if (m_ipo_channels_active[OB_DSIZE_Z] && m_ipo_start_initialized) {
-			newScale[2] = (m_ipo_xform.GetDeltaScaling()[2] + ((!m_ipo_add)?m_ipo_start_scale[2] : 1.0f));
+			const bool dactive = m_ipo_channels_active[OB_DSIZE_X + i];
+
+			if (m_ipo_channels_active[OB_SIZE_X + i]) {
+				newScale[i] = (dactive ? (scale[i] + dscale[i]) : scale[i]);
+			}
+			else if (dactive && m_ipo_start_initialized) {
+				newScale[i] = (dscale[i] + ((!m_ipo_add) ? m_ipo_start_scale[i] : 0.0f));
+			}
 		}
 
 		if (m_ipo_add) {
