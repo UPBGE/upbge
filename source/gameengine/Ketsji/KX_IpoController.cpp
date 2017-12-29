@@ -152,7 +152,7 @@ bool KX_IpoController::Update()
 				if (m_ipo_channels_active[OB_LOC_X + i]) {
 					newPosition[i] = (dactive ? loc[i] + dloc[i] : loc[i]);
 				}
-				else if (dactive && m_ipo_start_initialized) {
+				else if (dactive) {
 					newPosition[i] = (((!m_ipo_add) ? m_ipo_start_point[i] : 0.0f) + dloc[i]);
 				}
 			}
@@ -179,54 +179,50 @@ bool KX_IpoController::Update()
 			}
 		}
 		else if (m_ipo_add) {
-			if (m_ipo_start_initialized) {
-				// Delta euler angles.
-				mt::vec3 angles = mt::zero3;
+			// Delta euler angles.
+			mt::vec3 angles = mt::zero3;
 
-				for (unsigned short i = 0; i < 3; ++i) {
-					if (m_ipo_channels_active[OB_ROT_X + i]) {
-						angles[i] += m_ipo_xform.GetEulerAngles()[i];
-					}
-					if (m_ipo_channels_active[OB_DROT_X + i]) {
-						angles[i] += m_ipo_xform.GetDeltaEulerAngles()[i];
-					}
+			for (unsigned short i = 0; i < 3; ++i) {
+				if (m_ipo_channels_active[OB_ROT_X + i]) {
+					angles[i] += m_ipo_xform.GetEulerAngles()[i];
 				}
-
-				mt::mat3 rotation(angles);
-				if (m_ipo_local)
-					rotation = m_ipo_start_orient * rotation;
-				else
-					rotation = rotation * m_ipo_start_orient;
-				if (m_game_object)
-					m_game_object->NodeSetLocalOrientation(rotation);
+				if (m_ipo_channels_active[OB_DROT_X + i]) {
+					angles[i] += m_ipo_xform.GetDeltaEulerAngles()[i];
+				}
 			}
+
+			mt::mat3 rotation(angles);
+			if (m_ipo_local)
+				rotation = m_ipo_start_orient * rotation;
+			else
+				rotation = rotation * m_ipo_start_orient;
+			if (m_game_object)
+				m_game_object->NodeSetLocalOrientation(rotation);
 		}
 		else if (m_ipo_channels_active[OB_ROT_X] || m_ipo_channels_active[OB_ROT_Y] || m_ipo_channels_active[OB_ROT_Z]) {
-			if (m_ipo_euler_initialized) {
-				// assume all channel absolute
-				// All 3 channels should be specified but if they are not, we will take 
-				// the value at the start of the game to avoid angle sign reversal 
-				mt::vec3 angles(m_ipo_start_euler);
+			// assume all channel absolute
+			// All 3 channels should be specified but if they are not, we will take 
+			// the value at the start of the game to avoid angle sign reversal 
+			mt::vec3 angles(m_ipo_start_euler);
 
-				for (unsigned short i = 0; i < 3; ++i) {
-					const mt::vec3& eul = m_ipo_xform.GetEulerAngles();
-					const mt::vec3& deul = m_ipo_xform.GetDeltaEulerAngles();
+			for (unsigned short i = 0; i < 3; ++i) {
+				const mt::vec3& eul = m_ipo_xform.GetEulerAngles();
+				const mt::vec3& deul = m_ipo_xform.GetDeltaEulerAngles();
 
-					const bool dactive = m_ipo_channels_active[OB_DROT_X + i];
+				const bool dactive = m_ipo_channels_active[OB_DROT_X + i];
 
-					if (m_ipo_channels_active[OB_ROT_X + i]) {
-						angles[i] = (dactive ? (eul[i] + deul[i]) : eul[i] );
-					}
-					else if (dactive) {
-						angles[i] += deul[i];
-					}
+				if (m_ipo_channels_active[OB_ROT_X + i]) {
+					angles[i] = (dactive ? (eul[i] + deul[i]) : eul[i] );
 				}
-
-				if (m_game_object)
-					m_game_object->NodeSetLocalOrientation(mt::mat3(angles));
+				else if (dactive) {
+					angles[i] += deul[i];
+				}
 			}
+
+			if (m_game_object)
+				m_game_object->NodeSetLocalOrientation(mt::mat3(angles));
 		}
-		else if (m_ipo_start_initialized) {
+		else {
 			mt::vec3 angles = mt::zero3;
 
 			for (unsigned short i = 0; i < 3; ++i) {
@@ -260,7 +256,7 @@ bool KX_IpoController::Update()
 			if (m_ipo_channels_active[OB_SIZE_X + i]) {
 				newScale[i] = (dactive ? (scale[i] + dscale[i]) : scale[i]);
 			}
-			else if (dactive && m_ipo_start_initialized) {
+			else if (dactive) {
 				newScale[i] = (dscale[i] + ((!m_ipo_add) ? m_ipo_start_scale[i] : 0.0f));
 			}
 		}
