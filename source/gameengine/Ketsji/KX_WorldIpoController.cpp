@@ -101,7 +101,7 @@ SG_Controller*	KX_WorldIpoController::GetReplica(class SG_Node* destnode)
 		uint_ptr offset = orgloc-orgbase;
 		uint_ptr newaddrbase = (uint_ptr)iporeplica + offset;
 		float* blaptr = (float*) newaddrbase;
-		copyipo->SetNewTarget((float*)blaptr);
+		copyipo->SetTarget((float*)blaptr);
 	}
 	
 	return iporeplica;

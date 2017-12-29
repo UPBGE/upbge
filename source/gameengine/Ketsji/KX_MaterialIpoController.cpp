@@ -64,7 +64,7 @@ SG_Controller*	KX_MaterialIpoController::GetReplica(class SG_Node* destnode)
 		intptr_t offset = orgloc-orgbase;
 		intptr_t newaddrbase = (intptr_t)iporeplica + offset;
 		float* blaptr = (float*) newaddrbase;
-		copyipo->SetNewTarget((float*)blaptr);
+		copyipo->SetTarget((float*)blaptr);
 	}
 	
 	return iporeplica;

@@ -46,9 +46,9 @@ public:
 	
 	virtual ~KX_ScalarInterpolator() {}
 	virtual void Execute(float currentTime) const;
-	void		SetNewTarget(float* newtarget)
+	void		SetTarget(float* target)
 	{
-		m_target=newtarget;
+		m_target = target;
 	}
 	float*	GetTarget()
 	{
