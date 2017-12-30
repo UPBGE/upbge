@@ -37,7 +37,7 @@
 SG_Controller::SG_Controller()
 	:m_modified(true),
 	m_node(nullptr),
-	m_ipotime(0.0)
+	m_time(0.0)
 {
 }
 
@@ -50,7 +50,7 @@ bool SG_Controller::Update()
 	m_modified = false;
 
 	for (SG_Interpolator& interp : m_interpolators) {
-		interp.Execute(m_ipotime);
+		interp.Execute(m_time);
 	}
 
 	return true;
@@ -68,7 +68,7 @@ void SG_Controller::ClearNode()
 
 void SG_Controller::SetSimulatedTime(double time)
 {
-	m_ipotime = time;
+	m_time = time;
 	m_modified = true;
 }
 

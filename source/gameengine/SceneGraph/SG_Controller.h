@@ -95,7 +95,7 @@ protected:
 
 	SG_Node *m_node;
 	/// Local time of this ipo.
-	double m_ipotime;
+	double m_time;
 
 };
 
