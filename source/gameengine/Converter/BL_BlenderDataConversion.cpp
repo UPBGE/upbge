@@ -928,9 +928,16 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 			if (ob->curve_cache == nullptr) {
 				BKE_displist_make_curveTypes(blenderscene, ob, false);
 			}
+			/* We can convert curves as empty for experimental purposes in 2.7
+			 * and to prepare transition to 2.8.
+			 * Note: if we use eevee render in 2.8, to finalize stuff about curves,
+			 * see : https://github.com/youle31/EEVEEinUPBGE/commit/ff11e0fdea4dfc121a7eaa7b7d48183eaf5fd9f6
+			 * for comments about culling.
+			 */
+			gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
+			break;
 		}
 #endif
-
 	}
 	if (gameobj) {
 		gameobj->SetLayer(ob->lay);
