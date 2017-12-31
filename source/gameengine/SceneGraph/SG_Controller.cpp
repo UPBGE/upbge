@@ -41,13 +41,6 @@ SG_Controller::SG_Controller()
 {
 }
 
-SG_Controller::~SG_Controller()
-{
-	for (SG_Interpolator *interp : m_interpolators) {
-		delete interp;
-	}
-}
-
 bool SG_Controller::Update()
 {
 	if (!m_modified) {
@@ -56,8 +49,8 @@ bool SG_Controller::Update()
 
 	m_modified = false;
 
-	for (SG_Interpolator *interp : m_interpolators) {
-		interp->Execute(m_ipotime);
+	for (SG_Interpolator& interp : m_interpolators) {
+		interp.Execute(m_ipotime);
 	}
 
 	return true;
@@ -83,7 +76,7 @@ void SG_Controller::SetOption(SG_Controller::SG_ControllerOption option, bool va
 {
 }
 
-void SG_Controller::AddInterpolator(SG_Interpolator *interp)
+void SG_Controller::AddInterpolator(const SG_Interpolator& interp)
 {
 	m_interpolators.push_back(interp);
 }

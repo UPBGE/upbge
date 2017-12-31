@@ -51,7 +51,7 @@ public:
 	void Execute(float currentTime) const;
 };
 
-using SG_InterpolatorList = std::vector<SG_Interpolator *>;
+using SG_InterpolatorList = std::vector<SG_Interpolator>;
 
 #endif  // __SG_INTERPOLATOR_H__
 

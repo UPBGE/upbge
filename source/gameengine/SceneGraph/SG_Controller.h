@@ -63,7 +63,7 @@ public:
 	};
 
 	SG_Controller();
-	virtual ~SG_Controller();
+	virtual ~SG_Controller() = default;
 
 	/// Perform an update, returns true when the update was performed.
 	virtual bool Update();
@@ -85,7 +85,7 @@ public:
 	 */
 	virtual void SetOption(SG_ControllerOption option, bool value);
 
-	void AddInterpolator(SG_Interpolator *interp);
+	void AddInterpolator(const SG_Interpolator& interp);
 
 
 protected:
