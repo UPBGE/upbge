@@ -256,13 +256,3 @@ bool KX_IpoController::Update()
 
 	return true;
 }
-
-SG_Controller *KX_IpoController::GetReplica(SG_Node *destnode)
-{
-	KX_IpoController *iporeplica = new KX_IpoController(*this);
-
-	iporeplica->SetGameObject((KX_GameObject *)destnode->GetSGClientObject());
-	iporeplica->ProcessReplica();
-
-	return iporeplica;
-}

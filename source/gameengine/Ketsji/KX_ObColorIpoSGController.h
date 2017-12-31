@@ -45,7 +45,6 @@ public:
 public:
 	KX_ObColorIpoSGController() = default;
 	virtual ~KX_ObColorIpoSGController() = default;
-	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
 	virtual bool Update();
 };
 

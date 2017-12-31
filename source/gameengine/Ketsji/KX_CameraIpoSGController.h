@@ -59,7 +59,6 @@ public:
 		{}
 
 	virtual ~KX_CameraIpoSGController() = default;
-	SG_Controller*	GetReplica(class SG_Node* destnode);
 	virtual bool Update();
 
 	void	SetModifyLens(bool modify) {

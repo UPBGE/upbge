@@ -70,13 +70,3 @@ bool KX_WorldIpoController::Update()
 
 	return true;
 }
-
-SG_Controller*	KX_WorldIpoController::GetReplica(SG_Node* destnode)
-{
-	KX_WorldIpoController* iporeplica = new KX_WorldIpoController(*this);
-
-	iporeplica->ProcessReplica();
-
-	return iporeplica;
-}
-

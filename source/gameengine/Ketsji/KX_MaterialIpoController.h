@@ -36,7 +36,6 @@ public:
 				m_material(polymat)
 		{}
 	virtual ~KX_MaterialIpoController() = default;
-	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
 	virtual bool Update();
 };
 

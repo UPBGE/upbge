@@ -66,8 +66,6 @@ public:
 
 	virtual ~KX_WorldIpoController() = default;
 
-	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
-
 	virtual bool Update();
 
 	void	SetModifyMistStart(bool modify) {

@@ -60,8 +60,6 @@ public:
 
 	virtual ~KX_LightIpoSGController() = default;
 
-	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
-
 	virtual bool Update();
 
 	void	SetModifyEnergy(bool modify) {

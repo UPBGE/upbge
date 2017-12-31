@@ -42,13 +42,3 @@ void SG_Interpolator::Execute(float currentTime) const
 {
 	*m_target = m_interp->GetValue(currentTime);
 }
-
-void SG_Interpolator::SetTarget(float *target)
-{
-	m_target = target;
-}
-
-float *SG_Interpolator::GetTarget() const
-{
-	return m_target;
-}

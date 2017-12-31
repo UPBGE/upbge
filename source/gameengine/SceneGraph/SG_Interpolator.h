@@ -49,9 +49,6 @@ public:
 	virtual ~SG_Interpolator() = default;
 	
 	void Execute(float currentTime) const;
-
-	void SetTarget(float *target);
-	float *GetTarget() const;
 };
 
 using SG_InterpolatorList = std::vector<SG_Interpolator *>;

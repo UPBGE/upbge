@@ -81,8 +81,6 @@ public:
 	KX_IpoController();
 	virtual ~KX_IpoController() = default;
 
-	virtual SG_Controller *GetReplica(class SG_Node *destnode);
-
 	virtual void SetOption(SG_ControllerOption option, bool value);
 
 	/** Set reference to the corresponding game object. */

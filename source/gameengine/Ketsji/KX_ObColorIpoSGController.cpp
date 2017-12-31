@@ -45,13 +45,3 @@ bool KX_ObColorIpoSGController::Update()
 
 	return true;
 }
-
-SG_Controller*	KX_ObColorIpoSGController::GetReplica(SG_Node* destnode)
-{
-	KX_ObColorIpoSGController* iporeplica = new KX_ObColorIpoSGController(*this);
-
-	iporeplica->ProcessReplica();
-
-	return iporeplica;
-}
-

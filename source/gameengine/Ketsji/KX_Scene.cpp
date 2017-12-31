@@ -535,19 +535,7 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 
 	// Logic cannot be replicated, until the whole hierarchy is replicated.
 	m_logicHierarchicalGameObjects.push_back(newobj);
-	// Replicate controllers of this node.
-	SGControllerList scenegraphcontrollers = gameobj->GetSGNode()->GetSGControllerList();
-	replicanode->RemoveAllControllers();
 
-	for (SG_Controller *controller : scenegraphcontrollers) {
-		/* Controller replication is quite complicated
-		 * only replicate IPO controller for now. */
-		SG_Controller *replicacontroller = controller->GetReplica(replicanode);
-		if (replicacontroller) {
-			replicacontroller->SetNode(replicanode);
-			replicanode->AddSGController(replicacontroller);
-		}
-	}
 	// Replicate graphic controller.
 	if (gameobj->GetGraphicController()) {
 		PHY_IMotionState *motionstate = new KX_MotionState(newobj->GetSGNode());

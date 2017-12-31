@@ -65,9 +65,6 @@ public:
 	SG_Controller();
 	virtual ~SG_Controller();
 
-	virtual SG_Controller *GetReplica(SG_Node *destnode) = 0;
-	void ProcessReplica();
-
 	/// Perform an update, returns true when the update was performed.
 	virtual bool Update();
 

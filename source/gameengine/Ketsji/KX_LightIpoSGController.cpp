@@ -59,12 +59,3 @@ bool KX_LightIpoSGController::Update()
 
 	return true;
 }
-
-SG_Controller*	KX_LightIpoSGController::GetReplica(SG_Node* destnode)
-{
-	KX_LightIpoSGController* iporeplica = new KX_LightIpoSGController(*this);
-
-	iporeplica->ProcessReplica();
-
-	return iporeplica;
-}

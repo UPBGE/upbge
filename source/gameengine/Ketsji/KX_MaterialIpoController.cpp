@@ -37,13 +37,3 @@ bool KX_MaterialIpoController::Update()
 
 	return true;
 }
-
-SG_Controller*	KX_MaterialIpoController::GetReplica(SG_Node* destnode)
-{
-	KX_MaterialIpoController* iporeplica = new KX_MaterialIpoController(*this);
-
-	iporeplica->ProcessReplica();
-
-	return iporeplica;
-}
-

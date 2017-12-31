@@ -48,26 +48,6 @@ SG_Controller::~SG_Controller()
 	}
 }
 
-void SG_Controller::ProcessReplica()
-{
-	// Clear object that ipo acts on.
-	ClearNode();
-
-	for (unsigned short i = 0, size = m_interpolators.size(); i < size; ++i) {
-		SG_Interpolator *oldinterp = m_interpolators[i];
-		SG_Interpolator *newinterp = new SG_Interpolator(*oldinterp);
-
-		m_interpolators[i] = newinterp;
-
-		const intptr_t orgbase = (intptr_t)oldinterp;
-		const intptr_t orgloc = (intptr_t)oldinterp->GetTarget();
-		const intptr_t offset = orgloc - orgbase;
-		const intptr_t newaddrbase = ((intptr_t)this) + offset;
-
-		newinterp->SetTarget((float *)newaddrbase);
-	}
-}
-
 bool SG_Controller::Update()
 {
 	if (!m_modified) {

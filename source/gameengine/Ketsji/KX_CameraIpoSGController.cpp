@@ -57,12 +57,3 @@ bool KX_CameraIpoSGController::Update()
 
 	return true;
 }
-
-SG_Controller*	KX_CameraIpoSGController::GetReplica(SG_Node* destnode)
-{
-	KX_CameraIpoSGController* iporeplica = new KX_CameraIpoSGController(*this);
-
-	iporeplica->ProcessReplica();
-
-	return iporeplica;
-}
