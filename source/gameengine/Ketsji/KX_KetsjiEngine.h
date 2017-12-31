@@ -35,7 +35,6 @@
 
 #include <string>
 #include "KX_ISystem.h"
-#include "KX_Scene.h"
 #include "KX_TimeCategoryLogger.h"
 #include "EXP_Python.h"
 #include "KX_WorldInfo.h"
@@ -44,6 +43,8 @@
 #include <vector>
 
 struct TaskScheduler;
+class KX_Scene;
+class KX_Camera;
 class KX_ISystem;
 class BL_Converter;
 class KX_NetworkMessageManager;
@@ -51,6 +52,8 @@ class RAS_ICanvas;
 class RAS_OffScreen;
 class RAS_Query;
 class SCA_IInputDevice;
+template <class T>
+class EXP_ListValue;
 
 enum class KX_ExitRequest
 {

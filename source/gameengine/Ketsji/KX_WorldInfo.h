@@ -33,13 +33,13 @@
 #define __KX_WORLDINFO_H__
 
 #include "mathfu.h"
-#include "KX_KetsjiEngine.h"
 #include "EXP_Value.h"
 
 #ifdef USE_MATHUTILS
 void KX_WorldInfo_Mathutils_Callback_Init(void);
 #endif
 
+class RAS_Rasterizer;
 struct Scene;
 struct World;
 

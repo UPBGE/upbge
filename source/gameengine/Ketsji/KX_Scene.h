@@ -36,6 +36,7 @@
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_TextureRendererManager.h" // For KX_TextureRendererManager::RendererCategory.
 #include "KX_PythonComponentManager.h"
+#include "KX_KetsjiEngine.h" // For KX_DebugOption.
 
 #include "SG_Node.h"
 #include "SG_Frustum.h"
@@ -354,7 +355,8 @@ public:
 	void CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, const SG_Frustum& frustum, int layer);
 
 	/// \section Debug draw.
-	void DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObject *>& objects);
+	void DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObject *>& objects,
+			KX_DebugOption showBoundingBox, KX_DebugOption showArmatures);
 	void RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax);
 
 	/// Replicate the logic bricks associated to this object.

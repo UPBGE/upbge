@@ -1021,7 +1021,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 
 	RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(scene);
 	// Draw debug infos like bouding box, armature ect.. if enabled.
-	scene->DrawDebug(debugDraw, objects);
+	scene->DrawDebug(debugDraw, objects, m_showBoundingBox, m_showArmature);
 	// Draw debug camera frustum.
 	DrawDebugCameraFrustum(scene, debugDraw, cameraFrameData);
 	DrawDebugShadowFrustum(scene, debugDraw);

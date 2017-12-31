@@ -26,6 +26,7 @@
 
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
+#include "KX_Scene.h"
 #include "RAS_Rasterizer.h"
 
 extern "C" {

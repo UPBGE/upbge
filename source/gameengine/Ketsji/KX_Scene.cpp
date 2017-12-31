@@ -1154,9 +1154,9 @@ void KX_Scene::CalculateVisibleMeshes(std::vector<KX_GameObject *>& objects, con
 	m_boundingBoxManager->ClearModified();
 }
 
-void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObject *>& objects)
+void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObject *>& objects,
+		KX_DebugOption showBoundingBox, KX_DebugOption showArmatures)
 {
-	const KX_DebugOption showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
 	if (showBoundingBox != KX_DebugOption::DISABLE) {
 		for (KX_GameObject *gameobj : objects) {
 			const mt::vec3& scale = gameobj->NodeGetWorldScaling();
@@ -1181,7 +1181,6 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const std::vector<KX_GameObje
 		}
 	}
 
-	const KX_DebugOption showArmatures = KX_GetActiveEngine()->GetShowArmatures();
 	if (showArmatures != KX_DebugOption::DISABLE) {
 		// The side effect of a armature is that it was added in the animated object list.
 		for (KX_GameObject *gameobj : m_animatedlist) {
