@@ -71,7 +71,7 @@ RAS_DebugDraw::Box2d::Box2d(const mt::vec2& pos, const mt::vec2& size, const mt:
 {
 	pos.Pack(m_pos);
 
-	m_size[0] = size.x;
+	m_size[0] = size.x + 1;
 	m_size[1] = -size.y;
 }
 
