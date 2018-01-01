@@ -53,12 +53,12 @@ class KX_RadarSensor : public KX_NearSensor
 	/**
 	 * The previous position of the origin of the cone.
 	 */
-	float       m_cone_origin[3];
+	mt::vec3 m_cone_origin;
 
 	/**
 	 * The previous direction of the cone (origin to bottom plane).
 	 */
-	float       m_cone_target[3];
+	mt::vec3 m_cone_target;
 	
 public:
 
