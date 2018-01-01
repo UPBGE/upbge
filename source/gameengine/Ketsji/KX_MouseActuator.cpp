@@ -95,8 +95,12 @@ bool KX_MouseActuator::Update()
 	bool bNegativeEvent = IsNegativeEvent();
 	RemoveAllEvents();
 
-	if (bNegativeEvent)
-		return false; // do nothing on negative events
+	if (bNegativeEvent) {
+		// Reset previous position on negative events.
+		m_oldposition[0] = -1.0f;
+		m_oldposition[1] = -1.0f;
+		return false;
+	}
 
 	KX_GameObject *parent = static_cast<KX_GameObject *>(GetParent());
 
