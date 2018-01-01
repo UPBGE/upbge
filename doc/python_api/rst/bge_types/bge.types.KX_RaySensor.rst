@@ -48,13 +48,13 @@ base class --- :class:`SCA_ISensor`
 
       The position (in worldcoordinates) where the object was hit by the ray. (read-only).
 
-      :type: list [x, y, z]
+      :type: :class:`mathutils.Vector`
 
    .. attribute:: hitNormal
 
       The normal (in worldcoordinates) of the object at the location where the object was hit by the ray. (read-only).
 
-      :type: list [x, y, z]
+      :type: :class:`mathutils.Vector`
 
    .. attribute:: hitMaterial
 
@@ -66,7 +66,7 @@ base class --- :class:`SCA_ISensor`
 
       The direction from the ray (in worldcoordinates). (read-only).
 
-      :type: list [x, y, z]
+      :type: :class:`mathutils.Vector`
 
    .. attribute:: axis
 

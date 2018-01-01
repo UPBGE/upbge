@@ -11,13 +11,13 @@ base class --- :class:`KX_NearSensor`
 
       The origin of the cone with which to test. The origin is in the middle of the cone. (read-only).
 
-      :type: list of floats [x, y, z]
+      :type: :class:`mathutils.Vector`
 
    .. attribute:: coneTarget
 
       The center of the bottom face of the cone with which to test. (read-only).
 
-      :type: list of floats [x, y, z]
+      :type: :class:`mathutils.Vector`
 
    .. attribute:: distance
 
