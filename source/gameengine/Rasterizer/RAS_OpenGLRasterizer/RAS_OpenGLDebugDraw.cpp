@@ -48,7 +48,7 @@ inline static void attribVector(unsigned short loc, unsigned short stride, intpt
 {
 	glEnableVertexAttribArray(loc);
 	glVertexAttribPointer(loc, size, GL_FLOAT, false, stride, (const void *)offset);
-	glVertexAttribDivisor(loc, divisor);
+	glVertexAttribDivisorARB(loc, divisor);
 }
 
 inline static void attribMatrix(unsigned short loc, unsigned short stride, intptr_t offset, unsigned short size, unsigned short divisor)
@@ -56,7 +56,7 @@ inline static void attribMatrix(unsigned short loc, unsigned short stride, intpt
 	for (unsigned short i = 0; i < size; ++i) {
 		glEnableVertexAttribArray(loc + i);
 		glVertexAttribPointer(loc + i, size, GL_FLOAT, false, stride, (const void *)(offset + size * i * sizeof(float)));
-		glVertexAttribDivisor(loc + i, divisor);
+		glVertexAttribDivisorARB(loc + i, divisor);
 	}
 }
 
@@ -112,13 +112,12 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw()
 		static const unsigned short stride = sizeof(RAS_DebugDraw::Line) / 2;
 		const unsigned int pos = GPU_shader_get_attribute(m_colorShader, "pos");
 		const unsigned int color = GPU_shader_get_attribute(m_colorShader, "color");
-	
+
 		glBindBuffer(GL_ARRAY_BUFFER, m_vbos[LINES_VBO]);
 		attribVector(pos, stride, offsetof(RAS_DebugDraw::Line, m_from), 3, 0);
 		attribVector(color, stride, offsetof(RAS_DebugDraw::Line, m_color), 4, 0);
 	}
 
-	
 	static const unsigned short frustumStride = sizeof(RAS_DebugDraw::Frustum);
 
 	glBindVertexArray(m_vaos[FRUSTUMS_LINE_VAO]);
@@ -222,11 +221,11 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 
 		glBindVertexArray(m_vaos[FRUSTUMS_LINE_VAO]);
 		GPU_shader_bind(m_frustumLineShader);
-		glDrawElementsInstanced(GL_LINES, 24, GL_UNSIGNED_BYTE, nullptr, numfrustums);
+		glDrawElementsInstancedARB(GL_LINES, 24, GL_UNSIGNED_BYTE, nullptr, numfrustums);
 
 		glBindVertexArray(m_vaos[FRUSTUMS_SOLID_VAO]);
 		GPU_shader_bind(m_frustumSolidShader);
-		glDrawElementsInstanced(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, (const void *)(sizeof(GLubyte) * 24), numfrustums);
+		glDrawElementsInstancedARB(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, (const void *)(sizeof(GLubyte) * 24), numfrustums);
 	}
 
 	const std::vector<RAS_DebugDraw::Aabb>& aabbs = debugDraw->m_aabbs;
@@ -236,7 +235,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 
 		glBindVertexArray(m_vaos[AABB_VAO]);
 		GPU_shader_bind(m_frustumLineShader);
-		glDrawElementsInstanced(GL_LINES, 24, GL_UNSIGNED_BYTE, nullptr, numaabbs);
+		glDrawElementsInstancedARB(GL_LINES, 24, GL_UNSIGNED_BYTE, nullptr, numaabbs);
 	}
 
 	const unsigned int width = canvas->GetWidth();
@@ -261,7 +260,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 
 		glBindVertexArray(m_vaos[BOX_2D_VAO]);
 		GPU_shader_bind(m_box2dShader);
-		glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, numboxes);
+		glDrawArraysInstancedARB(GL_TRIANGLE_FAN, 0, 4, numboxes);
 	}
 
 	glBindVertexArray(0);
