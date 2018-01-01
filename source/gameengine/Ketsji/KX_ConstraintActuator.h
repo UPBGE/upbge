@@ -57,8 +57,7 @@ protected:
 	// sinus of maximum angle
 	float m_maximumSine;
 	// reference direction
-	float m_refDirection[3];
-	mt::vec3 m_refDirVector;	// same as m_refDirection
+	mt::vec3 m_refDirection;
 	// locrotxyz choice (pick one): only one choice allowed at a time!
 	int m_locrot;
 	// active time of actuator
@@ -117,7 +116,7 @@ public:
 						  int rotDampTime,
 						  float min,
 						  float max,
-						  float refDir[3],
+						  const mt::vec3& refDir,
 						  int locrot,
 						  int time,
 						  int option,
