@@ -54,10 +54,10 @@ class KX_RaySensor : public SCA_ISensor
 	int				m_axis;
 	int				m_mask;
 	bool			m_rayHit;
-	float			m_hitPosition[3];
+	mt::vec3 m_hitPosition;
 	SCA_IObject*	m_hitObject;
-	float			m_hitNormal[3];
-	float			m_rayDirection[3];
+	mt::vec3 m_hitNormal;
+	mt::vec3 m_rayDirection;
 	std::string		m_hitMaterial;
 
 public:
