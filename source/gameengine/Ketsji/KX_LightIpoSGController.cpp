@@ -34,8 +34,6 @@
 #include "KX_LightObject.h"
 #include "RAS_ILightObject.h"
 
-#include "BLI_math_vector.h"
-
 bool KX_LightIpoSGController::Update(SG_Node *node)
 {
 	if (!SG_Controller::Update(node)) {
@@ -50,7 +48,7 @@ bool KX_LightIpoSGController::Update(SG_Node *node)
 	}
 
 	if (m_modify_color) {
-		copy_v3_v3(lightobj->m_color, m_col_rgb);
+		lightobj->m_color = m_col_rgb;
 	}
 
 	if (m_modify_dist) {
