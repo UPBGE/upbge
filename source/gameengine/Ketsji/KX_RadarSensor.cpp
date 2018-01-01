@@ -136,18 +136,8 @@ void KX_RadarSensor::SynchronizeTransform()
 
 	mt::mat3x4 trans(rot, pos + rot * mt::vec3(0, -m_coneheight / 2.0f, 0));
 
-	//Using a temp variable to translate mt::vec3 to float[3].
-	//float[3] works better for the Python interface.
-	mt::vec3 temp = trans.TranslationVector3D();
-	m_cone_origin[0] = temp[0];
-	m_cone_origin[1] = temp[1];
-	m_cone_origin[2] = temp[2];
-
-	temp = trans * mt::vec3(0, -m_coneheight / 2.0f, 0);
-	m_cone_target[0] = temp[0];
-	m_cone_target[1] = temp[1];
-	m_cone_target[2] = temp[2];
-
+	m_cone_origin = trans.TranslationVector3D();
+	m_cone_target = trans * mt::vec3(0, -m_coneheight/2.0f, 0);
 
 	if (m_physCtrl) {
 		PHY_IMotionState *motionState = m_physCtrl->GetMotionState();
@@ -194,8 +184,8 @@ PyMethodDef KX_RadarSensor::Methods[] = {
 };
 
 PyAttributeDef KX_RadarSensor::Attributes[] = {
-	EXP_PYATTRIBUTE_FLOAT_ARRAY_RO("coneOrigin", KX_RadarSensor, m_cone_origin, 3),
-	EXP_PYATTRIBUTE_FLOAT_ARRAY_RO("coneTarget", KX_RadarSensor, m_cone_target, 3),
+	EXP_PYATTRIBUTE_VECTOR_RO("coneOrigin", KX_RadarSensor, m_cone_origin, 3),
+	EXP_PYATTRIBUTE_VECTOR_RO("coneTarget", KX_RadarSensor, m_cone_target, 3),
 	EXP_PYATTRIBUTE_FLOAT_RO("distance", KX_RadarSensor, m_coneheight),
 	EXP_PYATTRIBUTE_RO_FUNCTION("angle", KX_RadarSensor, pyattr_get_angle),
 	EXP_PYATTRIBUTE_INT_RW("axis", 0, 5, true, KX_RadarSensor, m_axis),
