@@ -23,7 +23,7 @@ base class --- :class:`SCA_IActuator`
 
       The reference direction in world coordinate for the orientation constraint.
 
-      :type: 3-tuple of float: (x, y, z)
+      :type: :class:`mathutils.Vector`
 
    .. attribute:: option
 

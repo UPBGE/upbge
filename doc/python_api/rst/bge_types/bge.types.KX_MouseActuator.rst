@@ -33,7 +33,7 @@ base class --- :class:`SCA_IActuator`
 
       Amount of movement from the mouse required before rotation is triggered.
 
-      :type: list (vector of 2 floats)
+      :type: :class:`mathutils.Vector`
 
       The values in the list should be between 0.0 and 0.5.
 
@@ -75,7 +75,7 @@ base class --- :class:`SCA_IActuator`
 
       The amount of rotation caused by mouse movement along the x and y axis.
 
-      :type: list (vector of 2 floats)
+      :type: :class:`mathutils.Vector`
 
       Negative values invert the rotation.
 
@@ -84,17 +84,17 @@ base class --- :class:`SCA_IActuator`
       The minimum and maximum angle of rotation caused by mouse movement along the x axis in degrees.
       limit_x[0] is minimum, limit_x[1] is maximum.
 
-      :type: list (vector of 2 floats)
+      :type: :class:`mathutils.Vector`
 
    .. attribute:: limit_y
 
       The minimum and maximum angle of rotation caused by mouse movement along the y axis in degrees.
       limit_y[0] is minimum, limit_y[1] is maximum.
 
-      :type: list (vector of 2 floats)
+      :type: :class:`mathutils.Vector`
 
    .. attribute:: angle
 
       The current rotational offset caused by the mouse actuator in degrees.
 
-      :type: list (vector of 2 floats)
+      :type: :class:`mathutils.Vector`
