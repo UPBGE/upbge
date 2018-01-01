@@ -468,17 +468,36 @@ PyObject *EXP_PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeD
 			}
 			case EXP_PYATTRIBUTE_TYPE_VECTOR:
 			{
-				mt::vec3 *val = reinterpret_cast<mt::vec3 *>(ptr);
+				switch (attrdef->m_size) {
+					case 2:
+					{
+						mt::vec2 *val = reinterpret_cast<mt::vec2 *>(ptr);
 #ifdef USE_MATHUTILS
-				return Vector_CreatePyObject(val->Data(), 3, nullptr);
+						return Vector_CreatePyObject(val->Data(), 2, nullptr);
 #else
-				PyObject *resultlist = PyList_New(3);
-				for (unsigned int i = 0; i < 3; i++)
-				{
-					PyList_SET_ITEM(resultlist, i, PyFloat_FromDouble((*val)[i]));
-				}
-				return resultlist;
+						PyObject *resultlist = PyList_New(2);
+						for (unsigned int i = 0; i < 2; i++)
+						{
+							PyList_SET_ITEM(resultlist, i, PyFloat_FromDouble((*val)[i]));
+						}
+						return resultlist;
 #endif
+					}
+					case 3:
+					{
+						mt::vec3 *val = reinterpret_cast<mt::vec3 *>(ptr);
+#ifdef USE_MATHUTILS
+						return Vector_CreatePyObject(val->Data(), 3, nullptr);
+#else
+						PyObject *resultlist = PyList_New(3);
+						for (unsigned int i = 0; i < 3; i++)
+						{
+							PyList_SET_ITEM(resultlist, i, PyFloat_FromDouble((*val)[i]));
+						}
+						return resultlist;
+#endif
+					}
+				}
 			}
 			case EXP_PYATTRIBUTE_TYPE_STRING:
 			{
@@ -781,7 +800,18 @@ UNDO_AND_ERROR:
 				}
 				case EXP_PYATTRIBUTE_TYPE_VECTOR:
 				{
-					bufferSize = sizeof(mt::vec3);
+					switch (attrdef->m_size) {
+						case 2:
+						{
+							bufferSize = sizeof(mt::vec2);
+							break;
+						}
+						case 3:
+						{
+							bufferSize = sizeof(mt::vec3);
+							break;
+						}
+					}
 					break;
 				}
 				default:
@@ -975,34 +1005,69 @@ UNDO_AND_ERROR:
 			}
 			case EXP_PYATTRIBUTE_TYPE_VECTOR:
 			{
-				if (!PySequence_Check(value) || PySequence_Size(value) != 3) {
-					PyErr_Format(PyExc_TypeError, "expected a sequence of 3 floats for attribute \"%s\"", attrdef->m_name.c_str());
+				if (!PySequence_Check(value) || PySequence_Size(value) != attrdef->m_size) {
+					PyErr_Format(PyExc_TypeError, "expected a sequence of %i floats for attribute \"%s\"", attrdef->m_size, attrdef->m_name.c_str());
 					goto FREE_AND_ERROR;
 				}
-				mt::vec3 *var = reinterpret_cast<mt::vec3 *>(ptr);
-				for (int i = 0; i < 3; i++)
-				{
-					item = PySequence_GetItem(value, i); // new ref
-					float val = PyFloat_AsDouble(item);
-					Py_DECREF(item);
-					item = nullptr;
-					if (val == -1.0f && PyErr_Occurred()) {
-						PyErr_Format(PyExc_TypeError, "expected a sequence of 3 floats for attribute \"%s\"", attrdef->m_name.c_str());
-						goto RESTORE_AND_ERROR;
-					}
-					else if (attrdef->m_clamp) {
-						if (val < attrdef->m_fmin) {
-							val = attrdef->m_fmin;
+				switch (attrdef->m_size) {
+					case 2:
+					{
+						mt::vec2 *var = reinterpret_cast<mt::vec2 *>(ptr);
+						for (int i = 0; i < 2; i++)
+						{
+							item = PySequence_GetItem(value, i); // new ref
+							float val = PyFloat_AsDouble(item);
+							Py_DECREF(item);
+							item = nullptr;
+							if (val == -1.0f && PyErr_Occurred()) {
+								PyErr_Format(PyExc_TypeError, "expected a sequence of 2 floats for attribute \"%s\"", attrdef->m_name.c_str());
+								goto RESTORE_AND_ERROR;
+							}
+							else if (attrdef->m_clamp) {
+								if (val < attrdef->m_fmin) {
+									val = attrdef->m_fmin;
+								}
+								else if (val > attrdef->m_fmax) {
+									val = attrdef->m_fmax;
+								}
+							}
+							else if (val < attrdef->m_fmin || val > attrdef->m_fmax) {
+								PyErr_Format(PyExc_ValueError, "value out of range for attribute \"%s\"", attrdef->m_name.c_str());
+								goto RESTORE_AND_ERROR;
+							}
+							(*var)[i] = (float)val;
 						}
-						else if (val > attrdef->m_fmax) {
-							val = attrdef->m_fmax;
+						break;
+					}
+					case 3:
+					{
+						mt::vec3 *var = reinterpret_cast<mt::vec3 *>(ptr);
+						for (int i = 0; i < 3; i++)
+						{
+							item = PySequence_GetItem(value, i); // new ref
+							float val = PyFloat_AsDouble(item);
+							Py_DECREF(item);
+							item = nullptr;
+							if (val == -1.0f && PyErr_Occurred()) {
+								PyErr_Format(PyExc_TypeError, "expected a sequence of 3 floats for attribute \"%s\"", attrdef->m_name.c_str());
+								goto RESTORE_AND_ERROR;
+							}
+							else if (attrdef->m_clamp) {
+								if (val < attrdef->m_fmin) {
+									val = attrdef->m_fmin;
+								}
+								else if (val > attrdef->m_fmax) {
+									val = attrdef->m_fmax;
+								}
+							}
+							else if (val < attrdef->m_fmin || val > attrdef->m_fmax) {
+								PyErr_Format(PyExc_ValueError, "value out of range for attribute \"%s\"", attrdef->m_name.c_str());
+								goto RESTORE_AND_ERROR;
+							}
+							(*var)[i] = (float)val;
 						}
+						break;
 					}
-					else if (val < attrdef->m_fmin || val > attrdef->m_fmax) {
-						PyErr_Format(PyExc_ValueError, "value out of range for attribute \"%s\"", attrdef->m_name.c_str());
-						goto RESTORE_AND_ERROR;
-					}
-					(*var)[i] = (float)val;
 				}
 				break;
 			}

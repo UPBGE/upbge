@@ -366,159 +366,145 @@ typedef struct EXP_PYATTRIBUTE_DEF {
 	EXP_PYATTRIBUTE_SET_FUNCTION m_setFunction;
 	/// Static function to check the assignment, returns 0 if no error.
 	EXP_PYATTRIBUTE_GET_FUNCTION m_getFunction;
-
-	/** The following pointers are just used to have compile time check for attribute type.
-	 * It would have been good to use a union but that would require C99 compatibility
-	 * to initialize specific union fields through designated initializers.
-	 */
-	struct {
-		bool *m_boolPtr;
-		short int *m_shortPtr;
-		int *m_intPtr;
-		float *m_floatPtr;
-		std::string *m_stringPtr;
-		mt::vec3 *m_vectorPtr;
-		char *m_charPtr;
-	} m_typeCheck;
 } PyAttributeDef;
 
 #define EXP_PYATTRIBUTE_NULL \
-	{"", EXP_PYATTRIBUTE_TYPE_BOOL, EXP_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, 0, 0, 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{"", EXP_PYATTRIBUTE_TYPE_BOOL, EXP_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, 0, 0, 1, nullptr, nullptr, nullptr}
 
 #define EXP_PYATTRIBUTE_BOOL_RW(name, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_BOOL, EXP_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {&((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_BOOL, EXP_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_BOOL_RW_CHECK(name, object, field, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_BOOL, EXP_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, &object::function, nullptr, nullptr, {&((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_BOOL, EXP_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_BOOL_RO(name, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_BOOL, EXP_PYATTRIBUTE_RO, 0, 1, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {&((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_BOOL, EXP_PYATTRIBUTE_RO, 0, 1, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr}
 
 /// Attribute points to a single bit of an integer field, attribute=true if bit is set.
 #define EXP_PYATTRIBUTE_FLAG_RW(name, object, field, bit) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RW, bit, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RW, bit, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLAG_RW_CHECK(name, object, field, bit, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RW, bit, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RW, bit, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLAG_RO(name, object, field, bit) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RO, bit, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RO, bit, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 
 /// Attribute points to a single bit of an integer field, attribute=true if bit is set.
 #define EXP_PYATTRIBUTE_FLAG_NEGATIVE_RW(name, object, field, bit) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RW, bit, 1, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RW, bit, 1, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLAG_NEGATIVE_RW_CHECK(name, object, field, bit, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RW, bit, 1, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RW, bit, 1, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLAG_NEGATIVE_RO(name, object, field, bit) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RO, bit, 1, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLAG, EXP_PYATTRIBUTE_RO, bit, 1, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 
 /** Enum field cannot be mapped to pointer (because we would need a pointer for each enum)
  * use field size to verify mapping at runtime only, assuming enum size is equal to int size.
  */
 #define EXP_PYATTRIBUTE_ENUM_RW(name, min, max, clamp, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_ENUM, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_ENUM, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_ENUM_RW_CHECK(name, min, max, clamp, object, field, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_ENUM, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_ENUM, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_ENUM_RO(name, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_ENUM, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_ENUM, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 
 #define EXP_PYATTRIBUTE_SHORT_RW(name, min, max, clamp, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_SHORT_RW_CHECK(name, min, max, clamp, object, field, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, &object::function, nullptr, nullptr, {nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_SHORT_RO(name, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_SHORT_ARRAY_RW(name, min, max, clamp, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr, {nullptr, ((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_SHORT_ARRAY_RW_CHECK(name, min, max, clamp, object, field, length, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, nullptr, nullptr, {nullptr, ((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_SHORT_ARRAY_RO(name, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr, {nullptr, ((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr}
 
 #define EXP_PYATTRIBUTE_SHORT_LIST_RW(name, min, max, clamp, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr, {nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_SHORT_LIST_RW_CHECK(name, min, max, clamp, object, field, length, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, nullptr, nullptr, {nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_SHORT_LIST_RO(name, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr, {nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_SHORT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr}
 
 #define EXP_PYATTRIBUTE_INT_RW(name, min, max, clamp, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {nullptr, nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_INT_RW_CHECK(name, min, max, clamp, object, field, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, &object::function, nullptr, nullptr, {nullptr, nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_INT_RO(name, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {nullptr, nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_INT_ARRAY_RW(name, min, max, clamp, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr, {nullptr, nullptr, ((object *)0)->field, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_INT_ARRAY_RW_CHECK(name, min, max, clamp, object, field, length, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, nullptr, nullptr, {nullptr, nullptr, ((object *)0)->field, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_INT_ARRAY_RO(name, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr, {nullptr, nullptr, ((object *)0)->field, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr}
 
 #define EXP_PYATTRIBUTE_INT_LIST_RW(name, min, max, clamp, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr, {nullptr, nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_INT_LIST_RW_CHECK(name, min, max, clamp, object, field, length, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, nullptr, nullptr, {nullptr, nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_INT_LIST_RO(name, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr, {nullptr, nullptr, &((object *)0)->field, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_INT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr}
 
 /// Always clamp for float.
 #define EXP_PYATTRIBUTE_FLOAT_RW(name, min, max, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, &((object *)0)->field, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLOAT_RW_CHECK(name, min, max, object, field, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, 1, &object::function, nullptr, nullptr, {nullptr, nullptr, nullptr, &((object *)0)->field, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, 1, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLOAT_RO(name, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, &((object *)0)->field, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr}
 /// Field must be float[n], returns a sequence.
 #define EXP_PYATTRIBUTE_FLOAT_ARRAY_RW(name, min, max, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, ((object *)0)->field, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLOAT_ARRAY_RW_CHECK(name, min, max, object, field, length, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, length, &object::function, nullptr, nullptr, {nullptr, nullptr, nullptr, ((object *)0)->field, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, length, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLOAT_ARRAY_RO(name, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, ((object *)0)->field, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, nullptr, nullptr, nullptr}
 /// Field must be float[n], returns a vector.
 #define EXP_PYATTRIBUTE_FLOAT_VECTOR_RW(name, min, max, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, ((object *)0)->field, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLOAT_VECTOR_RW_CHECK(name, min, max, object, field, length, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr, {nullptr, nullptr, nullptr, ((object *)0)->field, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLOAT_VECTOR_RO(name, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RO, 0, length, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, ((object *)0)->field, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RO, 0, length, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 /// Field must be float[n][n], returns a matrix.
 #define EXP_PYATTRIBUTE_FLOAT_MATRIX_RW(name, min, max, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, length, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, ((object *)0)->field[0], nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, length, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLOAT_MATRIX_RW_CHECK(name, min, max, object, field, length, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, length, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr, {nullptr, nullptr, nullptr, ((object *)0)->field[0], nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, length, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_FLOAT_MATRIX_RO(name, object, field, length) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RO, length, length, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, ((object *)0)->field[0], nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RO, length, length, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 
 /// Only for std::string member.
 #define EXP_PYATTRIBUTE_STRING_RW(name, min, max, clamp, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_STRING, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, &((object *)0)->field, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_STRING, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_STRING_RW_CHECK(name, min, max, clamp, object, field, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_STRING, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, &object::function, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, &((object *)0)->field, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_STRING, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_STRING_RO(name, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_STRING, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, &((object *)0)->field, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_STRING, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr}
 
 /// Only for char [] array.
 #define EXP_PYATTRIBUTE_CHAR_RW(name, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_CHAR, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, ((object *)0)->field} }
+	{ name, EXP_PYATTRIBUTE_TYPE_CHAR, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_CHAR_RW_CHECK(name, object, field, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_CHAR, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, ((object *)0)->field} }
+	{ name, EXP_PYATTRIBUTE_TYPE_CHAR, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, nullptr}
 #define EXP_PYATTRIBUTE_CHAR_RO(name, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_CHAR, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, ((object *)0)->field} }
+	{ name, EXP_PYATTRIBUTE_TYPE_CHAR, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr}
 
 /// For mt::vec3 member.
-#define EXP_PYATTRIBUTE_VECTOR_RW(name, min, max, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_VECTOR, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, &((object *)0)->field, nullptr} }
-#define EXP_PYATTRIBUTE_VECTOR_RW_CHECK(name, min, max, clamp, object, field, function) \
-	{ name, EXP_PYATTRIBUTE_TYPE_VECTOR, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, 1, &object::function, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, &((object *)0)->field, nullptr} }
-#define EXP_PYATTRIBUTE_VECTOR_RO(name, object, field) \
-	{ name, EXP_PYATTRIBUTE_TYPE_VECTOR, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, nullptr, nullptr, nullptr, {nullptr, nullptr, nullptr, nullptr, nullptr, &((object *)0)->field, nullptr} }
+#define EXP_PYATTRIBUTE_VECTOR_RW(name, min, max, object, field, size) \
+	{ name, EXP_PYATTRIBUTE_TYPE_VECTOR, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), size, 1, nullptr, nullptr, nullptr}
+#define EXP_PYATTRIBUTE_VECTOR_RW_CHECK(name, min, max, clamp, object, field, size, function) \
+	{ name, EXP_PYATTRIBUTE_TYPE_VECTOR, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), size, 1, &object::function, nullptr, nullptr}
+#define EXP_PYATTRIBUTE_VECTOR_RO(name, object, field, size) \
+	{ name, EXP_PYATTRIBUTE_TYPE_VECTOR, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), size, 1, nullptr, nullptr, nullptr}
 
 #define EXP_PYATTRIBUTE_RW_FUNCTION(name, object, getfunction, setfunction) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, false, false, 0, 0, 1, nullptr, &object::setfunction, &object::getfunction, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, false, false, 0, 0, 1, nullptr, &object::setfunction, &object::getfunction}
 #define EXP_PYATTRIBUTE_RO_FUNCTION(name, object, getfunction) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, 0, 0, 1, nullptr, nullptr, &object::getfunction, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, 0, 0, 1, nullptr, nullptr, &object::getfunction}
 #define EXP_PYATTRIBUTE_ARRAY_RW_FUNCTION(name, object, length, getfunction, setfunction) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0, f, false, false, 0, 0, length, nullptr, &object::setfunction, &object::getfunction, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0, f, false, false, 0, 0, length, nullptr, &object::setfunction, &object::getfunction}
 #define EXP_PYATTRIBUTE_ARRAY_RO_FUNCTION(name, object, length, getfunction) \
-	{ name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0, f, false, false, 0, 0, length, nullptr, nullptr, &object::getfunction, {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr} }
+	{ name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0, f, false, false, 0, 0, length, nullptr, nullptr, &object::getfunction}
 
 template <class ... Args>
 inline bool EXP_ParseTupleArgsAndKeywords(PyObject *pyargs, PyObject *pykwds, const char *format, std::initializer_list<const char *> keyword, Args ... args)
