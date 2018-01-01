@@ -1225,26 +1225,17 @@ void BL_ConvertActuators(const char *maggiename,
 					}
 				}
 
-				bool visible = (mouAct->flag & ACT_MOUSE_VISIBLE) != 0;
-				bool use_axis[2] = {(mouAct->flag & ACT_MOUSE_USE_AXIS_X) != 0, (mouAct->flag & ACT_MOUSE_USE_AXIS_Y) != 0};
-				bool reset[2] = {(mouAct->flag & ACT_MOUSE_RESET_X) != 0, (mouAct->flag & ACT_MOUSE_RESET_Y) != 0};
-				bool local[2] = {(mouAct->flag & ACT_MOUSE_LOCAL_X) != 0, (mouAct->flag & ACT_MOUSE_LOCAL_Y) != 0};
+				const bool visible = (mouAct->flag & ACT_MOUSE_VISIBLE) != 0;
+				const bool use_axis[2] = {(mouAct->flag & ACT_MOUSE_USE_AXIS_X) != 0, (mouAct->flag & ACT_MOUSE_USE_AXIS_Y) != 0};
+				const bool reset[2] = {(mouAct->flag & ACT_MOUSE_RESET_X) != 0, (mouAct->flag & ACT_MOUSE_RESET_Y) != 0};
+				const bool local[2] = {(mouAct->flag & ACT_MOUSE_LOCAL_X) != 0, (mouAct->flag & ACT_MOUSE_LOCAL_Y) != 0};
+				const mt::vec2 limit[2] = {mt::vec2(mouAct->limit_x), mt::vec2(mouAct->limit_y)};
 
 				SCA_MouseManager *eventmgr = (SCA_MouseManager *)logicmgr->FindEventManager(SCA_EventManager::MOUSE_EVENTMGR);
 				if (eventmgr) {
-					KX_MouseActuator *tmpbaseact = new KX_MouseActuator(gameobj,
-					                                                    ketsjiEngine,
-					                                                    eventmgr,
-					                                                    mode,
-					                                                    visible,
-					                                                    use_axis,
-					                                                    mouAct->threshold,
-					                                                    reset,
-					                                                    mouAct->object_axis,
-					                                                    local,
-					                                                    mouAct->sensitivity,
-					                                                    mouAct->limit_x,
-					                                                    mouAct->limit_y);
+					KX_MouseActuator* tmpbaseact = new KX_MouseActuator(gameobj, ketsjiEngine, eventmgr, mode, visible,
+						use_axis, mt::vec2(mouAct->threshold), reset, mouAct->object_axis, local,
+						mt::vec2(mouAct->sensitivity), limit);
 					baseact = tmpbaseact;
 				}
 				break;
