@@ -43,7 +43,7 @@ class KX_LightIpoSGController : public SG_Controller
 {
 public:
 	float           m_energy;
-	float           m_col_rgb[3];
+	mt::vec3 m_col_rgb;
 	float           m_dist;
 
 private:

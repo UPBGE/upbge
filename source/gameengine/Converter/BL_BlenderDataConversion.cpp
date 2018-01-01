@@ -846,9 +846,7 @@ static KX_LightObject *BL_GameLightFromBlenderLamp(Lamp *la, unsigned int layerf
 	lightobj->m_coeff_const = la->coeff_const;
 	lightobj->m_coeff_lin = la->coeff_lin;
 	lightobj->m_coeff_quad = la->coeff_quad;
-	lightobj->m_color[0] = la->r;
-	lightobj->m_color[1] = la->g;
-	lightobj->m_color[2] = la->b;
+	lightobj->m_color = mt::vec3(la->r, la->g, la->b);
 	lightobj->m_distance = la->dist;
 	lightobj->m_energy = la->energy;
 	lightobj->m_shadowclipstart = la->clipsta;
@@ -857,9 +855,7 @@ static KX_LightObject *BL_GameLightFromBlenderLamp(Lamp *la, unsigned int layerf
 	lightobj->m_shadowbleedbias = la->bleedbias;
 	lightobj->m_shadowmaptype = la->shadowmap_type;
 	lightobj->m_shadowfrustumsize = la->shadow_frustum_size;
-	lightobj->m_shadowcolor[0] = la->shdwr;
-	lightobj->m_shadowcolor[1] = la->shdwg;
-	lightobj->m_shadowcolor[2] = la->shdwb;
+	lightobj->m_shadowcolor = mt::vec3(la->shdwr, la->shdwg, la->shdwb);
 	lightobj->m_layer = layerflag;
 	lightobj->m_spotblend = la->spotblend;
 	lightobj->m_spotsize = la->spotsize;
