@@ -136,14 +136,8 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 	if (bFound) {
 		m_rayHit = true;
 		m_hitObject = hitKXObj;
-		m_hitPosition[0] = result->m_hitPoint[0];
-		m_hitPosition[1] = result->m_hitPoint[1];
-		m_hitPosition[2] = result->m_hitPoint[2];
-
-		m_hitNormal[0] = result->m_hitNormal[0];
-		m_hitNormal[1] = result->m_hitNormal[1];
-		m_hitNormal[2] = result->m_hitNormal[2];
-
+		m_hitPosition = result->m_hitPoint;
+		m_hitNormal = result->m_hitNormal;
 		m_hitMaterial = hitMaterial;
 	}
 	// no multi-hit search yet
@@ -197,13 +191,8 @@ bool KX_RaySensor::Evaluate()
 	bool reset = m_reset && m_level;
 	m_rayHit = false;
 	m_hitObject = nullptr;
-	m_hitPosition[0] = 0;
-	m_hitPosition[1] = 0;
-	m_hitPosition[2] = 0;
-
-	m_hitNormal[0] = 1;
-	m_hitNormal[1] = 0;
-	m_hitNormal[2] = 0;
+	m_hitPosition = mt::zero3;
+	m_hitNormal = mt::axisX3;
 
 	KX_GameObject *obj = (KX_GameObject *)GetParent();
 	mt::vec3 frompoint = obj->NodeGetWorldPosition();
@@ -244,7 +233,7 @@ bool KX_RaySensor::Evaluate()
 		}
 	}
 	todir.Normalize();
-	todir.Pack(m_rayDirection);
+	m_rayDirection = todir;
 
 	mt::vec3 topoint = frompoint + (m_distance) * todir;
 	PHY_IPhysicsEnvironment *pe = m_scene->GetPhysicsEnvironment();
@@ -341,9 +330,9 @@ PyAttributeDef KX_RaySensor::Attributes[] = {
 	EXP_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_RaySensor, m_propertyname),
 	EXP_PYATTRIBUTE_INT_RW("axis", 0, 5, true, KX_RaySensor, m_axis),
 	EXP_PYATTRIBUTE_INT_RW("mask", 1, (1 << OB_MAX_COL_MASKS) - 1, true, KX_RaySensor, m_mask),
-	EXP_PYATTRIBUTE_FLOAT_ARRAY_RO("hitPosition", KX_RaySensor, m_hitPosition, 3),
-	EXP_PYATTRIBUTE_FLOAT_ARRAY_RO("rayDirection", KX_RaySensor, m_rayDirection, 3),
-	EXP_PYATTRIBUTE_FLOAT_ARRAY_RO("hitNormal", KX_RaySensor, m_hitNormal, 3),
+	EXP_PYATTRIBUTE_VECTOR_RO("hitPosition", KX_RaySensor, m_hitPosition, 3),
+	EXP_PYATTRIBUTE_VECTOR_RO("rayDirection", KX_RaySensor, m_rayDirection, 3),
+	EXP_PYATTRIBUTE_VECTOR_RO("hitNormal", KX_RaySensor, m_hitNormal, 3),
 	EXP_PYATTRIBUTE_STRING_RO("hitMaterial", KX_RaySensor, m_hitMaterial),
 	EXP_PYATTRIBUTE_RO_FUNCTION("hitObject", KX_RaySensor, pyattr_get_hitobject),
 	EXP_PYATTRIBUTE_NULL    //Sentinel
