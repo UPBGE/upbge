@@ -447,15 +447,14 @@ void BL_ConvertActuators(const char *maggiename,
 								originalval = converter.FindGameObject(editobact->ob);
 							}
 						}
-
 						KX_AddObjectActuator *tmpaddact = new KX_AddObjectActuator(
 							gameobj,
 							originalval,
 							editobact->time,
 							scene,
-							editobact->linVelocity,
+							mt::vec3(editobact->linVelocity),
 							(editobact->localflag & ACT_EDOB_LOCAL_LINV) != 0,
-							editobact->angVelocity,
+							mt::vec3(editobact->angVelocity),
 							(editobact->localflag & ACT_EDOB_LOCAL_ANGV) != 0);
 
 						//editobact->ob to gameobj
