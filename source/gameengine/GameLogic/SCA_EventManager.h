@@ -71,10 +71,6 @@ public:
 	virtual void	EndFrame();
 	virtual bool	RegisterSensor(class SCA_ISensor* sensor);
 	int		GetType();
-	//SG_DList &GetSensors() { return m_sensors; }
-
-
-	void			Replace_LogicManager(SCA_LogicManager* logicmgr) { m_logicmgr= logicmgr; }
 
 protected:
 	EVENT_MANAGER_TYPE		m_mgrtype;

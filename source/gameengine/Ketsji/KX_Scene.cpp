@@ -1699,21 +1699,6 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	GetFontList()->MergeList(other->GetFontList());
 	other->GetFontList()->ReleaseAndRemoveAll();
 
-	SCA_LogicManager *logicmgr_other = other->GetLogicManager();
-
-	std::vector<SCA_EventManager *> evtmgrs = m_logicmgr->GetEventManagers();
-
-	for (SCA_EventManager *evtmgr : evtmgrs) {
-		SCA_EventManager *evtmgr_other = logicmgr_other->FindEventManager(evtmgr->GetType());
-
-		if (evtmgr_other) {
-			// Unlikely but possible one scene has a joystick and not the other.
-			evtmgr_other->Replace_LogicManager(m_logicmgr);
-		}
-
-		// When merging objects sensors are moved across into the new manager, don't need to do this here.
-	}
-
 	// Grab any timer properties from the other scene.
 	SCA_TimeEventManager *timemgr_other = other->GetTimeEventManager();
 	std::vector<EXP_Value *> times = timemgr_other->GetTimeValues();

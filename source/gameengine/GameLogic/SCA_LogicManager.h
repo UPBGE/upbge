@@ -63,10 +63,11 @@ typedef std::map<class SCA_ISensor*,controllerlist > sensormap_t;
 #include "SCA_IActuator.h"
 #include "SCA_EventManager.h"
 
+#include <memory>
 
 class SCA_LogicManager
 {
-	std::vector<class SCA_EventManager*>		m_eventmanagers;
+	std::vector<std::unique_ptr<SCA_EventManager> > m_eventmanagers;
 	
 	// SG_DList: Head of objects having activated actuators
 	//           element: SCA_IObject::m_activeActuators
@@ -106,7 +107,6 @@ public:
 
 	void	AddTriggeredController(SCA_IController* controller, SCA_ISensor* sensor);
 	SCA_EventManager*	FindEventManager(int eventmgrtype);
-	std::vector<class SCA_EventManager*>	GetEventManagers() { return m_eventmanagers; }
 
 	/**
 	 * remove Logic Bricks from the running logicmanager

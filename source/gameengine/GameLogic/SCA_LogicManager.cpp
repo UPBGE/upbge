@@ -48,17 +48,12 @@ SCA_LogicManager::SCA_LogicManager()
 
 SCA_LogicManager::~SCA_LogicManager()
 {
-	for (SCA_EventManager *mgr : m_eventmanagers) {
-		delete mgr;
-	}
-
-	m_eventmanagers.clear();
 	BLI_assert(m_activeActuators.Empty());
 }
 
 void SCA_LogicManager::RegisterEventManager(SCA_EventManager* eventmgr)
 {
-	m_eventmanagers.push_back(eventmgr);
+	m_eventmanagers.emplace_back(eventmgr);
 }
 
 
@@ -160,8 +155,9 @@ void SCA_LogicManager::RegisterToActuator(SCA_IController* controller,SCA_IActua
 
 void SCA_LogicManager::BeginFrame(double curtime, double fixedtime)
 {
-	for (std::vector<SCA_EventManager*>::const_iterator ie=m_eventmanagers.begin(); !(ie==m_eventmanagers.end()); ie++)
-		(*ie)->NextFrame(curtime, fixedtime);
+	for (std::unique_ptr<SCA_EventManager>& mgr : m_eventmanagers) {
+		mgr->NextFrame(curtime, fixedtime);
+	}
 
 	for (SG_QList* obj = (SG_QList*)m_triggeredControllerSet.Remove();
 		obj != nullptr;
@@ -181,8 +177,9 @@ void SCA_LogicManager::BeginFrame(double curtime, double fixedtime)
 
 void SCA_LogicManager::UpdateFrame(double curtime)
 {
-	for (std::vector<SCA_EventManager*>::const_iterator ie=m_eventmanagers.begin(); !(ie==m_eventmanagers.end()); ie++)
-		(*ie)->UpdateFrame();
+	for (std::unique_ptr<SCA_EventManager>& mgr : m_eventmanagers) {
+		mgr->UpdateFrame();
+	}
 
 	SG_DList::iterator<SG_QList> io(m_activeActuators);
 	for (io.begin(); !io.end(); )
@@ -262,7 +259,7 @@ void SCA_LogicManager::RegisterActionName(const std::string& actname,void* actio
 
 void SCA_LogicManager::EndFrame()
 {
-	for (SCA_EventManager *emgr : m_eventmanagers) {
+	for (std::unique_ptr<SCA_EventManager>& emgr : m_eventmanagers) {
 		emgr->EndFrame();
 	}
 }
@@ -290,10 +287,10 @@ SCA_EventManager* SCA_LogicManager::FindEventManager(int eventmgrtype)
 	// find an eventmanager of a certain type
 	SCA_EventManager* eventmgr = nullptr;
 
-	for (SCA_EventManager *emgr : m_eventmanagers) {
+	for (std::unique_ptr<SCA_EventManager>& emgr : m_eventmanagers) {
 		if (emgr->GetType() == eventmgrtype)
 		{
-			eventmgr = emgr;
+			eventmgr = emgr.get();
 			break;
 		}
 	}
