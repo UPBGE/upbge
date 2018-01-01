@@ -687,16 +687,16 @@ void BL_ConvertActuators(const char *maggiename,
 					}
 				}
 				KX_ConstraintActuator *tmpconact = new KX_ConstraintActuator(
-					gameobj,
-					conact->damp,
-					conact->rotdamp,
-					min,
-					max,
-					conact->maxrot,
-					locrot,
-					conact->time,
-					conact->flag,
-					prop);
+				            gameobj,
+				            conact->damp,
+				            conact->rotdamp,
+				            min,
+				            max,
+				            mt::vec3(conact->maxrot),
+				            locrot,
+				            conact->time,
+				            conact->flag,
+				            prop);
 				baseact = tmpconact;
 				break;
 			}
