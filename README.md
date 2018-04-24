@@ -1,3 +1,6 @@
+![alt text][img/kge.png]
+
+
 # UPBGE
 
 UPBGE (Uchronia Project Blender Game Engine) is a fork of Blender created by Porteries Tristan (a Blender Game Engine developer) and some of his friends in September 2015.
