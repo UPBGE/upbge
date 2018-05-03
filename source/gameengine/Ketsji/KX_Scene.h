@@ -337,6 +337,7 @@ public:
 
 	/******************EEVEE INTEGRATION************************/
 	void AppendToStaticObjects(KX_GameObject *gameobj);
+	bool ObjectsAreStatic();
 
 	void AppendProbeList(KX_GameObject *probe);
 	std::vector<KX_GameObject *>GetProbeList();

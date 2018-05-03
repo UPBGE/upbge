@@ -100,6 +100,7 @@ extern "C" {
 #  include "GPU_immediate.h"
 #  include "eevee_private.h"
 #  include "BLI_listbase.h"
+#  include "windowmanager/WM_types.h"
 }
 /* End of eevee integration */
 
@@ -223,7 +224,7 @@ KX_GameObject::~KX_GameObject()
 }
 
 /************************EEVEE_INTEGRATION**********************/
-void KX_GameObject::TagForUpdate() // Used for shadow culling
+void KX_GameObject::TagForUpdate()
 {
 	float obmat[4][4];
 	NodeGetWorldTransform().getValue(&obmat[0][0]);
@@ -232,6 +233,12 @@ void KX_GameObject::TagForUpdate() // Used for shadow culling
 	if (staticObject) {
 		GetScene()->AppendToStaticObjects(this);
 	}
+	Object *ob = GetBlenderObject();
+	if (ob) {
+		copy_m4_m4(ob->obmat, obmat);
+		DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
+	}
+
 	copy_m4_m4(m_prevObmat, obmat);
 }
 
@@ -239,7 +246,7 @@ void KX_GameObject::RemoveOriginalObject()
 {
 	Object *ob = GetBlenderObject();
 	if (ob) {
-		//ob->base_flag &= ~BASE_INVISIBLED;
+		ob->base_flag &= ~BASE_VISIBLED;
 	}
 }
 

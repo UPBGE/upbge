@@ -286,11 +286,13 @@ private:
 	void PostProcessScene(KX_Scene *scene);
 
 	void BeginFrame();
-	void EndFrame();
+	
 
 public:
 	KX_KetsjiEngine(KX_ISystem *system);
 	virtual ~KX_KetsjiEngine();
+
+	void EndFrame();
 
 	RAS_FrameBuffer *PostRenderScene(KX_Scene *scene, RAS_FrameBuffer *inputfb, RAS_FrameBuffer *targetfb);
 

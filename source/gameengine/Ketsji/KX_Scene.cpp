@@ -330,8 +330,21 @@ KX_Scene::~KX_Scene()
 
 /*******************EEVEE INTEGRATION******************/
 
+bool KX_Scene::ObjectsAreStatic()
+{
+	return GetObjectList()->GetCount() == m_staticObjects.size();
+}
+
 void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 {
+
+	for (KX_GameObject *gameobj : GetObjectList()) {
+		gameobj->TagForUpdate();
+	}
+
+	bool reset_taa_samples = ObjectsAreStatic();
+	m_staticObjects.clear();
+
 	KX_KetsjiEngine *engine = KX_GetActiveEngine();
 	RAS_Rasterizer *rasty = engine->GetRasterizer();
 	RAS_ICanvas *canvas = engine->GetCanvas();
@@ -349,17 +362,22 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 			cam->NodeGetWorldPosition(), cam->NodeGetLocalScaling());
 	}
 
+	DRWMatrixState state;
+	DRW_viewport_matrix_get_all(&state);
+
 	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
 
-	GPUTexture *finaltex = DRW_game_render_loop(bmain, scene, maincam, viewportsize, calledFromConstructor, true);
+	GPUTexture *finaltex = DRW_game_render_loop(bmain, scene, maincam, viewportsize, state, v, calledFromConstructor, reset_taa_samples);
 
 	glViewport(v[0], v[1], v[2], v[3]);
 	glScissor(v[0], v[1], v[2], v[3]);
 
 	DRW_transform_to_display(finaltex);
 
+	GPU_framebuffer_restore();
+
 	if (!calledFromConstructor) {
-		canvas->EndFrame();
+		engine->EndFrame();
 	}
 
 	DRW_game_render_loop_finish();

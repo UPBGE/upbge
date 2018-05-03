@@ -2150,7 +2150,8 @@ static void game_camera_border(const Depsgraph *depsgraph,
 static RegionView3D game_rv3d;
 static Camera *game_default_camera = NULL;
 
-GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int viewportsize[2], bool called_from_constructor, bool reset_taa_samples)
+GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int viewportsize[2],
+	DRWMatrixState state, int v[4], bool called_from_constructor, bool reset_taa_samples)
 {
 	memset(&DST, 0x0, offsetof(DRWManager, ogl_context));
 
@@ -2173,6 +2174,11 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	ARegion ar;
 	ar.winx = viewportsize[0];
 	ar.winy = viewportsize[1];
+
+	ar.winrct.xmin = v[0];
+	ar.winrct.ymin = v[1];
+	ar.winrct.xmax = v[2];
+	ar.winrct.ymax = v[3];
 
 	View3D v3d;
 
@@ -2202,6 +2208,15 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	rctf cameraborder;
 	game_camera_border(depsgraph, scene, &ar, &v3d, &game_rv3d, &cameraborder, false, false);
 	game_rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
+
+
+	DRW_viewport_matrix_override_unset_all();
+
+	copy_m4_m4(game_rv3d.persmat, state.mat[DRW_MAT_PERS]);
+	copy_m4_m4(game_rv3d.persinv, state.mat[DRW_MAT_PERSINV]);
+	copy_m4_m4(game_rv3d.viewmat, state.mat[DRW_MAT_VIEW]);
+	copy_m4_m4(game_rv3d.viewinv, state.mat[DRW_MAT_VIEWINV]);
+	copy_m4_m4(game_rv3d.winmat, state.mat[DRW_MAT_WIN]);
 
 	DST.draw_ctx.ar = &ar;
 	DST.draw_ctx.v3d = &v3d;
