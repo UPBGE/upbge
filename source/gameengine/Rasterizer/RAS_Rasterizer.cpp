@@ -451,56 +451,56 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frame
 
 void RAS_Rasterizer::DrawStereoFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *leftFb, RAS_FrameBuffer *rightFb)
 {
-	//if (leftFb->GetSamples() > 0) {
-	//	// Then leftFb == RAS_FrameBuffer_EYE_LEFT0.
-	//	leftFb = leftFb->Blit(GetFrameBuffer(RAS_FrameBuffer_EYE_LEFT1), true, false);
-	//}
-
-	//if (rightFb->GetSamples() > 0) {
-	//	// Then rightFb == RAS_FrameBuffer_EYE_RIGHT0.
-	//	rightFb = rightFb->Blit(GetFrameBuffer(RAS_FrameBuffer_EYE_RIGHT1), true, false);
-	//}
-
-	const RAS_Rect& viewport = canvas->GetViewportArea();
-	SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
-	SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
-
-// 	Disable(RAS_CULL_FACE);
-// 	SetDepthFunc(RAS_ALWAYS);
-
-	GPU_framebuffer_restore();
-	GPU_texture_bind(GPU_framebuffer_color_texture(leftFb->GetFrameBuffer()), 0);
-	GPU_texture_bind(GPU_framebuffer_color_texture(rightFb->GetFrameBuffer()), 1);
-
-	switch (m_stereomode) {
-		case RAS_STEREO_INTERLACED:
-		{
-			DRW_bind_shader_shgroup(m_screenShaders.interlace/*, (DRWState)(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS)*/);
-			break;
-		}
-		case RAS_STEREO_VINTERLACE:
-		{
-			DRW_bind_shader_shgroup(m_screenShaders.interlace/*, (DRWState)(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS)*/);
-			break;
-		}
-		case RAS_STEREO_ANAGLYPH:
-		{
-			DRW_bind_shader_shgroup(m_screenShaders.anaglyph/*, (DRWState)(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS)*/);
-			break;
-		}
-		default:
-		{
-			BLI_assert(false);
-		}
-	}
-	
-	DrawOverlayPlane();
-
-	GPU_texture_unbind(GPU_framebuffer_color_texture(leftFb->GetFrameBuffer()));
-	GPU_texture_unbind(GPU_framebuffer_color_texture(rightFb->GetFrameBuffer()));
-
-// 	SetDepthFunc(RAS_LEQUAL);
-// 	Enable(RAS_CULL_FACE);
+//	//if (leftFb->GetSamples() > 0) {
+//	//	// Then leftFb == RAS_FrameBuffer_EYE_LEFT0.
+//	//	leftFb = leftFb->Blit(GetFrameBuffer(RAS_FrameBuffer_EYE_LEFT1), true, false);
+//	//}
+//
+//	//if (rightFb->GetSamples() > 0) {
+//	//	// Then rightFb == RAS_FrameBuffer_EYE_RIGHT0.
+//	//	rightFb = rightFb->Blit(GetFrameBuffer(RAS_FrameBuffer_EYE_RIGHT1), true, false);
+//	//}
+//
+//	const RAS_Rect& viewport = canvas->GetViewportArea();
+//	SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+//	SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+//
+//// 	Disable(RAS_CULL_FACE);
+//// 	SetDepthFunc(RAS_ALWAYS);
+//
+//	GPU_framebuffer_restore();
+//	GPU_texture_bind(GPU_framebuffer_color_texture(leftFb->GetFrameBuffer()), 0);
+//	GPU_texture_bind(GPU_framebuffer_color_texture(rightFb->GetFrameBuffer()), 1);
+//
+//	switch (m_stereomode) {
+//		case RAS_STEREO_INTERLACED:
+//		{
+//			DRW_bind_shader_shgroup(m_screenShaders.interlace/*, (DRWState)(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS)*/);
+//			break;
+//		}
+//		case RAS_STEREO_VINTERLACE:
+//		{
+//			DRW_bind_shader_shgroup(m_screenShaders.interlace/*, (DRWState)(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS)*/);
+//			break;
+//		}
+//		case RAS_STEREO_ANAGLYPH:
+//		{
+//			DRW_bind_shader_shgroup(m_screenShaders.anaglyph/*, (DRWState)(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS)*/);
+//			break;
+//		}
+//		default:
+//		{
+//			BLI_assert(false);
+//		}
+//	}
+//	
+//	DrawOverlayPlane();
+//
+//	GPU_texture_unbind(GPU_framebuffer_color_texture(leftFb->GetFrameBuffer()));
+//	GPU_texture_unbind(GPU_framebuffer_color_texture(rightFb->GetFrameBuffer()));
+//
+//// 	SetDepthFunc(RAS_LEQUAL);
+//// 	Enable(RAS_CULL_FACE);
 }
 
 RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoEye eye)

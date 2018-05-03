@@ -2088,123 +2088,16 @@ void DRW_opengl_context_disable(void)
 
 /***********************************Game engine transition*******************************************/
 
-bool DRW_batch_belongs_to_gameobject(DRWShadingGroup *shgroup, Gwn_Batch *batch)
+#include "BKE_camera.h"
+#include "BKE_main.h"
+
+EEVEE_Data *EEVEE_engine_data_get(void)
 {
-	for (DRWCall *call = shgroup->calls_first; call; call = call->head.prev) {
-		if (call->geometry == batch) {
-			return true;
-		}
-	}
-	return false;
+	EEVEE_Data *data = (EEVEE_Data *)drw_viewport_engine_data_ensure(&draw_engine_eevee_type);
+	return data;
 }
 
-void DRW_call_update_obmat(DRWShadingGroup *shgroup, Gwn_Batch *batch, float obmat[4][4])
-{
-	for (DRWCall *call = shgroup->calls_first; call; call = call->head.prev) {
-		if (call->geometry == batch) {
-			copy_m4_m4(call->obmat, obmat);
-		}
-	}
-}
-
-void DRW_call_discard_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch)
-{
-	for (DRWCall *call = shgroup->calls_first; call; call = call->head.prev) {
-		if (call->geometry == batch) {
-			call->culled = true;
-		}
-	}
-}
-
-void DRW_call_restore_geometry(DRWShadingGroup *shgroup, Gwn_Batch *batch, float obmat[4][4])
-{
-	for (DRWCall *call = shgroup->calls_first; call; call = call->head.prev) {
-		if (call->geometry == batch) {
-			call->culled = false;
-		}
-	}
-}
-
-DRWShadingGroup *DRW_shgroups_from_pass_get(DRWPass *pass)
-{
-	return pass->shgroups;
-}
-
-DRWShadingGroup *DRW_shgroup_next(DRWShadingGroup *current)
-{
-	return current->next;
-}
-
-static void bind_shader(DRWShadingGroup *shgroup)
-{
-	BLI_assert(shgroup->shader);
-
-	if (DST.shader != shgroup->shader) {
-		if (DST.shader) GPU_shader_unbind();
-		GPU_shader_bind(shgroup->shader);
-		DST.shader = shgroup->shader;
-	}
-}
-
-static void bind_uniforms(DRWShadingGroup *shgroup)
-{
-	BLI_assert(&shgroup->interface);
-	DRWInterface *interface = &shgroup->interface;
-	GPUTexture *tex;
-	GPUUniformBuffer *ubo;
-	int val;
-	float fval;
-
-	/* Binding Uniform */
-	/* Don't check anything, Interface should already contain the least uniform as possible */
-	for (DRWUniform *uni = interface->uniforms; uni; uni = uni->next) {
-		switch (uni->type) {
-		case DRW_UNIFORM_SHORT_TO_INT:
-			val = (int)*((short *)uni->value);
-			GPU_shader_uniform_vector_int(
-				shgroup->shader, uni->location, uni->length, uni->arraysize, (int *)&val);
-			break;
-		case DRW_UNIFORM_SHORT_TO_FLOAT:
-			fval = (float)*((short *)uni->value);
-			GPU_shader_uniform_vector(
-				shgroup->shader, uni->location, uni->length, uni->arraysize, (float *)&fval);
-			break;
-		case DRW_UNIFORM_BOOL:
-		case DRW_UNIFORM_INT:
-			GPU_shader_uniform_vector_int(
-				shgroup->shader, uni->location, uni->length, uni->arraysize, (int *)uni->value);
-			break;
-		case DRW_UNIFORM_FLOAT:
-		case DRW_UNIFORM_MAT3:
-		case DRW_UNIFORM_MAT4:
-			GPU_shader_uniform_vector(
-				shgroup->shader, uni->location, uni->length, uni->arraysize, (float *)uni->value);
-			break;
-		case DRW_UNIFORM_TEXTURE:
-			tex = (GPUTexture *)uni->value;
-			BLI_assert(tex);
-			bind_texture(tex);
-			GPU_shader_uniform_texture(shgroup->shader, uni->location, tex);
-			break;
-		case DRW_UNIFORM_BUFFER:
-			if (!DRW_state_is_fbo()) {
-				break;
-			}
-			tex = *((GPUTexture **)uni->value);
-			BLI_assert(tex);
-			bind_texture(tex);
-			GPU_shader_uniform_texture(shgroup->shader, uni->location, tex);
-			break;
-		case DRW_UNIFORM_BLOCK:
-			ubo = (GPUUniformBuffer *)uni->value;
-			bind_ubo(ubo);
-			GPU_shader_uniform_buffer(shgroup->shader, uni->location, ubo);
-			break;
-		}
-	}
-}
-
-static void game_camera_border(
+static void game_camera_border(const Depsgraph *depsgraph,
 	const Scene *scene, const ARegion *ar, const View3D *v3d, const RegionView3D *rv3d,
 	rctf *r_viewborder, const bool no_shift, const bool no_zoom)
 {
@@ -2213,7 +2106,7 @@ static void game_camera_border(
 
 	/* get viewport viewplane */
 	BKE_camera_params_init(&params);
-	BKE_camera_params_from_view3d(&params, v3d, rv3d);
+	BKE_camera_params_from_view3d(&params, depsgraph, v3d, rv3d);
 	if (no_zoom)
 		params.zoom = 1.0f;
 	BKE_camera_params_compute_viewplane(&params, ar->winx, ar->winy, 1.0f, 1.0f);
@@ -2239,54 +2132,12 @@ static void game_camera_border(
 	r_viewborder->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
 }
 
-static void disable_double_buffer_check()
-{
-	/* When uniforms are passed to the shaders, there is a control if
-	* stl->g_data->valid_double_buffer is true if we want to enable SSR
-	* As there is no valid frame before game start, stl->g_data->valid_double_buffer
-	* is set to false. This is causing issues with my simplified implementation of SSR
-	* so I set it to true here before the uniforms are passed.
-	*/
-	EEVEE_StorageList *stl = EEVEE_engine_data_get()->stl;
-	stl->g_data->valid_double_buffer = true;
-}
-
-static void motion_blur_init()
-{
-	EEVEE_Data *vedata = EEVEE_engine_data_get();
-	EEVEE_StorageList *stl = vedata->stl;
-	EEVEE_EffectsInfo *effects = stl->effects;
-
-	const DRWContextState *draw_ctx = DRW_context_state_get();
-	ViewLayer *view_layer = draw_ctx->view_layer;
-	Scene *scene = draw_ctx->scene;
-	View3D *v3d = draw_ctx->v3d;
-	RegionView3D *rv3d = draw_ctx->rv3d;
-	ARegion *ar = draw_ctx->ar;
-	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
-
-	if (BKE_collection_engine_property_value_get_bool(props, "motion_blur_enable")) {
-
-		effects->motion_blur_samples = BKE_collection_engine_property_value_get_int(props, "motion_blur_samples");
-
-		EEVEE_create_shader_motion_blur();
-
-		if (!vedata->fbl->effect_fb) {
-			const float *viewport_size = DRW_viewport_size_get();
-			DRWFboTexture tex = { &vedata->txl->color_post, DRW_TEX_RGBA_16, DRW_TEX_FILTER | DRW_TEX_MIPMAP };
-			DRW_framebuffer_init(&vedata->fbl->effect_fb, &draw_engine_eevee_type,
-				(int)viewport_size[0], (int)viewport_size[1],
-				&tex, 1);
-		}
-
-		effects->enabled_effects |= (EFFECT_MOTION_BLUR | EFFECT_POST_BUFFER);
-	}
-}
-
 void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	Scene *scene, ViewLayer *cur_view_layer, Object *maincam, int viewportsize[2])
 {
-	memset(&DST, 0x0, sizeof(DST));
+	memset(&DST, 0x0, offsetof(DRWManager, ogl_context));
+
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, cur_view_layer, false);
 
 	use_drw_engine(&draw_engine_eevee_type);
 
@@ -2313,7 +2164,7 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	rv3d.persp = RV3D_CAMOB;
 	rv3d.is_persp = true;
 	rctf cameraborder;
-	game_camera_border(scene, &ar, &v3d, &rv3d, &cameraborder, false, false);
+	game_camera_border(depsgraph, scene, &ar, &v3d, &rv3d, &cameraborder, false, false);
 	rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
 
 	DST.draw_ctx.ar = &ar;
@@ -2331,33 +2182,24 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	DST.draw_ctx.view_layer = cur_view_layer;
 	DST.draw_ctx.obact = OBACT(cur_view_layer);
 
+	DST.draw_ctx.depsgraph = depsgraph;
+
 	drw_viewport_var_init();
 
 	/* Init engines */
 	drw_engines_init();
-
-	disable_double_buffer_check();
-	motion_blur_init();
-
 	drw_engines_cache_init();
 
-	Depsgraph *graph = BKE_scene_get_depsgraph(scene, cur_view_layer, false);
+	
 
-	DEG_OBJECT_ITER(graph, ob, DEG_ITER_OBJECT_FLAG_ALL);
+	DEG_OBJECT_ITER_BEGIN(depsgraph, ob, DRW_iterator_mode_get(),
+		DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
+		DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET |
+		DEG_ITER_OBJECT_FLAG_DUPLI)
 	{
-		/* We want to populate cache even with objects in invisible layers.
-		* (we'll remove them from psl->material_pass later).
-		*/
-		bool mesh_is_invisible = (ob->base_flag & BASE_VISIBLED) == 0 && ob->type == OB_MESH;
-		if (mesh_is_invisible) {
-			ob->base_flag |= BASE_VISIBLED;
-		}
 		drw_engines_cache_populate(ob);
-		if (mesh_is_invisible) {
-			ob->base_flag &= ~BASE_VISIBLED;
-		}
 	}
-	DEG_OBJECT_ITER_END
+	DEG_OBJECT_ITER_END;
 
 	drw_engines_cache_finish();
 
@@ -2369,41 +2211,10 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 void DRW_game_render_loop_end()
 {
 	GPU_viewport_free(DST.viewport);
-	MEM_freeN(DST.viewport);
-
-	release_ubo_slots();
-	release_texture_slots();
 
 	draw_engine_eevee_type.engine_free();
 
-	memset(&DST, 0xFF, sizeof(DST));
-}
-
-void DRW_bind_shader_shgroup(DRWShadingGroup *shgroup)
-{
-	bind_shader(shgroup);
-	bind_uniforms(shgroup);
-}
-
-struct GPUShader *DRW_shgroup_shader_get(DRWShadingGroup *shgroup)
-{
-	return shgroup->shader;
-}
-
-void DRW_end_shgroup(void)
-{
-	/* Clear Bound textures */
-	for (int i = 0; i < GPU_max_textures(); i++) {
-		if (RST.bound_texs[i] != NULL) {
-			GPU_texture_unbind(RST.bound_texs[i]);
-			RST.bound_texs[i] = NULL;
-		}
-	}
-
-	if (DST.shader) {
-		GPU_shader_unbind();
-		DST.shader = NULL;
-	}
+	memset(&DST, 0xFF, offsetof(DRWManager, ogl_context));
 }
 
 /***************************Enf of Game engine transition***************************/

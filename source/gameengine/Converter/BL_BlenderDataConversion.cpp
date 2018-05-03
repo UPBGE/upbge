@@ -94,6 +94,7 @@
 
 #include "BKE_main.h"
 #include "BKE_global.h"
+#include "BKE_group.h"
 #include "BKE_object.h"
 #include "BL_ModifierDeformer.h"
 #include "BL_ShapeDeformer.h"
@@ -142,7 +143,7 @@
 #include "DNA_key_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_action_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_layer_types.h"
 
@@ -889,7 +890,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 
 static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, RAS_Rasterizer *rasty, KX_BlenderSceneConverter& converter, bool libloading)
 {
-	if (BLI_listbase_count_ex(&ob->lodlevels, 2) <= 1) {
+	if (BLI_listbase_count_at_most(&ob->lodlevels, 2) <= 1) {
 		return nullptr;
 	}
 
@@ -1173,18 +1174,8 @@ static ListBase *get_active_constraints2(Object *ob)
 	if (!ob)
 		return nullptr;
 
-  // XXX - shouldnt we care about the pose data and not the mode???
-	if (ob->mode & OB_MODE_POSE) { 
-		bPoseChannel *pchan;
-
-		pchan = get_active_posechannel2(ob);
-		if (pchan)
-			return &pchan->constraints;
-	}
-	else 
-		return &ob->constraints;
-
-	return nullptr;
+ 
+	return &ob->constraints;
 }
 
 static void UNUSED_FUNCTION(print_active_constraints2)(Object *ob) //not used, use to debug
@@ -1507,9 +1498,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			for (git=tempglist.begin(); git!=tempglist.end(); git++)
 			{
 				Group* group = *git;
-				FOREACH_GROUP_OBJECT(group, blenderobject)
+				FOREACH_GROUP_OBJECT_BEGIN(group, blenderobject)
 				{
-					Object* blenderobject = go->ob;
 					if (converter.FindGameObject(blenderobject) == nullptr)
 					{
 						allblobj.insert(blenderobject);
@@ -1544,7 +1534,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 						}
 					}
 				}
-				FOREACH_GROUP_OBJECT_END
+				FOREACH_GROUP_OBJECT_END;
 			}
 		}
 	}

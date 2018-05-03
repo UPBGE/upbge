@@ -591,8 +591,6 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 			SceneRenderData& sceneFrameData = frameData.m_sceneDataList.back();
 
 			KX_Camera *activecam = scene->GetActiveCamera();
-			/* TEMP -> needs to be optimised */
-			activecam->UpdateViewVecs(EEVEE_engine_data_get()->stl);
 
 			KX_Camera *overrideCullingCam = scene->GetOverrideCullingCamera();
 			for (KX_Camera *cam : scene->GetCameraList()) {
@@ -625,11 +623,6 @@ void KX_KetsjiEngine::Render()
 	// clear the entire game screen with the border color
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 
-	m_rasterizer->UpdateFrameBuffers(m_canvas);
-	EEVEE_Data *vedata = EEVEE_engine_data_get();
-	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
-	RAS_FrameBuffer *lastfb;
-
 	KX_Scene *firstscene = m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 	// Use the framing bar color set in the Blender scenes
@@ -655,18 +648,6 @@ void KX_KetsjiEngine::Render()
 				// do the rendering
 				RenderCamera(scene, cameraFrameData, pass++);
 			}
-
-			RAS_FrameBuffer *fb = m_rasterizer->GetFrameBuffer(frameData.m_fbType);
-
-			DRW_framebuffer_texture_attach(fb->GetFrameBuffer(), vedata->stl->effects->source_buffer, 0, 0);
-			DRW_framebuffer_texture_attach(fb->GetFrameBuffer(), vedata->txl->maxzbuffer, 0, 0);
-
-			RAS_Rasterizer::FrameBufferType next = m_rasterizer->NextRenderFrameBuffer(fb->GetType());
-
-			fb = PostRenderScene(scene, fb, m_rasterizer->GetFrameBuffer(next));
-			lastfb = fb;
-
-			frameData.m_fbType = fb->GetType();
 		}
 	}
 
@@ -674,14 +655,9 @@ void KX_KetsjiEngine::Render()
 	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 
-	GPUTexture *lasttex = GPU_framebuffer_color_texture(lastfb->GetFrameBuffer());
-
-	DRW_framebuffer_texture_detach(vedata->stl->effects->source_buffer);
-	DRW_framebuffer_texture_detach(vedata->txl->maxzbuffer);
-
 	GPU_framebuffer_restore();
 
-	DRW_transform_to_display(lasttex);
+	//DRW_transform_to_display(lasttex);
 
 	EndFrame();
 }

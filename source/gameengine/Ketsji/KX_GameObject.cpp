@@ -224,119 +224,6 @@ KX_GameObject::~KX_GameObject()
 	}
 }
 
-/*********************************EEVEE INTEGRATION**************************************/
-
-/* This function adds all display arrays used for this gameobject */
-void KX_GameObject::AddMaterialBatches()
-{
-	/* Get per-material split surface */
-	Object *ob = GetBlenderObject();
-
-	if (ob->type != OB_MESH) {
-		return;
-	}
-
-	int materials_len = max_ii(1, ob->totcol);
-	struct GPUMaterial **gpumat_array = (GPUMaterial **)BLI_array_alloca(gpumat_array, materials_len);
-	struct Gwn_Batch **mat_geom = DRW_cache_object_surface_material_get(ob, gpumat_array, materials_len);
-	if (mat_geom) {
-		for (int i = 0; i < materials_len; ++i) {
-			std::vector<Gwn_Batch *>::iterator it = std::find(m_materialBatches.begin(), m_materialBatches.end(), mat_geom[i]);
-			if (it != m_materialBatches.end()) {
-				continue;
-			}
-			m_materialBatches.push_back(mat_geom[i]);
-		}
-	}
-}
-
-/* GET + CREATE IF DOESN'T EXIST */
-std::vector<Gwn_Batch *>KX_GameObject::GetMaterialBatches()
-{
-	if (m_materialBatches.size() > 0) {
-		return m_materialBatches;
-	}
-	AddMaterialBatches();
-	return m_materialBatches;
-}
-
-/* Can be called only after we added batches with AddMaterialBatches */
-/* GET + CREATE IF DOESN'T EXIST */
-std::vector<DRWShadingGroup *>KX_GameObject::GetMaterialShadingGroups()
-{
-	if (m_materialShGroups.size() > 0) {
-		return m_materialShGroups;
-	}
-	KX_Scene *scene = GetScene();
-	std::vector<DRWPass *>allPasses = scene->GetMaterialPasses();
-	for (DRWPass *pass : allPasses) {
-		DRWShadingGroup *shgroups = DRW_shgroups_from_pass_get(pass);
-		for (DRWShadingGroup *shgroup = DRW_shgroups_from_pass_get(pass); shgroup; shgroup = DRW_shgroup_next(shgroup)) {
-			std::vector<DRWShadingGroup *>::iterator it = std::find(m_materialShGroups.begin(), m_materialShGroups.end(), shgroup);
-			if (it != m_materialShGroups.end()) {
-				continue;
-			}
-			for (Gwn_Batch *batch : m_materialBatches) {
-				if (DRW_batch_belongs_to_gameobject(shgroup, batch)) {
-					m_materialShGroups.push_back(shgroup);
-					break;
-				}
-			}
-		}
-	}
-	return m_materialShGroups;
-}
-
-/* Use for EndObject + to discard batches in inactive layers/scenes at BlenderDataConversion + for culling */
-void KX_GameObject::DiscardMaterialBatches()
-{
-	for (Gwn_Batch *b : m_materialBatches) {
-		for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-			if (DRW_batch_belongs_to_gameobject(sh, b)) {
-				DRW_call_discard_geometry(sh, b);
-			}
-		}
-	}
-}
-
-/* Used to "uncull" discarded batches */
-void KX_GameObject::RestoreMaterialBatches(float obmat[4][4])
-{
-	for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-		for (int i = 0; i < m_materialBatches.size(); i++) {
-			DRW_call_restore_geometry(sh, m_materialBatches[i], obmat);
-		}
-	}
-}
-
-/* Use for AddObject */
-void KX_GameObject::DuplicateMaterialBatches()
-{
-	std::vector<Gwn_Batch *>newBatches;
-	for (Gwn_Batch *b : m_materialBatches) {
-		Gwn_Batch *newBatch = GWN_batch_create_from_batch_ex(b);
-		newBatches.push_back(newBatch);
-	}
-	m_newBatches = newBatches;
-}
-
-/* Use for AddObject */
-void KX_GameObject::AddNewMaterialBatchesToPasses(float obmat[4][4]) // works in pair with DuplicateMaterialBatches()
-{
-	for (DRWShadingGroup *shgroup : m_materialShGroups) {
-		for (int i = 0; i < m_materialBatches.size(); i++) {
-			Gwn_Batch *oldBatch = m_materialBatches[i];
-			if (DRW_batch_belongs_to_gameobject(shgroup, oldBatch)) {
-				DRW_shgroup_call_add(shgroup, m_newBatches[i], obmat);
-			}
-		}
-	}
-	m_materialBatches.clear();
-	m_materialBatches = m_newBatches;
-}
-
-/************************END OF EEVEE INTEGRATION******************************/
-
 KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
 {
 	if (!info)
@@ -860,11 +747,6 @@ void KX_GameObject::TagForUpdate() // Used for shadow culling
 		}
 	}
 	else {
-		for (Gwn_Batch *batch : m_materialBatches) {
-			for (DRWShadingGroup *sh : GetMaterialShadingGroups()) {
-				DRW_call_update_obmat(sh, batch, obmat);
-			}
-		}
 		m_needShadowUpdate = true;
 	}
 	copy_m4_m4(m_prevObmat, obmat);

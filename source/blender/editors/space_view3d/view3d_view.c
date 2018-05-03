@@ -70,7 +70,7 @@
 
 #  include "GPU_draw.h"
 
-#  include "BL_System.h"
+#  include "LA_SystemCommandLine.h"
 #endif
 
 #include "view3d_intern.h"  /* own include */

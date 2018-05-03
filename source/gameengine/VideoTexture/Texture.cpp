@@ -410,8 +410,6 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 					}
 				}
 
-				EEVEE_EffectsInfo *effects = EEVEE_engine_data_get()->stl->effects;
-				effects->taa_current_sample = 1;
 				// get texture
 				unsigned int * texture = m_source->m_image->getImage(m_actTex, ts);
 				// if texture is available

@@ -27,6 +27,11 @@
 #define __EEVEE_PRIVATE_H__
 
 #include "BLI_listbase.h" // For bge
+#include "DNA_object_types.h" // For bge
+
+typedef struct DRWMatrixState { // For bge
+	float mat[6][4][4]; // For bge
+} DRWMatrixState; // For bge
 
 struct Object;
 struct Material;
@@ -299,7 +304,7 @@ typedef struct EEVEE_Light {
 } EEVEE_Light;
 
 typedef struct EEVEE_Shadow {
-	float near, far, bias, exp;
+	float nearf, farf, bias, exp;
 	float shadow_start, data_start, multi_shadow_count, shadow_blur;
 	float contact_dist, contact_bias, contact_spread, contact_thickness;
 } EEVEE_Shadow;
@@ -951,5 +956,8 @@ static const float cubefacemat[6][4][4] = {
 	 {0.0f, 0.0f, 1.0f, 0.0f},
 	 {0.0f, 0.0f, 0.0f, 1.0f}},
 };
+
+
+EEVEE_Data *EEVEE_engine_data_get(void);
 
 #endif /* __EEVEE_PRIVATE_H__ */

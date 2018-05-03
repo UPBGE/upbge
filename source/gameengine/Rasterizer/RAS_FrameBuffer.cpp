@@ -45,20 +45,14 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width, unsigned int height, RAS_Ra
 	m_hdrType(hdrtype),
 	m_frameBuffer(nullptr)
 {
-	GPUFrameBuffer *fb = nullptr;
-	GPUTexture *tex = DRW_texture_create_2D(width, height, dataTypeEnums[hdrtype], DRWTextureFlag(DRW_TEX_FILTER | DRW_TEX_MIPMAP), nullptr);
-	GPUTexture *depthTex = DRW_texture_create_2D(width, height, DRW_TEX_DEPTH_24, DRWTextureFlag(0), NULL);
-	DRWFboTexture fbtex[2] = { { &tex, dataTypeEnums[m_hdrType], DRWTextureFlag(DRW_TEX_FILTER | DRW_TEX_MIPMAP) },
-							   { &depthTex, DRW_TEX_DEPTH_24, DRWTextureFlag(0) } };
-	DRW_framebuffer_init(&fb, &draw_engine_eevee_type, width, height, fbtex, ARRAY_SIZE(fbtex));
-	m_colorAttachment = tex;
-	m_depthAttachment = depthTex;
-	m_frameBuffer = fb;
+	m_colorAttachment = nullptr;
+	m_depthAttachment = nullptr;
+	m_frameBuffer = nullptr;
 }
 
 RAS_FrameBuffer::~RAS_FrameBuffer()
 {
-	GPU_framebuffer_free(m_frameBuffer);
+	//GPU_framebuffer_free(m_frameBuffer);
 }
 
 GPUFrameBuffer *RAS_FrameBuffer::GetFrameBuffer()

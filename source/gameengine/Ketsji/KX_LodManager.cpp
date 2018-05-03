@@ -96,7 +96,7 @@ KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, RAS_Rasterizer *rasty,
 	:m_refcount(1),
 	m_distanceFactor(1.0f)
 {
-	if (BLI_listbase_count_ex(&ob->lodlevels, 2) > 1) {
+	if (BLI_listbase_count_at_most(&ob->lodlevels, 2) > 1) {
 		Mesh *lodmesh = (Mesh *)ob->data;
 		Object *lodmatob = ob;
 		unsigned short level = 0;

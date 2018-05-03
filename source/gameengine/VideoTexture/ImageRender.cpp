@@ -134,8 +134,6 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 
 	GPU_framebuffer_restore();
-
-	DRW_transform_to_display(EEVEE_engine_data_get()->stl->effects->source_buffer);
 }
 
 bool ImageRender::Render()

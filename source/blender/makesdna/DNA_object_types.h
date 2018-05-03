@@ -293,7 +293,7 @@ typedef struct Object {
 	/* dynamic properties */
 	float friction, rolling_friction, fh, reflect;
 	float fhdist, xyfrict;
-	short dynamode, pad4[3];
+	short dynamode, pad11[3];
 	/********End of Game engine***********/
 
 	ListBase constraints;		/* object constraints */

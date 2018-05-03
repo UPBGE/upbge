@@ -34,28 +34,6 @@
 
 #include "MT_Vector2.h"
 
-/* eevee utils (put this in master class so it
- * can be used both in RAS_OpenGLLight and
- * KX_KetsjiEngine
- */
-#define LERP(t, a, b) ((a) + (t) * ((b) - (a)))
-#define MAX_CASCADE_NUM 4
-
-typedef struct EEVEE_LightData {
-	short light_id, shadow_id;
-} EEVEE_LightData;
-
-typedef struct EEVEE_ShadowCubeData {
-	short light_id, shadow_id, cube_id, layer_id;
-} EEVEE_ShadowCubeData;
-
-typedef struct EEVEE_ShadowCascadeData {
-	short light_id, shadow_id, cascade_id, layer_id;
-	float viewprojmat[MAX_CASCADE_NUM][4][4]; /* World->Lamp->NDC : used for rendering the shadow map. */
-	float radius[MAX_CASCADE_NUM];
-} EEVEE_ShadowCascadeData;
-/* end of eevee utils */
-
 class RAS_Rasterizer;
 
 class MT_Vector3;
