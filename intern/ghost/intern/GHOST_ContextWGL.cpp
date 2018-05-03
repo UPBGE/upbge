@@ -43,14 +43,7 @@
 HGLRC GHOST_ContextWGL::s_sharedHGLRC = NULL;
 int   GHOST_ContextWGL::s_sharedCount = 0;
 
-bool GHOST_ContextWGL::s_singleContextMode = false;
-
-
-/* Intel video-cards don't work fine with multiple contexts and
- * have to share the same context for all windows.
- * But if we just share context for all windows it could work incorrect
- * with multiple videocards configuration. Suppose, that Intel videocards
- * can't be in multiple-devices configuration. */
+/* Some third-generation Intel video-cards are constantly bring problems */
 static bool is_crappy_intel_card()
 {
 	return strstr((const char *)glGetString(GL_VENDOR), "Intel") != NULL;
@@ -69,6 +62,7 @@ GHOST_ContextWGL::GHOST_ContextWGL(
         int contextFlags,
         int contextResetNotificationStrategy)
     : GHOST_Context(stereoVisual, numOfAASamples),
+      m_dummyPbuffer(NULL),
       m_hWnd(hWnd),
       m_hDC(hDC),
       m_contextProfileMask(contextProfileMask),
@@ -85,8 +79,6 @@ GHOST_ContextWGL::GHOST_ContextWGL(
       m_dummyVersion(NULL)
 #endif
 {
-	assert(m_hWnd);
-	assert(m_hDC);
 }
 
 
@@ -106,12 +98,20 @@ GHOST_ContextWGL::~GHOST_ContextWGL()
 
 			WIN32_CHK(::wglDeleteContext(m_hGLRC));
 		}
+		if (m_dummyPbuffer) {
+			if (m_hDC != NULL)
+				WIN32_CHK(::wglReleasePbufferDCARB(m_dummyPbuffer, m_hDC));
+
+			WIN32_CHK(::wglDestroyPbufferARB(m_dummyPbuffer));
+		}
 	}
 
 #ifndef NDEBUG
-	free((void*)m_dummyRenderer);
-	free((void*)m_dummyVendor);
-	free((void*)m_dummyVersion);
+	if (m_dummyRenderer) {
+		free((void*)m_dummyRenderer);
+		free((void*)m_dummyVendor);
+		free((void*)m_dummyVersion);
+	}
 #endif
 }
 
@@ -153,6 +153,16 @@ GHOST_TSuccess GHOST_ContextWGL::activateDrawingContext()
 	}
 }
 
+
+GHOST_TSuccess GHOST_ContextWGL::releaseDrawingContext()
+{
+	if (WIN32_CHK(::wglMakeCurrent(NULL, NULL))) {
+		return GHOST_kSuccess;
+	}
+	else {
+		return GHOST_kFailure;
+	}
+}
 
 /* Ron Fosner's code for weighting pixel formats and forcing software.
  * See http://www.opengl.org/resources/faq/technical/weight.cpp
@@ -317,6 +327,8 @@ static HWND clone_window(HWND hWnd, LPVOID lpParam)
 void GHOST_ContextWGL::initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD)
 {
 	HWND  dummyHWND  = NULL;
+	HPBUFFERARB dummyhBuffer = NULL;
+
 	HDC   dummyHDC   = NULL;
 	HGLRC dummyHGLRC = NULL;
 
@@ -333,23 +345,30 @@ void GHOST_ContextWGL::initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD)
 	prevHGLRC = ::wglGetCurrentContext();
 	WIN32_CHK(GetLastError() == NO_ERROR);
 
-	dummyHWND = clone_window(m_hWnd, NULL);
-
-	if (dummyHWND == NULL)
-		goto finalize;
-
-	dummyHDC = GetDC(dummyHWND);
-
-	if (!WIN32_CHK(dummyHDC != NULL))
-		goto finalize;
-
-	iPixelFormat = choose_pixel_format_legacy(dummyHDC, preferredPFD);
+	iPixelFormat = choose_pixel_format_legacy(m_hDC, preferredPFD);
 
 	if (iPixelFormat == 0)
 		goto finalize;
 
 	PIXELFORMATDESCRIPTOR chosenPFD;
-	if (!WIN32_CHK(::DescribePixelFormat(dummyHDC, iPixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &chosenPFD)))
+	if (!WIN32_CHK(::DescribePixelFormat(m_hDC, iPixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &chosenPFD)))
+		goto finalize;
+
+	if (m_hWnd) {
+		dummyHWND = clone_window(m_hWnd, NULL);
+
+		if (dummyHWND == NULL)
+			goto finalize;
+
+		dummyHDC = GetDC(dummyHWND);
+	}
+	else {
+		int iAttribList[] = {0};
+		dummyhBuffer = wglCreatePbufferARB(m_hDC, iPixelFormat, 1, 1, iAttribList);
+		dummyHDC = wglGetPbufferDCARB(dummyhBuffer);
+	}
+
+	if (!WIN32_CHK(dummyHDC != NULL))
 		goto finalize;
 
 	if (!WIN32_CHK(::SetPixelFormat(dummyHDC, iPixelFormat, &chosenPFD)))
@@ -378,8 +397,6 @@ void GHOST_ContextWGL::initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD)
 	m_dummyVersion  = _strdup(reinterpret_cast<const char *>(glGetString(GL_VERSION)));
 #endif
 
-	s_singleContextMode = is_crappy_intel_card();
-
 finalize:
 	WIN32_CHK(::wglMakeCurrent(prevHDC, prevHGLRC));
 
@@ -391,6 +408,12 @@ finalize:
 			WIN32_CHK(::ReleaseDC(dummyHWND, dummyHDC));
 
 		WIN32_CHK(::DestroyWindow(dummyHWND));
+	}
+	else if (dummyhBuffer != NULL) {
+		if (dummyHDC != NULL)
+			WIN32_CHK(::wglReleasePbufferDCARB(dummyhBuffer, dummyHDC));
+
+		WIN32_CHK(::wglDestroyPbufferARB(dummyhBuffer));
 	}
 }
 
@@ -737,7 +760,7 @@ static void reportContextString(const char *name, const char *dummy, const char 
 {
 	fprintf(stderr, "%s: %s\n", name, context);
 
-	if (strcmp(dummy, context) != 0)
+	if (dummy && strcmp(dummy, context) != 0)
 		fprintf(stderr, "Warning! Dummy %s: %s\n", name, dummy);
 }
 #endif
@@ -745,60 +768,71 @@ static void reportContextString(const char *name, const char *dummy, const char 
 
 GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 {
-	const bool needAlpha = m_alphaBackground;
+	SetLastError(NO_ERROR);
+
+	HGLRC prevHGLRC = ::wglGetCurrentContext();
+	WIN32_CHK(GetLastError() == NO_ERROR);
+
+	HDC prevHDC = ::wglGetCurrentDC();
+	WIN32_CHK(GetLastError() == NO_ERROR);
+
+	const bool create_hDC = m_hDC == NULL;
+
+	if (!WGLEW_ARB_create_context || create_hDC || ::GetPixelFormat(m_hDC) == 0) {
+		const bool needAlpha = m_alphaBackground;
 
 #ifdef GHOST_OPENGL_STENCIL
-	const bool needStencil = true;
+		const bool needStencil = true;
 #else
-	const bool needStencil = false;
+		const bool needStencil = false;
 #endif
 
 #ifdef GHOST_OPENGL_SRGB
-	const bool sRGB = true;
+		const bool sRGB = true;
 #else
-	const bool sRGB = false;
+		const bool sRGB = false;
 #endif
+		int iPixelFormat;
+		int lastPFD;
 
-	HGLRC prevHGLRC;
-	HDC   prevHDC;
+		if (create_hDC) {
+			/* get a handle to a device context with graphics accelerator enabled */
+			m_hDC = wglGetCurrentDC();
+			if (m_hDC == NULL) {
+				m_hDC = GetDC(NULL);
+			}
+		}
 
-	int iPixelFormat;
-	int lastPFD;
+		PIXELFORMATDESCRIPTOR chosenPFD;
 
-	PIXELFORMATDESCRIPTOR chosenPFD;
+		iPixelFormat = choose_pixel_format(m_stereoVisual, m_numOfAASamples, needAlpha, needStencil, sRGB);
 
+		if (iPixelFormat == 0) {
+			goto error;
+		}
 
-	SetLastError(NO_ERROR);
+		if (create_hDC) {
+			/* create an off-screen pixel buffer (Pbuffer) */
+			int iAttribList[] = {0};
+			m_dummyPbuffer = wglCreatePbufferARB(m_hDC, iPixelFormat, 1, 1, iAttribList);
+			m_hDC = wglGetPbufferDCARB(m_dummyPbuffer);
+		}
 
-	prevHGLRC = ::wglGetCurrentContext();
-	WIN32_CHK(GetLastError() == NO_ERROR);
+		lastPFD = ::DescribePixelFormat(m_hDC, iPixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &chosenPFD);
 
-	prevHDC   = ::wglGetCurrentDC();
-	WIN32_CHK(GetLastError() == NO_ERROR);
+		if (!WIN32_CHK(lastPFD != 0)) {
+			goto error;
+		}
 
-	iPixelFormat = choose_pixel_format(m_stereoVisual, m_numOfAASamples, needAlpha, needStencil, sRGB);
+		if (needAlpha && chosenPFD.cAlphaBits == 0)
+			fprintf(stderr, "Warning! Unable to find a pixel format with an alpha channel.\n");
 
-	if (iPixelFormat == 0) {
-		::wglMakeCurrent(prevHDC, prevHGLRC);
-		return GHOST_kFailure;
-	}
+		if (needStencil && chosenPFD.cStencilBits == 0)
+			fprintf(stderr, "Warning! Unable to find a pixel format with a stencil buffer.\n");
 
-	lastPFD = ::DescribePixelFormat(m_hDC, iPixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &chosenPFD);
-
-	if (!WIN32_CHK(lastPFD != 0)) {
-		::wglMakeCurrent(prevHDC, prevHGLRC);
-		return GHOST_kFailure;
-	}
-
-	if (needAlpha && chosenPFD.cAlphaBits == 0)
-		fprintf(stderr, "Warning! Unable to find a pixel format with an alpha channel.\n");
-
-	if (needStencil && chosenPFD.cStencilBits == 0)
-		fprintf(stderr, "Warning! Unable to find a pixel format with a stencil buffer.\n");
-
-	if (!WIN32_CHK(::SetPixelFormat(m_hDC, iPixelFormat, &chosenPFD))) {
-		::wglMakeCurrent(prevHDC, prevHGLRC);
-		return GHOST_kFailure;
+		if (!WIN32_CHK(::SetPixelFormat(m_hDC, iPixelFormat, &chosenPFD))) {
+			goto error;
+		}
 	}
 
 	if (WGLEW_ARB_create_context) {
@@ -873,48 +907,63 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 
 		iAttributes.push_back(0);
 
-		if (!s_singleContextMode || s_sharedHGLRC == NULL)
-			m_hGLRC = ::wglCreateContextAttribsARB(m_hDC, NULL, &(iAttributes[0]));
-		else
-			m_hGLRC = s_sharedHGLRC;
+		m_hGLRC = ::wglCreateContextAttribsARB(m_hDC, NULL, &(iAttributes[0]));
 	}
 
 	if (!WIN32_CHK(m_hGLRC != NULL)) {
-		::wglMakeCurrent(prevHDC, prevHGLRC);
-		return GHOST_kFailure;
+		goto error;
 	}
-
-	if (s_sharedHGLRC == NULL)
-		s_sharedHGLRC = m_hGLRC;
 
 	s_sharedCount++;
 
-	if (!s_singleContextMode && s_sharedHGLRC != m_hGLRC && !WIN32_CHK(::wglShareLists(s_sharedHGLRC, m_hGLRC))) {
-		::wglMakeCurrent(prevHDC, prevHGLRC);
-		return GHOST_kFailure;
+	if (s_sharedHGLRC == NULL) {
+		s_sharedHGLRC = m_hGLRC;
+	}
+	else if (!WIN32_CHK(::wglShareLists(s_sharedHGLRC, m_hGLRC))) {
+		goto error;
 	}
 
 	if (!WIN32_CHK(::wglMakeCurrent(m_hDC, m_hGLRC))) {
-		::wglMakeCurrent(prevHDC, prevHGLRC);
-		return GHOST_kFailure;
+		goto error;
 	}
 
 	initContextGLEW();
 
+	if (is_crappy_intel_card()) {
+		/* Some Intel cards with context 4.1 or 4.2
+		 * don't have the point sprite enabled by default.
+		 *
+		 * However GL_POINT_SPRITE was removed in 3.2 and is now permanently ON.
+		 * Then use brute force. */
+		glEnable(GL_POINT_SPRITE);
+	}
+
 	initClearGL();
 	::SwapBuffers(m_hDC);
 
+#ifndef NDEBUG
 	const char *vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
 	const char *renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
 	const char *version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
 
-#ifndef NDEBUG
-	reportContextString("Vendor",   m_dummyVendor,   vendor);
+	reportContextString("Vendor", m_dummyVendor, vendor);
 	reportContextString("Renderer", m_dummyRenderer, renderer);
-	reportContextString("Version",  m_dummyVersion,  version);
+	reportContextString("Version", m_dummyVersion, version);
+
+	fprintf(stderr, "Context Version: %d.%d\n", m_contextMajorVersion, m_contextMinorVersion);
 #endif
 
 	return GHOST_kSuccess;
+error:
+	if (m_dummyPbuffer) {
+		if (m_hDC != NULL)
+			WIN32_CHK(::wglReleasePbufferDCARB(m_dummyPbuffer, m_hDC));
+
+		WIN32_CHK(::wglDestroyPbufferARB(m_dummyPbuffer));
+	}
+	::wglMakeCurrent(prevHDC, prevHGLRC);
+	return GHOST_kFailure;
+
 }
 
 
@@ -926,98 +975,4 @@ GHOST_TSuccess GHOST_ContextWGL::releaseNativeHandles()
 	m_hDC  = NULL;
 
 	return success;
-}
-
-/**
- * For any given HDC you may call SetPixelFormat once
- *
- * So we better try to get the correct OpenGL version in a new window altogether, in case it fails.
- * (see https://msdn.microsoft.com/en-us/library/windows/desktop/dd369049(v=vs.85).aspx)
- */
-static bool TryOpenGLVersion(
-        HWND hwnd,
-        bool wantStereoVisual,
-        bool wantAlphaBackground,
-        GHOST_TUns16 wantNumOfAASamples,
-        int contextProfileMask,
-        bool debugContext,
-        int major, int minor)
-{
-	HWND dummyHWND = clone_window(hwnd, NULL);
-	if (dummyHWND == NULL) {
-		return false;
-	}
-
-	HDC dummyHDC = GetDC(dummyHWND);
-	if (dummyHDC == NULL) {
-		return false;
-	}
-
-	GHOST_ContextWGL * context = new GHOST_ContextWGL(
-	        wantStereoVisual,
-	        wantAlphaBackground,
-	        wantNumOfAASamples,
-	        dummyHWND,
-	        dummyHDC,
-	        contextProfileMask,
-	        major, minor,
-	        (debugContext ? WGL_CONTEXT_DEBUG_BIT_ARB : 0),
-	        GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
-
-	bool result = context->initializeDrawingContext();
-	delete context;
-
-	ReleaseDC(dummyHWND, dummyHDC);
-	DestroyWindow(dummyHWND);
-
-	return result;
-}
-
-GHOST_TSuccess GHOST_ContextWGL::getMaximumSupportedOpenGLVersion(
-        HWND hwnd,
-        bool wantStereoVisual,
-        bool wantAlphaBackground,
-        GHOST_TUns16 wantNumOfAASamples,
-        int contextProfileMask,
-        bool debugContext,
-        GHOST_TUns8 *r_major_version,
-        GHOST_TUns8 *r_minor_version)
-{
-	/* - AMD and Intel give us exactly this version
-	 * - NVIDIA gives at least this version <-- desired behavior
-	 * So we ask for 4.5, 4.4 ... 3.3 in descending order to get the best version on the user's system. */
-	for (int minor = 5; minor >= 0; --minor) {
-		if (TryOpenGLVersion(
-		            hwnd,
-		            wantStereoVisual,
-		            wantAlphaBackground,
-		            wantNumOfAASamples,
-		            contextProfileMask,
-		            debugContext,
-		            4, minor))
-		{
-			*r_major_version = 4;
-			*r_minor_version = minor;
-			return GHOST_kSuccess;
-		}
-	}
-
-	/* Fallback to OpenGL 3.3 */
-	if (TryOpenGLVersion(
-	        hwnd,
-	        wantStereoVisual,
-	        wantAlphaBackground,
-	        wantNumOfAASamples,
-	        contextProfileMask,
-	        debugContext,
-	        3, 3))
-	{
-		*r_major_version = 3;
-		*r_minor_version = 3;
-		return GHOST_kSuccess;
-	}
-
-	*r_major_version = 0;
-	*r_minor_version = 0;
-	return GHOST_kFailure;
 }

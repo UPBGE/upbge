@@ -1,5 +1,19 @@
 import unittest
 
+__all__ = (
+    "Clay",
+    "MoveLayerCollectionTesting",
+    "MoveSceneCollectionSyncTesting",
+    "MoveSceneCollectionTesting",
+    "ViewLayerTesting",
+    "compare_files",
+    "dump",
+    "get_layers",
+    "get_scene_collections",
+    "query_scene",
+    "setup_extra_arguments",
+)
+
 # ############################################################
 # Layer Collection Crawler
 # ############################################################
@@ -106,10 +120,7 @@ def get_scene_collection(collection):
     name = collection.get(b'name')
 
     data['name'] = name
-    data['filter'] = collection.get(b'filter')
-
     data['objects'] = get_scene_collection_objects(collection, b'objects')
-    data['filter_objects'] = get_scene_collection_objects(collection, b'filter_objects')
 
     collections = {}
     for nested_collection in linkdata_iter(collection, b'scene_collections'):

@@ -34,6 +34,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+#include <fcntl.h>
+#include <errno.h>
+
+/* open/close */
+#ifndef _WIN32
+#  include <unistd.h>
+#else
+#  include <io.h>
+#endif
 
 #include "MEM_guardedalloc.h"
 
@@ -42,6 +51,12 @@
 #include "BLI_blenlib.h"
 
 #include "BLO_undofile.h"
+#include "BLO_readfile.h"
+
+#include "BKE_main.h"
+
+/* keep last */
+#include "BLI_strict_flags.h"
 
 /* **************** support for memory-write, for undo buffers *************** */
 
@@ -51,8 +66,9 @@ void BLO_memfile_free(MemFile *memfile)
 	MemFileChunk *chunk;
 	
 	while ((chunk = BLI_pophead(&memfile->chunks))) {
-		if (chunk->ident == 0)
-			MEM_freeN(chunk->buf);
+		if (chunk->is_identical == false) {
+			MEM_freeN((void *)chunk->buf);
+		}
 		MEM_freeN(chunk);
 	}
 	memfile->size = 0;
@@ -68,9 +84,9 @@ void BLO_memfile_merge(MemFile *first, MemFile *second)
 	sc = second->chunks.first;
 	while (fc || sc) {
 		if (fc && sc) {
-			if (sc->ident) {
-				sc->ident = 0;
-				fc->ident = 1;
+			if (sc->is_identical) {
+				sc->is_identical = false;
+				fc->is_identical = true;
 			}
 		}
 		if (fc) fc = fc->next;
@@ -98,7 +114,7 @@ void memfile_chunk_add(MemFile *compare, MemFile *current, const char *buf, unsi
 	curchunk = MEM_mallocN(sizeof(MemFileChunk), "MemFileChunk");
 	curchunk->size = size;
 	curchunk->buf = NULL;
-	curchunk->ident = 0;
+	curchunk->is_identical = false;
 	BLI_addtail(&current->chunks, curchunk);
 	
 	/* we compare compchunk with buf */
@@ -106,17 +122,83 @@ void memfile_chunk_add(MemFile *compare, MemFile *current, const char *buf, unsi
 		if (compchunk->size == curchunk->size) {
 			if (memcmp(compchunk->buf, buf, size) == 0) {
 				curchunk->buf = compchunk->buf;
-				curchunk->ident = 1;
+				curchunk->is_identical = true;
 			}
 		}
 		compchunk = compchunk->next;
 	}
-	
+
 	/* not equal... */
 	if (curchunk->buf == NULL) {
-		curchunk->buf = MEM_mallocN(size, "Chunk buffer");
-		memcpy(curchunk->buf, buf, size);
+		char *buf_new = MEM_mallocN(size, "Chunk buffer");
+		memcpy(buf_new, buf, size);
+		curchunk->buf = buf_new;
 		current->size += size;
 	}
 }
 
+struct Main *BLO_memfile_main_get(struct MemFile *memfile, struct Main *oldmain, struct Scene **r_scene)
+{
+	struct Main *bmain_undo = NULL;
+	BlendFileData *bfd = BLO_read_from_memfile(oldmain, oldmain->name, memfile, NULL, BLO_READ_SKIP_NONE);
+
+	if (bfd) {
+		bmain_undo = bfd->main;
+		if (r_scene) {
+			*r_scene = bfd->curscene;
+		}
+
+		MEM_freeN(bfd);
+	}
+
+	return bmain_undo;
+}
+
+
+/**
+ * Saves .blend using undo buffer.
+ *
+ * \return success.
+ */
+bool BLO_memfile_write_file(struct MemFile *memfile, const char *filename)
+{
+	MemFileChunk *chunk;
+	int file, oflags;
+
+	/* note: This is currently used for autosave and 'quit.blend', where _not_ following symlinks is OK,
+	 * however if this is ever executed explicitly by the user, we may want to allow writing to symlinks.
+	 */
+
+	oflags = O_BINARY | O_WRONLY | O_CREAT | O_TRUNC;
+#ifdef O_NOFOLLOW
+	/* use O_NOFOLLOW to avoid writing to a symlink - use 'O_EXCL' (CVE-2008-1103) */
+	oflags |= O_NOFOLLOW;
+#else
+	/* TODO(sergey): How to deal with symlinks on windows? */
+#  ifndef _MSC_VER
+#    warning "Symbolic links will be followed on undo save, possibly causing CVE-2008-1103"
+#  endif
+#endif
+	file = BLI_open(filename,  oflags, 0666);
+
+	if (file == -1) {
+		fprintf(stderr, "Unable to save '%s': %s\n",
+		        filename, errno ? strerror(errno) : "Unknown error opening file");
+		return false;
+	}
+
+	for (chunk = memfile->chunks.first; chunk; chunk = chunk->next) {
+		if ((size_t)write(file, chunk->buf, chunk->size) != chunk->size) {
+			break;
+		}
+	}
+
+	close(file);
+
+	if (chunk) {
+		fprintf(stderr, "Unable to save '%s': %s\n",
+		        filename, errno ? strerror(errno) : "Unknown error writing file");
+		return false;
+	}
+	return true;
+}

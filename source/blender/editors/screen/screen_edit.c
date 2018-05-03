@@ -68,9 +68,6 @@
 
 #include "WM_message.h"
 
-/* XXX actually should be not here... solve later */
-#include "wm_subwindow.h"
-
 #include "screen_intern.h"  /* own module include */
 
 
@@ -589,8 +586,6 @@ int screen_area_join(bContext *C, bScreen *scr, ScrArea *sa1, ScrArea *sa2)
 	/*printf("dir is : %i\n", dir);*/
 	
 	if (dir == -1) {
-		if (sa1) sa1->flag &= ~AREA_FLAG_DRAWJOINFROM;
-		if (sa2) sa2->flag &= ~AREA_FLAG_DRAWJOINTO;
 		return 0;
 	}
 	
@@ -621,7 +616,7 @@ int screen_area_join(bContext *C, bScreen *scr, ScrArea *sa1, ScrArea *sa2)
 	
 	screen_delarea(C, scr, sa2);
 	removedouble_scrverts(scr);
-	sa1->flag &= ~AREA_FLAG_DRAWJOINFROM;
+
 	/* Update preview thumbnail */
 	BKE_icon_changed(scr->id.icon_id);
 
@@ -850,14 +845,14 @@ static void screen_test_scale(bScreen *sc, int winsize_x, int winsize_y)
 
 /* ****************** EXPORTED API TO OTHER MODULES *************************** */
 
-/* screen sets cursor based on swinid */
-static void region_cursor_set(wmWindow *win, int swinid, int swin_changed)
+/* screen sets cursor based on active region */
+static void region_cursor_set(wmWindow *win, bool swin_changed)
 {
 	bScreen *screen = WM_window_get_active_screen(win);
 
 	for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
 		for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
-			if (ar->swinid == swinid) {
+			if (ar == screen->active_region) {
 				if (swin_changed || (ar->type && ar->type->event_cursor)) {
 					if (ar->manipulator_map != NULL) {
 						if (WM_manipulatormap_cursor_set(ar->manipulator_map, win)) {
@@ -892,7 +887,7 @@ void ED_screen_do_listen(bContext *C, wmNotifier *note)
 			break;
 		case NC_SCENE:
 			if (note->data == ND_MODE)
-				region_cursor_set(win, note->swinid, true);
+				region_cursor_set(win, true);
 			break;
 	}
 }
@@ -920,25 +915,12 @@ void ED_screen_refresh(wmWindowManager *wm, wmWindow *win)
 		const int winsize_x = WM_window_pixels_x(win);
 		const int winsize_y = WM_window_pixels_y(win);
 		ScrArea *sa;
-		rcti winrct;
-	
-		winrct.xmin = 0;
-		winrct.xmax = winsize_x - 1;
-		winrct.ymin = 0;
-		winrct.ymax = winsize_y - 1;
 		
 		/* header size depends on DPI, let's verify */
 		WM_window_set_dpi(win);
 		screen_refresh_headersizes();
 		
 		screen_test_scale(screen, winsize_x, winsize_y);
-		
-		if (screen->mainwin == 0) {
-			screen->mainwin = wm_subwindow_open(win, &winrct, false);
-		}
-		else {
-			wm_subwindow_position(win, screen->mainwin, &winrct, false);
-		}
 		
 		for (sa = screen->areabase.first; sa; sa = sa->next) {
 			/* set spacetype and region callbacks, calls init() */
@@ -991,10 +973,7 @@ void ED_region_exit(bContext *C, ARegion *ar)
 
 	WM_event_remove_handlers(C, &ar->handlers);
 	WM_event_modal_handler_region_replace(win, ar, NULL);
-	if (ar->swinid) {
-		wm_subwindow_close(win, ar->swinid);
-		ar->swinid = 0;
-	}
+	ar->visible = 0;
 	
 	if (ar->headerstr) {
 		MEM_freeN(ar->headerstr);
@@ -1046,10 +1025,7 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
 	screen->animtimer = NULL;
 	screen->scrubbing = false;
 
-	if (screen->mainwin)
-		wm_subwindow_close(window, screen->mainwin);
-	screen->mainwin = 0;
-	screen->subwinactive = 0;
+	screen->active_region = NULL;
 	
 	for (ar = screen->regionbase.first; ar; ar = ar->next)
 		ED_region_exit(C, ar);
@@ -1114,7 +1090,7 @@ static void screen_cursor_set(wmWindow *win, const wmEvent *event)
 
 /* called in wm_event_system.c. sets state vars in screen, cursors */
 /* event type is mouse move */
-void ED_screen_set_subwinactive(bContext *C, const wmEvent *event)
+void ED_screen_set_active_region(bContext *C, const wmEvent *event)
 {
 	wmWindow *win = CTX_wm_window(C);
 	bScreen *scr = WM_window_get_active_screen(win);
@@ -1122,7 +1098,7 @@ void ED_screen_set_subwinactive(bContext *C, const wmEvent *event)
 	if (scr) {
 		ScrArea *sa;
 		ARegion *ar;
-		int oldswin = scr->subwinactive;
+		ARegion *old_ar = scr->active_region;
 
 		for (sa = scr->areabase.first; sa; sa = sa->next) {
 			if (event->x > sa->totrct.xmin && event->x < sa->totrct.xmax)
@@ -1134,22 +1110,22 @@ void ED_screen_set_subwinactive(bContext *C, const wmEvent *event)
 			/* make overlap active when mouse over */
 			for (ar = sa->regionbase.first; ar; ar = ar->next) {
 				if (BLI_rcti_isect_pt_v(&ar->winrct, &event->x)) {
-					scr->subwinactive = ar->swinid;
+					scr->active_region = ar;
 					break;
 				}
 			}
 		}
 		else
-			scr->subwinactive = scr->mainwin;
+			scr->active_region = NULL;
 		
 		/* check for redraw headers */
-		if (oldswin != scr->subwinactive) {
+		if (old_ar != scr->active_region) {
 
 			for (sa = scr->areabase.first; sa; sa = sa->next) {
 				bool do_draw = false;
 				
 				for (ar = sa->regionbase.first; ar; ar = ar->next)
-					if (ar->swinid == oldswin || ar->swinid == scr->subwinactive)
+					if (ar == old_ar || ar == scr->active_region)
 						do_draw = true;
 				
 				if (do_draw) {
@@ -1161,13 +1137,13 @@ void ED_screen_set_subwinactive(bContext *C, const wmEvent *event)
 		}
 		
 		/* cursors, for time being set always on edges, otherwise aregion doesnt switch */
-		if (scr->subwinactive == scr->mainwin) {
+		if (scr->active_region == NULL) {
 			screen_cursor_set(win, event);
 		}
 		else {
 			/* notifier invokes freeing the buttons... causing a bit too much redraws */
-			if (oldswin != scr->subwinactive) {
-				region_cursor_set(win, scr->subwinactive, true);
+			if (old_ar != scr->active_region) {
+				region_cursor_set(win, true);
 
 				/* this used to be a notifier, but needs to be done immediate
 				 * because it can undo setting the right button as active due
@@ -1175,7 +1151,7 @@ void ED_screen_set_subwinactive(bContext *C, const wmEvent *event)
 				UI_screen_free_active_but(C, scr);
 			}
 			else
-				region_cursor_set(win, scr->subwinactive, false);
+				region_cursor_set(win, false);
 		}
 	}
 }
@@ -1194,7 +1170,7 @@ int ED_screen_area_active(const bContext *C)
 			return 1;
 		
 		for (ar = sa->regionbase.first; ar; ar = ar->next)
-			if (ar->swinid == sc->subwinactive)
+			if (ar == sc->active_region)
 				return 1;
 	}
 	return 0;
@@ -1262,7 +1238,7 @@ bScreen *screen_change_prepare(bScreen *screen_old, bScreen *screen_new, Main *b
 	return NULL;
 }
 
-void screen_changed_update(bContext *C, wmWindow *win, bScreen *sc)
+void screen_change_update(bContext *C, wmWindow *win, bScreen *sc)
 {
 	Scene *scene = WM_window_get_active_scene(win);
 	WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
@@ -1299,7 +1275,7 @@ bool ED_screen_change(bContext *C, bScreen *sc)
 	if (screen_new) {
 		WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
 		WM_window_set_active_screen(win, workspace, sc);
-		screen_changed_update(C, win, screen_new);
+		screen_change_update(C, win, screen_new);
 
 		return true;
 	}
@@ -1852,14 +1828,35 @@ bool ED_screen_stereo3d_required(const bScreen *screen, const Scene *scene)
  * Find the scene displayed in \a screen.
  * \note Assumes \a screen to be visible/active!
  */
-Scene *ED_screen_scene_find(const bScreen *screen, const wmWindowManager *wm)
+
+Scene *ED_screen_scene_find_with_window(const bScreen *screen, const wmWindowManager *wm, struct wmWindow **r_window)
 {
 	for (wmWindow *win = wm->windows.first; win; win = win->next) {
 		if (WM_window_get_active_screen(win) == screen) {
+			if (r_window) {
+				*r_window = win;
+			}
 			return WM_window_get_active_scene(win);
 		}
 	}
 
 	BLI_assert(0);
+	return NULL;
+}
+
+
+Scene *ED_screen_scene_find(const bScreen *screen, const wmWindowManager *wm)
+{
+	return ED_screen_scene_find_with_window(screen, wm, NULL);
+}
+
+
+wmWindow *ED_screen_window_find(const bScreen *screen, const wmWindowManager *wm)
+{
+	for (wmWindow *win = wm->windows.first; win; win = win->next) {
+		if (WM_window_get_active_screen(win) == screen) {
+			return win;
+		}
+	}
 	return NULL;
 }

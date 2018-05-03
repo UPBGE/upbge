@@ -39,11 +39,6 @@ SceneExporter::SceneExporter(COLLADASW::StreamWriter *sw, ArmatureExporter *arm,
 {
 }
 
-void SceneExporter::setExportTransformationType(BC_export_transformation_type transformation_type)
-{
-	this->transformation_type = transformation_type;
-}
-
 void SceneExporter::exportScene(const EvaluationContext *eval_ctx, Scene *sce)
 {
 	// <library_visual_scenes> <visual_scene>
@@ -139,7 +134,7 @@ void SceneExporter::writeNodes(const EvaluationContext *eval_ctx, Object *ob, Sc
 		// for skinned mesh we write obmat in <bind_shape_matrix>
 		TransformWriter::add_node_transform_identity(colladaNode);
 	else {
-		TransformWriter::add_node_transform_ob(colladaNode, ob, this->transformation_type);
+		TransformWriter::add_node_transform_ob(colladaNode, ob, this->export_settings->export_transformation_type);
 	}
 
 	// <instance_geometry>
@@ -180,11 +175,11 @@ void SceneExporter::writeNodes(const EvaluationContext *eval_ctx, Object *ob, Sc
 		if ((ob->transflag & OB_DUPLIGROUP) == OB_DUPLIGROUP && ob->dup_group) {
 			Group *group = ob->dup_group;
 			/* printf("group detected '%s'\n", group->id.name + 2); */
-			FOREACH_GROUP_OBJECT(group, object)
+			FOREACH_GROUP_OBJECT_BEGIN(group, object)
 			{
 				printf("\t%s\n", object->id.name);
 			}
-			FOREACH_GROUP_OBJECT_END
+			FOREACH_GROUP_OBJECT_END;
 		}
 	}
 

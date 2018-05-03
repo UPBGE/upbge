@@ -48,7 +48,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
@@ -58,7 +58,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_edgehash.h"
 #include "BLI_rand.h"
-#include "BLI_jitter.h"
+#include "BLI_jitter_2d.h"
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_kdtree.h"
@@ -76,7 +76,6 @@
 #include "BKE_effect.h"
 #include "BKE_library_query.h"
 #include "BKE_particle.h"
-#include "BKE_global.h"
 
 #include "BKE_collection.h"
 #include "BKE_DerivedMesh.h"
@@ -95,10 +94,11 @@
 #include "PIL_time.h"
 
 #include "RE_shader_ext.h"
+#include "DEG_depsgraph.h"
 
 /* fluid sim particle import */
 #ifdef WITH_MOD_FLUID
-#include "DNA_object_fluidsim.h"
+#include "DNA_object_fluidsim_types.h"
 #include "LBM_fluidsim.h"
 #include <zlib.h>
 #include <string.h>
@@ -499,6 +499,8 @@ void psys_thread_context_free(ParticleThreadContext *ctx)
 		MEM_freeN(ctx->vg_rough2);
 	if (ctx->vg_roughe)
 		MEM_freeN(ctx->vg_roughe);
+	if (ctx->vg_twist)
+		MEM_freeN(ctx->vg_twist);
 
 	if (ctx->sim.psys->lattice_deform_data) {
 		end_latt_deform(ctx->sim.psys->lattice_deform_data);
@@ -520,6 +522,9 @@ void psys_thread_context_free(ParticleThreadContext *ctx)
 	}
 	if (ctx->roughcurve != NULL) {
 		curvemapping_free(ctx->roughcurve);
+	}
+	if (ctx->twistcurve != NULL) {
+		curvemapping_free(ctx->twistcurve);
 	}
 }
 
@@ -2898,14 +2903,19 @@ static void psys_update_path_cache(ParticleSimulationData *sim, float cfra, cons
 {
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
+#if 0
 	ParticleEditSettings *pset = &sim->scene->toolsettings->particle;
+#endif
 	int distr=0, alloc=0, skip=0;
 
 	if ((psys->part->childtype && psys->totchild != psys_get_tot_child(sim->scene, psys)) || psys->recalc&PSYS_RECALC_RESET)
 		alloc=1;
 
-	if (alloc || psys->recalc&PSYS_RECALC_CHILD || (psys->vgroup[PSYS_VG_DENSITY] && (sim->ob && sim->ob->mode & OB_MODE_WEIGHT_PAINT)))
+	if (alloc || psys->recalc&PSYS_RECALC_CHILD ||
+	    (psys->vgroup[PSYS_VG_DENSITY] && (sim->ob && sim->eval_ctx->object_mode & OB_MODE_WEIGHT_PAINT)))
+	{
 		distr=1;
+	}
 
 	if (distr) {
 		if (alloc)
@@ -2933,17 +2943,20 @@ static void psys_update_path_cache(ParticleSimulationData *sim, float cfra, cons
 			skip = 1; /* draw visualization */
 		else if (psys->pointcache->flag & PTCACHE_BAKING)
 			skip = 1; /* no need to cache paths while baking dynamics */
-		else if (psys_in_edit_mode(sim->eval_ctx->view_layer, psys)) {
+
+#if 0 /* TODO(mai): something is very wrong with these conditionals, they dont make sense and the cache isnt updating */
+		else if (psys_in_edit_mode(sim->eval_ctx, sim->eval_ctx->view_layer, psys)) {
 			if ((pset->flag & PE_DRAW_PART)==0)
 				skip = 1;
 			else if (part->childtype==0 && (psys->flag & PSYS_HAIR_DYNAMICS && psys->pointcache->flag & PTCACHE_BAKED)==0)
 				skip = 1; /* in edit mode paths are needed for child particles and dynamic hair */
 		}
+#endif
 	}
 
 
 	/* particle instance modifier with "path" option need cached paths even if particle system doesn't */
-	FOREACH_SCENE_OBJECT(sim->scene, ob)
+	FOREACH_SCENE_OBJECT_BEGIN(sim->scene, ob)
 	{
 		ModifierData *md = modifiers_findByType(ob, eModifierType_ParticleInstance);
 		if (md) {
@@ -2954,7 +2967,7 @@ static void psys_update_path_cache(ParticleSimulationData *sim, float cfra, cons
 			}
 		}
 	}
-	FOREACH_SCENE_OBJECT_END
+	FOREACH_SCENE_OBJECT_END;
 
 	if (!skip) {
 		psys_cache_paths(sim, cfra, use_render_params);
@@ -3375,14 +3388,16 @@ typedef struct DynamicStepSolverTaskData {
 } DynamicStepSolverTaskData;
 
 static void dynamics_step_sph_ddr_task_cb_ex(
-        void *userdata, void *userdata_chunk, const int p, const int UNUSED(thread_id))
+        void *__restrict userdata,
+        const int p,
+        const ParallelRangeTLS *__restrict tls)
 {
 	DynamicStepSolverTaskData *data = userdata;
 	ParticleSimulationData *sim = data->sim;
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 
-	SPHData *sphdata = userdata_chunk;
+	SPHData *sphdata = tls->userdata_chunk;
 
 	ParticleData *pa;
 
@@ -3409,7 +3424,9 @@ static void dynamics_step_sph_ddr_task_cb_ex(
 }
 
 static void dynamics_step_sph_classical_basic_integrate_task_cb_ex(
-        void *userdata,  void *UNUSED(userdata_chunk), const int p, const int UNUSED(thread_id))
+        void *__restrict userdata, 
+        const int p,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	DynamicStepSolverTaskData *data = userdata;
 	ParticleSimulationData *sim = data->sim;
@@ -3425,13 +3442,15 @@ static void dynamics_step_sph_classical_basic_integrate_task_cb_ex(
 }
 
 static void dynamics_step_sph_classical_calc_density_task_cb_ex(
-        void *userdata, void *userdata_chunk, const int p, const int UNUSED(thread_id))
+        void *__restrict userdata,
+        const int p,
+        const ParallelRangeTLS *__restrict tls)
 {
 	DynamicStepSolverTaskData *data = userdata;
 	ParticleSimulationData *sim = data->sim;
 	ParticleSystem *psys = sim->psys;
 
-	SPHData *sphdata = userdata_chunk;
+	SPHData *sphdata = tls->userdata_chunk;
 
 	ParticleData *pa;
 
@@ -3443,14 +3462,16 @@ static void dynamics_step_sph_classical_calc_density_task_cb_ex(
 }
 
 static void dynamics_step_sph_classical_integrate_task_cb_ex(
-        void *userdata, void *userdata_chunk, const int p, const int UNUSED(thread_id))
+        void *__restrict userdata,
+        const int p,
+        const ParallelRangeTLS *__restrict tls)
 {
 	DynamicStepSolverTaskData *data = userdata;
 	ParticleSimulationData *sim = data->sim;
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 
-	SPHData *sphdata = userdata_chunk;
+	SPHData *sphdata = tls->userdata_chunk;
 
 	ParticleData *pa;
 
@@ -3641,9 +3662,16 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
 				/* Apply SPH forces using double-density relaxation algorithm
 				 * (Clavat et. al.) */
 
-				BLI_task_parallel_range_ex(
-				            0, psys->totpart, &task_data, &sphdata, sizeof(sphdata),
-				            dynamics_step_sph_ddr_task_cb_ex, psys->totpart > 100, true);
+				ParallelRangeSettings settings;
+				BLI_parallel_range_settings_defaults(&settings);
+				settings.use_threading = (psys->totpart > 100);
+				settings.userdata_chunk = &sphdata;
+				settings.userdata_chunk_size = sizeof(sphdata);
+				BLI_task_parallel_range(
+				        0, psys->totpart,
+				        &task_data,
+				        dynamics_step_sph_ddr_task_cb_ex,
+				        &settings);
 
 				sph_springs_modify(psys, timestep);
 			}
@@ -3653,21 +3681,46 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
 				 * and Monaghan). Note that, unlike double-density relaxation,
 				 * this algorithm is separated into distinct loops. */
 
-				BLI_task_parallel_range_ex(
-				            0, psys->totpart, &task_data, NULL, 0,
-				            dynamics_step_sph_classical_basic_integrate_task_cb_ex, psys->totpart > 100, true);
+				{
+					ParallelRangeSettings settings;
+					BLI_parallel_range_settings_defaults(&settings);
+					settings.use_threading = (psys->totpart > 100);
+					BLI_task_parallel_range(
+					        0, psys->totpart,
+					        &task_data,
+					        dynamics_step_sph_classical_basic_integrate_task_cb_ex,
+					        &settings);
+				}
 
 				/* calculate summation density */
 				/* Note that we could avoid copying sphdata for each thread here (it's only read here),
 				 * but doubt this would gain us anything except confusion... */
-				BLI_task_parallel_range_ex(
-				            0, psys->totpart, &task_data, &sphdata, sizeof(sphdata),
-				            dynamics_step_sph_classical_calc_density_task_cb_ex, psys->totpart > 100, true);
+				{
+				ParallelRangeSettings settings;
+				BLI_parallel_range_settings_defaults(&settings);
+				settings.use_threading = (psys->totpart > 100);
+				settings.userdata_chunk = &sphdata;
+				settings.userdata_chunk_size = sizeof(sphdata);
+					BLI_task_parallel_range(
+					        0, psys->totpart,
+					        &task_data,
+					        dynamics_step_sph_classical_calc_density_task_cb_ex,
+					        &settings);
+				}
 
 				/* do global forces & effectors */
-				BLI_task_parallel_range_ex(
-				            0, psys->totpart, &task_data, &sphdata, sizeof(sphdata),
-				            dynamics_step_sph_classical_integrate_task_cb_ex, psys->totpart > 100, true);
+				{
+				ParallelRangeSettings settings;
+				BLI_parallel_range_settings_defaults(&settings);
+				settings.use_threading = (psys->totpart > 100);
+				settings.userdata_chunk = &sphdata;
+				settings.userdata_chunk_size = sizeof(sphdata);
+					BLI_task_parallel_range(
+					        0, psys->totpart,
+					        &task_data,
+					        dynamics_step_sph_classical_integrate_task_cb_ex,
+					        &settings);
+				}
 			}
 
 			BLI_spin_end(&task_data.spin);
@@ -4363,30 +4416,16 @@ void BKE_particlesystem_id_loop(ParticleSystem *psys, ParticleSystemIDFunc func,
 
 /* **** Depsgraph evaluation **** */
 
-void BKE_particle_system_settings_eval(const struct EvaluationContext *UNUSED(eval_ctx),
-                                       ParticleSystem *psys)
-{
-	if (G.debug & G_DEBUG_DEPSGRAPH) {
-		printf("%s on %s (%p)\n", __func__, psys->name, psys);
-	}
-	psys->recalc |= psys->part->recalc;
-}
-
-void BKE_particle_system_settings_recalc_clear(struct EvaluationContext *UNUSED(eval_ctx),
-                                               ParticleSettings *particle_settings)
-{
-	if (G.debug & G_DEBUG_DEPSGRAPH) {
-		printf("%s on %s (%p)\n", __func__, particle_settings->id.name, particle_settings);
-	}
-	particle_settings->recalc = 0;
-}
-
 void BKE_particle_system_eval_init(const struct EvaluationContext *UNUSED(eval_ctx),
                                    Scene *scene,
                                    Object *ob)
 {
-	if (G.debug & G_DEBUG_DEPSGRAPH) {
-		printf("%s on %s (%p)\n", __func__, ob->id.name, ob);
+	DEG_debug_print_eval(__func__, ob->id.name, ob);
+	for (ParticleSystem *psys = ob->particlesystem.first;
+	     psys != NULL;
+	     psys = psys->next)
+	{
+		psys->recalc |= (psys->part->id.recalc & DEG_TAG_PSYS_ALL);
 	}
 	BKE_ptcache_object_reset(scene, ob, PTCACHE_RESET_DEPSGRAPH);
 }

@@ -53,7 +53,6 @@
 #include "DNA_gpencil_types.h"
 
 #include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_gpencil.h"
 #include "BKE_library.h"
 #include "BKE_object.h"
@@ -1063,7 +1062,7 @@ static int gp_brush_remove_exec(bContext *C, wmOperator *op)
 	if (ELEM(NULL, ts, brush))
 		return OPERATOR_CANCELLED;
 
-	if (BLI_listbase_count_ex(&ts->gp_brushes, 2) < 2) {
+	if (BLI_listbase_count_at_most(&ts->gp_brushes, 2) < 2) {
 		BKE_report(op->reports, RPT_ERROR, "Grease Pencil needs a brush, unable to delete the last one");
 		return OPERATOR_CANCELLED;
 	}
@@ -1421,7 +1420,7 @@ static int gp_palette_remove_exec(bContext *C, wmOperator *op)
 	if (ELEM(NULL, gpd, palette))
 		return OPERATOR_CANCELLED;
 
-	if (BLI_listbase_count_ex(&gpd->palettes, 2) < 2) {
+	if (BLI_listbase_count_at_most(&gpd->palettes, 2) < 2) {
 		BKE_report(op->reports, RPT_ERROR, "Grease Pencil needs a palette, unable to delete the last one");
 		return OPERATOR_CANCELLED;
 	}

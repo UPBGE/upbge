@@ -74,7 +74,7 @@ void BLI_listbase_sort(struct ListBase *listbase, int (*cmp)(const void *, const
 void BLI_listbase_sort_r(ListBase *listbase, int (*cmp)(void *, const void *, const void *), void *thunk) ATTR_NONNULL(1, 2);
 bool BLI_listbase_link_move(ListBase *listbase, void *vlink, int step) ATTR_NONNULL();
 void BLI_freelist(struct ListBase *listbase) ATTR_NONNULL(1);
-int  BLI_listbase_count_ex(const struct ListBase *listbase, const int count_max) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
+int  BLI_listbase_count_at_most(const struct ListBase *listbase, const int count_max) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 int  BLI_listbase_count(const struct ListBase *listbase) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 void BLI_freelinkN(struct ListBase *listbase, void *vlink) ATTR_NONNULL(1);
 
@@ -103,34 +103,35 @@ struct LinkData *BLI_genericNodeN(void *data);
  *
  * \code{.c}
  *
- * BLI_LISTBASE_CIRCULAR_FORWARD_BEGIN (listbase, item, item_init) {
+ * LISTBASE_CIRCULAR_FORWARD_BEGIN(listbase, item, item_init)
+ * {
  *     ...operate on marker...
  * }
- * BLI_LISTBASE_CIRCULAR_FORWARD_END (listbase, item, item_init);
+ * LISTBASE_CIRCULAR_FORWARD_END (listbase, item, item_init);
  *
  * \endcode
  */
-#define BLI_LISTBASE_CIRCULAR_FORWARD_BEGIN(lb, lb_iter, lb_init) \
+#define LISTBASE_CIRCULAR_FORWARD_BEGIN(lb, lb_iter, lb_init) \
 if ((lb)->first && (lb_init || (lb_init = (lb)->first))) { \
 	lb_iter = lb_init; \
 	do {
-#define BLI_LISTBASE_CIRCULAR_FORWARD_END(lb, lb_iter, lb_init) \
+#define LISTBASE_CIRCULAR_FORWARD_END(lb, lb_iter, lb_init) \
 	} while ((lb_iter  = (lb_iter)->next ? (lb_iter)->next : (lb)->first), \
 	         (lb_iter != lb_init)); \
 }
 
-#define BLI_LISTBASE_CIRCULAR_BACKWARD_BEGIN(lb, lb_iter, lb_init) \
+#define LISTBASE_CIRCULAR_BACKWARD_BEGIN(lb, lb_iter, lb_init) \
 if ((lb)->last && (lb_init || (lb_init = (lb)->last))) { \
 	lb_iter = lb_init; \
 	do {
-#define BLI_LISTBASE_CIRCULAR_BACKWARD_END(lb, lb_iter, lb_init) \
+#define LISTBASE_CIRCULAR_BACKWARD_END(lb, lb_iter, lb_init) \
 	} while ((lb_iter  = (lb_iter)->prev ? (lb_iter)->prev : (lb)->last), \
 	         (lb_iter != lb_init)); \
 }
 
-#define LINKLIST_FOREACH(type, var, list)          \
-	for (type var = (type)((list)->first);     \
-	     var != NULL;                          \
+#define LISTBASE_FOREACH(type, var, list) \
+	for (type var = (type)((list)->first); \
+	     var != NULL; \
 	     var = (type)(((Link*)(var))->next))
 
 #ifdef __cplusplus

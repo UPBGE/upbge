@@ -153,6 +153,7 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, int update
 							DRW_notify_view_update(
 							        (&(DRWUpdateContext){
 							            .bmain = bmain,
+							            .depsgraph = update_ctx->depsgraph,
 							            .scene = scene,
 							            .view_layer = view_layer,
 							            .ar = ar,
@@ -201,7 +202,9 @@ void ED_render_engine_changed(Main *bmain)
 	update_ctx.bmain = bmain;
 	for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
 		update_ctx.scene = scene;
-		LINKLIST_FOREACH(ViewLayer *, view_layer, &scene->view_layers) {
+		LISTBASE_FOREACH(ViewLayer *, view_layer, &scene->view_layers) {
+			/* TDODO(sergey): Iterate over depsgraphs instead? */
+			update_ctx.depsgraph = BKE_scene_get_depsgraph(scene, view_layer, true);
 			update_ctx.view_layer = view_layer;
 			ED_render_id_flush_update(&update_ctx, &scene->id);
 		}
@@ -309,7 +312,7 @@ static void material_changed(Main *bmain, Material *ma)
 	BKE_icon_changed(BKE_icon_id_ensure(&ma->id));
 
 	/* glsl */
-	if (ma->id.tag & LIB_TAG_ID_RECALC) {
+	if (ma->id.recalc & ID_RECALC) {
 		if (!BLI_listbase_is_empty(&ma->gpumaterial)) {
 			GPU_material_free(&ma->gpumaterial);
 		}
@@ -398,10 +401,12 @@ static void texture_changed(Main *bmain, Tex *tex)
 	/* icons */
 	BKE_icon_changed(BKE_icon_id_ensure(&tex->id));
 
+	const eObjectMode object_mode = WM_windows_object_mode_get(bmain->wm.first);
+
 	/* paint overlays */
 	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
 		for (view_layer = scene->view_layers.first; view_layer; view_layer = view_layer->next) {
-			BKE_paint_invalidate_overlay_tex(scene, view_layer, tex);
+			BKE_paint_invalidate_overlay_tex(scene, view_layer, tex, object_mode);
 		}
 	}
 
@@ -493,7 +498,7 @@ static void world_changed(Main *UNUSED(bmain), World *wo)
 	wo->update_flag = 1;
 
 	/* glsl */
-	if (wo->id.tag & LIB_TAG_ID_RECALC) {
+	if (wo->id.recalc & ID_RECALC) {
 		if (!BLI_listbase_is_empty(&defmaterial.gpumaterial)) {
 			GPU_material_free(&defmaterial.gpumaterial);
 		}
@@ -521,11 +526,23 @@ static void scene_changed(Main *bmain, Scene *scene)
 	Object *ob;
 
 	/* glsl */
-	for (ob = bmain->object.first; ob; ob = ob->id.next) {
-		if (ob->mode & OB_MODE_TEXTURE_PAINT) {
-			BKE_texpaint_slots_refresh_object(scene, ob);
-			BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
-			GPU_drawobject_free(ob->derivedFinal);
+	bool has_texture_mode = false;
+	wmWindowManager *wm = bmain->wm.first;
+	for (wmWindow *win = wm->windows.first; win; win = win->next) {
+		WorkSpace *workspace = WM_window_get_active_workspace(win);
+		if (workspace->object_mode & OB_MODE_TEXTURE_PAINT) {
+			has_texture_mode = true;
+			break;
+		}
+	}
+
+	if (has_texture_mode) {
+		for (ob = bmain->object.first; ob; ob = ob->id.next) {
+			if (ob->type == OB_MESH) {
+				BKE_texpaint_slots_refresh_object(scene, ob);
+				BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
+				GPU_drawobject_free(ob->derivedFinal);
+			}
 		}
 	}
 }
@@ -539,8 +556,6 @@ void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
 		return;
 	}
 	Main *bmain = update_ctx->bmain;
-	Scene *scene = update_ctx->scene;
-	ViewLayer *view_layer = update_ctx->view_layer;
 	/* Internal ID update handlers. */
 	switch (GS(id->name)) {
 		case ID_MA:
@@ -557,8 +572,10 @@ void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
 			lamp_changed(bmain, (Lamp *)id);
 			break;
 		case ID_IM:
+		{
 			image_changed(bmain, (Image *)id);
 			break;
+		}
 		case ID_SCE:
 			scene_changed(bmain, (Scene *)id);
 			render_engine_flag_changed(bmain, RE_ENGINE_UPDATE_OTHER);
@@ -566,42 +583,6 @@ void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
 		default:
 			render_engine_flag_changed(bmain, RE_ENGINE_UPDATE_OTHER);
 			break;
-	}
-	/* Inform all draw managers about changes.
-	 *
-	 * TODO(sergey): This code is run for every updated ID, via flushing
-	 * mechanism. How can we avoid iterating over the whole interface for
-	 * every of those IDs? One of the ideas would be to call draw manager's
-	 * ID update which is not bound to any of contexts.
-	 */
-	{
-		wmWindowManager *wm = bmain->wm.first;
-		for (wmWindow *win = wm->windows.first; win; win = win->next) {
-			bScreen *sc = WM_window_get_active_screen(win);
-			WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
-			ViewRender *view_render = BKE_viewrender_get(win->scene, workspace);
-			for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-				if (sa->spacetype != SPACE_VIEW3D) {
-					continue;
-				}
-				for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
-					if (ar->regiontype != RGN_TYPE_WINDOW) {
-						continue;
-					}
-					RenderEngineType *engine_type = RE_engines_find(view_render->engine_id);
-					DRW_notify_id_update(
-					        (&(DRWUpdateContext){
-					            .bmain = bmain,
-					            .scene = scene,
-					            .view_layer = view_layer,
-					            .ar = ar,
-					            .v3d = (View3D *)sa->spacedata.first,
-					            .engine_type = engine_type
-					        }),
-					        id);
-				}
-			}
-		}
 	}
 }
 

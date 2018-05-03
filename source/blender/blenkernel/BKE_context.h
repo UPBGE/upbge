@@ -77,6 +77,8 @@ struct SpaceClip;
 struct ID;
 struct EvaluationContext;
 
+#include "DNA_object_enums.h"
+
 /* Structs */
 
 struct bContext;
@@ -118,7 +120,8 @@ enum {
 	CTX_MODE_PAINT_VERTEX,
 	CTX_MODE_PAINT_TEXTURE,
 	CTX_MODE_PARTICLE,
-	CTX_MODE_OBJECT
+	CTX_MODE_OBJECT,
+	CTX_MODE_NUM /* must be last */
 };
 
 /* Context */
@@ -259,7 +262,9 @@ struct RenderEngineType *CTX_data_engine_type(const bContext *C);
 struct ToolSettings *CTX_data_tool_settings(const bContext *C);
 
 const char *CTX_data_mode_string(const bContext *C);
-int CTX_data_mode_enum_ex(const struct Object *obedit, const struct Object *ob);
+int CTX_data_mode_enum_ex(
+        const struct Object *obedit, const struct Object *ob,
+        const eObjectMode object_mode);
 int CTX_data_mode_enum(const bContext *C);
 
 void CTX_data_main_set(bContext *C, struct Main *bmain);

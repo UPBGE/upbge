@@ -318,7 +318,7 @@ static ID *rna_ID_override_create(ID *id, Main *bmain)
 		return NULL;
 	}
 
-	return BKE_override_static_create_from(bmain, id);
+	return BKE_override_static_create_from_id(bmain, id);
 }
 
 static void rna_ID_update_tag(ID *id, ReportList *reports, int flag)
@@ -772,12 +772,25 @@ static PointerRNA rna_IDPreview_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, &RNA_ImagePreview, prv_img);
 }
 
-static PointerRNA rna_ID_override_reference_get(PointerRNA *ptr)
+static int rna_ID_is_updated_get(PointerRNA *ptr)
 {
 	ID *id = (ID *)ptr->data;
-	ID *reference = (id && id->override_static) ? id->override_static->reference : NULL;
+	/* TODO(sergey): Do we need to limit some of flags here? */
+	return ((id->recalc & ID_RECALC_ALL) != 0);
+}
 
-	return reference ? rna_pointer_inherit_refine(ptr, ID_code_to_RNA_type(GS(reference->name)), reference) : PointerRNA_NULL;
+static int rna_ID_is_updated_data_get(PointerRNA *ptr)
+{
+	ID *id = (ID *)ptr->data;
+	if (GS(id->name) != ID_OB) {
+		return 0;
+	}
+	Object *object = (Object *)id;
+	ID *data = object->data;
+	if (data == NULL) {
+		return 0;
+	}
+	return ((data->recalc & ID_RECALC_ALL) != 0);
 }
 
 #else
@@ -976,6 +989,33 @@ static void rna_def_image_preview(BlenderRNA *brna)
 	RNA_def_function_ui_description(func, "Reload the preview from its source path");
 }
 
+static void rna_def_ID_override_static_property(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "IDOverrideStaticProperty", NULL);
+	RNA_def_struct_ui_text(srna, "ID Static Override Property", "Description of an overridden property");
+
+	prop = RNA_def_string(srna, "rna_path", NULL, INT_MAX, "RNA Path", "RNA path leading to that property, from owning ID");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);  /* For now. */
+}
+
+	static void rna_def_ID_override_static(BlenderRNA *brna)
+{
+	StructRNA *srna;
+
+	srna = RNA_def_struct(brna, "IDOverrideStatic", NULL);
+	RNA_def_struct_ui_text(srna, "ID Static Override", "Struct gathering all data needed by statically overridden IDs");
+
+	RNA_def_pointer(srna, "reference", "ID", "Reference ID", "Linked ID used as reference by this override");
+
+	RNA_def_collection(srna, "properties", "IDOverrideStaticProperty", "Properties",
+	                   "List of overridden properties");
+
+	rna_def_ID_override_static_property(brna);
+}
+
 static void rna_def_ID(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1023,13 +1063,13 @@ static void rna_def_ID(BlenderRNA *brna)
 	                         "(initial state is undefined)");
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "tag", LIB_TAG_ID_RECALC);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_boolean_funcs(prop, "rna_ID_is_updated_get", NULL);
 	RNA_def_property_ui_text(prop, "Is Updated", "Data-block is tagged for recalculation");
 
 	prop = RNA_def_property(srna, "is_updated_data", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "tag", LIB_TAG_ID_RECALC_DATA);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_boolean_funcs(prop, "rna_ID_is_updated_data_get", NULL);
 	RNA_def_property_ui_text(prop, "Is Updated Data", "Data-block data is tagged for recalculation");
 
 	prop = RNA_def_property(srna, "is_library_indirect", PROP_BOOLEAN, PROP_NONE);
@@ -1042,11 +1082,8 @@ static void rna_def_ID(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Library", "Library file the data-block is linked from");
 
-	prop = RNA_def_pointer(srna, "override_static_reference", "ID",
-	                       "Override Reference", "Reference linked data-block overridden by this one");
-	RNA_def_property_pointer_sdna(prop, NULL, "override_static->reference");
+	prop = RNA_def_pointer(srna, "override_static", "IDOverrideStatic", "Static Override", "Static override data");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_pointer_funcs(prop, "rna_ID_override_reference_get", NULL, NULL, NULL);
 
 	prop = RNA_def_pointer(srna, "preview", "ImagePreview", "Preview",
 	                       "Preview image and icon of this data-block (None if not supported for this type of data)");
@@ -1156,6 +1193,7 @@ void RNA_def_ID(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Any Type", "RNA type used for pointers to any possible data");
 
 	rna_def_ID(brna);
+	rna_def_ID_override_static(brna);
 	rna_def_image_preview(brna);
 	rna_def_ID_properties(brna);
 	rna_def_ID_materials(brna);

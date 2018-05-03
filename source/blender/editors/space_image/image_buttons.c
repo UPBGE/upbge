@@ -762,7 +762,7 @@ static void uiblock_layer_pass_buttons(
 		}
 
 		/* view */
-		if (BLI_listbase_count_ex(&rr->views, 2) > 1 &&
+		if (BLI_listbase_count_at_most(&rr->views, 2) > 1 &&
 		    ((!show_stereo) || (!RE_RenderResult_is_stereo(rr))))
 		{
 			rview = BLI_findlink(&rr->views, iuser->view);
@@ -871,8 +871,11 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 	uiLayoutSetContextPointer(layout, "edit_image", &imaptr);
 	uiLayoutSetContextPointer(layout, "edit_image_user", userptr);
 
-	if (!compact)
-		uiTemplateID(layout, C, ptr, propname, ima ? NULL : "IMAGE_OT_new", "IMAGE_OT_open", NULL);
+	if (!compact) {
+		uiTemplateID(
+		        layout, C, ptr, propname,
+		        ima ? NULL : "IMAGE_OT_new", "IMAGE_OT_open", NULL, UI_TEMPLATE_ID_FILTER_ALL);
+	}
 
 	if (ima) {
 		UI_block_funcN_set(block, rna_update_cb, MEM_dupallocN(cb), NULL);

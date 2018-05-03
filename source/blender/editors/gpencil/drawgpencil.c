@@ -41,7 +41,7 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_polyfill2d.h"
+#include "BLI_polyfill_2d.h"
 
 #include "BLF_api.h"
 #include "BLT_translation.h"
@@ -1479,7 +1479,7 @@ static void gp_draw_status_text(const bGPdata *gpd, ARegion *ar)
 
 		/* grease pencil icon... */
 		// XXX: is this too intrusive?
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 
 		xco -= U.widget_unit;
@@ -1672,6 +1672,7 @@ void ED_gpencil_draw_view2d(const bContext *C, bool onlyv2d)
 void ED_gpencil_draw_view3d(wmWindowManager *wm,
                             Scene *scene,
                             ViewLayer *view_layer,
+                            const struct Depsgraph *depsgraph,
                             View3D *v3d,
                             ARegion *ar,
                             bool only3d)
@@ -1688,7 +1689,7 @@ void ED_gpencil_draw_view3d(wmWindowManager *wm,
 	 * deal with the camera border, otherwise map the coords to the camera border. */
 	if ((rv3d->persp == RV3D_CAMOB) && !(G.f & G_RENDER_OGL)) {
 		rctf rectf;
-		ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &rectf, true); /* no shift */
+		ED_view3d_calc_camera_border(scene, depsgraph, ar, v3d, rv3d, &rectf, true); /* no shift */
 
 		offsx = round_fl_to_int(rectf.xmin);
 		offsy = round_fl_to_int(rectf.ymin);

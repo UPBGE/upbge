@@ -32,9 +32,10 @@
 #define __ED_UTIL_H__
 
 struct bContext;
-struct SpaceLink;
-struct wmOperator;
 struct wmOperatorType;
+struct ScrArea;
+struct SpaceLink;
+struct PackedFile;
 
 /* ed_util.c */
 
@@ -46,40 +47,6 @@ bool    ED_editors_flush_edits(const struct bContext *C, bool for_render);
 void    ED_spacedata_id_remap(struct ScrArea *sa, struct SpaceLink *sl, struct ID *old_id, struct ID *new_id);
 
 void    ED_OT_flush_edits(struct wmOperatorType *ot);
-
-/* ************** Undo ************************ */
-
-/* undo.c */
-void    ED_undo_push(struct bContext *C, const char *str);
-void    ED_undo_push_op(struct bContext *C, struct wmOperator *op);
-void    ED_undo_grouped_push(struct bContext *C, const char *str);
-void    ED_undo_grouped_push_op(struct bContext *C, struct wmOperator *op);
-void    ED_undo_pop_op(struct bContext *C, struct wmOperator *op);
-void    ED_undo_pop(struct bContext *C);
-void    ED_undo_redo(struct bContext *C);
-void    ED_OT_undo(struct wmOperatorType *ot);
-void    ED_OT_undo_push(struct wmOperatorType *ot);
-void    ED_OT_redo(struct wmOperatorType *ot);
-void    ED_OT_undo_redo(struct wmOperatorType *ot);
-void    ED_OT_undo_history(struct wmOperatorType *ot);
-
-int     ED_undo_operator_repeat(struct bContext *C, struct wmOperator *op);
-/* convenience since UI callbacks use this mostly*/
-void    ED_undo_operator_repeat_cb(struct bContext *C, void *arg_op, void *arg_unused);
-void    ED_undo_operator_repeat_cb_evt(struct bContext *C, void *arg_op, int arg_unused);
-
-bool    ED_undo_is_valid(const struct bContext *C, const char *undoname);
-
-/* undo_editmode.c */
-void undo_editmode_push(struct bContext *C, const char *name, 
-                        void * (*getdata)(struct bContext *C),
-                        void (*freedata)(void *),
-                        void (*to_editmode)(void *, void *, void *),
-                        void *(*from_editmode)(void *, void *),
-                        int (*validate_undo)(void *, void *));
-
-
-void    undo_editmode_clear(void);
 
 /* ************** XXX OLD CRUFT WARNING ************* */
 

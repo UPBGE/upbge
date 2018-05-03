@@ -42,6 +42,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_object_types.h"
 #include "DNA_workspace_types.h"
 
 #include "ED_object.h"
@@ -113,30 +114,51 @@ bool ED_scene_delete(bContext *C, Main *bmain, wmWindow *win, Scene *scene)
 	return true;
 }
 
-void ED_scene_exit(bContext *C)
-{
-	ED_object_editmode_exit(C, EM_FREEDATA | EM_DO_UNDO);
-}
-
 static ViewLayer *scene_change_get_new_view_layer(const WorkSpace *workspace, const Scene *scene_new)
 {
 	ViewLayer *layer_new = BKE_workspace_view_layer_get(workspace, scene_new);
 	return layer_new ? layer_new : BKE_view_layer_from_scene_get(scene_new);
 }
 
-void ED_scene_changed_update(Main *bmain, bContext *C, Scene *scene_new, const bScreen *active_screen)
+void ED_scene_change_update(
+        Main *bmain, bContext *C,
+        wmWindow *win, const bScreen *screen, Scene *scene_old, Scene *scene_new)
 {
 	WorkSpace *workspace = CTX_wm_workspace(C);
 	ViewLayer *layer_new = scene_change_get_new_view_layer(workspace, scene_new);
 	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene_new, layer_new, true);
+	Object *obact_new = OBACT(layer_new);
 
+	/* mode syncing */
+	EvaluationContext eval_ctx_old;
+	CTX_data_eval_ctx(C, &eval_ctx_old);
+	eObjectMode object_mode_old = workspace->object_mode;
+	ViewLayer *layer_old = BKE_view_layer_from_workspace_get(scene_old, workspace);
+	Object *obact_old = OBACT(layer_old);
+	bool obact_new_mode_exists = ED_object_mode_generic_exists(bmain->wm.first, obact_new, workspace->object_mode);
+
+
+	win->scene = scene_new;
 	CTX_data_scene_set(C, scene_new);
 	BKE_workspace_view_layer_set(workspace, layer_new, scene_new);
 	BKE_scene_set_background(bmain, scene_new);
 	DEG_graph_relations_update(depsgraph, bmain, scene_new, layer_new);
 	DEG_on_visible_update(bmain, false);
 
-	ED_screen_update_after_scene_change(active_screen, scene_new, layer_new);
+	if (obact_new == obact_old) {
+		/* pass */
+	}
+	else {
+		ED_object_mode_generic_exit_or_other_window(&eval_ctx_old, bmain->wm.first, workspace, scene_old, obact_old);
+		if (obact_new_mode_exists) {
+			workspace->object_mode = object_mode_old;
+		}
+		else {
+			ED_object_mode_generic_enter_or_other_window(C, win, object_mode_old);
+		}
+	}
+
+	ED_screen_update_after_scene_change(screen, scene_new, layer_new);
 	ED_render_engine_changed(bmain);
 	ED_update_for_newframe(bmain, scene_new, layer_new, depsgraph);
 
@@ -186,13 +208,15 @@ bool ED_scene_view_layer_delete(
 		return false;
 	}
 
+	/* We need to unset nodetrees before removing the layer, otherwise its index will be -1. */
+	view_layer_remove_unset_nodetrees(bmain, scene, layer);
+
 	BLI_remlink(&scene->view_layers, layer);
 	BLI_assert(BLI_listbase_is_empty(&scene->view_layers) == false);
 	scene->active_view_layer = 0;
 
 	ED_workspace_view_layer_unset(bmain, scene, layer, scene->view_layers.first);
 	BKE_workspace_view_layer_remove_references(bmain, layer);
-	view_layer_remove_unset_nodetrees(bmain, scene, layer);
 
 	BKE_view_layer_free(layer);
 

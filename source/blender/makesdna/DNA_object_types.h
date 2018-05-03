@@ -33,6 +33,8 @@
 #ifndef __DNA_OBJECT_TYPES_H__
 #define __DNA_OBJECT_TYPES_H__
 
+#include "DNA_object_enums.h"
+
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_ID.h"
@@ -75,11 +77,19 @@ typedef struct bFaceMap {
 } bFaceMap;
 
 /* Object Runtime display data */
+struct ObjectEngineData;
+typedef void (*ObjectEngineDataInitCb)(struct ObjectEngineData *engine_data);
+typedef void (*ObjectEngineDataFreeCb)(struct ObjectEngineData *engine_data);
+
+#
+#
 typedef struct ObjectEngineData {
 	struct ObjectEngineData *next, *prev;
 	struct DrawEngineType *engine_type;
-	void *storage;
-	void (*free)(void *storage);
+	/* Only nested data, NOT the engine data itself. */
+	ObjectEngineDataFreeCb free;
+	/* Accumulated recalc flags, which corresponds to ID->recalc flags. */
+	int recalc;
 } ObjectEngineData;
 
 #define MAX_VGROUP_NAME 64
@@ -154,15 +164,13 @@ typedef struct Object {
 	
 	bAnimVizSettings avs;	/* settings for visualization of object-transform animation */
 	bMotionPath *mpath;		/* motion path cache for this object */
+	void *pad1;
 	
 	ListBase constraintChannels  DNA_DEPRECATED; // XXX deprecated... old animation system
 	ListBase effect  DNA_DEPRECATED;             // XXX deprecated... keep for readfile
 	ListBase defbase;   /* list of bDeformGroup (vertex groups) names and flag only */
 	ListBase modifiers; /* list of ModifierData structures */
 	ListBase fmaps;     /* list of facemaps */
-	
-	int mode;           /* Local object mode */
-	int restore_mode;   /* Keep track of what mode to return to after toggling a mode */
 
 	/* materials */
 	struct Material **mat;	/* material slots */
@@ -203,11 +211,11 @@ typedef struct Object {
 	short nlaflag;				/* used for DopeSheet filtering settings (expanded/collapsed) */
 	short scaflag;				/* ui state for game logic */
 	char scavisflag;			/* more display settings for game logic */
-	char depsflag;
+	char pad;
 
 	/* did last modifier stack generation need mapping support? */
 	char lastNeedMapping;  /* bool */
-	char pad;
+	char duplicator_visibility_flag;
 
 	/* dupli-frame settings */
 	int dupon, dupoff, dupsta, dupend;
@@ -276,8 +284,6 @@ typedef struct Object {
 	int gameflag;
 	int gameflag2;
 
-	struct BulletSoftBody *bsoft;	/* settings for game engine bullet soft body */
-
 	char restrictflag;		/* for restricting view, select, render etc. accessible in outliner */
 	char pad3;
 	short softflag;			/* softbody settings */
@@ -295,6 +301,7 @@ typedef struct Object {
 	ListBase hooks  DNA_DEPRECATED;				// XXX deprecated... old animation system
 	ListBase particlesystem;	/* particle systems */
 	
+	struct BulletSoftBody *bsoft;	/* settings for game engine bullet soft body */
 	struct PartDeflect *pd;		/* particle deflector/attractor/collision data */
 	struct SoftBody *soft;		/* if exists, saved in file */
 	struct Group *dup_group;	/* object duplicator for group */
@@ -307,6 +314,7 @@ typedef struct Object {
 	struct FluidsimSettings *fluidsimSettings; /* if fluidsim enabled, store additional settings */
 
 	struct DerivedMesh *derivedDeform, *derivedFinal;
+	void *pad7;
 	uint64_t lastDataMask;   /* the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
 	uint64_t customdata_mask; /* (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
 	unsigned int state;			/* bit masks of game controllers that are active */
@@ -324,6 +332,7 @@ typedef struct Object {
 
 	float ima_ofs[2];		/* offset for image empties */
 	ImageUser *iuser;		/* must be non-null when oject is an empty image */
+	void *pad4;
 
 	ListBase lodlevels;		/* contains data for levels of detail */
 	LodLevel *currentlod;
@@ -333,7 +342,7 @@ typedef struct Object {
 	struct IDProperty *base_collection_properties; /* used by depsgraph, flushed from base */
 
 	ListBase drawdata;		/* runtime, ObjectEngineData */
-	int pad1;
+	int pad6;
 	int select_color;
 
 	/* Mesh structure createrd during object evaluaiton.
@@ -639,17 +648,6 @@ enum {
 	OB_BODY_TYPE_CHARACTER      = 8,
 };
 
-/* ob->depsflag */
-enum {
-	OB_DEPS_EXTRA_OB_RECALC     = 1 << 0,
-	OB_DEPS_EXTRA_DATA_RECALC   = 1 << 1,
-};
-
-/* ob->deg_update_flag */
-enum {
-	DEG_RUNTIME_DATA_UPDATE     = 1 << 0,
-};
-
 /* ob->scavisflag */
 enum {
 	OB_VIS_SENS     = 1 << 0,
@@ -718,24 +716,11 @@ enum {
 	OB_LOCK_ROT4D   = 1 << 10,
 };
 
-/* ob->mode */
-typedef enum eObjectMode {
-	OB_MODE_OBJECT        = 0,
-	OB_MODE_EDIT          = 1 << 0,
-	OB_MODE_SCULPT        = 1 << 1,
-	OB_MODE_VERTEX_PAINT  = 1 << 2,
-	OB_MODE_WEIGHT_PAINT  = 1 << 3,
-	OB_MODE_TEXTURE_PAINT = 1 << 4,
-	OB_MODE_PARTICLE_EDIT = 1 << 5,
-	OB_MODE_POSE          = 1 << 6,
-	OB_MODE_GPENCIL       = 1 << 7,  /* NOTE: Just a dummy to make the UI nicer */
-} eObjectMode;
-
-/* any mode where the brush system is used */
-#define OB_MODE_ALL_PAINT (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)
-
-/* any mode that uses ob->sculpt */
-#define OB_MODE_ALL_SCULPT (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)
+/* ob->duplicator_visibility_flag */
+enum {
+	OB_DUPLI_FLAG_VIEWPORT = 1 << 0,
+	OB_DUPLI_FLAG_RENDER   = 1 << 1,
+};
 
 #define MAX_DUPLI_RECUR 8
 

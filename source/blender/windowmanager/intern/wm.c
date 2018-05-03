@@ -63,6 +63,7 @@
 #include "wm.h"
 
 #include "ED_screen.h"
+#include "BKE_undo_system.h"
 
 #ifdef WITH_PYTHON
 #include "BPY_extern.h"
@@ -339,6 +340,22 @@ void WM_menutype_free(void)
 	menutypes_hash = NULL;
 }
 
+bool WM_menutype_poll(bContext *C, MenuType *mt)
+{
+	/* If we're tagged, only use compatible. */
+	if (mt->owner_id[0] != '\0') {
+		const WorkSpace *workspace = CTX_wm_workspace(C);
+		if (BKE_workspace_owner_id_check(workspace, mt->owner_id) == false) {
+			return false;
+		}
+	}
+
+	if (mt->poll != NULL) {
+		return mt->poll(C, mt);
+	}
+	return true;
+}
+
 /* ****************************************** */
 
 void WM_keymap_init(bContext *C)
@@ -490,7 +507,12 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 	WM_drag_free_list(&wm->drags);
 	
 	wm_reports_free(wm);
-	
+
+	if (wm->undo_stack) {
+		BKE_undosys_stack_destroy(wm->undo_stack);
+		wm->undo_stack = NULL;
+	}
+
 	if (C && CTX_wm_manager(C) == wm) CTX_wm_manager_set(C, NULL);
 }
 

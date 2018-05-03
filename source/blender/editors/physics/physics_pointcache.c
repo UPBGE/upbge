@@ -260,7 +260,7 @@ static int ptcache_free_bake_all_exec(bContext *C, wmOperator *UNUSED(op))
 	PTCacheID *pid;
 	ListBase pidlist;
 
-	FOREACH_SCENE_OBJECT(scene, ob)
+	FOREACH_SCENE_OBJECT_BEGIN(scene, ob)
 	{
 		BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
 
@@ -272,7 +272,7 @@ static int ptcache_free_bake_all_exec(bContext *C, wmOperator *UNUSED(op))
 		
 		WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
 	}
-	FOREACH_SCENE_OBJECT_END
+	FOREACH_SCENE_OBJECT_END;
 
 	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
 

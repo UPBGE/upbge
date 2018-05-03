@@ -30,18 +30,27 @@
 #  define __NODES_FEATURES__ NODE_FEATURE_ALL
 #endif
 
-#include <cuda.h>
-#include <cuda_fp16.h>
-#include <float.h>
-#include <stdint.h>
+/* Manual definitions so we can compile without CUDA toolkit. */
+
+typedef unsigned int uint32_t;
+typedef unsigned long long uint64_t;
+typedef unsigned short half;
+typedef unsigned long long CUtexObject;
+
+#define FLT_MIN 1.175494350822287507969e-38f
+#define FLT_MAX 340282346638528859811704183484516925440.0f
+
+__device__ half __float2half(const float f)
+{
+       half val;
+       asm("{  cvt.rn.f16.f32 %0, %1;}\n" : "=h"(val) : "f"(f));
+       return val;
+}
 
 /* Qualifier wrappers for different names on different devices */
 
 #define ccl_device  __device__ __inline__
-#if __CUDA_ARCH__ < 300
-#  define ccl_device_inline  __device__ __inline__
-#  define ccl_device_forceinline  __device__ __forceinline__
-#elif __CUDA_ARCH__ < 500
+#if __CUDA_ARCH__ < 500
 #  define ccl_device_inline  __device__ __forceinline__
 #  define ccl_device_forceinline  __device__ __forceinline__
 #else
@@ -126,17 +135,9 @@ ccl_device_inline uint ccl_num_groups(uint d)
 
 /* Textures */
 
-/* Use arrays for regular data. This is a little slower than textures on Fermi,
- * but allows for cleaner code and we will stop supporting Fermi soon. */
+/* Use arrays for regular data. */
 #define kernel_tex_fetch(t, index) t[(index)]
-
-/* On Kepler (6xx) and above, we use Bindless Textures for images.
- * On Fermi cards (4xx and 5xx), we have to use regular textures. */
-#if __CUDA_ARCH__ < 300
-typedef texture<float4, 2> texture_image_float4;
-typedef texture<float4, 3> texture_image3d_float4;
-typedef texture<uchar4, 2, cudaReadModeNormalizedFloat> texture_image_uchar4;
-#endif
+#define kernel_tex_array(t) (t)
 
 #define kernel_data __data
 

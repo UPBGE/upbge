@@ -52,6 +52,7 @@ struct ViewContext;
 struct wmKeyConfig;
 struct wmOperator;
 struct Main;
+struct UndoType;
 
 typedef struct EditBone {
 	struct EditBone *next, *prev;
@@ -137,25 +138,27 @@ void ED_keymap_armature(struct wmKeyConfig *keyconf);
 void ED_armature_from_edit(struct bArmature *arm);
 void ED_armature_to_edit(struct bArmature *arm);
 void ED_armature_edit_free(struct bArmature *arm);
-void ED_armature_ebone_listbase_temp_clear(struct ListBase *lb);
 
 void ED_armature_deselect_all(struct Object *obedit);
 void ED_armature_deselect_all_visible(struct Object *obedit);
 
 bool ED_do_pose_selectbuffer(
-        struct Scene *scene, struct ViewLayer *view_layer, struct Base *base, const unsigned int *buffer, short hits,
+        const struct EvaluationContext *eval_ctx,
+        struct ViewLayer *view_layer, struct Base *base, const unsigned int *buffer, short hits,
         bool extend, bool deselect, bool toggle, bool do_nearest);
 bool ED_armature_select_pick(struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle);
 int join_armature_exec(struct bContext *C, struct wmOperator *op);
 struct Bone *get_indexed_bone(struct Object *ob, int index);
 float ED_rollBoneToVector(EditBone *bone, const float new_up_axis[3], const bool axis_only);
-EditBone *ED_armature_bone_find_name(const ListBase *edbo, const char *name);
+EditBone *ED_armature_bone_find_name(const struct ListBase *edbo, const char *name);
 EditBone *ED_armature_bone_get_mirrored(const struct ListBase *edbo, EditBone *ebo);
 void ED_armature_sync_selection(struct ListBase *edbo);
 void ED_armature_validate_active(struct bArmature *arm);
 
 EditBone *ED_armature_edit_bone_add_primitive(struct Object *obedit_arm, float length, bool view_aligned);
 EditBone *ED_armature_edit_bone_add(struct bArmature *arm, const char *name);
+
+void ED_armature_edit_bone_remove_ex(struct bArmature *arm, EditBone *exBone, bool clear_connected);
 void ED_armature_edit_bone_remove(struct bArmature *arm, EditBone *exBone);
 
 bool ED_armature_ebone_is_child_recursive(EditBone *ebone_parent, EditBone *ebone_child);
@@ -168,7 +171,7 @@ void ED_armature_ebone_from_mat3(EditBone *ebone, float mat[3][3]);
 void ED_armature_ebone_from_mat4(EditBone *ebone, float mat[4][4]);
 
 void transform_armature_mirror_update(struct Object *obedit);
-void ED_armature_origin_set(struct Scene *scene, struct Object *ob, float cursor[3], int centermode, int around);
+void ED_armature_origin_set(struct Object *ob, float cursor[3], int centermode, int around);
 
 void ED_armature_transform_bones(struct bArmature *arm, float mat[4][4], const bool do_props);
 void ED_armature_apply_transform(struct Object *ob, float mat[4][4], const bool do_props);
@@ -185,7 +188,7 @@ void create_vgroups_from_armature(
 /* if bone is already in list, pass it as param to ignore it */
 void unique_editbone_name(struct ListBase *ebones, char *name, EditBone *bone);
 void ED_armature_bone_rename(struct bArmature *arm, const char *oldnamep, const char *newnamep);
-void ED_armature_bones_flip_names(struct bArmature *arm, struct ListBase *bones_names);
+void ED_armature_bones_flip_names(struct bArmature *arm, struct ListBase *bones_names, const bool do_strip_numbers);
 
 void undo_push_armature(struct bContext *C, const char *name);
 
@@ -195,6 +198,14 @@ void ED_armature_ebone_selectflag_set(EditBone *ebone, int flag);
 void ED_armature_ebone_select_set(EditBone *ebone, bool select);
 void ED_armature_ebone_selectflag_enable(EditBone *ebone, int flag);
 void ED_armature_ebone_selectflag_disable(EditBone *ebone, int flag);
+
+/* editarmature_undo.c */
+void ED_armature_undosys_type(struct UndoType *ut);
+
+/* armature_utils.c */
+void ED_armature_ebone_listbase_temp_clear(struct ListBase *lb);
+void ED_armature_ebone_listbase_free(struct ListBase *lb);
+void ED_armature_ebone_listbase_copy(struct ListBase *lb_dst, struct ListBase *lb_src);
 
 /* poseobject.c */
 void ED_armature_exit_posemode(struct bContext *C, struct Base *base);

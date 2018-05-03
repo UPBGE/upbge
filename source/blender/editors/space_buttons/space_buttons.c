@@ -225,6 +225,28 @@ static void buttons_header_region_draw(const bContext *C, ARegion *ar)
 	ED_region_header(C, ar);
 }
 
+static void buttons_header_region_message_subscribe(
+        const bContext *UNUSED(C),
+        WorkSpace *UNUSED(workspace), Scene *UNUSED(scene),
+        bScreen *UNUSED(screen), ScrArea *sa, ARegion *ar,
+        struct wmMsgBus *mbus)
+{
+	SpaceButs *sbuts = sa->spacedata.first;
+	wmMsgSubscribeValue msg_sub_value_region_tag_redraw = {
+		.owner = ar,
+		.user_data = ar,
+		.notify = ED_region_do_msg_notify_tag_redraw,
+	};
+
+	/* Don't check for SpaceButs.mainb here, we may toggle between view-layers
+	 * where one has no active object, so that available contexts changes. */
+	WM_msg_subscribe_rna_anon_prop(mbus, Window, view_layer, &msg_sub_value_region_tag_redraw);
+
+	if (!ELEM(sbuts->mainb, BCONTEXT_RENDER, BCONTEXT_SCENE, BCONTEXT_WORLD)) {
+		WM_msg_subscribe_rna_anon_prop(mbus, ViewLayer, name, &msg_sub_value_region_tag_redraw);
+	}
+}
+
 /* draw a certain button set only if properties area is currently
  * showing that button set, to reduce unnecessary drawing. */
 static void buttons_area_redraw(ScrArea *sa, short buttons)
@@ -503,6 +525,7 @@ void ED_spacetype_buttons(void)
 	
 	art->init = buttons_header_region_init;
 	art->draw = buttons_header_region_draw;
+	art->message_subscribe = buttons_header_region_message_subscribe;
 	BLI_addhead(&st->regiontypes, art);
 
 	BKE_spacetype_register(st);

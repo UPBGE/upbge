@@ -35,18 +35,17 @@
 CCL_NAMESPACE_BEGIN
 
 /* Constants */
-#define OBJECT_SIZE 		12
-#define OBJECT_VECTOR_SIZE	6
-#define LIGHT_SIZE		11
-#define FILTER_TABLE_SIZE	1024
-#define RAMP_TABLE_SIZE		256
-#define SHUTTER_TABLE_SIZE		256
-#define PARTICLE_SIZE 		5
-#define SHADER_SIZE		5
+#define OBJECT_MOTION_PASS_SIZE 2
+#define FILTER_TABLE_SIZE       1024
+#define RAMP_TABLE_SIZE         256
+#define SHUTTER_TABLE_SIZE      256
 
 #define BSSRDF_MIN_RADIUS			1e-8f
 #define BSSRDF_MAX_HITS				4
+#define BSSRDF_MAX_BOUNCES			256
 #define LOCAL_MAX_HITS				4
+
+#define VOLUME_BOUNDS_MAX       1024
 
 #define BECKMANN_TABLE_SIZE		256
 
@@ -264,6 +263,7 @@ typedef enum ShaderEvalType {
 	/* data passes */
 	SHADER_EVAL_NORMAL,
 	SHADER_EVAL_UV,
+	SHADER_EVAL_ROUGHNESS,
 	SHADER_EVAL_DIFFUSE_COLOR,
 	SHADER_EVAL_GLOSSY_COLOR,
 	SHADER_EVAL_TRANSMISSION_COLOR,
@@ -346,11 +346,31 @@ enum PathRayFlag {
 
 	PATH_RAY_ALL_VISIBILITY = ((1 << 14)-1),
 
-	PATH_RAY_MIS_SKIP            = (1 << 15),
-	PATH_RAY_DIFFUSE_ANCESTOR    = (1 << 16),
-	PATH_RAY_SINGLE_PASS_DONE    = (1 << 17),
-	PATH_RAY_SHADOW_CATCHER      = (1 << 18),
-	PATH_RAY_STORE_SHADOW_INFO   = (1 << 19),
+	/* Don't apply multiple importance sampling weights to emission from
+	 * lamp or surface hits, because they were not direct light sampled. */
+	PATH_RAY_MIS_SKIP                    = (1 << 14),
+	/* Diffuse bounce earlier in the path, skip SSS to improve performance
+	 * and avoid branching twice with disk sampling SSS. */
+	PATH_RAY_DIFFUSE_ANCESTOR            = (1 << 15),
+	/* Single pass has been written. */
+	PATH_RAY_SINGLE_PASS_DONE            = (1 << 16),
+	/* Ray is behind a shadow catcher .*/
+	PATH_RAY_SHADOW_CATCHER              = (1 << 17),
+	/* Store shadow data for shadow catcher or denoising. */
+	PATH_RAY_STORE_SHADOW_INFO           = (1 << 18),
+	/* Zero background alpha, for camera or transparent glass rays. */
+	PATH_RAY_TRANSPARENT_BACKGROUND      = (1 << 19),
+	/* Terminate ray immediately at next bounce. */
+	PATH_RAY_TERMINATE_IMMEDIATE         = (1 << 20),
+	/* Ray is to be terminated, but continue with transparent bounces and
+	 * emission as long as we encounter them. This is required to make the
+	 * MIS between direct and indirect light rays match, as shadow rays go
+	 * through transparent surfaces to reach emisison too. */
+	PATH_RAY_TERMINATE_AFTER_TRANSPARENT = (1 << 21),
+	/* Ray is to be terminated. */
+	PATH_RAY_TERMINATE                   = (PATH_RAY_TERMINATE_IMMEDIATE|PATH_RAY_TERMINATE_AFTER_TRANSPARENT),
+	/* Path and shader is being evaluated for direct lighting emission. */
+	PATH_RAY_EMISSION                    = (1 << 22)
 };
 
 /* Closure Label */
@@ -364,6 +384,7 @@ typedef enum ClosureLabel {
 	LABEL_SINGULAR = 16,
 	LABEL_TRANSPARENT = 32,
 	LABEL_VOLUME_SCATTER = 64,
+	LABEL_TRANSMIT_TRANSPARENT = 128,
 } ClosureLabel;
 
 /* Render Passes */
@@ -769,12 +790,14 @@ typedef enum AttributeStandard {
 	ATTR_STD_MOTION_VERTEX_NORMAL,
 	ATTR_STD_PARTICLE,
 	ATTR_STD_CURVE_INTERCEPT,
+	ATTR_STD_CURVE_RANDOM,
 	ATTR_STD_PTEX_FACE_ID,
 	ATTR_STD_PTEX_UV,
 	ATTR_STD_VOLUME_DENSITY,
 	ATTR_STD_VOLUME_COLOR,
 	ATTR_STD_VOLUME_FLAME,
 	ATTR_STD_VOLUME_HEAT,
+	ATTR_STD_VOLUME_TEMPERATURE,
 	ATTR_STD_VOLUME_VELOCITY,
 	ATTR_STD_POINTINESS,
 	ATTR_STD_NUM,
@@ -899,21 +922,24 @@ enum ShaderDataFlag {
 	SD_HAS_BUMP               = (1 << 25),
 	/* Has true displacement. */
 	SD_HAS_DISPLACEMENT       = (1 << 26),
-	/* Has constant emission (value stored in __shader_flag) */
+	/* Has constant emission (value stored in __shaders) */
 	SD_HAS_CONSTANT_EMISSION  = (1 << 27),
+	/* Needs to access attributes */
+	SD_NEED_ATTRIBUTES        = (1 << 28),
 
 	SD_SHADER_FLAGS = (SD_USE_MIS |
 	                   SD_HAS_TRANSPARENT_SHADOW |
 	                   SD_HAS_VOLUME |
 	                   SD_HAS_ONLY_VOLUME |
-	                   SD_HETEROGENEOUS_VOLUME|
+	                   SD_HETEROGENEOUS_VOLUME |
 	                   SD_HAS_BSSRDF_BUMP |
 	                   SD_VOLUME_EQUIANGULAR |
 	                   SD_VOLUME_MIS |
 	                   SD_VOLUME_CUBIC |
 	                   SD_HAS_BUMP |
 	                   SD_HAS_DISPLACEMENT |
-	                   SD_HAS_CONSTANT_EMISSION)
+	                   SD_HAS_CONSTANT_EMISSION |
+	                   SD_NEED_ATTRIBUTES)
 };
 
 	/* Object flags. */
@@ -934,6 +960,8 @@ enum ShaderDataObjectFlag {
 	SD_OBJECT_HAS_VERTEX_MOTION      = (1 << 6),
 	/* object is used to catch shadows */
 	SD_OBJECT_SHADOW_CATCHER         = (1 << 7),
+	/* object has volume attributes */
+	SD_OBJECT_HAS_VOLUME_ATTRIBUTES  = (1 << 8),
 
 	SD_OBJECT_FLAGS = (SD_OBJECT_HOLDOUT_MASK |
 	                   SD_OBJECT_MOTION |
@@ -941,7 +969,8 @@ enum ShaderDataObjectFlag {
 	                   SD_OBJECT_NEGATIVE_SCALE_APPLIED |
 	                   SD_OBJECT_HAS_VOLUME |
 	                   SD_OBJECT_INTERSECTS_VOLUME |
-	                   SD_OBJECT_SHADOW_CATCHER)
+	                   SD_OBJECT_SHADOW_CATCHER |
+	                   SD_OBJECT_HAS_VOLUME_ATTRIBUTES)
 };
 
 typedef ccl_addr_space struct ShaderData {
@@ -1077,7 +1106,7 @@ typedef struct PathState {
 	/* volume rendering */
 #ifdef __VOLUME__
 	int volume_bounce;
-	uint rng_congruential;
+	int volume_bounds_bounce;
 	VolumeStack volume_stack[VOLUME_STACK_SIZE];
 #endif
 } PathState;
@@ -1130,7 +1159,7 @@ typedef struct KernelCamera {
 
 	/* matrices */
 	Transform cameratoworld;
-	Transform rastertocamera;
+	ProjectionTransform rastertocamera;
 
 	/* differentials */
 	float4 dx;
@@ -1144,7 +1173,7 @@ typedef struct KernelCamera {
 
 	/* motion blur */
 	float shuttertime;
-	int have_motion, have_perspective_motion;
+	int num_motion_steps, have_perspective_motion;
 
 	/* clipping */
 	float nearclip;
@@ -1164,22 +1193,22 @@ typedef struct KernelCamera {
 	int is_inside_volume;
 
 	/* more matrices */
-	Transform screentoworld;
-	Transform rastertoworld;
-	/* work around cuda sm 2.0 crash, this seems to
-	 * cross some limit in combination with motion 
-	 * Transform ndctoworld; */
-	Transform worldtoscreen;
-	Transform worldtoraster;
-	Transform worldtondc;
+	ProjectionTransform screentoworld;
+	ProjectionTransform rastertoworld;
+	ProjectionTransform ndctoworld;
+	ProjectionTransform worldtoscreen;
+	ProjectionTransform worldtoraster;
+	ProjectionTransform worldtondc;
 	Transform worldtocamera;
 
-	MotionTransform motion;
+	/* Stores changes in the projeciton matrix. Use for camera zoom motion
+	 * blur and motion pass output for perspective camera. */
+	ProjectionTransform perspective_pre;
+	ProjectionTransform perspective_post;
 
-	/* Denotes changes in the projective matrix, namely in rastertocamera.
-	 * Used for camera zoom motion blur,
-	 */
-	PerspectiveMotionTransform perspective_motion;
+	/* Transforms for motion pass. */
+	Transform motion_pass_pre;
+	Transform motion_pass_post;
 
 	int shutter_table_offset;
 
@@ -1259,7 +1288,7 @@ typedef struct KernelBackground {
 	int surface_shader;
 	int volume_shader;
 	int transparent;
-	int pad;
+	float transparent_roughness_squared_threshold;
 
 	/* ambient occlusion */
 	float ao_factor;
@@ -1342,13 +1371,23 @@ typedef struct KernelIntegrator {
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 
+typedef enum KernelBVHLayout {
+	BVH_LAYOUT_NONE = 0,
+
+	BVH_LAYOUT_BVH2 = (1 << 0),
+	BVH_LAYOUT_BVH4 = (1 << 1),
+
+	BVH_LAYOUT_DEFAULT = BVH_LAYOUT_BVH4,
+	BVH_LAYOUT_ALL = (unsigned int)(-1),
+} KernelBVHLayout;
+
 typedef struct KernelBVH {
 	/* root node */
 	int root;
 	int have_motion;
 	int have_curves;
 	int have_instancing;
-	int use_qbvh;
+	int bvh_layout;
 	int use_bvh_steps;
 	int pad1, pad2;
 } KernelBVH;
@@ -1390,6 +1429,114 @@ typedef struct KernelData {
 	KernelTables tables;
 } KernelData;
 static_assert_align(KernelData, 16);
+
+/* Kernel data structures. */
+
+typedef struct KernelObject {
+	Transform tfm;
+	Transform itfm;
+
+	float surface_area;
+	float pass_id;
+	float random_number;
+	int particle_index;
+
+	float dupli_generated[3];
+	float dupli_uv[2];
+
+	int numkeys;
+	int numsteps;
+	int numverts;
+
+	uint patch_map_offset;
+	uint attribute_map_offset;
+	uint motion_offset;
+	uint pad;
+} KernelObject;;
+static_assert_align(KernelObject, 16);
+
+typedef struct KernelSpotLight {
+	float radius;
+	float invarea;
+	float spot_angle;
+	float spot_smooth;
+	float dir[3];
+	float pad;
+} KernelSpotLight;
+
+/* PointLight is SpotLight with only radius and invarea being used. */
+
+typedef struct KernelAreaLight {
+	float axisu[3];
+	float invarea;
+	float axisv[3];
+	float pad1;
+	float dir[3];
+	float pad2;
+} KernelAreaLight;
+
+typedef struct KernelDistantLight {
+	float radius;
+	float cosangle;
+	float invarea;
+	float pad;
+} KernelDistantLight;
+
+typedef struct KernelLight {
+	int type;
+	float co[3];
+	int shader_id;
+	int samples;
+	float max_bounces;
+	float random;
+	Transform tfm;
+	Transform itfm;
+	union {
+		KernelSpotLight spot;
+		KernelAreaLight area;
+		KernelDistantLight distant;
+	};
+} KernelLight;
+static_assert_align(KernelLight, 16);
+
+typedef struct KernelLightDistribution {
+	float totarea;
+	int prim;
+	union {
+		struct {
+			int shader_flag;
+			int object_id;
+		} mesh_light;
+		struct {
+			float pad;
+			float size;
+		} lamp;
+	};
+} KernelLightDistribution;
+static_assert_align(KernelLightDistribution, 16);
+
+typedef struct KernelParticle {
+	int index;
+	float age;
+	float lifetime;
+	float size;
+	float4 rotation;
+	/* Only xyz are used of the following. float4 instead of float3 are used
+	 * to ensure consistent padding/alignment across devices. */
+	float4 location;
+	float4 velocity;
+	float4 angular_velocity;
+} KernelParticle;
+static_assert_align(KernelParticle, 16);
+
+typedef struct KernelShader {
+	float constant_emission[3];
+	float pad1;
+	int flags;
+	int pass_id;
+	int pad2, pad3;
+} KernelShader;
+static_assert_align(KernelShader, 16);
 
 /* Declarations required for split kernel */
 
@@ -1457,8 +1604,10 @@ enum RayState {
 	RAY_ACTIVE,
 	/* Denotes ray has completed processing all samples and is inactive. */
 	RAY_INACTIVE,
-	/* Denoted ray has exited path-iteration and needs to update output buffer. */
+	/* Denotes ray has exited path-iteration and needs to update output buffer. */
 	RAY_UPDATE_BUFFER,
+	/* Denotes ray needs to skip most surface shader work. */
+	RAY_HAS_ONLY_VOLUME,
 	/* Donotes ray has hit background */
 	RAY_HIT_BACKGROUND,
 	/* Denotes ray has to be regenerated */

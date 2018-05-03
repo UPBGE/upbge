@@ -207,7 +207,11 @@ void VCOLDataWrapper::get_vcol(int v_index, MLoopCol *mloopcol)
 
 }
 
-MeshImporter::MeshImporter(UnitConverter *unitconv, ArmatureImporter *arm, Scene *sce) : unitconverter(unitconv), scene(sce), armature_importer(arm) {
+MeshImporter::MeshImporter(UnitConverter *unitconv, ArmatureImporter *arm, Scene *sce, ViewLayer *view_layer):
+	unitconverter(unitconv), 
+	scene(sce),
+	view_layer(view_layer),
+	armature_importer(arm) {
 }
 
 bool MeshImporter::set_poly_indices(MPoly *mpoly, MLoop *mloop, int loop_index, unsigned int *indices, int loop_count)
@@ -550,7 +554,7 @@ void MeshImporter::mesh_add_edges(Mesh *mesh, int len)
 {
 	CustomData edata;
 	MEdge *medge;
-	int i, totedge;
+	int totedge;
 
 	if (len == 0)
 		return;
@@ -570,7 +574,7 @@ void MeshImporter::mesh_add_edges(Mesh *mesh, int len)
 
 	/* set default flags */
 	medge = &mesh->medge[mesh->totedge];
-	for (i = 0; i < len; i++, medge++)
+	for (int i = 0; i < len; i++, medge++)
 		medge->flag = ME_EDGEDRAW | ME_EDGERENDER | SELECT;
 
 	mesh->totedge = totedge;
@@ -604,12 +608,12 @@ void MeshImporter::read_lines(COLLADAFW::Mesh *mesh, Mesh *me)
 				unsigned int edge_count  = mp->getFaceCount();
 				unsigned int *indices    = mp->getPositionIndices().getData();
 				
-				for (int i = 0; i < edge_count; i++, med++) {
+				for (int j = 0; j < edge_count; j++, med++) {
 					med->bweight = 0;
 					med->crease  = 0;
 					med->flag   |= ME_LOOSEEDGE;
-					med->v1      = indices[2 * i];
-					med->v2      = indices[2 * i + 1];
+					med->v1      = indices[2 * j];
+					med->v2      = indices[2 * j + 1];
 				}
 			}
 		}
@@ -1141,7 +1145,7 @@ Object *MeshImporter::create_mesh_object(COLLADAFW::Node *node, COLLADAFW::Insta
 	const char *name = (id.length()) ? id.c_str() : NULL;
 	
 	// add object
-	Object *ob = bc_add_object(scene, OB_MESH, name);
+	Object *ob = bc_add_object(scene, view_layer, OB_MESH, name);
 	bc_set_mark(ob); // used later for material assignement optimization
 
 

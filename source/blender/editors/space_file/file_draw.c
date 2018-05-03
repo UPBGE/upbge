@@ -52,6 +52,8 @@
 
 #include "BLT_translation.h"
 
+#include "BLF_api.h"
+
 #include "IMB_imbuf_types.h"
 
 #include "DNA_userdef_types.h"
@@ -375,7 +377,7 @@ static void file_draw_preview(
 	xco = sx + (int)dx;
 	yco = sy - layout->prv_h + (int)dy;
 
-	glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	/* shadow */
 	if (use_dropshadow) {
@@ -607,6 +609,8 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		}
 	}
 
+	BLF_batch_draw_begin();
+
 	for (i = offset; (i < numfiles) && (i < offset + numfiles_layout); i++) {
 		unsigned int file_selflag;
 		char path[FILE_MAX_LIBEXTRA];
@@ -735,6 +739,8 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 		}
 	}
+
+	BLF_batch_draw_end();
 
 	UI_block_end(C, block);
 	UI_block_draw(C, block);

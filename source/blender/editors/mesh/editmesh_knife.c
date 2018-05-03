@@ -860,7 +860,7 @@ static void knife_cut_face(KnifeTool_OpData *kcd, BMFace *f, ListBase *hits)
 {
 	Ref *r;
 
-	if (BLI_listbase_count_ex(hits, 2) != 2)
+	if (BLI_listbase_count_at_most(hits, 2) != 2)
 		return;
 
 	for (r = hits->first; r->next; r = r->next) {
@@ -1116,7 +1116,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		int i;
 
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 		/* draw any snapped verts first */
 		immUniformColor4ubv(kcd->colors.point_a);
@@ -1158,7 +1158,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		immUniformColor3ubv(kcd->colors.line);
 		glLineWidth(1.0);
 
-		immBeginAtMost(GWN_PRIM_LINES, BLI_mempool_count(kcd->kedges) * 2);
+		immBeginAtMost(GWN_PRIM_LINES, BLI_mempool_len(kcd->kedges) * 2);
 
 		BLI_mempool_iternew(kcd->kedges, &iter);
 		for (kfe = BLI_mempool_iterstep(&iter); kfe; kfe = BLI_mempool_iterstep(&iter)) {
@@ -1179,7 +1179,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		immUniformColor3ubv(kcd->colors.point);
 		glPointSize(5.0);
 
-		immBeginAtMost(GWN_PRIM_POINTS, BLI_mempool_count(kcd->kverts));
+		immBeginAtMost(GWN_PRIM_POINTS, BLI_mempool_len(kcd->kverts));
 
 		BLI_mempool_iternew(kcd->kverts, &iter);
 		for (kfv = BLI_mempool_iterstep(&iter); kfv; kfv = BLI_mempool_iterstep(&iter)) {
@@ -1562,8 +1562,8 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 	}
 
 	/* unproject screen line */
-	ED_view3d_win_to_segment(kcd->ar, kcd->vc.v3d, s1, v1, v3, true);
-	ED_view3d_win_to_segment(kcd->ar, kcd->vc.v3d, s2, v2, v4, true);
+	ED_view3d_win_to_segment(kcd->eval_ctx.depsgraph, kcd->ar, kcd->vc.v3d, s1, v1, v3, true);
+	ED_view3d_win_to_segment(kcd->eval_ctx.depsgraph, kcd->ar, kcd->vc.v3d, s2, v2, v4, true);
 
 	mul_m4_v3(kcd->ob->imat, v1);
 	mul_m4_v3(kcd->ob->imat, v2);
@@ -1782,7 +1782,7 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 	}
 
 	kcd->linehits = linehits;
-	kcd->totlinehit = BLI_array_count(linehits);
+	kcd->totlinehit = BLI_array_len(linehits);
 
 	/* find position along screen line, used for sorting */
 	for (i = 0; i < kcd->totlinehit; i++) {
@@ -2300,7 +2300,7 @@ static void knife_make_face_cuts(KnifeTool_OpData *kcd, BMFace *f, ListBase *kfe
 	/* point to knife edges we've created edges in, edge_array aligned */
 	KnifeEdge **kfe_array = BLI_array_alloca(kfe_array, edge_array_len);
 
-	BLI_assert(BLI_gset_size(kcd->edgenet.edge_visit) == 0);
+	BLI_assert(BLI_gset_len(kcd->edgenet.edge_visit) == 0);
 
 	i = 0;
 	for (ref = kfedges->first; ref; ref = ref->next) {
@@ -2519,7 +2519,8 @@ static void knife_recalc_projmat(KnifeTool_OpData *kcd)
 	mul_v3_mat3_m4v3(kcd->proj_zaxis, kcd->ob->imat, kcd->vc.rv3d->viewinv[2]);
 	normalize_v3(kcd->proj_zaxis);
 
-	kcd->is_ortho = ED_view3d_clip_range_get(kcd->vc.v3d, kcd->vc.rv3d,
+	kcd->is_ortho = ED_view3d_clip_range_get(kcd->eval_ctx.depsgraph,
+	                                         kcd->vc.v3d, kcd->vc.rv3d,
 	                                         &kcd->clipsta, &kcd->clipend, true);
 }
 

@@ -18,7 +18,6 @@
 #include "render/mesh.h"
 #include "render/attribute.h"
 
-#include "util/util_debug.h"
 #include "util/util_foreach.h"
 #include "util/util_transform.h"
 
@@ -268,6 +267,8 @@ const char *Attribute::standard_name(AttributeStandard std)
 			return "particle";
 		case ATTR_STD_CURVE_INTERCEPT:
 			return "curve_intercept";
+		case ATTR_STD_CURVE_RANDOM:
+			return "curve_random";
 		case ATTR_STD_PTEX_FACE_ID:
 			return "ptex_face_id";
 		case ATTR_STD_PTEX_UV:
@@ -280,6 +281,8 @@ const char *Attribute::standard_name(AttributeStandard std)
 			return "flame";
 		case ATTR_STD_VOLUME_HEAT:
 			return "heat";
+		case ATTR_STD_VOLUME_TEMPERATURE:
+			return "temperature";
 		case ATTR_STD_VOLUME_VELOCITY:
 			return "velocity";
 		case ATTR_STD_POINTINESS:
@@ -295,9 +298,13 @@ const char *Attribute::standard_name(AttributeStandard std)
 
 AttributeStandard Attribute::name_standard(const char *name)
 {
-	for(int std = ATTR_STD_NONE; std < ATTR_STD_NUM; std++)
-		if(strcmp(name, Attribute::standard_name((AttributeStandard)std)) == 0)
-			return (AttributeStandard)std;
+	if(name) {
+		for(int std = ATTR_STD_NONE; std < ATTR_STD_NUM; std++) {
+			if(strcmp(name, Attribute::standard_name((AttributeStandard)std)) == 0) {
+				return (AttributeStandard)std;
+			}
+		}
+	}
 
 	return ATTR_STD_NONE;
 }
@@ -424,6 +431,7 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
 			case ATTR_STD_VOLUME_DENSITY:
 			case ATTR_STD_VOLUME_FLAME:
 			case ATTR_STD_VOLUME_HEAT:
+			case ATTR_STD_VOLUME_TEMPERATURE:
 				attr = add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_VOXEL);
 				break;
 			case ATTR_STD_VOLUME_COLOR:
@@ -451,6 +459,9 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
 				break;
 			case ATTR_STD_CURVE_INTERCEPT:
 				attr = add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_CURVE_KEY);
+				break;
+			case ATTR_STD_CURVE_RANDOM:
+				attr = add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_CURVE);
 				break;
 			case ATTR_STD_GENERATED_TRANSFORM:
 				attr = add(name, TypeDesc::TypeMatrix, ATTR_ELEMENT_MESH);
@@ -524,9 +535,23 @@ void AttributeSet::resize(bool reserve_only)
 	}
 }
 
-void AttributeSet::clear()
+void AttributeSet::clear(bool preserve_voxel_data)
 {
-	attributes.clear();
+	if(preserve_voxel_data) {
+		list<Attribute>::iterator it;
+
+		for(it = attributes.begin(); it != attributes.end();) {
+			if(it->element == ATTR_ELEMENT_VOXEL || it->std == ATTR_STD_GENERATED_TRANSFORM) {
+				it++;
+			}
+			else {
+				attributes.erase(it++);
+			}
+		}
+	}
+	else {
+		attributes.clear();
+	}
 }
 
 /* AttributeRequest */
@@ -608,9 +633,11 @@ bool AttributeRequestSet::modified(const AttributeRequestSet& other)
 
 void AttributeRequestSet::add(ustring name)
 {
-	foreach(AttributeRequest& req, requests)
-		if(req.name == name)
+	foreach(AttributeRequest& req, requests) {
+		if(req.name == name) {
 			return;
+		}
+	}
 
 	requests.push_back(AttributeRequest(name));
 }
@@ -631,6 +658,22 @@ void AttributeRequestSet::add(AttributeRequestSet& reqs)
 			add(req.name);
 		else
 			add(req.std);
+	}
+}
+
+void AttributeRequestSet::add_standard(ustring name)
+{
+	if(!name) {
+		return;
+	}
+
+	AttributeStandard std = Attribute::name_standard(name.c_str());
+
+	if(std) {
+		add(std);
+	}
+	else {
+		add(name);
 	}
 }
 

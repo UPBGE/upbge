@@ -272,6 +272,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeHoldout", poll=object_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeVolumeAbsorption", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeVolumeScatter", poll=eevee_cycles_shader_nodes_poll),
+        NodeItem("ShaderNodeVolumePrincipled"),
         NodeItem("ShaderNodeEeveeSpecular", poll=object_eevee_shader_nodes_poll),
         ]),
     ShaderNewNodeCategory("SH_NEW_TEXTURE", "Texture", items=[
@@ -300,6 +301,8 @@ shader_node_categories = [
     ShaderNewNodeCategory("SH_NEW_OP_VECTOR", "Vector", items=[
         NodeItem("ShaderNodeMapping"),
         NodeItem("ShaderNodeBump"),
+        NodeItem("ShaderNodeDisplacement"),
+        NodeItem("ShaderNodeVectorDisplacement"),
         NodeItem("ShaderNodeNormalMap"),
         NodeItem("ShaderNodeNormal"),
         NodeItem("ShaderNodeVectorCurve"),

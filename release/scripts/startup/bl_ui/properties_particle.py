@@ -581,10 +581,6 @@ class PARTICLE_PT_physics(ParticleButtonsPanel, Panel):
         layout.row().prop(part, "physics_type", expand=True)
 
         row = layout.row()
-        col = row.column(align=True)
-        col.prop(part, "particle_size")
-        col.prop(part, "size_random", slider=True)
-
         if part.physics_type != 'NO':
             col = row.column(align=True)
             col.prop(part, "mass")
@@ -926,7 +922,6 @@ class PARTICLE_PT_render(ParticleButtonsPanel, Panel):
         split = layout.split()
 
         col = split.column()
-        col.prop(part, "use_render_emitter")
         col.prop(part, "use_parent_particles")
 
         col = split.column()
@@ -1089,7 +1084,8 @@ class PARTICLE_PT_render(ParticleButtonsPanel, Panel):
                 col = row.column()
                 col.label(text="")
 
-        if part.render_type in {'OBJECT', 'GROUP'} and not part.use_advanced_hair:
+        if part.type == 'EMITTER' or \
+           (part.render_type in {'OBJECT', 'GROUP'} and part.type == 'HAIR'):
             row = layout.row(align=True)
             row.prop(part, "particle_size")
             row.prop(part, "size_random", slider=True)
@@ -1201,6 +1197,12 @@ class PARTICLE_PT_children(ParticleButtonsPanel, Panel):
         col.label(text="Effects:")
 
         sub = col.column(align=True)
+        if part.child_type == 'SIMPLE':
+            sub.prop(part, "twist")
+            sub.prop(part, "use_twist_curve")
+            if part.use_twist_curve:
+                sub.template_curve_mapping(part, "twist_curve")
+
         sub.prop(part, "use_clump_curve")
         if part.use_clump_curve:
             sub.template_curve_mapping(part, "clump_curve")
@@ -1387,6 +1389,10 @@ class PARTICLE_PT_vertexgroups(ParticleButtonsPanel, Panel):
         row = col.row(align=True)
         row.prop_search(psys, "vertex_group_roughness_end", ob, "vertex_groups", text="Roughness End")
         row.prop(psys, "invert_vertex_group_roughness_end", text="", toggle=True, icon='ARROW_LEFTRIGHT')
+
+        row = col.row(align=True)
+        row.prop_search(psys, "vertex_group_twist", ob, "vertex_groups", text="Twist")
+        row.prop(psys, "invert_vertex_group_twist", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
         # Commented out vertex groups don't work and are still waiting for better implementation
         # row = layout.row()

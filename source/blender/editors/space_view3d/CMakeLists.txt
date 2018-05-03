@@ -64,6 +64,8 @@ set(SRC
 	view3d_manipulator_empty.c
 	view3d_manipulator_forcefield.c
 	view3d_manipulator_lamp.c
+	view3d_manipulator_navigate.c
+	view3d_manipulator_navigate_type.c
 	view3d_manipulator_ruler.c
 	view3d_ops.c
 	view3d_project.c
@@ -71,6 +73,7 @@ set(SRC
 	view3d_select.c
 	view3d_snap.c
 	view3d_toolbar.c
+	view3d_utils.c
 	view3d_view.c
 
 	view3d_intern.h

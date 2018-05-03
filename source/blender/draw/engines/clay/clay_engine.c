@@ -20,7 +20,7 @@
  */
 
 #include "BLI_utildefines.h"
-#include "BLI_dynstr.h"
+#include "BLI_string_utils.h"
 #include "BLI_rand.h"
 
 #include "DNA_particle_types.h"
@@ -51,17 +51,24 @@
 
 #define MAX_CLAY_MAT 512 /* 512 = 9 bit material id */
 
-#define SHADER_DEFINES \
+#define SHADER_DEFINES_NO_AO \
 	"#define MAX_MATERIAL " STRINGIFY(MAX_CLAY_MAT) "\n" \
 	"#define USE_ROTATION\n" \
-	"#define USE_AO\n" \
 	"#define USE_HSV\n"
 
+#define SHADER_DEFINES \
+	SHADER_DEFINES_NO_AO \
+	"#define USE_AO\n"
+
 extern char datatoc_clay_frag_glsl[];
+extern char datatoc_clay_prepass_frag_glsl[];
+extern char datatoc_clay_copy_glsl[];
 extern char datatoc_clay_vert_glsl[];
+extern char datatoc_clay_fxaa_glsl[];
 extern char datatoc_clay_particle_vert_glsl[];
 extern char datatoc_clay_particle_strand_frag_glsl[];
 extern char datatoc_ssao_alchemy_glsl[];
+extern char datatoc_common_fxaa_lib_glsl[];
 
 /* *********** LISTS *********** */
 
@@ -111,30 +118,36 @@ typedef struct CLAY_Storage {
 	int hair_ubo_current_id;
 	DRWShadingGroup *shgrps[MAX_CLAY_MAT];
 	DRWShadingGroup *shgrps_flat[MAX_CLAY_MAT];
+	DRWShadingGroup *shgrps_pre[MAX_CLAY_MAT];
+	DRWShadingGroup *shgrps_pre_flat[MAX_CLAY_MAT];
 	DRWShadingGroup *hair_shgrps[MAX_CLAY_MAT];
 } CLAY_Storage;
 
 typedef struct CLAY_StorageList {
 	struct CLAY_Storage *storage;
-	struct GPUUniformBuffer *mat_ubo;
-	struct GPUUniformBuffer *hair_mat_ubo;
 	struct CLAY_PrivateData *g_data;
 } CLAY_StorageList;
 
 typedef struct CLAY_FramebufferList {
-	/* default */
-	struct GPUFrameBuffer *default_fb;
-	/* engine specific */
-	struct GPUFrameBuffer *dupli_depth;
+	struct GPUFrameBuffer *antialias_fb;
+	struct GPUFrameBuffer *prepass_fb;
 } CLAY_FramebufferList;
 
 typedef struct CLAY_PassList {
-	struct DRWPass *depth_pass;
-	struct DRWPass *depth_pass_cull;
-	struct DRWPass *clay_pass;
-	struct DRWPass *clay_pass_flat;
+	struct DRWPass *clay_ps;
+	struct DRWPass *clay_cull_ps;
+	struct DRWPass *clay_flat_ps;
+	struct DRWPass *clay_flat_cull_ps;
+	struct DRWPass *clay_pre_ps;
+	struct DRWPass *clay_pre_cull_ps;
+	struct DRWPass *clay_flat_pre_ps;
+	struct DRWPass *clay_flat_pre_cull_ps;
+	struct DRWPass *clay_deferred_ps;
+	struct DRWPass *fxaa_ps;
+	struct DRWPass *copy_ps;
 	struct DRWPass *hair_pass;
 } CLAY_PassList;
+
 
 typedef struct CLAY_Data {
 	void *engine_type;
@@ -146,6 +159,9 @@ typedef struct CLAY_Data {
 
 typedef struct CLAY_ViewLayerData {
 	struct GPUTexture *jitter_tx;
+	struct GPUUniformBuffer *mat_ubo;
+	struct GPUUniformBuffer *matcaps_ubo;
+	struct GPUUniformBuffer *hair_mat_ubo;
 	struct GPUUniformBuffer *sampling_ubo;
 	int cached_sample_num;
 } CLAY_ViewLayerData;
@@ -153,27 +169,22 @@ typedef struct CLAY_ViewLayerData {
 /* *********** STATIC *********** */
 
 static struct {
-	/* Depth Pre Pass */
-	struct GPUShader *depth_sh;
 	/* Shading Pass */
 	struct GPUShader *clay_sh;
 	struct GPUShader *clay_flat_sh;
+	struct GPUShader *clay_prepass_flat_sh;
+	struct GPUShader *clay_prepass_sh;
+	struct GPUShader *clay_deferred_shading_sh;
+	struct GPUShader *fxaa_sh;
+	struct GPUShader *copy_sh;
 	struct GPUShader *hair_sh;
-
 	/* Matcap textures */
 	struct GPUTexture *matcap_array;
-	float matcap_colors[24][3];
-
-	/* Ssao */
-	float winmat[4][4];
-	float viewvecs[3][4];
-	float ssao_params[4];
-
+	float matcap_colors[24][4];
 	/* Just a serie of int from 0 to MAX_CLAY_MAT-1 */
 	int ubo_mat_idxs[MAX_CLAY_MAT];
-
-	/* engine specific */
-	struct GPUTexture *depth_dup;
+	/* To avoid useless texture and ubo binds. */
+	bool first_shgrp;
 } e_data = {NULL}; /* Engine data */
 
 typedef struct CLAY_PrivateData {
@@ -183,6 +194,16 @@ typedef struct CLAY_PrivateData {
 	DRWShadingGroup *depth_shgrp_cull;
 	DRWShadingGroup *depth_shgrp_cull_select;
 	DRWShadingGroup *depth_shgrp_cull_active;
+	/* Deferred shading */
+	struct GPUTexture *depth_tx; /* ref only, not alloced */
+	struct GPUTexture *normal_tx; /* ref only, not alloced */
+	struct GPUTexture *id_tx; /* ref only, not alloced */
+	struct GPUTexture *color_copy; /* ref only, not alloced */
+	bool enable_deferred_path;
+	/* Ssao */
+	float winmat[4][4];
+	float viewvecs[3][4];
+	float ssao_params[4];
 } CLAY_PrivateData; /* Transient data */
 
 /* Functions */
@@ -191,6 +212,9 @@ static void clay_view_layer_data_free(void *storage)
 {
 	CLAY_ViewLayerData *sldata = (CLAY_ViewLayerData *)storage;
 
+	DRW_UBO_FREE_SAFE(sldata->mat_ubo);
+	DRW_UBO_FREE_SAFE(sldata->matcaps_ubo);
+	DRW_UBO_FREE_SAFE(sldata->hair_mat_ubo);
 	DRW_UBO_FREE_SAFE(sldata->sampling_ubo);
 	DRW_TEXTURE_FREE_SAFE(sldata->jitter_tx);
 }
@@ -317,7 +341,7 @@ static struct GPUTexture *create_jitter_texture(int num_samples)
 		jitter[i][2] = bn * num_samples_inv;
 	}
 
-	UNUSED_VARS(bsdf_split_sum_ggx, btdf_split_sum_ggx, ltc_mag_ggx, ltc_mat_ggx);
+	UNUSED_VARS(bsdf_split_sum_ggx, btdf_split_sum_ggx, ltc_mag_ggx, ltc_mat_ggx, ltc_disk_integral);
 
 	return DRW_texture_create_2D(64, 64, DRW_TEX_RGB_16, DRW_TEX_FILTER | DRW_TEX_WRAP, &jitter[0][0]);
 }
@@ -327,6 +351,7 @@ static void clay_engine_init(void *vedata)
 	CLAY_StorageList *stl = ((CLAY_Data *)vedata)->stl;
 	CLAY_FramebufferList *fbl = ((CLAY_Data *)vedata)->fbl;
 	CLAY_ViewLayerData *sldata = CLAY_view_layer_data_get();
+	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
 	/* Create Texture Array */
 	if (!e_data.matcap_array) {
@@ -361,31 +386,44 @@ static void clay_engine_init(void *vedata)
 		e_data.matcap_array = load_matcaps(prv, 24);
 	}
 
-	/* Depth prepass */
-	if (!e_data.depth_sh) {
-		e_data.depth_sh = DRW_shader_create_3D_depth_only();
-	}
-
 	/* Shading pass */
 	if (!e_data.clay_sh) {
-		DynStr *ds = BLI_dynstr_new();
-		char *matcap_with_ao;
-
-		BLI_dynstr_append(ds, datatoc_clay_frag_glsl);
-		BLI_dynstr_append(ds, datatoc_ssao_alchemy_glsl);
-
-		matcap_with_ao = BLI_dynstr_get_cstring(ds);
+		char *matcap_with_ao = BLI_string_joinN(
+		        datatoc_clay_frag_glsl,
+		        datatoc_ssao_alchemy_glsl);
 
 		e_data.clay_sh = DRW_shader_create(
-		        datatoc_clay_vert_glsl, NULL, matcap_with_ao,
-		        SHADER_DEFINES);
+		        datatoc_clay_vert_glsl, NULL, datatoc_clay_frag_glsl,
+		        SHADER_DEFINES_NO_AO);
 		e_data.clay_flat_sh = DRW_shader_create(
-		        datatoc_clay_vert_glsl, NULL, matcap_with_ao,
+		        datatoc_clay_vert_glsl, NULL, datatoc_clay_frag_glsl,
+		        SHADER_DEFINES_NO_AO
+		        "#define USE_FLAT_NORMAL\n");
+
+		e_data.clay_prepass_sh = DRW_shader_create(
+		        datatoc_clay_vert_glsl, NULL, datatoc_clay_prepass_frag_glsl,
+		        SHADER_DEFINES);
+		e_data.clay_prepass_flat_sh = DRW_shader_create(
+		        datatoc_clay_vert_glsl, NULL, datatoc_clay_prepass_frag_glsl,
 		        SHADER_DEFINES
 		        "#define USE_FLAT_NORMAL\n");
 
-		BLI_dynstr_free(ds);
+		e_data.clay_deferred_shading_sh = DRW_shader_create_fullscreen(
+		        matcap_with_ao,
+		        SHADER_DEFINES
+		        "#define DEFERRED_SHADING\n");
+
 		MEM_freeN(matcap_with_ao);
+
+		char *fxaa_str = BLI_string_joinN(
+		        datatoc_common_fxaa_lib_glsl,
+		        datatoc_clay_fxaa_glsl);
+
+		e_data.fxaa_sh = DRW_shader_create_fullscreen(fxaa_str, NULL);
+
+		MEM_freeN(fxaa_str);
+
+		e_data.copy_sh = DRW_shader_create_fullscreen(datatoc_clay_copy_glsl, NULL);
 	}
 
 	if (!e_data.hair_sh) {
@@ -398,12 +436,22 @@ static void clay_engine_init(void *vedata)
 		stl->storage = MEM_callocN(sizeof(CLAY_Storage), "CLAY_Storage");
 	}
 
-	if (!stl->mat_ubo) {
-		stl->mat_ubo = DRW_uniformbuffer_create(sizeof(CLAY_UBO_Storage), NULL);
+	if (!stl->g_data) {
+		stl->g_data = MEM_mallocN(sizeof(*stl->g_data), "CLAY_PrivateStorage");
 	}
 
-	if (!stl->hair_mat_ubo) {
-		stl->hair_mat_ubo = DRW_uniformbuffer_create(sizeof(CLAY_HAIR_UBO_Storage), NULL);
+	CLAY_PrivateData *g_data = stl->g_data;
+
+	if (!sldata->mat_ubo) {
+		sldata->mat_ubo = DRW_uniformbuffer_create(sizeof(CLAY_UBO_Storage), NULL);
+	}
+
+	if (!sldata->hair_mat_ubo) {
+		sldata->hair_mat_ubo = DRW_uniformbuffer_create(sizeof(CLAY_HAIR_UBO_Storage), NULL);
+	}
+
+	if (!sldata->matcaps_ubo) {
+		sldata->matcaps_ubo = DRW_uniformbuffer_create(sizeof(e_data.matcap_colors), e_data.matcap_colors);
 	}
 
 	if (e_data.ubo_mat_idxs[1] == 0) {
@@ -413,12 +461,29 @@ static void clay_engine_init(void *vedata)
 		}
 	}
 
-	if (DRW_state_is_fbo()) {
+	/* FBO setup */
+	{
 		const float *viewport_size = DRW_viewport_size_get();
-		DRWFboTexture tex = {&e_data.depth_dup, DRW_TEX_DEPTH_24_STENCIL_8, DRW_TEX_TEMP};
-		DRW_framebuffer_init(&fbl->dupli_depth, &draw_engine_clay_type,
-		                     (int)viewport_size[0], (int)viewport_size[1],
-		                     &tex, 1);
+		const int size[2] = {(int)viewport_size[0], (int)viewport_size[1]};
+
+		g_data->normal_tx = DRW_texture_pool_query_2D(size[0], size[1], DRW_TEX_RG_8, &draw_engine_clay_type);
+		g_data->id_tx =     DRW_texture_pool_query_2D(size[0], size[1], DRW_TEX_R_16I, &draw_engine_clay_type);
+
+		GPU_framebuffer_ensure_config(&fbl->prepass_fb, {
+			GPU_ATTACHMENT_TEXTURE(dtxl->depth),
+			GPU_ATTACHMENT_TEXTURE(g_data->normal_tx),
+			GPU_ATTACHMENT_TEXTURE(g_data->id_tx)
+		});
+
+		/* For FXAA */
+		/* TODO(fclem): OPTI: we could merge normal_tx and id_tx into a DRW_TEX_RGBA_8
+		 * and reuse it for the fxaa target. */
+		g_data->color_copy = DRW_texture_pool_query_2D(size[0], size[1], DRW_TEX_RGBA_8, &draw_engine_clay_type);
+
+		GPU_framebuffer_ensure_config(&fbl->antialias_fb, {
+			GPU_ATTACHMENT_NONE,
+			GPU_ATTACHMENT_TEXTURE(g_data->color_copy)
+		});
 	}
 
 	/* SSAO setup */
@@ -444,14 +509,14 @@ static void clay_engine_init(void *vedata)
 
 		DRW_state_dfdy_factors_get(dfdyfacs);
 
-		e_data.ssao_params[0] = ssao_samples;
-		e_data.ssao_params[1] = size[0] / 64.0;
-		e_data.ssao_params[2] = size[1] / 64.0;
-		e_data.ssao_params[3] = dfdyfacs[1]; /* dfdy sign for offscreen */
+		g_data->ssao_params[0] = ssao_samples;
+		g_data->ssao_params[1] = size[0] / 64.0;
+		g_data->ssao_params[2] = size[1] / 64.0;
+		g_data->ssao_params[3] = dfdyfacs[1]; /* dfdy sign for offscreen */
 
 		/* invert the view matrix */
-		DRW_viewport_matrix_get(e_data.winmat, DRW_MAT_WIN);
-		invert_m4_m4(invproj, e_data.winmat);
+		DRW_viewport_matrix_get(g_data->winmat, DRW_MAT_WIN);
+		invert_m4_m4(invproj, g_data->winmat);
 
 		/* convert the view vectors to view space */
 		for (i = 0; i < 3; i++) {
@@ -463,19 +528,19 @@ static void clay_engine_init(void *vedata)
 				mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][2]);
 			viewvecs[i][3] = 1.0;
 
-			copy_v4_v4(e_data.viewvecs[i], viewvecs[i]);
+			copy_v4_v4(g_data->viewvecs[i], viewvecs[i]);
 		}
 
 		/* we need to store the differences */
-		e_data.viewvecs[1][0] -= e_data.viewvecs[0][0];
-		e_data.viewvecs[1][1] = e_data.viewvecs[2][1] - e_data.viewvecs[0][1];
+		g_data->viewvecs[1][0] -= g_data->viewvecs[0][0];
+		g_data->viewvecs[1][1] = g_data->viewvecs[2][1] - g_data->viewvecs[0][1];
 
 		/* calculate a depth offset as well */
 		if (!is_persp) {
 			float vec_far[] = {-1.0f, -1.0f, 1.0f, 1.0f};
 			mul_m4_v4(invproj, vec_far);
 			mul_v3_fl(vec_far, 1.0f / vec_far[3]);
-			e_data.viewvecs[1][2] = vec_far[2] - e_data.viewvecs[0][2];
+			g_data->viewvecs[1][2] = vec_far[2] - g_data->viewvecs[0][2];
 		}
 
 		/* AO Samples Tex */
@@ -494,37 +559,55 @@ static void clay_engine_init(void *vedata)
 	}
 }
 
-static DRWShadingGroup *CLAY_shgroup_create(CLAY_Data *vedata, DRWPass *pass, int *material_id, bool use_flat)
+static DRWShadingGroup *CLAY_shgroup_create(DRWPass *pass, GPUShader *sh, int id)
 {
-	CLAY_StorageList *stl = vedata->stl;
 	CLAY_ViewLayerData *sldata = CLAY_view_layer_data_get();
-	DRWShadingGroup *grp = DRW_shgroup_create(use_flat ? e_data.clay_flat_sh : e_data.clay_sh, pass);
+	DRWShadingGroup *grp = DRW_shgroup_create(sh, pass);
+	DRW_shgroup_uniform_int(grp, "mat_id", &e_data.ubo_mat_idxs[id], 1);
+	if (e_data.first_shgrp) {
+		DRW_shgroup_uniform_texture_persistent(grp, "matcaps", e_data.matcap_array);
+		DRW_shgroup_uniform_block_persistent(grp, "material_block", sldata->mat_ubo);
+		DRW_shgroup_uniform_block_persistent(grp, "matcaps_block", sldata->matcaps_ubo);
+	}
+	return grp;
+}
 
-	DRW_shgroup_uniform_vec2(grp, "screenres", DRW_viewport_size_get(), 1);
-	DRW_shgroup_uniform_buffer(grp, "depthtex", &e_data.depth_dup);
-	DRW_shgroup_uniform_texture(grp, "matcaps", e_data.matcap_array);
-	DRW_shgroup_uniform_mat4(grp, "WinMatrix", (float *)e_data.winmat);
-	DRW_shgroup_uniform_vec4(grp, "viewvecs[0]", (float *)e_data.viewvecs, 3);
-	DRW_shgroup_uniform_vec4(grp, "ssao_params", e_data.ssao_params, 1);
-	DRW_shgroup_uniform_vec3(grp, "matcaps_color[0]", (float *)e_data.matcap_colors, 24);
-
-	DRW_shgroup_uniform_int(grp, "mat_id", material_id, 1);
-
-	DRW_shgroup_uniform_texture(grp, "ssao_jitter", sldata->jitter_tx);
-	DRW_shgroup_uniform_block(grp, "samples_block", sldata->sampling_ubo);
-	DRW_shgroup_uniform_block(grp, "material_block", stl->mat_ubo);
+static DRWShadingGroup *CLAY_shgroup_deferred_prepass_create(DRWPass *pass, GPUShader *sh, int id)
+{
+	DRWShadingGroup *grp = DRW_shgroup_create(sh, pass);
+	DRW_shgroup_uniform_int(grp, "mat_id", &e_data.ubo_mat_idxs[id], 1);
 
 	return grp;
 }
 
-static DRWShadingGroup *CLAY_hair_shgroup_create(CLAY_Data *vedata, DRWPass *pass, int *material_id)
+static DRWShadingGroup *CLAY_shgroup_deferred_shading_create(DRWPass *pass, CLAY_PrivateData *g_data)
 {
-	CLAY_StorageList *stl = vedata->stl;
-	DRWShadingGroup *grp = DRW_shgroup_create(e_data.hair_sh, pass);
-
+	CLAY_ViewLayerData *sldata = CLAY_view_layer_data_get();
+	DRWShadingGroup *grp = DRW_shgroup_create(e_data.clay_deferred_shading_sh, pass);
+	DRW_shgroup_uniform_texture_ref(grp, "depthtex", &g_data->depth_tx);
+	DRW_shgroup_uniform_texture_ref(grp, "normaltex", &g_data->normal_tx);
+	DRW_shgroup_uniform_texture_ref(grp, "idtex", &g_data->id_tx);
 	DRW_shgroup_uniform_texture(grp, "matcaps", e_data.matcap_array);
-	DRW_shgroup_uniform_int(grp, "mat_id", material_id, 1);
-	DRW_shgroup_uniform_block(grp, "material_block", stl->mat_ubo);
+	DRW_shgroup_uniform_texture(grp, "ssao_jitter", sldata->jitter_tx);
+	DRW_shgroup_uniform_block(grp, "samples_block", sldata->sampling_ubo);
+	DRW_shgroup_uniform_block(grp, "material_block", sldata->mat_ubo);
+	DRW_shgroup_uniform_block(grp, "matcaps_block", sldata->matcaps_ubo);
+	/* TODO put in ubo */
+	DRW_shgroup_uniform_mat4(grp, "WinMatrix", (float *)g_data->winmat);
+	DRW_shgroup_uniform_vec2(grp, "invscreenres", DRW_viewport_invert_size_get(), 1);
+	DRW_shgroup_uniform_vec4(grp, "viewvecs[0]", (float *)g_data->viewvecs, 3);
+	DRW_shgroup_uniform_vec4(grp, "ssao_params", g_data->ssao_params, 1);
+	return grp;
+}
+
+static DRWShadingGroup *CLAY_hair_shgroup_create(DRWPass *pass, int id)
+{
+	CLAY_ViewLayerData *sldata = CLAY_view_layer_data_get();
+
+	DRWShadingGroup *grp = DRW_shgroup_create(e_data.hair_sh, pass);
+	DRW_shgroup_uniform_texture(grp, "matcaps", e_data.matcap_array);
+	DRW_shgroup_uniform_block(grp, "material_block", sldata->mat_ubo);
+	DRW_shgroup_uniform_int(grp, "mat_id", &e_data.ubo_mat_idxs[id], 1);
 
 	return grp;
 }
@@ -559,25 +642,17 @@ static int search_hair_mat_to_ubo(CLAY_Storage *storage, const CLAY_HAIR_UBO_Mat
 
 static int push_mat_to_ubo(CLAY_Storage *storage, const CLAY_UBO_Material *mat_ubo_test)
 {
-	int id = storage->ubo_current_id;
-	CLAY_UBO_Material *ubo = &storage->mat_storage.materials[id];
-
-	*ubo = *mat_ubo_test;
-
-	storage->ubo_current_id++;
-
+	int id = storage->ubo_current_id++;
+	id = min_ii(MAX_CLAY_MAT, id);
+	storage->mat_storage.materials[id] = *mat_ubo_test;
 	return id;
 }
 
 static int push_hair_mat_to_ubo(CLAY_Storage *storage, const CLAY_HAIR_UBO_Material *hair_mat_ubo_test)
 {
-	int id = storage->hair_ubo_current_id;
-	CLAY_HAIR_UBO_Material *ubo = &storage->hair_mat_storage.materials[id];
-
-	*ubo = *hair_mat_ubo_test;
-
-	storage->hair_ubo_current_id++;
-
+	int id = storage->hair_ubo_current_id++;
+	id = min_ii(MAX_CLAY_MAT, id);
+	storage->hair_mat_storage.materials[id] = *hair_mat_ubo_test;
 	return id;
 }
 
@@ -607,11 +682,11 @@ static int hair_mat_in_ubo(CLAY_Storage *storage, const CLAY_HAIR_UBO_Material *
 	return id;
 }
 
-static void ubo_mat_from_object(Object *ob,  CLAY_UBO_Material *r_ubo)
+static void ubo_mat_from_object(CLAY_Storage *storage, Object *ob, bool *r_needs_ao, int *r_id)
 {
 	IDProperty *props = BKE_layer_collection_engine_evaluated_get(ob, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_CLAY);
 
-	/* Default Settings */
+	int matcap_icon = BKE_collection_engine_property_value_get_int(props, "matcap_icon");
 	float matcap_rot = BKE_collection_engine_property_value_get_float(props, "matcap_rotation");
 	float matcap_hue = BKE_collection_engine_property_value_get_float(props, "matcap_hue");
 	float matcap_sat = BKE_collection_engine_property_value_get_float(props, "matcap_saturation");
@@ -620,35 +695,45 @@ static void ubo_mat_from_object(Object *ob,  CLAY_UBO_Material *r_ubo)
 	float ssao_factor_cavity = BKE_collection_engine_property_value_get_float(props, "ssao_factor_cavity");
 	float ssao_factor_edge = BKE_collection_engine_property_value_get_float(props, "ssao_factor_edge");
 	float ssao_attenuation = BKE_collection_engine_property_value_get_float(props, "ssao_attenuation");
-	int matcap_icon = BKE_collection_engine_property_value_get_int(props, "matcap_icon");
 
-	memset(r_ubo, 0x0, sizeof(*r_ubo));
+	CLAY_UBO_Material r_ubo = {{0.0f}};
 
-	r_ubo->matcap_rot[0] = cosf(matcap_rot * 3.14159f * 2.0f);
-	r_ubo->matcap_rot[1] = sinf(matcap_rot * 3.14159f * 2.0f);
+	if (((ssao_factor_cavity > 0.0) || (ssao_factor_edge > 0.0)) &&
+	    (ssao_distance > 0.0))
+	{
+		*r_needs_ao = true;
 
-	r_ubo->matcap_hsv[0] = matcap_hue + 0.5f;
-	r_ubo->matcap_hsv[1] = matcap_sat * 2.0f;
-	r_ubo->matcap_hsv[2] = matcap_val * 2.0f;
+		r_ubo.ssao_params_var[0] = ssao_distance;
+		r_ubo.ssao_params_var[1] = ssao_factor_cavity;
+		r_ubo.ssao_params_var[2] = ssao_factor_edge;
+		r_ubo.ssao_params_var[3] = ssao_attenuation;
+	}
+	else {
+		*r_needs_ao = false;
+	}
 
-	r_ubo->ssao_params_var[0] = ssao_distance;
-	r_ubo->ssao_params_var[1] = ssao_factor_cavity;
-	r_ubo->ssao_params_var[2] = ssao_factor_edge;
-	r_ubo->ssao_params_var[3] = ssao_attenuation;
-	r_ubo->matcap_id = matcap_to_index(matcap_icon);
+	r_ubo.matcap_rot[0] = cosf(matcap_rot * 3.14159f * 2.0f);
+	r_ubo.matcap_rot[1] = sinf(matcap_rot * 3.14159f * 2.0f);
+
+	r_ubo.matcap_hsv[0] = matcap_hue + 0.5f;
+	r_ubo.matcap_hsv[1] = matcap_sat * 2.0f;
+	r_ubo.matcap_hsv[2] = matcap_val * 2.0f;
+
+	r_ubo.matcap_id = matcap_to_index(matcap_icon);
+
+	*r_id = mat_in_ubo(storage, &r_ubo);
 }
 
-static void hair_ubo_mat_from_object(Object *ob,  CLAY_HAIR_UBO_Material *r_ubo)
+static void hair_ubo_mat_from_object(Object *ob, CLAY_HAIR_UBO_Material *r_ubo)
 {
 	IDProperty *props = BKE_layer_collection_engine_evaluated_get(ob, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_CLAY);
 
-	/* Default Settings */
+	int matcap_icon = BKE_collection_engine_property_value_get_int(props, "matcap_icon");
 	float matcap_rot = BKE_collection_engine_property_value_get_float(props, "matcap_rotation");
 	float matcap_hue = BKE_collection_engine_property_value_get_float(props, "matcap_hue");
 	float matcap_sat = BKE_collection_engine_property_value_get_float(props, "matcap_saturation");
 	float matcap_val = BKE_collection_engine_property_value_get_float(props, "matcap_value");
 	float hair_randomness = BKE_collection_engine_property_value_get_float(props, "hair_brightness_randomness");
-	int matcap_icon = BKE_collection_engine_property_value_get_int(props, "matcap_icon");
 
 	memset(r_ubo, 0x0, sizeof(*r_ubo));
 
@@ -661,25 +746,56 @@ static void hair_ubo_mat_from_object(Object *ob,  CLAY_HAIR_UBO_Material *r_ubo)
 	r_ubo->matcap_id = matcap_to_index(matcap_icon);
 }
 
-static DRWShadingGroup *CLAY_object_shgrp_get(
-        CLAY_Data *vedata, Object *ob, CLAY_StorageList *stl, CLAY_PassList *psl, bool use_flat)
+static DRWShadingGroup *CLAY_object_shgrp_get(CLAY_Data *vedata, Object *ob, bool use_flat, bool cull)
 {
-	DRWShadingGroup **shgrps = use_flat ? stl->storage->shgrps_flat : stl->storage->shgrps;
-	CLAY_UBO_Material mat_ubo_test;
+	bool prepass; int id;
+	CLAY_PassList *psl = vedata->psl;
+	CLAY_Storage *storage = vedata->stl->storage;
+	DRWShadingGroup **shgrps;
+	DRWPass *pass; GPUShader *sh;
 
-	ubo_mat_from_object(ob, &mat_ubo_test);
+	ubo_mat_from_object(storage, ob, &prepass, &id);
 
-	int id = mat_in_ubo(stl->storage, &mat_ubo_test);
+	if (prepass) {
+		if (use_flat) {
+			shgrps = storage->shgrps_pre_flat;
+			pass = (cull) ? psl->clay_flat_pre_cull_ps : psl->clay_flat_pre_ps;
+			sh = e_data.clay_prepass_flat_sh;
+		}
+		else {
+			shgrps = storage->shgrps_pre;
+			pass = (cull) ? psl->clay_pre_cull_ps : psl->clay_pre_ps;
+			sh = e_data.clay_prepass_sh;
+		}
 
-	if (shgrps[id] == NULL) {
-		shgrps[id] = CLAY_shgroup_create(
-		        vedata, use_flat ? psl->clay_pass_flat : psl->clay_pass, &e_data.ubo_mat_idxs[id], use_flat);
+		if (shgrps[id] == NULL) {
+			shgrps[id] = CLAY_shgroup_deferred_prepass_create(pass, sh, id);
+		}
+
+		vedata->stl->g_data->enable_deferred_path = true;
+	}
+	else {
+		if (use_flat) {
+			shgrps = storage->shgrps_flat;
+			pass = (cull) ? psl->clay_flat_cull_ps : psl->clay_flat_ps;
+			sh = e_data.clay_flat_sh;
+		}
+		else {
+			shgrps = storage->shgrps;
+			pass = (cull) ? psl->clay_cull_ps : psl->clay_ps;
+			sh = e_data.clay_sh;
+		}
+
+		if (shgrps[id] == NULL) {
+			shgrps[id] = CLAY_shgroup_create(pass, sh, id);
+			e_data.first_shgrp = false;
+		}
 	}
 
 	return shgrps[id];
 }
 
-static DRWShadingGroup *CLAY_hair_shgrp_get(CLAY_Data *vedata, Object *ob, CLAY_StorageList *stl, CLAY_PassList *psl)
+static DRWShadingGroup *CLAY_hair_shgrp_get(CLAY_Data *UNUSED(vedata), Object *ob, CLAY_StorageList *stl, CLAY_PassList *psl)
 {
 	DRWShadingGroup **hair_shgrps = stl->storage->hair_shgrps;
 
@@ -689,51 +805,43 @@ static DRWShadingGroup *CLAY_hair_shgrp_get(CLAY_Data *vedata, Object *ob, CLAY_
 	int hair_id = hair_mat_in_ubo(stl->storage, &hair_mat_ubo_test);
 
 	if (hair_shgrps[hair_id] == NULL) {
-		hair_shgrps[hair_id] = CLAY_hair_shgroup_create(vedata, psl->hair_pass, &e_data.ubo_mat_idxs[hair_id]);
+		hair_shgrps[hair_id] = CLAY_hair_shgroup_create(psl->hair_pass, hair_id);
 	}
 
 	return hair_shgrps[hair_id];
 }
 
-static DRWShadingGroup *CLAY_object_shgrp_default_mode_get(
-        CLAY_Data *vedata, Object *ob, CLAY_StorageList *stl, CLAY_PassList *psl)
-{
-	bool use_flat = DRW_object_is_flat_normal(ob);
-	return CLAY_object_shgrp_get(vedata, ob, stl, psl, use_flat);
-}
-
 static void clay_cache_init(void *vedata)
 {
+	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 	CLAY_PassList *psl = ((CLAY_Data *)vedata)->psl;
 	CLAY_StorageList *stl = ((CLAY_Data *)vedata)->stl;
 
-	if (!stl->g_data) {
-		/* Alloc transient pointers */
-		stl->g_data = MEM_mallocN(sizeof(*stl->g_data), __func__);
-	}
+	/* Disable AO unless a material needs it. */
+	stl->g_data->enable_deferred_path = false;
 
-	/* Depth Pass */
+	/* Reset UBO datas, shgrp pointers and material id counters. */
+	memset(stl->storage, 0, sizeof(*stl->storage));
+	e_data.first_shgrp = true;
+
+	/* Solid Passes */
 	{
-		psl->depth_pass = DRW_pass_create("Depth Pass", DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
-		stl->g_data->depth_shgrp = DRW_shgroup_create(e_data.depth_sh, psl->depth_pass);
+		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS;
+		psl->clay_ps =           DRW_pass_create("Clay", state);
+		psl->clay_cull_ps =      DRW_pass_create("Clay Culled", state | DRW_STATE_CULL_BACK);
+		psl->clay_flat_ps =      DRW_pass_create("Clay Flat", state);
+		psl->clay_flat_cull_ps = DRW_pass_create("Clay Flat Culled", state | DRW_STATE_CULL_BACK);
 
-		psl->depth_pass_cull = DRW_pass_create(
-		        "Depth Pass Cull",
-		        DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS | DRW_STATE_CULL_BACK);
-		stl->g_data->depth_shgrp_cull = DRW_shgroup_create(e_data.depth_sh, psl->depth_pass_cull);
-	}
+		DRWState prepass_state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS;
+		DRWState prepass_cull_state = prepass_state | DRW_STATE_CULL_BACK;
+		psl->clay_pre_ps =           DRW_pass_create("Clay Deferred Pre", prepass_state);
+		psl->clay_pre_cull_ps =      DRW_pass_create("Clay Deferred Pre Culled", prepass_cull_state);
+		psl->clay_flat_pre_ps =      DRW_pass_create("Clay Deferred Flat Pre", prepass_state);
+		psl->clay_flat_pre_cull_ps = DRW_pass_create("Clay Deferred Flat Pre Culled", prepass_cull_state);
 
-	/* Clay Pass */
-	{
-		psl->clay_pass = DRW_pass_create("Clay Pass", DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL);
-		stl->storage->ubo_current_id = 0;
-		memset(stl->storage->shgrps, 0, sizeof(DRWShadingGroup *) * MAX_CLAY_MAT);
-	}
-
-	/* Clay Pass (Flat) */
-	{
-		psl->clay_pass_flat = DRW_pass_create("Clay Pass Flat", DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL);
-		memset(stl->storage->shgrps_flat, 0, sizeof(DRWShadingGroup *) * MAX_CLAY_MAT);
+		psl->clay_deferred_ps = DRW_pass_create("Clay Deferred Shading", DRW_STATE_WRITE_COLOR);
+		DRWShadingGroup *grp = CLAY_shgroup_deferred_shading_create(psl->clay_deferred_ps, stl->g_data);
+		DRW_shgroup_call_add(grp, DRW_cache_fullscreen_quad_get(), NULL);
 	}
 
 	/* Hair Pass */
@@ -741,17 +849,54 @@ static void clay_cache_init(void *vedata)
 		psl->hair_pass = DRW_pass_create(
 		                     "Hair Pass",
 		                     DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS | DRW_STATE_WIRE);
-		stl->storage->hair_ubo_current_id = 0;
-		memset(stl->storage->hair_shgrps, 0, sizeof(DRWShadingGroup *) * MAX_CLAY_MAT);
+	}
+
+	{
+		psl->fxaa_ps = DRW_pass_create("Fxaa", DRW_STATE_WRITE_COLOR);
+		DRWShadingGroup *grp = DRW_shgroup_create(e_data.fxaa_sh, psl->fxaa_ps);
+		DRW_shgroup_uniform_texture_ref(grp, "colortex", &dtxl->color);
+		DRW_shgroup_uniform_vec2(grp, "invscreenres", DRW_viewport_invert_size_get(), 1);
+		DRW_shgroup_call_add(grp, DRW_cache_fullscreen_quad_get(), NULL);
+
+		psl->copy_ps = DRW_pass_create("Copy", DRW_STATE_WRITE_COLOR);
+		grp = DRW_shgroup_create(e_data.copy_sh, psl->copy_ps);
+		DRW_shgroup_uniform_texture_ref(grp, "colortex", &stl->g_data->color_copy);
+		DRW_shgroup_call_add(grp, DRW_cache_fullscreen_quad_get(), NULL);
+	}
+}
+
+static void clay_cache_populate_particles(void *vedata, Object *ob)
+{
+	CLAY_PassList *psl = ((CLAY_Data *)vedata)->psl;
+	CLAY_StorageList *stl = ((CLAY_Data *)vedata)->stl;
+	const DRWContextState *draw_ctx = DRW_context_state_get();
+
+	if (ob != draw_ctx->object_edit) {
+		for (ParticleSystem *psys = ob->particlesystem.first; psys; psys = psys->next) {
+			if (psys_check_enabled(ob, psys, false)) {
+				ParticleSettings *part = psys->part;
+				int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
+
+				if (draw_as == PART_DRAW_PATH && !psys->pathcache && !psys->childcache) {
+					draw_as = PART_DRAW_DOT;
+				}
+
+				static float mat[4][4];
+				unit_m4(mat);
+
+				if (draw_as == PART_DRAW_PATH) {
+					struct Gwn_Batch *geom = DRW_cache_particles_get_hair(psys, NULL);
+					DRWShadingGroup *hair_shgrp = CLAY_hair_shgrp_get(vedata, ob, stl, psl);
+					DRW_shgroup_call_add(hair_shgrp, geom, mat);
+				}
+			}
+		}
 	}
 }
 
 static void clay_cache_populate(void *vedata, Object *ob)
 {
-	CLAY_PassList *psl = ((CLAY_Data *)vedata)->psl;
-	CLAY_StorageList *stl = ((CLAY_Data *)vedata)->stl;
-
-	DRWShadingGroup *clay_shgrp, *hair_shgrp;
+	DRWShadingGroup *clay_shgrp;
 
 	if (!DRW_object_is_renderable(ob))
 		return;
@@ -764,106 +909,80 @@ static void clay_cache_populate(void *vedata, Object *ob)
 		}
 	}
 
+	/* Handle particles first in case the emitter itself shouldn't be rendered. */
+	if (ob->type == OB_MESH) {
+		clay_cache_populate_particles(vedata, ob);
+	}
+
+	if (DRW_check_object_visible_within_active_context(ob) == false) {
+		return;
+	}
+
 	struct Gwn_Batch *geom = DRW_cache_object_surface_get(ob);
 	if (geom) {
 		IDProperty *ces_mode_ob = BKE_layer_collection_engine_evaluated_get(ob, COLLECTION_MODE_OBJECT, "");
 		const bool do_cull = BKE_collection_engine_property_value_get_bool(ces_mode_ob, "show_backface_culling");
-		const bool is_sculpt_mode = is_active && (ob->mode & OB_MODE_SCULPT) != 0;
-		const bool is_default_mode_shader = is_sculpt_mode;
+		const bool is_sculpt_mode = is_active && (draw_ctx->object_mode & OB_MODE_SCULPT) != 0;
+		const bool use_flat = is_sculpt_mode && DRW_object_is_flat_normal(ob);
 
-		/* Depth Prepass */
-		{
-			DRWShadingGroup *depth_shgrp = do_cull ? stl->g_data->depth_shgrp_cull : stl->g_data->depth_shgrp;
-			if (is_sculpt_mode) {
-				DRW_shgroup_call_sculpt_add(depth_shgrp, ob, ob->obmat);
-			}
-			else {
-				DRW_shgroup_call_object_add(depth_shgrp, geom, ob);
-			}
-		}
-
-		/* Shading */
-		if (is_default_mode_shader) {
-			clay_shgrp = CLAY_object_shgrp_default_mode_get(vedata, ob, stl, psl);
-		}
-		else {
-			clay_shgrp = CLAY_object_shgrp_get(vedata, ob, stl, psl, false);
-		}
+		clay_shgrp = CLAY_object_shgrp_get(vedata, ob, use_flat, do_cull);
 
 		if (is_sculpt_mode) {
 			DRW_shgroup_call_sculpt_add(clay_shgrp, ob, ob->obmat);
 		}
 		else {
-			DRW_shgroup_call_add(clay_shgrp, geom, ob->obmat);
-		}
-	}
-
-	if (ob->type == OB_MESH) {
-		Scene *scene = draw_ctx->scene;
-		Object *obedit = scene->obedit;
-
-		if (ob != obedit) {
-			for (ParticleSystem *psys = ob->particlesystem.first; psys; psys = psys->next) {
-				if (psys_check_enabled(ob, psys, false)) {
-					ParticleSettings *part = psys->part;
-					int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
-
-					if (draw_as == PART_DRAW_PATH && !psys->pathcache && !psys->childcache) {
-						draw_as = PART_DRAW_DOT;
-					}
-
-					static float mat[4][4];
-					unit_m4(mat);
-
-					if (draw_as == PART_DRAW_PATH) {
-						geom = DRW_cache_particles_get_hair(psys, NULL);
-						hair_shgrp = CLAY_hair_shgrp_get(vedata, ob, stl, psl);
-						DRW_shgroup_call_add(hair_shgrp, geom, mat);
-					}
-				}
-			}
+			DRW_shgroup_call_object_add(clay_shgrp, geom, ob);
 		}
 	}
 }
 
 static void clay_cache_finish(void *vedata)
 {
+	CLAY_ViewLayerData *sldata = CLAY_view_layer_data_get();
 	CLAY_StorageList *stl = ((CLAY_Data *)vedata)->stl;
 
-	DRW_uniformbuffer_update(stl->mat_ubo, &stl->storage->mat_storage);
-	DRW_uniformbuffer_update(stl->hair_mat_ubo, &stl->storage->hair_mat_storage);
+	DRW_uniformbuffer_update(sldata->mat_ubo, &stl->storage->mat_storage);
+	DRW_uniformbuffer_update(sldata->hair_mat_ubo, &stl->storage->hair_mat_storage);
 }
 
 static void clay_draw_scene(void *vedata)
 {
-
+	CLAY_StorageList *stl = ((CLAY_Data *)vedata)->stl;
 	CLAY_PassList *psl = ((CLAY_Data *)vedata)->psl;
 	CLAY_FramebufferList *fbl = ((CLAY_Data *)vedata)->fbl;
 	DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+	stl->g_data->depth_tx = dtxl->depth;
 
-	/* Pass 1 : Depth pre-pass */
-	DRW_draw_pass(psl->depth_pass);
-	DRW_draw_pass(psl->depth_pass_cull);
+	/* Passes are ordered to have less _potential_ overdraw */
+	DRW_draw_pass(psl->clay_cull_ps);
+	DRW_draw_pass(psl->clay_flat_cull_ps);
+	DRW_draw_pass(psl->clay_ps);
+	DRW_draw_pass(psl->clay_flat_ps);
+	DRW_draw_pass(psl->hair_pass);
 
-	/* Pass 2 : Duplicate depth */
-	/* Unless we go for deferred shading we need this to avoid manual depth test and artifacts */
-	if (DRW_state_is_fbo()) {
-		/* attach temp textures */
-		DRW_framebuffer_texture_attach(fbl->dupli_depth, e_data.depth_dup, 0, 0);
+	if (stl->g_data->enable_deferred_path) {
+		GPU_framebuffer_bind(fbl->prepass_fb);
+		/* We need to clear the id texture unfortunately. */
+		const float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+		GPU_framebuffer_clear_color(fbl->prepass_fb, clear_col);
 
-		DRW_framebuffer_blit(dfbl->default_fb, fbl->dupli_depth, true, false);
+		DRW_draw_pass(psl->clay_pre_cull_ps);
+		DRW_draw_pass(psl->clay_flat_pre_cull_ps);
+		DRW_draw_pass(psl->clay_pre_ps);
+		DRW_draw_pass(psl->clay_flat_pre_ps);
 
-		/* detach temp textures */
-		DRW_framebuffer_texture_detach(e_data.depth_dup);
-
-		/* restore default fb */
-		DRW_framebuffer_bind(dfbl->default_fb);
+		GPU_framebuffer_bind(dfbl->color_only_fb);
+		DRW_draw_pass(psl->clay_deferred_ps);
 	}
 
-	/* Pass 3 : Shading */
-	DRW_draw_pass(psl->clay_pass);
-	DRW_draw_pass(psl->clay_pass_flat);
-	DRW_draw_pass(psl->hair_pass);
+	if (true) { /* Always on for now. We might want a parameter for this. */
+		GPU_framebuffer_bind(fbl->antialias_fb);
+		DRW_draw_pass(psl->fxaa_ps);
+
+		GPU_framebuffer_bind(dfbl->color_only_fb);
+		DRW_draw_pass(psl->copy_ps);
+	}
 }
 
 static void clay_layer_collection_settings_create(RenderEngine *UNUSED(engine), IDProperty *props)
@@ -898,6 +1017,11 @@ static void clay_engine_free(void)
 {
 	DRW_SHADER_FREE_SAFE(e_data.clay_sh);
 	DRW_SHADER_FREE_SAFE(e_data.clay_flat_sh);
+	DRW_SHADER_FREE_SAFE(e_data.clay_prepass_flat_sh);
+	DRW_SHADER_FREE_SAFE(e_data.clay_prepass_sh);
+	DRW_SHADER_FREE_SAFE(e_data.clay_deferred_shading_sh);
+	DRW_SHADER_FREE_SAFE(e_data.fxaa_sh);
+	DRW_SHADER_FREE_SAFE(e_data.copy_sh);
 	DRW_SHADER_FREE_SAFE(e_data.hair_sh);
 	DRW_TEXTURE_FREE_SAFE(e_data.matcap_array);
 }
@@ -915,6 +1039,7 @@ DrawEngineType draw_engine_clay_type = {
 	&clay_cache_finish,
 	NULL,
 	&clay_draw_scene,
+	NULL,
 	NULL,
 	NULL,
 };

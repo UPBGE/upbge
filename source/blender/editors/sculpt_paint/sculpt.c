@@ -37,7 +37,7 @@
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
-#include "BLI_dial.h"
+#include "BLI_dial_2d.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
@@ -60,6 +60,7 @@
 #include "BKE_image.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
+#include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_modifier.h"
@@ -377,7 +378,10 @@ static bool sculpt_stroke_is_dynamic_topology(
 
 /*** paint mesh ***/
 
-static void paint_mesh_restore_co_task_cb(void *userdata, const int n)
+static void paint_mesh_restore_co_task_cb(
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -439,9 +443,14 @@ static void paint_mesh_restore_co(Sculpt *sd, Object *ob)
 		.sd = sd, .ob = ob, .brush = brush, .nodes = nodes,
 	};
 
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && !ss->bm && totnode > SCULPT_THREADED_LIMIT);
 	BLI_task_parallel_range(
-	            0, totnode, &data, paint_mesh_restore_co_task_cb,
-	            ((sd->flags & SCULPT_USE_OPENMP) && !ss->bm && totnode > SCULPT_THREADED_LIMIT));
+	            0, totnode,
+	            &data,
+	            paint_mesh_restore_co_task_cb,
+	            &settings);
 
 	if (nodes)
 		MEM_freeN(nodes);
@@ -794,7 +803,10 @@ static float calc_symmetry_feather(Sculpt *sd, StrokeCache *cache)
  * \note These are all _very_ similar, when changing one, check others.
  * \{ */
 
-static void calc_area_normal_and_center_task_cb(void *userdata, const int n)
+static void calc_area_normal_and_center_task_cb(
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -946,9 +958,14 @@ static void calc_area_center(
 	};
 	BLI_mutex_init(&data.mutex);
 
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
 	BLI_task_parallel_range(
-	            0, totnode, &data, calc_area_normal_and_center_task_cb,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT));
+	            0, totnode,
+	            &data,
+	            calc_area_normal_and_center_task_cb,
+	            &settings);
 
 	BLI_mutex_end(&data.mutex);
 
@@ -996,9 +1013,14 @@ void sculpt_pbvh_calc_area_normal(
 	};
 	BLI_mutex_init(&data.mutex);
 
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = use_threading;
 	BLI_task_parallel_range(
-	            0, totnode, &data, calc_area_normal_and_center_task_cb,
-	            use_threading);
+	            0, totnode,
+	            &data,
+	            calc_area_normal_and_center_task_cb,
+	            &settings);
 
 	BLI_mutex_end(&data.mutex);
 
@@ -1036,9 +1058,14 @@ static void calc_area_normal_and_center(
 	};
 	BLI_mutex_init(&data.mutex);
 
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
 	BLI_task_parallel_range(
-	            0, totnode, &data, calc_area_normal_and_center_task_cb,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT));
+	            0, totnode,
+	            &data,
+	            calc_area_normal_and_center_task_cb,
+	            &settings);
 
 	BLI_mutex_end(&data.mutex);
 
@@ -1536,7 +1563,7 @@ static float neighbor_average_mask(SculptSession *ss, unsigned vert)
 static void bmesh_neighbor_average(float avg[3], BMVert *v)
 {
 	/* logic for 3 or more is identical */
-	const int vfcount = BM_vert_face_count_ex(v, 3);
+	const int vfcount = BM_vert_face_count_at_most(v, 3);
 
 	/* Don't modify corner vertices */
 	if (vfcount > 1) {
@@ -1551,7 +1578,7 @@ static void bmesh_neighbor_average(float avg[3], BMVert *v)
 
 			for (i = 0; i < ARRAY_SIZE(adj_v); i++) {
 				const BMVert *v_other = adj_v[i];
-				if (vfcount != 2 || BM_vert_face_count_ex(v_other, 2) <= 2) {
+				if (vfcount != 2 || BM_vert_face_count_at_most(v_other, 2) <= 2) {
 					add_v3_v3(avg, v_other->co);
 					total++;
 				}
@@ -1626,7 +1653,9 @@ typedef struct {
 } SculptFindNearestToRayData;
 
 static void do_smooth_brush_mesh_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -1648,7 +1677,7 @@ static void do_smooth_brush_mesh_task_cb_ex(
 		if (sculpt_brush_test_sq_fn(&test, vd.co)) {
 			const float fade = bstrength * tex_strength(
 			        ss, brush, vd.co, sqrtf(test.dist),
-			        vd.no, vd.fno, smooth_mask ? 0.0f : (vd.mask ? *vd.mask : 0.0f), thread_id);
+			        vd.no, vd.fno, smooth_mask ? 0.0f : (vd.mask ? *vd.mask : 0.0f), tls->thread_id);
 			if (smooth_mask) {
 				float val = neighbor_average_mask(ss, vd.vert_indices[vd.i]) - *vd.mask;
 				val *= fade * bstrength;
@@ -1674,7 +1703,9 @@ static void do_smooth_brush_mesh_task_cb_ex(
 }
 
 static void do_smooth_brush_bmesh_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -1696,7 +1727,7 @@ static void do_smooth_brush_bmesh_task_cb_ex(
 		if (sculpt_brush_test_sq_fn(&test, vd.co)) {
 			const float fade = bstrength * tex_strength(
 			        ss, brush, vd.co, sqrtf(test.dist),
-			        vd.no, vd.fno, smooth_mask ? 0.0f : *vd.mask, thread_id);
+			        vd.no, vd.fno, smooth_mask ? 0.0f : *vd.mask, tls->thread_id);
 			if (smooth_mask) {
 				float val = bmesh_neighbor_average_mask(vd.bm_vert, vd.cd_vert_mask_offset) - *vd.mask;
 				val *= fade * bstrength;
@@ -1722,10 +1753,12 @@ static void do_smooth_brush_bmesh_task_cb_ex(
 }
 
 static void do_smooth_brush_multires_task_cb_ex(
-        void *userdata, void *userdata_chunk, const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
-	SculptDoBrushSmoothGridDataChunk *data_chunk = userdata_chunk;
+	SculptDoBrushSmoothGridDataChunk *data_chunk = tls->userdata_chunk;
 	SculptSession *ss = data->ob->sculpt;
 	Sculpt *sd = data->sd;
 	const Brush *brush = data->brush;
@@ -1837,7 +1870,7 @@ static void do_smooth_brush_multires_task_cb_ex(
 					const float strength_mask = (smooth_mask ? 0.0f : *mask);
 					const float fade = bstrength * tex_strength(
 					        ss, brush, co, sqrtf(test.dist),
-					        NULL, fno, strength_mask, thread_id);
+					        NULL, fno, strength_mask, tls->thread_id);
 					float f = 1.0f / 16.0f;
 
 					if (x == 0 || x == gridsize - 1)
@@ -1895,6 +1928,10 @@ static void smooth(
 		    .smooth_mask = smooth_mask, .strength = strength,
 		};
 
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+
 		switch (type) {
 			case PBVH_GRIDS:
 			{
@@ -1909,22 +1946,30 @@ static void smooth(
 				data_chunk->tmpgrid_size = size;
 				size += sizeof(*data_chunk);
 
-				BLI_task_parallel_range_ex(
-				            0, totnode, &data, data_chunk, size, do_smooth_brush_multires_task_cb_ex,
-				            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+				settings.userdata_chunk = data_chunk;
+				settings.userdata_chunk_size = size;
+				BLI_task_parallel_range(
+				            0, totnode,
+				            &data,
+				            do_smooth_brush_multires_task_cb_ex,
+				            &settings);
 
 				MEM_freeN(data_chunk);
 				break;
 			}
 			case PBVH_FACES:
-				BLI_task_parallel_range_ex(
-				            0, totnode, &data, NULL, 0, do_smooth_brush_mesh_task_cb_ex,
-				            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+				BLI_task_parallel_range(
+				            0, totnode,
+				            &data,
+				            do_smooth_brush_mesh_task_cb_ex,
+				            &settings);
 				break;
 			case PBVH_BMESH:
-				BLI_task_parallel_range_ex(
-				            0, totnode, &data, NULL, 0, do_smooth_brush_bmesh_task_cb_ex,
-				            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+				BLI_task_parallel_range(
+				            0, totnode,
+				            &data,
+				            do_smooth_brush_bmesh_task_cb_ex,
+				            &settings);
 				break;
 		}
 
@@ -1940,7 +1985,9 @@ static void do_smooth_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 }
 
 static void do_mask_brush_draw_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -1958,7 +2005,7 @@ static void do_mask_brush_draw_task_cb_ex(
 		if (sculpt_brush_test_sq_fn(&test, vd.co)) {
 			const float fade = tex_strength(
 			        ss, brush, vd.co, sqrtf(test.dist),
-			        vd.no, vd.fno, 0.0f, thread_id);
+			        vd.no, vd.fno, 0.0f, tls->thread_id);
 
 			(*vd.mask) += fade * bstrength;
 			CLAMP(*vd.mask, 0, 1);
@@ -1979,9 +2026,14 @@ static void do_mask_brush_draw(Sculpt *sd, Object *ob, PBVHNode **nodes, int tot
 	    .sd = sd, .ob = ob, .brush = brush, .nodes = nodes,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_mask_brush_draw_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_mask_brush_draw_task_cb_ex,
+	            &settings);
 }
 
 static void do_mask_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
@@ -2000,7 +2052,9 @@ static void do_mask_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 }
 
 static void do_draw_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2022,7 +2076,7 @@ static void do_draw_brush_task_cb_ex(
 			/* offset vertex */
 			const float fade = tex_strength(
 			        ss, brush, vd.co, sqrtf(test.dist),
-			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 			mul_v3_v3fl(proxy[vd.i], offset, fade);
 
@@ -2055,16 +2109,23 @@ static void do_draw_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 	    .offset = offset,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_draw_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_draw_brush_task_cb_ex,
+	            &settings);
 }
 
 /**
  * Used for 'SCULPT_TOOL_CREASE' and 'SCULPT_TOOL_BLOB'
  */
 static void do_crease_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2088,7 +2149,7 @@ static void do_crease_brush_task_cb_ex(
 			/* offset vertex */
 			const float fade = tex_strength(
 			        ss, brush, vd.co, sqrtf(test.dist),
-			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 			float val1[3];
 			float val2[3];
 
@@ -2152,13 +2213,20 @@ static void do_crease_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 	    .spvc = &spvc, .offset = offset, .flippedbstrength = flippedbstrength,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_crease_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_crease_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_pinch_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2179,7 +2247,7 @@ static void do_pinch_brush_task_cb_ex(
 		if (sculpt_brush_test_sq_fn(&test, vd.co)) {
 			const float fade = bstrength * tex_strength(
 			        ss, brush, vd.co, sqrtf(test.dist),
-			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 			float val[3];
 
 			sub_v3_v3v3(val, test.location, vd.co);
@@ -2203,13 +2271,20 @@ static void do_pinch_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 	    .sd = sd, .ob = ob, .brush = brush, .nodes = nodes,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_pinch_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_pinch_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_grab_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2236,7 +2311,7 @@ static void do_grab_brush_task_cb_ex(
 		if (sculpt_brush_test_sq_fn(&test, orig_data.co)) {
 			const float fade = bstrength * tex_strength(
 			        ss, brush, orig_data.co, sqrtf(test.dist),
-			        orig_data.no, NULL, vd.mask ? *vd.mask : 0.0f, thread_id);
+			        orig_data.no, NULL, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 			mul_v3_v3fl(proxy[vd.i], grab_delta, fade);
 
@@ -2264,13 +2339,20 @@ static void do_grab_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 	    .grab_delta = grab_delta,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_grab_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_grab_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_nudge_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2292,7 +2374,7 @@ static void do_nudge_brush_task_cb_ex(
 		if (sculpt_brush_test_sq_fn(&test, vd.co)) {
 			const float fade = bstrength * tex_strength(
 			        ss, brush, vd.co, sqrtf(test.dist),
-			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 			mul_v3_v3fl(proxy[vd.i], cono, fade);
 
@@ -2320,13 +2402,20 @@ static void do_nudge_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 	    .cono = cono,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_nudge_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_nudge_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_snake_hook_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2353,7 +2442,7 @@ static void do_snake_hook_brush_task_cb_ex(
 		if (sculpt_brush_test_sq_fn(&test, vd.co)) {
 			const float fade = bstrength * tex_strength(
 			        ss, brush, vd.co, sqrtf(test.dist),
-			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 			mul_v3_v3fl(proxy[vd.i], grab_delta, fade);
 
@@ -2426,13 +2515,20 @@ static void do_snake_hook_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 	    .spvc = &spvc, .grab_delta = grab_delta,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_snake_hook_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_snake_hook_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_thumb_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2459,7 +2555,7 @@ static void do_thumb_brush_task_cb_ex(
 		if (sculpt_brush_test_sq_fn(&test, orig_data.co)) {
 			const float fade = bstrength * tex_strength(
 			        ss, brush, orig_data.co, sqrtf(test.dist),
-			        orig_data.no, NULL, vd.mask ? *vd.mask : 0.0f, thread_id);
+			        orig_data.no, NULL, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 			mul_v3_v3fl(proxy[vd.i], cono, fade);
 
@@ -2487,13 +2583,20 @@ static void do_thumb_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 	    .cono = cono,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_thumb_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_thumb_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_rotate_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2521,7 +2624,7 @@ static void do_rotate_brush_task_cb_ex(
 			float vec[3], rot[3][3];
 			const float fade = bstrength * tex_strength(
 			        ss, brush, orig_data.co, sqrtf(test.dist),
-			        orig_data.no, NULL, vd.mask ? *vd.mask : 0.0f, thread_id);
+			        orig_data.no, NULL, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 			sub_v3_v3v3(vec, orig_data.co, ss->cache->location);
 			axis_angle_normalized_to_mat3(rot, ss->cache->sculpt_normal_symm, angle * fade);
@@ -2549,13 +2652,20 @@ static void do_rotate_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 	    .angle = angle,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_rotate_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_rotate_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_layer_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2589,7 +2699,7 @@ static void do_layer_brush_task_cb_ex(
 		if (sculpt_brush_test_sq_fn(&test, orig_data.co)) {
 			const float fade = bstrength * tex_strength(
 			        ss, brush, vd.co, sqrtf(test.dist),
-			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 			float *disp = &layer_disp[vd.i];
 			float val[3];
 
@@ -2634,15 +2744,22 @@ static void do_layer_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 	};
 	BLI_mutex_init(&data.mutex);
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_layer_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_layer_brush_task_cb_ex,
+	            &settings);
 
 	BLI_mutex_end(&data.mutex);
 }
 
 static void do_inflate_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2663,7 +2780,7 @@ static void do_inflate_brush_task_cb_ex(
 		if (sculpt_brush_test_sq_fn(&test, vd.co)) {
 			const float fade = bstrength * tex_strength(
 			        ss, brush, vd.co, sqrtf(test.dist),
-			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 			float val[3];
 
 			if (vd.fno)
@@ -2689,9 +2806,14 @@ static void do_inflate_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totno
 	    .sd = sd, .ob = ob, .brush = brush, .nodes = nodes,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_inflate_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_inflate_brush_task_cb_ex,
+	            &settings);
 }
 
 static void calc_sculpt_plane(
@@ -2806,7 +2928,9 @@ static float get_offset(Sculpt *sd, SculptSession *ss)
 }
 
 static void do_flatten_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2839,7 +2963,7 @@ static void do_flatten_brush_task_cb_ex(
 			if (plane_trim(ss->cache, brush, val)) {
 				const float fade = bstrength * tex_strength(
 				        ss, brush, vd.co, sqrtf(test.dist),
-				        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+				        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 				mul_v3_v3fl(proxy[vd.i], val, fade);
 
@@ -2878,13 +3002,20 @@ static void do_flatten_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totno
 	    .area_no = area_no, .area_co = area_co,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_flatten_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_flatten_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_clay_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -2921,7 +3052,7 @@ static void do_clay_brush_task_cb_ex(
 					 * causes glitch with planes, see: T44390 */
 					const float fade = bstrength * tex_strength(
 					        ss, brush, vd.co, sqrtf(test.dist),
-					        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+					        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 					mul_v3_v3fl(proxy[vd.i], val, fade);
 
@@ -2964,13 +3095,20 @@ static void do_clay_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 	    .area_no = area_no, .area_co = area_co,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_clay_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_clay_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_clay_strips_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -3006,7 +3144,7 @@ static void do_clay_strips_brush_task_cb_ex(
 					 * causes glitch with planes, see: T44390 */
 					const float fade = bstrength * tex_strength(
 					        ss, brush, vd.co, ss->cache->radius * test.dist,
-					        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+					        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 					mul_v3_v3fl(proxy[vd.i], val, fade);
 
@@ -3074,13 +3212,20 @@ static void do_clay_strips_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int t
 	    .area_no_sp = area_no_sp, .area_co = area_co, .mat = mat,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_clay_strips_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_clay_strips_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_fill_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -3114,7 +3259,7 @@ static void do_fill_brush_task_cb_ex(
 				if (plane_trim(ss->cache, brush, val)) {
 					const float fade = bstrength * tex_strength(
 					        ss, brush, vd.co, sqrtf(test.dist),
-					        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+					        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 					mul_v3_v3fl(proxy[vd.i], val, fade);
 
@@ -3155,13 +3300,20 @@ static void do_fill_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 	    .area_no = area_no, .area_co = area_co,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_fill_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_fill_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_scrape_brush_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -3194,7 +3346,7 @@ static void do_scrape_brush_task_cb_ex(
 				if (plane_trim(ss->cache, brush, val)) {
 					const float fade = bstrength * tex_strength(
 					        ss, brush, vd.co, sqrtf(test.dist),
-					        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+					        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 					mul_v3_v3fl(proxy[vd.i], val, fade);
 
@@ -3235,13 +3387,20 @@ static void do_scrape_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 	    .area_no = area_no, .area_co = area_co,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_scrape_brush_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_scrape_brush_task_cb_ex,
+	            &settings);
 }
 
 static void do_gravity_task_cb_ex(
-        void *userdata, void *UNUSED(userdata_chunk), const int n, const int thread_id)
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict tls)
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -3261,7 +3420,7 @@ static void do_gravity_task_cb_ex(
 		if (sculpt_brush_test_sq_fn(&test, vd.co)) {
 			const float fade = tex_strength(
 			        ss, brush, vd.co, sqrtf(test.dist),
-			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, thread_id);
+			        vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f, tls->thread_id);
 
 			mul_v3_v3fl(proxy[vd.i], offset, fade);
 
@@ -3292,9 +3451,14 @@ static void do_gravity(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode, fl
 	    .offset = offset,
 	};
 
-	BLI_task_parallel_range_ex(
-	            0, totnode, &data, NULL, 0, do_gravity_task_cb_ex,
-	            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT), false);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
+	BLI_task_parallel_range(
+	            0, totnode,
+	            &data,
+	            do_gravity_task_cb_ex,
+	            &settings);
 }
 
 
@@ -3396,7 +3560,10 @@ static void sculpt_topology_update(Sculpt *sd, Object *ob, Brush *brush, Unified
 	}
 }
 
-static void do_brush_action_task_cb(void *userdata, const int n)
+static void do_brush_action_task_cb(
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	SculptThreadedTaskData *data = userdata;
 
@@ -3423,9 +3590,14 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
 			.sd = sd, .ob = ob, .brush = brush, .nodes = nodes,
 		};
 
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
 		BLI_task_parallel_range(
-		            0, totnode, &task_data, do_brush_action_task_cb,
-		            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT));
+		            0, totnode,
+		            &task_data,
+		            do_brush_action_task_cb,
+		            &settings);
 
 		if (sculpt_brush_needs_normal(brush, ss->cache->normal_weight))
 			update_sculpt_normal(sd, ob, nodes, totnode);
@@ -3537,7 +3709,10 @@ static void sculpt_flush_pbvhvert_deform(Object *ob, PBVHVertexIter *vd)
 		copy_v3_v3(me->mvert[index].co, newco);
 }
 
-static void sculpt_combine_proxies_task_cb(void *userdata, const int n)
+static void sculpt_combine_proxies_task_cb(
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -3604,9 +3779,14 @@ static void sculpt_combine_proxies(Sculpt *sd, Object *ob)
 			.sd = sd, .ob = ob, .brush = brush, .nodes = nodes,
 		};
 
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
 		BLI_task_parallel_range(
-		            0, totnode, &data, sculpt_combine_proxies_task_cb,
-		            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT));
+		            0, totnode,
+		            &data,
+		            sculpt_combine_proxies_task_cb,
+		            &settings);
 	}
 
 	if (nodes)
@@ -3632,7 +3812,10 @@ static void sculpt_update_keyblock(Object *ob)
 	}
 }
 
-static void sculpt_flush_stroke_deform_task_cb(void *userdata, const int n)
+static void sculpt_flush_stroke_deform_task_cb(
+        void *__restrict userdata,
+        const int n,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	SculptThreadedTaskData *data = userdata;
 	SculptSession *ss = data->ob->sculpt;
@@ -3685,9 +3868,14 @@ static void sculpt_flush_stroke_deform(Sculpt *sd, Object *ob)
 			.vertCos = vertCos,
 		};
 
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.use_threading = ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT);
 		BLI_task_parallel_range(
-		            0, totnode, &data, sculpt_flush_stroke_deform_task_cb,
-		            ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_THREADED_LIMIT));
+		            0, totnode,
+		            &data,
+		            sculpt_flush_stroke_deform_task_cb,
+		            &settings);
 
 		if (vertCos) {
 			sculpt_vertcos_to_key(ob, ss->kb, vertCos);
@@ -3895,8 +4083,9 @@ static void sculpt_update_tex(const Scene *scene, Sculpt *sd, SculptSession *ss)
 
 int sculpt_mode_poll(bContext *C)
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = CTX_data_active_object(C);
-	return ob && ob->mode & OB_MODE_SCULPT;
+	return ob && workspace->object_mode & OB_MODE_SCULPT;
 }
 
 int sculpt_mode_poll_view3d(bContext *C)
@@ -4408,19 +4597,17 @@ static bool sculpt_any_smooth_mode(const Brush *brush,
 	         (brush->mask_tool == BRUSH_MASK_SMOOTH)));
 }
 
-static void sculpt_stroke_modifiers_check(const bContext *C, Object *ob)
+static void sculpt_stroke_modifiers_check(const bContext *C, Object *ob, const Brush *brush)
 {
 	SculptSession *ss = ob->sculpt;
 
 	if (ss->kb || ss->modifiers_active) {
 		EvaluationContext eval_ctx;
-		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
-		Brush *brush = BKE_paint_brush(&sd->paint);
-
 		CTX_data_eval_ctx(C, &eval_ctx);
-
-		BKE_sculpt_update_mesh_elements(&eval_ctx, CTX_data_scene(C), sd, ob,
-		                            sculpt_any_smooth_mode(brush, ss->cache, 0), false);
+		Scene *scene = CTX_data_scene(C);
+		Sculpt *sd = scene->toolsettings->sculpt;
+		bool need_pmap = sculpt_any_smooth_mode(brush, ss->cache, 0);
+		BKE_sculpt_update_mesh_elements(&eval_ctx, scene, sd, ob, need_pmap, false);
 	}
 }
 
@@ -4505,7 +4692,7 @@ static float sculpt_raycast_init(
 	RegionView3D *rv3d = vc->ar->regiondata;
 
 	/* TODO: what if the segment is totally clipped? (return == 0) */
-	ED_view3d_win_to_segment(vc->ar, vc->v3d, mouse, ray_start, ray_end, true);
+	ED_view3d_win_to_segment(vc->depsgraph, vc->ar, vc->v3d, mouse, ray_start, ray_end, true);
 
 	invert_m4_m4(obimat, ob->obmat);
 	mul_m4_v3(obimat, ray_start);
@@ -4541,7 +4728,7 @@ bool sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2])
 	bool original;
 	ViewContext vc;
 
-	view3d_set_viewcontext(C, &vc);
+	ED_view3d_viewcontext_init(C, &vc);
 
 	ob = vc.obact;
 
@@ -4549,7 +4736,9 @@ bool sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2])
 	cache = ss->cache;
 	original = (cache) ? cache->original : 0;
 
-	sculpt_stroke_modifiers_check(C, ob);
+	const Brush *brush = BKE_paint_brush(BKE_paint_get_active_from_context(C));
+
+	sculpt_stroke_modifiers_check(C, ob, brush);
 
 	depth = sculpt_raycast_init(&vc, mouse, ray_start, ray_end, ray_normal, original);
 
@@ -4575,7 +4764,6 @@ bool sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2])
 	}
 
 	if (hit == false) {
-		const Brush *brush = BKE_paint_brush(BKE_paint_get_active_from_context(C));
 		if (ELEM(brush->falloff_shape, PAINT_FALLOFF_SHAPE_TUBE)) {
 			SculptFindNearestToRayData srd = {
 				.original = original,
@@ -4766,7 +4954,7 @@ static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *UNUSED(st
 	SculptSession *ss = ob->sculpt;
 	const Brush *brush = BKE_paint_brush(&sd->paint);
 	
-	sculpt_stroke_modifiers_check(C, ob);
+	sculpt_stroke_modifiers_check(C, ob, brush);
 	sculpt_update_cache_variants(C, sd, ob, itemptr);
 	sculpt_restore_mesh(sd, ob);
 
@@ -4841,7 +5029,7 @@ static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(str
 		BLI_assert(brush == ss->cache->brush);  /* const, so we shouldn't change. */
 		ups->draw_inverted = false;
 
-		sculpt_stroke_modifiers_check(C, ob);
+		sculpt_stroke_modifiers_check(C, ob, brush);
 
 		/* Alt-Smooth */
 		if (ss->cache->alt_smooth) {
@@ -4860,7 +5048,7 @@ static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(str
 		sculpt_cache_free(ss->cache);
 		ss->cache = NULL;
 
-		sculpt_undo_push_end(C);
+		sculpt_undo_push_end();
 
 		BKE_pbvh_update(ss->pbvh, PBVH_UpdateOriginalBB, NULL);
 		
@@ -5032,7 +5220,7 @@ void sculpt_pbvh_clear(Object *ob)
 		BKE_pbvh_free(ss->pbvh);
 	ss->pbvh = NULL;
 	if (dm)
-		dm->getPBVH(NULL, dm);
+		dm->getPBVH(NULL, dm, OB_MODE_OBJECT);
 	BKE_object_free_derived_caches(ob);
 }
 
@@ -5068,24 +5256,21 @@ void sculpt_dyntopo_node_layers_add(SculptSession *ss)
 }
 
 
-void sculpt_update_after_dynamic_topology_toggle(bContext *C)
+void sculpt_update_after_dynamic_topology_toggle(
+        const EvaluationContext *eval_ctx,
+        Scene *scene, Object *ob)
 {
-	Scene *scene = CTX_data_scene(C);
-	Object *ob = CTX_data_active_object(C);
-	EvaluationContext eval_ctx;
 	Sculpt *sd = scene->toolsettings->sculpt;
 
-	CTX_data_eval_ctx(C, &eval_ctx);
-
 	/* Create the PBVH */
-	BKE_sculpt_update_mesh_elements(&eval_ctx, scene, sd, ob, false, false);
-	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+	BKE_sculpt_update_mesh_elements(eval_ctx, scene, sd, ob, false, false);
+	WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 }
 
-void sculpt_dynamic_topology_enable(bContext *C)
+void sculpt_dynamic_topology_enable_ex(
+        const EvaluationContext *eval_ctx,
+        Scene *scene, Object *ob)
 {
-	Scene *scene = CTX_data_scene(C);
-	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
 	Mesh *me = ob->data;
 	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(me);
@@ -5121,17 +5306,17 @@ void sculpt_dynamic_topology_enable(bContext *C)
 	ss->bm_log = BM_log_create(ss->bm);
 
 	/* Refresh */
-	sculpt_update_after_dynamic_topology_toggle(C);
+	sculpt_update_after_dynamic_topology_toggle(eval_ctx, scene, ob);
 }
 
 /* Free the sculpt BMesh and BMLog
  *
  * If 'unode' is given, the BMesh's data is copied out to the unode
  * before the BMesh is deleted so that it can be restored from */
-void sculpt_dynamic_topology_disable(bContext *C,
-                                     SculptUndoNode *unode)
+void sculpt_dynamic_topology_disable_ex(
+        const EvaluationContext *eval_ctx,
+        Scene *scene, Object *ob, SculptUndoNode *unode)
 {
-	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
 	Mesh *me = ob->data;
 
@@ -5180,28 +5365,59 @@ void sculpt_dynamic_topology_disable(bContext *C,
 	}
 
 	/* Refresh */
-	sculpt_update_after_dynamic_topology_toggle(C);
+	sculpt_update_after_dynamic_topology_toggle(eval_ctx, scene, ob);
 }
 
+void sculpt_dynamic_topology_disable(bContext *C, SculptUndoNode *unode)
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	EvaluationContext eval_ctx;
+	CTX_data_eval_ctx(C, &eval_ctx);
+	sculpt_dynamic_topology_disable_ex(&eval_ctx, scene, ob, unode);
+}
+
+static void sculpt_dynamic_topology_disable_with_undo(
+        const EvaluationContext *eval_ctx, Scene *scene, Object *ob)
+{
+	SculptSession *ss = ob->sculpt;
+	if (ss->bm) {
+		sculpt_undo_push_begin("Dynamic topology disable");
+		sculpt_undo_push_node(ob, NULL, SCULPT_UNDO_DYNTOPO_END);
+		sculpt_dynamic_topology_disable_ex(eval_ctx, scene, ob, NULL);
+		sculpt_undo_push_end();
+	}
+}
+
+static void sculpt_dynamic_topology_enable_with_undo(
+        const EvaluationContext *eval_ctx,
+        Scene *scene, Object *ob)
+{
+	SculptSession *ss = ob->sculpt;
+	if (ss->bm == NULL) {
+		sculpt_undo_push_begin("Dynamic topology enable");
+		sculpt_dynamic_topology_enable_ex(eval_ctx, scene, ob);
+		sculpt_undo_push_node(ob, NULL, SCULPT_UNDO_DYNTOPO_BEGIN);
+		sculpt_undo_push_end();
+	}
+}
 
 static int sculpt_dynamic_topology_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
+	EvaluationContext eval_ctx;
+	CTX_data_eval_ctx(C, &eval_ctx);
 
 	WM_cursor_wait(1);
 
 	if (ss->bm) {
-		sculpt_undo_push_begin("Dynamic topology disable");
-		sculpt_undo_push_node(ob, NULL, SCULPT_UNDO_DYNTOPO_END);
-		sculpt_dynamic_topology_disable(C, NULL);
+		sculpt_dynamic_topology_disable_with_undo(&eval_ctx, scene, ob);
 	}
 	else {
-		sculpt_undo_push_begin("Dynamic topology enable");
-		sculpt_dynamic_topology_enable(C);
-		sculpt_undo_push_node(ob, NULL, SCULPT_UNDO_DYNTOPO_BEGIN);
+		sculpt_dynamic_topology_enable_with_undo(&eval_ctx, scene, ob);
 	}
-	sculpt_undo_push_end(C);
 
 	WM_cursor_wait(0);
 
@@ -5244,13 +5460,11 @@ static int dyntopo_warning_popup(bContext *C, wmOperatorType *ot, enum eDynTopoW
 	return OPERATOR_INTERFACE;
 }
 
-static enum eDynTopoWarnFlag sculpt_dynamic_topology_check(bContext *C)
+static enum eDynTopoWarnFlag sculpt_dynamic_topology_check(Scene *scene, Object *ob)
 {
-	Object *ob = CTX_data_active_object(C);
 	Mesh *me = ob->data;
 	SculptSession *ss = ob->sculpt;
 
-	Scene *scene = CTX_data_scene(C);
 	enum eDynTopoWarnFlag flag = 0;
 
 	BLI_assert(ss->bm == NULL);
@@ -5295,7 +5509,8 @@ static int sculpt_dynamic_topology_toggle_invoke(bContext *C, wmOperator *op, co
 	SculptSession *ss = ob->sculpt;
 
 	if (!ss->bm) {
-		enum eDynTopoWarnFlag flag = sculpt_dynamic_topology_check(C);
+		Scene *scene = CTX_data_scene(C);
+		enum eDynTopoWarnFlag flag = sculpt_dynamic_topology_check(scene, ob);
 
 		if (flag) {
 			/* The mesh has customdata that will be lost, let the user confirm this is OK */
@@ -5389,7 +5604,7 @@ static int sculpt_symmetrize_exec(bContext *C, wmOperator *UNUSED(op))
 
 	/* Finish undo */
 	BM_log_all_added(ss->bm, ss->bm_log);
-	sculpt_undo_push_end(C);
+	sculpt_undo_push_end();
 
 	/* Redraw */
 	sculpt_pbvh_clear(ob);
@@ -5412,177 +5627,218 @@ static void SCULPT_OT_symmetrize(wmOperatorType *ot)
 
 /**** Toggle operator for turning sculpt mode on or off ****/
 
-static void sculpt_init_session(const bContext *C, Scene *scene, Object *ob)
+static void sculpt_init_session(const EvaluationContext *eval_ctx, Scene *scene, Object *ob)
 {
-	EvaluationContext eval_ctx;
-
-	CTX_data_eval_ctx(C, &eval_ctx);
+	/* Create persistent sculpt mode data */
+	BKE_sculpt_toolsettings_data_ensure(scene);
 
 	ob->sculpt = MEM_callocN(sizeof(SculptSession), "sculpt session");
-
-	BKE_sculpt_update_mesh_elements(&eval_ctx, scene, scene->toolsettings->sculpt, ob, 0, false);
+	ob->sculpt->mode_type = OB_MODE_SCULPT;
+	BKE_sculpt_update_mesh_elements(eval_ctx, scene, scene->toolsettings->sculpt, ob, 0, false);
 }
 
-
-static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
+static int ed_object_sculptmode_flush_recalc_flag(Scene *scene, Object *ob, MultiresModifierData *mmd)
 {
-	Scene *scene = CTX_data_scene(C);
-	ToolSettings *ts = CTX_data_tool_settings(C);
-	Object *ob = CTX_data_active_object(C);
-	const int mode_flag = OB_MODE_SCULPT;
-	const bool is_mode_set = (ob->mode & mode_flag) != 0;
-	Mesh *me;
-	MultiresModifierData *mmd = BKE_sculpt_multires_active(scene, ob);
 	int flush_recalc = 0;
-
-	if (!is_mode_set) {
-		if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
-			return OPERATOR_CANCELLED;
-		}
-	}
-
-	me = BKE_mesh_from_object(ob);
-
 	/* multires in sculpt mode could have different from object mode subdivision level */
 	flush_recalc |= mmd && mmd->sculptlvl != mmd->lvl;
 	/* if object has got active modifiers, it's dm could be different in sculpt mode  */
 	flush_recalc |= sculpt_has_active_modifiers(scene, ob);
+	return flush_recalc;
+}
+
+void ED_object_sculptmode_enter_ex(
+        const EvaluationContext *eval_ctx,
+        WorkSpace *workspace, Scene *scene, Object *ob,
+        ReportList *reports)
+{
+	const int mode_flag = OB_MODE_SCULPT;
+	Mesh *me = BKE_mesh_from_object(ob);
+
+	/* Enter sculptmode */
+	workspace->object_mode |= mode_flag;
+
+	MultiresModifierData *mmd = BKE_sculpt_multires_active(scene, ob);
+
+	const int flush_recalc = ed_object_sculptmode_flush_recalc_flag(scene, ob, mmd);
+
+	if (flush_recalc)
+		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
+
+	/* Create sculpt mode session data */
+	if (ob->sculpt) {
+		BKE_sculptsession_free(ob);
+	}
+
+	sculpt_init_session(eval_ctx, scene, ob);
+
+	/* Mask layer is required */
+	if (mmd) {
+		/* XXX, we could attempt to support adding mask data mid-sculpt mode (with multi-res)
+		 * but this ends up being quite tricky (and slow) */
+		BKE_sculpt_mask_layers_ensure(ob, mmd);
+	}
+
+	if (!(fabsf(ob->size[0] - ob->size[1]) < 1e-4f && fabsf(ob->size[1] - ob->size[2]) < 1e-4f)) {
+		BKE_report(reports, RPT_WARNING,
+		           "Object has non-uniform scale, sculpting may be unpredictable");
+	}
+	else if (is_negative_m4(ob->obmat)) {
+		BKE_report(reports, RPT_WARNING,
+		           "Object has negative scale, sculpting may be unpredictable");
+	}
+
+	Paint *paint = BKE_paint_get_active_from_paintmode(scene, ePaintSculpt);
+	BKE_paint_init(scene, ePaintSculpt, PAINT_CURSOR_SCULPT);
+
+	paint_cursor_start_explicit(paint, G.main->wm.first, sculpt_poll_view3d);
+
+	/* Check dynamic-topology flag; re-enter dynamic-topology mode when changing modes,
+	 * As long as no data was added that is not supported. */
+	if (me->flag & ME_SCULPT_DYNAMIC_TOPOLOGY) {
+		const char *message_unsupported = NULL;
+		if (me->totloop != me->totpoly * 3) {
+			message_unsupported = TIP_("non-triangle face");
+		}
+		else if (mmd != NULL) {
+			message_unsupported = TIP_("multi-res modifier");
+		}
+		else {
+			enum eDynTopoWarnFlag flag = sculpt_dynamic_topology_check(scene, ob);
+			if (flag == 0) {
+				/* pass */
+			}
+			else if (flag & DYNTOPO_WARN_VDATA) {
+				message_unsupported = TIP_("vertex data");
+			}
+			else if (flag & DYNTOPO_WARN_EDATA) {
+				message_unsupported = TIP_("edge data");
+			}
+			else if (flag & DYNTOPO_WARN_LDATA) {
+				message_unsupported = TIP_("face data");
+			}
+			else if (flag & DYNTOPO_WARN_MODIFIER) {
+				message_unsupported = TIP_("constructive modifier");
+			}
+			else {
+				BLI_assert(0);
+			}
+		}
+
+		if (message_unsupported == NULL) {
+			/* undo push is needed to prevent memory leak */
+			sculpt_undo_push_begin("Dynamic topology enable");
+			sculpt_dynamic_topology_enable_ex(eval_ctx, scene, ob);
+			sculpt_undo_push_node(ob, NULL, SCULPT_UNDO_DYNTOPO_BEGIN);
+		}
+		else {
+			BKE_reportf(reports, RPT_WARNING,
+			            "Dynamic Topology found: %s, disabled",
+			            message_unsupported);
+			me->flag &= ~ME_SCULPT_DYNAMIC_TOPOLOGY;
+		}
+	}
+
+	ED_workspace_object_mode_sync_from_object(G.main->wm.first, workspace, ob);
+
+	/* VBO no longer valid */
+	if (ob->derivedFinal) {
+		GPU_drawobject_free(ob->derivedFinal);
+	}
+}
+
+void ED_object_sculptmode_enter(struct bContext *C, ReportList *reports)
+{
+	WorkSpace *workspace = CTX_wm_workspace(C);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	EvaluationContext eval_ctx;
+	CTX_data_eval_ctx(C, &eval_ctx);
+	ED_object_sculptmode_enter_ex(&eval_ctx, workspace, scene, ob, reports);
+}
+
+void ED_object_sculptmode_exit_ex(
+        const EvaluationContext *eval_ctx,
+        WorkSpace *workspace, Scene *scene, Object *ob)
+{
+	const int mode_flag = OB_MODE_SCULPT;
+	Mesh *me = BKE_mesh_from_object(ob);
+
+	MultiresModifierData *mmd = BKE_sculpt_multires_active(scene, ob);
+	if (mmd) {
+		multires_force_update(ob);
+	}
+
+	/* Not needed for now. */
+#if 0
+	const int flush_recalc = ed_object_sculptmode_flush_recalc_flag(scene, ob, mmd);
+#endif
+
+	/* Always for now, so leaving sculpt mode always ensures scene is in
+	 * a consistent state.
+	 */
+	if (true || /* flush_recalc || */ (ob->sculpt && ob->sculpt->bm)) {
+		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	}
+
+	if (me->flag & ME_SCULPT_DYNAMIC_TOPOLOGY) {
+		/* Dynamic topology must be disabled before exiting sculpt
+		 * mode to ensure the undo stack stays in a consistent
+		 * state */
+		sculpt_dynamic_topology_disable_with_undo(eval_ctx, scene, ob);
+
+		/* store so we know to re-enable when entering sculpt mode */
+		me->flag |= ME_SCULPT_DYNAMIC_TOPOLOGY;
+	}
+
+	/* Leave sculptmode */
+	workspace->object_mode &= ~mode_flag;
+
+	ED_workspace_object_mode_sync_from_object(G.main->wm.first, workspace, ob);
+
+	BKE_sculptsession_free(ob);
+
+	paint_cursor_delete_textures();
+
+	/* VBO no longer valid */
+	if (ob->derivedFinal) {
+		GPU_drawobject_free(ob->derivedFinal);
+	}
+}
+
+void ED_object_sculptmode_exit(bContext *C)
+{
+	WorkSpace *workspace = CTX_wm_workspace(C);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	EvaluationContext eval_ctx;
+	CTX_data_eval_ctx(C, &eval_ctx);
+	ED_object_sculptmode_exit_ex(&eval_ctx, workspace, scene, ob);
+}
+
+static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
+{
+	WorkSpace *workspace = CTX_wm_workspace(C);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	const int mode_flag = OB_MODE_SCULPT;
+	const bool is_mode_set = (workspace->object_mode & mode_flag) != 0;
+
+	if (!is_mode_set) {
+		if (!ED_object_mode_compat_set(C, workspace, mode_flag, op->reports)) {
+			return OPERATOR_CANCELLED;
+		}
+	}
+
+	EvaluationContext eval_ctx;
+	CTX_data_eval_ctx(C, &eval_ctx);
 
 	if (is_mode_set) {
-		if (mmd)
-			multires_force_update(ob);
-
-		/* Always for now, so leaving sculpt mode always ensures scene is in
-		 * a consistent state.
-		 */
-		if (true || flush_recalc || (ob->sculpt && ob->sculpt->bm)) {
-			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
-		}
-
-		if (me->flag & ME_SCULPT_DYNAMIC_TOPOLOGY) {
-			/* Dynamic topology must be disabled before exiting sculpt
-			 * mode to ensure the undo stack stays in a consistent
-			 * state */
-			sculpt_dynamic_topology_toggle_exec(C, NULL);
-
-			/* store so we know to re-enable when entering sculpt mode */
-			me->flag |= ME_SCULPT_DYNAMIC_TOPOLOGY;
-		}
-
-		/* Leave sculptmode */
-		ob->mode &= ~mode_flag;
-
-		BKE_sculptsession_free(ob);
-
-		paint_cursor_delete_textures();
+		ED_object_sculptmode_exit_ex(&eval_ctx, workspace, scene, ob);
 	}
 	else {
-		/* Enter sculptmode */
-		ob->mode |= mode_flag;
-
-		if (flush_recalc)
-			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
-
-		/* Create persistent sculpt mode data */
-		if (!ts->sculpt) {
-			ts->sculpt = MEM_callocN(sizeof(Sculpt), "sculpt mode data");
-
-			/* Turn on X plane mirror symmetry by default */
-			ts->sculpt->paint.symmetry_flags |= PAINT_SYMM_X;
-			ts->sculpt->paint.flags |= PAINT_SHOW_BRUSH;
-
-			/* Make sure at least dyntopo subdivision is enabled */
-			ts->sculpt->flags |= SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE;
-		}
-
-		if (!ts->sculpt->detail_size)
-			ts->sculpt->detail_size = 12;
-		if (!ts->sculpt->detail_percent)
-			ts->sculpt->detail_percent = 25;
-		if (ts->sculpt->constant_detail == 0.0f)
-			ts->sculpt->constant_detail = 3.0f;
-
-		/* Set sane default tiling offsets */
-		if (!ts->sculpt->paint.tile_offset[0]) ts->sculpt->paint.tile_offset[0] = 1.0f;
-		if (!ts->sculpt->paint.tile_offset[1]) ts->sculpt->paint.tile_offset[1] = 1.0f;
-		if (!ts->sculpt->paint.tile_offset[2]) ts->sculpt->paint.tile_offset[2] = 1.0f;
-
-
-		/* Create sculpt mode session data */
-		if (ob->sculpt)
-			BKE_sculptsession_free(ob);
-
-		sculpt_init_session(C, scene, ob);
-
-		/* Mask layer is required */
-		if (mmd) {
-			/* XXX, we could attempt to support adding mask data mid-sculpt mode (with multi-res)
-			 * but this ends up being quite tricky (and slow) */
-			BKE_sculpt_mask_layers_ensure(ob, mmd);
-		}
-
-		if (!(fabsf(ob->size[0] - ob->size[1]) < 1e-4f && fabsf(ob->size[1] - ob->size[2]) < 1e-4f)) {
-			BKE_report(op->reports, RPT_WARNING,
-			           "Object has non-uniform scale, sculpting may be unpredictable");
-		}
-		else if (is_negative_m4(ob->obmat)) {
-			BKE_report(op->reports, RPT_WARNING,
-			           "Object has negative scale, sculpting may be unpredictable");
-		}
-
-		BKE_paint_init(scene, ePaintSculpt, PAINT_CURSOR_SCULPT);
-
-		paint_cursor_start(C, sculpt_poll_view3d);
-
-		/* Check dynamic-topology flag; re-enter dynamic-topology mode when changing modes,
-		 * As long as no data was added that is not supported. */
-		if (me->flag & ME_SCULPT_DYNAMIC_TOPOLOGY) {
-			const char *message_unsupported = NULL;
-			if (me->totloop != me->totpoly * 3) {
-				message_unsupported = TIP_("non-triangle face");
-			}
-			else if (mmd != NULL) {
-				message_unsupported = TIP_("multi-res modifier");
-			}
-			else {
-				enum eDynTopoWarnFlag flag = sculpt_dynamic_topology_check(C);
-				if (flag == 0) {
-					/* pass */
-				}
-				else if (flag & DYNTOPO_WARN_VDATA) {
-					message_unsupported = TIP_("vertex data");
-				}
-				else if (flag & DYNTOPO_WARN_EDATA) {
-					message_unsupported = TIP_("edge data");
-				}
-				else if (flag & DYNTOPO_WARN_LDATA) {
-					message_unsupported = TIP_("face data");
-				}
-				else if (flag & DYNTOPO_WARN_MODIFIER) {
-					message_unsupported = TIP_("constructive modifier");
-				}
-				else {
-					BLI_assert(0);
-				}
-			}
-
-			if (message_unsupported == NULL) {
-				/* undo push is needed to prevent memory leak */
-				sculpt_undo_push_begin("Dynamic topology enable");
-				sculpt_dynamic_topology_enable(C);
-				sculpt_undo_push_node(ob, NULL, SCULPT_UNDO_DYNTOPO_BEGIN);
-			}
-			else {
-				BKE_reportf(op->reports, RPT_WARNING,
-				            "Dynamic Topology found: %s, disabled",
-				            message_unsupported);
-				me->flag &= ~ME_SCULPT_DYNAMIC_TOPOLOGY;
-			}
-		}
+		ED_object_sculptmode_enter_ex(&eval_ctx, workspace, scene, ob, op->reports);
 	}
-
-	if (ob->derivedFinal) /* VBO no longer valid */
-		GPU_drawobject_free(ob->derivedFinal);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_MODE, scene);
 
@@ -5652,7 +5908,7 @@ static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 
 	MEM_freeN(nodes);
-	sculpt_undo_push_end(C);
+	sculpt_undo_push_end();
 
 	/* force rebuild of pbvh for better BB placement */
 	sculpt_pbvh_clear(ob);
@@ -5684,12 +5940,14 @@ static void sample_detail(bContext *C, int ss_co[2])
 	float ray_start[3], ray_end[3], ray_normal[3], depth;
 	SculptDetailRaycastData srd;
 	float mouse[2] = {ss_co[0], ss_co[1]};
-	view3d_set_viewcontext(C, &vc);
+	ED_view3d_viewcontext_init(C, &vc);
 
 	sd = CTX_data_tool_settings(C)->sculpt;
 	ob = vc.obact;
 
-	sculpt_stroke_modifiers_check(C, ob);
+	Brush *brush = BKE_paint_brush(&sd->paint);
+
+	sculpt_stroke_modifiers_check(C, ob, brush);
 
 	depth = sculpt_raycast_init(&vc, mouse, ray_start, ray_end, ray_normal, false);
 

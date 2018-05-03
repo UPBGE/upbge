@@ -35,7 +35,8 @@ device_memory::device_memory(Device *device, const char *name, MemoryType type)
   extension(EXTENSION_REPEAT),
   device(device),
   device_pointer(0),
-  host_pointer(0)
+  host_pointer(0),
+  shared_pointer(0)
 {
 }
 
@@ -49,8 +50,7 @@ void *device_memory::host_alloc(size_t size)
 		return 0;
 	}
 
-	size_t alignment = device->mem_address_alignment();
-	void *ptr = util_aligned_malloc(size, alignment);
+	void *ptr = util_aligned_malloc(size, MIN_ALIGNMENT_CPU_DATA_TYPES);
 
 	if(ptr) {
 		util_guarded_mem_alloc(size);
@@ -86,7 +86,7 @@ void device_memory::device_free()
 
 void device_memory::device_copy_to()
 {
-	if(data_size) {
+	if(host_pointer) {
 		device->mem_copy_to(*this);
 	}
 }

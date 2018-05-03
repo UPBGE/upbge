@@ -51,7 +51,7 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
@@ -421,10 +421,6 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 					/* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
 					library_foreach_ID_as_subdata_link((ID **)&scene->nodetree, callback, user_data, flag, &data);
 				}
-				/* DO NOT handle scene->basact here, it's doubling with the loop over whole scene->base later,
-				 * since basact is just a pointer to one of those items. */
-				CALLBACK_INVOKE(scene->obedit, IDWALK_CB_NOP);
-
 				if (scene->ed) {
 					Sequence *seq;
 					SEQP_BEGIN(scene->ed, seq)
@@ -444,17 +440,13 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 
 				CALLBACK_INVOKE(scene->gpd, IDWALK_CB_USER);
 
-				FOREACH_SCENE_COLLECTION(scene, sc)
+				FOREACH_SCENE_COLLECTION_BEGIN(scene, sc)
 				{
 					for (LinkData *link = sc->objects.first; link; link = link->next) {
 						CALLBACK_INVOKE_ID(link->data, IDWALK_CB_USER);
 					}
-
-					for (LinkData *link = sc->filter_objects.first; link; link = link->next) {
-						CALLBACK_INVOKE_ID(link->data, IDWALK_CB_USER);
-					}
 				}
-				FOREACH_SCENE_COLLECTION_END
+				FOREACH_SCENE_COLLECTION_END;
 
 				ViewLayer *view_layer;
 				for (view_layer = scene->view_layers.first; view_layer; view_layer = view_layer->next) {
@@ -681,6 +673,9 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				}
 				CALLBACK_INVOKE(material->group, IDWALK_CB_USER);
 				CALLBACK_INVOKE(material->edit_image, IDWALK_CB_USER);
+				if (material->texpaintslot != NULL) {
+					CALLBACK_INVOKE(material->texpaintslot->ima, IDWALK_CB_NOP);
+				}
 				break;
 			}
 
@@ -773,11 +768,11 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 			case ID_GR:
 			{
 				Group *group = (Group *) id;
-				FOREACH_GROUP_OBJECT(group, object)
+				FOREACH_GROUP_BASE_BEGIN(group, base)
 				{
-					CALLBACK_INVOKE(object, IDWALK_CB_USER_ONE);
+					CALLBACK_INVOKE(base->object, IDWALK_CB_USER_ONE);
 				}
-				FOREACH_GROUP_OBJECT_END
+				FOREACH_GROUP_BASE_END
 				break;
 			}
 
@@ -984,6 +979,8 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				for (WorkSpaceLayout *layout = layouts->first; layout; layout = layout->next) {
 					bScreen *screen = BKE_workspace_layout_screen_get(layout);
 
+					/* CALLBACK_INVOKE expects an actual pointer, not a variable holding the pointer.
+					 * However we can't acess layout->screen here since we are outside the workspace project. */
 					CALLBACK_INVOKE(screen, IDWALK_CB_NOP);
 					/* allow callback to set a different screen */
 					BKE_workspace_layout_screen_set(layout, screen);
@@ -1092,7 +1089,7 @@ bool BKE_library_id_can_use_idtype(ID *id_owner, const short id_type_used)
 			return true;
 #endif
 		case ID_ME:
-			return ELEM(id_type_used, ID_ME, ID_KE, ID_MA);
+			return ELEM(id_type_used, ID_ME, ID_KE, ID_MA, ID_IM);
 		case ID_CU:
 			return ELEM(id_type_used, ID_OB, ID_KE, ID_MA, ID_VF);
 		case ID_MB:

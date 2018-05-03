@@ -159,9 +159,9 @@ void SkinInfo::set_controller(const COLLADAFW::SkinController *co)
 }
 
 // called from write_controller
-Object *SkinInfo::create_armature(Scene *scene)
+Object *SkinInfo::create_armature(Scene *scene, ViewLayer *view_layer)
 {
-	ob_arm = bc_add_object(scene, OB_ARMATURE, NULL);
+	ob_arm = bc_add_object(scene, view_layer, OB_ARMATURE, NULL);
 	return ob_arm;
 }
 
@@ -227,7 +227,7 @@ void SkinInfo::link_armature(bContext *C, Object *ob, std::map<COLLADAFW::Unique
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 
-	ModifierData *md = ED_object_modifier_add(NULL, bmain, scene, ob, NULL, eModifierType_Armature);
+	ModifierData *md = ED_object_modifier_add(NULL, bmain, scene, ob, OB_MODE_OBJECT, NULL, eModifierType_Armature);
 	ArmatureModifierData *amd = (ArmatureModifierData *)md;
 	amd->object = ob_arm;
 

@@ -158,7 +158,7 @@ typedef enum PropertySubType {
 
 /* Make sure enums are updated with these */
 /* HIGHEST FLAG IN USE: 1 << 31
- * FREE FLAGS: 3, 7, 9, 11, 13, 14, 15, 30 */
+ * FREE FLAGS: 9, 11, 13, 14, 15, 30 */
 typedef enum PropertyFlag {
 	/* editable means the property is editable in the user
 	 * interface, properties are editable by default except
@@ -178,6 +178,10 @@ typedef enum PropertyFlag {
 
 	/* Means the property can be overriden by a local 'proxy' of some linked datablock. */
 	PROP_OVERRIDABLE_STATIC      = (1 << 2),
+
+	/* Forbid usage of this property in comparison (& hence override) code.
+	 * Useful e.g. for collections of data like mesh's geometry, particles, etc. */
+	PROP_NO_COMPARISON           = (1 << 3),
 
 	/* This flag means when the property's widget is in 'textedit' mode, it will be updated
 	 * after every typed char, instead of waiting final validation. Used e.g. for text searchbox.
@@ -212,6 +216,13 @@ typedef enum PropertyFlag {
 	 * except that the value may be NULL at times, used for ObData, where an Empty's will be NULL
 	 * but setting NULL on a mesh object is not possible. So, if its not NULL, setting NULL cant be done! */
 	PROP_NEVER_UNLINK            = (1 << 25),
+
+	/* Pointers to data that is not owned by the struct.
+	 * Typical example: Bone.parent, Bone.child, etc., and nearly all ID pointers.
+	 * This is crucial information for processes that walk the whole data of an ID e.g. (like static override).
+	 * Note that all ID pointers are enforced to this by default, this probably will need to be rechecked
+	 * (see ugly infamous NodeTrees of mat/tex/scene/etc.). */
+	PROP_PTR_NO_OWNERSHIP        = (1 << 7),
 
 	/* flag contains multiple enums.
 	 * note: not to be confused with prop->enumbitflags
@@ -404,22 +415,46 @@ typedef struct ParameterDynAlloc {
 /* Function */
 
 typedef enum FunctionFlag {
-	FUNC_NO_SELF           = (1 << 0), /* for static functions */
-	FUNC_USE_SELF_TYPE     = (1 << 1), /* for class methods, only used when FUNC_NO_SELF is set */
+	/***** Options affecting callback signature. *****/
+	/* Those add additionnal parameters at the beginning of the C callback, like that:
+	 *     rna_my_func([ID *_selfid],
+	 *                 [<DNA_STRUCT> *self|StructRNA *type],
+	 *                 [Main *bmain],
+	 *                 [bContext *C],
+	 *                 [ReportList *reports],
+	 *                 <other RNA-defined parameters>);
+	 */
+	/* Pass ID owning 'self' data (i.e. ptr->id.data, might be same as self in case data is an ID...). */
+	FUNC_USE_SELF_ID       = (1 << 11),
+
+	/* Do not pass the object (DNA struct pointer) from which it is called, used to define static or class functions. */
+	FUNC_NO_SELF           = (1 << 0),
+	/* Pass RNA type, used to define class functions, only valid when FUNC_NO_SELF is set. */
+	FUNC_USE_SELF_TYPE     = (1 << 1),
+
+	/* Pass Main, bContext and/or ReportList. */
 	FUNC_USE_MAIN          = (1 << 2),
 	FUNC_USE_CONTEXT       = (1 << 3),
 	FUNC_USE_REPORTS       = (1 << 4),
-	FUNC_USE_SELF_ID       = (1 << 11),
+
+
+	/***** Registering of python subclasses. *****/
+	/* This function is part of the registerable class' interface, and can be implemented/redefined in python. */
+	FUNC_REGISTER          = (1 << 5),
+	/* Subclasses can choose not to implement this function. */
+	FUNC_REGISTER_OPTIONAL = FUNC_REGISTER | (1 << 6),
+	/* If not set, the python function implementing this call is not allowed to write into data-blocks.
+	 * Except for WindowManager and Screen currently, see rna_id_write_error() in bpy_rna.c */
 	FUNC_ALLOW_WRITE       = (1 << 12),
 
-	/* registering */
-	FUNC_REGISTER          = (1 << 5),
-	FUNC_REGISTER_OPTIONAL = FUNC_REGISTER | (1 << 6),
-
-	/* internal flags */
+	/***** Internal flags. *****/
+	/* UNUSED CURRENTLY? ??? */
 	FUNC_BUILTIN           = (1 << 7),
+	/* UNUSED CURRENTLY. ??? */
 	FUNC_EXPORT            = (1 << 8),
+	/* Function has been defined at runtime, not statically in RNA source code. */
 	FUNC_RUNTIME           = (1 << 9),
+	/* UNUSED CURRENTLY? Function owns its identifier and description strings, and has to free them when deleted. */
 	FUNC_FREE_POINTERS     = (1 << 10),
 } FunctionFlag;
 
@@ -474,7 +509,6 @@ typedef struct ExtensionRNA {
 	StructRNA *srna;
 	StructCallbackFunc call;
 	StructFreeFunc free;
-	
 } ExtensionRNA;
 
 #ifdef __cplusplus

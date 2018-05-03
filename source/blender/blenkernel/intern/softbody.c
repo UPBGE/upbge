@@ -1580,12 +1580,12 @@ static void sb_sfesf_threads_run(const struct EvaluationContext *eval_ctx, Scene
 		sb_threads[i].tot= totthread;
 	}
 	if (totthread > 1) {
-		BLI_init_threads(&threads, exec_scan_for_ext_spring_forces, totthread);
+		BLI_threadpool_init(&threads, exec_scan_for_ext_spring_forces, totthread);
 
 		for (i=0; i<totthread; i++)
-			BLI_insert_thread(&threads, &sb_threads[i]);
+			BLI_threadpool_insert(&threads, &sb_threads[i]);
 
-		BLI_end_threads(&threads);
+		BLI_threadpool_end(&threads);
 	}
 	else
 		exec_scan_for_ext_spring_forces(&sb_threads[0]);
@@ -1991,7 +1991,8 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 			float compare;
 			float bstune = sb->ballstiff;
 
-			for (c=sb->totpoint, obp= sb->bpoint; c>=ifirst+bb; c--, obp++) {
+                        /* running in a slice we must not assume anything done with obp  neither alter the data of obp */
+			for (c=sb->totpoint, obp= sb->bpoint; c>0; c--, obp++) {
 				compare = (obp->colball + bp->colball);
 				sub_v3_v3v3(def, bp->pos, obp->pos);
 				/* rather check the AABBoxes before ever calulating the real distance */
@@ -2016,13 +2017,6 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 
 						madd_v3_v3fl(bp->force, def, f * (1.0f - sb->balldamp));
 						madd_v3_v3fl(bp->force, dvel, sb->balldamp);
-
-						/* exploit force(a, b) == -force(b, a) part2/2 */
-						sub_v3_v3v3(dvel, velcenter, obp->vec);
-						mul_v3_fl(dvel, _final_mass(ob, bp));
-
-						madd_v3_v3fl(obp->force, dvel, sb->balldamp);
-						madd_v3_v3fl(obp->force, def, -f * (1.0f - sb->balldamp));
 					}
 				}
 			}
@@ -2198,12 +2192,12 @@ static void sb_cf_threads_run(Scene *scene, Object *ob, float forcetime, float t
 
 
 	if (totthread > 1) {
-		BLI_init_threads(&threads, exec_softbody_calc_forces, totthread);
+		BLI_threadpool_init(&threads, exec_softbody_calc_forces, totthread);
 
 		for (i=0; i<totthread; i++)
-			BLI_insert_thread(&threads, &sb_threads[i]);
+			BLI_threadpool_insert(&threads, &sb_threads[i]);
 
-		BLI_end_threads(&threads);
+		BLI_threadpool_end(&threads);
 	}
 	else
 		exec_softbody_calc_forces(&sb_threads[0]);

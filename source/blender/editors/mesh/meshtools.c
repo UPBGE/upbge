@@ -42,12 +42,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 
-
-#include "BLI_kdtree.h"
 #include "BKE_context.h"
 #include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
@@ -57,6 +56,7 @@
 #include "BKE_mesh.h"
 #include "BKE_material.h"
 #include "BKE_object.h"
+#include "BKE_object_deform.h"
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
 #include "BKE_multires.h"
@@ -116,21 +116,12 @@ static void join_mesh_single(
 			BLI_assert(dvert != NULL);
 
 			/* Build src to merged mapping of vgroup indices. */
-			bDeformGroup *dg_src;
-			int *vgroup_index_map = alloca(sizeof(*vgroup_index_map) * BLI_listbase_count(&ob_src->defbase));
-			bool is_vgroup_remap_needed = false;
-
-			for (dg_src = ob_src->defbase.first, b = 0; dg_src; dg_src = dg_src->next, b++) {
-				vgroup_index_map[b] = defgroup_name_index(ob_dst, dg_src->name);
-				is_vgroup_remap_needed = is_vgroup_remap_needed || (vgroup_index_map[b] != b);
-			}
-
-			if (is_vgroup_remap_needed) {
-				for (a = 0; a < me->totvert; a++) {
-					for (b = 0; b < dvert[a].totweight; b++) {
-						dvert[a].dw[b].def_nr = vgroup_index_map[dvert_src[a].dw[b].def_nr];
-					}
-				}
+			int *vgroup_index_map;
+			int vgroup_index_map_len;
+			vgroup_index_map = BKE_object_defgroup_index_map_create(ob_src, ob_dst, &vgroup_index_map_len);
+			BKE_object_defgroup_index_map_apply(dvert, me->totvert, vgroup_index_map, vgroup_index_map_len);
+			if (vgroup_index_map != NULL) {
+				MEM_freeN(vgroup_index_map);
 			}
 		}
 
@@ -222,9 +213,10 @@ static void join_mesh_single(
 			multiresModifier_prepare_join(&eval_ctx, scene, ob_src, ob_dst);
 
 			if ((mmd = get_multires_modifier(scene, ob_src, true))) {
-				ED_object_iter_other(bmain, ob_src, true,
-				                     ED_object_multires_update_totlevels_cb,
-				                     &mmd->totlvl);
+				ED_object_iter_other(
+				        &eval_ctx, bmain, ob_src, true,
+				        ED_object_multires_update_totlevels_cb,
+				        &mmd->totlvl);
 			}
 		}
 
@@ -274,6 +266,7 @@ static void join_mesh_single(
 
 int join_mesh_exec(bContext *C, wmOperator *op)
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
@@ -293,7 +286,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 	bDeformGroup *dg, *odg;
 	CustomData vdata, edata, fdata, ldata, pdata;
 
-	if (scene->obedit) {
+	if (workspace->object_mode & OB_MODE_EDIT) {
 		BKE_report(op->reports, RPT_WARNING, "Cannot join while in edit mode");
 		return OPERATOR_CANCELLED;
 	}
@@ -567,12 +560,10 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 		if (ma)
 			id_us_min(&ma->id);
 	}
-	if (ob->mat) MEM_freeN(ob->mat);
-	if (ob->matbits) MEM_freeN(ob->matbits);
-	if (me->mat) MEM_freeN(me->mat);
-	ob->mat = me->mat = NULL;
-	ob->matbits = NULL;
-	
+	MEM_SAFE_FREE(ob->mat);
+	MEM_SAFE_FREE(ob->matbits);
+	MEM_SAFE_FREE(me->mat);
+
 	if (totcol) {
 		me->mat = matar;
 		ob->mat = MEM_callocN(sizeof(*ob->mat) * totcol, "join obmatar");
@@ -687,84 +678,6 @@ int join_mesh_shapes_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-/* -------------------------------------------------------------------- */
-/* Mesh Mirror (Spatial) */
-
-/** \name Mesh Spatial Mirror API
- * \{ */
-
-#define KD_THRESH      0.00002f
-
-static struct { void *tree; } MirrKdStore = {NULL};
-
-/* mode is 's' start, or 'e' end, or 'u' use */
-/* if end, ob can be NULL */
-int ED_mesh_mirror_spatial_table(Object *ob, BMEditMesh *em, DerivedMesh *dm, const float co[3], char mode)
-{
-	if (mode == 'u') {        /* use table */
-		if (MirrKdStore.tree == NULL)
-			ED_mesh_mirror_spatial_table(ob, em, dm, NULL, 's');
-
-		if (MirrKdStore.tree) {
-			KDTreeNearest nearest;
-			const int i = BLI_kdtree_find_nearest(MirrKdStore.tree, co, &nearest);
-
-			if (i != -1) {
-				if (nearest.dist < KD_THRESH) {
-					return i;
-				}
-			}
-		}
-		return -1;
-	}
-	else if (mode == 's') {   /* start table */
-		Mesh *me = ob->data;
-		const bool use_em = (!dm && em && me->edit_btmesh == em);
-		const int totvert = use_em ? em->bm->totvert : dm ? dm->getNumVerts(dm) : me->totvert;
-
-		if (MirrKdStore.tree) /* happens when entering this call without ending it */
-			ED_mesh_mirror_spatial_table(ob, em, dm, co, 'e');
-
-		MirrKdStore.tree = BLI_kdtree_new(totvert);
-
-		if (use_em) {
-			BMVert *eve;
-			BMIter iter;
-			int i;
-
-			/* this needs to be valid for index lookups later (callers need) */
-			BM_mesh_elem_table_ensure(em->bm, BM_VERT);
-
-			BM_ITER_MESH_INDEX (eve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
-				BLI_kdtree_insert(MirrKdStore.tree, i, eve->co);
-			}
-		}
-		else {
-			MVert *mvert = dm ? dm->getVertArray(dm) : me->mvert;
-			int i;
-			
-			for (i = 0; i < totvert; i++, mvert++) {
-				BLI_kdtree_insert(MirrKdStore.tree, i, mvert->co);
-			}
-		}
-
-		BLI_kdtree_balance(MirrKdStore.tree);
-	}
-	else if (mode == 'e') { /* end table */
-		if (MirrKdStore.tree) {
-			BLI_kdtree_free(MirrKdStore.tree);
-			MirrKdStore.tree = NULL;
-		}
-	}
-	else {
-		BLI_assert(0);
-	}
-
-	return 0;
-}
-
-/** \} */
-
 
 /* -------------------------------------------------------------------- */
 /* Mesh Mirror (Topology) */
@@ -777,15 +690,16 @@ static MirrTopoStore_t mesh_topo_store = {NULL, -1. - 1, -1};
 /* mode is 's' start, or 'e' end, or 'u' use */
 /* if end, ob can be NULL */
 /* note, is supposed return -1 on error, which callers are currently checking for, but is not used so far */
-int ED_mesh_mirror_topo_table(Object *ob, DerivedMesh *dm, char mode)
+int ED_mesh_mirror_topo_table(
+        Object *ob, DerivedMesh *dm, char mode)
 {
 	if (mode == 'u') {        /* use table */
-		if (ED_mesh_mirrtopo_recalc_check(ob->data, dm, ob->mode, &mesh_topo_store)) {
+		if (ED_mesh_mirrtopo_recalc_check(ob->data, dm, &mesh_topo_store)) {
 			ED_mesh_mirror_topo_table(ob, dm, 's');
 		}
 	}
 	else if (mode == 's') { /* start table */
-		ED_mesh_mirrtopo_init(ob->data, dm, ob->mode, &mesh_topo_store, false);
+		ED_mesh_mirrtopo_init(ob->data, dm, &mesh_topo_store, false);
 	}
 	else if (mode == 'e') { /* end table */
 		ED_mesh_mirrtopo_free(&mesh_topo_store);
@@ -1106,7 +1020,7 @@ bool ED_mesh_pick_face(bContext *C, Object *ob, const int mval[2], unsigned int 
 		return false;
 
 	CTX_data_eval_ctx(C, &eval_ctx);
-	view3d_set_viewcontext(C, &vc);
+	ED_view3d_viewcontext_init(C, &vc);
 
 	if (size) {
 		/* sample rect to increase chances of selecting, so that when clicking
@@ -1277,7 +1191,7 @@ bool ED_mesh_pick_vert(bContext *C, Object *ob, const int mval[2], unsigned int 
 	if (!me || me->totvert == 0)
 		return false;
 
-	view3d_set_viewcontext(C, &vc);
+	ED_view3d_viewcontext_init(C, &vc);
 
 	if (use_zbuf) {
 		if (size > 0) {
@@ -1339,17 +1253,17 @@ bool ED_mesh_pick_vert(bContext *C, Object *ob, const int mval[2], unsigned int 
 
 MDeformVert *ED_mesh_active_dvert_get_em(Object *ob, BMVert **r_eve)
 {
-	if (ob->mode & OB_MODE_EDIT && ob->type == OB_MESH && ob->defbase.first) {
+	if (ob->type == OB_MESH && ob->defbase.first) {
 		Mesh *me = ob->data;
-		BMesh *bm = me->edit_btmesh->bm;
-		const int cd_dvert_offset = CustomData_get_offset(&bm->vdata, CD_MDEFORMVERT);
-
-		if (cd_dvert_offset != -1) {
-			BMVert *eve = BM_mesh_active_vert_get(bm);
-
-			if (eve) {
-				if (r_eve) *r_eve = eve;
-				return BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset);
+		if (me->edit_btmesh != NULL) {
+			BMesh *bm = me->edit_btmesh->bm;
+			const int cd_dvert_offset = CustomData_get_offset(&bm->vdata, CD_MDEFORMVERT);
+			if (cd_dvert_offset != -1) {
+				BMVert *eve = BM_mesh_active_vert_get(bm);
+				if (eve) {
+					if (r_eve) *r_eve = eve;
+					return BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset);
+				}
 			}
 		}
 	}
@@ -1374,7 +1288,8 @@ MDeformVert *ED_mesh_active_dvert_get_ob(Object *ob, int *r_index)
 MDeformVert *ED_mesh_active_dvert_get_only(Object *ob)
 {
 	if (ob->type == OB_MESH) {
-		if (ob->mode & OB_MODE_EDIT) {
+		Mesh *me = ob->data;
+		if (me->edit_btmesh != NULL) {
 			return ED_mesh_active_dvert_get_em(ob, NULL);
 		}
 		else {

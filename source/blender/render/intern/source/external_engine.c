@@ -1,11 +1,10 @@
 /*
-
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -42,6 +41,8 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_object_types.h"
+
 #include "BKE_camera.h"
 #include "BKE_global.h"
 #include "BKE_colortools.h"
@@ -50,6 +51,7 @@
 #include "BKE_scene.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "RNA_access.h"
 
@@ -142,6 +144,13 @@ bool RE_engine_is_external(Render *re)
 	return (re->engine && re->engine->type && re->engine->type->render_to_image);
 }
 
+bool RE_engine_is_opengl(RenderEngineType *render_type)
+{
+	/* TODO refine? Can we have ogl render engine without ogl render pipeline? */
+	return (render_type->draw_engine != NULL) &&
+	       DRW_engine_render_support(render_type->draw_engine);
+}
+
 /* Create, Free */
 
 RenderEngine *RE_engine_create(RenderEngineType *type)
@@ -157,7 +166,7 @@ RenderEngine *RE_engine_create_ex(RenderEngineType *type, bool use_for_viewport)
 	if (use_for_viewport) {
 		engine->flag |= RE_ENGINE_USED_FOR_VIEWPORT;
 
-		BLI_begin_threaded_malloc();
+		BLI_threaded_malloc_begin();
 	}
 
 	return engine;
@@ -172,7 +181,7 @@ void RE_engine_free(RenderEngine *engine)
 #endif
 
 	if (engine->flag & RE_ENGINE_USED_FOR_VIEWPORT) {
-		BLI_end_threaded_malloc();
+		BLI_threaded_malloc_end();
 	}
 
 	MEM_freeN(engine);
@@ -506,9 +515,8 @@ RenderData *RE_engine_get_render_data(Render *re)
 }
 
 /* Bake */
-void RE_bake_engine_set_engine_parameters(Render *re, Main *bmain, Depsgraph *graph, Scene *scene)
+void RE_bake_engine_set_engine_parameters(Render *re, Main *bmain, Scene *scene)
 {
-	re->depsgraph = graph;
 	re->scene = scene;
 	re->main = bmain;
 	render_copy_renderdata(&re->r, &scene->r);
@@ -559,20 +567,35 @@ bool RE_bake_engine(
 
 	/* update is only called so we create the engine.session */
 	if (type->update)
-		type->update(engine, re->main, re->depsgraph, re->scene);
+		type->update(engine, re->main, re->scene);
 
 	if (type->bake) {
-		type->bake(
-		            engine,
-		            re->scene,
-		            object,
-		            pass_type,
-		            pass_filter,
-		            object_id,
-		            pixel_array,
-		            num_pixels,
-		            depth,
-		            result);
+		EvaluationContext *eval_ctx = DEG_evaluation_context_new(DAG_EVAL_RENDER);
+		Depsgraph *depsgraph = DEG_graph_new();
+		ViewLayer *view_layer = BLI_findlink(&re->scene->view_layers, re->scene->active_view_layer);
+
+		DEG_evaluation_context_init_from_view_layer_for_render(
+					eval_ctx,
+					depsgraph,
+					re->scene,
+					view_layer);
+
+		BKE_scene_graph_update_tagged(eval_ctx, depsgraph, re->main, re->scene, view_layer);
+
+		type->bake(engine,
+		           depsgraph,
+		           re->scene,
+		           object,
+		           pass_type,
+		           pass_filter,
+		           object_id,
+		           pixel_array,
+		           num_pixels,
+		           depth,
+		           result);
+
+		DEG_graph_free(depsgraph);
+		DEG_evaluation_context_free(eval_ctx);
 	}
 
 	engine->tile_x = 0;
@@ -609,8 +632,6 @@ void RE_engine_frame_set(RenderEngine *engine, int frame, float subframe)
 	BPy_BEGIN_ALLOW_THREADS;
 #endif
 
-	BKE_scene_graph_update_for_newframe(re->eval_ctx, re->depsgraph, re->main, scene, NULL);
-
 #ifdef WITH_PYTHON
 	BPy_END_ALLOW_THREADS;
 #endif
@@ -644,7 +665,6 @@ int RE_engine_render(Render *re, int do_all)
 	/* update animation here so any render layer animation is applied before
 	 * creating the render result */
 	if ((re->r.scemode & (R_NO_FRAME_UPDATE | R_BUTS_PREVIEW)) == 0) {
-		BKE_scene_graph_update_for_newframe(re->eval_ctx, re->depsgraph, re->main, re->scene, NULL);
 		render_update_anim_renderdata(re, &re->scene->r, &re->scene->view_layers);
 	}
 
@@ -711,7 +731,7 @@ int RE_engine_render(Render *re, int do_all)
 		render_result_exr_file_begin(re);
 
 	if (type->update) {
-		type->update(engine, re->main, re->depsgraph, re->scene);
+		type->update(engine, re->main, re->scene);
 	}
 
 	/* Clear UI drawing locks. */
@@ -720,7 +740,25 @@ int RE_engine_render(Render *re, int do_all)
 	}
 
 	if (type->render_to_image) {
-		type->render_to_image(engine, re->depsgraph);
+		FOREACH_VIEW_LAYER_TO_RENDER_BEGIN(re, view_layer_iter)
+		{
+			EvaluationContext *eval_ctx = DEG_evaluation_context_new(DAG_EVAL_RENDER);
+			Depsgraph *depsgraph = DEG_graph_new();
+			ViewLayer *view_layer = BLI_findstring(&re->scene->view_layers, view_layer_iter->name, offsetof(ViewLayer, name));
+
+			DEG_evaluation_context_init_from_view_layer_for_render(
+						eval_ctx,
+						depsgraph,
+						re->scene,
+						view_layer);
+
+			BKE_scene_graph_update_tagged(eval_ctx, depsgraph, re->main, re->scene, view_layer);
+			type->render_to_image(engine, depsgraph);
+
+			DEG_graph_free(depsgraph);
+			DEG_evaluation_context_free(eval_ctx);
+		}
+		FOREACH_VIEW_LAYER_TO_RENDER_END;
 	}
 
 	engine->tile_x = 0;
@@ -782,9 +820,4 @@ void RE_engine_register_pass(struct RenderEngine *engine, struct Scene *scene, s
 			ntreeCompositRegisterPass(sce->nodetree, scene, view_layer, name, type);
 		}
 	}
-}
-
-ViewLayer *RE_engine_get_view_layer(Render *re)
-{
-	return re->eval_ctx->view_layer;
 }

@@ -998,7 +998,7 @@ static short pose_grab_with_ik(Object *ob)
 	Bone *bonec;
 	short tot_ik = 0;
 
-	if ((ob == NULL) || (ob->pose == NULL) || (ob->mode & OB_MODE_POSE) == 0)
+	if ((ob == NULL) || (ob->pose == NULL))
 		return 0;
 
 	arm = ob->data;
@@ -1893,7 +1893,7 @@ static void createTransParticleVerts(bContext *C, TransInfo *t)
 	TransDataExtension *tx;
 	Object *ob = CTX_data_active_object(C);
 	ParticleEditSettings *pset = PE_settings(t->scene);
-	PTCacheEdit *edit = PE_get_current(t->scene, t->view_layer, ob);
+	PTCacheEdit *edit = PE_get_current(t->scene, ob);
 	ParticleSystem *psys = NULL;
 	ParticleSystemModifierData *psmd = NULL;
 	PTCacheEditPoint *point;
@@ -2010,7 +2010,7 @@ void flushTransParticles(TransInfo *t)
 	Scene *scene = t->scene;
 	ViewLayer *view_layer = t->view_layer;
 	Object *ob = OBACT(view_layer);
-	PTCacheEdit *edit = PE_get_current(scene, view_layer, ob);
+	PTCacheEdit *edit = PE_get_current(scene, ob);
 	ParticleSystem *psys = edit->psys;
 	ParticleSystemModifierData *psmd = NULL;
 	PTCacheEditPoint *point;
@@ -2049,9 +2049,7 @@ void flushTransParticles(TransInfo *t)
 			point->flag |= PEP_EDIT_RECALC;
 	}
 
-	EvaluationContext eval_ctx;
-	CTX_data_eval_ctx(t->context, &eval_ctx);
-	PE_update_object(&eval_ctx, scene, view_layer, OBACT(view_layer), 1);
+	PE_update_object(&t->eval_ctx, scene, OBACT(view_layer), 1);
 }
 
 /* ********************* mesh ****************** */
@@ -2463,7 +2461,6 @@ static void createTransEditVerts(TransInfo *t)
 {
 	TransData *tob = NULL;
 	TransDataExtension *tx = NULL;
-	EvaluationContext eval_ctx;
 	BMEditMesh *em = BKE_editmesh_from_object(t->obedit);
 	Mesh *me = t->obedit->data;
 	BMesh *bm = em->bm;
@@ -2481,10 +2478,6 @@ static void createTransEditVerts(TransInfo *t)
 	struct TransIslandData *island_info = NULL;
 	int island_info_tot;
 	int *island_vert_map = NULL;
-
-	DEG_evaluation_context_init_from_scene(&eval_ctx,
-	                                       t->scene, t->view_layer, t->engine_type,
-	                                       DAG_EVAL_VIEWPORT);
 
 	/* Even for translation this is needed because of island-orientation, see: T51651. */
 	const bool is_island_center = (t->around == V3D_AROUND_LOCAL_ORIGINS);
@@ -2566,10 +2559,10 @@ static void createTransEditVerts(TransInfo *t)
 	/* detect CrazySpace [tm] */
 	if (modifiers_getCageIndex(t->scene, t->obedit, NULL, 1) != -1) {
 		int totleft = -1;
-		if (modifiers_isCorrectableDeformed(t->scene, t->obedit)) {
+		if (modifiers_isCorrectableDeformed(&t->eval_ctx, t->scene, t->obedit)) {
 			/* check if we can use deform matrices for modifier from the
 			 * start up to stack, they are more accurate than quats */
-			totleft = BKE_crazyspace_get_first_deform_matrices_editbmesh(&eval_ctx, t->scene, t->obedit, em, &defmats, &defcos);
+			totleft = BKE_crazyspace_get_first_deform_matrices_editbmesh(&t->eval_ctx, t->scene, t->obedit, em, &defmats, &defcos);
 		}
 
 		/* if we still have more modifiers, also do crazyspace
@@ -2582,7 +2575,7 @@ static void createTransEditVerts(TransInfo *t)
 		if (totleft > 0)
 #endif
 		{
-			mappedcos = BKE_crazyspace_get_mapped_editverts(&eval_ctx, t->scene, t->obedit);
+			mappedcos = BKE_crazyspace_get_mapped_editverts(&t->eval_ctx, t->scene, t->obedit);
 			quats = MEM_mallocN(em->bm->totvert * sizeof(*quats), "crazy quats");
 			BKE_crazyspace_set_quats_editmesh(em, defcos, mappedcos, quats, !prop_mode);
 			if (mappedcos)
@@ -2976,7 +2969,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
 	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 		BMLoop *l;
 
-		if (!uvedit_face_visible_test(scene, ima, efa)) {
+		if (!uvedit_face_visible_test(scene, t->obedit, ima, efa)) {
 			BM_elem_flag_disable(efa, BM_ELEM_TAG);
 			continue;
 		}
@@ -3504,65 +3497,134 @@ static void posttrans_mask_clean(Mask *mask)
 	}
 }
 
+/* Time + Average value */
+typedef struct tRetainedKeyframe {
+	struct tRetainedKeyframe *next, *prev;
+	float frame;      /* frame to cluster around */
+	float val;        /* average value */
+	
+	size_t tot_count; /* number of keyframes that have been averaged */
+	size_t del_count; /* number of keyframes of this sort that have been deleted so far */
+} tRetainedKeyframe;
+
 /* Called during special_aftertrans_update to make sure selected keyframes replace
  * any other keyframes which may reside on that frame (that is not selected).
  */
 static void posttrans_fcurve_clean(FCurve *fcu, const bool use_handle)
 {
-	float *selcache;    /* cache for frame numbers of selected frames (fcu->totvert*sizeof(float)) */
-	int len, index, i;  /* number of frames in cache, item index */
-
-	/* allocate memory for the cache */
-	// TODO: investigate using BezTriple columns instead?
-	if (fcu->totvert == 0 || fcu->bezt == NULL)
+	/* NOTE: We assume that all keys are sorted */
+	ListBase retained_keys = {NULL, NULL};
+	const bool can_average_points = ((fcu->flag & (FCURVE_INT_VALUES | FCURVE_DISCRETE_VALUES)) == 0);
+	
+	/* sanity checks */
+	if ((fcu->totvert == 0) || (fcu->bezt == NULL))
 		return;
-	selcache = MEM_callocN(sizeof(float) * fcu->totvert, "FCurveSelFrameNums");
-	len = 0;
-	index = 0;
-
-	/* We do 2 loops, 1 for marking keyframes for deletion, one for deleting
-	 * as there is no guarantee what order the keyframes are exactly, even though
-	 * they have been sorted by time.
+	
+	/* 1) Identify selected keyframes, and average the values on those
+	 * in case there are collisions due to multiple keys getting scaled
+	 * to all end up on the same frame
 	 */
-
-	/*	Loop 1: find selected keyframes   */
-	for (i = 0; i < fcu->totvert; i++) {
+	for (int i = 0; i < fcu->totvert; i++) {
 		BezTriple *bezt = &fcu->bezt[i];
 		
 		if (BEZT_ISSEL_ANY(bezt)) {
-			selcache[index] = bezt->vec[1][0];
-			index++;
-			len++;
-		}
-	}
-
-	/* Loop 2: delete unselected keyframes on the same frames 
-	 * (if any keyframes were found, or the whole curve wasn't affected) 
-	 */
-	if ((len) && (len != fcu->totvert)) {
-		for (i = fcu->totvert - 1; i >= 0; i--) {
-			BezTriple *bezt = &fcu->bezt[i];
+			bool found = false;
 			
-			if (BEZT_ISSEL_ANY(bezt) == 0) {
-				/* check beztriple should be removed according to cache */
-				for (index = 0; index < len; index++) {
-					if (IS_EQF(bezt->vec[1][0], selcache[index])) {
-						delete_fcurve_key(fcu, i, 0);
-						break;
-					}
-					else if (bezt->vec[1][0] < selcache[index])
-						break;
+			/* If there's another selected frame here, merge it */
+			for (tRetainedKeyframe *rk = retained_keys.last; rk; rk = rk->prev) {
+				if (IS_EQT(rk->frame, bezt->vec[1][0], BEZT_BINARYSEARCH_THRESH)) {
+					rk->val += bezt->vec[1][1];
+					rk->tot_count++;
+					
+					found = true;
+					break;
+				}
+				else if (rk->frame < bezt->vec[1][0]) {
+					/* Terminate early if have passed the supposed insertion point? */
+					break;
 				}
 			}
+			
+			/* If nothing found yet, create a new one */
+			if (found == false) {
+				tRetainedKeyframe *rk = MEM_callocN(sizeof(tRetainedKeyframe), "tRetainedKeyframe");
+				
+				rk->frame = bezt->vec[1][0];
+				rk->val   = bezt->vec[1][1];
+				rk->tot_count = 1;
+				
+				BLI_addtail(&retained_keys, rk);
+			}
 		}
-		
-		testhandles_fcurve(fcu, use_handle);
 	}
-
-	/* free cache */
-	MEM_freeN(selcache);
+	
+	if (BLI_listbase_is_empty(&retained_keys)) {
+		/* This may happen if none of the points were selected... */
+		if (G.debug & G_DEBUG) {
+			printf("%s: nothing to do for FCurve %p (rna_path = '%s')\n", __func__, fcu, fcu->rna_path);
+		}
+		return;
+	}
+	else {
+		/* Compute the average values for each retained keyframe */
+		for (tRetainedKeyframe *rk = retained_keys.first; rk; rk = rk->next) {
+			rk->val = rk->val / (float)rk->tot_count;
+		}
+	}
+	
+	/* 2) Delete all keyframes duplicating the "retained keys" found above
+	 *   - Most of these will be unselected keyframes
+	 *   - Some will be selected keyframes though. For those, we only keep the last one
+	 *     (or else everything is gone), and replace its value with the averaged value. 
+	 */
+	for (int i = fcu->totvert - 1; i >= 0; i--) {
+		BezTriple *bezt = &fcu->bezt[i];
+		
+		/* Is this keyframe a candidate for deletion? */
+		/* TODO: Replace loop with an O(1) lookup instead */
+		for (tRetainedKeyframe *rk = retained_keys.last; rk; rk = rk->prev) {
+			if (IS_EQT(bezt->vec[1][0], rk->frame, BEZT_BINARYSEARCH_THRESH)) {
+				/* Selected keys are treated with greater care than unselected ones... */
+				if (BEZT_ISSEL_ANY(bezt)) {
+					/* - If this is the last selected key left (based on rk->del_count) ==> UPDATE IT
+					 *   (or else we wouldn't have any keyframe left here)
+					 * - Otherwise, there are still other selected keyframes on this frame
+					 *   to be merged down still ==> DELETE IT
+					 */
+					if (rk->del_count == rk->tot_count - 1) {
+						/* Update keyframe... */
+						if (can_average_points) {
+							/* TODO: update handles too? */
+							bezt->vec[1][1] = rk->val;
+						}
+					}
+					else {
+						/* Delete Keyframe */
+						delete_fcurve_key(fcu, i, 0);
+					}
+					
+					/* Update count of how many we've deleted
+					 * - It should only matter that we're doing this for all but the last one
+					 */
+					rk->del_count++;
+				}
+				else {
+					/* Always delete - Unselected keys don't matter */
+					delete_fcurve_key(fcu, i, 0);
+				}
+								
+				/* Stop the RK search... we've found our match now */
+				break;
+			}
+		}
+	}
+	
+	/* 3) Recalculate handles */
+	testhandles_fcurve(fcu, use_handle);
+	
+	/* cleanup */
+	BLI_freelistN(&retained_keys);
 }
-
 
 
 /* Called by special_aftertrans_update to make sure selected keyframes replace
@@ -5408,9 +5470,6 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
 	Scene *scene = t->scene;
 	bool constinv;
 	bool skip_invert = false;
-	EvaluationContext eval_ctx;
-
-	CTX_data_eval_ctx(t->context, &eval_ctx);
 
 	if (t->mode != TFM_DUMMY && ob->rigidbody_object) {
 		float rot[3][3], scale[3];
@@ -5458,11 +5517,11 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
 
 	if (skip_invert == false && constinv == false) {
 		ob->transflag |= OB_NO_CONSTRAINTS;  /* BKE_object_where_is_calc_time checks this */
-		BKE_object_where_is_calc(&eval_ctx, t->scene, ob);
+		BKE_object_where_is_calc(&t->eval_ctx, t->scene, ob);
 		ob->transflag &= ~OB_NO_CONSTRAINTS;
 	}
 	else
-		BKE_object_where_is_calc(&eval_ctx, t->scene, ob);
+		BKE_object_where_is_calc(&t->eval_ctx, t->scene, ob);
 
 	td->ob = ob;
 
@@ -6103,14 +6162,11 @@ static void special_aftertrans_update__mesh(bContext *UNUSED(C), TransInfo *t)
  * */
 void special_aftertrans_update(bContext *C, TransInfo *t)
 {
-	EvaluationContext eval_ctx;
 	Object *ob;
 //	short redrawipo=0, resetslowpar=1;
 	const bool canceled = (t->state == TRANS_CANCEL);
 	const bool duplicate = (t->mode == TFM_TIME_DUPLICATE);
 
-	CTX_data_eval_ctx(C, &eval_ctx);
-	
 	/* early out when nothing happened */
 	if (t->total == 0 || t->mode == TFM_DUMMY)
 		return;
@@ -6449,7 +6505,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			 * we need to update the pose otherwise no updates get called during
 			 * transform and the auto-ik is not applied. see [#26164] */
 			struct Object *pose_ob = t->poseobj;
-			BKE_pose_where_is(&eval_ctx, t->scene, pose_ob);
+			BKE_pose_where_is(&t->eval_ctx, t->scene, pose_ob);
 		}
 
 		/* set BONE_TRANSFORM flags for autokey, manipulator draw might have changed them */
@@ -6493,8 +6549,8 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 	}
 	else if ((t->view_layer->basact) &&
 	         (ob = t->view_layer->basact->object) &&
-	         (ob->mode & OB_MODE_PARTICLE_EDIT) &&
-	         PE_get_current(t->scene, t->view_layer, ob))
+	         (t->eval_ctx.object_mode & OB_MODE_PARTICLE_EDIT) &&
+	         PE_get_current(t->scene, ob))
 	{
 		/* do nothing */
 	}
@@ -8231,26 +8287,28 @@ void createTransData(bContext *C, TransInfo *t)
 			t->poseobj = ob;    /* <- tsk tsk, this is going to give issues one day */
 		}
 	}
-	else if (ob && (ob->mode & OB_MODE_POSE)) {
+	else if (ob && (t->eval_ctx.object_mode & OB_MODE_POSE)) {
 		// XXX this is currently limited to active armature only...
 		// XXX active-layer checking isn't done as that should probably be checked through context instead
 		createTransPose(t, ob);
 	}
-	else if (ob && (ob->mode & OB_MODE_WEIGHT_PAINT) && !(t->options & CTX_PAINT_CURVE)) {
+	else if (ob && (t->eval_ctx.object_mode & OB_MODE_WEIGHT_PAINT) && !(t->options & CTX_PAINT_CURVE)) {
 		/* important that ob_armature can be set even when its not selected [#23412]
 		 * lines below just check is also visible */
 		Object *ob_armature = modifiers_isDeformedByArmature(ob);
-		if (ob_armature && ob_armature->mode & OB_MODE_POSE) {
+		if (ob_armature) {
+//			const bArmature *arm = ob_armature->data;
 			Base *base_arm = BKE_view_layer_base_find(t->view_layer, ob_armature);
 			if (base_arm) {
 				if (BASE_VISIBLE(base_arm)) {
 					createTransPose(t, ob_armature);
 				}
 			}
-			
 		}
 	}
-	else if (ob && (ob->mode & OB_MODE_PARTICLE_EDIT) && PE_start_edit(PE_get_current(scene, view_layer, ob))) {
+	else if (ob && (t->eval_ctx.object_mode & OB_MODE_PARTICLE_EDIT) &&
+	         PE_start_edit(PE_get_current(scene, ob)))
+	{
 		createTransParticleVerts(C, t);
 		t->flag |= T_POINTS;
 
@@ -8260,7 +8318,7 @@ void createTransData(bContext *C, TransInfo *t)
 			sort_trans_data_dist(t);
 		}
 	}
-	else if (ob && (ob->mode & OB_MODE_ALL_PAINT)) {
+	else if (ob && (t->eval_ctx.object_mode & OB_MODE_ALL_PAINT)) {
 		if ((t->options & CTX_PAINT_CURVE) && !ELEM(t->mode, TFM_SHEAR, TFM_SHRINKFATTEN)) {
 			t->flag |= T_POINTS | T_2D_EDIT;
 			createTransPaintCurveVerts(C, t);

@@ -65,12 +65,11 @@
 #include "MEM_guardedalloc.h"
 #include "DEG_depsgraph.h"
 
-#define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
 
 void BKE_object_eval_local_transform(const EvaluationContext *UNUSED(eval_ctx),
                                      Object *ob)
 {
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, ob->id.name, ob);
+	DEG_debug_print_eval(__func__, ob->id.name, ob);
 
 	/* calculate local matrix */
 	BKE_object_to_mat4(ob, ob->obmat);
@@ -88,7 +87,7 @@ void BKE_object_eval_parent(const EvaluationContext *UNUSED(eval_ctx),
 	float tmat[4][4];
 	float locmat[4][4];
 
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, ob->id.name, ob);
+	DEG_debug_print_eval(__func__, ob->id.name, ob);
 
 	/* get local matrix (but don't calculate it, as that was done already!) */
 	// XXX: redundant?
@@ -117,7 +116,7 @@ void BKE_object_eval_constraints(const EvaluationContext *eval_ctx,
 	bConstraintOb *cob;
 	float ctime = BKE_scene_frame_get(scene);
 
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, ob->id.name, ob);
+	DEG_debug_print_eval(__func__, ob->id.name, ob);
 
 	/* evaluate constraints stack */
 	/* TODO: split this into:
@@ -135,7 +134,7 @@ void BKE_object_eval_constraints(const EvaluationContext *eval_ctx,
 
 void BKE_object_eval_done(const EvaluationContext *UNUSED(eval_ctx), Object *ob)
 {
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, ob->id.name, ob);
+	DEG_debug_print_eval(__func__, ob->id.name, ob);
 
 	/* Set negative scale flag in object. */
 	if (is_negative_m4(ob->obmat)) ob->transflag |= OB_NEG_SCALE;
@@ -152,7 +151,7 @@ void BKE_object_handle_data_update(
 	Key *key;
 	float ctime = BKE_scene_frame_get(scene);
 
-	if (G.debug & G_DEBUG_DEPSGRAPH)
+	if (G.debug & G_DEBUG_DEPSGRAPH_EVAL)
 		printf("recalcdata %s\n", ob->id.name + 2);
 
 	/* TODO(sergey): Only used by legacy depsgraph. */
@@ -173,7 +172,7 @@ void BKE_object_handle_data_update(
 	switch (ob->type) {
 		case OB_MESH:
 		{
-			BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
+			BMEditMesh *em = (eval_ctx->object_mode & OB_MODE_EDIT) ? BKE_editmesh_from_object(ob) : NULL;
 			uint64_t data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
 #ifdef WITH_FREESTYLE
 			/* make sure Freestyle edge/face marks appear in DM for render (see T40315) */
@@ -223,7 +222,7 @@ void BKE_object_handle_data_update(
 	}
 
 	/* particles */
-	if (ob != scene->obedit && ob->particlesystem.first) {
+	if ((ob != OBEDIT_FROM_EVAL_CTX(eval_ctx)) && ob->particlesystem.first) {
 		ParticleSystem *tpsys, *psys;
 		DerivedMesh *dm;
 		ob->transflag &= ~OB_DUPLIPARTS;
@@ -305,7 +304,7 @@ void BKE_object_eval_uber_data(const EvaluationContext *eval_ctx,
                                Scene *scene,
                                Object *ob)
 {
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, ob->id.name, ob);
+	DEG_debug_print_eval(__func__, ob->id.name, ob);
 	BLI_assert(ob->type != OB_ARMATURE);
 	BKE_object_handle_data_update(eval_ctx, scene, ob);
 
@@ -361,7 +360,7 @@ void BKE_object_eval_uber_data(const EvaluationContext *eval_ctx,
 				 * This way we can restore original object data when we are freeing
 				 * evaluated mesh.
 				 */
-				new_mesh->id.newid = &mesh->id;
+				new_mesh->id.orig_id = &mesh->id;
 			}
 #if 0
 			if (ob->derivedFinal != NULL) {
@@ -383,7 +382,7 @@ void BKE_object_eval_cloth(const EvaluationContext *UNUSED(eval_ctx),
                            Scene *scene,
                            Object *object)
 {
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, object->id.name, object);
+	DEG_debug_print_eval(__func__, object->id.name, object);
 	BKE_ptcache_object_reset(scene, object, PTCACHE_RESET_DEPSGRAPH);
 }
 
@@ -406,7 +405,7 @@ void BKE_object_eval_transform_all(const EvaluationContext *eval_ctx,
 void BKE_object_eval_update_shading(const EvaluationContext *UNUSED(eval_ctx),
                                     Object *object)
 {
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, object->id.name, object);
+	DEG_debug_print_eval(__func__, object->id.name, object);
 	if (object->type == OB_MESH) {
 		BKE_mesh_batch_cache_dirty(object->data, BKE_MESH_BATCH_DIRTY_SHADING);
 	}
@@ -415,7 +414,7 @@ void BKE_object_eval_update_shading(const EvaluationContext *UNUSED(eval_ctx),
 void BKE_object_data_select_update(const EvaluationContext *UNUSED(eval_ctx),
                                    struct ID *object_data)
 {
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, object_data->name, object_data);
+	DEG_debug_print_eval(__func__, object_data->name, object_data);
 	switch (GS(object_data->name)) {
 		case ID_ME:
 			BKE_mesh_batch_cache_dirty((Mesh *)object_data,
@@ -437,11 +436,15 @@ void BKE_object_data_select_update(const EvaluationContext *UNUSED(eval_ctx),
 void BKE_object_eval_flush_base_flags(const EvaluationContext *UNUSED(eval_ctx),
                                       Object *object, Base *base, bool is_from_set)
 {
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, object->id.name, object);
+	DEG_debug_print_eval(__func__, object->id.name, object);
+
 	/* Make sure we have the base collection settings is already populated.
-	 * This will fail when BKE_layer_eval_layer_collection_pre hasn't run yet
-	 * Which usually means a missing call to DEG_id_tag_update(). */
+	 * This will fail when BKE_layer_eval_layer_collection_pre hasn't run yet.
+	 *
+	 * Which usually means a missing call to DEG_id_tag_update(id, DEG_TAG_BASE_FLAGS_UPDATE).
+	 * Either of the entire scene, or of the newly added objects.*/
 	BLI_assert(!BLI_listbase_is_empty(&base->collection_properties->data.group));
+
 	/* Copy flags and settings from base. */
 	object->base_flag = base->flag;
 	if (is_from_set) {

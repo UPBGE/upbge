@@ -40,8 +40,8 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_fluidsim.h"
-#include "DNA_object_force.h" // for pointcache
+#include "DNA_object_fluidsim_types.h"
+#include "DNA_object_force_types.h" // for pointcache
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
@@ -54,7 +54,6 @@
 #include "BKE_customdata.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_fluidsim.h"
-#include "BKE_global.h"
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
 

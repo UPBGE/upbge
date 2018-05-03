@@ -54,6 +54,7 @@
 #include "BKE_node.h"
 
 #include "BKE_animsys.h"
+#include "BKE_colorband.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -161,15 +162,15 @@ static void tex_normal_derivate(Tex *tex, TexResult *texres)
 {
 	if (tex->flag & TEX_COLORBAND) {
 		float col[4];
-		if (do_colorband(tex->coba, texres->tin, col)) {
+		if (BKE_colorband_evaluate(tex->coba, texres->tin, col)) {
 			float fac0, fac1, fac2, fac3;
 			
 			fac0= (col[0]+col[1]+col[2]);
-			do_colorband(tex->coba, texres->nor[0], col);
+			BKE_colorband_evaluate(tex->coba, texres->nor[0], col);
 			fac1= (col[0]+col[1]+col[2]);
-			do_colorband(tex->coba, texres->nor[1], col);
+			BKE_colorband_evaluate(tex->coba, texres->nor[1], col);
 			fac2= (col[0]+col[1]+col[2]);
-			do_colorband(tex->coba, texres->nor[2], col);
+			BKE_colorband_evaluate(tex->coba, texres->nor[2], col);
 			fac3= (col[0]+col[1]+col[2]);
 			
 			texres->nor[0]= (fac0 - fac1) / 3.0f;
@@ -1218,7 +1219,7 @@ static int multitex(Tex *tex,
 
 	if (tex->flag & TEX_COLORBAND) {
 		float col[4];
-		if (do_colorband(tex->coba, texres->tin, col)) {
+		if (BKE_colorband_evaluate(tex->coba, texres->tin, col)) {
 			texres->talpha = true;
 			texres->tr= col[0];
 			texres->tg= col[1];
@@ -3674,7 +3675,7 @@ void render_realtime_texture(ShadeInput *shi, Image *ima)
 	if (R.r.scemode & R_NO_TEX) return;
 
 	if (firsttime) {
-		BLI_lock_thread(LOCK_IMAGE);
+		BLI_thread_lock(LOCK_IMAGE);
 		if (firsttime) {
 			const int num_threads = BLI_system_thread_count();
 			for (a = 0; a < num_threads; a++) {
@@ -3685,7 +3686,7 @@ void render_realtime_texture(ShadeInput *shi, Image *ima)
 
 			firsttime= 0;
 		}
-		BLI_unlock_thread(LOCK_IMAGE);
+		BLI_thread_unlock(LOCK_IMAGE);
 	}
 	
 	tex= &imatex[shi->thread];
@@ -3744,7 +3745,7 @@ static void textured_face_generate_uv(
 }
 
 /* Generate an updated copy of material to use for color sampling. */
-Material *RE_sample_material_init(Material *orig_mat, Scene *scene)
+Material *RE_sample_material_init(const EvaluationContext *eval_ctx, Material *orig_mat, Scene *scene)
 {
 	Tex *tex = NULL;
 	Material *mat;
@@ -3753,7 +3754,7 @@ Material *RE_sample_material_init(Material *orig_mat, Scene *scene)
 	if (!orig_mat) return NULL;
 
 	/* copy material */
-	mat = localize_material(orig_mat);
+	mat = BKE_material_localize(orig_mat);
 
 	/* update material anims */
 	BKE_animsys_evaluate_animdata(scene, &mat->id, mat->adt, BKE_scene_frame_get(scene), ADT_RECALC_ANIM);
@@ -3820,7 +3821,7 @@ Material *RE_sample_material_init(Material *orig_mat, Scene *scene)
 				unit_m4(dummy_re.viewmat);
 				unit_m4(dummy_re.winmat);
 				dummy_re.winx = dummy_re.winy = 128;
-				cache_pointdensity(&dummy_re, tex->pd);
+				cache_pointdensity(eval_ctx, &dummy_re, tex->pd);
 			}
 
 			/* update image sequences and movies */

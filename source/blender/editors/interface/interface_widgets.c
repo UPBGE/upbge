@@ -55,6 +55,7 @@
 #include "interface_intern.h"
 
 #include "GPU_basic_shader.h"
+#include "GPU_batch.h"
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
 #include "GPU_matrix.h"
@@ -79,6 +80,7 @@ enum {
 #define UI_BUT_UPDATE_DELAY ((void)0)
 #define UI_BUT_UNDO ((void)0)
 
+
 /* ************** widget base functions ************** */
 /**
  * - in: roundbox codes for corner types and radius
@@ -98,6 +100,8 @@ enum {
 
 typedef struct uiWidgetTrias {
 	unsigned int tot;
+	int type;
+	float size, center[2];
 	
 	float vec[16][2];
 	const unsigned int (*index)[3];
@@ -105,21 +109,35 @@ typedef struct uiWidgetTrias {
 } uiWidgetTrias;
 
 /* max as used by round_box__edges */
+/* Make sure to change widget_base_vert.glsl accordingly. */
 #define WIDGET_CURVE_RESOLU 9
 #define WIDGET_SIZE_MAX (WIDGET_CURVE_RESOLU * 4)
 
 typedef struct uiWidgetBase {
-	
+	/* TODO remove these completely */
 	int totvert, halfwayvert;
 	float outer_v[WIDGET_SIZE_MAX][2];
 	float inner_v[WIDGET_SIZE_MAX][2];
 	float inner_uv[WIDGET_SIZE_MAX][2];
 	
-	bool draw_inner, draw_outline, draw_emboss, draw_shadedir;
+	bool draw_inner, draw_outline, draw_emboss;
 	
 	uiWidgetTrias tria1;
 	uiWidgetTrias tria2;
-	
+
+	/* Widget shader parameters, must match the shader layout. */
+	struct {
+		rctf recti, rect;
+		float radi, rad;
+		float facxi, facyi;
+		float round_corners[4];
+		float color_inner1[4], color_inner2[4];
+		float color_outline[4], color_emboss[4];
+		float color_tria[4];
+		float tria1_center[2], tria2_center[2];
+		float tria1_size, tria2_size;
+		float shade_dir, clamp;
+	} uniform_params;
 } uiWidgetBase;
 
 /** uiWidgetType: for time being only for visual appearance,
@@ -206,6 +224,185 @@ static const uint g_shape_preset_hold_action_face[2][3] = {{2, 0, 1}, {3, 5, 4}}
 
 /** \} */
 
+/* **************** Batch creations ****************** */
+/**
+ * In order to speed up UI drawing we create some batches that are then
+ * modified by specialized shaders to draw certain elements really fast.
+ * TODO: find a better place. Maybe it's own file?
+ **/
+
+enum {
+	ROUNDBOX_TRIA_NONE = 0,
+	ROUNDBOX_TRIA_ARROWS,
+	ROUNDBOX_TRIA_SCROLL,
+	ROUNDBOX_TRIA_MENU,
+	ROUNDBOX_TRIA_CHECK,
+
+	ROUNDBOX_TRIA_MAX, /* don't use */
+};
+
+/* offset in triavec[] in shader per type */
+static const int tria_ofs[ROUNDBOX_TRIA_MAX] = {0, 0, 6, 22, 28};
+static const int tria_vcount[ROUNDBOX_TRIA_MAX] = {0, 3, 16, 3, 6};
+
+static struct {
+	Gwn_Batch *roundbox[ROUNDBOX_TRIA_MAX];
+
+	Gwn_VertFormat format;
+	uint vflag_id;
+} g_ui_batch_cache = {{0}};
+
+static Gwn_VertFormat *vflag_format(void)
+{
+	if (g_ui_batch_cache.format.attrib_ct == 0) {
+		Gwn_VertFormat *format = &g_ui_batch_cache.format;
+		g_ui_batch_cache.vflag_id = GWN_vertformat_attr_add(format, "vflag", GWN_COMP_U32, 1, GWN_FETCH_INT);
+	}
+	return &g_ui_batch_cache.format;
+}
+
+#define INNER 0
+#define OUTLINE 1
+#define EMBOSS 2
+#define NO_AA WIDGET_AA_JITTER
+
+static void set_roundbox_vertex_data(
+        Gwn_VertBufRaw *vflag_step, uint32_t d)
+{
+	uint32_t *data = GWN_vertbuf_raw_step(vflag_step);
+	*data = d;
+}
+
+static uint32_t set_roundbox_vertex(
+        Gwn_VertBufRaw *vflag_step,
+        int corner_id, int corner_v, int jit_v, bool inner, bool emboss, int color)
+{
+	uint32_t *data = GWN_vertbuf_raw_step(vflag_step);
+	*data  = corner_id;
+	*data |= corner_v << 2;
+	*data |= jit_v << 6;
+	*data |= color << 12;
+	*data |= (inner) ? (1 << 10) : 0; /* is inner vert */
+	*data |= (emboss) ? (1 << 11) : 0; /* is emboss vert */
+	return *data;
+}
+
+static uint32_t set_tria_vertex(
+        Gwn_VertBufRaw *vflag_step,
+        int tria_type, int tria_v, int tria_id, int jit_v)
+{
+	uint32_t *data = GWN_vertbuf_raw_step(vflag_step);
+	if (ELEM(tria_type, ROUNDBOX_TRIA_ARROWS, ROUNDBOX_TRIA_MENU)) {
+		tria_v += tria_id * 3;
+	}
+	*data  = tria_ofs[tria_type] + tria_v;
+	*data |= jit_v << 6;
+	*data |= (tria_id == 0) ? (1 << 10) : 0; /* is first tria */
+	*data |= 1 << 14; /* is tria vert */
+	return *data;
+}
+
+static void roundbox_batch_add_tria(Gwn_VertBufRaw *vflag_step, int tria, uint32_t last_data)
+{
+	const int tria_num = (tria == ROUNDBOX_TRIA_CHECK) ? 1 : 2;
+	/* for each tria */
+	for (int t = 0; t < tria_num; ++t) {
+		for (int j = 0; j < WIDGET_AA_JITTER; j++) {
+			/* restart */
+			set_roundbox_vertex_data(vflag_step, last_data);
+			set_tria_vertex(vflag_step, tria, 0, t, j);
+			for (int v = 0; v < tria_vcount[tria]; v++) {
+				last_data = set_tria_vertex(vflag_step, tria, v, t, j);
+			}
+		}
+	}
+}
+
+static Gwn_Batch *ui_batch_roundbox_get(int tria)
+{
+	if (g_ui_batch_cache.roundbox[tria] == NULL) {
+		uint32_t last_data;
+		Gwn_VertBufRaw vflag_step;
+		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(vflag_format());
+		int vcount = WIDGET_SIZE_MAX; /* inner */
+		vcount += 2; /* restart */
+		vcount += ((WIDGET_SIZE_MAX + 1) * 2) * WIDGET_AA_JITTER; /* outline (edges) */
+		vcount += 2; /* restart */
+		vcount += ((WIDGET_CURVE_RESOLU * 2) * 2) * WIDGET_AA_JITTER; /* emboss */
+		if (tria) {
+			vcount += (tria_vcount[tria] + 2) * WIDGET_AA_JITTER; /* tria1 */
+			if (tria != ROUNDBOX_TRIA_CHECK) {
+				vcount += (tria_vcount[tria] + 2) * WIDGET_AA_JITTER; /* tria2 */
+			}
+		}
+		GWN_vertbuf_data_alloc(vbo, vcount);
+		GWN_vertbuf_attr_get_raw_data(vbo, g_ui_batch_cache.vflag_id, &vflag_step);
+		/* Inner */
+		for (int c1 = 0, c2 = 3; c1 < 2; c1++, c2--) {
+			for (int a1 = 0, a2 = WIDGET_CURVE_RESOLU -1; a2 >= 0; a1++, a2--) {
+				last_data = set_roundbox_vertex(&vflag_step, c1, a1, NO_AA, true, false, INNER);
+				last_data = set_roundbox_vertex(&vflag_step, c2, a2, NO_AA, true, false, INNER);
+			}
+		}
+		/* restart */
+		set_roundbox_vertex_data(&vflag_step, last_data);
+		set_roundbox_vertex(&vflag_step, 0, 0, 0, true, false, OUTLINE);
+		/* Outlines */
+		for (int j = 0; j < WIDGET_AA_JITTER; j++) {
+			for (int c = 0; c < 4; c++) {
+				for (int a = 0; a < WIDGET_CURVE_RESOLU; a++) {
+					set_roundbox_vertex(&vflag_step, c, a, j, true, false, OUTLINE);
+					set_roundbox_vertex(&vflag_step, c, a, j, false, false, OUTLINE);
+				}
+			}
+			/* Close the loop. */
+			set_roundbox_vertex(&vflag_step, 0, 0, j, true, false, OUTLINE);
+			last_data = set_roundbox_vertex(&vflag_step, 0, 0, j, false, false, OUTLINE);
+		}
+		/* restart */
+		set_roundbox_vertex_data(&vflag_step, last_data);
+		set_roundbox_vertex(&vflag_step, 0, 0, 0, false, false, EMBOSS);
+		/* Emboss */
+		bool rev = false; /* go back and forth : avoid degenerate triangle (but beware of backface cull) */
+		for (int j = 0; j < WIDGET_AA_JITTER; j++, rev = !rev) {
+			for (int c = (rev) ? 1 : 0; (rev) ? c >= 0 : c < 2; (rev) ? c-- : c++) {
+				int sta = (rev) ? WIDGET_CURVE_RESOLU - 1 : 0;
+				int end = WIDGET_CURVE_RESOLU;
+				for (int a = sta; (rev) ? a >= 0 : a < end; (rev) ? a-- : a++) {
+					set_roundbox_vertex(&vflag_step, c, a, j, false, false, EMBOSS);
+					last_data = set_roundbox_vertex(&vflag_step, c, a, j, false, true, EMBOSS);
+				}
+			}
+		}
+		if (tria) {
+			roundbox_batch_add_tria(&vflag_step, tria, last_data);
+		}
+		g_ui_batch_cache.roundbox[tria] = GWN_batch_create_ex(GWN_PRIM_TRI_STRIP, vbo, NULL, GWN_BATCH_OWNS_VBO);
+	}
+	return g_ui_batch_cache.roundbox[tria];
+}
+
+#undef INNER
+#undef OUTLINE
+#undef EMBOSS
+#undef NO_AA
+
+void UI_widget_batch_preset_reset(void)
+{
+	for (int i = 0; i < ROUNDBOX_TRIA_MAX; ++i) {
+		if (g_ui_batch_cache.roundbox[i]) {
+			gwn_batch_vao_cache_clear(g_ui_batch_cache.roundbox[i]);
+		}
+	}
+}
+
+void UI_widget_batch_preset_exit(void)
+{
+	for (int i = 0; i < ROUNDBOX_TRIA_MAX; ++i) {
+		GWN_BATCH_DISCARD_SAFE(g_ui_batch_cache.roundbox[i]);
+	}
+}
+
 /* ************************************************* */
 
 void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3,
@@ -270,11 +467,15 @@ static void widget_init(uiWidgetBase *wtb)
 	wtb->totvert = wtb->halfwayvert = 0;
 	wtb->tria1.tot = 0;
 	wtb->tria2.tot = 0;
+	wtb->tria1.type = ROUNDBOX_TRIA_NONE;
+	wtb->tria1.size = 0;
+	wtb->tria2.size = 0;
 
 	wtb->draw_inner = true;
 	wtb->draw_outline = true;
 	wtb->draw_emboss = true;
-	wtb->draw_shadedir = true;
+
+	wtb->uniform_params.shade_dir = 1.0f;
 }
 
 /* helper call, makes shadow rect, with 'sun' above menu, so only shadow to left/right/bottom */
@@ -381,7 +582,18 @@ static void round_box__edges(uiWidgetBase *wt, int roundboxalign, const rcti *re
 
 	if (2.0f * (radi + 1.0f) > minsize)
 		radi = 0.5f * minsize - U.pixelsize;
-	
+
+	wt->uniform_params.rad = rad;
+	wt->uniform_params.radi = radi;
+	wt->uniform_params.facxi = facxi;
+	wt->uniform_params.facyi = facyi;
+	wt->uniform_params.round_corners[0] = (roundboxalign & UI_CNR_BOTTOM_LEFT) ? 1.0f : 0.0f;
+	wt->uniform_params.round_corners[1] = (roundboxalign & UI_CNR_BOTTOM_RIGHT) ? 1.0f : 0.0f;
+	wt->uniform_params.round_corners[2] = (roundboxalign & UI_CNR_TOP_RIGHT) ? 1.0f : 0.0f;
+	wt->uniform_params.round_corners[3] = (roundboxalign & UI_CNR_TOP_LEFT) ? 1.0f : 0.0f;
+	BLI_rctf_rcti_copy(&wt->uniform_params.rect, rect);
+	BLI_rctf_init(&wt->uniform_params.recti, minxi, maxxi, minyi, maxyi);
+
 	/* mult */
 	for (a = 0; a < WIDGET_CURVE_RESOLU; a++) {
 		veci[a][0] = radi * cornervec[a][0];
@@ -531,18 +743,20 @@ static void shape_preset_init_trias_ex(
 	/* center position and size */
 	centx = (float)rect->xmin + 0.4f * minsize;
 	centy = (float)rect->ymin + 0.5f * minsize;
-	sizex = sizey = -0.5f * triasize * minsize;
+	tria->size = sizex = sizey = -0.5f * triasize * minsize;
 
 	if (where == 'r') {
 		centx = (float)rect->xmax - 0.4f * minsize;
 		sizex = -sizex;
 	}
 	else if (where == 't') {
+		centx = (float)rect->xmin + 0.5f * minsize;
 		centy = (float)rect->ymax - 0.5f * minsize;
 		sizey = -sizey;
 		i2 = 0; i1 = 1;
 	}
 	else if (where == 'b') {
+		centx = (float)rect->xmin + 0.5f * minsize;
 		sizex = -sizex;
 		i2 = 0; i1 = 1;
 	}
@@ -552,12 +766,16 @@ static void shape_preset_init_trias_ex(
 		tria->vec[a][1] = sizey * verts[a][i2] + centy;
 	}
 
+	tria->center[0] = centx;
+	tria->center[1] = centy;
+
 	tria->tot = tris_tot;
 	tria->index = tris;
 }
 
 static void shape_preset_init_number_arrows(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
 {
+	tria->type = ROUNDBOX_TRIA_ARROWS;
 	shape_preset_init_trias_ex(
 	        tria, rect, triasize, where,
 	        g_shape_preset_number_arrow_vert, ARRAY_SIZE(g_shape_preset_number_arrow_vert),
@@ -574,19 +792,22 @@ static void shape_preset_init_hold_action(uiWidgetTrias *tria, const rcti *rect,
 
 static void shape_preset_init_scroll_circle(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
 {
+	tria->type = ROUNDBOX_TRIA_SCROLL;
 	shape_preset_init_trias_ex(
 	        tria, rect, triasize, where,
 	        g_shape_preset_scroll_circle_vert, ARRAY_SIZE(g_shape_preset_scroll_circle_vert),
 	        g_shape_preset_scroll_circle_face, ARRAY_SIZE(g_shape_preset_scroll_circle_face));
 }
 
-static void shape_preset_draw_trias(uiWidgetTrias *tria, uint pos)
+static void shape_preset_draw_trias_aa(uiWidgetTrias *tria, uint pos)
 {
-	immBegin(GWN_PRIM_TRIS, tria->tot * 3);
-	for (int i = 0; i < tria->tot; ++i)
-		for (int j = 0; j < 3; ++j)
-			immVertex2fv(pos, tria->vec[tria->index[i][j]]);
-	immEnd();
+	for (int k = 0; k < WIDGET_AA_JITTER; k++) {
+		for (int i = 0; i < tria->tot; ++i)
+			for (int j = 0; j < 3; ++j)
+				immVertex2f(pos,
+				            tria->vec[tria->index[i][j]][0] + jit[k][0],
+				            tria->vec[tria->index[i][j]][1] + jit[k][1]);
+	}
 }
 
 static void widget_draw_vertex_buffer(unsigned int pos, unsigned int col, int mode,
@@ -607,11 +828,12 @@ static void shape_preset_trias_from_rect_menu(uiWidgetTrias *tria, const rcti *r
 {
 	float centx, centy, size;
 	int a;
+	tria->type = ROUNDBOX_TRIA_MENU;
 
 	/* center position and size */
-	centx = rect->xmax - 0.32f * BLI_rcti_size_y(rect);
-	centy = rect->ymin + 0.50f * BLI_rcti_size_y(rect);
-	size = 0.4f * BLI_rcti_size_y(rect);
+	tria->center[0] = centx = rect->xmax - 0.32f * BLI_rcti_size_y(rect);
+	tria->center[1] = centy = rect->ymin + 0.50f * BLI_rcti_size_y(rect);
+	tria->size = size = 0.4f * BLI_rcti_size_y(rect);
 
 	for (a = 0; a < 6; a++) {
 		tria->vec[a][0] = size * g_shape_preset_menu_arrow_vert[a][0] + centx;
@@ -626,11 +848,12 @@ static void shape_preset_trias_from_rect_checkmark(uiWidgetTrias *tria, const rc
 {
 	float centx, centy, size;
 	int a;
+	tria->type = ROUNDBOX_TRIA_CHECK;
 	
 	/* center position and size */
-	centx = rect->xmin + 0.5f * BLI_rcti_size_y(rect);
-	centy = rect->ymin + 0.5f * BLI_rcti_size_y(rect);
-	size = 0.5f * BLI_rcti_size_y(rect);
+	tria->center[0] = centx = rect->xmin + 0.5f * BLI_rcti_size_y(rect);
+	tria->center[1] = centy = rect->ymin + 0.5f * BLI_rcti_size_y(rect);
+	tria->size = size = 0.5f * BLI_rcti_size_y(rect);
 	
 	for (a = 0; a < 6; a++) {
 		tria->vec[a][0] = size * g_shape_preset_checkmark_vert[a][0] + centx;
@@ -680,17 +903,6 @@ static void widget_verts_to_triangle_strip(uiWidgetBase *wtb, const int totvert,
 	copy_v2_v2(triangle_strip[a * 2 + 1], wtb->inner_v[0]);
 }
 
-static void widget_verts_to_triangle_strip_open(uiWidgetBase *wtb, const int totvert, float triangle_strip[WIDGET_SIZE_MAX * 2][2])
-{
-	int a;
-	for (a = 0; a < totvert; a++) {
-		triangle_strip[a * 2][0] = wtb->outer_v[a][0];
-		triangle_strip[a * 2][1] = wtb->outer_v[a][1];
-		triangle_strip[a * 2 + 1][0] = wtb->outer_v[a][0];
-		triangle_strip[a * 2 + 1][1] = wtb->outer_v[a][1] - 1.0f;
-	}
-}
-
 static void widgetbase_outline(uiWidgetBase *wtb, unsigned int pos)
 {
 	float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2]; /* + 2 because the last pair is wrapped */
@@ -699,14 +911,45 @@ static void widgetbase_outline(uiWidgetBase *wtb, unsigned int pos)
 	widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_STRIP, triangle_strip, NULL, wtb->totvert * 2 + 2);
 }
 
+static void widgetbase_set_uniform_colors_ubv(
+        uiWidgetBase *wtb,
+        const unsigned char *col1, const unsigned char *col2,
+        const unsigned char *outline,
+        const unsigned char *emboss,
+        const unsigned char *tria)
+{
+	rgba_float_args_set_ch(wtb->uniform_params.color_inner1, col1[0], col1[1], col1[2], col1[3]);
+	rgba_float_args_set_ch(wtb->uniform_params.color_inner2, col2[0], col2[1], col2[2], col2[3]);
+	rgba_float_args_set_ch(wtb->uniform_params.color_outline, outline[0], outline[1], outline[2], outline[3]);
+	rgba_float_args_set_ch(wtb->uniform_params.color_emboss, emboss[0], emboss[1], emboss[2], emboss[3]);
+	rgba_float_args_set_ch(wtb->uniform_params.color_tria, tria[0], tria[1], tria[2], tria[3]);
+}
+
+static void draw_widgetbase_batch(Gwn_Batch *batch, uiWidgetBase *wtb)
+{
+	wtb->uniform_params.tria1_size = wtb->tria1.size;
+	wtb->uniform_params.tria2_size = wtb->tria2.size;
+	copy_v2_v2(wtb->uniform_params.tria1_center, wtb->tria1.center);
+	copy_v2_v2(wtb->uniform_params.tria2_center, wtb->tria2.center);
+
+	GWN_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
+	GWN_batch_uniform_4fv_array(batch, "parameters", 11, (float *)&wtb->uniform_params);
+	GWN_batch_draw(batch);
+}
+
 static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 {
-	int j, a;
-
+	int a;
+	unsigned char inner_col1[4] = {0};
+	unsigned char inner_col2[4] = {0};
+	unsigned char emboss_col[4] = {0};
+	unsigned char outline_col[4] = {0};
+	unsigned char tria_col[4] = {0};
 	glEnable(GL_BLEND);
 
 	/* backdrop non AA */
 	if (wtb->draw_inner) {
+		BLI_assert(wtb->totvert != 0);
 		if (wcol->shaded == 0) {
 			if (wcol->alpha_check) {
 				float inner_v_half[WIDGET_SIZE_MAX][2];
@@ -728,7 +971,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 				immUniformColor4ubv((unsigned char *)wcol->inner);
 
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 				for (a = 0; a < wtb->totvert; a++) {
 					x_mid += wtb->inner_v[a][0];
@@ -751,81 +994,50 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 			}
 			else {
 				/* simple fill */
-				unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-				immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-				immUniformColor4ubv((unsigned char *)wcol->inner);
-
-				widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_FAN, wtb->inner_v, NULL, wtb->totvert);
-
-				immUnbindProgram();
+				inner_col1[0] = inner_col2[0] = (unsigned char)wcol->inner[0];
+				inner_col1[1] = inner_col2[1] = (unsigned char)wcol->inner[1];
+				inner_col1[2] = inner_col2[2] = (unsigned char)wcol->inner[2];
+				inner_col1[3] = inner_col2[3] = (unsigned char)wcol->inner[3];
 			}
 		}
 		else {
-			char col1[4], col2[4];
-			unsigned char col_array[WIDGET_SIZE_MAX][4];
-			unsigned char *col_pt = &col_array[0][0];
-
-			Gwn_VertFormat *format = immVertexFormat();
-			unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-			unsigned int col = GWN_vertformat_attr_add(format, "color", GWN_COMP_U8, 4, GWN_FETCH_INT_TO_FLOAT_UNIT);
-
-			immBindBuiltinProgram(GPU_SHADER_2D_SMOOTH_COLOR);
-
-			shadecolors4(col1, col2, wcol->inner, wcol->shadetop, wcol->shadedown);
-
-			for (a = 0; a < wtb->totvert; a++, col_pt += 4) {
-				round_box_shade_col4_r(col_pt, col1, col2, wtb->inner_uv[a][wtb->draw_shadedir ? 1 : 0]);
-			}
-
-			widget_draw_vertex_buffer(pos, col, GL_TRIANGLE_FAN, wtb->inner_v, col_array, wtb->totvert);
-			immUnbindProgram();
+			/* gradient fill */
+			shadecolors4((char *)inner_col1, (char *)inner_col2, wcol->inner, wcol->shadetop, wcol->shadedown);
 		}
 	}
 
-	/* for each AA step */
 	if (wtb->draw_outline) {
-		float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2]; /* + 2 because the last pair is wrapped */
-		float triangle_strip_emboss[WIDGET_SIZE_MAX * 2][2]; /* only for emboss */
+		outline_col[0] = wcol->outline[0];
+		outline_col[1] = wcol->outline[1];
+		outline_col[2] = wcol->outline[2];
+		outline_col[3] = wcol->outline[3] / WIDGET_AA_JITTER;
 
-		const unsigned char tcol[4] = {wcol->outline[0],
-		                               wcol->outline[1],
-		                               wcol->outline[2],
-		                               wcol->outline[3] / WIDGET_AA_JITTER};
-		unsigned char emboss[4];
-
-		widget_verts_to_triangle_strip(wtb, wtb->totvert, triangle_strip);
-
+		/* emboss bottom shadow */
 		if (wtb->draw_emboss) {
-			widget_verts_to_triangle_strip_open(wtb, wtb->halfwayvert, triangle_strip_emboss);
-			UI_GetThemeColor4ubv(TH_WIDGET_EMBOSS, emboss);
+			UI_GetThemeColor4ubv(TH_WIDGET_EMBOSS, emboss_col);
 		}
-
-		unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-
-		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-		for (j = 0; j < WIDGET_AA_JITTER; j++) {
-			gpuTranslate2fv(jit[j]);
-			
-			/* outline */
-			immUniformColor4ubv(tcol);
-
-			widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_STRIP, triangle_strip, NULL, wtb->totvert * 2 + 2);
-
-			/* emboss bottom shadow */
-			if (wtb->draw_emboss) {
-				if (emboss[3]) {
-					immUniformColor4ubv(emboss);
-					widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_STRIP, triangle_strip_emboss, NULL, wtb->halfwayvert * 2);
-				}
-			}
-			
-			gpuTranslate2f(-jit[j][0], -jit[j][1]);
-		}
-		immUnbindProgram();
 	}
 
-	/* decoration */
-	if (wtb->tria1.tot || wtb->tria2.tot) {
+	if (wtb->tria1.type != ROUNDBOX_TRIA_NONE)
+	{
+		tria_col[0] = wcol->item[0];
+		tria_col[1] = wcol->item[1];
+		tria_col[2] = wcol->item[2];
+		tria_col[3] = (unsigned char)((float)wcol->item[3] / WIDGET_AA_JITTER);
+	}
+
+	/* Draw everything in one drawcall */
+	if (inner_col1[3] || inner_col2[3] || outline_col[3] || emboss_col[3] || tria_col[3]) {
+		widgetbase_set_uniform_colors_ubv(wtb, inner_col1, inner_col2, outline_col, emboss_col, tria_col);
+
+		Gwn_Batch *roundbox_batch = ui_batch_roundbox_get(wtb->tria1.type);
+		draw_widgetbase_batch(roundbox_batch, wtb);
+	}
+
+	/* DEPRECATED: should be removed at some point. */
+	if ((wtb->tria1.type == ROUNDBOX_TRIA_NONE) &&
+	    (wtb->tria1.tot || wtb->tria2.tot))
+	{
 		const unsigned char tcol[4] = {wcol->item[0],
 		                               wcol->item[1],
 		                               wcol->item[2],
@@ -836,17 +1048,14 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 		immUniformColor4ubv(tcol);
 
 		/* for each AA step */
-		for (j = 0; j < WIDGET_AA_JITTER; j++) {
-			gpuTranslate2fv(jit[j]);
-
-			if (wtb->tria1.tot)
-				shape_preset_draw_trias(&wtb->tria1, pos);
-
-			if (wtb->tria2.tot)
-				shape_preset_draw_trias(&wtb->tria2, pos);
-
-			gpuTranslate2f(-jit[j][0], -jit[j][1]);
+		immBegin(GWN_PRIM_TRIS, (wtb->tria1.tot + wtb->tria2.tot) * 3 * WIDGET_AA_JITTER);
+		if (wtb->tria1.tot){
+			shape_preset_draw_trias_aa(&wtb->tria1, pos);
 		}
+		if (wtb->tria2.tot) {
+			shape_preset_draw_trias_aa(&wtb->tria2, pos);
+		}
+		immEnd();
 
 		immUnbindProgram();
 	}
@@ -1589,6 +1798,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		rcti temp = *rect;
 		temp.xmin = rect->xmax - BLI_rcti_size_y(rect) - 1;
 		widget_draw_icon(but, ICON_LAYER_USED, alpha, &temp, false);
+		rect->xmax = temp.xmin;
 	}
 
 	/* If there's an icon too (made with uiDefIconTextBut) then draw the icon
@@ -2784,6 +2994,10 @@ static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int 
 	if (!emboss) {
 		round_box_edges(&wtb, roundboxalign, rect, rad);
 	}
+	else {
+		wtb.draw_inner = false;
+		wtb.draw_outline = false;
+	}
 
 	/* decoration */
 	if (!(state & UI_STATE_TEXT_INPUT)) {
@@ -2885,7 +3099,7 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 	else
 		rad = 0.5f * BLI_rcti_size_x(rect);
 	
-	wtb.draw_shadedir = (horizontal) ? true : false;
+	wtb.uniform_params.shade_dir = (horizontal) ? 1.0f : 0.0;
 	
 	/* draw back part, colors swapped and shading inverted */
 	if (horizontal)
@@ -3279,6 +3493,8 @@ static void widget_menubut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), 
 	
 	/* decoration */
 	shape_preset_trias_from_rect_menu(&wtb.tria1, rect);
+	/* copy size and center to 2nd tria */
+	wtb.tria2 = wtb.tria1;
 	
 	widgetbase_draw(&wtb, wcol);
 	

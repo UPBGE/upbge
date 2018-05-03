@@ -64,10 +64,15 @@ struct EvaluationContext;
 
 typedef std::map<COLLADAFW::TextureMapId, std::vector<MTex *> > TexIndexTextureArrayMap;
 
+extern Scene *bc_get_scene(bContext *C);
+extern Main *bc_get_main();
+extern EvaluationContext *bc_get_evaluation_context();
+extern void bc_update_scene(EvaluationContext *eval_ctx, Scene *scene, float ctime);
+
 extern float bc_get_float_value(const COLLADAFW::FloatOrDoubleArray& array, unsigned int index);
 extern int bc_test_parent_loop(Object *par, Object *ob);
 extern int bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space = true);
-extern Object *bc_add_object(Scene *scene, int type, const char *name);
+extern Object *bc_add_object(Scene *scene, ViewLayer *view_layer, int type, const char *name);
 extern Mesh *bc_get_mesh_copy(const struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, BC_export_mesh_type export_mesh_type, bool apply_modifiers, bool triangulate);
 
 extern Object *bc_get_assigned_armature(Object *ob);
@@ -93,13 +98,22 @@ extern void bc_match_scale(Object *ob, UnitConverter &bc_unit, bool scale_to_sce
 extern void bc_match_scale(std::vector<Object *> *objects_done, UnitConverter &unit_converter, bool scale_to_scene);
 
 extern void bc_decompose(float mat[4][4], float *loc, float eul[3], float quat[4], float *size);
+extern void bc_rotate_from_reference_quat(float quat_to[4], float quat_from[4], float mat_to[4][4]);
 
 extern void bc_triangulate_mesh(Mesh *me);
 extern bool bc_is_leaf_bone(Bone *bone);
 extern EditBone *bc_get_edit_bone(bArmature * armature, char *name);
 extern int bc_set_layer(int bitfield, int layer, bool enable);
 extern int bc_set_layer(int bitfield, int layer);
+
+inline bool bc_in_range(float a, float b, float range) {
+	return fabsf(a - b) < range;
+}
+void bc_copy_m4_farray(float r[4][4], float *a);
+void bc_copy_farray_m4(float *r, float a[4][4]);
+
 extern void bc_sanitize_mat(float mat[4][4], int precision);
+extern void bc_sanitize_mat(double mat[4][4], int precision);
 
 extern IDProperty *bc_get_IDProperty(Bone *bone, std::string key);
 extern void bc_set_IDProperty(EditBone *ebone, const char *key, float value);

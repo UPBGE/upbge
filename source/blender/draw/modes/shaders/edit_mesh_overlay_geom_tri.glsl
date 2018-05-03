@@ -7,6 +7,10 @@
 
 layout(triangles) in;
 
+/* This is not perfect. Only a subset of intel gpus are affected.
+ * This fix have some performance impact.
+ * TODO Refine the range to only affect GPUs. */
+
 #ifdef EDGE_FIX
 /* To fix the edge artifacts, we render
  * an outline strip around the screenspace
@@ -37,8 +41,8 @@ in float vFacing[];
  * and does not need interpolation */
 flat out vec3 edgesCrease;
 flat out vec3 edgesBweight;
-flat out ivec3 flag;
 flat out vec4 faceColor;
+flat out ivec3 flag;
 flat out int clipCase;
 #ifdef VERTEX_SELECTION
 out vec3 vertexColor;
@@ -48,9 +52,8 @@ out float facing;
 #endif
 
 /* See fragment shader */
-noperspective out vec4 eData1;
-flat out vec4 eData2;
-
+noperspective out vec2 eData1;
+flat out vec2 eData2[3];
 
 #define VERTEX_ACTIVE   (1 << 0)
 #define VERTEX_SELECTED (1 << 1)
@@ -103,7 +106,7 @@ vec4 getClipData(vec2 pos[3], ivec2 vidx)
 	return vec4(A, Adir);
 }
 
-void doVertex(int v, vec4 pos)
+void doVertex(int v)
 {
 #ifdef VERTEX_SELECTION
 	vertexColor = getVertexColor(v);
@@ -113,7 +116,16 @@ void doVertex(int v, vec4 pos)
 	facing = vFacing[v];
 #endif
 
-	gl_Position = pos;
+	gl_Position = pPos[v];
+
+	EmitVertex();
+}
+
+void doLoopStrip(int v, vec3 offset)
+{
+	doVertex(v);
+
+	gl_Position.xyz += offset;
 
 	EmitVertex();
 }
@@ -164,18 +176,19 @@ void main()
 	if (clipCase == 0) {
 
 		/* Packing screen positions and 2 distances */
-		eData1 = vec4(0.0, 0.0, pos[2]);
-		eData2 = vec4(pos[1], pos[0]);
+		eData2[0] = pos[2];
+		eData2[1] = pos[1];
+		eData2[2] = pos[0];
 
 		/* Only pass the first 2 distances */
 		for (int v = 0; v < 2; ++v) {
 			eData1[v] = dist(pos, pos[v], v);
-			doVertex(v, pPos[v]);
+			doVertex(v);
 			eData1[v] = 0.0;
 		}
 
 		/* and the last vertex */
-		doVertex(2, pPos[2]);
+		doVertex(2);
 
 #ifdef EDGE_FIX
 		vec2 fixvec[6];
@@ -233,7 +246,8 @@ void main()
 		faceColor.a = 0.0;
 
 		/* we don't want other edges : make them far */
-		eData1 = vec4(1e10);
+		eData1 = vec2(1e10);
+		eData2[0] = vec2(1e10);
 
 		/* Start with the same last vertex to create a
 		 * degenerate triangle in order to "create"
@@ -244,49 +258,49 @@ void main()
 			int v = i % 3;
 
 			/* Position of the "hidden" third vertex */
-			eData1.zw = pos[vbe];
-
-			doVertex(v, pPos[v]);
-			doVertex(v, pPos[v] + vec4(fixvec[v], Z_OFFSET, 0.0));
+			eData2[0] = pos[vbe];
+			doLoopStrip(v, vec3(fixvec[v], Z_OFFSET));
 
 			/* Now one triangle only shade one edge
 			 * so we use the edge distance calculated
 			 * in the fragment shader, the third edge;
 			 * we do this because we need flat interp to
 			 * draw a continuous triangle strip */
-			eData2.xy = pos[vaf];
-			eData2.zw = pos[v];
+			eData2[1] = pos[vaf];
+			eData2[2] = pos[v];
 			flag[0] = (vData[v].x << 8);
 			flag[1] = (vData[vaf].x << 8);
 			flag[2] = eflag[vbe];
 			edgesCrease[2] = ecrease[vbe];
 			edgesBweight[2] = ebweight[vbe];
 
-			doVertex(vaf, pPos[vaf]);
-			doVertex(vaf, pPos[vaf] + vec4(fixvecaf[v], Z_OFFSET, 0.0));
+			doLoopStrip(vaf, vec3(fixvecaf[v], Z_OFFSET));
 
 			/* corner vertices should not draw edges but draw point only */
 			flag[2] = (vData[vbe].x << 8);
 #ifdef VERTEX_SELECTION
-			doVertex(vaf, pPos[vaf]);
-			doVertex(vaf, pPos[vaf] + vec4(cornervec[vaf], Z_OFFSET, 0.0));
+			doLoopStrip(vaf, vec3(cornervec[vaf], Z_OFFSET));
 #endif
 		}
 
 		/* finish the loop strip */
-		doVertex(2, pPos[2]);
-		doVertex(2, pPos[2] + vec4(fixvec[2], Z_OFFSET, 0.0));
+		doLoopStrip(2, vec3(fixvec[2], Z_OFFSET));
 #endif
 	}
 	/* Harder case : compute visible edges vectors */
 	else {
 		ivec4 vindices = clipPointsIdx[clipCase - 1];
 
-		eData1 = getClipData(pos, vindices.xz);
-		eData2 = getClipData(pos, vindices.yw);
+		vec4 tmp;
+		tmp = getClipData(pos, vindices.xz);
+		eData1 = tmp.xy;
+		eData2[0] = tmp.zw;
+		tmp = getClipData(pos, vindices.yw);
+		eData2[1] = tmp.xy;
+		eData2[2] = tmp.zw;
 
 		for (int v = 0; v < 3; ++v)
-			doVertex(v, pPos[v]);
+			doVertex(v);
 	}
 
 	EndPrimitive();

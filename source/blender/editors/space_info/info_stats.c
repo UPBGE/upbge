@@ -36,6 +36,7 @@
 #include "DNA_lattice_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BLI_math.h"
 #include "BLI_string.h"
@@ -53,6 +54,7 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_editmesh.h"
+#include "BKE_object.h"
 
 #include "ED_info.h"
 #include "ED_armature.h"
@@ -365,28 +367,29 @@ static void stats_dupli_object(Base *base, Object *ob, SceneStats *stats)
 	}
 }
 
-static bool stats_is_object_dynamic_topology_sculpt(Object *ob)
+static bool stats_is_object_dynamic_topology_sculpt(Object *ob, const eObjectMode object_mode)
 {
-	return (ob && (ob->mode & OB_MODE_SCULPT) &&
+	return (ob &&
+	        (object_mode & OB_MODE_SCULPT) &&
 	        ob->sculpt && ob->sculpt->bm);
 }
 
 /* Statistics displayed in info header. Called regularly on scene changes. */
-static void stats_update(Scene *scene, ViewLayer *view_layer)
+static void stats_update(ViewLayer *view_layer, Object *obedit, const eObjectMode object_mode)
 {
 	SceneStats stats = {0};
 	Object *ob = (view_layer->basact) ? view_layer->basact->object : NULL;
 	Base *base;
-	
-	if (scene->obedit) {
+
+	if (obedit) {
 		/* Edit Mode */
-		stats_object_edit(scene->obedit, &stats);
+		stats_object_edit(ob, &stats);
 	}
-	else if (ob && (ob->mode & OB_MODE_POSE)) {
+	else if (ob && (object_mode & OB_MODE_POSE)) {
 		/* Pose Mode */
 		stats_object_pose(ob, &stats);
 	}
-	else if (stats_is_object_dynamic_topology_sculpt(ob)) {
+	else if (stats_is_object_dynamic_topology_sculpt(ob, object_mode)) {
 		/* Dynamic-topology sculpt mode */
 		stats_object_sculpt_dynamic_topology(ob, &stats);
 	}
@@ -405,7 +408,7 @@ static void stats_update(Scene *scene, ViewLayer *view_layer)
 	*(view_layer->stats) = stats;
 }
 
-static void stats_string(Scene *scene, ViewLayer *view_layer)
+static void stats_string(ViewLayer *view_layer, Object *obedit, const eObjectMode object_mode)
 {
 #define MAX_INFO_MEM_LEN  64
 	SceneStats *stats = view_layer->stats;
@@ -471,17 +474,17 @@ static void stats_string(Scene *scene, ViewLayer *view_layer)
 
 	ofs += BLI_snprintf(s + ofs, MAX_INFO_LEN - ofs, "%s | ", versionstr);
 
-	if (scene->obedit) {
-		if (BKE_keyblock_from_object(scene->obedit))
+	if (obedit) {
+		if (BKE_keyblock_from_object(obedit))
 			ofs += BLI_strncpy_rlen(s + ofs, IFACE_("(Key) "), MAX_INFO_LEN - ofs);
 
-		if (scene->obedit->type == OB_MESH) {
+		if (obedit->type == OB_MESH) {
 			ofs += BLI_snprintf(s + ofs, MAX_INFO_LEN - ofs,
 			                    IFACE_("Verts:%s/%s | Edges:%s/%s | Faces:%s/%s | Tris:%s"),
 			                    stats_fmt.totvertsel, stats_fmt.totvert, stats_fmt.totedgesel, stats_fmt.totedge,
 			                    stats_fmt.totfacesel, stats_fmt.totface, stats_fmt.tottri);
 		}
-		else if (scene->obedit->type == OB_ARMATURE) {
+		else if (obedit->type == OB_ARMATURE) {
 			ofs += BLI_snprintf(s + ofs, MAX_INFO_LEN - ofs, IFACE_("Verts:%s/%s | Bones:%s/%s"), stats_fmt.totvertsel,
 			                    stats_fmt.totvert, stats_fmt.totbonesel, stats_fmt.totbone);
 		}
@@ -493,11 +496,11 @@ static void stats_string(Scene *scene, ViewLayer *view_layer)
 		ofs += BLI_strncpy_rlen(s + ofs, memstr, MAX_INFO_LEN - ofs);
 		ofs += BLI_strncpy_rlen(s + ofs, gpumemstr, MAX_INFO_LEN - ofs);
 	}
-	else if (ob && (ob->mode & OB_MODE_POSE)) {
+	else if (ob && (object_mode & OB_MODE_POSE)) {
 		ofs += BLI_snprintf(s + ofs, MAX_INFO_LEN - ofs, IFACE_("Bones:%s/%s %s%s"),
 		                    stats_fmt.totbonesel, stats_fmt.totbone, memstr, gpumemstr);
 	}
-	else if (stats_is_object_dynamic_topology_sculpt(ob)) {
+	else if (stats_is_object_dynamic_topology_sculpt(ob, object_mode)) {
 		ofs += BLI_snprintf(s + ofs, MAX_INFO_LEN - ofs, IFACE_("Verts:%s | Tris:%s%s"), stats_fmt.totvert,
 		                    stats_fmt.tottri, gpumemstr);
 	}
@@ -525,12 +528,16 @@ void ED_info_stats_clear(ViewLayer *view_layer)
 	}
 }
 
-const char *ED_info_stats_string(Scene *scene, ViewLayer *view_layer)
+const char *ED_info_stats_string(Scene *UNUSED(scene), WorkSpace *workspace, ViewLayer *view_layer)
 {
+	Object *obact = (view_layer->basact) ? view_layer->basact->object : NULL;
+	Object *obedit = (obact && (workspace->object_mode & OB_MODE_EDIT) &&
+	                  BKE_object_is_in_editmode(obact)) ? obact : NULL;
+
 	if (!view_layer->stats) {
-		stats_update(scene, view_layer);
+		stats_update(view_layer, obedit, workspace->object_mode);
 	}
-	stats_string(scene, view_layer);
+	stats_string(view_layer, obedit, workspace->object_mode);
 
 	return view_layer->stats->infostr;
 }

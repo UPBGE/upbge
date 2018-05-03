@@ -38,6 +38,7 @@
 
 /* called by meshtools */
 struct DerivedMesh;
+struct EvaluationContext;
 struct ImagePool;
 struct MTex;
 struct Scene;
@@ -55,7 +56,7 @@ float texture_value_blend(float tex, float out, float fact, float facg, int blen
 void RE_texture_rng_init(void);
 void RE_texture_rng_exit(void);
 
-struct Material *RE_sample_material_init(struct Material *orig_mat, struct Scene *scene);
+struct Material *RE_sample_material_init(const struct EvaluationContext *eval_ctx, struct Material *orig_mat, struct Scene *scene);
 void RE_sample_material_free(struct Material *mat);
 void RE_sample_material_color(
         struct Material *mat, float color[3], float *alpha, const float volume_co[3], const float surface_co[3],
@@ -71,24 +72,18 @@ void antialias_tagbuf(int xsize, int ysize, char *rectmove);
 struct PointDensity;
 
 void RE_point_density_cache(
-        struct Scene *scene,
-        struct ViewLayer *view_layer,
-        struct PointDensity *pd,
-        const bool use_render_params);
+        const struct EvaluationContext *eval_ctx,
+        struct PointDensity *pd);
 
 void RE_point_density_minmax(
-        struct Scene *scene,
-        struct ViewLayer *view_layer,
+        const struct EvaluationContext *eval_ctx,
         struct PointDensity *pd,
-        const bool use_render_params,
         float r_min[3], float r_max[3]);
 
 void RE_point_density_sample(
-        struct Scene *scene,
-        struct ViewLayer *view_layer,
+        const struct EvaluationContext *eval_ctx,
         struct PointDensity *pd,
         const int resolution,
-        const bool use_render_params,
         float *values);
 
 void RE_point_density_free(struct PointDensity *pd);

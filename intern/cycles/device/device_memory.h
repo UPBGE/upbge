@@ -21,7 +21,6 @@
  *
  * Data types for allocating, copying and freeing device memory. */
 
-#include "util/util_debug.h"
 #include "util/util_half.h"
 #include "util/util_texture.h"
 #include "util/util_types.h"
@@ -197,10 +196,13 @@ public:
 	Device *device;
 	device_ptr device_pointer;
 	void *host_pointer;
+	void *shared_pointer;
 
 	virtual ~device_memory();
 
 protected:
+	friend class CUDADevice;
+
 	/* Only create through subclasses. */
 	device_memory(Device *device, const char *name, MemoryType type);
 
@@ -245,7 +247,7 @@ public:
 
 	void alloc_to_device(size_t num, bool shrink_to_fit = true)
 	{
-		size_t new_size = num*sizeof(T);
+		size_t new_size = num;
 		bool reallocate;
 
 		if(shrink_to_fit) {
@@ -432,7 +434,10 @@ public:
 	void alloc_to_device(size_t width, size_t height, size_t depth = 0)
 	{
 		device_vector<T>::alloc(width, height, depth);
-		device_memory::device_alloc();
+
+		if(!device_memory::device_pointer) {
+			device_memory::device_alloc();
+		}
 	}
 
 	T *copy_from_device(int y, int w, int h)

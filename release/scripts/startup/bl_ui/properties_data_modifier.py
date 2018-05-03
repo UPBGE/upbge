@@ -115,6 +115,13 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         sub.active = md.use_object_offset
         sub.prop(md, "offset_object", text="")
 
+        row = layout.row()
+        split = row.split()
+        col = split.column()
+        col.label(text="UVs:")
+        sub = col.column(align=True)
+        sub.prop(md, "offset_u")
+        sub.prop(md, "offset_v")
         layout.separator()
 
         layout.prop(md, "start_cap")
@@ -146,11 +153,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.row().prop(md, "offset_type", expand=True)
 
     def BOOLEAN(self, layout, ob, md):
-        solver = md.solver
-        if not bpy.app.build_options.mod_boolean:
-            if solver == 'CARVE':
-                layout.label("Built without Carve solver")
-
         split = layout.split()
 
         col = split.column()
@@ -161,15 +163,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.label(text="Object:")
         col.prop(md, "object", text="")
 
-        split = layout.split()
-        split.column().label(text="Solver:")
-        split.column().prop(md, "solver", text="")
+        layout.prop(md, "double_threshold")
 
-        if solver == 'BMESH':
-            layout.prop(md, "double_threshold")
-
-            if bpy.app.debug:
-                layout.prop(md, "debug_options")
+        if bpy.app.debug:
+            layout.prop(md, "debug_options")
 
 
     def BUILD(self, layout, ob, md):
@@ -407,6 +404,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.label(text="Settings are inside the Physics tab")
 
     def HOOK(self, layout, ob, md):
+        from bpy import context
+        workspace = context.workspace
         use_falloff = (md.falloff_type != 'NONE')
         split = layout.split()
 
@@ -438,7 +437,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.prop(md, "use_falloff_uniform")
 
-        if ob.mode == 'EDIT':
+        if workspace.object_mode == 'EDIT':
             row = col.row(align=True)
             row.operator("object.hook_reset", text="Reset")
             row.operator("object.hook_recenter", text="Recenter")
@@ -594,6 +593,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "mirror_object", text="")
 
     def MULTIRES(self, layout, ob, md):
+        from bpy import context
+        workspace = context.workspace
+
         layout.row().prop(md, "subdivision_type", expand=True)
 
         split = layout.split()
@@ -604,7 +606,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         col = split.column()
 
-        col.enabled = ob.mode != 'EDIT'
+        col.enabled = workspace.object_mode != 'EDIT'
         col.operator("object.multires_subdivide", text="Subdivide")
         col.operator("object.multires_higher_levels_delete", text="Delete Higher")
         col.operator("object.multires_reshape", text="Reshape")
@@ -841,10 +843,18 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.label(text="Axis, Origin:")
         col.prop(md, "origin", text="")
 
+        col.prop(md, "deform_axis")
+
         if md.deform_method in {'TAPER', 'STRETCH', 'TWIST'}:
-            col.label(text="Lock:")
-            col.prop(md, "lock_x")
-            col.prop(md, "lock_y")
+            row = col.row(align=True)
+            row.label(text="Lock:")
+            deform_axis = md.deform_axis
+            if deform_axis != 'X':
+                row.prop(md, "lock_x")
+            if deform_axis != 'Y':
+                row.prop(md, "lock_y")
+            if deform_axis != 'Z':
+                row.prop(md, "lock_z")
 
         col = split.column()
         col.label(text="Deform:")
@@ -923,12 +933,13 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row.prop(md, "material_offset_rim", text="Rim")
 
     def SUBSURF(self, layout, ob, md):
+        from bpy import context
         layout.row().prop(md, "subdivision_type", expand=True)
 
         split = layout.split()
         col = split.column()
 
-        scene = bpy.context.scene
+        scene = context.scene
         engine = scene.view_render.engine
         show_adaptive_options = (
             engine == 'CYCLES' and md == ob.modifiers[-1] and

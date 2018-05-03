@@ -650,9 +650,9 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 		/* we need to find the active island here */
 		if (do_island_optimization) {
 			UvElement *element;
-			NearestHit hit;
+			UvNearestHit hit = UV_NEAREST_HIT_INIT;
 			Image *ima = CTX_data_edit_image(C);
-			uv_find_nearest_vert(scene, ima, em, co, NULL, &hit);
+			uv_find_nearest_vert(scene, ima, obedit, co, 0.0f, &hit);
 
 			element = BM_uv_element_get(data->elementMap, hit.efa, hit.l);
 			island_index = element->island;
@@ -759,7 +759,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 		MEM_freeN(uniqueUv);
 
 		/* Allocate connectivity data, we allocate edges once */
-		data->uvedges = MEM_mallocN(sizeof(*data->uvedges) * BLI_ghash_size(edgeHash), "uv_brush_edge_connectivity_data");
+		data->uvedges = MEM_mallocN(sizeof(*data->uvedges) * BLI_ghash_len(edgeHash), "uv_brush_edge_connectivity_data");
 		if (!data->uvedges) {
 			BLI_ghash_free(edgeHash, NULL, NULL);
 			MEM_freeN(edges);
@@ -772,7 +772,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 		GHASH_ITER (gh_iter, edgeHash) {
 			data->uvedges[i++] = *((UvEdge *)BLI_ghashIterator_getKey(&gh_iter));
 		}
-		data->totalUvEdges = BLI_ghash_size(edgeHash);
+		data->totalUvEdges = BLI_ghash_len(edgeHash);
 
 		/* cleanup temporary stuff */
 		BLI_ghash_free(edgeHash, NULL, NULL);

@@ -119,11 +119,11 @@ static void EDIT_METABALL_cache_init(void *vedata)
 		psl->pass = DRW_pass_create("My Pass", state);
 
 		/* Create a shadingGroup using a function in draw_common.c or custom one */
-		stl->g_data->group = shgroup_instance_mball_helpers(psl->pass, DRW_cache_screenspace_circle_get());
+		stl->g_data->group = shgroup_instance_mball_handles(psl->pass, DRW_cache_screenspace_circle_get());
 	}
 }
 
-static void EDIT_METABALL_cache_populate_radius_visualization(
+static void EDIT_METABALL_cache_populate_radius(
         DRWShadingGroup *group, MetaElem *ml, const float scale_xform[3][4],
         const float *radius, const int selection_id)
 {
@@ -142,7 +142,7 @@ static void EDIT_METABALL_cache_populate_radius_visualization(
 	DRW_shgroup_call_dynamic_add(group, scale_xform, radius, color);
 }
 
-static void EDIT_METABALL_cache_populate_stiffness_visualization(
+static void EDIT_METABALL_cache_populate_stiffness(
         DRWShadingGroup *group, MetaElem *ml, const float scale_xform[3][4],
         const float *radius, const int selection_id)
 {
@@ -169,11 +169,9 @@ static void EDIT_METABALL_cache_populate(void *vedata, Object *ob)
 
 	if (ob->type == OB_MBALL) {
 		const DRWContextState *draw_ctx = DRW_context_state_get();
-		Scene *scene = draw_ctx->scene;
-		Object *obedit = scene->obedit;
 		DRWShadingGroup *group = stl->g_data->group;
 
-		if (ob == obedit) {
+		if (ob == draw_ctx->object_edit) {
 			MetaBall *mb = ob->data;
 
 			const bool is_select = DRW_state_is_select();
@@ -181,13 +179,13 @@ static void EDIT_METABALL_cache_populate(void *vedata, Object *ob)
 			int selection_id = 0;
 
 			for (MetaElem *ml = mb->editelems->first; ml != NULL; ml = ml->next) {
-				BKE_mball_element_calc_display_m3x4(ml->draw_scale_xform, ob->obmat, &ml->x);
+				BKE_mball_element_calc_scale_xform(ml->draw_scale_xform, ob->obmat, &ml->x);
 				ml->draw_stiffness_radius = ml->rad * atanf(ml->s) / (float)M_PI_2;
 
-				EDIT_METABALL_cache_populate_radius_visualization(
+				EDIT_METABALL_cache_populate_radius(
 				        group, ml, ml->draw_scale_xform, &ml->rad, is_select ? ++selection_id : -1);
 
-				EDIT_METABALL_cache_populate_stiffness_visualization(
+				EDIT_METABALL_cache_populate_stiffness(
 				        group, ml, ml->draw_scale_xform, &ml->draw_stiffness_radius, is_select ? ++selection_id : -1);
 			}
 		}
@@ -247,5 +245,6 @@ DrawEngineType draw_engine_edit_metaball_type = {
 	NULL,
 	NULL, /* draw_background but not needed by mode engines */
 	&EDIT_METABALL_draw_scene,
+	NULL,
 	NULL,
 };

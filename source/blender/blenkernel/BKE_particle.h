@@ -115,6 +115,7 @@ typedef struct ParticleTexture {
 	float damp, gravity, field;           /* used in physics */
 	float length, clump, kink_freq, kink_amp, effector;  /* used in path caching */
 	float rough1, rough2, roughe;         /* used in path caching */
+	float twist;  /* used in path caching */
 } ParticleTexture;
 
 typedef struct ParticleSeam {
@@ -162,9 +163,11 @@ typedef struct ParticleThreadContext {
 	float *vg_length, *vg_clump, *vg_kink;
 	float *vg_rough1, *vg_rough2, *vg_roughe;
 	float *vg_effector;
+	float *vg_twist;
 
 	struct CurveMapping *clumpcurve;
 	struct CurveMapping *roughcurve;
+	struct CurveMapping *twistcurve;
 } ParticleThreadContext;
 
 typedef struct ParticleTask {
@@ -246,7 +249,8 @@ typedef struct ParticleDrawData {
 	float *cdata, *cd;      /* color data */
 	float *vedata, *ved;    /* velocity data */
 	float *ma_col;
-	int tot_vec_size, flag;
+	int totpart, partsize;
+	int flag;
 	int totpoint, totve;
 } ParticleDrawData;
 
@@ -297,7 +301,8 @@ void psys_set_current_num(Object *ob, int index);
 
 struct LatticeDeformData *psys_create_lattice_deform_data(struct ParticleSimulationData *sim);
 
-bool psys_in_edit_mode(struct ViewLayer *view_layer, struct ParticleSystem *psys);
+bool psys_in_edit_mode(
+        const struct EvaluationContext *eval_ctx, struct ViewLayer *view_layer, struct ParticleSystem *psys);
 bool psys_check_enabled(struct Object *ob, struct ParticleSystem *psys, const bool use_render_params);
 bool psys_check_edited(struct ParticleSystem *psys);
 
@@ -326,7 +331,7 @@ struct ParticleSystemModifierData *psys_get_modifier(struct Object *ob, struct P
 
 struct ModifierData *object_add_particle_system(struct Scene *scene, struct Object *ob, const char *name);
 void object_remove_particle_system(struct Scene *scene, struct Object *ob);
-struct ParticleSettings *psys_new_settings(const char *name, struct Main *main);
+struct ParticleSettings *BKE_particlesettings_add(struct Main *main, const char *name);
 void BKE_particlesettings_copy_data(
         struct Main *bmain, struct ParticleSettings *part_dst, const struct ParticleSettings *part_src,
         const int flag);
@@ -351,6 +356,7 @@ int psys_get_particle_state(struct ParticleSimulationData *sim, int p, struct Pa
 /* child paths */
 void BKE_particlesettings_clump_curve_init(struct ParticleSettings *part);
 void BKE_particlesettings_rough_curve_init(struct ParticleSettings *part);
+void BKE_particlesettings_twist_curve_init(struct ParticleSettings *part);
 void psys_apply_child_modifiers(struct ParticleThreadContext *ctx, struct ListBase *modifiers,
                                 struct ChildParticle *cpa, struct ParticleTexture *ptex, const float orco[3], const float ornor[3], float hairmat[4][4],
                                 struct ParticleCacheKey *keys, struct ParticleCacheKey *parent_keys, const float parent_orco[3]);
@@ -478,11 +484,6 @@ typedef struct ParticleRenderData {
 /* **** Depsgraph evaluation **** */
 
 struct EvaluationContext;
-
-void BKE_particle_system_settings_eval(const struct EvaluationContext *eval_ctx,
-                                       struct ParticleSystem *psys);
-void BKE_particle_system_settings_recalc_clear(struct EvaluationContext *UNUSED(eval_ctx),
-                                               struct ParticleSettings *particle_settings);
 
 void BKE_particle_system_eval_init(const struct EvaluationContext *eval_ctx,
                                    struct Scene *scene,

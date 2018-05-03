@@ -60,6 +60,7 @@ struct ImBuf *BKE_movieclip_get_ibuf_flag(struct MovieClip *clip, struct MovieCl
 void BKE_movieclip_get_size(struct MovieClip *clip, struct MovieClipUser *user, int *width, int *height);
 void BKE_movieclip_get_size_fl(struct MovieClip *clip, struct MovieClipUser *user, float size[2]);
 int  BKE_movieclip_get_duration(struct MovieClip *clip);
+float BKE_movieclip_get_fps(struct MovieClip *clip);
 void BKE_movieclip_get_aspect(struct MovieClip *clip, float *aspx, float *aspy);
 bool BKE_movieclip_has_frame(struct MovieClip *clip, struct MovieClipUser *user);
 void BKE_movieclip_user_set_frame(struct MovieClipUser *user, int framenr);
@@ -74,8 +75,8 @@ void BKE_movieclip_build_proxy_frame(struct MovieClip *clip, int clip_flag, stru
 void BKE_movieclip_build_proxy_frame_for_ibuf(struct MovieClip *clip, struct ImBuf *ibuf, struct MovieDistortion *distortion,
                                               int cfra, int *build_sizes, int build_count, bool undistorted);
 
-float BKE_movieclip_remap_scene_to_clip_frame(struct MovieClip *clip, float framenr);
-float BKE_movieclip_remap_clip_to_scene_frame(struct MovieClip *clip, float framenr);
+float BKE_movieclip_remap_scene_to_clip_frame(const struct MovieClip *clip, float framenr);
+float BKE_movieclip_remap_clip_to_scene_frame(const struct MovieClip *clip, float framenr);
 
 void BKE_movieclip_filename_for_frame(struct MovieClip *clip, struct MovieClipUser *user, char *name);
 struct ImBuf *BKE_movieclip_anim_ibuf_for_frame(struct MovieClip *clip, struct MovieClipUser *user);

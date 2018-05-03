@@ -52,7 +52,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_fluidsim.h" // NT
+#include "DNA_object_fluidsim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_screen_types.h"
@@ -951,7 +951,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 			if (ob->totcol && ob->matbits == NULL) {
 				int a;
 
-				ob->matbits = MEM_callocN(sizeof(char)*ob->totcol, "ob->matbits");
+				ob->matbits = MEM_calloc_arrayN(ob->totcol, sizeof(char), "ob->matbits");
 				for (a = 0; a < ob->totcol; a++)
 					ob->matbits[a] = (ob->colbits & (1<<a)) != 0;
 			}
@@ -1087,8 +1087,6 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 
 	if (main->versionfile < 250 || (main->versionfile == 250 && main->subversionfile < 2)) {
 		Scene *sce;
-		Object *ob;
-
 		for (sce = main->scene.first; sce; sce = sce->id.next) {
 			if (fd->fileflags & G_FILE_ENABLE_ALL_FRAMES)
 				sce->gm.flag |= GAME_ENABLE_ALL_FRAMES;
@@ -1119,11 +1117,6 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 				sce->gm.matmode = GAME_MAT_MULTITEX;
 			else
 				sce->gm.matmode = GAME_MAT_TEXFACE;
-		}
-
-		for (ob = main->object.first; ob; ob = ob->id.next) {
-			if (ob->flag & 8192) // OB_POSEMODE = 8192
-				ob->mode |= OB_MODE_POSE;
 		}
 	}
 
@@ -1783,7 +1776,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 			ParticleEditSettings *pset = &sce->toolsettings->particle;
 			int a;
 
-			for (a = 0; a < PE_TOT_BRUSH; a++)
+			for (a = 0; a < ARRAY_SIZE(pset->brush); a++)
 				pset->brush[a].strength /= 100.0f;
 		}
 

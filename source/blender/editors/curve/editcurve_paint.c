@@ -93,6 +93,8 @@ struct StrokeElem {
 };
 
 struct CurveDrawData {
+	const Depsgraph *depsgraph;
+
 	short init_event_type;
 	short curve_type;
 
@@ -199,7 +201,7 @@ static bool stroke_elem_project(
 	if (cdd->project.use_plane) {
 		/* get the view vector to 'location' */
 		float ray_origin[3], ray_direction[3];
-		ED_view3d_win_to_ray(cdd->vc.ar, v3d, mval_fl, ray_origin, ray_direction, false);
+		ED_view3d_win_to_ray(cdd->depsgraph, cdd->vc.ar, v3d, mval_fl, ray_origin, ray_direction, false);
 
 		float lambda;
 		if (isect_ray_plane_v3(ray_origin, ray_direction, cdd->project.plane, &lambda, true)) {
@@ -363,7 +365,7 @@ static void curve_draw_stroke_3d(const struct bContext *UNUSED(C), ARegion *UNUS
 	wmOperator *op = arg;
 	struct CurveDrawData *cdd = op->customdata;
 
-	const int stroke_len = BLI_mempool_count(cdd->stroke_elem_pool);
+	const int stroke_len = BLI_mempool_len(cdd->stroke_elem_pool);
 
 	if (stroke_len == 0) {
 		return;
@@ -603,8 +605,10 @@ static bool curve_draw_init(bContext *C, wmOperator *op, bool is_invoke)
 
 	struct CurveDrawData *cdd = MEM_callocN(sizeof(*cdd), __func__);
 
+	cdd->depsgraph = CTX_data_depsgraph(C);
+
 	if (is_invoke) {
-		view3d_set_viewcontext(C, &cdd->vc);
+		ED_view3d_viewcontext_init(C, &cdd->vc);
 		if (ELEM(NULL, cdd->vc.ar, cdd->vc.rv3d, cdd->vc.v3d, cdd->vc.win, cdd->vc.scene)) {
 			MEM_freeN(cdd);
 			BKE_report(op->reports, RPT_ERROR, "Unable to access 3D viewport");
@@ -702,7 +706,7 @@ static void curve_draw_exec_precalc(wmOperator *op)
 	if (!RNA_property_is_set(op->ptr, prop)) {
 		bool use_cyclic = false;
 
-		if (BLI_mempool_count(cdd->stroke_elem_pool) > 2) {
+		if (BLI_mempool_len(cdd->stroke_elem_pool) > 2) {
 			BLI_mempool_iter iter;
 			const struct StrokeElem *selem, *selem_first, *selem_last;
 
@@ -728,7 +732,7 @@ static void curve_draw_exec_precalc(wmOperator *op)
 	    (cps->radius_taper_end   != 0.0f))
 	{
 		/* note, we could try to de-duplicate the length calculations above */
-		const int stroke_len = BLI_mempool_count(cdd->stroke_elem_pool);
+		const int stroke_len = BLI_mempool_len(cdd->stroke_elem_pool);
 
 		BLI_mempool_iter iter;
 		struct StrokeElem *selem, *selem_prev;
@@ -784,18 +788,18 @@ static int curve_draw_exec(bContext *C, wmOperator *op)
 	struct CurveDrawData *cdd = op->customdata;
 
 	const CurvePaintSettings *cps = &cdd->vc.scene->toolsettings->curve_paint_settings;
-	Object *obedit = cdd->vc.scene->obedit;
+	Object *obedit = cdd->vc.obedit;
 	Curve *cu = obedit->data;
 	ListBase *nurblist = object_editcurve_get(obedit);
 
-	int stroke_len = BLI_mempool_count(cdd->stroke_elem_pool);
+	int stroke_len = BLI_mempool_len(cdd->stroke_elem_pool);
 
 	const bool is_3d = (cu->flag & CU_3D) != 0;
 	invert_m4_m4(obedit->imat, obedit->obmat);
 
-	if (BLI_mempool_count(cdd->stroke_elem_pool) == 0) {
+	if (BLI_mempool_len(cdd->stroke_elem_pool) == 0) {
 		curve_draw_stroke_from_operator(op);
-		stroke_len = BLI_mempool_count(cdd->stroke_elem_pool);
+		stroke_len = BLI_mempool_len(cdd->stroke_elem_pool);
 	}
 
 	ED_curve_deselect_all(cu->editnurb);

@@ -62,6 +62,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_camera.h"
+#include "BKE_colorband.h"
 #include "BKE_context.h"
 #include "BKE_colortools.h"
 #include "BKE_DerivedMesh.h"
@@ -226,6 +227,7 @@ typedef struct ProjPaintState {
 	View3D *v3d;
 	RegionView3D *rv3d;
 	ARegion *ar;
+	const Depsgraph *depsgraph;
 	Scene *scene;
 	int source; /* PROJ_SRC_**** */
 
@@ -1499,15 +1501,16 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 
 
 	if (generate_tile) {
+		ListBase *undo_tiles = ED_image_undo_get_tiles();
 		volatile void *undorect;
 		if (tinf->masked) {
 			undorect = image_undo_push_tile(
-			        pjIma->ima, pjIma->ibuf, tinf->tmpibuf,
+			        undo_tiles, pjIma->ima, pjIma->ibuf, tinf->tmpibuf,
 			        tx, ty, &pjIma->maskRect[tile_index], &pjIma->valid[tile_index], true, false);
 		}
 		else {
 			undorect = image_undo_push_tile(
-			        pjIma->ima, pjIma->ibuf, tinf->tmpibuf,
+			        undo_tiles, pjIma->ima, pjIma->ibuf, tinf->tmpibuf,
 			        tx, ty, NULL, &pjIma->valid[tile_index], true, false);
 		}
 
@@ -2692,7 +2695,7 @@ static void project_paint_face_init(
 		int face_seam_flag;
 
 		if (threaded)
-			BLI_lock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
+			BLI_thread_lock(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
 
 		face_seam_flag = ps->faceSeamFlags[tri_index];
 
@@ -2709,7 +2712,7 @@ static void project_paint_face_init(
 		if ((face_seam_flag & (PROJ_FACE_SEAM1 | PROJ_FACE_SEAM2 | PROJ_FACE_SEAM3)) == 0) {
 
 			if (threaded)
-				BLI_unlock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
+				BLI_thread_unlock(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
 
 		}
 		else {
@@ -2735,7 +2738,7 @@ static void project_paint_face_init(
 
 			/* ps->faceSeamUVs cant be modified when threading, now this is done we can unlock */
 			if (threaded)
-				BLI_unlock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
+				BLI_thread_unlock(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
 
 			vCoSS[0] = ps->screenCoords[lt_vtri[0]];
 			vCoSS[1] = ps->screenCoords[lt_vtri[1]];
@@ -3132,7 +3135,7 @@ static void proj_paint_state_viewport_init(
 
 		ED_view3d_ob_project_mat_get_from_obmat(ps->rv3d, ps->obmat, ps->projectMat);
 
-		ps->is_ortho = ED_view3d_clip_range_get(ps->v3d, ps->rv3d, &ps->clipsta, &ps->clipend, true);
+		ps->is_ortho = ED_view3d_clip_range_get(ps->depsgraph, ps->v3d, ps->rv3d, &ps->clipsta, &ps->clipend, true);
 	}
 	else {
 		/* re-projection */
@@ -4136,7 +4139,7 @@ static bool project_bucket_iter_next(
 	const int diameter = 2 * ps->brush_size;
 
 	if (ps->thread_tot > 1)
-		BLI_lock_thread(LOCK_CUSTOM1);
+		BLI_thread_lock(LOCK_CUSTOM1);
 
 	//printf("%d %d\n", ps->context_bucket_x, ps->context_bucket_y);
 
@@ -4153,7 +4156,7 @@ static bool project_bucket_iter_next(
 				ps->context_bucket_x++;
 
 				if (ps->thread_tot > 1)
-					BLI_unlock_thread(LOCK_CUSTOM1);
+					BLI_thread_unlock(LOCK_CUSTOM1);
 
 				return 1;
 			}
@@ -4162,7 +4165,7 @@ static bool project_bucket_iter_next(
 	}
 
 	if (ps->thread_tot > 1)
-		BLI_unlock_thread(LOCK_CUSTOM1);
+		BLI_thread_unlock(LOCK_CUSTOM1);
 	return 0;
 }
 
@@ -4582,7 +4585,7 @@ static void *do_projectpaint_thread(void *ph_v)
 								break;
 							}
 						}
-						do_colorband(brush->gradient, f, color_f);
+						BKE_colorband_evaluate(brush->gradient, f, color_f);
 						color_f[3] *= ((float)projPixel->mask) * (1.0f / 65535.0f) * brush->alpha;
 
 						if (is_floatbuf) {
@@ -4881,7 +4884,7 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
 	}
 
 	if (ps->thread_tot > 1)
-		BLI_init_threads(&threads, do_projectpaint_thread, ps->thread_tot);
+		BLI_threadpool_init(&threads, do_projectpaint_thread, ps->thread_tot);
 
 	pool = BKE_image_pool_new();
 
@@ -4911,11 +4914,11 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
 		handles[a].pool = pool;
 
 		if (ps->thread_tot > 1)
-			BLI_insert_thread(&threads, &handles[a]);
+			BLI_threadpool_insert(&threads, &handles[a]);
 	}
 
 	if (ps->thread_tot > 1) /* wait for everything to be done */
-		BLI_end_threads(&threads);
+		BLI_threadpool_end(&threads);
 	else
 		do_projectpaint_thread(&handles[0]);
 
@@ -5097,6 +5100,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 	ps->rv3d = CTX_wm_region_view3d(C);
 	ps->ar = CTX_wm_region(C);
 
+	ps->depsgraph = CTX_data_depsgraph(C);
 	ps->scene = scene;
 	ps->ob = ob; /* allow override of active object */
 
@@ -5393,8 +5397,7 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 
 	scene->toolsettings->imapaint.flag |= IMAGEPAINT_DRAWING;
 
-	ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
-	                         ED_image_undo_restore, ED_image_undo_free, NULL);
+	ED_image_undo_push_begin(op->type->name);
 
 	/* allocate and initialize spatial data structures */
 	project_paint_begin(C, &ps, false, 0);
@@ -5475,7 +5478,7 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 	ibuf = ED_view3d_draw_offscreen_imbuf(
 	        &eval_ctx, scene, view_layer, CTX_wm_view3d(C), CTX_wm_region(C),
 	        w, h, IB_rect, V3D_OFSDRAW_NONE, R_ALPHAPREMUL, 0, NULL,
-	        NULL, NULL, err_out);
+	        NULL, err_out);
 	if (!ibuf) {
 		/* Mostly happens when OpenGL offscreen buffer was failed to create, */
 		/* but could be other reasons. Should be handled in the future. nazgul */
@@ -5507,7 +5510,7 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 		array = (float *)IDP_Array(view_data);
 		memcpy(array, rv3d->winmat, sizeof(rv3d->winmat)); array += sizeof(rv3d->winmat) / sizeof(float);
 		memcpy(array, rv3d->viewmat, sizeof(rv3d->viewmat)); array += sizeof(rv3d->viewmat) / sizeof(float);
-		is_ortho = ED_view3d_clip_range_get(v3d, rv3d, &array[0], &array[1], true);
+		is_ortho = ED_view3d_clip_range_get(CTX_data_depsgraph(C), v3d, rv3d, &array[0], &array[1], true);
 		/* using float for a bool is dodgy but since its an extra member in the array...
 		 * easier then adding a single bool prop */
 		array[2] = is_ortho ? 1.0f : 0.0f;
@@ -5938,11 +5941,11 @@ static int add_simple_uvs_exec(bContext *C, wmOperator *UNUSED(op))
 
 static int add_simple_uvs_poll(bContext *C)
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = CTX_data_active_object(C);
-
-	if (!ob || ob->type != OB_MESH || ob->mode != OB_MODE_TEXTURE_PAINT)
+	if (!ob || (ob->type != OB_MESH) || (workspace->object_mode != OB_MODE_TEXTURE_PAINT)) {
 		return false;
-
+	}
 	return true;
 }
 

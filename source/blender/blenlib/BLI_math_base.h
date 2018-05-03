@@ -35,6 +35,7 @@
 #endif
 
 #include <math.h>
+#include "BLI_assert.h"
 #include "BLI_math_inline.h"
 
 #ifndef M_PI
@@ -129,6 +130,13 @@ MINLINE int max_iii(int a, int b, int c);
 MINLINE int min_iiii(int a, int b, int c, int d);
 MINLINE int max_iiii(int a, int b, int c, int d);
 
+MINLINE size_t min_zz(size_t a, size_t b);
+MINLINE size_t max_zz(size_t a, size_t b);
+
+MINLINE int clamp_i(int value, int min, int max);
+MINLINE float clamp_f(float value, float min, float max);
+MINLINE size_t clamp_z(size_t value, size_t min, size_t max);
+
 MINLINE int compare_ff(float a, float b, const float max_diff);
 MINLINE int compare_ff_relative(float a, float b, const float max_diff, const int max_ulps);
 
@@ -140,6 +148,7 @@ MINLINE float power_of_2(float f);
 
 MINLINE int integer_digits_f(const float f);
 MINLINE int integer_digits_d(const double d);
+MINLINE int integer_digits_i(const int i);
 
 /* these don't really fit anywhere but were being copied about a lot */
 MINLINE int is_power_of_2_i(int n);

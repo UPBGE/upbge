@@ -32,7 +32,7 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_camera_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
@@ -45,6 +45,7 @@
 #include "BKE_screen.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "eevee_private.h"
 #include "GPU_extensions.h"
@@ -74,11 +75,10 @@ static void eevee_create_shader_depth_of_field(void)
 	                                          datatoc_effect_dof_frag_glsl, "#define STEP_RESOLVE\n");
 }
 
-int EEVEE_depth_of_field_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
+int EEVEE_depth_of_field_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata, Object *camera)
 {
 	EEVEE_StorageList *stl = vedata->stl;
 	EEVEE_FramebufferList *fbl = vedata->fbl;
-	EEVEE_TextureList *txl = vedata->txl;
 	EEVEE_EffectsInfo *effects = stl->effects;
 
 	const DRWContextState *draw_ctx = DRW_context_state_get();
@@ -87,16 +87,15 @@ int EEVEE_depth_of_field_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *v
 
 	if (BKE_collection_engine_property_value_get_bool(props, "dof_enable")) {
 		Scene *scene = draw_ctx->scene;
-		View3D *v3d = draw_ctx->v3d;
 		RegionView3D *rv3d = draw_ctx->rv3d;
 
 		if (!e_data.dof_downsample_sh) {
 			eevee_create_shader_depth_of_field();
 		}
 
-		if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
+		if (camera) {
 			const float *viewport_size = DRW_viewport_size_get();
-			Camera *cam = (Camera *)v3d->camera->data;
+			Camera *cam = (Camera *)camera->data;
 
 			/* Retreive Near and Far distance */
 			effects->dof_near_far[0] = -cam->clipsta;
@@ -104,36 +103,36 @@ int EEVEE_depth_of_field_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *v
 
 			int buffer_size[2] = {(int)viewport_size[0] / 2, (int)viewport_size[1] / 2};
 
-			/* Reuse buffer from Bloom if available */
-			/* WATCH IT : must have the same size */
-			struct GPUTexture **dof_down_near;
+			effects->dof_down_near = DRW_texture_pool_query_2D(buffer_size[0], buffer_size[1], DRW_TEX_RGB_11_11_10,
+			                                                   &draw_engine_eevee_type);
+			effects->dof_down_far =  DRW_texture_pool_query_2D(buffer_size[0], buffer_size[1], DRW_TEX_RGB_11_11_10,
+			                                                   &draw_engine_eevee_type);
+			effects->dof_coc =       DRW_texture_pool_query_2D(buffer_size[0], buffer_size[1], DRW_TEX_RG_16,
+			                                                   &draw_engine_eevee_type);
 
-			if ((effects->enabled_effects & EFFECT_BLOOM) != 0) {
-				dof_down_near = &txl->bloom_downsample[0];
-			}
-			else {
-				dof_down_near = &txl->dof_down_near;
-			}
+			GPU_framebuffer_ensure_config(&fbl->dof_down_fb, {
+				GPU_ATTACHMENT_NONE,
+				GPU_ATTACHMENT_TEXTURE(effects->dof_down_near),
+				GPU_ATTACHMENT_TEXTURE(effects->dof_down_far),
+				GPU_ATTACHMENT_TEXTURE(effects->dof_coc)
+			});
 
-			/* Setup buffers */
-			DRWFboTexture tex_down[3] = {
-				{dof_down_near, DRW_TEX_RGB_11_11_10, DRW_TEX_FILTER}, /* filter to not interfeer with bloom */
-				{&txl->dof_down_far, DRW_TEX_RGB_11_11_10, 0},
-				{&txl->dof_coc, DRW_TEX_RG_16, 0},
-			};
-			DRW_framebuffer_init(
-			        &fbl->dof_down_fb, &draw_engine_eevee_type,
-			        buffer_size[0], buffer_size[1], tex_down, 3);
+			/* Go full 32bits for rendering and reduce the color artifacts. */
+			DRWTextureFormat fb_format = DRW_state_is_image_render() ? DRW_TEX_RGBA_32 : DRW_TEX_RGBA_16;
 
-			DRWFboTexture tex_scatter_far = {&txl->dof_far_blur, DRW_TEX_RGBA_16, DRW_TEX_FILTER};
-			DRW_framebuffer_init(
-			        &fbl->dof_scatter_far_fb, &draw_engine_eevee_type,
-			        buffer_size[0], buffer_size[1], &tex_scatter_far, 1);
+			effects->dof_far_blur = DRW_texture_pool_query_2D(buffer_size[0], buffer_size[1], fb_format,
+			                                                  &draw_engine_eevee_type);
+			GPU_framebuffer_ensure_config(&fbl->dof_scatter_far_fb, {
+				GPU_ATTACHMENT_NONE,
+				GPU_ATTACHMENT_TEXTURE(effects->dof_far_blur),
+			});
 
-			DRWFboTexture tex_scatter_near = {&txl->dof_near_blur, DRW_TEX_RGBA_16, DRW_TEX_FILTER};
-			DRW_framebuffer_init(
-			        &fbl->dof_scatter_near_fb, &draw_engine_eevee_type,
-			        buffer_size[0], buffer_size[1], &tex_scatter_near, 1);
+			effects->dof_near_blur = DRW_texture_pool_query_2D(buffer_size[0], buffer_size[1], fb_format,
+			                                                   &draw_engine_eevee_type);
+			GPU_framebuffer_ensure_config(&fbl->dof_scatter_near_fb, {
+				GPU_ATTACHMENT_NONE,
+				GPU_ATTACHMENT_TEXTURE(effects->dof_near_blur),
+			});
 
 			/* Parameters */
 			/* TODO UI Options */
@@ -142,7 +141,7 @@ int EEVEE_depth_of_field_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *v
 			float rotation = cam->gpu_dof.rotation;
 			float ratio = 1.0f / cam->gpu_dof.ratio;
 			float sensor = BKE_camera_sensor_size(cam->sensor_fit, cam->sensor_x, cam->sensor_y);
-			float focus_dist = BKE_camera_object_dof_distance(v3d->camera);
+			float focus_dist = BKE_camera_object_dof_distance(camera);
 			float focal_len = cam->lens;
 
 			UNUSED_VARS(rotation, ratio);
@@ -158,9 +157,13 @@ int EEVEE_depth_of_field_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *v
 			float focal_len_scaled = scale_camera * focal_len;
 			float sensor_scaled = scale_camera * sensor;
 
+			if (rv3d != NULL) {
+				sensor_scaled *= rv3d->viewcamtexcofac[0];
+			}
+
 			effects->dof_params[0] = aperture * fabsf(focal_len_scaled / (focus_dist - focal_len_scaled));
 			effects->dof_params[1] = -focus_dist;
-			effects->dof_params[2] = viewport_size[0] / (rv3d->viewcamtexcofac[0] * sensor_scaled);
+			effects->dof_params[2] = viewport_size[0] / sensor_scaled;
 			effects->dof_bokeh[0] = blades;
 			effects->dof_bokeh[1] = rotation;
 			effects->dof_bokeh[2] = ratio;
@@ -171,14 +174,9 @@ int EEVEE_depth_of_field_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *v
 	}
 
 	/* Cleanup to release memory */
-	DRW_TEXTURE_FREE_SAFE(txl->dof_down_near);
-	DRW_TEXTURE_FREE_SAFE(txl->dof_down_far);
-	DRW_TEXTURE_FREE_SAFE(txl->dof_coc);
-	DRW_TEXTURE_FREE_SAFE(txl->dof_far_blur);
-	DRW_TEXTURE_FREE_SAFE(txl->dof_near_blur);
-	DRW_FRAMEBUFFER_FREE_SAFE(fbl->dof_down_fb);
-	DRW_FRAMEBUFFER_FREE_SAFE(fbl->dof_scatter_far_fb);
-	DRW_FRAMEBUFFER_FREE_SAFE(fbl->dof_scatter_near_fb);
+	GPU_FRAMEBUFFER_FREE_SAFE(fbl->dof_down_fb);
+	GPU_FRAMEBUFFER_FREE_SAFE(fbl->dof_scatter_far_fb);
+	GPU_FRAMEBUFFER_FREE_SAFE(fbl->dof_scatter_near_fb);
 
 	return 0;
 }
@@ -187,7 +185,6 @@ void EEVEE_depth_of_field_cache_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_
 {
 	EEVEE_PassList *psl = vedata->psl;
 	EEVEE_StorageList *stl = vedata->stl;
-	EEVEE_TextureList *txl = vedata->txl;
 	EEVEE_EffectsInfo *effects = stl->effects;
 	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
@@ -207,13 +204,13 @@ void EEVEE_depth_of_field_cache_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_
 		psl->dof_down = DRW_pass_create("DoF Downsample", DRW_STATE_WRITE_COLOR);
 
 		grp = DRW_shgroup_create(e_data.dof_downsample_sh, psl->dof_down);
-		DRW_shgroup_uniform_buffer(grp, "colorBuffer", &effects->source_buffer);
-		DRW_shgroup_uniform_buffer(grp, "depthBuffer", &dtxl->depth);
+		DRW_shgroup_uniform_texture_ref(grp, "colorBuffer", &effects->source_buffer);
+		DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);
 		DRW_shgroup_uniform_vec2(grp, "nearFar", effects->dof_near_far, 1);
 		DRW_shgroup_uniform_vec3(grp, "dofParams", effects->dof_params, 1);
 		DRW_shgroup_call_add(grp, quad, NULL);
 
-		psl->dof_scatter = DRW_pass_create("DoF Scatter", DRW_STATE_WRITE_COLOR | DRW_STATE_ADDITIVE);
+		psl->dof_scatter = DRW_pass_create("DoF Scatter", DRW_STATE_WRITE_COLOR | DRW_STATE_ADDITIVE_FULL);
 
 		/* This create an empty batch of N triangles to be positioned
 		 * by the vertex shader 0.4ms against 6ms with instancing */
@@ -221,18 +218,18 @@ void EEVEE_depth_of_field_cache_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_
 		const int sprite_ct = ((int)viewport_size[0] / 2) * ((int)viewport_size[1] / 2); /* brackets matters */
 		grp = DRW_shgroup_empty_tri_batch_create(e_data.dof_scatter_sh, psl->dof_scatter, sprite_ct);
 
-		DRW_shgroup_uniform_buffer(grp, "colorBuffer", &effects->unf_source_buffer);
-		DRW_shgroup_uniform_buffer(grp, "cocBuffer", &txl->dof_coc);
+		DRW_shgroup_uniform_texture_ref(grp, "colorBuffer", &effects->unf_source_buffer);
+		DRW_shgroup_uniform_texture_ref(grp, "cocBuffer", &effects->dof_coc);
 		DRW_shgroup_uniform_vec2(grp, "layerSelection", effects->dof_layer_select, 1);
 		DRW_shgroup_uniform_vec4(grp, "bokehParams", effects->dof_bokeh, 1);
 
 		psl->dof_resolve = DRW_pass_create("DoF Resolve", DRW_STATE_WRITE_COLOR);
 
 		grp = DRW_shgroup_create(e_data.dof_resolve_sh, psl->dof_resolve);
-		DRW_shgroup_uniform_buffer(grp, "colorBuffer", &effects->source_buffer);
-		DRW_shgroup_uniform_buffer(grp, "nearBuffer", &txl->dof_near_blur);
-		DRW_shgroup_uniform_buffer(grp, "farBuffer", &txl->dof_far_blur);
-		DRW_shgroup_uniform_buffer(grp, "depthBuffer", &dtxl->depth);
+		DRW_shgroup_uniform_texture_ref(grp, "colorBuffer", &effects->source_buffer);
+		DRW_shgroup_uniform_texture_ref(grp, "nearBuffer", &effects->dof_near_blur);
+		DRW_shgroup_uniform_texture_ref(grp, "farBuffer", &effects->dof_far_blur);
+		DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);
 		DRW_shgroup_uniform_vec2(grp, "nearFar", effects->dof_near_far, 1);
 		DRW_shgroup_uniform_vec3(grp, "dofParams", effects->dof_params, 1);
 		DRW_shgroup_call_add(grp, quad, NULL);
@@ -252,31 +249,25 @@ void EEVEE_depth_of_field_draw(EEVEE_Data *vedata)
 		float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 		/* Downsample */
-		DRW_framebuffer_bind(fbl->dof_down_fb);
+		GPU_framebuffer_bind(fbl->dof_down_fb);
 		DRW_draw_pass(psl->dof_down);
 
 		/* Scatter Far */
-		effects->unf_source_buffer = txl->dof_down_far;
+		effects->unf_source_buffer = effects->dof_down_far;
 		copy_v2_fl2(effects->dof_layer_select, 0.0f, 1.0f);
-		DRW_framebuffer_bind(fbl->dof_scatter_far_fb);
-		DRW_framebuffer_clear(true, false, false, clear_col, 0.0f);
+		GPU_framebuffer_bind(fbl->dof_scatter_far_fb);
+		GPU_framebuffer_clear_color(fbl->dof_scatter_far_fb, clear_col);
 		DRW_draw_pass(psl->dof_scatter);
 
 		/* Scatter Near */
-		if ((effects->enabled_effects & EFFECT_BLOOM) != 0) {
-			/* Reuse bloom half res buffer */
-			effects->unf_source_buffer = txl->bloom_downsample[0];
-		}
-		else {
-			effects->unf_source_buffer = txl->dof_down_near;
-		}
+		effects->unf_source_buffer = effects->dof_down_near;
 		copy_v2_fl2(effects->dof_layer_select, 1.0f, 0.0f);
-		DRW_framebuffer_bind(fbl->dof_scatter_near_fb);
-		DRW_framebuffer_clear(true, false, false, clear_col, 0.0f);
+		GPU_framebuffer_bind(fbl->dof_scatter_near_fb);
+		GPU_framebuffer_clear_color(fbl->dof_scatter_near_fb, clear_col);
 		DRW_draw_pass(psl->dof_scatter);
 
 		/* Resolve */
-		DRW_framebuffer_bind(effects->target_buffer);
+		GPU_framebuffer_bind(effects->target_buffer);
 		DRW_draw_pass(psl->dof_resolve);
 		SWAP_BUFFERS();
 	}

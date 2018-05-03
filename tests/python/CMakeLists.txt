@@ -27,6 +27,7 @@
 set(USE_EXPERIMENTAL_TESTS FALSE)
 
 set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/../lib/tests)
+set(TEST_DATA_SRC_DIR ${CMAKE_SOURCE_DIR}/../lib/tests_data)
 set(TEST_OUT_DIR ${CMAKE_BINARY_DIR}/tests)
 
 # ugh, any better way to do this on testing only?
@@ -116,14 +117,21 @@ add_test(
 # ------------------------------------------------------------------------------
 # MODELING TESTS
 add_test(
-	NAME bevel
+	NAME bmesh_bevel
 	COMMAND "$<TARGET_FILE:blender>" ${TEST_BLENDER_EXE_PARAMS}
 	${TEST_SRC_DIR}/modeling/bevel_regression.blend
 	--python-text run_tests
 )
 
 add_test(
-	NAME split_faces
+	NAME bmesh_boolean
+	COMMAND "$<TARGET_FILE:blender>" ${TEST_BLENDER_EXE_PARAMS}
+	${TEST_SRC_DIR}/modeling/bool_regression.blend
+	--python-text run_tests
+)
+
+add_test(
+	NAME bmesh_split_faces
 	COMMAND "$<TARGET_FILE:blender>" ${TEST_BLENDER_EXE_PARAMS}
 	${TEST_SRC_DIR}/modeling/split_faces_test.blend
 	--python-text run_tests
@@ -132,7 +140,7 @@ add_test(
 # ------------------------------------------------------------------------------
 # MODIFIERS TESTS
 add_test(
-	NAME modifier_array
+	NAME object_modifier_array
 	COMMAND "$<TARGET_FILE:blender>" ${TEST_BLENDER_EXE_PARAMS}
 	${TEST_SRC_DIR}/modifier_stack/array_test.blend
 	--python-text run_tests
@@ -506,52 +514,85 @@ add_test(
 )
 endif()
 
+# Run Python script outside Blender.
+function(add_python_test testname testscript)
+	if(MSVC)
+		add_test(
+			NAME ${testname}
+			COMMAND
+				"$<TARGET_FILE_DIR:blender>/${BLENDER_VERSION_MAJOR}.${BLENDER_VERSION_MINOR}/python/bin/python$<$<CONFIG:Debug>:_d>"
+				${testscript} ${ARGN}
+		)
+	else()
+		add_test(
+			NAME ${testname}
+			COMMAND ${testscript} ${ARGN}
+		)
+	endif()
+endfunction()
+
 if(WITH_CYCLES)
 	if(OPENIMAGEIO_IDIFF AND EXISTS "${TEST_SRC_DIR}/cycles/ctests/shader")
 		macro(add_cycles_render_test subject)
-			if(MSVC)
-				add_test(
-					NAME cycles_${subject}_test
-					COMMAND
-						"$<TARGET_FILE_DIR:blender>/${BLENDER_VERSION_MAJOR}.${BLENDER_VERSION_MINOR}/python/bin/python$<$<CONFIG:Debug>:_d>"
-						${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
-					-blender "$<TARGET_FILE:blender>"
-					-testdir "${TEST_SRC_DIR}/cycles/ctests/${subject}"
-					-idiff "${OPENIMAGEIO_IDIFF}"
-					-outdir "${TEST_OUT_DIR}/cycles"
-				)
-			else()
-				add_test(
-					NAME cycles_${subject}_test
-					COMMAND ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
-					-blender "$<TARGET_FILE:blender>"
-					-testdir "${TEST_SRC_DIR}/cycles/ctests/${subject}"
-					-idiff "${OPENIMAGEIO_IDIFF}"
-					-outdir "${TEST_OUT_DIR}/cycles"
-				)
-			endif()
+			add_python_test(
+				cycles_${subject}_test
+				${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
+				-blender "$<TARGET_FILE:blender>"
+				-testdir "${TEST_SRC_DIR}/cycles/ctests/${subject}"
+				-idiff "${OPENIMAGEIO_IDIFF}"
+				-outdir "${TEST_OUT_DIR}/cycles"
+			)
 		endmacro()
-		if(WITH_OPENGL_TESTS)
+		if(WITH_OPENGL_RENDER_TESTS)
 			add_cycles_render_test(opengl)
 		endif()
 		add_cycles_render_test(bake)
+		add_cycles_render_test(bsdf)
 		add_cycles_render_test(denoise)
 		add_cycles_render_test(displacement)
+		add_cycles_render_test(hair)
 		add_cycles_render_test(image_data_types)
 		add_cycles_render_test(image_mapping)
 		add_cycles_render_test(image_texture_limit)
+		add_cycles_render_test(integrator)
 		add_cycles_render_test(light)
-		add_cycles_render_test(mblur)
+		add_cycles_render_test(mesh)
+		add_cycles_render_test(motion_blur)
+		add_cycles_render_test(render_layer)
 		add_cycles_render_test(reports)
-		add_cycles_render_test(render)
 		add_cycles_render_test(shader)
-		add_cycles_render_test(shader_tangent)
 		add_cycles_render_test(shadow_catcher)
+		add_cycles_render_test(sss)
 		add_cycles_render_test(volume)
 	else()
 		MESSAGE(STATUS "Disabling Cycles tests because tests folder does not exist")
 	endif()
 endif()
+
+if(WITH_OPENGL_DRAW_TESTS)
+	if(OPENIMAGEIO_IDIFF AND EXISTS "${TEST_SRC_DIR}/opengl")
+		# Use all test folders
+		file(GLOB children RELATIVE ${TEST_SRC_DIR} ${TEST_SRC_DIR}/*)
+		foreach(child ${children})
+			if(IS_DIRECTORY ${TEST_SRC_DIR}/${child})
+				file(GLOB blends ${TEST_SRC_DIR}/${child}/*.blend)
+				if(blends)
+					add_python_test(
+						opengl_draw_${child}_test
+						${CMAKE_CURRENT_LIST_DIR}/opengl_draw_tests.py
+						-blender "$<TARGET_FILE:blender>"
+						-testdir "${TEST_SRC_DIR}/${child}"
+						-idiff "${OPENIMAGEIO_IDIFF}"
+						-outdir "${TEST_OUT_DIR}/opengl_draw"
+					)
+				endif()
+			endif()
+		endforeach()
+	else()
+		MESSAGE(STATUS "Disabling OpenGL tests because tests folder does not exist")
+	endif()
+endif()
+
 
 if(WITH_ALEMBIC)
 	find_package_wrapper(Alembic)
@@ -561,26 +602,13 @@ if(WITH_ALEMBIC)
 	get_filename_component(real_include_dir ${ALEMBIC_INCLUDE_DIR} REALPATH)
 	get_filename_component(ALEMBIC_ROOT_DIR ${real_include_dir} DIRECTORY)
 
-	if(MSVC)
-		# FIXME, de-duplicate.
-		add_test(
-			NAME alembic_tests
-			COMMAND
-				"$<TARGET_FILE_DIR:blender>/${BLENDER_VERSION_MAJOR}.${BLENDER_VERSION_MINOR}/python/bin/python$<$<CONFIG:Debug>:_d>"
-				${CMAKE_CURRENT_LIST_DIR}/alembic_tests.py
-			--blender "$<TARGET_FILE:blender>"
-			--testdir "${TEST_SRC_DIR}/alembic"
-			--alembic-root "${ALEMBIC_ROOT_DIR}"
-		)
-	else()
-		add_test(
-			NAME alembic_tests
-			COMMAND ${CMAKE_CURRENT_LIST_DIR}/alembic_tests.py
-			--blender "$<TARGET_FILE:blender>"
-			--testdir "${TEST_SRC_DIR}/alembic"
-			--alembic-root "${ALEMBIC_ROOT_DIR}"
-		)
-	endif()
+	add_python_test(
+		alembic_tests
+		${CMAKE_CURRENT_LIST_DIR}/alembic_tests.py
+		--blender "$<TARGET_FILE:blender>"
+		--testdir "${TEST_SRC_DIR}/alembic"
+		--alembic-root "${ALEMBIC_ROOT_DIR}"
+	)
 
 	add_test(
 		NAME script_alembic_import
@@ -592,4 +620,14 @@ if(WITH_ALEMBIC)
 	)
 endif()
 
+if(WITH_CODEC_FFMPEG)
+	add_python_test(
+		ffmpeg_tests
+		${CMAKE_CURRENT_LIST_DIR}/ffmpeg_tests.py
+		--blender "$<TARGET_FILE:blender>"
+		--testdir "${TEST_DATA_SRC_DIR}/ffmpeg"
+	)
+endif()
+
+add_subdirectory(collada)
 add_subdirectory(view_layer)

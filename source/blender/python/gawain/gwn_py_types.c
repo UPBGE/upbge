@@ -117,7 +117,7 @@ static int bpygwn_ParseVertFetchMode(PyObject *o, void *p)
 		} \
 	} ((void)0)
 
-	Gwn_VertCompType mode;
+	Gwn_VertFetchMode mode;
 	MATCH_ID(FLOAT);
 	MATCH_ID(INT);
 	MATCH_ID(INT_TO_FLOAT_UNIT);
@@ -168,7 +168,7 @@ static int bpygwn_ParsePrimType(PyObject *o, void *p)
 	return 0;
 
 success:
-	(*(Gwn_VertFetchMode *)p) = mode;
+	(*(Gwn_PrimType *)p) = mode;
 	return 1;
 }
 
@@ -634,7 +634,7 @@ static PyObject *bpygwn_VertBatch_uniform_i32(BPyGwn_Batch *self, PyObject *args
 
 static PyObject *bpygwn_VertBatch_uniform_f32(BPyGwn_Batch *self, PyObject *args)
 {
-	static struct {
+	struct {
 		const char *id;
 		float values[4];
 	} params;
@@ -648,10 +648,10 @@ static PyObject *bpygwn_VertBatch_uniform_f32(BPyGwn_Batch *self, PyObject *args
 	}
 
 	switch (PyTuple_GET_SIZE(args)) {
-		case 2: GWN_batch_uniform_1f(self->batch,  params.id,  params.values[0]); break;
-		case 3: GWN_batch_uniform_2fv(self->batch, params.id, params.values);     break;
-		case 4: GWN_batch_uniform_3fv(self->batch, params.id, params.values);     break;
-		case 5: GWN_batch_uniform_4fv(self->batch, params.id, params.values);     break;
+		case 2: GWN_batch_uniform_1f(self->batch, params.id, params.values[0]); break;
+		case 3: GWN_batch_uniform_2f(self->batch, params.id, UNPACK2(params.values)); break;
+		case 4: GWN_batch_uniform_3f(self->batch, params.id, UNPACK3(params.values)); break;
+		case 5: GWN_batch_uniform_4f(self->batch, params.id, UNPACK4(params.values)); break;
 		default:
 			BLI_assert(0);
 	}

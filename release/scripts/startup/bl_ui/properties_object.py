@@ -40,7 +40,7 @@ class OBJECT_PT_context_object(ObjectButtonsPanel, Panel):
             layout.template_ID(space, "pin_id")
         else:
             row = layout.row()
-            row.template_ID(context.view_layer.objects, "active")
+            row.template_ID(context.view_layer.objects, "active", filter='AVAILABLE')
 
 
 class OBJECT_PT_transform(ObjectButtonsPanel, Panel):
@@ -173,9 +173,6 @@ class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):
         row.active = ((ob.parent is not None) and (ob.use_slow_parent))
         row.prop(ob, "slow_parent_offset", text="Offset")
 
-        layout.prop(ob, "use_extra_recalc_object")
-        layout.prop(ob, "use_extra_recalc_data")
-
 
 class GROUP_MT_specials(Menu):
     bl_label = "Group Specials"
@@ -277,6 +274,13 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
             # Only useful with object having faces/materials...
             col.label(text="Object Color:")
             col.prop(obj, "color", text="")
+
+        col = layout.column()
+        col.active = bool(is_dupli or obj.particle_systems)
+        col.label(text="Duplicator Visibility:")
+        row = col.row(align=True)
+        row.prop(obj, "show_duplicator_for_viewport", text="Viewport")
+        row.prop(obj, "show_duplicator_for_render", text="Render")
 
 
 class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):

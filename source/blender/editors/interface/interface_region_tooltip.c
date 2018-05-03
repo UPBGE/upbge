@@ -29,6 +29,14 @@
  * ToolTip Region and Construction
  */
 
+/* TODO(campbell):
+ * We may want to have a higher level API that initializes a timer,
+ * checks for mouse motion and clears the tool-tip afterwards.
+ * We never want multiple tool-tips at once so this could be handled on the window / window-manager level.
+ *
+ * For now it's not a priority, so leave as-is.
+ */
+
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -97,7 +105,6 @@ typedef struct uiTooltipField {
 
 } uiTooltipField;
 
-#define MAX_TOOLTIP_LINES 8
 typedef struct uiTooltipData {
 	rcti bbox;
 	uiTooltipField *fields;
@@ -168,12 +175,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 
 	float background_color[3];
 	float tone_bg;
-	int i, multisample_enabled;
-
-	/* disable AA, makes widgets too blurry */
-	multisample_enabled = glIsEnabled(GL_MULTISAMPLE);
-	if (multisample_enabled)
-		glDisable(GL_MULTISAMPLE);
+	int i;
 
 	wmOrtho2_region_pixelspace(ar);
 
@@ -278,9 +280,6 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 
 	BLF_disable(data->fstyle.uifont_id, BLF_WORD_WRAP);
 	BLF_disable(blf_mono_font, BLF_WORD_WRAP);
-
-	if (multisample_enabled)
-		glEnable(GL_MULTISAMPLE);
 }
 
 static void ui_tooltip_region_free_cb(ARegion *ar)
@@ -313,8 +312,6 @@ static uiTooltipData *ui_tooltip_data_from_keymap(bContext *C, wmKeyMap *keymap)
 
 	/* create tooltip data */
 	uiTooltipData *data = MEM_callocN(sizeof(uiTooltipData), "uiTooltipData");
-
-	BLI_assert(data->fields_len < MAX_TOOLTIP_LINES);
 
 	for (wmKeyMapItem *kmi = keymap->items.first; kmi; kmi = kmi->next) {
 		wmOperatorType *ot = WM_operatortype_find(kmi->idname, true);
@@ -609,7 +606,110 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
 	if (rna_prop.strinfo)
 		MEM_freeN(rna_prop.strinfo);
 
-	BLI_assert(data->fields_len < MAX_TOOLTIP_LINES);
+	if (data->fields_len == 0) {
+		MEM_freeN(data);
+		return NULL;
+	}
+	else {
+		return data;
+	}
+}
+
+static uiTooltipData *ui_tooltip_data_from_manipulator(bContext *C, wmManipulator *mpr)
+{
+	uiTooltipData *data = MEM_callocN(sizeof(uiTooltipData), "uiTooltipData");
+
+	/* TODO(campbell): a way for manipulators to have their own descriptions (low priority). */
+
+	/* Operator Actions */
+	{
+		bool use_drag = mpr->drag_part != -1 && mpr->highlight_part != mpr->drag_part;
+
+		const struct {
+			int part;
+			const char *prefix;
+		} mpop_actions[] = {
+			{
+				.part = mpr->highlight_part,
+				.prefix = use_drag ? TIP_("Click") : NULL,
+			}, {
+				.part = use_drag ? mpr->drag_part : -1,
+				.prefix = use_drag ? TIP_("Drag") : NULL,
+			},
+		};
+
+		for (int i = 0; i < ARRAY_SIZE(mpop_actions); i++) {
+			wmManipulatorOpElem *mpop = (mpop_actions[i].part != -1) ? WM_manipulator_operator_get(mpr, mpop_actions[i].part) : NULL;
+			if (mpop != NULL) {
+				/* Description */
+				const char *info = RNA_struct_ui_description(mpop->type->srna);
+				if (!(info && info[0])) {
+					info  = RNA_struct_ui_name(mpop->type->srna);
+				}
+
+				if (info && info[0]) {
+					char *text = NULL;
+					if (mpop_actions[i].prefix != NULL) {
+						text = BLI_sprintfN("%s: %s", mpop_actions[i].prefix, info);
+					}
+					else {
+						text = BLI_strdup(info);
+					}
+
+					if (text != NULL) {
+						uiTooltipField *field = text_field_add(
+						        data, &(uiTooltipFormat){
+						            .style = UI_TIP_STYLE_HEADER,
+						            .color_id = UI_TIP_LC_VALUE,
+						            .is_pad = true,
+						        });
+						field->text = text;
+					}
+				}
+
+				/* Shortcut */
+				{
+					bool found = false;
+					IDProperty *prop = mpop->ptr.data;
+					char buf[128];
+					if (WM_key_event_operator_string(
+					            C, mpop->type->idname, WM_OP_INVOKE_DEFAULT, prop, true,
+					            buf, ARRAY_SIZE(buf)))
+					{
+						found = true;
+					}
+					uiTooltipField *field = text_field_add(
+					        data, &(uiTooltipFormat){
+					            .style = UI_TIP_STYLE_NORMAL,
+					            .color_id = UI_TIP_LC_VALUE,
+					            .is_pad = true,
+					        });
+					field->text = BLI_sprintfN(TIP_("Shortcut: %s"), found ? buf : "None");
+				}
+			}
+		}
+	}
+
+	/* Property Actions */
+	if (mpr->type->target_property_defs_len) {
+		wmManipulatorProperty *mpr_prop_array = WM_manipulator_target_property_array(mpr);
+		for (int i = 0; i < mpr->type->target_property_defs_len; i++) {
+			/* TODO(campbell): function callback descriptions. */
+			wmManipulatorProperty *mpr_prop = &mpr_prop_array[i];
+			if (mpr_prop->prop != NULL) {
+				const char *info = RNA_property_ui_description(mpr_prop->prop);
+				if (info && info[0]) {
+					uiTooltipField *field = text_field_add(
+					        data, &(uiTooltipFormat){
+					            .style = UI_TIP_STYLE_NORMAL,
+					            .color_id = UI_TIP_LC_VALUE,
+					            .is_pad = true,
+					        });
+					field->text = BLI_strdup(info);
+				}
+			}
+		}
+	}
 
 	if (data->fields_len == 0) {
 		MEM_freeN(data);
@@ -620,13 +720,11 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
 	}
 }
 
-/** \} */
 
-/* -------------------------------------------------------------------- */
-/** \name ToolTip Public API
- * \{ */
-
-ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
+static ARegion *ui_tooltip_create_with_data(
+        bContext *C, uiTooltipData *data,
+        const float init_position[2],
+        const float aspect)
 {
 	const float pad_px = UI_TIP_PADDING;
 	wmWindow *win = CTX_wm_window(C);
@@ -634,42 +732,11 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	uiStyle *style = UI_style_get();
 	static ARegionType type;
 	ARegion *ar;
-/*	IDProperty *prop;*/
-	/* aspect values that shrink text are likely unreadable */
-	const float aspect = min_ff(1.0f, but->block->aspect);
 	int fonth, fontw;
-	int ofsx, ofsy, h, i;
+	int h, i;
 	rctf rect_fl;
 	rcti rect_i;
 	int font_flag = 0;
-
-	if (but->drawflag & UI_BUT_NO_TOOLTIP) {
-		return NULL;
-	}
-	uiTooltipData *data = NULL;
-
-	/* custom tips for pre-defined operators */
-	if (but->optype) {
-		if (STREQ(but->optype->idname, "WM_OT_tool_set")) {
-			char keymap[64] = "";
-			RNA_string_get(but->opptr, "keymap", keymap);
-			if (keymap[0]) {
-				ScrArea *sa = CTX_wm_area(C);
-				wmKeyMap *km = WM_keymap_find_all(C, keymap, sa->spacetype, RGN_TYPE_WINDOW);
-				if (km != NULL) {
-					data = ui_tooltip_data_from_keymap(C, km);
-				}
-			}
-		}
-	}
-	/* toolsystem exception */
-
-	if (data == NULL) {
-		data = ui_tooltip_data_from_button(C, but);
-	}
-	if (data == NULL) {
-		return NULL;
-	}
 
 	/* create area region */
 	ar = ui_region_temp_add(CTX_wm_screen(C));
@@ -748,31 +815,12 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	data->lineh = h;
 
 	/* compute position */
-	ofsx = 0; //(but->block->panel) ? but->block->panel->ofsx : 0;
-	ofsy = 0; //(but->block->panel) ? but->block->panel->ofsy : 0;
 
-	rect_fl.xmin = BLI_rctf_cent_x(&but->rect) + ofsx - TIP_BORDER_X;
+	rect_fl.xmin = init_position[0] - TIP_BORDER_X;
 	rect_fl.xmax = rect_fl.xmin + fontw + pad_px;
-	rect_fl.ymax = but->rect.ymin + ofsy - TIP_BORDER_Y;
+	rect_fl.ymax = init_position[1] - TIP_BORDER_Y;
 	rect_fl.ymin = rect_fl.ymax - fonth  - TIP_BORDER_Y;
 
-	/* since the text has beens caled already, the size of tooltips is defined now */
-	/* here we try to figure out the right location */
-	if (butregion) {
-		float mx, my;
-		float ofsx_fl = rect_fl.xmin, ofsy_fl = rect_fl.ymax;
-		ui_block_to_window_fl(butregion, but->block, &ofsx_fl, &ofsy_fl);
-
-#if 1
-		/* use X mouse location */
-		mx = (win->eventstate->x + (TIP_BORDER_X * 2)) - BLI_rctf_cent_x(&but->rect);
-#else
-		mx = ofsx_fl - rect_fl.xmin;
-#endif
-		my = ofsy_fl - rect_fl.ymax;
-
-		BLI_rctf_translate(&rect_fl, mx, my);
-	}
 	BLI_rcti_rctf_copy(&rect_i, &rect_fl);
 
 #undef TIP_BORDER_X
@@ -827,9 +875,79 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	return ar;
 }
 
-void ui_tooltip_free(bContext *C, ARegion *ar)
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name ToolTip Public API
+ * \{ */
+
+
+ARegion *UI_tooltip_create_from_button(bContext *C, ARegion *butregion, uiBut *but)
 {
-	ui_region_temp_remove(C, CTX_wm_screen(C), ar);
+	wmWindow *win = CTX_wm_window(C);
+	/* aspect values that shrink text are likely unreadable */
+	const float aspect = min_ff(1.0f, but->block->aspect);
+	float init_position[2];
+
+	if (but->drawflag & UI_BUT_NO_TOOLTIP) {
+		return NULL;
+	}
+	uiTooltipData *data = NULL;
+
+	/* custom tips for pre-defined operators */
+	if (but->optype) {
+		if (STREQ(but->optype->idname, "WM_OT_tool_set")) {
+			char keymap[64] = "";
+			RNA_string_get(but->opptr, "keymap", keymap);
+			if (keymap[0]) {
+				ScrArea *sa = CTX_wm_area(C);
+				wmKeyMap *km = WM_keymap_find_all(C, keymap, sa->spacetype, RGN_TYPE_WINDOW);
+				if (km != NULL) {
+					data = ui_tooltip_data_from_keymap(C, km);
+				}
+			}
+		}
+	}
+	/* toolsystem exception */
+
+	if (data == NULL) {
+		data = ui_tooltip_data_from_button(C, but);
+	}
+	if (data == NULL) {
+		return NULL;
+	}
+
+	init_position[0] = BLI_rctf_cent_x(&but->rect);
+	init_position[1] = but->rect.ymin;
+
+	if (butregion) {
+		ui_block_to_window_fl(butregion, but->block, &init_position[0], &init_position[1]);
+		init_position[0] = win->eventstate->x;
+	}
+
+	return ui_tooltip_create_with_data(C, data, init_position, aspect);
+}
+
+ARegion *UI_tooltip_create_from_manipulator(bContext *C, wmManipulator *mpr)
+{
+	wmWindow *win = CTX_wm_window(C);
+	const float aspect = 1.0f;
+	float init_position[2];
+
+	uiTooltipData *data = ui_tooltip_data_from_manipulator(C, mpr);
+	if (data == NULL) {
+		return NULL;
+	}
+
+	init_position[0] = win->eventstate->x;
+	init_position[1] = win->eventstate->y;
+
+	return ui_tooltip_create_with_data(C, data, init_position, aspect);
+}
+
+void UI_tooltip_free(bContext *C, bScreen *sc, ARegion *ar)
+{
+	ui_region_temp_remove(C, sc, ar);
 }
 
 /** \} */

@@ -65,7 +65,7 @@ typedef struct LayerCollection {
 	/* TODO(sergey): Get rid of this once we've got CoW in DEG, */
 	short flag_evaluated;
 	short pad[2];
-	ListBase object_bases;      /* (ObjectBase *)LinkData->data - synced with collection->objects and collection->filter_objects */
+	ListBase object_bases; /* (ObjectBase *)LinkData->data - synced with collection->objects */
 	ListBase overrides;
 	ListBase layer_collections; /* synced with collection->collections */
 	struct IDProperty *properties;  /* overrides */
@@ -102,12 +102,10 @@ typedef struct ViewLayer {
 typedef struct SceneCollection {
 	struct SceneCollection *next, *prev;
 	char name[64]; /* MAX_NAME */
-	char filter[64]; /* MAX_NAME */
 	int active_object_index; /* for UI */
 	char type;
 	char pad[3];
 	ListBase objects;           /* (Object *)LinkData->data */
-	ListBase filter_objects;    /* (Object *)LinkData->data */
 	ListBase scene_collections; /* nested collections */
 } SceneCollection;
 
@@ -123,9 +121,10 @@ enum {
 
 /* LayerCollection->flag */
 enum {
-	COLLECTION_VISIBLE    = (1 << 0),
+	COLLECTION_VIEWPORT   = (1 << 0), /* Only used for group collections. */
 	COLLECTION_SELECTABLE = (1 << 1),
 	COLLECTION_DISABLED   = (1 << 2),
+	COLLECTION_RENDER     = (1 << 3), /* Only used for group collections. */
 };
 
 /* ViewLayer->flag */

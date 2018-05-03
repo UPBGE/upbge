@@ -62,6 +62,8 @@
 
 #include "BLT_translation.h"
 
+#include "BLF_api.h"
+
 #include "DNA_mesh_types.h" /* only for USE_BMESH_SAVE_AS_COMPAT */
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
@@ -85,10 +87,12 @@
 #include "BKE_sound.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
+#include "BKE_undo_system.h"
 #include "BKE_workspace.h"
 
 #include "BLO_readfile.h"
 #include "BLO_writefile.h"
+#include "BLO_undofile.h"  /* to save from an undo memfile */
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -102,6 +106,7 @@
 #include "ED_screen.h"
 #include "ED_view3d.h"
 #include "ED_util.h"
+#include "ED_undo.h"
 
 #include "GHOST_C-api.h"
 #include "GHOST_Path-api.h"
@@ -182,7 +187,7 @@ static void wm_window_match_init(bContext *C, ListBase *wmlist)
 static void wm_window_substitute_old(wmWindowManager *wm, wmWindow *oldwin, wmWindow *win)
 {
 	win->ghostwin = oldwin->ghostwin;
-	win->multisamples = oldwin->multisamples;
+	win->gwnctx = oldwin->gwnctx;
 	win->active = oldwin->active;
 	if (win->active)
 		wm->winactive = win;
@@ -191,7 +196,7 @@ static void wm_window_substitute_old(wmWindowManager *wm, wmWindow *oldwin, wmWi
 		GHOST_SetWindowUserData(win->ghostwin, win);    /* pointer back */
 
 	oldwin->ghostwin = NULL;
-	oldwin->multisamples = 0;
+	oldwin->gwnctx = NULL;
 
 	win->eventstate = oldwin->eventstate;
 	oldwin->eventstate = NULL;
@@ -353,6 +358,8 @@ static void wm_init_userdef(Main *bmain, const bool read_userdef_from_memory)
 
 	/* update tempdir from user preferences */
 	BKE_tempdir_init(U.tempdir);
+
+	BLF_antialias_set((U.text_render & USER_TEXT_DISABLE_AA) == 0);
 }
 
 
@@ -497,6 +504,8 @@ static void wm_file_read_post(bContext *C, const bool is_startup_file, const boo
 		BPY_python_reset(C);
 		addons_loaded = true;
 	}
+#else
+	UNUSED_VARS(use_userdef);
 #endif  /* WITH_PYTHON */
 
 	WM_operatortype_last_properties_clear_all();
@@ -528,9 +537,13 @@ static void wm_file_read_post(bContext *C, const bool is_startup_file, const boo
 	}
 
 	if (!G.background) {
-//		undo_editmode_clear();
-		BKE_undo_reset();
-		BKE_undo_write(C, "original");  /* save current state */
+		if (wm->undo_stack == NULL) {
+			wm->undo_stack = BKE_undosys_stack_create();
+		}
+		else {
+			BKE_undosys_stack_clear(wm->undo_stack);
+		}
+		BKE_undosys_stack_init_from_main(wm->undo_stack, CTX_data_main(C));
 	}
 }
 
@@ -1043,15 +1056,15 @@ static ImBuf *blend_file_thumb(const bContext *C, Scene *scene, ViewLayer *view_
 		ibuf = ED_view3d_draw_offscreen_imbuf_simple(
 		        &eval_ctx, scene, view_layer, scene->camera,
 		        BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
-		        IB_rect, OB_SOLID, V3D_OFSDRAW_NONE, R_ALPHAPREMUL, 0, NULL,
-		        NULL, NULL, err_out);
+		        IB_rect, V3D_OFSDRAW_NONE, OB_SOLID, R_ALPHAPREMUL, 0, NULL,
+		        NULL, err_out);
 	}
 	else {
 		ibuf = ED_view3d_draw_offscreen_imbuf(
 		        &eval_ctx, scene, view_layer, v3d, ar,
 		        BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
 		        IB_rect, V3D_OFSDRAW_NONE, R_ALPHAPREMUL, 0, NULL,
-		        NULL, NULL, err_out);
+		        NULL, err_out);
 	}
 
 	if (ibuf) {
@@ -1281,7 +1294,10 @@ void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *UNUSED(w
 
 	if (U.uiflag & USER_GLOBALUNDO) {
 		/* fast save of last undobuffer, now with UI */
-		BKE_undo_save_file(filepath);
+		struct MemFile *memfile = ED_undosys_stack_memfile_get_active(wm->undo_stack);
+		if (memfile) {
+			BLO_memfile_write_file(memfile, filepath);
+		}
 	}
 	else {
 		/*  save as regular blend file */
@@ -1365,13 +1381,13 @@ void wm_open_init_use_scripts(wmOperator *op, bool use_prefs)
 
 /** \} */
 
-void WM_file_tag_modified(const bContext *C)
+void WM_file_tag_modified(void)
 {
-	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindowManager *wm = G.main->wm.first;
 	if (wm->file_saved) {
 		wm->file_saved = 0;
 		/* notifier that data changed, for save-over warning or header */
-		WM_event_add_notifier(C, NC_WM | ND_DATACHANGED, NULL);
+		WM_main_add_notifier(NC_WM | ND_DATACHANGED, NULL);
 	}
 }
 
@@ -2125,6 +2141,10 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 
 	WM_event_add_notifier(C, NC_WM | ND_FILESAVE, NULL);
 
+	if (RNA_boolean_get(op->ptr, "exit")) {
+		wm_exit_schedule_delayed(C);
+	}
+
 	return OPERATOR_FINISHED;
 }
 
@@ -2196,11 +2216,13 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 		char path[FILE_MAX];
 
 		RNA_string_get(op->ptr, "filepath", path);
-		if (BLI_exists(path)) {
+		if (RNA_boolean_get(op->ptr, "check_existing") && BLI_exists(path)) {
 			ret = WM_operator_confirm_message_ex(C, op, IFACE_("Save Over?"), ICON_QUESTION, path);
 		}
 		else {
 			ret = wm_save_as_mainfile_exec(C, op);
+			/* Without this there is no feedback the file was saved. */
+			BKE_reportf(op->reports, RPT_INFO, "Saved \"%s\"", BLI_path_basename(path));
 		}
 	}
 	else {
@@ -2222,12 +2244,16 @@ void WM_OT_save_mainfile(wmOperatorType *ot)
 	ot->check = blend_save_check;
 	/* omit window poll so this can work in background mode */
 
+	PropertyRNA *prop;
 	WM_operator_properties_filesel(
 	        ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_SAVE,
 	        WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 	RNA_def_boolean(ot->srna, "compress", false, "Compress", "Write compressed .blend file");
 	RNA_def_boolean(ot->srna, "relative_remap", false, "Remap Relative",
 	                "Remap relative paths when saving in a different directory");
+
+	prop = RNA_def_boolean(ot->srna, "exit", false, "Exit", "Exit Blender after saving");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */

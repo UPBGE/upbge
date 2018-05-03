@@ -42,6 +42,7 @@ set(INC_SYS
 set(SRC
 	intern/builder/deg_builder.cc
 	intern/builder/deg_builder_cycle.cc
+	intern/builder/deg_builder_map.cc
 	intern/builder/deg_builder_nodes.cc
 	intern/builder/deg_builder_nodes_layer_collection.cc
 	intern/builder/deg_builder_nodes_rig.cc
@@ -53,13 +54,17 @@ set(SRC
 	intern/builder/deg_builder_relations_rig.cc
 	intern/builder/deg_builder_relations_view_layer.cc
 	intern/builder/deg_builder_transitive.cc
-	intern/debug/deg_debug_graphviz.cc
+	intern/debug/deg_debug_relations_graphviz.cc
+	intern/debug/deg_debug_stats_gnuplot.cc
 	intern/eval/deg_eval.cc
 	intern/eval/deg_eval_copy_on_write.cc
 	intern/eval/deg_eval_flush.cc
+	intern/eval/deg_eval_stats.cc
 	intern/nodes/deg_node.cc
 	intern/nodes/deg_node_component.cc
+	intern/nodes/deg_node_id.cc
 	intern/nodes/deg_node_operation.cc
+	intern/nodes/deg_node_time.cc
 	intern/depsgraph.cc
 	intern/depsgraph_build.cc
 	intern/depsgraph_debug.cc
@@ -77,6 +82,7 @@ set(SRC
 
 	intern/builder/deg_builder.h
 	intern/builder/deg_builder_cycle.h
+	intern/builder/deg_builder_map.h
 	intern/builder/deg_builder_nodes.h
 	intern/builder/deg_builder_pchanmap.h
 	intern/builder/deg_builder_relations.h
@@ -85,9 +91,12 @@ set(SRC
 	intern/eval/deg_eval.h
 	intern/eval/deg_eval_copy_on_write.h
 	intern/eval/deg_eval_flush.h
+	intern/eval/deg_eval_stats.h
 	intern/nodes/deg_node.h
 	intern/nodes/deg_node_component.h
+	intern/nodes/deg_node_id.h
 	intern/nodes/deg_node_operation.h
+	intern/nodes/deg_node_time.h
 	intern/depsgraph.h
 	intern/depsgraph_intern.h
 	intern/depsgraph_types.h

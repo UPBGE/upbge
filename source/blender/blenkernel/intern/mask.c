@@ -51,7 +51,7 @@
 
 #include "BKE_animsys.h"
 #include "BKE_curve.h"
-#include "BKE_global.h"
+
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mask.h"
@@ -1456,18 +1456,6 @@ void BKE_mask_evaluate_all_masks(Main *bmain, float ctime, const bool do_newfram
 
 	for (mask = bmain->mask.first; mask; mask = mask->id.next) {
 		BKE_mask_evaluate(mask, ctime, do_newframe);
-	}
-}
-
-void BKE_mask_update_scene(Main *bmain, Scene *scene)
-{
-	Mask *mask;
-
-	for (mask = bmain->mask.first; mask; mask = mask->id.next) {
-		if (mask->id.tag & (LIB_TAG_ID_RECALC | LIB_TAG_ID_RECALC_DATA)) {
-			bool do_new_frame = (mask->id.tag & LIB_TAG_ID_RECALC_DATA) != 0;
-			BKE_mask_evaluate_all_masks(bmain, CFRA, do_new_frame);
-		}
 	}
 }
 

@@ -60,19 +60,21 @@ DeviceScene::DeviceScene(Device *device)
   curve_keys(device, "__curve_keys", MEM_TEXTURE),
   patches(device, "__patches", MEM_TEXTURE),
   objects(device, "__objects", MEM_TEXTURE),
-  objects_vector(device, "__objects_vector", MEM_TEXTURE),
+  object_motion_pass(device, "__object_motion_pass", MEM_TEXTURE),
+  object_motion(device, "__object_motion", MEM_TEXTURE),
+  object_flag(device, "__object_flag", MEM_TEXTURE),
+  camera_motion(device, "__camera_motion", MEM_TEXTURE),
   attributes_map(device, "__attributes_map", MEM_TEXTURE),
   attributes_float(device, "__attributes_float", MEM_TEXTURE),
   attributes_float3(device, "__attributes_float3", MEM_TEXTURE),
   attributes_uchar4(device, "__attributes_uchar4", MEM_TEXTURE),
   light_distribution(device, "__light_distribution", MEM_TEXTURE),
-  light_data(device, "__light_data", MEM_TEXTURE),
+  lights(device, "__lights", MEM_TEXTURE),
   light_background_marginal_cdf(device, "__light_background_marginal_cdf", MEM_TEXTURE),
   light_background_conditional_cdf(device, "__light_background_conditional_cdf", MEM_TEXTURE),
   particles(device, "__particles", MEM_TEXTURE),
   svm_nodes(device, "__svm_nodes", MEM_TEXTURE),
-  shader_flag(device, "__shader_flag", MEM_TEXTURE),
-  object_flag(device, "__object_flag", MEM_TEXTURE),
+  shaders(device, "__shaders", MEM_TEXTURE),
   lookup_table(device, "__lookup_table", MEM_TEXTURE),
   sobol_directions(device, "__sobol_directions", MEM_TEXTURE)
 {
@@ -85,6 +87,7 @@ Scene::Scene(const SceneParams& params_, Device *device)
 	memset(&dscene.data, 0, sizeof(dscene.data));
 
 	camera = new Camera();
+	dicing_camera = new Camera();
 	lookup_tables = new LookupTables();
 	film = new Film();
 	background = new Background();
@@ -155,6 +158,7 @@ void Scene::free_memory(bool final)
 	if(final) {
 		delete lookup_tables;
 		delete camera;
+		delete dicing_camera;
 		delete film;
 		delete background;
 		delete integrator;
@@ -202,13 +206,17 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel() || device->have_error()) return;
 
-	progress.set_status("Updating Meshes Flags");
-	mesh_manager->device_update_flags(device, &dscene, this, progress);
+	mesh_manager->device_update_preprocess(device, this, progress);
 
 	if(progress.get_cancel() || device->have_error()) return;
 
 	progress.set_status("Updating Objects");
 	object_manager->device_update(device, &dscene, this, progress);
+
+	if(progress.get_cancel() || device->have_error()) return;
+
+	progress.set_status("Updating Particle Systems");
+	particle_system_manager->device_update(device, &dscene, this, progress);
 
 	if(progress.get_cancel() || device->have_error()) return;
 
@@ -244,11 +252,6 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	progress.set_status("Updating Lights");
 	light_manager->device_update(device, &dscene, this, progress);
-
-	if(progress.get_cancel() || device->have_error()) return;
-
-	progress.set_status("Updating Particle Systems");
-	particle_system_manager->device_update(device, &dscene, this, progress);
 
 	if(progress.get_cancel() || device->have_error()) return;
 
@@ -289,10 +292,10 @@ void Scene::device_update(Device *device_, Progress& progress)
 	}
 }
 
-Scene::MotionType Scene::need_motion(bool advanced_shading)
+Scene::MotionType Scene::need_motion()
 {
 	if(integrator->motion_blur)
-		return (advanced_shading)? MOTION_BLUR: MOTION_NONE;
+		return MOTION_BLUR;
 	else if(Pass::contains(film->passes, PASS_MOTION))
 		return MOTION_PASS;
 	else
@@ -359,6 +362,7 @@ void Scene::reset()
 
 	/* ensure all objects are updated */
 	camera->tag_update();
+	dicing_camera->tag_update();
 	film->tag_update(this);
 	background->tag_update(this);
 	integrator->tag_update(this);

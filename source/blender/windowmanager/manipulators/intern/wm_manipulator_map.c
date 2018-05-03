@@ -51,6 +51,9 @@
 #include "WM_types.h"
 #include "wm_event_system.h"
 
+/* for tool-tips */
+#include "UI_interface.h"
+
 #include "DEG_depsgraph.h"
 
 /* own includes */
@@ -269,7 +272,7 @@ static GHash *WM_manipulatormap_manipulator_hash_new(
 
 	/* collect manipulators */
 	for (wmManipulatorGroup *mgroup = mmap->groups.first; mgroup; mgroup = mgroup->next) {
-		if (!mgroup->type->poll || mgroup->type->poll(C, mgroup->type)) {
+		if (WM_manipulator_group_type_poll(C, mgroup->type)) {
 			for (wmManipulator *mpr = mgroup->manipulators.first; mpr; mpr = mpr->next) {
 				if ((include_hidden || (mpr->flag & WM_MANIPULATOR_HIDDEN) == 0) &&
 				    (!poll || poll(mpr, data)))
@@ -347,7 +350,7 @@ static void manipulatormap_prepare_drawing(
 	for (wmManipulatorGroup *mgroup = mmap->groups.first; mgroup; mgroup = mgroup->next) {
 		/* check group visibility - drawstep first to avoid unnecessary call of group poll callback */
 		if (!wm_manipulatorgroup_is_visible_in_drawstep(mgroup, drawstep) ||
-		    !wm_manipulatorgroup_is_visible(mgroup, C))
+		    !WM_manipulator_group_type_poll(C, mgroup->type))
 		{
 			continue;
 		}
@@ -387,15 +390,8 @@ static void manipulators_draw_list(const wmManipulatorMap *mmap, const bContext 
 		return;
 	}
 
-	const bool draw_multisample = (U.ogl_multisamples != USER_MULTISAMPLE_NONE);
-
 	/* TODO this will need it own shader probably? don't think it can be handled from that point though. */
 /*	const bool use_lighting = (U.manipulator_flag & V3D_MANIPULATOR_SHADED) != 0; */
-
-	/* enable multisampling */
-	if (draw_multisample) {
-		glEnable(GL_MULTISAMPLE);
-	}
 
 	bool is_depth_prev = false;
 
@@ -432,16 +428,16 @@ static void manipulators_draw_list(const wmManipulatorMap *mmap, const bContext 
 	if (is_depth_prev) {
 		glDisable(GL_DEPTH_TEST);
 	}
-
-	if (draw_multisample) {
-		glDisable(GL_MULTISAMPLE);
-	}
 }
 
 void WM_manipulatormap_draw(
         wmManipulatorMap *mmap, const bContext *C,
         const eWM_ManipulatorMapDrawStep drawstep)
 {
+	if (!WM_manipulator_context_check_drawstep(C, drawstep)) {
+		return;
+	}
+
 	ListBase draw_manipulators = {NULL};
 
 	manipulatormap_prepare_drawing(mmap, C, &draw_manipulators, drawstep);
@@ -547,6 +543,7 @@ static wmManipulator *manipulator_find_intersected_3d(
 	};
 
 	*r_part = 0;
+
 	/* set up view matrices */
 	view3d_operator_needs_opengl(C);
 
@@ -585,6 +582,11 @@ wmManipulator *wm_manipulatormap_highlight_find(
 {
 	wmManipulator *mpr = NULL;
 	ListBase visible_3d_manipulators = {NULL};
+	bool do_step[WM_MANIPULATORMAP_DRAWSTEP_MAX];
+
+	for (int i = 0; i < ARRAY_SIZE(do_step); i++) {
+		do_step[i] = WM_manipulator_context_check_drawstep(C, i);
+	}
 
 	for (wmManipulatorGroup *mgroup = mmap->groups.first; mgroup; mgroup = mgroup->next) {
 
@@ -595,26 +597,29 @@ wmManipulator *wm_manipulatormap_highlight_find(
 			continue;
 		}
 
-		if (wm_manipulatorgroup_is_visible(mgroup, C)) {
+		if (WM_manipulator_group_type_poll(C, mgroup->type)) {
+			eWM_ManipulatorMapDrawStep step;
 			if (mgroup->type->flag & WM_MANIPULATORGROUPTYPE_3D) {
-				if ((mmap->update_flag[WM_MANIPULATORMAP_DRAWSTEP_3D] & MANIPULATORMAP_IS_REFRESH_CALLBACK) &&
-				    mgroup->type->refresh)
-				{
-					mgroup->type->refresh(C, mgroup);
-					/* cleared below */
-				}
-				wm_manipulatorgroup_intersectable_manipulators_to_list(mgroup, &visible_3d_manipulators);
+				step = WM_MANIPULATORMAP_DRAWSTEP_3D;
 			}
 			else {
-				if ((mmap->update_flag[WM_MANIPULATORMAP_DRAWSTEP_2D] & MANIPULATORMAP_IS_REFRESH_CALLBACK) &&
-				    mgroup->type->refresh)
+				step = WM_MANIPULATORMAP_DRAWSTEP_2D;
+			}
+
+			if (do_step[step]) {
+				if ((mmap->update_flag[step] & MANIPULATORMAP_IS_REFRESH_CALLBACK) &&
+				    (mgroup->type->refresh != NULL))
 				{
 					mgroup->type->refresh(C, mgroup);
 					/* cleared below */
 				}
-
-				if ((mpr = wm_manipulatorgroup_find_intersected_mainpulator(mgroup, C, event, r_part))) {
-					break;
+				if (step == WM_MANIPULATORMAP_DRAWSTEP_3D) {
+					wm_manipulatorgroup_intersectable_manipulators_to_list(mgroup, &visible_3d_manipulators);
+				}
+				else if (step == WM_MANIPULATORMAP_DRAWSTEP_2D) {
+					if ((mpr = wm_manipulatorgroup_find_intersected_manipulator(mgroup, C, event, r_part))) {
+						break;
+					}
 				}
 			}
 		}
@@ -744,7 +749,7 @@ static bool wm_manipulatormap_select_all_intern(
 	int i;
 	bool changed = false;
 
-	wm_manipulatormap_select_array_ensure_len_alloc(mmap, BLI_ghash_size(hash));
+	wm_manipulatormap_select_array_ensure_len_alloc(mmap, BLI_ghash_len(hash));
 
 	GHASH_ITER_INDEX (gh_iter, hash, i) {
 		wmManipulator *mpr_iter = BLI_ghashIterator_getValue(&gh_iter);
@@ -753,7 +758,7 @@ static bool wm_manipulatormap_select_all_intern(
 	/* highlight first manipulator */
 	wm_manipulatormap_highlight_set(mmap, C, msel->items[0], msel->items[0]->highlight_part);
 
-	BLI_assert(BLI_ghash_size(hash) == msel->len);
+	BLI_assert(BLI_ghash_len(hash) == msel->len);
 
 	BLI_ghash_free(hash, NULL, NULL);
 	return changed;
@@ -886,27 +891,39 @@ void wm_manipulatormap_modal_set(
 {
 	if (enable) {
 		BLI_assert(mmap->mmap_context.modal == NULL);
+		wmWindow *win = CTX_wm_window(C);
 
-		/* For now only grab cursor for 3D manipulators. */
-		bool grab_cursor = (mpr->parent_mgroup->type->flag & WM_MANIPULATORGROUPTYPE_3D) != 0;
-		int retval = OPERATOR_RUNNING_MODAL;
+		WM_tooltip_clear(C, win);
 
 		if (mpr->type->invoke &&
 		    (mpr->type->modal || mpr->custom_modal))
 		{
-			retval = mpr->type->invoke(C, mpr, event);
-		}
-
-		if ((retval & OPERATOR_RUNNING_MODAL) == 0) {
-			return;
+			const int retval = mpr->type->invoke(C, mpr, event);
+			if ((retval & OPERATOR_RUNNING_MODAL) == 0) {
+				return;
+			}
 		}
 
 		mpr->state |= WM_MANIPULATOR_STATE_MODAL;
 		mmap->mmap_context.modal = mpr;
 
+		if ((mpr->flag & WM_MANIPULATOR_GRAB_CURSOR) &&
+		    (event->is_motion_absolute == false))
+		{
+			WM_cursor_grab_enable(win, true, true, NULL);
+			copy_v2_v2_int(mmap->mmap_context.event_xy, &event->x);
+			mmap->mmap_context.event_grabcursor = win->grabcursor;
+		}
+		else {
+			mmap->mmap_context.event_xy[0] = INT_MAX;
+		}
+
 		struct wmManipulatorOpElem *mpop = WM_manipulator_operator_get(mpr, mpr->highlight_part);
 		if (mpop && mpop->type) {
-			WM_operator_name_call_ptr(C, mpop->type, WM_OP_INVOKE_DEFAULT, &mpop->ptr);
+			const int retval = WM_operator_name_call_ptr(C, mpop->type, WM_OP_INVOKE_DEFAULT, &mpop->ptr);
+			if ((retval & OPERATOR_RUNNING_MODAL) == 0) {
+				wm_manipulatormap_modal_set(mmap, C, mpr, event, false);
+			}
 
 			/* we failed to hook the manipulator to the operator handler or operator was cancelled, return */
 			if (!mmap->mmap_context.modal) {
@@ -914,10 +931,6 @@ void wm_manipulatormap_modal_set(
 				MEM_SAFE_FREE(mpr->interaction_data);
 			}
 			return;
-		}
-
-		if (grab_cursor) {
-			WM_cursor_grab_enable(CTX_wm_window(C), true, true, NULL);
 		}
 	}
 	else {
@@ -931,10 +944,23 @@ void wm_manipulatormap_modal_set(
 		mmap->mmap_context.modal = NULL;
 
 		if (C) {
-			WM_cursor_grab_disable(CTX_wm_window(C), NULL);
+			wmWindow *win = CTX_wm_window(C);
+			if (mmap->mmap_context.event_xy[0] != INT_MAX) {
+				/* Check if some other part of Blender (typically operators)
+				 * have adjusted the grab mode since it was set.
+				 * If so: warp, so we have a predictable outcome. */
+				if (mmap->mmap_context.event_grabcursor == win->grabcursor) {
+					WM_cursor_grab_disable(win, mmap->mmap_context.event_xy);
+				}
+				else {
+					WM_cursor_warp(win, UNPACK2(mmap->mmap_context.event_xy));
+				}
+			}
 			ED_region_tag_redraw(CTX_wm_region(C));
 			WM_event_add_mousemove(C);
 		}
+
+		mmap->mmap_context.event_xy[0] = INT_MAX;
 	}
 }
 
@@ -958,7 +984,7 @@ void WM_manipulatormap_message_subscribe(
         bContext *C, wmManipulatorMap *mmap, ARegion *ar, struct wmMsgBus *mbus)
 {
 	for (wmManipulatorGroup *mgroup = mmap->groups.first; mgroup; mgroup = mgroup->next) {
-		if (!wm_manipulatorgroup_is_visible(mgroup, C)) {
+		if (!WM_manipulator_group_type_poll(C, mgroup->type)) {
 			continue;
 		}
 		for (wmManipulator *mpr = mgroup->manipulators.first; mpr; mpr = mpr->next) {
@@ -975,6 +1001,27 @@ void WM_manipulatormap_message_subscribe(
 
 /** \} */ /* wmManipulatorMap */
 
+
+/* -------------------------------------------------------------------- */
+/** \name Tooltip Handling
+ *
+ * \{ */
+
+struct ARegion *WM_manipulatormap_tooltip_init(
+        struct bContext *C, struct ARegion *ar, bool *r_exit_on_event)
+{
+	wmManipulatorMap *mmap = ar->manipulator_map;
+	*r_exit_on_event = true;
+	if (mmap) {
+		wmManipulator *mpr = mmap->mmap_context.highlight;
+		if (mpr) {
+			return UI_tooltip_create_from_manipulator(C, mpr);
+		}
+	}
+	return NULL;
+}
+
+/** \} */ /* wmManipulatorMapType */
 
 /* -------------------------------------------------------------------- */
 /** \name wmManipulatorMapType

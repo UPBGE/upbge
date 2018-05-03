@@ -23,7 +23,7 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
                                        int sample,
                                        ccl_addr_space Ray *ray)
 {
-	state->flag = PATH_RAY_CAMERA|PATH_RAY_MIS_SKIP;
+	state->flag = PATH_RAY_CAMERA|PATH_RAY_MIS_SKIP|PATH_RAY_TRANSPARENT_BACKGROUND;
 
 	state->rng_hash = rng_hash;
 	state->rng_offset = PRNG_BASE_NUM;
@@ -55,12 +55,11 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
 
 #ifdef __VOLUME__
 	state->volume_bounce = 0;
+	state->volume_bounds_bounce = 0;
 
 	if(kernel_data.integrator.use_volumes) {
 		/* Initialize volume stack with volume we are inside of. */
 		kernel_volume_stack_init(kg, stack_sd, state, ray, state->volume_stack);
-		/* Seed RNG for cases where we can't use stratified samples .*/
-		state->rng_congruential = lcg_init(rng_hash + sample*0x51633e2d);
 	}
 	else {
 		state->volume_stack[0].shader = SHADER_NONE;
@@ -75,6 +74,9 @@ ccl_device_inline void path_state_next(KernelGlobals *kg, ccl_addr_space PathSta
 	if(label & LABEL_TRANSPARENT) {
 		state->flag |= PATH_RAY_TRANSPARENT;
 		state->transparent_bounce++;
+		if(state->transparent_bounce >= kernel_data.integrator.transparent_max_bounce) {
+			state->flag |= PATH_RAY_TERMINATE_IMMEDIATE;
+		}
 
 		if(!kernel_data.integrator.transparent_shadows)
 			state->flag |= PATH_RAY_MIS_SKIP;
@@ -86,14 +88,22 @@ ccl_device_inline void path_state_next(KernelGlobals *kg, ccl_addr_space PathSta
 	}
 
 	state->bounce++;
+	if(state->bounce >= kernel_data.integrator.max_bounce) {
+		state->flag |= PATH_RAY_TERMINATE_AFTER_TRANSPARENT;
+	}
+
+	state->flag &= ~(PATH_RAY_ALL_VISIBILITY|PATH_RAY_MIS_SKIP);
 
 #ifdef __VOLUME__
 	if(label & LABEL_VOLUME_SCATTER) {
 		/* volume scatter */
 		state->flag |= PATH_RAY_VOLUME_SCATTER;
-		state->flag &= ~(PATH_RAY_REFLECT|PATH_RAY_TRANSMIT|PATH_RAY_CAMERA|PATH_RAY_TRANSPARENT|PATH_RAY_DIFFUSE|PATH_RAY_GLOSSY|PATH_RAY_SINGULAR|PATH_RAY_MIS_SKIP);
+		state->flag &= ~PATH_RAY_TRANSPARENT_BACKGROUND;
 
 		state->volume_bounce++;
+		if(state->volume_bounce >= kernel_data.integrator.max_volume_bounce) {
+			state->flag |= PATH_RAY_TERMINATE_AFTER_TRANSPARENT;
+		}
 	}
 	else
 #endif
@@ -101,36 +111,46 @@ ccl_device_inline void path_state_next(KernelGlobals *kg, ccl_addr_space PathSta
 		/* surface reflection/transmission */
 		if(label & LABEL_REFLECT) {
 			state->flag |= PATH_RAY_REFLECT;
-			state->flag &= ~(PATH_RAY_TRANSMIT|PATH_RAY_VOLUME_SCATTER|PATH_RAY_CAMERA|PATH_RAY_TRANSPARENT);
+			state->flag &= ~PATH_RAY_TRANSPARENT_BACKGROUND;
 
-			if(label & LABEL_DIFFUSE)
+			if(label & LABEL_DIFFUSE) {
 				state->diffuse_bounce++;
-			else
+				if(state->diffuse_bounce >= kernel_data.integrator.max_diffuse_bounce) {
+					state->flag |= PATH_RAY_TERMINATE_AFTER_TRANSPARENT;
+				}
+			}
+			else {
 				state->glossy_bounce++;
+				if(state->glossy_bounce >= kernel_data.integrator.max_glossy_bounce) {
+					state->flag |= PATH_RAY_TERMINATE_AFTER_TRANSPARENT;
+				}
+			}
 		}
 		else {
 			kernel_assert(label & LABEL_TRANSMIT);
 
 			state->flag |= PATH_RAY_TRANSMIT;
-			state->flag &= ~(PATH_RAY_REFLECT|PATH_RAY_VOLUME_SCATTER|PATH_RAY_CAMERA|PATH_RAY_TRANSPARENT);
+
+			if(!(label & LABEL_TRANSMIT_TRANSPARENT)) {
+				state->flag &= ~PATH_RAY_TRANSPARENT_BACKGROUND;
+			}
 
 			state->transmission_bounce++;
+			if(state->transmission_bounce >= kernel_data.integrator.max_transmission_bounce) {
+				state->flag |= PATH_RAY_TERMINATE_AFTER_TRANSPARENT;
+			}
 		}
 
 		/* diffuse/glossy/singular */
 		if(label & LABEL_DIFFUSE) {
 			state->flag |= PATH_RAY_DIFFUSE|PATH_RAY_DIFFUSE_ANCESTOR;
-			state->flag &= ~(PATH_RAY_GLOSSY|PATH_RAY_SINGULAR|PATH_RAY_MIS_SKIP);
 		}
 		else if(label & LABEL_GLOSSY) {
 			state->flag |= PATH_RAY_GLOSSY;
-			state->flag &= ~(PATH_RAY_DIFFUSE|PATH_RAY_SINGULAR|PATH_RAY_MIS_SKIP);
 		}
 		else {
 			kernel_assert(label & LABEL_SINGULAR);
-
 			state->flag |= PATH_RAY_GLOSSY|PATH_RAY_SINGULAR|PATH_RAY_MIS_SKIP;
-			state->flag &= ~PATH_RAY_DIFFUSE;
 		}
 	}
 
@@ -143,6 +163,25 @@ ccl_device_inline void path_state_next(KernelGlobals *kg, ccl_addr_space PathSta
 	}
 #endif
 }
+
+#ifdef __VOLUME__
+ccl_device_inline bool path_state_volume_next(KernelGlobals *kg, ccl_addr_space PathState *state)
+{
+	/* For volume bounding meshes we pass through without counting transparent
+	 * bounces, only sanity check in case self intersection gets us stuck. */
+	state->volume_bounds_bounce++;
+	if (state->volume_bounds_bounce > VOLUME_BOUNDS_MAX) {
+		return false;
+	}
+
+	/* Random number generator next bounce. */
+	if(state->volume_bounds_bounce > 1) {
+		state->rng_offset += PRNG_BOUNCE_NUM;
+	}
+
+	return true;
+}
+#endif
 
 ccl_device_inline uint path_state_ray_visibility(KernelGlobals *kg, ccl_addr_space PathState *state)
 {
@@ -162,13 +201,13 @@ ccl_device_inline float path_state_continuation_probability(KernelGlobals *kg,
                                                             ccl_addr_space PathState *state,
                                                             const float3 throughput)
 {
-	if(state->flag & PATH_RAY_TRANSPARENT) {
-		/* Transparent rays are treated separately with own max bounces. */
-		if(state->transparent_bounce >= kernel_data.integrator.transparent_max_bounce) {
-			return 0.0f;
-		}
+	if(state->flag & PATH_RAY_TERMINATE_IMMEDIATE) {
+		/* Ray is to be terminated immediately. */
+		return 0.0f;
+	}
+	else if(state->flag & PATH_RAY_TRANSPARENT) {
 		/* Do at least one bounce without RR. */
-		else if(state->transparent_bounce <= 1) {
+		if(state->transparent_bounce <= 1) {
 			return 1.0f;
 		}
 #ifdef __SHADOW_TRICKS__
@@ -179,19 +218,8 @@ ccl_device_inline float path_state_continuation_probability(KernelGlobals *kg,
 #endif
 	}
 	else {
-		/* Test max bounces for various ray types. */
-		if((state->bounce >= kernel_data.integrator.max_bounce) ||
-		   (state->diffuse_bounce >= kernel_data.integrator.max_diffuse_bounce) ||
-		   (state->glossy_bounce >= kernel_data.integrator.max_glossy_bounce) ||
-#ifdef __VOLUME__
-		   (state->volume_bounce >= kernel_data.integrator.max_volume_bounce) ||
-#endif
-		   (state->transmission_bounce >= kernel_data.integrator.max_transmission_bounce))
-		{
-			return 0.0f;
-		}
 		/* Do at least one bounce without RR. */
-		else if(state->bounce <= 1) {
+		if(state->bounce <= 1) {
 			return 1.0f;
 		}
 #ifdef __SHADOW_TRICKS__
@@ -202,7 +230,7 @@ ccl_device_inline float path_state_continuation_probability(KernelGlobals *kg,
 #endif
 	}
 
-	/* Probalistic termination: use sqrt() to roughly match typical view
+	/* Probabilistic termination: use sqrt() to roughly match typical view
 	 * transform and do path termination a bit later on average. */
 	return min(sqrtf(max3(fabs(throughput)) * state->branch_factor), 1.0f);
 }
@@ -231,8 +259,6 @@ ccl_device_inline void path_state_branch(ccl_addr_space PathState *state,
                                          int branch,
                                          int num_branches)
 {
-	state->rng_offset += PRNG_BOUNCE_NUM;
-
 	if(num_branches > 1) {
 		/* Path is splitting into a branch, adjust so that each branch
 		 * still gets a unique sample from the same sequence. */

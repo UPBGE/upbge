@@ -67,8 +67,10 @@ typedef enum GPUTextureFormat {
 	GPU_RGBA8,
 	GPU_RG32F,
 	GPU_RG16F,
+	GPU_RG16I,
 	GPU_R32F,
 	GPU_R16F,
+	GPU_R16I,
 	GPU_RG8,
 	GPU_R8,
 #if 0
@@ -82,13 +84,11 @@ typedef enum GPUTextureFormat {
 	GPU_RG32I,
 	GPU_RG32UI,
 	GPU_RG16,
-	GPU_RG16I,
 	GPU_RG16UI,
 	GPU_RG8I,
 	GPU_RG8UI,
 	GPU_R32I,
 	GPU_R32UI,
-	GPU_R16I,
 	GPU_R16UI,
 	GPU_R16,
 	GPU_R8I,
@@ -152,6 +152,8 @@ GPUTexture *GPU_texture_create_2D(int w, int h, const float *pixels, char err_ou
 GPUTexture *GPU_texture_create_2D_custom(
         int w, int h, int channels, GPUTextureFormat data_type, const float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_create_2D_multisample(int w, int h, const float *pixels, int samples, char err_out[256]);
+GPUTexture *GPU_texture_create_2D_custom_multisample(
+        int w, int h, int channels, GPUTextureFormat data_type, const float *pixels, int samples, char err_out[256]);
 GPUTexture *GPU_texture_create_2D_array_custom(
         int w, int h, int d, int channels, GPUTextureFormat data_type, const float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_create_3D(int w, int h, int d, const float *pixels, char err_out[256]);
@@ -187,16 +189,18 @@ void GPU_texture_filter_mode(GPUTexture *tex, bool use_filter);
 void GPU_texture_mipmap_mode(GPUTexture *tex, bool use_mipmap, bool use_filter);
 void GPU_texture_wrap_mode(GPUTexture *tex, bool use_repeat);
 
-struct GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex);
-int GPU_texture_framebuffer_attachment(GPUTexture *tex);
-void GPU_texture_framebuffer_set(GPUTexture *tex, struct GPUFrameBuffer *fb, int attachment);
+void GPU_texture_attach_framebuffer(GPUTexture *tex, struct GPUFrameBuffer *fb, int attachment);
+int GPU_texture_detach_framebuffer(GPUTexture *tex, struct GPUFrameBuffer *fb);
 
 int GPU_texture_target(const GPUTexture *tex);
 int GPU_texture_width(const GPUTexture *tex);
 int GPU_texture_height(const GPUTexture *tex);
-int GPU_texture_format(const GPUTexture *tex);
+GPUTextureFormat GPU_texture_format(const GPUTexture *tex);
+int GPU_texture_samples(const GPUTexture *tex);
+bool GPU_texture_cube(const GPUTexture *tex);
 bool GPU_texture_depth(const GPUTexture *tex);
 bool GPU_texture_stencil(const GPUTexture *tex);
+bool GPU_texture_integer(const GPUTexture *tex);
 int GPU_texture_opengl_bindcode(const GPUTexture *tex);
 
 /******************Game engine************************/

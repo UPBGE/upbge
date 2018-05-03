@@ -57,7 +57,7 @@
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_sequencer.h"
-#include "ED_util.h"
+#include "ED_undo.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -97,8 +97,8 @@ static eOLDrawState tree_element_active_renderlayer(
 
 /**
  * Select object tree:
- * CTRL+LMB: Select/Deselect object and all cildren
- * CTRL+SHIFT+LMB: Add/Remove object and all children
+ * CTRL+LMB: Select/Deselect object and all children.
+ * CTRL+SHIFT+LMB: Add/Remove object and all children.
  */
 static void do_outliner_object_select_recursive(ViewLayer *view_layer, Object *ob_parent, bool select)
 {
@@ -185,7 +185,7 @@ static eOLDrawState tree_element_set_active_object(
 
 		if (recursive) {
 			/* Recursive select/deselect for Object hierarchies */
-			do_outliner_object_select_recursive(view_layer, ob, (ob->flag & SELECT) != 0);
+			do_outliner_object_select_recursive(view_layer, ob, (base->flag & BASE_SELECTED) != 0);
 		}
 
 		if (set != OL_SETSEL_NONE) {
@@ -193,10 +193,10 @@ static eOLDrawState tree_element_set_active_object(
 			WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 		}
 	}
-	
-	if (ob != scene->obedit)
+
+	if (CTX_data_edit_object(C)) {
 		ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);
-		
+	}
 	return OL_DRAWSEL_NORMAL;
 }
 
@@ -547,7 +547,7 @@ static eOLDrawState tree_element_active_bone(
 
 
 /* ebones only draw in editmode armature */
-static void tree_element_active_ebone__sel(bContext *C, Scene *scene, bArmature *arm, EditBone *ebone, short sel)
+static void tree_element_active_ebone__sel(bContext *C, Object *obedit, bArmature *arm, EditBone *ebone, short sel)
 {
 	if (sel) {
 		ebone->flag |= BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL;
@@ -561,34 +561,34 @@ static void tree_element_active_ebone__sel(bContext *C, Scene *scene, bArmature 
 		if (ebone->parent && (ebone->flag & BONE_CONNECTED)) ebone->parent->flag &= ~BONE_TIPSEL;
 	}
 
-	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, scene->obedit);
+	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, obedit);
 }
 static eOLDrawState tree_element_active_ebone(
-        bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *UNUSED(tselem), const eOLSetState set, bool recursive)
+        bContext *C, TreeElement *te, TreeStoreElem *UNUSED(tselem), const eOLSetState set, bool recursive)
 {
-	BLI_assert(scene->obedit != NULL);
-
-	bArmature *arm = scene->obedit->data;
+	Object *obedit = CTX_data_edit_object(C);
+	BLI_assert(obedit != NULL);
+	bArmature *arm = obedit->data;
 	EditBone *ebone = te->directdata;
 	eOLDrawState status = OL_DRAWSEL_NONE;
 
 	if (set != OL_SETSEL_NONE) {
 		if (set == OL_SETSEL_NORMAL) {
 			if (!(ebone->flag & BONE_HIDDEN_A)) {
-				ED_armature_deselect_all(scene->obedit);
-				tree_element_active_ebone__sel(C, scene, arm, ebone, true);
+				ED_armature_deselect_all(obedit);
+				tree_element_active_ebone__sel(C, obedit, arm, ebone, true);
 				status = OL_DRAWSEL_NORMAL;
 			}
 		}
 		else if (set == OL_SETSEL_EXTEND) {
 			if (!(ebone->flag & BONE_HIDDEN_A)) {
 				if (!(ebone->flag & BONE_SELECTED)) {
-					tree_element_active_ebone__sel(C, scene, arm, ebone, true);
+					tree_element_active_ebone__sel(C, obedit, arm, ebone, true);
 					status = OL_DRAWSEL_NORMAL;
 				}
 				else {
 					/* entirely selected, so de-select */
-					tree_element_active_ebone__sel(C, scene, arm, ebone, false);
+					tree_element_active_ebone__sel(C, obedit, arm, ebone, false);
 					status = OL_DRAWSEL_NONE;
 				}
 			}
@@ -656,8 +656,9 @@ static eOLDrawState tree_element_active_text(
 }
 
 static eOLDrawState tree_element_active_pose(
-        bContext *C, Scene *scene, ViewLayer *view_layer, TreeElement *UNUSED(te), TreeStoreElem *tselem, const eOLSetState set)
+        bContext *C, ViewLayer *view_layer, TreeElement *UNUSED(te), TreeStoreElem *tselem, const eOLSetState set)
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = (Object *)tselem->id;
 	Base *base = BKE_view_layer_base_find(view_layer, ob);
 
@@ -667,16 +668,18 @@ static eOLDrawState tree_element_active_pose(
 	}
 
 	if (set != OL_SETSEL_NONE) {
-		if (scene->obedit)
+		if (workspace->object_mode & OB_MODE_EDIT) {
 			ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);
-		
-		if (ob->mode & OB_MODE_POSE)
+		}
+		if (workspace->object_mode & OB_MODE_POSE) {
 			ED_armature_exit_posemode(C, base);
-		else 
+		}
+		else {
 			ED_armature_enter_posemode(C, base);
+		}
 	}
 	else {
-		if (ob->mode & OB_MODE_POSE) {
+		if (workspace->object_mode & OB_MODE_POSE) {
 			return OL_DRAWSEL_NORMAL;
 		}
 	}
@@ -847,7 +850,7 @@ eOLDrawState tree_element_type_active(
 		case TSE_BONE:
 			return tree_element_active_bone(C, view_layer, te, tselem, set, recursive);
 		case TSE_EBONE:
-			return tree_element_active_ebone(C, scene, te, tselem, set, recursive);
+			return tree_element_active_ebone(C, te, tselem, set, recursive);
 		case TSE_MODIFIER:
 			return tree_element_active_modifier(C, scene, view_layer, te, tselem, set);
 		case TSE_LINKED_OB:
@@ -861,7 +864,7 @@ eOLDrawState tree_element_type_active(
 		case TSE_LINKED_PSYS:
 			return tree_element_active_psys(C, scene, te, tselem, set);
 		case TSE_POSE_BASE:
-			return tree_element_active_pose(C, scene, view_layer, te, tselem, set);
+			return tree_element_active_pose(C, view_layer, te, tselem, set);
 		case TSE_POSE_CHANNEL:
 			return tree_element_active_posechannel(C, scene, view_layer, te, tselem, set, recursive);
 		case TSE_CONSTRAINT:
@@ -921,7 +924,7 @@ static void do_outliner_item_activate_tree_element(
 
 			if (extend) {
 				int sel = BA_SELECT;
-				FOREACH_GROUP_BASE(gr, base)
+				FOREACH_GROUP_BASE_BEGIN(gr, base)
 				{
 					if (base->flag & BASE_SELECTED) {
 						sel = BA_DESELECT;
@@ -930,16 +933,16 @@ static void do_outliner_item_activate_tree_element(
 				}
 				FOREACH_GROUP_BASE_END
 
-				FOREACH_GROUP_OBJECT(gr, object)
+				FOREACH_GROUP_OBJECT_BEGIN(gr, object)
 				{
 					ED_object_base_select(BKE_view_layer_base_find(view_layer, object), sel);
 				}
-				FOREACH_GROUP_OBJECT_END
+				FOREACH_GROUP_OBJECT_END;
 			}
 			else {
 				BKE_view_layer_base_deselect_all(view_layer);
 
-				FOREACH_GROUP_OBJECT(gr, object)
+				FOREACH_GROUP_OBJECT_BEGIN(gr, object)
 				{
 					Base *base = BKE_view_layer_base_find(view_layer, object);
 					/* Object may not be in this scene */
@@ -949,7 +952,7 @@ static void do_outliner_item_activate_tree_element(
 						}
 					}
 				}
-				FOREACH_GROUP_OBJECT_END
+				FOREACH_GROUP_OBJECT_END;
 			}
 			
 			WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
@@ -973,7 +976,7 @@ static void do_outliner_item_activate_tree_element(
  * \param extend: Don't deselect other items, only modify \a te.
  * \param toggle: Select \a te when not selected, deselect when selected.
  */
-static void outliner_item_select(SpaceOops *soops, const TreeElement *te, const bool extend, const bool toggle)
+void outliner_item_select(SpaceOops *soops, const TreeElement *te, const bool extend, const bool toggle)
 {
 	TreeStoreElem *tselem = TREESTORE(te);
 	const short new_flag = toggle ? (tselem->flag ^ TSE_SELECTED) : (tselem->flag | TSE_SELECTED);
@@ -1005,7 +1008,7 @@ static bool outliner_item_is_co_within_close_toggle(TreeElement *te, float view_
 
 static bool outliner_is_co_within_restrict_columns(const SpaceOops *soops, const ARegion *ar, float view_co_x)
 {
-	return (!ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF) &&
+	return ((soops->outlinevis != SO_DATABLOCKS) &&
 	        !(soops->flag & SO_HIDE_RESTRICTCOLS) &&
 	        (view_co_x > ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX));
 }

@@ -85,19 +85,22 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BKE_colorband.h"
 #include "BKE_context.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_texture.h"
 #include "BKE_node.h"
 #include "BKE_paint.h"
+#include "BKE_scene.h"
+#include "BKE_workspace.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
 #include "ED_node.h"
 #include "ED_image.h"
-#include "BKE_scene.h"
+#include "ED_screen.h"
 
 static void rna_Material_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
@@ -200,6 +203,11 @@ static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *s
 	if (ma->texpaintslot) {
 		Image *image = ma->texpaintslot[ma->paint_active_slot].ima;
 		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+			wmWindow *win = ED_screen_window_find(sc, bmain->wm.first);
+			if (win == NULL) {
+				continue;
+			}
+			Object *obedit = OBEDIT_FROM_WINDOW(win);
 			ScrArea *sa;
 			for (sa = sc->areabase.first; sa; sa = sa->next) {
 				SpaceLink *sl;
@@ -208,7 +216,7 @@ static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *s
 						SpaceImage *sima = (SpaceImage *)sl;
 						
 						if (!sima->pin)
-							ED_space_image_set(sima, scene, scene->obedit, image);
+							ED_space_image_set(sima, scene, obedit, image);
 					}
 				}
 			}
@@ -323,7 +331,7 @@ static void rna_Material_use_diffuse_ramp_set(PointerRNA *ptr, int value)
 	else ma->mode &= ~MA_RAMP_COL;
 
 	if ((ma->mode & MA_RAMP_COL) && ma->ramp_col == NULL)
-		ma->ramp_col = add_colorband(false);
+		ma->ramp_col = BKE_colorband_add(false);
 }
 
 static void rna_Material_use_specular_ramp_set(PointerRNA *ptr, int value)
@@ -334,7 +342,7 @@ static void rna_Material_use_specular_ramp_set(PointerRNA *ptr, int value)
 	else ma->mode &= ~MA_RAMP_SPEC;
 
 	if ((ma->mode & MA_RAMP_SPEC) && ma->ramp_spec == NULL)
-		ma->ramp_spec = add_colorband(false);
+		ma->ramp_spec = BKE_colorband_add(false);
 }
 
 static void rna_Material_use_nodes_update(bContext *C, PointerRNA *ptr)

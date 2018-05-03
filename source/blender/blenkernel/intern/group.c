@@ -55,6 +55,8 @@
 #include "BKE_object.h"
 #include "BKE_scene.h"
 
+#include "DEG_depsgraph.h"
+
 /** Free (or release) any data used by this group (does not free the group itself). */
 void BKE_group_free(Group *group)
 {
@@ -80,17 +82,13 @@ void BKE_group_init(Group *group)
 {
 	group->collection = MEM_callocN(sizeof(SceneCollection), __func__);
 	BLI_strncpy(group->collection->name, "Master Collection", sizeof(group->collection->name));
-	group->view_layer = NULL; /* groups are not calloced. */
 	group->view_layer = BKE_view_layer_group_add(group);
 
 	/* Unlink the master collection. */
 	BKE_collection_unlink(group->view_layer, group->view_layer->layer_collections.first);
 
 	/* Create and link a new default collection. */
-	SceneCollection *defaut_collection = BKE_collection_add(&group->id,
-	                                                        NULL,
-	                                                        COLLECTION_TYPE_GROUP_INTERNAL,
-	                                                        "Default Collection");
+	SceneCollection *defaut_collection = BKE_collection_add(&group->id, NULL, COLLECTION_TYPE_GROUP_INTERNAL, NULL);
 	BKE_collection_link(group->view_layer, defaut_collection);
 }
 
@@ -137,9 +135,10 @@ void BKE_group_copy_data(Main *UNUSED(bmain), Group *group_dst, const Group *gro
 	BKE_collection_copy_data(master_collection_dst, master_collection_src,
 	                         flag_subdata);
 
+	group_dst->view_layer = MEM_dupallocN(group_src->view_layer);
 	BKE_view_layer_copy_data(group_dst->view_layer, group_src->view_layer,
-	                          master_collection_dst, master_collection_src,
-	                          flag_subdata);
+	                         master_collection_dst, master_collection_src,
+	                         flag_subdata);
 }
 
 Group *BKE_group_copy(Main *bmain, const Group *group)
@@ -214,13 +213,13 @@ static bool group_object_cyclic_check_internal(Object *object, Group *group)
 		if (dup_group == group)
 			return true;
 		else {
-			FOREACH_GROUP_OBJECT(dup_group, group_object)
+			FOREACH_GROUP_OBJECT_BEGIN(dup_group, group_object)
 			{
 				if (group_object_cyclic_check_internal(group_object, dup_group)) {
 					return true;
 				}
 			}
-			FOREACH_GROUP_OBJECT_END
+			FOREACH_GROUP_OBJECT_END;
 		}
 
 		/* un-flag the object, it's allowed to have the same group multiple times in parallel */
@@ -279,13 +278,13 @@ Group *BKE_group_object_find(Group *group, Object *ob)
 
 bool BKE_group_is_animated(Group *group, Object *UNUSED(parent))
 {
-	FOREACH_GROUP_OBJECT(group, object)
+	FOREACH_GROUP_OBJECT_BEGIN(group, object)
 	{
 		if (object->proxy) {
 			return true;
 		}
 	}
-	FOREACH_GROUP_OBJECT_END
+	FOREACH_GROUP_OBJECT_END;
 	return false;
 }
 
@@ -370,12 +369,45 @@ void BKE_group_handle_recalc_and_update(const struct EvaluationContext *eval_ctx
 #endif
 	{
 		/* only do existing tags, as set by regular depsgraph */
-		FOREACH_GROUP_OBJECT(group, object)
+		FOREACH_GROUP_OBJECT_BEGIN(group, object)
 		{
-			if (object->id.tag & LIB_TAG_ID_RECALC_ALL) {
+			if (object->id.recalc & ID_RECALC_ALL) {
 				BKE_object_handle_update(eval_ctx, scene, object);
 			}
 		}
-		FOREACH_GROUP_OBJECT_END
+		FOREACH_GROUP_OBJECT_END;
 	}
+}
+
+/* ******** Dependency graph evaluation ******** */
+
+static void group_eval_layer_collections(
+        const struct EvaluationContext *eval_ctx,
+        Group *group,
+        ListBase *layer_collections,
+        LayerCollection *parent_layer_collection)
+{
+	LISTBASE_FOREACH (LayerCollection *, layer_collection, layer_collections) {
+		/* Evaluate layer collection itself. */
+		BKE_layer_eval_layer_collection(eval_ctx,
+		                                layer_collection,
+		                                parent_layer_collection);
+		/* Evaluate nested collections. */
+		group_eval_layer_collections(eval_ctx,
+		                             group,
+		                             &layer_collection->layer_collections,
+		                             layer_collection);
+	}
+}
+
+void BKE_group_eval_view_layers(const struct EvaluationContext *eval_ctx,
+                                Group *group)
+{
+	DEG_debug_print_eval(__func__, group->id.name, group);
+	BKE_layer_eval_layer_collection_pre(eval_ctx, &group->id, group->view_layer);
+	group_eval_layer_collections(eval_ctx,
+	                             group,
+	                             &group->view_layer->layer_collections,
+	                             NULL);
+	BKE_layer_eval_layer_collection_post(eval_ctx, group->view_layer);
 }

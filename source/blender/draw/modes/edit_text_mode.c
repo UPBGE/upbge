@@ -190,13 +190,11 @@ static void EDIT_TEXT_cache_populate(void *vedata, Object *ob)
 	EDIT_TEXT_PassList *psl = ((EDIT_TEXT_Data *)vedata)->psl;
 	EDIT_TEXT_StorageList *stl = ((EDIT_TEXT_Data *)vedata)->stl;
 	const DRWContextState *draw_ctx = DRW_context_state_get();
-	Scene *scene = draw_ctx->scene;
-	Object *obedit = scene->obedit;
 
 	UNUSED_VARS(psl, stl);
 
 	if (ob->type == OB_FONT) {
-		if (ob == obedit) {
+		if (ob == draw_ctx->object_edit) {
 			const Curve *cu = ob->data;
 			/* Get geometry cache */
 			struct Gwn_Batch *geom;
@@ -308,5 +306,6 @@ DrawEngineType draw_engine_edit_text_type = {
 	&EDIT_TEXT_cache_finish,
 	NULL, /* draw_background but not needed by mode engines */
 	&EDIT_TEXT_draw_scene,
+	NULL,
 	NULL,
 };

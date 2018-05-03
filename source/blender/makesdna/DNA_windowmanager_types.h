@@ -59,6 +59,7 @@ struct ReportList;
 struct Report;
 struct uiLayout;
 struct Stereo3dFormat;
+struct UndoStep;
 
 #define OP_MAX_TYPENAME 64
 #define KMAP_MAX_NAME   64
@@ -155,6 +156,8 @@ typedef struct wmWindowManager {
 	ListBase timers;                  /* active timers */
 	struct wmTimer *autosavetimer;    /* timer for auto save */
 
+	struct UndoStack *undo_stack;     /* all undo history (runtime only). */
+
 	char is_interface_locked;		/* indicates whether interface is locked for user interaction */
 	char par[7];
 
@@ -180,6 +183,7 @@ typedef struct wmWindow {
 	struct wmWindow *next, *prev;
 
 	void *ghostwin;             /* don't want to include ghost.h stuff */
+	void *gwnctx;               /* don't want to include gawin stuff */
 
 	struct Scene *scene;     /* The scene displayed in this window. */
 	struct Scene *new_scene; /* temporary when switching */
@@ -197,8 +201,7 @@ typedef struct wmWindow {
 	short modalcursor;  /* the current modal cursor */
 	short grabcursor;           /* cursor grab mode */
 	short addmousemove; /* internal: tag this for extra mousemove event, makes cursors/buttons active on UI switching */
-	short multisamples; /* amount of samples for OpenGL FSA the ghost window was created with, if zero no FSA */
-	short pad[3];
+	short pad[4];
 
 	int winid;                  /* winid also in screens, is for retrieving this window after read */
 
@@ -207,8 +210,6 @@ typedef struct wmWindow {
 	                            * that spawn a new pie right after destruction of last pie */
 
 	struct wmEvent *eventstate;   /* storage for event system */
-
-	struct wmSubWindow *curswin;  /* internal for wm_subwindow.c only */
 
 	struct wmGesture *tweak;      /* internal for wm_operators.c */
 
@@ -223,10 +224,12 @@ typedef struct wmWindow {
 	ListBase handlers;            /* window+screen handlers, handled last */
 	ListBase modalhandlers;       /* priority handlers, handled first */
 
-	ListBase subwindows;          /* opengl stuff for sub windows, see notes in wm_subwindow.c */
 	ListBase gesture;             /* gesture stuff */
 
 	struct Stereo3dFormat *stereo3d_format; /* properties for stereoscopic displays */
+
+	/* custom drawing callbacks */
+	ListBase drawcalls;
 } wmWindow;
 
 #ifdef ime_data
@@ -312,13 +315,16 @@ typedef struct wmKeyMap {
 	char idname[64];  /* global editor keymaps, or for more per space/region */
 	short spaceid;    /* same IDs as in DNA_space_types.h */
 	short regionid;   /* see above */
+	char owner_id[64];  /* optional, see: #wmOwnerID */
 
 	short flag;       /* general flags */
 	short kmi_id;     /* last kmi id */
 
 	/* runtime */
-	int (*poll)(struct bContext *);  /* verify if enabled in the current context */
-	const void *modal_items;         /* for modal, EnumPropertyItem for now */
+	/** Verify if enabled in the current context, use #WM_keymap_poll instead of direct calls. */
+	int (*poll)(struct bContext *);
+	/** For modal, #EnumPropertyItem for now. */
+	const void *modal_items;
 } wmKeyMap;
 
 /* wmKeyMap.flag */
@@ -402,13 +408,15 @@ enum {
 	/* low level flag so exec() operators can tell if they were invoked, use with care.
 	 * typically this shouldn't make any difference, but it rare cases its needed (see smooth-view) */
 	OP_IS_INVOKE = (1 << 0),
+	/* So we can detect if an operators exec() call is activated from an interactive repeat. */
+	OP_IS_REPEAT = (1 << 1),
 
 	/* When the cursor is grabbed */
-	OP_IS_MODAL_GRAB_CURSOR    = (1 << 1),
+	OP_IS_MODAL_GRAB_CURSOR    = (1 << 2),
 
 	/* allow modal operators to have the region under the cursor for their context
 	 * (the regiontype is maintained to prevent errors) */
-	OP_IS_MODAL_CURSOR_REGION = (1 << 2),
+	OP_IS_MODAL_CURSOR_REGION = (1 << 3),
 };
 
 #endif /* __DNA_WINDOWMANAGER_TYPES_H__ */

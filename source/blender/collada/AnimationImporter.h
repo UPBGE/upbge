@@ -78,7 +78,7 @@ private:
 	
 	FCurve *create_fcurve(int array_index, const char *rna_path);
 	
-	void create_bezt(FCurve *fcu, float frame, float output);
+	void add_bezt(FCurve *fcu, float frame, float value, eBezTriple_Interpolation ipo=BEZT_IPO_LIN);
 
 	// create one or several fcurves depending on the number of parameters being animated
 	void animation_to_fcurves(COLLADAFW::AnimationCurve *curve);
@@ -202,6 +202,8 @@ public:
 	// gives a world-space mat, end's mat not included
 	bool calc_joint_parent_mat_rest(float mat[4][4], float par[4][4], COLLADAFW::Node *node, COLLADAFW::Node *end);
 
+	float convert_to_focal_length(float in_xfov, int fov_type, float aspect, float sensorx);
+
 #ifdef ARMATURE_TEST
 	Object *get_joint_object(COLLADAFW::Node *root, COLLADAFW::Node *node, Object *par_job);
 #endif
@@ -213,8 +215,6 @@ public:
 #endif
 
 	void add_bone_fcurve(Object *ob, COLLADAFW::Node *node, FCurve *fcu);
-
-	void add_bezt(FCurve *fcu, float fra, float value);
 
 	void extra_data_importer(std::string elementName);
 };

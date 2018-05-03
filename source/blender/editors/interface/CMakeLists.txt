@@ -45,6 +45,11 @@ set(SRC
 	interface_anim.c
 	interface_draw.c
 	interface_eyedropper.c
+	interface_eyedropper_color.c
+	interface_eyedropper_colorband.c
+	interface_eyedropper_datablock.c
+	interface_eyedropper_depth.c
+	interface_eyedropper_driver.c
 	interface_handlers.c
 	interface_icons.c
 	interface_layout.c
@@ -65,7 +70,9 @@ set(SRC
 	view2d.c
 	view2d_ops.c
 
+	interface_eyedropper_intern.h
 	interface_intern.h
+	interface_regions_intern.h
 )
 
 if(WITH_INTERNATIONAL)
@@ -74,6 +81,10 @@ endif()
 
 if(WITH_HEADLESS)
 	add_definitions(-DWITH_HEADLESS)
+endif()
+
+if(WITH_CYCLES)
+	add_definitions(-DWITH_CYCLES)
 endif()
 
 if(WITH_PYTHON)

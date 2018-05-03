@@ -46,6 +46,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "CLG_log.h"
+
 #include "DNA_ID.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -59,7 +61,7 @@
 #include "PIL_time.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_dial.h"
+#include "BLI_dial_2d.h"
 #include "BLI_dynstr.h" /*for WM_operator_pystring */
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -97,7 +99,7 @@
 
 #include "ED_numinput.h"
 #include "ED_screen.h"
-#include "ED_util.h"
+#include "ED_undo.h"
 #include "ED_view3d.h"
 
 #include "RNA_access.h"
@@ -142,12 +144,12 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
 		}
 
 		if (!quiet) {
-			printf("search for unknown operator '%s', '%s'\n", idname_bl, idname);
+			CLOG_INFO(WM_LOG_OPERATORS, 0, "search for unknown operator '%s', '%s'\n", idname_bl, idname);
 		}
 	}
 	else {
 		if (!quiet) {
-			printf("search for empty operator\n");
+			CLOG_INFO(WM_LOG_OPERATORS, 0, "search for empty operator");
 		}
 	}
 
@@ -180,8 +182,7 @@ static wmOperatorType *wm_operatortype_append__begin(void)
 static void wm_operatortype_append__end(wmOperatorType *ot)
 {
 	if (ot->name == NULL) {
-		fprintf(stderr, "ERROR: Operator %s has no name property!\n", ot->idname);
-		ot->name = N_("Dummy Name");
+		CLOG_ERROR(WM_LOG_OPERATORS, "Operator '%s' has no name property", ot->idname);
 	}
 
 	/* Allow calling _begin without _end in operatortype creation. */
@@ -269,7 +270,7 @@ static int wm_macro_exec(bContext *C, wmOperator *op)
 			}
 		}
 		else {
-			printf("%s: '%s' cant exec macro\n", __func__, opm->type->idname);
+			CLOG_WARN(WM_LOG_OPERATORS, "'%s' cant exec macro", opm->type->idname);
 		}
 	}
 	
@@ -314,8 +315,9 @@ static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	wmOperator *opm = op->opm;
 	int retval = OPERATOR_FINISHED;
 	
-	if (opm == NULL)
-		printf("%s: macro error, calling NULL modal()\n", __func__);
+	if (opm == NULL) {
+		CLOG_ERROR(WM_LOG_OPERATORS, "macro error, calling NULL modal()");
+	}
 	else {
 		retval = opm->type->modal(C, opm, event);
 		OPERATOR_RETVAL_CHECK(retval);
@@ -389,7 +391,7 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *nam
 	const char *i18n_context;
 	
 	if (WM_operatortype_find(idname, true)) {
-		printf("%s: macro error: operator %s exists\n", __func__, idname);
+		CLOG_ERROR(WM_LOG_OPERATORS, "operator %s exists, cannot create macro", idname);
 		return NULL;
 	}
 	
@@ -1198,11 +1200,14 @@ int WM_menu_invoke_ex(bContext *C, wmOperator *op, int opcontext)
 	uiLayout *layout;
 
 	if (prop == NULL) {
-		printf("%s: %s has no enum property set\n", __func__, op->type->idname);
+		CLOG_ERROR(WM_LOG_OPERATORS,
+		           "'%s' has no enum property set",
+		           op->type->idname);
 	}
 	else if (RNA_property_type(prop) != PROP_ENUM) {
-		printf("%s: %s \"%s\" is not an enum property\n",
-		       __func__, op->type->idname, RNA_property_identifier(prop));
+		CLOG_ERROR(WM_LOG_OPERATORS,
+		           "'%s', '%s' is not an enum property",
+		           op->type->idname, RNA_property_identifier(prop));
 	}
 	else if (RNA_property_is_set(op->ptr, prop)) {
 		const int retval = op->type->exec(C, op);
@@ -1814,7 +1819,7 @@ static int wm_operator_tool_set_exec(bContext *C, wmOperator *op)
 {
 	ScrArea *sa = CTX_wm_area(C);
 
-	bToolDef tool_def = {0};
+	bToolDef tool_def = {{0}};
 
 	tool_def.index = RNA_int_get(op->ptr, "index");
 	tool_def.spacetype = sa->spacetype;
@@ -1950,14 +1955,15 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 			ibuf_template = IMB_loadiffname(splash_filepath, IB_rect, NULL);
 			if (ibuf_template) {
 				const int x_expect = ibuf->x;
-				const int y_expect = 230 * (int)U.pixelsize;
+				const int y_expect = 282 * (int)U.pixelsize;
 				/* don't cover the header text */
 				if (ibuf_template->x == x_expect && ibuf_template->y == y_expect) {
 					memcpy(ibuf->rect, ibuf_template->rect, ibuf_template->x * ibuf_template->y * sizeof(char[4]));
 				}
 				else {
-					printf("Splash expected %dx%d found %dx%d, ignoring: %s\n",
-					       x_expect, y_expect, ibuf_template->x, ibuf_template->y, splash_filepath);
+					CLOG_ERROR(WM_LOG_OPERATORS,
+					           "Splash expected %dx%d found %dx%d, ignoring: %s\n",
+					           x_expect, y_expect, ibuf_template->x, ibuf_template->y, splash_filepath);
 				}
 				IMB_freeImBuf(ibuf_template);
 			}
@@ -2315,13 +2321,20 @@ static void WM_OT_window_fullscreen_toggle(wmOperatorType *ot)
 	ot->poll = WM_operator_winactive;
 }
 
-static int wm_exit_blender_exec(bContext *C, wmOperator *op)
+static int wm_exit_blender_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	WM_operator_free(op);
-	
-	WM_exit(C);
-	
+	wm_quit_with_optional_confirmation_prompt(C, CTX_wm_window(C));
 	return OPERATOR_FINISHED;
+}
+
+static int wm_exit_blender_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	if (U.uiflag & USER_QUIT_PROMPT) {
+		return wm_exit_blender_exec(C, op);
+	}
+	else {
+		return WM_operator_confirm(C, op, event);
+	}
 }
 
 static void WM_OT_quit_blender(wmOperatorType *ot)
@@ -2330,7 +2343,7 @@ static void WM_OT_quit_blender(wmOperatorType *ot)
 	ot->idname = "WM_OT_quit_blender";
 	ot->description = "Quit Blender";
 
-	ot->invoke = WM_operator_confirm;
+	ot->invoke = wm_exit_blender_invoke;
 	ot->exec = wm_exit_blender_exec;
 }
 
@@ -2508,6 +2521,7 @@ static void radial_control_set_tex(RadialControl *rc)
 				glBindTexture(GL_TEXTURE_2D, rc->gltex);
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, ibuf->x, ibuf->y, 0,
 				             GL_RED, GL_FLOAT, ibuf->rect_float);
+				glBindTexture(GL_TEXTURE_2D, 0);
 				MEM_freeN(ibuf->rect_float);
 				MEM_freeN(ibuf);
 			}
@@ -2548,6 +2562,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 
 		unsigned int texCoord = GWN_vertformat_attr_add(format, "texCoord", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
+		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, rc->gltex);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -2559,7 +2574,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_MASK_UNIFORM_COLOR);
 
 		immUniformColor3fvAlpha(col, alpha);
-		immUniform1i("image", GL_TEXTURE0);
+		immUniform1i("image", 0);
 
 		/* set up rotation if available */
 		if (rc->rot_prop) {
@@ -3218,26 +3233,38 @@ static void WM_OT_radial_control(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
 	/* all paths relative to the context */
-	RNA_def_string(ot->srna, "data_path_primary", NULL, 0, "Primary Data Path", "Primary path of property to be set by the radial control");
+	PropertyRNA *prop;
+	prop = RNA_def_string(ot->srna, "data_path_primary", NULL, 0, "Primary Data Path", "Primary path of property to be set by the radial control");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-	RNA_def_string(ot->srna, "data_path_secondary", NULL, 0, "Secondary Data Path", "Secondary path of property to be set by the radial control");
+	prop = RNA_def_string(ot->srna, "data_path_secondary", NULL, 0, "Secondary Data Path", "Secondary path of property to be set by the radial control");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-	RNA_def_string(ot->srna, "use_secondary", NULL, 0, "Use Secondary", "Path of property to select between the primary and secondary data paths");
+	prop = RNA_def_string(ot->srna, "use_secondary", NULL, 0, "Use Secondary", "Path of property to select between the primary and secondary data paths");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-	RNA_def_string(ot->srna, "rotation_path", NULL, 0, "Rotation Path", "Path of property used to rotate the texture display");
+	prop = RNA_def_string(ot->srna, "rotation_path", NULL, 0, "Rotation Path", "Path of property used to rotate the texture display");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-	RNA_def_string(ot->srna, "color_path", NULL, 0, "Color Path", "Path of property used to set the color of the control");
+	prop = RNA_def_string(ot->srna, "color_path", NULL, 0, "Color Path", "Path of property used to set the color of the control");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-	RNA_def_string(ot->srna, "fill_color_path", NULL, 0, "Fill Color Path", "Path of property used to set the fill color of the control");
+	prop = RNA_def_string(ot->srna, "fill_color_path", NULL, 0, "Fill Color Path", "Path of property used to set the fill color of the control");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-	RNA_def_string(ot->srna, "fill_color_override_path", NULL, 0, "Fill Color Override Path", "");
-	RNA_def_string(ot->srna, "fill_color_override_test_path", NULL, 0, "Fill Color Override Test", "");
+	prop = RNA_def_string(ot->srna, "fill_color_override_path", NULL, 0, "Fill Color Override Path", "");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_string(ot->srna, "fill_color_override_test_path", NULL, 0, "Fill Color Override Test", "");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-	RNA_def_string(ot->srna, "zoom_path", NULL, 0, "Zoom Path", "Path of property used to set the zoom level for the control");
+	prop = RNA_def_string(ot->srna, "zoom_path", NULL, 0, "Zoom Path", "Path of property used to set the zoom level for the control");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-	RNA_def_string(ot->srna, "image_id", NULL, 0, "Image ID", "Path of ID that is used to generate an image for the control");
+	prop = RNA_def_string(ot->srna, "image_id", NULL, 0, "Image ID", "Path of ID that is used to generate an image for the control");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-	RNA_def_boolean(ot->srna, "secondary_tex", false, "Secondary Texture", "Tweak brush secondary/mask texture");
+	prop = RNA_def_boolean(ot->srna, "secondary_tex", false, "Secondary Texture", "Tweak brush secondary/mask texture");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /* ************************** timer for testing ***************** */
@@ -3310,7 +3337,7 @@ static void redraw_timer_step(
 			CTX_wm_area_set(C, sa_iter);
 
 			for (ar_iter = sa_iter->regionbase.first; ar_iter; ar_iter = ar_iter->next) {
-				if (ar_iter->swinid) {
+				if (ar_iter->visible) {
 					CTX_wm_region_set(C, ar_iter);
 					ED_region_do_draw(C, ar_iter);
 					ar_iter->do_draw = false;
@@ -4054,6 +4081,7 @@ static const EnumPropertyItem *rna_id_itemf(
 
 	for (; id; id = id->next) {
 		if ((filter_ids != NULL) && filter_ids(user_data, id) == false) {
+			i++;
 			continue;
 		}
 		if (local == false || !ID_IS_LINKED(id)) {

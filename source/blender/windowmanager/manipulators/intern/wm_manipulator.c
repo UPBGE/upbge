@@ -98,6 +98,8 @@ static wmManipulator *wm_manipulator_create(
 	unit_m4(mpr->matrix_basis);
 	unit_m4(mpr->matrix_offset);
 
+	mpr->drag_part = -1;
+
 	return mpr;
 }
 
@@ -164,6 +166,10 @@ static void wm_manipulator_register(wmManipulatorGroup *mgroup, wmManipulator *m
  */
 void WM_manipulator_free(wmManipulator *mpr)
 {
+	if (mpr->type->free != NULL) {
+		mpr->type->free(mpr);
+	}
+
 #ifdef WITH_PYTHON
 	if (mpr->py_instance) {
 		/* do this first in case there are any __del__ functions or
@@ -726,6 +732,31 @@ void WM_manipulator_properties_free(PointerRNA *ptr)
 		MEM_freeN(properties);
 		ptr->data = NULL; /* just in case */
 	}
+}
+
+/** \} */
+
+/** \name General Utilities
+ *
+ * \{ */
+
+bool WM_manipulator_context_check_drawstep(const struct bContext *C, eWM_ManipulatorMapDrawStep step)
+{
+	switch (step) {
+		case WM_MANIPULATORMAP_DRAWSTEP_2D:
+		{
+			break;
+		}
+		case WM_MANIPULATORMAP_DRAWSTEP_3D:
+		{
+			wmWindowManager *wm = CTX_wm_manager(C);
+			if (ED_screen_animation_playing(wm)) {
+				return false;
+			}
+			break;
+		}
+	}
+	return true;
 }
 
 /** \} */

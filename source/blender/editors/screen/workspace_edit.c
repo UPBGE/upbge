@@ -36,6 +36,7 @@
 #include "BKE_context.h"
 #include "BKE_idcode.h"
 #include "BKE_main.h"
+#include "BKE_layer.h"
 #include "BKE_library.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -55,6 +56,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.h"
+
+#include "DEG_depsgraph.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -79,32 +82,8 @@ WorkSpace *ED_workspace_add(
 	BKE_workspace_view_layer_set(workspace, act_view_layer, scene);
 	BKE_viewrender_copy(&workspace->view_render, view_render);
 
-#ifdef USE_WORKSPACE_MODE
-	BKE_workspace_object_mode_set(workspace, scene, OB_MODE_OBJECT);
-#endif
-
 	return workspace;
 }
-
-#ifdef USE_WORKSPACE_MODE
-/**
- * Changes the object mode (if needed) to the one set in \a workspace_new.
- * Object mode is still stored on object level. In future it should all be workspace level instead.
- */
-static void workspace_change_update_mode(
-        const WorkSpace *workspace_old, const WorkSpace *workspace_new,
-        bContext *C, Object *ob_act, ReportList *reports)
-{
-	const Scene *scene = CTX_data_scene(C);
-	eObjectMode mode_old = BKE_workspace_object_mode_get(workspace_old, scene);
-	eObjectMode mode_new = BKE_workspace_object_mode_get(workspace_new, scene);
-
-	if (mode_old != mode_new) {
-		ED_object_mode_compat_set(C, ob_act, mode_new, reports);
-		ED_object_toggle_modes(C, mode_new);
-	}
-}
-#endif
 
 static void workspace_change_update_view_layer(
         WorkSpace *workspace_new, const WorkSpace *workspace_old,
@@ -117,15 +96,10 @@ static void workspace_change_update_view_layer(
 
 static void workspace_change_update(
         WorkSpace *workspace_new, const WorkSpace *workspace_old,
-        bContext *C, wmWindowManager *wm)
+        bContext *C)
 {
 	/* needs to be done before changing mode! (to ensure right context) */
 	workspace_change_update_view_layer(workspace_new, workspace_old, CTX_data_scene(C));
-#ifdef USE_WORKSPACE_MODE
-	workspace_change_update_mode(workspace_old, workspace_new, C, CTX_data_active_object(C), &wm->reports);
-#else
-	UNUSED_VARS(C, wm);
-#endif
 }
 
 static bool workspace_change_find_new_layout_cb(const WorkSpaceLayout *layout, void *UNUSED(arg))
@@ -177,7 +151,7 @@ static WorkSpaceLayout *workspace_change_get_new_layout(
  * \returns if workspace changing was successful.
  */
 bool ED_workspace_change(
-        WorkSpace *workspace_new, bContext *C, wmWindowManager *wm, wmWindow *win)
+        WorkSpace *workspace_new, bContext *C, wmWindow *win)
 {
 	Main *bmain = CTX_data_main(C);
 	WorkSpace *workspace_old = WM_window_get_active_workspace(win);
@@ -195,18 +169,60 @@ bool ED_workspace_change(
 	BLI_assert(BKE_workspace_layout_screen_get(layout_new) == screen_new);
 
 	if (screen_new) {
+		Scene *scene = WM_window_get_active_scene(win);
+		bool use_object_mode = false;
+
+		/* Store old context for exiting edit-mode. */
+		EvaluationContext eval_ctx_old;
+		CTX_data_eval_ctx(C, &eval_ctx_old);
+
+
 		WM_window_set_active_layout(win, workspace_new, layout_new);
 		WM_window_set_active_workspace(win, workspace_new);
 
 		/* update screen *after* changing workspace - which also causes the actual screen change */
-		screen_changed_update(C, win, screen_new);
-		workspace_change_update(workspace_new, workspace_old, C, wm);
+		screen_change_update(C, win, screen_new);
+		workspace_change_update(workspace_new, workspace_old, C);
 
 		BLI_assert(BKE_workspace_view_layer_get(workspace_new, CTX_data_scene(C)) != NULL);
 		BLI_assert(CTX_wm_workspace(C) == workspace_new);
 
 		WM_toolsystem_unlink(C, workspace_old);
 		WM_toolsystem_link(C, workspace_new);
+
+		ViewLayer *view_layer_old = BKE_workspace_view_layer_get(workspace_old, scene);
+		Object *obact_old = OBACT(view_layer_old);
+
+		ViewLayer *view_layer_new = BKE_workspace_view_layer_get(workspace_new, scene);
+		Object *obact_new = OBACT(view_layer_new);
+
+		/* Handle object mode switching */
+		if ((workspace_old->object_mode != OB_MODE_OBJECT) ||
+		    (workspace_new->object_mode != OB_MODE_OBJECT))
+		{
+			if ((workspace_old->object_mode == workspace_new->object_mode) &&
+			    (obact_old == obact_new))
+			{
+				/* pass */
+			}
+			else {
+				use_object_mode = true;
+			}
+		}
+
+		if (use_object_mode) {
+			/* weak, set it back so it's used when activating again. */
+			eObjectMode object_mode = workspace_old->object_mode;
+			ED_object_mode_generic_exit_or_other_window(&eval_ctx_old, bmain->wm.first, workspace_old, scene, obact_old);
+			workspace_old->object_mode = object_mode;
+			ED_workspace_object_mode_sync_from_object(bmain->wm.first, workspace_old, obact_old);
+			ED_object_mode_generic_enter_or_other_window(C, NULL, workspace_new->object_mode);
+		}
+		else {
+			if (obact_new == NULL) {
+				workspace_new->object_mode = OB_MODE_OBJECT;
+			}
+		}
 
 		return true;
 	}
@@ -231,12 +247,10 @@ WorkSpace *ED_workspace_duplicate(
 	ListBase *transform_orientations_old = BKE_workspace_transform_orientations_get(workspace_old);
 	ListBase *transform_orientations_new = BKE_workspace_transform_orientations_get(workspace_new);
 
-#ifdef USE_WORKSPACE_MODE
-	BKE_workspace_object_mode_set(workspace_new, scene, BKE_workspace_object_mode_get(workspace_old, scene));
-#endif
 	BLI_duplicatelist(transform_orientations_new, transform_orientations_old);
 
 	workspace_new->tool = workspace_old->tool;
+	workspace_new->object_mode = workspace_old->object_mode;
 
 	for (WorkSpaceLayout *layout_old = layouts_old->first; layout_old; layout_old = layout_old->next) {
 		WorkSpaceLayout *layout_new = ED_workspace_layout_duplicate(workspace_new, layout_old, win);
@@ -264,7 +278,7 @@ bool ED_workspace_delete(
 		WorkSpace *prev = workspace_id->prev;
 		WorkSpace *next = workspace_id->next;
 
-		ED_workspace_change((prev != NULL) ? prev : next, C, wm, win);
+		ED_workspace_change((prev != NULL) ? prev : next, C, win);
 	}
 	BKE_libblock_free(bmain, workspace_id);
 
@@ -291,6 +305,63 @@ void ED_workspace_view_layer_unset(
 			BKE_workspace_view_layer_set(workspace, layer_new, scene);
 		}
 	}
+}
+
+/**
+ * When a work-space mode has changed,
+ * flush it to all other visible work-spaces using the same object
+ * since we don't support one object being in two different modes at once.
+ * \note We could support this but it's more trouble than it's worth.
+ */
+
+void ED_workspace_object_mode_sync_from_object(wmWindowManager *wm, WorkSpace *workspace, Object *obact)
+{
+	if (obact == NULL) {
+		return;
+	}
+	for (wmWindow *win = wm->windows.first; win; win = win->next) {
+		WorkSpace *workspace_iter = BKE_workspace_active_get(win->workspace_hook);
+		if ((workspace != workspace_iter) && (workspace->object_mode != workspace_iter->object_mode)) {
+			Scene *scene_iter = WM_window_get_active_scene(win);
+			ViewLayer *view_layer = BKE_view_layer_from_workspace_get(scene_iter, workspace_iter);
+			if (obact == OBACT(view_layer)) {
+				workspace_iter->object_mode = workspace->object_mode;
+				/* TODO(campbell), use msgbus */
+				WM_main_add_notifier(NC_SCENE | ND_MODE | NS_MODE_OBJECT, scene_iter);
+			}
+		}
+	}
+}
+
+void ED_workspace_object_mode_sync_from_scene(wmWindowManager *wm, WorkSpace *workspace, Scene *scene)
+{
+	ViewLayer *view_layer = BKE_workspace_view_layer_get(workspace, scene);
+	if (view_layer) {
+		Object *obact = OBACT(view_layer);
+		ED_workspace_object_mode_sync_from_object(wm, workspace, obact);
+	}
+}
+
+bool ED_workspace_object_mode_in_other_window(
+        struct wmWindowManager *wm, const wmWindow *win_compare, Object *obact,
+        eObjectMode *r_object_mode)
+{
+	for (wmWindow *win_iter = wm->windows.first; win_iter; win_iter = win_iter->next) {
+		if (win_compare != win_iter) {
+			WorkSpace *workspace_iter = BKE_workspace_active_get(win_iter->workspace_hook);
+			Scene *scene_iter = WM_window_get_active_scene(win_iter);
+			ViewLayer *view_layer_iter = BKE_view_layer_from_workspace_get(scene_iter, workspace_iter);
+			Object *obact_iter = OBACT(view_layer_iter);
+			if (obact == obact_iter) {
+				if (r_object_mode) {
+					*r_object_mode = workspace_iter->object_mode;
+				}
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 /** \} Workspace API */

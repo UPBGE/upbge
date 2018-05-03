@@ -36,7 +36,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
-#include "BLI_jitter.h"
+#include "BLI_jitter_2d.h"
 #include "BLI_kdtree.h"
 #include "BLI_math.h"
 #include "BLI_math_geom.h"
@@ -800,7 +800,7 @@ static void distribute_invalid(Scene *scene, ParticleSystem *psys, int from)
 	}
 }
 
-/* Creates a distribution of coordinates on a DerivedMesh	*/
+/* Creates a distribution of coordinates on a DerivedMesh */
 /* This is to denote functionality that does not yet work with mesh - only derived mesh */
 static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, ParticleSimulationData *sim, int from)
 {
@@ -950,9 +950,9 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 		return 0;
 	}
 
-	element_weight	= MEM_callocN(sizeof(float)*totelem, "particle_distribution_weights");
-	particle_element= MEM_callocN(sizeof(int)*totpart, "particle_distribution_indexes");
-	jitter_offset	= MEM_callocN(sizeof(float)*totelem, "particle_distribution_jitoff");
+	element_weight   = MEM_callocN(sizeof(float) * totelem, "particle_distribution_weights");
+	particle_element = MEM_callocN(sizeof(int) * totpart, "particle_distribution_indexes");
+	jitter_offset    = MEM_callocN(sizeof(float) * totelem, "particle_distribution_jitoff");
 
 	/* Calculate weights from face areas */
 	if ((part->flag&PART_EDISTR || children) && from != PART_FROM_VERT) {
@@ -1101,7 +1101,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 		/* This is to address tricky issues with vertex-emitting when user tries (and expects) exact 1-1 vert/part
 		 * distribution (see T47983 and its two example files). It allows us to consider pos as
 		 * 'midpoint between v and v+1' (or 'p and p+1', depending whether we have more vertices than particles or not),
-		 * and avoid stumbling over float imprecisions in element_sum.
+		 * and avoid stumbling over float impression in element_sum.
 		 * Note: moved face and volume distribution to this as well (instead of starting at zero),
 		 * for the same reasons, see T52682. */
 		pos = (totpart < totmapped) ? 0.5 / (double)totmapped : step * 0.5;  /* We choose the smaller step. */

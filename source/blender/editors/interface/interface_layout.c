@@ -1488,7 +1488,7 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 	}
 
 	/* Mark non-embossed textfields inside a listbox. */
-	if (but && (block->flag & UI_BLOCK_LIST_ITEM) && (but->type == UI_BTYPE_TEXT) && (but->dt & UI_EMBOSS_NONE)) {
+	if (but && (block->flag & UI_BLOCK_LIST_ITEM) && (but->dt & UI_EMBOSS_NONE)) {
 		UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
 	}
 
@@ -1711,7 +1711,7 @@ void ui_but_add_search(uiBut *but, PointerRNA *ptr, PropertyRNA *prop, PointerRN
 	}
 	else if (but->type == UI_BTYPE_SEARCH_MENU) {
 		/* In case we fail to find proper searchprop, so other code might have already set but->type to search menu... */
-		but->type = UI_BTYPE_LABEL;
+		but->flag |= UI_BUT_DISABLED;
 	}
 }
 

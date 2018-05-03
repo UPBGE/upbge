@@ -103,7 +103,7 @@ static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk,
 	walk(userData, ob, &smd->auxTarget, IDWALK_CB_NOP);
 }
 
-static void deformVerts(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+static void deformVerts(ModifierData *md, const struct EvaluationContext *eval_ctx,
                         Object *ob, DerivedMesh *derivedData,
                         float (*vertexCos)[3],
                         int numVerts,
@@ -118,13 +118,13 @@ static void deformVerts(ModifierData *md, const struct EvaluationContext *UNUSED
 		dm = get_cddm(ob, NULL, dm, vertexCos, dependsOnNormals(md));
 	}
 
-	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts, forRender);
+	shrinkwrapModifier_deform(eval_ctx, (ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts, forRender);
 
 	if (dm != derivedData)
 		dm->release(dm);
 }
 
-static void deformVertsEM(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob,
+static void deformVertsEM(ModifierData *md, const struct EvaluationContext *eval_ctx, Object *ob,
                           struct BMEditMesh *editData, DerivedMesh *derivedData,
                           float (*vertexCos)[3], int numVerts)
 {
@@ -136,26 +136,22 @@ static void deformVertsEM(ModifierData *md, const struct EvaluationContext *UNUS
 		dm = get_cddm(ob, editData, dm, vertexCos, dependsOnNormals(md));
 	}
 
-	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts, false);
+	shrinkwrapModifier_deform(eval_ctx, (ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts, false);
 
 	if (dm != derivedData)
 		dm->release(dm);
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	ShrinkwrapModifierData *smd = (ShrinkwrapModifierData *)md;
 	if (smd->target != NULL) {
-		DEG_add_object_relation(node, smd->target, DEG_OB_COMP_TRANSFORM, "Shrinkwrap Modifier");
-		DEG_add_object_relation(node, smd->target, DEG_OB_COMP_GEOMETRY, "Shrinkwrap Modifier");
+		DEG_add_object_relation(ctx->node, smd->target, DEG_OB_COMP_TRANSFORM, "Shrinkwrap Modifier");
+		DEG_add_object_relation(ctx->node, smd->target, DEG_OB_COMP_GEOMETRY, "Shrinkwrap Modifier");
 	}
 	if (smd->auxTarget != NULL) {
-		DEG_add_object_relation(node, smd->auxTarget, DEG_OB_COMP_TRANSFORM, "Shrinkwrap Modifier");
-		DEG_add_object_relation(node, smd->auxTarget, DEG_OB_COMP_GEOMETRY, "Shrinkwrap Modifier");
+		DEG_add_object_relation(ctx->node, smd->auxTarget, DEG_OB_COMP_TRANSFORM, "Shrinkwrap Modifier");
+		DEG_add_object_relation(ctx->node, smd->auxTarget, DEG_OB_COMP_GEOMETRY, "Shrinkwrap Modifier");
 	}
 }
 

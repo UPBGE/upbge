@@ -35,7 +35,6 @@
 #  define __NODES_FEATURES__ NODE_FEATURE_ALL
 #endif
 
-#include "util/util_debug.h"
 #include "util/util_math.h"
 #include "util/util_simd.h"
 #include "util/util_half.h"
@@ -119,6 +118,7 @@ template<typename T> struct texture  {
 #define kernel_tex_fetch_ssef(tex, index) (kg->tex.fetch_ssef(index))
 #define kernel_tex_fetch_ssei(tex, index) (kg->tex.fetch_ssei(index))
 #define kernel_tex_lookup(tex, t, offset, size) (kg->tex.lookup(t, offset, size))
+#define kernel_tex_array(tex) (kg->tex.data)
 
 #define kernel_data (kg->__data)
 

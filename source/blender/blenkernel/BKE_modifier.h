@@ -34,8 +34,6 @@
 
 struct ID;
 struct DerivedMesh;
-struct DagForest;
-struct DagNode;
 struct EvaluationContext;
 struct Object;
 struct Scene;
@@ -128,6 +126,12 @@ typedef enum ModifierApplyFlag {
 	                                */
 } ModifierApplyFlag;
 
+
+typedef struct ModifierUpdateDepsgraphContext {
+	struct Scene *scene;
+	struct Object *object;
+	struct DepsNodeHandle *node;
+} ModifierUpdateDepsgraphContext;
 
 typedef struct ModifierTypeInfo {
 	/* The user visible name for this modifier */
@@ -268,11 +272,8 @@ typedef struct ModifierTypeInfo {
 	 * This function is optional.
 	 */
 	void (*updateDepsgraph)(struct ModifierData *md,
-	                        struct Main *bmain,
-	                        struct Scene *scene,
-	                        struct Object *ob,
-	                        struct DepsNodeHandle *node);
-
+	                        const ModifierUpdateDepsgraphContext *ctx);
+ 
 	/* Should return true if the modifier needs to be recalculated on time
 	 * changes.
 	 *
@@ -374,7 +375,8 @@ struct Object *modifiers_isDeformedByArmature(struct Object *ob);
 struct Object *modifiers_isDeformedByLattice(struct Object *ob);
 struct Object *modifiers_isDeformedByCurve(struct Object *ob);
 bool          modifiers_usesArmature(struct Object *ob, struct bArmature *arm);
-bool          modifiers_isCorrectableDeformed(struct Scene *scene, struct Object *ob);
+bool          modifiers_isCorrectableDeformed(
+        const struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
 void          modifier_freeTemporaryData(struct ModifierData *md);
 bool          modifiers_isPreview(struct Object *ob);
 

@@ -454,6 +454,12 @@ void RNA_api_ui_layout(StructRNA *srna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static const EnumPropertyItem id_template_filter_items[] = {
+		{UI_TEMPLATE_ID_FILTER_ALL, "ALL", 0, "All", ""},
+		{UI_TEMPLATE_ID_FILTER_AVAILABLE, "AVAILABLE", 0, "Available", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static float node_socket_color_default[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 	/* simple layout specifiers */
@@ -549,7 +555,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_boolean(func, "icon_only", false, "", "Draw only icons in buttons, no text");
 	RNA_def_boolean(func, "event", false, "", "Use button to input key events");
 	RNA_def_boolean(func, "full_event", false, "", "Use button to input full events including modifiers");
-	RNA_def_boolean(func, "emboss", true, "", "Draw the button itself, just the icon/text");
+	RNA_def_boolean(func, "emboss", true, "", "Draw the button itself, not just the icon/text");
 	RNA_def_int(func, "index", -1, -2, INT_MAX, "",
 	            "The index of this button, when set a single member of an array can be accessed, "
 	            "when set to -1 all array members are used", -2, INT_MAX); /* RNA_NO_INDEX == -1 */
@@ -582,7 +588,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 		        RNA_def_function(srna, "operator_menu_hold", "rna_uiItemOMenuHold") :
 		        RNA_def_function(srna, "operator", "rna_uiItemO");
 		api_ui_item_op_common(func);
-		RNA_def_boolean(func, "emboss", true, "", "Draw the button itself, just the icon/text");
+		RNA_def_boolean(func, "emboss", true, "", "Draw the button itself, not just the icon/text");
 		RNA_def_boolean(func, "depress", false, "", "Draw pressed in");
 		parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
 		RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
@@ -685,7 +691,9 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_string(func, "new", NULL, 0, "", "Operator identifier to create a new ID block");
 	RNA_def_string(func, "open", NULL, 0, "", "Operator identifier to open a file for creating a new ID block");
 	RNA_def_string(func, "unlink", NULL, 0, "", "Operator identifier to unlink the ID block");
-	
+	RNA_def_enum(func, "filter", id_template_filter_items, UI_TEMPLATE_ID_FILTER_ALL,
+	             "", "Optionally limit the items which can be selected");
+
 	func = RNA_def_function(srna, "template_ID_preview", "uiTemplateIDPreview");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	api_ui_item_rna_common(func);
@@ -694,7 +702,9 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_string(func, "unlink", NULL, 0, "", "Operator identifier to unlink the ID block");
 	RNA_def_int(func, "rows", 0, 0, INT_MAX, "Number of thumbnail preview rows to display", "", 0, INT_MAX);
 	RNA_def_int(func, "cols", 0, 0, INT_MAX, "Number of thumbnail preview columns to display", "", 0, INT_MAX);
-	
+	RNA_def_enum(func, "filter", id_template_filter_items, UI_TEMPLATE_ID_FILTER_ALL,
+	             "", "Optionally limit the items which can be selected");
+
 	func = RNA_def_function(srna, "template_any_ID", "rna_uiTemplateAnyID");
 	parm = RNA_def_pointer(func, "data", "AnyType", "", "Data from which to take property");
 	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);

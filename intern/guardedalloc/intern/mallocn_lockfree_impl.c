@@ -293,6 +293,21 @@ void *MEM_lockfree_callocN(size_t len, const char *str)
 	return NULL;
 }
 
+void *MEM_lockfree_calloc_arrayN(size_t len, size_t size, const char *str)
+{
+	size_t total_size;
+	if (UNLIKELY(!MEM_size_safe_multiply(len, size, &total_size))) {
+		print_error("Calloc array aborted due to integer overflow: "
+		            "len=" SIZET_FORMAT "x" SIZET_FORMAT " in %s, total %u\n",
+		            SIZET_ARG(len), SIZET_ARG(size), str,
+		            (unsigned int) mem_in_use);
+		abort();
+		return NULL;
+	}
+
+	return MEM_lockfree_callocN(total_size, str);
+}
+
 void *MEM_lockfree_mallocN(size_t len, const char *str)
 {
 	MemHead *memh;
@@ -316,6 +331,21 @@ void *MEM_lockfree_mallocN(size_t len, const char *str)
 	print_error("Malloc returns null: len=" SIZET_FORMAT " in %s, total %u\n",
 	            SIZET_ARG(len), str, (unsigned int) mem_in_use);
 	return NULL;
+}
+
+void *MEM_lockfree_malloc_arrayN(size_t len, size_t size, const char *str)
+{
+	size_t total_size;
+	if (UNLIKELY(!MEM_size_safe_multiply(len, size, &total_size))) {
+		print_error("Malloc array aborted due to integer overflow: "
+		            "len=" SIZET_FORMAT "x" SIZET_FORMAT " in %s, total %u\n",
+		            SIZET_ARG(len), SIZET_ARG(size), str,
+		            (unsigned int) mem_in_use);
+		abort();
+		return NULL;
+	}
+
+	return MEM_lockfree_mallocN(total_size, str);
 }
 
 void *MEM_lockfree_mallocN_aligned(size_t len, size_t alignment, const char *str)
@@ -439,7 +469,7 @@ void MEM_lockfree_set_error_callback(void (*func)(const char *))
 	error_callback = func;
 }
 
-bool MEM_lockfree_check_memory_integrity(void)
+bool MEM_lockfree_consistency_check(void)
 {
 	return true;
 }

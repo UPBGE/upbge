@@ -55,9 +55,10 @@ static const char *bc_get_joint_name(T *node)
 }
 
 
-ArmatureImporter::ArmatureImporter(UnitConverter *conv, MeshImporterBase *mesh, Scene *sce, const ImportSettings *import_settings) :
+ArmatureImporter::ArmatureImporter(UnitConverter *conv, MeshImporterBase *mesh, Scene *sce, ViewLayer *view_layer, const ImportSettings *import_settings) :
 	TransformReader(conv),
 	scene(sce),
+	view_layer(view_layer),
 	unit_converter(conv),
 	import_settings(import_settings),
 	empty(NULL), 
@@ -283,12 +284,11 @@ void ArmatureImporter::connect_bone_chains(bArmature *armature, Bone *parentbone
 	BoneExtensionMap &extended_bones = bone_extension_manager.getExtensionMap(armature);
 	BoneExtended *dominant_child = NULL;
 	int maxlen = 0;
-	Bone *child;
 
 	if (parentbone == NULL)
 		return;
 
-	child = (Bone *)parentbone->childbase.first;
+	Bone *child = (Bone *)parentbone->childbase.first;
 	if (child && (import_settings->find_chains || child->next==NULL)) {
 		for (; child; child = child->next) {
 			BoneExtended *be = extended_bones[child->name];
@@ -338,8 +338,8 @@ void ArmatureImporter::connect_bone_chains(bArmature *armature, Bone *parentbone
 				}
 			}
 		}
-		for (Bone *child = (Bone *)parentbone->childbase.first; child; child = child->next) {
-			ArmatureImporter::connect_bone_chains(armature, child, UNLIMITED_CHAIN_MAX);
+		for (Bone *ch = (Bone *)parentbone->childbase.first; ch; ch = ch->next) {
+			ArmatureImporter::connect_bone_chains(armature, ch, UNLIMITED_CHAIN_MAX);
 		}
 	}
 	else if (maxlen>1 && maxlen > this->import_settings->min_chain_length) {
@@ -349,8 +349,8 @@ void ArmatureImporter::connect_bone_chains(bArmature *armature, Bone *parentbone
 	else {
 		/* can't connect this Bone. Proceed with children ... */
 		if (pbe) pbe->set_leaf_bone(true);
-		for (Bone *child = (Bone *)parentbone->childbase.first; child; child = child->next) {
-			ArmatureImporter::connect_bone_chains(armature, child, UNLIMITED_CHAIN_MAX);
+		for (Bone *ch = (Bone *)parentbone->childbase.first; ch; ch = ch->next) {
+			ArmatureImporter::connect_bone_chains(armature, ch, UNLIMITED_CHAIN_MAX);
 		}
 	}
 
@@ -411,7 +411,7 @@ Object *ArmatureImporter::get_empty_for_leaves()
 {
 	if (empty) return empty;
 	
-	empty = bc_add_object(scene, OB_EMPTY, NULL);
+	empty = bc_add_object(scene, view_layer, OB_EMPTY, NULL);
 	empty->empty_drawtype = OB_EMPTY_SPHERE;
 
 	return empty;
@@ -586,7 +586,7 @@ Object *ArmatureImporter::create_armature_bones(SkinInfo& skin)
 		ob_arm = skin.set_armature(shared);
 	}
 	else {
-		ob_arm = skin.create_armature(scene);  //once for every armature
+		ob_arm = skin.create_armature(scene, view_layer);  //once for every armature
 	}
 
 	// enter armature edit mode

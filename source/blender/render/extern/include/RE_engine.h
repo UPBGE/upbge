@@ -92,9 +92,10 @@ typedef struct RenderEngineType {
 	char name[64];
 	int flag;
 
-	void (*update)(struct RenderEngine *engine, struct Main *bmain, struct Depsgraph *depsgraph, struct Scene *scene);
+	void (*update)(struct RenderEngine *engine, struct Main *bmain, struct Scene *scene);
 	void (*render_to_image)(struct RenderEngine *engine, struct Depsgraph *depsgraph);
-	void (*bake)(struct RenderEngine *engine, struct Scene *scene, struct Object *object, const int pass_type,
+	void (*bake)(struct RenderEngine *engine, struct Depsgraph *depsgraph,
+	             struct Scene *scene, struct Object *object, const int pass_type,
 	             const int pass_filter, const int object_id, const struct BakePixel *pixel_array, const int num_pixels,
 	             const int depth, void *result);
 
@@ -183,14 +184,14 @@ void RE_engines_init(void);
 void RE_engines_exit(void);
 void RE_engines_register(struct Main *bmain, RenderEngineType *render_type);
 
+bool RE_engine_is_opengl(RenderEngineType *render_type);
+
 RenderEngineType *RE_engines_find(const char *idname);
 
 rcti* RE_engine_get_current_tiles(struct Render *re, int *r_total_tiles, bool *r_needs_free);
 struct RenderData *RE_engine_get_render_data(struct Render *re);
 void RE_bake_engine_set_engine_parameters(
-        struct Render *re, struct Main *bmain, struct Depsgraph *graph, struct Scene *scene);
-
-struct ViewLayer *RE_engine_get_view_layer(struct Render *re);
+        struct Render *re, struct Main *bmain, struct Scene *scene);
 
 #endif /* __RE_ENGINE_H__ */
 

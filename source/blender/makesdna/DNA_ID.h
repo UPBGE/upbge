@@ -211,13 +211,18 @@ typedef struct ID {
 	int tag;
 	int us;
 	int icon_id;
+	int recalc;
+	int pad;
 	IDProperty *properties;
 
 	IDOverrideStatic *override_static;  /* Reference linked ID which this one overrides. */
 
-	void *py_instance;
+	/* Only set for datablocks which are coming from copy-on-write, points to
+	 * the original version of it.
+	 */
+	void *orig_id;
 
-	void *pad1;
+	void *py_instance;
 } ID;
 
 /**
@@ -373,6 +378,12 @@ typedef enum ID_Type {
 
 #define ID_IS_LINKED(_id) (((ID *)(_id))->lib != NULL)
 
+#define ID_IS_STATIC_OVERRIDE(_id) (((ID *)(_id))->override_static != NULL && \
+                                    ((ID *)(_id))->override_static->reference != NULL)
+
+#define ID_IS_STATIC_OVERRIDE_TEMPLATE(_id) (((ID *)(_id))->override_static != NULL && \
+                                             ((ID *)(_id))->override_static->reference == NULL)
+
 #ifdef GS
 #  undef GS
 #endif
@@ -437,22 +448,32 @@ enum {
 	/* RESET_AFTER_USE tag existing data before linking so we know what is new. */
 	LIB_TAG_PRE_EXISTING    = 1 << 11,
 
-	/* RESET_AFTER_USE, used by update code (depsgraph). */
-	LIB_TAG_ID_RECALC       = 1 << 12,
-	LIB_TAG_ID_RECALC_DATA  = 1 << 13,
-	LIB_TAG_ANIM_NO_RECALC  = 1 << 14,
-	LIB_TAG_ID_RECALC_ALL   = (LIB_TAG_ID_RECALC | LIB_TAG_ID_RECALC_DATA),
-
 	/* The datablock is a copy-on-write version. */
-	LIB_TAG_COPY_ON_WRITE   = 1 << 15,
-	LIB_TAG_COPY_ON_WRITE_EVAL = 1 << 16,
+	LIB_TAG_COPY_ON_WRITE   = 1 << 12,
+	LIB_TAG_COPY_ON_WRITE_EVAL = 1 << 13,
 
 	/* RESET_NEVER tag datablock for freeing etc. behavior (usually set when copying real one into temp/runtime one). */
-	LIB_TAG_NO_MAIN          = 1 << 17,  /* Datablock is not listed in Main database. */
-	LIB_TAG_NO_USER_REFCOUNT = 1 << 18,  /* Datablock does not refcount usages of other IDs. */
+	LIB_TAG_NO_MAIN          = 1 << 14,  /* Datablock is not listed in Main database. */
+	LIB_TAG_NO_USER_REFCOUNT = 1 << 15,  /* Datablock does not refcount usages of other IDs. */
 	/* Datablock was not allocated by standard system (BKE_libblock_alloc), do not free its memory
 	 * (usual type-specific freeing is called though). */
-	LIB_TAG_NOT_ALLOCATED     = 1 << 19,
+	LIB_TAG_NOT_ALLOCATED     = 1 << 16,
+};
+
+enum {
+	/* RESET_AFTER_USE, used by update code (depsgraph). */
+	ID_RECALC_NONE  = 0,
+	/* Generic recalc flag, when nothing else matches. */
+	ID_RECALC       = 1 << 0,
+	/* Per-component update flags. */
+	ID_RECALC_ANIMATION   = 1 << 1,
+	ID_RECALC_DRAW        = 1 << 2,
+	ID_RECALC_DRAW_CACHE  = 1 << 3,
+	ID_RECALC_GEOMETRY    = 1 << 4,
+	ID_RECALC_TRANSFORM   = 1 << 5,
+	ID_RECALC_COLLECTIONS = 1 << 6,
+	/* Special flag to check if SOMETHING was changed. */
+	ID_RECALC_ALL   = (~(int)0),
 };
 
 /* To filter ID types (filter_id) */

@@ -49,6 +49,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DEG_depsgraph.h"
+
 #include "MOD_util.h"
 
 #ifdef __SSE2__
@@ -120,16 +122,12 @@ static void foreachObjectLink(
 	walk(userData, ob, &mmd->object, IDWALK_CB_NOP);
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
 	if (mmd->object != NULL) {
 		/* TODO(sergey): Do we need transform component here? */
-		DEG_add_object_relation(node, mmd->object, DEG_OB_COMP_GEOMETRY, "Mesh Deform Modifier");
+		DEG_add_object_relation(ctx->node, mmd->object, DEG_OB_COMP_GEOMETRY, "Mesh Deform Modifier");
 	}
 }
 
@@ -215,7 +213,10 @@ typedef struct MeshdeformUserdata {
 	float (*icagemat)[3];
 } MeshdeformUserdata;
 
-static void meshdeform_vert_task(void *userdata, const int iter)
+static void meshdeform_vert_task(
+        void *__restrict userdata,
+        const int iter,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	MeshdeformUserdata *data = userdata;
 	/*const*/ MeshDeformModifierData *mmd = data->mmd;
@@ -297,7 +298,7 @@ static void meshdeformModifier_do(
 	 *
 	 * We'll support this case once granular dependency graph is landed.
 	 */
-	if (mmd->object == md->scene->obedit) {
+	if (mmd->object == OBEDIT_FROM_EVAL_CTX(eval_ctx)) {
 		BMEditMesh *em = BKE_editmesh_from_object(mmd->object);
 		tmpdm = editbmesh_get_derived_cage_and_final(eval_ctx, md->scene, mmd->object, em, 0, &cagedm);
 		if (tmpdm)
@@ -358,7 +359,7 @@ static void meshdeformModifier_do(
 		return;
 	}
 
-	cagecos = MEM_mallocN(sizeof(*cagecos) * totcagevert, "meshdeformModifier vertCos");
+	cagecos = MEM_malloc_arrayN(totcagevert, sizeof(*cagecos), "meshdeformModifier vertCos");
 
 	/* setup deformation data */
 	cagedm->getVertCos(cagedm, cagecos);
@@ -367,7 +368,7 @@ static void meshdeformModifier_do(
 	/* We allocate 1 element extra to make it possible to
 	 * load the values to SSE registers, which are float4.
 	 */
-	dco = MEM_callocN(sizeof(*dco) * (totcagevert + 1), "MDefDco");
+	dco = MEM_calloc_arrayN((totcagevert + 1), sizeof(*dco), "MDefDco");
 	zero_v3(dco[totcagevert]);
 	for (a = 0; a < totcagevert; a++) {
 		/* get cage vertex in world space with binding transform */
@@ -394,7 +395,13 @@ static void meshdeformModifier_do(
 	data.icagemat = icagemat;
 
 	/* Do deformation. */
-	BLI_task_parallel_range(0, totvert, &data, meshdeform_vert_task, totvert > 1000);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.min_iter_per_thread = 16;
+	BLI_task_parallel_range(0, totvert,
+	                        &data,
+	                        meshdeform_vert_task,
+	                        &settings);
 
 	/* release cage derivedmesh */
 	MEM_freeN(dco);
@@ -458,8 +465,8 @@ void modifier_mdef_compact_influences(ModifierData *md)
 	}
 
 	/* allocate bind influences */
-	mmd->bindinfluences = MEM_callocN(sizeof(MDefInfluence) * mmd->totinfluence, "MDefBindInfluence");
-	mmd->bindoffsets = MEM_callocN(sizeof(int) * (totvert + 1), "MDefBindOffset");
+	mmd->bindinfluences = MEM_calloc_arrayN(mmd->totinfluence, sizeof(MDefInfluence), "MDefBindInfluence");
+	mmd->bindoffsets = MEM_calloc_arrayN((totvert + 1), sizeof(int), "MDefBindOffset");
 
 	/* write influences */
 	totinfluence = 0;

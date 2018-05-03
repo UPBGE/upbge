@@ -80,6 +80,13 @@ typedef struct Global {
 	 * however this is now only used for runtime options */
 	int f;
 
+	struct {
+		/* Logging vars (different loggers may use). */
+		int level;
+		/* FILE handle or use stderr (we own this so close when done). */
+		void *file;
+	} log;
+
 	/* debug flag, G_DEBUG, G_DEBUG_PYTHON & friends, set python or command line args */
 	int debug;
 
@@ -122,13 +129,21 @@ enum {
 	G_DEBUG_WM =        (1 << 5), /* operator, undo */
 	G_DEBUG_JOBS =      (1 << 6), /* jobs time profiling */
 	G_DEBUG_FREESTYLE = (1 << 7), /* freestyle messages */
-	G_DEBUG_DEPSGRAPH = (1 << 8), /* depsgraph messages */
-	G_DEBUG_SIMDATA =   (1 << 9), /* sim debug data display */
-	G_DEBUG_GPU_MEM =   (1 << 10), /* gpu memory in status bar */
-	G_DEBUG_DEPSGRAPH_NO_THREADS = (1 << 11),  /* single threaded depsgraph */
-	G_DEBUG_GPU =        (1 << 12), /* gpu debug */
-	G_DEBUG_IO = (1 << 13),   /* IO Debugging (for Collada, ...)*/
-	G_DEBUG_GPU_SHADERS = (1 << 14),   /* GLSL shaders */
+	G_DEBUG_DEPSGRAPH_BUILD      = (1 << 8),   /* depsgraph construction messages */
+	G_DEBUG_DEPSGRAPH_EVAL       = (1 << 9),   /* depsgraph evaluation messages */
+	G_DEBUG_DEPSGRAPH_TAG        = (1 << 10),  /* depsgraph tagging messages */
+	G_DEBUG_DEPSGRAPH_TIME       = (1 << 11),  /* depsgraph timing statistics and messages */
+	G_DEBUG_DEPSGRAPH_NO_THREADS = (1 << 12),  /* single threaded depsgraph */
+	G_DEBUG_DEPSGRAPH_PRETTY     = (1 << 13),  /* use pretty colors in depsgraph messages */
+	G_DEBUG_DEPSGRAPH = (G_DEBUG_DEPSGRAPH_BUILD |
+	                     G_DEBUG_DEPSGRAPH_EVAL |
+	                     G_DEBUG_DEPSGRAPH_TAG |
+	                     G_DEBUG_DEPSGRAPH_TIME),
+	G_DEBUG_SIMDATA =   (1 << 14), /* sim debug data display */
+	G_DEBUG_GPU_MEM =   (1 << 15), /* gpu memory in status bar */
+	G_DEBUG_GPU =        (1 << 16), /* gpu debug */
+	G_DEBUG_IO = (1 << 17),   /* IO Debugging (for Collada, ...)*/
+	G_DEBUG_GPU_SHADERS = (1 << 18),   /* GLSL shaders */
 };
 
 #define G_DEBUG_ALL  (G_DEBUG | G_DEBUG_FFMPEG | G_DEBUG_PYTHON | G_DEBUG_EVENTS | G_DEBUG_WM | G_DEBUG_JOBS | \

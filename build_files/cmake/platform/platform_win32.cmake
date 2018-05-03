@@ -31,6 +31,12 @@ endif()
 
 # Libraries configuration for Windows when compiling with MSVC.
 
+set_property(GLOBAL PROPERTY USE_FOLDERS ${WINDOWS_USE_VISUAL_STUDIO_FOLDERS})
+
+if(NOT WITH_PYTHON_MODULE)
+	set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT blender)
+endif()
+
 macro(warn_hardcoded_paths package_name
 	)
 	if(WITH_WINDOWS_FIND_MODULES)
@@ -52,6 +58,11 @@ macro(find_package_wrapper)
 endmacro()
 
 add_definitions(-DWIN32)
+
+# Needed, otherwise system encoding causes utf-8 encoding to fail in some cases (C4819)
+add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
+add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+
 # Minimum MSVC Version
 if(CMAKE_CXX_COMPILER_ID MATCHES MSVC)
 	if(MSVC_VERSION EQUAL 1800)
@@ -102,7 +113,10 @@ add_definitions(-D_ALLOW_KEYWORD_MACROS)
 add_definitions(-D_WIN32_WINNT=0x600)
 
 # Make cmake find the msvc redistributables
-set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP FALSE)
+set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
+set(CMAKE_INSTALL_OPENMP_LIBRARIES ${WITH_OPENMP})
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION .)
 include(InstallRequiredSystemLibraries)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /nologo /J /Gd /MP /EHsc")
@@ -143,7 +157,7 @@ if(NOT DEFINED LIBDIR)
 		set(LIBDIR_BASE "windows")
 	endif()
 	# Can be 1910..1912
-	if(MSVC_VERSION GREATER_EQUAL 1910)
+	if(MSVC_VERSION GREATER 1909)
 		message(STATUS "Visual Studio 2017 detected.")
 		set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_BASE}_vc14)
 	elseif(MSVC_VERSION EQUAL 1900)

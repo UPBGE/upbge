@@ -67,6 +67,7 @@ set(SRC_HEADERS
 	util_param.h
 	util_path.h
 	util_progress.h
+	util_projection.h
 	util_queue.h
 	util_rect.h
 	util_set.h
@@ -127,4 +128,4 @@ include_directories(SYSTEM ${INC_SYS})
 
 add_definitions(${GL_DEFINITIONS})
 
-add_library(cycles_util ${SRC} ${SRC_HEADERS})
+cycles_add_library(cycles_util ${SRC} ${SRC_HEADERS})

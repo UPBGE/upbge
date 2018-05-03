@@ -74,6 +74,7 @@ typedef struct DupliContext {
 	bool do_update;
 	bool animated;
 	Group *group; /* XXX child objects are selected from this group if set, could be nicer */
+	Object *obedit; /* Only to check if the object is in edit-mode. */
 
 	Scene *scene;
 	ViewLayer *view_layer;
@@ -107,6 +108,7 @@ static void init_context(DupliContext *r_ctx, const EvaluationContext *eval_ctx,
 	r_ctx->animated = false;
 	r_ctx->group = NULL;
 
+	r_ctx->obedit = OBEDIT_FROM_EVAL_CTX(eval_ctx);
 	r_ctx->object = ob;
 	if (space_mat)
 		copy_m4_m4(r_ctx->space_mat, space_mat);
@@ -241,14 +243,13 @@ static bool is_child(const Object *ob, const Object *parent)
 static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChildDuplisFunc make_child_duplis_cb)
 {
 	Object *parent = ctx->object;
-	Object *obedit = ctx->scene->obedit;
 
 	if (ctx->group) {
 		int groupid = 0;
-		FOREACH_GROUP_BASE(ctx->group, base)
+		FOREACH_GROUP_BASE_BEGIN(ctx->group, base)
 		{
 			Object *ob = base->object;
-			if ((base->flag & BASE_VISIBLED) && ob != obedit && is_child(ob, parent)) {
+			if ((base->flag & BASE_VISIBLED) && ob != ctx->obedit && is_child(ob, parent)) {
 				DupliContext pctx;
 				copy_dupli_context(&pctx, ctx, ctx->object, NULL, groupid, false);
 
@@ -267,7 +268,7 @@ static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChild
 		ViewLayer *view_layer = ctx->view_layer;
 		for (Base *base = view_layer->object_bases.first; base; base = base->next, baseid++) {
 			Object *ob = base->object;
-			if ((base->flag & BASE_VISIBLED) && ob != obedit && is_child(ob, parent)) {
+			if ((ob != ctx->obedit) && is_child(ob, parent)) {
 				DupliContext pctx;
 				copy_dupli_context(&pctx, ctx, ctx->object, NULL, baseid, false);
 
@@ -363,10 +364,6 @@ static void make_duplis_frames(const DupliContext *ctx)
 
 	/* duplicate over the required range */
 	if (ob->transflag & OB_DUPLINOSPEED) enable_cu_speed = 0;
-
-	/* special flag to avoid setting recalc flags to notify the depsgraph of
-	 * updates, as this is not a permanent change to the object */
-	ob->id.tag |= LIB_TAG_ANIM_NO_RECALC;
 
 	for (scene->r.cfra = ob->dupsta; scene->r.cfra <= dupend; scene->r.cfra++) {
 		int ok = 1;
@@ -617,7 +614,7 @@ static void make_duplis_font(const DupliContext *ctx)
 
 	/* in par the family name is stored, use this to find the other objects */
 
-	BKE_vfont_to_curve_ex(G.main, par, FO_DUPLI, NULL,
+	BKE_vfont_to_curve_ex(G.main, par, par->data, FO_DUPLI, NULL,
 	                      &text, &text_len, &text_free, &chartransdata);
 
 	if (text == NULL || chartransdata == NULL) {
@@ -935,12 +932,12 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 					totgroup += dw->count;
 			}
 			else {
-				FOREACH_GROUP_OBJECT(part->dup_group, object)
+				FOREACH_GROUP_OBJECT_BEGIN(part->dup_group, object)
 				{
 					(void) object;
 					totgroup++;
 				}
-				FOREACH_GROUP_OBJECT_END
+				FOREACH_GROUP_OBJECT_END;
 			}
 
 			/* we also copy the actual objects to restore afterwards, since
@@ -960,7 +957,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 			}
 			else {
 				a = 0;
-				FOREACH_GROUP_OBJECT(part->dup_group, object)
+				FOREACH_GROUP_OBJECT_BEGIN(part->dup_group, object)
 				{
 					oblist[a] = object;
 					obcopylist[a] = *object;
@@ -970,7 +967,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 						continue;
 					}
 				}
-				FOREACH_GROUP_OBJECT_END
+				FOREACH_GROUP_OBJECT_END;
 			}
 		}
 		else {
@@ -1060,7 +1057,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
 			if (part->ren_as == PART_DRAW_GR && psys->part->draw & PART_DRAW_WHOLE_GR) {
 				b = 0;
-				FOREACH_GROUP_OBJECT(part->dup_group, object)
+				FOREACH_GROUP_OBJECT_BEGIN(part->dup_group, object)
 				{
 					copy_m4_m4(tmat, oblist[b]->obmat);
 
@@ -1085,7 +1082,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
 					b++;
 				}
-				FOREACH_GROUP_OBJECT_END
+				FOREACH_GROUP_OBJECT_END;
 			}
 			else {
 				/* to give ipos in object correct offset */

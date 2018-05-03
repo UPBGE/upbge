@@ -282,7 +282,7 @@ static void imapaint_pick_uv(EvaluationContext *eval_ctx, Scene *scene, Object *
 	float p[2], w[3], absw, minabsw;
 	float matrix[4][4], proj[4][4];
 	GLint view[4];
-	const eImageePaintMode mode = scene->toolsettings->imapaint.mode;
+	const eImagePaintMode mode = scene->toolsettings->imapaint.mode;
 	const MLoopTri *lt = dm->getLoopTriArray(dm);
 	const MPoly *mpoly = dm->getPolyArray(dm);
 	const MLoop *mloop = dm->getLoopArray(dm);
@@ -468,7 +468,7 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 			unsigned int totpoly = me->totpoly;
 
 			if (dm->getLoopDataArray(dm, CD_MLOOPUV)) {
-				view3d_set_viewcontext(C, &vc);
+				ED_view3d_viewcontext_init(C, &vc);
 
 				view3d_operator_needs_opengl(C);
 
@@ -566,10 +566,11 @@ static int brush_curve_preset_exec(bContext *C, wmOperator *op)
 	Brush *br = BKE_paint_brush(BKE_paint_get_active_from_context(C));
 
 	if (br) {
+		const WorkSpace *workspace = CTX_wm_workspace(C);
 		Scene *scene = CTX_data_scene(C);
 		ViewLayer *view_layer = CTX_data_view_layer(C);
 		BKE_brush_curve_preset(br, RNA_enum_get(op->ptr, "shape"));
-		BKE_paint_invalidate_cursor_overlay(scene, view_layer, br->curve);
+		BKE_paint_invalidate_cursor_overlay(scene, view_layer, br->curve, workspace->object_mode);
 	}
 
 	return OPERATOR_FINISHED;

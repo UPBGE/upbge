@@ -70,14 +70,15 @@ FCurve *AnimationImporter::create_fcurve(int array_index, const char *rna_path)
 	fcu->array_index = array_index;
 	return fcu;
 }
-	
-void AnimationImporter::create_bezt(FCurve *fcu, float frame, float output)
+
+void AnimationImporter::add_bezt(FCurve *fcu, float frame, float value, eBezTriple_Interpolation ipo)
 {
+	//float fps = (float)FPS;
 	BezTriple bez;
 	memset(&bez, 0, sizeof(BezTriple));
 	bez.vec[1][0] = frame;
-	bez.vec[1][1] = output;
-	bez.ipo = U.ipo_new; /* use default interpolation mode here... */
+	bez.vec[1][1] = value;
+	bez.ipo = ipo; /* use default interpolation mode here... */
 	bez.f1 = bez.f2 = bez.f3 = SELECT;
 	bez.h1 = bez.h2 = HD_AUTO;
 	insert_bezt_fcurve(fcu, &bez, 0);
@@ -108,7 +109,7 @@ void AnimationImporter::animation_to_fcurves(COLLADAFW::AnimationCurve *curve)
 				fcu->flag = (FCURVE_VISIBLE | FCURVE_AUTO_HANDLES | FCURVE_SELECTED);
 				// fcu->rna_path = BLI_strdupn(path, strlen(path));
 				fcu->array_index = 0;
-				fcu->totvert = curve->getKeyCount();
+				//fcu->totvert = curve->getKeyCount();
 
 				// create beztriple for each key
 				for (unsigned int j = 0; j < curve->getKeyCount(); j++) {
@@ -401,7 +402,7 @@ virtual void AnimationImporter::change_eul_to_quat(Object *ob, bAction *act)
 				eul_to_quat(quat, eul);
 
 				for (int k = 0; k < 4; k++)
-					create_bezt(quatcu[k], frame, quat[k]);
+					create_bezt(quatcu[k], frame, quat[k], U.ipo_new);
 			}
 		}
 
@@ -668,6 +669,13 @@ void AnimationImporter:: Assign_float_animations(const COLLADAFW::UniqueId& list
 	
 }
 
+float AnimationImporter::convert_to_focal_length(float in_xfov, int fov_type, float aspect, float sensorx)
+{
+	// NOTE: Needs more testing (As we curretnly have no official test data for this)
+	float xfov = (fov_type == CAMERA_YFOV) ? (2.0f * atanf(aspect * tanf(DEG2RADF(in_xfov) * 0.5f))) : DEG2RADF(in_xfov);
+	return fov_to_focallength(xfov, sensorx);
+}
+
 /*
  * Lens animations must be stored in COLLADA by using FOV,
  * while blender internally uses focal length.
@@ -697,13 +705,9 @@ void AnimationImporter::Assign_lens_animations(const COLLADAFW::UniqueId& listid
 				FCurve *fcu = *iter;
 				
 				for (unsigned int i = 0; i < fcu->totvert; i++) {
-
-					double input_fov = fcu->bezt[i].vec[1][1];
-
-					// NOTE: Needs more testing (As we curretnly have no official test data for this)
-					double xfov = (fov_type == CAMERA_YFOV) ? (2.0f * atanf(aspect * tanf(DEG2RADF(input_fov) * 0.5f))) : DEG2RADF(input_fov);
-
-					fcu->bezt[i].vec[1][1] = fov_to_focallength(xfov, cam->sensor_x);
+					fcu->bezt[i].vec[0][1] = convert_to_focal_length(fcu->bezt[i].vec[0][1], fov_type, aspect, cam->sensor_x);
+					fcu->bezt[i].vec[1][1] = convert_to_focal_length(fcu->bezt[i].vec[1][1], fov_type, aspect, cam->sensor_x);
+					fcu->bezt[i].vec[2][1] = convert_to_focal_length(fcu->bezt[i].vec[2][1], fov_type, aspect, cam->sensor_x);
 				}
 
 				BLI_addtail(AnimCurves, fcu);
@@ -764,7 +768,6 @@ void AnimationImporter::apply_matrix_curves(Object *ob, std::vector<FCurve *>& a
 			axis = i - 7;
 		}
 
-
 		if (is_joint)
 			BLI_snprintf(rna_path, sizeof(rna_path), "%s.%s", joint_path, tm_str);
 		else
@@ -779,6 +782,9 @@ void AnimationImporter::apply_matrix_curves(Object *ob, std::vector<FCurve *>& a
 	std::sort(frames.begin(), frames.end());
 
 	std::vector<float>::iterator it;
+
+	//float qref[4];
+	//unit_qt(qref);
 
 	// sample values at each frame
 	for (it = frames.begin(); it != frames.end(); it++) {
@@ -814,14 +820,7 @@ void AnimationImporter::apply_matrix_curves(Object *ob, std::vector<FCurve *>& a
 		}
 
 		float rot[4], loc[3], scale[3];
-
-		mat4_to_quat(rot, mat);
-		/*for ( int i = 0 ; i < 4  ;  i ++ )
-		   {
-		   rot[i] = RAD2DEGF(rot[i]);
-		   }*/
-		copy_v3_v3(loc, mat[3]);
-		mat4_to_size(scale, mat);
+		mat4_decompose(loc, rot, scale, mat);
 
 		// add keys
 		for (int i = 0; i < totcu; i++) {
@@ -1189,6 +1188,9 @@ void AnimationImporter::add_bone_animation_sampled(Object *ob, std::vector<FCurv
 
 	std::sort(frames.begin(), frames.end());
 
+	float qref[4];
+	unit_qt(qref);
+
 	std::vector<float>::iterator it;
 
 	// sample values at each frame
@@ -1222,7 +1224,9 @@ void AnimationImporter::add_bone_animation_sampled(Object *ob, std::vector<FCurv
 
 		float rot[4], loc[3], scale[3];
 
-		mat4_to_quat(rot, mat);
+		bc_rotate_from_reference_quat(rot, qref, mat);
+		copy_qt_qt(qref, rot);
+
 		copy_v3_v3(loc, mat[3]);
 		mat4_to_size(scale, mat);
 
@@ -1560,7 +1564,8 @@ Object *AnimationImporter::translate_animation_OLD(COLLADAFW::Node *node,
 			copy_m4_m4(mat, matfra);
 		}
 
-		float val[4], rot[4], loc[3], scale[3];
+		float val[4] = {};
+		float rot[4], loc[3], scale[3];
 
 		switch (tm_type) {
 			case COLLADAFW::Transformation::ROTATE:
@@ -1832,23 +1837,18 @@ bool AnimationImporter::evaluate_animation(COLLADAFW::Transformation *tm, float 
 				}
 
 				COLLADABU::Math::Matrix4 matrix;
-				int i = 0, j = 0;
+				int mi = 0, mj = 0;
 
 				for (std::vector<FCurve *>::iterator it = curves.begin(); it != curves.end(); it++) {
-					matrix.setElement(i, j, evaluate_fcurve(*it, fra));
-					j++;
-					if (j == 4) {
-						i++;
-						j = 0;
+					matrix.setElement(mi, mj, evaluate_fcurve(*it, fra));
+					mj++;
+					if (mj == 4) {
+						mi++;
+						mj = 0;
 					}
 					fcurve_is_used(*it);
 				}
-
-				COLLADAFW::Matrix tm(matrix);
-				dae_matrix_to_mat4(&tm, mat);
-
-				std::vector<FCurve *>::iterator it;
-
+				unit_converter->dae_matrix_to_mat4_(mat, matrix);
 				return true;
 			}
 		}
@@ -2011,19 +2011,6 @@ void AnimationImporter::add_bone_fcurve(Object *ob, COLLADAFW::Node *node, FCurv
 	action_groups_add_channel(act, grp, fcu);
 }
 
-void AnimationImporter::add_bezt(FCurve *fcu, float fra, float value)
-{
-	//float fps = (float)FPS;
-	BezTriple bez;
-	memset(&bez, 0, sizeof(BezTriple));
-	bez.vec[1][0] = fra;
-	bez.vec[1][1] = value;
-	bez.ipo = BEZT_IPO_LIN; /* use default interpolation mode here... */
-	bez.f1 = bez.f2 = bez.f3 = SELECT;
-	bez.h1 = bez.h2 = HD_AUTO;
-	insert_bezt_fcurve(fcu, &bez, 0);
-	calchandles_fcurve(fcu);
-}
 
 void AnimationImporter::set_import_from_version(std::string import_from_version)
 {

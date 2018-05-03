@@ -1032,12 +1032,12 @@ typedef struct NodeSunBeams {
 #define SHD_TANGENT_AXIS_Y			1
 #define SHD_TANGENT_AXIS_Z			2
 
-/* normal map space */
-#define SHD_NORMAL_MAP_TANGENT			0
-#define SHD_NORMAL_MAP_OBJECT			1
-#define SHD_NORMAL_MAP_WORLD			2
-#define SHD_NORMAL_MAP_BLENDER_OBJECT	3
-#define SHD_NORMAL_MAP_BLENDER_WORLD	4
+/* normal map, displacement space */
+#define SHD_SPACE_TANGENT			0
+#define SHD_SPACE_OBJECT			1
+#define SHD_SPACE_WORLD				2
+#define SHD_SPACE_BLENDER_OBJECT	3
+#define SHD_SPACE_BLENDER_WORLD		4
 
 /* math node clamp */
 #define SHD_MATH_CLAMP		1
@@ -1077,6 +1077,7 @@ enum {
 	SHD_SUBSURFACE_CUBIC			= 1,
 	SHD_SUBSURFACE_GAUSSIAN			= 2,
 	SHD_SUBSURFACE_BURLEY			= 3,
+	SHD_SUBSURFACE_RANDOM_WALK		= 4,
 };
 
 /* blur node */

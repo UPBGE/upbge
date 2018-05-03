@@ -140,18 +140,14 @@ static void foreachTexLink(ModifierData *md, Object *ob, TexWalkFunc walk, void 
 	walk(userData, ob, md, "mask_texture");
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *ob,
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
 	if (wmd->mask_tex_map_obj != NULL && wmd->mask_tex_mapping == MOD_DISP_MAP_OBJECT) {
-		DEG_add_object_relation(node, wmd->mask_tex_map_obj, DEG_OB_COMP_TRANSFORM, "WeightVGEdit Modifier");
+		DEG_add_object_relation(ctx->node, wmd->mask_tex_map_obj, DEG_OB_COMP_TRANSFORM, "WeightVGEdit Modifier");
 	}
 	if (wmd->mask_tex_mapping == MOD_DISP_MAP_GLOBAL) {
-		DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "WeightVGEdit Modifier");
+		DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "WeightVGEdit Modifier");
 	}
 }
 
@@ -213,9 +209,9 @@ static DerivedMesh *applyModifier(ModifierData *md,
 	}
 
 	/* Get org weights, assuming 0.0 for vertices not in given vgroup. */
-	org_w = MEM_mallocN(sizeof(float) * numVerts, "WeightVGEdit Modifier, org_w");
-	new_w = MEM_mallocN(sizeof(float) * numVerts, "WeightVGEdit Modifier, new_w");
-	dw = MEM_mallocN(sizeof(MDeformWeight *) * numVerts, "WeightVGEdit Modifier, dw");
+	org_w = MEM_malloc_arrayN(numVerts, sizeof(float), "WeightVGEdit Modifier, org_w");
+	new_w = MEM_malloc_arrayN(numVerts, sizeof(float), "WeightVGEdit Modifier, new_w");
+	dw = MEM_malloc_arrayN(numVerts, sizeof(MDeformWeight *), "WeightVGEdit Modifier, dw");
 	for (i = 0; i < numVerts; i++) {
 		dw[i] = defvert_find_index(&dvert[i], defgrp_index);
 		if (dw[i]) {

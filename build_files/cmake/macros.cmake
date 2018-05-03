@@ -242,6 +242,13 @@ function(blender_add_lib__impl
 	# listed is helpful for IDE's (QtCreator/MSVC)
 	blender_source_group("${sources}")
 
+	#if enabled, set the FOLDER property for visual studio projects 
+	if(WINDOWS_USE_VISUAL_STUDIO_FOLDERS)
+		get_filename_component(FolderDir ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
+		string(REPLACE ${CMAKE_SOURCE_DIR} "" FolderDir ${FolderDir})
+		set_target_properties(${name} PROPERTIES FOLDER ${FolderDir})
+	endif()
+
 	list_assert_duplicates("${sources}")
 	list_assert_duplicates("${includes}")
 	# Not for system includes because they can resolve to the same path
@@ -556,8 +563,9 @@ function(SETUP_BLENDER_SORTED_LIBS)
 
 	# Sort libraries
 	set(BLENDER_SORTED_LIBS
-
 		bf_windowmanager
+
+		bf_editor_undo
 
 		bf_editor_space_api
 		bf_editor_space_action
@@ -589,6 +597,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_editor_mesh
 		bf_editor_metaball
 		bf_editor_object
+		bf_editor_lattice
 		bf_editor_armature
 		bf_editor_physics
 		bf_editor_render
@@ -643,6 +652,8 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_imbuf
 		bf_blenlib
 		bf_depsgraph
+		bf_intern_ghost
+		bf_intern_string
 		bf_avi
 		bf_imbuf_cineon
 		bf_imbuf_openexr
@@ -665,6 +676,10 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_intern_guardedalloc
 		bf_intern_ctr
 		bf_intern_utfconv
+		ge_blen_routines
+		ge_converter
+		ge_phys_dummy
+		ge_phys_bullet
 		bf_intern_smoke
 		bf_intern_moto
 		bf_intern_opencolorio
@@ -675,7 +690,17 @@ function(SETUP_BLENDER_SORTED_LIBS)
 
 		extern_lzma
 		extern_curve_fit_nd
+		ge_logic_ketsji
 		extern_recastnavigation
+		ge_logic
+		ge_rasterizer
+		ge_oglrasterizer
+		ge_logic_expressions
+		ge_scenegraph
+		ge_logic_network
+		ge_logic_ngnetwork
+		ge_logic_loopbacknetwork
+		bf_intern_moto
 		extern_openjpeg
 		extern_rangetree
 		extern_wcwidth
@@ -688,6 +713,16 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		cycles_kernel
 		cycles_util
 		cycles_subd
+		bf_intern_opencolorio
+		bf_intern_gawain
+		bf_intern_eigen
+		extern_rangetree
+		extern_wcwidth
+		bf_intern_libmv
+		extern_sdlew
+
+		bf_intern_glew_mx
+		bf_intern_clog
 	)
 
 	if(NOT WITH_SYSTEM_GLOG)
@@ -826,7 +861,7 @@ macro(TEST_SSE_SUPPORT
 		endif()
 	elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 		set(${_sse_flags} "")  # icc defaults to -msse
-		set(${_sse2_flags} "-msse2")
+		set(${_sse2_flags} "")  # icc defaults to -msse2
 	else()
 		message(WARNING "SSE flags for this compiler: '${CMAKE_C_COMPILER_ID}' not known")
 		set(${_sse_flags})
@@ -1152,7 +1187,9 @@ endmacro()
 
 # External libs may need 'signed char' to be default.
 macro(remove_cc_flag_unsigned_char)
-	if(CMAKE_C_COMPILER_ID MATCHES "^(GNU|Clang|Intel)$")
+	if(CMAKE_COMPILER_IS_GNUCC OR
+	   (CMAKE_C_COMPILER_ID MATCHES "Clang") OR
+	   (CMAKE_C_COMPILER_ID MATCHES "Intel"))
 		remove_cc_flag("-funsigned-char")
 	elseif(MSVC)
 		remove_cc_flag("/J")
@@ -1398,7 +1435,7 @@ endfunction()
 
 # macro for converting pixmap directory to a png and then a c file
 function(data_to_c_simple_icons
-	path_from
+	path_from icon_prefix icon_names
 	list_to_add
 	)
 
@@ -1416,8 +1453,11 @@ function(data_to_c_simple_icons
 
 	get_filename_component(_file_to_path ${_file_to} PATH)
 
-	# ideally we wouldn't glob, but storing all names for all pixmaps is a bit heavy
-	file(GLOB _icon_files "${path_from}/*.dat")
+	# Construct a list of absolute paths from input
+	set(_icon_files)
+	foreach(_var ${icon_names})
+		list(APPEND _icon_files "${_path_from_abs}/${icon_prefix}${_var}.dat")
+	endforeach()
 
 	add_custom_command(
 		OUTPUT  ${_file_from} ${_file_to}
@@ -1580,7 +1620,7 @@ macro(openmp_delayload
 		endif()
 endmacro()
 
-MACRO(WINDOWS_SIGN_TARGET target)
+macro(WINDOWS_SIGN_TARGET target)
 	if(WITH_WINDOWS_CODESIGN)
 		if(!SIGNTOOL_EXE)
 			error("Codesigning is enabled, but signtool is not found")
@@ -1601,4 +1641,4 @@ MACRO(WINDOWS_SIGN_TARGET target)
 			)
 		endif()
 	endif()
-ENDMACRO()
+endmacro()

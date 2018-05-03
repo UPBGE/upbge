@@ -31,6 +31,7 @@
 #ifndef __SCREEN_INTERN_H__
 #define __SCREEN_INTERN_H__
 
+struct bContext;
 struct bContextDataResult;
 struct Main;
 
@@ -49,7 +50,7 @@ void        region_toggle_hidden(struct bContext *C, ARegion *ar, const bool do_
 bScreen    *screen_add(const char *name, const int winsize_x, const int winsize_y);
 void        screen_data_copy(bScreen *to, bScreen *from);
 void        screen_new_activate_prepare(const wmWindow *win, bScreen *screen_new);
-void        screen_changed_update(struct bContext *C, wmWindow *win, bScreen *sc);
+void        screen_change_update(struct bContext *C, wmWindow *win, bScreen *sc);
 bScreen    *screen_change_prepare(bScreen *screen_old, bScreen *screen_new, struct Main *bmain, struct bContext *C, wmWindow *win);
 ScrEdge    *screen_findedge(bScreen *sc, ScrVert *v1, ScrVert *v2);
 ScrArea    *area_split(bScreen *sc, ScrArea *sa, char dir, float fac, int merge);
@@ -69,7 +70,8 @@ ScrEdge    *screen_find_active_scredge(const bScreen *sc,
 struct AZone *is_in_area_actionzone(ScrArea *sa, const int xy[2]);
 
 /* screen_context.c */
-int ed_screen_context(const struct bContext *C, const char *member, struct bContextDataResult *result);
+int ed_screen_context(
+        const struct bContext *C, const char *member, struct bContextDataResult *result);
 
 extern const char *screen_context_dir[]; /* doc access */
 

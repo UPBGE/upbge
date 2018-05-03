@@ -151,6 +151,83 @@ static void remove_sequencer_fcurves(Scene *sce)
 	}
 }
 
+/* flag -- copying options (see BKE_library.h's LIB_ID_COPY_... flags for more). */
+ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
+{
+	if (toolsettings == NULL) {
+		return NULL;
+	}
+	ToolSettings *ts = MEM_dupallocN(toolsettings);
+	if (ts->vpaint) {
+		ts->vpaint = MEM_dupallocN(ts->vpaint);
+		BKE_paint_copy(&ts->vpaint->paint, &ts->vpaint->paint, flag);
+	}
+	if (ts->wpaint) {
+		ts->wpaint = MEM_dupallocN(ts->wpaint);
+		BKE_paint_copy(&ts->wpaint->paint, &ts->wpaint->paint, flag);
+	}
+	if (ts->sculpt) {
+		ts->sculpt = MEM_dupallocN(ts->sculpt);
+		BKE_paint_copy(&ts->sculpt->paint, &ts->sculpt->paint, flag);
+	}
+	if (ts->uvsculpt) {
+		ts->uvsculpt = MEM_dupallocN(ts->uvsculpt);
+		BKE_paint_copy(&ts->uvsculpt->paint, &ts->uvsculpt->paint, flag);
+	}
+
+	BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint, flag);
+	ts->imapaint.paintcursor = NULL;
+	ts->particle.paintcursor = NULL;
+	ts->particle.scene = NULL;
+	ts->particle.object = NULL;
+
+	/* duplicate Grease Pencil Drawing Brushes */
+	BLI_listbase_clear(&ts->gp_brushes);
+	for (bGPDbrush *brush = toolsettings->gp_brushes.first; brush; brush = brush->next) {
+		bGPDbrush *newbrush = BKE_gpencil_brush_duplicate(brush);
+		BLI_addtail(&ts->gp_brushes, newbrush);
+	}
+
+	/* duplicate Grease Pencil interpolation curve */
+	ts->gp_interpolate.custom_ipo = curvemapping_copy(ts->gp_interpolate.custom_ipo);
+	return ts;
+}
+
+void BKE_toolsettings_free(ToolSettings *toolsettings)
+{
+	if (toolsettings == NULL) {
+		return;
+	}
+	if (toolsettings->vpaint) {
+		BKE_paint_free(&toolsettings->vpaint->paint);
+		MEM_freeN(toolsettings->vpaint);
+	}
+	if (toolsettings->wpaint) {
+		BKE_paint_free(&toolsettings->wpaint->paint);
+		MEM_freeN(toolsettings->wpaint);
+	}
+	if (toolsettings->sculpt) {
+		BKE_paint_free(&toolsettings->sculpt->paint);
+		MEM_freeN(toolsettings->sculpt);
+	}
+	if (toolsettings->uvsculpt) {
+		BKE_paint_free(&toolsettings->uvsculpt->paint);
+		MEM_freeN(toolsettings->uvsculpt);
+	}
+	BKE_paint_free(&toolsettings->imapaint.paint);
+
+	/* free Grease Pencil Drawing Brushes */
+	BKE_gpencil_free_brushes(&toolsettings->gp_brushes);
+	BLI_freelistN(&toolsettings->gp_brushes);
+
+	/* free Grease Pencil interpolation curve */
+	if (toolsettings->gp_interpolate.custom_ipo) {
+		curvemapping_free(toolsettings->gp_interpolate.custom_ipo);
+	}
+
+	MEM_freeN(toolsettings);
+}
+
 /**
  * Only copy internal data of Scene ID from source to already allocated/initialized destination.
  * You probably nerver want to use that directly, use id_copy or BKE_id_copy_ex for typical needs.
@@ -166,7 +243,6 @@ void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, cons
 
 	sce_dst->ed = NULL;
 	sce_dst->depsgraph_hash = NULL;
-	sce_dst->obedit = NULL;
 	sce_dst->fps_info = NULL;
 
 	/* layers and collections */
@@ -224,41 +300,7 @@ void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, cons
 	curvemapping_copy_data(&sce_dst->r.mblur_shutter_curve, &sce_src->r.mblur_shutter_curve);
 
 	/* tool settings */
-	if (sce_dst->toolsettings != NULL) {
-		ToolSettings *ts = sce_dst->toolsettings = MEM_dupallocN(sce_dst->toolsettings);
-		if (ts->vpaint) {
-			ts->vpaint = MEM_dupallocN(ts->vpaint);
-			BKE_paint_copy(&ts->vpaint->paint, &ts->vpaint->paint, flag_subdata);
-		}
-		if (ts->wpaint) {
-			ts->wpaint = MEM_dupallocN(ts->wpaint);
-			BKE_paint_copy(&ts->wpaint->paint, &ts->wpaint->paint, flag_subdata);
-		}
-		if (ts->sculpt) {
-			ts->sculpt = MEM_dupallocN(ts->sculpt);
-			BKE_paint_copy(&ts->sculpt->paint, &ts->sculpt->paint, flag_subdata);
-		}
-		if (ts->uvsculpt) {
-			ts->uvsculpt = MEM_dupallocN(ts->uvsculpt);
-			BKE_paint_copy(&ts->uvsculpt->paint, &ts->uvsculpt->paint, flag_subdata);
-		}
-
-		BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint, flag_subdata);
-		ts->imapaint.paintcursor = NULL;
-		ts->particle.paintcursor = NULL;
-		ts->particle.scene = NULL;
-		ts->particle.object = NULL;
-
-		/* duplicate Grease Pencil Drawing Brushes */
-		BLI_listbase_clear(&ts->gp_brushes);
-		for (bGPDbrush *brush = sce_src->toolsettings->gp_brushes.first; brush; brush = brush->next) {
-			bGPDbrush *newbrush = BKE_gpencil_brush_duplicate(brush);
-			BLI_addtail(&ts->gp_brushes, newbrush);
-		}
-
-		/* duplicate Grease Pencil interpolation curve */
-		ts->gp_interpolate.custom_ipo = curvemapping_copy(ts->gp_interpolate.custom_ipo);
-	}
+	sce_dst->toolsettings = BKE_toolsettings_copy(sce_dst->toolsettings, flag_subdata);
 
 	/* make a private copy of the avicodecdata */
 	if (sce_src->r.avicodecdata) {
@@ -297,7 +339,6 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 	/* TODO this should/could most likely be replaced by call to more generic code at some point...
 	 * But for now, let's keep it well isolated here. */
 	if (type == SCE_COPY_EMPTY) {
-		ToolSettings *ts;
 		ListBase rv;
 
 		sce_copy = BKE_scene_add(bmain, sce->id.name + 2);
@@ -332,46 +373,7 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 		curvemapping_copy_data(&sce_copy->r.mblur_shutter_curve, &sce->r.mblur_shutter_curve);
 
 		/* tool settings */
-		sce_copy->toolsettings = MEM_dupallocN(sce->toolsettings);
-
-		ts = sce_copy->toolsettings;
-		if (ts) {
-			if (ts->vpaint) {
-				ts->vpaint = MEM_dupallocN(ts->vpaint);
-				BKE_paint_copy(&ts->vpaint->paint, &ts->vpaint->paint, 0);
-			}
-			if (ts->wpaint) {
-				ts->wpaint = MEM_dupallocN(ts->wpaint);
-				BKE_paint_copy(&ts->wpaint->paint, &ts->wpaint->paint, 0);
-			}
-			if (ts->sculpt) {
-				ts->sculpt = MEM_dupallocN(ts->sculpt);
-				BKE_paint_copy(&ts->sculpt->paint, &ts->sculpt->paint, 0);
-			}
-			if (ts->uvsculpt) {
-				ts->uvsculpt = MEM_dupallocN(ts->uvsculpt);
-				BKE_paint_copy(&ts->uvsculpt->paint, &ts->uvsculpt->paint, 0);
-			}
-
-			BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint, 0);
-			ts->imapaint.paintcursor = NULL;
-			id_us_plus((ID *)ts->imapaint.stencil);
-			id_us_plus((ID *)ts->imapaint.clone);
-			id_us_plus((ID *)ts->imapaint.canvas);
-			ts->particle.paintcursor = NULL;
-			ts->particle.scene = NULL;
-			ts->particle.object = NULL;
-
-			/* duplicate Grease Pencil Drawing Brushes */
-			BLI_listbase_clear(&ts->gp_brushes);
-			for (bGPDbrush *brush = sce->toolsettings->gp_brushes.first; brush; brush = brush->next) {
-				bGPDbrush *newbrush = BKE_gpencil_brush_duplicate(brush);
-				BLI_addtail(&ts->gp_brushes, newbrush);
-			}
-
-			/* duplicate Grease Pencil interpolation curve */
-			ts->gp_interpolate.custom_ipo = curvemapping_copy(ts->gp_interpolate.custom_ipo);
-		}
+		sce_copy->toolsettings = BKE_toolsettings_copy(sce->toolsettings, 0);
 
 		/* make a private copy of the avicodecdata */
 		if (sce->r.avicodecdata) {
@@ -493,37 +495,8 @@ void BKE_scene_free_ex(Scene *sce, const bool do_id_user)
 	BLI_freelistN(&sce->markers);
 	BLI_freelistN(&sce->r.views);
 	
-	if (sce->toolsettings) {
-		if (sce->toolsettings->vpaint) {
-			BKE_paint_free(&sce->toolsettings->vpaint->paint);
-			MEM_freeN(sce->toolsettings->vpaint);
-		}
-		if (sce->toolsettings->wpaint) {
-			BKE_paint_free(&sce->toolsettings->wpaint->paint);
-			MEM_freeN(sce->toolsettings->wpaint);
-		}
-		if (sce->toolsettings->sculpt) {
-			BKE_paint_free(&sce->toolsettings->sculpt->paint);
-			MEM_freeN(sce->toolsettings->sculpt);
-		}
-		if (sce->toolsettings->uvsculpt) {
-			BKE_paint_free(&sce->toolsettings->uvsculpt->paint);
-			MEM_freeN(sce->toolsettings->uvsculpt);
-		}
-		BKE_paint_free(&sce->toolsettings->imapaint.paint);
-		
-		/* free Grease Pencil Drawing Brushes */
-		BKE_gpencil_free_brushes(&sce->toolsettings->gp_brushes);
-		BLI_freelistN(&sce->toolsettings->gp_brushes);
-		
-		/* free Grease Pencil interpolation curve */
-		if (sce->toolsettings->gp_interpolate.custom_ipo) {
-			curvemapping_free(sce->toolsettings->gp_interpolate.custom_ipo);
-		}
-		
-		MEM_freeN(sce->toolsettings);
-		sce->toolsettings = NULL;
-	}
+	BKE_toolsettings_free(sce->toolsettings);
+	sce->toolsettings = NULL;
 	
 	BKE_scene_free_depsgraph_hash(sce);
 
@@ -540,7 +513,7 @@ void BKE_scene_free_ex(Scene *sce, const bool do_id_user)
 		view_layer_next = view_layer->next;
 
 		BLI_remlink(&sce->view_layers, view_layer);
-		BKE_view_layer_free(view_layer);
+		BKE_view_layer_free_ex(view_layer, do_id_user);
 	}
 
 	/* Master Collection */
@@ -618,7 +591,7 @@ void BKE_scene_init(Scene *sce)
 	 */
 	sce->r.color_mgt_flag |= R_COLOR_MANAGEMENT;
 
-	sce->r.gauss = 1.0;
+	sce->r.gauss = 1.5f;
 	
 	/* deprecated but keep for upwards compat */
 	sce->r.postgamma = 1.0;
@@ -756,7 +729,8 @@ void BKE_scene_init(Scene *sce)
 	pset->draw_step = 2;
 	pset->fade_frames = 2;
 	pset->selectmode = SCE_SELECT_PATH;
-	for (a = 0; a < PE_TOT_BRUSH; a++) {
+
+	for (a = 0; a < ARRAY_SIZE(pset->brush); a++) {
 		pset->brush[a].strength = 0.5f;
 		pset->brush[a].size = 50;
 		pset->brush[a].step = 10;
@@ -981,21 +955,17 @@ void BKE_scene_set_background(Main *bmain, Scene *scene)
 	/* check for cyclic sets, for reading old files but also for definite security (py?) */
 	BKE_scene_validate_setscene(bmain, scene);
 	
-	/* can happen when switching modes in other scenes */
-	if (scene->obedit && !(scene->obedit->mode & OB_MODE_EDIT))
-		scene->obedit = NULL;
-
 	/* deselect objects (for dataselect) */
 	for (ob = bmain->object.first; ob; ob = ob->id.next)
 		ob->flag &= ~(SELECT | OB_FROMGROUP);
 
 	/* group flags again */
 	for (group = bmain->group.first; group; group = group->id.next) {
-		FOREACH_GROUP_OBJECT(group, object)
+		FOREACH_GROUP_OBJECT_BEGIN(group, object)
 		{
 			object->flag |= OB_FROMGROUP;
 		}
-		FOREACH_GROUP_OBJECT_END
+		FOREACH_GROUP_OBJECT_END;
 	}
 
 	/* copy layers and flags from bases to objects */
@@ -1171,6 +1141,10 @@ Scene *BKE_scene_find_from_collection(const Main *bmain, const SceneCollection *
 #ifdef DURIAN_CAMERA_SWITCH
 Object *BKE_scene_camera_switch_find(Scene *scene)
 {
+	if (scene->r.mode & R_NO_CAMERA_SWITCH) {
+		return NULL;
+	}
+
 	TimeMarker *m;
 	int cfra = scene->r.cfra;
 	int frame = -(MAXFRAME + 1);
@@ -1376,7 +1350,10 @@ static bool check_rendered_viewport_visible(Main *bmain)
 	return false;
 }
 
-static void prepare_mesh_for_viewport_render(Main *bmain, Scene *scene)
+/* TODO(campbell): shouldn't we be able to use 'eval_ctx->view_layer' here?
+ * Currently this is NULL on load, so don't. */
+static void prepare_mesh_for_viewport_render(
+        Main *bmain, const EvaluationContext *eval_ctx, const ViewLayer *view_layer)
 {
 	/* This is needed to prepare mesh to be used by the render
 	 * engine from the viewport rendering. We do loading here
@@ -1387,16 +1364,21 @@ static void prepare_mesh_for_viewport_render(Main *bmain, Scene *scene)
 	 * call loading of the edit data for the mesh objects.
 	 */
 
-	Object *obedit = scene->obedit;
+	/* Expanded 'OBEDIT_FROM_EVAL_CTX' */
+	Object *obedit = (eval_ctx->object_mode & OB_MODE_EDIT) ? OBACT(view_layer) : NULL;
 	if (obedit) {
 		Mesh *mesh = obedit->data;
 		if ((obedit->type == OB_MESH) &&
-		    ((obedit->id.tag & LIB_TAG_ID_RECALC_ALL) ||
-		     (mesh->id.tag & LIB_TAG_ID_RECALC_ALL)))
+		    ((obedit->id.recalc & ID_RECALC_ALL) ||
+		     (mesh->id.recalc & ID_RECALC_ALL)))
 		{
 			if (check_rendered_viewport_visible(bmain)) {
 				BMesh *bm = mesh->edit_btmesh->bm;
-				BM_mesh_bm_to_me(bm, mesh, (&(struct BMeshToMeshParams){0}));
+				BM_mesh_bm_to_me(
+				        bm, mesh,
+				        (&(struct BMeshToMeshParams){
+				            .calc_object_remap = true,
+				        }));
 				DEG_id_tag_update(&mesh->id, 0);
 			}
 		}
@@ -1425,7 +1407,7 @@ void BKE_scene_graph_update_tagged(EvaluationContext *eval_ctx,
 	/* Uncomment this to check if graph was properly tagged for update. */
 	// DEG_debug_graph_relations_validate(depsgraph, bmain, scene);
 	/* Flush editing data if needed. */
-	prepare_mesh_for_viewport_render(bmain, scene);
+	prepare_mesh_for_viewport_render(bmain, eval_ctx, view_layer);
 	/* Flush recalc flags to dependencies. */
 	DEG_graph_flush_update(bmain, depsgraph);
 	/* Update all objects: drivers, matrices, displists, etc. flags set
@@ -1435,7 +1417,7 @@ void BKE_scene_graph_update_tagged(EvaluationContext *eval_ctx,
 	/* Update sound system animation (TODO, move to depsgraph). */
 	BKE_sound_update_scene(bmain, scene);
 	/* Inform editors about possible changes. */
-	DEG_ids_check_recalc(bmain, scene, view_layer, false);
+	DEG_ids_check_recalc(bmain, depsgraph, scene, view_layer, false);
 	/* Clear recalc flags. */
 	DEG_ids_clear_recalc(bmain);
 }
@@ -1447,11 +1429,6 @@ void BKE_scene_graph_update_for_newframe(EvaluationContext *eval_ctx,
                                          Scene *scene,
                                          ViewLayer *view_layer)
 {
-	/* TODO(sergey): Temporary solution for until pipeline.c is ported. */
-	if (view_layer == NULL) {
-		view_layer = DEG_get_evaluated_view_layer(depsgraph);
-		BLI_assert(view_layer != NULL);
-	}
 	/* TODO(sergey): Some functions here are changing global state,
 	 * for example, clearing update tags from bmain.
 	 */
@@ -1482,7 +1459,7 @@ void BKE_scene_graph_update_for_newframe(EvaluationContext *eval_ctx,
 	/* Notify editors and python about recalc. */
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_FRAME_CHANGE_POST);
 	/* Inform editors about possible changes. */
-	DEG_ids_check_recalc(bmain, scene, view_layer, true);
+	DEG_ids_check_recalc(bmain, depsgraph, scene, view_layer, true);
 	/* clear recalc flags */
 	DEG_ids_clear_recalc(bmain);
 }

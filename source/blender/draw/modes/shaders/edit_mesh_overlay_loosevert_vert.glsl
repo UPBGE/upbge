@@ -15,16 +15,16 @@ in ivec4 data;
  * and does not need interpolation */
 flat out vec3 edgesCrease;
 flat out vec3 edgesBweight;
-flat out ivec3 flag;
 flat out vec4 faceColor;
+flat out ivec3 flag;
 flat out int clipCase;
 #ifdef VERTEX_SELECTION
 out vec3 vertexColor;
 #endif
 
 /* See fragment shader */
-noperspective out vec4 eData1;
-flat out vec4 eData2;
+noperspective out vec2 eData1;
+flat out vec2 eData2[3];
 
 /* project to screen space */
 vec2 proj(vec4 pos)
@@ -48,11 +48,13 @@ void main()
 #endif
 
 	/* only vertex position 0 is used */
-	eData1 = eData2 = vec4(1e10);
-	eData2.zw = proj(pPos);
+	eData1 = vec2(1e10);
+	eData2[0] = vec2(1e10);
+	eData2[1] = vec2(1e10);
+	eData2[2] = proj(pPos);
 
-	flag = ivec3(0);
 	flag[0] = (data.x << 8);
+	flag[1] = flag[2] = 0;
 
 	gl_PointSize = sizeEdgeFix;
 	gl_Position = pPos;

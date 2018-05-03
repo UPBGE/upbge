@@ -51,7 +51,7 @@ ccl_device_inline void compute_light_pass(KernelGlobals *kg,
 	path_state_init(kg, &emission_sd, &state, rng_hash, sample, NULL);
 
 	/* evaluate surface shader */
-	shader_eval_surface(kg, sd, &state, state.flag, kernel_data.integrator.max_closures);
+	shader_eval_surface(kg, sd, &state, state.flag);
 
 	/* TODO, disable more closures we don't need besides transparent */
 	shader_bsdf_disable_transparency(kg, sd);
@@ -228,12 +228,12 @@ ccl_device float3 kernel_bake_evaluate_direct_indirect(KernelGlobals *kg,
 		}
 		else {
 			/* surface color of the pass only */
-			shader_eval_surface(kg, sd, state, 0, kernel_data.integrator.max_closures);
+			shader_eval_surface(kg, sd, state, 0);
 			return kernel_bake_shader_bsdf(kg, sd, type);
 		}
 	}
 	else {
-		shader_eval_surface(kg, sd, state, 0, kernel_data.integrator.max_closures);
+		shader_eval_surface(kg, sd, state, 0);
 		color = kernel_bake_shader_bsdf(kg, sd, type);
 	}
 
@@ -330,15 +330,30 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 	switch(type) {
 		/* data passes */
 		case SHADER_EVAL_NORMAL:
+		case SHADER_EVAL_ROUGHNESS:
+		case SHADER_EVAL_EMISSION:
 		{
-			float3 N = sd.N;
-			if((sd.flag & SD_HAS_BUMP)) {
-				shader_eval_surface(kg, &sd, &state, 0, kernel_data.integrator.max_closures);
-				N = shader_bsdf_average_normal(kg, &sd);
+			if(type != SHADER_EVAL_NORMAL || (sd.flag & SD_HAS_BUMP)) {
+				int path_flag = (type == SHADER_EVAL_EMISSION) ? PATH_RAY_EMISSION : 0;
+				shader_eval_surface(kg, &sd, &state, path_flag);
 			}
 
-			/* encoding: normal = (2 * color) - 1 */
-			out = N * 0.5f + make_float3(0.5f, 0.5f, 0.5f);
+			if(type == SHADER_EVAL_NORMAL) {
+				float3 N = sd.N;
+				if(sd.flag & SD_HAS_BUMP) {
+					N = shader_bsdf_average_normal(kg, &sd);
+				}
+
+				/* encoding: normal = (2 * color) - 1 */
+				out = N * 0.5f + make_float3(0.5f, 0.5f, 0.5f);
+			}
+			else if(type == SHADER_EVAL_ROUGHNESS) {
+				float roughness = shader_bsdf_average_roughness(&sd);
+				out = make_float3(roughness, roughness, roughness);
+			}
+			else {
+				out = shader_emissive_eval(kg, &sd);
+			}
 			break;
 		}
 		case SHADER_EVAL_UV:
@@ -346,13 +361,6 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 			out = primitive_uv(kg, &sd);
 			break;
 		}
-		case SHADER_EVAL_EMISSION:
-		{
-			shader_eval_surface(kg, &sd, &state, 0, 0);
-			out = shader_emissive_eval(kg, &sd);
-			break;
-		}
-
 #ifdef __PASSES__
 		/* light passes */
 		case SHADER_EVAL_AO:

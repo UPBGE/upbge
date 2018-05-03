@@ -421,7 +421,6 @@ void GeometryExporter::createPolylist(short material_index,
 	polylist.finish();
 }
 
-
 // creates <source> for positions
 void GeometryExporter::createVertsSource(std::string geom_id, Mesh *me)
 {

@@ -51,6 +51,7 @@
 #include "BKE_library_query.h"
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
+#include "BKE_object_deform.h"
 
 #include "MOD_util.h"
 
@@ -96,26 +97,22 @@ static void foreachObjectLink(
 	walk(userData, ob, &amd->offset_ob, IDWALK_CB_NOP);
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	ArrayModifierData *amd = (ArrayModifierData *)md;
 	if (amd->start_cap != NULL) {
-		DEG_add_object_relation(node, amd->start_cap, DEG_OB_COMP_TRANSFORM, "Array Modifier Start Cap");
+		DEG_add_object_relation(ctx->node, amd->start_cap, DEG_OB_COMP_TRANSFORM, "Array Modifier Start Cap");
 	}
 	if (amd->end_cap != NULL) {
-		DEG_add_object_relation(node, amd->end_cap, DEG_OB_COMP_TRANSFORM, "Array Modifier End Cap");
+		DEG_add_object_relation(ctx->node, amd->end_cap, DEG_OB_COMP_TRANSFORM, "Array Modifier End Cap");
 	}
 	if (amd->curve_ob) {
-		struct Depsgraph *depsgraph = DEG_get_graph_from_handle(node);
-		DEG_add_object_relation(node, amd->curve_ob, DEG_OB_COMP_GEOMETRY, "Array Modifier Curve");
+		struct Depsgraph *depsgraph = DEG_get_graph_from_handle(ctx->node);
+		DEG_add_object_relation(ctx->node, amd->curve_ob, DEG_OB_COMP_GEOMETRY, "Array Modifier Curve");
 		DEG_add_special_eval_flag(depsgraph, &amd->curve_ob->id, DAG_EVAL_NEED_CURVE_PATH);
 	}
 	if (amd->offset_ob != NULL) {
-		DEG_add_object_relation(node, amd->offset_ob, DEG_OB_COMP_TRANSFORM, "Array Modifier Offset");
+		DEG_add_object_relation(ctx->node, amd->offset_ob, DEG_OB_COMP_TRANSFORM, "Array Modifier Offset");
 	}
 }
 
@@ -177,8 +174,8 @@ static void dm_mvert_map_doubles(
 	source_end = source_start + source_num_verts;
 
 	/* build array of MVerts to be tested for merging */
-	sorted_verts_target = MEM_mallocN(sizeof(SortVertsElem) * target_num_verts, __func__);
-	sorted_verts_source = MEM_mallocN(sizeof(SortVertsElem) * source_num_verts, __func__);
+	sorted_verts_target = MEM_malloc_arrayN(target_num_verts, sizeof(SortVertsElem), __func__);
+	sorted_verts_source = MEM_malloc_arrayN(source_num_verts, sizeof(SortVertsElem), __func__);
 
 	/* Copy target vertices index and cos into SortVertsElem array */
 	svert_from_mvert(sorted_verts_target, mverts + target_start, target_start, target_end);
@@ -279,7 +276,7 @@ static void dm_mvert_map_doubles(
 static void dm_merge_transform(
         DerivedMesh *result, DerivedMesh *cap_dm, float cap_offset[4][4],
         unsigned int cap_verts_index, unsigned int cap_edges_index, int cap_loops_index, int cap_polys_index,
-        int cap_nverts, int cap_nedges, int cap_nloops, int cap_npolys)
+        int cap_nverts, int cap_nedges, int cap_nloops, int cap_npolys, int *remap, int remap_len)
 {
 	int *index_orig;
 	int i;
@@ -287,6 +284,7 @@ static void dm_merge_transform(
 	MEdge *me;
 	MLoop *ml;
 	MPoly *mp;
+	MDeformVert *dvert;
 
 	/* needed for subsurf so arrays are allocated */
 	cap_dm->getVertArray(cap_dm);
@@ -305,6 +303,12 @@ static void dm_merge_transform(
 		mul_m4_v3(cap_offset, mv->co);
 		/* Reset MVert flags for caps */
 		mv->flag = mv->bweight = 0;
+	}
+
+	/* remap the vertex groups if necessary */
+	dvert = DM_get_vert_data(result, cap_verts_index, CD_MDEFORMVERT);
+	if (dvert != NULL) {
+		BKE_object_defgroup_index_map_apply(dvert, cap_nverts, remap, remap_len);
 	}
 
 	/* adjust cap edge vertex indices */
@@ -383,6 +387,11 @@ static DerivedMesh *arrayModifier_doArray(
 
 	DerivedMesh *result, *start_cap_dm = NULL, *end_cap_dm = NULL;
 
+	int *vgroup_start_cap_remap = NULL;
+	int vgroup_start_cap_remap_len = 0;
+	int *vgroup_end_cap_remap = NULL;
+	int vgroup_end_cap_remap_len = 0;
+
 	chunk_nverts = dm->getNumVerts(dm);
 	chunk_nedges = dm->getNumEdges(dm);
 	chunk_nloops = dm->getNumLoops(dm);
@@ -391,6 +400,8 @@ static DerivedMesh *arrayModifier_doArray(
 	count = amd->count;
 
 	if (amd->start_cap && amd->start_cap != ob && amd->start_cap->type == OB_MESH) {
+		vgroup_start_cap_remap = BKE_object_defgroup_index_map_create(amd->start_cap, ob, &vgroup_start_cap_remap_len);
+
 		start_cap_dm = get_dm_for_modifier(amd->start_cap, flag);
 		if (start_cap_dm) {
 			start_cap_nverts = start_cap_dm->getNumVerts(start_cap_dm);
@@ -400,6 +411,8 @@ static DerivedMesh *arrayModifier_doArray(
 		}
 	}
 	if (amd->end_cap && amd->end_cap != ob && amd->end_cap->type == OB_MESH) {
+		vgroup_end_cap_remap = BKE_object_defgroup_index_map_create(amd->end_cap, ob, &vgroup_end_cap_remap_len);
+
 		end_cap_dm = get_dm_for_modifier(amd->end_cap, flag);
 		if (end_cap_dm) {
 			end_cap_nverts = end_cap_dm->getNumVerts(end_cap_dm);
@@ -491,7 +504,7 @@ static DerivedMesh *arrayModifier_doArray(
 
 	if (use_merge) {
 		/* Will need full_doubles_map for handling merge */
-		full_doubles_map = MEM_mallocN(sizeof(int) * result_nverts, "mod array doubles map");
+		full_doubles_map = MEM_malloc_arrayN(result_nverts, sizeof(int), "mod array doubles map");
 		copy_vn_i(full_doubles_map, result_nverts, -1);
 	}
 
@@ -608,6 +621,26 @@ static DerivedMesh *arrayModifier_doArray(
 		}
 	}
 
+	/* handle UVs */
+	if (chunk_nloops > 0 && is_zero_v2(amd->uv_offset) == false) {
+		const int totuv = CustomData_number_of_layers(&result->loopData, CD_MLOOPUV);
+		for (i = 0; i < totuv; i++) {
+			MLoopUV *dmloopuv = CustomData_get_layer_n(&result->loopData, CD_MLOOPUV, i);
+			dmloopuv += chunk_nloops;
+			for (c = 1; c < count; c++) {
+				const float uv_offset[2] = {
+					amd->uv_offset[0] * (float)c,
+					amd->uv_offset[1] * (float)c,
+				};
+				int l_index = chunk_nloops;
+				for (; l_index-- != 0; dmloopuv++) {
+					dmloopuv->uv[0] += uv_offset[0];
+					dmloopuv->uv[1] += uv_offset[1];
+				}
+			}
+		}
+	}
+
 	last_chunk_start = (count - 1) * chunk_nverts;
 	last_chunk_nverts = chunk_nverts;
 
@@ -636,7 +669,8 @@ static DerivedMesh *arrayModifier_doArray(
 		        result_nedges - start_cap_nedges - end_cap_nedges,
 		        result_nloops - start_cap_nloops - end_cap_nloops,
 		        result_npolys - start_cap_npolys - end_cap_npolys,
-		        start_cap_nverts, start_cap_nedges, start_cap_nloops, start_cap_npolys);
+		        start_cap_nverts, start_cap_nedges, start_cap_nloops, start_cap_npolys,
+		        vgroup_start_cap_remap, vgroup_start_cap_remap_len);
 		/* Identify doubles with first chunk */
 		if (use_merge) {
 			dm_mvert_map_doubles(
@@ -660,7 +694,8 @@ static DerivedMesh *arrayModifier_doArray(
 		        result_nedges - end_cap_nedges,
 		        result_nloops - end_cap_nloops,
 		        result_npolys - end_cap_npolys,
-		        end_cap_nverts, end_cap_nedges, end_cap_nloops, end_cap_npolys);
+		        end_cap_nverts, end_cap_nedges, end_cap_nloops, end_cap_npolys,
+		        vgroup_end_cap_remap, vgroup_end_cap_remap_len);
 		/* Identify doubles with last chunk */
 		if (use_merge) {
 			dm_mvert_map_doubles(
@@ -706,6 +741,13 @@ static DerivedMesh *arrayModifier_doArray(
 	 */
 	if (use_recalc_normals) {
 		result->dirty |= DM_DIRTY_NORMALS;
+	}
+
+	if (vgroup_start_cap_remap) {
+		MEM_freeN(vgroup_start_cap_remap);
+	}
+	if (vgroup_end_cap_remap) {
+		MEM_freeN(vgroup_end_cap_remap);
 	}
 
 	return result;

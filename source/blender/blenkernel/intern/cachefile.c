@@ -42,7 +42,6 @@
 
 #include "BKE_animsys.h"
 #include "BKE_cachefile.h"
-#include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
@@ -181,7 +180,6 @@ void BKE_cachefile_update_frame(Main *bmain, Scene *scene, const float ctime, co
 			ABC_free_handle(cache_file->handle);
 			cache_file->handle = ABC_create_handle(filename, NULL);
 #endif
-			break;
 		}
 	}
 }

@@ -188,13 +188,11 @@ static void EDIT_LATTICE_cache_populate(void *vedata, Object *ob)
 	EDIT_LATTICE_PassList *psl = ((EDIT_LATTICE_Data *)vedata)->psl;
 	EDIT_LATTICE_StorageList *stl = ((EDIT_LATTICE_Data *)vedata)->stl;
 	const DRWContextState *draw_ctx = DRW_context_state_get();
-	Scene *scene = draw_ctx->scene;
-	Object *obedit = scene->obedit;
 
 	UNUSED_VARS(psl);
 
 	if (ob->type == OB_LATTICE) {
-		if (ob == obedit) {
+		if (ob == draw_ctx->object_edit) {
 			/* Get geometry cache */
 			struct Gwn_Batch *geom;
 
@@ -293,5 +291,6 @@ DrawEngineType draw_engine_edit_lattice_type = {
 	&EDIT_LATTICE_cache_finish,
 	NULL, /* draw_background but not needed by mode engines */
 	&EDIT_LATTICE_draw_scene,
+	NULL,
 	NULL,
 };

@@ -68,7 +68,7 @@ void OBJECT_OT_track_clear(struct wmOperatorType *ot);
 void OBJECT_OT_slow_parent_set(struct wmOperatorType *ot);
 void OBJECT_OT_slow_parent_clear(struct wmOperatorType *ot);
 void OBJECT_OT_make_local(struct wmOperatorType *ot);
-void OBJECT_OT_make_override(struct wmOperatorType *ot);
+void OBJECT_OT_make_override_static(struct wmOperatorType *ot);
 void OBJECT_OT_make_single_user(struct wmOperatorType *ot);
 void OBJECT_OT_make_links_scene(struct wmOperatorType *ot);
 void OBJECT_OT_make_links_data(struct wmOperatorType *ot);
@@ -95,6 +95,8 @@ void OBJECT_OT_game_property_move(struct wmOperatorType *ot);
 void OBJECT_OT_logic_bricks_copy(struct wmOperatorType *ot);
 void OBJECT_OT_game_physics_copy(struct wmOperatorType *ot);
 
+void OBJECT_OT_move_to_collection(struct wmOperatorType *ot);
+
 /* object_select.c */
 void OBJECT_OT_select_all(struct wmOperatorType *ot);
 void OBJECT_OT_select_random(struct wmOperatorType *ot);
@@ -106,6 +108,7 @@ void OBJECT_OT_select_mirror(struct wmOperatorType *ot);
 void OBJECT_OT_select_more(struct wmOperatorType *ot);
 void OBJECT_OT_select_less(struct wmOperatorType *ot);
 void OBJECT_OT_select_same_group(struct wmOperatorType *ot);
+void OBJECT_OT_select_same_collection(struct wmOperatorType *ot);
 
 /* object_add.c */
 void OBJECT_OT_add(struct wmOperatorType *ot);
@@ -137,16 +140,6 @@ void OBJECT_OT_hook_select(struct wmOperatorType *ot);
 void OBJECT_OT_hook_assign(struct wmOperatorType *ot);
 void OBJECT_OT_hook_reset(struct wmOperatorType *ot);
 void OBJECT_OT_hook_recenter(struct wmOperatorType *ot);
-
-/* object_lattice.c */
-void LATTICE_OT_select_all(struct wmOperatorType *ot);
-void LATTICE_OT_select_more(struct wmOperatorType *ot);
-void LATTICE_OT_select_less(struct wmOperatorType *ot);
-void LATTICE_OT_select_ungrouped(struct wmOperatorType *ot);
-void LATTICE_OT_select_random(struct wmOperatorType *ot);
-void LATTICE_OT_select_mirror(struct wmOperatorType *ot);
-void LATTICE_OT_make_regular(struct wmOperatorType *ot);
-void LATTICE_OT_flip(struct wmOperatorType *ot);
 
 /* object_group.c */
 void GROUP_OT_create(struct wmOperatorType *ot);

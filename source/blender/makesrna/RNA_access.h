@@ -294,6 +294,8 @@ extern StructRNA RNA_HemiLamp;
 extern StructRNA RNA_Histogram;
 extern StructRNA RNA_HookModifier;
 extern StructRNA RNA_ID;
+extern StructRNA RNA_IDOverrideStatic;
+extern StructRNA RNA_IDOverrideStaticProperty;
 extern StructRNA RNA_IKParam;
 extern StructRNA RNA_Image;
 extern StructRNA RNA_ImageFormatSettings;
@@ -719,6 +721,7 @@ extern StructRNA RNA_WipeSequence;
 extern StructRNA RNA_WireframeModifier;
 extern StructRNA RNA_WoodTexture;
 extern StructRNA RNA_WorkSpace;
+extern StructRNA RNA_wmOwnerIDs;
 extern StructRNA RNA_World;
 extern StructRNA RNA_WorldAmbientOcclusion;
 extern StructRNA RNA_WorldLighting;
@@ -897,6 +900,9 @@ bool RNA_property_editable_index(PointerRNA *ptr, PropertyRNA *prop, int index);
 bool RNA_property_editable_flag(PointerRNA *ptr, PropertyRNA *prop); /* without lib check, only checks the flag */
 bool RNA_property_animateable(PointerRNA *ptr, PropertyRNA *prop);
 bool RNA_property_animated(PointerRNA *ptr, PropertyRNA *prop);
+bool RNA_property_overridable(PointerRNA *ptr, PropertyRNA *prop);
+bool RNA_property_overridden(PointerRNA *ptr, PropertyRNA *prop);
+bool RNA_property_comparable(PointerRNA *ptr, PropertyRNA *prop);
 bool RNA_property_path_from_ID_check(PointerRNA *ptr, PropertyRNA *prop); /* slow, use with care */
 
 void RNA_property_update(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop);
@@ -944,6 +950,7 @@ float RNA_property_float_get_default_index(PointerRNA *ptr, PropertyRNA *prop, i
 void RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop, char *value);
 char *RNA_property_string_get_alloc(PointerRNA *ptr, PropertyRNA *prop, char *fixedbuf, int fixedlen, int *r_len);
 void RNA_property_string_set(PointerRNA *ptr, PropertyRNA *prop, const char *value);
+void RNA_property_string_set_bytes(PointerRNA *ptr, PropertyRNA *prop, const char *value, int len);
 int RNA_property_string_length(PointerRNA *ptr, PropertyRNA *prop);
 void RNA_property_string_get_default(PointerRNA *ptr, PropertyRNA *prop, char *value);
 char *RNA_property_string_get_default_alloc(PointerRNA *ptr, PropertyRNA *prop, char *fixedbuf, int fixedlen);
@@ -1251,26 +1258,50 @@ typedef enum eRNACompareMode {
 	RNA_EQ_COMPARE,
 } eRNACompareMode;
 
-bool RNA_property_equals(struct PointerRNA *a, struct PointerRNA *b, struct PropertyRNA *prop, eRNACompareMode mode);
-bool RNA_struct_equals(struct PointerRNA *a, struct PointerRNA *b, eRNACompareMode mode);
+bool RNA_property_equals(struct PointerRNA *ptr_a, struct PointerRNA *ptr_b, struct PropertyRNA *prop, eRNACompareMode mode);
+bool RNA_struct_equals(struct PointerRNA *ptr_a, struct PointerRNA *ptr_b, eRNACompareMode mode);
 
 /* Override. */
 
-bool RNA_struct_override_matches(struct PointerRNA *local, struct PointerRNA *reference,
-        struct IDOverrideStatic *override, const bool ignore_non_overridable, const bool ignore_overridden);
+/* flags for RNA_struct_override_matches. */
+typedef enum eRNAOverrideMatch {
+	/* Do not compare properties that are not overridable. */
+	RNA_OVERRIDE_COMPARE_IGNORE_NON_OVERRIDABLE = 1 << 0,
+	/* Do not compare properties that are already overridden. */
+	RNA_OVERRIDE_COMPARE_IGNORE_OVERRIDDEN = 1 << 1,
+
+	/* Create new property override if needed and possible. */
+	RNA_OVERRIDE_COMPARE_CREATE = 1 << 16,
+	/* Restore property's value(s) to reference ones if needed and possible. */
+	RNA_OVERRIDE_COMPARE_RESTORE = 1 << 17,
+} eRNAOverrideMatch;
+
+typedef enum eRNAOverrideMatchResult {
+	/* Some new property overrides were created to take into account differences between local and reference. */
+	RNA_OVERRIDE_MATCH_RESULT_CREATED = 1 << 0,
+	/* Some properties were reset to reference values. */
+	RNA_OVERRIDE_MATCH_RESULT_RESTORED = 1 << 1,
+} eRNAOverrideMatchResult;
+
+typedef enum eRNAOverrideStatus {
+	RNA_OVERRIDE_STATUS_OVERRIDABLE = 1 << 0,  /* The property is overridable. */
+	RNA_OVERRIDE_STATUS_OVERRIDDEN = 1 << 1,  /* The property is overridden. */
+	RNA_OVERRIDE_STATUS_MANDATORY = 1 << 2,  /* Overriding this property is mandatory when creating an override. */
+	RNA_OVERRIDE_STATUS_LOCKED = 1 << 3,  /* The override status of this property is locked. */
+} eRNAOverrideStatus;
+
+bool RNA_struct_override_matches(
+        struct PointerRNA *ptr_local, struct PointerRNA *ptr_reference, const char *root_path,
+        struct IDOverrideStatic *override, const eRNAOverrideMatch flags,
+        eRNAOverrideMatchResult *r_report_flags);
 
 bool RNA_struct_override_store(
-        struct PointerRNA *local, struct PointerRNA *reference, PointerRNA *storage, struct IDOverrideStatic *override);
-
-void RNA_property_override_apply(
-        struct PointerRNA *dst, struct PointerRNA *src, struct PointerRNA *storage, struct PropertyRNA *prop,
-        struct IDOverrideStaticProperty *op);
-void RNA_struct_override_apply(
-        struct PointerRNA *dst, struct PointerRNA *src, struct PointerRNA *storage,
+        struct PointerRNA *ptr_local, struct PointerRNA *ptr_reference, PointerRNA *ptr_storage,
         struct IDOverrideStatic *override);
 
-bool RNA_struct_auto_override(
-        struct PointerRNA *local, struct PointerRNA *reference, struct IDOverrideStatic *override, const char *root_path);
+void RNA_struct_override_apply(
+        struct PointerRNA *ptr_local, struct PointerRNA *ptr_reference, struct PointerRNA *ptr_storage,
+        struct IDOverrideStatic *override);
 
 struct IDOverrideStaticProperty *RNA_property_override_property_find(PointerRNA *ptr, PropertyRNA *prop);
 struct IDOverrideStaticProperty *RNA_property_override_property_get(PointerRNA *ptr, PropertyRNA *prop, bool *r_created);
@@ -1281,9 +1312,11 @@ struct IDOverrideStaticPropertyOperation *RNA_property_override_property_operati
         PointerRNA *ptr, PropertyRNA *prop, const short operation, const int index,
         const bool strict, bool *r_strict, bool *r_created);
 
-void RNA_property_override_status(
-        PointerRNA *ptr, PropertyRNA *prop, const int index,
-        bool *r_overridable, bool *r_overridden, bool *r_mandatory, bool *r_locked);
+eRNAOverrideStatus RNA_property_override_status(PointerRNA *ptr, PropertyRNA *prop, const int index);
+
+void        RNA_struct_state_owner_set(const char *name);
+const char *RNA_struct_state_owner_get(void);
+
 
 #ifdef __cplusplus
 }

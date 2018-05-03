@@ -152,7 +152,9 @@ char *bc_CustomData_get_active_layer_name(const CustomData *data, int type)
 	return data->layers[layer_index].name;
 }
 
-DocumentExporter::DocumentExporter(const ExportSettings *export_settings) : export_settings(export_settings) {
+DocumentExporter::DocumentExporter(EvaluationContext *eval_ctx, const ExportSettings *export_settings) :
+	eval_ctx(eval_ctx),
+	export_settings(export_settings) {
 }
 
 static COLLADABU::NativeString make_temp_filepath(const char *name, const char *extension)
@@ -179,7 +181,8 @@ static COLLADABU::NativeString make_temp_filepath(const char *name, const char *
 // COLLADA allows this through multiple <channel>s in <animation>.
 // For this to work, we need to know objects that use a certain action.
 
-int DocumentExporter::exportCurrentScene(const EvaluationContext *eval_ctx, Scene *sce)
+
+int DocumentExporter::exportCurrentScene(Scene *sce)
 {
 	PointerRNA sceneptr, unit_settings;
 	PropertyRNA *system; /* unused , *scale; */
@@ -299,29 +302,12 @@ int DocumentExporter::exportCurrentScene(const EvaluationContext *eval_ctx, Scen
 	// <library_visual_scenes>
 
 	SceneExporter se(writer, &arm_exporter, this->export_settings);
-#if 0
-	/* The following code seems to be an obsolete workaround
-	   Comment out until it proofs correct that we no longer need it.
-	*/
 
-	// <library_animations>
-	AnimationExporter ae(writer, this->export_settings);
-	bool has_animations = ae.exportAnimations(eval_ctx, sce);
-
-	if (has_animations && this->export_settings->export_transformation_type == BC_TRANSFORMATION_TYPE_MATRIX) {
-		// channels adressing <matrix> objects is not (yet) supported
-		// So we force usage of <location>, <translation> and <scale>
-		fprintf(stdout, 
-			"For animated Ojects we must use decomposed <matrix> elements,\n" \
-			"Forcing usage of TransLocRot transformation type.");
-		se.setExportTransformationType(BC_TRANSFORMATION_TYPE_TRANSROTLOC);
+	if (this->export_settings->include_animations) {
+		// <library_animations>
+		AnimationExporter ae(eval_ctx, writer, this->export_settings);
+		ae.exportAnimations(sce);
 	}
-	else {
-		se.setExportTransformationType(this->export_settings->export_transformation_type);
-	}
-#else
-	se.setExportTransformationType(this->export_settings->export_transformation_type);
-#endif
 	se.exportScene(eval_ctx, sce);
 	
 	// <scene>

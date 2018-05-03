@@ -51,7 +51,10 @@
 #include "BLI_linklist.h"
 #include "BLI_task.h"
 
+#include "DEG_depsgraph.h"
+
 #include "BKE_cdderivedmesh.h"
+#include "BKE_colorband.h"
 #include "BKE_editmesh.h"
 #include "BKE_key.h"
 #include "BKE_layer.h"
@@ -64,7 +67,6 @@
 #include "BKE_object.h"
 #include "BKE_object_deform.h"
 #include "BKE_paint.h"
-#include "BKE_texture.h"
 #include "BKE_multires.h"
 #include "BKE_bvhutils.h"
 #include "BKE_deform.h"
@@ -187,7 +189,7 @@ static MPoly *dm_getPolyArray(DerivedMesh *dm)
 
 static MVert *dm_dupVertArray(DerivedMesh *dm)
 {
-	MVert *tmp = MEM_mallocN(sizeof(*tmp) * dm->getNumVerts(dm),
+	MVert *tmp = MEM_malloc_arrayN(dm->getNumVerts(dm), sizeof(*tmp),
 	                         "dm_dupVertArray tmp");
 
 	if (tmp) dm->copyVertArray(dm, tmp);
@@ -197,7 +199,7 @@ static MVert *dm_dupVertArray(DerivedMesh *dm)
 
 static MEdge *dm_dupEdgeArray(DerivedMesh *dm)
 {
-	MEdge *tmp = MEM_mallocN(sizeof(*tmp) * dm->getNumEdges(dm),
+	MEdge *tmp = MEM_malloc_arrayN(dm->getNumEdges(dm), sizeof(*tmp),
 	                         "dm_dupEdgeArray tmp");
 
 	if (tmp) dm->copyEdgeArray(dm, tmp);
@@ -207,7 +209,7 @@ static MEdge *dm_dupEdgeArray(DerivedMesh *dm)
 
 static MFace *dm_dupFaceArray(DerivedMesh *dm)
 {
-	MFace *tmp = MEM_mallocN(sizeof(*tmp) * dm->getNumTessFaces(dm),
+	MFace *tmp = MEM_malloc_arrayN(dm->getNumTessFaces(dm), sizeof(*tmp),
 	                         "dm_dupFaceArray tmp");
 
 	if (tmp) dm->copyTessFaceArray(dm, tmp);
@@ -217,7 +219,7 @@ static MFace *dm_dupFaceArray(DerivedMesh *dm)
 
 static MLoop *dm_dupLoopArray(DerivedMesh *dm)
 {
-	MLoop *tmp = MEM_mallocN(sizeof(*tmp) * dm->getNumLoops(dm),
+	MLoop *tmp = MEM_malloc_arrayN(dm->getNumLoops(dm), sizeof(*tmp),
 	                         "dm_dupLoopArray tmp");
 
 	if (tmp) dm->copyLoopArray(dm, tmp);
@@ -227,7 +229,7 @@ static MLoop *dm_dupLoopArray(DerivedMesh *dm)
 
 static MPoly *dm_dupPolyArray(DerivedMesh *dm)
 {
-	MPoly *tmp = MEM_mallocN(sizeof(*tmp) * dm->getNumPolys(dm),
+	MPoly *tmp = MEM_malloc_arrayN(dm->getNumPolys(dm), sizeof(*tmp),
 	                         "dm_dupPolyArray tmp");
 
 	if (tmp) dm->copyPolyArray(dm, tmp);
@@ -529,7 +531,7 @@ void DM_ensure_looptri_data(DerivedMesh *dm)
 
 	if (totpoly) {
 		if (dm->looptris.array_wip == NULL) {
-			dm->looptris.array_wip = MEM_mallocN(sizeof(*dm->looptris.array_wip) * looptris_num, __func__);
+			dm->looptris.array_wip = MEM_malloc_arrayN(looptris_num, sizeof(*dm->looptris.array_wip), __func__);
 			dm->looptris.num_alloc = looptris_num;
 		}
 
@@ -577,7 +579,7 @@ void DM_update_tessface_data(DerivedMesh *dm)
 	    CustomData_has_layer(fdata, CD_TESSLOOPNORMAL) ||
 	    CustomData_has_layer(fdata, CD_TANGENT))
 	{
-		loopindex = MEM_mallocN(sizeof(*loopindex) * totface, __func__);
+		loopindex = MEM_malloc_arrayN(totface, sizeof(*loopindex), __func__);
 
 		for (mf_idx = 0, mf = mface; mf_idx < totface; mf_idx++, mf++) {
 			const int mf_len = mf->v4 ? 4 : 3;
@@ -637,7 +639,7 @@ void DM_generate_tangent_tessface_data(DerivedMesh *dm, bool generate)
 				CustomData_bmesh_update_active_layers(fdata, ldata);
 
 				if (!loopindex) {
-					loopindex = MEM_mallocN(sizeof(*loopindex) * totface, __func__);
+					loopindex = MEM_malloc_arrayN(totface, sizeof(*loopindex), __func__);
 					for (mf_idx = 0, mf = mface; mf_idx < totface; mf_idx++, mf++) {
 						const int mf_len = mf->v4 ? 4 : 3;
 						unsigned int *ml_idx = loopindex[mf_idx];
@@ -682,7 +684,7 @@ void DM_update_materials(DerivedMesh *dm, Object *ob)
 		if (dm->mat)
 			MEM_freeN(dm->mat);
 
-		dm->mat = MEM_mallocN(totmat * sizeof(*dm->mat), "DerivedMesh.mat");
+		dm->mat = MEM_malloc_arrayN(totmat, sizeof(*dm->mat), "DerivedMesh.mat");
 	}
 
 	/* we leave last material as empty - rationale here is being able to index
@@ -872,7 +874,7 @@ void DM_to_meshkey(DerivedMesh *dm, Mesh *me, KeyBlock *kb)
 	}
 	
 	if (kb->data) MEM_freeN(kb->data);
-	kb->data = MEM_mallocN(me->key->elemsize * me->totvert, "kb->data");
+	kb->data = MEM_malloc_arrayN(me->key->elemsize, me->totvert, "kb->data");
 	kb->totelem = totvert;
 	
 	fp = kb->data;
@@ -1208,7 +1210,7 @@ static float (*get_editbmesh_orco_verts(BMEditMesh *em))[3]
 	/* these may not really be the orco's, but it's only for preview.
 	 * could be solver better once, but isn't simple */
 	
-	orco = MEM_mallocN(sizeof(float) * 3 * em->bm->totvert, "BMEditMesh Orco");
+	orco = MEM_malloc_arrayN(em->bm->totvert, sizeof(float) * 3, "BMEditMesh Orco");
 
 	BM_ITER_MESH_INDEX (eve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
 		copy_v3_v3(orco[i], eve->co);
@@ -1282,7 +1284,7 @@ static void add_orco_dm(
 	totvert = dm->getNumVerts(dm);
 
 	if (orcodm) {
-		orco = MEM_callocN(sizeof(float[3]) * totvert, "dm orco");
+		orco = MEM_calloc_arrayN(totvert, sizeof(float[3]), "dm orco");
 		free = 1;
 
 		if (orcodm->getNumVerts(orcodm) == totvert)
@@ -1379,7 +1381,7 @@ static void weightpaint_color(unsigned char r_col[4], DMWeightColorInfo *dm_wcin
 	float colf[4];
 
 	if (dm_wcinfo && dm_wcinfo->coba) {
-		do_colorband(dm_wcinfo->coba, input, colf);
+		BKE_colorband_evaluate(dm_wcinfo->coba, input, colf);
 	}
 	else {
 		weight_to_rgb(colf, input);
@@ -1564,7 +1566,7 @@ void DM_update_weight_mcol(
 		wtcol_v = em->derivedVertColor;
 	}
 	else {
-		wtcol_v = MEM_mallocN(sizeof(*wtcol_v) * numVerts, __func__);
+		wtcol_v = MEM_malloc_arrayN(numVerts, sizeof(*wtcol_v), __func__);
 	}
 
 	/* Weights are given by caller. */
@@ -1573,7 +1575,7 @@ void DM_update_weight_mcol(
 		/* If indices is not NULL, it means we do not have weights for all vertices,
 		 * so we must create them (and set them to zero)... */
 		if (indices) {
-			w = MEM_callocN(sizeof(float) * numVerts, "Temp weight array DM_update_weight_mcol");
+			w = MEM_calloc_arrayN(numVerts, sizeof(float), "Temp weight array DM_update_weight_mcol");
 			i = num;
 			while (i--)
 				w[indices[i]] = weights[i];
@@ -1605,7 +1607,7 @@ void DM_update_weight_mcol(
 		/* now add to loops, so the data can be passed through the modifier stack
 		 * If no CD_PREVIEW_MLOOPCOL existed yet, we have to add a new one! */
 		if (!wtcol_l) {
-			wtcol_l = MEM_mallocN(sizeof(*wtcol_l) * dm_totloop, __func__);
+			wtcol_l = MEM_malloc_arrayN(dm_totloop, sizeof(*wtcol_l), __func__);
 			CustomData_add_layer(&dm->loopData, CD_PREVIEW_MLOOPCOL, CD_ASSIGN, wtcol_l, dm_totloop);
 		}
 
@@ -1660,7 +1662,7 @@ static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape
 		cos = CustomData_get_layer_n(&dm->vertData, CD_SHAPEKEY, i);
 		kb->totelem = dm->numVertData;
 
-		kb->data = kbcos = MEM_mallocN(sizeof(float) * 3 * kb->totelem, "kbcos DerivedMesh.c");
+		kb->data = kbcos = MEM_malloc_arrayN(kb->totelem, 3 * sizeof(float), "kbcos DerivedMesh.c");
 		if (kb->uid == actshape_uid) {
 			MVert *mvert = dm->getVertArray(dm);
 			
@@ -1681,7 +1683,7 @@ static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape
 				MEM_freeN(kb->data);
 			
 			kb->totelem = dm->numVertData;
-			kb->data = MEM_callocN(sizeof(float) * 3 * kb->totelem, "kb->data derivedmesh.c");
+			kb->data = MEM_calloc_arrayN(kb->totelem, 3 * sizeof(float), "kb->data derivedmesh.c");
 			fprintf(stderr, "%s: lost a shapekey layer: '%s'! (bmesh internal error)\n", __func__, kb->name);
 		}
 	}
@@ -1692,7 +1694,6 @@ static void add_shapekey_layers(DerivedMesh *dm, Mesh *me, Object *UNUSED(ob))
 	KeyBlock *kb;
 	Key *key = me->key;
 	int i;
-	const size_t shape_alloc_len = sizeof(float) * 3 * me->totvert;
 
 	if (!me->key)
 		return;
@@ -1713,11 +1714,11 @@ static void add_shapekey_layers(DerivedMesh *dm, Mesh *me, Object *UNUSED(ob))
 			fprintf(stderr,
 			        "%s: vertex size mismatch (Mesh '%s':%d != KeyBlock '%s':%d)\n",
 			        __func__, me->id.name + 2, me->totvert, kb->name, kb->totelem);
-			array = MEM_callocN(shape_alloc_len, __func__);
+			array = MEM_calloc_arrayN((size_t)me->totvert, 3 * sizeof(float), __func__);
 		}
 		else {
-			array = MEM_mallocN(shape_alloc_len, __func__);
-			memcpy(array, kb->data, shape_alloc_len);
+			array = MEM_malloc_arrayN((size_t)me->totvert, 3 * sizeof(float), __func__);
+			memcpy(array, kb->data, (size_t)me->totvert * 3 * sizeof(float));
 		}
 
 		CustomData_add_layer_named(&dm->vertData, CD_SHAPEKEY, CD_ASSIGN, array, dm->numVertData, kb->name);
@@ -1777,17 +1778,19 @@ static void mesh_calc_modifiers(
 	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
 	const bool has_multires = (mmd && mmd->sculptlvl != 0);
 	bool multires_applied = false;
-	const bool sculpt_mode = ob->mode & OB_MODE_SCULPT && ob->sculpt && !useRenderParams;
+	const bool sculpt_mode = eval_ctx->object_mode & OB_MODE_SCULPT && ob->sculpt && !useRenderParams;
 	const bool sculpt_dyntopo = (sculpt_mode && ob->sculpt->bm)  && !useRenderParams;
 	const int draw_flag = dm_drawflag_calc(scene->toolsettings, me);
 
 	/* Generic preview only in object mode! */
-	const bool do_mod_mcol = (ob->mode == OB_MODE_OBJECT);
+	const bool do_mod_mcol = (eval_ctx->object_mode == OB_MODE_OBJECT);
 #if 0 /* XXX Will re-enable this when we have global mod stack options. */
 	const bool do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
 #endif
 	const bool do_final_wmcol = false;
-	const bool do_init_wmcol = ((dataMask & CD_MASK_PREVIEW_MLOOPCOL) && (ob->mode & OB_MODE_WEIGHT_PAINT) && !do_final_wmcol);
+	const bool do_init_wmcol = (
+	        (dataMask & CD_MASK_PREVIEW_MLOOPCOL) &&
+	        (eval_ctx->object_mode & OB_MODE_WEIGHT_PAINT) && !do_final_wmcol);
 	/* XXX Same as above... For now, only weights preview in WPaint mode. */
 	const bool do_mod_wmcol = do_init_wmcol;
 
@@ -1990,7 +1993,7 @@ static void mesh_calc_modifiers(
 					 */
 					numVerts = dm->getNumVerts(dm);
 					deformedVerts =
-					    MEM_mallocN(sizeof(*deformedVerts) * numVerts, "dfmv");
+					    MEM_malloc_arrayN(numVerts, sizeof(*deformedVerts), "dfmv");
 					dm->getVertCos(dm, deformedVerts);
 				}
 				else {
@@ -2283,7 +2286,7 @@ float (*editbmesh_get_vertex_cos(BMEditMesh *em, int *r_numVerts))[3]
 
 	*r_numVerts = em->bm->totvert;
 
-	cos = MEM_mallocN(sizeof(float) * 3 * em->bm->totvert, "vertexcos");
+	cos = MEM_malloc_arrayN(em->bm->totvert, 3 * sizeof(float), "vertexcos");
 
 	BM_ITER_MESH_INDEX (eve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
 		copy_v3_v3(cos[i], eve->co);
@@ -2389,7 +2392,7 @@ static void editbmesh_calc_modifiers(
 					 */
 					numVerts = dm->getNumVerts(dm);
 					deformedVerts =
-					    MEM_mallocN(sizeof(*deformedVerts) * numVerts, "dfmv");
+					    MEM_malloc_arrayN(numVerts, sizeof(*deformedVerts), "dfmv");
 					dm->getVertCos(dm, deformedVerts);
 				}
 				else {
@@ -2625,7 +2628,7 @@ static bool calc_modifiers_skip_orco(const EvaluationContext *eval_ctx,
 		if (U.opensubdiv_compute_type == USER_OPENSUBDIV_COMPUTE_NONE) {
 			return false;
 		}
-		else if ((ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)) != 0) {
+		else if ((eval_ctx->object_mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)) != 0) {
 			return false;
 		}
 		else if ((DEG_get_eval_flags_for_id(eval_ctx->depsgraph, &ob->id) & DAG_EVAL_NEED_CPU) != 0) {
@@ -2666,7 +2669,7 @@ static void mesh_build_data(
 	ob->lastDataMask = dataMask;
 	ob->lastNeedMapping = need_mapping;
 
-	if ((ob->mode & OB_MODE_ALL_SCULPT) && ob->sculpt) {
+	if ((eval_ctx->object_mode & OB_MODE_ALL_SCULPT) && ob->sculpt) {
 		/* create PBVH immediately (would be created on the fly too,
 		 * but this avoids waiting on first stroke) */
 
@@ -2704,7 +2707,9 @@ static void editbmesh_build_data(
 	BLI_assert(!(em->derivedFinal->dirty & DM_DIRTY_NORMALS));
 }
 
-static CustomDataMask object_get_datamask(const Scene *scene, Object *ob, bool *r_need_mapping)
+static CustomDataMask object_get_datamask(
+        const EvaluationContext *eval_ctx,
+        const Scene *scene, Object *ob, bool *r_need_mapping)
 {
 	/* TODO(sergey): Avoid this linear list lookup. */
 	ViewLayer *view_layer = BKE_view_layer_context_active_PLACEHOLDER(scene);
@@ -2716,28 +2721,28 @@ static CustomDataMask object_get_datamask(const Scene *scene, Object *ob, bool *
 	}
 
 	if (ob == actob) {
-		bool editing = BKE_paint_select_face_test(ob);
+		bool editing = BKE_paint_select_face_test(ob, eval_ctx->object_mode);
 
 		/* weight paint and face select need original indices because of selection buffer drawing */
 		if (r_need_mapping) {
-			*r_need_mapping = (editing || (ob->mode & (OB_MODE_WEIGHT_PAINT | OB_MODE_VERTEX_PAINT)));
+			*r_need_mapping = (editing || (eval_ctx->object_mode & (OB_MODE_WEIGHT_PAINT | OB_MODE_VERTEX_PAINT)));
 		}
 
 		/* check if we need tfaces & mcols due to face select or texture paint */
-		if ((ob->mode & OB_MODE_TEXTURE_PAINT) || editing) {
+		if ((eval_ctx->object_mode & OB_MODE_TEXTURE_PAINT) || editing) {
 			mask |= CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL;
 		}
 
 		/* check if we need mcols due to vertex paint or weightpaint */
-		if (ob->mode & OB_MODE_VERTEX_PAINT) {
+		if (eval_ctx->object_mode & OB_MODE_VERTEX_PAINT) {
 			mask |= CD_MASK_MLOOPCOL;
 		}
 
-		if (ob->mode & OB_MODE_WEIGHT_PAINT) {
+		if (eval_ctx->object_mode & OB_MODE_WEIGHT_PAINT) {
 			mask |= CD_MASK_PREVIEW_MLOOPCOL;
 		}
 
-		if (ob->mode & OB_MODE_EDIT)
+		if (eval_ctx->object_mode & OB_MODE_EDIT)
 			mask |= CD_MASK_MVERT_SKIN;
 	}
 
@@ -2749,7 +2754,7 @@ void makeDerivedMesh(
         CustomDataMask dataMask, const bool build_shapekey_layers)
 {
 	bool need_mapping;
-	dataMask |= object_get_datamask(scene, ob, &need_mapping);
+	dataMask |= object_get_datamask(eval_ctx, scene, ob, &need_mapping);
 
 	if (em) {
 		editbmesh_build_data(eval_ctx, scene, ob, em, dataMask);
@@ -2768,7 +2773,7 @@ DerivedMesh *mesh_get_derived_final(
 	 * the data we need, rebuild the derived mesh
 	 */
 	bool need_mapping;
-	dataMask |= object_get_datamask(scene, ob, &need_mapping);
+	dataMask |= object_get_datamask(eval_ctx, scene, ob, &need_mapping);
 
 	if (!ob->derivedFinal ||
 	    ((dataMask & ob->lastDataMask) != dataMask) ||
@@ -2788,7 +2793,7 @@ DerivedMesh *mesh_get_derived_deform(const struct EvaluationContext *eval_ctx, S
 	 */
 	bool need_mapping;
 
-	dataMask |= object_get_datamask(scene, ob, &need_mapping);
+	dataMask |= object_get_datamask(eval_ctx, scene, ob, &need_mapping);
 
 	if (!ob->derivedDeform ||
 	    ((dataMask & ob->lastDataMask) != dataMask) ||
@@ -2907,7 +2912,7 @@ DerivedMesh *editbmesh_get_derived_cage_and_final(
 	/* if there's no derived mesh or the last data mask used doesn't include
 	 * the data we need, rebuild the derived mesh
 	 */
-	dataMask |= object_get_datamask(scene, obedit, NULL);
+	dataMask |= object_get_datamask(eval_ctx, scene, obedit, NULL);
 
 	if (!em->derivedCage ||
 	    (em->lastDataMask & dataMask) != dataMask)
@@ -2927,7 +2932,7 @@ DerivedMesh *editbmesh_get_derived_cage(
 	/* if there's no derived mesh or the last data mask used doesn't include
 	 * the data we need, rebuild the derived mesh
 	 */
-	dataMask |= object_get_datamask(scene, obedit, NULL);
+	dataMask |= object_get_datamask(eval_ctx, scene, obedit, NULL);
 
 	if (!em->derivedCage ||
 	    (em->lastDataMask & dataMask) != dataMask)
@@ -3010,11 +3015,11 @@ DMCoNo *mesh_get_mapped_verts_nors(Scene *scene, Object *ob)
 	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH | CD_MASK_ORIGINDEX);
 	
 	if (dm->foreachMappedVert) {
-		vertexcosnos = MEM_callocN(sizeof(DMCoNo) * me->totvert, "vertexcosnos map");
+		vertexcosnos = MEM_calloc_arrayN(me->totvert, sizeof(DMCoNo), "vertexcosnos map");
 		dm->foreachMappedVert(dm, make_vertexcosnos__mapFunc, vertexcosnos);
 	}
 	else {
-		DMCoNo *v_co_no = vertexcosnos = MEM_mallocN(sizeof(DMCoNo) * me->totvert, "vertexcosnos map");
+		DMCoNo *v_co_no = vertexcosnos = MEM_malloc_arrayN(me->totvert, sizeof(DMCoNo), "vertexcosnos map");
 		int a;
 		for (a = 0; a < me->totvert; a++, v_co_no++) {
 			dm->getVertCo(dm, a, v_co_no->co);
@@ -3484,17 +3489,25 @@ void DM_draw_attrib_vertex_uniforms(const DMVertexAttribs *attribs)
 {
 	int i;
 	if (attribs->totorco) {
-		glUniform1i(attribs->orco.gl_info_index, 0);
+		if (attribs->orco.gl_info_index != -1) {
+			glUniform1i(attribs->orco.gl_info_index, 0);
+		}
 	}
 	for (i = 0; i < attribs->tottface; i++) {
-		glUniform1i(attribs->tface[i].gl_info_index, 0);
+		if (attribs->tface[i].gl_info_index != -1) {
+			glUniform1i(attribs->tface[i].gl_info_index, 0);
+		}
 	}
 	for (i = 0; i < attribs->totmcol; i++) {
-		glUniform1i(attribs->mcol[i].gl_info_index, GPU_ATTR_INFO_SRGB);
+		if (attribs->mcol[i].gl_info_index != -1) {
+			glUniform1i(attribs->mcol[i].gl_info_index, GPU_ATTR_INFO_SRGB);
+		}
 	}
 
 	for (i = 0; i < attribs->tottang; i++) {
-		glUniform1i(attribs->tang[i].gl_info_index, 0);
+		if (attribs->tang[i].gl_info_index != -1) {
+			glUniform1i(attribs->tang[i].gl_info_index, 0);
+		}
 	}
 }
 
@@ -3720,7 +3733,7 @@ void DM_init_origspace(DerivedMesh *dm)
 			BKE_mesh_calc_poly_normal(mp, l, mv, p_nor);
 			axis_dominant_v3_to_m3(mat, p_nor);
 
-			BLI_array_empty(vcos_2d);
+			BLI_array_clear(vcos_2d);
 			BLI_array_reserve(vcos_2d, mp->totloop);
 			for (j = 0; j < mp->totloop; j++, l++) {
 				mul_v3_m3v3(co, mat, mv[l->v].co);
@@ -3907,7 +3920,7 @@ MVert *DM_get_vert_array(DerivedMesh *dm, bool *allocated)
 	*allocated = false;
 
 	if (mvert == NULL) {
-		mvert = MEM_mallocN(sizeof(MVert) * dm->getNumVerts(dm), "dmvh vert data array");
+		mvert = MEM_malloc_arrayN(dm->getNumVerts(dm), sizeof(MVert), "dmvh vert data array");
 		dm->copyVertArray(dm, mvert);
 		*allocated = true;
 	}
@@ -3922,7 +3935,7 @@ MEdge *DM_get_edge_array(DerivedMesh *dm, bool *allocated)
 	*allocated = false;
 
 	if (medge == NULL) {
-		medge = MEM_mallocN(sizeof(MEdge) * dm->getNumEdges(dm), "dm medge data array");
+		medge = MEM_malloc_arrayN(dm->getNumEdges(dm), sizeof(MEdge), "dm medge data array");
 		dm->copyEdgeArray(dm, medge);
 		*allocated = true;
 	}
@@ -3937,7 +3950,7 @@ MLoop *DM_get_loop_array(DerivedMesh *dm, bool *r_allocated)
 	*r_allocated = false;
 
 	if (mloop == NULL) {
-		mloop = MEM_mallocN(sizeof(MLoop) * dm->getNumLoops(dm), "dm loop data array");
+		mloop = MEM_malloc_arrayN(dm->getNumLoops(dm), sizeof(MLoop), "dm loop data array");
 		dm->copyLoopArray(dm, mloop);
 		*r_allocated = true;
 	}
@@ -3952,7 +3965,7 @@ MPoly *DM_get_poly_array(DerivedMesh *dm, bool *r_allocated)
 	*r_allocated = false;
 
 	if (mpoly == NULL) {
-		mpoly = MEM_mallocN(sizeof(MPoly) * dm->getNumPolys(dm), "dm poly data array");
+		mpoly = MEM_malloc_arrayN(dm->getNumPolys(dm), sizeof(MPoly), "dm poly data array");
 		dm->copyPolyArray(dm, mpoly);
 		*r_allocated = true;
 	}
@@ -3970,7 +3983,7 @@ MFace *DM_get_tessface_array(DerivedMesh *dm, bool *r_allocated)
 		int numTessFaces = dm->getNumTessFaces(dm);
 
 		if (numTessFaces > 0) {
-			mface = MEM_mallocN(sizeof(MFace) * numTessFaces, "bvh mface data array");
+			mface = MEM_malloc_arrayN(numTessFaces, sizeof(MFace), "bvh mface data array");
 			dm->copyTessFaceArray(dm, mface);
 			*r_allocated = true;
 		}

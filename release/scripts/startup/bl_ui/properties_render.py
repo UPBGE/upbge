@@ -78,7 +78,7 @@ class RENDER_PT_context(Panel):
 
 class RENDER_PT_render(RenderButtonsPanel, Panel):
     bl_label = "Render"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     def draw(self, context):
         layout = self.layout
@@ -322,7 +322,7 @@ class RENDER_PT_performance(RenderButtonsPanel, Panel):
 class RENDER_PT_post_processing(RenderButtonsPanel, Panel):
     bl_label = "Post Processing"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     def draw(self, context):
         layout = self.layout
@@ -336,6 +336,9 @@ class RENDER_PT_post_processing(RenderButtonsPanel, Panel):
         col.prop(rd, "use_sequencer")
 
         split.prop(rd, "dither_intensity", text="Dither", slider=True)
+
+        if context.scene.view_render.engine == 'BLENDER_EEVEE':
+            return
 
         layout.separator()
 
@@ -466,7 +469,8 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
             layout.prop(ffmpeg, "use_lossless_output")
 
         # Output quality
-        if needs_codec and ffmpeg.codec in {'H264', 'MPEG4'}:
+        use_crf = needs_codec and ffmpeg.codec in {'H264', 'MPEG4'}
+        if use_crf:
             layout.prop(ffmpeg, "constant_rate_factor")
 
         # Encoding speed
@@ -480,7 +484,7 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
         pbox.prop(ffmpeg, "max_b_frames", text="")
         pbox.enabled = ffmpeg.use_max_b_frames
 
-        if ffmpeg.constant_rate_factor == 'NONE':
+        if not use_crf or ffmpeg.constant_rate_factor == 'NONE':
             split = layout.split()
             col = split.column()
             col.label(text="Rate:")
@@ -633,9 +637,7 @@ class RENDER_PT_eevee_ambient_occlusion(RenderButtonsPanel, Panel):
         layout.active = props.gtao_enable
         col = layout.column()
         col.prop(props, "gtao_use_bent_normals")
-        col.prop(props, "gtao_denoise")
         col.prop(props, "gtao_bounce")
-        col.prop(props, "gtao_samples")
         col.prop(props, "gtao_distance")
         col.prop(props, "gtao_factor")
         col.prop(props, "gtao_quality")
@@ -807,7 +809,6 @@ class RENDER_PT_eevee_screen_space_reflections(RenderButtonsPanel, Panel):
         col.active = props.ssr_enable
         col.prop(props, "ssr_refraction")
         col.prop(props, "ssr_halfres")
-        col.prop(props, "ssr_ray_count")
         col.prop(props, "ssr_quality")
         col.prop(props, "ssr_max_roughness")
         col.prop(props, "ssr_thickness")
@@ -853,6 +854,7 @@ class RENDER_PT_eevee_sampling(RenderButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(props, "taa_samples")
+        col.prop(props, "taa_render_samples")
 
 
 class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
@@ -876,6 +878,30 @@ class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
         col.prop(props, "gi_visibility_resolution")
 
 
+class RENDER_PT_eevee_film(RenderButtonsPanel, Panel):
+    bl_label = "Film"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return scene and (scene.view_render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        rd = scene.render
+
+        split = layout.split()
+
+        col = split.column()
+        col.prop(rd, "filter_size")
+
+        col = split.column()
+        col.prop(rd, "alpha_mode", text="Alpha")
+
+
 classes = (
     RENDER_MT_presets,
     RENDER_MT_ffmpeg_presets,
@@ -895,6 +921,7 @@ classes = (
     RENDER_PT_clay_layer_settings,
     RENDER_PT_clay_collection_settings,
     RENDER_PT_eevee_sampling,
+    RENDER_PT_eevee_film,
     RENDER_PT_eevee_shadows,
     RENDER_PT_eevee_indirect_lighting,
     RENDER_PT_eevee_subsurface_scattering,

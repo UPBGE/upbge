@@ -85,25 +85,26 @@ class AnimationExporter: COLLADASW::LibraryAnimations
 {
 private:
 	Scene *scene;
-	const struct EvaluationContext *eval_ctx;
+	EvaluationContext *eval_ctx;
 	COLLADASW::StreamWriter *sw;
 
 public:
 
-	AnimationExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings):
-			COLLADASW::LibraryAnimations(sw), export_settings(export_settings)
-			{ this->sw = sw; }
-	
+	AnimationExporter(EvaluationContext *eval_ctx, COLLADASW::StreamWriter *sw, const ExportSettings *export_settings):
+		eval_ctx(eval_ctx),
+		COLLADASW::LibraryAnimations(sw),
+		export_settings(export_settings)
+	{
+		this->sw = sw;
+	}
 
-	bool exportAnimations(const struct EvaluationContext *eval_ctx, Scene *sce);
-
+	bool exportAnimations(Scene *sce);
 	// called for each exported object
 	void operator() (Object *ob); 
 	
 protected:
 	const ExportSettings *export_settings;
 
-	void dae_animation(Object *ob, FCurve *fcu, char *transformName, bool is_param, Material *ma = NULL);
 
 	void export_object_constraint_animation(Object *ob);
 
@@ -144,7 +145,18 @@ protected:
 	
 	float* get_eul_source_for_quat(Object *ob );
 
+	bool is_flat_line(std::vector<float> &values, int channel_count);
+	void export_keyframed_animation_set(Object *ob);
+	void create_keyframed_animation(Object *ob, FCurve *fcu, char *transformName, bool is_param, Material *ma = NULL);
+	void export_sampled_animation_set(Object *ob);
+	void export_sampled_transrotloc_animation(Object *ob, std::vector<float> &ctimes);
+	void export_sampled_matrix_animation(Object *ob, std::vector<float> &ctimes);
+	void create_sampled_animation(int channel_count, std::vector<float> &times, std::vector<float> &values, std::string, std::string label, std::string axis_name, bool is_rot);
+
+	void evaluate_anim_with_constraints(Object *ob, float ctime);
+
 	std::string create_source_from_fcurve(COLLADASW::InputSemantic::Semantics semantic, FCurve *fcu, const std::string& anim_id, const char *axis_name);
+	std::string create_source_from_fcurve(COLLADASW::InputSemantic::Semantics semantic, FCurve *fcu, const std::string& anim_id, const char *axis_name, Object *ob);
 
 	std::string create_lens_source_from_fcurve(Camera *cam, COLLADASW::InputSemantic::Semantics semantic, FCurve *fcu, const std::string& anim_id);
 
@@ -153,7 +165,7 @@ protected:
 	std::string create_source_from_vector(COLLADASW::InputSemantic::Semantics semantic, std::vector<float> &fra, bool is_rot, const std::string& anim_id, const char *axis_name);
 
 	std::string create_xyz_source(float *v, int tot, const std::string& anim_id);
-
+	std::string create_4x4_source(std::vector<float> &times, std::vector<float> &values, const std::string& anim_id);
 	std::string create_4x4_source(std::vector<float> &frames, Object * ob_arm, Bone *bone, const std::string& anim_id);
 
 	std::string create_interpolation_source(FCurve *fcu, const std::string& anim_id, const char *axis_name, bool *has_tangents);
@@ -165,8 +177,10 @@ protected:
 	std::string get_light_param_sid(char *rna_path, int tm_type, const char *axis_name, bool append_axis);
 	std::string get_camera_param_sid(char *rna_path, int tm_type, const char *axis_name, bool append_axis);
 	
-	void find_frames(Object *ob, std::vector<float> &fra, const char *prefix, const char *tm_name);
-	void find_frames(Object *ob, std::vector<float> &fra);
+	void find_keyframes(Object *ob, std::vector<float> &fra, const char *prefix, const char *tm_name);
+	void find_keyframes(Object *ob, std::vector<float> &fra);
+	void find_sampleframes(Object *ob, std::vector<float> &fra);
+
 
 	void make_anim_frames_from_targets(Object *ob, std::vector<float> &frames );
 
@@ -187,6 +201,5 @@ protected:
 
 	bool validateConstraints(bConstraint *con);
 
-	void calc_ob_mat_at_time(Object *ob, float ctime , float mat[][4]);
 
 };

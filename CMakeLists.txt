@@ -261,6 +261,8 @@ option(WITH_OPENSUBDIV    "Enable OpenSubdiv for surface subdivision" _init_OPEN
 
 option(WITH_OPENVDB       "Enable features relying on OpenVDB" OFF)
 option(WITH_OPENVDB_BLOSC "Enable blosc compression for OpenVDB, only enable if OpenVDB was built with blosc support" OFF)
+option(WITH_OPENVDB_3_ABI_COMPATIBLE "Assume OpenVDB library has been compiled with version 3 ABI compatibility" OFF)
+mark_as_advanced(WITH_OPENVDB_3_ABI_COMPATIBLE)
 
 # GHOST Windowing Library Options
 option(WITH_GHOST_DEBUG   "Enable debugging output for the GHOST library" OFF)
@@ -321,7 +323,6 @@ endif()
 # Modifiers
 option(WITH_MOD_FLUID           "Enable Elbeem Modifier (Fluid Simulation)" ON)
 option(WITH_MOD_SMOKE           "Enable Smoke Modifier (Smoke Simulation)" ON)
-option(WITH_MOD_BOOLEAN         "Enable Boolean Modifier" ON)
 option(WITH_MOD_REMESH          "Enable Remesh Modifier" ON)
 # option(WITH_MOD_CLOTH_ELTOPO    "Enable Experimental cloth solver" OFF)  # this is now only available in a branch
 # mark_as_advanced(WITH_MOD_CLOTH_ELTOPO)
@@ -424,15 +425,24 @@ option(WITH_CYCLES_STANDALONE_GUI	"Build Cycles standalone with GUI" OFF)
 option(WITH_CYCLES_OSL				"Build Cycles with OSL support" ${_init_CYCLES_OSL})
 option(WITH_CYCLES_OPENSUBDIV		"Build Cycles with OpenSubdiv support" ${_init_CYCLES_OPENSUBDIV})
 option(WITH_CYCLES_CUDA_BINARIES	"Build Cycles CUDA binaries" OFF)
-set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 sm_37 sm_50 sm_52 sm_60 sm_61 CACHE STRING "CUDA architectures to build binaries for")
+option(WITH_CYCLES_CUBIN_COMPILER	"Build cubins with nvrtc based compiler instead of nvcc" OFF)
+set(CYCLES_CUDA_BINARIES_ARCH sm_30 sm_35 sm_37 sm_50 sm_52 sm_60 sm_61 CACHE STRING "CUDA architectures to build binaries for")
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
 option(WITH_CYCLES_LOGGING	"Build Cycles with logging support" ON)
 option(WITH_CYCLES_DEBUG	"Build Cycles with extra debug capabilities" OFF)
 option(WITH_CYCLES_NATIVE_ONLY	"Build Cycles with native kernel only (which fits current CPU, use for development only)" OFF)
+mark_as_advanced(WITH_CYCLES_CUBIN_COMPILER)
 mark_as_advanced(WITH_CYCLES_LOGGING)
 mark_as_advanced(WITH_CYCLES_DEBUG)
 mark_as_advanced(WITH_CYCLES_NATIVE_ONLY)
+
+option(WITH_CYCLES_DEVICE_CUDA				"Enable Cycles CUDA compute support" ON)
+option(WITH_CYCLES_DEVICE_OPENCL			"Enable Cycles OpenCL compute support" ON)
+option(WITH_CYCLES_NETWORK				"Enable Cycles compute over network support (EXPERIMENTAL and unfinished)" OFF)
+mark_as_advanced(WITH_CYCLES_DEVICE_CUDA)
+mark_as_advanced(WITH_CYCLES_DEVICE_OPENCL)
+mark_as_advanced(WITH_CYCLES_NETWORK)
 
 option(WITH_CUDA_DYNLOAD "Dynamically load CUDA libraries at runtime" ON)
 mark_as_advanced(WITH_CUDA_DYNLOAD)
@@ -465,7 +475,8 @@ option(WITH_BOOST					"Enable features depending on boost" ON)
 
 # Unit testsing
 option(WITH_GTESTS "Enable GTest unit testing" OFF)
-option(WITH_OPENGL_TESTS "Enable OpenGL related unit testing (Experimental)" OFF)
+option(WITH_OPENGL_RENDER_TESTS "Enable OpenGL render related unit testing (Experimental)" OFF)
+option(WITH_OPENGL_DRAW_TESTS "Enable OpenGL UI drawing related unit testing (Experimental)" OFF)
 
 
 # Documentation
@@ -550,6 +561,9 @@ if(WIN32)
 
 	set(WINDOWS_CODESIGN_PFX_PASSWORD CACHE STRING  "password for pfx file used for codesigning.")
 	mark_as_advanced(WINDOWS_CODESIGN_PFX_PASSWORD)
+
+	option(WINDOWS_USE_VISUAL_STUDIO_FOLDERS "Organize the visual studio project according to source folders." ON)
+	mark_as_advanced(WINDOWS_USE_VISUAL_STUDIO_FOLDERS)
 endif()
 
 # avoid using again
@@ -653,9 +667,8 @@ if(NOT WITH_BOOST)
 	set_and_warn(WITH_INTERNATIONAL  OFF)
 	set_and_warn(WITH_OPENVDB        OFF)
 	set_and_warn(WITH_OPENCOLORIO    OFF)
-	set_and_warn(WITH_MOD_BOOLEAN    OFF)
 elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_INTERNATIONAL OR
-       WITH_OPENVDB OR WITH_OPENCOLORIO OR WITH_MOD_BOOLEAN)
+       WITH_OPENVDB OR WITH_OPENCOLORIO)
 	# Keep enabled
 else()
 	# New dependency graph needs either Boost or C++11 for function bindings.
@@ -727,6 +740,15 @@ if(WITH_AUDASPACE)
 	if(NOT WITH_SYSTEM_AUDASPACE)
 		set(AUDASPACE_C_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/audaspace/bindings/C" "${CMAKE_BINARY_DIR}/extern/audaspace")
 		set(AUDASPACE_PY_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/audaspace/bindings")
+	endif()
+endif()
+
+# Auto-enable CUDA dynload if toolkit is not found.
+if(NOT WITH_CUDA_DYNLOAD)
+	find_package(CUDA)
+	if (NOT CUDA_FOUND)
+		message("CUDA toolkit not found, using dynamic runtime loading of libraries instead")
+		set(WITH_CUDA_DYNLOAD ON)
 	endif()
 endif()
 
@@ -1249,7 +1271,7 @@ if(WITH_LIBMV OR WITH_GTESTS OR (WITH_CYCLES AND WITH_CYCLES_LOGGING))
 		if(WIN32)
 			set(GLOG_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/glog/src/windows)
 		else()
-			set(GLOG_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/glog/src)
+			set(GLOG_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/glog/include)
 		endif()
 	endif()
 endif()
@@ -1386,6 +1408,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	# flags to undo strict flags
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations)
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_UNUSED_PARAMETER        -Wno-unused-parameter)
+	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_UNUSED_FUNCTION         -Wno-unused-function)
 
 	if(CMAKE_COMPILER_IS_GNUCC AND (NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "7.0"))
 		ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_IMPLICIT_FALLTHROUGH    -Wno-implicit-fallthrough)
@@ -1450,8 +1473,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_SIGN_COMPARE -Wno-sign-compare)
 
 	# disable numbered, false positives
-	set(C_WARNINGS "${C_WARNINGS} -wd188,186,144,913,556")
-	set(CXX_WARNINGS "${CXX_WARNINGS} -wd188,186,144,913,556")
+	set(C_WARNINGS "${C_WARNINGS} -wd188,186,144,913,556,858,597,177,1292,167,279,592,94,2722,3199")
+	set(CXX_WARNINGS "${CXX_WARNINGS} -wd188,186,144,913,556,858,597,177,1292,167,279,592,94,2722,3199")
 elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC")
 	# most msvc warnings are C & C++
 	set(_WARNINGS
@@ -1469,6 +1492,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC")
 		"/wd4267"  # conversion from 'size_t' to 'type', possible loss of data
 		"/wd4305"  # truncation from 'type1' to 'type2'
 		"/wd4800"  # forcing value to bool 'true' or 'false'
+		"/wd4828"  # The file contains a character that is illegal 
 		# errors:
 		"/we4013"  # 'function' undefined; assuming extern returning int
 		"/we4133"  # incompatible pointer types
@@ -1735,7 +1759,6 @@ if(FIRST_RUN)
 	endif()
 
 	info_cfg_text("Modifiers:")
-	info_cfg_option(WITH_MOD_BOOLEAN)
 	info_cfg_option(WITH_MOD_REMESH)
 	info_cfg_option(WITH_MOD_FLUID)
 	info_cfg_option(WITH_MOD_OCEANSIM)

@@ -102,8 +102,9 @@ enum {
 #define TSE_KEYMAP_ITEM     35  /* NO ID */
 #define TSE_ID_BASE         36  /* NO ID */
 #define TSE_GP_LAYER        37  /* NO ID */
-#define TSE_LAYER_COLLECTION 38 /* NO ID */
-#define TSE_SCENE_COLLECTION 39 /* NO ID */
+#define TSE_LAYER_COLLECTION 38
+#define TSE_SCENE_COLLECTION 39
+#define TSE_LAYER_COLLECTION_BASE 40
 
 
 /* Check whether given TreeStoreElem should have a real ID in its ->id member. */
@@ -111,8 +112,7 @@ enum {
 	(!ELEM((_tse)->type, TSE_NLA, TSE_NLA_TRACK, TSE_DRIVER_BASE, \
 	                     TSE_SEQUENCE, TSE_SEQ_STRIP, TSE_SEQUENCE_DUP, \
                          TSE_RNA_STRUCT, TSE_RNA_PROPERTY, TSE_RNA_ARRAY_ELEM, \
-                         TSE_KEYMAP, TSE_KEYMAP_ITEM, TSE_ID_BASE, TSE_GP_LAYER, \
-                         TSE_SCENE_COLLECTION, TSE_LAYER_COLLECTION))
+                         TSE_KEYMAP, TSE_KEYMAP_ITEM, TSE_ID_BASE, TSE_GP_LAYER))
 
 
 #endif

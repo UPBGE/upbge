@@ -316,18 +316,20 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc, uns
 		float cfra;
 		
 		/* plot the curve (over the strip's main region) */
-		immBegin(GWN_PRIM_LINE_STRIP, abs((int)(strip->end - strip->start) + 1));
+		if (fcu) {
+			immBegin(GWN_PRIM_LINE_STRIP, abs((int)(strip->end - strip->start) + 1));
 
-		/* sample at 1 frame intervals, and draw
-		 *	- min y-val is yminc, max is y-maxc, so clamp in those regions
-		 */
-		for (cfra = strip->start; cfra <= strip->end; cfra += 1.0f) {
-			float y = evaluate_fcurve(fcu, cfra); /* assume this to be in 0-1 range */
-			CLAMP(y, 0.0f, 1.0f);
-			immVertex2f(pos, cfra, ((y * yheight) + yminc));
+			/* sample at 1 frame intervals, and draw
+			 *	- min y-val is yminc, max is y-maxc, so clamp in those regions
+			 */
+			for (cfra = strip->start; cfra <= strip->end; cfra += 1.0f) {
+				float y = evaluate_fcurve(fcu, cfra); /* assume this to be in 0-1 range */
+				CLAMP(y, 0.0f, 1.0f);
+				immVertex2f(pos, cfra, ((y * yheight) + yminc));
+			}
+
+			immEnd();
 		}
-
-		immEnd();
 	}
 	else {
 		/* use blend in/out values only if both aren't zero */
@@ -408,7 +410,7 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 	 */
 	if ((strip->extendmode != NLASTRIP_EXTEND_NOTHING) && (non_solo == 0)) {
 		/* enable transparency... */
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 
 		switch (strip->extendmode) {
@@ -709,7 +711,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					/* just draw a semi-shaded rect spanning the width of the viewable area if there's data,
 					 * and a second darker rect within which we draw keyframe indicator dots if there's data
 					 */
-					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 					glEnable(GL_BLEND);
 
 					/* get colors for drawing */
@@ -826,7 +828,7 @@ void draw_nla_channel_list(const bContext *C, bAnimContext *ac, ARegion *ar)
 		y = (float)(-NLACHANNEL_HEIGHT(snla));
 		
 		/* set blending again, as may not be set in previous step */
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 		
 		/* loop through channels, and set up drawing depending on their type  */

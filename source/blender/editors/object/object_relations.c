@@ -150,7 +150,7 @@ static int vertex_parent_set_exec(bContext *C, wmOperator *op)
 		BMEditMesh *em;
 
 		EDBM_mesh_load(obedit);
-		EDBM_mesh_make(scene->toolsettings, obedit, true);
+		EDBM_mesh_make(obedit, scene->toolsettings->selectmode, true);
 
 		DEG_id_tag_update(obedit->data, 0);
 
@@ -400,13 +400,13 @@ static const EnumPropertyItem *proxy_group_object_itemf(bContext *C, PointerRNA 
 		return DummyRNA_DEFAULT_items;
 
 	/* find the object to affect */
-	FOREACH_GROUP_OBJECT(ob->dup_group, object)
+	FOREACH_GROUP_OBJECT_BEGIN(ob->dup_group, object)
 	{
 		item_tmp.identifier = item_tmp.name = object->id.name + 2;
 		item_tmp.value = i++;
 		RNA_enum_item_add(&item, &totitem, &item_tmp);
 	}
-	FOREACH_GROUP_OBJECT_END
+	FOREACH_GROUP_OBJECT_END;
 
 	RNA_enum_item_end(&item, &totitem);
 	*r_free = true;
@@ -717,7 +717,8 @@ bool ED_object_parent_set(ReportList *reports, const bContext *C, Scene *scene, 
 					switch (partype) {
 						case PAR_CURVE: /* curve deform */
 							if (modifiers_isDeformedByCurve(ob) != par) {
-								md = ED_object_modifier_add(reports, bmain, scene, ob, NULL, eModifierType_Curve);
+								md = ED_object_modifier_add(
+								        reports, bmain, scene, ob, eval_ctx.object_mode, NULL, eModifierType_Curve);
 								if (md) {
 									((CurveModifierData *)md)->object = par;
 								}
@@ -728,7 +729,8 @@ bool ED_object_parent_set(ReportList *reports, const bContext *C, Scene *scene, 
 							break;
 						case PAR_LATTICE: /* lattice deform */
 							if (modifiers_isDeformedByLattice(ob) != par) {
-								md = ED_object_modifier_add(reports, bmain, scene, ob, NULL, eModifierType_Lattice);
+								md = ED_object_modifier_add(
+								        reports, bmain, scene, ob, eval_ctx.object_mode, NULL, eModifierType_Lattice);
 								if (md) {
 									((LatticeModifierData *)md)->object = par;
 								}
@@ -736,7 +738,8 @@ bool ED_object_parent_set(ReportList *reports, const bContext *C, Scene *scene, 
 							break;
 						default: /* armature deform */
 							if (modifiers_isDeformedByArmature(ob) != par) {
-								md = ED_object_modifier_add(reports, bmain, scene, ob, NULL, eModifierType_Armature);
+								md = ED_object_modifier_add(
+								        reports, bmain, scene, ob, eval_ctx.object_mode, NULL, eModifierType_Armature);
 								if (md) {
 									((ArmatureModifierData *)md)->object = par;
 								}
@@ -1425,6 +1428,7 @@ static bool allow_make_links_data(const int type, Object *ob_src, Object *ob_dst
 
 static int make_links_data_exec(bContext *C, wmOperator *op)
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Main *bmain = CTX_data_main(C);
 	const int type = RNA_enum_get(op->ptr, "type");
 	Object *ob_src;
@@ -1509,7 +1513,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 						}
 						break;
 					case MAKE_LINKS_MODIFIERS:
-						BKE_object_link_modifiers(ob_dst, ob_src);
+						BKE_object_link_modifiers(ob_dst, ob_src, workspace->object_mode);
 						DEG_id_tag_update(&ob_dst->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 						break;
 					case MAKE_LINKS_FONTS:
@@ -1628,33 +1632,30 @@ void OBJECT_OT_make_links_data(wmOperatorType *ot)
 
 static Object *single_object_users_object(Main *bmain, Scene *scene, Object *ob, const bool copy_groups)
 {
-	if (!ID_IS_LINKED(ob) && ob->id.us > 1) {
-		/* base gets copy of object */
-		Object *obn = ID_NEW_SET(ob, BKE_object_copy(bmain, ob));
+	/* base gets copy of object */
+	Object *obn = ID_NEW_SET(ob, BKE_object_copy(bmain, ob));
 
-		if (copy_groups) {
-			if (ob->flag & OB_FROMGROUP) {
-				obn->flag |= OB_FROMGROUP;
-			}
+	if (copy_groups) {
+		if (ob->flag & OB_FROMGROUP) {
+			obn->flag |= OB_FROMGROUP;
 		}
-		else {
-			/* copy already clears */
-		}
-		/* remap gpencil parenting */
-
-		if (scene->gpd) {
-			bGPdata *gpd = scene->gpd;
-			for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-				if (gpl->parent == ob) {
-					gpl->parent = obn;
-				}
-			}
-		}
-
-		id_us_min(&ob->id);
-		return obn;
 	}
-	return NULL;
+	else {
+		/* copy already clears */
+	}
+	/* remap gpencil parenting */
+
+	if (scene->gpd) {
+		bGPdata *gpd = scene->gpd;
+		for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+			if (gpl->parent == ob) {
+				gpl->parent = obn;
+			}
+		}
+	}
+
+	id_us_min(&ob->id);
+	return obn;
 }
 
 static void libblock_relink_scene_collection(SceneCollection *sc)
@@ -1674,12 +1675,11 @@ static void single_object_users_scene_collection(Main *bmain, Scene *scene, Scen
 		Object *ob = link->data;
 		/* an object may be in more than one collection */
 		if ((ob->id.newid == NULL) && ((ob->flag & flag) == flag)) {
-			link->data = single_object_users_object(bmain, scene, link->data, copy_groups);
+			if (!ID_IS_LINKED(ob) && ob->id.us > 1) {
+				link->data = single_object_users_object(bmain, scene, link->data, copy_groups);
+			}
 		}
 	}
-
-	/* we reset filter objects because they should be regenerated after this */
-	BLI_freelistN(&sc->filter_objects);
 
 	for (SceneCollection *nsc = sc->scene_collections.first; nsc; nsc = nsc->next) {
 		single_object_users_scene_collection(bmain, scene, nsc, flag, copy_groups);
@@ -1709,19 +1709,19 @@ static void single_object_users(Main *bmain, Scene *scene, View3D *v3d, const in
 		if (copy_groups && group->view_layer->object_bases.first) {
 			bool all_duplicated = true;
 
-			FOREACH_GROUP_OBJECT(group, object)
+			FOREACH_GROUP_OBJECT_BEGIN(group, object)
 			{
 				if (object->id.newid == NULL) {
 					all_duplicated = false;
 					break;
 				}
 			}
-			FOREACH_GROUP_OBJECT_END
+			FOREACH_GROUP_OBJECT_END;
 
 			if (all_duplicated) {
 				groupn = ID_NEW_SET(group, BKE_group_copy(bmain, group));
 
-				FOREACH_GROUP_BASE(groupn, base)
+				FOREACH_GROUP_BASE_BEGIN(groupn, base)
 				{
 					base->object = (Object *)base->object->id.newid;
 				}
@@ -1740,20 +1740,17 @@ static void single_object_users(Main *bmain, Scene *scene, View3D *v3d, const in
 	libblock_relink_scene_collection(msc);
 
 	set_sca_new_poins();
-
-	/* TODO redo filter */
-	TODO_LAYER_SYNC_FILTER
 }
 
 /* not an especially efficient function, only added so the single user
  * button can be functional.*/
 void ED_object_single_user(Main *bmain, Scene *scene, Object *ob)
 {
-	FOREACH_SCENE_OBJECT(scene, ob_iter)
+	FOREACH_SCENE_OBJECT_BEGIN(scene, ob_iter)
 	{
 		ob_iter->flag &= ~OB_DONE;
 	}
-	FOREACH_SCENE_OBJECT_END
+	FOREACH_SCENE_OBJECT_END;
 
 	/* tag only the one object */
 	ob->flag |= OB_DONE;
@@ -1793,7 +1790,7 @@ static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer
 	ID *id;
 	int a;
 
-	FOREACH_OBJECT_FLAG(scene, view_layer, flag, ob)
+	FOREACH_OBJECT_FLAG_BEGIN(scene, view_layer, flag, ob)
 	{
 		if (!ID_IS_LINKED(ob)) {
 			id = ob->data;
@@ -1851,7 +1848,7 @@ static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer
 						printf("ERROR %s: can't copy %s\n", __func__, id->name);
 						BLI_assert(!"This should never happen.");
 
-						/* We need to end the FOREACH_OBJECT_FLAG iterator to prevent memory leak. */
+						/* We need to end the FOREACH_OBJECT_FLAG_BEGIN iterator to prevent memory leak. */
 						BKE_scene_objects_iterator_end(&iter_macro);
 						return;
 				}
@@ -1867,7 +1864,7 @@ static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer
 			}
 		}
 	}
-	FOREACH_OBJECT_FLAG_END
+	FOREACH_OBJECT_FLAG_END;
 
 	me = bmain->mesh.first;
 	while (me) {
@@ -1878,12 +1875,14 @@ static void single_obdata_users(Main *bmain, Scene *scene, ViewLayer *view_layer
 
 static void single_object_action_users(Scene *scene, ViewLayer *view_layer, const int flag)
 {
-	FOREACH_OBJECT_FLAG(scene, view_layer, flag, ob)
+	FOREACH_OBJECT_FLAG_BEGIN(scene, view_layer, flag, ob)
+	{
 		if (!ID_IS_LINKED(ob)) {
 			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 			BKE_animdata_copy_id_action(&ob->id, false);
 		}
-	FOREACH_OBJECT_FLAG_END
+	}
+	FOREACH_OBJECT_FLAG_END;
 }
 
 static void single_mat_users(Main *bmain, Scene *scene, ViewLayer *view_layer, const int flag, const bool do_textures)
@@ -1892,7 +1891,8 @@ static void single_mat_users(Main *bmain, Scene *scene, ViewLayer *view_layer, c
 	Tex *tex;
 	int a, b;
 
-	FOREACH_OBJECT_FLAG(scene, view_layer, flag, ob)
+	FOREACH_OBJECT_FLAG_BEGIN(scene, view_layer, flag, ob)
+	{
 		if (!ID_IS_LINKED(ob)) {
 			for (a = 1; a <= ob->totcol; a++) {
 				ma = give_current_material(ob, a);
@@ -1922,7 +1922,8 @@ static void single_mat_users(Main *bmain, Scene *scene, ViewLayer *view_layer, c
 				}
 			}
 		}
-	FOREACH_OBJECT_FLAG_END
+	}
+	FOREACH_OBJECT_FLAG_END;
 }
 
 static void do_single_tex_user(Main *bmain, Tex **from)
@@ -2047,13 +2048,13 @@ void ED_object_single_users(Main *bmain, Scene *scene, const bool full, const bo
 	{
 		IDP_RelinkProperty(scene->id.properties);
 
-		FOREACH_SCENE_OBJECT(scene, ob)
+		FOREACH_SCENE_OBJECT_BEGIN(scene, ob)
 		{
 			if (!ID_IS_LINKED(ob)) {
 				IDP_RelinkProperty(ob->id.properties);
 			}
 		}
-		FOREACH_SCENE_OBJECT_END
+		FOREACH_SCENE_OBJECT_END;
 
 		if (scene->nodetree) {
 			IDP_RelinkProperty(scene->nodetree->id.properties);
@@ -2335,42 +2336,190 @@ void OBJECT_OT_make_local(wmOperatorType *ot)
 	ot->prop = RNA_def_enum(ot->srna, "type", type_items, 0, "Type", "");
 }
 
-static int make_override_exec(bContext *C, wmOperator *UNUSED(op))
+
+static void make_override_static_tag_object(Object *obact, Object *ob)
+{
+	if (ob == obact) {
+		return;
+	}
+
+	if (!ID_IS_LINKED(ob)) {
+		return;
+	}
+
+	/* Note: all this is very case-by-case bad handling, ultimately we'll want a real full 'automatic', generic
+	 * handling of all this, will probably require adding some override-aware stuff to library_query code... */
+
+	if (obact->type == OB_ARMATURE && ob->modifiers.first != NULL) {
+		for (ModifierData *md = ob->modifiers.first; md != NULL; md = md->next) {
+			if (md->type == eModifierType_Armature) {
+				ArmatureModifierData *amd = (ArmatureModifierData *)md;
+				if (amd->object == obact) {
+					ob->id.tag |= LIB_TAG_DOIT;
+					break;
+				}
+			}
+		}
+	}
+	else if (ob->parent == obact) {
+		ob->id.tag |= LIB_TAG_DOIT;
+	}
+
+	if (ob->id.tag & LIB_TAG_DOIT) {
+		printf("Indirectly overriding %s for %s\n", ob->id.name, obact->id.name);
+	}
+}
+
+/* Set the object to override. */
+static int make_override_static_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *obact = ED_object_active_context(C);
+
+	/* Sanity checks. */
+	if (!scene || ID_IS_LINKED(scene) || !obact) {
+		return OPERATOR_CANCELLED;
+	}
+
+	/* Get object to work on - use a menu if we need to... */
+	if (!ID_IS_LINKED(obact) && obact->dup_group != NULL && ID_IS_LINKED(obact->dup_group)) {
+		/* Gives menu with list of objects in group. */
+		WM_enum_search_invoke(C, op, event);
+		return OPERATOR_CANCELLED;
+	}
+	else if (ID_IS_LINKED(obact)) {
+		uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("OK?"), ICON_QUESTION);
+		uiLayout *layout = UI_popup_menu_layout(pup);
+
+		/* Create operator menu item with relevant properties filled in. */
+		PointerRNA opptr_dummy;
+		uiItemFullO_ptr(layout, op->type, op->type->name, ICON_NONE, NULL,
+		                WM_OP_EXEC_REGION_WIN, 0, &opptr_dummy);
+
+		/* Present the menu and be done... */
+		UI_popup_menu_end(C, pup);
+
+		/* This invoke just calls another instance of this operator... */
+		return OPERATOR_INTERFACE;
+	}
+	else {
+		/* Error.. cannot continue. */
+		BKE_report(op->reports, RPT_ERROR, "Can only make static override for a referenced object or group");
+		return OPERATOR_CANCELLED;
+	}
+
+}
+
+static int make_override_static_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
-	Object *locobj, *refobj = CTX_data_active_object(C);
+	Object *obact = CTX_data_active_object(C);
 
-	locobj = (Object *)BKE_override_static_create_from(bmain, &refobj->id);
-	UNUSED_VARS(locobj);
+	bool success = false;
+
+	if (!ID_IS_LINKED(obact) && obact->dup_group != NULL && ID_IS_LINKED(obact->dup_group)) {
+		Base *base = BLI_findlink(&obact->dup_group->view_layer->object_bases, RNA_enum_get(op->ptr, "object"));
+		Object *obgroup = obact;
+		obact = base->object;
+
+		/* First, we make a static override of the linked group itself. */
+		obgroup->dup_group->id.tag |= LIB_TAG_DOIT;
+
+		/* Then, we tag our 'main' object and its detected dependencies to be also overridden. */
+		obact->id.tag |= LIB_TAG_DOIT;
+
+		FOREACH_GROUP_OBJECT_BEGIN(obgroup->dup_group, ob)
+		{
+			make_override_static_tag_object(obact, ob);
+		}
+		FOREACH_GROUP_OBJECT_END;
+
+		success = BKE_override_static_create_from_tag(bmain);
+
+		/* Intantiate our 'main' newly overridden object in scene, if not yet done. */
+		Scene *scene = CTX_data_scene(C);
+		ViewLayer *view_layer = CTX_data_view_layer(C);
+		Object *new_obact = (Object *)obact->id.newid;
+		if (new_obact != NULL && (base = BKE_view_layer_base_find(view_layer, new_obact)) == NULL) {
+			BKE_collection_object_add_from(scene, obgroup, new_obact);
+			base = BKE_view_layer_base_find(view_layer, new_obact);
+			BKE_view_layer_base_select(view_layer, base);
+		}
+
+		/* Parent the group instantiating object to the new overridden one, or vice-versa, if possible. */
+		if (obgroup->parent == NULL) {
+			obgroup->parent = new_obact;
+		}
+		else if (new_obact->parent == NULL) {
+			new_obact->parent = obgroup;
+		}
+
+		/* Also, we'd likely want to lock by default things like transformations of implicitly overriden objects? */
+
+		/* Cleanup. */
+		BKE_main_id_clear_newpoins(bmain);
+		BKE_main_id_tag_listbase(&bmain->object, LIB_TAG_DOIT, false);
+	}
+	/* Else, poll func ensures us that ID_IS_LINKED(obact) is true. */
+	else if (obact->type == OB_ARMATURE) {
+		BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
+
+		obact->id.tag |= LIB_TAG_DOIT;
+
+		for (Object *ob = bmain->object.first; ob != NULL; ob = ob->id.next) {
+			make_override_static_tag_object(obact, ob);
+		}
+
+		success = BKE_override_static_create_from_tag(bmain);
+
+		/* Also, we'd likely want to lock by default things like transformations of implicitly overriden objects? */
+
+		/* Cleanup. */
+		BKE_main_id_clear_newpoins(bmain);
+		BKE_main_id_tag_listbase(&bmain->object, LIB_TAG_DOIT, false);
+	}
+	/* TODO: probably more cases where we want ot do automated smart things in the future! */
+	else {
+		success = (BKE_override_static_create_from_id(bmain, &obact->id) != NULL);
+	}
 
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
-	return OPERATOR_FINISHED;
+	return success ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static int make_override_poll(bContext *C)
+static int make_override_static_poll(bContext *C)
 {
 	Object *obact = CTX_data_active_object(C);
 
 	/* Object must be directly linked to be overridable. */
-	return (ED_operator_objectmode(C) && obact && obact->id.lib != NULL && obact->id.tag & LIB_TAG_EXTERN);
+	return (ED_operator_objectmode(C) && obact != NULL &&
+	        ((ID_IS_LINKED(obact) && obact->id.tag & LIB_TAG_EXTERN) ||
+	         (!ID_IS_LINKED(obact) && obact->dup_group != NULL && ID_IS_LINKED(obact->dup_group))));
 }
 
-void OBJECT_OT_make_override(wmOperatorType *ot)
+void OBJECT_OT_make_override_static(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Make Override";
+	ot->name = "Make Static Override";
 	ot->description = "Make local override of this library linked data-block";
-	ot->idname = "OBJECT_OT_make_override";
+	ot->idname = "OBJECT_OT_make_override_static";
 
 	/* api callbacks */
-	ot->exec = make_override_exec;
-	ot->poll = make_override_poll;
+	ot->invoke = make_override_static_invoke;
+	ot->exec = make_override_static_exec;
+	ot->poll = make_override_static_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
+	PropertyRNA *prop;
+	prop = RNA_def_enum(ot->srna, "object", DummyRNA_DEFAULT_items, 0, "Override Object",
+	                    "Name of lib-linked/group object to make an override from");
+	RNA_def_enum_funcs(prop, proxy_group_object_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
+	ot->prop = prop;
 }
 
 enum {

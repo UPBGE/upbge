@@ -36,8 +36,8 @@
 #include "BLI_alloca.h"
 #include "BLI_math.h"
 #include "BLI_memarena.h"
-#include "BLI_polyfill2d.h"
-#include "BLI_polyfill2d_beautify.h"
+#include "BLI_polyfill_2d.h"
+#include "BLI_polyfill_2d_beautify.h"
 #include "BLI_linklist.h"
 #include "BLI_edgehash.h"
 #include "BLI_heap.h"
@@ -1426,6 +1426,17 @@ void BM_mesh_calc_tessellation(BMesh *bm, BMLoop *(*looptris)[3], int *r_looptri
 			(l_ptr_a[2] = l_ptr_b[1] = l = l->next);
 			(             l_ptr_b[2] = l->next);
 #endif
+
+			if (UNLIKELY(is_quad_flip_v3_first_third_fast(
+			                     l_ptr_a[0]->v->co,
+			                     l_ptr_a[1]->v->co,
+			                     l_ptr_a[2]->v->co,
+			                     l_ptr_b[2]->v->co)))
+			{
+				/* flip out of degenerate 0-2 state. */
+				l_ptr_a[2] = l_ptr_b[2];
+				l_ptr_b[0] = l_ptr_a[1];
+			}
 		}
 
 #endif /* USE_TESSFACE_SPEEDUP */

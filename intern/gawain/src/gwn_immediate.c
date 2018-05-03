@@ -14,6 +14,7 @@
 #include "gwn_attr_binding.h"
 #include "gwn_attr_binding_private.h"
 #include "gwn_vertex_format_private.h"
+#include "gwn_vertex_array_id.h"
 #include "gwn_primitive_private.h"
 #include <string.h>
 
@@ -27,6 +28,7 @@ typedef struct {
 #if IMM_BATCH_COMBO
 	Gwn_Batch* batch;
 #endif
+	Gwn_Context* context;
 
 	// current draw call
 	GLubyte* buffer_data;
@@ -86,8 +88,8 @@ void immActivate(void)
 	assert(imm.prim_type == GWN_PRIM_NONE); // make sure we're not between a Begin/End pair
 	assert(imm.vao_id == 0);
 #endif
-
 	imm.vao_id = GWN_vao_alloc();
+	imm.context = GWN_context_active_get();
 	}
 
 void immDeactivate(void)
@@ -97,8 +99,7 @@ void immDeactivate(void)
 	assert(imm.prim_type == GWN_PRIM_NONE); // make sure we're not between a Begin/End pair
 	assert(imm.vao_id != 0);
 #endif
-
-	GWN_vao_free(imm.vao_id);
+	GWN_vao_free(imm.vao_id, imm.context);
 	imm.vao_id = 0;
 	imm.prev_enabled_attrib_bits = 0;
 	}
@@ -139,8 +140,9 @@ void immUnbindProgram(void)
 #if TRUST_NO_ONE
 	assert(imm.bound_program != 0);
 #endif
-
+#if PROGRAM_NO_OPTI
 	glUseProgram(0);
+#endif
 	imm.bound_program = 0;
 	}
 
@@ -276,8 +278,6 @@ Gwn_Batch* immBeginBatch(Gwn_PrimType prim_type, unsigned vertex_ct)
 	imm.batch = GWN_batch_create(prim_type, verts, NULL);
 	imm.batch->phase = GWN_BATCH_BUILDING;
 
-	GWN_batch_program_set(imm.batch, imm.bound_program, imm.shader_interface);
-
 	return imm.batch;
 	}
 
@@ -397,6 +397,7 @@ void immEnd(void)
 			// TODO: resize only if vertex count is much smaller
 			}
 
+		GWN_batch_program_set(imm.batch, imm.bound_program, imm.shader_interface);
 		imm.batch->phase = GWN_BATCH_READY_TO_DRAW;
 		imm.batch = NULL; // don't free, batch belongs to caller
 		}
@@ -707,6 +708,12 @@ void immVertex2f(unsigned attrib_id, float x, float y)
 void immVertex3f(unsigned attrib_id, float x, float y, float z)
 	{
 	immAttrib3f(attrib_id, x, y, z);
+	immEndVertex();
+	}
+
+void immVertex4f(unsigned attrib_id, float x, float y, float z, float w)
+	{
+	immAttrib4f(attrib_id, x, y, z, w);
 	immEndVertex();
 	}
 

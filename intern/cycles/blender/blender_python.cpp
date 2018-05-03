@@ -21,6 +21,7 @@
 #include "blender/blender_sync.h"
 #include "blender/blender_session.h"
 
+#include "util/util_debug.h"
 #include "util/util_foreach.h"
 #include "util/util_logging.h"
 #include "util/util_md5.h"
@@ -68,7 +69,7 @@ bool debug_flags_sync_from_scene(BL::Scene b_scene)
 	flags.cpu.sse41 = get_boolean(cscene, "debug_use_cpu_sse41");
 	flags.cpu.sse3 = get_boolean(cscene, "debug_use_cpu_sse3");
 	flags.cpu.sse2 = get_boolean(cscene, "debug_use_cpu_sse2");
-	flags.cpu.qbvh = get_boolean(cscene, "debug_use_qbvh");
+	flags.cpu.bvh_layout = (BVHLayout)get_enum(cscene, "debug_bvh_layout");
 	flags.cpu.split_kernel = get_boolean(cscene, "debug_use_cpu_split_kernel");
 	/* Synchronize CUDA flags. */
 	flags.cuda.adaptive_compile = get_boolean(cscene, "debug_use_cuda_adaptive_compile");
@@ -202,10 +203,10 @@ static PyObject *exit_func(PyObject * /*self*/, PyObject * /*args*/)
 
 static PyObject *create_func(PyObject * /*self*/, PyObject *args)
 {
-	PyObject *pyengine, *pyuserpref, *pydata, *pygraph, *pyscene, *pyregion, *pyv3d, *pyrv3d;
+	PyObject *pyengine, *pyuserpref, *pydata, *pyscene, *pyregion, *pyv3d, *pyrv3d;
 	int preview_osl;
 
-	if(!PyArg_ParseTuple(args, "OOOOOOOOi", &pyengine, &pyuserpref, &pydata, &pygraph, &pyscene,
+	if(!PyArg_ParseTuple(args, "OOOOOOOi", &pyengine, &pyuserpref, &pydata, &pyscene,
 	                     &pyregion, &pyv3d, &pyrv3d, &preview_osl))
 	{
 		return NULL;
@@ -223,10 +224,6 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
 	PointerRNA dataptr;
 	RNA_main_pointer_create((Main*)PyLong_AsVoidPtr(pydata), &dataptr);
 	BL::BlendData data(dataptr);
-
-	PointerRNA graphptr;
-	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pygraph), &graphptr);
-	BL::Depsgraph graph(graphptr);
 
 	PointerRNA sceneptr;
 	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyscene), &sceneptr);
@@ -252,7 +249,7 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
 		int width = region.width();
 		int height = region.height();
 
-		session = new BlenderSession(engine, userpref, data, graph, scene, v3d, rv3d, width, height);
+		session = new BlenderSession(engine, userpref, data, scene, v3d, rv3d, width, height);
 	}
 	else {
 		/* override some settings for preview */
@@ -264,7 +261,7 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
 		}
 
 		/* offline session or preview render */
-		session = new BlenderSession(engine, userpref, data, graph, scene);
+		session = new BlenderSession(engine, userpref, data, scene);
 	}
 
 	python_thread_state_save(&session->python_thread_state);
@@ -283,13 +280,22 @@ static PyObject *free_func(PyObject * /*self*/, PyObject *value)
 	Py_RETURN_NONE;
 }
 
-static PyObject *render_func(PyObject * /*self*/, PyObject *value)
+static PyObject *render_func(PyObject * /*self*/, PyObject *args)
 {
-	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
+	PyObject *pysession, *pydepsgraph;
+
+	if(!PyArg_ParseTuple(args, "OO", &pysession, &pydepsgraph))
+		return NULL;
+
+	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(pysession);
+
+	PointerRNA depsgraphptr;
+	RNA_pointer_create(NULL, &RNA_Depsgraph, (ID*)PyLong_AsVoidPtr(pydepsgraph), &depsgraphptr);
+	BL::Depsgraph b_depsgraph(depsgraphptr);
 
 	python_thread_state_save(&session->python_thread_state);
 
-	session->render();
+	session->render(b_depsgraph);
 
 	python_thread_state_restore(&session->python_thread_state);
 
@@ -299,15 +305,19 @@ static PyObject *render_func(PyObject * /*self*/, PyObject *value)
 /* pixel_array and result passed as pointers */
 static PyObject *bake_func(PyObject * /*self*/, PyObject *args)
 {
-	PyObject *pysession, *pyobject;
+	PyObject *pysession, *pydepsgraph, *pyobject;
 	PyObject *pypixel_array, *pyresult;
 	const char *pass_type;
 	int num_pixels, depth, object_id, pass_filter;
 
-	if(!PyArg_ParseTuple(args, "OOsiiOiiO", &pysession, &pyobject, &pass_type, &pass_filter, &object_id, &pypixel_array, &num_pixels, &depth, &pyresult))
+	if(!PyArg_ParseTuple(args, "OOOsiiOiiO", &pysession, &pydepsgraph, &pyobject, &pass_type, &pass_filter, &object_id, &pypixel_array, &num_pixels, &depth, &pyresult))
 		return NULL;
 
 	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(pysession);
+
+	PointerRNA depsgraphptr;
+	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pydepsgraph), &depsgraphptr);
+	BL::Depsgraph b_depsgraph(depsgraphptr);
 
 	PointerRNA objectptr;
 	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyobject), &objectptr);
@@ -321,7 +331,7 @@ static PyObject *bake_func(PyObject * /*self*/, PyObject *args)
 
 	python_thread_state_save(&session->python_thread_state);
 
-	session->bake(b_object, pass_type, pass_filter, object_id, b_bake_pixel, (size_t)num_pixels, depth, (float *)b_result);
+	session->bake(b_depsgraph, b_object, pass_type, pass_filter, object_id, b_bake_pixel, (size_t)num_pixels, depth, (float *)b_result);
 
 	python_thread_state_restore(&session->python_thread_state);
 
@@ -374,13 +384,22 @@ static PyObject *reset_func(PyObject * /*self*/, PyObject *args)
 	Py_RETURN_NONE;
 }
 
-static PyObject *sync_func(PyObject * /*self*/, PyObject *value)
+static PyObject *sync_func(PyObject * /*self*/, PyObject *args)
 {
-	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
+	PyObject *pysession, *pydepsgraph;
+
+	if(!PyArg_ParseTuple(args, "OO", &pysession, &pydepsgraph))
+		return NULL;
+
+	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(pysession);
+
+	PointerRNA depsgraphptr;
+	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pydepsgraph), &depsgraphptr);
+	BL::Depsgraph b_depsgraph(depsgraphptr);
 
 	python_thread_state_save(&session->python_thread_state);
 
-	session->synchronize();
+	session->synchronize(b_depsgraph);
 
 	python_thread_state_restore(&session->python_thread_state);
 
@@ -752,10 +771,10 @@ static PyMethodDef methods[] = {
 	{"exit", exit_func, METH_VARARGS, ""},
 	{"create", create_func, METH_VARARGS, ""},
 	{"free", free_func, METH_O, ""},
-	{"render", render_func, METH_O, ""},
+	{"render", render_func, METH_VARARGS, ""},
 	{"bake", bake_func, METH_VARARGS, ""},
 	{"draw", draw_func, METH_VARARGS, ""},
-	{"sync", sync_func, METH_O, ""},
+	{"sync", sync_func, METH_VARARGS, ""},
 	{"reset", reset_func, METH_VARARGS, ""},
 #ifdef WITH_OSL
 	{"osl_update_node", osl_update_node_func, METH_VARARGS, ""},

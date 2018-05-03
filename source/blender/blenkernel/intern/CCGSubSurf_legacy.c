@@ -136,7 +136,10 @@ typedef struct CCGSubSurfCalcSubdivData {
 	int curLvl;
 } CCGSubSurfCalcSubdivData;
 
-static void ccgSubSurf__calcVertNormals_faces_accumulate_cb(void *userdata, int ptrIdx)
+static void ccgSubSurf__calcVertNormals_faces_accumulate_cb(
+        void *__restrict userdata,
+        const int ptrIdx,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	CCGSubSurfCalcSubdivData *data = userdata;
 
@@ -227,7 +230,10 @@ static void ccgSubSurf__calcVertNormals_faces_accumulate_cb(void *userdata, int 
 	}
 }
 
-static void ccgSubSurf__calcVertNormals_faces_finalize_cb(void *userdata, int ptrIdx)
+static void ccgSubSurf__calcVertNormals_faces_finalize_cb(
+        void *__restrict userdata,
+        const int ptrIdx,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	CCGSubSurfCalcSubdivData *data = userdata;
 
@@ -265,7 +271,10 @@ static void ccgSubSurf__calcVertNormals_faces_finalize_cb(void *userdata, int pt
 	}
 }
 
-static void ccgSubSurf__calcVertNormals_edges_accumulate_cb(void *userdata, int ptrIdx)
+static void ccgSubSurf__calcVertNormals_edges_accumulate_cb(
+        void *__restrict userdata,
+        const int ptrIdx,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	CCGSubSurfCalcSubdivData *data = userdata;
 
@@ -328,10 +337,15 @@ static void ccgSubSurf__calcVertNormals(CCGSubSurf *ss,
 	    .numEffectedF = numEffectedF
 	};
 
-	BLI_task_parallel_range(0, numEffectedF,
-	                        &data,
-	                        ccgSubSurf__calcVertNormals_faces_accumulate_cb,
-	                        numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT);
+	{
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.min_iter_per_thread = CCG_TASK_LIMIT;
+		BLI_task_parallel_range(0, numEffectedF,
+		                        &data,
+		                        ccgSubSurf__calcVertNormals_faces_accumulate_cb,
+		                        &settings);
+	}
 
 	/* XXX can I reduce the number of normalisations here? */
 	for (ptrIdx = 0; ptrIdx < numEffectedV; ptrIdx++) {
@@ -357,15 +371,25 @@ static void ccgSubSurf__calcVertNormals(CCGSubSurf *ss,
 		}
 	}
 
-	BLI_task_parallel_range(0, numEffectedE,
-	                        &data,
-	                        ccgSubSurf__calcVertNormals_edges_accumulate_cb,
-	                        numEffectedE * edgeSize * 4 >= CCG_OMP_LIMIT);
+	{
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.min_iter_per_thread = CCG_TASK_LIMIT;
+		BLI_task_parallel_range(0, numEffectedE,
+		                        &data,
+		                        ccgSubSurf__calcVertNormals_edges_accumulate_cb,
+		                        &settings);
+	}
 
-	BLI_task_parallel_range(0, numEffectedF,
-	                        &data,
-	                        ccgSubSurf__calcVertNormals_faces_finalize_cb,
-	                        numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT);
+	{
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.min_iter_per_thread = CCG_TASK_LIMIT;
+		BLI_task_parallel_range(0, numEffectedF,
+		                        &data,
+		                        ccgSubSurf__calcVertNormals_faces_finalize_cb,
+		                        &settings);
+	}
 
 	for (ptrIdx = 0; ptrIdx < numEffectedE; ptrIdx++) {
 		CCGEdge *e = (CCGEdge *) effectedE[ptrIdx];
@@ -396,7 +420,10 @@ static void ccgSubSurf__calcVertNormals(CCGSubSurf *ss,
 }
 
 
-static void ccgSubSurf__calcSubdivLevel_interior_faces_edges_midpoints_cb(void *userdata, int ptrIdx)
+static void ccgSubSurf__calcSubdivLevel_interior_faces_edges_midpoints_cb(
+        void *__restrict userdata,
+        const int ptrIdx,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	CCGSubSurfCalcSubdivData *data = userdata;
 
@@ -483,7 +510,10 @@ static void ccgSubSurf__calcSubdivLevel_interior_faces_edges_midpoints_cb(void *
 	}
 }
 
-static void ccgSubSurf__calcSubdivLevel_interior_faces_edges_centerpoints_shift_cb(void *userdata, int ptrIdx)
+static void ccgSubSurf__calcSubdivLevel_interior_faces_edges_centerpoints_shift_cb(
+        void *__restrict userdata,
+        const int ptrIdx,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	CCGSubSurfCalcSubdivData *data = userdata;
 
@@ -588,7 +618,10 @@ static void ccgSubSurf__calcSubdivLevel_interior_faces_edges_centerpoints_shift_
 	}
 }
 
-static void ccgSubSurf__calcSubdivLevel_verts_copydata_cb(void *userdata, int ptrIdx)
+static void ccgSubSurf__calcSubdivLevel_verts_copydata_cb(
+        void *__restrict userdata,
+        const int ptrIdx,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	CCGSubSurfCalcSubdivData *data = userdata;
 
@@ -647,10 +680,15 @@ static void ccgSubSurf__calcSubdivLevel(
 	    .curLvl = curLvl
 	};
 
-	BLI_task_parallel_range(0, numEffectedF,
-	                        &data,
-	                        ccgSubSurf__calcSubdivLevel_interior_faces_edges_midpoints_cb,
-	                        numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT);
+	{
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.min_iter_per_thread = CCG_TASK_LIMIT;
+		BLI_task_parallel_range(0, numEffectedF,
+		                        &data,
+		                        ccgSubSurf__calcSubdivLevel_interior_faces_edges_midpoints_cb,
+		                        &settings);
+	}
 
 	/* exterior edge midpoints
 	 * - old exterior edge points
@@ -925,10 +963,15 @@ static void ccgSubSurf__calcSubdivLevel(
 		}
 	}
 
-	BLI_task_parallel_range(0, numEffectedF,
-	                        &data,
-	                        ccgSubSurf__calcSubdivLevel_interior_faces_edges_centerpoints_shift_cb,
-	                        numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT);
+	{
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.min_iter_per_thread = CCG_TASK_LIMIT;
+		BLI_task_parallel_range(0, numEffectedF,
+		                        &data,
+		                        ccgSubSurf__calcSubdivLevel_interior_faces_edges_centerpoints_shift_cb,
+		                        &settings);
+	}
 
 	/* copy down */
 	edgeSize = ccg_edgesize(nextLvl);
@@ -940,10 +983,15 @@ static void ccgSubSurf__calcSubdivLevel(
 		VertDataCopy(EDGE_getCo(e, nextLvl, edgeSize - 1), VERT_getCo(e->v1, nextLvl), ss);
 	}
 
-	BLI_task_parallel_range(0, numEffectedF,
-	                        &data,
-	                        ccgSubSurf__calcSubdivLevel_verts_copydata_cb,
-	                        numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT);
+	{
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.min_iter_per_thread = CCG_TASK_LIMIT;
+		BLI_task_parallel_range(0, numEffectedF,
+		                        &data,
+		                        ccgSubSurf__calcSubdivLevel_verts_copydata_cb,
+		                        &settings);
+	}
 }
 
 void ccgSubSurf__sync_legacy(CCGSubSurf *ss)

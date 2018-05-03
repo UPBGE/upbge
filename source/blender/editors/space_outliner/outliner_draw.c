@@ -247,49 +247,16 @@ static void restrictbutton_gp_layer_flag_cb(bContext *C, void *UNUSED(poin), voi
 	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
 }
 
-static void enablebutton_collection_flag_cb(bContext *C, void *poin, void *poin2)
-{
-	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
-	ID *id = poin;
-	LayerCollection *layer_collection = poin2;
-	ViewLayer *view_layer = BKE_view_layer_find_from_collection(id, layer_collection);
-
-	/* TODO: This breaks when you see the collections of a group. (dfelinto) */
-	if (view_layer == NULL) {
-		WM_reportf(RPT_INFO, "Enable/disable of group collections disabled for now");
-		return;
-	}
-
-	/* We need to toggle the flag since this is called after the flag is already set. */
-	layer_collection->flag ^= COLLECTION_DISABLED;
-
-	if (layer_collection->flag & COLLECTION_DISABLED) {
-		BKE_collection_enable(view_layer, layer_collection);
-	}
-	else {
-		BKE_collection_disable(view_layer, layer_collection);
-	}
-
-	DEG_relations_tag_update(bmain);
-	/* TODO(sergey): Use proper flag for tagging here. */
-	DEG_id_tag_update(&scene->id, 0);
-	WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-	WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, NULL);
-}
-
 static void restrictbutton_collection_flag_cb(bContext *C, void *poin, void *UNUSED(poin2))
 {
 	ID *id = (ID *)poin;
 
-	/* hide and deselect bases that are directly influenced by this LayerCollection */
 	/* TODO(sergey): Use proper flag for tagging here. */
 	DEG_id_tag_update(id, 0);
 
 	if (GS(id->name) == ID_SCE) {
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, id);
 	}
-
 	WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, NULL);
 }
 
@@ -442,7 +409,8 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 				case TSE_LAYER_COLLECTION:
 				{
 					SceneCollection *sc = outliner_scene_collection_from_tree_element(te);
-					BKE_collection_rename(scene, sc, te->name);
+					BKE_collection_rename(tselem->id, sc, te->name);
+					WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 					break;
 				}
 			}
@@ -602,21 +570,6 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 
 				UI_block_emboss_set(block, UI_EMBOSS_NONE);
 
-				bt = uiDefIconButBitS(block, UI_BTYPE_BUT_TOGGLE, COLLECTION_DISABLED, 0,
-				                      is_enabled ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT,
-				                      (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_ENABLEX), te->ys, UI_UNIT_X,
-				                      UI_UNIT_Y, &collection->flag, 0, 0, 0, 0,
-				                      TIP_("Enable/Disable collection from depsgraph"));
-				UI_but_func_set(bt, enablebutton_collection_flag_cb, tselem->id, collection);
-				UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
-
-				bt = uiDefIconButBitS(block, UI_BTYPE_ICON_TOGGLE_N, COLLECTION_VISIBLE, 0, ICON_RESTRICT_VIEW_OFF,
-				                      (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX), te->ys, UI_UNIT_X,
-				                      UI_UNIT_Y, &collection->flag, 0, 0, 0, 0,
-				                      TIP_("Restrict/Allow 3D View visibility of objects in the collection"));
-				UI_but_func_set(bt, restrictbutton_collection_flag_cb, tselem->id, collection);
-				UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
-
 				if (collection->scene_collection->type == COLLECTION_TYPE_NONE) {
 					bt = uiDefIconButBitS(block, UI_BTYPE_ICON_TOGGLE_N, COLLECTION_SELECTABLE, 0, ICON_RESTRICT_SELECT_OFF,
 					                      (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_SELECTX), te->ys, UI_UNIT_X,
@@ -625,6 +578,31 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 					UI_but_func_set(bt, restrictbutton_collection_flag_cb, scene, collection);
 					UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
 				}
+				else if ((soops->outlinevis == SO_GROUPS) &&
+				         (collection->scene_collection->type == COLLECTION_TYPE_GROUP_INTERNAL))
+				{
+					bt = uiDefIconButBitS(block, UI_BTYPE_ICON_TOGGLE_N, COLLECTION_VIEWPORT, 0, ICON_RESTRICT_VIEW_OFF,
+					                      (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX), te->ys, UI_UNIT_X,
+					                      UI_UNIT_Y, &collection->flag, 0, 0, 0, 0,
+					                      TIP_("Restrict/Allow 3D View selection of objects in the collection"));
+					UI_but_func_set(bt, restrictbutton_collection_flag_cb, tselem->id, collection);
+					UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
+
+					bt = uiDefIconButBitS(block, UI_BTYPE_ICON_TOGGLE_N, COLLECTION_RENDER, 0, ICON_RESTRICT_RENDER_OFF,
+					                      (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_SELECTX), te->ys, UI_UNIT_X,
+					                      UI_UNIT_Y, &collection->flag, 0, 0, 0, 0,
+					                      TIP_("Restrict/Allow 3D View selection of objects in the collection"));
+					UI_but_func_set(bt, restrictbutton_collection_flag_cb, tselem->id, collection);
+					UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
+				}
+
+				bt = uiDefIconButBitS(block, UI_BTYPE_BUT_TOGGLE, COLLECTION_DISABLED, 0,
+				                      is_enabled ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT,
+				                      (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX), te->ys, UI_UNIT_X,
+				                      UI_UNIT_Y, &collection->flag, 0, 0, 0, 0,
+				                      TIP_("Enable/Disable collection"));
+				UI_but_func_set(bt, restrictbutton_collection_flag_cb, tselem->id, collection);
+				UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
 
 				UI_block_emboss_set(block, UI_EMBOSS);
 			}
@@ -1131,6 +1109,10 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 					ICON_DRAW(icon);
 				}
 				break;
+			case TSE_LAYER_COLLECTION:
+			case TSE_SCENE_COLLECTION:
+				ICON_DRAW(ICON_COLLAPSEMENU);
+				break;
 			/* Removed the icons from outliner. Need a better structure with Layers, Palettes and Colors */
 #if 0
 			case TSE_GP_LAYER:
@@ -1253,8 +1235,9 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 #undef ICON_DRAW
 }
 
-static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, ViewLayer *view_layer, SpaceOops *soops,
-                                  ListBase *lb, int level, int xmax, int *offsx, int ys, float alpha_fac)
+static void outliner_draw_iconrow(
+        bContext *C, uiBlock *block, Scene *scene, ViewLayer *view_layer, Object *obedit, SpaceOops *soops,
+        ListBase *lb, int level, int xmax, int *offsx, int ys, float alpha_fac)
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
@@ -1275,7 +1258,7 @@ static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, Vie
 				if (te->idcode == ID_OB) {
 					active = (OBACT(view_layer) == (Object *)tselem->id) ? OL_DRAWSEL_NORMAL : OL_DRAWSEL_NONE;
 				}
-				else if (scene->obedit && scene->obedit->data == tselem->id) {
+				else if (obedit && obedit->data == tselem->id) {
 					active = OL_DRAWSEL_NORMAL;
 				}
 				else {
@@ -1315,7 +1298,9 @@ static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, Vie
 		
 		/* this tree element always has same amount of branches, so don't draw */
 		if (tselem->type != TSE_R_LAYER)
-			outliner_draw_iconrow(C, block, scene, view_layer, soops, &te->subtree, level + 1, xmax, offsx, ys, alpha_fac);
+			outliner_draw_iconrow(
+			        C, block, scene, view_layer, obedit, soops,
+			        &te->subtree, level + 1, xmax, offsx, ys, alpha_fac);
 	}
 	
 }
@@ -1339,7 +1324,7 @@ static void outliner_set_coord_tree_element(TreeElement *te, int startx, int sta
 
 
 static void outliner_draw_tree_element(
-        bContext *C, uiBlock *block, const uiFontStyle *fstyle, Scene *scene, ViewLayer *view_layer,
+        bContext *C, uiBlock *block, const uiFontStyle *fstyle, Scene *scene, ViewLayer *view_layer, Object *obedit,
         ARegion *ar, SpaceOops *soops, TreeElement *te, bool draw_grayed_out,
         int startx, int *starty, TreeElement **te_edit, TreeElement **te_floating)
 {
@@ -1378,22 +1363,24 @@ static void outliner_draw_tree_element(
 			}
 			else if (te->idcode == ID_OB) {
 				Object *ob = (Object *)tselem->id;
-				
-				if (ob == OBACT(view_layer) || (ob->flag & SELECT)) {
+				Base *base = (Base *)te->directdata;
+				const bool is_selected = (base != NULL) && ((base->flag & BASE_SELECTED) != 0);
+
+				if (ob == OBACT(view_layer) || is_selected) {
 					char col[4] = {0, 0, 0, 0};
 					
 					/* outliner active ob: always white text, circle color now similar to view3d */
 					
 					active = OL_DRAWSEL_ACTIVE;
 					if (ob == OBACT(view_layer)) {
-						if (ob->flag & SELECT) {
+						if (is_selected) {
 							UI_GetThemeColorType4ubv(TH_ACTIVE, SPACE_VIEW3D, col);
 							col[3] = alpha;
 						}
 						
 						active = OL_DRAWSEL_NORMAL;
 					}
-					else if (ob->flag & SELECT) {
+					else if (is_selected) {
 						UI_GetThemeColorType4ubv(TH_SELECT, SPACE_VIEW3D, col);
 						col[3] = alpha;
 					}
@@ -1401,7 +1388,7 @@ static void outliner_draw_tree_element(
 				}
 			
 			}
-			else if (scene->obedit && scene->obedit->data == tselem->id) {
+			else if (obedit && obedit->data == tselem->id) {
 				rgba_float_args_set(color, 1.0f, 1.0f, 1.0f, alpha);
 				active = OL_DRAWSEL_ACTIVE;
 			}
@@ -1432,13 +1419,12 @@ static void outliner_draw_tree_element(
 			te->flag |= TE_ACTIVE; // for lookup in display hierarchies
 		}
 		
+		if ((soops->outlinevis == SO_COLLECTIONS) && (tselem->type == TSE_SCENE_COLLECTION) && (te->parent == NULL)) {
+			/* Master collection can't expand/collapse. */
+		}
+		else if (te->subtree.first || (tselem->type == 0 && te->idcode == ID_SCE) || (te->flag & TE_LAZY_CLOSED)) {
 		/* open/close icon, only when sublevels, except for scene */
-		if (te->subtree.first || (tselem->type == 0 && te->idcode == ID_SCE) || (te->flag & TE_LAZY_CLOSED)) {
-			int icon_x;
-			if (tselem->type == 0 && ELEM(te->idcode, ID_OB, ID_SCE))
-				icon_x = startx;
-			else
-				icon_x = startx + 5 * ufac;
+			int icon_x = startx;
 
 			// icons a bit higher
 			if (TSELEM_OPEN(tselem, soops))
@@ -1472,6 +1458,11 @@ static void outliner_draw_tree_element(
 				UI_icon_draw_alpha((float)startx + offsx + 2 * ufac, (float)*starty + 2 * ufac, ICON_LIBRARY_DATA_DIRECT,
 				                   alpha_fac);
 			}
+			offsx += UI_UNIT_X + 2 * ufac;
+		}
+		else if (tselem->type == 0 && ID_IS_STATIC_OVERRIDE(tselem->id)) {
+			UI_icon_draw_alpha((float)startx + offsx + 2 * ufac, (float)*starty + 2 * ufac, ICON_LIBRARY_DATA_OVERRIDE,
+			                   alpha_fac);
 			offsx += UI_UNIT_X + 2 * ufac;
 		}
 		glDisable(GL_BLEND);
@@ -1527,8 +1518,9 @@ static void outliner_draw_tree_element(
 						immUnbindProgram();
 					}
 
-					outliner_draw_iconrow(C, block, scene, view_layer, soops, &te->subtree, 0, xmax, &tempx,
-					                      *starty, alpha_fac);
+					outliner_draw_iconrow(
+					        C, block, scene, view_layer, obedit, soops, &te->subtree, 0, xmax, &tempx,
+					        *starty, alpha_fac);
 
 					glDisable(GL_BLEND);
 				}
@@ -1547,8 +1539,10 @@ static void outliner_draw_tree_element(
 			/* check if element needs to be drawn grayed out, but also gray out
 			 * childs of a grayed out parent (pass on draw_grayed_out to childs) */
 			bool draw_childs_grayed_out = draw_grayed_out || (ten->drag_data != NULL);
-			outliner_draw_tree_element(C, block, fstyle, scene, view_layer, ar, soops, ten, draw_childs_grayed_out,
-			                           startx + UI_UNIT_X, starty, te_edit, te_floating);
+			outliner_draw_tree_element(
+			        C, block, fstyle, scene, view_layer, obedit,
+			        ar, soops, ten, draw_childs_grayed_out,
+			        startx + UI_UNIT_X, starty, te_edit, te_floating);
 		}
 	}
 	else {
@@ -1612,7 +1606,7 @@ static void outliner_draw_hierarchy_lines_recursive(unsigned pos, SpaceOops *soo
                                                     const unsigned char col[4], bool draw_grayed_out,
                                                     int *starty)
 {
-	TreeElement *te;
+	TreeElement *te, *te_vertical_line_last = NULL;
 	TreeStoreElem *tselem;
 	int y1, y2;
 
@@ -1622,10 +1616,10 @@ static void outliner_draw_hierarchy_lines_recursive(unsigned pos, SpaceOops *soo
 
 	const unsigned char grayed_alpha = col[3] / 2;
 
-	y1 = y2 = *starty; /* for vertical lines between objects */
+	/* For vertical lines between objects. */
+	y1 = *starty;
 	for (te = lb->first; te; te = te->next) {
 		bool draw_childs_grayed_out = draw_grayed_out || (te->drag_data != NULL);
-		y2 = *starty;
 		tselem = TREESTORE(te);
 
 		if (draw_childs_grayed_out) {
@@ -1635,10 +1629,17 @@ static void outliner_draw_hierarchy_lines_recursive(unsigned pos, SpaceOops *soo
 			immUniformColor4ubv(col);
 		}
 
-		/* horizontal line? */
-		if (tselem->type == 0 && (te->idcode == ID_OB || te->idcode == ID_SCE))
+		/* Horizontal Line? */
+		if (tselem->type == 0 && (te->idcode == ID_OB || te->idcode == ID_SCE)) {
 			immRecti(pos, startx, *starty, startx + UI_UNIT_X, *starty - 1);
-			
+
+			/* Vertical Line? */
+			if (te->idcode == ID_OB) {
+				te_vertical_line_last = te;
+				y2 = *starty;
+			}
+		}
+
 		*starty -= UI_UNIT_Y;
 		
 		if (TSELEM_OPEN(tselem, soops))
@@ -1653,12 +1654,10 @@ static void outliner_draw_hierarchy_lines_recursive(unsigned pos, SpaceOops *soo
 		immUniformColor4ubv(col);
 	}
 
-	/* vertical line */
-	te = lb->last;
-	if (te->parent || lb->first != lb->last) {
-		tselem = TREESTORE(te);
-		if (tselem->type == 0 && te->idcode == ID_OB)
-			immRecti(pos, startx, y1 + UI_UNIT_Y, startx + 1, y2);
+	/* Vertical line. */
+	te = te_vertical_line_last;
+	if ((te != NULL) && (te->parent || lb->first != lb->last)) {
+		immRecti(pos, startx, y1 + UI_UNIT_Y, startx + 1, y2);
 	}
 }
 
@@ -1724,7 +1723,9 @@ static void outliner_draw_highlights_recursive(
         int start_x, int *io_start_y)
 {
 	const bool is_searching = SEARCHING_OUTLINER(soops) ||
-	                          (soops->outlinevis == SO_DATABLOCKS && soops->search_string[0] != 0);
+	                          (soops->outlinevis == SO_DATABLOCKS &&
+	                           (soops->filter & SO_FILTER_SEARCH) &&
+	                           soops->search_string[0] != 0);
 
 	for (TreeElement *te = lb->first; te; te = te->next) {
 		const TreeStoreElem *tselem = TREESTORE(te);
@@ -1780,17 +1781,17 @@ static void outliner_draw_highlights(ARegion *ar, SpaceOops *soops, int startx, 
 }
 
 static void outliner_draw_tree(
-        bContext *C, uiBlock *block, Scene *scene, ViewLayer *view_layer, ARegion *ar,
-        SpaceOops *soops, const bool has_restrict_icons,
+        bContext *C, uiBlock *block, Scene *scene, ViewLayer *view_layer, Object *obedit,
+        ARegion *ar, SpaceOops *soops, const bool has_restrict_icons,
         TreeElement **te_edit)
 {
 	const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 	TreeElement *te_floating = NULL;
 	int starty, startx;
 
-	glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA); // only once
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // only once
 
-	if (ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF)) {
+	if (soops->outlinevis == SO_DATABLOCKS) {
 		/* struct marks */
 		starty = (int)ar->v2d.tot.ymax - UI_UNIT_Y - OL_Y_OFFSET;
 		outliner_draw_struct_marks(ar, soops, &soops->tree, &starty);
@@ -1814,15 +1815,17 @@ static void outliner_draw_tree(
 	// gray hierarchy lines
 	
 	starty = (int)ar->v2d.tot.ymax - UI_UNIT_Y / 2 - OL_Y_OFFSET;
-	startx = 6;
+	startx = UI_UNIT_X / 2 - 1.0f;
 	outliner_draw_hierarchy_lines(soops, &soops->tree, startx, &starty);
 
 	// items themselves
 	starty = (int)ar->v2d.tot.ymax - UI_UNIT_Y - OL_Y_OFFSET;
 	startx = 0;
 	for (TreeElement *te = soops->tree.first; te; te = te->next) {
-		outliner_draw_tree_element(C, block, fstyle, scene, view_layer, ar, soops, te, te->drag_data != NULL,
-		                           startx, &starty, te_edit, &te_floating);
+		outliner_draw_tree_element(
+		        C, block, fstyle, scene, view_layer, obedit,
+		        ar, soops, te, te->drag_data != NULL,
+		        startx, &starty, te_edit, &te_floating);
 	}
 	if (te_floating && te_floating->drag_data->insert_handle) {
 		outliner_draw_tree_element_floating(ar, te_floating);
@@ -1879,15 +1882,12 @@ static void outliner_draw_restrictcols(ARegion *ar)
 	immUniformThemeColorShadeAlpha(TH_BACK, -15, -200);
 	immBegin(GWN_PRIM_LINES, 6);
 
-	/* view */
 	immVertex2i(pos, (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX), (int)ar->v2d.cur.ymax);
 	immVertex2i(pos, (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX), (int)ar->v2d.cur.ymin);
 
-	/* render */
 	immVertex2i(pos, (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_SELECTX), (int)ar->v2d.cur.ymax);
 	immVertex2i(pos, (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_SELECTX), (int)ar->v2d.cur.ymin);
 
-	/* render */
 	immVertex2i(pos, (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX), (int)ar->v2d.cur.ymax);
 	immVertex2i(pos, (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX), (int)ar->v2d.cur.ymin);
 
@@ -1900,6 +1900,9 @@ static void outliner_draw_restrictcols(ARegion *ar)
 
 void draw_outliner(const bContext *C)
 {
+	EvaluationContext eval_ctx;
+	CTX_data_eval_ctx(C, &eval_ctx);
+	Object *obedit = OBEDIT_FROM_EVAL_CTX(&eval_ctx);
 	Main *mainvar = CTX_data_main(C); 
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1911,12 +1914,12 @@ void draw_outliner(const bContext *C)
 	TreeElement *te_edit = NULL;
 	bool has_restrict_icons;
 
-	outliner_build_tree(mainvar, scene, view_layer, soops); // always
+	outliner_build_tree(mainvar, &eval_ctx, scene, view_layer, soops, ar); // always
 	
 	/* get extents of data */
 	outliner_height(soops, &soops->tree, &sizey);
 
-	if (ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF)) {
+	if (soops->outlinevis == SO_DATABLOCKS) {
 		/* RNA has two columns:
 		 *  - column 1 is (max_width + OL_RNA_COL_SPACEX) or
 		 *				 (OL_RNA_COL_X), whichever is wider...
@@ -1941,8 +1944,9 @@ void draw_outliner(const bContext *C)
 		
 		/* constant offset for restriction columns */
 		// XXX this isn't that great yet...
-		if ((soops->flag & SO_HIDE_RESTRICTCOLS) == 0)
+		if ((soops->flag & SO_HIDE_RESTRICTCOLS) == 0) {
 			sizex += OL_TOGW * 3;
+		}
 
 		has_restrict_icons = !(soops->flag & SO_HIDE_RESTRICTCOLS);
 	}
@@ -1961,9 +1965,11 @@ void draw_outliner(const bContext *C)
 	/* draw outliner stuff (background, hierarchy lines and names) */
 	outliner_back(ar);
 	block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
-	outliner_draw_tree((bContext *)C, block, scene, view_layer, ar, soops, has_restrict_icons, &te_edit);
-	
-	if (ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF)) {
+	outliner_draw_tree(
+	        (bContext *)C, block, scene, view_layer, obedit,
+	        ar, soops, has_restrict_icons, &te_edit);
+
+	if (soops->outlinevis == SO_DATABLOCKS) {
 		/* draw rna buttons */
 		outliner_draw_rnacols(ar, sizex_rna);
 		outliner_draw_rnabuts(block, ar, soops, sizex_rna, &soops->tree);

@@ -419,7 +419,7 @@ static Frame **collect_hull_frames(int v, SkinNode *frames,
 	int nbr, i;
 
 	(*tothullframe) = emap[v].count;
-	hull_frames = MEM_callocN(sizeof(Frame *) * (*tothullframe),
+	hull_frames = MEM_calloc_arrayN((*tothullframe), sizeof(Frame *),
 	                          "hull_from_frames.hull_frames");
 	i = 0;
 	for (nbr = 0; nbr < emap[v].count; nbr++) {
@@ -600,7 +600,7 @@ static SkinNode *build_frames(const MVert *mvert, int totvert,
 	SkinNode *skin_nodes;
 	int v;
 
-	skin_nodes = MEM_callocN(sizeof(SkinNode) * totvert, "build_frames.skin_nodes");
+	skin_nodes = MEM_calloc_arrayN(totvert, sizeof(SkinNode), "build_frames.skin_nodes");
 
 	for (v = 0; v < totvert; v++) {
 		if (emap[v].count <= 1)
@@ -722,7 +722,7 @@ static EMat *build_edge_mats(const MVertSkin *vs,
 	stack = BLI_stack_new(sizeof(stack_elem), "build_edge_mats.stack");
 
 	visited_e = BLI_BITMAP_NEW(totedge, "build_edge_mats.visited_e");
-	emat = MEM_callocN(sizeof(EMat) * totedge, "build_edge_mats.emat");
+	emat = MEM_calloc_arrayN(totedge, sizeof(EMat), "build_edge_mats.emat");
 
 	/* Edge matrices are built from the root nodes, add all roots with
 	 * children to the stack */
@@ -836,14 +836,14 @@ static DerivedMesh *subdivide_base(DerivedMesh *orig)
 	totorigedge = orig->getNumEdges(orig);
 
 	/* Get degree of all vertices */
-	degree = MEM_callocN(sizeof(int) * totorigvert, "degree");
+	degree = MEM_calloc_arrayN(totorigvert, sizeof(int), "degree");
 	for (i = 0; i < totorigedge; i++) {
 		degree[origedge[i].v1]++;
 		degree[origedge[i].v2]++;
 	}
 
 	/* Per edge, store how many subdivisions are needed */
-	edge_subd = MEM_callocN(sizeof(int) * totorigedge, "edge_subd");
+	edge_subd = MEM_calloc_arrayN(totorigedge, sizeof(int), "edge_subd");
 	for (i = 0, totsubd = 0; i < totorigedge; i++) {
 		edge_subd[i] += calc_edge_subdivisions(origvert, orignode,
 		                                       &origedge[i], degree);
@@ -882,7 +882,7 @@ static DerivedMesh *subdivide_base(DerivedMesh *orig)
 		if (origdvert) {
 			const MDeformVert *dv1 = &origdvert[e->v1];
 			const MDeformVert *dv2 = &origdvert[e->v2];
-			vgroups = MEM_callocN(sizeof(*vgroups) * dv1->totweight, "vgroup");
+			vgroups = MEM_calloc_arrayN(dv1->totweight, sizeof(*vgroups), "vgroup");
 
 			/* Only want vertex groups used by both vertices */
 			for (j = 0; j < dv1->totweight; j++) {
@@ -1304,9 +1304,9 @@ static void skin_fix_hole_no_good_verts(BMesh *bm, Frame *frame, BMFace *split_f
 	else if (split_face->len > 4) {
 		/* Maintain a dynamic vert array containing the split_face's
 		 * vertices, avoids frequent allocs in collapse_face_corners() */
-		if (BLI_array_count(vert_buf) < split_face->len) {
+		if (BLI_array_len(vert_buf) < split_face->len) {
 			BLI_array_grow_items(vert_buf, (split_face->len -
-			                                BLI_array_count(vert_buf)));
+			                                BLI_array_len(vert_buf)));
 		}
 
 		/* Get split face's verts */
@@ -1470,7 +1470,7 @@ static void hull_merge_triangles(SkinOutput *so, const SkinModifierData *smd)
 	while (!BLI_heap_is_empty(heap)) {
 		BMFace *adj[2];
 
-		e = BLI_heap_popmin(heap);
+		e = BLI_heap_pop_min(heap);
 
 		if (BM_edge_face_pair(e, &adj[0], &adj[1])) {
 			/* If both triangles still free, and if they don't already

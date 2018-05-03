@@ -67,7 +67,7 @@ EffectsExporter::EffectsExporter(COLLADASW::StreamWriter *sw, const ExportSettin
 
 bool EffectsExporter::hasEffects(Scene *sce)
 {
-	FOREACH_SCENE_OBJECT(scene, ob)
+	FOREACH_SCENE_OBJECT_BEGIN(sce, ob)
 	{
 		int a;
 		for (a = 0; a < ob->totcol; a++) {
@@ -79,7 +79,7 @@ bool EffectsExporter::hasEffects(Scene *sce)
 			return true;
 		}
 	}
-	FOREACH_SCENE_OBJECT_END
+	FOREACH_SCENE_OBJECT_END;
 	return false;
 }
 

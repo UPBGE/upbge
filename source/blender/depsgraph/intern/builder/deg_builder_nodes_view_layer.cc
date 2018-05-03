@@ -84,15 +84,15 @@ void DepsgraphNodeBuilder::build_view_layer(
 		 * otherwise remapping will not replace objects with their CoW versions
 		 * for CoW bases.
 		 */
-		LINKLIST_FOREACH(Base *, base, &view_layer->object_bases) {
+		LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
 			Object *object = base->object;
-			add_id_node(&object->id, false);
+			add_id_node(&object->id);
 		}
 		/* Create ID node for nested ID of nodetree as well, otherwise remapping
 		 * will not work correct either.
 		 */
 		if (scene->nodetree != NULL) {
-			add_id_node(&scene->nodetree->id, false);
+			add_id_node(&scene->nodetree->id);
 		}
 		/* Make sure we've got ID node, so we can get pointer to CoW datablock.
 		 */
@@ -145,15 +145,15 @@ void DepsgraphNodeBuilder::build_view_layer(
 		build_gpencil(scene->gpd);
 	}
 	/* Cache file. */
-	LINKLIST_FOREACH (CacheFile *, cachefile, &bmain_->cachefiles) {
+	LISTBASE_FOREACH (CacheFile *, cachefile, &bmain_->cachefiles) {
 		build_cachefile(cachefile);
 	}
 	/* Masks. */
-	LINKLIST_FOREACH (Mask *, mask, &bmain_->mask) {
+	LISTBASE_FOREACH (Mask *, mask, &bmain_->mask) {
 		build_mask(mask);
 	}
 	/* Movie clips. */
-	LINKLIST_FOREACH (MovieClip *, clip, &bmain_->movieclip) {
+	LISTBASE_FOREACH (MovieClip *, clip, &bmain_->movieclip) {
 		build_movieclip(clip);
 	}
 	/* Collections. */

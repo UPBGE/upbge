@@ -1890,7 +1890,7 @@ static void drawAutoKeyWarning(TransInfo *UNUSED(t), ARegion *ar)
 #endif
 	
 	/* autokey recording icon... */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 	
 	xco -= U.widget_unit;
@@ -1969,7 +1969,7 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 	}
 
 	// If modal, save settings back in scene if not set as operator argument
-	if (t->flag & T_MODAL) {
+	if ((t->flag & T_MODAL) || (op->flag & OP_IS_REPEAT)) {
 		/* save settings if not set in operator */
 
 		/* skip saving proportional edit if it was not actually used */
@@ -1989,10 +1989,9 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 					ts->proportional_objects = (proportional != PROP_EDIT_OFF);
 			}
 
-			if ((prop = RNA_struct_find_property(op->ptr, "proportional_size")) &&
-			    !RNA_property_is_set(op->ptr, prop))
-			{
-				ts->proportional_size = t->prop_size;
+			if ((prop = RNA_struct_find_property(op->ptr, "proportional_size"))) {
+				ts->proportional_size =
+				        RNA_property_is_set(op->ptr, prop) ? RNA_property_float_get(op->ptr, prop) : t->prop_size;
 			}
 
 			if ((prop = RNA_struct_find_property(op->ptr, "proportional_edit_falloff")) &&
@@ -2625,10 +2624,7 @@ static void constraintTransLim(TransInfo *t, TransData *td)
 	if (td->con) {
 		const bConstraintTypeInfo *ctiLoc = BKE_constraint_typeinfo_from_type(CONSTRAINT_TYPE_LOCLIMIT);
 		const bConstraintTypeInfo *ctiDist = BKE_constraint_typeinfo_from_type(CONSTRAINT_TYPE_DISTLIMIT);
-		EvaluationContext eval_ctx;
 
-		CTX_data_eval_ctx(t->context, &eval_ctx);
-		
 		bConstraintOb cob = {NULL};
 		bConstraint *con;
 		float ctime = (float)(t->scene->r.cfra);
@@ -2677,7 +2673,7 @@ static void constraintTransLim(TransInfo *t, TransData *td)
 				}
 				
 				/* get constraint targets if needed */
-				BKE_constraint_targets_for_solving_get(&eval_ctx, con, &cob, &targets, ctime);
+				BKE_constraint_targets_for_solving_get(&t->eval_ctx, con, &cob, &targets, ctime);
 				
 				/* do constraint */
 				cti->evaluate_constraint(con, &cob, &targets);
@@ -5654,12 +5650,12 @@ static void slide_origdata_interp_data_vert(
 	if (sod->layer_math_map_num) {
 		if (do_loop_weight) {
 			for (j = 0; j < sod->layer_math_map_num; j++) {
-				 BM_vert_loop_groups_data_layer_merge_weights(bm, sv->cd_loop_groups[j], sod->layer_math_map[j], loop_weights);
+				BM_vert_loop_groups_data_layer_merge_weights(bm, sv->cd_loop_groups[j], sod->layer_math_map[j], loop_weights);
 			}
 		}
 		else {
 			for (j = 0; j < sod->layer_math_map_num; j++) {
-				 BM_vert_loop_groups_data_layer_merge(bm, sv->cd_loop_groups[j], sod->layer_math_map[j]);
+				BM_vert_loop_groups_data_layer_merge(bm, sv->cd_loop_groups[j], sod->layer_math_map[j]);
 			}
 		}
 	}
@@ -6034,7 +6030,9 @@ static void calcEdgeSlide_mval_range(
 						continue;
 
 					/* This test is only relevant if object is not wire-drawn! See [#32068]. */
-					if (use_occlude_geometry && !BMBVH_EdgeVisible(bmbvh, e_other, ar, v3d, t->obedit)) {
+					if (use_occlude_geometry &&
+					    !BMBVH_EdgeVisible(bmbvh, e_other, t->depsgraph, ar, v3d, t->obedit))
+					{
 						continue;
 					}
 
@@ -6882,7 +6880,7 @@ static void drawEdgeSlide(TransInfo *t)
 				glDisable(GL_DEPTH_TEST);
 
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 			gpuPushMatrix();
 			gpuMultMatrix(t->obedit->obmat);
@@ -7494,7 +7492,7 @@ static void drawVertSlide(TransInfo *t)
 				glDisable(GL_DEPTH_TEST);
 
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 			gpuPushMatrix();
 			gpuMultMatrix(t->obedit->obmat);

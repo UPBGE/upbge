@@ -161,7 +161,7 @@ float light_visibility(LightData ld, vec3 W,
 		float x = dot(ld.l_right, lL) / ld.l_sizex;
 		float y = dot(ld.l_up, lL) / ld.l_sizey;
 
-		float ellipse = 1.0 / sqrt(1.0 + x * x + y * y);
+		float ellipse = inversesqrt(1.0 + x * x + y * y);
 
 		float spotmask = smoothstep(0.0, 1.0, (ellipse - ld.l_spot_size) / ld.l_spot_blend);
 
@@ -203,14 +203,13 @@ float light_visibility(LightData ld, vec3 W,
 			vec3 T, B;
 			make_orthonormal_basis(L.xyz / L.w, T, B);
 
-			vec3 rand = texture(utilTex, vec3(gl_FragCoord.xy / LUT_SIZE, 2.0)).xzw;
-			/* XXX This is a hack to not have noise correlation artifacts.
-			 * A better solution to have better noise is welcome. */
-			rand.yz *= fast_sqrt(fract(rand.x * 7919.0)) * data.sh_contact_spread;
+			vec4 rand = texelfetch_noise_tex(gl_FragCoord.xy);
+			/* WATCH THIS : This still seems to have correlation artifacts for low samples. */
+			rand.zw *= fast_sqrt(rand.y) * data.sh_contact_spread;
 
 			/* We use the full l_vector.xyz so that the spread is minimize
 			 * if the shading point is further away from the light source */
-			vec3 ray_dir = L.xyz + T * rand.y + B * rand.z;
+			vec3 ray_dir = L.xyz + T * rand.z + B * rand.w;
 			ray_dir = transform_direction(ViewMatrix, ray_dir);
 			ray_dir = normalize(ray_dir);
 			vec3 ray_origin = viewPosition + viewNormal * data.sh_contact_offset;
@@ -235,8 +234,7 @@ float light_diffuse(LightData ld, vec3 N, vec3 V, vec4 l_vector)
 {
 #ifdef USE_LTC
 	if (ld.l_type == SUN) {
-		/* TODO disk area light */
-		return direct_diffuse_sun(ld, N);
+		return direct_diffuse_unit_disc(ld, N, V);
 	}
 	else if (ld.l_type == AREA) {
 		return direct_diffuse_rectangle(ld, N, V, l_vector);
@@ -258,8 +256,7 @@ vec3 light_specular(LightData ld, vec3 N, vec3 V, vec4 l_vector, float roughness
 {
 #ifdef USE_LTC
 	if (ld.l_type == SUN) {
-		/* TODO disk area light */
-		return direct_ggx_sun(ld, N, V, roughness, f0);
+		return direct_ggx_unit_disc(ld, N, V, roughness, f0);
 	}
 	else if (ld.l_type == AREA) {
 		return direct_ggx_rectangle(ld, N, V, l_vector, roughness, f0);
@@ -298,9 +295,7 @@ vec3 light_translucent(LightData ld, vec3 W, vec3 N, vec4 l_vector, float scale)
 {
 #if !defined(USE_TRANSLUCENCY) || defined(VOLUMETRICS)
 	return vec3(0.0);
-#endif
-
-#ifndef VOLUMETRICS
+#else
 	vec3 vis = vec3(1.0);
 
 	/* Only shadowed light can produce translucency */
@@ -313,14 +308,13 @@ vec3 light_translucent(LightData ld, vec3 W, vec3 N, vec4 l_vector, float scale)
 		vec3 T, B;
 		make_orthonormal_basis(L.xyz / L.w, T, B);
 
-		vec3 rand = texture(utilTex, vec3(gl_FragCoord.xy / LUT_SIZE, 2.0)).xzw;
-		/* XXX This is a hack to not have noise correlation artifacts.
-		 * A better solution to have better noise is welcome. */
-		rand.yz *= fast_sqrt(fract(rand.x * 7919.0)) * data.sh_blur;
+		vec4 rand = texelfetch_noise_tex(gl_FragCoord.xy);
+		/* WATCH THIS : This still seems to have correlation artifacts for low samples. */
+		rand.zw *= fast_sqrt(rand.y) * data.sh_blur;
 
 		/* We use the full l_vector.xyz so that the spread is minimize
 		 * if the shading point is further away from the light source */
-		W = W + T * rand.y + B * rand.z;
+		W = W + T * rand.z + B * rand.w;
 
 		if (ld.l_type == SUN) {
 			ShadowCascadeData scd = shadows_cascade_data[int(data.sh_data_start)];
@@ -374,19 +368,24 @@ vec3 light_translucent(LightData ld, vec3 W, vec3 N, vec4 l_vector, float scale)
 		/* TODO : put this out of the shader. */
 		float falloff;
 		if (ld.l_type == AREA) {
-			vis *= 0.0962 * (ld.l_sizex * ld.l_sizey * 4.0 * M_PI);
+			vis *= (ld.l_sizex * ld.l_sizey * 4.0 * M_PI) * (1.0 / 80.0);
+			vis *= 0.3 * 20.0 * max(0.0, dot(-ld.l_forward, l_vector.xyz / l_vector.w)); /* XXX ad hoc, empirical */
 			vis /= (l_vector.w * l_vector.w);
 			falloff = dot(N, l_vector.xyz / l_vector.w);
 		}
 		else if (ld.l_type == SUN) {
+			vis *= (4.0f * ld.l_radius * ld.l_radius * M_2PI) * (1.0 / 12.5); /* Removing area light power*/
+			vis *= M_2PI * 0.78; /* Matching cycles with point light. */
+			vis *= 0.082; /* XXX ad hoc, empirical */
 			falloff = dot(N, -ld.l_forward);
 		}
 		else {
-			vis *= 0.0248 * (4.0 * ld.l_radius * ld.l_radius * M_PI * M_PI);
+			vis *= (4.0 * ld.l_radius * ld.l_radius) * (1.0 /10.0);
+			vis *= 1.5; /* XXX ad hoc, empirical */
 			vis /= (l_vector.w * l_vector.w);
 			falloff = dot(N, l_vector.xyz / l_vector.w);
 		}
-		vis *= M_1_PI; /* Normalize */
+		// vis *= M_1_PI; /* Normalize */
 
 		/* Applying profile */
 		vis *= sss_profile(abs(delta) / scale);
@@ -400,7 +399,7 @@ vec3 light_translucent(LightData ld, vec3 W, vec3 N, vec4 l_vector, float scale)
 			float x = dot(ld.l_right, lL) / ld.l_sizex;
 			float y = dot(ld.l_up, lL) / ld.l_sizey;
 
-			float ellipse = 1.0 / sqrt(1.0 + x * x + y * y);
+			float ellipse = inversesqrt(1.0 + x * x + y * y);
 
 			float spotmask = smoothstep(0.0, 1.0, (ellipse - ld.l_spot_size) / ld.l_spot_blend);
 

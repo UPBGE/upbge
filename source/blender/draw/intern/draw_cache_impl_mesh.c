@@ -48,7 +48,7 @@
 #include "BKE_editmesh_tangent.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_tangent.h"
-#include "BKE_texture.h"
+#include "BKE_colorband.h"
 
 #include "bmesh.h"
 
@@ -1097,7 +1097,7 @@ static void mesh_render_data_ensure_vert_weight_color(MeshRenderData *rdata, con
 				const MDeformVert *dvert = BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset);
 				float weight = defvert_find_weight(dvert, defgroup);
 				if (U.flag & USER_CUSTOM_RANGE) {
-					do_colorband(&U.coba_weight, weight, vweight[i]);
+					BKE_colorband_evaluate(&U.coba_weight, weight, vweight[i]);
 				}
 				else {
 					rgb_from_weight(vweight[i], weight);
@@ -1113,7 +1113,7 @@ static void mesh_render_data_ensure_vert_weight_color(MeshRenderData *rdata, con
 			for (int i = 0; i < rdata->vert_len; i++) {
 				float weight = defvert_find_weight(&rdata->dvert[i], defgroup);
 				if (U.flag & USER_CUSTOM_RANGE) {
-					do_colorband(&U.coba_weight, weight, vweight[i]);
+					BKE_colorband_evaluate(&U.coba_weight, weight, vweight[i]);
 				}
 				else {
 					rgb_from_weight(vweight[i], weight);
@@ -1665,6 +1665,46 @@ void DRW_mesh_batch_cache_dirty(Mesh *me, int mode)
 	}
 }
 
+/**
+ * This only clear the batches associated to the given vertex buffer.
+ **/
+static void mesh_batch_cache_clear_selective(Mesh *me, Gwn_VertBuf *vert)
+{
+	MeshBatchCache *cache = me->batch_cache;
+	if (!cache) {
+		return;
+	}
+
+	BLI_assert(vert != NULL);
+
+	if (cache->pos_with_normals == vert) {
+		GWN_BATCH_DISCARD_SAFE(cache->triangles_with_normals);
+		GWN_BATCH_DISCARD_SAFE(cache->triangles_with_weights);
+		GWN_BATCH_DISCARD_SAFE(cache->triangles_with_vert_colors);
+		GWN_BATCH_DISCARD_SAFE(cache->triangles_with_select_id);
+		GWN_BATCH_DISCARD_SAFE(cache->triangles_with_select_mask);
+		GWN_BATCH_DISCARD_SAFE(cache->points_with_normals);
+		if (cache->shaded_triangles) {
+			for (int i = 0; i < cache->mat_len; ++i) {
+				GWN_BATCH_DISCARD_SAFE(cache->shaded_triangles[i]);
+			}
+		}
+		MEM_SAFE_FREE(cache->shaded_triangles);
+		if (cache->texpaint_triangles) {
+			for (int i = 0; i < cache->mat_len; ++i) {
+				GWN_BATCH_DISCARD_SAFE(cache->texpaint_triangles[i]);
+			}
+		}
+		MEM_SAFE_FREE(cache->texpaint_triangles);
+		GWN_BATCH_DISCARD_SAFE(cache->texpaint_triangles_single);
+	}
+	/* TODO: add the other ones if needed. */
+	else {
+		/* Does not match any vertbuf in the batch cache! */
+		BLI_assert(0);
+	}
+}
+
 static void mesh_batch_cache_clear(Mesh *me)
 {
 	MeshBatchCache *cache = me->batch_cache;
@@ -2167,11 +2207,10 @@ static Gwn_VertBuf *mesh_batch_cache_get_facedot_pos_with_normals_and_flag(
 			}
 		}
 		const int vbo_len_used = vidx;
+		BLI_assert(vbo_len_used <= vbo_len_capacity);
 		if (vbo_len_used != vbo_len_capacity) {
 			GWN_vertbuf_data_resize(vbo, vbo_len_used);
 		}
-		BLI_assert(vbo_len_capacity == vbo_len_used);
-		UNUSED_VARS_NDEBUG(vbo_len_used);
 	}
 
 	return cache->ed_fcenter_pos_with_nor_and_sel;
@@ -3879,21 +3918,10 @@ void DRW_mesh_cache_sculpt_coords_ensure(Mesh *me)
 	if (me->batch_cache) {
 		MeshBatchCache *cache = mesh_batch_cache_get(me);
 		if (cache && cache->pos_with_normals && cache->is_sculpt_points_tag) {
-
-			const int datatype = MR_DATATYPE_VERT | MR_DATATYPE_LOOPTRI | MR_DATATYPE_LOOP | MR_DATATYPE_POLY;
-			MeshRenderData *rdata = mesh_render_data_create(me, datatype);
-
-			Gwn_VertBuf *pos_with_normals = cache->pos_with_normals;
-			cache->pos_with_normals = NULL;
-			GWN_vertbuf_clear(pos_with_normals);
-			Gwn_VertBuf *vbo = mesh_batch_cache_get_tri_pos_and_normals(rdata, cache);
-			*pos_with_normals = *vbo;
-			GWN_vertformat_copy(&pos_with_normals->format, &vbo->format);
-
-			free(vbo);
-			cache->pos_with_normals = pos_with_normals;
-
-			mesh_render_data_free(rdata);
+			/* XXX Force update of all the batches that contains the pos_with_normals buffer.
+			 * TODO(fclem): Ideally, Gawain should provide a way to update a buffer without destroying it. */
+			mesh_batch_cache_clear_selective(me, cache->pos_with_normals);
+			GWN_VERTBUF_DISCARD_SAFE(cache->pos_with_normals);
 		}
 		cache->is_sculpt_points_tag = false;
 	}

@@ -29,7 +29,7 @@ ccl_device_noinline float3 direct_emissive_eval(KernelGlobals *kg,
 	/* setup shading at emitter */
 	float3 eval;
 
-	int shader_flag = kernel_tex_fetch(__shader_flag, (ls->shader & SHADER_MASK)*SHADER_SIZE);
+	int shader_flag = kernel_tex_fetch(__shaders, (ls->shader & SHADER_MASK)).flags;
 
 #ifdef __BACKGROUND_MIS__
 	if(ls->type == LIGHT_BACKGROUND) {
@@ -51,9 +51,9 @@ ccl_device_noinline float3 direct_emissive_eval(KernelGlobals *kg,
 #endif
 	if(shader_flag & SD_HAS_CONSTANT_EMISSION)
 	{
-		eval.x = __int_as_float(kernel_tex_fetch(__shader_flag, (ls->shader & SHADER_MASK)*SHADER_SIZE + 2));
-		eval.y = __int_as_float(kernel_tex_fetch(__shader_flag, (ls->shader & SHADER_MASK)*SHADER_SIZE + 3));
-		eval.z = __int_as_float(kernel_tex_fetch(__shader_flag, (ls->shader & SHADER_MASK)*SHADER_SIZE + 4));
+		eval.x = kernel_tex_fetch(__shaders, (ls->shader & SHADER_MASK)).constant_emission[0];
+		eval.y = kernel_tex_fetch(__shaders, (ls->shader & SHADER_MASK)).constant_emission[1];
+		eval.z = kernel_tex_fetch(__shaders, (ls->shader & SHADER_MASK)).constant_emission[2];
 		if((ls->prim != PRIM_NONE) && dot(ls->Ng, I) < 0.0f) {
 			ls->Ng = -ls->Ng;
 		}
@@ -67,13 +67,13 @@ ccl_device_noinline float3 direct_emissive_eval(KernelGlobals *kg,
 
 		ls->Ng = emission_sd->Ng;
 
-		/* no path flag, we're evaluating this for all closures. that's weak but
-		 * we'd have to do multiple evaluations otherwise */
+		/* No proper path flag, we're evaluating this for all closures. that's
+		 * weak but we'd have to do multiple evaluations otherwise. */
 		path_state_modify_bounce(state, true);
-		shader_eval_surface(kg, emission_sd, state, 0, 0);
+		shader_eval_surface(kg, emission_sd, state, PATH_RAY_EMISSION);
 		path_state_modify_bounce(state, false);
 
-		/* evaluate emissive closure */
+		/* Evaluate emissive closure. */
 		eval = shader_emissive_eval(kg, emission_sd);
 	}
 	

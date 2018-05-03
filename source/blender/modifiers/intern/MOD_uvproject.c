@@ -109,17 +109,13 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 	foreachObjectLink(md, ob, (ObjectWalkFunc)walk, userData);
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	UVProjectModifierData *umd = (UVProjectModifierData *)md;
 	int i;
 	for (i = 0; i < umd->num_projectors; ++i) {
 		if (umd->projectors[i] != NULL) {
-			DEG_add_object_relation(node, umd->projectors[i], DEG_OB_COMP_TRANSFORM, "UV Project Modifier");
+			DEG_add_object_relation(ctx->node, umd->projectors[i], DEG_OB_COMP_TRANSFORM, "UV Project Modifier");
 		}
 	}
 }
@@ -226,7 +222,7 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 
 	numVerts = dm->getNumVerts(dm);
 
-	coords = MEM_mallocN(sizeof(*coords) * numVerts,
+	coords = MEM_malloc_arrayN(numVerts, sizeof(*coords),
 	                     "uvprojectModifier_do coords");
 	dm->getVertCos(dm, coords);
 

@@ -58,7 +58,6 @@
 
 #include "BIF_glutil.h"
 
-#include "GPU_compositing.h"
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
 #include "GPU_matrix.h"
@@ -330,7 +329,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 	}
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	for (seq = seqbase->first; seq; seq = seq->next) {
 		chan_min = min_ii(chan_min, seq->machine);
@@ -435,7 +434,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 	{
 		glEnable(GL_BLEND);
 		
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		
 		if (seq->flag & whichsel) {
 			immUniformColor4ub(0, 0, 0, 80);
@@ -620,7 +619,7 @@ static void draw_sequence_extensions(Scene *scene, ARegion *ar, Sequence *seq, u
 
 	if (seq->startofs || seq->endofs) {
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		
 		color3ubv_from_seq(scene, seq, col);
 
@@ -664,7 +663,7 @@ static void draw_sequence_extensions(Scene *scene, ARegion *ar, Sequence *seq, u
 
 	if (seq->startstill || seq->endstill) {
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 		color3ubv_from_seq(scene, seq, col);
 		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.5f, 60);
@@ -730,7 +729,7 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 		background_col[3] = 128;
 
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	}
 	else {
 		background_col[3] = 255;
@@ -842,7 +841,7 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 		col[3] = 96;
 
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 		immUniformColor4ubv(col);
 	}
@@ -924,12 +923,6 @@ ImBuf *sequencer_ibuf_get(struct Main *bmain, Scene *scene, SpaceSeq *sseq, int 
 	        rectx, recty, proxy_size,
 	        &context);
 	context.view_id = BKE_scene_multiview_view_id_get(&scene->r, viewname);
-	if (scene->r.seq_flag & R_SEQ_CAMERA_DOF) {
-		if (sseq->compositor == NULL) {
-			sseq->compositor = GPU_fx_compositor_create();
-		}
-		context.gpu_fx = sseq->compositor;
-	}
 
 	/* sequencer could start rendering, in this case we need to be sure it wouldn't be canceled
 	 * by Esc pressed somewhere in the past
@@ -1226,7 +1219,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->flag & SEQ_USE_ALPHA) {
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
 	/* Format needs to be created prior to any immBindProgram call.
@@ -1316,6 +1309,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 	glGenTextures(1, (GLuint *)&texid);
 
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texid);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -1329,7 +1323,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	if (!glsl_used) {
 		immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
 		immUniformColor3f(1.0f, 1.0f, 1.0f);
-		immUniform1i("image", GL_TEXTURE0);
+		immUniform1i("image", 0);
 	}
 
 	immBegin(GWN_PRIM_TRI_FAN, 4);

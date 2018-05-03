@@ -31,47 +31,56 @@
 #include "intern/nodes/deg_node.h"
 
 #include <stdio.h>
-#include <cstring>  /* required for STREQ later on. */
 
 #include "BLI_utildefines.h"
-#include "BLI_ghash.h"
-
-extern "C" {
-#include "DNA_ID.h"
-#include "DNA_anim_types.h"
-#include "DNA_object_types.h"
-
-#include "BKE_animsys.h"
-#include "BKE_library.h"
-}
-
-#include "DEG_depsgraph.h"
 
 #include "intern/eval/deg_eval_copy_on_write.h"
 #include "intern/nodes/deg_node_component.h"
+#include "intern/nodes/deg_node_id.h"
 #include "intern/nodes/deg_node_operation.h"
+#include "intern/nodes/deg_node_time.h"
 #include "intern/depsgraph_intern.h"
+
 #include "util/deg_util_foreach.h"
 #include "util/deg_util_function.h"
 
 namespace DEG {
 
-/* *************** */
-/* Node Management */
+/*******************************************************************************
+ * Type information.
+ */
 
-/* Add ------------------------------------------------ */
-
-DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type, const char *tname)
+DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type,
+                             const char *tname,
+                             int id_recalc_tag)
+        : type(type),
+          tname(tname),
+          id_recalc_tag(id_recalc_tag)
 {
-	this->type = type;
-	if (type == DEG_NODE_TYPE_OPERATION)
-		this->tclass = DEG_NODE_CLASS_OPERATION;
-	else if (type < DEG_NODE_TYPE_PARAMETERS)
-		this->tclass = DEG_NODE_CLASS_GENERIC;
-	else
-		this->tclass = DEG_NODE_CLASS_COMPONENT;
-	this->tname = tname;
 }
+
+/*******************************************************************************
+ * Evaluation statistics.
+ */
+
+DepsNode::Stats::Stats()
+{
+	reset();
+}
+
+void DepsNode::Stats::reset()
+{
+	current_time = 0.0;
+}
+
+void DepsNode::Stats::reset_current()
+{
+	current_time = 0.0;
+}
+
+/*******************************************************************************
+ * Node itself.
+ */
 
 DepsNode::DepsNode()
 {
@@ -100,216 +109,24 @@ string DepsNode::identifier() const
 	return string(typebuf) + " : " + name;
 }
 
-/* ************* */
-/* Generic Nodes */
-
-/* Time Source Node ============================================== */
-
-void TimeSourceDepsNode::tag_update(Depsgraph *graph)
-{
-	foreach (DepsRelation *rel, outlinks) {
-		DepsNode *node = rel->to;
-		node->tag_update(graph);
+eDepsNode_Class DepsNode::get_class() const {
+	if (type == DEG_NODE_TYPE_OPERATION) {
+		return DEG_NODE_CLASS_OPERATION;
 	}
-}
-
-/* Time Source Node ======================================= */
-
-DEG_DEPSNODE_DEFINE(TimeSourceDepsNode, DEG_NODE_TYPE_TIMESOURCE, "Time Source");
-static DepsNodeFactoryImpl<TimeSourceDepsNode> DNTI_TIMESOURCE;
-
-/* ID Node ================================================ */
-
-IDDepsNode::ComponentIDKey::ComponentIDKey(eDepsNode_Type type,
-                                           const char *name)
-        : type(type), name(name)
-{
-}
-
-bool IDDepsNode::ComponentIDKey::operator== (const ComponentIDKey &other) const
-{
-	return type == other.type &&
-		STREQ(name, other.name);
-}
-
-static unsigned int id_deps_node_hash_key(const void *key_v)
-{
-	const IDDepsNode::ComponentIDKey *key =
-	        reinterpret_cast<const IDDepsNode::ComponentIDKey *>(key_v);
-	return BLI_ghashutil_combine_hash(BLI_ghashutil_uinthash(key->type),
-	                                  BLI_ghashutil_strhash_p(key->name));
-}
-
-static bool id_deps_node_hash_key_cmp(const void *a, const void *b)
-{
-	const IDDepsNode::ComponentIDKey *key_a =
-	        reinterpret_cast<const IDDepsNode::ComponentIDKey *>(a);
-	const IDDepsNode::ComponentIDKey *key_b =
-	        reinterpret_cast<const IDDepsNode::ComponentIDKey *>(b);
-	return !(*key_a == *key_b);
-}
-
-static void id_deps_node_hash_key_free(void *key_v)
-{
-	typedef IDDepsNode::ComponentIDKey ComponentIDKey;
-	ComponentIDKey *key = reinterpret_cast<ComponentIDKey *>(key_v);
-	OBJECT_GUARDED_DELETE(key, ComponentIDKey);
-}
-
-static void id_deps_node_hash_value_free(void *value_v)
-{
-	ComponentDepsNode *comp_node = reinterpret_cast<ComponentDepsNode *>(value_v);
-	OBJECT_GUARDED_DELETE(comp_node, ComponentDepsNode);
-}
-
-/* Initialize 'id' node - from pointer data given. */
-void IDDepsNode::init(const ID *id, const char *UNUSED(subdata))
-{
-	BLI_assert(id != NULL);
-	/* Store ID-pointer. */
-	id_orig = (ID *)id;
-	eval_flags = 0;
-	linked_state = DEG_ID_LINKED_INDIRECTLY;
-
-	components = BLI_ghash_new(id_deps_node_hash_key,
-	                           id_deps_node_hash_key_cmp,
-	                           "Depsgraph id components hash");
-}
-
-void IDDepsNode::init_copy_on_write(ID *id_cow_hint)
-{
-	/* Early output for non-copy-on-write case: we keep CoW pointer same as
-	 * an original one.
-	 */
-	if (!DEG_depsgraph_use_copy_on_write()) {
-		UNUSED_VARS(id_cow_hint);
-		id_cow = id_orig;
-		return;
-	}
-	/* Create pointer as early as possible, so we can use it for function
-	 * bindings. Rest of data we'll be copying to the new datablock when
-	 * it is actually needed.
-	 */
-	if (id_cow_hint != NULL) {
-		// BLI_assert(deg_copy_on_write_is_needed(id_orig));
-		if (deg_copy_on_write_is_needed(id_orig)) {
-			id_cow = id_cow_hint;
-		}
-		else {
-			id_cow = id_orig;
-		}
-	}
-	else if (deg_copy_on_write_is_needed(id_orig)) {
-		id_cow = (ID *)BKE_libblock_alloc_notest(GS(id_orig->name));
-		DEG_COW_PRINT("Create shallow copy for %s: id_orig=%p id_cow=%p\n",
-		              id_orig->name, id_orig, id_cow);
-		deg_tag_copy_on_write_id(id_cow, id_orig);
+	else if (type < DEG_NODE_TYPE_PARAMETERS) {
+		return DEG_NODE_CLASS_GENERIC;
 	}
 	else {
-		id_cow = id_orig;
+		return DEG_NODE_CLASS_COMPONENT;
 	}
 }
 
-/* Free 'id' node. */
-IDDepsNode::~IDDepsNode()
-{
-	destroy();
-}
-
-void IDDepsNode::destroy()
-{
-	if (id_orig == NULL) {
-		return;
-	}
-
-	BLI_ghash_free(components,
-	               id_deps_node_hash_key_free,
-	               id_deps_node_hash_value_free);
-
-	/* Free memory used by this CoW ID. */
-	if (id_cow != id_orig && id_cow != NULL) {
-		deg_free_copy_on_write_datablock(id_cow);
-		MEM_freeN(id_cow);
-		DEG_COW_PRINT("Destroy CoW for %s: id_orig=%p id_cow=%p\n",
-		              id_orig->name, id_orig, id_cow);
-	}
-
-	/* Tag that the node is freed. */
-	id_orig = NULL;
-}
-
-ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type,
-                                              const char *name) const
-{
-	ComponentIDKey key(type, name);
-	return reinterpret_cast<ComponentDepsNode *>(BLI_ghash_lookup(components, &key));
-}
-
-ComponentDepsNode *IDDepsNode::add_component(eDepsNode_Type type,
-                                             const char *name)
-{
-	ComponentDepsNode *comp_node = find_component(type, name);
-	if (!comp_node) {
-		DepsNodeFactory *factory = deg_get_node_factory(type);
-		comp_node = (ComponentDepsNode *)factory->create_node(this->id_orig, "", name);
-
-		/* Register. */
-		ComponentIDKey *key = OBJECT_GUARDED_NEW(ComponentIDKey, type, name);
-		BLI_ghash_insert(components, key, comp_node);
-		comp_node->owner = this;
-	}
-	return comp_node;
-}
-
-void IDDepsNode::tag_update(Depsgraph *graph)
-{
-	GHASH_FOREACH_BEGIN(ComponentDepsNode *, comp_node, components)
-	{
-		/* TODO(sergey): What about drivers? */
-		bool do_component_tag = comp_node->type != DEG_NODE_TYPE_ANIMATION;
-		if (comp_node->type == DEG_NODE_TYPE_ANIMATION) {
-			AnimData *adt = BKE_animdata_from_id(id_orig);
-			/* Animation data might be null if relations are tagged for update. */
-			if (adt != NULL && (adt->recalc & ADT_RECALC_ANIM)) {
-				do_component_tag = true;
-			}
-		}
-		else if (comp_node->type == DEG_NODE_TYPE_SHADING) {
-			/* TODO(sergey): For until we properly handle granular flags for DEG_id_tag_update()
-			 * we skip flushing here to keep Luca happy.
-			 */
-			if (GS(id_orig->name) != ID_MA &&
-			    GS(id_orig->name) != ID_WO)
-			{
-				do_component_tag = false;
-			}
-		}
-		else if (comp_node->type == DEG_NODE_TYPE_SHADING_PARAMETERS) {
-			do_component_tag = false;
-		}
-		else if (comp_node->type == DEG_NODE_TYPE_EVAL_PARTICLES) {
-			/* Only do explicit particle settings tagging. */
-			do_component_tag = false;
-		}
-		else if (comp_node->type == DEG_NODE_TYPE_BATCH_CACHE) {
-			do_component_tag = false;
-		}
-		if (do_component_tag) {
-			comp_node->tag_update(graph);
-		}
-	}
-	GHASH_FOREACH_END();
-}
-
-void IDDepsNode::finalize_build(Depsgraph *graph)
-{
-	/* Finalize build of all components. */
-	GHASH_FOREACH_BEGIN(ComponentDepsNode *, comp_node, components)
-	{
-		comp_node->finalize_build(graph);
-	}
-	GHASH_FOREACH_END();
-}
+/*******************************************************************************
+ * Generic nodes definition.
+ */
+\
+DEG_DEPSNODE_DEFINE(TimeSourceDepsNode, DEG_NODE_TYPE_TIMESOURCE, "Time Source");
+static DepsNodeFactoryImpl<TimeSourceDepsNode> DNTI_TIMESOURCE;
 
 DEG_DEPSNODE_DEFINE(IDDepsNode, DEG_NODE_TYPE_ID_REF, "ID Node");
 static DepsNodeFactoryImpl<IDDepsNode> DNTI_ID_REF;

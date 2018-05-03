@@ -64,10 +64,10 @@ static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **UNUSED(i
 			if ( (!xsize) || (!ysize) ) return;
 			
 			if (!ibuf->rect_float) {
-				BLI_lock_thread(LOCK_IMAGE);
+				BLI_thread_lock(LOCK_IMAGE);
 				if (!ibuf->rect_float)
 					IMB_float_from_rect(ibuf);
-				BLI_unlock_thread(LOCK_IMAGE);
+				BLI_thread_unlock(LOCK_IMAGE);
 			}
 			
 			while (px < 0) px += ibuf->x;
@@ -106,6 +106,7 @@ void register_node_type_tex_image(void)
 	node_type_init(&ntype, init);
 	node_type_storage(&ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
 	node_type_exec(&ntype, NULL, NULL, exec);
-	
+	node_type_label(&ntype, node_image_label);
+
 	nodeRegisterType(&ntype);
 }

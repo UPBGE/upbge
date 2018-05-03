@@ -97,6 +97,10 @@ public:
 	init(
 	    );
 
+	/**
+	 * Informs if the system provides native dialogs (eg. confirm quit)
+	 */
+	virtual bool supportsNativeDialogs(void);
 
 	/**
 	 * \section Interface Inherited from GHOST_ISystem
@@ -169,6 +173,26 @@ public:
 	    GHOST_GLSettings glSettings,
 	    const bool exclusive = false,
 	    const GHOST_TEmbedderWindowID parentWindow = 0
+	    );
+
+
+	/**
+	 * Create a new offscreen context.
+	 * Never explicitly delete the context, use disposeContext() instead.
+	 * \return  The new context (or 0 if creation failed).
+	 */
+	GHOST_IContext *
+	createOffscreenContext(
+	    );
+
+	/**
+	 * Dispose of a context.
+	 * \param   context Pointer to the context to be disposed.
+	 * \return  Indication of success.
+	 */
+	GHOST_TSuccess
+	disposeContext(
+	    GHOST_IContext *context
 	    );
 
 	/**

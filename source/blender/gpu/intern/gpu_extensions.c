@@ -149,7 +149,7 @@ void gpu_extensions_init(void)
 	else
 		GG.max_anisotropy = 1.0f;
 
-	glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, &GG.maxubobinds);
+	glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_BLOCKS, &GG.maxubobinds);
 	glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &GG.maxubosize);
 
 #ifndef NDEBUG
@@ -177,14 +177,6 @@ void gpu_extensions_init(void)
 	if (strstr(vendor, "ATI")) {
 		GG.device = GPU_DEVICE_ATI;
 		GG.driver = GPU_DRIVER_OFFICIAL;
-	}
-	/* XXX : TODO : Remove this once this sampling mipmap problem is gone.
-	 * https://github.com/dfelinto/opengl-sandbox/blob/downsample/README.md */
-	else if (strstr(renderer, "AMD VEGA") &&
-	         strstr(vendor, "X.Org"))
-	{
-		GG.device = GPU_DEVICE_AMD_VEGA;
-		GG.driver = GPU_DRIVER_OPENSOURCE;
 	}
 	else if (strstr(vendor, "NVIDIA")) {
 		GG.device = GPU_DEVICE_NVIDIA;

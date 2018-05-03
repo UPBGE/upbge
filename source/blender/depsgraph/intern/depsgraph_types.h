@@ -43,6 +43,7 @@
  */
 #include <string>
 #include <vector>
+#include <algorithm>
 
 struct bAction;
 struct ChannelDriver;
@@ -96,9 +97,9 @@ typedef enum eDepsNode_LinkedState_Type {
 /* Types of Nodes */
 typedef enum eDepsNode_Type {
 	/* Fallback type for invalid return value */
-	DEG_NODE_TYPE_UNDEFINED        = -1,
+	DEG_NODE_TYPE_UNDEFINED        = 0,
 	/* Inner Node (Operation) */
-	DEG_NODE_TYPE_OPERATION        = 0,
+	DEG_NODE_TYPE_OPERATION,
 
 	/* **** Generic Types **** */
 
@@ -149,6 +150,9 @@ typedef enum eDepsNode_Type {
 	DEG_NODE_TYPE_CACHE,
 	/* Batch Cache Component */
 	DEG_NODE_TYPE_BATCH_CACHE,
+
+	/* Total number of meaningful node types. */
+	NUM_DEG_NODE_TYPES,
 } eDepsNode_Type;
 
 /* Identifiers for common operations (as an enum). */
@@ -159,6 +163,7 @@ typedef enum eDepsOperation_Code {
 	DEG_OPCODE_OPERATION = 0,
 
 	/* Generic parameters evaluation. */
+	DEG_OPCODE_ID_PROPERTY,
 	DEG_OPCODE_PARAMETERS_EVAL,
 
 	// XXX: Placeholder while porting depsgraph code
@@ -235,7 +240,9 @@ typedef enum eDepsOperation_Code {
 	DEG_OPCODE_PARTICLE_SYSTEM_EVAL_INIT,
 	DEG_OPCODE_PARTICLE_SYSTEM_EVAL,
 	DEG_OPCODE_PARTICLE_SETTINGS_EVAL,
-	DEG_OPCODE_PARTICLE_SETTINGS_RECALC_CLEAR,
+
+	/* Point Cache. ------------------------------------- */
+	DEG_OPCODE_POINT_CACHE_RESET,
 
 	/* Collections. ------------------------------------- */
 	DEG_OPCODE_VIEW_LAYER_INIT,

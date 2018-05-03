@@ -2,22 +2,16 @@
 /* Based on Frosbite Unified Volumetric.
  * https://www.ea.com/frostbite/news/physically-based-unified-volumetric-rendering-in-frostbite */
 
-uniform float volume_light_clamp;
-
-uniform vec3 volume_param; /* Parameters to the volume Z equation */
-
-uniform vec2 volume_uv_ratio; /* To convert volume uvs to screen uvs */
-
 /* Volume slice to view space depth. */
 float volume_z_to_view_z(float z)
 {
 	if (ProjectionMatrix[3][3] == 0.0) {
 		/* Exponential distribution */
-		return (exp2(z / volume_param.z) - volume_param.x) / volume_param.y;
+		return (exp2(z / volDepthParameters.z) - volDepthParameters.x) / volDepthParameters.y;
 	}
 	else {
 		/* Linear distribution */
-		return mix(volume_param.x, volume_param.y, z);
+		return mix(volDepthParameters.x, volDepthParameters.y, z);
 	}
 }
 
@@ -25,11 +19,11 @@ float view_z_to_volume_z(float depth)
 {
 	if (ProjectionMatrix[3][3] == 0.0) {
 		/* Exponential distribution */
-		return volume_param.z * log2(depth * volume_param.y + volume_param.x);
+		return volDepthParameters.z * log2(depth * volDepthParameters.y + volDepthParameters.x);
 	}
 	else {
 		/* Linear distribution */
-		return (depth - volume_param.x) * volume_param.z;
+		return (depth - volDepthParameters.x) * volDepthParameters.z;
 	}
 }
 
@@ -38,7 +32,7 @@ vec3 volume_to_ndc(vec3 cos)
 {
 	cos.z = volume_z_to_view_z(cos.z);
 	cos.z = get_depth_from_view_z(cos.z);
-	cos.xy /= volume_uv_ratio;
+	cos.xy /= volCoordScale.xy;
 	return cos;
 }
 
@@ -46,7 +40,7 @@ vec3 ndc_to_volume(vec3 cos)
 {
 	cos.z = get_view_z_from_depth(cos.z);
 	cos.z = view_z_to_volume_z(cos.z);
-	cos.xy *= volume_uv_ratio;
+	cos.xy *= volCoordScale.xy;
 	return cos;
 }
 
@@ -71,14 +65,17 @@ vec3 light_volume(LightData ld, vec4 l_vector)
 	/* TODO : Area lighting ? */
 	/* XXX : Removing Area Power. */
 	/* TODO : put this out of the shader. */
+	/* See eevee_light_setup(). */
 	if (ld.l_type == AREA) {
-		power = 0.0962 * (ld.l_sizex * ld.l_sizey * 4.0 * M_PI);
+		power = (ld.l_sizex * ld.l_sizey * 4.0 * M_PI) * (1.0 / 80.0);
+		power *= 20.0 * max(0.0, dot(-ld.l_forward, l_vector.xyz / l_vector.w)); /* XXX ad hoc, empirical */
 	}
 	else if (ld.l_type == SUN) {
-		power = 1.0;
+		power = (4.0f * ld.l_radius * ld.l_radius * M_2PI) * (1.0 / 12.5); /* Removing area light power*/
+		power *= M_2PI * 0.78; /* Matching cycles with point light. */
 	}
 	else {
-		power = 0.0248 * (4.0 * ld.l_radius * ld.l_radius * M_PI * M_PI);
+		power = (4.0 * ld.l_radius * ld.l_radius) * (1.0 /10.0);
 	}
 
 	/* OPTI: find a better way than calculating this on the fly */
@@ -87,14 +84,12 @@ vec3 light_volume(LightData ld, vec4 l_vector)
 
 	power /= (l_vector.w * l_vector.w);
 
-	lum = min(lum * power, volume_light_clamp);
+	lum = min(lum * power, volLightClamp);
 
 	return tint * lum;
 }
 
 #define VOLUMETRIC_SHADOW_MAX_STEP 32.0
-
-uniform float volume_shadows_steps;
 
 vec3 participating_media_extinction(vec3 wpos, sampler3D volume_extinction)
 {
@@ -110,11 +105,11 @@ vec3 light_volume_shadow(LightData ld, vec3 ray_wpos, vec4 l_vector, sampler3D v
 {
 #if defined(VOLUME_SHADOW)
 	/* Heterogeneous volume shadows */
-	float dd = l_vector.w / volume_shadows_steps;
+	float dd = l_vector.w / volShadowSteps;
 	vec3 L = l_vector.xyz * l_vector.w;
 	vec3 shadow = vec3(1.0);
-	for (float s = 0.5; s < VOLUMETRIC_SHADOW_MAX_STEP && s < (volume_shadows_steps - 0.1); s += 1.0) {
-		vec3 pos = ray_wpos + L * (s / volume_shadows_steps);
+	for (float s = 0.5; s < VOLUMETRIC_SHADOW_MAX_STEP && s < (volShadowSteps - 0.1); s += 1.0) {
+		vec3 pos = ray_wpos + L * (s / volShadowSteps);
 		vec3 s_extinction = participating_media_extinction(pos, volume_extinction);
 		shadow *= exp(-s_extinction * dd);
 	}

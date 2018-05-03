@@ -48,16 +48,72 @@ class WORKSPACE_PT_workspace(WorkSpaceButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
+        window = context.window
         workspace = context.workspace
         scene = context.scene
         view_render = workspace.view_render
 
         layout.enabled = not workspace.use_scene_settings
 
-        layout.template_search(workspace, "view_layer", scene, "view_layers")
+        layout.template_search(window, "view_layer", scene, "view_layers")
 
         if view_render.has_multiple_engines:
             layout.prop(view_render, "engine", text="")
+
+
+class WORKSPACE_PT_owner_ids(WorkSpaceButtonsPanel, Panel):
+    bl_label = "Workspace Add-ons"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        workspace = context.workspace
+        self.layout.prop(workspace, "use_filter_by_owner", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        # align just to pack more tightly
+        col = layout.box().column(align=True)
+
+        workspace = context.workspace
+        userpref = context.user_preferences
+
+        col.active = workspace.use_filter_by_owner
+
+        import addon_utils
+        addon_map = {mod.__name__: mod for mod in addon_utils.modules()}
+        owner_ids = {owner_id.name  for owner_id in workspace.owner_ids}
+
+        for addon in userpref.addons:
+            module_name = addon.module
+            info = addon_utils.module_bl_info(addon_map[module_name])
+            if not info["use_owner"]:
+                continue
+            is_enabled = module_name in owner_ids
+            row = col.row()
+            row.operator(
+                "wm.owner_disable" if is_enabled else "wm.owner_enable",
+                icon='CHECKBOX_HLT' if is_enabled else 'CHECKBOX_DEHLT',
+                text="",
+                emboss=False,
+            ).owner_id = module_name
+            row.label("%s: %s" % (info["category"], info["name"]))
+            if is_enabled:
+                owner_ids.remove(module_name)
+
+        # Detect unused
+        if owner_ids:
+            layout.label(text="Unknown add-ons", icon='ERROR')
+            col = layout.box().column(align=True)
+            for module_name in sorted(owner_ids):
+                row = col.row()
+                row.operator(
+                    "wm.owner_disable",
+                    icon='CHECKBOX_HLT',
+                    text="",
+                    emboss=False,
+                ).owner_id = module_name
+                row.label(module_name)
+
 
 
 class WORKSPACE_PT_custom_props(WorkSpaceButtonsPanel, PropertyPanel, Panel):
@@ -68,6 +124,7 @@ class WORKSPACE_PT_custom_props(WorkSpaceButtonsPanel, PropertyPanel, Panel):
 classes = (
     WORKSPACE_PT_context,
     WORKSPACE_PT_workspace,
+    WORKSPACE_PT_owner_ids,
     WORKSPACE_PT_custom_props,
 )
 

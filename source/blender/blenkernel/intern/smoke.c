@@ -72,7 +72,6 @@
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_global.h"
 #include "BKE_effect.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
@@ -170,11 +169,11 @@ void smoke_reallocate_highres_fluid(SmokeDomainSettings *sds, float dx, int res[
 	}
 
 	/* smoke_turbulence_init uses non-threadsafe functions from fftw3 lib (like fftw_plan & co). */
-	BLI_lock_thread(LOCK_FFTW);
+	BLI_thread_lock(LOCK_FFTW);
 
 	sds->wt = smoke_turbulence_init(res, sds->amplify + 1, sds->noise, BKE_tempdir_session(), use_fire, use_colors);
 
-	BLI_unlock_thread(LOCK_FFTW);
+	BLI_thread_unlock(LOCK_FFTW);
 
 	sds->res_wt[0] = res[0] * (sds->amplify + 1);
 	sds->res_wt[1] = res[1] * (sds->amplify + 1);
@@ -525,8 +524,8 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->burning_rate = 0.75f;
 			smd->domain->flame_smoke = 1.0f;
 			smd->domain->flame_vorticity = 0.5f;
-			smd->domain->flame_ignition = 1.25f;
-			smd->domain->flame_max_temp = 1.75f;
+			smd->domain->flame_ignition = 1.5f;
+			smd->domain->flame_max_temp = 3.0f;
 			/* color */
 			smd->domain->flame_smoke_color[0] = 0.7f;
 			smd->domain->flame_smoke_color[1] = 0.7f;
@@ -553,6 +552,8 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 
 			smd->domain->coba = NULL;
 			smd->domain->coba_field = FLUID_FIELD_DENSITY;
+
+			smd->domain->clipping = 1e-3f;
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{
@@ -740,7 +741,10 @@ typedef struct ObstaclesFromDMData {
 	int *num_obstacles;
 } ObstaclesFromDMData;
 
-static void obstacles_from_derivedmesh_task_cb(void *userdata, const int z)
+static void obstacles_from_derivedmesh_task_cb(
+        void *__restrict userdata,
+        const int z,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	ObstaclesFromDMData *data = userdata;
 	SmokeDomainSettings *sds = data->sds;
@@ -870,8 +874,13 @@ static void obstacles_from_derivedmesh(
 			    .velocityX = velocityX, .velocityY = velocityY, .velocityZ = velocityZ,
 			    .num_obstacles = num_obstacles
 			};
-			BLI_task_parallel_range(
-			            sds->res_min[2], sds->res_max[2], &data, obstacles_from_derivedmesh_task_cb, true);
+			ParallelRangeSettings settings;
+			BLI_parallel_range_settings_defaults(&settings);
+			settings.scheduling_mode = TASK_SCHEDULING_DYNAMIC;
+			BLI_task_parallel_range(sds->res_min[2], sds->res_max[2],
+			                        &data,
+			                        obstacles_from_derivedmesh_task_cb,
+			                        &settings);
 		}
 		/* free bvh tree */
 		free_bvhtree_from_mesh(&treeData);
@@ -1186,7 +1195,10 @@ typedef struct EmitFromParticlesData {
 	float hr_smooth;
 } EmitFromParticlesData;
 
-static void emit_from_particles_task_cb(void *userdata, const int z)
+static void emit_from_particles_task_cb(
+        void *__restrict userdata,
+        const int z,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	EmitFromParticlesData *data = userdata;
 	SmokeFlowSettings *sfs = data->sfs;
@@ -1276,6 +1288,8 @@ static void emit_from_particles(
 			curvemapping_changed_all(psys->part->clumpcurve);
 		if ((psys->part->child_flag & PART_CHILD_USE_ROUGH_CURVE) && psys->part->roughcurve)
 			curvemapping_changed_all(psys->part->roughcurve);
+		if ((psys->part->child_flag & PART_CHILD_USE_TWIST_CURVE) && psys->part->twistcurve)
+			curvemapping_changed_all(psys->part->twistcurve);
 
 		/* initialize particle cache */
 		if (psys->part->type == PART_HAIR) {
@@ -1397,7 +1411,13 @@ static void emit_from_particles(
 			    .solid = solid, .smooth = smooth, .hr_smooth = hr_smooth,
 			};
 
-			BLI_task_parallel_range(min[2], max[2], &data, emit_from_particles_task_cb, true);
+			ParallelRangeSettings settings;
+			BLI_parallel_range_settings_defaults(&settings);
+			settings.scheduling_mode = TASK_SCHEDULING_DYNAMIC;
+			BLI_task_parallel_range(min[2], max[2],
+			                        &data,
+			                        emit_from_particles_task_cb,
+			                        &settings);
 		}
 
 		if (sfs->flags & MOD_SMOKE_FLOW_USE_PART_SIZE) {
@@ -1569,7 +1589,10 @@ typedef struct EmitFromDMData {
 	int *min, *max, *res;
 } EmitFromDMData;
 
-static void emit_from_derivedmesh_task_cb(void *userdata, const int z)
+static void emit_from_derivedmesh_task_cb(
+        void *__restrict userdata,
+        const int z,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	EmitFromDMData *data = userdata;
 	EmissionMap *em = data->em;
@@ -1722,7 +1745,13 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 			    .flow_center = flow_center, .min = min, .max = max, .res = res,
 			};
 
-			BLI_task_parallel_range(min[2], max[2], &data, emit_from_derivedmesh_task_cb, true);
+			ParallelRangeSettings settings;
+			BLI_parallel_range_settings_defaults(&settings);
+			settings.scheduling_mode = TASK_SCHEDULING_DYNAMIC;
+			BLI_task_parallel_range(min[2], max[2],
+			                        &data,
+			                        emit_from_derivedmesh_task_cb,
+			                        &settings);
 		}
 		/* free bvh tree */
 		free_bvhtree_from_mesh(&treeData);
@@ -2438,7 +2467,10 @@ typedef struct UpdateEffectorsData {
 	unsigned char *obstacle;
 } UpdateEffectorsData;
 
-static void update_effectors_task_cb(void *userdata, const int x)
+static void update_effectors_task_cb(
+        void *__restrict userdata,
+        const int x,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	UpdateEffectorsData *data = userdata;
 	SmokeDomainSettings *sds = data->sds;
@@ -2512,7 +2544,13 @@ static void update_effectors(const struct EvaluationContext *eval_ctx, Scene *sc
 		data.velocity_z = smoke_get_velocity_z(sds->fluid);
 		data.obstacle = smoke_get_obstacle(sds->fluid);
 
-		BLI_task_parallel_range(0, sds->res[0], &data, update_effectors_task_cb, true);
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.scheduling_mode = TASK_SCHEDULING_DYNAMIC;
+		BLI_task_parallel_range(0, sds->res[0],
+		                        &data,
+		                        update_effectors_task_cb,
+		                        &settings);
 	}
 
 	pdEndEffectors(&effectors);

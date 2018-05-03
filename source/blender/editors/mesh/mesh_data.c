@@ -506,13 +506,14 @@ static int layers_poll(bContext *C)
 
 static int mesh_uv_texture_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = ED_object_context(C);
 	Mesh *me = ob->data;
 
 	if (ED_mesh_uv_texture_add(me, NULL, true) == -1)
 		return OPERATOR_CANCELLED;
 
-	if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+	if (workspace->object_mode & OB_MODE_TEXTURE_PAINT) {
 		Scene *scene = CTX_data_scene(C);
 		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
 		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
@@ -572,7 +573,7 @@ static int drop_named_image_invoke(bContext *C, wmOperator *op, const wmEvent *e
 	obedit = base->object;
 	me = obedit->data;
 	if (me->edit_btmesh == NULL) {
-		EDBM_mesh_make(scene->toolsettings, obedit, false);
+		EDBM_mesh_make(obedit, scene->toolsettings->selectmode, false);
 		exitmode = 1;
 	}
 	if (me->edit_btmesh == NULL)
@@ -622,13 +623,14 @@ void MESH_OT_drop_named_image(wmOperatorType *ot)
 
 static int mesh_uv_texture_remove_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = ED_object_context(C);
 	Mesh *me = ob->data;
 
 	if (!ED_mesh_uv_texture_remove_active(me))
 		return OPERATOR_CANCELLED;
 
-	if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+	if (workspace->object_mode & OB_MODE_TEXTURE_PAINT) {
 		Scene *scene = CTX_data_scene(C);
 		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
 		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
@@ -742,13 +744,14 @@ static int mesh_customdata_mask_clear_poll(bContext *C)
 {
 	Object *ob = ED_object_context(C);
 	if (ob && ob->type == OB_MESH) {
-		Mesh *me = ob->data;
+		const WorkSpace *workspace = CTX_wm_workspace(C);
 
 		/* special case - can't run this if we're in sculpt mode */
-		if (ob->mode & OB_MODE_SCULPT) {
+		if (workspace->object_mode & OB_MODE_SCULPT) {
 			return false;
 		}
 
+		Mesh *me = ob->data;
 		if (!ID_IS_LINKED(me)) {
 			CustomData *data = GET_CD_DATA(me, vdata);
 			if (CustomData_has_layer(data, CD_PAINT_MASK)) {
@@ -879,9 +882,38 @@ static int mesh_customdata_custom_splitnormals_add_exec(bContext *C, wmOperator 
 		CustomData *data = GET_CD_DATA(me, ldata);
 
 		if (me->edit_btmesh) {
+			/* Tag edges as sharp according to smooth threshold if needed, to preserve autosmooth shading. */
+			if (me->flag & ME_AUTOSMOOTH) {
+				BM_edges_sharp_from_angle_set(me->edit_btmesh->bm, me->smoothresh);
+
+				me->drawflag |= ME_DRAWSHARP;
+			}
+
 			BM_data_layer_add(me->edit_btmesh->bm, data, CD_CUSTOMLOOPNORMAL);
 		}
 		else {
+			/* Tag edges as sharp according to smooth threshold if needed, to preserve autosmooth shading. */
+			if (me->flag & ME_AUTOSMOOTH) {
+				float (*polynors)[3] = MEM_mallocN(sizeof(*polynors) * (size_t)me->totpoly, __func__);
+
+				BKE_mesh_calc_normals_poly(
+				            me->mvert, NULL, me->totvert,
+				            me->mloop, me->mpoly,
+				            me->totloop, me->totpoly,
+				            polynors, true);
+
+				BKE_edges_sharp_from_angle_set(
+				            me->mvert, me->totvert,
+				            me->medge, me->totedge,
+				            me->mloop, me->totloop,
+				            me->mpoly, polynors, me->totpoly,
+				            me->smoothresh);
+
+				MEM_freeN(polynors);
+
+				me->drawflag |= ME_DRAWSHARP;
+			}
+
 			CustomData_add_layer(data, CD_CUSTOMLOOPNORMAL, CD_DEFAULT, NULL, me->totloop);
 		}
 

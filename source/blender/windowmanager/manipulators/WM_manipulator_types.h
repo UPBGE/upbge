@@ -80,6 +80,10 @@ typedef enum eWM_ManipulatorFlag {
 	 * This simply skips scale when calculating the final matrix.
 	 * Needed when the manipulator needs to align with the interface underneath it. */
 	WM_MANIPULATOR_DRAW_NO_SCALE  = (1 << 5),
+	/**
+	 * Hide the cursor and lock it's position while interacting with this manipulator.
+	 */
+	WM_MANIPULATOR_GRAB_CURSOR = (1 << 6),
 } eWM_ManipulatorFlag;
 
 /**
@@ -178,6 +182,8 @@ struct wmManipulator {
 	/* Optional ID for highlighting different parts of this manipulator.
 	 * -1 when unset, otherwise a valid index. (Used as index to 'op_data'). */
 	int highlight_part;
+	/* For single click button manipulators, use a different part as a fallback, -1 when unused. */
+	int drag_part;
 
 	/* Transformation of the manipulator in 2d or 3d space.
 	 * - Matrix axis are expected to be unit length (scale is applied after).
@@ -307,6 +313,9 @@ typedef struct wmManipulatorType {
 	/* called when manipulator selection state changes */
 	wmManipulatorFnSelectRefresh select_refresh;
 
+	/* Free data (not the manipulator it's self), use when the manipulator allocates it's own members. */
+	wmManipulatorFnFree free;
+
 	/* RNA for properties */
 	struct StructRNA *srna;
 
@@ -332,6 +341,7 @@ typedef struct wmManipulatorGroupTypeRef {
 typedef struct wmManipulatorGroupType {
 	const char *idname;  /* MAX_NAME */
 	const char *name; /* manipulator-group name - displayed in UI (keymap editor) */
+	char owner_id[64];  /* MAX_NAME */
 
 	/* poll if manipulator-map should be visible */
 	wmManipulatorGroupFnPoll poll;

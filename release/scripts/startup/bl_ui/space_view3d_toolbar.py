@@ -1648,6 +1648,7 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         layout.prop(sculpt, "show_low_resolution")
         layout.prop(sculpt, "use_deform_only")
         layout.prop(sculpt, "show_diffuse_color")
+        layout.prop(sculpt, "show_mask")
 
         self.unified_paint_settings(layout, context)
 
@@ -2050,7 +2051,7 @@ class VIEW3D_PT_tools_history(View3DPanel, Panel):
         row = col.row(align=True)
         row.operator("ed.undo")
         row.operator("ed.redo")
-        if obj is None or obj.mode != 'SCULPT':
+        if obj is None or workspace.object_mode != 'SCULPT':
             # Sculpt mode does not generate an undo menu it seems...
             col.operator("ed.undo_history")
 

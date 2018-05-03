@@ -42,11 +42,9 @@
 #include "DNA_mask_types.h"
 
 #include "BKE_curve.h"
-#include "BKE_global.h"
 #include "BKE_mask.h"
 
 #include "DEG_depsgraph.h"
-
 
 unsigned int BKE_mask_spline_resolution(MaskSpline *spline, int width, int height)
 {
@@ -898,11 +896,9 @@ void BKE_mask_layer_evaluate_deform(MaskLayer *masklay, const float ctime)
 	}
 }
 
-#define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
-
 void BKE_mask_eval_animation(struct EvaluationContext *eval_ctx, Mask *mask)
 {
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, mask->id.name, mask);
+	DEG_debug_print_eval(__func__, mask->id.name, mask);
 	for (MaskLayer *mask_layer = mask->masklayers.first;
 	     mask_layer != NULL;
 	     mask_layer = mask_layer->next)
@@ -913,7 +909,7 @@ void BKE_mask_eval_animation(struct EvaluationContext *eval_ctx, Mask *mask)
 
 void BKE_mask_eval_update(struct EvaluationContext *eval_ctx, Mask *mask)
 {
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, mask->id.name, mask);
+	DEG_debug_print_eval(__func__, mask->id.name, mask);
 	for (MaskLayer *mask_layer = mask->masklayers.first;
 	     mask_layer != NULL;
 	     mask_layer = mask_layer->next)

@@ -148,7 +148,7 @@ class MATERIAL_PT_context_material(MaterialButtonsPanel, Panel):
                 col.operator("object.material_slot_move", icon='TRIA_UP', text="").direction = 'UP'
                 col.operator("object.material_slot_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
-            if ob.mode == 'EDIT':
+            if context.workspace.object_mode == 'EDIT':
                 row = layout.row(align=True)
                 row.operator("object.material_slot_assign", text="Assign")
                 row.operator("object.material_slot_select", text="Select")
@@ -183,7 +183,7 @@ class MATERIAL_PT_context_material(MaterialButtonsPanel, Panel):
 
 class MATERIAL_PT_preview(MaterialButtonsPanel, Panel):
     bl_label = "Preview"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_EEVEE'}
 
     def draw(self, context):
         self.layout.template_preview(context.material)
@@ -1094,7 +1094,7 @@ class EEVEE_MATERIAL_PT_context_material(MaterialButtonsPanel, Panel):
                 col.operator("object.material_slot_move", icon='TRIA_UP', text="").direction = 'UP'
                 col.operator("object.material_slot_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
-            if ob.mode == 'EDIT':
+            if context.workspace.object_mode == 'EDIT':
                 row = layout.row(align=True)
                 row.operator("object.material_slot_assign", text="Assign")
                 row.operator("object.material_slot_select", text="Select")

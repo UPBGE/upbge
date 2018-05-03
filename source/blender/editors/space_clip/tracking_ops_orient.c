@@ -42,7 +42,6 @@
 #include "BKE_context.h"
 #include "BKE_constraint.h"
 #include "BKE_tracking.h"
-#include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_object.h"
 #include "BKE_report.h"
@@ -71,7 +70,7 @@ static Object *get_camera_with_movieclip(Scene *scene, MovieClip *clip)
 		return camera;
 	}
 
-	FOREACH_SCENE_OBJECT(scene, ob)
+	FOREACH_SCENE_OBJECT_BEGIN(scene, ob)
 	{
 		if (ob->type == OB_CAMERA) {
 			if (BKE_object_movieclip_get(scene, ob, false) == clip) {
@@ -80,7 +79,7 @@ static Object *get_camera_with_movieclip(Scene *scene, MovieClip *clip)
 			}
 		}
 	}
-	FOREACH_SCENE_OBJECT_END
+	FOREACH_SCENE_OBJECT_END;
 
 	return camera;
 }

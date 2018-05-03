@@ -82,7 +82,7 @@ static int view3d_copybuffer_exec(bContext *C, wmOperator *op)
 	CTX_DATA_END;
 
 	for (Group *group = bmain->group.first; group; group = group->id.next) {
-		FOREACH_GROUP_OBJECT(group, object)
+		FOREACH_GROUP_OBJECT_BEGIN(group, object)
 		{
 			if (object && (object->id.tag & LIB_TAG_DOIT)) {
 				BKE_copybuffer_tag_ID(&group->id);
@@ -91,7 +91,7 @@ static int view3d_copybuffer_exec(bContext *C, wmOperator *op)
 				break;
 			}
 		}
-		FOREACH_GROUP_OBJECT_END
+		FOREACH_GROUP_OBJECT_END;
 	}
 	
 	BLI_make_file_string("/", str, BKE_tempdir_base(), "copybuffer.blend");

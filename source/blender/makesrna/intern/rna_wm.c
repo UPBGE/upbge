@@ -473,6 +473,7 @@ const EnumPropertyItem rna_enum_wm_report_items[] = {
 #include "DNA_workspace_types.h"
 
 #include "ED_screen.h"
+#include "ED_object.h"
 
 #include "UI_interface.h"
 
@@ -778,27 +779,20 @@ static void rna_Window_view_layer_set(PointerRNA *ptr, PointerRNA value)
 	BKE_workspace_view_layer_set(workspace, value.data, scene);
 }
 
-#ifdef USE_WORKSPACE_MODE
-
-static int rna_Window_object_mode_get(PointerRNA *ptr)
+static void rna_Window_view_layer_update(struct bContext *C, PointerRNA *ptr)
 {
 	wmWindow *win = ptr->data;
 	Scene *scene = WM_window_get_active_scene(win);
 	WorkSpace *workspace = WM_window_get_active_workspace(win);
-
-	return (int)BKE_workspace_object_mode_get(workspace, scene);
+	ViewLayer *view_layer = BKE_workspace_view_layer_get(workspace, scene);
+	Object *obact = OBACT(view_layer);
+	eObjectMode object_mode = workspace->object_mode;
+	if (obact && (object_mode & OB_MODE_EDIT)) {
+		ED_object_editmode_exit_ex(NULL, workspace, scene, obact, EM_FREEDATA);
+	}
+	workspace->object_mode = object_mode;
+	ED_object_base_activate(C, view_layer->basact);
 }
-
-static void rna_Window_object_mode_set(PointerRNA *ptr, int value)
-{
-	wmWindow *win = ptr->data;
-	Scene *scene = WM_window_get_active_scene(win);
-	WorkSpace *workspace = WM_window_get_active_workspace(win);
-
-	BKE_workspace_object_mode_set(workspace, scene, value);
-}
-
-#endif /* USE_WORKSPACE_MODE */
 
 static PointerRNA rna_KeyMapItem_properties_get(PointerRNA *ptr)
 {
@@ -1586,6 +1580,11 @@ static void rna_def_operator_options_runtime(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Invoke", "True when invoked (even if only the execute callbacks available)");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
+	prop = RNA_def_property(srna, "is_repeat", PROP_BOOLEAN, PROP_BOOLEAN);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", OP_IS_REPEAT);
+	RNA_def_property_ui_text(prop, "Repeat", "True when run from the redo panel");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
 	prop = RNA_def_property(srna, "use_cursor_region", PROP_BOOLEAN, PROP_BOOLEAN);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", OP_IS_MODAL_CURSOR_REGION);
 	RNA_def_property_ui_text(prop, "Focus Region", "Enable to use the region under the cursor for modal execution");
@@ -1908,7 +1907,12 @@ static void rna_def_event(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "is_tablet", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_Event_is_tablet_get", NULL);
-	RNA_def_property_ui_text(prop, "Tablet Pressure", "The pressure of the tablet or 1.0 if no tablet present");
+	RNA_def_property_ui_text(prop, "Is Tablet", "The event has tablet data");
+
+	prop = RNA_def_property(srna, "is_mouse_absolute", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "is_motion_absolute", 1);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Absolute Motion", "The last motion event was an absolute input");
 
 	/* modifiers */
 	prop = RNA_def_property(srna, "shift", PROP_BOOLEAN, PROP_NONE);
@@ -2073,15 +2077,8 @@ static void rna_def_window(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "ViewLayer");
 	RNA_def_property_pointer_funcs(prop, "rna_Window_view_layer_get", "rna_Window_view_layer_set", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Active View Layer", "The active workspace view layer showing in the window");
-	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_NULL);
-	RNA_def_property_update(prop, NC_SCREEN | ND_LAYER, NULL);
-
-#ifdef USE_WORKSPACE_MODE
-	prop = RNA_def_property(srna, "object_mode", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, rna_enum_object_mode_items);
-	RNA_def_property_enum_funcs(prop, "rna_Window_object_mode_get", "rna_Window_object_mode_set", NULL);
-	RNA_def_property_ui_text(prop, "Mode", "Object interaction mode used in this window");
-#endif
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_NULL | PROP_CONTEXT_UPDATE);
+	RNA_def_property_update(prop, NC_SCREEN | ND_LAYER, "rna_Window_view_layer_update");
 
 	prop = RNA_def_property(srna, "x", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "posx");
@@ -2255,6 +2252,10 @@ static void rna_def_keyconfig(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Name", "Name of the key map");
 	RNA_def_struct_name_property(srna, prop);
+
+	prop = RNA_def_property(srna, "bl_owner_id", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "owner_id");
+	RNA_def_property_ui_text(prop, "Owner", "Internal owner");
 
 	prop = RNA_def_property(srna, "space_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "spaceid");

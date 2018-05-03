@@ -40,9 +40,22 @@
 
 #include "GPU_batch.h"
 
+#include "UI_resources.h"
+
 #include "draw_cache_impl.h"  /* own include */
 
-#define SELECT   1
+#define SELECT            1
+#define ACTIVE_NURB       1 << 7 /* last char bite */
+#define HANDLE_SEL_OFFSET (TH_HANDLE_SEL_FREE - TH_HANDLE_FREE)
+
+/* Used as values of `color_id` in `edit_curve_overlay_handle_geom.glsl` */
+enum {
+	COLOR_NURB_ULINE_ID = TH_HANDLE_SEL_AUTOCLAMP - TH_HANDLE_FREE + 1,
+	COLOR_NURB_SEL_ULINE_ID,
+	COLOR_ACTIVE_SPLINE,
+
+	TOT_HANDLE_COL,
+};
 
 /**
  * TODO
@@ -126,7 +139,8 @@ static int curve_render_normal_len_get(const ListBase *lb, const CurveCache *ob_
 			nr -= skip;
 		}
 #else
-		normal_len += max_ii((nr + max_ii(skip - 1, 0)) / (skip + 1), 0);
+		/* Same as loop above */
+		normal_len += (nr / (skip + 1)) + ((nr % (skip + 1)) != 0);
 #endif
 	}
 	return normal_len;
@@ -310,7 +324,11 @@ typedef struct CurveBatchCache {
 	} overlay;
 
 	struct {
+		Gwn_VertBuf *verts;
+		Gwn_IndexBuf *triangles_in_order;
+		Gwn_Batch **shaded_triangles;
 		Gwn_Batch *batch;
+		int mat_len;
 	} surface;
 
 	/* 3d text */
@@ -340,6 +358,10 @@ static bool curve_batch_cache_valid(Curve *cu)
 		return false;
 	}
 
+	if (cache->is_dirty) {
+		return false;
+	}
+
 	if (cache->is_editmode != ((cu->editnurb != NULL) || (cu->editfont != NULL))) {
 		return false;
 	}
@@ -355,16 +377,6 @@ static bool curve_batch_cache_valid(Curve *cu)
 		}
 		else if (cu->editfont) {
 			/* TODO */
-		}
-	}
-
-	if (cache->is_dirty == false) {
-		return true;
-	}
-	else {
-		/* TODO: check number of vertices/edges? */
-		if (cache->is_editmode) {
-			return false;
 		}
 	}
 
@@ -444,6 +456,14 @@ static void curve_batch_cache_clear(Curve *cu)
 	GWN_BATCH_DISCARD_SAFE(cache->overlay.verts);
 	GWN_BATCH_DISCARD_SAFE(cache->overlay.edges);
 
+	GWN_VERTBUF_DISCARD_SAFE(cache->surface.verts);
+	GWN_INDEXBUF_DISCARD_SAFE(cache->surface.triangles_in_order);
+	if (cache->surface.shaded_triangles) {
+		for (int i = 0; i < cache->surface.mat_len; ++i) {
+			GWN_BATCH_DISCARD_SAFE(cache->surface.shaded_triangles[i]);
+		}
+	}
+	MEM_SAFE_FREE(cache->surface.shaded_triangles);
 	GWN_BATCH_DISCARD_SAFE(cache->surface.batch);
 
 	/* don't own vbo & elems */
@@ -735,47 +755,50 @@ static void curve_batch_cache_create_overlay_batches(Curve *cu)
 		int vbo_len_used = 0;
 		GWN_vertbuf_data_alloc(vbo, vbo_len_capacity);
 		int i = 0;
-		for (Nurb *nu = rdata->nurbs->first; nu; nu = nu->next) {
+		for (Nurb *nu = rdata->nurbs->first; nu; nu = nu->next, i++) {
+			const bool is_active_nurb = (i == cu->actnu);
+
 			if (nu->bezt) {
 				int a = 0;
 				for (const BezTriple *bezt = nu->bezt; a < nu->pntsu; a++, bezt++) {
 					if (bezt->hide == false) {
-						const bool is_active = (i == rdata->actvert);
-						char vflag;
+						char col_id;
 
-						vflag = (bezt->f1 & SELECT) ? (is_active ? VFLAG_VERTEX_ACTIVE : VFLAG_VERTEX_SELECTED) : 0;
-						GWN_vertbuf_attr_set(vbo, attr_id.pos, vbo_len_used, bezt->vec[0]);
-						GWN_vertbuf_attr_set(vbo, attr_id.data, vbo_len_used, &vflag);
-						vbo_len_used += 1;
-
-						/* same vertex twice, only check different selection */
-						for (int j = 0; j < 2; j++) {
-							vflag = ((j ? bezt->f3 : bezt->f1) & SELECT) ?
-							        (is_active ? VFLAG_VERTEX_ACTIVE : VFLAG_VERTEX_SELECTED) : 0;
+						for (int j = 0; j < 2; j += 1) {
+							/* same vertex twice, only check different selection */
 							GWN_vertbuf_attr_set(vbo, attr_id.pos, vbo_len_used, bezt->vec[1]);
-							GWN_vertbuf_attr_set(vbo, attr_id.data, vbo_len_used, &vflag);
+							vbo_len_used += 1;
+
+							col_id = (&bezt->h1)[j];
+							if ((&bezt->f1)[j * 2] & SELECT) {
+								col_id += HANDLE_SEL_OFFSET;
+							}
+							if (is_active_nurb) {
+								col_id |= ACTIVE_NURB;
+							}
+
+							GWN_vertbuf_attr_set(vbo, attr_id.pos, vbo_len_used, bezt->vec[j * 2]);
+							GWN_vertbuf_attr_set(vbo, attr_id.data, vbo_len_used, &col_id);
 							vbo_len_used += 1;
 						}
-
-						vflag = (bezt->f3 & SELECT) ? (is_active ? VFLAG_VERTEX_ACTIVE : VFLAG_VERTEX_SELECTED) : 0;
-						GWN_vertbuf_attr_set(vbo, attr_id.pos, vbo_len_used, bezt->vec[2]);
-						GWN_vertbuf_attr_set(vbo, attr_id.data, vbo_len_used, &vflag);
-						vbo_len_used += 1;
 					}
-					i += 1;
 				}
 			}
 			else if (nu->bp) {
 				int a = 1;
 				for (const BPoint *bp_prev = nu->bp, *bp_curr = &nu->bp[1]; a < nu->pntsu; a++, bp_prev = bp_curr++) {
 					if ((bp_prev->hide == false) && (bp_curr->hide == false)) {
-						char vflag;
-						vflag = ((bp_prev->f1 & SELECT) && (bp_curr->f1 & SELECT)) ? VFLAG_VERTEX_SELECTED : 0;
+						char col_id = ((bp_prev->f1 & SELECT) && (bp_curr->f1 & SELECT)) ? COLOR_NURB_SEL_ULINE_ID : COLOR_NURB_ULINE_ID;
+
+						if (is_active_nurb) {
+							col_id |= ACTIVE_NURB;
+						}
+
 						GWN_vertbuf_attr_set(vbo, attr_id.pos, vbo_len_used, bp_prev->vec);
-						GWN_vertbuf_attr_set(vbo, attr_id.data, vbo_len_used, &vflag);
 						vbo_len_used += 1;
+
 						GWN_vertbuf_attr_set(vbo, attr_id.pos, vbo_len_used, bp_curr->vec);
-						GWN_vertbuf_attr_set(vbo, attr_id.data, vbo_len_used, &vflag);
+						GWN_vertbuf_attr_set(vbo, attr_id.data, vbo_len_used, &col_id);
 						vbo_len_used += 1;
 
 					}
@@ -796,8 +819,18 @@ static Gwn_Batch *curve_batch_cache_get_pos_and_normals(CurveRenderData *rdata, 
 {
 	BLI_assert(rdata->types & CU_DATATYPE_SURFACE);
 	if (cache->surface.batch == NULL) {
-		cache->surface.batch = BLI_displist_batch_calc_surface(&rdata->ob_curve_cache->disp);
+		ListBase *lb = &rdata->ob_curve_cache->disp;
+
+		if (cache->surface.verts == NULL) {
+			cache->surface.verts = DRW_displist_vertbuf_calc_pos_with_normals(lb);
+		}
+		if (cache->surface.triangles_in_order == NULL) {
+			cache->surface.triangles_in_order = DRW_displist_indexbuf_calc_triangles_in_order(lb);
+		}
+		cache->surface.batch = GWN_batch_create(
+		        GWN_PRIM_TRIS, cache->surface.verts, cache->surface.triangles_in_order);
 	}
+
 	return cache->surface.batch;
 }
 
@@ -995,6 +1028,55 @@ Gwn_Batch *DRW_curve_batch_cache_get_triangles_with_normals(
 	}
 
 	return cache->surface.batch;
+}
+
+Gwn_Batch **DRW_curve_batch_cache_get_surface_shaded(
+        struct Curve *cu, struct CurveCache *ob_curve_cache,
+        struct GPUMaterial **UNUSED(gpumat_array), uint gpumat_array_len)
+{
+	CurveBatchCache *cache = curve_batch_cache_get(cu);
+
+	if (cache->surface.mat_len != gpumat_array_len) {
+		/* TODO: deduplicate code */
+		if (cache->surface.shaded_triangles) {
+			for (int i = 0; i < cache->surface.mat_len; ++i) {
+				GWN_BATCH_DISCARD_SAFE(cache->surface.shaded_triangles[i]);
+			}
+		}
+		MEM_SAFE_FREE(cache->surface.shaded_triangles);
+	}
+
+	if (cache->surface.shaded_triangles == NULL) {
+		CurveRenderData *rdata = curve_render_data_create(cu, ob_curve_cache, CU_DATATYPE_SURFACE);
+		ListBase *lb = &rdata->ob_curve_cache->disp;
+
+		cache->surface.mat_len = gpumat_array_len;
+		if (cu->flag & CU_UV_ORCO) {
+			cache->surface.shaded_triangles = DRW_displist_batch_calc_tri_pos_normals_and_uv_split_by_material(
+			        lb, gpumat_array_len);
+		}
+		else {
+			cache->surface.shaded_triangles = MEM_mallocN(
+			        sizeof(*cache->surface.shaded_triangles) * gpumat_array_len, __func__);
+			Gwn_IndexBuf **el = DRW_displist_indexbuf_calc_triangles_in_order_split_by_material(
+			        lb, gpumat_array_len);
+
+			if (cache->surface.verts == NULL) {
+				cache->surface.verts = DRW_displist_vertbuf_calc_pos_with_normals(lb);
+			}
+
+			for (int i = 0; i < gpumat_array_len; ++i) {
+				cache->surface.shaded_triangles[i] = GWN_batch_create_ex(
+				        GWN_PRIM_TRIS, cache->surface.verts, el[i], GWN_BATCH_OWNS_INDEX);
+			}
+
+			MEM_freeN(el); /* Save `el` in cache? */
+		}
+
+		curve_render_data_free(rdata);
+	}
+
+	return cache->surface.shaded_triangles;
 }
 
 

@@ -64,28 +64,38 @@
 const EnumPropertyItem rna_enum_space_type_items[] = {
 	/* empty must be here for python, is skipped for UI */
 	{SPACE_EMPTY, "EMPTY", ICON_NONE, "Empty", ""},
+
+	/* General */
+	{0, "", ICON_NONE, "General", ""},
 	{SPACE_VIEW3D, "VIEW_3D", ICON_VIEW3D, "3D View", "3D viewport"},
-	{0, "", ICON_NONE, NULL, NULL},
+	{SPACE_IMAGE, "IMAGE_EDITOR", ICON_IMAGE_COL, "UV/Image Editor", "View and edit images and UV Maps"},
+	{SPACE_NODE, "NODE_EDITOR", ICON_NODETREE, "Node Editor", "Editor for node-based shading and compositing tools"},
+	{SPACE_SEQ, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequencer", "Video editing tools"},
+	{SPACE_CLIP, "CLIP_EDITOR", ICON_CLIP, "Movie Clip Editor", "Motion tracking tools"},
+
+	/* Animation */
+	{0, "", ICON_NONE, "Animation", ""},
 	{SPACE_TIME, "TIMELINE", ICON_TIME, "Timeline", "Timeline and playback controls"},
 	{SPACE_IPO, "GRAPH_EDITOR", ICON_IPO, "Graph Editor", "Edit drivers and keyframe interpolation"},
 	{SPACE_ACTION, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet", "Adjust timing of keyframes"},
 	{SPACE_NLA, "NLA_EDITOR", ICON_NLA, "NLA Editor", "Combine and layer Actions"},
-	{0, "", ICON_NONE, NULL, NULL},
-	{SPACE_IMAGE, "IMAGE_EDITOR", ICON_IMAGE_COL, "UV/Image Editor", "View and edit images and UV Maps"},
-	{SPACE_CLIP, "CLIP_EDITOR", ICON_CLIP, "Movie Clip Editor", "Motion tracking tools"},
-	{SPACE_SEQ, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequence Editor", "Video editing tools"},
-	{SPACE_NODE, "NODE_EDITOR", ICON_NODETREE, "Node Editor", "Editor for node-based shading and compositing tools"},
+
+	/* Scripting */
+	{0, "", ICON_NONE, "Scripting", ""},
 	{SPACE_TEXT, "TEXT_EDITOR", ICON_TEXT, "Text Editor", "Edit scripts and in-file documentation"},
 	{SPACE_LOGIC, "LOGIC_EDITOR", ICON_LOGIC, "Logic Editor", "Game logic editing"},
-	{0, "", ICON_NONE, NULL, NULL},
-	{SPACE_BUTS, "PROPERTIES", ICON_BUTS, "Properties", "Edit properties of active object and related data-blocks"},
+	{SPACE_CONSOLE, "CONSOLE", ICON_CONSOLE, "Python Console", "Interactive programmatic console for "
+	                "advanced editing and script development"},
+	{SPACE_INFO, "INFO", ICON_INFO, "Info", "Main menu bar and list of error messages "
+	             "(drag down to expand and display)"},
+
+	/* Data */
+	{0, "", ICON_NONE, "Data", ""},
 	{SPACE_OUTLINER, "OUTLINER", ICON_OOPS, "Outliner", "Overview of scene graph and all available data-blocks"},
-	{SPACE_USERPREF, "USER_PREFERENCES", ICON_PREFERENCES, "User Preferences", "Edit persistent configuration settings"},
-	{SPACE_INFO, "INFO", ICON_INFO, "Info", "Main menu bar and list of error messages (drag down to expand and display)"},
-	{0, "", ICON_NONE, NULL, NULL},
+	{SPACE_BUTS, "PROPERTIES", ICON_BUTS, "Properties", "Edit properties of active object and related data-blocks"},
 	{SPACE_FILE, "FILE_BROWSER", ICON_FILESEL, "File Browser", "Browse for files and assets"},
-	{0, "", ICON_NONE, NULL, NULL},
-	{SPACE_CONSOLE, "CONSOLE", ICON_CONSOLE, "Python Console", "Interactive programmatic console for advanced editing and script development"},
+	{SPACE_USERPREF, "USER_PREFERENCES", ICON_PREFERENCES, "User Preferences",
+	                 "Edit persistent configuration settings"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -573,12 +583,12 @@ static void rna_SpaceView3D_layer_update(Main *bmain, Scene *UNUSED(scene), Poin
 	DEG_on_visible_update(bmain, false);
 }
 
-static void rna_SpaceView3D_viewport_shade_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_SpaceView3D_viewport_shade_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	View3D *v3d = (View3D *)(ptr->data);
 	ScrArea *sa = rna_area_from_space(ptr);
 
-	ED_view3d_shade_update(bmain, scene, v3d, sa);
+	ED_view3d_shade_update(bmain, v3d, sa);
 }
 
 static void rna_SpaceView3D_matcap_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
@@ -857,28 +867,31 @@ static int rna_SpaceImageEditor_show_uvedit_get(PointerRNA *ptr)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
-	Scene *scene = ED_screen_scene_find(sc, G.main->wm.first);
+	wmWindow *win = ED_screen_window_find(sc, G.main->wm.first);
+	Object *obedit = OBEDIT_FROM_WINDOW(win);
 
-	return ED_space_image_show_uvedit(sima, scene->obedit);
+	return ED_space_image_show_uvedit(sima, obedit);
 }
 
 static int rna_SpaceImageEditor_show_maskedit_get(PointerRNA *ptr)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
-	Scene *scene = ED_screen_scene_find(sc, G.main->wm.first);
+	wmWindow *window = NULL;
+	Scene *scene = ED_screen_scene_find_with_window(sc, G.main->wm.first, &window);
 	ViewLayer *view_layer = BKE_view_layer_context_active_PLACEHOLDER(scene);
-
-	return ED_space_image_check_show_maskedit(view_layer, sima);
+	const WorkSpace *workspace = WM_window_get_active_workspace(window);
+	return ED_space_image_check_show_maskedit(sima, workspace, view_layer);
 }
 
 static void rna_SpaceImageEditor_image_set(PointerRNA *ptr, PointerRNA value)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
-	Scene *scene = ED_screen_scene_find(sc, G.main->wm.first);
-
-	ED_space_image_set(sima, scene, scene->obedit, (Image *)value.data);
+	wmWindow *win;
+	Scene *scene = ED_screen_scene_find_with_window(sc, G.main->wm.first, &win);
+	Object *obedit = OBEDIT_FROM_WINDOW(win);
+	ED_space_image_set(sima, scene, obedit, (Image *)value.data);
 }
 
 static void rna_SpaceImageEditor_mask_set(PointerRNA *ptr, PointerRNA value)
@@ -2101,23 +2114,23 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static const EnumPropertyItem display_mode_items[] = {
-		{SO_ALL_SCENES, "ALL_SCENES", 0, "All Scenes", "Display data-blocks in all scenes"},
-		{SO_CUR_SCENE, "CURRENT_SCENE", 0, "Current Scene", "Display data-blocks in current scene"},
-		{SO_VISIBLE, "VISIBLE_LAYERS", 0, "Visible Layers", "Display data-blocks in visible layers"},
-		{SO_SELECTED, "SELECTED", 0, "Selected", "Display data-blocks of selected, visible objects"},
-		{SO_ACTIVE, "ACTIVE", 0, "Active", "Display data-blocks of active object"},
-		{SO_SAME_TYPE, "SAME_TYPES", 0, "Same Types",
-		               "Display data-blocks of all objects of same type as selected object"},
+		{SO_VIEW_LAYER, "VIEW_LAYER", 0, "View Layer", "Display the collections of the active view layer"},
+		{SO_COLLECTIONS, "COLLECTIONS", 0, "Collections", "Display all collections based on the "
+		                 "master collection hierarchy"},
+		{SO_SCENES, "SCENES", 0, "Scenes", "Display composition related data in all scenes"},
 		{SO_GROUPS, "GROUPS", 0, "Groups", "Display groups and their data-blocks"},
 		{SO_SEQUENCE, "SEQUENCE", 0, "Sequence", "Display sequence data-blocks"},
 		{SO_LIBRARIES, "LIBRARIES", 0, "Blender File", "Display data of current file and linked libraries"},
 		{SO_DATABLOCKS, "DATABLOCKS", 0, "Data-Blocks", "Display all raw data-blocks"},
-		{SO_USERDEF, "USER_PREFERENCES", 0, "User Preferences", "Display user preference data"},
 		{SO_ID_ORPHANS, "ORPHAN_DATA", 0, "Orphan Data",
 		                "Display data-blocks which are unused and/or will be lost when the file is reloaded"},
-		{SO_ACT_LAYER, "ACT_LAYER", 0, "Active View Layer", "Display the collections of the active view layer"},
-		{SO_COLLECTIONS, "MASTER_COLLECTION", 0, "Master Collection Tree", "Display all collections based on the "
-		                 "master collection hierarchy"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static const EnumPropertyItem filter_state_items[] = {
+		{SO_FILTER_OB_VISIBLE, "VISIBLE", ICON_RESTRICT_VIEW_OFF, "Visible", "Show visible objects"},
+		{SO_FILTER_OB_SELECTED, "SELECTED", ICON_RESTRICT_SELECT_OFF, "Selected", "Show selected objects"},
+		{SO_FILTER_OB_ACTIVE, "ACTIVE", ICON_LAYER_ACTIVE, "Active", "Show only the active object"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -2140,21 +2153,118 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_filter_case_sensitive", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "search_flags", SO_FIND_CASE_SENSITIVE);
 	RNA_def_property_ui_text(prop, "Case Sensitive Matches Only", "Only use case sensitive matches of search string");
+	RNA_def_property_ui_icon(prop, ICON_SYNTAX_OFF, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 
 	prop = RNA_def_property(srna, "use_filter_complete", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "search_flags", SO_FIND_COMPLETE);
 	RNA_def_property_ui_text(prop, "Complete Matches Only", "Only use complete matches of search string");
+	RNA_def_property_ui_icon(prop, ICON_OUTLINER_DATA_FONT, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 
 	prop = RNA_def_property(srna, "use_sort_alpha", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SO_SKIP_SORT_ALPHA);
 	RNA_def_property_ui_text(prop, "Sort Alphabetically", "");
+	RNA_def_property_ui_icon(prop, ICON_SORTALPHA, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 
 	prop = RNA_def_property(srna, "show_restrict_columns", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SO_HIDE_RESTRICTCOLS);
 	RNA_def_property_ui_text(prop, "Show Restriction Columns", "Show column");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	/* Filters. */
+	prop = RNA_def_property(srna, "use_filter_search", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "filter", SO_FILTER_SEARCH);
+	RNA_def_property_ui_text(prop, "Search Name", "Filter searched elements");
+	RNA_def_property_ui_icon(prop, ICON_VIEWZOOM, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "use_filters", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "filter", SO_FILTER_ENABLE);
+	RNA_def_property_ui_text(prop, "Use Filters", "Use filters");
+	RNA_def_property_ui_icon(prop, ICON_FILTER, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "use_filter_object", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_OBJECT);
+	RNA_def_property_ui_text(prop, "Filter Objects", "Show objects");
+	RNA_def_property_ui_icon(prop, ICON_OBJECT_DATA, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "use_filter_object_content", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_OB_CONTENT);
+	RNA_def_property_ui_text(prop, "Filter Objects Contents", "Show what is inside the objects elements");
+	RNA_def_property_ui_icon(prop, ICON_MODIFIER, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "use_filter_children", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_CHILDREN);
+	RNA_def_property_ui_text(prop, "Filter Objects Children", "Show children");
+	RNA_def_property_ui_icon(prop, ICON_PLUS, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "use_filter_collection", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_COLLECTION);
+	RNA_def_property_ui_text(prop, "Filter Collections", "Show collections");
+	RNA_def_property_ui_icon(prop, ICON_COLLAPSEMENU, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	/* Filters object state. */
+	prop = RNA_def_property(srna, "use_filter_object_state", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "filter", SO_FILTER_OB_STATE);
+	RNA_def_property_ui_text(prop, "Filter Object State", "Filter objects based on their state (visible, ...)."
+	                                                      "This can be slow");
+	RNA_def_property_ui_icon(prop, ICON_LAYER_USED, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "filter_state", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "filter_state");
+	RNA_def_property_enum_items(prop, filter_state_items);
+	RNA_def_property_ui_text(prop, "State Filter", "");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	/* Filters object type. */
+	prop = RNA_def_property(srna, "use_filter_object_type", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "filter", SO_FILTER_OB_TYPE);
+	RNA_def_property_ui_text(prop, "Filter Object Type", "Show specific objects types");
+	RNA_def_property_ui_icon(prop, ICON_MESH_CUBE, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "use_filter_object_mesh", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_OB_MESH);
+	RNA_def_property_ui_text(prop, "Show Meshes", "Show mesh objects");
+	RNA_def_property_ui_icon(prop, ICON_OUTLINER_OB_MESH, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "use_filter_object_armature", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_OB_ARMATURE);
+	RNA_def_property_ui_text(prop, "Show Armatures", "Show armature objects");
+	RNA_def_property_ui_icon(prop, ICON_OUTLINER_OB_ARMATURE, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "use_filter_object_empty", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_OB_EMPTY);
+	RNA_def_property_ui_text(prop, "Show Empties", "Show empty objects");
+	RNA_def_property_ui_icon(prop, ICON_OUTLINER_OB_EMPTY, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "use_filter_object_lamp", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_OB_LAMP);
+	RNA_def_property_ui_text(prop, "Show Lamps", "Show lamps objects");
+	RNA_def_property_ui_icon(prop, ICON_OUTLINER_OB_LAMP, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "use_filter_object_camera", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_OB_CAMERA);
+	RNA_def_property_ui_text(prop, "Show Cameras", "Show camera objects");
+	RNA_def_property_ui_icon(prop, ICON_OUTLINER_OB_CAMERA, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+
+	prop = RNA_def_property(srna, "use_filter_object_others", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_OB_OTHERS);
+	RNA_def_property_ui_text(prop, "Show Other Objects", "Show curves, lattices, light probes, fonts, ...");
+	RNA_def_property_ui_icon(prop, ICON_ZOOMIN, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 }
 

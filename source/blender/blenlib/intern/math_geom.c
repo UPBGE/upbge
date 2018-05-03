@@ -3748,7 +3748,7 @@ void orthographic_m4(float matrix[4][4], const float left, const float right, co
 	matrix[3][0] = -(right + left) / Xdelta;
 	matrix[1][1] = 2.0f / Ydelta;
 	matrix[3][1] = -(top + bottom) / Ydelta;
-	matrix[2][2] = -2.0f / Zdelta; /* note: negate Z	*/
+	matrix[2][2] = -2.0f / Zdelta; /* note: negate Z */
 	matrix[3][2] = -(farClip + nearClip) / Zdelta;
 }
 
@@ -3767,7 +3767,7 @@ void perspective_m4(float mat[4][4], const float left, const float right, const 
 	}
 	mat[0][0] = nearClip * 2.0f / Xdelta;
 	mat[1][1] = nearClip * 2.0f / Ydelta;
-	mat[2][0] = (right + left) / Xdelta; /* note: negate Z	*/
+	mat[2][0] = (right + left) / Xdelta; /* note: negate Z */
 	mat[2][1] = (top + bottom) / Ydelta;
 	mat[2][2] = -(farClip + nearClip) / Zdelta;
 	mat[2][3] = -1.0f;
@@ -4901,6 +4901,18 @@ int is_quad_flip_v3(const float v1[3], const float v2[3], const float v3[3], con
 	ret |= ((dot_v3v3(cross_a, cross_b) < 0.0f) << 1);
 
 	return ret;
+}
+
+bool is_quad_flip_v3_first_third_fast(const float v1[3], const float v2[3], const float v3[3], const float v4[3])
+{
+	float d_12[3], d_13[3], d_14[3];
+	float cross_a[3], cross_b[3];
+	sub_v3_v3v3(d_12, v2, v1);
+	sub_v3_v3v3(d_13, v3, v1);
+	sub_v3_v3v3(d_14, v4, v1);
+	cross_v3_v3v3(cross_a, d_12, d_13);
+	cross_v3_v3v3(cross_b, d_14, d_13);
+	return dot_v3v3(cross_a, cross_b) > 0.0f;
 }
 
 /**

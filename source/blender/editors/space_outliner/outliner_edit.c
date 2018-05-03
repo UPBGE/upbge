@@ -51,7 +51,6 @@
 
 #include "BKE_animsys.h"
 #include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_idcode.h"
 #include "BKE_layer.h"
 #include "BKE_library.h"
@@ -64,6 +63,7 @@
 #include "BKE_material.h"
 #include "BKE_group.h"
 
+#include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
 #include "../blenloader/BLO_readfile.h"
@@ -949,7 +949,7 @@ static void outliner_set_coordinates_element_recursive(SpaceOops *soops, TreeEle
 }
 
 /* to retrieve coordinates with redrawing the entire tree */
-static void outliner_set_coordinates(ARegion *ar, SpaceOops *soops)
+void outliner_set_coordinates(ARegion *ar, SpaceOops *soops)
 {
 	TreeElement *te;
 	int starty = (int)(ar->v2d.tot.ymax) - UI_UNIT_Y;
@@ -977,6 +977,7 @@ static int outliner_open_back(TreeElement *te)
 
 static int outliner_show_active_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	SpaceOops *so = CTX_wm_space_outliner(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -997,13 +998,13 @@ static int outliner_show_active_exec(bContext *C, wmOperator *UNUSED(op))
 		/* traverse down the bone hierarchy in case of armature */
 		TreeElement *te_obact = te;
 
-		if (obact->mode & OB_MODE_POSE) {
+		if (workspace->object_mode & OB_MODE_POSE) {
 			bPoseChannel *pchan = CTX_data_active_pose_bone(C);
 			if (pchan) {
 				te = outliner_find_posechannel(&te_obact->subtree, pchan);
 			}
 		}
-		else if (obact->mode & OB_MODE_EDIT) {
+		else if (workspace->object_mode & OB_MODE_EDIT) {
 			EditBone *ebone = CTX_data_active_bone(C);
 			if (ebone) {
 				te = outliner_find_editbone(&te_obact->subtree, ebone);
@@ -2085,7 +2086,7 @@ static int outliner_parenting_poll(bContext *C)
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 
 	if (soops) {
-		return ELEM(soops->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_GROUPS);
+		return ELEM(soops->outlinevis, SO_VIEW_LAYER, SO_COLLECTIONS, SO_GROUPS);
 	}
 
 	return false;

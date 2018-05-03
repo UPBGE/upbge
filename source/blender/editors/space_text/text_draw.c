@@ -596,7 +596,7 @@ static void text_update_drawcache(SpaceText *st, ARegion *ar)
 			drawcache->total_lines = 0;
 
 			if (st->showlinenrs)
-				st->linenrs_tot = (int)floor(log10((float)nlines)) + 1;
+				st->linenrs_tot = integer_digits_i(nlines);
 
 			while (line) {
 				if (drawcache->valid_head) { /* we're inside valid head lines */
@@ -630,7 +630,7 @@ static void text_update_drawcache(SpaceText *st, ARegion *ar)
 			nlines = BLI_listbase_count(&txt->lines);
 
 			if (st->showlinenrs)
-				st->linenrs_tot = (int)floor(log10((float)nlines)) + 1;
+				st->linenrs_tot = integer_digits_i(nlines);
 		}
 
 		drawcache->total_lines = nlines;
@@ -1207,7 +1207,7 @@ static void draw_text_decoration(SpaceText *st, ARegion *ar)
 
 			immUniformColor4ub(255, 255, 255, 32);
 
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 			glEnable(GL_BLEND);
 			immRecti(pos, x1 - 4, y1, x2, y2);
 			glDisable(GL_BLEND);

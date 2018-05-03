@@ -79,6 +79,8 @@ void register_node_type_sh_tex_pointdensity(void);
 
 void register_node_type_sh_attribute(void);
 void register_node_type_sh_bevel(void);
+void register_node_type_sh_displacement(void);
+void register_node_type_sh_vector_displacement(void);
 void register_node_type_sh_geometry(void);
 void register_node_type_sh_light_path(void);
 void register_node_type_sh_light_falloff(void);
@@ -112,6 +114,7 @@ void register_node_type_sh_emission(void);
 void register_node_type_sh_holdout(void);
 void register_node_type_sh_volume_absorption(void);
 void register_node_type_sh_volume_scatter(void);
+void register_node_type_sh_volume_principled(void);
 void register_node_type_sh_bsdf_hair(void);
 void register_node_type_sh_subsurface_scattering(void);
 void register_node_type_sh_mix_shader(void);

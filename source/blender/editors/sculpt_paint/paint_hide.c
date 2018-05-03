@@ -325,7 +325,7 @@ static void clip_planes_from_rect(bContext *C,
 	BoundBox bb;
 	
 	view3d_operator_needs_opengl(C);
-	view3d_set_viewcontext(C, &vc);
+	ED_view3d_viewcontext_init(C, &vc);
 	ED_view3d_clipping_calc(&bb, clip_planes, vc.ar, vc.obact, rect);
 	negate_m4(clip_planes);
 }
@@ -384,7 +384,7 @@ static int hide_show_exec(bContext *C, wmOperator *op)
 	clip_planes_from_rect(C, clip_planes, &rect);
 
 	dm = mesh_get_derived_final(&eval_ctx, CTX_data_scene(C), ob, CD_MASK_BAREMESH);
-	pbvh = dm->getPBVH(ob, dm);
+	pbvh = dm->getPBVH(ob, dm, eval_ctx.object_mode);
 	ob->sculpt->pbvh = pbvh;
 
 	get_pbvh_nodes(pbvh, &nodes, &totnode, clip_planes, area);
@@ -418,7 +418,7 @@ static int hide_show_exec(bContext *C, wmOperator *op)
 		MEM_freeN(nodes);
 	
 	/* end undo */
-	sculpt_undo_push_end(C);
+	sculpt_undo_push_end();
 
 	/* ensure that edges and faces get hidden as well (not used by
 	 * sculpt but it looks wrong when entering editmode otherwise) */

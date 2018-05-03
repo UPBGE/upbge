@@ -36,6 +36,8 @@
 
 /* internal exports only */
 
+struct ARegion;
+struct ListBase;
 struct wmOperatorType;
 struct TreeElement;
 struct TreeStoreElem;
@@ -47,8 +49,9 @@ struct ID;
 struct Object;
 struct bPoseChannel;
 struct EditBone;
+struct wmEvent;
 struct wmKeyConfig;
-
+struct EvaluationContext;
 
 typedef enum TreeElementInsertType {
 	TE_INSERT_BEFORE,
@@ -69,8 +72,11 @@ typedef enum TreeTraversalAction {
  * Callback type for reinserting elements at a different position, used to allow user customizable element order.
  */
 typedef void (*TreeElementReinsertFunc)(struct Main *bmain,
+                                        struct SpaceOops *soops,
                                         struct TreeElement *insert_element,
-                                        struct TreeElement *insert_handle, TreeElementInsertType action);
+                                        struct TreeElement *insert_handle,
+                                        TreeElementInsertType action,
+                                        const struct wmEvent *event);
 /**
  * Executed on (almost) each mouse move while dragging. It's supposed to give info
  * if reinserting insert_element before/after/into insert_handle would be allowed.
@@ -102,6 +108,7 @@ typedef struct TreeElement {
 		TreeElementInsertType insert_type;
 		/* the element before/after/into which we may insert the dragged one (NULL to insert at top) */
 		struct TreeElement *insert_handle;
+		void *tooltip_draw_handle;
 	} *drag_data;
 } TreeElement;
 
@@ -143,17 +150,19 @@ typedef enum {
 /* size constants */
 #define OL_Y_OFFSET 2
 
-#define OL_TOG_RESTRICT_ENABLEX (UI_UNIT_X * 3.0f)
-#define OL_TOG_RESTRICT_VIEWX   (UI_UNIT_X * 2.0f)
-#define OL_TOG_RESTRICT_SELECTX UI_UNIT_X
+#define OL_TOG_RESTRICT_VIEWX   (UI_UNIT_X * 3.0f)
+#define OL_TOG_RESTRICT_SELECTX (UI_UNIT_X * 2.0f)
 #define OL_TOG_RESTRICT_RENDERX UI_UNIT_X
 
-#define OL_TOGW OL_TOG_RESTRICT_ENABLEX
+#define OL_TOGW OL_TOG_RESTRICT_VIEWX
 
 #define OL_RNA_COLX         (UI_UNIT_X * 15)
 #define OL_RNA_COL_SIZEX    (UI_UNIT_X * 7.5f)
 #define OL_RNA_COL_SPACEX   (UI_UNIT_X * 2.5f)
 
+/* The outliner display modes that support the filter system.
+ * Note: keep it synced with space_outliner.py */
+#define SUPPORT_FILTER_OUTLINER(soops_) ELEM((soops_)->outlinevis, SO_VIEW_LAYER, SO_COLLECTIONS)
 
 /* Outliner Searching --
  *
@@ -171,18 +180,28 @@ typedef enum {
  * - not searching into RNA items helps but isn't the complete solution
  */
 
-#define SEARCHING_OUTLINER(sov)   (sov->search_flags & SO_SEARCH_RECURSIVE)
+#define SEARCHING_OUTLINER(sov)   ((sov->search_flags & SO_SEARCH_RECURSIVE) && (sov->filter & SO_FILTER_SEARCH))
 
 /* is the currrent element open? if so we also show children */
 #define TSELEM_OPEN(telm, sv)    ( (telm->flag & TSE_CLOSED) == 0 || (SEARCHING_OUTLINER(sv) && (telm->flag & TSE_CHILDSEARCH)) )
 
 /* outliner_tree.c ----------------------------------------------- */
 
-void outliner_free_tree(ListBase *lb);
+void outliner_free_tree(ListBase *tree);
 void outliner_cleanup_tree(struct SpaceOops *soops);
+void outliner_free_tree_element(TreeElement *element, ListBase *parent_subtree);
 void outliner_remove_treestore_element(struct SpaceOops *soops, TreeStoreElem *tselem);
 
-void outliner_build_tree(struct Main *mainvar, struct Scene *scene, struct ViewLayer *view_layer, struct SpaceOops *soops);
+void outliner_build_tree(
+        struct Main *mainvar, const struct EvaluationContext *eval_ctx,
+        struct Scene *scene, struct ViewLayer *view_layer,
+        struct SpaceOops *soops, struct ARegion *ar);
+
+typedef struct ObjectsSelectedData {
+	struct ListBase objects_selected_array;
+} ObjectsSelectedData;
+
+TreeTraversalAction outliner_find_selected_objects(struct TreeElement *te, void *customdata);
 
 /* outliner_draw.c ---------------------------------------------- */
 
@@ -202,6 +221,10 @@ void outliner_item_do_activate_from_tree_element(
 int outliner_item_do_activate_from_cursor(
         struct bContext *C, const int mval[2],
         bool extend, bool recursive);
+
+void outliner_item_select(
+        struct SpaceOops *soops, const struct TreeElement *te,
+        const bool extend, const bool toggle);
 
 /* outliner_edit.c ---------------------------------------------- */
 typedef void (*outliner_operation_cb)(
@@ -259,6 +282,8 @@ void id_remap_cb(
         struct TreeStoreElem *tsep, struct TreeStoreElem *tselem, void *user_data);
 
 TreeElement *outliner_dropzone_find(const struct SpaceOops *soops, const float fmval[2], const bool children);
+
+void outliner_set_coordinates(struct ARegion *ar, struct SpaceOops *soops);
 
 /* ...................................................... */
 
@@ -328,11 +353,15 @@ void OUTLINER_OT_collection_toggle(struct wmOperatorType *ot);
 void OUTLINER_OT_collection_link(struct wmOperatorType *ot);
 void OUTLINER_OT_collection_unlink(struct wmOperatorType *ot);
 void OUTLINER_OT_collection_new(struct wmOperatorType *ot);
-void OUTLINER_OT_collection_override_new(struct wmOperatorType *ot);
-void OUTLINER_OT_collection_objects_add(struct wmOperatorType *ot);
+void OUTLINER_OT_collection_duplicate(struct wmOperatorType *ot);
 void OUTLINER_OT_collection_objects_remove(struct wmOperatorType *ot);
 void OUTLINER_OT_collection_objects_select(struct wmOperatorType *ot);
-void OUTLINER_OT_collection_objects_deselect(struct wmOperatorType *ot);
+void OUTLINER_OT_object_add_to_new_collection(struct wmOperatorType *ot);
+void OUTLINER_OT_object_remove_from_collection(struct wmOperatorType *ot);
+
+void OUTLINER_OT_collection_objects_add(struct wmOperatorType *ot);
+void OUTLINER_OT_collection_nested_new(struct wmOperatorType *ot);
+void OUTLINER_OT_collection_delete_selected(struct wmOperatorType *ot);
 
 /* outliner_utils.c ---------------------------------------------- */
 

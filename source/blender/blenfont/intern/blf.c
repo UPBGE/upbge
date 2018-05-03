@@ -85,6 +85,7 @@ static FontBLF *global_font[BLF_MAX_FONT] = {NULL};
 static int global_font_default = -1;
 static int global_font_points = 11;
 static int global_font_dpi = 72;
+static bool global_use_antialias = true;
 
 /* XXX, should these be made into global_font_'s too? */
 int blf_mono_font = -1;
@@ -131,6 +132,11 @@ void BLF_exit(void)
 	blf_font_exit();
 }
 
+void BLF_batch_reset(void)
+{
+	blf_batch_draw_vao_clear();
+}
+
 void BLF_cache_clear(void)
 {
 	FontBLF *font;
@@ -138,8 +144,10 @@ void BLF_cache_clear(void)
 
 	for (i = 0; i < BLF_MAX_FONT; i++) {
 		font = global_font[i];
-		if (font)
+		if (font) {
 			blf_glyph_cache_clear(font);
+			blf_kerning_cache_clear(font);
+		}
 	}
 }
 
@@ -180,6 +188,16 @@ int BLF_default(void)
 {
 	ASSERT_DEFAULT_SET;
 	return global_font_default;
+}
+
+void BLF_antialias_set(bool enabled)
+{
+	global_use_antialias = enabled;
+}
+
+bool BLF_antialias_get(void)
+{
+	return global_use_antialias;
 }
 
 int BLF_load(const char *name)
@@ -524,6 +542,19 @@ void BLF_color3f(int fontid, float r, float g, float b)
 	BLF_color4fv(fontid, rgba);
 }
 
+void BLF_batch_draw_begin(void)
+{
+	BLI_assert(g_batch.enabled == false);
+	g_batch.enabled = true;
+}
+
+void BLF_batch_draw_end(void)
+{
+	BLI_assert(g_batch.enabled == true);
+	blf_batch_draw(); /* Draw remaining glyphs */
+	g_batch.enabled = false;
+}
+
 void BLF_draw_default(float x, float y, float z, const char *str, size_t len)
 {
 	ASSERT_DEFAULT_SET;
@@ -550,8 +581,11 @@ static void blf_draw_gl__start(FontBLF *font)
 	 * in BLF_position (old ui_rasterpos_safe).
 	 */
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	/* always bind the texture for the first glyph */
+	font->tex_bind_state = 0;
+
+	if ((font->flags & (BLF_ROTATION | BLF_MATRIX | BLF_ASPECT)) == 0)
+		return; /* glyphs will be translated individually and batched. */
 
 	gpuPushMatrix();
 
@@ -565,35 +599,12 @@ static void blf_draw_gl__start(FontBLF *font)
 
 	if (font->flags & BLF_ROTATION)
 		gpuRotate2D(RAD2DEG(font->angle));
-
-#ifndef BLF_STANDALONE
-	Gwn_VertFormat *format = immVertexFormat();
-	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-	unsigned int texCoord = GWN_vertformat_attr_add(format, "texCoord", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-	unsigned int color = GWN_vertformat_attr_add(format, "color", GWN_COMP_U8, 4, GWN_FETCH_INT_TO_FLOAT_UNIT);
-
-	BLI_assert(pos == BLF_POS_ID);
-	BLI_assert(texCoord == BLF_COORD_ID);
-	BLI_assert(color == BLF_COLOR_ID);
-
-	UNUSED_VARS_NDEBUG(pos, texCoord, color);
-
-	immBindBuiltinProgram(GPU_SHADER_TEXT);
-#endif
-
-	/* always bind the texture for the first glyph */
-	font->tex_bind_state = -1;
 }
 
-static void blf_draw_gl__end(void)
+static void blf_draw_gl__end(FontBLF *font)
 {
-	gpuPopMatrix();
-
-#ifndef BLF_STANDALONE
-	immUnbindProgram();
-#endif
-
-	glDisable(GL_BLEND);
+	if ((font->flags & (BLF_ROTATION | BLF_MATRIX | BLF_ASPECT)) != 0)
+		gpuPopMatrix();
 }
 
 void BLF_draw_ex(
@@ -612,7 +623,7 @@ void BLF_draw_ex(
 		else {
 			blf_font_draw(font, str, len, r_info);
 		}
-		blf_draw_gl__end();
+		blf_draw_gl__end(font);
 	}
 }
 void BLF_draw(int fontid, const char *str, size_t len)
@@ -641,7 +652,7 @@ void BLF_draw_ascii_ex(
 		else {
 			blf_font_draw_ascii(font, str, len, r_info);
 		}
-		blf_draw_gl__end();
+		blf_draw_gl__end(font);
 	}
 }
 void BLF_draw_ascii(int fontid, const char *str, size_t len)
@@ -665,7 +676,7 @@ int BLF_draw_mono(int fontid, const char *str, size_t len, int cwidth)
 	if (font && font->glyph_cache) {
 		blf_draw_gl__start(font);
 		columns = blf_font_draw_mono(font, str, len, cwidth);
-		blf_draw_gl__end();
+		blf_draw_gl__end(font);
 	}
 
 	return columns;
@@ -799,7 +810,7 @@ int BLF_height_max(int fontid)
 	FontBLF *font = blf_get(fontid);
 
 	if (font && font->glyph_cache) {
-		return font->glyph_cache->max_glyph_height;
+		return font->glyph_cache->glyph_height_max;
 	}
 
 	return 0;
@@ -810,7 +821,7 @@ float BLF_width_max(int fontid)
 	FontBLF *font = blf_get(fontid);
 
 	if (font && font->glyph_cache) {
-		return font->glyph_cache->max_glyph_width;
+		return font->glyph_cache->glyph_width_max;
 	}
 
 	return 0.0f;

@@ -798,7 +798,10 @@ typedef struct BVHDivNodesData {
 	int first_of_next_level;
 } BVHDivNodesData;
 
-static void non_recursive_bvh_div_nodes_task_cb(void *userdata, const int j)
+static void non_recursive_bvh_div_nodes_task_cb(
+        void *__restrict userdata,
+        const int j,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	BVHDivNodesData *data = userdata;
 
@@ -853,9 +856,8 @@ static void non_recursive_bvh_div_nodes_task_cb(void *userdata, const int j)
 		else {
 			break;
 		}
-
-		parent->totnode = (char)(k + 1);
 	}
+	parent->totnode = (char)k;
 }
 
 /**
@@ -872,7 +874,7 @@ static void non_recursive_bvh_div_nodes_task_cb(void *userdata, const int j)
  * to use multithread building.
  *
  * To archive this is necessary to find how much leafs are accessible from a certain branch, BVHBuildHelper
- * implicit_needed_branches and implicit_leafs_index are auxiliary functions to solve that "optimal-split".
+ * #implicit_needed_branches and #implicit_leafs_index are auxiliary functions to solve that "optimal-split".
  */
 static void non_recursive_bvh_div_nodes(
         const BVHTree *tree, BVHNode *branches_array, BVHNode **leafs_array, int num_leafs)
@@ -885,24 +887,23 @@ static void non_recursive_bvh_div_nodes(
 
 	BVHBuildHelper data;
 	int depth;
-	
-	/* set parent from root node to NULL */
-	BVHNode *tmp = &branches_array[0];
-	tmp->parent = NULL;
 
-	/* Most of bvhtree code relies on 1-leaf trees having at least one branch
-	 * We handle that special case here */
-	if (num_leafs == 1) {
-		BVHNode *root = &branches_array[0];
-		refit_kdop_hull(tree, root, 0, num_leafs);
-		root->main_axis = get_largest_axis(root->bv) / 2;
-		root->totnode = 1;
-		root->children[0] = leafs_array[0];
-		root->children[0]->parent = root;
-		return;
+	{
+		/* set parent from root node to NULL */
+		BVHNode *root = &branches_array[1];
+		root->parent = NULL;
+
+		/* Most of bvhtree code relies on 1-leaf trees having at least one branch
+		 * We handle that special case here */
+		if (num_leafs == 1) {
+			refit_kdop_hull(tree, root, 0, num_leafs);
+			root->main_axis = get_largest_axis(root->bv) / 2;
+			root->totnode = 1;
+			root->children[0] = leafs_array[0];
+			root->children[0]->parent = root;
+			return;
+		}
 	}
-
-	branches_array--;  /* Implicit trees use 1-based indexs */
 
 	build_implicit_tree_helper(tree, &data);
 
@@ -923,14 +924,20 @@ static void non_recursive_bvh_div_nodes(
 		cb_data.depth = depth;
 
 		if (true) {
+			ParallelRangeSettings settings;
+			BLI_parallel_range_settings_defaults(&settings);
+			settings.use_threading = (num_leafs > KDOPBVH_THREAD_LEAF_THRESHOLD);
 			BLI_task_parallel_range(
-			        i, i_stop, &cb_data, non_recursive_bvh_div_nodes_task_cb,
-			        num_leafs > KDOPBVH_THREAD_LEAF_THRESHOLD);
+			        i, i_stop,
+			        &cb_data,
+			        non_recursive_bvh_div_nodes_task_cb,
+			        &settings);
 		}
 		else {
 			/* Less hassle for debugging. */
+			ParallelRangeTLS tls = {0};
 			for (int i_task = i; i_task < i_stop; i_task++) {
-				non_recursive_bvh_div_nodes_task_cb(&cb_data, i_task);
+				non_recursive_bvh_div_nodes_task_cb(&cb_data, i_task, &tls);
 			}
 		}
 	}
@@ -1044,9 +1051,6 @@ void BLI_bvhtree_free(BVHTree *tree)
 
 void BLI_bvhtree_balance(BVHTree *tree)
 {
-	int i;
-
-	BVHNode *branches_array = tree->nodearray + tree->totleaf;
 	BVHNode **leafs_array    = tree->nodes;
 
 	/* This function should only be called once
@@ -1054,13 +1058,14 @@ void BLI_bvhtree_balance(BVHTree *tree)
 	BLI_assert(tree->totbranch == 0);
 
 	/* Build the implicit tree */
-	non_recursive_bvh_div_nodes(tree, branches_array, leafs_array, tree->totleaf);
+	non_recursive_bvh_div_nodes(tree, tree->nodearray + (tree->totleaf - 1), leafs_array, tree->totleaf);
 
 	/* current code expects the branches to be linked to the nodes array
 	 * we perform that linkage here */
 	tree->totbranch = implicit_needed_branches(tree->tree_type, tree->totleaf);
-	for (i = 0; i < tree->totbranch; i++)
-		tree->nodes[tree->totleaf + i] = branches_array + i;
+	for (int i = 0; i < tree->totbranch; i++) {
+		tree->nodes[tree->totleaf + i] = &tree->nodearray[tree->totleaf + i];
+	}
 
 #ifdef USE_SKIP_LINKS
 	build_skip_links(tree, tree->nodes[tree->totleaf], NULL, NULL);
@@ -1141,7 +1146,7 @@ void BLI_bvhtree_update_tree(BVHTree *tree)
  * Number of times #BLI_bvhtree_insert has been called.
  * mainly useful for asserts functions to check we added the correct number.
  */
-int BLI_bvhtree_get_size(const BVHTree *tree)
+int BLI_bvhtree_get_len(const BVHTree *tree)
 {
 	return tree->totleaf;
 }
@@ -1276,7 +1281,10 @@ int BLI_bvhtree_overlap_thread_num(const BVHTree *tree)
 	return (int)MIN2(tree->tree_type, tree->nodes[tree->totleaf]->totnode);
 }
 
-static void bvhtree_overlap_task_cb(void *userdata, const int j)
+static void bvhtree_overlap_task_cb(
+        void *__restrict userdata,
+        const int j,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	BVHOverlapData_Thread *data = &((BVHOverlapData_Thread *)userdata)[j];
 	BVHOverlapData_Shared *data_shared = data->shared;
@@ -1341,9 +1349,14 @@ BVHTreeOverlap *BLI_bvhtree_overlap(
 		data[j].thread = j;
 	}
 
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = (tree1->totleaf > KDOPBVH_THREAD_LEAF_THRESHOLD);
 	BLI_task_parallel_range(
-	            0, thread_num, data, bvhtree_overlap_task_cb,
-	            tree1->totleaf > KDOPBVH_THREAD_LEAF_THRESHOLD);
+	            0, thread_num,
+	            data,
+	            bvhtree_overlap_task_cb,
+	            &settings);
 	
 	for (j = 0; j < thread_num; j++)
 		total += BLI_stack_count(data[j].overlap);
@@ -1910,6 +1923,7 @@ void BLI_bvhtree_ray_cast_all(
 	BLI_bvhtree_ray_cast_all_ex(tree, co, dir, radius, hit_dist, callback, userdata, BVH_RAYCAST_DEFAULT);
 }
 
+/** \} */
 
 /* -------------------------------------------------------------------- */
 

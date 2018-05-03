@@ -41,7 +41,7 @@
 #include "DNA_linestyle_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_fluidsim.h" // NT
+#include "DNA_object_fluidsim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
 #include "DNA_text_types.h"
@@ -2453,11 +2453,14 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 					if (sl->spacetype == SPACE_OUTLINER) {
 						SpaceOops *so = (SpaceOops *)sl;
 
-						if (!ELEM(so->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_SELECTED, SO_ACTIVE,
-						                          SO_SAME_TYPE, SO_GROUPS, SO_LIBRARIES, SO_SEQUENCE, SO_DATABLOCKS,
-						                          SO_USERDEF))
+						if (!ELEM(so->outlinevis,
+						          SO_SCENES,
+						          SO_GROUPS,
+						          SO_LIBRARIES,
+						          SO_SEQUENCE,
+						          SO_DATABLOCKS))
 						{
-							so->outlinevis = SO_ALL_SCENES;
+							so->outlinevis = SO_SCENES;
 						}
 					}
 				}

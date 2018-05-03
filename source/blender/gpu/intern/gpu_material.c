@@ -48,6 +48,7 @@
 #include "BLI_rand.h"
 
 #include "BKE_anim.h"
+#include "BKE_colorband.h"
 #include "BKE_colortools.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
@@ -55,7 +56,6 @@
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_scene.h"
-#include "BKE_texture.h"
 #include "BKE_group.h"
 
 #include "IMB_imbuf_types.h"
@@ -67,6 +67,8 @@
 #include "GPU_shader.h"
 #include "GPU_texture.h"
 #include "GPU_uniformbuffer.h"
+
+#include "DRW_engine.h"
 
 #include "gpu_codegen.h"
 #include "gpu_lamp_private.h"
@@ -103,6 +105,7 @@ struct GPUMaterial {
 	/* material for mesh surface, worlds or something else.
 	 * some code generation is done differently depending on the use case */
 	int type; /* DEPRECATED */
+	GPUMaterialStatus status;
 
 	const void *engine_type;   /* attached engine type */
 	int options;    /* to identify shader variations (shadow, probe, world background...) */
@@ -113,6 +116,7 @@ struct GPUMaterial {
 
 	/* for binding the material */
 	GPUPass *pass;
+	ListBase inputs;  /* GPUInput */
 	GPUVertexAttribs attribs;
 	int builtins;
 	int alpha, obcolalpha;
@@ -142,7 +146,10 @@ struct GPUMaterial {
 	 */
 	int domain;
 
+	/* Used by 2.8 pipeline */
 	GPUUniformBuffer *ubo; /* UBOs for shader uniforms. */
+
+	/* Eevee SSS */
 	GPUUniformBuffer *sss_profile; /* UBO containing SSS profile. */
 	GPUTexture *sss_tex_profile; /* Texture containing SSS profile. */
 	float *sss_radii; /* UBO containing SSS profile. */
@@ -215,11 +222,13 @@ static int gpu_material_construct_end(GPUMaterial *material, const char *passnam
 {
 	if (material->outlink) {
 		GPUNodeLink *outlink = material->outlink;
-		material->pass = GPU_generate_pass(&material->nodes, outlink,
+		material->pass = GPU_generate_pass(&material->nodes, &material->inputs, outlink,
 			&material->attribs, &material->builtins, material->type,
 			passname,
 			material->is_opensubdiv,
 			GPU_material_use_new_shading_nodes(material));
+
+		material->status = (material->pass) ? GPU_MAT_SUCCESS : GPU_MAT_FAILED;
 
 		if (!material->pass)
 			return 0;
@@ -270,8 +279,14 @@ void GPU_material_free(ListBase *gpumaterial)
 	for (LinkData *link = gpumaterial->first; link; link = link->next) {
 		GPUMaterial *material = link->data;
 
+		/* Cancel / wait any pending lazy compilation. */
+		DRW_deferred_shader_remove(material);
+
+		GPU_pass_free_nodes(&material->nodes);
+		GPU_inputs_free(&material->inputs);
+
 		if (material->pass)
-			GPU_pass_free(material->pass);
+			GPU_pass_release(material->pass);
 
 		if (material->ubo != NULL) {
 			GPU_uniformbuffer_free(material->ubo);
@@ -343,7 +358,7 @@ void GPU_material_bind(
 		}
 		
 		/* note material must be bound before setting uniforms */
-		GPU_pass_bind(material->pass, time, mipmap);
+		GPU_pass_bind(material->pass, &material->inputs, time, mipmap);
 
 		/* handle per material built-ins */
 		if (material->builtins & GPU_VIEW_MATRIX) {
@@ -363,7 +378,7 @@ void GPU_material_bind(
 			}
 		}
 
-		GPU_pass_update_uniforms(material->pass);
+		GPU_pass_update_uniforms(material->pass, &material->inputs);
 
 		material->bound = 1;
 	}
@@ -417,7 +432,7 @@ void GPU_material_bind_uniforms(
 			GPU_shader_uniform_vector(shader, material->partscalarpropsloc, 4, 1, pi->scalprops);
 		}
 		if (material->builtins & GPU_PARTICLE_LOCATION) {
-			GPU_shader_uniform_vector(shader, material->partcoloc, 3, 1, pi->location);
+			GPU_shader_uniform_vector(shader, material->partcoloc, 4, 1, pi->location);
 		}
 		if (material->builtins & GPU_PARTICLE_VELOCITY) {
 			GPU_shader_uniform_vector(shader, material->partvel, 3, 1, pi->velocity);
@@ -436,7 +451,7 @@ void GPU_material_unbind(GPUMaterial *material)
 {
 	if (material->pass) {
 		material->bound = 0;
-		GPU_pass_unbind(material->pass);
+		GPU_pass_unbind(material->pass, &material->inputs);
 	}
 }
 
@@ -458,6 +473,11 @@ GPUMatType GPU_Material_get_type(GPUMaterial *material)
 GPUPass *GPU_material_get_pass(GPUMaterial *material)
 {
 	return material->pass;
+}
+
+ListBase *GPU_material_get_inputs(GPUMaterial *material)
+{
+	return &material->inputs;
 }
 
 GPUUniformBuffer *GPU_material_get_uniform_buffer(GPUMaterial *material)
@@ -557,7 +577,9 @@ static float eval_profile(float r, short falloff_type, float sharpness, float pa
 {
 	r = fabsf(r);
 
-	if (falloff_type == SHD_SUBSURFACE_BURLEY) {
+	if (falloff_type == SHD_SUBSURFACE_BURLEY ||
+	    falloff_type == SHD_SUBSURFACE_RANDOM_WALK)
+	{
 		return burley_profile(r, param) / BURLEY_TRUNCATE_CDF;
 	}
 	else if (falloff_type == SHD_SUBSURFACE_CUBIC) {
@@ -598,7 +620,9 @@ static void compute_sss_kernel(
 	/* Christensen-Burley fitting */
 	float l[3], d[3];
 
-	if (falloff_type == SHD_SUBSURFACE_BURLEY) {
+	if (falloff_type == SHD_SUBSURFACE_BURLEY ||
+	    falloff_type == SHD_SUBSURFACE_RANDOM_WALK)
+	{
 		mul_v3_v3fl(l, rad, 0.25f * M_1_PI);
 		const float A = 1.0f;
 		const float s = 1.9f - A + 3.5f * (A - 0.8f) * (A - 0.8f);
@@ -825,6 +849,12 @@ void gpu_material_add_node(GPUMaterial *material, GPUNode *node)
 	BLI_addtail(&material->nodes, node);
 }
 
+/* Return true if the material compilation has not yet begin or begin. */
+GPUMaterialStatus GPU_material_status(GPUMaterial *mat)
+{
+	return mat->status;
+}
+
 /* Code generation */
 
 bool GPU_material_do_color_management(GPUMaterial *mat)
@@ -994,7 +1024,7 @@ static void ramp_blend(
 	GPU_link(mat, names[type], fac, col1, col2, r_col);
 }
 
-static void do_colorband_blend(
+static void BKE_colorband_eval_blend(
         GPUMaterial *mat, ColorBand *coba, GPUNodeLink *fac, float rampfac, int type,
         GPUNodeLink *incol, GPUNodeLink **r_col)
 {
@@ -1003,7 +1033,7 @@ static void do_colorband_blend(
 	int size;
 
 	/* do colorband */
-	colorband_table_RGBA(coba, &array, &size);
+	BKE_colorband_evaluate_table_rgba(coba, &array, &size);
 	GPU_link(mat, "valtorgb", fac, GPU_texture(size, array), &col, &tmp);
 
 	/* use alpha in fac */
@@ -1026,7 +1056,7 @@ static void ramp_diffuse_result(GPUShadeInput *shi, GPUNodeLink **diff)
 				GPU_link(mat, "ramp_rgbtobw", *diff, &fac);
 				
 				/* colorband + blend */
-				do_colorband_blend(mat, ma->ramp_col, fac, ma->rampfac_col, ma->rampblend_col, *diff, diff);
+				BKE_colorband_eval_blend(mat, ma->ramp_col, fac, ma->rampfac_col, ma->rampblend_col, *diff, diff);
 			}
 		}
 	}
@@ -1063,7 +1093,7 @@ static void add_to_diffuse(
 			}
 
 			/* colorband + blend */
-			do_colorband_blend(mat, ma->ramp_col, fac, ma->rampfac_col, ma->rampblend_col, shi->rgb, &addcol);
+			BKE_colorband_eval_blend(mat, ma->ramp_col, fac, ma->rampfac_col, ma->rampblend_col, shi->rgb, &addcol);
 		}
 	}
 	else
@@ -1085,7 +1115,7 @@ static void ramp_spec_result(GPUShadeInput *shi, GPUNodeLink **spec)
 		GPU_link(mat, "ramp_rgbtobw", *spec, &fac);
 		
 		/* colorband + blend */
-		do_colorband_blend(mat, ma->ramp_spec, fac, ma->rampfac_spec, ma->rampblend_spec, *spec, spec);
+		BKE_colorband_eval_blend(mat, ma->ramp_spec, fac, ma->rampfac_spec, ma->rampblend_spec, *spec, spec);
 	}
 }
 
@@ -1117,7 +1147,7 @@ static void do_specular_ramp(GPUShadeInput *shi, GPUNodeLink *is, GPUNodeLink *t
 		}
 		
 		/* colorband + blend */
-		do_colorband_blend(mat, ma->ramp_spec, fac, ma->rampfac_spec, ma->rampblend_spec, *spec, spec);
+		BKE_colorband_eval_blend(mat, ma->ramp_spec, fac, ma->rampfac_spec, ma->rampblend_spec, *spec, spec);
 	}
 }
 
@@ -2486,10 +2516,8 @@ GPUMaterial *GPU_material_from_nodetree_find(
  */
 GPUMaterial *GPU_material_from_nodetree(
         Scene *scene, struct bNodeTree *ntree, ListBase *gpumaterials, const void *engine_type, int options,
-        const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines)
+        const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines, bool deferred)
 {
-	GPUMaterial *mat;
-	GPUNodeLink *outlink;
 	LinkData *link;
 	bool has_volume_output, has_surface_output;
 
@@ -2497,7 +2525,7 @@ GPUMaterial *GPU_material_from_nodetree(
 	BLI_assert(GPU_material_from_nodetree_find(gpumaterials, engine_type, options) == NULL);
 
 	/* allocate material */
-	mat = GPU_material_construct_begin(NULL); /* TODO remove GPU_material_construct_begin */
+	GPUMaterial *mat = MEM_callocN(sizeof(GPUMaterial), "GPUMaterial");;
 	mat->scene = scene;
 	mat->engine_type = engine_type;
 	mat->options = options;
@@ -2512,11 +2540,15 @@ GPUMaterial *GPU_material_from_nodetree(
 		mat->domain |= GPU_DOMAIN_VOLUME;
 	}
 
-	/* Let Draw manager finish the construction. */
-	if (mat->outlink) {
-		outlink = mat->outlink;
-		mat->pass = GPU_generate_pass_new(
-		        mat, &mat->nodes, outlink, &mat->attribs, vert_code, geom_code, frag_lib, defines);
+	if (!deferred) {
+		GPU_material_generate_pass(mat, vert_code, geom_code, frag_lib, defines);
+	}
+	else if (mat->outlink) {
+		/* Prune the unused nodes and extract attribs before compiling so the
+		 * generated VBOs are ready to accept the future shader. */
+		GPU_nodes_prune(&mat->nodes, mat->outlink);
+		GPU_nodes_get_vertex_attributes(&mat->nodes, &mat->attribs);
+		mat->status = GPU_MAT_QUEUED;
 	}
 
 	/* note that even if building the shader fails in some way, we still keep
@@ -2528,6 +2560,21 @@ GPUMaterial *GPU_material_from_nodetree(
 	BLI_addtail(gpumaterials, link);
 
 	return mat;
+}
+
+/* Calls this function if /a mat was created with deferred compilation.  */
+void GPU_material_generate_pass(
+		GPUMaterial *mat, const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines)
+{
+	BLI_assert(mat->pass == NULL); /* Only run once! */
+	if (mat->outlink) {
+		mat->pass = GPU_generate_pass_new(
+		        mat, mat->outlink, &mat->attribs, &mat->nodes, &mat->inputs, vert_code, geom_code, frag_lib, defines);
+		mat->status = (mat->pass) ? GPU_MAT_SUCCESS : GPU_MAT_FAILED;
+	}
+	else {
+		mat->status = GPU_MAT_FAILED;
+	}
 }
 
 GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_opensubdiv)
@@ -2692,7 +2739,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 	if (pass && pass->fragmentcode && pass->vertexcode) {
 		shader = MEM_callocN(sizeof(GPUShaderExport), "GPUShaderExport");
 
-		for (input = pass->inputs.first; input; input = input->next) {
+		for (input = mat->inputs.first; input; input = input->next) {
 			GPUInputUniform *uniform = MEM_callocN(sizeof(GPUInputUniform), "GPUInputUniform");
 
 			if (input->ima) {
@@ -2869,7 +2916,7 @@ void GPU_material_update_fvar_offset(GPUMaterial *gpu_material,
 {
 	GPUPass *pass = gpu_material->pass;
 	GPUShader *shader = (pass != NULL ? pass->shader : NULL);
-	ListBase *inputs = (pass != NULL ? &pass->inputs : NULL);
+	ListBase *inputs = (pass != NULL ? &gpu_material->inputs : NULL);
 	GPUInput *input;
 
 	if (shader == NULL) {

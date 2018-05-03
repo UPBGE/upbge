@@ -109,6 +109,8 @@ typedef struct PaintStroke {
 	 * e.g. in sculpt mode, stroke doesn't start until cursor
 	 * passes over the mesh */
 	bool stroke_started;
+	/* Set when enough motion was found for rake rotation */
+	bool rake_started;
 	/* event that started stroke, for modal() return */
 	int event_type;
 	/* check if stroke variables have been initialized */
@@ -233,6 +235,9 @@ static bool paint_brush_update(bContext *C,
 	UnifiedPaintSettings *ups = stroke->ups;
 	bool location_sampled = false;
 	bool location_success = false;
+	/* Use to perform all operations except applying the stroke,
+	 * needed for operations that require cursor motion (rake). */
+	bool is_dry_run = false;
 	bool do_random = false;
 	bool do_random_mask = false;
 	/* XXX: Use pressure value from first brush step for brushes which don't
@@ -371,7 +376,15 @@ static bool paint_brush_update(bContext *C,
 		}
 		/* curve strokes do their own rake calculation */
 		else if (!(brush->flag & BRUSH_CURVE)) {
-			paint_calculate_rake_rotation(ups, brush, mouse_init);
+			if (!paint_calculate_rake_rotation(ups, brush, mouse_init)) {
+				/* Not enough motion to define an angle. */
+				if (!stroke->rake_started) {
+					is_dry_run = true;
+				}
+			}
+			else {
+				stroke->rake_started = true;
+			}
 		}
 	}
 
@@ -402,7 +415,7 @@ static bool paint_brush_update(bContext *C,
 		}
 	}
 
-	return location_success;
+	return location_success && (is_dry_run == false);
 }
 
 static bool paint_stroke_use_jitter(ePaintMode mode, Brush *brush, bool invert)
@@ -685,7 +698,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 	Brush *br = stroke->brush = BKE_paint_brush(p);
 	float zoomx, zoomy;
 
-	view3d_set_viewcontext(C, &stroke->vc);
+	ED_view3d_viewcontext_init(C, &stroke->vc);
 
 	stroke->get_location = get_location;
 	stroke->test_start = test_start;

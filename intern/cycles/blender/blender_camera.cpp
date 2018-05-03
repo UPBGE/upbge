@@ -81,6 +81,10 @@ struct BlenderCamera {
 	BoundBox2D viewport_camera_border;
 
 	Transform matrix;
+
+	float offscreen_dicing_scale;
+
+	int motion_steps;
 };
 
 static void blender_camera_init(BlenderCamera *bcam,
@@ -104,6 +108,7 @@ static void blender_camera_init(BlenderCamera *bcam,
 	bcam->pano_viewplane.top = 1.0f;
 	bcam->viewport_camera_border.right = 1.0f;
 	bcam->viewport_camera_border.top = 1.0f;
+	bcam->offscreen_dicing_scale = 1.0f;
 
 	/* render resolution */
 	bcam->full_width = render_resolution_x(b_render);
@@ -223,6 +228,8 @@ static void blender_camera_from_object(BlenderCamera *bcam,
 			bcam->sensor_fit = BlenderCamera::HORIZONTAL;
 		else
 			bcam->sensor_fit = BlenderCamera::VERTICAL;
+
+		bcam->motion_steps = object_motion_steps(b_ob, b_ob);
 	}
 	else {
 		/* from lamp not implemented yet */
@@ -243,8 +250,7 @@ static Transform blender_camera_matrix(const Transform& tfm,
 			result = tfm *
 				make_transform(1.0f, 0.0f, 0.0f, 0.0f,
 				               0.0f, 0.0f, 1.0f, 0.0f,
-				               0.0f, 1.0f, 0.0f, 0.0f,
-				               0.0f, 0.0f, 0.0f, 1.0f);
+				               0.0f, 1.0f, 0.0f, 0.0f);
 		}
 		else {
 			/* Make it so environment camera needs to be pointed in the direction
@@ -254,8 +260,7 @@ static Transform blender_camera_matrix(const Transform& tfm,
 			result = tfm *
 				make_transform( 0.0f, -1.0f, 0.0f, 0.0f,
 				                0.0f,  0.0f, 1.0f, 0.0f,
-				               -1.0f,  0.0f, 0.0f, 0.0f,
-				                0.0f,  0.0f, 0.0f, 1.0f);
+				               -1.0f,  0.0f, 0.0f, 0.0f);
 		}
 	}
 	else {
@@ -353,7 +358,11 @@ static void blender_camera_viewplane(BlenderCamera *bcam,
 	}
 }
 
-static void blender_camera_sync(Camera *cam, BlenderCamera *bcam, int width, int height, const char *viewname)
+static void blender_camera_sync(Camera *cam,
+                                BlenderCamera *bcam,
+                                int width, int height,
+                                const char *viewname,
+                                PointerRNA *cscene)
 {
 	/* copy camera to compare later */
 	Camera prevcam = *cam;
@@ -448,9 +457,7 @@ static void blender_camera_sync(Camera *cam, BlenderCamera *bcam, int width, int
 	cam->matrix = blender_camera_matrix(bcam->matrix,
 	                                    bcam->type,
 	                                    bcam->panorama_type);
-	cam->motion.pre = cam->matrix;
-	cam->motion.post = cam->matrix;
-	cam->use_motion = false;
+	cam->motion.resize(bcam->motion_steps, cam->matrix);
 	cam->use_perspective_motion = false;
 	cam->shuttertime = bcam->shuttertime;
 	cam->fov_pre = cam->fov;
@@ -465,6 +472,9 @@ static void blender_camera_sync(Camera *cam, BlenderCamera *bcam, int width, int
 	/* border */
 	cam->border = bcam->border;
 	cam->viewport_camera_border = bcam->viewport_camera_border;
+
+	bcam->offscreen_dicing_scale = RNA_float_get(cscene, "offscreen_dicing_scale");
+	cam->offscreen_dicing_scale = bcam->offscreen_dicing_scale;
 
 	/* set update flag */
 	if(cam->modified(prevcam))
@@ -525,7 +535,21 @@ void BlenderSync::sync_camera(BL::RenderSettings& b_render,
 
 	/* sync */
 	Camera *cam = scene->camera;
-	blender_camera_sync(cam, &bcam, width, height, viewname);
+	blender_camera_sync(cam, &bcam, width, height, viewname, &cscene);
+
+	/* dicing camera */
+	b_ob = BL::Object(RNA_pointer_get(&cscene, "dicing_camera"));
+	if(b_ob) {
+		BL::Array<float, 16> b_ob_matrix;
+		blender_camera_from_object(&bcam, b_engine, b_ob);
+		b_engine.camera_model_matrix(b_ob, bcam.use_spherical_stereo, b_ob_matrix);
+		bcam.matrix = get_transform(b_ob_matrix);
+
+		blender_camera_sync(scene->dicing_camera, &bcam, width, height, viewname, &cscene);
+	}
+	else {
+		*scene->dicing_camera = *cam;
+	}
 }
 
 void BlenderSync::sync_camera_motion(BL::RenderSettings& b_render,
@@ -542,20 +566,15 @@ void BlenderSync::sync_camera_motion(BL::RenderSettings& b_render,
 	Transform tfm = get_transform(b_ob_matrix);
 	tfm = blender_camera_matrix(tfm, cam->type, cam->panorama_type);
 
-	if(tfm != cam->matrix) {
-		VLOG(1) << "Camera " << b_ob.name() << " motion detected.";
-		if(motion_time == 0.0f) {
-			/* When motion blur is not centered in frame, cam->matrix gets reset. */
-			cam->matrix = tfm;
-		}
-		else if(motion_time == -1.0f) {
-			cam->motion.pre = tfm;
-			cam->use_motion = true;
-		}
-		else if(motion_time == 1.0f) {
-			cam->motion.post = tfm;
-			cam->use_motion = true;
-		}
+	if(motion_time == 0.0f) {
+		/* When motion blur is not centered in frame, cam->matrix gets reset. */
+		cam->matrix = tfm;
+	}
+
+	/* Set transform in motion array. */
+	int motion_step = cam->motion_step(motion_time);
+	if(motion_step >= 0) {
+		cam->motion[motion_step] = tfm;
 	}
 
 	if(cam->type == CAMERA_PERSPECTIVE) {
@@ -818,7 +837,22 @@ void BlenderSync::sync_view(BL::SpaceView3D& b_v3d,
 	                      b_v3d,
 	                      b_rv3d,
 	                      width, height);
-	blender_camera_sync(scene->camera, &bcam, width, height, "");
+	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
+	blender_camera_sync(scene->camera, &bcam, width, height, "", &cscene);
+
+	/* dicing camera */
+	BL::Object b_ob = BL::Object(RNA_pointer_get(&cscene, "dicing_camera"));
+	if(b_ob) {
+		BL::Array<float, 16> b_ob_matrix;
+		blender_camera_from_object(&bcam, b_engine, b_ob);
+		b_engine.camera_model_matrix(b_ob, bcam.use_spherical_stereo, b_ob_matrix);
+		bcam.matrix = get_transform(b_ob_matrix);
+
+		blender_camera_sync(scene->dicing_camera, &bcam, width, height, "", &cscene);
+	}
+	else {
+		*scene->dicing_camera = *scene->camera;
+	}
 }
 
 BufferParams BlenderSync::get_buffer_params(BL::RenderSettings& b_render,

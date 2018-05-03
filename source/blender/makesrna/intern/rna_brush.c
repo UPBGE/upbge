@@ -31,6 +31,7 @@
 #include "DNA_texture_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BLI_math.h"
 
@@ -42,6 +43,8 @@
 #include "IMB_imbuf.h"
 
 #include "WM_types.h"
+
+#include "DEG_depsgraph.h"
 
 static const EnumPropertyItem prop_direction_items[] = {
 	{0, "ADD", 0, "Add", "Add effect of brush"},
@@ -128,7 +131,7 @@ const EnumPropertyItem rna_enum_brush_image_tool_items[] = {
 
 #include "RNA_access.h"
 
-#include "BKE_texture.h"
+#include "BKE_colorband.h"
 #include "BKE_brush.h"
 #include "BKE_icons.h"
 #include "BKE_paint.h"
@@ -373,21 +376,23 @@ static void rna_Brush_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerR
 
 static void rna_Brush_main_tex_update(bContext *C, PointerRNA *ptr)
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Brush *br = (Brush *)ptr->data;
-	BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mtex.tex);
+	BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mtex.tex, workspace->object_mode);
 	rna_Brush_update(bmain, scene, ptr);
 }
 
 static void rna_Brush_secondary_tex_update(bContext *C, PointerRNA *ptr)
 {
 	Main *bmain = CTX_data_main(C);
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Brush *br = (Brush *)ptr->data;
-	BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mask_mtex.tex);
+	BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mask_mtex.tex, workspace->object_mode);
 	rna_Brush_update(bmain, scene, ptr);
 }
 
@@ -436,7 +441,6 @@ static void rna_Brush_icon_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Poi
 	br->id.icon_id = 0;
 
 	if (br->flag & BRUSH_CUSTOM_ICON) {
-		BKE_previewimg_id_ensure(&br->id);
 		BKE_icon_changed(BKE_icon_id_ensure(&br->id));
 	}
 
@@ -449,8 +453,9 @@ static void rna_TextureSlot_brush_angle_update(bContext *C, PointerRNA *ptr)
 	MTex *mtex = ptr->data;
 	/* skip invalidation of overlay for stencil mode */
 	if (mtex->mapping != MTEX_MAP_MODE_STENCIL) {
+		const WorkSpace *workspace = CTX_wm_workspace(C);
 		ViewLayer *view_layer = CTX_data_view_layer(C);
-		BKE_paint_invalidate_overlay_tex(scene, view_layer, mtex->tex);
+		BKE_paint_invalidate_overlay_tex(scene, view_layer, mtex->tex, workspace->object_mode);
 	}
 
 	rna_TextureSlot_update(C, ptr);
@@ -474,7 +479,7 @@ static void rna_Brush_use_gradient_set(PointerRNA *ptr, int value)
 	else br->flag &= ~BRUSH_USE_GRADIENT;
 
 	if ((br->flag & BRUSH_USE_GRADIENT) && br->gradient == NULL)
-		br->gradient = add_colorband(true);
+		br->gradient = BKE_colorband_add(true);
 }
 
 static void rna_Brush_set_unprojected_radius(PointerRNA *ptr, float value)

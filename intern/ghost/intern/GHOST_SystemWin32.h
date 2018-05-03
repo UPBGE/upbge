@@ -132,6 +132,21 @@ public:
 	    const bool exclusive = false,
 	    const GHOST_TEmbedderWindowID parentWindow = 0);
 
+
+	/**
+	 * Create a new offscreen context.
+	 * Never explicitly delete the window, use disposeContext() instead.
+	 * \return  The new context (or 0 if creation failed).
+	 */
+	GHOST_IContext *createOffscreenContext();
+
+	/**
+	 * Dispose of a context.
+	 * \param   context Pointer to the context to be disposed.
+	 * \return  Indication of success.
+	 */
+	GHOST_TSuccess disposeContext(GHOST_IContext *context);
+
 	/***************************************************************************************
 	 ** Event management functionality
 	 ***************************************************************************************/
@@ -208,10 +223,10 @@ public:
 	 */
 	static GHOST_TSuccess pushDragDropEvent(GHOST_TEventType eventType, GHOST_TDragnDropTypes draggedObjectType, GHOST_WindowWin32 *window, int mouseX, int mouseY, void *data);
 	
-/**
- * Confirms quitting he program when there is just one window left open
- * in the application
- */
+	/**
+	 * Confirms quitting he program when there is just one window left open
+	 * in the application
+	 */
 	int confirmQuit(GHOST_IWindow *window) const;
 
 protected:

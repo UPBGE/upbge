@@ -9,7 +9,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of
 // the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#include "gwn_batch_private.h"
 #include "gwn_shader_interface.h"
+#include "gwn_vertex_array_id.h"
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
@@ -43,7 +45,6 @@ static const char* BuiltinUniform_name(Gwn_UniformBuiltin u)
 		[GWN_UNIFORM_WORLDNORMAL] = "WorldNormalMatrix",
 		[GWN_UNIFORM_CAMERATEXCO] = "CameraTexCoFactors",
 		[GWN_UNIFORM_ORCO] = "OrcoTexCoFactors",
-		[GWN_UNIFORM_CLIPPLANES] = "ClipPlanes",
 
 		[GWN_UNIFORM_COLOR] = "color",
 		[GWN_UNIFORM_EYE] = "eye",
@@ -222,6 +223,13 @@ Gwn_ShaderInterface* GWN_shaderinterface_create(GLint program)
 
 		glGetActiveAttrib(program, i, remaining_buffer, &name_len, &input->size, &input->gl_type, name);
 
+		// remove "[0]" from array name
+		if (name[name_len-1] == ']')
+			{
+			name[name_len-3] = '\0';
+			name_len -= 3;
+			}
+
 		// TODO: reject DOUBLE gl_types
 
 		input->location = glGetAttribLocation(program, name);
@@ -252,9 +260,21 @@ Gwn_ShaderInterface* GWN_shaderinterface_create(GLint program)
 		shader_input_to_bucket(input, shaderface->ubo_buckets);
 
 #if DEBUG_SHADER_INTERFACE
-		printf("attrib[%u] '%s' at location %d\n", i, name, input->location);
+		printf("ubo '%s' at location %d\n", name, input->location);
 #endif
 		}
+
+	// Builtin Uniforms
+	for (Gwn_UniformBuiltin u = GWN_UNIFORM_NONE + 1; u < GWN_UNIFORM_CUSTOM; ++u)
+		{
+		const char* builtin_name = BuiltinUniform_name(u);
+		if (glGetUniformLocation(program, builtin_name) != -1)
+			add_uniform((Gwn_ShaderInterface*)shaderface, builtin_name);
+		}
+
+	// Batches ref buffer
+	shaderface->batches_ct = GWN_SHADERINTERFACE_REF_ALLOC_COUNT;
+	shaderface->batches = calloc(shaderface->batches_ct, sizeof(Gwn_Batch*));
 
 	return shaderface;
 	}
@@ -267,6 +287,12 @@ void GWN_shaderinterface_discard(Gwn_ShaderInterface* shaderface)
 	buckets_free(shaderface->ubo_buckets);
 	// Free memory used by name_buffer.
 	free(shaderface->name_buffer);
+	// Remove this interface from all linked Batches vao cache.
+	for (int i = 0; i < shaderface->batches_ct; ++i)
+		if (shaderface->batches[i] != NULL)
+			gwn_batch_remove_interface_ref(shaderface->batches[i], shaderface);
+
+	free(shaderface->batches);
 	// Free memory used by shader interface by its self.
 	free(shaderface);
 	}
@@ -290,14 +316,7 @@ const Gwn_ShaderInput* GWN_shaderinterface_uniform_builtin(const Gwn_ShaderInter
 	assert(builtin != GWN_UNIFORM_CUSTOM);
 	assert(builtin != GWN_NUM_UNIFORMS);
 #endif
-
-	const Gwn_ShaderInput* input = shaderface->builtin_uniforms[builtin];
-
-	// If input is not found add it so it's found next time.
-	if (input == NULL)
-		input = add_uniform((Gwn_ShaderInterface*)shaderface, BuiltinUniform_name(builtin));
-
-	return (input->location != -1) ? input : NULL;
+	return shaderface->builtin_uniforms[builtin];
 	}
 
 const Gwn_ShaderInput* GWN_shaderinterface_ubo(const Gwn_ShaderInterface* shaderface, const char* name)
@@ -308,4 +327,35 @@ const Gwn_ShaderInput* GWN_shaderinterface_ubo(const Gwn_ShaderInterface* shader
 const Gwn_ShaderInput* GWN_shaderinterface_attr(const Gwn_ShaderInterface* shaderface, const char* name)
 	{
 	return buckets_lookup(shaderface->attrib_buckets, shaderface->name_buffer, name);
+	}
+
+void GWN_shaderinterface_add_batch_ref(Gwn_ShaderInterface* shaderface, Gwn_Batch* batch)
+	{
+	int i; // find first unused slot
+	for (i = 0; i < shaderface->batches_ct; ++i)
+		if (shaderface->batches[i] == NULL)
+			break;
+
+	if (i == shaderface->batches_ct)
+		{
+		// Not enough place, realloc the array.
+		i = shaderface->batches_ct;
+		shaderface->batches_ct += GWN_SHADERINTERFACE_REF_ALLOC_COUNT;
+		shaderface->batches = realloc(shaderface->batches, sizeof(Gwn_Batch*) * shaderface->batches_ct);
+		memset(shaderface->batches + i, 0, sizeof(Gwn_Batch*) * GWN_SHADERINTERFACE_REF_ALLOC_COUNT);
+		}
+
+	shaderface->batches[i] = batch;
+	}
+
+void GWN_shaderinterface_remove_batch_ref(Gwn_ShaderInterface* shaderface, Gwn_Batch* batch)
+	{
+	for (int i = 0; i < shaderface->batches_ct; ++i)
+		{
+		if (shaderface->batches[i] == batch)
+			{
+			shaderface->batches[i] = NULL;
+			break; // cannot have duplicates
+			}
+		}
 	}

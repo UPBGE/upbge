@@ -37,6 +37,7 @@
 #include "DNA_node_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h" /* MAXFRAME only */
+#include "DNA_workspace_types.h"
 
 #include "BLI_utildefines.h"
 
@@ -112,6 +113,7 @@ static const EnumPropertyItem blend_type_items[] = {
 
 #include "RNA_access.h"
 
+#include "BKE_colorband.h"
 #include "BKE_context.h"
 #include "BKE_image.h"
 #include "BKE_texture.h"
@@ -246,10 +248,11 @@ void rna_TextureSlot_update(bContext *C, PointerRNA *ptr)
 			break;
 		case ID_BR:
 		{
+			const WorkSpace *workspace = CTX_wm_workspace(C);
 			Scene *scene = CTX_data_scene(C);
 			MTex *mtex = ptr->data;
 			ViewLayer *view_layer = CTX_data_view_layer(C);
-			BKE_paint_invalidate_overlay_tex(scene, view_layer, mtex->tex);
+			BKE_paint_invalidate_overlay_tex(scene, view_layer, mtex->tex, workspace->object_mode);
 			WM_main_add_notifier(NC_BRUSH, id);
 			break;
 		}
@@ -407,7 +410,7 @@ static void rna_Texture_use_color_ramp_set(PointerRNA *ptr, int value)
 	else tex->flag &= ~TEX_COLORBAND;
 
 	if ((tex->flag & TEX_COLORBAND) && tex->coba == NULL)
-		tex->coba = add_colorband(false);
+		tex->coba = BKE_colorband_add(false);
 }
 
 static void rna_Texture_use_nodes_update(bContext *C, PointerRNA *ptr)

@@ -73,11 +73,11 @@
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
 
+#include "DEG_depsgraph.h"
+
 #ifdef WITH_OPENEXR
 #  include "intern/openexr/openexr_multi.h"
 #endif
-
-#define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
 
 /*********************** movieclip buffer loaders *************************/
 
@@ -926,7 +926,7 @@ static ImBuf *movieclip_get_postprocessed_ibuf(MovieClip *clip,
 
 	/* cache isn't threadsafe itself and also loading of movies
 	 * can't happen from concurrent threads that's why we use lock here */
-	BLI_lock_thread(LOCK_MOVIECLIP);
+	BLI_thread_lock(LOCK_MOVIECLIP);
 
 	/* try to obtain cached postprocessed frame first */
 	if (need_postprocessed_frame(user, postprocess_flag)) {
@@ -976,7 +976,7 @@ static ImBuf *movieclip_get_postprocessed_ibuf(MovieClip *clip,
 		}
 	}
 
-	BLI_unlock_thread(LOCK_MOVIECLIP);
+	BLI_thread_unlock(LOCK_MOVIECLIP);
 
 	return ibuf;
 }
@@ -1202,6 +1202,23 @@ int BKE_movieclip_get_duration(MovieClip *clip)
 	return clip->len;
 }
 
+float BKE_movieclip_get_fps(MovieClip *clip)
+{
+	if (clip->source != MCLIP_SRC_MOVIE) {
+		return 0.0f;
+	}
+	movieclip_open_anim_file(clip);
+	if (clip->anim == NULL) {
+		return 0.0f;
+	}
+	short frs_sec;
+	float frs_sec_base;
+	if (IMB_anim_get_fps(clip->anim, &frs_sec, &frs_sec_base, true)) {
+		return (float)frs_sec / frs_sec_base;
+	}
+	return 0.0f;
+}
+
 void BKE_movieclip_get_aspect(MovieClip *clip, float *aspx, float *aspy)
 {
 	*aspx = 1.0;
@@ -1410,13 +1427,13 @@ static void movieclip_build_proxy_ibuf(MovieClip *clip, ImBuf *ibuf, int cfra, i
 	 *       could be solved in a way that thread only prepares memory
 	 *       buffer and write to disk happens separately
 	 */
-	BLI_lock_thread(LOCK_MOVIECLIP);
+	BLI_thread_lock(LOCK_MOVIECLIP);
 
 	BLI_make_existing_file(name);
 	if (IMB_saveiff(scaleibuf, name, IB_rect) == 0)
 		perror(name);
 
-	BLI_unlock_thread(LOCK_MOVIECLIP);
+	BLI_thread_unlock(LOCK_MOVIECLIP);
 
 	IMB_freeImBuf(scaleibuf);
 }
@@ -1524,12 +1541,12 @@ void BKE_movieclip_make_local(Main *bmain, MovieClip *clip, const bool lib_local
 	BKE_id_make_local_generic(bmain, &clip->id, true, lib_local);
 }
 
-float BKE_movieclip_remap_scene_to_clip_frame(MovieClip *clip, float framenr)
+float BKE_movieclip_remap_scene_to_clip_frame(const MovieClip *clip, float framenr)
 {
 	return framenr - (float) clip->start_frame + 1.0f;
 }
 
-float BKE_movieclip_remap_clip_to_scene_frame(MovieClip *clip, float framenr)
+float BKE_movieclip_remap_clip_to_scene_frame(const MovieClip *clip, float framenr)
 {
 	return framenr + (float) clip->start_frame - 1.0f;
 }
@@ -1560,9 +1577,9 @@ ImBuf *BKE_movieclip_anim_ibuf_for_frame(MovieClip *clip, MovieClipUser *user)
 	ImBuf *ibuf = NULL;
 
 	if (clip->source == MCLIP_SRC_MOVIE) {
-		BLI_lock_thread(LOCK_MOVIECLIP);
+		BLI_thread_lock(LOCK_MOVIECLIP);
 		ibuf = movieclip_load_movie_file(clip, user, user->framenr, clip->flag);
-		BLI_unlock_thread(LOCK_MOVIECLIP);
+		BLI_thread_unlock(LOCK_MOVIECLIP);
 	}
 
 	return ibuf;
@@ -1572,9 +1589,9 @@ bool BKE_movieclip_has_cached_frame(MovieClip *clip, MovieClipUser *user)
 {
 	bool has_frame = false;
 
-	BLI_lock_thread(LOCK_MOVIECLIP);
+	BLI_thread_lock(LOCK_MOVIECLIP);
 	has_frame = has_imbuf_cache(clip, user, clip->flag);
-	BLI_unlock_thread(LOCK_MOVIECLIP);
+	BLI_thread_unlock(LOCK_MOVIECLIP);
 
 	return has_frame;
 }
@@ -1585,15 +1602,15 @@ bool BKE_movieclip_put_frame_if_possible(MovieClip *clip,
 {
 	bool result;
 
-	BLI_lock_thread(LOCK_MOVIECLIP);
+	BLI_thread_lock(LOCK_MOVIECLIP);
 	result = put_imbuf_cache(clip, user, ibuf, clip->flag, false);
-	BLI_unlock_thread(LOCK_MOVIECLIP);
+	BLI_thread_unlock(LOCK_MOVIECLIP);
 
 	return result;
 }
 
 void BKE_movieclip_eval_update(struct EvaluationContext *UNUSED(eval_ctx), MovieClip *clip)
 {
-	DEBUG_PRINT("%s on %s (%p)\n", __func__, clip->id.name, clip);
+	DEG_debug_print_eval(__func__, clip->id.name, clip);
 	BKE_tracking_dopesheet_tag_update(&clip->tracking);
 }

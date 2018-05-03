@@ -45,10 +45,12 @@ extern struct GlobalsUboStorage ts; /* draw_common.c */
 extern char datatoc_common_globals_lib_glsl[];
 extern char datatoc_edit_curve_overlay_loosevert_vert_glsl[];
 extern char datatoc_edit_curve_overlay_frag_glsl[];
+extern char datatoc_edit_curve_overlay_handle_geom_glsl[];
 
 extern char datatoc_gpu_shader_3D_vert_glsl[];
 extern char datatoc_gpu_shader_uniform_color_frag_glsl[];
 extern char datatoc_gpu_shader_point_uniform_color_frag_glsl[];
+extern char datatoc_gpu_shader_flat_color_frag_glsl[];
 
 /* *********** LISTS *********** */
 /* All lists are per viewport specific datas.
@@ -158,7 +160,11 @@ static void EDIT_CURVE_engine_init(void *vedata)
 	}
 
 	if (!e_data.overlay_edge_sh) {
-		e_data.overlay_edge_sh = GPU_shader_get_builtin_shader(GPU_SHADER_3D_UNIFORM_COLOR);
+		e_data.overlay_edge_sh = DRW_shader_create_with_lib(
+		        datatoc_edit_curve_overlay_loosevert_vert_glsl,
+		        datatoc_edit_curve_overlay_handle_geom_glsl,
+		        datatoc_gpu_shader_flat_color_frag_glsl,
+		        datatoc_common_globals_lib_glsl, NULL);
 	}
 
 	if (!e_data.overlay_vert_sh) {
@@ -182,27 +188,36 @@ static void EDIT_CURVE_cache_init(void *vedata)
 	}
 
 	{
+		DRWShadingGroup *grp;
+
 		/* Center-Line (wire) */
 		psl->wire_pass = DRW_pass_create(
 		        "Curve Wire",
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS | DRW_STATE_WIRE);
-		stl->g_data->wire_shgrp = DRW_shgroup_create(e_data.wire_sh, psl->wire_pass);
+
+		grp = DRW_shgroup_create(e_data.wire_sh, psl->wire_pass);
+		DRW_shgroup_uniform_vec4(grp, "color", ts.colorWireEdit, 1);
+		stl->g_data->wire_shgrp = grp;
 
 
-		/* TODO: following handle theme colors,
-		 * For now use overlay vert shader for handles (we want them colored):
-		 * TH_NURB_ULINE, TH_NURB_SEL_ULINE, TH_HANDLE_* */
 		psl->overlay_edge_pass = DRW_pass_create(
 		        "Curve Handle Overlay",
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_WIRE);
-		/* TODO: following handle theme colors,
-		 * For now use overlay vert shader for handles (we want them colored) */
-		stl->g_data->overlay_edge_shgrp = DRW_shgroup_create(e_data.overlay_vert_sh, psl->overlay_edge_pass);
+
+		grp = DRW_shgroup_create(e_data.overlay_edge_sh, psl->overlay_edge_pass);
+		DRW_shgroup_uniform_block(grp, "globalsBlock", globals_ubo);
+		DRW_shgroup_uniform_vec2(grp, "viewportSize", DRW_viewport_size_get(), 1);
+		stl->g_data->overlay_edge_shgrp = grp;
+
 
 		psl->overlay_vert_pass = DRW_pass_create(
 		        "Curve Vert Overlay",
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_POINT);
-		stl->g_data->overlay_vert_shgrp = DRW_shgroup_create(e_data.overlay_vert_sh, psl->overlay_vert_pass);
+
+		grp = DRW_shgroup_create(e_data.overlay_vert_sh, psl->overlay_vert_pass);
+		DRW_shgroup_uniform_block(grp, "globalsBlock", globals_ubo);
+		DRW_shgroup_uniform_vec2(grp, "viewportSize", DRW_viewport_size_get(), 1);
+		stl->g_data->overlay_vert_shgrp = grp;
 	}
 
 }
@@ -214,12 +229,11 @@ static void EDIT_CURVE_cache_populate(void *vedata, Object *ob)
 	EDIT_CURVE_StorageList *stl = ((EDIT_CURVE_Data *)vedata)->stl;
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 	const Scene *scene = draw_ctx->scene;
-	const Object *obedit = scene->obedit;
 
 	UNUSED_VARS(psl, stl);
 
 	if (ob->type == OB_CURVE) {
-		if (ob == obedit) {
+		if (ob == draw_ctx->object_edit) {
 			Curve *cu = ob->data;
 			/* Get geometry cache */
 			struct Gwn_Batch *geom;
@@ -293,7 +307,8 @@ static void EDIT_CURVE_draw_scene(void *vedata)
  * Mostly used for freeing shaders */
 static void EDIT_CURVE_engine_free(void)
 {
-	// DRW_SHADER_FREE_SAFE(custom_shader);
+	DRW_SHADER_FREE_SAFE(e_data.overlay_edge_sh);
+	DRW_SHADER_FREE_SAFE(e_data.overlay_vert_sh);
 }
 
 /* Create collection settings here.
@@ -330,5 +345,6 @@ DrawEngineType draw_engine_edit_curve_type = {
 	&EDIT_CURVE_cache_finish,
 	NULL, /* draw_background but not needed by mode engines */
 	&EDIT_CURVE_draw_scene,
+	NULL,
 	NULL,
 };

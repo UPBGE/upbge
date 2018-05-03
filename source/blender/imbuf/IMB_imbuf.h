@@ -380,13 +380,13 @@ struct ImBuf *IMB_onehalf(struct ImBuf *ibuf1);
  *
  * \attention Defined in scaling.c
  */
-struct ImBuf *IMB_scaleImBuf(struct ImBuf *ibuf, unsigned int newx, unsigned int newy);
+bool IMB_scaleImBuf(struct ImBuf *ibuf, unsigned int newx, unsigned int newy);
 
 /**
  *
  * \attention Defined in scaling.c
  */
-struct ImBuf *IMB_scalefastImBuf(struct ImBuf *ibuf, unsigned int newx, unsigned int newy);
+bool IMB_scalefastImBuf(struct ImBuf *ibuf, unsigned int newx, unsigned int newy);
 
 /**
  *
@@ -399,7 +399,7 @@ void IMB_scaleImBuf_threaded(struct ImBuf *ibuf, unsigned int newx, unsigned int
  * \attention Defined in writeimage.c
  */
 short IMB_saveiff(struct ImBuf *ibuf, const char *filepath, int flags);
-struct ImBuf *IMB_prepare_write_ImBuf(const bool isfloat, struct ImBuf *ibuf);
+bool IMB_prepare_write_ImBuf(const bool isfloat, struct ImBuf *ibuf);
 
 /**
  *
@@ -583,6 +583,12 @@ bool IMB_metadata_change_field(struct ImBuf *img, const char *key, const char *f
 void IMB_metadata_copy(struct ImBuf *dimb, struct ImBuf *simb);
 
 /* exported for image tools in blender, to quickly allocate 32 bits rect */
+void *imb_alloc_pixels(unsigned int x,
+                       unsigned int y,
+                       unsigned int channels,
+                       size_t typesize,
+                       const char *name);
+
 bool imb_addrectImBuf(struct ImBuf *ibuf);
 void imb_freerectImBuf(struct ImBuf *ibuf);
 

@@ -59,6 +59,7 @@ extern "C" {
 
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_component.h"
+#include "intern/nodes/deg_node_id.h"
 #include "intern/nodes/deg_node_operation.h"
 
 #include "intern/depsgraph_intern.h"
@@ -77,7 +78,7 @@ void DepsgraphRelationBuilder::build_view_layer(Scene *scene, ViewLayer *view_la
 	 * passed to the evaluation functions. During relations builder we only
 	 * do NULL-pointer check of the base, so it's fine to pass original one.
 	 */
-	LINKLIST_FOREACH(Base *, base, &view_layer->object_bases) {
+	LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
 		build_object(base, base->object);
 	}
 	if (scene->camera != NULL) {
@@ -104,11 +105,11 @@ void DepsgraphRelationBuilder::build_view_layer(Scene *scene, ViewLayer *view_la
 		build_gpencil(scene->gpd);
 	}
 	/* Masks. */
-	LINKLIST_FOREACH (Mask *, mask, &bmain_->mask) {
+	LISTBASE_FOREACH (Mask *, mask, &bmain_->mask) {
 		build_mask(mask);
 	}
 	/* Movie clips. */
-	LINKLIST_FOREACH (MovieClip *, clip, &bmain_->movieclip) {
+	LISTBASE_FOREACH (MovieClip *, clip, &bmain_->movieclip) {
 		build_movieclip(clip);
 	}
 	/* Collections. */

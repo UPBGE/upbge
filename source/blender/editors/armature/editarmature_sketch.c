@@ -158,7 +158,7 @@ void BIF_makeListTemplates(const bContext *C)
 	TEMPLATES_HASH = BLI_ghash_int_new("makeListTemplates gh");
 	TEMPLATES_CURRENT = 0;
 
-	FOREACH_OBJECT(view_layer, ob)
+	FOREACH_OBJECT_BEGIN(view_layer, ob)
 	{
 		if (ob != obedit && ob->type == OB_ARMATURE) {
 			index++;
@@ -169,7 +169,7 @@ void BIF_makeListTemplates(const bContext *C)
 			}
 		}
 	}
-	FOREACH_OBJECT_END
+	FOREACH_OBJECT_END;
 }
 
 #if 0  /* UNUSED */
@@ -178,7 +178,7 @@ const char *BIF_listTemplates(const bContext *UNUSED(C))
 	GHashIterator ghi;
 	const char *menu_header = IFACE_("Template %t|None %x0|");
 	char *p;
-	const size_t template_size = (BLI_ghash_size(TEMPLATES_HASH) * 32 + 30);
+	const size_t template_size = (BLI_ghash_len(TEMPLATES_HASH) * 32 + 30);
 
 	if (TEMPLATES_MENU != NULL) {
 		MEM_freeN(TEMPLATES_MENU);
@@ -929,7 +929,7 @@ static void sk_interpolateDepth(bContext *C, SK_Stroke *stk, int start, int end,
 		float pval[2] = {0, 0};
 
 		ED_view3d_project_float_global(ar, stk->points[i].p, pval, V3D_PROJ_TEST_NOP);
-		ED_view3d_win_to_ray(ar, v3d, pval, ray_start, ray_normal, false);
+		ED_view3d_win_to_ray(CTX_data_depsgraph(C), ar, v3d, pval, ray_start, ray_normal, false);
 
 		mul_v3_fl(ray_normal, distance * progress / length);
 		add_v3_v3(stk->points[i].p, ray_normal);
@@ -1486,6 +1486,7 @@ static int cmpIntersections(const void *i1, const void *i2)
 /* returns the maximum number of intersections per stroke */
 static int sk_getIntersections(bContext *C, ListBase *list, SK_Sketch *sketch, SK_Stroke *gesture)
 {
+	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	ARegion *ar = CTX_wm_region(C);
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
@@ -1526,7 +1527,7 @@ static int sk_getIntersections(bContext *C, ListBase *list, SK_Sketch *sketch, S
 
 					mval[0] = vi[0];
 					mval[1] = vi[1];
-					ED_view3d_win_to_segment(ar, v3d, mval, ray_start, ray_end, true);
+					ED_view3d_win_to_segment(depsgraph, ar, v3d, mval, ray_start, ray_end, true);
 
 					isect_line_line_v3(stk->points[s_i].p,
 					                   stk->points[s_i + 1].p,
@@ -1931,7 +1932,7 @@ static bool sk_selectStroke(bContext *C, SK_Sketch *sketch, const int mval[2], c
 	short hits;
 
 	CTX_data_eval_ctx(C, &eval_ctx);
-	view3d_set_viewcontext(C, &vc);
+	ED_view3d_viewcontext_init(C, &vc);
 
 	BLI_rcti_init_pt_radius(&rect, mval, 5);
 
@@ -2030,7 +2031,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 				gpuPushMatrix();
 
 				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 				switch (sketch->next_point.mode) {
 					case PT_SNAP:

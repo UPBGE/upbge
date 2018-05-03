@@ -193,7 +193,8 @@ LogImageFile *dpxOpen(const unsigned char *byteStuff, int fromMemory, size_t buf
 
 	dpx->srcFormat = format_DPX;
 	dpx->numElements = swap_ushort(header.imageHeader.elements_per_image, dpx->isMSB);
-	if (dpx->numElements == 0) {
+	size_t max_elements = sizeof(header.imageHeader.element) / sizeof(header.imageHeader.element[0]);
+	if (dpx->numElements == 0 || dpx->numElements >= max_elements) {
 		if (verbose) printf("DPX: Wrong number of elements: %d\n", dpx->numElements);
 		logImageClose(dpx);
 		return NULL;
@@ -377,6 +378,7 @@ LogImageFile *dpxOpen(const unsigned char *byteStuff, int fromMemory, size_t buf
 		printf("Gamma: %f\n", dpx->gamma);
 		printf("Reference black: %f\n", dpx->referenceBlack);
 		printf("Reference white: %f\n", dpx->referenceWhite);
+		printf("Orientation: %d\n", header.imageHeader.orientation);
 		printf("----------------------------\n");
 	}
 	return dpx;

@@ -68,7 +68,6 @@
 #include "wm.h"
 #include "wm_draw.h"
 #include "wm_window.h"
-#include "wm_subwindow.h"
 #include "wm_event_system.h"
 
 #include "ED_scene.h"
@@ -80,13 +79,17 @@
 
 #include "PIL_time.h"
 
+#include "GPU_batch.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_framebuffer.h"
 #include "GPU_init_exit.h"
 #include "GPU_immediate.h"
 #include "BLF_api.h"
 
 #include "UI_resources.h"
+
+#include "../../../intern/gawain/gawain/gwn_context.h"
 
 /* for assert */
 #ifndef NDEBUG
@@ -170,12 +173,23 @@ static void wm_window_check_position(rcti *rect)
 }
 
 
-static void wm_ghostwindow_destroy(wmWindow *win) 
+static void wm_ghostwindow_destroy(wmWindowManager *wm, wmWindow *win)
 {
 	if (win->ghostwin) {
+		/* We need this window's opengl context active to discard it. */
+		GHOST_ActivateWindowDrawingContext(win->ghostwin);
+		GWN_context_active_set(win->gwnctx);
+
+		/* Delete local gawain objects.  */
+		GWN_context_discard(win->gwnctx);
+
 		GHOST_DisposeWindow(g_system, win->ghostwin);
 		win->ghostwin = NULL;
-		win->multisamples = 0;
+		win->gwnctx = NULL;
+
+		/* prevents non-drawable state of main windows (bugs #22967 and #25071, possibly #22477 too) */
+		wm->windrawable = NULL;
+		wm->winactive = NULL;
 	}
 }
 
@@ -194,11 +208,6 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
 			CTX_wm_window_set(C, NULL);
 	}
 
-	/* always set drawable and active to NULL,
-	 * prevents non-drawable state of main windows (bugs #22967 and #25071, possibly #22477 too) */
-	wm->windrawable = NULL;
-	wm->winactive = NULL;
-
 	/* end running jobs, a job end also removes its timer */
 	for (wt = wm->timers.first; wt; wt = wtnext) {
 		wtnext = wt->next;
@@ -216,11 +225,10 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
 	if (win->eventstate) MEM_freeN(win->eventstate);
 	
 	wm_event_free_all(win);
-	wm_subwindows_free(win);
 
 	wm_draw_data_free(win);
 
-	wm_ghostwindow_destroy(win);
+	wm_ghostwindow_destroy(wm, win);
 
 	BKE_workspace_instance_hook_free(G.main, win->workspace_hook);
 	MEM_freeN(win->stereo3d_format);
@@ -327,11 +335,158 @@ wmWindow *wm_window_copy_test(bContext *C, wmWindow *win_src, const bool duplica
 	}
 }
 
+
+/* -------------------------------------------------------------------- */
+/** \name Quit Confirmation Dialog
+ * \{ */
+
+/** Cancel quitting and close the dialog */
+static void wm_block_confirm_quit_cancel(bContext *C, void *arg_block, void *UNUSED(arg))
+{
+	wmWindow *win = CTX_wm_window(C);
+	UI_popup_block_close(C, win, arg_block);
+}
+
+/** Discard the file changes and quit */
+static void wm_block_confirm_quit_discard(bContext *C, void *arg_block, void *UNUSED(arg))
+{
+	wmWindow *win = CTX_wm_window(C);
+	UI_popup_block_close(C, win, arg_block);
+	WM_exit(C);
+}
+
+/* Save changes and quit */
+static void wm_block_confirm_quit_save(bContext *C, void *arg_block, void *UNUSED(arg))
+{
+	PointerRNA props_ptr;
+	wmWindow *win = CTX_wm_window(C);
+
+	UI_popup_block_close(C, win, arg_block);
+
+	wmOperatorType *ot = WM_operatortype_find("WM_OT_save_mainfile", false);
+
+	WM_operator_properties_create_ptr(&props_ptr, ot);
+	RNA_boolean_set(&props_ptr, "exit", true);
+	/* No need for second confirmation popup. */
+	RNA_boolean_set(&props_ptr, "check_existing", false);
+	WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr);
+	WM_operator_properties_free(&props_ptr);
+}
+
+
+/* Build the confirm dialog UI */
+static uiBlock *block_create_confirm_quit(struct bContext *C, struct ARegion *ar, void *UNUSED(arg1))
+{
+
+	uiStyle *style = UI_style_get();
+	uiBlock *block = UI_block_begin(C, ar, "confirm_quit_popup", UI_EMBOSS);
+
+	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP );
+	UI_block_emboss_set(block, UI_EMBOSS);
+
+	uiLayout *layout = UI_block_layout(
+	        block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 10, 2, U.widget_unit * 24, U.widget_unit * 6, 0, style);
+
+	/* Text and some vertical space */
+	{
+		char *message;
+		if (G.main->name[0] == '\0') {
+			message = BLI_strdup(IFACE_("This file has not been saved yet. Save before closing?"));
+		}
+		else {
+			const char *basename = BLI_path_basename(G.main->name);
+			message = BLI_sprintfN(IFACE_("Save changes to \"%s\" before closing?"), basename);
+		}
+		uiItemL(layout, message, ICON_ERROR);
+		MEM_freeN(message);
+	}
+
+	uiItemS(layout);
+	uiItemS(layout);
+
+
+	/* Buttons */
+	uiBut *but;
+
+	uiLayout *split = uiLayoutSplit(layout, 0.0f, true);
+
+	uiLayout *col = uiLayoutColumn(split, false);
+
+	but = uiDefIconTextBut(
+	        block, UI_BTYPE_BUT, 0, ICON_SCREEN_BACK, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y,
+	        NULL, 0, 0, 0, 0, TIP_("Do not quit"));
+	UI_but_func_set(but, wm_block_confirm_quit_cancel, block, NULL);
+
+	/* empty space between buttons */
+	col = uiLayoutColumn(split, false);
+	uiItemS(col);
+
+	col = uiLayoutColumn(split, 1);
+	but = uiDefIconTextBut(
+	        block, UI_BTYPE_BUT, 0, ICON_CANCEL, IFACE_("Discard Changes"), 0, 0, 50, UI_UNIT_Y,
+	        NULL, 0, 0, 0, 0, TIP_("Discard changes and quit"));
+	UI_but_func_set(but, wm_block_confirm_quit_discard, block, NULL);
+
+	col = uiLayoutColumn(split, 1);
+	but = uiDefIconTextBut(
+	        block, UI_BTYPE_BUT, 0, ICON_FILE_TICK, IFACE_("Save & Quit"), 0, 0, 50, UI_UNIT_Y,
+	        NULL, 0, 0, 0, 0, TIP_("Save and quit"));
+	UI_but_func_set(but, wm_block_confirm_quit_save, block, NULL);
+
+	UI_block_bounds_set_centered(block, 10);
+
+	return block;
+}
+
+
+/**
+ * Call the confirm dialog on quitting. It's displayed in the context window so
+ * caller should set it as desired.
+ */
+static void wm_confirm_quit(bContext *C)
+{
+	wmWindow *win = CTX_wm_window(C);
+
+	if (GHOST_SupportsNativeDialogs() == 0) {
+		UI_popup_block_invoke(C, block_create_confirm_quit, NULL);
+	}
+	else if (GHOST_confirmQuit(win->ghostwin)) {
+		wm_exit_schedule_delayed(C);
+	}
+}
+
+/**
+ * Call the quit confirmation prompt or exit directly if needed. The use can
+ * still cancel via the confirmation popup. Also, this may not quit Blender
+ * immediately, but rather schedule the closing.
+ *
+ * \param win The window to show the confirmation popup/window in.
+ */
+void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win_ctx = CTX_wm_window(C);
+
+	/* The popup will be displayed in the context window which may not be set
+	 * here (this function gets called outside of normal event handling loop). */
+	CTX_wm_window_set(C, win);
+
+	if ((U.uiflag & USER_QUIT_PROMPT) && !wm->file_saved && !G.background) {
+		wm_confirm_quit(C);
+	}
+	else {
+		wm_exit_schedule_delayed(C);
+	}
+
+	CTX_wm_window_set(C, win_ctx);
+}
+
+/** \} */
+
 /* this is event from ghost, or exit-blender op */
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 {
 	wmWindow *tmpwin;
-	bool do_exit = false;
 	
 	/* first check if we have to quit (there are non-temp remaining windows) */
 	for (tmpwin = wm->windows.first; tmpwin; tmpwin = tmpwin->next) {
@@ -341,19 +496,8 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 			break;
 	}
 
-	if (tmpwin == NULL)
-		do_exit = 1;
-	
-	if ((U.uiflag & USER_QUIT_PROMPT) && !wm->file_saved && !G.background) {
-		if (do_exit) {
-			if (!GHOST_confirmQuit(win->ghostwin))
-				return;
-		}
-	}
-
-	/* let WM_exit do all freeing, for correct quit.blend save */
-	if (do_exit) {
-		WM_exit(C);
+	if (tmpwin == NULL) {
+		wm_quit_with_optional_confirmation_prompt(C, win);
 	}
 	else {
 		bScreen *screen = WM_window_get_active_screen(win);
@@ -373,9 +517,22 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 		if (screen) {
 			ED_screen_exit(C, win, screen);
 		}
-		
+
+		if (tmpwin) {
+			BLF_batch_reset();
+			gpu_batch_presets_reset();
+			immDeactivate();
+		}
+
 		wm_window_free(C, wm, win);
-	
+
+		/* keep imediatemode active before the next `wm_window_make_drawable` call */
+		if (tmpwin) {
+			GHOST_ActivateWindowDrawingContext(tmpwin->ghostwin);
+			GWN_context_active_set(tmpwin->gwnctx);
+			immActivate();
+		}
+
 		/* if temp screen, delete it after window free (it stops jobs that can access it) */
 		if (screen && screen->temp) {
 			Main *bmain = CTX_data_main(C);
@@ -461,16 +618,8 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm, const char *title, wm
 {
 	GHOST_WindowHandle ghostwin;
 	GHOST_GLSettings glSettings = {0};
-	static int multisamples = -1;
 	int scr_w, scr_h, posy;
 	
-	/* force setting multisamples only once, it requires restart - and you cannot 
-	 * mix it, either all windows have it, or none (tested in OSX opengl) */
-	if (multisamples == -1)
-		multisamples = U.ogl_multisamples;
-
-	glSettings.numOfAASamples = multisamples;
-
 	/* a new window is created when pageflip mode is required for a window */
 	if (win->stereo3d_format->display_mode == S3D_DISPLAY_PAGEFLIP)
 		glSettings.flags |= GHOST_glStereoVisual;
@@ -484,17 +633,14 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm, const char *title, wm
 	
 	ghostwin = GHOST_CreateWindow(g_system, title,
 	                              win->posx, posy, win->sizex, win->sizey,
-#ifdef __APPLE__
-	                              /* we agreed to not set any fullscreen or iconized state on startup */
-	                              GHOST_kWindowStateNormal,
-#else
 	                              (GHOST_TWindowState)win->windowstate,
-#endif
 	                              GHOST_kDrawingContextTypeOpenGL,
 	                              glSettings);
-	
+
 	if (ghostwin) {
 		GHOST_RectangleHandle bounds;
+
+		win->gwnctx = GWN_context_create();
 		
 		/* the new window has already been made drawable upon creation */
 		wm->windrawable = win;
@@ -508,9 +654,6 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm, const char *title, wm
 		if (win->eventstate == NULL)
 			win->eventstate = MEM_callocN(sizeof(wmEvent), "window event state");
 
-		/* store multisamples window was created with, in case user prefs change */
-		win->multisamples = multisamples;
-		
 		/* store actual window size in blender window */
 		bounds = GHOST_GetClientBounds(win->ghostwin);
 
@@ -546,7 +689,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm, const char *title, wm
 }
 
 /**
- * Initialize #wmWindows without ghostwin, open these and clear.
+ * Initialize #wmWindow without ghostwin, open these and clear.
  *
  * window size is read from window, if 0 it uses prefsize
  * called in #WM_check, also inits stuff after file read.
@@ -756,7 +899,11 @@ wmWindow *WM_window_open_temp(bContext *C, int x, int y, int sizex, int sizey, i
 		WM_window_set_active_layout(win, workspace, layout);
 	}
 
-	if (WM_window_get_active_scene(win) != scene) {
+	if (win->scene == NULL) {
+		win->scene = scene;
+	}
+	/* In case we reuse an already existing temp window (see win lookup above). */
+	else if (WM_window_get_active_scene(win) != scene) {
 		WM_window_change_active_scene(bmain, C, win, scene);
 	}
 
@@ -868,7 +1015,7 @@ int wm_window_new_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(even
 	WorkSpace *workspace = WM_window_get_active_workspace(win);
 	ListBase *listbase = BKE_workspace_layouts_get(workspace);
 
-	if (BLI_listbase_count_ex(listbase, 2) == 1) {
+	if (BLI_listbase_count_at_most(listbase, 2) == 1) {
 		RNA_enum_set(op->ptr, "screen", 0);
 		return wm_window_new_exec(C, op);
 	}
@@ -1012,20 +1159,47 @@ static int query_qual(modifierKeyType qual)
 
 void wm_window_make_drawable(wmWindowManager *wm, wmWindow *win) 
 {
+	BLI_assert(GPU_framebuffer_current_get() == 0);
+
 	if (win != wm->windrawable && win->ghostwin) {
 //		win->lmbut = 0;	/* keeps hanging when mousepressed while other window opened */
-		
+
 		wm->windrawable = win;
 		if (G.debug & G_DEBUG_EVENTS) {
 			printf("%s: set drawable %d\n", __func__, win->winid);
 		}
 
+		BLF_batch_reset();
+		gpu_batch_presets_reset();
 		immDeactivate();
 		GHOST_ActivateWindowDrawingContext(win->ghostwin);
+		GWN_context_active_set(win->gwnctx);
 		immActivate();
 
 		/* this can change per window */
 		WM_window_set_dpi(win);
+	}
+}
+
+/* Reset active the current window opengl drawing context. */
+void wm_window_reset_drawable(void)
+{
+	BLI_assert(BLI_thread_is_main());
+	BLI_assert(GPU_framebuffer_current_get() == 0);
+	wmWindowManager *wm = G.main->wm.first;
+
+	if (wm == NULL)
+		return;
+
+	wmWindow *win = wm->windrawable;
+
+	if (win && win->ghostwin) {
+		BLF_batch_reset();
+		gpu_batch_presets_reset();
+		immDeactivate();
+		GHOST_ActivateWindowDrawingContext(win->ghostwin);
+		GWN_context_active_set(win->gwnctx);
+		immActivate();
 	}
 }
 
@@ -1612,6 +1786,7 @@ wmTimer *WM_event_add_timer_notifier(wmWindowManager *wm, wmWindow *win, unsigne
 	wt->timestep = timestep;
 	wt->win = win;
 	wt->customdata = SET_UINT_IN_POINTER(type);
+	wt->flags |= WM_TIMER_NO_FREE_CUSTOM_DATA;
 
 	BLI_addtail(&wm->timers, wt);
 
@@ -1633,8 +1808,9 @@ void WM_event_remove_timer(wmWindowManager *wm, wmWindow *UNUSED(win), wmTimer *
 			wm->reports.reporttimer = NULL;
 		
 		BLI_remlink(&wm->timers, wt);
-		if (wt->customdata)
+		if (wt->customdata != NULL && (wt->flags & WM_TIMER_NO_FREE_CUSTOM_DATA) == 0) {
 			MEM_freeN(wt->customdata);
+		}
 		MEM_freeN(wt);
 		
 		/* there might be events in queue with this timer as customdata */
@@ -1796,7 +1972,6 @@ void wm_window_raise(wmWindow *win)
 
 void wm_window_swap_buffers(wmWindow *win)
 {
-	
 #ifdef WIN32
 	glDisable(GL_SCISSOR_TEST);
 	GHOST_SwapWindowBuffers(win->ghostwin);
@@ -1948,6 +2123,18 @@ WorkSpace *WM_windows_workspace_get_from_screen(const wmWindowManager *wm, const
 	return NULL;
 }
 
+eObjectMode WM_windows_object_mode_get(const struct wmWindowManager *wm)
+{
+	eObjectMode object_mode = 0;
+	for (wmWindow *win = wm->windows.first; win; win = win->next) {
+		const WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
+		if (workspace != NULL) {
+			object_mode |= workspace->object_mode;
+		}
+	}
+	return object_mode;
+}
+
 Scene *WM_window_get_active_scene(const wmWindow *win)
 {
 	return win->scene;
@@ -1959,10 +2146,9 @@ Scene *WM_window_get_active_scene(const wmWindow *win)
 void WM_window_change_active_scene(Main *bmain, bContext *C, wmWindow *win, Scene *scene_new)
 {
 	const bScreen *screen = WM_window_get_active_screen(win);
+	Scene *scene_old = win->scene;
 
-	ED_scene_exit(C);
-	win->scene = scene_new;
-	ED_scene_changed_update(bmain, C, scene_new, screen);
+	ED_scene_change_update(bmain, C, win, screen, scene_old, scene_new);
 }
 
 WorkSpace *WM_window_get_active_workspace(const wmWindow *win)
@@ -2022,3 +2208,34 @@ void wm_window_IME_end(wmWindow *win)
 	win->ime_data = NULL;
 }
 #endif  /* WITH_INPUT_IME */
+
+/* ****** direct opengl context management ****** */
+
+void *WM_opengl_context_create(void)
+{
+	/* On Windows there is a problem creating contexts that share lists
+	 * from one context that is current in another thread.
+	 * So we should call this function only on the main thread.
+	 */
+	BLI_assert(BLI_thread_is_main());
+	BLI_assert(GPU_framebuffer_current_get() == 0);
+	return GHOST_CreateOpenGLContext(g_system);
+}
+
+void WM_opengl_context_dispose(void *context)
+{
+	BLI_assert(GPU_framebuffer_current_get() == 0);
+	GHOST_DisposeOpenGLContext(g_system, (GHOST_ContextHandle)context);
+}
+
+void WM_opengl_context_activate(void *context)
+{
+	BLI_assert(GPU_framebuffer_current_get() == 0);
+	GHOST_ActivateOpenGLContext((GHOST_ContextHandle)context);
+}
+
+void WM_opengl_context_release(void *context)
+{
+	BLI_assert(GPU_framebuffer_current_get() == 0);
+	GHOST_ReleaseOpenGLContext((GHOST_ContextHandle)context);
+}

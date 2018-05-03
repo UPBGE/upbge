@@ -208,7 +208,7 @@ size_t BLI_strcpy_rlen(char *__restrict dst, const char *__restrict src)
 }
 
 /**
- * Portable replacement for #vsnprintf
+ * Portable replacement for `vsnprintf`.
  */
 size_t BLI_vsnprintf(char *__restrict buffer, size_t maxncpy, const char *__restrict format, va_list arg)
 {
@@ -503,7 +503,7 @@ int BLI_strcaseeq(const char *a, const char *b)
 }
 
 /**
- * Portable replacement for #strcasestr (not available in MSVC)
+ * Portable replacement for `strcasestr` (not available in MSVC)
  */
 char *BLI_strcasestr(const char *s, const char *find)
 {
@@ -931,13 +931,13 @@ size_t BLI_str_partition_ex(
 		if (end) {
 			if (from_right) {
 				for (tmp = end - 1; (tmp >= str) && (*tmp != *d); tmp--);
-				if (tmp	< str) {
+				if (tmp < str) {
 					tmp = NULL;
 				}
 			}
 			else {
 				tmp = func(str, *d);
-				if (tmp	>= end) {
+				if (tmp >= end) {
 					tmp = NULL;
 				}
 			}

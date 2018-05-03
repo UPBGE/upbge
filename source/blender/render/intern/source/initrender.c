@@ -38,7 +38,7 @@
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
-#include "BLI_jitter.h"
+#include "BLI_jitter_2d.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_camera_types.h"
@@ -499,11 +499,6 @@ void RE_SetCamera(Render *re, Object *cam_ob)
 
 	/* extract results */
 	re_camera_params_get(re, &params, cam_ob);
-}
-
-void RE_SetDepsgraph(Render *re, Depsgraph *graph)
-{
-	re->depsgraph = graph;
 }
 
 void RE_SetPixelSize(Render *re, float pixsize)

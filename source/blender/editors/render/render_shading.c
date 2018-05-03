@@ -99,6 +99,7 @@
 
 static int material_slot_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = ED_object_context(C);
 
 	if (!ob)
@@ -106,7 +107,7 @@ static int material_slot_add_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	BKE_object_material_slot_add(ob);
 
-	if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+	if (workspace->object_mode & OB_MODE_TEXTURE_PAINT) {
 		Scene *scene = CTX_data_scene(C);
 		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
 		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
@@ -136,6 +137,7 @@ void OBJECT_OT_material_slot_add(wmOperatorType *ot)
 
 static int material_slot_remove_exec(bContext *C, wmOperator *op)
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = ED_object_context(C);
 
 	if (!ob)
@@ -149,7 +151,7 @@ static int material_slot_remove_exec(bContext *C, wmOperator *op)
 	
 	BKE_object_material_slot_remove(ob);
 
-	if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+	if (workspace->object_mode & OB_MODE_TEXTURE_PAINT) {
 		Scene *scene = CTX_data_scene(C);
 		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
 		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
@@ -427,7 +429,8 @@ static int material_slot_move_exec(bContext *C, wmOperator *op)
 	MEM_freeN(slot_remap);
 
 	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | ND_DATA, ob);
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+	WM_event_add_notifier(C, NC_OBJECT | ND_DATA, ob);
 
 	return OPERATOR_FINISHED;
 }
@@ -582,7 +585,7 @@ static int new_world_exec(bContext *C, wmOperator *UNUSED(op))
 		wo = BKE_world_copy(bmain, wo);
 	}
 	else {
-		wo = add_world(bmain, DATA_("World"));
+		wo = BKE_world_add(bmain, DATA_("World"));
 
 		if (BKE_scene_use_new_shading_nodes(scene)) {
 			ED_node_shader_default(C, &wo->id);

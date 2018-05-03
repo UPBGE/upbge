@@ -69,13 +69,12 @@ struct wmManipulatorGroup *wm_manipulatorgroup_new_from_type(
         struct wmManipulatorMap *mmap, struct wmManipulatorGroupType *wgt);
 void wm_manipulatorgroup_free(bContext *C, struct wmManipulatorGroup *mgroup);
 void wm_manipulatorgroup_manipulator_register(struct wmManipulatorGroup *mgroup, struct wmManipulator *mpr);
-struct wmManipulator *wm_manipulatorgroup_find_intersected_mainpulator(
+struct wmManipulator *wm_manipulatorgroup_find_intersected_manipulator(
         const struct wmManipulatorGroup *mgroup, struct bContext *C, const struct wmEvent *event,
         int *r_part);
 void wm_manipulatorgroup_intersectable_manipulators_to_list(
         const struct wmManipulatorGroup *mgroup, struct ListBase *listbase);
 void wm_manipulatorgroup_ensure_initialized(struct wmManipulatorGroup *mgroup, const struct bContext *C);
-bool wm_manipulatorgroup_is_visible(const struct wmManipulatorGroup *mgroup, const struct bContext *C);
 bool wm_manipulatorgroup_is_visible_in_drawstep(
         const struct wmManipulatorGroup *mgroup, const eWM_ManipulatorMapDrawStep drawstep);
 
@@ -112,6 +111,9 @@ struct wmManipulatorMap {
 		struct wmManipulator *modal;
 		/* array for all selected manipulators */
 		struct wmManipulatorMapSelectState select;
+		/* cursor location at point of entering modal (see: WM_MANIPULATOR_GRAB_CURSOR) */
+		int event_xy[2];
+		short event_grabcursor;
 	} mmap_context;
 };
 

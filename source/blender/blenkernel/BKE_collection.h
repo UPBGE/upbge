@@ -44,19 +44,27 @@ struct Main;
 struct Object;
 struct Scene;
 struct SceneCollection;
+struct ViewLayer;
 
 struct SceneCollection *BKE_collection_add(
         struct ID *owner_id, struct SceneCollection *sc_parent, const int type, const char *name);
 bool BKE_collection_remove(struct ID *owner_id, struct SceneCollection *sc);
 void BKE_collection_copy_data(struct SceneCollection *sc_dst, struct SceneCollection *sc_src, const int flag);
+struct SceneCollection *BKE_collection_duplicate(struct ID *owner_id, struct SceneCollection *scene_collection);
 struct SceneCollection *BKE_collection_master(const struct ID *owner_id);
-void BKE_collection_rename(const struct Scene *scene, struct SceneCollection *sc, const char *name);
+void BKE_collection_rename(const struct ID *owner_id, struct SceneCollection *sc, const char *name);
 void BKE_collection_master_free(struct ID *owner_id, const bool do_id_user);
 bool BKE_collection_object_add(const struct ID *owner_id, struct SceneCollection *sc, struct Object *object);
 void BKE_collection_object_add_from(struct Scene *scene, struct Object *ob_src, struct Object *ob_dst);
 bool BKE_collection_object_remove(struct Main *bmain, struct ID *owner_id, struct SceneCollection *sc, struct Object *object, const bool free_us);
 bool BKE_collections_object_remove(struct Main *bmain, struct ID *owner_id, struct Object *object, const bool free_us);
 void BKE_collection_object_move(struct ID *owner_id, struct SceneCollection *sc_dst, struct SceneCollection *sc_src, struct Object *ob);
+bool BKE_collection_object_exists(struct SceneCollection *scene_collection, struct Object *ob);
+struct SceneCollection *BKE_collection_from_index(struct Scene *scene, const int index);
+
+void BKE_collection_new_name_get(struct ID *owner_id, struct SceneCollection *sc_parent, char *rname);
+
+bool BKE_collection_objects_select(struct ViewLayer *view_layer, struct SceneCollection *scene_collection);
 
 struct Group *BKE_collection_group_create(struct Main *bmain, struct Scene *scene, struct LayerCollection *lc);
 
@@ -82,7 +90,7 @@ void BKE_scene_objects_iterator_begin(struct BLI_Iterator *iter, void *data_in);
 void BKE_scene_objects_iterator_next(struct BLI_Iterator *iter);
 void BKE_scene_objects_iterator_end(struct BLI_Iterator *iter);
 
-#define FOREACH_SCENE_COLLECTION(_id, _instance)                              \
+#define FOREACH_SCENE_COLLECTION_BEGIN(_id, _instance)                        \
 	ITER_BEGIN(BKE_scene_collections_iterator_begin,                          \
 	           BKE_scene_collections_iterator_next,                           \
 	           BKE_scene_collections_iterator_end,                            \
@@ -91,7 +99,7 @@ void BKE_scene_objects_iterator_end(struct BLI_Iterator *iter);
 #define FOREACH_SCENE_COLLECTION_END                                          \
 	ITER_END
 
-#define FOREACH_SCENE_OBJECT(scene, _instance)                                \
+#define FOREACH_SCENE_OBJECT_BEGIN(scene, _instance)                          \
 	ITER_BEGIN(BKE_scene_objects_iterator_begin,                              \
 	           BKE_scene_objects_iterator_next,                               \
 	           BKE_scene_objects_iterator_end,                                \

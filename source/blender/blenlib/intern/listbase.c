@@ -29,7 +29,9 @@
 /** \file blender/blenlib/intern/listbase.c
  *  \ingroup bli
  *
- * Manipulations on ListBase structs
+ * Manipulations on double-linked list (#ListBase structs).
+ *
+ * For single linked lists see 'BLI_linklist.h'
  */
 
 #include <string.h>
@@ -482,7 +484,7 @@ void BLI_freelistN(ListBase *listbase)
  *
  * \note Use to avoid redundant looping.
  */
-int BLI_listbase_count_ex(const ListBase *listbase, const int count_max)
+int BLI_listbase_count_at_most(const ListBase *listbase, const int count_max)
 {
 	Link *link;
 	int count = 0;

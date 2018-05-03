@@ -94,28 +94,32 @@ void ED_armature_enter_posemode(bContext *C, Base *base)
 	
 	switch (ob->type) {
 		case OB_ARMATURE:
-			ob->restore_mode = ob->mode;
-			ob->mode |= OB_MODE_POSE;
+		{
+			WorkSpace *workspace = CTX_wm_workspace(C);
+			workspace->object_mode_restore = workspace->object_mode;
+			workspace->object_mode |= OB_MODE_POSE;
 			/* Inform all CoW versions that we changed the mode. */
 			DEG_id_tag_update_ex(CTX_data_main(C), &ob->id, DEG_TAG_COPY_ON_WRITE);
 			WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_POSE, NULL);
 			
 			break;
+		}
 		default:
 			return;
 	}
 	
 	/* XXX: disabled as this would otherwise cause a nasty loop... */
-	//ED_object_toggle_modes(C, ob->mode);
+	//ED_object_mode_toggle(C, ob->mode);
 }
 
 void ED_armature_exit_posemode(bContext *C, Base *base)
 {
 	if (base) {
+		WorkSpace *workspace = CTX_wm_workspace(C);
 		Object *ob = base->object;
 		
-		ob->restore_mode = ob->mode;
-		ob->mode &= ~OB_MODE_POSE;
+		workspace->object_mode_restore = workspace->object_mode;
+		workspace->object_mode &= ~OB_MODE_POSE;
 
 		/* Inform all CoW versions that we changed the mode. */
 		DEG_id_tag_update_ex(CTX_data_main(C), &ob->id, DEG_TAG_COPY_ON_WRITE);
@@ -597,7 +601,7 @@ static void pose_copy_menu(Scene *scene)
 
 /* ********************************************** */
 
-static int pose_flip_names_exec(bContext *C, wmOperator *UNUSED(op))
+static int pose_flip_names_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
 	bArmature *arm;
@@ -605,6 +609,8 @@ static int pose_flip_names_exec(bContext *C, wmOperator *UNUSED(op))
 	/* paranoia checks */
 	if (ELEM(NULL, ob, ob->pose)) 
 		return OPERATOR_CANCELLED;
+
+	const bool do_strip_numbers = RNA_boolean_get(op->ptr, "do_strip_numbers");
 
 	arm = ob->data;
 
@@ -616,7 +622,7 @@ static int pose_flip_names_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	CTX_DATA_END;
 
-	ED_armature_bones_flip_names(arm, &bones_names);
+	ED_armature_bones_flip_names(arm, &bones_names, do_strip_numbers);
 
 	BLI_freelistN(&bones_names);
 	
@@ -642,6 +648,10 @@ void POSE_OT_flip_names(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "do_strip_numbers", false, "Strip Numbers",
+	                "Try to remove right-most dot-number from flipped names "
+	                "(WARNING: may result in incoherent naming in some cases)");
 }
 
 /* ------------------ */

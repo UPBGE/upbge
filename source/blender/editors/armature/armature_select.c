@@ -77,10 +77,9 @@ Bone *get_indexed_bone(Object *ob, int index)
 /* See if there are any selected bones in this buffer */
 /* only bones from base are checked on */
 void *get_bone_from_selectbuffer(
-        Scene *scene, Base *base, const unsigned int *buffer, short hits,
+        Base *base, Object *obedit, const unsigned int *buffer, short hits,
         bool findunsel, bool do_nearest)
 {
-	Object *obedit = scene->obedit; // XXX get from context
 	Bone *bone;
 	EditBone *ebone;
 	void *firstunSel = NULL, *firstSel = NULL, *data;
@@ -175,7 +174,7 @@ void *get_nearest_bone(bContext *C, const int xy[2], bool findunsel)
 	short hits;
 
 	CTX_data_eval_ctx(C, &eval_ctx);
-	view3d_set_viewcontext(C, &vc);
+	ED_view3d_viewcontext_init(C, &vc);
 	
 	// rect.xmin = ... mouseco!
 	rect.xmin = rect.xmax = xy[0];
@@ -183,9 +182,9 @@ void *get_nearest_bone(bContext *C, const int xy[2], bool findunsel)
 	
 	hits = view3d_opengl_select(&eval_ctx, &vc, buffer, MAXPICKBUF, &rect, VIEW3D_SELECT_PICK_NEAREST);
 
-	if (hits > 0)
-		return get_bone_from_selectbuffer(vc.scene, vc.view_layer->basact, buffer, hits, findunsel, true);
-	
+	if (hits > 0) {
+		return get_bone_from_selectbuffer(vc.view_layer->basact, vc.obedit, buffer, hits, findunsel, true);
+	}
 	return NULL;
 }
 
@@ -492,7 +491,7 @@ bool ED_armature_select_pick(bContext *C, const int mval[2], bool extend, bool d
 	int selmask;
 
 	CTX_data_eval_ctx(C, &eval_ctx);
-	view3d_set_viewcontext(C, &vc);
+	ED_view3d_viewcontext_init(C, &vc);
 
 	if (BIF_sk_selectStroke(C, mval, extend)) {
 		return true;

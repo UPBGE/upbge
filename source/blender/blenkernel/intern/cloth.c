@@ -40,6 +40,8 @@
 #include "BLI_edgehash.h"
 #include "BLI_linklist.h"
 
+#include "DEG_depsgraph.h"
+
 #include "BKE_cdderivedmesh.h"
 #include "BKE_cloth.h"
 #include "BKE_effect.h"
@@ -304,14 +306,14 @@ void bvhselftree_update_from_cloth(ClothModifierData *clmd, bool moving)
 	}
 }
 
-void cloth_clear_cache(Object *ob, ClothModifierData *clmd, float framenr)
+void cloth_clear_cache(const EvaluationContext *eval_ctx, Object *ob, ClothModifierData *clmd, float framenr)
 {
 	PTCacheID pid;
 	
 	BKE_ptcache_id_from_cloth(&pid, ob, clmd);
 
 	// don't do anything as long as we're in editmode!
-	if (pid.cache->edit && ob->mode & OB_MODE_PARTICLE_EDIT)
+	if (pid.cache->edit && eval_ctx->object_mode & OB_MODE_PARTICLE_EDIT)
 		return;
 	
 	BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_AFTER, framenr);
@@ -478,8 +480,6 @@ void clothModifier_do(ClothModifierData *clmd, const struct EvaluationContext *e
 		return;
 	}
 
-		return;
-
 	/* if on second frame, write cache for first frame */
 	if (cache->simframe == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0))
 		BKE_ptcache_write(&pid, startframe);
@@ -639,7 +639,7 @@ void cloth_free_modifier_extern(ClothModifierData *clmd )
  **/
 static void cloth_to_object (Object *ob,  ClothModifierData *clmd, float (*vertexCos)[3])
 {
-	unsigned int	i = 0;
+	unsigned int i = 0;
 	Cloth *cloth = clmd->clothObject;
 
 	if (clmd->clothObject) {

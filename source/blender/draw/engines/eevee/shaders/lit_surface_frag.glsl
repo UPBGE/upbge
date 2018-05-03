@@ -2,19 +2,12 @@
 #ifndef LIT_SURFACE_UNIFORM
 #define LIT_SURFACE_UNIFORM
 
-uniform int light_count;
-uniform int probe_count;
-uniform int grid_count;
-uniform int planar_count;
-
-uniform bool specToggle;
-uniform bool ssrToggle;
-
 uniform float refractionDepth;
 
 #ifndef UTIL_TEX
 #define UTIL_TEX
 uniform sampler2DArray utilTex;
+#define texelfetch_noise_tex(coord) texelFetch(utilTex, ivec3(ivec2(coord) % LUT_SIZE, 2.0), 0)
 #endif /* UTIL_TEX */
 
 in vec3 worldPosition;
@@ -27,9 +20,6 @@ flat in vec3 viewNormal;
 in vec3 worldNormal;
 in vec3 viewNormal;
 #endif
-
-uniform float maxRoughness;
-uniform int rayCount;
 
 #endif /* LIT_SURFACE_UNIFORM */
 
@@ -176,7 +166,7 @@ void CLOSURE_NAME(
 
 	vec3 V = cameraVec;
 
-	vec4 rand = texture(utilTex, vec3(gl_FragCoord.xy / LUT_SIZE, 2.0));
+	vec4 rand = texelFetch(utilTex, ivec3(ivec2(gl_FragCoord.xy) % LUT_SIZE, 2.0), 0);
 
 	/* ---------------------------------------------------------------- */
 	/* -------------------- SCENE LAMPS LIGHTING ---------------------- */
@@ -187,7 +177,7 @@ void CLOSURE_NAME(
 	norm_view = normalize(cross(norm_view, N)); /* Normal facing view */
 #endif
 
-	for (int i = 0; i < MAX_LIGHT && i < light_count; ++i) {
+	for (int i = 0; i < MAX_LIGHT && i < laNumLight; ++i) {
 		LightData ld = lights_data[i];
 
 		vec4 l_vector; /* Non-Normalized Light Vector with length in last component. */
@@ -266,7 +256,7 @@ void CLOSURE_NAME(
 	/*      Planar Reflections      */
 	/* ---------------------------- */
 
-	for (int i = 0; i < MAX_PLANAR && i < planar_count && spec_accum.a < 0.999; ++i) {
+	for (int i = 0; i < MAX_PLANAR && i < prbNumPlanar && spec_accum.a < 0.999; ++i) {
 		PlanarData pd = planars_data[i];
 
 		/* Fade on geometric normal. */
@@ -312,17 +302,11 @@ void CLOSURE_NAME(
 	/*   Screen Space Refraction    */
 	/* ---------------------------- */
 	#ifdef USE_REFRACTION
-	if (ssrToggle && roughness < maxRoughness + 0.2) {
+	if (ssrToggle && roughness < ssrMaxRoughness + 0.2) {
 		/* Find approximated position of the 2nd refraction event. */
 		vec3 refr_vpos = (refractionDepth > 0.0) ? transform_point(ViewMatrix, refr_pos) : viewPosition;
-
-		float ray_ofs = 1.0 / float(rayCount);
-		vec4 trans = screen_space_refraction(refr_vpos, N, refr_V, final_ior, roughnessSquared, rand.xzw, 0.0);
-		if (rayCount > 1) trans += screen_space_refraction(refr_vpos, N, refr_V, final_ior, roughnessSquared, rand.xzw * vec3(1.0, -1.0, -1.0), 1.0 * ray_ofs);
-		if (rayCount > 2) trans += screen_space_refraction(refr_vpos, N, refr_V, final_ior, roughnessSquared, rand.xwz * vec3(1.0,  1.0, -1.0), 2.0 * ray_ofs);
-		if (rayCount > 3) trans += screen_space_refraction(refr_vpos, N, refr_V, final_ior, roughnessSquared, rand.xwz * vec3(1.0, -1.0,  1.0), 3.0 * ray_ofs);
-		trans /= float(rayCount);
-		trans.a *= smoothstep(maxRoughness + 0.2, maxRoughness, roughness);
+		vec4 trans = screen_space_refraction(refr_vpos, N, refr_V, final_ior, roughnessSquared, rand);
+		trans.a *= smoothstep(ssrMaxRoughness + 0.2, ssrMaxRoughness, roughness);
 		accumulate_light(trans.rgb, trans.a, refr_accum);
 	}
 	#endif
@@ -342,7 +326,7 @@ void CLOSURE_NAME(
 	#endif
 
 	/* Starts at 1 because 0 is world probe */
-	for (int i = 1; ACCUM.a < 0.999 && i < probe_count && i < MAX_PROBE; ++i) {
+	for (int i = 1; ACCUM.a < 0.999 && i < prbNumRenderCube && i < MAX_PROBE; ++i) {
 		CubeData cd = probes_data[i];
 
 		float fade = probe_attenuation_cube(cd, worldPosition);
@@ -402,7 +386,7 @@ void CLOSURE_NAME(
 	/* ---------------------------- */
 #if defined(CLOSURE_GLOSSY) || defined(CLOSURE_DIFFUSE)
 	vec3 bent_normal;
-	float final_ao = occlusion_compute(N, viewPosition, ao, rand.rg, bent_normal);
+	float final_ao = occlusion_compute(N, viewPosition, ao, rand, bent_normal);
 #endif
 
 
@@ -417,12 +401,14 @@ void CLOSURE_NAME(
 	/* This factor is outputed to be used by SSR in order
 	 * to match the intensity of the regular reflections. */
 	ssr_spec = F_ibl(f0, brdf_lut);
-	if (!(ssrToggle && ssr_id == outputSsrId)) {
-		/* The SSR pass recompute the occlusion to not apply it to the SSR */
-		ssr_spec *= specular_occlusion(NV, final_ao, roughness);
+	float spec_occlu = specular_occlusion(NV, final_ao, roughness);
+
+	/* The SSR pass recompute the occlusion to not apply it to the SSR */
+	if (ssrToggle && ssr_id == outputSsrId) {
+		spec_occlu = 1.0;
 	}
 
-	out_spec += spec_accum.rgb * ssr_spec * float(specToggle);
+	out_spec += spec_accum.rgb * ssr_spec * spec_occlu * float(specToggle);
 #endif
 
 #ifdef CLOSURE_REFRACTION
@@ -452,7 +438,7 @@ void CLOSURE_NAME(
 	/*       Irradiance Grids       */
 	/* ---------------------------- */
 	/* Start at 1 because 0 is world irradiance */
-	for (int i = 1; i < MAX_GRID && i < grid_count && diff_accum.a < 0.999; ++i) {
+	for (int i = 1; i < MAX_GRID && i < prbNumRenderGrid && diff_accum.a < 0.999; ++i) {
 		GridData gd = grids_data[i];
 
 		vec3 localpos;
@@ -467,7 +453,7 @@ void CLOSURE_NAME(
 	/* ---------------------------- */
 	/*        World Diffuse         */
 	/* ---------------------------- */
-	if (diff_accum.a < 0.999 && grid_count > 0) {
+	if (diff_accum.a < 0.999 && prbNumRenderGrid > 0) {
 		vec3 diff = probe_evaluate_world_diff(bent_normal);
 		accumulate_light(diff, 1.0, diff_accum);
 	}

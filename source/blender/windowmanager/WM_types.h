@@ -115,6 +115,7 @@ struct ImBuf;
 
 #include "RNA_types.h"
 #include "DNA_listBase.h"
+#include "DNA_vec_types.h"
 #include "BLI_compiler_attrs.h"
 
 /* exported types for WM */
@@ -214,7 +215,6 @@ typedef struct wmNotifier {
 	struct wmWindowManager *wm;
 	struct wmWindow *window;
 	
-	int swinid;			/* can't rely on this, notifiers can be added without context, swinid of 0 */
 	unsigned int category, data, subtype, action;
 	
 	void *reference;
@@ -422,7 +422,7 @@ typedef struct wmGesture {
 	struct wmGesture *next, *prev;
 	int event_type;	/* event->type */
 	int type;		/* gesture type define */
-	int swinid;		/* initial subwindow id where it started */
+	rcti winrct;    /* bounds of region to draw gesture within */
 	int points;		/* optional, amount of points stored */
 	int points_alloc;	/* optional, maximum amount of points stored */
 	int modal_state;
@@ -473,8 +473,9 @@ typedef struct wmEvent {
 	short keymodifier;				/* rawkey modifier */
 	
 	/* set in case a KM_PRESS went by unhandled */
-	short check_click;
-	
+	char check_click;
+	char is_motion_absolute;
+
 	/* keymap item, set by handler (weak?) */
 	const char *keymap_idname;
 
@@ -519,6 +520,10 @@ typedef struct wmNDOFMotionData {
 } wmNDOFMotionData;
 #endif /* WITH_INPUT_NDOF */
 
+typedef enum {  /* Timer flags */
+	WM_TIMER_NO_FREE_CUSTOM_DATA  = 1 << 0,  /* Do not attempt to free customdata pointer even if non-NULL. */
+} wmTimerFlags;
+
 typedef struct wmTimer {
 	struct wmTimer *next, *prev;
 	
@@ -526,6 +531,7 @@ typedef struct wmTimer {
 
 	double timestep;		/* set by timer user */
 	int event_type;			/* set by timer user, goes to event system */
+	wmTimerFlags flags;		/* Various flags controlling timer options, see below. */
 	void *customdata;		/* set by timer user, to allow custom values */
 	
 	double duration;		/* total running time in seconds */
@@ -534,7 +540,7 @@ typedef struct wmTimer {
 	double ltime;			/* internal, last time timer was activated */
 	double ntime;			/* internal, next time we want to activate the timer */
 	double stime;			/* internal, when the timer started */
-	int sleep;				/* internal, put timers to sleep when needed */
+	bool sleep;				/* internal, put timers to sleep when needed */
 } wmTimer;
 
 typedef struct wmOperatorType {
@@ -701,12 +707,37 @@ typedef struct wmDropBox {
 
 } wmDropBox;
 
+/**
+ * Struct to store tool-tip timer and possible creation if the time is reached.
+ * Allows UI code to call #WM_tooltip_timer_init without each user having to handle the timer.
+ */
+typedef struct wmTooltipState {
+	/** Create tooltip on this event. */
+	struct wmTimer *timer;
+	/** The region the tooltip is created in. */
+	struct ARegion *region_from;
+	/** The tooltip region. */
+	struct ARegion *region;
+	/** Create the tooltip region (assign to 'region'). */
+	struct ARegion *(*init)(struct bContext *, struct ARegion *, bool *r_exit_on_event);
+	/** Exit on any event, not needed for buttons since their highlight state is used. */
+	bool exit_on_event;
+} wmTooltipState;
+
 /* *************** migrated stuff, clean later? ************** */
 
 typedef struct RecentFile {
 	struct RecentFile *next, *prev;
 	char *filepath;
 } RecentFile;
+
+/* Logging */
+struct CLG_LogRef;
+/* wm_init_exit.c */
+extern struct CLG_LogRef *WM_LOG_OPERATORS;
+extern struct CLG_LogRef *WM_LOG_HANDLERS;
+extern struct CLG_LogRef *WM_LOG_EVENTS;
+extern struct CLG_LogRef *WM_LOG_KEYMAPS;
 
 
 #ifdef __cplusplus

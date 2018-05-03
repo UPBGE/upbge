@@ -24,6 +24,7 @@
  *  \ingroup RNA
  */
 
+#include <limits.h>
 #include <stdlib.h>
 
 #include "DNA_curve_types.h"
@@ -34,6 +35,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_math_base.h"
 
 #include "BKE_appdir.h"
 #include "BKE_DerivedMesh.h"
@@ -142,6 +144,12 @@ static void rna_userdef_dpi_update(Main *bmain, Scene *UNUSED(scene), PointerRNA
 	}
 
 	WM_main_add_notifier(NC_WINDOW, NULL);      /* full redraw */
+	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);    /* refresh region sizes */
+}
+
+static void rna_userdef_update_ui(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+{
+	WM_main_add_notifier(NC_WINDOW, NULL);
 	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);    /* refresh region sizes */
 }
 
@@ -356,8 +364,11 @@ static void rna_UserDef_weight_color_update(Main *bmain, Scene *scene, PointerRN
 	vDM_ColorBand_store((U.flag & USER_CUSTOM_RANGE) ? (&U.coba_weight) : NULL, btheme->tv3d.vertex_unreferenced);
 
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
-		if (ob->mode & OB_MODE_WEIGHT_PAINT)
+		/* TODO/OBMODE (not urgent) */
+		// if (ob->mode & OB_MODE_WEIGHT_PAINT)
+		{
 			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		}
 	}
 
 	rna_userdef_update(bmain, scene, ptr);
@@ -387,26 +398,23 @@ static void rna_userdef_autosave_update(Main *bmain, Scene *scene, PointerRNA *p
 
 static bAddon *rna_userdef_addon_new(void)
 {
-	bAddon *bext = MEM_callocN(sizeof(bAddon), "bAddon");
-	BLI_addtail(&U.addons, bext);
-	return bext;
+	ListBase *addons_list = &U.addons;
+	bAddon *addon = BKE_addon_new();
+	BLI_addtail(addons_list, addon);
+	return addon;
 }
 
-static void rna_userdef_addon_remove(ReportList *reports, PointerRNA *path_cmp_ptr)
+static void rna_userdef_addon_remove(ReportList *reports, PointerRNA *addon_ptr)
 {
-	bAddon *bext = path_cmp_ptr->data;
-	if (BLI_findindex(&U.addons, bext) == -1) {
+	ListBase *addons_list = &U.addons;
+	bAddon *addon = addon_ptr->data;
+	if (BLI_findindex(addons_list, addon) == -1) {
 		BKE_report(reports, RPT_ERROR, "Add-on is no longer valid");
 		return;
 	}
-
-	if (bext->prop) {
-		IDP_FreeProperty(bext->prop);
-		MEM_freeN(bext->prop);
-	}
-
-	BLI_freelinkN(&U.addons, bext);
-	RNA_POINTER_INVALIDATE(path_cmp_ptr);
+	BLI_remlink(addons_list, addon);
+	BKE_addon_free(addon);
+	RNA_POINTER_INVALIDATE(addon_ptr);
 }
 
 static bPathCompare *rna_userdef_pathcompare_new(void)
@@ -437,6 +445,12 @@ static void rna_userdef_text_update(Main *UNUSED(bmain), Scene *UNUSED(scene), P
 {
 	BLF_cache_clear();
 	WM_main_add_notifier(NC_WINDOW, NULL);
+}
+
+static void rna_userdef_text_antialiasing_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	BLF_antialias_set((U.text_render & USER_TEXT_DISABLE_AA) == 0);
+	rna_userdef_text_update(bmain, scene, ptr);
 }
 
 static PointerRNA rna_Theme_space_generic_get(PointerRNA *ptr)
@@ -637,6 +651,27 @@ static StructRNA *rna_AddonPref_refine(PointerRNA *ptr)
 }
 
 #else
+
+/* TODO(sergey): This technically belongs to blenlib, but we don't link
+ * makesrna against it.
+ */
+
+/* Get maximum addressable memory in megabytes, */
+static size_t max_memory_in_megabytes(void)
+{
+	/* Maximum addressable bytes on this platform. */
+	const size_t limit_bytes = (((size_t)1) << ((sizeof(size_t) * 8) - 1));
+	/* Convert it to megabytes and return. */
+	return (limit_bytes >> 20);
+}
+
+/* Same as above, but clipped to int capacity. */
+static int max_memory_in_megabytes_int(void)
+{
+	const size_t limit_megabytes = max_memory_in_megabytes();
+	/* NOTE: The result will fit into integer. */
+	return (int)min_zz(limit_megabytes, (size_t)INT_MAX);
+}
 
 static void rna_def_userdef_theme_ui_font_style(BlenderRNA *brna)
 {
@@ -3370,12 +3405,24 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "uiflag", USER_SPLASH_DISABLE);
 	RNA_def_property_ui_text(prop, "Show Splash", "Display splash screen on startup");
 
+
 	prop = RNA_def_property(srna, "show_playback_fps", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_SHOW_FPS);
 	RNA_def_property_ui_text(prop, "Show Playback FPS",
 	                         "Show the frames per second screen refresh rate, while animation is played back");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
-	
+
+	/* app flags (use for app-templates) */
+	prop = RNA_def_property(srna, "show_layout_ui", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "app_flag", USER_APP_LOCK_UI_LAYOUT);
+	RNA_def_property_ui_text(prop, "Show Layout Widgets", "Show screen layout editing UI");
+	RNA_def_property_update(prop, 0, "rna_userdef_update_ui");
+
+	prop = RNA_def_property(srna, "show_view3d_cursor", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "app_flag", USER_APP_VIEW3D_HIDE_CURSOR);
+	RNA_def_property_ui_text(prop, "Show 3D View Cursor", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
 	/* menus */
 	prop = RNA_def_property(srna, "use_mouse_over_open", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_MENUOPENAUTO);
@@ -3452,12 +3499,12 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Global Pivot", "Lock the same rotation/scaling pivot in all 3D Views");
 
 	prop = RNA_def_property(srna, "use_mouse_depth_navigate", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_ZBUF_ORBIT);
+	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_DEPTH_NAVIGATE);
 	RNA_def_property_ui_text(prop, "Auto Depth",
 	                         "Use the depth under the mouse to improve view pan/rotate/zoom functionality");
 
 	prop = RNA_def_property(srna, "use_mouse_depth_cursor", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_ZBUF_CURSOR);
+	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_DEPTH_CURSOR);
 	RNA_def_property_ui_text(prop, "Cursor Depth",
 	                         "Use the depth under the mouse when placing the cursor");
 
@@ -3525,6 +3572,11 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Manipulator", "Use 3D transform manipulator");
 	RNA_def_property_update(prop, 0, "rna_userdef_show_manipulator_update");
 
+	prop = RNA_def_property(srna, "show_manipulator_navigate", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "manipulator_flag", USER_MANIPULATOR_DRAW_NAVIGATE);
+	RNA_def_property_ui_text(prop, "Navigate Manipulator", "Use 3D navigation manipulator");
+	RNA_def_property_update(prop, 0, "rna_userdef_show_manipulator_update");
+	
 	/* TODO, expose once it's working. */
 #if 0
 	prop = RNA_def_property(srna, "show_manipulator_shaded", PROP_BOOLEAN, PROP_NONE);
@@ -3643,7 +3695,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "undo_memory_limit", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "undomemory");
-	RNA_def_property_range(prop, 0, 32767);
+	RNA_def_property_range(prop, 0, max_memory_in_megabytes_int());
 	RNA_def_property_ui_text(prop, "Undo Memory Size", "Maximum memory usage in megabytes (0 means unlimited)");
 
 	prop = RNA_def_property(srna, "use_global_undo", PROP_BOOLEAN, PROP_NONE);
@@ -4053,7 +4105,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "memory_cache_limit", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "memcachelimit");
-	RNA_def_property_range(prop, 0, (sizeof(void *) == 8) ? 1024 * 32 : 1024); /* 32 bit 2 GB, 64 bit 32 GB */
+	RNA_def_property_range(prop, 0, max_memory_in_megabytes_int());
 	RNA_def_property_ui_text(prop, "Memory Cache Limit", "Memory cache limit (in megabytes)");
 	RNA_def_property_update(prop, 0, "rna_Userdef_memcache_update");
 
@@ -4170,7 +4222,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_text_antialiasing", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "text_render", USER_TEXT_DISABLE_AA);
 	RNA_def_property_ui_text(prop, "Text Anti-aliasing", "Draw user interface text anti-aliased");
-	RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+	RNA_def_property_update(prop, 0, "rna_userdef_text_antialiasing_update");
 
 	prop = RNA_def_property(srna, "select_method", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "gpu_select_method");

@@ -36,6 +36,7 @@
 #include <deque>
 
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BLI_task.h"
 #include "BLI_ghash.h"
 
@@ -47,6 +48,7 @@ extern "C" {
 
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_component.h"
+#include "intern/nodes/deg_node_id.h"
 #include "intern/nodes/deg_node_operation.h"
 
 #include "intern/depsgraph_intern.h"
@@ -70,14 +72,20 @@ typedef std::deque<OperationDepsNode *> FlushQueue;
 
 namespace {
 
-void flush_init_operation_node_func(void *data_v, int i)
+void flush_init_operation_node_func(
+        void *__restrict data_v,
+        const int i,
+        const ParallelRangeTLS *__restrict /*tls*/)
 {
 	Depsgraph *graph = (Depsgraph *)data_v;
 	OperationDepsNode *node = graph->operations[i];
 	node->scheduled = false;
 }
 
-void flush_init_id_node_func(void *data_v, int i)
+void flush_init_id_node_func(
+        void *__restrict data_v,
+        const int i,
+        const ParallelRangeTLS *__restrict /*tls*/)
 {
 	Depsgraph *graph = (Depsgraph *)data_v;
 	IDDepsNode *id_node = graph->id_nodes[i];
@@ -89,16 +97,26 @@ void flush_init_id_node_func(void *data_v, int i)
 
 BLI_INLINE void flush_prepare(Depsgraph *graph)
 {
-	const int num_operations = graph->operations.size();
-	BLI_task_parallel_range(0, num_operations,
-	                        graph,
-	                        flush_init_operation_node_func,
-	                        (num_operations > 256));
-	const int num_id_nodes = graph->id_nodes.size();
-	BLI_task_parallel_range(0, num_id_nodes,
-	                        graph,
-	                        flush_init_id_node_func,
-	                        (num_id_nodes > 256));
+	{
+		const int num_operations = graph->operations.size();
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.min_iter_per_thread = 1024;
+		BLI_task_parallel_range(0, num_operations,
+		                        graph,
+		                        flush_init_operation_node_func,
+		                        &settings);
+	}
+	{
+		const int num_id_nodes = graph->id_nodes.size();
+		ParallelRangeSettings settings;
+		BLI_parallel_range_settings_defaults(&settings);
+		settings.min_iter_per_thread = 1024;
+		BLI_task_parallel_range(0, num_id_nodes,
+		                        graph,
+		                        flush_init_id_node_func,
+		                        &settings);
+	}
 }
 
 BLI_INLINE void flush_schedule_entrypoints(Depsgraph *graph, FlushQueue *queue)
@@ -190,14 +208,27 @@ BLI_INLINE OperationDepsNode *flush_schedule_children(
 	return result;
 }
 
-BLI_INLINE void flush_editors_id_update(Main *bmain,
-                                        Depsgraph *graph,
-                                        const DEGEditorUpdateContext *update_ctx)
+void flush_engine_data_update(ID *id)
+{
+	if (GS(id->name) != ID_OB) {
+		return;
+	}
+	Object *object = (Object *)id;
+	LISTBASE_FOREACH(ObjectEngineData *, engine_data, &object->drawdata) {
+		engine_data->recalc |= id->recalc;
+	}
+}
+
+/* NOTE: It will also accumulate flags from changed components. */
+void flush_editors_id_update(Main *bmain,
+                             Depsgraph *graph,
+                             const DEGEditorUpdateContext *update_ctx)
 {
 	foreach (IDDepsNode *id_node, graph->id_nodes) {
 		if (id_node->done != ID_STATE_MODIFIED) {
 			continue;
 		}
+		DEG_id_type_tag(bmain, GS(id_node->id_orig->name));
 		/* TODO(sergey): Do we need to pass original or evaluated ID here? */
 		ID *id_orig = id_node->id_orig;
 		ID *id_cow = id_node->id_cow;
@@ -205,13 +236,26 @@ BLI_INLINE void flush_editors_id_update(Main *bmain,
 		 * This is because DEG_id_tag_update() sets tags on original
 		 * data.
 		 */
-		id_cow->tag |= (id_orig->tag & LIB_TAG_ID_RECALC_ALL);
+		id_cow->recalc |= (id_orig->recalc & ID_RECALC_ALL);
+		/* Gather recalc flags from all changed components. */
+		GHASH_FOREACH_BEGIN(ComponentDepsNode *, comp_node, id_node->components)
+		{
+			if (comp_node->done != COMPONENT_STATE_DONE) {
+				continue;
+			}
+			DepsNodeFactory *factory = deg_type_get_factory(comp_node->type);
+			BLI_assert(factory != NULL);
+			id_cow->recalc |= factory->id_recalc_tag();
+		}
+		GHASH_FOREACH_END();
+		DEG_DEBUG_PRINTF(EVAL, "Accumulated recalc bits for %s: %u\n",
+		                 id_orig->name, (unsigned int)id_cow->recalc);
+		/* Inform editors. */
 		if (deg_copy_on_write_is_expanded(id_cow)) {
 			deg_editors_id_update(update_ctx, id_cow);
+			/* Inform draw engines that something was changed. */
+			flush_engine_data_update(id_cow);
 		}
-		lib_id_recalc_tag(bmain, id_orig);
-		/* TODO(sergey): For until we've got proper data nodes in the graph. */
-		lib_id_recalc_data_tag(bmain, id_orig);
 	}
 }
 
@@ -227,7 +271,7 @@ void deg_graph_flush_updates(Main *bmain, Depsgraph *graph)
 	BLI_assert(bmain != NULL);
 	BLI_assert(graph != NULL);
 	/* Nothing to update, early out. */
-	if (BLI_gset_size(graph->entry_tags) == 0) {
+	if (BLI_gset_len(graph->entry_tags) == 0) {
 		return;
 	}
 	/* Reset all flags, get ready for the flush. */
@@ -236,11 +280,11 @@ void deg_graph_flush_updates(Main *bmain, Depsgraph *graph)
 	FlushQueue queue;
 	flush_schedule_entrypoints(graph, &queue);
 	/* Prepare update context for editors. */
-	DEGEditorUpdateContext update_ctx = {
-		bmain,
-		graph->scene,
-		graph->view_layer,
-	};
+	DEGEditorUpdateContext update_ctx;
+	update_ctx.bmain = bmain;
+	update_ctx.depsgraph = (::Depsgraph *)graph;
+	update_ctx.scene = graph->scene;
+	update_ctx.view_layer = graph->view_layer;
 	/* Do actual flush. */
 	while (!queue.empty()) {
 		OperationDepsNode *op_node = queue.front();
@@ -265,7 +309,10 @@ void deg_graph_flush_updates(Main *bmain, Depsgraph *graph)
 	flush_editors_id_update(bmain, graph, &update_ctx);
 }
 
-static void graph_clear_func(void *data_v, int i)
+static void graph_clear_func(
+        void *__restrict data_v,
+        const int i,
+        const ParallelRangeTLS *__restrict /*tls*/)
 {
 	Depsgraph *graph = (Depsgraph *)data_v;
 	OperationDepsNode *node = graph->operations[i];
@@ -278,8 +325,13 @@ void deg_graph_clear_tags(Depsgraph *graph)
 {
 	/* Go over all operation nodes, clearing tags. */
 	const int num_operations = graph->operations.size();
-	const bool do_threads = num_operations > 256;
-	BLI_task_parallel_range(0, num_operations, graph, graph_clear_func, do_threads);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.min_iter_per_thread = 1024;
+	BLI_task_parallel_range(0, num_operations,
+	                        graph,
+	                        graph_clear_func,
+	                        &settings);
 	/* Clear any entry tags which haven't been flushed. */
 	BLI_gset_clear(graph->entry_tags, NULL);
 }

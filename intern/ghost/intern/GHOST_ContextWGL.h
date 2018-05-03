@@ -79,6 +79,12 @@ public:
 	GHOST_TSuccess activateDrawingContext();
 
 	/**
+	 * Release the drawing context of the calling thread.
+	 * \return  A boolean success indicator.
+	 */
+	GHOST_TSuccess releaseDrawingContext();
+
+	/**
 	 * Call immediately after new to initialize.  If this fails then immediately delete the object.
 	 * \return Indication as to whether initialization has succeeded.
 	 */
@@ -104,20 +110,6 @@ public:
 	 * \return Whether the swap interval can be read.
 	 */
 	GHOST_TSuccess getSwapInterval(int &intervalOut);
-
-	/**
-	* Gets the maximum supported OpenGL context for the user hardware
-	* \return Whether major_version and minor_version resulted in a valid context.
-	*/
-	static GHOST_TSuccess getMaximumSupportedOpenGLVersion(
-	        HWND hwnd,
-	        bool wantStereoVisual,
-	        bool wantAlphaBackground,
-	        GHOST_TUns16 wantNumOfAASamples,
-	        int contextProfileMask,
-	        bool debugContext,
-	        GHOST_TUns8 *r_major_version,
-	        GHOST_TUns8 *r_minor_version);
 
 private:
 	int choose_pixel_format(
@@ -151,6 +143,10 @@ private:
 
 	void initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD);
 
+	/* offscreen buffer with size of 1x1 pixel,
+	 * kept here to release the device constext when closing the program. */
+	HPBUFFERARB m_dummyPbuffer;
+
 	HWND m_hWnd;
 	HDC  m_hDC;
 
@@ -171,8 +167,6 @@ private:
 
 	static HGLRC s_sharedHGLRC;
 	static int   s_sharedCount;
-
-	static bool s_singleContextMode;
 };
 
 #endif  // __GHOST_CONTEXTWGL_H__

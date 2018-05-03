@@ -36,7 +36,7 @@
 #include "DNA_effect_types.h"
 #include "DNA_group_types.h"
 #include "DNA_object_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_meshdata_types.h"
 
@@ -180,8 +180,8 @@ static void collision_compute_barycentric ( float pv[3], float p1[3], float p2[3
 	/* dot_v3v3 */
 #define INPR(v1, v2) ( (v1)[0] * (v2)[0] + (v1)[1] * (v2)[1] + (v1)[2] * (v2)[2])
 
-	double	tempV1[3], tempV2[3], tempV4[3];
-	double	a, b, c, d, e, f;
+	double tempV1[3], tempV2[3], tempV4[3];
+	double a, b, c, d, e, f;
 
 	VECSUB ( tempV1, p1, p3 );
 	VECSUB ( tempV2, p2, p3 );
@@ -506,11 +506,11 @@ static void add_collision_object(Object ***objs, unsigned int *numobj, unsigned 
 		Group *group= ob->dup_group;
 
 		/* add objects */
-		FOREACH_GROUP_OBJECT(group, object)
+		FOREACH_GROUP_OBJECT_BEGIN(group, object)
 		{
 			add_collision_object(objs, numobj, maxobj, object, self, level+1, modifier_type);
 		}
-		FOREACH_GROUP_OBJECT_END
+		FOREACH_GROUP_OBJECT_END;
 	}
 }
 
@@ -527,11 +527,11 @@ Object **get_collisionobjects_ext(Scene *scene, Object *self, Group *group, unsi
 	/* gather all collision objects */
 	if (group) {
 		/* use specified group */
-		FOREACH_GROUP_OBJECT(group, object)
+		FOREACH_GROUP_OBJECT_BEGIN(group, object)
 		{
 			add_collision_object(&objs, &numobj, &maxobj, object, self, level, modifier_type);
 		}
-		FOREACH_GROUP_OBJECT_END
+		FOREACH_GROUP_OBJECT_END;
 	}
 	else {
 		Scene *sce_iter;
@@ -584,11 +584,11 @@ static void add_collider_cache_object(ListBase **objs, Object *ob, Object *self,
 		Group *group= ob->dup_group;
 
 		/* add objects */
-		FOREACH_GROUP_OBJECT(group, object)
+		FOREACH_GROUP_OBJECT_BEGIN(group, object)
 		{
 			add_collider_cache_object(objs, object, self, level+1);
 		}
-		FOREACH_GROUP_OBJECT_END
+		FOREACH_GROUP_OBJECT_END;
 	}
 }
 
@@ -598,11 +598,11 @@ ListBase *get_collider_cache(Scene *scene, Object *self, Group *group)
 	
 	/* add object in same layer in scene */
 	if (group) {
-		FOREACH_GROUP_OBJECT(group, object)
+		FOREACH_GROUP_OBJECT_BEGIN(group, object)
 		{
 			add_collider_cache_object(&objs, object, self, 0);
 		}
-		FOREACH_GROUP_OBJECT_END
+		FOREACH_GROUP_OBJECT_END;
 	}
 	else {
 		Scene *sce_iter;

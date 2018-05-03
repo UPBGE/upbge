@@ -56,13 +56,17 @@
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
+#include "BKE_object.h"
 #include "BKE_particle.h"
+#include "BKE_paint.h"
 #include "BKE_property.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_workspace.h"
 #include "BKE_library.h"
 #include "BKE_deform.h"
+
+#include "DEG_depsgraph.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -119,12 +123,53 @@ void ED_object_base_select(Base *base, eObjectSelect_Mode mode)
 void ED_object_base_activate(bContext *C, Base *base)
 {
 	ViewLayer *view_layer = CTX_data_view_layer(C);
-	view_layer->basact = base;
+
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+	WorkSpace *workspace = CTX_wm_workspace(C);
+
+	eObjectMode object_mode = workspace->object_mode;
+	eObjectMode object_mode_set = OB_MODE_OBJECT;
+
+	if (base && ED_workspace_object_mode_in_other_window(
+	            wm, win, base->object,
+	            &object_mode_set))
+	{
+		/* Sync existing object mode with workspace. */
+		workspace->object_mode = object_mode_set;
+		view_layer->basact = base;
+	}
+	else {
+		/* Apply the workspaces mode to the object (when possible). */
+		Scene *scene = CTX_data_scene(C);
+		Object *obact = base ? base->object : NULL;
+		/* We don't know the previous active object in update.
+		 *
+		 * Not correct because it's possible other work-spaces use these.
+		 * although that's a corner case. */
+		if (workspace->object_mode & OB_MODE_ALL_MODE_DATA) {
+			EvaluationContext eval_ctx;
+			CTX_data_eval_ctx(C, &eval_ctx);
+			FOREACH_OBJECT_BEGIN(view_layer, ob) {
+				if (ob != obact) {
+					if (ED_object_mode_generic_has_data(&eval_ctx, ob) &&
+					    ED_workspace_object_mode_in_other_window(wm, win, ob, NULL) == false)
+					{
+						ED_object_mode_generic_exit(&eval_ctx, workspace, scene, ob);
+					}
+				}
+			}
+			FOREACH_OBJECT_END;
+		}
+
+		workspace->object_mode = OB_MODE_OBJECT;
+
+		view_layer->basact = base;
+
+		ED_object_mode_generic_enter(C, object_mode);
+	}
 
 	if (base) {
-#ifdef USE_WORKSPACE_MODE
-		BKE_workspace_object_mode_set(CTX_wm_workspace(C), CTX_data_scene(C), base->object->mode);
-#endif
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, view_layer);
 	}
 	else {
@@ -138,13 +183,14 @@ static int objects_selectable_poll(bContext *C)
 {
 	/* we don't check for linked scenes here, selection is
 	 * still allowed then for inspection of scene */
-	Object *obact = CTX_data_active_object(C);
+	if (CTX_data_edit_object(C)) {
+		return 0;
+	}
 
-	if (CTX_data_edit_object(C))
+	const WorkSpace *workspace = CTX_wm_workspace(C);
+	if (workspace->object_mode != OB_MODE_OBJECT) {
 		return 0;
-	if (obact && obact->mode)
-		return 0;
-	
+	}
 	return 1;
 }
 
@@ -498,7 +544,7 @@ enum {
 	OBJECT_GRPSEL_PARENT             =  2,
 	OBJECT_GRPSEL_SIBLINGS           =  3,
 	OBJECT_GRPSEL_TYPE               =  4,
-	/*OBJECT_GRPSEL_LAYER              =  5,*/
+	OBJECT_GRPSEL_COLLECTION         =  5,
 	OBJECT_GRPSEL_GROUP              =  6,
 	OBJECT_GRPSEL_HOOK               =  7,
 	OBJECT_GRPSEL_PASS               =  8,
@@ -514,6 +560,7 @@ static const EnumPropertyItem prop_select_grouped_types[] = {
 	{OBJECT_GRPSEL_PARENT, "PARENT", 0, "Parent", ""},
 	{OBJECT_GRPSEL_SIBLINGS, "SIBLINGS", 0, "Siblings", "Shared Parent"},
 	{OBJECT_GRPSEL_TYPE, "TYPE", 0, "Type", "Shared object type"},
+	{OBJECT_GRPSEL_COLLECTION, "COLLECTION", 0, "Collection", "Shared collection"},
 	{OBJECT_GRPSEL_GROUP, "GROUP", 0, "Group", "Shared group"},
 	{OBJECT_GRPSEL_HOOK, "HOOK", 0, "Hook", ""},
 	{OBJECT_GRPSEL_PASS, "PASS", 0, "Pass", "Render pass Index"},
@@ -625,9 +672,9 @@ static bool select_grouped_object_hooks(bContext *C, Object *ob)
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (md->type == eModifierType_Hook) {
 			hmd = (HookModifierData *) md;
-			if (hmd->object && !(hmd->object->flag & SELECT)) {
+			if (hmd->object) {
 				base = BKE_view_layer_base_find(view_layer, hmd->object);
-				if (base && (BASE_SELECTABLE(base))) {
+				if (base && ((base->flag & BASE_SELECTED) == 0) && (BASE_SELECTABLE(base))) {
 					ED_object_base_select(base, BA_SELECT);
 					changed = true;
 				}
@@ -685,6 +732,60 @@ static bool select_grouped_type(bContext *C, Object *ob)
 	}
 	CTX_DATA_END;
 	return changed;
+}
+
+#define COLLECTION_MENU_MAX  24
+static bool select_grouped_collection(bContext *C, Object *ob)  /* Select objects in the same collection as the active */
+{
+	typedef struct EnumeratedCollection {
+		struct SceneCollection *collection;
+		int index;
+	} EnumeratedCollection;
+
+	bool changed = false;
+	SceneCollection *collection;
+	EnumeratedCollection ob_collections[COLLECTION_MENU_MAX];
+	int collection_count = 0, i;
+	uiPopupMenu *pup;
+	uiLayout *layout;
+
+	i = 0;
+	FOREACH_SCENE_COLLECTION_BEGIN(CTX_data_scene(C), scene_collection)
+	{
+		if (BKE_collection_object_exists(scene_collection, ob)) {
+			ob_collections[collection_count].index = i;
+			ob_collections[collection_count].collection = scene_collection;
+			if (++collection_count >= COLLECTION_MENU_MAX) {
+				break;
+			}
+		}
+		i++;
+	}
+	FOREACH_SCENE_COLLECTION_END;
+
+	if (!collection_count) {
+		return 0;
+	}
+	else if (collection_count == 1) {
+		collection = ob_collections[0].collection;
+		return BKE_collection_objects_select(CTX_data_view_layer(C), collection);
+	}
+
+	/* build the menu. */
+	pup = UI_popup_menu_begin(C, IFACE_("Select Collection"), ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
+
+	for (i = 0; i < collection_count; i++) {
+		uiItemIntO(layout,
+		           ob_collections[i].collection->name,
+		           ICON_NONE,
+		           "OBJECT_OT_select_same_collection",
+		           "collection_index",
+		           ob_collections[i].index);
+	}
+
+	UI_popup_menu_end(C, pup);
+	return changed;  /* The operator already handle this! */
 }
 
 static bool select_grouped_index_object(bContext *C, Object *ob)
@@ -835,6 +936,9 @@ static int object_select_grouped_exec(bContext *C, wmOperator *op)
 			break;
 		case OBJECT_GRPSEL_TYPE:
 			changed |= select_grouped_type(C, ob);
+			break;
+		case OBJECT_GRPSEL_COLLECTION:
+			changed |= select_grouped_collection(C, ob);
 			break;
 		case OBJECT_GRPSEL_GROUP:
 			changed |= select_grouped_group(C, ob);
@@ -1009,6 +1113,49 @@ void OBJECT_OT_select_same_group(wmOperatorType *ot)
 	RNA_def_string(ot->srna, "group", NULL, MAX_ID_NAME, "Group", "Name of the group to select");
 }
 
+/**************************** Select In The Same Collection ****************************/
+
+static int object_select_same_collection_exec(bContext *C, wmOperator *op)
+{
+	SceneCollection *collection;
+
+	/* passthrough if no objects are visible */
+	if (CTX_DATA_COUNT(C, visible_bases) == 0) return OPERATOR_PASS_THROUGH;
+
+	int collection_index = RNA_int_get(op->ptr, "collection_index");
+	collection = BKE_collection_from_index(CTX_data_scene(C), collection_index);
+
+	if (!collection) {
+		return OPERATOR_PASS_THROUGH;
+	}
+
+	if (BKE_collection_objects_select(CTX_data_view_layer(C), collection)) {
+		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, CTX_data_scene(C));
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_select_same_collection(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+
+	/* identifiers */
+	ot->name = "Select Same Collection";
+	ot->description = "Select object in the same collection";
+	ot->idname = "OBJECT_OT_select_same_collection";
+
+	/* api callbacks */
+	ot->exec = object_select_same_collection_exec;
+	ot->poll = objects_selectable_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	prop = RNA_def_int(ot->srna, "collection_index", -1, -1, INT_MAX,
+	                   "Collection Index", "Index of the collection to select", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+}
 /**************************** Select Mirror ****************************/
 static int object_select_mirror_exec(bContext *C, wmOperator *op)
 {
@@ -1107,12 +1254,12 @@ static bool object_select_more_less(bContext *C, const bool select)
 
 	bool changed = false;
 	const short select_mode = select ? BA_SELECT : BA_DESELECT;
-	const short select_flag = select ? SELECT : 0;
+	const short select_flag = select ? BASE_SELECTED : 0;
 
 	for (ctx_base = ctx_base_list.first; ctx_base; ctx_base = ctx_base->next) {
 		Base *base = ctx_base->ptr.data;
 		Object *ob = base->object;
-		if ((ob->id.tag & LIB_TAG_DOIT) && ((ob->flag & SELECT) != select_flag)) {
+		if ((ob->id.tag & LIB_TAG_DOIT) && ((base->flag & BASE_SELECTED) != select_flag)) {
 			ED_object_base_select(base, select_mode);
 			changed = true;
 		}

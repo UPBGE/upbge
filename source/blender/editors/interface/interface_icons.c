@@ -34,11 +34,13 @@
 #include "MEM_guardedalloc.h"
 
 #include "GPU_draw.h"
+#include "GPU_matrix.h"
 #include "GPU_immediate.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_fileops_types.h"
+#include "BLI_math_vector.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_curve_types.h"
@@ -46,6 +48,7 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_workspace_types.h"
 
 #include "RNA_access.h"
 #include "RNA_enum_types.h"
@@ -60,6 +63,8 @@
 #include "IMB_thumbs.h"
 
 #include "BIF_glutil.h"
+
+#include "DEG_depsgraph.h"
 
 #include "ED_datafiles.h"
 #include "ED_keyframes_draw.h"
@@ -1013,10 +1018,113 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 		IMB_freeImBuf(ima);
 }
 
-static void icon_draw_texture(
+/* High enough to make a difference, low enough so that
+ * small draws are still efficient with the use of glUniform.
+ * NOTE TODO: We could use UBO but we would need some triple
+ * buffer system + persistent mapping for this to be more
+ * efficient than simple glUniform calls. */
+#define ICON_DRAW_CACHE_SIZE 16
+
+typedef struct IconDrawCall{
+	rctf pos;
+	rctf tex;
+	float color[4];
+} IconDrawCall;
+
+static struct {
+	IconDrawCall drawcall_cache[ICON_DRAW_CACHE_SIZE];
+	int calls; /* Number of calls batched together */
+	bool enabled;
+	float mat[4][4];
+} g_icon_draw_cache = {0};
+
+void UI_icon_draw_cache_begin(void)
+{
+	BLI_assert(g_icon_draw_cache.enabled == false);
+	g_icon_draw_cache.enabled = true;
+}
+
+static void icon_draw_cache_flush_ex(void)
+{
+	if (g_icon_draw_cache.calls == 0)
+		return;
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, icongltex.id);
+
+	GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_2D_IMAGE_MULTI_RECT_COLOR);
+	GPU_shader_bind(shader);
+
+	int img_loc = GPU_shader_get_uniform(shader, "image");
+	int data_loc = GPU_shader_get_uniform(shader, "calls_data[0]");
+
+	glUniform1i(img_loc, 0);
+	glUniform4fv(data_loc, ICON_DRAW_CACHE_SIZE * 3, (float *)g_icon_draw_cache.drawcall_cache);
+
+	GWN_draw_primitive(GWN_PRIM_TRIS, 6 * g_icon_draw_cache.calls);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	g_icon_draw_cache.calls = 0;
+}
+
+void UI_icon_draw_cache_end(void)
+{
+	BLI_assert(g_icon_draw_cache.enabled == true);
+	g_icon_draw_cache.enabled = false;
+
+	/* Don't change blend state if it's not needed. */
+	if (g_icon_draw_cache.calls == 0)
+		return;
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+	icon_draw_cache_flush_ex();
+
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_BLEND);
+}
+
+static void icon_draw_texture_cached(
         float x, float y, float w, float h, int ix, int iy,
         int UNUSED(iw), int ih, float alpha, const float rgb[3])
 {
+
+	float mvp[4][4];
+	gpuGetModelViewProjectionMatrix(mvp);
+
+	IconDrawCall *call = &g_icon_draw_cache.drawcall_cache[g_icon_draw_cache.calls];
+	g_icon_draw_cache.calls++;
+
+	/* Manual mat4*vec2 */
+	call->pos.xmin = x * mvp[0][0] + y * mvp[1][0] + mvp[3][0];
+	call->pos.ymin = x * mvp[0][1] + y * mvp[1][1] + mvp[3][1];
+	call->pos.xmax = call->pos.xmin + w * mvp[0][0] + h * mvp[1][0];
+	call->pos.ymax = call->pos.ymin + w * mvp[0][1] + h * mvp[1][1];
+
+	call->tex.xmin = ix * icongltex.invw;
+	call->tex.xmax = (ix + ih) * icongltex.invw;
+	call->tex.ymin = iy * icongltex.invh;
+	call->tex.ymax = (iy + ih) * icongltex.invh;
+
+	if (rgb) copy_v4_fl4(call->color, rgb[0], rgb[1], rgb[2], alpha);
+	else     copy_v4_fl(call->color, alpha);
+
+	if (g_icon_draw_cache.calls == ICON_DRAW_CACHE_SIZE) {
+		icon_draw_cache_flush_ex();
+	}
+}
+
+static void icon_draw_texture(
+        float x, float y, float w, float h, int ix, int iy,
+        int iw, int ih, float alpha, const float rgb[3])
+{
+	if (g_icon_draw_cache.enabled) {
+		icon_draw_texture_cached(x, y, w, h, ix, iy, iw, ih, alpha, rgb);
+		return;
+	}
+
 	float x1, x2, y1, y2;
 
 	x1 = ix * icongltex.invw;
@@ -1024,32 +1132,20 @@ static void icon_draw_texture(
 	y1 = iy * icongltex.invh;
 	y2 = (iy + ih) * icongltex.invh;
 
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, icongltex.id);
-	Gwn_VertFormat *format = immVertexFormat();
-	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-	unsigned int texCoord = GWN_vertformat_attr_add(format, "texCoord", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
-	immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
-	if (rgb) immUniformColor3fvAlpha(rgb, alpha);
-	else     immUniformColor4f(alpha, alpha, alpha, alpha);
+	GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_2D_IMAGE_RECT_COLOR);
+	GPU_shader_bind(shader);
 
-	immUniform1i("image", 0);
+	if (rgb) glUniform4f(GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_COLOR), rgb[0], rgb[1], rgb[2], alpha);
+	else     glUniform4f(GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_COLOR), alpha, alpha, alpha, alpha);
 
-	immBegin(GWN_PRIM_TRI_STRIP, 4);
-	immAttrib2f(texCoord, x1, y2);
-	immVertex2f(pos, x, y + h);
+	glUniform1i(GPU_shader_get_uniform(shader, "image"), 0);
+	glUniform4f(GPU_shader_get_uniform(shader, "rect_icon"), x1, y1, x2, y2);
+	glUniform4f(GPU_shader_get_uniform(shader, "rect_geom"), x, y, x + w, y + h);
 
-	immAttrib2f(texCoord, x1, y1);
-	immVertex2f(pos, x, y);
-
-	immAttrib2f(texCoord, x2, y2);
-	immVertex2f(pos, x + w, y + h);
-
-	immAttrib2f(texCoord, x2, y1);
-	immVertex2f(pos, x + w, y);
-	immEnd();
-
-	immUnbindProgram();
+	GWN_draw_primitive(GWN_PRIM_TRI_STRIP, 4);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
@@ -1112,7 +1208,7 @@ static void icon_draw_size(
 		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		icon_draw_texture(x, y, (float)w, (float)h, di->data.texture.x, di->data.texture.y,
 		                  di->data.texture.w, di->data.texture.h, alpha, rgb);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	}
 	else if (di->type == ICON_TYPE_BUFFER) {
 		/* it is a builtin icon */
@@ -1122,9 +1218,9 @@ static void icon_draw_size(
 #endif
 		if (!iimg->rect) return;  /* something has gone wrong! */
 
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		icon_draw_rect(x, y, w, h, aspect, iimg->w, iimg->h, iimg->rect, alpha, rgb, is_preview);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	}
 	else if (di->type == ICON_TYPE_PREVIEW) {
 		PreviewImage *pi = (icon->type != 0) ? BKE_previewimg_id_ensure((ID *)icon->obj) : icon->obj;
@@ -1137,7 +1233,7 @@ static void icon_draw_size(
 			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 			icon_draw_rect(x, y, w, h, aspect, pi->w[size], pi->h[size], pi->rect[size], alpha, rgb, is_preview);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		}
 	}
 }
@@ -1193,6 +1289,7 @@ static int ui_id_brush_get_icon(const bContext *C, ID *id)
 		ui_id_icon_render(C, id, true);
 	}
 	else {
+		const WorkSpace *workspace = CTX_wm_workspace(C);
 		Object *ob = CTX_data_active_object(C);
 		SpaceImage *sima;
 		const EnumPropertyItem *items = NULL;
@@ -1203,11 +1300,11 @@ static int ui_id_brush_get_icon(const bContext *C, ID *id)
 		 * checking various context stuff here */
 
 		if (CTX_wm_view3d(C) && ob) {
-			if (ob->mode & OB_MODE_SCULPT)
+			if (workspace->object_mode & OB_MODE_SCULPT)
 				mode = OB_MODE_SCULPT;
-			else if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT))
+			else if (workspace->object_mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT))
 				mode = OB_MODE_VERTEX_PAINT;
-			else if (ob->mode & OB_MODE_TEXTURE_PAINT)
+			else if (workspace->object_mode & OB_MODE_TEXTURE_PAINT)
 				mode = OB_MODE_TEXTURE_PAINT;
 		}
 		else if ((sima = CTX_wm_space_image(C)) &&
@@ -1316,7 +1413,7 @@ int UI_idcode_icon_get(const int idcode)
 {
 	switch (idcode) {
 		case ID_AC:
-			return ICON_ANIM_DATA;
+			return ICON_ACTION;
 		case ID_AR:
 			return ICON_ARMATURE_DATA;
 		case ID_BR:

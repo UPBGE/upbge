@@ -137,19 +137,15 @@ static void foreachTexLink(ModifierData *md, Object *ob, TexWalkFunc walk, void 
 	walk(userData, ob, md, "texture");
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	WarpModifierData *wmd = (WarpModifierData *) md;
 	if (wmd->object_from != NULL && wmd->object_to != NULL) {
-		DEG_add_object_relation(node, wmd->object_from, DEG_OB_COMP_TRANSFORM, "Warp Modifier from");
-		DEG_add_object_relation(node, wmd->object_to, DEG_OB_COMP_TRANSFORM, "Warp Modifier to");
+		DEG_add_object_relation(ctx->node, wmd->object_from, DEG_OB_COMP_TRANSFORM, "Warp Modifier from");
+		DEG_add_object_relation(ctx->node, wmd->object_to, DEG_OB_COMP_TRANSFORM, "Warp Modifier to");
 	}
 	if ((wmd->texmapping == MOD_DISP_MAP_OBJECT) && wmd->map_object != NULL) {
-		DEG_add_object_relation(node, wmd->map_object, DEG_OB_COMP_TRANSFORM, "Warp Modifier map");
+		DEG_add_object_relation(ctx->node, wmd->map_object, DEG_OB_COMP_TRANSFORM, "Warp Modifier map");
 	}
 }
 
@@ -214,7 +210,7 @@ static void warpModifier_do(WarpModifierData *wmd, Object *ob,
 	weight = strength;
 
 	if (wmd->texture) {
-		tex_co = MEM_mallocN(sizeof(*tex_co) * numVerts, "warpModifier_do tex_co");
+		tex_co = MEM_malloc_arrayN(numVerts, sizeof(*tex_co), "warpModifier_do tex_co");
 		get_texture_coords((MappingInfoModifierData *)wmd, ob, dm, vertexCos, tex_co, numVerts);
 
 		modifier_init_texture(wmd->modifier.scene, wmd->texture);

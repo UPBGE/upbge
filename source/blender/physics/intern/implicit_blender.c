@@ -37,7 +37,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_texture_types.h"
 
@@ -48,7 +48,6 @@
 #include "BKE_cloth.h"
 #include "BKE_collision.h"
 #include "BKE_effect.h"
-#include "BKE_global.h"
 
 #include "BPH_mass_spring.h"
 

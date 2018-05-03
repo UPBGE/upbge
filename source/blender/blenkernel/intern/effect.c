@@ -42,7 +42,7 @@
 #include "DNA_listBase.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_scene_types.h"
@@ -221,7 +221,8 @@ ListBase *pdInitEffectors(
 	if (weights->group) {
 		view_layer = weights->group->view_layer;
 	}
-	else if (eval_ctx) {
+	/* TODO(mai): the check for view_layer shouldnt be needed, remove when render engine api is updated for this */
+	else if (eval_ctx && eval_ctx->view_layer) {
 		view_layer = eval_ctx->view_layer;
 	}
 	else {

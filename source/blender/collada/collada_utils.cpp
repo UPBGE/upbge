@@ -32,6 +32,8 @@
 #include "COLLADAFWMeshPrimitive.h"
 #include "COLLADAFWMeshVertexData.h"
 
+#include <set>
+
 extern "C" {
 #include "DNA_modifier_types.h"
 #include "DNA_customdata_types.h"
@@ -51,6 +53,7 @@ extern "C" {
 #include "BKE_mesh.h"
 #include "BKE_scene.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_main.h"
 
 #include "ED_armature.h"
 
@@ -135,16 +138,37 @@ int bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space)
 	return true;
 }
 
-Object *bc_add_object(Scene *scene, int type, const char *name)
+Scene *bc_get_scene(bContext *C)
+{
+	return CTX_data_scene(C);
+}
+
+Main *bc_get_main()
+{
+	return G.main;
+}
+
+EvaluationContext *bc_get_evaluation_context()
+{
+	Main *bmain = G.main;
+	return bmain->eval_ctx;
+}
+
+
+void bc_update_scene(EvaluationContext *eval_ctx, Scene *scene, float ctime)
+{
+	BKE_scene_frame_set(scene, ctime);
+	Main *bmain = bc_get_main();
+	BKE_scene_graph_update_for_newframe(eval_ctx, eval_ctx->depsgraph, bmain, scene, eval_ctx->view_layer);
+}
+
+Object *bc_add_object(Scene *scene, ViewLayer *view_layer, int type, const char *name)
 {
 	Object *ob = BKE_object_add_only_object(G.main, type, name);
 
 	ob->data = BKE_object_obdata_add_from_type(G.main, type, name);
 	ob->lay = scene->lay;
 	DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
-
-	/* XXX Collada should use the context scene layer, not the scene one. (dfelinto/gaia). */
-	ViewLayer *view_layer = BKE_view_layer_context_active_PLACEHOLDER(scene);
 
 	LayerCollection *layer_collection = BKE_layer_collection_get_active_ensure(scene, view_layer);
 	BKE_collection_object_add(&scene->id, layer_collection->scene_collection, ob);
@@ -385,6 +409,35 @@ void bc_decompose(float mat[4][4], float *loc, float eul[3], float quat[4], floa
 	if (loc) {
 		copy_v3_v3(loc, mat[3]);
 	}
+}
+
+/*
+* Create rotation_quaternion from a delta rotation and a reference quat
+*
+* Input:
+* mat_from: The rotation matrix before rotation
+* mat_to  : The rotation matrix after rotation
+* qref    : the quat corresponding to mat_from
+*
+* Output:
+* rot     : the calculated result (quaternion)
+*
+*/
+void bc_rotate_from_reference_quat(float quat_to[4], float quat_from[4], float mat_to[4][4])
+{
+	float qd[4];
+	float matd[4][4];
+	float mati[4][4];
+	float mat_from[4][4];
+	quat_to_mat4(mat_from, quat_from);
+
+	// Calculate the difference matrix matd between mat_from and mat_to
+	invert_m4_m4(mati, mat_from);
+	mul_m4_m4m4(matd, mati, mat_to);
+
+	mat4_to_quat(qd, matd);
+
+	mul_qt_qtqt(quat_to, qd, quat_from); // rot is the final rotation corresponding to mat_to
 }
 
 void bc_triangulate_mesh(Mesh *me)
@@ -844,3 +897,189 @@ void bc_sanitize_mat(float mat[4][4], int precision)
 		for (int j = 0; j < 4; j++)
 			mat[i][j] = double_round(mat[i][j], precision);
 }
+
+void bc_sanitize_mat(double mat[4][4], int precision)
+{
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			mat[i][j] = double_round(mat[i][j], precision);
+}
+
+void bc_copy_m4_farray(float r[4][4], float *a)
+{
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			r[i][j] = *a++;
+}
+
+void bc_copy_farray_m4(float *r, float a[4][4])
+{
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			*r++ = a[i][j];
+
+}
+
+/*
+ * Returns name of Active UV Layer or empty String if no active UV Layer defined
+ */
+std::string bc_get_active_uvlayer_name(Mesh *me)
+{
+	int num_layers = CustomData_number_of_layers(&me->fdata, CD_MTFACE);
+	if (num_layers) {
+		char *layer_name = bc_CustomData_get_active_layer_name(&me->fdata, CD_MTFACE);
+		if (layer_name) {
+			return std::string(layer_name);
+		}
+	}
+	return "";
+}
+
+/*
+* Returns name of Active UV Layer or empty String if no active UV Layer defined.
+* Assuming the Object is of type MESH
+*/
+std::string bc_get_active_uvlayer_name(Object *ob)
+{
+	Mesh *me = (Mesh *)ob->data;
+	return bc_get_active_uvlayer_name(me);
+}
+
+/*
+ * Returns UV Layer name or empty string if layer index is out of range
+ */
+std::string bc_get_uvlayer_name(Mesh *me, int layer)
+{
+	int num_layers = CustomData_number_of_layers(&me->fdata, CD_MTFACE);
+	if (num_layers && layer < num_layers) {
+		char *layer_name = bc_CustomData_get_layer_name(&me->fdata, CD_MTFACE, layer);
+		if (layer_name) {
+			return std::string(layer_name);
+		}
+	}
+	return "";
+}
+
+#if 0
+/**********************************************************************
+*
+* Return the list of Mesh objects with assigned UVtextures and Images
+* Note: We need to create artificaial materials for each of them
+*
+***********************************************************************/
+std::set<Object *> bc_getUVTexturedObjects(Scene *sce, bool all_uv_layers)
+{
+	std::set <Object *> UVObjects;
+	Base *base = (Base *)sce->base.first;
+
+	while (base) {
+		Object *ob = base->object;
+		bool has_uvimage = false;
+		if (ob->type == OB_MESH) {
+			Mesh *me = (Mesh *)ob->data;
+			int active_uv_layer = CustomData_get_active_layer_index(&me->pdata, CD_MTEXPOLY);
+
+			for (int i = 0; i < me->pdata.totlayer && !has_uvimage; i++) {
+				if (all_uv_layers || active_uv_layer == i)
+				{
+					if (me->pdata.layers[i].type == CD_MTEXPOLY) {
+						MTexPoly *txface = (MTexPoly *)me->pdata.layers[i].data;
+						MPoly *mpoly = me->mpoly;
+						for (int j = 0; j < me->totpoly; j++, mpoly++, txface++) {
+
+							Image *ima = txface->tpage;
+							if (ima != NULL) {
+								has_uvimage = true;
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			if (has_uvimage) {
+				UVObjects.insert(ob);
+			}
+		}
+		base = base->next;
+	}
+	return UVObjects;
+}
+
+/**********************************************************************
+*
+* Return the list of UV Texture images from all exported Mesh Items
+* Note: We need to create one artificial material for each Image.
+*
+***********************************************************************/
+std::set<Image *> bc_getUVImages(Scene *sce, bool all_uv_layers)
+{
+	std::set <Image *> UVImages;
+	Base *base = (Base *)sce->base.first;
+
+	while (base) {
+		Object *ob = base->object;
+		bool has_uvimage = false;
+		if (ob->type == OB_MESH) {
+			Mesh *me = (Mesh *)ob->data;
+			int active_uv_layer = CustomData_get_active_layer_index(&me->pdata, CD_MTEXPOLY);
+
+			for (int i = 0; i < me->pdata.totlayer && !has_uvimage; i++) {
+				if (all_uv_layers || active_uv_layer == i)
+				{
+					if (me->pdata.layers[i].type == CD_MTEXPOLY) {
+						MTexPoly *txface = (MTexPoly *)me->pdata.layers[i].data;
+						MPoly *mpoly = me->mpoly;
+						for (int j = 0; j < me->totpoly; j++, mpoly++, txface++) {
+
+							Image *ima = txface->tpage;
+							if (ima != NULL) {
+								if (UVImages.find(ima) == UVImages.end())
+									UVImages.insert(ima);
+							}
+						}
+					}
+				}
+			}
+		}
+		base = base->next;
+	}
+	return UVImages;
+}
+
+/**********************************************************************
+*
+* Return the list of UV Texture images for the given Object
+* Note: We need to create one artificial material for each Image.
+*
+***********************************************************************/
+std::set<Image *> bc_getUVImages(Object *ob, bool all_uv_layers)
+{
+	std::set <Image *> UVImages;
+
+	bool has_uvimage = false;
+	if (ob->type == OB_MESH) {
+		Mesh *me = (Mesh *)ob->data;
+		int active_uv_layer = CustomData_get_active_layer_index(&me->pdata, CD_MTEXPOLY);
+
+		for (int i = 0; i < me->pdata.totlayer && !has_uvimage; i++) {
+			if (all_uv_layers || active_uv_layer == i)
+			{
+				if (me->pdata.layers[i].type == CD_MTEXPOLY) {
+					MTexPoly *txface = (MTexPoly *)me->pdata.layers[i].data;
+					MPoly *mpoly = me->mpoly;
+					for (int j = 0; j < me->totpoly; j++, mpoly++, txface++) {
+
+						Image *ima = txface->tpage;
+						if (ima != NULL) {
+							if (UVImages.find(ima) == UVImages.end())
+								UVImages.insert(ima);
+						}
+					}
+				}
+			}
+		}
+	}
+	return UVImages;
+}
+#endif 

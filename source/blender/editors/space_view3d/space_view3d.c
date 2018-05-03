@@ -59,11 +59,12 @@
 #include "ED_screen.h"
 #include "ED_transform.h"
 
-#include "GPU_compositing.h"
 #include "GPU_framebuffer.h"
 #include "GPU_material.h"
 #include "GPU_viewport.h"
 #include "GPU_matrix.h"
+
+#include "DRW_engine.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -296,7 +297,7 @@ void ED_view3d_stop_render_preview(wmWindowManager *wm, ARegion *ar)
 	}
 }
 
-void ED_view3d_shade_update(Main *bmain, Scene *scene, View3D *v3d, ScrArea *sa)
+void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *sa)
 {
 	wmWindowManager *wm = bmain->wm.first;
 
@@ -307,10 +308,6 @@ void ED_view3d_shade_update(Main *bmain, Scene *scene, View3D *v3d, ScrArea *sa)
 			if (ar->regiondata)
 				ED_view3d_stop_render_preview(wm, ar);
 		}
-	}
-	else if (scene->obedit != NULL && scene->obedit->type == OB_MESH) {
-		/* Tag mesh to load edit data. */
-		DEG_id_tag_update(scene->obedit->data, 0);
 	}
 }
 
@@ -570,14 +567,10 @@ static void view3d_main_region_exit(wmWindowManager *wm, ARegion *ar)
 		rv3d->gpuoffscreen = NULL;
 	}
 	
-	if (rv3d->compositor) {
-		GPU_fx_compositor_destroy(rv3d->compositor);
-		rv3d->compositor = NULL;
-	}
-
 	if (rv3d->viewport) {
+		DRW_opengl_context_enable();
 		GPU_viewport_free(rv3d->viewport);
-		MEM_freeN(rv3d->viewport);
+		DRW_opengl_context_disable();
 		rv3d->viewport = NULL;
 	}
 }
@@ -729,6 +722,9 @@ static void view3d_widgets(void)
 
 	WM_manipulatorgrouptype_append(VIEW3D_WGT_ruler);
 	WM_manipulatortype_append(VIEW3D_WT_ruler_item);
+
+	WM_manipulatorgrouptype_append_and_link(mmap_type, VIEW3D_WGT_navigate);
+	WM_manipulatortype_append(VIEW3D_WT_navigate_rotate);
 }
 
 
@@ -754,12 +750,10 @@ static void view3d_main_region_free(ARegion *ar)
 		if (rv3d->gpuoffscreen) {
 			GPU_offscreen_free(rv3d->gpuoffscreen);
 		}
-		if (rv3d->compositor) {
-			GPU_fx_compositor_destroy(rv3d->compositor);
-		}
 		if (rv3d->viewport) {
+			DRW_opengl_context_enable();
 			GPU_viewport_free(rv3d->viewport);
-			MEM_freeN(rv3d->viewport);
+			DRW_opengl_context_disable();
 		}
 
 		MEM_freeN(rv3d);
@@ -916,10 +910,10 @@ static void view3d_main_region_listener(
 				case ND_SELECT:
 				{
 					WM_manipulatormap_tag_refresh(mmap);
-					if (scene->obedit) {
-						Object *ob = scene->obedit;
+					Object *obedit = OBEDIT_FROM_WINDOW(wmn->window);
+					if (obedit) {
 						/* TODO(sergey): Notifiers shouldn't really be doing DEG tags. */
-						DEG_id_tag_update((ID *)ob->data, DEG_TAG_SELECT_UPDATE);
+						DEG_id_tag_update((ID *)obedit->data, DEG_TAG_SELECT_UPDATE);
 					}
 					ATTR_FALLTHROUGH;
 				}
@@ -1069,10 +1063,12 @@ static void view3d_main_region_message_subscribe(
 	 *
 	 * For other space types we might try avoid this, keep the 3D view as an exceptional case! */
 	ViewRender *view_render = BKE_viewrender_get(scene, workspace);
-	wmMsgParams_RNA msg_key_params = {0};
+	wmMsgParams_RNA msg_key_params = {{{0}}};
 
 	/* Only subscribe to types. */
 	StructRNA *type_array[] = {
+		&RNA_Window,
+
 		/* These object have properties that impact drawing. */
 		&RNA_AreaLamp,
 		&RNA_Camera,
@@ -1120,18 +1116,19 @@ static void view3d_main_region_message_subscribe(
 		extern StructRNA RNA_ViewLayerEngineSettingsEevee;
 		WM_msg_subscribe_rna_anon_type(mbus, ViewLayerEngineSettingsEevee, &msg_sub_value_region_tag_redraw);
 	}
+#ifdef WITH_CLAY_ENGINE
 	else if (STREQ(view_render->engine_id, RE_engine_id_BLENDER_CLAY)) {
 		extern StructRNA RNA_ViewLayerEngineSettingsClay;
 		WM_msg_subscribe_rna_anon_type(mbus, ViewLayerEngineSettingsClay, &msg_sub_value_region_tag_redraw);
 	}
+#endif
 }
 
 /* concept is to retrieve cursor type context-less */
 static void view3d_main_region_cursor(wmWindow *win, ScrArea *UNUSED(sa), ARegion *UNUSED(ar))
 {
-	const Scene *scene = WM_window_get_active_scene(win);
-
-	if (scene->obedit) {
+	WorkSpace *workspace = WM_window_get_active_workspace(win);
+	if (workspace->object_mode & OB_MODE_EDIT) {
 		WM_cursor_set(win, CURSOR_EDIT);
 	}
 	else {
@@ -1383,9 +1380,9 @@ static int view3d_context(const bContext *C, const char *member, bContextDataRes
 		Scene *scene = CTX_data_scene(C);
 		ViewLayer *view_layer = CTX_data_view_layer(C);
 		if (view_layer->basact) {
-			Object *ob = view_layer->basact->object;
+			const WorkSpace *workspace = CTX_wm_workspace(C);
 			/* if hidden but in edit mode, we still display, can happen with animation */
-			if ((view_layer->basact->flag & BASE_VISIBLED) != 0 || (ob->mode & OB_MODE_EDIT)) {
+			if ((view_layer->basact->flag & BASE_VISIBLED) != 0 || (workspace->object_mode & OB_MODE_EDIT)) {
 				CTX_data_pointer_set(result, &scene->id, &RNA_ObjectBase, view_layer->basact);
 			}
 		}
@@ -1395,9 +1392,10 @@ static int view3d_context(const bContext *C, const char *member, bContextDataRes
 	else if (CTX_data_equals(member, "active_object")) {
 		ViewLayer *view_layer = CTX_data_view_layer(C);
 		if (view_layer->basact) {
+			const WorkSpace *workspace = CTX_wm_workspace(C);
 			Object *ob = view_layer->basact->object;
 			/* if hidden but in edit mode, we still display, can happen with animation */
-			if ((view_layer->basact->flag & BASE_VISIBLED) != 0 || (ob->mode & OB_MODE_EDIT) != 0) {
+			if ((view_layer->basact->flag & BASE_VISIBLED) != 0 || (workspace->object_mode & OB_MODE_EDIT) != 0) {
 				CTX_data_id_pointer_set(result, &ob->id);
 			}
 		}

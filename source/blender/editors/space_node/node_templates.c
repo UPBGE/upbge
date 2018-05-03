@@ -53,7 +53,7 @@
 
 #include "ED_node.h"  /* own include */
 
-#include "ED_util.h"
+#include "ED_undo.h"
 
 
 /************************* Node Socket Manipulation **************************/
@@ -482,10 +482,10 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 	}
 	NODE_TYPES_END
 
-	qsort(sorted_ntypes, BLI_array_count(sorted_ntypes), sizeof(bNodeType *), ui_node_item_name_compare);
+	qsort(sorted_ntypes, BLI_array_len(sorted_ntypes), sizeof(bNodeType *), ui_node_item_name_compare);
 
 	/* generate UI */
-	for (int j = 0; j < BLI_array_count(sorted_ntypes); j++) {
+	for (int j = 0; j < BLI_array_len(sorted_ntypes); j++) {
 		bNodeType *ntype = sorted_ntypes[j];
 		NodeLinkItem *items;
 		int totitems;

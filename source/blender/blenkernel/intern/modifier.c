@@ -69,6 +69,8 @@
 #include "BKE_main.h"
 /* end */
 
+#include "DEG_depsgraph.h"
+
 #include "MOD_modifiertypes.h"
 
 static ModifierTypeInfo *modifier_types[NUM_MODIFIER_TYPES] = {NULL};
@@ -434,6 +436,11 @@ bool modifiers_isParticleEnabled(Object *ob)
 	return (md && md->mode & (eModifierMode_Realtime | eModifierMode_Render));
 }
 
+/**
+ * Check whether is enabled.
+ *
+ * \param scene Current scene, may be NULL, in which case isDisabled callback of the modifier is never called.
+ */
 bool modifier_isEnabled(struct Scene *scene, ModifierData *md, int required_mode)
 {
 	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
@@ -441,7 +448,7 @@ bool modifier_isEnabled(struct Scene *scene, ModifierData *md, int required_mode
 	md->scene = scene;
 
 	if ((md->mode & required_mode) != required_mode) return false;
-	if (mti->isDisabled && mti->isDisabled(md, required_mode == eModifierMode_Render)) return false;
+	if (scene != NULL && mti->isDisabled && mti->isDisabled(md, required_mode == eModifierMode_Render)) return false;
 	if (md->mode & eModifierMode_DisableTemporary) return false;
 	if ((required_mode & eModifierMode_Editmode) && !(mti->flags & eModifierTypeFlag_SupportsEditmode)) return false;
 	
@@ -655,15 +662,15 @@ bool modifier_isCorrectableDeformed(ModifierData *md)
 	return (mti->deformMatricesEM != NULL);
 }
 
-bool modifiers_isCorrectableDeformed(struct Scene *scene, Object *ob)
+bool modifiers_isCorrectableDeformed(const EvaluationContext *eval_ctx, struct Scene *scene, Object *ob)
 {
 	VirtualModifierData virtualModifierData;
 	ModifierData *md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 	int required_mode = eModifierMode_Realtime;
 
-	if (ob->mode == OB_MODE_EDIT)
+	if (eval_ctx->object_mode == OB_MODE_EDIT) {
 		required_mode |= eModifierMode_Editmode;
-	
+	}
 	for (; md; md = md->next) {
 		if (!modifier_isEnabled(scene, md, required_mode)) {
 			/* pass */

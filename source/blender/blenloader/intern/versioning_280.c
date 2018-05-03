@@ -45,6 +45,7 @@
 #include "DNA_lightprobe_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
@@ -189,21 +190,21 @@ void do_versions_after_linking_280(Main *main)
 						.collections = {NULL},
 						.created = 0,
 						.suffix = "",
-						.flag_viewport = COLLECTION_VISIBLE | COLLECTION_SELECTABLE,
-						.flag_render = COLLECTION_VISIBLE | COLLECTION_SELECTABLE
+						.flag_viewport = COLLECTION_SELECTABLE,
+						.flag_render = COLLECTION_SELECTABLE
 					},
 					{
 						.collections = {NULL},
 						.created = 0,
 						.suffix = " - Hide Viewport",
 						.flag_viewport = COLLECTION_SELECTABLE,
-						.flag_render = COLLECTION_VISIBLE | COLLECTION_SELECTABLE
+						.flag_render = COLLECTION_SELECTABLE
 					},
 					{
 						.collections = {NULL},
 						.created = 0,
 						.suffix = " - Hide Render",
-						.flag_viewport = COLLECTION_VISIBLE | COLLECTION_SELECTABLE,
+						.flag_viewport = COLLECTION_SELECTABLE,
 						.flag_render = COLLECTION_SELECTABLE | COLLECTION_DISABLED
 					},
 					{
@@ -351,7 +352,7 @@ void do_versions_after_linking_280(Main *main)
 						view_layer->pass_xor = srl->pass_xor;
 						view_layer->pass_alpha_threshold = srl->pass_alpha_threshold;
 
-						BKE_freestyle_config_free(&view_layer->freestyle_config);
+						BKE_freestyle_config_free(&view_layer->freestyle_config, true);
 						view_layer->freestyle_config = srl->freestyleConfig;
 						view_layer->id_properties = srl->prop;
 
@@ -391,13 +392,9 @@ void do_versions_after_linking_280(Main *main)
 
 									for (int j = 1; j < 4; j++) {
 										if (collections[j].created & (1 << layer)) {
-											layer_collection_child->flag =
-												collections[j].flag_render & (~COLLECTION_DISABLED);
-
-											if (collections[j].flag_render & COLLECTION_DISABLED) {
-												BKE_collection_disable(view_layer, layer_collection_child);
-											}
-
+											layer_collection_child->flag = COLLECTION_VIEWPORT |
+											                               COLLECTION_RENDER |
+											                               collections[j].flag_render;
 											layer_collection_child = layer_collection_child->next;
 										}
 									}
@@ -428,7 +425,7 @@ void do_versions_after_linking_280(Main *main)
 							IDP_FreeProperty(srl->prop);
 							MEM_freeN(srl->prop);
 						}
-						BKE_freestyle_config_free(&srl->freestyleConfig);
+						BKE_freestyle_config_free(&srl->freestyleConfig, true);
 					}
 				}
 				BLI_freelistN(&scene->r.layers);
@@ -450,7 +447,7 @@ void do_versions_after_linking_280(Main *main)
 
 						/* We only need to disable the parent collection. */
 						if (is_disabled) {
-							BKE_collection_disable(view_layer, layer_collection_parent);
+							layer_collection_parent->flag |= COLLECTION_DISABLED;
 						}
 
 						LayerCollection *layer_collection_child;
@@ -458,11 +455,9 @@ void do_versions_after_linking_280(Main *main)
 
 						for (int j = 1; j < 4; j++) {
 							if (collections[j].created & (1 << layer)) {
-								layer_collection_child->flag = collections[j].flag_viewport & (~COLLECTION_DISABLED);
-
-								if (collections[j].flag_viewport & COLLECTION_DISABLED) {
-									BKE_collection_disable(view_layer, layer_collection_child);
-								}
+								layer_collection_child->flag = COLLECTION_VIEWPORT |
+								                               COLLECTION_RENDER |
+								                               collections[j].flag_viewport;
 								layer_collection_child = layer_collection_child->next;
 							}
 						}
@@ -487,11 +482,6 @@ void do_versions_after_linking_280(Main *main)
 					base->lay = base->object->lay;
 				}
 
-				/* Fallback name if only one layer was found in the original file */
-				if (BLI_listbase_is_single(&sc_master->scene_collections)) {
-					BKE_collection_rename(scene, sc_master->scene_collections.first, "Default Collection");
-				}
-
 				/* remove bases once and for all */
 				for (Base *base = scene->base.first; base; base = base->next) {
 					id_us_min(&base->object->id);
@@ -513,9 +503,9 @@ void do_versions_after_linking_280(Main *main)
 					if (view_layer->spacetype == SPACE_OUTLINER) {
 						SpaceOops *soutliner = (SpaceOops *)view_layer;
 
-						soutliner->outlinevis = SO_ACT_LAYER;
+						soutliner->outlinevis = SO_VIEW_LAYER;
 
-						if (BLI_listbase_count_ex(&layer->layer_collections, 2) == 1) {
+						if (BLI_listbase_count_at_most(&layer->layer_collections, 2) == 1) {
 							if (soutliner->treestore == NULL) {
 								soutliner->treestore = BLI_mempool_create(
 								        sizeof(TreeStoreElem), 1, 512, BLI_MEMPOOL_ALLOW_ITER);
@@ -550,9 +540,21 @@ void do_versions_after_linking_280(Main *main)
 					IDP_FreeProperty(srl->prop);
 					MEM_freeN(srl->prop);
 				}
-				BKE_freestyle_config_free(&srl->freestyleConfig);
+				BKE_freestyle_config_free(&srl->freestyleConfig, true);
 			}
 			BLI_freelistN(&scene->r.layers);
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 280, 3)) {
+		/* Due to several changes to particle RNA and draw code particles from older files may no longer
+		 * be visible. Here we correct this by setting a default draw size for those files. */
+		for (Object *object = main->object.first; object; object = object->id.next) {
+			for (ParticleSystem *psys = object->particlesystem.first; psys; psys=psys->next) {
+				if(psys->part->draw_size == 0.0f) {
+					psys->part->draw_size = 0.1f;
+				}
+			}
 		}
 	}
 
@@ -568,7 +570,9 @@ void do_versions_after_linking_280(Main *main)
 					}
 				}
 			}
-			BLI_assert(workspace->view_layer == NULL);
+			/* While this should apply to most cases, it fails when reading workspaces.blend
+			 * to get its list of workspaces without actually appending any of them. */
+//			BLI_assert(workspace->view_layer == NULL);
 		}
 	}
 
@@ -594,17 +598,47 @@ void do_versions_after_linking_280(Main *main)
 
 				if (sc_hidden != NULL) {
 					LayerCollection *layer_collection_master, *layer_collection_hidden;
-
 					layer_collection_master = group->view_layer->layer_collections.first;
 					layer_collection_hidden = layer_collection_master->layer_collections.first;
-
-					layer_collection_hidden->flag &= ~COLLECTION_VISIBLE;
+					layer_collection_hidden->flag |= COLLECTION_DISABLED;
 				}
 			}
 
 			GroupObject *go;
 			while ((go = BLI_pophead(&group->gobject))) {
 				MEM_freeN(go);
+			}
+		}
+	}
+
+	{
+		for (Object *object = main->object.first; object; object = object->id.next) {
+#ifndef VERSION_280_SUBVERSION_4
+			/* If any object already has an initialized value for
+			 * duplicator_visibility_flag it means we've already doversioned it.
+			 * TODO(all) remove the VERSION_280_SUBVERSION_4 code once the subversion was bumped. */
+			if (object->duplicator_visibility_flag != 0) {
+				break;
+			}
+#endif
+			if (object->particlesystem.first) {
+				object->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT;
+				for (ParticleSystem *psys = object->particlesystem.first; psys; psys = psys->next) {
+					if (psys->part->draw & PART_DRAW_EMITTER) {
+						object->duplicator_visibility_flag |= OB_DUPLI_FLAG_RENDER;
+#ifndef VERSION_280_SUBVERSION_4
+						psys->part->draw &= ~PART_DRAW_EMITTER;
+#else
+						break;
+#endif
+					}
+				}
+			}
+			else if (object->transflag & OB_DUPLI){
+				object->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT;
+			}
+			else {
+				object->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
 			}
 		}
 	}
@@ -626,6 +660,25 @@ static void do_version_layer_collections_idproperties(ListBase *lb)
 
 		/* Do it recursively */
 		do_version_layer_collections_idproperties(&lc->layer_collections);
+	}
+}
+
+static void do_version_view_layer_visibility(ViewLayer *view_layer)
+{
+	LayerCollection *layer_collection;
+	for (layer_collection = view_layer->layer_collections.first;
+	     layer_collection;
+	     layer_collection = layer_collection->next)
+	{
+		if (layer_collection->flag & COLLECTION_DISABLED) {
+			BKE_collection_enable(view_layer, layer_collection);
+			layer_collection->flag &= ~COLLECTION_DISABLED;
+		}
+
+		if ((layer_collection->flag & (1 << 0)) == 0) { /* !COLLECTION_VISIBLE */
+			layer_collection->flag |= COLLECTION_DISABLED;
+		}
+		layer_collection->flag |= COLLECTION_VIEWPORT | COLLECTION_RENDER;
 	}
 }
 
@@ -659,6 +712,10 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 					do_version_layer_collections_idproperties(&view_layer->layer_collections);
 				}
 			}
+		}
+
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			scene->r.gauss = 1.5f;
 		}
 	}
 
@@ -868,6 +925,61 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 					view_layer->pass_alpha_threshold = 0.5f;
 					BKE_freestyle_config_init(&view_layer->freestyle_config);
 				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 280, 3)) {
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			ViewLayer *view_layer;
+			for (view_layer = scene->view_layers.first; view_layer; view_layer = view_layer->next) {
+				do_version_view_layer_visibility(view_layer);
+			}
+		}
+
+		for (Group *group = main->group.first; group; group = group->id.next) {
+			if (group->view_layer != NULL){
+				do_version_view_layer_visibility(group->view_layer);
+			}
+		}
+	}
+
+	{
+		if (DNA_struct_elem_find(fd->filesdna, "SpaceOops", "int", "filter") == false) {
+			bScreen *sc;
+			ScrArea *sa;
+			SpaceLink *sl;
+
+			/* Update files using invalid (outdated) outlinevis Outliner values. */
+			for (sc = main->screen.first; sc; sc = sc->id.next) {
+				for (sa = sc->areabase.first; sa; sa = sa->next) {
+					for (sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_OUTLINER) {
+							SpaceOops *so = (SpaceOops *)sl;
+
+							if (!ELEM(so->outlinevis,
+							          SO_SCENES,
+							          SO_GROUPS,
+							          SO_LIBRARIES,
+							          SO_SEQUENCE,
+							          SO_DATABLOCKS,
+							          SO_ID_ORPHANS,
+							          SO_VIEW_LAYER,
+							          SO_COLLECTIONS))
+							{
+								so->outlinevis = SO_VIEW_LAYER;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	{
+		if (!DNA_struct_elem_find(fd->filesdna, "LightProbe", "float", "intensity")) {
+			for (LightProbe *probe = main->lightprobe.first; probe; probe = probe->id.next) {
+				probe->intensity = 1.0f;
 			}
 		}
 	}

@@ -31,6 +31,35 @@
 #ifndef __BLF_INTERNAL_TYPES_H__
 #define __BLF_INTERNAL_TYPES_H__
 
+#include "../../../intern/gawain/gawain/gwn_vertex_buffer.h"
+
+#define BLF_BATCH_DRAW_LEN_MAX 2048 /* in glyph */
+
+typedef struct BatchBLF{
+	struct FontBLF *font; /* can only batch glyph from the same font */
+	struct Gwn_Batch *batch;
+	struct Gwn_VertBuf *verts;
+	struct Gwn_VertBufRaw pos_step, tex_step, col_step;
+	unsigned int pos_loc, tex_loc, col_loc;
+	unsigned int glyph_len;
+	float ofs[2];    /* copy of font->pos */
+	float mat[4][4]; /* previous call modelmatrix. */
+	bool enabled, active, simple_shader;
+} BatchBLF;
+
+extern BatchBLF g_batch;
+
+typedef struct KerningCacheBLF {
+	struct KerningCacheBLF *next, *prev;
+
+	/* kerning mode. */
+	FT_UInt mode;
+
+	/* only cache a ascii glyph pairs. Only store the x
+	 * offset we are interested in, instead of the full FT_Vector. */
+	int table[0x80][0x80];
+} KerningCacheBLF;
+
 typedef struct GlyphCacheBLF {
 	struct GlyphCacheBLF *next;
 	struct GlyphCacheBLF *prev;
@@ -51,33 +80,33 @@ typedef struct GlyphCacheBLF {
 	unsigned int *textures;
 
 	/* size of the array. */
-	unsigned int ntex;
+	unsigned int textures_len;
 
 	/* and the last texture, aka. the current texture. */
-	unsigned int cur_tex;
+	unsigned int texture_current;
 
 	/* like bftgl, we draw every glyph in a big texture, so this is the
 	 * current position inside the texture.
 	 */
-	int x_offs;
-	int y_offs;
+	int offset_x;
+	int offset_y;
 
 	/* and the space from one to other. */
 	int pad;
 
 	/* and the bigger glyph in the font. */
-	int max_glyph_width;
-	int max_glyph_height;
+	int glyph_width_max;
+	int glyph_height_max;
 
 	/* next two integer power of two, to build the texture. */
 	int p2_width;
 	int p2_height;
 
 	/* number of glyphs in the font. */
-	int num_glyphs;
+	int glyphs_len_max;
 
-	/* number of glyphs that we load here. */
-	int rem_glyphs;
+	/* number of glyphs not yet loaded (decreases every glyph loaded). */
+	int glyphs_len_free;
 
 	/* ascender and descender value. */
 	float ascender;
@@ -106,8 +135,8 @@ typedef struct GlyphBLF {
 	unsigned int tex;
 
 	/* position inside the texture where this glyph is store. */
-	int xoff;
-	int yoff;
+	int offset_x;
+	int offset_y;
 
 	/* Bitmap data, from freetype. Take care that this
 	 * can be NULL.
@@ -130,7 +159,7 @@ typedef struct GlyphBLF {
 	float pos_y;
 
 	/* with value of zero mean that we need build the texture. */
-	short build_tex;
+	char build_tex;
 } GlyphBLF;
 
 typedef struct FontBufInfoBLF {
@@ -211,7 +240,7 @@ typedef struct FontBLF {
 	unsigned int size;
 
 	/* max texture size. */
-	int max_tex_size;
+	int tex_size_max;
 
 	/* cache current OpenGL texture to save calls into the API */
 	unsigned int tex_bind_state;
@@ -225,6 +254,12 @@ typedef struct FontBLF {
 	/* current glyph cache, size and dpi. */
 	GlyphCacheBLF *glyph_cache;
 
+	/* list of kerning cache for this font. */
+	ListBase kerning_caches;
+
+	/* current kerning cache for this font and kerning mode. */
+	KerningCacheBLF *kerning_cache;
+
 	/* freetype2 lib handle. */
 	FT_Library ft_lib;
 
@@ -233,6 +268,9 @@ typedef struct FontBLF {
 
 	/* freetype2 face. */
 	FT_Face face;
+
+	/* freetype kerning */
+	FT_UInt kerning_mode;
 
 	/* data for buffer usage (drawing into a texture buffer) */
 	FontBufInfoBLF buf_info;
@@ -246,6 +284,6 @@ typedef struct DirBLF {
 	char *path;
 } DirBLF;
 
-#define BLF_CURTEX_UNSET ((unsigned int)-1)
+#define BLF_TEXTURE_UNSET ((unsigned int)-1)
 
 #endif /* __BLF_INTERNAL_TYPES_H__ */

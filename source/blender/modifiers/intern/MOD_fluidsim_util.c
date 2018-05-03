@@ -40,7 +40,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_fluidsim.h"
+#include "DNA_object_fluidsim_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -48,7 +48,9 @@
 
 #include "BKE_fluidsim.h" /* ensure definitions here match */
 #include "BKE_cdderivedmesh.h"
-#include "BKE_global.h" /* G.main->name only */
+#ifdef WITH_MOD_FLUID
+#  include "BKE_global.h"
+#endif
 
 #include "MOD_fluidsim_util.h"
 #include "MOD_modifiertypes.h"
@@ -239,7 +241,7 @@ static DerivedMesh *fluidsim_read_obj(const char *filename, const MPoly *mp_exam
 		return NULL;
 	}
 
-	normals = MEM_callocN(sizeof(short) * numverts * 3, "fluid_tmp_normals");
+	normals = MEM_calloc_arrayN(numverts, 3 * sizeof(short), "fluid_tmp_normals");
 	if (!normals) {
 		if (dm)
 			dm->release(dm);
@@ -384,7 +386,7 @@ static void fluidsim_read_vel_cache(FluidsimModifierData *fluidmd, DerivedMesh *
 
 	if (fss->domainNovecgen > 0) return;
 
-	fss->meshVelocities = MEM_callocN(sizeof(FluidVertexVelocity) * dm->getNumVerts(dm), "Fluidsim_velocities");
+	fss->meshVelocities = MEM_calloc_arrayN(dm->getNumVerts(dm), sizeof(FluidVertexVelocity), "Fluidsim_velocities");
 	fss->totvert = totvert;
 
 	velarray = fss->meshVelocities;

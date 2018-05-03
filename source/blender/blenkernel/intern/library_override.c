@@ -66,16 +66,26 @@ IDOverrideStatic *BKE_override_static_init(ID *local_id, ID *reference_id)
 	BLI_assert(reference_id == NULL || reference_id->lib != NULL);
 	BLI_assert(local_id->override_static == NULL);
 
-	if (reference_id != NULL && reference_id->override_static != NULL && reference_id->override_static->reference == NULL) {
-		/* reference ID has an override template, use it! */
-		BKE_override_static_copy(local_id, reference_id);
+	ID *ancestor_id;
+	for (ancestor_id = reference_id;
+	     ancestor_id != NULL && ancestor_id->override_static != NULL && ancestor_id->override_static->reference != NULL;
+	     ancestor_id = ancestor_id->override_static->reference);
+
+	if (ancestor_id != NULL && ancestor_id->override_static != NULL) {
+		/* Original ID has a template, use it! */
+		BKE_override_static_copy(local_id, ancestor_id);
+		if (local_id->override_static->reference != reference_id) {
+			id_us_min(local_id->override_static->reference);
+			local_id->override_static->reference = reference_id;
+			id_us_plus(local_id->override_static->reference);
+		}
 		return local_id->override_static;
 	}
 
 	/* Else, generate new empty override. */
 	local_id->override_static = MEM_callocN(sizeof(*local_id->override_static), __func__);
 	local_id->override_static->reference = reference_id;
-	id_us_plus(reference_id);
+	id_us_plus(local_id->override_static->reference);
 	local_id->tag &= ~LIB_TAG_OVERRIDESTATIC_OK;
 	/* TODO do we want to add tag or flag to referee to mark it as such? */
 	return local_id->override_static;
@@ -142,12 +152,8 @@ void BKE_override_static_free(struct IDOverrideStatic **override)
 	*override = NULL;
 }
 
-/** Create an overriden local copy of linked reference. */
-ID *BKE_override_static_create_from(Main *bmain, ID *reference_id)
+static ID *override_static_create_from(Main *bmain, ID *reference_id)
 {
-	BLI_assert(reference_id != NULL);
-	BLI_assert(reference_id->lib != NULL);
-
 	ID *local_id;
 
 	if (!id_copy(bmain, reference_id, (ID **)&local_id, false)) {
@@ -158,10 +164,61 @@ ID *BKE_override_static_create_from(Main *bmain, ID *reference_id)
 	BKE_override_static_init(local_id, reference_id);
 	local_id->flag |= LIB_OVERRIDE_STATIC_AUTO;
 
+	return local_id;
+}
+
+
+/** Create an overriden local copy of linked reference. */
+ID *BKE_override_static_create_from_id(Main *bmain, ID *reference_id)
+{
+	BLI_assert(reference_id != NULL);
+	BLI_assert(reference_id->lib != NULL);
+
+	ID *local_id = override_static_create_from(bmain, reference_id);
+
 	/* Remapping, we obviously only want to affect local data (and not our own reference pointer to overriden ID). */
 	BKE_libblock_remap(bmain, reference_id, local_id, ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_STATIC_OVERRIDE);
 
 	return local_id;
+}
+
+/** Create overriden local copies of all tagged data-blocks in given Main.
+ *
+ * \note Set id->newid of overridden libs with newly created overrides, caller is responsible to clean those pointers
+ * before/after usage as needed.
+ *
+ * \return \a true on success, \a false otherwise.
+ */
+bool BKE_override_static_create_from_tag(Main *bmain)
+{
+	ListBase *lbarray[MAX_LIBARRAY];
+	int a;
+	bool ret = true;
+
+	const int num_types = a = set_listbasepointers(bmain, lbarray);
+	while (a--) {
+		for (ID *reference_id = lbarray[a]->first; reference_id != NULL; reference_id = reference_id->next) {
+			if ((reference_id->tag & LIB_TAG_DOIT) != 0 && reference_id->lib != NULL) {
+				if ((reference_id->newid = override_static_create_from(bmain, reference_id)) == NULL) {
+					ret = false;
+				}
+			}
+		}
+	}
+
+	/* Remapping, we obviously only want to affect local data (and not our own reference pointer to overriden ID). */
+	a = num_types;
+	while (a--) {
+		for (ID *reference_id = lbarray[a]->first; reference_id != NULL; reference_id = reference_id->next) {
+			if ((reference_id->tag & LIB_TAG_DOIT) != 0 && reference_id->lib != NULL && reference_id->newid != NULL) {
+				ID *local_id = reference_id->newid;
+				BKE_libblock_remap(bmain, reference_id, local_id,
+				                   ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_STATIC_OVERRIDE);
+			}
+		}
+	}
+
+	return ret;
 }
 
 /**
@@ -384,7 +441,10 @@ bool BKE_override_static_status_check_local(ID *local)
 	RNA_id_pointer_create(local, &rnaptr_local);
 	RNA_id_pointer_create(reference, &rnaptr_reference);
 
-	if (!RNA_struct_override_matches(&rnaptr_local, &rnaptr_reference, local->override_static, true, true)) {
+	if (!RNA_struct_override_matches(
+	        &rnaptr_local, &rnaptr_reference, NULL, local->override_static,
+	        RNA_OVERRIDE_COMPARE_IGNORE_NON_OVERRIDABLE | RNA_OVERRIDE_COMPARE_IGNORE_OVERRIDDEN, NULL))
+	{
 		local->tag &= ~LIB_TAG_OVERRIDESTATIC_OK;
 		return false;
 	}
@@ -428,7 +488,10 @@ bool BKE_override_static_status_check_reference(ID *local)
 	RNA_id_pointer_create(local, &rnaptr_local);
 	RNA_id_pointer_create(reference, &rnaptr_reference);
 
-	if (!RNA_struct_override_matches(&rnaptr_local, &rnaptr_reference, local->override_static, false, true)) {
+	if (!RNA_struct_override_matches(
+	        &rnaptr_local, &rnaptr_reference, NULL, local->override_static,
+	        RNA_OVERRIDE_COMPARE_IGNORE_OVERRIDDEN, NULL))
+	{
 		local->tag &= ~LIB_TAG_OVERRIDESTATIC_OK;
 		return false;
 	}
@@ -459,8 +522,17 @@ bool BKE_override_static_operations_create(ID *local)
 		RNA_id_pointer_create(local, &rnaptr_local);
 		RNA_id_pointer_create(local->override_static->reference, &rnaptr_reference);
 
-		ret = RNA_struct_auto_override(&rnaptr_local, &rnaptr_reference, local->override_static, NULL);
+		eRNAOverrideMatchResult report_flags = 0;
+		RNA_struct_override_matches(
+		            &rnaptr_local, &rnaptr_reference, NULL, local->override_static,
+		            RNA_OVERRIDE_COMPARE_CREATE | RNA_OVERRIDE_COMPARE_RESTORE, &report_flags);
+		if (report_flags & RNA_OVERRIDE_MATCH_RESULT_CREATED) {
+			ret = true;
+		}
 #ifndef NDEBUG
+		if (report_flags & RNA_OVERRIDE_MATCH_RESULT_RESTORED) {
+			printf("We did restore some properties of %s from its reference.\n", local->name);
+		}
 		if (ret) {
 			printf("We did generate static override rules for %s\n", local->name);
 		}

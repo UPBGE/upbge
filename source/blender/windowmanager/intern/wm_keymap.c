@@ -1,4 +1,5 @@
 /*
+ * 
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -37,8 +38,10 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_workspace_types.h"
 
 #include "MEM_guardedalloc.h"
+#include "CLG_log.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -49,6 +52,7 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_screen.h"
+#include "BKE_workspace.h"
 
 #include "BLT_translation.h"
 
@@ -341,6 +345,12 @@ static wmKeyMap *wm_keymap_new(const char *idname, int spaceid, int regionid)
 	km->spaceid = spaceid;
 	km->regionid = regionid;
 
+	{
+		const char *owner_id = RNA_struct_state_owner_get();
+		if (owner_id) {
+			BLI_strncpy(km->owner_id, owner_id, sizeof(km->owner_id));
+		}
+	}
 	return km;
 }
 
@@ -396,6 +406,23 @@ bool WM_keymap_remove(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	else {
 		return false;
 	}
+}
+
+
+bool WM_keymap_poll(bContext *C, wmKeyMap *keymap)
+{
+	/* If we're tagged, only use compatible. */
+	if (keymap->owner_id[0] != '\0') {
+		const WorkSpace *workspace = CTX_wm_workspace(C);
+		if (BKE_workspace_owner_id_check(workspace, keymap->owner_id) == false) {
+			return false;
+		}
+	}
+
+	if (keymap->poll != NULL) {
+		return keymap->poll(C);
+	}
+	return true;
 }
 
 static void keymap_event_set(wmKeyMapItem *kmi, short type, short val, int modifier, short keymodifier)
@@ -877,11 +904,13 @@ wmKeyMapItem *WM_modalkeymap_find_propvalue(wmKeyMap *km, const int propvalue)
 void WM_modalkeymap_assign(wmKeyMap *km, const char *opname)
 {
 	wmOperatorType *ot = WM_operatortype_find(opname, 0);
-	
-	if (ot)
+
+	if (ot) {
 		ot->modalkeymap = km;
-	else
-		printf("error: modalkeymap_assign, unknown operator %s\n", opname);
+	}
+	else {
+		CLOG_ERROR(WM_LOG_KEYMAPS, "unknown operator '%s'", opname);
+	}
 }
 
 static void wm_user_modal_keymap_set_items(wmWindowManager *wm, wmKeyMap *km)
@@ -1087,7 +1116,7 @@ static wmKeyMapItem *wm_keymap_item_find_handlers(
 	for (handler = handlers->first; handler; handler = handler->next) {
 		keymap = WM_keymap_active(wm, handler->keymap);
 
-		if (keymap && (!keymap->poll || keymap->poll((bContext *)C))) {
+		if (keymap && WM_keymap_poll((bContext *)C, keymap)) {
 			for (kmi = keymap->items.first; kmi; kmi = kmi->next) {
 				/* skip disabled keymap items [T38447] */
 				if (kmi->flag & KMI_INACTIVE)
@@ -1719,7 +1748,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 		km = WM_keymap_find_all(C, "Mesh", 0, 0);
 		
 		/* some mesh operators are active in object mode too, like add-prim */
-		if (km && km->poll && km->poll((bContext *)C) == 0) {
+		if (km && !WM_keymap_poll((bContext *)C, km)) {
 			km = WM_keymap_find_all(C, "Object Mode", 0, 0);
 		}
 	}
@@ -1729,7 +1758,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 		km = WM_keymap_find_all(C, "Curve", 0, 0);
 		
 		/* some curve operators are active in object mode too, like add-prim */
-		if (km && km->poll && km->poll((bContext *)C) == 0) {
+		if (km && !WM_keymap_poll((bContext *)C, km)) {
 			km = WM_keymap_find_all(C, "Object Mode", 0, 0);
 		}
 	}
@@ -1757,7 +1786,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 		km = WM_keymap_find_all(C, "Metaball", 0, 0);
 		
 		/* some mball operators are active in object mode too, like add-prim */
-		if (km && km->poll && km->poll((bContext *)C) == 0) {
+		if (km && !WM_keymap_poll((bContext *)C, km)) {
 			km = WM_keymap_find_all(C, "Object Mode", 0, 0);
 		}
 	}
@@ -1809,7 +1838,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 		 * Mesh keymap is probably not ideal, but best place I could find to put those. */
 		if (sl->spacetype == SPACE_VIEW3D) {
 			km = WM_keymap_find_all(C, "Mesh", 0, 0);
-			if (km && km->poll && !km->poll((bContext *)C)) {
+			if (km && !WM_keymap_poll((bContext *)C, km)) {
 				km = NULL;
 			}
 		}

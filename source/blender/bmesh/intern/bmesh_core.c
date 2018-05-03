@@ -685,7 +685,7 @@ int bmesh_elem_check(void *element, const char htype)
 						err |= IS_FACE_LOOP_WRONG_RADIAL_LENGTH;
 					}
 
-					if (bmesh_disk_count_ex(l_iter->v, 2) < 2) {
+					if (bmesh_disk_count_at_most(l_iter->v, 2) < 2) {
 						err |= IS_FACE_LOOP_WRONG_DISK_LENGTH;
 					}
 				}
@@ -1282,8 +1282,8 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del)
 	}
 
 	/* create region face */
-	f_new = BLI_array_count(edges) ?
-	        BM_face_create_ngon(bm, v1, v2, edges, BLI_array_count(edges), faces[0], BM_CREATE_NOP) : NULL;
+	f_new = BLI_array_len(edges) ?
+	        BM_face_create_ngon(bm, v1, v2, edges, BLI_array_len(edges), faces[0], BM_CREATE_NOP) : NULL;
 	if (UNLIKELY(f_new == NULL)) {
 		/* Invalid boundary region to join faces */
 		goto error;
@@ -1347,11 +1347,11 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del)
 
 	/* delete old geometry */
 	if (do_del) {
-		for (i = 0; i < BLI_array_count(deledges); i++) {
+		for (i = 0; i < BLI_array_len(deledges); i++) {
 			BM_edge_kill(bm, deledges[i]);
 		}
 
-		for (i = 0; i < BLI_array_count(delverts); i++) {
+		for (i = 0; i < BLI_array_len(delverts); i++) {
 			BM_vert_kill(bm, delverts[i]);
 		}
 	}
@@ -1785,7 +1785,7 @@ BMEdge *bmesh_kernel_join_edge_kill_vert(
 		return NULL;
 	}
 	
-	if (bmesh_disk_count_ex(v_kill, 3) == 2) {
+	if (bmesh_disk_count_at_most(v_kill, 3) == 2) {
 #ifndef NDEBUG
 		int valence1, valence2;
 		BMLoop *l;
@@ -2423,9 +2423,10 @@ static void bmesh_kernel_vert_separate__cleanup(BMesh *bm, LinkNode *edges_separ
 					/* don't visit again */
 					n_prev->next = n_step->next;
 				}
-			} while ((void)
-			         (n_prev = n_step),
-			         (n_step = n_step->next));
+				else {
+					n_prev = n_step;
+				}
+			} while ((n_step = n_step->next));
 
 		} while ((n_orig = n_orig->next) && n_orig->next);
 	} while ((edges_separate = edges_separate->next));

@@ -45,6 +45,7 @@
 #include "BLI_utildefines.h"
 
 #include "BPY_extern.h"
+#include "BPY_extern_clog.h"
 
 #include "bpy_rna.h"
 #include "bpy_rna_anim.h"
@@ -60,6 +61,8 @@
 #include "RNA_enum_types.h"
 #include "RNA_define.h" /* RNA_def_property_free_identifier */
 #include "RNA_access.h"
+
+#include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -223,7 +226,7 @@ static PyObject *id_free_weakref_cb(PyObject *weakinfo_capsule, PyObject *weakre
 	GHash *weakinfo_hash = PyCapsule_GetPointer(weakinfo_capsule, NULL);
 
 
-	if (BLI_ghash_size(weakinfo_hash) > 1) {
+	if (BLI_ghash_len(weakinfo_hash) > 1) {
 		BLI_ghash_remove(weakinfo_hash, weakref, NULL, NULL);
 	}
 	else { /* get the last id and free it */
@@ -243,7 +246,7 @@ static void id_release_weakref_list(struct ID *id, GHash *weakinfo_hash)
 	BLI_ghashIterator_init(&weakinfo_hash_iter, weakinfo_hash);
 
 #ifdef DEBUG_RNA_WEAKREF
-	fprintf(stdout, "id_release_weakref: '%s', %d items\n", id->name, BLI_ghash_size(weakinfo_hash));
+	fprintf(stdout, "id_release_weakref: '%s', %d items\n", id->name, BLI_ghash_len(weakinfo_hash));
 #endif
 
 	while (!BLI_ghashIterator_done(&weakinfo_hash_iter)) {
@@ -266,7 +269,7 @@ static void id_release_weakref_list(struct ID *id, GHash *weakinfo_hash)
 	BLI_ghash_remove(id_weakref_pool, (void *)id, NULL, NULL);
 	BLI_ghash_free(weakinfo_hash, NULL, NULL);
 
-	if (BLI_ghash_size(id_weakref_pool) == 0) {
+	if (BLI_ghash_len(id_weakref_pool) == 0) {
 		BLI_ghash_free(id_weakref_pool, NULL, NULL);
 		id_weakref_pool = NULL;
 #ifdef DEBUG_RNA_WEAKREF
@@ -1418,10 +1421,11 @@ static PyObject *pyrna_enum_to_py(PointerRNA *ptr, PropertyRNA *prop, int val)
 					const char *ptr_name = RNA_struct_name_get_alloc(ptr, NULL, 0, NULL);
 
 					/* prefer not fail silently in case of api errors, maybe disable it later */
-					printf("RNA Warning: Current value \"%d\" "
-						   "matches no enum in '%s', '%s', '%s'\n",
-						   val, RNA_struct_identifier(ptr->type),
-						   ptr_name, RNA_property_identifier(prop));
+					CLOG_WARN(BPY_LOG_RNA,
+					          "current value '%d' "
+					          "matches no enum in '%s', '%s', '%s'",
+					          val, RNA_struct_identifier(ptr->type),
+					          ptr_name, RNA_property_identifier(prop));
 
 #if 0				/* gives python decoding errors while generating docs :( */
 					char error_str[256];
@@ -1751,10 +1755,8 @@ static int pyrna_py_to_prop(
 						return -1;
 					}
 					else {
-						/* same as unicode */
-						/* XXX, this is suspect but needed for function calls, need to see if theres a better way */
 						if (data) *((char **)data) = (char *)param;
-						else RNA_property_string_set(ptr, prop, param);
+						else RNA_property_string_set_bytes(ptr, prop, param, PyBytes_Size(value));
 					}
 				}
 				else {
@@ -6607,7 +6609,7 @@ static PyObject *pyrna_srna_ExternalType(StructRNA *srna)
 		if (bpy_types == NULL) {
 			PyErr_Print();
 			PyErr_Clear();
-			fprintf(stderr, "%s: failed to find 'bpy_types' module\n", __func__);
+			CLOG_ERROR(BPY_LOG_RNA, "failed to find 'bpy_types' module");
 			return NULL;
 		}
 		bpy_types_dict = PyModule_GetDict(bpy_types);  /* borrow */
@@ -6625,20 +6627,22 @@ static PyObject *pyrna_srna_ExternalType(StructRNA *srna)
 		PyObject *tp_slots = PyDict_GetItem(((PyTypeObject *)newclass)->tp_dict, bpy_intern_str___slots__);
 
 		if (tp_slots == NULL) {
-			fprintf(stderr, "%s: expected class '%s' to have __slots__ defined\n\nSee bpy_types.py\n", __func__, idname);
+			CLOG_ERROR(BPY_LOG_RNA, "expected class '%s' to have __slots__ defined, see bpy_types.py", idname);
 			newclass = NULL;
 		}
 		else if (PyTuple_GET_SIZE(tp_bases)) {
 			PyObject *base = PyTuple_GET_ITEM(tp_bases, 0);
 
 			if (base_compare != base) {
-				fprintf(stderr, "%s: incorrect subclassing of SRNA '%s'\nSee bpy_types.py\n", __func__, idname);
-				PyC_ObSpit("Expected! ", base_compare);
+				char pyob_info[256];
+				PyC_ObSpitStr(pyob_info, sizeof(pyob_info), base_compare);
+				CLOG_ERROR(BPY_LOG_RNA,
+				           "incorrect subclassing of SRNA '%s', expected '%s', see bpy_types.py",
+				           idname, pyob_info);
 				newclass = NULL;
 			}
 			else {
-				if (G.debug & G_DEBUG_PYTHON)
-					fprintf(stderr, "SRNA Subclassed: '%s'\n", idname);
+				CLOG_INFO(BPY_LOG_RNA, 2, "SRNA sub-classed: '%s'", idname);
 			}
 		}
 	}
@@ -6736,7 +6740,7 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
 		}
 		else {
 			/* this should not happen */
-			printf("%s: error registering '%s'\n", __func__, idname);
+			CLOG_ERROR(BPY_LOG_RNA, "failed to register '%s'", idname);
 			PyErr_Print();
 			PyErr_Clear();
 		}
@@ -6802,7 +6806,7 @@ PyObject *pyrna_struct_CreatePyObject(PointerRNA *ptr)
 			Py_DECREF(tp); /* srna owns, cant hold a ref */
 		}
 		else {
-			fprintf(stderr, "%s: could not make type\n", __func__);
+			CLOG_WARN(BPY_LOG_RNA, "could not make type '%s'", RNA_struct_identifier(ptr->type));
 			pyrna = (BPy_StructRNA *) PyObject_GC_New(BPy_StructRNA, &pyrna_struct_Type);
 #ifdef USE_WEAKREFS
 			pyrna->in_weakreflist = NULL;
@@ -7609,8 +7613,7 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 	py_class = RNA_struct_py_type_get(ptr->type);
 	/* rare case. can happen when registering subclasses */
 	if (py_class == NULL) {
-		fprintf(stderr, "%s: unable to get python class for rna struct '%.200s'\n",
-		        __func__, RNA_struct_identifier(ptr->type));
+		CLOG_WARN(BPY_LOG_RNA, "unable to get Python class for rna struct '%.200s'", RNA_struct_identifier(ptr->type));
 		return -1;
 	}
 
@@ -8258,6 +8261,43 @@ static PyObject *pyrna_unregister_class(PyObject *UNUSED(self), PyObject *py_cla
 
 	Py_RETURN_NONE;
 }
+
+/* Access to 'owner_id' internal global. */
+
+static PyObject *pyrna_bl_owner_id_get(PyObject *UNUSED(self))
+{
+	const char *name = RNA_struct_state_owner_get();
+	if (name) {
+		return PyUnicode_FromString(name);
+	}
+	Py_RETURN_NONE;
+}
+
+static PyObject *pyrna_bl_owner_id_set(PyObject *UNUSED(self), PyObject *value)
+{
+	const char *name;
+	if (value == Py_None) {
+		name = NULL;
+	}
+	else if (PyUnicode_Check(value)) {
+		name = _PyUnicode_AsString(value);
+	}
+	else {
+		PyErr_Format(PyExc_ValueError,
+		             "owner_set(...): "
+		             "expected None or a string, not '%.200s'", Py_TYPE(value)->tp_name);
+		return NULL;
+	}
+	RNA_struct_state_owner_set(name);
+	Py_RETURN_NONE;
+}
+
+PyMethodDef meth_bpy_owner_id_get = {
+	"_bl_owner_id_get", (PyCFunction)pyrna_bl_owner_id_get, METH_NOARGS, NULL,
+};
+PyMethodDef meth_bpy_owner_id_set = {
+	"_bl_owner_id_set", (PyCFunction)pyrna_bl_owner_id_set, METH_O, NULL,
+};
 
 /* currently this is fairly limited, we would need to make some way to split up
  * pyrna_callback_classmethod_... if we want more than one callback per type */

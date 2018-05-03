@@ -194,6 +194,7 @@ typedef struct PanelType {
 	char translation_context[BKE_ST_MAXNAME];
 	char context[BKE_ST_MAXNAME];             /* for buttons window */
 	char category[BKE_ST_MAXNAME];            /* for category tabs */
+	char owner_id[BKE_ST_MAXNAME];              /* for work-spaces to selectively show. */
 	int space_type;
 	int region_type;
 
@@ -264,6 +265,7 @@ typedef struct MenuType {
 	char idname[BKE_ST_MAXNAME];        /* unique name */
 	char label[BKE_ST_MAXNAME];         /* for button text */
 	char translation_context[BKE_ST_MAXNAME];
+	char owner_id[BKE_ST_MAXNAME];  /* optional, see: #wmOwnerID */
 	const char *description;
 
 	/* verify if the menu should draw or not */
@@ -325,7 +327,6 @@ void BKE_screen_view3d_scene_sync(struct bScreen *sc, struct Scene *scene);
 void BKE_screen_transform_orientation_remove(
         const struct bScreen *screen, const struct WorkSpace *workspace,
         const struct TransformOrientation *orientation) ATTR_NONNULL();
-void BKE_screen_gpu_fx_validate(struct GPUFXSettings *fx_settings);
 bool BKE_screen_is_fullscreen_area(const struct bScreen *screen) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 bool BKE_screen_is_used(const struct bScreen *screen) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 

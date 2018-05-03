@@ -100,6 +100,8 @@ struct GPUDrawObject;
 struct PBVH;
 struct EvaluationContext;
 
+#include "DNA_object_enums.h"
+
 /* number of sub-elements each mesh element has (for interpolation) */
 #define SUB_ELEMS_VERT 0
 #define SUB_ELEMS_EDGE 2
@@ -165,7 +167,7 @@ typedef enum DMDirtyFlag {
 	DM_DIRTY_TESS_CDLAYERS = 1 << 0,
 	/* One of the MCOL layers have been updated, force updating of GPUDrawObject's colors buffer.
 	 * This is necessary with modern, VBO draw code, as e.g. in vpaint mode me->mcol may be updated
-	 * without actually rebuilding dm (hence by defautl keeping same GPUDrawObject, and same colors
+	 * without actually rebuilding dm (hence by default keeping same GPUDrawObject, and same colors
 	 * buffer, which prevents update during a stroke!). */
 	DM_DIRTY_MCOL_UPDATE_DRAW = 1 << 1,
 
@@ -381,7 +383,7 @@ struct DerivedMesh {
 
 	/** Get the BVH used for paint modes
 	 */
-	struct PBVH *(*getPBVH)(struct Object *ob, DerivedMesh *dm);
+	struct PBVH *(*getPBVH)(struct Object *ob, DerivedMesh *dm, eObjectMode object_mode);
 
 	/* Drawing Operations */
 

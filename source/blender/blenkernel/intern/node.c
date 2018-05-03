@@ -75,6 +75,8 @@
 #include "NOD_shader.h"
 #include "NOD_texture.h"
 
+#include "DEG_depsgraph.h"
+
 #define NODE_DEFAULT_MAX_WIDTH 700
 
 /* Fallback types for undefined tree, nodes, sockets */
@@ -504,6 +506,26 @@ static bNodeSocket *make_socket(bNodeTree *ntree, bNode *UNUSED(node), int in_ou
 	node_socket_set_typeinfo(ntree, sock, nodeSocketTypeFind(idname));
 	
 	return sock;
+}
+
+void nodeModifySocketType(bNodeTree *ntree, bNode *UNUSED(node), bNodeSocket *sock,
+                          int type, int subtype)
+{
+	const char *idname = nodeStaticSocketType(type, subtype);
+
+	if (!idname) {
+		printf("Error: static node socket type %d undefined\n", type);
+		return;
+	}
+
+	if (sock->default_value) {
+		MEM_freeN(sock->default_value);
+		sock->default_value = NULL;
+	}
+
+	sock->type = type;
+	BLI_strncpy(sock->idname, idname, sizeof(sock->idname));
+	node_socket_set_typeinfo(ntree, sock, nodeSocketTypeFind(idname));
 }
 
 bNodeSocket *nodeAddSocket(bNodeTree *ntree, bNode *node, int in_out, const char *idname,
@@ -2767,7 +2789,7 @@ int BKE_node_instance_hash_haskey(bNodeInstanceHash *hash, bNodeInstanceKey key)
 
 int BKE_node_instance_hash_size(bNodeInstanceHash *hash)
 {
-	return BLI_ghash_size(hash->ghash);
+	return BLI_ghash_len(hash->ghash);
 }
 
 void BKE_node_instance_hash_clear_tags(bNodeInstanceHash *hash)
@@ -3173,13 +3195,17 @@ void nodeSynchronizeID(bNode *node, bool copy_to_id)
 
 void nodeLabel(bNodeTree *ntree, bNode *node, char *label, int maxlen)
 {
+	label[0] = '\0';
+
 	if (node->label[0] != '\0') {
 		BLI_strncpy(label, node->label, maxlen);
 	}
 	else if (node->typeinfo->labelfunc) {
 		node->typeinfo->labelfunc(ntree, node, label, maxlen);
 	}
-	else {
+
+	/* The previous methods (labelfunc) could not provide an adequate label for the node. */
+	if (label[0] == '\0') {
 		/* Kind of hacky and weak... Ideally would be better to use RNA here. :| */
 		const char *tmp = CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, node->typeinfo->ui_name);
 		if (tmp == node->typeinfo->ui_name) {
@@ -3565,6 +3591,8 @@ static void registerShaderNodes(void)
 
 	register_node_type_sh_attribute();
 	register_node_type_sh_bevel();
+	register_node_type_sh_displacement();
+	register_node_type_sh_vector_displacement();
 	register_node_type_sh_geometry();
 	register_node_type_sh_light_path();
 	register_node_type_sh_light_falloff();
@@ -3590,6 +3618,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_holdout();
 	register_node_type_sh_volume_absorption();
 	register_node_type_sh_volume_scatter();
+	register_node_type_sh_volume_principled();
 	register_node_type_sh_subsurface_scattering();
 	register_node_type_sh_mix_shader();
 	register_node_type_sh_add_shader();
@@ -3794,6 +3823,7 @@ bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
 
 void BKE_nodetree_remove_layer_n(bNodeTree *ntree, Scene *scene, const int layer_index)
 {
+	BLI_assert(layer_index != -1);
 	for (bNode *node = ntree->nodes.first; node; node = node->next) {
 		if (node->type == CMP_NODE_R_LAYERS && (Scene *)node->id == scene) {
 			if (node->custom1 == layer_index) {
@@ -3843,8 +3873,6 @@ void BKE_nodetree_shading_params_eval(const struct EvaluationContext *UNUSED(eva
                                       bNodeTree *ntree_dst,
                                       const bNodeTree *ntree_src)
 {
-	if (G.debug & G_DEBUG_DEPSGRAPH) {
-		printf("%s on %s (%p)\n", __func__, ntree_src->id.name, ntree_dst);
-	}
+	DEG_debug_print_eval(__func__, ntree_src->id.name, ntree_dst);
 	BKE_nodetree_copy_default_values(ntree_dst, ntree_src);
 }

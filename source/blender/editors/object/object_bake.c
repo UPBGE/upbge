@@ -206,7 +206,8 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
 	return ok;
 }
 
-static DerivedMesh *multiresbake_create_loresdm(Scene *scene, Object *ob, int *lvl)
+static DerivedMesh *multiresbake_create_loresdm(
+        Scene *scene, Object *ob, eObjectMode object_mode, int *lvl)
 {
 	DerivedMesh *dm;
 	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
@@ -226,13 +227,15 @@ static DerivedMesh *multiresbake_create_loresdm(Scene *scene, Object *ob, int *l
 
 	tmp_mmd.lvl = *lvl;
 	tmp_mmd.sculptlvl = *lvl;
-	dm = multires_make_derived_from_derived(cddm, &tmp_mmd, ob, 0);
+	dm = multires_make_derived_from_derived(cddm, &tmp_mmd, ob, 0, object_mode);
 	cddm->release(cddm);
 
 	return dm;
 }
 
-static DerivedMesh *multiresbake_create_hiresdm(Scene *scene, Object *ob, int *lvl, bool *simple)
+static DerivedMesh *multiresbake_create_hiresdm(
+        Scene *scene, Object *ob, eObjectMode object_mode,
+        int *lvl, bool *simple)
 {
 	Mesh *me = (Mesh *)ob->data;
 	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
@@ -253,7 +256,7 @@ static DerivedMesh *multiresbake_create_hiresdm(Scene *scene, Object *ob, int *l
 
 	tmp_mmd.lvl = mmd->totlvl;
 	tmp_mmd.sculptlvl = mmd->totlvl;
-	dm = multires_make_derived_from_derived(cddm, &tmp_mmd, ob, 0);
+	dm = multires_make_derived_from_derived(cddm, &tmp_mmd, ob, 0, object_mode);
 	cddm->release(cddm);
 
 	return dm;
@@ -317,6 +320,7 @@ static void clear_images_poly(Image **ob_image_array, int ob_image_array_len, Cl
 static int multiresbake_image_exec_locked(bContext *C, wmOperator *op)
 {
 	Object *ob;
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Scene *scene = CTX_data_scene(C);
 	int objects_baked = 0;
 
@@ -371,8 +375,8 @@ static int multiresbake_image_exec_locked(bContext *C, wmOperator *op)
 		bkr.ob_image.array = BKE_object_material_edit_image_get_array(ob);
 		bkr.ob_image.len = ob->totcol;
 
-		bkr.hires_dm = multiresbake_create_hiresdm(scene, ob, &bkr.tot_lvl, &bkr.simple);
-		bkr.lores_dm = multiresbake_create_loresdm(scene, ob, &bkr.lvl);
+		bkr.hires_dm = multiresbake_create_hiresdm(scene, ob, workspace->object_mode, &bkr.tot_lvl, &bkr.simple);
+		bkr.lores_dm = multiresbake_create_loresdm(scene, ob, workspace->object_mode, &bkr.lvl);
 
 		RE_multires_bake_images(&bkr);
 
@@ -396,6 +400,7 @@ static int multiresbake_image_exec_locked(bContext *C, wmOperator *op)
 /* Multiresbake adopted for job-system executing */
 static void init_multiresbake_job(bContext *C, MultiresBakeJob *bkj)
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob;
 
@@ -427,8 +432,8 @@ static void init_multiresbake_job(bContext *C, MultiresBakeJob *bkj)
 		data->ob_image.len = ob->totcol;
 
 		/* create low-resolution DM (to bake to) and hi-resolution DM (to bake from) */
-		data->hires_dm = multiresbake_create_hiresdm(scene, ob, &data->tot_lvl, &data->simple);
-		data->lores_dm = multiresbake_create_loresdm(scene, ob, &lvl);
+		data->hires_dm = multiresbake_create_hiresdm(scene, ob, workspace->object_mode, &data->tot_lvl, &data->simple);
+		data->lores_dm = multiresbake_create_loresdm(scene, ob, workspace->object_mode, &lvl);
 		data->lvl = lvl;
 
 		BLI_addtail(&bkj->data, data);
@@ -576,6 +581,7 @@ typedef struct BakeRender {
 	Render *re;
 	Main *main;
 	Scene *scene;
+	ViewLayer *view_layer;
 	struct Object *actob;
 	int result, ready;
 
@@ -625,6 +631,7 @@ static void init_bake_internal(BakeRender *bkr, bContext *C)
 	bkr->sa = sc ? BKE_screen_find_big_area(sc, SPACE_IMAGE, 10) : NULL; /* can be NULL */
 	bkr->main = CTX_data_main(C);
 	bkr->scene = scene;
+	bkr->view_layer = view_layer;
 	bkr->actob = (scene->r.bake_flag & R_BAKE_TO_ACTIVE) ? OBACT(view_layer) : NULL;
 	bkr->re = RE_NewRender("_Bake View_");
 
@@ -730,7 +737,7 @@ static void bake_startjob(void *bkv, short *stop, short *do_update, float *progr
 	RE_test_break_cb(bkr->re, NULL, thread_break);
 	G.is_break = false;   /* BKE_blender_test_break uses this global */
 
-	RE_Database_Baking(bkr->re, bmain, scene, scene->lay, scene->r.bake_mode, bkr->actob);
+	RE_Database_Baking(bkr->re, bmain, scene, bkr->view_layer, scene->lay, scene->r.bake_mode, bkr->actob);
 
 	/* baking itself is threaded, cannot use test_break in threads. we also update optional imagewindow */
 	bkr->result = RE_bake_shade_all_selected(bkr->re, scene->r.bake_mode, bkr->actob, bkr->do_update, bkr->progress);
@@ -838,7 +845,6 @@ static int bake_image_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	ViewLayer *view_layer = CTX_data_view_layer(C);
 	int result = OPERATOR_CANCELLED;
 
 	if (is_multires_bake(scene)) {
@@ -858,12 +864,13 @@ static int bake_image_exec(bContext *C, wmOperator *op)
 			RE_test_break_cb(bkr.re, NULL, thread_break);
 			G.is_break = false;   /* BKE_blender_test_break uses this global */
 
-			RE_Database_Baking(bkr.re, bmain, scene, scene->lay, scene->r.bake_mode, (scene->r.bake_flag & R_BAKE_TO_ACTIVE) ? OBACT(view_layer) : NULL);
+			RE_Database_Baking(bkr.re, bmain, scene, bkr.view_layer, scene->lay, scene->r.bake_mode,
+			                   (scene->r.bake_flag & R_BAKE_TO_ACTIVE) ? OBACT(bkr.view_layer) : NULL);
 
 			/* baking itself is threaded, cannot use test_break in threads  */
-			BLI_init_threads(&threads, do_bake_render, 1);
+			BLI_threadpool_init(&threads, do_bake_render, 1);
 			bkr.ready = 0;
-			BLI_insert_thread(&threads, &bkr);
+			BLI_threadpool_insert(&threads, &bkr);
 
 			while (bkr.ready == 0) {
 				PIL_sleep_ms(50);
@@ -874,7 +881,7 @@ static int bake_image_exec(bContext *C, wmOperator *op)
 				if (!G.background)
 					BKE_blender_test_break();
 			}
-			BLI_end_threads(&threads);
+			BLI_threadpool_end(&threads);
 
 			if (bkr.result == BAKE_RESULT_NO_OBJECTS)
 				BKE_report(op->reports, RPT_ERROR, "No valid images found to bake to");

@@ -31,9 +31,7 @@ void GWN_vertformat_clear(Gwn_VertFormat* format)
 	format->name_ct = 0;
 
 	for (unsigned i = 0; i < GWN_VERT_ATTR_MAX_LEN; i++)
-		{
 		format->attribs[i].name_ct = 0;
-		}
 #endif
 	}
 
@@ -43,13 +41,8 @@ void GWN_vertformat_copy(Gwn_VertFormat* dest, const Gwn_VertFormat* src)
 	memcpy(dest, src, sizeof(Gwn_VertFormat));
 
 	for (unsigned i = 0; i < dest->attrib_ct; i++)
-		{
-		dest->attribs[i].name_ct = dest->attribs[i].name_ct;
 		for (unsigned j = 0; j < dest->attribs[i].name_ct; j++)
-			{
 			dest->attribs[i].name[j] = (char *)dest + (src->attribs[i].name[j] - ((char *)src));
-			}
-		}
 	}
 
 static GLenum convert_comp_type_to_gl(Gwn_VertCompType type)
@@ -143,7 +136,7 @@ unsigned GWN_vertformat_attr_add(Gwn_VertFormat* format, const char* name, Gwn_V
 	assert(format->name_ct < GWN_VERT_ATTR_MAX_LEN); // there's room for more
 	assert(format->attrib_ct < GWN_VERT_ATTR_MAX_LEN); // there's room for more
 	assert(!format->packed); // packed means frozen/locked
-	assert(comp_ct >= 1 && comp_ct <= 4);
+	assert((comp_ct >= 1 && comp_ct <= 4) || comp_ct == 8 || comp_ct == 12 || comp_ct == 16);
 	switch (comp_type)
 		{
 		case GWN_COMP_F32:
@@ -159,6 +152,8 @@ unsigned GWN_vertformat_attr_add(Gwn_VertFormat* format, const char* name, Gwn_V
 		default:
 			// integer types can be kept as int or converted/normalized to float
 			assert(fetch_mode != GWN_FETCH_FLOAT);
+			// only support float matrices (see Batch_update_program_bindings)
+			assert(comp_ct != 8 && comp_ct != 12 && comp_ct != 16);
 		}
 #endif
 	format->name_ct++; // multiname support
@@ -182,7 +177,7 @@ void GWN_vertformat_alias_add(Gwn_VertFormat* format, const char* alias)
 	Gwn_VertAttr* attrib = format->attribs + (format->attrib_ct - 1);
 #if TRUST_NO_ONE
 	assert(format->name_ct < GWN_VERT_ATTR_MAX_LEN); // there's room for more
-	assert(attrib->name_ct < MAX_ATTRIB_NAMES);
+	assert(attrib->name_ct < GWN_VERT_ATTR_MAX_NAMES);
 #endif
 	format->name_ct++; // multiname support
 	attrib->name[attrib->name_ct++] = copy_attrib_name(format, alias);

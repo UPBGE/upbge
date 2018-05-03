@@ -62,6 +62,8 @@ struct EvaluationContext;
 
 enum eOverlayFlags;
 
+#include "DNA_object_enums.h"
+
 extern const char PAINT_CURSOR_SCULPT[3];
 extern const char PAINT_CURSOR_VERTEX_PAINT[3];
 extern const char PAINT_CURSOR_WEIGHT_PAINT[3];
@@ -91,8 +93,10 @@ typedef enum eOverlayControlFlags {
 						     PAINT_OVERLAY_OVERRIDE_PRIMARY | \
 						     PAINT_OVERLAY_OVERRIDE_CURSOR)
 
-void BKE_paint_invalidate_overlay_tex(struct Scene *scene, struct ViewLayer *view_layer, const struct Tex *tex);
-void BKE_paint_invalidate_cursor_overlay(struct Scene *scene, struct ViewLayer *view_layer, struct CurveMapping *curve);
+void BKE_paint_invalidate_overlay_tex(
+        struct Scene *scene, struct ViewLayer *view_layer, const struct Tex *tex, eObjectMode object_mode);
+void BKE_paint_invalidate_cursor_overlay(
+        struct Scene *scene, struct ViewLayer *view_layer, struct CurveMapping *curve, eObjectMode object_mode);
 void BKE_paint_invalidate_overlay_all(void);
 eOverlayControlFlags BKE_paint_get_overlay_flags(void);
 void BKE_paint_reset_overlay_invalid(eOverlayControlFlags flag);
@@ -124,9 +128,10 @@ void BKE_paint_copy(struct Paint *src, struct Paint *tar, const int flag);
 
 void BKE_paint_cavity_curve_preset(struct Paint *p, int preset);
 
-short BKE_paint_object_mode_from_paint_mode(ePaintMode mode);
+eObjectMode BKE_paint_object_mode_from_paint_mode(ePaintMode mode);
 struct Paint *BKE_paint_get_active_from_paintmode(struct Scene *sce, ePaintMode mode);
-struct Paint *BKE_paint_get_active(struct Scene *sce, struct ViewLayer *view_layer);
+struct Paint *BKE_paint_get_active(
+        struct Scene *sce, struct ViewLayer *view_layer, const eObjectMode object_mode);
 struct Paint *BKE_paint_get_active_from_context(const struct bContext *C);
 ePaintMode BKE_paintmode_get_active_from_context(const struct bContext *C);
 struct Brush *BKE_paint_brush(struct Paint *paint);
@@ -142,9 +147,9 @@ bool BKE_paint_proj_mesh_data_check(struct Scene *scene, struct Object *ob, bool
 /* testing face select mode
  * Texture paint could be removed since selected faces are not used
  * however hiding faces is useful */
-bool BKE_paint_select_face_test(struct Object *ob);
-bool BKE_paint_select_vert_test(struct Object *ob);
-bool BKE_paint_select_elem_test(struct Object *ob);
+bool BKE_paint_select_face_test(struct Object *ob, eObjectMode object_mode);
+bool BKE_paint_select_vert_test(struct Object *ob, eObjectMode object_mode);
+bool BKE_paint_select_elem_test(struct Object *ob, eObjectMode object_mode);
 
 /* partial visibility */
 bool paint_is_face_hidden(const struct MLoopTri *lt, const struct MVert *mvert, const struct MLoop *mloop);
@@ -157,7 +162,7 @@ float paint_grid_paint_mask(const struct GridPaintMask *gpm, unsigned level,
                             unsigned x, unsigned y);
 
 /* stroke related */
-void paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups, struct Brush *brush, const float mouse_pos[2]);
+bool paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups, struct Brush *brush, const float mouse_pos[2]);
 void paint_update_brush_rake_rotation(struct UnifiedPaintSettings *ups, struct Brush *brush, float rotation);
 
 void BKE_paint_stroke_get_average(struct Scene *scene, struct Object *ob, float stroke[3]);
@@ -196,6 +201,7 @@ typedef struct SculptSession {
 	/* PBVH acceleration structure */
 	struct PBVH *pbvh;
 	bool show_diffuse_color;
+	bool show_mask;
 
 	/* Painting on deformed mesh */
 	bool modifiers_active; /* object is deformed with some modifiers */
@@ -213,7 +219,6 @@ typedef struct SculptSession {
 	/* Layer brush persistence between strokes */
 	float (*layer_co)[3]; /* Copy of the mesh vertices' locations */
 
-	struct SculptStroke *stroke;
 	struct StrokeCache *cache;
 
 	union {
@@ -255,6 +260,7 @@ void BKE_sculpt_update_mesh_elements(
 struct MultiresModifierData *BKE_sculpt_multires_active(struct Scene *scene, struct Object *ob);
 int BKE_sculpt_mask_layers_ensure(struct Object *ob,
                                   struct MultiresModifierData *mmd);
+void BKE_sculpt_toolsettings_data_ensure(struct Scene *scene);
 
 enum {
 	SCULPT_MASK_LAYER_CALC_VERT = (1 << 0),

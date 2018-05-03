@@ -28,7 +28,7 @@
  *  \ingroup collada
  */
 #ifdef WITH_COLLADA
-#include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 
 #include "BLT_translation.h"
 
@@ -39,6 +39,9 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
+#include "BKE_object.h"
+
+#include "DEG_depsgraph.h"
 
 #include "ED_screen.h"
 #include "ED_object.h"
@@ -89,6 +92,10 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 	int include_armatures;
 	int include_shapekeys;
 	int deform_bones_only;
+
+	int include_animations;
+	int sample_animations;
+	int sampling_rate;
 
 	int include_material_textures;
 	int use_texture_copies;
@@ -141,6 +148,11 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 	include_children         = RNA_boolean_get(op->ptr, "include_children");
 	include_armatures        = RNA_boolean_get(op->ptr, "include_armatures");
 	include_shapekeys        = RNA_boolean_get(op->ptr, "include_shapekeys");
+
+	include_animations       = RNA_boolean_get(op->ptr, "include_animations");
+	sample_animations        = RNA_boolean_get(op->ptr, "sample_animations");
+	sampling_rate            = (sample_animations)? RNA_int_get(op->ptr, "sampling_rate") : 0;
+
 	deform_bones_only        = RNA_boolean_get(op->ptr, "deform_bones_only");
 
 	include_material_textures = RNA_boolean_get(op->ptr, "include_material_textures");
@@ -160,32 +172,42 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 	/* get editmode results */
 	ED_object_editmode_load(CTX_data_edit_object(C));
 
+	Scene *scene = CTX_data_scene(C);
+	CTX_data_eval_ctx(C, &eval_ctx);
+
+	ExportSettings export_settings;
+
+	export_settings.filepath = filepath;
+
+	export_settings.apply_modifiers = apply_modifiers != 0;
+	export_settings.export_mesh_type = export_mesh_type;
+	export_settings.selected = selected != 0;
+	export_settings.include_children = include_children != 0;
+	export_settings.include_armatures = include_armatures != 0;
+	export_settings.include_shapekeys = include_shapekeys != 0;
+	export_settings.deform_bones_only = deform_bones_only != 0;
+	export_settings.include_animations = include_animations;
+	export_settings.sampling_rate = sampling_rate;
+
+	export_settings.active_uv_only = active_uv_only != 0;
+	export_settings.use_texture_copies = use_texture_copies != 0;
+
+	export_settings.triangulate = triangulate != 0;
+	export_settings.use_object_instantiation = use_object_instantiation != 0;
+	export_settings.use_blender_profile = use_blender_profile != 0;
+	export_settings.sort_by_name = sort_by_name != 0;
+	export_settings.export_transformation_type = export_transformation_type;
+	export_settings.open_sim = open_sim != 0;
+	export_settings.limit_precision = limit_precision != 0;
+	export_settings.keep_bind_info = keep_bind_info != 0;
+
+	int includeFilter = OB_REL_NONE;
+	if (export_settings.include_armatures) includeFilter |= OB_REL_MOD_ARMATURE;
+	if (export_settings.include_children) includeFilter |= OB_REL_CHILDREN_RECURSIVE;
 
 	export_count = collada_export(&eval_ctx,
-		CTX_data_scene(C),
-		CTX_data_view_layer(C),
-		filepath,
-		apply_modifiers,
-		export_mesh_type,
-		selected,
-		include_children,
-		include_armatures,
-		include_shapekeys,
-		deform_bones_only,
-
-		active_uv_only,
-		include_material_textures,
-		use_texture_copies,
-
-		triangulate,
-		use_object_instantiation,
-		use_blender_profile,
-		sort_by_name,
-		export_transformation_type,
-
-		open_sim,
-		limit_precision,
-		keep_bind_info
+		scene,
+		&export_settings
 	);
 
 	if (export_count == 0) {
@@ -207,6 +229,7 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
 {
 	uiLayout *box, *row, *col, *split;
+	bool include_animations = RNA_boolean_get(imfptr, "include_animations");
 
 	/* Export Options: */
 	box = uiLayoutBox(layout);
@@ -236,6 +259,16 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
 	uiItemR(row, imfptr, "include_shapekeys", 0, NULL, ICON_NONE);
 	uiLayoutSetEnabled(row, RNA_boolean_get(imfptr, "selected"));
 
+	row = uiLayoutRow(box, false);
+	uiItemR(row, imfptr, "include_animations", 0, NULL, ICON_NONE);
+	row = uiLayoutRow(box, false);
+	if (include_animations) {
+		uiItemR(row, imfptr, "sample_animations", 0, NULL, ICON_NONE);
+		row = uiLayoutColumn(box, false);
+		uiItemR(row, imfptr, "sampling_rate", 0, NULL, ICON_NONE);
+		uiLayoutSetEnabled(row, RNA_boolean_get(imfptr, "sample_animations"));
+	}
+
 	/* Texture options */
 	box = uiLayoutBox(layout);
 	row = uiLayoutRow(box, false);
@@ -258,6 +291,7 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
 
 	row = uiLayoutRow(box, false);
 	uiItemR(row, imfptr, "deform_bones_only", 0, NULL, ICON_NONE);
+
 	row = uiLayoutRow(box, false);
 	uiItemR(row, imfptr, "open_sim", 0, NULL, ICON_NONE);
 
@@ -277,7 +311,6 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
 	split = uiLayoutSplit(row, 0.6f, UI_LAYOUT_ALIGN_RIGHT);
 	uiItemL(split, IFACE_("Transformation Type"), ICON_NONE);
 	uiItemR(split, imfptr, "export_transformation_type_selection", 0, "", ICON_NONE);
-
 	row = uiLayoutRow(box, false);
 	uiItemR(row, imfptr, "sort_by_name", 0, NULL, ICON_NONE);
 
@@ -354,20 +387,29 @@ void WM_OT_collada_export(wmOperatorType *ot)
 	RNA_def_enum(func, "export_mesh_type_selection", prop_bc_export_mesh_type, 0,
 	             "Resolution", "Modifier resolution for export");
 
-	RNA_def_boolean(func, "selected", 0, "Selection Only",
+	RNA_def_boolean(func, "selected", false, "Selection Only",
 	                "Export only selected elements");
 
-	RNA_def_boolean(func, "include_children", 0, "Include Children",
+	RNA_def_boolean(func, "include_children", false, "Include Children",
 	                "Export all children of selected objects (even if not selected)");
 
-	RNA_def_boolean(func, "include_armatures", 0, "Include Armatures",
+	RNA_def_boolean(func, "include_armatures", false, "Include Armatures",
 	                "Export related armatures (even if not selected)");
 
-	RNA_def_boolean(func, "include_shapekeys", 1, "Include Shape Keys",
+	RNA_def_boolean(func, "include_shapekeys", false, "Include Shape Keys",
 	                "Export all Shape Keys from Mesh Objects");
 
-	RNA_def_boolean(func, "deform_bones_only", 0, "Deform Bones only",
-	                "Only export deforming bones with armatures");
+	RNA_def_boolean(func, "deform_bones_only", false, "Deform Bones only",
+	            	"Only export deforming bones with armatures");
+
+	RNA_def_boolean(func, "include_animations", true,
+		"Include Animations", "Export Animations if available.\nExporting Animations will enforce the decomposition of node transforms\ninto  <translation> <rotation> and <scale> components");
+
+	RNA_def_boolean(func, "sample_animations", 0,
+		"Sample Animations", "Auto-generate keyframes with a frame distance set by 'Sampling Rate'.\nWhen disabled, export only the keyframes defined in the animation f-curves (may be less accurate)");
+
+	RNA_def_int(func, "sampling_rate", 1, 1, INT_MAX,
+		"Sampling Rate", "The distance between 2 keyframes. 1 means: Every frame is keyed", 1, INT_MAX);
 
 
 	RNA_def_boolean(func, "active_uv_only", 0, "Only Selected UV Map",
@@ -421,6 +463,7 @@ static int wm_collada_import_exec(bContext *C, wmOperator *op)
 	int min_chain_length;
 
 	int keep_bind_info;
+	ImportSettings import_settings;
 
 	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
 		BKE_report(op->reports, RPT_ERROR, "No filename given");
@@ -438,15 +481,18 @@ static int wm_collada_import_exec(bContext *C, wmOperator *op)
 	min_chain_length = RNA_int_get(op->ptr, "min_chain_length");
 
 	RNA_string_get(op->ptr, "filepath", filename);
-	if (collada_import(
-	        C, filename,
-	        import_units,
-	        find_chains,
-	        auto_connect,
-	        fix_orientation,
-	        min_chain_length,
-	        keep_bind_info) )
+
+	import_settings.filepath = filename;
+	import_settings.import_units = import_units != 0;
+	import_settings.auto_connect = auto_connect != 0;
+	import_settings.find_chains = find_chains != 0;
+	import_settings.fix_orientation = fix_orientation != 0;
+	import_settings.min_chain_length = min_chain_length;
+	import_settings.keep_bind_info = keep_bind_info != 0;
+
+	if (collada_import(C, &import_settings) )
 	{
+		DEG_id_tag_update(&CTX_data_scene(C)->id, DEG_TAG_BASE_FLAGS_UPDATE);
 		return OPERATOR_FINISHED;
 	}
 	else {

@@ -1507,8 +1507,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			for (git=tempglist.begin(); git!=tempglist.end(); git++)
 			{
 				Group* group = *git;
-				GroupObject* go;
-				for (go=(GroupObject*)group->gobject.first; go; go=(GroupObject*)go->next)
+				FOREACH_GROUP_OBJECT(group, blenderobject)
 				{
 					Object* blenderobject = go->ob;
 					if (converter.FindGameObject(blenderobject) == nullptr)
@@ -1545,6 +1544,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 						}
 					}
 				}
+				FOREACH_GROUP_OBJECT_END
 			}
 		}
 	}

@@ -23,7 +23,6 @@
 #include "render/shader.h"
 #include "render/svm.h"
 
-#include "util/util_debug.h"
 #include "util/util_logging.h"
 #include "util/util_foreach.h"
 #include "util/util_progress.h"
@@ -400,6 +399,12 @@ uint SVMCompiler::attribute(AttributeStandard std)
 	return shader_manager->get_attribute_id(std);
 }
 
+uint SVMCompiler::attribute_standard(ustring name)
+{
+	AttributeStandard std = Attribute::name_standard(name.c_str());
+	return (std)? attribute(std): attribute(name);
+}
+
 bool SVMCompiler::node_skip_input(ShaderNode * /*node*/, ShaderInput *input)
 {
 	/* nasty exception .. */
@@ -446,6 +451,10 @@ void SVMCompiler::generate_node(ShaderNode *node, ShaderNodeSet& done)
 
 	if(node->has_object_dependency()) {
 		current_shader->has_object_dependency = true;
+	}
+
+	if(node->has_attribute_dependency()) {
+		current_shader->has_attribute_dependency = true;
 	}
 
 	if(node->has_integrator_dependency()) {
@@ -831,6 +840,7 @@ void SVMCompiler::compile(Scene *scene,
 	shader->has_surface_spatial_varying = false;
 	shader->has_volume_spatial_varying = false;
 	shader->has_object_dependency = false;
+	shader->has_attribute_dependency = false;
 	shader->has_integrator_dependency = false;
 
 	/* generate bump shader */

@@ -280,7 +280,7 @@ static void animrecord_check_state(Scene *scene, ID *id, wmTimer *animtimer)
 				/* only push down if action is more than 1-2 frames long */
 				calc_action_range(adt->action, &astart, &aend, 1);
 				if (aend > astart + 2.0f) {
-					NlaStrip *strip = add_nlastrip_to_stack(adt, adt->action);
+					NlaStrip *strip = BKE_nlastack_add_strip(adt, adt->action);
 					
 					/* clear reference to action now that we've pushed it onto the stack */
 					id_us_min(&adt->action->id);
@@ -715,9 +715,6 @@ static void recalcData_spaceclip(TransInfo *t)
 static void recalcData_objects(TransInfo *t)
 {
 	Base *base = t->view_layer->basact;
-	EvaluationContext eval_ctx;
-
-	CTX_data_eval_ctx(t->context, &eval_ctx);
 
 	if (t->obedit) {
 		if (ELEM(t->obedit->type, OB_CURVE, OB_SURF)) {
@@ -902,9 +899,11 @@ static void recalcData_objects(TransInfo *t)
 			BIK_clear_data(ob->pose);
 		}
 		else
-			BKE_pose_where_is(&eval_ctx, t->scene, ob);
+			BKE_pose_where_is(&t->eval_ctx, t->scene, ob);
 	}
-	else if (base && (base->object->mode & OB_MODE_PARTICLE_EDIT) && PE_get_current(t->scene, t->view_layer, base->object)) {
+	else if (base && (t->eval_ctx.object_mode & OB_MODE_PARTICLE_EDIT) &&
+	         PE_get_current(t->scene, base->object))
+	{
 		if (t->state != TRANS_CANCEL) {
 			applyProject(t);
 		}
@@ -1115,6 +1114,8 @@ static int initTransInfo_edit_pet_to_flag(const int proportional)
  */
 void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *event)
 {
+	CTX_data_eval_ctx(C, &t->eval_ctx);
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *sce = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 	ToolSettings *ts = CTX_data_tool_settings(C);
@@ -1125,7 +1126,8 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	bGPdata *gpd = CTX_data_gpencil_data(C);
 	RenderEngineType *engine_type = CTX_data_engine_type(C);
 	PropertyRNA *prop;
-	
+
+	t->depsgraph = depsgraph;
 	t->scene = sce;
 	t->view_layer = view_layer;
 	t->engine_type = engine_type;
@@ -1264,7 +1266,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			}
 		}
 
-		if (ob && ob->mode & OB_MODE_ALL_PAINT) {
+		if (ob && t->eval_ctx.object_mode & OB_MODE_ALL_PAINT) {
 			Paint *p = BKE_paint_get_active_from_context(C);
 			if (p && p->brush && (p->brush->flag & BRUSH_CURVE)) {
 				t->options |= CTX_PAINT_CURVE;
@@ -1813,7 +1815,7 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
 		}
 	}
 	else if (t->options & CTX_PAINT_CURVE) {
-		Paint *p = BKE_paint_get_active(t->scene, t->view_layer);
+		Paint *p = BKE_paint_get_active(t->scene, t->view_layer, t->eval_ctx.object_mode);
 		Brush *br = p->brush;
 		PaintCurve *pc = br->paint_curve;
 		copy_v3_v3(r_center, pc->points[pc->add_index - 1].bez.vec[1]);

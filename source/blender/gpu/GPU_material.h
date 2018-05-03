@@ -110,7 +110,8 @@ typedef enum GPUBuiltin {
 	GPU_INVERSE_LOC_TO_VIEW_MATRIX = (1 << 14),
 	GPU_OBJECT_INFO =           (1 << 15),
 	GPU_VOLUME_DENSITY =        (1 << 16),
-	GPU_VOLUME_FLAME =          (1 << 17)
+	GPU_VOLUME_FLAME =          (1 << 17),
+	GPU_VOLUME_TEMPERATURE =    (1 << 18)
 } GPUBuiltin;
 
 typedef enum GPUOpenGLBuiltin {
@@ -135,14 +136,19 @@ typedef enum GPUBlendMode {
 
 typedef struct GPUNodeStack {
 	GPUType type;
-	const char *name;
 	float vec[4];
 	struct GPUNodeLink *link;
 	bool hasinput;
 	bool hasoutput;
 	short sockettype;
+	bool end;
 } GPUNodeStack;
 
+typedef enum GPUMaterialStatus {
+	GPU_MAT_FAILED = 0,
+	GPU_MAT_QUEUED,
+	GPU_MAT_SUCCESS,
+} GPUMaterialStatus;
 
 #define GPU_DYNAMIC_GROUP_FROM_TYPE(f) ((f) & 0xFFFF0000)
 
@@ -244,9 +250,11 @@ GPUMaterial *GPU_material_from_nodetree_find(
         struct ListBase *gpumaterials, const void *engine_type, int options);
 GPUMaterial *GPU_material_from_nodetree(
         struct Scene *scene, struct bNodeTree *ntree, struct ListBase *gpumaterials, const void *engine_type, int options,
-        const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines);
+        const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines, bool deferred);
 GPUMaterial *GPU_material_from_blender(struct Scene *scene, struct Material *ma, bool use_opensubdiv);
 GPUMaterial *GPU_material_matcap(struct Scene *scene, struct Material *ma, bool use_opensubdiv);
+void GPU_material_generate_pass(
+		GPUMaterial *mat, const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines);
 void GPU_material_free(struct ListBase *gpumaterial);
 
 void GPU_materials_free(void);
@@ -262,6 +270,8 @@ bool GPU_material_bound(GPUMaterial *material);
 struct Scene *GPU_material_scene(GPUMaterial *material);
 GPUMatType GPU_Material_get_type(GPUMaterial *material);
 struct GPUPass *GPU_material_get_pass(GPUMaterial *material);
+struct ListBase *GPU_material_get_inputs(GPUMaterial *material);
+GPUMaterialStatus GPU_material_status(GPUMaterial *mat);
 
 struct GPUUniformBuffer *GPU_material_get_uniform_buffer(GPUMaterial *material);
 void GPU_material_create_uniform_buffer(GPUMaterial *material, struct ListBase *inputs);
@@ -357,10 +367,9 @@ void GPU_zenith_update_color(float color[3]);
 struct GPUParticleInfo
 {
 	float scalprops[4];
-	float location[3];
+	float location[4];
 	float velocity[3];
 	float angular_velocity[3];
-	int random_id;
 };
 
 #ifdef WITH_OPENSUBDIV
@@ -368,6 +377,9 @@ struct DerivedMesh;
 void GPU_material_update_fvar_offset(GPUMaterial *gpu_material,
                                      struct DerivedMesh *dm);
 #endif
+
+void GPU_pass_cache_garbage_collect(void);
+void GPU_pass_cache_free(void);
 
 #ifdef __cplusplus
 }

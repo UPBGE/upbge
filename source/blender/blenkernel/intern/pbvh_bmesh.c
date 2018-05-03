@@ -255,7 +255,7 @@ static void pbvh_bmesh_node_split(PBVH *bvh, const BBC *bbc_array, int node_inde
 	const int cd_face_node_offset = bvh->cd_face_node_offset;
 	PBVHNode *n = &bvh->nodes[node_index];
 
-	if (BLI_gset_size(n->bm_faces) <= bvh->leaf_limit) {
+	if (BLI_gset_len(n->bm_faces) <= bvh->leaf_limit) {
 		/* Node limit not exceeded */
 		pbvh_bmesh_node_finalize(bvh, node_index, cd_vert_node_offset, cd_face_node_offset);
 		return;
@@ -289,8 +289,8 @@ static void pbvh_bmesh_node_split(PBVH *bvh, const BBC *bbc_array, int node_inde
 	         *c2 = &bvh->nodes[children + 1];
 	c1->flag |= PBVH_Leaf;
 	c2->flag |= PBVH_Leaf;
-	c1->bm_faces = BLI_gset_ptr_new_ex("bm_faces", BLI_gset_size(n->bm_faces) / 2);
-	c2->bm_faces = BLI_gset_ptr_new_ex("bm_faces", BLI_gset_size(n->bm_faces) / 2);
+	c1->bm_faces = BLI_gset_ptr_new_ex("bm_faces", BLI_gset_len(n->bm_faces) / 2);
+	c2->bm_faces = BLI_gset_ptr_new_ex("bm_faces", BLI_gset_len(n->bm_faces) / 2);
 
 	/* Partition the parent node's faces between the two children */
 	GSET_ITER (gs_iter, n->bm_faces) {
@@ -305,11 +305,11 @@ static void pbvh_bmesh_node_split(PBVH *bvh, const BBC *bbc_array, int node_inde
 
 	/* Enforce at least one primitive in each node */
 	GSet *empty = NULL, *other;
-	if (BLI_gset_size(c1->bm_faces) == 0) {
+	if (BLI_gset_len(c1->bm_faces) == 0) {
 		empty = c1->bm_faces;
 		other = c2->bm_faces;
 	}
-	else if (BLI_gset_size(c2->bm_faces) == 0) {
+	else if (BLI_gset_len(c2->bm_faces) == 0) {
 		empty = c2->bm_faces;
 		other = c1->bm_faces;
 	}
@@ -375,7 +375,7 @@ static void pbvh_bmesh_node_split(PBVH *bvh, const BBC *bbc_array, int node_inde
 static bool pbvh_bmesh_node_limit_ensure(PBVH *bvh, int node_index)
 {
 	GSet *bm_faces = bvh->nodes[node_index].bm_faces;
-	const int bm_faces_size = BLI_gset_size(bm_faces);
+	const int bm_faces_size = BLI_gset_len(bm_faces);
 	if (bm_faces_size <= bvh->leaf_limit) {
 		/* Node limit not exceeded */
 		return false;
@@ -555,9 +555,9 @@ static int pbvh_bmesh_node_vert_use_count(PBVH *bvh, PBVHNode *node, BMVert *v)
 #endif
 
 #define pbvh_bmesh_node_vert_use_count_is_equal(bvh, node, v, n) \
-	(pbvh_bmesh_node_vert_use_count_ex(bvh, node, v, (n) + 1) == n)
+	(pbvh_bmesh_node_vert_use_count_at_most(bvh, node, v, (n) + 1) == n)
 
-static int pbvh_bmesh_node_vert_use_count_ex(PBVH *bvh, PBVHNode *node, BMVert *v, const int count_max)
+static int pbvh_bmesh_node_vert_use_count_at_most(PBVH *bvh, PBVHNode *node, BMVert *v, const int count_max)
 {
 	int count = 0;
 	BMFace *f;
@@ -1238,7 +1238,7 @@ static bool pbvh_bmesh_subdivide_long_edges(
 	bool any_subdivided = false;
 
 	while (!BLI_heap_is_empty(eq_ctx->q->heap)) {
-		BMVert **pair = BLI_heap_popmin(eq_ctx->q->heap);
+		BMVert **pair = BLI_heap_pop_min(eq_ctx->q->heap);
 		BMVert *v1 = pair[0], *v2 = pair[1];
 		BMEdge *e;
 
@@ -1326,7 +1326,7 @@ static void pbvh_bmesh_collapse_edge(
 	/* Note: this could be done with BM_vert_splice(), but that
 	 * requires handling other issues like duplicate edges, so doesn't
 	 * really buy anything. */
-	BLI_buffer_empty(deleted_faces);
+	BLI_buffer_clear(deleted_faces);
 
 	BMLoop *l;
 
@@ -1455,7 +1455,7 @@ static bool pbvh_bmesh_collapse_short_edges(
 	GHash *deleted_verts = BLI_ghash_ptr_new("deleted_verts");
 
 	while (!BLI_heap_is_empty(eq_ctx->q->heap)) {
-		BMVert **pair = BLI_heap_popmin(eq_ctx->q->heap);
+		BMVert **pair = BLI_heap_pop_min(eq_ctx->q->heap);
 		BMVert *v1  = pair[0], *v2  = pair[1];
 		BLI_mempool_free(eq_ctx->pool, pair);
 		pair = NULL;
@@ -2011,10 +2011,10 @@ void BKE_pbvh_bmesh_node_save_orig(PBVHNode *node)
 	if (node->bm_orco)
 		return;
 
-	const int totvert = BLI_gset_size(node->bm_unique_verts) +
-	                    BLI_gset_size(node->bm_other_verts);
+	const int totvert = BLI_gset_len(node->bm_unique_verts) +
+	                    BLI_gset_len(node->bm_other_verts);
 
-	const int tottri = BLI_gset_size(node->bm_faces);
+	const int tottri = BLI_gset_len(node->bm_faces);
 
 	node->bm_orco = MEM_mallocN(sizeof(*node->bm_orco) * totvert, __func__);
 	node->bm_ortri = MEM_mallocN(sizeof(*node->bm_ortri) * tottri, __func__);
@@ -2189,12 +2189,12 @@ static void pbvh_bmesh_verify(PBVH *bvh)
 		int totface = 0, totvert = 0;
 		for (int i = 0; i < bvh->totnode; i++) {
 			PBVHNode *n = &bvh->nodes[i];
-			totface += n->bm_faces ? BLI_gset_size(n->bm_faces) : 0;
-			totvert += n->bm_unique_verts ? BLI_gset_size(n->bm_unique_verts) : 0;
+			totface += n->bm_faces ? BLI_gset_len(n->bm_faces) : 0;
+			totvert += n->bm_unique_verts ? BLI_gset_len(n->bm_unique_verts) : 0;
 		}
 
-		BLI_assert(totface == BLI_gset_size(faces_all));
-		BLI_assert(totvert == BLI_gset_size(verts_all));
+		BLI_assert(totface == BLI_gset_len(faces_all));
+		BLI_assert(totvert == BLI_gset_len(verts_all));
 	}
 
 	{

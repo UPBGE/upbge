@@ -12,8 +12,8 @@ uniform sampler2D normalBuffer;
 
 void main()
 {
-	vec4 texel_size = 1.0 / vec2(textureSize(depthBuffer, 0)).xyxy;
-	vec2 uvs = saturate(gl_FragCoord.xy * texel_size.xy);
+	vec2 texel_size = 1.0 / vec2(textureSize(depthBuffer, 0)).xy;
+	vec2 uvs = saturate(gl_FragCoord.xy * texel_size);
 
 	float depth = textureLod(depthBuffer, uvs, 0.0).r;
 
@@ -23,28 +23,33 @@ void main()
 
 	vec3 bent_normal;
 	float visibility;
-#if 1
-	gtao_deferred(normal, viewPosition, depth, visibility, bent_normal);
-#else
-	vec2 rand = vec2((1.0 / 4.0) * float((int(gl_FragCoord.y) & 0x1) * 2 + (int(gl_FragCoord.x) & 0x1)), 0.5);
-	rand = fract(rand.x + texture(utilTex, vec3(floor(gl_FragCoord.xy * 0.5) / LUT_SIZE, 2.0)).rg);
-	gtao(normal, viewPosition, rand, visibility, bent_normal);
-#endif
-	denoise_ao(normal, depth, visibility, bent_normal);
 
-	FragColor = vec4(visibility);
+	vec4 noise = texelfetch_noise_tex(gl_FragCoord.xy);
+
+	gtao_deferred(normal, viewPosition, noise, depth, visibility, bent_normal);
+
+	/* Handle Background case. Prevent artifact due to uncleared Horizon Render Target. */
+	FragColor = vec4((depth == 1.0) ? 0.0 : visibility);
 }
 
 #else
-uniform float sampleNbr;
+
+#ifdef LAYERED_DEPTH
+uniform sampler2DArray depthBufferLayered;
+uniform int layer;
+# define gtao_depthBuffer depthBufferLayered
+# define gtao_textureLod(a, b, c) textureLod(a, vec3(b, layer), c)
+
+#else
+# define gtao_depthBuffer depthBuffer
+# define gtao_textureLod(a, b, c) textureLod(a, b, c)
+
+#endif
 
 void main()
 {
-	ivec2 hr_co = ivec2(gl_FragCoord.xy);
-	ivec2 fs_co = get_fs_co(hr_co);
-
-	vec2 uvs = saturate((vec2(fs_co) + 0.5) / vec2(textureSize(depthBuffer, 0)));
-	float depth = textureLod(depthBuffer, uvs, 0.0).r;
+	vec2 uvs = saturate(gl_FragCoord.xy / vec2(textureSize(gtao_depthBuffer, 0).xy));
+	float depth = gtao_textureLod(gtao_depthBuffer, uvs, 0.0).r;
 
 	if (depth == 1.0) {
 		/* Do not trace for background */
@@ -56,14 +61,17 @@ void main()
 	depth = saturate(depth - 3e-6); /* Tweaked for 24bit depth buffer. */
 
 	vec3 viewPosition = get_view_space_from_depth(uvs, depth);
-
-	float phi = get_phi(hr_co, fs_co, sampleNbr);
-	float offset = get_offset(fs_co, sampleNbr);
+	vec4 noise = texelfetch_noise_tex(gl_FragCoord.xy);
 	vec2 max_dir = get_max_dir(viewPosition.z);
+	vec4 dirs;
+	dirs.xy = get_ao_dir(noise.x * 0.5);
+	dirs.zw = get_ao_dir(noise.x * 0.5 + 0.5);
 
-	FragColor.xy = search_horizon_sweep(phi, viewPosition, uvs, offset, max_dir);
+	/* Search in 4 directions. */
+	FragColor.xy = search_horizon_sweep(dirs.xy, viewPosition, uvs, noise.y, max_dir);
+	FragColor.zw = search_horizon_sweep(dirs.zw, viewPosition, uvs, noise.y, max_dir);
 
 	/* Resize output for integer texture. */
-	FragColor = pack_horizons(FragColor.xy).xyxy;
+	FragColor = pack_horizons(FragColor);
 }
 #endif

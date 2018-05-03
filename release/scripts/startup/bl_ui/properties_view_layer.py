@@ -178,9 +178,7 @@ class VIEWLAYER_PT_eevee_ambient_occlusion(ViewLayerButtonsPanel, Panel):
 
         col = layout.column()
         col.template_override_property(layer_props, scene_props, "gtao_use_bent_normals")
-        col.template_override_property(layer_props, scene_props, "gtao_denoise")
         col.template_override_property(layer_props, scene_props, "gtao_bounce")
-        col.template_override_property(layer_props, scene_props, "gtao_samples")
         col.template_override_property(layer_props, scene_props, "gtao_distance")
         col.template_override_property(layer_props, scene_props, "gtao_factor")
         col.template_override_property(layer_props, scene_props, "gtao_quality")
@@ -377,7 +375,6 @@ class VIEWLAYER_PT_eevee_screen_space_reflections(ViewLayerButtonsPanel, Panel):
         col = layout.column()
         col.template_override_property(layer_props, scene_props, "ssr_halfres")
         col.template_override_property(layer_props, scene_props, "ssr_refraction")
-        col.template_override_property(layer_props, scene_props, "ssr_ray_count")
         col.template_override_property(layer_props, scene_props, "ssr_quality")
         col.template_override_property(layer_props, scene_props, "ssr_max_roughness")
         col.template_override_property(layer_props, scene_props, "ssr_thickness")
@@ -427,6 +424,7 @@ class VIEWLAYER_PT_eevee_sampling(ViewLayerButtonsPanel, Panel):
 
         col = layout.column()
         col.template_override_property(layer_props, scene_props, "taa_samples")
+        col.template_override_property(layer_props, scene_props, "taa_render_samples")
 
 
 class VIEWLAYER_PT_eevee_indirect_lighting(ViewLayerButtonsPanel, Panel):
@@ -452,6 +450,35 @@ class VIEWLAYER_PT_eevee_indirect_lighting(ViewLayerButtonsPanel, Panel):
         col.template_override_property(layer_props, scene_props, "gi_visibility_resolution")
 
 
+class VIEWLAYER_PT_eevee_layer_passes(ViewLayerButtonsPanel, Panel):
+    bl_label = "Passes"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        rd = scene.render
+        view_layer = scene.view_layers.active
+
+        split = layout.split()
+
+        col = split.column()
+        col.prop(view_layer, "use_pass_combined")
+        col.prop(view_layer, "use_pass_z")
+        col.prop(view_layer, "use_pass_mist")
+        col.prop(view_layer, "use_pass_normal")
+        col.separator()
+        col.prop(view_layer, "use_pass_ambient_occlusion")
+
+        col = split.column()
+        col.label(text="Subsurface:")
+        row = col.row(align=True)
+        row.prop(view_layer, "use_pass_subsurface_direct", text="Direct", toggle=True)
+        row.prop(view_layer, "use_pass_subsurface_color", text="Color", toggle=True)
+
+
 classes = (
     VIEWLAYER_UL_viewlayers,
     VIEWLAYER_PT_layers,
@@ -468,6 +495,7 @@ classes = (
     VIEWLAYER_PT_eevee_motion_blur,
     VIEWLAYER_PT_eevee_depth_of_field,
     VIEWLAYER_PT_eevee_bloom,
+    VIEWLAYER_PT_eevee_layer_passes,
 )
 
 if __name__ == "__main__":  # only for live edit.

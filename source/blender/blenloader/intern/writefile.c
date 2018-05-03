@@ -132,7 +132,7 @@
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_packedFile_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_lightprobe_types.h"
@@ -708,8 +708,10 @@ static void write_iddata(void *wd, const ID *id)
 
 static void write_previews(WriteData *wd, const PreviewImage *prv_orig)
 {
-	/* Never write previews when doing memsave (i.e. undo/redo)! */
-	if (prv_orig && !wd->current) {
+	/* Note we write previews also for undo steps. It takes up some memory,
+	 * but not doing so would causes all previews to be re-rendered after
+	 * undo which is too expensive. */
+	if (prv_orig) {
 		PreviewImage prv = *prv_orig;
 
 		/* don't write out large previews if not requested */
@@ -1174,7 +1176,7 @@ static void write_renderinfo(WriteData *wd, Main *mainvar)
 	}
 }
 
-static void write_keymapitem(WriteData *wd, wmKeyMapItem *kmi)
+static void write_keymapitem(WriteData *wd, const wmKeyMapItem *kmi)
 {
 	writestruct(wd, DATA, wmKeyMapItem, 1, kmi);
 	if (kmi->properties) {
@@ -1182,26 +1184,18 @@ static void write_keymapitem(WriteData *wd, wmKeyMapItem *kmi)
 	}
 }
 
-static void write_userdef(WriteData *wd)
+static void write_userdef(WriteData *wd, const UserDef *userdef)
 {
-	bTheme *btheme;
-	wmKeyMap *keymap;
-	wmKeyMapItem *kmi;
-	wmKeyMapDiffItem *kmdi;
-	bAddon *bext;
-	bPathCompare *path_cmp;
-	uiStyle *style;
+	writestruct(wd, USER, UserDef, 1, userdef);
 
-	writestruct(wd, USER, UserDef, 1, &U);
-
-	for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+	for (const bTheme *btheme = userdef->themes.first; btheme; btheme = btheme->next) {
 		writestruct(wd, DATA, bTheme, 1, btheme);
 	}
 
-	for (keymap = U.user_keymaps.first; keymap; keymap = keymap->next) {
+	for (const wmKeyMap *keymap = userdef->user_keymaps.first; keymap; keymap = keymap->next) {
 		writestruct(wd, DATA, wmKeyMap, 1, keymap);
 
-		for (kmdi = keymap->diff_items.first; kmdi; kmdi = kmdi->next) {
+		for (const wmKeyMapDiffItem *kmdi = keymap->diff_items.first; kmdi; kmdi = kmdi->next) {
 			writestruct(wd, DATA, wmKeyMapDiffItem, 1, kmdi);
 			if (kmdi->remove_item) {
 				write_keymapitem(wd, kmdi->remove_item);
@@ -1211,23 +1205,23 @@ static void write_userdef(WriteData *wd)
 			}
 		}
 
-		for (kmi = keymap->items.first; kmi; kmi = kmi->next) {
+		for (const wmKeyMapItem *kmi = keymap->items.first; kmi; kmi = kmi->next) {
 			write_keymapitem(wd, kmi);
 		}
 	}
 
-	for (bext = U.addons.first; bext; bext = bext->next) {
+	for (const bAddon *bext = userdef->addons.first; bext; bext = bext->next) {
 		writestruct(wd, DATA, bAddon, 1, bext);
 		if (bext->prop) {
 			IDP_WriteProperty(bext->prop, wd);
 		}
 	}
 
-	for (path_cmp = U.autoexec_paths.first; path_cmp; path_cmp = path_cmp->next) {
+	for (const bPathCompare *path_cmp = userdef->autoexec_paths.first; path_cmp; path_cmp = path_cmp->next) {
 		writestruct(wd, DATA, bPathCompare, 1, path_cmp);
 	}
 
-	for (style = U.uistyles.first; style; style = style->next) {
+	for (const uiStyle *style = userdef->uistyles.first; style; style = style->next) {
 		writestruct(wd, DATA, uiStyle, 1, style);
 	}
 }
@@ -1343,19 +1337,22 @@ static void write_particlesettings(WriteData *wd, ParticleSettings *part)
 		if (part->roughcurve) {
 			write_curvemapping(wd, part->roughcurve);
 		}
+		if (part->twistcurve) {
+			write_curvemapping(wd, part->twistcurve);
+		}
 
 		for (ParticleDupliWeight *dw = part->dupliweights.first; dw; dw = dw->next) {
 			/* update indices, but only if dw->ob is set (can be NULL after loading e.g.) */
 			if (dw->ob != NULL) {
 				dw->index = 0;
 				if (part->dup_group) { /* can be NULL if lining fails or set to None */
-					FOREACH_GROUP_OBJECT(part->dup_group, object)
+					FOREACH_GROUP_OBJECT_BEGIN(part->dup_group, object)
 					{
 						if (object != dw->ob) {
 							dw->index++;
 						}
 					}
-					FOREACH_GROUP_OBJECT_END
+					FOREACH_GROUP_OBJECT_END;
 				}
 			}
 			writestruct(wd, DATA, ParticleDupliWeight, 1, dw);
@@ -2594,7 +2591,6 @@ static void write_scene_collection(WriteData *wd, SceneCollection *sc)
 	writestruct(wd, DATA, SceneCollection, 1, sc);
 
 	writelist(wd, DATA, LinkData, &sc->objects);
-	writelist(wd, DATA, LinkData, &sc->filter_objects);
 
 	for (SceneCollection *nsc = sc->scene_collections.first; nsc; nsc = nsc->next) {
 		write_scene_collection(wd, nsc);
@@ -2930,7 +2926,7 @@ static void write_soops(WriteData *wd, SpaceOops *so)
 	if (ts) {
 		SpaceOops so_flat = *so;
 
-		int elems = BLI_mempool_count(ts);
+		int elems = BLI_mempool_len(ts);
 		/* linearize mempool to array */
 		TreeStoreElem *data = elems ? BLI_mempool_as_arrayN(ts, "TreeStoreElem") : NULL;
 
@@ -3785,6 +3781,7 @@ static void write_workspace(WriteData *wd, WorkSpace *workspace)
 	writelist(wd, DATA, WorkSpaceLayout, layouts);
 	writelist(wd, DATA, WorkSpaceDataRelation, &workspace->hook_layout_relations);
 	writelist(wd, DATA, WorkSpaceDataRelation, &workspace->scene_viewlayer_relations);
+	writelist(wd, DATA, wmOwnerID, &workspace->owner_ids);
 	writelist(wd, DATA, TransformOrientation, transform_orientations);
 }
 
@@ -3867,6 +3864,7 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 	memset(fg.pad, 0, sizeof(fg.pad));
 	memset(fg.filename, 0, sizeof(fg.filename));
 	memset(fg.build_hash, 0, sizeof(fg.build_hash));
+	fg.pad1 = NULL;
 
 	current_screen_compat(mainvar, is_undo, &screen, &scene, &render_layer);
 
@@ -4117,7 +4115,7 @@ static bool write_file_handle(
 	mywrite_flush(wd);
 
 	if (write_flags & G_FILE_USERPREFS) {
-		write_userdef(wd);
+		write_userdef(wd, &U);
 	}
 
 	/* Write DNA last, because (to be implemented) test for which structs are written.

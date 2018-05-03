@@ -263,7 +263,8 @@ void BlenderSync::sync_background_light(bool use_portal)
 
 /* Object */
 
-Object *BlenderSync::sync_object(BL::Depsgraph::duplis_iterator& b_dupli_iter,
+Object *BlenderSync::sync_object(BL::Depsgraph& b_depsgraph,
+                                 BL::Depsgraph::duplis_iterator& b_dupli_iter,
                                  uint layer_flag,
                                  float motion_time,
                                  bool hide_tris,
@@ -346,27 +347,16 @@ Object *BlenderSync::sync_object(BL::Depsgraph::duplis_iterator& b_dupli_iter,
 	if(motion) {
 		object = object_map.find(key);
 
-		if(object && (scene->need_motion() == Scene::MOTION_PASS ||
-		              object_use_motion(b_parent, b_ob)))
-		{
-			/* object transformation */
-			if(tfm != object->tfm) {
-				VLOG(1) << "Object " << b_ob.name() << " motion detected.";
-				if(motion_time == -1.0f || motion_time == 1.0f) {
-					object->use_motion = true;
-				}
-			}
-
-			if(motion_time == -1.0f) {
-				object->motion.pre = tfm;
-			}
-			else if(motion_time == 1.0f) {
-				object->motion.post = tfm;
+		if(object && object->use_motion()) {
+			/* Set transform at matching motion time step. */
+			int time_index = object->motion_step(motion_time);
+			if(time_index >= 0) {
+				object->motion[time_index] = tfm;
 			}
 
 			/* mesh deformation */
 			if(object->mesh)
-				sync_mesh_motion(b_ob, object, motion_time);
+				sync_mesh_motion(b_depsgraph, b_ob, object, motion_time);
 		}
 
 		return object;
@@ -379,7 +369,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph::duplis_iterator& b_dupli_iter,
 		object_updated = true;
 	
 	/* mesh sync */
-	object->mesh = sync_mesh(b_ob, b_ob_instance, object_updated, hide_tris);
+	object->mesh = sync_mesh(b_depsgraph, b_ob, b_ob_instance, object_updated, hide_tris);
 
 	/* special case not tracked by object update flags */
 
@@ -408,25 +398,37 @@ Object *BlenderSync::sync_object(BL::Depsgraph::duplis_iterator& b_dupli_iter,
 		object->name = b_ob.name().c_str();
 		object->pass_id = b_ob.pass_index();
 		object->tfm = tfm;
-		object->motion.pre = transform_empty();
-		object->motion.post = transform_empty();
-		object->use_motion = false;
+		object->motion.clear();
 
 		/* motion blur */
-		if(scene->need_motion() == Scene::MOTION_BLUR && object->mesh) {
+		Scene::MotionType need_motion = scene->need_motion();
+		if(need_motion != Scene::MOTION_NONE && object->mesh) {
 			Mesh *mesh = object->mesh;
-
 			mesh->use_motion_blur = false;
+			mesh->motion_steps = 0;
 
-			if(object_use_motion(b_parent, b_ob)) {
-				if(object_use_deform_motion(b_parent, b_ob)) {
-					mesh->motion_steps = object_motion_steps(b_ob);
+			uint motion_steps;
+
+			if(scene->need_motion() == Scene::MOTION_BLUR) {
+				motion_steps = object_motion_steps(b_parent, b_ob);
+				if(motion_steps && object_use_deform_motion(b_parent, b_ob)) {
+					mesh->motion_steps = motion_steps;
 					mesh->use_motion_blur = true;
 				}
+			}
+			else {
+				motion_steps = 3;
+				mesh->motion_steps = motion_steps;
+			}
 
-				vector<float> times = object->motion_times();
-				foreach(float time, times)
-					motion_times.insert(time);
+			object->motion.resize(motion_steps, transform_empty());
+
+			if(motion_steps) {
+				object->motion[motion_steps/2] = tfm;
+
+				for(size_t step = 0; step < motion_steps; step++) {
+					motion_times.insert(object->motion_time(step));
+				}
 			}
 		}
 
@@ -469,6 +471,7 @@ static bool object_render_hide(BL::Object& b_ob,
 	BL::Object::particle_systems_iterator b_psys;
 
 	bool hair_present = false;
+	bool has_particles = false;
 	bool show_emitter = false;
 	bool hide_emitter = false;
 	bool hide_as_dupli_parent = false;
@@ -478,20 +481,17 @@ static bool object_render_hide(BL::Object& b_ob,
 		if((b_psys->settings().render_type() == BL::ParticleSettings::render_type_PATH) &&
 		   (b_psys->settings().type()==BL::ParticleSettings::type_HAIR))
 			hair_present = true;
-
-		if(b_psys->settings().use_render_emitter())
-			show_emitter = true;
-		else
-			hide_emitter = true;
+		has_particles = true;
 	}
 
-	if(show_emitter)
-		hide_emitter = false;
-
-	/* duplicators hidden by default, except dupliframes which duplicate self */
-	if(b_ob.is_duplicator())
-		if(top_level || b_ob.dupli_type() != BL::Object::dupli_type_FRAMES)
+	if(has_particles) {
+		show_emitter = b_ob.show_duplicator_for_render();
+		hide_emitter = !show_emitter;
+	} else if(b_ob.is_duplicator()) {
+		if(top_level || b_ob.show_duplicator_for_render()) {
 			hide_as_dupli_parent = true;
+		}
+	}
 
 	/* hide original object for duplis */
 	BL::Object parent = b_ob.parent();
@@ -522,7 +522,7 @@ static bool object_render_hide(BL::Object& b_ob,
 
 /* Object Loop */
 
-void BlenderSync::sync_objects(float motion_time)
+void BlenderSync::sync_objects(BL::Depsgraph& b_depsgraph, float motion_time)
 {
 	/* layer data */
 	bool motion = motion_time != 0.0f;
@@ -566,7 +566,8 @@ void BlenderSync::sync_objects(float motion_time)
 
 		 if(!object_render_hide(b_ob, true, true, hide_tris)) {
 			/* object itself */
-			sync_object(b_dupli_iter,
+			sync_object(b_depsgraph,
+			            b_dupli_iter,
 			            ~(0), /* until we get rid of layers */
 			            motion_time,
 			            hide_tris,
@@ -598,6 +599,7 @@ void BlenderSync::sync_objects(float motion_time)
 }
 
 void BlenderSync::sync_motion(BL::RenderSettings& b_render,
+                              BL::Depsgraph& b_depsgraph,
                               BL::Object& b_override,
                               int width, int height,
                               void **python_thread_state)
@@ -627,6 +629,8 @@ void BlenderSync::sync_motion(BL::RenderSettings& b_render,
 			assert(scene->camera->motion_position == Camera::MOTION_POSITION_START);
 			frame_center_delta = shuttertime * 0.5f;
 		}
+
+		/* TODO: move frame on depsgraph. */
 		float time = frame_center + subframe_center + frame_center_delta;
 		int frame = (int)floorf(time);
 		float subframe = time - frame;
@@ -634,7 +638,7 @@ void BlenderSync::sync_motion(BL::RenderSettings& b_render,
 		b_engine.frame_set(frame, subframe);
 		python_thread_state_save(python_thread_state);
 		sync_camera_motion(b_render, b_cam, width, height, 0.0f);
-		sync_objects(0.0f);
+		sync_objects(b_depsgraph, 0.0f);
 	}
 
 	/* always sample these times for camera motion */
@@ -643,6 +647,11 @@ void BlenderSync::sync_motion(BL::RenderSettings& b_render,
 
 	/* note iteration over motion_times set happens in sorted order */
 	foreach(float relative_time, motion_times) {
+		/* center time is already handled. */
+		if(relative_time == 0.0f) {
+			continue;
+		}
+
 		VLOG(1) << "Synchronizing motion for the relative time "
 		        << relative_time << ".";
 
@@ -654,6 +663,7 @@ void BlenderSync::sync_motion(BL::RenderSettings& b_render,
 		int frame = (int)floorf(time);
 		float subframe = time - frame;
 
+		/* TODO: move frame on depsgraph. */
 		/* change frame */
 		python_thread_state_restore(python_thread_state);
 		b_engine.frame_set(frame, subframe);
@@ -668,7 +678,7 @@ void BlenderSync::sync_motion(BL::RenderSettings& b_render,
 		}
 
 		/* sync object */
-		sync_objects(relative_time);
+		sync_objects(b_depsgraph, relative_time);
 	}
 
 	/* we need to set the python thread state again because this

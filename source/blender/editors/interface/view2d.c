@@ -1027,6 +1027,13 @@ bool UI_view2d_tab_set(View2D *v2d, int tab)
 
 void UI_view2d_zoom_cache_reset(void)
 {
+	/* TODO(sergey): This way we avoid threading conflict with VSE rendering
+	 * text strip. But ideally we want to make glyph cache to be fully safe
+	 * for threading.
+	 */
+	if (G.is_rendering) {
+		return;
+	}
 	/* While scaling we can accumulate fonts at many sizes (~20 or so).
 	 * Not an issue with embedded font, but can use over 500Mb with i18n ones! See [#38244]. */
 
@@ -1204,10 +1211,10 @@ static void step_to_grid(float *step, int *power, int unit)
  * - Units + clamping args will be checked, to make sure they are valid values that can be used
  *   so it is very possible that we won't return grid at all!
  *
- * - xunits,yunits	= V2D_UNIT_*  grid steps in seconds or frames
- * - xclamp,yclamp	= V2D_CLAMP_* only show whole-number intervals
- * - winx			= width of region we're drawing to, note: not used but keeping for completeness.
- * - winy			= height of region we're drawing into
+ * - xunits,yunits = V2D_UNIT_*  grid steps in seconds or frames
+ * - xclamp,yclamp = V2D_CLAMP_* only show whole-number intervals
+ * - winx          = width of region we're drawing to, note: not used but keeping for completeness.
+ * - winy          = height of region we're drawing into
  */
 View2DGrid *UI_view2d_grid_calc(
         Scene *scene, View2D *v2d,

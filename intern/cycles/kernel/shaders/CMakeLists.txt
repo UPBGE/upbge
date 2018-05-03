@@ -23,6 +23,8 @@ set(SRC_OSL
 	node_convert_from_point.osl
 	node_convert_from_vector.osl
 	node_diffuse_bsdf.osl
+	node_displacement.osl
+	node_vector_displacement.osl
 	node_emission.osl
 	node_environment_texture.osl
 	node_fresnel.osl
@@ -34,6 +36,7 @@ set(SRC_OSL
 	node_hair_info.osl
 	node_scatter_volume.osl
 	node_absorption_volume.osl
+	node_principled_volume.osl
 	node_holdout.osl
 	node_hsv.osl
 	node_image_texture.osl
@@ -102,6 +105,7 @@ set(SRC_OSO
 # TODO, add a module to compile OSL
 foreach(_file ${SRC_OSL})
 	set(_OSL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/${_file})
+	set_source_files_properties(${_file} PROPERTIES HEADER_FILE_ONLY TRUE)
 	string(REPLACE ".osl" ".oso" _OSO_FILE ${_OSL_FILE})
 	string(REPLACE ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} _OSO_FILE ${_OSO_FILE})
 	add_custom_command(
@@ -116,7 +120,8 @@ foreach(_file ${SRC_OSL})
 	unset(_OSO_FILE)
 endforeach()
 
-add_custom_target(cycles_osl_shaders ALL DEPENDS ${SRC_OSO} ${SRC_OSL_HEADERS} ${OSL_COMPILER})
+add_custom_target(cycles_osl_shaders ALL DEPENDS ${SRC_OSO} ${SRC_OSL_HEADERS} ${OSL_COMPILER} SOURCES ${SRC_OSL})
+cycles_set_solution_folder(cycles_osl_shaders)
 
 # CMAKE_CURRENT_SOURCE_DIR is already included in OSO paths
 delayed_install("" "${SRC_OSO}" ${CYCLES_INSTALL_PATH}/shader)

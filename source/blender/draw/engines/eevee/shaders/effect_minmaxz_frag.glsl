@@ -23,6 +23,12 @@ uniform sampler2D depthBuffer;
 #define minmax(a, b) max(a, b)
 #endif
 
+/* On some AMD card / driver conbination, it is needed otherwise,
+ * the shader does not write anything. */
+#if defined(GPU_INTEL) || defined(GPU_ATI)
+out vec4 fragColor;
+#endif
+
 void main()
 {
 	ivec2 texelPos = ivec2(gl_FragCoord.xy);
@@ -61,5 +67,9 @@ void main()
 	}
 #endif
 
+#if defined(GPU_INTEL) || defined(GPU_ATI)
+	/* Use color format instead of 24bit depth texture */
+	fragColor = vec4(val);
+#endif
 	gl_FragDepth = val;
 }

@@ -33,17 +33,19 @@
 #include "DNA_group_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_object_force.h"
+#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 
 #include "BKE_camera.h"
 #include "BKE_paint.h"
+#include "BKE_editlattice.h"
 #include "BKE_editmesh.h"
 #include "BKE_group.h" /* needed for BKE_group_object_exists() */
 #include "BKE_object_deform.h"
@@ -217,6 +219,12 @@ static void rna_Object_internal_update(Main *UNUSED(bmain), Scene *UNUSED(scene)
 	DEG_id_tag_update(ptr->id.data, OB_RECALC_OB);
 }
 
+static void rna_Object_internal_update_draw(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	DEG_id_tag_update(ptr->id.data, OB_RECALC_OB);
+	WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->id.data);
+}
+
 static void rna_Object_matrix_world_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	/* don't use compat so we get predictable rotation */
@@ -227,6 +235,27 @@ static void rna_Object_matrix_world_update(Main *bmain, Scene *scene, PointerRNA
 static void rna_Object_hide_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
 	DEG_id_type_tag(bmain, ID_OB);
+}
+
+static int rna_Object_is_visible_get(PointerRNA *ptr)
+{
+	Object *ob = ptr->id.data;
+	/* The duplicators final visibility is not evaluated by depsgraph, so it's
+	 * in ob->base_flag & VISIBLED. Instead we need to take into account whether
+	 * we are rendering or not, and the ob->duplicator_visibility_flag.
+	 * However for this assessor we don't know if we are rendering, so we just
+	 * ignore the duplicator visibility
+	 */
+	return BKE_object_is_visible(ob, OB_VISIBILITY_CHECK_UNKNOWN_RENDER_MODE);
+}
+
+static void rna_Object_collection_properties_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Object *ob = ptr->data;
+
+	if (ob->base_collection_properties != NULL) {
+		rna_iterator_listbase_begin(iter, &ob->base_collection_properties->data.group, NULL);
+	}
 }
 
 static void rna_Object_matrix_local_get(PointerRNA *ptr, float values[16])
@@ -273,16 +302,18 @@ void rna_Object_internal_update_data(Main *UNUSED(bmain), Scene *UNUSED(scene), 
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->id.data);
 }
 
-static void rna_Object_active_shape_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Object_active_shape_update(bContext *C, PointerRNA *ptr)
 {
 	Object *ob = ptr->id.data;
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
 
-	if (scene->obedit == ob) {
+	if (CTX_data_edit_object(C) == ob) {
 		/* exit/enter editmode to get new shape */
 		switch (ob->type) {
 			case OB_MESH:
 				EDBM_mesh_load(ob);
-				EDBM_mesh_make(scene->toolsettings, ob, true);
+				EDBM_mesh_make(ob, scene->toolsettings->selectmode, true);
 
 				DEG_id_tag_update(ob->data, 0);
 
@@ -295,8 +326,8 @@ static void rna_Object_active_shape_update(Main *bmain, Scene *scene, PointerRNA
 				ED_curve_editnurb_make(ob);
 				break;
 			case OB_LATTICE:
-				ED_lattice_editlatt_load(ob);
-				ED_lattice_editlatt_make(ob);
+				BKE_editlattice_load(ob);
+				BKE_editlattice_make(ob);
 				break;
 		}
 	}
@@ -316,7 +347,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value)
 	Object *ob = (Object *)ptr->data;
 	ID *id = value.data;
 
-	if (ob->mode & OB_MODE_EDIT) {
+	if (BKE_object_is_in_editmode(ob)) {
 		return;
 	}
 
@@ -1373,7 +1404,9 @@ static void rna_Object_constraints_clear(Object *object)
 static ModifierData *rna_Object_modifier_new(Object *object, bContext *C, ReportList *reports,
                                              const char *name, int type)
 {
-	return ED_object_modifier_add(reports, CTX_data_main(C), CTX_data_scene(C), object, name, type);
+	Main *bmain = CTX_data_main(C);
+	const WorkSpace *workspace = CTX_wm_workspace(C);
+	return ED_object_modifier_add(reports, bmain, CTX_data_scene(C), object, workspace->object_mode, name, type);
 }
 
 static void rna_Object_modifier_remove(Object *object, bContext *C, ReportList *reports, PointerRNA *md_ptr)
@@ -2398,12 +2431,6 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Type", "Type of Object");
 
-	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "mode");
-	RNA_def_property_enum_items(prop, rna_enum_object_mode_items);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Mode", "Object interaction mode");
-
 	prop = RNA_def_property(srna, "layers_local_view", PROP_BOOLEAN, PROP_LAYER_MEMBER);
 	RNA_def_property_boolean_sdna(prop, NULL, "lay", 0x01000000);
 	RNA_def_property_array(prop, 8);
@@ -2733,7 +2760,7 @@ static void rna_def_object(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "pass_index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "index");
 	RNA_def_property_ui_text(prop, "Pass Index", "Index number for the \"Object Index\" render pass");
-	RNA_def_property_update(prop, NC_OBJECT, "rna_Object_internal_update");
+	RNA_def_property_update(prop, NC_OBJECT, "rna_Object_internal_update_draw");
 	
 	prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "col");
@@ -2777,33 +2804,38 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Rigid Body Constraint", "Constraint constraining rigid bodies");
 	
 	/* restrict */
-	prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "restrictflag", OB_RESTRICT_VIEW);
-	RNA_def_property_ui_text(prop, "Restrict View", "Restrict visibility in the viewport");
-	RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, 1);
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_hide_update");
-
-	prop = RNA_def_property(srna, "hide_select", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "restrictflag", OB_RESTRICT_SELECT);
-	RNA_def_property_ui_text(prop, "Restrict Select", "Restrict selection in the viewport");
-	RNA_def_property_ui_icon(prop, ICON_RESTRICT_SELECT_OFF, 1);
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
-
 	prop = RNA_def_property(srna, "hide_render", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "restrictflag", OB_RESTRICT_RENDER);
 	RNA_def_property_ui_text(prop, "Restrict Render", "Restrict renderability");
 	RNA_def_property_ui_icon(prop, ICON_RESTRICT_RENDER_OFF, 1);
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_hide_update");
 
-	/* Keep it in sync with BKE_object_is_visible. */
+	prop = RNA_def_property(srna, "show_duplicator_for_render", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "duplicator_visibility_flag", OB_DUPLI_FLAG_RENDER);
+	RNA_def_property_ui_text(prop, "Render Duplicator", "Make duplicator visible when rendering");
+
+	prop = RNA_def_property(srna, "show_duplicator_for_viewport", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "duplicator_visibility_flag", OB_DUPLI_FLAG_VIEWPORT);
+	RNA_def_property_ui_text(prop, "Show Duplicator", "Make duplicator visible in the viewport");
+
 	prop = RNA_def_property(srna, "is_visible", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "base_flag", BASE_VISIBLED);
+	RNA_def_property_boolean_funcs(prop, "rna_Object_is_visible_get", NULL);
 	RNA_def_property_ui_text(prop, "Visible", "Visible to camera rays, set only on objects evaluated by depsgraph");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	prop = RNA_def_property(srna, "collection_properties", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "base_collection_properties->data.group", NULL);
+	RNA_def_property_collection_funcs(prop,
+	                                  "rna_Object_collection_properties_begin",
+	                                  NULL,
+	                                  NULL,
+	                                  NULL,
+	                                  NULL,
+	                                  NULL,
+	                                  NULL,
+	                                  NULL);
 	RNA_def_property_struct_type(prop, "LayerCollectionSettings");
+	RNA_def_property_flag(prop, PROP_NO_COMPARISON);  /* XXX see T53800. */
 	RNA_def_property_ui_text(prop, "Collection Settings",
 	                         "Engine specific render settings to be overridden by collections");
 
@@ -2827,16 +2859,7 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_range(prop, MINAFRAMEF, MAXFRAMEF);
 	RNA_def_property_ui_text(prop, "Slow Parent Offset", "Delay in the parent relationship");
 	RNA_def_property_update(prop, NC_OBJECT | ND_TRANSFORM, "rna_Object_internal_update");
-	
-	/* depsgraph hack */
-	prop = RNA_def_property(srna, "use_extra_recalc_object", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "depsflag", OB_DEPS_EXTRA_OB_RECALC);
-	RNA_def_property_ui_text(prop, "Extra Object Update", "Refresh this object again on frame changes, dependency graph hack");
-	
-	prop = RNA_def_property(srna, "use_extra_recalc_data", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "depsflag", OB_DEPS_EXTRA_DATA_RECALC);
-	RNA_def_property_ui_text(prop, "Extra Data Update", "Refresh this object's data again on frame changes, dependency graph hack");
-	
+
 	/* duplicates */
 	prop = RNA_def_property(srna, "dupli_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "transflag");
@@ -3005,6 +3028,7 @@ static void rna_def_object(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "active_shape_key_index", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "shapenr");
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE); /* XXX this is really unpredictable... */
 	RNA_def_property_int_funcs(prop, "rna_Object_active_shape_key_index_get", "rna_Object_active_shape_key_index_set",
 	                           "rna_Object_active_shape_key_index_range");

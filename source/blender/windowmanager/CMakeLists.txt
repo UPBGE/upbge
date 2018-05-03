@@ -35,6 +35,7 @@ set(INC
 	../compositor
 	../depsgraph
 	../editors/include
+	../draw
 	../gpu
 	../imbuf
 	../makesdna
@@ -42,6 +43,7 @@ set(INC
 	../nodes
 	../render/extern/include
 	../../gameengine/Launcher
+	../../../intern/clog
 	../../../intern/ghost
 	../../../intern/guardedalloc
 	../../../intern/glew-mx
@@ -73,6 +75,7 @@ set(SRC
 	intern/wm_window.c
 	intern/wm_stereo.c
 	intern/wm_toolsystem.c
+	intern/wm_tooltip.c
 	manipulators/intern/wm_manipulator.c
 	manipulators/intern/wm_manipulator_group.c
 	manipulators/intern/wm_manipulator_group_type.c
@@ -92,7 +95,6 @@ set(SRC
 	wm_event_system.h
 	wm_event_types.h
 	wm_files.h
-	wm_subwindow.h
 	wm_window.h
 	manipulators/WM_manipulator_api.h
 	manipulators/WM_manipulator_types.h

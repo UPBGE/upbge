@@ -30,26 +30,46 @@
 #include "kernel/closure/bsdf_principled_diffuse.h"
 #include "kernel/closure/bsdf_principled_sheen.h"
 #include "kernel/closure/bssrdf.h"
-#ifdef __VOLUME__
-#  include "kernel/closure/volume.h"
-#endif
+#include "kernel/closure/volume.h"
 
 CCL_NAMESPACE_BEGIN
 
 /* Returns the square of the roughness of the closure if it has roughness,
  * 0 for singular closures and 1 otherwise. */
-ccl_device_inline float bsdf_get_roughness_sqr(const ShaderClosure *sc)
+ccl_device_inline float bsdf_get_specular_roughness_squared(const ShaderClosure *sc)
 {
 	if(CLOSURE_IS_BSDF_SINGULAR(sc->type)) {
 		return 0.0f;
 	}
 
 	if(CLOSURE_IS_BSDF_MICROFACET(sc->type)) {
-		MicrofacetBsdf *bsdf = (MicrofacetBsdf*) sc;
+		MicrofacetBsdf *bsdf = (MicrofacetBsdf*)sc;
 		return bsdf->alpha_x*bsdf->alpha_y;
 	}
 
 	return 1.0f;
+}
+
+ccl_device_inline float bsdf_get_roughness_squared(const ShaderClosure *sc)
+{
+	/* This version includes diffuse, mainly for baking Principled BSDF
+	 * where specular and metallic zero otherwise does not bake the
+	 * specified roughness parameter. */
+	if(sc->type == CLOSURE_BSDF_OREN_NAYAR_ID) {
+		OrenNayarBsdf *bsdf = (OrenNayarBsdf*)sc;
+		return sqr(sqr(bsdf->roughness));
+	}
+
+	if(sc->type == CLOSURE_BSDF_PRINCIPLED_DIFFUSE_ID) {
+		PrincipledDiffuseBsdf *bsdf = (PrincipledDiffuseBsdf*)sc;
+		return sqr(sqr(bsdf->roughness));
+	}
+
+	if(CLOSURE_IS_BSDF_DIFFUSE(sc->type)) {
+		return 0.0f;
+	}
+
+	return bsdf_get_specular_roughness_squared(sc);
 }
 
 ccl_device_forceinline int bsdf_sample(KernelGlobals *kg,
@@ -171,6 +191,17 @@ ccl_device_forceinline int bsdf_sample(KernelGlobals *kg,
 		default:
 			label = LABEL_NONE;
 			break;
+	}
+
+	/* Test if BSDF sample should be treated as transparent for background. */
+	if(label & LABEL_TRANSMIT) {
+		float threshold_squared = kernel_data.background.transparent_roughness_squared_threshold;
+
+		if(threshold_squared >= 0.0f) {
+			if(bsdf_get_specular_roughness_squared(sc) <= threshold_squared) {
+				label |= LABEL_TRANSMIT_TRANSPARENT;
+			}
+		}
 	}
 
 	return label;

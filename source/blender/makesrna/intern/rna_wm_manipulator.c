@@ -401,6 +401,7 @@ RNA_MANIPULATOR_GENERIC_FLAG_RW_DEF(flag_use_draw_value, flag, WM_MANIPULATOR_DR
 RNA_MANIPULATOR_GENERIC_FLAG_RW_DEF(flag_use_draw_offset_scale, flag, WM_MANIPULATOR_DRAW_OFFSET_SCALE);
 RNA_MANIPULATOR_GENERIC_FLAG_NEG_RW_DEF(flag_use_draw_scale, flag, WM_MANIPULATOR_DRAW_OFFSET_SCALE);
 RNA_MANIPULATOR_GENERIC_FLAG_RW_DEF(flag_hide, flag, WM_MANIPULATOR_HIDDEN);
+RNA_MANIPULATOR_GENERIC_FLAG_RW_DEF(flag_use_grab_cursor, flag, WM_MANIPULATOR_GRAB_CURSOR);
 
 /* wmManipulator.state */
 RNA_MANIPULATOR_FLAG_RO_DEF(state_is_highlight, state, WM_MANIPULATOR_STATE_HIGHLIGHT);
@@ -805,6 +806,13 @@ static StructRNA *rna_ManipulatorGroup_register(
 	wmManipulatorGroupType *wgt = WM_manipulatorgrouptype_append_ptr(
 	        BPY_RNA_manipulatorgroup_wrapper, (void *)&dummywgt);
 
+	{
+		const char *owner_id = RNA_struct_state_owner_get();
+		if (owner_id) {
+			BLI_strncpy(wgt->owner_id, owner_id, sizeof(wgt->owner_id));
+		}
+	}
+
 	if (wgt->flag & WM_MANIPULATORGROUPTYPE_PERSISTENT) {
 		WM_manipulator_group_type_add_ptr_ex(wgt, mmap_type);
 
@@ -1087,6 +1095,13 @@ static void rna_def_manipulator(BlenderRNA *brna, PropertyRNA *cprop)
 	        prop, "rna_Manipulator_flag_hide_get", "rna_Manipulator_flag_hide_set");
 	RNA_def_property_ui_text(prop, "Hide", "");
 	RNA_def_property_update(prop, NC_SCREEN | NA_EDITED, NULL);
+	/* WM_MANIPULATOR_GRAB_CURSOR */
+	prop = RNA_def_property(srna, "use_grab_cursor", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(
+	        prop, "rna_Manipulator_flag_use_grab_cursor_get", "rna_Manipulator_flag_use_grab_cursor_set");
+	RNA_def_property_ui_text(prop, "Grab Cursor", "");
+	RNA_def_property_update(prop, NC_SCREEN | NA_EDITED, NULL);
+
 	/* WM_MANIPULATOR_DRAW_HOVER */
 	prop = RNA_def_property(srna, "use_draw_hover", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(
@@ -1195,6 +1210,10 @@ static void rna_def_manipulatorgroup(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, rna_enum_region_type_items);
 	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "Region Type", "The region where the panel is going to be used in");
+
+	prop = RNA_def_property(srna, "bl_owner_id", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "type->owner_id");
+	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 
 	/* bl_options */
 	static EnumPropertyItem manipulatorgroup_flag_items[] = {

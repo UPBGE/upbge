@@ -75,6 +75,10 @@
 
 #include "nla_private.h"
 
+#include "atomic_ops.h"
+
+#include "DEG_depsgraph.h"
+
 /* ***************************************** */
 /* AnimData API */
 
@@ -243,7 +247,7 @@ void BKE_animdata_free(ID *id, const bool do_id_user)
 			}
 				
 			/* free nla data */
-			free_nladata(&adt->nla_tracks);
+			BKE_nla_tracks_free(&adt->nla_tracks);
 			
 			/* free drivers - stored as a list of F-Curves */
 			free_fcurves(&adt->drivers);
@@ -282,7 +286,7 @@ AnimData *BKE_animdata_copy(Main *bmain, AnimData *adt, const bool do_action)
 	}
 
 	/* duplicate NLA data */
-	copy_nladata(&dadt->nla_tracks, &adt->nla_tracks);
+	BKE_nla_tracks_copy(&dadt->nla_tracks, &adt->nla_tracks);
 	
 	/* duplicate drivers (F-Curves) */
 	copy_fcurves(&dadt->drivers, &adt->drivers);
@@ -364,7 +368,7 @@ void BKE_animdata_merge_copy(ID *dst_id, ID *src_id, eAnimData_MergeCopy_Modes a
 	if (src->nla_tracks.first) {
 		ListBase tracks = {NULL, NULL};
 		
-		copy_nladata(&tracks, &src->nla_tracks);
+		BKE_nla_tracks_copy(&tracks, &src->nla_tracks);
 		BLI_movelisttolist(&dst->nla_tracks, &tracks);
 	}
 	
@@ -527,7 +531,7 @@ void BKE_animdata_separate_by_basepath(ID *srcID, ID *dstID, ListBase *basepaths
 	if (srcAdt->action) {
 		/* set up an action if necessary, and name it in a similar way so that it can be easily found again */
 		if (dstAdt->action == NULL) {
-			dstAdt->action = add_empty_action(G.main, srcAdt->action->id.name + 2);
+			dstAdt->action = BKE_action_add(G.main, srcAdt->action->id.name + 2);
 		}
 		else if (dstAdt->action == srcAdt->action) {
 			printf("Argh! Source and Destination share animation! ('%s' and '%s' both use '%s') Making new empty action\n",
@@ -535,7 +539,7 @@ void BKE_animdata_separate_by_basepath(ID *srcID, ID *dstID, ListBase *basepaths
 			
 			/* TODO: review this... */
 			id_us_min(&dstAdt->action->id);
-			dstAdt->action = add_empty_action(G.main, dstAdt->action->id.name + 2);
+			dstAdt->action = BKE_action_add(G.main, dstAdt->action->id.name + 2);
 		}
 			
 		/* loop over base paths, trying to fix for each one... */
@@ -818,7 +822,7 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id, char *old_path, const char *
 	
 	/* if no action, no need to proceed */
 	if (ELEM(NULL, owner_id, old_path)) {
-		printf("early abort\n");
+		if (G.debug & G_DEBUG) printf("%s: early abort\n", __func__);
 		return old_path;
 	}
 	
@@ -841,9 +845,9 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id, char *old_path, const char *
 	}
 	
 	/* fix given path */
-	printf("%s | %s  | oldpath = %p ", oldN, newN, old_path);
+	if (G.debug & G_DEBUG) printf("%s | %s  | oldpath = %p ", oldN, newN, old_path);
 	result = rna_path_rename_fix(owner_id, prefix, oldN, newN, old_path, verify_paths);
-	printf("result = %p\n", result);
+	if (G.debug & G_DEBUG) printf("path rename result = %p\n", result);
 	
 	/* free the temp names */
 	MEM_freeN(oldN);
@@ -1563,12 +1567,6 @@ static bool animsys_write_rna_setting(PathResolvedRNA *anim_rna, const float val
 	/* caller must ensure this is animatable */
 	BLI_assert(RNA_property_animateable(ptr, prop) || ptr->id.data == NULL);
 
-	/* set value for animatable numerical values only
-	 * HACK: some local F-Curves (e.g. those on NLA Strips) are evaluated
-	 *       without an ID provided, which causes the animateable test to fail!
-	 */
-	bool written = false;
-
 	switch (RNA_property_type(prop)) {
 		case PROP_BOOLEAN:
 		{
@@ -1576,13 +1574,11 @@ static bool animsys_write_rna_setting(PathResolvedRNA *anim_rna, const float val
 			if (array_index != -1) {
 				if (RNA_property_boolean_get_index(ptr, prop, array_index) != value_coerce) {
 					RNA_property_boolean_set_index(ptr, prop, array_index, value_coerce);
-					written = true;
 				}
 			}
 			else {
 				if (RNA_property_boolean_get(ptr, prop) != value_coerce) {
 					RNA_property_boolean_set(ptr, prop, value_coerce);
-					written = true;
 				}
 			}
 			break;
@@ -1594,13 +1590,11 @@ static bool animsys_write_rna_setting(PathResolvedRNA *anim_rna, const float val
 			if (array_index != -1) {
 				if (RNA_property_int_get_index(ptr, prop, array_index) != value_coerce) {
 					RNA_property_int_set_index(ptr, prop, array_index, value_coerce);
-					written = true;
 				}
 			}
 			else {
 				if (RNA_property_int_get(ptr, prop) != value_coerce) {
 					RNA_property_int_set(ptr, prop, value_coerce);
-					written = true;
 				}
 			}
 			break;
@@ -1612,13 +1606,11 @@ static bool animsys_write_rna_setting(PathResolvedRNA *anim_rna, const float val
 			if (array_index != -1) {
 				if (RNA_property_float_get_index(ptr, prop, array_index) != value_coerce) {
 					RNA_property_float_set_index(ptr, prop, array_index, value_coerce);
-					written = true;
 				}
 			}
 			else {
 				if (RNA_property_float_get(ptr, prop) != value_coerce) {
 					RNA_property_float_set(ptr, prop, value_coerce);
-					written = true;
 				}
 			}
 			break;
@@ -1628,7 +1620,6 @@ static bool animsys_write_rna_setting(PathResolvedRNA *anim_rna, const float val
 			const int value_coerce = (int)value;
 			if (RNA_property_enum_get(ptr, prop) != value_coerce) {
 				RNA_property_enum_set(ptr, prop, value_coerce);
-				written = true;
 			}
 			break;
 		}
@@ -1656,20 +1647,6 @@ static bool animsys_write_rna_setting(PathResolvedRNA *anim_rna, const float val
 			RNA_property_update_cache_add(ptr, prop);
 	}
 #endif
-
-	/* as long as we don't do property update, we still tag datablock
-	 * as having been updated. this flag does not cause any updates to
-	 * be run, it's for e.g. render engines to synchronize data */
-	if (written && ptr->id.data) {
-		ID *id = ptr->id.data;
-
-		/* for cases like duplifarmes it's only a temporary so don't
-		 * notify anyone of updates */
-		if (!(id->tag & LIB_TAG_ANIM_NO_RECALC)) {
-			BKE_id_tag_set_atomic(id, LIB_TAG_ID_RECALC);
-			DEG_id_type_tag(G.main, GS(id->name));
-		}
-	}
 
 	/* successful */
 	return true;
@@ -2614,17 +2591,6 @@ static void animsys_evaluate_nla(ListBase *echannels, PointerRNA *ptr, AnimData 
 		
 	/* 3. free temporary evaluation data that's not used elsewhere */
 	BLI_freelistN(&estrips);
-
-	/* Tag ID as updated so render engines will recognize changes in data
-	 * which is animated but doesn't have actions.
-	 */
-	if (ptr->id.data != NULL) {
-		ID *id = ptr->id.data;
-		if (!(id->tag & LIB_TAG_ANIM_NO_RECALC)) {
-			id->tag |= LIB_TAG_ID_RECALC;
-			DEG_id_type_tag(G.main, GS(id->name));
-		}
-	}
 }
 
 /* NLA Evaluation function (mostly for use through do_animdata) 
@@ -2915,16 +2881,32 @@ void BKE_animsys_evaluate_all_animation(Main *main, Scene *scene, float ctime)
 /* ************** */
 /* Evaluation API */
 
-#define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
-
 void BKE_animsys_eval_animdata(const EvaluationContext *eval_ctx, ID *id)
 {
 	AnimData *adt = BKE_animdata_from_id(id);
 	Scene *scene = NULL; /* XXX: this is only needed for flushing RNA updates,
-	                      * which should get handled as part of the graph instead...
+	                      * which should get handled as part of the dependency graph instead...
 	                      */
-	DEBUG_PRINT("%s on %s, time=%f\n\n", __func__, id->name, (double)eval_ctx->ctime);
+	DEG_debug_print_eval_time(__func__, id->name, id, eval_ctx->ctime);
 	BKE_animsys_evaluate_animdata(scene, id, adt, eval_ctx->ctime, ADT_RECALC_ANIM);
+}
+
+/* TODO(sergey): This is slow lookup of driver from CoW datablock.
+ * Keep this for until we've got something smarter for depsgraph
+ * building.\
+ */
+static FCurve *find_driver_from_evaluated_id(ID *id, FCurve *fcu)
+{
+	/* We've got non-CoW datablock, can use f-curve as-is. */
+	if (id->orig_id == NULL) {
+		return fcu;
+	}
+	/*const*/ ID *id_orig = id->orig_id;
+	const AnimData *adt_orig = BKE_animdata_from_id(id_orig);
+	const AnimData *adt_cow = BKE_animdata_from_id(id);
+	const int fcu_index = BLI_findindex(&adt_orig->drivers, fcu);
+	BLI_assert(fcu_index != -1);
+	return BLI_findlink(&adt_cow->drivers, fcu_index);
 }
 
 void BKE_animsys_eval_driver(const EvaluationContext *eval_ctx,
@@ -2936,11 +2918,10 @@ void BKE_animsys_eval_driver(const EvaluationContext *eval_ctx,
 	PointerRNA id_ptr;
 	bool ok = false;
 
-	DEBUG_PRINT("%s on %s (%s[%d])\n",
-	            __func__,
-	            id->name,
-	            fcu->rna_path,
-	            fcu->array_index);
+	fcu = find_driver_from_evaluated_id(id, fcu);
+
+	DEG_debug_print_eval_subdata_index(
+	        __func__, id->name, id, "fcu", fcu->rna_path, fcu, fcu->array_index);
 
 	RNA_id_pointer_create(id, &id_ptr);
 
@@ -2973,5 +2954,3 @@ void BKE_animsys_eval_driver(const EvaluationContext *eval_ctx,
 		}
 	}
 }
-
-#undef DEBUG_PRINT

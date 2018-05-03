@@ -46,20 +46,16 @@
 #include "atomic_ops.h"
 
 #include "intern/eval/deg_eval_flush.h"
+#include "intern/eval/deg_eval_stats.h"
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_component.h"
+#include "intern/nodes/deg_node_id.h"
 #include "intern/nodes/deg_node_operation.h"
+#include "intern/nodes/deg_node_time.h"
 #include "intern/depsgraph.h"
 #include "intern/depsgraph_intern.h"
+
 #include "util/deg_util_foreach.h"
-
-/* Unfinished and unused, and takes quite some pre-processing time. */
-#undef USE_EVAL_PRIORITY
-
-/* Use integrated debugger to keep track how much each of the nodes was
- * evaluating.
- */
-#undef USE_DEBUGGER
 
 namespace DEG {
 
@@ -75,52 +71,28 @@ static void schedule_children(TaskPool *pool,
 struct DepsgraphEvalState {
 	EvaluationContext *eval_ctx;
 	Depsgraph *graph;
+	bool do_stats;
 };
 
 static void deg_task_run_func(TaskPool *pool,
                               void *taskdata,
                               int thread_id)
 {
-	DepsgraphEvalState *state =
-	        reinterpret_cast<DepsgraphEvalState *>(BLI_task_pool_userdata(pool));
-	OperationDepsNode *node = reinterpret_cast<OperationDepsNode *>(taskdata);
-
+	void *userdata_v = BLI_task_pool_userdata(pool);
+	DepsgraphEvalState *state = (DepsgraphEvalState *)userdata_v;
+	OperationDepsNode *node = (OperationDepsNode *)taskdata;
+	/* Sanity checks. */
 	BLI_assert(!node->is_noop() && "NOOP nodes should not actually be scheduled");
-
-	/* Should only be the case for NOOPs, which never get to this point. */
-	BLI_assert(node->evaluate);
-
-	/* Get context. */
-	/* TODO: Who initialises this? "Init" operations aren't able to
-	 * initialise it!!!
-	 */
-	/* TODO(sergey): We don't use component contexts at this moment. */
-	/* ComponentDepsNode *comp = node->owner; */
-	BLI_assert(node->owner != NULL);
-
-	/* Since we're not leaving the thread for until the graph branches it is
-	 * possible to have NO-OP on the way. for which evaluate() will be NULL.
-	 * but that's all fine, we'll just scheduler it's children.
-	 */
-	if (node->evaluate) {
-			/* Take note of current time. */
-#ifdef USE_DEBUGGER
-		double start_time = PIL_check_seconds_timer();
-		DepsgraphDebug::task_started(state->graph, node);
-#endif
-
-		/* Perform operation. */
+	/* Perform operation. */
+	if (state->do_stats) {
+		const double start_time = PIL_check_seconds_timer();
 		node->evaluate(state->eval_ctx);
-
-			/* Note how long this took. */
-#ifdef USE_DEBUGGER
-		double end_time = PIL_check_seconds_timer();
-		DepsgraphDebug::task_completed(state->graph,
-		                               node,
-		                               end_time - start_time);
-#endif
+		node->stats.current_time += PIL_check_seconds_timer() - start_time;
 	}
-
+	else {
+		node->evaluate(state->eval_ctx);
+	}
+	/* Schedule children. */
 	BLI_task_pool_delayed_push_begin(pool, thread_id);
 	schedule_children(pool, state->graph, node, thread_id);
 	BLI_task_pool_delayed_push_end(pool, thread_id);
@@ -130,7 +102,10 @@ typedef struct CalculatePengindData {
 	Depsgraph *graph;
 } CalculatePengindData;
 
-static void calculate_pending_func(void *data_v, int i)
+static void calculate_pending_func(
+        void *__restrict data_v,
+        const int i,
+        const ParallelRangeTLS *__restrict /*tls*/)
 {
 	CalculatePengindData *data = (CalculatePengindData *)data_v;
 	Depsgraph *graph = data->graph;
@@ -157,42 +132,30 @@ static void calculate_pending_func(void *data_v, int i)
 static void calculate_pending_parents(Depsgraph *graph)
 {
 	const int num_operations = graph->operations.size();
-	const bool do_threads = num_operations > 256;
 	CalculatePengindData data;
 	data.graph = graph;
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.min_iter_per_thread = 1024;
 	BLI_task_parallel_range(0,
 	                        num_operations,
 	                        &data,
 	                        calculate_pending_func,
-	                        do_threads);
+	                        &settings);
 }
 
-#ifdef USE_EVAL_PRIORITY
-static void calculate_eval_priority(OperationDepsNode *node)
+static void initialize_execution(DepsgraphEvalState *state, Depsgraph *graph)
 {
-	if (node->done) {
-		return;
-	}
-	node->done = 1;
-
-	if (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
-		/* XXX standard cost of a node, could be estimated somewhat later on */
-		const float cost = 1.0f;
-		/* NOOP nodes have no cost */
-		node->eval_priority = node->is_noop() ? cost : 0.0f;
-
-		foreach (DepsRelation *rel, node->outlinks) {
-			OperationDepsNode *to = (OperationDepsNode *)rel->to;
-			BLI_assert(to->type == DEG_NODE_TYPE_OPERATION);
-			calculate_eval_priority(to);
-			node->eval_priority += to->eval_priority;
+	const bool do_stats = state->do_stats;
+	calculate_pending_parents(graph);
+	/* Clear tags and other things which needs to be clear. */
+	foreach (OperationDepsNode *node, graph->operations) {
+		node->done = 0;
+		if (do_stats) {
+			node->stats.reset_current();
 		}
 	}
-	else {
-		node->eval_priority = 0.0f;
-	}
 }
-#endif
 
 /* Schedule a node if it needs evaluation.
  *   dec_parents: Decrement pending parents count, true when child nodes are
@@ -267,28 +230,25 @@ static void schedule_children(TaskPool *pool,
 void deg_evaluate_on_refresh(EvaluationContext *eval_ctx,
                              Depsgraph *graph)
 {
-	/* Generate base evaluation context, upon which all the others are derived. */
-	// TODO: this needs both main and scene access...
-
-	/* Nothing to update, early out. */
-	if (BLI_gset_size(graph->entry_tags) == 0) {
-		return;
-	}
-
 	/* Set time for the current graph evaluation context. */
 	TimeSourceDepsNode *time_src = graph->find_time_source();
+	eval_ctx->ctime = time_src->cfra;
 	eval_ctx->depsgraph = (::Depsgraph *)graph;
 	eval_ctx->view_layer = DEG_get_evaluated_view_layer((::Depsgraph *)graph);
-	eval_ctx->ctime = time_src->cfra;
-
-	/* XXX could use a separate pool for each eval context */
+	/* Nothing to update, early out. */
+	if (BLI_gset_len(graph->entry_tags) == 0) {
+		return;
+	}
+	const bool do_time_debug = ((G.debug & G_DEBUG_DEPSGRAPH_TIME) != 0);
+	const double start_time = do_time_debug ? PIL_check_seconds_timer() : 0;
+	/* Set up evaluation context for depsgraph itself. */
 	DepsgraphEvalState state;
 	state.eval_ctx = eval_ctx;
 	state.graph = graph;
-
+	state.do_stats = do_time_debug;
+	/* Set up task scheduler and pull for threaded evaluation. */
 	TaskScheduler *task_scheduler;
 	bool need_free_scheduler;
-
 	if (G.debug & G_DEBUG_DEPSGRAPH_NO_THREADS) {
 		task_scheduler = BLI_task_scheduler_create(1);
 		need_free_scheduler = true;
@@ -297,33 +257,28 @@ void deg_evaluate_on_refresh(EvaluationContext *eval_ctx,
 		task_scheduler = BLI_task_scheduler_get();
 		need_free_scheduler = false;
 	}
-
 	TaskPool *task_pool = BLI_task_pool_create_suspended(task_scheduler, &state);
-
-	calculate_pending_parents(graph);
-
-	/* Clear tags. */
-	foreach (OperationDepsNode *node, graph->operations) {
-		node->done = 0;
-	}
-
-	/* Calculate priority for operation nodes. */
-#ifdef USE_EVAL_PRIORITY
-	foreach (OperationDepsNode *node, graph->operations) {
-		calculate_eval_priority(node);
-	}
-#endif
-
+	/* Prepare all nodes for evaluation. */
+	initialize_execution(&state, graph);
+	/* Do actual evaluation now. */
 	schedule_graph(task_pool, graph);
-
 	BLI_task_pool_work_and_wait(task_pool);
 	BLI_task_pool_free(task_pool);
-
+	/* Finalize statistics gathering. This is because we only gather single
+	 * operation timing here, without aggregating anything to avoid any extra
+	 * synchronization.
+	 */
+	if (state.do_stats) {
+		deg_eval_stats_aggregate(graph);
+	}
 	/* Clear any uncleared tags - just in case. */
 	deg_graph_clear_tags(graph);
-
 	if (need_free_scheduler) {
 		BLI_task_scheduler_free(task_scheduler);
+	}
+	if (do_time_debug) {
+		printf("Depsgraph updated in %f seconds.\n",
+		       PIL_check_seconds_timer() - start_time);
 	}
 }
 

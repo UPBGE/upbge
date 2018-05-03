@@ -50,8 +50,8 @@ set(SRC
 	object_facemap_ops.c
 	object_group.c
 	object_hook.c
-	object_lattice.c
 	object_lod.c
+	object_modes.c
 	object_modifier.c
 	object_ops.c
 	object_random.c

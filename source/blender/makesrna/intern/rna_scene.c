@@ -1469,11 +1469,11 @@ static void rna_Scene_use_nodes_update(bContext *C, PointerRNA *ptr)
 static void rna_Physics_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Scene *scene = (Scene *)ptr->id.data;
-	FOREACH_SCENE_OBJECT(scene, ob)
+	FOREACH_SCENE_OBJECT_BEGIN(scene, ob)
 	{
 		BKE_ptcache_object_reset(scene, ob, PTCACHE_RESET_DEPSGRAPH);
 	}
-	FOREACH_SCENE_OBJECT_END
+	FOREACH_SCENE_OBJECT_END;
 }
 
 static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const int *value)
@@ -1545,11 +1545,11 @@ static void rna_Scene_use_simplify_update(Main *UNUSED(bmain), Scene *UNUSED(sce
 	Scene *sce_iter;
 	Base *base;
 
-	FOREACH_SCENE_OBJECT(sce, ob)
+	FOREACH_SCENE_OBJECT_BEGIN(sce, ob)
 	{
 		object_simplify_update(ob);
 	}
-	FOREACH_SCENE_OBJECT_END
+	FOREACH_SCENE_OBJECT_END;
 
 	for (SETLOOPER_SET_ONLY(sce, sce_iter, base)) {
 		object_simplify_update(base->object);
@@ -1703,9 +1703,10 @@ static KeyingSet *rna_Scene_keying_set_new(Scene *sce, ReportList *reports, cons
 
 static void rna_UnifiedPaintSettings_update(bContext *C, PointerRNA *UNUSED(ptr))
 {
+	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
-	Brush *br = BKE_paint_brush(BKE_paint_get_active(scene, view_layer));
+	Brush *br = BKE_paint_brush(BKE_paint_get_active(scene, view_layer, workspace->object_mode));
 	WM_main_add_notifier(NC_BRUSH | NA_EDITED, br);
 }
 
@@ -1922,13 +1923,6 @@ char *rna_GPUDOF_path(PointerRNA *ptr)
 	}
 
 	return BLI_strdup("");
-}
-
-static void rna_GPUFXSettings_fx_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
-{
-	GPUFXSettings *fx_settings = ptr->data;
-
-	BKE_screen_gpu_fx_validate(fx_settings);
 }
 
 static void rna_GPUDOFSettings_blades_set(PointerRNA *ptr, const int value)
@@ -4838,7 +4832,7 @@ static void rna_def_gpu_fx(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "fx_flag", GPU_FX_FLAG_DOF);
 	RNA_def_property_ui_text(prop, "Depth Of Field",
 	                         "Use depth of field on viewport using the values from active camera");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_GPUFXSettings_fx_update");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 
 	prop = RNA_def_property(srna, "ssao", PROP_POINTER, PROP_NONE);
@@ -4849,7 +4843,7 @@ static void rna_def_gpu_fx(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_ssao", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "fx_flag", GPU_FX_FLAG_SSAO);
 	RNA_def_property_ui_text(prop, "SSAO", "Use screen space ambient occlusion of field on viewport");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_GPUFXSettings_fx_update");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 }
 
 static void rna_def_view_layers(BlenderRNA *brna, PropertyRNA *cprop)
@@ -5676,14 +5670,16 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "fps", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "frs_sec");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_range(prop, 1, 120);
+	RNA_def_property_range(prop, 1, SHRT_MAX);
+	RNA_def_property_ui_range(prop, 1, 120, 1, -1);
 	RNA_def_property_ui_text(prop, "FPS", "Framerate, expressed in frames per second");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_fps_update");
 	
 	prop = RNA_def_property(srna, "fps_base", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "frs_sec_base");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_range(prop, 0.1f, 120.0f);
+	RNA_def_property_range(prop, 1e-5f, 1e6f);
+	RNA_def_property_ui_range(prop, 0.1f, 120.0f, 2, -1);
 	RNA_def_property_ui_text(prop, "FPS Base", "Framerate base");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_fps_update");
 	
@@ -5718,7 +5714,8 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "filter_size", PROP_FLOAT, PROP_PIXEL);
 	RNA_def_property_float_sdna(prop, NULL, "gauss");
-	RNA_def_property_range(prop, 0.5f, 1.5f);
+	RNA_def_property_range(prop, 0.0f, 500.0f);
+	RNA_def_property_ui_range(prop, 0.01f, 10.0f, 1, 2);
 	RNA_def_property_ui_text(prop, "Filter Size", "Width over which the reconstruction filter combines samples");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 	
@@ -6959,6 +6956,7 @@ void RNA_def_scene(BlenderRNA *brna)
 
 	/* Statistics */
 	func = RNA_def_function(srna, "statistics", "ED_info_stats_string");
+	parm = RNA_def_pointer(func, "workspace", "WorkSpace", "", "Active workspace");
 	parm = RNA_def_pointer(func, "view_layer", "ViewLayer", "", "Active layer");
 	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 	parm = RNA_def_string(func, "statistics", NULL, 0, "Statistics", "");

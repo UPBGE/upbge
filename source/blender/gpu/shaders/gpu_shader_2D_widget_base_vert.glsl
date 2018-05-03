@@ -1,0 +1,168 @@
+#define BIT_RANGE(x) ((1u << x) - 1u)
+
+/* 2 bits for corner */
+/* Attention! Not the same order as in UI_interface.h!
+ * Ordered by drawing order. */
+#define BOTTOM_LEFT 0u
+#define BOTTOM_RIGHT 1u
+#define TOP_RIGHT 2u
+#define TOP_LEFT 3u
+#define CNR_FLAG_RANGE BIT_RANGE(2u)
+
+/* 4bits for corner id */
+#define CORNER_VEC_OFS 2u
+#define CORNER_VEC_RANGE BIT_RANGE(4u)
+const vec2 cornervec[36] = vec2[36](
+	vec2(0.0, 1.0), vec2(0.02, 0.805), vec2(0.067, 0.617), vec2(0.169, 0.45), vec2(0.293, 0.293), vec2(0.45, 0.169), vec2(0.617, 0.076), vec2(0.805, 0.02), vec2(1.0, 0.0),
+	vec2(-1.0, 0.0), vec2(-0.805, 0.02), vec2(-0.617, 0.067), vec2(-0.45, 0.169), vec2(-0.293, 0.293), vec2(-0.169, 0.45), vec2(-0.076, 0.617), vec2(-0.02, 0.805), vec2(0.0, 1.0),
+	vec2(0.0, -1.0), vec2(-0.02, -0.805), vec2(-0.067, -0.617), vec2(-0.169, -0.45), vec2(-0.293, -0.293), vec2(-0.45, -0.169), vec2(-0.617, -0.076), vec2(-0.805, -0.02), vec2(-1.0, 0.0),
+	vec2(1.0, 0.0), vec2(0.805, -0.02), vec2(0.617, -0.067), vec2(0.45, -0.169), vec2(0.293, -0.293), vec2(0.169, -0.45), vec2(0.076, -0.617), vec2(0.02, -0.805), vec2(0.0, -1.0)
+);
+
+/* 4bits for jitter id */
+#define JIT_OFS 6u
+#define JIT_RANGE BIT_RANGE(4u)
+const vec2 jit[9] = vec2[9](
+	vec2( 0.468813, -0.481430), vec2(-0.155755, -0.352820),
+	vec2( 0.219306, -0.238501), vec2(-0.393286, -0.110949),
+	vec2(-0.024699,  0.013908), vec2( 0.343805,  0.147431),
+	vec2(-0.272855,  0.269918), vec2( 0.095909,  0.388710),
+	vec2( 0.0,  0.0)
+);
+
+/* 2bits for other flags */
+#define INNER_FLAG     (1u << 10u) /* is inner vert */
+#define EMBOSS_FLAG    (1u << 11u) /* is emboss vert */
+
+/* 2bits for color */
+#define COLOR_OFS 12u
+#define COLOR_RANGE BIT_RANGE(2u)
+#define COLOR_INNER    0u
+#define COLOR_EDGE     1u
+#define COLOR_EMBOSS   2u
+
+/* 2bits for trias type */
+#define TRIA_FLAG      (1u << 14u) /* is tria vert */
+#define TRIA_FIRST     INNER_FLAG  /* is first tria (reuse INNER_FLAG) */
+
+/* We can reuse the CORNER_* bits for tria */
+#define TRIA_VEC_RANGE BIT_RANGE(6u)
+const vec2 triavec[34] = vec2[34](
+	/* horizontal tria */
+	vec2(-0.352077, 0.532607), vec2(-0.352077, -0.549313), vec2( 0.330000, -0.008353),
+	vec2( 0.352077, 0.532607), vec2( 0.352077, -0.549313), vec2(-0.330000, -0.008353),
+	/* circle tria (triangle strip) */
+	vec2(0.000000, 1.000000),
+	vec2(0.382684, 0.923879), vec2(-0.382683, 0.923880),
+	vec2(0.707107, 0.707107), vec2(-0.707107, 0.707107),
+	vec2(0.923879, 0.382684), vec2(-0.923879, 0.382684),
+	vec2(1.000000, 0.000000), vec2(-1.000000, 0.000000),
+	vec2(0.923879, -0.382684), vec2(-0.923879, -0.382684),
+	vec2(0.707107, -0.707107), vec2(-0.707107, -0.707107),
+	vec2(0.382684, -0.923879), vec2(-0.382683, -0.923880),
+	vec2(0.000000, -1.000000),
+	/* menu arrow */
+	vec2(-0.33, 0.16), vec2(0.33, 0.16), vec2(0.0, 0.82),
+	vec2(0.0, -0.82), vec2(-0.33, -0.16), vec2(0.33, -0.16),
+	/* check mark */
+	vec2(-0.578579, 0.253369),  vec2(-0.392773, 0.412794),  vec2(-0.004241, -0.328551),
+	vec2(-0.003001, 0.034320),  vec2(1.055313, 0.864744),   vec2(0.866408, 1.026895)
+);
+
+uniform mat4 ModelViewProjectionMatrix;
+
+uniform vec4 parameters[11];
+/* radi and rad per corner */
+#define recti        parameters[0]
+#define rect         parameters[1]
+#define radsi        parameters[2].x
+#define rads         parameters[2].y
+#define faci         parameters[2].zw
+#define roundCorners parameters[3]
+#define colorInner1  parameters[4]
+#define colorInner2  parameters[5]
+#define colorEdge    parameters[6]
+#define colorEmboss  parameters[7]
+#define colorTria    parameters[8]
+#define tria1Center  parameters[9].xy
+#define tria2Center  parameters[9].zw
+#define tria1Size    parameters[10].x
+#define tria2Size    parameters[10].y
+#define shadeDir     parameters[10].z
+
+in uint vflag;
+
+noperspective out vec4 finalColor;
+
+vec2 do_widget(void)
+{
+	uint cflag = vflag & CNR_FLAG_RANGE;
+	uint vofs = (vflag >> CORNER_VEC_OFS) & CORNER_VEC_RANGE;
+
+	vec2 v = cornervec[cflag * 9u + vofs];
+
+	bool is_inner = (vflag & INNER_FLAG) != 0u;
+
+	/* Scale by corner radius */
+	v *= roundCorners[cflag] * ((is_inner) ? radsi : rads);
+
+	/* Position to corner */
+	vec4 rct = (is_inner) ? recti : rect;
+	if (cflag == BOTTOM_LEFT)
+		v += rct.xz;
+	else if (cflag == BOTTOM_RIGHT)
+		v += rct.yz;
+	else if (cflag == TOP_RIGHT)
+		v += rct.yw;
+	else /* (cflag == TOP_LEFT) */
+		v += rct.xw;
+
+	/* compute uv and color gradient */
+	uint color_id = (vflag >> COLOR_OFS) & COLOR_RANGE;
+	if (color_id == COLOR_INNER) {
+		vec2 uv = faci * (v - recti.xz);
+		float fac = clamp((shadeDir > 0.0) ? uv.y : uv.x, 0.0, 1.0);
+		finalColor = mix(colorInner2, colorInner1, fac);
+	}
+	else if (color_id == COLOR_EDGE) {
+		finalColor = colorEdge;
+	}
+	else /* (color_id == COLOR_EMBOSS) */ {
+		finalColor = colorEmboss;
+	}
+
+	bool is_emboss = (vflag & EMBOSS_FLAG) != 0u;
+	v.y -= (is_emboss) ? 1.0f : 0.0;
+
+	return v;
+}
+
+vec2 do_tria()
+{
+	uint vofs = vflag & TRIA_VEC_RANGE;
+
+	vec2 v = triavec[vofs];
+
+	finalColor = colorTria;
+
+	bool is_tria_first = (vflag & TRIA_FIRST) != 0u;
+
+	if (is_tria_first)
+		v = v * tria1Size + tria1Center;
+	else
+		v = v * tria2Size + tria2Center;
+
+	return v;
+}
+
+void main()
+{
+	bool is_tria = (vflag & TRIA_FLAG) != 0u;
+
+	vec2 v = (is_tria) ? do_tria() : do_widget();
+
+	/* Antialiasing offset */
+	v += jit[(vflag >> JIT_OFS) & JIT_RANGE];
+
+	gl_Position = ModelViewProjectionMatrix * vec4(v, 0.0, 1.0);
+}

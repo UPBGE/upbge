@@ -19,16 +19,26 @@
 
 static unsigned vbo_memory_usage;
 
-Gwn_VertBuf* GWN_vertbuf_create(void)
+static GLenum convert_usage_type_to_gl(Gwn_UsageType type)
+	{
+	static const GLenum table[] = {
+		[GWN_USAGE_STREAM] = GL_STREAM_DRAW,
+		[GWN_USAGE_STATIC] = GL_STATIC_DRAW,
+		[GWN_USAGE_DYNAMIC] = GL_DYNAMIC_DRAW
+		};
+	return table[type];
+	}
+
+Gwn_VertBuf* GWN_vertbuf_create(Gwn_UsageType usage)
 	{
 	Gwn_VertBuf* verts = malloc(sizeof(Gwn_VertBuf));
-	GWN_vertbuf_init(verts);
+	GWN_vertbuf_init(verts, usage);
 	return verts;
 	}
 
-Gwn_VertBuf* GWN_vertbuf_create_with_format(const Gwn_VertFormat* format)
+Gwn_VertBuf* GWN_vertbuf_create_with_format_ex(const Gwn_VertFormat* format, Gwn_UsageType usage)
 	{
-	Gwn_VertBuf* verts = GWN_vertbuf_create();
+	Gwn_VertBuf* verts = GWN_vertbuf_create(usage);
 	GWN_vertformat_copy(&verts->format, format);
 	if (!format->packed)
 		VertexFormat_pack(&verts->format);
@@ -38,50 +48,33 @@ Gwn_VertBuf* GWN_vertbuf_create_with_format(const Gwn_VertFormat* format)
 	// TODO: implement those memory savings
 	}
 
-void GWN_vertbuf_init(Gwn_VertBuf* verts)
+void GWN_vertbuf_init(Gwn_VertBuf* verts, Gwn_UsageType usage)
 	{
 	memset(verts, 0, sizeof(Gwn_VertBuf));
+	verts->usage = usage;
+	verts->dirty = true;
 	}
 
-void GWN_vertbuf_init_with_format(Gwn_VertBuf* verts, const Gwn_VertFormat* format)
+void GWN_vertbuf_init_with_format_ex(Gwn_VertBuf* verts, const Gwn_VertFormat* format, Gwn_UsageType usage)
 	{
-	GWN_vertbuf_init(verts);
+	GWN_vertbuf_init(verts, usage);
 	GWN_vertformat_copy(&verts->format, format);
 	if (!format->packed)
 		VertexFormat_pack(&verts->format);
 	}
 
-/**
- * Like #GWN_vertbuf_discard but doesn't free.
- */
-void GWN_vertbuf_clear(Gwn_VertBuf* verts)
-	{
-	if (verts->vbo_id) {
-		GWN_buf_id_free(verts->vbo_id);
-		vbo_memory_usage -= GWN_vertbuf_size_get(verts);
-	}
-#if KEEP_SINGLE_COPY
-	else
-#endif
-	if (verts->data)
-		{
-		free(verts->data);
-		verts->data = NULL;
-		}
-	}
-
 void GWN_vertbuf_discard(Gwn_VertBuf* verts)
 	{
-	if (verts->vbo_id) {
+	if (verts->vbo_id)
+		{
 		GWN_buf_id_free(verts->vbo_id);
+#if VRAM_USAGE
 		vbo_memory_usage -= GWN_vertbuf_size_get(verts);
-	}
-#if KEEP_SINGLE_COPY
-	else
 #endif
+		}
+
 	if (verts->data)
 		free(verts->data);
-
 
 	free(verts);
 	}
@@ -91,30 +84,70 @@ unsigned GWN_vertbuf_size_get(const Gwn_VertBuf* verts)
 	return vertex_buffer_size(&verts->format, verts->vertex_ct);
 	}
 
+// create a new allocation, discarding any existing data
 void GWN_vertbuf_data_alloc(Gwn_VertBuf* verts, unsigned v_ct)
 	{
 	Gwn_VertFormat* format = &verts->format;
 	if (!format->packed)
 		VertexFormat_pack(format);
 
-	verts->vertex_ct = v_ct;
+#if TRUST_NO_ONE
+	// catch any unnecessary use
+	assert(verts->vertex_alloc != v_ct || verts->data == NULL);
+#endif
 
-	// Data initially lives in main memory. Will be transferred to VRAM when we "prime" it.
-	verts->data = malloc(GWN_vertbuf_size_get(verts));
+	// only create the buffer the 1st time
+	if (verts->vbo_id == 0)
+		verts->vbo_id = GWN_buf_id_alloc();
+
+	// discard previous data if any
+	if (verts->data)
+		free(verts->data);
+
+#if VRAM_USAGE
+	unsigned new_size = vertex_buffer_size(&verts->format, v_ct);
+	vbo_memory_usage += new_size - GWN_vertbuf_size_get(verts);
+#endif
+
+	verts->dirty = true;
+	verts->vertex_ct = verts->vertex_alloc = v_ct;
+	verts->data = malloc(sizeof(GLubyte) * GWN_vertbuf_size_get(verts));
 	}
 
+// resize buffer keeping existing data
 void GWN_vertbuf_data_resize(Gwn_VertBuf* verts, unsigned v_ct)
 	{
 #if TRUST_NO_ONE
-	assert(verts->vertex_ct != v_ct); // allow this?
-	assert(verts->data != NULL); // has already been allocated
-	assert(verts->vbo_id == 0); // has not been sent to VRAM
+	assert(verts->data != NULL);
+	assert(verts->vertex_alloc != v_ct);
+#endif
+
+#if VRAM_USAGE
+	unsigned new_size = vertex_buffer_size(&verts->format, v_ct);
+	vbo_memory_usage += new_size - GWN_vertbuf_size_get(verts);
+#endif
+
+	verts->dirty = true;
+	verts->vertex_ct = verts->vertex_alloc = v_ct;
+	verts->data = realloc(verts->data, sizeof(GLubyte) * GWN_vertbuf_size_get(verts));
+	}
+
+// set vertex count but does not change allocation
+// only this many verts will be uploaded to the GPU and rendered
+// this is usefull for streaming data
+void GWN_vertbuf_vertex_count_set(Gwn_VertBuf* verts, unsigned v_ct)
+	{
+#if TRUST_NO_ONE
+	assert(verts->data != NULL); // only for dynamic data
+	assert(v_ct <= verts->vertex_alloc);
+#endif
+
+#if VRAM_USAGE
+	unsigned new_size = vertex_buffer_size(&verts->format, v_ct);
+	vbo_memory_usage += new_size - GWN_vertbuf_size_get(verts);
 #endif
 
 	verts->vertex_ct = v_ct;
-	verts->data = realloc(verts->data, GWN_vertbuf_size_get(verts));
-	// TODO: skip realloc if v_ct < existing vertex count
-	// extra space will be reclaimed, and never sent to VRAM (see VertexBuffer_prime)
 	}
 
 void GWN_vertbuf_attr_set(Gwn_VertBuf* verts, unsigned a_idx, unsigned v_idx, const void* data)
@@ -124,10 +157,11 @@ void GWN_vertbuf_attr_set(Gwn_VertBuf* verts, unsigned a_idx, unsigned v_idx, co
 
 #if TRUST_NO_ONE
 	assert(a_idx < format->attrib_ct);
-	assert(v_idx < verts->vertex_ct);
-	assert(verts->data != NULL); // data must be in main mem
+	assert(v_idx < verts->vertex_alloc);
+	assert(verts->data != NULL);
 #endif
 
+	verts->dirty = true;
 	memcpy((GLubyte*)verts->data + a->offset + v_idx * format->stride, data, a->sz);
 	}
 
@@ -152,9 +186,10 @@ void GWN_vertbuf_attr_fill_stride(Gwn_VertBuf* verts, unsigned a_idx, unsigned s
 
 #if TRUST_NO_ONE
 	assert(a_idx < format->attrib_ct);
-	assert(verts->data != NULL); // data must be in main mem
+	assert(verts->data != NULL);
 #endif
 
+	verts->dirty = true;
 	const unsigned vertex_ct = verts->vertex_ct;
 
 	if (format->attrib_ct == 1 && stride == format->stride)
@@ -177,43 +212,44 @@ void GWN_vertbuf_attr_get_raw_data(Gwn_VertBuf* verts, unsigned a_idx, Gwn_VertB
 
 #if TRUST_NO_ONE
 	assert(a_idx < format->attrib_ct);
-	assert(verts->data != NULL); // data must be in main mem
+	assert(verts->data != NULL);
 #endif
+
+	verts->dirty = true;
 
 	access->size = a->sz;
 	access->stride = format->stride;
 	access->data = (GLubyte*)verts->data + a->offset;
 	access->data_init = access->data;
 #if TRUST_NO_ONE
-	access->_data_end = access->data_init + (size_t)(verts->vertex_ct * format->stride);
+	access->_data_end = access->data_init + (size_t)(verts->vertex_alloc * format->stride);
 #endif
 	}
 
-
-static void VertexBuffer_prime(Gwn_VertBuf* verts)
+static void VertBuffer_upload_data(Gwn_VertBuf* verts)
 	{
-	const unsigned buffer_sz = GWN_vertbuf_size_get(verts);
+	unsigned buffer_sz = GWN_vertbuf_size_get(verts);
 
-	verts->vbo_id = GWN_buf_id_alloc();
-	glBindBuffer(GL_ARRAY_BUFFER, verts->vbo_id);
-	// fill with delicious data & send to GPU the first time only
-	glBufferData(GL_ARRAY_BUFFER, buffer_sz, verts->data, GL_STATIC_DRAW);
+	// orphan the vbo to avoid sync
+	glBufferData(GL_ARRAY_BUFFER, buffer_sz, NULL, convert_usage_type_to_gl(verts->usage));
+	// upload data
+	glBufferSubData(GL_ARRAY_BUFFER, 0, buffer_sz, verts->data);
 
-	vbo_memory_usage += buffer_sz;
+	if (verts->usage == GWN_USAGE_STATIC)
+		{
+		free(verts->data);
+		verts->data = NULL;
+		}
 
-#if KEEP_SINGLE_COPY
-	// now that GL has a copy, discard original
-	free(verts->data);
-	verts->data = NULL;
-#endif
+	verts->dirty = false;
 	}
 
 void GWN_vertbuf_use(Gwn_VertBuf* verts)
 	{
-	if (verts->vbo_id)
-		glBindBuffer(GL_ARRAY_BUFFER, verts->vbo_id);
-	else
-		VertexBuffer_prime(verts);
+	glBindBuffer(GL_ARRAY_BUFFER, verts->vbo_id);
+
+	if (verts->dirty)
+		VertBuffer_upload_data(verts);
 	}
 
 unsigned GWN_vertbuf_get_memory_usage(void)

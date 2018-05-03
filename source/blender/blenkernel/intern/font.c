@@ -382,7 +382,7 @@ static void build_underline(Curve *cu, ListBase *nubase, const rctf *rect,
 	nu2->orderv = 1;
 	nu2->flagu = CU_NURB_CYCLIC;
 
-	bp = (BPoint *)MEM_callocN(4 * sizeof(BPoint), "underline_bp");
+	bp = (BPoint *)MEM_calloc_arrayN(4, sizeof(BPoint), "underline_bp");
 
 	copy_v4_fl4(bp[0].vec, rect->xmin, (rect->ymax + yofs), 0.0f, 1.0f);
 	copy_v4_fl4(bp[1].vec, rect->xmax, (rect->ymax + yofs), 0.0f, 1.0f);
@@ -481,7 +481,7 @@ static void buildchar(Main *bmain, Curve *cu, ListBase *nubase, unsigned int cha
 			/* nu2->trim.last = 0; */
 			i = nu2->pntsu;
 
-			bezt2 = (BezTriple *)MEM_mallocN(i * sizeof(BezTriple), "duplichar_bezt2");
+			bezt2 = (BezTriple *)MEM_malloc_arrayN(i, sizeof(BezTriple), "duplichar_bezt2");
 			if (bezt2 == NULL) {
 				MEM_freeN(nu2);
 				break;
@@ -635,11 +635,10 @@ struct TempLineInfo {
 	int   wspace_nr;  /* number of whitespaces of line */
 };
 
-bool BKE_vfont_to_curve_ex(Main *bmain, Object *ob, int mode, ListBase *r_nubase,
+bool BKE_vfont_to_curve_ex(Main *bmain, Object *ob, Curve *cu, int mode, ListBase *r_nubase,
                            const wchar_t **r_text, int *r_text_len, bool *r_text_free,
                            struct CharTrans **r_chartransdata)
 {
-	Curve *cu = ob->data;
 	EditFont *ef = cu->editfont;
 	EditFontSelBox *selboxes = NULL;
 	VFont *vfont, *oldvfont;
@@ -670,7 +669,7 @@ bool BKE_vfont_to_curve_ex(Main *bmain, Object *ob, int mode, ListBase *r_nubase
 	/* remark: do calculations including the trailing '\0' of a string
 	 * because the cursor can be at that location */
 
-	BLI_assert(ob->type == OB_FONT);
+	BLI_assert(ob == NULL || ob->type == OB_FONT);
 
 	/* Set font data */
 	vfont = cu->vfont;
@@ -693,28 +692,34 @@ bool BKE_vfont_to_curve_ex(Main *bmain, Object *ob, int mode, ListBase *r_nubase
 		slen = cu->len_wchar;
 
 		/* Create unicode string */
-		mem_tmp = MEM_mallocN(((slen + 1) * sizeof(wchar_t)), "convertedmem");
+		mem_tmp = MEM_malloc_arrayN((slen + 1), sizeof(wchar_t), "convertedmem");
+		if (!mem_tmp) {
+			return ok;
+		}
 
 		BLI_strncpy_wchar_from_utf8(mem_tmp, cu->str, slen + 1);
 
 		if (cu->strinfo == NULL) {  /* old file */
-			cu->strinfo = MEM_callocN((slen + 4) * sizeof(CharInfo), "strinfo compat");
+			cu->strinfo = MEM_calloc_arrayN((slen + 4), sizeof(CharInfo), "strinfo compat");
 		}
 		custrinfo = cu->strinfo;
+		if (!custrinfo) {
+			return ok;
+		}
 
 		mem = mem_tmp;
 	}
 
 	if (cu->tb == NULL)
-		cu->tb = MEM_callocN(MAXTEXTBOX * sizeof(TextBox), "TextBox compat");
+		cu->tb = MEM_calloc_arrayN(MAXTEXTBOX, sizeof(TextBox), "TextBox compat");
 
-	if (ef) {
+	if (ef != NULL && ob != NULL) {
 		if (ef->selboxes)
 			MEM_freeN(ef->selboxes);
 
 		if (BKE_vfont_select_get(ob, &selstart, &selend)) {
 			ef->selboxes_len = (selend - selstart) + 1;
-			ef->selboxes = MEM_callocN(ef->selboxes_len * sizeof(EditFontSelBox), "font selboxes");
+			ef->selboxes = MEM_calloc_arrayN(ef->selboxes_len, sizeof(EditFontSelBox), "font selboxes");
 		}
 		else {
 			ef->selboxes_len = 0;
@@ -725,10 +730,10 @@ bool BKE_vfont_to_curve_ex(Main *bmain, Object *ob, int mode, ListBase *r_nubase
 	}
 
 	/* calc offset and rotation of each char */
-	ct = chartransdata = MEM_callocN((slen + 1) * sizeof(struct CharTrans), "buildtext");
+	ct = chartransdata = MEM_calloc_arrayN((slen + 1), sizeof(struct CharTrans), "buildtext");
 
 	/* We assume the worst case: 1 character per line (is freed at end anyway) */
-	lineinfo = MEM_mallocN(sizeof(*lineinfo) * (slen * 2 + 1), "lineinfo");
+	lineinfo = MEM_malloc_arrayN((slen * 2 + 1), sizeof(*lineinfo), "lineinfo");
 	
 	linedist = cu->linedist;
 	
@@ -1075,8 +1080,13 @@ makebreak:
 			float distfac, imat[4][4], imat3[3][3], cmat[3][3];
 			float minx, maxx, miny, maxy;
 			float timeofs, sizefac;
-			
-			invert_m4_m4(imat, ob->obmat);
+
+			if (ob != NULL) {
+				invert_m4_m4(imat, ob->obmat);
+			}
+			else {
+				unit_m4(imat);
+			}
 			copy_m3_m4(imat3, imat);
 
 			copy_m3_m4(cmat, cu->textoncurve->obmat);
@@ -1258,7 +1268,7 @@ makebreak:
 				cha = towupper(cha);
 			}
 
-			if (info->mat_nr > (ob->totcol)) {
+			if (ob == NULL || info->mat_nr > (ob->totcol)) {
 				/* printf("Error: Illegal material index (%d) in text object, setting to 0\n", info->mat_nr); */
 				info->mat_nr = 0;
 			}
@@ -1334,7 +1344,7 @@ bool BKE_vfont_to_curve_nubase(Main *bmain, Object *ob, int mode, ListBase *r_nu
 {
 	BLI_assert(ob->type == OB_FONT);
 
-	return BKE_vfont_to_curve_ex(bmain, ob, mode, r_nubase,
+	return BKE_vfont_to_curve_ex(bmain, ob, ob->data, mode, r_nubase,
 	                             NULL, NULL, NULL, NULL);
 }
 
@@ -1342,7 +1352,7 @@ bool BKE_vfont_to_curve(Main *bmain, Object *ob, int mode)
 {
 	Curve *cu = ob->data;
 
-	return BKE_vfont_to_curve_ex(bmain, ob, mode, &cu->nurb, NULL, NULL, NULL, NULL);
+	return BKE_vfont_to_curve_ex(bmain, ob, ob->data, mode, &cu->nurb, NULL, NULL, NULL, NULL);
 }
 
 
@@ -1374,12 +1384,12 @@ void BKE_vfont_clipboard_set(const wchar_t *text_buf, const CharInfo *info_buf, 
 	/* clean previous buffers*/
 	BKE_vfont_clipboard_free();
 
-	text = MEM_mallocN((len + 1) * sizeof(wchar_t), __func__);
+	text = MEM_malloc_arrayN((len + 1), sizeof(wchar_t), __func__);
 	if (text == NULL) {
 		return;
 	}
 
-	info = MEM_mallocN(len * sizeof(CharInfo), __func__);
+	info = MEM_malloc_arrayN(len, sizeof(CharInfo), __func__);
 	if (info == NULL) {
 		MEM_freeN(text);
 		return;

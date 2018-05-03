@@ -502,7 +502,10 @@ typedef struct OceanSimulateData {
 	float chop_amount;
 } OceanSimulateData;
 
-static void ocean_compute_htilda(void *userdata, const int i)
+static void ocean_compute_htilda(
+        void *__restrict userdata,
+        const int i,
+        const ParallelRangeTLS *__restrict UNUSED(tls))
 {
 	OceanSimulateData *osd = userdata;
 	const Ocean *o = osd->o;
@@ -748,7 +751,10 @@ void BKE_ocean_simulate(struct Ocean *o, float t, float scale, float chop_amount
 	 * This is not optimal in all cases, but remains reasonably simple and should be OK most of the time. */
 
 	/* compute a new htilda */
-	BLI_task_parallel_range(0, o->_M, &osd, ocean_compute_htilda, o->_M > 16);
+	ParallelRangeSettings settings;
+	BLI_parallel_range_settings_defaults(&settings);
+	settings.use_threading = (o->_M > 16);
+	BLI_task_parallel_range(0, o->_M, &osd, ocean_compute_htilda, &settings);
 
 	if (o->_do_disp_y) {
 		BLI_task_pool_push(pool, ocean_compute_displacement_y, NULL, false, TASK_PRIORITY_HIGH);
@@ -911,7 +917,7 @@ void BKE_ocean_init(struct Ocean *o, int M, int N, float Lx, float Lz, float V, 
 	o->_fft_in = (fftw_complex *)MEM_mallocN(o->_M * (1 + o->_N / 2) * sizeof(fftw_complex), "ocean_fft_in");
 	o->_htilda = (fftw_complex *)MEM_mallocN(o->_M * (1 + o->_N / 2) * sizeof(fftw_complex), "ocean_htilda");
 
-	BLI_lock_thread(LOCK_FFTW);
+	BLI_thread_lock(LOCK_FFTW);
 
 	if (o->_do_disp_y) {
 		o->_disp_y = (double *)MEM_mallocN(o->_M * o->_N * sizeof(double), "ocean_disp_y");
@@ -957,7 +963,7 @@ void BKE_ocean_init(struct Ocean *o, int M, int N, float Lx, float Lz, float V, 
 		o->_Jxz_plan = fftw_plan_dft_c2r_2d(o->_M, o->_N, o->_fft_in_jxz, o->_Jxz, FFTW_ESTIMATE);
 	}
 
-	BLI_unlock_thread(LOCK_FFTW);
+	BLI_thread_unlock(LOCK_FFTW);
 
 	BLI_rw_mutex_unlock(&o->oceanmutex);
 
@@ -972,7 +978,7 @@ void BKE_ocean_free_data(struct Ocean *oc)
 
 	BLI_rw_mutex_lock(&oc->oceanmutex, THREAD_LOCK_WRITE);
 
-	BLI_lock_thread(LOCK_FFTW);
+	BLI_thread_lock(LOCK_FFTW);
 
 	if (oc->_do_disp_y) {
 		fftw_destroy_plan(oc->_disp_y_plan);
@@ -1010,7 +1016,7 @@ void BKE_ocean_free_data(struct Ocean *oc)
 		MEM_freeN(oc->_Jxz);
 	}
 
-	BLI_unlock_thread(LOCK_FFTW);
+	BLI_thread_unlock(LOCK_FFTW);
 
 	if (oc->_fft_in)
 		MEM_freeN(oc->_fft_in);

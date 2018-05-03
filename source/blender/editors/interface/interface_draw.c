@@ -40,9 +40,9 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_colorband.h"
 #include "BKE_colortools.h"
 #include "BKE_node.h"
-#include "BKE_texture.h"
 #include "BKE_tracking.h"
 
 
@@ -615,7 +615,7 @@ static void draw_scope_end(const rctf *rect, GLint *scissor)
 	/* restore scissortest */
 	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	/* outline */
 	UI_draw_roundbox_corner_set(UI_CNR_ALL);
@@ -635,7 +635,7 @@ static void histogram_draw_one(
 		return;
 
 	glEnable(GL_LINE_SMOOTH);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
 
 	immUniformColor4fv(color);
 
@@ -665,7 +665,7 @@ static void histogram_draw_one(
 		/* curve outline */
 		immUniformColor4f(0.0f, 0.0f, 0.0f, 0.25f);
 
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		immBegin(GWN_PRIM_LINE_STRIP, res);
 		for (int i = 0; i < res; i++) {
 			float x2 = x + i * (w / (float)res);
@@ -696,7 +696,7 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	float h = BLI_rctf_size_y(&rect) * hist->ymax;
 	
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	float color[4];
 	UI_GetThemeColor4fv(TH_PREVIEW_BACK, color);
@@ -705,7 +705,7 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 
 	/* need scissor test, histogram can draw outside of boundary */
 	GLint scissor[4];
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	glGetIntegerv(GL_SCISSOR_BOX, scissor);
 	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
@@ -817,7 +817,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	}
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	float color[4];
 	UI_GetThemeColor4fv(TH_PREVIEW_BACK, color);
@@ -825,7 +825,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	UI_draw_roundbox_4fv(true, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f, color);
 
 	/* need scissor test, waveform can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	glGetIntegerv(GL_SCISSOR_BOX, scissor);
 	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
@@ -841,7 +841,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	}
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	Gwn_VertFormat *format = immVertexFormat();
 	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
@@ -1085,7 +1085,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	float alpha = scopes->vecscope_alpha * scopes->vecscope_alpha * scopes->vecscope_alpha;
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	float color[4];
 	UI_GetThemeColor4fv(TH_PREVIEW_BACK, color);
@@ -1094,7 +1094,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 
 	/* need scissor test, hvectorscope can draw outside of boundary */
 	GLint scissor[4];
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	glGetIntegerv(GL_SCISSOR_BOX, scissor);
 	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
@@ -1335,7 +1335,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti 
 	immBegin(GWN_PRIM_TRI_STRIP, (sizex + 1) * 2);
 	for (int a = 0; a <= sizex; a++) {
 		float pos = ((float)a) / sizex;
-		do_colorband(coba, pos, colf);
+		BKE_colorband_evaluate(coba, pos, colf);
 		if (display)
 			IMB_colormanagement_scene_linear_to_display_v3(colf, display);
 		
@@ -1354,7 +1354,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti 
 	immBegin(GWN_PRIM_TRI_STRIP, (sizex + 1) * 2);
 	for (int a = 0; a <= sizex; a++) {
 		float pos = ((float)a) / sizex;
-		do_colorband(coba, pos, colf);
+		BKE_colorband_evaluate(coba, pos, colf);
 		if (display)
 			IMB_colormanagement_scene_linear_to_display_v3(colf, display);
 
@@ -1520,7 +1520,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti
 
 	/* need scissor test, curve can draw outside of boundary */
 	GLint scissor[4];
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	glGetIntegerv(GL_SCISSOR_BOX, scissor);
 	rcti scissor_new = {
 		.xmin = ar->winrct.xmin + rect->xmin,
 		.ymin = ar->winrct.ymin + rect->ymin,
@@ -1564,7 +1564,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti
 	if (but->a1 == UI_GRAD_H) {
 		/* grid, hsv uses different grid */
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		immUniformColor4ub(0, 0, 0, 48);
 		ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.1666666f);
 		glDisable(GL_BLEND);
@@ -1738,11 +1738,11 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	int height = BLI_rctf_size_y(&rect);
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	/* need scissor test, preview image can draw outside of boundary */
 	GLint scissor[4];
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	glGetIntegerv(GL_SCISSOR_BOX, scissor);
 	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
@@ -1874,7 +1874,7 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	GLint scissor[4];
 	
 	/* need scissor test, can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	glGetIntegerv(GL_SCISSOR_BOX, scissor);
 	
 	rcti scissor_new = {
 		.xmin = ar->winrct.xmin + recti->xmin,
