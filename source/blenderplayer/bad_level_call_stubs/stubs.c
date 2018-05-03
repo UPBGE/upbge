@@ -348,6 +348,19 @@ void WM_lib_reload(struct Library *lib, struct bContext *C, struct ReportList *r
 
 void WM_msg_publish_rna(struct wmMsgBus *mbus, PointerRNA *ptr, PropertyRNA *prop) RET_NONE
 
+void *WM_opengl_context_create(void) RET_NULL
+void WM_opengl_context_dispose(void *context) RET_NONE
+void WM_opengl_context_activate(void *context) RET_NONE
+void WM_opengl_context_release(void *context) RET_NONE
+void wm_window_reset_drawable(void) RET_NONE
+bool WM_jobs_test(struct wmWindowManager *wm, void *owner, int job_type) RET_ZERO
+void *WM_jobs_customdata_get(struct wmJob *jobs) RET_NULL
+void RE_GetViewPlane(struct Render *re, rctf *r_viewplane, rcti *r_disprect) RET_NONE
+void RE_GetCameraWindow(struct Render *re, struct Object *camera, int frame, float mat[4][4]) RET_NONE
+void RE_GetCameraModelMatrix(struct Render *re, struct Object *camera, float r_mat[4][4]) RET_NONE
+const char *RE_GetActiveRenderView(struct Render *re) RET_NULL
+//void DRW_deferred_shader_remove(struct GPUMaterial *mat) RET_NONE
+
 
 char *WM_clipboard_text_get(bool selection, int *r_len) RET_NULL
 char *WM_clipboard_text_get_firstline(bool selection, int *r_len) RET_NULL
@@ -554,6 +567,12 @@ void ED_view3d_quadview_update(struct ScrArea *sa, struct ARegion *ar, bool do_c
 void ED_view3d_from_m4(float mat[4][4], float ofs[3], float quat[4], float *dist) RET_NONE
 eV3DProjStatus ED_view3d_project_short_ex(const struct ARegion *ar, float perspmat[4][4], const bool is_local,
                                           const float co[3], short r_co[2], const eV3DProjTest flag) RET_ZERO
+eV3DProjStatus ED_view3d_project_int_global(const struct ARegion *ar, const float co[3], int r_co[2], const eV3DProjTest flag) RET_ZERO
+void ED_view3d_draw_bgpic_test(struct Scene *scene, const struct Depsgraph *depsgraph, struct ARegion *ar, struct View3D *v3d,
+	const bool do_foreground, const bool do_camera_frame) RET_NONE
+struct wmWindow *ED_screen_window_find(const struct bScreen *screen, const struct wmWindowManager *wm) RET_NULL
+struct Scene *ED_screen_scene_find_with_window(const struct bScreen *screen, const struct wmWindowManager *wm, struct wmWindow **r_window) RET_NULL
+
 void ED_view3d_update_viewmat(const struct EvaluationContext *eval_ctx, struct Scene *scene, struct View3D *v3d, struct ARegion *ar, float viewmat[4][4], float winmat[4][4], const struct rcti *rect) RET_NONE
 float ED_view3d_grid_scale(struct Scene *scene, struct View3D *v3d, const char **grid_unit) RET_ZERO
 void ED_view3d_shade_update(struct Main *bmain, struct Scene *scene, struct View3D *v3d, struct ScrArea *sa) RET_NONE
@@ -579,7 +598,9 @@ struct ModifierData *ED_object_modifier_add(struct ReportList *reports, struct M
 void ED_object_modifier_clear(struct Main *bmain, struct Object *ob) RET_NONE
 void ED_object_editmode_enter(struct bContext *C, int flag) RET_NONE
 void ED_object_editmode_exit(struct bContext *C, int flag) RET_NONE
+void ED_object_editmode_exit_ex(struct bContext *C, struct WorkSpace *workspace, struct Scene *scene, struct Object *obedit, int flag) RET_NONE
 bool ED_object_editmode_load(struct Object *obedit) RET_ZERO
+void ED_object_base_activate(struct bContext *C, struct Base *base) RET_NONE
 void ED_object_check_force_modifiers(struct Main *bmain, struct Scene *scene, struct Object *object) RET_NONE
 bool uiLayoutGetActive(struct uiLayout *layout) RET_ZERO
 int uiLayoutGetOperatorContext(struct uiLayout *layout) RET_ZERO

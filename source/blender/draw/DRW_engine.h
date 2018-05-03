@@ -142,8 +142,8 @@ void DRW_opengl_context_disable(void);
 void DRW_deferred_shader_remove(struct GPUMaterial *mat);
 
 /*************************************************Game engine************************************************/
-void DRW_game_render_loop_begin(struct GPUOffScreen *ofs, struct Main *bmain,
-	struct Scene *scene, struct ViewLayer *view_layer, struct Object *maincam, int viewportsize[2]);
+struct GPUTexture *DRW_game_render_loop(struct Main *bmain, struct Scene *scene, struct Object *maincam, int viewportsize[2], bool called_from_constructor, bool reset_taa_samples);
+void DRW_game_render_loop_finish(void);
 void DRW_game_render_loop_end(void);
 /********************************************End of game engine**********************************************/
 

@@ -145,17 +145,8 @@ private:
 protected:
 
 	/***************EEVEE INTEGRATION*****************/
-	bool m_dofInitialized;
-	bool m_taaInitialized;
-
-	bool m_doingTAA;
-	bool m_doingProbeUpdate;
 
 	std::vector<KX_GameObject *>m_staticObjects;
-	std::vector<KX_GameObject *>m_staticObjectsInsideFrustum;
-
-	std::vector<DRWPass *>m_materialPasses;
-	IDProperty *m_idProperty;
 	std::vector<KX_GameObject *>m_lightProbes;
 	/*************************************************/
 
@@ -345,24 +336,14 @@ public:
 	~KX_Scene();
 
 	/******************EEVEE INTEGRATION************************/
-	void InitScenePasses(EEVEE_PassList *psl);
-	std::vector<DRWPass *>GetMaterialPasses();
-
 	void AppendToStaticObjects(KX_GameObject *gameobj);
-	void AppendToStaticObjectsInsideFrustum(KX_GameObject *gameobj);
-
-	void UpdateShadows(RAS_Rasterizer *rasty);
 
 	void AppendProbeList(KX_GameObject *probe);
 	std::vector<KX_GameObject *>GetProbeList();
-	void UpdateProbes();
 
-	bool ComputeTAA(const KX_CullingNodeList& nodes);
-	void EeveePostProcessingHackBegin(const KX_CullingNodeList& nodes);
-	void EeveePostProcessingHackEnd();
-
-	void EEVEE_draw_scene(); /* We need a minimal control on eevee render pipe */
-	void RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty);
+	void RenderAfterCameraSetup(bool calledFromConstructor);
+	
+	//void RenderBucketsNew(const KX_CullingNodeList& nodes, RAS_Rasterizer *rasty);
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;

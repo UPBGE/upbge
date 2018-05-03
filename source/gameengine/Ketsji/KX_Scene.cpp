@@ -124,6 +124,7 @@ extern "C" {
 #  include "BLI_rand.h"
 #  include "DRW_engine.h"
 #  include "DRW_render.h"
+#  include "GPU_glew.h"
 #  include "MEM_guardedalloc.h"
 }
 /*********************END OF EEVEE INTEGRATION***************************/
@@ -178,11 +179,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_suspendeddelta(0.0),
 	m_blenderScene(scene),
 	m_isActivedHysteresis(false),
-	m_lodHysteresisValue(0),
-	m_dofInitialized(false),
-	m_doingProbeUpdate(false),
-	m_doingTAA(false),
-	m_taaInitialized(false)
+	m_lodHysteresisValue(0)
 {
 
 	m_dbvt_culling = false;
@@ -240,6 +237,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	/*************************************************EEVEE INTEGRATION***********************************************************/
 	m_staticObjects = {};
+
+	RenderAfterCameraSetup(true);
 	/******************************************************************************************************************************/
 
 #ifdef WITH_PYTHON
@@ -331,35 +330,39 @@ KX_Scene::~KX_Scene()
 
 /*******************EEVEE INTEGRATION******************/
 
-void KX_Scene::InitScenePasses(EEVEE_PassList *psl)
+void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 {
-	/* MATERIALS PASSES */
+	KX_KetsjiEngine *engine = KX_GetActiveEngine();
+	RAS_Rasterizer *rasty = engine->GetRasterizer();
+	RAS_ICanvas *canvas = engine->GetCanvas();
+	KX_Camera *cam = GetActiveCamera();
+	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+	Scene *scene = GetBlenderScene();
+	ViewLayer *view_layer = BKE_view_layer_from_scene_get(scene);
+	Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
 
-	// Default materials passes
-	for (int i = 0; i < VAR_MAT_MAX; ++i) {
-		if (psl->default_pass[i]) {
-			DRWPass *defPass = psl->default_pass[i];
-			m_materialPasses.push_back(defPass);
-		}
+	const RAS_Rect *viewport = &canvas->GetViewportArea();
+	int v[4] = { viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth() + 1, viewport->GetHeight() + 1 };
+
+	if (!calledFromConstructor) {
+		rasty->SetMatrix(cam->GetModelviewMatrix(), cam->GetProjectionMatrix(),
+			cam->NodeGetWorldPosition(), cam->NodeGetLocalScaling());
 	}
 
-	m_materialPasses.push_back(psl->material_pass);
-	m_materialPasses.push_back(psl->transparent_pass);
-	m_materialPasses.push_back(psl->depth_pass);
-	m_materialPasses.push_back(psl->depth_pass_clip);
-	m_materialPasses.push_back(psl->depth_pass_cull);
-	m_materialPasses.push_back(psl->depth_pass_clip_cull);
-	m_materialPasses.push_back(psl->refract_depth_pass);
-	m_materialPasses.push_back(psl->refract_depth_pass_clip);
-	m_materialPasses.push_back(psl->refract_depth_pass_cull);
-	m_materialPasses.push_back(psl->refract_depth_pass_clip_cull);
-	m_materialPasses.push_back(psl->sss_pass);
-	/* END OF MATERIALS PASSES */
-}
+	int viewportsize[2] = { canvas->GetWidth(), canvas->GetHeight() };
 
-std::vector<DRWPass *>KX_Scene::GetMaterialPasses()
-{
-	return m_materialPasses;
+	GPUTexture *finaltex = DRW_game_render_loop(bmain, scene, maincam, viewportsize, calledFromConstructor, true);
+
+	glViewport(v[0], v[1], v[2], v[3]);
+	glScissor(v[0], v[1], v[2], v[3]);
+
+	DRW_transform_to_display(finaltex);
+
+	if (!calledFromConstructor) {
+		canvas->EndFrame();
+	}
+
+	DRW_game_render_loop_finish();
 }
 
 void KX_Scene::AppendProbeList(KX_GameObject *probe)
@@ -761,7 +764,6 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 	KX_GameObject* gameobj;
 	Object* blgroupobj = groupobj->GetBlenderObject();
 	Group* group;
-	GroupObject *go;
 	std::vector<KX_GameObject*> duplilist;
 
 	if (!groupobj->GetSGNode() ||
@@ -781,7 +783,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 	group = blgroupobj->dup_group;
 	FOREACH_GROUP_BASE_BEGIN(group, base)
 	{
-		Object* blenderobj = go->ob;
+		Object* blenderobj = base->object;
 		if (blgroupobj == blenderobj)
 			// this check is also in group_duplilist()
 			continue;
@@ -1003,17 +1005,6 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 		DupliGroupRecurse(gameobj, 0);
 	}
 
-	/* This is to duplicate gaiwan batches and add it to eevee psl
-	 * Only useful if we choose to draw the scene with eevee render.
-	 * I think in this case we'd need to remove graphic controller.
-	 */
-	if (replica->GetMaterialBatches().size() > 0) {
-		float obmat[4][4];
-		replica->NodeGetWorldTransform().getValue(&obmat[0][0]);
-		replica->DuplicateMaterialBatches();
-		replica->AddNewMaterialBatchesToPasses(obmat);
-	}
-
 	//	don't release replica here because we are returning it, not done with it...
 	return replica;
 }
@@ -1022,8 +1013,6 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_Game
 
 void KX_Scene::RemoveObject(KX_GameObject *gameobj)
 {
-	// Discard geometry (gameobj gaiwan batches)
-	gameobj->DiscardMaterialBatches();
 	// disconnect child from parent
 	SG_Node* node = gameobj->GetSGNode();
 

@@ -219,7 +219,7 @@ RAS_Rasterizer::~RAS_Rasterizer()
 
 void RAS_Rasterizer::InitScreenShaders()
 {
-	static int zero = 0;
+	/*static int zero = 0;
 	static int one = 1;
 
 	{
@@ -253,15 +253,15 @@ void RAS_Rasterizer::InitScreenShaders()
 		DRW_shgroup_uniform_int(shgrp, "stippleid", &zero, 1);
 
 		m_screenShaders.vinterlace = shgrp;
-	}
+	}*/
 }
 
 void RAS_Rasterizer::ExitScreenShaders()
 {
-	DRW_shgroup_free(m_screenShaders.normal);
+	/*DRW_shgroup_free(m_screenShaders.normal);
 	DRW_shgroup_free(m_screenShaders.anaglyph);
 	DRW_shgroup_free(m_screenShaders.interlace);
-	DRW_shgroup_free(m_screenShaders.vinterlace);
+	DRW_shgroup_free(m_screenShaders.vinterlace);*/
 }
 
 void RAS_Rasterizer::Enable(RAS_Rasterizer::EnableBit bit)
@@ -301,7 +301,7 @@ void RAS_Rasterizer::Init()
 
 	SetColorMask(true, true, true, true);
 
-	InitScreenShaders();
+	//InitScreenShaders();
 }
 
 void RAS_Rasterizer::Exit()
@@ -313,7 +313,7 @@ void RAS_Rasterizer::Exit()
 
 	Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
 
-	ExitScreenShaders();
+	//ExitScreenShaders();
 
 	DRW_viewport_matrix_override_unset(DRW_MAT_VIEW);
 	DRW_viewport_matrix_override_unset(DRW_MAT_VIEWINV);

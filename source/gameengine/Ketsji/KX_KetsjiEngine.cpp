@@ -650,16 +650,6 @@ void KX_KetsjiEngine::Render()
 			}
 		}
 	}
-
-	const RAS_Rect& viewport = m_canvas->GetViewportArea();
-	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
-	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
-
-	GPU_framebuffer_restore();
-
-	//DRW_transform_to_display(lasttex);
-
-	EndFrame();
 }
 
 void KX_KetsjiEngine::RequestExit(KX_ExitRequest exitrequestmode)
@@ -888,22 +878,19 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 
 	m_rasterizer->SetEye(cameraFrameData.m_eye);
 
-	m_rasterizer->SetMatrix(rendercam->GetModelviewMatrix(), rendercam->GetProjectionMatrix(),
-							rendercam->NodeGetWorldPosition(), rendercam->NodeGetLocalScaling());
-
 	m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
 
-	KX_CullingNodeList nodes;
-	scene->CalculateVisibleMeshes(nodes, cullingcam, 0);
+	//KX_CullingNodeList nodes;
+	//scene->CalculateVisibleMeshes(nodes, cullingcam, 0);
 
 	m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds());
 	UpdateAnimations(scene);
 
 	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
 
-	RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(scene);
+	//RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(scene);
 	// Draw debug infos.
-	scene->DrawDebug(debugDraw, nodes);
+	//scene->DrawDebug(debugDraw, nodes);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -911,10 +898,12 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, rendercam);
 #endif
 
-	scene->RenderBucketsNew(nodes, m_rasterizer);
+	//scene->RenderBucketsNew(nodes, m_rasterizer);
 
-	if (scene->GetPhysicsEnvironment())
-		scene->GetPhysicsEnvironment()->DebugDrawWorld();
+	scene->RenderAfterCameraSetup(false);
+
+	//if (scene->GetPhysicsEnvironment())
+		//scene->GetPhysicsEnvironment()->DebugDrawWorld();
 }
 
 /*

@@ -117,7 +117,7 @@ bool RAS_2DFilterFrameBuffer::Update(RAS_ICanvas *canvas)
 
 void RAS_2DFilterFrameBuffer::Bind(RAS_Rasterizer *rasty)
 {
-	GPU_framebuffer_bind_all_attachments(m_frameBuffer->GetFrameBuffer());
+	//GPU_framebuffer_bind_all_attachments(m_frameBuffer->GetFrameBuffer());
 
 	if (!(m_flag & RAS_VIEWPORT_SIZE)) {
 		rasty->SetViewport(0, 0, m_width + 1, m_height + 1);

@@ -129,8 +129,6 @@ KX_GameObject::KX_GameObject(
       m_cullingNode(this),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
-	  m_wasculled(false), // eevee integration
-	  m_needShadowUpdate(true), // eevee integration
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
     , m_attr_dict(nullptr),
@@ -223,6 +221,29 @@ KX_GameObject::~KX_GameObject()
 		m_lodManager->Release();
 	}
 }
+
+/************************EEVEE_INTEGRATION**********************/
+void KX_GameObject::TagForUpdate() // Used for shadow culling
+{
+	float obmat[4][4];
+	NodeGetWorldTransform().getValue(&obmat[0][0]);
+	bool staticObject = compare_m4m4(m_prevObmat, obmat, FLT_MIN);
+
+	if (staticObject) {
+		GetScene()->AppendToStaticObjects(this);
+	}
+	copy_m4_m4(m_prevObmat, obmat);
+}
+
+void KX_GameObject::RemoveOriginalObject()
+{
+	Object *ob = GetBlenderObject();
+	if (ob) {
+		//ob->base_flag &= ~BASE_INVISIBLED;
+	}
+}
+
+/********************End of EEVEE INTEGRATION*********************/
 
 KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
 {
@@ -731,33 +752,6 @@ void KX_GameObject::UpdateBuckets()
 	m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
 	m_meshUser->ActivateMeshSlots();
 }
-
-/************************EEVEE_INTEGRATION**********************/
-void KX_GameObject::TagForUpdate() // Used for shadow culling
-{
-	float obmat[4][4];
-	NodeGetWorldTransform().getValue(&obmat[0][0]);
-	bool staticObject = compare_m4m4(m_prevObmat, obmat, FLT_MIN);
-
-	m_needShadowUpdate = false;
-	if (staticObject) {
-		GetScene()->AppendToStaticObjects(this);
-		if (!GetCulled()) {
-			GetScene()->AppendToStaticObjectsInsideFrustum(this);
-		}
-	}
-	else {
-		m_needShadowUpdate = true;
-	}
-	copy_m4_m4(m_prevObmat, obmat);
-}
-
-bool KX_GameObject::NeedShadowUpdate() // used for shadow culling
-{
-	return m_needShadowUpdate;
-}
-
-/********************End of EEVEE INTEGRATION*********************/
 
 void KX_GameObject::RemoveMeshes()
 {

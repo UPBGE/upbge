@@ -2090,6 +2090,7 @@ void DRW_opengl_context_disable(void)
 
 #include "BKE_camera.h"
 #include "BKE_main.h"
+#include "BKE_scene.h"
 
 EEVEE_Data *EEVEE_engine_data_get(void)
 {
@@ -2132,44 +2133,65 @@ static void game_camera_border(const Depsgraph *depsgraph,
 	r_viewborder->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
 }
 
-void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
-	Scene *scene, ViewLayer *cur_view_layer, Object *maincam, int viewportsize[2])
+static RegionView3D game_rv3d;
+static Camera *game_default_camera = NULL;
+
+GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int viewportsize[2], bool called_from_constructor, bool reset_taa_samples)
 {
 	memset(&DST, 0x0, offsetof(DRWManager, ogl_context));
 
-	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, cur_view_layer, false);
+	ViewLayer *view_layer = BKE_view_layer_from_scene_get(scene);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, called_from_constructor);
+	BKE_scene_graph_update_tagged(bmain->eval_ctx, depsgraph, bmain, scene, view_layer);
+
+	DRW_opengl_context_enable();
 
 	use_drw_engine(&draw_engine_eevee_type);
 
-	DST.viewport = GPU_viewport_create_from_offscreen(ofs);
+	if (called_from_constructor) {
+		GPUOffScreen *ofs = GPU_offscreen_create(viewportsize[0], viewportsize[1], 0, true, false, NULL);
+		game_rv3d.viewport = GPU_viewport_create_from_offscreen(ofs);
+		GPU_viewport_engine_data_create(game_rv3d.viewport, &draw_engine_eevee_type);
+	}
 
-	GPU_viewport_engine_data_create(DST.viewport, &draw_engine_eevee_type);
+	DST.viewport = game_rv3d.viewport;
 
 	ARegion ar;
 	ar.winx = viewportsize[0];
 	ar.winy = viewportsize[1];
 
 	View3D v3d;
-	Object *obcam = maincam;
+
+	Object *obcam;
+	if (maincam) {
+		obcam = maincam;
+	}
+	else if (!game_default_camera) {
+		game_default_camera = BKE_camera_add(bmain, "blabla");
+		obcam = (Object *)game_default_camera;
+	}
+	else {
+		obcam = (Object *)game_default_camera;
+	}
 	Camera *cam = (Camera *)obcam;
 	v3d.camera = obcam;
 	v3d.lens = cam->lens;
 	v3d.near = cam->clipsta;
 	v3d.far = cam->clipend;
 
-	RegionView3D rv3d;
-	rv3d.camdx = 0.0f;
-	rv3d.camdy = 0.0f;
-	rv3d.camzoom = 0.0f;
-	rv3d.persp = RV3D_CAMOB;
-	rv3d.is_persp = true;
+
+	game_rv3d.camdx = 0.0f;
+	game_rv3d.camdy = 0.0f;
+	game_rv3d.camzoom = 0.0f;
+	game_rv3d.persp = RV3D_CAMOB;
+	game_rv3d.is_persp = true;
 	rctf cameraborder;
-	game_camera_border(depsgraph, scene, &ar, &v3d, &rv3d, &cameraborder, false, false);
-	rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
+	game_camera_border(depsgraph, scene, &ar, &v3d, &game_rv3d, &cameraborder, false, false);
+	game_rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
 
 	DST.draw_ctx.ar = &ar;
 	DST.draw_ctx.v3d = &v3d;
-	DST.draw_ctx.rv3d = &rv3d;
+	DST.draw_ctx.rv3d = &game_rv3d;
 
 	/* We don't use bContext in bge
 	* (not possible or very difficult
@@ -2179,11 +2201,12 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 
 	DST.draw_ctx.v3d->zbuf = true;
 	DST.draw_ctx.scene = scene;
-	DST.draw_ctx.view_layer = cur_view_layer;
-	DST.draw_ctx.obact = OBACT(cur_view_layer);
+	DST.draw_ctx.view_layer = view_layer;
+	DST.draw_ctx.obact = OBACT(view_layer);
 
 	DST.draw_ctx.depsgraph = depsgraph;
 
+	drw_context_state_init();
 	drw_viewport_var_init();
 
 	/* Init engines */
@@ -2202,10 +2225,30 @@ void DRW_game_render_loop_begin(GPUOffScreen *ofs, Main *bmain,
 	DEG_OBJECT_ITER_END;
 
 	drw_engines_cache_finish();
+	DRW_render_instance_buffer_finish();
 
-	/* Start Drawing */
+	GPU_framebuffer_bind(DST.default_framebuffer);
+
 	DRW_state_reset();
+	EEVEE_Data *vedata = EEVEE_engine_data_get();
+	EEVEE_EffectsInfo *effects = vedata->stl->effects;
+	if (reset_taa_samples) {
+		effects->taa_current_sample = 1;
+	}
+	drw_engines_draw_background();
+	GPUTexture *finaltex = effects->final_tx;
+
+	DRW_state_reset();
+
+	DRW_opengl_context_disable();
+
+	return finaltex;
+}
+
+void DRW_game_render_loop_finish()
+{
 	drw_engines_disable();
+	drw_viewport_cache_resize();
 }
 
 void DRW_game_render_loop_end()

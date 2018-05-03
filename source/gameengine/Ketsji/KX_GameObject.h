@@ -85,16 +85,8 @@ class KX_GameObject : public SCA_IObject
 	Py_Header
 protected:
 
-
-
-
-	std::vector<Gwn_Batch *>m_materialBatches;
-	std::vector<Gwn_Batch *>m_newBatches;
-	std::vector<DRWShadingGroup *>m_materialShGroups;
-
 	float m_savedObmat[4][4];
 	float m_prevObmat[4][4];
-	bool m_needShadowUpdate; // used for shadow culling
 
 
 
@@ -141,20 +133,10 @@ protected:
 
 public:
 
-
-	void AddMaterialShadingGroups();
-	std::vector<DRWShadingGroup *>GetMaterialShadingGroups();
-	void AddMaterialBatches();
-	std::vector<Gwn_Batch *>GetMaterialBatches();
-	
-	void DiscardMaterialBatches();
-	void RestoreMaterialBatches(float obmat[4][4]);
-	void DuplicateMaterialBatches();
-	void AddNewMaterialBatchesToPasses(float obmat[4][4]);
-
 	void TagForUpdate();
-	bool NeedShadowUpdate();
-	bool m_wasculled;
+	void ReplicateBlenderObject();
+	void RemoveOriginalObject();
+	void RemoveReplicaObject();
 
 
 

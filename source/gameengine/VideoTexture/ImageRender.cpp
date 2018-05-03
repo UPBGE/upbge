@@ -310,12 +310,12 @@ bool ImageRender::Render()
 		glDisable(GL_POLYGON_STIPPLE);
 	}
 
-	KX_CullingNodeList nodes;
-	m_scene->CalculateVisibleMeshes(nodes, m_camera, 0);
+	//KX_CullingNodeList nodes;
+	//m_scene->CalculateVisibleMeshes(nodes, m_camera, 0);
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_scene->RenderBucketsNew(nodes, m_rasterizer);
+	//m_scene->RenderBucketsNew(nodes, m_rasterizer);
 
 	m_canvas->EndFrame();
 
