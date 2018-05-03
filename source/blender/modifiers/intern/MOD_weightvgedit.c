@@ -78,10 +78,6 @@ static void freeData(ModifierData *md)
 {
 	WeightVGEditModifierData *wmd = (WeightVGEditModifierData *) md;
 	curvemapping_free(wmd->cmap_curve);
-
-	if (wmd->mask_texture) {
-		id_us_min(&wmd->mask_texture->id);
-	}
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
@@ -159,7 +155,7 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 }
 
 static DerivedMesh *applyModifier(ModifierData *md,
-                                  const struct EvaluationContext *UNUSED(eval_ctx),
+                                  struct Depsgraph *UNUSED(depsgraph),
                                   Object *ob,
                                   DerivedMesh *derivedData,
                                   ModifierApplyFlag UNUSED(flag))

@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/util/undo.c
+/** \file blender/editors/undo/ed_undo.c
  *  \ingroup edundo
  */
 
@@ -33,7 +33,10 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "CLG_log.h"
+
 #include "DNA_scene_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_utildefines.h"
 
@@ -44,6 +47,7 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_screen.h"
+#include "BKE_layer.h"
 #include "BKE_undo_system.h"
 
 #include "ED_gpencil.h"
@@ -60,6 +64,9 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
+/** We only need this locally. */
+static CLG_LogRef LOG = {"ed.undo"};
+
 /* -------------------------------------------------------------------- */
 /** \name Generic Undo System Access
  *
@@ -68,9 +75,8 @@
 
 void ED_undo_push(bContext *C, const char *str)
 {
-	if (G.debug & G_DEBUG) {
-		printf("%s: %s\n", __func__, str);
-	}
+	CLOG_INFO(&LOG, 1, "name='%s'", str);
+
 	const int steps = U.undosteps;
 
 	if (steps <= 0) {
@@ -97,6 +103,7 @@ void ED_undo_push(bContext *C, const char *str)
 /* note: also check undo_history_exec() in bottom if you change notifiers */
 static int ed_undo_step(bContext *C, int step, const char *undoname)
 {
+	CLOG_INFO(&LOG, 1, "name='%s', step=%d", undoname, step);
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win = CTX_wm_window(C);
 	// Main *bmain = CTX_data_main(C);
@@ -307,6 +314,7 @@ int ED_undo_operator_repeat(bContext *C, struct wmOperator *op)
 	int ret = 0;
 
 	if (op) {
+		CLOG_INFO(&LOG, 1, "idname='%s'", op->type->idname);
 		wmWindowManager *wm = CTX_wm_manager(C);
 		struct Scene *scene = CTX_data_scene(C);
 
@@ -367,9 +375,7 @@ int ED_undo_operator_repeat(bContext *C, struct wmOperator *op)
 		CTX_wm_region_set(C, ar);
 	}
 	else {
-		if (G.debug & G_DEBUG) {
-			printf("redo_cb: ED_undo_operator_repeat called with NULL 'op'\n");
-		}
+		CLOG_WARN(&LOG, "called with NULL 'op'");
 	}
 
 	return ret;
@@ -488,6 +494,27 @@ void ED_OT_undo_history(wmOperatorType *ot)
 
 	RNA_def_int(ot->srna, "item", 0, 0, INT_MAX, "Item", "", 0, INT_MAX);
 
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Undo Helper Functions
+ * \{ */
+
+void ED_undo_object_set_active_or_warn(ViewLayer *view_layer, Object *ob, const char *info, CLG_LogRef *log)
+{
+	Object *ob_prev = OBACT(view_layer);
+	if (ob_prev != ob) {
+		Base *base = BKE_view_layer_base_find(view_layer, ob);
+		if (base != NULL) {
+			view_layer->basact = base;
+		}
+		else {
+			/* Should never fail, may not crash but can give odd behavior. */
+			CLOG_WARN(log, "'%s' failed to restore active object: '%s'", info, ob->id.name + 2);
+		}
+	}
 }
 
 /** \} */

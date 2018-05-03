@@ -138,14 +138,36 @@ ModifierData *modifier_new(int type)
 	return md;
 }
 
-void modifier_free(ModifierData *md) 
+static void modifier_free_data_id_us_cb(void *UNUSED(userData), Object *UNUSED(ob), ID **idpoin, int cb_flag)
+{
+	ID *id = *idpoin;
+	if (id != NULL && (cb_flag & IDWALK_CB_USER) != 0) {
+		id_us_min(id);
+	}
+}
+
+void modifier_free_ex(ModifierData *md, const int flag)
 {
 	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+
+	if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+		if (mti->foreachIDLink) {
+			mti->foreachIDLink(md, NULL, modifier_free_data_id_us_cb, NULL);
+		}
+		else if (mti->foreachObjectLink) {
+			mti->foreachObjectLink(md, NULL, (ObjectWalkFunc)modifier_free_data_id_us_cb, NULL);
+		}
+	}
 
 	if (mti->freeData) mti->freeData(md);
 	if (md->error) MEM_freeN(md->error);
 
 	MEM_freeN(md);
+}
+
+void modifier_free(ModifierData *md)
+{
+	modifier_free_ex(md, 0);
 }
 
 bool modifier_unique_name(ListBase *modifiers, ModifierData *md)
@@ -662,13 +684,13 @@ bool modifier_isCorrectableDeformed(ModifierData *md)
 	return (mti->deformMatricesEM != NULL);
 }
 
-bool modifiers_isCorrectableDeformed(const EvaluationContext *eval_ctx, struct Scene *scene, Object *ob)
+bool modifiers_isCorrectableDeformed(struct Scene *scene, Object *ob)
 {
 	VirtualModifierData virtualModifierData;
 	ModifierData *md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 	int required_mode = eModifierMode_Realtime;
 
-	if (eval_ctx->object_mode == OB_MODE_EDIT) {
+	if (ob->mode == OB_MODE_EDIT) {
 		required_mode |= eModifierMode_Editmode;
 	}
 	for (; md; md = md->next) {
@@ -764,7 +786,7 @@ void modifier_path_init(char *path, int path_maxlen, const char *name)
 /* wrapper around ModifierTypeInfo.applyModifier that ensures valid normals */
 
 struct DerivedMesh *modwrap_applyModifier(
-        ModifierData *md, const struct EvaluationContext *eval_ctx,
+        ModifierData *md, struct Depsgraph *depsgraph,
         Object *ob, struct DerivedMesh *dm,
         ModifierApplyFlag flag)
 {
@@ -774,11 +796,11 @@ struct DerivedMesh *modwrap_applyModifier(
 	if (mti->dependsOnNormals && mti->dependsOnNormals(md)) {
 		DM_ensure_normals(dm);
 	}
-	return mti->applyModifier(md, eval_ctx, ob, dm, flag);
+	return mti->applyModifier(md, depsgraph, ob, dm, flag);
 }
 
 struct DerivedMesh *modwrap_applyModifierEM(
-        ModifierData *md, const struct EvaluationContext *eval_ctx,
+        ModifierData *md, struct Depsgraph *depsgraph,
         Object *ob, struct BMEditMesh *em,
         DerivedMesh *dm,
         ModifierApplyFlag flag)
@@ -789,11 +811,11 @@ struct DerivedMesh *modwrap_applyModifierEM(
 	if (mti->dependsOnNormals && mti->dependsOnNormals(md)) {
 		DM_ensure_normals(dm);
 	}
-	return mti->applyModifierEM(md, eval_ctx, ob, em, dm, flag);
+	return mti->applyModifierEM(md, depsgraph, ob, em, dm, flag);
 }
 
 void modwrap_deformVerts(
-        ModifierData *md, const struct EvaluationContext *eval_ctx,
+        ModifierData *md, struct Depsgraph *depsgraph,
         Object *ob, DerivedMesh *dm,
         float (*vertexCos)[3], int numVerts,
         ModifierApplyFlag flag)
@@ -804,11 +826,11 @@ void modwrap_deformVerts(
 	if (dm && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
 		DM_ensure_normals(dm);
 	}
-	mti->deformVerts(md, eval_ctx, ob, dm, vertexCos, numVerts, flag);
+	mti->deformVerts(md, depsgraph, ob, dm, vertexCos, numVerts, flag);
 }
 
 void modwrap_deformVertsEM(
-        ModifierData *md, const struct EvaluationContext *eval_ctx, Object *ob,
+        ModifierData *md, struct Depsgraph *depsgraph, Object *ob,
         struct BMEditMesh *em, DerivedMesh *dm,
         float (*vertexCos)[3], int numVerts)
 {
@@ -818,6 +840,6 @@ void modwrap_deformVertsEM(
 	if (dm && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
 		DM_ensure_normals(dm);
 	}
-	mti->deformVertsEM(md, eval_ctx, ob, em, dm, vertexCos, numVerts);
+	mti->deformVertsEM(md, depsgraph, ob, em, dm, vertexCos, numVerts);
 }
 /* end modifier callback wrappers */

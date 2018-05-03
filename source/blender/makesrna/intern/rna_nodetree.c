@@ -67,6 +67,7 @@
 #include "NOD_composite.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 const EnumPropertyItem rna_enum_node_socket_in_out_items[] = {
 	{ SOCK_IN, "IN", 0, "Input", "" },
@@ -3134,8 +3135,7 @@ static int point_density_vertex_color_source_from_shader(NodeShaderTexPointDensi
 }
 
 void rna_ShaderNodePointDensity_density_cache(bNode *self,
-                                              Depsgraph *depsgraph,
-                                              int settings)
+                                              Depsgraph *depsgraph)
 {
 	NodeShaderTexPointDensity *shader_point_density = self->storage;
 	PointDensity *pd = &shader_point_density->pd;
@@ -3143,12 +3143,6 @@ void rna_ShaderNodePointDensity_density_cache(bNode *self,
 	if (depsgraph == NULL) {
 		return;
 	}
-
-	EvaluationContext eval_ctx;
-	DEG_evaluation_context_init_from_depsgraph(&eval_ctx,
-	                                           depsgraph,
-	                                           settings == 1 ? DAG_EVAL_RENDER :
-	                                                           DAG_EVAL_VIEWPORT);
 
 	/* Make sure there's no cached data. */
 	BKE_texture_pointdensity_free_data(pd);
@@ -3178,13 +3172,11 @@ void rna_ShaderNodePointDensity_density_cache(bNode *self,
 	shader_point_density->cached_resolution = shader_point_density->resolution;
 
 	/* Single-threaded sampling of the voxel domain. */
-	RE_point_density_cache(&eval_ctx,
-	                       pd);
+	RE_point_density_cache(depsgraph, pd);
 }
 
 void rna_ShaderNodePointDensity_density_calc(bNode *self,
                                              Depsgraph *depsgraph,
-                                             int settings,
                                              int *length,
                                              float **values)
 {
@@ -3197,12 +3189,6 @@ void rna_ShaderNodePointDensity_density_calc(bNode *self,
 		return;
 	}
 
-	EvaluationContext eval_ctx;
-	DEG_evaluation_context_init_from_depsgraph(&eval_ctx,
-	                                           depsgraph,
-	                                           settings == 1 ? DAG_EVAL_RENDER :
-	                                                           DAG_EVAL_VIEWPORT);
-
 	/* TODO(sergey): Will likely overflow, but how to pass size_t via RNA? */
 	*length = 4 * resolution * resolution * resolution;
 
@@ -3211,10 +3197,7 @@ void rna_ShaderNodePointDensity_density_calc(bNode *self,
 	}
 
 	/* Single-threaded sampling of the voxel domain. */
-	RE_point_density_sample(&eval_ctx,
-	                        pd,
-	                        resolution,
-	                        *values);
+	RE_point_density_sample(depsgraph, pd, resolution, *values);
 
 	/* We're done, time to clean up. */
 	BKE_texture_pointdensity_free_data(pd);
@@ -3224,7 +3207,6 @@ void rna_ShaderNodePointDensity_density_calc(bNode *self,
 
 void rna_ShaderNodePointDensity_density_minmax(bNode *self,
                                                Depsgraph *depsgraph,
-                                               int settings,
                                                float r_min[3],
                                                float r_max[3])
 {
@@ -3237,13 +3219,7 @@ void rna_ShaderNodePointDensity_density_minmax(bNode *self,
 		return;
 	}
 
-	EvaluationContext eval_ctx;
-	DEG_evaluation_context_init_from_depsgraph(&eval_ctx,
-	                                           depsgraph,
-	                                           settings == 1 ? DAG_EVAL_RENDER :
-	                                                           DAG_EVAL_VIEWPORT);
-
-	RE_point_density_minmax(&eval_ctx, pd, r_min, r_max);
+	RE_point_density_minmax(depsgraph, pd, r_min, r_max);
 }
 
 #else
@@ -4165,13 +4141,6 @@ static void def_sh_tex_pointdensity(StructRNA *srna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	/* TODO(sergey): Use some mnemonic names for the hardcoded values here. */
-	static const EnumPropertyItem calc_mode_items[] = {
-		{0, "VIEWPORT", 0, "Viewport", "Canculate density using viewport settings"},
-		{1, "RENDER", 0, "Render", "Canculate duplis using render settings"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "id");
 	RNA_def_property_struct_type(prop, "Object");
@@ -4234,12 +4203,10 @@ static void def_sh_tex_pointdensity(StructRNA *srna)
 	func = RNA_def_function(srna, "cache_point_density", "rna_ShaderNodePointDensity_density_cache");
 	RNA_def_function_ui_description(func, "Cache point density data for later calculation");
 	RNA_def_pointer(func, "depsgraph", "Depsgraph", "", "");
-	RNA_def_enum(func, "settings", calc_mode_items, 1, "", "Calculate density for rendering");
 
 	func = RNA_def_function(srna, "calc_point_density", "rna_ShaderNodePointDensity_density_calc");
 	RNA_def_function_ui_description(func, "Calculate point density");
 	RNA_def_pointer(func, "depsgraph", "Depsgraph", "", "");
-	RNA_def_enum(func, "settings", calc_mode_items, 1, "", "Calculate density for rendering");
 	/* TODO, See how array size of 0 works, this shouldnt be used. */
 	parm = RNA_def_float_array(func, "rgba_values", 1, NULL, 0, 0, "", "RGBA Values", 0, 0);
 	RNA_def_parameter_flags(parm, PROP_DYNAMIC, 0);
@@ -4248,7 +4215,6 @@ static void def_sh_tex_pointdensity(StructRNA *srna)
 	func = RNA_def_function(srna, "calc_point_density_minmax", "rna_ShaderNodePointDensity_density_minmax");
 	RNA_def_function_ui_description(func, "Calculate point density");
 	RNA_def_pointer(func, "depsgraph", "Depsgraph", "", "");
-	RNA_def_enum(func, "settings", calc_mode_items, 1, "", "Calculate density for rendering");
 	parm = RNA_def_property(func, "min", PROP_FLOAT, PROP_COORDS);
 	RNA_def_property_array(parm, 3);
 	RNA_def_parameter_flags(parm, PROP_THICK_WRAP, 0);

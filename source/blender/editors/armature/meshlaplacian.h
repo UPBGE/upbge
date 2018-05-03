@@ -53,7 +53,6 @@ float laplacian_system_get_solution(LaplacianSystem *sys, int v);
 /* Heat Weighting */
 
 void heat_bone_weighting(
-        const struct EvaluationContext *eval_ctx,
         struct Object *ob, struct Mesh *me, float (*verts)[3],
         int numbones, struct bDeformGroup **dgrouplist,
         struct bDeformGroup **dgroupflip, float (*root)[3], float (*tip)[3],
@@ -69,7 +68,7 @@ void rigid_deform_end(int cancel);
 
 /* Harmonic Coordinates */
 
-/* mesh_deform_bind(...) defined in ED_armature.h */
+/* ED_mesh_deform_bind_callback(...) defined in ED_armature.h */
 
 #endif
 

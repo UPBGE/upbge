@@ -76,35 +76,14 @@ void DepsgraphNodeBuilder::build_view_layer(
 	add_time_source();
 	/* Setup currently building context. */
 	scene_ = scene;
-	/* Expand Scene Cow datablock to get proper pointers to bases. */
+	view_layer_ = view_layer;
+	/* Get pointer to a CoW version of scene ID. */
 	Scene *scene_cow;
-	ViewLayer *view_layer_cow;
 	if (DEG_depsgraph_use_copy_on_write()) {
-		/* NOTE: We need to create ID nodes for all objects coming from bases,
-		 * otherwise remapping will not replace objects with their CoW versions
-		 * for CoW bases.
-		 */
-		LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
-			Object *object = base->object;
-			add_id_node(&object->id);
-		}
-		/* Create ID node for nested ID of nodetree as well, otherwise remapping
-		 * will not work correct either.
-		 */
-		if (scene->nodetree != NULL) {
-			add_id_node(&scene->nodetree->id);
-		}
-		/* Make sure we've got ID node, so we can get pointer to CoW datablock.
-		 */
-		scene_cow = expand_cow_datablock(scene);
-		view_layer_cow = (ViewLayer *)BLI_findstring(
-		        &scene_cow->view_layers,
-		        view_layer->name,
-		        offsetof(ViewLayer, name));
+		scene_cow = get_cow_datablock(scene);
 	}
 	else {
 		scene_cow = scene;
-		view_layer_cow = view_layer;
 	}
 	/* Scene objects. */
 	int select_color = 1;
@@ -112,17 +91,15 @@ void DepsgraphNodeBuilder::build_view_layer(
 	 * but object is expected to be an original one. Hence we go into some
 	 * tricks here iterating over the view layer.
 	 */
-	for (Base *base_orig = (Base *)view_layer->object_bases.first,
-	          *base_cow = (Base *)view_layer_cow->object_bases.first;
-	     base_orig != NULL;
-	     base_orig = base_orig->next, base_cow = base_cow->next)
-	{
+	int base_index = 0;
+	LISTBASE_FOREACH(Base *, base, &view_layer->object_bases) {
 		/* object itself */
-		build_object(base_cow, base_orig->object, linked_state);
-		base_orig->object->select_color = select_color++;
+		build_object(base_index, base->object, linked_state);
+		base->object->select_color = select_color++;
+		++base_index;
 	}
 	if (scene->camera != NULL) {
-		build_object(NULL, scene->camera, DEG_ID_LINKED_INDIRECTLY);
+		build_object(-1, scene->camera, DEG_ID_LINKED_INDIRECTLY);
 	}
 	/* Rigidbody. */
 	if (scene->rigidbody_world != NULL) {
@@ -157,7 +134,15 @@ void DepsgraphNodeBuilder::build_view_layer(
 		build_movieclip(clip);
 	}
 	/* Collections. */
-	build_view_layer_collections(&scene->id, view_layer_cow);
+	int view_layer_index = BLI_findindex(&scene->view_layers, view_layer);
+	BLI_assert(view_layer_index != -1);
+	add_operation_node(&scene->id,
+	                   DEG_NODE_TYPE_LAYER_COLLECTIONS,
+	                   function_bind(BKE_layer_eval_view_layer_indexed,
+	                                 _1,
+	                                 &scene_cow->id,
+	                                 view_layer_index),
+	                   DEG_OPCODE_VIEW_LAYER_EVAL);
 	/* Parameters evaluation for scene relations mainly. */
 	add_operation_node(&scene->id,
 	                   DEG_NODE_TYPE_PARAMETERS,

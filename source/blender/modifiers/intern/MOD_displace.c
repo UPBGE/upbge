@@ -80,14 +80,6 @@ static void copyData(ModifierData *md, ModifierData *target)
 	modifier_copyData_generic(md, target);
 }
 
-static void freeData(ModifierData *md)
-{
-	DisplaceModifierData *dmd = (DisplaceModifierData *) md;
-	if (dmd->texture) {
-		id_us_min(&dmd->texture->id);
-	}
-}
-
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
 	DisplaceModifierData *dmd = (DisplaceModifierData *)md;
@@ -376,7 +368,7 @@ static void displaceModifier_do(
 	}
 }
 
-static void deformVerts(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+static void deformVerts(ModifierData *md, struct Depsgraph *UNUSED(depsgraph),
                         Object *ob, DerivedMesh *derivedData,
                         float (*vertexCos)[3],
                         int numVerts,
@@ -392,7 +384,7 @@ static void deformVerts(ModifierData *md, const struct EvaluationContext *UNUSED
 }
 
 static void deformVertsEM(
-        ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob, struct BMEditMesh *editData,
+        ModifierData *md, struct Depsgraph *UNUSED(depsgraph), Object *ob, struct BMEditMesh *editData,
         DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
 	DerivedMesh *dm = get_cddm(ob, editData, derivedData, vertexCos, dependsOnNormals(md));
@@ -422,7 +414,7 @@ ModifierTypeInfo modifierType_Displace = {
 	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
-	/* freeData */          freeData,
+	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     dependsOnTime,

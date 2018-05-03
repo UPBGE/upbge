@@ -60,6 +60,7 @@ extern char datatoc_gpu_shader_simple_lighting_smooth_color_frag_glsl[];
 extern char datatoc_gpu_shader_simple_lighting_smooth_color_alpha_frag_glsl[];
 extern char datatoc_gpu_shader_flat_color_frag_glsl[];
 extern char datatoc_gpu_shader_flat_color_alpha_test_0_frag_glsl[];
+extern char datatoc_gpu_shader_flat_id_frag_glsl[];
 extern char datatoc_gpu_shader_2D_vert_glsl[];
 extern char datatoc_gpu_shader_2D_flat_color_vert_glsl[];
 extern char datatoc_gpu_shader_2D_smooth_color_vert_glsl[];
@@ -68,6 +69,11 @@ extern char datatoc_gpu_shader_2D_image_vert_glsl[];
 extern char datatoc_gpu_shader_2D_image_rect_vert_glsl[];
 extern char datatoc_gpu_shader_2D_image_multi_rect_vert_glsl[];
 extern char datatoc_gpu_shader_2D_widget_base_vert_glsl[];
+extern char datatoc_gpu_shader_2D_widget_base_frag_glsl[];
+extern char datatoc_gpu_shader_2D_widget_shadow_vert_glsl[];
+extern char datatoc_gpu_shader_2D_widget_shadow_frag_glsl[];
+extern char datatoc_gpu_shader_2D_nodelink_frag_glsl[];
+extern char datatoc_gpu_shader_2D_nodelink_vert_glsl[];
 
 extern char datatoc_gpu_shader_3D_image_vert_glsl[];
 extern char datatoc_gpu_shader_image_frag_glsl[];
@@ -93,6 +99,7 @@ extern char datatoc_gpu_shader_3D_clipped_uniform_color_vert_glsl[];
 
 extern char datatoc_gpu_shader_instance_vert_glsl[];
 extern char datatoc_gpu_shader_instance_variying_size_variying_color_vert_glsl[];
+extern char datatoc_gpu_shader_instance_variying_size_variying_id_vert_glsl[];
 extern char datatoc_gpu_shader_instance_objectspace_variying_color_vert_glsl[];
 extern char datatoc_gpu_shader_instance_screenspace_variying_color_vert_glsl[];
 extern char datatoc_gpu_shader_instance_screen_aligned_vert_glsl[];
@@ -837,6 +844,9 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 			  datatoc_gpu_shader_point_uniform_color_outline_aa_frag_glsl },
 
 		[GPU_SHADER_INSTANCE_UNIFORM_COLOR] = { datatoc_gpu_shader_instance_vert_glsl, datatoc_gpu_shader_uniform_color_frag_glsl },
+		[GPU_SHADER_INSTANCE_VARIYING_ID_VARIYING_SIZE] =
+		    { datatoc_gpu_shader_instance_variying_size_variying_id_vert_glsl,
+		      datatoc_gpu_shader_flat_id_frag_glsl },
 		[GPU_SHADER_INSTANCE_VARIYING_COLOR_VARIYING_SIZE] =
 		    { datatoc_gpu_shader_instance_variying_size_variying_color_vert_glsl,
 		      datatoc_gpu_shader_flat_color_frag_glsl },
@@ -848,7 +858,15 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 		                                               datatoc_gpu_shader_instance_edges_variying_color_geom_glsl},
 
 		[GPU_SHADER_2D_WIDGET_BASE] = { datatoc_gpu_shader_2D_widget_base_vert_glsl,
-		                                datatoc_gpu_shader_2D_smooth_color_frag_glsl},
+		                                datatoc_gpu_shader_2D_widget_base_frag_glsl},
+		[GPU_SHADER_2D_WIDGET_BASE_INST] = { datatoc_gpu_shader_2D_widget_base_vert_glsl,
+		                                     datatoc_gpu_shader_2D_widget_base_frag_glsl},
+		[GPU_SHADER_2D_WIDGET_SHADOW] = { datatoc_gpu_shader_2D_widget_shadow_vert_glsl,
+		                                  datatoc_gpu_shader_2D_widget_shadow_frag_glsl },
+		[GPU_SHADER_2D_NODELINK] = { datatoc_gpu_shader_2D_nodelink_vert_glsl,
+		                             datatoc_gpu_shader_2D_nodelink_frag_glsl },
+		[GPU_SHADER_2D_NODELINK_INST] = { datatoc_gpu_shader_2D_nodelink_vert_glsl,
+		                                  datatoc_gpu_shader_2D_nodelink_frag_glsl },
 
 		[GPU_SHADER_3D_INSTANCE_BONE_ENVELOPE_SOLID] = { datatoc_gpu_shader_instance_bone_envelope_solid_vert_glsl,
 		                                                 datatoc_gpu_shader_simple_lighting_frag_glsl },
@@ -872,25 +890,30 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 		/* just a few special cases */
 		const char *defines = NULL;
 		switch (shader) {
-			case GPU_SHADER_SMOKE_COBA:
-				defines = "#define USE_COBA;\n";
+			case GPU_SHADER_2D_WIDGET_BASE_INST:
+			case GPU_SHADER_2D_NODELINK_INST:
+				defines = "#define USE_INSTANCE\n";
 				break;
+			case GPU_SHADER_SMOKE_COBA:
+				defines = "#define USE_COBA\n";
+				break;
+			case GPU_SHADER_INSTANCE_VARIYING_ID_VARIYING_SIZE:
 			case GPU_SHADER_INSTANCE_VARIYING_COLOR_VARIYING_SIZE:
-				defines = "#define UNIFORM_SCALE;\n";
+				defines = "#define UNIFORM_SCALE\n";
 				break;
 			case GPU_SHADER_3D_INSTANCE_SCREEN_ALIGNED_AXIS:
-				defines = "#define AXIS_NAME;\n";
+				defines = "#define AXIS_NAME\n";
 				break;
 			case GPU_SHADER_3D_OBJECTSPACE_SIMPLE_LIGHTING_VARIYING_COLOR:
 			case GPU_SHADER_3D_INSTANCE_BONE_ENVELOPE_SOLID:
-				defines = "#define USE_INSTANCE_COLOR;\n";
+				defines = "#define USE_INSTANCE_COLOR\n";
 				break;
 			case GPU_SHADER_3D_FLAT_COLOR_U32:
 			case GPU_SHADER_3D_UNIFORM_COLOR_U32:
-				defines = "#define USE_COLOR_U32;\n";
+				defines = "#define USE_COLOR_U32\n";
 				break;
 			case GPU_SHADER_SIMPLE_LIGHTING_FLAT_COLOR:
-				defines = "#define USE_FLAT_NORMAL;\n";
+				defines = "#define USE_FLAT_NORMAL\n";
 				break;
 			default:
 				break;

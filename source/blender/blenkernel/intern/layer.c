@@ -26,6 +26,7 @@
 
 #include <string.h>
 
+#include "BLI_array.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -41,8 +42,7 @@
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_workspace.h"
-
-#include "DEG_depsgraph.h"
+#include "BKE_object.h"
 
 #include "DNA_group_types.h"
 #include "DNA_ID.h"
@@ -52,6 +52,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
+
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "DRW_engine.h"
 
@@ -215,6 +218,8 @@ void BKE_view_layer_free_ex(ViewLayer *view_layer, const bool do_id_user)
 		IDP_FreeProperty(view_layer->id_properties);
 		MEM_freeN(view_layer->id_properties);
 	}
+
+	MEM_SAFE_FREE(view_layer->object_bases_array);
 
 	MEM_freeN(view_layer);
 }
@@ -503,6 +508,8 @@ void BKE_view_layer_copy_data(
 			view_layer_dst->basact = base_dst;
 		}
 	}
+
+	view_layer_dst->object_bases_array = NULL;
 }
 
 /**
@@ -2231,6 +2238,61 @@ void BKE_renderable_objects_iterator_end(BLI_Iterator *UNUSED(iter))
 	/* Do nothing - iter->data was static allocated, we can't free it. */
 }
 
+/* -------------------------------------------------------------------- */
+/** \name BKE_view_layer_objects_in_mode_iterator
+ * \{ */
+
+void BKE_view_layer_objects_in_mode_iterator_begin(BLI_Iterator *iter, void *data_in)
+{
+	struct ObjectsInModeIteratorData *data = data_in;
+	Base *base = data->base_active;
+
+	/* when there are no objects */
+	if (base == NULL) {
+		iter->valid = false;
+		return;
+	}
+	iter->data = data_in;
+	iter->current = base;
+}
+
+void BKE_view_layer_objects_in_mode_iterator_next(BLI_Iterator *iter)
+{
+	struct ObjectsInModeIteratorData *data = iter->data;
+	Base *base = iter->current;
+
+	if (base == data->base_active) {
+		/* first step */
+		base = data->view_layer->object_bases.first;
+		if (base == data->base_active) {
+			base = base->next;
+		}
+	}
+	else {
+		base = base->next;
+	}
+
+	while (base) {
+		if ((base->flag & BASE_SELECTED) != 0 &&
+		    (base->object->type == data->base_active->object->type) &&
+		    (base != data->base_active) &&
+		    (base->object->mode & data->object_mode))
+		{
+			iter->current = base;
+			return;
+		}
+		base = base->next;
+	}
+	iter->valid = false;
+}
+
+void BKE_view_layer_objects_in_mode_iterator_end(BLI_Iterator *UNUSED(iter))
+{
+	/* do nothing */
+}
+
+/** \} */
+
 /* Evaluation  */
 
 /**
@@ -2253,8 +2315,7 @@ static void idproperty_reset(IDProperty **props, IDProperty *props_ref)
 	}
 }
 
-void BKE_layer_eval_layer_collection_pre(const struct EvaluationContext *UNUSED(eval_ctx),
-                                         ID *owner_id, ViewLayer *view_layer)
+static void layer_eval_layer_collection_pre(ID *owner_id, ViewLayer *view_layer)
 {
 	DEG_debug_print_eval(__func__, view_layer->name, view_layer);
 	Scene *scene = (GS(owner_id->name) == ID_SCE) ? (Scene *)owner_id : NULL;
@@ -2282,13 +2343,13 @@ static const char *collection_type_lookup[] =
  * \note We can't use layer_collection->flag because of 3 level nesting (where parent is visible, but not grand-parent)
  * So layer_collection->flag_evaluated is expected to be up to date with layer_collection->flag.
  */
-static bool layer_collection_visible_get(const EvaluationContext *eval_ctx, LayerCollection *layer_collection)
+static bool layer_collection_visible_get(Depsgraph *depsgraph, LayerCollection *layer_collection)
 {
 	if (layer_collection->flag_evaluated & COLLECTION_DISABLED) {
 		return false;
 	}
 
-	if (eval_ctx->mode == DAG_EVAL_VIEWPORT) {
+	if (DEG_get_mode(depsgraph) == DAG_EVAL_VIEWPORT) {
 		return (layer_collection->flag_evaluated & COLLECTION_VIEWPORT) != 0;
 	}
 	else {
@@ -2296,9 +2357,9 @@ static bool layer_collection_visible_get(const EvaluationContext *eval_ctx, Laye
 	}
 }
 
-void BKE_layer_eval_layer_collection(const EvaluationContext *eval_ctx,
-                                     LayerCollection *layer_collection,
-                                     LayerCollection *parent_layer_collection)
+static void layer_eval_layer_collection(Depsgraph *depsgraph,
+                                        LayerCollection *layer_collection,
+                                        LayerCollection *parent_layer_collection)
 {
 	if (G.debug & G_DEBUG_DEPSGRAPH_EVAL) {
 		/* TODO)sergey): Try to make it more generic and handled by depsgraph messaging. */
@@ -2317,7 +2378,7 @@ void BKE_layer_eval_layer_collection(const EvaluationContext *eval_ctx,
 	layer_collection->flag_evaluated = layer_collection->flag;
 
 	if (parent_layer_collection != NULL) {
-		if (layer_collection_visible_get(eval_ctx, parent_layer_collection) == false) {
+		if (layer_collection_visible_get(depsgraph, parent_layer_collection) == false) {
 			layer_collection->flag_evaluated |= COLLECTION_DISABLED;
 		}
 
@@ -2328,7 +2389,7 @@ void BKE_layer_eval_layer_collection(const EvaluationContext *eval_ctx,
 		}
 	}
 
-	const bool is_visible = layer_collection_visible_get(eval_ctx, layer_collection);
+	const bool is_visible = layer_collection_visible_get(depsgraph, layer_collection);
 	const bool is_selectable = is_visible && ((layer_collection->flag_evaluated & COLLECTION_SELECTABLE) != 0);
 
 	/* overrides */
@@ -2356,16 +2417,63 @@ void BKE_layer_eval_layer_collection(const EvaluationContext *eval_ctx,
 	}
 }
 
-void BKE_layer_eval_layer_collection_post(const struct EvaluationContext *UNUSED(eval_ctx),
-                                          ViewLayer *view_layer)
+static void layer_eval_layer_collection_post(ViewLayer *view_layer)
 {
 	DEG_debug_print_eval(__func__, view_layer->name, view_layer);
-	/* if base is not selectabled, clear select */
+	/* Create array of bases, for fast index-based lookup. */
+	const int num_object_bases = BLI_listbase_count(&view_layer->object_bases);
+	MEM_SAFE_FREE(view_layer->object_bases_array);
+	view_layer->object_bases_array = MEM_malloc_arrayN(
+	        num_object_bases, sizeof(Base *), "view_layer->object_bases_array");
+	int base_index = 0;
 	for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+		/* if base is not selectabled, clear select. */
 		if ((base->flag & BASE_SELECTABLED) == 0) {
 			base->flag &= ~BASE_SELECTED;
 		}
+		/* Store base in the array. */
+		view_layer->object_bases_array[base_index++] = base;
 	}
+}
+
+static void layer_eval_collections_recurse(Depsgraph *depsgraph,
+                                           ListBase *layer_collections,
+                                           LayerCollection *parent_layer_collection)
+{
+	for (LayerCollection *layer_collection = layer_collections->first;
+	     layer_collection != NULL;
+	     layer_collection = layer_collection->next)
+	{
+		layer_eval_layer_collection(depsgraph,
+		                            layer_collection,
+		                            parent_layer_collection);
+		layer_eval_collections_recurse(depsgraph,
+		                               &layer_collection->layer_collections,
+		                               layer_collection);
+	}
+}
+
+void BKE_layer_eval_view_layer(struct Depsgraph *depsgraph,
+                               struct ID *owner_id,
+                               ViewLayer *view_layer)
+{
+	layer_eval_layer_collection_pre(owner_id, view_layer);
+	layer_eval_collections_recurse(depsgraph,
+	                               &view_layer->layer_collections,
+	                               NULL);
+	layer_eval_layer_collection_post(view_layer);
+}
+
+void BKE_layer_eval_view_layer_indexed(struct Depsgraph *depsgraph,
+                                       struct ID *owner_id,
+                                       int view_layer_index)
+{
+	BLI_assert(GS(owner_id->name) == ID_SCE);
+	BLI_assert(view_layer_index >= 0);
+	Scene *scene = (Scene *)owner_id;
+	ViewLayer *view_layer = BLI_findlink(&scene->view_layers, view_layer_index);
+	BLI_assert(view_layer != NULL);
+	BKE_layer_eval_view_layer(depsgraph, owner_id, view_layer);
 }
 
 /**

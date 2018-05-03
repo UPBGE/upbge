@@ -1009,6 +1009,9 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 		rect = ima->rect;
 	}
 
+	/* We need to flush widget base first to ensure correct ordering. */
+	UI_widgetbase_draw_cache_flush();
+
 	/* draw */
 	IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_COLOR);
 	immDrawPixelsTex(&state, draw_x, draw_y, draw_w, draw_h, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, rect,
@@ -1049,6 +1052,12 @@ static void icon_draw_cache_flush_ex(void)
 	if (g_icon_draw_cache.calls == 0)
 		return;
 
+	/* We need to flush widget base first to ensure correct ordering. */
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	UI_widgetbase_draw_cache_flush();
+
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, icongltex.id);
 
@@ -1078,7 +1087,6 @@ void UI_icon_draw_cache_end(void)
 		return;
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	icon_draw_cache_flush_ex();
 
@@ -1124,6 +1132,10 @@ static void icon_draw_texture(
 		icon_draw_texture_cached(x, y, w, h, ix, iy, iw, ih, alpha, rgb);
 		return;
 	}
+
+	/* We need to flush widget base first to ensure correct ordering. */
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	UI_widgetbase_draw_cache_flush();
 
 	float x1, x2, y1, y2;
 
@@ -1199,6 +1211,8 @@ static void icon_draw_size(
 	h = (int)(fdraw_size / aspect + 0.5f);
 	
 	if (di->type == ICON_TYPE_VECTOR) {
+		/* We need to flush widget base first to ensure correct ordering. */
+		UI_widgetbase_draw_cache_flush();
 		/* vector icons use the uiBlock transformation, they are not drawn
 		 * with untransformed coordinates like the other icons */
 		di->data.vector.func((int)x, (int)y, w, h, 1.0f);
@@ -1289,7 +1303,6 @@ static int ui_id_brush_get_icon(const bContext *C, ID *id)
 		ui_id_icon_render(C, id, true);
 	}
 	else {
-		const WorkSpace *workspace = CTX_wm_workspace(C);
 		Object *ob = CTX_data_active_object(C);
 		SpaceImage *sima;
 		const EnumPropertyItem *items = NULL;
@@ -1300,11 +1313,11 @@ static int ui_id_brush_get_icon(const bContext *C, ID *id)
 		 * checking various context stuff here */
 
 		if (CTX_wm_view3d(C) && ob) {
-			if (workspace->object_mode & OB_MODE_SCULPT)
+			if (ob->mode & OB_MODE_SCULPT)
 				mode = OB_MODE_SCULPT;
-			else if (workspace->object_mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT))
+			else if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT))
 				mode = OB_MODE_VERTEX_PAINT;
-			else if (workspace->object_mode & OB_MODE_TEXTURE_PAINT)
+			else if (ob->mode & OB_MODE_TEXTURE_PAINT)
 				mode = OB_MODE_TEXTURE_PAINT;
 		}
 		else if ((sima = CTX_wm_space_image(C)) &&

@@ -66,6 +66,7 @@
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
+#include "IMB_metadata.h"
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
@@ -2014,15 +2015,29 @@ void ED_region_panels(const bContext *C, ARegion *ar, const char *context, int c
 		/* before setting the view */
 		if (vertical) {
 			/* we always keep the scroll offset - so the total view gets increased with the scrolled away part */
-			if (v2d->cur.ymax < - 0.001f)
-				y = min_ii(y, v2d->cur.ymin);
-			
+			if (v2d->cur.ymax < -FLT_EPSILON) {
+				/* Clamp to lower view boundary */
+				if (v2d->tot.ymin < -v2d->winy) {
+					y = min_ii(y, 0);
+				}
+				else {
+					y = min_ii(y, v2d->cur.ymin);
+				}
+			}
+
 			y = -y;
 		}
 		else {
 			/* don't jump back when panels close or hide */
-			if (!is_context_new)
-				x = max_ii(x, v2d->cur.xmax);
+			if (!is_context_new) {
+				if (v2d->tot.xmax > v2d->winx) {
+					x = max_ii(x, 0);
+				}
+				else {
+					x = max_ii(x, v2d->cur.xmax);
+				}
+			}
+
 			y = -y;
 		}
 		
@@ -2249,7 +2264,7 @@ static const char *meta_data_list[] =
 
 BLI_INLINE bool metadata_is_valid(ImBuf *ibuf, char *r_str, short index, int offset)
 {
-	return (IMB_metadata_get_field(ibuf, meta_data_list[index], r_str + offset, MAX_METADATA_STR - offset) && r_str[0]);
+	return (IMB_metadata_get_field(ibuf->metadata, meta_data_list[index], r_str + offset, MAX_METADATA_STR - offset) && r_str[0]);
 }
 
 static void metadata_draw_imbuf(ImBuf *ibuf, const rctf *rect, int fontid, const bool is_top)

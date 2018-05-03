@@ -98,7 +98,7 @@ static bool isDisabled(ModifierData *md, int useRenderParams)
 	return get_render_subsurf_level(&md->scene->r, levels, useRenderParams != 0) == 0;
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, const EvaluationContext *eval_ctx,
+static DerivedMesh *applyModifier(ModifierData *md, Depsgraph *depsgraph,
                                   Object *ob, DerivedMesh *derivedData,
                                   ModifierApplyFlag flag)
 {
@@ -117,7 +117,7 @@ static DerivedMesh *applyModifier(ModifierData *md, const EvaluationContext *eva
 		subsurf_flags |= SUBSURF_USE_RENDER_PARAMS;
 	if (isFinalCalc)
 		subsurf_flags |= SUBSURF_IS_FINAL_CALC;
-	if (eval_ctx->object_mode & OB_MODE_EDIT)
+	if (ob->mode & OB_MODE_EDIT)
 		subsurf_flags |= SUBSURF_IN_EDIT_MODE;
 
 #ifdef WITH_OPENSUBDIV
@@ -132,10 +132,10 @@ static DerivedMesh *applyModifier(ModifierData *md, const EvaluationContext *eva
 		if (U.opensubdiv_compute_type == USER_OPENSUBDIV_COMPUTE_NONE) {
 			modifier_setError(md, "OpenSubdiv is disabled in User Preferences");
 		}
-		else if ((eval_ctx->object_mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)) != 0) {
+		else if ((ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)) != 0) {
 			modifier_setError(md, "OpenSubdiv is not supported in paint modes");
 		}
-		else if ((DEG_get_eval_flags_for_id(eval_ctx->depsgraph, &ob->id) & DAG_EVAL_NEED_CPU) == 0) {
+		else if ((DEG_get_eval_flags_for_id(depsgraph, &ob->id) & DAG_EVAL_NEED_CPU) == 0) {
 			subsurf_flags |= SUBSURF_USE_GPU_BACKEND;
 			do_cddm_convert = false;
 		}
@@ -143,8 +143,6 @@ static DerivedMesh *applyModifier(ModifierData *md, const EvaluationContext *eva
 			modifier_setError(md, "OpenSubdiv is disabled due to dependencies");
 		}
 	}
-#else
-	UNUSED_VARS(ob);
 #endif
 
 	result = subsurf_make_derived_from_derived(derivedData, smd, NULL, subsurf_flags);
@@ -158,14 +156,14 @@ static DerivedMesh *applyModifier(ModifierData *md, const EvaluationContext *eva
 
 #ifndef WITH_OPESUBDIV
 	(void) do_cddm_convert;
-	UNUSED_VARS(eval_ctx);
+	UNUSED_VARS(depsgraph);
 #endif
 
 	return result;
 }
 
 static DerivedMesh *applyModifierEM(
-        ModifierData *md, const EvaluationContext *UNUSED(eval_ctx),
+        ModifierData *md, Depsgraph *UNUSED(depsgraph),
         Object *UNUSED(ob), struct BMEditMesh *UNUSED(editData),
         DerivedMesh *derivedData,
         ModifierApplyFlag flag)

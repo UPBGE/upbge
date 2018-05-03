@@ -120,8 +120,7 @@ private:
 	                BL::Object& b_ob_instance,
 	                bool object_updated,
 	                bool hide_tris);
-	void sync_curves(BL::Depsgraph& b_depsgraph,
-	                 Mesh *mesh,
+	void sync_curves(Mesh *mesh,
 	                 BL::Mesh& b_mesh,
 	                 BL::Object& b_ob,
 	                 bool motion,
@@ -152,7 +151,7 @@ private:
 
 	/* particles */
 	bool sync_dupli_particle(BL::Object& b_ob,
-	                         BL::DupliObject& b_dup,
+	                         BL::DepsgraphIter& b_dup,
 	                         Object *object);
 
 	/* Images. */

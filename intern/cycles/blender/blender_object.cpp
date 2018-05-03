@@ -437,6 +437,9 @@ Object *BlenderSync::sync_object(BL::Depsgraph& b_depsgraph,
 			object->dupli_generated = 0.5f*get_float3(b_dupli_iter->orco()) - make_float3(0.5f, 0.5f, 0.5f);
 			object->dupli_uv = get_float2(b_dupli_iter->uv());
 			object->random_id = b_dupli_iter->random_id();
+
+			/* Sync possible particle data. */
+			sync_dupli_particle(b_ob, *b_dupli_iter, object);
 		}
 		else {
 			object->dupli_generated = make_float3(0.0f, 0.0f, 0.0f);
@@ -630,7 +633,6 @@ void BlenderSync::sync_motion(BL::RenderSettings& b_render,
 			frame_center_delta = shuttertime * 0.5f;
 		}
 
-		/* TODO: move frame on depsgraph. */
 		float time = frame_center + subframe_center + frame_center_delta;
 		int frame = (int)floorf(time);
 		float subframe = time - frame;
@@ -663,7 +665,6 @@ void BlenderSync::sync_motion(BL::RenderSettings& b_render,
 		int frame = (int)floorf(time);
 		float subframe = time - frame;
 
-		/* TODO: move frame on depsgraph. */
 		/* change frame */
 		python_thread_state_restore(python_thread_state);
 		b_engine.frame_set(frame, subframe);

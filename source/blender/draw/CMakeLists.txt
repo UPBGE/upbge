@@ -104,6 +104,9 @@ set(SRC
 	engines/eevee/eevee_subsurface.c
 	engines/eevee/eevee_temporal_sampling.c
 	engines/eevee/eevee_volumes.c
+	engines/workbench/workbench_materials_solid.c
+	engines/workbench/workbench_engine.c
+	engines/workbench/solid_flat_mode.c
 	engines/external/external_engine.c
 
 	DRW_engine.h
@@ -181,7 +184,6 @@ data_to_c_simple(engines/eevee/shaders/lightprobe_planar_downsample_vert.glsl SR
 data_to_c_simple(engines/eevee/shaders/prepass_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/prepass_vert.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/shadow_frag.glsl SRC)
-data_to_c_simple(engines/eevee/shaders/shadow_geom.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/shadow_vert.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/shadow_store_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/shadow_copy_frag.glsl SRC)
@@ -203,6 +205,9 @@ data_to_c_simple(engines/eevee/shaders/volumetric_vert.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/volumetric_resolve_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/volumetric_scatter_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/volumetric_integration_frag.glsl SRC)
+
+data_to_c_simple(engines/workbench/shaders/solid_frag.glsl SRC)
+data_to_c_simple(engines/workbench/shaders/workbench_vert.glsl SRC)
 
 data_to_c_simple(modes/shaders/common_globals_lib.glsl SRC)
 data_to_c_simple(modes/shaders/common_view_lib.glsl SRC)
@@ -230,6 +235,7 @@ data_to_c_simple(modes/shaders/object_empty_image_vert.glsl SRC)
 data_to_c_simple(modes/shaders/object_outline_resolve_frag.glsl SRC)
 data_to_c_simple(modes/shaders/object_outline_expand_frag.glsl SRC)
 data_to_c_simple(modes/shaders/object_outline_detect_frag.glsl SRC)
+data_to_c_simple(modes/shaders/object_outline_prepass_frag.glsl SRC)
 data_to_c_simple(modes/shaders/object_grid_frag.glsl SRC)
 data_to_c_simple(modes/shaders/object_grid_vert.glsl SRC)
 data_to_c_simple(modes/shaders/object_lightprobe_grid_vert.glsl SRC)

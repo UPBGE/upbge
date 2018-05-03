@@ -381,7 +381,7 @@ static uiBlock *block_create_confirm_quit(struct bContext *C, struct ARegion *ar
 	uiStyle *style = UI_style_get();
 	uiBlock *block = UI_block_begin(C, ar, "confirm_quit_popup", UI_EMBOSS);
 
-	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP );
+	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
 	UI_block_emboss_set(block, UI_EMBOSS);
 
 	uiLayout *layout = UI_block_layout(
@@ -639,6 +639,11 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm, const char *title, wm
 
 	if (ghostwin) {
 		GHOST_RectangleHandle bounds;
+
+		/* XXX Fix crash when a new window is created.
+		 * However this should be move somewhere else. (fclem) */
+		BLF_batch_reset();
+		gpu_batch_presets_reset();
 
 		win->gwnctx = GWN_context_create();
 		
@@ -2123,18 +2128,6 @@ WorkSpace *WM_windows_workspace_get_from_screen(const wmWindowManager *wm, const
 	return NULL;
 }
 
-eObjectMode WM_windows_object_mode_get(const struct wmWindowManager *wm)
-{
-	eObjectMode object_mode = 0;
-	for (wmWindow *win = wm->windows.first; win; win = win->next) {
-		const WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
-		if (workspace != NULL) {
-			object_mode |= workspace->object_mode;
-		}
-	}
-	return object_mode;
-}
-
 Scene *WM_window_get_active_scene(const wmWindow *win)
 {
 	return win->scene;
@@ -2182,6 +2175,26 @@ bScreen *WM_window_get_active_screen(const wmWindow *win)
 void WM_window_set_active_screen(wmWindow *win, WorkSpace *workspace, bScreen *screen)
 {
 	BKE_workspace_active_screen_set(win->workspace_hook, workspace, screen);
+}
+
+struct ViewLayer *WM_window_get_active_view_layer_ex(const wmWindow *win, Scene **r_scene)
+{
+	const WorkSpace *workspace = WM_window_get_active_workspace(win);
+	Scene *scene = WM_window_get_active_scene(win);
+	/* May be NULL in rare cases like closing Blender */
+	bScreen *screen = (LIKELY(workspace != NULL) ? BKE_workspace_active_screen_get(win->workspace_hook) : NULL);
+	if (screen != NULL) {
+		if (r_scene) {
+			*r_scene = scene;
+		}
+		return BKE_workspace_view_layer_get(workspace, scene);
+	}
+	return NULL;
+}
+
+struct ViewLayer *WM_window_get_active_view_layer(const wmWindow *win)
+{
+	return WM_window_get_active_view_layer_ex(win, NULL);
 }
 
 bool WM_window_is_temp_screen(const wmWindow *win)

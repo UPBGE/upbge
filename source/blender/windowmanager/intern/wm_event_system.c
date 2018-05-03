@@ -338,9 +338,7 @@ void wm_event_do_refresh_wm_and_depsgraph(bContext *C)
 
 			WorkSpace *workspace = WM_window_get_active_workspace(win);
 
-			BKE_workspace_update_object_mode(bmain->eval_ctx, workspace);
-
-			BKE_workspace_update_tagged(bmain->eval_ctx, bmain, workspace, scene);
+			BKE_workspace_update_tagged(bmain, workspace, scene);
 		}
 	}
 
@@ -384,7 +382,7 @@ void wm_event_do_notifiers(bContext *C)
 
 						UI_popup_handlers_remove_all(C, &win->modalhandlers);
 
-						ED_workspace_change(ref_ws, C, win);
+						ED_workspace_change(ref_ws, C, wm, win);
 						if (G.debug & G_DEBUG_EVENTS)
 							printf("%s: Workspace set %p\n", __func__, note->reference);
 					}
@@ -431,9 +429,8 @@ void wm_event_do_notifiers(bContext *C)
 			 * twice which can depgraph update the same object at once */
 			if (G.is_rendering == false) {
 				/* depsgraph gets called, might send more notifiers */
-				ViewLayer *view_layer = CTX_data_view_layer(C);
 				Depsgraph *depsgraph = CTX_data_depsgraph(C);
-				ED_update_for_newframe(CTX_data_main(C), scene, view_layer, depsgraph);
+				ED_update_for_newframe(CTX_data_main(C), depsgraph);
 			}
 		}
 	}
@@ -2665,9 +2662,8 @@ void wm_event_do_handlers(bContext *C)
 							int ncfra = time * (float)FPS + 0.5f;
 							if (ncfra != scene->r.cfra) {
 								scene->r.cfra = ncfra;
-								ViewLayer *view_layer = CTX_data_view_layer(C);
 								Depsgraph *depsgraph = CTX_data_depsgraph(C);
-								ED_update_for_newframe(CTX_data_main(C), scene, view_layer, depsgraph);
+								ED_update_for_newframe(CTX_data_main(C), depsgraph);
 								WM_event_add_notifier(C, NC_WINDOW, NULL);
 							}
 						}

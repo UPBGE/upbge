@@ -118,39 +118,6 @@ namespace DEG {
 
 namespace {
 
-struct BuilderWalkUserData {
-	DepsgraphNodeBuilder *builder;
-};
-
-static void modifier_walk(void *user_data,
-                          struct Object * /*object*/,
-                          struct Object **obpoin,
-                          int /*cb_flag*/)
-{
-	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
-	if (*obpoin) {
-		data->builder->build_object(NULL,
-		                            *obpoin,
-		                            DEG_ID_LINKED_INDIRECTLY);
-	}
-}
-
-void constraint_walk(bConstraint * /*con*/,
-                     ID **idpoin,
-                     bool /*is_reference*/,
-                     void *user_data)
-{
-	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
-	if (*idpoin) {
-		ID *id = *idpoin;
-		if (GS(id->name) == ID_OB) {
-			data->builder->build_object(NULL,
-			                            (Object *)id,
-			                            DEG_ID_LINKED_INDIRECTLY);
-		}
-	}
-}
-
 void free_copy_on_write_datablock(void *id_v)
 {
 	ID *id = (ID *)id_v;
@@ -169,6 +136,7 @@ DepsgraphNodeBuilder::DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph)
     : bmain_(bmain),
       graph_(graph),
       scene_(NULL),
+      view_layer_(NULL),
       cow_id_hash_(NULL)
 {
 }
@@ -202,7 +170,7 @@ IDDepsNode *DepsgraphNodeBuilder::add_id_node(ID *id)
 		ComponentDepsNode *comp_cow =
 		        id_node->add_component(DEG_NODE_TYPE_COPY_ON_WRITE);
 		OperationDepsNode *op_cow = comp_cow->add_operation(
-		        function_bind(deg_evaluate_copy_on_write, _1, graph_, id_node),
+		        function_bind(deg_evaluate_copy_on_write, _1, id_node),
 		        DEG_OPCODE_COPY_ON_WRITE,
 		        "", -1);
 		graph_->operations.push_back(op_cow);
@@ -354,17 +322,6 @@ ID *DepsgraphNodeBuilder::ensure_cow_id(ID *id_orig)
 	return id_node->id_cow;
 }
 
-ID *DepsgraphNodeBuilder::expand_cow_id(IDDepsNode *id_node)
-{
-	return deg_expand_copy_on_write_datablock(graph_, id_node, this, true);
-}
-
-ID *DepsgraphNodeBuilder::expand_cow_id(ID *id_orig)
-{
-	IDDepsNode *id_node = add_id_node(id_orig);
-	return expand_cow_id(id_node);
-}
-
 /* **** Build functions for entity nodes **** */
 
 void DepsgraphNodeBuilder::begin_build() {
@@ -425,6 +382,43 @@ void DepsgraphNodeBuilder::end_build()
 	}
 }
 
+void DepsgraphNodeBuilder::build_id(ID* id) {
+	if (id == NULL) {
+		return;
+	}
+	switch (GS(id->name)) {
+		case ID_GR:
+			build_group((Group *)id);
+			break;
+		case ID_OB:
+			build_object(-1, (Object *)id, DEG_ID_LINKED_INDIRECTLY);
+			break;
+		case ID_NT:
+			build_nodetree((bNodeTree *)id);
+			break;
+		case ID_MA:
+			build_material((Material *)id);
+			break;
+		case ID_TE:
+			build_texture((Tex *)id);
+			break;
+		case ID_IM:
+			build_image((Image *)id);
+			break;
+		case ID_WO:
+			build_world((World *)id);
+			break;
+		case ID_MSK:
+			build_mask((Mask *)id);
+			break;
+		case ID_MC:
+			build_movieclip((MovieClip *)id);
+			break;
+		default:
+			fprintf(stderr, "Unhandled ID %s\n", id->name);
+	}
+}
+
 void DepsgraphNodeBuilder::build_group(Group *group)
 {
 	if (built_map_.checkIsBuiltAndTag(group)) {
@@ -432,7 +426,7 @@ void DepsgraphNodeBuilder::build_group(Group *group)
 	}
 	/* Build group objects. */
 	LISTBASE_FOREACH (Base *, base, &group->view_layer->object_bases) {
-		build_object(NULL, base->object, DEG_ID_LINKED_INDIRECTLY);
+		build_object(-1, base->object, DEG_ID_LINKED_INDIRECTLY);
 	}
 	/* Operation to evaluate the whole view layer.
 	 *
@@ -447,10 +441,10 @@ void DepsgraphNodeBuilder::build_group(Group *group)
 	                   function_bind(BKE_group_eval_view_layers,
 	                                 _1,
 	                                 group_cow),
-	                   DEG_OPCODE_VIEW_LAYER_DONE);
+	                   DEG_OPCODE_VIEW_LAYER_EVAL);
 }
 
-void DepsgraphNodeBuilder::build_object(Base *base,
+void DepsgraphNodeBuilder::build_object(int base_index,
                                         Object *object,
                                         eDepsNode_LinkedState_Type linked_state)
 {
@@ -462,7 +456,7 @@ void DepsgraphNodeBuilder::build_object(Base *base,
 		 * directly.
 		 */
 		if (id_node->linked_state == DEG_ID_LINKED_INDIRECTLY) {
-			build_object_flags(base, object, linked_state);
+			build_object_flags(base_index, object, linked_state);
 		}
 		id_node->linked_state = max(id_node->linked_state, linked_state);
 		return;
@@ -472,18 +466,18 @@ void DepsgraphNodeBuilder::build_object(Base *base,
 	id_node->linked_state = linked_state;
 	object->customdata_mask = 0;
 	/* Various flags, flushing from bases/collections. */
-	build_object_flags(base, object, linked_state);
+	build_object_flags(base_index, object, linked_state);
 	/* Transform. */
 	build_object_transform(object);
 	/* Parent. */
 	if (object->parent != NULL) {
-		build_object(NULL, object->parent, DEG_ID_LINKED_INDIRECTLY);
+		build_object(-1, object->parent, DEG_ID_LINKED_INDIRECTLY);
 	}
 	/* Modifiers. */
 	if (object->modifiers.first != NULL) {
 		BuilderWalkUserData data;
 		data.builder = this;
-		modifiers_foreachObjectLink(object, modifier_walk, &data);
+		modifiers_foreachIDLink(object, modifier_walk, &data);
 	}
 	/* Constraints. */
 	if (object->constraints.first != NULL) {
@@ -516,7 +510,7 @@ void DepsgraphNodeBuilder::build_object(Base *base,
 	/* Object that this is a proxy for. */
 	if (object->proxy) {
 		object->proxy->proxy_from = object;
-		build_object(NULL, object->proxy, DEG_ID_LINKED_INDIRECTLY);
+		build_object(-1, object->proxy, DEG_ID_LINKED_INDIRECTLY);
 	}
 	/* Object dupligroup. */
 	if (object->dup_group != NULL) {
@@ -525,11 +519,11 @@ void DepsgraphNodeBuilder::build_object(Base *base,
 }
 
 void DepsgraphNodeBuilder::build_object_flags(
-        Base *base,
+        int base_index,
         Object *object,
         eDepsNode_LinkedState_Type linked_state)
 {
-	if (base == NULL) {
+	if (base_index == -1) {
 		return;
 	}
 	/* TODO(sergey): Is this really best component to be used? */
@@ -538,7 +532,9 @@ void DepsgraphNodeBuilder::build_object_flags(
 	add_operation_node(&object->id,
 	                   DEG_NODE_TYPE_LAYER_COLLECTIONS,
 	                   function_bind(BKE_object_eval_flush_base_flags,
-	                                 _1, object_cow, base, is_from_set),
+	                                 _1,
+	                                 object_cow, base_index,
+	                                 is_from_set),
 	                   DEG_OPCODE_OBJECT_BASE_FLAGS);
 }
 
@@ -739,6 +735,7 @@ void DepsgraphNodeBuilder::build_driver_variables(ID * id, FCurve *fcurve)
 	LISTBASE_FOREACH (DriverVar *, dvar, &fcurve->driver->variables) {
 		DRIVER_TARGETS_USED_LOOPER(dvar)
 		{
+			build_id(dtar->id);
 			build_driver_id_property(dtar->id, dtar->rna_path);
 		}
 		DRIVER_TARGETS_LOOPER_END
@@ -910,7 +907,7 @@ void DepsgraphNodeBuilder::build_particles(Object *object)
 		switch (part->ren_as) {
 			case PART_DRAW_OB:
 				if (part->dup_ob != NULL) {
-					build_object(NULL,
+					build_object(-1,
 					             part->dup_ob,
 					             DEG_ID_LINKED_INDIRECTLY);
 				}
@@ -1116,13 +1113,13 @@ void DepsgraphNodeBuilder::build_obdata_geom(Object *object)
 			 */
 			Curve *cu = (Curve *)obdata;
 			if (cu->bevobj != NULL) {
-				build_object(NULL, cu->bevobj, DEG_ID_LINKED_INDIRECTLY);
+				build_object(-1, cu->bevobj, DEG_ID_LINKED_INDIRECTLY);
 			}
 			if (cu->taperobj != NULL) {
-				build_object(NULL, cu->taperobj, DEG_ID_LINKED_INDIRECTLY);
+				build_object(-1, cu->taperobj, DEG_ID_LINKED_INDIRECTLY);
 			}
 			if (object->type == OB_FONT && cu->textoncurve != NULL) {
-				build_object(NULL, cu->textoncurve, DEG_ID_LINKED_INDIRECTLY);
+				build_object(-1, cu->textoncurve, DEG_ID_LINKED_INDIRECTLY);
 			}
 			break;
 		}
@@ -1241,7 +1238,7 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
 			build_image((Image *)id);
 		}
 		else if (id_type == ID_OB) {
-			build_object(NULL, (Object *)id, DEG_ID_LINKED_INDIRECTLY);
+			build_object(-1, (Object *)id, DEG_ID_LINKED_INDIRECTLY);
 		}
 		else if (id_type == ID_SCE) {
 			/* Scenes are used by compositor trees, and handled by render
@@ -1315,6 +1312,11 @@ void DepsgraphNodeBuilder::build_texture(Tex *texture)
 			build_image(texture->ima);
 		}
 	}
+	/* Placeholder so we can add relations and tag ID node for update. */
+	add_operation_node(&texture->id,
+	                   DEG_NODE_TYPE_PARAMETERS,
+	                   NULL,
+	                   DEG_OPCODE_PLACEHOLDER);
 }
 
 void DepsgraphNodeBuilder::build_image(Image *image) {
@@ -1417,6 +1419,55 @@ void DepsgraphNodeBuilder::build_lightprobe(Object *object)
 	                   "LightProbe Eval");
 
 	build_animdata(&probe->id);
+}
+
+/* **** ID traversal callbacks functions **** */
+
+void DepsgraphNodeBuilder::modifier_walk(void *user_data,
+                                         struct Object * /*object*/,
+                                         struct ID **idpoin,
+                                         int /*cb_flag*/)
+{
+	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
+	ID *id = *idpoin;
+	if (id == NULL) {
+		return;
+	}
+	switch (GS(id->name)) {
+		case ID_OB:
+			data->builder->build_object(-1,
+			                            (Object *)id,
+			                            DEG_ID_LINKED_INDIRECTLY);
+			break;
+		case ID_TE:
+			data->builder->build_texture((Tex *)id);
+			break;
+		default:
+			/* pass */
+			break;
+	}
+}
+
+void DepsgraphNodeBuilder::constraint_walk(bConstraint * /*con*/,
+                                           ID **idpoin,
+                                           bool /*is_reference*/,
+                                           void *user_data)
+{
+	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
+	ID *id = *idpoin;
+	if (id == NULL) {
+		return;
+	}
+	switch (GS(id->name)) {
+		case ID_OB:
+			data->builder->build_object(-1,
+			                            (Object *)id,
+			                            DEG_ID_LINKED_INDIRECTLY);
+			break;
+		default:
+			/* pass */
+			break;
+	}
 }
 
 }  // namespace DEG

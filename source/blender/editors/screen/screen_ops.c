@@ -153,7 +153,6 @@ int ED_operator_scene_editable(bContext *C)
 
 int ED_operator_objectmode(bContext *C)
 {
-	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *obact = CTX_data_active_object(C);
 
@@ -163,7 +162,7 @@ int ED_operator_objectmode(bContext *C)
 		return 0;
 	
 	/* add a check for ob->mode too? */
-	if (obact && (workspace->object_mode != OB_MODE_OBJECT))
+	if (obact && (obact->mode != OB_MODE_OBJECT))
 		return 0;
 	
 	return 1;
@@ -305,39 +304,35 @@ int ED_operator_console_active(bContext *C)
 	return ed_spacetype_test(C, SPACE_CONSOLE);
 }
 
-static int ed_object_hidden(Object *ob, eObjectMode object_mode)
+static int ed_object_hidden(Object *ob)
 {
 	/* if hidden but in edit mode, we still display, can happen with animation */
-	return ((ob->restrictflag & OB_RESTRICT_VIEW) && !(object_mode & OB_MODE_EDIT));
+	return ((ob->restrictflag & OB_RESTRICT_VIEW) && !(ob->mode & OB_MODE_EDIT));
 }
 
 int ED_operator_object_active(bContext *C)
 {
-	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = ED_object_active_context(C);
-	return ((ob != NULL) && !ed_object_hidden(ob, workspace->object_mode));
+	return ((ob != NULL) && !ed_object_hidden(ob));
 }
 
 int ED_operator_object_active_editable(bContext *C)
 {
-	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = ED_object_active_context(C);
-	return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob, workspace->object_mode));
+	return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob));
 }
 
 int ED_operator_object_active_editable_mesh(bContext *C)
 {
-	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = ED_object_active_context(C);
-	return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob, workspace->object_mode) &&
+	return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) &&
 	        (ob->type == OB_MESH) && !ID_IS_LINKED(ob->data));
 }
 
 int ED_operator_object_active_editable_font(bContext *C)
 {
-	const WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = ED_object_active_context(C);
-	return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob, workspace->object_mode) &&
+	return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) &&
 	        (ob->type == OB_FONT));
 }
 
@@ -382,14 +377,11 @@ int ED_operator_posemode_exclusive(bContext *C)
 {
 	Object *obact = CTX_data_active_object(C);
 
-	if (obact) {
-		const WorkSpace *workspace = CTX_wm_workspace(C);
-		if ((workspace->object_mode & OB_MODE_EDIT) == 0) {
-			Object *obpose;
-			if ((obpose = BKE_object_pose_armature_get(obact))) {
-				if (obact == obpose) {
-					return 1;
-				}
+	if (obact && !(obact->mode & OB_MODE_EDIT)) {
+		Object *obpose;
+		if ((obpose = BKE_object_pose_armature_get(obact))) {
+			if (obact == obpose) {
+				return 1;
 			}
 		}
 	}
@@ -403,15 +395,9 @@ int ED_operator_posemode_context(bContext *C)
 {
 	Object *obpose = ED_pose_object_from_context(C);
 
-	if (obpose) {
-		const WorkSpace *workspace = CTX_wm_workspace(C);
-		/* TODO, should we allow this out of pose mode? */
-		if (workspace->object_mode & OB_MODE_POSE) {
-			// if ((workspace->object_mode & OB_MODE_EDIT) == 0) {
-			if (BKE_object_pose_context_check(obpose)) {
-				return 1;
-			}
-			// }
+	if (obpose && !(obpose->mode & OB_MODE_EDIT)) {
+		if (BKE_object_pose_context_check(obpose)) {
+			return 1;
 		}
 	}
 
@@ -422,17 +408,11 @@ int ED_operator_posemode(bContext *C)
 {
 	Object *obact = CTX_data_active_object(C);
 
-
-	if (obact) {
-		const WorkSpace *workspace = CTX_wm_workspace(C);
-		if ((workspace->object_mode & OB_MODE_EDIT) == 0) {
-			Object *obpose;
-			if ((obpose = BKE_object_pose_armature_get(obact))) {
-				if (((workspace->object_mode & OB_MODE_POSE) && (obact == obpose)) ||
-				    (workspace->object_mode & OB_MODE_WEIGHT_PAINT))
-				{
-					return 1;
-				}
+	if (obact && !(obact->mode & OB_MODE_EDIT)) {
+		Object *obpose;
+		if ((obpose = BKE_object_pose_armature_get(obact))) {
+			if ((obact == obpose) || (obact->mode & OB_MODE_WEIGHT_PAINT)) {
+				return 1;
 			}
 		}
 	}
@@ -568,10 +548,9 @@ int ED_operator_mask(bContext *C)
 			}
 			case SPACE_IMAGE:
 			{
-				WorkSpace *workspace = CTX_wm_workspace(C);
 				SpaceImage *sima = sa->spacedata.first;
 				ViewLayer *view_layer = CTX_data_view_layer(C);
-				return ED_space_image_check_show_maskedit(sima, workspace, view_layer);
+				return ED_space_image_check_show_maskedit(sima, view_layer);
 			}
 		}
 	}
@@ -1349,8 +1328,8 @@ static void area_move_exit(bContext *C, wmOperator *op)
 	op->customdata = NULL;
 	
 	/* this makes sure aligned edges will result in aligned grabbing */
-	removedouble_scrverts(CTX_wm_screen(C));
-	removedouble_scredges(CTX_wm_screen(C));
+	BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
+	BKE_screen_remove_double_scredges(CTX_wm_screen(C));
 }
 
 static int area_move_exec(bContext *C, wmOperator *op)
@@ -1578,16 +1557,16 @@ static ScrEdge *area_findsharededge(bScreen *screen, ScrArea *sa, ScrArea *sb)
 	ScrVert *sbv4 = sb->v4;
 	
 	if (sav1 == sbv4 && sav2 == sbv3) { /* sa to right of sb = W */
-		return screen_findedge(screen, sav1, sav2);
+		return BKE_screen_find_edge(screen, sav1, sav2);
 	}
 	else if (sav2 == sbv1 && sav3 == sbv4) { /* sa to bottom of sb = N */
-		return screen_findedge(screen, sav2, sav3);
+		return BKE_screen_find_edge(screen, sav2, sav3);
 	}
 	else if (sav3 == sbv2 && sav4 == sbv1) { /* sa to left of sb = E */
-		return screen_findedge(screen, sav3, sav4);
+		return BKE_screen_find_edge(screen, sav3, sav4);
 	}
 	else if (sav1 == sbv2 && sav4 == sbv3) { /* sa on top of sb = S*/
-		return screen_findedge(screen, sav1, sav4);
+		return BKE_screen_find_edge(screen, sav1, sav4);
 	}
 	
 	return NULL;
@@ -1653,8 +1632,8 @@ static void area_split_exit(bContext *C, wmOperator *op)
 	WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
 	
 	/* this makes sure aligned edges will result in aligned grabbing */
-	removedouble_scrverts(CTX_wm_screen(C));
-	removedouble_scredges(CTX_wm_screen(C));
+	BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
+	BKE_screen_remove_double_scredges(CTX_wm_screen(C));
 }
 
 static void area_split_preview_update_cursor(bContext *C, wmOperator *op)
@@ -1785,6 +1764,7 @@ static void area_split_cancel(bContext *C, wmOperator *op)
 	sAreaSplitData *sd = (sAreaSplitData *)op->customdata;
 	
 	if (sd->previewmode) {
+		/* pass */
 	}
 	else {
 		if (screen_area_join(C, CTX_wm_screen(C), sd->sarea, sd->narea)) {
@@ -2746,9 +2726,9 @@ static void area_join_exit(bContext *C, wmOperator *op)
 	}
 	
 	/* this makes sure aligned edges will result in aligned grabbing */
-	removedouble_scredges(CTX_wm_screen(C));
-	removenotused_scredges(CTX_wm_screen(C));
-	removenotused_scrverts(CTX_wm_screen(C));
+	BKE_screen_remove_double_scredges(CTX_wm_screen(C));
+	BKE_screen_remove_unused_scredges(CTX_wm_screen(C));
+	BKE_screen_remove_unused_scrverts(CTX_wm_screen(C));
 }
 
 static int area_join_exec(bContext *C, wmOperator *op)
@@ -3585,7 +3565,6 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
 	if (screen->animtimer && screen->animtimer == event->customdata) {
 		Main *bmain = CTX_data_main(C);
 		Scene *scene = CTX_data_scene(C);
-		ViewLayer *view_layer = CTX_data_view_layer(C);
 		struct Depsgraph *depsgraph = CTX_data_depsgraph(C);
 		wmTimer *wt = screen->animtimer;
 		ScreenAnimData *sad = wt->customdata;
@@ -3697,7 +3676,7 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
 		}
 		
 		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
-		ED_update_for_newframe(bmain, scene, view_layer, depsgraph);
+		ED_update_for_newframe(bmain, depsgraph);
 
 		for (window = wm->windows.first; window; window = window->next) {
 			const bScreen *win_screen = WM_window_get_active_screen(window);

@@ -39,7 +39,6 @@
 struct bMovieHandle;
 struct bNodeTree;
 struct Depsgraph;
-struct EvaluationContext;
 struct Image;
 struct ImageFormatData;
 struct Main;
@@ -122,8 +121,6 @@ typedef struct RenderLayer {
 
 	/* optional saved endresult on disk */
 	void *exrhandle;
-
-	struct EvaluationContext eval_ctx;
 
 	ListBase passes;
 	
@@ -271,7 +268,10 @@ void RE_GetViewPlane(struct Render *re, rctf *r_viewplane, rcti *r_disprect);
 void RE_Database_FromScene(
         struct Render *re, struct Main *bmain, struct Scene *scene,
         unsigned int lay, int use_camera_view);
-void RE_Database_Preprocess(struct EvaluationContext *eavl_ctx, struct Render *re);
+void RE_Database_CameraOnly(
+        struct Render *re, struct Main *bmain, struct Scene *scene,
+        unsigned int lay, int use_camera_view);
+void RE_Database_Preprocess(struct Depsgraph *depsgraph, struct Render *re);
 void RE_Database_Free(struct Render *re);
 
 /* project dbase again, when viewplane/perspective changed */
@@ -341,10 +341,6 @@ void RE_current_scene_update_cb(struct Render *re, void *handle, void (*f)(void 
 
 /* should move to kernel once... still unsure on how/where */
 float RE_filter_value(int type, float x);
-/* vector blur zbuffer method */
-void RE_zbuf_accumulate_vecblur(
-        struct NodeBlurData *nbd, int xsize, int ysize, float *newrect,
-        const float *imgrect, float *vecbufrect, const float *zbufrect);
 
 int RE_seq_render_active(struct Scene *scene, struct RenderData *rd);
 

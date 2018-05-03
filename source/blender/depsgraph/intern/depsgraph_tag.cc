@@ -136,7 +136,7 @@ void depsgraph_select_tag_to_component_opcode(
 		 * road.
 		 */
 		*component_type = DEG_NODE_TYPE_LAYER_COLLECTIONS;
-		*operation_code = DEG_OPCODE_VIEW_LAYER_DONE;
+		*operation_code = DEG_OPCODE_VIEW_LAYER_EVAL;
 	}
 	else if (id_type == ID_OB) {
 		*component_type = DEG_NODE_TYPE_LAYER_COLLECTIONS;
@@ -156,7 +156,7 @@ void depsgraph_base_flags_tag_to_component_opcode(
 	const ID_Type id_type = GS(id->name);
 	if (id_type == ID_SCE) {
 		*component_type = DEG_NODE_TYPE_LAYER_COLLECTIONS;
-		*operation_code = DEG_OPCODE_VIEW_LAYER_INIT;
+		*operation_code = DEG_OPCODE_VIEW_LAYER_EVAL;
 	}
 	else if (id_type == ID_OB) {
 		*component_type = DEG_NODE_TYPE_LAYER_COLLECTIONS;
@@ -279,6 +279,13 @@ void depsgraph_tag_component(Depsgraph *graph,
 		if (operation_node != NULL) {
 			operation_node->tag_update(graph);
 		}
+	}
+	/* If component depends on copy-on-write, tag it as well. */
+	if (DEG_depsgraph_use_copy_on_write() && component_node->depends_on_cow()) {
+		ComponentDepsNode *cow_comp =
+		        id_node->find_component(DEG_NODE_TYPE_COPY_ON_WRITE);
+		cow_comp->tag_update(graph);
+		id_node->id_orig->recalc |= ID_RECALC_COPY_ON_WRITE;
 	}
 }
 
@@ -403,7 +410,7 @@ void deg_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id, int flag)
 		}
 		deg_graph_id_tag_legacy_compat(bmain, id, (eDepsgraph_Tag)0);
 	}
-	id->recalc |= flag;
+	id->recalc |= (flag & PSYS_RECALC);
 	int current_flag = flag;
 	while (current_flag != 0) {
 		eDepsgraph_Tag tag =
@@ -418,20 +425,6 @@ void deg_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id, int flag)
 	id_tag_update_ntree_special(bmain, graph, id, flag);
 }
 
-/* TODO(sergey): Consider storing scene and view layer at depsgraph allocation
- * time.
- */
-void deg_ensure_scene_view_layer(Depsgraph *graph,
-                                 Scene *scene,
-                                 ViewLayer *view_layer)
-{
-	if (!graph->need_update) {
-		return;
-	}
-	graph->scene = scene;
-	graph->view_layer = view_layer;
-}
-
 void deg_id_tag_update(Main *bmain, ID *id, int flag)
 {
 	deg_graph_id_tag_update(bmain, NULL, id, flag);
@@ -442,11 +435,6 @@ void deg_id_tag_update(Main *bmain, ID *id, int flag)
 			                                             view_layer,
 			                                             false);
 			if (depsgraph != NULL) {
-				/* Make sure depsgraph is pointing to a correct scene and
-				 * view layer. This is mainly required in cases when depsgraph
-				 * was not built yet.
-				 */
-				deg_ensure_scene_view_layer(depsgraph, scene, view_layer);
 				deg_graph_id_tag_update(bmain, depsgraph, id, flag);
 			}
 		}

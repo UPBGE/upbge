@@ -86,12 +86,31 @@ class COLLECTION_PT_clay_settings(CollectionButtonsPanel, Panel):
         col.template_override_property(collection_props, scene_props, "hair_brightness_randomness")
 
 
+class COLLECTION_PT_workbench_settings(CollectionButtonsPanel, Panel):
+    bl_label = "Render Settings"
+    COMPAT_ENGINES = {'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.view_render.engine in cls.COMPAT_ENGINES
+
+    def draw(self, context):
+        layout = self.layout
+        scene_props = context.scene.collection_properties['BLENDER_WORKBENCH']
+        collection = get_collection_from_context(context)
+        collection_props = collection.engine_overrides['BLENDER_WORKBENCH']
+
+        col = layout.column()
+        col.template_override_property(collection_props, scene_props, "object_color")
+
+
 class COLLECTION_PT_object_mode_settings(CollectionButtonsPanel, Panel):
     bl_label = "Object Mode Settings"
 
     @classmethod
     def poll(cls, context):
-        return context.workspace.object_mode == 'OBJECT'
+        ob = context.object
+        return ob and ob.mode == 'OBJECT'
 
     def draw(self, context):
         layout = self.layout
@@ -109,7 +128,8 @@ class COLLECTION_PT_edit_mode_settings(CollectionButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.workspace.object_mode == 'EDIT'
+        ob = context.object
+        return ob and ob.mode == 'EDIT'
 
     def draw(self, context):
         layout = self.layout
@@ -132,7 +152,8 @@ class COLLECTION_PT_paint_weight_mode_settings(CollectionButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.workspace.object_mode == 'WEIGHT_PAINT'
+        ob = context.object
+        return ob and ob.mode == 'WEIGHT_PAINT'
 
     def draw(self, context):
         layout = self.layout
@@ -150,7 +171,8 @@ class COLLECTION_PT_paint_vertex_mode_settings(CollectionButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.workspace.object_mode == 'VERTEX_PAINT'
+        ob = context.object
+        return ob and ob.mode == 'VERTEX_PAINT'
 
     def draw(self, context):
         layout = self.layout
@@ -166,6 +188,7 @@ class COLLECTION_PT_paint_vertex_mode_settings(CollectionButtonsPanel, Panel):
 classes = (
     COLLECTION_PT_context_collection,
     COLLECTION_PT_clay_settings,
+    COLLECTION_PT_workbench_settings,
     COLLECTION_PT_object_mode_settings,
     COLLECTION_PT_edit_mode_settings,
     COLLECTION_PT_paint_weight_mode_settings,

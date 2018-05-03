@@ -284,8 +284,9 @@ IDProperty *RNA_struct_idprops(PointerRNA *ptr, bool create)
 {
 	StructRNA *type = ptr->type;
 
-	if (type && type->idproperties)
+	if (type && type->idproperties) {
 		return type->idproperties(ptr, create);
+	}
 	
 	return NULL;
 }
@@ -299,8 +300,16 @@ static IDProperty *rna_idproperty_find(PointerRNA *ptr, const char *name)
 {
 	IDProperty *group = RNA_struct_idprops(ptr, 0);
 
-	if (group)
-		return IDP_GetPropertyFromGroup(group, name);
+	if (group) {
+		if (group->type == IDP_GROUP) {
+			return IDP_GetPropertyFromGroup(group, name);
+		}
+		else {
+			/* Not sure why that happens sometimes, with nested properties... */
+			/* Seems to be actually array prop, name is usually "0"... To be sorted out later. */
+//			printf("Got unexpected IDProp container when trying to retrieve %s: %d\n", name, group->type);
+		}
+	}
 
 	return NULL;
 }
@@ -1864,7 +1873,7 @@ bool RNA_property_editable_info(PointerRNA *ptr, PropertyRNA *prop, const char *
 	else {
 		flag = prop->flag;
 		if ((flag & PROP_EDITABLE) == 0 || (flag & PROP_REGISTER)) {
-			*r_info = "This property is for internal use only and can't be edited.";
+			*r_info = N_("This property is for internal use only and can't be edited");
 		}
 	}
 
@@ -1872,13 +1881,13 @@ bool RNA_property_editable_info(PointerRNA *ptr, PropertyRNA *prop, const char *
 	if (id) {
 		if (ID_IS_LINKED(id) && (prop->flag & PROP_LIB_EXCEPTION) == 0) {
 			if (!(*r_info)[0]) {
-				*r_info = "Can't edit this property from a linked data-block.";
+				*r_info = N_("Can't edit this property from a linked data-block.");
 			}
 			return false;
 		}
 		if (id->override_static != NULL && !RNA_property_overridable(ptr, prop)) {
 			if (!(*r_info)[0]) {
-				*r_info = "Can't edit this property from an override data-block.";
+				*r_info = N_("Can't edit this property from an override data-block.");
 			}
 			return false;
 		}

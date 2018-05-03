@@ -38,6 +38,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_dynamicpaint_types.h"
+#include "DNA_group_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force_types.h"
@@ -440,9 +441,9 @@ static void ptcache_particle_extra_write(void *psys_v, PTCacheMem *pm, int UNUSE
 	PTCacheExtra *extra = NULL;
 
 	if (psys->part->phystype == PART_PHYS_FLUID &&
-		psys->part->fluid && psys->part->fluid->flag & SPH_VISCOELASTIC_SPRINGS &&
-		psys->tot_fluidsprings && psys->fluid_springs) {
-
+	    psys->part->fluid && psys->part->fluid->flag & SPH_VISCOELASTIC_SPRINGS &&
+	    psys->tot_fluidsprings && psys->fluid_springs)
+	{
 		extra = MEM_callocN(sizeof(PTCacheExtra), "Point cache: fluid extra data");
 
 		extra->type = BPHYS_EXTRA_FLUID_SPRINGS;
@@ -789,8 +790,9 @@ static int ptcache_smoke_read(PTCacheFile *pf, void *smoke_v)
 
 	/* check if resolution has changed */
 	if (sds->res[0] != ch_res[0] ||
-		sds->res[1] != ch_res[1] ||
-		sds->res[2] != ch_res[2]) {
+	    sds->res[1] != ch_res[1] ||
+	    sds->res[2] != ch_res[2])
+	{
 		if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN)
 			reallocate = 1;
 		else
@@ -1646,6 +1648,25 @@ void BKE_ptcache_id_from_rigidbody(PTCacheID *pid, Object *ob, RigidBodyWorld *r
 	pid->file_type = PTCACHE_FILE_PTCACHE;
 }
 
+PTCacheID BKE_ptcache_id_find(Object *ob, Scene *scene, PointCache *cache)
+{
+	PTCacheID result = {0};
+
+	ListBase pidlist;
+	BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
+
+	for (PTCacheID *pid = pidlist.first; pid; pid = pid->next) {
+		if (pid->cache == cache) {
+			result = *pid;
+			break;
+		}
+	}
+
+	BLI_freelistN(&pidlist);
+
+	return result;
+}
+
 void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int duplis)
 {
 	PTCacheID *pid;
@@ -1714,22 +1735,19 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 		BLI_addtail(lb, pid);
 	}
 
-	if (scene && (duplis-- > 0) && (ob->transflag & OB_DUPLI)) {
-		ListBase *lb_dupli_ob;
-		/* don't update the dupli groups, we only want their pid's */
-		if ((lb_dupli_ob = object_duplilist_ex(G.main->eval_ctx, scene, ob, false))) {
-			DupliObject *dob;
-			for (dob= lb_dupli_ob->first; dob; dob= dob->next) {
-				if (dob->ob != ob) { /* avoids recursive loops with dupliframes: bug 22988 */
-					ListBase lb_dupli_pid;
-					BKE_ptcache_ids_from_object(&lb_dupli_pid, dob->ob, scene, duplis);
-					BLI_movelisttolist(lb, &lb_dupli_pid);
-					if (lb_dupli_pid.first)
-						printf("Adding Dupli\n");
-				}
-			}
+	/* Consider all object in dupli groups to be part of the same object,
+	 * for baking with linking dupligroups. Once we have better overrides
+	 * this can be revisited so users select the local objects directly. */
+	if (scene && (duplis-- > 0) && (ob->dup_group)) {
+		Group *group = ob->dup_group;
+		Base *base = group->view_layer->object_bases.first;
 
-			free_object_duplilist(lb_dupli_ob);	/* does restore */
+		for (; base; base = base->next) {
+			if (base->object != ob) {
+				ListBase lb_dupli_pid;
+				BKE_ptcache_ids_from_object(&lb_dupli_pid, base->object, scene, duplis);
+				BLI_movelisttolist(lb, &lb_dupli_pid);
+			}
 		}
 	}
 }
@@ -2197,8 +2215,8 @@ static void ptcache_data_copy(void *from[], void *to[])
 {
 	int i;
 	for (i=0; i<BPHYS_TOT_DATA; i++) {
-	/* note, durian file 03.4b_comp crashes if to[i] is not tested
-	 * its NULL, not sure if this should be fixed elsewhere but for now its needed */
+		/* note, durian file 03.4b_comp crashes if to[i] is not tested
+		 * its NULL, not sure if this should be fixed elsewhere but for now its needed */
 		if (from[i] && to[i])
 			memcpy(to[i], from[i], ptcache_data_size[i]);
 	}
@@ -3662,7 +3680,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	stime = ptime = PIL_check_seconds_timer();
 
 	for (int fr = CFRA; fr <= endframe; fr += baker->quick_step, CFRA = fr) {
-		BKE_scene_graph_update_for_newframe(G.main->eval_ctx, depsgraph, bmain, scene, view_layer);
+		BKE_scene_graph_update_for_newframe(depsgraph, bmain);
 
 		if (baker->update_progress) {
 			float progress = ((float)(CFRA - startframe)/(float)(endframe - startframe));
@@ -3748,7 +3766,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	CFRA = cfrao;
 	
 	if (bake) { /* already on cfra unless baking */
-		BKE_scene_graph_update_for_newframe(bmain->eval_ctx, depsgraph, bmain, scene, view_layer);
+		BKE_scene_graph_update_for_newframe(depsgraph, bmain);
 	}
 
 	/* TODO: call redraw all windows somehow */

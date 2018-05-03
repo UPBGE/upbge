@@ -69,16 +69,14 @@ static bool snap_calc_active_center(bContext *C, const bool select_only, float r
 
 static int snap_sel_to_grid_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Object *obedit = CTX_data_edit_object(C);
 	Scene *scene = CTX_data_scene(C);
 	RegionView3D *rv3d = CTX_wm_region_data(C);
 	TransVertStore tvs = {NULL};
 	TransVert *tv;
-	EvaluationContext eval_ctx;
 	float gridf, imat[3][3], bmat[3][3], vec[3];
 	int a;
-
-	CTX_data_eval_ctx(C, &eval_ctx);
 
 	gridf = rv3d->gridview;
 
@@ -113,7 +111,7 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *UNUSED(op))
 
 		CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects)
 		{
-			if (eval_ctx.object_mode & OB_MODE_POSE) {
+			if (ob->mode & OB_MODE_POSE) {
 				bPoseChannel *pchan;
 				bArmature *arm = ob->data;
 				
@@ -166,7 +164,7 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *UNUSED(op))
 				
 				if (ob->parent) {
 					float originmat[3][3];
-					BKE_object_where_is_calc_ex(&eval_ctx, scene, NULL, ob, originmat);
+					BKE_object_where_is_calc_ex(depsgraph, scene, NULL, ob, originmat);
 					
 					invert_m3_m3(imat, originmat);
 					mul_m3_v3(imat, vec);
@@ -211,19 +209,17 @@ void VIEW3D_OT_snap_selected_to_grid(wmOperatorType *ot)
 
 static int snap_selected_to_location(bContext *C, const float snap_target_global[3], const bool use_offset)
 {
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
 	Object *obact = CTX_data_active_object(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	TransVertStore tvs = {NULL};
 	TransVert *tv;
-	EvaluationContext eval_ctx;
 	float imat[3][3], bmat[3][3];
 	float center_global[3];
 	float offset_global[3];
 	int a;
-
-	CTX_data_eval_ctx(C, &eval_ctx);
 
 	if (use_offset) {
 		if ((v3d && v3d->around == V3D_AROUND_ACTIVE) &&
@@ -272,7 +268,7 @@ static int snap_selected_to_location(bContext *C, const float snap_target_global
 		ED_transverts_update_obedit(&tvs, obedit);
 		ED_transverts_free(&tvs);
 	}
-	else if (obact && (eval_ctx.object_mode & OB_MODE_POSE)) {
+	else if (obact && (obact->mode & OB_MODE_POSE)) {
 		struct KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
 
 		bPoseChannel *pchan;
@@ -377,7 +373,7 @@ static int snap_selected_to_location(bContext *C, const float snap_target_global
 
 				if (ob->parent) {
 					float originmat[3][3];
-					BKE_object_where_is_calc_ex(&eval_ctx, scene, NULL, ob, originmat);
+					BKE_object_where_is_calc_ex(depsgraph, scene, NULL, ob, originmat);
 
 					invert_m3_m3(imat, originmat);
 					mul_m3_v3(imat, cursor_parent);
@@ -554,8 +550,6 @@ static void bundle_midpoint(Scene *scene, Object *ob, float vec[3])
 
 static bool snap_curs_to_sel_ex(bContext *C, float cursor[3])
 {
-	EvaluationContext eval_ctx;
-	CTX_data_eval_ctx(C, &eval_ctx);
 	Object *obedit = CTX_data_edit_object(C);
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = CTX_wm_view3d(C);
@@ -601,7 +595,7 @@ static bool snap_curs_to_sel_ex(bContext *C, float cursor[3])
 	else {
 		Object *obact = CTX_data_active_object(C);
 		
-		if (obact && (eval_ctx.object_mode & OB_MODE_POSE)) {
+		if (obact && (obact->mode & OB_MODE_POSE)) {
 			bArmature *arm = obact->data;
 			bPoseChannel *pchan;
 			for (pchan = obact->pose->chanbase.first; pchan; pchan = pchan->next) {
@@ -703,8 +697,7 @@ static bool snap_calc_active_center(bContext *C, const bool select_only, float r
 		Object *ob = CTX_data_active_object(C);
 
 		if (ob) {
-			const WorkSpace *workspace = CTX_wm_workspace(C);
-			if (workspace->object_mode & OB_MODE_POSE) {
+			if (ob->mode & OB_MODE_POSE) {
 				bPoseChannel *pchan = BKE_pose_channel_active(ob);
 				if (pchan) {
 					if (!select_only || (pchan->bone->flag & BONE_SELECTED)) {

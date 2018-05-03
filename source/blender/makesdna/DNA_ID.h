@@ -460,6 +460,7 @@ enum {
 	LIB_TAG_NOT_ALLOCATED     = 1 << 16,
 };
 
+/* WARNING - when adding flags check on PSYS_RECALC */
 enum {
 	/* RESET_AFTER_USE, used by update code (depsgraph). */
 	ID_RECALC_NONE  = 0,
@@ -472,6 +473,7 @@ enum {
 	ID_RECALC_GEOMETRY    = 1 << 4,
 	ID_RECALC_TRANSFORM   = 1 << 5,
 	ID_RECALC_COLLECTIONS = 1 << 6,
+	ID_RECALC_COPY_ON_WRITE = 1 << 7,
 	/* Special flag to check if SOMETHING was changed. */
 	ID_RECALC_ALL   = (~(int)0),
 };

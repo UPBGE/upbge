@@ -621,13 +621,11 @@ static void node_draw_mute_line(View2D *v2d, SpaceNode *snode, bNode *node)
 	bNodeLink *link;
 
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
 
 	for (link = node->internal_links.first; link; link = link->next)
-		node_draw_link_bezier(v2d, snode, link, TH_REDALERT, 0, TH_WIRE, 0, TH_WIRE);
+		node_draw_link_bezier(v2d, snode, link, TH_REDALERT, TH_REDALERT, -1);
 
 	glDisable(GL_BLEND);
-	glDisable(GL_LINE_SMOOTH);
 }
 
 static void node_socket_circle_draw(const bContext *C, bNodeTree *ntree, PointerRNA node_ptr, bNodeSocket *sock, unsigned pos, unsigned col)
@@ -1246,12 +1244,12 @@ void node_draw_nodetree(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeT
 	
 	/* node lines */
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	nodelink_batch_start(snode);
 	for (link = ntree->links.first; link; link = link->next) {
 		if (!nodeLinkIsHidden(link))
 			node_draw_link(&ar->v2d, snode, link);
 	}
-	glDisable(GL_LINE_SMOOTH);
+	nodelink_batch_end(snode);
 	glDisable(GL_BLEND);
 	
 	/* draw foreground nodes, last nodes in front */

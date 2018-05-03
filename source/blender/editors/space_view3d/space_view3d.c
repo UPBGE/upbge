@@ -910,10 +910,17 @@ static void view3d_main_region_listener(
 				case ND_SELECT:
 				{
 					WM_manipulatormap_tag_refresh(mmap);
-					Object *obedit = OBEDIT_FROM_WINDOW(wmn->window);
-					if (obedit) {
+
+					ID *ob_data = wmn->reference;
+					if (ob_data == NULL) {
+						BLI_assert(wmn->window); // Use `WM_event_add_notifier` instead of `WM_main_add_notifier`
+						ViewLayer *view_layer = WM_window_get_active_view_layer(wmn->window);
+						ob_data = OBEDIT_FROM_VIEW_LAYER(view_layer)->data;
+					}
+					if (ob_data) {
+						BLI_assert(OB_DATA_SUPPORT_ID(GS(ob_data->name)));
 						/* TODO(sergey): Notifiers shouldn't really be doing DEG tags. */
-						DEG_id_tag_update((ID *)obedit->data, DEG_TAG_SELECT_UPDATE);
+						DEG_id_tag_update(ob_data, DEG_TAG_SELECT_UPDATE);
 					}
 					ATTR_FALLTHROUGH;
 				}
@@ -1127,8 +1134,9 @@ static void view3d_main_region_message_subscribe(
 /* concept is to retrieve cursor type context-less */
 static void view3d_main_region_cursor(wmWindow *win, ScrArea *UNUSED(sa), ARegion *UNUSED(ar))
 {
-	WorkSpace *workspace = WM_window_get_active_workspace(win);
-	if (workspace->object_mode & OB_MODE_EDIT) {
+	ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+	Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
+	if (obedit) {
 		WM_cursor_set(win, CURSOR_EDIT);
 	}
 	else {
@@ -1380,9 +1388,9 @@ static int view3d_context(const bContext *C, const char *member, bContextDataRes
 		Scene *scene = CTX_data_scene(C);
 		ViewLayer *view_layer = CTX_data_view_layer(C);
 		if (view_layer->basact) {
-			const WorkSpace *workspace = CTX_wm_workspace(C);
+			Object *ob = view_layer->basact->object;
 			/* if hidden but in edit mode, we still display, can happen with animation */
-			if ((view_layer->basact->flag & BASE_VISIBLED) != 0 || (workspace->object_mode & OB_MODE_EDIT)) {
+			if ((view_layer->basact->flag & BASE_VISIBLED) != 0 || (ob->mode & OB_MODE_EDIT)) {
 				CTX_data_pointer_set(result, &scene->id, &RNA_ObjectBase, view_layer->basact);
 			}
 		}
@@ -1392,10 +1400,9 @@ static int view3d_context(const bContext *C, const char *member, bContextDataRes
 	else if (CTX_data_equals(member, "active_object")) {
 		ViewLayer *view_layer = CTX_data_view_layer(C);
 		if (view_layer->basact) {
-			const WorkSpace *workspace = CTX_wm_workspace(C);
 			Object *ob = view_layer->basact->object;
 			/* if hidden but in edit mode, we still display, can happen with animation */
-			if ((view_layer->basact->flag & BASE_VISIBLED) != 0 || (workspace->object_mode & OB_MODE_EDIT) != 0) {
+			if ((view_layer->basact->flag & BASE_VISIBLED) != 0 || (ob->mode & OB_MODE_EDIT) != 0) {
 				CTX_data_id_pointer_set(result, &ob->id);
 			}
 		}

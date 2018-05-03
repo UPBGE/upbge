@@ -623,11 +623,11 @@ static size_t initialize_internal_images(BakeImages *bake_images, ReportList *re
 }
 
 /* create new mesh with edit mode changes and modifiers applied */
-static Mesh *bake_mesh_new_from_object(EvaluationContext *eval_ctx, Main *bmain, Scene *scene, Object *ob)
+static Mesh *bake_mesh_new_from_object(Depsgraph *depsgraph, Main *bmain, Scene *scene, Object *ob)
 {
 	ED_object_editmode_load(ob);
 
-	Mesh *me = BKE_mesh_new_from_object(eval_ctx, bmain, scene, ob, 1, 2, 0, 0);
+	Mesh *me = BKE_mesh_new_from_object(depsgraph, bmain, scene, ob, 1, 0, 0);
 	if (me->flag & ME_AUTOSMOOTH) {
 		BKE_mesh_split_faces(me, true);
 	}
@@ -645,9 +645,7 @@ static int bake(
         const char *custom_cage, const char *filepath, const int width, const int height,
         const char *identifier, ScrArea *sa, const char *uv_layer)
 {
-	EvaluationContext *eval_ctx = DEG_evaluation_context_new(DAG_EVAL_RENDER);
-	Depsgraph *depsgraph = DEG_graph_new();
-	DEG_evaluation_context_init_from_view_layer_for_render(eval_ctx, depsgraph, scene, view_layer);
+	Depsgraph *depsgraph = DEG_graph_new(scene, view_layer, DAG_EVAL_RENDER);
 
 	int op_result = OPERATOR_CANCELLED;
 	bool ok = false;
@@ -792,14 +790,10 @@ static int bake(
 
 	/* Make sure depsgraph is up to date. */
 	DEG_graph_build_from_view_layer(depsgraph, bmain, scene, view_layer);
-	BKE_scene_graph_update_tagged(eval_ctx,
-	                              depsgraph,
-	                              bmain,
-	                              scene,
-	                              view_layer);
+	BKE_scene_graph_update_tagged(depsgraph, bmain);
 
 	/* get the mesh as it arrives in the renderer */
-	me_low = bake_mesh_new_from_object(eval_ctx, bmain, scene, ob_low);
+	me_low = bake_mesh_new_from_object(depsgraph, bmain, scene, ob_low);
 
 	/* populate the pixel array with the face data */
 	if ((is_selected_to_active && (ob_cage == NULL) && is_cage) == false)
@@ -814,7 +808,7 @@ static int bake(
 
 		/* prepare cage mesh */
 		if (ob_cage) {
-			me_cage = bake_mesh_new_from_object(eval_ctx, bmain, scene, ob_cage);
+			me_cage = bake_mesh_new_from_object(depsgraph, bmain, scene, ob_cage);
 			if ((me_low->totpoly != me_cage->totpoly) || (me_low->totloop != me_cage->totloop)) {
 				BKE_report(reports, RPT_ERROR,
 				           "Invalid cage object, the cage mesh must have the same number "
@@ -846,7 +840,7 @@ static int bake(
 			ob_low->modifiers = modifiers_tmp;
 
 			/* get the cage mesh as it arrives in the renderer */
-			me_cage = bake_mesh_new_from_object(eval_ctx, bmain, scene, ob_low);
+			me_cage = bake_mesh_new_from_object(depsgraph, bmain, scene, ob_low);
 			RE_bake_pixels_populate(me_cage, pixel_array_low, num_pixels, &bake_images, uv_layer);
 		}
 
@@ -866,13 +860,13 @@ static int bake(
 
 			/* triangulating so BVH returns the primitive_id that will be used for rendering */
 			highpoly[i].tri_mod = ED_object_modifier_add(
-			        reports, bmain, scene, highpoly[i].ob, OB_MODE_OBJECT,
+			        reports, bmain, scene, highpoly[i].ob,
 			        "TmpTriangulate", eModifierType_Triangulate);
 			tmd = (TriangulateModifierData *)highpoly[i].tri_mod;
 			tmd->quad_method = MOD_TRIANGULATE_QUAD_FIXED;
 			tmd->ngon_method = MOD_TRIANGULATE_NGON_EARCLIP;
 
-			highpoly[i].me = bake_mesh_new_from_object(eval_ctx, bmain, scene, highpoly[i].ob);
+			highpoly[i].me = bake_mesh_new_from_object(depsgraph, bmain, scene, highpoly[i].ob);
 			highpoly[i].ob->restrictflag &= ~OB_RESTRICT_RENDER;
 
 			/* lowpoly to highpoly transformation matrix */
@@ -975,7 +969,7 @@ cage_cleanup:
 						md->mode &= ~eModifierMode_Render;
 					}
 
-					me_nores = bake_mesh_new_from_object(eval_ctx, bmain, scene, ob_low);
+					me_nores = bake_mesh_new_from_object(depsgraph, bmain, scene, ob_low);
 					RE_bake_pixels_populate(me_nores, pixel_array_low, num_pixels, &bake_images, uv_layer);
 
 					RE_bake_normal_world_to_tangent(pixel_array_low, num_pixels, depth, result, me_nores, normal_swizzle, ob_low->obmat);

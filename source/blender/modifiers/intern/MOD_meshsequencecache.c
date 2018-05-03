@@ -74,10 +74,6 @@ static void freeData(ModifierData *md)
 {
 	MeshSeqCacheModifierData *mcmd = (MeshSeqCacheModifierData *) md;
 
-	if (mcmd->cache_file) {
-		id_us_min(&mcmd->cache_file->id);
-	}
-
 	if (mcmd->reader) {
 #ifdef WITH_ALEMBIC
 		CacheReader_free(mcmd->reader);
@@ -94,7 +90,7 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 	return (mcmd->cache_file == NULL) || (mcmd->object_path[0] == '\0');
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx),
+static DerivedMesh *applyModifier(ModifierData *md, struct Depsgraph *UNUSED(depsgraph),
                                   Object *ob, DerivedMesh *dm,
                                   ModifierApplyFlag UNUSED(flag))
 {

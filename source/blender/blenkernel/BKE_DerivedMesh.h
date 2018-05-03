@@ -95,12 +95,10 @@ struct KeyBlock;
 struct ModifierData;
 struct MCol;
 struct ColorBand;
+struct Depsgraph;
 struct GPUVertexAttribs;
 struct GPUDrawObject;
 struct PBVH;
-struct EvaluationContext;
-
-#include "DNA_object_enums.h"
 
 /* number of sub-elements each mesh element has (for interpolation) */
 #define SUB_ELEMS_VERT 0
@@ -383,7 +381,7 @@ struct DerivedMesh {
 
 	/** Get the BVH used for paint modes
 	 */
-	struct PBVH *(*getPBVH)(struct Object *ob, DerivedMesh *dm, eObjectMode object_mode);
+	struct PBVH *(*getPBVH)(struct Object *ob, DerivedMesh *dm);
 
 	/* Drawing Operations */
 
@@ -662,18 +660,18 @@ void mesh_get_mapped_verts_coords(DerivedMesh *dm, float (*r_cos)[3], const int 
 
 /* */
 DerivedMesh *mesh_get_derived_final(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene,
+        struct Depsgraph *depsgraph, struct Scene *scene,
         struct Object *ob, CustomDataMask dataMask);
 DerivedMesh *mesh_get_derived_deform(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene,
+        struct Depsgraph *depsgraph, struct Scene *scene,
         struct Object *ob, CustomDataMask dataMask);
 
 DerivedMesh *mesh_create_derived_for_modifier(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob,
+        struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob,
         struct ModifierData *md, int build_shapekey_layers);
 
 DerivedMesh *mesh_create_derived_render(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene,
+        struct Depsgraph *depsgraph, struct Scene *scene,
         struct Object *ob, CustomDataMask dataMask);
 
 DerivedMesh *getEditDerivedBMesh(
@@ -681,37 +679,37 @@ DerivedMesh *getEditDerivedBMesh(
         float (*vertexCos)[3]);
 
 DerivedMesh *mesh_create_derived_index_render(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene,
+        struct Depsgraph *depsgraph, struct Scene *scene,
         struct Object *ob, CustomDataMask dataMask, int index);
 
 /* same as above but wont use render settings */
 DerivedMesh *mesh_create_derived(struct Mesh *me, float (*vertCos)[3]);
 DerivedMesh *mesh_create_derived_view(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene,
+        struct Depsgraph *depsgraph, struct Scene *scene,
         struct Object *ob, CustomDataMask dataMask);
 DerivedMesh *mesh_create_derived_no_deform(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene,
+        struct Depsgraph *depsgraph, struct Scene *scene,
         struct Object *ob, float (*vertCos)[3],
         CustomDataMask dataMask);
 DerivedMesh *mesh_create_derived_no_deform_render(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene,
+        struct Depsgraph *depsgraph, struct Scene *scene,
         struct Object *ob, float (*vertCos)[3],
         CustomDataMask dataMask);
 /* for gameengine */
 DerivedMesh *mesh_create_derived_no_virtual(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob,
+        struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob,
         float (*vertCos)[3], CustomDataMask dataMask);
 DerivedMesh *mesh_create_derived_physics(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob,
+        struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob,
         float (*vertCos)[3], CustomDataMask dataMask);
 
 DerivedMesh *editbmesh_get_derived_base(
         struct Object *ob, struct BMEditMesh *em, CustomDataMask data_mask);
 DerivedMesh *editbmesh_get_derived_cage(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *,
+        struct Depsgraph *depsgraph, struct Scene *scene, struct Object *,
         struct BMEditMesh *em, CustomDataMask dataMask);
 DerivedMesh *editbmesh_get_derived_cage_and_final(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *,
+        struct Depsgraph *depsgraph, struct Scene *scene, struct Object *,
         struct BMEditMesh *em, CustomDataMask dataMask,
         DerivedMesh **r_final);
 
@@ -720,7 +718,7 @@ DerivedMesh *object_get_derived_final(struct Object *ob, const bool for_render);
 float (*editbmesh_get_vertex_cos(struct BMEditMesh *em, int *r_numVerts))[3];
 bool editbmesh_modifier_is_enabled(struct Scene *scene, struct ModifierData *md, DerivedMesh *dm);
 void makeDerivedMesh(
-        const struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob, struct BMEditMesh *em,
+        struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob, struct BMEditMesh *em,
         CustomDataMask dataMask, const bool build_shapekey_layers);
 
 void weight_to_rgb(float r_rgb[3], const float weight);

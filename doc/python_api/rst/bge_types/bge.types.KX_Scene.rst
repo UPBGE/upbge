@@ -1,8 +1,6 @@
 KX_Scene(PyObjectPlus)
 ======================
 
-.. module:: bge.types
-
 base class --- :class:`PyObjectPlus`
 
 .. class:: KX_Scene(PyObjectPlus)
@@ -202,4 +200,3 @@ base class --- :class:`PyObjectPlus`
    .. method:: drawObstacleSimulation()
 
       Draw debug visualization of obstacle simulation.
-

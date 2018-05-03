@@ -126,18 +126,7 @@ typedef struct uiWidgetBase {
 	uiWidgetTrias tria2;
 
 	/* Widget shader parameters, must match the shader layout. */
-	struct {
-		rctf recti, rect;
-		float radi, rad;
-		float facxi, facyi;
-		float round_corners[4];
-		float color_inner1[4], color_inner2[4];
-		float color_outline[4], color_emboss[4];
-		float color_tria[4];
-		float tria1_center[2], tria2_center[2];
-		float tria1_size, tria2_size;
-		float shade_dir, clamp;
-	} uniform_params;
+	uiWidgetBaseParameters uniform_params;
 } uiWidgetBase;
 
 /** uiWidgetType: for time being only for visual appearance,
@@ -231,22 +220,31 @@ static const uint g_shape_preset_hold_action_face[2][3] = {{2, 0, 1}, {3, 5, 4}}
  * TODO: find a better place. Maybe it's own file?
  **/
 
-enum {
-	ROUNDBOX_TRIA_NONE = 0,
-	ROUNDBOX_TRIA_ARROWS,
-	ROUNDBOX_TRIA_SCROLL,
-	ROUNDBOX_TRIA_MENU,
-	ROUNDBOX_TRIA_CHECK,
-
-	ROUNDBOX_TRIA_MAX, /* don't use */
+/* offset in triavec[] in shader per type */
+static const int tria_ofs[ROUNDBOX_TRIA_MAX] = {
+	[ROUNDBOX_TRIA_NONE]              = 0,
+	[ROUNDBOX_TRIA_ARROWS]            = 0,
+	[ROUNDBOX_TRIA_SCROLL]            = 6,
+	[ROUNDBOX_TRIA_MENU]              = 22,
+	[ROUNDBOX_TRIA_CHECK]             = 28,
+	[ROUNDBOX_TRIA_HOLD_ACTION_ARROW] = 34,
+};
+static const int tria_vcount[ROUNDBOX_TRIA_MAX] = {
+	[ROUNDBOX_TRIA_NONE]              = 0,
+	[ROUNDBOX_TRIA_ARROWS]            = 3,
+	[ROUNDBOX_TRIA_SCROLL]            = 16,
+	[ROUNDBOX_TRIA_MENU]              = 3,
+	[ROUNDBOX_TRIA_CHECK]             = 6,
+	[ROUNDBOX_TRIA_HOLD_ACTION_ARROW] = 3,
 };
 
-/* offset in triavec[] in shader per type */
-static const int tria_ofs[ROUNDBOX_TRIA_MAX] = {0, 0, 6, 22, 28};
-static const int tria_vcount[ROUNDBOX_TRIA_MAX] = {0, 3, 16, 3, 6};
-
 static struct {
-	Gwn_Batch *roundbox[ROUNDBOX_TRIA_MAX];
+	Gwn_Batch *roundbox_widget[ROUNDBOX_TRIA_MAX];
+
+	Gwn_Batch *roundbox_simple;
+	Gwn_Batch *roundbox_simple_aa;
+	Gwn_Batch *roundbox_simple_outline;
+	Gwn_Batch *roundbox_shadow;
 
 	Gwn_VertFormat format;
 	uint vflag_id;
@@ -304,7 +302,7 @@ static uint32_t set_tria_vertex(
 
 static void roundbox_batch_add_tria(Gwn_VertBufRaw *vflag_step, int tria, uint32_t last_data)
 {
-	const int tria_num = (tria == ROUNDBOX_TRIA_CHECK) ? 1 : 2;
+	const int tria_num = ELEM(tria, ROUNDBOX_TRIA_CHECK, ROUNDBOX_TRIA_HOLD_ACTION_ARROW) ? 1 : 2;
 	/* for each tria */
 	for (int t = 0; t < tria_num; ++t) {
 		for (int j = 0; j < WIDGET_AA_JITTER; j++) {
@@ -318,9 +316,9 @@ static void roundbox_batch_add_tria(Gwn_VertBufRaw *vflag_step, int tria, uint32
 	}
 }
 
-static Gwn_Batch *ui_batch_roundbox_get(int tria)
+Gwn_Batch *ui_batch_roundbox_widget_get(int tria)
 {
-	if (g_ui_batch_cache.roundbox[tria] == NULL) {
+	if (g_ui_batch_cache.roundbox_widget[tria] == NULL) {
 		uint32_t last_data;
 		Gwn_VertBufRaw vflag_step;
 		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(vflag_format());
@@ -331,7 +329,7 @@ static Gwn_Batch *ui_batch_roundbox_get(int tria)
 		vcount += ((WIDGET_CURVE_RESOLU * 2) * 2) * WIDGET_AA_JITTER; /* emboss */
 		if (tria) {
 			vcount += (tria_vcount[tria] + 2) * WIDGET_AA_JITTER; /* tria1 */
-			if (tria != ROUNDBOX_TRIA_CHECK) {
+			if (!ELEM(tria, ROUNDBOX_TRIA_CHECK, ROUNDBOX_TRIA_HOLD_ACTION_ARROW)) {
 				vcount += (tria_vcount[tria] + 2) * WIDGET_AA_JITTER; /* tria2 */
 			}
 		}
@@ -377,31 +375,121 @@ static Gwn_Batch *ui_batch_roundbox_get(int tria)
 		if (tria) {
 			roundbox_batch_add_tria(&vflag_step, tria, last_data);
 		}
-		g_ui_batch_cache.roundbox[tria] = GWN_batch_create_ex(GWN_PRIM_TRI_STRIP, vbo, NULL, GWN_BATCH_OWNS_VBO);
+		g_ui_batch_cache.roundbox_widget[tria] = GWN_batch_create_ex(GWN_PRIM_TRI_STRIP, vbo, NULL, GWN_BATCH_OWNS_VBO);
+		gpu_batch_presets_register(g_ui_batch_cache.roundbox_widget[tria]);
 	}
-	return g_ui_batch_cache.roundbox[tria];
+	return g_ui_batch_cache.roundbox_widget[tria];
+}
+
+Gwn_Batch *ui_batch_roundbox_get(bool filled, bool antialiased)
+{
+	Gwn_Batch **batch = NULL;
+
+	if (filled) {
+		if (antialiased)
+			batch = &g_ui_batch_cache.roundbox_simple_aa;
+		else
+			batch = &g_ui_batch_cache.roundbox_simple;
+	}
+	else {
+		if (antialiased)
+			BLI_assert(0); /* Use GL_LINE_SMOOTH instead!!: */
+		else
+			batch = &g_ui_batch_cache.roundbox_simple_outline;
+	}
+
+	if (*batch == NULL) {
+		uint32_t last_data;
+		Gwn_VertBufRaw vflag_step;
+		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(vflag_format());
+		int vcount = WIDGET_SIZE_MAX;
+		vcount += (filled) ? 2 : 0;
+		vcount *= (antialiased) ? WIDGET_AA_JITTER : 1;
+		GWN_vertbuf_data_alloc(vbo, vcount);
+		GWN_vertbuf_attr_get_raw_data(vbo, g_ui_batch_cache.vflag_id, &vflag_step);
+
+		if (filled) {
+			for (int j = 0; j < WIDGET_AA_JITTER; j++) {
+				if (!antialiased) {
+					j = NO_AA;
+				}
+				/* restart */
+				set_roundbox_vertex(&vflag_step, 0, 0, j, true, false, INNER);
+				for (int c1 = 0, c2 = 3; c1 < 2; c1++, c2--) {
+					for (int a1 = 0, a2 = WIDGET_CURVE_RESOLU -1; a2 >= 0; a1++, a2--) {
+						last_data = set_roundbox_vertex(&vflag_step, c1, a1, j, true, false, INNER);
+						last_data = set_roundbox_vertex(&vflag_step, c2, a2, j, true, false, INNER);
+					}
+				}
+				/* restart */
+				set_roundbox_vertex_data(&vflag_step, last_data);
+				if (!antialiased) {
+					break;
+				}
+			}
+			*batch = GWN_batch_create_ex(GWN_PRIM_TRI_STRIP, vbo, NULL, GWN_BATCH_OWNS_VBO);
+		}
+		else {
+			for (int j = 0; j < WIDGET_AA_JITTER; j++) {
+				if (!antialiased) {
+					j = NO_AA;
+				}
+				for (int c = 0; c < 4; c++) {
+					for (int a = 0; a < WIDGET_CURVE_RESOLU; a++) {
+						set_roundbox_vertex(&vflag_step, c, a, j, true, false, INNER);
+					}
+				}
+				if (!antialiased) {
+					break;
+				}
+			}
+			*batch = GWN_batch_create_ex(GWN_PRIM_LINE_LOOP, vbo, NULL, GWN_BATCH_OWNS_VBO);
+		}
+
+		gpu_batch_presets_register(*batch);
+	}
+	return *batch;
+}
+
+Gwn_Batch *ui_batch_roundbox_shadow_get(void)
+{
+	if (g_ui_batch_cache.roundbox_shadow == NULL) {
+		uint32_t last_data;
+		Gwn_VertBufRaw vflag_step;
+		Gwn_VertBuf *vbo = GWN_vertbuf_create_with_format(vflag_format());
+		int vcount = (WIDGET_SIZE_MAX + 1) * 2 + 2 + WIDGET_SIZE_MAX;
+		GWN_vertbuf_data_alloc(vbo, vcount);
+		GWN_vertbuf_attr_get_raw_data(vbo, g_ui_batch_cache.vflag_id, &vflag_step);
+
+		for (int c = 0; c < 4; c++) {
+			for (int a = 0; a < WIDGET_CURVE_RESOLU; a++) {
+				set_roundbox_vertex(&vflag_step, c, a, NO_AA, true, false, INNER);
+				set_roundbox_vertex(&vflag_step, c, a, NO_AA, false, false, INNER);
+			}
+		}
+		/* close loop */
+		last_data = set_roundbox_vertex(&vflag_step, 0, 0, NO_AA, true, false, INNER);
+		last_data = set_roundbox_vertex(&vflag_step, 0, 0, NO_AA, false, false, INNER);
+		/* restart */
+		set_roundbox_vertex_data(&vflag_step, last_data);
+		set_roundbox_vertex(&vflag_step, 0, 0, NO_AA, true, false, INNER);
+		/* filled */
+		for (int c1 = 0, c2 = 3; c1 < 2; c1++, c2--) {
+			for (int a1 = 0, a2 = WIDGET_CURVE_RESOLU -1; a2 >= 0; a1++, a2--) {
+				set_roundbox_vertex(&vflag_step, c1, a1, NO_AA, true, false, INNER);
+				set_roundbox_vertex(&vflag_step, c2, a2, NO_AA, true, false, INNER);
+			}
+		}
+		g_ui_batch_cache.roundbox_shadow = GWN_batch_create_ex(GWN_PRIM_TRI_STRIP, vbo, NULL, GWN_BATCH_OWNS_VBO);
+		gpu_batch_presets_register(g_ui_batch_cache.roundbox_shadow);
+	}
+	return g_ui_batch_cache.roundbox_shadow;
 }
 
 #undef INNER
 #undef OUTLINE
 #undef EMBOSS
 #undef NO_AA
-
-void UI_widget_batch_preset_reset(void)
-{
-	for (int i = 0; i < ROUNDBOX_TRIA_MAX; ++i) {
-		if (g_ui_batch_cache.roundbox[i]) {
-			gwn_batch_vao_cache_clear(g_ui_batch_cache.roundbox[i]);
-		}
-	}
-}
-
-void UI_widget_batch_preset_exit(void)
-{
-	for (int i = 0; i < ROUNDBOX_TRIA_MAX; ++i) {
-		GWN_BATCH_DISCARD_SAFE(g_ui_batch_cache.roundbox[i]);
-	}
-}
 
 /* ************************************************* */
 
@@ -432,32 +520,6 @@ void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y
 	immEnd();
 
 	immUnbindProgram();
-
-	glDisable(GL_BLEND);
-}
-
-/* belongs in interface_draw.c, but needs WIDGET_AA_JITTER from this file */
-void UI_draw_roundbox_aa(bool filled, float minx, float miny, float maxx, float maxy, float rad, const float color[4])
-{
-	glEnable(GL_BLEND);
-
-	if (filled) {
-		/* plain antialiased filled box */
-		const float alpha = color[3] * 0.125f;
-		
-		for (int j = 0; j < WIDGET_AA_JITTER; j++) {
-			gpuPushMatrix();
-			gpuTranslate2fv(jit[j]);
-			UI_draw_roundbox_3fvAlpha(true, minx, miny, maxx, maxy, rad, color, alpha);
-			gpuPopMatrix();
-		}
-	}
-	else {
-		/* plain antialiased unfilled box */
-		glEnable(GL_LINE_SMOOTH);
-		UI_draw_roundbox_4fv(false, minx, miny, maxx, maxy, rad, color);
-		glDisable(GL_LINE_SMOOTH);
-	}
 
 	glDisable(GL_BLEND);
 }
@@ -784,6 +846,12 @@ static void shape_preset_init_number_arrows(uiWidgetTrias *tria, const rcti *rec
 
 static void shape_preset_init_hold_action(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
 {
+	tria->type = ROUNDBOX_TRIA_HOLD_ACTION_ARROW;
+	/* With the current changes to use batches for widget drawing, the code
+	 * below is doing almost nothing effectively. 'where' doesn't work either,
+	 * shader is currently hardcoded to work for the button triangle pointing
+	 * at the lower right. The same limitation applies to other trias as well.
+	 * XXX Should be addressed. */
 	shape_preset_init_trias_ex(
 	        tria, rect, triasize, where,
 	        g_shape_preset_hold_action_vert, ARRAY_SIZE(g_shape_preset_hold_action_vert),
@@ -916,13 +984,69 @@ static void widgetbase_set_uniform_colors_ubv(
         const unsigned char *col1, const unsigned char *col2,
         const unsigned char *outline,
         const unsigned char *emboss,
-        const unsigned char *tria)
+        const unsigned char *tria,
+        const bool alpha_check)
 {
+	wtb->uniform_params.do_alpha_check = (float)alpha_check;
 	rgba_float_args_set_ch(wtb->uniform_params.color_inner1, col1[0], col1[1], col1[2], col1[3]);
 	rgba_float_args_set_ch(wtb->uniform_params.color_inner2, col2[0], col2[1], col2[2], col2[3]);
 	rgba_float_args_set_ch(wtb->uniform_params.color_outline, outline[0], outline[1], outline[2], outline[3]);
 	rgba_float_args_set_ch(wtb->uniform_params.color_emboss, emboss[0], emboss[1], emboss[2], emboss[3]);
 	rgba_float_args_set_ch(wtb->uniform_params.color_tria, tria[0], tria[1], tria[2], tria[3]);
+}
+
+/* keep in sync with shader */
+#define MAX_WIDGET_BASE_BATCH 6
+
+struct {
+	Gwn_Batch *batch; /* Batch type */
+	uiWidgetBaseParameters params[MAX_WIDGET_BASE_BATCH];
+	int count;
+	bool enabled;
+} g_widget_base_batch = {0};
+
+void UI_widgetbase_draw_cache_flush(void)
+{
+	float checker_params[3] = {UI_ALPHA_CHECKER_DARK / 255.0f, UI_ALPHA_CHECKER_LIGHT / 255.0f, 8.0f};
+
+	if (g_widget_base_batch.count == 0)
+		return;
+
+	Gwn_Batch *batch = g_widget_base_batch.batch;
+	if (g_widget_base_batch.count == 1) {
+		/* draw single */
+		GWN_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
+		GWN_batch_uniform_4fv_array(batch, "parameters", 11, (float *)g_widget_base_batch.params);
+		GWN_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
+		GWN_batch_draw(batch);
+	}
+	else {
+		GWN_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE_INST);
+		GWN_batch_uniform_4fv_array(batch, "parameters", 11 * MAX_WIDGET_BASE_BATCH, (float *)g_widget_base_batch.params);
+		GWN_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
+		gpuBindMatrices(batch->interface);
+		GWN_batch_draw_range_ex(batch, 0, g_widget_base_batch.count, true);
+		GWN_batch_program_use_end(batch);
+	}
+	g_widget_base_batch.count = 0;
+}
+
+void UI_widgetbase_draw_cache_begin(void)
+{
+	BLI_assert(g_widget_base_batch.enabled == false);
+	g_widget_base_batch.enabled = true;
+}
+
+void UI_widgetbase_draw_cache_end(void)
+{
+	BLI_assert(g_widget_base_batch.enabled == true);
+	g_widget_base_batch.enabled = false;
+
+	glEnable(GL_BLEND);
+
+	UI_widgetbase_draw_cache_flush();
+
+	glDisable(GL_BLEND);
 }
 
 static void draw_widgetbase_batch(Gwn_Batch *batch, uiWidgetBase *wtb)
@@ -932,73 +1056,62 @@ static void draw_widgetbase_batch(Gwn_Batch *batch, uiWidgetBase *wtb)
 	copy_v2_v2(wtb->uniform_params.tria1_center, wtb->tria1.center);
 	copy_v2_v2(wtb->uniform_params.tria2_center, wtb->tria2.center);
 
-	GWN_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
-	GWN_batch_uniform_4fv_array(batch, "parameters", 11, (float *)&wtb->uniform_params);
-	GWN_batch_draw(batch);
+	if (g_widget_base_batch.enabled) {
+		if (g_widget_base_batch.batch == NULL) {
+			g_widget_base_batch.batch = ui_batch_roundbox_widget_get(ROUNDBOX_TRIA_ARROWS);
+		}
+
+		/* draw multi */
+		if (batch != g_ui_batch_cache.roundbox_widget[ROUNDBOX_TRIA_NONE] &&
+		    batch != g_widget_base_batch.batch)
+		{
+			/* issue previous calls before changing batch type. */
+			UI_widgetbase_draw_cache_flush();
+			g_widget_base_batch.batch = batch;
+		}
+
+		/* No need to change batch if tria is not visible. Just scale it to 0. */
+		if (batch == g_ui_batch_cache.roundbox_widget[ROUNDBOX_TRIA_NONE]) {
+			wtb->uniform_params.tria1_size = wtb->uniform_params.tria2_size = 0;
+		}
+
+		g_widget_base_batch.params[g_widget_base_batch.count] = wtb->uniform_params;
+		g_widget_base_batch.count++;
+
+		if (g_widget_base_batch.count == MAX_WIDGET_BASE_BATCH) {
+			UI_widgetbase_draw_cache_flush();
+		}
+	}
+	else {
+		float checker_params[3] = {UI_ALPHA_CHECKER_DARK / 255.0f, UI_ALPHA_CHECKER_LIGHT / 255.0f, 8.0f};
+		/* draw single */
+		GWN_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
+		GWN_batch_uniform_4fv_array(batch, "parameters", 11, (float *)&wtb->uniform_params);
+		GWN_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
+		GWN_batch_draw(batch);
+	}
 }
 
 static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 {
-	int a;
 	unsigned char inner_col1[4] = {0};
 	unsigned char inner_col2[4] = {0};
 	unsigned char emboss_col[4] = {0};
 	unsigned char outline_col[4] = {0};
 	unsigned char tria_col[4] = {0};
+	/* For color widget. */
+	bool alpha_check = (wcol->alpha_check && (wcol->shaded == 0));
+
 	glEnable(GL_BLEND);
 
 	/* backdrop non AA */
 	if (wtb->draw_inner) {
-		BLI_assert(wtb->totvert != 0);
 		if (wcol->shaded == 0) {
-			if (wcol->alpha_check) {
-				float inner_v_half[WIDGET_SIZE_MAX][2];
-				float x_mid = 0.0f; /* used for dumb clamping of values */
-
-				unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-				immBindBuiltinProgram(GPU_SHADER_2D_CHECKER);
-
-				/* checkers */
-				immUniform4f("color1", UI_ALPHA_CHECKER_DARK / 255.0f, UI_ALPHA_CHECKER_DARK / 255.0f, UI_ALPHA_CHECKER_DARK / 255.0f, 1.0f);
-				immUniform4f("color2", UI_ALPHA_CHECKER_LIGHT / 255.0f, UI_ALPHA_CHECKER_LIGHT / 255.0f, UI_ALPHA_CHECKER_LIGHT / 255.0f, 1.0f);
-				immUniform1i("size", 8);
-
-				widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_FAN, wtb->inner_v, NULL, wtb->totvert);
-
-				immUnbindProgram();
-
-				/* alpha fill */
-				immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-				immUniformColor4ubv((unsigned char *)wcol->inner);
-
-				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-				for (a = 0; a < wtb->totvert; a++) {
-					x_mid += wtb->inner_v[a][0];
-				}
-				x_mid /= wtb->totvert;
-
-				widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_FAN, wtb->inner_v, NULL, wtb->totvert);
-
-				/* 1/2 solid color */
-				immUniformColor3ubv((unsigned char *)wcol->inner);
-
-				for (a = 0; a < wtb->totvert; a++) {
-					inner_v_half[a][0] = MIN2(wtb->inner_v[a][0], x_mid);
-					inner_v_half[a][1] = wtb->inner_v[a][1];
-				}
-
-				widget_draw_vertex_buffer(pos, 0, GL_TRIANGLE_FAN, inner_v_half, NULL, wtb->totvert);
-
-				immUnbindProgram();
-			}
-			else {
-				/* simple fill */
-				inner_col1[0] = inner_col2[0] = (unsigned char)wcol->inner[0];
-				inner_col1[1] = inner_col2[1] = (unsigned char)wcol->inner[1];
-				inner_col1[2] = inner_col2[2] = (unsigned char)wcol->inner[2];
-				inner_col1[3] = inner_col2[3] = (unsigned char)wcol->inner[3];
-			}
+			/* simple fill */
+			inner_col1[0] = inner_col2[0] = (unsigned char)wcol->inner[0];
+			inner_col1[1] = inner_col2[1] = (unsigned char)wcol->inner[1];
+			inner_col1[2] = inner_col2[2] = (unsigned char)wcol->inner[2];
+			inner_col1[3] = inner_col2[3] = (unsigned char)wcol->inner[3];
 		}
 		else {
 			/* gradient fill */
@@ -1027,10 +1140,10 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 	}
 
 	/* Draw everything in one drawcall */
-	if (inner_col1[3] || inner_col2[3] || outline_col[3] || emboss_col[3] || tria_col[3]) {
-		widgetbase_set_uniform_colors_ubv(wtb, inner_col1, inner_col2, outline_col, emboss_col, tria_col);
+	if (inner_col1[3] || inner_col2[3] || outline_col[3] || emboss_col[3] || tria_col[3] || alpha_check) {
+		widgetbase_set_uniform_colors_ubv(wtb, inner_col1, inner_col2, outline_col, emboss_col, tria_col, alpha_check);
 
-		Gwn_Batch *roundbox_batch = ui_batch_roundbox_get(wtb->tria1.type);
+		Gwn_Batch *roundbox_batch = ui_batch_roundbox_widget_get(wtb->tria1.type);
 		draw_widgetbase_batch(roundbox_batch, wtb);
 	}
 
@@ -1618,6 +1731,10 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			int selsta_draw, selwidth_draw;
 			
 			if (drawstr[0] != 0) {
+				/* We are drawing on top of widget bases. Flush cache. */
+				glEnable(GL_BLEND);
+				UI_widgetbase_draw_cache_flush();
+				glDisable(GL_BLEND);
 
 				if (but->selsta >= but->ofs) {
 					selsta_draw = BLF_width(fstyle->uifont_id, drawstr + but->ofs, but->selsta - but->ofs);
@@ -1659,6 +1776,10 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			else {
 				t = 0;
 			}
+			/* We are drawing on top of widget bases. Flush cache. */
+			glEnable(GL_BLEND);
+			UI_widgetbase_draw_cache_flush();
+			glDisable(GL_BLEND);
 
 			unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_I32, 2, GWN_FETCH_INT_TO_FLOAT);
 			immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -2942,6 +3063,11 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
 	
 	widgetbase_draw(&wtb, &wcol_tmp);
 
+	/* We are drawing on top of widget bases. Flush cache. */
+	glEnable(GL_BLEND);
+	UI_widgetbase_draw_cache_flush();
+	glDisable(GL_BLEND);
+
 	/* cursor */
 	x = rect->xmin + 0.5f * BLI_rcti_size_x(rect);
 	y = rect->ymin + v    * BLI_rcti_size_y(rect);
@@ -3412,7 +3538,6 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 	}
 
 	widgetbase_draw(&wtb, wcol);
-	
 	if (but->a1 == UI_PALETTE_COLOR && ((Palette *)but->rnapoin.id.data)->active_color == (int)but->a2) {
 		float width = rect->xmax - rect->xmin;
 		float height = rect->ymax - rect->ymin;
@@ -3420,6 +3545,11 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 		float bw = rgb_to_grayscale(col);
 
 		bw += (bw < 0.5f) ? 0.5f : -0.5f;
+
+		/* We are drawing on top of widget bases. Flush cache. */
+		glEnable(GL_BLEND);
+		UI_widgetbase_draw_cache_flush();
+		glDisable(GL_BLEND);
 
 		unsigned int pos = GWN_vertformat_attr_add(immVertexFormat(), "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -3777,6 +3907,11 @@ static void widget_tab(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(
 	/* draw inner */
 	wtb.draw_outline = 0;
 	widgetbase_draw(&wtb, wcol);
+
+	/* We are drawing on top of widget bases. Flush cache. */
+	glEnable(GL_BLEND);
+	UI_widgetbase_draw_cache_flush();
+	glDisable(GL_BLEND);
 
 	/* draw outline (3d look) */
 	ui_draw_but_TAB_outline(rect, rad, theme_col_tab_highlight, (unsigned char *)wcol->inner);

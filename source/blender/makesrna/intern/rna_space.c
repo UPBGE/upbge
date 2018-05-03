@@ -187,15 +187,13 @@ static const EnumPropertyItem autosnap_items[] = {
 #endif
 
 const EnumPropertyItem rna_enum_viewport_shade_items[] = {
-	{OB_BOUNDBOX, "BOUNDBOX", ICON_BBOX, "Bounding Box", "Display the object's local bounding boxes only"},
 	{OB_WIRE, "WIREFRAME", ICON_WIRE, "Wireframe", "Display the object as wire edges"},
-	{OB_SOLID, "SOLID", ICON_SOLID, "Solid", "Display the object solid, lit with default OpenGL lights"},
+	{OB_SOLID, "SOLID", ICON_SOLID, "Solid", "Display the object solid"},
 	{OB_TEXTURE, "TEXTURED", ICON_POTATO, "Texture", "Display the object solid, with a texture"},
 	{OB_MATERIAL, "MATERIAL", ICON_MATERIAL_DATA, "Material", "Display objects solid, with GLSL material"},
 	{OB_RENDER, "RENDERED", ICON_SMOOTH, "Rendered", "Display render preview"},
 	{0, NULL, 0, NULL, NULL}
 };
-
 
 const EnumPropertyItem rna_enum_clip_editor_mode_items[] = {
 	{SC_MODE_TRACKING, "TRACKING", ICON_ANIM_DATA, "Tracking", "Show tracking and solving tools"},
@@ -743,20 +741,8 @@ static void rna_RegionView3D_view_matrix_set(PointerRNA *ptr, const float *value
 
 static int rna_SpaceView3D_viewport_shade_get(PointerRNA *ptr)
 {
-	bScreen *screen = ptr->id.data;
-
-	Scene *scene = WM_windows_scene_get_from_screen(G.main->wm.first, screen);
-	WorkSpace *workspace = WM_windows_workspace_get_from_screen(G.main->wm.first, screen);
-
-	ViewRender *view_render = BKE_viewrender_get(scene, workspace);
-	RenderEngineType *type = RE_engines_find(view_render->engine_id);
-
 	View3D *v3d = (View3D *)ptr->data;
 	int drawtype = v3d->drawtype;
-
-	if (drawtype == OB_RENDER && !(type && type->render_to_view))
-		return OB_SOLID;
-
 	return drawtype;
 }
 
@@ -772,23 +758,11 @@ static void rna_SpaceView3D_viewport_shade_set(PointerRNA *ptr, int value)
 static const EnumPropertyItem *rna_SpaceView3D_viewport_shade_itemf(bContext *C, PointerRNA *UNUSED(ptr),
                                                               PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	wmWindow *win = CTX_wm_window(C);
-	Scene *scene = WM_window_get_active_scene(win);
-	WorkSpace *workspace = WM_window_get_active_workspace(win);
-	ViewRender *view_render = BKE_viewrender_get(scene, workspace);
-	RenderEngineType *type = RE_engines_find(view_render->engine_id);
-
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
 
-	RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_BOUNDBOX);
-	RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_WIRE);
 	RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_SOLID);
-	RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_TEXTURE);
-	RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_MATERIAL);
-
-	if (type && type->render_to_view)
-		RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_RENDER);
+	RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_RENDER);
 
 	RNA_enum_item_end(&item, &totitem);
 	*r_free = true;
@@ -868,8 +842,8 @@ static int rna_SpaceImageEditor_show_uvedit_get(PointerRNA *ptr)
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
 	wmWindow *win = ED_screen_window_find(sc, G.main->wm.first);
-	Object *obedit = OBEDIT_FROM_WINDOW(win);
-
+	ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+	Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
 	return ED_space_image_show_uvedit(sima, obedit);
 }
 
@@ -877,11 +851,9 @@ static int rna_SpaceImageEditor_show_maskedit_get(PointerRNA *ptr)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
-	wmWindow *window = NULL;
-	Scene *scene = ED_screen_scene_find_with_window(sc, G.main->wm.first, &window);
-	ViewLayer *view_layer = BKE_view_layer_context_active_PLACEHOLDER(scene);
-	const WorkSpace *workspace = WM_window_get_active_workspace(window);
-	return ED_space_image_check_show_maskedit(sima, workspace, view_layer);
+	wmWindow *win = ED_screen_window_find(sc, G.main->wm.first);
+	ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+	return ED_space_image_check_show_maskedit(sima, view_layer);
 }
 
 static void rna_SpaceImageEditor_image_set(PointerRNA *ptr, PointerRNA value)
@@ -890,7 +862,8 @@ static void rna_SpaceImageEditor_image_set(PointerRNA *ptr, PointerRNA value)
 	bScreen *sc = (bScreen *)ptr->id.data;
 	wmWindow *win;
 	Scene *scene = ED_screen_scene_find_with_window(sc, G.main->wm.first, &win);
-	Object *obedit = OBEDIT_FROM_WINDOW(win);
+	ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+	Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
 	ED_space_image_set(sima, scene, obedit, (Image *)value.data);
 }
 

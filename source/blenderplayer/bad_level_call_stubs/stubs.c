@@ -282,7 +282,7 @@ int	multitex_ext(struct Tex *tex, float texvec[3], float dxt[3], float dyt[3], i
 int multitex_ext_safe(struct Tex *tex, float texvec[3], struct TexResult *texres, struct ImagePool *pool, bool scene_color_manage, const bool skip_load_image) RET_ZERO
 int multitex_nodes(struct Tex *tex, float texvec[3], float dxt[3], float dyt[3], int osatex, struct TexResult *texres, const short thread, short which_output, struct ShadeInput *shi, struct MTex *mtex, struct ImagePool *pool) RET_ZERO
 
-struct Material *RE_sample_material_init(struct Material *orig_mat, struct Scene *scene) RET_NULL
+struct Material *RE_sample_material_init(const struct EvaluationContext *eval_ctx, struct Material *orig_mat, struct Scene *scene) RET_NULL
 void RE_sample_material_free(struct Material *mat) RET_NONE
 void RE_sample_material_color(
         struct Material *mat, float color[3], float *alpha, const float volume_co[3], const float surface_co[3],
@@ -340,6 +340,9 @@ struct WorkSpace *WM_window_get_active_workspace(const wmWindow *win) RET_NULL
 void WM_window_change_active_scene(struct Main *bmain, struct bContext *C, struct wmWindow *win, struct Scene *scene_new) RET_NONE
 bool WM_window_is_temp_screen(const struct wmWindow *win) RET_ZERO
 void wmOrtho2_region_pixelspace(const struct ARegion *ar) RET_NONE
+
+struct ViewLayer *WM_window_get_active_view_layer_ex(const struct wmWindow *win, struct Scene **r_scene) RET_NULL;
+struct ViewLayer *WM_window_get_active_view_layer(const struct wmWindow *win) RET_NULL;
 
 void WM_autosave_init(wmWindowManager *wm) RET_NONE
 void WM_jobs_kill_all_except(struct wmWindowManager *wm, void *owner) RET_NONE
@@ -467,7 +470,7 @@ void UI_view2d_sync(struct bScreen *screen, struct ScrArea *sa, struct View2D *v
 
 struct EditBone *ED_armature_bone_get_mirrored(const struct ListBase *edbo, EditBone *ebo) RET_NULL
 struct EditBone *ED_armature_edit_bone_add(struct bArmature *arm, const char *name) RET_NULL
-struct ListBase *get_active_constraints (struct Object *ob) RET_NULL
+struct ListBase *get_active_constraints (const struct EvaluationContext *eval_ctx, struct Object *ob) RET_NULL
 struct ListBase *get_constraint_lb(struct Object *ob, struct bConstraint *con, struct bPoseChannel **r_pchan) RET_NULL
 
 bool ED_space_image_show_uvedit(struct SpaceImage *sima, struct Object *obedit) RET_ZERO
@@ -600,8 +603,7 @@ void ED_object_editmode_enter(struct bContext *C, int flag) RET_NONE
 void ED_object_editmode_exit(struct bContext *C, int flag) RET_NONE
 void ED_object_editmode_exit_ex(struct bContext *C, struct WorkSpace *workspace, struct Scene *scene, struct Object *obedit, int flag) RET_NONE
 bool ED_object_editmode_load(struct Object *obedit) RET_ZERO
-void ED_object_base_activate(struct bContext *C, struct Base *base) RET_NONE
-void ED_object_check_force_modifiers(struct Main *bmain, struct Scene *scene, struct Object *object) RET_NONE
+void ED_object_check_force_modifiers(struct Main *bmain, struct Scene *scene, struct Object *object, eObjectMode object_mode) RET_NONE
 bool uiLayoutGetActive(struct uiLayout *layout) RET_ZERO
 int uiLayoutGetOperatorContext(struct uiLayout *layout) RET_ZERO
 int uiLayoutGetAlignment(struct uiLayout *layout) RET_ZERO
@@ -641,7 +643,7 @@ int ED_mesh_mirror_spatial_table(struct Object *ob, struct BMEditMesh *em, struc
 
 float ED_rollBoneToVector(EditBone *bone, const float new_up_axis[3], const bool axis_only) RET_ZERO
 void ED_space_image_get_size(struct SpaceImage *sima, int *width, int *height) RET_NONE
-bool ED_space_image_check_show_maskedit(struct ViewLayer *view_layer, struct SpaceImage *sima) RET_ZERO
+bool ED_space_image_check_show_maskedit(struct SpaceImage *sima, const struct WorkSpace *workspace, struct ViewLayer *view_layer) RET_ZERO
 
 bool ED_texture_context_check_world(const struct bContext *C) RET_ZERO
 bool ED_texture_context_check_material(const struct bContext *C) RET_ZERO
@@ -728,6 +730,14 @@ void UI_ThemeClearColorAlpha(int colorid, float alpha) RET_NONE
 
 void UI_widget_batch_preset_reset(void) RET_NONE
 void UI_widget_batch_preset_exit(void) RET_NONE
+void UI_widgetbase_draw_cache_flush(void) RET_NONE
+
+void PE_update_object(struct Depsgraph *depsgraph, struct Scene *scene,	struct Object *ob, int useflag) RET_NONE
+struct PTCacheEdit *PE_create_current(struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob) RET_NULL
+float ED_armature_ebone_roll_to_vector(const struct EditBone *bone, const float new_up_axis[3], const bool axis_only) RET_ZERO
+struct EditBone *ED_armature_ebone_get_mirrored(const struct ListBase *edbo, struct EditBone *ebo) RET_NULL
+void ED_armature_ebone_remove(struct bArmature *arm, struct EditBone *exBone) RET_NONE
+struct EditBone *ED_armature_ebone_add(struct bArmature *arm, const char *name) RET_NULL
 
 void setlinestyle(int nr) RET_NONE
 void set_inverted_drawing(int enable) RET_NONE
@@ -819,9 +829,9 @@ void RE_engine_update_memory_stats(struct RenderEngine *engine, float mem_used, 
 struct RenderEngine *RE_engine_create(struct RenderEngineType *type) RET_NULL
 void RE_engine_frame_set(struct RenderEngine *engine, int frame, float subframe) RET_NONE
 void RE_FreePersistentData(void) RET_NONE
-void RE_point_density_cache(struct Scene *scene, struct ViewLayer *view_layer, struct PointDensity *pd, const bool use_render_params) RET_NONE
-void RE_point_density_minmax(struct Scene *scene, struct ViewLayer *view_layer, struct PointDensity *pd, const bool use_render_params, float r_min[3], float r_max[3]) RET_NONE
-void RE_point_density_sample(struct Scene *scene, struct ViewLayer *view_layer, struct PointDensity *pd, const int resolution, const bool use_render_params, float *values) RET_NONE
+void RE_point_density_cache(const struct EvaluationContext *eval_ctx, struct PointDensity *pd) RET_NONE
+void RE_point_density_minmax(const struct EvaluationContext *eval_ctx, struct PointDensity *pd, float r_min[3], float r_max[3]) RET_NONE
+void RE_point_density_sample(const struct EvaluationContext *eval_ctx, struct PointDensity *pd, const int resolution, float *values) RET_NONE
 void RE_point_density_free(struct PointDensity *pd) RET_NONE
 void RE_instance_get_particle_info(struct ObjectInstanceRen *obi, float *index, float *age, float *lifetime, float co[3], float *size, float vel[3], float angvel[3]) RET_NONE
 void RE_FreeAllPersistentData(void) RET_NONE

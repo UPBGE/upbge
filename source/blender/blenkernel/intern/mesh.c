@@ -66,6 +66,7 @@
 #include "BKE_editmesh.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 /* Define for cases when you want extra validation of mesh
  * after certain modifications.
@@ -1642,10 +1643,10 @@ void BKE_mesh_to_curve_nurblist(DerivedMesh *dm, ListBase *nurblist, const int e
 	}
 }
 
-void BKE_mesh_to_curve(const EvaluationContext *eval_ctx, Scene *scene, Object *ob)
+void BKE_mesh_to_curve(Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
 	/* make new mesh data from the original copy */
-	DerivedMesh *dm = mesh_get_derived_final(eval_ctx, scene, ob, CD_MASK_MESH);
+	DerivedMesh *dm = mesh_get_derived_final(depsgraph, scene, ob, CD_MASK_MESH);
 	ListBase nurblist = {NULL, NULL};
 	bool needsFree = false;
 
@@ -2427,13 +2428,13 @@ void BKE_mesh_split_faces(Mesh *mesh, bool free_loop_normals)
 
 /* settings: 1 - preview, 2 - render */
 Mesh *BKE_mesh_new_from_object(
-        const EvaluationContext *eval_ctx, Main *bmain, Scene *sce, Object *ob,
-        int apply_modifiers, int settings, int calc_tessface, int calc_undeformed)
+        Depsgraph *depsgraph, Main *bmain, Scene *sce, Object *ob,
+        int apply_modifiers, int calc_tessface, int calc_undeformed)
 {
 	Mesh *tmpmesh;
 	Curve *tmpcu = NULL, *copycu;
 	int i;
-	const bool render = (settings == eModifierMode_Render);
+	const bool render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
 	const bool cage = !apply_modifiers;
 	bool do_mat_id_data_us = true;
 
@@ -2469,7 +2470,7 @@ Mesh *BKE_mesh_new_from_object(
 
 			/* if getting the original caged mesh, delete object modifiers */
 			if (cage)
-				BKE_object_free_modifiers(tmpobj);
+				BKE_object_free_modifiers(tmpobj, 0);
 
 			/* copies the data */
 			copycu = tmpobj->data = BKE_curve_copy(bmain, (Curve *) ob->data);
@@ -2486,7 +2487,7 @@ Mesh *BKE_mesh_new_from_object(
 			copycu->editnurb = tmpcu->editnurb;
 
 			/* get updated display list, and convert to a mesh */
-			BKE_displist_make_curveTypes_forRender(eval_ctx, sce, tmpobj, &dispbase, &derivedFinal, false, render);
+			BKE_displist_make_curveTypes_forRender(depsgraph, sce, tmpobj, &dispbase, &derivedFinal, false, render);
 
 			copycu->editfont = NULL;
 			copycu->editnurb = NULL;
@@ -2535,7 +2536,7 @@ Mesh *BKE_mesh_new_from_object(
 
 			if (render) {
 				ListBase disp = {NULL, NULL};
-				BKE_displist_make_mball_forRender(eval_ctx, sce, ob, &disp);
+				BKE_displist_make_mball_forRender(depsgraph, sce, ob, &disp);
 				BKE_mesh_from_metaball(&disp, tmpmesh);
 				BKE_displist_free(&disp);
 			}
@@ -2574,9 +2575,9 @@ Mesh *BKE_mesh_new_from_object(
 
 				/* Write the display mesh into the dummy mesh */
 				if (render)
-					dm = mesh_create_derived_render(eval_ctx, sce, ob, mask);
+					dm = mesh_create_derived_render(depsgraph, sce, ob, mask);
 				else
-					dm = mesh_create_derived_view(eval_ctx, sce, ob, mask);
+					dm = mesh_create_derived_view(depsgraph, sce, ob, mask);
 
 				tmpmesh = BKE_mesh_add(bmain, ((ID *)ob->data)->name + 2);
 				DM_to_mesh(dm, tmpmesh, ob, mask, true);
@@ -2667,7 +2668,7 @@ Mesh *BKE_mesh_new_from_object(
 
 /* **** Depsgraph evaluation **** */
 
-void BKE_mesh_eval_geometry(const EvaluationContext *UNUSED(eval_ctx),
+void BKE_mesh_eval_geometry(Depsgraph *UNUSED(depsgraph),
                             Mesh *mesh)
 {
 	DEG_debug_print_eval(__func__, mesh->id.name, mesh);

@@ -82,24 +82,7 @@ static void drw_shgroup_uniform_create_ex(DRWShadingGroup *shgroup, int loc,
 	uni->length = length;
 	uni->arraysize = arraysize;
 
-	/* Insert into list sorted by location so that slots are consistenly assigned
-	 * for different draw calls, to avoid shader specialization/patching by the driver. */
-	DRWUniform *next = shgroup->uniforms;
-	DRWUniform *prev = NULL;
-
-	while (next && loc > next->location) {
-		prev = next;
-		next = next->next;
-	}
-
-	if (prev) {
-		prev->next = uni;
-	}
-	else {
-		shgroup->uniforms = uni;
-	}
-
-	uni->next = next;
+	BLI_LINKS_PREPEND(shgroup->uniforms, uni);
 }
 
 static void drw_shgroup_builtin_uniform(
@@ -228,6 +211,12 @@ void DRW_shgroup_uniform_mat4(DRWShadingGroup *shgroup, const char *name, const 
 	drw_shgroup_uniform(shgroup, name, DRW_UNIFORM_FLOAT, value, 16, 1);
 }
 
+/* Stores the int instead of a pointer. */
+void DRW_shgroup_uniform_int_copy(DRWShadingGroup *shgroup, const char *name, const int value)
+{
+	drw_shgroup_uniform(shgroup, name, DRW_UNIFORM_INT_COPY, SET_INT_IN_POINTER(value), 1, 1);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -235,8 +224,9 @@ void DRW_shgroup_uniform_mat4(DRWShadingGroup *shgroup, const char *name, const 
 /** \name Draw Call (DRW_calls)
  * \{ */
 
-static void drw_call_calc_orco(ID *ob_data, float (*r_orcofacs)[3])
+static void drw_call_calc_orco(Object *ob, float (*r_orcofacs)[3])
 {
+	ID *ob_data = (ob) ? ob->data : NULL;
 	float *texcoloc = NULL;
 	float *texcosize = NULL;
 	if (ob_data != NULL) {
@@ -314,7 +304,7 @@ static DRWCallState *drw_call_state_create(DRWShadingGroup *shgroup, float (*obm
 
 	/* Orco factors: We compute this at creation to not have to save the *ob_data */
 	if ((state->matflag & DRW_CALL_ORCOTEXFAC) != 0) {
-		drw_call_calc_orco(ob->data, state->orcotexfac);
+		drw_call_calc_orco(ob, state->orcotexfac);
 		state->matflag &= ~DRW_CALL_ORCOTEXFAC;
 	}
 
@@ -514,6 +504,7 @@ static void drw_shgroup_init(DRWShadingGroup *shgroup, GPUShader *shader)
 	shgroup->normalworld = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_WORLDNORMAL);
 	shgroup->orcotexfac = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_ORCO);
 	shgroup->eye = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_EYE);
+	shgroup->callid = GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_CALLID);
 
 	shgroup->matflag = 0;
 	if (shgroup->modelinverse > -1)
@@ -701,7 +692,7 @@ DRWShadingGroup *DRW_shgroup_material_instance_create(
 	if (shgroup) {
 		shgroup->type = DRW_SHG_INSTANCE;
 		shgroup->instance_geom = geom;
-		drw_call_calc_orco(ob->data, shgroup->instance_orcofac);
+		drw_call_calc_orco(ob, shgroup->instance_orcofac);
 		drw_shgroup_instance_init(shgroup, GPU_pass_shader(gpupass), geom, format);
 		drw_shgroup_material_inputs(shgroup, material);
 	}

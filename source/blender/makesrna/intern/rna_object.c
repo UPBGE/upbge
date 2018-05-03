@@ -347,7 +347,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value)
 	Object *ob = (Object *)ptr->data;
 	ID *id = value.data;
 
-	if (BKE_object_is_in_editmode(ob)) {
+	if (ob->mode & OB_MODE_EDIT) {
 		return;
 	}
 
@@ -1404,9 +1404,7 @@ static void rna_Object_constraints_clear(Object *object)
 static ModifierData *rna_Object_modifier_new(Object *object, bContext *C, ReportList *reports,
                                              const char *name, int type)
 {
-	Main *bmain = CTX_data_main(C);
-	const WorkSpace *workspace = CTX_wm_workspace(C);
-	return ED_object_modifier_add(reports, bmain, CTX_data_scene(C), object, workspace->object_mode, name, type);
+	return ED_object_modifier_add(reports, CTX_data_main(C), CTX_data_scene(C), object, name, type);
 }
 
 static void rna_Object_modifier_remove(Object *object, bContext *C, ReportList *reports, PointerRNA *md_ptr)
@@ -2431,6 +2429,12 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Type", "Type of Object");
 
+	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "mode");
+	RNA_def_property_enum_items(prop, rna_enum_object_mode_items);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Mode", "Object interaction mode");
+
 	prop = RNA_def_property(srna, "layers_local_view", PROP_BOOLEAN, PROP_LAYER_MEMBER);
 	RNA_def_property_boolean_sdna(prop, NULL, "lay", 0x01000000);
 	RNA_def_property_array(prop, 8);
@@ -2922,11 +2926,6 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0, 1500, 1, -1);
 	RNA_def_property_ui_text(prop, "Dupli Frames Off", "Recurring frames to exclude from the Dupliframes");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update");
-
-	prop = RNA_def_property(srna, "dupli_list", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_sdna(prop, NULL, "duplilist", NULL);
-	RNA_def_property_struct_type(prop, "DupliObject");
-	RNA_def_property_ui_text(prop, "Dupli list", "Object duplis");
 
 	prop = RNA_def_property(srna, "is_duplicator", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "transflag", OB_DUPLI);

@@ -42,6 +42,7 @@ extern "C" {
 #include "BKE_customdata.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_layer.h"
 #include "BKE_navmesh_conversion.h"
 }
 
@@ -118,9 +119,10 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 									   int& ndtris, int &vertsPerPoly)
 {
 	/* TODO: This doesn't work currently because of eval_ctx. */
-	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-	EvaluationContext *eval_ctx = bmain->eval_ctx;
-    DerivedMesh* dm = mesh_create_derived_no_virtual(eval_ctx, GetScene()->GetBlenderScene(), GetBlenderObject(),
+	Scene *scene = GetScene()->GetBlenderScene();
+	ViewLayer *view_layer = BKE_view_layer_from_scene_get(scene);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
+    DerivedMesh* dm = mesh_create_derived_no_virtual(depsgraph, GetScene()->GetBlenderScene(), GetBlenderObject(),
 													nullptr, CD_MASK_MESH);
 	CustomData *pdata = dm->getPolyDataLayout(dm);
 	int* recastData = (int*) CustomData_get_layer(pdata, CD_RECAST);

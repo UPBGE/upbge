@@ -76,6 +76,7 @@
 #include "engines/clay/clay_engine.h"
 #include "engines/eevee/eevee_engine.h"
 #include "engines/basic/basic_engine.h"
+#include "engines/workbench/workbench_engine.h"
 #include "engines/external/external_engine.h"
 
 #include "../../../intern/gawain/gawain/gwn_context.h"
@@ -350,21 +351,16 @@ static void drw_viewport_cache_resize(void)
 	DRW_instance_data_list_resize(DST.idatalist);
 }
 
-static void drw_state_eval_ctx_init(DRWManager *dst)
-{
-	DRWContextState *draw_ctx = &dst->draw_ctx;
-	DEG_evaluation_context_init_from_scene(
-	        &draw_ctx->eval_ctx,
-	        draw_ctx->scene,
-	        draw_ctx->view_layer,
-	        draw_ctx->engine_type,
-	        draw_ctx->object_mode,
-	        DST.options.is_scene_render ? DAG_EVAL_RENDER : DAG_EVAL_VIEWPORT);
-}
-
 /* Not a viewport variable, we could split this out. */
 static void drw_context_state_init(void)
 {
+	if (DST.draw_ctx.obact) {
+		DST.draw_ctx.object_mode = DST.draw_ctx.obact->mode;
+	}
+	else {
+		DST.draw_ctx.object_mode = OB_MODE_OBJECT;
+	}
+
 	/* Edit object. */
 	if (DST.draw_ctx.object_mode & OB_MODE_EDIT) {
 		DST.draw_ctx.object_edit = DST.draw_ctx.obact;
@@ -383,8 +379,6 @@ static void drw_context_state_init(void)
 	else {
 		DST.draw_ctx.object_pose = NULL;
 	}
-
-	drw_state_eval_ctx_init(&DST);
 }
 
 /* It also stores viewport variable to an immutable place: DST
@@ -512,7 +506,7 @@ void DRW_viewport_matrix_get_all(DRWMatrixState *state)
 	memcpy(state, DST.view_data.matstate.mat, sizeof(DRWMatrixState));
 }
 
-void DRW_viewport_matrix_override_set(float mat[4][4], DRWViewportMatrixType type)
+void DRW_viewport_matrix_override_set(const float mat[4][4], DRWViewportMatrixType type)
 {
 	BLI_assert(type < DRW_MAT_COUNT);
 	copy_m4_m4(DST.view_data.matstate.mat[type], mat);
@@ -901,15 +895,24 @@ static void drw_engines_enable_external(void)
 /* TODO revisit this when proper layering is implemented */
 /* Gather all draw engines needed and store them in DST.enabled_engines
  * That also define the rendering order of engines */
-static void drw_engines_enable_from_engine(RenderEngineType *engine_type)
+static void drw_engines_enable_from_engine(RenderEngineType *engine_type, int draw_mode)
 {
-	/* TODO layers */
-	if (engine_type->draw_engine != NULL) {
-		use_drw_engine(engine_type->draw_engine);
-	}
+	switch (draw_mode) {
+		case OB_SOLID:
+			use_drw_engine(&draw_engine_workbench_solid_flat);
+			break;
 
-	if ((engine_type->flag & RE_INTERNAL) == 0) {
-		drw_engines_enable_external();
+		default:
+		case OB_RENDER:
+			/* TODO layers */
+			if (engine_type->draw_engine != NULL) {
+				use_drw_engine(engine_type->draw_engine);
+			}
+
+			if ((engine_type->flag & RE_INTERNAL) == 0) {
+				drw_engines_enable_external();
+			}
+			break;
 	}
 }
 
@@ -981,8 +984,9 @@ static void drw_engines_enable(ViewLayer *view_layer, RenderEngineType *engine_t
 {
 	Object *obact = OBACT(view_layer);
 	const int mode = CTX_data_mode_enum_ex(DST.draw_ctx.object_edit, obact, DST.draw_ctx.object_mode);
+	const int draw_mode = DST.draw_ctx.v3d->drawtype;
 
-	drw_engines_enable_from_engine(engine_type);
+	drw_engines_enable_from_engine(engine_type, draw_mode);
 
 	if (DRW_state_draw_support()) {
 		drw_engines_enable_from_object_mode();
@@ -1117,15 +1121,14 @@ void DRW_notify_id_update(const DRWUpdateContext *update_ctx, ID *id)
  * for each relevant engine / mode engine. */
 void DRW_draw_view(const bContext *C)
 {
-	EvaluationContext eval_ctx;
-	CTX_data_eval_ctx(C, &eval_ctx);
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	RenderEngineType *engine_type = CTX_data_engine_type(C);
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
 
 	/* Reset before using it. */
 	drw_state_prepare_clean_for_draw(&DST);
-	DRW_draw_render_loop_ex(eval_ctx.depsgraph, engine_type, ar, v3d, eval_ctx.object_mode, C);
+	DRW_draw_render_loop_ex(depsgraph, engine_type, ar, v3d, C);
 }
 
 /**
@@ -1135,7 +1138,7 @@ void DRW_draw_view(const bContext *C)
 void DRW_draw_render_loop_ex(
         struct Depsgraph *depsgraph,
         RenderEngineType *engine_type,
-        ARegion *ar, View3D *v3d, const eObjectMode object_mode,
+        ARegion *ar, View3D *v3d,
         const bContext *evil_C)
 {
 
@@ -1155,7 +1158,7 @@ void DRW_draw_render_loop_ex(
 	    .ar = ar, .rv3d = rv3d, .v3d = v3d,
 	    .scene = scene, .view_layer = view_layer, .obact = OBACT(view_layer),
 	    .engine_type = engine_type,
-	    .depsgraph = depsgraph, .object_mode = object_mode,
+	    .depsgraph = depsgraph,
 
 	    /* reuse if caller sets */
 	    .evil_C = DST.draw_ctx.evil_C,
@@ -1280,7 +1283,7 @@ void DRW_draw_render_loop_ex(
 
 void DRW_draw_render_loop(
         struct Depsgraph *depsgraph,
-        ARegion *ar, View3D *v3d, const eObjectMode object_mode)
+        ARegion *ar, View3D *v3d)
 {
 	/* Reset before using it. */
 	drw_state_prepare_clean_for_draw(&DST);
@@ -1288,13 +1291,13 @@ void DRW_draw_render_loop(
 	Scene *scene = DEG_get_evaluated_scene(depsgraph);
 	RenderEngineType *engine_type = RE_engines_find(scene->view_render.engine_id);
 
-	DRW_draw_render_loop_ex(depsgraph, engine_type, ar, v3d, object_mode, NULL);
+	DRW_draw_render_loop_ex(depsgraph, engine_type, ar, v3d, NULL);
 }
 
 /* @viewport CAN be NULL, in this case we create one. */
 void DRW_draw_render_loop_offscreen(
         struct Depsgraph *depsgraph, RenderEngineType *engine_type,
-        ARegion *ar, View3D *v3d, const eObjectMode object_mode,
+        ARegion *ar, View3D *v3d,
         const bool draw_background, GPUOffScreen *ofs,
         GPUViewport *viewport)
 {
@@ -1318,7 +1321,7 @@ void DRW_draw_render_loop_offscreen(
 	drw_state_prepare_clean_for_draw(&DST);
 	DST.options.is_image_render = true;
 	DST.options.draw_background = draw_background;
-	DRW_draw_render_loop_ex(depsgraph, engine_type, ar, v3d, object_mode, NULL);
+	DRW_draw_render_loop_ex(depsgraph, engine_type, ar, v3d, NULL);
 
 	/* restore */
 	{
@@ -1476,7 +1479,7 @@ void DRW_render_instance_buffer_finish(void)
  */
 void DRW_draw_select_loop(
         struct Depsgraph *depsgraph,
-        ARegion *ar, View3D *v3d, const eObjectMode object_mode,
+        ARegion *ar, View3D *v3d,
         bool UNUSED(use_obedit_skip), bool UNUSED(use_nearest), const rcti *rect,
         DRW_SelectPassFn select_pass_fn, void *select_pass_user_data)
 {
@@ -1484,6 +1487,7 @@ void DRW_draw_select_loop(
 	RenderEngineType *engine_type = RE_engines_find(scene->view_render.engine_id);
 	ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 	Object *obact = OBACT(view_layer);
+	Object *obedit = OBEDIT_FROM_OBACT(obact);
 #ifndef USE_GPU_SELECT
 	UNUSED_VARS(vc, scene, view_layer, v3d, ar, rect);
 #else
@@ -1498,12 +1502,12 @@ void DRW_draw_select_loop(
 
 	bool use_obedit = false;
 	int obedit_mode = 0;
-	if (object_mode & OB_MODE_EDIT) {
-		if (obact->type == OB_MBALL) {
+	if (obedit != NULL) {
+		if (obedit->type == OB_MBALL) {
 			use_obedit = true;
 			obedit_mode = CTX_MODE_EDIT_METABALL;
 		}
-		else if (obact->type == OB_ARMATURE) {
+		else if (obedit->type == OB_ARMATURE) {
 			use_obedit = true;
 			obedit_mode = CTX_MODE_EDIT_ARMATURE;
 		}
@@ -1533,7 +1537,7 @@ void DRW_draw_select_loop(
 		.ar = ar, .rv3d = rv3d, .v3d = v3d,
 		.scene = scene, .view_layer = view_layer, .obact = obact,
 		.engine_type = engine_type,
-		.depsgraph = depsgraph, .object_mode = object_mode,
+		.depsgraph = depsgraph,
 	};
 	drw_context_state_init();
 	drw_viewport_var_init();
@@ -1548,7 +1552,14 @@ void DRW_draw_select_loop(
 		drw_engines_cache_init();
 
 		if (use_obedit) {
+#if 0
 			drw_engines_cache_populate(obact);
+#else
+			FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, obact->mode, ob_iter) {
+				drw_engines_cache_populate(ob_iter);
+			}
+			FOREACH_OBJECT_IN_MODE_END;
+#endif
 		}
 		else {
 			DEG_OBJECT_ITER_BEGIN(
@@ -1662,7 +1673,7 @@ static void draw_depth_texture_to_screen(GPUTexture *texture)
  */
 void DRW_draw_depth_loop(
         Depsgraph *depsgraph,
-        ARegion *ar, View3D *v3d, const eObjectMode object_mode)
+        ARegion *ar, View3D *v3d)
 {
 	Scene *scene = DEG_get_evaluated_scene(depsgraph);
 	RenderEngineType *engine_type = RE_engines_find(scene->view_render.engine_id);
@@ -1706,7 +1717,7 @@ void DRW_draw_depth_loop(
 		.ar = ar, .rv3d = rv3d, .v3d = v3d,
 		.scene = scene, .view_layer = view_layer, .obact = OBACT(view_layer),
 		.engine_type = engine_type,
-		.depsgraph = depsgraph, .object_mode = object_mode,
+		.depsgraph = depsgraph,
 	};
 	drw_context_state_init();
 	drw_viewport_var_init();
@@ -1917,6 +1928,9 @@ void DRW_engines_register(void)
 	RE_engines_register(NULL, &DRW_engine_viewport_clay_type);
 #endif
 	RE_engines_register(NULL, &DRW_engine_viewport_eevee_type);
+	RE_engines_register(NULL, &DRW_engine_viewport_workbench_type);
+
+	DRW_engine_register(&draw_engine_workbench_solid_flat);
 
 	DRW_engine_register(&draw_engine_object_type);
 	DRW_engine_register(&draw_engine_edit_armature_type);
@@ -2142,7 +2156,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 
 	ViewLayer *view_layer = BKE_view_layer_from_scene_get(scene);
 	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, called_from_constructor);
-	BKE_scene_graph_update_tagged(bmain->eval_ctx, depsgraph, bmain, scene, view_layer);
+	BKE_scene_graph_update_tagged(depsgraph, bmain);
 
 	DRW_opengl_context_enable();
 

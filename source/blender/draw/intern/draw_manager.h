@@ -157,6 +157,7 @@ typedef enum {
 	DRW_UNIFORM_SHORT_TO_INT,
 	DRW_UNIFORM_SHORT_TO_FLOAT,
 	DRW_UNIFORM_INT,
+	DRW_UNIFORM_INT_COPY,
 	DRW_UNIFORM_FLOAT,
 	DRW_UNIFORM_TEXTURE,
 	DRW_UNIFORM_TEXTURE_PERSIST,
@@ -222,6 +223,7 @@ struct DRWShadingGroup {
 	int normalworld;
 	int orcotexfac;
 	int eye;
+	int callid;
 	uint16_t matflag; /* Matrices needed, same as DRWCall.flag */
 
 #ifndef NDEBUG

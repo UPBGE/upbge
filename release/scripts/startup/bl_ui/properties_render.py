@@ -395,6 +395,7 @@ class RENDER_PT_stamp(RenderButtonsPanel, Panel):
         col.prop(rd, "use_stamp_camera", text="Camera")
         col.prop(rd, "use_stamp_lens", text="Lens")
         col.prop(rd, "use_stamp_filename", text="Filename")
+        col.prop(rd, "use_stamp_frame_range", text="Frame range")
         col.prop(rd, "use_stamp_marker", text="Marker")
         col.prop(rd, "use_stamp_sequencer_strip", text="Seq. Strip")
 
@@ -459,17 +460,37 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
         split.prop(rd.ffmpeg, "format")
         split.prop(ffmpeg, "use_autosplit")
 
+        # Video:
         layout.separator()
+        self.draw_vcodec(context)
+
+        # Audio:
+        layout.separator()
+        if ffmpeg.format != 'MP3':
+            layout.prop(ffmpeg, "audio_codec", text="Audio Codec")
+
+        if ffmpeg.audio_codec != 'NONE':
+            row = layout.row()
+            row.prop(ffmpeg, "audio_bitrate")
+            row.prop(ffmpeg, "audio_volume", slider=True)
+
+    def draw_vcodec(self, context):
+        """Video codec options."""
+        layout = self.layout
+        ffmpeg = context.scene.render.ffmpeg
 
         needs_codec = ffmpeg.format in {'AVI', 'QUICKTIME', 'MKV', 'OGG', 'MPEG4'}
         if needs_codec:
             layout.prop(ffmpeg, "codec")
 
+        if needs_codec and ffmpeg.codec == 'NONE':
+            return
+
         if ffmpeg.codec in {'DNXHD'}:
             layout.prop(ffmpeg, "use_lossless_output")
 
         # Output quality
-        use_crf = needs_codec and ffmpeg.codec in {'H264', 'MPEG4'}
+        use_crf = needs_codec and ffmpeg.codec in {'H264', 'MPEG4', 'WEBM'}
         if use_crf:
             layout.prop(ffmpeg, "constant_rate_factor")
 
@@ -497,17 +518,6 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
             col.label(text="Mux:")
             col.prop(ffmpeg, "muxrate", text="Rate")
             col.prop(ffmpeg, "packetsize", text="Packet Size")
-
-        layout.separator()
-
-        # Audio:
-        if ffmpeg.format != 'MP3':
-            layout.prop(ffmpeg, "audio_codec", text="Audio Codec")
-
-        if ffmpeg.audio_codec != 'NONE':
-            row = layout.row()
-            row.prop(ffmpeg, "audio_bitrate")
-            row.prop(ffmpeg, "audio_volume", slider=True)
 
 
 class RENDER_PT_bake(RenderButtonsPanel, Panel):
@@ -902,6 +912,18 @@ class RENDER_PT_eevee_film(RenderButtonsPanel, Panel):
         col.prop(rd, "alpha_mode", text="Alpha")
 
 
+class RENDER_PT_workbench_collection_settings(RenderButtonsPanel, Panel):
+    bl_label = "Workbench Collection Settings"
+    COMPAT_ENGINES = {'BLENDER_WORKBENCH'}
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.collection_properties['BLENDER_WORKBENCH']
+
+        col = layout.column()
+        col.prop(props, "object_color")
+
+
 classes = (
     RENDER_MT_presets,
     RENDER_MT_ffmpeg_presets,
@@ -931,6 +953,7 @@ classes = (
     RENDER_PT_eevee_motion_blur,
     RENDER_PT_eevee_depth_of_field,
     RENDER_PT_eevee_bloom,
+    RENDER_PT_workbench_collection_settings,
 )
 
 if __name__ == "__main__":  # only for live edit.

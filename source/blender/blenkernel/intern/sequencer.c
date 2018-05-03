@@ -76,6 +76,7 @@
 #include "BKE_idprop.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "RNA_access.h"
 
@@ -86,6 +87,7 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_colormanagement.h"
+#include "IMB_metadata.h"
 
 #include "BKE_context.h"
 #include "BKE_sound.h"
@@ -591,17 +593,16 @@ void BKE_sequencer_pixel_from_sequencer_space_v4(struct Scene *scene, float pixe
 /*********************** sequencer pipeline functions *************************/
 
 void BKE_sequencer_new_render_data(
-        EvaluationContext *eval_ctx,
         Main *bmain, Scene *scene, int rectx, int recty,
-        int preview_render_size,
+        int preview_render_size, int for_render,
         SeqRenderData *r_context)
 {
-	r_context->eval_ctx = eval_ctx;
 	r_context->bmain = bmain;
 	r_context->scene = scene;
 	r_context->rectx = rectx;
 	r_context->recty = recty;
 	r_context->preview_render_size = preview_render_size;
+	r_context->for_render = for_render;
 	r_context->motion_blur_samples = 0;
 	r_context->motion_blur_shutter = 0;
 	r_context->skip_cache = false;
@@ -945,6 +946,8 @@ void BKE_sequence_reload_new_file(Scene *scene, Sequence *seq, const bool lock_r
 			if ((!sanim) || (!sanim->anim)) {
 				return;
 			}
+
+			IMB_anim_load_metadata(sanim->anim);
 
 			seq->len = IMB_anim_get_duration(sanim->anim, seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN);
 
@@ -2032,9 +2035,10 @@ void BKE_sequencer_proxy_rebuild(SeqIndexBuildContext *context, short *stop, sho
 	/* fail safe code */
 
 	BKE_sequencer_new_render_data(
-	        bmain->eval_ctx, bmain, context->scene,
+	        bmain, context->scene,
 	        (scene->r.size * (float) scene->r.xsch) / 100.0f + 0.5f,
 	        (scene->r.size * (float) scene->r.ysch) / 100.0f + 0.5f, 100,
+	        false,
 	        &render_context);
 
 	render_context.skip_cache = true;
@@ -3329,12 +3333,13 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 			context->scene->r.seq_prev_type = 3 /* == OB_SOLID */;
 
 		/* opengl offscreen render */
-		context->eval_ctx->engine_type = RE_engines_find(scene->view_render.engine_id);
+		RenderEngineType *engine_type = RE_engines_find(scene->view_render.engine_id);
 		depsgraph = BKE_scene_get_depsgraph(scene, view_layer, true);
-		BKE_scene_graph_update_for_newframe(context->eval_ctx, depsgraph, context->bmain, scene, view_layer);
+		BKE_scene_graph_update_for_newframe(depsgraph, context->bmain);
 		ibuf = sequencer_view3d_cb(
 		        /* set for OpenGL render (NULL when scrubbing) */
-		        context->eval_ctx, scene, view_layer, camera, width, height, IB_rect,
+		        depsgraph, scene, view_layer, engine_type,
+		        camera, width, height, IB_rect,
 		        draw_flags, context->scene->r.seq_prev_type,
 		        scene->r.alphamode, context->gpu_samples, viewname,
 		        context->gpu_offscreen, err_out);
@@ -3358,7 +3363,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 		 * When rendering from command line renderer is called from main thread, in this
 		 * case it's always safe to render scene here
 		 */
-		if (!is_thread_main || is_rendering == false || is_background || context->eval_ctx->mode == DAG_EVAL_RENDER) {
+		if (!is_thread_main || is_rendering == false || is_background || context->for_render) {
 			if (re == NULL)
 				re = RE_NewSceneRender(scene);
 
@@ -3421,7 +3426,7 @@ finally:
 	scene->r.subframe = orig_data.subframe;
 
 	if (is_frame_update && (depsgraph != NULL)) {
-		BKE_scene_graph_update_for_newframe(context->eval_ctx, depsgraph, context->bmain, scene, view_layer);
+		BKE_scene_graph_update_for_newframe(depsgraph, context->bmain);
 	}
 
 #ifdef DURIAN_CAMERA_SWITCH
@@ -5391,6 +5396,8 @@ Sequence *BKE_sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoad
 			break;
 		}
 	}
+
+	IMB_anim_load_metadata(anim_arr[0]);
 
 	seq->anim_preseek = IMB_anim_get_preseek(anim_arr[0]);
 	BLI_strncpy(seq->name + 2, "Movie", SEQ_NAME_MAXSTR - 2);

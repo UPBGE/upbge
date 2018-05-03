@@ -73,14 +73,12 @@ static void createVertsTrisData(bContext *C, LinkNode *obs,
 	Object *ob;
 	LinkNode *oblink, *dmlink;
 	DerivedMesh *dm;
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene = CTX_data_scene(C);
-	EvaluationContext eval_ctx;
 	LinkNodePair dms_pair = {NULL, NULL};
 
 	int nverts, ntris, *tris;
 	float *verts;
-
-	CTX_data_eval_ctx(C, &eval_ctx);
 
 	nverts = 0;
 	ntris = 0;
@@ -88,7 +86,7 @@ static void createVertsTrisData(bContext *C, LinkNode *obs,
 	/* calculate number of verts and tris */
 	for (oblink = obs; oblink; oblink = oblink->next) {
 		ob = (Object *) oblink->link;
-		dm = mesh_create_derived_no_virtual(&eval_ctx, scene, ob, NULL, CD_MASK_MESH);
+		dm = mesh_create_derived_no_virtual(depsgraph, scene, ob, NULL, CD_MASK_MESH);
 		DM_ensure_tessface(dm);
 		BLI_linklist_append(&dms_pair, dm);
 
@@ -662,10 +660,8 @@ void MESH_OT_navmesh_face_add(struct wmOperatorType *ot)
 
 static int navmesh_obmode_data_poll(bContext *C)
 {
-	EvaluationContext eval_ctx;
-	CTX_data_eval_ctx(C, &eval_ctx);
 	Object *ob = ED_object_active_context(C);
-	if (ob && (eval_ctx.object_mode == OB_MODE_OBJECT) && (ob->type == OB_MESH)) {
+	if (ob && (ob->mode == OB_MODE_OBJECT) && (ob->type == OB_MESH)) {
 		Mesh *me = ob->data;
 		return CustomData_has_layer(&me->pdata, CD_RECAST);
 	}
@@ -674,10 +670,8 @@ static int navmesh_obmode_data_poll(bContext *C)
 
 static int navmesh_obmode_poll(bContext *C)
 {
-	EvaluationContext eval_ctx;
-	CTX_data_eval_ctx(C, &eval_ctx);
 	Object *ob = ED_object_active_context(C);
-	if (ob && (eval_ctx.object_mode == OB_MODE_OBJECT) && (ob->type == OB_MESH)) {
+	if (ob && (ob->mode == OB_MODE_OBJECT) && (ob->type == OB_MESH)) {
 		return true;
 	}
 	return false;

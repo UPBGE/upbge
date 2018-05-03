@@ -350,7 +350,7 @@ static int screen_render_exec(bContext *C, wmOperator *op)
 	RE_SetReports(re, NULL);
 
 	// no redraw needed, we leave state as we entered it
-	ED_update_for_newframe(mainp, scene, view_layer, CTX_data_depsgraph(C));
+	ED_update_for_newframe(mainp, CTX_data_depsgraph(C));
 
 	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
 
@@ -643,7 +643,7 @@ static void render_image_restore_layer(RenderJob *rj)
 							/* For single layer renders keep the active layer
 							 * visible, or show the compositing result. */
 							RenderResult *rr = RE_AcquireResultRead(rj->re);
-							if(RE_HasCombinedLayer(rr)) {
+							if (RE_HasCombinedLayer(rr)) {
 								sima->iuser.layer = 0;
 							}
 							RE_ReleaseResult(rj->re);
@@ -676,7 +676,7 @@ static void render_endjob(void *rjv)
 	if (rj->anim && !(rj->scene->r.scemode & R_NO_FRAME_UPDATE)) {
 		/* possible this fails of loading new file while rendering */
 		if (G.main->wm.first) {
-			ED_update_for_newframe(G.main, rj->scene, rj->view_layer, rj->depsgraph);
+			ED_update_for_newframe(G.main, rj->depsgraph);
 		}
 	}
 	
@@ -1092,7 +1092,6 @@ typedef struct RenderPreview {
 	wmJob *job;
 	
 	Scene *scene;
-	EvaluationContext *eval_ctx;
 	Depsgraph *depsgraph;
 	ScrArea *sa;
 	ARegion *ar;
@@ -1108,7 +1107,7 @@ typedef struct RenderPreview {
 	bool has_freestyle;
 } RenderPreview;
 
-static int render_view3d_disprect(Scene *scene, const Depsgraph *depsgraph,
+static int render_view3d_disprect(Scene *scene, Depsgraph *depsgraph,
                                   ARegion *ar, View3D *v3d, RegionView3D *rv3d, rcti *disprect)
 {
 	/* copied code from view3d_draw.c */
@@ -1145,7 +1144,7 @@ static int render_view3d_disprect(Scene *scene, const Depsgraph *depsgraph,
 
 /* returns true if OK  */
 static bool render_view3d_get_rects(
-        const Depsgraph *depsgraph,
+        Depsgraph *depsgraph,
         ARegion *ar, View3D *v3d, RegionView3D *rv3d, rctf *viewplane, RenderEngine *engine,
         float *r_clipsta, float *r_clipend, float *r_pixsize, bool *r_ortho)
 {
@@ -1341,7 +1340,7 @@ static void render_view3d_startjob(void *customdata, short *stop, short *do_upda
 		WM_job_main_thread_lock_release(rp->job);
 
 		/* do preprocessing like building raytree, shadows, volumes, SSS */
-		RE_Database_Preprocess(rp->eval_ctx, re);
+		RE_Database_Preprocess(rp->depsgraph, re);
 
 		/* conversion not completed, need to do it again */
 		if (!rstats->convertdone) {
@@ -1407,7 +1406,6 @@ static void render_view3d_startjob(void *customdata, short *stop, short *do_upda
 static void render_view3d_free(void *customdata)
 {
 	RenderPreview *rp = customdata;
-	DEG_evaluation_context_free(rp->eval_ctx);
 	
 	MEM_freeN(rp);
 }
@@ -1523,8 +1521,6 @@ static void render_view3d_do(RenderEngine *engine, const bContext *C)
 	/* customdata for preview thread */
 	rp->scene = scene;
 	rp->depsgraph = depsgraph;
-	rp->eval_ctx = DEG_evaluation_context_new(DAG_EVAL_PREVIEW);
-	CTX_data_eval_ctx(C, rp->eval_ctx);
 	rp->engine = engine;
 	rp->sa = CTX_wm_area(C);
 	rp->ar = CTX_wm_region(C);

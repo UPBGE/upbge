@@ -88,6 +88,7 @@
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
+#include "IMB_metadata.h"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -866,7 +867,7 @@ void RE_InitState(Render *re, Render *source, RenderData *rd,
 	}
 
 	eEvaluationMode mode = (re->r.scemode & R_VIEWPORT_PREVIEW) ? DAG_EVAL_PREVIEW : DAG_EVAL_RENDER;
-	/* If we had a consistent EvaluationContext now would be the time to update it. */
+	/* This mode should have been set in the Depsgraph immediately when it was created. */
 	(void)mode;
 
 	/* ensure renderdatabase can use part settings correct */
@@ -2732,11 +2733,10 @@ static void do_render_seq(Render *re)
 
 	tot_views = BKE_scene_multiview_num_views_get(&re->r);
 	ibuf_arr = MEM_mallocN(sizeof(ImBuf *) * tot_views, "Sequencer Views ImBufs");
-	EvaluationContext *eval_ctx = DEG_evaluation_context_new(DAG_EVAL_RENDER);
 
 	BKE_sequencer_new_render_data(
-	        eval_ctx, re->main, re->scene,
-	        re_x, re_y, 100,
+	        re->main, re->scene,
+	        re_x, re_y, 100, true,
 	        &context);
 
 	/* the renderresult gets destroyed during the rendering, so we first collect all ibufs
@@ -2756,8 +2756,6 @@ static void do_render_seq(Render *re)
 			ibuf_arr[view_id] = NULL;
 		}
 	}
-
-	DEG_evaluation_context_free(eval_ctx);
 
 	rr = re->result;
 
@@ -3326,10 +3324,8 @@ void RE_RenderFreestyleExternal(Render *re)
 
 		for (rv = re->result->views.first; rv; rv = rv->next) {
 			RE_SetActiveRenderView(re, rv->name);
-			RE_Database_FromScene(re, re->main, re->scene, re->lay, 1);
-			RE_Database_Preprocess(NULL, re);
+			RE_Database_CameraOnly(re, re->main, re->scene, re->lay, 1);
 			add_freestyle(re, 1);
-			RE_Database_Free(re);
 		}
 	}
 }

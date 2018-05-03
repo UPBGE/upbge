@@ -95,17 +95,28 @@ typedef struct AviCodecData {
 
 typedef enum eFFMpegPreset {
 	FFM_PRESET_NONE,
-	FFM_PRESET_ULTRAFAST,
-	FFM_PRESET_SUPERFAST,
-	FFM_PRESET_VERYFAST,
-	FFM_PRESET_FASTER,
-	FFM_PRESET_FAST,
-	FFM_PRESET_MEDIUM,
-	FFM_PRESET_SLOW,
-	FFM_PRESET_SLOWER,
-	FFM_PRESET_VERYSLOW,
-} eFFMpegPreset;
 
+#ifdef DNA_DEPRECATED
+	/* Previously used by h.264 to control encoding speed vs. file size. */
+	FFM_PRESET_ULTRAFAST, /* DEPRECATED */
+	FFM_PRESET_SUPERFAST, /* DEPRECATED */
+	FFM_PRESET_VERYFAST,  /* DEPRECATED */
+	FFM_PRESET_FASTER,    /* DEPRECATED */
+	FFM_PRESET_FAST,      /* DEPRECATED */
+	FFM_PRESET_MEDIUM,    /* DEPRECATED */
+	FFM_PRESET_SLOW,      /* DEPRECATED */
+	FFM_PRESET_SLOWER,    /* DEPRECATED */
+	FFM_PRESET_VERYSLOW,  /* DEPRECATED */
+#endif
+
+	/* Used by WEBM/VP9 and h.264 to control encoding speed vs. file size.
+	 * WEBM/VP9 use these values directly, whereas h.264 map those to
+	 * respectively the MEDIUM, SLOWER, and SUPERFAST presets.
+	*/
+	FFM_PRESET_GOOD = 10, /* the default and recommended for most applications */
+	FFM_PRESET_BEST, /* recommended if you have lots of time and want the best compression efficiency */
+	FFM_PRESET_REALTIME, /* recommended for live / fast encoding */
+} eFFMpegPreset;
 
 /* Mapping from easily-understandable descriptions to CRF values.
  * Assumes we output 8-bit video. Needs to be remapped if 10-bit
@@ -1834,10 +1845,11 @@ enum {
 #define R_STAMP_STRIPMETA	0x1000
 #define R_STAMP_MEMORY		0x2000
 #define R_STAMP_HIDE_LABELS	0x4000
+#define R_STAMP_FRAME_RANGE	0x8000
 #define R_STAMP_ALL (R_STAMP_TIME|R_STAMP_FRAME|R_STAMP_DATE|R_STAMP_CAMERA|R_STAMP_SCENE| \
                      R_STAMP_NOTE|R_STAMP_MARKER|R_STAMP_FILENAME|R_STAMP_SEQSTRIP|        \
                      R_STAMP_RENDERTIME|R_STAMP_CAMERALENS|R_STAMP_MEMORY|                 \
-                     R_STAMP_HIDE_LABELS)
+                     R_STAMP_HIDE_LABELS|R_STAMP_FRAME_RANGE)
 
 /* RenderData.alphamode */
 #define R_ADDSKY		0
@@ -1901,6 +1913,7 @@ extern const char *RE_engine_id_BLENDER_RENDER;
 extern const char *RE_engine_id_BLENDER_GAME;
 extern const char *RE_engine_id_BLENDER_CLAY;
 extern const char *RE_engine_id_BLENDER_EEVEE;
+extern const char *RE_engine_id_BLENDER_WORKBENCH;
 extern const char *RE_engine_id_CYCLES;
 
 /* **************** SCENE ********************* */
@@ -1946,11 +1959,10 @@ extern const char *RE_engine_id_CYCLES;
 
 #define OBEDIT_FROM_WORKSPACE(workspace, _view_layer) \
 	(((workspace)->object_mode & OD_MODE_EDIT) ? OBACT(_view_layer) : NULL)
-#define OBEDIT_FROM_EVAL_CTX(eval_ctx) \
-	(((eval_ctx)->object_mode & OB_MODE_EDIT) ? OBACT((eval_ctx)->view_layer) : NULL)
-
-#define OBEDIT_FROM_WINDOW(window) \
-	BKE_workspace_edit_object(WM_window_get_active_workspace(window), WM_window_get_active_scene(window))
+#define OBEDIT_FROM_OBACT(ob) \
+	((ob) ? (((ob)->mode & OB_MODE_EDIT) ? ob : NULL) : NULL)
+#define OBEDIT_FROM_VIEW_LAYER(view_layer) \
+	OBEDIT_FROM_OBACT(OBACT(view_layer))
 
 #define V3D_CAMERA_LOCAL(v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : NULL)
 #define V3D_CAMERA_SCENE(scene, v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : (scene)->camera)

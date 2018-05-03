@@ -45,6 +45,8 @@
 extern "C" {
 #  include "BKE_animsys.h"
 #  include "BKE_main.h"
+#  include "BKE_layer.h"
+#  include "BKE_scene.h"
 }
 
 #include "BL_ArmatureObject.h"
@@ -440,8 +442,9 @@ void BL_ArmatureObject::ApplyPose()
 		}
 		// update ourself
 		UpdateBlenderObjectMatrix(m_objArma);
-		EvaluationContext *eval_ctx = KX_GetActiveEngine()->GetConverter()->GetMain()->eval_ctx;
-		BKE_pose_where_is(eval_ctx, m_scene, m_objArma);
+		ViewLayer *view_layer = BKE_view_layer_from_scene_get(m_scene);
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(m_scene, view_layer, false);
+		BKE_pose_where_is(depsgraph, m_scene, m_objArma);
 		// restore ourself
 		memcpy(m_objArma->obmat, m_obmat, sizeof(m_obmat));
 		m_lastapplyframe = m_lastframe;

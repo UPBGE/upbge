@@ -39,7 +39,6 @@ extern "C" {
 
 struct AviCodecData;
 struct Depsgraph;
-struct EvaluationContext;
 struct Main;
 struct Object;
 struct RenderData;
@@ -100,7 +99,7 @@ typedef struct SceneBaseIter {
 } SceneBaseIter;
 
 int BKE_scene_base_iter_next(
-        const struct EvaluationContext *eval_ctx, struct SceneBaseIter *iter,
+        struct Depsgraph *depsgraph, struct SceneBaseIter *iter,
         struct Scene **scene, int val, struct Base **base, struct Object **ob);
 
 void BKE_scene_base_flag_to_objects(struct ViewLayer *view_layer);
@@ -139,17 +138,11 @@ void  BKE_scene_frame_set(struct Scene *scene, double cfra);
 
 /* **  Scene evaluation ** */
 
-void BKE_scene_graph_update_tagged(struct EvaluationContext *eval_ctx,
-                                   struct Depsgraph *depsgraph,
-                                   struct Main *bmain,
-                                   struct Scene *scene,
-                                   struct ViewLayer *view_layer);
+void BKE_scene_graph_update_tagged(struct Depsgraph *depsgraph,
+                                   struct Main *bmain);
 
-void BKE_scene_graph_update_for_newframe(struct EvaluationContext *eval_ctx,
-                                         struct Depsgraph *depsgraph,
-                                         struct Main *bmain,
-                                         struct Scene *scene,
-                                         struct ViewLayer *view_layer);
+void BKE_scene_graph_update_for_newframe(struct Depsgraph *depsgraph,
+                                         struct Main *bmain);
 
 struct SceneRenderView *BKE_scene_add_render_view(struct Scene *sce, const char *name);
 bool BKE_scene_remove_render_view(struct Scene *scene, struct SceneRenderView *srv);

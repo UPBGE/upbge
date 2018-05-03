@@ -110,25 +110,23 @@ void OBJECT_OT_particle_system_add(wmOperatorType *ot)
 
 static int particle_system_remove_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	WorkSpace *workspace = CTX_wm_workspace(C);
 	Object *ob = ED_object_context(C);
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
-	eObjectMode mode_orig;
+	int mode_orig;
 
 	if (!scene || !ob)
 		return OPERATOR_CANCELLED;
 
-	mode_orig = workspace->object_mode;
+	mode_orig = ob->mode;
 	object_remove_particle_system(scene, ob);
 
 	/* possible this isn't the active object
 	 * object_remove_particle_system() clears the mode on the last psys
 	 */
 	if (mode_orig & OB_MODE_PARTICLE_EDIT) {
-		if ((workspace->object_mode & OB_MODE_PARTICLE_EDIT) == 0) {
+		if ((ob->mode & OB_MODE_PARTICLE_EDIT) == 0) {
 			if (view_layer->basact && view_layer->basact->object == ob) {
-				workspace->object_mode &= ~OB_MODE_PARTICLE_EDIT;
 				WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_OBJECT, NULL);
 			}
 		}
@@ -548,7 +546,7 @@ void PARTICLE_OT_dupliob_move_down(wmOperatorType *ot)
 /************************ connect/disconnect hair operators *********************/
 
 static void disconnect_hair(
-        const EvaluationContext *eval_ctx, Scene *scene,
+        Depsgraph *depsgraph, Scene *scene,
         Object *ob, ParticleSystem *psys)
 {
 	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
@@ -595,30 +593,28 @@ static void disconnect_hair(
 	if (ELEM(pset->brushtype, PE_BRUSH_ADD, PE_BRUSH_PUFF))
 		pset->brushtype = PE_BRUSH_NONE;
 
-	PE_update_object(eval_ctx, scene, ob, 0);
+	PE_update_object(depsgraph, scene, ob, 0);
 }
 
 static int disconnect_hair_exec(bContext *C, wmOperator *op)
 {
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene= CTX_data_scene(C);
 	Object *ob= ED_object_context(C);
 	ParticleSystem *psys= NULL;
 	const bool all = RNA_boolean_get(op->ptr, "all");
-
-	EvaluationContext eval_ctx;
-	CTX_data_eval_ctx(C, &eval_ctx);
 
 	if (!ob)
 		return OPERATOR_CANCELLED;
 
 	if (all) {
 		for (psys=ob->particlesystem.first; psys; psys=psys->next) {
-			disconnect_hair(&eval_ctx, scene, ob, psys);
+			disconnect_hair(depsgraph, scene, ob, psys);
 		}
 	}
 	else {
 		psys = psys_get_current(ob);
-		disconnect_hair(&eval_ctx, scene, ob, psys);
+		disconnect_hair(depsgraph, scene, ob, psys);
 	}
 
 	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
@@ -645,7 +641,7 @@ void PARTICLE_OT_disconnect_hair(wmOperatorType *ot)
  * from/to_mat : additional transform for from/to particles (e.g. for using object space copying)
  */
 static bool remap_hair_emitter(
-        const EvaluationContext *eval_ctx, Scene *scene, Object *ob, ParticleSystem *psys,
+        Depsgraph *depsgraph, Scene *scene, Object *ob, ParticleSystem *psys,
         Object *target_ob, ParticleSystem *target_psys, PTCacheEdit *target_edit,
         float from_mat[4][4], float to_mat[4][4], bool from_global, bool to_global)
 {
@@ -716,8 +712,8 @@ static bool remap_hair_emitter(
 
 	for (i = 0, tpa = target_psys->particles, pa = psys->particles;
 	     i < target_psys->totpart;
-	     i++, tpa++, pa++) {
-
+	     i++, tpa++, pa++)
+	{
 		float from_co[3];
 		BVHTreeNearest nearest;
 
@@ -831,13 +827,13 @@ static bool remap_hair_emitter(
 
 	psys_free_path_cache(target_psys, target_edit);
 
-	PE_update_object(eval_ctx, scene, target_ob, 0);
+	PE_update_object(depsgraph, scene, target_ob, 0);
 
 	return true;
 }
 
 static bool connect_hair(
-        const EvaluationContext *eval_ctx, Scene *scene,
+        Depsgraph *depsgraph, Scene *scene,
         Object *ob, ParticleSystem *psys)
 {
 	bool ok;
@@ -846,7 +842,7 @@ static bool connect_hair(
 		return false;
 	
 	ok = remap_hair_emitter(
-	         eval_ctx, scene, ob, psys, ob, psys, psys->edit,
+	         depsgraph, scene, ob, psys, ob, psys, psys->edit,
 	         ob->obmat, ob->obmat, psys->flag & PSYS_GLOBAL_HAIR, false);
 	psys->flag &= ~PSYS_GLOBAL_HAIR;
 	
@@ -855,7 +851,7 @@ static bool connect_hair(
 
 static int connect_hair_exec(bContext *C, wmOperator *op)
 {
-	EvaluationContext eval_ctx;
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene= CTX_data_scene(C);
 	Object *ob= ED_object_context(C);
 	ParticleSystem *psys= NULL;
@@ -865,16 +861,14 @@ static int connect_hair_exec(bContext *C, wmOperator *op)
 	if (!ob)
 		return OPERATOR_CANCELLED;
 
-	CTX_data_eval_ctx(C, &eval_ctx);
-
 	if (all) {
 		for (psys=ob->particlesystem.first; psys; psys=psys->next) {
-			any_connected |= connect_hair(&eval_ctx, scene, ob, psys);
+			any_connected |= connect_hair(depsgraph, scene, ob, psys);
 		}
 	}
 	else {
 		psys = psys_get_current(ob);
-		any_connected |= connect_hair(&eval_ctx, scene, ob, psys);
+		any_connected |= connect_hair(depsgraph, scene, ob, psys);
 	}
 
 	if (!any_connected) {
@@ -911,7 +905,7 @@ typedef enum eCopyParticlesSpace {
 } eCopyParticlesSpace;
 
 static void copy_particle_edit(
-        const EvaluationContext *eval_ctx, Scene *scene,
+        Depsgraph *depsgraph, Scene *scene,
         Object *ob, ParticleSystem *psys, ParticleSystem *psys_from)
 {
 	PTCacheEdit *edit_from = psys_from->edit, *edit;
@@ -959,7 +953,7 @@ static void copy_particle_edit(
 	
 	recalc_lengths(edit);
 	recalc_emitter_field(ob, psys);
-	PE_update_object(eval_ctx, scene, ob, true);
+	PE_update_object(depsgraph, scene, ob, true);
 }
 
 static void remove_particle_systems_from_object(Object *ob_to)
@@ -996,15 +990,13 @@ static bool copy_particle_systems_to_object(const bContext *C,
                                             bool duplicate_settings)
 {
 	Main *bmain = CTX_data_main(C);
-	EvaluationContext eval_ctx;
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	ModifierData *md;
 	ParticleSystem *psys_start = NULL, *psys, *psys_from;
 	ParticleSystem **tmp_psys;
 	DerivedMesh *final_dm;
 	CustomDataMask cdmask;
 	int i, totpsys;
-	
-	CTX_data_eval_ctx(C, &eval_ctx);
 
 	if (ob_to->type != OB_MESH)
 		return false;
@@ -1028,8 +1020,8 @@ static bool copy_particle_systems_to_object(const bContext *C,
 	cdmask = 0;
 	for (psys_from = PSYS_FROM_FIRST, i = 0;
 	     psys_from;
-	     psys_from = PSYS_FROM_NEXT(psys_from), ++i) {
-		
+	     psys_from = PSYS_FROM_NEXT(psys_from), ++i)
+	{
 		psys = BKE_object_copy_particlesystem(psys_from, 0);
 		tmp_psys[i] = psys;
 		
@@ -1044,13 +1036,13 @@ static bool copy_particle_systems_to_object(const bContext *C,
 	psys_start = totpsys > 0 ? tmp_psys[0] : NULL;
 	
 	/* get the DM (psys and their modifiers have not been appended yet) */
-	final_dm = mesh_get_derived_final(&eval_ctx, scene, ob_to, cdmask);
+	final_dm = mesh_get_derived_final(depsgraph, scene, ob_to, cdmask);
 	
 	/* now append psys to the object and make modifiers */
 	for (i = 0, psys_from = PSYS_FROM_FIRST;
 	     i < totpsys;
-	     ++i, psys_from = PSYS_FROM_NEXT(psys_from)) {
-		
+	     ++i, psys_from = PSYS_FROM_NEXT(psys_from))
+	{
 		ParticleSystemModifierData *psmd;
 		
 		psys = tmp_psys[i];
@@ -1073,7 +1065,7 @@ static bool copy_particle_systems_to_object(const bContext *C,
 		DM_ensure_tessface(psmd->dm_final);
 		
 		if (psys_from->edit) {
-			copy_particle_edit(&eval_ctx, scene, ob_to, psys, psys_from);
+			copy_particle_edit(depsgraph, scene, ob_to, psys, psys_from);
 		}
 
 		if (duplicate_settings) {
@@ -1088,8 +1080,8 @@ static bool copy_particle_systems_to_object(const bContext *C,
 	 */
 	for (psys = psys_start, psys_from = PSYS_FROM_FIRST, i = 0;
 	     psys;
-	     psys = psys->next, psys_from = PSYS_FROM_NEXT(psys_from), ++i) {
-		
+	     psys = psys->next, psys_from = PSYS_FROM_NEXT(psys_from), ++i)
+	{
 		float (*from_mat)[4], (*to_mat)[4];
 		
 		switch (space) {
@@ -1109,7 +1101,7 @@ static bool copy_particle_systems_to_object(const bContext *C,
 		}
 		if (ob_from != ob_to) {
 			remap_hair_emitter(
-			        &eval_ctx, scene, ob_from, psys_from, ob_to, psys, psys->edit,
+			        depsgraph, scene, ob_from, psys_from, ob_to, psys, psys->edit,
 			        from_mat, to_mat, psys_from->flag & PSYS_GLOBAL_HAIR, psys->flag & PSYS_GLOBAL_HAIR);
 		}
 		

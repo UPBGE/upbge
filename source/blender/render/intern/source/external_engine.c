@@ -514,6 +514,48 @@ RenderData *RE_engine_get_render_data(Render *re)
 	return &re->r;
 }
 
+/* Depsgraph */
+static void engine_depsgraph_init(RenderEngine *engine, ViewLayer *view_layer)
+{
+	Main *bmain = engine->re->main;
+	Scene *scene = engine->re->scene;
+
+	engine->depsgraph = DEG_graph_new(scene, view_layer, DAG_EVAL_RENDER);
+
+	BKE_scene_graph_update_tagged(engine->depsgraph, bmain);
+}
+
+static void engine_depsgraph_free(RenderEngine *engine)
+{
+	DEG_graph_free(engine->depsgraph);
+
+	engine->depsgraph = NULL;
+}
+
+void RE_engine_frame_set(RenderEngine *engine, int frame, float subframe)
+{
+	if(!engine->depsgraph) {
+		return;
+	}
+
+	Render *re = engine->re;
+	double cfra = (double)frame + (double)subframe;
+
+	CLAMP(cfra, MINAFRAME, MAXFRAME);
+	BKE_scene_frame_set(re->scene, cfra);
+	BKE_scene_graph_update_for_newframe(engine->depsgraph, re->main);
+
+#ifdef WITH_PYTHON
+	BPy_BEGIN_ALLOW_THREADS;
+#endif
+
+#ifdef WITH_PYTHON
+	BPy_END_ALLOW_THREADS;
+#endif
+
+	BKE_scene_camera_switch_update(re->scene);
+}
+
 /* Bake */
 void RE_bake_engine_set_engine_parameters(Render *re, Main *bmain, Scene *scene)
 {
@@ -570,20 +612,11 @@ bool RE_bake_engine(
 		type->update(engine, re->main, re->scene);
 
 	if (type->bake) {
-		EvaluationContext *eval_ctx = DEG_evaluation_context_new(DAG_EVAL_RENDER);
-		Depsgraph *depsgraph = DEG_graph_new();
 		ViewLayer *view_layer = BLI_findlink(&re->scene->view_layers, re->scene->active_view_layer);
-
-		DEG_evaluation_context_init_from_view_layer_for_render(
-					eval_ctx,
-					depsgraph,
-					re->scene,
-					view_layer);
-
-		BKE_scene_graph_update_tagged(eval_ctx, depsgraph, re->main, re->scene, view_layer);
+		engine_depsgraph_init(engine, view_layer);
 
 		type->bake(engine,
-		           depsgraph,
+		           engine->depsgraph,
 		           re->scene,
 		           object,
 		           pass_type,
@@ -594,8 +627,7 @@ bool RE_bake_engine(
 		           depth,
 		           result);
 
-		DEG_graph_free(depsgraph);
-		DEG_evaluation_context_free(eval_ctx);
+		engine_depsgraph_free(engine);
 	}
 
 	engine->tile_x = 0;
@@ -617,26 +649,6 @@ bool RE_bake_engine(
 		G.is_break = true;
 
 	return true;
-}
-
-void RE_engine_frame_set(RenderEngine *engine, int frame, float subframe)
-{
-	Render *re = engine->re;
-	Scene *scene = re->scene;
-	double cfra = (double)frame + (double)subframe;
-
-	CLAMP(cfra, MINAFRAME, MAXFRAME);
-	BKE_scene_frame_set(scene, cfra);
-
-#ifdef WITH_PYTHON
-	BPy_BEGIN_ALLOW_THREADS;
-#endif
-
-#ifdef WITH_PYTHON
-	BPy_END_ALLOW_THREADS;
-#endif
-
-	BKE_scene_camera_switch_update(scene);
 }
 
 /* Render */
@@ -742,21 +754,12 @@ int RE_engine_render(Render *re, int do_all)
 	if (type->render_to_image) {
 		FOREACH_VIEW_LAYER_TO_RENDER_BEGIN(re, view_layer_iter)
 		{
-			EvaluationContext *eval_ctx = DEG_evaluation_context_new(DAG_EVAL_RENDER);
-			Depsgraph *depsgraph = DEG_graph_new();
 			ViewLayer *view_layer = BLI_findstring(&re->scene->view_layers, view_layer_iter->name, offsetof(ViewLayer, name));
+			engine_depsgraph_init(engine, view_layer);
 
-			DEG_evaluation_context_init_from_view_layer_for_render(
-						eval_ctx,
-						depsgraph,
-						re->scene,
-						view_layer);
+			type->render_to_image(engine, engine->depsgraph);
 
-			BKE_scene_graph_update_tagged(eval_ctx, depsgraph, re->main, re->scene, view_layer);
-			type->render_to_image(engine, depsgraph);
-
-			DEG_graph_free(depsgraph);
-			DEG_evaluation_context_free(eval_ctx);
+			engine_depsgraph_free(engine);
 		}
 		FOREACH_VIEW_LAYER_TO_RENDER_END;
 	}

@@ -85,9 +85,9 @@
 #include "object_intern.h"
 
 /************************ Exported Functions **********************/
-static bool vertex_group_use_vert_sel(const Object *ob)
+static bool vertex_group_use_vert_sel(Object *ob)
 {
-	if (BKE_object_is_in_editmode(ob)) {
+	if (ob->mode == OB_MODE_EDIT) {
 		return true;
 	}
 	else if (ob->type == OB_MESH && ((Mesh *)ob->data)->editflag & ME_EDIT_PAINT_VERT_SEL) {
@@ -108,15 +108,13 @@ static Lattice *vgroup_edit_lattice(Object *ob)
 bool ED_vgroup_sync_from_pose(Object *ob)
 {
 	Object *armobj = BKE_object_pose_armature_get(ob);
-	if (armobj) {
+	if (armobj && (armobj->mode & OB_MODE_POSE)) {
 		struct bArmature *arm = armobj->data;
-		if (arm->flag & ARM_POSEMODE) {
-			if (arm->act_bone) {
-				int def_num = defgroup_name_index(ob, arm->act_bone->name);
-				if (def_num != -1) {
-					ob->actdef = def_num + 1;
-					return true;
-				}
+		if (arm->act_bone) {
+			int def_num = defgroup_name_index(ob, arm->act_bone->name);
+			if (def_num != -1) {
+				ob->actdef = def_num + 1;
+				return true;
 			}
 		}
 	}
@@ -1275,9 +1273,9 @@ static void dm_deform_clear(DerivedMesh *dm, Object *ob)
 }
 
 /* recalculate the deformation */
-static DerivedMesh *dm_deform_recalc(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
+static DerivedMesh *dm_deform_recalc(Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
-	return mesh_get_derived_deform(eval_ctx, scene, ob, CD_MASK_BAREMESH);
+	return mesh_get_derived_deform(depsgraph, scene, ob, CD_MASK_BAREMESH);
 }
 
 /* by changing nonzero weights, try to move a vertex in me->mverts with index 'index' to
@@ -1290,7 +1288,7 @@ static DerivedMesh *dm_deform_recalc(EvaluationContext *eval_ctx, Scene *scene, 
  * coord is a point on the plane
  */
 static void moveCloserToDistanceFromPlane(
-        EvaluationContext *eval_ctx, Scene *scene, Object *ob, Mesh *me, int index, float norm[3],
+        Depsgraph *depsgraph, Scene *scene, Object *ob, Mesh *me, int index, float norm[3],
         float coord[3], float d, float distToBe, float strength, float cp)
 {
 	DerivedMesh *dm;
@@ -1317,7 +1315,7 @@ static void moveCloserToDistanceFromPlane(
 	float originalDistToBe = distToBe;
 	do {
 		wasChange = false;
-		dm = dm_deform_recalc(eval_ctx, scene, ob);
+		dm = dm_deform_recalc(depsgraph, scene, ob);
 		dm->getVert(dm, index, &m);
 		copy_v3_v3(oldPos, m.co);
 		distToStart = dot_v3v3(norm, oldPos) + d;
@@ -1355,7 +1353,7 @@ static void moveCloserToDistanceFromPlane(
 				if (dw->weight > 1) {
 					dw->weight = 1;
 				}
-				dm = dm_deform_recalc(eval_ctx, scene, ob);
+				dm = dm_deform_recalc(depsgraph, scene, ob);
 				dm->getVert(dm, index, &m);
 				getVerticalAndHorizontalChange(norm, d, coord, oldPos, distToStart, m.co, changes, dists, i);
 				dw->weight = oldw;
@@ -1467,10 +1465,8 @@ static void moveCloserToDistanceFromPlane(
  * but it could be used to raise or lower an existing 'bump.' */
 static void vgroup_fix(const bContext *C, Scene *scene, Object *ob, float distToBe, float strength, float cp)
 {
-	EvaluationContext eval_ctx;
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	int i;
-
-	CTX_data_eval_ctx(C, &eval_ctx);
 
 	Mesh *me = ob->data;
 	MVert *mvert = me->mvert;
@@ -1485,7 +1481,7 @@ static void vgroup_fix(const bContext *C, Scene *scene, Object *ob, float distTo
 				MVert *p = MEM_callocN(sizeof(MVert) * (count), "deformedPoints");
 				int k;
 
-				DerivedMesh *dm = mesh_get_derived_deform(&eval_ctx, scene, ob, CD_MASK_BAREMESH);
+				DerivedMesh *dm = mesh_get_derived_deform(depsgraph, scene, ob, CD_MASK_BAREMESH);
 				k = count;
 				while (k--) {
 					dm->getVert(dm, verts[k], &m);
@@ -1503,7 +1499,7 @@ static void vgroup_fix(const bContext *C, Scene *scene, Object *ob, float distTo
 					if (mag) { /* zeros fix */
 						d = -dot_v3v3(norm, coord);
 						/* dist = (dot_v3v3(norm, m.co) + d); */ /* UNUSED */
-						moveCloserToDistanceFromPlane(&eval_ctx, scene, ob, me, i, norm, coord, d, distToBe, strength, cp);
+						moveCloserToDistanceFromPlane(depsgraph, scene, ob, me, i, norm, coord, d, distToBe, strength, cp);
 					}
 				}
 
@@ -2550,13 +2546,12 @@ static int vertex_group_vert_poll_ex(bContext *C, const bool needs_select, const
 		return false;
 	}
 
-	const WorkSpace *workspace = CTX_wm_workspace(C);
 	if (BKE_object_is_in_editmode_vgroup(ob)) {
 		return true;
 	}
-	else if (workspace->object_mode & OB_MODE_WEIGHT_PAINT) {
+	else if (ob->mode & OB_MODE_WEIGHT_PAINT) {
 		if (needs_select) {
-			if (BKE_object_is_in_wpaint_select_vert(ob, workspace->object_mode)) {
+			if (BKE_object_is_in_wpaint_select_vert(ob)) {
 				return true;
 			}
 			else {
@@ -2608,9 +2603,8 @@ static int vertex_group_vert_select_unlocked_poll(bContext *C)
 	if (!(ob && !ID_IS_LINKED(ob) && data && !ID_IS_LINKED(data)))
 		return 0;
 
-	const WorkSpace *workspace = CTX_wm_workspace(C);
 	if (!(BKE_object_is_in_editmode_vgroup(ob) ||
-	    BKE_object_is_in_wpaint_select_vert(ob, workspace->object_mode)))
+	    BKE_object_is_in_wpaint_select_vert(ob)))
 	{
 		return 0;
 	}
@@ -2636,9 +2630,8 @@ static int vertex_group_vert_select_mesh_poll(bContext *C)
 	if (ob->type != OB_MESH)
 		return 0;
 
-	const WorkSpace *workspace = CTX_wm_workspace(C);
 	return (BKE_object_is_in_editmode_vgroup(ob) ||
-	        BKE_object_is_in_wpaint_select_vert(ob, workspace->object_mode));
+	        BKE_object_is_in_wpaint_select_vert(ob));
 }
 
 static int vertex_group_add_exec(bContext *C, wmOperator *UNUSED(op))
@@ -3522,8 +3515,7 @@ static char *vgroup_init_remap(Object *ob)
 	return name_array;
 }
 
-static int vgroup_do_remap(
-        const EvaluationContext *eval_ctx, Object *ob, const char *name_array, wmOperator *op)
+static int vgroup_do_remap(Object *ob, const char *name_array, wmOperator *op)
 {
 	MDeformVert *dvert = NULL;
 	bDeformGroup *def;
@@ -3544,7 +3536,7 @@ static int vgroup_do_remap(
 		BLI_assert(sort_map[i] != -1);
 	}
 
-	if (eval_ctx->object_mode == OB_MODE_EDIT) {
+	if (ob->mode == OB_MODE_EDIT) {
 		if (ob->type == OB_MESH) {
 			BMEditMesh *em = BKE_editmesh_from_object(ob);
 			const int cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
@@ -3642,8 +3634,6 @@ enum {
 
 static int vertex_group_sort_exec(bContext *C, wmOperator *op)
 {
-	EvaluationContext eval_ctx;
-	CTX_data_eval_ctx(C, &eval_ctx);
 	Object *ob = ED_object_context(C);
 	char *name_array;
 	int ret;
@@ -3663,7 +3653,7 @@ static int vertex_group_sort_exec(bContext *C, wmOperator *op)
 	}
 	
 	/*remap vgroup data to map to correct names*/
-	ret = vgroup_do_remap(&eval_ctx, ob, name_array, op);
+	ret = vgroup_do_remap(ob, name_array, op);
 
 	if (ret != OPERATOR_CANCELLED) {
 		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
@@ -3699,8 +3689,6 @@ void OBJECT_OT_vertex_group_sort(wmOperatorType *ot)
 
 static int vgroup_move_exec(bContext *C, wmOperator *op)
 {
-	EvaluationContext eval_ctx;
-	CTX_data_eval_ctx(C, &eval_ctx);
 	Object *ob = ED_object_context(C);
 	bDeformGroup *def;
 	char *name_array;
@@ -3715,7 +3703,7 @@ static int vgroup_move_exec(bContext *C, wmOperator *op)
 	name_array = vgroup_init_remap(ob);
 
 	if (BLI_listbase_link_move(&ob->defbase, def, dir)) {
-		ret = vgroup_do_remap(&eval_ctx, ob, name_array, op);
+		ret = vgroup_do_remap(ob, name_array, op);
 
 		if (ret != OPERATOR_CANCELLED) {
 			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);

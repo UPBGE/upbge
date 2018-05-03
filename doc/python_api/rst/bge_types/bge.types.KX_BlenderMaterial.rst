@@ -189,3 +189,11 @@ base class --- :class:`PyObjectPlus`
          * :data:`~bgl.GL_SRC_ALPHA_SATURATE`
       
       :type dest: int
+
+   .. method:: getMaterialIndex()
+
+      Returns the material's index.
+
+      :return: the material's index
+      :rtype: integer
+

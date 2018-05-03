@@ -499,8 +499,7 @@ void BKE_workspace_use_scene_settings_set(WorkSpace *workspace, bool value)
 
 /* Update / evaluate */
 
-void BKE_workspace_update_tagged(struct EvaluationContext *eval_ctx,
-                                 Main *bmain,
+void BKE_workspace_update_tagged(Main *bmain,
                                  WorkSpace *workspace,
                                  Scene *scene)
 {
@@ -508,33 +507,9 @@ void BKE_workspace_update_tagged(struct EvaluationContext *eval_ctx,
 	struct Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene,
 	                                                      view_layer,
 	                                                      true);
-	BKE_scene_graph_update_tagged(eval_ctx, depsgraph, bmain, scene, view_layer);
+	BKE_scene_graph_update_tagged(depsgraph, bmain);
 }
 
-void BKE_workspace_update_object_mode(
-        struct EvaluationContext *eval_ctx,
-        WorkSpace *workspace)
-{
-	/* TODO(campbell): Investigate how this should work exactly,
-	 * for now without this 'bmain->eval_ctx' is never set. */
-
-	eval_ctx->object_mode = workspace->object_mode;
-}
-
-Object *BKE_workspace_edit_object(WorkSpace *workspace, Scene *scene)
-{
-	if (workspace->object_mode & OB_MODE_EDIT) {
-		ViewLayer *view_layer = BKE_workspace_view_layer_get(workspace, scene);
-		if (view_layer) {
-			Object *obedit = OBACT(view_layer);
-			if (obedit) {
-				BLI_assert(BKE_object_is_in_editmode(obedit));
-				return obedit;
-			}
-		}
-	}
-	return NULL;
-}
 
 bool BKE_workspace_owner_id_check(
         const WorkSpace *workspace, const char *owner_id)
@@ -549,3 +524,4 @@ bool BKE_workspace_owner_id_check(
 		return BLI_findstring(&workspace->owner_ids, owner_id, offsetof(wmOwnerID, name)) != NULL;
 	}
 }
+

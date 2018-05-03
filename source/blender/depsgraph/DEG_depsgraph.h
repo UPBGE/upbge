@@ -60,7 +60,6 @@ typedef struct Depsgraph Depsgraph;
 
 /* ------------------------------------------------ */
 
-struct EvaluationContext;
 struct Main;
 
 struct PointerRNA;
@@ -74,23 +73,6 @@ typedef enum eEvaluationMode {
 	DAG_EVAL_PREVIEW        = 1,    /* evaluate for render with preview settings */
 	DAG_EVAL_RENDER         = 2,    /* evaluate for render purposes */
 } eEvaluationMode;
-
-#include "DNA_object_enums.h"
-
-/* Dependency graph evaluation context
- *
- * This structure stores all the local dependency graph data,
- * which is needed for it's evaluation,
- */
-typedef struct EvaluationContext {
-	eEvaluationMode mode;
-	float ctime;
-	eObjectMode object_mode;
-
-	struct Depsgraph *depsgraph;
-	struct ViewLayer *view_layer;
-	struct RenderEngineType *engine_type;
-} EvaluationContext;
 
 /* DagNode->eval_flags */
 enum {
@@ -121,7 +103,9 @@ void DEG_depsgraph_enable_copy_on_write(void);
 
 /* Create new Depsgraph instance */
 // TODO: what args are needed here? What's the building-graph entry point?
-Depsgraph *DEG_graph_new(void);
+Depsgraph *DEG_graph_new(struct Scene *scene,
+                         struct ViewLayer *view_layer,
+                         eEvaluationMode mode);
 
 /* Free Depsgraph itself and all its data */
 void DEG_graph_free(Depsgraph *graph);
@@ -205,55 +189,20 @@ void DEG_ids_check_recalc(struct Main *bmain,
 /* ************************************************ */
 /* Evaluation Engine API */
 
-/* Evaluation Context ---------------------------- */
-
-/* Create new evaluation context. */
-struct EvaluationContext *DEG_evaluation_context_new(eEvaluationMode mode);
-
-/* Initialize evaluation context.
- * Used by the areas which currently overrides the context or doesn't have
- * access to a proper one.
- */
-void DEG_evaluation_context_init(struct EvaluationContext *eval_ctx,
-                                 eEvaluationMode mode);
-void DEG_evaluation_context_init_from_scene(
-        struct EvaluationContext *eval_ctx,
-        struct Scene *scene,
-        struct ViewLayer *view_layer,
-        struct RenderEngineType *engine_type,
-        const eObjectMode object_mode,
-        eEvaluationMode mode);
-
-void DEG_evaluation_context_init_from_view_layer_for_render(
-        struct EvaluationContext *eval_ctx,
-        struct Depsgraph *depsgraph,
-        struct Scene *scene,
-        struct ViewLayer *view_layer);
-
-void DEG_evaluation_context_init_from_depsgraph(
-        struct EvaluationContext *eval_ctx,
-        struct Depsgraph *depsgraph,
-        eEvaluationMode mode);
-
-/* Free evaluation context. */
-void DEG_evaluation_context_free(struct EvaluationContext *eval_ctx);
-
 /* Graph Evaluation  ----------------------------- */
 
 /* Frame changed recalculation entry point
  * < context_type: context to perform evaluation for
  * < ctime: (frame) new frame to evaluate values on
  */
-void DEG_evaluate_on_framechange(struct EvaluationContext *eval_ctx,
-                                 struct Main *bmain,
+void DEG_evaluate_on_framechange(struct Main *bmain,
                                  Depsgraph *graph,
                                  float ctime);
 
 /* Data changed recalculation entry point.
  * < context_type: context to perform evaluation for
  */
-void DEG_evaluate_on_refresh(struct EvaluationContext *eval_ctx,
-                             Depsgraph *graph);
+void DEG_evaluate_on_refresh(Depsgraph *graph);
 
 bool DEG_needs_eval(Depsgraph *graph);
 

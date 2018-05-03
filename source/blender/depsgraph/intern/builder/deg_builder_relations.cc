@@ -115,39 +115,6 @@ extern "C" {
 
 namespace DEG {
 
-namespace {
-
-struct BuilderWalkUserData {
-	DepsgraphRelationBuilder *builder;
-};
-
-void modifier_walk(void *user_data,
-                   struct Object * /*object*/,
-                   struct Object **obpoin,
-                   int /*cb_flag*/)
-{
-	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
-	if (*obpoin) {
-		data->builder->build_object(NULL, *obpoin);
-	}
-}
-
-void constraint_walk(bConstraint * /*con*/,
-                     ID **idpoin,
-                     bool /*is_reference*/,
-                     void *user_data)
-{
-	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
-	if (*idpoin) {
-		ID *id = *idpoin;
-		if (GS(id->name) == ID_OB) {
-			data->builder->build_object(NULL, (Object *)id);
-		}
-	}
-}
-
-}  /* namespace */
-
 /* ***************** */
 /* Relations Builder */
 
@@ -463,7 +430,7 @@ void DepsgraphRelationBuilder::build_object(Base *base, Object *object)
 	if (object->modifiers.first != NULL) {
 		BuilderWalkUserData data;
 		data.builder = this;
-		modifiers_foreachObjectLink(object, modifier_walk, &data);
+		modifiers_foreachIDLink(object, modifier_walk, &data);
 	}
 	/* Constraints. */
 	if (object->constraints.first != NULL) {
@@ -538,7 +505,7 @@ void DepsgraphRelationBuilder::build_object_flags(Base *base, Object *object)
 	}
 	OperationKey view_layer_done_key(&scene_->id,
 	                                 DEG_NODE_TYPE_LAYER_COLLECTIONS,
-	                                 DEG_OPCODE_VIEW_LAYER_DONE);
+	                                 DEG_OPCODE_VIEW_LAYER_EVAL);
 	OperationKey object_flags_key(&object->id,
 	                              DEG_NODE_TYPE_LAYER_COLLECTIONS,
 	                              DEG_OPCODE_OBJECT_BASE_FLAGS);
@@ -2061,18 +2028,18 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDDepsNode *id_node
 				graph_->add_new_relation(op_cow, op_node, "CoW Dependency");
 			}
 			else {
-				bool has_same_id_dependency = false;
+				bool has_same_comp_dependency = false;
 				foreach (DepsRelation *rel, op_node->inlinks) {
 					if (rel->from->type != DEG_NODE_TYPE_OPERATION) {
 						continue;
 					}
 					OperationDepsNode *op_node_from = (OperationDepsNode *)rel->from;
-					if (op_node_from->owner->owner == op_node->owner->owner) {
-						has_same_id_dependency = true;
+					if (op_node_from->owner == op_node->owner) {
+						has_same_comp_dependency = true;
 						break;
 					}
 				}
-				if (!has_same_id_dependency) {
+				if (!has_same_comp_dependency) {
 					graph_->add_new_relation(op_cow, op_node, "CoW Dependency");
 				}
 			}
@@ -2102,6 +2069,45 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDDepsNode *id_node
 		}
 		else {
 			BLI_assert(object->type == OB_EMPTY);
+		}
+	}
+}
+
+/* **** ID traversal callbacks functions **** */
+
+void DepsgraphRelationBuilder::modifier_walk(void *user_data,
+                                             struct Object * /*object*/,
+                                             struct ID **idpoin,
+                                             int /*cb_flag*/)
+{
+	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
+	ID *id = *idpoin;
+	if (id == NULL) {
+		return;
+	}
+	switch (GS(id->name)) {
+		case ID_OB:
+			data->builder->build_object(NULL, (Object *)id);
+			break;
+		case ID_TE:
+			data->builder->build_texture((Tex *)id);
+			break;
+		default:
+			/* pass */
+			break;
+	}
+}
+
+void DepsgraphRelationBuilder::constraint_walk(bConstraint * /*con*/,
+                                               ID **idpoin,
+                                               bool /*is_reference*/,
+                                               void *user_data)
+{
+	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
+	if (*idpoin) {
+		ID *id = *idpoin;
+		if (GS(id->name) == ID_OB) {
+			data->builder->build_object(NULL, (Object *)id);
 		}
 	}
 }

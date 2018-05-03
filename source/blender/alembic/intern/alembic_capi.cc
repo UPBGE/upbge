@@ -230,7 +230,6 @@ static void find_iobject(const IObject &object, IObject &ret,
 }
 
 struct ExportJobData {
-	EvaluationContext eval_ctx;
 	Scene *scene;
 	ViewLayer *view_layer;
 	Depsgraph *depsgraph;
@@ -266,17 +265,17 @@ static void export_startjob(void *customdata, short *stop, short *do_update, flo
 	try {
 		Scene *scene = data->scene;
 		ViewLayer *view_layer = data->view_layer;
-		AbcExporter exporter(data->bmain, &data->eval_ctx, scene, view_layer, data->depsgraph, data->filename, data->settings);
+		AbcExporter exporter(data->bmain, scene, view_layer, data->depsgraph, data->filename, data->settings);
 
 		const int orig_frame = CFRA;
 
 		data->was_canceled = false;
-		exporter(data->bmain, *data->progress, data->was_canceled);
+		exporter(*data->progress, data->was_canceled);
 
 		if (CFRA != orig_frame) {
 			CFRA = orig_frame;
 
-			BKE_scene_graph_update_for_newframe(data->bmain->eval_ctx, data->depsgraph, data->bmain, scene, data->view_layer);
+			BKE_scene_graph_update_for_newframe(data->depsgraph, data->bmain);
 		}
 
 		data->export_ok = !data->was_canceled;
@@ -314,8 +313,6 @@ bool ABC_export(
         bool as_background_job)
 {
 	ExportJobData *job = static_cast<ExportJobData *>(MEM_mallocN(sizeof(ExportJobData), "ExportJobData"));
-
-	CTX_data_eval_ctx(C, &job->eval_ctx);
 
 	job->scene = scene;
 	job->view_layer = CTX_data_view_layer(C);
@@ -858,9 +855,11 @@ static void import_endjob(void *user_data)
 			base = BKE_view_layer_base_find(view_layer, ob);
 			BKE_view_layer_base_select(view_layer, base);
 
-			DEG_id_tag_update_ex(data->bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+			DEG_id_tag_update_ex(data->bmain, &ob->id,
+			                     OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME | DEG_TAG_BASE_FLAGS_UPDATE);
 		}
 
+		DEG_id_tag_update(&data->scene->id, DEG_TAG_BASE_FLAGS_UPDATE);
 		DEG_relations_tag_update(data->bmain);
 	}
 

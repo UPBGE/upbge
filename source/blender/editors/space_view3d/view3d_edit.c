@@ -244,22 +244,21 @@ void view3d_orbit_apply_dyn_ofs(
 static bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
 {
 	static float lastofs[3] = {0, 0, 0};
-	const WorkSpace *workspace = CTX_wm_workspace(C);
 	bool is_set = false;
 
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 	Object *ob_act = OBACT(view_layer);
 
-	if (ob_act && (workspace->object_mode & OB_MODE_ALL_PAINT) &&
+	if (ob_act && (ob_act->mode & OB_MODE_ALL_PAINT) &&
 	    /* with weight-paint + pose-mode, fall through to using calculateTransformCenter */
-	    ((workspace->object_mode & OB_MODE_WEIGHT_PAINT) && BKE_object_pose_armature_get(ob_act)) == 0)
+	    ((ob_act->mode & OB_MODE_WEIGHT_PAINT) && BKE_object_pose_armature_get(ob_act)) == 0)
 	{
 		/* in case of sculpting use last average stroke position as a rotation
 		 * center, in other cases it's not clear what rotation center shall be
 		 * so just rotate around object origin
 		 */
-		if (workspace->object_mode & (OB_MODE_SCULPT | OB_MODE_TEXTURE_PAINT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
+		if (ob_act->mode & (OB_MODE_SCULPT | OB_MODE_TEXTURE_PAINT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
 			float stroke[3];
 			BKE_paint_stroke_get_average(scene, ob_act, stroke);
 			copy_v3_v3(lastofs, stroke);
@@ -269,7 +268,7 @@ static bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
 		}
 		is_set = true;
 	}
-	else if (ob_act && (workspace->object_mode & OB_MODE_EDIT) && (ob_act->type == OB_FONT)) {
+	else if (ob_act && (ob_act->mode & OB_MODE_EDIT) && (ob_act->type == OB_FONT)) {
 		Curve *cu = ob_act->data;
 		EditFont *ef = cu->editfont;
 		int i;
@@ -284,7 +283,7 @@ static bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
 
 		is_set = true;
 	}
-	else if (ob_act == NULL || workspace->object_mode == OB_MODE_OBJECT) {
+	else if (ob_act == NULL || ob_act->mode == OB_MODE_OBJECT) {
 		/* object mode use boundbox centers */
 		Base *base;
 		unsigned int tot = 0;
@@ -378,18 +377,15 @@ static void viewops_data_create(
 
 	/* we need the depth info before changing any viewport options */
 	if (viewops_flag & VIEWOPS_FLAG_DEPTH_NAVIGATE) {
-		EvaluationContext eval_ctx;
 		struct Depsgraph *graph = CTX_data_depsgraph(C);
 		float fallback_depth_pt[3];
-
-		CTX_data_eval_ctx(C, &eval_ctx);
 
 		view3d_operator_needs_opengl(C); /* needed for zbuf drawing */
 
 		negate_v3_v3(fallback_depth_pt, rv3d->ofs);
 
 		vod->use_dyn_ofs = ED_view3d_autodist(
-		        &eval_ctx, graph, vod->ar, vod->v3d,
+		        graph, vod->ar, vod->v3d,
 		        event->mval, vod->dyn_ofs, true, fallback_depth_pt);
 	}
 	else {
@@ -1801,7 +1797,7 @@ void viewzoom_modal_keymap(wmKeyConfig *keyconf)
  * \param zoom_xy: Optionally zoom to window location (coords compatible w/ #wmEvent.x, y). Use when not NULL.
  */
 static void view_zoom_to_window_xy_camera(
-        Scene *scene, const Depsgraph *depsgraph, View3D *v3d,
+        Scene *scene, Depsgraph *depsgraph, View3D *v3d,
         ARegion *ar, float dfac, const int zoom_xy[2])
 {
 	RegionView3D *rv3d = ar->regiondata;
@@ -2118,7 +2114,7 @@ static int viewzoom_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 static int viewzoom_exec(bContext *C, wmOperator *op)
 {
-	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d;
 	RegionView3D *rv3d;
@@ -2793,10 +2789,10 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
 /* like a localview without local!, was centerview() in 2.4x */
 static int viewselected_exec(bContext *C, wmOperator *op)
 {
-	const WorkSpace *workspace = CTX_wm_workspace(C);
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	Scene *scene = CTX_data_scene(C);
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
 	bGPdata *gpd = CTX_data_gpencil_data(C);
 	const bool is_gp_edit = ((gpd) && (gpd->flag & GP_DATA_STROKE_EDITMODE));
@@ -2817,10 +2813,16 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 		ob = NULL;
 	}
 
-	if (ob && (workspace->object_mode & OB_MODE_WEIGHT_PAINT)) {
-		Object *ob_armature = BKE_object_pose_armature_get_visible(ob, view_layer);
-		if (ob_armature) {
-			ob = ob_armature;
+	if (ob && (ob->mode & OB_MODE_WEIGHT_PAINT)) {
+		/* hard-coded exception, we look for the one selected armature */
+		/* this is weak code this way, we should make a generic active/selection callback interface once... */
+		Base *base;
+		for (base = view_layer->object_bases.first; base; base = base->next) {
+			if (TESTBASELIB(base)) {
+				if (base->object->type == OB_ARMATURE)
+					if (base->object->mode & OB_MODE_POSE)
+						break;
+			}
 		}
 	}
 
@@ -2840,19 +2842,26 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 		ok = WM_manipulatormap_minmax(ar->manipulator_map, true, true, min, max);
 	}
 	else if (obedit) {
-		ok = ED_view3d_minmax_verts(obedit, min, max);    /* only selected */
+		/* only selected */
+		FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, obedit->mode, ob_iter) {
+			ok |= ED_view3d_minmax_verts(ob_iter, min, max);
+		}
+		FOREACH_OBJECT_IN_MODE_END;
 	}
-	else if (ob && (workspace->object_mode & OB_MODE_POSE)) {
-		ok = BKE_pose_minmax(ob, min, max, true, true);
+	else if (ob && (ob->mode & OB_MODE_POSE)) {
+		FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, ob->mode, ob_iter) {
+			ok |= BKE_pose_minmax(ob_iter, min, max, true, true);
+		}
+		FOREACH_OBJECT_IN_MODE_END;
 	}
-	else if (BKE_paint_select_face_test(ob, workspace->object_mode)) {
+	else if (BKE_paint_select_face_test(ob)) {
 		ok = paintface_minmax(ob, min, max);
 	}
-	else if (ob && (workspace->object_mode & OB_MODE_PARTICLE_EDIT)) {
+	else if (ob && (ob->mode & OB_MODE_PARTICLE_EDIT)) {
 		ok = PE_minmax(scene, view_layer, min, max);
 	}
 	else if (ob &&
-	         (workspace->object_mode & (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)))
+	         (ob->mode & (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)))
 	{
 		BKE_paint_stroke_get_average(scene, ob, min);
 		copy_v3_v3(max, min);
@@ -2869,7 +2878,7 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 				}
 
 				/* account for duplis */
-				if (BKE_object_minmax_dupli(scene, base->object, min, max, false) == 0)
+				if (BKE_object_minmax_dupli(depsgraph, scene, base->object, min, max, false) == 0)
 					BKE_object_minmax(base->object, min, max, false);  /* use if duplis not found */
 
 				ok = 1;
@@ -2964,8 +2973,7 @@ static int view_lock_to_active_exec(bContext *C, wmOperator *UNUSED(op))
 		v3d->ob_centre = obact; /* can be NULL */
 
 		if (obact && obact->type == OB_ARMATURE) {
-			const WorkSpace *workspace = CTX_wm_workspace(C);
-			if (workspace->object_mode & OB_MODE_POSE) {
+			if (obact->mode & OB_MODE_POSE) {
 				bPoseChannel *pcham_act = BKE_pose_channel_active(obact);
 				if (pcham_act) {
 					BLI_strncpy(v3d->ob_centre_bone, pcham_act->name, sizeof(v3d->ob_centre_bone));
@@ -3063,18 +3071,15 @@ static int viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 	ARegion *ar = CTX_wm_region(C);
 
 	if (rv3d) {
-		EvaluationContext eval_ctx;
 		struct Depsgraph *graph = CTX_data_depsgraph(C);
 		float new_ofs[3];
 		const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-
-		CTX_data_eval_ctx(C, &eval_ctx);
 
 		ED_view3d_smooth_view_force_finish(C, v3d, ar);
 
 		view3d_operator_needs_opengl(C);
 
-		if (ED_view3d_autodist(&eval_ctx, graph, ar, v3d, event->mval, new_ofs, false, NULL)) {
+		if (ED_view3d_autodist(graph, ar, v3d, event->mval, new_ofs, false, NULL)) {
 			/* pass */
 		}
 		else {
@@ -3114,7 +3119,7 @@ void VIEW3D_OT_view_center_pick(wmOperatorType *ot)
 
 static int view3d_center_camera_exec(bContext *C, wmOperator *UNUSED(op)) /* was view3d_home() in 2.4x */
 {
-	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene = CTX_data_scene(C);
 	float xfac, yfac;
 	float size[2];
@@ -3198,7 +3203,7 @@ void VIEW3D_OT_view_center_lock(wmOperatorType *ot)
 
 static int render_border_exec(bContext *C, wmOperator *op)
 {
-	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	ARegion *ar = CTX_wm_region(C);
 	RegionView3D *rv3d = ED_view3d_context_rv3d(C);
@@ -3353,7 +3358,6 @@ void VIEW3D_OT_clear_render_border(wmOperatorType *ot)
 
 static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 {
-	EvaluationContext eval_ctx;
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -3375,8 +3379,6 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 	/* note; otherwise opengl won't work */
 	view3d_operator_needs_opengl(C);
 
-	CTX_data_eval_ctx(C, &eval_ctx);
-
 	/* get border select values using rna */
 	WM_operator_properties_border_to_rcti(op, &rect);
 
@@ -3386,7 +3388,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 	ED_view3d_dist_range_get(v3d, dist_range);
 
 	/* Get Z Depths, needed for perspective, nice for ortho */
-	ED_view3d_draw_depth(&eval_ctx, CTX_data_depsgraph(C), ar, v3d, true);
+	ED_view3d_draw_depth(CTX_data_depsgraph(C), ar, v3d, true);
 
 	{
 		/* avoid allocating the whole depth buffer */
@@ -3526,7 +3528,7 @@ void VIEW3D_OT_zoom_border(wmOperatorType *ot)
  * Sets the view to 1:1 camera/render-pixel.
  * \{ */
 
-static void view3d_set_1_to_1_viewborder(Scene *scene, const Depsgraph *depsgraph, ARegion *ar, View3D *v3d)
+static void view3d_set_1_to_1_viewborder(Scene *scene, Depsgraph *depsgraph, ARegion *ar, View3D *v3d)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	float size[2];
@@ -3540,7 +3542,7 @@ static void view3d_set_1_to_1_viewborder(Scene *scene, const Depsgraph *depsgrap
 
 static int view3d_zoom_1_to_1_camera_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
+	Depsgraph *depsgraph = CTX_data_depsgraph(C);
 	Scene *scene = CTX_data_scene(C);
 
 	View3D *v3d;
@@ -4545,13 +4547,10 @@ void ED_view3d_cursor3d_position(bContext *C, float fp[3], const int mval[2])
 	}
 
 	if (U.uiflag & USER_DEPTH_CURSOR) {  /* maybe this should be accessed some other way */
-		EvaluationContext eval_ctx;
 		struct Depsgraph *graph = CTX_data_depsgraph(C);
 
-		CTX_data_eval_ctx(C, &eval_ctx);
-
 		view3d_operator_needs_opengl(C);
-		if (ED_view3d_autodist(&eval_ctx, graph, ar, v3d, mval, fp, true, NULL)) {
+		if (ED_view3d_autodist(graph, ar, v3d, mval, fp, true, NULL)) {
 			depth_used = true;
 		}
 	}
@@ -4601,6 +4600,8 @@ void ED_view3d_cursor3d_update(bContext *C, const int mval[2])
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
 	else
 		WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
+
+	DEG_id_tag_update(&scene->id, DEG_TAG_COPY_ON_WRITE);
 }
 
 static int view3d_cursor3d_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)

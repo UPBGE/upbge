@@ -64,7 +64,6 @@ const EnumPropertyItem rna_enum_collection_type_items[] = {
 
 #include "DNA_group_types.h"
 #include "DNA_object_types.h"
-#include "DNA_workspace_types.h"
 
 #include "RNA_access.h"
 
@@ -73,8 +72,6 @@ const EnumPropertyItem rna_enum_collection_type_items[] = {
 #include "BKE_node.h"
 #include "BKE_scene.h"
 #include "BKE_mesh.h"
-#include "BKE_object.h"
-#include "BKE_workspace.h"
 
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
@@ -312,6 +309,9 @@ static void rna_LayerEngineSettings_##_ENGINE_##_##_NAME_##_set(PointerRNA *ptr,
 #define RNA_LAYER_ENGINE_EEVEE_GET_SET_BOOL(_NAME_) \
 	RNA_LAYER_ENGINE_GET_SET(bool, Eevee, COLLECTION_MODE_NONE, _NAME_)
 
+#define RNA_LAYER_ENGINE_WORKBENCH_GET_SET_FLOAT_ARRAY(_NAME_, _LEN_) \
+	RNA_LAYER_ENGINE_GET_SET_ARRAY(float, Workbench, COLLECTION_MODE_NONE, _NAME_, _LEN_)
+
 /* mode engines */
 
 #define RNA_LAYER_MODE_OBJECT_GET_SET_FLOAT(_NAME_) \
@@ -355,6 +355,10 @@ RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(ssao_distance)
 RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(ssao_attenuation)
 RNA_LAYER_ENGINE_CLAY_GET_SET_FLOAT(hair_brightness_randomness)
 #endif /* WITH_CLAY_ENGINE */
+
+/* workbench engine */
+/* LayerCollection settings. */
+RNA_LAYER_ENGINE_WORKBENCH_GET_SET_FLOAT_ARRAY(object_color, 3)
 
 /* eevee engine */
 /* ViewLayer settings. */
@@ -581,6 +585,9 @@ static StructRNA *rna_LayerCollectionSettings_refine(PointerRNA *ptr)
 				return &RNA_LayerCollectionEngineSettingsClay;
 			}
 #endif
+			if (STREQ(props->name, RE_engine_id_BLENDER_WORKBENCH)) {
+				return &RNA_LayerCollectionEngineSettingsWorkbench;
+			}
 			if (STREQ(props->name, RE_engine_id_BLENDER_EEVEE)) {
 				/* printf("Mode not fully implemented\n"); */
 				return &RNA_LayerCollectionSettings;
@@ -836,18 +843,6 @@ static void rna_LayerObjects_active_object_set(PointerRNA *ptr, PointerRNA value
 		view_layer->basact = BKE_view_layer_base_find(view_layer, (Object *)value.data);
 	else
 		view_layer->basact = NULL;
-}
-
-static void rna_LayerObjects_active_object_update(struct bContext *C, PointerRNA *ptr)
-{
-	wmWindow *win = CTX_wm_window(C);
-	Scene *scene = WM_window_get_active_scene(win);
-
-	if (scene != ptr->id.data) {
-		return;
-	}
-	ViewLayer *view_layer = (ViewLayer *)ptr->data;
-	ED_object_base_activate(C, view_layer->basact);
 }
 
 static IDProperty *rna_ViewLayer_idprops(PointerRNA *ptr, bool create)
@@ -1751,6 +1746,25 @@ static void rna_def_layer_collection_engine_settings_clay(BlenderRNA *brna)
 }
 #endif /* WITH_CLAY_ENGINE */
 
+static void rna_def_layer_collection_engine_settings_workbench(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "LayerCollectionEngineSettingsWorkbench", "LayerCollectionSettings");
+	RNA_def_struct_ui_text(srna, "Collections Workbench Engine Settings", "Engine specific settings for this collection");
+
+	RNA_define_verify_sdna(0); /* not in sdna */
+
+	prop = RNA_def_property(srna, "object_color", PROP_FLOAT, PROP_COLOR);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_float_funcs(prop, "rna_LayerEngineSettings_Workbench_object_color_get",
+	                             "rna_LayerEngineSettings_Workbench_object_color_set", NULL);
+	RNA_def_property_ui_text(prop, "Object Color", "Color for Drawing Objects");
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+	RNA_def_property_update(prop, 0, "rna_LayerCollectionEngineSettings_update");
+}
+
 static void rna_def_layer_collection_mode_settings_object(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1973,6 +1987,7 @@ static void rna_def_layer_collection_settings(BlenderRNA *brna)
 	rna_def_layer_collection_engine_settings_clay(brna);
 #endif
 
+	rna_def_layer_collection_engine_settings_workbench(brna);
 	rna_def_layer_collection_mode_settings_object(brna);
 	rna_def_layer_collection_mode_settings_edit(brna);
 	rna_def_layer_collection_mode_settings_paint_weight(brna);
@@ -2145,11 +2160,11 @@ static void rna_def_layer_objects(BlenderRNA *brna, PropertyRNA *cprop)
 	prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Object");
 	RNA_def_property_pointer_funcs(prop, "rna_LayerObjects_active_object_get", "rna_LayerObjects_active_object_set", NULL, NULL);
-	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK | PROP_CONTEXT_UPDATE);
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
 	RNA_def_property_ui_text(prop, "Active Object", "Active object for this layer");
 	/* Could call: ED_object_base_activate(C, rl->basact);
 	 * but would be a bad level call and it seems the notifier is enough */
-	RNA_def_property_update(prop, NC_SCENE | ND_OB_ACTIVE, "rna_LayerObjects_active_object_update");
+	RNA_def_property_update(prop, NC_SCENE | ND_OB_ACTIVE, NULL);
 
 	prop = RNA_def_property(srna, "selected", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "object_bases", NULL);

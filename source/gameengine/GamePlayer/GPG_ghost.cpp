@@ -1249,16 +1249,6 @@ int main(
 						Scene *scene = bfd->curscene;
 						G.main = maggie;
 
-						ViewLayer *view_layer = BKE_view_layer_from_scene_get(scene);
-						Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, true);
-						DEG_graph_relations_update(depsgraph, maggie, scene, view_layer);
-						InitProperties(view_layer, scene);
-
-						for (Object *ob = (Object *)maggie->object.first; ob; ob = (Object *)ob->id.next) {
-							Base *base = BKE_view_layer_base_find(view_layer, ob);
-							BKE_object_eval_flush_base_flags(maggie->eval_ctx, ob, base, true);
-						}
-
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;
 

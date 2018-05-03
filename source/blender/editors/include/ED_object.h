@@ -52,13 +52,12 @@ struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperator;
 struct wmOperatorType;
+struct wmWindow;
+struct wmWindowManager;
 struct PointerRNA;
 struct PropertyRNA;
 struct EnumPropertyItem;
-struct EvaluationContext;
-struct WorkSpace;
-struct wmWindow;
-struct wmWindowManager;
+struct Depsgraph;
 
 #include "DNA_object_enums.h"
 
@@ -120,14 +119,18 @@ struct Base *ED_object_add_duplicate(struct Main *bmain, struct Scene *scene, st
 void ED_object_parent(struct Object *ob, struct Object *parent, const int type, const char *substr);
 
 /* bitflags for enter/exit editmode */
-#define EM_FREEDATA     1
-#define EM_FREEUNDO     2
-#define EM_WAITCURSOR   4
-#define EM_DO_UNDO      8
-#define EM_IGNORE_LAYER 16
+enum {
+	EM_FREEDATA         = (1 << 0),
+	EM_WAITCURSOR       = (1 << 1),
+	EM_DO_UNDO          = (1 << 2),
+	EM_IGNORE_LAYER     = (1 << 3),
+	EM_NO_CONTEXT       = (1 << 4),
+};
 void ED_object_editmode_exit_ex(
-        struct bContext *C, struct WorkSpace *workspace, struct Scene *scene, struct Object *obedit, int flag);
+        struct bContext *C, struct Scene *scene, struct Object *obedit, int flag);
 void ED_object_editmode_exit(struct bContext *C, int flag);
+
+void ED_object_editmode_enter_ex(struct Scene *scene, struct Object *ob, int flag);
 void ED_object_editmode_enter(struct bContext *C, int flag);
 bool ED_object_editmode_load(struct Object *obedit);
 
@@ -135,27 +138,27 @@ bool ED_object_editmode_calc_active_center(struct Object *obedit, const bool sel
 
 
 void ED_object_vpaintmode_enter_ex(
-        const struct EvaluationContext *eval_ctx, struct wmWindowManager *wm,
-        struct WorkSpace *workspace, struct Scene *scene, struct Object *ob);
+        struct Depsgraph *depsgraph, struct wmWindowManager *wm,
+        struct Scene *scene, struct Object *ob);
 void ED_object_vpaintmode_enter(struct bContext *C);
 void ED_object_wpaintmode_enter_ex(
-        const struct EvaluationContext *eval_ctx, struct wmWindowManager *wm,
-        struct WorkSpace *workspace, struct Scene *scene, struct Object *ob);
+        struct Depsgraph *depsgraph, struct wmWindowManager *wm,
+        struct Scene *scene, struct Object *ob);
 void ED_object_wpaintmode_enter(struct bContext *C);
 
-void ED_object_vpaintmode_exit_ex(struct WorkSpace *workspace, struct Object *ob);
+void ED_object_vpaintmode_exit_ex(struct Object *ob);
 void ED_object_vpaintmode_exit(struct bContext *C);
-void ED_object_wpaintmode_exit_ex(struct WorkSpace *workspace, struct Object *ob);
+void ED_object_wpaintmode_exit_ex(struct Object *ob);
 void ED_object_wpaintmode_exit(struct bContext *C);
 
 void ED_object_sculptmode_enter_ex(
-        const struct EvaluationContext *eval_ctx,
-        struct WorkSpace *workspace, struct Scene *scene, struct Object *ob,
+        struct Depsgraph *depsgraph,
+        struct Scene *scene, struct Object *ob,
         struct ReportList *reports);
 void ED_object_sculptmode_enter(struct bContext *C, struct ReportList *reports);
 void ED_object_sculptmode_exit_ex(
-        const struct EvaluationContext *eval_ctx,
-        struct WorkSpace *workspace, struct Scene *scene, struct Object *ob);
+        struct Depsgraph *depsgraph,
+        struct Scene *scene, struct Object *ob);
 void ED_object_sculptmode_exit(struct bContext *C);
 
 void ED_object_location_from_view(struct bContext *C, float loc[3]);
@@ -190,9 +193,9 @@ void ED_objects_clear_paths(struct bContext *C, bool only_selected);
 void ED_objects_recalculate_paths(struct bContext *C, struct Scene *scene);
 
 /* constraints */
-struct ListBase *get_active_constraints(const struct EvaluationContext *eval_ctx, struct Object *ob);
+struct ListBase *get_active_constraints(struct Object *ob);
 struct ListBase *get_constraint_lb(struct Object *ob, struct bConstraint *con, struct bPoseChannel **r_pchan);
-struct bConstraint *get_active_constraint(const struct EvaluationContext *eval_ctx, struct Object *ob);
+struct bConstraint *get_active_constraint(struct Object *ob);
 
 void object_test_constraints(struct Object *ob);
 
@@ -205,7 +208,7 @@ void ED_object_constraint_dependency_tag_update(struct Main *bmain, struct Objec
 
 /* object_modes.c */
 bool ED_object_mode_compat_test(const struct Object *ob, eObjectMode mode);
-bool ED_object_mode_compat_set(struct bContext *C, struct WorkSpace *workspace, eObjectMode mode, struct ReportList *reports);
+bool ED_object_mode_compat_set(struct bContext *C, struct Object *ob, eObjectMode mode, struct ReportList *reports);
 void ED_object_mode_toggle(struct bContext *C, eObjectMode mode);
 void ED_object_mode_set(struct bContext *C, eObjectMode mode);
 
@@ -213,18 +216,11 @@ bool ED_object_mode_generic_enter(
         struct bContext *C,
         eObjectMode object_mode);
 void ED_object_mode_generic_exit(
-        const struct EvaluationContext *eval_ctx,
-        struct WorkSpace *workspace, struct Scene *scene, struct Object *ob);
+        struct Depsgraph *depsgraph,
+        struct Scene *scene, struct Object *ob);
 bool ED_object_mode_generic_has_data(
-        const struct EvaluationContext *eval_ctx,
+        struct Depsgraph *depsgraph,
         struct Object *ob);
-
-bool ED_object_mode_generic_enter_or_other_window(
-        struct bContext *C, const struct wmWindow *win_compare,
-        eObjectMode object_mode);
-void ED_object_mode_generic_exit_or_other_window(
-        const struct EvaluationContext *eval_ctx, struct wmWindowManager *wm,
-        struct WorkSpace *workspace, struct Scene *scene, struct Object *ob);
 
 bool ED_object_mode_generic_exists(
         struct wmWindowManager *wm, struct Object *ob,
@@ -236,30 +232,25 @@ enum {
 	MODIFIER_APPLY_SHAPE
 };
 
-struct ModifierData *ED_object_modifier_add(
-        struct ReportList *reports, struct Main *bmain, struct Scene *scene,
-        struct Object *ob, eObjectMode object_mode, const char *name, int type);
+struct ModifierData *ED_object_modifier_add(struct ReportList *reports, struct Main *bmain, struct Scene *scene,
+                                            struct Object *ob, const char *name, int type);
 bool ED_object_modifier_remove(struct ReportList *reports, struct Main *bmain,
                                struct Object *ob, struct ModifierData *md);
 void ED_object_modifier_clear(struct Main *bmain, struct Object *ob);
 int ED_object_modifier_move_down(struct ReportList *reports, struct Object *ob, struct ModifierData *md);
 int ED_object_modifier_move_up(struct ReportList *reports, struct Object *ob, struct ModifierData *md);
-int ED_object_modifier_convert(
-        struct ReportList *reports, struct Main *bmain, struct Scene *scene,
-        struct ViewLayer *view_layer, struct Object *ob, eObjectMode object_mode, struct ModifierData *md);
-int ED_object_modifier_apply(struct ReportList *reports, const struct bContext *C, struct Scene *scene,
+int ED_object_modifier_convert(struct ReportList *reports, struct Main *bmain, struct Scene *scene,
+                               struct ViewLayer *view_layer, struct Object *ob, struct ModifierData *md);
+int ED_object_modifier_apply(struct ReportList *reports, struct Depsgraph *depsgraph, struct Scene *scene,
                              struct Object *ob, struct ModifierData *md, int mode);
 int ED_object_modifier_copy(struct ReportList *reports, struct Object *ob, struct ModifierData *md);
 
 bool ED_object_iter_other(
-        const struct EvaluationContext *eval_ctx, struct Main *bmain,
-        struct Object *orig_ob, const bool include_orig,
-        bool (*callback)(const struct EvaluationContext *eval_ctx, struct Object *ob, void *callback_data),
+        struct Main *bmain, struct Object *orig_ob, const bool include_orig,
+        bool (*callback)(struct Object *ob, void *callback_data),
         void *callback_data);
 
-bool ED_object_multires_update_totlevels_cb(
-        const struct EvaluationContext *eval_ctx,
-        struct Object *ob, void *totlevel_v);
+bool ED_object_multires_update_totlevels_cb(struct Object *ob, void *totlevel_v);
 
 /* object_select.c */
 void ED_object_select_linked_by_id(struct bContext *C, struct ID *id);
@@ -271,9 +262,7 @@ const struct EnumPropertyItem *ED_object_vgroup_selection_itemf_helper(
         bool *r_free,
         const unsigned int selection_mask);
 
-void ED_object_check_force_modifiers(
-        struct Main *bmain, struct Scene *scene,
-        struct Object *object, eObjectMode object_mode);
+void ED_object_check_force_modifiers(struct Main *bmain, struct Scene *scene, struct Object *object);
 
 /* object_facemap_ops.c */
 void ED_object_facemap_face_add(struct Object *ob, struct bFaceMap *fmap, int facenum);

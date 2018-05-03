@@ -285,14 +285,6 @@ static void initData(ModifierData *md)
 	wmd->max_dist             = 1.0f; /* vert arbitrary distance, but don't use 0 */
 }
 
-static void freeData(ModifierData *md)
-{
-	WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *) md;
-	if (wmd->mask_texture) {
-		id_us_min(&wmd->mask_texture->id);
-	}
-}
-
 static void copyData(ModifierData *md, ModifierData *target)
 {
 #if 0
@@ -376,7 +368,7 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 	return (wmd->proximity_ob_target == NULL);
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, const struct EvaluationContext *UNUSED(eval_ctx), Object *ob,
+static DerivedMesh *applyModifier(ModifierData *md, struct Depsgraph *UNUSED(depsgraph), Object *ob,
                                   DerivedMesh *derivedData, ModifierApplyFlag UNUSED(flag))
 {
 	WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *) md;
@@ -592,7 +584,7 @@ ModifierTypeInfo modifierType_WeightVGProximity = {
 	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
-	/* freeData */          freeData,
+	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     dependsOnTime,

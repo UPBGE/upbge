@@ -1423,7 +1423,7 @@ static void outliner_draw_tree_element(
 			/* Master collection can't expand/collapse. */
 		}
 		else if (te->subtree.first || (tselem->type == 0 && te->idcode == ID_SCE) || (te->flag & TE_LAZY_CLOSED)) {
-		/* open/close icon, only when sublevels, except for scene */
+			/* open/close icon, only when sublevels, except for scene */
 			int icon_x = startx;
 
 			// icons a bit higher
@@ -1900,12 +1900,10 @@ static void outliner_draw_restrictcols(ARegion *ar)
 
 void draw_outliner(const bContext *C)
 {
-	EvaluationContext eval_ctx;
-	CTX_data_eval_ctx(C, &eval_ctx);
-	Object *obedit = OBEDIT_FROM_EVAL_CTX(&eval_ctx);
 	Main *mainvar = CTX_data_main(C); 
 	Scene *scene = CTX_data_scene(C);
 	ViewLayer *view_layer = CTX_data_view_layer(C);
+	Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
 	ARegion *ar = CTX_wm_region(C);
 	View2D *v2d = &ar->v2d;
 	SpaceOops *soops = CTX_wm_space_outliner(C);
@@ -1914,7 +1912,7 @@ void draw_outliner(const bContext *C)
 	TreeElement *te_edit = NULL;
 	bool has_restrict_icons;
 
-	outliner_build_tree(mainvar, &eval_ctx, scene, view_layer, soops, ar); // always
+	outliner_build_tree(mainvar, scene, view_layer, soops, ar); // always
 	
 	/* get extents of data */
 	outliner_height(soops, &soops->tree, &sizey);

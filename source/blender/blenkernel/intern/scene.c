@@ -115,6 +115,7 @@ const char *RE_engine_id_BLENDER_RENDER = "BLENDER_RENDER";
 const char *RE_engine_id_BLENDER_GAME = "BLENDER_GAME";
 const char *RE_engine_id_BLENDER_CLAY = "BLENDER_CLAY";
 const char *RE_engine_id_BLENDER_EEVEE = "BLENDER_EEVEE";
+const char *RE_engine_id_BLENDER_WORKBENCH = "BLENDER_WORKBENCH";
 const char *RE_engine_id_CYCLES = "CYCLES";
 
 void free_avicodecdata(AviCodecData *acd)
@@ -995,7 +996,7 @@ Scene *BKE_scene_set_name(Main *bmain, const char *name)
 
 /* Used by metaballs, return *all* objects (including duplis) existing in the scene (including scene's sets) */
 int BKE_scene_base_iter_next(
-        const EvaluationContext *eval_ctx, SceneBaseIter *iter,
+        Depsgraph *depsgraph, SceneBaseIter *iter,
         Scene **scene, int val, Base **base, Object **ob)
 {
 	bool run_again = true;
@@ -1014,7 +1015,9 @@ int BKE_scene_base_iter_next(
 
 			/* the first base */
 			if (iter->phase == F_START) {
-				ViewLayer *view_layer = eval_ctx->view_layer;
+				ViewLayer *view_layer = (depsgraph) ?
+					DEG_get_evaluated_view_layer(depsgraph) :
+					BKE_view_layer_from_scene_get(*scene);
 				*base = view_layer->object_bases.first;
 				if (*base) {
 					*ob = (*base)->object;
@@ -1062,12 +1065,12 @@ int BKE_scene_base_iter_next(
 			}
 			else {
 				if (iter->phase != F_DUPLI) {
-					if ( (*base)->object->transflag & OB_DUPLI) {
+					if (depsgraph && (*base)->object->transflag & OB_DUPLI) {
 						/* groups cannot be duplicated for mballs yet, 
 						 * this enters eternal loop because of 
 						 * makeDispListMBall getting called inside of group_duplilist */
 						if ((*base)->object->dup_group == NULL) {
-							iter->duplilist = object_duplilist_ex(eval_ctx, (*scene), (*base)->object, false);
+							iter->duplilist = object_duplilist_ex(depsgraph, (*scene), (*base)->object, false);
 							
 							iter->dupob = iter->duplilist->first;
 
@@ -1350,10 +1353,10 @@ static bool check_rendered_viewport_visible(Main *bmain)
 	return false;
 }
 
-/* TODO(campbell): shouldn't we be able to use 'eval_ctx->view_layer' here?
+/* TODO(campbell): shouldn't we be able to use 'DEG_get_view_layer' here?
  * Currently this is NULL on load, so don't. */
 static void prepare_mesh_for_viewport_render(
-        Main *bmain, const EvaluationContext *eval_ctx, const ViewLayer *view_layer)
+        Main *bmain, const ViewLayer *view_layer)
 {
 	/* This is needed to prepare mesh to be used by the render
 	 * engine from the viewport rendering. We do loading here
@@ -1364,8 +1367,7 @@ static void prepare_mesh_for_viewport_render(
 	 * call loading of the edit data for the mesh objects.
 	 */
 
-	/* Expanded 'OBEDIT_FROM_EVAL_CTX' */
-	Object *obedit = (eval_ctx->object_mode & OB_MODE_EDIT) ? OBACT(view_layer) : NULL;
+	Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
 	if (obedit) {
 		Mesh *mesh = obedit->data;
 		if ((obedit->type == OB_MESH) &&
@@ -1388,17 +1390,12 @@ static void prepare_mesh_for_viewport_render(
 /* TODO(sergey): This actually should become view_layer_graph or so.
  * Same applies to update_for_newframe.
  */
-void BKE_scene_graph_update_tagged(EvaluationContext *eval_ctx,
-                                   Depsgraph *depsgraph,
-                                   Main *bmain,
-                                   Scene *scene,
-                                   ViewLayer *view_layer)
+void BKE_scene_graph_update_tagged(Depsgraph *depsgraph,
+                                   Main *bmain)
 {
-	/* TODO(sergey): Temporary solution for until pipeline.c is ported. */
-	if (view_layer == NULL) {
-		view_layer = DEG_get_evaluated_view_layer(depsgraph);
-		BLI_assert(view_layer != NULL);
-	}
+	Scene *scene = DEG_get_input_scene(depsgraph);
+	ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
+
 	/* TODO(sergey): Some functions here are changing global state,
 	 * for example, clearing update tags from bmain.
 	 */
@@ -1407,13 +1404,13 @@ void BKE_scene_graph_update_tagged(EvaluationContext *eval_ctx,
 	/* Uncomment this to check if graph was properly tagged for update. */
 	// DEG_debug_graph_relations_validate(depsgraph, bmain, scene);
 	/* Flush editing data if needed. */
-	prepare_mesh_for_viewport_render(bmain, eval_ctx, view_layer);
+	prepare_mesh_for_viewport_render(bmain, view_layer);
 	/* Flush recalc flags to dependencies. */
 	DEG_graph_flush_update(bmain, depsgraph);
 	/* Update all objects: drivers, matrices, displists, etc. flags set
 	 * by depgraph or manual, no layer check here, gets correct flushed.
 	 */
-	DEG_evaluate_on_refresh(eval_ctx, depsgraph);
+	DEG_evaluate_on_refresh(depsgraph);
 	/* Update sound system animation (TODO, move to depsgraph). */
 	BKE_sound_update_scene(bmain, scene);
 	/* Inform editors about possible changes. */
@@ -1423,12 +1420,12 @@ void BKE_scene_graph_update_tagged(EvaluationContext *eval_ctx,
 }
 
 /* applies changes right away, does all sets too */
-void BKE_scene_graph_update_for_newframe(EvaluationContext *eval_ctx,
-                                         Depsgraph *depsgraph,
-                                         Main *bmain,
-                                         Scene *scene,
-                                         ViewLayer *view_layer)
+void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph,
+                                         Main *bmain)
 {
+	Scene *scene = DEG_get_input_scene(depsgraph);
+	ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
+
 	/* TODO(sergey): Some functions here are changing global state,
 	 * for example, clearing update tags from bmain.
 	 */
@@ -1453,7 +1450,7 @@ void BKE_scene_graph_update_for_newframe(EvaluationContext *eval_ctx,
 	/* Update all objects: drivers, matrices, displists, etc. flags set
 	 * by depgraph or manual, no layer check here, gets correct flushed.
 	 */
-	DEG_evaluate_on_framechange(eval_ctx, bmain, depsgraph, ctime);
+	DEG_evaluate_on_framechange(bmain, depsgraph, ctime);
 	/* Update sound system animation (TODO, move to depsgraph). */
 	BKE_sound_update_scene(bmain, scene);
 	/* Notify editors and python about recalc. */
@@ -2194,7 +2191,7 @@ Depsgraph *BKE_scene_get_depsgraph(Scene *scene,
 		{
 			*key_ptr = MEM_mallocN(sizeof(DepsgraphKey), __func__);
 			**key_ptr = key;
-			*depsgraph_ptr = DEG_graph_new();
+			*depsgraph_ptr = DEG_graph_new(scene, view_layer, DAG_EVAL_VIEWPORT);
 		}
 		depsgraph = *depsgraph_ptr;
 	}
