@@ -3929,6 +3929,8 @@ static void direct_link_image(FileData *fd, Image *ima)
 		}
 		ima->rr = NULL;
 	}
+
+	ima->repbind = NULL;
 	
 	/* undo system, try to restore render buffers */
 	if (fd->imamap) {
