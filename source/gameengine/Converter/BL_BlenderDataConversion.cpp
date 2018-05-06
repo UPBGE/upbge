@@ -918,7 +918,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	lightobj->m_color[2] = la->b;
 	lightobj->m_distance = la->dist;
 	lightobj->m_energy = la->energy;
-	lightobj->m_hasShadow = (la->mode & (LA_SHAD_BUF | LA_SHAD_RAY));
+	lightobj->m_hasShadow = true;
 	lightobj->m_shadowclipstart = la->clipsta;
 	lightobj->m_shadowclipend = la->clipend;
 	lightobj->m_shadowbias = la->bias;

@@ -733,6 +733,14 @@ void UI_widget_batch_preset_reset(void) RET_NONE
 void UI_widget_batch_preset_exit(void) RET_NONE
 void UI_widgetbase_draw_cache_flush(void) RET_NONE
 
+struct uiPopover *UI_popover_begin(struct bContext *C) RET_NULL
+void UI_popover_end(struct bContext *C, struct uiPopover *head) RET_NONE
+struct uiLayout *UI_popover_layout(struct uiPopover *head) RET_NULL
+void uiTemplateOperatorRedoProperties(struct uiLayout *layout, struct bContext *C) RET_NONE
+void uiItemPopoverPanelFromGroup(struct uiLayout *layout, struct bContext *C, int space_id, int region_id, const char *context, const char *category) RET_NONE
+void uiItemPopoverPanel(struct uiLayout *layout, struct bContext *C, int space_id, int region_id, const char *panelname, const char *name, int icon) RET_NONE
+void ED_region_visibility_change_update(struct bContext *C, struct ARegion *ar) RET_NONE
+
 void PE_update_object(struct Depsgraph *depsgraph, struct Scene *scene,	struct Object *ob, int useflag) RET_NONE
 struct PTCacheEdit *PE_create_current(struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob) RET_NULL
 float ED_armature_ebone_roll_to_vector(const struct EditBone *bone, const float new_up_axis[3], const bool axis_only) RET_ZERO
