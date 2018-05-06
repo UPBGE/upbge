@@ -663,7 +663,7 @@ static void do_version_view_layer_visibility(ViewLayer *view_layer)
 	}
 }
 
-void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *main)
+void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 {
 
 	if (!MAIN_VERSION_ATLEAST(main, 280, 0)) {
@@ -738,24 +738,6 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *main)
 	}
 
 	if (!MAIN_VERSION_ATLEAST(main, 280, 2)) {
-		if (!DNA_struct_elem_find(fd->filesdna, "View3D", "short", "custom_orientation_index")) {
-			for (bScreen *screen = main->screen.first; screen; screen = screen->id.next) {
-				for (ScrArea *area = screen->areabase.first; area; area = area->next) {
-					for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
-						if (sl->spacetype == SPACE_VIEW3D) {
-							View3D *v3d = (View3D *)sl;
-							if (v3d->twmode >= V3D_MANIP_CUSTOM) {
-								v3d->custom_orientation_index = v3d->twmode - V3D_MANIP_CUSTOM;
-								v3d->twmode = V3D_MANIP_CUSTOM;
-							}
-							else {
-								v3d->custom_orientation_index = -1;
-							}
-						}
-					}
-				}
-			}
-		}
 
 		/*********************************Game engine**********************************/
 
