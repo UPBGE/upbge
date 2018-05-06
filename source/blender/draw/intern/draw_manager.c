@@ -2091,6 +2091,46 @@ void DRW_opengl_context_disable(void)
 #include "BKE_main.h"
 #include "BKE_scene.h"
 
+static void eevee_game_view_layer_data_free()
+{
+	EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
+
+	/* Lights */
+	MEM_SAFE_FREE(sldata->lamps);
+	DRW_UBO_FREE_SAFE(sldata->light_ubo);
+	DRW_UBO_FREE_SAFE(sldata->shadow_ubo);
+	DRW_UBO_FREE_SAFE(sldata->shadow_render_ubo);
+	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cube_target_fb);
+	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cascade_target_fb);
+	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_store_fb);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_target);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_blur);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_target);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_blur);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_pool);
+	MEM_SAFE_FREE(sldata->shcasters_buffers[0].shadow_casters);
+	MEM_SAFE_FREE(sldata->shcasters_buffers[0].flags);
+	MEM_SAFE_FREE(sldata->shcasters_buffers[1].shadow_casters);
+	MEM_SAFE_FREE(sldata->shcasters_buffers[1].flags);
+
+	/* Probes */
+	MEM_SAFE_FREE(sldata->probes);
+	DRW_UBO_FREE_SAFE(sldata->probe_ubo);
+	DRW_UBO_FREE_SAFE(sldata->grid_ubo);
+	DRW_UBO_FREE_SAFE(sldata->planar_ubo);
+	DRW_UBO_FREE_SAFE(sldata->common_ubo);
+	DRW_UBO_FREE_SAFE(sldata->clip_ubo);
+	GPU_FRAMEBUFFER_FREE_SAFE(sldata->probe_filter_fb);
+	for (int i = 0; i < 6; ++i) {
+		GPU_FRAMEBUFFER_FREE_SAFE(sldata->probe_face_fb[i]);
+	}
+	DRW_TEXTURE_FREE_SAFE(sldata->probe_rt);
+	DRW_TEXTURE_FREE_SAFE(sldata->probe_depth_rt);
+	DRW_TEXTURE_FREE_SAFE(sldata->probe_pool);
+	DRW_TEXTURE_FREE_SAFE(sldata->irradiance_pool);
+	DRW_TEXTURE_FREE_SAFE(sldata->irradiance_rt);
+}
+
 bool DRW_state_is_game_engine()
 {
 	return DST.options.is_game_engine;
@@ -2289,6 +2329,7 @@ void DRW_game_render_loop_end()
 {
 	GPU_viewport_free(DST.viewport);
 
+	eevee_game_view_layer_data_free();
 	draw_engine_eevee_type.engine_free();
 
 	memset(&DST, 0xFF, offsetof(DRWManager, ogl_context));
