@@ -108,7 +108,8 @@ enum {
 	UI_DIR_DOWN         = (1 << 1),
 	UI_DIR_LEFT         = (1 << 2),
 	UI_DIR_RIGHT        = (1 << 3),
-	UI_DIR_CENTER_Y     = (1 << 4),
+	UI_DIR_CENTER_X     = (1 << 4),
+	UI_DIR_CENTER_Y     = (1 << 5),
 
 	UI_DIR_ALL          = (UI_DIR_UP | UI_DIR_DOWN | UI_DIR_LEFT | UI_DIR_RIGHT),
 };
@@ -140,6 +141,7 @@ enum {
 #define UI_BLOCK_POPUP_HOLD  (1 << 18)
 #define UI_BLOCK_LIST_ITEM   (1 << 19)
 #define UI_BLOCK_RADIAL      (1 << 20)
+#define UI_BLOCK_POPOVER     (1 << 21)
 
 /* uiPopupBlockHandle->menuretval */
 #define UI_RETURN_CANCEL     (1 << 0)   /* cancel all menus cascading */
@@ -179,7 +181,7 @@ enum {
 	UI_BUT_COLOR_CUBIC     = (1 << 23),  /* cubic saturation for the color wheel */
 	UI_BUT_LIST_ITEM       = (1 << 24),  /* This but is "inside" a list item (currently used to change theme colors). */
 	UI_BUT_DRAG_MULTI      = (1 << 25),  /* edit this button as well as the active button (not just dragging) */
-	UI_BUT_SCA_LINK_GREY   = (1 << 26),  /* used to flag if sca links shoud be gray out */
+
 	UI_BUT_HAS_SEP_CHAR    = (1 << 27),  /* but->str contains UI_SEP_CHAR, used for key shortcuts */
 	UI_BUT_UPDATE_DELAY    = (1 << 28),  /* don't run updates while dragging (needed in rare cases). */
 	UI_BUT_TEXTEDIT_UPDATE = (1 << 29),  /* when widget is in textedit mode, update value on each char stroke */
@@ -221,6 +223,9 @@ enum {
 	UI_BUT_ALIGN_ALL         = (UI_BUT_ALIGN | UI_BUT_ALIGN_STITCH_TOP | UI_BUT_ALIGN_STITCH_LEFT),
 
 	UI_BUT_BOX_ITEM          = (1 << 20), /* This but is "inside" a box item (currently used to change theme colors). */
+
+	UI_BUT_ACTIVE_LEFT       = (1 << 21), /* Active left part of number button */
+	UI_BUT_ACTIVE_RIGHT      = (1 << 22), /* Active left part of number button */
 };
 
 /* scale fixed button widths by this to account for DPI */
@@ -265,6 +270,7 @@ typedef enum {
 	UI_BTYPE_CHECKBOX_N             = (14 << 9),
 	UI_BTYPE_COLOR                  = (15 << 9),
 	UI_BTYPE_TAB                    = (16 << 9),
+	UI_BTYPE_POPOVER                = (17 << 9),
 	UI_BTYPE_SCROLL                 = (18 << 9),
 	UI_BTYPE_BLOCK                  = (19 << 9),
 	UI_BTYPE_LABEL                  = (20 << 9),
@@ -316,6 +322,9 @@ typedef enum {
  *
  * Functions to draw various shapes, taking theme settings into account.
  * Used for code that draws its own UI style elements. */
+
+void UI_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3, const float color[4]);
+void UI_draw_anti_fan(float tri_array[][2], unsigned int length, const float color[4]);
 
 void UI_draw_roundbox_corner_set(int type);
 void UI_draw_roundbox_aa(bool filled, float minx, float miny, float maxx, float maxy, float rad, const float color[4]);
@@ -410,6 +419,17 @@ int UI_popup_menu_invoke(struct bContext *C, const char *idname, struct ReportLi
 
 void UI_popup_menu_retval_set(const uiBlock *block, const int retval, const bool enable);
 void UI_popup_menu_but_set(uiPopupMenu *pup, struct ARegion *butregion, uiBut *but);
+
+/* interface_region_popover.c */
+
+typedef struct uiPopover uiPopover;
+
+uiPopover *UI_popover_begin(
+        struct bContext *C) ATTR_NONNULL();
+uiPopover *UI_popover_begin_ex(
+        struct bContext *C, const char *block_name) ATTR_NONNULL();
+void UI_popover_end(struct bContext *C, struct uiPopover *head);
+struct uiLayout *UI_popover_layout(uiPopover *head);
 
 /* interface_region_menu_pie.c */
 /* Pie menus */
@@ -923,6 +943,7 @@ void uiLayoutSetContextPointer(uiLayout *layout, const char *name, struct Pointe
 void uiLayoutContextCopy(uiLayout *layout, struct bContextStore *context);
 const char *uiLayoutIntrospect(uiLayout *layout); // XXX - testing
 struct MenuType *UI_but_menutype_get(uiBut *but);
+struct PanelType *UI_but_paneltype_get(uiBut *but);
 void UI_menutype_draw(struct bContext *C, struct MenuType *mt, struct uiLayout *layout);
 
 /* Only for convenience. */
@@ -992,9 +1013,9 @@ void uiTemplateSearchPreview(
 void uiTemplatePathBuilder(uiLayout *layout, struct PointerRNA *ptr, const char *propname, 
                            struct PointerRNA *root_ptr, const char *text);
 uiLayout *uiTemplateModifier(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr);
-#ifdef WITH_REDO_REGION_REMOVAL
+
 void uiTemplateOperatorRedoProperties(uiLayout *layout, struct bContext *C);
-#endif
+
 uiLayout *uiTemplateConstraint(uiLayout *layout, struct PointerRNA *ptr);
 void uiTemplatePreview(uiLayout *layout, struct bContext *C, struct ID *id, int show_buttons, struct ID *parent,
                        struct MTex *slot, const char *preview_id);
@@ -1103,6 +1124,19 @@ void uiItemLDrag(uiLayout *layout, struct PointerRNA *ptr, const char *name, int
 void uiItemM(uiLayout *layout, struct bContext *C, const char *menuname, const char *name, int icon); /* menu */
 void uiItemV(uiLayout *layout, const char *name, int icon, int argval); /* value */
 void uiItemS(uiLayout *layout); /* separator */
+
+void uiItemPopoverPanel_ptr(
+        uiLayout *layout, struct bContext *C,
+        struct PanelType *pt,
+        const char *name, int icon);
+void uiItemPopoverPanel(
+        uiLayout *layout, struct bContext *C,
+        int space_id, int region_id, const char *panelname,
+        const char *name, int icon);
+void uiItemPopoverPanelFromGroup(
+        uiLayout *layout, struct bContext *C,
+        int space_id, int region_id,
+        const char *context, const char *category);
 
 void uiItemMenuF(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *arg);
 void uiItemMenuEnumO_ptr(uiLayout *layout, struct bContext *C, struct wmOperatorType *ot, const char *propname, const char *name, int icon);

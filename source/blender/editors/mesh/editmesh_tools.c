@@ -1482,8 +1482,7 @@ static int edbm_face_make_planar_exec(bContext *C, wmOperator *op)
 	const int repeat = RNA_int_get(op->ptr, "repeat");
 	const float fac = RNA_float_get(op->ptr, "factor");
 
-	for (uint ob_index = 0; ob_index < objects_len; ob_index++)
-	{
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 		Object *obedit = objects[ob_index];
 		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 		if (em->bm->totfacesel == 0) {
@@ -1491,8 +1490,8 @@ static int edbm_face_make_planar_exec(bContext *C, wmOperator *op)
 		}
 
 		if (!EDBM_op_callf(
-				em, op, "planar_faces faces=%hf iterations=%i factor=%f",
-				BM_ELEM_SELECT, repeat, fac))
+		            em, op, "planar_faces faces=%hf iterations=%i factor=%f",
+		            BM_ELEM_SELECT, repeat, fac))
 		{
 			continue;
 		}
@@ -1531,23 +1530,32 @@ void MESH_OT_face_make_planar(wmOperatorType *ot)
 
 static int edbm_edge_split_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		if (em->bm->totedgesel == 0) {
+			continue;
+		}
 
-	if (!EDBM_op_call_and_selectf(
-	        em, op,
-	        "edges.out", false,
-	        "split_edges edges=%he",
-	        BM_ELEM_SELECT))
-	{
-		return OPERATOR_CANCELLED;
+		if (!EDBM_op_call_and_selectf(
+		            em, op,
+		            "edges.out", false,
+		            "split_edges edges=%he",
+		            BM_ELEM_SELECT))
+		{
+			continue;
+		}
+
+		if (em->selectmode == SCE_SELECT_FACE) {
+			EDBM_select_flush(em);
+		}
+
+		EDBM_update_generic(em, true, true);
 	}
-
-	if (em->selectmode == SCE_SELECT_FACE) {
-		EDBM_select_flush(em);
-	}
-
-	EDBM_update_generic(em, true, true);
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }
@@ -4488,8 +4496,8 @@ static int edbm_decimate_exec(bContext *C, wmOperator *op)
 		}
 
 		BM_mesh_decimate_collapse(
-				em->bm, ratio_adjust, vweights, vertex_group_factor, false,
-				symmetry_axis, symmetry_eps);
+		        em->bm, ratio_adjust, vweights, vertex_group_factor, false,
+		        symmetry_axis, symmetry_eps);
 
 		MEM_freeN(vweights);
 
@@ -6093,9 +6101,9 @@ static int mesh_symmetrize_exec(bContext *C, wmOperator *op)
 		const float thresh = RNA_float_get(op->ptr, "threshold");
 
 		EDBM_op_init(
-				em, &bmop, op,
-				"symmetrize input=%hvef direction=%i dist=%f",
-				BM_ELEM_SELECT, RNA_enum_get(op->ptr, "direction"), thresh);
+		        em, &bmop, op,
+		        "symmetrize input=%hvef direction=%i dist=%f",
+		        BM_ELEM_SELECT, RNA_enum_get(op->ptr, "direction"), thresh);
 		BMO_op_exec(em->bm, &bmop);
 
 		EDBM_flag_disable_all(em, BM_ELEM_SELECT);

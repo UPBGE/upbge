@@ -502,13 +502,18 @@ void main()
 	if (weight_acc > 0.0) {
 		ssr_accum /= weight_acc;
 		/* fade between 0.5 and 1.0 roughness */
-		ssr_accum.a *= smoothstep(ssrMaxRoughness + 0.2, ssrMaxRoughness, roughness); 
+		ssr_accum.a *= smoothstep(ssrMaxRoughness + 0.2, ssrMaxRoughness, roughness);
 		accumulate_light(ssr_accum.rgb, ssr_accum.a, spec_accum);
 	}
 
 	/* If SSR contribution is not 1.0, blend with cubemaps */
 	if (spec_accum.a < 1.0) {
 		fallback_cubemap(N, V, worldPosition, viewPosition, roughness, roughnessSquared, spec_accum);
+	}
+
+	/* XXX TODO FIXME (fclem): Something else produces NANs and is not handled before. */
+	if (any(isnan(spec_accum))) {
+		spec_accum = vec4(0.0);
 	}
 
 	fragColor = vec4(spec_accum.rgb * speccol_roughness.rgb, 1.0);

@@ -40,12 +40,22 @@ class TOPBAR_HT_upper_bar(Header):
 
         layout.operator("wm.splash", text="", icon='BLENDER', emboss=False)
 
-        TOPBAR_MT_editor_menus.draw_collapsible(context, layout)
+        INFO_MT_editor_menus.draw_collapsible(context, layout)
 
         layout.separator()
 
         if not screen.show_fullscreen:
-            layout.template_ID_tabs(window, "workspace", new="workspace.workspace_add_menu", unlink="workspace.workspace_delete")
+            layout.template_ID_tabs(
+                window, "workspace",
+                new="workspace.workspace_add_menu",
+                unlink="workspace.workspace_delete",
+            )
+        else:
+            layout.operator(
+                "screen.back_to_previous",
+                icon='SCREEN_BACK',
+                text="Back to Previous",
+            )
 
         layout.separator()
 
@@ -71,8 +81,11 @@ class TOPBAR_HT_upper_bar(Header):
         layout = self.layout
 
         window = context.window
+        scene = window.scene
 
+        # Active workspace view-layer is retrieved through window, not through workspace.
         layout.template_ID(window, "scene", new="scene.new", unlink="scene.delete")
+        layout.template_search(window, "view_layer", scene, "view_layers")
 
 
 class TOPBAR_HT_lower_bar(Header):
@@ -88,36 +101,70 @@ class TOPBAR_HT_lower_bar(Header):
         elif region.alignment == 'RIGHT':
             self.draw_right(context)
         else:
-            # WITH_REDO_REGION_REMOVAL:
-            # layout.template_operator_redo_props()
+            # 'NONE' currently not used
             pass
 
     def draw_left(self, context):
         layout = self.layout
         layer = context.view_layer
-
-        act_mode_item = bpy.types.Object.bl_rna.properties['mode'].enum_items[layer.objects.active.mode]
+        object = layer.objects.active
+        object_mode = 'OBJECT' if object is None else object.mode
+        act_mode_item = bpy.types.Object.bl_rna.properties['mode'].enum_items[object_mode]
         layout.operator_menu_enum("object.mode_set", "mode", text=act_mode_item.name, icon=act_mode_item.icon)
 
+        mode = context.mode
+
+        # Example of how toolsettings can be accessed as pop-overs.
+
+        # TODO(campbell): editing options should be after active tool options
+        # (obviously separated for from the users POV)
+
+        if mode == 'SCULPT':
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context="", category="")
+        elif mode == 'PAINT_VERTEX':
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context="", category="")
+        elif mode == 'PAINT_WEIGHT':
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context="", category="")
+        elif mode == 'PAINT_TEXTURE':
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context="", category="")
+
+        elif mode == 'EDIT_ARMATURE':
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".armature_edit", category="")
+        elif mode == 'EDIT_CURVE':
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".curve_edit", category="")
+        elif mode == 'EDIT_MESH':
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".mesh_edit", category="")
+
+        elif mode == 'POSE':
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".posemode", category="")
 
     def draw_right(self, context):
         layout = self.layout
 
-        window = context.window
-        workspace = context.workspace
-        scene = context.scene
-        screen = context.screen
+        # Command Settings (redo)
+        op = context.active_operator
+        row = layout.row()
+        row.enabled = op is not None
+        row.popover(
+            space_type='TOPBAR',
+            region_type='WINDOW',
+            panel_type="TOPBAR_PT_redo",
+            text=op.name + " Settings" if op else "Command Settings",
+        )
 
-        if screen.show_fullscreen:
-            layout.operator("screen.back_to_previous", icon='SCREEN_BACK', text="Back to Previous")
-        else:
-            layout.template_search_preview(window, "screen", workspace, "screens", new="screen.new", unlink="screen.delete", rows=2, cols=6)
-        # Active workspace view-layer is retrieved through window, not through workspace.
-        layout.template_search(window, "view_layer", scene, "view_layers")
+
+class TOPBAR_PT_redo(Panel):
+    bl_label = "Redo"
+    bl_space_type = 'TOPBAR'
+    bl_region_type = 'WINDOW'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.column().template_operator_redo_props()
 
 
-class TOPBAR_MT_editor_menus(Menu):
-    bl_idname = "TOPBAR_MT_editor_menus"
+class INFO_MT_editor_menus(Menu):
+    bl_idname = "INFO_MT_editor_menus"
     bl_label = ""
 
     def draw(self, context):
@@ -125,15 +172,15 @@ class TOPBAR_MT_editor_menus(Menu):
 
     @staticmethod
     def draw_menus(layout, context):
-        layout.menu("TOPBAR_MT_file")
+        layout.menu("INFO_MT_file")
 
-        layout.menu("TOPBAR_MT_render")
+        layout.menu("INFO_MT_render")
 
-        layout.menu("TOPBAR_MT_window")
-        layout.menu("TOPBAR_MT_help")
+        layout.menu("INFO_MT_window")
+        layout.menu("INFO_MT_help")
 
 
-class TOPBAR_MT_file(Menu):
+class INFO_MT_file(Menu):
     bl_label = "File"
 
     def draw(self, context):
@@ -142,7 +189,7 @@ class TOPBAR_MT_file(Menu):
         layout.operator_context = 'INVOKE_AREA'
         layout.operator("wm.read_homefile", text="New", icon='NEW')
         layout.operator("wm.open_mainfile", text="Open...", icon='FILE_FOLDER')
-        layout.menu("TOPBAR_MT_file_open_recent", icon='OPEN_RECENT')
+        layout.menu("INFO_MT_file_open_recent", icon='OPEN_RECENT')
         layout.operator("wm.revert_mainfile", icon='FILE_REFRESH')
         layout.operator("wm.recover_last_session", icon='RECOVER_LAST')
         layout.operator("wm.recover_auto_save", text="Recover Auto Save...", icon='RECOVER_AUTO')
@@ -170,16 +217,16 @@ class TOPBAR_MT_file(Menu):
         layout.operator_context = 'INVOKE_AREA'
         layout.operator("wm.link", text="Link", icon='LINK_BLEND')
         layout.operator("wm.append", text="Append", icon='APPEND_BLEND')
-        layout.menu("TOPBAR_MT_file_previews")
+        layout.menu("INFO_MT_file_previews")
 
         layout.separator()
 
-        layout.menu("TOPBAR_MT_file_import", icon='IMPORT')
-        layout.menu("TOPBAR_MT_file_export", icon='EXPORT')
+        layout.menu("INFO_MT_file_import", icon='IMPORT')
+        layout.menu("INFO_MT_file_export", icon='EXPORT')
 
         layout.separator()
 
-        layout.menu("TOPBAR_MT_file_external_data", icon='EXTERNAL_DATA')
+        layout.menu("INFO_MT_file_external_data", icon='EXTERNAL_DATA')
 
         layout.separator()
 
@@ -189,8 +236,8 @@ class TOPBAR_MT_file(Menu):
         layout.operator("wm.quit_blender", text="Quit", icon='QUIT')
 
 
-class TOPBAR_MT_file_import(Menu):
-    bl_idname = "TOPBAR_MT_file_import"
+class INFO_MT_file_import(Menu):
+    bl_idname = "INFO_MT_file_import"
     bl_label = "Import"
 
     def draw(self, context):
@@ -200,8 +247,8 @@ class TOPBAR_MT_file_import(Menu):
             self.layout.operator("wm.alembic_import", text="Alembic (.abc)")
 
 
-class TOPBAR_MT_file_export(Menu):
-    bl_idname = "TOPBAR_MT_file_export"
+class INFO_MT_file_export(Menu):
+    bl_idname = "INFO_MT_file_export"
     bl_label = "Export"
 
     def draw(self, context):
@@ -211,7 +258,7 @@ class TOPBAR_MT_file_export(Menu):
             self.layout.operator("wm.alembic_export", text="Alembic (.abc)")
 
 
-class TOPBAR_MT_file_external_data(Menu):
+class INFO_MT_file_external_data(Menu):
     bl_label = "External Data"
 
     def draw(self, context):
@@ -238,7 +285,7 @@ class TOPBAR_MT_file_external_data(Menu):
         layout.operator("file.find_missing_files")
 
 
-class TOPBAR_MT_file_previews(Menu):
+class INFO_MT_file_previews(Menu):
     bl_label = "Data Previews"
 
     def draw(self, context):
@@ -253,7 +300,7 @@ class TOPBAR_MT_file_previews(Menu):
         layout.operator("wm.previews_batch_clear")
 
 
-class TOPBAR_MT_game(Menu):
+class INFO_MT_game(Menu):
     bl_label = "Game"
 
     def draw(self, context):
@@ -274,7 +321,7 @@ class TOPBAR_MT_game(Menu):
         layout.prop(gs, "use_auto_start")
 
 
-class TOPBAR_MT_render(Menu):
+class INFO_MT_render(Menu):
     bl_label = "Render"
 
     def draw(self, context):
@@ -289,7 +336,7 @@ class TOPBAR_MT_render(Menu):
 
         layout.operator("render.opengl", text="OpenGL Render Image")
         layout.operator("render.opengl", text="OpenGL Render Animation").animation = True
-        layout.menu("TOPBAR_MT_opengl_render")
+        layout.menu("INFO_MT_opengl_render")
 
         layout.separator()
 
@@ -297,7 +344,7 @@ class TOPBAR_MT_render(Menu):
         layout.operator("render.play_rendered_anim", icon='PLAY')
 
 
-class TOPBAR_MT_opengl_render(Menu):
+class INFO_MT_opengl_render(Menu):
     bl_label = "OpenGL Render Options"
 
     def draw(self, context):
@@ -311,7 +358,7 @@ class TOPBAR_MT_opengl_render(Menu):
         layout.prop_menu_enum(rd, "alpha_mode")
 
 
-class TOPBAR_MT_window(Menu):
+class INFO_MT_window(Menu):
     bl_label = "Window"
 
     def draw(self, context):
@@ -336,41 +383,41 @@ class TOPBAR_MT_window(Menu):
             layout.operator("wm.set_stereo_3d", icon='CAMERA_STEREO')
 
 
-class TOPBAR_MT_help(Menu):
+class INFO_MT_help(Menu):
     bl_label = "Help"
 
     def draw(self, context):
         layout = self.layout
 
         layout.operator(
-                "wm.url_open", text="Manual", icon='HELP',
-                ).url = "https://docs.blender.org/manual/en/dev/"
+            "wm.url_open", text="Manual", icon='HELP',
+        ).url = "https://docs.blender.org/manual/en/dev/"
         layout.operator(
-                "wm.url_open", text="Release Log", icon='URL',
-                ).url = "http://wiki.blender.org/index.php/Dev:Ref/Release_Notes/%d.%d" % bpy.app.version[:2]
+            "wm.url_open", text="Release Log", icon='URL',
+        ).url = "http://wiki.blender.org/index.php/Dev:Ref/Release_Notes/%d.%d" % bpy.app.version[:2]
         layout.separator()
 
         layout.operator(
-                "wm.url_open", text="Blender Website", icon='URL',
-                ).url = "https://www.blender.org"
+            "wm.url_open", text="Blender Website", icon='URL',
+        ).url = "https://www.blender.org"
         layout.operator(
-                "wm.url_open", text="Blender Store", icon='URL',
-                ).url = "https://store.blender.org"
+            "wm.url_open", text="Blender Store", icon='URL',
+        ).url = "https://store.blender.org"
         layout.operator(
-                "wm.url_open", text="Developer Community", icon='URL',
-                ).url = "https://www.blender.org/get-involved/"
+            "wm.url_open", text="Developer Community", icon='URL',
+        ).url = "https://www.blender.org/get-involved/"
         layout.operator(
-                "wm.url_open", text="User Community", icon='URL',
-                ).url = "https://www.blender.org/support/user-community"
+            "wm.url_open", text="User Community", icon='URL',
+        ).url = "https://www.blender.org/support/user-community"
         layout.separator()
         layout.operator(
-                "wm.url_open", text="Report a Bug", icon='URL',
-                ).url = "https://developer.blender.org/maniphest/task/edit/form/1"
+            "wm.url_open", text="Report a Bug", icon='URL',
+        ).url = "https://developer.blender.org/maniphest/task/edit/form/1"
         layout.separator()
 
         layout.operator(
-                "wm.url_open", text="Python API Reference", icon='URL',
-                ).url = bpy.types.WM_OT_doc_view._prefix
+            "wm.url_open", text="Python API Reference", icon='URL',
+        ).url = bpy.types.WM_OT_doc_view._prefix
 
         layout.operator("wm.operator_cheat_sheet", icon='TEXT')
         layout.operator("wm.sysinfo", icon='TEXT')
@@ -382,17 +429,18 @@ class TOPBAR_MT_help(Menu):
 classes = (
     TOPBAR_HT_upper_bar,
     TOPBAR_HT_lower_bar,
-    TOPBAR_MT_editor_menus,
-    TOPBAR_MT_file,
-    TOPBAR_MT_file_import,
-    TOPBAR_MT_file_export,
-    TOPBAR_MT_file_external_data,
-    TOPBAR_MT_file_previews,
-    TOPBAR_MT_game,
-    TOPBAR_MT_render,
-    TOPBAR_MT_opengl_render,
-    TOPBAR_MT_window,
-    TOPBAR_MT_help,
+    TOPBAR_PT_redo,
+    INFO_MT_editor_menus,
+    INFO_MT_file,
+    INFO_MT_file_import,
+    INFO_MT_file_export,
+    INFO_MT_file_external_data,
+    INFO_MT_file_previews,
+    INFO_MT_game,
+    INFO_MT_render,
+    INFO_MT_opengl_render,
+    INFO_MT_window,
+    INFO_MT_help,
 )
 
 if __name__ == "__main__":  # only for live edit.

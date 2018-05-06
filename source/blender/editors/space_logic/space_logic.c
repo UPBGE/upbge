@@ -86,9 +86,8 @@ ARegion *logic_has_buttons_region(ScrArea *sa)
 
 /* ******************** default callbacks for image space ***************** */
 
-static SpaceLink *logic_new(const bContext *C)
+static SpaceLink *logic_new(const ScrArea *sa, const Scene *UNUSED(scene))
 {
-	ScrArea *sa= CTX_wm_area(C);
 	ARegion *ar;
 	SpaceLogic *slogic;
 	

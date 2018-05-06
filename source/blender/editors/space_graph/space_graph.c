@@ -57,6 +57,9 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "WM_message.h"
+
+#include "RNA_access.h"
 
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -92,9 +95,8 @@ ARegion *graph_has_buttons_region(ScrArea *sa)
 
 /* ******************** default callbacks for ipo space ***************** */
 
-static SpaceLink *graph_new(const bContext *C)
+static SpaceLink *graph_new(const ScrArea *UNUSED(sa), const Scene *scene)
 {
-	Scene *scene = CTX_data_scene(C);
 	ARegion *ar;
 	SpaceIpo *sipo;
 	
@@ -226,12 +228,13 @@ static void graph_main_region_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 	SpaceIpo *sipo = CTX_wm_space_graph(C);
+	Scene *scene = CTX_data_scene(C);
 	bAnimContext ac;
 	View2D *v2d = &ar->v2d;
 	View2DGrid *grid;
 	View2DScrollers *scrollers;
 	float col[3];
-	short unitx = 0, unity = V2D_UNIT_VALUES, flag = 0;
+	short unitx = 0, unity = V2D_UNIT_VALUES, cfra_flag = 0;
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
@@ -246,7 +249,12 @@ static void graph_main_region_draw(const bContext *C, ARegion *ar)
 	UI_view2d_grid_draw(v2d, grid, V2D_GRIDLINES_ALL);
 	
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
-
+	
+	/* start and end frame (in F-Curve mode only) */
+	if (sipo->mode != SIPO_MODE_DRIVERS) {
+		ANIM_draw_framerange(scene, v2d);
+	}
+	
 	/* draw data */
 	if (ANIM_animdata_get_context(C, &ac)) {
 		/* draw ghost curves */
@@ -273,7 +281,6 @@ static void graph_main_region_draw(const bContext *C, ARegion *ar)
 
 		/* horizontal component of value-cursor (value line before the current frame line) */
 		if ((sipo->flag & SIPO_NODRAWCURSOR) == 0) {
-
 			float y = sipo->cursorVal;
 
 			/* Draw a green line to indicate the cursor value */
@@ -312,9 +319,8 @@ static void graph_main_region_draw(const bContext *C, ARegion *ar)
 
 	if (sipo->mode != SIPO_MODE_DRIVERS) {
 		/* current frame */
-		if (sipo->flag & SIPO_DRAWTIME) flag |= DRAWCFRA_UNIT_SECONDS;
-		if ((sipo->flag & SIPO_NODRAWCFRANUM) == 0) flag |= DRAWCFRA_SHOW_NUMBOX;
-		ANIM_draw_cfra(C, v2d, flag);
+		if (sipo->flag & SIPO_DRAWTIME) cfra_flag |= DRAWCFRA_UNIT_SECONDS;
+		ANIM_draw_cfra(C, v2d, cfra_flag);
 	}
 	
 	/* markers */
@@ -337,6 +343,12 @@ static void graph_main_region_draw(const bContext *C, ARegion *ar)
 	scrollers = UI_view2d_scrollers_calc(C, v2d, unitx, V2D_GRID_NOCLAMP, unity, V2D_GRID_NOCLAMP);
 	UI_view2d_scrollers_draw(C, v2d, scrollers);
 	UI_view2d_scrollers_free(scrollers);
+	
+	/* draw current frame number-indicator on top of scrollers */
+	if ((sipo->mode != SIPO_MODE_DRIVERS) && ((sipo->flag & SIPO_NODRAWCFRANUM) == 0)) {
+		UI_view2d_view_orthoSpecial(ar, v2d, 1);
+		ANIM_draw_cfra_number(C, v2d, cfra_flag);
+	}
 }
 
 static void graph_channel_region_init(wmWindowManager *wm, ARegion *ar)
@@ -427,6 +439,7 @@ static void graph_region_listener(
 				case ND_RENDER_OPTIONS:
 				case ND_OB_ACTIVE:
 				case ND_FRAME:
+				case ND_FRAME_RANGE:
 				case ND_MARKERS:
 					ED_region_tag_redraw(ar);
 					break;
@@ -471,6 +484,46 @@ static void graph_region_listener(
 				ED_region_tag_redraw(ar);
 			break;
 				
+	}
+}
+
+static void graph_region_message_subscribe(
+        const struct bContext *UNUSED(C),
+        struct WorkSpace *UNUSED(workspace), struct Scene *scene,
+        struct bScreen *screen, struct ScrArea *sa, struct ARegion *ar,
+        struct wmMsgBus *mbus)
+{
+	PointerRNA ptr;
+	RNA_pointer_create(&screen->id, &RNA_SpaceGraphEditor, sa->spacedata.first, &ptr);
+
+	wmMsgSubscribeValue msg_sub_value_region_tag_redraw = {
+		.owner = ar,
+		.user_data = ar,
+		.notify = ED_region_do_msg_notify_tag_redraw,
+	};
+
+	/* Timeline depends on scene properties. */
+	{
+		bool use_preview = (scene->r.flag & SCER_PRV_RANGE);
+		extern PropertyRNA rna_Scene_frame_start;
+		extern PropertyRNA rna_Scene_frame_end;
+		extern PropertyRNA rna_Scene_frame_preview_start;
+		extern PropertyRNA rna_Scene_frame_preview_end;
+		extern PropertyRNA rna_Scene_use_preview_range;
+		extern PropertyRNA rna_Scene_frame_current;
+		const PropertyRNA *props[] = {
+			use_preview ? &rna_Scene_frame_preview_start : &rna_Scene_frame_start,
+			use_preview ? &rna_Scene_frame_preview_end   : &rna_Scene_frame_end,
+			&rna_Scene_use_preview_range,
+			&rna_Scene_frame_current,
+		};
+
+		PointerRNA idptr;
+		RNA_id_pointer_create(&scene->id, &idptr);
+
+		for (int i = 0; i < ARRAY_SIZE(props); i++) {
+			WM_msg_subscribe_rna(mbus, &idptr, props[i], &msg_sub_value_region_tag_redraw, __func__);
+		}
 	}
 }
 
@@ -735,6 +788,7 @@ void ED_spacetype_ipo(void)
 	art->init = graph_main_region_init;
 	art->draw = graph_main_region_draw;
 	art->listener = graph_region_listener;
+	art->message_subscribe = graph_region_message_subscribe;
 	art->keymapflag = ED_KEYMAP_VIEW2D | ED_KEYMAP_MARKERS | ED_KEYMAP_ANIMATION | ED_KEYMAP_FRAMES;
 
 	BLI_addhead(&st->regiontypes, art);

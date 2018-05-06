@@ -6581,6 +6581,7 @@ static void direct_link_area(FileData *fd, ScrArea *area)
 
 	BLI_listbase_clear(&area->handlers);
 	area->type = NULL;	/* spacetype callbacks */
+	area->butspacetype = SPACE_EMPTY; /* Should always be unset so that rna_Area_type_get works correctly */
 	area->region_active_win = -1;
 
 	area->global = newdataadr(fd, area->global);
@@ -6588,6 +6589,7 @@ static void direct_link_area(FileData *fd, ScrArea *area)
 	/* if we do not have the spacetype registered (game player), we cannot
 	 * free it, so don't allocate any new memory for such spacetypes. */
 	if (!BKE_spacetype_exists(area->spacetype)) {
+		area->butspacetype = area->spacetype; /* Hint for versioning code to replace deprecated space types. */
 		area->spacetype = SPACE_EMPTY;
 	}
 
@@ -6606,9 +6608,6 @@ static void direct_link_area(FileData *fd, ScrArea *area)
 	else if (area->spacetype == SPACE_VIEW3D) {
 		blo_do_versions_view3d_split_250(area->spacedata.first, &area->regionbase);
 	}
-
-	/* incase we set above */
-	area->butspacetype = area->spacetype;
 
 	for (sl = area->spacedata.first; sl; sl = sl->next) {
 		link_list(fd, &(sl->regionbase));
@@ -6726,10 +6725,6 @@ static void direct_link_area(FileData *fd, ScrArea *area)
 			st->drawcache = NULL;
 			st->scroll_accum[0] = 0.0f;
 			st->scroll_accum[1] = 0.0f;
-		}
-		else if (sl->spacetype == SPACE_TIME) {
-			SpaceTime *stime = (SpaceTime *)sl;
-			BLI_listbase_clear(&stime->caches);
 		}
 		else if (sl->spacetype == SPACE_LOGIC) {
 			SpaceLogic *slogic = (SpaceLogic *)sl;
@@ -7705,10 +7700,12 @@ static void fix_relpaths_library(const char *basepath, Main *main)
 
 static void lib_link_lightprobe(FileData *fd, Main *main)
 {
-	for (LightProbe *prb = main->speaker.first; prb; prb = prb->id.next) {
+	for (LightProbe *prb = main->lightprobe.first; prb; prb = prb->id.next) {
 		if (prb->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(prb->id.properties, fd);
 			lib_link_animdata(fd, &prb->id, prb->adt);
+
+			prb->visibility_grp = newlibadr(fd, prb->id.lib, prb->visibility_grp);
 
 			prb->id.tag &= ~LIB_TAG_NEED_LINK;
 		}

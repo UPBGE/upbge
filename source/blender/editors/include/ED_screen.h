@@ -83,6 +83,7 @@ void    ED_region_header_init(struct ARegion *ar);
 void    ED_region_header(const struct bContext *C, struct ARegion *ar);
 void    ED_region_cursor_set(struct wmWindow *win, struct ScrArea *sa, struct ARegion *ar);
 void    ED_region_toggle_hidden(struct bContext *C, struct ARegion *ar);
+void    ED_region_visibility_change_update(struct bContext *C, struct ARegion *ar);
 void    ED_region_info_draw(struct ARegion *ar, const char *text, float fill_color[4], const bool full_redraw);
 void    ED_region_info_draw_multiline(ARegion *ar, const char *text_array[], float fill_color[4], const bool full_redraw);
 void    ED_region_image_metadata_draw(int x, int y, struct ImBuf *ibuf, const rctf *frame, float zoomx, float zoomy);
@@ -132,13 +133,17 @@ int     ED_area_global_size_y(const ScrArea *area);
 bool    ED_area_is_global(const ScrArea *area);
 int     ED_region_global_size_y(void);
 
-/** Iterate over all areas visible in the screen (screen as in everything visible in the window, not just bScreen) */
+ScrArea *ED_screen_areas_iter_first(const struct wmWindow *win, const bScreen *screen);
+ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area);
+/**
+ * Iterate over all areas visible in the screen (screen as in everything
+ * visible in the window, not just bScreen).
+ * \note Skips global areas with flag GLOBAL_AREA_IS_HIDDEN.
+ */
 #define ED_screen_areas_iter(win, screen, area_name)                       \
-	for (ScrArea *area_name = (win)->global_areas.areabase.first ?         \
-	                                  (win)->global_areas.areabase.first : \
-	                                  screen->areabase.first;              \
+	for (ScrArea *area_name = ED_screen_areas_iter_first(win, screen);     \
 	     area_name != NULL;                                                \
-	     area_name = (area_name == (win)->global_areas.areabase.last) ? (screen)->areabase.first : area_name->next)
+	     area_name = ED_screen_areas_iter_next(screen, area_name))
 #define ED_screen_verts_iter(win, screen, vert_name)                       \
 	for (ScrVert *vert_name = (win)->global_areas.vertbase.first ?         \
 	                                  (win)->global_areas.vertbase.first : \
@@ -159,7 +164,7 @@ void    ED_screen_update_after_scene_change(
         const struct bScreen *screen,
         struct Scene *scene_new,
         struct ViewLayer *view_layer);
-void    ED_screen_set_active_region(struct bContext *C, const struct wmEvent *event);
+void    ED_screen_set_active_region(struct bContext *C, const int xy[2]);
 void    ED_screen_exit(struct bContext *C, struct wmWindow *window, struct bScreen *screen);
 void    ED_screen_animation_timer(struct bContext *C, int redraws, int refresh, int sync, int enable);
 void    ED_screen_animation_timer_update(struct bScreen *screen, int redraws, int refresh);
@@ -242,7 +247,6 @@ int     ED_operator_objectmode(struct bContext *C);
 int     ED_operator_view3d_active(struct bContext *C);
 int     ED_operator_region_view3d_active(struct bContext *C);
 int     ED_operator_animview_active(struct bContext *C);
-int     ED_operator_timeline_active(struct bContext *C);
 int     ED_operator_outliner_active(struct bContext *C);
 int     ED_operator_outliner_active_no_editobject(struct bContext *C);
 int     ED_operator_file_active(struct bContext *C);

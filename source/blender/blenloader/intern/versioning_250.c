@@ -287,19 +287,6 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 					//ar->v2d.flag |= V2D_IS_INITIALISED;
 				}
 				break;
-			case SPACE_TIME:
-				{
-					SpaceTime *stime = (SpaceTime *)sl;
-					memcpy(&ar->v2d, &stime->v2d, sizeof(View2D));
-
-					ar->v2d.scroll |= (V2D_SCROLL_BOTTOM|V2D_SCROLL_SCALE_HORIZONTAL);
-					ar->v2d.align |= V2D_ALIGN_NO_NEG_Y;
-					ar->v2d.keepofs |= V2D_LOCKOFS_Y;
-					ar->v2d.keepzoom |= V2D_LOCKZOOM_Y;
-					ar->v2d.tot.ymin = ar->v2d.cur.ymin = -10.0;
-					ar->v2d.min[1] = ar->v2d.max[1] = 20.0;
-				}
-				break;
 			case SPACE_IPO:
 				{
 					SpaceIpo *sipo = (SpaceIpo *)sl;
@@ -443,9 +430,6 @@ static void do_versions_windowmanager_2_50(bScreen *screen)
 			if (sl->spacetype == SPACE_SOUND)
 				sl->spacetype = SPACE_EMPTY;	/* spacedata then matches */
 		}
-
-		/* it seems to be possible in 2.5 to have this saved, filewindow probably */
-		sa->butspacetype = sa->spacetype;
 
 		/* pushed back spaces also need regions! */
 		if (sa->spacedata.first) {
@@ -1722,14 +1706,6 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 									ar->v2d.maxzoom = 2.31f;
 							}
 						}
-					}
-					else if (sl->spacetype == SPACE_TIME) {
-						SpaceTime *stime = (SpaceTime *) sl;
-
-						/* enable all cache display */
-						stime->cache_display |= TIME_CACHE_DISPLAY;
-						stime->cache_display |= (TIME_CACHE_SOFTBODY|TIME_CACHE_PARTICLES);
-						stime->cache_display |= (TIME_CACHE_CLOTH|TIME_CACHE_SMOKE|TIME_CACHE_DYNAMICPAINT);
 					}
 				}
 			}

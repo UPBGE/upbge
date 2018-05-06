@@ -175,8 +175,8 @@ void EEVEE_temporal_sampling_matrices_calc(
 int EEVEE_temporal_sampling_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
 {
 	EEVEE_StorageList *stl = vedata->stl;
-	EEVEE_FramebufferList *fbl = vedata->fbl;
-	EEVEE_TextureList *txl = vedata->txl;
+	// EEVEE_FramebufferList *fbl = vedata->fbl;
+	// EEVEE_TextureList *txl = vedata->txl;
 	EEVEE_EffectsInfo *effects = stl->effects;
 
 	if (!e_data.taa_resolve_sh) {
@@ -196,7 +196,7 @@ int EEVEE_temporal_sampling_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data
 
 	int repro_flag = 0;
 	if (!DRW_state_is_image_render() &&
-		BKE_collection_engine_property_value_get_bool(props, "taa_reprojection"))
+	    BKE_collection_engine_property_value_get_bool(props, "taa_reprojection"))
 	{
 		repro_flag = EFFECT_TAA_REPROJECT | EFFECT_VELOCITY_BUFFER | EFFECT_DEPTH_DOUBLE_BUFFER | EFFECT_DOUBLE_BUFFER | EFFECT_POST_BUFFER;
 		effects->taa_reproject_sample = ((effects->taa_reproject_sample + 1) % 16);
@@ -295,7 +295,7 @@ void EEVEE_temporal_sampling_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data 
 		DRW_shgroup_uniform_texture_ref(grp, "colorBuffer", &txl->color);
 
 		if (effects->enabled_effects & EFFECT_TAA_REPROJECT) {
-			DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+			// DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 			DRW_shgroup_uniform_texture_ref(grp, "velocityBuffer", &effects->velocity_tx);
 			DRW_shgroup_uniform_block(grp, "common_block", sldata->common_ubo);
 		}

@@ -33,10 +33,13 @@
 
 struct bContext;
 struct bAnimContext;
+struct Scene;
+struct Object;
 struct SpaceAction;
 struct ScrArea;
 struct ARegion;
 struct ARegionType;
+struct View2D;
 struct wmOperatorType;
 
 /* internal exports only */
@@ -53,6 +56,8 @@ void ACTION_OT_properties(struct wmOperatorType *ot);
 /* action_draw.c */
 void draw_channel_names(struct bContext *C, struct bAnimContext *ac, struct ARegion *ar); 
 void draw_channel_strips(struct bAnimContext *ac, struct SpaceAction *saction, struct ARegion *ar);
+
+void timeline_draw_cache(struct SpaceAction *saction, struct Object *ob, struct Scene *scene);
 
 /* ***************************************** */
 /* action_select.c */

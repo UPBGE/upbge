@@ -21,21 +21,21 @@ import bpy
 from bpy.types import Header, Menu
 
 
-class TIME_HT_header(Header):
-    bl_space_type = 'TIMELINE'
+# Header buttons for timeline header (play, etc.)
+class TIME_HT_editor_buttons(Header):
+    bl_idname = "TIME_HT_editor_buttons"
+    bl_space_type = 'DOPESHEET_EDITOR'
+    bl_label = ""
 
     def draw(self, context):
-        layout = self.layout
+        pass
 
+    @staticmethod
+    def draw_header(context, layout):
         scene = context.scene
         toolsettings = context.tool_settings
         screen = context.screen
         userprefs = context.user_preferences
-
-        row = layout.row(align=True)
-        row.template_header()
-
-        TIME_MT_editor_menus.draw_collapsible(context, layout)
 
         row = layout.row(align=True)
         row.prop(scene, "use_preview_range", text="", toggle=True)
@@ -146,12 +146,9 @@ class TIME_MT_view(Menu):
 
         layout.separator()
 
-        layout.operator("time.view_all")
-        layout.operator("time.view_frame")
-
-        layout.separator()
-
-        layout.operator("marker.camera_bind")
+        # NOTE: "action" now, since timeline is in the dopesheet editor, instead of as own editor
+        layout.operator("action.view_all")
+        layout.operator("action.view_frame")
 
         layout.separator()
 
@@ -191,8 +188,8 @@ class TIME_MT_frame(Menu):
         layout.operator("anim.previewrange_clear")
         layout.operator("anim.previewrange_set")
         layout.separator()
-        layout.operator("time.end_frame_set")
-        layout.operator("time.start_frame_set")
+        layout.operator("anim.end_frame_set")
+        layout.operator("anim.start_frame_set")
 
         layout.separator()
 
@@ -262,6 +259,10 @@ def marker_menu_generic(layout):
 
     layout.separator()
 
+    layout.operator("marker.camera_bind")
+
+    layout.separator()
+
     layout.operator("screen.marker_jump", text="Jump to Next Marker").next = True
     layout.operator("screen.marker_jump", text="Jump to Previous Marker").next = False
 
@@ -271,7 +272,7 @@ def marker_menu_generic(layout):
 
 
 classes = (
-    TIME_HT_header,
+    TIME_HT_editor_buttons,
     TIME_MT_editor_menus,
     TIME_MT_marker,
     TIME_MT_view,

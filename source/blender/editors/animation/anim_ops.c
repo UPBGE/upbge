@@ -75,7 +75,7 @@ static int change_frame_poll(bContext *C)
 	 * this shouldn't show up in 3D editor (or others without 2D timeline view) via search
 	 */
 	if (sa) {
-		if (ELEM(sa->spacetype, SPACE_TIME, SPACE_ACTION, SPACE_NLA, SPACE_SEQ, SPACE_CLIP)) {
+		if (ELEM(sa->spacetype, SPACE_ACTION, SPACE_NLA, SPACE_SEQ, SPACE_CLIP)) {
 			return true;
 		}
 		else if (sa->spacetype == SPACE_IPO) {
@@ -86,7 +86,7 @@ static int change_frame_poll(bContext *C)
 		}
 	}
 	
-	CTX_wm_operator_poll_msg_set(C, "Expected an timeline/animation area to be active");
+	CTX_wm_operator_poll_msg_set(C, "Expected an animation area to be active");
 	return false;
 }
 
@@ -276,6 +276,116 @@ static void ANIM_OT_change_frame(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+
+/* ****************** Start/End Frame Operators *******************************/
+
+static int anim_set_end_frames_poll(bContext *C)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	
+	/* XXX temp? prevent changes during render */
+	if (G.is_rendering) return false;
+	
+	/* although it's only included in keymaps for regions using ED_KEYMAP_ANIMATION,
+	 * this shouldn't show up in 3D editor (or others without 2D timeline view) via search
+	 */
+	if (sa) {
+		if (ELEM(sa->spacetype, SPACE_ACTION, SPACE_IPO, SPACE_NLA, SPACE_SEQ, SPACE_CLIP)) {
+			return true;
+		}
+	}
+	
+	CTX_wm_operator_poll_msg_set(C, "Expected an animation area to be active");
+	return false;
+}
+
+static int anim_set_sfra_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	int frame;
+
+	if (scene == NULL)
+		return OPERATOR_CANCELLED;
+
+	frame = CFRA;
+
+	/* if Preview Range is defined, set the 'start' frame for that */
+	if (PRVRANGEON)
+		scene->r.psfra = frame;
+	else
+		scene->r.sfra = frame;
+	
+	if (PEFRA < frame) {
+		if (PRVRANGEON)
+			scene->r.pefra = frame;
+		else
+			scene->r.efra = frame;
+	}
+	
+	WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+	
+	return OPERATOR_FINISHED;
+}
+
+static void ANIM_OT_start_frame_set(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Set Start Frame";
+	ot->idname = "ANIM_OT_start_frame_set";
+	ot->description = "Set the start frame";
+	
+	/* api callbacks */
+	ot->exec = anim_set_sfra_exec;
+	ot->poll = anim_set_end_frames_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}	
+
+
+static int anim_set_efra_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	int frame;
+
+	if (scene == NULL)
+		return OPERATOR_CANCELLED;
+
+	frame = CFRA;
+
+	/* if Preview Range is defined, set the 'end' frame for that */
+	if (PRVRANGEON)
+		scene->r.pefra = frame;
+	else
+		scene->r.efra = frame;
+
+	if (PSFRA > frame) {
+		if (PRVRANGEON)
+			scene->r.psfra = frame;
+		else
+			scene->r.sfra = frame;
+	}
+	
+	WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+	
+	return OPERATOR_FINISHED;
+}
+
+static void ANIM_OT_end_frame_set(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Set End Frame";
+	ot->idname = "ANIM_OT_end_frame_set";
+	ot->description = "Set the end frame";
+	
+	/* api callbacks */
+	ot->exec = anim_set_efra_exec;
+	ot->poll = anim_set_end_frames_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /* ****************** set preview range operator ****************************/
 
 static int previewrange_define_exec(bContext *C, wmOperator *op)
@@ -382,6 +492,9 @@ void ED_operatortypes_anim(void)
 {
 	/* Animation Editors only -------------------------- */
 	WM_operatortype_append(ANIM_OT_change_frame);
+	
+	WM_operatortype_append(ANIM_OT_start_frame_set);
+	WM_operatortype_append(ANIM_OT_end_frame_set);
 	
 	WM_operatortype_append(ANIM_OT_previewrange_set);
 	WM_operatortype_append(ANIM_OT_previewrange_clear);

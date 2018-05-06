@@ -67,10 +67,6 @@ struct MovieClipScopes;
 struct Mask;
 struct BLI_mempool;
 
-/* TODO 2.8: Remove the operator redo panel/region from the 3D View and Clip
- * Editor toolshelf. Leaving this ifdef'ed out for until new tool system and
- * topbar design is more clear. */
-//#define WITH_REDO_REGION_REMOVAL
 /* TODO 2.8: We don't write the topbar to files currently. Uncomment this
  * define to enable writing (should become the default in a bit). */
 //#define WITH_TOPBAR_WRITING
@@ -296,11 +292,11 @@ typedef enum eSpaceOutliner_Filter {
 	SO_FILTER_NO_OB_CAMERA     = (1 << 10),
 	SO_FILTER_NO_OB_OTHERS     = (1 << 11),
 
-	SO_FILTER_OB_STATE         = (1 << 12),
-	SO_FILTER_OB_STATE_VISIBLE = (1 << 13), /* Not set via DNA. */
-	SO_FILTER_OB_STATE_SELECTED= (1 << 14), /* Not set via DNA. */
-	SO_FILTER_OB_STATE_ACTIVE  = (1 << 15), /* Not set via DNA. */
-	SO_FILTER_NO_COLLECTION    = (1 << 16),
+	SO_FILTER_OB_STATE          = (1 << 12),
+	SO_FILTER_OB_STATE_VISIBLE  = (1 << 13), /* Not set via DNA. */
+	SO_FILTER_OB_STATE_SELECTED = (1 << 14), /* Not set via DNA. */
+	SO_FILTER_OB_STATE_ACTIVE   = (1 << 15), /* Not set via DNA. */
+	SO_FILTER_NO_COLLECTION     = (1 << 16),
 } eSpaceOutliner_Filter;
 
 #define SO_FILTER_NO_OB_ALL (SO_FILTER_NO_OB_MESH | \
@@ -341,8 +337,7 @@ typedef enum eSpaceOutliner_Mode {
 	/* SO_USERDEF        = 12, */  /* deprecated! */
 	/* SO_KEYMAP      = 13, */    /* deprecated! */
 	SO_ID_ORPHANS     = 14,
-	SO_VIEW_LAYER     = 15,
-	SO_COLLECTIONS    = 16,
+	SO_COLLECTIONS    = 15,
 } eSpaceOutliner_Mode;
 
 /* SpaceOops->storeflag */
@@ -474,40 +469,6 @@ typedef enum eSpaceNla_Flag {
 
 /* Timeline =============================================== */
 
-/* Pointcache drawing data */
-# /* Only store the data array in the cache to avoid constant reallocation. */
-# /* No need to store when saved. */
-typedef struct SpaceTimeCache {
-	struct SpaceTimeCache *next, *prev;
-	float *array;
-} SpaceTimeCache;
-
-/* Timeline View */
-typedef struct SpaceTime {
-	SpaceLink *next, *prev;
-	ListBase regionbase;        /* storage of regions for inactive spaces */
-	int spacetype;
-	float blockscale DNA_DEPRECATED;
-	
-	View2D v2d DNA_DEPRECATED;  /* deprecated, copied to region */
-
-	ListBase caches;
-
-	int cache_display;
-	int flag;
-} SpaceTime;
-
-
-/* time->flag */
-typedef enum eTimeline_Flag {
-	/* show timing in frames instead of in seconds */
-	TIME_DRAWFRAMES    = (1 << 0),
-	/* show time indicator box beside the frame number */
-	TIME_CFRA_NUM      = (1 << 1),
-	/* only keyframes from active/selected channels get shown */
-	TIME_ONLYACTSEL    = (1 << 2),
-} eTimeline_Flag;
-
 /* time->redraws (now screen->redraws_flag) */
 typedef enum eScreen_Redraws_Flag {
 	TIME_REGION            = (1 << 0),
@@ -523,18 +484,6 @@ typedef enum eScreen_Redraws_Flag {
 
 	TIME_FOLLOW            = (1 << 15),
 } eScreen_Redraws_Flag;
-
-/* time->cache */
-typedef enum eTimeline_Cache_Flag {
-	TIME_CACHE_DISPLAY       = (1 << 0),
-	TIME_CACHE_SOFTBODY      = (1 << 1),
-	TIME_CACHE_PARTICLES     = (1 << 2),
-	TIME_CACHE_CLOTH         = (1 << 3),
-	TIME_CACHE_SMOKE         = (1 << 4),
-	TIME_CACHE_DYNAMICPAINT  = (1 << 5),
-	TIME_CACHE_RIGIDBODY     = (1 << 6),
-} eTimeline_Cache_Flag;
-
 
 /* Sequence Editor ======================================= */
 
@@ -1443,7 +1392,7 @@ typedef enum eSpace_Type {
 	SPACE_NLA      = 13,
 	/* TODO: fully deprecate */
 	SPACE_SCRIPT   = 14, /* Deprecated */
-	SPACE_TIME     = 15,
+	SPACE_TIME     = 15, /* Deprecated */
 	SPACE_NODE     = 16,
 	SPACE_LOGIC    = 17,
 	SPACE_CONSOLE  = 18,

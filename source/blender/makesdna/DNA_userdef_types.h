@@ -131,6 +131,8 @@ typedef struct uiWidgetColors {
 	short shaded;
 	short shadetop, shadedown;
 	short alpha_check;
+	float roundness;
+	float pad;
 } uiWidgetColors;
 
 typedef struct uiWidgetStateColors {
@@ -178,7 +180,8 @@ typedef struct ThemeUI {
 	float menu_shadow_fac;
 	short menu_shadow_width;
 	
-	short pad[3];
+	char editor_outline[4];
+	short pad[1];
 	
 	char iconfile[256];	// FILE_MAXFILE length
 	float icon_alpha;

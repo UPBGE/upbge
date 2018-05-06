@@ -721,8 +721,6 @@ static bool ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBu
 		but->selend = oldbut->selend;
 		but->softmin = oldbut->softmin;
 		but->softmax = oldbut->softmax;
-		but->linkto[0] = oldbut->linkto[0];
-		but->linkto[1] = oldbut->linkto[1];
 		oldbut->active = NULL;
 #endif
 
@@ -1425,6 +1423,8 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 	/* back */
 	if (block->flag & UI_BLOCK_RADIAL)
 		ui_draw_pie_center(block);
+	else if (block->flag & UI_BLOCK_POPOVER)
+		ui_draw_popover_back(&style, block, &rect);
 	else if (block->flag & UI_BLOCK_LOOP)
 		ui_draw_menu_back(&style, block, &rect);
 	else if (block->panel)

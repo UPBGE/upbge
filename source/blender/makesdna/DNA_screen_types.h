@@ -240,8 +240,13 @@ typedef struct ScrGlobalAreaData {
 	 * if they are 'collapsed' or not. Value is set on area creation and not
 	 * touched afterwards. */
 	short size_min, size_max;
-	short pad;
+
+	short flag; /* GlobalAreaFlag */
 } ScrGlobalAreaData;
+
+enum GlobalAreaFlag {
+	GLOBAL_AREA_IS_HIDDEN = (1 << 0),
+};
 
 typedef struct ScrArea {
 	struct ScrArea *next, *prev;
@@ -251,7 +256,12 @@ typedef struct ScrArea {
 
 	rcti totrct;			/* rect bound by v1 v2 v3 v4 */
 
-	char spacetype, butspacetype;	/* SPACE_..., butspacetype is button arg  */
+	char spacetype;     /* eSpace_Type (SPACE_FOO) */
+	/* Temporarily used while switching area type, otherwise this should be
+	 * SPACE_EMPTY. Also, versioning uses it to nicely replace deprecated
+	 * editors. It's been there for ages, name doesn't fit any more... */
+	char butspacetype;  /* eSpace_Type (SPACE_FOO) */
+
 	short winx, winy;				/* size */
 
 	short headertype;				/* OLD! 0=no header, 1= down, 2= up */

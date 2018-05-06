@@ -944,7 +944,6 @@ int WM_operator_call_notest(bContext *C, wmOperator *op)
  */
 int WM_operator_repeat(bContext *C, wmOperator *op)
 {
-#ifdef WITH_REDO_REGION_REMOVAL
 	const OperatorRepeatContextHandle *context_info;
 	int retval;
 
@@ -953,9 +952,6 @@ int WM_operator_repeat(bContext *C, wmOperator *op)
 	ED_operator_repeat_reset_context(C, context_info);
 
 	return retval;
-#else
-	return wm_operator_exec(C, op, true, true);
-#endif
 }
 /**
  * \return true if #WM_operator_repeat can run
@@ -1903,7 +1899,10 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 
 				/* remove modal handler, operator itself should have been canceled and freed */
 				if (retval & (OPERATOR_CANCELLED | OPERATOR_FINISHED)) {
-					WM_cursor_grab_disable(CTX_wm_window(C), NULL);
+					/* set cursor back to the default for the region */
+					wmWindow *win = CTX_wm_window(C);
+					WM_cursor_grab_disable(win, NULL);
+					ED_region_cursor_set(win, CTX_wm_area(C), CTX_wm_region(C));
 
 					BLI_remlink(handlers, handler);
 					wm_event_free_handler(handler);
@@ -1950,13 +1949,14 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 	int action = WM_HANDLER_CONTINUE;
 
 	switch (val) {
-		case EVT_FILESELECT_FULL_OPEN: 
+		case EVT_FILESELECT_FULL_OPEN:
 		{
 			ScrArea *sa;
-				
-			/* sa can be null when window A is active, but mouse is over window B */
-			/* in this case, open file select in original window A */
-			if (handler->op_area == NULL) {
+
+			/* sa can be null when window A is active, but mouse is over window B
+			 * in this case, open file select in original window A. Also don't
+			 * use global areas. */
+			if (handler->op_area == NULL || ED_area_is_global(handler->op_area)) {
 				bScreen *screen = CTX_wm_screen(C);
 				sa = (ScrArea *)screen->areabase.first;
 			}
@@ -2768,7 +2768,7 @@ void wm_event_do_handlers(bContext *C)
 				/* Note: setting subwin active should be done here, after modal handlers have been done */
 				if (event->type == MOUSEMOVE) {
 					/* state variables in screen, cursors. Also used in wm_draw.c, fails for modal handlers though */
-					ED_screen_set_active_region(C, event);
+					ED_screen_set_active_region(C, &event->x);
 					/* for regions having custom cursors */
 					wm_paintcursor_test(C, event);
 				}

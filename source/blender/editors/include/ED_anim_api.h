@@ -102,7 +102,8 @@ typedef enum eAnimCont_Types {
 	ANIMCONT_DRIVERS   = 6, /* drivers (bDopesheet) */
 	ANIMCONT_NLA       = 7, /* nla (bDopesheet) */
 	ANIMCONT_CHANNEL   = 8, /* animation channel (bAnimListElem) */
-	ANIMCONT_MASK      = 9  /* mask dopesheet */
+	ANIMCONT_MASK      = 9, /* mask dopesheet */
+	ANIMCONT_TIMELINE  = 10, /* "timeline" editor (bDopeSheet) */
 } eAnimCont_Types;
 
 /* --------------- Channels -------------------- */
@@ -534,21 +535,28 @@ void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, struct AnimData *adt, st
 enum eAnimEditDraw_CurrentFrame {
 	/* plain time indicator with no special indicators */
 	DRAWCFRA_PLAIN          = 0,
-	/* draw box indicating current frame number */
-	DRAWCFRA_SHOW_NUMBOX    = (1 << 0),
 	/* time indication in seconds or frames */
-	DRAWCFRA_UNIT_SECONDS   = (1 << 1),
+	DRAWCFRA_UNIT_SECONDS   = (1 << 0),
 	/* draw indicator extra wide (for timeline) */
-	DRAWCFRA_WIDE           = (1 << 2)
+	DRAWCFRA_WIDE           = (1 << 1)
 };
 
 /* main call to draw current-frame indicator in an Animation Editor */
 void ANIM_draw_cfra(const struct bContext *C, struct View2D *v2d, short flag);
 
+/* main call to draw "number box" in scrollbar for current frame indicator */
+void ANIM_draw_cfra_number(const struct bContext *C, struct View2D *v2d, short flag);
+
 /* ------------- Preview Range Drawing -------------- */
 
 /* main call to draw preview range curtains */
 void ANIM_draw_previewrange(const struct bContext *C, struct View2D *v2d, int end_frame_width);
+
+
+/* -------------- Frame Range Drawing --------------- */
+
+/* main call to draw normal frame range indicators */
+void ANIM_draw_framerange(struct Scene *scene, struct View2D *v2d);
 
 /* ************************************************* */
 /* F-MODIFIER TOOLS */
