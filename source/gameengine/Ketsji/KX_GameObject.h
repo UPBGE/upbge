@@ -87,6 +87,7 @@ protected:
 
 	float m_savedObmat[4][4];
 	float m_prevObmat[4][4];
+	bool m_castShadows;
 
 
 

@@ -130,6 +130,7 @@ KX_GameObject::KX_GameObject(
       m_cullingNode(this),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
+	  m_castShadows(true),
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
     , m_attr_dict(nullptr),
@@ -237,6 +238,13 @@ void KX_GameObject::TagForUpdate()
 	if (ob) {
 		copy_m4_m4(ob->obmat, obmat);
 		DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
+
+		if (!staticObject && ELEM(ob->type, OB_MESH, OB_CURVE, OB_FONT)) {
+			if (m_castShadows) {
+				EEVEE_ObjectEngineData *oedata = EEVEE_object_data_ensure(ob);
+				oedata->need_update = true;
+			}
+		}
 	}
 
 	copy_m4_m4(m_prevObmat, obmat);
@@ -1921,6 +1929,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("color", KX_GameObject, pyattr_get_obcolor, pyattr_set_obcolor),
 	KX_PYATTRIBUTE_RW_FUNCTION("debug",	KX_GameObject, pyattr_get_debug, pyattr_set_debug),
 	KX_PYATTRIBUTE_RW_FUNCTION("debugRecursive",	KX_GameObject, pyattr_get_debugRecursive, pyattr_set_debugRecursive),
+	KX_PYATTRIBUTE_BOOL_RW("castShadows",			KX_GameObject, m_castShadows),
 
 	/* experimental, don't rely on these yet */
 	KX_PYATTRIBUTE_RO_FUNCTION("sensors",		KX_GameObject, pyattr_get_sensors),
