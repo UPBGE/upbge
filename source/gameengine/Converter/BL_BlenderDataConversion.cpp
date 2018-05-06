@@ -504,14 +504,9 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	/* needs to be rewritten for loopdata */
 	if (tface) {
 		if (CustomData_get_layer_index(&dm->faceData, CD_TANGENT) == -1) {
-			bool generate_data = false;
-			if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
-				DM_calc_loop_tangents(dm, true, nullptr, 0);
-				generate_data = true;
-			}
-			DM_generate_tangent_tessface_data(dm, generate_data);
+			DM_calc_loop_tangents(dm, true, nullptr, 0);
+			tangent = (float(*)[4])dm->getLoopDataArray(dm, CD_TANGENT);
 		}
-		tangent = (float(*)[4])dm->getTessFaceDataArray(dm, CD_TANGENT);
 	}
 
 	// Extract avaiable layers
