@@ -80,11 +80,6 @@ enum {
 	V3D_LIGHTING_SCENE  = 2
 };
 
-enum {
-	V3D_OBJECT_COLOR_COLLECTION = 0,
-	V3D_OBJECT_COLOR_OBJECT     = 1,
-};
-
 typedef struct RegionView3D {
 	
 	float winmat[4][4];			/* GL_PROJECTION matrix */
@@ -252,6 +247,7 @@ typedef struct View3D {
 	short drawtype_solid;
 	/* drawtype subtype (lighting) used when drawtype == OB_TEXTURE */
 	short drawtype_texture;
+
 	View3DDebug debug;
 } View3D;
 
