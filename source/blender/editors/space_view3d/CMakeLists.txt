@@ -84,6 +84,7 @@ if(WITH_PYTHON)
 	add_definitions(-DWITH_PYTHON)
 endif()
 
+<<<<<<< HEAD
 if(WITH_GAMEENGINE)
 	list(APPEND INC
 		../../../gameengine/Launcher
@@ -91,6 +92,8 @@ if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
+=======
+>>>>>>> b/blender2.8
 add_definitions(${GL_DEFINITIONS})
 
 if(WITH_INTERNATIONAL)

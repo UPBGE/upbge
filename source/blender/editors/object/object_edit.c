@@ -51,7 +51,6 @@
 #include "DNA_group_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meta_types.h"
-#include "DNA_property_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force_types.h"
@@ -80,8 +79,6 @@
 #include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_pointcache.h"
-#include "BKE_property.h"
-#include "BKE_sca.h"
 #include "BKE_softbody.h"
 #include "BKE_modifier.h"
 #include "BKE_editlattice.h"
@@ -613,102 +610,6 @@ void OBJECT_OT_posemode_toggle(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static void copymenu_properties(ViewLayer *view_layer, Object *ob)
-{	
-//XXX no longer used - to be removed - replaced by game_properties_copy_exec
-	bProperty *prop;
-	Base *base;
-	int nr, tot = 0;
-	char *str;
-	
-	prop = ob->prop.first;
-	while (prop) {
-		tot++;
-		prop = prop->next;
-	}
-	
-	str = MEM_callocN(50 + 33 * tot, "copymenu prop");
-	
-	if (tot)
-		strcpy(str, "Copy Property %t|Replace All|Merge All|%l");
-	else
-		strcpy(str, "Copy Property %t|Clear All (no properties on active)");
-	
-	tot = 0;
-	prop = ob->prop.first;
-	while (prop) {
-		tot++;
-		strcat(str, "|");
-		strcat(str, prop->name);
-		prop = prop->next;
-	}
-
-	nr = pupmenu(str);
-	
-	if (nr == 1 || nr == 2) {
-		for (base = FIRSTBASE(view_layer); base; base = base->next) {
-			if ((base != BASACT(view_layer)) && (TESTBASELIB(base))) {
-				if (nr == 1) { /* replace */
-					BKE_bproperty_copy_list(&base->object->prop, &ob->prop);
-				}
-				else {
-					for (prop = ob->prop.first; prop; prop = prop->next) {
-						BKE_bproperty_object_set(base->object, prop);
-					}
-				}
-			}
-		}
-	}
-	else if (nr > 0) {
-		prop = BLI_findlink(&ob->prop, nr - 4); /* account for first 3 menu items & menu index starting at 1*/
-		
-		if (prop) {
-			for (base = FIRSTBASE(view_layer); base; base = base->next) {
-				if ((base != BASACT(view_layer)) && (TESTBASELIB(base))) {
-					BKE_bproperty_object_set(base->object, prop);
-				}
-			}
-		}
-	}
-	MEM_freeN(str);
-	
-}
-
-static void copymenu_logicbricks(ViewLayer *view_layer, Object *ob)
-{
-//XXX no longer used - to be removed - replaced by logicbricks_copy_exec
-	Base *base;
-	
-	for (base = FIRSTBASE(view_layer); base; base = base->next) {
-		if (base->object != ob) {
-			if (TESTBASELIB(base)) {
-				
-				/* first: free all logic */
-				free_sensors(&base->object->sensors);
-				unlink_controllers(&base->object->controllers);
-				free_controllers(&base->object->controllers);
-				unlink_actuators(&base->object->actuators);
-				free_actuators(&base->object->actuators);
-				
-				/* now copy it, this also works without logicbricks! */
-				clear_sca_new_poins_ob(ob);
-				copy_sensors(&base->object->sensors, &ob->sensors, 0);
-				copy_controllers(&base->object->controllers, &ob->controllers, 0);
-				copy_actuators(&base->object->actuators, &ob->actuators, 0);
-				set_sca_new_poins_ob(base->object);
-				
-				/* some menu settings */
-				base->object->scavisflag = ob->scavisflag;
-				base->object->scaflag = ob->scaflag;
-				
-				/* set the initial state */
-				base->object->state = ob->state;
-				base->object->init_state = ob->init_state;
-			}
-		}
-	}
-}
-
 /* both pointers should exist */
 static void copy_texture_space(Object *to, Object *ob)
 {
@@ -776,15 +677,8 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, short ev
 		/* obedit_copymenu(); */
 		return;
 	}
-	if (event == 9) {
-		copymenu_properties(view_layer, ob);
-		return;
-	}
-	else if (event == 10) {
-		copymenu_logicbricks(view_layer, ob);
-		return;
-	}
-	else if (event == 24) {
+
+	if (event == 24) {
 		/* moved to BKE_object_link_modifiers */
 		/* copymenu_modifiers(bmain, scene, v3d, ob); */
 		return;
@@ -831,30 +725,6 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, short ev
 					base->object->dup_group = ob->dup_group;
 					if (ob->dup_group)
 						id_us_plus(&ob->dup_group->id);
-				}
-				else if (event == 7) {    /* mass */
-					base->object->mass = ob->mass;
-				}
-				else if (event == 8) {    /* damping */
-					base->object->damping = ob->damping;
-					base->object->rdamping = ob->rdamping;
-				}
-				else if (event == 11) {   /* all physical attributes */
-					base->object->gameflag = ob->gameflag;
-					base->object->inertia = ob->inertia;
-					base->object->formfactor = ob->formfactor;
-					base->object->damping = ob->damping;
-					base->object->rdamping = ob->rdamping;
-					base->object->min_vel = ob->min_vel;
-					base->object->max_vel = ob->max_vel;
-					base->object->min_angvel = ob->min_angvel;
-					base->object->max_angvel = ob->max_angvel;
-					if (ob->gameflag & OB_BOUNDS) {
-						base->object->collision_boundtype = ob->collision_boundtype;
-					}
-					base->object->margin = ob->margin;
-					base->object->bsoft = copy_bulletsoftbody(ob->bsoft, 0);
-
 				}
 				else if (event == 17) {   /* tex space */
 					copy_texture_space(base->object, ob);
@@ -1641,6 +1511,7 @@ void OBJECT_OT_mode_set(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+<<<<<<< HEAD
 /************************ Game Properties ***********************/
 
 static int game_property_new_exec(bContext *C, wmOperator *op)
@@ -2037,6 +1908,8 @@ void OBJECT_OT_game_physics_copy(struct wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+=======
+>>>>>>> b/blender2.8
 bool ED_object_editmode_calc_active_center(Object *obedit, const bool select_only, float r_center[3])
 {
 	switch (obedit->type) {

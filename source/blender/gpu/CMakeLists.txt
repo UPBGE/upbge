@@ -234,6 +234,7 @@ data_to_c_simple(shaders/gpu_shader_vertex_world.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vsm_store_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vsm_store_vert.glsl SRC)
 
+<<<<<<< HEAD
 data_to_c_simple(shaders/gpu_shader_black_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_black_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_frame_buffer_frag.glsl SRC)
@@ -243,6 +244,8 @@ if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
+=======
+>>>>>>> b/blender2.8
 if(WITH_MOD_SMOKE)
 	add_definitions(-DWITH_SMOKE)
 endif()

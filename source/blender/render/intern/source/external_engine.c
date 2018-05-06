@@ -85,7 +85,10 @@ ListBase R_engines = {NULL, NULL};
 void RE_engines_init(void)
 {
 	RE_engines_register(NULL, &internal_render_type);
+<<<<<<< HEAD
 
+=======
+>>>>>>> b/blender2.8
 	DRW_engines_register();
 }
 

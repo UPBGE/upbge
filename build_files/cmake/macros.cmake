@@ -795,6 +795,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		list(APPEND BLENDER_SORTED_LIBS extern_bullet)
 	endif()
 
+<<<<<<< HEAD
 	if(WITH_GAMEENGINE_DECKLINK)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_decklink)
 	endif()
@@ -803,6 +804,8 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_spindle)
 	endif()
 
+=======
+>>>>>>> b/blender2.8
 	if(WIN32)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_gpudirect)
 	endif()

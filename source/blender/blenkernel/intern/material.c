@@ -200,11 +200,7 @@ void BKE_material_init(Material *ma)
 	ma->vol.ms_spread = 0.2f;
 	ma->vol.ms_diff = 1.f;
 	ma->vol.ms_intensity = 1.f;
-	
-	ma->game.flag = GEMAT_BACKCULL;
-	ma->game.alpha_blend = 0;
-	ma->game.face_orientation = 0;
-	
+
 	ma->mode = MA_TRACEBLE | MA_SHADBUF | MA_SHADOW | MA_RAYBIAS | MA_TANGENT_STR | MA_ZTRANSP;
 	ma->mode2 = MA_CASTSHADOW;
 	ma->shade_flag = MA_APPROX_OCCLUSION;

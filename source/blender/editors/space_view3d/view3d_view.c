@@ -64,6 +64,7 @@
 
 #include "DEG_depsgraph_query.h"
 
+<<<<<<< HEAD
 #ifdef WITH_GAMEENGINE
 #  include "BLI_listbase.h"
 #  include "BLI_callbacks.h"
@@ -73,6 +74,8 @@
 #  include "LA_SystemCommandLine.h"
 #endif
 
+=======
+>>>>>>> b/blender2.8
 #include "view3d_intern.h"  /* own include */
 
 /* -------------------------------------------------------------------- */
@@ -1090,6 +1093,7 @@ int ED_view3d_view_layer_set(int lay, const int *values, int *active)
 }
 
 /** \} */
+<<<<<<< HEAD
 
 /* -------------------------------------------------------------------- */
 /** \name Game Engine Operator
@@ -1300,3 +1304,5 @@ void VIEW3D_OT_game_start(wmOperatorType *ot)
 }
 
 /** \} */
+=======
+>>>>>>> b/blender2.8
