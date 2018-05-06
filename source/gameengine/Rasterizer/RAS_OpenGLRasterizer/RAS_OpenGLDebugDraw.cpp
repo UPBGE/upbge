@@ -38,8 +38,9 @@
 #include "KX_Camera.h"
 
 extern "C" {
-#  include "GPU_immediate.h"
 #  include "BLF_api.h"
+#  include "DRW_render.h"
+#  include "GPU_immediate.h"
 }
 
 RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw():
@@ -283,6 +284,8 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 		immRectf(pos, xco + 1 + xsize, yco + ysize, xco, yco);
 	}
 	immUnbindProgram();
+
+	DRW_state_reset();
 
 	BLF_size(blf_mono_font, 11, 72);
 
