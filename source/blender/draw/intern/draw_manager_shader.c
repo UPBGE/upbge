@@ -168,7 +168,7 @@ static void drw_deferred_shader_add(
         GPUMaterial *mat, const char *vert, const char *geom, const char *frag_lib, const char *defines)
 {
 	/* Do not deferre the compilation if we are rendering for image. */
-	if (DRW_state_is_image_render()) {
+	if (DRW_state_is_image_render() || DRW_state_is_game_engine()) {
 		/* Double checking that this GPUMaterial is not going to be
 		 * compiled by another thread. */
 		DRW_deferred_shader_remove(mat);

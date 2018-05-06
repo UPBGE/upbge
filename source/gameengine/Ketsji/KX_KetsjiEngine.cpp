@@ -1249,11 +1249,6 @@ void KX_KetsjiEngine::AddScheduledScenes()
 
 bool KX_KetsjiEngine::ReplaceScene(const std::string& oldscene, const std::string& newscene)
 {
-	/****************EEVEE INTEGRATION*****************/
-	// DISABLE REPLACE SCENES FOR NOW
-	std::cout << "KX_KetsjiEngine::ReplaceScene: Replace Scene is temporarly disabled during eevee integration" << std::endl;
-	return false;
-	/**************************************************/
 	// Don't allow replacement if the new scene doesn't exist.
 	// Allows smarter game design (used to have no check here).
 	// Note that it creates a small backward compatbility issue

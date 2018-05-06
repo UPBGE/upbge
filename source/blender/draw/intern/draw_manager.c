@@ -2091,6 +2091,11 @@ void DRW_opengl_context_disable(void)
 #include "BKE_main.h"
 #include "BKE_scene.h"
 
+bool DRW_state_is_game_engine()
+{
+	return DST.options.is_game_engine;
+}
+
 EEVEE_Data *EEVEE_engine_data_get(void)
 {
 	EEVEE_Data *data = (EEVEE_Data *)drw_viewport_engine_data_ensure(&draw_engine_eevee_type);
@@ -2224,6 +2229,8 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	DST.draw_ctx.obact = OBACT(view_layer);
 
 	DST.draw_ctx.depsgraph = depsgraph;
+
+	DST.options.is_game_engine = true;
 
 	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
 	int taa_samples_backup = BKE_collection_engine_property_value_get_int(props, "taa_samples");

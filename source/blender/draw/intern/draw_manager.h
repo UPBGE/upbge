@@ -296,6 +296,7 @@ typedef struct DRWManager {
 		unsigned int is_depth : 1;
 		unsigned int is_image_render : 1;
 		unsigned int is_scene_render : 1;
+		unsigned int is_game_engine : 1;
 		unsigned int draw_background : 1;
 	} options;
 

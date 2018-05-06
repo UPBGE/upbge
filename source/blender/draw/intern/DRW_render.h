@@ -509,6 +509,7 @@ typedef struct DRWContextState {
 const DRWContextState *DRW_context_state_get(void);
 
 /*****************************GAME ENGINE***********************************/
+bool DRW_state_is_game_engine(void);
 /**************************END OF GAME ENGINE*******************************/
 
 #endif /* __DRW_RENDER_H__ */
