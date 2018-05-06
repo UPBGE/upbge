@@ -1534,19 +1534,23 @@ static void rna_Physics_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Pointe
 
 static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const int *value)
 {
-	Scene *scene = (Scene *)ptr->id.data;
-	ViewLayer *view_layer = BKE_view_layer_context_active_PLACEHOLDER(scene);
 	ToolSettings *ts = (ToolSettings *)ptr->data;
 	int flag = (value[0] ? SCE_SELECT_VERTEX : 0) | (value[1] ? SCE_SELECT_EDGE : 0) | (value[2] ? SCE_SELECT_FACE : 0);
 
 	if (flag) {
 		ts->selectmode = flag;
 
-		if (view_layer->basact) {
-			Mesh *me = BKE_mesh_from_object(view_layer->basact->object);
-			if (me && me->edit_btmesh && me->edit_btmesh->selectmode != flag) {
-				me->edit_btmesh->selectmode = flag;
-				EDBM_selectmode_set(me->edit_btmesh);
+		/* Update select mode in all the workspaces in mesh edit mode. */
+		wmWindowManager *wm = G.main->wm.first;
+		for (wmWindow *win = wm->windows.first; win; win = win->next) {
+			ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+
+			if (view_layer && view_layer->basact) {
+				Mesh *me = BKE_mesh_from_object(view_layer->basact->object);
+				if (me && me->edit_btmesh && me->edit_btmesh->selectmode != flag) {
+					me->edit_btmesh->selectmode = flag;
+					EDBM_selectmode_set(me->edit_btmesh);
+				}
 			}
 		}
 	}
@@ -2026,44 +2030,6 @@ static void rna_Stereo3dFormat_update(Main *UNUSED(bmain), Scene *UNUSED(scene),
 static int rna_gpu_is_hq_supported_get(PointerRNA *UNUSED(ptr))
 {
 	return true;
-}
-
-static int rna_ViewLayer_active_view_layer_index_get(PointerRNA *ptr)
-{
-	Scene *scene = (Scene *)ptr->data;
-	return scene->active_view_layer;
-}
-
-static void rna_ViewLayer_active_view_layer_index_set(PointerRNA *ptr, int value)
-{
-	Scene *scene = (Scene *)ptr->data;
-	int num_layers = BLI_listbase_count(&scene->view_layers);
-	scene->active_view_layer = min_ff(value, num_layers - 1);
-}
-
-static void rna_ViewLayer_active_view_layer_index_range(
-        PointerRNA *ptr, int *min, int *max, int *UNUSED(softmin), int *UNUSED(softmax))
-{
-	Scene *scene = (Scene *)ptr->data;
-
-	*min = 0;
-	*max = max_ii(0, BLI_listbase_count(&scene->view_layers) - 1);
-}
-
-static PointerRNA rna_ViewLayer_active_view_layer_get(PointerRNA *ptr)
-{
-	Scene *scene = (Scene *)ptr->data;
-	ViewLayer *view_layer = BLI_findlink(&scene->view_layers, scene->active_view_layer);
-
-	return rna_pointer_inherit_refine(ptr, &RNA_ViewLayer, view_layer);
-}
-
-static void rna_ViewLayer_active_view_layer_set(PointerRNA *ptr, PointerRNA value)
-{
-	Scene *scene = (Scene *)ptr->data;
-	ViewLayer *view_layer = (ViewLayer *)value.data;
-	const int index = BLI_findindex(&scene->view_layers, view_layer);
-	if (index != -1) scene->active_view_layer = index;
 }
 
 static ViewLayer *rna_ViewLayer_new(
@@ -4680,7 +4646,6 @@ static void rna_def_gpu_dof_fx(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "GPUDOFSettings", NULL);
 	RNA_def_struct_ui_text(srna, "GPU DOF", "Settings for GPU based depth of field");
-	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
 	RNA_def_struct_path_func(srna, "rna_GPUDOF_path");
 
 	prop = RNA_def_property(srna, "focus_distance", PROP_FLOAT, PROP_DISTANCE);
@@ -4745,7 +4710,6 @@ static void rna_def_gpu_ssao_fx(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "GPUSSAOSettings", NULL);
 	RNA_def_struct_ui_text(srna, "GPU SSAO", "Settings for GPU based screen space ambient occlusion");
-	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
 
 	prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Strength", "Strength of the SSAO effect");
@@ -4786,7 +4750,6 @@ static void rna_def_gpu_fx(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "GPUFXSettings", NULL);
 	RNA_def_struct_ui_text(srna, "GPU FX Settings", "Settings for GPU based compositing");
-	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
 
 	prop = RNA_def_property(srna, "dof", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -4816,28 +4779,11 @@ static void rna_def_view_layers(BlenderRNA *brna, PropertyRNA *cprop)
 	StructRNA *srna;
 	FunctionRNA *func;
 	PropertyRNA *parm;
-	PropertyRNA *prop;
 
 	RNA_def_property_srna(cprop, "ViewLayers");
 	srna = RNA_def_struct(brna, "ViewLayers", NULL);
 	RNA_def_struct_sdna(srna, "Scene");
 	RNA_def_struct_ui_text(srna, "Render Layers", "Collection of render layers");
-
-	prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_int_sdna(prop, NULL, "active_view_layer");
-	RNA_def_property_int_funcs(prop, "rna_ViewLayer_active_view_layer_index_get",
-	                           "rna_ViewLayer_active_view_layer_index_set",
-	                           "rna_ViewLayer_active_view_layer_index_range");
-	RNA_def_property_ui_text(prop, "Active View Layer Index", "Active index in view layer array");
-	RNA_def_property_update(prop, NC_SCENE | ND_LAYER, NULL);
-
-	prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
-	RNA_def_property_struct_type(prop, "ViewLayer");
-	RNA_def_property_pointer_funcs(prop, "rna_ViewLayer_active_view_layer_get",
-	                               "rna_ViewLayer_active_view_layer_set", NULL, NULL);
-	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_NULL);
-	RNA_def_property_ui_text(prop, "Active View Layer", "Active View Layer");
-	RNA_def_property_update(prop, NC_SCENE | ND_LAYER, NULL);
 
 	func = RNA_def_function(srna, "new", "rna_ViewLayer_new");
 	RNA_def_function_ui_description(func, "Add a view layer to scene");
@@ -5995,14 +5941,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "sequencer_gl_preview", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "seq_prev_type");
-	RNA_def_property_enum_items(prop, rna_enum_viewport_shade_items);
+	RNA_def_property_enum_items(prop, rna_enum_shading_type_items);
 	RNA_def_property_ui_text(prop, "Sequencer Preview Shading", "Method to draw in the sequencer view");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SceneSequencer_update");
 
 #if 0  /* UNUSED, see R_SEQ_GL_REND comment */
 	prop = RNA_def_property(srna, "sequencer_gl_render", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "seq_rend_type");
-	RNA_def_property_enum_items(prop, rna_enum_viewport_shade_items);
+	RNA_def_property_enum_items(prop, rna_enum_shading_type_items);
 	/* XXX Label and tooltips are obviously wrong! */
 	RNA_def_property_ui_text(prop, "Sequencer Preview Shading", "Method to draw in the sequencer view");
 #endif
@@ -6019,8 +5965,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_single_layer", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_SINGLE_LAYER);
-	RNA_def_property_ui_text(prop, "Single Layer", "Only render the active layer");
-	RNA_def_property_ui_icon(prop, ICON_UNPINNED, 1);
+	RNA_def_property_ui_text(prop, "Render Single Layer", "Only render the active layer");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	/* views (stereoscopy et al) */

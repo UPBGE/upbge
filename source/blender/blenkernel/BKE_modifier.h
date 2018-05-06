@@ -35,6 +35,7 @@
 struct ID;
 struct Depsgraph;
 struct DerivedMesh;
+struct Mesh;
 struct Object;
 struct Scene;
 struct ViewLayer;
@@ -126,12 +127,20 @@ typedef enum ModifierApplyFlag {
 	                                */
 } ModifierApplyFlag;
 
-
 typedef struct ModifierUpdateDepsgraphContext {
 	struct Scene *scene;
 	struct Object *object;
 	struct DepsNodeHandle *node;
 } ModifierUpdateDepsgraphContext;
+
+/* Contains the information for deformXXX and applyXXX functions below that
+ * doesn't change between consecutive modifiers. */
+typedef struct ModifierEvalContext {
+	struct Depsgraph *depsgraph;
+	struct Object *object;
+	ModifierApplyFlag flag;
+} ModifierEvalContext;
+
 
 typedef struct ModifierTypeInfo {
 	/* The user visible name for this modifier */
@@ -156,37 +165,37 @@ typedef struct ModifierTypeInfo {
 	 */
 	void (*copyData)(struct ModifierData *md, struct ModifierData *target);
 
-	/********************* Deform modifier functions *********************/
+
+	/********************* Deform modifier functions *********************/ /* DEPRECATED */
 
 	/* Only for deform types, should apply the deformation
 	 * to the given vertex array. If the deformer requires information from
 	 * the object it can obtain it from the derivedData argument if non-NULL,
 	 * and otherwise the ob argument.
 	 */
-	void (*deformVerts)(struct ModifierData *md, struct Depsgraph *depsgraph,
-	                    struct Object *ob, struct DerivedMesh *derivedData,
-	                    float (*vertexCos)[3], int numVerts,
-	                    ModifierApplyFlag flag);
+	void (*deformVerts_DM)(struct ModifierData *md, const struct ModifierEvalContext *ctx,
+	                       struct DerivedMesh *derivedData,
+	                       float (*vertexCos)[3], int numVerts);
 
 	/* Like deformMatricesEM but called from object mode (for supporting modifiers in sculpt mode) */
-	void (*deformMatrices)(struct ModifierData *md, struct Depsgraph *depsgraph,
-	                       struct Object *ob, struct DerivedMesh *derivedData,
-	                       float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
+	void (*deformMatrices_DM)(struct ModifierData *md, const struct ModifierEvalContext *ctx,
+	                          struct DerivedMesh *derivedData,
+	                          float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
 
 	/* Like deformVerts but called during editmode (for supporting modifiers)
 	 */
-	void (*deformVertsEM)(struct ModifierData *md, struct Depsgraph *depsgraph,
-	                      struct Object *ob, struct BMEditMesh *editData,
-	                      struct DerivedMesh *derivedData,
-	                      float (*vertexCos)[3], int numVerts);
+	void (*deformVertsEM_DM)(struct ModifierData *md, const struct ModifierEvalContext *ctx,
+	                         struct BMEditMesh *editData,
+	                         struct DerivedMesh *derivedData,
+	                         float (*vertexCos)[3], int numVerts);
 
 	/* Set deform matrix per vertex for crazyspace correction */
-	void (*deformMatricesEM)(struct ModifierData *md, struct Depsgraph *depsgraph,
-	                         struct Object *ob, struct BMEditMesh *editData,
+	void (*deformMatricesEM_DM)(struct ModifierData *md, const struct ModifierEvalContext *ctx,
+	                         struct BMEditMesh *editData,
 	                         struct DerivedMesh *derivedData,
 	                         float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
 
-	/********************* Non-deform modifier functions *********************/
+	/********************* Non-deform modifier functions *********************/ /* DEPRECATED */
 
 	/* For non-deform types: apply the modifier and return a derived
 	 * data object (type is dependent on object type).
@@ -195,21 +204,11 @@ typedef struct ModifierTypeInfo {
 	 * should read the object data from the derived object instead of the
 	 * actual object data. 
 	 *
-	 * The useRenderParams argument indicates if the modifier is being
-	 * applied in the service of the renderer which may alter quality
-	 * settings.
-	 *
-	 * The isFinalCalc parameter indicates if the modifier is being
-	 * calculated for a final result or for something temporary
-	 * (like orcos). This is a hack at the moment, it is meant so subsurf
-	 * can know if it is safe to reuse its internal cache.
-	 *
 	 * The modifier may reuse the derivedData argument (i.e. return it in
 	 * modified form), but must not release it.
 	 */
-	struct DerivedMesh *(*applyModifier)(struct ModifierData *md, struct Depsgraph *depsgraph,
-	                                     struct Object *ob, struct DerivedMesh *derivedData,
-	                                     ModifierApplyFlag flag);
+	struct DerivedMesh *(*applyModifier_DM)(struct ModifierData *md, const struct ModifierEvalContext *ctx,
+	                                        struct DerivedMesh *derivedData);
 
 	/* Like applyModifier but called during editmode (for supporting
 	 * modifiers).
@@ -218,9 +217,60 @@ typedef struct ModifierTypeInfo {
 	 * are expected from editmode objects. The same qualifications regarding
 	 * derivedData apply as for applyModifier.
 	 */
-	struct DerivedMesh *(*applyModifierEM)(struct ModifierData *md, struct Depsgraph *depsgraph,
-	                                       struct Object *ob, struct BMEditMesh *editData,
-	                                       struct DerivedMesh *derivedData, ModifierApplyFlag flag);
+	struct DerivedMesh *(*applyModifierEM_DM)(struct ModifierData *md, const struct ModifierEvalContext *ctx,
+	                                          struct BMEditMesh *editData,
+	                                          struct DerivedMesh *derivedData);
+
+
+	/********************* Deform modifier functions *********************/
+
+	/* Only for deform types, should apply the deformation
+	 * to the given vertex array. If the deformer requires information from
+	 * the object it can obtain it from the mesh argument if non-NULL,
+	 * and otherwise the ob argument.
+	 */
+	void (*deformVerts)(struct ModifierData *md,  const struct ModifierEvalContext *ctx,
+	                    struct Mesh *mesh, float (*vertexCos)[3], int numVerts);
+
+	/* Like deformMatricesEM but called from object mode (for supporting modifiers in sculpt mode) */
+	void (*deformMatrices)(struct ModifierData *md,  const struct ModifierEvalContext *ctx,
+	                       struct Mesh *mesh, float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
+
+	/* Like deformVerts but called during editmode (for supporting modifiers)
+	 */
+	void (*deformVertsEM)(struct ModifierData *md,  const struct ModifierEvalContext *ctx,
+	                      struct BMEditMesh *editData,
+	                      struct Mesh *mesh, float (*vertexCos)[3], int numVerts);
+
+	/* Set deform matrix per vertex for crazyspace correction */
+	void (*deformMatricesEM)(struct ModifierData *md,  const struct ModifierEvalContext *ctx,
+	                         struct BMEditMesh *editData,
+	                         struct Mesh *mesh, float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
+
+	/********************* Non-deform modifier functions *********************/
+
+	/* For non-deform types: apply the modifier and return a mesh object.
+	 *
+	 * The mesh argument should always be non-NULL; the modifier
+	 * should read the object data from the mesh object instead of the
+	 * actual object data. 
+	 *
+	 * The modifier may reuse the mesh argument (i.e. return it in
+	 * modified form), but must not release it.
+	 */
+	struct Mesh *(*applyModifier)(struct ModifierData *md, const struct ModifierEvalContext *ctx,
+	                              struct Mesh *mesh);
+
+	/* Like applyModifier but called during editmode (for supporting
+	 * modifiers).
+	 * 
+	 * The mesh object that is returned must support the operations that
+	 * are expected from editmode objects. The same qualifications regarding
+	 * mesh apply as for applyModifier.
+	 */
+	struct Mesh *(*applyModifierEM)(struct ModifierData *md, const struct ModifierEvalContext *ctx,
+	                                struct BMEditMesh *editData,
+	                                struct Mesh *mesh);
 
 
 	/********************* Optional functions *********************/
@@ -419,29 +469,84 @@ void        modifier_path_init(char *path, int path_maxlen, const char *name);
 const char *modifier_path_relbase(struct Object *ob);
 
 
-/* wrappers for modifier callbacks */
+/* wrappers for modifier callbacks that ensure valid normals */
 
 struct DerivedMesh *modwrap_applyModifier(
-        ModifierData *md, struct Depsgraph *depsgraph,
-        struct Object *ob, struct DerivedMesh *dm,
-        ModifierApplyFlag flag);
+        ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct DerivedMesh *dm);
 
 struct DerivedMesh *modwrap_applyModifierEM(
-        ModifierData *md, struct Depsgraph *depsgraph,
-        struct Object *ob, struct BMEditMesh *em,
-        struct DerivedMesh *dm,
-        ModifierApplyFlag flag);
+        ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct BMEditMesh *em, struct DerivedMesh *dm);
 
 void modwrap_deformVerts(
-        ModifierData *md, struct Depsgraph *depsgraph,
-        struct Object *ob, struct DerivedMesh *dm,
-        float (*vertexCos)[3], int numVerts,
-        ModifierApplyFlag flag);
+        ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct DerivedMesh *dm,
+        float (*vertexCos)[3], int numVerts);
 
 void modwrap_deformVertsEM(
-        ModifierData *md, struct Depsgraph *depsgraph, struct Object *ob,
+        ModifierData *md, const struct ModifierEvalContext *ctx,
         struct BMEditMesh *em, struct DerivedMesh *dm,
         float (*vertexCos)[3], int numVerts);
+
+/* wrappers for modifier callbacks that accept Mesh and select the proper implementation
+ * depending on if the modifier has been ported to Mesh or is still using DerivedMesh
+ */
+
+void modifier_deformVerts(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct Mesh *mesh, float (*vertexCos)[3], int numVerts);
+
+void modifier_deformMatrices(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct Mesh *mesh, float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
+
+void modifier_deformVertsEM(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct BMEditMesh *editData, struct Mesh *mesh,
+        float (*vertexCos)[3], int numVerts);
+
+void modifier_deformMatricesEM(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct BMEditMesh *editData, struct Mesh *mesh,
+        float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
+
+struct Mesh *modifier_applyModifier(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct Mesh *mesh);
+
+struct Mesh *modifier_applyModifierEM(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct BMEditMesh *editData, struct Mesh *mesh);
+
+/* depricated variants of above that accept DerivedMesh */
+
+void modifier_deformVerts_DM_deprecated(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct DerivedMesh *dm, float (*vertexCos)[3], int numVerts);
+
+void modifier_deformMatrices_DM_deprecated(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct DerivedMesh *dm,
+        float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
+
+void modifier_deformVertsEM_DM_deprecated(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct BMEditMesh *editData, struct DerivedMesh *dm,
+        float (*vertexCos)[3], int numVerts);
+
+void modifier_deformMatricesEM_DM_deprecated(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct BMEditMesh *editData, struct DerivedMesh *dm,
+        float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
+
+struct DerivedMesh *modifier_applyModifier_DM_deprecated(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct DerivedMesh *dm);
+
+struct DerivedMesh *modifier_applyModifierEM_DM_deprecated(
+        struct ModifierData *md, const struct ModifierEvalContext *ctx,
+        struct BMEditMesh *editData, struct DerivedMesh *dm);
 
 #endif
 

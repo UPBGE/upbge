@@ -213,27 +213,8 @@ Paint *BKE_paint_get_active_from_context(const bContext *C)
 				return &ts->imapaint.paint;
 			}
 		}
-		else if (obact) {
-			switch (obact->mode) {
-				case OB_MODE_SCULPT:
-					return &ts->sculpt->paint;
-				case OB_MODE_VERTEX_PAINT:
-					return &ts->vpaint->paint;
-				case OB_MODE_WEIGHT_PAINT:
-					return &ts->wpaint->paint;
-				case OB_MODE_TEXTURE_PAINT:
-					return &ts->imapaint.paint;
-				case OB_MODE_EDIT:
-					if (ts->use_uv_sculpt)
-						return &ts->uvsculpt->paint;
-					return &ts->imapaint.paint;
-				default:
-					return &ts->imapaint.paint;
-			}
-		}
 		else {
-			/* default to image paint */
-			return &ts->imapaint.paint;
+			return BKE_paint_get_active(sce, view_layer);
 		}
 	}
 
@@ -884,6 +865,15 @@ void BKE_sculpt_update_mesh_elements(
         Depsgraph *depsgraph, Scene *scene, Sculpt *sd, Object *ob,
         bool need_pmap, bool need_mask)
 {
+	if (depsgraph == NULL) {
+		/* Happens on file load.
+		 *
+		 * We do nothing in this case, it will be taken care about on depsgraph
+		 * evaluation.
+		 */
+		return;
+	}
+
 	DerivedMesh *dm;
 	SculptSession *ss = ob->sculpt;
 	Mesh *me = ob->data;

@@ -442,11 +442,13 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 		if (te->ys + 2 * UI_UNIT_Y >= ar->v2d.cur.ymin && te->ys <= ar->v2d.cur.ymax) {
 			if (tselem->type == TSE_R_LAYER && (soops->outlinevis == SO_SCENES)) {
 				/* View layer render toggle. */
+				ViewLayer *view_layer = te->directdata;
+
 				UI_block_emboss_set(block, UI_EMBOSS_NONE);
 				
-				bt = uiDefIconButBitI(block, UI_BTYPE_ICON_TOGGLE_N, VIEW_LAYER_RENDER, 0, ICON_RESTRICT_RENDER_OFF,
+				bt = uiDefIconButBitS(block, UI_BTYPE_ICON_TOGGLE_N, VIEW_LAYER_RENDER, 0, ICON_RESTRICT_RENDER_OFF,
 				                      (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX), te->ys, UI_UNIT_X,
-				                      UI_UNIT_Y, te->directdata, 0, 0, 0, 0, TIP_("Use view layer for rendering"));
+				                      UI_UNIT_Y, &view_layer->flag, 0, 0, 0, 0, TIP_("Use view layer for rendering"));
 				UI_but_func_set(bt, restrictbutton_r_lay_cb, tselem->id, NULL);
 				UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
 				
@@ -1045,7 +1047,7 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 				ICON_DRAW(ICON_OUTLINER_OB_GROUP_INSTANCE);
 				break;
 			case TSE_R_LAYER:
-				ICON_DRAW(ICON_RENDERLAYERS);
+				ICON_DRAW(ICON_RENDER_RESULT);
 				break;
 			case TSE_LINKED_LAMP:
 				ICON_DRAW(ICON_LAMP_DATA);
@@ -1594,7 +1596,7 @@ static void outliner_draw_hierarchy_lines_recursive(unsigned pos, SpaceOops *soo
 	const unsigned char grayed_alpha = col[3] / 2;
 
 	/* For vertical lines between objects. */
-	y1 = *starty;
+	y1 = y2 = *starty;
 	for (te = lb->first; te; te = te->next) {
 		bool draw_childs_grayed_out = draw_grayed_out || (te->drag_data != NULL);
 		tselem = TREESTORE(te);
@@ -1786,7 +1788,7 @@ static void outliner_draw_tree(
 		CLAMP_MIN(mask_x, 0);
 
 		glGetFloatv(GL_SCISSOR_BOX, scissor);
-		glScissor(ar->winrct.xmin, ar->winrct.ymin, mask_x, ar->winy);
+		glScissor(0, 0, mask_x, ar->winy);
 	}
 
 	// gray hierarchy lines

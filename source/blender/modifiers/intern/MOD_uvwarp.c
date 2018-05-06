@@ -146,9 +146,8 @@ static void uv_warp_compute(
 	}
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, struct Depsgraph *UNUSED(depsgraph),
-                                  Object *ob, DerivedMesh *dm,
-                                  ModifierApplyFlag UNUSED(flag))
+static DerivedMesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx,
+                                  DerivedMesh *dm)
 {
 	UVWarpModifierData *umd = (UVWarpModifierData *) md;
 	int numPolys, numLoops;
@@ -206,7 +205,7 @@ static DerivedMesh *applyModifier(ModifierData *md, struct Depsgraph *UNUSED(dep
 	mloop = dm->getLoopArray(dm);
 	/* make sure we are not modifying the original UV map */
 	mloopuv = CustomData_duplicate_referenced_layer_named(&dm->loopData, CD_MLOOPUV, uvname, numLoops);
-	modifier_get_vgroup(ob, dm, umd->vgroup_name, &dvert, &defgrp_index);
+	modifier_get_vgroup(ctx->object, dm, umd->vgroup_name, &dvert, &defgrp_index);
 
 	UVWarpData data = {.mpoly = mpoly, .mloop = mloop, .mloopuv = mloopuv,
 	                   .dvert = dvert, .defgrp_index = defgrp_index,
@@ -261,12 +260,21 @@ ModifierTypeInfo modifierType_UVWarp = {
 	                        eModifierTypeFlag_SupportsEditmode |
 	                        eModifierTypeFlag_EnableInEditmode,
 	/* copyData */          copyData,
+
+	/* deformVerts_DM */    NULL,
+	/* deformMatrices_DM */ NULL,
+	/* deformVertsEM_DM */  NULL,
+	/* deformMatricesEM_DM*/NULL,
+	/* applyModifier_DM */  applyModifier,
+	/* applyModifierEM_DM */NULL,
+
 	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
-	/* applyModifier */     applyModifier,
+	/* applyModifier */     NULL,
 	/* applyModifierEM */   NULL,
+
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          NULL,

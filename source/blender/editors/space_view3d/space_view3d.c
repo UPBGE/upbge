@@ -75,6 +75,7 @@
 
 #include "RNA_access.h"
 
+#include "UI_interface.h"
 #include "UI_resources.h"
 
 #ifdef WITH_PYTHON
@@ -545,13 +546,6 @@ static void view3d_main_region_exit(wmWindowManager *wm, ARegion *ar)
 		GPU_offscreen_free(rv3d->gpuoffscreen);
 		rv3d->gpuoffscreen = NULL;
 	}
-	
-	if (rv3d->viewport) {
-		DRW_opengl_context_enable();
-		GPU_viewport_free(rv3d->viewport);
-		DRW_opengl_context_disable();
-		rv3d->viewport = NULL;
-	}
 }
 
 static int view3d_ob_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
@@ -729,11 +723,6 @@ static void view3d_main_region_free(ARegion *ar)
 		if (rv3d->gpuoffscreen) {
 			GPU_offscreen_free(rv3d->gpuoffscreen);
 		}
-		if (rv3d->viewport) {
-			DRW_opengl_context_enable();
-			GPU_viewport_free(rv3d->viewport);
-			DRW_opengl_context_disable();
-		}
 
 		MEM_freeN(rv3d);
 		ar->regiondata = NULL;
@@ -758,7 +747,6 @@ static void *view3d_main_region_duplicate(void *poin)
 		new->sms = NULL;
 		new->smooth_timer = NULL;
 		new->compositor = NULL;
-		new->viewport = NULL;
 		
 		return new;
 	}
@@ -1065,6 +1053,8 @@ static void view3d_main_region_message_subscribe(
 		&RNA_Object,
 		&RNA_UnitSettings,  /* grid-floor */
 
+		&RNA_View3DOverlay,
+		&RNA_View3DShading,
 		&RNA_World,
 	};
 
@@ -1277,6 +1267,27 @@ static void view3d_buttons_region_listener(
 	}
 }
 
+static int view3d_tools_region_snap_size(const ARegion *ar, int size, int axis)
+{
+	if (axis == 0) {
+		/* Note, this depends on the icon size: see #ICON_DEFAULT_HEIGHT_TOOLBAR. */
+		const float snap_units[] = {3 + 0.25f, 5 + 0.25};
+		const float aspect = BLI_rctf_size_x(&ar->v2d.cur) / (BLI_rcti_size_x(&ar->v2d.mask) + 1);
+		int best_diff = INT_MAX;
+		int best_size = size;
+		for (uint i = 0; i < ARRAY_SIZE(snap_units); i += 1) {
+			const int test_size = (snap_units[i] * U.widget_unit) / (UI_DPI_FAC * aspect);
+			const int test_diff = ABS(test_size - size);
+			if (test_diff < best_diff) {
+				best_size = test_size;
+				best_diff = test_diff;
+			}
+		}
+		return best_size;
+	}
+	return size;
+}
+
 /* add handlers, stuff you only do once or on area/region changes */
 static void view3d_tools_region_init(wmWindowManager *wm, ARegion *ar)
 {
@@ -1474,6 +1485,7 @@ void ED_spacetype_view3d(void)
 	art->prefsizey = 50; /* XXX */
 	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
 	art->listener = view3d_buttons_region_listener;
+	art->snap_size = view3d_tools_region_snap_size;
 	art->init = view3d_tools_region_init;
 	art->draw = view3d_tools_region_draw;
 	BLI_addhead(&st->regiontypes, art);

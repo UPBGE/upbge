@@ -71,14 +71,6 @@ RAS_2DFilterFrameBuffer::~RAS_2DFilterFrameBuffer()
 	}
 }
 
-/* WARNING: Always respect the order from RAS_Rasterizer::HdrType.
-* RAS_HDR_NONE can use RGBA8 as the tonemapping is applied before the filters. */
-static const DRWTextureFormat dataTypeEnums[] = {
-	DRW_TEX_RGB_11_11_10, // RAS_HDR_NONE
-	DRW_TEX_RGBA_16, // RAS_HDR_HALF_FLOAT
-	DRW_TEX_RGBA_32 // RAS_HDR_FULL_FLOAT
-};
-
 void RAS_2DFilterFrameBuffer::Construct()
 {
 	m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, m_hdrType, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);

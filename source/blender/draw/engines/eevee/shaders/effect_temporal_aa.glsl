@@ -4,6 +4,12 @@ uniform sampler2D velocityBuffer;
 
 out vec4 FragColor;
 
+vec4 safe_color(vec4 c)
+{
+	/* Clamp to avoid black square artifacts if a pixel goes NaN. */
+	return clamp(c, vec4(0.0), vec4(1e20)); /* 1e20 arbitrary. */
+}
+
 #ifdef USE_REPROJECTION
 
 /**
@@ -34,6 +40,9 @@ void main()
 	ivec2 texel = ivec2(gl_FragCoord.xy);
 	float depth = texelFetch(depthBuffer, texel, 0).r;
 	vec2 motion = texelFetch(velocityBuffer, texel, 0).rg;
+
+	/* Decode from unsigned normalized 16bit texture. */
+	motion = motion * 2.0 - 1.0;
 
 	/* Compute pixel position in previous frame. */
 	vec2 screen_res = vec2(textureSize(colorBuffer, 0).xy);
@@ -85,7 +94,7 @@ void main()
 	bool out_of_view = any(greaterThanEqual(abs(uv_history - 0.5), vec2(0.5)));
 	color_history = (out_of_view) ? color : color_history;
 
-	FragColor = color_history;
+	FragColor = safe_color(color_history);
 }
 
 #else
@@ -97,6 +106,6 @@ void main()
 	ivec2 texel = ivec2(gl_FragCoord.xy);
 	vec4 color = texelFetch(colorBuffer, texel, 0);
 	vec4 color_history = texelFetch(colorHistoryBuffer, texel, 0);
-	FragColor = mix(color_history, color, alpha);
+	FragColor = safe_color(mix(color_history, color, alpha));
 }
 #endif

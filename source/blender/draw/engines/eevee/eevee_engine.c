@@ -70,7 +70,7 @@ static void eevee_engine_init(void *ved)
 	stl->g_data->valid_double_buffer = (txl->color_double_buffer != NULL);
 
 	/* Main Buffer */
-	DRW_texture_ensure_fullscreen_2D(&txl->color, DRW_TEX_RGBA_16, DRW_TEX_FILTER | DRW_TEX_MIPMAP);
+	DRW_texture_ensure_fullscreen_2D(&txl->color, GPU_RGBA16F, DRW_TEX_FILTER | DRW_TEX_MIPMAP);
 
 	GPU_framebuffer_ensure_config(&fbl->main_fb, {
 		GPU_ATTACHMENT_TEXTURE(dtxl->depth),
@@ -140,9 +140,9 @@ static void eevee_cache_populate(void *vedata, Object *ob)
 	}
 
 	if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT)) {
-		EEVEE_materials_cache_populate(vedata, sldata, ob);
+		bool cast_shadow;
 
-		const bool cast_shadow = true;
+		EEVEE_materials_cache_populate(vedata, sldata, ob, &cast_shadow);
 
 		if (cast_shadow) {
 			EEVEE_lights_cache_shcaster_object_add(sldata, ob);

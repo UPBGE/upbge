@@ -24,141 +24,399 @@
  */
 
 #include "workbench_private.h"
+
+#include "BLI_dynstr.h"
+
+#include "BKE_particle.h"
+
+#include "DNA_modifier_types.h"
+
 #include "GPU_shader.h"
 
+#include "UI_resources.h"
+
 /* *********** STATIC *********** */
+#define MAX_SHADERS 255
 static struct {
-	struct GPUShader *depth_sh;
+	struct GPUShader *prepass_sh_cache[MAX_SHADERS];
+	struct GPUShader *composite_sh_cache[MAX_SHADERS];
 
-	/* Solid flat mode */
-	struct GPUShader *solid_flat_sh;
+	struct GPUTexture *object_id_tx; /* ref only, not alloced */
+	struct GPUTexture *color_buffer_tx; /* ref only, not alloced */
+	struct GPUTexture *normal_buffer_tx; /* ref only, not alloced */
 
-	/* Solid studio mode */
-	struct GPUShader *solid_studio_sh;
-
-} e_data = {NULL};
+	int next_object_id;
+} e_data = {{NULL}};
 
 /* Shaders */
-extern char datatoc_solid_flat_frag_glsl[];
-extern char datatoc_solid_studio_frag_glsl[];
-extern char datatoc_workbench_vert_glsl[];
-extern char datatoc_workbench_studio_vert_glsl[];
-extern char datatoc_workbench_diffuse_lib_glsl[];
+extern char datatoc_workbench_prepass_vert_glsl[];
+extern char datatoc_workbench_prepass_frag_glsl[];
+extern char datatoc_workbench_composite_frag_glsl[];
 
-/* Functions */
-static uint get_material_hash(const float color[3])
+extern char datatoc_workbench_background_lib_glsl[];
+extern char datatoc_workbench_common_lib_glsl[];
+extern char datatoc_workbench_data_lib_glsl[];
+extern char datatoc_workbench_object_overlap_lib_glsl[];
+extern char datatoc_workbench_world_light_lib_glsl[];
+
+extern DrawEngineType draw_engine_workbench_solid;
+
+#define OBJECT_ID_PASS_ENABLED(wpd) (wpd->drawtype_options & V3D_DRAWOPTION_OBJECT_OVERLAP)
+#define NORMAL_VIEWPORT_PASS_ENABLED(wpd) (wpd->drawtype_lighting & V3D_LIGHTING_STUDIO)
+
+static char *workbench_build_defines(WORKBENCH_PrivateData *wpd)
 {
-	uint r = (uint)(color[0] * 512);
-	uint g = (uint)(color[1] * 512);
-	uint b = (uint)(color[2] * 512);
+	char *str = NULL;
 
-	return r + g * 4096 + b * 4096 * 4096;
+	DynStr *ds = BLI_dynstr_new();
+
+	if (wpd->drawtype_options & V3D_DRAWOPTION_OBJECT_OVERLAP) {
+		BLI_dynstr_appendf(ds, "#define V3D_DRAWOPTION_OBJECT_OVERLAP\n");
+	}
+	if (wpd->drawtype_lighting & V3D_LIGHTING_STUDIO) {
+		BLI_dynstr_appendf(ds, "#define V3D_LIGHTING_STUDIO\n");
+	}
+
+#ifdef WORKBENCH_ENCODE_NORMALS
+	BLI_dynstr_appendf(ds, "#define WORKBENCH_ENCODE_NORMALS\n");
+#endif
+
+	str = BLI_dynstr_get_cstring(ds);
+	BLI_dynstr_free(ds);
+	return str;
 }
 
-static void get_material_solid_color(WORKBENCH_PrivateData *wpd, Object *ob, float *color)
+static char *workbench_build_composite_frag(WORKBENCH_PrivateData *wpd)
 {
-	if (wpd->drawtype_options & V3D_DRAWOPTION_RANDOMIZE) {
-		unsigned int obhash = BLI_ghashutil_strhash(ob->id.name);
-		cpack_to_rgb(obhash, &color[0], &color[1], &color[2]);
+	char *str = NULL;
 
+	DynStr *ds = BLI_dynstr_new();
+
+	BLI_dynstr_append(ds, datatoc_workbench_data_lib_glsl);
+	BLI_dynstr_append(ds, datatoc_workbench_common_lib_glsl);
+	BLI_dynstr_append(ds, datatoc_workbench_background_lib_glsl);
+
+	if (wpd->drawtype_lighting & V3D_LIGHTING_STUDIO) {
+		BLI_dynstr_append(ds, datatoc_workbench_world_light_lib_glsl);
+	}
+	if (wpd->drawtype_options & V3D_DRAWOPTION_OBJECT_OVERLAP) {
+		BLI_dynstr_append(ds, datatoc_workbench_object_overlap_lib_glsl);
+	}
+
+	BLI_dynstr_append(ds, datatoc_workbench_composite_frag_glsl);
+
+	str = BLI_dynstr_get_cstring(ds);
+	BLI_dynstr_free(ds);
+	return str;
+}
+
+static char *workbench_build_prepass_frag(void)
+{
+	char *str = NULL;
+
+	DynStr *ds = BLI_dynstr_new();
+
+	BLI_dynstr_append(ds, datatoc_workbench_common_lib_glsl);
+	BLI_dynstr_append(ds, datatoc_workbench_prepass_frag_glsl);
+
+	str = BLI_dynstr_get_cstring(ds);
+	BLI_dynstr_free(ds);
+	return str;
+}
+
+static int get_shader_index(WORKBENCH_PrivateData *wpd)
+{
+	return (wpd->drawtype_options << 2) + wpd->drawtype_lighting;
+}
+
+static void select_deferred_shaders(WORKBENCH_PrivateData *wpd)
+{
+	int index = get_shader_index(wpd);
+
+	if (e_data.prepass_sh_cache[index] == NULL) {
+		char *defines = workbench_build_defines(wpd);
+		char *composite_frag = workbench_build_composite_frag(wpd);
+		char *prepass_frag = workbench_build_prepass_frag();
+		e_data.prepass_sh_cache[index] = DRW_shader_create(datatoc_workbench_prepass_vert_glsl, NULL, prepass_frag, defines);
+		e_data.composite_sh_cache[index] = DRW_shader_create_fullscreen(composite_frag, defines);
+		MEM_freeN(prepass_frag);
+		MEM_freeN(composite_frag);
+		MEM_freeN(defines);
+	}
+
+	wpd->prepass_sh = e_data.prepass_sh_cache[index];
+	wpd->composite_sh = e_data.composite_sh_cache[index];
+}
+
+/* Functions */
+static uint get_material_hash(WORKBENCH_PrivateData *wpd, WORKBENCH_MaterialData *material_template)
+{
+	uint input[4];
+	float *color = material_template->color;
+	input[0] = (uint)(color[0] * 512);
+	input[1] = (uint)(color[1] * 512);
+	input[2] = (uint)(color[2] * 512);
+
+	/* Only hash object id when needed */
+	input[3] = (uint)0;
+	if (OBJECT_ID_PASS_ENABLED(wpd)) {
+		input[3] = material_template->object_id;
+	}
+
+	return BLI_ghashutil_uinthash_v4_murmur(input);
+}
+
+static void workbench_init_object_data(ObjectEngineData *engine_data)
+{
+	WORKBENCH_ObjectData *data = (WORKBENCH_ObjectData *)engine_data;
+	data->object_id = e_data.next_object_id++;
+}
+
+static void get_material_solid_color(WORKBENCH_PrivateData *wpd, WORKBENCH_ObjectData *engine_object_data, Object *ob, float *color, float hsv_saturation, float hsv_value)
+{
+	static float default_color[] = {1.0f, 1.0f, 1.0f};
+	if (DRW_object_is_paint_mode(ob)) {
+		copy_v3_v3(color, default_color);
+	}
+	else if (wpd->drawtype_options & V3D_DRAWOPTION_RANDOMIZE) {
+		float offset = fmodf(engine_object_data->object_id * M_GOLDEN_RATION_CONJUGATE, 1.0);
+		float hsv[3] = {offset, hsv_saturation, hsv_value};
+		hsv_to_rgb_v(hsv, color);
 	}
 	else {
 		copy_v3_v3(color, ob->col);
 	}
 }
 
-void workbench_materials_engine_init(void)
+void workbench_materials_engine_init(WORKBENCH_Data *vedata)
 {
-	if (!e_data.depth_sh) {
-		/* Depth pass */
-		e_data.depth_sh = DRW_shader_create_3D_depth_only();
+	WORKBENCH_FramebufferList *fbl = vedata->fbl;
+	WORKBENCH_StorageList *stl = vedata->stl;
+	WORKBENCH_PassList *psl = vedata->psl;
+	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
-		/* Solid flat */
-		e_data.solid_flat_sh = DRW_shader_create(datatoc_workbench_vert_glsl, NULL, datatoc_solid_flat_frag_glsl, "\n");
-		e_data.solid_studio_sh = DRW_shader_create(datatoc_workbench_studio_vert_glsl, NULL, datatoc_solid_studio_frag_glsl, datatoc_workbench_diffuse_lib_glsl);
+	if (!e_data.next_object_id) {
+		memset(e_data.prepass_sh_cache,   0x00, sizeof(struct GPUShader *) * MAX_SHADERS);
+		memset(e_data.composite_sh_cache, 0x00, sizeof(struct GPUShader *) * MAX_SHADERS);
+		e_data.next_object_id = 1;
+	}
+
+	if (!stl->g_data) {
+		/* Alloc transient pointers */
+		stl->g_data = MEM_mallocN(sizeof(*stl->g_data), __func__);
+	}
+
+	{
+		const float *viewport_size = DRW_viewport_size_get();
+		const int size[2] = {(int)viewport_size[0], (int)viewport_size[1]};
+		e_data.object_id_tx = DRW_texture_pool_query_2D(size[0], size[1], GPU_R32UI, &draw_engine_workbench_solid);
+		e_data.color_buffer_tx = DRW_texture_pool_query_2D(size[0], size[1], GPU_RGBA8, &draw_engine_workbench_solid);
+#ifdef WORKBENCH_ENCODE_NORMALS
+		e_data.normal_buffer_tx = DRW_texture_pool_query_2D(size[0], size[1], GPU_RG8, &draw_engine_workbench_solid);
+#else
+		e_data.normal_buffer_tx = DRW_texture_pool_query_2D(size[0], size[1], GPU_RGBA32F, &draw_engine_workbench_solid);
+#endif
+
+		GPU_framebuffer_ensure_config(&fbl->prepass_fb, {
+			GPU_ATTACHMENT_TEXTURE(dtxl->depth),
+			GPU_ATTACHMENT_TEXTURE(e_data.object_id_tx),
+			GPU_ATTACHMENT_TEXTURE(e_data.color_buffer_tx),
+			GPU_ATTACHMENT_TEXTURE(e_data.normal_buffer_tx),
+		});
+	}
+
+	/* Prepass */
+	{
+		int state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS;
+		psl->prepass_pass = DRW_pass_create("Prepass", state);
 	}
 }
 
 void workbench_materials_engine_free()
 {
-	DRW_SHADER_FREE_SAFE(e_data.solid_flat_sh);
-	DRW_SHADER_FREE_SAFE(e_data.solid_studio_sh);
-
+	for (int index = 0; index < MAX_SHADERS; index ++) {
+		DRW_SHADER_FREE_SAFE(e_data.prepass_sh_cache[index]);
+		DRW_SHADER_FREE_SAFE(e_data.composite_sh_cache[index]);
+	}
 }
-
-void workbench_materials_draw_scene_finish(WORKBENCH_Data *vedata)
-{
-	WORKBENCH_StorageList *stl = vedata->stl;
-	WORKBENCH_PrivateData *wpd = stl->g_data;
-
-	BLI_ghash_free(wpd->material_hash, NULL, MEM_freeN);
-}
-
 
 void workbench_materials_cache_init(WORKBENCH_Data *vedata)
 {
 	WORKBENCH_StorageList *stl = vedata->stl;
 	WORKBENCH_PassList *psl = vedata->psl;
 	WORKBENCH_PrivateData *wpd = stl->g_data;
+	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+	DRWShadingGroup *grp;
+	const DRWContextState *draw_ctx = DRW_context_state_get();
+	ViewLayer *view_layer = draw_ctx->view_layer;
+	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_WORKBENCH);
 
 	const DRWContextState *DCS = DRW_context_state_get();
 
-	wpd->depth_shgrp = DRW_shgroup_create(e_data.depth_sh, psl->depth_pass);
-	wpd->material_hash = BLI_ghash_ptr_new("Workbench material_hash");
+	wpd->material_hash = BLI_ghash_ptr_new(__func__);
 
 	View3D *v3d = DCS->v3d;
 	if (v3d) {
-#if 0
-		/* TODO: switch implementation when OB_TEXTURE is implemented */
-		switch (v3d->drawtype) {
-			default:
-			case OB_SOLID:
-				wpd->drawtype_lighting = v3d->drawtype_lighting;
-				break;
-		}
-#else
 		wpd->drawtype_lighting = v3d->drawtype_lighting;
 		wpd->drawtype_options = v3d->drawtype_options;
-#endif
 	}
 	else {
 		wpd->drawtype_lighting = V3D_LIGHTING_STUDIO;
 		wpd->drawtype_options = 0;
 	}
-}
 
-void workbench_materials_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
+	select_deferred_shaders(wpd);
+	/* Deferred Mix Pass */
+	{
+		WORKBENCH_UBO_World *wd = &wpd->world_data;
+		UI_GetThemeColor3fv(UI_GetThemeValue(TH_SHOW_BACK_GRAD) ? TH_LOW_GRAD:TH_HIGH_GRAD, wd->background_color_low);
+		UI_GetThemeColor3fv(TH_HIGH_GRAD, wd->background_color_high);
+		copy_v3_v3(wd->diffuse_light_x_pos, BKE_collection_engine_property_value_get_float_array(props, "diffuse_light_x_pos"));
+		copy_v3_v3(wd->diffuse_light_x_neg, BKE_collection_engine_property_value_get_float_array(props, "diffuse_light_x_neg"));
+		copy_v3_v3(wd->diffuse_light_y_pos, BKE_collection_engine_property_value_get_float_array(props, "diffuse_light_y_pos"));
+		copy_v3_v3(wd->diffuse_light_y_neg, BKE_collection_engine_property_value_get_float_array(props, "diffuse_light_y_neg"));
+		copy_v3_v3(wd->diffuse_light_z_pos, BKE_collection_engine_property_value_get_float_array(props, "diffuse_light_z_pos"));
+		copy_v3_v3(wd->diffuse_light_z_neg, BKE_collection_engine_property_value_get_float_array(props, "diffuse_light_z_neg"));
+
+		psl->composite_pass = DRW_pass_create("Composite", DRW_STATE_WRITE_COLOR);
+		grp = DRW_shgroup_create(wpd->composite_sh, psl->composite_pass);
+		DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);
+		DRW_shgroup_uniform_texture_ref(grp, "colorBuffer", &e_data.color_buffer_tx);
+		if (OBJECT_ID_PASS_ENABLED(wpd)) {
+			DRW_shgroup_uniform_texture_ref(grp, "objectId", &e_data.object_id_tx);
+		}
+		if (NORMAL_VIEWPORT_PASS_ENABLED(wpd)) {
+			DRW_shgroup_uniform_texture_ref(grp, "normalBuffer", &e_data.normal_buffer_tx);
+		}
+		wpd->world_ubo = DRW_uniformbuffer_create(sizeof(WORKBENCH_UBO_World), NULL);
+		DRW_shgroup_uniform_block(grp, "world_block", wpd->world_ubo);
+		DRW_uniformbuffer_update(wpd->world_ubo, &wpd->world_data);
+		DRW_shgroup_uniform_vec2(grp, "invertedViewportSize", DRW_viewport_invert_size_get(), 1);
+
+		DRW_shgroup_call_add(grp, DRW_cache_fullscreen_quad_get(), NULL);
+	}
+
+
+}
+static WORKBENCH_MaterialData *get_or_create_material_data(WORKBENCH_Data *vedata, IDProperty *props, Object *ob)
 {
 	WORKBENCH_StorageList *stl = vedata->stl;
 	WORKBENCH_PassList *psl = vedata->psl;
 	WORKBENCH_PrivateData *wpd = stl->g_data;
+	WORKBENCH_MaterialData *material;
+	WORKBENCH_ObjectData *engine_object_data = (WORKBENCH_ObjectData *)DRW_object_engine_data_ensure(
+	        ob, &draw_engine_workbench_solid, sizeof(WORKBENCH_ObjectData), &workbench_init_object_data, NULL);
+	WORKBENCH_MaterialData material_template;
+	float color[3];
+	const float hsv_saturation = BKE_collection_engine_property_value_get_float(props, "random_object_color_saturation");
+	const float hsv_value = BKE_collection_engine_property_value_get_float(props, "random_object_color_value");
 
+	/* Solid */
+	get_material_solid_color(wpd, engine_object_data, ob, color, hsv_saturation, hsv_value);
+	copy_v3_v3(material_template.color, color);
+	material_template.object_id = engine_object_data->object_id;
+	unsigned int hash = get_material_hash(wpd, &material_template);
+
+	material = BLI_ghash_lookup(wpd->material_hash, SET_UINT_IN_POINTER(hash));
+	if (material == NULL) {
+		material = MEM_mallocN(sizeof(WORKBENCH_MaterialData), __func__);
+		material->shgrp = DRW_shgroup_create(wpd->prepass_sh, psl->prepass_pass);
+		material->object_id = engine_object_data->object_id;
+		copy_v3_v3(material->color, material_template.color);
+		DRW_shgroup_uniform_vec3(material->shgrp, "object_color", material->color, 1);
+		DRW_shgroup_uniform_int(material->shgrp, "object_id", &material->object_id, 1);
+		BLI_ghash_insert(wpd->material_hash, SET_UINT_IN_POINTER(hash), material);
+	}
+	return material;
+}
+
+static void workbench_cache_populate_particles(WORKBENCH_Data *vedata, IDProperty *props, Object *ob)
+{
+	const DRWContextState *draw_ctx = DRW_context_state_get();
+
+	if (ob != draw_ctx->object_edit) {
+		for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
+			if (md->type == eModifierType_ParticleSystem) {
+				ParticleSystem *psys = ((ParticleSystemModifierData *)md)->psys;
+
+				if (psys_check_enabled(ob, psys, false)) {
+					ParticleSettings *part = psys->part;
+					int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
+
+					if (draw_as == PART_DRAW_PATH && !psys->pathcache && !psys->childcache) {
+						draw_as = PART_DRAW_DOT;
+					}
+
+					static float mat[4][4];
+					unit_m4(mat);
+
+					if (draw_as == PART_DRAW_PATH) {
+						struct Gwn_Batch *geom = DRW_cache_particles_get_hair(psys, NULL);
+						WORKBENCH_MaterialData *material = get_or_create_material_data(vedata, props, ob);
+						DRW_shgroup_call_add(material->shgrp, geom, mat);
+					}
+				}
+			}
+		}
+	}
+}
+
+void workbench_materials_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob)
+{
 	if (!DRW_object_is_renderable(ob))
 		return;
 
-	struct Gwn_Batch *geom = DRW_cache_object_surface_get(ob);
-	WORKBENCH_MaterialData *material;
-	if (geom) {
-		/* Depth */
-		DRW_shgroup_call_add(stl->g_data->depth_shgrp, geom, ob->obmat);
-
-		/* Solid */
-		GPUShader *shader = wpd->drawtype_lighting == V3D_LIGHTING_FLAT ? e_data.solid_flat_sh : e_data.solid_studio_sh;
-
-		float color[3];
-		get_material_solid_color(wpd, ob, color);
-		unsigned int hash = get_material_hash(color);
-
-		material = BLI_ghash_lookup(wpd->material_hash, SET_UINT_IN_POINTER(hash));
-		if (material == NULL) {
-			material = MEM_mallocN(sizeof(WORKBENCH_MaterialData), "WORKBENCH_MaterialData");
-			material->shgrp = DRW_shgroup_create(shader, psl->solid_pass);
-			copy_v3_v3(material->color, color);
-			DRW_shgroup_uniform_vec3(material->shgrp, "color", material->color, 1);
-			BLI_ghash_insert(wpd->material_hash, SET_UINT_IN_POINTER(hash), material);
-		}
-
-		DRW_shgroup_call_add(material->shgrp, geom, ob->obmat);
+	IDProperty *props = BKE_layer_collection_engine_evaluated_get(ob, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_WORKBENCH);
+	if (ob->type == OB_MESH) {
+		workbench_cache_populate_particles(vedata, props, ob);
 	}
 
+	struct Gwn_Batch *geom = DRW_cache_object_surface_get(ob);
+
+	WORKBENCH_MaterialData *material;
+	if (geom) {
+		const DRWContextState *draw_ctx = DRW_context_state_get();
+		const bool is_active = (ob == draw_ctx->obact);
+
+		material = get_or_create_material_data(vedata, props, ob);
+		const bool is_sculpt_mode = is_active && (draw_ctx->object_mode & OB_MODE_SCULPT) != 0;
+		if (is_sculpt_mode) {
+			DRW_shgroup_call_sculpt_add(material->shgrp, ob, ob->obmat);
+		}
+		else {
+			DRW_shgroup_call_object_add(material->shgrp, geom, ob);
+		}
+	}
 }
+
+void workbench_materials_cache_finish(WORKBENCH_Data *UNUSED(vedata))
+{
+}
+
+void workbench_materials_draw_scene(WORKBENCH_Data *vedata)
+{
+	WORKBENCH_PassList *psl = vedata->psl;
+	WORKBENCH_StorageList *stl = vedata->stl;
+	WORKBENCH_FramebufferList *fbl = vedata->fbl;
+	WORKBENCH_PrivateData *wpd = stl->g_data;
+	DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+	const float clear_depth = 1.0f;
+
+	GPU_framebuffer_bind(fbl->prepass_fb);
+	if (OBJECT_ID_PASS_ENABLED(wpd)) {
+		const float clear_color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+		GPU_framebuffer_clear_color_depth(fbl->prepass_fb, clear_color, clear_depth);
+	}
+	else {
+		GPU_framebuffer_clear_depth(fbl->prepass_fb, clear_depth);
+	}
+	DRW_draw_pass(psl->prepass_pass);
+
+	GPU_framebuffer_bind(dfbl->color_only_fb);
+	DRW_draw_pass(psl->composite_pass);
+
+	BLI_ghash_free(wpd->material_hash, NULL, MEM_freeN);
+	DRW_UBO_FREE_SAFE(wpd->world_ubo);
+
+}
+

@@ -50,8 +50,11 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
+#include "RNA_access.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
+#include "WM_message.h"
 
 
 /* ******************** default callbacks for topbar space ***************** */
@@ -129,11 +132,6 @@ static void topbar_main_region_init(wmWindowManager *wm, ARegion *region)
 	WM_event_add_keymap_handler(&region->handlers, keymap);
 }
 
-static void topbar_main_region_draw(const bContext *C, ARegion *region)
-{
-	ED_region_header(C, region);
-}
-
 static void topbar_operatortypes(void)
 {
 
@@ -151,11 +149,6 @@ static void topbar_header_region_init(wmWindowManager *UNUSED(wm), ARegion *ar)
 		ar->flag |= RGN_FLAG_DYNAMIC_SIZE;
 	}
 	ED_region_header_init(ar);
-}
-
-static void topbar_header_region_draw(const bContext *C, ARegion *ar)
-{
-	ED_region_header(C, ar);
 }
 
 static void topbar_main_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
@@ -178,16 +171,36 @@ static void topbar_main_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa)
 	}
 }
 
-static void topbar_header_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *UNUSED(ar),
-                                   wmNotifier *UNUSED(wmn), const Scene *UNUSED(scene))
+static void topbar_header_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
+                                   wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	/* context changes */
-#if 0
 	switch (wmn->category) {
-		default:
+		case NC_SCREEN:
+			if (wmn->data == ND_LAYER)
+				ED_region_tag_redraw(ar);
+			break;
+		case NC_SCENE:
+			if (wmn->data == ND_SCENEBROWSE)
+				ED_region_tag_redraw(ar);
 			break;
 	}
-#endif
+}
+
+static void topbar_header_region_message_subscribe(
+        const struct bContext *UNUSED(C),
+        struct WorkSpace *workspace, struct Scene *UNUSED(scene),
+        struct bScreen *UNUSED(screen), struct ScrArea *UNUSED(sa), struct ARegion *ar,
+        struct wmMsgBus *mbus)
+{
+	wmMsgSubscribeValue msg_sub_value_region_tag_redraw = {
+		.owner = ar,
+		.user_data = ar,
+		.notify = ED_region_do_msg_notify_tag_redraw,
+	};
+	WM_msg_subscribe_rna_prop(
+	        mbus, &workspace->id, workspace,
+	        WorkSpace, tool_keymap, &msg_sub_value_region_tag_redraw);
 }
 
 static void recent_files_menu_draw(const bContext *UNUSED(C), Menu *menu)
@@ -240,7 +253,8 @@ void ED_spacetype_topbar(void)
 	art = MEM_callocN(sizeof(ARegionType), "spacetype topbar main region");
 	art->regionid = RGN_TYPE_WINDOW;
 	art->init = topbar_main_region_init;
-	art->draw = topbar_main_region_draw;
+	art->layout = ED_region_header_layout;
+	art->draw = ED_region_header_draw;
 	art->listener = topbar_main_region_listener;
 	art->prefsizex = UI_UNIT_X * 5; /* Mainly to avoid glitches */
 	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
@@ -254,8 +268,10 @@ void ED_spacetype_topbar(void)
 	art->prefsizex = UI_UNIT_X * 5; /* Mainly to avoid glitches */
 	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
 	art->listener = topbar_header_listener;
+	art->message_subscribe = topbar_header_region_message_subscribe;
 	art->init = topbar_header_region_init;
-	art->draw = topbar_header_region_draw;
+	art->layout = ED_region_header_layout;
+	art->draw = ED_region_header_draw;
 
 	BLI_addhead(&st->regiontypes, art);
 

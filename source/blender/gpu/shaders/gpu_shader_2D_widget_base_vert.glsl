@@ -68,8 +68,8 @@ const vec2 triavec[37] = vec2[37](
 	vec2(-0.578579, 0.253369),  vec2(-0.392773, 0.412794),  vec2(-0.004241, -0.328551),
 	vec2(-0.003001, 0.034320),  vec2(1.055313, 0.864744),   vec2(0.866408, 1.026895),
 	/* ROUNDBOX_TRIA_HOLD_ACTION_ARROW - hold action arrows */
-#define OY -0.2
-#define SC 0.35
+#define OY (-0.2 / 2)
+#define SC (0.35 * 2)
 //	vec2(-0.5 + SC, 1.0 + OY),  vec2( 0.5, 1.0 + OY),  vec2( 0.5, 0.0 + OY + SC),
 	vec2( 0.5 - SC, 1.0 + OY),  vec2(-0.5, 1.0 + OY),  vec2(-0.5, 0.0 + OY + SC)
 #undef OY
@@ -78,36 +78,42 @@ const vec2 triavec[37] = vec2[37](
 
 uniform mat4 ModelViewProjectionMatrix;
 
+#define MAX_PARAM 11
 #ifdef USE_INSTANCE
 #define MAX_INSTANCE 6
-uniform vec4 parameters[11 * MAX_INSTANCE];
+uniform vec4 parameters[MAX_PARAM * MAX_INSTANCE];
 #else
-uniform vec4 parameters[11];
+uniform vec4 parameters[MAX_PARAM];
 #endif
 
 /* gl_InstanceID is 0 if not drawing instances. */
-#define recti        parameters[gl_InstanceID * 11 + 0]
-#define rect         parameters[gl_InstanceID * 11 + 1]
-#define radsi        parameters[gl_InstanceID * 11 + 2].x
-#define rads         parameters[gl_InstanceID * 11 + 2].y
-#define faci         parameters[gl_InstanceID * 11 + 2].zw
-#define roundCorners parameters[gl_InstanceID * 11 + 3]
-#define colorInner1  parameters[gl_InstanceID * 11 + 4]
-#define colorInner2  parameters[gl_InstanceID * 11 + 5]
-#define colorEdge    parameters[gl_InstanceID * 11 + 6]
-#define colorEmboss  parameters[gl_InstanceID * 11 + 7]
-#define colorTria    parameters[gl_InstanceID * 11 + 8]
-#define tria1Center  parameters[gl_InstanceID * 11 + 9].xy
-#define tria2Center  parameters[gl_InstanceID * 11 + 9].zw
-#define tria1Size    parameters[gl_InstanceID * 11 + 10].x
-#define tria2Size    parameters[gl_InstanceID * 11 + 10].y
-#define shadeDir     parameters[gl_InstanceID * 11 + 10].z
-#define doAlphaCheck parameters[gl_InstanceID * 11 + 10].w
+#define recti         parameters[gl_InstanceID * MAX_PARAM + 0]
+#define rect          parameters[gl_InstanceID * MAX_PARAM + 1]
+#define radsi         parameters[gl_InstanceID * MAX_PARAM + 2].x
+#define rads          parameters[gl_InstanceID * MAX_PARAM + 2].y
+#define faci          parameters[gl_InstanceID * MAX_PARAM + 2].zw
+#define roundCorners  parameters[gl_InstanceID * MAX_PARAM + 3]
+#define colorInner1   parameters[gl_InstanceID * MAX_PARAM + 4]
+#define colorInner2   parameters[gl_InstanceID * MAX_PARAM + 5]
+#define colorEdge     parameters[gl_InstanceID * MAX_PARAM + 6]
+#define colorEmboss   parameters[gl_InstanceID * MAX_PARAM + 7]
+#define colorTria     parameters[gl_InstanceID * MAX_PARAM + 8]
+#define tria1Center   parameters[gl_InstanceID * MAX_PARAM + 9].xy
+#define tria2Center   parameters[gl_InstanceID * MAX_PARAM + 9].zw
+#define tria1Size     parameters[gl_InstanceID * MAX_PARAM + 10].x
+#define tria2Size     parameters[gl_InstanceID * MAX_PARAM + 10].y
+#define shadeDir      parameters[gl_InstanceID * MAX_PARAM + 10].z
+#define alphaDiscard  parameters[gl_InstanceID * MAX_PARAM + 10].w
+
+/* We encode alpha check and discard factor together. */
+#define doAlphaCheck (alphaDiscard < 0.0)
+#define discardFactor abs(alphaDiscard)
 
 in uint vflag;
 
 noperspective out vec4 finalColor;
 noperspective out float butCo;
+flat out float discardFac;
 
 vec2 do_widget(void)
 {
@@ -132,27 +138,29 @@ vec2 do_widget(void)
 	else /* (cflag == TOP_LEFT) */
 		v += rct.xw;
 
+	vec2 uv = faci * (v - recti.xz);
+
 	/* compute uv and color gradient */
 	uint color_id = (vflag >> COLOR_OFS) & COLOR_RANGE;
 	if (color_id == COLOR_INNER) {
-		vec2 uv = faci * (v - recti.xz);
 		float fac = clamp((shadeDir > 0.0) ? uv.y : uv.x, 0.0, 1.0);
-		if (doAlphaCheck != 0.0) {
+
+		if (doAlphaCheck) {
 			finalColor = colorInner1;
 			butCo = uv.x;
 		}
 		else {
 			finalColor = mix(colorInner2, colorInner1, fac);
-			butCo = -1.0;
+			butCo = -abs(uv.x);
 		}
 	}
 	else if (color_id == COLOR_EDGE) {
 		finalColor = colorEdge;
-		butCo = -1.0;
+		butCo = -abs(uv.x);
 	}
 	else /* (color_id == COLOR_EMBOSS) */ {
 		finalColor = colorEmboss;
-		butCo = -1.0;
+		butCo = -abs(uv.x);
 	}
 
 	bool is_emboss = (vflag & EMBOSS_FLAG) != 0u;
@@ -182,6 +190,7 @@ vec2 do_tria()
 
 void main()
 {
+	discardFac = discardFactor;
 	bool is_tria = (vflag & TRIA_FLAG) != 0u;
 
 	vec2 v = (is_tria) ? do_tria() : do_widget();

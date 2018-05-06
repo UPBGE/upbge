@@ -396,6 +396,7 @@ static int edbm_delete_exec(bContext *C, wmOperator *op)
 
 	uint objects_len = 0;
 	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	bool changed_multi = false;
 
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 		Object *obedit = objects[ob_index];
@@ -403,40 +404,58 @@ static int edbm_delete_exec(bContext *C, wmOperator *op)
 		const int type = RNA_enum_get(op->ptr, "type");
 
 		switch (type) {
-			case MESH_DELETE_VERT:
-				if (!EDBM_op_callf(em, op, "delete geom=%hv context=%i", BM_ELEM_SELECT, DEL_VERTS))  /* Erase Vertices */
-					return OPERATOR_CANCELLED;
+			case MESH_DELETE_VERT: /* Erase Vertices */
+				if (!(em->bm->totvertsel &&
+				      EDBM_op_callf(em, op, "delete geom=%hv context=%i", BM_ELEM_SELECT, DEL_VERTS)))
+				{
+					continue;
+				}
 				break;
-			case MESH_DELETE_EDGE:
-				if (!EDBM_op_callf(em, op, "delete geom=%he context=%i", BM_ELEM_SELECT, DEL_EDGES))  /* Erase Edges */
-					return OPERATOR_CANCELLED;
+			case MESH_DELETE_EDGE: /* Erase Edges */
+				if (!(em->bm->totedgesel &&
+				      EDBM_op_callf(em, op, "delete geom=%he context=%i", BM_ELEM_SELECT, DEL_FACES)))
+				{
+					continue;
+				}
 				break;
-			case MESH_DELETE_FACE:
-				if (!EDBM_op_callf(em, op, "delete geom=%hf context=%i", BM_ELEM_SELECT, DEL_FACES))  /* Erase Faces */
-					return OPERATOR_CANCELLED;
+			case MESH_DELETE_FACE: /* Erase Faces */
+				if (!(em->bm->totfacesel &&
+				      EDBM_op_callf(em, op, "delete geom=%hf context=%i", BM_ELEM_SELECT, DEL_FACES)))
+				{
+					continue;
+				}
 				break;
 			case MESH_DELETE_EDGE_FACE:
 				/* Edges and Faces */
-				if (!EDBM_op_callf(em, op, "delete geom=%hef context=%i", BM_ELEM_SELECT, DEL_EDGESFACES))
-					return OPERATOR_CANCELLED;
+				if (!((em->bm->totedgesel || em->bm->totfacesel) &&
+				      EDBM_op_callf(em, op, "delete geom=%hef context=%i", BM_ELEM_SELECT, DEL_EDGESFACES)))
+				{
+					continue;
+				}
 				break;
 			case MESH_DELETE_ONLY_FACE:
 				/* Only faces. */
-				if (!EDBM_op_callf(em, op, "delete geom=%hf context=%i", BM_ELEM_SELECT, DEL_ONLYFACES))
-					return OPERATOR_CANCELLED;
+				if (!(em->bm->totfacesel &&
+				      EDBM_op_callf(em, op, "delete geom=%hf context=%i", BM_ELEM_SELECT, DEL_ONLYFACES)))
+				{
+					continue;
+				}
 				break;
 			default:
 				BLI_assert(0);
 				break;
 		}
 
+		changed_multi = true;
+
 		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
 
 		EDBM_update_generic(em, true, true);
-
 	}
 
-	return OPERATOR_FINISHED;
+	MEM_SAFE_FREE(objects);
+
+	return changed_multi ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 void MESH_OT_delete(wmOperatorType *ot)
@@ -895,37 +914,51 @@ void MESH_OT_edge_face_add(wmOperatorType *ot)
 static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Object *obedit = CTX_data_edit_object(C);
-	Mesh *me = ((Mesh *)obedit->data);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMesh *bm = em->bm;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	BMEdge *eed;
 	BMIter iter;
 	const bool clear = RNA_boolean_get(op->ptr, "clear");
 
-	/* auto-enable seams drawing */
-	if (clear == 0) {
-		me->drawflag |= ME_DRAWSEAMS;
-	}
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		BMesh *bm = em->bm;
 
-	if (clear) {
-		BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
-			if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN))
-				continue;
-
-			BM_elem_flag_disable(eed, BM_ELEM_SEAM);
+		if (bm->totedgesel == 0) {
+			continue;
 		}
-	}
-	else {
-		BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
-			if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN))
-				continue;
-			BM_elem_flag_enable(eed, BM_ELEM_SEAM);
-		}
-	}
 
-	ED_uvedit_live_unwrap(scene, obedit);
-	EDBM_update_generic(em, true, false);
+		Mesh *me = ((Mesh *)obedit->data);
+
+		/* auto-enable seams drawing */
+		if (clear == 0) {
+			me->drawflag |= ME_DRAWSEAMS;
+		}
+
+		if (clear) {
+			BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+				if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+					continue;
+				}
+
+				BM_elem_flag_disable(eed, BM_ELEM_SEAM);
+			}
+		}
+		else {
+			BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+				if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+					continue;
+				}
+				BM_elem_flag_enable(eed, BM_ELEM_SEAM);
+			}
+		}
+
+		ED_uvedit_live_unwrap(scene, obedit);
+		EDBM_update_generic(em, true, false);
+	}
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }
@@ -960,34 +993,45 @@ void MESH_OT_mark_seam(wmOperatorType *ot)
 
 static int edbm_mark_sharp_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	Mesh *me = ((Mesh *)obedit->data);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMesh *bm = em->bm;
 	BMEdge *eed;
 	BMIter iter;
 	const bool clear = RNA_boolean_get(op->ptr, "clear");
 	const bool use_verts = RNA_boolean_get(op->ptr, "use_verts");
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 
-	/* auto-enable sharp edge drawing */
-	if (clear == 0) {
-		me->drawflag |= ME_DRAWSHARP;
-	}
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		BMesh *bm = em->bm;
+		Mesh *me = ((Mesh *)obedit->data);
 
-	BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
-		if (use_verts) {
-			if (!(BM_elem_flag_test(eed->v1, BM_ELEM_SELECT) || BM_elem_flag_test(eed->v2, BM_ELEM_SELECT))) {
-				continue;
-			}
-		}
-		else if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+		if (bm->totedgesel == 0) {
 			continue;
 		}
 
-		BM_elem_flag_set(eed, BM_ELEM_SMOOTH, clear);
-	}
+		/* auto-enable sharp edge drawing */
+		if (clear == 0) {
+			me->drawflag |= ME_DRAWSHARP;
+		}
 
-	EDBM_update_generic(em, true, false);
+		BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+			if (use_verts) {
+				if (!(BM_elem_flag_test(eed->v1, BM_ELEM_SELECT) || BM_elem_flag_test(eed->v2, BM_ELEM_SELECT))) {
+					continue;
+				}
+			}
+			else if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+				continue;
+			}
+
+			BM_elem_flag_set(eed, BM_ELEM_SMOOTH, clear);
+		}
+
+		EDBM_update_generic(em, true, false);
+	}
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }
@@ -4018,20 +4062,32 @@ void MESH_OT_fill_grid(wmOperatorType *ot)
 
 static int edbm_fill_holes_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	const int sides = RNA_int_get(op->ptr, "sides");
 
-	if (!EDBM_op_call_and_selectf(
-	        em, op,
-	        "faces.out", true,
-	        "holes_fill edges=%he sides=%i",
-	        BM_ELEM_SELECT, sides))
-	{
-		return OPERATOR_CANCELLED;
-	}
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 
-	EDBM_update_generic(em, true, true);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+		if (em->bm->totedgesel == 0) {
+			continue;
+		}
+
+		if (!EDBM_op_call_and_selectf(
+		            em, op,
+		            "faces.out", true,
+		            "holes_fill edges=%he sides=%i",
+		            BM_ELEM_SELECT, sides))
+		{
+			continue;
+		}
+
+		EDBM_update_generic(em, true, true);
+	}
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 
@@ -5015,22 +5071,33 @@ void MESH_OT_delete_edgeloop(wmOperatorType *ot)
 
 static int edbm_split_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(ob);
-	BMOperator bmop;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-	EDBM_op_init(em, &bmop, op, "split geom=%hvef use_only_faces=%b", BM_ELEM_SELECT, false);
-	BMO_op_exec(em->bm, &bmop);
-	BM_mesh_elem_hflag_disable_all(em->bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
-	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
-	if (!EDBM_op_finish(em, &bmop, op, true)) {
-		return OPERATOR_CANCELLED;
+		if (em->bm->totfacesel == 0) {
+			continue;
+		}
+
+		BMOperator bmop;
+		EDBM_op_init(em, &bmop, op, "split geom=%hvef use_only_faces=%b", BM_ELEM_SELECT, false);
+		BMO_op_exec(em->bm, &bmop);
+		BM_mesh_elem_hflag_disable_all(em->bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+		BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+
+		if (!EDBM_op_finish(em, &bmop, op, true)) {
+			continue;
+		}
+
+		/* Geometry has changed, need to recalc normals and looptris */
+		EDBM_mesh_normals_update(em);
+
+		EDBM_update_generic(em, true, true);
 	}
-
-	/* Geometry has changed, need to recalc normals and looptris */
-	EDBM_mesh_normals_update(em);
-
-	EDBM_update_generic(em, true, true);
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }
@@ -6287,45 +6354,59 @@ void MESH_OT_symmetry_snap(struct wmOperatorType *ot)
 
 static int edbm_mark_freestyle_edge_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	Mesh *me = (Mesh *)obedit->data;
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMEdge *eed;
 	BMIter iter;
 	FreestyleEdge *fed;
 	const bool clear = RNA_boolean_get(op->ptr, "clear");
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 
-	if (em == NULL)
-		return OPERATOR_FINISHED;
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-	/* auto-enable Freestyle edge mark drawing */
-	if (clear == 0) {
-		me->drawflag |= ME_DRAW_FREESTYLE_EDGE;
-	}
+		if (em == NULL) {
+			continue;
+		}
 
-	if (!CustomData_has_layer(&em->bm->edata, CD_FREESTYLE_EDGE)) {
-		BM_data_layer_add(em->bm, &em->bm->edata, CD_FREESTYLE_EDGE);
-	}
+		BMesh *bm = em->bm;
+		Mesh *me = ((Mesh *)obedit->data);
 
-	if (clear) {
-		BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-			if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-				fed = CustomData_bmesh_get(&em->bm->edata, eed->head.data, CD_FREESTYLE_EDGE);
-				fed->flag &= ~FREESTYLE_EDGE_MARK;
+		if (bm->totedgesel == 0) {
+			continue;
+		}
+
+		/* auto-enable Freestyle edge mark drawing */
+		if (clear == 0) {
+			me->drawflag |= ME_DRAW_FREESTYLE_EDGE;
+		}
+
+		if (!CustomData_has_layer(&em->bm->edata, CD_FREESTYLE_EDGE)) {
+			BM_data_layer_add(em->bm, &em->bm->edata, CD_FREESTYLE_EDGE);
+		}
+
+		if (clear) {
+			BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
+				if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+					fed = CustomData_bmesh_get(&em->bm->edata, eed->head.data, CD_FREESTYLE_EDGE);
+					fed->flag &= ~FREESTYLE_EDGE_MARK;
+				}
 			}
 		}
-	}
-	else {
-		BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-			if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-				fed = CustomData_bmesh_get(&em->bm->edata, eed->head.data, CD_FREESTYLE_EDGE);
-				fed->flag |= FREESTYLE_EDGE_MARK;
+		else {
+			BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
+				if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+					fed = CustomData_bmesh_get(&em->bm->edata, eed->head.data, CD_FREESTYLE_EDGE);
+					fed->flag |= FREESTYLE_EDGE_MARK;
+				}
 			}
 		}
-	}
 
-	DEG_id_tag_update(obedit->data, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+		DEG_id_tag_update(obedit->data, OB_RECALC_DATA);
+		WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+	}
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }
@@ -6358,44 +6439,57 @@ void MESH_OT_mark_freestyle_edge(wmOperatorType *ot)
 
 static int edbm_mark_freestyle_face_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	Mesh *me = (Mesh *)obedit->data;
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMFace *efa;
 	BMIter iter;
 	FreestyleFace *ffa;
 	const bool clear = RNA_boolean_get(op->ptr, "clear");
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 
-	if (em == NULL) return OPERATOR_FINISHED;
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		Mesh *me = (Mesh *)obedit->data;
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-	/* auto-enable Freestyle face mark drawing */
-	if (!clear) {
-		me->drawflag |= ME_DRAW_FREESTYLE_FACE;
-	}
+		if (em == NULL) {
+			continue;
+		}
 
-	if (!CustomData_has_layer(&em->bm->pdata, CD_FREESTYLE_FACE)) {
-		BM_data_layer_add(em->bm, &em->bm->pdata, CD_FREESTYLE_FACE);
-	}
+		if (em->bm->totfacesel == 0) {
+			continue;
+		}
 
-	if (clear) {
-		BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-			if (BM_elem_flag_test(efa, BM_ELEM_SELECT) && !BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-				ffa = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_FREESTYLE_FACE);
-				ffa->flag &= ~FREESTYLE_FACE_MARK;
+		/* auto-enable Freestyle face mark drawing */
+		if (!clear) {
+			me->drawflag |= ME_DRAW_FREESTYLE_FACE;
+		}
+
+		if (!CustomData_has_layer(&em->bm->pdata, CD_FREESTYLE_FACE)) {
+			BM_data_layer_add(em->bm, &em->bm->pdata, CD_FREESTYLE_FACE);
+		}
+
+		if (clear) {
+			BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+				if (BM_elem_flag_test(efa, BM_ELEM_SELECT) && !BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
+					ffa = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_FREESTYLE_FACE);
+					ffa->flag &= ~FREESTYLE_FACE_MARK;
+				}
 			}
 		}
-	}
-	else {
-		BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-			if (BM_elem_flag_test(efa, BM_ELEM_SELECT) && !BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-				ffa = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_FREESTYLE_FACE);
-				ffa->flag |= FREESTYLE_FACE_MARK;
+		else {
+			BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+				if (BM_elem_flag_test(efa, BM_ELEM_SELECT) && !BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
+					ffa = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_FREESTYLE_FACE);
+					ffa->flag |= FREESTYLE_FACE_MARK;
+				}
 			}
 		}
-	}
 
-	DEG_id_tag_update(obedit->data, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+		DEG_id_tag_update(obedit->data, OB_RECALC_DATA);
+		WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+	}
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }

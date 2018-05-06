@@ -228,8 +228,6 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
 	
 	wm_event_free_all(win);
 
-	wm_draw_data_free(win);
-
 	wm_ghostwindow_destroy(wm, win);
 
 	BKE_workspace_instance_hook_free(G.main, win->workspace_hook);
@@ -304,10 +302,6 @@ wmWindow *wm_window_copy(bContext *C, wmWindow *win_src, const bool duplicate_la
 	WM_window_set_active_workspace(win_dst, workspace);
 	layout_new = duplicate_layout ? ED_workspace_layout_duplicate(workspace, layout_old, win_dst) : layout_old;
 	WM_window_set_active_layout(win_dst, workspace, layout_new);
-
-	win_dst->drawmethod = U.wmdrawmethod;
-
-	BLI_listbase_clear(&win_dst->drawdata);
 
 	*win_dst->stereo3d_format = *win_src->stereo3d_format;
 
@@ -508,8 +502,6 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 
 		BLI_remlink(&wm->windows, win);
 		
-		wm_draw_window_clear(win);
-		
 		CTX_wm_window_set(C, win);  /* needed by handlers */
 		WM_event_remove_handlers(C, &win->handlers);
 		WM_event_remove_handlers(C, &win->modalhandlers);
@@ -610,6 +602,7 @@ void WM_window_set_dpi(wmWindow *win)
 	U.dpi = dpi / pixelsize;
 	U.virtual_pixel = (pixelsize == 1) ? VIRTUAL_PIXEL_NATIVE : VIRTUAL_PIXEL_DOUBLE;
 	U.widget_unit = (U.pixelsize * U.dpi * 20 + 36) / 72;
+	U.dpi_fac = ((U.pixelsize * (float)U.dpi) / 72.0f);
 
 	/* update font drawing */
 	BLF_default_dpi(U.pixelsize * U.dpi);
@@ -825,8 +818,6 @@ wmWindow *WM_window_open(bContext *C, const rcti *rect)
 	win->posy = rect->ymin;
 	win->sizex = BLI_rcti_size_x(rect);
 	win->sizey = BLI_rcti_size_y(rect);
-
-	win->drawmethod = U.wmdrawmethod;
 
 	WM_check(C);
 
@@ -1481,7 +1472,6 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 						}
 					
 						wm_window_make_drawable(wm, win);
-						wm_draw_window_clear(win);
 						BKE_icon_changed(screen->id.icon_id);
 						WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
 						WM_event_add_notifier(C, NC_WINDOW | NA_EDITED, NULL);
@@ -1604,7 +1594,6 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 					CTX_wm_window_set(C, oldWindow);
 
 					wm_window_make_drawable(wm, win);
-					wm_draw_window_clear(win);
 
 					WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
 					WM_event_add_notifier(C, NC_WINDOW | NA_EDITED, NULL);
@@ -1735,13 +1724,22 @@ void wm_window_testbreak(void)
 
 /* **************** init ********************** */
 
+/* bContext can be null in background mode because we don't
+ * need to event handling. */
 void wm_ghost_init(bContext *C)
 {
 	if (!g_system) {
-		GHOST_EventConsumerHandle consumer = GHOST_CreateEventConsumer(ghost_event_proc, C);
+		GHOST_EventConsumerHandle consumer;
+
+		if (C != NULL) {
+			consumer = GHOST_CreateEventConsumer(ghost_event_proc, C);
+		}
 		
 		g_system = GHOST_CreateSystem();
-		GHOST_AddEventConsumer(g_system, consumer);
+
+		if (C != NULL) {
+			GHOST_AddEventConsumer(g_system, consumer);
+		}
 		
 		if (wm_init_state.native_pixels) {
 			GHOST_UseNativePixels();

@@ -300,7 +300,7 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 /** \name Menu Block Creation
  * \{ */
 
-static void ui_block_region_draw(const bContext *C, ARegion *ar)
+static void ui_block_region_refresh(const bContext *C, ARegion *ar)
 {
 	ScrArea *ctx_area = CTX_wm_area(C);
 	ARegion *ctx_region = CTX_wm_region(C);
@@ -314,9 +314,11 @@ static void ui_block_region_draw(const bContext *C, ARegion *ar)
 		ar->do_draw &= ~RGN_DRAW_REFRESH_UI;
 		for (block = ar->uiblocks.first; block; block = block_next) {
 			block_next = block->next;
-			if (block->handle->can_refresh) {
-				handle_ctx_area = block->handle->ctx_area;
-				handle_ctx_region = block->handle->ctx_region;
+			uiPopupBlockHandle *handle = block->handle;
+
+			if (handle->can_refresh) {
+				handle_ctx_area = handle->ctx_area;
+				handle_ctx_region = handle->ctx_region;
 
 				if (handle_ctx_area) {
 					CTX_wm_area_set((bContext *)C, handle_ctx_area);
@@ -324,13 +326,21 @@ static void ui_block_region_draw(const bContext *C, ARegion *ar)
 				if (handle_ctx_region) {
 					CTX_wm_region_set((bContext *)C, handle_ctx_region);
 				}
-				ui_popup_block_refresh((bContext *)C, block->handle, NULL, NULL);
+
+				uiBut *but = handle->popup_create_vars.but;
+				ARegion *butregion = handle->popup_create_vars.butregion;
+				ui_popup_block_refresh((bContext *)C, handle, butregion, but);
 			}
 		}
 	}
 
 	CTX_wm_area_set((bContext *)C, ctx_area);
 	CTX_wm_region_set((bContext *)C, ctx_region);
+}
+
+static void ui_block_region_draw(const bContext *C, ARegion *ar)
+{
+	uiBlock *block;
 
 	for (block = ar->uiblocks.first; block; block = block->next)
 		UI_block_draw(C, block);
@@ -460,8 +470,6 @@ uiBlock *ui_popup_block_refresh(
         bContext *C, uiPopupBlockHandle *handle,
         ARegion *butregion, uiBut *but)
 {
-	BLI_assert(handle->can_refresh == true);
-
 	const int margin = UI_POPUP_MARGIN;
 	wmWindow *window = CTX_wm_window(C);
 	ARegion *ar = handle->region;
@@ -472,6 +480,8 @@ uiBlock *ui_popup_block_refresh(
 
 	uiBlock *block_old = ar->uiblocks.first;
 	uiBlock *block;
+
+	BLI_assert(!block_old || handle->can_refresh == true);
 
 #ifdef DEBUG
 	wmEvent *event_back = window->eventstate;
@@ -581,6 +591,17 @@ uiBlock *ui_popup_block_refresh(
 	else {
 		/* clip block with window boundary */
 		ui_popup_block_clip(window, block);
+
+		/* Avoid menu moving down and losing cursor focus by keeping it at
+		 * the same height. */
+		if (block_old && handle->prev_block_rect.ymax > block->rect.ymax) {
+			float offset = handle->prev_block_rect.ymax - block->rect.ymax;
+			ui_block_translate(block, 0, offset);
+			block->rect.ymin = handle->prev_block_rect.ymin;
+		}
+
+		handle->prev_block_rect = block->rect;
+
 		/* the block and buttons were positioned in window space as in 2.4x, now
 		 * these menu blocks are regions so we bring it back to region space.
 		 * additionally we add some padding for the menu shadow or rounded menus */
@@ -649,10 +670,12 @@ uiPopupBlockHandle *ui_popup_block_create(
 	handle->popup_create_vars.create_func = create_func;
 	handle->popup_create_vars.handle_create_func = handle_create_func;
 	handle->popup_create_vars.arg = arg;
+	handle->popup_create_vars.but = but;
 	handle->popup_create_vars.butregion = but ? butregion : NULL;
 	copy_v2_v2_int(handle->popup_create_vars.event_xy, &window->eventstate->x);
-	/* caller may free vars used to create this popup, in that case this variable should be disabled. */
-	handle->can_refresh = true;
+
+	/* don't allow by default, only if popup type explicitly supports it */
+	handle->can_refresh = false;
 
 	/* create area region */
 	ar = ui_region_temp_add(CTX_wm_screen(C));
@@ -660,6 +683,7 @@ uiPopupBlockHandle *ui_popup_block_create(
 
 	memset(&type, 0, sizeof(ARegionType));
 	type.draw = ui_block_region_draw;
+	type.layout = ui_block_region_refresh;
 	type.regionid = RGN_TYPE_TEMPORARY;
 	ar->type = &type;
 
@@ -669,7 +693,7 @@ uiPopupBlockHandle *ui_popup_block_create(
 	handle = block->handle;
 
 	/* keep centered on window resizing */
-	if ((block->bounds_type == UI_BLOCK_BOUNDS_POPUP_CENTER) && handle->can_refresh) {
+	if (block->bounds_type == UI_BLOCK_BOUNDS_POPUP_CENTER) {
 		type.listener = ui_block_region_popup_window_listener;
 	}
 
@@ -678,6 +702,10 @@ uiPopupBlockHandle *ui_popup_block_create(
 
 void ui_popup_block_free(bContext *C, uiPopupBlockHandle *handle)
 {
+	if (handle->popup_create_vars.free_func) {
+		handle->popup_create_vars.free_func(handle, handle->popup_create_vars.arg);
+	}
+
 	ui_popup_block_remove(C, handle);
 
 	MEM_freeN(handle);

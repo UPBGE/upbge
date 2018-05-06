@@ -37,9 +37,14 @@
 #include "BKE_context.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_paint.h"
+#include "BKE_workspace.h"
+
+#include "RNA_access.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "WM_message.h"
 
 void WM_toolsystem_unlink(bContext *C, WorkSpace *workspace)
 {
@@ -70,10 +75,33 @@ void WM_toolsystem_unlink(bContext *C, WorkSpace *workspace)
 	}
 }
 
-void WM_toolsystem_link(bContext *UNUSED(C), WorkSpace *workspace)
+void WM_toolsystem_link(bContext *C, WorkSpace *workspace)
 {
 	if (workspace->tool.manipulator_group[0]) {
 		WM_manipulator_group_type_ensure(workspace->tool.manipulator_group);
+	}
+
+	if (workspace->tool.data_block[0]) {
+		Main *bmain = CTX_data_main(C);
+
+		/* Currently only brush data-blocks supported. */
+		struct Brush *brush = (struct Brush *)BKE_libblock_find_name(ID_BR, workspace->tool.data_block);
+
+		if (brush) {
+			wmWindowManager *wm = bmain->wm.first;
+			for (wmWindow *win = wm->windows.first; win; win = win->next) {
+				if (workspace == WM_window_get_active_workspace(win)) {
+					Scene *scene = win->scene;
+					ViewLayer *view_layer = BKE_workspace_view_layer_get(workspace, scene);
+					Paint *paint = BKE_paint_get_active(scene, view_layer);
+					if (paint) {
+						if (brush) {
+							BKE_paint_brush_set(paint, brush);
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -87,12 +115,19 @@ void WM_toolsystem_set(bContext *C, const bToolDef *tool)
 	workspace->tool.spacetype = tool->spacetype;
 
 	if (&workspace->tool != tool) {
-		BLI_strncpy(workspace->tool.keymap, tool->keymap, sizeof(tool->keymap));
-		BLI_strncpy(workspace->tool.manipulator_group, tool->manipulator_group, sizeof(tool->manipulator_group));
+		STRNCPY(workspace->tool.keymap, tool->keymap);
+		STRNCPY(workspace->tool.manipulator_group, tool->manipulator_group);
+		STRNCPY(workspace->tool.data_block, tool->data_block);
 		workspace->tool.spacetype = tool->spacetype;
 	}
 
 	WM_toolsystem_link(C, workspace);
+
+	{
+		struct wmMsgBus *mbus = CTX_wm_message_bus(C);
+		WM_msg_publish_rna_prop(
+		        mbus, &workspace->id, workspace, WorkSpace, tool_keymap);
+	}
 }
 
 void WM_toolsystem_init(bContext *C)
@@ -104,4 +139,14 @@ void WM_toolsystem_init(bContext *C)
 		WorkSpace *workspace = WM_window_get_active_workspace(win);
 		WM_toolsystem_link(C, workspace);
 	}
+}
+
+/**
+ * For paint modes to support non-brush tools.
+ */
+bool WM_toolsystem_active_tool_is_brush(const bContext *C)
+{
+	WorkSpace *workspace = CTX_wm_workspace(C);
+	/* Will need to become more comprehensive, for now check tool data-block. */
+	return workspace->tool.data_block[0] != '\0';
 }

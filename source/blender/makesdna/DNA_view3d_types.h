@@ -82,6 +82,7 @@ enum {
 
 enum {
 	V3D_DRAWOPTION_RANDOMIZE = (1 << 0),
+	V3D_DRAWOPTION_OBJECT_OVERLAP   = (2 << 0),
 };
 
 enum {
@@ -153,7 +154,6 @@ typedef struct RegionView3D {
 	float rot_axis[3];
 
 	struct GPUFX *compositor;
-	struct GPUViewport *viewport;
 } RegionView3D;
 
 /* 3D ViewPort Struct */

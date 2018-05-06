@@ -740,6 +740,10 @@ void uiTemplateOperatorRedoProperties(struct uiLayout *layout, struct bContext *
 void uiItemPopoverPanelFromGroup(struct uiLayout *layout, struct bContext *C, int space_id, int region_id, const char *context, const char *category) RET_NONE
 void uiItemPopoverPanel(struct uiLayout *layout, struct bContext *C, int space_id, int region_id, const char *panelname, const char *name, int icon) RET_NONE
 void ED_region_visibility_change_update(struct bContext *C, struct ARegion *ar) RET_NONE
+void WM_init_opengl(void) RET_NONE
+struct GPUViewport *WM_draw_region_get_viewport(struct ARegion *ar, int view) RET_NULL
+struct GPUViewport *WM_draw_region_get_bound_viewport(struct ARegion *ar) RET_NULL
+void uiTemplateHeader3D_mode(struct uiLayout *layout, struct bContext *C) RET_NONE
 
 void PE_update_object(struct Depsgraph *depsgraph, struct Scene *scene,	struct Object *ob, int useflag) RET_NONE
 struct PTCacheEdit *PE_create_current(struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob) RET_NULL

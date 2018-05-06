@@ -34,6 +34,7 @@ class VIEW3D_HT_header(Header):
         layout = self.layout
 
         view = context.space_data
+        shading = view.shading
         # mode_string = context.mode
         obj = context.active_object
         toolsettings = context.tool_settings
@@ -41,20 +42,32 @@ class VIEW3D_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
+        mode = 'OBJECT' if obj is None else obj.mode
+        act_mode_item = bpy.types.Object.bl_rna.properties['mode'].enum_items[mode]
+        layout.operator_menu_enum("object.mode_set", "mode", text=act_mode_item.name, icon=act_mode_item.icon)
+        del act_mode_item
+
+        layout.template_header_3D_mode()
+
         VIEW3D_MT_editor_menus.draw_collapsible(context, layout)
 
         # Contains buttons like Mode, Pivot, Manipulator, Layer, Mesh Select Mode...
         row = layout
+        row.popover(space_type='VIEW_3D', region_type='UI', panel_type="VIEW3D_PT_shading", text="Shading")
+        row.popover(space_type='VIEW_3D', region_type='UI', panel_type="VIEW3D_PT_overlay", text="Overlay")
+
         layout.template_header_3D()
 
         if obj:
-            mode = obj.mode
+            # Set above:
+            # mode = obj.mode
+
             # Particle edit
             if mode == 'PARTICLE_EDIT':
                 row.prop(toolsettings.particle_edit, "select_mode", text="", expand=True)
 
             # Occlude geometry
-            if ((view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'} and (mode == 'PARTICLE_EDIT' or (mode == 'EDIT' and obj.type == 'MESH'))) or
+            if ((shading.type not in {'BOUNDBOX', 'WIREFRAME'} and (mode == 'PARTICLE_EDIT' or (mode == 'EDIT' and obj.type == 'MESH'))) or
                     (mode in {'WEIGHT_PAINT', 'VERTEX_PAINT'})):
                 row.prop(view, "use_occlude_geometry", text="")
 
@@ -1807,17 +1820,17 @@ class VIEW3D_MT_make_single_user(Menu):
         props.object = props.obdata = True
         props.material = props.texture = props.animation = False
 
-        props = layout.operator("object.make_single_user", text="Object & Data & Materials+Tex")
-        props.object = props.obdata = props.material = props.texture = True
+        props = layout.operator("object.make_single_user", text="Object & Data & Materials")
+        props.object = props.obdata = props.material = True
         props.animation = False
 
-        props = layout.operator("object.make_single_user", text="Materials+Tex")
-        props.material = props.texture = True
+        props = layout.operator("object.make_single_user", text="Materials")
+        props.material = True
         props.object = props.obdata = props.animation = False
 
         props = layout.operator("object.make_single_user", text="Object Animation")
         props.animation = True
-        props.object = props.obdata = props.material = props.texture = False
+        props.object = props.obdata = props.material = False
 
 
 class VIEW3D_MT_make_links(Menu):
@@ -3537,38 +3550,99 @@ class VIEW3D_PT_view3d_name(Panel):
                 row.prop(bone, "name", text="")
 
 
-class VIEW3D_PT_view3d_display(Panel):
+class VIEW3D_PT_shading(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_label = "Display"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_label = "Shading"
 
     @classmethod
     def poll(cls, context):
-        view = context.space_data
-        return (view)
+        return False
 
     def draw(self, context):
         layout = self.layout
 
         view = context.space_data
+        shading = view.shading
+
+        col = layout.column()
+        col.prop(shading, "type", expand=True)
+
+        if shading.type == 'SOLID':
+            col.separator()
+            col.row().prop(shading, "light", expand=True)
+
+            col.separator()
+            col.prop(shading, "show_random_object_colors")
+            col.prop(shading, "show_object_overlap")
+
+            if shading.light == 'STUDIO':
+                # TODO: don't store these settings in the scene
+                scene = context.scene
+                props = scene.layer_properties['BLENDER_WORKBENCH']
+
+                col.separator()
+
+                sub = col.column()
+                sub.label(text="Left/Right:")
+                row = sub.row(align=True)
+                row.prop(props, "diffuse_light_x_neg", text="")
+                row.prop(props, "diffuse_light_x_pos", text="")
+
+                sub = col.column()
+                sub.label(text="Up/Down:")
+                row = sub.row(align=True)
+                row.prop(props, "diffuse_light_y_neg", text="")
+                row.prop(props, "diffuse_light_y_pos", text="")
+
+                sub = col.column()
+                sub.label(text="Front/Back:")
+                row = sub.row(align=True)
+                row.prop(props, "diffuse_light_z_neg", text="")
+                row.prop(props, "diffuse_light_z_pos", text="")
+
+
+class VIEW3D_PT_overlay(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_label = "Overlay"
+
+    @classmethod
+    def poll(cls, context):
+        return False
+
+    def draw(self, context):
+        layout = self.layout
+
+        view = context.space_data
+        overlay = view.overlay
+        shading = view.shading
         scene = context.scene
 
         col = layout.column()
-        col.prop(view, "show_only_render")
+        col.prop(overlay, "show_overlays")
+        col.separator()
+
         col.prop(view, "show_world")
+
+        if context.mode in {'PAINT_WEIGHT', 'PAINT_VERTEX'}:
+            engine_type = {
+                'PAINT_WEIGHT': 'WeightPaintMode',
+                'PAINT_VERTEX': 'VertexPaintMode',
+            }.get(context.mode)
+            engine_props = scene.collection_properties[engine_type]
+            col.prop(engine_props, "use_wire")
 
         if context.mode in {'PAINT_WEIGHT', 'PAINT_VERTEX', 'PAINT_TEXTURE'}:
             col.prop(view, "show_mode_shade_override")
 
         col = layout.column()
-        display_all = not view.show_only_render
+        display_all = overlay.show_overlays
         col.active = display_all
         col.prop(view, "show_outline_selected")
         col.prop(view, "show_all_objects_origin")
         col.prop(view, "show_relationship_lines")
         col.prop(view, "show_face_orientation_overlay")
-        col.prop(view, "show_random_object_colors")
 
         col = layout.column()
         col.active = display_all
@@ -3590,20 +3664,32 @@ class VIEW3D_PT_view3d_display(Panel):
         subsub.active = scene.unit_settings.system == 'NONE'
         subsub.prop(view, "grid_subdivisions", text="Subdivisions")
 
-        layout.separator()
 
-        layout.operator("screen.region_quadview", text="Toggle Quad View")
+class VIEW3D_PT_quad_view(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_label = "Quad View"
+    bl_options = {'DEFAULT_CLOSED'}
 
-        if view.region_quadviews:
-            region = view.region_quadviews[2]
-            col = layout.column()
-            col.prop(region, "lock_rotation")
-            row = col.row()
-            row.enabled = region.lock_rotation
-            row.prop(region, "show_sync_view")
-            row = col.row()
-            row.enabled = region.lock_rotation and region.show_sync_view
-            row.prop(region, "use_box_clip")
+    @classmethod
+    def poll(cls, context):
+        view = context.space_data
+        return view.region_quadviews
+
+    def draw(self, context):
+        layout = self.layout
+
+        view = context.space_data
+
+        region = view.region_quadviews[2]
+        col = layout.column()
+        col.prop(region, "lock_rotation")
+        row = col.row()
+        row.enabled = region.lock_rotation
+        row.prop(region, "show_sync_view")
+        row = col.row()
+        row.enabled = region.lock_rotation and region.show_sync_view
+        row.prop(region, "use_box_clip")
 
 
 class VIEW3D_PT_view3d_stereo(Panel):
@@ -4012,12 +4098,14 @@ classes = (
     VIEW3D_PT_view3d_properties,
     VIEW3D_PT_view3d_cursor,
     VIEW3D_PT_view3d_name,
-    VIEW3D_PT_view3d_display,
+    VIEW3D_PT_quad_view,
     VIEW3D_PT_view3d_stereo,
     VIEW3D_PT_view3d_motion_tracking,
     VIEW3D_PT_view3d_meshdisplay,
     VIEW3D_PT_view3d_meshstatvis,
     VIEW3D_PT_view3d_curvedisplay,
+    VIEW3D_PT_shading,
+    VIEW3D_PT_overlay,
     VIEW3D_PT_transform_orientations,
     VIEW3D_PT_context_properties,
 )

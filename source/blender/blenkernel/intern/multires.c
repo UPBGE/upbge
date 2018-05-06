@@ -280,11 +280,11 @@ static MDisps *multires_mdisps_initialize_hidden(Mesh *me, int level)
 DerivedMesh *get_multires_dm(struct Depsgraph *depsgraph, Scene *scene, MultiresModifierData *mmd, Object *ob)
 {
 	ModifierData *md = (ModifierData *)mmd;
-	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 	DerivedMesh *tdm = mesh_get_derived_deform(depsgraph, scene, ob, CD_MASK_BAREMESH);
 	DerivedMesh *dm;
+	ModifierEvalContext mectx = {depsgraph, ob, MOD_APPLY_USECACHE | MOD_APPLY_IGNORE_SIMPLIFY};
 
-	dm = mti->applyModifier(md, depsgraph, ob, tdm, MOD_APPLY_USECACHE | MOD_APPLY_IGNORE_SIMPLIFY);
+	dm = modifier_applyModifier_DM_deprecated(md, &mectx, tdm);
 	if (dm == tdm) {
 		dm = CDDM_copy(tdm);
 	}
@@ -429,10 +429,10 @@ int multiresModifier_reshape(struct Depsgraph *depsgraph, Scene *scene, Multires
 int multiresModifier_reshapeFromDeformMod(struct Depsgraph *depsgraph, Scene *scene, MultiresModifierData *mmd,
                                           Object *ob, ModifierData *md)
 {
-	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 	DerivedMesh *dm, *ndm;
 	int numVerts, result;
 	float (*deformedVerts)[3];
+	const ModifierEvalContext mectx = {depsgraph, ob, 0};
 
 	if (multires_get_level(ob, mmd, false, true) == 0)
 		return 0;
@@ -443,7 +443,7 @@ int multiresModifier_reshapeFromDeformMod(struct Depsgraph *depsgraph, Scene *sc
 	deformedVerts = MEM_malloc_arrayN(numVerts, sizeof(float[3]), "multiresReshape_deformVerts");
 
 	dm->getVertCos(dm, deformedVerts);
-	mti->deformVerts(md, depsgraph, ob, dm, deformedVerts, numVerts, 0);
+	modifier_deformVerts_DM_deprecated(md, &mectx, dm, deformedVerts, numVerts);
 
 	ndm = CDDM_copy(dm);
 	CDDM_apply_vert_coords(ndm, deformedVerts);

@@ -225,12 +225,12 @@ enum {
 	UI_BUT_BOX_ITEM          = (1 << 20), /* This but is "inside" a box item (currently used to change theme colors). */
 
 	UI_BUT_ACTIVE_LEFT       = (1 << 21), /* Active left part of number button */
-	UI_BUT_ACTIVE_RIGHT      = (1 << 22), /* Active left part of number button */
+	UI_BUT_ACTIVE_RIGHT      = (1 << 22), /* Active right part of number button */
 };
 
 /* scale fixed button widths by this to account for DPI */
 
-#define UI_DPI_FAC ((U.pixelsize * (float)U.dpi) / 72.0f)
+#define UI_DPI_FAC (U.dpi_fac)
 /* 16 to copy ICON_DEFAULT_HEIGHT */
 #define UI_DPI_ICON_SIZE ((float)16 * UI_DPI_FAC)
 
@@ -424,10 +424,7 @@ void UI_popup_menu_but_set(uiPopupMenu *pup, struct ARegion *butregion, uiBut *b
 
 typedef struct uiPopover uiPopover;
 
-uiPopover *UI_popover_begin(
-        struct bContext *C) ATTR_NONNULL();
-uiPopover *UI_popover_begin_ex(
-        struct bContext *C, const char *block_name) ATTR_NONNULL();
+uiPopover *UI_popover_begin(struct bContext *C) ATTR_NONNULL();
 void UI_popover_end(struct bContext *C, struct uiPopover *head);
 struct uiLayout *UI_popover_layout(uiPopover *head);
 
@@ -480,6 +477,8 @@ uiBlock *UI_block_begin(const struct bContext *C, struct ARegion *region, const 
 void UI_block_end_ex(const struct bContext *C, uiBlock *block, const int xy[2], int r_xy[2]);
 void UI_block_end(const struct bContext *C, uiBlock *block);
 void UI_block_draw(const struct bContext *C, struct uiBlock *block);
+void UI_blocklist_update_window_matrix(const struct bContext *C, const struct ListBase *lb);
+void UI_blocklist_draw(const struct bContext *C, const struct ListBase *lb);
 void UI_block_update_from_old(const struct bContext *C, struct uiBlock *block);
 
 uiBlock *UI_block_find_in_region(const char *name, struct ARegion *ar);
@@ -1046,6 +1045,7 @@ eAutoPropButsReturn uiTemplateOperatorPropertyButs(
         const struct bContext *C, uiLayout *layout, struct wmOperator *op,
         bool (*check_prop)(struct PointerRNA *, struct PropertyRNA *),
         const eButLabelAlign label_align, const short flag);
+void uiTemplateHeader3D_mode(uiLayout *layout, struct bContext *C);
 void uiTemplateHeader3D(uiLayout *layout, struct bContext *C);
 void uiTemplateEditModeSelection(uiLayout *layout, struct bContext *C);
 void uiTemplateReportsBanner(uiLayout *layout, struct bContext *C);
@@ -1242,5 +1242,10 @@ int UI_calc_float_precision(int prec, double value);
 void UI_widgetbase_draw_cache_begin(void);
 void UI_widgetbase_draw_cache_flush(void);
 void UI_widgetbase_draw_cache_end(void);
+
+/* Special drawing for toolbar, mainly workarounds for inflexible icon sizing. */
+#define USE_TOOLBAR_HACK
+
+bool UI_but_is_tool(const uiBut *but);
 
 #endif  /* __UI_INTERFACE_H__ */

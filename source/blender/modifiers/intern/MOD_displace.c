@@ -368,15 +368,14 @@ static void displaceModifier_do(
 	}
 }
 
-static void deformVerts(ModifierData *md, struct Depsgraph *UNUSED(depsgraph),
-                        Object *ob, DerivedMesh *derivedData,
+static void deformVerts(ModifierData *md, const ModifierEvalContext *ctx,
+                        DerivedMesh *derivedData,
                         float (*vertexCos)[3],
-                        int numVerts,
-                        ModifierApplyFlag UNUSED(flag))
+                        int numVerts)
 {
-	DerivedMesh *dm = get_cddm(ob, NULL, derivedData, vertexCos, dependsOnNormals(md));
+	DerivedMesh *dm = get_cddm(ctx->object, NULL, derivedData, vertexCos, dependsOnNormals(md));
 
-	displaceModifier_do((DisplaceModifierData *)md, ob, dm,
+	displaceModifier_do((DisplaceModifierData *)md, ctx->object, dm,
 	                    vertexCos, numVerts);
 
 	if (dm != derivedData)
@@ -384,12 +383,12 @@ static void deformVerts(ModifierData *md, struct Depsgraph *UNUSED(depsgraph),
 }
 
 static void deformVertsEM(
-        ModifierData *md, struct Depsgraph *UNUSED(depsgraph), Object *ob, struct BMEditMesh *editData,
+        ModifierData *md, const ModifierEvalContext *ctx, struct BMEditMesh *editData,
         DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
-	DerivedMesh *dm = get_cddm(ob, editData, derivedData, vertexCos, dependsOnNormals(md));
+	DerivedMesh *dm = get_cddm(ctx->object, editData, derivedData, vertexCos, dependsOnNormals(md));
 
-	displaceModifier_do((DisplaceModifierData *)md, ob, dm,
+	displaceModifier_do((DisplaceModifierData *)md, ctx->object, dm,
 	                    vertexCos, numVerts);
 
 	if (dm != derivedData)
@@ -406,12 +405,21 @@ ModifierTypeInfo modifierType_Displace = {
 	                        eModifierTypeFlag_SupportsEditmode,
 
 	/* copyData */          copyData,
-	/* deformVerts */       deformVerts,
+
+	/* deformVerts_DM */    deformVerts,
+	/* deformMatrices_DM */ NULL,
+	/* deformVertsEM_DM */  deformVertsEM,
+	/* deformMatricesEM_DM*/NULL,
+	/* applyModifier_DM */  NULL,
+	/* applyModifierEM_DM */NULL,
+
+	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
-	/* deformVertsEM */     deformVertsEM,
+	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
 	/* applyModifier */     NULL,
 	/* applyModifierEM */   NULL,
+
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          NULL,

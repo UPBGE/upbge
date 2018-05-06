@@ -307,11 +307,6 @@ typedef struct VertSlideData {
 
 	SlideOrigData orig_data;
 
-	float perc;
-
-	bool use_even;
-	bool flipped;
-
 	int curr_sv_index;
 
 	/* result of ED_view3d_ob_project_mat_get */
@@ -483,7 +478,7 @@ typedef struct TransInfo {
 	short		persp;
 	short		around;
 	char		spacetype;		/* spacetype where transforming is      */
-	char		helpline;		/* choice of custom cursor with or without a help line from the gizmo to the mouse pos */
+	char		helpline;		/* Choice of custom cursor with or without a help line from the manipulator to the mouse position. */
 	short		obedit_type;	/* Avoid looking inside TransDataContainer obedit. */
 
 	float		vec[3];			/* translation, to show for widget   	*/
@@ -800,6 +795,7 @@ void setInputPostFct(MouseInput *mi, void	(*post)(struct TransInfo *t, float val
 
 void initTransDataContainers_FromObjectData(TransInfo *t);
 void initTransInfo(struct bContext *C, TransInfo *t, struct wmOperator *op, const struct wmEvent *event);
+void freeTransCustomDataForMode(TransInfo *t);
 void postTrans(struct bContext *C, TransInfo *t);
 void resetTransModal(TransInfo *t);
 void resetTransRestrictions(TransInfo *t);

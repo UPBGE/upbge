@@ -133,9 +133,9 @@ static struct GPUTexture *create_ggx_lut_texture(int UNUSED(w), int UNUSED(h))
 
 	float *texels = MEM_mallocN(sizeof(float[2]) * w * h, "lut");
 
-	tex = DRW_texture_create_2D(w, h, DRW_TEX_RG_16, DRW_TEX_FILTER, (float *)texels);
+	tex = DRW_texture_create_2D(w, h, GPU_RG16F, DRW_TEX_FILTER, (float *)texels);
 
-	DRWFboTexture tex_filter = {&tex, DRW_TEX_RG_16, DRW_TEX_FILTER};
+	DRWFboTexture tex_filter = {&tex, GPU_RG16F, DRW_TEX_FILTER};
 	GPU_framebuffer_init(&fb, &draw_engine_eevee_type, w, h, &tex_filter, 1);
 
 	GPU_framebuffer_bind(fb);
@@ -195,9 +195,9 @@ static struct GPUTexture *create_ggx_refraction_lut_texture(int w, int h)
 
 	float *texels = MEM_mallocN(sizeof(float[2]) * w * h, "lut");
 
-	tex = DRW_texture_create_2D(w, h, DRW_TEX_R_16, DRW_TEX_FILTER, (float *)texels);
+	tex = DRW_texture_create_2D(w, h, GPU_R16F, DRW_TEX_FILTER, (float *)texels);
 
-	DRWFboTexture tex_filter = {&tex, DRW_TEX_R_16, DRW_TEX_FILTER};
+	DRWFboTexture tex_filter = {&tex, GPU_R16F, DRW_TEX_FILTER};
 	GPU_framebuffer_init(&fb, &draw_engine_eevee_type, w, h, &tex_filter, 1);
 
 	GPU_framebuffer_bind(fb);
@@ -423,7 +423,7 @@ static void create_default_shader(int options)
 
 static void eevee_init_noise_texture(void)
 {
-	e_data.noise_tex = DRW_texture_create_2D(64, 64, DRW_TEX_RGBA_16, 0, (float *)blue_noise);
+	e_data.noise_tex = DRW_texture_create_2D(64, 64, GPU_RGBA16F, 0, (float *)blue_noise);
 }
 
 static void eevee_init_util_texture(void)
@@ -467,7 +467,7 @@ static void eevee_init_util_texture(void)
 	}
 
 	e_data.util_tex = DRW_texture_create_2D_array(
-	        64, 64, layers, DRW_TEX_RGBA_16, DRW_TEX_FILTER | DRW_TEX_WRAP, (float *)texels);
+	        64, 64, layers, GPU_RGBA16F, DRW_TEX_FILTER | DRW_TEX_WRAP, (float *)texels);
 
 	MEM_freeN(texels);
 }
@@ -995,7 +995,12 @@ void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 		DRW_shgroup_call_sculpt_add(shgrp, ob, ob->obmat); \
 	} \
 	else { \
-		DRW_shgroup_call_object_add_with_callback(shgrp, geom, ob, EEVEE_lightprobes_obj_visibility_cb, oedata); \
+		if (oedata) { \
+			DRW_shgroup_call_object_add_with_callback(shgrp, geom, ob, EEVEE_lightprobes_obj_visibility_cb, oedata); \
+		} \
+		else { \
+			DRW_shgroup_call_object_add(shgrp, geom, ob); \
+		} \
 	} \
 } while (0)
 
@@ -1284,7 +1289,7 @@ static void material_transparent(
 	}
 }
 
-void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_ViewLayerData *sldata, Object *ob)
+void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_ViewLayerData *sldata, Object *ob, bool *cast_shadow)
 {
 	EEVEE_PassList *psl = vedata->psl;
 	EEVEE_StorageList *stl = vedata->stl;
@@ -1378,6 +1383,7 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_ViewLayerData *sld
 		struct Gwn_Batch **mat_geom = DRW_cache_object_surface_material_get(ob, gpumat_array, materials_len);
 		if (mat_geom) {
 			for (int i = 0; i < materials_len; ++i) {
+				EEVEE_ObjectEngineData *oedata = NULL;
 				Material *ma = give_current_material(ob, i + 1);
 
 				if (ma == NULL)
@@ -1391,9 +1397,13 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_ViewLayerData *sld
 					continue;
 				}
 
-				EEVEE_ObjectEngineData *oedata = EEVEE_object_data_ensure(ob);
-				oedata->ob = ob;
-				oedata->test_data = &sldata->probes->vis_data;
+				/* XXX TODO rewrite this to include the dupli objects.
+				 * This means we cannot exclude dupli objects from reflections!!! */
+				if ((ob->base_flag & BASE_FROMDUPLI) == 0) {
+					oedata = EEVEE_object_data_ensure(ob);
+					oedata->ob = ob;
+					oedata->test_data = &sldata->probes->vis_data;
+				}
 
 				/* Shading pass */
 				ADD_SHGROUP_CALL(shgrp_array[i], ob, mat_geom[i], oedata);
@@ -1408,14 +1418,17 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_ViewLayerData *sld
 					switch (ma->blend_shadow) {
 						case MA_BS_SOLID:
 							EEVEE_lights_cache_shcaster_add(sldata, stl, mat_geom[i], ob);
+							*cast_shadow = true;
 							break;
 						case MA_BS_CLIP:
 							gpumat = EEVEE_material_mesh_depth_get(scene, ma, false, true);
 							EEVEE_lights_cache_shcaster_material_add(sldata, psl, gpumat, mat_geom[i], ob, &ma->alpha_threshold);
+							*cast_shadow = true;
 							break;
 						case MA_BS_HASHED:
 							gpumat = EEVEE_material_mesh_depth_get(scene, ma, true, true);
 							EEVEE_lights_cache_shcaster_material_add(sldata, psl, gpumat, mat_geom[i], ob, NULL);
+							*cast_shadow = true;
 							break;
 						case MA_BS_NONE:
 						default:
@@ -1424,6 +1437,7 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata, EEVEE_ViewLayerData *sld
 				}
 				else {
 					EEVEE_lights_cache_shcaster_add(sldata, stl, mat_geom[i], ob);
+					*cast_shadow = true;
 				}
 			}
 		}

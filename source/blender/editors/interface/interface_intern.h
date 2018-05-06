@@ -72,6 +72,7 @@ typedef enum {
 	UI_WTYPE_NUMBER,
 	UI_WTYPE_SLIDER,
 	UI_WTYPE_EXEC,
+	UI_WTYPE_TOOLBAR_ITEM,
 	UI_WTYPE_TAB,
 	UI_WTYPE_TOOLTIP,
 	
@@ -91,7 +92,6 @@ typedef enum {
 	UI_WTYPE_MENU_ITEM,
 	UI_WTYPE_MENU_ITEM_RADIAL,
 	UI_WTYPE_MENU_BACK,
-	UI_WTYPE_POPOVER_BACK,
 
 	/* specials */
 	UI_WTYPE_ICON,
@@ -104,6 +104,8 @@ typedef enum {
 	UI_WTYPE_LISTITEM,
 	UI_WTYPE_PROGRESSBAR,
 } uiWidgetTypeEnum;
+
+#define UI_MENU_WIDTH_MIN (UI_UNIT_Y * 9)
 
 /* menu scrolling */
 #define UI_MENU_SCROLL_ARROW	12
@@ -538,16 +540,19 @@ struct uiKeyNavLock {
 };
 
 typedef uiBlock * (*uiBlockHandleCreateFunc)(struct bContext *C, struct uiPopupBlockHandle *handle, void *arg1);
+typedef void (*uiBlockHandleFreeFunc)(struct uiPopupBlockHandle *handle, void *arg1);
 
 struct uiPopupBlockCreate {
-	uiBlockCreateFunc              create_func;
+	uiBlockCreateFunc       create_func;
 	uiBlockHandleCreateFunc handle_create_func;
+	uiBlockHandleFreeFunc   free_func;
 	void *arg;
 
 	int event_xy[2];
 
 	/* when popup is initialized from a button */
 	ARegion *butregion;
+	uiBut *but;
 };
 
 struct uiPopupBlockHandle {
@@ -588,6 +593,9 @@ struct uiPopupBlockHandle {
 
 	/* menu direction */
 	int direction;
+
+	/* previous rect for refresh */
+	rctf prev_block_rect;
 
 /* #ifdef USE_DRAG_POPUP */
 	bool is_grab;
@@ -733,7 +741,11 @@ typedef struct uiWidgetBaseParameters {
 	float color_tria[4];
 	float tria1_center[2], tria2_center[2];
 	float tria1_size, tria2_size;
-	float shade_dir, do_alpha_check;
+	float shade_dir;
+	/* We pack alpha check and discard factor in alpha_discard.
+	 * If the value is negative then we do alpha check.
+	 * The absolute value itself is the discard factor. */
+	float alpha_discard;
 } uiWidgetBaseParameters;
 
 enum {
@@ -754,7 +766,7 @@ struct Gwn_Batch *ui_batch_roundbox_shadow_get(void);
 void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float maxy,
                            float rad, bool use_alpha, const float color[4]);
 void ui_draw_menu_back(struct uiStyle *style, uiBlock *block, rcti *rect);
-void ui_draw_popover_back(struct uiStyle *style, uiBlock *block, rcti *rect);
+void ui_draw_popover_back(ARegion *ar, struct uiStyle *style, uiBlock *block, rcti *rect);
 void ui_draw_pie_center(uiBlock *block);
 uiWidgetColors *ui_tooltip_get_theme(void);
 void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *block, rcti *rect);

@@ -82,9 +82,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 
 
 
-static DerivedMesh *applyModifier(ModifierData *md, struct Depsgraph *UNUSED(depsgraph),
-                                  Object *ob, DerivedMesh *dm,
-                                  ModifierApplyFlag flag)
+static DerivedMesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx,
+                                  DerivedMesh *dm)
 {
 	FluidsimModifierData *fluidmd = (FluidsimModifierData *) md;
 	DerivedMesh *result = NULL;
@@ -98,7 +97,8 @@ static DerivedMesh *applyModifier(ModifierData *md, struct Depsgraph *UNUSED(dep
 		}
 	}
 
-	result = fluidsimModifier_do(fluidmd, md->scene, ob, dm, flag & MOD_APPLY_RENDER, flag & MOD_APPLY_USECACHE);
+	result = fluidsimModifier_do(fluidmd, md->scene, ctx->object, dm,
+	                             ctx->flag & MOD_APPLY_RENDER, ctx->flag & MOD_APPLY_USECACHE);
 
 	return result ? result : dm;
 }
@@ -142,12 +142,21 @@ ModifierTypeInfo modifierType_Fluidsim = {
 	                        eModifierTypeFlag_Single,
 
 	/* copyData */          copyData,
+
+	/* deformVerts_DM */    NULL,
+	/* deformMatrices_DM */ NULL,
+	/* deformVertsEM_DM */  NULL,
+	/* deformMatricesEM_DM*/NULL,
+	/* applyModifier_DM */  applyModifier,
+	/* applyModifierEM_DM */NULL,
+
 	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
-	/* applyModifier */     applyModifier,
+	/* applyModifier */     NULL,
 	/* applyModifierEM */   NULL,
+
 	/* initData */          initData,
 	/* requiredDataMask */  NULL,
 	/* freeData */          freeData,

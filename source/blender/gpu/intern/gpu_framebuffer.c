@@ -657,11 +657,11 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, bool dept
 
 	ofs = MEM_callocN(sizeof(GPUOffScreen), "GPUOffScreen");
 
-	ofs->color = GPU_texture_create_2D_custom_multisample(width, height, 4,
+	ofs->color = GPU_texture_create_2D_multisample(width, height,
 	        (high_bitdepth) ? GPU_RGBA16F : GPU_RGBA8, NULL, samples, err_out);
 
 	if (depth) {
-		ofs->depth = GPU_texture_create_depth_with_stencil_multisample(width, height, samples, err_out);
+		ofs->depth = GPU_texture_create_2D_multisample(width, height, GPU_DEPTH24_STENCIL8, NULL, samples, err_out);
 	}
 
 	if ((depth && !ofs->depth) || !ofs->color) {
@@ -717,6 +717,24 @@ void GPU_offscreen_unbind(GPUOffScreen *UNUSED(ofs), bool restore)
 	if (restore) {
 		gpuPopAttrib();
 	}
+}
+
+void GPU_offscreen_draw_to_screen(GPUOffScreen *ofs, int x, int y)
+{
+	const int w = GPU_texture_width(ofs->color);
+	const int h = GPU_texture_height(ofs->color);
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, ofs->fb->object);
+	GLenum status = glCheckFramebufferStatus(GL_READ_FRAMEBUFFER);
+
+	if (status == GL_FRAMEBUFFER_COMPLETE) {
+		glBlitFramebuffer(0, 0, w, h, x, y, x + w, y + h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	}
+	else {
+		gpu_print_framebuffer_error(status, NULL);
+	}
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 }
 
 void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels)

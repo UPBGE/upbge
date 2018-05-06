@@ -38,6 +38,8 @@
 #include "BLI_string.h"
 #include "BLI_mempool.h"
 
+#include "BIF_gl.h"
+
 #include "DNA_vec_types.h"
 #include "DNA_userdef_types.h"
 
@@ -289,7 +291,7 @@ double *GPU_viewport_cache_time_get(GPUViewport *viewport)
  * Try to find a texture coresponding to params into the texture pool.
  * If no texture was found, create one and add it to the pool.
  */
-GPUTexture *GPU_viewport_texture_pool_query(GPUViewport *viewport, void *engine, int width, int height, int channels, int format)
+GPUTexture *GPU_viewport_texture_pool_query(GPUViewport *viewport, void *engine, int width, int height, int format)
 {
 	GPUTexture *tex;
 
@@ -312,7 +314,7 @@ GPUTexture *GPU_viewport_texture_pool_query(GPUViewport *viewport, void *engine,
 		}
 	}
 
-	tex = GPU_texture_create_2D_custom(width, height, channels, format, NULL, NULL);
+	tex = GPU_texture_create_2D(width, height, format, NULL, NULL);
 	GPU_texture_bind(tex, 0);
 	/* Doing filtering for depth does not make sense when not doing shadow mapping,
 	 * and enabling texture filtering on integer texture make them unreadable. */
@@ -389,8 +391,8 @@ static void gpu_viewport_default_fb_create(GPUViewport *viewport)
 	int *size = viewport->size;
 	bool ok = true;
 
-	dtxl->color = GPU_texture_create_2D(size[0], size[1], NULL, NULL);
-	dtxl->depth = GPU_texture_create_depth_with_stencil(size[0], size[1], NULL);
+	dtxl->color = GPU_texture_create_2D(size[0], size[1], GPU_RGBA8, NULL, NULL);
+	dtxl->depth = GPU_texture_create_2D(size[0], size[1], GPU_DEPTH24_STENCIL8, NULL, NULL);
 
 	if (!(dtxl->depth && dtxl->color)) {
 		ok = false;
@@ -434,8 +436,8 @@ static void gpu_viewport_default_multisample_fb_create(GPUViewport *viewport)
 	int samples = viewport->samples;
 	bool ok = true;
 
-	dtxl->multisample_color = GPU_texture_create_2D_multisample(size[0], size[1], NULL, samples, NULL);
-	dtxl->multisample_depth = GPU_texture_create_depth_with_stencil_multisample(size[0], size[1], samples, NULL);
+	dtxl->multisample_color = GPU_texture_create_2D_multisample(size[0], size[1], GPU_RGBA8, NULL, samples, NULL);
+	dtxl->multisample_depth = GPU_texture_create_2D_multisample(size[0], size[1], GPU_DEPTH24_STENCIL8, NULL, samples, NULL);
 
 	if (!(dtxl->multisample_depth && dtxl->multisample_color)) {
 		ok = false;
@@ -521,6 +523,10 @@ void GPU_viewport_draw_to_screen(GPUViewport *viewport, const rcti *rect)
 	BLI_assert(w == BLI_rcti_size_x(rect) + 1);
 	BLI_assert(h == BLI_rcti_size_y(rect) + 1);
 
+	/* wmOrtho for the screen has this same offset */
+	const float halfx = GLA_PIXEL_OFS / w;
+	const float halfy = GLA_PIXEL_OFS / h;
+
 	float x1 = rect->xmin;
 	float x2 = rect->xmin + w;
 	float y1 = rect->ymin;
@@ -531,7 +537,7 @@ void GPU_viewport_draw_to_screen(GPUViewport *viewport, const rcti *rect)
 
 	GPU_texture_bind(color, 0);
 	glUniform1i(GPU_shader_get_uniform(shader, "image"), 0);
-	glUniform4f(GPU_shader_get_uniform(shader, "rect_icon"), 0.0f, 0.0f, 1.0f, 1.0f);
+	glUniform4f(GPU_shader_get_uniform(shader, "rect_icon"), halfx, halfy, 1.0f + halfx, 1.0f + halfy);
 	glUniform4f(GPU_shader_get_uniform(shader, "rect_geom"), x1, y1, x2, y2);
 	glUniform4f(GPU_shader_get_builtin_uniform(shader, GWN_UNIFORM_COLOR), 1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -542,7 +548,21 @@ void GPU_viewport_draw_to_screen(GPUViewport *viewport, const rcti *rect)
 
 void GPU_viewport_unbind(GPUViewport *UNUSED(viewport))
 {
+	GPU_framebuffer_restore();
 	DRW_opengl_context_disable();
+}
+
+
+GPUTexture *GPU_viewport_color_texture(GPUViewport *viewport)
+{
+	DefaultFramebufferList *dfbl = viewport->fbl;
+
+	if (dfbl->default_fb) {
+		DefaultTextureList *dtxl = viewport->txl;
+		return dtxl->color;
+	}
+
+	return NULL;
 }
 
 static void gpu_viewport_buffers_free(

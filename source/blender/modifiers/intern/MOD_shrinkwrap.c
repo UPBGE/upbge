@@ -103,40 +103,39 @@ static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk,
 	walk(userData, ob, &smd->auxTarget, IDWALK_CB_NOP);
 }
 
-static void deformVerts(ModifierData *md, struct Depsgraph *UNUSED(depsgraph),
-                        Object *ob, DerivedMesh *derivedData,
+static void deformVerts(ModifierData *md, const ModifierEvalContext *ctx,
+                        DerivedMesh *derivedData,
                         float (*vertexCos)[3],
-                        int numVerts,
-                        ModifierApplyFlag flag)
+                        int numVerts)
 {
 	DerivedMesh *dm = derivedData;
-	CustomDataMask dataMask = requiredDataMask(ob, md);
-	bool forRender = (flag & MOD_APPLY_RENDER) != 0;
+	CustomDataMask dataMask = requiredDataMask(ctx->object, md);
+	bool forRender = (ctx->flag & MOD_APPLY_RENDER) != 0;
 
 	/* ensure we get a CDDM with applied vertex coords */
 	if (dataMask) {
-		dm = get_cddm(ob, NULL, dm, vertexCos, dependsOnNormals(md));
+		dm = get_cddm(ctx->object, NULL, dm, vertexCos, dependsOnNormals(md));
 	}
 
-	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts, forRender);
+	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ctx->object, dm, vertexCos, numVerts, forRender);
 
 	if (dm != derivedData)
 		dm->release(dm);
 }
 
-static void deformVertsEM(ModifierData *md, struct Depsgraph *UNUSED(depsgraph), Object *ob,
+static void deformVertsEM(ModifierData *md, const ModifierEvalContext *ctx,
                           struct BMEditMesh *editData, DerivedMesh *derivedData,
                           float (*vertexCos)[3], int numVerts)
 {
 	DerivedMesh *dm = derivedData;
-	CustomDataMask dataMask = requiredDataMask(ob, md);
+	CustomDataMask dataMask = requiredDataMask(ctx->object, md);
 
 	/* ensure we get a CDDM with applied vertex coords */
 	if (dataMask) {
-		dm = get_cddm(ob, editData, dm, vertexCos, dependsOnNormals(md));
+		dm = get_cddm(ctx->object, editData, dm, vertexCos, dependsOnNormals(md));
 	}
 
-	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts, false);
+	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ctx->object, dm, vertexCos, numVerts, false);
 
 	if (dm != derivedData)
 		dm->release(dm);
@@ -177,12 +176,21 @@ ModifierTypeInfo modifierType_Shrinkwrap = {
 	                        eModifierTypeFlag_EnableInEditmode,
 
 	/* copyData */          copyData,
-	/* deformVerts */       deformVerts,
+
+	/* deformVerts_DM */    deformVerts,
+	/* deformMatrices_DM */ NULL,
+	/* deformVertsEM_DM */  deformVertsEM,
+	/* deformMatricesEM_DM*/NULL,
+	/* applyModifier_DM */  NULL,
+	/* applyModifierEM_DM */NULL,
+
+	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
-	/* deformVertsEM */     deformVertsEM,
+	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
 	/* applyModifier */     NULL,
 	/* applyModifierEM */   NULL,
+
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          NULL,

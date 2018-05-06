@@ -93,6 +93,14 @@ struct Mesh *BKE_mesh_copy(struct Main *bmain, const struct Mesh *me);
 void BKE_mesh_update_customdata_pointers(struct Mesh *me, const bool do_ensure_tess_cd);
 void BKE_mesh_ensure_skin_customdata(struct Mesh *me);
 
+struct Mesh * BKE_mesh_from_template(
+        const struct Mesh *me_src,
+        int numVerts, int numEdges, int numTessFaces,
+        int numLoops, int numPolys);
+
+bool BKE_mesh_ensure_edit_data(struct Mesh *me);
+bool BKE_mesh_clear_edit_data(struct Mesh *me);
+
 bool BKE_mesh_ensure_facemap_customdata(struct Mesh *me);
 bool BKE_mesh_clear_facemap_customdata(struct Mesh *me);
 
@@ -132,8 +140,9 @@ void BKE_mesh_texspace_get(struct Mesh *me, float r_loc[3], float r_rot[3], floa
 void BKE_mesh_texspace_get_reference(struct Mesh *me, short **r_texflag,  float **r_loc, float **r_rot, float **r_size);
 void BKE_mesh_texspace_copy_from_object(struct Mesh *me, struct Object *ob);
 
-bool BKE_mesh_uv_cdlayer_rename_index(struct Mesh *me, const int poly_index, const int loop_index, const int face_index,
-                                      const char *new_name, const bool do_tessface);
+bool BKE_mesh_uv_cdlayer_rename_index(
+        struct Mesh *me, const int loop_index, const int face_index,
+        const char *new_name, const bool do_tessface);
 bool BKE_mesh_uv_cdlayer_rename(struct Mesh *me, const char *old_name, const char *new_name, bool do_tessface);
 
 float (*BKE_mesh_vertexCos_get(const struct Mesh *me, int *r_numVerts))[3];
@@ -370,6 +379,19 @@ void BKE_mesh_polygon_flip_ex(
         float (*lnors)[3], struct MDisps *mdisp, const bool use_loop_mdisp_flip);
 void BKE_mesh_polygon_flip(struct MPoly *mpoly, struct MLoop *mloop, struct CustomData *ldata);
 void BKE_mesh_polygons_flip(struct MPoly *mpoly, struct MLoop *mloop, struct CustomData *ldata, int totpoly);
+
+/* merge verts  */
+/* Enum for merge_mode of CDDM_merge_verts.
+ * Refer to mesh.c for details. */
+enum {
+	MESH_MERGE_VERTS_DUMP_IF_MAPPED,
+	MESH_MERGE_VERTS_DUMP_IF_EQUAL,
+};
+struct Mesh *BKE_mesh_merge_verts(
+        struct Mesh *mesh,
+        const int *vtargetmap, const int tot_vtargetmap,
+        const int merge_mode);
+
 
 /* flush flags */
 void BKE_mesh_flush_hidden_from_verts_ex(

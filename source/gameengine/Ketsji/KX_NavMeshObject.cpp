@@ -120,7 +120,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 {
 	/* TODO: This doesn't work currently because of eval_ctx. */
 	Scene *scene = GetScene()->GetBlenderScene();
-	ViewLayer *view_layer = BKE_view_layer_from_scene_get(scene);
+	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
     DerivedMesh* dm = mesh_create_derived_no_virtual(depsgraph, GetScene()->GetBlenderScene(), GetBlenderObject(),
 													nullptr, CD_MASK_MESH);

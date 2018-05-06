@@ -34,8 +34,10 @@
 
 #include "DNA_image_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_utildefines.h"
@@ -216,6 +218,21 @@ DerivedMesh *get_dm_for_modifier(Object *ob, ModifierApplyFlag flag)
 	}
 }
 
+/* Get evaluated mesh for other object, which is used as an operand for the modifier,
+ * i.e. second operand for boolean modifier.
+ */
+Mesh *get_mesh_eval_for_modifier(Object *ob, ModifierApplyFlag flag)
+{
+	if (flag & MOD_APPLY_RENDER) {
+		/* TODO(sergey): Use proper derived render in the future. */
+		return ob->mesh_evaluated;
+	}
+	else {
+		return ob->mesh_evaluated;
+	}
+}
+
+
 void modifier_get_vgroup(Object *ob, DerivedMesh *dm, const char *name, MDeformVert **dvert, int *defgrp_index)
 {
 	*defgrp_index = defgroup_name_index(ob, name);
@@ -226,6 +243,20 @@ void modifier_get_vgroup(Object *ob, DerivedMesh *dm, const char *name, MDeformV
 			*dvert = BKE_lattice_deform_verts_get(ob);
 		else if (dm)
 			*dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
+	}
+}
+
+/* TODO(sybren): replace the above function with this one, once we got rid of DerivedMesh for modifiers. */
+void modifier_get_vgroup_mesh(Object *ob, struct Mesh *mesh, const char *name, MDeformVert **dvert, int *defgrp_index)
+{
+	*defgrp_index = defgroup_name_index(ob, name);
+	*dvert = NULL;
+
+	if (*defgrp_index != -1) {
+		if (ob->type == OB_LATTICE)
+			*dvert = BKE_lattice_deform_verts_get(ob);
+		else if (mesh)
+			*dvert = mesh->dvert;
 	}
 }
 

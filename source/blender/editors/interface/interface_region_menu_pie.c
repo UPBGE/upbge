@@ -76,7 +76,7 @@ static uiBlock *ui_block_func_PIE(bContext *UNUSED(C), uiPopupBlockHandle *handl
 	uiPieMenu *pie = arg_pie;
 	int minwidth, width, height;
 
-	minwidth = 50;
+	minwidth = UI_MENU_WIDTH_MIN;
 	block = pie->block_radial;
 
 	/* in some cases we create the block before the region,
@@ -194,7 +194,6 @@ void UI_pie_menu_end(bContext *C, uiPieMenu *pie)
 	        menu, WM_HANDLER_ACCEPT_DBL_CLICK);
 	WM_event_add_mousemove(C);
 
-	menu->can_refresh = false;
 	MEM_freeN(pie);
 }
 

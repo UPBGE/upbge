@@ -274,6 +274,47 @@ void uiTemplateEditModeSelection(uiLayout *layout, struct bContext *C)
 	}
 }
 
+static void uiTemplatePaintModeSelection(uiLayout *layout, struct bContext *C)
+{
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	Object *ob = OBACT(view_layer);
+
+	/* Manipulators aren't used in paint modes */
+	if (!ELEM(ob->mode, OB_MODE_SCULPT, OB_MODE_PARTICLE_EDIT)) {
+		/* masks aren't used for sculpt and particle painting */
+		PointerRNA meshptr;
+
+		RNA_pointer_create(ob->data, &RNA_Mesh, ob->data, &meshptr);
+		if (ob->mode & (OB_MODE_TEXTURE_PAINT)) {
+			uiItemR(layout, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+		}
+		else {
+			uiLayout *row = uiLayoutRow(layout, true);
+			uiItemR(row, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+			uiItemR(row, &meshptr, "use_paint_mask_vertex", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+		}
+	}
+}
+
+void uiTemplateHeader3D_mode(uiLayout *layout, struct bContext *C)
+{
+	/* Extracted from: uiTemplateHeader3D */
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	Object *ob = OBACT(view_layer);
+	Object *obedit = CTX_data_edit_object(C);
+	bGPdata *gpd = CTX_data_gpencil_data(C);
+
+	bool is_paint = (
+	        ob && !(gpd && (gpd->flag & GP_DATA_STROKE_EDITMODE)) &&
+	        ELEM(ob->mode,
+	             OB_MODE_SCULPT, OB_MODE_VERTEX_PAINT, OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT));
+
+	uiTemplateEditModeSelection(layout, C);
+	if ((obedit == NULL) && is_paint) {
+		uiTemplatePaintModeSelection(layout, C);
+	}
+}
+
 void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 {
 	bScreen *screen = CTX_wm_screen(C);
@@ -303,12 +344,6 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 	/* other buttons: */
 	UI_block_emboss_set(block, UI_EMBOSS);
 
-	/* Draw type */
-	uiItemR(layout, &v3dptr, "viewport_shade", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
-	if (v3d->drawtype == OB_SOLID) {
-		uiItemR(layout, &v3dptr, "viewport_lighting", 0, "", ICON_NONE);
-	}
-
 	row = uiLayoutRow(layout, true);
 	uiItemR(row, &v3dptr, "pivot_point", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 	if (!ob || ELEM(ob->mode, OB_MODE_OBJECT, OB_MODE_POSE, OB_MODE_WEIGHT_PAINT)) {
@@ -316,21 +351,11 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 	}
 
 	if (obedit == NULL && is_paint) {
-		/* Manipulators aren't used in paint modes */
-		if (!ELEM(ob->mode, OB_MODE_SCULPT, OB_MODE_PARTICLE_EDIT)) {
-			/* masks aren't used for sculpt and particle painting */
-			PointerRNA meshptr;
+		/* Currently Python calls this directly. */
+#if 0
+		uiTemplatePaintModeSelection(layout, C);
+#endif
 
-			RNA_pointer_create(ob->data, &RNA_Mesh, ob->data, &meshptr);
-			if (ob->mode & (OB_MODE_TEXTURE_PAINT)) {
-				uiItemR(layout, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
-			}
-			else {
-				row = uiLayoutRow(layout, true);
-				uiItemR(row, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
-				uiItemR(row, &meshptr, "use_paint_mask_vertex", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
-			}
-		}
 	}
 	else {
 		/* Transform widget / manipulators */
@@ -343,6 +368,9 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 		/* Scene lock */
 		uiItemR(layout, &v3dptr, "lock_camera_and_layers", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 	}
-	
+
+	/* Currently Python calls this directly. */
+#if 0
 	uiTemplateEditModeSelection(layout, C);
+#endif
 }

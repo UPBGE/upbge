@@ -352,32 +352,31 @@ static void deformVerts_do(HookModifierData *hmd, Object *ob, DerivedMesh *dm,
 	}
 }
 
-static void deformVerts(ModifierData *md, struct Depsgraph *UNUSED(depsgraph), Object *ob, DerivedMesh *derivedData,
-                        float (*vertexCos)[3], int numVerts,
-                        ModifierApplyFlag UNUSED(flag))
+static void deformVerts(ModifierData *md, const ModifierEvalContext *ctx, DerivedMesh *derivedData,
+                        float (*vertexCos)[3], int numVerts)
 {
 	HookModifierData *hmd = (HookModifierData *) md;
 	DerivedMesh *dm = derivedData;
 	/* We need a valid dm for meshes when a vgroup is set... */
-	if (!dm && ob->type == OB_MESH && hmd->name[0] != '\0')
-		dm = get_dm(ob, NULL, dm, NULL, false, false);
+	if (!dm && ctx->object->type == OB_MESH && hmd->name[0] != '\0')
+		dm = get_dm(ctx->object, NULL, dm, NULL, false, false);
 
-	deformVerts_do(hmd, ob, dm, vertexCos, numVerts);
+	deformVerts_do(hmd, ctx->object, dm, vertexCos, numVerts);
 
 	if (derivedData != dm)
 		dm->release(dm);
 }
 
-static void deformVertsEM(ModifierData *md, struct Depsgraph *UNUSED(depsgraph), Object *ob, struct BMEditMesh *editData,
+static void deformVertsEM(ModifierData *md, const ModifierEvalContext *ctx, struct BMEditMesh *editData,
                           DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
 	HookModifierData *hmd = (HookModifierData *) md;
 	DerivedMesh *dm = derivedData;
 	/* We need a valid dm for meshes when a vgroup is set... */
-	if (!dm && ob->type == OB_MESH && hmd->name[0] != '\0')
-		dm = get_dm(ob, editData, dm, NULL, false, false);
+	if (!dm && ctx->object->type == OB_MESH && hmd->name[0] != '\0')
+		dm = get_dm(ctx->object, editData, dm, NULL, false, false);
 
-	deformVerts_do(hmd, ob, dm, vertexCos, numVerts);
+	deformVerts_do(hmd, ctx->object, dm, vertexCos, numVerts);
 
 	if (derivedData != dm)
 		dm->release(dm);
@@ -393,12 +392,21 @@ ModifierTypeInfo modifierType_Hook = {
 	                        eModifierTypeFlag_AcceptsLattice |
 	                        eModifierTypeFlag_SupportsEditmode,
 	/* copyData */          copyData,
-	/* deformVerts */       deformVerts,
+
+	/* deformVerts_DM */    deformVerts,
+	/* deformMatrices_DM */ NULL,
+	/* deformVertsEM_DM */  deformVertsEM,
+	/* deformMatricesEM_DM*/NULL,
+	/* applyModifier_DM */  NULL,
+	/* applyModifierEM_DM */NULL,
+
+	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
-	/* deformVertsEM */     deformVertsEM,
+	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
 	/* applyModifier */     NULL,
 	/* applyModifierEM */   NULL,
+
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          freeData,

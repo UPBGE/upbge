@@ -713,12 +713,12 @@ error:
 
 
 static void deformVerts(
-        ModifierData *md, struct Depsgraph *UNUSED(depsgraph), Object *ob, DerivedMesh *derivedData,
-        float (*vertexCos)[3], int numVerts, ModifierApplyFlag UNUSED(flag))
+        ModifierData *md, const ModifierEvalContext *ctx, DerivedMesh *derivedData,
+        float (*vertexCos)[3], int numVerts)
 {
-	DerivedMesh *dm = get_dm(ob, NULL, derivedData, NULL, false, false);
+	DerivedMesh *dm = get_dm(ctx->object, NULL, derivedData, NULL, false, false);
 
-	correctivesmooth_modifier_do(md, ob, dm, vertexCos, (unsigned int)numVerts, NULL);
+	correctivesmooth_modifier_do(md, ctx->object, dm, vertexCos, (unsigned int)numVerts, NULL);
 
 	if (dm != derivedData) {
 		dm->release(dm);
@@ -727,12 +727,12 @@ static void deformVerts(
 
 
 static void deformVertsEM(
-        ModifierData *md, struct Depsgraph *UNUSED(depsgraph), Object *ob, struct BMEditMesh *editData,
+        ModifierData *md, const ModifierEvalContext *ctx, struct BMEditMesh *editData,
         DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
-	DerivedMesh *dm = get_dm(ob, editData, derivedData, NULL, false, false);
+	DerivedMesh *dm = get_dm(ctx->object, editData, derivedData, NULL, false, false);
 
-	correctivesmooth_modifier_do(md, ob, dm, vertexCos, (unsigned int)numVerts, editData);
+	correctivesmooth_modifier_do(md, ctx->object, dm, vertexCos, (unsigned int)numVerts, editData);
 
 	if (dm != derivedData) {
 		dm->release(dm);
@@ -749,12 +749,21 @@ ModifierTypeInfo modifierType_CorrectiveSmooth = {
 	                        eModifierTypeFlag_SupportsEditmode,
 
 	/* copyData */          copyData,
-	/* deformVerts */       deformVerts,
+
+	/* deformVerts_DM */    deformVerts,
+	/* deformMatrices_DM */ NULL,
+	/* deformVertsEM_DM */  deformVertsEM,
+	/* deformMatricesEM_DM*/NULL,
+	/* applyModifier_DM */  NULL,
+	/* applyModifierEM_DM */NULL,
+
+	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
-	/* deformVertsEM */     deformVertsEM,
+	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
 	/* applyModifier */     NULL,
 	/* applyModifierEM */   NULL,
+
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          freeData,

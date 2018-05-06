@@ -536,8 +536,6 @@ class USERPREF_PT_system(Panel):
 
         col.separator()
 
-        col.label(text="Window Draw Method:")
-        col.prop(system, "window_draw_method", text="")
         col.prop(system, "multi_sample", text="")
         if sys.platform == "linux" and system.multi_sample != 'NONE':
             col.label(text="Might fail for Mesh editing selection!")
@@ -807,6 +805,9 @@ class USERPREF_PT_theme(Panel):
             col.label(text="Tool:")
             self._theme_widget_style(col, ui.wcol_tool)
 
+            col.label(text="Toolbar Item:")
+            self._theme_widget_style(col, ui.wcol_toolbar_item)
+
             col.label(text="Radio Buttons:")
             self._theme_widget_style(col, ui.wcol_radio)
 
@@ -898,6 +899,7 @@ class USERPREF_PT_theme(Panel):
             colsub = padding.column()
             colsub.row().prop(ui, "menu_shadow_fac")
             colsub.row().prop(ui, "icon_alpha")
+            colsub.row().prop(ui, "icon_saturation")
             colsub.row().prop(ui, "editor_outline")
 
             subsplit = row.split(percentage=0.85)

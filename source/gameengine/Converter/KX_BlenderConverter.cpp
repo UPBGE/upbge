@@ -223,7 +223,7 @@ void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_Rasterize
 
 	KX_BlenderSceneConverter sceneConverter;
 
-	ViewLayer *view_layer = BKE_view_layer_from_scene_get(blenderscene);
+	ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
 	Depsgraph *graph = BKE_scene_get_depsgraph(blenderscene, view_layer, false);
 
 	BL_ConvertBlenderObjects(

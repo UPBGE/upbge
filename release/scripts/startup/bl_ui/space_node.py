@@ -48,9 +48,9 @@ class NODE_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        NODE_MT_editor_menus.draw_collapsible(context, layout)
+        layout.prop(snode, "tree_type", text="")
 
-        layout.prop(snode, "tree_type", text="", expand=True)
+        NODE_MT_editor_menus.draw_collapsible(context, layout)
 
         if snode.tree_type == 'ShaderNodeTree':
             layout.prop(snode, "shader_type", text="", expand=True)
@@ -79,7 +79,7 @@ class NODE_HT_header(Header):
                     row.prop(snode_id, "use_nodes")
 
             if snode.shader_type == 'LINESTYLE':
-                view_layer = context.scene.view_layers.active
+                view_layer = context.view_layer
                 lineset = view_layer.freestyle_settings.linesets.active
                 if lineset is not None:
                     row = layout.row()

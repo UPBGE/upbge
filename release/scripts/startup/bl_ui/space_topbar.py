@@ -85,7 +85,13 @@ class TOPBAR_HT_upper_bar(Header):
 
         # Active workspace view-layer is retrieved through window, not through workspace.
         layout.template_ID(window, "scene", new="scene.new", unlink="scene.delete")
-        layout.template_search(window, "view_layer", scene, "view_layers")
+
+        row = layout.row(align=True)
+        row.template_search(
+            window, "view_layer",
+            scene, "view_layers",
+            new="scene.view_layer_add",
+            unlink="scene.view_layer_remove")
 
 
 class TOPBAR_HT_lower_bar(Header):
@@ -101,32 +107,58 @@ class TOPBAR_HT_lower_bar(Header):
         elif region.alignment == 'RIGHT':
             self.draw_right(context)
         else:
-            # 'NONE' currently not used
-            pass
+            self.draw_center(context)
 
     def draw_left(self, context):
         layout = self.layout
         layer = context.view_layer
         object = layer.objects.active
+
+        # Object Mode
+        # -----------
+
+        # Testing move to 3D header.
+        '''
         object_mode = 'OBJECT' if object is None else object.mode
         act_mode_item = bpy.types.Object.bl_rna.properties['mode'].enum_items[object_mode]
         layout.operator_menu_enum("object.mode_set", "mode", text=act_mode_item.name, icon=act_mode_item.icon)
+        '''
 
+        # Active Tool
+        # -----------
+
+        from .space_toolsystem_common import ToolSelectPanelHelper
+        ToolSelectPanelHelper.draw_active_tool_header(context, layout)
+
+    def draw_center(self, context):
+        layout = self.layout
         mode = context.mode
+
+        layout.separator()
+
+        # Object Mode Options
+        # -------------------
 
         # Example of how toolsettings can be accessed as pop-overs.
 
         # TODO(campbell): editing options should be after active tool options
         # (obviously separated for from the users POV)
+        draw_fn = getattr(_draw_left_context_mode, mode, None)
+        if draw_fn is not None:
+            draw_fn(context, layout)
 
         if mode == 'SCULPT':
-            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context="", category="")
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".paint_common", category="")
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".sculpt_mode", category="")
         elif mode == 'PAINT_VERTEX':
-            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context="", category="")
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".paint_common", category="")
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".vertexpaint", category="")
         elif mode == 'PAINT_WEIGHT':
-            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context="", category="")
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".paint_common", category="")
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".weightpaint", category="")
         elif mode == 'PAINT_TEXTURE':
-            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context="", category="")
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".paint_common", category="")
+            layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".imagepaint", category="")
 
         elif mode == 'EDIT_ARMATURE':
             layout.popover_group(space_type='VIEW_3D', region_type='TOOLS', context=".armature_edit", category="")
@@ -151,6 +183,53 @@ class TOPBAR_HT_lower_bar(Header):
             panel_type="TOPBAR_PT_redo",
             text=op.name + " Settings" if op else "Command Settings",
         )
+
+
+class _draw_left_context_mode:
+    @staticmethod
+    def SCULPT(context, layout):
+        brush = context.tool_settings.sculpt.brush
+        if brush is None:
+            return
+
+        from .properties_paint_common import UnifiedPaintPanel
+
+        UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
+        UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
+        layout.prop(brush, "direction", text="", expand=True)
+
+    def PAINT_TEXTURE(context, layout):
+        brush = context.tool_settings.vertex_paint.brush
+        if brush is None:
+            return
+
+        from .properties_paint_common import UnifiedPaintPanel
+
+        layout.prop(brush, "color", text="")
+        UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
+        UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
+
+    def PAINT_VERTEX(context, layout):
+        brush = context.tool_settings.vertex_paint.brush
+        if brush is None:
+            return
+
+        from .properties_paint_common import UnifiedPaintPanel
+
+        layout.prop(brush, "color", text="")
+        UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
+        UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
+
+    def PAINT_WEIGHT(context, layout):
+        brush = context.tool_settings.weight_paint.brush
+        if brush is None:
+            return
+
+        from .properties_paint_common import UnifiedPaintPanel
+
+        UnifiedPaintPanel.prop_unified_weight(layout, context, brush, "weight", slider=True, text="Weight")
+        UnifiedPaintPanel.prop_unified_size(layout, context, brush, "size", slider=True, text="Radius")
+        UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True, text="Strength")
 
 
 class TOPBAR_PT_redo(Panel):

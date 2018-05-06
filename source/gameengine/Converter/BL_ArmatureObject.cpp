@@ -442,7 +442,7 @@ void BL_ArmatureObject::ApplyPose()
 		}
 		// update ourself
 		UpdateBlenderObjectMatrix(m_objArma);
-		ViewLayer *view_layer = BKE_view_layer_from_scene_get(m_scene);
+		ViewLayer *view_layer = BKE_view_layer_default_view(m_scene);
 		Depsgraph *depsgraph = BKE_scene_get_depsgraph(m_scene, view_layer, false);
 		BKE_pose_where_is(depsgraph, m_scene, m_objArma);
 		// restore ourself

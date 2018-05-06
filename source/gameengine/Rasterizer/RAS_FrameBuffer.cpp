@@ -33,13 +33,6 @@ extern "C" {
 #  include "eevee_private.h"
 }
 
-// WARNING: Always respect the order from RAS_Rasterizer::HdrType.
-static const DRWTextureFormat dataTypeEnums[] = {
-	DRW_TEX_RGB_11_11_10, // RAS_HDR_NONE
-	DRW_TEX_RGBA_16, // RAS_HDR_HALF_FLOAT
-	DRW_TEX_RGBA_32 // RAS_HDR_FULL_FLOAT
-};
-
 RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdrtype, RAS_Rasterizer::FrameBufferType fbtype)
 	:m_frameBufferType(fbtype),
 	m_hdrType(hdrtype),

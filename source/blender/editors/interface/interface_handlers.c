@@ -281,6 +281,7 @@ typedef struct uiHandleButtonData {
 	/* booleans (could be made into flags) */
 	bool cancel, escapecancel;
 	bool applied, applied_interactive;
+	bool changed_cursor;
 	wmTimer *flashtimer;
 
 	/* edited value */
@@ -639,11 +640,8 @@ PointerRNA *ui_handle_afterfunc_add_operator(wmOperatorType *ot, int opcontext, 
 
 static void popup_check(bContext *C, wmOperator *op)
 {
-	if (op && op->type->check && op->type->check(C, op)) {
-		/* check for popup and re-layout buttons */
-		ARegion *ar_menu = CTX_wm_menu(C);
-		if (ar_menu)
-			ED_region_tag_refresh_ui(ar_menu);
+	if (op && op->type->check) {
+		op->type->check(C, op);
 	}
 }
 
@@ -784,7 +782,7 @@ static void ui_apply_but_funcs_after(bContext *C)
 
 		if (after.popup_op)
 			popup_check(C, after.popup_op);
-		
+
 		if (after.opptr) {
 			/* free in advance to avoid leak on exit */
 			opptr = *after.opptr;
@@ -4404,19 +4402,37 @@ static void ui_numedit_set_active(uiBut *but)
 		return;
 	}
 
-	/* we can click on the side arrows to increment/decrement,
-	 * or click inside to edit the value directly */
-	int mx = data->window->eventstate->x;
-	int my = data->window->eventstate->x;
-	ui_window_to_block(data->region, but->block, &mx, &my);
+	/* Ignore once we start dragging. */
+	if (data->dragchange == false) {
+		const  float handle_width = min_ff(BLI_rctf_size_x(&but->rect) / 3, BLI_rctf_size_y(&but->rect) * 0.7f);
+		/* we can click on the side arrows to increment/decrement,
+		 * or click inside to edit the value directly */
+		int mx = data->window->eventstate->x;
+		int my = data->window->eventstate->x;
+		ui_window_to_block(data->region, but->block, &mx, &my);
 
-	float handle_width = min_ff(BLI_rctf_size_x(&but->rect) / 3, BLI_rctf_size_y(&but->rect) * 0.7f);
-
-	if (mx < (but->rect.xmin + handle_width)) {
-		but->drawflag |= UI_BUT_ACTIVE_LEFT;
+		if (mx < (but->rect.xmin + handle_width)) {
+			but->drawflag |= UI_BUT_ACTIVE_LEFT;
+		}
+		else if (mx > (but->rect.xmax - handle_width)) {
+			but->drawflag |= UI_BUT_ACTIVE_RIGHT;
+		}
 	}
-	else if (mx > (but->rect.xmax - handle_width)) {
-		but->drawflag |= UI_BUT_ACTIVE_RIGHT;
+
+	/* Don't change the cursor once pressed. */
+	if ((but->flag & UI_SELECT) == 0) {
+		if ((but->drawflag & (UI_BUT_ACTIVE_LEFT)) || (but->drawflag & (UI_BUT_ACTIVE_RIGHT))) {
+			if (data->changed_cursor) {
+				WM_cursor_modal_restore(data->window);
+				data->changed_cursor = false;
+			}
+		}
+		else {
+			if (data->changed_cursor == false) {
+				WM_cursor_modal_set(data->window, CURSOR_X_MOVE);
+				data->changed_cursor = true;
+			}
+		}
 	}
 
 	if (but->drawflag != oldflag) {
@@ -7872,7 +7888,7 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 		button_tooltip_timer_reset(C, but);
 
 		/* automatic open pulldown block timer */
-		if (ELEM(but->type, UI_BTYPE_BLOCK, UI_BTYPE_PULLDOWN)) {
+		if (ELEM(but->type, UI_BTYPE_BLOCK, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER)) {
 			if (data->used_mouse && !data->autoopentimer) {
 				int time;
 
@@ -8178,8 +8194,13 @@ static void button_activate_exit(
 	ui_selectcontext_end(but, &data->select_others);
 #endif
 
-	/* redraw (data is but->active!) */
+	if (data->changed_cursor) {
+		WM_cursor_modal_restore(data->window);
+	}
+
+	/* redraw and refresh (for popups) */
 	ED_region_tag_redraw(data->region);
+	ED_region_tag_refresh_ui(data->region);
 
 	/* clean up button */
 	if (but->active) {
@@ -8836,13 +8857,8 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar, 
 	}
 
 	if (redraw) {
-		if (listbox->block->flag & UI_BLOCK_POPUP) {
-			/* popups need special refreshing */
-			ED_region_tag_refresh_ui(ar);
-		}
-		else {
-			ED_region_tag_redraw(ar);
-		}
+		ED_region_tag_redraw(ar);
+		ED_region_tag_refresh_ui(ar);
 	}
 
 	return retval;
@@ -10253,7 +10269,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void *UNUSE
 		    (ELEM(but->type, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER)) &&
 		    (but_other = ui_but_find_mouse_over(ar, event)) &&
 		    (but != but_other) &&
-		    (but->type == but_other->type))
+		    (ELEM(but_other->type, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER)))
 		{
 			/* if mouse moves to a different root-level menu button,
 			 * open it to replace the current menu */
@@ -10496,4 +10512,19 @@ bool UI_textbutton_activate_but(const bContext *C, uiBut *actbut)
 void ui_but_clipboard_free(void)
 {
 	curvemapping_free_data(&but_copypaste_curve);
+}
+
+bool UI_but_is_tool(const uiBut *but)
+{
+	/* very evil! */
+	if (but->optype != NULL) {
+		static wmOperatorType *ot = NULL;
+		if (ot == NULL) {
+			ot = WM_operatortype_find("WM_OT_tool_set", false);
+		}
+		if (but->optype == ot) {
+			return true;
+		}
+	}
+	return false;
 }

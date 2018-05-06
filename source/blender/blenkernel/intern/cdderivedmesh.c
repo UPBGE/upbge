@@ -594,10 +594,14 @@ DerivedMesh *CDDM_new(int numVerts, int numEdges, int numTessFaces, int numLoops
 
 DerivedMesh *CDDM_from_mesh(Mesh *mesh)
 {
+	return CDDM_from_mesh_ex(mesh, CD_REFERENCE);
+}
+
+DerivedMesh *CDDM_from_mesh_ex(Mesh *mesh, int alloctype)
+{
 	CDDerivedMesh *cddm = cdDM_create(__func__);
 	DerivedMesh *dm = &cddm->dm;
 	CustomDataMask mask = CD_MASK_MESH & (~CD_MASK_MDISPS);
-	int alloctype;
 
 	/* this does a referenced copy, with an exception for fluidsim */
 
@@ -606,8 +610,6 @@ DerivedMesh *CDDM_from_mesh(Mesh *mesh)
 
 	dm->deformedOnly = 1;
 	dm->cd_flag = mesh->cd_flag;
-
-	alloctype = CD_REFERENCE;
 
 	CustomData_merge(&mesh->vdata, &dm->vertData, mask, alloctype,
 	                 mesh->totvert);
@@ -1299,7 +1301,8 @@ void CDDM_calc_normals_tessface(DerivedMesh *dm)
 }
 
 #if 1
-
+/* TODO(sybren): Delete everything in this #if block after we have ported the modifiers
+ * to use Mesh instead of DerivedMesh. The code has been copied to mesh_merge.c and ported. */
 /**
  * Poly compare with vtargetmap
  * Function used by #CDDM_merge_verts.
@@ -1477,7 +1480,7 @@ static bool poly_gset_compare_fn(const void *k1, const void *k2)
  * \param vtargetmap  The table that maps vertices to target vertices.  a value of -1
  * indicates a vertex is a target, and is to be kept.
  * This array is aligned with 'dm->numVertData'
- * \warning \a vtergatmap must **not** contain any chained mapping (v1 -> v2 -> v3 etc.), this is not supported
+ * \warning \a vtargetmap must **not** contain any chained mapping (v1 -> v2 -> v3 etc.), this is not supported
  * and will likely generate corrupted geometry.
  *
  * \param tot_vtargetmap  The number of non '-1' values in vtargetmap. (not the size)
@@ -1501,6 +1504,7 @@ static bool poly_gset_compare_fn(const void *k1, const void *k2)
  */
 DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int tot_vtargetmap, const int merge_mode)
 {
+// This was commented out back in 2013, see commit f45d8827bafe6b9eaf9de42f4054e9d84a21955d.
 // #define USE_LOOPS
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
 	CDDerivedMesh *cddm2 = NULL;
@@ -1530,7 +1534,7 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 	MLoop *ml, *mloop = MEM_malloc_arrayN(totloop, sizeof(*mloop), __func__);
 	int *oldl         = MEM_malloc_arrayN(totloop, sizeof(*oldl), __func__);
 #ifdef USE_LOOPS
-	int newl          = MEM_malloc_arrayN(totloop, sizeof(*newl), __func__);
+	int *newl         = MEM_malloc_arrayN(totloop, sizeof(*newl), __func__);
 #endif
 	STACK_DECLARE(mloop);
 	STACK_DECLARE(oldl);

@@ -89,7 +89,6 @@ typedef struct DRWUpdateContext {
 	struct RenderEngineType *engine_type;
 } DRWUpdateContext;
 void DRW_notify_view_update(const DRWUpdateContext *update_ctx);
-void DRW_notify_id_update(const DRWUpdateContext *update_ctx, struct ID *id);
 
 
 typedef enum eDRWSelectStage { DRW_SELECT_PASS_PRE = 1, DRW_SELECT_PASS_POST, } eDRWSelectStage;
@@ -102,10 +101,12 @@ void DRW_draw_render_loop_ex(
         struct Depsgraph *depsgraph,
         struct RenderEngineType *engine_type,
         struct ARegion *ar, struct View3D *v3d,
+        struct GPUViewport *viewport,
         const struct bContext *evil_C);
 void DRW_draw_render_loop(
         struct Depsgraph *depsgraph,
-        struct ARegion *ar, struct View3D *v3d);
+        struct ARegion *ar, struct View3D *v3d,
+        struct GPUViewport *viewport);
 void DRW_draw_render_loop_offscreen(
         struct Depsgraph *depsgraph,
         struct RenderEngineType *engine_type,

@@ -323,6 +323,7 @@ static void draw_filled_lasso(wmGesture *gt)
 		MEM_freeN(pixel_buf);
 
 		glDisable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
 	MEM_freeN(moves);
@@ -446,12 +447,8 @@ void wm_gesture_draw(wmWindow *win)
 
 void wm_gesture_tag_redraw(bContext *C)
 {
-	wmWindow *win = CTX_wm_window(C);
 	bScreen *screen = CTX_wm_screen(C);
-	ARegion *ar = CTX_wm_region(C);
 	
 	if (screen)
 		screen->do_draw_gesture = true;
-
-	wm_tag_redraw_overlay(win, ar);
 }
