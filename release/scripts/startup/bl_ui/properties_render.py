@@ -99,6 +99,7 @@ class RENDER_PT_render(RenderButtonsPanel, Panel):
 
 class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
     bl_label = "Dimensions"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     _frame_rate_args_prev = None
@@ -191,6 +192,62 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
         subrow = sub.row(align=True)
         subrow.prop(rd, "frame_map_old", text="Old")
         subrow.prop(rd, "frame_map_new", text="New")
+
+class RENDER_PT_game_resolution(RenderButtonsPanel, Panel):
+    bl_label = "Game Resolution"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        view_render = context.scene.render
+
+        row = layout.row()
+        row.operator("view3d.game_start", text="Embedded Start")
+        row = layout.row(align=True)
+        row.prop(view_render, "resolution_x", slider=False, text="X")
+        row.prop(view_render, "resolution_y", slider=False, text="Y")
+
+        gs = context.scene.game_settings
+
+        row = layout.row()
+        row.operator("wm.blenderplayer_start", text="Standalone Start")
+        row = layout.row(align=True)
+        row.active = True
+        row.prop(gs, "resolution_x", slider=False, text="X")
+        row.prop(gs, "resolution_y", slider=False, text="Y")
+        row = layout.row()
+        col = row.column()
+        col.prop(gs, "show_fullscreen")
+
+
+class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
+    bl_label = "Game Debug"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        gs = context.scene.game_settings
+
+        col = layout.column()
+        row = col.row()
+        col = row.column()
+        col.prop(gs, "use_frame_rate")
+
+        row = layout.row()
+        row.prop(gs, "vsync")
+
+        row = layout.row()
+        row.label("Exit Key")
+        row.prop(gs, "exit_key", text="", event=True)
+
+        flow = layout.column_flow()
+        flow.prop(gs, "show_debug_properties", text="Debug Properties")
+        flow.prop(gs, "show_framerate_profile", text="Framerate and Profile")
+        flow.prop(gs, "show_physics_visualization", text="Physics Visualization")
+        flow.prop(gs, "use_deprecation_warnings")
+        flow.prop(gs, "show_mouse", text="Mouse Cursor")
 
 
 class RENDER_PT_post_processing(RenderButtonsPanel, Panel):
@@ -775,6 +832,8 @@ classes = (
     RENDER_PT_context,
     RENDER_PT_render,
     RENDER_PT_dimensions,
+    RENDER_PT_game_resolution,
+    RENDER_PT_game_debug,
     RENDER_PT_post_processing,
     RENDER_PT_stamp,
     RENDER_PT_output,
