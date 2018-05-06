@@ -1368,13 +1368,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		aspect_width = canvas->GetWidth();
 		aspect_height = canvas->GetHeight();
 	} else {
-		if (blenderscene->gm.framing.type == SCE_GAMEFRAMING_BARS) {
+		//if (blenderscene->gm.framing.type == SCE_GAMEFRAMING_BARS) {
 			frame_type = RAS_FrameSettings::e_frame_extend;//RAS_FrameSettings::e_frame_bars;
-		} else if (blenderscene->gm.framing.type == SCE_GAMEFRAMING_EXTEND) {
-			frame_type = RAS_FrameSettings::e_frame_extend;
-		} else {
-			frame_type = RAS_FrameSettings::e_frame_scale;
-		}
+		//} else if (blenderscene->gm.framing.type == SCE_GAMEFRAMING_EXTEND) {
+			//frame_type = RAS_FrameSettings::e_frame_extend;
+		//} else {
+			//frame_type = RAS_FrameSettings::e_frame_scale;
+		//}
 		
 		aspect_width  = (int)(blenderscene->r.xsch * blenderscene->r.xasp);
 		aspect_height = (int)(blenderscene->r.ysch * blenderscene->r.yasp);

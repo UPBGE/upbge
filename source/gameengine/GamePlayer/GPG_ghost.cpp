@@ -1402,6 +1402,7 @@ int main(
 								}
 							}
 
+							DRW_opengl_context_create();
 							GPU_init();
 
 							if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
@@ -1457,6 +1458,7 @@ int main(
 			}
 
 			GPU_exit();
+			DRW_opengl_context_destroy();
 
 			// Seg Fault; icon.c gIcons == 0
 			BKE_icons_free();
