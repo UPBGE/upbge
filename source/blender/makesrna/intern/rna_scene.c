@@ -37,6 +37,8 @@
 #include "DNA_userdef_types.h"
 #include "DNA_world_types.h"
 #include "DNA_gpencil_types.h"
+#include "DNA_view3d_types.h"
+#include "DNA_screen_types.h" /* TransformOrientation */
 
 #include "IMB_imbuf_types.h"
 
@@ -71,6 +73,7 @@
 #endif
 
 #include "ED_render.h"
+#include "ED_transform.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -437,6 +440,18 @@ static const EnumPropertyItem rna_enum_gpencil_interpolation_mode_items[] = {
 };
 
 #endif
+
+static const EnumPropertyItem transform_orientation_items[] = {
+	{V3D_MANIP_GLOBAL, "GLOBAL", 0, "Global", "Align the transformation axes to world space"},
+	{V3D_MANIP_LOCAL, "LOCAL", 0, "Local", "Align the transformation axes to the selected objects' local space"},
+	{V3D_MANIP_NORMAL, "NORMAL", 0, "Normal",
+	                   "Align the transformation axes to average normal of selected elements "
+	                   "(bone Y axis for pose mode)"},
+	{V3D_MANIP_GIMBAL, "GIMBAL", 0, "Gimbal", "Align each axis to the Euler rotation axis as used for input"},
+	{V3D_MANIP_VIEW, "VIEW", 0, "View", "Align the transformation axes to the window"},
+	// {V3D_MANIP_CUSTOM, "CUSTOM", 0, "Custom", "Use a custom transform orientation"},
+	{0, NULL, 0, NULL, NULL}
+};
 
 #ifdef RNA_RUNTIME
 
@@ -1378,6 +1393,73 @@ static void rna_RenderSettings_views_format_set(PointerRNA *ptr, int value)
 	rd->views_format = value;
 }
 
+static void rna_RenderSettings_engine_set(PointerRNA *ptr, int value)
+{
+	RenderData *rd = (RenderData *)ptr->data;
+	RenderEngineType *type = BLI_findlink(&R_engines, value);
+
+	if (type) {
+		BLI_strncpy_utf8(rd->engine, type->idname, sizeof(rd->engine));
+		DEG_id_tag_update(ptr->id.data, DEG_TAG_COPY_ON_WRITE);
+	}
+}
+
+static const EnumPropertyItem *rna_RenderSettings_engine_itemf(
+        bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	RenderEngineType *type;
+	EnumPropertyItem *item = NULL;
+	EnumPropertyItem tmp = {0, "", 0, "", ""};
+	int a = 0, totitem = 0;
+
+	for (type = R_engines.first; type; type = type->next, a++) {
+		tmp.value = a;
+		tmp.identifier = type->idname;
+		tmp.name = type->name;
+		RNA_enum_item_add(&item, &totitem, &tmp);
+	}
+	
+	RNA_enum_item_end(&item, &totitem);
+	*r_free = true;
+
+	return item;
+}
+
+static int rna_RenderSettings_engine_get(PointerRNA *ptr)
+{
+	RenderData *rd = (RenderData *)ptr->data;
+	RenderEngineType *type;
+	int a = 0;
+
+	for (type = R_engines.first; type; type = type->next, a++)
+		if (STREQ(type->idname, rd->engine))
+			return a;
+	
+	return 0;
+}
+
+static void rna_RenderSettings_engine_update(Main *bmain, Scene *UNUSED(unused), PointerRNA *UNUSED(ptr))
+{
+	ED_render_engine_changed(bmain);
+}
+
+static int rna_RenderSettings_multiple_engines_get(PointerRNA *UNUSED(ptr))
+{
+	return (BLI_listbase_count(&R_engines) > 1);
+}
+
+static int rna_RenderSettings_use_shading_nodes_get(PointerRNA *ptr)
+{
+	Scene *scene = (Scene *)ptr->id.data;
+	return BKE_scene_use_new_shading_nodes(scene);
+}
+
+static int rna_RenderSettings_use_spherical_stereo_get(PointerRNA *ptr)
+{
+	Scene *scene = (Scene *)ptr->id.data;
+	return BKE_scene_use_spherical_stereo(scene);
+}
+
 void rna_Scene_glsl_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Scene *scene = (Scene *)ptr->id.data;
@@ -2034,6 +2116,71 @@ static void rna_ViewLayer_remove(
 	}
 }
 
+static int rna_Scene_transform_orientation_get(PointerRNA *ptr)
+{
+	Scene *scene = ptr->data;
+	/* convert to enum value */
+	return (scene->orientation_type == V3D_MANIP_CUSTOM) ?
+	            (scene->orientation_type + scene->orientation_index_custom) : scene->orientation_type;
+}
+
+void rna_Scene_transform_orientation_set(PointerRNA *ptr, int value)
+{
+	Scene *scene = ptr->data;
+	BIF_selectTransformOrientationValue(scene, value);
+}
+
+static PointerRNA rna_Scene_current_orientation_get(PointerRNA *ptr)
+{
+	Scene *scene = ptr->data;
+	TransformOrientation *orientation;
+
+	if (scene->orientation_type < V3D_MANIP_CUSTOM) {
+		orientation = NULL;
+	}
+	else {
+		orientation = BKE_scene_transform_orientation_find(scene, scene->orientation_index_custom);
+	}
+
+	return rna_pointer_inherit_refine(ptr, &RNA_TransformOrientation, orientation);
+}
+
+const EnumPropertyItem *rna_TransformOrientation_itemf(
+        bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	EnumPropertyItem tmp = {0, "", 0, "", ""};
+	EnumPropertyItem *item = NULL;
+	int i = V3D_MANIP_CUSTOM, totitem = 0;
+
+	RNA_enum_items_add(&item, &totitem, transform_orientation_items);
+
+	Scene *scene = CTX_data_scene(C);
+	if (ptr->type == &RNA_Scene) {
+		scene = ptr->data;
+	}
+	else {
+		scene = CTX_data_scene(C);
+	}
+	const ListBase *transform_orientations = &scene->transform_spaces;
+
+	if (transform_orientations && (BLI_listbase_is_empty(transform_orientations) == false)) {
+		RNA_enum_item_add_separator(&item, &totitem);
+
+		for (TransformOrientation *ts = transform_orientations->first; ts; ts = ts->next) {
+			tmp.identifier = ts->name;
+			tmp.name = ts->name;
+			tmp.value = i++;
+			RNA_enum_item_add(&item, &totitem, &tmp);
+		}
+	}
+
+	RNA_enum_item_end(&item, &totitem);
+	*r_free = true;
+
+	return item;
+}
+
+
 #else
 
 /* Grease Pencil Interpolation tool settings */
@@ -2300,6 +2447,24 @@ static void rna_def_gpencil_brushes(BlenderRNA *brna, PropertyRNA *cprop)
 		"rna_GPencilBrushes_index_set",
 		"rna_GPencilBrushes_index_range");
 	RNA_def_property_ui_text(prop, "Active Brush Index", "Index of active brush");
+}
+
+static void rna_def_transform_orientation(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "TransformOrientation", NULL);
+	
+	prop = RNA_def_property(srna, "matrix", PROP_FLOAT, PROP_MATRIX);
+	RNA_def_property_float_sdna(prop, NULL, "mat");
+	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_3x3);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+	
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_struct_name_property(srna, prop);
+	RNA_def_property_ui_text(prop, "Name", "Name of the custom transform orientation");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 }
 
 static void rna_def_tool_settings(BlenderRNA  *brna)
@@ -5557,6 +5722,11 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static const EnumPropertyItem engine_items[] = {
+		{0, "BLENDER_EEVEE", 0, "Eevee", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static const EnumPropertyItem freestyle_thickness_items[] = {
 		{R_LINE_THICKNESS_ABSOLUTE, "ABSOLUTE", 0, "Absolute", "Specify unit line thickness in pixels"},
 		{R_LINE_THICKNESS_RELATIVE, "RELATIVE", 0, "Relative",
@@ -6298,6 +6468,30 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_enum_funcs(prop, NULL, "rna_RenderSettings_views_format_set", NULL);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
+	/* engine */
+	prop = RNA_def_property(srna, "engine", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, engine_items);
+	RNA_def_property_enum_funcs(prop, "rna_RenderSettings_engine_get", "rna_RenderSettings_engine_set",
+	                            "rna_RenderSettings_engine_itemf");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_ui_text(prop, "Engine", "Engine to use for rendering");
+	RNA_def_property_update(prop, NC_WINDOW, "rna_RenderSettings_engine_update");
+
+	prop = RNA_def_property(srna, "has_multiple_engines", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_RenderSettings_multiple_engines_get", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Multiple Engines", "More than one rendering engine is available");
+
+	prop = RNA_def_property(srna, "use_shading_nodes", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_RenderSettings_use_shading_nodes_get", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Use Shading Nodes", "Active render engine uses new shading nodes system");
+
+	prop = RNA_def_property(srna, "use_spherical_stereo", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_RenderSettings_use_spherical_stereo_get", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Use Spherical Stereo", "Active render engine supports spherical stereo rendering");
+
 	/* simplify */
 	prop = RNA_def_property(srna, "use_simplify", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_SIMPLIFY);
@@ -6871,12 +7065,6 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "RenderSettings");
 	RNA_def_property_ui_text(prop, "Render Data", "");
 
-	/* View Render */
-	prop = RNA_def_property(srna, "view_render", PROP_POINTER, PROP_NONE);
-	RNA_def_property_flag(prop, PROP_NEVER_NULL);
-	RNA_def_property_struct_type(prop, "ViewRenderSettings");
-	RNA_def_property_ui_text(prop, "View Render", "");
-
 	/* Render Engine Data */
 	prop = RNA_def_property(srna, "layer_properties", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "layer_properties->data.group", NULL);
@@ -6904,6 +7092,20 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Timeline Markers", "Markers used in all timelines for the current scene");
 	rna_def_timeline_markers(brna, prop);
 
+	/* Orientations */
+	prop = RNA_def_property(srna, "transform_orientation", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "orientation_type");
+	RNA_def_property_enum_items(prop, transform_orientation_items);
+	RNA_def_property_enum_funcs(prop, "rna_Scene_transform_orientation_get", "rna_Scene_transform_orientation_set",
+	                            "rna_TransformOrientation_itemf");
+	RNA_def_property_ui_text(prop, "Transform Orientation", "Transformation orientation");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "current_orientation", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "TransformOrientation");
+	RNA_def_property_pointer_funcs(prop, "rna_Scene_current_orientation_get", NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Current Transform Orientation", "Current transformation orientation");
+	
 	/* Audio Settings */
 	prop = RNA_def_property(srna, "use_audio", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_Scene_use_audio_get", "rna_Scene_use_audio_set");
@@ -7020,6 +7222,7 @@ void RNA_def_scene(BlenderRNA *brna)
 	rna_def_statvis(brna);
 	rna_def_unit_settings(brna);
 	rna_def_scene_image_format_data(brna);
+	rna_def_transform_orientation(brna);
 	rna_def_scene_game_data(brna);
 	rna_def_selected_uv_element(brna);
 	rna_def_display_safe_areas(brna);

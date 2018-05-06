@@ -48,6 +48,7 @@ struct ViewLayer;
 struct UnitSettings;
 struct ViewRender;
 struct WorkSpace;
+struct TransformOrientation;
 
 typedef enum eSceneCopyMethod {
 	SCE_COPY_NEW       = 0,
@@ -173,20 +174,6 @@ int BKE_render_preview_pixel_size(const struct RenderData *r);
 
 /**********************************/
 
-struct ViewRender *BKE_viewrender_get(struct Scene *scene, struct WorkSpace *workspace);
-void BKE_viewrender_init(struct ViewRender *view_render);
-void BKE_viewrender_free(struct ViewRender *view_render);
-void BKE_viewrender_copy(struct ViewRender *view_render_dst, const struct ViewRender *view_render_src);
-bool BKE_viewrender_use_new_shading_nodes(const struct ViewRender *view_render);
-bool BKE_viewrender_use_shading_nodes_custom(const struct ViewRender *view_render);
-bool BKE_viewrender_use_world_space_shading(const struct ViewRender *view_render);
-bool BKE_viewrender_use_spherical_stereo(const struct ViewRender *view_render);
-bool BKE_viewrender_uses_blender_internal(const struct ViewRender *view_render);
-bool BKE_viewrender_uses_blender_game(const struct ViewRender *view_render);
-bool BKE_viewrender_uses_blender_eevee(const struct ViewRender *view_render);
-
-/**********************************/
-
 double BKE_scene_unit_scale(const struct UnitSettings *unit, const int unit_type, double value);
 
 /* multiview */
@@ -212,6 +199,13 @@ void BKE_scene_ensure_depsgraph_hash(struct Scene *scene);
 void BKE_scene_free_depsgraph_hash(struct Scene *scene);
 
 struct Depsgraph *BKE_scene_get_depsgraph(struct Scene *scene, struct ViewLayer *view_layer, bool allocate);
+
+void BKE_scene_transform_orientation_remove(
+        struct Scene *scene, struct TransformOrientation *orientation);
+struct TransformOrientation *BKE_scene_transform_orientation_find(
+        const struct Scene *scene, const int index);
+int BKE_scene_transform_orientation_get_index(
+        const struct Scene *scene, const struct TransformOrientation *orientation);
 
 #ifdef __cplusplus
 }

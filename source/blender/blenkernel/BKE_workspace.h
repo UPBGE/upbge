@@ -62,13 +62,6 @@ void BKE_workspace_view_layer_remove_references(
         const struct Main *bmain,
         const struct ViewLayer *view_layer) ATTR_NONNULL();
 
-void BKE_workspace_transform_orientation_remove(
-        struct WorkSpace *workspace, struct TransformOrientation *orientation) ATTR_NONNULL();
-struct TransformOrientation *BKE_workspace_transform_orientation_find(
-        const struct WorkSpace *workspace, const int index) ATTR_NONNULL();
-int BKE_workspace_transform_orientation_get_index(
-        const struct WorkSpace *workspace, const struct TransformOrientation *orientation) ATTR_NONNULL();
-
 struct WorkSpaceLayout *BKE_workspace_layout_find(
         const struct WorkSpace *workspace, const struct bScreen *screen) ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
 struct WorkSpaceLayout *BKE_workspace_layout_find_global(
@@ -96,7 +89,6 @@ void            BKE_workspace_active_screen_set(
         struct WorkSpaceInstanceHook *hook, struct WorkSpace *workspace, struct bScreen *screen) SETTER_ATTRS;
 
 struct Base *BKE_workspace_active_base_get(const struct WorkSpace *workspace, const struct Scene *scene);
-struct ListBase *BKE_workspace_transform_orientations_get(struct WorkSpace *workspace) GETTER_ATTRS;
 struct ViewLayer *BKE_workspace_view_layer_get(
         const struct WorkSpace *workspace,
         const struct Scene *scene) GETTER_ATTRS;
@@ -116,8 +108,6 @@ struct WorkSpaceLayout *BKE_workspace_hook_layout_for_workspace_get(
         const struct WorkSpaceInstanceHook *hook, const struct WorkSpace *workspace) GETTER_ATTRS;
 void             BKE_workspace_hook_layout_for_workspace_set(
         struct WorkSpaceInstanceHook *hook, struct WorkSpace *workspace, struct WorkSpaceLayout *layout) ATTR_NONNULL();
-
-struct ViewRender *BKE_workspace_view_render_get(struct WorkSpace *workspace) GETTER_ATTRS;
 
 /* flags */
 bool BKE_workspace_use_scene_settings_get(const struct WorkSpace *workspace) GETTER_ATTRS;

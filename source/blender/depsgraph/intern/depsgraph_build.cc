@@ -206,6 +206,9 @@ void DEG_graph_build_from_view_layer(Depsgraph *graph,
 	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(graph);
 	BLI_assert(BLI_findindex(&scene->view_layers, view_layer) != -1);
 
+	BLI_assert(deg_graph->scene == scene);
+	BLI_assert(deg_graph->view_layer == view_layer);
+
 	/* TODO(sergey): This is a bit tricky, but ensures that all the data
 	 * is evaluated properly when depsgraph is becoming "visible".
 	 *
@@ -272,6 +275,19 @@ void DEG_graph_tag_relations_update(Depsgraph *graph)
 {
 	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(graph);
 	deg_graph->need_update = true;
+	/* NOTE: When relations are updated, it's quite possible that
+	 * we've got new bases in the scene. This means, we need to
+	 * re-create flat array of bases in view layer.
+	 *
+	 * TODO(sergey): Try to make it so we don't flush updates
+	 * to the whole depsgraph.
+	 */
+	{
+		DEG::IDDepsNode *id_node = deg_graph->find_id_node(&deg_graph->scene->id);
+		if (id_node != NULL) {
+			id_node->tag_update(deg_graph);
+		}
+	}
 }
 
 /* Create or update relations in the specified graph. */

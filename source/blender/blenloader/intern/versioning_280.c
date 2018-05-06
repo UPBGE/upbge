@@ -38,6 +38,7 @@
 
 #include "DNA_object_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_constraint_types.h"
 #include "DNA_gpu_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
@@ -53,6 +54,7 @@
 #include "DNA_workspace_types.h"
 
 #include "BKE_collection.h"
+#include "BKE_constraint.h"
 #include "BKE_customdata.h"
 #include "BKE_freestyle.h"
 #include "BKE_group.h"
@@ -93,7 +95,6 @@ static void do_version_workspaces_create_from_screens(Main *bmain)
 		Scene *scene = screen->scene;
 		WorkSpace *workspace;
 		ViewLayer *layer = BKE_view_layer_from_scene_get(scene);
-		ListBase *transform_orientations;
 
 		if (screen_parent) {
 			/* fullscreen with "Back to Previous" option, don't create
@@ -106,17 +107,6 @@ static void do_version_workspaces_create_from_screens(Main *bmain)
 		}
 		BKE_workspace_layout_add(workspace, screen, screen->id.name + 2);
 		BKE_workspace_view_layer_set(workspace, layer, scene);
-
-#ifdef WITH_CLAY_ENGINE
-		BLI_strncpy(workspace->view_render.engine_id, RE_engine_id_BLENDER_CLAY,
-		            sizeof(workspace->view_render.engine_id));
-#else
-		BLI_strncpy(workspace->view_render.engine_id, RE_engine_id_BLENDER_EEVEE,
-		            sizeof(workspace->view_render.engine_id));
-#endif
-
-		transform_orientations = BKE_workspace_transform_orientations_get(workspace);
-		BLI_duplicatelist(transform_orientations, &scene->transform_spaces);
 	}
 }
 
@@ -314,7 +304,7 @@ void do_versions_after_linking_280(Main *main)
 				scene->active_view_layer = 0;
 
 				/* Handle legacy render layers. */
-				if (!BKE_scene_uses_blender_game(scene)) {
+				{
 					for (SceneRenderLayer *srl = scene->r.layers.first; srl; srl = srl->next) {
 
 						ViewLayer *view_layer = BKE_view_layer_add(scene, srl->name);
@@ -417,15 +407,6 @@ void do_versions_after_linking_280(Main *main)
 
 					if (BLI_findlink(&scene->view_layers, scene->r.actlay)) {
 						scene->active_view_layer = scene->r.actlay;
-					}
-				}
-				else {
-					for (SceneRenderLayer *srl = scene->r.layers.first; srl; srl = srl->next) {
-						if (srl->prop) {
-							IDP_FreeProperty(srl->prop);
-							MEM_freeN(srl->prop);
-						}
-						BKE_freestyle_config_free(&srl->freestyleConfig, true);
 					}
 				}
 				BLI_freelistN(&scene->r.layers);
@@ -682,7 +663,7 @@ static void do_version_view_layer_visibility(ViewLayer *view_layer)
 	}
 }
 
-void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
+void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *main)
 {
 
 	if (!MAIN_VERSION_ATLEAST(main, 280, 0)) {
@@ -902,17 +883,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 			printf("You need to combine transparency and emission shaders to the converted Principled shader nodes.\n");
 		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "Scene", "ViewRender", "view_render")) {
-			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
-				BLI_strncpy_utf8(scene->view_render.engine_id, scene->r.engine,
-				                 sizeof(scene->view_render.engine_id));
-			}
-
-			for (WorkSpace *workspace = main->workspaces.first; workspace; workspace = workspace->id.next) {
-				BKE_viewrender_init(&workspace->view_render);
-			}
-		}
-
 		if ((DNA_struct_elem_find(fd->filesdna, "ViewLayer", "FreestyleConfig", "freestyle_config") == false) &&
 		    DNA_struct_elem_find(fd->filesdna, "Scene", "ListBase", "view_layers"))
 		{
@@ -944,7 +914,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-	{
+	if (!MAIN_VERSION_ATLEAST(main, 280, 6)) {
 		if (DNA_struct_elem_find(fd->filesdna, "SpaceOops", "int", "filter") == false) {
 			bScreen *sc;
 			ScrArea *sa;
@@ -974,12 +944,59 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
-	}
 
-	{
 		if (!DNA_struct_elem_find(fd->filesdna, "LightProbe", "float", "intensity")) {
 			for (LightProbe *probe = main->lightprobe.first; probe; probe = probe->id.next) {
 				probe->intensity = 1.0f;
+			}
+		}
+
+		for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+			bConstraint *con, *con_next;
+			con = ob->constraints.first;
+			while (con) {
+				con_next = con->next;
+				if (con->type == 17) { /* CONSTRAINT_TYPE_RIGIDBODYJOINT */
+					BLI_remlink(&ob->constraints, con);
+					BKE_constraint_free_data(con);
+					MEM_freeN(con);
+				}
+				con = con_next;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "Scene", "int", "orientation_index_custom")) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->orientation_index_custom = -1;
+			}
+		}
+
+		for (bScreen *sc = main->screen.first; sc; sc = sc->id.next) {
+			for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
+				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_VIEW3D) {
+						View3D *v3d = (View3D *)sl;
+						v3d->drawtype_solid = V3D_LIGHTING_STUDIO;
+						v3d->drawtype_wireframe = V3D_LIGHTING_STUDIO;
+
+						/* Assume (demo) files written with 2.8 want to show
+						 * Eevee renders in the viewport. */
+						if (MAIN_VERSION_ATLEAST(main, 280, 0)) {
+							v3d->drawtype = OB_MATERIAL;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 280, 7)) {
+		/* Render engine storage moved elsewhere and back during 2.8
+		 * development, we assume any files saved in 2.8 had Eevee set
+		 * as scene render engine. */
+		if (MAIN_VERSION_ATLEAST(main, 280, 0)) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				BLI_strncpy(scene->r.engine, RE_engine_id_BLENDER_EEVEE, sizeof(scene->r.engine));
 			}
 		}
 	}

@@ -757,7 +757,7 @@ typedef struct RenderData {
 	float unit_line_thickness; /* in pixels */
 
 	/* render engine */
-	char engine[32] DNA_DEPRECATED; // XXX deprecated since 2.8
+	char engine[32];
 
 	/* Cycles baking */
 	struct BakeData bake;
@@ -779,12 +779,6 @@ typedef struct RenderData {
 	/* Motion blur shutter */
 	struct CurveMapping mblur_shutter_curve;
 } RenderData;
-
-/* *************************************************************** */
-/* Settings related to viewport drawing/render, only settings used by WorkSpace and Scene. */
-typedef struct ViewRender {
-	char engine_id[32];
-} ViewRender;
 
 /* *************************************************************** */
 /* Render Conversion/Simplfication Settings */
@@ -1662,7 +1656,10 @@ typedef struct Scene {
 	struct AudioData audio;
 
 	ListBase markers;
-	ListBase transform_spaces DNA_DEPRECATED;
+	ListBase transform_spaces;
+
+	int orientation_index_custom;
+	int orientation_type;
 
 	void *sound_scene;
 	void *playback_handle;
@@ -1715,10 +1712,6 @@ typedef struct Scene {
 
 	IDProperty *collection_properties;  /* settings to be overriden by layer collections */
 	IDProperty *layer_properties;  /* settings to be override by workspaces */
-
-	int pad5[2];
-
-	ViewRender view_render;
 } Scene;
 
 /* **************** RENDERDATA ********************* */

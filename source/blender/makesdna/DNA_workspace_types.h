@@ -95,9 +95,6 @@ typedef struct WorkSpace {
 	/* Feature tagging (use for addons) */
 	ListBase owner_ids DNA_PRIVATE_WORKSPACE_READ_WRITE; /* wmOwnerID */
 
-	/* Custom transform orientations */
-	ListBase transform_orientations DNA_PRIVATE_WORKSPACE;
-
 	int pad;
 	int flags DNA_PRIVATE_WORKSPACE; /* enum eWorkSpaceFlags */
 
@@ -105,7 +102,6 @@ typedef struct WorkSpace {
 	bToolDef tool;
 
 	struct ViewLayer *view_layer DNA_DEPRECATED;
-	struct ViewRender view_render;
 } WorkSpace;
 
 /* internal struct, but exported for read/write */

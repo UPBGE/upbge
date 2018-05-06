@@ -93,24 +93,30 @@
 
 static int edbm_subdivide_exec(bContext *C, wmOperator *op)
 {
-	ViewLayer *view_layer = CTX_data_view_layer(C);
+	const int cuts = RNA_int_get(op->ptr, "number_cuts");
+	const float smooth = RNA_float_get(op->ptr, "smoothness");
+	const float fractal = RNA_float_get(op->ptr, "fractal") / 2.5f;
+	const float along_normal = RNA_float_get(op->ptr, "fractal_along_normal");
 
+	if (RNA_boolean_get(op->ptr, "quadtri") &&
+	    RNA_enum_get(op->ptr, "quadcorner") == SUBD_CORNER_STRAIGHT_CUT)
+	{
+		RNA_enum_set(op->ptr, "quadcorner", SUBD_CORNER_INNERVERT);
+	}
+	const int quad_corner_type = RNA_enum_get(op->ptr, "quadcorner");
+	const bool use_quad_tri = RNA_boolean_get(op->ptr, "quadtri");
+	const int seed = RNA_int_get(op->ptr, "seed");
+
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	uint objects_len = 0;
 	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 		Object *obedit = objects[ob_index];
-
 		BMEditMesh *em = BKE_editmesh_from_object(obedit);
-		const int cuts = RNA_int_get(op->ptr, "number_cuts");
-		float smooth = RNA_float_get(op->ptr, "smoothness");
-		const float fractal = RNA_float_get(op->ptr, "fractal") / 2.5f;
-		const float along_normal = RNA_float_get(op->ptr, "fractal_along_normal");
 
-		if (RNA_boolean_get(op->ptr, "quadtri") &&
-		    RNA_enum_get(op->ptr, "quadcorner") == SUBD_CORNER_STRAIGHT_CUT)
-		{
-			RNA_enum_set(op->ptr, "quadcorner", SUBD_CORNER_INNERVERT);
+		if (!(em->bm->totedgesel || em->bm->totfacesel)) {
+			continue;
 		}
 
 		BM_mesh_esubdivide(
@@ -118,9 +124,9 @@ static int edbm_subdivide_exec(bContext *C, wmOperator *op)
 		        smooth, SUBD_FALLOFF_LIN, false,
 		        fractal, along_normal,
 		        cuts,
-		        SUBDIV_SELECT_ORIG, RNA_enum_get(op->ptr, "quadcorner"),
-		        RNA_boolean_get(op->ptr, "quadtri"), true, false,
-		        RNA_int_get(op->ptr, "seed"));
+		        SUBDIV_SELECT_ORIG, quad_corner_type,
+		        use_quad_tri, true, false,
+		        seed);
 
 		EDBM_update_generic(em, true, true);
 	}
@@ -336,7 +342,7 @@ void EMBM_project_snap_verts(bContext *C, ARegion *ar, BMEditMesh *em)
 	ED_view3d_init_mats_rv3d(obedit, ar->regiondata);
 
 	struct SnapObjectContext *snap_context = ED_transform_snap_object_context_create_view3d(
-	        CTX_data_main(C), CTX_data_scene(C), 0,
+	        CTX_data_main(C), CTX_data_scene(C), CTX_data_depsgraph(C), 0,
 	        ar, CTX_wm_view3d(C));
 
 	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
@@ -1556,33 +1562,43 @@ void MESH_OT_edge_split(wmOperatorType *ot)
 
 static int edbm_duplicate_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(ob);
-	BMesh *bm = em->bm;
-	BMOperator bmop;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 
-	EDBM_op_init(
-	        em, &bmop, op,
-	        "duplicate geom=%hvef use_select_history=%b",
-	        BM_ELEM_SELECT, true);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		if (em->bm->totvertsel == 0) {
+			continue;
+		}
 
-	BMO_op_exec(bm, &bmop);
+		BMOperator bmop;
+		BMesh *bm = em->bm;
 
-	/* de-select all would clear otherwise */
-	BM_SELECT_HISTORY_BACKUP(bm);
+		EDBM_op_init(
+		        em, &bmop, op,
+		        "duplicate geom=%hvef use_select_history=%b",
+		        BM_ELEM_SELECT, true);
 
-	EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+		BMO_op_exec(bm, &bmop);
 
-	BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+		/* de-select all would clear otherwise */
+		BM_SELECT_HISTORY_BACKUP(bm);
 
-	/* rebuild editselection */
-	BM_SELECT_HISTORY_RESTORE(bm);
+		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
 
-	if (!EDBM_op_finish(em, &bmop, op, true)) {
-		return OPERATOR_CANCELLED;
+		BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+
+		/* rebuild editselection */
+		BM_SELECT_HISTORY_RESTORE(bm);
+
+		if (!EDBM_op_finish(em, &bmop, op, true)) {
+			continue;
+		}
+		EDBM_update_generic(em, true, true);
 	}
-
-	EDBM_update_generic(em, true, true);
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }
@@ -1620,18 +1636,29 @@ void MESH_OT_duplicate(wmOperatorType *ot)
  * \{ */
 static int edbm_flip_normals_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 
-	if (!EDBM_op_callf(
-	        em, op, "reverse_faces faces=%hf flip_multires=%b",
-	        BM_ELEM_SELECT, true))
-	{
-		return OPERATOR_CANCELLED;
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+		if (em->bm->totfacesel == 0) {
+			continue;
+		}
+
+		if (!EDBM_op_callf(
+		        em, op, "reverse_faces faces=%hf flip_multires=%b",
+		        BM_ELEM_SELECT, true))
+		{
+			continue;
+		}
+
+		EDBM_update_generic(em, true, false);
 	}
 
-	EDBM_update_generic(em, true, false);
-
+	MEM_freeN(objects);
 	return OPERATOR_FINISHED;
 }
 
@@ -4064,30 +4091,40 @@ void MESH_OT_beautify_fill(wmOperatorType *ot)
 
 static int edbm_poke_face_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMOperator bmop;
-
 	const float offset = RNA_float_get(op->ptr, "offset");
 	const bool use_relative_offset = RNA_boolean_get(op->ptr, "use_relative_offset");
 	const int center_mode = RNA_enum_get(op->ptr, "center_mode");
 
-	EDBM_op_init(em, &bmop, op, "poke faces=%hf offset=%f use_relative_offset=%b center_mode=%i",
-	             BM_ELEM_SELECT, offset, use_relative_offset, center_mode);
-	BMO_op_exec(em->bm, &bmop);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-	EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+		if (em->bm->totfacesel == 0) {
+			continue;
+		}
 
-	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
-	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+		BMOperator bmop;
+		EDBM_op_init(em, &bmop, op, "poke faces=%hf offset=%f use_relative_offset=%b center_mode=%i",
+		             BM_ELEM_SELECT, offset, use_relative_offset, center_mode);
+		BMO_op_exec(em->bm, &bmop);
 
-	if (!EDBM_op_finish(em, &bmop, op, true)) {
-		return OPERATOR_CANCELLED;
+		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+
+		BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
+		BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+
+		if (!EDBM_op_finish(em, &bmop, op, true)) {
+			continue;
+		}
+
+		EDBM_mesh_normals_update(em);
+
+		EDBM_update_generic(em, true, true);
 	}
-
-	EDBM_mesh_normals_update(em);
-
-	EDBM_update_generic(em, true, true);
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 
@@ -4134,16 +4171,22 @@ static int edbm_quads_convert_to_tris_exec(bContext *C, wmOperator *op)
 
 	uint objects_len = 0;
 	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
-
 	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 		Object *obedit = objects[ob_index];
-
 		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+		if (em->bm->totfacesel == 0) {
+			continue;
+		}
+
 		BMOperator bmop;
 		BMOIter oiter;
 		BMFace *f;
 
-		EDBM_op_init(em, &bmop, op, "triangulate faces=%hf quad_method=%i ngon_method=%i", BM_ELEM_SELECT, quad_method, ngon_method);
+		EDBM_op_init(
+		        em, &bmop, op,
+		        "triangulate faces=%hf quad_method=%i ngon_method=%i",
+		        BM_ELEM_SELECT, quad_method, ngon_method);
 		BMO_op_exec(em->bm, &bmop);
 
 		/* select the output */
@@ -4156,12 +4199,9 @@ static int edbm_quads_convert_to_tris_exec(bContext *C, wmOperator *op)
 
 		EDBM_selectmode_flush(em);
 
-		// XXX, TODO
-	#if 0
 		if (!EDBM_op_finish(em, &bmop, op, true)) {
-			return OPERATOR_CANCELLED;
+			continue;
 		}
-	#endif
 
 		EDBM_update_generic(em, true, true);
 	}
@@ -4315,10 +4355,6 @@ void MESH_OT_tris_convert_to_quads(wmOperatorType *ot)
 
 static int edbm_decimate_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMesh *bm = em->bm;
-
 	const float ratio = RNA_float_get(op->ptr, "ratio");
 	bool use_vertex_group = RNA_boolean_get(op->ptr, "use_vertex_group");
 	const float vertex_group_factor = RNA_float_get(op->ptr, "vertex_group_factor");
@@ -4332,95 +4368,108 @@ static int edbm_decimate_exec(bContext *C, wmOperator *op)
 		return OPERATOR_FINISHED;
 	}
 
-	float *vweights = MEM_mallocN(sizeof(*vweights) * bm->totvert, __func__);
-	{
-		const int cd_dvert_offset = CustomData_get_offset(&bm->vdata, CD_MDEFORMVERT);
-		const int defbase_act = obedit->actdef - 1;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 
-		if (use_vertex_group && (cd_dvert_offset == -1)) {
-			BKE_report(op->reports, RPT_WARNING, "No active vertex group");
-			use_vertex_group = false;
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		BMesh *bm = em->bm;
+		if (bm->totedgesel == 0) {
+			continue;
 		}
 
-		BMIter iter;
-		BMVert *v;
-		int i;
-		BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
-			float weight = 0.0f;
-			if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-				if (use_vertex_group) {
-					const MDeformVert *dv = BM_ELEM_CD_GET_VOID_P(v, cd_dvert_offset);
-					weight = defvert_find_weight(dv, defbase_act);
-					if (invert_vertex_group) {
-						weight = 1.0f - weight;
-					}
-				}
-				else {
-					weight = 1.0f;
-				}
+		float *vweights = MEM_mallocN(sizeof(*vweights) * bm->totvert, __func__);
+		{
+			const int cd_dvert_offset = CustomData_get_offset(&bm->vdata, CD_MDEFORMVERT);
+			const int defbase_act = obedit->actdef - 1;
+
+			if (use_vertex_group && (cd_dvert_offset == -1)) {
+				BKE_report(op->reports, RPT_WARNING, "No active vertex group");
+				use_vertex_group = false;
 			}
 
-			vweights[i] = weight;
-			BM_elem_index_set(v, i); /* set_inline */
-		}
-		bm->elem_index_dirty &= ~BM_VERT;
-	}
-
-	float ratio_adjust;
-
-	if ((bm->totface == bm->totfacesel) || (ratio == 0.0f)) {
-		ratio_adjust = ratio;
-	}
-	else {
-		/**
-		 * Calculate a new ratio based on faces that could be remoevd during decimation.
-		 * needed so 0..1 has a meaningful range when operating on the selection.
-		 *
-		 * This doesn't have to be totally accurate,
-		 * but needs to be greater than the number of selected faces
-		 */
-
-		int totface_basis = 0;
-		int totface_adjacent = 0;
-		BMIter iter;
-		BMFace *f;
-		BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-			/* count faces during decimation, ngons are triangulated */
-			const int f_len = f->len > 4 ? (f->len - 2) : 1;
-			totface_basis += f_len;
-
-			BMLoop *l_iter, *l_first;
-			l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-			do {
-				if (vweights[BM_elem_index_get(l_iter->v)] != 0.0f) {
-					totface_adjacent += f_len;
-					break;
+			BMIter iter;
+			BMVert *v;
+			int i;
+			BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
+				float weight = 0.0f;
+				if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+					if (use_vertex_group) {
+						const MDeformVert *dv = BM_ELEM_CD_GET_VOID_P(v, cd_dvert_offset);
+						weight = defvert_find_weight(dv, defbase_act);
+						if (invert_vertex_group) {
+							weight = 1.0f - weight;
+						}
+					}
+					else {
+						weight = 1.0f;
+					}
 				}
-			} while ((l_iter = l_iter->next) != l_first);
+
+				vweights[i] = weight;
+				BM_elem_index_set(v, i); /* set_inline */
+			}
+			bm->elem_index_dirty &= ~BM_VERT;
 		}
 
-		ratio_adjust = ratio;
-		ratio_adjust = 1.0f - ratio_adjust;
-		ratio_adjust *= (float)totface_adjacent / (float)totface_basis;
-		ratio_adjust = 1.0f - ratio_adjust;
-	}
+		float ratio_adjust;
 
-	BM_mesh_decimate_collapse(
-	        em->bm, ratio_adjust, vweights, vertex_group_factor, false,
-	        symmetry_axis, symmetry_eps);
-
-	MEM_freeN(vweights);
-
-	{
-		short selectmode = em->selectmode;
-		if ((selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) == 0) {
-			/* ensure we flush edges -> faces */
-			selectmode |= SCE_SELECT_EDGE;
+		if ((bm->totface == bm->totfacesel) || (ratio == 0.0f)) {
+			ratio_adjust = ratio;
 		}
-		EDBM_selectmode_flush_ex(em, selectmode);
-	}
+		else {
+			/**
+			 * Calculate a new ratio based on faces that could be remoevd during decimation.
+			 * needed so 0..1 has a meaningful range when operating on the selection.
+			 *
+			 * This doesn't have to be totally accurate,
+			 * but needs to be greater than the number of selected faces
+			 */
 
-	EDBM_update_generic(em, true, true);
+			int totface_basis = 0;
+			int totface_adjacent = 0;
+			BMIter iter;
+			BMFace *f;
+			BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+				/* count faces during decimation, ngons are triangulated */
+				const int f_len = f->len > 4 ? (f->len - 2) : 1;
+				totface_basis += f_len;
+
+				BMLoop *l_iter, *l_first;
+				l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+				do {
+					if (vweights[BM_elem_index_get(l_iter->v)] != 0.0f) {
+						totface_adjacent += f_len;
+						break;
+					}
+				} while ((l_iter = l_iter->next) != l_first);
+			}
+
+			ratio_adjust = ratio;
+			ratio_adjust = 1.0f - ratio_adjust;
+			ratio_adjust *= (float)totface_adjacent / (float)totface_basis;
+			ratio_adjust = 1.0f - ratio_adjust;
+		}
+
+		BM_mesh_decimate_collapse(
+				em->bm, ratio_adjust, vweights, vertex_group_factor, false,
+				symmetry_axis, symmetry_eps);
+
+		MEM_freeN(vweights);
+
+		{
+			short selectmode = em->selectmode;
+			if ((selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) == 0) {
+				/* ensure we flush edges -> faces */
+				selectmode |= SCE_SELECT_EDGE;
+			}
+			EDBM_selectmode_flush_ex(em, selectmode);
+		}
+		EDBM_update_generic(em, true, true);
+	}
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }

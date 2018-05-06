@@ -163,15 +163,16 @@ static void rna_SceneRender_get_frame_path(RenderData *rd, int frame, int previe
 }
 
 static void rna_Scene_ray_cast(
-        Scene *scene, ViewLayer *UNUSED(view_layer),
+        Scene *scene, ViewLayer *view_layer,
         float origin[3], float direction[3], float ray_dist,
         int *r_success, float r_location[3], float r_normal[3], int *r_index,
         Object **r_ob, float r_obmat[16])
 {
 	normalize_v3(direction);
 
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, true);
 	SnapObjectContext *sctx = ED_transform_snap_object_context_create(
-	        G.main, scene, 0);
+	        G.main, scene, depsgraph, 0);
 
 	bool ret = ED_transform_snap_object_project_ray_ex(
 	        sctx,
@@ -359,7 +360,7 @@ void RNA_api_scene(StructRNA *srna)
 	RNA_def_boolean(func, "export_hair", 1, "Export Hair", "Exports hair particle systems as animated curves");
 	RNA_def_boolean(func, "export_particles", 1, "Export Particles", "Exports non-hair particle systems");
 	RNA_def_enum(func, "compression_type", rna_enum_abc_compression_items, 0, "Compression", "");
-	RNA_def_boolean(func, "packuv"		, 0, "Export with packed UV islands", "Export with packed UV islands");
+	RNA_def_boolean(func, "packuv", 0, "Export with packed UV islands", "Export with packed UV islands");
 	RNA_def_float(func, "scale", 1.0f, 0.0001f, 1000.0f, "Scale", "Value by which to enlarge or shrink the objects with respect to the world's origin", 0.0001f, 1000.0f);
 	RNA_def_boolean(func, "triangulate", 0, "Triangulate", "Export Polygons (Quads & NGons) as Triangles");
 	RNA_def_enum(func, "quad_method", rna_enum_modifier_triangulate_quad_method_items, 0, "Quad Method", "Method for splitting the quads into triangles");

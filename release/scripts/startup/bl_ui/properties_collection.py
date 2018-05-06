@@ -65,7 +65,7 @@ class COLLECTION_PT_clay_settings(CollectionButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.view_render.engine in cls.COMPAT_ENGINES
+        return context.engine in cls.COMPAT_ENGINES
 
     def draw(self, context):
         layout = self.layout
@@ -87,12 +87,7 @@ class COLLECTION_PT_clay_settings(CollectionButtonsPanel, Panel):
 
 
 class COLLECTION_PT_workbench_settings(CollectionButtonsPanel, Panel):
-    bl_label = "Render Settings"
-    COMPAT_ENGINES = {'BLENDER_WORKBENCH'}
-
-    @classmethod
-    def poll(cls, context):
-        return context.view_render.engine in cls.COMPAT_ENGINES
+    bl_label = "Workbench Settings"
 
     def draw(self, context):
         layout = self.layout
@@ -101,6 +96,7 @@ class COLLECTION_PT_workbench_settings(CollectionButtonsPanel, Panel):
         collection_props = collection.engine_overrides['BLENDER_WORKBENCH']
 
         col = layout.column()
+        col.template_override_property(collection_props, scene_props, "object_color_type")
         col.template_override_property(collection_props, scene_props, "object_color")
 
 

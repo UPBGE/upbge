@@ -19,11 +19,11 @@
  *
  */
 
-/** \file solid_flat_mode.c
+/** \file solid_studio_mode.c
  *  \ingroup draw_engine
  *
  * Simple engine for drawing color and/or depth.
- * When we only need simple flat shaders.
+ * When we only need simple studio shaders.
  */
 
 #include "DRW_render.h"
@@ -31,15 +31,17 @@
 #include "GPU_shader.h"
 
 #include "workbench_private.h"
+
 /* Functions */
 
-static void workbench_solid_flat_engine_init(void *UNUSED(vedata))
+static void workbench_solid_studio_engine_init(void *UNUSED(vedata))
 {
 	workbench_materials_engine_init();
 }
 
-static void workbench_solid_flat_cache_init(void *vedata)
+static void workbench_solid_studio_cache_init(void *vedata)
 {
+
 	WORKBENCH_Data * data = (WORKBENCH_Data *)vedata;
 	WORKBENCH_PassList *psl = data->psl;
 	WORKBENCH_StorageList *stl = data->stl;
@@ -60,51 +62,50 @@ static void workbench_solid_flat_cache_init(void *vedata)
 		int state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL;
 		psl->solid_pass = DRW_pass_create("Solid Pass", state);
 	}
-
 	workbench_materials_cache_init(data);
 }
 
-
-static void workbench_solid_flat_cache_populate(void *vedata, Object *ob)
+static void workbench_solid_studio_cache_populate(void *vedata, Object *ob)
 {
 	WORKBENCH_Data * data = (WORKBENCH_Data *)vedata;
-	workbench_materials_solid_cache_populate(data, ob, V3D_LIGHTING_FLAT);
+	workbench_materials_solid_cache_populate(data, ob, V3D_LIGHTING_STUDIO);
 }
 
-static void workbench_solid_flat_cache_finish(void *UNUSED(vedata))
+static void workbench_solid_studio_cache_finish(void *UNUSED(vedata))
 {
 }
 
-static void workbench_solid_flat_draw_scene(void *vedata)
+static void workbench_solid_studio_draw_scene(void *vedata)
 {
-	WORKBENCH_Data *data = (WORKBENCH_Data *)vedata;
+	WORKBENCH_Data * data = (WORKBENCH_Data *)vedata;
 	WORKBENCH_PassList *psl = data->psl;
 
 	DRW_draw_pass(psl->depth_pass);
 	DRW_draw_pass(psl->solid_pass);
-	
+
 	workbench_materials_draw_scene_finish(data);
 }
 
-static void workbench_solid_flat_engine_free(void)
+static void workbench_solid_studio_engine_free(void)
 {
 	workbench_materials_engine_free();
 }
 
 static const DrawEngineDataSize workbench_data_size = DRW_VIEWPORT_DATA_SIZE(WORKBENCH_Data);
 
-DrawEngineType draw_engine_workbench_solid_flat = {
+DrawEngineType draw_engine_workbench_solid_studio = {
 	NULL, NULL,
 	N_("Workbench"),
 	&workbench_data_size,
-	&workbench_solid_flat_engine_init,
-	&workbench_solid_flat_engine_free,
-	&workbench_solid_flat_cache_init,
-	&workbench_solid_flat_cache_populate,
-	&workbench_solid_flat_cache_finish,
+	&workbench_solid_studio_engine_init,
+	&workbench_solid_studio_engine_free,
+	&workbench_solid_studio_cache_init,
+	&workbench_solid_studio_cache_populate,
+	&workbench_solid_studio_cache_finish,
 	NULL,
-	&workbench_solid_flat_draw_scene,
+	&workbench_solid_studio_draw_scene,
 	NULL,
 	NULL,
 	NULL,
 };
+

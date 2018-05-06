@@ -159,18 +159,6 @@ static const EnumPropertyItem draw_channels_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-static const EnumPropertyItem transform_orientation_items[] = {
-	{V3D_MANIP_GLOBAL, "GLOBAL", 0, "Global", "Align the transformation axes to world space"},
-	{V3D_MANIP_LOCAL, "LOCAL", 0, "Local", "Align the transformation axes to the selected objects' local space"},
-	{V3D_MANIP_NORMAL, "NORMAL", 0, "Normal",
-	                   "Align the transformation axes to average normal of selected elements "
-	                   "(bone Y axis for pose mode)"},
-	{V3D_MANIP_GIMBAL, "GIMBAL", 0, "Gimbal", "Align each axis to the Euler rotation axis as used for input"},
-	{V3D_MANIP_VIEW, "VIEW", 0, "View", "Align the transformation axes to the window"},
-	// {V3D_MANIP_CUSTOM, "CUSTOM", 0, "Custom", "Use a custom transform orientation"},
-	{0, NULL, 0, NULL, NULL}
-};
-
 #ifndef RNA_RUNTIME
 static const EnumPropertyItem autosnap_items[] = {
 	{SACTSNAP_OFF, "NONE", 0, "No Auto-Snap", ""},
@@ -192,6 +180,19 @@ const EnumPropertyItem rna_enum_viewport_shade_items[] = {
 	{OB_TEXTURE, "TEXTURED", ICON_POTATO, "Texture", "Display the object solid, with a texture"},
 	{OB_MATERIAL, "MATERIAL", ICON_MATERIAL_DATA, "Material", "Display objects solid, with GLSL material"},
 	{OB_RENDER, "RENDERED", ICON_SMOOTH, "Rendered", "Display render preview"},
+	{0, NULL, 0, NULL, NULL}
+};
+
+const EnumPropertyItem rna_enum_viewport_shade_solid_items[] = {
+	{V3D_LIGHTING_FLAT, "FLAT", ICON_SOLID, "Flat Lighting", "Display using flat lighting"},
+	{V3D_LIGHTING_STUDIO, "STUDIO", ICON_SOLID, "Studio Lighting", "Display using studio lighting"},
+	/* {V3D_LIGHTING_SCENE, "SCENE", ICON_SOLID, "Scene Lighting", "Display using scene lighting"}, */
+	{0, NULL, 0, NULL, NULL}
+};
+const EnumPropertyItem rna_enum_viewport_shade_texture_items[] = {
+	{V3D_LIGHTING_FLAT, "FLAT", ICON_POTATO, "Flat Lighting", "Display using flat lighting"},
+	{V3D_LIGHTING_STUDIO, "STUDIO", ICON_POTATO, "Studio Lighting", "Display using studio lighting"},
+	/* {V3D_LIGHTING_SCENE, "SCENE", ICON_POTATO, "Scene Lighting", "Display using scene lighting"}, */
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -423,77 +424,6 @@ static void rna_Space_view2d_sync_update(Main *UNUSED(bmain), Scene *UNUSED(scen
 
 		UI_view2d_sync(sc, sa, v2d, V2D_LOCK_SET);
 	}
-}
-
-static int rna_View3D_transform_orientation_get(PointerRNA *ptr)
-{
-	const View3D *v3d = (View3D *)ptr->data;
-	/* convert to enum value */
-	return (v3d->twmode == V3D_MANIP_CUSTOM) ? (v3d->twmode + v3d->custom_orientation_index) : v3d->twmode;
-}
-
-void rna_View3D_transform_orientation_set(PointerRNA *ptr, int value)
-{
-	View3D *v3d = (View3D *)ptr->data;
-	BIF_selectTransformOrientationValue(v3d, value);
-}
-
-static PointerRNA rna_View3D_current_orientation_get(PointerRNA *ptr)
-{
-	View3D *v3d = (View3D *)ptr->data;
-	TransformOrientation *orientation;
-
-	if (v3d->twmode < V3D_MANIP_CUSTOM) {
-		orientation = NULL;
-	}
-	else {
-		WorkSpace *workspace;
-		bScreen *screen = ptr->id.data;
-
-		BKE_workspace_layout_find_global(G.main, screen, &workspace);
-		orientation = BKE_workspace_transform_orientation_find(workspace, v3d->custom_orientation_index);
-	}
-
-	return rna_pointer_inherit_refine(ptr, &RNA_TransformOrientation, orientation);
-}
-
-const EnumPropertyItem *rna_TransformOrientation_itemf(
-        bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
-{
-	WorkSpace *workspace;
-	ListBase *transform_orientations;
-	EnumPropertyItem tmp = {0, "", 0, "", ""};
-	EnumPropertyItem *item = NULL;
-	int i = V3D_MANIP_CUSTOM, totitem = 0;
-
-	RNA_enum_items_add(&item, &totitem, transform_orientation_items);
-
-	if (ptr->type == &RNA_SpaceView3D) {
-		bScreen *screen = ptr->id.data;
-		BKE_workspace_layout_find_global(G.main, screen, &workspace);
-	}
-	else {
-		/* can't use scene from ptr->id.data because that enum is also used by operators */
-		workspace = C ? CTX_wm_workspace(C) : NULL;
-	}
-
-	transform_orientations = workspace ? BKE_workspace_transform_orientations_get(workspace) : NULL;
-
-	if (transform_orientations && (BLI_listbase_is_empty(transform_orientations) == false)) {
-		RNA_enum_item_add_separator(&item, &totitem);
-
-		for (TransformOrientation *ts = transform_orientations->first; ts; ts = ts->next) {
-			tmp.identifier = ts->name;
-			tmp.name = ts->name;
-			tmp.value = i++;
-			RNA_enum_item_add(&item, &totitem, &tmp);
-		}
-	}
-
-	RNA_enum_item_end(&item, &totitem);
-	*r_free = true;
-
-	return item;
 }
 
 /* Space 3D View */
@@ -741,9 +671,23 @@ static void rna_RegionView3D_view_matrix_set(PointerRNA *ptr, const float *value
 
 static int rna_SpaceView3D_viewport_shade_get(PointerRNA *ptr)
 {
+	bScreen *screen = ptr->id.data;
+	Scene *scene = WM_windows_scene_get_from_screen(G.main->wm.first, screen);
+	RenderEngineType *type = RE_engines_find(scene->r.engine);
 	View3D *v3d = (View3D *)ptr->data;
-	int drawtype = v3d->drawtype;
-	return drawtype;
+
+	if (BKE_scene_uses_blender_eevee(scene)) {
+		if (v3d->drawtype == OB_MATERIAL) {
+			return OB_RENDER;
+		}
+	}
+	else if (v3d->drawtype == OB_RENDER) {
+		if (!(type && type->render_to_view)) {
+			return OB_MATERIAL;
+		}
+	}
+
+	return v3d->drawtype;
 }
 
 static void rna_SpaceView3D_viewport_shade_set(PointerRNA *ptr, int value)
@@ -755,14 +699,28 @@ static void rna_SpaceView3D_viewport_shade_set(PointerRNA *ptr, int value)
 	v3d->drawtype = value;
 }
 
-static const EnumPropertyItem *rna_SpaceView3D_viewport_shade_itemf(bContext *C, PointerRNA *UNUSED(ptr),
-                                                              PropertyRNA *UNUSED(prop), bool *r_free)
+static const EnumPropertyItem *rna_SpaceView3D_viewport_shade_itemf(
+        bContext *C, PointerRNA *UNUSED(ptr),
+        PropertyRNA *UNUSED(prop), bool *r_free)
 {
+	wmWindow *win = CTX_wm_window(C);
+	Scene *scene = WM_window_get_active_scene(win);
+	RenderEngineType *type = RE_engines_find(scene->r.engine);
+
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
 
 	RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_SOLID);
-	RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_RENDER);
+
+	if (BKE_scene_uses_blender_eevee(scene)) {
+		RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_RENDER);
+	}
+	else {
+		RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_MATERIAL);
+		if (type && type->render_to_view) {
+			RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_RENDER);
+		}
+	}
 
 	RNA_enum_item_end(&item, &totitem);
 	*r_free = true;
@@ -770,8 +728,9 @@ static const EnumPropertyItem *rna_SpaceView3D_viewport_shade_itemf(bContext *C,
 	return item;
 }
 
-static const EnumPropertyItem *rna_SpaceView3D_stereo3d_camera_itemf(bContext *C, PointerRNA *UNUSED(ptr),
-                                                               PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
+static const EnumPropertyItem *rna_SpaceView3D_stereo3d_camera_itemf(
+        bContext *C, PointerRNA *UNUSED(ptr),
+        PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	Scene *scene = CTX_data_scene(C);
 
@@ -874,8 +833,9 @@ static void rna_SpaceImageEditor_mask_set(PointerRNA *ptr, PointerRNA value)
 	ED_space_image_set_mask(NULL, sima, (Mask *)value.data);
 }
 
-static const EnumPropertyItem *rna_SpaceImageEditor_draw_channels_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                                  PropertyRNA *UNUSED(prop), bool *r_free)
+static const EnumPropertyItem *rna_SpaceImageEditor_draw_channels_itemf(
+        bContext *UNUSED(C), PointerRNA *ptr,
+        PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	SpaceImage *sima = (SpaceImage *)ptr->data;
 	EnumPropertyItem *item = NULL;
@@ -996,8 +956,9 @@ static void rna_SpaceImageEditor_scopes_update(struct bContext *C, struct Pointe
 	ED_space_image_release_buffer(sima, ibuf, lock);
 }
 
-static const EnumPropertyItem *rna_SpaceImageEditor_pivot_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                          PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
+static const EnumPropertyItem *rna_SpaceImageEditor_pivot_itemf(
+        bContext *UNUSED(C), PointerRNA *ptr,
+        PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	static const EnumPropertyItem pivot_items[] = {
 		{V3D_AROUND_CENTER_BOUNDS, "CENTER", ICON_ROTATE, "Bounding Box Center", ""},
@@ -1099,8 +1060,9 @@ static void rna_SpaceProperties_context_set(PointerRNA *ptr, int value)
 	sbuts->mainbuser = value;
 }
 
-static const EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                           PropertyRNA *UNUSED(prop), bool *r_free)
+static const EnumPropertyItem *rna_SpaceProperties_context_itemf(
+        bContext *UNUSED(C), PointerRNA *ptr,
+        PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	SpaceButs *sbuts = (SpaceButs *)(ptr->data);
 	EnumPropertyItem *item = NULL;
@@ -1194,8 +1156,9 @@ static void rna_SpaceProperties_align_set(PointerRNA *ptr, int value)
 	sbuts->re_align = 1;
 }
 
-static const EnumPropertyItem *rna_SpaceProperties_texture_context_itemf(bContext *C, PointerRNA *UNUSED(ptr),
-                                                                   PropertyRNA *UNUSED(prop), bool *r_free)
+static const EnumPropertyItem *rna_SpaceProperties_texture_context_itemf(
+        bContext *C, PointerRNA *UNUSED(ptr),
+        PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
@@ -1494,8 +1457,9 @@ static int rna_SpaceNodeEditor_tree_type_poll(void *Cv, bNodeTreeType *type)
 	else
 		return true;
 }
-static const EnumPropertyItem *rna_SpaceNodeEditor_tree_type_itemf(bContext *C, PointerRNA *UNUSED(ptr),
-                                                             PropertyRNA *UNUSED(prop), bool *r_free)
+static const EnumPropertyItem *rna_SpaceNodeEditor_tree_type_itemf(
+        bContext *C, PointerRNA *UNUSED(ptr),
+        PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	return rna_node_tree_type_itemf(C, rna_SpaceNodeEditor_tree_type_poll, r_free);
 }
@@ -2369,6 +2333,18 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Viewport Shading", "Method to display/shade objects in the 3D View");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_viewport_shade_update");
 
+	prop = RNA_def_property(srna, "viewport_shade_solid", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "drawtype_solid");
+	RNA_def_property_enum_items(prop, rna_enum_viewport_shade_solid_items);
+	RNA_def_property_ui_text(prop, "Viewport Lighting (Solid)", "Lighting Method for Solid Viewport Shading");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_viewport_shade_update");
+
+	prop = RNA_def_property(srna, "viewport_shade_texture", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "drawtype_texture");
+	RNA_def_property_enum_items(prop, rna_enum_viewport_shade_texture_items);
+	RNA_def_property_ui_text(prop, "Viewport Lighting (Texture)", "Lighting Method for Texture Viewport Shading");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_viewport_shade_update");
+
 	prop = RNA_def_property(srna, "local_view", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "localvd");
 	RNA_def_property_ui_text(prop, "Local View",
@@ -2540,19 +2516,6 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
 	RNA_def_property_ui_text(prop, "Transform Manipulators", "Transformation manipulators");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
-
-	prop = RNA_def_property(srna, "transform_orientation", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "twmode");
-	RNA_def_property_enum_items(prop, transform_orientation_items);
-	RNA_def_property_enum_funcs(prop, "rna_View3D_transform_orientation_get", "rna_View3D_transform_orientation_set",
-	                            "rna_TransformOrientation_itemf");
-	RNA_def_property_ui_text(prop, "Transform Orientation", "Transformation orientation");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
-
-	prop = RNA_def_property(srna, "current_orientation", PROP_POINTER, PROP_NONE);
-	RNA_def_property_struct_type(prop, "TransformOrientation");
-	RNA_def_property_pointer_funcs(prop, "rna_View3D_current_orientation_get", NULL, NULL, NULL);
-	RNA_def_property_ui_text(prop, "Current Transform Orientation", "Current transformation orientation");
 
 	prop = RNA_def_property(srna, "lock_camera_and_layers", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scenelock", 1);

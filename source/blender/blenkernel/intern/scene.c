@@ -273,6 +273,7 @@ void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, cons
 	}
 
 	BLI_duplicatelist(&(sce_dst->markers), &(sce_src->markers));
+	BLI_duplicatelist(&(sce_dst->transform_spaces), &(sce_src->transform_spaces));
 	BLI_duplicatelist(&(sce_dst->r.views), &(sce_src->r.views));
 	BKE_keyingsets_copy(&(sce_dst->keyingsets), &(sce_src->keyingsets));
 
@@ -494,6 +495,7 @@ void BKE_scene_free_ex(Scene *sce, const bool do_id_user)
 	}
 
 	BLI_freelistN(&sce->markers);
+	BLI_freelistN(&sce->transform_spaces);
 	BLI_freelistN(&sce->r.views);
 	
 	BKE_toolsettings_free(sce->toolsettings);
@@ -744,7 +746,7 @@ void BKE_scene_init(Scene *sce)
 	sce->r.ffcodecdata.audio_bitrate = 192;
 	sce->r.ffcodecdata.audio_channels = 2;
 
-	BKE_viewrender_init(&sce->view_render);
+	BLI_strncpy(sce->r.engine, RE_engine_id_BLENDER_EEVEE, sizeof(sce->r.engine));
 
 	sce->audio.distance_model = 2.0f;
 	sce->audio.doppler_factor = 1.0f;
@@ -889,6 +891,8 @@ void BKE_scene_init(Scene *sce)
 	sce->toolsettings->gpencil_v2d_align = GP_PROJECT_VIEWSPACE;
 	sce->toolsettings->gpencil_seq_align = GP_PROJECT_VIEWSPACE;
 	sce->toolsettings->gpencil_ima_align = GP_PROJECT_VIEWSPACE;
+
+	sce->orientation_index_custom = -1;
 
 	/* Master Collection */
 	sce->collection = MEM_callocN(sizeof(SceneCollection), "Master Collection");
@@ -1331,21 +1335,19 @@ static bool check_rendered_viewport_visible(Main *bmain)
 	wmWindow *window;
 	for (window = wm->windows.first; window != NULL; window = window->next) {
 		const bScreen *screen = BKE_workspace_active_screen_get(window->workspace_hook);
-		WorkSpace *workspace = BKE_workspace_active_get(window->workspace_hook);
 		Scene *scene = window->scene;
-		ViewRender *view_render = BKE_viewrender_get(scene, workspace);
-		ScrArea *area;
-		RenderEngineType *type = RE_engines_find(view_render->engine_id);
-		if ((type->draw_engine != NULL) || (type->render_to_view == NULL)) {
+		RenderEngineType *type = RE_engines_find(scene->r.engine);
+
+		if (type->draw_engine || !type->render_to_view) {
 			continue;
 		}
-		const bool use_legacy = (type->flag & RE_USE_LEGACY_PIPELINE) != 0;
-		for (area = screen->areabase.first; area != NULL; area = area->next) {
+
+		for (ScrArea *area = screen->areabase.first; area != NULL; area = area->next) {
 			View3D *v3d = area->spacedata.first;
 			if (area->spacetype != SPACE_VIEW3D) {
 				continue;
 			}
-			if (v3d->drawtype == OB_RENDER || !use_legacy) {
+			if (v3d->drawtype == OB_RENDER) {
 				return true;
 			}
 		}
@@ -1580,39 +1582,42 @@ next_set:
 
 bool BKE_scene_use_new_shading_nodes(const Scene *scene)
 {
-	return BKE_viewrender_use_new_shading_nodes(&scene->view_render);
+	const RenderEngineType *type = RE_engines_find(scene->r.engine);
+	return (type && type->flag & RE_USE_SHADING_NODES);
 }
 
 bool BKE_scene_use_shading_nodes_custom(Scene *scene)
 {
-	return BKE_viewrender_use_shading_nodes_custom(&scene->view_render);
+	RenderEngineType *type = RE_engines_find(scene->r.engine);
+	return (type && type->flag & RE_USE_SHADING_NODES_CUSTOM);
 }
 
 bool BKE_scene_use_world_space_shading(Scene *scene)
 {
-	RenderEngineType *type = RE_engines_find(scene->view_render.engine_id);
+	const RenderEngineType *type = RE_engines_find(scene->r.engine);
 	return ((scene->r.mode & R_USE_WS_SHADING) ||
 	        (type && (type->flag & RE_USE_SHADING_NODES)));
 }
 
 bool BKE_scene_use_spherical_stereo(Scene *scene)
 {
-	return BKE_viewrender_use_spherical_stereo(&scene->view_render);
+	RenderEngineType *type = RE_engines_find(scene->r.engine);
+	return (type && type->flag & RE_USE_SPHERICAL_STEREO);
 }
 
 bool BKE_scene_uses_blender_internal(const Scene *scene)
 {
-	return BKE_viewrender_uses_blender_internal(&scene->view_render);
+	return STREQ(scene->r.engine, RE_engine_id_BLENDER_RENDER);
 }
 
 bool BKE_scene_uses_blender_game(const Scene *scene)
 {
-	return BKE_viewrender_uses_blender_game(&scene->view_render);
+	return STREQ(scene->r.engine, RE_engine_id_BLENDER_GAME);
 }
 
 bool BKE_scene_uses_blender_eevee(const Scene *scene)
 {
-	return BKE_viewrender_uses_blender_eevee(&scene->view_render);
+	return STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
 }
 
 void BKE_scene_base_flag_to_objects(ViewLayer *view_layer)
@@ -1716,81 +1721,6 @@ int BKE_render_preview_pixel_size(const RenderData *r)
 	}
 	return r->preview_pixel_size;
 }
-
-/* ***************************************************** */
-/* render engine settings */
-
-ViewRender *BKE_viewrender_get(Scene *scene, WorkSpace *workspace)
-{
-	if (workspace == NULL || BKE_workspace_use_scene_settings_get(workspace)) {
-		return &scene->view_render;
-	}
-	return BKE_workspace_view_render_get(workspace);
-}
-
-/**
- * Initialize a static created struct for WorkSpace and Scene to store the viewport
- * related drawing data.
- */
-void BKE_viewrender_init(ViewRender *view_render)
-{
-	BLI_strncpy(view_render->engine_id, RE_engine_id_BLENDER_EEVEE, sizeof(view_render->engine_id));
-}
-
-/**
- * Do not free ViewRender itself since it's not even allocated.
- */
-void BKE_viewrender_free(ViewRender *UNUSED(view_render))
-{
-	/* Do nothing. */
-}
-
-/**
- * Copy used by libblock copying.
- */
-void BKE_viewrender_copy(ViewRender *to, const ViewRender *from)
-{
-	*to = *from;
-}
-
-bool BKE_viewrender_use_new_shading_nodes(const ViewRender *view_render)
-{
-	RenderEngineType *type = RE_engines_find(view_render->engine_id);
-	return (type && type->flag & RE_USE_SHADING_NODES);
-}
-
-bool BKE_viewrender_use_shading_nodes_custom(const ViewRender *view_render)
-{
-	RenderEngineType *type = RE_engines_find(view_render->engine_id);
-	return (type && type->flag & RE_USE_SHADING_NODES_CUSTOM);
-}
-
-bool BKE_viewrender_use_spherical_stereo(const ViewRender *view_render)
-{
-	const char *engine_id = view_render->engine_id;
-	RenderEngineType *type = RE_engines_find(engine_id);
-	return (type && type->flag & RE_USE_SPHERICAL_STEREO);
-}
-
-bool BKE_viewrender_uses_blender_internal(const ViewRender *view_render)
-{
-	const char *engine_id = view_render->engine_id;
-	return STREQ(engine_id, RE_engine_id_BLENDER_RENDER);
-}
-
-bool BKE_viewrender_uses_blender_game(const ViewRender *view_render)
-{
-	const char *engine_id = view_render->engine_id;
-	return STREQ(engine_id, RE_engine_id_BLENDER_GAME);
-}
-
-bool BKE_viewrender_uses_blender_eevee(const ViewRender *view_render)
-{
-	const char *engine_id = view_render->engine_id;
-	return STREQ(engine_id, RE_engine_id_BLENDER_EEVEE);
-}
-
-/* ***************************************************** */
 
 /* Apply the needed correction factor to value, based on unit_type (only length-related are affected currently)
  * and unit->scale_length.
@@ -2200,3 +2130,36 @@ Depsgraph *BKE_scene_get_depsgraph(Scene *scene,
 	}
 	return depsgraph;
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Scene Orientation
+ * \{ */
+
+void BKE_scene_transform_orientation_remove(
+        Scene *scene, TransformOrientation *orientation)
+{
+	const int orientation_index = BKE_scene_transform_orientation_get_index(scene, orientation);
+	if (scene->orientation_index_custom == orientation_index) {
+		/* could also use orientation_index-- */
+		scene->orientation_type = V3D_MANIP_GLOBAL;
+		scene->orientation_index_custom = -1;
+	}
+	BLI_freelinkN(&scene->transform_spaces, orientation);
+}
+
+TransformOrientation *BKE_scene_transform_orientation_find(
+        const Scene *scene, const int index)
+{
+	return BLI_findlink(&scene->transform_spaces, index);
+}
+
+/**
+ * \return the index that \a orientation has within \a scene's transform-orientation list or -1 if not found.
+ */
+int BKE_scene_transform_orientation_get_index(
+        const Scene *scene, const TransformOrientation *orientation)
+{
+	return BLI_findindex(&scene->transform_spaces, orientation);
+}
+
+/** \} */
