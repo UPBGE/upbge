@@ -65,7 +65,6 @@
 #include "BKE_report.h"
 
 
-<<<<<<< HEAD
 /* for passing information between creator and gameengine */
 #ifdef WITH_GAMEENGINE
 #  include "LA_SystemCommandLine.h"
@@ -73,8 +72,6 @@
 #  define SYS_SystemHandle int
 #endif
 
-=======
->>>>>>> b/blender2.8
 #include <signal.h>
 
 #include "creator_intern.h"  /* own include */

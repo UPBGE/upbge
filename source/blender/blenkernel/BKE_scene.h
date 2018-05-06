@@ -159,6 +159,7 @@ bool BKE_scene_use_world_space_shading(struct Scene *scene);
 bool BKE_scene_use_spherical_stereo(struct Scene *scene);
 
 bool BKE_scene_uses_blender_internal(const struct Scene *scene);
+bool BKE_scene_uses_blender_game(const struct Scene *scene);
 bool BKE_scene_uses_blender_eevee(const struct Scene *scene);
 
 void BKE_scene_disable_color_management(struct Scene *scene);
@@ -181,6 +182,7 @@ bool BKE_viewrender_use_shading_nodes_custom(const struct ViewRender *view_rende
 bool BKE_viewrender_use_world_space_shading(const struct ViewRender *view_render);
 bool BKE_viewrender_use_spherical_stereo(const struct ViewRender *view_render);
 bool BKE_viewrender_uses_blender_internal(const struct ViewRender *view_render);
+bool BKE_viewrender_uses_blender_game(const struct ViewRender *view_render);
 bool BKE_viewrender_uses_blender_eevee(const struct ViewRender *view_render);
 
 /**********************************/

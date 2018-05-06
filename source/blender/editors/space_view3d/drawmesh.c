@@ -41,6 +41,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
+#include "DNA_property_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
@@ -50,6 +51,7 @@
 #include "BKE_image.h"
 #include "BKE_material.h"
 #include "BKE_paint.h"
+#include "BKE_property.h"
 #include "BKE_editmesh.h"
 #include "BKE_scene.h"
 

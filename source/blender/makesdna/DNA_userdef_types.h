@@ -397,6 +397,7 @@ typedef struct bTheme {
 	ThemeSpace toops;
 	ThemeSpace ttime;
 	ThemeSpace tnode;
+	ThemeSpace tlogic;
 	ThemeSpace tuserpref;
 	ThemeSpace tconsole;
 	ThemeSpace tclip;
@@ -465,7 +466,7 @@ typedef struct UserDef {
 	short versions;
 	short dbl_click_time;
 	
-	short pad;
+	short gameflags;
 	short wheellinescroll;
 	int uiflag;   /* eUserpref_UI_Flag */
 	int uiflag2;  /* eUserpref_UI_Flag2 */
@@ -567,7 +568,7 @@ typedef struct UserDef {
 	float gpencil_new_layer_col[4]; /* default color for newly created Grease Pencil layers */
 
 	short tweak_threshold;
-	char navigation_mode, pad10;
+	char navigation_mode, pad;
 
 	char author[80];	/* author name for file formats supporting it */
 
@@ -785,6 +786,15 @@ typedef enum eDupli_ID_Flags {
 	USER_DUP_ACT			= (1 << 10),
 	USER_DUP_PSYS			= (1 << 11)
 } eDupli_ID_Flags;
+
+/* UserDef.gameflags */
+typedef enum eOpenGL_RenderingOptions {
+	USER_GL_RENDER_DEPRECATED_0			= (1 << 0),
+	USER_GL_RENDER_DEPRECATED_1			= (1 << 1),
+	USER_DISABLE_MIPMAP					= (1 << 2),
+	USER_GL_RENDER_DEPRECATED_3			= (1 << 3),
+	USER_GL_RENDER_DEPRECATED_4			= (1 << 4),
+} eOpenGL_RenderingOptions;
 
 /* selection method for opengl gpu_select_method */
 typedef enum eOpenGL_SelectOptions {

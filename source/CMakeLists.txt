@@ -29,3 +29,7 @@ endif()
 
 add_subdirectory(blender)
 
+if(WITH_GAMEENGINE)
+	add_subdirectory(gameengine)
+endif()
+

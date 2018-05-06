@@ -42,10 +42,7 @@ set(INC
 	../makesrna
 	../nodes
 	../render/extern/include
-<<<<<<< HEAD
 	../../gameengine/Launcher
-=======
->>>>>>> b/blender2.8
 	../../../intern/clog
 	../../../intern/ghost
 	../../../intern/guardedalloc
@@ -144,6 +141,10 @@ if(WITH_PYTHON)
 		../python
 	)
 	add_definitions(-DWITH_PYTHON)
+endif()
+
+if(WITH_GAMEENGINE)
+	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 if(WITH_BUILDINFO)

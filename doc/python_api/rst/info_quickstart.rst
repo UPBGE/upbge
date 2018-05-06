@@ -196,9 +196,9 @@ Example:
 
    # dictionaries can be assigned as long as they only use basic types.
    group = bpy.data.groups.new("MyTestGroup")
-   group["MySettings"] = {"foo": 10, "bar": "spam", "baz": {}}
+   group["GameSettings"] = {"foo": 10, "bar": "spam", "baz": {}}
 
-   del group["MySettings"]
+   del group["GameSettings"]
 
 
 Note that these properties can only be assigned  basic Python types.

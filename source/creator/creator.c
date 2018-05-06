@@ -85,7 +85,6 @@
 #  include "FRS_freestyle.h"
 #endif
 
-<<<<<<< HEAD
 /* for passing information between creator and gameengine */
 #ifdef WITH_GAMEENGINE
 #  include "LA_SystemCommandLine.h"
@@ -93,8 +92,6 @@
 #  define SYS_SystemHandle int
 #endif
 
-=======
->>>>>>> b/blender2.8
 #include <signal.h>
 
 #ifdef __FreeBSD__
@@ -229,6 +226,7 @@ int main(
         )
 {
 	bContext *C;
+	SYS_SystemHandle syshandle;
 
 #ifndef WITH_PYTHON_MODULE
 	bArgs *ba;
@@ -383,6 +381,12 @@ int main(
 
 	BLI_callback_global_init();
 
+#ifdef WITH_GAMEENGINE
+	syshandle = SYS_GetSystem();
+#else
+	syshandle = 0;
+#endif
+
 	/* first test for background */
 #ifndef WITH_PYTHON_MODULE
 	ba = BLI_argsInit(argc, (const char **)argv); /* skip binary path */
@@ -390,7 +394,7 @@ int main(
 	/* ensure we free on early exit */
 	app_init_data.ba = ba;
 
-	main_args_setup(C, ba);
+	main_args_setup(C, ba, &syshandle);
 
 	BLI_argsParse(ba, 1, NULL, NULL);
 
@@ -398,6 +402,7 @@ int main(
 
 #else
 	G.factory_startup = true;  /* using preferences or user startup makes no sense for py-as-module */
+	(void)syshandle;
 #endif
 
 #ifdef WITH_FFMPEG
@@ -512,6 +517,20 @@ int main(
 		WM_exit(C);
 	}
 	else {
+		if (G.fileflags & G_FILE_AUTOPLAY) {
+			if (G.f & G_SCRIPT_AUTOEXEC) {
+				if (WM_init_game(C)) {
+					return 0;
+				}
+			}
+			else {
+				if (!(G.f & G_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
+					G.f |= G_SCRIPT_AUTOEXEC_FAIL;
+					BLI_snprintf(G.autoexec_fail, sizeof(G.autoexec_fail), "Game AutoStart");
+				}
+			}
+		}
+
 		if (!G.file_loaded) {
 			WM_init_splash(C);
 		}

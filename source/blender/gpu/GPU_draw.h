@@ -49,12 +49,15 @@ struct DupliObject;
 
 #include "DNA_object_enums.h"
 
-/* OpenGL drawing functions related to shading. */
+/* OpenGL drawing functions related to shading. These are also
+ * shared with the game engine, where there were previously
+ * duplicates of some of these functions. */
 
 /* Initialize
  * - sets the default Blender opengl state, if in doubt, check
  *   the contents of this function
- * - this is called when starting Blender, for opengl rendering. */
+ * - this is called when starting Blender, for opengl rendering,
+ *   and for switching back from the game engine for example. */
 
 void GPU_state_init(void);
 
@@ -99,6 +102,14 @@ int GPU_get_material_alpha_blend(void);
 int GPU_default_lights(void);
 int GPU_scene_object_lights(
         struct ViewLayer *view_layer, float viewmat[4][4], int ortho);
+
+/* Text render
+ * - based on moving uv coordinates */
+
+void GPU_render_text(
+        int mode, const char *textstr, int textlen, unsigned int *col,
+        const float *v_quad[4], const float *uv_quad[4],
+        int glattrib);
 
 /* Mipmap settings
  * - these will free textures on changes */

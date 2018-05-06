@@ -63,6 +63,10 @@ if(NOT WITH_SYSTEM_GLEW)
 	endif()
 endif()
 
+if(WITH_GAMEENGINE)
+	add_subdirectory(recastnavigation)
+endif()
+
 if(WITH_IMAGE_OPENJPEG AND (NOT WITH_SYSTEM_OPENJPEG))
 	add_subdirectory(libopenjpeg)
 endif()
