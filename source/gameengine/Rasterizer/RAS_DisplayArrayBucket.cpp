@@ -55,12 +55,12 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_meshMaterial(meshmat),
 	m_deformer(deformer)
 {
-	m_bucket->AddDisplayArrayBucket(this);
+	//m_bucket->AddDisplayArrayBucket(this);
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 {
-	m_bucket->RemoveDisplayArrayBucket(this);
+	//m_bucket->RemoveDisplayArrayBucket(this);
 }
 
 RAS_MaterialBucket *RAS_DisplayArrayBucket::GetBucket() const
