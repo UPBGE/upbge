@@ -342,7 +342,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 		gameobj->TagForUpdate();
 	}
 
-	bool reset_taa_samples = ObjectsAreStatic();
+	bool reset_taa_samples = !ObjectsAreStatic();
 	m_staticObjects.clear();
 
 	KX_KetsjiEngine *engine = KX_GetActiveEngine();
