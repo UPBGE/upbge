@@ -2257,6 +2257,8 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 	drw_engines_draw_background();
 	GPUTexture *finaltex = effects->final_tx;
 
+	GPU_viewport_texture_pool_clear_users_bge(DST.viewport);
+
 	DRW_state_reset();
 
 	DRW_opengl_context_disable();

@@ -642,3 +642,24 @@ void GPU_viewport_free(GPUViewport *viewport)
 
 	MEM_freeN(viewport);
 }
+
+void GPU_viewport_texture_pool_clear_users_bge(GPUViewport *viewport)
+{
+	ViewportTempTexture *tmp_tex_next;
+
+	for (ViewportTempTexture *tmp_tex = viewport->tex_pool.first; tmp_tex; tmp_tex = tmp_tex_next) {
+		tmp_tex_next = tmp_tex->next;
+		bool no_user = true;
+		for (int i = 0; i < MAX_ENGINE_BUFFER_SHARING; ++i) {
+			if (tmp_tex->user[i] != NULL) {
+				tmp_tex->user[i] = NULL;
+				no_user = false;
+			}
+		}
+
+		if (no_user) {
+			GPU_texture_free(tmp_tex->texture);
+			BLI_freelinkN(&viewport->tex_pool, tmp_tex);
+		}
+	}
+}
