@@ -204,12 +204,18 @@ static void eevee_draw_background(void *vedata)
 		double offset[3] = {0.0, 0.0, 0.0};
 		double r[3];
 
+		bool taa_use_reprojection = (stl->effects->enabled_effects & EFFECT_TAA_REPROJECT) != 0;
+
 		if (DRW_state_is_image_render() ||
+			taa_use_reprojection ||
 		    ((stl->effects->enabled_effects & EFFECT_TAA) != 0))
 		{
-			BLI_halton_3D(primes, offset, stl->effects->taa_current_sample, r);
+			int samp = taa_use_reprojection
+			            ? stl->effects->taa_reproject_sample + 1
+			            : stl->effects->taa_current_sample;
+			BLI_halton_3D(primes, offset, samp, r);
 			EEVEE_update_noise(psl, fbl, r);
-			EEVEE_volumes_set_jitter(sldata, stl->effects->taa_current_sample - 1);
+			EEVEE_volumes_set_jitter(sldata, samp - 1);
 			EEVEE_materials_init(sldata, stl, fbl);
 		}
 		/* Copy previous persmat to UBO data */
@@ -217,7 +223,8 @@ static void eevee_draw_background(void *vedata)
 
 		if (((stl->effects->enabled_effects & EFFECT_TAA) != 0) &&
 		    (stl->effects->taa_current_sample > 1) &&
-		    !DRW_state_is_image_render())
+		    !DRW_state_is_image_render() &&
+		    !taa_use_reprojection)
 		{
 			DRW_viewport_matrix_override_set(stl->effects->overide_persmat, DRW_MAT_PERS);
 			DRW_viewport_matrix_override_set(stl->effects->overide_persinv, DRW_MAT_PERSINV);
@@ -333,6 +340,9 @@ static void eevee_draw_background(void *vedata)
 		case 8:
 			if (effects->sss_data) DRW_transform_to_display(effects->sss_data);
 			break;
+		case 9:
+			if (effects->velocity_tx) DRW_transform_to_display(effects->velocity_tx);
+			break;
 		default:
 			break;
 	}
@@ -434,6 +444,7 @@ static void eevee_view_layer_settings_create(RenderEngine *UNUSED(engine), IDPro
 
 	BKE_collection_engine_property_add_int(props, "taa_samples", 16);
 	BKE_collection_engine_property_add_int(props, "taa_render_samples", 64);
+	BKE_collection_engine_property_add_bool(props, "taa_reprojection", true);
 
 	BKE_collection_engine_property_add_bool(props, "sss_enable", false);
 	BKE_collection_engine_property_add_int(props, "sss_samples", 7);

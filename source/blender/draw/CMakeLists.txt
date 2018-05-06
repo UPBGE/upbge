@@ -80,6 +80,7 @@ set(SRC
 	modes/edit_surface_mode.c
 	modes/edit_text_mode.c
 	modes/object_mode.c
+	modes/overlay_mode.c
 	modes/paint_texture_mode.c
 	modes/paint_vertex_mode.c
 	modes/paint_weight_mode.c
@@ -173,6 +174,7 @@ data_to_c_simple(engines/eevee/shaders/effect_dof_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_downsample_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_downsample_cube_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_gtao_frag.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/effect_velocity_resolve_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_minmaxz_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_mist_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_motion_blur_frag.glsl SRC)
@@ -234,6 +236,8 @@ data_to_c_simple(modes/shaders/edit_lattice_overlay_frag.glsl SRC)
 data_to_c_simple(modes/shaders/edit_lattice_overlay_loosevert_vert.glsl SRC)
 data_to_c_simple(modes/shaders/edit_normals_vert.glsl SRC)
 data_to_c_simple(modes/shaders/edit_normals_geom.glsl SRC)
+data_to_c_simple(modes/shaders/overlay_face_orientation_frag.glsl SRC)
+data_to_c_simple(modes/shaders/overlay_face_orientation_vert.glsl SRC)
 data_to_c_simple(modes/shaders/object_empty_image_frag.glsl SRC)
 data_to_c_simple(modes/shaders/object_empty_image_vert.glsl SRC)
 data_to_c_simple(modes/shaders/object_outline_resolve_frag.glsl SRC)

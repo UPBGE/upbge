@@ -770,6 +770,9 @@ void uiTemplateImageLayers(struct uiLayout *layout, struct bContext *C, struct I
 void uiTemplateList(struct uiLayout *layout, struct bContext *C, const char *listtype_name, const char *list_id,
                     PointerRNA *dataptr, const char *propname, PointerRNA *active_dataptr, const char *active_propname,
                     const char *item_dyntip_propname, int rows, int maxrows, int layout_type, int columns) RET_NONE
+
+void uiTemplateIDTabs(struct uiLayout *layout, struct bContext *C, PointerRNA *ptr, const char *propname,
+	const char *newop, const char *openop, const char *unlinkop, int filter) RET_NONE
 void uiTemplateRunningJobs(struct uiLayout *layout, struct bContext *C) RET_NONE
 void uiTemplateOperatorSearch(struct uiLayout *layout) RET_NONE
 void uiTemplateHeader3D(struct uiLayout *layout, struct bContext *C) RET_NONE

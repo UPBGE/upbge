@@ -306,7 +306,7 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 	/* Draw type */
 	uiItemR(layout, &v3dptr, "viewport_shade", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 	if (v3d->drawtype == OB_SOLID) {
-		uiItemR(layout, &v3dptr, "viewport_shade_solid", 0, "", ICON_NONE);
+		uiItemR(layout, &v3dptr, "viewport_lighting", 0, "", ICON_NONE);
 	}
 
 	row = uiLayoutRow(layout, true);
@@ -336,9 +336,6 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 		/* Transform widget / manipulators */
 		row = uiLayoutRow(layout, true);
 		uiItemR(row, &v3dptr, "show_manipulator", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
-		if (v3d->twflag & V3D_MANIPULATOR_DRAW) {
-			uiItemR(row, &v3dptr, "transform_manipulators", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
-		}
 		uiItemR(row, &sceneptr, "transform_orientation", 0, "", ICON_NONE);
 	}
 

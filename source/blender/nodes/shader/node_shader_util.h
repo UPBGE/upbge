@@ -88,7 +88,8 @@ void sh_node_type_base(struct bNodeType *ntype, int type, const char *name, shor
 /* ********* exec data struct, remains internal *********** */
 
 typedef struct ShaderCallData {
-	int a;/* Empty for now, may be reused if we convert shader to texture nodes. */
+	/* Empty for now, may be reused if we convert shader to texture nodes. */
+	int dummy;
 } ShaderCallData;
 
 void nodestack_get_vec(float *in, short type_in, bNodeStack *ns);

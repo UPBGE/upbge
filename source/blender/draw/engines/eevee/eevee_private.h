@@ -192,6 +192,7 @@ typedef struct EEVEE_PassList {
 	struct DRWPass *sss_accum_ps;
 	struct DRWPass *color_downsample_ps;
 	struct DRWPass *color_downsample_cube_ps;
+	struct DRWPass *velocity_resolve;
 	struct DRWPass *taa_resolve;
 
 	/* HiZ */
@@ -243,6 +244,7 @@ typedef struct EEVEE_FramebufferList {
 	struct GPUFrameBuffer *refract_fb;
 	struct GPUFrameBuffer *mist_accum_fb;
 	struct GPUFrameBuffer *ao_accum_fb;
+	struct GPUFrameBuffer *velocity_resolve_fb;
 
 	struct GPUFrameBuffer *update_noise_fb;
 
@@ -488,6 +490,9 @@ typedef enum EEVEE_EffectsFlag {
 	EFFECT_POST_BUFFER         = (1 << 9), /* Not really an effect but a feature */
 	EFFECT_NORMAL_BUFFER       = (1 << 10), /* Not really an effect but a feature */
 	EFFECT_SSS                 = (1 << 11),
+	EFFECT_VELOCITY_BUFFER     = (1 << 12), /* Not really an effect but a feature */
+	EFFECT_TAA_REPROJECT       = (1 << 13), /* should be mutually exclusive with EFFECT_TAA */
+	EFFECT_DEPTH_DOUBLE_BUFFER = (1 << 14), /* Not really an effect but a feature */
 } EEVEE_EffectsFlag;
 
 typedef struct EEVEE_EffectsInfo {
@@ -511,6 +516,7 @@ typedef struct EEVEE_EffectsInfo {
 	struct GPUTexture *ssr_hit_output;
 	struct GPUTexture *ssr_pdf_output;
 	/* Temporal Anti Aliasing */
+	int taa_reproject_sample;
 	int taa_current_sample;
 	int taa_render_sample;
 	int taa_total_sample;
@@ -530,6 +536,10 @@ typedef struct EEVEE_EffectsInfo {
 	float current_ndc_to_world[4][4];
 	float past_world_to_ndc[4][4];
 	int motion_blur_samples;
+	/* Velocity Pass */
+	float velocity_curr_persinv[4][4];
+	float velocity_past_persmat[4][4];
+	struct GPUTexture *velocity_tx; /* Texture from pool */
 	/* Depth Of Field */
 	float dof_near_far[2];
 	float dof_params[3];

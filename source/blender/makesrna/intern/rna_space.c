@@ -88,6 +88,8 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
 	                "advanced editing and script development"},
 	{SPACE_INFO, "INFO", ICON_INFO, "Info", "Main menu bar and list of error messages "
 	             "(drag down to expand and display)"},
+	/* Special case: Top-bar isn't supposed to be a regular editor for the user. */
+	{SPACE_TOPBAR, "TOPBAR", ICON_NONE, "Top Bar", "Global bar at the top of the screen for global per-window settings"},
 
 	/* Data */
 	{0, "", ICON_NONE, "Data", ""},
@@ -1809,6 +1811,7 @@ static void rna_def_space(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "spacetype");
 	RNA_def_property_enum_items(prop, rna_enum_space_type_items);
+	/* When making this editable, take care for the special case of global areas (see rna_Area_type_set). */
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Type", "Space data type");
 
@@ -2149,16 +2152,6 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static const EnumPropertyItem manipulators_items[] = {
-		{V3D_MANIP_TRANSLATE, "TRANSLATE", ICON_MAN_TRANS, "Translate",
-		                      "Use the manipulator for movement transformations"},
-		{V3D_MANIP_ROTATE, "ROTATE", ICON_MAN_ROT, "Rotate",
-		                   "Use the manipulator for rotation transformations"},
-		{V3D_MANIP_SCALE, "SCALE", ICON_MAN_SCALE, "Scale",
-		                  "Use the manipulator for scale transformations"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	static const EnumPropertyItem rv3d_persp_items[] = {
 		{RV3D_PERSP, "PERSP", 0, "Perspective", ""},
 		{RV3D_ORTHO, "ORTHO", 0, "Orthographic", ""},
@@ -2272,16 +2265,22 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Viewport Shading", "Method to display/shade objects in the 3D View");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_viewport_shade_update");
 
-	prop = RNA_def_property(srna, "viewport_shade_solid", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "drawtype_solid");
+	prop = RNA_def_property(srna, "viewport_lighting", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "drawtype_lighting");
 	RNA_def_property_enum_items(prop, rna_enum_viewport_lighting_items);
-	RNA_def_property_ui_text(prop, "Viewport Lighting (Solid)", "Lighting Method for Solid Viewport Shading");
+	RNA_def_property_ui_text(prop, "Viewport Lighting", "Lighting Method for Solid/Texture Viewport Shading");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_viewport_shade_update");
 
-	prop = RNA_def_property(srna, "viewport_shade_texture", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "drawtype_texture");
-	RNA_def_property_enum_items(prop, rna_enum_viewport_lighting_items);
-	RNA_def_property_ui_text(prop, "Viewport Lighting (Texture)", "Lighting Method for Texture Viewport Shading");
+	prop = RNA_def_property(srna, "show_face_orientation_overlay", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "overlays", V3D_OVERLAY_FACE_ORIENTATION);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_ui_text(prop, "Face Orientation", "Show the Face Orientation Overlay");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_viewport_shade_update");
+
+	prop = RNA_def_property(srna, "show_random_object_colors", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "drawtype_options", V3D_DRAWOPTION_RANDOMIZE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_ui_text(prop, "Random Colors", "Show random object colors");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_viewport_shade_update");
 
 	prop = RNA_def_property(srna, "local_view", PROP_POINTER, PROP_NONE);
@@ -2447,13 +2446,6 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "twflag", V3D_MANIPULATOR_DRAW);
 	RNA_def_property_ui_text(prop, "Manipulator", "Use a 3D manipulator widget for controlling transforms");
 	RNA_def_property_ui_icon(prop, ICON_MANIPUL, 0);
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
-
-	prop = RNA_def_property(srna, "transform_manipulators", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "twtype");
-	RNA_def_property_enum_items(prop, manipulators_items);
-	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
-	RNA_def_property_ui_text(prop, "Transform Manipulators", "Transformation manipulators");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "lock_camera_and_layers", PROP_BOOLEAN, PROP_NONE);

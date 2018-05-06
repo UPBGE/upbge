@@ -80,6 +80,14 @@ enum {
 	V3D_LIGHTING_SCENE  = 2
 };
 
+enum {
+	V3D_DRAWOPTION_RANDOMIZE = (1<<0),
+};
+
+enum {
+	V3D_OVERLAY_FACE_ORIENTATION = (1 << 0),
+};
+
 typedef struct RegionView3D {
 	
 	float winmat[4][4];			/* GL_PROJECTION matrix */
@@ -205,7 +213,7 @@ typedef struct View3D {
 	char twtype, _pad5, twflag;
 	
 	short flag3;
-	
+
 	/* afterdraw, for xray & transparent */
 	struct ListBase afterdraw_transp;
 	struct ListBase afterdraw_xray;
@@ -241,12 +249,13 @@ typedef struct View3D {
 	 * Runtime-only, set in the rendered viewport toggle operator.
 	 */
 	short prev_drawtype;
-	/* drawtype subtype (visibility) used when drawtype == OB_WIRE */
-	short drawtype_wireframe;
-	/* drawtype subtype (lighting) used when drawtype == OB_SOLID */
-	short drawtype_solid;
-	/* drawtype subtype (lighting) used when drawtype == OB_TEXTURE */
-	short drawtype_texture;
+	/* drawtype options (lighting, random) used for drawtype == OB_SOLID */
+	short drawtype_lighting;
+	short drawtype_options;
+	short pad5;
+
+	int overlays;
+	int pad6;
 
 	View3DDebug debug;
 } View3D;
@@ -361,11 +370,6 @@ enum {
 #define V3D_SHOW_X				2
 #define V3D_SHOW_Y				4
 #define V3D_SHOW_Z				8
-
-/* View3d->twtype (bits, we can combine them) */
-#define V3D_MANIP_TRANSLATE		1
-#define V3D_MANIP_ROTATE		2
-#define V3D_MANIP_SCALE			4
 
 /* Scene.orientation_type */
 #define V3D_MANIP_GLOBAL		0

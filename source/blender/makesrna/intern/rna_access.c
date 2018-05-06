@@ -7470,12 +7470,21 @@ bool RNA_struct_override_matches(
 	const bool do_create = (flags & RNA_OVERRIDE_COMPARE_CREATE) != 0;
 	const bool do_restore = (flags & RNA_OVERRIDE_COMPARE_RESTORE) != 0;
 
+//#define DEBUG_OVERRIDE_TIMEIT
 #ifdef DEBUG_OVERRIDE_TIMEIT
-	static float _sum_time = 0.0f;
-	static float _num_time = 0.0f;
-	double _timeit_time;
+	static float _sum_time_global = 0.0f;
+	static float _num_time_global = 0.0f;
+	double _timeit_time_global;
+	static float _sum_time_diffing = 0.0f;
+	static float _delta_time_diffing = 0.0f;
+	static int _num_delta_time_diffing = 0.0f;
+	static float _num_time_diffing = 0.0f;
+	double _timeit_time_diffing;
+
 	if (!root_path) {
-		_timeit_time = PIL_check_seconds_timer();
+		_delta_time_diffing = 0.0f;
+		_num_delta_time_diffing = 0;
+		_timeit_time_global = PIL_check_seconds_timer();
 	}
 #endif
 
@@ -7503,18 +7512,29 @@ bool RNA_struct_override_matches(
 			continue;
 		}
 
+#define RNA_PATH_BUFFSIZE 8192
+#define RNA_PATH_PRINTF(_str, ...) \
+	if (BLI_snprintf(rna_path, RNA_PATH_BUFFSIZE, \
+	                  (_str), __VA_ARGS__) >= RNA_PATH_BUFFSIZE) \
+	{ rna_path = BLI_sprintfN((_str), __VA_ARGS__); }(void)0
+#define RNA_PATH_FREE \
+	if (rna_path != rna_path_buffer) MEM_freeN(rna_path)
+
+		char rna_path_buffer[RNA_PATH_BUFFSIZE];
+		char *rna_path = rna_path_buffer;
+
 		/* XXX TODO this will have to be refined to handle collections insertions, and array items */
-		char *rna_path;
 		if (root_path) {
 			/* Inlined building, much much more efficient. */
 			if (prop_local->magic == RNA_MAGIC) {
-				rna_path = BLI_sprintfN("%s.%s", root_path, RNA_property_identifier(prop_local));
+				RNA_PATH_PRINTF("%s.%s", root_path, RNA_property_identifier(prop_local));
 			}
 			else {
-				rna_path = BLI_sprintfN("%s[\"%s\"]", root_path, RNA_property_identifier(prop_local));
+				RNA_PATH_PRINTF("%s[\"%s\"]", root_path, RNA_property_identifier(prop_local));
 			}
 		}
 		else {
+			/* This is rather slow, but is not much called, so not really worth optimizing. */
 			rna_path = RNA_path_from_ID_to_property(ptr_local, prop_local);
 		}
 		if (rna_path == NULL) {
@@ -7524,14 +7544,28 @@ bool RNA_struct_override_matches(
 //		printf("Override Checking %s\n", rna_path);
 
 		if (ignore_overridden && BKE_override_static_property_find(override, rna_path) != NULL) {
-			MEM_SAFE_FREE(rna_path);
+			RNA_PATH_FREE;
 			continue;
 		}
+
+#ifdef DEBUG_OVERRIDE_TIMEIT
+		if (!root_path) {
+			_timeit_time_diffing = PIL_check_seconds_timer();
+		}
+#endif
 
 		eRNAOverrideMatchResult report_flags = 0;
 		const int diff = rna_property_override_diff(
 		                     ptr_local, ptr_reference, NULL, prop_local, prop_reference, rna_path,
 		                     RNA_EQ_STRICT, override, flags, &report_flags);
+
+#ifdef DEBUG_OVERRIDE_TIMEIT
+		if (!root_path) {
+			const float _delta_time = (float)(PIL_check_seconds_timer() - _timeit_time_diffing);
+			_delta_time_diffing += _delta_time;
+			_num_delta_time_diffing++;
+		}
+#endif
 
 		matching = matching && diff == 0;
 		if (r_report_flags) {
@@ -7577,18 +7611,28 @@ bool RNA_struct_override_matches(
 			}
 		}
 
-		MEM_SAFE_FREE(rna_path);
+		RNA_PATH_FREE;
+
+#undef RNA_PATH_BUFFSIZE
+#undef RNA_PATH_PRINTF
+#undef RNA_PATH_FREE
 	}
 	RNA_property_collection_end(&iter);
 
 #ifdef DEBUG_OVERRIDE_TIMEIT
 	if (!root_path) {
-		const float _delta_time = (float)(PIL_check_seconds_timer() - _timeit_time);
-		_sum_time += _delta_time;
-		_num_time++;
+		const float _delta_time = (float)(PIL_check_seconds_timer() - _timeit_time_global);
+		_sum_time_global += _delta_time;
+		_num_time_global++;
+		_sum_time_diffing += _delta_time_diffing;
+		_num_time_diffing++;
 		printf("ID: %s\n", ((ID *)ptr_local->id.data)->name);
 		printf("time end      (%s): %.6f\n", __func__, _delta_time);
-		printf("time averaged (%s): %.6f (total: %.6f, in %d runs)\n", __func__, (_sum_time / _num_time), _sum_time, (int)_num_time);
+		printf("time averaged (%s): %.6f (total: %.6f, in %d runs)\n", __func__,
+		       (_sum_time_global / _num_time_global), _sum_time_global, (int)_num_time_global);
+		printf("diffing time end      (%s): %.6f (in %d runs)\n", __func__, _delta_time_diffing, _num_delta_time_diffing);
+		printf("diffing time averaged (%s): %.6f (total: %.6f, in %d runs)\n", __func__,
+		       (_sum_time_diffing / _num_time_diffing), _sum_time_diffing, (int)_num_time_diffing);
 	}
 #endif
 
