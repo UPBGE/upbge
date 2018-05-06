@@ -291,55 +291,6 @@ static int CheckMaterialDM(int matnr, void *attribs)
 	return 1;
 }
 
-void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::DrawType drawingmode)
-{
-	// mesh data is in derived mesh
-	RAS_DisplayArrayBucket *arrayBucket = ms->m_displayArrayBucket;
-	RAS_MaterialBucket *bucket = arrayBucket->GetBucket();
-	RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
-
-	// handle two-side
-	if (material->GetDrawingMode() & RAS_Rasterizer::RAS_BACKCULL) {
-		m_rasterizer->SetCullFace(true);
-	}
-	else {
-		m_rasterizer->SetCullFace(false);
-	}
-
-	if (bucket->IsWire()) {
-		SetLines(true);
-	}
-
-	bool wireframe = (drawingmode == RAS_Rasterizer::RAS_WIREFRAME);
-	if (material->GetFlag() & RAS_BLENDERGLSL) {
-		// GetMaterialIndex return the original mface material index,
-		// increment by 1 to match what derived mesh is doing
-		current_blmat_nr = arrayBucket->GetMeshMaterial()->GetIndex() + 1;
-		// For GLSL we need to retrieve the GPU material attribute
-		Material *blmat = material->GetBlenderMaterial();
-		Scene *blscene = material->GetBlenderScene();
-		if (!wireframe && blscene && blmat) {
-			GPU_material_vertex_attributes(GPU_material_from_blender(blscene, blmat, false), &current_gpu_attribs);
-		}
-		else {
-			memset(&current_gpu_attribs, 0, sizeof(current_gpu_attribs));
-		}
-	}
-
-	// DM draw can mess up blending mode, restore at the end
-	int current_blend_mode = GPU_get_material_alpha_blend();
-
-	/*if (wireframe) {
-		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-	}*/
-	ms->m_pDerivedMesh->drawFacesGLSL(ms->m_pDerivedMesh, CheckMaterialDM);
-	GPU_set_material_alpha_blend(current_blend_mode);
-
-	if (bucket->IsWire()) {
-		SetLines(false);
-	}
-}
-
 void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
 {
 	glViewport(x, y, width, height);

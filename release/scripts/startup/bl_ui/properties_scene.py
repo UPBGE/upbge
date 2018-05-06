@@ -309,7 +309,7 @@ class SCENE_PT_audio(SceneButtonsPanel, Panel):
 
 class SCENE_PT_physics(SceneButtonsPanel, Panel):
     bl_label = "Gravity"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     def draw_header(self, context):
         self.layout.prop(context.scene, "use_gravity", text="")
@@ -326,7 +326,7 @@ class SCENE_PT_physics(SceneButtonsPanel, Panel):
 
 class SCENE_PT_rigid_body_world(SceneButtonsPanel, Panel):
     bl_label = "Rigid Body World"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -371,7 +371,7 @@ class SCENE_PT_rigid_body_world(SceneButtonsPanel, Panel):
 class SCENE_PT_rigid_body_cache(SceneButtonsPanel, Panel):
     bl_label = "Rigid Body Cache"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -388,7 +388,7 @@ class SCENE_PT_rigid_body_cache(SceneButtonsPanel, Panel):
 class SCENE_PT_rigid_body_field_weights(SceneButtonsPanel, Panel):
     bl_label = "Rigid Body Field Weights"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -428,9 +428,6 @@ class SCENE_PT_simplify(SceneButtonsPanel, Panel):
         col.label(text="Render:")
         col.prop(rd, "simplify_subdivision_render", text="Subdivision")
         col.prop(rd, "simplify_child_particles_render", text="Child Particles")
-        col.prop(rd, "simplify_shadow_samples", text="Shadow Samples")
-        col.prop(rd, "simplify_ao_sss", text="AO and SSS")
-        col.prop(rd, "use_simplify_triangulate")
 
 
 class SCENE_PT_custom_props(SceneButtonsPanel, PropertyPanel, Panel):

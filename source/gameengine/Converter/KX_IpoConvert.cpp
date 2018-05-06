@@ -344,9 +344,6 @@ SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, 
 			ipocontr->m_hori_rgb[0] = blenderworld->horr;
 			ipocontr->m_hori_rgb[1] = blenderworld->horg;
 			ipocontr->m_hori_rgb[2] = blenderworld->horb;
-			ipocontr->m_ambi_rgb[0] = blenderworld->ambr;
-			ipocontr->m_ambi_rgb[1] = blenderworld->ambg;
-			ipocontr->m_ambi_rgb[2] = blenderworld->ambb;
 		}
 	}
 	return ipocontr;
@@ -452,12 +449,7 @@ SG_Controller *BL_CreateMaterialIpo(
 		ipocontr->m_specrgb[0]	= blendermaterial->specr;
 		ipocontr->m_specrgb[1]	= blendermaterial->specg;
 		ipocontr->m_specrgb[2]	= blendermaterial->specb;
-
-		ipocontr->m_hard		= blendermaterial->har;
 		ipocontr->m_spec		= blendermaterial->spec;
-		ipocontr->m_ref			= blendermaterial->ref;
-		ipocontr->m_emit		= blendermaterial->emit;
-		ipocontr->m_ambient		= blendermaterial->amb;
 		ipocontr->m_alpha		= blendermaterial->alpha;
 	}
 

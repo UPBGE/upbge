@@ -71,11 +71,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_savedData.specg = m_material->specg;
 	m_savedData.specb = m_material->specb;
 	m_savedData.spec = m_material->spec;
-	m_savedData.ref = m_material->ref;
-	m_savedData.hardness = m_material->har;
-	m_savedData.emit = m_material->emit;
-	m_savedData.ambient = m_material->amb;
-	m_savedData.specularalpha = m_material->spectra;
 
 	m_alphablend = mat->blend_method;
 
@@ -95,23 +90,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	else {
 		m_gpuMat = nullptr;
 	}
-
-	m_zoffset = mat->zoffs;
-
-	m_rasMode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : RAS_TWOSIDED;
-	m_rasMode |= (mat->material_type == MA_TYPE_WIRE) ? RAS_WIRE : 0;
-
-	// always zsort alpha + add
-	if (ELEM(m_alphablend, MA_BM_ADD, MA_BM_MULTIPLY, MA_BM_BLEND)) {
-		m_rasMode |= RAS_ALPHA;
-		//m_rasMode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? RAS_ZSORT : 0;
-	}
-
-	// RAS_IPolyMaterial variables...
-	m_flag |= ((mat->mode & MA_SHLESS) != 0) ? 0 : RAS_MULTILIGHT;
-	m_flag |= RAS_BLENDERGLSL;
-	m_flag |= ((mat->mode2 & MA_CASTSHADOW) != 0) ? RAS_CASTSHADOW : 0;
-	//m_flag |= ((mat->mode & MA_ONLYCAST) != 0) ? RAS_ONLYSHADOW : 0;
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()
@@ -125,11 +103,6 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 	m_material->specg = m_savedData.specg;
 	m_material->specb = m_savedData.specb;
 	m_material->spec = m_savedData.spec;
-	m_material->ref = m_savedData.ref;
-	m_material->har = m_savedData.hardness;
-	m_material->emit = m_savedData.emit;
-	m_material->amb = m_savedData.ambient;
-	m_material->spectra = m_savedData.specularalpha;
 
 	// cleanup work
 	if (m_constructed) {
@@ -340,12 +313,6 @@ void KX_BlenderMaterial::UpdateIPO(
 	m_material->g = (float)(rgba[1]);
 	m_material->b = (float)(rgba[2]);
 	m_material->alpha = (float)(rgba[3]);
-	m_material->amb = (float)(ambient);
-	m_material->har = (float)(hard);
-	m_material->emit = (float)(emit);
-	m_material->spec = (float)(spec);
-	m_material->ref = (float)(ref);
-	m_material->spectra = (float)specalpha;
 }
 
 void KX_BlenderMaterial::ReplaceScene(KX_Scene *scene)
@@ -482,14 +449,6 @@ PyAttributeDef KX_BlenderMaterial::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("textures", KX_BlenderMaterial, pyattr_get_textures),
 	KX_PYATTRIBUTE_RW_FUNCTION("blending", KX_BlenderMaterial, pyattr_get_blending, pyattr_set_blending),
 	KX_PYATTRIBUTE_RW_FUNCTION("alpha", KX_BlenderMaterial, pyattr_get_alpha, pyattr_set_alpha),
-	KX_PYATTRIBUTE_RW_FUNCTION("hardness", KX_BlenderMaterial, pyattr_get_hardness, pyattr_set_hardness),
-	KX_PYATTRIBUTE_RW_FUNCTION("specularIntensity", KX_BlenderMaterial, pyattr_get_specular_intensity, pyattr_set_specular_intensity),
-	KX_PYATTRIBUTE_RW_FUNCTION("specularColor", KX_BlenderMaterial, pyattr_get_specular_color, pyattr_set_specular_color),
-	KX_PYATTRIBUTE_RW_FUNCTION("diffuseIntensity", KX_BlenderMaterial, pyattr_get_diffuse_intensity, pyattr_set_diffuse_intensity),
-	KX_PYATTRIBUTE_RW_FUNCTION("diffuseColor", KX_BlenderMaterial, pyattr_get_diffuse_color, pyattr_set_diffuse_color),
-	KX_PYATTRIBUTE_RW_FUNCTION("emit", KX_BlenderMaterial, pyattr_get_emit, pyattr_set_emit),
-	KX_PYATTRIBUTE_RW_FUNCTION("ambient", KX_BlenderMaterial, pyattr_get_ambient, pyattr_set_ambient),
-	KX_PYATTRIBUTE_RW_FUNCTION("specularAlpha", KX_BlenderMaterial, pyattr_get_specular_alpha, pyattr_set_specular_alpha),
 
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
@@ -584,188 +543,6 @@ int KX_BlenderMaterial::pyattr_set_alpha(PyObjectPlus *self_v, const KX_PYATTRIB
 	CLAMP(val, 0.0f, 1.0f);
 
 	self->GetBlenderMaterial()->alpha = val;
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_BlenderMaterial::pyattr_get_specular_alpha(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	return PyFloat_FromDouble(self->GetBlenderMaterial()->spectra);
-}
-
-int KX_BlenderMaterial::pyattr_set_specular_alpha(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	float val = PyFloat_AsDouble(value);
-
-	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name.c_str());
-		return PY_SET_ATTR_FAIL;
-	}
-
-	CLAMP(val, 0.0f, 1.0f);
-
-	self->GetBlenderMaterial()->spectra = val;
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_BlenderMaterial::pyattr_get_hardness(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	return PyLong_FromLong(self->GetBlenderMaterial()->har);
-}
-
-int KX_BlenderMaterial::pyattr_set_hardness(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	int val = PyLong_AsLong(value);
-
-	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = int: KX_BlenderMaterial, expected a int", attrdef->m_name.c_str());
-		return PY_SET_ATTR_FAIL;
-	}
-
-	CLAMP(val, 1, 511);
-
-	self->GetBlenderMaterial()->har = val;
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_BlenderMaterial::pyattr_get_specular_intensity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	return PyFloat_FromDouble(self->GetBlenderMaterial()->spec);
-}
-
-int KX_BlenderMaterial::pyattr_set_specular_intensity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	float val = PyFloat_AsDouble(value);
-
-	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name.c_str());
-		return PY_SET_ATTR_FAIL;
-	}
-
-	CLAMP(val, 0.0f, 1.0f);
-
-	self->GetBlenderMaterial()->spec = val;
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_BlenderMaterial::pyattr_get_specular_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-#ifdef USE_MATHUTILS
-	return Color_CreatePyObject_cb(BGE_PROXY_FROM_REF(self_v), mathutils_kxblendermaterial_color_cb_index, MATHUTILS_COL_CB_MATERIAL_SPECULAR_COLOR);
-#else
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	Material *mat = self->GetBlenderMaterial();
-	return PyColorFromVector(MT_Vector3(mat->specr, mat->specg, mat->specb));
-#endif
-}
-
-int KX_BlenderMaterial::pyattr_set_specular_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	MT_Vector3 color;
-	if (!PyVecTo(value, color))
-		return PY_SET_ATTR_FAIL;
-
-	Material *mat = self->GetBlenderMaterial();
-	mat->specr = color[0];
-	mat->specg = color[1];
-	mat->specb = color[2];
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_BlenderMaterial::pyattr_get_diffuse_intensity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	return PyFloat_FromDouble(self->GetBlenderMaterial()->ref);
-}
-
-int KX_BlenderMaterial::pyattr_set_diffuse_intensity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	float val = PyFloat_AsDouble(value);
-
-	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name.c_str());
-		return PY_SET_ATTR_FAIL;
-	}
-
-	CLAMP(val, 0.0f, 1.0f);
-
-	self->GetBlenderMaterial()->ref = val;
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_BlenderMaterial::pyattr_get_diffuse_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-#ifdef USE_MATHUTILS
-	return Color_CreatePyObject_cb(BGE_PROXY_FROM_REF(self_v), mathutils_kxblendermaterial_color_cb_index, MATHUTILS_COL_CB_MATERIAL_DIFFUSE_COLOR);
-#else
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	Material *mat = self->GetBlenderMaterial();
-	return PyColorFromVector(MT_Vector3(mat->r, mat->g, mat->b));
-#endif
-}
-
-int KX_BlenderMaterial::pyattr_set_diffuse_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	MT_Vector3 color;
-	if (!PyVecTo(value, color))
-		return PY_SET_ATTR_FAIL;
-
-	Material *mat = self->GetBlenderMaterial();
-	mat->r = color[0];
-	mat->g = color[1];
-	mat->b = color[2];
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_BlenderMaterial::pyattr_get_emit(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	return PyFloat_FromDouble(self->GetBlenderMaterial()->emit);
-}
-
-int KX_BlenderMaterial::pyattr_set_emit(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	float val = PyFloat_AsDouble(value);
-
-	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name.c_str());
-		return PY_SET_ATTR_FAIL;
-	}
-
-	CLAMP(val, 0.0f, 2.0f);
-
-	self->GetBlenderMaterial()->emit = val;
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_BlenderMaterial::pyattr_get_ambient(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	return PyFloat_FromDouble(self->GetBlenderMaterial()->amb);
-}
-
-int KX_BlenderMaterial::pyattr_set_ambient(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	float val = PyFloat_AsDouble(value);
-
-	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name.c_str());
-		return PY_SET_ATTR_FAIL;
-	}
-
-	CLAMP(val, 0.0f, 1.0f);
-
-	self->GetBlenderMaterial()->amb = val;
 	return PY_SET_ATTR_SUCCESS;
 }
 

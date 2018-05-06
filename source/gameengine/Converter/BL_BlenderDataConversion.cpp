@@ -909,7 +909,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	RAS_ILightObject *lightobj = new RAS_OpenGLLight();
 
 	lightobj->m_att1 = la->att1;
-	lightobj->m_att2 = (la->mode & LA_QUAD) ? la->att2 : 0.0f;
+	lightobj->m_att2 = 0.0f;
 	lightobj->m_coeff_const = la->coeff_const;
 	lightobj->m_coeff_lin = la->coeff_lin;
 	lightobj->m_coeff_quad = la->coeff_quad;
@@ -924,8 +924,8 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	lightobj->m_shadowbias = la->bias;
 	lightobj->m_shadowBleedExp = la->bleedexp;
 	lightobj->m_shadowbleedbias = la->bleedbias;
-	lightobj->m_shadowmaptype = la->shadowmap_type;
-	lightobj->m_shadowfrustumsize = la->shadow_frustum_size;
+	lightobj->m_shadowmaptype = 0;
+	lightobj->m_shadowfrustumsize = 0;
 	lightobj->m_shadowcolor[0] = la->shdwr;
 	lightobj->m_shadowcolor[1] = la->shdwg;
 	lightobj->m_shadowcolor[2] = la->shdwb;
@@ -936,8 +936,8 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	lightobj->m_staticShadow = false;
 	lightobj->m_requestShadowUpdate = true;
 
-	lightobj->m_nodiffuse = (la->mode & LA_NO_DIFF) != 0;
-	lightobj->m_nospecular = (la->mode & LA_NO_SPEC) != 0;
+	lightobj->m_nodiffuse = false;
+	lightobj->m_nospecular = false;
 
 	lightobj->m_areaSize = MT_Vector2(la->area_size, la->area_sizey);
 
@@ -960,7 +960,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 
 	KX_LightObject *gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, lightobj);
 
-	gamelight->SetShowShadowFrustum((la->mode & LA_SHOW_SHADOW_BOX) && (la->mode & LA_SHAD_RAY));
+	gamelight->SetShowShadowFrustum(false);
 
 	return gamelight;
 }
@@ -1393,9 +1393,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	kxscene->SetGravity(MT_Vector3(0,0, -blenderscene->gm.gravity));
 	
 	/* set activity culling parameters */
-	kxscene->SetActivityCulling( (blenderscene->gm.mode & WO_ACTIVITY_CULLING) != 0);
+	kxscene->SetActivityCulling(false);
 	kxscene->SetActivityCullingRadius(blenderscene->gm.activityBoxRadius);
-	kxscene->SetDbvtCulling((blenderscene->gm.mode & WO_DBVT_CULLING) != 0);
+	kxscene->SetDbvtCulling(false);
 	
 	// no occlusion culling by default
 	kxscene->SetDbvtOcclusionRes(0);

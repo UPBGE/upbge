@@ -274,7 +274,7 @@ class RenderButtonsPanel:
 
     @classmethod
     def poll(cls, context):
-        view_render = context.scene.view_render
+        view_render = context.scene.render
         return (view_render.engine in cls.COMPAT_ENGINES)
 
 

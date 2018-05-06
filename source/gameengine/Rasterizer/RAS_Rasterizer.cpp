@@ -295,13 +295,10 @@ void RAS_Rasterizer::Init()
 
 	Disable(RAS_BLEND);
 	Disable(RAS_ALPHA_TEST);
-	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
 
 	SetFrontFace(true);
 
 	SetColorMask(true, true, true, true);
-
-	//InitScreenShaders();
 }
 
 void RAS_Rasterizer::Exit()
@@ -312,8 +309,6 @@ void RAS_Rasterizer::Exit()
 	SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
-
-	//ExitScreenShaders();
 
 	DRW_viewport_matrix_override_unset(DRW_MAT_VIEW);
 	DRW_viewport_matrix_override_unset(DRW_MAT_VIEWINV);
@@ -926,7 +921,6 @@ void RAS_Rasterizer::SetPolygonOffset(float mult, float add)
 
 void RAS_Rasterizer::SetAlphaBlend(int alphablend)
 {
-	GPU_set_material_alpha_blend(alphablend);
 }
 
 void RAS_Rasterizer::SetFrontFace(bool ccw)

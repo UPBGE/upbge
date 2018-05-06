@@ -49,15 +49,12 @@ struct DupliObject;
 
 #include "DNA_object_enums.h"
 
-/* OpenGL drawing functions related to shading. These are also
- * shared with the game engine, where there were previously
- * duplicates of some of these functions. */
+/* OpenGL drawing functions related to shading. */
 
 /* Initialize
  * - sets the default Blender opengl state, if in doubt, check
  *   the contents of this function
- * - this is called when starting Blender, for opengl rendering,
- *   and for switching back from the game engine for example. */
+ * - this is called when starting Blender, for opengl rendering. */
 
 void GPU_state_init(void);
 
@@ -67,49 +64,6 @@ void GPU_state_init(void);
 
 void GPU_enable_program_point_size(void);
 void GPU_disable_program_point_size(void);
-
-/* Material drawing
- * - first the state is initialized by a particular object and
- *   it's materials
- * - after this, materials can be quickly enabled by their number,
- *   GPU_object_material_bind returns 0 if drawing should be skipped
- * - after drawing, the material must be disabled again */
-
-void GPU_begin_object_materials(
-        struct View3D *v3d, struct RegionView3D *rv3d,
-        struct Scene *scene, struct ViewLayer *view_layer,
-        struct Object *ob, bool glsl, bool *do_alpha_after);
-void GPU_end_object_materials(void);
-bool GPU_object_materials_check(void);
-
-int GPU_object_material_bind(int nr, void *attribs);
-void GPU_object_material_unbind(void);
-int GPU_object_material_visible(int nr, void *attribs);
-
-void GPU_begin_dupli_object(struct DupliObject *dob);
-void GPU_end_dupli_object(void);
-
-void GPU_material_diffuse_get(int nr, float diff[4]);
-bool GPU_material_use_matcaps_get(void);
-
-void GPU_set_material_alpha_blend(int alphablend);
-int GPU_get_material_alpha_blend(void);
-
-/* Lights
- * - returns how many lights were enabled
- * - this affects fixed functions materials and texface, not glsl */
-
-int GPU_default_lights(void);
-int GPU_scene_object_lights(
-        struct ViewLayer *view_layer, float viewmat[4][4], int ortho);
-
-/* Text render
- * - based on moving uv coordinates */
-
-void GPU_render_text(
-        int mode, const char *textstr, int textlen, unsigned int *col,
-        const float *v_quad[4], const float *uv_quad[4],
-        int glattrib);
 
 /* Mipmap settings
  * - these will free textures on changes */
@@ -132,11 +86,9 @@ void GPU_set_gpu_mipmapping(int gpu_mipmap);
  * - these deal with images bound as opengl textures */
 
 void GPU_paint_update_image(struct Image *ima, struct ImageUser *iuser, int x, int y, int w, int h);
-void GPU_update_images_framechange(void);
-int GPU_update_image_time(struct Image *ima, double time);
 int GPU_verify_image(
         struct Image *ima, struct ImageUser *iuser,
-        int textarget, int tftile, bool compare, bool mipmap, bool is_data);
+        int textarget, bool compare, bool mipmap, bool is_data);
 void GPU_create_gl_tex(
         unsigned int *bind, unsigned int *rect, float *frect, int rectw, int recth,
         int textarget, bool mipmap, bool use_hight_bit_depth, struct Image *ima);
@@ -155,11 +107,6 @@ void GPU_create_smoke(struct SmokeModifierData *smd, int highres);
 
 /* Delayed free of OpenGL buffers by main thread */
 void GPU_free_unused_buffers(void);
-
-#ifdef WITH_OPENSUBDIV
-struct DerivedMesh;
-void GPU_draw_update_fvar_offset(struct DerivedMesh *dm);
-#endif
 
 /* utilities */
 void	GPU_select_index_set(int index);

@@ -582,16 +582,15 @@ static GPUTexture *GPU_texture_cube_create(
 	return tex;
 }
 
-GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int textarget, bool is_data, double time, int mipmap)
+GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int textarget, bool is_data, double UNUSED(time), int mipmap)
 {
 	int gputt;
 	/* this binds a texture, so that's why to restore it to 0 */
-	GLint bindcode = GPU_verify_image(ima, iuser, textarget, 0, 0, mipmap, is_data);
-	GPU_update_image_time(ima, time);
+	GLint bindcode = GPU_verify_image(ima, iuser, textarget, 0, mipmap, is_data);
 
 	/* see GPUInput::textarget: it can take two values - GL_TEXTURE_2D and GL_TEXTURE_CUBE_MAP
-	 * these values are correct for glDisable, so textarget can be safely used in
-	 * GPU_texture_bind/GPU_texture_unbind through tex->target_base */
+	* these values are correct for glDisable, so textarget can be safely used in
+	* GPU_texture_bind/GPU_texture_unbind through tex->target_base */
 	/* (is any of this obsolete now that we don't glEnable/Disable textures?) */
 	if (textarget == GL_TEXTURE_2D)
 		gputt = TEXTARGET_TEXTURE_2D;

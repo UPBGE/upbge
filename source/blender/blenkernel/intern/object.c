@@ -136,8 +136,6 @@
 #include "CCGSubSurf.h"
 #include "atomic_ops.h"
 
-#include "GPU_lamp.h"
-
 /* Vertex parent modifies original BMesh which is not safe for threading.
  * Ideally such a modification should be handled as a separate DAG update
  * callback for mesh datablock, but for until it is actually supported use
@@ -456,7 +454,6 @@ void BKE_object_free(Object *ob)
 		bsbFree(ob->bsoft);
 		ob->bsoft = NULL;
 	}
-	GPU_lamp_free(ob);
 
 	for (ObjectEngineData *oed = ob->drawdata.first; oed; oed = oed->next) {
 		if (oed->free != NULL) {
@@ -2756,7 +2753,7 @@ typedef struct ObTfmBack {
 	float obmat[4][4];      /* final worldspace matrix with constraints & animsys applied */
 	float parentinv[4][4]; /* inverse result of parent, so that object doesn't 'stick' to parent */
 	float constinv[4][4]; /* inverse result of constraints. doesn't include effect of parent or object local transform */
-	float imat[4][4];   /* inverse matrix of 'obmat' for during render, old game engine, temporally: ipokeys of transform  */
+	float imat[4][4];   /* inverse matrix of 'obmat' for during render, temporally: ipokeys of transform  */
 } ObTfmBack;
 
 void *BKE_object_tfm_backup(Object *ob)

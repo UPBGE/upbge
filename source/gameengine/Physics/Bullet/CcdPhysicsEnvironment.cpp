@@ -2658,7 +2658,7 @@ struct BlenderDebugDraw : public btIDebugDraw
 
 CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool visualizePhysics)
 {
-	CcdPhysicsEnvironment *ccdPhysEnv = new CcdPhysicsEnvironment((blenderscene->gm.mode & WO_DBVT_CULLING) != 0);
+	CcdPhysicsEnvironment *ccdPhysEnv = new CcdPhysicsEnvironment(false);
 	ccdPhysEnv->SetDebugDrawer(new BlenderDebugDraw());
 	ccdPhysEnv->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
 	ccdPhysEnv->SetDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);
