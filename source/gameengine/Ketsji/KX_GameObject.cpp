@@ -95,13 +95,19 @@
 
 /* eevee integration */
 extern "C" {
-#  include "DRW_render.h"
+#  include "BKE_main.h"
+#  include "BKE_mesh.h"
 #  include "BLI_alloca.h"
-#  include "GPU_immediate.h"
-#  include "eevee_private.h"
 #  include "BLI_listbase.h"
+#  include "depsgraph/DEG_depsgraph_build.h"
+#  include "DNA_mesh_types.h"
+#  include "DRW_render.h"
+#  include "eevee_private.h"
+#  include "GPU_immediate.h"
 #  include "windowmanager/WM_types.h"
 }
+
+#include "KX_BlenderConverter.h"
 /* End of eevee integration */
 
 static MT_Vector3 dummy_point= MT_Vector3(0.0f, 0.0f, 0.0f);
@@ -130,7 +136,9 @@ KX_GameObject::KX_GameObject(
       m_cullingNode(this),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
-	  m_castShadows(true),
+	  m_castShadows(true), //eevee
+	  m_isReplica(false), //eevee
+	  m_backupMesh(nullptr),
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
     , m_attr_dict(nullptr),
@@ -146,7 +154,9 @@ KX_GameObject::KX_GameObject(
 	KX_NormalParentRelation * parent_relation = 
 		KX_NormalParentRelation::New();
 	m_pSGNode->SetParentRelation(parent_relation);
-	unit_m4(m_prevObmat);
+	
+	
+	unit_m4(m_prevObmat); //eevee
 };
 
 
@@ -167,9 +177,27 @@ KX_GameObject::~KX_GameObject()
 	}
 #endif // WITH_PYTHON
 
-	if (GetBlenderObject()) {
-		copy_m4_m4(GetBlenderObject()->obmat, m_savedObmat);
+	/* EEVEE INTEGRATION */
+
+	Object *ob = GetBlenderObject();
+
+	if (ob) {
+		copy_m4_m4(ob->obmat, m_savedObmat);
 	}
+
+	KX_Scene *scene = GetScene();
+
+	RemoveReplicaObject(); // in the case the Object is a relica, we delete it
+
+	if (scene->m_isRuntime) {
+		//HideOriginalObject(); // if the Object is not a replica we hide it
+	}
+	else { // at scene exit
+		//UnHideOriginalObject();
+		RestoreOriginalMesh(); // we restore original mesh in the case we modified it during runtime
+	}
+
+	/* END OF EEVEE INTEGRATION */
 
 	RemoveMeshes();
 
@@ -250,11 +278,59 @@ void KX_GameObject::TagForUpdate()
 	copy_m4_m4(m_prevObmat, obmat);
 }
 
-void KX_GameObject::RemoveOriginalObject()
+void KX_GameObject::ReplicateBlenderObject()
 {
 	Object *ob = GetBlenderObject();
 	if (ob) {
-		ob->base_flag &= ~BASE_VISIBLED;
+		Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+		Object *newob = BKE_object_copy(bmain, ob);
+		Scene *scene = GetScene()->GetBlenderScene();
+		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+		BKE_collection_object_add_from(scene, BKE_view_layer_camera_find(view_layer), newob); //add replica where is the active camera
+		newob->base_flag |= BASE_VISIBLED;
+		DEG_relations_tag_update(bmain);
+		m_pBlenderObject = newob;
+		m_isReplica = true;
+	}
+}
+void KX_GameObject::RemoveReplicaObject()
+{
+	Object *ob = GetBlenderObject();
+	if (ob && m_isReplica) {
+		Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+		BKE_id_free(bmain, &ob->id);
+		DEG_relations_tag_update(bmain);
+	}
+}
+void KX_GameObject::SetBackupMesh(Mesh *me)
+{
+	Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+	m_backupMesh = BKE_mesh_copy(bmain, me);
+}
+void KX_GameObject::RestoreOriginalMesh()
+{
+	Object *ob = GetBlenderObject();
+	if (ob && m_backupMesh) {
+		Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+		Mesh *origMesh = (Mesh *)ob->data;
+		BKE_mesh_copy_data(bmain, origMesh, m_backupMesh, 0);
+		DEG_id_tag_update(&origMesh->id, OB_RECALC_DATA);
+	}
+}
+
+void KX_GameObject::HideOriginalObject()
+{
+	Object *ob = GetBlenderObject();
+	if (ob && !m_isReplica) {
+		ob->base_flag &= ~BASE_VISIBLED; // TOFIX
+	}
+}
+
+void KX_GameObject::UnHideOriginalObject()
+{
+	Object *ob = GetBlenderObject();
+	if (ob && !m_isReplica) {
+		ob->base_flag |= BASE_VISIBLED;
 	}
 }
 
@@ -547,6 +623,8 @@ void KX_GameObject::SetPlayMode(short layer, short mode)
 void KX_GameObject::ProcessReplica()
 {
 	SCA_IObject::ProcessReplica();
+
+	ReplicateBlenderObject();
 
 	m_pGraphicController = nullptr;
 	m_pPhysicsController = nullptr;

@@ -1019,6 +1019,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		{
 			gameobj = new KX_NavMeshObject(kxscene,KX_Scene::m_callbacks);
 			gameobj->AddMesh(meshobj);
+			gameobj->SetBackupMesh(mesh); //eevee
 			break;
 		}
 
@@ -1026,6 +1027,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 	
 		// set transformation
 		gameobj->AddMesh(meshobj);
+		gameobj->SetBackupMesh(mesh); //eevee
 
 		// gather levels of detail
 		KX_LodManager *lodManager = lodmanager_from_blenderobject(ob, kxscene, rasty, converter, libloading);

@@ -66,7 +66,9 @@ struct Object;
 class KX_ObstacleSimulation;
 class KX_CollisionContactPointList;
 struct bAction;
-struct Gwn_Batch;
+
+
+struct Mesh;
 
 #ifdef WITH_PYTHON
 /* utility conversion function */
@@ -88,6 +90,8 @@ protected:
 	float m_savedObmat[4][4];
 	float m_prevObmat[4][4];
 	bool m_castShadows;
+	bool m_isReplica;
+	Mesh *m_backupMesh;
 
 
 
@@ -134,12 +138,17 @@ protected:
 
 public:
 
+	/* EEVEE INTEGRATION */
+
 	void TagForUpdate();
 	void ReplicateBlenderObject();
-	void RemoveOriginalObject();
+	void HideOriginalObject();
+	void UnHideOriginalObject();
 	void RemoveReplicaObject();
+	void SetBackupMesh(Mesh *me);
+	void RestoreOriginalMesh();
 
-
+	/* END OF EEVEE INTEGRATION */
 
 
 	/**

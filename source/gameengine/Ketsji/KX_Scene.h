@@ -339,6 +339,9 @@ public:
 	void AppendToStaticObjects(KX_GameObject *gameobj);
 	bool ObjectsAreStatic();
 
+
+	bool m_isRuntime; // Too lazy to put that in protected
+
 	void AppendProbeList(KX_GameObject *probe);
 	std::vector<KX_GameObject *>GetProbeList();
 

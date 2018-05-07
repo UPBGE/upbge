@@ -179,6 +179,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_suspendeddelta(0.0),
 	m_blenderScene(scene),
 	m_isActivedHysteresis(false),
+	m_isRuntime(true), //eevee
 	m_lodHysteresisValue(0)
 {
 
@@ -254,6 +255,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 KX_Scene::~KX_Scene()
 {
+
+	m_isRuntime = false; //eevee
+
 	// The release of debug properties used to be in SCA_IScene::~SCA_IScene
 	// It's still there but we remove all properties here otherwise some
 	// reference might be hanging and causing late release of objects
