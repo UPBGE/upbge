@@ -45,6 +45,7 @@
 #include <cstring>
 
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BLI_threads.h"
 #include "BLI_string.h"
 
@@ -61,6 +62,8 @@
 
 extern "C" {
 #include "DNA_ID.h"
+#include "DNA_anim_types.h"
+#include "DNA_armature_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
@@ -79,6 +82,7 @@ extern "C" {
 
 #include "BKE_action.h"
 #include "BKE_animsys.h"
+#include "BKE_armature.h"
 #include "BKE_editmesh.h"
 #include "BKE_library_query.h"
 #include "BKE_object.h"
@@ -329,7 +333,6 @@ static bool check_datablocks_copy_on_writable(const ID *id_orig)
 	}
 	return !ELEM(id_type, ID_BR,
 	                      ID_LS,
-	                      ID_AC,
 	                      ID_PAL);
 }
 
@@ -418,6 +421,17 @@ void update_special_pointers(const Depsgraph *depsgraph,
 			BLI_assert(object_cow->derivedFinal == NULL);
 			BLI_assert(object_cow->derivedDeform == NULL);
 			object_cow->mode = object_orig->mode;
+			if (object_cow->type == OB_ARMATURE) {
+				BKE_pose_remap_bone_pointers((bArmature *)object_cow->data,
+				                             object_cow->pose);
+			}
+			break;
+		}
+		case ID_AR:
+		{
+			const bArmature *armature_orig = (const bArmature *)id_orig;
+			bArmature *armature_cow = (bArmature *)id_cow;
+			armature_cow->edbo = armature_orig->edbo;
 			break;
 		}
 		case ID_ME:
@@ -546,7 +560,7 @@ ID *deg_expand_copy_on_write_datablock(const Depsgraph *depsgraph,
 	 */
 	deg_tag_copy_on_write_id(id_cow, id_orig);
 	/* Perform remapping of the nodes. */
-	RemapCallbackUserData user_data;
+	RemapCallbackUserData user_data = {NULL};
 	user_data.depsgraph = depsgraph;
 	user_data.node_builder = node_builder;
 	user_data.create_placeholders = create_placeholders;
@@ -577,11 +591,21 @@ ID *deg_expand_copy_on_write_datablock(const Depsgraph *depsgraph,
 	                                          create_placeholders);
 }
 
-static void deg_update_copy_on_write_animation(const Depsgraph * /*depsgraph*/,
+static void deg_update_copy_on_write_animation(const Depsgraph *depsgraph,
                                                const IDDepsNode *id_node)
 {
-	DEG_debug_print_eval(__func__, id_node->id_orig->name, id_node->id_cow);
+	DEG_debug_print_eval((::Depsgraph *)depsgraph,
+	                     __func__,
+	                     id_node->id_orig->name,
+	                     id_node->id_cow);
 	BKE_animdata_copy_id(NULL, id_node->id_cow, id_node->id_orig, false, false);
+	RemapCallbackUserData user_data = {NULL};
+	user_data.depsgraph = depsgraph;
+	BKE_library_foreach_ID_link(NULL,
+	                            id_node->id_cow,
+	                            foreach_libblock_remap_callback,
+	                            (void *)&user_data,
+	                            IDWALK_NOP);
 }
 
 ID *deg_update_copy_on_write_datablock(const Depsgraph *depsgraph,
@@ -739,6 +763,12 @@ void deg_free_copy_on_write_datablock(ID *id_cow)
 			ob_cow->data = NULL;
 			break;
 		}
+		case ID_AR:
+		{
+			bArmature *armature_cow = (bArmature *)id_cow;
+			armature_cow->edbo = NULL;
+			break;
+		}
 		case ID_ME:
 		{
 			Mesh *mesh_cow = (Mesh *)id_cow;
@@ -773,7 +803,7 @@ void deg_evaluate_copy_on_write(struct ::Depsgraph *graph,
                                 const IDDepsNode *id_node)
 {
 	const DEG::Depsgraph *depsgraph = reinterpret_cast<const DEG::Depsgraph *>(graph);
-	DEBUG_PRINT("%s on %s\n", __func__, id_node->id_orig->name);
+	DEG_debug_print_eval(graph, __func__, id_node->id_orig->name, id_node->id_cow);
 	if (id_node->id_orig == &depsgraph->scene->id) {
 		/* NOTE: This is handled by eval_ctx setup routines, which
 		 * ensures scene and view layer pointers are valid.

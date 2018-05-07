@@ -1296,7 +1296,7 @@ static void widget_draw_icon_ex(
 		
 		if (but->drawflag & UI_BUT_ICON_LEFT) {
 			/* special case - icon_only pie buttons */
-			if (ui_block_is_pie_menu(but->block) && but->type != UI_BTYPE_MENU && but->str && but->str[0] == '\0')
+			if (ui_block_is_pie_menu(but->block) && !ELEM(but->type, UI_BTYPE_MENU, UI_BTYPE_POPOVER) && but->str && but->str[0] == '\0')
 				xs = rect->xmin + 2.0f * ofs;
 			else if (but->dt == UI_EMBOSS_NONE || but->type == UI_BTYPE_LABEL)
 				xs = rect->xmin + 2.0f * ofs;
@@ -1510,7 +1510,7 @@ float UI_text_clip_middle_ex(
 static void ui_text_clip_middle(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
 	/* No margin for labels! */
-	const int border = ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_MENU) ? 0 : (int)(UI_TEXT_CLIP_MARGIN + 0.5f);
+	const int border = ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_MENU, UI_BTYPE_POPOVER) ? 0 : (int)(UI_TEXT_CLIP_MARGIN + 0.5f);
 	const float okwidth = (float)max_ii(BLI_rcti_size_x(rect) - border, 0);
 	const size_t max_len = sizeof(but->drawstr);
 	const float minwidth = (float)(UI_DPI_ICON_SIZE) / but->block->aspect * 2.0f;
@@ -1526,7 +1526,7 @@ static void ui_text_clip_middle(uiFontStyle *fstyle, uiBut *but, const rcti *rec
 static void ui_text_clip_middle_protect_right(uiFontStyle *fstyle, uiBut *but, const rcti *rect, const char rsep)
 {
 	/* No margin for labels! */
-	const int border = ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_MENU) ? 0 : (int)(UI_TEXT_CLIP_MARGIN + 0.5f);
+	const int border = ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_MENU, UI_BTYPE_POPOVER) ? 0 : (int)(UI_TEXT_CLIP_MARGIN + 0.5f);
 	const float okwidth = (float)max_ii(BLI_rcti_size_x(rect) - border, 0);
 	const size_t max_len = sizeof(but->drawstr);
 	const float minwidth = (float)(UI_DPI_ICON_SIZE) / but->block->aspect * 2.0f;
@@ -1967,7 +1967,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	ui_but_text_password_hide(password_str, but, false);
 
 	/* check for button text label */
-	if (but->type == UI_BTYPE_MENU && (but->flag & UI_BUT_NODE_LINK)) {
+	if (ELEM(but->type, UI_BTYPE_MENU, UI_BTYPE_POPOVER) && (but->flag & UI_BUT_NODE_LINK)) {
 		rcti temp = *rect;
 		temp.xmin = rect->xmax - BLI_rcti_size_y(rect) - 1;
 		widget_draw_icon(but, ICON_LAYER_USED, alpha, &temp, false);
@@ -4347,7 +4347,7 @@ static int widget_roundbox_set(uiBut *but, rcti *rect)
 	/* alignment */
 	if ((but->drawflag & UI_BUT_ALIGN) && but->type != UI_BTYPE_PULLDOWN) {
 		
-		/* ui_block_position has this correction too, keep in sync */
+		/* ui_popup_block_position has this correction too, keep in sync */
 		if (but->drawflag & (UI_BUT_ALIGN_TOP | UI_BUT_ALIGN_STITCH_TOP))
 			rect->ymax += U.pixelsize;
 		if (but->drawflag & (UI_BUT_ALIGN_LEFT | UI_BUT_ALIGN_STITCH_LEFT))
@@ -4524,6 +4524,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				
 			case UI_BTYPE_MENU:
 			case UI_BTYPE_BLOCK:
+			case UI_BTYPE_POPOVER:
 				if (but->flag & UI_BUT_NODE_LINK) {
 					/* new node-link button, not active yet XXX */
 					wt = widget_type(UI_WTYPE_MENU_NODE_LINK);
@@ -4544,10 +4545,6 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 						wt = widget_type(UI_WTYPE_MENU_RADIO);
 					}
 				}
-				break;
-
-			case UI_BTYPE_POPOVER:
-				wt = widget_type(UI_WTYPE_PULLDOWN);
 				break;
 
 			case UI_BTYPE_PULLDOWN:

@@ -34,10 +34,13 @@
 #include "draw_mode_engines.h"
 
 #include "DNA_mesh_types.h"
+#include "DNA_view3d_types.h"
 
 extern struct GPUUniformBuffer *globals_ubo; /* draw_common.c */
 extern struct GlobalsUboStorage ts; /* draw_common.c */
 
+extern char datatoc_paint_vertex_vert_glsl[];
+extern char datatoc_paint_vertex_frag_glsl[];
 extern char datatoc_paint_wire_vert_glsl[];
 extern char datatoc_paint_wire_frag_glsl[];
 extern char datatoc_common_globals_lib_glsl[];
@@ -81,17 +84,15 @@ typedef struct PAINT_VERTEX_PrivateData {
 static void PAINT_VERTEX_engine_init(void *UNUSED(vedata))
 {
 	if (!e_data.vcolor_face_shader) {
-		e_data.vcolor_face_shader = GPU_shader_get_builtin_shader(GPU_SHADER_SIMPLE_LIGHTING_SMOOTH_COLOR_ALPHA);
-	}
+		e_data.vcolor_face_shader = DRW_shader_create(
+		        datatoc_paint_vertex_vert_glsl, NULL,
+		        datatoc_paint_vertex_frag_glsl, NULL);
 
-	if (!e_data.wire_overlay_shader) {
 		e_data.wire_overlay_shader = DRW_shader_create_with_lib(
 		        datatoc_paint_wire_vert_glsl, NULL,
 		        datatoc_paint_wire_frag_glsl,
 		        datatoc_common_globals_lib_glsl, "#define VERTEX_MODE\n");
-	}
 
-	if (!e_data.face_overlay_shader) {
 		e_data.face_overlay_shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_UNIFORM_COLOR);
 	}
 }
@@ -113,13 +114,6 @@ static void PAINT_VERTEX_cache_init(void *vedata)
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS | DRW_STATE_MULTIPLY);
 
 		stl->g_data->fvcolor_shgrp = DRW_shgroup_create(e_data.vcolor_face_shader, psl->vcolor_faces);
-
-		static float light[3] = {-0.3f, 0.5f, 1.0f};
-		static float alpha = 1.0f;
-		static float world_light = 1.0f;
-		DRW_shgroup_uniform_vec3(stl->g_data->fvcolor_shgrp, "light", light, 1);
-		DRW_shgroup_uniform_float(stl->g_data->fvcolor_shgrp, "alpha", &alpha, 1);
-		DRW_shgroup_uniform_float(stl->g_data->fvcolor_shgrp, "global", &world_light, 1);
 	}
 
 	{
@@ -146,11 +140,11 @@ static void PAINT_VERTEX_cache_populate(void *vedata, Object *ob)
 {
 	PAINT_VERTEX_StorageList *stl = ((PAINT_VERTEX_Data *)vedata)->stl;
 	const DRWContextState *draw_ctx = DRW_context_state_get();
+	const View3D *v3d = draw_ctx->v3d;
 
 	if ((ob->type == OB_MESH) && (ob == draw_ctx->obact)) {
-		IDProperty *ces_mode_pw = BKE_layer_collection_engine_evaluated_get(ob, COLLECTION_MODE_PAINT_VERTEX, "");
 		const Mesh *me = ob->data;
-		const bool use_wire = BKE_collection_engine_property_value_get_bool(ces_mode_pw, "use_wire");
+		const bool use_wire = (v3d->overlay.paint_flag & V3D_OVERLAY_PAINT_WIRE) != 0;
 		const bool use_surface = DRW_object_is_mode_shade(ob) == true;
 		const bool use_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 		struct Gwn_Batch *geom;
@@ -183,16 +177,8 @@ static void PAINT_VERTEX_draw_scene(void *vedata)
 
 static void PAINT_VERTEX_engine_free(void)
 {
+	DRW_SHADER_FREE_SAFE(e_data.vcolor_face_shader);
 	DRW_SHADER_FREE_SAFE(e_data.wire_overlay_shader);
-}
-
-void PAINT_VERTEX_collection_settings_create(IDProperty *properties)
-{
-	BLI_assert(properties &&
-	           properties->type == IDP_GROUP &&
-	           properties->subtype == IDP_GROUP_SUB_MODE_PAINT_VERTEX);
-
-	BKE_collection_engine_property_add_bool(properties, "use_wire", false);
 }
 
 static const DrawEngineDataSize PAINT_VERTEX_data_size = DRW_VIEWPORT_DATA_SIZE(PAINT_VERTEX_Data);

@@ -103,20 +103,21 @@ typedef char DRWViewportEmptyList;
 }
 
 /* Use of multisample framebuffers. */
-#define MULTISAMPLE_SYNC_ENABLE(dfbl) { \
+#define MULTISAMPLE_SYNC_ENABLE(dfbl, dtxl) { \
 	if (dfbl->multisample_fb != NULL) { \
 		DRW_stats_query_start("Multisample Blit"); \
-		GPU_framebuffer_blit(dfbl->default_fb, 0, dfbl->multisample_fb, 0, GPU_COLOR_BIT | GPU_DEPTH_BIT); \
 		GPU_framebuffer_bind(dfbl->multisample_fb); \
+		/* TODO clear only depth but need to do alpha to coverage for transparencies. */ \
+		GPU_framebuffer_clear_color_depth(dfbl->multisample_fb, (const float[4]){0.0f}, 1.0f); \
 		DRW_stats_query_end(); \
 	} \
 }
 
-#define MULTISAMPLE_SYNC_DISABLE(dfbl) { \
+#define MULTISAMPLE_SYNC_DISABLE(dfbl, dtxl) { \
 	if (dfbl->multisample_fb != NULL) { \
 		DRW_stats_query_start("Multisample Resolve"); \
-		GPU_framebuffer_blit(dfbl->multisample_fb, 0, dfbl->default_fb, 0, GPU_COLOR_BIT | GPU_DEPTH_BIT); \
 		GPU_framebuffer_bind(dfbl->default_fb); \
+		DRW_multisamples_resolve(dtxl->multisample_depth, dtxl->multisample_color); \
 		DRW_stats_query_end(); \
 	} \
 }
@@ -220,6 +221,8 @@ void DRW_uniformbuffer_free(struct GPUUniformBuffer *ubo);
 } while (0)
 
 void DRW_transform_to_display(struct GPUTexture *tex);
+void DRW_multisamples_resolve(
+        struct GPUTexture *src_depth, struct GPUTexture *src_color);
 
 /* Shaders */
 struct GPUShader *DRW_shader_create(
@@ -269,11 +272,14 @@ typedef enum {
 	DRW_STATE_TRANSMISSION  = (1 << 17),
 	DRW_STATE_CLIP_PLANES   = (1 << 18),
 	DRW_STATE_ADDITIVE_FULL = (1 << 19), /* Same as DRW_STATE_ADDITIVE but let alpha accumulate without premult. */
+	DRW_STATE_BLEND_PREMUL  = (1 << 20), /* Use that if color is already premult by alpha. */
+	DRW_STATE_WIRE_SMOOTH   = (1 << 21),
 
-	DRW_STATE_WRITE_STENCIL    = (1 << 27),
-	DRW_STATE_STENCIL_EQUAL    = (1 << 28),
+	DRW_STATE_WRITE_STENCIL          = (1 << 27),
+	DRW_STATE_WRITE_STENCIL_SHADOW   = (1 << 28),
+	DRW_STATE_STENCIL_EQUAL          = (1 << 29),
+	DRW_STATE_STENCIL_NEQUAL         = (1 << 30),
 } DRWState;
-
 #define DRW_STATE_DEFAULT (DRW_STATE_WRITE_DEPTH | DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS)
 
 typedef enum {
@@ -392,6 +398,11 @@ void DRW_viewport_matrix_override_set_all(DRWMatrixState *state);
 void DRW_viewport_matrix_override_unset(DRWViewportMatrixType type);
 void DRW_viewport_matrix_override_unset_all(void);
 
+/* Thoses are in viewspace so negative if in persp.
+ * Extract near and far clip distance from the projection matrix. */
+float DRW_viewport_near_distance_get(void);
+float DRW_viewport_far_distance_get(void);
+
 const float *DRW_viewport_size_get(void);
 const float *DRW_viewport_invert_size_get(void);
 const float *DRW_viewport_screenvecs_get(void);
@@ -455,6 +466,7 @@ void DRW_state_clip_planes_reset(void);
 /* Culling, return true if object is inside view frustum. */
 bool DRW_culling_sphere_test(BoundSphere *bsphere);
 bool DRW_culling_box_test(BoundBox *bbox);
+bool DRW_culling_plane_test(float plane[4]);
 
 /* Selection */
 void DRW_select_load_id(unsigned int id);

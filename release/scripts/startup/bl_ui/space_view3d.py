@@ -53,8 +53,10 @@ class VIEW3D_HT_header(Header):
 
         # Contains buttons like Mode, Pivot, Manipulator, Layer, Mesh Select Mode...
         row = layout
-        row.popover(space_type='VIEW_3D', region_type='UI', panel_type="VIEW3D_PT_shading", text="Shading")
-        row.popover(space_type='VIEW_3D', region_type='UI', panel_type="VIEW3D_PT_overlay", text="Overlay")
+        shading_type = view.shading.type
+        shading_item = bpy.types.View3DShading.bl_rna.properties['type'].enum_items[shading_type]
+        row.popover(space_type='VIEW_3D', region_type='HEADER', panel_type="VIEW3D_PT_shading", text=shading_item.name, icon=shading_item.icon)
+        row.popover(space_type='VIEW_3D', region_type='HEADER', panel_type="VIEW3D_PT_overlay", text="Overlays", icon='WIRE')
 
         layout.template_header_3D()
 
@@ -3552,12 +3554,12 @@ class VIEW3D_PT_view3d_name(Panel):
 
 class VIEW3D_PT_shading(Panel):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
+    bl_region_type = 'HEADER'
     bl_label = "Shading"
 
     @classmethod
     def poll(cls, context):
-        return False
+        return True
 
     def draw(self, context):
         layout = self.layout
@@ -3570,99 +3572,113 @@ class VIEW3D_PT_shading(Panel):
 
         if shading.type == 'SOLID':
             col.separator()
-            col.row().prop(shading, "light", expand=True)
+            col.row().prop(shading, "color_type", expand=True)
+
+            if shading.color_type == 'SINGLE':
+                col.separator()
+                col.row().prop(shading, "single_color", text="")
 
             col.separator()
-            col.prop(shading, "show_random_object_colors")
-            col.prop(shading, "show_object_overlap")
-
+            col.row().prop(shading, "light", expand=True)
             if shading.light == 'STUDIO':
-                # TODO: don't store these settings in the scene
-                scene = context.scene
-                props = scene.layer_properties['BLENDER_WORKBENCH']
+                col.row().template_icon_view(shading, "studio_light")
 
-                col.separator()
+            col.separator()
 
-                sub = col.column()
-                sub.label(text="Left/Right:")
-                row = sub.row(align=True)
-                row.prop(props, "diffuse_light_x_neg", text="")
-                row.prop(props, "diffuse_light_x_pos", text="")
+            row = col.row()
+            row.prop(shading, "show_shadows")
+            sub = row.row()
+            sub.active = shading.show_shadows
+            sub.prop(shading, "shadow_intensity", text="")
 
-                sub = col.column()
-                sub.label(text="Up/Down:")
-                row = sub.row(align=True)
-                row.prop(props, "diffuse_light_y_neg", text="")
-                row.prop(props, "diffuse_light_y_pos", text="")
-
-                sub = col.column()
-                sub.label(text="Front/Back:")
-                row = sub.row(align=True)
-                row.prop(props, "diffuse_light_z_neg", text="")
-                row.prop(props, "diffuse_light_z_pos", text="")
+            col.prop(shading, "show_object_overlap")
 
 
 class VIEW3D_PT_overlay(Panel):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
+    bl_region_type = 'HEADER'
     bl_label = "Overlay"
 
     @classmethod
     def poll(cls, context):
-        return False
+        return True
 
     def draw(self, context):
         layout = self.layout
 
         view = context.space_data
         overlay = view.overlay
-        shading = view.shading
         scene = context.scene
+        toolsettings = context.tool_settings
+        display_all = overlay.show_overlays
 
         col = layout.column()
         col.prop(overlay, "show_overlays")
         col.separator()
-
         col.prop(view, "show_world")
 
-        if context.mode in {'PAINT_WEIGHT', 'PAINT_VERTEX'}:
-            engine_type = {
-                'PAINT_WEIGHT': 'WeightPaintMode',
-                'PAINT_VERTEX': 'VertexPaintMode',
-            }.get(context.mode)
-            engine_props = scene.collection_properties[engine_type]
-            col.prop(engine_props, "use_wire")
-
-        if context.mode in {'PAINT_WEIGHT', 'PAINT_VERTEX', 'PAINT_TEXTURE'}:
-            col.prop(view, "show_mode_shade_override")
+        col = layout.column()
+        col.active = display_all
+        col.prop(overlay, "show_cursor")
 
         col = layout.column()
-        display_all = overlay.show_overlays
         col.active = display_all
-        col.prop(view, "show_outline_selected")
-        col.prop(view, "show_all_objects_origin")
-        col.prop(view, "show_relationship_lines")
-        col.prop(view, "show_face_orientation_overlay")
+        col.prop(overlay, "show_outline_selected")
+        col.prop(overlay, "show_all_objects_origin")
+        col.prop(overlay, "show_relationship_lines")
+        col.prop(overlay, "show_face_orientation")
+        col.prop(overlay, "show_backface_culling")
 
         col = layout.column()
         col.active = display_all
         split = col.split(percentage=0.55)
-        split.prop(view, "show_floor", text="Grid Floor")
+        split.prop(overlay, "show_floor", text="Grid Floor")
 
         row = split.row(align=True)
-        row.prop(view, "show_axis_x", text="X", toggle=True)
-        row.prop(view, "show_axis_y", text="Y", toggle=True)
-        row.prop(view, "show_axis_z", text="Z", toggle=True)
+        row.prop(overlay, "show_axis_x", text="X", toggle=True)
+        row.prop(overlay, "show_axis_y", text="Y", toggle=True)
+        row.prop(overlay, "show_axis_z", text="Z", toggle=True)
 
         sub = col.column(align=True)
-        sub.active = bool(view.show_floor or view.region_quadviews or not view.region_3d.is_perspective)
+        sub.active = bool(overlay.show_floor or view.region_quadviews or not view.region_3d.is_perspective)
         subsub = sub.column(align=True)
-        subsub.active = view.show_floor
-        subsub.prop(view, "grid_lines", text="Lines")
-        sub.prop(view, "grid_scale", text="Scale")
+        subsub.active = overlay.show_floor
+        subsub.prop(overlay, "grid_lines", text="Lines")
+        sub.prop(overlay, "grid_scale", text="Scale")
         subsub = sub.column(align=True)
         subsub.active = scene.unit_settings.system == 'NONE'
-        subsub.prop(view, "grid_subdivisions", text="Subdivisions")
+        subsub.prop(overlay, "grid_subdivisions", text="Subdivisions")
+
+        if context.mode == 'EDIT_MESH':
+            col.separator()
+            col.label(text="Edit Mode:")
+
+            col.prop(overlay, "show_occlude_wire")
+
+            col.prop(overlay, "show_weight")
+            col.label("Show Zero Weights:")
+            col.row().prop(toolsettings, "vertex_group_user", expand=True)
+
+            col.label(text="Normals:")
+            row = col.row(align=True)
+
+            row.prop(overlay, "show_vertex_normals", text="", icon='VERTEXSEL')
+            row.prop(overlay, "show_split_normals", text="", icon='LOOPSEL')
+            row.prop(overlay, "show_face_normals", text="", icon='FACESEL')
+
+            sub = row.row(align=True)
+            sub.active = overlay.show_vertex_normals or overlay.show_face_normals or overlay.show_split_normals
+            sub.prop(overlay, "normals_length", text="Size")
+
+
+        elif context.mode in {'PAINT_WEIGHT', 'PAINT_VERTEX', 'PAINT_TEXTURE'}:
+            col.separator()
+            col.label(text="Paint Mode:")
+
+            if context.mode in {'PAINT_WEIGHT', 'PAINT_VERTEX'}:
+                col.prop(overlay, "show_paint_wire")
+
+            col.prop(view, "show_mode_shade_override")
 
 
 class VIEW3D_PT_quad_view(Panel):
@@ -3790,8 +3806,6 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
         if with_freestyle:
             col.prop(mesh, "show_edge_seams", text="Seams")
 
-        layout.prop(mesh, "show_weight")
-
         col = split.column()
         col.label()
         if not with_freestyle:
@@ -3803,18 +3817,6 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
             col.prop(mesh, "show_freestyle_face_marks", text="Face Marks")
 
         col = layout.column()
-
-        col.separator()
-        col.label(text="Normals:")
-        row = col.row(align=True)
-
-        row.prop(mesh, "show_normal_vertex", text="", icon='VERTEXSEL')
-        row.prop(mesh, "show_normal_loop", text="", icon='LOOPSEL')
-        row.prop(mesh, "show_normal_face", text="", icon='FACESEL')
-
-        sub = row.row(align=True)
-        sub.active = mesh.show_normal_vertex or mesh.show_normal_face or mesh.show_normal_loop
-        sub.prop(scene.tool_settings, "normal_size", text="Size")
 
         col.separator()
         split = layout.split()

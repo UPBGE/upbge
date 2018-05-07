@@ -3396,6 +3396,11 @@ static void lib_link_constraints(FileData *fd, ID *id, ListBase *conlist)
 		}
 		/* own ipo, all constraints have it */
 		con->ipo = newlibadr_us(fd, id->lib, con->ipo); // XXX deprecated - old animation system
+
+		/* If linking from a library, clear 'local' static override flag. */
+		if (id->lib != NULL) {
+			con->flag &= ~CONSTRAINT_STATICOVERRIDE_LOCAL;
+		}
 	}
 	
 	/* relink all ID-blocks used by the constraints */
@@ -4683,7 +4688,7 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
-	mesh->batch_cache = NULL;
+	mesh->runtime.batch_cache = NULL;
 	
 	/* happens with old files */
 	if (mesh->mselect == NULL) {
@@ -4791,6 +4796,14 @@ static void lib_link_modifiers__linkModifiers(
 static void lib_link_modifiers(FileData *fd, Object *ob)
 {
 	modifiers_foreachIDLink(ob, lib_link_modifiers__linkModifiers, fd);
+
+	/* If linking from a library, clear 'local' static override flag. */
+	if (ob->id.lib != NULL) {
+		for (ModifierData *mod = ob->modifiers.first; mod != NULL; mod = mod->next) {
+			mod->flag &= ~eModifierFlag_StaticOverride_Local;
+		}
+	}
+
 }
 
 static void lib_link_object(FileData *fd, Main *main)
@@ -6548,7 +6561,6 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 				rv3d->render_engine = NULL;
 				rv3d->sms = NULL;
 				rv3d->smooth_timer = NULL;
-				rv3d->compositor = NULL;
 			}
 		}
 	}
@@ -6629,11 +6641,7 @@ static void direct_link_area(FileData *fd, ScrArea *area)
 				direct_link_gpencil(fd, v3d->gpd);
 			}
 			v3d->localvd = newdataadr(fd, v3d->localvd);
-			BLI_listbase_clear(&v3d->afterdraw_transp);
-			BLI_listbase_clear(&v3d->afterdraw_xray);
-			BLI_listbase_clear(&v3d->afterdraw_xraytransp);
 			v3d->properties_storage = NULL;
-			v3d->defmaterial = NULL;
 
 			/* render can be quite heavy, set to solid on load */
 			if (v3d->drawtype == OB_RENDER)

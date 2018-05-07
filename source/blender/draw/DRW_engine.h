@@ -128,13 +128,6 @@ void DRW_pass_free(struct DRWPass *pass);
 struct DRWInstanceDataList *DRW_instance_data_list_create(void);
 void DRW_instance_data_list_free(struct DRWInstanceDataList *idatalist);
 
-/* Mode engines initialization */
-void OBJECT_collection_settings_create(struct IDProperty *properties);
-void EDIT_MESH_collection_settings_create(struct IDProperty *properties);
-void EDIT_ARMATURE_collection_settings_create(struct IDProperty *properties);
-void PAINT_WEIGHT_collection_settings_create(struct IDProperty *properties);
-void PAINT_VERTEX_collection_settings_create(struct IDProperty *properties);
-
 void DRW_opengl_context_create(void);
 void DRW_opengl_context_destroy(void);
 void DRW_opengl_context_enable(void);
@@ -142,11 +135,12 @@ void DRW_opengl_context_disable(void);
 
 void DRW_deferred_shader_remove(struct GPUMaterial *mat);
 
+unsigned int *WORKBENCH_generate_studiolight_preview(int studiolight_id, int icon_size);
+
 /*************************************************Game engine************************************************/
 struct GPUTexture *DRW_game_render_loop(struct Main *bmain, struct Scene *scene, struct Object *maincam, int viewportsize[2],
 	struct DRWMatrixState state, int v[4], bool called_from_constructor, bool reset_taa_samples);
 void DRW_game_render_loop_finish(void);
 void DRW_game_render_loop_end(void);
 /********************************************End of game engine**********************************************/
-
 #endif /* __DRW_ENGINE_H__ */

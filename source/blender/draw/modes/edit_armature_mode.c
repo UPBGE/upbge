@@ -38,7 +38,9 @@ extern GlobalsUboStorage ts;
 typedef struct EDIT_ARMATURE_PassList {
 	struct DRWPass *bone_solid;
 	struct DRWPass *bone_wire;
+	struct DRWPass *bone_outline;
 	struct DRWPass *bone_envelope;
+	struct DRWPass *bone_axes;
 	struct DRWPass *relationship;
 } EDIT_ARMATURE_PassList;
 
@@ -57,7 +59,7 @@ typedef struct EDIT_ARMATURE_Data {
 /* *********** STATIC *********** */
 
 typedef struct EDIT_ARMATURE_PrivateData {
-	DRWShadingGroup *relationship_lines;
+	char pad; /* UNUSED */
 } EDIT_ARMATURE_PrivateData; /* Transient data */
 
 /* *********** FUNCTIONS *********** */
@@ -79,6 +81,12 @@ static void EDIT_ARMATURE_cache_init(void *vedata)
 	}
 
 	{
+		/* Bones Outline */
+		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS;
+		psl->bone_outline = DRW_pass_create("Bone Outline Pass", state);
+	}
+
+	{
 		/* Wire bones */
 		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS | DRW_STATE_BLEND;
 		psl->bone_wire = DRW_pass_create("Bone Wire Pass", state);
@@ -86,8 +94,13 @@ static void EDIT_ARMATURE_cache_init(void *vedata)
 
 	{
 		/* distance outline around envelope bones */
-		DRWState state = DRW_STATE_ADDITIVE | DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS | DRW_STATE_BLEND;
+		DRWState state = DRW_STATE_ADDITIVE | DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS | DRW_STATE_CULL_FRONT;
 		psl->bone_envelope = DRW_pass_create("Bone Envelope Outline Pass", state);
+	}
+
+	{
+		DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WIRE_SMOOTH | DRW_STATE_BLEND;
+		psl->bone_axes = DRW_pass_create("Bone Axes Pass", state);
 	}
 
 	{
@@ -96,10 +109,6 @@ static void EDIT_ARMATURE_cache_init(void *vedata)
 		        DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS |
 		        DRW_STATE_BLEND | DRW_STATE_WIRE;
 		psl->relationship = DRW_pass_create("Bone Relationship Pass", state);
-
-		/* Relationship Lines */
-		stl->g_data->relationship_lines = shgroup_dynlines_uniform_color(psl->relationship, ts.colorWire);
-		DRW_shgroup_state_enable(stl->g_data->relationship_lines, DRW_STATE_STIPPLE_3);
 	}
 }
 
@@ -107,12 +116,18 @@ static void EDIT_ARMATURE_cache_populate(void *vedata, Object *ob)
 {
 	bArmature *arm = ob->data;
 	EDIT_ARMATURE_PassList *psl = ((EDIT_ARMATURE_Data *)vedata)->psl;
-	EDIT_ARMATURE_StorageList *stl = ((EDIT_ARMATURE_Data *)vedata)->stl;
 
 	if (ob->type == OB_ARMATURE) {
 		if (arm->edbo) {
-			DRW_shgroup_armature_edit(
-			            ob, psl->bone_solid, psl->bone_wire, psl->bone_envelope, stl->g_data->relationship_lines);
+			DRWArmaturePasses passes = {
+			    .bone_solid = psl->bone_solid,
+			    .bone_outline = psl->bone_outline,
+			    .bone_wire = psl->bone_wire,
+			    .bone_envelope = psl->bone_envelope,
+			    .bone_axes = psl->bone_axes,
+			    .relationship_lines = psl->relationship,
+			};
+			DRW_shgroup_armature_edit(ob, passes);
 		}
 	}
 }
@@ -121,15 +136,21 @@ static void EDIT_ARMATURE_draw_scene(void *vedata)
 {
 	EDIT_ARMATURE_PassList *psl = ((EDIT_ARMATURE_Data *)vedata)->psl;
 	DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-
-	MULTISAMPLE_SYNC_ENABLE(dfbl)
+	DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
 	DRW_draw_pass(psl->bone_envelope);
+
+	MULTISAMPLE_SYNC_ENABLE(dfbl, dtxl)
+
+	DRW_draw_pass(psl->bone_outline);
 	DRW_draw_pass(psl->bone_solid);
 	DRW_draw_pass(psl->bone_wire);
 	DRW_draw_pass(psl->relationship);
 
-	MULTISAMPLE_SYNC_DISABLE(dfbl)
+	MULTISAMPLE_SYNC_DISABLE(dfbl, dtxl)
+
+	/* Draw axes with linesmooth and outside of multisample buffer. */
+	DRW_draw_pass(psl->bone_axes);
 }
 
 #if 0

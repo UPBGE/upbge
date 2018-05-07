@@ -3491,9 +3491,9 @@ static void shrinkwrap_get_tarmat(struct Depsgraph *UNUSED(depsgraph), bConstrai
 					nearest.dist_sq = FLT_MAX;
 
 					if (scon->shrinkType == MOD_SHRINKWRAP_NEAREST_VERTEX)
-						bvhtree_from_mesh_verts(&treeData, target, 0.0, 2, 6);
+						bvhtree_from_mesh_get(&treeData, target, BVHTREE_FROM_VERTS, 2);
 					else
-						bvhtree_from_mesh_looptri(&treeData, target, 0.0, 2, 6);
+						bvhtree_from_mesh_get(&treeData, target, BVHTREE_FROM_LOOPTRI, 2);
 					
 					if (treeData.tree == NULL) {
 						fail = true;
@@ -3545,15 +3545,14 @@ static void shrinkwrap_get_tarmat(struct Depsgraph *UNUSED(depsgraph), bConstrai
 						break;
 					}
 
-					bvhtree_from_mesh_looptri(&treeData, target, scon->dist, 4, 6);
+					bvhtree_from_mesh_get(&treeData, target, BVHTREE_FROM_LOOPTRI, 4);
 					if (treeData.tree == NULL) {
 						fail = true;
 						break;
 					}
 
-					
-					if (BKE_shrinkwrap_project_normal(0, co, no, &transform, treeData.tree, &hit,
-					                                  treeData.raycast_callback, &treeData) == false)
+					if (BKE_shrinkwrap_project_normal(0, co, no, scon->dist, &transform, treeData.tree,
+					                                  &hit, treeData.raycast_callback, &treeData) == false)
 					{
 						fail = true;
 						break;
@@ -4155,7 +4154,7 @@ static void followtrack_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
 					sub_v3_v3v3(ray_nor, ray_end, ray_start);
 					normalize_v3(ray_nor);
 
-					bvhtree_from_mesh_looptri(&treeData, target, 0.0f, 4, 6);
+					bvhtree_from_mesh_get(&treeData, target, BVHTREE_FROM_LOOPTRI, 4);
 
 					hit.dist = BVH_RAYCAST_DIST_MAX;
 					hit.index = -1;
@@ -4590,7 +4589,7 @@ static bConstraint *add_new_constraint_internal(const char *name, short type)
 
 	/* Set up a generic constraint datablock */
 	con->type = type;
-	con->flag |= CONSTRAINT_EXPAND;
+	con->flag |= CONSTRAINT_EXPAND | CONSTRAINT_STATICOVERRIDE_LOCAL;
 	con->enforce = 1.0f;
 
 	/* Determine a basic name, and info */

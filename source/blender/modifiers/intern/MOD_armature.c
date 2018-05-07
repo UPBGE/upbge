@@ -136,12 +136,8 @@ static void deformVertsEM(
 	ArmatureModifierData *amd = (ArmatureModifierData *) md;
 	Mesh *mesh_src = mesh;
 
-	/* TODO(sybren): possibly lift this code to modifier.c and use it for all modifiers */
 	if (!mesh) {
-		struct BMeshToMeshParams params = {0};
-		mesh_src = BKE_libblock_alloc_notest(ID_ME);
-		BKE_mesh_init(mesh_src);
-		BM_mesh_bm_to_me(em->bm, mesh_src, &params);
+		mesh_src = BKE_bmesh_to_mesh(em->bm, &(struct BMeshToMeshParams){0});
 	}
 
 	modifier_vgroup_cache(md, vertexCos); /* if next modifier needs original vertices */
@@ -156,8 +152,7 @@ static void deformVertsEM(
 	}
 
 	if (!mesh) {
-		BKE_mesh_free(mesh_src);
-		MEM_freeN(mesh_src);
+		BKE_id_free(NULL, mesh_src);
 	}
 }
 
@@ -169,20 +164,15 @@ static void deformMatricesEM(
 	ArmatureModifierData *amd = (ArmatureModifierData *) md;
 	Mesh *mesh_src = mesh;
 
-	/* TODO(sybren): possibly lift this code to modifier.c and use it for all modifiers */
 	if (!mesh) {
-		struct BMeshToMeshParams params = {0};
-		mesh_src = BKE_libblock_alloc_notest(ID_ME);
-		BKE_mesh_init(mesh_src);
-		BM_mesh_bm_to_me(em->bm, mesh_src, &params);
+		mesh_src = BKE_bmesh_to_mesh(em->bm, &(struct BMeshToMeshParams){0});
 	}
 
 	armature_deform_verts(amd->object, ctx->object, mesh_src, vertexCos, defMats, numVerts,
 	                      amd->deformflag, NULL, amd->defgrp_name);
 
 	if (!mesh) {
-		BKE_mesh_free(mesh_src);
-		MEM_freeN(mesh_src);
+		BKE_id_free(NULL, mesh_src);
 	}
 }
 

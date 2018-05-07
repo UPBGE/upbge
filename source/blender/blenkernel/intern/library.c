@@ -80,8 +80,8 @@
 #include "BLI_memarena.h"
 #include "BLI_mempool.h"
 #include "BLI_string_utils.h"
-
 #include "BLI_threads.h"
+
 #include "BLT_translation.h"
 
 #include "BKE_action.h"
@@ -1368,6 +1368,41 @@ void BKE_libblock_init_empty(ID *id)
 	}
 }
 
+/** Generic helper to create a new empty datablock of given type in given \a bmain database.
+ *
+ * \param name can be NULL, in which case we get default name for this ID type. */
+void *BKE_id_new(Main *bmain, const short type, const char *name)
+{
+	BLI_assert(bmain != NULL);
+
+	if (name == NULL) {
+		name = DATA_(BKE_idcode_to_name(type));
+	}
+
+	ID *id = BKE_libblock_alloc(bmain, type, name, 0);
+	BKE_libblock_init_empty(id);
+
+	return id;
+}
+
+/** Generic helper to create a new temporary empty datablock of given type, *outside* of any Main database.
+ *
+ * \param name can be NULL, in which case we get default name for this ID type. */
+void *BKE_id_new_nomain(const short type, const char *name)
+{
+	if (name == NULL) {
+		name = DATA_(BKE_idcode_to_name(type));
+	}
+
+	ID *id = BKE_libblock_alloc(NULL, type, name,
+	                            LIB_ID_CREATE_NO_MAIN |
+	                            LIB_ID_CREATE_NO_USER_REFCOUNT |
+	                            LIB_ID_CREATE_NO_DEG_TAG);
+	BKE_libblock_init_empty(id);
+
+	return id;
+}
+
 /* by spec, animdata is first item after ID */
 /* and, trust that BKE_animdata_from_id() will only find AnimData for valid ID-types */
 static void id_copy_animdata(Main *bmain, ID *id, const bool do_action)
@@ -1429,8 +1464,14 @@ void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int fla
 #endif
 
 	/* the duplicate should get a copy of the animdata */
-	BLI_assert((flag & LIB_ID_COPY_ACTIONS) == 0 || (flag & LIB_ID_CREATE_NO_MAIN) == 0);
-	id_copy_animdata(bmain, new_id, (flag & LIB_ID_COPY_ACTIONS) != 0 && (flag & LIB_ID_CREATE_NO_MAIN) == 0);
+	if ((flag & LIB_ID_COPY_NO_ANIMDATA) == 0) {
+		BLI_assert((flag & LIB_ID_COPY_ACTIONS) == 0 || (flag & LIB_ID_CREATE_NO_MAIN) == 0);
+		id_copy_animdata(bmain, new_id, (flag & LIB_ID_COPY_ACTIONS) != 0 && (flag & LIB_ID_CREATE_NO_MAIN) == 0);
+	}
+	else if (id_can_have_animdata(new_id)) {
+		IdAdtTemplate *iat = (IdAdtTemplate *)new_id;
+		iat->adt = NULL;
+	}
 
 	if ((flag & LIB_ID_CREATE_NO_DEG_TAG) == 0 && (flag & LIB_ID_CREATE_NO_MAIN) == 0) {
 		DEG_id_type_tag(bmain, GS(new_id->name));

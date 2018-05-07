@@ -57,9 +57,6 @@ typedef struct BVHTreeFromEditMesh {
 
 	struct BMEditMesh *em;
 
-	/* radius for raycast */
-	float sphere_radius;
-
 	/* Private data */
 	bool cached;
 
@@ -87,9 +84,6 @@ typedef struct BVHTreeFromMesh {
 	bool loop_allocated;
 	bool looptri_allocated;
 
-	/* radius for raycast */
-	float sphere_radius;
-
 	/* Private data */
 	bool cached;
 
@@ -113,8 +107,6 @@ BVHTree *bvhtree_from_editmesh_verts_ex(
         const BLI_bitmap *mask, int verts_num_active,
         float epsilon, int tree_type, int axis);
 
-BVHTree *bvhtree_from_mesh_verts(
-        struct BVHTreeFromMesh *data, struct DerivedMesh *mesh, float epsilon, int tree_type, int axis);
 BVHTree *bvhtree_from_mesh_verts_ex(
         struct BVHTreeFromMesh *data, const struct MVert *vert, const int numVerts,
         const bool vert_allocated, const BLI_bitmap *mask, int verts_num_active,
@@ -128,9 +120,6 @@ BVHTree *bvhtree_from_editmesh_edges_ex(
         const BLI_bitmap *edges_mask, int edges_num_active,
         float epsilon, int tree_type, int axis);
 
-BVHTree *bvhtree_from_mesh_edges(
-        struct BVHTreeFromMesh *data, struct DerivedMesh *mesh,
-        float epsilon, int tree_type, int axis);
 BVHTree *bvhtree_from_mesh_edges_ex(
         struct BVHTreeFromMesh *data,
         const struct MVert *vert, const bool vert_allocated,
@@ -138,9 +127,6 @@ BVHTree *bvhtree_from_mesh_edges_ex(
         const BLI_bitmap *edges_mask, int edges_num_active,
         float epsilon, int tree_type, int axis);
 
-BVHTree *bvhtree_from_mesh_faces(
-        struct BVHTreeFromMesh *data, struct DerivedMesh *mesh, float epsilon,
-        int tree_type, int axis);
 BVHTree *bvhtree_from_mesh_faces_ex(
         struct BVHTreeFromMesh *data,
         const struct MVert *vert, const bool vert_allocated,
@@ -156,8 +142,6 @@ BVHTree *bvhtree_from_editmesh_looptri_ex(
         const BLI_bitmap *mask, int looptri_num_active,
         float epsilon, int tree_type, int axis, BVHCache **bvhCache);
 
-BVHTree *bvhtree_from_mesh_looptri(
-        struct BVHTreeFromMesh *data, struct DerivedMesh *mesh, float epsilon, int tree_type, int axis);
 BVHTree *bvhtree_from_mesh_looptri_ex(
         struct BVHTreeFromMesh *data,
         const struct MVert *vert, const bool vert_allocated,
@@ -165,6 +149,10 @@ BVHTree *bvhtree_from_mesh_looptri_ex(
         const struct MLoopTri *looptri, const int looptri_num, const bool looptri_allocated,
         const BLI_bitmap *mask, int looptri_num_active,
         float epsilon, int tree_type, int axis);
+
+BVHTree *bvhtree_from_mesh_get(
+        struct BVHTreeFromMesh *data, struct DerivedMesh *mesh,
+        const int type, const int tree_type);
 
 /**
  * Frees data allocated by a call to bvhtree_from_mesh_*.

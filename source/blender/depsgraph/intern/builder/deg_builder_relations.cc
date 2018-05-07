@@ -169,6 +169,16 @@ static bool object_particles_depends_on_time(Object *object)
 	return false;
 }
 
+static bool check_id_has_anim_component(ID *id)
+{
+	AnimData *adt = BKE_animdata_from_id(id);
+	if (adt == NULL) {
+		return false;
+	}
+	return (adt->action != NULL) ||
+	       (!BLI_listbase_is_empty(&adt->nla_tracks));
+}
+
 /* **** General purpose functions ****  */
 
 DepsgraphRelationBuilder::DepsgraphRelationBuilder(Main *bmain,
@@ -251,7 +261,8 @@ DepsRelation *DepsgraphRelationBuilder::add_time_relation(
 		return graph_->add_new_relation(timesrc, node_to, description, check_unique);
 	}
 	else {
-		DEG_DEBUG_PRINTF(BUILD, "add_time_relation(%p = %s, %p = %s, %s) Failed\n",
+		DEG_DEBUG_PRINTF((::Depsgraph *)graph_,
+		                 BUILD, "add_time_relation(%p = %s, %p = %s, %s) Failed\n",
 		                 timesrc,   (timesrc) ? timesrc->identifier().c_str() : "<None>",
 		                 node_to,   (node_to) ? node_to->identifier().c_str() : "<None>",
 		                 description);
@@ -272,7 +283,8 @@ DepsRelation *DepsgraphRelationBuilder::add_operation_relation(
 		                                check_unique);
 	}
 	else {
-		DEG_DEBUG_PRINTF(BUILD, "add_operation_relation(%p = %s, %p = %s, %s) Failed\n",
+		DEG_DEBUG_PRINTF((::Depsgraph *)graph_,
+		                 BUILD, "add_operation_relation(%p = %s, %p = %s, %s) Failed\n",
 		                 node_from, (node_from) ? node_from->identifier().c_str() : "<None>",
 		                 node_to,   (node_to)   ? node_to->identifier().c_str() : "<None>",
 		                 description);
@@ -376,6 +388,40 @@ Depsgraph *DepsgraphRelationBuilder::getGraph()
 
 void DepsgraphRelationBuilder::begin_build()
 {
+}
+
+void DepsgraphRelationBuilder::build_id(ID* id) {
+	if (id == NULL) {
+		return;
+	}
+	switch (GS(id->name)) {
+		case ID_GR:
+			build_group(NULL, (Group *)id);
+			break;
+		case ID_OB:
+			build_object(NULL, (Object *)id);
+			break;
+		case ID_NT:
+			build_nodetree((bNodeTree *)id);
+			break;
+		case ID_MA:
+			build_material((Material *)id);
+			break;
+		case ID_TE:
+			build_texture((Tex *)id);
+			break;
+		case ID_WO:
+			build_world((World *)id);
+			break;
+		case ID_MSK:
+			build_mask((Mask *)id);
+			break;
+		case ID_MC:
+			build_movieclip((MovieClip *)id);
+			break;
+		default:
+			fprintf(stderr, "Unhandled ID %s\n", id->name);
+	}
 }
 
 void DepsgraphRelationBuilder::build_group(Object *object, Group *group)
@@ -527,7 +573,9 @@ void DepsgraphRelationBuilder::build_object_data(Object *object)
 	}
 	ID *obdata_id = (ID *)object->data;
 	/* Object data animation. */
-	build_animdata(obdata_id);
+	if (!built_map_.checkIsBuilt(obdata_id)) {
+		build_animdata(obdata_id);
+	}
 	/* type-specific data. */
 	switch (object->type) {
 		case OB_MESH:
@@ -545,7 +593,7 @@ void DepsgraphRelationBuilder::build_object_data(Object *object)
 				build_proxy_rig(object);
 			}
 			else {
-				build_rig(object);
+				 build_rig(object);
 			}
 			break;
 		case OB_LAMP:
@@ -898,6 +946,11 @@ void DepsgraphRelationBuilder::build_animdata_curves(ID *id)
 	ComponentKey adt_key(id, DEG_NODE_TYPE_ANIMATION);
 	TimeSourceKey time_src_key;
 	add_relation(time_src_key, adt_key, "TimeSrc -> Animation");
+	/* Relation from action itself. */
+	if (adt->action != NULL) {
+		ComponentKey action_key(&adt->action->id, DEG_NODE_TYPE_ANIMATION);
+		add_relation(action_key, adt_key, "Action -> Animation");
+	}
 	/* Get source operations. */
 	DepsNode *node_from = get_node(adt_key);
 	BLI_assert(node_from != NULL);
@@ -1195,6 +1248,7 @@ void DepsgraphRelationBuilder::build_driver_variables(ID *id, FCurve *fcu)
 			if (dtar->id == NULL) {
 				continue;
 			}
+			build_id(dtar->id);
 			/* Special handling for directly-named bones. */
 			if ((dtar->flag & DTAR_FLAG_STRUCT_REF) &&
 			    (((Object *)dtar->id)->type == OB_ARMATURE) &&
@@ -1879,6 +1933,11 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
 	                                    DEG_NODE_TYPE_SHADING_PARAMETERS,
 	                                    DEG_OPCODE_MATERIAL_UPDATE);
 	add_relation(shading_parameters_key, shading_update_key, "NTree Shading Parameters");
+
+	if (check_id_has_anim_component(&ntree->id)) {
+		ComponentKey animation_key(&ntree->id, DEG_NODE_TYPE_ANIMATION);
+		add_relation(shading_parameters_key, animation_key, "NTree Shading Parameters");
+	}
 }
 
 /* Recursively build graph for material */
@@ -1924,6 +1983,9 @@ void DepsgraphRelationBuilder::build_compositor(Scene *scene)
 
 void DepsgraphRelationBuilder::build_gpencil(bGPdata *gpd)
 {
+	if (built_map_.checkIsBuiltAndTag(gpd)) {
+		return;
+	}
 	/* animation */
 	build_animdata(&gpd->id);
 
@@ -1932,12 +1994,18 @@ void DepsgraphRelationBuilder::build_gpencil(bGPdata *gpd)
 
 void DepsgraphRelationBuilder::build_cachefile(CacheFile *cache_file)
 {
+	if (built_map_.checkIsBuiltAndTag(cache_file)) {
+		return;
+	}
 	/* Animation. */
 	build_animdata(&cache_file->id);
 }
 
 void DepsgraphRelationBuilder::build_mask(Mask *mask)
 {
+	if (built_map_.checkIsBuiltAndTag(mask)) {
+		return;
+	}
 	ID *mask_id = &mask->id;
 	/* F-Curve animation. */
 	build_animdata(mask_id);
@@ -1954,6 +2022,9 @@ void DepsgraphRelationBuilder::build_mask(Mask *mask)
 
 void DepsgraphRelationBuilder::build_movieclip(MovieClip *clip)
 {
+	if (built_map_.checkIsBuiltAndTag(clip)) {
+		return;
+	}
 	/* Animation. */
 	build_animdata(&clip->id);
 }

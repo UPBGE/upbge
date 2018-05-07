@@ -614,6 +614,39 @@ int WM_operator_poll_context(bContext *C, wmOperatorType *ot, short context)
 	return wm_operator_call_internal(C, ot, NULL, NULL, context, true);
 }
 
+bool WM_operator_check_ui_empty(wmOperatorType *ot)
+{
+	if (ot->macro.first != NULL) {
+		/* for macros, check all have exec() we can call */
+		wmOperatorTypeMacro *otmacro;
+		for (otmacro = ot->macro.first; otmacro; otmacro = otmacro->next) {
+			wmOperatorType *otm = WM_operatortype_find(otmacro->idname, 0);
+			if (otm && !WM_operator_check_ui_empty(otm)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/* Assume a ui callback will draw something. */
+	if (ot->ui) {
+		return false;
+	}
+
+	PointerRNA ptr;
+	WM_operator_properties_create_ptr(&ptr, ot);
+	RNA_STRUCT_BEGIN (&ptr, prop)
+	{
+		int flag = RNA_property_flag(prop);
+		if (flag & PROP_HIDDEN) {
+			continue;
+		}
+		return false;
+	}
+	RNA_STRUCT_END;
+	return true;
+}
+
 /**
  * Sets the active region for this space from the context.
  *
@@ -1153,11 +1186,22 @@ bool WM_operator_last_properties_store(wmOperator *op)
 	if (op->properties) {
 		CLOG_INFO(WM_LOG_OPERATORS, 1, "storing properties for '%s'", op->type->idname);
 		op->type->last_properties = IDP_CopyProperty(op->properties);
-		return true;
 	}
-	else {
-		return false;
+
+	if (op->macro.first != NULL) {
+		for (wmOperator *opm = op->macro.first; opm; opm = opm->next) {
+			if (opm->properties) {
+				if (op->type->last_properties == NULL) {
+					op->type->last_properties = IDP_New(IDP_GROUP, &(IDPropertyTemplate){0}, "wmOperatorProperties");
+				}
+				IDProperty *idp_macro = IDP_CopyProperty(opm->properties);
+				STRNCPY(idp_macro->name, opm->idname);
+				IDP_ReplaceInGroup(op->type->last_properties, idp_macro);
+			}
+		}
 	}
+
+	return (op->type->last_properties != NULL);
 }
 
 #else

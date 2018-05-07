@@ -150,13 +150,10 @@ bool DRW_object_is_renderable(Object *ob)
 
 	if (ob->type == OB_MESH) {
 		if (ob == DST.draw_ctx.object_edit) {
-			IDProperty *props = BKE_layer_collection_engine_evaluated_get(ob, COLLECTION_MODE_EDIT, "");
-			bool do_show_occlude_wire = BKE_collection_engine_property_value_get_bool(props, "show_occlude_wire");
-			if (do_show_occlude_wire) {
-				return false;
-			}
-			bool do_show_weight = BKE_collection_engine_property_value_get_bool(props, "show_weight");
-			if (do_show_weight) {
+			View3D *v3d = DST.draw_ctx.v3d;
+			const int mask = (V3D_OVERLAY_EDIT_OCCLUDE_WIRE | V3D_OVERLAY_EDIT_WEIGHT);
+
+			if (v3d && v3d->overlay.edit_flag & mask) {
 				return false;
 			}
 		}
@@ -291,6 +288,57 @@ void DRW_transform_to_display(GPUTexture *tex)
 
 /** \} */
 
+
+/* -------------------------------------------------------------------- */
+
+/** \name Multisample Resolve
+ * \{ */
+
+/* Use manual multisample resolve pass.
+ * Much quicker than blitting back and forth.
+ * Assume destination fb is bound*/
+void DRW_multisamples_resolve(GPUTexture *src_depth, GPUTexture *src_color)
+{
+	drw_state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_PREMUL |
+	              DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
+
+	int samples = GPU_texture_samples(src_depth);
+
+	BLI_assert(samples > 0);
+	BLI_assert(GPU_texture_samples(src_color) == samples);
+
+	Gwn_Batch *geom = DRW_cache_fullscreen_quad_get();
+
+	int builtin;
+	switch (samples) {
+		case 2:  builtin = GPU_SHADER_2D_IMAGE_MULTISAMPLE_2; break;
+		case 4:  builtin = GPU_SHADER_2D_IMAGE_MULTISAMPLE_4; break;
+		case 8:  builtin = GPU_SHADER_2D_IMAGE_MULTISAMPLE_8; break;
+		case 16: builtin = GPU_SHADER_2D_IMAGE_MULTISAMPLE_16; break;
+		default:
+			BLI_assert(0);
+			builtin = GPU_SHADER_2D_IMAGE_MULTISAMPLE_2;
+			break;
+	}
+
+	GWN_batch_program_set_builtin(geom, builtin);
+
+	GPU_texture_bind(src_depth, 0);
+	GPU_texture_bind(src_color, 1);
+	GWN_batch_uniform_1i(geom, "depthMulti", 0);
+	GWN_batch_uniform_1i(geom, "colorMulti", 1);
+
+	float mat[4][4];
+	unit_m4(mat);
+	GWN_batch_uniform_mat4(geom, "ModelViewProjectionMatrix", mat);
+
+	/* avoid gpuMatrix calls */
+	GWN_batch_program_use_begin(geom);
+	GWN_batch_draw_range_ex(geom, 0, 0, false);
+	GWN_batch_program_use_end(geom);
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 
@@ -562,8 +610,32 @@ bool DRW_viewport_is_persp_get(void)
 	else {
 		return DST.view_data.matstate.mat[DRW_MAT_WIN][3][3] == 0.0f;
 	}
-	BLI_assert(0);
-	return false;
+}
+
+float DRW_viewport_near_distance_get(void)
+{
+	float projmat[4][4];
+	DRW_viewport_matrix_get(projmat, DRW_MAT_WIN);
+
+	if (DRW_viewport_is_persp_get()) {
+		return -projmat[3][2] / (projmat[2][2] - 1.0f);
+	}
+	else {
+		return -(projmat[3][2] + 1.0f) / projmat[2][2];
+	}
+}
+
+float DRW_viewport_far_distance_get(void)
+{
+	float projmat[4][4];
+	DRW_viewport_matrix_get(projmat, DRW_MAT_WIN);
+
+	if (DRW_viewport_is_persp_get()) {
+		return -projmat[3][2] / (projmat[2][2] + 1.0f);
+	}
+	else {
+		return -(projmat[3][2] - 1.0f) / projmat[2][2];
+	}
 }
 
 DefaultFramebufferList *DRW_viewport_framebuffer_list_get(void)
@@ -908,7 +980,7 @@ static void drw_engines_enable_external(void)
 /* TODO revisit this when proper layering is implemented */
 /* Gather all draw engines needed and store them in DST.enabled_engines
  * That also define the rendering order of engines */
-static void drw_engines_enable_from_engine(RenderEngineType *engine_type, int drawtype, int UNUSED(drawtype_lighting))
+static void drw_engines_enable_from_engine(RenderEngineType *engine_type, int drawtype)
 {
 	switch (drawtype) {
 		case OB_WIRE:
@@ -990,9 +1062,9 @@ static void drw_engines_enable_from_mode(int mode)
 	}
 }
 
-static void drw_engines_enable_from_overlays(int draw_overlays)
+static void drw_engines_enable_from_overlays(int overlay_flag)
 {
-	if (draw_overlays) {
+	if (overlay_flag) {
 		use_drw_engine(&draw_engine_overlay_type);
 	}
 }
@@ -1010,12 +1082,11 @@ static void drw_engines_enable(ViewLayer *view_layer, RenderEngineType *engine_t
 	const int mode = CTX_data_mode_enum_ex(DST.draw_ctx.object_edit, obact, DST.draw_ctx.object_mode);
 	View3D * v3d = DST.draw_ctx.v3d;
 	const int drawtype = v3d->drawtype;
-	const int drawtype_lighting = v3d->drawtype_lighting;
 
-	drw_engines_enable_from_engine(engine_type, drawtype, drawtype_lighting);
+	drw_engines_enable_from_engine(engine_type, drawtype);
 
 	if (DRW_state_draw_support()) {
-		drw_engines_enable_from_overlays(v3d->overlays);
+		drw_engines_enable_from_overlays(v3d->overlay.flag);
 		drw_engines_enable_from_object_mode();
 		drw_engines_enable_from_mode(mode);
 	}
@@ -2101,13 +2172,15 @@ static void eevee_game_view_layer_data_free()
 	DRW_UBO_FREE_SAFE(sldata->shadow_ubo);
 	DRW_UBO_FREE_SAFE(sldata->shadow_render_ubo);
 	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cube_target_fb);
+	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cube_store_fb);
 	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cascade_target_fb);
-	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_store_fb);
+	GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_cascade_store_fb);
 	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_target);
 	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_blur);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_pool);
 	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_target);
 	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_blur);
-	DRW_TEXTURE_FREE_SAFE(sldata->shadow_pool);
+	DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_pool);
 	MEM_SAFE_FREE(sldata->shcasters_buffers[0].shadow_casters);
 	MEM_SAFE_FREE(sldata->shcasters_buffers[0].flags);
 	MEM_SAFE_FREE(sldata->shcasters_buffers[1].shadow_casters);
@@ -2272,7 +2345,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam, int
 
 	DST.options.is_game_engine = true;
 
-	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, COLLECTION_MODE_NONE, RE_engine_id_BLENDER_EEVEE);
+	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, RE_engine_id_BLENDER_EEVEE);
 	int taa_samples_backup = BKE_collection_engine_property_value_get_int(props, "taa_samples");
 	BKE_collection_engine_property_value_set_int(props, "taa_samples", 0);
 

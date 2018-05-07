@@ -176,7 +176,8 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
 		}
 	}
 
-	DEG_DEBUG_PRINTF(BUILD, "\nStarting IK Build: pchan = %s, target = (%s, %s), segcount = %d\n",
+	DEG_DEBUG_PRINTF((::Depsgraph *)graph_,
+	                 BUILD, "\nStarting IK Build: pchan = %s, target = (%s, %s), segcount = %d\n",
 	                 pchan->name, data->tar->id.name, data->subtarget, data->rootbone);
 
 	bPoseChannel *parchan = pchan;
@@ -219,7 +220,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
 		root_map->add_bone(parchan->name, rootchan->name);
 
 		/* continue up chain, until we reach target number of items... */
-		DEG_DEBUG_PRINTF(BUILD, "  %d = %s\n", segcount, parchan->name);
+		DEG_DEBUG_PRINTF((::Depsgraph *)graph_, BUILD, "  %d = %s\n", segcount, parchan->name);
 		segcount++;
 		if ((segcount == data->rootbone) || (segcount > 255)) break;  /* 255 is weak */
 
@@ -316,11 +317,13 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
 	add_relation(init_ik_key, flush_key, "Pose Init IK -> Pose Cleanup");
 
 	/* Make sure pose is up-to-date with armature updates. */
-	OperationKey armature_key(&arm->id,
-	                          DEG_NODE_TYPE_PARAMETERS,
-	                          DEG_OPCODE_PLACEHOLDER,
-	                          "Armature Eval");
-	add_relation(armature_key, init_key, "Data dependency");
+	if (!built_map_.checkIsBuiltAndTag(arm)) {
+		OperationKey armature_key(&arm->id,
+		                          DEG_NODE_TYPE_PARAMETERS,
+		                          DEG_OPCODE_PLACEHOLDER,
+		                          "Armature Eval");
+		add_relation(armature_key, init_key, "Data dependency");
+	}
 
 	/* IK Solvers...
 	 * - These require separate processing steps are pose-level
