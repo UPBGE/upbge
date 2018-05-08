@@ -76,7 +76,7 @@ BLI_INLINE int clamp_float_to_int(const float f)
 		return min;
 	}
 	else if (UNLIKELY(f > max)) {
-		return max;
+		return (int)max;
 	}
 	else {
 		return (int)f;
@@ -147,29 +147,28 @@ static void view2d_masks(View2D *v2d, bool check_scrollers)
 	
 	scroll = view2d_scroll_mapped(v2d->scroll);
 	
-	/* scrollers shrink mask area, but should be based off regionsize 
+	/* scrollers are based off regionsize
 	 *	- they can only be on one to two edges of the region they define
 	 *	- if they overlap, they must not occupy the corners (which are reserved for other widgets)
 	 */
 	if (scroll) {
-		const int scroll_width = (v2d->scroll & V2D_SCROLL_SCALE_VERTICAL) ?
-		                             V2D_SCROLL_WIDTH_TEXT : V2D_SCROLL_WIDTH;
-		const int scroll_height = (v2d->scroll & V2D_SCROLL_SCALE_HORIZONTAL) ?
-		                              V2D_SCROLL_HEIGHT_TEXT : V2D_SCROLL_HEIGHT;
+		int scroll_width  = (v2d->scroll & V2D_SCROLL_SCALE_VERTICAL) ?   V2D_SCROLL_WIDTH_TEXT  : v2d->size_vert;
+		int scroll_height = (v2d->scroll & V2D_SCROLL_SCALE_HORIZONTAL) ? V2D_SCROLL_HEIGHT_TEXT : v2d->size_hor;
+
+		CLAMP_MIN(scroll_width, V2D_SCROLL_WIDTH_MIN);
+		CLAMP_MIN(scroll_height, V2D_SCROLL_HEIGHT_MIN);
 
 		/* vertical scroller */
 		if (scroll & V2D_SCROLL_LEFT) {
 			/* on left-hand edge of region */
 			v2d->vert = v2d->mask;
 			v2d->vert.xmax = scroll_width;
-			v2d->mask.xmin = v2d->vert.xmax + 1;
 		}
 		else if (scroll & V2D_SCROLL_RIGHT) {
 			/* on right-hand edge of region */
 			v2d->vert = v2d->mask;
 			v2d->vert.xmax++; /* one pixel extra... was leaving a minor gap... */
 			v2d->vert.xmin = v2d->vert.xmax - scroll_width;
-			v2d->mask.xmax = v2d->vert.xmin - 1;
 		}
 		
 		/* horizontal scroller */
@@ -177,25 +176,22 @@ static void view2d_masks(View2D *v2d, bool check_scrollers)
 			/* on bottom edge of region */
 			v2d->hor = v2d->mask;
 			v2d->hor.ymax = scroll_height;
-			v2d->mask.ymin = v2d->hor.ymax + 1;
 		}
 		else if (scroll & V2D_SCROLL_TOP) {
 			/* on upper edge of region */
 			v2d->hor = v2d->mask;
 			v2d->hor.ymin = v2d->hor.ymax - scroll_height;
-			v2d->mask.ymax = v2d->hor.ymin - 1;
 		}
 		
 		/* adjust vertical scroller if there's a horizontal scroller, to leave corner free */
 		if (scroll & V2D_SCROLL_VERTICAL) {
-			/* just set y min/max for vertical scroller to y min/max of mask as appropriate */
 			if (scroll & (V2D_SCROLL_BOTTOM)) {
 				/* on bottom edge of region */
-				v2d->vert.ymin = v2d->mask.ymin;
+				v2d->vert.ymin = v2d->hor.ymax;
 			}
 			else if (scroll & V2D_SCROLL_TOP) {
 				/* on upper edge of region */
-				v2d->vert.ymax = v2d->mask.ymax;
+				v2d->vert.ymax = v2d->hor.ymin;
 			}
 		}
 	}
@@ -361,6 +357,11 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 	
 	/* set masks (always do), but leave scroller scheck to totrect_set */
 	view2d_masks(v2d, 0);
+	
+	if (do_init) {
+		/* Visible by default. */
+		v2d->alpha_hor = v2d->alpha_vert = 255;
+	}
 	
 	/* set 'tot' rect before setting cur? */
 	/* XXX confusing stuff here still - I made this function not check scroller hide - that happens in totrect_set */
@@ -1646,11 +1647,14 @@ View2DScrollers *UI_view2d_scrollers_calc(
 	/* scrollers is allocated here... */
 	scrollers = MEM_callocN(sizeof(View2DScrollers), "View2DScrollers");
 	
+	/* Always update before drawing (for dynamically sized scrollers). */
+	view2d_masks(v2d, false);
+	
 	vert = v2d->vert;
 	hor = v2d->hor;
 	
 	/* slider rects need to be smaller than region */
-	smaller = (int)(0.2f * U.widget_unit);
+	smaller = (int)(0.1f * U.widget_unit);
 	hor.xmin += smaller;
 	hor.xmax -= smaller;
 	if (scroll & V2D_SCROLL_BOTTOM)
@@ -1809,9 +1813,11 @@ static void scroll_printstr(Scene *scene, float x, float y, float val, int power
 /* Draw scrollbars in the given 2d-region */
 void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *vs)
 {
+	bTheme *btheme = UI_GetTheme();
 	Scene *scene = CTX_data_scene(C);
 	rcti vert, hor;
-	int scroll = view2d_scroll_mapped(v2d->scroll);
+	const int scroll = view2d_scroll_mapped(v2d->scroll);
+	const char emboss_alpha = btheme->tui.widget_emboss[3];
 	unsigned char scrollers_back_color[4];
 
 	/* Color for scrollbar backs */
@@ -1823,8 +1829,8 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 	
 	/* horizontal scrollbar */
 	if (scroll & V2D_SCROLL_HORIZONTAL) {
-		bTheme *btheme = UI_GetTheme();
 		uiWidgetColors wcol = btheme->tui.wcol_scroll;
+		const float alpha_fac = v2d->alpha_hor / 255.0f;
 		rcti slider;
 		int state;
 		
@@ -1834,6 +1840,11 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		slider.ymax = hor.ymax;
 		
 		state = (v2d->scroll_ui & V2D_SCROLL_H_ACTIVE) ? UI_SCROLL_PRESSED : 0;
+		
+		wcol.inner[3]   *= alpha_fac;
+		wcol.item[3]    *= alpha_fac;
+		wcol.outline[3] *= alpha_fac;
+		btheme->tui.widget_emboss[3] *= alpha_fac; /* will be reset later */
 		
 		/* show zoom handles if:
 		 *	- zooming on x-axis is allowed (no scroll otherwise)
@@ -1848,20 +1859,7 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		{
 			state |= UI_SCROLL_ARROWS;
 		}
-		
-		/* clean rect behind slider, but not with transparent background */
-		if (scrollers_back_color[3] == 255) {
-			Gwn_VertFormat *format = immVertexFormat();
-			unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_I32, 2, GWN_FETCH_INT_TO_FLOAT);
 
-			immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-
-			immUniformColor3ubv(scrollers_back_color);
-			immRecti(pos, v2d->hor.xmin, v2d->hor.ymin, v2d->hor.xmax, v2d->hor.ymax);
-
-			immUnbindProgram();
-		}
-		
 		UI_draw_widget_scroll(&wcol, &hor, &slider, state);
 		
 		/* scale indicators */
@@ -1934,9 +1932,9 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 	
 	/* vertical scrollbar */
 	if (scroll & V2D_SCROLL_VERTICAL) {
-		bTheme *btheme = UI_GetTheme();
 		uiWidgetColors wcol = btheme->tui.wcol_scroll;
 		rcti slider;
+		const float alpha_fac = v2d->alpha_vert / 255.0f;
 		int state;
 		
 		slider.xmin = vert.xmin;
@@ -1945,6 +1943,11 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		slider.ymax = vs->vert_max;
 		
 		state = (v2d->scroll_ui & V2D_SCROLL_V_ACTIVE) ? UI_SCROLL_PRESSED : 0;
+		
+		wcol.inner[3]   *= alpha_fac;
+		wcol.item[3]    *= alpha_fac;
+		wcol.outline[3] *= alpha_fac;
+		btheme->tui.widget_emboss[3] *= alpha_fac; /* will be reset later */
 		
 		/* show zoom handles if:
 		 *	- zooming on y-axis is allowed (no scroll otherwise)
@@ -1958,19 +1961,6 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		    (BLI_rcti_size_y(&slider) > V2D_SCROLLER_HANDLE_SIZE))
 		{
 			state |= UI_SCROLL_ARROWS;
-		}
-		
-		/* clean rect behind slider, but not with transparent background */
-		if (scrollers_back_color[3] == 255) {
-			Gwn_VertFormat *format = immVertexFormat();
-			unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_I32, 2, GWN_FETCH_INT_TO_FLOAT);
-
-			immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-
-			immUniformColor3ubv(scrollers_back_color);
-			immRecti(pos, v2d->vert.xmin, v2d->vert.ymin, v2d->vert.xmax, v2d->vert.ymax);
-
-			immUnbindProgram();
 		}
 		
 		UI_draw_widget_scroll(&wcol, &vert, &slider, state);
@@ -2021,6 +2011,8 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		}
 	}
 	
+	/* Was changed above, so reset. */
+	btheme->tui.widget_emboss[3] = emboss_alpha;
 }
 
 /* free temporary memory used for drawing scrollers */
@@ -2427,9 +2419,8 @@ void UI_view2d_offset(struct View2D *v2d, float xfac, float yfac)
  * - 'v' = in vertical scroller.
  * - 0 = not in scroller.
  */
-short UI_view2d_mouse_in_scrollers(const bContext *C, View2D *v2d, int x, int y)
+short UI_view2d_mouse_in_scrollers(const ARegion *ar, View2D *v2d, int x, int y)
 {
-	ARegion *ar = CTX_wm_region(C);
 	int co[2];
 	int scroll = view2d_scroll_mapped(v2d->scroll);
 	

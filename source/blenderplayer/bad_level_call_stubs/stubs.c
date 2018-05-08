@@ -636,6 +636,9 @@ void ED_object_constraint_dependency_update(struct Main *bmain, struct Object *o
 void ED_object_constraint_dependency_tag_update(struct Main *bmain, struct Object *ob, struct bConstraint *con) RET_NONE
 void ED_object_constraint_update(struct Object *ob) RET_NONE
 void ED_object_constraint_tag_update(struct Object *ob, struct bConstraint *con) RET_NONE
+
+bool ED_object_get_active_image(struct Object *ob, int mat_nr, struct Image **r_ima, struct ImageUser **r_iuser, struct bNode **r_node, struct bNodeTree **r_ntree) RET_ZERO
+
 void ED_vgroup_vert_add(struct Object *ob, struct bDeformGroup *dg, int vertnum, float weight, int assignmode) RET_NONE
 void ED_vgroup_vert_remove(struct Object *ob, struct bDeformGroup *dg, int vertnum) RET_NONE
 float ED_vgroup_vert_weight(struct Object *ob, struct bDeformGroup *dg, int vertnum) RET_ZERO

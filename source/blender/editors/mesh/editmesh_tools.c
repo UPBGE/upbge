@@ -625,13 +625,24 @@ void MESH_OT_delete_loose(wmOperatorType *ot)
 
 static int edbm_collapse_edge_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-	if (!EDBM_op_callf(em, op, "collapse edges=%he uvs=%b", BM_ELEM_SELECT, true))
-		return OPERATOR_CANCELLED;
+		if (em->bm->totedgesel == 0) {
+			continue;
+		}
 
-	EDBM_update_generic(em, true, true);
+		if (!EDBM_op_callf(em, op, "collapse edges=%he uvs=%b", BM_ELEM_SELECT, true)) {
+			continue;
+		}
+
+		EDBM_update_generic(em, true, true);
+	}
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }
@@ -2229,12 +2240,21 @@ static void mesh_set_smooth_faces(BMEditMesh *em, short smooth)
 
 static int edbm_faces_shade_smooth_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	ViewLayer * view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object * *objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object * obedit = objects[ob_index];
+		BMEditMesh * em = BKE_editmesh_from_object(obedit);
 
-	mesh_set_smooth_faces(em, 1);
+		if (em->bm->totfacesel == 0) {
+			continue;
+		}
 
-	EDBM_update_generic(em, false, false);
+		mesh_set_smooth_faces(em, 1);
+		EDBM_update_generic(em, false, false);
+	}
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }
@@ -4746,22 +4766,32 @@ static void edbm_dissolve_prop__use_boundary_tear(wmOperatorType *ot)
 
 static int edbm_dissolve_verts_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-
 	const bool use_face_split = RNA_boolean_get(op->ptr, "use_face_split");
 	const bool use_boundary_tear = RNA_boolean_get(op->ptr, "use_boundary_tear");
 
-	if (!EDBM_op_callf(
-	            em, op,
-	            "dissolve_verts verts=%hv use_face_split=%b use_boundary_tear=%b",
-	            BM_ELEM_SELECT, use_face_split, use_boundary_tear))
-	{
-		return OPERATOR_CANCELLED;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+		if (em->bm->totvertsel == 0) {
+			continue;
+		}
+
+		if (!EDBM_op_callf(
+		            em, op,
+		            "dissolve_verts verts=%hv use_face_split=%b use_boundary_tear=%b",
+		            BM_ELEM_SELECT, use_face_split, use_boundary_tear))
+		{
+			continue;
+		}
+		EDBM_update_generic(em, true, true);
 	}
 
-	EDBM_update_generic(em, true, true);
-
+	MEM_freeN(objects);
 	return OPERATOR_FINISHED;
 }
 
@@ -4791,21 +4821,32 @@ void MESH_OT_dissolve_verts(wmOperatorType *ot)
 
 static int edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-
 	const bool use_verts = RNA_boolean_get(op->ptr, "use_verts");
 	const bool use_face_split = RNA_boolean_get(op->ptr, "use_face_split");
 
-	if (!EDBM_op_callf(
-	            em, op,
-	            "dissolve_edges edges=%he use_verts=%b use_face_split=%b",
-	            BM_ELEM_SELECT, use_verts, use_face_split))
-	{
-		return OPERATOR_CANCELLED;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+		if (em->bm->totedgesel == 0) {
+			continue;
+		}
+
+		if (!EDBM_op_callf(
+		        em, op,
+		        "dissolve_edges edges=%he use_verts=%b use_face_split=%b",
+		        BM_ELEM_SELECT, use_verts, use_face_split))
+		{
+			continue;
+		}
+
+		EDBM_update_generic(em, true, true);
 	}
 
-	EDBM_update_generic(em, true, true);
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }

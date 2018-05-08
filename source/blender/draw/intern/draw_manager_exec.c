@@ -229,6 +229,7 @@ void drw_state_set(DRWState state)
 			}
 			else {
 				glDisable(GL_BLEND);
+				glBlendFunc(GL_ONE, GL_ONE); /* Don't multiply incoming color by alpha. */
 			}
 		}
 	}
@@ -363,10 +364,10 @@ void DRW_state_lock(DRWState state)
 
 void DRW_state_reset(void)
 {
+	DRW_state_reset_ex(DRW_STATE_DEFAULT);
+
 	/* Reset blending function */
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-	DRW_state_reset_ex(DRW_STATE_DEFAULT);
 }
 
 /* NOTE : Make sure to reset after use! */

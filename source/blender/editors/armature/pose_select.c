@@ -422,6 +422,8 @@ static int pose_de_select_all_exec(bContext *C, wmOperator *op)
 			if (multipaint || (arm->flag & ARM_HAS_VIZ_DEPS)) {
 				DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 			}
+			/* need to tag armature for cow updates, or else selection doesn't update */
+			DEG_id_tag_update(&arm->id, DEG_TAG_COPY_ON_WRITE);
 			ob_prev = ob;
 		}
 	}
@@ -480,6 +482,9 @@ static int pose_select_parent_exec(bContext *C, wmOperator *UNUSED(op))
 		/* mask modifier ('armature' mode), etc. */
 		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	}
+
+	/* tag armature for copy-on-write update (since act_bone is in armature not object) */
+	DEG_id_tag_update(&arm->id, DEG_TAG_COPY_ON_WRITE);
 	
 	return OPERATOR_FINISHED;
 }
@@ -643,7 +648,10 @@ static int pose_select_hierarchy_exec(bContext *C, wmOperator *op)
 		/* mask modifier ('armature' mode), etc. */
 		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	}
-	
+
+	/* tag armature for copy-on-write update (since act_bone is in armature not object) */
+	DEG_id_tag_update(&arm->id, DEG_TAG_COPY_ON_WRITE);
+
 	return OPERATOR_FINISHED;
 }
 

@@ -203,8 +203,15 @@ struct TransformBounds {
 	float axis_min[3], axis_max[3];
 };
 
+struct TransformCalcParams {
+	uint use_only_center : 1;
+	uint use_local_axis : 1;
+	/* Use 'Scene.orientation_type' when zero, otherwise subtract one and use. */
+	ushort orientation_type;
+};
 int ED_transform_calc_manipulator_stats(
-        const struct bContext *C, bool use_only_center,
+        const struct bContext *C,
+        const struct TransformCalcParams *params,
         struct TransformBounds *tbounds);
 
 #endif  /* __ED_TRANSFORM_H__ */

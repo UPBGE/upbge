@@ -677,6 +677,7 @@ static const EnumPropertyItem *rna_3DViewShading_type_itemf(
 	int totitem = 0;
 
 	RNA_enum_items_add_value(&item, &totitem, rna_enum_shading_type_items, OB_SOLID);
+	RNA_enum_items_add_value(&item, &totitem, rna_enum_shading_type_items, OB_TEXTURE);
 
 	if (BKE_scene_uses_blender_eevee(scene)) {
 		RNA_enum_items_add_value(&item, &totitem, rna_enum_shading_type_items, OB_RENDER);
@@ -2385,6 +2386,11 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "overlay.backwire_opacity");
 	RNA_def_property_ui_text(prop, "Backwire Opacity", "Opacity when rendering transparent wires");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "transparent_bones", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "overlay.arm_flag", V3D_OVERLAY_ARM_TRANSP_BONES);
+	RNA_def_property_ui_text(prop, "Transparent Bones", "Display bones as transparent");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 }
 

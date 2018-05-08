@@ -581,7 +581,8 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
 /* centroid, boundbox, of selection */
 /* returns total items selected */
 int ED_transform_calc_manipulator_stats(
-        const bContext *C, bool use_only_center,
+        const bContext *C,
+        const struct TransformCalcParams *params,
         struct TransformBounds *tbounds)
 {
 	const Depsgraph *depsgraph = CTX_data_depsgraph(C);
@@ -615,8 +616,9 @@ int ED_transform_calc_manipulator_stats(
 	/* global, local or normal orientation?
 	 * if we could check 'totsel' now, this should be skipped with no selection. */
 	if (ob && !is_gp_edit) {
+		const short orientation_type = params->orientation_type ? (params->orientation_type - 1) : scene->orientation_type;
 
-		switch (scene->orientation_type) {
+		switch (orientation_type) {
 
 			case V3D_MANIP_GLOBAL:
 			{
@@ -686,7 +688,7 @@ int ED_transform_calc_manipulator_stats(
 	zero_v3(tbounds->center);
 
 	copy_m3_m4(tbounds->axis, rv3d->twmat);
-	if (ob && ob->mode & OB_MODE_EDIT) {
+	if (params->use_local_axis && (ob && ob->mode & OB_MODE_EDIT)) {
 		float diff_mat[3][3];
 		copy_m3_m4(diff_mat, ob_eval->obmat);
 		normalize_m3(diff_mat);
@@ -1010,7 +1012,7 @@ int ED_transform_calc_manipulator_stats(
 				ob = base->object;
 				ob_eval = base_object_eval;
 			}
-			if (use_only_center || base_object_eval->bb == NULL) {
+			if (params->use_only_center || base_object_eval->bb == NULL) {
 				calc_tw_center(tbounds, base_object_eval->obmat[3]);
 			}
 			else {
@@ -1244,7 +1246,11 @@ static int manipulator_modal(
 	struct TransformBounds tbounds;
 
 
-	if (ED_transform_calc_manipulator_stats(C, true, &tbounds)) {
+	if (ED_transform_calc_manipulator_stats(
+	            C, &(struct TransformCalcParams){
+	                .use_only_center = true,
+	            }, &tbounds))
+	{
 		manipulator_prepare_mat(C, v3d, rv3d, &tbounds);
 		WM_manipulator_set_matrix_location(widget, rv3d->twmat[3]);
 	}
@@ -1404,8 +1410,14 @@ static void WIDGETGROUP_manipulator_refresh(const bContext *C, wmManipulatorGrou
 	struct TransformBounds tbounds;
 
 	/* skip, we don't draw anything anyway */
-	if ((man->all_hidden = (ED_transform_calc_manipulator_stats(C, true, &tbounds) == 0)))
+	if ((man->all_hidden =
+	     (ED_transform_calc_manipulator_stats(
+	             C, &(struct TransformCalcParams){
+	                 .use_only_center = true,
+	             }, &tbounds) == 0)))
+	{
 		return;
+	}
 
 	manipulator_prepare_mat(C, v3d, rv3d, &tbounds);
 
@@ -1637,7 +1649,10 @@ static void WIDGETGROUP_xform_cage_refresh(const bContext *C, wmManipulatorGroup
 
 	struct TransformBounds tbounds;
 
-	if ((ED_transform_calc_manipulator_stats(C, false, &tbounds) == 0) ||
+	if ((ED_transform_calc_manipulator_stats(
+	             C, &(struct TransformCalcParams) {
+	                 .use_local_axis = true,
+	             }, &tbounds) == 0) ||
 	    equals_v3v3(rv3d->tw_axis_min, rv3d->tw_axis_max))
 	{
 		WM_manipulator_set_flag(mpr, WM_MANIPULATOR_HIDDEN, true);
