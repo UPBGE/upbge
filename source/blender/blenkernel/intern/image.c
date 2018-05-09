@@ -1209,7 +1209,6 @@ bool BKE_imtype_is_movie(const char imtype)
 		case R_IMF_IMTYPE_H264:
 		case R_IMF_IMTYPE_THEORA:
 		case R_IMF_IMTYPE_XVID:
-		case R_IMF_IMTYPE_FRAMESERVER:
 			return true;
 	}
 	return false;
@@ -1350,7 +1349,6 @@ char BKE_imtype_from_arg(const char *imtype_arg)
 	else if (STREQ(imtype_arg, "MULTILAYER")) return R_IMF_IMTYPE_MULTILAYER;
 #endif
 	else if (STREQ(imtype_arg, "FFMPEG")) return R_IMF_IMTYPE_FFMPEG;
-	else if (STREQ(imtype_arg, "FRAMESERVER")) return R_IMF_IMTYPE_FRAMESERVER;
 #ifdef WITH_CINEON
 	else if (STREQ(imtype_arg, "CINEON")) return R_IMF_IMTYPE_CINEON;
 	else if (STREQ(imtype_arg, "DPX")) return R_IMF_IMTYPE_DPX;

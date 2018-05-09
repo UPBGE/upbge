@@ -150,12 +150,9 @@ static void get_vert2geom_distance(int numVerts, float (*v_cos)[3],
 	BVHTreeFromMesh treeData_e = {NULL};
 	BVHTreeFromMesh treeData_f = {NULL};
 
-	/* XXX TODO horrible, but simpler for now, bvhtree needs some love first! */
-	DerivedMesh *target_dm = CDDM_from_mesh(target);
-
 	if (dist_v) {
 		/* Create a bvh-tree of the given target's verts. */
-		bvhtree_from_mesh_get(&treeData_v, target_dm, BVHTREE_FROM_VERTS, 2);
+		BKE_bvhtree_from_mesh_get(&treeData_v, target, BVHTREE_FROM_VERTS, 2);
 		if (treeData_v.tree == NULL) {
 			OUT_OF_MEMORY();
 			return;
@@ -163,7 +160,7 @@ static void get_vert2geom_distance(int numVerts, float (*v_cos)[3],
 	}
 	if (dist_e) {
 		/* Create a bvh-tree of the given target's edges. */
-		bvhtree_from_mesh_get(&treeData_e, target_dm, BVHTREE_FROM_EDGES, 2);
+		BKE_bvhtree_from_mesh_get(&treeData_e, target, BVHTREE_FROM_EDGES, 2);
 		if (treeData_e.tree == NULL) {
 			OUT_OF_MEMORY();
 			return;
@@ -171,7 +168,7 @@ static void get_vert2geom_distance(int numVerts, float (*v_cos)[3],
 	}
 	if (dist_f) {
 		/* Create a bvh-tree of the given target's faces. */
-		bvhtree_from_mesh_get(&treeData_f, target_dm, BVHTREE_FROM_LOOPTRI, 2);
+		BKE_bvhtree_from_mesh_get(&treeData_f, target, BVHTREE_FROM_LOOPTRI, 2);
 		if (treeData_f.tree == NULL) {
 			OUT_OF_MEMORY();
 			return;
@@ -204,8 +201,6 @@ static void get_vert2geom_distance(int numVerts, float (*v_cos)[3],
 		free_bvhtree_from_mesh(&treeData_e);
 	if (dist_f)
 		free_bvhtree_from_mesh(&treeData_f);
-
-	target_dm->release(target_dm);
 }
 
 /**
@@ -509,7 +504,7 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
 		const bool use_trgt_faces = (wmd->proximity_flags & MOD_WVG_PROXIMITY_GEOM_FACES) != 0;
 
 		if (use_trgt_verts || use_trgt_edges || use_trgt_faces) {
-			Mesh *target_mesh = get_mesh_eval_for_modifier(obr, ctx->flag);
+			Mesh *target_mesh = BKE_modifier_get_evaluated_mesh_from_object(obr, ctx->flag);
 
 			/* We must check that we do have a valid target_mesh! */
 			if (target_mesh != NULL) {

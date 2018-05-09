@@ -216,6 +216,7 @@ extern StructRNA RNA_DecimateModifier;
 extern StructRNA RNA_DelaySensor;
 extern StructRNA RNA_CorrectiveSmoothModifier;
 extern StructRNA RNA_DisplaceModifier;
+extern StructRNA RNA_SceneDisplay;
 extern StructRNA RNA_DisplaySafeAreas;
 extern StructRNA RNA_DistortedNoiseTexture;
 extern StructRNA RNA_DomainFluidSettings;
@@ -449,6 +450,7 @@ extern StructRNA RNA_NoiseTexture;
 extern StructRNA RNA_NorController;
 extern StructRNA RNA_Object;
 extern StructRNA RNA_ObjectBase;
+extern StructRNA RNA_ObjectDisplay;
 extern StructRNA RNA_ObstacleFluidSettings;
 extern StructRNA RNA_OceanModifier;
 extern StructRNA RNA_OceanTexData;
@@ -1299,7 +1301,7 @@ struct IDOverrideStaticPropertyOperation *RNA_property_override_property_operati
         PointerRNA *ptr, PropertyRNA *prop, const short operation, const int index,
         const bool strict, bool *r_strict, bool *r_created);
 
-eRNAOverrideStatus RNA_property_override_status(PointerRNA *ptr, PropertyRNA *prop, const int index);
+eRNAOverrideStatus RNA_property_static_override_status(PointerRNA *ptr, PropertyRNA *prop, const int index);
 
 void        RNA_struct_state_owner_set(const char *name);
 const char *RNA_struct_state_owner_get(void);

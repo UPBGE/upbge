@@ -1017,7 +1017,7 @@ static void view3d_main_region_listener(
 }
 
 static void view3d_main_region_message_subscribe(
-        const struct bContext *UNUSED(C),
+        const struct bContext *C,
         struct WorkSpace *workspace, struct Scene *scene,
         struct bScreen *UNUSED(screen), struct ScrArea *UNUSED(sa), struct ARegion *ar,
         struct wmMsgBus *mbus)
@@ -1082,16 +1082,27 @@ static void view3d_main_region_message_subscribe(
 		extern StructRNA RNA_ViewLayerEngineSettingsEevee;
 		WM_msg_subscribe_rna_anon_type(mbus, ViewLayerEngineSettingsEevee, &msg_sub_value_region_tag_redraw);
 	}
-	else if (STREQ(scene->r.engine, RE_engine_id_BLENDER_WORKBENCH)) {
-		extern StructRNA RNA_ViewLayerEngineSettingsWorkbench;
-		WM_msg_subscribe_rna_anon_type(mbus, ViewLayerEngineSettingsWorkbench, &msg_sub_value_region_tag_redraw);
-	}
 #ifdef WITH_CLAY_ENGINE
 	else if (STREQ(scene->r.engine, RE_engine_id_BLENDER_CLAY)) {
 		extern StructRNA RNA_ViewLayerEngineSettingsClay;
 		WM_msg_subscribe_rna_anon_type(mbus, ViewLayerEngineSettingsClay, &msg_sub_value_region_tag_redraw);
 	}
 #endif
+
+	WM_msg_subscribe_rna_anon_type(mbus, SceneDisplay, &msg_sub_value_region_tag_redraw);
+	WM_msg_subscribe_rna_anon_type(mbus, ObjectDisplay, &msg_sub_value_region_tag_redraw);
+
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	Object *obact = OBACT(view_layer);
+	if (obact != NULL) {
+		switch (obact->mode) {
+			case OB_MODE_PARTICLE_EDIT:
+				WM_msg_subscribe_rna_anon_type(mbus, ParticleEdit, &msg_sub_value_region_tag_redraw);
+				break;
+			default:
+				break;
+		}
+	}
 
 	if (workspace->tool.spacetype == SPACE_VIEW3D) {
 		wmMsgSubscribeValue msg_sub_value_region_tag_refresh = {

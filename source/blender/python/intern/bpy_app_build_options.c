@@ -45,7 +45,6 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
 	{(char *)"gameengine", NULL},
 	{(char *)"image_cineon", NULL},
 	{(char *)"image_dds", NULL},
-	{(char *)"image_frameserver", NULL},
 	{(char *)"image_hdr", NULL},
 	{(char *)"image_openexr", NULL},
 	{(char *)"image_openjpeg", NULL},
@@ -153,12 +152,6 @@ static PyObject *make_builtopts_info(void)
 #endif
 
 #ifdef WITH_DDS
-	SetObjIncref(Py_True);
-#else
-	SetObjIncref(Py_False);
-#endif
-
-#ifdef WITH_FRAMESERVER
 	SetObjIncref(Py_True);
 #else
 	SetObjIncref(Py_False);

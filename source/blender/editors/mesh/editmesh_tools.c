@@ -1096,81 +1096,96 @@ void MESH_OT_mark_sharp(wmOperatorType *ot)
 
 static int edbm_vert_connect_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMesh *bm = em->bm;
-	BMOperator bmop;
-	bool is_pair = (bm->totvertsel == 2);
-	int len = 0;
-	bool check_degenerate = true;
-	const int verts_len = bm->totvertsel;
-	BMVert **verts;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	uint failed_objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		BMesh *bm = em->bm;
+		BMOperator bmop;
+		bool is_pair = (bm->totvertsel == 2);
+		int len = 0;
+		bool check_degenerate = true;
+		const int verts_len = bm->totvertsel;
+		BMVert **verts;
+		bool checks_succeded = true;
 
-	verts = MEM_mallocN(sizeof(*verts) * verts_len, __func__);
-	{
-		BMIter iter;
-		BMVert *v;
-		int i = 0;
-
-		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-			if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-				verts[i++] = v;
-			}
+		if (!is_pair) {
+			continue;
 		}
 
+		verts = MEM_mallocN(sizeof(*verts) * verts_len, __func__);
+		{
+			BMIter iter;
+			BMVert *v;
+			int i = 0;
+
+			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+				if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+					verts[i++] = v;
+				}
+			}
+
+			if (is_pair) {
+				if (BM_vert_pair_share_face_check_cb(
+					verts[0], verts[1],
+					BM_elem_cb_check_hflag_disabled_simple(BMFace *, BM_ELEM_HIDDEN)))
+				{
+					check_degenerate = false;
+					is_pair = false;
+				}
+			}
+		}
+		
 		if (is_pair) {
-			if (BM_vert_pair_share_face_check_cb(
-			        verts[0], verts[1],
-			        BM_elem_cb_check_hflag_disabled_simple(BMFace *, BM_ELEM_HIDDEN)))
+			if (!EDBM_op_init(
+				em, &bmop, op,
+				"connect_vert_pair verts=%eb verts_exclude=%hv faces_exclude=%hf",
+				verts, verts_len, BM_ELEM_HIDDEN, BM_ELEM_HIDDEN))
 			{
-				check_degenerate = false;
-				is_pair = false;
+				checks_succeded = false;
 			}
 		}
-	}
-
-	if (is_pair) {
-		if (!EDBM_op_init(
-		            em, &bmop, op,
-		            "connect_vert_pair verts=%eb verts_exclude=%hv faces_exclude=%hf",
-		            verts, verts_len, BM_ELEM_HIDDEN, BM_ELEM_HIDDEN))
+		else {
+			if (!EDBM_op_init(
+				em, &bmop, op,
+				"connect_verts verts=%eb faces_exclude=%hf check_degenerate=%b",
+				verts, verts_len, BM_ELEM_HIDDEN, check_degenerate))
+			{
+				checks_succeded = false;
+			}
+		}
+		if (checks_succeded)
 		{
-			goto finally;
+			BMO_op_exec(bm, &bmop);
+			len = BMO_slot_get(bmop.slots_out, "edges.out")->len;
+
+			if (len) {
+				if (is_pair) {
+					/* new verts have been added, we have to select the edges, not just flush */
+					BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
+				}
+			}
+
+			if (!EDBM_op_finish(em, &bmop, op, true)) {
+				len = 0;
+			}
+			else {
+				EDBM_selectmode_flush(em);  /* so newly created edges get the selection state from the vertex */
+
+				EDBM_update_generic(em, true, true);
+			}
 		}
-	}
-	else {
-		if (!EDBM_op_init(
-		            em, &bmop, op,
-		            "connect_verts verts=%eb faces_exclude=%hf check_degenerate=%b",
-		            verts, verts_len, BM_ELEM_HIDDEN, check_degenerate))
+		MEM_freeN(verts);
+		if (len == 0)
 		{
-			goto finally;
+			failed_objects_len++;
 		}
 	}
-
-	BMO_op_exec(bm, &bmop);
-	len = BMO_slot_get(bmop.slots_out, "edges.out")->len;
-
-	if (len) {
-		if (is_pair) {
-			/* new verts have been added, we have to select the edges, not just flush */
-			BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
-		}
-	}
-
-	if (!EDBM_op_finish(em, &bmop, op, true)) {
-		len = 0;
-	}
-	else {
-		EDBM_selectmode_flush(em);  /* so newly created edges get the selection state from the vertex */
-
-		EDBM_update_generic(em, true, true);
-	}
-
-
-finally:
-	MEM_freeN(verts);
-	return len ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+	MEM_freeN(objects);
+	return failed_objects_len == objects_len ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 void MESH_OT_vert_connect(wmOperatorType *ot)
@@ -2650,43 +2665,59 @@ static int edbm_merge_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = CTX_wm_view3d(C);
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 	const int type = RNA_enum_get(op->ptr, "type");
 	const bool uvs = RNA_boolean_get(op->ptr, "uvs");
-	bool ok = false;
 
-	switch (type) {
-		case MESH_MERGE_CENTER:
-			ok = merge_target(em, scene, v3d, obedit, false, uvs, op);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+		if (em->bm->totvertsel == 0) {
+			continue;
+		}
+
+		bool ok = false;
+		switch (type) {
+			case MESH_MERGE_CENTER:
+				ok = merge_target(em, scene, v3d, obedit, false, uvs, op);
+				break;
+			case MESH_MERGE_CURSOR:
+				ok = merge_target(em, scene, v3d, obedit, true, uvs, op);
+				break;
+			case MESH_MERGE_LAST:
+				ok = merge_firstlast(em, false, uvs, op);
+				break;
+			case MESH_MERGE_FIRST:
+				ok = merge_firstlast(em, true, uvs, op);
+				break;
+			case MESH_MERGE_COLLAPSE:
+				ok = EDBM_op_callf(em, op, "collapse edges=%he uvs=%b", BM_ELEM_SELECT, uvs);
+				break;
+			default:
+				BLI_assert(0);
+				break;
+		}
+
+		if (!ok) {
+			continue;
+		}
+
+		EDBM_update_generic(em, true, true);
+
+		/* once collapsed, we can't have edge/face selection */
+		if ((em->selectmode & SCE_SELECT_VERTEX) == 0) {
+			EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+		}
+		/* Only active object supported, see comment below. */
+		if (ELEM(type, MESH_MERGE_FIRST, MESH_MERGE_LAST)) {
 			break;
-		case MESH_MERGE_CURSOR:
-			ok = merge_target(em, scene, v3d, obedit, true, uvs, op);
-			break;
-		case MESH_MERGE_LAST:
-			ok = merge_firstlast(em, false, uvs, op);
-			break;
-		case MESH_MERGE_FIRST:
-			ok = merge_firstlast(em, true, uvs, op);
-			break;
-		case MESH_MERGE_COLLAPSE:
-			ok = EDBM_op_callf(em, op, "collapse edges=%he uvs=%b", BM_ELEM_SELECT, uvs);
-			break;
-		default:
-			BLI_assert(0);
-			break;
+		}
 	}
 
-	if (!ok) {
-		return OPERATOR_CANCELLED;
-	}
-
-	EDBM_update_generic(em, true, true);
-
-	/* once collapsed, we can't have edge/face selection */
-	if ((em->selectmode & SCE_SELECT_VERTEX) == 0) {
-		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-	}
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }
@@ -2713,6 +2744,10 @@ static const EnumPropertyItem *merge_type_itemf(bContext *C, PointerRNA *UNUSED(
 	if (obedit && obedit->type == OB_MESH) {
 		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
+		/* Only active object supported:
+		 * In practice it doesn't make sense to run this operation on non-active meshes
+		 * since selecting will activate - we could have own code-path for these but it's a hassle
+		 * for now just apply to the active (first) object. */
 		if (em->selectmode & SCE_SELECT_VERTEX) {
 			if (em->bm->selected.first && em->bm->selected.last &&
 			    ((BMEditSelection *)em->bm->selected.first)->htype == BM_VERT &&
@@ -3771,38 +3806,47 @@ static int edbm_separate_exec(bContext *C, wmOperator *op)
 	int retval = 0;
 
 	if (ED_operator_editmesh(C)) {
-		Base *base = CTX_data_active_base(C);
-		BMEditMesh *em = BKE_editmesh_from_object(base->object);
+		uint bases_len = 0;
+		uint empty_selection_len = 0;
+		Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(view_layer, &bases_len);
+		for (uint bs_index = 0; bs_index < bases_len; bs_index++) {
+			Base *base = bases[bs_index];
+			BMEditMesh *em = BKE_editmesh_from_object(base->object);
 
-		if (type == 0) {
-			if ((em->bm->totvertsel == 0) &&
-			    (em->bm->totedgesel == 0) &&
-			    (em->bm->totfacesel == 0))
-			{
-				BKE_report(op->reports, RPT_ERROR, "Nothing selected");
-				return OPERATOR_CANCELLED;
+			if (type == 0) {
+				if ((em->bm->totvertsel == 0) &&
+					(em->bm->totedgesel == 0) &&
+					(em->bm->totfacesel == 0))
+				{
+					/* when all objects has no selection */
+					if (++empty_selection_len == bases_len) {
+						BKE_report(op->reports, RPT_ERROR, "Nothing selected");
+					}
+					continue;
+				}
+			}
+
+			/* editmode separate */
+			switch (type) {
+				case MESH_SEPARATE_SELECTED:
+					retval = mesh_separate_selected(bmain, scene, view_layer, base, em->bm);
+					break;
+				case MESH_SEPARATE_MATERIAL:
+					retval = mesh_separate_material(bmain, scene, view_layer, base, em->bm);
+					break;
+				case MESH_SEPARATE_LOOSE:
+					retval = mesh_separate_loose(bmain, scene, view_layer, base, em->bm);
+					break;
+				default:
+					BLI_assert(0);
+					break;
+			}
+
+			if (retval) {
+				EDBM_update_generic(em, true, true);
 			}
 		}
-
-		/* editmode separate */
-		switch (type) {
-			case MESH_SEPARATE_SELECTED:
-				retval = mesh_separate_selected(bmain, scene, view_layer, base, em->bm);
-				break;
-			case MESH_SEPARATE_MATERIAL:
-				retval = mesh_separate_material(bmain, scene, view_layer, base, em->bm);
-				break;
-			case MESH_SEPARATE_LOOSE:
-				retval = mesh_separate_loose(bmain, scene, view_layer, base, em->bm);
-				break;
-			default:
-				BLI_assert(0);
-				break;
-		}
-
-		if (retval) {
-			EDBM_update_generic(em, true, true);
-		}
+		MEM_freeN(bases);
 	}
 	else {
 		if (type == MESH_SEPARATE_SELECTED) {
@@ -4114,79 +4158,91 @@ static void edbm_fill_grid_prepare(BMesh *bm, int offset, int *r_span, bool span
 
 static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
 {
-	BMOperator bmop;
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	const bool use_smooth = edbm_add_edge_face__smooth_get(em->bm);
-	const int totedge_orig = em->bm->totedge;
-	const int totface_orig = em->bm->totface;
-	const bool use_interp_simple = RNA_boolean_get(op->ptr, "use_interp_simple");
 	const bool use_prepare = true;
+	const bool use_interp_simple = RNA_boolean_get(op->ptr, "use_interp_simple");
 
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
 
-	if (use_prepare) {
-		/* use when we have a single loop selected */
-		PropertyRNA *prop_span = RNA_struct_find_property(op->ptr, "span");
-		PropertyRNA *prop_offset = RNA_struct_find_property(op->ptr, "offset");
-		bool calc_span;
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-		const int clamp = em->bm->totvertsel;
-		int span;
-		int offset;
+		const bool use_smooth = edbm_add_edge_face__smooth_get(em->bm);
+		const int totedge_orig = em->bm->totedge;
+		const int totface_orig = em->bm->totface;
 
-		if (RNA_property_is_set(op->ptr, prop_span)) {
-			span = RNA_property_int_get(op->ptr, prop_span);
-			span = min_ii(span, (clamp / 2) - 1);
-			calc_span = false;
-		}
-		else {
-			span = clamp / 4;
-			calc_span = true;
+		if (em->bm->totedgesel == 0) {
+			continue;
 		}
 
-		offset = RNA_property_int_get(op->ptr, prop_offset);
-		offset = clamp ? mod_i(offset, clamp) : 0;
+		if (use_prepare) {
+			/* use when we have a single loop selected */
+			PropertyRNA *prop_span = RNA_struct_find_property(op->ptr, "span");
+			PropertyRNA *prop_offset = RNA_struct_find_property(op->ptr, "offset");
+			bool calc_span;
 
-		/* in simple cases, move selection for tags, but also support more advanced cases */
-		edbm_fill_grid_prepare(em->bm, offset, &span, calc_span);
+			const int clamp = em->bm->totvertsel;
+			int span;
+			int offset;
 
-		RNA_property_int_set(op->ptr, prop_span, span);
+			if (RNA_property_is_set(op->ptr, prop_span)) {
+				span = RNA_property_int_get(op->ptr, prop_span);
+				span = min_ii(span, (clamp / 2) - 1);
+				calc_span = false;
+			}
+			else {
+				span = clamp / 4;
+				calc_span = true;
+			}
+
+			offset = RNA_property_int_get(op->ptr, prop_offset);
+			offset = clamp ? mod_i(offset, clamp) : 0;
+
+			/* in simple cases, move selection for tags, but also support more advanced cases */
+			edbm_fill_grid_prepare(em->bm, offset, &span, calc_span);
+
+			RNA_property_int_set(op->ptr, prop_span, span);
+		}
+		/* end tricky prepare code */
+
+		BMOperator bmop;
+		if (!EDBM_op_init(
+			em, &bmop, op,
+			"grid_fill edges=%he mat_nr=%i use_smooth=%b use_interp_simple=%b",
+			use_prepare ? BM_ELEM_TAG : BM_ELEM_SELECT,
+			em->mat_nr, use_smooth, use_interp_simple))
+		{
+			continue;
+		}
+
+		BMO_op_exec(em->bm, &bmop);
+
+		/* NOTE: EDBM_op_finish() will change bmesh pointer inside of edit mesh,
+		 * so need to tell evaluated objects to sync new bmesh pointer to their
+		 * edit mesh structures.
+		 */
+		DEG_id_tag_update(&obedit->id, 0);
+
+		/* cancel if nothing was done */
+		if ((totedge_orig == em->bm->totedge) &&
+			(totface_orig == em->bm->totface))
+		{
+			EDBM_op_finish(em, &bmop, op, true);
+			continue;
+		}
+
+		BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+
+		if (!EDBM_op_finish(em, &bmop, op, true)) {
+			continue;
+		}
+
+		EDBM_update_generic(em, true, true);
 	}
-	/* end tricky prepare code */
 
-
-	if (!EDBM_op_init(
-	            em, &bmop, op,
-	            "grid_fill edges=%he mat_nr=%i use_smooth=%b use_interp_simple=%b",
-	            use_prepare ? BM_ELEM_TAG : BM_ELEM_SELECT,
-	            em->mat_nr, use_smooth, use_interp_simple))
-	{
-		return OPERATOR_CANCELLED;
-	}
-
-	BMO_op_exec(em->bm, &bmop);
-
-	/* NOTE: EDBM_op_finish() will change bmesh pointer inside of edit mesh,
-	 * so need to tell evaluated objects to sync new bmesh pointer to their
-	 * edit mesh structures.
-	 */
-	DEG_id_tag_update(&obedit->id, 0);
-
-	/* cancel if nothing was done */
-	if ((totedge_orig == em->bm->totedge) &&
-	    (totface_orig == em->bm->totface))
-	{
-		EDBM_op_finish(em, &bmop, op, true);
-		return OPERATOR_CANCELLED;
-	}
-
-	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
-
-	if (!EDBM_op_finish(em, &bmop, op, true)) {
-		return OPERATOR_CANCELLED;
-	}
-
-	EDBM_update_generic(em, true, true);
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }
@@ -4280,40 +4336,51 @@ void MESH_OT_fill_holes(wmOperatorType *ot)
 
 static int edbm_beautify_fill_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 
 	const float angle_max = M_PI;
 	const float angle_limit = RNA_float_get(op->ptr, "angle_limit");
 	char hflag;
 
-	if (angle_limit >= angle_max) {
-		hflag = BM_ELEM_SELECT;
-	}
-	else {
-		BMIter iter;
-		BMEdge *e;
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-		BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
-			BM_elem_flag_set(
-			        e, BM_ELEM_TAG,
-			        (BM_elem_flag_test(e, BM_ELEM_SELECT) &&
-			         BM_edge_calc_face_angle_ex(e, angle_max) < angle_limit));
-
+		if (em->bm->totfacesel == 0) {
+			continue;
 		}
 
-		hflag = BM_ELEM_TAG;
+		if (angle_limit >= angle_max) {
+			hflag = BM_ELEM_SELECT;
+		}
+		else {
+			BMIter iter;
+			BMEdge *e;
+
+			BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+				BM_elem_flag_set(
+				        e, BM_ELEM_TAG,
+				        (BM_elem_flag_test(e, BM_ELEM_SELECT) &&
+				         BM_edge_calc_face_angle_ex(e, angle_max) < angle_limit));
+
+			}
+			hflag = BM_ELEM_TAG;
+		}
+
+		if (!EDBM_op_call_and_selectf(
+		        em, op, "geom.out", true,
+		        "beautify_fill faces=%hf edges=%he",
+		        BM_ELEM_SELECT, hflag))
+		{
+			continue;
+		}
+
+		EDBM_update_generic(em, true, true);
 	}
 
-	if (!EDBM_op_call_and_selectf(
-	        em, op, "geom.out", true,
-	        "beautify_fill faces=%hf edges=%he",
-	        BM_ELEM_SELECT, hflag))
-	{
-		return OPERATOR_CANCELLED;
-	}
-
-	EDBM_update_generic(em, true, true);
+	MEM_freeN(objects);
 
 	return OPERATOR_FINISHED;
 }

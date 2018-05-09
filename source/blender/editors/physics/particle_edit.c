@@ -189,6 +189,23 @@ static float pe_brush_size_get(const Scene *UNUSED(scene), ParticleBrushData *br
 	return brush->size * U.pixelsize;
 }
 
+PTCacheEdit *PE_get_current_from_psys(ParticleSystem *psys)
+{
+	if (psys->part && psys->part->type == PART_HAIR) {
+		if ((psys->flag & PSYS_HAIR_DYNAMICS) != 0 &&
+		    (psys->pointcache->flag & PTCACHE_BAKED) != 0)
+		{
+			return psys->pointcache->edit;
+		}
+		else {
+			return psys->edit;
+		}
+	}
+	else if (psys->pointcache->flag & PTCACHE_BAKED) {
+		return psys->pointcache->edit;
+	}
+	return NULL;
+}
 
 /* always gets at least the first particlesystem even if PSYS_CURRENT flag is not set
  *
@@ -1164,6 +1181,8 @@ static void PE_update_selection(Depsgraph *depsgraph, Scene *scene, Object *ob, 
 	/* disable update flag */
 	LOOP_POINTS
 		point->flag &= ~PEP_EDIT_RECALC;
+
+	DEG_id_tag_update(&ob->id, DEG_TAG_SELECT_UPDATE);
 }
 
 void update_world_cos(Object *ob, PTCacheEdit *edit)
@@ -2628,7 +2647,7 @@ void PARTICLE_OT_remove_doubles(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_float(ot->srna, "threshold", 0.0002f, 0.0f, FLT_MAX,
-	              "Merge Distance", "Threshold distance withing which particles are removed", 0.00001f, 0.1f);
+	              "Merge Distance", "Threshold distance within which particles are removed", 0.00001f, 0.1f);
 }
 
 
@@ -4469,7 +4488,7 @@ static int particle_edit_toggle_exec(bContext *C, wmOperator *op)
 
 	// ED_workspace_object_mode_sync_from_object(wm, workspace, ob);
 
-	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	DEG_id_tag_update(&ob->id, OB_RECALC_DATA | DEG_TAG_COPY_ON_WRITE);
 
 	WM_msg_publish_rna_prop(mbus, &ob->id, ob, Object, mode);
 

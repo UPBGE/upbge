@@ -329,15 +329,12 @@ void workbench_materials_cache_init(WORKBENCH_Data *vedata)
 	WORKBENCH_PrivateData *wpd = stl->g_data;
 	DRWShadingGroup *grp;
 	const DRWContextState *draw_ctx = DRW_context_state_get();
-	ViewLayer *view_layer = draw_ctx->view_layer;
-	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, RE_engine_id_BLENDER_WORKBENCH);
 	static float shadow_multiplier = 0.0f;
-
-	const DRWContextState *DCS = DRW_context_state_get();
 
 	wpd->material_hash = BLI_ghash_ptr_new(__func__);
 
-	View3D *v3d = DCS->v3d;
+	View3D *v3d = draw_ctx->v3d;
+	Scene *scene = draw_ctx->scene;
 	if (v3d) {
 		wpd->shading = v3d->shading;
 		wpd->drawtype = v3d->drawtype;
@@ -368,7 +365,7 @@ void workbench_materials_cache_init(WORKBENCH_Data *vedata)
 		wpd->world_ubo = DRW_uniformbuffer_create(sizeof(WORKBENCH_UBO_World), NULL);
 		DRW_uniformbuffer_update(wpd->world_ubo, &wpd->world_data);
 
-		copy_v3_v3(e_data.light_direction, BKE_collection_engine_property_value_get_float_array(props, "light_direction"));
+		copy_v3_v3(e_data.light_direction, scene->display.light_direction);
 		negate_v3(e_data.light_direction);
 
 		if (SHADOW_ENABLED(wpd)) {
@@ -418,11 +415,8 @@ static WORKBENCH_MaterialData *get_or_create_material_data(WORKBENCH_Data *vedat
 	WORKBENCH_ObjectData *engine_object_data = (WORKBENCH_ObjectData *)DRW_object_engine_data_ensure(
 	        ob, &draw_engine_workbench_solid, sizeof(WORKBENCH_ObjectData), &workbench_init_object_data, NULL);
 	WORKBENCH_MaterialData material_template;
-	const DRWContextState *draw_ctx = DRW_context_state_get();
-	ViewLayer *view_layer = draw_ctx->view_layer;
-	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, RE_engine_id_BLENDER_WORKBENCH);
-	const float hsv_saturation = BKE_collection_engine_property_value_get_float(props, "random_object_color_saturation");
-	const float hsv_value = BKE_collection_engine_property_value_get_float(props, "random_object_color_value");
+	const float hsv_saturation = 0.5;
+	const float hsv_value = 0.9;
 
 	/* Solid */
 	get_material_solid_color(wpd, ob, mat, material_template.color, hsv_saturation, hsv_value);
@@ -459,30 +453,28 @@ static WORKBENCH_MaterialData *get_or_create_material_data(WORKBENCH_Data *vedat
 static void workbench_cache_populate_particles(WORKBENCH_Data *vedata, Object *ob)
 {
 	const DRWContextState *draw_ctx = DRW_context_state_get();
+	if (ob == draw_ctx->object_edit) {
+		return;
+	}
 
-	if (ob != draw_ctx->object_edit) {
-		for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
-			if (md->type == eModifierType_ParticleSystem) {
-				ParticleSystem *psys = ((ParticleSystemModifierData *)md)->psys;
+	for (ParticleSystem *psys = ob->particlesystem.first; psys != NULL; psys = psys->next) {
+		if (!psys_check_enabled(ob, psys, false)) {
+			continue;
+		}
+		ParticleSettings *part = psys->part;
+		int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
 
-				if (psys_check_enabled(ob, psys, false)) {
-					ParticleSettings *part = psys->part;
-					int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
+		if (draw_as == PART_DRAW_PATH && !psys->pathcache && !psys->childcache) {
+			draw_as = PART_DRAW_DOT;
+		}
 
-					if (draw_as == PART_DRAW_PATH && !psys->pathcache && !psys->childcache) {
-						draw_as = PART_DRAW_DOT;
-					}
+		static float mat[4][4];
+		unit_m4(mat);
 
-					static float mat[4][4];
-					unit_m4(mat);
-
-					if (draw_as == PART_DRAW_PATH) {
-						struct Gwn_Batch *geom = DRW_cache_particles_get_hair(psys, NULL);
-						WORKBENCH_MaterialData *material = get_or_create_material_data(vedata, ob, NULL, NULL, OB_SOLID);
-						DRW_shgroup_call_add(material->shgrp, geom, mat);
-					}
-				}
-			}
+		if (draw_as == PART_DRAW_PATH) {
+			struct Gwn_Batch *geom = DRW_cache_particles_get_hair(psys, NULL);
+			WORKBENCH_MaterialData *material = get_or_create_material_data(vedata, ob, NULL, NULL, OB_SOLID);
+			DRW_shgroup_call_add(material->shgrp, geom, mat);
 		}
 	}
 }
@@ -563,7 +555,7 @@ void workbench_materials_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob
 			}
 		}
 
-		if (SHADOW_ENABLED(wpd)) {
+		if (SHADOW_ENABLED(wpd) && (ob->display.flag & OB_SHOW_SHADOW) > 0) {
 			struct Gwn_Batch *geom_shadow = DRW_cache_object_surface_get(ob);
 			if (geom_shadow) {
 				DRW_shgroup_call_object_add(wpd->shadow_shgrp, geom_shadow, ob);
