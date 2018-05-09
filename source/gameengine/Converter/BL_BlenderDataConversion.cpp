@@ -47,7 +47,7 @@
  */
 
 /* TODO: Disabled for now, because of eval_ctx. */
-//#define THREADED_DAG_WORKAROUND
+#define THREADED_DAG_WORKAROUND
 
 #include <math.h>
 #include <vector>
@@ -1130,8 +1130,14 @@ static KX_GameObject *gameobject_from_blenderobject(
 	case OB_CURVE:
 	{
 		if (ob->curve_cache == nullptr) {
-			BKE_displist_make_curveTypes(blenderscene, ob, false);
+			ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
+			Depsgraph *depsgraph = BKE_scene_get_depsgraph(blenderscene, view_layer, false);
+			BKE_displist_make_curveTypes(depsgraph, blenderscene, ob, false);
 		}
+		//eevee add curves to scene.objects list
+		gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
+		// set transformation
+		break;
 	}
 #endif
 
