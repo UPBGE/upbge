@@ -268,9 +268,9 @@ void KX_GameObject::TagForUpdate()
 		DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
 
 		if (!staticObject && ELEM(ob->type, OB_MESH, OB_CURVE, OB_FONT)) {
-			if (!m_castShadows) {
+			if (m_castShadows) {
 				EEVEE_ObjectEngineData *oedata = EEVEE_object_data_ensure(ob);
-				oedata->need_update = false;
+				oedata->need_update = true;
 			}
 		}
 	}
