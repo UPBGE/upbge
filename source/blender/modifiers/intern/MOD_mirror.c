@@ -60,15 +60,6 @@ static void initData(ModifierData *md)
 	mmd->mirror_ob = NULL;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	MirrorModifierData *mmd = (MirrorModifierData *) md;
-	MirrorModifierData *tmmd = (MirrorModifierData *) target;
-#endif
-	modifier_copyData_generic(md, target);
-}
-
 static void foreachObjectLink(
         ModifierData *md, Object *ob,
         ObjectWalkFunc walk, void *userData)
@@ -133,7 +124,8 @@ static Mesh *doMirrorOnAxis(MirrorModifierData *mmd,
 		mul_m4_m4m4(mtx, itmp, mtx);
 	}
 
-	result = BKE_mesh_from_template(mesh, maxVerts * 2, maxEdges * 2, 0, maxLoops * 2, maxPolys * 2);
+	result = BKE_mesh_new_nomain_from_template(
+	        mesh, maxVerts * 2, maxEdges * 2, 0, maxLoops * 2, maxPolys * 2);
 
 	/*copy customdata to original geometry*/
 	CustomData_copy_data(&mesh->vdata, &result->vdata, 0, 0, maxVerts);
@@ -357,7 +349,7 @@ ModifierTypeInfo modifierType_Mirror = {
 	                        /* this is only the case when 'MOD_MIR_VGROUP' is used */
 	                        eModifierTypeFlag_UsesPreview,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 
 	/* deformVerts_DM */    NULL,
 	/* deformMatrices_DM */ NULL,

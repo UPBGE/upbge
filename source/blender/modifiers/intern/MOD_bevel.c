@@ -65,15 +65,6 @@ static void initData(ModifierData *md)
 	bmd->defgrp_name[0] = '\0';
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	BevelModifierData *bmd = (BevelModifierData *) md;
-	BevelModifierData *tbmd = (BevelModifierData *) target;
-#endif
-	modifier_copyData_generic(md, target);
-}
-
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
 	BevelModifierData *bmd = (BevelModifierData *)md;
@@ -177,7 +168,7 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
 	              vertex_only, bmd->lim_flags & MOD_BEVEL_WEIGHT, do_clamp,
 	              dvert, vgroup, mat, loop_slide);
 
-	result = BKE_bmesh_to_mesh(bm, &(struct BMeshToMeshParams){0});
+	result = BKE_bmesh_to_mesh_nomain(bm, &(struct BMeshToMeshParams){0});
 
 	BLI_assert(bm->vtoolflagpool == NULL &&
 	           bm->etoolflagpool == NULL &&
@@ -203,7 +194,7 @@ ModifierTypeInfo modifierType_Bevel = {
 	                        eModifierTypeFlag_SupportsEditmode |
 	                        eModifierTypeFlag_EnableInEditmode,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 
 	/* deformVerts_DM */    NULL,
 	/* deformMatrices_DM */ NULL,

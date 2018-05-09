@@ -321,7 +321,6 @@ void RE_BlenderFrame(struct Render *re, struct Main *bmain, struct Scene *scene,
 bool RE_WriteEnvmapResult(struct ReportList *reports, struct Scene *scene, struct EnvMap *env, const char *relpath, const char imtype, float layout[12]) RET_ZERO
 
 /* rna */
-float *ED_view3d_cursor3d_get(struct Scene *scene, struct View3D *v3d) RET_NULL
 void WM_menutype_free(void) RET_NONE
 void WM_menutype_freelink(struct MenuType *mt) RET_NONE
 bool WM_menutype_add(struct MenuType *mt) RET_ZERO
@@ -575,6 +574,9 @@ void ED_view3d_draw_bgpic_test(struct Scene *scene, const struct Depsgraph *deps
 	const bool do_foreground, const bool do_camera_frame) RET_NONE
 struct wmWindow *ED_screen_window_find(const struct bScreen *screen, const struct wmWindowManager *wm) RET_NULL
 struct Scene *ED_screen_scene_find_with_window(const struct bScreen *screen, const struct wmWindowManager *wm, struct wmWindow **r_window) RET_NULL
+
+struct View3DCursor *ED_view3d_cursor3d_get(struct Scene *scene, struct View3D *v3d) RET_NULL
+float ED_view3d_pixel_size(const struct RegionView3D *rv3d, const float co[3]) RET_ZERO
 
 struct RenderEngineType *ED_view3d_engine_type(struct Scene *scene, int drawtype) RET_NULL
 void ED_view3d_update_viewmat(const struct EvaluationContext *eval_ctx, struct Scene *scene, struct View3D *v3d, struct ARegion *ar, float viewmat[4][4], float winmat[4][4], const struct rcti *rect) RET_NONE

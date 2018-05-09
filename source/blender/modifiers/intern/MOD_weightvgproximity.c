@@ -41,6 +41,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_curve.h"
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
 #include "BKE_library.h"
@@ -295,16 +296,6 @@ static void initData(ModifierData *md)
 	wmd->max_dist             = 1.0f; /* vert arbitrary distance, but don't use 0 */
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	WeightVGProximityModifierData *wmd  = (WeightVGProximityModifierData *) md;
-	WeightVGProximityModifierData *twmd = (WeightVGProximityModifierData *) target;
-#endif
-
-	modifier_copyData_generic(md, target);
-}
-
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
 	WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *) md;
@@ -380,6 +371,8 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 
 static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
+	BLI_assert(mesh != NULL);
+
 	WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *) md;
 	MDeformVert *dvert = NULL;
 	MDeformWeight **dw, **tdw;
@@ -433,12 +426,12 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
 
 	Mesh *result;
 	BKE_id_copy_ex(
-	            NULL, &mesh->id, (ID **)&result,
-	            LIB_ID_CREATE_NO_MAIN |
-	            LIB_ID_CREATE_NO_USER_REFCOUNT |
-	            LIB_ID_CREATE_NO_DEG_TAG|
-	            LIB_ID_COPY_NO_PREVIEW,
-	            false);
+	        NULL, &mesh->id, (ID **)&result,
+	        LIB_ID_CREATE_NO_MAIN |
+	        LIB_ID_CREATE_NO_USER_REFCOUNT |
+	        LIB_ID_CREATE_NO_DEG_TAG |
+	        LIB_ID_COPY_NO_PREVIEW,
+	        false);
 
 	if (has_mdef) {
 		dvert = CustomData_get_layer(&result->vdata, CD_MDEFORMVERT);
@@ -519,7 +512,7 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
 			Mesh *target_mesh = get_mesh_eval_for_modifier(obr, ctx->flag);
 
 			/* We must check that we do have a valid target_mesh! */
-			if (target_mesh) {
+			if (target_mesh != NULL) {
 				SpaceTransform loc2trgt;
 				float *dists_v = use_trgt_verts ? MEM_malloc_arrayN(numIdx, sizeof(float), "dists_v") : NULL;
 				float *dists_e = use_trgt_edges ? MEM_malloc_arrayN(numIdx, sizeof(float), "dists_e") : NULL;
@@ -594,7 +587,7 @@ ModifierTypeInfo modifierType_WeightVGProximity = {
 	                        eModifierTypeFlag_SupportsEditmode |
 	                        eModifierTypeFlag_UsesPreview,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 
 	/* deformVerts_DM */    NULL,
 	/* deformMatrices_DM */ NULL,

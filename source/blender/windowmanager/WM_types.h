@@ -635,26 +635,6 @@ typedef struct wmIMEData {
 
 typedef void (*wmPaintCursorDraw)(struct bContext *C, int, int, void *customdata);
 
-
-/* ****************** Messages ********************* */
-
-enum {
-	WM_LOG_DEBUG				= 0,
-	WM_LOG_INFO					= 1000,
-	WM_LOG_WARNING				= 2000,
-	WM_ERROR_UNDEFINED			= 3000,
-	WM_ERROR_INVALID_INPUT		= 3001,
-	WM_ERROR_INVALID_CONTEXT	= 3002,
-	WM_ERROR_OUT_OF_MEMORY		= 3003
-};
-
-typedef struct wmReport {
-	struct wmReport *next, *prev;
-	const char *typestr;
-	char *message;
-	int type;
-} wmReport;
-
 /* *************** Drag and drop *************** */
 
 #define WM_DRAG_ID		0
@@ -740,6 +720,8 @@ extern struct CLG_LogRef *WM_LOG_HANDLERS;
 extern struct CLG_LogRef *WM_LOG_EVENTS;
 extern struct CLG_LogRef *WM_LOG_KEYMAPS;
 extern struct CLG_LogRef *WM_LOG_TOOLS;
+extern struct CLG_LogRef *WM_LOG_MSGBUS_PUB;
+extern struct CLG_LogRef *WM_LOG_MSGBUS_SUB;
 
 
 #ifdef __cplusplus

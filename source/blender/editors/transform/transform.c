@@ -2257,6 +2257,36 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		}
 	}
 
+	/* Transformation axis from operator */
+	if ((prop = RNA_struct_find_property(op->ptr, "axis")) && RNA_property_is_set(op->ptr, prop)) {
+		RNA_property_float_get_array(op->ptr, prop, t->axis);
+		normalize_v3(t->axis);
+		copy_v3_v3(t->axis_orig, t->axis);
+	}
+
+	/* Constraint init from operator */
+	if ((prop = RNA_struct_find_property(op->ptr, "constraint_axis")) && RNA_property_is_set(op->ptr, prop)) {
+		int constraint_axis[3];
+
+		RNA_property_boolean_get_array(op->ptr, prop, constraint_axis);
+
+		if (constraint_axis[0] || constraint_axis[1] || constraint_axis[2]) {
+			t->con.mode |= CON_APPLY;
+
+			if (constraint_axis[0]) {
+				t->con.mode |= CON_AXIS0;
+			}
+			if (constraint_axis[1]) {
+				t->con.mode |= CON_AXIS1;
+			}
+			if (constraint_axis[2]) {
+				t->con.mode |= CON_AXIS2;
+			}
+
+			setUserConstraint(t, t->current_orientation, t->con.mode, "%s");
+		}
+	}
+
 	if (event) {
 		/* Initialize accurate transform to settings requested by keymap. */
 		bool use_accurate = false;
@@ -2403,36 +2433,6 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	if (t->state == TRANS_CANCEL) {
 		postTrans(C, t);
 		return 0;
-	}
-
-	/* Transformation axis from operator */
-	if ((prop = RNA_struct_find_property(op->ptr, "axis")) && RNA_property_is_set(op->ptr, prop)) {
-		RNA_property_float_get_array(op->ptr, prop, t->axis);
-		normalize_v3(t->axis);
-		copy_v3_v3(t->axis_orig, t->axis);
-	}
-
-	/* Constraint init from operator */
-	if ((prop = RNA_struct_find_property(op->ptr, "constraint_axis")) && RNA_property_is_set(op->ptr, prop)) {
-		int constraint_axis[3];
-
-		RNA_property_boolean_get_array(op->ptr, prop, constraint_axis);
-
-		if (constraint_axis[0] || constraint_axis[1] || constraint_axis[2]) {
-			t->con.mode |= CON_APPLY;
-
-			if (constraint_axis[0]) {
-				t->con.mode |= CON_AXIS0;
-			}
-			if (constraint_axis[1]) {
-				t->con.mode |= CON_AXIS1;
-			}
-			if (constraint_axis[2]) {
-				t->con.mode |= CON_AXIS2;
-			}
-
-			setUserConstraint(t, t->current_orientation, t->con.mode, "%s");
-		}
 	}
 
 	t->context = NULL;
@@ -2953,7 +2953,7 @@ static void initBend(TransInfo *t)
 
 	data = MEM_callocN(sizeof(*data), __func__);
 
-	curs = ED_view3d_cursor3d_get(t->scene, t->view);
+	curs = ED_view3d_cursor3d_get(t->scene, t->view)->location;
 	copy_v3_v3(data->warp_sta, curs);
 	ED_view3d_win_to_3d(t->sa->spacedata.first, t->ar, curs, mval_fl, data->warp_end);
 

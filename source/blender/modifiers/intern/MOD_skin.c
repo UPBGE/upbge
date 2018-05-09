@@ -853,10 +853,11 @@ static Mesh *subdivide_base(Mesh *orig)
 	MEM_freeN(degree);
 
 	/* Allocate output derivedmesh */
-	result = BKE_mesh_from_template(orig,
-	                                totorigvert + totsubd,
-	                                totorigedge + totsubd,
-	                                0, 0, 0);
+	result = BKE_mesh_new_nomain_from_template(
+	        orig,
+	        totorigvert + totsubd,
+	        totorigedge + totsubd,
+	        0, 0, 0);
 
 	outvert = result->mvert;
 	outedge = result->medge;
@@ -1865,7 +1866,7 @@ static Mesh *base_skin(Mesh *origmesh,
 	if (!bm)
 		return NULL;
 
-	result = BKE_bmesh_to_mesh(bm, &(struct BMeshToMeshParams){0});
+	result = BKE_bmesh_to_mesh_nomain(bm, &(struct BMeshToMeshParams){0});
 	BM_mesh_free(bm);
 
 	result->runtime.cd_dirty_vert |= CD_MASK_NORMAL;
@@ -1905,15 +1906,6 @@ static void initData(ModifierData *md)
 	smd->symmetry_axes = MOD_SKIN_SYMM_X;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	SkinModifierData *smd = (SkinModifierData *) md;
-	SkinModifierData *tsmd = (SkinModifierData *) target;
-#endif
-	modifier_copyData_generic(md, target);
-}
-
 static Mesh *applyModifier(ModifierData *md,
                            const ModifierEvalContext *UNUSED(ctx),
                            Mesh *mesh)
@@ -1938,7 +1930,7 @@ ModifierTypeInfo modifierType_Skin = {
 	/* type */              eModifierTypeType_Constructive,
 	/* flags */             eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 
 	/* deformVerts_DM */    NULL,
 	/* deformMatrices_DM */ NULL,

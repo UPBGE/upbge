@@ -64,10 +64,10 @@ static void initData(ModifierData *md)
 	amd->deformflag = ARM_DEF_VGROUP;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
 #if 0
-	ArmatureModifierData *amd = (ArmatureModifierData *) md;
+	const ArmatureModifierData *amd = (const ArmatureModifierData *) md;
 #endif
 	ArmatureModifierData *tamd = (ArmatureModifierData *) target;
 
@@ -138,7 +138,7 @@ static void deformVertsEM(
 	Mesh *mesh_src = mesh;
 
 	if (!mesh) {
-		mesh_src = BKE_bmesh_to_mesh(em->bm, &(struct BMeshToMeshParams){0});
+		mesh_src = BKE_bmesh_to_mesh_nomain(em->bm, &(struct BMeshToMeshParams){0});
 	}
 
 	modifier_vgroup_cache(md, vertexCos); /* if next modifier needs original vertices */
@@ -166,7 +166,7 @@ static void deformMatricesEM(
 	Mesh *mesh_src = mesh;
 
 	if (!mesh) {
-		mesh_src = BKE_bmesh_to_mesh(em->bm, &(struct BMeshToMeshParams){0});
+		mesh_src = BKE_bmesh_to_mesh_nomain(em->bm, &(struct BMeshToMeshParams){0});
 	}
 
 	armature_deform_verts(amd->object, ctx->object, mesh_src, vertexCos, defMats, numVerts,

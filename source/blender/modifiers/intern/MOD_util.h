@@ -48,12 +48,15 @@ void get_texture_coords_mesh(
         struct MappingInfoModifierData *dmd,
         struct Object *ob,
         struct Mesh *mesh,
+        float (*cos)[3],
         float (*r_texco)[3]);
 void modifier_vgroup_cache(struct ModifierData *md, float (*vertexCos)[3]);
 struct DerivedMesh *get_cddm(struct Object *ob, struct BMEditMesh *em, struct DerivedMesh *dm,
                              float (*vertexCos)[3], bool use_normals);
 struct DerivedMesh *get_dm(struct Object *ob, struct BMEditMesh *em, struct DerivedMesh *dm,
                            float (*vertexCos)[3], bool use_normals, bool use_orco);
+struct Mesh *get_mesh(struct Object *ob, struct BMEditMesh *em, struct Mesh *mesh,
+                      float (*vertexCos)[3], bool use_normals, bool use_orco);
 struct DerivedMesh *get_dm_for_modifier(struct Object *ob, ModifierApplyFlag flag);
 struct Mesh *get_mesh_eval_for_modifier(struct Object *ob, ModifierApplyFlag flag);
 

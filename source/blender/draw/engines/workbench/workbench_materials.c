@@ -96,7 +96,7 @@ static char *workbench_build_defines(WORKBENCH_PrivateData *wpd, int drawtype)
 	if (wpd->shading.light & V3D_LIGHTING_STUDIO) {
 		BLI_dynstr_appendf(ds, "#define V3D_LIGHTING_STUDIO\n");
 	}
-	switch(drawtype) {
+	switch (drawtype) {
 		case OB_SOLID:
 			BLI_dynstr_appendf(ds, "#define OB_SOLID\n");
 			break;
@@ -165,7 +165,8 @@ static int get_shader_index(WORKBENCH_PrivateData *wpd, int drawtype)
 	return index;
 }
 
-static void ensure_deferred_shaders(WORKBENCH_PrivateData *wpd, int index, int drawtype) {
+static void ensure_deferred_shaders(WORKBENCH_PrivateData *wpd, int index, int drawtype)
+{
 	if (e_data.prepass_sh_cache[index] == NULL) {
 		char *defines = workbench_build_defines(wpd, drawtype);
 		char *composite_frag = workbench_build_composite_frag(wpd);
@@ -408,7 +409,7 @@ void workbench_materials_cache_init(WORKBENCH_Data *vedata)
 		}
 	}
 }
-static WORKBENCH_MaterialData *get_or_create_material_data(WORKBENCH_Data *vedata, IDProperty *props, Object *ob, Material *mat, Image *ima, int drawtype)
+static WORKBENCH_MaterialData *get_or_create_material_data(WORKBENCH_Data *vedata, Object *ob, Material *mat, Image *ima, int drawtype)
 {
 	WORKBENCH_StorageList *stl = vedata->stl;
 	WORKBENCH_PassList *psl = vedata->psl;
@@ -417,6 +418,9 @@ static WORKBENCH_MaterialData *get_or_create_material_data(WORKBENCH_Data *vedat
 	WORKBENCH_ObjectData *engine_object_data = (WORKBENCH_ObjectData *)DRW_object_engine_data_ensure(
 	        ob, &draw_engine_workbench_solid, sizeof(WORKBENCH_ObjectData), &workbench_init_object_data, NULL);
 	WORKBENCH_MaterialData material_template;
+	const DRWContextState *draw_ctx = DRW_context_state_get();
+	ViewLayer *view_layer = draw_ctx->view_layer;
+	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, RE_engine_id_BLENDER_WORKBENCH);
 	const float hsv_saturation = BKE_collection_engine_property_value_get_float(props, "random_object_color_saturation");
 	const float hsv_value = BKE_collection_engine_property_value_get_float(props, "random_object_color_value");
 
@@ -434,7 +438,7 @@ static WORKBENCH_MaterialData *get_or_create_material_data(WORKBENCH_Data *vedat
 		DRW_shgroup_stencil_mask(material->shgrp, 0xFF);
 		material->object_id = engine_object_data->object_id;
 		copy_v3_v3(material->color, material_template.color);
-		switch(drawtype) {
+		switch (drawtype) {
 			case OB_SOLID:
 				DRW_shgroup_uniform_vec3(material->shgrp, "object_color", material->color, 1);
 				break;
@@ -452,7 +456,7 @@ static WORKBENCH_MaterialData *get_or_create_material_data(WORKBENCH_Data *vedat
 	return material;
 }
 
-static void workbench_cache_populate_particles(WORKBENCH_Data *vedata, IDProperty *props, Object *ob)
+static void workbench_cache_populate_particles(WORKBENCH_Data *vedata, Object *ob)
 {
 	const DRWContextState *draw_ctx = DRW_context_state_get();
 
@@ -474,7 +478,7 @@ static void workbench_cache_populate_particles(WORKBENCH_Data *vedata, IDPropert
 
 					if (draw_as == PART_DRAW_PATH) {
 						struct Gwn_Batch *geom = DRW_cache_particles_get_hair(psys, NULL);
-						WORKBENCH_MaterialData *material = get_or_create_material_data(vedata, props, ob, NULL, NULL, OB_SOLID);
+						WORKBENCH_MaterialData *material = get_or_create_material_data(vedata, ob, NULL, NULL, OB_SOLID);
 						DRW_shgroup_call_add(material->shgrp, geom, mat);
 					}
 				}
@@ -491,9 +495,8 @@ void workbench_materials_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob
 	if (!DRW_object_is_renderable(ob))
 		return;
 
-	IDProperty *props = BKE_layer_collection_engine_evaluated_get(ob, RE_engine_id_BLENDER_WORKBENCH);
 	if (ob->type == OB_MESH) {
-		workbench_cache_populate_particles(vedata, props, ob);
+		workbench_cache_populate_particles(vedata, ob);
 	}
 
 	WORKBENCH_MaterialData *material;
@@ -501,15 +504,14 @@ void workbench_materials_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob
 		const DRWContextState *draw_ctx = DRW_context_state_get();
 		const bool is_active = (ob == draw_ctx->obact);
 		const bool is_sculpt_mode = is_active && (draw_ctx->object_mode & OB_MODE_SCULPT) != 0;
+		const bool is_edit_mode = is_active && (draw_ctx->object_mode & OB_MODE_EDIT) != 0;
 		bool is_drawn = false;
-
-		if (!is_sculpt_mode && wpd->drawtype == OB_TEXTURE && ob->type == OB_MESH)
-		{
+		if (!is_edit_mode && !is_sculpt_mode && wpd->drawtype == OB_TEXTURE && ob->type == OB_MESH) {
 			const Mesh *me = ob->data;
 			if (me->mloopuv) {
-				struct Gwn_Batch **geom_array = me->totcol ? DRW_cache_mesh_surface_texpaint_get(ob) : NULL;
 				const int materials_len = MAX2(1, (is_sculpt_mode ? 1 : ob->totcol));
 				struct GPUMaterial **gpumat_array = BLI_array_alloca(gpumat_array, materials_len);
+				struct Gwn_Batch **geom_array = me->totcol ? DRW_cache_mesh_surface_texpaint_get(ob) : NULL;
 				if (materials_len > 0 && geom_array) {
 					for (int i = 0; i < materials_len; i++) {
 						Material *mat = give_current_material(ob, i + 1);
@@ -520,8 +522,8 @@ void workbench_materials_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob
 						if (image) {
 							mat_drawtype = OB_TEXTURE;
 						}
-						material = get_or_create_material_data(vedata, props, ob, mat, image, mat_drawtype);
-						DRW_shgroup_call_add(material->shgrp, geom_array[i], ob->obmat);
+						material = get_or_create_material_data(vedata, ob, mat, image, mat_drawtype);
+						DRW_shgroup_call_object_add(material->shgrp, geom_array[i], ob);
 					}
 					is_drawn = true;
 				}
@@ -534,7 +536,7 @@ void workbench_materials_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob
 				/* No material split needed */
 				struct Gwn_Batch *geom = DRW_cache_object_surface_get(ob);
 				if (geom) {
-					material = get_or_create_material_data(vedata, props, ob, NULL, NULL, OB_SOLID);
+					material = get_or_create_material_data(vedata, ob, NULL, NULL, OB_SOLID);
 					if (is_sculpt_mode) {
 						DRW_shgroup_call_sculpt_add(material->shgrp, ob, ob->obmat);
 					}
@@ -554,7 +556,7 @@ void workbench_materials_solid_cache_populate(WORKBENCH_Data *vedata, Object *ob
 				if (mat_geom) {
 					for (int i = 0; i < materials_len; ++i) {
 						Material *mat = give_current_material(ob, i + 1);
-						material = get_or_create_material_data(vedata, props, ob, mat, NULL, OB_SOLID);
+						material = get_or_create_material_data(vedata, ob, mat, NULL, OB_SOLID);
 						DRW_shgroup_call_object_add(material->shgrp, mat_geom[i], ob);
 					}
 				}

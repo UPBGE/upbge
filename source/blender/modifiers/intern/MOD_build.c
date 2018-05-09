@@ -52,27 +52,12 @@
 #include "BKE_particle.h"
 #include "BKE_scene.h"
 
-
-
-#ifdef _OPENMP
-#  include "BKE_mesh.h"  /* BKE_MESH_OMP_LIMIT */
-#endif
-
 static void initData(ModifierData *md)
 {
 	BuildModifierData *bmd = (BuildModifierData *) md;
 
 	bmd->start = 1.0;
 	bmd->length = 100.0;
-}
-
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	BuildModifierData *bmd = (BuildModifierData *) md;
-	BuildModifierData *tbmd = (BuildModifierData *) target;
-#endif
-	modifier_copyData_generic(md, target);
 }
 
 static bool dependsOnTime(ModifierData *UNUSED(md))
@@ -232,8 +217,9 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx,
 	}
 
 	/* now we know the number of verts, edges and faces, we can create the mesh. */
-	result = BKE_mesh_from_template(mesh, BLI_ghash_len(vertHash), BLI_ghash_len(edgeHash),
-	                                0, numLoops_dst, numFaces_dst);
+	result = BKE_mesh_new_nomain_from_template(
+	        mesh, BLI_ghash_len(vertHash), BLI_ghash_len(edgeHash),
+	        0, numLoops_dst, numFaces_dst);
 
 	/* copy the vertices across */
 	GHASH_ITER (gh_iter, vertHash) {
@@ -313,7 +299,8 @@ ModifierTypeInfo modifierType_Build = {
 	/* type */              eModifierTypeType_Nonconstructive,
 	/* flags */             eModifierTypeFlag_AcceptsMesh |
 	                        eModifierTypeFlag_AcceptsCVs,
-	/* copyData */          copyData,
+
+	/* copyData */          modifier_copyData_generic,
 
 	/* deformVerts_DM */    NULL,
 	/* deformMatrices_DM */ NULL,

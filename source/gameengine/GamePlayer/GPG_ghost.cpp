@@ -634,35 +634,6 @@ static bool quitGame(KX_ExitRequest exitcode)
 //
 //#endif  // WITH_GAMEENGINE_BPPLAYER
 
-static void idproperty_reset(IDProperty **props, IDProperty *props_ref)
-{
-	IDPropertyTemplate val = { 0 };
-
-	if (*props) {
-		IDP_FreeProperty(*props);
-		MEM_freeN(*props);
-	}
-	*props = IDP_New(IDP_GROUP, &val, ROOT_PROP);
-
-	if (props_ref) {
-		IDP_MergeGroup(*props, props_ref, true);
-	}
-}
-
-static void InitProperties(ViewLayer *view_layer, Scene *scene)
-{
-	for (Base *base = (Base *)view_layer->object_bases.first; base != NULL; base = base->next) {
-		idproperty_reset(&base->collection_properties, scene ? scene->collection_properties : NULL);
-	}
-
-	/* Sync properties from scene to scene layer. */
-	idproperty_reset(&view_layer->properties_evaluated, scene ? scene->layer_properties : NULL);
-	IDP_MergeGroup(view_layer->properties_evaluated, view_layer->properties, true);
-
-	/* TODO(sergey): Is it always required? */
-	view_layer->flag |= VIEW_LAYER_ENGINE_DIRTY;
-}
-
 int main(
 	int argc,
 #ifdef WIN32

@@ -124,21 +124,18 @@ static void freeData(ModifierData *md)
 					MEM_SAFE_FREE(smd->verts[i].binds[j].vert_weights);
 				}
 
-				MEM_freeN(smd->verts[i].binds);
+				MEM_SAFE_FREE(smd->verts[i].binds);
 			}
 		}
 
-		MEM_freeN(smd->verts);
-		smd->verts = NULL;
+		MEM_SAFE_FREE(smd->verts);
 	}
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
-	SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
+	const SurfaceDeformModifierData *smd = (const SurfaceDeformModifierData *)md;
 	SurfaceDeformModifierData *tsmd = (SurfaceDeformModifierData *)target;
-
-	freeData(target);
 
 	modifier_copyData_generic(md, target);
 

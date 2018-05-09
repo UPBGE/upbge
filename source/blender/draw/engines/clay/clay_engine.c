@@ -273,34 +273,7 @@ static struct GPUTexture *load_matcaps(PreviewImage *prv[24], int nbr)
 
 static int matcap_to_index(int matcap)
 {
-	switch (matcap) {
-		case ICON_MATCAP_01: return 0;
-		case ICON_MATCAP_02: return 1;
-		case ICON_MATCAP_03: return 2;
-		case ICON_MATCAP_04: return 3;
-		case ICON_MATCAP_05: return 4;
-		case ICON_MATCAP_06: return 5;
-		case ICON_MATCAP_07: return 6;
-		case ICON_MATCAP_08: return 7;
-		case ICON_MATCAP_09: return 8;
-		case ICON_MATCAP_10: return 9;
-		case ICON_MATCAP_11: return 10;
-		case ICON_MATCAP_12: return 11;
-		case ICON_MATCAP_13: return 12;
-		case ICON_MATCAP_14: return 13;
-		case ICON_MATCAP_15: return 14;
-		case ICON_MATCAP_16: return 15;
-		case ICON_MATCAP_17: return 16;
-		case ICON_MATCAP_18: return 17;
-		case ICON_MATCAP_19: return 18;
-		case ICON_MATCAP_20: return 19;
-		case ICON_MATCAP_21: return 20;
-		case ICON_MATCAP_22: return 21;
-		case ICON_MATCAP_23: return 22;
-		case ICON_MATCAP_24: return 23;
-	}
-	BLI_assert(!"Should not happen");
-	return 0;
+	return (int)matcap - (int)ICON_MATCAP_01;
 }
 
 /* Using Hammersley distribution */
@@ -357,34 +330,14 @@ static void clay_engine_init(void *vedata)
 	/* Create Texture Array */
 	if (!e_data.matcap_array) {
 		PreviewImage *prv[24]; /* For now use all of the 24 internal matcaps */
+		const int num_matcap = ARRAY_SIZE(prv);
 
 		/* TODO only load used matcaps */
-		prv[0]  = UI_icon_to_preview(ICON_MATCAP_01);
-		prv[1]  = UI_icon_to_preview(ICON_MATCAP_02);
-		prv[2]  = UI_icon_to_preview(ICON_MATCAP_03);
-		prv[3]  = UI_icon_to_preview(ICON_MATCAP_04);
-		prv[4]  = UI_icon_to_preview(ICON_MATCAP_05);
-		prv[5]  = UI_icon_to_preview(ICON_MATCAP_06);
-		prv[6]  = UI_icon_to_preview(ICON_MATCAP_07);
-		prv[7]  = UI_icon_to_preview(ICON_MATCAP_08);
-		prv[8]  = UI_icon_to_preview(ICON_MATCAP_09);
-		prv[9]  = UI_icon_to_preview(ICON_MATCAP_10);
-		prv[10] = UI_icon_to_preview(ICON_MATCAP_11);
-		prv[11] = UI_icon_to_preview(ICON_MATCAP_12);
-		prv[12] = UI_icon_to_preview(ICON_MATCAP_13);
-		prv[13] = UI_icon_to_preview(ICON_MATCAP_14);
-		prv[14] = UI_icon_to_preview(ICON_MATCAP_15);
-		prv[15] = UI_icon_to_preview(ICON_MATCAP_16);
-		prv[16] = UI_icon_to_preview(ICON_MATCAP_17);
-		prv[17] = UI_icon_to_preview(ICON_MATCAP_18);
-		prv[18] = UI_icon_to_preview(ICON_MATCAP_19);
-		prv[19] = UI_icon_to_preview(ICON_MATCAP_20);
-		prv[20] = UI_icon_to_preview(ICON_MATCAP_21);
-		prv[21] = UI_icon_to_preview(ICON_MATCAP_22);
-		prv[22] = UI_icon_to_preview(ICON_MATCAP_23);
-		prv[23] = UI_icon_to_preview(ICON_MATCAP_24);
+		for (int i = 0; i < num_matcap; ++i) {
+			prv[i] = UI_icon_to_preview((int)ICON_MATCAP_01 + i);
+		}
 
-		e_data.matcap_array = load_matcaps(prv, 24);
+		e_data.matcap_array = load_matcaps(prv, num_matcap);
 	}
 
 	/* Shading pass */
@@ -602,7 +555,7 @@ static DRWShadingGroup *CLAY_hair_shgroup_create(DRWPass *pass, int id)
 	if (!e_data.hair_sh) {
 		e_data.hair_sh = DRW_shader_create(
 		        datatoc_clay_particle_vert_glsl, NULL, datatoc_clay_particle_strand_frag_glsl,
-		        "#define MAX_MATERIAL 512\n");
+		        "#define MAX_MATERIAL " STRINGIFY(MAX_CLAY_MAT) "\n" );
 	}
 
 	DRWShadingGroup *grp = DRW_shgroup_create(e_data.hair_sh, pass);
@@ -683,9 +636,11 @@ static int hair_mat_in_ubo(CLAY_Storage *storage, const CLAY_HAIR_UBO_Material *
 	return id;
 }
 
-static void ubo_mat_from_object(CLAY_Storage *storage, Object *ob, bool *r_needs_ao, int *r_id)
+static void ubo_mat_from_object(CLAY_Storage *storage, Object *UNUSED(ob), bool *r_needs_ao, int *r_id)
 {
-	IDProperty *props = BKE_layer_collection_engine_evaluated_get(ob, RE_engine_id_BLENDER_CLAY);
+	const DRWContextState *draw_ctx = DRW_context_state_get();
+	ViewLayer *view_layer = draw_ctx->view_layer;
+	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, RE_engine_id_BLENDER_CLAY);
 
 	int matcap_icon = BKE_collection_engine_property_value_get_int(props, "matcap_icon");
 	float matcap_rot = BKE_collection_engine_property_value_get_float(props, "matcap_rotation");
@@ -725,9 +680,11 @@ static void ubo_mat_from_object(CLAY_Storage *storage, Object *ob, bool *r_needs
 	*r_id = mat_in_ubo(storage, &r_ubo);
 }
 
-static void hair_ubo_mat_from_object(Object *ob, CLAY_HAIR_UBO_Material *r_ubo)
+static void hair_ubo_mat_from_object(Object *UNUSED(ob), CLAY_HAIR_UBO_Material *r_ubo)
 {
-	IDProperty *props = BKE_layer_collection_engine_evaluated_get(ob, RE_engine_id_BLENDER_CLAY);
+	const DRWContextState *draw_ctx = DRW_context_state_get();
+	ViewLayer *view_layer = draw_ctx->view_layer;
+	IDProperty *props = BKE_view_layer_engine_evaluated_get(view_layer, RE_engine_id_BLENDER_CLAY);
 
 	int matcap_icon = BKE_collection_engine_property_value_get_int(props, "matcap_icon");
 	float matcap_rot = BKE_collection_engine_property_value_get_float(props, "matcap_rotation");

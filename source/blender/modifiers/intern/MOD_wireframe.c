@@ -45,15 +45,6 @@ static void initData(ModifierData *md)
 	wmd->crease_weight = 1.0f;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	WireframeModifierData *wmd = (WireframeModifierData *)md;
-	WireframeModifierData *twmd = (WireframeModifierData *)target;
-#endif
-	modifier_copyData_generic(md, target);
-}
-
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
 	WireframeModifierData *wmd = (WireframeModifierData *)md;
@@ -103,7 +94,7 @@ static Mesh *WireframeModifier_do(WireframeModifierData *wmd, Object *ob, Mesh *
 	       MAX2(ob->totcol - 1, 0),
 	       false);
 
-	result = BKE_bmesh_to_mesh(bm, &(struct BMeshToMeshParams){0});
+	result = BKE_bmesh_to_mesh_nomain(bm, &(struct BMeshToMeshParams){0});
 	BM_mesh_free(bm);
 
 	result->runtime.cd_dirty_vert |= CD_MASK_NORMAL;
@@ -129,7 +120,7 @@ ModifierTypeInfo modifierType_Wireframe = {
 	/* flags */             eModifierTypeFlag_AcceptsMesh |
 	                        eModifierTypeFlag_SupportsEditmode,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 
 	/* deformVerts_DM */    NULL,
 	/* deformMatrices_DM */ NULL,

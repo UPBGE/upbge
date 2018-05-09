@@ -340,13 +340,11 @@ typedef struct Object {
 
 	struct PreviewImage *preview;
 
-	struct IDProperty *base_collection_properties; /* used by depsgraph, flushed from base */
-
 	ListBase drawdata;		/* runtime, ObjectEngineData */
 	int pad6;
 	int select_color;
 
-	/* Mesh structure createrd during object evaluaiton.
+	/* Mesh structure created during object evaluation.
 	 * It has all modifiers applied.
 	 */
 	struct Mesh *mesh_evaluated;
@@ -388,7 +386,6 @@ typedef struct DupliObject {
 	struct ParticleSystem *particle_system;
 	unsigned int random_id;
 	unsigned int pad;
-	struct IDProperty *collection_properties;
 } DupliObject;
 
 /* **************** OBJECT ********************* */

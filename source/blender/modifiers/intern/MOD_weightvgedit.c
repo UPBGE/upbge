@@ -80,9 +80,9 @@ static void freeData(ModifierData *md)
 	curvemapping_free(wmd->cmap_curve);
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
-	WeightVGEditModifierData *wmd  = (WeightVGEditModifierData *) md;
+	const WeightVGEditModifierData *wmd  = (const WeightVGEditModifierData *) md;
 	WeightVGEditModifierData *twmd = (WeightVGEditModifierData *) target;
 
 	modifier_copyData_generic(md, target);
@@ -155,9 +155,11 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 }
 
 static Mesh *applyModifier(ModifierData *md,
-                                  const ModifierEvalContext *ctx,
-                                  Mesh *mesh)
+                           const ModifierEvalContext *ctx,
+                           Mesh *mesh)
 {
+	BLI_assert(mesh != NULL);
+
 	WeightVGEditModifierData *wmd = (WeightVGEditModifierData *) md;
 
 	MDeformVert *dvert = NULL;
@@ -201,12 +203,12 @@ static Mesh *applyModifier(ModifierData *md,
 
 	Mesh *result;
 	BKE_id_copy_ex(
-	            NULL, &mesh->id, (ID **)&result,
-	            LIB_ID_CREATE_NO_MAIN |
-	            LIB_ID_CREATE_NO_USER_REFCOUNT |
-	            LIB_ID_CREATE_NO_DEG_TAG|
-	            LIB_ID_COPY_NO_PREVIEW,
-	            false);
+	        NULL, &mesh->id, (ID **)&result,
+	        LIB_ID_CREATE_NO_MAIN |
+	        LIB_ID_CREATE_NO_USER_REFCOUNT |
+	        LIB_ID_CREATE_NO_DEG_TAG |
+	        LIB_ID_COPY_NO_PREVIEW,
+	        false);
 
 	if (has_mdef) {
 		dvert = CustomData_get_layer(&result->vdata, CD_MDEFORMVERT);

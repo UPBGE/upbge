@@ -124,13 +124,14 @@ struct DRWShadingGroup *shgroup_instance_bone_shape_outline(struct DRWPass *pass
 struct DRWShadingGroup *shgroup_instance_bone_shape_solid(struct DRWPass *pass, struct Gwn_Batch *geom);
 struct DRWShadingGroup *shgroup_instance_bone_sphere_outline(struct DRWPass *pass);
 struct DRWShadingGroup *shgroup_instance_bone_sphere_solid(struct DRWPass *pass);
+struct DRWShadingGroup *shgroup_instance_bone_stick(struct DRWPass *pass);
 
 int DRW_object_wire_theme_get(
         struct Object *ob, struct ViewLayer *view_layer, float **r_color);
 float *DRW_color_background_blend_get(int theme_id);
 
 /* draw_armature.c */
-typedef struct DRWArmaturePasses{
+typedef struct DRWArmaturePasses {
 	struct DRWPass *bone_solid;
 	struct DRWPass *bone_outline;
 	struct DRWPass *bone_wire;

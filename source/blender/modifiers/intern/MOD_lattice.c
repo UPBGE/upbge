@@ -56,16 +56,6 @@ static void initData(ModifierData *md)
 	lmd->strength = 1.0f;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	LatticeModifierData *lmd = (LatticeModifierData *) md;
-	LatticeModifierData *tlmd = (LatticeModifierData *) target;
-#endif
-
-	modifier_copyData_generic(md, target);
-}
-
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
 	LatticeModifierData *lmd = (LatticeModifierData *)md;
@@ -109,11 +99,11 @@ static void deformVerts(ModifierData *md, const ModifierEvalContext *ctx,
                         int numVerts)
 {
 	LatticeModifierData *lmd = (LatticeModifierData *) md;
-
+	struct Mesh *mesh_src = mesh ? mesh : ctx->object->data;
 
 	modifier_vgroup_cache(md, vertexCos); /* if next modifier needs original vertices */
 
-	lattice_deform_verts(lmd->object, ctx->object, mesh,
+	lattice_deform_verts(lmd->object, ctx->object, mesh_src,
 	                     vertexCos, numVerts, lmd->name, lmd->strength);
 }
 
@@ -124,7 +114,7 @@ static void deformVertsEM(
 	struct Mesh *mesh_src = mesh;
 
 	if (!mesh) {
-		mesh_src = BKE_bmesh_to_mesh(em->bm, &(struct BMeshToMeshParams){0});
+		mesh_src = BKE_bmesh_to_mesh_nomain(em->bm, &(struct BMeshToMeshParams){0});
 	}
 
 	deformVerts(md, ctx, mesh_src, vertexCos, numVerts);
@@ -143,7 +133,8 @@ ModifierTypeInfo modifierType_Lattice = {
 	/* flags */             eModifierTypeFlag_AcceptsCVs |
 	                        eModifierTypeFlag_AcceptsLattice |
 	                        eModifierTypeFlag_SupportsEditmode,
-	/* copyData */          copyData,
+
+	/* copyData */          modifier_copyData_generic,
 
 	/* deformVerts_DM */    NULL,
 	/* deformMatrices_DM */ NULL,

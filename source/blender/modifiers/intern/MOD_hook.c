@@ -60,17 +60,10 @@ static void initData(ModifierData *md)
 	hmd->flag = 0;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copyData(const ModifierData *md, ModifierData *target)
 {
-	HookModifierData *hmd = (HookModifierData *) md;
+	const HookModifierData *hmd = (const HookModifierData *) md;
 	HookModifierData *thmd = (HookModifierData *) target;
-
-	if (thmd->curfalloff != NULL) {
-		curvemapping_free(thmd->curfalloff);
-	}
-	if (thmd->indexar != NULL) {
-		MEM_freeN(thmd->indexar);
-	}
 
 	modifier_copyData_generic(md, target);
 
@@ -97,7 +90,7 @@ static void freeData(ModifierData *md)
 
 	curvemapping_free(hmd->curfalloff);
 
-	if (hmd->indexar) MEM_freeN(hmd->indexar);
+	MEM_SAFE_FREE(hmd->indexar);
 }
 
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))

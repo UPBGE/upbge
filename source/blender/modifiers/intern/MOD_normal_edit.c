@@ -406,12 +406,12 @@ static Mesh *normalEditModifier_do(NormalEditModifierData *enmd, Object *ob, Mes
 
 	Mesh *result;
 	BKE_id_copy_ex(
-	            NULL, &mesh->id, (ID **)&result,
-	            LIB_ID_CREATE_NO_MAIN |
-	            LIB_ID_CREATE_NO_USER_REFCOUNT |
-	            LIB_ID_CREATE_NO_DEG_TAG|
-	            LIB_ID_COPY_NO_PREVIEW,
-	            false);
+	        NULL, &mesh->id, (ID **)&result,
+	        LIB_ID_CREATE_NO_MAIN |
+	        LIB_ID_CREATE_NO_USER_REFCOUNT |
+	        LIB_ID_CREATE_NO_DEG_TAG |
+	        LIB_ID_COPY_NO_PREVIEW,
+	        false);
 
 	const int num_verts = result->totvert;
 	const int num_edges = result->totedge;
@@ -491,11 +491,6 @@ static void initData(ModifierData *md)
 	enmd->mix_limit = M_PI;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-	modifier_copyData_generic(md, target);
-}
-
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
 	NormalEditModifierData *enmd = (NormalEditModifierData *)md;
@@ -550,7 +545,8 @@ ModifierTypeInfo modifierType_NormalEdit = {
 	                        eModifierTypeFlag_SupportsMapping |
 	                        eModifierTypeFlag_SupportsEditmode |
 	                        eModifierTypeFlag_EnableInEditmode,
-	/* copyData */          copyData,
+
+	/* copyData */          modifier_copyData_generic,
 
 	/* deformVerts_DM */    NULL,
 	/* deformMatrices_DM */ NULL,

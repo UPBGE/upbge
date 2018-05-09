@@ -77,15 +77,6 @@ static void initData(ModifierData *md)
 	amd->flags = 0;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	ArrayModifierData *amd = (ArrayModifierData *) md;
-	ArrayModifierData *tamd = (ArrayModifierData *) target;
-#endif
-	modifier_copyData_generic(md, target);
-}
-
 static void foreachObjectLink(
         ModifierData *md, Object *ob,
         ObjectWalkFunc walk, void *userData)
@@ -497,7 +488,7 @@ static Mesh *arrayModifier_doArray(
 	result_npolys = chunk_npolys * count + start_cap_npolys + end_cap_npolys;
 
 	/* Initialize a result dm */
-	result = BKE_mesh_from_template(mesh, result_nverts, result_nedges, 0, result_nloops, result_npolys);
+	result = BKE_mesh_new_nomain_from_template(mesh, result_nverts, result_nedges, 0, result_nloops, result_npolys);
 	result_dm_verts = result->mvert;
 
 	if (use_merge) {
@@ -770,7 +761,7 @@ ModifierTypeInfo modifierType_Array = {
 	                        eModifierTypeFlag_EnableInEditmode |
 	                        eModifierTypeFlag_AcceptsCVs,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 
 	/* deformVerts_DM */    NULL,
 	/* deformMatrices_DM */ NULL,

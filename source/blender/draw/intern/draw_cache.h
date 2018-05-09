@@ -34,7 +34,7 @@ struct ModifierData;
 void DRW_shape_cache_free(void);
 
 /* 3D cursor */
-struct Gwn_Batch *DRW_cache_cursor_get(void);
+struct Gwn_Batch *DRW_cache_cursor_get(bool crosshair_lines);
 
 /* Common Shapes */
 struct Gwn_Batch *DRW_cache_fullscreen_quad_get(void);
@@ -105,6 +105,7 @@ struct Gwn_Batch *DRW_cache_bone_envelope_outline_get(void);
 struct Gwn_Batch *DRW_cache_bone_envelope_head_wire_outline_get(void);
 struct Gwn_Batch *DRW_cache_bone_point_get(void);
 struct Gwn_Batch *DRW_cache_bone_point_wire_outline_get(void);
+struct Gwn_Batch *DRW_cache_bone_stick_get(void);
 struct Gwn_Batch *DRW_cache_bone_arrows_get(void);
 
 /* Meshes */

@@ -126,16 +126,6 @@ static void initData(ModifierData *md)
 	wmd->mask_tex_mapping       = MOD_DISP_MAP_LOCAL;
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	WeightVGMixModifierData *wmd  = (WeightVGMixModifierData *) md;
-	WeightVGMixModifierData *twmd = (WeightVGMixModifierData *) target;
-#endif
-
-	modifier_copyData_generic(md, target);
-}
-
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
 	WeightVGMixModifierData *wmd = (WeightVGMixModifierData *) md;
@@ -204,6 +194,8 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 
 static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
+	BLI_assert(mesh != NULL);
+
 	WeightVGMixModifierData *wmd = (WeightVGMixModifierData *) md;
 
 	MDeformVert *dvert = NULL;
@@ -253,12 +245,12 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
 
 	Mesh *result;
 	BKE_id_copy_ex(
-	            NULL, &mesh->id, (ID **)&result,
-	            LIB_ID_CREATE_NO_MAIN |
-	            LIB_ID_CREATE_NO_USER_REFCOUNT |
-	            LIB_ID_CREATE_NO_DEG_TAG|
-	            LIB_ID_COPY_NO_PREVIEW,
-	            false);
+	        NULL, &mesh->id, (ID **)&result,
+	        LIB_ID_CREATE_NO_MAIN |
+	        LIB_ID_CREATE_NO_USER_REFCOUNT |
+	        LIB_ID_CREATE_NO_DEG_TAG |
+	        LIB_ID_COPY_NO_PREVIEW,
+	        false);
 
 	if (has_mdef) {
 		dvert = CustomData_get_layer(&result->vdata, CD_MDEFORMVERT);
@@ -412,7 +404,7 @@ ModifierTypeInfo modifierType_WeightVGMix = {
 	                        eModifierTypeFlag_SupportsEditmode |
 	                        eModifierTypeFlag_UsesPreview,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 
 	/* deformVerts_DM */    NULL,
 	/* deformMatrices_DM */ NULL,

@@ -70,14 +70,6 @@ static void initData(ModifierData *md)
 	STRNCPY(pimd->index_layer_name, "");
 	STRNCPY(pimd->value_layer_name, "");
 }
-static void copyData(ModifierData *md, ModifierData *target)
-{
-#if 0
-	ParticleInstanceModifierData *pimd = (ParticleInstanceModifierData *) md;
-	ParticleInstanceModifierData *tpimd = (ParticleInstanceModifierData *) target;
-#endif
-	modifier_copyData_generic(md, target);
-}
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
@@ -213,7 +205,7 @@ static DerivedMesh *applyModifier(ModifierData *md, const ModifierEvalContext *c
 	MPoly *mpoly, *orig_mpoly;
 	MLoop *mloop, *orig_mloop;
 	MVert *mvert, *orig_mvert;
-	int totvert, totpoly, totloop , totedge;
+	int totvert, totpoly, totloop, totedge;
 	int maxvert, maxpoly, maxloop, maxedge, part_end = 0, part_start;
 	int k, p, p_skip;
 	short track = ctx->object->trackflag % 3, trackneg, axis = pimd->axis;
@@ -539,7 +531,7 @@ ModifierTypeInfo modifierType_ParticleInstance = {
 	                        eModifierTypeFlag_SupportsEditmode |
 	                        eModifierTypeFlag_EnableInEditmode,
 
-	/* copyData */          copyData,
+	/* copyData */          modifier_copyData_generic,
 
 	/* deformVerts_DM */    NULL,
 	/* deformMatrices_DM */ NULL,

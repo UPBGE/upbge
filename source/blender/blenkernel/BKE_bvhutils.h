@@ -40,6 +40,7 @@
 
 struct DerivedMesh;
 struct BMEditMesh;
+struct Mesh;
 struct MVert;
 struct MFace;
 
@@ -142,6 +143,8 @@ BVHTree *bvhtree_from_editmesh_looptri_ex(
         const BLI_bitmap *mask, int looptri_num_active,
         float epsilon, int tree_type, int axis, BVHCache **bvhCache);
 
+BVHTree *BKE_bvhtree_from_mesh_looptri(
+        struct BVHTreeFromMesh *data, struct Mesh *mesh, float epsilon, int tree_type, int axis);
 BVHTree *bvhtree_from_mesh_looptri_ex(
         struct BVHTreeFromMesh *data,
         const struct MVert *vert, const bool vert_allocated,
@@ -152,6 +155,10 @@ BVHTree *bvhtree_from_mesh_looptri_ex(
 
 BVHTree *bvhtree_from_mesh_get(
         struct BVHTreeFromMesh *data, struct DerivedMesh *mesh,
+        const int type, const int tree_type);
+
+BVHTree *BKE_bvhtree_from_mesh_get(
+        struct BVHTreeFromMesh *data, struct Mesh *mesh,
         const int type, const int tree_type);
 
 /**
@@ -189,7 +196,6 @@ enum {
 BVHTree *bvhcache_find(BVHCache *cache, int type);
 bool     bvhcache_has_tree(const BVHCache *cache, const BVHTree *tree);
 void     bvhcache_insert(BVHCache **cache_p, BVHTree *tree, int type);
-void     bvhcache_init(BVHCache **cache_p);
 void     bvhcache_free(BVHCache **cache_p);
 
 
