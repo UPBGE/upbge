@@ -2215,7 +2215,7 @@ EEVEE_Data *EEVEE_engine_data_get(void)
 	return data;
 }
 
-static void game_camera_border(const Depsgraph *depsgraph,
+static void game_camera_border(Depsgraph *depsgraph,
 	const Scene *scene, const ARegion *ar, const View3D *v3d, const RegionView3D *rv3d,
 	rctf *r_viewborder, const bool no_shift, const bool no_zoom)
 {
