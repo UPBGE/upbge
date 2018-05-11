@@ -182,15 +182,16 @@ static void count_cache_segment_keys(ParticleCacheKey **pathcache,
 	}
 }
 
-static void ensure_seg_pt_count(ParticleSystem *psys, ParticleBatchCache *cache)
+static void ensure_seg_pt_count(PTCacheEdit *edit,
+                                ParticleSystem *psys,
+                                ParticleBatchCache *cache)
 {
 	if (cache->pos == NULL || cache->indices == NULL) {
 		cache->elems_count = 0;
 		cache->point_count = 0;
 
-		PTCacheEdit *edit = PE_get_current_from_psys(psys);
 		if (edit != NULL && edit->pathcache != NULL) {
-			count_cache_segment_keys(edit->pathcache, psys->totpart, cache);
+			count_cache_segment_keys(edit->pathcache, edit->totcached, cache);
 		}
 		else {
 			if (psys->pathcache &&
@@ -325,6 +326,7 @@ static int particle_batch_cache_fill_segments(
 	const bool is_simple = (psys->part->childtype == PART_CHILD_PARTICLES);
 	const bool is_child = (particle_source == PARTICLE_SOURCE_CHILDREN);
 	if (is_simple && *r_parent_uvs == NULL) {
+		/* TODO(sergey): For edit mode it should be edit->totcached. */
 		*r_parent_uvs = MEM_callocN(sizeof(*r_parent_uvs) * psys->totpart,
 		                            "Parent particle UVs");
 	}
@@ -392,7 +394,8 @@ static int particle_batch_cache_fill_segments(
 	return curr_point;
 }
 
-static void particle_batch_cache_ensure_pos_and_seg(ParticleSystem *psys,
+static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
+                                                    ParticleSystem *psys,
                                                     ModifierData *md,
                                                     ParticleBatchCache *cache)
 {
@@ -452,11 +455,10 @@ static void particle_batch_cache_ensure_pos_and_seg(ParticleSystem *psys,
 		}
 	}
 
-	PTCacheEdit *edit = PE_get_current_from_psys(psys);
 	if (edit != NULL && edit->pathcache != NULL) {
 		curr_point = particle_batch_cache_fill_segments(
 		        psys, psmd, edit->pathcache, PARTICLE_SOURCE_PARENT,
-		        0, 0, psys->totpart,
+		        0, 0, edit->totcached,
 		        num_uv_layers, mtfaces, uv_id, &parent_uvs,
 		        &elb, &attr_id, cache);
 	}
@@ -481,6 +483,7 @@ static void particle_batch_cache_ensure_pos_and_seg(ParticleSystem *psys,
 	}
 	/* Cleanup. */
 	if (parent_uvs != NULL) {
+		/* TODO(sergey): For edit mode it should be edit->totcached. */
 		for (int i = 0; i < psys->totpart; i++) {
 			MEM_SAFE_FREE(parent_uvs[i]);
 		}
@@ -574,8 +577,8 @@ Gwn_Batch *DRW_particles_batch_cache_get_hair(ParticleSystem *psys, ModifierData
 	ParticleBatchCache *cache = particle_batch_cache_get(psys);
 
 	if (cache->hairs == NULL) {
-		ensure_seg_pt_count(psys, cache);
-		particle_batch_cache_ensure_pos_and_seg(psys, md, cache);
+		ensure_seg_pt_count(NULL, psys, cache);
+		particle_batch_cache_ensure_pos_and_seg(NULL, psys, md, cache);
 		cache->hairs = GWN_batch_create(GWN_PRIM_LINE_STRIP, cache->pos, cache->indices);
 	}
 
@@ -594,15 +597,30 @@ Gwn_Batch *DRW_particles_batch_cache_get_dots(Object *object, ParticleSystem *ps
 	return cache->hairs;
 }
 
-Gwn_Batch *DRW_particles_batch_cache_get_edit_strands(PTCacheEdit *edit)
+/* TODO(sergey): Avoid linear lookup. */
+static ParticleBatchCache *particle_batch_cache_get_edit(Object *object, PTCacheEdit *edit)
+{
+	ParticleSystem *psys_orig = edit->psys;
+	for (ParticleSystem *psys_eval = object->particlesystem.first;
+	     psys_eval != NULL;
+	     psys_eval = psys_eval->next)
+	{
+		if (STREQ(psys_orig->name, psys_eval->name)) {
+			return particle_batch_cache_get(psys_eval);
+		}
+	}
+	return NULL;
+}
+
+Gwn_Batch *DRW_particles_batch_cache_get_edit_strands(Object *object, PTCacheEdit *edit)
 {
 	ParticleSystem *psys = edit->psys;
-	ParticleBatchCache *cache = particle_batch_cache_get(psys);
+	ParticleBatchCache *cache = particle_batch_cache_get_edit(object, edit);
 	if (cache->hairs != NULL) {
 		return cache->hairs;
 	}
-	ensure_seg_pt_count(psys, cache);
-	particle_batch_cache_ensure_pos_and_seg(psys, NULL, cache);
+	ensure_seg_pt_count(edit, psys, cache);
+	particle_batch_cache_ensure_pos_and_seg(edit, psys, NULL, cache);
 	cache->hairs = GWN_batch_create(GWN_PRIM_LINE_STRIP, cache->pos, cache->indices);
 	return cache->hairs;
 }
@@ -673,10 +691,9 @@ static void particle_batch_cache_ensure_edit_inner_pos(
 	}
 }
 
-Gwn_Batch *DRW_particles_batch_cache_get_edit_inner_points(PTCacheEdit *edit)
+Gwn_Batch *DRW_particles_batch_cache_get_edit_inner_points(Object *object, PTCacheEdit *edit)
 {
-	ParticleSystem *psys = edit->psys;
-	ParticleBatchCache *cache = particle_batch_cache_get(psys);
+	ParticleBatchCache *cache = particle_batch_cache_get_edit(object, edit);
 	if (cache->edit_inner_points != NULL) {
 		return cache->edit_inner_points;
 	}
@@ -689,7 +706,7 @@ Gwn_Batch *DRW_particles_batch_cache_get_edit_inner_points(PTCacheEdit *edit)
 }
 
 static void ensure_edit_tip_points_count(const PTCacheEdit *edit,
-                                           ParticleBatchCache *cache)
+                                         ParticleBatchCache *cache)
 {
 	if (cache->edit_tip_pos != NULL) {
 		return;
@@ -735,10 +752,9 @@ static void particle_batch_cache_ensure_edit_tip_pos(
 	}
 }
 
-Gwn_Batch *DRW_particles_batch_cache_get_edit_tip_points(PTCacheEdit *edit)
+Gwn_Batch *DRW_particles_batch_cache_get_edit_tip_points(Object *object, PTCacheEdit *edit)
 {
-	ParticleSystem *psys = edit->psys;
-	ParticleBatchCache *cache = particle_batch_cache_get(psys);
+	ParticleBatchCache *cache = particle_batch_cache_get_edit(object, edit);
 	if (cache->edit_tip_points != NULL) {
 		return cache->edit_tip_points;
 	}

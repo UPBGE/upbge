@@ -3287,53 +3287,65 @@ void MESH_OT_select_face_by_sides(wmOperatorType *ot)
 
 static int edbm_select_loose_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMesh *bm = em->bm;
-	BMIter iter;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
 
-	if (!RNA_boolean_get(op->ptr, "extend"))
-		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 
-	if (em->selectmode & SCE_SELECT_VERTEX) {
-		BMVert *eve;
-		BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
-			if (!eve->e) {
-				BM_vert_select_set(bm, eve, true);
-			}
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		BMesh *bm = em->bm;
+		BMIter iter;
+
+		if (!extend) {
+			EDBM_flag_disable_all(em, BM_ELEM_SELECT);
 		}
-	}
 
-	if (em->selectmode & SCE_SELECT_EDGE) {
-		BMEdge *eed;
-		BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
-			if (BM_edge_is_wire(eed)) {
-				BM_edge_select_set(bm, eed, true);
-			}
-		}
-	}
-
-	if (em->selectmode & SCE_SELECT_FACE) {
-		BMFace *efa;
-		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-			BMIter liter;
-			BMLoop *l;
-			bool is_loose = true;
-			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-				if (!BM_edge_is_boundary(l->e)) {
-					is_loose = false;
-					break;
+		if (em->selectmode & SCE_SELECT_VERTEX) {
+			BMVert *eve;
+			BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+				if (!eve->e) {
+					BM_vert_select_set(bm, eve, true);
 				}
 			}
-			if (is_loose) {
-				BM_face_select_set(bm, efa, true);
+		}
+
+		if (em->selectmode & SCE_SELECT_EDGE) {
+			BMEdge *eed;
+			BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+				if (BM_edge_is_wire(eed)) {
+					BM_edge_select_set(bm, eed, true);
+				}
 			}
 		}
+
+		if (em->selectmode & SCE_SELECT_FACE) {
+			BMFace *efa;
+			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+				BMIter liter;
+				BMLoop *l;
+				bool is_loose = true;
+				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+					if (!BM_edge_is_boundary(l->e)) {
+						is_loose = false;
+						break;
+					}
+				}
+				if (is_loose) {
+					BM_face_select_set(bm, efa, true);
+				}
+			}
+		}
+
+		EDBM_selectmode_flush(em);
+
+		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 	}
 
-	EDBM_selectmode_flush(em);
+	MEM_freeN(objects);
 
-	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 	return OPERATOR_FINISHED;
 }
 
@@ -4513,31 +4525,44 @@ static int loop_find_regions(BMEditMesh *em, const bool selbigger)
 
 static int edbm_loop_to_region_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMIter iter;
-	BMFace *f;
 	const bool select_bigger = RNA_boolean_get(op->ptr, "select_bigger");
 
-	/* find the set of regions with smallest number of total faces */
-	BM_mesh_elem_hflag_disable_all(em->bm, BM_FACE, BM_ELEM_TAG, false);
-	const int a = loop_find_regions(em, select_bigger);
-	const int b = loop_find_regions(em, !select_bigger);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-	BM_mesh_elem_hflag_disable_all(em->bm, BM_FACE, BM_ELEM_TAG, false);
-	loop_find_regions(em, ((a <= b) != select_bigger) ? select_bigger : !select_bigger);
-
-	EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-
-	BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
-		if (BM_elem_flag_test(f, BM_ELEM_TAG) && !BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
-			BM_face_select_set(em->bm, f, true);
+		if (em->bm->totedgesel == 0) {
+			continue;
 		}
+
+		BMIter iter;
+		BMFace *f;
+
+		/* find the set of regions with smallest number of total faces */
+		BM_mesh_elem_hflag_disable_all(em->bm, BM_FACE, BM_ELEM_TAG, false);
+		const int a = loop_find_regions(em, select_bigger);
+		const int b = loop_find_regions(em, !select_bigger);
+
+		BM_mesh_elem_hflag_disable_all(em->bm, BM_FACE, BM_ELEM_TAG, false);
+		loop_find_regions(em, ((a <= b) != select_bigger) ? select_bigger : !select_bigger);
+
+		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+
+		BM_ITER_MESH(f, &iter, em->bm, BM_FACES_OF_MESH) {
+			if (BM_elem_flag_test(f, BM_ELEM_TAG) && !BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+				BM_face_select_set(em->bm, f, true);
+			}
+		}
+
+		EDBM_selectmode_flush(em);
+
+		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 	}
+	MEM_freeN(objects);
 
-	EDBM_selectmode_flush(em);
-
-	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 	return OPERATOR_FINISHED;
 }
 
