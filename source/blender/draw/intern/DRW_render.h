@@ -372,6 +372,8 @@ void DRW_shgroup_uniform_mat3(DRWShadingGroup *shgroup, const char *name, const 
 void DRW_shgroup_uniform_mat4(DRWShadingGroup *shgroup, const char *name, const float (*value)[4]);
 /* Store value instead of referencing it. */
 void DRW_shgroup_uniform_int_copy(DRWShadingGroup *shgroup, const char *name, const int value);
+void DRW_shgroup_uniform_bool_copy(DRWShadingGroup *shgroup, const char *name, const bool value);
+void DRW_shgroup_uniform_float_copy(DRWShadingGroup *shgroup, const char *name, const float value);
 
 /* Passes */
 DRWPass *DRW_pass_create(const char *name, DRWState state);
@@ -425,6 +427,7 @@ void DRW_render_instance_buffer_finish(void);
 
 /* ViewLayers */
 void *DRW_view_layer_engine_data_get(DrawEngineType *engine_type);
+void **DRW_view_layer_engine_data_ensure_ex(struct ViewLayer *view_layer, DrawEngineType *engine_type, void (*callback)(void *storage));
 void **DRW_view_layer_engine_data_ensure(DrawEngineType *engine_type, void (*callback)(void *storage));
 
 /* Objects */

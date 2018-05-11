@@ -135,7 +135,6 @@ void DRW_opengl_context_disable(void);
 
 void DRW_deferred_shader_remove(struct GPUMaterial *mat);
 
-uint *WORKBENCH_generate_studiolight_preview(int studiolight_id, int icon_size);
 
 /*************************************************Game engine************************************************/
 struct GPUTexture *DRW_game_render_loop(struct Main *bmain, struct Scene *scene, struct Object *maincam, int viewportsize[2],

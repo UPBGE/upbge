@@ -75,6 +75,7 @@
 #include "BKE_addon.h"
 #include "BKE_appdir.h"
 #include "BKE_sequencer.h" /* free seq clipboard */
+#include "BKE_studiolight.h"
 #include "BKE_material.h" /* clear_matcopybuf */
 #include "BKE_tracking.h" /* free tracking clipboard */
 #include "BKE_mask.h" /* free mask clipboard */
@@ -253,6 +254,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 		WM_init_opengl();
 
 		UI_init();
+		BKE_studiolight_init();
 	}
 	else {
 		/* Note: Currently only inits icons, which we now want in background mode too
@@ -261,7 +263,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 		 * Called from 'UI_init' above */
 		BKE_icons_init(1);
 	}
-
 
 	ED_spacemacros_init();
 
@@ -606,6 +607,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 		GPU_pass_cache_free();
 		DRW_opengl_context_destroy();
 	}
+	BKE_studiolight_free();
 
 #ifdef WITH_INTERNATIONAL
 	BLF_free_unifont();
