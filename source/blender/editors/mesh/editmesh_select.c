@@ -1956,18 +1956,23 @@ void MESH_OT_select_all(wmOperatorType *ot)
 
 static int edbm_faces_select_interior_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 
-	if (EDBM_select_interior_faces(em)) {
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+		if (!EDBM_select_interior_faces(em)) {
+			continue;
+		}
+
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
-
-		return OPERATOR_FINISHED;
 	}
-	else {
-		return OPERATOR_CANCELLED;
-	}
+	MEM_freeN(objects);
 
+	return OPERATOR_FINISHED;
 }
 
 void MESH_OT_select_interior_faces(wmOperatorType *ot)
@@ -3765,7 +3770,7 @@ static int edbm_select_sharp_edges_exec(bContext *C, wmOperator *op)
 
 		BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
 			if (BM_elem_flag_test(e, BM_ELEM_HIDDEN) == false &&
-				BM_edge_loop_pair(e, &l1, &l2))
+			    BM_edge_loop_pair(e, &l1, &l2))
 			{
 				/* edge has exactly two neighboring faces, check angle */
 				const float angle_cos = dot_v3v3(l1->f->no, l2->f->no);
@@ -3953,9 +3958,9 @@ static int edbm_select_non_manifold_exec(bContext *C, wmOperator *op)
 			BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
 				if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
 					if ((use_wire && BM_edge_is_wire(e)) ||
-						(use_boundary && BM_edge_is_boundary(e)) ||
-						(use_non_contiguous && (BM_edge_is_manifold(e) && !BM_edge_is_contiguous(e))) ||
-						(use_multi_face && (BM_edge_face_count_is_over(e, 2))))
+					    (use_boundary && BM_edge_is_boundary(e)) ||
+					    (use_non_contiguous && (BM_edge_is_manifold(e) && !BM_edge_is_contiguous(e))) ||
+					    (use_multi_face && (BM_edge_face_count_is_over(e, 2))))
 					{
 						/* check we never select perfect edge (in test above) */
 						BLI_assert(!(BM_edge_is_manifold(e) && BM_edge_is_contiguous(e)));
@@ -4122,30 +4127,51 @@ static int edbm_select_ungrouped_poll(bContext *C)
 
 static int edbm_select_ungrouped_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	const int cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 
-	BMVert *eve;
-	BMIter iter;
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 
-	if (!RNA_boolean_get(op->ptr, "extend")) {
-		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-	}
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
-		if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-			MDeformVert *dv = BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset);
-			/* no dv or dv set with no weight */
-			if (ELEM(NULL, dv, dv->dw)) {
-				BM_vert_select_set(em->bm, eve, true);
+		const int cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
+
+		if (cd_dvert_offset == -1) {
+			continue;
+		}
+
+		BMVert *eve;
+		BMIter iter;
+
+		bool changed = false;
+
+		if (!extend) {
+			if (em->bm->totvertsel) {
+				EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+				changed = true;
 			}
 		}
+
+		BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
+			if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
+				MDeformVert *dv = BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset);
+				/* no dv or dv set with no weight */
+				if (ELEM(NULL, dv, dv->dw)) {
+					BM_vert_select_set(em->bm, eve, true);
+					changed = true;
+				}
+			}
+		}
+
+		if (changed) {
+			EDBM_selectmode_flush(em);
+			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+		}
 	}
-
-	EDBM_selectmode_flush(em);
-	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
-
+	MEM_freeN(objects);
 	return OPERATOR_FINISHED;
 }
 

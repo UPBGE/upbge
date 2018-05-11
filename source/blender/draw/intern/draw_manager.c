@@ -232,8 +232,8 @@ void DRW_transform_to_display(GPUTexture *tex)
 	drw_state_set(DRW_STATE_WRITE_COLOR);
 
 	Gwn_VertFormat *vert_format = immVertexFormat();
-	unsigned int pos = GWN_vertformat_attr_add(vert_format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-	unsigned int texco = GWN_vertformat_attr_add(vert_format, "texCoord", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	uint pos = GWN_vertformat_attr_add(vert_format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	uint texco = GWN_vertformat_attr_add(vert_format, "texCoord", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
 	const float dither = 1.0f;
 
@@ -1097,9 +1097,9 @@ static void drw_engines_disable(void)
 	BLI_freelistN(&DST.enabled_engines);
 }
 
-static unsigned int DRW_engines_get_hash(void)
+static uint DRW_engines_get_hash(void)
 {
-	unsigned int hash = 0;
+	uint hash = 0;
 	/* The cache depends on enabled engines */
 	/* FIXME : if collision occurs ... segfault */
 	for (LinkData *link = DST.enabled_engines.first; link; link = link->next) {
@@ -1570,6 +1570,15 @@ void DRW_draw_select_loop(
 			obedit_mode = CTX_MODE_EDIT_ARMATURE;
 		}
 	}
+	bool use_bone_selection_overlay = false;
+	if (v3d->overlay.flag &= V3D_OVERLAY_BONE_SELECTION) {
+		if (!(v3d->flag2 &= V3D_RENDER_OVERRIDE)) {
+			Object *obpose = OBPOSE_FROM_OBACT(obact);
+			if (obpose) {
+				use_bone_selection_overlay = true;
+			}
+		}
+	}
 
 	struct GPUViewport *viewport = GPU_viewport_create();
 	GPU_viewport_size_set(viewport, (const int[2]){BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)});
@@ -1584,8 +1593,17 @@ void DRW_draw_select_loop(
 		drw_engines_enable_from_mode(obedit_mode);
 	}
 	else {
-		drw_engines_enable_basic();
-		drw_engines_enable_from_object_mode();
+		/* when in pose mode and overlays enable and bone selection overlay
+		   active, switch order as the bone selection must have more precedence
+		   than the rest of the scene */
+		if (use_bone_selection_overlay) {
+			drw_engines_enable_from_object_mode();
+			drw_engines_enable_basic();
+		}
+		else {
+			drw_engines_enable_basic();
+			drw_engines_enable_from_object_mode();
+		}
 	}
 
 	/* Setup viewport */
@@ -1693,8 +1711,8 @@ static void draw_depth_texture_to_screen(GPUTexture *texture)
 	const float h = (float)GPU_texture_height(texture);
 
 	Gwn_VertFormat *format = immVertexFormat();
-	unsigned int texcoord = GWN_vertformat_attr_add(format, "texCoord", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
-	unsigned int pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	uint texcoord = GWN_vertformat_attr_add(format, "texCoord", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
+	uint pos = GWN_vertformat_attr_add(format, "pos", GWN_COMP_F32, 2, GWN_FETCH_FLOAT);
 
 	immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_DEPTH_COPY);
 
