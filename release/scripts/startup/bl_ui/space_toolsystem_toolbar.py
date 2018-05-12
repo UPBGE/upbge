@@ -264,14 +264,22 @@ class _defs_edit_mesh:
 
     @ToolDef.from_fn
     def rip_region():
+        def draw_settings(context, layout):
+            wm = context.window_manager
+            props = wm.operator_properties_last("mesh.rip_move")
+            props_macro = props.MESH_OT_rip
+            layout.prop(props_macro, "use_fill")
+
         return dict(
             text="Rip Region",
             icon="ops.mesh.rip",
             widget=None,
             keymap=(
-                ("mesh.rip_move", dict(),
+                ("mesh.rip_move",
+                 dict(TRANSFORM_OT_translate=dict(release_confirm=True)),
                  dict(type='ACTIONMOUSE', value='PRESS')),
             ),
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
@@ -356,6 +364,14 @@ class _defs_edit_mesh:
 
     @ToolDef.from_fn
     def inset():
+        def draw_settings(context, layout):
+            wm = context.window_manager
+            props = wm.operator_properties_last("mesh.inset")
+            layout.prop(props, "use_outset")
+            layout.prop(props, "use_individual")
+            layout.prop(props, "use_even_offset")
+            layout.prop(props, "use_relative_offset")
+
         return dict(
             text="Inset Faces",
             icon="ops.mesh.inset",
@@ -364,6 +380,7 @@ class _defs_edit_mesh:
                 ("mesh.inset", dict(release_confirm=True),
                  dict(type='ACTIONMOUSE', value='PRESS')),
             ),
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
@@ -468,6 +485,11 @@ class _defs_edit_mesh:
 
     @ToolDef.from_fn
     def shrink_fatten():
+        def draw_settings(context, layout):
+            wm = context.window_manager
+            props = wm.operator_properties_last("transform.shrink_fatten")
+            layout.prop(props, "use_even_offset")
+
         return dict(
             text="Shrink/Fatten",
             icon="ops.transform.shrink_fatten",
@@ -476,6 +498,7 @@ class _defs_edit_mesh:
                 ("transform.shrink_fatten", dict(release_confirm=True),
                  dict(type='ACTIONMOUSE', value='PRESS')),
             ),
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
@@ -528,6 +551,24 @@ class _defs_edit_curve:
 
     @ToolDef.from_fn
     def draw():
+        def draw_settings(context, layout):
+            # Tool settings initialize operator options.
+            tool_settings = context.tool_settings
+            cps = tool_settings.curve_paint_settings
+
+            col = layout.row()
+
+            col.prop(cps, "curve_type")
+
+            if cps.curve_type == 'BEZIER':
+                col.prop(cps, "error_threshold")
+                col.prop(cps, "fit_method")
+                col.prop(cps, "use_corners_detect")
+
+                col = layout.row()
+                col.active = cps.use_corners_detect
+                col.prop(cps, "corner_angle")
+
         return dict(
             text="Draw",
             icon=None,
@@ -535,6 +576,7 @@ class _defs_edit_curve:
             keymap=(
                 ("curve.draw", dict(wait_for_input=False), dict(type='ACTIONMOUSE', value='PRESS')),
             ),
+            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn

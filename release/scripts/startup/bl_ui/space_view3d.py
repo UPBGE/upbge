@@ -136,11 +136,6 @@ class VIEW3D_HT_header(Header):
             if (mode == 'EDIT' and obj.type == 'MESH'):
                 layout.prop(toolsettings, "use_mesh_automerge", text="", icon='AUTOMERGE_ON')
 
-        # OpenGL render
-        row = layout.row(align=True)
-        row.operator("render.opengl", text="", icon='RENDER_STILL')
-        row.operator("render.opengl", text="", icon='RENDER_ANIMATION').animation = True
-
         # Pose
         if obj and mode == 'POSE':
             row = layout.row(align=True)
@@ -488,6 +483,11 @@ class VIEW3D_MT_view(Menu):
         layout.separator()
 
         layout.operator("screen.animation_play", text="Playback Animation")
+
+        layout.separator()
+
+        layout.operator("render.opengl", icon='RENDER_STILL')
+        layout.operator("render.opengl", text="OpenGL Render (Animation)", icon='RENDER_ANIMATION').animation = True
 
         layout.separator()
 
@@ -2678,8 +2678,10 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
 
         layout.operator("mesh.merge")
         layout.operator("mesh.remove_doubles")
-        layout.operator("mesh.rip_move")
-        layout.operator("mesh.rip_move_fill")
+        props = layout.operator("mesh.rip_move")
+        props.MESH_OT_rip.use_fill = False
+        props = layout.operator("mesh.rip_move", text="Rip Fill")
+        props.MESH_OT_rip.use_fill = True
         layout.operator("mesh.rip_edge_move")
         layout.operator("mesh.split")
         layout.operator_menu_enum("mesh.separate", "type")
@@ -3622,6 +3624,8 @@ class VIEW3D_PT_overlay(Panel):
         col.active = display_all
         col.prop(overlay, "show_cursor")
 
+        col.prop(view, "show_manipulator")
+
         col = layout.column()
         col.active = display_all
         col.prop(overlay, "show_outline_selected")
@@ -3916,7 +3920,6 @@ class VIEW3D_PT_view3d_curvedisplay(Panel):
         row = col.row()
         row.prop(curve, "show_handles", text="Handles")
         row.prop(curve, "show_normal_face", text="Normals")
-        col.prop(context.scene.tool_settings, "normal_size", text="Normal Size")
 
 
 class VIEW3D_PT_transform_orientations(Panel):
