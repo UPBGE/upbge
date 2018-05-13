@@ -235,8 +235,7 @@ typedef struct EEVEE_FramebufferList {
 	struct GPUFrameBuffer *sss_clear_fb;
 	struct GPUFrameBuffer *sss_accum_fb;
 	struct GPUFrameBuffer *dof_down_fb;
-	struct GPUFrameBuffer *dof_scatter_far_fb;
-	struct GPUFrameBuffer *dof_scatter_near_fb;
+	struct GPUFrameBuffer *dof_scatter_fb;
 	struct GPUFrameBuffer *volumetric_fb;
 	struct GPUFrameBuffer *volumetric_scat_fb;
 	struct GPUFrameBuffer *volumetric_integ_fb;
@@ -554,13 +553,12 @@ typedef struct EEVEE_EffectsInfo {
 	float dof_near_far[2];
 	float dof_params[3];
 	float dof_bokeh[4];
-	float dof_layer_select[2];
+	float dof_bokeh_sides[4];
 	int dof_target_size[2];
 	struct GPUTexture *dof_down_near; /* Textures from pool */
 	struct GPUTexture *dof_down_far;
 	struct GPUTexture *dof_coc;
-	struct GPUTexture *dof_near_blur;
-	struct GPUTexture *dof_far_blur;
+	struct GPUTexture *dof_blur;
 	/* Other */
 	float prev_persmat[4][4];
 	/* Bloom */
