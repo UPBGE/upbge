@@ -397,21 +397,14 @@ class _defs_edit_mesh:
 
     @ToolDef.from_fn
     def extrude():
-        def draw_settings(context, layout):
-            wm = context.window_manager
-            props = wm.operator_properties_last("mesh.extrude_context_move")
-            props_xform = props.TRANSFORM_OT_translate
-            layout.prop(props_xform, "constraint_orientation")
-
         return dict(
             text="Extrude Region",
             icon="ops.mesh.extrude_region_move",
             widget="MESH_WGT_extrude",
             keymap=(
                 ("mesh.extrude_context_move", dict(TRANSFORM_OT_translate=dict(release_confirm=True)),
-                 dict(type='ACTIONMOUSE', value='PRESS')),
+                 dict(type='EVT_TWEAK_A', value='ANY')),
             ),
-            draw_settings=draw_settings,
         )
 
     @ToolDef.from_fn
@@ -422,7 +415,7 @@ class _defs_edit_mesh:
             widget=None,
             keymap=(
                 ("mesh.extrude_faces_move", dict(TRANSFORM_OT_shrink_fatten=dict(release_confirm=True)),
-                 dict(type='ACTIONMOUSE', value='PRESS')),
+                 dict(type='EVT_TWEAK_A', value='ANY')),
             ),
         )
 

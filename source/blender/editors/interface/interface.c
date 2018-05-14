@@ -262,7 +262,7 @@ void ui_region_winrct_get_no_margin(const struct ARegion *ar, struct rcti *r_rec
 
 /* ******************* block calc ************************* */
 
-void ui_block_translate(uiBlock *block, int x, int y)
+void UI_block_translate(uiBlock *block, int x, int y)
 {
 	uiBut *but;
 
@@ -372,7 +372,7 @@ static void ui_block_bounds_calc_centered(wmWindow *window, uiBlock *block)
 	startx = (xmax * 0.5f) - (width * 0.5f);
 	starty = (ymax * 0.5f) - (height * 0.5f);
 	
-	ui_block_translate(block, startx - block->rect.xmin, starty - block->rect.ymin);
+	UI_block_translate(block, startx - block->rect.xmin, starty - block->rect.ymin);
 	
 	/* now recompute bounds and safety */
 	ui_block_bounds_calc(block);
@@ -386,7 +386,7 @@ static void ui_block_bounds_calc_centered_pie(uiBlock *block)
 	    block->pie_data.pie_center_spawned[1]
 	};
 
-	ui_block_translate(block, xy[0], xy[1]);
+	UI_block_translate(block, xy[0], xy[1]);
 
 	/* now recompute bounds and safety */
 	ui_block_bounds_calc(block);
@@ -446,7 +446,7 @@ static void ui_block_bounds_calc_popup(
 	rect_bounds.ymax = ymax - UI_POPUP_MENU_TOP;
 
 	BLI_rcti_clamp(&rect, &rect_bounds, ofs_dummy);
-	ui_block_translate(block, rect.xmin - block->rect.xmin, rect.ymin - block->rect.ymin);
+	UI_block_translate(block, rect.xmin - block->rect.xmin, rect.ymin - block->rect.ymin);
 
 	/* now recompute bounds and safety */
 	ui_block_bounds_calc(block);
@@ -1213,7 +1213,7 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 	uiBut *but;
 	char buf[128];
 
-	BLI_assert(block->flag & UI_BLOCK_LOOP);
+	BLI_assert(block->flag & (UI_BLOCK_LOOP | UI_BLOCK_SHOW_SHORTCUT_ALWAYS));
 
 	/* only do it before bounding */
 	if (block->rect.xmin != block->rect.xmax)
@@ -1229,7 +1229,13 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 	}
 	else {
 		for (but = block->buttons.first; but; but = but->next) {
-			if (but->dt != UI_EMBOSS_PULLDOWN) {
+			if (block->flag & UI_BLOCK_SHOW_SHORTCUT_ALWAYS) {
+				/* Skip icon-only buttons (as used in the toolbar). */
+				if (but->drawstr[0] == '\0') {
+					continue;
+				}
+			}
+			else if (but->dt != UI_EMBOSS_PULLDOWN) {
 				continue;
 			}
 
@@ -1333,7 +1339,7 @@ void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2], int r_x
 		ui_menu_block_set_keyaccels(block); /* could use a different flag to check */
 	}
 
-	if (block->flag & UI_BLOCK_LOOP) {
+	if (block->flag & (UI_BLOCK_LOOP | UI_BLOCK_SHOW_SHORTCUT_ALWAYS)) {
 		ui_menu_block_set_keymaps(C, block);
 	}
 	

@@ -200,16 +200,16 @@ typedef struct TransSeq {
 /* for NLA transform (stored in td->extra pointer) */
 typedef struct TransDataNla {
 	ID *id;						/* ID-block NLA-data is attached to */
-	
+
 	struct NlaTrack *oldTrack;	/* Original NLA-Track that the strip belongs to */
 	struct NlaTrack *nlt;		/* Current NLA-Track that the strip belongs to */
-	
+
 	struct NlaStrip *strip;		/* NLA-strip this data represents */
-	
+
 	/* dummy values for transform to write in - must have 3 elements... */
 	float h1[3];				/* start handle */
 	float h2[3];				/* end handle */
-	
+
 	int trackIndex;				/* index of track that strip is currently in */
 	int handle;					/* handle-index: 0 for dummy entry, -1 for start, 1 for end, 2 for both ends */
 } TransDataNla;
@@ -507,7 +507,7 @@ typedef struct TransInfo {
 	short		twflag;			/* backup from view3d, to restore on end */
 
 	short		prop_mode;
-	
+
 	short		mirror;
 
 	float		values[4];
@@ -720,8 +720,10 @@ bool transdata_check_local_islands(TransInfo *t, short around);
 int count_set_pose_transflags(int *out_mode, short around, struct Object *ob);
 
 /* auto-keying stuff used by special_aftertrans_update */
-void autokeyframe_ob_cb_func(struct bContext *C, struct Scene *scene, struct ViewLayer *view_layer, struct View3D *v3d, struct Object *ob, int tmode);
-void autokeyframe_pose_cb_func(struct bContext *C, struct Scene *scene, struct View3D *v3d, struct Object *ob, int tmode, short targetless_ik);
+void autokeyframe_ob_cb_func(
+        struct bContext *C, struct Scene *scene, struct ViewLayer *view_layer, struct Object *ob, int tmode);
+void autokeyframe_pose_cb_func(
+        struct bContext *C, struct Scene *scene, struct Object *ob, int tmode, short targetless_ik);
 
 /*********************** Constraints *****************************/
 

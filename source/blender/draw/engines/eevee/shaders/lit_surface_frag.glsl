@@ -168,14 +168,27 @@ void CLOSURE_NAME(
 
 	vec4 rand = texelFetch(utilTex, ivec3(ivec2(gl_FragCoord.xy) % LUT_SIZE, 2.0), 0);
 
+#ifdef HAIR_SHADER
+	/* Random normal distribution on the hair surface. */
+	vec3 T = normalize(worldNormal); /* meh, TODO fix worldNormal misnaming. */
+	vec3 B = normalize(cross(V, T));
+	N = cross(T, B); /* Normal facing view */
+	/* We want a cosine distribution. */
+	float cos_theta = rand.x * 2.0 - 1.0;
+	float sin_theta = sqrt(max(0.0, 1.0f - cos_theta*cos_theta));;
+	N = N * sin_theta + B * cos_theta;
+
+#  ifdef CLOSURE_GLOSSY
+	/* Hair random normal does not work with SSR :(.
+	 * It just create self reflection feedback (which is beautifful btw)
+	 * but not correct. */
+	ssr_id = NO_SSR; /* Force bypass */
+#  endif
+#endif
+
 	/* ---------------------------------------------------------------- */
 	/* -------------------- SCENE LAMPS LIGHTING ---------------------- */
 	/* ---------------------------------------------------------------- */
-
-#ifdef HAIR_SHADER
-	vec3 norm_view = cross(V, N);
-	norm_view = normalize(cross(norm_view, N)); /* Normal facing view */
-#endif
 
 	for (int i = 0; i < MAX_LIGHT && i < laNumLight; ++i) {
 		LightData ld = lights_data[i];
@@ -185,29 +198,6 @@ void CLOSURE_NAME(
 		l_vector.w = length(l_vector.xyz);
 
 		vec3 l_color_vis = ld.l_color * light_visibility(ld, worldPosition, viewPosition, viewNormal, l_vector);
-
-#ifdef HAIR_SHADER
-		vec3 norm_lamp, view_vec;
-		float occlu_trans, occlu;
-		light_hair_common(ld, N, V, l_vector, norm_view, occlu_trans, occlu, norm_lamp, view_vec);
-
-	#ifdef CLOSURE_DIFFUSE
-		out_diff += l_color_vis * light_diffuse(ld, -norm_lamp, V, l_vector) * occlu_trans;
-	#endif
-
-	#ifdef CLOSURE_SUBSURFACE
-		out_trans += ld.l_color * light_translucent(ld, worldPosition, -norm_lamp, l_vector, sss_scale) * occlu_trans;
-	#endif
-
-	#ifdef CLOSURE_GLOSSY
-		out_spec += l_color_vis * light_specular(ld, N, view_vec, l_vector, roughnessSquared, f0) * occlu * ld.l_spec;
-	#endif
-
-	#ifdef CLOSURE_CLEARCOAT
-		out_spec += l_color_vis * light_specular(ld, C_N, view_vec, l_vector, C_roughnessSquared, f0) * C_intensity * occlu * ld.l_spec;
-	#endif
-
-#else /* HAIR_SHADER */
 
 	#ifdef CLOSURE_DIFFUSE
 		out_diff += l_color_vis * light_diffuse(ld, N, V, l_vector);
@@ -224,14 +214,7 @@ void CLOSURE_NAME(
 	#ifdef CLOSURE_CLEARCOAT
 		out_spec += l_color_vis * light_specular(ld, C_N, V, l_vector, C_roughnessSquared, f0) * C_intensity * ld.l_spec;
 	#endif
-
-#endif /* HAIR_SHADER */
 	}
-
-#ifdef HAIR_SHADER
-	N = -norm_view;
-#endif
-
 
 
 	/* ---------------------------------------------------------------- */
@@ -409,6 +392,12 @@ void CLOSURE_NAME(
 	}
 
 	out_spec += spec_accum.rgb * ssr_spec * spec_occlu * float(specToggle);
+
+#  ifdef HAIR_SHADER
+	/* Hack: Overide spec color so that ssr will not be computed
+	 * even if ssr_id match the active ssr. */
+	ssr_spec = vec3(0.0);
+#  endif
 #endif
 
 #ifdef CLOSURE_REFRACTION

@@ -523,7 +523,6 @@ extern int  ui_but_is_pushed(uiBut *but) ATTR_WARN_UNUSED_RESULT;
 void ui_but_override_flag(uiBut *but);
 
 extern void ui_block_bounds_calc(uiBlock *block);
-extern void ui_block_translate(uiBlock *block, int x, int y);
 
 extern struct ColorManagedDisplay *ui_block_cm_display_get(uiBlock *block);
 void ui_block_cm_to_display_space_v3(uiBlock *block, float pixel[3]);
@@ -576,6 +575,7 @@ struct uiPopupBlockHandle {
 	bool refresh;
 
 	struct wmTimer *scrolltimer;
+	float scrolloffset;
 
 	struct uiKeyNavLock keynav_state;
 
