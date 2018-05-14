@@ -116,25 +116,21 @@ class TOPBAR_HT_lower_bar(Header):
 
         # Object Mode
         # -----------
-
-        # Testing move to 3D header.
-        '''
         object_mode = 'OBJECT' if object is None else object.mode
         act_mode_item = bpy.types.Object.bl_rna.properties['mode'].enum_items[object_mode]
+
         layout.operator_menu_enum("object.mode_set", "mode", text=act_mode_item.name, icon=act_mode_item.icon)
-        '''
 
-        # Active Tool
-        # -----------
-
-        from .space_toolsystem_common import ToolSelectPanelHelper
-        ToolSelectPanelHelper.draw_active_tool_header(context, layout)
+        layout.template_header_3D_mode()
 
     def draw_center(self, context):
         layout = self.layout
         mode = context.mode
 
-        layout.separator()
+        # Active Tool
+        # -----------
+        from .space_toolsystem_common import ToolSelectPanelHelper
+        ToolSelectPanelHelper.draw_active_tool_header(context, layout)
 
         # Object Mode Options
         # -------------------
@@ -242,7 +238,10 @@ class TOPBAR_HT_lower_bar(Header):
             if object_mode not in {'SCULPT', 'VERTEX_PAINT', 'WEIGHT_PAINT', 'TEXTURE_PAINT'}:
                 show_snap = True
             else:
+
+                from .properties_paint_common import UnifiedPaintPanel
                 paint_settings = UnifiedPaintPanel.paint_settings(context)
+
                 if paint_settings:
                     brush = paint_settings.brush
                     if brush and brush.stroke_method == 'CURVE':

@@ -3207,47 +3207,56 @@ void MESH_OT_select_linked_pick(wmOperatorType *ot)
 
 static int edbm_select_face_by_sides_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMFace *efa;
-	BMIter iter;
+	ViewLayer *view_layer = CTX_data_view_layer(C);
+	uint objects_len = 0;
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
 	const int numverts = RNA_int_get(op->ptr, "number");
 	const int type = RNA_enum_get(op->ptr, "type");
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
 
-	if (!RNA_boolean_get(op->ptr, "extend"))
-		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		BMFace *efa;
+		BMIter iter;
 
-	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-
-		bool select;
-
-		switch (type) {
-			case 0:
-				select = (efa->len < numverts);
-				break;
-			case 1:
-				select = (efa->len == numverts);
-				break;
-			case 2:
-				select = (efa->len > numverts);
-				break;
-			case 3:
-				select = (efa->len != numverts);
-				break;
-			default:
-				BLI_assert(0);
-				select = false;
-				break;
+		if (!extend) {
+			EDBM_flag_disable_all(em, BM_ELEM_SELECT);
 		}
 
-		if (select) {
-			BM_face_select_set(em->bm, efa, true);
+		BM_ITER_MESH(efa, &iter, em->bm, BM_FACES_OF_MESH) {
+			bool select;
+
+			switch (type) {
+				case 0:
+					select = (efa->len < numverts);
+					break;
+				case 1:
+					select = (efa->len == numverts);
+					break;
+				case 2:
+					select = (efa->len > numverts);
+					break;
+				case 3:
+					select = (efa->len != numverts);
+					break;
+				default:
+					BLI_assert(0);
+					select = false;
+					break;
+			}
+
+			if (select) {
+				BM_face_select_set(em->bm, efa, true);
+			}
 		}
+
+		EDBM_selectmode_flush(em);
+
+		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 	}
 
-	EDBM_selectmode_flush(em);
-
-	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+	MEM_freeN(objects);
 	return OPERATOR_FINISHED;
 }
 
@@ -3375,28 +3384,46 @@ void MESH_OT_select_loose(wmOperatorType *ot)
 
 static int edbm_select_mirror_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	const int axis_flag = RNA_enum_get(op->ptr, "axis");
 	const bool extend = RNA_boolean_get(op->ptr, "extend");
+	Object *obedit_active = CTX_data_edit_object(C);
+	BMEditMesh *em_active = BKE_editmesh_from_object(obedit_active);
+	const int select_mode = em_active->bm->selectmode;
+	int tot_mirr = 0, tot_fail = 0;
 
-	if (em->bm->totvert && em->bm->totvertsel) {
-		int totmirr, totfail;
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+		if (em->bm->totvertsel == 0) {
+			continue;
+		}
+
+		int tot_mirr_iter = 0, tot_fail_iter = 0;
 
 		for (int axis = 0; axis < 3; axis++) {
 			if ((1 << axis) & axis_flag) {
-				EDBM_select_mirrored(em, axis, extend, &totmirr, &totfail);
+				EDBM_select_mirrored(em, axis, extend, &tot_mirr_iter, &tot_fail_iter);
 			}
 		}
 
-		if (totmirr) {
+		if (tot_mirr_iter) {
 			EDBM_selectmode_flush(em);
 			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 		}
 
-		ED_mesh_report_mirror_ex(op, totmirr, totfail, em->bm->selectmode);
+		tot_fail += tot_fail_iter;
+		tot_mirr += tot_mirr_iter;
 	}
+	MEM_freeN(objects);
 
+	if (tot_mirr || tot_fail) {
+		ED_mesh_report_mirror_ex(op, tot_mirr, tot_fail, select_mode);
+	}
 	return OPERATOR_FINISHED;
 }
 
@@ -3712,18 +3739,39 @@ static bool edbm_deselect_nth(BMEditMesh *em, const struct CheckerIntervalParams
 
 static int edbm_select_nth_exec(bContext *C, wmOperator *op)
 {
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	ViewLayer *view_layer = CTX_data_view_layer(C);
 	struct CheckerIntervalParams op_params;
-
 	WM_operator_properties_checker_interval_from_op(op, &op_params);
+	bool found_active_elt = false;
 
-	if (edbm_deselect_nth(em, &op_params) == false) {
-		BKE_report(op->reports, RPT_ERROR, "Mesh has no active vert/edge/face");
+	uint objects_len = 0;
+	Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(view_layer, &objects_len);
+
+	for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+		Object *obedit = objects[ob_index];
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+		if ((em->bm->totvertsel == 0) &&
+		    (em->bm->totedgesel == 0) &&
+		    (em->bm->totfacesel == 0))
+		{
+			continue;
+		}
+
+		if (edbm_deselect_nth(em, &op_params) == true) {
+			found_active_elt = true;
+			EDBM_update_generic(em, false, false);
+		}
+	}
+	MEM_SAFE_FREE(objects);
+
+	if (!found_active_elt) {
+		BKE_report(op->reports, RPT_ERROR,
+		           (objects_len == 1 ?
+		            "Mesh has no active vert/edge/face" :
+		            "Meshes have no active vert/edge/face"));
 		return OPERATOR_CANCELLED;
 	}
-
-	EDBM_update_generic(em, false, false);
 
 	return OPERATOR_FINISHED;
 }

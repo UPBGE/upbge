@@ -1312,8 +1312,6 @@ void PE_update_object(Depsgraph *depsgraph, Scene *scene, Object *ob, int usefla
 
 	if (edit->psys)
 		edit->psys->flag &= ~PSYS_HAIR_UPDATED;
-
-	DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 }
 
 /************************************************/
@@ -4004,6 +4002,7 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 
 		if (edit->psys) {
 			WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE|NA_EDITED, ob);
+			BKE_particle_batch_cache_dirty(edit->psys, BKE_MESH_BATCH_DIRTY_ALL);
 		}
 		else {
 			DEG_id_tag_update(&ob->id, OB_RECALC_DATA);

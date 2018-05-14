@@ -98,7 +98,7 @@ static void button2d_geom_draw_backdrop(
 }
 
 static void button2d_draw_intern(
-        const bContext *UNUSED(C), wmManipulator *mpr,
+        const bContext *C, wmManipulator *mpr,
         const bool select, const bool highlight)
 {
 	ButtonManipulator2D *button = (ButtonManipulator2D *)mpr;
@@ -127,12 +127,28 @@ static void button2d_draw_intern(
 	manipulator_color_get(mpr, highlight, color);
 	WM_manipulator_calc_matrix_final(mpr, matrix_final);
 
+	bool need_to_pop = true;
 	gpuPushMatrix();
 	gpuMultMatrix(matrix_final);
 
-	glEnable(GL_BLEND);
+	bool is_3d = (mpr->parent_mgroup->type->flag & WM_MANIPULATORGROUPTYPE_3D) != 0;
+	if (is_3d) {
+		RegionView3D *rv3d = CTX_wm_region_view3d(C);
+		float matrix_align[4][4];
+		float matrix_final_unit[4][4];
+		normalize_m4_m4(matrix_final_unit, matrix_final);
+		mul_m4_m4m4(matrix_align, rv3d->viewmat, matrix_final_unit);
+		zero_v3(matrix_align[3]);
+		transpose_m4(matrix_align);
+		gpuMultMatrix(matrix_align);
+	}
 
-	if (select == false) {
+	if (select) {
+		BLI_assert(is_3d);
+		button2d_geom_draw_backdrop(mpr, color, select);
+	}
+	else {
+		glEnable(GL_BLEND);
 		if (button->shape_batch[0] != NULL) {
 			glEnable(GL_LINE_SMOOTH);
 			glLineWidth(1.0f);
@@ -147,21 +163,31 @@ static void button2d_draw_intern(
 				GWN_batch_draw(button->shape_batch[i]);
 			}
 			glDisable(GL_LINE_SMOOTH);
-			gpuPopMatrix();
 		}
 		else if (button->icon != ICON_NONE) {
 			button2d_geom_draw_backdrop(mpr, color, select);
-			gpuPopMatrix();
-			UI_icon_draw(
-			        mpr->matrix_basis[3][0] - (ICON_DEFAULT_WIDTH / 2.0) * UI_DPI_FAC,
-			        mpr->matrix_basis[3][1] - (ICON_DEFAULT_HEIGHT / 2.0) * UI_DPI_FAC,
-			        button->icon);
+			float size[2];
+			if (is_3d) {
+				const float fac = 2.0f;
+				gpuTranslate2f(-(fac / 2), -(fac / 2));
+				gpuScale2f(fac / (ICON_DEFAULT_WIDTH *  UI_DPI_FAC), fac / (ICON_DEFAULT_HEIGHT * UI_DPI_FAC));
+				size[0] = 1.0f;
+				size[1] = 1.0f;
+			}
+			else {
+				size[0] = mpr->matrix_basis[3][0] - (ICON_DEFAULT_WIDTH / 2.0) * UI_DPI_FAC;
+				size[1] = mpr->matrix_basis[3][1] - (ICON_DEFAULT_HEIGHT / 2.0) * UI_DPI_FAC;
+				gpuPopMatrix();
+				need_to_pop = false;
+			}
+			UI_icon_draw(size[0], size[1], button->icon);
 		}
-		else {
-			gpuPopMatrix();
-		}
+		glDisable(GL_BLEND);
 	}
-	glDisable(GL_BLEND);
+
+	if (need_to_pop) {
+		gpuPopMatrix();
+	}
 }
 
 static void manipulator_button2d_draw_select(const bContext *C, wmManipulator *mpr, int select_id)
