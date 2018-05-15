@@ -57,6 +57,7 @@ public:
 	void Resize(int num);
 	void ReleaseAndRemoveAll();
 	int GetCount() const;
+	bool Empty() const;
 
 #ifdef WITH_PYTHON
 

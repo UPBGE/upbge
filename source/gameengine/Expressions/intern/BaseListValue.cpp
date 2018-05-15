@@ -155,6 +155,11 @@ int EXP_BaseListValue::GetCount() const
 	return m_valueArray.size();
 }
 
+bool EXP_BaseListValue::Empty() const
+{
+	return m_valueArray.empty();
+}
+
 #ifdef WITH_PYTHON
 
 /* --------------------------------------------------------------------- */

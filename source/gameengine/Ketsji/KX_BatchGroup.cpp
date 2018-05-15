@@ -133,7 +133,7 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 	KX_BatchGroup *batchGroup = new KX_BatchGroup();
 	batchGroup->MergeObjects(objects);
-	if (batchGroup->GetObjects()->GetCount() == 0) {
+	if (batchGroup->GetObjects()->Empty()) {
 		PyErr_SetString(PyExc_SystemError, "KX_BatchGroup(objects): none objects were merged.");
 		delete batchGroup;
 		return nullptr;

@@ -457,7 +457,7 @@ public:
 	/**
 	 * Sets the time scale multiplier
 	 */
-	void SetTimeScale(double scale);
+	void SetTimeScale(double timeScale);
 
 	void SetExitKey(short key);
 
